@@ -1,10 +1,8 @@
-package initialize
+package handler
 
 import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-
-	"FluentRead/handler"
 )
 
 func NewRouter() *gin.Engine {
@@ -17,9 +15,8 @@ func NewRouter() *gin.Engine {
 	engine.StaticFile("/", "./static")
 
 	// 绑定路由
-	engine.POST("/read", handler.ReadHandler)
-	engine.POST("/preread", handler.PreReadHandler)
-	engine.POST("/parse", handler.ParseHandler)
+	engine.POST("/read", ReadHandler)
+	engine.POST("/preread", PreReadHandler)
 
 	return engine
 }

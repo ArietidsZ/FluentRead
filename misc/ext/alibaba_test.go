@@ -1,6 +1,7 @@
 package ext
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"testing"
@@ -9,6 +10,10 @@ import (
 
 	"FluentRead/models"
 	"FluentRead/repo/db"
+)
+
+var (
+	ctx = context.Background()
 )
 
 // 翻译 db 中的数据
