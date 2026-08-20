@@ -299,7 +299,29 @@
             <button v-if="config.selectionTranslatorTrigger === 'custom'" class="secondary-action" type="button" @click="showCustomSelectionHotkeyDialog = true">
               {{ config.customSelectionTranslatorHotkey ? `当前：${config.customSelectionTranslatorHotkey}` : '录制自定义快捷键' }}
             </button>
-            <small class="drawer-hint">快捷键与图标、小点是并列的触发方式；选择快捷键后，选区旁不会再显示图标或小点。</small>
+            <small class="drawer-hint">快捷键与图标、小点是并列的触发方式；选择快捷键后，选区旁不会再显示图标或小点。选中单个英文单词时会自动显示音标、发音、词性、释义和例句。</small>
+          </div>
+          <div class="choice-block">
+            <label>语音回退顺序</label>
+            <el-select
+              v-model="config.selectionTtsVoices"
+              class="selection-tts-voice-select"
+              multiple
+              filterable
+              collapse-tags
+              collapse-tags-tooltip
+              aria-label="划词翻译语音回退顺序"
+              placeholder="自动按语言选择"
+              no-data-text="没有可用音色"
+            >
+              <el-option
+                v-for="item in selectionTtsVoiceOptions"
+                :key="item.value"
+                :label="`${item.label} · ${item.locale}`"
+                :value="item.value"
+              />
+            </el-select>
+            <small class="drawer-hint">留空时按当前语言自动尝试多个免费 Edge 音色；选中多个后按此顺序回退，不需要 API Key。</small>
           </div>
         </div>
 
@@ -417,6 +439,7 @@ import { Config, VIDEO_SUBTITLE_FONT_SIZE_OPTIONS } from '@/entrypoints/utils/mo
 import { options, resolveConfiguredModel, servicesType } from '@/entrypoints/utils/option';
 import { getMissingCredentialMessage } from '@/entrypoints/utils/configValidation';
 import { getSelectedModelLabel } from '@/entrypoints/utils/serviceCatalog';
+import { SELECTION_TTS_VOICE_OPTIONS } from '@/entrypoints/utils/selectionTtsConfig';
 import ServiceIcon from '@/components/ServiceIcon.vue';
 
 type DrawerName = 'hover' | 'selection' | 'floating' | 'appearance' | 'image' | 'video';
@@ -516,6 +539,7 @@ const selectionModes = [
   { value: 'translation-only', label: '仅译文' },
 ];
 const selectionTriggers = options.selectionTranslatorTriggers;
+const selectionTtsVoiceOptions = SELECTION_TTS_VOICE_OPTIONS;
 
 function applyTheme(theme: string) {
   document.documentElement.classList.toggle('dark', theme === 'dark' || (theme === 'auto' && darkMode.matches));

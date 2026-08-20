@@ -218,6 +218,72 @@ async function readSelectionUi(page) {
   });
 }
 
+async function startSelectionUiTracking(page) {
+  await page.evaluate(() => {
+    const host = document.querySelector('#fluent-read-selection-translator-container');
+    const root = host?.shadowRoot;
+    if (!root) throw new Error('找不到划词翻译 Shadow Root');
+    window.__fluentReadSelectionUiObserver?.disconnect();
+    const readState = () => ({
+      at: performance.now(),
+      tooltip: Boolean(root.querySelector('.fr-translation-tooltip')),
+      indicator: Boolean(root.querySelector('.fr-selection-indicator')),
+    });
+    window.__fluentReadSelectionUiTransitions = [readState()];
+    const observer = new MutationObserver(() => {
+      const next = readState();
+      const previous = window.__fluentReadSelectionUiTransitions.at(-1);
+      if (!previous || previous.tooltip !== next.tooltip || previous.indicator !== next.indicator) {
+        window.__fluentReadSelectionUiTransitions.push(next);
+      }
+    });
+    observer.observe(root, { childList: true, subtree: true });
+    window.__fluentReadSelectionUiObserver = observer;
+  });
+}
+
+async function stopSelectionUiTracking(page) {
+  return page.evaluate(() => {
+    window.__fluentReadSelectionUiObserver?.disconnect();
+    window.__fluentReadSelectionUiObserver = undefined;
+    return window.__fluentReadSelectionUiTransitions || [];
+  });
+}
+
+async function exerciseTransientSelectionLoss(page, restoreDelayMs = 80) {
+  await startSelectionUiTracking(page);
+  await page.evaluate(async (delayMs) => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) throw new Error('瞬时选区测试缺少活动选区');
+    const ranges = Array.from({ length: selection.rangeCount }, (_, index) => selection.getRangeAt(index).cloneRange());
+    selection.removeAllRanges();
+    document.dispatchEvent(new Event('selectionchange'));
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+    for (const range of ranges) selection.addRange(range);
+    document.dispatchEvent(new Event('selectionchange'));
+  }, restoreDelayMs);
+  await page.waitForTimeout(350);
+  const transitions = await stopSelectionUiTracking(page);
+  assert(transitions.length > 0 && transitions.every(item => item.tooltip), `瞬时选区变化导致翻译框闪退：${JSON.stringify(transitions)}`);
+  return transitions;
+}
+
+async function clearPageSelection(page) {
+  await page.evaluate(() => {
+    window.getSelection()?.removeAllRanges();
+    document.dispatchEvent(new Event('selectionchange'));
+  });
+}
+
+async function waitForHoverTranslation(page) {
+  await page.waitForFunction(() => document.querySelectorAll('#target .fluent-read-bilingual-content').length === 1, undefined, { timeout: 10000 });
+  return page.evaluate(() => ({
+    count: document.querySelectorAll('#target .fluent-read-bilingual-content').length,
+    text: document.querySelector('#target .fluent-read-bilingual-content')?.textContent?.trim() || '',
+    selectionTooltip: Boolean(document.querySelector('#fluent-read-selection-translator-container')?.shadowRoot?.querySelector('.fr-translation-tooltip')),
+  }));
+}
+
 async function waitForSelectionUi(page, expected, description) {
   await page.waitForFunction((expectedState) => {
     const host = document.querySelector('#fluent-read-selection-translator-container');
@@ -279,6 +345,7 @@ async function main() {
     screenshots: [],
     consoleErrors: [],
   };
+  let translationRequestCount = 0;
 
   try {
     context = await chromium.launchPersistentContext(profileDir, {
@@ -304,6 +371,7 @@ async function main() {
       });
     });
     await context.route('https://edge.microsoft.com/translate/translatetext**', async (route) => {
+      translationRequestCount += 1;
       let source = '';
       try {
         const body = route.request().postDataJSON();
@@ -417,6 +485,61 @@ async function main() {
       result.cases.push({ id: `shortcut.${label}`, status: 'passed', popupState, beforeShortcut, afterShortcut });
     }
 
+    // 冲突优先级与稳定性：Ctrl 同时配置为划词和鼠标悬浮快捷键时，
+    // 有有效选区必须只打开划词框；没有选区时仍回退到悬浮翻译。
+    await closeSelectionUi(page);
+    const conflictPopupState = await setSelectionTrigger(popup, drawer, worker, 'Ctrl');
+    await patchStoredConfig(worker, { hotkey: 'Control', customHotkey: '', floatingBallHotkey: 'Control' });
+    await page.waitForTimeout(700);
+    await resetFixture(page);
+    const conflictSelection = await selectTarget(page);
+    await startSelectionUiTracking(page);
+    await triggerShortcut(page, 'Ctrl');
+    await waitForSelectionUi(page, { tooltip: true, indicator: false, translation: true }, '快捷键冲突时优先打开划词翻译');
+    const conflictUi = await readSelectionUi(page);
+    const conflictHoverCount = await page.locator('#target .fluent-read-bilingual-content').count();
+    assert(conflictHoverCount === 0, `快捷键冲突时同时触发了鼠标悬浮翻译：${conflictHoverCount}`);
+    const conflictPageTranslationCount = await page.locator('.fluent-read-bilingual-content').count();
+    assert(conflictPageTranslationCount === 0, `快捷键冲突时同时触发了全文翻译：${conflictPageTranslationCount}`);
+    const requestsAfterOpen = translationRequestCount;
+    const configBeforeRefresh = await readStoredConfig(worker);
+    await patchStoredConfig(worker, { contextMenuEnabled: configBeforeRefresh.contextMenuEnabled === false });
+    await page.waitForTimeout(700);
+    const configRefreshTransitions = await stopSelectionUiTracking(page);
+    const firstVisibleTransition = configRefreshTransitions.findIndex(item => item.tooltip);
+    assert(firstVisibleTransition >= 0 && configRefreshTransitions.slice(firstVisibleTransition).every(item => item.tooltip), `无关配置刷新关闭了划词翻译框：${JSON.stringify(configRefreshTransitions)}`);
+    assert(translationRequestCount === requestsAfterOpen, `无关配置刷新重复发起翻译：${requestsAfterOpen} -> ${translationRequestCount}`);
+    const stableTransitions = await exerciseTransientSelectionLoss(page);
+    const stableUi = await readSelectionUi(page);
+    assert(stableUi.tooltip && stableUi.selectionText === conflictSelection.text, '瞬时选区变化后划词翻译框或原选区丢失');
+    await clearPageSelection(page);
+    await page.waitForTimeout(350);
+    const clearedUi = await readSelectionUi(page);
+    assert(!clearedUi.tooltip && !clearedUi.indicator, '选区永久清除后划词翻译框仍未关闭');
+    result.cases.push({
+      id: 'conflict.selection-priority-and-stability',
+      status: 'passed',
+      popupState: conflictPopupState,
+      selection: conflictSelection,
+      beforeTransientLoss: conflictUi,
+      configRefreshTransitions,
+      requestsAfterOpen,
+      transitions: stableTransitions,
+      afterClear: clearedUi,
+    });
+
+    await closeSelectionUi(page);
+    await resetFixture(page);
+    await clearPageSelection(page);
+    const hoverTarget = page.locator('#target');
+    const hoverBox = await hoverTarget.boundingBox();
+    assert(hoverBox, '无选区冲突测试缺少悬浮目标几何位置');
+    await page.mouse.move(hoverBox.x + Math.min(80, hoverBox.width / 2), hoverBox.y + hoverBox.height / 2);
+    await page.keyboard.press('Control');
+    const hoverFallback = await waitForHoverTranslation(page);
+    assert(!hoverFallback.selectionTooltip && hoverFallback.count === 1, `无选区时没有回退到鼠标悬浮翻译：${JSON.stringify(hoverFallback)}`);
+    result.cases.push({ id: 'conflict.hover-fallback-without-selection', status: 'passed', ui: hoverFallback });
+
     await closeSelectionUi(page);
     const customPopupState = await setSelectionTrigger(popup, drawer, worker, '自定义');
     await resetFixture(page);
@@ -432,6 +555,37 @@ async function main() {
     await page.screenshot({ path: customScreenshot });
     result.screenshots.push(customScreenshot);
     result.cases.push({ id: 'shortcut.custom', status: 'passed', popupState: customPopupState, beforeShortcut: beforeCustom, afterShortcut: afterCustom });
+
+    for (const conflictCase of [
+      { label: 'Alt / Option', hoverHotkey: 'Alt', customHotkey: '' },
+      { label: 'Shift', hoverHotkey: 'Shift', customHotkey: '' },
+      { label: '自定义', hoverHotkey: 'custom', customHotkey: 'F9' },
+    ]) {
+      await closeSelectionUi(page);
+      const popupState = await setSelectionTrigger(popup, drawer, worker, conflictCase.label);
+      await patchStoredConfig(worker, { hotkey: conflictCase.hoverHotkey, customHotkey: conflictCase.customHotkey });
+      await page.waitForTimeout(700);
+      await resetFixture(page);
+      await selectTarget(page);
+      await triggerShortcut(page, conflictCase.label);
+      await waitForSelectionUi(page, { tooltip: true, indicator: false, translation: true }, `${conflictCase.label} 冲突时优先划词翻译`);
+      const priorityUi = await readSelectionUi(page);
+      const hoverCount = await page.locator('#target .fluent-read-bilingual-content').count();
+      assert(hoverCount === 0, `${conflictCase.label} 冲突时同时触发悬浮翻译：${hoverCount}`);
+      result.cases.push({ id: `conflict.${conflictCase.label}.selection-priority`, status: 'passed', popupState, ui: priorityUi });
+
+      await closeSelectionUi(page);
+      await resetFixture(page);
+      await clearPageSelection(page);
+      const target = page.locator('#target');
+      const box = await target.boundingBox();
+      assert(box, `${conflictCase.label} 无选区测试缺少目标几何位置`);
+      await page.mouse.move(box.x + Math.min(80, box.width / 2), box.y + box.height / 2);
+      await triggerShortcut(page, conflictCase.label);
+      const hoverUi = await waitForHoverTranslation(page);
+      assert(!hoverUi.selectionTooltip && hoverUi.count === 1, `${conflictCase.label} 无选区时未回退悬浮翻译：${JSON.stringify(hoverUi)}`);
+      result.cases.push({ id: `conflict.${conflictCase.label}.hover-fallback`, status: 'passed', ui: hoverUi });
+    }
 
     result.finalConfig = await readStoredConfig(worker);
     result.ok = result.cases.every(item => item.status === 'passed') && result.consoleErrors.length === 0;

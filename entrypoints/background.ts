@@ -13,11 +13,19 @@ import {CONNECTION_TEST_MESSAGE, CONTEXT_MENU_IDS, getMimoEndpoint, MINIMAX_ENDP
 import {getMissingCredentialMessage} from "@/entrypoints/utils/configValidation";
 import {resolveConfiguredModel, services, servicesType} from "@/entrypoints/utils/option";
 import {synthesizeEdgeTts} from "@/entrypoints/utils/edgeTts";
+import {lookupWord, type WordCardData} from "@/entrypoints/utils/wordDictionary";
 import {
     buildTranslationCacheKey,
     translationCache,
 } from "@/entrypoints/utils/translationCache";
-import { downloadImageOcrLanguagesWithOffscreen, recognizeImageWithOffscreen, translateAreaWithOffscreen, translateImageWithOffscreen } from "@/entrypoints/service/chrome-translator";
+import {
+    downloadImageOcrLanguagesWithOffscreen,
+    playSelectionTtsWithOffscreen,
+    recognizeImageWithOffscreen,
+    stopSelectionTtsWithOffscreen,
+    translateAreaWithOffscreen,
+    translateImageWithOffscreen,
+} from "@/entrypoints/service/chrome-translator";
 import { imageBufferToDataUrl, MAX_REMOTE_IMAGE_BYTES, normalizeRemoteImageUrl } from "@/entrypoints/utils/imageFetch";
 import {
     formatConnectionTestError,
@@ -32,6 +40,7 @@ import {
     normalizeImageOcrLanguageCodes,
     type ImageOcrLanguageCode,
 } from "@/entrypoints/utils/imageOcrLanguages";
+import {getTranslationLanguages, type TranslationLanguageOverride} from "@/entrypoints/utils/translationLanguage";
 
 // 翻译状态管理
 let translationStateMap = new Map<number, boolean>(); // tabId -> isTranslated
@@ -61,6 +70,9 @@ interface TranslationRequestMessageBase {
     useCache?: boolean;
     /** 视频字幕使用的独立翻译服务；普通网页请求不设置。 */
     serviceOverride?: string;
+    /** 翻译中心仅对当前请求使用的语言，不改变全局设置。 */
+    sourceLanguage?: string;
+    targetLanguage?: string;
 }
 
 type TranslationSingleRequestMessage = TranslationRequestMessageBase & { origin: string };
@@ -105,6 +117,40 @@ type CacheRequestMode = 'single' | 'batch';
 const TRANSLATION_CACHE_CLEANUP_ALARM = 'fluentread-translation-cache-cleanup';
 let configPersistQueue: Promise<void> = Promise.resolve();
 const latestConfigSequenceByClient = new Map<string, number>();
+
+interface ActiveSelectionTts {
+    tabId: number;
+    requestId: number;
+}
+
+let activeSelectionTts: ActiveSelectionTts | null = null;
+
+async function stopActiveSelectionTts(): Promise<void> {
+    const active = activeSelectionTts;
+    activeSelectionTts = null;
+    if (!active) return;
+    await stopSelectionTtsWithOffscreen(active.requestId).catch(() => undefined);
+}
+
+function googleSelectionTtsUrl(text: string, language: string): string {
+    return `https://translate.google.com/translate_tts?ie=UTF-8&tl=${encodeURIComponent(language)}&client=tw-ob&q=${encodeURIComponent(text)}`;
+}
+
+async function forwardSelectionTtsState(message: any): Promise<void> {
+    const tabId = Number.isInteger(message.tabId) ? message.tabId : null;
+    const requestId = Number.isInteger(message.requestId) ? message.requestId : null;
+    if (tabId === null || requestId === null) return;
+    const active = activeSelectionTts;
+    if (active && active.tabId === tabId && active.requestId === requestId) {
+        activeSelectionTts = null;
+    }
+    await browser.tabs.sendMessage(tabId, {
+        type: 'selectionTtsState',
+        requestId,
+        state: message.state,
+        error: typeof message.error === 'string' ? message.error : undefined,
+    }).catch(() => undefined);
+}
 
 async function fetchImageForOcr(source: string): Promise<string> {
     const url = normalizeRemoteImageUrl(source);
@@ -153,14 +199,16 @@ function buildCacheKey(
     pageContext: string,
     mode: CacheRequestMode,
     serviceOverride?: string,
+    languageOverride?: TranslationLanguageOverride,
 ): string {
     const service = serviceOverride || config.service;
+    const {sourceLanguage, targetLanguage} = getTranslationLanguages(languageOverride);
 
     return buildTranslationCacheKey({
         requestMode: mode,
         sourceText: origin,
-        sourceLanguage: config.from,
-        targetLanguage: config.to,
+        sourceLanguage,
+        targetLanguage,
         service,
         model: getSelectedModel(service),
         endpoint: getProviderEndpoint(service),
@@ -302,7 +350,7 @@ async function translateSingleWithCache(
         return getTranslationService(service)({...message, context, pageContext});
     }
 
-    const key = buildCacheKey(message.origin, context, pageContext, 'single', service);
+    const key = buildCacheKey(message.origin, context, pageContext, 'single', service, message);
     const existing = pendingTranslations.get(key);
     if (existing) return existing;
 
@@ -342,13 +390,13 @@ async function translateBatchWithCache(
         return result as string[];
     }
 
-    const batchKey = buildCacheKey(message.origin, context, pageContext, 'batch', service);
+    const batchKey = buildCacheKey(message.origin, context, pageContext, 'batch', service, message);
     const existing = pendingBatches.get(batchKey);
     if (existing) return existing;
 
     const request = (async () => {
         const cached = await Promise.all(
-            message.origin.map((origin) => translationCache.get(buildCacheKey(origin, context, pageContext, 'batch', service))),
+            message.origin.map((origin) => translationCache.get(buildCacheKey(origin, context, pageContext, 'batch', service, message))),
         );
         const missingIndexes = cached
             .map((value, index) => value === null ? index : -1)
@@ -365,7 +413,7 @@ async function translateBatchWithCache(
         const uniqueMissingOrigins = Array.from(
             new Map(
                 missingEntries.map(({origin}) => [
-                    buildCacheKey(origin, context, pageContext, 'batch', service),
+                    buildCacheKey(origin, context, pageContext, 'batch', service, message),
                     origin,
                 ]),
             ).values(),
@@ -383,15 +431,15 @@ async function translateBatchWithCache(
         const result = [...cached] as Array<string | null>;
         const translatedByKey = new Map(
             uniqueMissingOrigins.map((origin, index) => [
-                buildCacheKey(origin, context, pageContext, 'batch', service),
+                buildCacheKey(origin, context, pageContext, 'batch', service, message),
                 translated[index],
             ]),
         );
         await Promise.all(missingEntries.map(async ({index, origin}) => {
-            const value = translatedByKey.get(buildCacheKey(origin, context, pageContext, 'batch', service));
+            const value = translatedByKey.get(buildCacheKey(origin, context, pageContext, 'batch', service, message));
             result[index] = value as string;
             if (isCacheableResult(origin, value)) {
-                await translationCache.set(buildCacheKey(origin, context, pageContext, 'batch', service), value);
+                await translationCache.set(buildCacheKey(origin, context, pageContext, 'batch', service, message), value);
             }
         }));
 
@@ -428,6 +476,61 @@ async function translateWithCache(message: TranslationRequestMessage): Promise<s
         return translateBatchWithCache(message as TranslationBatchRequestMessage, context, pageContext, useCache);
     }
     return translateSingleWithCache(message as TranslationSingleRequestMessage, context, pageContext, useCache);
+}
+
+interface WordDefinitionTranslationSlot {
+    meaningIndex: number;
+    definitionIndex: number;
+    field: 'translatedDefinition' | 'translatedExample';
+    original: string;
+}
+
+function cloneWordCard(card: WordCardData): WordCardData {
+    return {
+        ...card,
+        phonetics: card.phonetics.map(pronunciation => ({...pronunciation})),
+        meanings: card.meanings.map(meaning => ({
+            ...meaning,
+            definitions: meaning.definitions.map(definition => ({...definition})),
+        })),
+        sources: card.sources.map(source => ({...source})),
+    };
+}
+
+/** Translate only the visible dictionary fields; no page context is sent for this learning card. */
+async function translateWordCard(card: WordCardData): Promise<WordCardData> {
+    const slots: WordDefinitionTranslationSlot[] = [];
+    for (const [meaningIndex, meaning] of card.meanings.slice(0, 4).entries()) {
+        for (const [definitionIndex, definition] of meaning.definitions.slice(0, 4).entries()) {
+            if (definition.definition) slots.push({meaningIndex, definitionIndex, field: 'translatedDefinition', original: definition.definition});
+            if (definition.example) slots.push({meaningIndex, definitionIndex, field: 'translatedExample', original: definition.example});
+        }
+    }
+    if (slots.length === 0) return card;
+
+    const uniqueOrigins = [...new Set(slots.map(slot => slot.original))];
+    try {
+        const translated = await translateWithCache({
+            origin: uniqueOrigins,
+            context: '',
+            pageContext: '',
+            useCache: true,
+        });
+        if (!Array.isArray(translated) || translated.length !== uniqueOrigins.length) return card;
+
+        const translatedByOrigin = new Map(uniqueOrigins.map((origin, index) => [origin, translated[index]]));
+        const result = cloneWordCard(card);
+        for (const slot of slots) {
+            const value = translatedByOrigin.get(slot.original);
+            if (typeof value !== 'string' || !value.trim() || value.trim() === slot.original) continue;
+            const definition = result.meanings[slot.meaningIndex]?.definitions[slot.definitionIndex];
+            if (definition) definition[slot.field] = value.trim();
+        }
+        return result;
+    } catch (error) {
+        console.warn('[FluentRead] word definition translation unavailable; keeping dictionary text', error);
+        return card;
+    }
 }
 
 function setupTranslationCacheCleanup(): void {
@@ -637,14 +740,89 @@ export default defineBackground({
                         return;
                     }
 
+                    if (message.type === 'selectionTtsPlaybackState') {
+                        await forwardSelectionTtsState(message);
+                        resolve({ success: true });
+                        return;
+                    }
+
+                    if (message.type === 'selectionTtsStop') {
+                        const requestId = Number.isSafeInteger(message.requestId) ? message.requestId : undefined;
+                        if (activeSelectionTts && (requestId === undefined || activeSelectionTts.requestId === requestId)) {
+                            await stopActiveSelectionTts();
+                        }
+                        resolve({ success: true });
+                        return;
+                    }
+
                     if (message.type === 'selectionTts') {
-                        const result = await synthesizeEdgeTts(message.text, message.language);
+                        const tabId = Number.isInteger(sender?.tab?.id) ? sender.tab.id : null;
+                        const requestId = Number.isSafeInteger(message.requestId) ? message.requestId : Date.now();
+                        await stopActiveSelectionTts();
+                        const result = await synthesizeEdgeTts(message.text, message.language, config.selectionTtsVoices);
+
+                        if (tabId !== null) {
+                            activeSelectionTts = { tabId, requestId };
+                            try {
+                                await playSelectionTtsWithOffscreen({
+                                    audioBase64: arrayBufferToBase64(result.audio),
+                                    contentType: result.contentType,
+                                    tabId,
+                                    requestId,
+                                });
+                                resolve({ success: true, transport: 'offscreen', voice: result.voice });
+                                return;
+                            } catch (offscreenError) {
+                                if (activeSelectionTts?.tabId === tabId && activeSelectionTts.requestId === requestId) {
+                                    activeSelectionTts = null;
+                                }
+                                console.warn('Offscreen TTS playback unavailable, returning page audio:', offscreenError);
+                            }
+                        }
                         resolve({
                             success: true,
                             audioBase64: arrayBufferToBase64(result.audio),
                             contentType: result.contentType,
                             voice: result.voice,
+                            transport: 'page',
                         });
+                        return;
+                    }
+
+                    if (message.type === 'selectionTtsGoogle') {
+                        const tabId = Number.isInteger(sender?.tab?.id) ? sender.tab.id : null;
+                        const requestId = Number.isSafeInteger(message.requestId) ? message.requestId : Date.now();
+                        const text = typeof message.text === 'string' ? message.text.trim() : '';
+                        const language = typeof message.language === 'string' ? message.language : 'en-US';
+                        if (!text) throw new Error('TTS 文本为空');
+
+                        await stopActiveSelectionTts();
+                        if (tabId === null) {
+                            resolve({ success: false, error: '无法确定当前标签页' });
+                            return;
+                        }
+
+                        activeSelectionTts = { tabId, requestId };
+                        try {
+                            await playSelectionTtsWithOffscreen({
+                                sourceUrl: googleSelectionTtsUrl(text, language),
+                                tabId,
+                                requestId,
+                            });
+                            resolve({ success: true, transport: 'offscreen' });
+                        } catch (offscreenError) {
+                            if (activeSelectionTts?.tabId === tabId && activeSelectionTts.requestId === requestId) {
+                                activeSelectionTts = null;
+                            }
+                            resolve({ success: false, error: offscreenError instanceof Error ? offscreenError.message : String(offscreenError) });
+                        }
+                        return;
+                    }
+
+                    if (message.type === 'selectionWordLookup') {
+                        const word = typeof message.word === 'string' ? message.word : '';
+                        const result = await lookupWord(word);
+                        resolve({ success: true, data: result ? await translateWordCard(result) : result });
                         return;
                     }
 

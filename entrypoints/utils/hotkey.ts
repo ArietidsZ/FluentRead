@@ -296,6 +296,20 @@ export function matchesConfiguredHotkey(event: KeyboardEvent, configuredHotkey: 
 }
 
 /**
+ * Claim a configured shortcut only after the inexpensive key match succeeds.
+ * The lazy candidate check may read selection geometry and detect language, so
+ * unrelated keyboard input must never evaluate it.
+ */
+export function shouldClaimConfiguredHotkey(
+  event: KeyboardEvent,
+  configuredHotkey: string | undefined,
+  customHotkey: string,
+  hasCandidate: () => boolean,
+): boolean {
+  return matchesConfiguredHotkey(event, configuredHotkey, customHotkey) && hasCandidate();
+}
+
+/**
  * 验证快捷键是否与系统快捷键冲突
  * @param parsedHotkey 解析后的快捷键
  * @returns 冲突信息

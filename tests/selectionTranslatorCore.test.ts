@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
     calculateSelectionPopupPosition,
     chooseSelectionRect,
@@ -6,9 +6,11 @@ import {
     isSelectionExcludedTagName,
     normalizeSelectionText,
     normalizeSpeechLanguage,
+    reconcileSelectionPresentation,
 } from '@/entrypoints/utils/selectionTranslatorCore';
-import { buildEdgeTtsSsml, edgeTtsVoiceForLanguage } from '@/entrypoints/utils/edgeTts';
-import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey } from '@/entrypoints/utils/hotkey';
+import { buildEdgeTtsSsml, edgeTtsVoiceCandidatesForLanguage, edgeTtsVoiceForLanguage, synthesizeEdgeTts } from '@/entrypoints/utils/edgeTts';
+import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey, shouldClaimConfiguredHotkey } from '@/entrypoints/utils/hotkey';
+import { normalizeSelectionTtsVoiceOrder } from '@/entrypoints/utils/selectionTtsConfig';
 
 describe('selection translator core geometry', () => {
     const rects = [
@@ -35,6 +37,23 @@ describe('selection translator core geometry', () => {
             top: 52,
             placement: 'bottom',
         });
+    });
+});
+
+describe('selection translator presentation stability', () => {
+    it('preserves an explicitly opened tooltip across unrelated config refreshes', () => {
+        const openTooltip = {showIndicator: false, showTooltip: true};
+        expect(reconcileSelectionPresentation(openTooltip, 'shortcut', false)).toBe(openTooltip);
+        expect(reconcileSelectionPresentation(openTooltip, 'icon', false)).toBe(openTooltip);
+        expect(reconcileSelectionPresentation(openTooltip, 'dot', false)).toBe(openTooltip);
+    });
+
+    it('updates presentation only when the configured trigger actually changes', () => {
+        const openTooltip = {showIndicator: false, showTooltip: true};
+        expect(reconcileSelectionPresentation(openTooltip, 'direct', true)).toEqual({showIndicator: false, showTooltip: true});
+        expect(reconcileSelectionPresentation(openTooltip, 'icon', true)).toEqual({showIndicator: true, showTooltip: false});
+        expect(reconcileSelectionPresentation(openTooltip, 'dot', true)).toEqual({showIndicator: true, showTooltip: false});
+        expect(reconcileSelectionPresentation(openTooltip, 'shortcut', true)).toEqual({showIndicator: false, showTooltip: false});
     });
 });
 
@@ -72,6 +91,45 @@ describe('selection translator text and speech language normalization', () => {
         expect(edgeTtsVoiceForLanguage('zh-Hans')).toBe('zh-CN-XiaoxiaoMultilingualNeural');
     });
 
+    it('keeps valid configured voices first and falls back through the same language', () => {
+        expect(normalizeSelectionTtsVoiceOrder([
+            'en-US-JennyNeural',
+            'not-a-voice',
+            'en-US-JennyNeural',
+            'zh-CN-XiaoyiNeural',
+        ])).toEqual(['en-US-JennyNeural', 'zh-CN-XiaoyiNeural']);
+        expect(edgeTtsVoiceCandidatesForLanguage('en-US', [
+            'en-GB-SoniaNeural',
+            'en-US-JennyNeural',
+            'zh-CN-XiaoyiNeural',
+        ])).toEqual([
+            'en-US-JennyNeural',
+            'en-US-AvaMultilingualNeural',
+            'en-US-AriaNeural',
+            'en-US-GuyNeural',
+        ]);
+    });
+
+    it('continues to the next voice when Edge TTS rejects the first synthesis', async () => {
+        const originalFetch = globalThis.fetch;
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ t: 'test-token', r: 'eastus' }) })
+            .mockResolvedValueOnce({ ok: false, status: 503 })
+            .mockResolvedValueOnce({ ok: true, arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer });
+        vi.stubGlobal('fetch', fetchMock);
+
+        try {
+            const result = await synthesizeEdgeTts('hello', 'en-US', ['en-US-JennyNeural', 'en-US-AvaMultilingualNeural']);
+            expect(result.voice).toBe('en-US-AvaMultilingualNeural');
+            expect(fetchMock).toHaveBeenCalledTimes(3);
+            expect(String(fetchMock.mock.calls[1]?.[0])).toContain('.tts.speech.microsoft.com');
+            expect(fetchMock.mock.calls[1]?.[1]?.body).toContain('en-US-JennyNeural');
+            expect(fetchMock.mock.calls[2]?.[1]?.body).toContain('en-US-AvaMultilingualNeural');
+        } finally {
+            vi.stubGlobal('fetch', originalFetch);
+        }
+    });
+
     it('escapes selection text before putting it into SSML', () => {
         const ssml = buildEdgeTtsSsml('A < B & C', 'en-US-AvaMultilingualNeural');
         expect(ssml).toContain('A &lt; B &amp; C');
@@ -105,5 +163,16 @@ describe('selection translator text and speech language normalization', () => {
         expect(matchesConfiguredHotkey(shortcut, 'custom', 'Ctrl+Shift+Y')).toBe(true);
         expect(matchesConfiguredHotkey(extraModifier, 'custom', 'Ctrl+Shift+Y')).toBe(false);
         expect(matchesConfiguredHotkey(shortcut, 'none', 'Ctrl+Shift+Y')).toBe(false);
+    });
+
+    it('does not inspect selection geometry for unrelated keyboard input', () => {
+        const hasCandidate = vi.fn(() => true);
+        const unrelated = {key: 'x', code: 'KeyX', ctrlKey: false, altKey: false, shiftKey: false, metaKey: false} as KeyboardEvent;
+        const control = {key: 'Control', code: 'ControlLeft', ctrlKey: true, altKey: false, shiftKey: false, metaKey: false} as KeyboardEvent;
+
+        expect(shouldClaimConfiguredHotkey(unrelated, 'Control', '', hasCandidate)).toBe(false);
+        expect(hasCandidate).not.toHaveBeenCalled();
+        expect(shouldClaimConfiguredHotkey(control, 'Control', '', hasCandidate)).toBe(true);
+        expect(hasCandidate).toHaveBeenCalledTimes(1);
     });
 });

@@ -23,6 +23,25 @@ export interface PopupPosition {
     placement: 'top' | 'bottom';
 }
 
+export interface SelectionPresentationState {
+    showIndicator: boolean;
+    showTooltip: boolean;
+}
+
+export type SelectionPresentationTrigger = 'direct' | 'icon' | 'dot' | 'shortcut';
+
+/** Preserve an explicitly opened tooltip across unrelated config refreshes. */
+export function reconcileSelectionPresentation(
+    current: SelectionPresentationState,
+    trigger: SelectionPresentationTrigger,
+    triggerChanged: boolean,
+): SelectionPresentationState {
+    if (!triggerChanged) return current;
+    if (trigger === 'direct') return { showIndicator: false, showTooltip: true };
+    if (trigger === 'shortcut') return { showIndicator: false, showTooltip: false };
+    return { showIndicator: true, showTooltip: false };
+}
+
 const languageAliases: Record<string, string> = {
     cmn: 'zh',
     zho: 'zh',
