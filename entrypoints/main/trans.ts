@@ -24,6 +24,7 @@ import {
 import type {TranslationCandidate, TranslationDiscoveryStep} from "@/entrypoints/translation-core/public";
 import { detectlang } from "@/entrypoints/utils/common";
 import { config } from "@/entrypoints/utils/config";
+import type { FullPageTranslationMode } from "@/entrypoints/utils/model";
 import { translateText, translateTextBatch } from "@/entrypoints/utils/translateApi";
 import {
     cancelTranslationQueueSession,
@@ -97,6 +98,7 @@ interface LiveTextTranslationResult {
 
 interface FullPageSession {
     active: boolean;
+    translationMode: FullPageTranslationMode;
     observer: IntersectionObserver;
     mutationObserver: MutationObserver;
     shadowEventController: AbortController;
@@ -795,6 +797,15 @@ function refreshCandidateVisibilityBinding(
     key: Node,
     candidate: TranslationCandidate,
 ): void {
+    if (session.translationMode === "all") {
+        // “翻译到网页底部”只绕过视口门禁，不操纵页面滚动位置。
+        // 初次扫描和 MutationObserver 后续发现的内容都会进入同一受限队列。
+        removeCandidateObservation(session, key);
+        session.pending.set(key, candidate);
+        scheduleFullPageDrain(session);
+        return;
+    }
+
     const target = asHTMLElement(candidate.element);
     const nextAnchor = target?.isConnected ? resolveFullPageVisibilityAnchor(target) : null;
     const currentAnchor = session.candidateAnchors.get(key) ?? null;
@@ -1843,6 +1854,7 @@ function createFullPageSession(root: HTMLElement): FullPageSession {
 
     session = {
         active: true,
+        translationMode: config.fullPageTranslationMode,
         observer,
         mutationObserver,
         shadowEventController: new AbortController(),

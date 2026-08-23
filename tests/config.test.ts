@@ -76,6 +76,7 @@ describe('统一配置存储', () => {
         expect(configStore.config.videoSubtitleVisible).toBe(true);
         expect(configStore.config.videoSubtitleDisplayMode).toBe('bilingual');
         expect(configStore.config.videoSubtitleFontSize).toBe(100);
+        expect(configStore.config.fullPageTranslationMode).toBe('viewport');
     });
 
     it('保留用户选择的视频 AI 服务，并将未知服务回退到微软翻译', async () => {
