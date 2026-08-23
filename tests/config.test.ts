@@ -76,6 +76,7 @@ describe('统一配置存储', () => {
         expect(configStore.config.videoSubtitleVisible).toBe(true);
         expect(configStore.config.videoSubtitleDisplayMode).toBe('bilingual');
         expect(configStore.config.videoSubtitleFontSize).toBe(100);
+        expect(configStore.config.fullPageTranslationMode).toBe('viewport');
     });
 
     it('为文档翻译补齐独立服务和模型，并保留网页模型选择', async () => {

@@ -6,6 +6,7 @@ import { normalizeSelectionTtsVoiceOrder } from "./selectionTtsConfig";
 export type DeepSeekApiType = 'auto' | 'responses' | 'chat';
 export type DeepSeekThinkingMode = 'enabled' | 'disabled';
 export type VideoSubtitleDisplayMode = 'bilingual' | 'translation-only' | 'original-only';
+export type FullPageTranslationMode = 'viewport' | 'all';
 export const DEFAULT_VIDEO_SUBTITLE_FONT_SIZE = 100;
 export const DEFAULT_NEW_API_URL = 'http://localhost:3000';
 export const VIDEO_SUBTITLE_FONT_SIZE_OPTIONS = [80, 90, 100, 110, 120, 140, 160] as const;
@@ -81,6 +82,7 @@ export class Config {
     useCache: boolean; // 是否使用缓存
     enableAIContext: boolean; // 是否为 AI 翻译附加网页上下文
     contextMenuEnabled: boolean; // 是否显示右键全文翻译菜单
+    fullPageTranslationMode: FullPageTranslationMode; // 全文翻译按视口加载或立即处理整页
     disableFloatingBall: boolean; // 是否禁用悬浮球
     floatingBallPosition: 'left' | 'right'; // 悬浮球位置
     floatingBallHotkey: string; // 悬浮球快捷键
@@ -102,6 +104,7 @@ export class Config {
     tencentSecretKey: string; // 腾讯云 Secret Key
     azureOpenaiEndpoint: string; // Azure OpenAI 端点地址
     animations: boolean; // 是否启用动画效果
+    translationProgressPanelEnabled: boolean; // 是否显示全文翻译进度面板
     inputBoxTranslationTrigger: string; // 输入框翻译触发方式
     inputBoxTranslationTarget: string; // 输入框翻译目标语言
     deepseekApiType: DeepSeekApiType; // DeepSeek API 格式
@@ -152,6 +155,7 @@ export class Config {
         this.useCache = true; // 默认开启缓存
         this.enableAIContext = false; // 默认关闭 AI 智能上下文，避免意外增加请求体和费用
         this.contextMenuEnabled = true; // 默认显示右键全文翻译入口
+        this.fullPageTranslationMode = 'viewport'; // 默认按阅读进度翻译，避免一次发出过多请求
         this.disableFloatingBall = true; // 默认关闭悬浮球
         this.floatingBallPosition = 'right'; // 默认在右侧
         this.floatingBallHotkey = 'Alt+T'; // 默认快捷键为 Alt+T
@@ -173,6 +177,7 @@ export class Config {
         this.tencentSecretKey = ''; // 腾讯云 Secret Key
         this.azureOpenaiEndpoint = ''; // Azure OpenAI 端点地址
         this.animations = true; // 默认启用动画
+        this.translationProgressPanelEnabled = true; // 默认显示全文翻译进度面板
         this.inputBoxTranslationTrigger = 'disabled'; // 默认关闭输入框翻译
         this.inputBoxTranslationTarget = 'en'; // 默认翻译成英文
         this.deepseekApiType = 'auto'; // DeepSeek 默认自动选择 API 格式
@@ -260,6 +265,12 @@ export function normalizeConfig(value: unknown): Config {
         ? cloneConfigValue(value) as Partial<Config>
         : {};
     Object.assign(normalized, source);
+    const legacyTranslationStatus = (source as unknown as Record<string, unknown>).translationStatus;
+    if (typeof source.translationProgressPanelEnabled !== 'boolean') {
+        normalized.translationProgressPanelEnabled = typeof legacyTranslationStatus === 'boolean'
+            ? legacyTranslationStatus
+            : true;
+    }
     delete (normalized as unknown as Record<string, unknown>).translationStatus;
     // __fluentConfigRevision 只用于 storage 的写入顺序判断，不能进入运行时
     // 配置或历史快照，否则默认配置与同值的页面快照会因内部字段不同而无法去重。
@@ -374,6 +385,9 @@ export function normalizeConfig(value: unknown): Config {
     }
     if (typeof normalized.contextMenuEnabled !== 'boolean') {
         normalized.contextMenuEnabled = true;
+    }
+    if (!['viewport', 'all'].includes(normalized.fullPageTranslationMode)) {
+        normalized.fullPageTranslationMode = 'viewport';
     }
     normalized.translationCenterServices = normalizeStringList(source.translationCenterServices);
     normalized.translationCenterSourceLanguage = normalizeConfigLanguage(source.translationCenterSourceLanguage);

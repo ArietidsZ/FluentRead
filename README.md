@@ -29,7 +29,7 @@ FluentRead brings translation into the reading flow. Keep the original text besi
 | Read naturally | Stay in control |
 | --- | --- |
 | **Bilingual pages** — Keep original text and translation together for study, research, and technical reading. | **Many translation services** — Use Microsoft Translator, Google Translate, DeepL, DeepLX, Chrome Translator, or AI providers such as OpenAI, DeepSeek, Gemini, Claude, Kimi, Ollama-compatible endpoints, and more. |
-| **Whole-page translation** — Use the floating ball, context menu, or a customizable shortcut to translate and restore a page in place. | **Custom models and endpoints** — Configure compatible APIs, models, prompts, request bodies, proxies, and credentials from the settings page. |
+| **Whole-page translation** — Use the floating ball, context menu, or a customizable shortcut. In Settings, choose progressive translation or translate all currently loaded content to the page bottom. | **Custom models and endpoints** — Configure compatible APIs, models, prompts, request bodies, proxies, and credentials from the settings page. |
 | **Selection translation** — Select text and get a focused translation card with copy and speech actions. | **Local-first configuration** — Preferences and translation cache stay in the browser’s local storage. API keys are entered and used locally by the extension. |
 | **Hover and gesture triggers** — Translate with a hover shortcut, double click, long press, middle click, or touch gestures. | **Reader-friendly controls** — Choose translation styles, themes, animation, cache behavior, concurrency, and separate shortcuts for page and selection translation. |
 

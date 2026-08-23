@@ -8,13 +8,17 @@ import {
 import { constants } from "@/entrypoints/utils/constant";
 import { getCenterPoint } from "@/entrypoints/utils/common";
 import pageStyles from './style.css?inline';
-import { config, configReady } from "@/entrypoints/utils/config";
+import { config, configReady, subscribeConfig } from "@/entrypoints/utils/config";
 import { mountFloatingBall, unmountFloatingBall } from "@/entrypoints/utils/floatingBall";
 import { mountSelectionTranslator, unmountSelectionTranslator } from "@/entrypoints/utils/selectionTranslator";
 import { mountAreaTranslator, unmountAreaTranslator } from "@/entrypoints/utils/areaTranslator";
 import { cancelAllTranslations } from "@/entrypoints/utils/translateApi";
 import { mountNewApiComponent, unmountNewApiComponent } from "@/entrypoints/utils/newApi";
 import { mountImageTranslator, unmountImageTranslator } from "@/entrypoints/utils/imageTranslation";
+import {
+    mountTranslationProgressPanel,
+    unmountTranslationProgressPanel,
+} from "@/entrypoints/utils/translationProgressPanel";
 import {
     getDeepActiveElement,
     getInputBoxText,
@@ -31,6 +35,7 @@ import {resetPageTranslationContextCache} from '@/entrypoints/utils/pageContext'
 let contentScriptContext: ContentScriptContext | null = null;
 let inputTooltipUi: ShadowRootContentScriptUi<HTMLElement> | null = null;
 let unmountVideoSubtitleTranslation: (() => void) | null = null;
+let unsubscribeTranslationProgressConfig: (() => void) | null = null;
 
 function installPageStyles(ctx: ContentScriptContext) {
     const existing = document.getElementById('fluent-read-page-styles');
@@ -109,6 +114,18 @@ function handleRuntimeMessage(
         return true;
     }
 
+    if (payload.type === 'toggleTranslationProgressPanel') {
+        const isEnabled = payload.isEnabled === true;
+        config.translationProgressPanelEnabled = isEnabled;
+        if (isEnabled) {
+            void mountTranslationProgressPanel(ctx);
+        } else {
+            unmountTranslationProgressPanel();
+        }
+        sendResponse();
+        return true;
+    }
+
     if (payload.type === 'contextMenuTranslate') {
         if (config.on === false) {
             sendResponse({ status: 'disabled' });
@@ -158,6 +175,9 @@ export default defineContentScript({
             unmountSelectionTranslator();
             unmountAreaTranslator();
             unmountImageTranslator();
+            unsubscribeTranslationProgressConfig?.();
+            unsubscribeTranslationProgressConfig = null;
+            unmountTranslationProgressPanel();
             unmountVideoSubtitleTranslation?.();
             unmountVideoSubtitleTranslation = null;
             unmountNewApiComponent();
@@ -176,6 +196,13 @@ export default defineContentScript({
             sendResponse: (response?: unknown) => void,
         ) => handleRuntimeMessage(message, ctx, sendResponse);
         browser.runtime.onMessage.addListener(runtimeMessageListener);
+        unsubscribeTranslationProgressConfig = subscribeConfig((nextConfig) => {
+            if (nextConfig.translationProgressPanelEnabled === true) {
+                void mountTranslationProgressPanel(ctx);
+            } else {
+                unmountTranslationProgressPanel();
+            }
+        });
         // 监听器始终注册并在触发时读取实时配置。这样扩展在当前页面由关闭
         // 切换为开启后，无需刷新页面就能恢复 Control/Alt+T。
         setupManualTranslationTriggers(pageEventController.signal);

@@ -53,7 +53,7 @@ export const navigationGroups: NavigationGroup[] = [
         id: 'settings-shortcuts', icon: '⌘', label: '交互与快捷键', description: '悬停、划词、全文', group: '阅读工具',
         heading: '让翻译顺手发生', summary: '统一设置鼠标悬停、划词和全文翻译的触发习惯。',
         kicker: '操作方式', title: '交互与快捷键', detail: '为高频动作选择容易记忆且不冲突的触发方式。',
-        searchDescription: '鼠标悬停、划词翻译、全文翻译、右键全文翻译与自定义按键',
+        searchDescription: '鼠标悬停、划词翻译、全文翻译范围、翻译到网页底部、右键全文翻译与自定义按键',
       },
       {
         id: 'settings-image-translation', icon: '图', label: '图片翻译', description: 'OCR 与语言包', group: '阅读工具',
@@ -76,7 +76,7 @@ export const navigationGroups: NavigationGroup[] = [
         id: 'settings-advanced', icon: '◇', label: '高级选项', description: '性能与模板', group: '系统与数据',
         heading: '精细控制运行方式', summary: '管理缓存、动画、并发、悬浮工具、代理和 AI 提示词。',
         kicker: '运行策略', title: '高级选项', detail: '这些设置更偏向性能、兼容性和高级翻译行为。',
-        searchDescription: '缓存、动画、并发、悬浮球、输入框、代理与提示词',
+        searchDescription: '缓存、动画、并发、显示翻译进度面板、悬浮球、输入框、代理与提示词',
       },
       {
         id: 'settings-data', icon: '⇅', label: '配置管理', description: '导入与导出', group: '系统与数据',

@@ -236,7 +236,7 @@
 
       <div class="video-settings-note">
         <strong>使用方式</strong>
-        <p>打开 YouTube 视频的原生字幕后，FluentRead 会在字幕下方显示译文。机器翻译约提前 10 秒、AI 服务约提前 30 秒准备字幕；切换视频或关闭此功能会清理译文。</p>
+        <p>打开 YouTube 视频的原生字幕后，FluentRead 会在字幕下方显示译文。机器翻译约提前 10 秒、AI 服务约提前 30 秒准备字幕；播放器菜单可分别下载原文或译文 SRT，切换视频或关闭此功能会清理译文。</p>
       </div>
     </section>
 
@@ -346,6 +346,32 @@
             </el-button>
           </div>
         </div>
+      </el-col>
+    </el-row>
+
+    <!-- 全文翻译范围 -->
+    <el-row v-if="config.on" class="settings-control-row">
+      <el-col :span="14" class="settings-control-label lightblue rounded-corner">
+        <el-tooltip
+          class="box-item"
+          effect="dark"
+          content="按阅读进度会预翻译视口附近内容；立即翻译到网页底部会处理当前已加载的整页内容，并持续翻译之后新增的内容。它不会自动滚动页面，但在无限滚动页面可能产生较多翻译请求和服务费用。设置会在下次启动全文翻译时生效。"
+          placement="top-start"
+          :show-after="500"
+        >
+          <span class="popup-text popup-vertical-left">
+            全文翻译范围
+            <el-icon class="icon-margin">
+              <InfoFilled />
+            </el-icon>
+          </span>
+        </el-tooltip>
+      </el-col>
+      <el-col :span="10" class="settings-control-field flex-end">
+        <el-select v-model="config.fullPageTranslationMode" aria-label="全文翻译范围" size="small" style="width: 100%">
+          <el-option label="按阅读进度（推荐）" value="viewport" />
+          <el-option label="立即翻译到网页底部" value="all" />
+        </el-select>
       </el-col>
     </el-row>
 
@@ -469,6 +495,31 @@
         </el-col>
       </el-row>
 
+        <!-- 翻译进度面板 -->
+        <el-row class="settings-control-row">
+          <el-col :span="20" class="settings-control-label lightblue rounded-corner">
+            <el-tooltip
+              class="box-item"
+              effect="dark"
+              content="全文翻译时，在网页右下角显示正在翻译和等待中的任务数量；任务结束后自动隐藏。"
+              placement="top-start"
+              :show-after="500"
+            >
+              <span class="popup-text popup-vertical-left">
+                显示翻译进度面板
+                <el-icon class="icon-margin"><InfoFilled /></el-icon>
+              </span>
+            </el-tooltip>
+          </el-col>
+          <el-col :span="4" class="settings-control-field flex-end">
+            <el-switch
+              v-model="config.translationProgressPanelEnabled"
+              class="settings-toggle"
+              aria-label="显示翻译进度面板"
+              @change="handleTranslationProgressPanelChange"
+            />
+          </el-col>
+        </el-row>
 
         <!-- 禁用动画设置 -->
         <el-row class="settings-control-row">
@@ -1025,6 +1076,22 @@ const floatingBallEnabled = computed({
     });
   }
 });
+
+const handleTranslationProgressPanelChange = (isEnabled: boolean) => {
+  browser.tabs.query({}).then(tabs => {
+    tabs.forEach(tab => {
+      if (!tab.id) return;
+      browser.tabs.sendMessage(tab.id, {
+        type: 'toggleTranslationProgressPanel',
+        isEnabled,
+      }).catch(() => {
+        // 忽略发送失败的错误（可能是页面未加载内容脚本）
+      });
+    });
+  }).catch(() => {
+    // 忽略无法查询标签页的错误，配置仍会通过统一存储链路保存
+  });
+};
 
 // 监听划词翻译模式变化
 watch(() => config.value.selectionTranslatorMode, (newMode) => {
