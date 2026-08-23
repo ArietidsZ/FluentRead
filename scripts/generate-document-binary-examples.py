@@ -13,9 +13,8 @@ from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
 from reportlab.lib.colors import HexColor
 from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import inch
-from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer
+from reportlab.pdfbase.pdfmetrics import stringWidth
+from reportlab.pdfgen import canvas
 
 
 def set_run_font(run, name: str, size: float, color: str = "202533", bold: bool = False) -> None:
@@ -115,68 +114,180 @@ def generate_docx(output: Path) -> None:
 
 
 def generate_pdf(output: Path) -> None:
-    styles = getSampleStyleSheet()
-    title = ParagraphStyle(
-        "FixtureTitle",
-        parent=styles["Title"],
-        fontName="Helvetica-Bold",
-        fontSize=24,
-        leading=29,
-        textColor=HexColor("#202533"),
-        spaceAfter=16,
-    )
-    heading = ParagraphStyle(
-        "FixtureHeading",
-        parent=styles["Heading1"],
-        fontName="Helvetica-Bold",
-        fontSize=16,
-        leading=20,
-        textColor=HexColor("#E83B6B"),
-        spaceBefore=10,
-        spaceAfter=10,
-    )
-    body = ParagraphStyle(
-        "FixtureBody",
-        parent=styles["BodyText"],
-        fontName="Helvetica",
-        fontSize=11,
-        leading=16,
-        textColor=HexColor("#202533"),
-        spaceAfter=10,
-    )
-    story = [
-        Paragraph("Document Translation Example", title),
-        Paragraph("A text-layer PDF used to verify page-aware bilingual reading and export.", body),
-        Spacer(1, 0.12 * inch),
-        Paragraph("Readable PDF text", heading),
-        Paragraph(
-            "FluentRead extracts text from each PDF page locally, groups it into readable segments, and keeps a page label beside the first segment.",
-            body,
-        ),
-        Paragraph(
-            "The bilingual download keeps the original page and follows it with a generated translation page, so the source remains available for comparison.",
-            body,
-        ),
-        PageBreak(),
-        Paragraph("Regression coverage", title),
-        Paragraph("The second page proves that page boundaries survive parsing and remain visible in the reading interface.", body),
-        Paragraph(
-            "A scanned PDF without a text layer is rejected with a clear OCR-specific message instead of producing empty or corrupted output.",
-            body,
-        ),
-    ]
     output.parent.mkdir(parents=True, exist_ok=True)
-    pdf = SimpleDocTemplate(
-        str(output),
-        pagesize=letter,
-        leftMargin=0.85 * inch,
-        rightMargin=0.85 * inch,
-        topMargin=0.8 * inch,
-        bottomMargin=0.8 * inch,
-        title="Document Translation Example",
-        author="FluentRead",
+    page_width, page_height = letter
+    pdf = canvas.Canvas(str(output), pagesize=letter)
+    pdf.setTitle("Document Translation Example")
+    pdf.setAuthor("FluentRead")
+
+    def wrapped_lines(text: str, font: str, size: float, width: float) -> list[str]:
+        words = text.split()
+        lines: list[str] = []
+        current = ""
+        for word in words:
+            candidate = f"{current} {word}".strip()
+            if current and stringWidth(candidate, font, size) > width:
+                lines.append(current)
+                current = word
+            else:
+                current = candidate
+        if current:
+            lines.append(current)
+        return lines
+
+    def draw_wrapped(text: str, x: float, y: float, width: float, *, font: str = "Times-Roman", size: float = 9.2, leading: float = 12.3) -> float:
+        pdf.setFont(font, size)
+        pdf.setFillColor(HexColor("#202533"))
+        for line in wrapped_lines(text, font, size, width):
+            pdf.drawString(x, y, line)
+            y -= leading
+        return y
+
+    def draw_heading(text: str, x: float, y: float) -> float:
+        pdf.setFont("Helvetica-Bold", 11)
+        pdf.setFillColor(HexColor("#D93463"))
+        pdf.drawString(x, y, text)
+        return y - 17
+
+    def draw_footer(page_number: int) -> None:
+        pdf.setStrokeColor(HexColor("#DDE2EC"))
+        pdf.line(48, 39, page_width - 48, 39)
+        pdf.setFont("Helvetica", 7.5)
+        pdf.setFillColor(HexColor("#7A8294"))
+        pdf.drawString(48, 25, "FLUENTREAD DOCUMENT LAYOUT REGRESSION")
+        pdf.drawRightString(page_width - 48, 25, str(page_number))
+
+    # Page 1 deliberately combines a full-width title, two text columns, and a
+    # diagram. It catches regressions where PDF translation is flattened into a
+    # list of extracted strings instead of being written back to page boxes.
+    pdf.setFont("Helvetica-Bold", 22)
+    pdf.setFillColor(HexColor("#202533"))
+    pdf.drawCentredString(page_width / 2, 742, "Document Translation Example")
+    pdf.setFont("Helvetica", 9)
+    pdf.setFillColor(HexColor("#647086"))
+    pdf.drawCentredString(page_width / 2, 724, "Layout-preserving bilingual PDF regression · FluentRead Research")
+    pdf.setFillColor(HexColor("#F7F8FB"))
+    pdf.roundRect(48, 652, page_width - 96, 51, 7, fill=1, stroke=0)
+    pdf.setFillColor(HexColor("#202533"))
+    pdf.setFont("Helvetica-Bold", 8.5)
+    pdf.drawString(60, 688, "ABSTRACT")
+    draw_wrapped(
+        "A document translator should preserve columns, figures, captions, and reading order while replacing text inside the corresponding page regions.",
+        60, 674, page_width - 120, font="Helvetica", size=8.4, leading=10.4,
     )
-    pdf.build(story)
+
+    left_x, right_x, column_width = 48, 318, 246
+    left_y = draw_heading("1  PAGE-AWARE TRANSLATION", left_x, 626)
+    left_y = draw_wrapped(
+        "FluentRead parses the PDF text layer into layout blocks with page coordinates. Each translated block is fitted back into its original region instead of being shown as a detached transcript.",
+        left_x, left_y, column_width,
+    ) - 9
+    left_y = draw_heading("2  READING EXPERIENCE", left_x, left_y)
+    left_y = draw_wrapped(
+        "The reader presents the untouched source page and the translated page side by side. Pagination, multi-column flow, graphics, and captions remain visible for visual comparison.",
+        left_x, left_y, column_width,
+    ) - 9
+    left_y = draw_heading("3  EXPORT CONTRACT", left_x, left_y)
+    draw_wrapped(
+        "A bilingual download contains one wide page for every source page: the original is placed on the left and the translated layout is placed on the right.",
+        left_x, left_y, column_width,
+    )
+
+    right_y = draw_heading("FIGURE 1  DOCUMENT PIPELINE", right_x, 626)
+    box_y = right_y - 56
+    box_width = 66
+    for index, (label, color) in enumerate((("Parse", "#EAF0FF"), ("Translate", "#FFF0F4"), ("Render", "#E7F8F5"))):
+        box_x = right_x + index * 84
+        pdf.setFillColor(HexColor(color))
+        pdf.setStrokeColor(HexColor("#C9D1E2"))
+        pdf.roundRect(box_x, box_y, box_width, 38, 6, fill=1, stroke=1)
+        pdf.setFillColor(HexColor("#202533"))
+        pdf.setFont("Helvetica-Bold", 8)
+        pdf.drawCentredString(box_x + box_width / 2, box_y + 15, label)
+        if index < 2:
+            pdf.setStrokeColor(HexColor("#9BA6BB"))
+            pdf.line(box_x + box_width + 5, box_y + 19, box_x + box_width + 15, box_y + 19)
+            pdf.line(box_x + box_width + 11, box_y + 22, box_x + box_width + 15, box_y + 19)
+            pdf.line(box_x + box_width + 11, box_y + 16, box_x + box_width + 15, box_y + 19)
+    right_y = box_y - 19
+    pdf.setFont("Times-Italic", 8.2)
+    pdf.setFillColor(HexColor("#5F687C"))
+    pdf.drawString(right_x, right_y, "Text extraction is an internal step, not the final reading interface.")
+    right_y -= 29
+    right_y = draw_heading("4  VISUAL INVARIANTS", right_x, right_y)
+    draw_wrapped(
+        "Regression evidence must prove that the translated page retains the figure, column boundaries, title hierarchy, and page dimensions. A generic list of OCR-like text fragments does not satisfy this contract.",
+        right_x, right_y, column_width,
+    )
+    draw_footer(1)
+    pdf.showPage()
+
+    # Page 2 exercises a table, chart, full-width caption, and independent
+    # columns so that both parsing and exported placement stay covered.
+    pdf.setFont("Helvetica-Bold", 19)
+    pdf.setFillColor(HexColor("#202533"))
+    pdf.drawString(48, 742, "Regression Coverage")
+    pdf.setFont("Helvetica", 9)
+    pdf.setFillColor(HexColor("#647086"))
+    pdf.drawString(48, 724, "Expected invariants for preview and downloadable PDF output")
+
+    table_x, table_y = 48, 634
+    widths = [155, 105, 248]
+    row_height = 25
+    headers = ["Capability", "Expected", "Evidence"]
+    rows = [
+        ("Page dimensions", "Preserved", "Source and translated pages share the same height"),
+        ("Two-column flow", "Preserved", "Blocks remain in their original left or right column"),
+        ("Figures and charts", "Preserved", "Non-text page graphics remain in place"),
+    ]
+    pdf.setFillColor(HexColor("#202533"))
+    pdf.rect(table_x, table_y + row_height, sum(widths), row_height, fill=1, stroke=0)
+    cursor_x = table_x
+    pdf.setFont("Helvetica-Bold", 8)
+    pdf.setFillColor(HexColor("#FFFFFF"))
+    for header, width in zip(headers, widths):
+        pdf.drawString(cursor_x + 8, table_y + 34, header)
+        cursor_x += width
+    for row_index, row in enumerate(rows):
+        row_y = table_y - row_index * row_height
+        pdf.setFillColor(HexColor("#F7F8FB") if row_index % 2 == 0 else HexColor("#FFFFFF"))
+        pdf.setStrokeColor(HexColor("#DDE2EC"))
+        pdf.rect(table_x, row_y, sum(widths), row_height, fill=1, stroke=1)
+        cursor_x = table_x
+        pdf.setFillColor(HexColor("#202533"))
+        pdf.setFont("Helvetica", 7.8)
+        for value, width in zip(row, widths):
+            pdf.drawString(cursor_x + 8, row_y + 9, value)
+            cursor_x += width
+
+    left_y = draw_heading("5  MULTI-COLUMN CONTENT", left_x, 527)
+    left_y = draw_wrapped(
+        "Page boundaries and paragraph order survive parsing. The translated page uses the same canvas as the source page before text regions are replaced, which leaves lines, colored shapes, and charts untouched.",
+        left_x, left_y, column_width,
+    ) - 8
+    left_y = draw_heading("6  FAILURE BOUNDARY", left_x, left_y)
+    draw_wrapped(
+        "Image-only scans without a usable text layer are reported clearly. This beta does not pretend that extracted OCR text alone is a translated PDF document.",
+        left_x, left_y, column_width,
+    )
+
+    right_y = draw_heading("FIGURE 2  BLOCK RETENTION", right_x, 527)
+    chart_x, chart_y, chart_w, chart_h = right_x + 12, 382, 215, 92
+    pdf.setStrokeColor(HexColor("#AAB3C5"))
+    pdf.line(chart_x, chart_y, chart_x, chart_y + chart_h)
+    pdf.line(chart_x, chart_y, chart_x + chart_w, chart_y)
+    for index, (label, value, color) in enumerate((("Text", .86, "#ED4775"), ("Layout", .96, "#5A7BEF"), ("Graphics", 1.0, "#2DB483"))):
+        bar_x = chart_x + 25 + index * 62
+        pdf.setFillColor(HexColor(color))
+        pdf.rect(bar_x, chart_y, 29, chart_h * value, fill=1, stroke=0)
+        pdf.setFillColor(HexColor("#5F687C"))
+        pdf.setFont("Helvetica", 7)
+        pdf.drawCentredString(bar_x + 14.5, chart_y - 11, label)
+    pdf.setFont("Times-Italic", 8.1)
+    pdf.setFillColor(HexColor("#5F687C"))
+    pdf.drawString(right_x, 350, "Figure 2. Layout and non-text graphics remain anchored to the page.")
+    draw_footer(2)
+    pdf.save()
 
 
 def generate_epub(output: Path) -> None:

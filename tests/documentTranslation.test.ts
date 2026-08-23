@@ -7,6 +7,7 @@ import {
     parseDocument,
     renderDocument,
 } from '@/entrypoints/utils/documentTranslation';
+import {createDocumentPreviewHtml} from '@/entrypoints/utils/documentTranslationPreview';
 
 describe('document translation parser', () => {
     it('识别首批支持的文件格式并生成下载文件名', () => {
@@ -62,6 +63,7 @@ describe('document translation parser', () => {
         const source = '1\n00:00:01,000 --> 00:00:03,000\n<i>Hello</i> world\n\n2\n00:00:04,000 --> 00:00:05,000\nNext line';
         const document = parseDocument('episode.srt', source);
         expect(document.segments.map((segment) => segment.source)).toEqual(['<i>Hello</i> world', 'Next line']);
+        expect(document.segments[0]).toMatchObject({timeStart: '00:00:01,000', timeEnd: '00:00:03,000'});
         const output = renderDocument(document, ['<i>你好</i> 世界', '下一行'], 'bilingual');
         expect(output).toContain('00:00:01,000 --> 00:00:03,000');
         expect(output).toContain('<i>Hello</i> world\n<i>你好</i> 世界');
@@ -75,6 +77,7 @@ describe('document translation parser', () => {
 
         const ass = parseDocument('episode.ass', '[Events]\nDialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,{\\i1}Hello');
         expect(ass.segments.map((segment) => segment.source)).toEqual(['{\\i1}Hello']);
+        expect(ass.segments[0]).toMatchObject({timeStart: '0:00:01.00', timeEnd: '0:00:02.00'});
         const output = renderDocument(ass, ['你好'], 'bilingual');
         expect(output).toContain('Dialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,{\\i1}Hello\\N{\\i1}你好');
     });
@@ -82,12 +85,34 @@ describe('document translation parser', () => {
     it('保留 LRC 时间标签，并将 JSON 字符串值重组为合法 JSON', () => {
         const lrc = parseDocument('song.lrc', '[00:01.00]Hello\n[00:02.00]World');
         expect(lrc.segments.map((segment) => segment.source)).toEqual(['Hello', 'World']);
+        expect(lrc.segments[0].timeStart).toBe('00:01.00');
         expect(renderDocument(lrc, ['你好', '世界'], 'bilingual')).toContain('[00:01.00]Hello\n[00:01.00]你好');
 
         const json = parseDocument('data.json', '{"title":"Hello","items":[{"label":"World"}],"keep":42}');
         expect(json.segments.map((segment) => segment.source)).toEqual(['Hello', 'World']);
+        expect(json.segments.map((segment) => segment.pathLabel)).toEqual(['$.title', '$.items[0].label']);
         const output = JSON.parse(renderDocument(json, ['你好', '世界'], 'translated')) as {title: string; items: Array<{label: string}>; keep: number};
         expect(output).toEqual({title: '你好', items: [{label: '世界'}], keep: 42});
         expect(() => parseDocument('broken.json', '{')).toThrow('JSON 文件格式无效');
+    });
+
+    it('按 Markdown、HTML 与 TXT 的原生阅读结构生成隔离预览', () => {
+        const markdown = parseDocument('guide.md', '# Install\n\nUse `npm install` now.');
+        const markdownPreview = createDocumentPreviewHtml(markdown, ['# 安装', '使用', '现在。'], 'bilingual');
+        expect(markdownPreview).toContain('class="reader-unit heading"');
+        expect(markdownPreview).toContain('<h1 class="reader-source">Install</h1>');
+        expect(markdownPreview).toContain('<h1 class="reader-translation fluentread-translation">安装</h1>');
+        expect(markdownPreview).toContain('<code>npm install</code>');
+
+        const html = parseDocument('page.html', '<article><h1>Hello</h1><script>alert(1)</script><p>World</p></article>');
+        const htmlPreview = createDocumentPreviewHtml(html, ['你好', '世界'], 'bilingual');
+        expect(htmlPreview).toContain('Content-Security-Policy');
+        expect(htmlPreview).toContain('data-fluent-read-document-translation="true"');
+        expect(htmlPreview).not.toContain('alert(1)');
+
+        const text = parseDocument('notes.txt', 'First paragraph\n\nSecond paragraph');
+        const textPreview = createDocumentPreviewHtml(text, ['第一段', '第二段'], 'translated');
+        expect(textPreview).toContain('第一段');
+        expect(textPreview).not.toContain('First paragraph');
     });
 });

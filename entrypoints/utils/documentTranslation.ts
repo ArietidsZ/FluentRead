@@ -37,6 +37,26 @@ export interface DocumentSegment {
     source: string;
     /** Optional reader context, such as a PDF page or ePub chapter. */
     contextLabel?: string;
+    /** Native subtitle timeline metadata. */
+    timeStart?: string;
+    timeEnd?: string;
+    /** Native structured-document location, such as $.items[0].label. */
+    pathLabel?: string;
+    /** Native document role used by page/article previews. */
+    role?: 'title' | 'heading' | 'paragraph' | 'list-item' | 'header' | 'footer' | 'note';
+}
+
+export interface PdfDocumentBlock {
+    segmentIndex: number;
+    /** Top-left PDF viewport coordinates at scale 1. */
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    fontSize: number;
+    fontFamily: string;
+    fontWeight: 400 | 600 | 700;
+    textAlign: 'left' | 'center' | 'right';
 }
 
 export interface PdfDocumentPage {
@@ -44,6 +64,7 @@ export interface PdfDocumentPage {
     width: number;
     height: number;
     segmentIndexes: number[];
+    blocks: PdfDocumentBlock[];
 }
 
 export interface EpubDocumentChapter {
@@ -82,7 +103,7 @@ interface SegmentPart {
 
 type DocumentPart = LiteralPart | SegmentPart;
 
-interface JsonSegmentEntry {
+export interface JsonSegmentEntry {
     path: Array<string | number>;
     segmentIndex: number;
     prefix: string;
@@ -178,7 +199,7 @@ function addSegment(
     parts: DocumentPart[],
     segments: DocumentSegment[],
     value: string,
-    options: Pick<SegmentPart, 'bilingualPrefix'> = {},
+    options: Pick<SegmentPart, 'bilingualPrefix'> & Omit<Partial<DocumentSegment>, 'id' | 'source'> = {},
 ): void {
     const trimmed = trimSource(value);
     if (!trimmed) {
@@ -187,14 +208,15 @@ function addSegment(
     }
 
     const segmentIndex = segments.length;
-    segments.push({id: segmentIndex, source: trimmed.source});
+    const {bilingualPrefix, ...segmentOptions} = options;
+    segments.push({id: segmentIndex, source: trimmed.source, ...segmentOptions});
     parts.push({
         kind: 'segment',
         segmentIndex,
         source: trimmed.source,
         prefix: trimmed.prefix,
         suffix: trimmed.suffix,
-        ...options,
+        bilingualPrefix,
     });
 }
 
@@ -203,7 +225,7 @@ function addProtectedText(
     segments: DocumentSegment[],
     value: string,
     pattern: RegExp,
-    options: Pick<SegmentPart, 'bilingualPrefix'> = {},
+    options: Pick<SegmentPart, 'bilingualPrefix'> & Omit<Partial<DocumentSegment>, 'id' | 'source'> = {},
 ): void {
     pattern.lastIndex = 0;
     let cursor = 0;
@@ -313,6 +335,7 @@ function parseTimedSubtitleDocument(content: string): Pick<ParsedDocument, 'part
             continue;
         }
 
+        const timeMatch = timestampLine.text.match(/^\s*((?:\d{1,3}:)?\d{2}:\d{2}[,.]\d{3})\s*-->\s*((?:\d{1,3}:)?\d{2}:\d{2}[,.]\d{3})/u);
         addLiteral(parts, content.slice(timestampLine.start, timestampLine.end));
         cursorLine += 1;
         const textStartLine = cursorLine;
@@ -327,7 +350,10 @@ function parseTimedSubtitleDocument(content: string): Pick<ParsedDocument, 'part
         // Keep a complete cue in one translation unit. This lets the provider
         // preserve inline subtitle tags such as <i>...</i> or ASS override
         // codes while keeping timestamps and cue boundaries outside the request.
-        addSegment(parts, segments, source);
+        addSegment(parts, segments, source, {
+            timeStart: timeMatch?.[1],
+            timeEnd: timeMatch?.[2],
+        });
 
         if (cursorLine < lines.length) {
             addLiteral(parts, content.slice(textEnd, lines[cursorLine].start));
@@ -369,8 +395,12 @@ function parseAssDocument(content: string): Pick<ParsedDocument, 'parts' | 'segm
             return;
         }
 
+        const fields = dialogue.slice(0, textStart - 1).split(',');
         addLiteral(parts, prefix + dialogue.slice(0, textStart));
-        addSegment(parts, segments, dialogue.slice(textStart));
+        addSegment(parts, segments, dialogue.slice(textStart), {
+            timeStart: fields[1]?.trim(),
+            timeEnd: fields[2]?.trim(),
+        });
         addLiteral(parts, content.slice(line.textEnd, line.end));
     });
 
@@ -391,7 +421,11 @@ function parseLrcDocument(content: string): Pick<ParsedDocument, 'parts' | 'segm
 
         const prefix = match[1];
         addLiteral(parts, prefix);
-        addSegment(parts, segments, line.text.slice(prefix.length), {bilingualPrefix: prefix});
+        const firstTimestamp = prefix.match(/\[((?:\d{1,3}:)?\d{2}(?:\.\d{1,3})?)\]/u)?.[1];
+        addSegment(parts, segments, line.text.slice(prefix.length), {
+            bilingualPrefix: prefix,
+            timeStart: firstTimestamp,
+        });
         addLiteral(parts, content.slice(line.textEnd, line.end));
     });
 
@@ -422,7 +456,8 @@ function parseJsonDocument(content: string): Pick<ParsedDocument, 'segments' | '
             const trimmed = trimSource(value);
             if (!trimmed) return;
             const segmentIndex = segments.length;
-            segments.push({id: segmentIndex, source: trimmed.source});
+            const pathLabel = formatJsonPath(path);
+            segments.push({id: segmentIndex, source: trimmed.source, pathLabel});
             jsonEntries.push({path: [...path], segmentIndex, prefix: trimmed.prefix, suffix: trimmed.suffix});
             return;
         }
@@ -436,6 +471,15 @@ function parseJsonDocument(content: string): Pick<ParsedDocument, 'segments' | '
     };
     walk(jsonValue, []);
     return {segments, jsonValue, jsonEntries};
+}
+
+export function formatJsonPath(path: Array<string | number>): string {
+    return path.reduce<string>((value, part) => {
+        if (typeof part === 'number') return `${value}[${part}]`;
+        return /^[A-Za-z_$][\w$]*$/u.test(part)
+            ? `${value}.${part}`
+            : `${value}[${JSON.stringify(part)}]`;
+    }, '$');
 }
 
 export function parseDocument(fileName: string, content: string): ParsedDocument {

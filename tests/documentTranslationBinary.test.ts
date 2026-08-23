@@ -21,7 +21,7 @@ const onePixelPng = Uint8Array.from(Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZlY4AAAAASUVORK5CYII=',
     'base64',
 ));
-const testRasterizer: PdfPageRasterizer = async () => [onePixelPng];
+const testRasterizer: PdfPageRasterizer = async () => onePixelPng;
 
 function loadBytes(fileName: string): Uint8Array {
     return Uint8Array.from(readFileSync(new URL(fileName, exampleRoot)));
@@ -46,12 +46,18 @@ describe('binary document translation formats', () => {
         expect(getDocumentAcceptAttribute()).toContain('.docx');
     });
 
-    it('按 PDF 页提取文本并保留页码上下文', async () => {
+    it('按 PDF 页解析版面文本块、坐标和页码上下文', async () => {
         const parsed = await parseBinaryDocument('sample.pdf', loadBytes('sample.pdf'));
 
         expect(parsed.format).toBe('pdf');
         expect(parsed.binary?.kind).toBe('pdf');
         expect(parsed.binary?.kind === 'pdf' && parsed.binary.pages).toHaveLength(2);
+        const firstPage = parsed.binary?.kind === 'pdf' ? parsed.binary.pages[0] : undefined;
+        expect(firstPage?.blocks.length).toBeGreaterThan(2);
+        expect(firstPage?.blocks.every((block) => block.width > 0 && block.height > 0)).toBe(true);
+        expect(firstPage?.blocks.every((block) => block.x >= 0 && block.y >= 0)).toBe(true);
+        expect(firstPage?.blocks.some((block) => block.x < (firstPage?.width || 0) * 0.42)).toBe(true);
+        expect(firstPage?.blocks.some((block) => block.x > (firstPage?.width || 0) * 0.5)).toBe(true);
         expect(parsed.segments.some((segment) => segment.source.includes('Document Translation Example'))).toBe(true);
         expect(parsed.segments.some((segment) => segment.contextLabel === '第 1 页')).toBe(true);
         expect(parsed.segments.some((segment) => segment.contextLabel === '第 2 页')).toBe(true);
@@ -83,6 +89,8 @@ describe('binary document translation formats', () => {
         expect(parsed.binary?.kind).toBe('docx');
         expect(parsed.segments.some((segment) => segment.source.includes('Document Translation Example'))).toBe(true);
         expect(parsed.segments.some((segment) => segment.contextLabel === '页眉')).toBe(true);
+        expect(parsed.segments.some((segment) => segment.role === 'heading')).toBe(true);
+        expect(parsed.segments.some((segment) => segment.pathLabel === '正文')).toBe(true);
 
         const translations = parsed.segments.map((segment) => `Translated ${segment.id + 1}: ${segment.source}`);
         const download = await createDocumentDownload(parsed, translations, 'bilingual');
@@ -100,7 +108,7 @@ describe('binary document translation formats', () => {
         expect(reparsed.segments.length).toBeGreaterThan(parsed.segments.length);
     });
 
-    it('PDF 双语导出保留两张原页，并为每页追加译文页', async () => {
+    it('PDF 双语导出将每张原页和保留版式的译页并排放在同一页', async () => {
         const parsed = await parseBinaryDocument('sample.pdf', loadBytes('sample.pdf'));
         const translations = parsed.segments.map((segment) => `Translated: ${segment.source}`);
         const download = await createDocumentDownload(parsed, translations, 'bilingual', {
@@ -109,7 +117,11 @@ describe('binary document translation formats', () => {
 
         expect(download.fileName).toBe('sample.bilingual.pdf');
         const exported = await PDFDocument.load(download.data as Uint8Array);
-        expect(exported.getPageCount()).toBe(4);
+        expect(exported.getPageCount()).toBe(2);
+        const sourcePage = parsed.binary?.kind === 'pdf' ? parsed.binary.pages[0] : undefined;
+        const exportedSize = exported.getPage(0).getSize();
+        expect(exportedSize.width).toBeGreaterThan((sourcePage?.width || 0) * 2);
+        expect(exportedSize.height).toBeCloseTo(sourcePage?.height || 0, 2);
     });
 
     it('统一文件入口根据扩展名选择文本或二进制解析器', async () => {

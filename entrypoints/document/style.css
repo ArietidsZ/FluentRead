@@ -141,6 +141,85 @@ h1, h2, p { margin-top: 0; }
 .preview-heading h2 { margin: 0; font-size: 19px; letter-spacing: -.02em; }
 .preview-hint, .preview-more { color: var(--muted); font-size: 11px; }
 .preview-more { margin: 13px 2px; text-align: center; }
+.pdf-layout-viewer { overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: 0 15px 34px rgba(46, 63, 106, .06); }
+.pdf-viewer-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 54px; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.pdf-page-navigation { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.pdf-page-navigation button { display: grid; width: 31px; height: 31px; place-items: center; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: var(--surface-soft); font-size: 22px; line-height: 1; cursor: pointer; }
+.pdf-page-navigation button:disabled { cursor: not-allowed; opacity: .4; }
+.pdf-page-navigation strong { display: grid; min-width: 34px; height: 31px; place-items: center; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--surface); }
+.pdf-zoom-control { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; font-weight: 700; }
+.pdf-zoom-control select { height: 31px; padding: 0 26px 0 9px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--surface-soft); }
+.pdf-page-stage { display: grid; grid-template-columns: repeat(2, minmax(var(--pdf-page-min-width), 1fr)); gap: 18px; padding: 20px; overflow: auto; background: #e9eef6; overscroll-behavior: contain; }
+.dark .pdf-page-stage { background: #151a23; }
+.pdf-page-stage.single { grid-template-columns: minmax(var(--pdf-page-min-width), var(--pdf-page-max-width)); justify-content: center; }
+.pdf-page-column { min-width: 0; margin: 0; }
+.pdf-page-column figcaption { display: flex; align-items: center; justify-content: space-between; min-height: 31px; padding: 0 3px; color: #596277; font-size: 10px; }
+.dark .pdf-page-column figcaption { color: #aab2c3; }
+.pdf-page-column figcaption span { padding: 3px 7px; border-radius: 999px; color: var(--brand-strong); background: var(--brand-soft); font-weight: 800; }
+.pdf-page-column figcaption strong { font-weight: 700; }
+.pdf-page-frame { position: relative; width: 100%; overflow: hidden; border-radius: 2px; background: #fff; box-shadow: 0 7px 22px rgba(33, 43, 68, .16); }
+.pdf-page-frame img { display: block; width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.pdf-page-loading, .pdf-page-pending { position: absolute; inset: 0; display: grid; place-content: center; place-items: center; gap: 9px; padding: 28px; color: #8a93a7; text-align: center; }
+.pdf-page-pending { background: linear-gradient(135deg, #fff 0%, #fafbfe 100%); }
+.pdf-page-pending strong { color: #515a6f; font-size: 14px; }
+.pdf-page-pending small { max-width: 260px; font-size: 10px; line-height: 1.6; }
+.dark-spinner { border-color: rgba(237, 71, 117, .25); border-top-color: var(--brand); }
+.pdf-proofreading { border-top: 1px solid var(--line); background: var(--surface); }
+.pdf-proofreading summary { padding: 15px 18px; color: var(--ink); font-size: 12px; font-weight: 800; cursor: pointer; }
+.pdf-proofreading summary span { margin-left: 7px; color: var(--muted); font-size: 10px; font-weight: 500; }
+.pdf-proofreading-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 14px 18px; border-top: 1px solid var(--line); }
+.pdf-proofreading-row p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.pdf-proofreading-row textarea { min-height: 68px; padding: 9px 10px; resize: vertical; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: var(--surface-soft); font-size: 12px; line-height: 1.6; }
+.rich-document-reader, .docx-document-reader, .subtitle-document-reader, .json-document-reader { overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: 0 15px 34px rgba(46, 63, 106, .06); }
+.reader-native-toolbar { display: flex; align-items: center; gap: 8px; min-height: 54px; padding: 9px 14px; overflow-x: auto; border-bottom: 1px solid var(--line); background: var(--surface); scrollbar-width: thin; }
+.reader-native-toolbar button { display: inline-flex; min-height: 34px; align-items: center; gap: 7px; flex: none; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); background: var(--surface-soft); font-size: 11px; font-weight: 700; cursor: pointer; }
+.reader-native-toolbar button span { display: grid; width: 19px; height: 19px; place-items: center; border-radius: 6px; color: var(--brand-strong); background: var(--brand-soft); font-size: 9px; }
+.reader-native-toolbar button.selected { border-color: rgba(239, 71, 118, .38); color: var(--brand-strong); background: var(--brand-soft); }
+.rich-preview-frame { display: block; width: 100%; height: min(760px, 72vh); border: 0; background: #fff; }
+.native-proofreading { border-top: 1px solid var(--line); background: var(--surface); }
+.native-proofreading summary { padding: 15px 18px; color: var(--ink); font-size: 12px; font-weight: 800; cursor: pointer; }
+.native-proofreading summary span { margin-left: 7px; color: var(--muted); font-size: 10px; font-weight: 500; }
+.native-proofreading-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 14px 18px; border-top: 1px solid var(--line); }
+.native-proofreading-row p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; white-space: pre-wrap; }
+.native-proofreading-row textarea { min-height: 68px; padding: 9px 10px; resize: vertical; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: var(--surface-soft); font-size: 12px; line-height: 1.6; }
+.docx-page-stage { padding: 34px 24px 48px; overflow: auto; background: #e8edf5; }
+.dark .docx-page-stage { background: #151a23; }
+.docx-page { position: relative; width: min(794px, 100%); min-height: 980px; margin: 0 auto; padding: 78px 82px 92px; color: #20242d; background: #fff; box-shadow: 0 9px 28px rgba(28, 38, 61, .18); }
+.docx-page-label { position: absolute; top: 28px; right: 34px; padding: 4px 8px; border-radius: 999px; color: #7b8393; background: #f2f4f8; font-size: 9px; font-weight: 800; }
+.docx-paragraph { margin: 0 0 15px; }
+.docx-source { margin: 0 0 5px; font-family: Calibri, "PingFang SC", sans-serif; font-size: 15px; line-height: 1.55; white-space: pre-wrap; }
+.docx-translation { display: block; width: 100%; min-height: 28px; padding: 0; resize: vertical; border: 0; color: #20242d; background: transparent; font-family: Calibri, "PingFang SC", sans-serif; font-size: 15px; font-weight: 650; line-height: 1.55; outline: 0; }
+.docx-translation:not(:disabled):focus { padding: 7px 9px; border-radius: 8px; background: #fff0f4; }
+.docx-translation::placeholder { color: #b0b6c2; font-size: 12px; font-weight: 500; }
+.docx-role-title { margin-top: 10px; margin-bottom: 20px; }
+.docx-role-title .docx-source, .docx-role-title .docx-translation { font-size: 29px; font-weight: 780; line-height: 1.2; }
+.docx-role-heading { margin-top: 25px; margin-bottom: 12px; }
+.docx-role-heading .docx-source, .docx-role-heading .docx-translation { color: #2e74b5; font-size: 19px; font-weight: 760; line-height: 1.3; }
+.docx-role-header, .docx-role-footer { padding-bottom: 10px; border-bottom: 1px solid #e5e8ee; color: #777f8e; }
+.docx-role-footer { margin-top: 28px; padding-top: 10px; border-top: 1px solid #e5e8ee; border-bottom: 0; text-align: right; }
+.docx-role-list-item { position: relative; padding-left: 18px; }
+.docx-role-list-item::before { position: absolute; top: 4px; left: 2px; color: #2e74b5; content: "•"; }
+.subtitle-table-scroll { overflow-x: auto; }
+.subtitle-document-reader table { width: 100%; min-width: 920px; border-collapse: collapse; table-layout: fixed; }
+.subtitle-document-reader th { padding: 13px 12px; border-bottom: 1px solid var(--line); color: var(--muted); background: var(--surface-soft); font-size: 10px; text-align: left; }
+.subtitle-document-reader th:nth-child(1) { width: 55px; }
+.subtitle-document-reader th:nth-child(2), .subtitle-document-reader th:nth-child(3) { width: 125px; }
+.subtitle-document-reader th:nth-child(4), .subtitle-document-reader th:nth-child(5) { width: 30%; }
+.subtitle-document-reader td { padding: 12px; border-top: 1px solid var(--line); vertical-align: top; }
+.subtitle-document-reader tbody tr:first-child td { border-top: 0; }
+.subtitle-index { color: var(--muted); font-size: 10px; font-weight: 800; text-align: center; }
+.subtitle-document-reader time { display: inline-block; padding: 4px 6px; border-radius: 7px; color: #765080; background: rgba(155, 117, 171, .12); font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+.subtitle-source { margin: 0; color: var(--ink); font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+.subtitle-translation { display: block; width: 100%; min-height: 58px; padding: 8px 9px; resize: vertical; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: var(--surface-soft); font-size: 13px; line-height: 1.55; }
+.json-table-header, .json-table-row { display: grid; grid-template-columns: minmax(150px, .8fr) minmax(220px, 1fr) minmax(220px, 1fr); gap: 0; }
+.json-table-header { color: var(--muted); background: var(--surface-soft); font-size: 10px; font-weight: 800; }
+.json-table-header span { padding: 13px 15px; }
+.json-table-row { border-top: 1px solid var(--line); }
+.json-table-row > * { min-width: 0; margin: 0; padding: 14px 15px; border: 0; border-left: 1px solid var(--line); }
+.json-table-row > *:first-child { border-left: 0; }
+.json-table-row code { color: #16855e; background: transparent; font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.json-source { color: var(--ink); font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.json-translation { min-height: 64px; resize: vertical; color: var(--ink); background: var(--surface-soft); font-size: 13px; line-height: 1.55; }
 .document-reader { overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: 0 15px 34px rgba(46, 63, 106, .06); }
 .reader-block { padding: 22px 34px 23px; border-top: 1px solid var(--line); }
 .reader-block:first-child { border-top: 0; }
@@ -162,6 +241,10 @@ h1, h2, p { margin-top: 0; }
   .control-panel { flex-wrap: wrap; }
   .service-control, .model-control { min-width: 180px; }
   .model-summary { min-width: 180px; }
+  .pdf-page-stage { grid-template-columns: 1fr; }
+  .pdf-page-stage.single { grid-template-columns: 1fr; }
+  .json-document-reader { overflow-x: auto; }
+  .json-table-header, .json-table-row { min-width: 760px; }
 }
 @media (max-width: 640px) {
   .document-header, .document-main, .document-footer { width: min(100% - 28px, 1180px); }
@@ -187,5 +270,13 @@ h1, h2, p { margin-top: 0; }
   .reader-block { padding: 18px 18px 20px; }
   .reader-source, .reader-translation { font-size: 15px; }
   .reader-source.reader-heading { font-size: 20px; }
+  .pdf-viewer-toolbar { align-items: flex-start; flex-direction: column; }
+  .pdf-page-stage { padding: 12px; }
+  .pdf-proofreading-row { grid-template-columns: 1fr; }
+  .native-proofreading-row { grid-template-columns: 1fr; }
+  .rich-preview-frame { height: 68vh; }
+  .docx-page-stage { padding: 14px 10px 24px; }
+  .docx-page { min-height: 760px; padding: 58px 26px 70px; }
+  .docx-role-title .docx-source, .docx-role-title .docx-translation { font-size: 24px; }
   .document-footer { align-items: flex-start; flex-direction: column; gap: 7px; }
 }

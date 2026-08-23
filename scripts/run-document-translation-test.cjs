@@ -56,6 +56,17 @@ function loadPlaywright(playwrightRoot) {
   }
 }
 
+function loadFocusSafeBrowser(helperPath) {
+  if (!helperPath) fail('必须传入 --focus-safe-helper，确保真实浏览器在后台隔离运行');
+  const resolved = path.resolve(helperPath);
+  if (!fs.existsSync(resolved)) fail(`找不到后台浏览器辅助脚本：${resolved}`);
+  const helper = require(resolved);
+  if (typeof helper.launchFocusSafePersistentContext !== 'function' || typeof helper.newPageWithoutForeground !== 'function') {
+    fail('后台浏览器辅助脚本缺少所需接口');
+  }
+  return helper;
+}
+
 function captureErrors(target, label, errors) {
   target.on('console', (message) => {
     if (message.type() === 'error') errors.push({label, type: 'console', message: message.text()});
@@ -67,7 +78,12 @@ async function verifyBinaryDownload(exampleName, downloadPath) {
   const bytes = fs.readFileSync(downloadPath);
   if (exampleName === 'sample.pdf') {
     if (bytes.subarray(0, 5).toString('latin1') !== '%PDF-') fail('PDF 双语下载文件签名无效');
-    return {bytes: bytes.length, signature: '%PDF-'};
+    const {PDFDocument} = require('pdf-lib');
+    const pdf = await PDFDocument.load(bytes);
+    if (pdf.getPageCount() !== 2) fail(`PDF 双语下载应保持两页并排页面，实际为 ${pdf.getPageCount()} 页`);
+    const firstPage = pdf.getPage(0).getSize();
+    if (firstPage.width <= firstPage.height) fail('PDF 双语下载没有生成横向原页/译页对照版式');
+    return {bytes: bytes.length, signature: '%PDF-', pages: pdf.getPageCount(), layout: 'side-by-side'};
   }
 
   const JSZip = require('jszip');
@@ -109,6 +125,7 @@ async function main() {
   }
 
   const {chromium} = loadPlaywright(args.playwrightRoot);
+  const {launchFocusSafePersistentContext, newPageWithoutForeground} = loadFocusSafeBrowser(args.focusSafeHelper);
   const artifactsDir = path.resolve(args.artifactsDir || path.join(os.tmpdir(), 'fluentread-document-evidence'));
   fs.mkdirSync(artifactsDir, {recursive: true});
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-document-edge-profile-'));
@@ -127,20 +144,26 @@ async function main() {
   };
 
   let context;
+  let browserHandle;
   try {
-    context = await chromium.launchPersistentContext(profileDir, {
-      executablePath: args.browserPath,
+    browserHandle = await launchFocusSafePersistentContext({
+      chromium,
+      profileDir,
+      browserPath: args.browserPath,
       headless: false,
-      args: [
+      background: true,
+      browserArgs: [
         `--disable-extensions-except=${extensionDir}`,
         `--load-extension=${extensionDir}`,
-        '--start-minimized',
-        '--window-position=-10000,-10000',
         '--no-first-run',
         '--no-default-browser-check',
       ],
       viewport: {width: 1440, height: 960},
+      timeout: args.timeout,
     });
+    context = browserHandle.context;
+    result.launchMode = browserHandle.launchMode;
+    result.focusPolicy = browserHandle.focusPolicy;
 
     const worker = await waitForServiceWorker(context, Math.min(args.timeout, 30000));
     captureErrors(worker, 'service-worker', errors);
@@ -150,7 +173,7 @@ async function main() {
     const documentUrl = `chrome-extension://${extensionId}/document.html`;
     const popupUrl = `chrome-extension://${extensionId}/popup.html`;
 
-    const page = await context.newPage();
+    const page = await newPageWithoutForeground(context, args.timeout);
     captureErrors(page, 'document', errors);
     await page.goto(documentUrl, {waitUntil: 'domcontentloaded', timeout: args.timeout});
     await page.locator('.file-drop-zone').waitFor({state: 'visible', timeout: args.timeout});
@@ -179,9 +202,17 @@ async function main() {
       if ((await page.locator('.file-type-badge').textContent())?.trim() !== example.badge) {
         fail(`${example.name} 文件格式徽标不正确`);
       }
-      const previewCount = await page.locator('.reader-block').count();
+      const isPdf = example.name === 'sample.pdf';
+      if (isPdf) {
+        await page.locator('.pdf-layout-viewer').waitFor({state: 'visible', timeout: args.timeout});
+        await page.locator('.pdf-page-column').first().locator('img').waitFor({state: 'visible', timeout: args.timeout});
+      }
+      const nativeReader = page.locator('[data-document-reader]').first();
+      await nativeReader.waitFor({state: 'visible', timeout: args.timeout});
+      const previewCount = Number(await nativeReader.getAttribute('data-segment-count'));
       if (previewCount < 1) fail(`${example.name} 加载后没有阅读片段`);
-      if (!(await page.locator('.reader-source').first().textContent())?.includes(example.source)) {
+      const firstSource = await page.locator('.document-source').first().textContent();
+      if (!firstSource?.includes(example.source)) {
         fail(`${example.name} 首个可翻译片段不正确`);
       }
       if (await page.getByRole('button', {name: '开始翻译'}).count() !== 1) {
@@ -189,13 +220,41 @@ async function main() {
       }
       exampleLoads[example.name] = {badge: example.badge, previewCount};
 
-      if (BINARY_EXAMPLES.has(example.name)) {
-        const firstTranslation = page.locator('.reader-translation').first();
-        await firstTranslation.evaluate((element, name) => {
+      const editableTranslations = page.locator('.document-translation');
+      const editableCount = await editableTranslations.count();
+      if (editableCount < 1) fail(`${example.name} 缺少可校对译文输入框`);
+      const fillCount = isPdf ? Math.min(editableCount, 12) : 1;
+      await editableTranslations.evaluateAll((elements, payload) => {
+        elements.slice(0, payload.fillCount).forEach((element, index) => {
           element.removeAttribute('disabled');
-          element.value = `浏览器回归译文：${name}`;
+          element.value = `浏览器回归译文 ${index + 1}：${payload.name}`;
           element.dispatchEvent(new Event('input', {bubbles: true}));
-        }, example.name);
+        });
+      }, {name: example.name, fillCount});
+
+      if (['sample.html', 'sample.txt', 'sample.md', 'sample.epub'].includes(example.name)) {
+        const frame = page.locator('.rich-preview-frame');
+        await frame.waitFor({state: 'visible', timeout: args.timeout});
+        const frameBody = frame.contentFrame().locator('body');
+        await frameBody.waitFor({state: 'visible', timeout: args.timeout});
+        await frameBody.getByText(/浏览器回归译文/u).first().waitFor({state: 'visible', timeout: args.timeout});
+        exampleLoads[example.name].previewLayout = example.name === 'sample.epub' ? 'chapter-reader' : 'formatted-article';
+      }
+      if (example.name === 'sample.docx') {
+        if (await page.locator('.docx-page').count() !== 1) fail('DOCX 没有使用页面化文档预览');
+        exampleLoads[example.name].previewLayout = 'word-page';
+      }
+      if (['sample.srt', 'sample.vtt', 'sample.ass', 'sample.ssa', 'sample.lrc'].includes(example.name)) {
+        if (await page.locator('.subtitle-document-reader table').count() !== 1) fail(`${example.name} 没有使用字幕时间轴表格`);
+        exampleLoads[example.name].previewLayout = 'subtitle-timeline';
+      }
+      if (example.name === 'sample.json') {
+        const firstPath = await page.locator('.json-table-row code').first().textContent();
+        if (!firstPath?.startsWith('$.')) fail('JSON 没有显示字符串值路径');
+        exampleLoads[example.name].previewLayout = 'json-path-table';
+      }
+
+      if (BINARY_EXAMPLES.has(example.name)) {
         const downloadButton = page.getByRole('button', {name: '下载双语文件'});
         await downloadButton.waitFor({state: 'visible', timeout: args.timeout});
         const [download] = await Promise.all([
@@ -206,6 +265,17 @@ async function main() {
         await download.saveAs(downloadPath);
         exampleLoads[example.name].download = await verifyBinaryDownload(example.name, downloadPath);
         result.downloads.push(downloadPath);
+        if (isPdf) {
+          await page.locator('.pdf-page-column.translated img').waitFor({state: 'visible', timeout: args.timeout});
+          const previewDimensions = await page.locator('.pdf-page-column img').evaluateAll(images => images.map(image => ({
+            width: image.naturalWidth,
+            height: image.naturalHeight,
+          })));
+          if (previewDimensions.length !== 2 || previewDimensions.some(size => size.width <= 0 || size.height <= 0)) {
+            fail('PDF 原页/译页预览没有完整渲染');
+          }
+          exampleLoads[example.name].previewLayout = 'side-by-side';
+        }
       }
 
       if (example.name === 'sample.pdf') {
@@ -254,7 +324,7 @@ async function main() {
     await page.screenshot({path: path.join(artifactsDir, 'document-model-selection.png'), fullPage: true});
     result.screenshots.push(path.join(artifactsDir, 'document-model-selection.png'));
 
-    const popup = await context.newPage();
+    const popup = await newPageWithoutForeground(context, args.timeout);
     captureErrors(popup, 'popup', errors);
     await popup.setViewportSize({width: 400, height: 600});
     await popup.goto(popupUrl, {waitUntil: 'domcontentloaded', timeout: args.timeout});
@@ -292,7 +362,8 @@ async function main() {
 
     result.ok = true;
   } finally {
-    if (context) await context.close().catch(() => undefined);
+    if (browserHandle) await browserHandle.close().catch(() => undefined);
+    else if (context) await context.close().catch(() => undefined);
     fs.rmSync(profileDir, {recursive: true, force: true});
   }
 
@@ -304,6 +375,8 @@ async function main() {
     fail(`文档页隔离浏览器出现控制台错误：${JSON.stringify(runtimeErrors)}`);
   }
 
+  result.reportPath = path.join(artifactsDir, 'report.json');
+  fs.writeFileSync(result.reportPath, `${JSON.stringify(result, null, 2)}\n`, 'utf8');
   console.log(JSON.stringify(result, null, 2));
 }
 

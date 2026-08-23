@@ -135,20 +135,221 @@
 
         <div class="preview-heading">
           <div>
-            <span class="eyebrow">逐段阅读</span>
-            <h2>原文与译文</h2>
+            <span class="eyebrow">{{ previewMeta.eyebrow }}</span>
+            <h2>{{ previewMeta.title }}</h2>
           </div>
-          <span class="preview-hint">译文显示在原文下方，可直接编辑；字幕时间轴和文件结构会保留</span>
+          <span class="preview-hint">{{ previewMeta.hint }}</span>
         </div>
 
-        <div class="document-reader" :class="`reader-${parsedDocument.format}`" aria-label="文档双语阅读预览">
+        <section
+          v-if="isPdfDocument"
+          class="pdf-layout-viewer"
+          aria-label="PDF 版式翻译预览"
+          data-document-reader="pdf"
+          :data-segment-count="parsedDocument.segments.length"
+        >
+          <div class="pdf-viewer-toolbar">
+            <div class="pdf-page-navigation" aria-label="PDF 页面导航">
+              <button type="button" :disabled="pdfPageNumber <= 1" aria-label="上一页" @click="pdfPageNumber -= 1">‹</button>
+              <strong>{{ pdfPageNumber }}</strong>
+              <span>/ {{ pdfPageCount }}</span>
+              <button type="button" :disabled="pdfPageNumber >= pdfPageCount" aria-label="下一页" @click="pdfPageNumber += 1">›</button>
+            </div>
+            <label class="pdf-zoom-control">
+              <span>缩放</span>
+              <select v-model.number="pdfZoom" aria-label="PDF 预览缩放">
+                <option :value="0.75">75%</option>
+                <option :value="1">100%</option>
+                <option :value="1.25">125%</option>
+                <option :value="1.5">150%</option>
+              </select>
+            </label>
+          </div>
+
+          <div
+            class="pdf-page-stage"
+            :class="{ single: outputMode === 'translated' }"
+            :style="{ '--pdf-page-min-width': `${400 * pdfZoom}px`, '--pdf-page-max-width': `${720 * pdfZoom}px` }"
+          >
+            <figure v-if="outputMode === 'bilingual'" class="pdf-page-column">
+              <figcaption><span>原文</span><strong>第 {{ pdfPageNumber }} 页</strong></figcaption>
+              <div class="pdf-page-frame" :style="{ aspectRatio: pdfPageAspect }">
+                <img v-if="pdfOriginalPreviewUrl" :src="pdfOriginalPreviewUrl" :alt="`PDF 原文第 ${pdfPageNumber} 页`" />
+                <span v-else class="pdf-page-loading">正在渲染原页…</span>
+              </div>
+            </figure>
+            <figure class="pdf-page-column translated">
+              <figcaption><span>译文</span><strong>保留原版式</strong></figcaption>
+              <div class="pdf-page-frame" :style="{ aspectRatio: pdfPageAspect }">
+                <img v-if="pdfTranslatedPreviewUrl" :src="pdfTranslatedPreviewUrl" :alt="`PDF 译文第 ${pdfPageNumber} 页`" />
+                <div v-else class="pdf-page-pending">
+                  <span v-if="pdfPreviewLoading" class="spinner dark-spinner" />
+                  <strong>{{ translating ? '正在翻译并重排本页' : '等待生成译页' }}</strong>
+                  <small>译文会写回对应文本框，图表与页面布局保持原位</small>
+                </div>
+              </div>
+            </figure>
+          </div>
+
+          <details v-if="currentPdfRows.length" class="pdf-proofreading">
+            <summary>校对第 {{ pdfPageNumber }} 页译文 <span>{{ currentPdfRows.length }} 个版面文本块</span></summary>
+            <article v-for="row in currentPdfRows" :key="row.index" class="pdf-proofreading-row">
+              <p class="document-source">{{ row.source }}</p>
+              <textarea
+                class="pdf-proofreading-translation document-translation"
+                :value="row.translation"
+                :aria-label="`PDF 第 ${pdfPageNumber} 页第 ${row.index + 1} 个文本块译文`"
+                :disabled="!hasTranslation || translating"
+                @input="updateTranslation(row.index, $event)"
+              />
+            </article>
+          </details>
+        </section>
+
+        <section
+          v-else-if="isRichDocument"
+          class="rich-document-reader"
+          :class="`reader-${parsedDocument.format}`"
+          data-document-reader="rich"
+          :data-segment-count="parsedDocument.segments.length"
+          aria-label="排版文档双语阅读预览"
+        >
+          <nav v-if="isEpubDocument" class="reader-native-toolbar" aria-label="ePub 章节导航">
+            <button
+              v-for="(chapter, index) in epubChapters"
+              :key="chapter.path"
+              type="button"
+              :class="{ selected: epubChapterIndex === index }"
+              @click="epubChapterIndex = index"
+            >
+              <span>{{ index + 1 }}</span>{{ chapter.title }}
+            </button>
+          </nav>
+          <iframe
+            class="rich-preview-frame"
+            :srcdoc="richPreviewHtml"
+            sandbox=""
+            :title="`${parsedDocument.label}排版阅读预览`"
+          />
+          <details class="native-proofreading">
+            <summary>校对当前{{ isEpubDocument ? '章节' : '文档' }}译文 <span>{{ currentRichRows.length }} 个文本片段</span></summary>
+            <article v-for="row in currentRichRows" :key="row.index" class="native-proofreading-row">
+              <p class="document-source">{{ readerText(row.source) }}</p>
+              <textarea
+                class="document-translation"
+                :value="row.translation"
+                :placeholder="translating ? '等待翻译…' : '开始翻译后显示译文'"
+                :aria-label="`第 ${row.index + 1} 个文本片段译文`"
+                :disabled="!hasTranslation || translating"
+                @input="updateTranslation(row.index, $event)"
+              />
+            </article>
+          </details>
+        </section>
+
+        <section
+          v-else-if="isDocxDocument"
+          class="docx-document-reader"
+          data-document-reader="docx"
+          :data-segment-count="parsedDocument.segments.length"
+          aria-label="Word 文档页面预览"
+        >
+          <nav class="reader-native-toolbar" aria-label="Word 文档部分">
+            <button
+              v-for="(part, index) in docxParts"
+              :key="part.path"
+              type="button"
+              :class="{ selected: docxPartIndex === index }"
+              @click="docxPartIndex = index"
+            >
+              {{ docxPartLabel(part.path) }}
+            </button>
+          </nav>
+          <div class="docx-page-stage">
+            <article class="docx-page">
+              <span class="docx-page-label">{{ docxPartLabel(currentDocxPart?.path || '') }}</span>
+              <section
+                v-for="row in currentDocxRows"
+                :key="row.index"
+                class="docx-paragraph"
+                :class="`docx-role-${row.role || 'paragraph'}`"
+              >
+                <p v-if="outputMode === 'bilingual'" class="docx-source document-source">{{ row.source }}</p>
+                <textarea
+                  class="docx-translation document-translation"
+                  :value="row.translation"
+                  :placeholder="translating ? '等待翻译…' : '开始翻译后显示译文'"
+                  :aria-label="`Word 第 ${row.index + 1} 段译文`"
+                  :disabled="!hasTranslation || translating"
+                  @input="updateTranslation(row.index, $event)"
+                />
+              </section>
+            </article>
+          </div>
+        </section>
+
+        <section
+          v-else-if="isSubtitleDocument"
+          class="subtitle-document-reader"
+          data-document-reader="subtitle"
+          :data-segment-count="parsedDocument.segments.length"
+          aria-label="字幕时间轴翻译表格"
+        >
+          <div class="subtitle-table-scroll">
+            <table>
+              <thead><tr><th>#</th><th>开始时间</th><th>结束时间</th><th>原文</th><th>译文（可编辑）</th></tr></thead>
+              <tbody>
+                <tr v-for="row in subtitleRows" :key="row.index">
+                  <td class="subtitle-index">{{ row.index + 1 }}</td>
+                  <td><time>{{ row.timeStart || '—' }}</time></td>
+                  <td><time>{{ row.timeEnd || '—' }}</time></td>
+                  <td><p class="subtitle-source document-source">{{ readerText(row.source) }}</p></td>
+                  <td>
+                    <textarea
+                      class="subtitle-translation document-translation"
+                      :value="row.translation"
+                      :placeholder="translating ? '等待翻译…' : '开始翻译后显示译文'"
+                      :aria-label="`第 ${row.index + 1} 条字幕译文`"
+                      :disabled="!hasTranslation || translating"
+                      @input="updateTranslation(row.index, $event)"
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section
+          v-else-if="isJsonDocument"
+          class="json-document-reader"
+          data-document-reader="json"
+          :data-segment-count="parsedDocument.segments.length"
+          aria-label="JSON 字符串路径翻译表格"
+        >
+          <div class="json-table-header"><span>JSONPath</span><span>原字符串</span><span>译文（可编辑）</span></div>
+          <article v-for="row in jsonRows" :key="row.index" class="json-table-row">
+            <code>{{ row.pathLabel || '$' }}</code>
+            <p class="json-source document-source">{{ row.source }}</p>
+            <textarea
+              class="json-translation document-translation"
+              :value="row.translation"
+              :placeholder="translating ? '等待翻译…' : '开始翻译后显示译文'"
+              :aria-label="`${row.pathLabel || '$'} 的译文`"
+              :disabled="!hasTranslation || translating"
+              @input="updateTranslation(row.index, $event)"
+            />
+          </article>
+        </section>
+
+        <div v-else class="document-reader" data-document-reader="generic" :data-segment-count="parsedDocument.segments.length" :class="`reader-${parsedDocument.format}`" aria-label="文档双语阅读预览">
           <article v-for="row in previewRows" :key="row.index" class="reader-block">
             <span v-if="row.contextLabel" class="reader-context">{{ row.contextLabel }}</span>
-            <div v-if="outputMode === 'bilingual'" class="reader-source" :class="readerSourceClass(row.source)">
+            <div v-if="outputMode === 'bilingual'" class="reader-source document-source" :class="readerSourceClass(row.source)">
               {{ readerText(row.source) }}
             </div>
             <textarea
-              class="reader-translation"
+              class="reader-translation document-translation"
               :value="row.translation"
               :placeholder="translating ? '等待翻译…' : '开始翻译后显示译文'"
               :aria-label="`第 ${row.index + 1} 段译文`"
@@ -157,8 +358,10 @@
             />
           </article>
         </div>
-        <p v-if="!hasTranslation" class="reader-empty">点击“开始翻译”，译文会显示在每段原文下方。</p>
-        <p v-if="hasMorePreviewRows" class="preview-more">当前展示前 {{ previewLimit }} 个片段，下载时会包含完整文件。</p>
+        <p v-if="!hasTranslation" class="reader-empty">
+          {{ emptyReaderHint }}
+        </p>
+        <p v-if="showPreviewLimitNote" class="preview-more">当前展示前 {{ previewLimit }} 个片段，下载时会包含完整文件。</p>
       </section>
     </main>
 
@@ -185,11 +388,14 @@ import {
   DOCUMENT_MAX_BYTES,
   getDocumentAcceptAttribute,
   getDocumentFormat,
+  parseDocument,
   type DocumentRenderMode,
   type ParsedDocument,
 } from '@/entrypoints/utils/documentTranslation';
+import {createDocumentPreviewHtml} from '@/entrypoints/utils/documentTranslationPreview';
 import {
   createDocumentDownload,
+  createPdfPagePreview,
   parseDocumentFile,
 } from '@/entrypoints/utils/documentTranslationBinary';
 import {translateDocumentSegments} from '@/entrypoints/utils/documentTranslationApi';
@@ -206,11 +412,20 @@ const progress = ref(0);
 const errorMessage = ref('');
 const openingFile = ref(false);
 const preparingDownload = ref(false);
+const pdfPageNumber = ref(1);
+const pdfZoom = ref(1);
+const pdfPreviewLoading = ref(false);
+const pdfOriginalPreviewUrl = ref('');
+const pdfTranslatedPreviewUrl = ref('');
+const epubChapterIndex = ref(0);
+const docxPartIndex = ref(0);
 const hydrated = ref(false);
 const isDark = ref(window.matchMedia('(prefers-color-scheme: dark)').matches);
 let abortController: AbortController | null = null;
 let lastSerialized = '';
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+let pdfPreviewTimer: ReturnType<typeof setTimeout> | undefined;
+let pdfPreviewRequest = 0;
 
 const accept = getDocumentAcceptAttribute();
 const maxFileSizeLabel = `${Math.round(DOCUMENT_MAX_BYTES / 1024 / 1024)} MB`;
@@ -254,12 +469,150 @@ const previewRows = computed(() => (parsedDocument.value?.segments || []).slice(
   index: segment.id,
   source: segment.source,
   contextLabel: segment.contextLabel,
+  timeStart: segment.timeStart,
+  timeEnd: segment.timeEnd,
+  pathLabel: segment.pathLabel,
+  role: segment.role,
   translation: translatedSegments.value[segment.id] || '',
 })));
 const previewLimit = PREVIEW_LIMIT;
 const hasMorePreviewRows = computed(() => Boolean(parsedDocument.value && parsedDocument.value.segments.length > PREVIEW_LIMIT));
 const hasTranslation = computed(() => translatedSegments.value.some((item) => item.trim().length > 0));
 const completedSegments = computed(() => translatedSegments.value.filter((item) => item !== undefined && item !== '').length);
+const isPdfDocument = computed(() => parsedDocument.value?.binary?.kind === 'pdf');
+const isEpubDocument = computed(() => parsedDocument.value?.binary?.kind === 'epub');
+const isDocxDocument = computed(() => parsedDocument.value?.binary?.kind === 'docx');
+const isSubtitleDocument = computed(() => ['srt', 'vtt', 'ass', 'lrc'].includes(parsedDocument.value?.format || ''));
+const isJsonDocument = computed(() => parsedDocument.value?.format === 'json');
+const isRichDocument = computed(() => isEpubDocument.value || ['html', 'markdown', 'txt'].includes(parsedDocument.value?.format || ''));
+const pdfPageCount = computed(() => parsedDocument.value?.binary?.kind === 'pdf' ? parsedDocument.value.binary.pages.length : 0);
+const currentPdfPage = computed(() => parsedDocument.value?.binary?.kind === 'pdf'
+  ? parsedDocument.value.binary.pages.find((page) => page.pageNumber === pdfPageNumber.value)
+  : undefined);
+const pdfPageAspect = computed(() => currentPdfPage.value
+  ? `${currentPdfPage.value.width} / ${currentPdfPage.value.height}`
+  : '612 / 792');
+const currentPdfRows = computed(() => {
+  const document = parsedDocument.value;
+  const page = currentPdfPage.value;
+  if (!document || !page) return [];
+  return page.segmentIndexes.map((index) => ({
+    index,
+    source: document.segments[index]?.source || '',
+    translation: translatedSegments.value[index] || '',
+  }));
+});
+const epubChapters = computed(() => parsedDocument.value?.binary?.kind === 'epub'
+  ? parsedDocument.value.binary.chapters
+  : []);
+const currentEpubChapter = computed(() => epubChapters.value[epubChapterIndex.value]);
+const richPreviewDocument = computed<ParsedDocument | null>(() => {
+  const document = parsedDocument.value;
+  if (!document) return null;
+  if (document.binary?.kind === 'epub') {
+    const chapter = currentEpubChapter.value;
+    return chapter ? parseDocument('chapter.html', chapter.source) : null;
+  }
+  return ['html', 'markdown', 'txt'].includes(document.format) ? document : null;
+});
+const richPreviewTranslations = computed(() => {
+  const chapter = currentEpubChapter.value;
+  return chapter
+    ? translatedSegments.value.slice(chapter.segmentOffset, chapter.segmentOffset + chapter.segmentCount)
+    : translatedSegments.value;
+});
+const richPreviewHtml = computed(() => {
+  const document = richPreviewDocument.value;
+  if (!document) return '';
+  return createDocumentPreviewHtml(
+    document,
+    richPreviewTranslations.value,
+    hasTranslation.value ? outputMode.value : 'source',
+  );
+});
+const currentRichRows = computed(() => {
+  const document = parsedDocument.value;
+  const chapter = currentEpubChapter.value;
+  if (!document) return [];
+  if (!chapter) return previewRows.value;
+  return document.segments
+    .slice(chapter.segmentOffset, chapter.segmentOffset + Math.min(chapter.segmentCount, PREVIEW_LIMIT))
+    .map((segment) => ({
+      index: segment.id,
+      source: segment.source,
+      translation: translatedSegments.value[segment.id] || '',
+    }));
+});
+const docxParts = computed(() => parsedDocument.value?.binary?.kind === 'docx'
+  ? parsedDocument.value.binary.parts
+  : []);
+const currentDocxPart = computed(() => docxParts.value[docxPartIndex.value]);
+const currentDocxRows = computed(() => {
+  const document = parsedDocument.value;
+  const part = currentDocxPart.value;
+  if (!document || !part) return [];
+  return part.paragraphSegments.slice(0, PREVIEW_LIMIT).map(({segmentIndex}) => {
+    const segment = document.segments[segmentIndex];
+    return {
+      index: segmentIndex,
+      source: segment?.source || '',
+      role: segment?.role,
+      translation: translatedSegments.value[segmentIndex] || '',
+    };
+  });
+});
+const subtitleRows = computed(() => previewRows.value);
+const jsonRows = computed(() => previewRows.value);
+const previewMeta = computed(() => {
+  if (isPdfDocument.value) return {
+    eyebrow: '版式阅读',
+    title: 'PDF 原页与译页',
+    hint: '保留分页、图表、分栏和文字坐标；双语模式并排显示原页与译页',
+  };
+  if (isEpubDocument.value) return {
+    eyebrow: '电子书阅读',
+    title: 'ePub 章节双语阅读',
+    hint: '按目录切换章节，保留正文层级并导出可继续阅读的双语 ePub',
+  };
+  if (isDocxDocument.value) return {
+    eyebrow: '页面阅读',
+    title: 'Word 文档原文与译文',
+    hint: '按正文、页眉、页脚和注释分区校对，下载结果仍为原生 DOCX',
+  };
+  if (isSubtitleDocument.value) return {
+    eyebrow: '时间轴校对',
+    title: '字幕原文与可编辑译文',
+    hint: '开始时间、结束时间和字幕标签保持不变，逐条校对后按原格式下载',
+  };
+  if (isJsonDocument.value) return {
+    eyebrow: '结构化翻译',
+    title: 'JSON 路径与字符串译文',
+    hint: '只翻译字符串值，键名、数组、数字、布尔值和嵌套结构保持不变',
+  };
+  if (parsedDocument.value?.format === 'markdown') return {
+    eyebrow: '排版阅读',
+    title: 'Markdown 双语文章',
+    hint: '标题、段落、列表、引用和代码块按文章样式呈现，而不是文本片段表格',
+  };
+  if (parsedDocument.value?.format === 'html') return {
+    eyebrow: '网页文档阅读',
+    title: 'HTML 双语排版预览',
+    hint: '在隔离阅读器中保留标题、段落、列表与表格，脚本和外部请求不会运行',
+  };
+  return {
+    eyebrow: '流畅阅读',
+    title: '原文与译文',
+    hint: '按自然段连续阅读和校对，下载时保留原文件换行结构',
+  };
+});
+const emptyReaderHint = computed(() => {
+  if (isPdfDocument.value) return '点击“开始翻译”，译文会按原页面坐标写回并生成可下载 PDF。';
+  if (isSubtitleDocument.value) return '点击“开始翻译”，译文会出现在对应时间轴行中。';
+  if (isJsonDocument.value) return '点击“开始翻译”，只会填充每个 JSON 路径对应的字符串译文。';
+  return '点击“开始翻译”，译文会按当前文档的阅读结构显示。';
+});
+const showPreviewLimitNote = computed(() => hasMorePreviewRows.value
+  && (isSubtitleDocument.value || isJsonDocument.value || isDocxDocument.value));
 const formatCode = computed(() => parsedDocument.value?.format.toUpperCase() || 'FILE');
 const formatTone = computed(() => {
   const format = parsedDocument.value?.format;
@@ -273,6 +626,60 @@ const formatTone = computed(() => {
           ? 'sand'
           : 'slate';
 });
+
+function docxPartLabel(path: string): string {
+  if (path === 'word/document.xml') return '正文';
+  if (/header/iu.test(path)) return '页眉';
+  if (/footer/iu.test(path)) return '页脚';
+  if (/footnotes/iu.test(path)) return '脚注';
+  if (/endnotes/iu.test(path)) return '尾注';
+  return '文档内容';
+}
+
+function pngObjectUrl(bytes: Uint8Array): string {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return URL.createObjectURL(new Blob([buffer], {type: 'image/png'}));
+}
+
+function clearPdfPreviewUrls(): void {
+  if (pdfOriginalPreviewUrl.value) URL.revokeObjectURL(pdfOriginalPreviewUrl.value);
+  if (pdfTranslatedPreviewUrl.value) URL.revokeObjectURL(pdfTranslatedPreviewUrl.value);
+  pdfOriginalPreviewUrl.value = '';
+  pdfTranslatedPreviewUrl.value = '';
+}
+
+async function refreshPdfPreview(): Promise<void> {
+  const document = parsedDocument.value;
+  if (document?.binary?.kind !== 'pdf') {
+    clearPdfPreviewUrls();
+    return;
+  }
+  const request = ++pdfPreviewRequest;
+  pdfPreviewLoading.value = true;
+  try {
+    const preview = await createPdfPagePreview(
+      document,
+      pdfPageNumber.value,
+      hasTranslation.value ? translatedSegments.value : undefined,
+    );
+    if (request !== pdfPreviewRequest) return;
+    const originalUrl = pngObjectUrl(preview.original);
+    const translatedUrl = preview.translated ? pngObjectUrl(preview.translated) : '';
+    clearPdfPreviewUrls();
+    pdfOriginalPreviewUrl.value = originalUrl;
+    pdfTranslatedPreviewUrl.value = translatedUrl;
+  } catch (error) {
+    if (request === pdfPreviewRequest) showError(error instanceof Error ? error.message : String(error));
+  } finally {
+    if (request === pdfPreviewRequest) pdfPreviewLoading.value = false;
+  }
+}
+
+function schedulePdfPreview(): void {
+  if (pdfPreviewTimer) clearTimeout(pdfPreviewTimer);
+  pdfPreviewTimer = setTimeout(() => { void refreshPdfPreview(); }, 180);
+}
 
 function readerText(value: string): string {
   const format = parsedDocument.value?.format;
@@ -321,6 +728,14 @@ watch(config, (value) => {
   });
 }, {deep: true, flush: 'sync'});
 
+watch([parsedDocument, pdfPageNumber], () => {
+  if (isPdfDocument.value) void refreshPdfPreview();
+}, {flush: 'post'});
+
+watch(translatedSegments, () => {
+  if (isPdfDocument.value) schedulePdfPreview();
+}, {deep: true});
+
 function openFilePicker(): void {
   fileInput.value?.click();
 }
@@ -349,6 +764,10 @@ async function loadFile(file: File): Promise<void> {
     parsedDocument.value = parsed;
     translatedSegments.value = [];
     outputMode.value = 'bilingual';
+    pdfPageNumber.value = 1;
+    pdfZoom.value = 1;
+    epubChapterIndex.value = 0;
+    docxPartIndex.value = 0;
     progress.value = 0;
   } catch (error) {
     showError(error instanceof Error ? error.message : String(error));
@@ -380,6 +799,14 @@ function resetDocument(): void {
   errorMessage.value = '';
   openingFile.value = false;
   preparingDownload.value = false;
+  pdfPageNumber.value = 1;
+  pdfZoom.value = 1;
+  epubChapterIndex.value = 0;
+  docxPartIndex.value = 0;
+  pdfPreviewLoading.value = false;
+  pdfPreviewRequest += 1;
+  if (pdfPreviewTimer) clearTimeout(pdfPreviewTimer);
+  clearPdfPreviewUrls();
 }
 
 async function startTranslation(): Promise<void> {
@@ -461,6 +888,8 @@ onUnmounted(() => {
   abortController?.abort();
   void saveConfig(config).catch(() => undefined);
   if (noticeTimer) clearTimeout(noticeTimer);
+  if (pdfPreviewTimer) clearTimeout(pdfPreviewTimer);
+  clearPdfPreviewUrls();
   const media = window.matchMedia('(prefers-color-scheme: dark)');
   media.removeEventListener?.('change', applyTheme);
   window.removeEventListener('pagehide', resetDocument);

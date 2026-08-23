@@ -36,7 +36,7 @@ const onePixelPng = Uint8Array.from(Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZlY4AAAAASUVORK5CYII=',
     'base64',
 ));
-const testRasterizer: PdfPageRasterizer = async () => [onePixelPng];
+const testRasterizer: PdfPageRasterizer = async () => onePixelPng;
 
 beforeEach(() => {
     mocks.config.service = 'microsoft';

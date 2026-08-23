@@ -2,6 +2,7 @@ import JSZip from 'jszip';
 import {PDFDocument} from 'pdf-lib';
 import {
     GlobalWorkerOptions,
+    Util,
     getDocument as getPdfDocument,
 } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
@@ -19,6 +20,7 @@ import {
     type DocumentSegment,
     type EpubDocumentChapter,
     type ParsedDocument,
+    type PdfDocumentBlock,
     type PdfDocumentPage,
 } from '@/entrypoints/utils/documentTranslation';
 
@@ -43,10 +45,29 @@ interface PdfTextItem {
     hasEOL: boolean;
 }
 
+interface PdfTextStyle {
+    ascent?: number;
+    descent?: number;
+    fontFamily?: string;
+    vertical?: boolean;
+}
+
+interface PdfTextAtom {
+    text: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    fontFamily: string;
+}
+
 interface PdfTextLine {
     text: string;
+    x: number;
     y: number;
+    width: number;
     height: number;
+    fontFamily: string;
 }
 
 export interface DocumentFileLike {
@@ -65,10 +86,12 @@ export interface PdfRasterPageInput {
     pageNumber: number;
     width: number;
     height: number;
+    sourceBytes: Uint8Array;
+    blocks: PdfDocumentBlock[];
     translations: string[];
 }
 
-export type PdfPageRasterizer = (input: PdfRasterPageInput) => Promise<Uint8Array[]>;
+export type PdfPageRasterizer = (input: PdfRasterPageInput) => Promise<Uint8Array>;
 
 export interface CreateDocumentDownloadOptions {
     pdfPageRasterizer?: PdfPageRasterizer;
@@ -153,48 +176,6 @@ function resolveZipPath(baseFile: string, href: string): string {
     }
 }
 
-function pdfTextLines(items: PdfTextItem[]): PdfTextLine[] {
-    const lines: PdfTextLine[] = [];
-    let current = '';
-    let currentY: number | undefined;
-    let currentHeight = 0;
-    let currentEndX: number | undefined;
-
-    const flush = () => {
-        const normalized = current.replace(/[\t\u00a0 ]+/gu, ' ').trim();
-        if (normalized) lines.push({text: normalized, y: currentY || 0, height: currentHeight || 1});
-        current = '';
-        currentY = undefined;
-        currentHeight = 0;
-        currentEndX = undefined;
-    };
-
-    items.forEach((item) => {
-        const text = item.str.replace(/\u0000/gu, '');
-        if (!text && !item.hasEOL) return;
-        const x = Number(item.transform?.[4] || 0);
-        const y = Number(item.transform?.[5] || 0);
-        const height = Math.max(1, Number(item.height || item.transform?.[3] || 1));
-        const newLine = currentY !== undefined && Math.abs(y - currentY) > Math.max(2, currentHeight * 0.55, height * 0.55);
-        if (newLine) flush();
-
-        if (current) {
-            const gap = currentEndX === undefined ? 0 : x - currentEndX;
-            const needsSpace = gap > Math.max(1.2, height * 0.08)
-                && !/[\s\-–—/]$/u.test(current)
-                && !/^[,.;:!?，。；：！？)\]}]/u.test(text);
-            if (needsSpace) current += ' ';
-        }
-        current += text;
-        currentY = y;
-        currentHeight = Math.max(currentHeight, height);
-        currentEndX = x + Number(item.width || 0);
-        if (item.hasEOL) flush();
-    });
-    flush();
-    return lines;
-}
-
 function median(values: number[]): number {
     if (values.length === 0) return 1;
     const sorted = [...values].sort((left, right) => left - right);
@@ -202,46 +183,166 @@ function median(values: number[]): number {
     return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
 }
 
-function pdfTextSegments(lines: PdfTextLine[]): string[] {
-    if (lines.length === 0) return [];
-    const bodyHeight = Math.max(1, median(lines.map((line) => line.height)));
-    const segments: string[] = [];
-    let paragraph = '';
+function pdfTextAtoms(
+    items: PdfTextItem[],
+    styles: Record<string, PdfTextStyle>,
+    viewport: {width: number; height: number; transform: number[]},
+): PdfTextAtom[] {
+    return items.flatMap((item) => {
+        const text = item.str.replace(/\u0000/gu, '').replace(/[\t\u00a0 ]+/gu, ' ').trim();
+        if (!text) return [];
+        const transform = Util.transform(viewport.transform, item.transform as number[]);
+        const angle = Math.atan2(transform[1], transform[0]);
+        if (Math.abs(angle) > 0.12) return [];
+        const style = styles[item.fontName] || {};
+        const fontHeight = Math.max(1, Math.hypot(transform[2], transform[3]) || item.height || 1);
+        const ascent = typeof style.ascent === 'number'
+            ? style.ascent
+            : typeof style.descent === 'number'
+                ? 1 + style.descent
+                : 0.8;
+        const x = transform[4];
+        const y = transform[5] - fontHeight * ascent;
+        return [{
+            text,
+            x,
+            y,
+            width: Math.max(fontHeight * 0.2, Math.abs(item.width || 0)),
+            height: fontHeight,
+            fontFamily: style.fontFamily || 'sans-serif',
+        }];
+    }).filter((atom) => atom.x < viewport.width && atom.y < viewport.height && atom.x + atom.width > 0 && atom.y + atom.height > 0);
+}
 
-    const flush = () => {
-        const value = paragraph.trim();
-        if (value) segments.push(value);
-        paragraph = '';
-    };
-    const isHeading = (line: PdfTextLine) => line.height >= bodyHeight * 1.3;
-    const isSentenceEnd = (value: string) => /[.!?。！？]["')\]}]*$/u.test(value);
-
-    lines.forEach((line, index) => {
-        const previous = lines[index - 1];
-        const next = lines[index + 1];
-        const gapFromPrevious = previous ? Math.abs(previous.y - line.y) : 0;
-        const paragraphGap = previous
-            ? gapFromPrevious > Math.max(previous.height, line.height) * 1.65
-            : false;
-
-        if (isHeading(line) || paragraphGap) flush();
-        if (isHeading(line)) {
-            segments.push(line.text);
-            return;
-        }
-
-        if (!paragraph) paragraph = line.text;
-        else if (/[-‐‑]$/u.test(paragraph) && /^[a-z]/u.test(line.text)) paragraph = `${paragraph.slice(0, -1)}${line.text}`;
-        else paragraph += ` ${line.text}`;
-
-        const gapToNext = next ? Math.abs(line.y - next.y) : 0;
-        const nextStartsBlock = !next
-            || isHeading(next)
-            || gapToNext > Math.max(line.height, next.height) * 1.65;
-        if (isSentenceEnd(line.text) || nextStartsBlock) flush();
+function pdfTextLines(atoms: PdfTextAtom[], pageWidth: number): PdfTextLine[] {
+    const rows: PdfTextAtom[][] = [];
+    [...atoms].sort((left, right) => left.y - right.y || left.x - right.x).forEach((atom) => {
+        const row = rows.at(-1);
+        const rowHeight = row ? Math.max(...row.map((entry) => entry.height)) : 0;
+        const rowY = row ? median(row.map((entry) => entry.y)) : 0;
+        if (!row || Math.abs(atom.y - rowY) > Math.max(2, rowHeight * 0.42, atom.height * 0.42)) rows.push([atom]);
+        else row.push(atom);
     });
-    flush();
-    return segments;
+
+    const lines: PdfTextLine[] = [];
+    const addLine = (entries: PdfTextAtom[]) => {
+        if (entries.length === 0) return;
+        const ordered = [...entries].sort((left, right) => left.x - right.x);
+        let text = '';
+        let endX: number | undefined;
+        ordered.forEach((entry) => {
+            const gap = endX === undefined ? 0 : entry.x - endX;
+            if (text && gap > Math.max(1.2, entry.height * 0.08)
+                && !/[\s\-–—/]$/u.test(text)
+                && !/^[,.;:!?，。；：！？)\]}]/u.test(entry.text)) text += ' ';
+            text += entry.text;
+            endX = Math.max(endX ?? entry.x, entry.x + entry.width);
+        });
+        const x = Math.min(...ordered.map((entry) => entry.x));
+        const y = Math.min(...ordered.map((entry) => entry.y));
+        const right = Math.max(...ordered.map((entry) => entry.x + entry.width));
+        const bottom = Math.max(...ordered.map((entry) => entry.y + entry.height));
+        const dominant = [...ordered].sort((left, rightEntry) => rightEntry.width - left.width)[0];
+        const normalized = text.replace(/[\t\u00a0 ]+/gu, ' ').trim();
+        if (normalized) lines.push({
+            text: normalized,
+            x,
+            y,
+            width: Math.max(1, right - x),
+            height: Math.max(1, bottom - y),
+            fontFamily: dominant?.fontFamily || 'sans-serif',
+        });
+    };
+
+    rows.forEach((row) => {
+        const ordered = [...row].sort((left, right) => left.x - right.x);
+        let group: PdfTextAtom[] = [];
+        let endX: number | undefined;
+        ordered.forEach((atom) => {
+            const gap = endX === undefined ? 0 : atom.x - endX;
+            const splitGap = Math.max(atom.height * 3.2, pageWidth * 0.055);
+            if (group.length > 0 && gap > splitGap) {
+                addLine(group);
+                group = [];
+            }
+            group.push(atom);
+            endX = Math.max(endX ?? atom.x, atom.x + atom.width);
+        });
+        addLine(group);
+    });
+    return lines.sort((left, right) => left.y - right.y || left.x - right.x);
+}
+
+interface PdfTextBlockDraft {
+    lines: PdfTextLine[];
+}
+
+function pdfTextBlocks(lines: PdfTextLine[], pageWidth: number): Array<Omit<PdfDocumentBlock, 'segmentIndex'> & {source: string}> {
+    if (lines.length === 0) return [];
+    const bodyHeight = Math.max(1, median(lines.map((line) => line.height).filter((height) => height >= 4)));
+    const drafts: PdfTextBlockDraft[] = [];
+    const isHeading = (line: PdfTextLine) => line.height >= bodyHeight * 1.32;
+    const bounds = (draft: PdfTextBlockDraft) => {
+        const x = Math.min(...draft.lines.map((line) => line.x));
+        const y = Math.min(...draft.lines.map((line) => line.y));
+        const right = Math.max(...draft.lines.map((line) => line.x + line.width));
+        const bottom = Math.max(...draft.lines.map((line) => line.y + line.height));
+        return {x, y, right, bottom};
+    };
+
+    lines.forEach((line) => {
+        let selected: PdfTextBlockDraft | undefined;
+        let selectedGap = Number.POSITIVE_INFINITY;
+        if (!isHeading(line)) {
+            drafts.forEach((draft) => {
+                const last = draft.lines.at(-1)!;
+                if (isHeading(last)) return;
+                const draftBounds = bounds(draft);
+                const gap = line.y - draftBounds.bottom;
+                if (gap < -Math.max(2, line.height * 0.2) || gap > Math.max(last.height, line.height) * 0.95) return;
+                const overlap = Math.max(0, Math.min(draftBounds.right, line.x + line.width) - Math.max(draftBounds.x, line.x));
+                const overlapRatio = overlap / Math.max(1, Math.min(draftBounds.right - draftBounds.x, line.width));
+                const aligned = Math.abs(line.x - last.x) <= Math.max(bodyHeight * 1.5, Math.min(last.width, line.width) * 0.12);
+                const fontRatio = Math.max(last.height, line.height) / Math.max(1, Math.min(last.height, line.height));
+                const startsIndentedParagraph = /[.!?。！？]["')\]}]*$/u.test(last.text)
+                    && line.x - last.x > bodyHeight * 0.9;
+                if ((!aligned && overlapRatio < 0.48) || fontRatio > 1.28 || startsIndentedParagraph) return;
+                const paragraphGap = /[.!?。！？]["')\]}]*$/u.test(last.text) && gap > last.height * 0.62;
+                if (paragraphGap) return;
+                if (gap < selectedGap) {
+                    selected = draft;
+                    selectedGap = gap;
+                }
+            });
+        }
+        if (selected) selected.lines.push(line);
+        else drafts.push({lines: [line]});
+    });
+
+    return drafts.map((draft) => {
+        const draftBounds = bounds(draft);
+        const first = draft.lines[0];
+        const source = draft.lines.reduce((value, line) => {
+            if (!value) return line.text;
+            if (/[-‐‑]$/u.test(value) && /^[a-z]/u.test(line.text)) return `${value.slice(0, -1)}${line.text}`;
+            return `${value} ${line.text}`;
+        }, '').replace(/\s+/gu, ' ').trim();
+        const center = (draftBounds.x + draftBounds.right) / 2;
+        const centered = Math.abs(center - pageWidth / 2) <= pageWidth * 0.045
+            && draftBounds.right - draftBounds.x < pageWidth * 0.9;
+        return {
+            source,
+            x: Math.max(0, draftBounds.x),
+            y: Math.max(0, draftBounds.y),
+            width: Math.max(1, Math.min(pageWidth, draftBounds.right) - Math.max(0, draftBounds.x)),
+            height: Math.max(1, draftBounds.bottom - draftBounds.y),
+            fontSize: Math.max(...draft.lines.map((line) => line.height)),
+            fontFamily: first.fontFamily,
+            fontWeight: (isHeading(first) ? 700 : source.length <= 80 ? 600 : 400) as 400 | 600 | 700,
+            textAlign: centered ? 'center' as const : 'left' as const,
+        };
+    }).filter((block) => block.source.length > 0)
+        .sort((left, right) => left.y - right.y || left.x - right.x);
 }
 
 async function parsePdf(fileName: string, bytes: Uint8Array): Promise<ParsedDocument> {
@@ -270,22 +371,31 @@ async function parsePdf(fileName: string, bytes: Uint8Array): Promise<ParsedDocu
             const page = await pdf.getPage(pageNumber);
             const viewport = page.getViewport({scale: 1});
             const textContent = await page.getTextContent();
-            const lines = pdfTextSegments(pdfTextLines(textContent.items.filter((item): item is PdfTextItem => 'str' in item)));
+            const atoms = pdfTextAtoms(
+                textContent.items.filter((item): item is PdfTextItem => 'str' in item),
+                textContent.styles as Record<string, PdfTextStyle>,
+                viewport,
+            );
+            const layoutBlocks = pdfTextBlocks(pdfTextLines(atoms, viewport.width), viewport.width);
             const segmentIndexes: number[] = [];
-            lines.forEach((source, lineIndex) => {
+            const blocks: PdfDocumentBlock[] = [];
+            layoutBlocks.forEach((block, blockIndex) => {
                 const id = segments.length;
                 segments.push({
                     id,
-                    source,
-                    contextLabel: lineIndex === 0 ? `第 ${pageNumber} 页` : undefined,
+                    source: block.source,
+                    contextLabel: blockIndex === 0 ? `第 ${pageNumber} 页` : undefined,
+                    role: block.fontWeight === 700 ? 'heading' : 'paragraph',
                 });
                 segmentIndexes.push(id);
+                blocks.push({...block, segmentIndex: id});
             });
             pages.push({
                 pageNumber,
                 width: viewport.width,
                 height: viewport.height,
                 segmentIndexes,
+                blocks,
             });
             page.cleanup();
         }
@@ -426,6 +536,17 @@ function docxPartTitle(path: string): string {
     return '文档内容';
 }
 
+function docxParagraphRole(paragraph: string, path: string): NonNullable<DocumentSegment['role']> {
+    if (/header/iu.test(path)) return 'header';
+    if (/footer/iu.test(path)) return 'footer';
+    if (/(?:footnotes|endnotes)/iu.test(path)) return 'note';
+    const style = paragraph.match(/<w:pStyle\b[^>]*\bw:val="([^"]+)"/iu)?.[1] || '';
+    if (/title/iu.test(style)) return 'title';
+    if (/heading|标题/iu.test(style)) return 'heading';
+    if (/<w:numPr\b/iu.test(paragraph)) return 'list-item';
+    return 'paragraph';
+}
+
 async function parseDocx(fileName: string, bytes: Uint8Array): Promise<ParsedDocument> {
     let zip: JSZip;
     try {
@@ -471,6 +592,8 @@ async function parseDocx(fileName: string, bytes: Uint8Array): Promise<ParsedDoc
                     id: segmentIndex,
                     source: text,
                     contextLabel: partSegmentIndex === 0 ? docxPartTitle(path) : undefined,
+                    pathLabel: docxPartTitle(path),
+                    role: docxParagraphRole(paragraphMatch[0], path),
                 });
                 paragraphSegments.push({paragraphIndex, segmentIndex});
                 partSegmentIndex += 1;
@@ -552,76 +675,207 @@ function canvasToPng(canvas: HTMLCanvasElement): Promise<Uint8Array> {
     });
 }
 
-export async function rasterizePdfTranslationPages(input: PdfRasterPageInput): Promise<Uint8Array[]> {
+const browserPdfCache = new WeakMap<Uint8Array, Promise<any>>();
+
+function browserPdfDocument(bytes: Uint8Array): Promise<any> {
+    const cached = browserPdfCache.get(bytes);
+    if (cached) return cached;
+    const pdfAssetRoot = `${window.location.origin}/pdfjs`;
+    const promise = getPdfDocument({
+        data: new Uint8Array(bytes),
+        disableFontFace: false,
+        isEvalSupported: false,
+        useWorkerFetch: false,
+        cMapPacked: true,
+        cMapUrl: `${pdfAssetRoot}/cmaps/`,
+        standardFontDataUrl: `${pdfAssetRoot}/standard_fonts/`,
+    }).promise;
+    browserPdfCache.set(bytes, promise);
+    return promise;
+}
+
+async function renderPdfSourceCanvas(bytes: Uint8Array, pageNumber: number, width: number): Promise<HTMLCanvasElement> {
+    if (typeof globalThis.document === 'undefined' || typeof globalThis.window === 'undefined') {
+        throw new Error('当前环境无法渲染 PDF 页面，请在浏览器扩展中打开');
+    }
+    const pdf = await browserPdfDocument(bytes);
+    const page = await pdf.getPage(pageNumber);
+    const scale = Math.min(2.4, Math.max(1.45, 1440 / Math.max(1, width)));
+    const viewport = page.getViewport({scale});
+    const canvas = globalThis.document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(viewport.width));
+    canvas.height = Math.max(1, Math.round(viewport.height));
+    const context = canvas.getContext('2d', {alpha: false});
+    if (!context) throw new Error('浏览器 Canvas 初始化失败');
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({canvas, canvasContext: context, viewport}).promise;
+    page.cleanup();
+    return canvas;
+}
+
+function sampledBackgroundRgb(
+    context: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+): [number, number, number] {
+    const points: Array<[number, number]> = [];
+    const steps = 8;
+    for (let index = 0; index <= steps; index += 1) {
+        const ratio = index / steps;
+        points.push([x + width * ratio, y - 2], [x + width * ratio, y + height + 2]);
+        points.push([x - 2, y + height * ratio], [x + width + 2, y + height * ratio]);
+    }
+    const colors: Array<[number, number, number]> = [];
+    points.forEach(([pointX, pointY]) => {
+        const safeX = Math.max(0, Math.min(context.canvas.width - 1, Math.round(pointX)));
+        const safeY = Math.max(0, Math.min(context.canvas.height - 1, Math.round(pointY)));
+        const pixel = context.getImageData(safeX, safeY, 1, 1).data;
+        if (pixel[3] > 0) colors.push([pixel[0], pixel[1], pixel[2]]);
+    });
+    if (colors.length === 0) return [255, 255, 255];
+    const channelMedian = (channel: 0 | 1 | 2) => median(colors.map((color) => color[channel]));
+    return [
+        Math.round(channelMedian(0)),
+        Math.round(channelMedian(1)),
+        Math.round(channelMedian(2)),
+    ];
+}
+
+function sampledForegroundColor(
+    context: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    background: [number, number, number],
+): string {
+    const safeX = Math.max(0, Math.floor(x));
+    const safeY = Math.max(0, Math.floor(y));
+    const safeWidth = Math.max(1, Math.min(context.canvas.width - safeX, Math.ceil(width)));
+    const safeHeight = Math.max(1, Math.min(context.canvas.height - safeY, Math.ceil(height)));
+    const pixels = context.getImageData(safeX, safeY, safeWidth, safeHeight).data;
+    const stride = Math.max(1, Math.ceil(Math.sqrt((safeWidth * safeHeight) / 3200)));
+    const candidates: Array<{color: [number, number, number]; distance: number}> = [];
+    for (let pointY = 0; pointY < safeHeight; pointY += stride) {
+        for (let pointX = 0; pointX < safeWidth; pointX += stride) {
+            const offset = (pointY * safeWidth + pointX) * 4;
+            if (pixels[offset + 3] === 0) continue;
+            const color: [number, number, number] = [pixels[offset], pixels[offset + 1], pixels[offset + 2]];
+            const distance = Math.hypot(
+                color[0] - background[0],
+                color[1] - background[1],
+                color[2] - background[2],
+            );
+            if (distance >= 48) candidates.push({color, distance});
+        }
+    }
+    if (candidates.length === 0) return '#111827';
+    candidates.sort((left, right) => right.distance - left.distance);
+    const strongest = candidates.slice(0, Math.max(3, Math.ceil(candidates.length * 0.22)));
+    const channel = (index: 0 | 1 | 2) => Math.round(median(strongest.map((entry) => entry.color[index])));
+    return `rgb(${channel(0)}, ${channel(1)}, ${channel(2)})`;
+}
+
+function paintPdfTranslation(
+    sourceCanvas: HTMLCanvasElement,
+    input: PdfRasterPageInput,
+): HTMLCanvasElement {
+    const canvas = globalThis.document.createElement('canvas');
+    canvas.width = sourceCanvas.width;
+    canvas.height = sourceCanvas.height;
+    const context = canvas.getContext('2d', {alpha: false});
+    if (!context) throw new Error('浏览器 Canvas 初始化失败');
+    context.drawImage(sourceCanvas, 0, 0);
+    const scaleX = canvas.width / input.width;
+    const scaleY = canvas.height / input.height;
+
+    input.blocks.forEach((block) => {
+        const translation = input.translations[block.segmentIndex] || '';
+        if (!translation.trim()) return;
+        const x = Math.max(0, block.x * scaleX);
+        const y = Math.max(0, block.y * scaleY);
+        const width = Math.max(8, Math.min(canvas.width - x, block.width * scaleX));
+        const height = Math.max(8, Math.min(canvas.height - y, block.height * scaleY));
+        const padding = Math.max(1.5, Math.min(scaleX, scaleY) * 0.9);
+        const background = sampledBackgroundRgb(context, x, y, width, height);
+        const foreground = sampledForegroundColor(context, x, y, width, height, background);
+        context.fillStyle = `rgb(${background[0]}, ${background[1]}, ${background[2]})`;
+        context.fillRect(
+            Math.max(0, x - padding),
+            Math.max(0, y - padding),
+            Math.min(canvas.width - x + padding, width + padding * 2),
+            Math.min(canvas.height - y + padding, height + padding * 2),
+        );
+
+        const maxWidth = Math.max(4, width - padding * 1.4);
+        const maxHeight = Math.max(4, height - padding * 0.6);
+        const family = /serif/iu.test(block.fontFamily)
+            ? '"Noto Serif CJK SC", "Songti SC", Georgia, serif'
+            : '"Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", Arial, sans-serif';
+        let fontSize = Math.max(5, block.fontSize * Math.min(scaleX, scaleY));
+        let lines: string[] = [];
+        let lineHeight = fontSize * 1.12;
+        while (fontSize >= 4) {
+            context.font = `${block.fontWeight} ${fontSize}px ${family}`;
+            lines = wrapCanvasText(context, translation, maxWidth);
+            lineHeight = fontSize * 1.12;
+            if (lines.length * lineHeight <= maxHeight * 1.04) break;
+            fontSize -= Math.max(0.5, fontSize * 0.06);
+        }
+
+        context.save();
+        context.beginPath();
+        context.rect(x, y, width, height);
+        context.clip();
+        context.fillStyle = foreground;
+        context.textBaseline = 'top';
+        context.textAlign = block.textAlign;
+        context.font = `${block.fontWeight} ${fontSize}px ${family}`;
+        const textX = block.textAlign === 'center' ? x + width / 2 : block.textAlign === 'right' ? x + width : x;
+        const contentHeight = lines.length * lineHeight;
+        let textY = y + Math.max(0, (height - contentHeight) / 2);
+        lines.forEach((line) => {
+            context.fillText(line, textX, textY, maxWidth);
+            textY += lineHeight;
+        });
+        context.restore();
+    });
+    return canvas;
+}
+
+export interface PdfPagePreview {
+    original: Uint8Array;
+    translated?: Uint8Array;
+}
+
+export async function createPdfPagePreview(
+    document: ParsedDocument,
+    pageNumber: number,
+    translations?: readonly string[],
+): Promise<PdfPagePreview> {
+    if (document.binary?.kind !== 'pdf') throw new Error('PDF 文档状态无效，请重新打开文件');
+    const page = document.binary.pages.find((entry) => entry.pageNumber === pageNumber);
+    if (!page) throw new Error(`PDF 第 ${pageNumber} 页不存在`);
+    const sourceCanvas = await renderPdfSourceCanvas(document.binary.bytes, pageNumber, page.width);
+    const original = await canvasToPng(sourceCanvas);
+    if (!translations) return {original};
+    const translatedCanvas = paintPdfTranslation(sourceCanvas, {
+        ...page,
+        sourceBytes: document.binary.bytes,
+        translations: [...translations],
+    });
+    return {original, translated: await canvasToPng(translatedCanvas)};
+}
+
+export async function rasterizePdfTranslationPage(input: PdfRasterPageInput): Promise<Uint8Array> {
     if (typeof globalThis.document === 'undefined') {
         throw new Error('当前环境无法生成 PDF 译文页面，请在浏览器扩展中下载');
     }
-
-    const scale = Math.min(2.2, Math.max(1.5, 1440 / Math.max(1, input.width)));
-    const pixelWidth = Math.max(900, Math.round(input.width * scale));
-    const pixelHeight = Math.max(1200, Math.round(input.height * scale));
-    const margin = Math.round(pixelWidth * 0.065);
-    const bodyFontSize = Math.max(24, Math.round(pixelWidth * 0.021));
-    const labelFontSize = Math.max(16, Math.round(bodyFontSize * 0.62));
-    const lineHeight = Math.round(bodyFontSize * 1.55);
-    const bottom = pixelHeight - margin;
-    const canvases: HTMLCanvasElement[] = [];
-    let canvas!: HTMLCanvasElement;
-    let context!: CanvasRenderingContext2D;
-    let y = 0;
-    let part = 0;
-
-    const startPage = () => {
-        part += 1;
-        canvas = globalThis.document.createElement('canvas');
-        canvas.width = pixelWidth;
-        canvas.height = pixelHeight;
-        const nextContext = canvas.getContext('2d');
-        if (!nextContext) throw new Error('浏览器 Canvas 初始化失败');
-        context = nextContext;
-        context.fillStyle = '#ffffff';
-        context.fillRect(0, 0, pixelWidth, pixelHeight);
-        context.fillStyle = '#e83b6b';
-        context.font = `700 ${Math.round(bodyFontSize * 1.08)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-        context.fillText(`FluentRead · 第 ${input.pageNumber} 页译文`, margin, margin + bodyFontSize);
-        context.fillStyle = '#7a8294';
-        context.font = `500 ${labelFontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-        context.fillText(`双语阅读导出${part > 1 ? ` · 续页 ${part}` : ''}`, margin, margin + bodyFontSize + lineHeight * 0.8);
-        y = margin + bodyFontSize + lineHeight * 1.6;
-        canvases.push(canvas);
-    };
-
-    startPage();
-    input.translations.forEach((translation, index) => {
-        context.font = `600 ${bodyFontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans CJK SC", sans-serif`;
-        const lines = wrapCanvasText(context, translation, pixelWidth - margin * 2);
-        if (y + labelFontSize + lineHeight * 1.4 > bottom) startPage();
-        context.fillStyle = '#9a6475';
-        context.font = `700 ${labelFontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-        context.fillText(`段落 ${index + 1}`, margin, y);
-        y += Math.round(lineHeight * 0.72);
-        context.fillStyle = '#202533';
-        context.font = `600 ${bodyFontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans CJK SC", sans-serif`;
-        lines.forEach((line) => {
-            if (y + lineHeight > bottom) startPage();
-            context.fillStyle = '#202533';
-            context.font = `600 ${bodyFontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans CJK SC", sans-serif`;
-            context.fillText(line, margin, y);
-            y += lineHeight;
-        });
-        y += Math.round(lineHeight * 0.35);
-        if (y < bottom) {
-            context.strokeStyle = '#edf0f5';
-            context.lineWidth = 2;
-            context.beginPath();
-            context.moveTo(margin, y);
-            context.lineTo(pixelWidth - margin, y);
-            context.stroke();
-            y += Math.round(lineHeight * 0.48);
-        }
-    });
-
-    return Promise.all(canvases.map(canvasToPng));
+    const sourceCanvas = await renderPdfSourceCanvas(input.sourceBytes, input.pageNumber, input.width);
+    return canvasToPng(paintPdfTranslation(sourceCanvas, input));
 }
 
 async function renderPdf(
@@ -637,15 +891,26 @@ async function renderPdf(
     outputPdf.setProducer('FluentRead document translation');
 
     for (const pageData of document.binary.pages) {
+        const normalizedTranslations = document.segments.map((segment) => translations[segment.id] ?? segment.source);
+        const png = await rasterizer({
+            ...pageData,
+            sourceBytes: document.binary.bytes,
+            translations: normalizedTranslations,
+        });
+        const image = await outputPdf.embedPng(png);
         if (mode === 'bilingual') {
-            const [copiedPage] = await outputPdf.copyPages(sourcePdf, [pageData.pageNumber - 1]);
-            outputPdf.addPage(copiedPage);
-        }
-        const pageTranslations = pageData.segmentIndexes.map((segmentIndex) =>
-            translations[segmentIndex] ?? document.segments[segmentIndex]?.source ?? '');
-        const rasterPages = await rasterizer({...pageData, translations: pageTranslations});
-        for (const png of rasterPages) {
-            const image = await outputPdf.embedPng(png);
+            const sourcePage = sourcePdf.getPage(pageData.pageNumber - 1);
+            const embeddedSource = await outputPdf.embedPage(sourcePage);
+            const gap = Math.max(8, Math.min(24, pageData.width * 0.025));
+            const page = outputPdf.addPage([pageData.width * 2 + gap, pageData.height]);
+            page.drawPage(embeddedSource, {x: 0, y: 0, width: pageData.width, height: pageData.height});
+            page.drawImage(image, {
+                x: pageData.width + gap,
+                y: 0,
+                width: pageData.width,
+                height: pageData.height,
+            });
+        } else {
             const page = outputPdf.addPage([pageData.width, pageData.height]);
             page.drawImage(image, {x: 0, y: 0, width: pageData.width, height: pageData.height});
         }
@@ -732,7 +997,7 @@ export async function createDocumentDownload(
 ): Promise<DocumentDownload> {
     let data: string | Uint8Array;
     if (document.format === 'pdf') {
-        data = await renderPdf(document, translations, mode, options.pdfPageRasterizer || rasterizePdfTranslationPages);
+        data = await renderPdf(document, translations, mode, options.pdfPageRasterizer || rasterizePdfTranslationPage);
     } else if (document.format === 'epub') {
         data = await renderEpub(document, translations, mode);
     } else if (document.format === 'docx') {
