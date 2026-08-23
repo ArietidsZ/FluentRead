@@ -425,7 +425,7 @@ footer > button { justify-self: end; }
   font-size: 10px; font-weight: 750;
 }
 .image-translation-preview-art b {
-  position: absolute; right: 5px; bottom: 5px; display: grid; place-items: center; width: 20px; height: 20px;
+  position: absolute; left: 5px; bottom: 5px; display: grid; place-items: center; width: 20px; height: 20px;
   border: 1px solid rgba(255, 255, 255, .8); border-radius: 999px; color: #fff; background: rgba(20, 20, 20, .7); font-size: 11px;
 }
 .image-translation-preview > div:last-child { display: flex; flex-direction: column; gap: 4px; }
