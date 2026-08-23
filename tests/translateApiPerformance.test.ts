@@ -28,7 +28,10 @@ vi.mock('@/entrypoints/utils/config', () => ({
 vi.mock('@/entrypoints/utils/common', () => ({detectlang: () => 'eng'}));
 vi.mock('@/entrypoints/utils/option', () => ({
   resolveConfiguredModel: (model: string) => model,
-  servicesType: {isUseAIContext: (service: string) => service === 'mock-ai'},
+  servicesType: {
+    isUseAIContext: (service: string) => service === 'mock-ai',
+    isAiSdk: (service: string) => service === 'mock-ai',
+  },
 }));
 vi.mock('@/entrypoints/utils/pageContext', () => ({getPageTranslationContext: mocks.getPageTranslationContext}));
 vi.mock('@/entrypoints/utils/configValidation', () => ({getMissingCredentialMessage: () => null}));
@@ -108,7 +111,61 @@ describe('translation API request lifecycle performance', () => {
       sourceLanguage: 'en',
       targetLanguage: 'ja',
       useCache: false,
+      requestTimeoutMs: 44_000,
     }));
+  });
+
+  it('lets migrated AI SDK services own retries and restores structured error details', async () => {
+    mocks.config.service = 'mock-ai';
+    mocks.sendMessage.mockResolvedValue({
+      marker: 'fluentread-translation-error-v1',
+      message: '当前翻译服务的 API Key 无效（HTTP 401）。',
+      kind: 'authentication',
+      retryable: false,
+      statusCode: 401,
+      requestId: 'req-test',
+    });
+
+    const request = translateText('Readable source', 'Context');
+    await expect(request).rejects.toMatchObject({
+      name: 'TranslationRequestError',
+      statusCode: 401,
+      retryable: false,
+      requestId: 'req-test',
+    });
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries browser-level network failures without repeating exhausted HTTP retries', async () => {
+    mocks.config.service = 'mock-ai';
+    const networkError = {
+      marker: 'fluentread-translation-error-v1',
+      message: 'Custom 服务网络连接失败，请检查网络或代理设置',
+      kind: 'network',
+      retryable: true,
+    };
+    mocks.sendMessage
+      .mockResolvedValueOnce(networkError)
+      .mockResolvedValueOnce(networkError)
+      .mockResolvedValueOnce('网络恢复后的译文');
+
+    const request = translateText('Readable source', 'Context', {retryDelay: 100});
+    await vi.advanceTimersByTimeAsync(200);
+    await expect(request).resolves.toBe('网络恢复后的译文');
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(3);
+
+    mocks.sendMessage.mockReset();
+    mocks.sendMessage.mockResolvedValue({
+      marker: 'fluentread-translation-error-v1',
+      message: '当前翻译服务的请求频率或配额已达上限（HTTP 429），请稍后重试。',
+      kind: 'rate-limit',
+      retryable: true,
+      statusCode: 429,
+    });
+
+    await expect(translateText('Another readable source', 'Context', {retryDelay: 100}))
+      .rejects.toMatchObject({kind: 'rate-limit', statusCode: 429});
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
   });
 
   it('aborts a retry delay without sending another runtime request', async () => {
@@ -213,6 +270,7 @@ describe('translation API request lifecycle performance', () => {
       origin: 'A subtitle source',
       useCache: true,
       serviceOverride: 'mock-ai',
+      requestTimeoutMs: 19_000,
     });
   });
 });

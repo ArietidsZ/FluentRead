@@ -23,11 +23,17 @@ import common from '@/entrypoints/service/common';
 import { services } from '@/entrypoints/utils/option';
 
 function successResponse() {
-    return {
-        ok: true,
-        json: async () => ({ choices: [{ message: { content: '译文' } }] }),
-        text: async () => '',
-    };
+    return new Response(JSON.stringify({
+        id: 'chatcmpl-test',
+        object: 'chat.completion',
+        created: 1,
+        model: 'mimo-v2.5-pro',
+        choices: [{index: 0, message: {role: 'assistant', content: '译文'}, finish_reason: 'stop'}],
+        usage: {prompt_tokens: 1, completion_tokens: 1, total_tokens: 2},
+    }), {
+        status: 200,
+        headers: {'content-type': 'application/json'},
+    });
 }
 
 describe('小米 MiMo OpenAI 兼容服务', () => {
@@ -50,7 +56,7 @@ describe('小米 MiMo OpenAI 兼容服务', () => {
             'https://api.xiaomimimo.com/v1/chat/completions',
             expect.objectContaining({ method: 'POST' }),
         );
-        const headers = fetchMock.mock.calls[0][1].headers as Headers;
+        const headers = new Headers(fetchMock.mock.calls[0][1].headers);
         expect(headers.get('Authorization')).toBe('Bearer sk-test');
     });
 
@@ -65,7 +71,7 @@ describe('小米 MiMo OpenAI 兼容服务', () => {
             'https://token-plan-ams.xiaomimimo.com/v1/chat/completions',
             expect.objectContaining({ method: 'POST' }),
         );
-        const headers = fetchMock.mock.calls[0][1].headers as Headers;
+        const headers = new Headers(fetchMock.mock.calls[0][1].headers);
         expect(headers.get('Authorization')).toBe('Bearer tp-test');
     });
 });
