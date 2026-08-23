@@ -3,7 +3,6 @@ export interface UserscriptContentContext {
     onInvalidated(callback: () => void): void;
     invalidate(): void;
 }
-
 export function createUserscriptContentContext(): UserscriptContentContext {
     const callbacks = new Set<() => void>();
     let invalid = false;
@@ -23,4 +22,3 @@ export function createUserscriptContentContext(): UserscriptContentContext {
         },
     };
 }
-

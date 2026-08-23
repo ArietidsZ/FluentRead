@@ -2,7 +2,6 @@ export interface UserscriptMetadataOptions {
     version: string;
     iconDataUrl?: string;
 }
-
 const grants = [
     'GM_getValue',
     'GM_setValue',
@@ -38,4 +37,3 @@ export function createUserscriptMetadata({version, iconDataUrl}: UserscriptMetad
     ];
     return `${lines.join('\n')}\n`;
 }
-
