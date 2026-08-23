@@ -25,6 +25,20 @@ export interface SerializedTranslationSlots {
     ends: readonly string[];
 }
 
+export interface TranslationStyleOverride {
+    property: string;
+    value: string;
+    priority: string;
+}
+
+export const translationTruncationStyleOverrides: readonly TranslationStyleOverride[] = [
+    {property: '-webkit-line-clamp', value: 'unset', priority: 'important'},
+    {property: 'line-clamp', value: 'unset', priority: 'important'},
+    {property: 'max-height', value: 'unset', priority: 'important'},
+];
+
+const maxTranslationTruncationAncestorDepth = 16;
+
 function hashSlotSources(sources: readonly string[]): string {
     let hash = 2166136261;
     for (const source of sources) {
@@ -188,13 +202,51 @@ export function applyTranslationsToSnapshot(
     return snapshot.clone.innerHTML;
 }
 
-function clearStyleProperty(node: HTMLElement, property: string): void {
-    const style = node.style as unknown as Record<string, string | undefined>;
-    if (style[property] !== undefined) style[property] = '';
+function isActiveLineClampValue(value: string): boolean {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized || ['none', 'normal', 'auto', 'unset', 'initial'].includes(normalized)) return false;
+    const lineCount = Number.parseFloat(normalized);
+    return Number.isFinite(lineCount) && lineCount > 0;
+}
+
+export function hasActiveTranslationLineClamp(element: HTMLElement): boolean {
+    try {
+        const style = element.ownerDocument?.defaultView?.getComputedStyle(element);
+        if (!style) return false;
+        return [
+            style.webkitLineClamp,
+            style.getPropertyValue('-webkit-line-clamp'),
+            style.getPropertyValue('line-clamp'),
+        ].some(isActiveLineClampValue);
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * A translated paragraph can sit inside a separate line-clamp wrapper. Walk a
+ * small, bounded ancestor chain so rendering can temporarily lease every
+ * active clipping container without turning candidate discovery into a style
+ * mutation. Existing leases are included for sibling candidates that share
+ * one clamp container after the first translation has already unset it.
+ */
+export function findTranslationTruncationAncestors(
+    node: HTMLElement,
+    hasExistingOverride: (element: HTMLElement) => boolean = () => false,
+): HTMLElement[] {
+    const result: HTMLElement[] = [];
+    let current = node.parentElement;
+    let depth = 0;
+    while (current && current !== node.ownerDocument?.body && depth < maxTranslationTruncationAncestorDepth) {
+        depth += 1;
+        if (hasExistingOverride(current) || hasActiveTranslationLineClamp(current)) result.push(current);
+        current = current.parentElement;
+    }
+    return result;
 }
 
 export function removeTranslationTruncation(node: HTMLElement): void {
-    clearStyleProperty(node, 'webkitLineClamp');
-    node.style.webkitLineClamp = 'unset';
-    node.style.maxHeight = 'unset';
+    translationTruncationStyleOverrides.forEach(({property, value, priority}) => {
+        node.style.setProperty(property, value, priority);
+    });
 }

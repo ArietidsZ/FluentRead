@@ -31,13 +31,17 @@ export {
     applyTranslationsToSnapshot,
     collectLiveTranslationTextSlots,
     createTranslationSourceSnapshot,
+    findTranslationTruncationAncestors,
+    hasActiveTranslationLineClamp,
     parseTranslationSlots,
     removeTranslationTruncation,
     serializeTranslationSlots,
+    translationTruncationStyleOverrides,
 } from './serialization';
 export type {
     SerializedTranslationSlots,
     TranslationSourceSnapshot,
+    TranslationStyleOverride,
     TranslationTextSlot,
 } from './serialization';
 export {createDeclarativeAdapter} from './adapters/declarative';
