@@ -203,9 +203,27 @@ async function main() {
         fail(`${example.name} 文件格式徽标不正确`);
       }
       const isPdf = example.name === 'sample.pdf';
+      let pdfScroll;
+      let pdfPageRows = 0;
       if (isPdf) {
         await page.locator('.pdf-layout-viewer').waitFor({state: 'visible', timeout: args.timeout});
-        await page.locator('.pdf-page-column').first().locator('img').waitFor({state: 'visible', timeout: args.timeout});
+        await page.locator('.pdf-page-row').nth(0).locator('.pdf-page-column:not(.translated) img').waitFor({state: 'visible', timeout: args.timeout});
+        pdfPageRows = await page.locator('.pdf-page-row').count();
+        const pdfPageCount = Number((await page.locator('.pdf-page-summary strong').textContent())?.match(/\d+/u)?.[0] || 0);
+        if (await page.locator('.pdf-page-navigation').count() !== 0) {
+          fail('PDF 阅读器不应再提供左右翻页控件');
+        }
+        if (pdfPageRows !== pdfPageCount || pdfPageRows < 2) {
+          fail(`PDF 阅读器必须一次渲染全部页面并纵向排列：页面行 ${pdfPageRows}，页数 ${pdfPageCount}`);
+        }
+        const pdfScroll = await page.locator('[data-pdf-scroll]').evaluate((element) => ({
+          rows: element.querySelectorAll('.pdf-page-row').length,
+          documentVerticalOverflow: document.documentElement.scrollHeight > document.documentElement.clientHeight,
+          horizontalOverflow: element.scrollWidth > element.clientWidth,
+        }));
+        if (pdfScroll.rows !== pdfPageRows || !pdfScroll.documentVerticalOverflow || pdfScroll.horizontalOverflow) {
+          fail(`PDF 连续阅读滚动容器异常：${JSON.stringify(pdfScroll)}`);
+        }
       }
       const nativeReader = page.locator('[data-document-reader]').first();
       await nativeReader.waitFor({state: 'visible', timeout: args.timeout});
@@ -218,7 +236,7 @@ async function main() {
       if (await page.getByRole('button', {name: '开始翻译'}).count() !== 1) {
         fail(`${example.name} 缺少开始翻译按钮`);
       }
-      exampleLoads[example.name] = {badge: example.badge, previewCount};
+      exampleLoads[example.name] = {badge: example.badge, previewCount, ...(pdfScroll ? {continuousScroll: pdfScroll} : {})};
 
       const editableTranslations = page.locator('.document-translation');
       const editableCount = await editableTranslations.count();
@@ -227,7 +245,7 @@ async function main() {
       await editableTranslations.evaluateAll((elements, payload) => {
         elements.slice(0, payload.fillCount).forEach((element, index) => {
           element.removeAttribute('disabled');
-          element.value = `浏览器回归译文 ${index + 1}：${payload.name}`;
+          element.value = `浏览器回归译文 ${index + 1}：${payload.name}。这是用于验证中文翻译后的自动换行、版面保留、多栏阅读和相邻文本区域不会互相覆盖的回归内容。`;
           element.dispatchEvent(new Event('input', {bubbles: true}));
         });
       }, {name: example.name, fillCount});
@@ -266,15 +284,15 @@ async function main() {
         exampleLoads[example.name].download = await verifyBinaryDownload(example.name, downloadPath);
         result.downloads.push(downloadPath);
         if (isPdf) {
-          await page.locator('.pdf-page-column.translated img').waitFor({state: 'visible', timeout: args.timeout});
+          await page.locator('.pdf-page-row').nth(pdfPageRows - 1).locator('.pdf-page-column.translated img').waitFor({state: 'visible', timeout: args.timeout});
           const previewDimensions = await page.locator('.pdf-page-column img').evaluateAll(images => images.map(image => ({
             width: image.naturalWidth,
             height: image.naturalHeight,
           })));
-          if (previewDimensions.length !== 2 || previewDimensions.some(size => size.width <= 0 || size.height <= 0)) {
-            fail('PDF 原页/译页预览没有完整渲染');
+          if (previewDimensions.length !== pdfPageRows * 2 || previewDimensions.some(size => size.width <= 0 || size.height <= 0)) {
+            fail(`PDF 原页/译页预览没有完整渲染：${previewDimensions.length}/${pdfPageRows * 2}`);
           }
-          exampleLoads[example.name].previewLayout = 'side-by-side';
+          exampleLoads[example.name].previewLayout = 'continuous-vertical-side-by-side';
         }
       }
 

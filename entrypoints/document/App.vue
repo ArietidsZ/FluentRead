@@ -149,11 +149,9 @@
           :data-segment-count="parsedDocument.segments.length"
         >
           <div class="pdf-viewer-toolbar">
-            <div class="pdf-page-navigation" aria-label="PDF 页面导航">
-              <button type="button" :disabled="pdfPageNumber <= 1" aria-label="上一页" @click="pdfPageNumber -= 1">‹</button>
-              <strong>{{ pdfPageNumber }}</strong>
-              <span>/ {{ pdfPageCount }}</span>
-              <button type="button" :disabled="pdfPageNumber >= pdfPageCount" aria-label="下一页" @click="pdfPageNumber += 1">›</button>
+            <div class="pdf-page-summary" aria-label="PDF 连续页面阅读状态">
+              <strong>{{ pdfPageCount }} 页</strong>
+              <span>原文与译文已按页面纵向连续排列</span>
             </div>
             <label class="pdf-zoom-control">
               <span>缩放</span>
@@ -166,44 +164,61 @@
             </label>
           </div>
 
-          <div
-            class="pdf-page-stage"
-            :class="{ single: outputMode === 'translated' }"
-            :style="{ '--pdf-page-min-width': `${400 * pdfZoom}px`, '--pdf-page-max-width': `${720 * pdfZoom}px` }"
-          >
-            <figure v-if="outputMode === 'bilingual'" class="pdf-page-column">
-              <figcaption><span>原文</span><strong>第 {{ pdfPageNumber }} 页</strong></figcaption>
-              <div class="pdf-page-frame" :style="{ aspectRatio: pdfPageAspect }">
-                <img v-if="pdfOriginalPreviewUrl" :src="pdfOriginalPreviewUrl" :alt="`PDF 原文第 ${pdfPageNumber} 页`" />
-                <span v-else class="pdf-page-loading">正在渲染原页…</span>
+          <div class="pdf-page-scroll" data-pdf-scroll>
+            <article
+              v-for="pdfPage in pdfPreviewPageStates"
+              :key="pdfPage.pageNumber"
+              class="pdf-page-row"
+              :data-page-number="pdfPage.pageNumber"
+            >
+              <div class="pdf-page-row-heading">
+                <strong>第 {{ pdfPage.pageNumber }} 页</strong>
+                <span>{{ pdfPage.loading ? '正在渲染…' : '版式已保留' }}</span>
               </div>
-            </figure>
-            <figure class="pdf-page-column translated">
-              <figcaption><span>译文</span><strong>保留原版式</strong></figcaption>
-              <div class="pdf-page-frame" :style="{ aspectRatio: pdfPageAspect }">
-                <img v-if="pdfTranslatedPreviewUrl" :src="pdfTranslatedPreviewUrl" :alt="`PDF 译文第 ${pdfPageNumber} 页`" />
-                <div v-else class="pdf-page-pending">
-                  <span v-if="pdfPreviewLoading" class="spinner dark-spinner" />
-                  <strong>{{ translating ? '正在翻译并重排本页' : '等待生成译页' }}</strong>
-                  <small>译文会写回对应文本框，图表与页面布局保持原位</small>
-                </div>
+              <div
+                class="pdf-page-stage"
+                :class="{ single: outputMode === 'translated' }"
+                :style="{ '--pdf-page-min-width': `${400 * pdfZoom}px`, '--pdf-page-max-width': `${720 * pdfZoom}px` }"
+              >
+                <figure v-if="outputMode === 'bilingual'" class="pdf-page-column">
+                  <figcaption><span>原文</span><strong>第 {{ pdfPage.pageNumber }} 页</strong></figcaption>
+                  <div class="pdf-page-frame" :style="{ aspectRatio: `${pdfPage.width} / ${pdfPage.height}` }">
+                    <img v-if="pdfPage.originalUrl" :src="pdfPage.originalUrl" :alt="`PDF 原文第 ${pdfPage.pageNumber} 页`" />
+                    <span v-else class="pdf-page-loading">正在渲染原页…</span>
+                  </div>
+                </figure>
+                <figure class="pdf-page-column translated">
+                  <figcaption><span>译文</span><strong>保留原版式</strong></figcaption>
+                  <div class="pdf-page-frame" :style="{ aspectRatio: `${pdfPage.width} / ${pdfPage.height}` }">
+                    <img v-if="pdfPage.translatedUrl" :src="pdfPage.translatedUrl" :alt="`PDF 译文第 ${pdfPage.pageNumber} 页`" />
+                    <div v-else class="pdf-page-pending">
+                      <span v-if="pdfPage.loading || pdfPreviewLoading" class="spinner dark-spinner" />
+                      <strong>{{ translating ? '正在翻译并重排本页' : '等待生成译页' }}</strong>
+                      <small>译文会写回对应文本框，图表与页面布局保持原位</small>
+                    </div>
+                  </div>
+                </figure>
               </div>
-            </figure>
-          </div>
 
-          <details v-if="currentPdfRows.length" class="pdf-proofreading">
-            <summary>校对第 {{ pdfPageNumber }} 页译文 <span>{{ currentPdfRows.length }} 个版面文本块</span></summary>
-            <article v-for="row in currentPdfRows" :key="row.index" class="pdf-proofreading-row">
-              <p class="document-source">{{ row.source }}</p>
-              <textarea
-                class="pdf-proofreading-translation document-translation"
-                :value="row.translation"
-                :aria-label="`PDF 第 ${pdfPageNumber} 页第 ${row.index + 1} 个文本块译文`"
-                :disabled="!hasTranslation || translating"
-                @input="updateTranslation(row.index, $event)"
-              />
+              <details v-if="pdfRowsForPage(pdfPage.pageNumber).length" class="pdf-proofreading">
+                <summary>校对第 {{ pdfPage.pageNumber }} 页译文 <span>{{ pdfRowsForPage(pdfPage.pageNumber).length }} 个版面文本块</span></summary>
+                <article v-for="row in pdfRowsForPage(pdfPage.pageNumber)" :key="row.index" class="pdf-proofreading-row">
+                  <p class="document-source">{{ row.source }}</p>
+                  <textarea
+                    class="pdf-proofreading-translation document-translation"
+                    :value="row.translation"
+                    :aria-label="`PDF 第 ${pdfPage.pageNumber} 页第 ${row.index + 1} 个文本块译文`"
+                    :disabled="!hasTranslation || translating"
+                    @input="updateTranslation(row.index, $event)"
+                  />
+                </article>
+              </details>
             </article>
-          </details>
+            <div v-if="!pdfPreviewPageStates.length" class="pdf-page-empty">
+              <span class="spinner dark-spinner" />
+              <strong>正在准备 PDF 连续阅读页…</strong>
+            </div>
+          </div>
         </section>
 
         <section
@@ -401,6 +416,16 @@ import {
 import {translateDocumentSegments} from '@/entrypoints/utils/documentTranslationApi';
 
 const PREVIEW_LIMIT = 80;
+
+interface PdfPreviewPageState {
+  pageNumber: number;
+  width: number;
+  height: number;
+  originalUrl: string;
+  translatedUrl: string;
+  loading: boolean;
+}
+
 const config = reactive(new Config());
 const fileInput = ref<HTMLInputElement | null>(null);
 const parsedDocument = ref<ParsedDocument | null>(null);
@@ -412,11 +437,9 @@ const progress = ref(0);
 const errorMessage = ref('');
 const openingFile = ref(false);
 const preparingDownload = ref(false);
-const pdfPageNumber = ref(1);
 const pdfZoom = ref(1);
 const pdfPreviewLoading = ref(false);
-const pdfOriginalPreviewUrl = ref('');
-const pdfTranslatedPreviewUrl = ref('');
+const pdfPreviewPageStates = ref<PdfPreviewPageState[]>([]);
 const epubChapterIndex = ref(0);
 const docxPartIndex = ref(0);
 const hydrated = ref(false);
@@ -486,22 +509,18 @@ const isSubtitleDocument = computed(() => ['srt', 'vtt', 'ass', 'lrc'].includes(
 const isJsonDocument = computed(() => parsedDocument.value?.format === 'json');
 const isRichDocument = computed(() => isEpubDocument.value || ['html', 'markdown', 'txt'].includes(parsedDocument.value?.format || ''));
 const pdfPageCount = computed(() => parsedDocument.value?.binary?.kind === 'pdf' ? parsedDocument.value.binary.pages.length : 0);
-const currentPdfPage = computed(() => parsedDocument.value?.binary?.kind === 'pdf'
-  ? parsedDocument.value.binary.pages.find((page) => page.pageNumber === pdfPageNumber.value)
-  : undefined);
-const pdfPageAspect = computed(() => currentPdfPage.value
-  ? `${currentPdfPage.value.width} / ${currentPdfPage.value.height}`
-  : '612 / 792');
-const currentPdfRows = computed(() => {
+const pdfRowsForPage = (pageNumber: number) => {
   const document = parsedDocument.value;
-  const page = currentPdfPage.value;
+  const page = document?.binary?.kind === 'pdf'
+    ? document.binary.pages.find((entry) => entry.pageNumber === pageNumber)
+    : undefined;
   if (!document || !page) return [];
   return page.segmentIndexes.map((index) => ({
     index,
     source: document.segments[index]?.source || '',
     translation: translatedSegments.value[index] || '',
   }));
-});
+};
 const epubChapters = computed(() => parsedDocument.value?.binary?.kind === 'epub'
   ? parsedDocument.value.binary.chapters
   : []);
@@ -567,7 +586,7 @@ const previewMeta = computed(() => {
   if (isPdfDocument.value) return {
     eyebrow: '版式阅读',
     title: 'PDF 原页与译页',
-    hint: '保留分页、图表、分栏和文字坐标；双语模式并排显示原页与译页',
+    hint: '使用 PDF.js 版面坐标重排译文；所有页面纵向连续滚动，双语模式逐页并排对照',
   };
   if (isEpubDocument.value) return {
     eyebrow: '电子书阅读',
@@ -643,13 +662,14 @@ function pngObjectUrl(bytes: Uint8Array): string {
 }
 
 function clearPdfPreviewUrls(): void {
-  if (pdfOriginalPreviewUrl.value) URL.revokeObjectURL(pdfOriginalPreviewUrl.value);
-  if (pdfTranslatedPreviewUrl.value) URL.revokeObjectURL(pdfTranslatedPreviewUrl.value);
-  pdfOriginalPreviewUrl.value = '';
-  pdfTranslatedPreviewUrl.value = '';
+  pdfPreviewPageStates.value.forEach((page) => {
+    if (page.originalUrl) URL.revokeObjectURL(page.originalUrl);
+    if (page.translatedUrl) URL.revokeObjectURL(page.translatedUrl);
+  });
+  pdfPreviewPageStates.value = [];
 }
 
-async function refreshPdfPreview(): Promise<void> {
+async function refreshPdfPreviews(): Promise<void> {
   const document = parsedDocument.value;
   if (document?.binary?.kind !== 'pdf') {
     clearPdfPreviewUrls();
@@ -657,18 +677,39 @@ async function refreshPdfPreview(): Promise<void> {
   }
   const request = ++pdfPreviewRequest;
   pdfPreviewLoading.value = true;
+
+  const previousPages = new Map(pdfPreviewPageStates.value.map((page) => [page.pageNumber, page]));
+  previousPages.forEach((page) => {
+    if (page.translatedUrl) URL.revokeObjectURL(page.translatedUrl);
+  });
+  pdfPreviewPageStates.value = document.binary.pages.map((page) => {
+    const previous = previousPages.get(page.pageNumber);
+    return {
+      pageNumber: page.pageNumber,
+      width: page.width,
+      height: page.height,
+      // Reuse the original page while only the translated raster is changing.
+      originalUrl: previous?.originalUrl || '',
+      translatedUrl: '',
+      loading: true,
+    };
+  });
+
   try {
-    const preview = await createPdfPagePreview(
-      document,
-      pdfPageNumber.value,
-      hasTranslation.value ? translatedSegments.value : undefined,
-    );
-    if (request !== pdfPreviewRequest) return;
-    const originalUrl = pngObjectUrl(preview.original);
-    const translatedUrl = preview.translated ? pngObjectUrl(preview.translated) : '';
-    clearPdfPreviewUrls();
-    pdfOriginalPreviewUrl.value = originalUrl;
-    pdfTranslatedPreviewUrl.value = translatedUrl;
+    for (const page of document.binary.pages) {
+      if (request !== pdfPreviewRequest) return;
+      const preview = await createPdfPagePreview(
+        document,
+        page.pageNumber,
+        hasTranslation.value ? translatedSegments.value : undefined,
+      );
+      if (request !== pdfPreviewRequest) return;
+      const state = pdfPreviewPageStates.value.find((entry) => entry.pageNumber === page.pageNumber);
+      if (!state) continue;
+      if (!state.originalUrl) state.originalUrl = pngObjectUrl(preview.original);
+      if (preview.translated) state.translatedUrl = pngObjectUrl(preview.translated);
+      state.loading = false;
+    }
   } catch (error) {
     if (request === pdfPreviewRequest) showError(error instanceof Error ? error.message : String(error));
   } finally {
@@ -678,7 +719,7 @@ async function refreshPdfPreview(): Promise<void> {
 
 function schedulePdfPreview(): void {
   if (pdfPreviewTimer) clearTimeout(pdfPreviewTimer);
-  pdfPreviewTimer = setTimeout(() => { void refreshPdfPreview(); }, 180);
+  pdfPreviewTimer = setTimeout(() => { void refreshPdfPreviews(); }, 350);
 }
 
 function readerText(value: string): string {
@@ -728,8 +769,8 @@ watch(config, (value) => {
   });
 }, {deep: true, flush: 'sync'});
 
-watch([parsedDocument, pdfPageNumber], () => {
-  if (isPdfDocument.value) void refreshPdfPreview();
+watch(parsedDocument, () => {
+  if (isPdfDocument.value) void refreshPdfPreviews();
 }, {flush: 'post'});
 
 watch(translatedSegments, () => {
@@ -761,10 +802,10 @@ async function loadFile(file: File): Promise<void> {
     openingFile.value = true;
     const parsed = await parseDocumentFile(file);
     if (parsed.segments.length === 0) throw new Error('文件中没有找到可翻译的文本片段。');
+    clearPdfPreviewUrls();
     parsedDocument.value = parsed;
     translatedSegments.value = [];
     outputMode.value = 'bilingual';
-    pdfPageNumber.value = 1;
     pdfZoom.value = 1;
     epubChapterIndex.value = 0;
     docxPartIndex.value = 0;
@@ -799,7 +840,6 @@ function resetDocument(): void {
   errorMessage.value = '';
   openingFile.value = false;
   preparingDownload.value = false;
-  pdfPageNumber.value = 1;
   pdfZoom.value = 1;
   epubChapterIndex.value = 0;
   docxPartIndex.value = 0;

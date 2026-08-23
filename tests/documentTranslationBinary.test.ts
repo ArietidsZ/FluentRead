@@ -55,6 +55,8 @@ describe('binary document translation formats', () => {
         const firstPage = parsed.binary?.kind === 'pdf' ? parsed.binary.pages[0] : undefined;
         expect(firstPage?.blocks.length).toBeGreaterThan(2);
         expect(firstPage?.blocks.every((block) => block.width > 0 && block.height > 0)).toBe(true);
+        expect(firstPage?.blocks.every((block) => block.lineCount >= 1 && block.lineHeight > 0)).toBe(true);
+        expect(firstPage?.blocks.some((block) => block.lineCount > 1)).toBe(true);
         expect(firstPage?.blocks.every((block) => block.x >= 0 && block.y >= 0)).toBe(true);
         expect(firstPage?.blocks.some((block) => block.x < (firstPage?.width || 0) * 0.42)).toBe(true);
         expect(firstPage?.blocks.some((block) => block.x > (firstPage?.width || 0) * 0.5)).toBe(true);

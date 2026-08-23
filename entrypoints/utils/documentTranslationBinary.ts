@@ -337,6 +337,8 @@ function pdfTextBlocks(lines: PdfTextLine[], pageWidth: number): Array<Omit<PdfD
             width: Math.max(1, Math.min(pageWidth, draftBounds.right) - Math.max(0, draftBounds.x)),
             height: Math.max(1, draftBounds.bottom - draftBounds.y),
             fontSize: Math.max(...draft.lines.map((line) => line.height)),
+            lineHeight: Math.max(1, median(draft.lines.map((line) => line.height))),
+            lineCount: draft.lines.length,
             fontFamily: first.fontFamily,
             fontWeight: (isHeading(first) ? 700 : source.length <= 80 ? 600 : 400) as 400 | 600 | 700,
             textAlign: centered ? 'center' as const : 'left' as const,
@@ -643,22 +645,29 @@ function wrapCanvasText(context: CanvasRenderingContext2D, value: string, maxWid
             return;
         }
         let current = '';
-        Array.from(paragraph).forEach((character) => {
-            const candidate = current + character;
-            if (current && context.measureText(candidate).width > maxWidth) {
-                const breakIndex = Math.max(current.lastIndexOf(' '), current.lastIndexOf('\t'));
-                if (breakIndex > 0) {
-                    lines.push(current.slice(0, breakIndex).trimEnd());
-                    current = `${current.slice(breakIndex).trimStart()}${character}`;
-                } else {
-                    lines.push(current.trimEnd());
-                    current = character.trimStart();
-                }
-            } else {
+        const flush = () => {
+            if (current.trim()) lines.push(current.trimEnd());
+            current = '';
+        };
+        const words = paragraph.match(/\S+/gu) || [];
+        words.forEach((word) => {
+            const candidate = current ? `${current} ${word}` : word;
+            if (context.measureText(candidate).width <= maxWidth) {
                 current = candidate;
+                return;
             }
+            flush();
+            if (context.measureText(word).width <= maxWidth) {
+                current = word;
+                return;
+            }
+            Array.from(word).forEach((character) => {
+                const characterCandidate = current + character;
+                if (current && context.measureText(characterCandidate).width > maxWidth) flush();
+                current += character;
+            });
         });
-        if (current) lines.push(current.trimEnd());
+        flush();
     });
     return lines.length > 0 ? lines : [''];
 }
@@ -792,40 +801,69 @@ function paintPdfTranslation(
     const scaleX = canvas.width / input.width;
     const scaleY = canvas.height / input.height;
 
-    input.blocks.forEach((block) => {
+    const paintedBlocks = input.blocks.flatMap((block) => {
         const translation = input.translations[block.segmentIndex] || '';
-        if (!translation.trim()) return;
+        if (!translation.trim()) return [];
         const x = Math.max(0, block.x * scaleX);
         const y = Math.max(0, block.y * scaleY);
         const width = Math.max(8, Math.min(canvas.width - x, block.width * scaleX));
         const height = Math.max(8, Math.min(canvas.height - y, block.height * scaleY));
-        const padding = Math.max(1.5, Math.min(scaleX, scaleY) * 0.9);
+        // PDF.js and pdf-lib both use the source page's coordinate system. Keep
+        // the mask tight enough to preserve figures and rules, but large enough
+        // to remove glyph ascenders/descenders before drawing the new text.
+        const padding = Math.max(2, Math.min(scaleX, scaleY) * 1.2);
         const background = sampledBackgroundRgb(context, x, y, width, height);
         const foreground = sampledForegroundColor(context, x, y, width, height, background);
-        context.fillStyle = `rgb(${background[0]}, ${background[1]}, ${background[2]})`;
-        context.fillRect(
-            Math.max(0, x - padding),
-            Math.max(0, y - padding),
-            Math.min(canvas.width - x + padding, width + padding * 2),
-            Math.min(canvas.height - y + padding, height + padding * 2),
+        return [{block, translation, x, y, width, height, padding, background, foreground}];
+    });
+
+    const familyForBlock = (block: PdfDocumentBlock): string => /serif/iu.test(block.fontFamily)
+        ? '"Noto Serif CJK SC", "Songti SC", Georgia, "Times New Roman", serif'
+        : '"Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", "Arial Unicode MS", Arial, sans-serif';
+
+    type MeasuredBlock = (typeof paintedBlocks)[number] & {
+        fontSize: number;
+        lines: string[];
+        lineHeight: number;
+    };
+
+    const layout: MeasuredBlock[] = paintedBlocks.map((painted) => {
+        const family = familyForBlock(painted.block);
+        const maxWidth = Math.max(6, painted.width - painted.padding * 1.5);
+        const maxHeight = Math.max(
+            6,
+            painted.height - painted.padding * 0.55,
+            painted.block.lineHeight * scaleY * Math.max(1, painted.block.lineCount) - painted.padding * 0.4,
         );
-
-        const maxWidth = Math.max(4, width - padding * 1.4);
-        const maxHeight = Math.max(4, height - padding * 0.6);
-        const family = /serif/iu.test(block.fontFamily)
-            ? '"Noto Serif CJK SC", "Songti SC", Georgia, serif'
-            : '"Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", Arial, sans-serif';
-        let fontSize = Math.max(5, block.fontSize * Math.min(scaleX, scaleY));
+        let fontSize = Math.max(5, painted.block.fontSize * Math.min(scaleX, scaleY));
         let lines: string[] = [];
-        let lineHeight = fontSize * 1.12;
-        while (fontSize >= 4) {
-            context.font = `${block.fontWeight} ${fontSize}px ${family}`;
-            lines = wrapCanvasText(context, translation, maxWidth);
-            lineHeight = fontSize * 1.12;
-            if (lines.length * lineHeight <= maxHeight * 1.04) break;
-            fontSize -= Math.max(0.5, fontSize * 0.06);
+        let lineHeight = Math.max(4, fontSize * 1.14);
+        while (fontSize >= 3.5) {
+            context.font = `${painted.block.fontWeight} ${fontSize}px ${family}`;
+            lines = wrapCanvasText(context, painted.translation, maxWidth);
+            lineHeight = Math.max(4, fontSize * 1.14);
+            if (lines.length * lineHeight <= maxHeight * 1.02) break;
+            fontSize -= Math.max(0.35, fontSize * 0.045);
         }
+        return {...painted, fontSize, lines, lineHeight};
+    });
 
+    // Erase every source text region first. Drawing a mask and translated text
+    // in the same loop makes overlapping PDF text chunks erase translations
+    // that were already painted, which is especially visible in multi-column
+    // papers and dense table captions.
+    paintedBlocks.forEach(({x, y, width, height, padding, background}) => {
+        context.fillStyle = `rgb(${background[0]}, ${background[1]}, ${background[2]})`;
+        const left = Math.max(0, x - padding);
+        const top = Math.max(0, y - padding);
+        const right = Math.min(canvas.width, x + width + padding);
+        const bottom = Math.min(canvas.height, y + height + padding);
+        context.fillRect(left, top, Math.max(1, right - left), Math.max(1, bottom - top));
+    });
+
+    layout.forEach(({block, x, y, width, height, padding, foreground, fontSize, lines, lineHeight}) => {
+        const family = familyForBlock(block);
+        const maxWidth = Math.max(6, width - padding * 1.5);
         context.save();
         context.beginPath();
         context.rect(x, y, width, height);
@@ -836,7 +874,7 @@ function paintPdfTranslation(
         context.font = `${block.fontWeight} ${fontSize}px ${family}`;
         const textX = block.textAlign === 'center' ? x + width / 2 : block.textAlign === 'right' ? x + width : x;
         const contentHeight = lines.length * lineHeight;
-        let textY = y + Math.max(0, (height - contentHeight) / 2);
+        let textY = y + Math.max(padding * 0.2, (height - contentHeight) / 2);
         lines.forEach((line) => {
             context.fillText(line, textX, textY, maxWidth);
             textY += lineHeight;

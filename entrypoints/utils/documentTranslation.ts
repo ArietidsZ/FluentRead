@@ -54,6 +54,10 @@ export interface PdfDocumentBlock {
     width: number;
     height: number;
     fontSize: number;
+    /** Median source line height in PDF viewport units. */
+    lineHeight: number;
+    /** Number of source text lines represented by this paragraph block. */
+    lineCount: number;
     fontFamily: string;
     fontWeight: 400 | 600 | 700;
     textAlign: 'left' | 'center' | 'right';
