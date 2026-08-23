@@ -438,6 +438,12 @@ describe('划词翻译配置兼容', () => {
             'zh-CN-XiaoyiNeural',
         ]);
     });
+
+    it('keeps the vocabulary book beta opt-in and normalizes invalid values', () => {
+        expect(new Config().vocabularyBookEnabled).toBe(false);
+        expect(normalizeConfig({vocabularyBookEnabled: true}).vocabularyBookEnabled).toBe(true);
+        expect(normalizeConfig({vocabularyBookEnabled: 'yes'}).vocabularyBookEnabled).toBe(false);
+    });
 });
 
 describe('OpenAI 兼容服务端点', () => {

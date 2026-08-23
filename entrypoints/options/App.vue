@@ -45,7 +45,12 @@
       </div>
       <div v-else-if="query" class="search-empty">没有找到“{{ query }}”相关设置</div>
 
-      <section class="settings-card" :class="{ 'services-view': activeSection === 'settings-services', 'translation-center-view': activeSection === 'settings-translation-center' }" :aria-label="activeItem.heading">
+      <section class="settings-card" :class="{ 'services-view': activeSection === 'settings-services', 'translation-center-view': activeSection === 'settings-translation-center', 'vocabulary-view': activeSection === 'settings-vocabulary' }" :aria-label="activeItem.heading">
+        <div v-if="!['settings-services', 'settings-about', 'settings-translation-center'].includes(activeSection)" class="card-intro">
+          <span class="eyebrow">{{ activeItem.kicker }}</span>
+          <h2>{{ activeItem.title }}</h2>
+          <p>{{ activeItem.detail }}</p>
+        </div>
         <section v-if="activeSection === 'settings-about'" id="settings-about" class="about-page" aria-labelledby="about-title">
           <div class="about-hero">
             <img class="about-logo" src="/icon/128.png" alt="流畅阅读图标" />
@@ -83,6 +88,7 @@
 
           <p class="about-footer">感谢你使用流畅阅读。</p>
         </section>
+        <VocabularyBook v-else-if="activeSection === 'settings-vocabulary'" @navigate="selectSection" />
         <Main v-else :active-section="activeSection" />
       </section>
 
@@ -93,6 +99,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import Main from '@/components/Main.vue'
+import VocabularyBook from '@/components/VocabularyBook.vue'
 import { navigationGroups, navigationItems } from './navigation'
 
 const version = process.env.VUE_APP_VERSION

@@ -47,9 +47,116 @@ import {
     AI_SDK_TRANSPORT_PROFILE,
     resolveOpenAICompatibleEndpoint,
 } from '@/entrypoints/service/ai-sdk/endpoints';
+import {vocabularyBook, VocabularyBookError} from "@/entrypoints/utils/vocabularyBook";
+import {
+    VOCABULARY_BOOK_CHANGED_MESSAGE,
+    VOCABULARY_BOOK_MESSAGE,
+    type VocabularyBookChangedMessage,
+    type VocabularyBookErrorCode,
+    type VocabularyBookResponse,
+    type VocabularyListOptions,
+    type VocabularyScheduledReviewRating,
+    type VocabularyUpsertInput,
+} from "@/entrypoints/utils/vocabularyBookProtocol";
 
 // 翻译状态管理
 let translationStateMap = new Map<number, boolean>(); // tabId -> isTranslated
+
+const OPTIONS_SECTION_IDS = new Set([
+    'settings-general',
+    'settings-services',
+    'settings-translation-center',
+    'settings-vocabulary',
+    'settings-shortcuts',
+    'settings-image-translation',
+    'settings-video',
+    'settings-advanced',
+    'settings-data',
+    'settings-about',
+    'settings-sites',
+]);
+
+function vocabularyEntryId(value: unknown): string {
+    if (typeof value !== 'string' || !value.trim()) throw new VocabularyBookError('invalid-input', '缺少有效的单词条目标识');
+    return value.trim();
+}
+
+function vocabularyFailure(error: unknown): VocabularyBookResponse<never> {
+    if (error instanceof VocabularyBookError) return {success: false, error: {code: error.code, message: error.message}};
+    console.error('[FluentRead] vocabulary book operation failed:', error);
+    return {success: false, error: {code: 'storage-error' satisfies VocabularyBookErrorCode, message: error instanceof Error ? error.message : '本地单词本暂时不可用'}};
+}
+
+function notifyVocabularyBookChanged(reason: VocabularyBookChangedMessage['reason'], entryId?: string): void {
+    void browser.runtime.sendMessage({
+        type: VOCABULARY_BOOK_CHANGED_MESSAGE,
+        reason,
+        ...(entryId ? {entryId} : {}),
+    }).catch(() => undefined);
+}
+
+async function handleVocabularyBookAction(message: any, sender: any): Promise<VocabularyBookResponse> {
+    try {
+        switch (message.action) {
+            case 'list': return {success: true, data: await vocabularyBook.list((message.options || {}) as VocabularyListOptions)};
+            case 'get': return {success: true, data: await vocabularyBook.get(vocabularyEntryId(message.entryId))};
+            case 'getByTerm': {
+                const term = typeof message.term === 'string' ? message.term : message.word;
+                const sourceLanguage = typeof message.sourceLanguage === 'string' ? message.sourceLanguage : '';
+                return {success: true, data: await vocabularyBook.getByTerm(sourceLanguage, term)};
+            }
+            case 'upsert': {
+                await configReady;
+                if (!config.vocabularyBookEnabled) throw new VocabularyBookError('invalid-input', '请先在单词本页面开启 Beta');
+                if (sender?.tab?.incognito === true) throw new VocabularyBookError('invalid-input', '无痕窗口不保存单词本数据');
+                const entry = await vocabularyBook.upsert(message.input as VocabularyUpsertInput);
+                notifyVocabularyBookChanged('upsert', entry.id);
+                return {success: true, data: entry};
+            }
+            case 'review': {
+                const entryId = vocabularyEntryId(message.entryId);
+                const result = await vocabularyBook.review(entryId, message.rating as VocabularyScheduledReviewRating);
+                notifyVocabularyBookChanged('review', entryId);
+                return {success: true, data: result};
+            }
+            case 'setMastery': {
+                const entryId = vocabularyEntryId(message.entryId);
+                const result = await vocabularyBook.setMastery(entryId);
+                notifyVocabularyBookChanged('manual-mastered', entryId);
+                return {success: true, data: result};
+            }
+            case 'relearn': {
+                const entryId = vocabularyEntryId(message.entryId);
+                const result = await vocabularyBook.relearn(entryId);
+                notifyVocabularyBookChanged('relearn', entryId);
+                return {success: true, data: result};
+            }
+            case 'getReviewLogs': return {success: true, data: await vocabularyBook.getReviewLogs(vocabularyEntryId(message.entryId))};
+            case 'remove': {
+                const entryId = vocabularyEntryId(message.entryId);
+                const removed = await vocabularyBook.remove(entryId);
+                if (removed) notifyVocabularyBookChanged('remove', entryId);
+                return {success: true, data: removed};
+            }
+            case 'removeWithSnapshot': {
+                const entryId = vocabularyEntryId(message.entryId);
+                const snapshot = await vocabularyBook.removeWithSnapshot(entryId);
+                if (snapshot) notifyVocabularyBookChanged('remove', entryId);
+                return {success: true, data: snapshot};
+            }
+            case 'clear': await vocabularyBook.clear(); notifyVocabularyBookChanged('clear'); return {success: true, data: true};
+            case 'exportData': return {success: true, data: await vocabularyBook.exportData(message.options || {})};
+            case 'importData': {
+                const result = await vocabularyBook.importData(message.data);
+                notifyVocabularyBookChanged('import');
+                return {success: true, data: result};
+            }
+            default: throw new VocabularyBookError('invalid-input', '不支持的单词本操作');
+        }
+    } catch (error) {
+        return vocabularyFailure(error);
+    }
+}
 
 /**
  * 在background脚本中调用微软翻译API（避免Firefox CORS问题）
@@ -579,7 +686,7 @@ function cloneWordCard(card: WordCardData): WordCardData {
 }
 
 /** Translate only the visible dictionary fields; no page context is sent for this learning card. */
-async function translateWordCard(card: WordCardData): Promise<WordCardData> {
+async function translateWordCard(card: WordCardData, targetLanguage = config.to): Promise<WordCardData> {
     const slots: WordDefinitionTranslationSlot[] = [];
     for (const [meaningIndex, meaning] of card.meanings.slice(0, 4).entries()) {
         for (const [definitionIndex, definition] of meaning.definitions.slice(0, 4).entries()) {
@@ -596,6 +703,7 @@ async function translateWordCard(card: WordCardData): Promise<WordCardData> {
             context: '',
             pageContext: '',
             useCache: true,
+            targetLanguage,
         });
         if (!Array.isArray(translated) || translated.length !== uniqueOrigins.length) return card;
 
@@ -794,14 +902,25 @@ export default defineBackground({
                     }
 
                     if (message.type === 'openOptionsPage') {
-                        if (message.section === 'settings-video') {
+                        if (typeof message.section === 'string') {
+                            if (!OPTIONS_SECTION_IDS.has(message.section)) throw new Error('无效的设置页面');
                             await browser.tabs.create({
-                                url: `${browser.runtime.getURL('/options.html')}#settings-video`,
+                                url: `${browser.runtime.getURL('/options.html')}#${message.section}`,
                             });
                         } else {
                             await browser.runtime.openOptionsPage();
                         }
                         resolve({ success: true });
+                        return;
+                    }
+
+                    if (message.type === VOCABULARY_BOOK_CHANGED_MESSAGE) {
+                        resolve({success: true});
+                        return;
+                    }
+
+                    if (message.type === VOCABULARY_BOOK_MESSAGE) {
+                        resolve(await handleVocabularyBookAction(message, sender));
                         return;
                     }
 
@@ -946,8 +1065,9 @@ export default defineBackground({
 
                     if (message.type === 'selectionWordLookup') {
                         const word = typeof message.word === 'string' ? message.word : '';
+                        const targetLanguage = typeof message.targetLanguage === 'string' ? message.targetLanguage : config.to;
                         const result = await lookupWord(word);
-                        resolve({ success: true, data: result ? await translateWordCard(result) : result });
+                        resolve({ success: true, data: result ? await translateWordCard(result, targetLanguage) : result });
                         return;
                     }
 

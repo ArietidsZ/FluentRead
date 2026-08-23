@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+    canUseBundledDictionaryFallback,
     calculateSelectionPopupPosition,
     chooseSelectionRect,
     getSelectionPresentationDelayRemaining,
@@ -8,6 +9,9 @@ import {
     normalizeSelectionText,
     normalizeSpeechLanguage,
     reconcileSelectionPresentation,
+    resolveSelectionDictionaryFallback,
+    resolveSelectionVocabularyAnswer,
+    summarizeSelectionContext,
 } from '@/entrypoints/utils/selectionTranslatorCore';
 import { buildEdgeTtsSsml, edgeTtsVoiceCandidatesForLanguage, edgeTtsVoiceForLanguage, synthesizeEdgeTts } from '@/entrypoints/utils/edgeTts';
 import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey, shouldClaimConfiguredHotkey } from '@/entrypoints/utils/hotkey';
@@ -75,6 +79,39 @@ describe('selection translator text and speech language normalization', () => {
 
     it('normalizes browser whitespace without changing words', () => {
         expect(normalizeSelectionText('  hello\u00a0  world\n   again  ')).toBe('hello world\nagain');
+    });
+
+    it('keeps a bounded context centered on the selected word', () => {
+        const context = summarizeSelectionContext(`Before ${'a'.repeat(80)} common ${'b'.repeat(80)} after`, 'common', 64);
+        expect(context).toHaveLength(64);
+        expect(context).toContain('common');
+        expect(context.startsWith('…')).toBe(true);
+        expect(context.endsWith('…')).toBe(true);
+        expect(summarizeSelectionContext('  A   common\nexample. ', 'common')).toBe('A common example.');
+        const repeated = `common FIRST ${'x'.repeat(650)} common SECOND`;
+        const lastCommon = repeated.lastIndexOf('common');
+        const aroundLast = summarizeSelectionContext(repeated, 'common', 80, lastCommon);
+        expect(aroundLast).toContain('SECOND');
+        expect(aroundLast).not.toContain('FIRST');
+    });
+
+    it('only exposes answers completed for the current selection request', () => {
+        const current = {text: 'common', targetLanguage: 'zh-Hans', generation: 3};
+        const translated = {...current, answer: '常见的'};
+        const dictionary = {...current, answer: 'occurring often'};
+        expect(resolveSelectionVocabularyAnswer(current, translated, dictionary)).toBe('常见的');
+        expect(resolveSelectionVocabularyAnswer(current, {...translated, text: 'current'}, dictionary)).toBe('occurring often');
+        expect(resolveSelectionVocabularyAnswer(current, {...translated, targetLanguage: 'ja'}, null)).toBe('');
+        expect(resolveSelectionVocabularyAnswer(current, {...translated, generation: 2}, null)).toBe('');
+    });
+
+    it('only uses bundled ECDICT auxiliary text for Simplified Chinese targets', () => {
+        expect(canUseBundledDictionaryFallback('zh-Hans')).toBe(true);
+        expect(canUseBundledDictionaryFallback('ZH_cn')).toBe(true);
+        expect(canUseBundledDictionaryFallback('zh-Hant')).toBe(false);
+        expect(canUseBundledDictionaryFallback('ja')).toBe(false);
+        expect(resolveSelectionDictionaryFallback('zh-Hans', [undefined, '', ' 常见 ', '共同'])).toBe('常见；共同');
+        expect(resolveSelectionDictionaryFallback('ja', ['常见'])).toBe('');
     });
 
     it('classifies atomic and interactive elements as non-text selections', () => {

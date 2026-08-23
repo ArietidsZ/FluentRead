@@ -23,6 +23,51 @@ export interface PopupPosition {
     placement: 'top' | 'bottom';
 }
 
+export interface SelectionContentRequest {
+    text: string;
+    targetLanguage: string;
+    generation: number;
+}
+
+export interface SelectionAnswerCandidate extends SelectionContentRequest {
+    answer: string;
+}
+
+function normalizeSelectionRequestLanguage(value: string): string {
+    return String(value || '').trim().replace(/_/g, '-').toLowerCase();
+}
+
+/** ECDICT's bundled auxiliary definitions are Simplified Chinese. */
+export function canUseBundledDictionaryFallback(targetLanguage: string): boolean {
+    return ['zh', 'zh-cn', 'zh-hans', 'zh-sg'].includes(normalizeSelectionRequestLanguage(targetLanguage));
+}
+
+export function resolveSelectionDictionaryFallback(targetLanguage: string, translatedDefinitions: readonly unknown[]): string {
+    if (!canUseBundledDictionaryFallback(targetLanguage)) return '';
+    return translatedDefinitions
+        .filter((value): value is string => typeof value === 'string' && Boolean(value.trim()))
+        .map(value => value.trim())
+        .slice(0, 4)
+        .join('；');
+}
+
+export function resolveSelectionVocabularyAnswer(
+    current: SelectionContentRequest | null,
+    translation: SelectionAnswerCandidate | null,
+    dictionary: SelectionAnswerCandidate | null,
+): string {
+    if (!current) return '';
+    const matches = (candidate: SelectionAnswerCandidate | null): candidate is SelectionAnswerCandidate => Boolean(
+        candidate
+        && candidate.generation === current.generation
+        && candidate.text === current.text
+        && normalizeSelectionRequestLanguage(candidate.targetLanguage) === normalizeSelectionRequestLanguage(current.targetLanguage)
+        && candidate.answer.trim(),
+    );
+    if (matches(translation)) return translation.answer.trim();
+    return matches(dictionary) ? dictionary.answer.trim() : '';
+}
+
 export interface SelectionPresentationState {
     showIndicator: boolean;
     showTooltip: boolean;
@@ -98,6 +143,38 @@ export function normalizeSelectionText(value: string): string {
         .replace(/[ \t]+/g, ' ')
         .replace(/\n[ \t]+/g, '\n')
         .trim();
+}
+
+export function summarizeSelectionContext(
+    containerText: string,
+    selectedText: string,
+    maxLength = 500,
+    selectedIndex?: number,
+): string {
+    const normalized = String(containerText || '').replace(/\s+/gu, ' ').trim();
+    const selected = String(selectedText || '').trim();
+    if (!normalized || !selected || maxLength < 16) return '';
+    if (normalized.length <= maxLength) return normalized;
+    const normalizedLower = normalized.toLocaleLowerCase();
+    const selectedLower = selected.toLocaleLowerCase();
+    const firstIndex = normalizedLower.indexOf(selectedLower);
+    if (firstIndex < 0) return `${normalized.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
+    let matchedIndex = firstIndex;
+    if (typeof selectedIndex === 'number' && Number.isFinite(selectedIndex)) {
+        const preferredIndex = Math.max(0, Math.min(normalized.length, selectedIndex));
+        const leftIndex = normalizedLower.lastIndexOf(selectedLower, preferredIndex);
+        const rightIndex = normalizedLower.indexOf(selectedLower, preferredIndex);
+        if (leftIndex < 0) matchedIndex = rightIndex;
+        else if (rightIndex < 0) matchedIndex = leftIndex;
+        else matchedIndex = preferredIndex - leftIndex <= rightIndex - preferredIndex ? leftIndex : rightIndex;
+    }
+    const contentLength = Math.max(1, maxLength - 2);
+    const selectedCenter = matchedIndex + selected.length / 2;
+    const start = Math.max(0, Math.min(normalized.length - contentLength, Math.round(selectedCenter - contentLength / 2)));
+    const end = Math.min(normalized.length, start + contentLength);
+    const prefix = start > 0 ? '…' : '';
+    const suffix = end < normalized.length ? '…' : '';
+    return `${prefix}${normalized.slice(start, end).trim()}${suffix}`.slice(0, maxLength);
 }
 
 const selectionExcludedTagNames = new Set([
