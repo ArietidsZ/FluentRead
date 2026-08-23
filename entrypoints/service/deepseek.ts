@@ -3,6 +3,7 @@ import { deepseekMsgTemplate, deepseekResponsesMsgTemplate } from "../utils/temp
 import { config } from "@/entrypoints/utils/config";
 import { contentPostHandler } from "@/entrypoints/utils/check";
 import { appendOptionalBearer } from './auth';
+import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
 
 // 当前官方 V4 文档以 Chat Completion 为主；Responses API 仅在用户明确选择时启用，
 // 便于兼容已经支持该协议的代理或网关。
@@ -31,15 +32,14 @@ async function deepseek(message: any) {
         });
 
         if (!resp.ok) {
-            throw new Error(`翻译失败: ${resp.status} ${resp.statusText} body: ${await resp.text()}`);
+            throw createHttpStatusError(resp, '翻译失败');
         }
 
-        const result = await resp.json();
+        const result = await readJsonResponse<any>(resp, 'DeepSeek 返回的不是有效 JSON');
         return isResponses
             ? extractResponsesContent(result)
             : extractChatContent(result);
     } catch (error) {
-        console.error('API调用失败:', error);
         throw error;
     }
 }

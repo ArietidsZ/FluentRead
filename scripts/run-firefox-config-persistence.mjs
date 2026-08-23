@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import {randomUUID} from 'node:crypto';
 import {connect} from '../node_modules/.pnpm/web-ext-run@0.2.4/node_modules/web-ext-run/lib/firefox/remote.js';
 
 const args = new Map();
@@ -106,6 +107,124 @@ function readConfigProjection(client, frame) {
     return evaluateAsyncJson(client, frame, CONFIG_PROJECTION_SOURCE);
 }
 
+const CREDENTIAL_FIELDS = [
+    'token',
+    'ak',
+    'sk',
+    'appid',
+    'key',
+    'youdaoAppKey',
+    'youdaoAppSecret',
+    'tencentSecretId',
+    'tencentSecretKey',
+    'extra',
+];
+
+function credentialStorageSnapshotSource(sentinel) {
+    return `(async () => {
+        if (!browser.storage.session || typeof browser.storage.session.get !== 'function') {
+            throw new Error('browser.storage.session is unavailable');
+        }
+        const [local, session] = await Promise.all([
+            browser.storage.local.get(null),
+            browser.storage.session.get(null),
+        ]);
+        const config = local.config || local['local:config'] || null;
+        const history = local.configHistory || local['local:configHistory'] || null;
+        const localCredentials = local.credentials || local['local:credentials'] || null;
+        const sessionCredentials = session.credentials || session['session:credentials'] || null;
+        const credentialFields = ${JSON.stringify(CREDENTIAL_FIELDS)};
+        const historyConfigs = Array.isArray(history?.entries)
+            ? history.entries.map(entry => entry?.config).filter(Boolean)
+            : [];
+        const containsSentinel = value => JSON.stringify(value ?? null).includes(${JSON.stringify(sentinel)});
+        return {
+            sessionAvailable: true,
+            persistCredentials: config?.persistCredentials === true,
+            localConfigCredentialFields: credentialFields.filter(field => Object.prototype.hasOwnProperty.call(config || {}, field)),
+            historyCredentialFields: [...new Set(historyConfigs.flatMap(item => credentialFields.filter(field => Object.prototype.hasOwnProperty.call(item || {}, field))))],
+            configHasSentinel: containsSentinel(config),
+            historyHasSentinel: containsSentinel(history),
+            sessionHasSentinel: containsSentinel(sessionCredentials),
+            localCredentialsPresent: localCredentials !== null,
+            localCredentialsHasSentinel: containsSentinel(localCredentials),
+        };
+    })()`;
+}
+
+async function readCredentialStorageSnapshot(client, sentinel) {
+    const current = await selectedFrame(client);
+    return evaluateAsyncJson(client, current.frame, credentialStorageSnapshotSource(sentinel));
+}
+
+function credentialSnapshotMatches(snapshot, expected) {
+    return Object.entries(expected).every(([key, value]) => {
+        if (Array.isArray(value)) return JSON.stringify(snapshot?.[key]) === JSON.stringify(value);
+        return snapshot?.[key] === value;
+    });
+}
+
+async function waitForCredentialStorage(client, sentinel, expected, label) {
+    const deadline = Date.now() + 10000;
+    let lastSnapshot;
+    let consecutiveMatches = 0;
+    while (Date.now() < deadline) {
+        lastSnapshot = await readCredentialStorageSnapshot(client, sentinel);
+        if (credentialSnapshotMatches(lastSnapshot, expected)) {
+            consecutiveMatches += 1;
+            if (consecutiveMatches >= 2) return lastSnapshot;
+        } else {
+            consecutiveMatches = 0;
+        }
+        await sleep(100);
+    }
+    throw new Error(`Firefox credential storage did not stabilize for ${label}: ${JSON.stringify({expected, actual: lastSnapshot})}`);
+}
+
+function credentialSaveSource({clientId, sequence, sentinel, sentinelKey, persistCredentials, removeSentinel = false}) {
+    return `(async () => {
+        if (!browser.storage.session || typeof browser.storage.session.get !== 'function') {
+            throw new Error('browser.storage.session is unavailable');
+        }
+        const [local, session] = await Promise.all([
+            browser.storage.local.get(null),
+            browser.storage.session.get(null),
+        ]);
+        const current = local.config || local['local:config'];
+        if (!current || typeof current !== 'object') throw new Error('local config is unavailable');
+        const activeCredentials = session.credentials
+            || session['session:credentials']
+            || local.credentials
+            || local['local:credentials']
+            || {};
+        const config = {...current, persistCredentials: ${persistCredentials ? 'true' : 'false'}};
+        for (const field of ${JSON.stringify(CREDENTIAL_FIELDS)}) {
+            if (Object.prototype.hasOwnProperty.call(activeCredentials, field)) {
+                config[field] = activeCredentials[field];
+            }
+        }
+        config.token = {...(activeCredentials.token || {})};
+        ${removeSentinel
+            ? `delete config.token[${JSON.stringify(sentinelKey)}];`
+            : `config.token[${JSON.stringify(sentinelKey)}] = ${JSON.stringify(sentinel)};`}
+        const response = await browser.runtime.sendMessage({
+            type: 'persistConfig',
+            config,
+            clientId: ${JSON.stringify(clientId)},
+            sequence: ${sequence},
+        });
+        if (response?.success !== true) {
+            throw new Error('persistConfig failed: ' + JSON.stringify(response));
+        }
+        return {response, sequence: ${sequence}};
+    })()`;
+}
+
+async function sendCredentialSave(client, options) {
+    const current = await selectedFrame(client);
+    return evaluateAsyncJson(client, current.frame, credentialSaveSource(options));
+}
+
 async function navigate(client, url) {
     const current = await selectedFrame(client);
     await client.request({to: current.frame.actor, type: 'navigateTo', url});
@@ -138,6 +257,127 @@ async function waitForDom(client, predicate, label) {
     throw new Error(`Firefox RDP DOM wait timeout: ${label}; ${lastError?.message || ''}`);
 }
 
+async function runCredentialLifecycle(client, result) {
+    const sentinel = `fluentread-firefox-credential-${randomUUID()}`;
+    const sentinelKey = `__firefox_persistence_${randomUUID().replaceAll('-', '')}`;
+    const clientId = `firefox-config-persistence-${randomUUID()}`;
+    let sequence = 0;
+    let sentinelWriteAttempted = false;
+    let lifecycleError;
+    const commonCleanState = {
+        sessionAvailable: true,
+        localConfigCredentialFields: [],
+        historyCredentialFields: [],
+        configHasSentinel: false,
+        historyHasSentinel: false,
+    };
+
+    result.credentialCases = {
+        sessionRequired: true,
+        sessionAvailable: false,
+        clientId,
+        sentinel,
+        sentinelKey,
+        sessionOnly: null,
+        persistentOptIn: null,
+        sessionOnlyAfterOptOut: null,
+        cleanup: null,
+    };
+
+    try {
+        const initial = await readCredentialStorageSnapshot(client, sentinel);
+        result.credentialCases.sessionAvailable = initial?.sessionAvailable === true;
+        if (!result.credentialCases.sessionAvailable) {
+            throw new Error('Firefox credential lifecycle requires browser.storage.session');
+        }
+
+        sequence += 1;
+        sentinelWriteAttempted = true;
+        const sessionOnlyRequest = await sendCredentialSave(client, {
+            clientId,
+            sequence,
+            sentinel,
+            sentinelKey,
+            persistCredentials: false,
+        });
+        await sleep(500);
+        const sessionOnlyStorage = await waitForCredentialStorage(client, sentinel, {
+            ...commonCleanState,
+            persistCredentials: false,
+            sessionHasSentinel: true,
+            localCredentialsPresent: false,
+            localCredentialsHasSentinel: false,
+        }, 'default session-only credentials');
+        result.credentialCases.sessionOnly = {request: sessionOnlyRequest, storage: sessionOnlyStorage};
+
+        sequence += 1;
+        const persistentRequest = await sendCredentialSave(client, {
+            clientId,
+            sequence,
+            sentinel,
+            sentinelKey,
+            persistCredentials: true,
+        });
+        await sleep(500);
+        const persistentStorage = await waitForCredentialStorage(client, sentinel, {
+            ...commonCleanState,
+            persistCredentials: true,
+            sessionHasSentinel: true,
+            localCredentialsPresent: true,
+            localCredentialsHasSentinel: true,
+        }, 'explicit local credential opt-in');
+        result.credentialCases.persistentOptIn = {request: persistentRequest, storage: persistentStorage};
+
+        sequence += 1;
+        const optOutRequest = await sendCredentialSave(client, {
+            clientId,
+            sequence,
+            sentinel,
+            sentinelKey,
+            persistCredentials: false,
+        });
+        await sleep(500);
+        const optOutStorage = await waitForCredentialStorage(client, sentinel, {
+            ...commonCleanState,
+            persistCredentials: false,
+            sessionHasSentinel: true,
+            localCredentialsPresent: false,
+            localCredentialsHasSentinel: false,
+        }, 'local credential opt-out');
+        result.credentialCases.sessionOnlyAfterOptOut = {request: optOutRequest, storage: optOutStorage};
+    } catch (error) {
+        lifecycleError = error;
+        throw error;
+    } finally {
+        if (sentinelWriteAttempted) {
+            try {
+                sequence += 1;
+                const cleanupRequest = await sendCredentialSave(client, {
+                    clientId,
+                    sequence,
+                    sentinel,
+                    sentinelKey,
+                    persistCredentials: false,
+                    removeSentinel: true,
+                });
+                await sleep(500);
+                const cleanupStorage = await waitForCredentialStorage(client, sentinel, {
+                    ...commonCleanState,
+                    persistCredentials: false,
+                    sessionHasSentinel: false,
+                    localCredentialsPresent: false,
+                    localCredentialsHasSentinel: false,
+                }, 'credential sentinel cleanup');
+                result.credentialCases.cleanup = {request: cleanupRequest, storage: cleanupStorage};
+            } catch (error) {
+                result.credentialCases.cleanupError = String(error?.stack || error?.message || error);
+                if (!lifecycleError) throw error;
+            }
+        }
+        result.credentialCases.lastSequence = sequence;
+    }
+}
+
 async function main() {
     console.error(`[firefox-test] connecting to ${port}`);
     const firefox = await connect(port);
@@ -158,6 +398,10 @@ async function main() {
             quickClose: false,
             crossPageSync: false,
             latestWriteWins: false,
+        },
+        credentialCases: {
+            sessionRequired: true,
+            sessionAvailable: false,
         },
         errors: [],
         evidence: [],
@@ -358,6 +602,18 @@ async function main() {
             throw new Error(`Firefox 配置历史撤销/重做结果异常: ${JSON.stringify(result.historyCases)}`);
         }
         result.evidence.push({step: 'config-history', url: (await selectedFrame(client)).frame.url, history: result.historyCases});
+
+        console.error('[firefox-test] verify credential storage lifecycle');
+        const credentialFrame = await selectedFrame(client);
+        if (!credentialFrame.frame.url.startsWith(optionsUrl)) {
+            throw new Error(`Firefox credential test must run in options extension origin: ${credentialFrame.frame.url}`);
+        }
+        await runCredentialLifecycle(client, result);
+        result.evidence.push({
+            step: 'credential-lifecycle',
+            url: (await selectedFrame(client)).frame.url,
+            credentials: result.credentialCases,
+        });
 
         result.ok = true;
     } catch (error) {

@@ -9,6 +9,10 @@ const path = require('node:path');
 const { createRequire } = require('node:module');
 
 const TARGET_TEXT = 'When switching between different filaments, the printer flushes residual material before printing.';
+let activateInputPage = page => page.bringToFront();
+let createIsolatedPage = context => context.newPage();
+const selectionUiSessions = new WeakMap();
+const selectionUiTrackers = new WeakMap();
 
 function readArg(argv, name, fallback) {
   const index = argv.indexOf(`--${name}`);
@@ -21,11 +25,13 @@ function parseArgs(argv) {
     playwrightRoot: readArg(argv, 'playwright-root', process.env.PLAYWRIGHT_ROOT),
     artifactsDir: readArg(argv, 'artifacts-dir', path.join(os.tmpdir(), 'fluentread-selection-trigger-test')),
     browserPath: readArg(argv, 'browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),
+    focusSafeHelper: readArg(argv, 'focus-safe-helper', ''),
     headed: argv.includes('--headed'),
   };
   if (!args.playwrightRoot) throw new Error('必须传入 --playwright-root，或设置 PLAYWRIGHT_ROOT');
   args.extensionDir = path.resolve(args.extensionDir);
   args.artifactsDir = path.resolve(args.artifactsDir);
+  if (args.focusSafeHelper) args.focusSafeHelper = path.resolve(args.focusSafeHelper);
   if (!fs.existsSync(path.join(args.extensionDir, 'manifest.json'))) {
     throw new Error(`找不到扩展构建产物：${args.extensionDir}`);
   }
@@ -174,7 +180,7 @@ async function resetFixture(page) {
 }
 
 async function selectTarget(page, dispatchPointerUpAfterFallback = false) {
-  await page.bringToFront();
+  await activateInputPage(page);
   const target = page.locator('#target');
   const box = await target.boundingBox();
   assert(box, '目标段落没有可用几何位置');
@@ -190,6 +196,9 @@ async function selectTarget(page, dispatchPointerUpAfterFallback = false) {
   // 使用同一个真实 DOM Range 事件继续验证扩展的选区处理，不跳过后续触发矩阵。
   if (!selectedText) {
     method = 'dom-range-fallback';
+    // 先用 CDP 产生可信 pointer 交互，再通过 Selection API 构造精确 Range。
+    // 浏览器会自行发送可信 selectionchange；不要补发可被网页伪造的事件。
+    await page.mouse.click(box.x + 8, y);
     await page.evaluate(() => {
       const target = document.querySelector('#target');
       const textNode = target?.firstChild;
@@ -200,12 +209,11 @@ async function selectTarget(page, dispatchPointerUpAfterFallback = false) {
       const selection = window.getSelection();
       selection?.removeAllRanges();
       selection?.addRange(range);
-      document.dispatchEvent(new Event('selectionchange'));
     });
     await page.waitForTimeout(500);
     selectedText = await page.evaluate(() => window.getSelection()?.toString().trim() || '');
     if (dispatchPointerUpAfterFallback) {
-      await page.evaluate(() => document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true })));
+      // 已由上面的真实 CDP click 建立可信交互；这里只给浏览器事件队列留出时间。
       await page.waitForTimeout(50);
     }
   }
@@ -214,24 +222,33 @@ async function selectTarget(page, dispatchPointerUpAfterFallback = false) {
 }
 
 async function selectTextWithDomRange(page, selector, maxLength = 72) {
-  return page.evaluate(({ selector: targetSelector, maxLength: targetLength }) => {
+  await activateInputPage(page);
+  await page.keyboard.press('Escape');
+  return page.evaluate(({ selector: targetSelector, maxLength: targetLength }) => new Promise((resolve, reject) => {
     const target = document.querySelector(targetSelector);
     const textNode = target?.firstChild;
-    if (!textNode) throw new Error(`找不到选区节点：${targetSelector}`);
+    if (!textNode) { reject(new Error(`找不到选区节点：${targetSelector}`)); return; }
     const range = document.createRange();
     range.setStart(textNode, 0);
     range.setEnd(textNode, Math.min(textNode.textContent?.length || 0, targetLength));
     const selection = window.getSelection();
+    const timeout = window.setTimeout(() => {
+      document.removeEventListener('selectionchange', handleSelectionChange);
+      reject(new Error(`浏览器没有产生可信 selectionchange：${targetSelector}`));
+    }, 2000);
+    const handleSelectionChange = (event) => {
+      if (!event.isTrusted) return;
+      const text = selection?.toString().trim() || '';
+      if (!text) return;
+      window.clearTimeout(timeout);
+      document.removeEventListener('selectionchange', handleSelectionChange);
+      const selectedAt = performance.now();
+      resolve({ text, selectedAt, selectedWallAt: performance.timeOrigin + selectedAt });
+    };
+    document.addEventListener('selectionchange', handleSelectionChange);
     selection?.removeAllRanges();
     selection?.addRange(range);
-    const selectedAt = performance.now();
-    document.dispatchEvent(new Event('selectionchange'));
-    return {
-      text: selection?.toString().trim() || '',
-      selectedAt,
-      selectedWallAt: performance.timeOrigin + selectedAt,
-    };
-  }, { selector, maxLength });
+  }), { selector, maxLength });
 }
 
 async function clearSelectionAfter(page, selector, delayMs) {
@@ -244,10 +261,8 @@ async function clearSelectionAfter(page, selector, delayMs) {
     const selection = window.getSelection();
     selection?.removeAllRanges();
     selection?.addRange(range);
-    document.dispatchEvent(new Event('selectionchange'));
     await new Promise(resolve => setTimeout(resolve, delay));
     selection?.removeAllRanges();
-    document.dispatchEvent(new Event('selectionchange'));
   }, { selector, delay: delayMs });
 }
 
@@ -263,7 +278,6 @@ async function replaceSelectionAfter(page, firstSelector, secondSelector, delayM
       const selection = window.getSelection();
       selection?.removeAllRanges();
       selection?.addRange(range);
-      document.dispatchEvent(new Event('selectionchange'));
       return selection?.toString().trim() || '';
     };
     select(first);
@@ -274,59 +288,117 @@ async function replaceSelectionAfter(page, firstSelector, secondSelector, delayM
   }, { first: firstSelector, second: secondSelector, delay: delayMs, length: maxLength });
 }
 
+function cdpAttribute(node, name) {
+  const attributes = node?.attributes || [];
+  for (let index = 0; index < attributes.length; index += 2) {
+    if (attributes[index] === name) return attributes[index + 1] || '';
+  }
+  return '';
+}
+
+function cdpChildren(node) {
+  return [
+    ...(node?.children || []),
+    ...(node?.shadowRoots || []),
+    ...(node?.contentDocument ? [node.contentDocument] : []),
+  ];
+}
+
+function findCdpNode(node, predicate) {
+  if (!node) return null;
+  if (predicate(node)) return node;
+  for (const child of cdpChildren(node)) {
+    const match = findCdpNode(child, predicate);
+    if (match) return match;
+  }
+  return null;
+}
+
+function hasCdpClass(node, className) {
+  return cdpAttribute(node, 'class').split(/\s+/).includes(className);
+}
+
+function cdpText(node) {
+  if (!node) return '';
+  if (node.nodeName === '#text') return node.nodeValue || '';
+  return cdpChildren(node).map(cdpText).join('');
+}
+
+function findCdpDescendantByName(node, name) {
+  return findCdpNode(node, candidate => candidate !== node && candidate.nodeName === name);
+}
+
+async function getSelectionUiTree(page) {
+  let session = selectionUiSessions.get(page);
+  if (!session) {
+    session = await page.context().newCDPSession(page);
+    selectionUiSessions.set(page, session);
+  }
+  const { root } = await session.send('DOM.getDocument', { depth: -1, pierce: true });
+  return { session, root };
+}
+
 async function readSelectionUi(page) {
-  return page.evaluate(() => {
-    const host = document.querySelector('#fluent-read-selection-translator-container');
-    const root = host?.shadowRoot;
-    const translatorRoot = root?.querySelector('.fr-selection-translator-root');
-    const indicator = root?.querySelector('.fr-selection-indicator');
-    const tooltip = root?.querySelector('.fr-translation-tooltip');
-    return {
-      host: Boolean(host),
-      configuredDelay: Number(translatorRoot?.getAttribute('data-display-delay') || -1),
-      indicator: Boolean(indicator),
-      indicatorClass: indicator?.className || '',
-      tooltip: Boolean(tooltip),
-      original: Boolean(root?.querySelector('.fr-original-text')),
-      translation: Boolean(root?.querySelector('.fr-translation-result')),
-      originalText: root?.querySelector('.fr-original-text pre')?.textContent?.trim() || '',
-      resultText: root?.querySelector('.fr-translation-result pre')?.textContent?.trim() || '',
+  const [{ root }, pageState] = await Promise.all([
+    getSelectionUiTree(page),
+    page.evaluate(() => ({
       selectionText: window.getSelection()?.toString().trim() || '',
       targetText: document.querySelector('#target')?.textContent || '',
-    };
-  });
+    })),
+  ]);
+  const host = findCdpNode(root, node => cdpAttribute(node, 'id') === 'fluent-read-selection-translator-container');
+  const translatorRoot = findCdpNode(host, node => hasCdpClass(node, 'fr-selection-translator-root'));
+  const indicator = findCdpNode(host, node => hasCdpClass(node, 'fr-selection-indicator'));
+  const tooltip = findCdpNode(host, node => hasCdpClass(node, 'fr-translation-tooltip'));
+  const original = findCdpNode(host, node => hasCdpClass(node, 'fr-original-text'));
+  const translation = findCdpNode(host, node => hasCdpClass(node, 'fr-translation-result'));
+  const originalPre = findCdpDescendantByName(original, 'PRE');
+  const translationPre = findCdpDescendantByName(translation, 'PRE');
+  return {
+    host: Boolean(host),
+    configuredDelay: Number(cdpAttribute(translatorRoot, 'data-display-delay') || -1),
+    indicator: Boolean(indicator),
+    indicatorClass: cdpAttribute(indicator, 'class'),
+    tooltip: Boolean(tooltip),
+    original: Boolean(original),
+    translation: Boolean(translation),
+    originalText: cdpText(originalPre).trim(),
+    resultText: cdpText(translationPre).trim(),
+    ...pageState,
+  };
+}
+
+async function sampleSelectionUiTracker(page, tracker) {
+  const state = await readSelectionUi(page);
+  const next = { at: Date.now(), tooltip: state.tooltip, indicator: state.indicator };
+  const previous = tracker.transitions.at(-1);
+  if (!previous || previous.tooltip !== next.tooltip || previous.indicator !== next.indicator) {
+    tracker.transitions.push(next);
+  }
 }
 
 async function startSelectionUiTracking(page) {
-  await page.evaluate(() => {
-    const host = document.querySelector('#fluent-read-selection-translator-container');
-    const root = host?.shadowRoot;
-    if (!root) throw new Error('找不到划词翻译 Shadow Root');
-    window.__fluentReadSelectionUiObserver?.disconnect();
-    const readState = () => ({
-      at: performance.now(),
-      tooltip: Boolean(root.querySelector('.fr-translation-tooltip')),
-      indicator: Boolean(root.querySelector('.fr-selection-indicator')),
-    });
-    window.__fluentReadSelectionUiTransitions = [readState()];
-    const observer = new MutationObserver(() => {
-      const next = readState();
-      const previous = window.__fluentReadSelectionUiTransitions.at(-1);
-      if (!previous || previous.tooltip !== next.tooltip || previous.indicator !== next.indicator) {
-        window.__fluentReadSelectionUiTransitions.push(next);
-      }
-    });
-    observer.observe(root, { childList: true, subtree: true });
-    window.__fluentReadSelectionUiObserver = observer;
-  });
+  const previous = selectionUiTrackers.get(page);
+  if (previous) clearInterval(previous.timer);
+  const tracker = { transitions: [], timer: null, busy: false };
+  await sampleSelectionUiTracker(page, tracker);
+  tracker.timer = setInterval(async () => {
+    if (tracker.busy) return;
+    tracker.busy = true;
+    try { await sampleSelectionUiTracker(page, tracker); } catch { /* 页面正在切换时忽略该次采样。 */ }
+    tracker.busy = false;
+  }, 25);
+  selectionUiTrackers.set(page, tracker);
 }
 
 async function stopSelectionUiTracking(page) {
-  return page.evaluate(() => {
-    window.__fluentReadSelectionUiObserver?.disconnect();
-    window.__fluentReadSelectionUiObserver = undefined;
-    return window.__fluentReadSelectionUiTransitions || [];
-  });
+  const tracker = selectionUiTrackers.get(page);
+  if (!tracker) return [];
+  clearInterval(tracker.timer);
+  while (tracker.busy) await page.waitForTimeout(5);
+  await sampleSelectionUiTracker(page, tracker).catch(() => {});
+  selectionUiTrackers.delete(page);
+  return tracker.transitions;
 }
 
 async function exerciseTransientSelectionLoss(page, restoreDelayMs = 80) {
@@ -336,10 +408,8 @@ async function exerciseTransientSelectionLoss(page, restoreDelayMs = 80) {
     if (!selection || selection.rangeCount === 0) throw new Error('瞬时选区测试缺少活动选区');
     const ranges = Array.from({ length: selection.rangeCount }, (_, index) => selection.getRangeAt(index).cloneRange());
     selection.removeAllRanges();
-    document.dispatchEvent(new Event('selectionchange'));
     await new Promise(resolve => setTimeout(resolve, delayMs));
     for (const range of ranges) selection.addRange(range);
-    document.dispatchEvent(new Event('selectionchange'));
   }, restoreDelayMs);
   await page.waitForTimeout(350);
   const transitions = await stopSelectionUiTracking(page);
@@ -348,51 +418,49 @@ async function exerciseTransientSelectionLoss(page, restoreDelayMs = 80) {
 }
 
 async function clearPageSelection(page) {
-  await page.evaluate(() => {
-    window.getSelection()?.removeAllRanges();
-    document.dispatchEvent(new Event('selectionchange'));
-  });
+  await activateInputPage(page);
+  await page.mouse.click(20, 20);
+  if (await page.evaluate(() => Boolean(window.getSelection()?.toString()))) {
+    await page.evaluate(() => window.getSelection()?.removeAllRanges());
+  }
 }
 
 async function waitForHoverTranslation(page) {
   await page.waitForFunction(() => document.querySelectorAll('#target .fluent-read-bilingual-content').length === 1, undefined, { timeout: 10000 });
-  return page.evaluate(() => ({
+  const pageState = await page.evaluate(() => ({
     count: document.querySelectorAll('#target .fluent-read-bilingual-content').length,
     text: document.querySelector('#target .fluent-read-bilingual-content')?.textContent?.trim() || '',
-    selectionTooltip: Boolean(document.querySelector('#fluent-read-selection-translator-container')?.shadowRoot?.querySelector('.fr-translation-tooltip')),
   }));
+  const selectionState = await readSelectionUi(page);
+  return { ...pageState, selectionTooltip: selectionState.tooltip };
 }
 
 async function waitForSelectionUi(page, expected, description) {
-  await page.waitForFunction((expectedState) => {
-    const host = document.querySelector('#fluent-read-selection-translator-container');
-    const root = host?.shadowRoot;
-    const indicator = root?.querySelector('.fr-selection-indicator');
-    const tooltip = root?.querySelector('.fr-translation-tooltip');
-    const state = {
-      host: Boolean(host),
-      indicator: Boolean(indicator),
-      indicatorClass: indicator?.className || '',
-      tooltip: Boolean(tooltip),
-      original: Boolean(root?.querySelector('.fr-original-text')),
-      translation: Boolean(root?.querySelector('.fr-translation-result')),
-      resultText: root?.querySelector('.fr-translation-result pre')?.textContent?.trim() || '',
-    };
-    return Object.entries(expectedState).every(([key, value]) => key === 'resultPrefix'
+  const deadline = Date.now() + 10000;
+  let state;
+  while (Date.now() < deadline) {
+    state = await readSelectionUi(page);
+    const matches = Object.entries(expected).every(([key, value]) => key === 'resultPrefix'
       ? state.resultText.startsWith(String(value))
       : state[key] === value);
-  }, expected, { timeout: 10000 }).catch((error) => {
-    throw new Error(`${description}：${error.message}`);
-  });
+    if (matches) return;
+    await page.waitForTimeout(50);
+  }
+  throw new Error(`${description}：等待划词 UI 超时，最后状态 ${JSON.stringify(state)}`);
 }
 
 async function clickSelectionIndicator(page) {
-  await page.evaluate(() => {
-    const host = document.querySelector('#fluent-read-selection-translator-container');
-    const indicator = host?.shadowRoot?.querySelector('.fr-selection-indicator');
-    if (!(indicator instanceof HTMLElement)) throw new Error('找不到划词翻译入口');
-    indicator.click();
-  });
+  await activateInputPage(page);
+  const { session, root } = await getSelectionUiTree(page);
+  const indicator = findCdpNode(root, node => hasCdpClass(node, 'fr-selection-indicator'));
+  if (!indicator) throw new Error('找不到划词翻译入口');
+  const { model } = await session.send('DOM.getBoxModel', { nodeId: indicator.nodeId });
+  const quad = model.border || model.content;
+  const x = (quad[0] + quad[2] + quad[4] + quad[6]) / 4;
+  const y = (quad[1] + quad[3] + quad[5] + quad[7]) / 4;
+  await session.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+  await session.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 });
+  await session.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1 });
 }
 
 async function closeSelectionUi(page) {
@@ -415,6 +483,7 @@ async function main() {
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-selection-trigger-edge-'));
   assertDedicatedProfile(profileDir);
   let context;
+  let closeBrowser = async () => { if (context) await context.close().catch(() => {}); };
   const result = {
     ok: false,
     extensionDir: args.extensionDir,
@@ -423,24 +492,48 @@ async function main() {
     cases: [],
     screenshots: [],
     consoleErrors: [],
+    launchMode: null,
+    focusPolicy: null,
   };
   let translationRequestCount = 0;
   const translationRequestEvents = [];
   let translationResponseDelayMs = 0;
 
   try {
-    context = await chromium.launchPersistentContext(profileDir, {
-      executablePath: args.browserPath,
-      headless: false,
-      args: [
-        `--disable-extensions-except=${args.extensionDir}`,
-        `--load-extension=${args.extensionDir}`,
-        '--no-first-run',
-        '--no-default-browser-check',
-        ...(args.headed ? [] : ['--start-minimized', '--window-position=-10000,-10000']),
-      ],
-      viewport: { width: 1280, height: 900 },
-    });
+    const browserArgs = [
+      `--disable-extensions-except=${args.extensionDir}`,
+      `--load-extension=${args.extensionDir}`,
+      '--no-first-run',
+      '--no-default-browser-check',
+      ...(args.headed ? [] : ['--start-minimized', '--window-position=-10000,-10000']),
+    ];
+    if (args.focusSafeHelper && !args.headed) {
+      const focusSafe = require(args.focusSafeHelper);
+      const browserSession = await focusSafe.launchFocusSafePersistentContext({
+        chromium,
+        profileDir,
+        browserPath: args.browserPath,
+        headless: false,
+        background: true,
+        browserArgs,
+        viewport: { width: 1280, height: 900 },
+      });
+      context = browserSession.context;
+      closeBrowser = browserSession.close;
+      createIsolatedPage = () => focusSafe.newPageWithoutForeground(context);
+      activateInputPage = page => focusSafe.activateExtensionTabWithoutForeground(context, page);
+      result.launchMode = browserSession.launchMode;
+      result.focusPolicy = browserSession.focusPolicy;
+    } else {
+      context = await chromium.launchPersistentContext(profileDir, {
+        executablePath: args.browserPath,
+        headless: false,
+        args: browserArgs,
+        viewport: { width: 1280, height: 900 },
+      });
+      result.launchMode = args.headed ? 'playwright-headed' : 'playwright-minimized-fallback';
+      result.focusPolicy = args.headed ? 'foreground-authorized' : 'best-effort-minimized';
+    }
     const { worker, extensionId } = await waitForWorker(context);
     result.extensionId = extensionId;
 
@@ -471,13 +564,13 @@ async function main() {
       });
     });
 
-    const popup = await context.newPage();
+    const popup = await createIsolatedPage(context);
     popup.on('pageerror', (error) => result.consoleErrors.push(`popup pageerror: ${error.message}`));
     popup.on('console', (message) => { if (message.type() === 'error') result.consoleErrors.push(`popup console: ${message.text()}`); });
     await popup.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await popup.locator('.popup-shell').waitFor({ state: 'visible', timeout: 60000 });
 
-    const page = await context.newPage();
+    const page = await createIsolatedPage(context);
     page.on('pageerror', (error) => result.consoleErrors.push(`pageerror: ${error.message}`));
     page.on('console', (message) => { if (message.type() === 'error') result.consoleErrors.push(`console: ${message.text()}`); });
     await page.goto('https://example.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -506,7 +599,7 @@ async function main() {
     result.screenshots.push(popupDelayScreenshot);
     result.cases.push({ id: 'ui.popup-scrolls-to-bottom', status: 'passed', drawerScroll });
 
-    const optionsPage = await context.newPage();
+    const optionsPage = await createIsolatedPage(context);
     optionsPage.on('pageerror', (error) => result.consoleErrors.push(`options pageerror: ${error.message}`));
     optionsPage.on('console', (message) => { if (message.type() === 'error') result.consoleErrors.push(`options console: ${message.text()}`); });
     await optionsPage.goto(`chrome-extension://${extensionId}/options.html#settings-shortcuts`, { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -543,8 +636,8 @@ async function main() {
     await waitForSelectionUi(page, { tooltip: true, indicator: false, translation: true, resultPrefix: '测试译文：' }, '延迟结束后直接弹出翻译框');
     const delayedTransitions = await stopSelectionUiTracking(page);
     const delayedVisible = delayedTransitions.find(item => item.tooltip);
-    assert(delayedVisible && delayedVisible.at - delayedSelection.selectedAt >= 650,
-      `划词 UI 显示过早：${JSON.stringify({ selectedAt: delayedSelection.selectedAt, transitions: delayedTransitions })}`);
+    assert(delayedVisible && delayedVisible.at - delayedSelection.selectedWallAt >= 650,
+      `划词 UI 显示过早：${JSON.stringify({ selectedWallAt: delayedSelection.selectedWallAt, transitions: delayedTransitions })}`);
     assert(translationRequestCount === delayedRequestsBefore + 1,
       `延迟结束后请求数不是恰好一次：${delayedRequestsBefore} -> ${translationRequestCount}`);
     const delayedRequestAt = translationRequestEvents[delayedRequestsBefore];
@@ -554,7 +647,7 @@ async function main() {
       id: 'delay.direct-no-early-ui-or-request',
       status: 'passed',
       configuredDelay: 800,
-      observedDelay: delayedVisible.at - delayedSelection.selectedAt,
+      observedDelay: delayedVisible.at - delayedSelection.selectedWallAt,
       requestDelay: delayedRequestAt - delayedSelection.selectedWallAt,
       duringDelay,
       transitions: delayedTransitions,
@@ -779,16 +872,17 @@ async function main() {
     await page.waitForTimeout(700);
     await resetFixture(page);
     await clearPageSelection(page);
-    await page.bringToFront();
+    await activateInputPage(page);
     await page.keyboard.press('Control');
     await page.waitForFunction(() => document.querySelectorAll('#selection-test-fixture .fluent-read-bilingual-content').length >= 2, undefined, { timeout: 10000 });
-    const fullPageFallback = await page.evaluate(() => ({
+    const fullPageDomState = await page.evaluate(() => ({
       translatedCount: document.querySelectorAll('#selection-test-fixture .fluent-read-bilingual-content').length,
-      selectionTooltip: Boolean(document.querySelector('#fluent-read-selection-translator-container')?.shadowRoot?.querySelector('.fr-translation-tooltip')),
     }));
+    const fullPageSelectionState = await readSelectionUi(page);
+    const fullPageFallback = { ...fullPageDomState, selectionTooltip: fullPageSelectionState.tooltip };
     assert(!fullPageFallback.selectionTooltip, `无选区全文回退时误开划词翻译：${JSON.stringify(fullPageFallback)}`);
     result.cases.push({ id: 'conflict.full-page-fallback-without-selection-or-hover', status: 'passed', ui: fullPageFallback });
-    await page.evaluate(() => document.dispatchEvent(new CustomEvent('fluentread-toggle-translation')));
+    await page.keyboard.press('Control');
     await page.waitForFunction(() => document.querySelectorAll('.fluent-read-bilingual-content').length === 0, undefined, { timeout: 10000 });
 
     await closeSelectionUi(page);
@@ -816,7 +910,7 @@ async function main() {
     });
     await page.waitForTimeout(700);
     await resetFixture(page);
-    await page.bringToFront();
+    await activateInputPage(page);
     await page.keyboard.down('F9');
     await page.waitForTimeout(600);
     const heldCustomSelection = await selectTarget(page, true);
@@ -871,7 +965,7 @@ async function main() {
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     process.exitCode = 1;
   } finally {
-    if (context) await context.close().catch(() => {});
+    await closeBrowser();
     fs.rmSync(profileDir, { recursive: true, force: true });
   }
 }

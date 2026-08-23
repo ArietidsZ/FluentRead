@@ -236,7 +236,7 @@
 
       <div class="video-settings-note">
         <strong>使用方式</strong>
-        <p>打开 YouTube 视频的原生字幕后，FluentRead 会在字幕下方显示译文。机器翻译约提前 10 秒、AI 服务约提前 30 秒准备字幕；切换视频或关闭此功能会清理译文。</p>
+        <p>打开 YouTube 视频的原生字幕后，FluentRead 会在字幕下方显示译文。机器翻译约提前 10 秒、AI 服务约提前 30 秒准备字幕；播放器菜单可分别下载原文或译文 SRT，切换视频或关闭此功能会清理译文。</p>
       </div>
     </section>
 
@@ -532,6 +532,31 @@
         </el-col>
       </el-row>
 
+        <!-- 翻译进度面板 -->
+        <el-row class="settings-control-row">
+          <el-col :span="20" class="settings-control-label lightblue rounded-corner">
+            <el-tooltip
+              class="box-item"
+              effect="dark"
+              content="全文翻译时，在网页右下角显示正在翻译和等待中的任务数量；任务结束后自动隐藏。"
+              placement="top-start"
+              :show-after="500"
+            >
+              <span class="popup-text popup-vertical-left">
+                显示翻译进度面板
+                <el-icon class="icon-margin"><InfoFilled /></el-icon>
+              </span>
+            </el-tooltip>
+          </el-col>
+          <el-col :span="4" class="settings-control-field flex-end">
+            <el-switch
+              v-model="config.translationProgressPanelEnabled"
+              class="settings-toggle"
+              aria-label="显示翻译进度面板"
+              @change="handleTranslationProgressPanelChange"
+            />
+          </el-col>
+        </el-row>
 
         <!-- 禁用动画设置 -->
         <el-row class="settings-control-row">
@@ -671,6 +696,20 @@
           </el-col>
         </el-row>
 
+        <section class="credential-persistence-panel" aria-label="API 凭据存储">
+          <div class="credential-persistence-copy">
+            <strong>跨浏览器重启保存 API 凭据</strong>
+            <p>默认仅保存在当前浏览器会话，关闭浏览器后清除。开启后会以明文写入扩展本地存储；本机其他可读取浏览器配置或诊断数据的程序可能看到这些凭据。</p>
+          </div>
+          <el-switch
+            :model-value="config.persistCredentials"
+            :loading="credentialPersistenceBusy"
+            aria-label="跨浏览器重启保存 API 凭据"
+            data-testid="persist-credentials-switch"
+            @change="setCredentialPersistence"
+          />
+        </section>
+
         <section class="config-history-panel" aria-label="最近配置">
           <div class="config-history-heading">
             <div>
@@ -737,6 +776,7 @@
             </el-button>
           </el-col>
         </el-row>
+        <p class="config-transfer-note">导出会移除专用 API Key、Secret 与令牌字段；自定义请求体、代理和端点中的内嵌凭据无法自动识别，请在分享前检查。导入旧版配置时，专用凭据会迁移到当前浏览器会话。</p>
 
         <!-- 导出配置 -->
         <el-row v-if="showExportBox" class="margin-bottom margin-left-2em">
@@ -811,7 +851,7 @@ import ServiceCatalog from '@/components/ServiceCatalog.vue';
 import ServiceConfiguration from '@/components/ServiceConfiguration.vue';
 import TranslationCenter from '@/components/TranslationCenter.vue';
 import { parseHotkey } from '@/entrypoints/utils/hotkey';
-import { isConfigImportValid, sanitizeConfigForExport } from '@/entrypoints/utils/config-transfer';
+import { isConfigImportValid, prepareConfigForImport, sanitizeConfigForExport } from '@/entrypoints/utils/config-transfer';
 import { getApiKeyRequirementKey, getMissingCredentialMessage, isApiKeyRequired } from '@/entrypoints/utils/configValidation';
 import {
   IMAGE_OCR_LANGUAGE_PACKS,
@@ -826,7 +866,6 @@ import {
   configReady,
   getConfigHistorySnapshot,
   requestConfigHistoryAction,
-  saveConfig,
   requestConfigSave,
   subscribeConfigHistory,
   subscribeConfig,
@@ -936,7 +975,6 @@ watch(config, (newValue) => {
 function persistOnPageExit() {
   if (!hydrated || pageExitSaveStarted) return;
   pageExitSaveStarted = true;
-  void saveConfig(config.value).catch((error) => console.warn('[FluentRead] 设置页关闭前本地保存失败', error));
   void persistConfig(config.value).catch((error) => console.warn('[FluentRead] 设置页关闭前后台保存失败', error));
 }
 
@@ -1098,6 +1136,22 @@ const floatingBallEnabled = computed({
     });
   }
 });
+
+const handleTranslationProgressPanelChange = (isEnabled: boolean) => {
+  browser.tabs.query({}).then(tabs => {
+    tabs.forEach(tab => {
+      if (!tab.id) return;
+      browser.tabs.sendMessage(tab.id, {
+        type: 'toggleTranslationProgressPanel',
+        isEnabled,
+      }).catch(() => {
+        // 忽略发送失败的错误（可能是页面未加载内容脚本）
+      });
+    });
+  }).catch(() => {
+    // 忽略无法查询标签页的错误，配置仍会通过统一存储链路保存
+  });
+};
 
 // 监听划词翻译模式变化
 watch(() => config.value.selectionTranslatorMode, (newMode) => {
@@ -1328,6 +1382,48 @@ const showExportBox = ref(false);
 const exportData = ref('');
 const showImportBox = ref(false);
 const importData = ref('');
+const credentialPersistenceBusy = ref(false);
+
+const setCredentialPersistence = async (value: string | number | boolean) => {
+  const enabled = value === true;
+  if (enabled === config.value.persistCredentials || credentialPersistenceBusy.value) return;
+
+  if (enabled) {
+    try {
+      await ElMessageBox.confirm(
+        '开启后，API Key、访问令牌及其他服务凭据会以明文写入扩展本地存储，并在浏览器重启后继续保留。仅应在受信任的个人设备上开启。',
+        '保存 API 凭据',
+        {
+          confirmButtonText: '了解风险并开启',
+          cancelButtonText: '取消',
+          type: 'warning',
+        },
+      );
+    } catch {
+      return;
+    }
+  }
+
+  credentialPersistenceBusy.value = true;
+  try {
+    const nextConfig = normalizeConfig({...config.value, persistCredentials: enabled});
+    // 后台只有在 session 写入并读回成功后，才会清理关闭开关前的 local 凭据。
+    await persistConfig(nextConfig);
+    applyingExternalConfig = true;
+    try {
+      Object.assign(config.value, nextConfig);
+      lastSerialized = JSON.stringify(nextConfig);
+    } finally {
+      applyingExternalConfig = false;
+    }
+    ElMessage.success(enabled ? '已允许跨浏览器重启保存 API 凭据' : 'API 凭据现仅保存在当前浏览器会话');
+  } catch (error) {
+    ElMessage.error(`凭据存储设置失败：${error instanceof Error ? error.message : '请稍后重试'}`);
+  } finally {
+    credentialPersistenceBusy.value = false;
+  }
+};
+
 const configHistory = ref<ConfigHistoryState>(getConfigHistorySnapshot());
 const historyBusy = ref(false);
 const historyEntries = computed(() => [...configHistory.value.entries].reverse());
@@ -1432,7 +1528,7 @@ const saveImport = async () => {
       });
       return;
     }
-    await persistConfig(normalizeConfig(parsedConfig));
+    await persistConfig(prepareConfigForImport(parsedConfig, runtimeConfig));
     ElMessage({
       message: '配置导入成功!',
       type: 'success',
@@ -1455,6 +1551,23 @@ const saveImport = async () => {
 .settings-section {
   min-width: 0;
 }
+
+.credential-persistence-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  border: 1px solid #f0d2dc;
+  border-radius: 16px;
+  background: #fff8fa;
+}
+.credential-persistence-copy { min-width: 0; }
+.credential-persistence-copy strong { color: var(--ink); font-size: 13px; }
+.credential-persistence-copy p,
+.config-transfer-note { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.config-transfer-note { margin: -5px 2em 16px; }
 
 .config-history-panel {
   margin: 0 0 18px;

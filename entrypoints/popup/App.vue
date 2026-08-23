@@ -91,7 +91,7 @@
 
         <div v-if="servicePickerOpen" class="service-picker-panel" role="listbox" aria-label="翻译服务列表">
           <div class="service-picker-heading">
-            <div><strong>选择翻译服务</strong><small>常用服务优先，更多服务已收起</small></div>
+            <div><strong>选择翻译服务</strong><small>常用服务优先，更多服务{{ moreServicesOpen ? '已展开' : '已收起' }}</small></div>
             <span>{{ serviceOptions.length }}</span>
           </div>
 
@@ -418,7 +418,7 @@
             <option v-for="size in videoSubtitleFontSizeOptions" :key="size" :value="size">{{ size === 100 ? '默认' : `${size}%` }}</option>
           </select>
         </label>
-        <small class="drawer-hint">目前支持 YouTube；播放器内会显示 FluentRead 图标，可切换字幕模式、显示状态和下载 SRT。视频默认使用微软翻译；AI 服务会提前预取字幕，如切换 DeepLX，可在完整设置中配置服务地址。</small>
+        <small class="drawer-hint">目前支持 YouTube；播放器内会显示 FluentRead 图标，可切换字幕模式、显示状态，并分别下载原文或译文 SRT。视频默认使用微软翻译；AI 服务会提前预取字幕，如切换 DeepLX，可在完整设置中配置服务地址。</small>
       </div>
 
       <div v-else class="drawer-content">
@@ -491,7 +491,7 @@ const showCustomMouseHotkeyDialog = ref(false);
 const showCustomSelectionHotkeyDialog = ref(false);
 const servicePicker = ref<HTMLElement | null>(null);
 const servicePickerOpen = ref(false);
-const moreServicesOpen = ref(false);
+const moreServicesOpen = ref(true);
 const hydrated = ref(false);
 let lastSerialized = '';
 let applyingExternalConfig = false;
@@ -623,7 +623,7 @@ function handleServicePickerKeydown(event: KeyboardEvent) {
 function toggleServicePicker() {
   if (!config.value.on) return;
   servicePickerOpen.value = !servicePickerOpen.value;
-  if (servicePickerOpen.value) moreServicesOpen.value = !popularServiceValues.includes(config.value.service);
+  if (servicePickerOpen.value) moreServicesOpen.value = true;
 }
 function selectService(value: string) {
   config.value.service = value;

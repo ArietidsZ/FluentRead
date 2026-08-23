@@ -9,6 +9,14 @@
     .toolbar { display: flex; gap: 8px; }
     button { padding: 6px 12px; }
     code { font-family: monospace; }
+    .model-description-clamp {
+      display: -webkit-box;
+      width: 320px;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+    .model-description-clamp p { margin: 0; }
   </style>
 </head>
 <body>
@@ -21,6 +29,13 @@
       and <code>const value = 42</code> that should remain inside the translated block.
     </p>
     <p id="paragraph-two">The second paragraph is a neighbor and must be translated exactly once.</p>
+    <div id="model-description-clamp" class="model-description-clamp">
+      <div class="model-description-prose">
+        <p id="model-description">
+          This model description reproduces a card whose outer wrapper shows only two lines of source text. The bilingual translation is appended after the complete description and must remain geometrically visible instead of being clipped below the original text.
+        </p>
+      </div>
+    </div>
     <div class="toolbar">
       <button id="save-button"><span aria-hidden="true">★</span><span>Save changes</span></button>
       <button id="cancel-button">Cancel</button>

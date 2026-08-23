@@ -1,5 +1,20 @@
 import { storage } from '@wxt-dev/storage';
 import { Config, normalizeConfig } from '@/entrypoints/utils/model';
+import {
+    LOCAL_CREDENTIALS_STORAGE_KEY,
+    SESSION_CREDENTIALS_STORAGE_KEY,
+    credentialsEqual,
+    extractConfigCredentials,
+    hasCredentialData,
+    hasCredentialFields,
+    isTrustedCredentialStorageContext,
+    mergeConfigCredentials,
+    parseStoredCredentials,
+    sanitizeConfigCredentials,
+    sanitizeConfigHistoryCredentials,
+    type ConfigCredentials,
+    type PublicConfig,
+} from '@/entrypoints/utils/credentials';
 
 export const CONFIG_STORAGE_KEY = 'local:config' as const;
 export const CONFIG_HISTORY_STORAGE_KEY = 'local:configHistory' as const;
@@ -17,7 +32,7 @@ export type ConfigHistoryAction = 'undo' | 'redo' | 'restore';
 export interface ConfigHistoryEntry {
     version: number;
     savedAt: string;
-    config: Config;
+    config: PublicConfig;
 }
 
 export interface ConfigHistoryState {
@@ -45,7 +60,7 @@ let historyInitialized = false;
 let historyLastSerialized = '';
 let historyWriteRevision = 0;
 let historyWriteQueue: Promise<void> = Promise.resolve();
-let pendingHistorySnapshot: Config | null = null;
+let pendingHistorySnapshot: PublicConfig | null = null;
 let pendingHistoryTimer: ReturnType<typeof setTimeout> | undefined;
 let historyFlushPromise: Promise<void> | null = null;
 
@@ -87,13 +102,17 @@ function serializeHistory(value: ConfigHistoryState): string {
     return JSON.stringify(value);
 }
 
+function toPublicConfig(value: unknown): PublicConfig {
+    return sanitizeConfigCredentials(normalizeConfig(value)) as PublicConfig;
+}
+
 function cloneHistoryState(value: ConfigHistoryState): ConfigHistoryState {
     return {
         schemaVersion: CONFIG_HISTORY_SCHEMA_VERSION,
         entries: value.entries.map((entry) => ({
             version: entry.version,
             savedAt: entry.savedAt,
-            config: normalizeConfig(entry.config),
+            config: toPublicConfig(entry.config),
         })),
         cursor: value.cursor,
         nextVersion: value.nextVersion,
@@ -107,7 +126,7 @@ function createBaselineHistory(): ConfigHistoryState {
         entries: [{
             version,
             savedAt: new Date().toISOString(),
-            config: normalizeConfig(config),
+            config: toPublicConfig(config),
         }],
         cursor: 0,
         nextVersion: version + 1,
@@ -128,7 +147,7 @@ function parseHistory(value: unknown): ConfigHistoryState | null {
             return {
                 version: entry.version,
                 savedAt: entry.savedAt,
-                config: normalizeConfig(parsedConfig),
+                config: toPublicConfig(parsedConfig),
             } satisfies ConfigHistoryEntry;
         })
         .filter((entry): entry is ConfigHistoryEntry => entry !== null)
@@ -171,7 +190,8 @@ function handleStoredHistoryChange(value: unknown): void {
 }
 
 async function queueHistoryWrite(nextHistory: ConfigHistoryState): Promise<void> {
-    const serialized = serializeHistory(nextHistory);
+    const sanitizedHistory = cloneHistoryState(nextHistory);
+    const serialized = serializeHistory(sanitizedHistory);
     if (serialized === historyLastSerialized) return;
 
     historyLastSerialized = serialized;
@@ -180,8 +200,8 @@ async function queueHistoryWrite(nextHistory: ConfigHistoryState): Promise<void>
         .catch(() => undefined)
         .then(async () => {
             if (revision !== historyWriteRevision || historyLastSerialized !== serialized) return;
-            await storage.setItem<ConfigHistoryState>(CONFIG_HISTORY_STORAGE_KEY, nextHistory);
-            setHistoryState(nextHistory);
+            await storage.setItem<ConfigHistoryState>(CONFIG_HISTORY_STORAGE_KEY, sanitizedHistory);
+            setHistoryState(sanitizedHistory);
         });
     try {
         await historyWriteQueue;
@@ -211,7 +231,7 @@ async function initializeConfigHistory(): Promise<void> {
 
 async function appendHistorySnapshotNow(value: unknown): Promise<void> {
     await configHistoryReady;
-    const normalized = normalizeConfig(value);
+    const normalized = toPublicConfig(value);
     const currentEntries = historyState.entries.slice(0, historyState.cursor + 1);
     const current = currentEntries[currentEntries.length - 1];
     if (current && serializeConfig(current.config) === serializeConfig(normalized)) return;
@@ -232,7 +252,7 @@ async function appendHistorySnapshotNow(value: unknown): Promise<void> {
     await queueHistoryWrite(nextHistory);
 }
 
-function takePendingHistorySnapshot(): Config | null {
+function takePendingHistorySnapshot(): PublicConfig | null {
     if (pendingHistoryTimer) clearTimeout(pendingHistoryTimer);
     pendingHistoryTimer = undefined;
     const snapshot = pendingHistorySnapshot;
@@ -240,7 +260,7 @@ function takePendingHistorySnapshot(): Config | null {
     return snapshot;
 }
 
-function flushHistorySnapshot(snapshot: Config): void {
+function flushHistorySnapshot(snapshot: PublicConfig): void {
     historyFlushPromise = appendHistorySnapshotNow(snapshot).finally(() => {
         historyFlushPromise = null;
     });
@@ -248,7 +268,7 @@ function flushHistorySnapshot(snapshot: Config): void {
 }
 
 function scheduleHistorySnapshot(value: unknown): void {
-    pendingHistorySnapshot = normalizeConfig(value);
+    pendingHistorySnapshot = toPublicConfig(value);
     if (pendingHistoryTimer) clearTimeout(pendingHistoryTimer);
     pendingHistoryTimer = setTimeout(() => {
         const snapshot = takePendingHistorySnapshot();
@@ -272,6 +292,34 @@ function applyConfig(nextConfig: Config): void {
     notifyListeners(config);
 }
 
+const trustedCredentialStorageContext = isTrustedCredentialStorageContext();
+let credentialCleanupRequired = false;
+let localCredentialSnapshotPresent = false;
+let sessionCredentialWatchRegistered = false;
+let sessionCredentialStorageAvailable = false;
+
+async function writeAndVerifyCredentials(
+    key: typeof SESSION_CREDENTIALS_STORAGE_KEY | typeof LOCAL_CREDENTIALS_STORAGE_KEY,
+    credentials: ConfigCredentials,
+): Promise<void> {
+    await storage.setItem<ConfigCredentials>(key, credentials);
+    const verified = parseStoredCredentials(await storage.getItem<unknown>(key));
+    if (!verified || !credentialsEqual(credentials, verified)) {
+        throw new Error(`${key} 凭据写入校验失败`);
+    }
+    if (key === SESSION_CREDENTIALS_STORAGE_KEY) sessionCredentialStorageAvailable = true;
+}
+
+async function sanitizeStoredHistory(rawHistory?: unknown): Promise<void> {
+    const storedHistory = arguments.length > 0
+        ? rawHistory
+        : await storage.getItem<unknown>(CONFIG_HISTORY_STORAGE_KEY);
+    if (storedHistory === null || storedHistory === undefined) return;
+    const sanitized = sanitizeConfigHistoryCredentials(storedHistory);
+    if (serializeConfig(storedHistory) === serializeConfig(sanitized)) return;
+    await storage.setItem(CONFIG_HISTORY_STORAGE_KEY, sanitized);
+}
+
 function queueStorageWrite(nextConfig: Config, serialized: string, revision: number, storedRevision: number): Promise<void> {
     writeQueue = writeQueue
         .catch(() => undefined)
@@ -279,10 +327,36 @@ function queueStorageWrite(nextConfig: Config, serialized: string, revision: num
             // 只写最后一次快照，避免连续输入或多个页面初始化时排队回写旧配置。
             if (revision !== writeRevision || lastPersistedSerialized !== serialized) return;
             try {
-                await storage.setItem<Config>(CONFIG_STORAGE_KEY, {
-                    ...nextConfig,
+                if (!trustedCredentialStorageContext) {
+                    throw new Error('当前上下文不能安全访问 session 凭据存储');
+                }
+
+                const credentials = extractConfigCredentials(nextConfig);
+                const mustCheckpointCredentials = hasCredentialData(credentials)
+                    || credentialCleanupRequired
+                    || localCredentialSnapshotPresent
+                    || sessionCredentialStorageAvailable
+                    || nextConfig.persistCredentials;
+                if (mustCheckpointCredentials) {
+                    await writeAndVerifyCredentials(SESSION_CREDENTIALS_STORAGE_KEY, credentials);
+                }
+                if (nextConfig.persistCredentials) {
+                    await writeAndVerifyCredentials(LOCAL_CREDENTIALS_STORAGE_KEY, credentials);
+                    localCredentialSnapshotPresent = true;
+                }
+
+                await storage.setItem(CONFIG_STORAGE_KEY, {
+                    ...toPublicConfig(nextConfig),
                     [CONFIG_REVISION_FIELD]: storedRevision,
-                } as Config);
+                });
+
+                if (!nextConfig.persistCredentials && (credentialCleanupRequired || localCredentialSnapshotPresent)) {
+                    // 先保证 session 中有已读回确认的快照，并清理历史泄漏，再删除本地凭据。
+                    await sanitizeStoredHistory();
+                    await storage.removeItem(LOCAL_CREDENTIALS_STORAGE_KEY);
+                    credentialCleanupRequired = false;
+                    localCredentialSnapshotPresent = false;
+                }
             } catch (error) {
                 if (lastPersistedSerialized === serialized) lastPersistedSerialized = '';
                 throw error;
@@ -305,7 +379,7 @@ function handleStoredConfigChange(value: unknown): void {
     const parsed = parseStoredConfig(value);
     if (!parsed) return;
 
-    const normalized = normalizeConfig(parsed);
+    const normalized = normalizeConfig(mergeConfigCredentials(parsed, extractConfigCredentials(config)));
     const serialized = serializeConfig(normalized);
     const storedRevision = getStoredRevision(parsed);
     if (storedRevision && storedRevision < persistedConfigRevision) return;
@@ -325,6 +399,23 @@ function handleStoredConfigChange(value: unknown): void {
 storage.watch(CONFIG_STORAGE_KEY, handleStoredConfigChange);
 storage.watch(CONFIG_HISTORY_STORAGE_KEY, handleStoredHistoryChange);
 
+function registerSessionCredentialWatch(): void {
+    if (!trustedCredentialStorageContext || sessionCredentialWatchRegistered) return;
+    try {
+        storage.watch(SESSION_CREDENTIALS_STORAGE_KEY, (value) => {
+            const nextCredentials = parseStoredCredentials(value) || extractConfigCredentials({});
+            const normalized = normalizeConfig(mergeConfigCredentials(config, nextCredentials));
+            const serialized = serializeConfig(normalized);
+            if (serialized === serializeConfig(config)) return;
+            lastPersistedSerialized = serialized;
+            applyConfig(normalized);
+        });
+        sessionCredentialWatchRegistered = true;
+    } catch (error) {
+        console.warn('[FluentRead] 当前浏览器不支持 session 凭据监听', error);
+    }
+}
+
 async function initializeConfig(): Promise<void> {
     try {
         let storedValue: unknown = null;
@@ -337,22 +428,114 @@ async function initializeConfig(): Promise<void> {
         }
 
         const parsed = parseStoredConfig(storedValue);
-        const normalized = parsed ? normalizeConfig(parsed) : new Config();
-        const serialized = serializeConfig(normalized);
         persistedConfigRevision = getStoredRevision(storedValue);
+
+        if (!trustedCredentialStorageContext) {
+            // content script 的 location 属于网页 origin，且默认无权访问 storage.session。
+            // 只加载公开配置，不在此上下文迁移、回写或监听凭据。
+            const normalized = parsed
+                ? normalizeConfig(sanitizeConfigCredentials(parsed))
+                : new Config();
+            initialized = true;
+            lastPersistedSerialized = serializeConfig(normalized);
+            applyConfig(normalized);
+            return;
+        }
+
+        const legacyCredentials = parsed && hasCredentialFields(parsed)
+            ? extractConfigCredentials(parsed)
+            : null;
+        const localCredentialsValue = await storage.getItem<unknown>(LOCAL_CREDENTIALS_STORAGE_KEY);
+        const localCredentials = parseStoredCredentials(localCredentialsValue);
+        localCredentialSnapshotPresent = localCredentials !== null;
+        const rawHistory = await storage.getItem<unknown>(CONFIG_HISTORY_STORAGE_KEY);
+        const sanitizedRawHistory = sanitizeConfigHistoryCredentials(rawHistory);
+        const historyNeedsSanitizing = rawHistory !== null
+            && rawHistory !== undefined
+            && serializeConfig(rawHistory) !== serializeConfig(sanitizedRawHistory);
+
+        let sessionCredentials: ConfigCredentials | null = null;
+        let sessionReadError: unknown;
+        try {
+            sessionCredentials = parseStoredCredentials(
+                await storage.getItem<unknown>(SESSION_CREDENTIALS_STORAGE_KEY),
+            );
+            sessionCredentialStorageAvailable = true;
+        } catch (error) {
+            sessionReadError = error;
+        }
+
+        const activeCredentials = sessionCredentials
+            || localCredentials
+            || legacyCredentials
+            || extractConfigCredentials({});
+        const normalized = parsed
+            ? normalizeConfig(mergeConfigCredentials(parsed, activeCredentials))
+            : normalizeConfig(mergeConfigCredentials(new Config(), activeCredentials));
+        const serialized = serializeConfig(normalized);
 
         initialized = true;
         applyConfig(normalized);
 
-        // 兼容旧版 JSON 字符串、缺失字段和模型迁移；迁移只在初始化时写回一次。
-        const storedSerialized = isRecord(storedValue) ? serializeConfig(storedValue) : '';
-        if (!parsed || typeof storedValue === 'string' || storedSerialized !== serialized) {
-            lastPersistedSerialized = '';
-            await persistNormalizedConfig(normalized, serialized);
-        } else {
-            lastPersistedSerialized = serialized;
+        const hasLegacyCredentialStorage = Boolean(legacyCredentials || localCredentials || historyNeedsSanitizing);
+        credentialCleanupRequired = hasLegacyCredentialStorage && !normalized.persistCredentials;
+        const mustCheckpointCredentials = hasCredentialData(activeCredentials) || hasLegacyCredentialStorage;
+
+        // 凭据迁移严格先写 session 并读回。失败时不改写旧 config/history，亦不删除 local 凭据。
+        if (mustCheckpointCredentials) {
+            try {
+                if (sessionReadError) throw sessionReadError;
+                await writeAndVerifyCredentials(SESSION_CREDENTIALS_STORAGE_KEY, activeCredentials);
+            } catch (error) {
+                lastPersistedSerialized = serialized;
+                console.warn('[FluentRead] session 凭据不可用，保留旧凭据存储以避免数据丢失', error);
+                registerSessionCredentialWatch();
+                return;
+            }
         }
+
+        if (!normalized.persistCredentials
+            && legacyCredentials
+            && hasCredentialData(legacyCredentials)
+            && !localCredentials) {
+            // 旧 config 的迁移可能在后续 config/history 写入时中断。先建立一个
+            // 可读回的 local 临时检查点，成功清理全部旧载体后再删，避免崩溃窗口丢 Key。
+            await writeAndVerifyCredentials(LOCAL_CREDENTIALS_STORAGE_KEY, activeCredentials);
+            localCredentialSnapshotPresent = true;
+        }
+        if (normalized.persistCredentials) {
+            await writeAndVerifyCredentials(LOCAL_CREDENTIALS_STORAGE_KEY, activeCredentials);
+            localCredentialSnapshotPresent = true;
+        }
+
+        const nextStoredConfig = {
+            ...toPublicConfig(normalized),
+            [CONFIG_REVISION_FIELD]: persistedConfigRevision,
+        };
+        const storedNeedsMigration = !isRecord(storedValue)
+            || typeof storedValue === 'string'
+            || serializeConfig(storedValue) !== serializeConfig(nextStoredConfig);
+        if (storedNeedsMigration) {
+            persistedConfigRevision += 1;
+            await storage.setItem(CONFIG_STORAGE_KEY, {
+                ...toPublicConfig(normalized),
+                [CONFIG_REVISION_FIELD]: persistedConfigRevision,
+            });
+        }
+        if (historyNeedsSanitizing) await sanitizeStoredHistory(rawHistory);
+        if (!normalized.persistCredentials && hasLegacyCredentialStorage) {
+            await storage.removeItem(LOCAL_CREDENTIALS_STORAGE_KEY);
+            credentialCleanupRequired = false;
+            localCredentialSnapshotPresent = false;
+        }
+        lastPersistedSerialized = serialized;
+        registerSessionCredentialWatch();
     } catch (error) {
+        if (initialized) {
+            lastPersistedSerialized = serializeConfig(config);
+            console.error('[FluentRead] 配置安全迁移未完成，保留当前运行时与旧存储以便重试', error);
+            return;
+        }
         // 存储 API 暂时不可用时仍提供默认配置，避免 Firefox 设置页因初始化 rejection 反复重载。
         console.error('[FluentRead] 配置读取失败，使用默认配置', error);
         const fallback = new Config();
@@ -360,11 +543,7 @@ async function initializeConfig(): Promise<void> {
         initialized = true;
         lastPersistedSerialized = '';
         applyConfig(fallback);
-        try {
-            await persistNormalizedConfig(fallback, serialized);
-        } catch (saveError) {
-            console.error('[FluentRead] 默认配置保存失败', saveError);
-        }
+        // 读取失败时不做清理或迁移，避免把暂时不可用误判为“没有凭据”。
     }
 }
 
@@ -379,6 +558,24 @@ export function subscribeConfig(listener: ConfigListener): () => void {
 
 export function getConfigSnapshot(): Config {
     return normalizeConfig(config);
+}
+
+/**
+ * 网页/content 发来的保存请求只能修改公开配置；凭据与持久化偏好必须由
+ * popup/options 等扩展 origin 明确更新，避免无凭据的 content 快照清空后台 session。
+ */
+export function prepareConfigSaveRequest(
+    value: unknown,
+    currentValue: unknown = config,
+    allowCredentialUpdates = false,
+): Config {
+    if (allowCredentialUpdates) return normalizeConfig(value);
+
+    const currentConfig = normalizeConfig(currentValue);
+    return normalizeConfig(mergeConfigCredentials({
+        ...sanitizeConfigCredentials(normalizeConfig(value)),
+        persistCredentials: currentConfig.persistCredentials,
+    }, extractConfigCredentials(currentConfig)));
 }
 
 export function getConfigHistorySnapshot(): ConfigHistoryState {
@@ -440,24 +637,15 @@ export async function requestConfigSave(value: unknown = config, sendMessage?: C
             return;
         }
 
-        try {
-            const response = await sendMessage({
-                type: CONFIG_PERSIST_MESSAGE,
-                config: normalized,
-                clientId: requestClientId,
-                sequence,
-            });
+        const response = await sendMessage({
+            type: CONFIG_PERSIST_MESSAGE,
+            config: normalized,
+            clientId: requestClientId,
+            sequence,
+        });
 
-            if (response?.success === false) {
-                throw new Error(response.error || '后台保存配置失败');
-            }
-        } catch (error) {
-            // 页面端不排队等待上一条请求，确保 Firefox 关闭短生命周期页面前每条快照都已发往后台。
-            // 后台负责串行落盘；这里只保留后台不可用时的降级路径。
-            await saveConfig(normalized, {recordHistory: true, immediateHistory: true});
-            if (error instanceof Error && !error.message.includes('Receiving end')) {
-                console.warn('[FluentRead] 后台保存配置失败，已回退到当前上下文', error);
-            }
+        if (response?.success === false) {
+            throw new Error(response.error || '后台保存配置失败');
         }
     } finally {
         if (latestRequestedSerialized === serialized) latestRequestedSerialized = '';
@@ -478,7 +666,12 @@ export async function applyConfigHistoryAction(action: ConfigHistoryAction, vers
 
     if (targetIndex === historyState.cursor) return getConfigHistorySnapshot();
     const target = historyState.entries[targetIndex];
-    const normalized = normalizeConfig(target.config);
+    const currentCredentials = extractConfigCredentials(config);
+    const normalized = normalizeConfig(mergeConfigCredentials({
+        ...target.config,
+        // 凭据持久化是显式安全选择，不随普通配置历史静默回滚。
+        persistCredentials: config.persistCredentials,
+    }, currentCredentials));
     await persistNormalizedConfig(normalized);
     if (serializeConfig(config) !== serializeConfig(normalized)) applyConfig(normalized);
 

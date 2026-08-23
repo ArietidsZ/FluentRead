@@ -14,6 +14,13 @@ import { getMimoEndpoint, MIMO_ENDPOINTS, MINIMAX_ENDPOINTS, tongyiTokenPlanUrl,
 import { customModelString, defaultModelIds, defaultModels, defaultOption, models, options, resolveConfiguredModel, services, servicesType } from '@/entrypoints/utils/option';
 
 describe('AI 模型编号列表', () => {
+    it('API 凭据跨重启持久化默认关闭，且只接受显式布尔 true', () => {
+        expect(new Config().persistCredentials).toBe(false);
+        expect(normalizeConfig({}).persistCredentials).toBe(false);
+        expect(normalizeConfig({persistCredentials: true}).persistCredentials).toBe(true);
+        expect(normalizeConfig({persistCredentials: 'true'}).persistCredentials).toBe(false);
+    });
+
     it('AI 智能上下文默认关闭，并能从旧配置平滑补齐', () => {
         expect(new Config().enableAIContext).toBe(false);
         expect(normalizeConfig({}).enableAIContext).toBe(false);
@@ -163,6 +170,26 @@ describe('全文翻译范围配置', () => {
         expect(normalizeConfig({}).fullPageTranslationMode).toBe('viewport');
         expect(normalizeConfig({fullPageTranslationMode: 'all'}).fullPageTranslationMode).toBe('all');
         expect(normalizeConfig({fullPageTranslationMode: 'invalid'}).fullPageTranslationMode).toBe('viewport');
+    });
+});
+
+describe('翻译进度面板配置', () => {
+    it('默认开启，并严格保留布尔设置', () => {
+        expect(new Config().translationProgressPanelEnabled).toBe(true);
+        expect(normalizeConfig({}).translationProgressPanelEnabled).toBe(true);
+        expect(normalizeConfig({translationProgressPanelEnabled: true}).translationProgressPanelEnabled).toBe(true);
+        expect(normalizeConfig({translationProgressPanelEnabled: false}).translationProgressPanelEnabled).toBe(false);
+        expect(normalizeConfig({translationProgressPanelEnabled: 'false'}).translationProgressPanelEnabled).toBe(true);
+    });
+
+    it('迁移旧 translationStatus 布尔值并移除旧字段', () => {
+        const enabled = normalizeConfig({translationStatus: true});
+        const disabled = normalizeConfig({translationStatus: false});
+
+        expect(enabled.translationProgressPanelEnabled).toBe(true);
+        expect(disabled.translationProgressPanelEnabled).toBe(false);
+        expect((enabled as unknown as Record<string, unknown>).translationStatus).toBeUndefined();
+        expect((disabled as unknown as Record<string, unknown>).translationStatus).toBeUndefined();
     });
 });
 

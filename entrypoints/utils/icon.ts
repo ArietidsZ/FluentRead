@@ -1,6 +1,5 @@
 // 失败时展示的图标
 import { sendErrorMessage } from "./tip";
-import "element-plus/es/components/message/style/css";
 import { config } from "@/entrypoints/utils/config";
 import { options } from "./option";
 
@@ -76,16 +75,22 @@ function handleErrorClick(errMsg: string) {
 // 根据错误信息返回错误提示
 function getErrorMessage(errMsg: string): string {
   const normalizedError = errMsg.toLowerCase();
-  if (normalizedError.includes("auth failed") || normalizedError.includes("api key") || errMsg.includes("访问令牌") || errMsg.includes("尚未配置")) {
+  if (/^当前翻译服务/u.test(errMsg) || /请求 ID：|\bHTTP\s+\d{3}\b/iu.test(errMsg)) {
+    return errMsg;
+  } else if (/需要\s+(?:API Key|访问令牌|App Key|App Secret|SecretId|SecretKey).+当前尚未(?:完整)?配置/iu.test(errMsg)) {
+    return errMsg;
+  } else if (errMsg.includes("尚未配置") || errMsg.includes("还没有配置")) {
     return "当前翻译服务还没有配置 API Key，请前往设置页面填写后再试。";
-  } else if (errMsg.includes("quota") || errMsg.includes("limit")) {
+  } else if (normalizedError.includes("auth failed") || normalizedError.includes("api key") || normalizedError.includes("unauthorized") || errMsg.includes("访问令牌") || errMsg.includes("鉴权")) {
+    return errMsg || "当前翻译服务的 API Key 无效、已过期或没有访问权限，请检查设置。";
+  } else if (normalizedError.includes("quota") || normalizedError.includes("limit") || normalizedError.includes("429") || errMsg.includes("配额") || errMsg.includes("频率")) {
     const service = options.services.find((s: { value: string; label: string }) => s.value === config.service);
     return "你的请求频率过高，被【" + (service?.label || config.service) + "】拒绝了，请稍后再试吧~";
-  } else if (errMsg.includes("network error")) {
+  } else if (normalizedError.includes("network error") || normalizedError.includes("networkerror") || normalizedError.includes("failed to fetch") || errMsg.includes("网络连接失败")) {
     return "网络连接好像不稳定，请检查网络后再试。";
-  } else if (errMsg.includes("model")) {
+  } else if (normalizedError.includes("model") || errMsg.includes("模型")) {
     return "模型配置可能有误，请前往设置页面进行检查和调整。";
-  } else if (errMsg.includes("timeout")) {
+  } else if (normalizedError.includes("timeout") || normalizedError.includes("timed out") || errMsg.includes("超时")) {
     return "请求超时啦，请稍后再试一次。";
   } else {
     return errMsg || "出现了未知错误，请前往开源社区联系开发者吧~";

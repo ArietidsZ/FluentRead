@@ -1,5 +1,6 @@
 import {getTranslationLanguages} from "@/entrypoints/utils/translationLanguage";
 import type {TranslationLanguageOverride} from "@/entrypoints/utils/translationLanguage";
+import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
 
 const MICROSOFT_TRANSLATE_URL = "https://edge.microsoft.com/translate/translatetext";
 
@@ -48,10 +49,10 @@ export async function translateMicrosoftTexts(
     });
 
     if (!resp.ok) {
-        throw new Error(`翻译失败: ${resp.status} ${resp.statusText} body: ${await resp.text()}`);
+        throw createHttpStatusError(resp, '翻译失败');
     }
 
-    const result = await resp.json() as MicrosoftTranslation[];
+    const result = await readJsonResponse<MicrosoftTranslation[]>(resp, '微软翻译返回的不是有效 JSON');
     if (!Array.isArray(result) || result.length !== texts.length) {
         throw new Error(`微软翻译返回数量异常: 期望 ${texts.length} 条，实际 ${Array.isArray(result) ? result.length : 0} 条`);
     }

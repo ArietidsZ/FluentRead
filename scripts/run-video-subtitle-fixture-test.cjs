@@ -19,8 +19,50 @@ function loadPlaywright(root) {
   }
 }
 
+const fixtureConfigClientId = `video-subtitle-fixture-${process.pid}-${Date.now()}`;
+let fixtureConfigSequence = 0;
+
+async function persistExtensionConfig(extensionPage, patch) {
+  const sequence = ++fixtureConfigSequence;
+  const response = await extensionPage.evaluate(async ({ clientId, configPatch, requestSequence }) => {
+    const parseRecord = (value) => {
+      if (typeof value !== 'string') return value && typeof value === 'object' ? value : {};
+      try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch {
+        return {};
+      }
+    };
+    const local = await chrome.storage.local.get(['config', 'credentials']);
+    const session = chrome.storage.session ? await chrome.storage.session.get('credentials') : {};
+    const publicConfig = parseRecord(local.config);
+    const credentials = parseRecord(session.credentials || local.credentials);
+    const current = { ...publicConfig, ...credentials };
+    const next = {
+      ...current,
+      ...configPatch,
+      token: { ...(current.token || {}), ...(configPatch.token || {}) },
+      model: { ...(current.model || {}), ...(configPatch.model || {}) },
+    };
+    return chrome.runtime.sendMessage({
+      type: 'persistConfig',
+      config: next,
+      clientId,
+      sequence: requestSequence,
+    });
+  }, {
+    clientId: fixtureConfigClientId,
+    configPatch: patch,
+    requestSequence: sequence,
+  });
+  if (!response?.success) {
+    throw new Error(`字幕夹具配置保存失败：${JSON.stringify(response)}`);
+  }
+}
+
 const OFFLINE_YOUTUBE_FIXTURE_HTML = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>YouTube subtitle fixture</title></head>
+<html lang="en"><head><meta charset="utf-8"><title>YouTube subtitle fixture</title><script>var ytInitialPlayerResponse={"captions":{"playerCaptionsTracklistRenderer":{"captionTracks":[{"baseUrl":"https://www.youtube.com/api/timedtext?v=fixture-original-slow&lang=en","languageCode":"en","name":{"simpleText":"English"}}]}}};</script></head>
 <body><main><div id="movie_player" class="html5-video-player"></div></main></body></html>`;
 
 
@@ -72,15 +114,18 @@ async function main() {
     const body = route.request().postDataJSON();
     const source = Array.isArray(body) ? String(body[0] || '') : '';
     translationSources.push(source);
-    const translated = source === 'and the housing market took a hit.'
-      ? '房地产市场受到了冲击。'
-      : source === 'understand from [music] the axioms and the basics.'
-        ? '从音乐中理解公理和基础。'
-        : source === 'Timeline subtitle catches up.'
-          ? '时间轴已追上字幕。'
-        : source === 'This subtitle was translated in advance.'
-          ? '预先翻译的字幕。'
-        : `【译文】${source}`;
+    const fixtureTranslations = {
+      'and the housing market took a hit.': '房地产市场受到了冲击。',
+      'Download translated subtitle.': '可下载的译文字幕。',
+      'Offline viewing stays in sync.': '离线观看仍与时间轴同步。',
+      'understand from [music] the axioms and the basics.': '从音乐中理解公理和基础。',
+      'Timeline subtitle catches up.': '时间轴已追上字幕。',
+      'This subtitle was translated in advance.': '预先翻译的字幕。',
+    };
+    const translated = fixtureTranslations[source] || `【译文】${source}`;
+    if (source === 'Download translated subtitle.' || source === 'Offline viewing stays in sync.') {
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -117,20 +162,16 @@ async function main() {
     if (initialPopupVideoState.enabled) {
       throw new Error(`新配置的视频字幕翻译应默认关闭：${JSON.stringify(initialPopupVideoState)}`);
     }
-    await control.evaluate(async () => {
-      const stored = await chrome.storage.local.get('config');
-      await chrome.storage.local.set({ config: {
-        ...(stored.config || {}),
-        on: true,
-        from: 'auto',
-        to: 'zh-Hans',
-        videoTranslationEnabled: true,
-        videoService: 'microsoft',
-        videoServiceDefaultMigrated: true,
-        videoSubtitleVisible: true,
-        videoSubtitleDisplayMode: 'bilingual',
-        useCache: false,
-      }});
+    await persistExtensionConfig(control, {
+      on: true,
+      from: 'auto',
+      to: 'zh-Hans',
+      videoTranslationEnabled: true,
+      videoService: 'microsoft',
+      videoServiceDefaultMigrated: true,
+      videoSubtitleVisible: true,
+      videoSubtitleDisplayMode: 'bilingual',
+      useCache: false,
     });
     const popupFeature = await control.evaluate(() => ({
       cardPresent: Boolean(document.querySelector('[data-feature="video-subtitle"]')),
@@ -285,7 +326,7 @@ async function main() {
       throw new Error(`播放器入口布局校验失败：${JSON.stringify(playerUi)}`);
     }
 
-    await page.evaluate(() => document.querySelector('#fluent-read-video-subtitle-button')?.click());
+    await page.locator('#fluent-read-video-subtitle-button').press('Enter');
     await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-menu')?.hidden === false, null, { timeout: 10000 });
     const menu = await page.evaluate(() => ({
       brand: document.querySelector('#fluent-read-video-subtitle-menu .fluent-read-video-menu-brand')?.textContent || '',
@@ -306,18 +347,24 @@ async function main() {
       enableActionMinHeight: document.querySelector('#fluent-read-video-subtitle-menu [data-action="toggle-translation"]')
         ? getComputedStyle(document.querySelector('#fluent-read-video-subtitle-menu [data-action="toggle-translation"]')).minHeight
         : '',
+      originalDownloadLabel: document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-subtitles"] .fluent-read-video-menu-label')?.textContent || '',
+      translatedDownloadLabel: document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-translated-subtitles"] .fluent-read-video-menu-label')?.textContent || '',
+      originalDownloadStatusLive: document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-subtitles"]')?.getAttribute('aria-live') || '',
+      originalDownloadStatusAtomic: document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-subtitles"]')?.getAttribute('aria-atomic') || '',
+      translatedDownloadStatusLive: document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-translated-subtitles"]')?.getAttribute('aria-live') || '',
+      translatedDownloadStatusAtomic: document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-translated-subtitles"]')?.getAttribute('aria-atomic') || '',
       rect: document.querySelector('#fluent-read-video-subtitle-menu')?.getBoundingClientRect().toJSON() || null,
     }));
     if (menu.brand !== '流畅阅读' || menu.beta !== 'Beta 测试' || menu.service !== '微软翻译' || !menu.bilingual
       || !menu.enableAction.includes('fluent-read-video-menu-primary-action') || menu.enableActionState !== '已开启'
       || menu.enableActionMinHeight !== '42px' || menu.enableActionBorder === 'rgba(0, 0, 0, 0)'
+      || menu.originalDownloadLabel !== '下载原文字幕' || menu.translatedDownloadLabel !== '下载译文字幕'
+      || menu.originalDownloadStatusLive !== 'polite' || menu.originalDownloadStatusAtomic !== 'true'
+      || menu.translatedDownloadStatusLive !== 'polite' || menu.translatedDownloadStatusAtomic !== 'true'
       || !menu.rect || menu.rect.width <= 0 || menu.rect.height <= 0) {
       throw new Error(`播放器菜单校验失败：${JSON.stringify(menu)}`);
     }
-    await page.evaluate(() => {
-      const action = document.querySelector('#fluent-read-video-subtitle-menu [data-action="toggle-translation"]');
-      if (action instanceof HTMLElement) action.click();
-    });
+    await page.locator('#fluent-read-video-subtitle-menu [data-action="toggle-translation"]').press('Enter');
     await page.waitForFunction(() => {
       const action = document.querySelector('#fluent-read-video-subtitle-menu [data-action="toggle-translation"]');
       return action?.getAttribute('aria-checked') === 'false'
@@ -339,12 +386,183 @@ async function main() {
       throw new Error(`关闭状态的字幕翻译入口不够醒目：${JSON.stringify(disabledMenu)}`);
     }
     await page.locator('#fluent-read-video-subtitle-menu').screenshot({ path: path.join(artifactsDir, 'video-subtitle-fixture-menu-disabled.png') });
-    await page.evaluate(() => {
-      const action = document.querySelector('#fluent-read-video-subtitle-menu [data-action="toggle-translation"]');
-      if (action instanceof HTMLElement) action.click();
-    });
+    await page.locator('#fluent-read-video-subtitle-menu [data-action="toggle-translation"]').press('Enter');
     await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-menu [data-action="toggle-translation"] [data-state]')?.textContent === '已开启', null, { timeout: 10000 });
     await page.locator('#fluent-read-video-subtitle-menu').screenshot({ path: path.join(artifactsDir, 'video-subtitle-fixture-menu.png') });
+
+    const downloadSources = ['Download translated subtitle.', 'Offline viewing stays in sync.'];
+    const downloadTimedTextResponse = JSON.stringify({ events: [
+      { tStartMs: 120000, dDurationMs: 1600, segs: [{ utf8: downloadSources[0] }] },
+      { tStartMs: 122000, dDurationMs: 1800, segs: [{ utf8: downloadSources[1] }] },
+    ] });
+    let slowTimedTextRequests = 0;
+    await page.route('https://www.youtube.com/api/timedtext**', async (route) => {
+      slowTimedTextRequests += 1;
+      await new Promise(resolve => setTimeout(resolve, 2300));
+      await route.fulfill({ status: 200, contentType: 'application/json', body: downloadTimedTextResponse });
+    });
+    await page.evaluate(() => {
+      const source = `var ytInitialPlayerResponse = ${JSON.stringify({
+        captions: {
+          playerCaptionsTracklistRenderer: {
+            captionTracks: [{
+              baseUrl: 'https://www.youtube.com/api/timedtext?v=fixture-original-slow&lang=en',
+              languageCode: 'en',
+              name: { simpleText: 'English' },
+            }],
+          },
+        },
+      })};`;
+      const script = document.createElement('script');
+      const trustedTypesFactory = window.trustedTypes;
+      if (trustedTypesFactory) {
+        const policy = trustedTypesFactory.createPolicy(`fluentread-fixture-${Date.now()}`, {
+          createScript: value => value,
+        });
+        script.text = policy.createScript(source);
+      } else {
+        script.text = source;
+      }
+      document.documentElement.appendChild(script);
+      history.replaceState(history.state, '', '/watch?v=fixture-original-slow');
+    });
+    await page.waitForTimeout(1200);
+
+    let originalDownloadError;
+    const originalDownloadPromise = page.waitForEvent('download', { timeout: 15000 }).catch((error) => {
+      originalDownloadError = error;
+      return null;
+    });
+    await page.locator('#fluent-read-video-subtitle-menu [data-action="download-subtitles"]').press('Enter');
+    try {
+      await page.waitForFunction(() => {
+        const button = document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-subtitles"]');
+        return button?.getAttribute('aria-busy') === 'true'
+          && button.querySelector('[data-state]')?.textContent === '正在获取…';
+      }, null, { timeout: 10000 });
+    } catch (error) {
+      const initialFeedbackDebug = await page.evaluate(() => {
+        const button = document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-subtitles"]');
+        return {
+          url: location.href,
+          menuHidden: document.querySelector('#fluent-read-video-subtitle-menu')?.hidden,
+          state: button?.querySelector('[data-state]')?.textContent || '',
+          busy: button?.getAttribute('aria-busy') || '',
+          disabled: button?.hasAttribute('disabled') || false,
+        };
+      });
+      throw new Error(`没有观察到原文下载初始状态：${JSON.stringify({ initialFeedbackDebug, slowTimedTextRequests, cause: error instanceof Error ? error.message : String(error) })}`);
+    }
+    const originalDownloadInitialFeedback = await page.evaluate(() => {
+      const button = document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-subtitles"]');
+      const state = button?.querySelector('[data-state]');
+      const spinner = state ? getComputedStyle(state, '::before') : null;
+      return {
+        state: state?.textContent || '',
+        busy: button?.getAttribute('aria-busy') || '',
+        spinnerContent: spinner?.content || '',
+        spinnerWidth: spinner?.width || '',
+      };
+    });
+    await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-subtitles"] [data-state]')?.textContent === '仍在读取…', null, { timeout: 5000 });
+    const originalDownloadSlowFeedback = await page.evaluate(() => ({
+      state: document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-subtitles"] [data-state]')?.textContent || '',
+      busy: document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-subtitles"]')?.getAttribute('aria-busy') || '',
+    }));
+    const originalDownload = await originalDownloadPromise;
+    if (!originalDownload) {
+      const downloadDebug = await page.evaluate(() => {
+        const button = document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-subtitles"]');
+        const translatedButton = document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-translated-subtitles"]');
+        return {
+          menuHidden: document.querySelector('#fluent-read-video-subtitle-menu')?.hidden,
+          originalDisabled: button?.hasAttribute('disabled'),
+          originalState: button?.querySelector('[data-state]')?.textContent || '',
+          translatedPresent: Boolean(translatedButton),
+          translatedDisabled: translatedButton?.hasAttribute('disabled'),
+          pageUrl: location.href,
+          pageTitle: document.title,
+        };
+      });
+      throw new Error(`原文字幕下载事件超时：${JSON.stringify({ downloadDebug, pageErrors, cause: originalDownloadError instanceof Error ? originalDownloadError.message : String(originalDownloadError) })}`);
+    }
+    await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-subtitles"] [data-state]')?.textContent === '已下载 · 2 条', null, { timeout: 10000 });
+    const originalDownloadFeedback = await page.evaluate(() => {
+      const button = document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-subtitles"]');
+      const state = button?.querySelector('[data-state]');
+      return {
+        state: state?.textContent || '',
+        busy: button?.getAttribute('aria-busy') || '',
+        disabled: button?.hasAttribute('disabled') || false,
+      };
+    });
+    const originalDownloadPath = await originalDownload.path();
+    const originalDownloadText = originalDownloadPath ? fs.readFileSync(originalDownloadPath, 'utf8') : '';
+    const slowTimedTextRequestsAfterOriginal = slowTimedTextRequests;
+
+    let translatedDownloadError;
+    const translatedDownloadPromise = page.waitForEvent('download', { timeout: 30000 }).catch((error) => {
+      translatedDownloadError = error;
+      return null;
+    });
+    await page.locator('#fluent-read-video-subtitle-menu [data-action="download-translated-subtitles"]').press('Enter');
+    await page.waitForFunction(() => {
+      const button = document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-translated-subtitles"]');
+      return button?.getAttribute('aria-busy') === 'true'
+        && button.querySelector('[data-state]')?.textContent?.startsWith('翻译 ');
+    }, null, { timeout: 10000 });
+    const translatedDownloadBusyFeedback = await page.evaluate(() => {
+      const button = document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-translated-subtitles"]');
+      const state = button?.querySelector('[data-state]');
+      const spinner = state ? getComputedStyle(state, '::before') : null;
+      return {
+        state: state?.textContent || '',
+        busy: button?.getAttribute('aria-busy') || '',
+        disabled: button?.hasAttribute('disabled') || false,
+        spinnerContent: spinner?.content || '',
+        spinnerAnimation: spinner?.animationName || '',
+        spinnerWidth: spinner?.width || '',
+      };
+    });
+    const translatedDownload = await translatedDownloadPromise;
+    if (!translatedDownload) {
+      throw new Error(`译文字幕下载事件超时：${translatedDownloadError instanceof Error ? translatedDownloadError.message : String(translatedDownloadError)}`);
+    }
+    await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-translated-subtitles"] [data-state]')?.textContent === '已下载 · 2 条', null, { timeout: 30000 });
+    const translatedDownloadPath = await translatedDownload.path();
+    const translatedDownloadText = translatedDownloadPath ? fs.readFileSync(translatedDownloadPath, 'utf8') : '';
+    const downloadEvidence = {
+      originalFilename: originalDownload.suggestedFilename(),
+      originalHasTimeline: originalDownloadText.includes('00:02:00,000 --> 00:02:01,600'),
+      originalHasSource: downloadSources.every((source) => originalDownloadText.includes(source)),
+      translatedFilename: translatedDownload.suggestedFilename(),
+      translatedHasTimeline: translatedDownloadText.includes('00:02:00,000 --> 00:02:01,600'),
+      translatedHasChinese: translatedDownloadText.includes('可下载的译文字幕。')
+        && translatedDownloadText.includes('离线观看仍与时间轴同步。'),
+      translatedOmitsSource: downloadSources.every((source) => !translatedDownloadText.includes(source)),
+      slowTimedTextRequests,
+      slowTimedTextRequestsAfterOriginal,
+      originalInitialFeedback: originalDownloadInitialFeedback,
+      originalSlowFeedback: originalDownloadSlowFeedback,
+      originalFeedback: originalDownloadFeedback,
+      translatedBusyFeedback: translatedDownloadBusyFeedback,
+    };
+    if (!downloadEvidence.originalFilename.endsWith('-en.srt') || !downloadEvidence.originalHasTimeline || !downloadEvidence.originalHasSource
+      || !downloadEvidence.translatedFilename.endsWith('-zh-Hans-translated.srt') || !downloadEvidence.translatedHasTimeline
+      || !downloadEvidence.translatedHasChinese || !downloadEvidence.translatedOmitsSource
+      || downloadEvidence.slowTimedTextRequests < 1
+      || downloadEvidence.slowTimedTextRequests !== downloadEvidence.slowTimedTextRequestsAfterOriginal
+      || downloadEvidence.originalInitialFeedback.state !== '正在获取…' || downloadEvidence.originalInitialFeedback.busy !== 'true'
+      || downloadEvidence.originalInitialFeedback.spinnerContent === 'none' || downloadEvidence.originalInitialFeedback.spinnerWidth !== '9px'
+      || downloadEvidence.originalSlowFeedback.state !== '仍在读取…' || downloadEvidence.originalSlowFeedback.busy !== 'true'
+      || downloadEvidence.originalFeedback.state !== '已下载 · 2 条' || downloadEvidence.originalFeedback.busy !== ''
+      || !downloadEvidence.originalFeedback.disabled
+      || downloadEvidence.translatedBusyFeedback.busy !== 'true' || !downloadEvidence.translatedBusyFeedback.disabled
+      || !downloadEvidence.translatedBusyFeedback.state.startsWith('翻译 ')
+      || downloadEvidence.translatedBusyFeedback.spinnerContent === 'none'
+      || downloadEvidence.translatedBusyFeedback.spinnerWidth !== '9px') {
+      throw new Error(`原文或译文字幕下载校验失败：${JSON.stringify(downloadEvidence)}`);
+    }
 
     const overlaySelector = '#fluent-read-video-subtitle';
     const normalizedCaptionSelector = '#fluent-read-video-subtitle-original';
@@ -603,17 +821,13 @@ async function main() {
       throw new Error(`已前置翻译的字幕再次显示时重复请求：${JSON.stringify({ prefetchRequestStart, displayedPrefetchRequests, translationSources })}`);
     }
 
-    await control.evaluate(async () => {
-      const stored = await chrome.storage.local.get('config');
-      await chrome.storage.local.set({ config: {
-        ...(stored.config || {}),
-        videoService: 'openai',
-        videoServiceDefaultMigrated: true,
-        enableAIContext: true,
-        useCache: false,
-        token: { ...(stored.config?.token || {}), openai: 'fixture-token' },
-        model: { ...(stored.config?.model || {}), openai: 'fixture-model' },
-      }});
+    await persistExtensionConfig(control, {
+      videoService: 'openai',
+      videoServiceDefaultMigrated: true,
+      enableAIContext: true,
+      useCache: false,
+      token: { openai: 'fixture-token' },
+      model: { openai: 'fixture-model' },
     });
     await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-menu [data-service-label]')?.textContent === 'OpenAI', null, { timeout: 10000 });
     const aiPretranslatedSource = 'This AI subtitle was translated in advance.';
@@ -651,14 +865,10 @@ async function main() {
 
     // 模拟 YouTube 原生字幕 DOM 仍停在上一句，但播放器时间已经进入下一条 cue。
     // 翻译层应按时间轴立即追上，并用整段原文覆盖短暂落后的原生字幕。
-    await control.evaluate(async () => {
-      const stored = await chrome.storage.local.get('config');
-      await chrome.storage.local.set({ config: {
-        ...(stored.config || {}),
-        videoService: 'microsoft',
-        videoServiceDefaultMigrated: true,
-        useCache: false,
-      }});
+    await persistExtensionConfig(control, {
+      videoService: 'microsoft',
+      videoServiceDefaultMigrated: true,
+      useCache: false,
     });
     await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-menu [data-service-label]')?.textContent === '微软翻译', null, { timeout: 10000 });
     const timelineOldSource = 'Timeline subtitle is still visible.';
@@ -756,6 +966,7 @@ async function main() {
       aiTranslationRequests: aiPrefetchRequests.length,
       aiContextRequests: aiContextRequests.length,
       timelineCatchUp,
+      downloadEvidence,
       translationRequests,
       translationSources,
       pageErrors,

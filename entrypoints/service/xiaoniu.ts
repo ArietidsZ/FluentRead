@@ -2,6 +2,7 @@ import {method, urls} from "../utils/constant";
 import {services} from "../utils/option";
 import {config} from "@/entrypoints/utils/config";
 import {getTranslationLanguages} from "@/entrypoints/utils/translationLanguage";
+import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
 
 async function xiaoniu(message: any) {
     const service = message.serviceOverride || config.service;
@@ -19,11 +20,10 @@ async function xiaoniu(message: any) {
     });
 
     if (resp.ok) {
-        let result = await resp.json();
+        const result = await readJsonResponse<any>(resp, '小牛翻译返回的不是有效 JSON');
         return result.tgt_text
     } else {
-        console.log(resp)
-        throw new Error(`翻译失败: ${resp.status} ${resp.statusText} body: ${await resp.text()}`);
+        throw createHttpStatusError(resp, '翻译失败');
     }
 }
 

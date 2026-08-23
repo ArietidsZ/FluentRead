@@ -139,6 +139,8 @@ let translationAbortController: AbortController | null = null;
 let translationRequestId = 0;
 let wordLookupRequestId = 0;
 let copyTimer: number | null = null;
+let lastTrustedSelectionInteractionAt = 0;
+const TRUSTED_SELECTION_INTERACTION_GRACE_MS = 1_500;
 let audio: HTMLAudioElement | null = null;
 let audioUrl = '';
 let utterance: SpeechSynthesisUtterance | null = null;
@@ -813,6 +815,8 @@ function matchesSelectionModifierOnPointer(event: PointerEvent): boolean {
   return matchesModifierOnlyHotkey(modifierState, shortcut);
 }
 function handlePointerDown(event: PointerEvent): void {
+  if (!event.isTrusted) return;
+  lastTrustedSelectionInteractionAt = Date.now();
   if (isInsideUi(event.target)) {
     uiPointerInteraction = true;
     isSelecting = false;
@@ -826,6 +830,8 @@ function handlePointerDown(event: PointerEvent): void {
   if (snapshot.value) hideAll();
 }
 function handlePointerUp(event: PointerEvent): void {
+  if (!event.isTrusted) return;
+  lastTrustedSelectionInteractionAt = Date.now();
   if (uiPointerInteraction || isInsideUi(event.target)) {
     uiPointerInteraction = false;
     isSelecting = false;
@@ -837,6 +843,7 @@ function handlePointerUp(event: PointerEvent): void {
   scheduleSelectionRead(matchesSelectionModifierOnPointer(event) || selectionShortcutHeld);
 }
 function handlePointerCancel(event: PointerEvent): void {
+  if (!event.isTrusted) return;
   if (uiPointerInteraction || isInsideUi(event.target)) {
     uiPointerInteraction = false;
     isSelecting = false;
@@ -845,7 +852,8 @@ function handlePointerCancel(event: PointerEvent): void {
   }
   isSelecting = false;
 }
-function handleSelectionChange(): void {
+function handleSelectionChange(event: Event): void {
+  if (!event.isTrusted || Date.now() - lastTrustedSelectionInteractionAt > TRUSTED_SELECTION_INTERACTION_GRACE_MS) return;
   if (!isSelectionReadSuppressed()) scheduleSelectionRead(selectionShortcutHeld);
 }
 function handleWheel(event: WheelEvent): void { if (isInsideUi(event.target)) suppressSelectionRead(); }
@@ -857,6 +865,8 @@ function handleScroll(event: Event): void {
   schedulePositionUpdate();
 }
 function handleKeydown(event: KeyboardEvent): void {
+  if (!event.isTrusted) return;
+  lastTrustedSelectionInteractionAt = Date.now();
   if (isInsideUi(event.target)) {
     suppressSelectionRead();
     if (event.key === 'Escape' && snapshot.value) hideAll();

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { defaultOption } from '@/entrypoints/utils/option'
 import {
   isConfigImportValid,
+  prepareConfigForImport,
   sanitizeConfigForExport,
 } from '@/entrypoints/utils/config-transfer'
 
@@ -61,5 +62,55 @@ describe('configuration transfer helpers', () => {
     })
 
     expect(sanitized).toEqual(validConfig)
+  })
+
+  it('导出时移除所有凭据字段和内部 revision', () => {
+    const secret = 'export-secret-sentinel'
+    const sanitized = sanitizeConfigForExport({
+      ...validConfig,
+      token: {openai: secret},
+      ak: secret,
+      sk: secret,
+      appid: secret,
+      key: secret,
+      youdaoAppKey: secret,
+      youdaoAppSecret: secret,
+      tencentSecretId: secret,
+      tencentSecretKey: secret,
+      extra: {jwt: secret},
+      __fluentConfigRevision: 42,
+    })
+
+    expect(JSON.stringify(sanitized)).not.toContain(secret)
+    for (const field of [
+      'token', 'ak', 'sk', 'appid', 'key', 'youdaoAppKey', 'youdaoAppSecret',
+      'tencentSecretId', 'tencentSecretKey', 'extra', '__fluentConfigRevision',
+    ]) {
+      expect(sanitized).not.toHaveProperty(field)
+    }
+  })
+
+  it('导入新版公开配置时保留当前 session 凭据和持久化选择', () => {
+    const currentSecret = 'current-session-secret'
+    const prepared = prepareConfigForImport(
+      {...validConfig, to: 'ja', persistCredentials: true},
+      {...validConfig, token: {openai: currentSecret}, persistCredentials: false},
+    )
+
+    expect(prepared.to).toBe('ja')
+    expect(prepared.token.openai).toBe(currentSecret)
+    expect(prepared.persistCredentials).toBe(false)
+  })
+
+  it('导入旧文件时迁移其中凭据，但不能由文件静默开启本地持久化', () => {
+    const legacySecret = 'legacy-import-secret'
+    const prepared = prepareConfigForImport(
+      {...validConfig, token: {openai: legacySecret}, extra: {jwt: legacySecret}, persistCredentials: true},
+      {...validConfig, token: {openai: 'current-secret'}, persistCredentials: false},
+    )
+
+    expect(prepared.token.openai).toBe(legacySecret)
+    expect(prepared.extra).toEqual({jwt: legacySecret})
+    expect(prepared.persistCredentials).toBe(false)
   })
 })

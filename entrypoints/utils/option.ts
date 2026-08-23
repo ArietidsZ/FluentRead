@@ -71,6 +71,28 @@ export const servicesType = {
         services.grok,
         services.newapi,
     ]),
+    // 首批由 Vercel AI SDK 的 OpenAI-compatible provider 承接。其他 AI
+    // 服务保留专用协议适配器，避免把 Claude/Gemini/Coze 等误当成兼容端点。
+    aiSdk: new Set([
+        services.openai,
+        services.azureOpenai,
+        services.yiyan,
+        services.moonshot,
+        services.custom,
+        services.infini,
+        services.baichuan,
+        services.lingyi,
+        services.minimax,
+        services.mimo,
+        services.jieyue,
+        services.groq,
+        services.huanYuan,
+        services.doubao,
+        services.siliconCloud,
+        services.openrouter,
+        services.grok,
+        services.newapi,
+    ]),
     // 需要 token
     useToken: new Set([
         services.openai,
@@ -168,6 +190,7 @@ export const servicesType = {
 
     isMachine: (service: string) => servicesType.machine.has(service),
     isAI: (service: string) => servicesType.AI.has(service),
+    isAiSdk: (service: string) => servicesType.aiSdk.has(service),
     isUseAIContext: (service: string, model = '') =>
         servicesType.AI.has(service)
         && service !== services.huanYuanTranslation

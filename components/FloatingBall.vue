@@ -263,10 +263,7 @@ function toggleTranslation() {
   props.onTranslationToggle(isTranslating.value);
 }
 
-function handleExternalToggle() {
-  if (!floatingBall.value) return;
-  toggleTranslation();
-}
+defineExpose({ toggleTranslation });
 
 function handleSettingsClick(event: MouseEvent) {
   props.onSettingsClick(event);
@@ -281,14 +278,12 @@ onMounted(() => {
   updatePositionStyle();
   window.addEventListener('resize', updatePositionStyle);
   document.addEventListener('keydown', handleDocumentKeydown);
-  document.addEventListener('fluentread-toggle-translation', handleExternalToggle);
 });
 
 onBeforeUnmount(() => {
   removePointerListeners();
   window.removeEventListener('resize', updatePositionStyle);
   document.removeEventListener('keydown', handleDocumentKeydown);
-  document.removeEventListener('fluentread-toggle-translation', handleExternalToggle);
   if (animationTimer) clearTimeout(animationTimer);
   if (tooltipTimer) clearTimeout(tooltipTimer);
 });

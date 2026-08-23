@@ -76,7 +76,7 @@ export const navigationGroups: NavigationGroup[] = [
         id: 'settings-advanced', icon: '◇', label: '高级选项', description: '性能与模板', group: '系统与数据',
         heading: '精细控制运行方式', summary: '管理缓存、动画、并发、悬浮工具、代理和 AI 提示词。',
         kicker: '运行策略', title: '高级选项', detail: '这些设置更偏向性能、兼容性和高级翻译行为。',
-        searchDescription: '缓存、动画、并发、悬浮球、输入框、代理与提示词',
+        searchDescription: '缓存、动画、并发、显示翻译进度面板、悬浮球、输入框、代理与提示词',
       },
       {
         id: 'settings-data', icon: '⇅', label: '配置管理', description: '导入与导出', group: '系统与数据',

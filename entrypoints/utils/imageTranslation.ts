@@ -51,7 +51,9 @@ function ensureImageOverlayRoot(): HTMLDivElement {
         'pointer-events: none !important',
         'z-index: 2147483646 !important',
     ].join(';');
-    const shadow = host.attachShadow({ mode: 'open' });
+    // The canvas can contain pixels fetched from a cross-origin image. Do not
+    // expose the extension-owned controls or rendered bitmap to page scripts.
+    const shadow = host.attachShadow({ mode: 'closed' });
     const style = document.createElement('style');
     style.textContent = `
       :host { all: initial; position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 2147483646; }
@@ -149,10 +151,12 @@ function createState(image: HTMLImageElement): ImageTranslationState {
     button.setAttribute('aria-label', '翻译图片');
     button.addEventListener('pointerenter', event => event.stopPropagation());
     button.addEventListener('pointerdown', event => {
+        if (!event.isTrusted) return;
         event.preventDefault();
         event.stopPropagation();
     });
     button.addEventListener('click', event => {
+        if (!event.isTrusted) return;
         event.preventDefault();
         event.stopPropagation();
         const state = states.get(image);
@@ -390,12 +394,14 @@ async function translateImage(state: ImageTranslationState): Promise<void> {
 }
 
 function handlePointerOver(event: PointerEvent): void {
+    if (!event.isTrusted) return;
     if (event.pointerType === 'touch') return;
     const image = event.target instanceof HTMLImageElement ? event.target : null;
     if (image) showImageButton(image);
 }
 
 function handlePointerOut(event: PointerEvent): void {
+    if (!event.isTrusted) return;
     const image = event.target instanceof HTMLImageElement ? event.target : null;
     if (image && event.relatedTarget instanceof Node && image.contains(event.relatedTarget)) return;
     if (image) hideImageButton(image);

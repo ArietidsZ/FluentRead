@@ -40,7 +40,7 @@ describe('翻译服务连接测试', () => {
     it('将 MiniMax 2049 错误转换为 Key、区域和计费类型提示', () => {
         const message = formatServiceError(
             services.minimax,
-            new Error('翻译失败: 401 Unauthorized body: {"message":"invalid api key (2049)"}'),
+            new Error('翻译失败: 401 Unauthorized'),
         );
 
         expect(message).toContain('Token Plan Key');
@@ -52,7 +52,7 @@ describe('翻译服务连接测试', () => {
     it('将 MiMo 鉴权错误转换为 Key 前缀和集群提示', () => {
         const message = formatServiceError(
             services.mimo,
-            new Error('翻译失败: 401 Unauthorized body: {"message":"invalid api key"}'),
+            new Error('翻译失败: 401 Unauthorized'),
         );
 
         expect(message).toContain('sk-');
