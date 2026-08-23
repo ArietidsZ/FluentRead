@@ -157,6 +157,16 @@ export function normalizeVideoCaptionText(value: string): string {
   return value.replace(/[\s\u3000]+/g, ' ').trim();
 }
 
+export function getVideoSubtitleDownloadErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error || '');
+  if (message.includes('没有可用的 YouTube 字幕轨道')) return '当前视频没有字幕';
+  if (message.includes('未返回完整字幕数据') || message.includes('先打开原生字幕')) {
+    return '请先开启 YouTube 字幕';
+  }
+  if (message.includes('字幕轨道请求失败')) return '获取失败，请重试';
+  return '下载失败，请重试';
+}
+
 export function isIncrementalVideoCaption(visibleSource: string, fullSource: string): boolean {
   const visible = normalizeVideoCaptionText(visibleSource).toLocaleLowerCase();
   const full = normalizeVideoCaptionText(fullSource).toLocaleLowerCase();
@@ -679,8 +689,32 @@ function installVideoSubtitleStyle(): HTMLStyleElement {
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-label { flex: 1 !important; }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-value {
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 5px !important;
       color: rgba(255, 255, 255, .58) !important;
       font-size: 11px !important;
+      white-space: nowrap !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-item[aria-busy="true"] .fluent-read-video-menu-value::before {
+      content: "" !important;
+      display: inline-block !important;
+      flex: 0 0 auto !important;
+      width: 9px !important;
+      height: 9px !important;
+      box-sizing: border-box !important;
+      border: 1.5px solid rgba(255, 255, 255, .28) !important;
+      border-top-color: #ff8fbd !important;
+      border-radius: 50% !important;
+      animation: fluent-read-video-download-spin .72s linear infinite !important;
+    }
+    @keyframes fluent-read-video-download-spin {
+      to { transform: rotate(360deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-item[aria-busy="true"] .fluent-read-video-menu-value::before {
+        animation: none !important;
+      }
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-divider {
       height: 1px !important;
@@ -1297,12 +1331,18 @@ export function mountVideoSubtitleTranslation(): () => void {
 
     const track = chooseYoutubeCaptionTrack(extractYoutubeCaptionTracks(document), config.from);
     if (!track) throw new Error('当前视频没有可用的 YouTube 字幕轨道');
-    const response = await fetch(buildYoutubeTimedTextUrl(track), { credentials: 'include' });
+    const url = buildYoutubeTimedTextUrl(track);
+    const response = await fetch(url, { credentials: 'include' });
     if (!response.ok) throw new Error(`字幕轨道请求失败（${response.status}）`);
     const cues = finalizeVideoSubtitleCues(parseYoutubeTimedTextResponse(await response.text()));
     if (cues.length === 0) {
       throw new Error('YouTube 未返回完整字幕数据，请先打开原生字幕后重试');
     }
+    const key = getTimedTextCacheKey(url);
+    const entry = { url, cues };
+    capturedSubtitleTracks.delete(key);
+    capturedSubtitleTracks.set(key, entry);
+    if (canTranslateVideo()) setPretranslationTrack(key, entry);
     return { languageCode: track.languageCode, cues };
   };
 
@@ -1329,19 +1369,32 @@ export function mountVideoSubtitleTranslation(): () => void {
       const downloadButton = target as HTMLButtonElement;
       const state = downloadButton.querySelector<HTMLElement>('[data-state]');
       downloadButton.disabled = true;
-      if (state) state.textContent = '读取字幕';
+      downloadButton.setAttribute('aria-busy', 'true');
+      if (state) state.textContent = '正在获取…';
+      const slowFeedbackTimer = window.setTimeout(() => {
+        if (downloadButton.getAttribute('aria-busy') === 'true' && state) {
+          state.textContent = '仍在读取…';
+        }
+      }, 2000);
+      let feedbackDelay = 2400;
       try {
         const result = await resolveDownloadTrack();
         downloadSubtitleSrt(result.cues, result.languageCode);
-        if (state) state.textContent = `已下载 ${result.cues.length} 条`;
+        if (state) state.textContent = `已下载 · ${result.cues.length} 条`;
       } catch (error) {
-        if (state) state.textContent = '暂不可用';
+        const message = getVideoSubtitleDownloadErrorMessage(error);
+        if (state) state.textContent = message;
+        downloadButton.title = message;
+        feedbackDelay = 3200;
         console.warn('[FluentRead] 字幕下载失败', error);
       } finally {
+        window.clearTimeout(slowFeedbackTimer);
+        downloadButton.removeAttribute('aria-busy');
         window.setTimeout(() => {
           downloadButton.disabled = false;
+          downloadButton.removeAttribute('title');
           if (state) state.textContent = '';
-        }, 2200);
+        }, feedbackDelay);
       }
       return;
     }
@@ -1362,7 +1415,8 @@ export function mountVideoSubtitleTranslation(): () => void {
       subtitleDownloadAbortController?.abort();
       subtitleDownloadAbortController = controller;
       const targetLanguage = config.to || 'translated';
-      if (state) state.textContent = '读取字幕';
+      downloadButton.setAttribute('aria-busy', 'true');
+      if (state) state.textContent = '正在获取…';
       try {
         const result = await resolveDownloadTrack();
         const translatedCues = await translateVideoSubtitleCues(result.cues, getCachedVideoTranslation, {
@@ -1374,13 +1428,14 @@ export function mountVideoSubtitleTranslation(): () => void {
         });
         if (destroyed || controller.signal.aborted) throw createVideoSubtitleAbortError();
         downloadSubtitleSrt(translatedCues, `${targetLanguage}-translated`);
-        if (state) state.textContent = `已下载 ${translatedCues.length} 条`;
+        if (state) state.textContent = `已下载 · ${translatedCues.length} 条`;
       } catch (error) {
         const aborted = error instanceof Error && error.name === 'AbortError';
-        if (state) state.textContent = aborted ? '已取消' : '翻译失败';
+        if (state) state.textContent = aborted ? '已取消' : '翻译失败，请重试';
         if (!aborted) console.warn('[FluentRead] 译文字幕下载失败', error);
       } finally {
         if (subtitleDownloadAbortController === controller) subtitleDownloadAbortController = undefined;
+        downloadButton.removeAttribute('aria-busy');
         window.setTimeout(() => {
           downloadButton.disabled = false;
           if (state) state.textContent = '';
@@ -1404,6 +1459,10 @@ export function mountVideoSubtitleTranslation(): () => void {
     item.className = `fluent-read-video-menu-item${action === 'toggle-translation' ? ' fluent-read-video-menu-primary-action' : ''}`;
     item.dataset.action = action;
     item.setAttribute('role', action === 'toggle-translation' || action === 'toggle-visible' ? 'menuitemcheckbox' : 'menuitem');
+    if (action === 'download-subtitles' || action === 'download-translated-subtitles') {
+      item.setAttribute('aria-live', 'polite');
+      item.setAttribute('aria-atomic', 'true');
+    }
     const check = createTextElement('span', 'fluent-read-video-menu-check', '');
     check.dataset.check = 'true';
     const labelElement = createTextElement('span', 'fluent-read-video-menu-label', label);
