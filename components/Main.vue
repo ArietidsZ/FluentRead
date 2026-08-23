@@ -703,13 +703,6 @@
     </section>
 
     <section v-show="props.activeSection === 'settings-data'" id="settings-data" class="settings-section data-section">
-        <!-- 配置导入导出 -->
-        <el-row class="margin-bottom margin-left-2em">
-          <el-col :span="24">
-            <el-divider content-position="center">配置管理</el-divider>
-          </el-col>
-        </el-row>
-
         <section class="credential-persistence-panel" aria-label="API 凭据存储">
           <div class="credential-persistence-copy">
             <strong>跨浏览器重启保存 API 凭据</strong>
