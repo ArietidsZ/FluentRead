@@ -14,6 +14,11 @@ import { config, requestConfigSave } from './config';
 import { detectlang } from './common';
 import { resolveConfiguredModel, servicesType } from './option';
 import { getPageTranslationContext } from './pageContext';
+import {
+  isRetryableTranslationError,
+  TranslationRequestError,
+  unwrapTranslationResponse,
+} from './translationError';
 
 // 调试相关
 const isDev = process.env.NODE_ENV === 'development';
@@ -38,6 +43,20 @@ function throwIfAborted(signal?: AbortSignal): void {
 
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError';
+}
+
+function shouldRetryTranslationRequest(
+  error: unknown,
+  aiSdkService: boolean,
+  explicitRetryPolicy: boolean,
+): boolean {
+  if (!isRetryableTranslationError(error)) return false;
+  if (!aiSdkService || explicitRetryPolicy) return true;
+
+  // AI SDK already exhausts HTTP 429/5xx retries. Its browser fetch path does
+  // not retry a rejected fetch promise, so only that transport boundary gets
+  // a small outer fallback. Runtime messaging failures are treated likewise.
+  return !(error instanceof TranslationRequestError) || error.kind === 'network';
 }
 
 function waitForDelay(delay: number, signal?: AbortSignal): Promise<void> {
@@ -141,8 +160,8 @@ function scheduleVideoCountSave(): void {
  * @returns 翻译结果的Promise
  */
 export async function translateText(origin: string, context: string = document.title, options: TranslateOptions = {}): Promise<string> {
+  const selectedService = options.serviceOverride || config.service;
   const {
-    maxRetries = 3, 
     retryDelay = 1000, 
     timeout = 45000,
     useCache = config.useCache,
@@ -153,6 +172,12 @@ export async function translateText(origin: string, context: string = document.t
     signal,
     queueSession,
   } = options;
+  const aiSdkService = servicesType.isAiSdk(selectedService);
+  const explicitRetryPolicy = options.maxRetries !== undefined;
+  // AI SDK services own protocol-aware HTTP retries (429/5xx). Keep the
+  // legacy outer retry loop for the adapters that have not migrated yet, plus
+  // two fallback attempts for browser-level fetch rejection.
+  const maxRetries = options.maxRetries ?? (aiSdkService ? 2 : 3);
   throwIfAborted(signal);
   // 检查 origin 是否为空或只有空白字符
   const cleanedOrigin = origin?.replace(/[\s\u3000]/g, '') || '';
@@ -179,7 +204,7 @@ export async function translateText(origin: string, context: string = document.t
       throwIfAborted(signal);
       try {
         // 发送翻译请求给background脚本处理
-        const result = await waitForRequest(
+        const response = await waitForRequest(
           browser.runtime.sendMessage({
             context,
             pageContext,
@@ -188,11 +213,13 @@ export async function translateText(origin: string, context: string = document.t
             serviceOverride,
             sourceLanguage,
             targetLanguage,
+            requestTimeoutMs: Math.max(1_000, timeout - 1_000),
           }),
           timeout,
           signal,
           lease,
-        ) as string;
+        );
+        const result = unwrapTranslationResponse<string>(response);
 
         // 如果翻译结果为空或与原文完全相同，直接返回原文
         if (!result || result === origin) {
@@ -203,7 +230,7 @@ export async function translateText(origin: string, context: string = document.t
       } catch (error) {
         if (isAbortError(error)) throw error;
         // 处理错误，根据重试策略决定是否重试
-        if (retryCount < maxRetries) {
+        if (retryCount < maxRetries && shouldRetryTranslationRequest(error, aiSdkService, explicitRetryPolicy)) {
           if (isDev) {
             console.log(`[翻译API] 翻译失败，${retryCount + 1}/${maxRetries} 次重试`);
           }
@@ -233,8 +260,8 @@ export async function translateTextBatch(
 ): Promise<string[]> {
   if (origins.length === 0) return [];
 
+  const selectedService = options.serviceOverride || config.service;
   const {
-    maxRetries = 3,
     retryDelay = 1000,
     timeout = 45000,
     useCache = config.useCache,
@@ -244,6 +271,9 @@ export async function translateTextBatch(
     signal,
     queueSession,
   } = options;
+  const aiSdkService = servicesType.isAiSdk(selectedService);
+  const explicitRetryPolicy = options.maxRetries !== undefined;
+  const maxRetries = options.maxRetries ?? (aiSdkService ? 2 : 3);
   throwIfAborted(signal);
   const pageContext = await resolvePageContext(options.pageContext, serviceOverride || config.service);
   throwIfAborted(signal);
@@ -254,7 +284,7 @@ export async function translateTextBatch(
     const translationTask = async (retryCount: number = 0): Promise<string[]> => {
       throwIfAborted(signal);
       try {
-        const result = await waitForRequest(
+        const response = await waitForRequest(
           browser.runtime.sendMessage({
             context,
             pageContext,
@@ -263,11 +293,13 @@ export async function translateTextBatch(
             serviceOverride,
             sourceLanguage,
             targetLanguage,
+            requestTimeoutMs: Math.max(1_000, timeout - 1_000),
           }),
           timeout,
           signal,
           lease,
         );
+        const result = unwrapTranslationResponse<string[]>(response);
 
         if (!Array.isArray(result) || result.length !== origins.length || result.some(item => typeof item !== 'string')) {
           throw new Error('批量翻译返回格式异常');
@@ -276,7 +308,7 @@ export async function translateTextBatch(
         return result as string[];
       } catch (error) {
         if (isAbortError(error)) throw error;
-        if (retryCount < maxRetries) {
+        if (retryCount < maxRetries && shouldRetryTranslationRequest(error, aiSdkService, explicitRetryPolicy)) {
           await waitForDelay(retryDelay, signal);
           return translationTask(retryCount + 1);
         }
@@ -303,13 +335,15 @@ export async function translateVideoText(origin: string): Promise<string> {
   // storage 写入和配置订阅回调把播放器主线程拖入高频循环。
   scheduleVideoCountSave();
   return enqueueTranslation(async (lease) => {
-    return waitForRequest(browser.runtime.sendMessage({
+    const response = await waitForRequest(browser.runtime.sendMessage({
         context: `YouTube 视频字幕：${typeof document === 'undefined' ? '' : document.title}`,
         pageContext,
         origin,
         useCache: config.useCache,
         serviceOverride: service,
-      }), 20_000, undefined, lease) as Promise<string>;
+        requestTimeoutMs: 19_000,
+      }), 20_000, undefined, lease);
+    return unwrapTranslationResponse<string>(response);
   });
 }
 
