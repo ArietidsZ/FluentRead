@@ -19,7 +19,7 @@ const { fetchMock, mockConfig } = vi.hoisted(() => ({
 
 vi.mock('@/entrypoints/utils/config', () => ({ config: mockConfig }));
 
-import common from '@/entrypoints/service/common';
+import {translateWithOpenAICompatibleAiSdk} from '@/entrypoints/service/ai-sdk/openai-compatible';
 import { services } from '@/entrypoints/utils/option';
 
 function successResponse() {
@@ -50,7 +50,7 @@ describe('小米 MiMo OpenAI 兼容服务', () => {
     it('按量付费使用统一 API 地址并发送 sk Key', async () => {
         mockConfig.token.mimo = 'sk-test';
 
-        await expect(common({ origin: 'hello', serviceOverride: services.mimo })).resolves.toBe('译文');
+        await expect(translateWithOpenAICompatibleAiSdk({ origin: 'hello', serviceOverride: services.mimo })).resolves.toBe('译文');
 
         expect(fetchMock).toHaveBeenCalledWith(
             'https://api.xiaomimimo.com/v1/chat/completions',
@@ -65,7 +65,7 @@ describe('小米 MiMo OpenAI 兼容服务', () => {
         mockConfig.mimoBillingPlan = 'token-plan';
         mockConfig.mimoRegion = 'ams';
 
-        await expect(common({ origin: 'hello', serviceOverride: services.mimo })).resolves.toBe('译文');
+        await expect(translateWithOpenAICompatibleAiSdk({ origin: 'hello', serviceOverride: services.mimo })).resolves.toBe('译文');
 
         expect(fetchMock).toHaveBeenCalledWith(
             'https://token-plan-ams.xiaomimimo.com/v1/chat/completions',

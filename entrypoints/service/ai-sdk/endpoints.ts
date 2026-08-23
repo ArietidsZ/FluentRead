@@ -85,10 +85,9 @@ function withoutTrailingSlash(value: string): string {
 }
 
 /**
- * Split a complete Chat Completions URL into the fields expected by an
- * OpenAI-compatible provider. Non-standard paths retain an exactEndpoint marker so
- * a future SDK fetch wrapper can preserve FluentRead's current direct-target
- * behavior instead of silently appending another path.
+ * Split a complete Chat Completions URL into the fields expected by the
+ * OpenAI-compatible provider. Non-standard paths retain an exactEndpoint marker
+ * so the shared fetch wrapper preserves the configured direct target.
  */
 export function parseChatCompletionsEndpoint(
     rawEndpoint: string,

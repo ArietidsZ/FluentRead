@@ -17,7 +17,7 @@ const { mockConfig } = vi.hoisted(() => ({
 
 vi.mock('@/entrypoints/utils/config', () => ({ config: mockConfig }));
 
-import custom from '@/entrypoints/service/custom';
+import {translateWithOpenAICompatibleAiSdk} from '@/entrypoints/service/ai-sdk/openai-compatible';
 import { customModelString, services } from '@/entrypoints/utils/option';
 
 function successResponse() {
@@ -56,7 +56,7 @@ describe('自定义接口适配器', () => {
         const fetchMock = vi.fn().mockResolvedValue(successResponse());
         vi.stubGlobal('fetch', fetchMock);
 
-        await expect(custom({origin: 'hello'})).resolves.toBe('译文');
+        await expect(translateWithOpenAICompatibleAiSdk({origin: 'hello'})).resolves.toBe('译文');
 
         const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
         expect(url).toBe('http://127.0.0.1:8080/');
@@ -68,7 +68,7 @@ describe('自定义接口适配器', () => {
         const fetchMock = vi.fn().mockResolvedValue(successResponse());
         vi.stubGlobal('fetch', fetchMock);
 
-        await custom({origin: 'hello'});
+        await translateWithOpenAICompatibleAiSdk({origin: 'hello'});
 
         expect(fetchMock.mock.calls[0]?.[0]).toBe(mockConfig.custom);
     });
