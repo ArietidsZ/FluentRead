@@ -14,8 +14,18 @@ export const DOCUMENT_EXAMPLES = [
     {fileName: 'sample.json', format: 'json', markers: ['"keepNumber": 42']},
 ] as const;
 
+export const DOCUMENT_BINARY_EXAMPLES = [
+    {fileName: 'sample.pdf', format: 'pdf', marker: 'Document Translation Example'},
+    {fileName: 'sample.epub', format: 'epub', marker: 'Fluent reading for local books'},
+    {fileName: 'sample.docx', format: 'docx', marker: 'Document Translation Example'},
+] as const;
+
 export type DocumentExample = (typeof DOCUMENT_EXAMPLES)[number];
 
 export function loadExample(fileName: string): string {
     return readFileSync(new URL(fileName, exampleRoot), 'utf8');
+}
+
+export function loadBinaryExample(fileName: string): Uint8Array {
+    return Uint8Array.from(readFileSync(new URL(fileName, exampleRoot)));
 }

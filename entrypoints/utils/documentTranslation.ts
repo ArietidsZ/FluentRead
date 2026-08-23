@@ -1,6 +1,9 @@
 export const DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
 
 export const SUPPORTED_DOCUMENT_EXTENSIONS = [
+    'pdf',
+    'epub',
+    'docx',
     'html',
     'htm',
     'txt',
@@ -15,6 +18,9 @@ export const SUPPORTED_DOCUMENT_EXTENSIONS = [
 ] as const;
 
 export type DocumentFormat =
+    | 'pdf'
+    | 'epub'
+    | 'docx'
     | 'html'
     | 'txt'
     | 'markdown'
@@ -29,7 +35,35 @@ export type DocumentRenderMode = 'bilingual' | 'translated';
 export interface DocumentSegment {
     id: number;
     source: string;
+    /** Optional reader context, such as a PDF page or ePub chapter. */
+    contextLabel?: string;
 }
+
+export interface PdfDocumentPage {
+    pageNumber: number;
+    width: number;
+    height: number;
+    segmentIndexes: number[];
+}
+
+export interface EpubDocumentChapter {
+    path: string;
+    source: string;
+    segmentOffset: number;
+    segmentCount: number;
+    title: string;
+}
+
+export interface DocxDocumentPart {
+    path: string;
+    source: string;
+    paragraphSegments: Array<{paragraphIndex: number; segmentIndex: number}>;
+}
+
+export type BinaryDocumentData =
+    | {kind: 'pdf'; bytes: Uint8Array; pages: PdfDocumentPage[]}
+    | {kind: 'epub'; bytes: Uint8Array; chapters: EpubDocumentChapter[]}
+    | {kind: 'docx'; bytes: Uint8Array; parts: DocxDocumentPart[]};
 
 interface LiteralPart {
     kind: 'literal';
@@ -63,9 +97,13 @@ export interface ParsedDocument {
     segments: readonly DocumentSegment[];
     jsonValue?: unknown;
     jsonEntries?: readonly JsonSegmentEntry[];
+    binary?: BinaryDocumentData;
 }
 
 const FORMAT_LABELS: Record<DocumentFormat, string> = {
+    pdf: 'PDF 文件',
+    epub: 'ePub 电子书',
+    docx: 'DOCX 文档',
     html: 'HTML 文件',
     txt: 'TXT 文件',
     markdown: 'Markdown 文件',
@@ -76,7 +114,7 @@ const FORMAT_LABELS: Record<DocumentFormat, string> = {
     json: 'JSON 文件',
 };
 
-const PROTECTED_HTML_TAGS = new Set(['script', 'style', 'pre', 'code', 'textarea']);
+const PROTECTED_HTML_TAGS = new Set(['head', 'script', 'style', 'pre', 'code', 'textarea']);
 const HTML_TOKEN_PATTERN = /<!--[\s\S]*?-->|<![^>]*>|<[^>]+>/gu;
 const MARKDOWN_PROTECTED_PATTERN = /(`{1,3}[^`\n]+`{1,3}|!\[[^\]]*\]\([^)]+\)|\[[^\]]+\]\((?:https?:\/\/|#)[^)]+\)|<https?:\/\/[^>]+>|https?:\/\/[^\s)]+)/gu;
 const TIMED_SUBTITLE_PATTERN = /^\s*(?:\d{1,3}:)?\d{2}:\d{2}[,.]\d{3}\s*-->\s*(?:\d{1,3}:)?\d{2}:\d{2}[,.]\d{3}(?:\s+.*)?$/u;
@@ -89,6 +127,9 @@ function extensionOf(fileName: string): string {
 
 export function getDocumentFormat(fileName: string): DocumentFormat | null {
     const extension = extensionOf(fileName);
+    if (extension === 'pdf') return 'pdf';
+    if (extension === 'epub') return 'epub';
+    if (extension === 'docx') return 'docx';
     if (extension === 'html' || extension === 'htm') return 'html';
     if (extension === 'txt') return 'txt';
     if (extension === 'md' || extension === 'markdown') return 'markdown';
@@ -109,6 +150,9 @@ export function getDocumentFormatLabel(format: DocumentFormat): string {
 }
 
 export function getDocumentMimeType(format: DocumentFormat): string {
+    if (format === 'pdf') return 'application/pdf';
+    if (format === 'epub') return 'application/epub+zip';
+    if (format === 'docx') return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     if (format === 'html') return 'text/html;charset=utf-8';
     if (format === 'json') return 'application/json;charset=utf-8';
     return 'text/plain;charset=utf-8';
@@ -397,7 +441,10 @@ function parseJsonDocument(content: string): Pick<ParsedDocument, 'segments' | '
 export function parseDocument(fileName: string, content: string): ParsedDocument {
     const format = getDocumentFormat(fileName);
     if (!format) {
-        throw new Error('暂不支持该文件格式，请选择 HTML、TXT、Markdown、字幕或 JSON 文件');
+        throw new Error('暂不支持该文件格式，请选择 PDF、ePub、HTML、JSON、TXT、DOCX、Markdown 或字幕文件');
+    }
+    if (format === 'pdf' || format === 'epub' || format === 'docx') {
+        throw new Error(`${getDocumentFormatLabel(format)}需要按二进制文件解析，请重新打开该文件`);
     }
 
     if (format === 'json') {
@@ -470,6 +517,9 @@ function renderParts(document: ParsedDocument, translations: readonly string[], 
         if (part.kind === 'literal') return part.value;
         const translation = translations[part.segmentIndex] ?? part.source;
         if (mode === 'bilingual') return formatBilingualTranslation(document, part, translation);
+        if (document.format === 'html') {
+            return `${part.prefix}${escapeHtml(translation)}${part.suffix}`;
+        }
         const formattedTranslation = ['srt', 'vtt', 'ass'].includes(document.format)
             ? preserveSubtitleMarkup(part.source, translation)
             : translation;

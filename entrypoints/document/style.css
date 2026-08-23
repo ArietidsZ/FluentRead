@@ -93,6 +93,7 @@ h1, h2, p { margin-top: 0; }
 .format-icon.teal b { background: #24b7ac; }
 .open-file-button, .translate-document-button { border: 0; border-radius: 13px; color: #fff; background: linear-gradient(135deg, #f25482, #e93267); box-shadow: 0 12px 25px rgba(233, 50, 103, .24); font-weight: 800; cursor: pointer; }
 .open-file-button { min-width: 260px; height: 54px; font-size: 17px; }
+.open-file-button:disabled { cursor: wait; opacity: .72; }
 .open-file-button:hover, .translate-document-button:hover:not(:disabled) { box-shadow: 0 16px 30px rgba(233, 50, 103, .32); transform: translateY(-1px); }
 .file-drop-zone p { margin: 48px 0 7px; color: var(--ink); font-size: 16px; }
 .file-drop-zone small { color: var(--muted); font-size: 11px; }
@@ -123,6 +124,7 @@ h1, h2, p { margin-top: 0; }
 .translate-document-button:disabled { cursor: not-allowed; opacity: .55; }
 .download-button { border: 1px solid rgba(239, 71, 118, .35); border-radius: 11px; color: var(--brand-strong); background: var(--brand-soft); font-weight: 800; cursor: pointer; }
 .download-button:hover { border-color: rgba(239, 71, 118, .6); }
+.download-button:disabled { cursor: wait; opacity: .62; }
 .spinner { display: inline-block; width: 14px; height: 14px; margin-right: 5px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%; vertical-align: -2px; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .notice { margin: 13px 2px 0; font-size: 12px; line-height: 1.5; }
@@ -142,6 +144,7 @@ h1, h2, p { margin-top: 0; }
 .document-reader { overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: 0 15px 34px rgba(46, 63, 106, .06); }
 .reader-block { padding: 22px 34px 23px; border-top: 1px solid var(--line); }
 .reader-block:first-child { border-top: 0; }
+.reader-context { display: inline-flex; margin-bottom: 9px; padding: 4px 8px; border-radius: 999px; color: var(--brand-strong); background: var(--brand-soft); font-size: 10px; font-weight: 800; }
 .reader-source { color: var(--ink); font-size: 17px; font-weight: 520; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
 .reader-source.reader-heading { margin-top: 3px; font-size: 23px; font-weight: 820; letter-spacing: -.03em; line-height: 1.35; }
 .reader-translation { display: block; width: 100%; min-height: 34px; margin-top: 7px; padding: 0; resize: vertical; border: 0; color: var(--ink); background: transparent; font-size: 17px; font-weight: 720; line-height: 1.75; outline: none; white-space: pre-wrap; overflow-wrap: anywhere; }

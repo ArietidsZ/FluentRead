@@ -6,6 +6,9 @@ const path = require('node:path');
 const { createRequire } = require('node:module');
 
 const DOCUMENT_EXAMPLES = [
+  {name: 'sample.pdf', badge: 'PDF', mimeType: 'application/pdf', source: 'Document Translation Example'},
+  {name: 'sample.epub', badge: 'EPUB', mimeType: 'application/epub+zip', source: 'Fluent reading'},
+  {name: 'sample.docx', badge: 'DOCX', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', source: 'REFERENCE GUIDE'},
   {name: 'sample.html', badge: 'HTML', mimeType: 'text/html', source: 'Document translation example'},
   {name: 'sample.txt', badge: 'TXT', mimeType: 'text/plain', source: 'Document translation example'},
   {name: 'sample.md', badge: 'MARKDOWN', mimeType: 'text/markdown', source: 'Document translation example'},
@@ -16,6 +19,8 @@ const DOCUMENT_EXAMPLES = [
   {name: 'sample.lrc', badge: 'LRC', mimeType: 'text/plain', source: 'Hello LRC lyric'},
   {name: 'sample.json', badge: 'JSON', mimeType: 'application/json', source: 'Document translation example'},
 ];
+
+const BINARY_EXAMPLES = new Set(['sample.pdf', 'sample.epub', 'sample.docx']);
 
 function fail(message) {
   throw new Error(message);
@@ -58,6 +63,27 @@ function captureErrors(target, label, errors) {
   target.on('pageerror', (error) => errors.push({label, type: 'pageerror', message: error.message}));
 }
 
+async function verifyBinaryDownload(exampleName, downloadPath) {
+  const bytes = fs.readFileSync(downloadPath);
+  if (exampleName === 'sample.pdf') {
+    if (bytes.subarray(0, 5).toString('latin1') !== '%PDF-') fail('PDF 双语下载文件签名无效');
+    return {bytes: bytes.length, signature: '%PDF-'};
+  }
+
+  const JSZip = require('jszip');
+  const zip = await JSZip.loadAsync(bytes);
+  if (exampleName === 'sample.epub') {
+    const mimetype = await zip.file('mimetype')?.async('string');
+    if (mimetype !== 'application/epub+zip') fail('ePub 双语下载缺少有效 mimetype');
+    if (!zip.file('OEBPS/chapter-1.xhtml')) fail('ePub 双语下载缺少原章节');
+    return {bytes: bytes.length, signature: 'EPUB'};
+  }
+  if (!zip.file('[Content_Types].xml') || !zip.file('word/document.xml')) {
+    fail('DOCX 双语下载缺少 OOXML 必需文件');
+  }
+  return {bytes: bytes.length, signature: 'OOXML'};
+}
+
 function isExpectedShutdownNoise(error) {
   return error.type === 'console' && /browser is shutting down/u.test(error.message);
 }
@@ -96,6 +122,7 @@ async function main() {
     windowMode: 'background-screen-off',
     assertions: {},
     screenshots: [],
+    downloads: [],
     errors,
   };
 
@@ -161,6 +188,41 @@ async function main() {
         fail(`${example.name} 缺少开始翻译按钮`);
       }
       exampleLoads[example.name] = {badge: example.badge, previewCount};
+
+      if (BINARY_EXAMPLES.has(example.name)) {
+        const firstTranslation = page.locator('.reader-translation').first();
+        await firstTranslation.evaluate((element, name) => {
+          element.removeAttribute('disabled');
+          element.value = `浏览器回归译文：${name}`;
+          element.dispatchEvent(new Event('input', {bubbles: true}));
+        }, example.name);
+        const downloadButton = page.getByRole('button', {name: '下载双语文件'});
+        await downloadButton.waitFor({state: 'visible', timeout: args.timeout});
+        const [download] = await Promise.all([
+          page.waitForEvent('download', {timeout: args.timeout}),
+          downloadButton.click(),
+        ]);
+        const downloadPath = path.join(artifactsDir, download.suggestedFilename());
+        await download.saveAs(downloadPath);
+        exampleLoads[example.name].download = await verifyBinaryDownload(example.name, downloadPath);
+        result.downloads.push(downloadPath);
+      }
+
+      if (example.name === 'sample.pdf') {
+        result.assertions.pdfLoadAndExport = 'passed';
+        await page.screenshot({path: path.join(artifactsDir, 'document-pdf-reader.png'), fullPage: true});
+        result.screenshots.push(path.join(artifactsDir, 'document-pdf-reader.png'));
+      }
+      if (example.name === 'sample.epub') {
+        result.assertions.epubLoadAndExport = 'passed';
+        await page.screenshot({path: path.join(artifactsDir, 'document-epub-reader.png'), fullPage: true});
+        result.screenshots.push(path.join(artifactsDir, 'document-epub-reader.png'));
+      }
+      if (example.name === 'sample.docx') {
+        result.assertions.docxLoadAndExport = 'passed';
+        await page.screenshot({path: path.join(artifactsDir, 'document-docx-reader.png'), fullPage: true});
+        result.screenshots.push(path.join(artifactsDir, 'document-docx-reader.png'));
+      }
 
       if (example.name === 'sample.html') {
         result.assertions.htmlLoad = 'passed';

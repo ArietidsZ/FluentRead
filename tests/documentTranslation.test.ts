@@ -11,6 +11,9 @@ import {
 describe('document translation parser', () => {
     it('识别首批支持的文件格式并生成下载文件名', () => {
         expect(getDocumentFormat('guide.HTML')).toBe('html');
+        expect(getDocumentFormat('paper.PDF')).toBe('pdf');
+        expect(getDocumentFormat('book.epub')).toBe('epub');
+        expect(getDocumentFormat('brief.docx')).toBe('docx');
         expect(getDocumentFormat('notes.markdown')).toBe('markdown');
         expect(getDocumentFormat('episode.ass')).toBe('ass');
         expect(getDocumentFormat('lyrics.lrc')).toBe('lrc');
@@ -20,6 +23,7 @@ describe('document translation parser', () => {
         expect(getDocumentMimeType('html')).toBe('text/html;charset=utf-8');
         expect(getDocumentMimeType('json')).toBe('application/json;charset=utf-8');
         expect(getDocumentMimeType('markdown')).toBe('text/plain;charset=utf-8');
+        expect(() => parseDocument('paper.pdf', '%PDF-')).toThrow('需要按二进制文件解析');
     });
 
     it('保留 HTML 标签、属性和脚本内容，只替换可见文本', () => {
@@ -32,6 +36,13 @@ describe('document translation parser', () => {
         expect(output).toContain('href="https://example.com"');
         expect(output).toContain('>阅读指南</a>');
         expect(output).toContain('const title = "Keep me";');
+    });
+
+    it('HTML 仅译文导出会转义翻译服务返回的标签，避免注入文档结构', () => {
+        const document = parseDocument('guide.html', '<p>Hello</p>');
+        expect(renderDocument(document, ['<script>alert(1)</script>'], 'translated')).toBe(
+            '<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>',
+        );
     });
 
     it('保留 TXT 换行，并支持 Markdown 代码块和链接保护', () => {

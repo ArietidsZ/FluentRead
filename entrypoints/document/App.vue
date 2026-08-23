@@ -47,7 +47,9 @@
             </div>
           </div>
 
-          <button class="open-file-button" type="button" @click.stop="openFilePicker">打开文件</button>
+          <button class="open-file-button" type="button" :disabled="openingFile" @click.stop="openFilePicker">
+            {{ openingFile ? '正在解析文件…' : '打开文件' }}
+          </button>
           <p>点击打开文件，或把本地文件拖到这里</p>
           <small>支持单个文件，最大 {{ maxFileSizeLabel }} · 文件不会上传到 FluentRead 服务器</small>
         </div>
@@ -115,7 +117,9 @@
             <span v-if="translating" class="spinner" />
             <span>{{ translating ? `翻译中 ${progress}%` : hasTranslation ? '重新翻译' : '开始翻译' }}</span>
           </button>
-          <button v-if="hasTranslation" class="download-button" type="button" @click="downloadDocument">下载{{ outputMode === 'bilingual' ? '双语' : '译文' }}文件</button>
+          <button v-if="hasTranslation" class="download-button" type="button" :disabled="preparingDownload" @click="downloadDocument">
+            {{ preparingDownload ? '正在生成文件…' : `下载${outputMode === 'bilingual' ? '双语' : '译文'}文件` }}
+          </button>
         </div>
 
         <p v-if="credentialWarning" class="notice warning" role="alert">{{ credentialWarning }} <button type="button" @click="openSettings">去配置</button></p>
@@ -139,6 +143,7 @@
 
         <div class="document-reader" :class="`reader-${parsedDocument.format}`" aria-label="文档双语阅读预览">
           <article v-for="row in previewRows" :key="row.index" class="reader-block">
+            <span v-if="row.contextLabel" class="reader-context">{{ row.contextLabel }}</span>
             <div v-if="outputMode === 'bilingual'" class="reader-source" :class="readerSourceClass(row.source)">
               {{ readerText(row.source) }}
             </div>
@@ -158,7 +163,7 @@
     </main>
 
     <footer class="document-footer">
-      <span>流畅阅读文档翻译 Beta · HTML / TXT / Markdown / 字幕 / JSON</span>
+      <span>流畅阅读文档翻译 Beta · PDF / ePub / HTML / JSON / TXT / DOCX / Markdown / 字幕</span>
       <a href="https://github.com/Bistutu/FluentRead" target="_blank" rel="noreferrer">开源项目 ↗</a>
     </footer>
   </div>
@@ -178,15 +183,15 @@ import {getMissingCredentialMessage} from '@/entrypoints/utils/configValidation'
 import {customModelString, models, options, resolveConfiguredModel, servicesType} from '@/entrypoints/utils/option';
 import {
   DOCUMENT_MAX_BYTES,
-  createDocumentDownloadName,
   getDocumentAcceptAttribute,
   getDocumentFormat,
-  getDocumentMimeType,
-  parseDocument,
-  renderDocument,
   type DocumentRenderMode,
   type ParsedDocument,
 } from '@/entrypoints/utils/documentTranslation';
+import {
+  createDocumentDownload,
+  parseDocumentFile,
+} from '@/entrypoints/utils/documentTranslationBinary';
 import {translateDocumentSegments} from '@/entrypoints/utils/documentTranslationApi';
 
 const PREVIEW_LIMIT = 80;
@@ -199,6 +204,8 @@ const isDragging = ref(false);
 const translating = ref(false);
 const progress = ref(0);
 const errorMessage = ref('');
+const openingFile = ref(false);
+const preparingDownload = ref(false);
 const hydrated = ref(false);
 const isDark = ref(window.matchMedia('(prefers-color-scheme: dark)').matches);
 let abortController: AbortController | null = null;
@@ -209,14 +216,14 @@ const accept = getDocumentAcceptAttribute();
 const maxFileSizeLabel = `${Math.round(DOCUMENT_MAX_BYTES / 1024 / 1024)} MB`;
 const sourceLanguageOptions = [{value: 'auto', label: '自动检测'}, ...options.to];
 const formatCards = [
+  {code: 'PDF', label: 'pdf 文件', tone: 'coral'},
+  {code: 'EPUB', label: 'ePub 电子书', tone: 'teal'},
   {code: 'HTML', label: 'html 文件', tone: 'coral'},
-  {code: 'TXT', label: 'txt 文件', tone: 'slate'},
-  {code: 'MD', label: 'markdown 文件', tone: 'sand'},
-  {code: 'SRT', label: '字幕文件', tone: 'violet'},
-  {code: 'ASS', label: '字幕文件', tone: 'violet'},
-  {code: 'VTT', label: '字幕文件', tone: 'violet'},
-  {code: 'LRC', label: '歌词文件', tone: 'violet'},
   {code: 'JSON', label: 'json 文件', tone: 'teal'},
+  {code: 'TXT', label: 'txt 文件', tone: 'slate'},
+  {code: 'DOCX', label: 'Word 文档', tone: 'slate'},
+  {code: 'MD', label: 'markdown 文件', tone: 'sand'},
+  {code: 'SUB', label: '各种字幕文件', tone: 'violet'},
 ];
 
 const serviceOptions = computed(() => options.services.filter((item: any) => !item.disabled));
@@ -246,6 +253,7 @@ const credentialWarning = computed(() => {
 const previewRows = computed(() => (parsedDocument.value?.segments || []).slice(0, PREVIEW_LIMIT).map((segment) => ({
   index: segment.id,
   source: segment.source,
+  contextLabel: segment.contextLabel,
   translation: translatedSegments.value[segment.id] || '',
 })));
 const previewLimit = PREVIEW_LIMIT;
@@ -255,7 +263,15 @@ const completedSegments = computed(() => translatedSegments.value.filter((item) 
 const formatCode = computed(() => parsedDocument.value?.format.toUpperCase() || 'FILE');
 const formatTone = computed(() => {
   const format = parsedDocument.value?.format;
-  return format === 'html' ? 'coral' : format === 'json' ? 'teal' : ['srt', 'vtt', 'ass', 'lrc'].includes(format || '') ? 'violet' : format === 'markdown' ? 'sand' : 'slate';
+  return ['pdf', 'html'].includes(format || '')
+    ? 'coral'
+    : ['epub', 'json'].includes(format || '')
+      ? 'teal'
+      : ['srt', 'vtt', 'ass', 'lrc'].includes(format || '')
+        ? 'violet'
+        : format === 'markdown'
+          ? 'sand'
+          : 'slate';
 });
 
 function readerText(value: string): string {
@@ -318,7 +334,7 @@ function showError(message: string): void {
 async function loadFile(file: File): Promise<void> {
   errorMessage.value = '';
   if (!getDocumentFormat(file.name)) {
-    showError('暂不支持该文件格式，请选择 HTML、TXT、Markdown、字幕或 JSON 文件。');
+    showError('暂不支持该文件格式，请选择 PDF、ePub、HTML、JSON、TXT、DOCX、Markdown 或字幕文件。');
     return;
   }
   if (file.size > DOCUMENT_MAX_BYTES) {
@@ -327,8 +343,8 @@ async function loadFile(file: File): Promise<void> {
   }
 
   try {
-    const content = await file.text();
-    const parsed = parseDocument(file.name, content);
+    openingFile.value = true;
+    const parsed = await parseDocumentFile(file);
     if (parsed.segments.length === 0) throw new Error('文件中没有找到可翻译的文本片段。');
     parsedDocument.value = parsed;
     translatedSegments.value = [];
@@ -336,6 +352,8 @@ async function loadFile(file: File): Promise<void> {
     progress.value = 0;
   } catch (error) {
     showError(error instanceof Error ? error.message : String(error));
+  } finally {
+    openingFile.value = false;
   }
 }
 
@@ -360,6 +378,8 @@ function resetDocument(): void {
   translatedSegments.value = [];
   progress.value = 0;
   errorMessage.value = '';
+  openingFile.value = false;
+  preparingDownload.value = false;
 }
 
 async function startTranslation(): Promise<void> {
@@ -406,17 +426,25 @@ function updateTranslation(index: number, event: Event): void {
   translatedSegments.value[index] = (event.target as HTMLTextAreaElement).value;
 }
 
-function downloadDocument(): void {
+async function downloadDocument(): Promise<void> {
   const document = parsedDocument.value;
-  if (!document || !hasTranslation.value) return;
-  const content = renderDocument(document, translatedSegments.value, outputMode.value);
-  const blob = new Blob([content], {type: getDocumentMimeType(document.format)});
-  const url = URL.createObjectURL(blob);
-  const anchor = window.document.createElement('a');
-  anchor.href = url;
-  anchor.download = createDocumentDownloadName(document.fileName, outputMode.value);
-  anchor.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  if (!document || !hasTranslation.value || preparingDownload.value) return;
+  preparingDownload.value = true;
+  errorMessage.value = '';
+  try {
+    const download = await createDocumentDownload(document, translatedSegments.value, outputMode.value);
+    const blob = new Blob([download.data], {type: download.mimeType});
+    const url = URL.createObjectURL(blob);
+    const anchor = window.document.createElement('a');
+    anchor.href = url;
+    anchor.download = download.fileName;
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  } catch (error) {
+    showError(error instanceof Error ? error.message : String(error));
+  } finally {
+    preparingDownload.value = false;
+  }
 }
 
 async function openSettings(): Promise<void> {

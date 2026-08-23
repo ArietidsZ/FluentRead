@@ -13,7 +13,7 @@
     "zip:firefox": "wxt zip -b firefox",
     "compile": "vue-tsc --noEmit",
     "test": "vitest run",
-    "test:document": "vitest run tests/documentTranslation.test.ts tests/documentTranslationApi.test.ts tests/documentTranslationRegression.test.ts tests/documentTranslationExamplesApi.test.ts",
+    "test:document": "vitest run tests/documentTranslation.test.ts tests/documentTranslationBinary.test.ts tests/documentTranslationApi.test.ts tests/documentTranslationRegression.test.ts tests/documentTranslationExamplesApi.test.ts",
     "test:translation-core": "vitest run tests/translationCore.test.ts tests/translationState.test.ts tests/serializationPerformance.test.ts tests/translateApiPerformance.test.ts tests/translateQueue.test.ts tests/pageContext.test.ts tests/pageContextDefuddle.test.ts",
     "test:translation-sites": "node scripts/run-site-translation-matrix.cjs",
     "test:video:fixture": "node scripts/run-video-subtitle-fixture-test.cjs",
@@ -31,6 +31,9 @@
     "dexie": "^4.4.4",
     "element-plus": "^2.9.3",
     "franc-min": "^6.2.0",
+    "jszip": "3.10.1",
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "4.10.38",
     "tesseract.js": "^6.0.1",
     "webextension-polyfill": "^0.12.0"
   },
