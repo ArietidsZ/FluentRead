@@ -13,7 +13,7 @@ const runtime = vi.hoisted(() => ({
         origins.map((origin) => `译:${origin}`),
     ),
     retryCallbacks: [] as Array<() => void>,
-    config: {service: "microsoft", display: 0, to: "zh"},
+    config: {service: "microsoft", display: 0, to: "zh", fullPageTranslationMode: "viewport" as "viewport" | "all"},
 }));
 
 vi.mock("@/entrypoints/utils/check", () => ({checkConfig: () => true}));
@@ -223,6 +223,7 @@ describe("全文翻译可见性锚点", () => {
         runtime.requests.mockImplementation(async (origins) => origins.map((origin) => `译:${origin}`));
         runtime.retryCallbacks = [];
         runtime.config.display = 0;
+        runtime.config.fullPageTranslationMode = "viewport";
         TestIntersectionObserver.instances = [];
         TestMutationObserver.instances = [];
 
@@ -267,6 +268,151 @@ describe("全文翻译可见性锚点", () => {
         expect(observer.observe).toHaveBeenCalledWith(title);
         expect(observer.observe).not.toHaveBeenCalledWith(label);
         expect(runtime.requests).not.toHaveBeenCalled();
+    });
+
+    it("立即翻译整页模式绕过可见性门禁并处理当前页面到底部", async () => {
+        runtime.config.fullPageTranslationMode = "all";
+        document.body.innerHTML = [
+            '<p id="visible">Visible paragraph</p>',
+            '<p id="below-fold">Paragraph near the page bottom</p>',
+        ].join("");
+        const visible = document.querySelector<HTMLElement>("#visible")!;
+        const belowFold = document.querySelector<HTMLElement>("#below-fold")!;
+        setLayoutBox(visible, 600, 80);
+        setLayoutBox(belowFold, 600, 80);
+        runtime.candidates = [
+            {element: visible, kind: "content", reason: "paragraph"},
+            {element: belowFold, kind: "content", reason: "paragraph"},
+        ];
+
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        await finishScheduledWork();
+
+        const observer = TestIntersectionObserver.instances[0]!;
+        expect(observer.observe).not.toHaveBeenCalled();
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(runtime.requests).toHaveBeenCalledWith(["Visible paragraph"]);
+        expect(runtime.requests).toHaveBeenCalledWith(["Paragraph near the page bottom"]);
+        expect(visible.textContent).toBe("译:Visible paragraph");
+        expect(belowFold.textContent).toBe("译:Paragraph near the page bottom");
+    });
+
+    it("立即翻译整页仍只并发三个候选，释放槽位后才启动下一项", async () => {
+        runtime.config.fullPageTranslationMode = "all";
+        document.body.innerHTML = ["One", "Two", "Three", "Four"]
+            .map((label, index) => `<p id="all-candidate-${index}">${label}</p>`)
+            .join("");
+        const candidates = Array.from(document.querySelectorAll<HTMLElement>("p"));
+        candidates.forEach((candidate) => setLayoutBox(candidate, 400, 40));
+        runtime.candidates = candidates.map((element) => ({
+            element,
+            kind: "content" as const,
+            reason: "paragraph",
+        }));
+        const requests = candidates.map(() => deferred<string[]>());
+        let nextRequest = 0;
+        runtime.requests.mockImplementation(() => requests[nextRequest++]!.promise);
+
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(51);
+        await Promise.resolve();
+        expect(runtime.requests).toHaveBeenCalledTimes(3);
+
+        requests[0]!.resolve(["译:One"]);
+        await vi.advanceTimersByTimeAsync(1);
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(runtime.requests).toHaveBeenCalledTimes(4);
+
+        requests[1]!.resolve(["译:Two"]);
+        requests[2]!.resolve(["译:Three"]);
+        requests[3]!.resolve(["译:Four"]);
+        await finishScheduledWork();
+        expect(candidates.map((candidate) => candidate.textContent)).toEqual([
+            "译:One", "译:Two", "译:Three", "译:Four",
+        ]);
+    });
+
+    it("恢复整页翻译会清空未启动项，且在途结果不会重新写回页面", async () => {
+        runtime.config.fullPageTranslationMode = "all";
+        document.body.innerHTML = ["One", "Two", "Three", "Four"]
+            .map((label, index) => `<p id="restore-candidate-${index}">${label}</p>`)
+            .join("");
+        const candidates = Array.from(document.querySelectorAll<HTMLElement>("p"));
+        candidates.forEach((candidate) => setLayoutBox(candidate, 400, 40));
+        runtime.candidates = candidates.map((element) => ({
+            element,
+            kind: "content" as const,
+            reason: "paragraph",
+        }));
+        const requests = candidates.slice(0, 3).map(() => deferred<string[]>());
+        let nextRequest = 0;
+        runtime.requests.mockImplementation(() => requests[nextRequest++]!.promise);
+
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(51);
+        await Promise.resolve();
+        expect(runtime.requests).toHaveBeenCalledTimes(3);
+
+        restoreOriginalContent();
+        requests[0]!.resolve(["旧译:One"]);
+        requests[1]!.resolve(["旧译:Two"]);
+        requests[2]!.resolve(["旧译:Three"]);
+        await finishScheduledWork();
+
+        expect(runtime.requests).toHaveBeenCalledTimes(3);
+        expect(candidates.map((candidate) => candidate.textContent)).toEqual(["One", "Two", "Three", "Four"]);
+        expect(document.querySelectorAll('[data-fr-translation-owned="true"]')).toHaveLength(0);
+    });
+
+    it("运行中的会话保留启动时模式，修改配置只影响下一次全文翻译", async () => {
+        document.body.innerHTML = '<p id="prose">Mode changes apply to the next session.</p>';
+        const paragraph = document.querySelector<HTMLElement>("#prose")!;
+        setLayoutBox(paragraph, 600, 80);
+        runtime.candidates = [{element: paragraph, kind: "content", reason: "paragraph"}];
+
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(50);
+        expect(TestIntersectionObserver.instances[0]!.observe).toHaveBeenCalledWith(paragraph);
+
+        runtime.config.fullPageTranslationMode = "all";
+        await finishScheduledWork();
+        expect(runtime.requests).not.toHaveBeenCalled();
+
+        restoreOriginalContent();
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        await finishScheduledWork();
+
+        expect(TestIntersectionObserver.instances[1]!.observe).not.toHaveBeenCalled();
+        expect(runtime.requests).toHaveBeenCalledWith(["Mode changes apply to the next session."]);
+        expect(paragraph.textContent).toBe("译:Mode changes apply to the next session.");
+    });
+
+    it("立即翻译整页模式也会直接处理会话中动态追加的内容", async () => {
+        runtime.config.fullPageTranslationMode = "all";
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(50);
+
+        const paragraph = document.createElement("p");
+        paragraph.textContent = "A paragraph appended by infinite scroll";
+        setLayoutBox(paragraph, 600, 80);
+        document.body.appendChild(paragraph);
+        runtime.candidates = [{element: paragraph, kind: "content", reason: "paragraph"}];
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: "childList",
+            target: document.body,
+            addedNodes: [paragraph] as unknown as NodeList,
+            removedNodes: [] as unknown as NodeList,
+        } as unknown as MutationRecord]);
+
+        await finishScheduledWork();
+        await finishScheduledWork();
+
+        expect(runtime.requests).toHaveBeenCalledWith(["A paragraph appended by infinite scroll"]);
+        expect(paragraph.textContent).toBe("译:A paragraph appended by infinite scroll");
+        expect(TestIntersectionObserver.instances[0]!.observe).not.toHaveBeenCalled();
     });
 
     it("观察 display:contents H1 的首个真实布局后代，并在完成后解除该锚点", async () => {

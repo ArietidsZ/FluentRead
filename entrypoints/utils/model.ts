@@ -6,6 +6,7 @@ import { normalizeSelectionTtsVoiceOrder } from "./selectionTtsConfig";
 export type DeepSeekApiType = 'auto' | 'responses' | 'chat';
 export type DeepSeekThinkingMode = 'enabled' | 'disabled';
 export type VideoSubtitleDisplayMode = 'bilingual' | 'translation-only' | 'original-only';
+export type FullPageTranslationMode = 'viewport' | 'all';
 export const DEFAULT_VIDEO_SUBTITLE_FONT_SIZE = 100;
 export const DEFAULT_NEW_API_URL = 'http://localhost:3000';
 export const VIDEO_SUBTITLE_FONT_SIZE_OPTIONS = [80, 90, 100, 110, 120, 140, 160] as const;
@@ -78,6 +79,7 @@ export class Config {
     useCache: boolean; // 是否使用缓存
     enableAIContext: boolean; // 是否为 AI 翻译附加网页上下文
     contextMenuEnabled: boolean; // 是否显示右键全文翻译菜单
+    fullPageTranslationMode: FullPageTranslationMode; // 全文翻译按视口加载或立即处理整页
     disableFloatingBall: boolean; // 是否禁用悬浮球
     floatingBallPosition: 'left' | 'right'; // 悬浮球位置
     floatingBallHotkey: string; // 悬浮球快捷键
@@ -146,6 +148,7 @@ export class Config {
         this.useCache = true; // 默认开启缓存
         this.enableAIContext = false; // 默认关闭 AI 智能上下文，避免意外增加请求体和费用
         this.contextMenuEnabled = true; // 默认显示右键全文翻译入口
+        this.fullPageTranslationMode = 'viewport'; // 默认按阅读进度翻译，避免一次发出过多请求
         this.disableFloatingBall = true; // 默认关闭悬浮球
         this.floatingBallPosition = 'right'; // 默认在右侧
         this.floatingBallHotkey = 'Alt+T'; // 默认快捷键为 Alt+T
@@ -358,6 +361,9 @@ export function normalizeConfig(value: unknown): Config {
     }
     if (typeof normalized.contextMenuEnabled !== 'boolean') {
         normalized.contextMenuEnabled = true;
+    }
+    if (!['viewport', 'all'].includes(normalized.fullPageTranslationMode)) {
+        normalized.fullPageTranslationMode = 'viewport';
     }
     normalized.translationCenterServices = normalizeStringList(source.translationCenterServices);
     normalized.translationCenterSourceLanguage = normalizeConfigLanguage(source.translationCenterSourceLanguage);

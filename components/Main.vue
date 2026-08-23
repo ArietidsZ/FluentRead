@@ -349,6 +349,32 @@
       </el-col>
     </el-row>
 
+    <!-- 全文翻译范围 -->
+    <el-row v-if="config.on" class="settings-control-row">
+      <el-col :span="14" class="settings-control-label lightblue rounded-corner">
+        <el-tooltip
+          class="box-item"
+          effect="dark"
+          content="按阅读进度会预翻译视口附近内容；立即翻译到网页底部会处理当前已加载的整页内容，并持续翻译之后新增的内容。它不会自动滚动页面，但在无限滚动页面可能产生较多翻译请求和服务费用。设置会在下次启动全文翻译时生效。"
+          placement="top-start"
+          :show-after="500"
+        >
+          <span class="popup-text popup-vertical-left">
+            全文翻译范围
+            <el-icon class="icon-margin">
+              <InfoFilled />
+            </el-icon>
+          </span>
+        </el-tooltip>
+      </el-col>
+      <el-col :span="10" class="settings-control-field flex-end">
+        <el-select v-model="config.fullPageTranslationMode" aria-label="全文翻译范围" size="small" style="width: 100%">
+          <el-option label="按阅读进度（推荐）" value="viewport" />
+          <el-option label="立即翻译到网页底部" value="all" />
+        </el-select>
+      </el-col>
+    </el-row>
+
     <!-- 右键全文翻译开关 -->
     <el-row v-if="config.on" class="settings-control-row">
       <el-col :span="20" class="settings-control-label lightblue rounded-corner">
