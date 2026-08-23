@@ -52,6 +52,90 @@ const VIDEO_CAPTION_STABILITY_MS = 360;
 const VIDEO_CAPTION_FALLBACK_SEGMENT_SELECTOR = '.captions-text';
 export const VIDEO_PRETRANSLATION_MACHINE_WINDOW_MS = 10_000;
 export const VIDEO_PRETRANSLATION_AI_WINDOW_MS = 30_000;
+const VIDEO_SUBTITLE_DOWNLOAD_CONCURRENCY = 3;
+
+interface TranslateVideoSubtitleCuesOptions {
+  concurrency?: number;
+  signal?: AbortSignal;
+  onProgress?: (completed: number, total: number) => void;
+}
+
+function createVideoSubtitleAbortError(): Error {
+  const error = new Error('字幕翻译已取消');
+  error.name = 'AbortError';
+  return error;
+}
+
+/**
+ * 翻译完整字幕时间轴。相同原文只翻译一次，并限制同时进入共享翻译队列的任务数，
+ * 避免长视频一次性排入数百个请求后阻塞播放器当前字幕。
+ */
+export async function translateVideoSubtitleCues(
+  cues: VideoSubtitleCue[],
+  translate: (source: string) => Promise<string>,
+  options: TranslateVideoSubtitleCuesOptions = {},
+): Promise<VideoSubtitleCue[]> {
+  if (options.signal?.aborted) throw createVideoSubtitleAbortError();
+
+  const sourceByKey = new Map<string, string>();
+  cues.forEach((cue) => {
+    const key = normalizeVideoCaptionText(cue.text);
+    if (key && !sourceByKey.has(key)) sourceByKey.set(key, cue.text);
+  });
+  const sources = Array.from(sourceByKey.entries());
+  if (sources.length === 0) return [];
+
+  const requestedConcurrency = Number.isFinite(options.concurrency)
+    ? Math.floor(options.concurrency as number)
+    : VIDEO_SUBTITLE_DOWNLOAD_CONCURRENCY;
+  const concurrency = Math.min(sources.length, Math.max(1, requestedConcurrency));
+  const translatedByKey = new Map<string, string>();
+  let cursor = 0;
+  let completed = 0;
+  let failed = false;
+  let failure: unknown;
+  options.onProgress?.(completed, sources.length);
+
+  const worker = async () => {
+    while (!failed) {
+      if (options.signal?.aborted) {
+        failed = true;
+        failure = createVideoSubtitleAbortError();
+        return;
+      }
+
+      const index = cursor;
+      cursor += 1;
+      if (index >= sources.length) return;
+      const [key, source] = sources[index];
+
+      try {
+        const translated = await translate(source);
+        if (failed) return;
+        if (options.signal?.aborted) throw createVideoSubtitleAbortError();
+        const result = typeof translated === 'string' ? translated.trim() : '';
+        if (!result) throw new Error(`字幕译文为空：${source.slice(0, 40)}`);
+        translatedByKey.set(key, result);
+        completed += 1;
+        options.onProgress?.(completed, sources.length);
+      } catch (error) {
+        if (!failed) {
+          failed = true;
+          failure = error;
+        }
+        return;
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
+  if (failed) throw failure ?? new Error('字幕翻译失败');
+
+  return cues.map((cue) => ({
+    ...cue,
+    text: translatedByKey.get(normalizeVideoCaptionText(cue.text)) || cue.text,
+  }));
+}
 
 export function getVideoPretranslationWindowMs(service: string): number {
   return servicesType.isAI(service)
@@ -689,6 +773,7 @@ export function mountVideoSubtitleTranslation(): () => void {
   let progressiveTranslation = '';
   let normalizedCaptionCueKey = '';
   let normalizedCaptionActive = false;
+  let subtitleDownloadAbortController: AbortController | undefined;
 
   const clearRenderedTranslation = () => {
     document.querySelectorAll(`#${VIDEO_TRANSLATION_OVERLAY_ID}`).forEach((node) => {
@@ -1188,6 +1273,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     if (cues.length === 0) return;
     const key = getTimedTextCacheKey(data.url);
     const entry = { url: data.url, cues };
+    capturedSubtitleTracks.delete(key);
     capturedSubtitleTracks.set(key, entry);
     if (canTranslateVideo()) {
       setPretranslationTrack(key, entry);
@@ -1196,7 +1282,9 @@ export function mountVideoSubtitleTranslation(): () => void {
   };
 
   const resolveDownloadTrack = async (): Promise<{ languageCode: string; cues: VideoSubtitleCue[] }> => {
-    const captured = Array.from(capturedSubtitleTracks.values());
+    // YouTube 切换视频或字幕语言时可能连续请求多个轨道；优先使用最近捕获的
+    // 原始轨道，避免下载到进入页面时已经失效的旧字幕。
+    const captured = Array.from(capturedSubtitleTracks.values()).reverse();
     const originalCaptured = captured.find((entry) => isOriginalTimedTextUrl(entry.url));
     if (originalCaptured) {
       const url = new URL(originalCaptured.url, window.location.href);
@@ -1241,7 +1329,7 @@ export function mountVideoSubtitleTranslation(): () => void {
       const downloadButton = target as HTMLButtonElement;
       const state = downloadButton.querySelector<HTMLElement>('[data-state]');
       downloadButton.disabled = true;
-      if (state) state.textContent = '准备中';
+      if (state) state.textContent = '读取字幕';
       try {
         const result = await resolveDownloadTrack();
         downloadSubtitleSrt(result.cues, result.languageCode);
@@ -1250,6 +1338,49 @@ export function mountVideoSubtitleTranslation(): () => void {
         if (state) state.textContent = '暂不可用';
         console.warn('[FluentRead] 字幕下载失败', error);
       } finally {
+        window.setTimeout(() => {
+          downloadButton.disabled = false;
+          if (state) state.textContent = '';
+        }, 2200);
+      }
+      return;
+    }
+    if (target.dataset.action === 'download-translated-subtitles') {
+      const downloadButton = target as HTMLButtonElement;
+      const state = downloadButton.querySelector<HTMLElement>('[data-state]');
+      downloadButton.disabled = true;
+      if (!config.on || !config.videoTranslationEnabled) {
+        if (state) state.textContent = '请先开启翻译';
+        window.setTimeout(() => {
+          downloadButton.disabled = false;
+          if (state) state.textContent = '';
+        }, 2200);
+        return;
+      }
+
+      const controller = new AbortController();
+      subtitleDownloadAbortController?.abort();
+      subtitleDownloadAbortController = controller;
+      const targetLanguage = config.to || 'translated';
+      if (state) state.textContent = '读取字幕';
+      try {
+        const result = await resolveDownloadTrack();
+        const translatedCues = await translateVideoSubtitleCues(result.cues, getCachedVideoTranslation, {
+          concurrency: VIDEO_SUBTITLE_DOWNLOAD_CONCURRENCY,
+          signal: controller.signal,
+          onProgress: (completed, total) => {
+            if (state) state.textContent = `翻译 ${completed}/${total}`;
+          },
+        });
+        if (destroyed || controller.signal.aborted) throw createVideoSubtitleAbortError();
+        downloadSubtitleSrt(translatedCues, `${targetLanguage}-translated`);
+        if (state) state.textContent = `已下载 ${translatedCues.length} 条`;
+      } catch (error) {
+        const aborted = error instanceof Error && error.name === 'AbortError';
+        if (state) state.textContent = aborted ? '已取消' : '翻译失败';
+        if (!aborted) console.warn('[FluentRead] 译文字幕下载失败', error);
+      } finally {
+        if (subtitleDownloadAbortController === controller) subtitleDownloadAbortController = undefined;
         window.setTimeout(() => {
           downloadButton.disabled = false;
           if (state) state.textContent = '';
@@ -1332,9 +1463,12 @@ export function mountVideoSubtitleTranslation(): () => void {
     menu.appendChild(modeGroup);
 
     menu.appendChild(createMenuItem('toggle-visible', '显示字幕'));
-    const download = createMenuItem('download-subtitles', '下载字幕');
-    download.querySelector('[data-check]')?.remove();
-    menu.appendChild(download);
+    const originalDownload = createMenuItem('download-subtitles', '下载原文字幕');
+    originalDownload.querySelector('[data-check]')?.remove();
+    menu.appendChild(originalDownload);
+    const translatedDownload = createMenuItem('download-translated-subtitles', '下载译文字幕');
+    translatedDownload.querySelector('[data-check]')?.remove();
+    menu.appendChild(translatedDownload);
     const settings = createMenuItem('open-settings', '打开视频翻译设置');
     settings.querySelector('[data-check]')?.remove();
     settings.querySelector('[data-state]')?.remove();
@@ -1598,6 +1732,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     const nextPretranslationConfigKey = `${config.videoService}|${config.from}|${config.to}`;
     if (nextPretranslationConfigKey === pretranslationConfigKey) return;
     pretranslationConfigKey = nextPretranslationConfigKey;
+    subtitleDownloadAbortController?.abort();
     clearPretranslationState(false);
   };
 
@@ -1606,6 +1741,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     const nextVideoPageKey = getYouTubeVideoPageKey();
     if (nextVideoPageKey !== videoPageKey) {
       videoPageKey = nextVideoPageKey;
+      subtitleDownloadAbortController?.abort();
       captionObserver?.disconnect();
       captionObserver = undefined;
       observedContainer = null;
@@ -1640,6 +1776,7 @@ export function mountVideoSubtitleTranslation(): () => void {
       syncTranslationOverlayPosition(observedContainer);
     }
     if (!nextConfig.on || !nextConfig.videoTranslationEnabled || nextConfig.videoSubtitleVisible === false || normalizeVideoSubtitleDisplayMode(nextConfig.videoSubtitleDisplayMode) === 'original-only') {
+      if (!nextConfig.on || !nextConfig.videoTranslationEnabled) subtitleDownloadAbortController?.abort();
       clearPretranslationState(false);
       resetTranslationState();
       return;
@@ -1653,6 +1790,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     generation += 1;
     pendingTranslationSource = '';
     pendingTranslationOverlay = null;
+    subtitleDownloadAbortController?.abort();
     if (debounceTimer) clearTimeout(debounceTimer);
     cancelCaptionEmptyClear();
     cancelStableCaption();

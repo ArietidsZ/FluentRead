@@ -19,6 +19,7 @@ import {
     normalizeVideoCaptionText,
     readVisibleCaptionText,
     revealVideoSubtitleTranslation,
+    translateVideoSubtitleCues,
     VIDEO_CAPTION_SEGMENT_SELECTOR,
 } from '@/entrypoints/main/videoSubtitle';
 import { normalizeVideoSubtitleFontSize } from '@/entrypoints/utils/model';
@@ -97,5 +98,47 @@ describe('YouTube 视频字幕识别', () => {
         expect(isIncrementalVideoCaption('understand from', 'understand from [music] the axioms and the basics.')).toBe(true);
         expect(isIncrementalVideoCaption('understand from [music] the axioms and the basics.', 'understand from [music] the axioms and the basics.')).toBe(false);
         expect(isIncrementalVideoCaption('unrelated subtitle', 'understand from [music] the axioms and the basics.')).toBe(false);
+    });
+
+    it('下载译文字幕时去重原文、限制并发并保留完整时间轴', async () => {
+        let active = 0;
+        let maxActive = 0;
+        const progress: Array<[number, number]> = [];
+        const translate = vi.fn(async (source: string) => {
+            active += 1;
+            maxActive = Math.max(maxActive, active);
+            await new Promise(resolve => setTimeout(resolve, 5));
+            active -= 1;
+            return `译文：${source}`;
+        });
+        const cues = [
+            { startMs: 0, durationMs: 1000, text: 'First subtitle.' },
+            { startMs: 1200, durationMs: 900, text: 'Repeated subtitle.' },
+            { startMs: 2300, durationMs: 900, text: 'Repeated subtitle.' },
+            { startMs: 3500, durationMs: 1200, text: 'Last subtitle.' },
+        ];
+
+        const translated = await translateVideoSubtitleCues(cues, translate, {
+            concurrency: 2,
+            onProgress: (completed, total) => progress.push([completed, total]),
+        });
+
+        expect(translate).toHaveBeenCalledTimes(3);
+        expect(maxActive).toBe(2);
+        expect(progress[0]).toEqual([0, 3]);
+        expect(progress.at(-1)).toEqual([3, 3]);
+        expect(translated).toEqual(cues.map(cue => ({ ...cue, text: `译文：${cue.text}` })));
+    });
+
+    it('完整字幕中任一段翻译失败时拒绝生成残缺译文', async () => {
+        const cues = [
+            { startMs: 0, durationMs: 1000, text: 'First subtitle.' },
+            { startMs: 1200, durationMs: 1000, text: 'Broken subtitle.' },
+        ];
+
+        await expect(translateVideoSubtitleCues(cues, async (source) => {
+            if (source === 'Broken subtitle.') throw new Error('fixture translation failed');
+            return `译文：${source}`;
+        }, { concurrency: 1 })).rejects.toThrow('fixture translation failed');
     });
 });

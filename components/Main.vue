@@ -236,7 +236,7 @@
 
       <div class="video-settings-note">
         <strong>使用方式</strong>
-        <p>打开 YouTube 视频的原生字幕后，FluentRead 会在字幕下方显示译文。机器翻译约提前 10 秒、AI 服务约提前 30 秒准备字幕；切换视频或关闭此功能会清理译文。</p>
+        <p>打开 YouTube 视频的原生字幕后，FluentRead 会在字幕下方显示译文。机器翻译约提前 10 秒、AI 服务约提前 30 秒准备字幕；播放器菜单可分别下载原文或译文 SRT，切换视频或关闭此功能会清理译文。</p>
       </div>
     </section>
 
