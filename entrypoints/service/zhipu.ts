@@ -5,6 +5,7 @@ import CryptoJS from 'crypto-js';
 import {config} from "@/entrypoints/utils/config";
 import {isApiKeyRequired} from "@/entrypoints/utils/configValidation";
 import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 
 const JWT_CACHE_DURATION_MS = 3600000 * 24;
@@ -35,7 +36,7 @@ async function zhipu(message: any) {
     if (secret) headers.append('Authorization', `Bearer ${secret}`);
 
     // 发起 fetch 请求
-    const resp = await fetch(urls[services.zhipu], {
+    const resp = await runtimeFetch(urls[services.zhipu], {
         method: method.POST,
         headers: headers,
             body: commonMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage)

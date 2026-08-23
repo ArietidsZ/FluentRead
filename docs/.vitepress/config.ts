@@ -51,6 +51,7 @@ export default defineConfig({
             { text: '认识 FluentRead', link: '/guide/' },
             { text: '安装与第一次翻译', link: '/guide/getting-started' },
             { text: '功能总览', link: '/guide/features' },
+            { text: 'Userscript 构建', link: '/guide/userscript' },
             { text: '图片翻译', link: '/guide/image-translation' },
             { text: '数据与隐私', link: '/guide/privacy' },
           ],

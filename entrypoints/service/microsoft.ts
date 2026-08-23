@@ -1,6 +1,7 @@
 import {getTranslationLanguages} from "@/entrypoints/utils/translationLanguage";
 import type {TranslationLanguageOverride} from "@/entrypoints/utils/translationLanguage";
 import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 const MICROSOFT_TRANSLATE_URL = "https://edge.microsoft.com/translate/translatetext";
 
@@ -38,7 +39,7 @@ export async function translateMicrosoftTexts(
     url.searchParams.set('to', toLang);
     url.searchParams.set('isEnterpriseClient', 'false');
 
-    const resp = await fetch(url, {
+    const resp = await runtimeFetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

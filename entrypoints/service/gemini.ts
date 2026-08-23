@@ -4,6 +4,7 @@ import {customModelString} from "../utils/option";
 import {config} from "@/entrypoints/utils/config";
 import {appendOptionalHeader} from './auth';
 import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 
 async function gemini(message: any) {
@@ -22,7 +23,7 @@ async function gemini(message: any) {
         appendOptionalHeader(headers, 'x-goog-api-key', config.token[service]);
     }
 
-    const resp = await fetch(url, {
+    const resp = await runtimeFetch(url, {
         method: method.POST,
         headers,
         body: geminiMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage),

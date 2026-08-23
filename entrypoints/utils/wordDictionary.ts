@@ -9,6 +9,7 @@
  */
 
 import { readJsonResponse } from './httpError';
+import {runtimeFetch} from './http';
 
 export type WordDictionaryProviderId = 'ecdict-local' | 'youdao-web' | 'free-dictionary' | 'wiktapi' | 'wiktionary-rest' | 'datamuse';
 
@@ -156,7 +157,7 @@ const SOURCE_INFO: Record<WordDictionaryProviderId, WordDictionarySource> = {
 
 /** Return a safe lowercase English headword, or null for a phrase/non-word selection. */
 export function normalizeEnglishWord(value: string): string | null {
-    const normalized = String(value || '').trim().normalize('NFC').replaceAll('’', "'");
+    const normalized = String(value || '').trim().normalize('NFC').replace(/’/gu, "'");
     if (normalized.length === 0 || normalized.length > MAX_WORD_LENGTH) return null;
     if (!/^[A-Za-z]+(?:[-'][A-Za-z]+)*$/u.test(normalized)) return null;
     return normalized.toLowerCase();
@@ -466,7 +467,7 @@ function localDictionaryUrl(): string | null {
 }
 
 function normalizeEcdictText(value: unknown): string {
-    return stripHtml(textValue(value).replaceAll('\\n', ' '));
+    return stripHtml(textValue(value).replace(/\\n/gu, ' '));
 }
 
 function normalizeEcdictPartOfSpeech(value: unknown): string {
@@ -678,7 +679,7 @@ async function fetchJson(url: string, timeoutMs = LOOKUP_TIMEOUT_MS): Promise<un
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-        const response = await fetch(url, {
+        const response = await runtimeFetch(url, {
             credentials: 'omit',
             headers: { Accept: 'application/json' },
             signal: controller.signal,
@@ -698,7 +699,7 @@ async function loadEcdictIndex(): Promise<Map<string, EcdictEntry>> {
     if (!url) return new Map();
 
     ecdictIndexPromise = (async () => {
-        const response = await fetch(url, { credentials: 'omit' });
+        const response = await runtimeFetch(url, { credentials: 'omit' });
         if (!response.ok) throw new Error(`local dictionary request failed: ${response.status}`);
         const payload = await readJsonResponse(response, 'local dictionary response is not valid JSON');
         const entries = Array.isArray(payload) ? payload : [];

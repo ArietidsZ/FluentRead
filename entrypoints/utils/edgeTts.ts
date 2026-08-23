@@ -8,6 +8,7 @@
 
 import { normalizeSelectionTtsVoiceOrder, selectionTtsVoiceLocale } from './selectionTtsConfig';
 import { readJsonResponse } from './httpError';
+import {runtimeFetch} from './http';
 
 export interface EdgeTtsAudio {
   audio: ArrayBuffer;
@@ -46,7 +47,7 @@ interface EndpointToken {
 let endpointToken: EndpointToken | null = null;
 
 function normalizeLanguage(language: string): string {
-  const normalized = String(language || '').replaceAll('_', '-').trim();
+  const normalized = String(language || '').replace(/_/gu, '-').trim();
   if (!normalized || normalized === 'auto' || normalized === 'detect') return 'en-US';
   if (normalized.toLowerCase() === 'zh-hans') return 'zh-CN';
   if (normalized.toLowerCase() === 'zh-hant') return 'zh-TW';
@@ -83,7 +84,7 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 function randomId(): string {
-  return (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).replaceAll('-', '');
+  return (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`).replace(/-/gu, '');
 }
 
 async function createSignature(url: string): Promise<string> {
@@ -114,7 +115,7 @@ async function getEndpointToken(): Promise<EndpointToken> {
   if (endpointToken && Date.now() < endpointToken.expiresAt - 3 * 60 * 1000) return endpointToken;
 
   const signature = await createSignature(ENDPOINT_URL);
-  const response = await fetch(ENDPOINT_URL, {
+  const response = await runtimeFetch(ENDPOINT_URL, {
     method: 'POST',
     headers: {
       'Accept-Language': 'zh-Hans',
@@ -139,7 +140,7 @@ async function getEndpointToken(): Promise<EndpointToken> {
 }
 
 function escapeXml(text: string): string {
-  return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;');
+  return text.replace(/&/gu, '&amp;').replace(/</gu, '&lt;').replace(/>/gu, '&gt;').replace(/"/gu, '&quot;').replace(/'/gu, '&apos;');
 }
 
 export function buildEdgeTtsSsml(text: string, voice: string, rate = '+0%', pitch = '+0Hz', volume = '+0%'): string {
@@ -181,7 +182,7 @@ function concatBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
 async function synthesizeWithVoice(voice: string, endpoint: EndpointToken, chunks: string[]): Promise<EdgeTtsAudio> {
   const audioBuffers: ArrayBuffer[] = [];
   for (const chunk of chunks) {
-    const response = await fetch(`https://${endpoint.region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+    const response = await runtimeFetch(`https://${endpoint.region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
       method: 'POST',
       headers: {
         Authorization: endpoint.token,

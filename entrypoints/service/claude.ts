@@ -4,6 +4,7 @@ import {claudeMsgTemplate} from "../utils/template";
 import {config} from "@/entrypoints/utils/config";
 import {appendOptionalHeader} from './auth';
 import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 async function claude(message: any) {
     const service = message.serviceOverride || services.claude;
@@ -17,7 +18,7 @@ async function claude(message: any) {
     const url = config.proxy[service] || urls[services.claude];
 
     try {
-        const resp = await fetch(url, {
+        const resp = await runtimeFetch(url, {
             method: method.POST,
             headers,
             body: claudeMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage)

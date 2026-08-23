@@ -1,0 +1,98 @@
+import {setRuntimeFetch} from '@/entrypoints/utils/http';
+import {installShadowAndRouteBridge} from '@/entrypoints/shadowBridge.content';
+import browser, {setPlatformMessageHandler} from './browser';
+import {createUserscriptContentContext} from './context';
+import {userscriptFetch} from './http';
+import {ensureUserscriptConfig} from './initialize';
+
+declare global {
+    // Sandbox-local idempotency guard for managers that reinject on SPA state changes.
+    var __fluentReadUserscriptBootstrapped: boolean | undefined;
+}
+
+let disposeShadowAndRouteBridge: (() => void) | undefined;
+
+async function waitForDocumentEnd(): Promise<void> {
+    if (document.readyState !== 'loading') return;
+    await new Promise<void>((resolve) => document.addEventListener('DOMContentLoaded', () => resolve(), {once: true}));
+}
+
+function registerMenu(label: string, listener: () => void): void {
+    const register = globalThis.GM_registerMenuCommand;
+    if (typeof register === 'function') register(label, listener);
+}
+
+async function bootstrap(): Promise<void> {
+    if (globalThis.__fluentReadUserscriptBootstrapped) return;
+    globalThis.__fluentReadUserscriptBootstrapped = true;
+
+    disposeShadowAndRouteBridge = installShadowAndRouteBridge();
+    setRuntimeFetch(userscriptFetch);
+    await ensureUserscriptConfig();
+
+    const [platformModule, settingsModule, contentModule, translationModule, configModule] = await Promise.all([
+        import('./platform'),
+        import('./settings'),
+        import('@/entrypoints/content'),
+        import('@/entrypoints/main/trans'),
+        import('@/entrypoints/utils/config'),
+    ]);
+    const ctx = createUserscriptContentContext();
+    const openSettings = () => void settingsModule.openUserscriptSettings(ctx);
+    const closeSettings = () => settingsModule.closeUserscriptSettings();
+    setPlatformMessageHandler(platformModule.createPlatformMessageHandler(openSettings));
+    window.addEventListener('fluentread-userscript-open-settings', openSettings);
+    window.addEventListener('fluentread-userscript-close-settings', closeSettings);
+
+    browser.runtime.onMessage.addListener((message: any, _sender: unknown, sendResponse: (response?: unknown) => void) => {
+        if (message?.type !== 'userscriptTogglePageTranslation') return false;
+        if (translationModule.isFullPageTranslationActive()) translationModule.restoreOriginalContent();
+        else void translationModule.autoTranslateEnglishPage();
+        sendResponse({success: true});
+        return true;
+    });
+
+    registerMenu('流畅阅读：打开设置', openSettings);
+    registerMenu('流畅阅读：翻译 / 恢复当前网页', () => {
+        if (translationModule.isFullPageTranslationActive()) translationModule.restoreOriginalContent();
+        else void translationModule.autoTranslateEnglishPage();
+    });
+    registerMenu('流畅阅读：启用 / 暂停', () => {
+        const enabled = !configModule.config.on;
+        configModule.config.on = enabled;
+        void configModule.saveConfig().then(async () => {
+            await browser.tabs.sendMessage(1, {
+                type: 'toggleFloatingBall',
+                isEnabled: enabled && !configModule.config.disableFloatingBall,
+            });
+            await browser.tabs.sendMessage(1, {
+                type: 'updateSelectionTranslatorMode',
+                mode: enabled ? configModule.config.selectionTranslatorMode : 'disabled',
+            });
+            if (!enabled) translationModule.restoreOriginalContent();
+        });
+    });
+    registerMenu('流畅阅读：清空翻译缓存', () => {
+        void browser.runtime.sendMessage({type: 'clearTranslationCache'});
+    });
+
+    await waitForDocumentEnd();
+    await contentModule.default.main(ctx as never);
+    void browser.runtime.sendMessage({type: 'userscriptCacheMaintenance'}).catch(() => undefined);
+
+    window.addEventListener('beforeunload', () => {
+        window.removeEventListener('fluentread-userscript-open-settings', openSettings);
+        window.removeEventListener('fluentread-userscript-close-settings', closeSettings);
+        closeSettings();
+        ctx.invalidate();
+        disposeShadowAndRouteBridge?.();
+        disposeShadowAndRouteBridge = undefined;
+    }, {once: true});
+}
+
+void bootstrap().catch((error) => {
+    disposeShadowAndRouteBridge?.();
+    disposeShadowAndRouteBridge = undefined;
+    globalThis.__fluentReadUserscriptBootstrapped = false;
+    console.error('[FluentRead userscript] 初始化失败', error);
+});

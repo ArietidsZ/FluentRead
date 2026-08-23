@@ -123,6 +123,8 @@ function isAreaTranslationSelection(value: unknown): value is AreaTranslationSel
 type CacheRequestMode = 'single' | 'batch';
 
 const TRANSLATION_CACHE_CLEANUP_ALARM = 'fluentread-translation-cache-cleanup';
+type BrowserAlarm = {name: string};
+type BrowserTabSummary = {id?: number};
 let configPersistQueue: Promise<void> = Promise.resolve();
 const latestConfigSequenceByClient = new Map<string, number>();
 
@@ -614,13 +616,13 @@ async function translateWordCard(card: WordCardData): Promise<WordCardData> {
 
 function setupTranslationCacheCleanup(): void {
     void translationCache.cleanup();
-    browser.alarms.onAlarm.addListener((alarm) => {
+    browser.alarms.onAlarm.addListener((alarm: BrowserAlarm) => {
         if (alarm.name === TRANSLATION_CACHE_CLEANUP_ALARM) {
             void translationCache.cleanup();
         }
     });
 
-    void browser.alarms.get(TRANSLATION_CACHE_CLEANUP_ALARM).then((alarm) => {
+    void browser.alarms.get(TRANSLATION_CACHE_CLEANUP_ALARM).then((alarm: BrowserAlarm | undefined) => {
         if (!alarm) {
             void browser.alarms.create(TRANSLATION_CACHE_CLEANUP_ALARM, {
                 delayInMinutes: 1,
@@ -668,7 +670,7 @@ export default defineBackground({
             if (!isContextMenuSupported || !contextMenusReady) return;
             // contextMenus.update 修改的是全局菜单项。后台标签页的加载或
             // 翻译消息不能覆盖用户当前活动页看到的标题。
-            const activeTabs = await browser.tabs.query({ active: true, lastFocusedWindow: true });
+            const activeTabs = await browser.tabs.query({ active: true, lastFocusedWindow: true }) as BrowserTabSummary[];
             if (!activeTabs.some((tab) => tab.id === tabId)) return;
             // MV3 service worker 重启后内存 Map 会丢失；首次更新时向仍在运行的
             // 内容脚本重新读取状态，避免菜单需要点击两次才能恢复原文。
@@ -706,7 +708,7 @@ export default defineBackground({
                     }
 
                     contextMenusReady = true;
-                    const activeTabs = await browser.tabs.query({ active: true, lastFocusedWindow: true });
+                    const activeTabs = await browser.tabs.query({ active: true, lastFocusedWindow: true }) as BrowserTabSummary[];
                     const activeTab = activeTabs.find((tab) => typeof tab.id === 'number');
                     if (activeTab?.id !== undefined) await updateContextMenus(activeTab.id);
                 })
