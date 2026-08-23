@@ -128,6 +128,12 @@ interface FullPageSession {
     lifecycleRetries: WeakMap<Node, FullPageLifecycleRetry>;
     /** Explicit provider/language no-change decisions, scoped to this full-page session. */
     unchangedCandidates: WeakMap<Node, FullPageLifecycleRetry>;
+    /**
+     * Candidate identities explicitly restored by the user during this full-page
+     * session. The source snapshot lets a real host edit clear the tombstone,
+     * while the extension's own restore mutations keep the segment excluded.
+     */
+    userCancelledCandidates: Map<Node, string>;
     /** Candidate keys currently consuming one of the full-page concurrency slots. */
     inFlightCandidates: Map<Node, TranslationCandidate>;
     /**
@@ -810,6 +816,51 @@ function unregisterSessionStatefulTarget(session: FullPageSession | undefined, t
     }
 }
 
+function rememberUserCancelledCandidate(
+    session: FullPageSession,
+    candidate: TranslationCandidate,
+    target: HTMLElement,
+    state: TranslationState,
+): void {
+    const source = normalizeComparableText(state.sourceText || candidateLifecycleSource(candidate));
+    const remember = (node: Node | null | undefined) => {
+        if (node) session.userCancelledCandidates.set(node, source);
+    };
+
+    // Exact candidates use their element as the key. Synthetic inline runs use
+    // the first source node as the key, so retain every captured source node to
+    // survive the segment unwrap performed by restoreTranslation().
+    remember(getTranslationCandidateKey(candidate));
+    if (!candidate.nodes?.length) remember(candidate.element);
+    state.sourceTextNodes?.forEach((node) => remember(node));
+    state.syntheticSourceNodes?.forEach((node) => remember(node));
+    remember(target);
+}
+
+function isUserCancelledCandidate(
+    session: FullPageSession,
+    candidate: TranslationCandidate,
+): boolean {
+    const source = candidateLifecycleSource(candidate);
+    const identities = [
+        getTranslationCandidateKey(candidate),
+        ...(candidate.nodes ?? []),
+    ];
+    let cancelled = false;
+    identities.forEach((identity) => {
+        const cancelledSource = session.userCancelledCandidates.get(identity);
+        if (cancelledSource === undefined) return;
+        if (cancelledSource === source) {
+            cancelled = true;
+        } else {
+            // The host reused the same DOM node for different content. A
+            // previous user cancellation must not suppress the new source.
+            session.userCancelledCandidates.delete(identity);
+        }
+    });
+    return cancelled;
+}
+
 function registerSessionStatefulTarget(
     session: FullPageSession | undefined,
     candidateOwner: HTMLElement,
@@ -903,12 +954,26 @@ async function translateTarget(
     const statefulSession = owner?.active
         ? owner
         : fullPageSession?.active ? fullPageSession : undefined;
-    const existingNode = candidate.nodes?.length ? null : candidate.element;
+    const existingNode = candidate.nodes?.length
+        ? (() => {
+            const firstSourceNode = candidate.nodes?.[0];
+            let current = firstSourceNode?.parentElement ?? null;
+            while (current) {
+                if (current.matches('[data-fr-translation-segment="true"]') &&
+                    getTranslationState(current)) return current;
+                current = current.parentElement;
+            }
+            return null;
+        })()
+        : candidate.element;
     const current = existingNode ? getTranslationState(existingNode) : undefined;
     if (current?.phase === "loading") return {status: "owned"};
     if (current?.phase === "translated") {
         // 滑动触发只对当前鼠标下的新目标翻译，不在移动过程中反复恢复原文。
         if (!slide && existingNode) {
+            if (statefulSession?.active && fullPageSession === statefulSession) {
+                rememberUserCancelledCandidate(statefulSession, candidate, existingNode, current);
+            }
             unregisterSessionStatefulTarget(statefulSession, existingNode);
             restoreTranslation(existingNode);
         }
@@ -1218,6 +1283,22 @@ function drainFullPage(session: FullPageSession): void {
 function scheduleDiscoveredCandidate(session: FullPageSession, candidate: TranslationCandidate): void {
     const target = asHTMLElement(candidate.element);
     if (!session.active || !target || !target.isConnected) return;
+    const key = getTranslationCandidateKey(candidate);
+    if (isUserCancelledCandidate(session, candidate)) {
+        // The restore mutation that follows an explicit user cancellation is
+        // still observed by the full-page session. Remove any stale queue entry
+        // before dropping the rediscovered candidate, otherwise it can be
+        // reintroduced by a delayed visibility callback.
+        const queuedCandidate = session.scheduled.get(key);
+        if (queuedCandidate) {
+            forgetCandidate(session, queuedCandidate);
+        } else if (session.pending.get(key) === candidate) {
+            session.pending.delete(key);
+            removeCandidateObservation(session, key);
+            scheduleFullPageProgressPublish(session);
+        }
+        return;
+    }
     const targetState = getTranslationState(target);
     if (targetState) {
         // Hover can commit this state before the full-page session exists. Add
@@ -1234,8 +1315,6 @@ function scheduleDiscoveredCandidate(session: FullPageSession, candidate: Transl
         // Explicit source/structure mutations restart them through the observer.
         return;
     }
-    const key = getTranslationCandidateKey(candidate);
-
     const unchanged = session.unchangedCandidates.get(key);
     const cappedRetry = session.lifecycleRetries.get(key);
     if (unchanged || (cappedRetry && cappedRetry.attempts > FULL_PAGE_LIFECYCLE_RETRY_LIMIT)) {
@@ -1938,6 +2017,7 @@ function createFullPageSession(root: HTMLElement): FullPageSession {
         statefulAncestorsByTarget: new WeakMap(),
         lifecycleRetries: new WeakMap(),
         unchangedCandidates: new WeakMap(),
+        userCancelledCandidates: new Map(),
         inFlightCandidates: new Map(),
         translationSlotCache: new Map(),
         draining: false,
@@ -1975,6 +2055,7 @@ function disposeFullPageSession(session: FullPageSession): void {
     session.statefulTargetsByAncestor.clear();
     session.statefulAncestorsByTarget = new WeakMap();
     session.inFlightCandidates.clear();
+    session.userCancelledCandidates.clear();
     session.translationSlotCache.clear();
     session.dirtyRoots.clear();
     session.dirtyRootsBroadMode = false;

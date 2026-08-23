@@ -9,6 +9,13 @@ const runtime = vi.hoisted(() => ({
         nodes?: readonly Node[];
         adapterId?: string;
     }>,
+    pointCandidate: null as {
+        element: HTMLElement;
+        kind: "content";
+        reason: string;
+        nodes?: readonly Node[];
+        adapterId?: string;
+    } | null,
     requests: vi.fn<(origins: readonly string[]) => Promise<string[]>>(async (origins) =>
         origins.map((origin) => `译:${origin}`),
     ),
@@ -136,7 +143,7 @@ vi.mock("@/entrypoints/translation-core/public", () => {
         parseTranslationSlots: () => null,
         resolveTranslationCandidate: (start: Node | null | undefined) =>
             [...runtime.candidates].reverse().find((candidate) => candidate.element === start),
-        resolveTranslationCandidateAtPoint: () => null,
+        resolveTranslationCandidateAtPoint: () => runtime.pointCandidate,
         selectPreferredTranslationCandidate: (
             existing: {element: HTMLElement; adapterId?: string},
             candidate: {element: HTMLElement; adapterId?: string},
@@ -148,6 +155,7 @@ vi.mock("@/entrypoints/translation-core/public", () => {
 import {
     autoTranslateEnglishPage,
     handleBilingualTranslation,
+    handleTranslation,
     isFullPageTranslationActive,
     restoreOriginalContent,
 } from "@/entrypoints/main/trans";
@@ -228,6 +236,7 @@ describe("全文翻译可见性锚点", () => {
     beforeEach(() => {
         vi.useFakeTimers();
         runtime.candidates = [];
+        runtime.pointCandidate = null;
         runtime.requests.mockReset();
         runtime.requests.mockImplementation(async (origins) => origins.map((origin) => `译:${origin}`));
         runtime.retryCallbacks = [];
@@ -275,6 +284,55 @@ describe("全文翻译可见性锚点", () => {
         restoreOriginalContent();
         expect(isFullPageTranslationActive()).toBe(false);
         expect(states).toEqual(["started", "ended"]);
+    });
+
+    it("全文翻译后按 Ctrl 恢复的单段不会被当前全文会话重新排队", async () => {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<p id="prose">Restore only this paragraph.</p>';
+        const paragraph = document.querySelector<HTMLElement>("#prose")!;
+        const candidate = {element: paragraph, kind: "content" as const, reason: "paragraph"};
+        setLayoutBox(paragraph, 640, 90);
+        runtime.candidates = [candidate];
+        runtime.pointCandidate = candidate;
+
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(50);
+        TestIntersectionObserver.instances[0]!.emit(paragraph, true);
+        await finishScheduledWork();
+
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(paragraph.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
+
+        // This is the same path used by the real Control hover trigger. It
+        // restores the current target while leaving the full-page session alive.
+        handleTranslation(20, 20);
+        await finishScheduledWork();
+
+        expect(isFullPageTranslationActive()).toBe(true);
+        expect(getTranslationState(paragraph)).toBeUndefined();
+        expect(paragraph.textContent).toBe("Restore only this paragraph.");
+        expect(paragraph.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(0);
+
+        // The browser delivers the extension restore as a mutation. A rescan
+        // must remember the explicit cancellation instead of translating again.
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: "childList",
+            target: paragraph,
+            addedNodes: [] as unknown as NodeList,
+            removedNodes: [] as unknown as NodeList,
+        } as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(paragraph.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(0);
+
+        // The cancellation is scoped to this session; starting a new full-page
+        // session is still allowed to translate the paragraph again.
+        restoreOriginalContent();
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(50);
+        TestIntersectionObserver.instances.at(-1)!.emit(paragraph, true);
+        await finishScheduledWork();
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
     });
 
     it("候选自身有布局盒时直接观察候选，不改用内部标签", async () => {

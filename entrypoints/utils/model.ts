@@ -201,7 +201,7 @@ export class Config {
         this.tencentSecretKey = ''; // 腾讯云 Secret Key
         this.azureOpenaiEndpoint = ''; // Azure OpenAI 端点地址
         this.animations = true; // 默认启用动画
-        this.translationProgressPanelEnabled = true; // 默认显示全文翻译进度面板
+        this.translationProgressPanelEnabled = false; // 默认关闭全文翻译进度面板
         this.inputBoxTranslationTrigger = 'disabled'; // 默认关闭输入框翻译
         this.inputBoxTranslationTarget = 'en'; // 默认翻译成英文
         this.deepseekApiType = 'auto'; // DeepSeek 默认自动选择 API 格式
@@ -294,7 +294,7 @@ export function normalizeConfig(value: unknown): Config {
     if (typeof source.translationProgressPanelEnabled !== 'boolean') {
         normalized.translationProgressPanelEnabled = typeof legacyTranslationStatus === 'boolean'
             ? legacyTranslationStatus
-            : true;
+            : false;
     }
     delete (normalized as unknown as Record<string, unknown>).translationStatus;
     // __fluentConfigRevision 只用于 storage 的写入顺序判断，不能进入运行时
