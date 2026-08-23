@@ -2,6 +2,7 @@ import { method } from "../utils/constant";
 import { config } from "@/entrypoints/utils/config";
 import CryptoJS from 'crypto-js';
 import {getTranslationLanguages} from "@/entrypoints/utils/translationLanguage";
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 interface YoudaoResponse {
   errorCode: string;
@@ -116,7 +117,7 @@ async function youdao(message: any): Promise<string> {
   });
 
   try {
-    const response = await fetch('https://openapi.youdao.com/api', {
+    const response = await runtimeFetch('https://openapi.youdao.com/api', {
       method: method.POST,
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'

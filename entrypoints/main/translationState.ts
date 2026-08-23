@@ -54,8 +54,9 @@ interface TranslationAttempt {
 }
 
 const states = new WeakMap<HTMLElement, TranslationState>();
-const activeNodeRefs = new Set<WeakRef<HTMLElement>>();
-const activeRefsByNode = new WeakMap<HTMLElement, WeakRef<HTMLElement>>();
+interface ActiveNodeRef<T extends object> { deref(): T | undefined }
+const activeNodeRefs = new Set<ActiveNodeRef<HTMLElement>>();
+const activeRefsByNode = new WeakMap<HTMLElement, ActiveNodeRef<HTMLElement>>();
 const ownersByIndexedNode = new WeakMap<Node, Set<HTMLElement>>();
 const indexedNodesByOwner = new WeakMap<HTMLElement, Set<Node>>();
 
@@ -77,7 +78,12 @@ function forEachActiveNode(callback: (node: HTMLElement, state: TranslationState
 
 function trackActiveNode(node: HTMLElement): void {
     if (activeRefsByNode.has(node)) return;
-    const ref = new WeakRef(node);
+    // Older Android WebViews used by Via may not expose WeakRef. The strong
+    // fallback is still bounded because every completed/restored state removes
+    // its entry from activeNodeRefs in discardTranslation().
+    const ref: ActiveNodeRef<HTMLElement> = typeof WeakRef === 'function'
+        ? new WeakRef(node)
+        : {deref: () => node};
     activeRefsByNode.set(node, ref);
     activeNodeRefs.add(ref);
 }

@@ -1,0 +1,103 @@
+type StorageListener = (nextValue: unknown, previousValue?: unknown) => void;
+
+const listeners = new Map<string, Set<StorageListener>>();
+const memoryFallback = new Map<string, unknown>();
+const observedValues = new Map<string, unknown>();
+let refreshListenersInstalled = false;
+
+function decodeStoredValue(value: unknown): unknown {
+    if (typeof value !== 'string') return value;
+    try {
+        return JSON.parse(value);
+    } catch {
+        // Values from the 2024 userscript were stored as plain strings.
+        return value;
+    }
+}
+
+export async function getStoredValue<T>(key: string): Promise<T | null> {
+    const getValue = globalThis.GM_getValue;
+    if (typeof getValue === 'function') {
+        return decodeStoredValue(await Promise.resolve(getValue<unknown>(key, null))) as T | null;
+    }
+    return (memoryFallback.get(key) ?? null) as T | null;
+}
+
+export async function setStoredValue<T>(key: string, value: T): Promise<void> {
+    const previousValue = await getStoredValue<T>(key);
+    const setValue = globalThis.GM_setValue;
+    if (typeof setValue === 'function') {
+        await Promise.resolve(setValue(key, JSON.stringify(value)));
+    } else {
+        memoryFallback.set(key, value);
+    }
+    observedValues.set(key, value);
+    listeners.get(key)?.forEach((listener) => listener(value, previousValue));
+}
+
+export async function removeStoredValue(key: string): Promise<void> {
+    const previousValue = await getStoredValue(key);
+    const deleteValue = globalThis.GM_deleteValue;
+    if (typeof deleteValue === 'function') {
+        await Promise.resolve(deleteValue(key));
+    } else {
+        memoryFallback.delete(key);
+    }
+    observedValues.set(key, null);
+    listeners.get(key)?.forEach((listener) => listener(null, previousValue));
+}
+
+function comparable(value: unknown): string {
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return String(value);
+    }
+}
+
+async function refreshWatchedValues(): Promise<void> {
+    await Promise.all([...listeners.keys()].map(async (key) => {
+        const previousValue = observedValues.get(key);
+        const nextValue = await getStoredValue(key);
+        if (comparable(previousValue) === comparable(nextValue)) return;
+        observedValues.set(key, nextValue);
+        listeners.get(key)?.forEach((listener) => listener(nextValue, previousValue));
+    }));
+}
+
+function installRefreshListeners(): void {
+    if (refreshListenersInstalled || typeof window === 'undefined') return;
+    refreshListenersInstalled = true;
+    window.addEventListener('focus', () => void refreshWatchedValues());
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') void refreshWatchedValues();
+    });
+}
+
+export const storage = {
+    getItem<T>(key: string): Promise<T | null> {
+        return getStoredValue<T>(key);
+    },
+
+    setItem<T>(key: string, value: T): Promise<void> {
+        return setStoredValue(key, value);
+    },
+
+    removeItem(key: string): Promise<void> {
+        return removeStoredValue(key);
+    },
+
+    watch<T>(key: string, callback: (nextValue: T | null, previousValue?: T | null) => void): () => void {
+        const bucket = listeners.get(key) || new Set<StorageListener>();
+        bucket.add(callback as StorageListener);
+        listeners.set(key, bucket);
+        installRefreshListeners();
+        if (!observedValues.has(key)) {
+            void getStoredValue(key).then((value) => observedValues.set(key, value));
+        }
+        return () => {
+            bucket.delete(callback as StorageListener);
+            if (bucket.size === 0) listeners.delete(key);
+        };
+    },
+};

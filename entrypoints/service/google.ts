@@ -1,5 +1,6 @@
 import {getTranslationLanguages} from "@/entrypoints/utils/translationLanguage";
 import type {TranslationLanguageOverride} from "@/entrypoints/utils/translationLanguage";
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 const GOOGLE_TRANSLATE_RPC_ID = 'MkEWBc';
 const GOOGLE_TRANSLATE_BATCH_URLS = [
@@ -137,7 +138,7 @@ async function fetchGoogleResponse(
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-        const response = await fetch(url, {...init, signal: controller.signal});
+        const response = await runtimeFetch(url, {...init, signal: controller.signal});
         const responseBody = await response.text();
         if (!response.ok) {
             const bodyPreview = formatResponseBody(responseBody);

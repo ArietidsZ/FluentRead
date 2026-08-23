@@ -2,6 +2,7 @@ import {method, urls} from "../utils/constant";
 import {services} from "../utils/option";
 import {config} from "@/entrypoints/utils/config";
 import {getTranslationLanguages} from "@/entrypoints/utils/translationLanguage";
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 async function xiaoniu(message: any) {
     const service = message.serviceOverride || config.service;
@@ -12,7 +13,7 @@ async function xiaoniu(message: any) {
     // 判断是否使用代理
     let url: string = config.proxy[service] ? config.proxy[service] : urls[services.xiaoniu]
 
-    const resp = await fetch(url, {
+    const resp = await runtimeFetch(url, {
         method: method.POST,
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
         body: `from=auto&to=${targetLang}&apikey=${config.token[service]}&src_text=${encodeURIComponent(message.origin)}`

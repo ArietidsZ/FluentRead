@@ -2,6 +2,7 @@ import {method} from "../utils/constant";
 import {geminiMsgTemplate} from "../utils/template";
 import {customModelString} from "../utils/option";
 import {config} from "@/entrypoints/utils/config";
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 
 async function gemini(message: any) {
@@ -13,7 +14,7 @@ async function gemini(message: any) {
     let url: string = config.proxy[service] ?
         config.proxy[service] : `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.token[service]}`;
 
-    const resp = await fetch(url, {
+    const resp = await runtimeFetch(url, {
         method: method.POST,
         headers: {'Content-Type': 'application/json'},
         body: geminiMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage),

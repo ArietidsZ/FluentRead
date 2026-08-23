@@ -5,6 +5,7 @@ import {contentPostHandler} from "@/entrypoints/utils/check";
 import { services } from "../utils/option";
 import { appendOptionalBearer } from './auth';
 import {formatServiceError} from '@/entrypoints/utils/serviceError';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 async function common(message: any) {
     try {
@@ -27,7 +28,7 @@ async function common(message: any) {
                     ? getMimoEndpoint(config.mimoBillingPlan, config.mimoRegion)
                 : urls[service]);
 
-        const resp = await fetch(url, {
+        const resp = await runtimeFetch(url, {
             method: method.POST,
             headers,
             body: commonMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage)

@@ -3,6 +3,7 @@ import {commonMsgTemplate} from "../utils/template";
 import {config} from "@/entrypoints/utils/config";
 import {contentPostHandler} from "@/entrypoints/utils/check";
 import {isApiKeyRequired} from "@/entrypoints/utils/configValidation";
+import {runtimeFetch} from "@/entrypoints/utils/http";
 
 async function azureOpenai(message: any) {
     try {
@@ -26,7 +27,7 @@ async function azureOpenai(message: any) {
         const headers = new Headers({'Content-Type': 'application/json'});
         if (apiKey?.trim()) headers.set('api-key', apiKey.trim());
                 
-        const resp = await fetch(endpoint, {
+        const resp = await runtimeFetch(endpoint, {
             method: method.POST,
             headers,
             body: commonMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage)

@@ -3,6 +3,7 @@ import {commonMsgTemplate} from "../utils/template";
 import {config} from "@/entrypoints/utils/config";
 import {contentPostHandler} from "@/entrypoints/utils/check";
 import { appendOptionalBearer } from './auth';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 /**
  * Grok 服务实现
@@ -17,7 +18,7 @@ async function grok(message: any) {
 
         const url = config.proxy[service] || urls[service];
 
-        const resp = await fetch(url, {
+        const resp = await runtimeFetch(url, {
             method: method.POST,
             headers,
             body: commonMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage)

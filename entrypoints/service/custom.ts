@@ -4,6 +4,7 @@ import {services} from "@/entrypoints/utils/option";
 import {config} from "@/entrypoints/utils/config";
 import {contentPostHandler} from "@/entrypoints/utils/check";
 import {appendOptionalBearer} from './auth';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 async function custom(message: any) {
     const service = message.serviceOverride || services.custom;
@@ -17,7 +18,7 @@ async function custom(message: any) {
     headers.append('Content-Type', 'application/json');
     appendOptionalBearer(headers, config.token[service]);
 
-    const resp = await fetch(url, {
+    const resp = await runtimeFetch(url, {
         method: method.POST,
         headers: headers,
         body: commonMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage)

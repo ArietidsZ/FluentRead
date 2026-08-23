@@ -3,6 +3,7 @@ import {method, tongyiTokenPlanUrl, urls} from "../utils/constant";
 import {tongyiMsgTemplate} from "../utils/template";
 import {config} from "@/entrypoints/utils/config";
 import {appendOptionalBearer} from './auth';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 // 文档：https://help.aliyun.com/zh/dashscope/developer-reference/tongyi-thousand-questions-metering-and-billing
 async function tongyi(message: any) {
@@ -19,7 +20,7 @@ async function tongyi(message: any) {
         : urls[services.tongyi];
     const url: string = config.proxy[service] || officialUrl;
 
-    const resp = await fetch(url, {
+    const resp = await runtimeFetch(url, {
         method: method.POST,
         headers: headers,
         body: tongyiMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage)

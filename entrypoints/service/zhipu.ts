@@ -4,6 +4,7 @@ import {commonMsgTemplate} from "../utils/template";
 import CryptoJS from 'crypto-js';
 import {config, saveConfig} from "@/entrypoints/utils/config";
 import {isApiKeyRequired} from "@/entrypoints/utils/configValidation";
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 
 // 文档参考：https://open.bigmodel.cn/dev/api#nosdk
@@ -29,7 +30,7 @@ async function zhipu(message: any) {
     if (secret) headers.append('Authorization', `Bearer ${secret}`);
 
     // 发起 fetch 请求
-    const resp = await fetch(urls[services.zhipu], {
+    const resp = await runtimeFetch(urls[services.zhipu], {
         method: method.POST,
         headers: headers,
             body: commonMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage)

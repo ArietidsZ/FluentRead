@@ -1,6 +1,7 @@
 import { method } from "../utils/constant";
 import { config } from "@/entrypoints/utils/config";
 import {getTranslationLanguages} from "@/entrypoints/utils/translationLanguage";
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 // 腾讯云机器翻译语言代码映射
 const languageMap: Record<string, string> = {
@@ -127,7 +128,7 @@ async function tencent(message: any) {
         const service = message.serviceOverride || config.service;
         const url = config.proxy[service] || 'https://tmt.tencentcloudapi.com/';
         
-        const response = await fetch(url, {
+        const response = await runtimeFetch(url, {
             method: method.POST,
             headers: {
                 'Content-Type': 'application/json; charset=utf-8',

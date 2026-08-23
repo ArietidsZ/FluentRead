@@ -3,6 +3,7 @@ import {commonMsgTemplate} from "../utils/template";
 import { config } from "@/entrypoints/utils/config";
 import { contentPostHandler } from "@/entrypoints/utils/check";
 import { appendOptionalBearer } from './auth';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 async function newapi(message: any) {
     try {
@@ -27,7 +28,7 @@ async function newapi(message: any) {
             url += '/v1/chat/completions';
         }
 
-        const resp = await fetch(url, {
+        const resp = await runtimeFetch(url, {
             method: method.POST,
             headers,
             body: commonMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage)

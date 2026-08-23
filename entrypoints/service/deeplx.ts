@@ -2,6 +2,7 @@ import {services} from "../utils/option";
 import {config} from "@/entrypoints/utils/config";
 import {getDeepLXEndpoints} from "@/entrypoints/utils/deeplx";
 import {getTranslationLanguages, type TranslationLanguageOverride} from "@/entrypoints/utils/translationLanguage";
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 const DEEPLX_TOTAL_TIMEOUT_MS = 20_000;
 const DEEPLX_ATTEMPT_TIMEOUT_MS = 8_000;
@@ -35,7 +36,7 @@ async function fetchDeepLX(url: string, requestInit: RequestInit, timeoutMs: num
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-        return await fetch(url, {...requestInit, signal: controller.signal});
+        return await runtimeFetch(url, {...requestInit, signal: controller.signal});
     } catch (error) {
         if (controller.signal.aborted) {
             throw new Error(`请求超时（${timeoutMs / 1000} 秒）`);

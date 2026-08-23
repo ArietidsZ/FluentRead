@@ -4,6 +4,7 @@ import { detectlang } from "../utils/common";
 import { mergeCustomBody } from "../utils/custom-body";
 import { services } from "../utils/option";
 import {getTranslationLanguages} from "@/entrypoints/utils/translationLanguage";
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 // 混元翻译大模型支持的语言代码映射
 const languageMap: Record<string, string> = {
@@ -193,7 +194,7 @@ async function hunyuanTranslation(message: any) {
         
         console.log('📤 混元翻译请求:', { url, requestBody, timestamp });
         
-        const response = await fetch(url, {
+        const response = await runtimeFetch(url, {
             method: method.POST,
             headers: {
                 'Content-Type': 'application/json; charset=utf-8',

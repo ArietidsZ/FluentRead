@@ -72,6 +72,8 @@ Use focused settings pages for reading preferences, services and models, shortcu
 
 For a local build, install dependencies with pnpm and load the generated `./.output/chrome-mv3` directory as an unpacked extension. See the [official documentation](https://fluent.thinkstu.com/) for setup and configuration details.
 
+An experimental userscript target for Via, Tampermonkey, and Violentmonkey can be generated with `pnpm build:userscript`. It produces the self-contained `./.output/userscript/fluent-read.user.js`; see the [userscript build guide](./docs/guide/userscript.md) for the supported feature matrix and browser-extension-only limitations.
+
 ## Documentation and community
 
 - [Official documentation](https://fluent.thinkstu.com/) — features, setup, services, shortcuts, and FAQ.
@@ -87,6 +89,7 @@ pnpm dev
 pnpm test
 pnpm compile
 pnpm build
+pnpm build:userscript
 ```
 
 FluentRead uses Vue 3, TypeScript, Element Plus, WXT, and Manifest V3. The project is licensed under [GPL-3.0](./LICENSE).
