@@ -5,6 +5,7 @@ import {
   prepareConfigForImport,
   sanitizeConfigForExport,
 } from '@/entrypoints/utils/config-transfer'
+import { normalizeConfig } from '@/entrypoints/utils/model'
 
 const validConfig = {
   on: true,
@@ -112,5 +113,20 @@ describe('configuration transfer helpers', () => {
     expect(prepared.token.openai).toBe(legacySecret)
     expect(prepared.extra).toEqual({jwt: legacySecret})
     expect(prepared.persistCredentials).toBe(false)
+  })
+
+  it('preserves always-translate site rules through export and normalized import', () => {
+    const exported = sanitizeConfigForExport({
+      ...validConfig,
+      alwaysTranslateDomains: ['https://docs.example.com/guide', 'EXAMPLE.COM', 'news.bbc.co.uk'],
+    })
+
+    expect(exported.alwaysTranslateDomains).toEqual([
+      'https://docs.example.com/guide',
+      'EXAMPLE.COM',
+      'news.bbc.co.uk',
+    ])
+    expect(isConfigImportValid(exported)).toBe(true)
+    expect(normalizeConfig(exported).alwaysTranslateDomains).toEqual(['example.com', 'bbc.co.uk'])
   })
 })

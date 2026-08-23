@@ -2,6 +2,7 @@ import { currentModelIds, defaultModels, defaultOption, services, servicesType }
 import type { MiniMaxBillingPlan, MiniMaxRegion, MiMoBillingPlan, MiMoRegion } from "./option";
 import { normalizeCustomBodyMapping } from "./custom-body";
 import { normalizeSelectionTtsVoiceOrder } from "./selectionTtsConfig";
+import { normalizeAlwaysTranslateDomains } from "./siteRules";
 
 export type DeepSeekApiType = 'auto' | 'responses' | 'chat';
 export type DeepSeekThinkingMode = 'enabled' | 'disabled';
@@ -43,6 +44,7 @@ interface IExtra {
 export class Config {
     on: boolean; // 是否开启
     autoTranslate: boolean; // 是否即时翻译
+    alwaysTranslateDomains: string[]; // 始终自动翻译的可注册域名（eTLD+1）
     from: string;
     to: string;
     hotkey: string;
@@ -114,6 +116,7 @@ export class Config {
     constructor() {
         this.on = true;
         this.autoTranslate = false;
+        this.alwaysTranslateDomains = [];
         this.from = defaultOption.from;
         this.to = defaultOption.to;
         this.style = defaultOption.style;
@@ -357,6 +360,7 @@ export function normalizeConfig(value: unknown): Config {
     normalized.mouseHoverTranslationDelay = normalizeMouseHoverTranslationDelay(
         source.mouseHoverTranslationDelay,
     );
+    normalized.alwaysTranslateDomains = normalizeAlwaysTranslateDomains(source.alwaysTranslateDomains);
 
     if (!['disabled', 'bilingual', 'translation-only'].includes(normalized.selectionTranslatorMode)) {
         normalized.selectionTranslatorMode = 'disabled';

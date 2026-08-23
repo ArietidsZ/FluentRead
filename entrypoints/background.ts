@@ -640,10 +640,39 @@ export default defineBackground({
         let contextMenuEnabled = true;
         let contextMenuSyncQueue: Promise<void> = Promise.resolve();
 
+        const readTabTranslationState = async (tabId: number, force = false): Promise<boolean> => {
+            if (!force && translationStateMap.has(tabId)) {
+                return translationStateMap.get(tabId) === true;
+            }
+
+            try {
+                const response = await browser.tabs.sendMessage(tabId, {
+                    type: 'getFullPageTranslationState',
+                }) as { status?: string; isTranslated?: boolean } | undefined;
+                if (response?.status === 'success') {
+                    const isTranslated = response.isTranslated === true;
+                    translationStateMap.set(tabId, isTranslated);
+                    return isTranslated;
+                }
+            } catch {
+                // 浏览器内部页或尚未注入内容脚本的页面无法查询，按未翻译处理。
+            }
+
+            const fallback = translationStateMap.get(tabId) === true;
+            translationStateMap.set(tabId, fallback);
+            return fallback;
+        };
+
         // 更新右键菜单状态。菜单只有一个入口，标题随当前标签页的全文翻译状态切换。
         const updateContextMenus = async (tabId: number) => {
             if (!isContextMenuSupported || !contextMenusReady) return;
-            const isTranslated = translationStateMap.get(tabId) || false;
+            // contextMenus.update 修改的是全局菜单项。后台标签页的加载或
+            // 翻译消息不能覆盖用户当前活动页看到的标题。
+            const activeTabs = await browser.tabs.query({ active: true, lastFocusedWindow: true });
+            if (!activeTabs.some((tab) => tab.id === tabId)) return;
+            // MV3 service worker 重启后内存 Map 会丢失；首次更新时向仍在运行的
+            // 内容脚本重新读取状态，避免菜单需要点击两次才能恢复原文。
+            const isTranslated = await readTabTranslationState(tabId);
 
             try {
                 await browser.contextMenus.update(CONTEXT_MENU_IDS.TRANSLATE_FULL_PAGE, {
@@ -677,7 +706,7 @@ export default defineBackground({
                     }
 
                     contextMenusReady = true;
-                    const activeTabs = await browser.tabs.query({ active: true });
+                    const activeTabs = await browser.tabs.query({ active: true, lastFocusedWindow: true });
                     const activeTab = activeTabs.find((tab) => typeof tab.id === 'number');
                     if (activeTab?.id !== undefined) await updateContextMenus(activeTab.id);
                 })
@@ -709,17 +738,25 @@ export default defineBackground({
             browser.contextMenus.onClicked.addListener((info: any, tab: any) => {
                 if (!contextMenuEnabled || info.menuItemId !== CONTEXT_MENU_IDS.TRANSLATE_FULL_PAGE || !tab?.id) return;
 
-                const isTranslated = translationStateMap.get(tab.id) || false;
-                browser.tabs.sendMessage(tab.id, {
-                    type: 'contextMenuTranslate',
-                    action: isTranslated ? 'restore' : 'fullPage',
-                }).then((response: any) => {
-                    if (response?.status === 'disabled') return;
-                    translationStateMap.set(tab.id!, !isTranslated);
-                    void updateContextMenus(tab.id!);
-                }).catch((error: any) => {
-                    console.error('Failed to send message to content script:', error);
-                });
+                void (async () => {
+                    try {
+                        // 点击属于用户显式动作，始终读取页面真值，避免后台休眠或
+                        // 消息丢失留下的陈旧状态导致执行相反操作。
+                        const isTranslated = await readTabTranslationState(tab.id, true);
+                        const response = await browser.tabs.sendMessage(tab.id, {
+                            type: 'contextMenuTranslate',
+                            action: isTranslated ? 'restore' : 'fullPage',
+                        }) as { status?: string; isTranslated?: boolean } | undefined;
+                        if (response?.status !== 'success') return;
+                        const nextState = typeof response.isTranslated === 'boolean'
+                            ? response.isTranslated
+                            : !isTranslated;
+                        translationStateMap.set(tab.id, nextState);
+                        await updateContextMenus(tab.id);
+                    } catch (error) {
+                        console.error('Failed to send message to content script:', error);
+                    }
+                })();
             });
         }
 
@@ -728,10 +765,11 @@ export default defineBackground({
             if (isContextMenuSupported) void updateContextMenus(activeInfo.tabId);
         });
 
-        // 监听标签页更新事件（页面刷新等）
+        // 在新导航开始时清理旧文档状态。内容脚本会在 document_end
+        // 上报新文档的真实状态；如果在 complete 再清零，会把始终
+        // 翻译刚上报的 true 覆盖掉。
         browser.tabs.onUpdated.addListener((tabId: any, changeInfo: any) => {
-            if (changeInfo.status === 'complete') {
-                // 页面加载完成，重置翻译状态
+            if (changeInfo.status === 'loading') {
                 translationStateMap.set(tabId, false);
                 if (isContextMenuSupported) void updateContextMenus(tabId);
             }
