@@ -17,7 +17,9 @@ pnpm build:userscript
 
 这是一个经典 IIFE 单文件，metadata 位于文件开头，不使用 CDN `@require`，CSS、图标、Vue 运行时和 FluentRead 翻译核心均已打包。把该文件导入支持 userscript 的脚本管理器即可。不同 Via / Android WebView 版本的导入入口可能不同，请以当前 Via 版本提供的脚本管理界面为准。
 
-userscript 使用独立版本线，首个新版构建为 `2.0.0`。它保留旧脚本的 `@name` 与 `@namespace`，已有的 2024 版 GM 配置会在首次运行时尽量迁移，包括语言、悬浮快捷键、服务、模型、普通 Token、自定义 OpenAI / Ollama 地址和提示词。旧根目录 `userscripts.js` 只作为历史实现参考，不再是新版构建源。
+FluentRead 产品版本与 userscript 更新版本是两个不同概念：设置面板会同时显示当前 `package.json` 产品版本（例如 `0.0.30`）和 userscript 版本；metadata 的 `@version` 使用独立 userscript 版本线，首个新版构建为 `2.0.0`。不能直接把 `@version` 改成 `0.0.30`，否则脚本管理器会把它视为低于旧版 `1.31`。发布 userscript 新版本时应单独递增 `userscriptVersion`，产品版本则继续由 `version` 提供。
+
+新版保留旧脚本的 `@name` 与 `@namespace`。当脚本管理器将新旧版本识别为同一脚本并保留原 GM 存储时，首次运行会尽量迁移 2024 版配置，包括语言、悬浮快捷键、服务、模型、普通 Token、自定义 OpenAI / Ollama 地址和提示词。旧根目录 `userscripts.js` 只作为历史实现参考，不再是新版构建源。
 
 ## 为什么不是 WXT 直接转换
 

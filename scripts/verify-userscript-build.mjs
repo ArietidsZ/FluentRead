@@ -16,6 +16,7 @@ const bootstrapStart = source.indexOf('globalThis.__FLUENTREAD_ICON_DATA__=');
 const assertions = [
   [source.startsWith('// ==UserScript==\n'), 'metadata header must be the first bytes'],
   [source.includes(`// @version      ${packageJson.userscriptVersion}`), 'metadata must use userscriptVersion'],
+  [source.includes(`FluentRead V${packageJson.version} · Userscript V${packageJson.userscriptVersion}`), 'settings must distinguish the FluentRead and userscript versions'],
   [source.includes('// @grant        GM_xmlhttpRequest'), 'GM_xmlhttpRequest grant is required'],
   [source.includes('// @connect      *'), 'provider requests require @connect'],
   [!source.includes('// @require'), 'the artifact must be self-contained'],

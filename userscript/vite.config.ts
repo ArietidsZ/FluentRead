@@ -219,7 +219,8 @@ export default defineConfig({
     },
     define: {
         'process.env.NODE_ENV': JSON.stringify('production'),
-        'process.env.VUE_APP_VERSION': JSON.stringify(packageJson.userscriptVersion),
+        'process.env.VUE_APP_VERSION': JSON.stringify(packageJson.version),
+        'process.env.VUE_APP_USERSCRIPT_VERSION': JSON.stringify(packageJson.userscriptVersion),
     },
     build: {
         outDir: resolve(root, '.output/userscript'),

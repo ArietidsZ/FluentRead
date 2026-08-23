@@ -4,7 +4,7 @@
       <header>
         <div class="brand">
           <img v-if="iconUrl" :src="iconUrl" alt="" />
-          <span><strong id="fr-userscript-settings-title">流畅阅读</strong><small>Userscript · V{{ version }}</small></span>
+          <span><strong id="fr-userscript-settings-title">流畅阅读</strong><small>{{ versionLabel }}</small></span>
         </div>
         <button type="button" class="close" aria-label="关闭设置" @click="close">×</button>
       </header>
@@ -98,7 +98,7 @@ import {getApiKeyRequirementKey, getMissingCredentialMessage, isApiKeyRequired} 
 import {isUserscriptServiceSupported, normalizeUserscriptConfig} from './initialize';
 
 const emit = defineEmits<{close: []}>();
-const version = process.env.VUE_APP_VERSION;
+const versionLabel = `FluentRead V${process.env.VUE_APP_VERSION} · Userscript V${process.env.VUE_APP_USERSCRIPT_VERSION}`;
 const iconUrl = globalThis.__FLUENTREAD_ICON_DATA__ || '';
 const draft = ref(new Config());
 const saving = ref(false);
