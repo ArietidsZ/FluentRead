@@ -5,6 +5,7 @@ import CryptoJS from 'crypto-js';
 import {config} from "@/entrypoints/utils/config";
 import {isApiKeyRequired} from "@/entrypoints/utils/configValidation";
 import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 
 const JWT_CACHE_DURATION_MS = 3600000 * 24;

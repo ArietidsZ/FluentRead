@@ -4,6 +4,7 @@ import {claudeMsgTemplate} from "../utils/template";
 import {config} from "@/entrypoints/utils/config";
 import {appendOptionalHeader} from './auth';
 import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 async function claude(message: any) {
     const service = message.serviceOverride || services.claude;

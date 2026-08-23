@@ -9,6 +9,7 @@
  */
 
 import { readJsonResponse } from './httpError';
+import {runtimeFetch} from './http';
 
 export type WordDictionaryProviderId = 'ecdict-local' | 'youdao-web' | 'free-dictionary' | 'wiktapi' | 'wiktionary-rest' | 'datamuse';
 

@@ -2,6 +2,7 @@ import { method } from "../utils/constant";
 import { config } from "@/entrypoints/utils/config";
 import {getTranslationLanguages} from "@/entrypoints/utils/translationLanguage";
 import {createHttpStatusError, createProviderCodeError, readJsonResponse} from '@/entrypoints/utils/httpError';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 // 腾讯云机器翻译语言代码映射
 const languageMap: Record<string, string> = {

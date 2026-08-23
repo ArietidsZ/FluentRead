@@ -3,6 +3,7 @@ import { config } from "@/entrypoints/utils/config";
 import CryptoJS from 'crypto-js';
 import {getTranslationLanguages} from "@/entrypoints/utils/translationLanguage";
 import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 interface YoudaoResponse {
   errorCode: string;

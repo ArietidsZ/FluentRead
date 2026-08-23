@@ -3,6 +3,7 @@ import {services} from "../utils/option";
 import {config} from "@/entrypoints/utils/config";
 import {getTranslationLanguages} from "@/entrypoints/utils/translationLanguage";
 import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 async function deepl(message: any) {
     const service = message.serviceOverride || config.service;

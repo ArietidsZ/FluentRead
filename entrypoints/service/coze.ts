@@ -3,6 +3,7 @@ import {cozeTemplate} from "@/entrypoints/utils/template";
 import {config} from "@/entrypoints/utils/config";
 import {appendOptionalBearer} from './auth';
 import {createHttpStatusError, createProviderCodeError, readJsonResponse} from '@/entrypoints/utils/httpError';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 async function coze( message: any) {
     const service = message.serviceOverride || config.service;

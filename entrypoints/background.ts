@@ -1,3 +1,4 @@
+import {_service} from "@/entrypoints/service/_service";
 import {translateMicrosoftTexts} from "@/entrypoints/service/microsoft";
 import {
     applyConfigHistoryAction,
@@ -9,14 +10,15 @@ import {
     saveConfig,
     subscribeConfig,
 } from "@/entrypoints/utils/config";
-import {CONNECTION_TEST_MESSAGE, CONTEXT_MENU_IDS} from "@/entrypoints/utils/constant";
+import {CONNECTION_TEST_MESSAGE, CONTEXT_MENU_IDS, getMimoEndpoint, MINIMAX_ENDPOINTS} from "@/entrypoints/utils/constant";
+import {getMissingCredentialMessage} from "@/entrypoints/utils/configValidation";
+import {resolveConfiguredModel, services, servicesType} from "@/entrypoints/utils/option";
 import {synthesizeEdgeTts} from "@/entrypoints/utils/edgeTts";
 import {lookupWord, type WordCardData} from "@/entrypoints/utils/wordDictionary";
 import {
-    cleanupTranslationCache,
-    clearTranslationCache,
-    translateWithCache,
-} from "@/entrypoints/utils/translationBroker";
+    buildTranslationCacheKey,
+    translationCache,
+} from "@/entrypoints/utils/translationCache";
 import {
     downloadImageOcrLanguagesWithOffscreen,
     playSelectionTtsWithOffscreen,
@@ -31,6 +33,7 @@ import {
     runTranslationServiceConnectionTest,
 } from "@/entrypoints/service/connection-test";
 import type { AreaTranslationSelection } from "@/entrypoints/utils/areaTranslationCore";
+import {buildPageSummaryPrompt, buildPageSummarySystemPrompt} from "@/entrypoints/utils/template";
 import {
     getRequiredImageOcrLanguages,
     IMAGE_OCR_LANGUAGE_PACKS,
@@ -117,7 +120,11 @@ function isAreaTranslationSelection(value: unknown): value is AreaTranslationSel
         && Number(selection.viewportHeight) > 0;
 }
 
+type CacheRequestMode = 'single' | 'batch';
+
 const TRANSLATION_CACHE_CLEANUP_ALARM = 'fluentread-translation-cache-cleanup';
+type BrowserAlarm = {name: string};
+type BrowserTabSummary = {id?: number};
 let configPersistQueue: Promise<void> = Promise.resolve();
 const latestConfigSequenceByClient = new Map<string, number>();
 
@@ -608,14 +615,14 @@ async function translateWordCard(card: WordCardData): Promise<WordCardData> {
 }
 
 function setupTranslationCacheCleanup(): void {
-    void cleanupTranslationCache();
-    browser.alarms.onAlarm.addListener((alarm: {name?: string}) => {
+    void translationCache.cleanup();
+    browser.alarms.onAlarm.addListener((alarm: BrowserAlarm) => {
         if (alarm.name === TRANSLATION_CACHE_CLEANUP_ALARM) {
-            void cleanupTranslationCache();
+            void translationCache.cleanup();
         }
     });
 
-    void browser.alarms.get(TRANSLATION_CACHE_CLEANUP_ALARM).then((alarm: {name?: string} | undefined) => {
+    void browser.alarms.get(TRANSLATION_CACHE_CLEANUP_ALARM).then((alarm: BrowserAlarm | undefined) => {
         if (!alarm) {
             void browser.alarms.create(TRANSLATION_CACHE_CLEANUP_ALARM, {
                 delayInMinutes: 1,
@@ -663,7 +670,7 @@ export default defineBackground({
             if (!isContextMenuSupported || !contextMenusReady) return;
             // contextMenus.update 修改的是全局菜单项。后台标签页的加载或
             // 翻译消息不能覆盖用户当前活动页看到的标题。
-            const activeTabs = await browser.tabs.query({ active: true, lastFocusedWindow: true });
+            const activeTabs = await browser.tabs.query({ active: true, lastFocusedWindow: true }) as BrowserTabSummary[];
             if (!activeTabs.some((tab) => tab.id === tabId)) return;
             // MV3 service worker 重启后内存 Map 会丢失；首次更新时向仍在运行的
             // 内容脚本重新读取状态，避免菜单需要点击两次才能恢复原文。
@@ -701,7 +708,7 @@ export default defineBackground({
                     }
 
                     contextMenusReady = true;
-                    const activeTabs = await browser.tabs.query({ active: true, lastFocusedWindow: true });
+                    const activeTabs = await browser.tabs.query({ active: true, lastFocusedWindow: true }) as BrowserTabSummary[];
                     const activeTab = activeTabs.find((tab) => typeof tab.id === 'number');
                     if (activeTab?.id !== undefined) await updateContextMenus(activeTab.id);
                 })
@@ -945,7 +952,8 @@ export default defineBackground({
                     }
 
                     if (message.type === 'clearTranslationCache') {
-                        await clearTranslationCache();
+                        await translationCache.clear();
+                        pageSummaryCache.clear();
                         resolve({ success: true });
                         return;
                     }

@@ -8,6 +8,7 @@
 
 import { normalizeSelectionTtsVoiceOrder, selectionTtsVoiceLocale } from './selectionTtsConfig';
 import { readJsonResponse } from './httpError';
+import {runtimeFetch} from './http';
 
 export interface EdgeTtsAudio {
   audio: ArrayBuffer;

@@ -4,6 +4,7 @@ import {tongyiMsgTemplate} from "../utils/template";
 import {config} from "@/entrypoints/utils/config";
 import {appendOptionalBearer} from './auth';
 import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 // 文档：https://help.aliyun.com/zh/dashscope/developer-reference/tongyi-thousand-questions-metering-and-billing
 async function tongyi(message: any) {
