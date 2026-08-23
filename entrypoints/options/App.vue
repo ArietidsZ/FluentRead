@@ -28,9 +28,9 @@
     <main class="workspace">
       <header class="topbar">
         <div>
-          <span class="eyebrow">{{ activeItem.group }}</span>
-          <h1>{{ activeItem.heading }}</h1>
-          <p>{{ activeItem.summary }}</p>
+          <span class="eyebrow">{{ activeItem.kicker }}</span>
+          <h1>{{ activeItem.title }}</h1>
+          <p>{{ activeItem.detail }}</p>
         </div>
         <label class="search-box">
           <span aria-hidden="true">⌕</span>
