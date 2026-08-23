@@ -157,6 +157,15 @@ describe('右键全文翻译配置', () => {
     });
 });
 
+describe('全文翻译范围配置', () => {
+    it('默认按阅读进度翻译，并保留立即翻译整页的选择', () => {
+        expect(new Config().fullPageTranslationMode).toBe('viewport');
+        expect(normalizeConfig({}).fullPageTranslationMode).toBe('viewport');
+        expect(normalizeConfig({fullPageTranslationMode: 'all'}).fullPageTranslationMode).toBe('all');
+        expect(normalizeConfig({fullPageTranslationMode: 'invalid'}).fullPageTranslationMode).toBe('viewport');
+    });
+});
+
 describe('鼠标悬浮翻译延迟配置', () => {
     it('默认保留现有 50ms 行为，并归一化用户设置', () => {
         expect(new Config().mouseHoverTranslationDelay).toBe(DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY);
