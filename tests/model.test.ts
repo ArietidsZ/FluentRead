@@ -174,12 +174,12 @@ describe('全文翻译范围配置', () => {
 });
 
 describe('翻译进度面板配置', () => {
-    it('默认开启，并严格保留布尔设置', () => {
-        expect(new Config().translationProgressPanelEnabled).toBe(true);
-        expect(normalizeConfig({}).translationProgressPanelEnabled).toBe(true);
+    it('默认关闭，并保留用户主动启用的状态', () => {
+        expect(new Config().translationProgressPanelEnabled).toBe(false);
+        expect(normalizeConfig({}).translationProgressPanelEnabled).toBe(false);
         expect(normalizeConfig({translationProgressPanelEnabled: true}).translationProgressPanelEnabled).toBe(true);
         expect(normalizeConfig({translationProgressPanelEnabled: false}).translationProgressPanelEnabled).toBe(false);
-        expect(normalizeConfig({translationProgressPanelEnabled: 'false'}).translationProgressPanelEnabled).toBe(true);
+        expect(normalizeConfig({translationProgressPanelEnabled: 'false'}).translationProgressPanelEnabled).toBe(false);
     });
 
     it('迁移旧 translationStatus 布尔值并移除旧字段', () => {
