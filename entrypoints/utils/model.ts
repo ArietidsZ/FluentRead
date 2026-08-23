@@ -15,6 +15,10 @@ export const DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY = 50;
 export const MOUSE_HOVER_TRANSLATION_DELAY_MIN = 0;
 export const MOUSE_HOVER_TRANSLATION_DELAY_MAX = 2000;
 export const MOUSE_HOVER_TRANSLATION_DELAY_STEP = 10;
+export const DEFAULT_SELECTION_TRANSLATOR_DELAY = 300;
+export const SELECTION_TRANSLATOR_DELAY_MIN = 0;
+export const SELECTION_TRANSLATOR_DELAY_MAX = 2000;
+export const SELECTION_TRANSLATOR_DELAY_STEP = 50;
 
 export function normalizeVideoSubtitleFontSize(value: unknown): number {
     const number = typeof value === 'number' ? value : Number(value);
@@ -29,6 +33,20 @@ export function normalizeMouseHoverTranslationDelay(value: unknown): number {
     return Math.min(
         MOUSE_HOVER_TRANSLATION_DELAY_MAX,
         Math.max(MOUSE_HOVER_TRANSLATION_DELAY_MIN, rounded),
+    );
+}
+
+export function normalizeSelectionTranslatorDelay(value: unknown): number {
+    const number = typeof value === 'number'
+        ? value
+        : typeof value === 'string' && value.trim() !== ''
+            ? Number(value)
+            : Number.NaN;
+    if (!Number.isFinite(number)) return DEFAULT_SELECTION_TRANSLATOR_DELAY;
+    const rounded = Math.round(number / SELECTION_TRANSLATOR_DELAY_STEP) * SELECTION_TRANSLATOR_DELAY_STEP;
+    return Math.min(
+        SELECTION_TRANSLATOR_DELAY_MAX,
+        Math.max(SELECTION_TRANSLATOR_DELAY_MIN, rounded),
     );
 }
 
@@ -93,7 +111,10 @@ export class Config {
     disableImageTranslator: boolean; // 是否禁用图片翻译
     deeplx: string; // DeepLX 服务地址
     selectionTranslatorMode: string; // 划词翻译显示模式: 'disabled' | 'bilingual' | 'translation-only'
-    selectionTranslatorTrigger: string; // 划词翻译触发方式: 'direct' | 'icon' | 'dot'
+    selectionTranslatorTrigger: string; // 划词翻译互斥触发方式: 'direct' | 'icon' | 'dot' | 'Control' | 'Alt' | 'Shift' | 'custom'
+    selectionTranslatorHotkey: string; // 旧版快捷键字段；与 selectionTranslatorTrigger 中的快捷键选项保持镜像
+    customSelectionTranslatorHotkey: string; // 自定义划词翻译快捷键
+    selectionTranslatorDelay: number; // 选区稳定后显示划词翻译入口的延迟（毫秒）
     selectionTtsVoices: string[]; // 划词朗读的 Edge TTS 音色回退顺序
     newApiUrl: string; // NewAPI地址
     maxConcurrentTranslations: number; // 最大并发翻译数量
@@ -166,6 +187,9 @@ export class Config {
         this.deeplx = defaultOption.deeplx; // DeepLX 默认服务地址
         this.selectionTranslatorMode = 'disabled'; // 默认关闭划词翻译
         this.selectionTranslatorTrigger = 'icon'; // 默认显示可发现的操作图标
+        this.selectionTranslatorHotkey = 'none'; // 默认不增加额外快捷键，保持原有划词行为
+        this.customSelectionTranslatorHotkey = ''; // 自定义划词翻译快捷键为空
+        this.selectionTranslatorDelay = DEFAULT_SELECTION_TRANSLATOR_DELAY;
         this.selectionTtsVoices = []; // 默认按当前语言使用内置音色回退顺序
         this.newApiUrl = DEFAULT_NEW_API_URL; // NewAPI 默认地址
         this.maxConcurrentTranslations = 6; // 默认最大并发数为6
@@ -365,8 +389,38 @@ export function normalizeConfig(value: unknown): Config {
     if (!['disabled', 'bilingual', 'translation-only'].includes(normalized.selectionTranslatorMode)) {
         normalized.selectionTranslatorMode = 'disabled';
     }
-    if (!['direct', 'icon', 'dot'].includes(normalized.selectionTranslatorTrigger)) {
+    const selectionTriggerValues = ['direct', 'icon', 'dot', 'Control', 'Alt', 'Shift', 'custom'];
+    const selectionShortcutValues = ['Control', 'Alt', 'Shift', 'custom'];
+    const hasExplicitSelectionTrigger = typeof source.selectionTranslatorTrigger === 'string'
+        && selectionTriggerValues.includes(source.selectionTranslatorTrigger);
+    if (!selectionTriggerValues.includes(normalized.selectionTranslatorTrigger)) {
         normalized.selectionTranslatorTrigger = 'icon';
+    }
+    if (!['none', 'Control', 'Alt', 'Shift', 'custom'].includes(normalized.selectionTranslatorHotkey)) {
+        normalized.selectionTranslatorHotkey = 'none';
+    }
+    if (typeof normalized.customSelectionTranslatorHotkey !== 'string') {
+        normalized.customSelectionTranslatorHotkey = '';
+    }
+    normalized.selectionTranslatorDelay = normalizeSelectionTranslatorDelay(
+        source.selectionTranslatorDelay,
+    );
+    // 兼容上一版“触发方式 + 可选快捷键”配置，并将最终状态收敛为单一触发方式。
+    if (!hasExplicitSelectionTrigger
+        && ['direct', 'icon', 'dot'].includes(normalized.selectionTranslatorTrigger)
+        && normalized.selectionTranslatorHotkey !== 'none') {
+        normalized.selectionTranslatorTrigger = normalized.selectionTranslatorHotkey;
+    }
+    if (selectionShortcutValues.includes(normalized.selectionTranslatorTrigger)) {
+        if (normalized.selectionTranslatorTrigger === 'custom'
+            && (!normalized.customSelectionTranslatorHotkey.trim() || normalized.customSelectionTranslatorHotkey === 'none')) {
+            normalized.selectionTranslatorTrigger = 'icon';
+            normalized.selectionTranslatorHotkey = 'none';
+        } else {
+            normalized.selectionTranslatorHotkey = normalized.selectionTranslatorTrigger;
+        }
+    } else {
+        normalized.selectionTranslatorHotkey = 'none';
     }
     normalized.selectionTtsVoices = normalizeSelectionTtsVoiceOrder(normalized.selectionTtsVoices);
     normalized.disableSelectionTranslator = normalized.selectionTranslatorMode === 'disabled';

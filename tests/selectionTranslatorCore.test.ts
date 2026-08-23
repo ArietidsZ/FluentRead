@@ -2,12 +2,15 @@ import { describe, expect, it, vi } from 'vitest';
 import {
     calculateSelectionPopupPosition,
     chooseSelectionRect,
+    getSelectionPresentationDelayRemaining,
     isSameLanguage,
     isSelectionExcludedTagName,
     normalizeSelectionText,
     normalizeSpeechLanguage,
+    reconcileSelectionPresentation,
 } from '@/entrypoints/utils/selectionTranslatorCore';
 import { buildEdgeTtsSsml, edgeTtsVoiceCandidatesForLanguage, edgeTtsVoiceForLanguage, synthesizeEdgeTts } from '@/entrypoints/utils/edgeTts';
+import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey, shouldClaimConfiguredHotkey } from '@/entrypoints/utils/hotkey';
 import { normalizeSelectionTtsVoiceOrder } from '@/entrypoints/utils/selectionTtsConfig';
 
 describe('selection translator core geometry', () => {
@@ -35,6 +38,29 @@ describe('selection translator core geometry', () => {
             top: 52,
             placement: 'bottom',
         });
+    });
+});
+
+describe('selection translator presentation stability', () => {
+    it('keeps a live delay change anchored to the original selection time', () => {
+        expect(getSelectionPresentationDelayRemaining(300, 1_000, 1_120)).toBe(180);
+        expect(getSelectionPresentationDelayRemaining(100, 1_000, 1_120)).toBe(0);
+        expect(getSelectionPresentationDelayRemaining(300, 1_000, 900)).toBe(300);
+    });
+
+    it('preserves an explicitly opened tooltip across unrelated config refreshes', () => {
+        const openTooltip = {showIndicator: false, showTooltip: true};
+        expect(reconcileSelectionPresentation(openTooltip, 'shortcut', false)).toBe(openTooltip);
+        expect(reconcileSelectionPresentation(openTooltip, 'icon', false)).toBe(openTooltip);
+        expect(reconcileSelectionPresentation(openTooltip, 'dot', false)).toBe(openTooltip);
+    });
+
+    it('updates presentation only when the configured trigger actually changes', () => {
+        const openTooltip = {showIndicator: false, showTooltip: true};
+        expect(reconcileSelectionPresentation(openTooltip, 'direct', true)).toEqual({showIndicator: false, showTooltip: true});
+        expect(reconcileSelectionPresentation(openTooltip, 'icon', true)).toEqual({showIndicator: true, showTooltip: false});
+        expect(reconcileSelectionPresentation(openTooltip, 'dot', true)).toEqual({showIndicator: true, showTooltip: false});
+        expect(reconcileSelectionPresentation(openTooltip, 'shortcut', true)).toEqual({showIndicator: false, showTooltip: false});
     });
 });
 
@@ -136,5 +162,45 @@ describe('selection translator text and speech language normalization', () => {
         const ssml = buildEdgeTtsSsml('A < B & C', 'en-US-AvaMultilingualNeural');
         expect(ssml).toContain('A &lt; B &amp; C');
         expect(ssml).not.toContain('A < B & C');
+    });
+
+    it('resolves preset and custom selection shortcuts consistently', () => {
+        expect(resolveConfiguredHotkey('Control', 'Ctrl+Shift+Y')).toBe('Control');
+        expect(resolveConfiguredHotkey('custom', ' Ctrl+Shift+Y ')).toBe('Ctrl+Shift+Y');
+        expect(resolveConfiguredHotkey('none', 'Ctrl+Shift+Y')).toBe('none');
+        expect(resolveConfiguredHotkey('custom', ' ')).toBe('');
+
+        const modifierCases = [
+            ['Control', {key: 'Control', ctrlKey: true, altKey: false, shiftKey: false, metaKey: false}],
+            ['Alt', {key: 'Alt', ctrlKey: false, altKey: true, shiftKey: false, metaKey: false}],
+            ['Shift', {key: 'Shift', ctrlKey: false, altKey: false, shiftKey: true, metaKey: false}],
+        ] as const;
+        for (const [hotkey, event] of modifierCases) {
+            expect(matchesModifierOnlyHotkey(event, hotkey)).toBe(true);
+            expect(matchesConfiguredHotkey(event as KeyboardEvent, hotkey)).toBe(true);
+        }
+
+        const controlWithExtraModifier = {key: 'Control', ctrlKey: true, altKey: true, shiftKey: false, metaKey: false} as KeyboardEvent;
+        expect(matchesConfiguredHotkey(controlWithExtraModifier, 'Control')).toBe(false);
+        expect(matchesConfiguredHotkey(controlWithExtraModifier, 'none')).toBe(false);
+    });
+
+    it('matches custom selection combinations without accepting extra modifiers', () => {
+        const shortcut = {key: 'y', code: 'KeyY', ctrlKey: true, altKey: false, shiftKey: true, metaKey: false} as KeyboardEvent;
+        const extraModifier = {...shortcut, altKey: true} as KeyboardEvent;
+        expect(matchesConfiguredHotkey(shortcut, 'custom', 'Ctrl+Shift+Y')).toBe(true);
+        expect(matchesConfiguredHotkey(extraModifier, 'custom', 'Ctrl+Shift+Y')).toBe(false);
+        expect(matchesConfiguredHotkey(shortcut, 'none', 'Ctrl+Shift+Y')).toBe(false);
+    });
+
+    it('does not inspect selection geometry for unrelated keyboard input', () => {
+        const hasCandidate = vi.fn(() => true);
+        const unrelated = {key: 'x', code: 'KeyX', ctrlKey: false, altKey: false, shiftKey: false, metaKey: false} as KeyboardEvent;
+        const control = {key: 'Control', code: 'ControlLeft', ctrlKey: true, altKey: false, shiftKey: false, metaKey: false} as KeyboardEvent;
+
+        expect(shouldClaimConfiguredHotkey(unrelated, 'Control', '', hasCandidate)).toBe(false);
+        expect(hasCandidate).not.toHaveBeenCalled();
+        expect(shouldClaimConfiguredHotkey(control, 'Control', '', hasCandidate)).toBe(true);
+        expect(hasCandidate).toHaveBeenCalledTimes(1);
     });
 });

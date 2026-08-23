@@ -308,7 +308,7 @@
           </span>
         </el-tooltip>
       </el-col>
-      <el-col :span="10" class="settings-control-field flex-end hover-delay-field">
+      <el-col :span="10" class="settings-control-field flex-end translation-delay-field">
         <el-input-number
           v-model="config.mouseHoverTranslationDelay"
           aria-label="悬浮翻译延迟"
@@ -410,7 +410,7 @@
     <!-- 划词翻译模式选择 -->
     <el-row v-if="config.on" class="settings-control-row">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="选中文本后显示翻译入口；不再依赖鼠标悬停，可选择直接弹出、显示图标或显示小点" placement="top-start" :show-after="500">
+        <el-tooltip class="box-item" effect="dark" content="选中文本后显示翻译入口；可选择直接弹出、图标、小点、预设快捷键或自定义快捷键。" placement="top-start" :show-after="500">
       <span class="popup-text popup-vertical-left">
         划词翻译
         <el-icon class="icon-margin">
@@ -427,16 +427,54 @@
         </el-select>
       </el-col>
     </el-row>
-    <el-row v-if="config.on && config.selectionTranslatorMode !== 'disabled'" class="settings-control-row">
+    <el-row v-if="config.on && config.selectionTranslatorMode !== 'disabled'" class="settings-control-row" :class="{ 'custom-hotkey-row': config.selectionTranslatorTrigger === 'custom' }">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
-        <span class="popup-text popup-vertical-left">划词触发方式</span>
+        <el-tooltip class="box-item" effect="dark" content="快捷键与直接弹出、显示图标和显示小点是并列的触发方式；选择快捷键后，选中文字时不会显示图标或小点。" placement="top-start" :show-after="500">
+          <span class="popup-text popup-vertical-left">
+            划词触发方式
+            <el-icon class="icon-margin"><InfoFilled /></el-icon>
+          </span>
+        </el-tooltip>
       </el-col>
       <el-col :span="10" class="settings-control-field flex-end">
-        <el-select v-model="config.selectionTranslatorTrigger" aria-label="划词翻译触发方式" placeholder="选择触发方式" size="small" style="width: 100%">
-          <el-option label="直接弹出" value="direct" />
-          <el-option label="显示图标" value="icon" />
-          <el-option label="显示小点" value="dot" />
-        </el-select>
+        <div class="hotkey-config">
+          <el-select v-model="config.selectionTranslatorTrigger" aria-label="划词翻译触发方式" placeholder="选择触发方式" size="small" style="width: 100%" @change="handleSelectionTriggerChange">
+            <el-option v-for="item in options.selectionTranslatorTriggers" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+          <div v-if="config.selectionTranslatorTrigger === 'custom'" class="custom-hotkey-display">
+            <span class="hotkey-text" v-if="config.customSelectionTranslatorHotkey">
+              {{ getCustomSelectionHotkeyDisplayName() }}
+            </span>
+            <span class="hotkey-text placeholder-text" v-else>
+              点击设置自定义快捷键
+            </span>
+            <el-button size="small" type="text" @click="openCustomSelectionHotkeyDialog" class="edit-button">
+              <el-icon><Edit /></el-icon>
+            </el-button>
+          </div>
+        </div>
+      </el-col>
+    </el-row>
+    <el-row v-if="config.on && config.selectionTranslatorMode !== 'disabled'" class="settings-control-row">
+      <el-col :span="14" class="settings-control-label lightblue rounded-corner">
+        <el-tooltip class="box-item" effect="dark" content="从选区稳定后开始计时，再显示图标、小点或翻译面板；快捷键在等待结束后按下会立即显示。" placement="top-start" :show-after="500">
+          <span class="popup-text popup-vertical-left">
+            划词显示延迟
+            <el-icon class="icon-margin"><InfoFilled /></el-icon>
+          </span>
+        </el-tooltip>
+      </el-col>
+      <el-col :span="10" class="settings-control-field flex-end translation-delay-field">
+        <el-input-number
+          v-model="config.selectionTranslatorDelay"
+          aria-label="划词翻译显示延迟"
+          :min="SELECTION_TRANSLATOR_DELAY_MIN"
+          :max="SELECTION_TRANSLATOR_DELAY_MAX"
+          :step="SELECTION_TRANSLATOR_DELAY_STEP"
+          controls-position="right"
+          @change="handleSelectionTranslatorDelayChange"
+        />
+        <span class="input-suffix">ms</span>
       </el-col>
     </el-row>
     </section>
@@ -444,7 +482,6 @@
     <!-- token -->
     <!-- 高级选项-->
     <section v-show="props.activeSection === 'settings-advanced'" id="settings-advanced" class="settings-section">
-
         <!-- 主题设置 -->
         <el-row class="settings-control-row">
           <el-col :span="12" class="settings-control-label lightblue rounded-corner">
@@ -790,6 +827,12 @@
     @confirm="handleCustomMouseHotkeyConfirm"
     @cancel="handleCustomMouseHotkeyCancel"
   />
+  <CustomHotkeyInput
+    v-model="showCustomSelectionHotkeyDialog"
+    :current-value="config.customSelectionTranslatorHotkey"
+    @confirm="handleCustomSelectionHotkeyConfirm"
+    @cancel="handleCustomSelectionHotkeyCancel"
+  />
 
 
 
@@ -805,9 +848,13 @@ import {
   MOUSE_HOVER_TRANSLATION_DELAY_MAX,
   MOUSE_HOVER_TRANSLATION_DELAY_MIN,
   MOUSE_HOVER_TRANSLATION_DELAY_STEP,
+  SELECTION_TRANSLATOR_DELAY_MAX,
+  SELECTION_TRANSLATOR_DELAY_MIN,
+  SELECTION_TRANSLATOR_DELAY_STEP,
   VIDEO_SUBTITLE_FONT_SIZE_OPTIONS,
   normalizeConfig,
   normalizeMouseHoverTranslationDelay,
+  normalizeSelectionTranslatorDelay,
 } from "@/entrypoints/utils/model";
 import { InfoFilled, Refresh, Edit, Upload, Download } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -1170,6 +1217,7 @@ const handlePluginStateChange = (val: boolean) => {
 // 自定义快捷键相关
 const showCustomHotkeyDialog = ref(false);
 const showCustomMouseHotkeyDialog = ref(false);
+const showCustomSelectionHotkeyDialog = ref(false);
 
 // 处理快捷键选择变化
 const handleHotkeyChange = (value: string) => {
@@ -1234,6 +1282,51 @@ const handleMouseHotkeyChange = (value: string) => {
   }
 };
 
+// 处理划词翻译触发方式选择变化
+const handleSelectionTriggerChange = (value: string) => {
+  config.value.selectionTranslatorHotkey = ['Control', 'Alt', 'Shift', 'custom'].includes(value) ? value : 'none';
+  if (value === 'custom' && !config.value.customSelectionTranslatorHotkey) {
+    setTimeout(() => {
+      openCustomSelectionHotkeyDialog();
+    }, 100);
+  }
+};
+
+// 打开自定义划词翻译快捷键对话框
+const openCustomSelectionHotkeyDialog = () => {
+  showCustomSelectionHotkeyDialog.value = true;
+};
+
+// 确认自定义划词翻译快捷键
+const handleCustomSelectionHotkeyConfirm = (hotkey: string) => {
+  config.value.customSelectionTranslatorHotkey = hotkey;
+  config.value.selectionTranslatorTrigger = 'custom';
+  config.value.selectionTranslatorHotkey = 'custom';
+
+  ElMessage({
+    message: hotkey === 'none' ? '已禁用划词翻译快捷键' : `划词翻译快捷键已设置为: ${getCustomSelectionHotkeyDisplayName()}`,
+    type: 'success',
+    duration: 2000,
+  });
+};
+
+// 取消自定义划词翻译快捷键
+const handleCustomSelectionHotkeyCancel = () => {
+  if (!config.value.customSelectionTranslatorHotkey) {
+    config.value.selectionTranslatorTrigger = 'icon';
+    config.value.selectionTranslatorHotkey = 'none';
+  }
+};
+
+// 获取自定义划词翻译快捷键显示名称
+const getCustomSelectionHotkeyDisplayName = () => {
+  if (!config.value.customSelectionTranslatorHotkey) return '';
+  if (config.value.customSelectionTranslatorHotkey === 'none') return '已禁用';
+
+  const parsed = parseHotkey(config.value.customSelectionTranslatorHotkey);
+  return parsed.isValid ? parsed.displayName : config.value.customSelectionTranslatorHotkey;
+};
+
 // 打开自定义鼠标悬浮快捷键对话框
 const openCustomMouseHotkeyDialog = () => {
   showCustomMouseHotkeyDialog.value = true;
@@ -1261,6 +1354,10 @@ const handleCustomMouseHotkeyCancel = () => {
 
 const handleMouseHoverTranslationDelayChange = (value: number | undefined) => {
   config.value.mouseHoverTranslationDelay = normalizeMouseHoverTranslationDelay(value);
+};
+
+const handleSelectionTranslatorDelayChange = (value: number | undefined) => {
+  config.value.selectionTranslatorDelay = normalizeSelectionTranslatorDelay(value);
 };
 
 // 获取自定义鼠标悬浮快捷键显示名称
@@ -1819,12 +1916,12 @@ const saveImport = async () => {
   justify-content: flex-end;
 }
 
-.hover-delay-field {
+.translation-delay-field {
   align-items: center;
   gap: 6px;
 }
 
-.hover-delay-field :deep(.el-input-number) {
+.translation-delay-field :deep(.el-input-number) {
   width: 100%;
 }
 
