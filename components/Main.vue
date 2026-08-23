@@ -294,7 +294,7 @@
           </span>
         </el-tooltip>
       </el-col>
-      <el-col :span="10" class="settings-control-field flex-end hover-delay-field">
+      <el-col :span="10" class="settings-control-field flex-end translation-delay-field">
         <el-input-number
           v-model="config.mouseHoverTranslationDelay"
           aria-label="悬浮翻译延迟"
@@ -370,7 +370,7 @@
     <!-- 划词翻译模式选择 -->
     <el-row v-if="config.on" class="settings-control-row">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="选中文本后显示翻译入口；不再依赖鼠标悬停，可选择直接弹出、显示图标或显示小点" placement="top-start" :show-after="500">
+        <el-tooltip class="box-item" effect="dark" content="选中文本后显示翻译入口；可选择直接弹出、图标、小点、预设快捷键或自定义快捷键。" placement="top-start" :show-after="500">
       <span class="popup-text popup-vertical-left">
         划词翻译
         <el-icon class="icon-margin">
@@ -413,6 +413,28 @@
             </el-button>
           </div>
         </div>
+      </el-col>
+    </el-row>
+    <el-row v-if="config.on && config.selectionTranslatorMode !== 'disabled'" class="settings-control-row">
+      <el-col :span="14" class="settings-control-label lightblue rounded-corner">
+        <el-tooltip class="box-item" effect="dark" content="从选区稳定后开始计时，再显示图标、小点或翻译面板；快捷键在等待结束后按下会立即显示。" placement="top-start" :show-after="500">
+          <span class="popup-text popup-vertical-left">
+            划词显示延迟
+            <el-icon class="icon-margin"><InfoFilled /></el-icon>
+          </span>
+        </el-tooltip>
+      </el-col>
+      <el-col :span="10" class="settings-control-field flex-end translation-delay-field">
+        <el-input-number
+          v-model="config.selectionTranslatorDelay"
+          aria-label="划词翻译显示延迟"
+          :min="SELECTION_TRANSLATOR_DELAY_MIN"
+          :max="SELECTION_TRANSLATOR_DELAY_MAX"
+          :step="SELECTION_TRANSLATOR_DELAY_STEP"
+          controls-position="right"
+          @change="handleSelectionTranslatorDelayChange"
+        />
+        <span class="input-suffix">ms</span>
       </el-col>
     </el-row>
     </section>
@@ -746,9 +768,13 @@ import {
   MOUSE_HOVER_TRANSLATION_DELAY_MAX,
   MOUSE_HOVER_TRANSLATION_DELAY_MIN,
   MOUSE_HOVER_TRANSLATION_DELAY_STEP,
+  SELECTION_TRANSLATOR_DELAY_MAX,
+  SELECTION_TRANSLATOR_DELAY_MIN,
+  SELECTION_TRANSLATOR_DELAY_STEP,
   VIDEO_SUBTITLE_FONT_SIZE_OPTIONS,
   normalizeConfig,
   normalizeMouseHoverTranslationDelay,
+  normalizeSelectionTranslatorDelay,
 } from "@/entrypoints/utils/model";
 import { InfoFilled, Refresh, Edit, Upload, Download } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -1235,6 +1261,10 @@ const handleMouseHoverTranslationDelayChange = (value: number | undefined) => {
   config.value.mouseHoverTranslationDelay = normalizeMouseHoverTranslationDelay(value);
 };
 
+const handleSelectionTranslatorDelayChange = (value: number | undefined) => {
+  config.value.selectionTranslatorDelay = normalizeSelectionTranslatorDelay(value);
+};
+
 // 获取自定义鼠标悬浮快捷键显示名称
 const getCustomMouseHotkeyDisplayName = () => {
   if (!config.value.customHotkey) return '';
@@ -1715,12 +1745,12 @@ const saveImport = async () => {
   justify-content: flex-end;
 }
 
-.hover-delay-field {
+.translation-delay-field {
   align-items: center;
   gap: 6px;
 }
 
-.hover-delay-field :deep(.el-input-number) {
+.translation-delay-field :deep(.el-input-number) {
   width: 100%;
 }
 

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
     calculateSelectionPopupPosition,
     chooseSelectionRect,
+    getSelectionPresentationDelayRemaining,
     isSameLanguage,
     isSelectionExcludedTagName,
     normalizeSelectionText,
@@ -41,6 +42,12 @@ describe('selection translator core geometry', () => {
 });
 
 describe('selection translator presentation stability', () => {
+    it('keeps a live delay change anchored to the original selection time', () => {
+        expect(getSelectionPresentationDelayRemaining(300, 1_000, 1_120)).toBe(180);
+        expect(getSelectionPresentationDelayRemaining(100, 1_000, 1_120)).toBe(0);
+        expect(getSelectionPresentationDelayRemaining(300, 1_000, 900)).toBe(300);
+    });
+
     it('preserves an explicitly opened tooltip across unrelated config refreshes', () => {
         const openTooltip = {showIndicator: false, showTooltip: true};
         expect(reconcileSelectionPresentation(openTooltip, 'shortcut', false)).toBe(openTooltip);

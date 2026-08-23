@@ -150,6 +150,17 @@ async function setSelectionTrigger(popup, drawer, worker, label) {
   return { label, trigger: config.selectionTranslatorTrigger, hotkey: config.selectionTranslatorHotkey, customHotkey: config.customSelectionTranslatorHotkey || '' };
 }
 
+async function setSelectionDelay(popup, drawer, worker, delay, settleMs = 500) {
+  const input = drawer.locator('input[aria-label="划词翻译显示延迟"]');
+  await input.fill(String(delay));
+  await input.press('Tab');
+  await popup.waitForTimeout(settleMs);
+  const config = await readStoredConfig(worker);
+  assert(config.selectionTranslatorDelay === delay,
+    `划词显示延迟没有保存：期望 ${delay}，实际 ${config.selectionTranslatorDelay}`);
+  return config.selectionTranslatorDelay;
+}
+
 async function resetFixture(page) {
   await page.evaluate((targetText) => {
     document.querySelector('#selection-test-fixture')?.remove();
@@ -162,7 +173,7 @@ async function resetFixture(page) {
   await page.waitForTimeout(200);
 }
 
-async function selectTarget(page) {
+async function selectTarget(page, dispatchPointerUpAfterFallback = false) {
   await page.bringToFront();
   const target = page.locator('#target');
   const box = await target.boundingBox();
@@ -193,24 +204,92 @@ async function selectTarget(page) {
     });
     await page.waitForTimeout(500);
     selectedText = await page.evaluate(() => window.getSelection()?.toString().trim() || '');
+    if (dispatchPointerUpAfterFallback) {
+      await page.evaluate(() => document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true })));
+      await page.waitForTimeout(50);
+    }
   }
   assert(selectedText.length > 0, '划词测试没有产生选区');
   return { text: selectedText, method };
+}
+
+async function selectTextWithDomRange(page, selector, maxLength = 72) {
+  return page.evaluate(({ selector: targetSelector, maxLength: targetLength }) => {
+    const target = document.querySelector(targetSelector);
+    const textNode = target?.firstChild;
+    if (!textNode) throw new Error(`找不到选区节点：${targetSelector}`);
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, Math.min(textNode.textContent?.length || 0, targetLength));
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    const selectedAt = performance.now();
+    document.dispatchEvent(new Event('selectionchange'));
+    return {
+      text: selection?.toString().trim() || '',
+      selectedAt,
+      selectedWallAt: performance.timeOrigin + selectedAt,
+    };
+  }, { selector, maxLength });
+}
+
+async function clearSelectionAfter(page, selector, delayMs) {
+  return page.evaluate(async ({ selector: targetSelector, delay }) => {
+    const target = document.querySelector(targetSelector);
+    const textNode = target?.firstChild;
+    if (!textNode) throw new Error(`找不到选区节点：${targetSelector}`);
+    const range = document.createRange();
+    range.selectNodeContents(textNode);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    document.dispatchEvent(new Event('selectionchange'));
+    await new Promise(resolve => setTimeout(resolve, delay));
+    selection?.removeAllRanges();
+    document.dispatchEvent(new Event('selectionchange'));
+  }, { selector, delay: delayMs });
+}
+
+async function replaceSelectionAfter(page, firstSelector, secondSelector, delayMs, maxLength = 72) {
+  return page.evaluate(async ({ first, second, delay, length }) => {
+    const select = (selector) => {
+      const target = document.querySelector(selector);
+      const textNode = target?.firstChild;
+      if (!textNode) throw new Error(`找不到选区节点：${selector}`);
+      const range = document.createRange();
+      range.setStart(textNode, 0);
+      range.setEnd(textNode, Math.min(textNode.textContent?.length || 0, length));
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      document.dispatchEvent(new Event('selectionchange'));
+      return selection?.toString().trim() || '';
+    };
+    select(first);
+    await new Promise(resolve => setTimeout(resolve, delay));
+    const text = select(second);
+    const selectedAt = performance.now();
+    return { text, selectedAt, selectedWallAt: performance.timeOrigin + selectedAt };
+  }, { first: firstSelector, second: secondSelector, delay: delayMs, length: maxLength });
 }
 
 async function readSelectionUi(page) {
   return page.evaluate(() => {
     const host = document.querySelector('#fluent-read-selection-translator-container');
     const root = host?.shadowRoot;
+    const translatorRoot = root?.querySelector('.fr-selection-translator-root');
     const indicator = root?.querySelector('.fr-selection-indicator');
     const tooltip = root?.querySelector('.fr-translation-tooltip');
     return {
       host: Boolean(host),
+      configuredDelay: Number(translatorRoot?.getAttribute('data-display-delay') || -1),
       indicator: Boolean(indicator),
       indicatorClass: indicator?.className || '',
       tooltip: Boolean(tooltip),
       original: Boolean(root?.querySelector('.fr-original-text')),
       translation: Boolean(root?.querySelector('.fr-translation-result')),
+      originalText: root?.querySelector('.fr-original-text pre')?.textContent?.trim() || '',
       resultText: root?.querySelector('.fr-translation-result pre')?.textContent?.trim() || '',
       selectionText: window.getSelection()?.toString().trim() || '',
       targetText: document.querySelector('#target')?.textContent || '',
@@ -321,12 +400,12 @@ async function closeSelectionUi(page) {
   await page.waitForTimeout(200);
 }
 
-async function triggerShortcut(page, label) {
+async function triggerShortcut(page, label, settleMs = 450) {
   if (label === 'Ctrl') await page.keyboard.press('Control');
   else if (label === 'Alt / Option') await page.keyboard.press('Alt');
   else if (label === 'Shift') await page.keyboard.press('Shift');
   else await page.keyboard.press('F9');
-  await page.waitForTimeout(450);
+  await page.waitForTimeout(settleMs);
 }
 
 async function main() {
@@ -346,6 +425,8 @@ async function main() {
     consoleErrors: [],
   };
   let translationRequestCount = 0;
+  const translationRequestEvents = [];
+  let translationResponseDelayMs = 0;
 
   try {
     context = await chromium.launchPersistentContext(profileDir, {
@@ -372,6 +453,10 @@ async function main() {
     });
     await context.route('https://edge.microsoft.com/translate/translatetext**', async (route) => {
       translationRequestCount += 1;
+      translationRequestEvents.push(Date.now());
+      if (translationResponseDelayMs > 0) {
+        await new Promise(resolve => setTimeout(resolve, translationResponseDelayMs));
+      }
       let source = '';
       try {
         const body = route.request().postDataJSON();
@@ -403,7 +488,154 @@ async function main() {
     await page.locator('#fluent-read-selection-translator-container').waitFor({ state: 'attached', timeout: 10000 });
     await setSelectionMode(popup, drawer, '双语显示');
 
-    // 视觉触发方式：Popup 改设置后不刷新页面，真实鼠标划词仍应即时反映新模式。
+    const initialDelayConfig = await readStoredConfig(worker);
+    const initialDelayInput = await drawer.locator('input[aria-label="划词翻译显示延迟"]').inputValue();
+    assert(initialDelayConfig.selectionTranslatorDelay === 300 && initialDelayInput === '300',
+      `Popup 没有显示默认 300ms 延迟：${JSON.stringify({ stored: initialDelayConfig.selectionTranslatorDelay, input: initialDelayInput })}`);
+
+    const drawerBody = popup.locator('.popup-drawer:visible .el-drawer__body');
+    const drawerScroll = await drawerBody.evaluate((element) => {
+      const before = { clientHeight: element.clientHeight, scrollHeight: element.scrollHeight };
+      element.scrollTop = element.scrollHeight;
+      return { ...before, scrollTop: element.scrollTop };
+    });
+    await drawer.getByText('语音回退顺序', { exact: true }).scrollIntoViewIfNeeded();
+    assert(await drawer.getByText('语音回退顺序', { exact: true }).isVisible(), 'Popup 抽屉滚动后仍看不到底部设置');
+    const popupDelayScreenshot = path.join(args.artifactsDir, 'popup-selection-delay.png');
+    await popup.screenshot({ path: popupDelayScreenshot });
+    result.screenshots.push(popupDelayScreenshot);
+    result.cases.push({ id: 'ui.popup-scrolls-to-bottom', status: 'passed', drawerScroll });
+
+    const optionsPage = await context.newPage();
+    optionsPage.on('pageerror', (error) => result.consoleErrors.push(`options pageerror: ${error.message}`));
+    optionsPage.on('console', (message) => { if (message.type() === 'error') result.consoleErrors.push(`options console: ${message.text()}`); });
+    await optionsPage.goto(`chrome-extension://${extensionId}/options.html#settings-shortcuts`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    const optionsDelayInput = optionsPage.locator('input[aria-label="划词翻译显示延迟"]');
+    await optionsDelayInput.waitFor({ state: 'visible', timeout: 60000 });
+    assert(await optionsDelayInput.inputValue() === '300', `完整配置页延迟值错误：${await optionsDelayInput.inputValue()}`);
+    await optionsDelayInput.fill('450');
+    await optionsDelayInput.press('Tab');
+    await optionsPage.waitForTimeout(700);
+    assert((await readStoredConfig(worker)).selectionTranslatorDelay === 450, '完整配置页没有保存 450ms 延迟');
+    await popup.waitForFunction(() => document.querySelector('input[aria-label="划词翻译显示延迟"]')?.value === '450');
+    const optionsDelayScreenshot = path.join(args.artifactsDir, 'options-selection-delay.png');
+    await optionsPage.screenshot({ path: optionsDelayScreenshot });
+    result.screenshots.push(optionsDelayScreenshot);
+    result.cases.push({ id: 'ui.options-popup-delay-persistence', status: 'passed', configuredDelay: 450 });
+    await optionsPage.close();
+    await setSelectionDelay(popup, drawer, worker, 300);
+
+    // 显示延迟：计时期间不显示 UI、不发翻译请求；改选后旧计时器必须失效。
+    await setSelectionDelay(popup, drawer, worker, 800);
+    await setSelectionTrigger(popup, drawer, worker, '直接弹出');
+    await resetFixture(page);
+    await startSelectionUiTracking(page);
+    const delayedRequestsBefore = translationRequestCount;
+    const delayedSelection = await selectTextWithDomRange(page, '#target');
+    await page.waitForTimeout(250);
+    const duringDelay = await readSelectionUi(page);
+    const delayedSampleElapsed = await page.evaluate(selectedAt => performance.now() - selectedAt, delayedSelection.selectedAt);
+    if (delayedSampleElapsed < 650) {
+      assert(!duringDelay.indicator && !duringDelay.tooltip, `延迟期间提前显示了划词 UI：${JSON.stringify({ delayedSampleElapsed, duringDelay })}`);
+      assert(translationRequestCount === delayedRequestsBefore,
+        `延迟期间提前发起了翻译请求：${delayedRequestsBefore} -> ${translationRequestCount}`);
+    }
+    await waitForSelectionUi(page, { tooltip: true, indicator: false, translation: true, resultPrefix: '测试译文：' }, '延迟结束后直接弹出翻译框');
+    const delayedTransitions = await stopSelectionUiTracking(page);
+    const delayedVisible = delayedTransitions.find(item => item.tooltip);
+    assert(delayedVisible && delayedVisible.at - delayedSelection.selectedAt >= 650,
+      `划词 UI 显示过早：${JSON.stringify({ selectedAt: delayedSelection.selectedAt, transitions: delayedTransitions })}`);
+    assert(translationRequestCount === delayedRequestsBefore + 1,
+      `延迟结束后请求数不是恰好一次：${delayedRequestsBefore} -> ${translationRequestCount}`);
+    const delayedRequestAt = translationRequestEvents[delayedRequestsBefore];
+    assert(delayedRequestAt >= delayedSelection.selectedWallAt + 650,
+      `划词翻译请求发起过早：${JSON.stringify({ selectedWallAt: delayedSelection.selectedWallAt, delayedRequestAt })}`);
+    result.cases.push({
+      id: 'delay.direct-no-early-ui-or-request',
+      status: 'passed',
+      configuredDelay: 800,
+      observedDelay: delayedVisible.at - delayedSelection.selectedAt,
+      requestDelay: delayedRequestAt - delayedSelection.selectedWallAt,
+      duringDelay,
+      transitions: delayedTransitions,
+    });
+
+    await closeSelectionUi(page);
+    await resetFixture(page);
+    const cancelledRequestsBefore = translationRequestCount;
+    await clearSelectionAfter(page, '#target', 120);
+    await page.waitForTimeout(900);
+    const cancelledUi = await readSelectionUi(page);
+    assert(!cancelledUi.indicator && !cancelledUi.tooltip, `取消选区后延迟 UI 仍然出现：${JSON.stringify(cancelledUi)}`);
+    assert(translationRequestCount === cancelledRequestsBefore,
+      `取消选区后仍发起翻译请求：${cancelledRequestsBefore} -> ${translationRequestCount}`);
+    result.cases.push({ id: 'delay.cancelled-selection-no-request', status: 'passed', ui: cancelledUi });
+
+    await closeSelectionUi(page);
+    await resetFixture(page);
+    const changedRequestsBefore = translationRequestCount;
+    const replacementSelection = await replaceSelectionAfter(page, '#target', '#neighbor', 120);
+    await page.waitForTimeout(250);
+    const duringReplacementDelay = await readSelectionUi(page);
+    assert(!duringReplacementDelay.indicator && !duringReplacementDelay.tooltip, '改选后沿用了旧选区的延迟计时器');
+    assert(translationRequestCount === changedRequestsBefore, '改选等待期间提前发起了翻译请求');
+    await waitForSelectionUi(page, { tooltip: true, indicator: false, translation: true, resultPrefix: '测试译文：' }, '改选后只显示新选区翻译');
+    const replacementUi = await readSelectionUi(page);
+    assert(replacementUi.originalText === replacementSelection.text,
+      `改选后显示了旧文本：${JSON.stringify({ expected: replacementSelection.text, actual: replacementUi.originalText })}`);
+    assert(translationRequestCount === changedRequestsBefore + 1,
+      `改选后请求数异常：${changedRequestsBefore} -> ${translationRequestCount}`);
+    result.cases.push({ id: 'delay.changed-selection-invalidates-old-timer', status: 'passed', ui: replacementUi });
+
+    await closeSelectionUi(page);
+    await setSelectionDelay(popup, drawer, worker, 1000);
+    await setSelectionTrigger(popup, drawer, worker, 'Ctrl');
+    await resetFixture(page);
+    const shortcutDelayRequestsBefore = translationRequestCount;
+    await selectTextWithDomRange(page, '#target');
+    await triggerShortcut(page, 'Ctrl', 250);
+    const duringShortcutDelay = await readSelectionUi(page);
+    assert(!duringShortcutDelay.indicator && !duringShortcutDelay.tooltip, '快捷键在剩余延迟结束前提前显示了翻译框');
+    assert(translationRequestCount === shortcutDelayRequestsBefore, '快捷键等待期间提前发起了翻译请求');
+    await waitForSelectionUi(page, { tooltip: true, indicator: false, translation: true }, '快捷键等待剩余延迟后显示翻译框');
+    result.cases.push({ id: 'delay.shortcut-waits-remaining-time', status: 'passed', duringDelay: duringShortcutDelay });
+
+    // Popup 在线修改延迟后，当前页面按原选区时间重算剩余时长，无需刷新。
+    await closeSelectionUi(page);
+    await setSelectionTrigger(popup, drawer, worker, '直接弹出');
+    await resetFixture(page);
+    await selectTextWithDomRange(page, '#target');
+    await page.waitForTimeout(150);
+    assert(!(await readSelectionUi(page)).tooltip, '在线修改延迟前翻译框已提前显示');
+    await setSelectionDelay(popup, drawer, worker, 200, 100);
+    await waitForSelectionUi(page, { tooltip: true, indicator: false, translation: true }, '在线缩短延迟后显示当前选区');
+    result.cases.push({ id: 'delay.live-popup-reschedule', status: 'passed', configuredDelay: 200 });
+
+    await closeSelectionUi(page);
+    await setSelectionDelay(popup, drawer, worker, 0);
+    await patchStoredConfig(worker, { to: 'fr' });
+    await page.waitForTimeout(700);
+    await setSelectionTrigger(popup, drawer, worker, '直接弹出');
+    await resetFixture(page);
+    translationResponseDelayMs = 500;
+    const sameTextRequestsBefore = translationRequestCount;
+    await selectTextWithDomRange(page, '#target');
+    await waitForSelectionUi(page, { tooltip: true, indicator: false }, '0ms 配置立即显示空白加载框');
+    await page.waitForTimeout(80);
+    const sameTextPendingUi = await readSelectionUi(page);
+    assert(sameTextPendingUi.resultText === '', `重新选择相同文本时先显示了旧译文：${sameTextPendingUi.resultText}`);
+    await waitForSelectionUi(page, { tooltip: true, translation: true, resultPrefix: '测试译文：' }, '相同文本重新请求完成');
+    translationResponseDelayMs = 0;
+    assert(translationRequestCount === sameTextRequestsBefore + 1,
+      `相同文本重选请求数异常：${sameTextRequestsBefore} -> ${translationRequestCount}`);
+    result.cases.push({ id: 'delay.zero-and-same-text-no-stale-result', status: 'passed', pendingUi: sameTextPendingUi });
+
+    await closeSelectionUi(page);
+    await patchStoredConfig(worker, { to: 'zh-Hans' });
+    await page.waitForTimeout(700);
+    await setSelectionDelay(popup, drawer, worker, 300);
+
+    // 视觉触发方式：Popup 改设置后不刷新页面，真实鼠标划词仍应反映新模式。
     for (const mode of [
       { label: '显示图标', className: 'fr-selection-indicator fr-selection-indicator--icon' },
       { label: '显示小点', className: 'fr-selection-indicator fr-selection-indicator--dot' },
@@ -538,7 +770,26 @@ async function main() {
     await page.keyboard.press('Control');
     const hoverFallback = await waitForHoverTranslation(page);
     assert(!hoverFallback.selectionTooltip && hoverFallback.count === 1, `无选区时没有回退到鼠标悬浮翻译：${JSON.stringify(hoverFallback)}`);
+    assert(await page.locator('#neighbor .fluent-read-bilingual-content').count() === 0, '无选区悬浮回退时同时触发了全文翻译');
     result.cases.push({ id: 'conflict.hover-fallback-without-selection', status: 'passed', ui: hoverFallback });
+
+    // 划词与全文共享快捷键、但悬浮不共享时：没有选区应在 keyup 回退全文翻译。
+    await closeSelectionUi(page);
+    await patchStoredConfig(worker, { hotkey: 'none', customHotkey: '', floatingBallHotkey: 'Control' });
+    await page.waitForTimeout(700);
+    await resetFixture(page);
+    await clearPageSelection(page);
+    await page.bringToFront();
+    await page.keyboard.press('Control');
+    await page.waitForFunction(() => document.querySelectorAll('#selection-test-fixture .fluent-read-bilingual-content').length >= 2, undefined, { timeout: 10000 });
+    const fullPageFallback = await page.evaluate(() => ({
+      translatedCount: document.querySelectorAll('#selection-test-fixture .fluent-read-bilingual-content').length,
+      selectionTooltip: Boolean(document.querySelector('#fluent-read-selection-translator-container')?.shadowRoot?.querySelector('.fr-translation-tooltip')),
+    }));
+    assert(!fullPageFallback.selectionTooltip, `无选区全文回退时误开划词翻译：${JSON.stringify(fullPageFallback)}`);
+    result.cases.push({ id: 'conflict.full-page-fallback-without-selection-or-hover', status: 'passed', ui: fullPageFallback });
+    await page.evaluate(() => document.dispatchEvent(new CustomEvent('fluentread-toggle-translation')));
+    await page.waitForFunction(() => document.querySelectorAll('.fluent-read-bilingual-content').length === 0, undefined, { timeout: 10000 });
 
     await closeSelectionUi(page);
     const customPopupState = await setSelectionTrigger(popup, drawer, worker, '自定义');
@@ -555,6 +806,31 @@ async function main() {
     await page.screenshot({ path: customScreenshot });
     result.screenshots.push(customScreenshot);
     result.cases.push({ id: 'shortcut.custom', status: 'passed', popupState: customPopupState, beforeShortcut: beforeCustom, afterShortcut: afterCustom });
+
+    await closeSelectionUi(page);
+    await patchStoredConfig(worker, {
+      hotkey: 'custom',
+      customHotkey: 'F9',
+      floatingBallHotkey: 'custom',
+      customFloatingBallHotkey: 'F9',
+    });
+    await page.waitForTimeout(700);
+    await resetFixture(page);
+    await page.bringToFront();
+    await page.keyboard.down('F9');
+    await page.waitForTimeout(600);
+    const heldCustomSelection = await selectTarget(page, true);
+    await page.keyboard.up('F9');
+    await waitForSelectionUi(page, { tooltip: true, indicator: false, translation: true }, '长按自定义快捷键后拖选仍触发划词翻译');
+    const heldCustomUi = await readSelectionUi(page);
+    assert(await page.locator('#target .fluent-read-bilingual-content').count() === 0, '长按自定义键拖选时同时触发了悬浮翻译');
+    assert(await page.locator('#neighbor .fluent-read-bilingual-content').count() === 0, '长按自定义键拖选时全文翻译抢先触发');
+    result.cases.push({
+      id: 'shortcut.custom-held-before-selection',
+      status: 'passed',
+      selection: heldCustomSelection,
+      ui: heldCustomUi,
+    });
 
     for (const conflictCase of [
       { label: 'Alt / Option', hoverHotkey: 'Alt', customHotkey: '' },

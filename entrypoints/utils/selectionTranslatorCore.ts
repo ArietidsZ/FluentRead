@@ -30,6 +30,16 @@ export interface SelectionPresentationState {
 
 export type SelectionPresentationTrigger = 'direct' | 'icon' | 'dot' | 'shortcut';
 
+/** Keep delay changes anchored to when the current selection became stable. */
+export function getSelectionPresentationDelayRemaining(
+    delay: number,
+    selectionSettledAt: number,
+    now: number,
+): number {
+    const elapsed = Math.max(0, now - selectionSettledAt);
+    return Math.max(0, delay - elapsed);
+}
+
 /** Preserve an explicitly opened tooltip across unrelated config refreshes. */
 export function reconcileSelectionPresentation(
     current: SelectionPresentationState,

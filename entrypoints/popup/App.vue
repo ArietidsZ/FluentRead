@@ -280,7 +280,14 @@
         </div>
 
         <div v-if="selectionDrawerTab === 'text'" id="selection-text-panel" role="tabpanel">
-          <div class="interaction-preview"><span class="selection-box">选择文字</span><span>＋</span><i class="pink-dot" /><span>＝</span><strong>翻译所选内容</strong></div>
+          <div class="interaction-preview">
+            <span class="selection-box">选择文字</span><span>＋</span>
+            <i v-if="config.selectionTranslatorTrigger === 'dot'" class="pink-dot" />
+            <span v-else-if="config.selectionTranslatorTrigger === 'icon'" class="selection-preview-icon">↗</span>
+            <strong v-else-if="config.selectionTranslatorTrigger === 'direct'">直接弹出</strong>
+            <kbd v-else>{{ selectionTriggerPreview }}</kbd>
+            <span>＝</span><strong>翻译所选内容</strong>
+          </div>
           <div class="setting-row">
             <span><strong>启用划词翻译</strong><small>选中文字后显示可操作的翻译入口</small></span>
             <button class="switch compact" type="button" role="switch" :aria-checked="config.selectionTranslatorMode !== 'disabled'" aria-label="启用或关闭划词翻译" @click="setSelectionMode(config.selectionTranslatorMode === 'disabled' ? 'bilingual' : 'disabled')"><i /></button>
@@ -300,6 +307,22 @@
               {{ config.customSelectionTranslatorHotkey ? `当前：${config.customSelectionTranslatorHotkey}` : '录制自定义快捷键' }}
             </button>
             <small class="drawer-hint">快捷键与图标、小点是并列的触发方式；选择快捷键后，选区旁不会再显示图标或小点。选中单个英文单词时会自动显示音标、发音、词性、释义和例句。</small>
+          </div>
+          <div class="choice-block">
+            <label>显示延迟</label>
+            <div class="selection-delay-control">
+              <el-input-number
+                v-model="config.selectionTranslatorDelay"
+                aria-label="划词翻译显示延迟"
+                :min="SELECTION_TRANSLATOR_DELAY_MIN"
+                :max="SELECTION_TRANSLATOR_DELAY_MAX"
+                :step="SELECTION_TRANSLATOR_DELAY_STEP"
+                controls-position="right"
+                @change="handleSelectionTranslatorDelayChange"
+              />
+              <span>ms</span>
+            </div>
+            <small class="drawer-hint">从选区稳定后开始计时；若按快捷键时等待已经结束，则会立即显示。设为 0 可关闭延迟。</small>
           </div>
           <div class="choice-block">
             <label>语音回退顺序</label>
@@ -435,7 +458,14 @@ import {
   subscribeConfig,
 } from '@/entrypoints/utils/config';
 import { Setting } from '@element-plus/icons-vue';
-import { Config, VIDEO_SUBTITLE_FONT_SIZE_OPTIONS } from '@/entrypoints/utils/model';
+import {
+  Config,
+  SELECTION_TRANSLATOR_DELAY_MAX,
+  SELECTION_TRANSLATOR_DELAY_MIN,
+  SELECTION_TRANSLATOR_DELAY_STEP,
+  VIDEO_SUBTITLE_FONT_SIZE_OPTIONS,
+  normalizeSelectionTranslatorDelay,
+} from '@/entrypoints/utils/model';
 import { options, resolveConfiguredModel, servicesType } from '@/entrypoints/utils/option';
 import { getMissingCredentialMessage } from '@/entrypoints/utils/configValidation';
 import { getSelectedModelLabel } from '@/entrypoints/utils/serviceCatalog';
@@ -539,6 +569,8 @@ const selectionModes = [
   { value: 'translation-only', label: '仅译文' },
 ];
 const selectionTriggers = options.selectionTranslatorTriggers;
+const selectionTriggerPreview = computed(() => selectionTriggers
+  .find(item => item.value === config.value.selectionTranslatorTrigger)?.label || '快捷键');
 const selectionTtsVoiceOptions = SELECTION_TTS_VOICE_OPTIONS;
 
 function applyTheme(theme: string) {
@@ -719,6 +751,10 @@ function setSelectionTrigger(trigger: string) {
   if (trigger === 'custom' && !config.value.customSelectionTranslatorHotkey) showCustomSelectionHotkeyDialog.value = true;
   broadcastSelectionTranslatorSettings();
 }
+function handleSelectionTranslatorDelayChange(value: number | undefined) {
+  config.value.selectionTranslatorDelay = normalizeSelectionTranslatorDelay(value);
+  broadcastSelectionTranslatorSettings();
+}
 function setAreaEnabled(enabled: boolean) {
   config.value.selectionAreaEnabled = enabled;
   void broadcast({ type: 'toggleSelectionAreaTranslator', isEnabled: enabled });
@@ -760,6 +796,7 @@ function broadcastSelectionTranslatorSettings() {
     trigger: config.value.selectionTranslatorTrigger,
     hotkey: config.value.selectionTranslatorHotkey,
     customHotkey: config.value.customSelectionTranslatorHotkey,
+    delay: config.value.selectionTranslatorDelay,
   });
 }
 </script>

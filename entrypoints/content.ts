@@ -27,8 +27,9 @@ import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { createShadowRootUi, type ShadowRootContentScriptUi } from 'wxt/utils/content-script-ui/shadow-root';
 import { mountVideoSubtitleTranslation } from './main/videoSubtitle';
 import {resetPageTranslationContextCache} from '@/entrypoints/utils/pageContext';
-import { shouldClaimConfiguredHotkey } from '@/entrypoints/utils/hotkey';
+import { matchesConfiguredHotkey, shouldClaimConfiguredHotkey } from '@/entrypoints/utils/hotkey';
 import { isSameLanguage, normalizeSelectionText, shouldIgnoreSelection } from '@/entrypoints/utils/selectionTranslatorCore';
+import { normalizeSelectionTranslatorDelay } from '@/entrypoints/utils/model';
 
 let contentScriptContext: ContentScriptContext | null = null;
 let inputTooltipUi: ShadowRootContentScriptUi<HTMLElement> | null = null;
@@ -91,25 +92,20 @@ function handleRuntimeMessage(
         const trigger = payload.trigger;
         const hotkey = payload.hotkey;
         const customHotkey = payload.customHotkey;
+        const delay = payload.delay;
         if (trigger !== 'direct' && trigger !== 'icon' && trigger !== 'dot' && trigger !== 'Control' && trigger !== 'Alt' && trigger !== 'Shift' && trigger !== 'custom') return false;
         if (hotkey !== undefined && hotkey !== 'none' && hotkey !== 'Control' && hotkey !== 'Alt' && hotkey !== 'Shift' && hotkey !== 'custom') return false;
         if (customHotkey !== undefined && typeof customHotkey !== 'string') return false;
+        if (delay !== undefined && typeof delay !== 'number' && typeof delay !== 'string') return false;
 
-        // 接受旧版 Popup 的分离字段，同时让运行时保存单一的互斥触发方式。
-        const isVisualTrigger = trigger === 'direct' || trigger === 'icon' || trigger === 'dot';
-        const hasLegacyShortcut = hotkey !== undefined && hotkey !== 'none';
-        const hasUsableCustomHotkey = typeof customHotkey === 'string'
-            && customHotkey.trim() !== ''
-            && customHotkey !== 'none';
-        const resolvedTrigger = isVisualTrigger && hasLegacyShortcut
-            && (hotkey !== 'custom' || hasUsableCustomHotkey)
-            ? hotkey
-            : trigger;
+        // trigger 是唯一运行时真源；hotkey 仅为兼容旧调用方的消息结构而校验。
+        const resolvedTrigger = trigger;
         config.selectionTranslatorTrigger = resolvedTrigger;
         config.selectionTranslatorHotkey = resolvedTrigger === 'Control' || resolvedTrigger === 'Alt' || resolvedTrigger === 'Shift' || resolvedTrigger === 'custom'
             ? resolvedTrigger
             : 'none';
         config.customSelectionTranslatorHotkey = typeof customHotkey === 'string' ? customHotkey : '';
+        if (delay !== undefined) config.selectionTranslatorDelay = normalizeSelectionTranslatorDelay(delay);
         sendResponse();
         return true;
     }
@@ -249,8 +245,10 @@ function getConfiguredSelectionHotkey(): string {
     const trigger = config.selectionTranslatorTrigger;
     return ['Control', 'Alt', 'Shift', 'custom'].includes(trigger)
         ? trigger
-        : config.selectionTranslatorHotkey;
+        : 'none';
 }
+
+const activeSelectionCandidateByEvent = new WeakMap<KeyboardEvent, boolean>();
 
 function hasActiveSelectionTranslationCandidate(): boolean {
     const selection = window.getSelection();
@@ -275,7 +273,22 @@ function shouldReserveSelectionShortcut(event: KeyboardEvent): boolean {
         event,
         getConfiguredSelectionHotkey(),
         config.customSelectionTranslatorHotkey,
-        hasActiveSelectionTranslationCandidate,
+        () => {
+            const cached = activeSelectionCandidateByEvent.get(event);
+            if (cached !== undefined) return cached;
+            const candidate = hasActiveSelectionTranslationCandidate();
+            activeSelectionCandidateByEvent.set(event, candidate);
+            return candidate;
+        },
+    );
+}
+
+function matchesSelectionTranslatorShortcut(event: KeyboardEvent): boolean {
+    if (!config.on || config.selectionTranslatorMode === 'disabled' || config.disableSelectionTranslator) return false;
+    return matchesConfiguredHotkey(
+        event,
+        getConfiguredSelectionHotkey(),
+        config.customSelectionTranslatorHotkey,
     );
 }
 
@@ -351,9 +364,9 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
             return;
         }
 
-        // 划词快捷键与悬停快捷键可能使用同一个修饰键。划词触发方式是
-        // 互斥入口，因此先释放悬停监听器的状态，让 SelectionTranslator
-        // 在 document 阶段接收这次按键；没有选区时它会自然忽略。
+        const matchesSelectionShortcut = matchesSelectionTranslatorShortcut(event);
+        // 已有选区时划词立即拥有本次按键；没有选区时仍让悬浮记录按键，
+        // 但不要阻断 SelectionTranslator 记录“先按键、后拖选”的意图。
         if (shouldReserveSelectionShortcut(event)) {
             screen.hotkeyPressed = false;
             screen.otherKeyPressed = true;
@@ -412,13 +425,21 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
             screen.otherKeyPressed = false;
             if (config.on) {
                 event.preventDefault();
-                event.stopPropagation();
+                if (!matchesSelectionShortcut) event.stopPropagation();
             }
         } else if (screen.hotkeyPressed) {
             screen.otherKeyPressed = true;
             // Ctrl+C 等组合键不应执行鼠标移动时已经排队的悬浮翻译。
             cancelPendingHoverTranslation();
         }
+    }, { signal, capture: true });
+
+    document.addEventListener('pointerdown', () => {
+        if (!screen.hotkeyPressed || !matchesPressedHotkeyParts(getConfiguredSelectionHotkeyParts())) return;
+        screen.hotkeyPressed = false;
+        screen.otherKeyPressed = true;
+        screen.hasSlideTranslation = false;
+        cancelPendingHoverTranslation();
     }, { signal, capture: true });
 
     // 3. 抬起按键时
@@ -603,6 +624,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
 function setupFloatingBallHotkey(signal: AbortSignal) {
     // 添加全局键盘事件监听
     let hotkeysPressed = new Set<string>();
+    let pendingFullPageToggle = false;
     
     // 开发环境标志
     const isDev = process.env.NODE_ENV === 'development';
@@ -648,6 +670,7 @@ function setupFloatingBallHotkey(signal: AbortSignal) {
         // 划词与全文快捷键冲突时，有有效选区的划词翻译拥有本次按键。
         // 清空全文按键状态并让事件继续传播给 SelectionTranslator。
         if (shouldReserveSelectionShortcut(event)) {
+            pendingFullPageToggle = false;
             hotkeysPressed.clear();
             return;
         }
@@ -718,6 +741,17 @@ function setupFloatingBallHotkey(signal: AbortSignal) {
             // 防止事件继续传播和默认行为
             event.preventDefault();
             event.stopPropagation();
+
+            if (matchesSelectionTranslatorShortcut(event)) {
+                // 悬浮与划词共享按键时，无选区由悬浮回退；否则把全文动作
+                // 延迟到 keyup，再确认用户没有完成一次划选手势。
+                pendingFullPageToggle = !matchesConfiguredHotkey(
+                    event,
+                    config.hotkey,
+                    config.customHotkey,
+                );
+                return;
+            }
             
             // 通过自定义事件来触发翻译
             document.dispatchEvent(new CustomEvent('fluentread-toggle-translation'));
@@ -733,6 +767,14 @@ function setupFloatingBallHotkey(signal: AbortSignal) {
     
     // 监听按键释放事件
     document.addEventListener('keyup', (event) => {
+        if (pendingFullPageToggle) {
+            pendingFullPageToggle = false;
+            if (config.on && !hasActiveSelectionTranslationCandidate()) {
+                event.preventDefault();
+                event.stopPropagation();
+                document.dispatchEvent(new CustomEvent('fluentread-toggle-translation'));
+            }
+        }
         // 清除字母键状态
         const releasedKey = event.key.toLowerCase();
         const releasedCode = event.code?.toLowerCase();
@@ -776,6 +818,7 @@ function setupFloatingBallHotkey(signal: AbortSignal) {
     
     // 页面失焦或切换标签页时，清除所有按键状态
     window.addEventListener('blur', () => {
+        pendingFullPageToggle = false;
         hotkeysPressed.clear();
     }, { signal });
 }
