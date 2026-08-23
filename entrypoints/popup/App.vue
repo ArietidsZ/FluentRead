@@ -91,7 +91,7 @@
 
         <div v-if="servicePickerOpen" class="service-picker-panel" role="listbox" aria-label="翻译服务列表">
           <div class="service-picker-heading">
-            <div><strong>选择翻译服务</strong><small>常用服务优先，更多服务已收起</small></div>
+            <div><strong>选择翻译服务</strong><small>常用服务优先，更多服务{{ moreServicesOpen ? '已展开' : '已收起' }}</small></div>
             <span>{{ serviceOptions.length }}</span>
           </div>
 
@@ -456,7 +456,7 @@ const showCustomHotkeyDialog = ref(false);
 const showCustomMouseHotkeyDialog = ref(false);
 const servicePicker = ref<HTMLElement | null>(null);
 const servicePickerOpen = ref(false);
-const moreServicesOpen = ref(false);
+const moreServicesOpen = ref(true);
 const hydrated = ref(false);
 let lastSerialized = '';
 let applyingExternalConfig = false;
@@ -588,7 +588,7 @@ function handleServicePickerKeydown(event: KeyboardEvent) {
 function toggleServicePicker() {
   if (!config.value.on) return;
   servicePickerOpen.value = !servicePickerOpen.value;
-  if (servicePickerOpen.value) moreServicesOpen.value = !popularServiceValues.includes(config.value.service);
+  if (servicePickerOpen.value) moreServicesOpen.value = true;
 }
 function selectService(value: string) {
   config.value.service = value;
