@@ -189,6 +189,15 @@ function isElementNode(node: Node | null | undefined): node is Element {
 }
 
 function notifyFullPageTranslationState(isTranslated: boolean): void {
+    if (typeof document !== "undefined" && typeof document.dispatchEvent === "function") {
+        const CustomEventConstructor = document.defaultView?.CustomEvent ??
+            (typeof CustomEvent !== "undefined" ? CustomEvent : null);
+        if (CustomEventConstructor) {
+            document.dispatchEvent(new CustomEventConstructor(
+                isTranslated ? "fluentread-translation-started" : "fluentread-translation-ended",
+            ));
+        }
+    }
     if (typeof browser === "undefined" || !browser.runtime?.sendMessage) return;
     void browser.runtime.sendMessage({
         type: "fullPageTranslationState",

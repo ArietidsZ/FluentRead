@@ -13,6 +13,7 @@
             v-for="item in group.items"
             :key="item.id"
             type="button"
+            :data-section="item.id"
             :class="{ active: activeSection === item.id }"
             :aria-current="activeSection === item.id ? 'page' : undefined"
             @click="selectSection(item.id)"

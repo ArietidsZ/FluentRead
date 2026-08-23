@@ -45,6 +45,7 @@ export function mountFloatingBall(ctx?: ContentScriptContext) {
       position: ballPosition,
       showMenu: true,
       logoUrl: browser.runtime.getURL('/icon/128.png'),
+      initialTranslating: isFullPageTranslationActive(),
       onSettingsClick: () => {
         browser.runtime.sendMessage({ type: 'openOptionsPage' });
       },

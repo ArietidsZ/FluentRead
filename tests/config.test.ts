@@ -92,6 +92,19 @@ describe('统一配置存储', () => {
         expect(configStore.config).toMatchObject(storedConfig);
     });
 
+    it('为旧配置补齐空的始终翻译域名列表，并只迁移回写一次', async () => {
+        const legacyConfig = normalizeConfig(storedConfig) as unknown as Record<string, unknown>;
+        delete legacyConfig.alwaysTranslateDomains;
+        const configStore = await loadConfigModule(legacyConfig);
+
+        await configStore.configReady;
+
+        expect(configStore.config.alwaysTranslateDomains).toEqual([]);
+        const localConfigWrites = storageMock.setItem.mock.calls.filter(([key]) => key === 'local:config');
+        expect(localConfigWrites).toHaveLength(1);
+        expect(localConfigWrites[0][1]).toEqual(expect.objectContaining({alwaysTranslateDomains: []}));
+    });
+
     it('内部 storage revision 不进入运行时配置或历史快照', async () => {
         const configStore = await loadConfigModule({...storedConfig, __fluentConfigRevision: 5});
         await Promise.all([configStore.configReady, configStore.configHistoryReady]);
@@ -516,6 +529,27 @@ describe('统一配置存储', () => {
         const restored = await configStore.applyConfigHistoryAction('restore', baselineVersion);
         expect(configStore.config.to).toBe('zh-Hans');
         expect(restored.entries[restored.cursor].version).toBe(baselineVersion);
+    });
+
+    it('在配置历史中保存规范化域名，并能恢复旧配置的空名单', async () => {
+        const configStore = await loadConfigModule(storedConfig);
+        await Promise.all([configStore.configReady, configStore.configHistoryReady]);
+
+        await configStore.saveConfig({
+            ...configStore.config,
+            alwaysTranslateDomains: [
+                'https://news.bbc.co.uk/world',
+                'BBC.CO.UK',
+                'https://docs.team.github.io/guide',
+            ],
+        }, {recordHistory: true, immediateHistory: true});
+
+        expect(configStore.config.alwaysTranslateDomains).toEqual(['bbc.co.uk', 'team.github.io']);
+        expect(configStore.getConfigHistorySnapshot().entries.at(-1)?.config.alwaysTranslateDomains)
+            .toEqual(['bbc.co.uk', 'team.github.io']);
+
+        await configStore.applyConfigHistoryAction('undo');
+        expect(configStore.config.alwaysTranslateDomains).toEqual([]);
     });
 
     it('配置历史操作优先通过后台消息传递，后台不可用时安全回退', async () => {
