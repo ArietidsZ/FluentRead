@@ -14,6 +14,7 @@ import { config, requestConfigSave } from './config';
 import { detectlang } from './common';
 import { resolveConfiguredModel, servicesType } from './option';
 import { getPageTranslationContext } from './pageContext';
+import { getMissingCredentialMessage } from './configValidation';
 import {
   isRetryableTranslationError,
   TranslationRequestError,
@@ -171,6 +172,7 @@ export async function translateText(origin: string, context: string = document.t
     targetLanguage,
     signal,
     queueSession,
+    modelOverride,
   } = options;
   const aiSdkService = servicesType.isAiSdk(selectedService);
   const explicitRetryPolicy = options.maxRetries !== undefined;
@@ -185,12 +187,14 @@ export async function translateText(origin: string, context: string = document.t
     return origin || '';
   }
 
+  const service = serviceOverride || config.service;
+  assertTranslationCredentials(service, modelOverride);
   // 如果目标语言与当前文本语言相同，直接返回原文
   if (!skipLanguageDetection && detectlang(origin.replace(/[\s\u3000]/g, '')) === (targetLanguage || config.to)) {
     return origin;
   }
 
-  const pageContext = await resolvePageContext(options.pageContext, serviceOverride || config.service);
+  const pageContext = await resolvePageContext(options.pageContext, service, modelOverride);
   throwIfAborted(signal);
 
   // 同一富文本回退可能产生多个短请求；合并持久化写入，避免每个 slot
@@ -213,6 +217,7 @@ export async function translateText(origin: string, context: string = document.t
             serviceOverride,
             sourceLanguage,
             targetLanguage,
+            modelOverride,
             requestTimeoutMs: Math.max(1_000, timeout - 1_000),
           }),
           timeout,
@@ -270,12 +275,15 @@ export async function translateTextBatch(
     targetLanguage,
     signal,
     queueSession,
+    modelOverride,
   } = options;
+  const service = serviceOverride || config.service;
+  assertTranslationCredentials(service, modelOverride);
   const aiSdkService = servicesType.isAiSdk(selectedService);
   const explicitRetryPolicy = options.maxRetries !== undefined;
   const maxRetries = options.maxRetries ?? (aiSdkService ? 2 : 3);
   throwIfAborted(signal);
-  const pageContext = await resolvePageContext(options.pageContext, serviceOverride || config.service);
+  const pageContext = await resolvePageContext(options.pageContext, service, modelOverride);
   throwIfAborted(signal);
 
   scheduleTranslationCountSave();
@@ -293,6 +301,7 @@ export async function translateTextBatch(
             serviceOverride,
             sourceLanguage,
             targetLanguage,
+            modelOverride,
             requestTimeoutMs: Math.max(1_000, timeout - 1_000),
           }),
           timeout,
@@ -384,11 +393,25 @@ export interface TranslateOptions {
   signal?: AbortSignal;
   /** Queue scope used to reject work that has not started when one DOM attempt is cancelled. */
   queueSession?: TranslationQueueSession;
+  /** 为文档等独立入口覆盖当前请求的实际模型，不改写网页翻译配置。 */
+  modelOverride?: string;
 }
 
-async function resolvePageContext(suppliedContext?: string, serviceOverride = config.service): Promise<string | undefined> {
+function assertTranslationCredentials(service = config.service, modelOverride?: string): void {
+  const credentialConfig = modelOverride
+    ? {
+      ...config,
+      model: {...config.model, [service]: modelOverride},
+      customModel: {...config.customModel, [service]: modelOverride},
+    }
+    : config;
+  const message = getMissingCredentialMessage(service, credentialConfig);
+  if (message) throw new Error(message);
+}
+
+async function resolvePageContext(suppliedContext?: string, serviceOverride = config.service, modelOverride?: string): Promise<string | undefined> {
   const service = serviceOverride || config.service;
-  const selectedModel = resolveConfiguredModel(config.model[service], config.customModel[service]);
+  const selectedModel = resolveConfiguredModel(modelOverride || config.model[service], modelOverride || config.customModel[service]);
   if (!config.enableAIContext || !servicesType.isUseAIContext(service, selectedModel)) return undefined;
   return suppliedContext?.trim().slice(0, 4000) || await getPageTranslationContext() || undefined;
 }

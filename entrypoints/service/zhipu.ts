@@ -39,7 +39,7 @@ async function zhipu(message: any) {
     const resp = await runtimeFetch(urls[services.zhipu], {
         method: method.POST,
         headers: headers,
-            body: commonMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage)
+            body: commonMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride)
     });
 
     if (resp.ok) {

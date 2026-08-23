@@ -22,7 +22,7 @@ async function grok(message: any) {
         const resp = await runtimeFetch(url, {
             method: method.POST,
             headers,
-            body: commonMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage)
+            body: commonMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride)
         });
 
         if (!resp.ok) {

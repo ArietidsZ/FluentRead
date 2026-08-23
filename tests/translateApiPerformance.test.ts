@@ -92,27 +92,30 @@ describe('translation API request lifecycle performance', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('sends service and language overrides without changing the default request config', async () => {
-    mocks.sendMessage.mockResolvedValue('请求级译文');
+  it('发送独立入口的服务、语言和模型覆盖，不修改网页默认配置', async () => {
+    mocks.sendMessage.mockResolvedValue('文档译文');
 
-    await expect(translateText('Readable source', 'Context', {
-      maxRetries: 0,
-      useCache: false,
+    await expect(translateText('Document source', 'Document context', {
       serviceOverride: 'mock-ai',
+      modelOverride: 'document-model',
       sourceLanguage: 'en',
       targetLanguage: 'ja',
-    })).resolves.toBe('请求级译文');
+      useCache: false,
+      maxRetries: 0,
+    })).resolves.toBe('文档译文');
 
     expect(mocks.config.service).toBe('mock');
     expect(mocks.config.to).toBe('zh-CN');
     expect(mocks.sendMessage).toHaveBeenCalledWith(expect.objectContaining({
-      origin: 'Readable source',
+      origin: 'Document source',
       serviceOverride: 'mock-ai',
+      modelOverride: 'document-model',
       sourceLanguage: 'en',
       targetLanguage: 'ja',
       useCache: false,
       requestTimeoutMs: 44_000,
     }));
+    expect(mocks.config.model['mock-ai']).toBe('mock-ai-model');
   });
 
   it('lets migrated AI SDK services own retries and restores structured error details', async () => {

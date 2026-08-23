@@ -21,7 +21,7 @@ async function claude(message: any) {
         const resp = await runtimeFetch(url, {
             method: method.POST,
             headers,
-            body: claudeMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage)
+            body: claudeMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride)
         });
 
         if (!resp.ok) {

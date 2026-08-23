@@ -10,7 +10,8 @@ import {runtimeFetch} from '@/entrypoints/utils/http';
 async function gemini(message: any) {
     const service = message.serviceOverride || config.service;
 
-    const model = config.model[service] === customModelString ? config.customModel[service] : config.model[service];
+    const model = message.modelOverride
+        || (config.model[service] === customModelString ? config.customModel[service] : config.model[service]);
     const proxyUrl = config.proxy[service]?.trim();
     const usesOfficialEndpoint = !proxyUrl;
     const url = proxyUrl

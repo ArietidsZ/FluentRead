@@ -15,7 +15,7 @@ async function tongyi(message: any) {
     appendOptionalBearer(headers, config.token[service]);
 
     // 判断是否使用代理
-    const selectedModel = config.model[service];
+    const selectedModel = message.modelOverride || config.model[service];
     const officialUrl = selectedModel === currentModelIds.tongyiTokenPlan
         ? tongyiTokenPlanUrl
         : urls[services.tongyi];
@@ -24,7 +24,7 @@ async function tongyi(message: any) {
     const resp = await runtimeFetch(url, {
         method: method.POST,
         headers: headers,
-        body: tongyiMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage)
+        body: tongyiMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride)
     });
 
     if (resp.ok) {

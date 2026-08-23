@@ -1,73 +1,70 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import {readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {describe, expect, it} from 'vitest';
+
+function readSource(path: string): string {
+    return readFileSync(resolve(process.cwd(), path), 'utf8');
+}
 
 describe('standalone userscript privacy boundaries', () => {
-  const source = readFileSync(resolve(process.cwd(), 'userscripts.js'), 'utf8');
+    const userscriptStorage = readSource('userscript/storage.ts');
+    const userscriptHttp = readSource('userscript/http.ts');
+    const translationCache = readSource('entrypoints/utils/translationCache.ts');
+    const legacyPageCache = readSource('entrypoints/utils/legacyPageCache.ts');
+    const gemini = readSource('entrypoints/service/gemini.ts');
+    const httpError = readSource('entrypoints/utils/httpError.ts');
 
-  it('keeps translation cache out of host-page Web Storage', () => {
-    expect(source).not.toMatch(/\b(?:localStorage|sessionStorage)\b/);
-    expect(source).toContain('GM_setValue(this.buildKey(origin), {value: result, createdAt})');
-    expect(source).toContain("key.startsWith(TRANSLATION_CACHE_PREFIX)");
-  });
+    it('keeps userscript configuration in GM storage instead of host-page Web Storage', () => {
+        expect(userscriptStorage).not.toMatch(/\b(?:localStorage|sessionStorage)\b/);
+        expect(userscriptStorage).toContain('globalThis.GM_getValue');
+        expect(userscriptStorage).toContain('globalThis.GM_setValue');
+        expect(userscriptStorage).toContain('globalThis.GM_deleteValue');
+    });
 
-  it('never clears storage outside FluentRead-owned GM keys', () => {
-    expect(source).not.toMatch(/(?:localStorage|sessionStorage)\.clear\(\)/);
-    expect(source).toContain('GM_deleteValue(key)');
-    expect(source).toContain("key.startsWith(TRANSLATION_CACHE_PREFIX)");
-  });
+    it('migrates only FluentRead-owned legacy page-cache keys', () => {
+        expect(legacyPageCache).not.toContain('.clear(');
+        expect(legacyPageCache).toContain('key?.startsWith(LEGACY_TRANSLATION_CACHE_PREFIX)');
+        expect(legacyPageCache).toContain('pageStorage.removeItem(LEGACY_CACHE_TIMESTAMP_KEY)');
+        expect(legacyPageCache).not.toMatch(/(?:localStorage|sessionStorage)\.clear\(\)/);
+    });
 
-  it('uses a per-entry hard TTL instead of a sliding global timestamp', () => {
-    expect(source).toContain('const TRANSLATION_CACHE_TTL_MS = 24 * 3600000');
-    expect(source).toContain('now - record.createdAt > TRANSLATION_CACHE_TTL_MS');
-    expect(source).toContain('translationCacheManager.clearExpired()');
-    expect(source).toContain('GM_deleteValue(LEGACY_TRANSLATION_CACHE_TIMESTAMP_KEY)');
-    expect(source).not.toContain('GM_setValue(TRANSLATION_CACHE_TIMESTAMP_KEY');
-  });
+    it('uses per-entry hard TTL for the shared IndexedDB translation cache', () => {
+        expect(translationCache).toContain('createdAt + TRANSLATION_CACHE_TTL_MS <= now');
+        expect(translationCache).toContain('expiresAt: now + TRANSLATION_CACHE_TTL_MS');
+        expect(translationCache).toContain(".where('createdAt')");
+        expect(translationCache).toContain('belowOrEqual(now - TRANSLATION_CACHE_TTL_MS)');
+        expect(translationCache).not.toContain('lastAccessedAt + TRANSLATION_CACHE_TTL_MS');
+    });
 
-  it('expires cached HTML by its original creation time', () => {
-    const ttlDeclaration = source.match(/const TRANSLATION_CACHE_TTL_MS = 24 \* 3600000;/)?.[0];
-    const readerDeclaration = source.match(
-      /function readTranslationCacheRecord\(record, now = Date\.now\(\)\) \{[\s\S]*?\n\}/,
-    )?.[0];
-    expect(ttlDeclaration).toBeTruthy();
-    expect(readerDeclaration).toBeTruthy();
+    it('keeps Gemini credentials out of URLs and custom proxies', () => {
+        expect(gemini).not.toContain('generateContent?key=');
+        expect(gemini).toContain("'x-goog-api-key'");
+        expect(gemini).toContain('if (usesOfficialEndpoint)');
+        expect(gemini).not.toContain('responseText');
+    });
 
-    const readRecord = Function(
-      `'use strict'; ${ttlDeclaration} ${readerDeclaration}; return readTranslationCacheRecord;`,
-    )() as (record: unknown, now?: number) => string | null;
-    const createdAt = 1_000_000;
-    expect(readRecord({value: '<p>原文</p>', createdAt}, createdAt + 1)).toBe('<p>原文</p>');
-    expect(readRecord({value: '<p>原文</p>', createdAt}, createdAt + 24 * 3600000 + 1)).toBeNull();
-    expect(readRecord({value: '<p>原文</p>', createdAt: createdAt + 1}, createdAt)).toBeNull();
-    expect(readRecord('<p>旧版无时间戳</p>', createdAt)).toBeNull();
-  });
+    it('does not reflect provider response bodies in transport errors', () => {
+        const errorFunction = userscriptHttp.match(
+            /function errorFromResponse\([\s\S]*?\n\}/,
+        )?.[0] || '';
+        expect(httpError).toContain('return new Error(`${label}: ${response.status}`);');
+        expect(httpError).toContain('throw new Error(label);');
+        expect(httpError).not.toContain('response.text');
+        expect(httpError).not.toContain('response.statusText');
+        expect(userscriptHttp).toContain("response?.statusText || (response?.status ? `HTTP ${response.status}` : 'unknown error')");
+        expect(errorFunction).toBeTruthy();
+        expect(errorFunction).not.toContain('responseText');
+    });
 
-  it('keeps Gemini credentials out of URLs and response bodies out of errors', () => {
-    expect(source).not.toContain('generateContent?key=');
-    expect(source).toContain("'x-goog-api-key': token");
-    expect(source).not.toMatch(/reject\((?:resp|response)\.responseText\)/);
-    expect(source).not.toMatch(/reject\((?:resp|response)\.status\s*,\s*(?:resp|response)\.responseText\)/);
-  });
+    it('uses the safe JSON reader for successful Gemini responses', () => {
+        expect(gemini).toContain("readJsonResponse<any>(resp, 'Gemini 返回的不是有效 JSON')");
+        expect(gemini).not.toMatch(/JSON\.parse\(/);
+        expect(httpError).toContain('catch {');
+    });
 
-  it('keeps language-detection text out of the request URL', () => {
-    expect(source).not.toContain("langdetect?' + data.toString()");
-    expect(source).toContain("url: 'https://fanyi.baidu.com/langdetect'");
-    expect(source).toContain('data: data.toString()');
-  });
-
-  it('does not log credentials or raw response objects', () => {
-    expect(source).not.toContain('console.log("API Key 格式错误：", apiKey)');
-    expect(source).not.toMatch(/console\.(?:log|warn|error)\((?:resp|response|result)\)/);
-    expect(source).not.toMatch(/^\s*console\.(?:log|debug|info|warn|error)\(/m);
-    expect(source).not.toMatch(/=>\s*console\.(?:log|debug|info|warn|error)/);
-  });
-
-  it('sanitizes malformed JSON on every remaining userscript response path', () => {
-    expect(source).toContain('function parseUserscriptJson(responseText)');
-    expect(source).not.toContain('const jsn = JSON.parse(resp.responseText)');
-    expect(source).not.toMatch(/JSON\.parse\(response\.responseText\)\.Data/);
-    expect(source).toContain("reject(new Error('语言检测返回格式异常'))");
-    expect(source.match(/parseUserscriptJson\((?:resp|response)\.responseText\)/g)?.length).toBe(3);
-  });
+    it('does not log provider credentials or raw response objects in the userscript transport', () => {
+        expect(userscriptHttp).not.toMatch(/console\.(?:log|debug|info|warn|error)\(/);
+        expect(httpError).not.toMatch(/console\.(?:log|debug|info|warn|error)\(/);
+        expect(gemini).not.toMatch(/console\.(?:log|debug|info|warn|error)\(/);
+    });
 });
