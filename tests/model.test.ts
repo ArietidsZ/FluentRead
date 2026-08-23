@@ -163,6 +163,26 @@ describe('全文翻译范围配置', () => {
     });
 });
 
+describe('翻译进度面板配置', () => {
+    it('默认开启，并严格保留布尔设置', () => {
+        expect(new Config().translationProgressPanelEnabled).toBe(true);
+        expect(normalizeConfig({}).translationProgressPanelEnabled).toBe(true);
+        expect(normalizeConfig({translationProgressPanelEnabled: true}).translationProgressPanelEnabled).toBe(true);
+        expect(normalizeConfig({translationProgressPanelEnabled: false}).translationProgressPanelEnabled).toBe(false);
+        expect(normalizeConfig({translationProgressPanelEnabled: 'false'}).translationProgressPanelEnabled).toBe(true);
+    });
+
+    it('迁移旧 translationStatus 布尔值并移除旧字段', () => {
+        const enabled = normalizeConfig({translationStatus: true});
+        const disabled = normalizeConfig({translationStatus: false});
+
+        expect(enabled.translationProgressPanelEnabled).toBe(true);
+        expect(disabled.translationProgressPanelEnabled).toBe(false);
+        expect((enabled as unknown as Record<string, unknown>).translationStatus).toBeUndefined();
+        expect((disabled as unknown as Record<string, unknown>).translationStatus).toBeUndefined();
+    });
+});
+
 describe('鼠标悬浮翻译延迟配置', () => {
     it('默认保留现有 50ms 行为，并归一化用户设置', () => {
         expect(new Config().mouseHoverTranslationDelay).toBe(DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY);

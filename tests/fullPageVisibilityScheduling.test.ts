@@ -148,6 +148,11 @@ import {
     restoreOriginalContent,
 } from "@/entrypoints/main/trans";
 import {getTranslationState} from "@/entrypoints/main/translationState";
+import {
+    getFullPageTranslationProgress,
+    subscribeFullPageTranslationProgress,
+    type FullPageTranslationProgress,
+} from "@/entrypoints/utils/fullPageTranslationProgress";
 
 class TestIntersectionObserver {
     static instances: TestIntersectionObserver[] = [];
@@ -593,6 +598,160 @@ describe("全文翻译可见性锚点", () => {
         expect(candidates.map((candidate) => candidate.textContent)).toEqual([
             "译:One", "译:Two", "译:Three", "译:Four",
         ]);
+    });
+
+    it("全文进度只把预取窗口内的等待候选计入 queued，并保留离屏 remaining", async () => {
+        document.body.innerHTML = ["One", "Two", "Three", "Four", "Five"]
+            .map((label, index) => `<p id="progress-candidate-${index}">${label}</p>`)
+            .join("");
+        const candidates = Array.from(document.querySelectorAll<HTMLElement>("p"));
+        candidates.forEach((candidate) => setLayoutBox(candidate, 400, 40));
+        runtime.candidates = candidates.map((element) => ({
+            element,
+            kind: "content" as const,
+            reason: "paragraph",
+        }));
+        const requests = candidates.map(() => deferred<string[]>());
+        let nextRequest = 0;
+        runtime.requests.mockImplementation(() => requests[nextRequest++]!.promise);
+
+        const snapshots: FullPageTranslationProgress[] = [];
+        const unsubscribe = subscribeFullPageTranslationProgress((progress) => {
+            snapshots.push(progress);
+        });
+        const expectCurrentProgress = (expected: Pick<
+            FullPageTranslationProgress,
+            "active" | "running" | "remaining" | "queued" | "offscreen"
+        >) => {
+            expect(getFullPageTranslationProgress()).toMatchObject(expected);
+            expect(snapshots.at(-1)).toMatchObject(expected);
+        };
+
+        try {
+            autoTranslateEnglishPage();
+            await vi.advanceTimersByTimeAsync(50);
+            await Promise.resolve();
+
+            expectCurrentProgress({
+                active: true,
+                running: 0,
+                remaining: 5,
+                queued: 0,
+                offscreen: 5,
+            });
+
+            const observer = TestIntersectionObserver.instances[0]!;
+            candidates.slice(0, 4).forEach((candidate) => observer.emit(candidate, true));
+            await vi.advanceTimersByTimeAsync(1);
+            await Promise.resolve();
+            await Promise.resolve();
+
+            expect(runtime.requests).toHaveBeenCalledTimes(3);
+            expectCurrentProgress({
+                active: true,
+                running: 3,
+                remaining: 2,
+                queued: 1,
+                offscreen: 1,
+            });
+
+            requests[0]!.resolve(["译:One"]);
+            await vi.advanceTimersByTimeAsync(1);
+            await Promise.resolve();
+            await Promise.resolve();
+
+            expect(runtime.requests).toHaveBeenCalledTimes(4);
+            expectCurrentProgress({
+                active: true,
+                running: 3,
+                remaining: 1,
+                queued: 0,
+                offscreen: 1,
+            });
+
+            observer.emit(candidates[4]!, true);
+            await vi.advanceTimersByTimeAsync(1);
+            await Promise.resolve();
+
+            expect(runtime.requests).toHaveBeenCalledTimes(4);
+            expectCurrentProgress({
+                active: true,
+                running: 3,
+                remaining: 1,
+                queued: 1,
+                offscreen: 0,
+            });
+
+            requests[1]!.resolve(["译:Two"]);
+            await vi.advanceTimersByTimeAsync(1);
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(runtime.requests).toHaveBeenCalledTimes(5);
+
+            requests[2]!.resolve(["译:Three"]);
+            requests[3]!.resolve(["译:Four"]);
+            requests[4]!.resolve(["译:Five"]);
+            await finishScheduledWork();
+
+            expect(candidates.map((candidate) => candidate.textContent)).toEqual([
+                "译:One", "译:Two", "译:Three", "译:Four", "译:Five",
+            ]);
+            expectCurrentProgress({
+                active: true,
+                running: 0,
+                remaining: 0,
+                queued: 0,
+                offscreen: 0,
+            });
+
+            restoreOriginalContent();
+            expectCurrentProgress({
+                active: false,
+                running: 0,
+                remaining: 0,
+                queued: 0,
+                offscreen: 0,
+            });
+        } finally {
+            unsubscribe();
+        }
+    });
+
+    it("立即翻译整页时把所有未启动候选计入 queued，不产生离屏计数", async () => {
+        runtime.config.fullPageTranslationMode = "all";
+        document.body.innerHTML = ["One", "Two", "Three", "Four", "Five"]
+            .map((label, index) => `<p id="all-progress-candidate-${index}">${label}</p>`)
+            .join("");
+        const candidates = Array.from(document.querySelectorAll<HTMLElement>("p"));
+        candidates.forEach((candidate) => setLayoutBox(candidate, 400, 40));
+        runtime.candidates = candidates.map((element) => ({
+            element,
+            kind: "content" as const,
+            reason: "paragraph",
+        }));
+        const requests = candidates.map(() => deferred<string[]>());
+        let nextRequest = 0;
+        runtime.requests.mockImplementation(() => requests[nextRequest++]!.promise);
+
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(51);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(runtime.requests).toHaveBeenCalledTimes(3);
+        expect(TestIntersectionObserver.instances[0]!.observe).not.toHaveBeenCalled();
+        expect(getFullPageTranslationProgress()).toMatchObject({
+            active: true,
+            running: 3,
+            remaining: 2,
+            queued: 2,
+            offscreen: 0,
+        });
+
+        restoreOriginalContent();
+        requests.slice(0, 3).forEach((request, index) => request.resolve([`译:${candidates[index]!.textContent}`]));
+        await finishScheduledWork();
+        expect(getFullPageTranslationProgress()).toMatchObject({active: false});
     });
 
     it("不会把扩展生成的布局节点当成候选可见性锚点", async () => {

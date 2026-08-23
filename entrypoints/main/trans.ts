@@ -32,6 +32,11 @@ import {
     type TranslationQueueSession,
 } from "@/entrypoints/utils/translateQueue";
 import {
+    finishFullPageTranslationProgress,
+    startFullPageTranslationProgress,
+    updateFullPageTranslationProgress,
+} from "@/entrypoints/utils/fullPageTranslationProgress";
+import {
     appendBilingualTranslation,
 } from "@/entrypoints/main/translationRenderer";
 import {
@@ -99,6 +104,8 @@ interface LiveTextTranslationResult {
 interface FullPageSession {
     active: boolean;
     translationMode: FullPageTranslationMode;
+    progressSessionId: number;
+    progressPublishScheduled: boolean;
     observer: IntersectionObserver;
     mutationObserver: MutationObserver;
     shadowEventController: AbortController;
@@ -150,6 +157,30 @@ const FULL_PAGE_TRANSLATION_CACHE_LIMIT = 512;
 
 let hoverTimer: ReturnType<typeof setTimeout> | undefined;
 let fullPageSession: FullPageSession | null = null;
+
+function scheduleFullPageProgressPublish(session: FullPageSession): void {
+    if (!session.active || session.progressPublishScheduled) return;
+    session.progressPublishScheduled = true;
+    queueMicrotask(() => {
+        session.progressPublishScheduled = false;
+        if (!session.active || fullPageSession !== session) return;
+
+        const running = session.inFlightCandidates.size;
+        let runningScheduled = 0;
+        for (const [key, candidate] of session.inFlightCandidates) {
+            if (session.scheduled.get(key) === candidate) runningScheduled += 1;
+        }
+        // 同一个 key 的新候选可以在旧请求 settle 前替换 scheduled 所有权。
+        // 旧请求仍算进行中，但不能把新的待处理候选从 remaining 中扣掉。
+        const remaining = Math.max(0, session.scheduled.size - runningScheduled);
+        const queued = Math.min(session.pending.size, remaining);
+        updateFullPageTranslationProgress(session.progressSessionId, {
+            running,
+            queued,
+            offscreen: Math.max(0, remaining - queued),
+        });
+    });
+}
 
 function isElementNode(node: Node | null | undefined): node is Element {
     return Boolean(node && node.nodeType === 1 && typeof (node as Element).matches === "function");
@@ -818,6 +849,7 @@ function refreshCandidateVisibilityBinding(
         // subtree is being rebuilt. If it was still waiting on the old anchor,
         // direct scheduling is the only visibility-safe fallback.
         if (!session.pending.has(key)) session.pending.set(key, candidate);
+        scheduleFullPageProgressPublish(session);
         scheduleFullPageDrain(session);
         return;
     }
@@ -830,16 +862,21 @@ function refreshCandidateVisibilityBinding(
     observed.set(key, candidate);
     session.candidateAnchors.set(key, nextAnchor);
     session.observer.observe(nextAnchor);
+    scheduleFullPageProgressPublish(session);
 }
 
 function forgetCandidate(session: FullPageSession | undefined, candidate: TranslationCandidate): void {
     if (!session) return;
     const key = getTranslationCandidateKey(candidate);
-    if (session.pending.get(key) === candidate) session.pending.delete(key);
-    if (session.scheduled.get(key) !== candidate) return;
+    const removedPending = session.pending.get(key) === candidate && session.pending.delete(key);
+    if (session.scheduled.get(key) !== candidate) {
+        if (removedPending) scheduleFullPageProgressPublish(session);
+        return;
+    }
     session.scheduled.delete(key);
     removeCandidateObservation(session, key);
     removeCandidateOwnerKey(session, candidate.element, key);
+    scheduleFullPageProgressPublish(session);
 }
 
 async function translateTarget(
@@ -1157,10 +1194,14 @@ function drainFullPage(session: FullPageSession): void {
                 if (session.inFlightCandidates.get(key) === candidate) {
                     session.inFlightCandidates.delete(key);
                 }
-                if (session.active) scheduleFullPageDrain(session);
+                if (session.active) {
+                    scheduleFullPageProgressPublish(session);
+                    scheduleFullPageDrain(session);
+                }
             });
     }
     session.draining = false;
+    scheduleFullPageProgressPublish(session);
 }
 
 function scheduleDiscoveredCandidate(session: FullPageSession, candidate: TranslationCandidate): void {
@@ -1225,6 +1266,7 @@ function scheduleDiscoveredCandidate(session: FullPageSession, candidate: Transl
     session.scheduled.set(key, candidate);
     addCandidateOwnerKey(session, target, key);
     refreshCandidateVisibilityBinding(session, key, candidate);
+    scheduleFullPageProgressPublish(session);
 }
 
 function nodeContains(ancestor: Node, descendant: Node): boolean {
@@ -1844,6 +1886,7 @@ function createFullPageSession(root: HTMLElement): FullPageSession {
             const candidates = session.observedCandidates.get(node);
             candidates?.forEach((candidate, key) => session.pending.set(key, candidate));
         }
+        scheduleFullPageProgressPublish(session);
         scheduleFullPageDrain(session);
     }, {
         root: null,
@@ -1855,6 +1898,8 @@ function createFullPageSession(root: HTMLElement): FullPageSession {
     session = {
         active: true,
         translationMode: config.fullPageTranslationMode,
+        progressSessionId: startFullPageTranslationProgress(),
+        progressPublishScheduled: false,
         observer,
         mutationObserver,
         shadowEventController: new AbortController(),
@@ -1913,6 +1958,7 @@ function disposeFullPageSession(session: FullPageSession): void {
     session.pruneRequested = false;
     session.statefulAttributeTimers.clear();
     session.statefulAttributeRescanTargets = new WeakSet();
+    finishFullPageTranslationProgress(session.progressSessionId);
 }
 
 function stopFullPageSession(): void {
