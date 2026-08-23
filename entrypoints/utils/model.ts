@@ -1,6 +1,7 @@
 import { currentModelIds, defaultModels, defaultOption, services, servicesType } from "./option";
 import type { MiniMaxBillingPlan, MiniMaxRegion, MiMoBillingPlan, MiMoRegion } from "./option";
 import { normalizeCustomBodyMapping } from "./custom-body";
+import { normalizeSelectionTtsVoiceOrder } from "./selectionTtsConfig";
 
 export type DeepSeekApiType = 'auto' | 'responses' | 'chat';
 export type DeepSeekThinkingMode = 'enabled' | 'disabled';
@@ -92,6 +93,7 @@ export class Config {
     deeplx: string; // DeepLX 服务地址
     selectionTranslatorMode: string; // 划词翻译显示模式: 'disabled' | 'bilingual' | 'translation-only'
     selectionTranslatorTrigger: string; // 划词翻译触发方式: 'direct' | 'icon' | 'dot'
+    selectionTtsVoices: string[]; // 划词朗读的 Edge TTS 音色回退顺序
     newApiUrl: string; // NewAPI地址
     maxConcurrentTranslations: number; // 最大并发翻译数量
     youdaoAppKey: string; // 有道翻译 App Key
@@ -104,6 +106,9 @@ export class Config {
     inputBoxTranslationTarget: string; // 输入框翻译目标语言
     deepseekApiType: DeepSeekApiType; // DeepSeek API 格式
     deepseekThinkingMode: DeepSeekThinkingMode; // DeepSeek Chat Completion 思考模式
+    translationCenterServices: string[]; // 翻译中心已选服务及其展示顺序
+    translationCenterSourceLanguage: string; // 翻译中心源语言
+    translationCenterTargetLanguage: string; // 翻译中心目标语言
 
     constructor() {
         this.on = true;
@@ -159,6 +164,7 @@ export class Config {
         this.deeplx = defaultOption.deeplx; // DeepLX 默认服务地址
         this.selectionTranslatorMode = 'disabled'; // 默认关闭划词翻译
         this.selectionTranslatorTrigger = 'icon'; // 默认显示可发现的操作图标
+        this.selectionTtsVoices = []; // 默认按当前语言使用内置音色回退顺序
         this.newApiUrl = DEFAULT_NEW_API_URL; // NewAPI 默认地址
         this.maxConcurrentTranslations = 6; // 默认最大并发数为6
         this.youdaoAppKey = ''; // 有道翻译 App Key
@@ -171,6 +177,9 @@ export class Config {
         this.inputBoxTranslationTarget = 'en'; // 默认翻译成英文
         this.deepseekApiType = 'auto'; // DeepSeek 默认自动选择 API 格式
         this.deepseekThinkingMode = 'disabled'; // 翻译默认关闭思考模式，降低延迟和输出噪音
+        this.translationCenterServices = [];
+        this.translationCenterSourceLanguage = '';
+        this.translationCenterTargetLanguage = '';
     }
 }
 
@@ -358,6 +367,7 @@ export function normalizeConfig(value: unknown): Config {
     if (!['direct', 'icon', 'dot'].includes(normalized.selectionTranslatorTrigger)) {
         normalized.selectionTranslatorTrigger = 'icon';
     }
+    normalized.selectionTtsVoices = normalizeSelectionTtsVoiceOrder(normalized.selectionTtsVoices);
     normalized.disableSelectionTranslator = normalized.selectionTranslatorMode === 'disabled';
     if (typeof normalized.selectionAreaEnabled !== 'boolean') {
         normalized.selectionAreaEnabled = false;
@@ -365,6 +375,9 @@ export function normalizeConfig(value: unknown): Config {
     if (typeof normalized.contextMenuEnabled !== 'boolean') {
         normalized.contextMenuEnabled = true;
     }
+    normalized.translationCenterServices = normalizeStringList(source.translationCenterServices);
+    normalized.translationCenterSourceLanguage = normalizeConfigLanguage(source.translationCenterSourceLanguage);
+    normalized.translationCenterTargetLanguage = normalizeConfigLanguage(source.translationCenterTargetLanguage);
 
     return normalized;
 }
@@ -403,6 +416,18 @@ function normalizeStringMapping(value: unknown): IMapping {
     return Object.fromEntries(
         Object.entries(value).filter(([, item]) => typeof item === 'string'),
     );
+}
+
+function normalizeStringList(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    return [...new Set(value
+        .filter((item): item is string => typeof item === 'string')
+        .map(item => item.trim())
+        .filter(Boolean))];
+}
+
+function normalizeConfigLanguage(value: unknown): string {
+    return typeof value === 'string' ? value.trim() : '';
 }
 
 function isBooleanMapping(value: unknown): value is Record<string, boolean> {

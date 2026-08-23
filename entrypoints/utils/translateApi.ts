@@ -144,9 +144,11 @@ export async function translateText(origin: string, context: string = document.t
     timeout = 45000,
     useCache = config.useCache,
     skipLanguageDetection = false,
+    serviceOverride,
+    sourceLanguage,
+    targetLanguage,
     signal,
     queueSession,
-    serviceOverride,
     modelOverride,
   } = options;
   throwIfAborted(signal);
@@ -160,7 +162,7 @@ export async function translateText(origin: string, context: string = document.t
   assertTranslationCredentials(service, modelOverride);
 
   // 如果目标语言与当前文本语言相同，直接返回原文
-  if (!skipLanguageDetection && detectlang(origin.replace(/[\s\u3000]/g, '')) === config.to) {
+  if (!skipLanguageDetection && detectlang(origin.replace(/[\s\u3000]/g, '')) === (targetLanguage || config.to)) {
     return origin;
   }
 
@@ -184,8 +186,10 @@ export async function translateText(origin: string, context: string = document.t
             pageContext,
             origin,
             useCache,
-            ...(serviceOverride ? {serviceOverride} : {}),
-            ...(modelOverride ? {modelOverride} : {}),
+            serviceOverride,
+            sourceLanguage,
+            targetLanguage,
+            modelOverride,
           }),
           timeout,
           signal,
@@ -236,9 +240,11 @@ export async function translateTextBatch(
     retryDelay = 1000,
     timeout = 45000,
     useCache = config.useCache,
+    serviceOverride,
+    sourceLanguage,
+    targetLanguage,
     signal,
     queueSession,
-    serviceOverride,
     modelOverride,
   } = options;
   const service = serviceOverride || config.service;
@@ -259,8 +265,10 @@ export async function translateTextBatch(
             pageContext,
             origin: origins,
             useCache,
-            ...(serviceOverride ? {serviceOverride} : {}),
-            ...(modelOverride ? {modelOverride} : {}),
+            serviceOverride,
+            sourceLanguage,
+            targetLanguage,
+            modelOverride,
           }),
           timeout,
           signal,
@@ -334,6 +342,12 @@ export interface TranslateOptions {
   timeout?: number;
   /** 是否使用缓存 */
   useCache?: boolean;
+  /** 仅对当前请求使用的翻译服务，不改变网页翻译默认服务。 */
+  serviceOverride?: string;
+  /** 仅对当前请求使用的源语言，不改变通用设置。 */
+  sourceLanguage?: string;
+  /** 仅对当前请求使用的目标语言，不改变通用设置。 */
+  targetLanguage?: string;
   /** 发送给 LLM 的网页参考上下文；未提供时按当前页面自动提取。 */
   pageContext?: string;
   /** Internal structured packets contain ASCII sentinels that must not affect source-language detection. */
@@ -342,8 +356,6 @@ export interface TranslateOptions {
   signal?: AbortSignal;
   /** Queue scope used to reject work that has not started when one DOM attempt is cancelled. */
   queueSession?: TranslationQueueSession;
-  /** 为文档等独立入口覆盖当前请求使用的翻译服务。 */
-  serviceOverride?: string;
   /** 为文档等独立入口覆盖当前请求的实际模型，不改写网页翻译配置。 */
   modelOverride?: string;
 }

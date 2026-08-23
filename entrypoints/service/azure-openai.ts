@@ -29,7 +29,7 @@ async function azureOpenai(message: any) {
         const resp = await fetch(endpoint, {
             method: method.POST,
             headers,
-            body: commonMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.modelOverride)
+            body: commonMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride)
         });
 
         if (!resp.ok) {

@@ -88,18 +88,27 @@ describe('translation API request lifecycle performance', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('发送独立入口的服务和模型覆盖，不修改网页模型配置', async () => {
+  it('发送独立入口的服务、语言和模型覆盖，不修改网页默认配置', async () => {
     mocks.sendMessage.mockResolvedValue('文档译文');
 
     await expect(translateText('Document source', 'Document context', {
       serviceOverride: 'mock-ai',
       modelOverride: 'document-model',
+      sourceLanguage: 'en',
+      targetLanguage: 'ja',
+      useCache: false,
       maxRetries: 0,
     })).resolves.toBe('文档译文');
 
+    expect(mocks.config.service).toBe('mock');
+    expect(mocks.config.to).toBe('zh-CN');
     expect(mocks.sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      origin: 'Document source',
       serviceOverride: 'mock-ai',
       modelOverride: 'document-model',
+      sourceLanguage: 'en',
+      targetLanguage: 'ja',
+      useCache: false,
     }));
     expect(mocks.config.model['mock-ai']).toBe('mock-ai-model');
   });

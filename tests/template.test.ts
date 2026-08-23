@@ -181,7 +181,7 @@ describe('commonMsgTemplate（集成）', () => {
     });
 
     it('文档入口可以覆盖模型而不改写网页翻译模型', () => {
-        const body = JSON.parse(commonMsgTemplate('hello', undefined, undefined, undefined, services.openai, 'gpt-document-model'));
+        const body = JSON.parse(commonMsgTemplate('hello', undefined, undefined, undefined, services.openai, undefined, 'gpt-document-model'));
 
         expect(body.model).toBe('gpt-document-model');
         expect(mockConfig.model.openai).toBe('gpt-5.6-luna');
