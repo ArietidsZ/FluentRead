@@ -47,6 +47,17 @@ export const navigationGroups: NavigationGroup[] = [
     ],
   },
   {
+    label: '学习工具',
+    items: [
+      {
+        id: 'settings-vocabulary', icon: '★', label: '单词本 Beta', description: '收藏与复习', group: '学习工具',
+        heading: '把阅读中遇到的词真正学会', summary: '收藏划词卡中的英文单词，用轻量复习跟踪从新词到掌握的过程。',
+        kicker: '本地学习 Beta', title: '单词本', detail: '词条、上下文与复习记录只保存在当前浏览器中，可独立导出和迁移。',
+        searchDescription: '单词本、收藏、复习、掌握程度、学习记录、Anki、导入导出',
+      },
+    ],
+  },
+  {
     label: '阅读工具',
     items: [
       {

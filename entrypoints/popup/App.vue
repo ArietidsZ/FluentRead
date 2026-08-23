@@ -371,6 +371,11 @@
               />
             </el-select>
             <small class="drawer-hint">留空时按当前语言自动尝试多个免费 Edge 音色；选中多个后按此顺序回退，不需要 API Key。</small>
+          <button class="wordbook-shortcut" type="button" @click="openOptions('settings-vocabulary')">
+            <span class="wordbook-shortcut-icon" aria-hidden="true">★</span>
+            <span><strong>单词本 <em>Beta</em></strong><small>{{ config.vocabularyBookEnabled ? '查看收藏、今日复习与掌握程度' : '开启后可从单词学习卡收藏并复习' }}</small></span>
+            <b aria-hidden="true">›</b>
+          </button>
           </div>
         </div>
 
@@ -500,7 +505,7 @@ import { getSiteBaseDomain } from '@/entrypoints/utils/siteRules';
 import ServiceIcon from '@/components/ServiceIcon.vue';
 
 type DrawerName = 'hover' | 'selection' | 'floating' | 'appearance' | 'image' | 'video';
-type SettingsSection = 'settings-general' | 'settings-shortcuts' | 'settings-services' | 'settings-sites' | 'settings-video';
+type SettingsSection = 'settings-general' | 'settings-shortcuts' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/components/CustomHotkeyInput.vue'));
 const version = process.env.VUE_APP_VERSION;
 const config = ref(new Config());

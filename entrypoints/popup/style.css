@@ -451,6 +451,17 @@ footer > button { justify-self: end; }
 .selection-tts-voice-select { width: 100%; }
 .selection-tts-voice-select .el-select__wrapper { min-height: 39px; border-radius: 11px; background: var(--surface-soft); box-shadow: 0 0 0 1px var(--line) inset; }
 .drawer-hint { display: block; margin: 8px 3px 0; color: var(--muted); font-size: 9.5px; line-height: 1.45; }
+.wordbook-shortcut {
+  display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; width: 100%; min-height: 58px; margin-top: 16px; padding: 9px 11px;
+  border: 1px solid rgba(239, 71, 118, .22); border-radius: 14px; color: var(--ink); background: linear-gradient(135deg, var(--surface), var(--brand-soft)); text-align: left; cursor: pointer;
+}
+.wordbook-shortcut:hover { border-color: rgba(239, 71, 118, .48); box-shadow: 0 8px 20px rgba(239, 71, 118, .09); }
+.wordbook-shortcut-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; color: #fff; background: linear-gradient(135deg, #f35482, #e93267); font-size: 17px; }
+.wordbook-shortcut > span:nth-child(2) { display: flex; min-width: 0; flex-direction: column; }
+.wordbook-shortcut strong { font-size: 11.5px; }
+.wordbook-shortcut em { margin-left: 4px; color: var(--brand-strong); font-size: 8px; font-style: normal; letter-spacing: .04em; }
+.wordbook-shortcut small { margin-top: 3px; color: var(--muted); font-size: 9px; line-height: 1.4; }
+.wordbook-shortcut b { color: var(--brand-strong); font-size: 20px; font-weight: 500; }
 .chips { display: grid; gap: 8px; }
 .chips.two { grid-template-columns: repeat(2, 1fr); }
 .chips.three { grid-template-columns: repeat(3, 1fr); }

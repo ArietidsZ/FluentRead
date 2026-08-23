@@ -116,6 +116,7 @@ export class Config {
     customSelectionTranslatorHotkey: string; // 自定义划词翻译快捷键
     selectionTranslatorDelay: number; // 选区稳定后显示划词翻译入口的延迟（毫秒）
     selectionTtsVoices: string[]; // 划词朗读的 Edge TTS 音色回退顺序
+    vocabularyBookEnabled: boolean; // 是否启用本地单词本 Beta
     newApiUrl: string; // NewAPI地址
     maxConcurrentTranslations: number; // 最大并发翻译数量
     youdaoAppKey: string; // 有道翻译 App Key
@@ -191,6 +192,7 @@ export class Config {
         this.customSelectionTranslatorHotkey = ''; // 自定义划词翻译快捷键为空
         this.selectionTranslatorDelay = DEFAULT_SELECTION_TRANSLATOR_DELAY;
         this.selectionTtsVoices = []; // 默认按当前语言使用内置音色回退顺序
+        this.vocabularyBookEnabled = false; // Beta 默认关闭，由用户在单词本页面主动开启
         this.newApiUrl = DEFAULT_NEW_API_URL; // NewAPI 默认地址
         this.maxConcurrentTranslations = 6; // 默认最大并发数为6
         this.youdaoAppKey = ''; // 有道翻译 App Key
@@ -424,6 +426,9 @@ export function normalizeConfig(value: unknown): Config {
     }
     normalized.selectionTtsVoices = normalizeSelectionTtsVoiceOrder(normalized.selectionTtsVoices);
     normalized.disableSelectionTranslator = normalized.selectionTranslatorMode === 'disabled';
+    if (typeof normalized.vocabularyBookEnabled !== 'boolean') {
+        normalized.vocabularyBookEnabled = false;
+    }
     if (typeof normalized.selectionAreaEnabled !== 'boolean') {
         normalized.selectionAreaEnabled = false;
     }
