@@ -417,11 +417,11 @@
           <div class="image-translation-preview-art"><span>文字</span><b>文</b></div>
           <div>
             <span class="feature-title"><strong>悬停图片显示翻译入口</strong><em class="beta-badge">Beta 测试</em></span>
-            <small>点击图片右上角的小图标即可识别并翻译图片文字</small>
+            <small>点击图片左下角的小图标即可识别并翻译图片文字</small>
           </div>
         </div>
         <div class="setting-row">
-          <span><strong>启用图片翻译</strong><small>在网页图片右上角显示“文”按钮</small></span>
+          <span><strong>启用图片翻译</strong><small>在网页图片左下角显示“文”按钮</small></span>
           <button class="switch compact" type="button" role="switch" :aria-checked="!config.disableImageTranslator" aria-label="启用或关闭图片翻译" @click="setImageTranslatorEnabled(config.disableImageTranslator)"><i /></button>
         </div>
       </div>
@@ -594,7 +594,7 @@ const drawerDescription = computed(() => ({
   selection: '选中文字或圈选页面区域，按你的偏好获取译文。',
   floating: '把全文翻译入口固定在最顺手的位置。',
   appearance: '调整双语布局、译文样式与界面主题。',
-  image: '把鼠标移到图片上，从图片右上角打开翻译入口。',
+  image: '把鼠标移到图片上，从图片左下角打开翻译入口。',
   video: '在 YouTube 播放器中显示实时字幕译文。',
 }[activeDrawer.value]));
 const hoverChoices = [

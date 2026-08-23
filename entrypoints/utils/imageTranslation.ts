@@ -60,7 +60,7 @@ function ensureImageOverlayRoot(): HTMLDivElement {
       .${IMAGE_TRANSLATION_OVERLAY} { position: fixed !important; overflow: hidden !important; pointer-events: none !important; box-sizing: border-box !important; }
       .${IMAGE_TRANSLATION_OVERLAY} canvas { position: absolute !important; inset: 0 !important; display: none; width: 100%; height: 100%; pointer-events: none; }
       .${IMAGE_TRANSLATION_BUTTON} {
-        position: absolute !important; right: 8px !important; top: 8px !important; z-index: 1 !important;
+        position: absolute !important; left: 8px !important; bottom: 8px !important; z-index: 1 !important;
         width: 26px !important; height: 26px !important; padding: 0 !important;
         border: 1px solid rgba(255,255,255,.7) !important; border-radius: 999px !important;
         background: rgba(20,20,20,.68) !important; color: rgba(255,255,255,.95) !important;
