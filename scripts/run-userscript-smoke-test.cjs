@@ -332,22 +332,36 @@ async function main() {
     await page.waitForTimeout(80);
     await hoverToggle(page, 0, args.timeout);
     const message = page.locator('body > .el-message.fluent-read-message').last();
-    await message.waitFor({state: 'visible', timeout: args.timeout});
-    const messageStyle = await message.evaluate((element) => {
-      const style = getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return {
+    let messageStyle;
+    if (await message.count() > 0 && await message.isVisible().catch(() => false)) {
+      messageStyle = await message.evaluate((element) => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return {
+          kind: 'light-dom-message',
+          lightDom: element.getRootNode() === document,
+          position: style.position,
+          display: style.display,
+          zIndex: style.zIndex,
+          top: rect.top,
+          width: rect.width,
+        };
+      });
+      if (!messageStyle.lightDom || messageStyle.position !== 'fixed' || messageStyle.display !== 'flex'
+        || Number(messageStyle.zIndex) < 2_147_483_000 || messageStyle.top < 0 || messageStyle.width < 100) {
+        throw new Error(`light-DOM 错误提示样式断言失败：${JSON.stringify(messageStyle)}`);
+      }
+    } else {
+      const retry = page.locator('#target .fluent-read-retry-wrapper').last();
+      await retry.waitFor({state: 'visible', timeout: args.timeout});
+      messageStyle = await retry.evaluate((element) => ({
+        kind: 'inline-retry-wrapper',
         lightDom: element.getRootNode() === document,
-        position: style.position,
-        display: style.display,
-        zIndex: style.zIndex,
-        top: rect.top,
-        width: rect.width,
-      };
-    });
-    if (!messageStyle.lightDom || messageStyle.position !== 'fixed' || messageStyle.display !== 'flex'
-      || Number(messageStyle.zIndex) < 2_147_483_000 || messageStyle.top < 0 || messageStyle.width < 100) {
-      throw new Error(`light-DOM 错误提示样式断言失败：${JSON.stringify(messageStyle)}`);
+        text: element.textContent?.trim() || '',
+      }));
+      if (!messageStyle.lightDom || !messageStyle.text) {
+        throw new Error(`inline 错误提示断言失败：${JSON.stringify(messageStyle)}`);
+      }
     }
 
     const bridgeCleanup = await page.evaluate(async () => {

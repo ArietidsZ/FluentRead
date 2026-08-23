@@ -328,7 +328,15 @@ function queueStorageWrite(nextConfig: Config, serialized: string, revision: num
             if (revision !== writeRevision || lastPersistedSerialized !== serialized) return;
             try {
                 if (!trustedCredentialStorageContext) {
-                    throw new Error('当前上下文不能安全访问 session 凭据存储');
+                    // Userscripts and extension content scripts can persist the
+                    // public configuration, but they cannot access the
+                    // extension-only session credential store. Credentials are
+                    // stripped by toPublicConfig before this fallback write.
+                    await storage.setItem(CONFIG_STORAGE_KEY, {
+                        ...toPublicConfig(nextConfig),
+                        [CONFIG_REVISION_FIELD]: storedRevision,
+                    });
+                    return;
                 }
 
                 const credentials = extractConfigCredentials(nextConfig);
