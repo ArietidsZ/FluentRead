@@ -132,6 +132,8 @@ let positionFrame: number | null = null;
 let translationRequestId = 0;
 let wordLookupRequestId = 0;
 let copyTimer: number | null = null;
+let lastTrustedSelectionInteractionAt = 0;
+const TRUSTED_SELECTION_INTERACTION_GRACE_MS = 1_500;
 let audio: HTMLAudioElement | null = null;
 let audioUrl = '';
 let utterance: SpeechSynthesisUtterance | null = null;
@@ -650,6 +652,8 @@ function isInsideUi(target: EventTarget | null): boolean {
   return Boolean(node === host || host?.contains(node) || node.getRootNode() instanceof ShadowRoot);
 }
 function handlePointerDown(event: PointerEvent): void {
+  if (!event.isTrusted) return;
+  lastTrustedSelectionInteractionAt = Date.now();
   if (isInsideUi(event.target)) {
     uiPointerInteraction = true;
     isSelecting = false;
@@ -662,6 +666,8 @@ function handlePointerDown(event: PointerEvent): void {
   if (showTooltip.value) hideAll();
 }
 function handlePointerUp(event: PointerEvent): void {
+  if (!event.isTrusted) return;
+  lastTrustedSelectionInteractionAt = Date.now();
   if (uiPointerInteraction || isInsideUi(event.target)) {
     uiPointerInteraction = false;
     isSelecting = false;
@@ -673,6 +679,7 @@ function handlePointerUp(event: PointerEvent): void {
   scheduleSelectionRead();
 }
 function handlePointerCancel(event: PointerEvent): void {
+  if (!event.isTrusted) return;
   if (uiPointerInteraction || isInsideUi(event.target)) {
     uiPointerInteraction = false;
     isSelecting = false;
@@ -681,7 +688,10 @@ function handlePointerCancel(event: PointerEvent): void {
   }
   isSelecting = false;
 }
-function handleSelectionChange(): void { if (!isSelectionReadSuppressed()) scheduleSelectionRead(); }
+function handleSelectionChange(event: Event): void {
+  if (!event.isTrusted || Date.now() - lastTrustedSelectionInteractionAt > TRUSTED_SELECTION_INTERACTION_GRACE_MS) return;
+  if (!isSelectionReadSuppressed()) scheduleSelectionRead();
+}
 function handleWheel(event: WheelEvent): void { if (isInsideUi(event.target)) suppressSelectionRead(); }
 function handleScroll(event: Event): void {
   if (isInsideUi(event.target)) {
@@ -691,6 +701,8 @@ function handleScroll(event: Event): void {
   schedulePositionUpdate();
 }
 function handleKeydown(event: KeyboardEvent): void {
+  if (!event.isTrusted) return;
+  lastTrustedSelectionInteractionAt = Date.now();
   if (isInsideUi(event.target)) suppressSelectionRead();
   if (event.key === 'Escape' && (showIndicator.value || showTooltip.value)) hideAll();
 }

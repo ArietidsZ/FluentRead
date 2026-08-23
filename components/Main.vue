@@ -659,6 +659,20 @@
           </el-col>
         </el-row>
 
+        <section class="credential-persistence-panel" aria-label="API 凭据存储">
+          <div class="credential-persistence-copy">
+            <strong>跨浏览器重启保存 API 凭据</strong>
+            <p>默认仅保存在当前浏览器会话，关闭浏览器后清除。开启后会以明文写入扩展本地存储；本机其他可读取浏览器配置或诊断数据的程序可能看到这些凭据。</p>
+          </div>
+          <el-switch
+            :model-value="config.persistCredentials"
+            :loading="credentialPersistenceBusy"
+            aria-label="跨浏览器重启保存 API 凭据"
+            data-testid="persist-credentials-switch"
+            @change="setCredentialPersistence"
+          />
+        </section>
+
         <section class="config-history-panel" aria-label="最近配置">
           <div class="config-history-heading">
             <div>
@@ -725,6 +739,7 @@
             </el-button>
           </el-col>
         </el-row>
+        <p class="config-transfer-note">导出会移除专用 API Key、Secret 与令牌字段；自定义请求体、代理和端点中的内嵌凭据无法自动识别，请在分享前检查。导入旧版配置时，专用凭据会迁移到当前浏览器会话。</p>
 
         <!-- 导出配置 -->
         <el-row v-if="showExportBox" class="margin-bottom margin-left-2em">
@@ -789,7 +804,7 @@ import ServiceCatalog from '@/components/ServiceCatalog.vue';
 import ServiceConfiguration from '@/components/ServiceConfiguration.vue';
 import TranslationCenter from '@/components/TranslationCenter.vue';
 import { parseHotkey } from '@/entrypoints/utils/hotkey';
-import { isConfigImportValid, sanitizeConfigForExport } from '@/entrypoints/utils/config-transfer';
+import { isConfigImportValid, prepareConfigForImport, sanitizeConfigForExport } from '@/entrypoints/utils/config-transfer';
 import { getApiKeyRequirementKey, getMissingCredentialMessage, isApiKeyRequired } from '@/entrypoints/utils/configValidation';
 import {
   IMAGE_OCR_LANGUAGE_PACKS,
@@ -804,7 +819,6 @@ import {
   configReady,
   getConfigHistorySnapshot,
   requestConfigHistoryAction,
-  saveConfig,
   requestConfigSave,
   subscribeConfigHistory,
   subscribeConfig,
@@ -914,7 +928,6 @@ watch(config, (newValue) => {
 function persistOnPageExit() {
   if (!hydrated || pageExitSaveStarted) return;
   pageExitSaveStarted = true;
-  void saveConfig(config.value).catch((error) => console.warn('[FluentRead] 设置页关闭前本地保存失败', error));
   void persistConfig(config.value).catch((error) => console.warn('[FluentRead] 设置页关闭前后台保存失败', error));
 }
 
@@ -1272,6 +1285,48 @@ const showExportBox = ref(false);
 const exportData = ref('');
 const showImportBox = ref(false);
 const importData = ref('');
+const credentialPersistenceBusy = ref(false);
+
+const setCredentialPersistence = async (value: string | number | boolean) => {
+  const enabled = value === true;
+  if (enabled === config.value.persistCredentials || credentialPersistenceBusy.value) return;
+
+  if (enabled) {
+    try {
+      await ElMessageBox.confirm(
+        '开启后，API Key、访问令牌及其他服务凭据会以明文写入扩展本地存储，并在浏览器重启后继续保留。仅应在受信任的个人设备上开启。',
+        '保存 API 凭据',
+        {
+          confirmButtonText: '了解风险并开启',
+          cancelButtonText: '取消',
+          type: 'warning',
+        },
+      );
+    } catch {
+      return;
+    }
+  }
+
+  credentialPersistenceBusy.value = true;
+  try {
+    const nextConfig = normalizeConfig({...config.value, persistCredentials: enabled});
+    // 后台只有在 session 写入并读回成功后，才会清理关闭开关前的 local 凭据。
+    await persistConfig(nextConfig);
+    applyingExternalConfig = true;
+    try {
+      Object.assign(config.value, nextConfig);
+      lastSerialized = JSON.stringify(nextConfig);
+    } finally {
+      applyingExternalConfig = false;
+    }
+    ElMessage.success(enabled ? '已允许跨浏览器重启保存 API 凭据' : 'API 凭据现仅保存在当前浏览器会话');
+  } catch (error) {
+    ElMessage.error(`凭据存储设置失败：${error instanceof Error ? error.message : '请稍后重试'}`);
+  } finally {
+    credentialPersistenceBusy.value = false;
+  }
+};
+
 const configHistory = ref<ConfigHistoryState>(getConfigHistorySnapshot());
 const historyBusy = ref(false);
 const historyEntries = computed(() => [...configHistory.value.entries].reverse());
@@ -1376,7 +1431,7 @@ const saveImport = async () => {
       });
       return;
     }
-    await persistConfig(normalizeConfig(parsedConfig));
+    await persistConfig(prepareConfigForImport(parsedConfig, runtimeConfig));
     ElMessage({
       message: '配置导入成功!',
       type: 'success',
@@ -1399,6 +1454,23 @@ const saveImport = async () => {
 .settings-section {
   min-width: 0;
 }
+
+.credential-persistence-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  border: 1px solid #f0d2dc;
+  border-radius: 16px;
+  background: #fff8fa;
+}
+.credential-persistence-copy { min-width: 0; }
+.credential-persistence-copy strong { color: var(--ink); font-size: 13px; }
+.credential-persistence-copy p,
+.config-transfer-note { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.config-transfer-note { margin: -5px 2em 16px; }
 
 .config-history-panel {
   margin: 0 0 18px;

@@ -139,7 +139,7 @@ describe('谷歌翻译适配器', () => {
         expect(init?.headers).toBeUndefined();
     });
 
-    it('所有接口失败时汇总原因、响应摘要并隐藏 CAPTCHA HTML', async () => {
+    it('所有接口失败时保留 CAPTCHA 分类但不暴露响应内容', async () => {
         fetchMock
             .mockResolvedValueOnce(mockResponse('<!doctype html><html>captcha details</html>', {
                 ok: false,
@@ -149,10 +149,15 @@ describe('谷歌翻译适配器', () => {
             .mockResolvedValueOnce(mockResponse(`)]}'\n\n[["unexpected", true]]`))
             .mockResolvedValueOnce(mockResponse('not-json'));
 
-        await expect(translateGoogleText('hello', 'en', 'zh-Hans'))
-            .rejects.toThrow(
-                `谷歌翻译所有匿名接口均失败：主网页 RPC: HTTP 429 Too Many Requests，响应: 收到 HTML 页面（可能触发了 CAPTCHA）；备用网页 RPC: 返回格式异常，响应摘要: )]}' [["unexpected", true]]；旧版 gtx 接口: 返回的不是 JSON，响应摘要: not-json`,
-            );
+        const error = await translateGoogleText('hello', 'en', 'zh-Hans').catch(cause => cause);
+
+        expect(error).toBeInstanceOf(Error);
+        expect((error as Error).message).toBe(
+            `谷歌翻译所有匿名接口均失败：主网页 RPC: 请求失败: 429（可能触发了 CAPTCHA，请稍后重试）；备用网页 RPC: 返回格式异常；旧版 gtx 接口: 返回的不是 JSON`,
+        );
+        expect((error as Error).message).not.toContain('captcha details');
+        expect((error as Error).message).not.toContain('unexpected');
+        expect((error as Error).message).not.toContain('not-json');
     });
 
     it('读取响应体失败时继续故障转移并汇总错误', async () => {
@@ -162,7 +167,7 @@ describe('谷歌翻译适配器', () => {
 
         await expect(translateGoogleText('hello', 'en', 'zh-Hans'))
             .rejects.toThrow(
-                '谷歌翻译所有匿名接口均失败：主网页 RPC: stream error；备用网页 RPC: stream error；旧版 gtx 接口: stream error',
+                '谷歌翻译所有匿名接口均失败：主网页 RPC: 响应读取失败；备用网页 RPC: 响应读取失败；旧版 gtx 接口: 响应读取失败',
             );
         expect(fetchMock).toHaveBeenCalledTimes(3);
     });
@@ -232,7 +237,7 @@ describe('谷歌翻译适配器', () => {
 
         await expect(translateGoogleText('hello', 'en', 'zh-Hans'))
             .rejects.toThrow(
-                '谷歌翻译所有匿名接口均失败：主网页 RPC: Failed to fetch；备用网页 RPC: Failed to fetch；旧版 gtx 接口: Failed to fetch',
+                '谷歌翻译所有匿名接口均失败：主网页 RPC: 网络请求失败；备用网页 RPC: 网络请求失败；旧版 gtx 接口: 网络请求失败',
             );
         expect(fetchMock).toHaveBeenCalledTimes(3);
     });

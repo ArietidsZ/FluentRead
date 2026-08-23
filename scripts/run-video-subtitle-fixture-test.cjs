@@ -19,6 +19,48 @@ function loadPlaywright(root) {
   }
 }
 
+const fixtureConfigClientId = `video-subtitle-fixture-${process.pid}-${Date.now()}`;
+let fixtureConfigSequence = 0;
+
+async function persistExtensionConfig(extensionPage, patch) {
+  const sequence = ++fixtureConfigSequence;
+  const response = await extensionPage.evaluate(async ({ clientId, configPatch, requestSequence }) => {
+    const parseRecord = (value) => {
+      if (typeof value !== 'string') return value && typeof value === 'object' ? value : {};
+      try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch {
+        return {};
+      }
+    };
+    const local = await chrome.storage.local.get(['config', 'credentials']);
+    const session = chrome.storage.session ? await chrome.storage.session.get('credentials') : {};
+    const publicConfig = parseRecord(local.config);
+    const credentials = parseRecord(session.credentials || local.credentials);
+    const current = { ...publicConfig, ...credentials };
+    const next = {
+      ...current,
+      ...configPatch,
+      token: { ...(current.token || {}), ...(configPatch.token || {}) },
+      model: { ...(current.model || {}), ...(configPatch.model || {}) },
+    };
+    return chrome.runtime.sendMessage({
+      type: 'persistConfig',
+      config: next,
+      clientId,
+      sequence: requestSequence,
+    });
+  }, {
+    clientId: fixtureConfigClientId,
+    configPatch: patch,
+    requestSequence: sequence,
+  });
+  if (!response?.success) {
+    throw new Error(`字幕夹具配置保存失败：${JSON.stringify(response)}`);
+  }
+}
+
 const OFFLINE_YOUTUBE_FIXTURE_HTML = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>YouTube subtitle fixture</title><script>var ytInitialPlayerResponse={"captions":{"playerCaptionsTracklistRenderer":{"captionTracks":[{"baseUrl":"https://www.youtube.com/api/timedtext?v=fixture-original-slow&lang=en","languageCode":"en","name":{"simpleText":"English"}}]}}};</script></head>
 <body><main><div id="movie_player" class="html5-video-player"></div></main></body></html>`;
@@ -120,20 +162,16 @@ async function main() {
     if (initialPopupVideoState.enabled) {
       throw new Error(`新配置的视频字幕翻译应默认关闭：${JSON.stringify(initialPopupVideoState)}`);
     }
-    await control.evaluate(async () => {
-      const stored = await chrome.storage.local.get('config');
-      await chrome.storage.local.set({ config: {
-        ...(stored.config || {}),
-        on: true,
-        from: 'auto',
-        to: 'zh-Hans',
-        videoTranslationEnabled: true,
-        videoService: 'microsoft',
-        videoServiceDefaultMigrated: true,
-        videoSubtitleVisible: true,
-        videoSubtitleDisplayMode: 'bilingual',
-        useCache: false,
-      }});
+    await persistExtensionConfig(control, {
+      on: true,
+      from: 'auto',
+      to: 'zh-Hans',
+      videoTranslationEnabled: true,
+      videoService: 'microsoft',
+      videoServiceDefaultMigrated: true,
+      videoSubtitleVisible: true,
+      videoSubtitleDisplayMode: 'bilingual',
+      useCache: false,
     });
     const popupFeature = await control.evaluate(() => ({
       cardPresent: Boolean(document.querySelector('[data-feature="video-subtitle"]')),
@@ -288,7 +326,7 @@ async function main() {
       throw new Error(`播放器入口布局校验失败：${JSON.stringify(playerUi)}`);
     }
 
-    await page.evaluate(() => document.querySelector('#fluent-read-video-subtitle-button')?.click());
+    await page.locator('#fluent-read-video-subtitle-button').press('Enter');
     await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-menu')?.hidden === false, null, { timeout: 10000 });
     const menu = await page.evaluate(() => ({
       brand: document.querySelector('#fluent-read-video-subtitle-menu .fluent-read-video-menu-brand')?.textContent || '',
@@ -326,10 +364,7 @@ async function main() {
       || !menu.rect || menu.rect.width <= 0 || menu.rect.height <= 0) {
       throw new Error(`播放器菜单校验失败：${JSON.stringify(menu)}`);
     }
-    await page.evaluate(() => {
-      const action = document.querySelector('#fluent-read-video-subtitle-menu [data-action="toggle-translation"]');
-      if (action instanceof HTMLElement) action.click();
-    });
+    await page.locator('#fluent-read-video-subtitle-menu [data-action="toggle-translation"]').press('Enter');
     await page.waitForFunction(() => {
       const action = document.querySelector('#fluent-read-video-subtitle-menu [data-action="toggle-translation"]');
       return action?.getAttribute('aria-checked') === 'false'
@@ -351,10 +386,7 @@ async function main() {
       throw new Error(`关闭状态的字幕翻译入口不够醒目：${JSON.stringify(disabledMenu)}`);
     }
     await page.locator('#fluent-read-video-subtitle-menu').screenshot({ path: path.join(artifactsDir, 'video-subtitle-fixture-menu-disabled.png') });
-    await page.evaluate(() => {
-      const action = document.querySelector('#fluent-read-video-subtitle-menu [data-action="toggle-translation"]');
-      if (action instanceof HTMLElement) action.click();
-    });
+    await page.locator('#fluent-read-video-subtitle-menu [data-action="toggle-translation"]').press('Enter');
     await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-menu [data-action="toggle-translation"] [data-state]')?.textContent === '已开启', null, { timeout: 10000 });
     await page.locator('#fluent-read-video-subtitle-menu').screenshot({ path: path.join(artifactsDir, 'video-subtitle-fixture-menu.png') });
 
@@ -401,11 +433,7 @@ async function main() {
       originalDownloadError = error;
       return null;
     });
-    await page.evaluate(() => {
-      const action = document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-subtitles"]');
-      if (!(action instanceof HTMLElement)) throw new Error('找不到原文字幕下载入口');
-      action.click();
-    });
+    await page.locator('#fluent-read-video-subtitle-menu [data-action="download-subtitles"]').press('Enter');
     try {
       await page.waitForFunction(() => {
         const button = document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-subtitles"]');
@@ -477,11 +505,7 @@ async function main() {
       translatedDownloadError = error;
       return null;
     });
-    await page.evaluate(() => {
-      const action = document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-translated-subtitles"]');
-      if (!(action instanceof HTMLElement)) throw new Error('找不到译文字幕下载入口');
-      action.click();
-    });
+    await page.locator('#fluent-read-video-subtitle-menu [data-action="download-translated-subtitles"]').press('Enter');
     await page.waitForFunction(() => {
       const button = document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-translated-subtitles"]');
       return button?.getAttribute('aria-busy') === 'true'
@@ -797,17 +821,13 @@ async function main() {
       throw new Error(`已前置翻译的字幕再次显示时重复请求：${JSON.stringify({ prefetchRequestStart, displayedPrefetchRequests, translationSources })}`);
     }
 
-    await control.evaluate(async () => {
-      const stored = await chrome.storage.local.get('config');
-      await chrome.storage.local.set({ config: {
-        ...(stored.config || {}),
-        videoService: 'openai',
-        videoServiceDefaultMigrated: true,
-        enableAIContext: true,
-        useCache: false,
-        token: { ...(stored.config?.token || {}), openai: 'fixture-token' },
-        model: { ...(stored.config?.model || {}), openai: 'fixture-model' },
-      }});
+    await persistExtensionConfig(control, {
+      videoService: 'openai',
+      videoServiceDefaultMigrated: true,
+      enableAIContext: true,
+      useCache: false,
+      token: { openai: 'fixture-token' },
+      model: { openai: 'fixture-model' },
     });
     await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-menu [data-service-label]')?.textContent === 'OpenAI', null, { timeout: 10000 });
     const aiPretranslatedSource = 'This AI subtitle was translated in advance.';
@@ -845,14 +865,10 @@ async function main() {
 
     // 模拟 YouTube 原生字幕 DOM 仍停在上一句，但播放器时间已经进入下一条 cue。
     // 翻译层应按时间轴立即追上，并用整段原文覆盖短暂落后的原生字幕。
-    await control.evaluate(async () => {
-      const stored = await chrome.storage.local.get('config');
-      await chrome.storage.local.set({ config: {
-        ...(stored.config || {}),
-        videoService: 'microsoft',
-        videoServiceDefaultMigrated: true,
-        useCache: false,
-      }});
+    await persistExtensionConfig(control, {
+      videoService: 'microsoft',
+      videoServiceDefaultMigrated: true,
+      useCache: false,
     });
     await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-menu [data-service-label]')?.textContent === '微软翻译', null, { timeout: 10000 });
     const timelineOldSource = 'Timeline subtitle is still visible.';

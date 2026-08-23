@@ -23,6 +23,7 @@ vi.mock('webextension-polyfill', () => ({
 vi.mock('@/entrypoints/utils/config', () => ({
   config: mocks.config,
   saveConfig: mocks.saveConfig,
+  requestConfigSave: mocks.saveConfig,
 }));
 vi.mock('@/entrypoints/utils/common', () => ({detectlang: () => 'eng'}));
 vi.mock('@/entrypoints/utils/option', () => ({

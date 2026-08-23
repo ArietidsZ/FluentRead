@@ -3,6 +3,7 @@ import {commonMsgTemplate} from "../utils/template";
 import {config} from "@/entrypoints/utils/config";
 import {contentPostHandler} from "@/entrypoints/utils/check";
 import {isApiKeyRequired} from "@/entrypoints/utils/configValidation";
+import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
 
 async function azureOpenai(message: any) {
     try {
@@ -33,8 +34,7 @@ async function azureOpenai(message: any) {
         });
 
         if (!resp.ok) {
-            const errorText = await resp.text();
-            let errorMessage = `Azure OpenAI API 调用失败: ${resp.status} ${resp.statusText}`;
+            let errorMessage = `Azure OpenAI API 调用失败: ${resp.status}`;
             
             // 根据状态码提供更具体的错误信息
             switch (resp.status) {
@@ -51,13 +51,13 @@ async function azureOpenai(message: any) {
                     errorMessage = 'Azure OpenAI 服务内部错误，请稍后重试';
                     break;
                 default:
-                    errorMessage += `\n详细信息: ${errorText}`;
+                    throw createHttpStatusError(resp, 'Azure OpenAI API 调用失败');
             }
             
             throw new Error(errorMessage);
         }
 
-        const result = await resp.json();
+        const result = await readJsonResponse<any>(resp, 'Azure OpenAI 返回的不是有效 JSON');
         
         if (!result.choices || !result.choices[0] || !result.choices[0].message) {
             throw new Error('Azure OpenAI 返回数据格式异常，请检查模型配置');
@@ -65,7 +65,6 @@ async function azureOpenai(message: any) {
         
         return contentPostHandler(result.choices[0].message.content);
     } catch (error) {
-        console.error('Azure OpenAI API调用失败:', error);
         throw error;
     }
 }

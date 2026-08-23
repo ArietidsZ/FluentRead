@@ -30,14 +30,6 @@ const languageMap: { [key: string]: string } = {
 
 // 检查是否支持 Chrome Translation API
 function isChromeTranslationSupported(): boolean {
-    console.log('检查 Translation API 支持:', {
-        hasTranslation: 'translation' in self,
-        hasTranslator: 'Translator' in self,
-        hasLanguageDetector: 'LanguageDetector' in self,
-        windowType: typeof window,
-        selfType: typeof self
-    });
-    
     // 检查新的 API
     if ('translation' in self && 'createTranslator' in (self as any).translation) {
         return true;
@@ -59,7 +51,6 @@ async function detectLanguage(text: string): Promise<string> {
             const detector = await (self as any).translation.createDetector();
             const results = await detector.detect(text);
             const detected = results.length > 0 ? results[0].detectedLanguage : 'en';
-            console.log('新 API 检测结果:', detected);
             return detected;
         }
         
@@ -68,12 +59,9 @@ async function detectLanguage(text: string): Promise<string> {
             const detector = await (self as any).LanguageDetector.create();
             const results = await detector.detect(text);
             const detected = results.length > 0 ? results[0].detectedLanguage : 'en';
-            console.log('旧 API 检测结果:', detected);
             return detected;
         }
-    } catch (error) {
-        console.warn('Language detection failed:', error);
-    }
+    } catch {}
     
     // 回退到简单检测
     const chineseRegex = /[\u4e00-\u9fff]/;
@@ -93,14 +81,11 @@ async function detectLanguage(text: string): Promise<string> {
 
 // 执行翻译
 async function performTranslation(text: string, fromLang: string, toLang: string): Promise<string> {
-    console.log('开始翻译:', { text: text.substring(0, 50) + '...', fromLang, toLang });
-    
     try {
         let translator;
         
         // 尝试使用新的 API
         if ('translation' in self && 'createTranslator' in (self as any).translation) {
-            console.log('使用新的 translation API');
             translator = await (self as any).translation.createTranslator({
                 sourceLanguage: fromLang,
                 targetLanguage: toLang
@@ -108,7 +93,6 @@ async function performTranslation(text: string, fromLang: string, toLang: string
         }
         // 尝试使用旧的 API
         else if ('Translator' in self) {
-            console.log('使用旧的 Translator API');
             translator = await (self as any).Translator.create({
                 sourceLanguage: fromLang,
                 targetLanguage: toLang
@@ -121,23 +105,19 @@ async function performTranslation(text: string, fromLang: string, toLang: string
         
         // 检查是否支持流式翻译
         if (translator.translateStreaming) {
-            console.log('使用流式翻译');
             const stream = translator.translateStreaming(text);
             for await (const chunk of stream) {
                 translatedText += chunk;
             }
         } else if (translator.translate) {
-            console.log('使用普通翻译');
             translatedText = await translator.translate(text);
         } else {
             throw new Error('翻译器不支持翻译方法');
         }
 
-        console.log('翻译完成:', translatedText.substring(0, 50) + '...');
         return translatedText;
         
     } catch (error) {
-        console.error('翻译执行失败:', error);
         throw error;
     }
 }
@@ -164,22 +144,14 @@ async function handleTranslationRequest(data: any): Promise<string> {
         // 检测源语言
         if (from === 'auto') {
             detectedLang = await detectLanguage(text);
-            console.log('自动检测到的语言:', detectedLang);
         }
         
         // 映射语言代码 - 确保使用 Chrome API 支持的格式
         fromLang = languageMap[detectedLang] || detectedLang;
         toLang = languageMap[to] || to;
 
-        console.log('语言映射:', { 
-            original: { from, to }, 
-            detected: detectedLang,
-            mapped: { fromLang, toLang }
-        });
-
         // 如果源语言和目标语言相同，不需要翻译
         if (fromLang === toLang) {
-            console.log('源语言和目标语言相同，返回原文');
             return text;
         }
 
@@ -187,17 +159,6 @@ async function handleTranslationRequest(data: any): Promise<string> {
         return await performTranslation(text, fromLang, toLang);
 
     } catch (error) {
-        console.error('Chrome Translation API error:', error);
-        console.error('错误详情:', {
-            error: error,
-            message: error instanceof Error ? error.message : '未知错误',
-            from: from,
-            to: to,
-            detectedLang: detectedLang,
-            fromLang: fromLang,
-            toLang: toLang
-        });
-        
         // 提供更友好的错误信息
         if (error instanceof Error) {
             if (error.message.includes('not available') || error.message.includes('not ready')) {
@@ -305,8 +266,6 @@ async function playSelectionAudio(message: SelectionTtsPlaybackMessage): Promise
 
 // 监听来自 background script 的消息
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    // console.log('Offscreen 收到消息:', message);
-
     if (message.type === 'PLAY_SELECTION_TTS' && message.target === 'offscreen') {
         playSelectionAudio(message)
             .then(() => sendResponse({ success: true }))
@@ -327,11 +286,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'CHROME_TRANSLATE_OFFSCREEN') {
         handleTranslationRequest(message.data)
             .then(result => {
-                // console.log('Offscreen 翻译成功:', result.substring(0, 50) + '...');
                 sendResponse({ success: true, result });
             })
             .catch(error => {
-                console.error('Offscreen 翻译失败:', error);
                 sendResponse({ success: false, error: error.message });
             });
         
@@ -342,7 +299,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         recognizeImage(message.image, message.sourceLanguage)
             .then(lines => sendResponse({ success: true, lines }))
             .catch(error => {
-                console.error('图片 OCR 失败:', error);
                 sendResponse({
                     success: false,
                     error: error instanceof Error ? error.message : String(error),
@@ -356,7 +312,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         translateImageInOffscreen(message.image, message.sourceLanguage, message.title || '')
             .then(result => sendResponse({ success: true, ...result }))
             .catch(error => {
-                console.error('图片翻译失败:', error);
                 sendResponse({
                     success: false,
                     error: error instanceof Error ? error.message : String(error),
@@ -370,7 +325,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         translateAreaInOffscreen(message.image, message.sourceLanguage, message.title || '', message.selection)
             .then(result => sendResponse({ success: true, ...result }))
             .catch(error => {
-                console.error('圈选翻译失败:', error);
                 sendResponse({
                     success: false,
                     error: error instanceof Error ? error.message : String(error),
@@ -384,7 +338,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         downloadImageOcrLanguages(message.languages || [])
             .then(() => sendResponse({ success: true }))
             .catch(error => {
-                console.error('图片 OCR 语言包下载失败:', error);
                 sendResponse({
                     success: false,
                     error: error instanceof Error ? error.message : String(error),
@@ -396,7 +349,3 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     
     return false;
 });
-
-// 初始化检查
-console.log('Chrome Translation Offscreen 初始化');
-console.log('Translation API 支持状态:', isChromeTranslationSupported());

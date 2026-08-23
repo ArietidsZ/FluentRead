@@ -10,11 +10,10 @@ import {
   type TranslationQueueSession,
 } from './translateQueue';
 import browser from 'webextension-polyfill';
-import { config, saveConfig } from './config';
+import { config, requestConfigSave } from './config';
 import { detectlang } from './common';
 import { resolveConfiguredModel, servicesType } from './option';
 import { getPageTranslationContext } from './pageContext';
-import { getMissingCredentialMessage } from './configValidation';
 
 // 调试相关
 const isDev = process.env.NODE_ENV === 'development';
@@ -22,6 +21,10 @@ const VIDEO_COUNT_SAVE_INTERVAL = 10_000;
 const TRANSLATION_COUNT_SAVE_INTERVAL = 500;
 let videoCountSaveTimer: ReturnType<typeof setTimeout> | undefined;
 let translationCountSaveTimer: ReturnType<typeof setTimeout> | undefined;
+
+function persistContentConfig(): Promise<void> {
+  return requestConfigSave(config, browser.runtime.sendMessage.bind(browser.runtime));
+}
 
 function createAbortError(): Error {
   const error = new Error('翻译已取消');
@@ -107,7 +110,7 @@ function scheduleTranslationCountSave(): void {
   if (translationCountSaveTimer) return;
   translationCountSaveTimer = setTimeout(() => {
     translationCountSaveTimer = undefined;
-    void saveConfig().catch((error) => console.error('[FluentRead] 保存翻译计数失败:', error));
+    void persistContentConfig().catch((error) => console.error('[FluentRead] 保存翻译计数失败:', error));
   }, TRANSLATION_COUNT_SAVE_INTERVAL);
 }
 
@@ -115,7 +118,7 @@ function flushTranslationCountSave(): void {
   if (!translationCountSaveTimer) return;
   clearTimeout(translationCountSaveTimer);
   translationCountSaveTimer = undefined;
-  void saveConfig().catch((error) => console.error('[FluentRead] 保存翻译计数失败:', error));
+  void persistContentConfig().catch((error) => console.error('[FluentRead] 保存翻译计数失败:', error));
 }
 
 function scheduleVideoCountSave(): void {
@@ -124,7 +127,7 @@ function scheduleVideoCountSave(): void {
 
   videoCountSaveTimer = setTimeout(() => {
     videoCountSaveTimer = undefined;
-    void saveConfig().catch((error) => console.error('[FluentRead] 保存视频翻译计数失败:', error));
+    void persistContentConfig().catch((error) => console.error('[FluentRead] 保存视频翻译计数失败:', error));
   }, VIDEO_COUNT_SAVE_INTERVAL);
 }
 
@@ -156,8 +159,6 @@ export async function translateText(origin: string, context: string = document.t
   if (!cleanedOrigin || cleanedOrigin.length === 0) {
     return origin || '';
   }
-
-  assertTranslationCredentials(serviceOverride || config.service);
 
   // 如果目标语言与当前文本语言相同，直接返回原文
   if (!skipLanguageDetection && detectlang(origin.replace(/[\s\u3000]/g, '')) === (targetLanguage || config.to)) {
@@ -204,7 +205,7 @@ export async function translateText(origin: string, context: string = document.t
         // 处理错误，根据重试策略决定是否重试
         if (retryCount < maxRetries) {
           if (isDev) {
-            console.log(`[翻译API] 翻译失败，${retryCount + 1}/${maxRetries} 次重试，原因:`, error);
+            console.log(`[翻译API] 翻译失败，${retryCount + 1}/${maxRetries} 次重试`);
           }
           
           // 等待一段时间后重试
@@ -243,7 +244,6 @@ export async function translateTextBatch(
     signal,
     queueSession,
   } = options;
-  assertTranslationCredentials(serviceOverride || config.service);
   throwIfAborted(signal);
   const pageContext = await resolvePageContext(options.pageContext, serviceOverride || config.service);
   throwIfAborted(signal);
@@ -350,11 +350,6 @@ export interface TranslateOptions {
   signal?: AbortSignal;
   /** Queue scope used to reject work that has not started when one DOM attempt is cancelled. */
   queueSession?: TranslationQueueSession;
-}
-
-function assertTranslationCredentials(service = config.service): void {
-  const message = getMissingCredentialMessage(service, config);
-  if (message) throw new Error(message);
 }
 
 async function resolvePageContext(suppliedContext?: string, serviceOverride = config.service): Promise<string | undefined> {

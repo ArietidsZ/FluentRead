@@ -7,6 +7,7 @@
  */
 
 import { normalizeSelectionTtsVoiceOrder, selectionTtsVoiceLocale } from './selectionTtsConfig';
+import { readJsonResponse } from './httpError';
 
 export interface EdgeTtsAudio {
   audio: ArrayBuffer;
@@ -128,7 +129,10 @@ async function getEndpointToken(): Promise<EndpointToken> {
     body: '',
   });
   if (!response.ok) throw new Error(`Edge TTS endpoint failed: ${response.status}`);
-  const payload = await response.json() as { t?: string; r?: string };
+  const payload = await readJsonResponse<{ t?: string; r?: string }>(
+    response,
+    'Edge TTS endpoint returned invalid JSON',
+  );
   if (!payload.t || !payload.r) throw new Error('Edge TTS endpoint returned an invalid token');
   endpointToken = { token: payload.t, region: payload.r, expiresAt: tokenExpiry(payload.t) };
   return endpointToken;

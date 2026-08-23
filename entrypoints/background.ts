@@ -6,6 +6,7 @@ import {
     configReady,
     CONFIG_HISTORY_MESSAGE,
     CONFIG_PERSIST_MESSAGE,
+    prepareConfigSaveRequest,
     saveConfig,
     subscribeConfig,
 } from "@/entrypoints/utils/config";
@@ -697,6 +698,8 @@ export default defineBackground({
                     }
 
                     if (message.type === CONFIG_PERSIST_MESSAGE) {
+                        const senderUrl = typeof sender?.url === 'string' ? sender.url : '';
+                        const allowCredentialUpdates = senderUrl.startsWith(browser.runtime.getURL('/'));
                         const clientId = typeof message.clientId === 'string'
                             ? message.clientId
                             : `${sender?.id || 'legacy'}:${sender?.tab?.id || 'extension'}:${sender?.frameId || 0}`;
@@ -709,9 +712,13 @@ export default defineBackground({
                         if (sequence) latestConfigSequenceByClient.set(clientId, sequence);
                         const persist = configPersistQueue
                             .catch(() => undefined)
-                            .then(() => {
+                            .then(async () => {
                                 if (sequence && latestConfigSequenceByClient.get(clientId) !== sequence) return;
-                                return saveConfig(message.config, {recordHistory: true});
+                                await configReady;
+                                return saveConfig(
+                                    prepareConfigSaveRequest(message.config, config, allowCredentialUpdates),
+                                    {recordHistory: true},
+                                );
                             });
                         configPersistQueue = persist.catch(() => undefined);
                         await persist;

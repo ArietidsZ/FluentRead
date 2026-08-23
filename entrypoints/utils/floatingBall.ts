@@ -1,5 +1,5 @@
 import FloatingBall from '@/components/FloatingBall.vue';
-import { config, saveConfig } from '@/entrypoints/utils/config';
+import { config, requestConfigSave } from '@/entrypoints/utils/config';
 import browser from 'webextension-polyfill';
 import {
   autoTranslateEnglishPage,
@@ -10,7 +10,11 @@ import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import type { ShadowRootContentScriptUi } from 'wxt/utils/content-script-ui/shadow-root';
 import { createVueShadowUi, type VueShadowMount } from '@/entrypoints/utils/shadowUi';
 
-let floatingBallInstance: any = null;
+interface FloatingBallExposed {
+  toggleTranslation: () => void;
+}
+
+let floatingBallInstance: FloatingBallExposed | null = null;
 let app: any = null;
 let floatingBallUi: ShadowRootContentScriptUi<VueShadowMount> | null = null;
 let mountingPromise: Promise<any> | null = null;
@@ -50,15 +54,15 @@ export function mountFloatingBall(ctx?: ContentScriptContext) {
         config.floatingBallPosition = newPosition;
 
         // 保存配置到存储
-        void saveConfig().catch((error) => console.error('Failed to save config:', error));
+        void requestConfigSave(
+          config,
+          browser.runtime.sendMessage.bind(browser.runtime),
+        ).catch((error) => console.error('Failed to save config:', error));
       },
       // 添加翻译状态变化事件监听
       onTranslationToggle: (isTranslating: boolean) => {
         if (isTranslating === isFullPageTranslationActive()) return;
 
-        document.dispatchEvent(new CustomEvent(
-          isTranslating ? 'fluentread-translation-started' : 'fluentread-translation-ended',
-        ));
         if (isTranslating) {
           void autoTranslateEnglishPage();
         } else {
@@ -66,6 +70,9 @@ export function mountFloatingBall(ctx?: ContentScriptContext) {
         }
       },
     },
+    // Host pages can dispatch synthetic clicks into an open shadow tree. Keep
+    // translation, settings, and position controls behind a closed boundary.
+    mode: 'closed',
   }).then((ui) => {
     if (requestId !== mountRequestId || config.disableFloatingBall) {
       ui.remove();
@@ -74,7 +81,7 @@ export function mountFloatingBall(ctx?: ContentScriptContext) {
 
     floatingBallUi = ui;
     app = ui.mounted?.app ?? null;
-    floatingBallInstance = ui.mounted?.instance ?? null;
+    floatingBallInstance = (ui.mounted?.instance as FloatingBallExposed | null | undefined) ?? null;
 
     return floatingBallInstance;
   }).finally(() => {
@@ -85,13 +92,23 @@ export function mountFloatingBall(ctx?: ContentScriptContext) {
 }
 
 /**
+ * Toggle through the isolated Vue instance instead of a DOM CustomEvent. Host
+ * pages share the DOM event surface with content scripts and must not be able
+ * to invoke extension actions.
+ */
+export function toggleFloatingBallTranslation(): boolean {
+  if (!floatingBallInstance?.toggleTranslation) return false;
+  floatingBallInstance.toggleTranslation();
+  return true;
+}
+
+/**
  * 卸载悬浮球
  */
 export function unmountFloatingBall() {
   mountRequestId++;
   if (floatingBallUi || (floatingBallInstance && app)) {
     if (isFullPageTranslationActive()) {
-      document.dispatchEvent(new CustomEvent('fluentread-translation-ended'));
       restoreOriginalContent();
     }
     floatingBallUi?.remove();
