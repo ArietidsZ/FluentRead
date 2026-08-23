@@ -14,6 +14,7 @@ const runtime = vi.hoisted(() => ({
     ),
     retryCallbacks: [] as Array<() => void>,
     config: {service: "microsoft", display: 0, to: "zh", fullPageTranslationMode: "viewport" as "viewport" | "all"},
+    ensureTranslationTruncationLayout: vi.fn(() => true),
 }));
 
 vi.mock("@/entrypoints/utils/check", () => ({checkConfig: () => true}));
@@ -56,6 +57,9 @@ vi.mock("@/entrypoints/main/translationRenderer", () => ({
         node.appendChild(wrapper);
         return wrapper;
     },
+}));
+vi.mock("@/entrypoints/main/translationLayout", () => ({
+    ensureTranslationTruncationLayout: runtime.ensureTranslationTruncationLayout,
 }));
 vi.mock("@/entrypoints/translation-core/public", () => {
     const protectedSelector = [
@@ -229,6 +233,7 @@ describe("全文翻译可见性锚点", () => {
         runtime.retryCallbacks = [];
         runtime.config.display = 0;
         runtime.config.fullPageTranslationMode = "viewport";
+        runtime.ensureTranslationTruncationLayout.mockClear();
         TestIntersectionObserver.instances = [];
         TestMutationObserver.instances = [];
 
@@ -1420,6 +1425,40 @@ describe("全文翻译可见性锚点", () => {
 
         expect(runtime.requests).toHaveBeenCalledTimes(1);
     });
+
+    it.each([
+        {display: 0, expectedLayoutChecks: 0, label: "single"},
+        {display: 1, expectedLayoutChecks: 1, label: "bilingual"},
+    ] as const)(
+        "$label 已译内容发生纯布局 mutation 时只为双语 wrapper 续租 unclamp",
+        async ({display, expectedLayoutChecks}) => {
+            runtime.config.display = display;
+            document.body.innerHTML = '<p id="prose">Stable source under a layout-only mutation.</p>';
+            const paragraph = document.querySelector<HTMLElement>("#prose")!;
+            setLayoutBox(paragraph, 620, 90);
+            runtime.candidates = [{element: paragraph, kind: "content", reason: "paragraph"}];
+
+            autoTranslateEnglishPage();
+            await vi.advanceTimersByTimeAsync(50);
+            TestIntersectionObserver.instances[0]!.emit(paragraph, true);
+            await finishScheduledWork();
+            expect(getTranslationState(paragraph)?.phase).toBe("translated");
+
+            paragraph.classList.add("host-layout-update");
+            TestMutationObserver.instances.at(-1)!.emit([{
+                type: "attributes",
+                target: paragraph,
+                attributeName: "class",
+                addedNodes: [] as unknown as NodeList,
+                removedNodes: [] as unknown as NodeList,
+            } as unknown as MutationRecord]);
+            await finishScheduledWork();
+
+            expect(runtime.ensureTranslationTruncationLayout)
+                .toHaveBeenCalledTimes(expectedLayoutChecks);
+            expect(runtime.requests).toHaveBeenCalledTimes(1);
+        },
+    );
 
     it("已译 prose 忽略 MathJax/code 等保护后代 churn，但外层 source mutation 会重启", async () => {
         runtime.config.display = 1;

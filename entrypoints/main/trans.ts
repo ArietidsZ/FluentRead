@@ -39,6 +39,7 @@ import {
 import {
     appendBilingualTranslation,
 } from "@/entrypoints/main/translationRenderer";
+import {ensureTranslationTruncationLayout} from "@/entrypoints/main/translationLayout";
 import {
     beginTranslation,
     detachFailedTranslationUi,
@@ -54,6 +55,7 @@ import {
     setRetryWrapper,
     setSpinner,
     setTextSlotsApplied,
+    isTranslationLayoutOverrideMutation,
     type TranslationState,
 } from "@/entrypoints/main/translationState";
 
@@ -1492,6 +1494,11 @@ function isOwnMutation(
     mutation: MutationRecord,
     loadingSyntheticChecks: WeakMap<TranslationState, boolean>,
 ): boolean {
+    const exactMutationElement = mutationTargetElement(mutation.target);
+    if (mutation.type === "attributes" && mutation.attributeName === "style" &&
+        exactMutationElement && isTranslationLayoutOverrideMutation(exactMutationElement as HTMLElement)) {
+        return true;
+    }
     // 不能用“位于任意插件节点内”作为判断：站点可能直接改写双语 wrapper
     // 的文本，必须让这类 mutation 进入 stale/retranslate 分支。加载/错误节点
     // 没有宿主正文，才可以直接视为插件自身变化。
@@ -1747,6 +1754,15 @@ function scheduleStatefulAttributeReevaluation(
         // pure class/style churn cheap while still detecting same-text label or
         // inline-link replacement. Live single/control slots are compared with
         // the values written by this generation rather than their old source.
+        const shouldReconcileBilingualLayout =
+            state.phase === "translated" &&
+            state.mode === "bilingual" &&
+            state.kind === "content" &&
+            state.bilingualContent?.isConnected;
+        if (shouldReconcileBilingualLayout && !ensureTranslationTruncationLayout(target)) {
+            restartStatefulTarget(session, target);
+            return;
+        }
         if (statefulSourceAndTextSlotsAreCurrent(target, state)) return;
         restartStatefulTarget(session, target);
     }, STATEFUL_ATTRIBUTE_DEBOUNCE_MS);
