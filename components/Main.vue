@@ -495,6 +495,31 @@
         </el-col>
       </el-row>
 
+        <!-- 翻译进度面板 -->
+        <el-row class="settings-control-row">
+          <el-col :span="20" class="settings-control-label lightblue rounded-corner">
+            <el-tooltip
+              class="box-item"
+              effect="dark"
+              content="全文翻译时，在网页右下角显示正在翻译和等待中的任务数量；任务结束后自动隐藏。"
+              placement="top-start"
+              :show-after="500"
+            >
+              <span class="popup-text popup-vertical-left">
+                显示翻译进度面板
+                <el-icon class="icon-margin"><InfoFilled /></el-icon>
+              </span>
+            </el-tooltip>
+          </el-col>
+          <el-col :span="4" class="settings-control-field flex-end">
+            <el-switch
+              v-model="config.translationProgressPanelEnabled"
+              class="settings-toggle"
+              aria-label="显示翻译进度面板"
+              @change="handleTranslationProgressPanelChange"
+            />
+          </el-col>
+        </el-row>
 
         <!-- 禁用动画设置 -->
         <el-row class="settings-control-row">
@@ -1051,6 +1076,22 @@ const floatingBallEnabled = computed({
     });
   }
 });
+
+const handleTranslationProgressPanelChange = (isEnabled: boolean) => {
+  browser.tabs.query({}).then(tabs => {
+    tabs.forEach(tab => {
+      if (!tab.id) return;
+      browser.tabs.sendMessage(tab.id, {
+        type: 'toggleTranslationProgressPanel',
+        isEnabled,
+      }).catch(() => {
+        // 忽略发送失败的错误（可能是页面未加载内容脚本）
+      });
+    });
+  }).catch(() => {
+    // 忽略无法查询标签页的错误，配置仍会通过统一存储链路保存
+  });
+};
 
 // 监听划词翻译模式变化
 watch(() => config.value.selectionTranslatorMode, (newMode) => {
