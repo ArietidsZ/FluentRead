@@ -120,6 +120,7 @@
     </el-row>
 
     <AlwaysTranslateSites v-model="config.alwaysTranslateDomains" />
+    <AlwaysTranslateSites v-model="config.disabledExtensionDomains" variant="disable-extension" />
   </section>
 
   <div v-if="!config.on && !['settings-general', 'settings-image-translation', 'settings-translation-center', 'settings-sites'].includes(props.activeSection)" class="disabled-section">
@@ -1455,7 +1456,8 @@ const historySummary = (entry: ConfigHistoryEntry): string => {
   const target = options.to.find((item: any) => item.value === entry.config.to)?.label || entry.config.to;
   const service = options.services.find((item: any) => item.value === entry.config.service)?.label || entry.config.service;
   const siteCount = entry.config.alwaysTranslateDomains?.length ?? 0;
-  return `${target} · ${service} · 始终翻译 ${siteCount} 个网站`;
+  const disabledSiteCount = entry.config.disabledExtensionDomains?.length ?? 0;
+  return `${target} · ${service} · 始终翻译 ${siteCount} 个网站 · 禁用扩展 ${disabledSiteCount} 个网站`;
 };
 
 void configHistoryReady.then(() => {

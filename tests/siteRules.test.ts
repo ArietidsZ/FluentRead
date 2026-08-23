@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
     getSiteBaseDomain,
     isAlwaysTranslateSite,
+    isExtensionDisabledOnSite,
     normalizeAlwaysTranslateDomains,
+    normalizeDisabledExtensionDomains,
     shouldAutoTranslatePage,
 } from '@/entrypoints/utils/siteRules';
 
@@ -48,12 +50,33 @@ describe('始终翻译网站规则', () => {
         expect(normalizeAlwaysTranslateDomains('example.com')).toEqual([]);
     });
 
+    it('复用相同的主域名规则规范化禁用扩展名单', () => {
+        expect(normalizeDisabledExtensionDomains([
+            'https://docs.example.com/guide',
+            'EXAMPLE.COM',
+            'https://notexample.com',
+            '*.invalid.example',
+        ])).toEqual(['example.com', 'notexample.com']);
+    });
+
     it('只按规范化后的 base domain 匹配，不产生字符串后缀误判', () => {
         const domains = ['https://www.example.com/path', 'team.github.io'];
         expect(isAlwaysTranslateSite('https://mail.example.com/inbox', domains)).toBe(true);
         expect(isAlwaysTranslateSite('https://docs.team.github.io/', domains)).toBe(true);
         expect(isAlwaysTranslateSite('https://notexample.com/', domains)).toBe(false);
         expect(isAlwaysTranslateSite('edge://settings', domains)).toBe(false);
+    });
+
+    it('按主域名匹配禁用扩展，并由自动翻译规则优先避让', () => {
+        const disabledDomains = ['example.com'];
+        expect(isExtensionDisabledOnSite('https://news.example.com/article', disabledDomains)).toBe(true);
+        expect(isExtensionDisabledOnSite('https://notexample.com/article', disabledDomains)).toBe(false);
+        expect(shouldAutoTranslatePage('https://news.example.com/article', {
+            on: true,
+            autoTranslate: true,
+            alwaysTranslateDomains: [],
+            disabledExtensionDomains: disabledDomains,
+        })).toBe(false);
     });
 
     it('同时保留旧全局自动翻译开关，并只对网站名单限制网页协议', () => {

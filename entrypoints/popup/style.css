@@ -219,6 +219,7 @@ h2 { margin-bottom: 0; font-size: 15px; line-height: 1.35; letter-spacing: -.01e
 .site-rule-copy { display: flex; min-width: 0; align-items: baseline; gap: 6px; }
 .site-rule-copy span { flex: none; color: var(--muted); font-size: 9px; }
 .site-rule-copy strong { min-width: 0; overflow: hidden; color: var(--ink); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.site-rule-actions { display: flex; flex: none; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
 .site-rule-button {
   display: inline-flex; flex: none; align-items: center; gap: 6px; min-height: 24px; padding: 0 8px; border: 1px solid rgba(239, 71, 118, .22);
   border-radius: 8px; color: var(--brand-strong); background: var(--surface); font-size: 9px; font-weight: 750; cursor: pointer;
@@ -230,6 +231,10 @@ h2 { margin-bottom: 0; font-size: 15px; line-height: 1.35; letter-spacing: -.01e
 .site-rule-button:hover:not(:disabled) { border-color: rgba(239, 71, 118, .48); background: var(--brand-soft); }
 .site-rule-button:disabled { cursor: default; opacity: .72; }
 .site-rule-button.global-enabled:disabled { opacity: 1; }
+.site-disable-rule-button { border-color: rgba(108, 117, 139, .26); color: var(--muted); }
+.site-disable-rule-button.enabled { border-color: rgba(108, 117, 139, .42); color: var(--ink); background: rgba(108, 117, 139, .1); }
+.site-disable-rule-button.enabled > i { background: var(--ink); box-shadow: 0 0 0 3px rgba(108, 117, 139, .12); }
+.site-disable-rule-button:hover:not(:disabled) { border-color: rgba(108, 117, 139, .48); background: rgba(108, 117, 139, .08); }
 .spinner { width: 16px; height: 16px; border: 2px solid rgba(255, 255, 255, .45); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .credential-warning {

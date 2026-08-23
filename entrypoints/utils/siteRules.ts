@@ -14,6 +14,7 @@ export interface AutoTranslatePageConfig {
     on: boolean;
     autoTranslate: boolean;
     alwaysTranslateDomains: readonly string[];
+    disabledExtensionDomains?: readonly string[];
 }
 
 function parseSiteUrl(input: string | URL): URL | null {
@@ -85,7 +86,7 @@ export function getSiteBaseDomain(input: string | URL): string | null {
 }
 
 /** 将存储或导入值转换为稳定、有序且去重的可注册域名列表。 */
-export function normalizeAlwaysTranslateDomains(value: unknown): string[] {
+export function normalizeSiteDomains(value: unknown): string[] {
     if (!Array.isArray(value)) return [];
 
     const domains: string[] = [];
@@ -100,13 +101,32 @@ export function normalizeAlwaysTranslateDomains(value: unknown): string[] {
     return domains;
 }
 
+export function normalizeAlwaysTranslateDomains(value: unknown): string[] {
+    return normalizeSiteDomains(value);
+}
+
+export function normalizeDisabledExtensionDomains(value: unknown): string[] {
+    return normalizeSiteDomains(value);
+}
+
+function isSiteInDomainList(input: string | URL, domains: unknown): boolean {
+    const currentDomain = getSiteBaseDomain(input);
+    if (!currentDomain) return false;
+    return normalizeSiteDomains(domains).includes(currentDomain);
+}
+
 export function isAlwaysTranslateSite(
     input: string | URL,
     domains: unknown,
 ): boolean {
-    const currentDomain = getSiteBaseDomain(input);
-    if (!currentDomain) return false;
-    return normalizeAlwaysTranslateDomains(domains).includes(currentDomain);
+    return isSiteInDomainList(input, domains);
+}
+
+export function isExtensionDisabledOnSite(
+    input: string | URL,
+    domains: unknown,
+): boolean {
+    return isSiteInDomainList(input, domains);
 }
 
 export function shouldAutoTranslatePage(
@@ -114,6 +134,7 @@ export function shouldAutoTranslatePage(
     config: AutoTranslatePageConfig,
 ): boolean {
     if (config.on !== true) return false;
+    if (isExtensionDisabledOnSite(input, config.disabledExtensionDomains)) return false;
     // 保留旧的全局自动翻译语义：只要内容脚本能在该页面运行，全局开关
     // 就应生效。HTTP(S) 与可注册域名限制只属于新增的网站名单。
     if (config.autoTranslate === true) return true;

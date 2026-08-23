@@ -178,22 +178,40 @@
           <span>当前网站</span>
           <strong :title="currentSiteDomain">{{ currentSiteDomain }}</strong>
         </div>
-        <button
-          class="site-rule-button"
-          :class="{ enabled: currentSiteAlwaysTranslated, 'global-enabled': config.autoTranslate }"
-          data-setting="always-translate-site"
-          :data-site-domain="currentSiteDomain"
-          :data-enabled="currentSiteAlwaysTranslated"
-          type="button"
-          role="switch"
-          :aria-checked="currentSiteAlwaysTranslated"
-          :aria-label="currentSiteSwitchLabel"
-          :disabled="translating || config.autoTranslate"
-          @click="setCurrentSiteAlwaysTranslated(!currentSiteAlwaysTranslated)"
-        >
-          <span>{{ config.autoTranslate ? '全局自动翻译' : currentSiteAlwaysTranslated ? '始终翻译已开启' : '始终翻译此网站' }}</span>
-          <i aria-hidden="true" />
-        </button>
+        <div class="site-rule-actions">
+          <button
+            class="site-rule-button"
+            :class="{ enabled: currentSiteAlwaysTranslated, 'global-enabled': config.autoTranslate }"
+            data-setting="always-translate-site"
+            :data-site-domain="currentSiteDomain"
+            :data-enabled="currentSiteAlwaysTranslated"
+            type="button"
+            role="switch"
+            :aria-checked="currentSiteAlwaysTranslated"
+            :aria-label="currentSiteSwitchLabel"
+            :disabled="translating || config.autoTranslate || currentSiteExtensionDisabled"
+            @click="setCurrentSiteAlwaysTranslated(!currentSiteAlwaysTranslated)"
+          >
+            <span>{{ config.autoTranslate ? '全局自动翻译' : currentSiteAlwaysTranslated ? '始终翻译已开启' : '始终翻译此网站' }}</span>
+            <i aria-hidden="true" />
+          </button>
+          <button
+            class="site-rule-button site-disable-rule-button"
+            :class="{ enabled: currentSiteExtensionDisabled }"
+            data-setting="disable-extension-site"
+            :data-site-domain="currentSiteDomain"
+            :data-enabled="currentSiteExtensionDisabled"
+            type="button"
+            role="switch"
+            :aria-checked="currentSiteExtensionDisabled"
+            :aria-label="currentSiteExtensionSwitchLabel"
+            :disabled="translating"
+            @click="setCurrentSiteExtensionDisabled(!currentSiteExtensionDisabled)"
+          >
+            <span>{{ currentSiteExtensionDisabled ? '已禁用扩展' : '在此网站禁用扩展' }}</span>
+            <i aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
       <p v-if="notice" class="notice" :class="noticeType">{{ notice }}</p>
@@ -582,11 +600,20 @@ const currentSiteRuleEnabled = computed(() => currentSiteSupported.value
   && (config.value.alwaysTranslateDomains ?? []).includes(currentSiteDomain.value));
 const currentSiteAlwaysTranslated = computed(() => currentSiteSupported.value
   && (config.value.autoTranslate || currentSiteRuleEnabled.value));
+const currentSiteExtensionDisabled = computed(() => currentSiteSupported.value
+  && (config.value.disabledExtensionDomains ?? []).includes(currentSiteDomain.value));
 const currentSiteSwitchLabel = computed(() => currentSiteSupported.value
-  ? config.value.autoTranslate
+  ? currentSiteExtensionDisabled.value
+    ? `${currentSiteDomain.value} 已禁用扩展，无法开启始终翻译`
+    : config.value.autoTranslate
     ? `所有网站自动翻译已开启，${currentSiteDomain.value} 会自动翻译`
     : `始终翻译 ${currentSiteDomain.value}`
   : '始终翻译当前网站（当前页面不可用）');
+const currentSiteExtensionSwitchLabel = computed(() => currentSiteSupported.value
+  ? currentSiteExtensionDisabled.value
+    ? `恢复 ${currentSiteDomain.value} 的扩展`
+    : `在 ${currentSiteDomain.value} 禁用扩展`
+  : '在此网站禁用扩展（当前页面不可用）');
 const videoServiceLabel = computed(() => videoServiceOptions.value.find((item: any) => item.value === config.value.videoService)?.label || config.value.videoService);
 const styleLabel = computed(() => styleOptions.value.find((item: any) => item.value === config.value.style)?.label || '默认样式');
 const hoverKey = computed(() => config.value.hotkey === 'custom' ? (config.value.customHotkey || '自定义') : config.value.hotkey);
@@ -760,6 +787,10 @@ async function setCurrentSiteAlwaysTranslated(enabled: boolean) {
     showNotice('所有网站自动翻译已开启，请在完整设置中关闭全局开关');
     return;
   }
+  if (currentSiteExtensionDisabled.value) {
+    showNotice(`当前已在 ${domain} 禁用扩展，请先恢复扩展`);
+    return;
+  }
 
   const currentDomains = config.value.alwaysTranslateDomains ?? [];
   config.value.alwaysTranslateDomains = enabled
@@ -795,6 +826,26 @@ async function setCurrentSiteAlwaysTranslated(enabled: boolean) {
   } finally {
     translating.value = false;
   }
+}
+
+async function setCurrentSiteExtensionDisabled(enabled: boolean) {
+  const domain = currentSiteDomain.value;
+  const tabId = currentTabId.value;
+  if (!domain || tabId === null) return;
+
+  const currentDomains = config.value.disabledExtensionDomains ?? [];
+  config.value.disabledExtensionDomains = enabled
+    ? currentDomains.includes(domain) ? currentDomains : [...currentDomains, domain]
+    : currentDomains.filter(item => item !== domain);
+  pageTranslated.value = false;
+  translating.value = false;
+
+  // 先通知当前页立即收起扩展 UI；配置仍由 popup 的统一保存链路持久化。
+  await browser.tabs.sendMessage(tabId, {
+    type: 'updateSiteExtensionDisabled',
+    isDisabled: enabled,
+  }).catch(() => undefined);
+  showNotice(enabled ? `已在 ${domain} 禁用扩展` : `已恢复 ${domain} 的扩展`);
 }
 
 async function broadcast(message: Record<string, unknown>) {

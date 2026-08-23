@@ -95,14 +95,17 @@ describe('统一配置存储', () => {
     it('为旧配置补齐空的始终翻译域名列表，并只迁移回写一次', async () => {
         const legacyConfig = normalizeConfig(storedConfig) as unknown as Record<string, unknown>;
         delete legacyConfig.alwaysTranslateDomains;
+        delete legacyConfig.disabledExtensionDomains;
         const configStore = await loadConfigModule(legacyConfig);
 
         await configStore.configReady;
 
         expect(configStore.config.alwaysTranslateDomains).toEqual([]);
+        expect(configStore.config.disabledExtensionDomains).toEqual([]);
         const localConfigWrites = storageMock.setItem.mock.calls.filter(([key]) => key === 'local:config');
         expect(localConfigWrites).toHaveLength(1);
         expect(localConfigWrites[0][1]).toEqual(expect.objectContaining({alwaysTranslateDomains: []}));
+        expect(localConfigWrites[0][1]).toEqual(expect.objectContaining({disabledExtensionDomains: []}));
     });
 
     it('内部 storage revision 不进入运行时配置或历史快照', async () => {

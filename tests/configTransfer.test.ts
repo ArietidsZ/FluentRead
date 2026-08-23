@@ -119,6 +119,7 @@ describe('configuration transfer helpers', () => {
     const exported = sanitizeConfigForExport({
       ...validConfig,
       alwaysTranslateDomains: ['https://docs.example.com/guide', 'EXAMPLE.COM', 'news.bbc.co.uk'],
+      disabledExtensionDomains: ['https://app.example.net/settings', 'EXAMPLE.NET'],
     })
 
     expect(exported.alwaysTranslateDomains).toEqual([
@@ -128,5 +129,6 @@ describe('configuration transfer helpers', () => {
     ])
     expect(isConfigImportValid(exported)).toBe(true)
     expect(normalizeConfig(exported).alwaysTranslateDomains).toEqual(['example.com', 'bbc.co.uk'])
+    expect(normalizeConfig(exported).disabledExtensionDomains).toEqual(['example.net'])
   })
 })
