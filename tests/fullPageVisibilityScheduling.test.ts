@@ -263,6 +263,20 @@ describe("全文翻译可见性锚点", () => {
         replacedGlobals.clear();
     });
 
+    it("全文会话集中发布启动和结束状态事件", () => {
+        const states: string[] = [];
+        document.addEventListener("fluentread-translation-started", () => states.push("started"));
+        document.addEventListener("fluentread-translation-ended", () => states.push("ended"));
+
+        autoTranslateEnglishPage();
+        expect(isFullPageTranslationActive()).toBe(true);
+        expect(states).toEqual(["started"]);
+
+        restoreOriginalContent();
+        expect(isFullPageTranslationActive()).toBe(false);
+        expect(states).toEqual(["started", "ended"]);
+    });
+
     it("候选自身有布局盒时直接观察候选，不改用内部标签", async () => {
         document.body.innerHTML = '<h1 id="title"><span id="label">Visible heading</span></h1>';
         const title = document.querySelector<HTMLElement>("#title")!;

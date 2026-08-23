@@ -48,7 +48,9 @@
           <span class="eyebrow">网页翻译</span>
           <h1>{{ config.on ? '让阅读自然地流动' : '翻译功能已暂停' }}</h1>
         </div>
-        <button class="switch" type="button" role="switch" :aria-checked="config.on" :aria-label="config.on ? '暂停插件' : '启用插件'" @click="setPluginEnabled(!config.on)"><i /></button>
+        <div class="hero-switches">
+          <button class="switch" type="button" role="switch" :aria-checked="config.on" :aria-label="config.on ? '暂停插件' : '启用插件'" @click="setPluginEnabled(!config.on)"><i /></button>
+        </div>
       </div>
 
       <div class="language-pair">
@@ -170,6 +172,30 @@
           <span class="ai-context-indicator" aria-hidden="true" />
         </button>
       </div>
+
+      <div v-if="currentSiteSupported" class="site-rule-row">
+        <div class="site-rule-copy">
+          <span>当前网站</span>
+          <strong :title="currentSiteDomain">{{ currentSiteDomain }}</strong>
+        </div>
+        <button
+          class="site-rule-button"
+          :class="{ enabled: currentSiteAlwaysTranslated, 'global-enabled': config.autoTranslate }"
+          data-setting="always-translate-site"
+          :data-site-domain="currentSiteDomain"
+          :data-enabled="currentSiteAlwaysTranslated"
+          type="button"
+          role="switch"
+          :aria-checked="currentSiteAlwaysTranslated"
+          :aria-label="currentSiteSwitchLabel"
+          :disabled="translating || config.autoTranslate"
+          @click="setCurrentSiteAlwaysTranslated(!currentSiteAlwaysTranslated)"
+        >
+          <span>{{ config.autoTranslate ? '全局自动翻译' : currentSiteAlwaysTranslated ? '始终翻译已开启' : '始终翻译此网站' }}</span>
+          <i aria-hidden="true" />
+        </button>
+      </div>
+
       <p v-if="notice" class="notice" :class="noticeType">{{ notice }}</p>
     </section>
 
@@ -470,10 +496,11 @@ import { options, resolveConfiguredModel, servicesType } from '@/entrypoints/uti
 import { getMissingCredentialMessage } from '@/entrypoints/utils/configValidation';
 import { getSelectedModelLabel } from '@/entrypoints/utils/serviceCatalog';
 import { SELECTION_TTS_VOICE_OPTIONS } from '@/entrypoints/utils/selectionTtsConfig';
+import { getSiteBaseDomain } from '@/entrypoints/utils/siteRules';
 import ServiceIcon from '@/components/ServiceIcon.vue';
 
 type DrawerName = 'hover' | 'selection' | 'floating' | 'appearance' | 'image' | 'video';
-type SettingsSection = 'settings-general' | 'settings-shortcuts' | 'settings-services' | 'settings-video';
+type SettingsSection = 'settings-general' | 'settings-shortcuts' | 'settings-services' | 'settings-sites' | 'settings-video';
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/components/CustomHotkeyInput.vue'));
 const version = process.env.VUE_APP_VERSION;
 const config = ref(new Config());
@@ -482,6 +509,8 @@ const activeDrawer = ref<DrawerName>('hover');
 const selectionDrawerTab = ref<'text' | 'area'>('text');
 const translating = ref(false);
 const pageTranslated = ref(false);
+const currentTabId = ref<number | null>(null);
+const currentSiteDomain = ref('');
 const clearingCache = ref(false);
 const donationVisible = ref(false);
 const notice = ref('');
@@ -528,6 +557,16 @@ const servicePickerAriaLabel = computed(() => serviceModelLabel.value
   ? `翻译服务：${serviceLabel.value}，当前模型：${serviceModelLabel.value}`
   : `翻译服务：${serviceLabel.value}`);
 const credentialWarning = computed(() => getMissingCredentialMessage(config.value.service, config.value));
+const currentSiteSupported = computed(() => currentTabId.value !== null && Boolean(currentSiteDomain.value));
+const currentSiteRuleEnabled = computed(() => currentSiteSupported.value
+  && (config.value.alwaysTranslateDomains ?? []).includes(currentSiteDomain.value));
+const currentSiteAlwaysTranslated = computed(() => currentSiteSupported.value
+  && (config.value.autoTranslate || currentSiteRuleEnabled.value));
+const currentSiteSwitchLabel = computed(() => currentSiteSupported.value
+  ? config.value.autoTranslate
+    ? `所有网站自动翻译已开启，${currentSiteDomain.value} 会自动翻译`
+    : `始终翻译 ${currentSiteDomain.value}`
+  : '始终翻译当前网站（当前页面不可用）');
 const videoServiceLabel = computed(() => videoServiceOptions.value.find((item: any) => item.value === config.value.videoService)?.label || config.value.videoService);
 const styleLabel = computed(() => styleOptions.value.find((item: any) => item.value === config.value.style)?.label || '默认样式');
 const hoverKey = computed(() => config.value.hotkey === 'custom' ? (config.value.customHotkey || '自定义') : config.value.hotkey);
@@ -583,6 +622,7 @@ async function hydrate() {
   lastSerialized = JSON.stringify(config.value);
   hydrated.value = true;
   applyTheme(config.value.theme || 'auto');
+  await hydrateCurrentSite();
 }
 void hydrate();
 
@@ -669,6 +709,74 @@ function showNotice(message: string, type: 'success' | 'error' = 'success') {
   noticeTimer = setTimeout(() => { notice.value = ''; }, 2200);
 }
 
+async function hydrateCurrentSite() {
+  currentTabId.value = null;
+  currentSiteDomain.value = '';
+  try {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (typeof tab?.id !== 'number') return;
+    currentTabId.value = tab.id;
+    currentSiteDomain.value = getSiteBaseDomain(tab.pendingUrl || tab.url || '') || '';
+    if (!currentSiteDomain.value) return;
+
+    try {
+      const response = await browser.tabs.sendMessage(tab.id, {
+        type: 'getFullPageTranslationState',
+      }) as { status?: string; isTranslated?: boolean } | undefined;
+      if (response?.status === 'success') pageTranslated.value = response.isTranslated === true;
+    } catch {
+      // 当前页面可能尚未注入内容脚本；站点规则仍然可以读取和编辑。
+    }
+  } catch (error) {
+    console.warn('[FluentRead] 无法读取当前网站', error);
+  }
+}
+
+async function setCurrentSiteAlwaysTranslated(enabled: boolean) {
+  const domain = currentSiteDomain.value;
+  const tabId = currentTabId.value;
+  if (!domain || tabId === null) return;
+  if (config.value.autoTranslate) {
+    showNotice('所有网站自动翻译已开启，请在完整设置中关闭全局开关');
+    return;
+  }
+
+  const currentDomains = config.value.alwaysTranslateDomains ?? [];
+  config.value.alwaysTranslateDomains = enabled
+    ? currentDomains.includes(domain) ? currentDomains : [...currentDomains, domain]
+    : currentDomains.filter(item => item !== domain);
+
+  if (!enabled) {
+    showNotice(`已关闭 ${domain} 的始终翻译，当前网页保持不变`);
+    return;
+  }
+
+  if (!config.value.on) {
+    showNotice(`已保存 ${domain}，启用插件后生效`);
+    return;
+  }
+  if (credentialWarning.value) {
+    showNotice(`已保存 ${domain}；${credentialWarning.value}`, 'error');
+    return;
+  }
+
+  translating.value = true;
+  try {
+    const response = await browser.tabs.sendMessage(tabId, {
+      type: 'contextMenuTranslate',
+      action: 'fullPage',
+    }) as { status?: string; isTranslated?: boolean } | undefined;
+    if (response?.status !== 'success') throw new Error('Translation failed');
+    pageTranslated.value = typeof response.isTranslated === 'boolean' ? response.isTranslated : true;
+    showNotice(`已开启 ${domain} 的始终翻译`);
+  } catch (error) {
+    console.error(error);
+    showNotice(`已保存 ${domain}，当前网页请刷新后重试`, 'error');
+  } finally {
+    translating.value = false;
+  }
+}
+
 async function broadcast(message: Record<string, unknown>) {
   const tabs = await browser.tabs.query({});
   await Promise.allSettled(tabs.filter(tab => tab.id).map(tab => browser.tabs.sendMessage(tab.id!, message)));
@@ -711,9 +819,11 @@ async function togglePageTranslation() {
   try {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id) throw new Error('No active tab');
-    const response = await browser.tabs.sendMessage(tab.id, { type: 'contextMenuTranslate', action }) as { status?: string } | undefined;
+    const response = await browser.tabs.sendMessage(tab.id, { type: 'contextMenuTranslate', action }) as { status?: string; isTranslated?: boolean } | undefined;
     if (response?.status !== 'success') throw new Error(response?.status === 'disabled' ? 'Plugin disabled' : 'Translation failed');
-    pageTranslated.value = action === 'fullPage';
+    pageTranslated.value = typeof response.isTranslated === 'boolean'
+      ? response.isTranslated
+      : action === 'fullPage';
     showNotice(pageTranslated.value ? '正在翻译当前网页' : '已恢复网页原文');
   } catch (error) {
     console.error(error);

@@ -108,7 +108,21 @@
   </div>
   </section>
 
-  <div v-if="!config.on && !['settings-general', 'settings-image-translation', 'settings-translation-center'].includes(props.activeSection)" class="disabled-section">
+  <section v-show="props.activeSection === 'settings-sites'" id="settings-sites" class="settings-section site-settings-section">
+    <el-row class="settings-control-row" data-setting="global-auto-translate">
+      <el-col :span="20" class="settings-control-label site-auto-translate-label lightblue rounded-corner">
+        <span class="popup-text popup-vertical-left">所有网站自动翻译</span>
+        <small>打开后，每个支持的网页都会在加载完成时自动开始翻译；关闭后仍会保留下面的网站名单。</small>
+      </el-col>
+      <el-col :span="4" class="settings-control-field flex-end">
+        <el-switch v-model="config.autoTranslate" class="settings-toggle" aria-label="所有网站自动翻译" />
+      </el-col>
+    </el-row>
+
+    <AlwaysTranslateSites v-model="config.alwaysTranslateDomains" />
+  </section>
+
+  <div v-if="!config.on && !['settings-general', 'settings-image-translation', 'settings-translation-center', 'settings-sites'].includes(props.activeSection)" class="disabled-section">
     <strong>插件当前已关闭</strong>
     <p>请先在“通用设置”中启用插件，再调整该分类。</p>
   </div>
@@ -850,6 +864,7 @@ const CustomHotkeyInput = defineAsyncComponent(() => import('@/components/Custom
 import ServiceCatalog from '@/components/ServiceCatalog.vue';
 import ServiceConfiguration from '@/components/ServiceConfiguration.vue';
 import TranslationCenter from '@/components/TranslationCenter.vue';
+import AlwaysTranslateSites from '@/components/AlwaysTranslateSites.vue';
 import { parseHotkey } from '@/entrypoints/utils/hotkey';
 import { isConfigImportValid, prepareConfigForImport, sanitizeConfigForExport } from '@/entrypoints/utils/config-transfer';
 import { getApiKeyRequirementKey, getMissingCredentialMessage, isApiKeyRequired } from '@/entrypoints/utils/configValidation';
@@ -1446,7 +1461,8 @@ const formatHistoryTime = (savedAt: string): string => {
 const historySummary = (entry: ConfigHistoryEntry): string => {
   const target = options.to.find((item: any) => item.value === entry.config.to)?.label || entry.config.to;
   const service = options.services.find((item: any) => item.value === entry.config.service)?.label || entry.config.service;
-  return `${target} · ${service}`;
+  const siteCount = entry.config.alwaysTranslateDomains?.length ?? 0;
+  return `${target} · ${service} · 始终翻译 ${siteCount} 个网站`;
 };
 
 void configHistoryReady.then(() => {
@@ -1568,6 +1584,22 @@ const saveImport = async () => {
 .credential-persistence-copy p,
 .config-transfer-note { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
 .config-transfer-note { margin: -5px 2em 16px; }
+
+.site-settings-section {
+  padding: 0 12px 12px;
+}
+
+.site-auto-translate-label {
+  flex-direction: column;
+  align-items: flex-start !important;
+  gap: 4px;
+}
+
+.site-auto-translate-label small {
+  color: var(--muted, #737c8f);
+  font-size: 10px;
+  line-height: 1.45;
+}
 
 .config-history-panel {
   margin: 0 0 18px;

@@ -56,6 +56,12 @@ export const navigationGroups: NavigationGroup[] = [
         searchDescription: '鼠标悬停、划词翻译、划词显示延迟、全文翻译范围、翻译到网页底部、右键全文翻译与自定义按键',
       },
       {
+        id: 'settings-sites', icon: '站', label: '网站自动翻译', description: '始终翻译名单', group: '阅读工具',
+        heading: '管理自动翻译网站', summary: '按网站主域名设置始终翻译，也可选择让所有网站自动开始翻译。',
+        kicker: '网站规则', title: '网站自动翻译', detail: '名单按主域名保存，并自动应用到同一网站的所有子域。',
+        searchDescription: '网站、域名、网址、主域名、自动翻译、始终翻译与子域',
+      },
+      {
         id: 'settings-image-translation', icon: '图', label: '图片翻译', description: 'OCR 与语言包', group: '阅读工具',
         heading: '管理图片翻译语言', summary: '图片翻译使用本地 OCR。首次识别前，请下载对应的语言包。',
         kicker: 'Beta 测试', title: '图片翻译', detail: '按需下载 OCR 语言包；推荐先下载简体中文和 English。',

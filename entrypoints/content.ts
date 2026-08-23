@@ -38,11 +38,20 @@ import { matchesConfiguredHotkey, shouldClaimConfiguredHotkey } from '@/entrypoi
 import { isSameLanguage, normalizeSelectionText, shouldIgnoreSelection } from '@/entrypoints/utils/selectionTranslatorCore';
 import { normalizeSelectionTranslatorDelay } from '@/entrypoints/utils/model';
 import {clearLegacyPageTranslationCache} from '@/entrypoints/utils/legacyPageCache';
+import {shouldAutoTranslatePage} from '@/entrypoints/utils/siteRules';
 
 let contentScriptContext: ContentScriptContext | null = null;
 let inputTooltipUi: ShadowRootContentScriptUi<HTMLElement> | null = null;
 let unmountVideoSubtitleTranslation: (() => void) | null = null;
-let unsubscribeTranslationProgressConfig: (() => void) | null = null;
+let unsubscribeContentConfig: (() => void) | null = null;
+
+function shouldAutomaticallyTranslateCurrentPage(nextConfig: typeof config): boolean {
+    return shouldAutoTranslatePage(window.location.href, {
+        on: nextConfig.on,
+        autoTranslate: nextConfig.autoTranslate,
+        alwaysTranslateDomains: nextConfig.alwaysTranslateDomains,
+    });
+}
 
 function installPageStyles(ctx: ContentScriptContext) {
     const existing = document.getElementById('fluent-read-page-styles');
@@ -155,6 +164,14 @@ function handleRuntimeMessage(
         return true;
     }
 
+    if (payload.type === 'getFullPageTranslationState') {
+        sendResponse({
+            status: 'success',
+            isTranslated: isFullPageTranslationActive(),
+        });
+        return true;
+    }
+
     if (payload.type === 'contextMenuTranslate') {
         if (config.on === false) {
             sendResponse({ status: 'disabled' });
@@ -162,12 +179,22 @@ function handleRuntimeMessage(
         }
         if (payload.action === 'fullPage') {
             autoTranslateEnglishPage();
-            sendResponse({ status: 'success', action: 'translated' });
+            const isTranslated = isFullPageTranslationActive();
+            sendResponse({
+                status: isTranslated ? 'success' : 'failed',
+                action: isTranslated ? 'translated' : 'unchanged',
+                isTranslated,
+            });
             return true;
         }
         if (payload.action === 'restore') {
             restoreOriginalContent();
-            sendResponse({ status: 'success', action: 'restored' });
+            const isTranslated = isFullPageTranslationActive();
+            sendResponse({
+                status: isTranslated ? 'failed' : 'success',
+                action: isTranslated ? 'unchanged' : 'restored',
+                isTranslated,
+            });
             return true;
         }
     }
@@ -184,6 +211,7 @@ export default defineContentScript({
         installPageStyles(ctx);
         await configReady; // 等待配置加载完成
         clearLegacyPageTranslationCache();
+        let shouldAutomaticallyTranslate = shouldAutomaticallyTranslateCurrentPage(config);
 
         const pageEventController = new AbortController();
         document.addEventListener('fluentread-route-change', resetPageTranslationContextCache, {
@@ -205,8 +233,8 @@ export default defineContentScript({
             unmountSelectionTranslator();
             unmountAreaTranslator();
             unmountImageTranslator();
-            unsubscribeTranslationProgressConfig?.();
-            unsubscribeTranslationProgressConfig = null;
+            unsubscribeContentConfig?.();
+            unsubscribeContentConfig = null;
             unmountTranslationProgressPanel();
             unmountVideoSubtitleTranslation?.();
             unmountVideoSubtitleTranslation = null;
@@ -225,19 +253,29 @@ export default defineContentScript({
             sendResponse: (response?: unknown) => void,
         ) => handleRuntimeMessage(message, ctx, sendResponse);
         browser.runtime.onMessage.addListener(runtimeMessageListener);
-        unsubscribeTranslationProgressConfig = subscribeConfig((nextConfig) => {
+        unsubscribeContentConfig = subscribeConfig((nextConfig) => {
             if (nextConfig.translationProgressPanelEnabled === true) {
                 void mountTranslationProgressPanel(ctx);
             } else {
                 unmountTranslationProgressPanel();
+            }
+
+            const nextShouldAutomaticallyTranslate = shouldAutomaticallyTranslateCurrentPage(nextConfig);
+            const shouldStartNow = !shouldAutomaticallyTranslate && nextShouldAutomaticallyTranslate;
+            shouldAutomaticallyTranslate = nextShouldAutomaticallyTranslate;
+            // 关闭“始终翻译”只影响之后的页面加载，不撤销用户
+            // 已经手动启动的当前会话。只处理 false -> true 才能避免
+            // storage.watch 的同值回声重复触发全文翻译。
+            if (shouldStartNow && !isFullPageTranslationActive()) {
+                autoTranslateEnglishPage();
             }
         });
         // 监听器始终注册并在触发时读取实时配置。这样扩展在当前页面由关闭
         // 切换为开启后，无需刷新页面就能恢复 Control/Alt+T。
         setupManualTranslationTriggers(pageEventController.signal);
         setupFloatingBallHotkey(pageEventController.signal);
-        // 添加自动翻译事件监听器
-        if (config.on && config.autoTranslate) autoTranslateEnglishPage();
+        // 全局自动翻译和当前站点规则共用同一个全文会话。
+        if (shouldAutomaticallyTranslate) autoTranslateEnglishPage();
 
         // 挂载悬浮球（如果配置未禁用）
         if (config.on && config.disableFloatingBall !== true) {
