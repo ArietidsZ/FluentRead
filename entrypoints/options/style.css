@@ -50,7 +50,7 @@ nav small { margin-top: 2px; color: var(--muted); font-size: 10px; }
 .eyebrow { display: block; margin-bottom: 7px; color: var(--brand-strong); font-size: 11px; font-weight: 780; letter-spacing: .12em; }
 h1, h2, p { margin-top: 0; }
 h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.035em; }
-.topbar p, .card-intro p { margin-bottom: 0; color: var(--muted); font-size: 13px; }
+.topbar p { margin-bottom: 0; color: var(--muted); font-size: 13px; }
 .search-box {
   display: flex; align-items: center; gap: 10px; width: 310px; height: 46px; padding: 0 15px;
   border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: 0 8px 24px rgba(31, 40, 61, .05);
@@ -73,7 +73,6 @@ h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.0
   display: flex; width: calc(100% + 88px); margin-right: -44px; margin-left: -44px; padding: 0; border-right: 0; border-left: 0; border-radius: 0;
   flex-direction: column; overflow: hidden;
 }
-.settings-card.services-view > .card-intro { margin: 0; padding: 28px 28px 22px; }
 .settings-card.services-view > .settings-main-sections { display: flex; height: 100%; min-height: 0; flex: 1 1 0%; flex-direction: column; }
 .settings-card.services-view #settings-services { display: flex !important; min-height: 0; flex: 1 1 0%; flex-direction: column; }
 .settings-card.services-view .service-catalog { min-height: 0 !important; height: 0 !important; margin: 0; border-right: 0; border-left: 0; border-radius: 0; flex: 1 1 0%; }
@@ -90,8 +89,6 @@ h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.0
   display: flex !important; min-height: 0; height: 100%; flex: 1 1 auto; align-items: flex-start; justify-content: center; overflow: hidden;
 }
 .settings-card.translation-center-view .translation-center { width: min(100%, 1480px); height: auto; max-height: 100%; overflow-y: auto; }
-.card-intro { margin: 0 16px 25px; padding-bottom: 22px; border-bottom: 1px solid var(--line); }
-.card-intro h2 { margin-bottom: 6px; font-size: 21px; }
 .settings-card > div:last-child > .el-row,
 .settings-card > div:last-child > div > .el-row,
 .settings-card > div:last-child > div > .el-collapse {
@@ -329,8 +326,6 @@ h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.0
   .settings-card.services-view .service-catalog .service-rail { min-height: 0; max-height: 190px; flex: 0 0 190px; overflow-y: auto; }
   .settings-card.services-view .service-catalog .service-detail { min-height: 0; flex: 1 1 auto; overflow: hidden; }
   .settings-card.services-view .service-catalog .service-configuration-slot { max-height: none; overflow-y: auto; }
-  .card-intro { margin: 0 10px 16px; padding-bottom: 16px; }
-  .card-intro h2 { font-size: 19px; }
   .settings-card .el-row {
     display: flex; min-height: 0; gap: 8px; padding: 10px 8px;
     flex-wrap: wrap;
