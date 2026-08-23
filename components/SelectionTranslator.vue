@@ -1,5 +1,5 @@
 <template>
-  <div v-show="showIndicator || showTooltip || copySuccess" class="fr-selection-translator-root" @pointerdown.stop>
+  <div v-show="showIndicator || showTooltip || copySuccess" class="fr-selection-translator-root" :data-display-delay="selectionSettings.delay" @pointerdown.stop>
     <button v-if="showIndicator && !showTooltip" class="fr-selection-indicator" :class="`fr-selection-indicator--${triggerMode}`" :style="indicatorStyle" type="button" aria-label="打开划词翻译" title="打开划词翻译" @pointerdown.prevent.stop @click="openTooltip">
       <span class="fr-selection-indicator-glyph" aria-hidden="true">↗</span>
     </button>
@@ -68,14 +68,14 @@
             </template>
           </section>
           <div v-if="isWordSelection && wordCardError" class="fr-word-fallback-note">{{ wordCardError }}，已保留普通翻译。</div>
-          <div v-if="config.selectionTranslatorMode === 'bilingual' && !isWordCardVisible" class="fr-text-block fr-original-text">
+          <div v-if="selectionSettings.mode === 'bilingual' && !isWordCardVisible" class="fr-text-block fr-original-text">
             <div class="fr-text-label">原文</div><pre>{{ selectedText }}</pre>
             <button class="fr-text-audio-btn" type="button" :aria-label="audioLabel('source')" :title="audioLabel('source')" @click="toggleAudio(selectedText, 'source')">
               <svg v-if="isCurrentAudio('source')" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12M16 6v12" /></svg>
               <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z" /><path d="M16 9.5a4.5 4.5 0 0 1 0 5M18.5 7a8 8 0 0 1 0 10" /></svg>
             </button>
           </div>
-          <div v-if="(config.selectionTranslatorMode === 'bilingual' || config.selectionTranslatorMode === 'translation-only') && !isWordCardVisible" class="fr-text-block fr-translation-result">
+          <div v-if="(selectionSettings.mode === 'bilingual' || selectionSettings.mode === 'translation-only') && !isWordCardVisible" class="fr-text-block fr-translation-result">
             <div class="fr-text-label">译文</div><pre>{{ translationResult }}</pre>
             <button class="fr-text-audio-btn" type="button" :aria-label="audioLabel('translation')" :title="audioLabel('translation')" @click="toggleAudio(translationResult, 'translation')">
               <svg v-if="isCurrentAudio('translation')" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12M16 6v12" /></svg>
@@ -95,13 +95,14 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import browser from 'webextension-polyfill';
-import { config } from '@/entrypoints/utils/config';
+import { config, subscribeConfig } from '@/entrypoints/utils/config';
 import { translateText } from '@/entrypoints/utils/translateApi';
 import { detectlang } from '@/entrypoints/utils/common';
+import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey } from '@/entrypoints/utils/hotkey';
 import { isSingleEnglishWord, normalizeEnglishWord, type WordCardData, type WordPronunciation } from '@/entrypoints/utils/wordDictionary';
-import { calculateSelectionPopupPosition, chooseSelectionRect, isSameLanguage, normalizeSelectionText, normalizeSpeechLanguage, shouldIgnoreSelection, type SelectionRect } from '@/entrypoints/utils/selectionTranslatorCore';
+import { calculateSelectionPopupPosition, chooseSelectionRect, getSelectionPresentationDelayRemaining, isSameLanguage, normalizeSelectionText, normalizeSpeechLanguage, reconcileSelectionPresentation, shouldIgnoreSelection, type SelectionRect } from '@/entrypoints/utils/selectionTranslatorCore';
 
-type SelectionTrigger = 'direct' | 'icon' | 'dot';
+type SelectionTrigger = 'direct' | 'icon' | 'dot' | 'shortcut';
 type AudioKind = 'source' | 'translation' | 'word';
 interface SelectionSnapshot { text: string; range: Range; anchor: SelectionRect; isForward: boolean; }
 
@@ -129,9 +130,17 @@ const showChineseSupport = ref(true);
 
 let selectionFrame: number | null = null;
 let positionFrame: number | null = null;
+let selectionLossTimer: number | null = null;
+let selectionPresentationTimer: number | null = null;
+let selectionPresentationVersion = 0;
+let selectionSettledAt = 0;
+let pendingSelectionPresentation: 'indicator' | 'tooltip' | null = null;
+let translationAbortController: AbortController | null = null;
 let translationRequestId = 0;
 let wordLookupRequestId = 0;
 let copyTimer: number | null = null;
+let lastTrustedSelectionInteractionAt = 0;
+const TRUSTED_SELECTION_INTERACTION_GRACE_MS = 1_500;
 let audio: HTMLAudioElement | null = null;
 let audioUrl = '';
 let utterance: SpeechSynthesisUtterance | null = null;
@@ -140,15 +149,51 @@ let remoteAudioActive = false;
 let remoteAudioRequestId: number | null = null;
 let pendingRemoteAudioRequestId: number | null = null;
 let isSelecting = false;
+let pendingSelectionShortcutUntil = 0;
+let selectionShortcutHeld = false;
 let uiPointerInteraction = false;
 let suppressSelectionUntil = 0;
 let systemThemeMedia: MediaQueryList | null = null;
+let unsubscribeConfig: (() => void) | null = null;
+let tooltipResizeObserver: ResizeObserver | null = null;
+const selectionConfigVersion = ref(0);
 
+const selectionShortcutTriggers = new Set(['Control', 'Alt', 'Shift', 'custom']);
+const selectionSettings = computed(() => {
+  // `config` is shared with the content-script runtime and is mutated outside
+  // Vue. Keep a local reactive version so Popup/Options changes refresh the
+  // active selection UI without requiring a page reload.
+  selectionConfigVersion.value;
+  return {
+    trigger: config.selectionTranslatorTrigger,
+    customHotkey: config.customSelectionTranslatorHotkey,
+    delay: config.selectionTranslatorDelay,
+    mode: config.selectionTranslatorMode,
+    theme: config.theme,
+    from: config.from,
+    to: config.to,
+    service: config.service,
+    model: `${config.model?.[config.service] || ''}:${config.customModel?.[config.service] || ''}`,
+  };
+});
+const selectionShortcutConfig = computed(() => selectionShortcutTriggers.has(selectionSettings.value.trigger)
+  ? selectionSettings.value.trigger
+  : 'none');
+const selectionShortcut = computed(() => {
+  const resolved = resolveConfiguredHotkey(selectionShortcutConfig.value, selectionSettings.value.customHotkey);
+  return resolved === 'none' ? '' : resolved;
+});
+const triggerMode = computed<SelectionTrigger>(() => {
+  if (selectionShortcut.value) return 'shortcut';
+  if (selectionSettings.value.trigger === 'direct' || selectionSettings.value.trigger === 'dot') return selectionSettings.value.trigger;
+  return 'icon';
+});
 const UI_SELECTION_SUPPRESSION_MS = 350;
+const SELECTION_LOSS_GRACE_MS = 160;
+const PENDING_SELECTION_SHORTCUT_MS = 250;
 
-const triggerMode = computed<SelectionTrigger>(() => config.selectionTranslatorTrigger === 'direct' || config.selectionTranslatorTrigger === 'dot' ? config.selectionTranslatorTrigger : 'icon');
 const selectedWord = computed(() => normalizeEnglishWord(selectedText.value));
-const isWordSelection = computed(() => Boolean(selectedWord.value) && (config.from === 'auto' || /^en(?:-|$)/i.test(config.from)));
+const isWordSelection = computed(() => Boolean(selectedWord.value) && (selectionSettings.value.from === 'auto' || /^en(?:-|$)/i.test(selectionSettings.value.from)));
 const isWordCardVisible = computed(() => isWordSelection.value && wordCard.value !== null);
 
 function updateTheme(): void {
@@ -180,12 +225,15 @@ function readSelectionSnapshot(): SelectionSnapshot | null {
   return { text, range, anchor, isForward };
 }
 
-function scheduleSelectionRead(): void {
+function scheduleSelectionRead(shortcutTriggered = false): void {
+  if (shortcutTriggered) pendingSelectionShortcutUntil = performance.now() + PENDING_SELECTION_SHORTCUT_MS;
   if (isSelecting || isSelectionReadSuppressed()) return;
   if (selectionFrame !== null) return;
   selectionFrame = window.requestAnimationFrame(() => {
     selectionFrame = null;
-    if (!isSelecting && !isSelectionReadSuppressed()) applySelection(readSelectionSnapshot());
+    const shouldTriggerShortcut = pendingSelectionShortcutUntil >= performance.now();
+    pendingSelectionShortcutUntil = 0;
+    if (!isSelecting && !isSelectionReadSuppressed()) applySelection(readSelectionSnapshot(), shouldTriggerShortcut);
   });
 }
 
@@ -213,26 +261,124 @@ function isSameSelection(left: SelectionSnapshot | null, right: SelectionSnapsho
     && left.range.endOffset === right.range.endOffset;
 }
 
-function applySelection(next: SelectionSnapshot | null): void {
-  if (!next) { if (!isSelecting) hideAll(); return; }
-  if (isSameSelection(snapshot.value, next)) return;
+function cancelSelectionLoss(): void {
+  if (selectionLossTimer === null) return;
+  window.clearTimeout(selectionLossTimer);
+  selectionLossTimer = null;
+}
+
+function cancelSelectionPresentation(): void {
+  if (selectionPresentationTimer !== null) {
+    window.clearTimeout(selectionPresentationTimer);
+    selectionPresentationTimer = null;
+  }
+  pendingSelectionPresentation = null;
+  selectionPresentationVersion += 1;
+}
+
+function resetSelectionContentState(clearSelectionText = false): void {
+  translationRequestId += 1;
+  translationAbortController?.abort();
+  translationAbortController = null;
+  wordLookupRequestId += 1;
+  isLoading.value = false;
+  translationResult.value = '';
+  error.value = '';
+  wordCard.value = null;
+  isWordCardLoading.value = false;
+  wordCardError.value = '';
+  showChineseSupport.value = true;
+  if (clearSelectionText) selectedText.value = '';
+  stopAudio();
+}
+
+function revealSelectionPresentation(
+  presentation: 'indicator' | 'tooltip',
+  expectedVersion: number,
+): void {
+  if (expectedVersion !== selectionPresentationVersion
+    || pendingSelectionPresentation !== presentation
+    || !snapshot.value) return;
+
+  const expectedSelection = snapshot.value;
+  const currentSelection = readSelectionSnapshot();
+  if (!currentSelection) { hideAll(); return; }
+  if (!isSameSelection(expectedSelection, currentSelection)) {
+    applySelection(currentSelection);
+    return;
+  }
+
+  snapshot.value = currentSelection;
+  pendingSelectionPresentation = null;
+  if (presentation === 'tooltip') {
+    openTooltip();
+    return;
+  }
+  showIndicator.value = true;
+  showTooltip.value = false;
+  updatePosition(false);
+}
+
+function scheduleSelectionPresentation(presentation: 'indicator' | 'tooltip'): void {
+  if (!snapshot.value) return;
+  if (selectionPresentationTimer !== null) {
+    window.clearTimeout(selectionPresentationTimer);
+    selectionPresentationTimer = null;
+  }
+  pendingSelectionPresentation = presentation;
+  const expectedVersion = ++selectionPresentationVersion;
+  const remaining = getSelectionPresentationDelayRemaining(
+    selectionSettings.value.delay,
+    selectionSettledAt,
+    performance.now(),
+  );
+  if (remaining === 0) {
+    revealSelectionPresentation(presentation, expectedVersion);
+    return;
+  }
+  selectionPresentationTimer = window.setTimeout(() => {
+    selectionPresentationTimer = null;
+    revealSelectionPresentation(presentation, expectedVersion);
+  }, remaining);
+}
+
+function scheduleSelectionLoss(): void {
+  if (!snapshot.value) return;
+  if (selectionLossTimer !== null) return;
+  selectionLossTimer = window.setTimeout(() => {
+    selectionLossTimer = null;
+    if (isSelecting || isSelectionReadSuppressed()) return;
+    const recoveredSelection = readSelectionSnapshot();
+    if (recoveredSelection) {
+      applySelection(recoveredSelection);
+      return;
+    }
+    hideAll();
+  }, SELECTION_LOSS_GRACE_MS);
+}
+
+function applySelection(next: SelectionSnapshot | null, shortcutTriggered = false): void {
+  if (!next) {
+    if (!isSelecting) scheduleSelectionLoss();
+    return;
+  }
+  cancelSelectionLoss();
+  if (isSameSelection(snapshot.value, next)) {
+    if (shortcutTriggered) scheduleSelectionPresentation('tooltip');
+    return;
+  }
   if (isSelectionInTargetLanguage(next.text)) { hideAll(); return; }
-  const hadActiveSelection = snapshot.value !== null;
-  const changedText = selectedText.value !== next.text;
+  cancelSelectionPresentation();
+  selectionSettledAt = performance.now();
+  resetSelectionContentState();
   snapshot.value = next;
   selectedText.value = next.text;
-  showIndicator.value = triggerMode.value !== 'direct';
-  showTooltip.value = triggerMode.value === 'direct';
-  if (changedText) {
-    translationResult.value = '';
-    error.value = '';
-    wordCard.value = null;
-    isWordCardLoading.value = false;
-    wordCardError.value = '';
-    showChineseSupport.value = true;
-  }
+  const waitingForShortcut = triggerMode.value === 'shortcut' && Boolean(selectionShortcut.value) && !shortcutTriggered;
+  showIndicator.value = false;
+  showTooltip.value = false;
   updatePosition(false);
-  if (showTooltip.value && (!hadActiveSelection || changedText)) void requestSelectionContent(next.text);
+  if (waitingForShortcut) return;
+  scheduleSelectionPresentation(shortcutTriggered || triggerMode.value === 'direct' ? 'tooltip' : 'indicator');
 }
 
 function updatePosition(refreshSelection = true): void {
@@ -252,7 +398,7 @@ function updatePosition(refreshSelection = true): void {
     if (!tooltip || !snapshot.value) return;
     const rect = tooltip.getBoundingClientRect();
     const position = calculateSelectionPopupPosition(snapshot.value.anchor, { width: rect.width, height: rect.height }, { width: window.innerWidth, height: window.innerHeight });
-    tooltipStyle.value = { left: `${position.left}px`, top: `${position.top}px` };
+    tooltipStyle.value = { left: `${position.left}px`, top: `${position.top}px`, visibility: 'visible' };
     popupPlacement.value = position.placement;
   });
 }
@@ -265,9 +411,12 @@ function schedulePositionUpdate(): void {
 
 function openTooltip(): void {
   if (!snapshot.value || isSelectionInTargetLanguage(snapshot.value.text)) { hideAll(); return; }
+  cancelSelectionPresentation();
+  const wasVisible = showTooltip.value;
   showIndicator.value = true;
   showTooltip.value = true;
-  void requestSelectionContent(snapshot.value.text);
+  if (!wasVisible) tooltipStyle.value = { visibility: 'hidden' };
+  if (!wasVisible || error.value) void requestSelectionContent(snapshot.value.text);
   schedulePositionUpdate();
 }
 
@@ -287,18 +436,23 @@ function requestSelectionContent(text: string): void {
 }
 
 async function requestTranslation(text: string): Promise<void> {
+  translationAbortController?.abort();
+  const controller = new AbortController();
+  translationAbortController = controller;
   const requestId = ++translationRequestId;
   isLoading.value = true;
   error.value = '';
   try {
-    const result = await translateText(text);
+    const result = await translateText(text, document.title, { signal: controller.signal });
     if (requestId !== translationRequestId || snapshot.value?.text !== text) return;
     translationResult.value = result;
   } catch (cause) {
     if (requestId !== translationRequestId || snapshot.value?.text !== text) return;
+    if (cause instanceof Error && cause.name === 'AbortError') return;
     console.error('Selection translation error:', cause);
     error.value = '翻译失败，请重试';
   } finally {
+    if (translationAbortController === controller) translationAbortController = null;
     if (requestId === translationRequestId) isLoading.value = false;
   }
 }
@@ -632,24 +786,37 @@ async function toggleWordAudio(pronunciation: WordPronunciation): Promise<void> 
 
 function closeTooltip(): void { hideAll(); }
 function hideAll(): void {
-  translationRequestId++;
-  wordLookupRequestId++;
+  cancelSelectionLoss();
+  cancelSelectionPresentation();
+  selectionSettledAt = 0;
+  resetSelectionContentState(true);
   showIndicator.value = false;
   showTooltip.value = false;
   snapshot.value = null;
-  wordCard.value = null;
-  isWordCardLoading.value = false;
-  wordCardError.value = '';
-  showChineseSupport.value = true;
-  stopAudio();
+  pendingSelectionShortcutUntil = 0;
 }
 function isInsideUi(target: EventTarget | null): boolean {
   const node = target instanceof Node ? target : null;
   if (!node) return false;
   const host = document.getElementById('fluent-read-selection-translator-container');
-  return Boolean(node === host || host?.contains(node) || node.getRootNode() instanceof ShadowRoot);
+  const root = node.getRootNode();
+  return Boolean(node === host || host?.contains(node) || root === host?.shadowRoot);
+}
+function matchesSelectionModifierOnPointer(event: PointerEvent): boolean {
+  const shortcut = selectionShortcut.value;
+  if (!['Control', 'Alt', 'Shift'].includes(shortcut)) return false;
+  const modifierState = {
+    ctrlKey: event.ctrlKey,
+    altKey: event.altKey,
+    shiftKey: event.shiftKey,
+    metaKey: event.metaKey,
+    key: shortcut === 'Control' ? 'Control' : shortcut === 'Alt' ? 'Alt' : 'Shift',
+  };
+  return matchesModifierOnlyHotkey(modifierState, shortcut);
 }
 function handlePointerDown(event: PointerEvent): void {
+  if (!event.isTrusted) return;
+  lastTrustedSelectionInteractionAt = Date.now();
   if (isInsideUi(event.target)) {
     uiPointerInteraction = true;
     isSelecting = false;
@@ -659,9 +826,12 @@ function handlePointerDown(event: PointerEvent): void {
   uiPointerInteraction = false;
   suppressSelectionUntil = 0;
   isSelecting = true;
-  if (showTooltip.value) hideAll();
+  pendingSelectionShortcutUntil = 0;
+  if (snapshot.value) hideAll();
 }
 function handlePointerUp(event: PointerEvent): void {
+  if (!event.isTrusted) return;
+  lastTrustedSelectionInteractionAt = Date.now();
   if (uiPointerInteraction || isInsideUi(event.target)) {
     uiPointerInteraction = false;
     isSelecting = false;
@@ -670,9 +840,10 @@ function handlePointerUp(event: PointerEvent): void {
   }
   uiPointerInteraction = false;
   isSelecting = false;
-  scheduleSelectionRead();
+  scheduleSelectionRead(matchesSelectionModifierOnPointer(event) || selectionShortcutHeld);
 }
 function handlePointerCancel(event: PointerEvent): void {
+  if (!event.isTrusted) return;
   if (uiPointerInteraction || isInsideUi(event.target)) {
     uiPointerInteraction = false;
     isSelecting = false;
@@ -681,7 +852,10 @@ function handlePointerCancel(event: PointerEvent): void {
   }
   isSelecting = false;
 }
-function handleSelectionChange(): void { if (!isSelectionReadSuppressed()) scheduleSelectionRead(); }
+function handleSelectionChange(event: Event): void {
+  if (!event.isTrusted || Date.now() - lastTrustedSelectionInteractionAt > TRUSTED_SELECTION_INTERACTION_GRACE_MS) return;
+  if (!isSelectionReadSuppressed()) scheduleSelectionRead(selectionShortcutHeld);
+}
 function handleWheel(event: WheelEvent): void { if (isInsideUi(event.target)) suppressSelectionRead(); }
 function handleScroll(event: Event): void {
   if (isInsideUi(event.target)) {
@@ -691,32 +865,119 @@ function handleScroll(event: Event): void {
   schedulePositionUpdate();
 }
 function handleKeydown(event: KeyboardEvent): void {
-  if (isInsideUi(event.target)) suppressSelectionRead();
-  if (event.key === 'Escape' && (showIndicator.value || showTooltip.value)) hideAll();
+  if (!event.isTrusted) return;
+  lastTrustedSelectionInteractionAt = Date.now();
+  if (isInsideUi(event.target)) {
+    suppressSelectionRead();
+    if (event.key === 'Escape' && snapshot.value) hideAll();
+    return;
+  }
+  if (event.key === 'Escape' && snapshot.value) { hideAll(); return; }
+  if (event.repeat) return;
+  const matchesSelectionShortcut = matchesConfiguredHotkey(event, selectionShortcutConfig.value, selectionSettings.value.customHotkey);
+  if (!matchesSelectionShortcut) return;
+  selectionShortcutHeld = true;
+  const currentSelection = readSelectionSnapshot();
+  if (currentSelection) {
+    event.preventDefault();
+    event.stopPropagation();
+    applySelection(currentSelection, true);
+    return;
+  }
+  if (!snapshot.value) {
+    scheduleSelectionRead(true);
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  scheduleSelectionPresentation('tooltip');
+}
+
+function handleKeyup(): void {
+  selectionShortcutHeld = false;
+}
+
+function handleWindowBlur(): void {
+  selectionShortcutHeld = false;
+  pendingSelectionShortcutUntil = 0;
+}
+
+function handleSelectionSettingsMessage(message: unknown): undefined {
+  if (!message || typeof message !== 'object') return undefined;
+  const type = (message as { type?: unknown }).type;
+  if (type !== 'updateSelectionTranslatorSettings' && type !== 'updateSelectionTranslatorMode') return undefined;
+  selectionConfigVersion.value += 1;
+  return undefined;
 }
 
 onMounted(() => {
   updateTheme();
   systemThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
   systemThemeMedia.addEventListener('change', updateTheme);
+  browser.runtime.onMessage.addListener(handleSelectionSettingsMessage);
+  unsubscribeConfig = subscribeConfig(() => { selectionConfigVersion.value += 1; });
   document.addEventListener('pointerdown', handlePointerDown, true);
   document.addEventListener('pointerup', handlePointerUp, true);
   document.addEventListener('pointercancel', handlePointerCancel, true);
   document.addEventListener('selectionchange', handleSelectionChange);
   document.addEventListener('keydown', handleKeydown, true);
+  document.addEventListener('keyup', handleKeyup, true);
+  window.addEventListener('blur', handleWindowBlur);
   browser.runtime.onMessage.addListener(handleSelectionTtsState);
-  window.addEventListener('scroll', schedulePositionUpdate, true);
   document.addEventListener('wheel', handleWheel, true);
   window.addEventListener('scroll', handleScroll, true);
   window.addEventListener('resize', schedulePositionUpdate);
-  watch(() => [config.theme, config.selectionTranslatorTrigger, config.to, config.from] as const, () => {
-    updateTheme();
-    if (snapshot.value) {
-      if (isSelectionInTargetLanguage(snapshot.value.text)) { hideAll(); return; }
-      showIndicator.value = triggerMode.value !== 'direct';
-      showTooltip.value = triggerMode.value === 'direct';
+  watch(tooltipRef, (tooltip) => {
+    tooltipResizeObserver?.disconnect();
+    tooltipResizeObserver = null;
+    if (!tooltip || typeof ResizeObserver === 'undefined') return;
+    tooltipResizeObserver = new ResizeObserver(schedulePositionUpdate);
+    tooltipResizeObserver.observe(tooltip);
+  }, { flush: 'post' });
+  watch(() => [
+    selectionSettings.value.theme,
+    selectionSettings.value.trigger,
+    selectionSettings.value.customHotkey,
+    selectionSettings.value.delay,
+    selectionSettings.value.mode,
+    selectionSettings.value.to,
+    selectionSettings.value.from,
+    selectionSettings.value.service,
+    selectionSettings.value.model,
+  ] as const, (nextSettings, previousSettings) => {
+    const themeChanged = !previousSettings || nextSettings[0] !== previousSettings[0];
+    const triggerChanged = !previousSettings
+      || nextSettings[1] !== previousSettings[1]
+      || nextSettings[2] !== previousSettings[2];
+    const delayChanged = !previousSettings || nextSettings[3] !== previousSettings[3];
+    const languageChanged = !previousSettings
+      || nextSettings[5] !== previousSettings[5]
+      || nextSettings[6] !== previousSettings[6];
+    const translationProviderChanged = !previousSettings
+      || nextSettings[7] !== previousSettings[7]
+      || nextSettings[8] !== previousSettings[8];
+    if (themeChanged) updateTheme();
+    if (!snapshot.value) return;
+    if (languageChanged && isSelectionInTargetLanguage(snapshot.value.text)) { hideAll(); return; }
+    if (languageChanged || translationProviderChanged) resetSelectionContentState();
+    if (triggerChanged) {
+      const nextPresentation = reconcileSelectionPresentation({
+        showIndicator: showIndicator.value,
+        showTooltip: showTooltip.value,
+      }, triggerMode.value, true);
+      cancelSelectionPresentation();
+      showIndicator.value = false;
+      showTooltip.value = false;
+      if (nextPresentation.showTooltip) scheduleSelectionPresentation('tooltip');
+      else if (nextPresentation.showIndicator) scheduleSelectionPresentation('indicator');
+      return;
+    }
+    if (delayChanged && pendingSelectionPresentation) {
+      scheduleSelectionPresentation(pendingSelectionPresentation);
+      return;
+    }
+    if (languageChanged || translationProviderChanged) {
       if (showTooltip.value) void requestSelectionContent(snapshot.value.text);
-      schedulePositionUpdate();
     }
   });
 });
@@ -724,19 +985,27 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (selectionFrame !== null) window.cancelAnimationFrame(selectionFrame);
   if (positionFrame !== null) window.cancelAnimationFrame(positionFrame);
+  cancelSelectionLoss();
+  cancelSelectionPresentation();
   if (copyTimer !== null) window.clearTimeout(copyTimer);
   systemThemeMedia?.removeEventListener('change', updateTheme);
+  browser.runtime.onMessage.removeListener(handleSelectionSettingsMessage);
+  unsubscribeConfig?.();
+  unsubscribeConfig = null;
+  tooltipResizeObserver?.disconnect();
+  tooltipResizeObserver = null;
   document.removeEventListener('pointerdown', handlePointerDown, true);
   document.removeEventListener('pointerup', handlePointerUp, true);
   document.removeEventListener('pointercancel', handlePointerCancel, true);
   document.removeEventListener('selectionchange', handleSelectionChange);
   document.removeEventListener('keydown', handleKeydown, true);
+  document.removeEventListener('keyup', handleKeyup, true);
+  window.removeEventListener('blur', handleWindowBlur);
   browser.runtime.onMessage.removeListener(handleSelectionTtsState);
-  window.removeEventListener('scroll', schedulePositionUpdate, true);
   document.removeEventListener('wheel', handleWheel, true);
   window.removeEventListener('scroll', handleScroll, true);
   window.removeEventListener('resize', schedulePositionUpdate);
-  stopAudio();
+  resetSelectionContentState(true);
 });
 </script>
 

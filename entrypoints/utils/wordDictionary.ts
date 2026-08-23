@@ -8,7 +8,7 @@
  * 直接让划词卡片失效。
  */
 
-import {runtimeFetch} from './http';
+import { readJsonResponse } from './httpError';
 
 export type WordDictionaryProviderId = 'ecdict-local' | 'youdao-web' | 'free-dictionary' | 'wiktapi' | 'wiktionary-rest' | 'datamuse';
 
@@ -684,7 +684,7 @@ async function fetchJson(url: string, timeoutMs = LOOKUP_TIMEOUT_MS): Promise<un
             signal: controller.signal,
         });
         if (!response.ok) throw new Error(`dictionary request failed: ${response.status}`);
-        return await response.json();
+        return await readJsonResponse(response, 'dictionary response is not valid JSON');
     } finally {
         clearTimeout(timer);
     }
@@ -700,7 +700,7 @@ async function loadEcdictIndex(): Promise<Map<string, EcdictEntry>> {
     ecdictIndexPromise = (async () => {
         const response = await runtimeFetch(url, { credentials: 'omit' });
         if (!response.ok) throw new Error(`local dictionary request failed: ${response.status}`);
-        const payload = await response.json();
+        const payload = await readJsonResponse(response, 'local dictionary response is not valid JSON');
         const entries = Array.isArray(payload) ? payload : [];
         return new Map(entries.flatMap(entry => {
             if (!entry || typeof entry !== 'object') return [];

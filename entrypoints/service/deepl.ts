@@ -2,7 +2,7 @@ import {method, urls} from "../utils/constant";
 import {services} from "../utils/option";
 import {config} from "@/entrypoints/utils/config";
 import {getTranslationLanguages} from "@/entrypoints/utils/translationLanguage";
-import {runtimeFetch} from '@/entrypoints/utils/http';
+import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
 
 async function deepl(message: any) {
     const service = message.serviceOverride || config.service;
@@ -29,11 +29,10 @@ async function deepl(message: any) {
     });
 
     if (resp.ok) {
-        let result = await resp.json();
+        const result = await readJsonResponse<any>(resp, 'DeepL 返回的不是有效 JSON');
         return result.translations[0].text
     } else {
-        console.log(resp)
-        throw new Error(`翻译失败: ${resp.status} ${resp.statusText} 请检查 token 是否正确`);
+        throw createHttpStatusError(resp, '翻译失败');
     }
 }
 

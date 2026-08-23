@@ -16,7 +16,7 @@ interface VueShadowUiOptions {
   component: Component;
   props?: Record<string, unknown>;
   zIndex?: number;
-  mode?: ShadowRootMode;
+  mode?: 'open' | 'closed';
 }
 
 const SHADOW_FOUNDATION = `

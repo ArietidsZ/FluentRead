@@ -257,36 +257,54 @@ const tokenManager = {
     }
 };
 
-// sessionStorage
-const localStorageManager = {
+const TRANSLATION_CACHE_PREFIX = 'fluent_read_translation_cache_';
+const LEGACY_TRANSLATION_CACHE_TIMESTAMP_KEY = 'fluent_read_translation_cache_timestamp';
+const TRANSLATION_CACHE_TTL_MS = 24 * 3600000;
+
+function readTranslationCacheRecord(record, now = Date.now()) {
+    if (!record || typeof record !== 'object') return null;
+    if (typeof record.value !== 'string' || !Number.isFinite(record.createdAt)) return null;
+    if (record.createdAt > now || now - record.createdAt > TRANSLATION_CACHE_TTL_MS) return null;
+    return record.value;
+}
+
+const translationCacheManager = {
+    buildKey(text) {
+        const model = util.getValue('model');
+        const option = optionsManager.getOption(model);
+        return TRANSLATION_CACHE_PREFIX + model + '_' + option + '_' + CryptoJS.SHA256(text).toString();
+    },
     // 同时缓存原文和译文
     setTransCache(origin, result) {
-        let model = util.getValue('model');
-        let option = optionsManager.getOption(model);
-        // key: 模型_文本，value: 文本
-        localStorage.setItem(model + "_" + option + "_" + origin, result)
-        localStorage.setItem(model + "_" + option + "_" + result, origin)
+        const createdAt = Date.now();
+        GM_setValue(this.buildKey(origin), {value: result, createdAt})
+        GM_setValue(this.buildKey(result), {value: origin, createdAt})
     },
     getTransCache(key) {
-        let model = util.getValue('model');
-        let option = optionsManager.getOption(model);
-        return localStorage.getItem(model + "_" + option + "_" + key)
+        const cacheKey = this.buildKey(key);
+        const record = GM_getValue(cacheKey, null);
+        const value = readTranslationCacheRecord(record);
+        if (value === null && record !== null) GM_deleteValue(cacheKey);
+        return value || '';
     },
     removeSession(key) {
-        localStorage.removeItem(util.getValue('model') + "_" + key)
+        GM_deleteValue(this.buildKey(key))
     },
-    // 清空相关域下的 LocalStorage
-    clearLocalStorageIfNewSession() {
-        const lastSessionTimestamp = localStorage.getItem('lastSessionTimestamp');
-        const currentTime = new Date().getTime();
-
-        // 超过 24 小时清空 localStorage
-        if (!lastSessionTimestamp || currentTime - parseInt(lastSessionTimestamp) > 24 * 3600000) {
-            // if (!lastSessionTimestamp || currentTime - parseInt(lastSessionTimestamp) > 20000) {
-            localStorage.clear();
-        }
-        // 更新时间戳
-        localStorage.setItem('lastSessionTimestamp', currentTime.toString());
+    clear() {
+        GM_listValues()
+            .filter(key => key.startsWith(TRANSLATION_CACHE_PREFIX))
+            .forEach(key => GM_deleteValue(key));
+    },
+    // 每条记录使用硬 TTL；频繁访问不会续期。旧版无 createdAt 的记录在首次检查时删除。
+    clearExpired() {
+        const now = Date.now();
+        GM_listValues()
+            .filter(key => key.startsWith(TRANSLATION_CACHE_PREFIX))
+            .forEach(key => {
+                const record = GM_getValue(key, null);
+                if (readTranslationCacheRecord(record, now) === null) GM_deleteValue(key);
+            });
+        GM_deleteValue(LEGACY_TRANSLATION_CACHE_TIMESTAMP_KEY);
     }
 }
 const util = {
@@ -716,7 +734,6 @@ const settingManager = {
         const observer = new MutationObserver(function (mutations, obs) {
             mutations.forEach(mutation => {
                 if (isEmpty(mutation.target)) return;
-                // console.log("原先变更记录：", mutation.target);
                 // 如果不包含下面节点，则处理
                 if (!["img", "noscript"].includes(mutation.target.tagName.toLowerCase())) {
                     handleDOMUpdate(mutation.target);
@@ -731,16 +748,14 @@ const settingManager = {
     document.addEventListener('keydown', function (event) {
         // F2 清空当前页面所有翻译缓存
         if (event.key === 'F2') {
-            localStorage.clear()
+            translationCacheManager.clear()
             // toast.fire({icon: 'success', title: '当前页面翻译缓存清空成功！'});
-            console.log('当前页面翻译缓存清空成功！')
         }
 
         // 快捷键 F1，清空所有缓存
         // if (event.key === 'F1') {
         //     let listValues = GM_listValues();
         //     listValues.forEach(e => GM_deleteValue(e))
-        //     console.log('Cache cleared!');
         // }
 
         // 鼠标选中事件，暂未开放
@@ -760,24 +775,20 @@ function handler(mouseX, mouseY, time, noSkip = true) {
         if (!node) return;  // 如果不需要翻译，则跳过
 
         if (hasLoadingSpinner(node)) {    // 如果已经在翻译，则跳过
-            // console.log('正在翻译中...跳过');
             return;
             // }else {
-            //     console.log('翻译节点：', node);
         }
 
         // 去重判断
         let outerHTMLTemp = node.outerHTML;
         if (outerHTMLSet.has(outerHTMLTemp)) {
-            // console.log('重复节点', node);
             return;
         }
         outerHTMLSet.add(outerHTMLTemp);
 
         // 检测缓存 cache
-        let outerHTMLCache = localStorageManager.getTransCache(node.outerHTML);
+        let outerHTMLCache = translationCacheManager.getTransCache(node.outerHTML);
         if (outerHTMLCache) {
-            // console.log("缓存命中：", outerHTMLCache);
             let spinner = createLoadingSpinner(node, true);
             setTimeout(() => {  // 延迟 remove 转圈动画与替换文本
                 spinner.remove();
@@ -856,7 +867,6 @@ function getTransNode(node) {
         return false; // 只翻译文本节点
     }
 
-    // console.log('不翻译节点：', node);
     return false
 }
 
@@ -936,8 +946,6 @@ function translate(node) {
             clearTimeout(timeout) // 取消超时
             spinner.remove()      // 移除 spinner
 
-            // console.log("翻译前的句子：", origin);
-            // console.log("翻译后的句子：", text);
 
             if (!text || origin === text) return;
 
@@ -961,17 +969,15 @@ function translate(node) {
                 newOuterHtml = node.outerHTML;
             }
 
-            localStorageManager.setTransCache(oldOuterHtml, newOuterHtml);   // 设置缓存
+            translationCacheManager.setTransCache(oldOuterHtml, newOuterHtml);   // 设置缓存
             // 延迟 newOuterHtml，删除 oldOuterHtml
             delayRemoveCache(newOuterHtml);
             outerHTMLSet.delete(oldOuterHtml);
         }).catch(e => {
-            console.log(e)
             clearTimeout(timeout);
             createFailedTip(node, e.toString() || errorManager.unknownError, spinner);
         })
     }).catch(e => {
-        console.log(e)
         createFailedTip(node, e.toString() || errorManager.unknownError)
     })
 }
@@ -1019,6 +1025,21 @@ function youtube(node, text) {
 
 // endregion
 
+function createUserscriptRequestError(label, response) {
+    const status = Number(response?.status);
+    return new Error(Number.isFinite(status) && status > 0
+        ? `${label}: ${status}`
+        : label);
+}
+
+function parseUserscriptJson(responseText) {
+    try {
+        return JSON.parse(responseText);
+    } catch {
+        return null;
+    }
+}
+
 
 // region 微软翻译
 function microsoft(origin) {
@@ -1039,10 +1060,10 @@ function microsoft(origin) {
                         let resultJson = JSON.parse(resp.responseText);
                         resolve(resultJson[0].translations[0].text);
                     } catch (e) {
-                        reject(resp.responseText);
+                        reject(createUserscriptRequestError('微软翻译返回格式异常', resp));
                     }
                 },
-                onerror: error => reject(error)
+                onerror: () => reject(new Error('微软翻译请求失败'))
             });
         }).catch(error => reject('Error refreshing microsoft token: ' + error))
     });
@@ -1066,14 +1087,14 @@ function refreshToken(token) {
                 if (resp.status === 200) {
                     let token = resp.responseText;
                     if (!token) {
-                        reject(resp.responseText);
+                        reject(createUserscriptRequestError('微软翻译令牌为空', resp));
                         return;
                     }
                     tokenManager.setToken(transModel.microsoft, token);
                     resolve(token);
-                } else reject(resp.status, resp.responseText);
+                } else reject(createUserscriptRequestError('微软翻译令牌请求失败', resp));
             },
-            onerror: error => reject(error)
+            onerror: () => reject(new Error('微软翻译令牌请求失败'))
         });
     });
 }
@@ -1130,10 +1151,10 @@ function deepL(origin, native = false) {
                     if (native) resolve(resultJson.data);
                     else resolve(resultJson.translations[0].text);
                 } catch (e) {
-                    reject(resp.responseText);
+                    reject(createUserscriptRequestError('DeepL 返回格式异常', resp));
                 }
             },
-            onerror: error => reject(error)
+            onerror: () => reject(new Error('DeepL 请求失败'))
         });
     });
 }
@@ -1162,10 +1183,10 @@ function openai(origin) {
                     let result = JSON.parse(resp.responseText);
                     resolve(result.choices[0].message.content);
                 } catch (e) {
-                    reject(resp.responseText);
+                    reject(createUserscriptRequestError('OpenAI 返回格式异常', resp));
                 }
             },
-            onerror: error => reject(error)
+            onerror: () => reject(new Error('OpenAI 请求失败'))
         });
     });
 }
@@ -1187,10 +1208,10 @@ function ollama(origin) {
                     let result = JSON.parse(resp.responseText);
                     resolve(result.choices[0].message.content);
                 } catch (e) {
-                    reject(resp.responseText);
+                    reject(createUserscriptRequestError('Ollama 返回格式异常', resp));
                 }
             },
-            onerror: error => reject(error)
+            onerror: () => reject(new Error('Ollama 请求失败'))
         });
     });
 }
@@ -1213,8 +1234,11 @@ function gemini(origin) {
         // 发送请求
         GM_xmlhttpRequest({
             method: POST,
-            url: "https://generativelanguage.googleapis.com/v1beta/models/" + option + ":generateContent?key=" + token,
-            headers: {'Content-Type': 'application/json'},
+            url: "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(option) + ":generateContent",
+            headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': token,
+            },
             data: JSON.stringify({
                 "contents": [
                     {
@@ -1235,10 +1259,10 @@ function gemini(origin) {
                     let result = JSON.parse(response.responseText);
                     resolve(result.candidates[0].content.parts[0].text);
                 } catch (e) {
-                    reject(response.responseText);
+                    reject(new Error('Gemini 返回格式异常'));
                 }
             },
-            onerror: error => reject(error)
+            onerror: () => reject(new Error('Gemini 请求失败'))
         });
     });
 }
@@ -1265,10 +1289,10 @@ function moonshot(origin) {
                     let result = JSON.parse(resp.responseText);
                     resolve(result.choices[0].message.content);
                 } catch (e) {
-                    reject(resp.responseText);
+                    reject(createUserscriptRequestError('Moonshot 返回格式异常', resp));
                 }
             },
-            onerror: error => reject(error)
+            onerror: () => reject(new Error('Moonshot 请求失败'))
         });
     });
 }
@@ -1302,10 +1326,10 @@ function yiyan(origin) {
                         let res = JSON.parse(resp.responseText);
                         resolve(res.result);
                     } catch (e) {
-                        reject(resp.responseText);
+                        reject(createUserscriptRequestError('文心一言返回格式异常', resp));
                     }
                 },
-                onerror: error => reject(error)
+                onerror: () => reject(new Error('文心一言请求失败'))
             });
         }).catch(error => reject('Error getting Yiyan token: ' + error));
     });
@@ -1337,12 +1361,12 @@ function getYiyanToken() {
                             ak: v.ak, sk: v.sk, token: res.access_token, expiration: expiration
                         });
                         resolve(res.access_token);
-                    } else reject(new Error(res.error_description));
+                    } else reject(new Error('文心一言令牌请求失败'));
                 } catch (e) {
-                    reject(e);
+                    reject(new Error('文心一言令牌返回格式异常'));
                 }
             },
-            onerror: error => reject(error)
+            onerror: () => reject(new Error('文心一言令牌请求失败'))
         });
     })
 }
@@ -1382,10 +1406,10 @@ function tongyi(origin) {
                     let res = JSON.parse(resp.responseText);
                     resolve(res.output.text);
                 } catch (e) {
-                    reject(resp.responseText);
+                    reject(createUserscriptRequestError('通义千问返回格式异常', resp));
                 }
             },
-            onerror: error => reject(error)
+            onerror: () => reject(new Error('通义千问请求失败'))
         });
     });
 }
@@ -1414,10 +1438,10 @@ function zhipu(origin) {
                     let res = JSON.parse(resp.responseText);
                     resolve(res.choices[0].message.content);
                 } catch (e) {
-                    reject(resp.responseText);
+                    reject(createUserscriptRequestError('智谱返回格式异常', resp));
                 }
             },
-            onerror: error => reject(error)
+            onerror: () => reject(new Error('智谱请求失败'))
         });
     });
 }
@@ -1426,7 +1450,6 @@ function zhipu(origin) {
 function generateToken(apiKey) {
 
     if (!apiKey || !apiKey.includes('.')) {
-        console.log("API Key 格式错误：", apiKey)
         return;
     }
     let duration = 3600000 * 24; // 生成的 token 默认24小时后过期
@@ -1494,18 +1517,22 @@ function baiduDetectLang(text) {
         // 数据参数
         const data = new URLSearchParams();
         data.append('query', text);
-        const url = 'https://fanyi.baidu.com/langdetect?' + data.toString();
         // 发起请求
         GM_xmlhttpRequest({
             method: POST,
-            url: url,
+            url: 'https://fanyi.baidu.com/langdetect',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
+            data: data.toString(),
             onload: resp => {
-                const jsn = JSON.parse(resp.responseText);
-                if (resp.status === 200 && jsn && jsn.lan) {
+                if (resp.status !== 200) {
+                    reject(createUserscriptRequestError('语言检测请求失败', resp));
+                    return;
+                }
+                const jsn = parseUserscriptJson(resp.responseText);
+                if (jsn && typeof jsn.lan === 'string') {
                     resolve(langManager.parseLanguage(jsn.lan));
                 } else {
-                    console.log(resp)
-                    reject(new Error('Server responded with status ' + resp));
+                    reject(new Error('语言检测返回格式异常'));
                 }
             },
             onerror: error => {
@@ -1524,7 +1551,6 @@ function delayRemoveCache(key, time = 250) {
 }
 
 function createFailedTip(node, errorMsg, spinner) {
-    // console.log(errorMsg); // 打印错误信息
     // 取消转圈动画
     spinner?.remove();
     // 创建包装元素
@@ -1684,8 +1710,7 @@ function replaceText(type, node, value) {
 
 // 初始化程序
 function initApplication() {
-    // 判断是否需要清除当前页面的缓存
-    localStorageManager.clearLocalStorageIfNewSession()
+    translationCacheManager.clearExpired()
     // 初始化菜单栏配置
     let commonConfig = [
         {name: 'hotkey', value: 'Control'},
@@ -1811,13 +1836,16 @@ function checkRun(callback) {
     const now = new Date().getTime();
 
     if (isEmpty(lastRun) || now - lastRun > expiringTime) {
-        console.log("开始更新 preread 缓存");
         GM_xmlhttpRequest({
             method: POST,
             url: preread,
             onload: function (response) {
                 // pagesMap 是新获取的数据，pageMapCache 是从缓存中获取的旧数据
-                let pagesMap = JSON.parse(response.responseText).Data;
+                const payload = parseUserscriptJson(response.responseText);
+                const pagesMap = payload && typeof payload.Data === 'object' && payload.Data !== null
+                    ? payload.Data
+                    : null;
+                if (!pagesMap) return;
                 pagesMap[url.host] ? callback(true) : callback(false);
                 // 将 fluent_read_check 设置为新的缓存
                 GM_setValue(checkKey, pagesMap);
@@ -1826,12 +1854,11 @@ function checkRun(callback) {
                 listValues.forEach(host => {
                     if (pageMapCache[host] !== pagesMap[host]) {
                         GM_deleteValue(host);
-                        console.log("删除过期的缓存数据：", host);
                     }
                 });
                 GM_setValue("lastRun", now.toString()); // 请求成功后设置当前时间
             },
-            onerror: (error) => console.error("请求失败: ", error)
+            onerror: () => undefined
         });
     }
 }
@@ -1850,15 +1877,15 @@ function observeDOM() {
         url: read,
         data: JSON.stringify({page: url.origin}),   // 请求参数
         onload: function (response) {
-            console.log("新的 read 请求：", url.host);
-
-            let respMap = JSON.parse(response.responseText).Data;
+            const payload = parseUserscriptJson(response.responseText);
+            const respMap = payload && typeof payload.Data === 'object' && payload.Data !== null
+                ? payload.Data
+                : null;
+            if (!respMap) return;
             GM_setValue(url.host, respMap);
             parseDfs(document.body, respMap);
         },
-        onerror: function (error) {
-            console.error("请求失败: ", error);
-        }
+        onerror: () => undefined
     });
 }
 
@@ -1867,11 +1894,9 @@ function observeDOM() {
 function parseDfs(node, respMap) {
     if (isEmpty(node)) return;
 
-    // console.log("当前节点：", node)
     switch (node.nodeType) {
         // 1、元素节点
         case Node.ELEMENT_NODE:
-            // console.log("元素节点： ", node);
             // 根据 host 获取 skip 函数，判断是否需要跳过
             let skipFn = skipStringMap[url.host];
             if (skipFn && skipFn(node)) return;

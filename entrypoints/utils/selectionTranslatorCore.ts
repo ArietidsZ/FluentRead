@@ -23,6 +23,35 @@ export interface PopupPosition {
     placement: 'top' | 'bottom';
 }
 
+export interface SelectionPresentationState {
+    showIndicator: boolean;
+    showTooltip: boolean;
+}
+
+export type SelectionPresentationTrigger = 'direct' | 'icon' | 'dot' | 'shortcut';
+
+/** Keep delay changes anchored to when the current selection became stable. */
+export function getSelectionPresentationDelayRemaining(
+    delay: number,
+    selectionSettledAt: number,
+    now: number,
+): number {
+    const elapsed = Math.max(0, now - selectionSettledAt);
+    return Math.max(0, delay - elapsed);
+}
+
+/** Preserve an explicitly opened tooltip across unrelated config refreshes. */
+export function reconcileSelectionPresentation(
+    current: SelectionPresentationState,
+    trigger: SelectionPresentationTrigger,
+    triggerChanged: boolean,
+): SelectionPresentationState {
+    if (!triggerChanged) return current;
+    if (trigger === 'direct') return { showIndicator: false, showTooltip: true };
+    if (trigger === 'shortcut') return { showIndicator: false, showTooltip: false };
+    return { showIndicator: true, showTooltip: false };
+}
+
 const languageAliases: Record<string, string> = {
     cmn: 'zh',
     zho: 'zh',

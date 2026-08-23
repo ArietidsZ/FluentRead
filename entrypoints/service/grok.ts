@@ -3,7 +3,7 @@ import {commonMsgTemplate} from "../utils/template";
 import {config} from "@/entrypoints/utils/config";
 import {contentPostHandler} from "@/entrypoints/utils/check";
 import { appendOptionalBearer } from './auth';
-import {runtimeFetch} from '@/entrypoints/utils/http';
+import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
 
 /**
  * Grok 服务实现
@@ -25,13 +25,12 @@ async function grok(message: any) {
         });
 
         if (!resp.ok) {
-            throw new Error(`翻译失败: ${resp.status} ${resp.statusText} body: ${await resp.text()}`);
+            throw createHttpStatusError(resp, '翻译失败');
         }
 
-        const result = await resp.json();
+        const result = await readJsonResponse<any>(resp, 'Grok 返回的不是有效 JSON');
         return contentPostHandler(result.choices[0].message.content);
     } catch (error) {
-        console.error('Grok API调用失败:', error);
         throw error;
     }
 }

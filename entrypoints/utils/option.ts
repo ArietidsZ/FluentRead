@@ -71,6 +71,28 @@ export const servicesType = {
         services.grok,
         services.newapi,
     ]),
+    // 首批由 Vercel AI SDK 的 OpenAI-compatible provider 承接。其他 AI
+    // 服务保留专用协议适配器，避免把 Claude/Gemini/Coze 等误当成兼容端点。
+    aiSdk: new Set([
+        services.openai,
+        services.azureOpenai,
+        services.yiyan,
+        services.moonshot,
+        services.custom,
+        services.infini,
+        services.baichuan,
+        services.lingyi,
+        services.minimax,
+        services.mimo,
+        services.jieyue,
+        services.groq,
+        services.huanYuan,
+        services.doubao,
+        services.siliconCloud,
+        services.openrouter,
+        services.grok,
+        services.newapi,
+    ]),
     // 需要 token
     useToken: new Set([
         services.openai,
@@ -168,6 +190,7 @@ export const servicesType = {
 
     isMachine: (service: string) => servicesType.machine.has(service),
     isAI: (service: string) => servicesType.AI.has(service),
+    isAiSdk: (service: string) => servicesType.aiSdk.has(service),
     isUseAIContext: (service: string, model = '') =>
         servicesType.AI.has(service)
         && service !== services.huanYuanTranslation
@@ -378,6 +401,16 @@ export const options = {
         {value: "TripleClickScree", label: "三击翻译"},
         
         {value: "custom", label: "自定义快捷键（测试版）"},
+    ],
+    // 划词翻译互斥触发方式。快捷键选择后，不再显示选区旁的图标或小点。
+    selectionTranslatorTriggers: [
+        {value: "direct", label: "直接弹出"},
+        {value: "icon", label: "显示图标"},
+        {value: "dot", label: "显示小点"},
+        {value: "Control", label: "Ctrl"},
+        {value: "Alt", label: "Alt / Option"},
+        {value: "Shift", label: "Shift"},
+        {value: "custom", label: "自定义"},
     ],
     services: [
         // 机器翻译

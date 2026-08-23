@@ -2,26 +2,31 @@ import {method, urls} from "../utils/constant";
 import {services} from "../utils/option";
 import {commonMsgTemplate} from "../utils/template";
 import CryptoJS from 'crypto-js';
-import {config, saveConfig} from "@/entrypoints/utils/config";
+import {config} from "@/entrypoints/utils/config";
 import {isApiKeyRequired} from "@/entrypoints/utils/configValidation";
-import {runtimeFetch} from '@/entrypoints/utils/http';
+import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
 
+
+const JWT_CACHE_DURATION_MS = 3600000 * 24;
+const jwtCache = new Map<string, {apiKey: string; secret: string; expiration: number}>();
 
 // 文档参考：https://open.bigmodel.cn/dev/api#nosdk
 async function zhipu(message: any) {
     const service = message.serviceOverride || services.zhipu;
     // 智谱根据 token 获取 secret（签名密钥） 和 expiration
-    let token = config.token[service];
-    let secret, expiration;
-    config.extra[service] && ({secret, expiration} = config.extra[service]);
+    const token = config.token[service];
+    const cached = jwtCache.get(service);
+    let secret = cached?.apiKey === token && cached.expiration > Date.now()
+        ? cached.secret
+        : undefined;
     if (!token?.trim() && !isApiKeyRequired(service, config)) {
         secret = undefined;
-    } else if (!secret || expiration <= Date.now()) {
+        jwtCache.delete(service);
+    } else if (!secret) {
         secret = generateToken(token);
         if (!secret) throw new Error('无法生成令牌');
-        // 保存 secret 和 expiration
-        config.extra[service] = {secret, expiration: Date.now() + 3600000 * 24};
-        await saveConfig();
+        // JWT 是可复算的派生凭据，只在当前后台进程内缓存，不进入 Config/storage/history/export。
+        jwtCache.set(service, {apiKey: token, secret, expiration: Date.now() + JWT_CACHE_DURATION_MS});
     }
 
     // 构建请求头
@@ -37,20 +42,18 @@ async function zhipu(message: any) {
     });
 
     if (resp.ok) {
-        let result = await resp.json();
+        const result = await readJsonResponse<any>(resp, '智谱返回的不是有效 JSON');
         return result.choices[0].message.content;
     } else {
-        console.log(resp)
-        throw new Error(`翻译失败: ${resp.status} ${resp.statusText} body: ${await resp.text()}`);
+        throw createHttpStatusError(resp, '翻译失败');
     }
 }
 
 function generateToken(APIKey: string) {
     if (!APIKey || !APIKey.includes('.')) {
-        console.log("API Key 格式错误：", APIKey)
         return;
     }
-    let duration = 3600000 * 24; // 生成的 token 默认24小时后过期
+    const duration = JWT_CACHE_DURATION_MS; // 生成的 token 默认24小时后过期
     const [key, secret] = APIKey.split('.');
 
     return generateJWT(secret, {alg: "HS256", sign_type: "SIGN", typ: "JWT"}, {

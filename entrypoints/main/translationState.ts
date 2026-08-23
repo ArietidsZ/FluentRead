@@ -1,3 +1,9 @@
+import {
+    getComposedParent,
+    hasActiveTranslationLineClamp,
+    translationTruncationStyleOverrides,
+} from "@/entrypoints/translation-core/public";
+
 /**
  * 指定节点翻译的生命周期状态。
  *
@@ -8,6 +14,37 @@
 type TranslationDisplayMode = "bilingual" | "single";
 type TranslationPhase = "loading" | "translated" | "error";
 type TranslationTargetKind = "content" | "control";
+
+export interface TranslationLayoutStyleOverride {
+    property: string;
+    value: string;
+    priority: string;
+}
+
+interface TranslationLayoutPropertySnapshot {
+    property: string;
+    overrideValue: string;
+    overridePriority: string;
+    originalValue: string;
+    originalPriority: string;
+    appliedValue: string;
+    appliedPriority: string;
+}
+
+interface SharedTranslationLayoutOverride {
+    originalStyleAttribute: string | null;
+    renderedStyleAttribute: string | null;
+    properties: TranslationLayoutPropertySnapshot[];
+    owners: Set<WeakRef<HTMLElement>>;
+    canRestoreExactStyleAttribute: boolean;
+}
+
+type TranslationLayoutObserverRoot = Document | ShadowRoot;
+
+interface TranslationLayoutRootObserver {
+    observer: MutationObserver;
+    owners: Set<WeakRef<HTMLElement>>;
+}
 
 export interface TranslationState {
     mode: TranslationDisplayMode;
@@ -46,6 +83,12 @@ export interface TranslationState {
     retryWrapper?: HTMLElement;
     /** 双语 wrapper 最后一次由插件写入的 HTML，用于区分宿主重绘和插件自身 mutation。 */
     bilingualHTML?: string;
+    /** Candidate/ancestor nodes whose clipping styles are leased by this translation. */
+    layoutOverrideElements?: Set<HTMLElement>;
+    /** Bounded composed ancestors watched for newly activated line clamps or reparenting. */
+    layoutWatchElements?: Set<HTMLElement>;
+    /** Document/ShadowRoot observers retained while the bilingual layout lease is active. */
+    layoutObserverRoots?: Set<TranslationLayoutObserverRoot>;
 }
 
 interface TranslationAttempt {
@@ -54,11 +97,18 @@ interface TranslationAttempt {
 }
 
 const states = new WeakMap<HTMLElement, TranslationState>();
-interface ActiveNodeRef<T extends object> { deref(): T | undefined }
-const activeNodeRefs = new Set<ActiveNodeRef<HTMLElement>>();
-const activeRefsByNode = new WeakMap<HTMLElement, ActiveNodeRef<HTMLElement>>();
-const ownersByIndexedNode = new WeakMap<Node, Set<HTMLElement>>();
+const activeNodeRefs = new Set<WeakRef<HTMLElement>>();
+const activeRefsByNode = new WeakMap<HTMLElement, WeakRef<HTMLElement>>();
+const ownersByIndexedNode = new WeakMap<Node, Set<WeakRef<HTMLElement>>>();
 const indexedNodesByOwner = new WeakMap<HTMLElement, Set<Node>>();
+const sharedLayoutOverrides = new WeakMap<HTMLElement, SharedTranslationLayoutOverride>();
+const layoutObserversByRoot = new WeakMap<TranslationLayoutObserverRoot, TranslationLayoutRootObserver>();
+const pendingLayoutRefreshes = new WeakMap<HTMLElement, {removedNodes: Set<Node>}>();
+const maxTranslationLayoutAncestorDepth = 16;
+
+function getStylePropertyPriority(style: CSSStyleDeclaration, property: string): string {
+    return typeof style.getPropertyPriority === "function" ? style.getPropertyPriority(property) : "";
+}
 
 function forEachActiveNode(callback: (node: HTMLElement, state: TranslationState) => void): void {
     for (const ref of activeNodeRefs) {
@@ -76,16 +126,13 @@ function forEachActiveNode(callback: (node: HTMLElement, state: TranslationState
     }
 }
 
-function trackActiveNode(node: HTMLElement): void {
-    if (activeRefsByNode.has(node)) return;
-    // Older Android WebViews used by Via may not expose WeakRef. The strong
-    // fallback is still bounded because every completed/restored state removes
-    // its entry from activeNodeRefs in discardTranslation().
-    const ref: ActiveNodeRef<HTMLElement> = typeof WeakRef === 'function'
-        ? new WeakRef(node)
-        : {deref: () => node};
+function trackActiveNode(node: HTMLElement): WeakRef<HTMLElement> {
+    const existing = activeRefsByNode.get(node);
+    if (existing) return existing;
+    const ref = new WeakRef(node);
     activeRefsByNode.set(node, ref);
     activeNodeRefs.add(ref);
+    return ref;
 }
 
 function clearOwnershipIndex(owner: HTMLElement): void {
@@ -94,7 +141,10 @@ function clearOwnershipIndex(owner: HTMLElement): void {
 
     indexedNodes.forEach((indexedNode) => {
         const owners = ownersByIndexedNode.get(indexedNode);
-        owners?.delete(owner);
+        owners?.forEach((ref) => {
+            const candidate = ref.deref();
+            if (!candidate || candidate === owner) owners.delete(ref);
+        });
         if (owners?.size === 0) ownersByIndexedNode.delete(indexedNode);
     });
     indexedNodesByOwner.delete(owner);
@@ -107,16 +157,19 @@ function refreshOwnershipIndex(owner: HTMLElement, state: TranslationState): voi
         ...(state.spinner ? [state.spinner] : []),
         ...(state.bilingualContent ? [state.bilingualContent] : []),
         ...(state.retryWrapper ? [state.retryWrapper] : []),
+        ...(state.layoutOverrideElements ?? []),
+        ...(state.layoutWatchElements ?? []),
     ]);
     indexedNodesByOwner.set(owner, indexedNodes);
+    const ownerRef = trackActiveNode(owner);
 
     indexedNodes.forEach((indexedNode) => {
         let owners = ownersByIndexedNode.get(indexedNode);
         if (!owners) {
-            owners = new Set<HTMLElement>();
+            owners = new Set<WeakRef<HTMLElement>>();
             ownersByIndexedNode.set(indexedNode, owners);
         }
-        owners.add(owner);
+        owners.add(ownerRef);
     });
 }
 
@@ -287,6 +340,359 @@ export function setRenderedStyleAttribute(node: HTMLElement): void {
     }
 }
 
+function getStylePropertyValue(style: CSSStyleDeclaration, property: string): string {
+    return style.getPropertyValue(property) ?? "";
+}
+
+function scheduleTranslationLayoutRefresh(owner: HTMLElement, removedNodes: readonly Node[] = []): void {
+    let pending = pendingLayoutRefreshes.get(owner);
+    if (pending) {
+        removedNodes.forEach((node) => pending?.removedNodes.add(node));
+        return;
+    }
+
+    pending = {removedNodes: new Set(removedNodes)};
+    pendingLayoutRefreshes.set(owner, pending);
+    const flush = () => {
+        if (pendingLayoutRefreshes.get(owner) !== pending) return;
+        pendingLayoutRefreshes.delete(owner);
+        const state = states.get(owner);
+        if (!state) return;
+
+        // Run after every MutationObserver callback from this checkpoint. The
+        // full-page observer can therefore unregister its own indexes before a
+        // standalone hover translation tears down shared state.
+        if (!owner.isConnected) {
+            discardTranslation(owner, state);
+            return;
+        }
+
+        const expectedArtifact = state.phase === "translated" && state.mode === "bilingual"
+            ? state.bilingualContent
+            : state.phase === "loading"
+                ? state.spinner
+                : state.phase === "error"
+                    ? state.retryWrapper
+                    : undefined;
+        if (expectedArtifact && expectedArtifact.parentNode !== owner) {
+            restoreTranslation(owner);
+            return;
+        }
+
+        if (state.phase === "translated" && state.mode === "bilingual" &&
+            state.kind === "content" && state.bilingualContent?.parentNode === owner &&
+            !ensureTranslationTruncationLayout(owner)) {
+            restoreTranslation(owner);
+        }
+    };
+    const enqueue = globalThis.queueMicrotask ?? ((callback: VoidFunction) => Promise.resolve().then(callback));
+    enqueue(flush);
+}
+
+function createTranslationLayoutRootObserver(root: TranslationLayoutObserverRoot): TranslationLayoutRootObserver | undefined {
+    const document = root.nodeType === 9 ? root as Document : (root as ShadowRoot).ownerDocument;
+    const Observer = document.defaultView?.MutationObserver ?? globalThis.MutationObserver;
+    const target = root.nodeType === 9 ? (root as Document).documentElement : root;
+    if (typeof Observer !== "function" || !target) return undefined;
+
+    const observer = new Observer((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.type === "childList") {
+                mutation.removedNodes.forEach((removed) => {
+                    getTranslationOwnersForRemovedNode(removed)
+                        .forEach((owner) => scheduleTranslationLayoutRefresh(owner, [removed]));
+                });
+                return;
+            }
+            if (mutation.type !== "attributes" ||
+                (mutation.attributeName !== "style" && mutation.attributeName !== "class") ||
+                mutation.target.nodeType !== 1) return;
+
+            const element = mutation.target as HTMLElement;
+            const override = sharedLayoutOverrides.get(element);
+            if (mutation.attributeName === "style" && override &&
+                element.getAttribute("style") === override.renderedStyleAttribute) return;
+
+            getTranslationOwnersForIndexedNode(element).forEach((owner) => {
+                const state = states.get(owner);
+                if (state && (element === owner || state.layoutWatchElements?.has(element))) {
+                    scheduleTranslationLayoutRefresh(owner);
+                }
+            });
+        });
+    });
+    observer.observe(target, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["style", "class"],
+    });
+    return {observer, owners: new Set()};
+}
+
+function retainTranslationLayoutRoot(owner: HTMLElement, root: TranslationLayoutObserverRoot): void {
+    let observerState = layoutObserversByRoot.get(root);
+    if (!observerState) {
+        observerState = createTranslationLayoutRootObserver(root);
+        if (!observerState) return;
+        layoutObserversByRoot.set(root, observerState);
+    }
+    observerState.owners.add(trackActiveNode(owner));
+}
+
+function releaseTranslationLayoutRoot(owner: HTMLElement, root: TranslationLayoutObserverRoot): void {
+    const observerState = layoutObserversByRoot.get(root);
+    if (!observerState) return;
+    observerState.owners.forEach((ref) => {
+        const candidate = ref.deref();
+        if (!candidate || candidate === owner || !states.has(candidate)) observerState?.owners.delete(ref);
+    });
+    if (observerState.owners.size > 0) return;
+    observerState.observer.disconnect();
+    layoutObserversByRoot.delete(root);
+}
+
+function restoreSharedTranslationLayoutOverride(
+    element: HTMLElement,
+    override: SharedTranslationLayoutOverride,
+): void {
+    if (override.canRestoreExactStyleAttribute &&
+        element.getAttribute("style") === override.renderedStyleAttribute) {
+        if (override.originalStyleAttribute === null) element.removeAttribute("style");
+        else element.setAttribute("style", override.originalStyleAttribute);
+    } else {
+        override.properties.forEach((property) => {
+            const currentValue = getStylePropertyValue(element.style, property.property);
+            const currentPriority = getStylePropertyPriority(element.style, property.property);
+            if (currentValue !== property.appliedValue || currentPriority !== property.appliedPriority) return;
+            if (property.originalValue) {
+                element.style.setProperty(
+                    property.property,
+                    property.originalValue,
+                    property.originalPriority,
+                );
+            } else {
+                element.style.removeProperty(property.property);
+            }
+        });
+        if (override.originalStyleAttribute === null && element.getAttribute("style") === "") {
+            element.removeAttribute("style");
+        }
+    }
+    sharedLayoutOverrides.delete(element);
+}
+
+function liveSharedTranslationLayoutOverride(
+    element: HTMLElement,
+): SharedTranslationLayoutOverride | undefined {
+    let override = sharedLayoutOverrides.get(element);
+    if (!override) return undefined;
+    const disconnectedOwners: HTMLElement[] = [];
+    override.owners.forEach((ref) => {
+        const owner = ref.deref();
+        if (!owner || !states.has(owner)) override?.owners.delete(ref);
+        else if (!owner.isConnected) disconnectedOwners.push(owner);
+    });
+    disconnectedOwners.forEach((owner) => {
+        const state = states.get(owner);
+        if (state) discardTranslation(owner, state);
+    });
+    override = sharedLayoutOverrides.get(element);
+    if (!override) return undefined;
+    if (override.owners.size > 0) return override;
+    restoreSharedTranslationLayoutOverride(element, override);
+    return undefined;
+}
+
+export function hasTranslationLayoutOverride(element: HTMLElement): boolean {
+    return liveSharedTranslationLayoutOverride(element) !== undefined;
+}
+
+function translationLayoutAncestorChain(owner: HTMLElement): HTMLElement[] {
+    const ancestors: HTMLElement[] = [];
+    let current = getComposedParent(owner);
+    let depth = 0;
+    while (current && current !== owner.ownerDocument.body && depth < maxTranslationLayoutAncestorDepth) {
+        depth += 1;
+        const HTMLElementConstructor = current.ownerDocument.defaultView?.HTMLElement;
+        if (HTMLElementConstructor && current instanceof HTMLElementConstructor) {
+            ancestors.push(current as HTMLElement);
+        }
+        current = getComposedParent(current);
+    }
+    return ancestors;
+}
+
+function translationLayoutObserverRoots(
+    owner: HTMLElement,
+    watchElements: ReadonlySet<HTMLElement>,
+): Set<TranslationLayoutObserverRoot> {
+    const roots = new Set<TranslationLayoutObserverRoot>();
+    for (const element of [owner, ...watchElements]) {
+        const root = element.getRootNode();
+        if (root.nodeType === 9) roots.add(root as Document);
+        else if (root.nodeType === 11 && "host" in root) roots.add(root as ShadowRoot);
+    }
+    return roots;
+}
+
+function updateTranslationLayoutObservers(
+    owner: HTMLElement,
+    state: TranslationState,
+    watchElements: ReadonlySet<HTMLElement>,
+): void {
+    const previousRoots = state.layoutObserverRoots ?? new Set<TranslationLayoutObserverRoot>();
+    const nextRoots = translationLayoutObserverRoots(owner, watchElements);
+    previousRoots.forEach((root) => {
+        if (!nextRoots.has(root)) releaseTranslationLayoutRoot(owner, root);
+    });
+    nextRoots.forEach((root) => {
+        if (!previousRoots.has(root)) retainTranslationLayoutRoot(owner, root);
+    });
+    state.layoutObserverRoots = nextRoots;
+}
+
+function releaseTranslationLayoutOverride(
+    owner: HTMLElement,
+    state: TranslationState,
+    element: HTMLElement,
+): void {
+    const override = sharedLayoutOverrides.get(element);
+    const ownerRef = activeRefsByNode.get(owner);
+    if (override && ownerRef) override.owners.delete(ownerRef);
+    override?.owners.forEach((ref) => {
+        const candidate = ref.deref();
+        if (!candidate || !states.has(candidate)) override.owners.delete(ref);
+    });
+    if (override?.owners.size === 0) restoreSharedTranslationLayoutOverride(element, override);
+    state.layoutOverrideElements?.delete(element);
+}
+
+/**
+ * Lease one host element's truncation properties. The first owner records and
+ * applies the override; later owners share it so restoring one paragraph
+ * cannot hide a translated sibling that uses the same clamp container.
+ */
+export function acquireTranslationLayoutOverride(
+    owner: HTMLElement,
+    element: HTMLElement,
+    overrides: readonly TranslationLayoutStyleOverride[],
+): boolean {
+    const state = states.get(owner);
+    if (!state) return false;
+    const ownerRef = trackActiveNode(owner);
+
+    const existing = liveSharedTranslationLayoutOverride(element);
+    if (existing) {
+        existing.owners.add(ownerRef);
+        (state.layoutOverrideElements ??= new Set()).add(element);
+        refreshOwnershipIndex(owner, state);
+        return true;
+    }
+
+    const originalStyleAttribute = element.getAttribute("style");
+    const properties = overrides.map(({property, value, priority}) => {
+        const originalValue = getStylePropertyValue(element.style, property);
+        const originalPriority = getStylePropertyPriority(element.style, property);
+        element.style.setProperty(property, value, priority);
+        return {
+            property,
+            overrideValue: value,
+            overridePriority: priority,
+            originalValue,
+            originalPriority,
+            appliedValue: getStylePropertyValue(element.style, property),
+            appliedPriority: getStylePropertyPriority(element.style, property),
+        };
+    });
+    const override: SharedTranslationLayoutOverride = {
+        originalStyleAttribute,
+        renderedStyleAttribute: element.getAttribute("style"),
+        properties,
+        owners: new Set([ownerRef]),
+        canRestoreExactStyleAttribute: true,
+    };
+    sharedLayoutOverrides.set(element, override);
+    (state.layoutOverrideElements ??= new Set()).add(element);
+    refreshOwnershipIndex(owner, state);
+    return true;
+}
+
+/** Exact style-attribute equality keeps a host write in the same microtask authoritative. */
+export function isTranslationLayoutOverrideMutation(element: HTMLElement): boolean {
+    const override = sharedLayoutOverrides.get(element);
+    return Boolean(override && element.getAttribute("style") === override.renderedStyleAttribute);
+}
+
+/** Rebase host style writes, then keep every active bilingual wrapper unclamped. */
+export function reconcileTranslationLayoutOverrides(owner: HTMLElement): boolean {
+    const state = states.get(owner);
+    if (!state) return false;
+    for (const element of state.layoutOverrideElements ?? []) {
+        const override = liveSharedTranslationLayoutOverride(element);
+        if (!override) continue;
+        if (!element.isConnected || (element !== owner &&
+            !state.layoutWatchElements?.has(element) && !element.contains(owner))) return false;
+
+        if (element.getAttribute("style") !== override.renderedStyleAttribute) {
+            override.canRestoreExactStyleAttribute = false;
+        }
+        override.properties.forEach((property) => {
+            const currentValue = getStylePropertyValue(element.style, property.property);
+            const currentPriority = getStylePropertyPriority(element.style, property.property);
+            if (currentValue === property.appliedValue && currentPriority === property.appliedPriority) return;
+            property.originalValue = currentValue;
+            property.originalPriority = currentPriority;
+            element.style.setProperty(
+                property.property,
+                property.overrideValue,
+                property.overridePriority,
+            );
+            property.appliedValue = getStylePropertyValue(element.style, property.property);
+            property.appliedPriority = getStylePropertyPriority(element.style, property.property);
+        });
+        override.renderedStyleAttribute = element.getAttribute("style");
+    }
+    return true;
+}
+
+/** Discover new clamp ancestors, drop stale reparented leases, and reapply host-overwritten values. */
+export function ensureTranslationTruncationLayout(owner: HTMLElement): boolean {
+    const state = states.get(owner);
+    if (!state || !owner.isConnected) return false;
+
+    const ancestors = translationLayoutAncestorChain(owner);
+    const watchElements = new Set(ancestors);
+    state.layoutWatchElements = watchElements;
+    refreshOwnershipIndex(owner, state);
+    updateTranslationLayoutObservers(owner, state, watchElements);
+
+    const desiredElements = new Set<HTMLElement>([owner]);
+    ancestors.forEach((ancestor) => {
+        if (sharedLayoutOverrides.has(ancestor) || hasActiveTranslationLineClamp(ancestor)) {
+            desiredElements.add(ancestor);
+        }
+    });
+
+    for (const element of Array.from(state.layoutOverrideElements ?? [])) {
+        if (!desiredElements.has(element)) releaseTranslationLayoutOverride(owner, state, element);
+    }
+    desiredElements.forEach((element) => {
+        acquireTranslationLayoutOverride(owner, element, translationTruncationStyleOverrides);
+    });
+    refreshOwnershipIndex(owner, state);
+    return reconcileTranslationLayoutOverrides(owner);
+}
+
+function releaseTranslationLayoutOverrides(owner: HTMLElement, state: TranslationState): void {
+    state.layoutObserverRoots?.forEach((root) => releaseTranslationLayoutRoot(owner, root));
+    state.layoutObserverRoots?.clear();
+    Array.from(state.layoutOverrideElements ?? [])
+        .forEach((element) => releaseTranslationLayoutOverride(owner, state, element));
+    state.layoutOverrideElements?.clear();
+    state.layoutWatchElements?.clear();
+}
+
 function removeExtensionNode(node: Node | undefined): void {
     if (node?.parentNode) node.parentNode.removeChild(node);
 }
@@ -371,6 +777,7 @@ function teardownAttempt(
     removeExtensionNode(state.spinner);
     removeExtensionNode(state.bilingualContent);
     removeRetryArtifacts(node);
+    releaseTranslationLayoutOverrides(node, state);
 
     if (restoreTextSlots && state.textSlotsApplied) {
         state.originalTextValues.forEach(({node: textNode, value}) => {
@@ -419,9 +826,7 @@ export function getTranslationOwnersForRemovedNode(removed: Node): HTMLElement[]
         const current = stack.pop();
         if (!current) continue;
 
-        ownersByIndexedNode.get(current)?.forEach((owner) => {
-            if (states.has(owner)) owners.add(owner);
-        });
+        getTranslationOwnersForIndexedNode(current).forEach((owner) => owners.add(owner));
 
         if (current.nodeType === 1) {
             const shadowRoot = (current as Element).shadowRoot;
@@ -434,6 +839,20 @@ export function getTranslationOwnersForRemovedNode(removed: Node): HTMLElement[]
         }
     }
 
+    return [...owners];
+}
+
+/** Resolve only owners indexed directly on this node; dead weak references are pruned lazily. */
+export function getTranslationOwnersForIndexedNode(indexedNode: Node): HTMLElement[] {
+    const refs = ownersByIndexedNode.get(indexedNode);
+    if (!refs) return [];
+    const owners = new Set<HTMLElement>();
+    refs.forEach((ref) => {
+        const owner = ref.deref();
+        if (!owner || !states.has(owner)) refs.delete(ref);
+        else owners.add(owner);
+    });
+    if (refs.size === 0) ownersByIndexedNode.delete(indexedNode);
     return [...owners];
 }
 

@@ -3,7 +3,7 @@ import {method, urls} from "../utils/constant";
 import {claudeMsgTemplate} from "../utils/template";
 import {config} from "@/entrypoints/utils/config";
 import {appendOptionalHeader} from './auth';
-import {runtimeFetch} from '@/entrypoints/utils/http';
+import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
 
 async function claude(message: any) {
     const service = message.serviceOverride || services.claude;
@@ -24,13 +24,12 @@ async function claude(message: any) {
         });
 
         if (!resp.ok) {
-            throw new Error(`请求失败: ${resp.status} ${resp.statusText} body: ${await resp.text()}`);
+            throw createHttpStatusError(resp);
         }
 
-        const result = await resp.json();
+        const result = await readJsonResponse<any>(resp, 'Claude 返回的不是有效 JSON');
         return result.content[0].text;
     } catch (error) {
-        console.error('Claude API 调用失败:', error);
         throw error;
     }
 }

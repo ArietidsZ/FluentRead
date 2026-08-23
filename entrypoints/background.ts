@@ -5,6 +5,7 @@ import {
     configReady,
     CONFIG_HISTORY_MESSAGE,
     CONFIG_PERSIST_MESSAGE,
+    prepareConfigSaveRequest,
     saveConfig,
     subscribeConfig,
 } from "@/entrypoints/utils/config";
@@ -37,6 +38,12 @@ import {
     normalizeImageOcrLanguageCodes,
     type ImageOcrLanguageCode,
 } from "@/entrypoints/utils/imageOcrLanguages";
+import {getTranslationLanguages, type TranslationLanguageOverride} from "@/entrypoints/utils/translationLanguage";
+import {serializeTranslationError} from '@/entrypoints/utils/translationError';
+import {
+    AI_SDK_TRANSPORT_PROFILE,
+    resolveOpenAICompatibleEndpoint,
+} from '@/entrypoints/service/ai-sdk/endpoints';
 
 // 翻译状态管理
 let translationStateMap = new Map<number, boolean>(); // tabId -> isTranslated
@@ -59,6 +66,23 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
     for (const byte of bytes) binary += String.fromCharCode(byte);
     return btoa(binary);
 }
+
+interface TranslationRequestMessageBase {
+    context?: string;
+    pageContext?: string;
+    useCache?: boolean;
+    /** 视频字幕使用的独立翻译服务；普通网页请求不设置。 */
+    serviceOverride?: string;
+    /** 翻译中心仅对当前请求使用的语言，不改变全局设置。 */
+    sourceLanguage?: string;
+    targetLanguage?: string;
+    /** Background provider deadline; kept slightly below the content-side timeout. */
+    requestTimeoutMs?: number;
+}
+
+type TranslationSingleRequestMessage = TranslationRequestMessageBase & { origin: string };
+type TranslationBatchRequestMessage = TranslationRequestMessageBase & { origin: string[] };
+type TranslationRequestMessage = TranslationSingleRequestMessage | TranslationBatchRequestMessage;
 
 async function getDownloadedImageOcrLanguages(): Promise<ImageOcrLanguageCode[]> {
     const stored = await browser.storage.local.get(IMAGE_OCR_LANGUAGE_STATE_KEY);
@@ -148,6 +172,386 @@ async function fetchImageForOcr(source: string): Promise<string> {
     return imageBufferToDataUrl(buffer, contentType);
 }
 
+function getSelectedModel(service: string): string {
+    return resolveConfiguredModel(config.model[service], config.customModel[service]);
+}
+
+function isAIContextEnabled(service = config.service): boolean {
+    return config.enableAIContext && servicesType.isUseAIContext(service, getSelectedModel(service));
+}
+
+function getProviderEndpoint(service: string): string {
+    if (servicesType.isAiSdk(service)) {
+        try {
+            return resolveOpenAICompatibleEndpoint(service).endpoint;
+        } catch {
+            // Configuration validation owns the user-facing error. Cache-key
+            // generation must remain total while settings are incomplete.
+            return '';
+        }
+    }
+    if (config.proxy[service]) return config.proxy[service];
+    if (service === 'custom') return config.custom;
+    if (service === 'deeplx') return config.deeplx;
+    if (service === 'newapi') return config.newApiUrl;
+    if (service === services.minimax) {
+        const plan = config.minimaxBillingPlan === 'token-plan' ? 'token-plan' : 'payg';
+        const region = config.minimaxRegion === 'cn' ? 'cn' : 'global';
+        return MINIMAX_ENDPOINTS[plan][region];
+    }
+    if (service === services.mimo) {
+        return getMimoEndpoint(config.mimoBillingPlan, config.mimoRegion);
+    }
+    return '';
+}
+
+function buildCacheKey(
+    origin: string | string[],
+    context: string,
+    pageContext: string,
+    mode: CacheRequestMode,
+    serviceOverride?: string,
+    languageOverride?: TranslationLanguageOverride,
+): string {
+    const service = serviceOverride || config.service;
+    const {sourceLanguage, targetLanguage} = getTranslationLanguages(languageOverride);
+
+    return buildTranslationCacheKey({
+        requestMode: mode,
+        sourceText: origin,
+        sourceLanguage,
+        targetLanguage,
+        service,
+        model: getSelectedModel(service),
+        endpoint: getProviderEndpoint(service),
+        azureOpenaiEndpoint: service === 'azureOpenai' ? config.azureOpenaiEndpoint : undefined,
+        robotId: service === 'cozecom' || service === 'cozecn'
+            ? config.robot_id[service] || ''
+            : undefined,
+        customBody: config.customBody[service] || '',
+        systemRole: config.system_role[service] || '',
+        userRole: config.user_role[service] || '',
+        deepseekApiType: config.deepseekApiType,
+        deepseekThinkingMode: config.deepseekThinkingMode,
+        transportProfile: servicesType.isAiSdk(service) ? AI_SDK_TRANSPORT_PROFILE : undefined,
+        // DeepL sends the title context to the provider. AI adapters send the
+        // bounded webpage context through their prompt templates.
+        context: service === 'deepL' ? context : undefined,
+        pageContext: isAIContextEnabled(service) ? pageContext : undefined,
+    });
+}
+
+function isCacheEnabled(message: TranslationRequestMessage): boolean {
+    return config.useCache && message.useCache !== false;
+}
+
+function isCacheableResult(origin: string, result: unknown): result is string {
+    return typeof result === 'string' && result.length > 0 && result !== origin;
+}
+
+function getTranslationService(serviceName = config.service) {
+    const service = _service[serviceName];
+    if (!service) {
+        throw new Error(`未找到翻译服务适配器: ${serviceName}`);
+    }
+    return service;
+}
+
+const pendingTranslations = new Map<string, Promise<string>>();
+const pendingBatches = new Map<string, Promise<string[]>>();
+const pageSummaryCache = new Map<string, string>();
+const pendingPageSummaries = new Map<string, Promise<string>>();
+const PAGE_SUMMARY_CACHE_SIZE = 8;
+const PAGE_SUMMARY_LIMIT = 1200;
+
+function buildPendingRequestKey(cacheKey: string, requestTimeoutMs?: number): string {
+    const timeoutBucket = typeof requestTimeoutMs === 'number' && Number.isFinite(requestTimeoutMs)
+        ? `${Math.ceil(Math.max(1_000, requestTimeoutMs) / 1_000)}s`
+        : 'default';
+    return `${cacheKey}:timeout:${timeoutBucket}`;
+}
+
+function buildPageSummaryCacheKey(pageContext: string, service = config.service): string {
+    return buildTranslationCacheKey({
+        requestMode: 'page-summary',
+        sourceLanguage: config.from,
+        targetLanguage: '',
+        sourceText: pageContext,
+        service,
+        model: getSelectedModel(service),
+        endpoint: getProviderEndpoint(service),
+        customBody: config.customBody[service] || '',
+        transportProfile: servicesType.isAiSdk(service) ? AI_SDK_TRANSPORT_PROFILE : undefined,
+    });
+}
+
+function cachePageSummary(key: string, value: string): void {
+    if (pageSummaryCache.size >= PAGE_SUMMARY_CACHE_SIZE) {
+        const oldestKey = pageSummaryCache.keys().next().value;
+        if (oldestKey) pageSummaryCache.delete(oldestKey);
+    }
+    pageSummaryCache.set(key, value);
+}
+
+/**
+ * Read Frog generates one short summary per page context and reuses it for
+ * the paragraphs that follow. FluentRead keeps the same behavior in the
+ * background so the extra request is shared by all content-script callers.
+ * A summary failure is deliberately non-fatal: the raw readable context is
+ * still useful and the ordinary translation must continue.
+ */
+async function addPageSummary(
+    pageContext: string,
+    service = config.service,
+    requestTimeoutMs?: number,
+): Promise<string> {
+    if (!isAIContextEnabled(service) || !pageContext.trim()) {
+        return '';
+    }
+
+    const key = buildPageSummaryCacheKey(pageContext, service);
+    const cached = pageSummaryCache.get(key);
+    if (cached) return cached;
+
+    const pendingKey = buildPendingRequestKey(key, requestTimeoutMs);
+    const existing = pendingPageSummaries.get(pendingKey);
+    if (existing) return existing;
+
+    const request = (async () => {
+        try {
+            // Keep summaries across MV3 service-worker restarts, matching Read
+            // Frog's article-summary cache. Cache failures are swallowed by
+            // translationCache and simply fall through to generation.
+            const persisted = await translationCache.get(key);
+            if (persisted !== null) {
+                cachePageSummary(key, persisted);
+                return persisted;
+            }
+
+            const result = await getTranslationService(service)({
+                origin: '',
+                context: '',
+                pageContext: '',
+                summaryPrompt: buildPageSummaryPrompt(pageContext),
+                summarySystemPrompt: buildPageSummarySystemPrompt(),
+                serviceOverride: service,
+                requestTimeoutMs,
+            });
+            const summary = typeof result === 'string' ? result.trim().slice(0, PAGE_SUMMARY_LIMIT) : '';
+            if (!summary) {
+                cachePageSummary(key, pageContext);
+                return pageContext;
+            }
+
+            const summarizedContext = `Page summary (AI-generated reference):\n${summary}\n\n${pageContext}`.slice(0, 4000);
+            cachePageSummary(key, summarizedContext);
+            await translationCache.set(key, summarizedContext);
+            return summarizedContext;
+        } catch (error) {
+            console.warn('[FluentRead] page context summary failed; using extracted context:', error);
+            cachePageSummary(key, pageContext);
+            return pageContext;
+        }
+    })();
+
+    pendingPageSummaries.set(pendingKey, request);
+    void request.then(
+        () => {
+            if (pendingPageSummaries.get(pendingKey) === request) pendingPageSummaries.delete(pendingKey);
+        },
+        () => {
+            if (pendingPageSummaries.get(pendingKey) === request) pendingPageSummaries.delete(pendingKey);
+        },
+    );
+    return request;
+}
+
+async function addPageSummaryWithinBudget(
+    pageContext: string,
+    service: string,
+    requestTimeoutMs?: number,
+): Promise<string> {
+    const request = addPageSummary(pageContext, service, requestTimeoutMs);
+    if (requestTimeoutMs === undefined) return request;
+
+    // Legacy specialist adapters do not all consume requestTimeoutMs yet.
+    // Stop waiting for this optional phase at the background boundary, while
+    // allowing the shared summary promise to finish and populate its cache.
+    return new Promise((resolve) => {
+        let settled = false;
+        const finish = (value: string) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            resolve(value);
+        };
+        const timer = setTimeout(() => finish(pageContext), requestTimeoutMs);
+        void request.then(finish, () => finish(pageContext));
+    });
+}
+
+async function translateSingleWithCache(
+    message: TranslationSingleRequestMessage,
+    context: string,
+    pageContext: string,
+    useCache: boolean,
+): Promise<string> {
+    const service = message.serviceOverride || config.service;
+    if (!useCache) {
+        return getTranslationService(service)({...message, context, pageContext});
+    }
+
+    const key = buildCacheKey(message.origin, context, pageContext, 'single', service, message);
+    const pendingKey = buildPendingRequestKey(key, message.requestTimeoutMs);
+    const existing = pendingTranslations.get(pendingKey);
+    if (existing) return existing;
+
+    const request = (async () => {
+        const cached = await translationCache.get(key);
+        if (cached !== null) return cached;
+
+        const result = await getTranslationService(service)({...message, context, pageContext});
+        if (isCacheableResult(message.origin, result)) {
+            await translationCache.set(key, result);
+        }
+        return result as string;
+    })();
+
+    pendingTranslations.set(pendingKey, request);
+    void request.then(
+        () => {
+            if (pendingTranslations.get(pendingKey) === request) pendingTranslations.delete(pendingKey);
+        },
+        () => {
+            if (pendingTranslations.get(pendingKey) === request) pendingTranslations.delete(pendingKey);
+        },
+    );
+    return request;
+}
+
+async function translateBatchWithCache(
+    message: TranslationBatchRequestMessage,
+    context: string,
+    pageContext: string,
+    useCache: boolean,
+): Promise<string[]> {
+    const service = message.serviceOverride || config.service;
+    if (!useCache) {
+        const result = await getTranslationService(service)({...message, context, pageContext});
+        if (!Array.isArray(result)) throw new Error('批量翻译返回格式异常');
+        return result as string[];
+    }
+
+    const batchKey = buildCacheKey(message.origin, context, pageContext, 'batch', service, message);
+    const pendingKey = buildPendingRequestKey(batchKey, message.requestTimeoutMs);
+    const existing = pendingBatches.get(pendingKey);
+    if (existing) return existing;
+
+    const request = (async () => {
+        const cached = await Promise.all(
+            message.origin.map((origin) => translationCache.get(buildCacheKey(origin, context, pageContext, 'batch', service, message))),
+        );
+        const missingIndexes = cached
+            .map((value, index) => value === null ? index : -1)
+            .filter((index) => index >= 0);
+
+        if (missingIndexes.length === 0) {
+            return cached as string[];
+        }
+
+        const missingEntries = missingIndexes.map((index) => ({
+            index,
+            origin: message.origin[index],
+        }));
+        const uniqueMissingOrigins = Array.from(
+            new Map(
+                missingEntries.map(({origin}) => [
+                    buildCacheKey(origin, context, pageContext, 'batch', service, message),
+                    origin,
+                ]),
+            ).values(),
+        );
+        const translated = await getTranslationService(service)({
+            ...message,
+            context,
+            pageContext,
+            origin: uniqueMissingOrigins,
+        });
+        if (!Array.isArray(translated) || translated.length !== uniqueMissingOrigins.length) {
+            throw new Error('批量翻译返回数量异常');
+        }
+
+        const result = [...cached] as Array<string | null>;
+        const translatedByKey = new Map(
+            uniqueMissingOrigins.map((origin, index) => [
+                buildCacheKey(origin, context, pageContext, 'batch', service, message),
+                translated[index],
+            ]),
+        );
+        await Promise.all(missingEntries.map(async ({index, origin}) => {
+            const value = translatedByKey.get(buildCacheKey(origin, context, pageContext, 'batch', service, message));
+            result[index] = value as string;
+            if (isCacheableResult(origin, value)) {
+                await translationCache.set(buildCacheKey(origin, context, pageContext, 'batch', service, message), value);
+            }
+        }));
+
+        return result as string[];
+    })();
+
+    pendingBatches.set(pendingKey, request);
+    void request.then(
+        () => {
+            if (pendingBatches.get(pendingKey) === request) pendingBatches.delete(pendingKey);
+        },
+        () => {
+            if (pendingBatches.get(pendingKey) === request) pendingBatches.delete(pendingKey);
+        },
+    );
+    return request;
+}
+
+async function translateWithCache(message: TranslationRequestMessage): Promise<string | string[]> {
+    await configReady;
+    const serviceOverride = message.serviceOverride;
+    const selectedService = serviceOverride || config.service;
+    const missingCredentialMessage = getMissingCredentialMessage(selectedService, config);
+    if (missingCredentialMessage) throw new Error(missingCredentialMessage);
+    if (serviceOverride && !servicesType.machine.has(serviceOverride) && !servicesType.isAI(serviceOverride)) {
+        throw new Error('视频字幕翻译服务不可用，请在设置中选择已配置的机器翻译或 AI 服务');
+    }
+    const context = typeof message.context === 'string' ? message.context : '';
+    const rawPageContext = typeof message.pageContext === 'string' ? message.pageContext : '';
+    const providerStartedAt = Date.now();
+    const providerBudget = typeof message.requestTimeoutMs === 'number'
+        && Number.isFinite(message.requestTimeoutMs)
+        ? Math.max(1_000, Math.floor(message.requestTimeoutMs))
+        : undefined;
+    // Page summarization is optional. Give a cold summary at most one quarter
+    // of the provider deadline so it cannot consume the whole translation
+    // request before the actual paragraph call starts.
+    const summaryBudget = providerBudget === undefined
+        ? undefined
+        : Math.min(10_000, Math.max(1_000, Math.floor(providerBudget / 4)));
+    const pageContext = await addPageSummaryWithinBudget(rawPageContext, selectedService, summaryBudget);
+    const elapsed = Date.now() - providerStartedAt;
+    if (providerBudget !== undefined && elapsed >= providerBudget) {
+        throw new Error('翻译请求超时');
+    }
+    const requestMessage = providerBudget === undefined
+        ? message
+        : {
+            ...message,
+            requestTimeoutMs: Math.max(1_000, providerBudget - elapsed),
+        } as TranslationRequestMessage;
+    const useCache = isCacheEnabled(message);
+
+    if (Array.isArray(requestMessage.origin)) {
+        return translateBatchWithCache(requestMessage as TranslationBatchRequestMessage, context, pageContext, useCache);
+    }
+    return translateSingleWithCache(requestMessage as TranslationSingleRequestMessage, context, pageContext, useCache);
+}
+
 interface WordDefinitionTranslationSlot {
     meaningIndex: number;
     definitionIndex: number;
@@ -231,10 +635,39 @@ export default defineBackground({
         let contextMenuEnabled = true;
         let contextMenuSyncQueue: Promise<void> = Promise.resolve();
 
+        const readTabTranslationState = async (tabId: number, force = false): Promise<boolean> => {
+            if (!force && translationStateMap.has(tabId)) {
+                return translationStateMap.get(tabId) === true;
+            }
+
+            try {
+                const response = await browser.tabs.sendMessage(tabId, {
+                    type: 'getFullPageTranslationState',
+                }) as { status?: string; isTranslated?: boolean } | undefined;
+                if (response?.status === 'success') {
+                    const isTranslated = response.isTranslated === true;
+                    translationStateMap.set(tabId, isTranslated);
+                    return isTranslated;
+                }
+            } catch {
+                // 浏览器内部页或尚未注入内容脚本的页面无法查询，按未翻译处理。
+            }
+
+            const fallback = translationStateMap.get(tabId) === true;
+            translationStateMap.set(tabId, fallback);
+            return fallback;
+        };
+
         // 更新右键菜单状态。菜单只有一个入口，标题随当前标签页的全文翻译状态切换。
         const updateContextMenus = async (tabId: number) => {
             if (!isContextMenuSupported || !contextMenusReady) return;
-            const isTranslated = translationStateMap.get(tabId) || false;
+            // contextMenus.update 修改的是全局菜单项。后台标签页的加载或
+            // 翻译消息不能覆盖用户当前活动页看到的标题。
+            const activeTabs = await browser.tabs.query({ active: true, lastFocusedWindow: true });
+            if (!activeTabs.some((tab) => tab.id === tabId)) return;
+            // MV3 service worker 重启后内存 Map 会丢失；首次更新时向仍在运行的
+            // 内容脚本重新读取状态，避免菜单需要点击两次才能恢复原文。
+            const isTranslated = await readTabTranslationState(tabId);
 
             try {
                 await browser.contextMenus.update(CONTEXT_MENU_IDS.TRANSLATE_FULL_PAGE, {
@@ -268,8 +701,8 @@ export default defineBackground({
                     }
 
                     contextMenusReady = true;
-                    const activeTabs = await browser.tabs.query({ active: true });
-                    const activeTab = activeTabs.find((tab: {id?: number}) => typeof tab.id === 'number');
+                    const activeTabs = await browser.tabs.query({ active: true, lastFocusedWindow: true });
+                    const activeTab = activeTabs.find((tab) => typeof tab.id === 'number');
                     if (activeTab?.id !== undefined) await updateContextMenus(activeTab.id);
                 })
                 .catch((error) => {
@@ -300,17 +733,25 @@ export default defineBackground({
             browser.contextMenus.onClicked.addListener((info: any, tab: any) => {
                 if (!contextMenuEnabled || info.menuItemId !== CONTEXT_MENU_IDS.TRANSLATE_FULL_PAGE || !tab?.id) return;
 
-                const isTranslated = translationStateMap.get(tab.id) || false;
-                browser.tabs.sendMessage(tab.id, {
-                    type: 'contextMenuTranslate',
-                    action: isTranslated ? 'restore' : 'fullPage',
-                }).then((response: any) => {
-                    if (response?.status === 'disabled') return;
-                    translationStateMap.set(tab.id!, !isTranslated);
-                    void updateContextMenus(tab.id!);
-                }).catch((error: any) => {
-                    console.error('Failed to send message to content script:', error);
-                });
+                void (async () => {
+                    try {
+                        // 点击属于用户显式动作，始终读取页面真值，避免后台休眠或
+                        // 消息丢失留下的陈旧状态导致执行相反操作。
+                        const isTranslated = await readTabTranslationState(tab.id, true);
+                        const response = await browser.tabs.sendMessage(tab.id, {
+                            type: 'contextMenuTranslate',
+                            action: isTranslated ? 'restore' : 'fullPage',
+                        }) as { status?: string; isTranslated?: boolean } | undefined;
+                        if (response?.status !== 'success') return;
+                        const nextState = typeof response.isTranslated === 'boolean'
+                            ? response.isTranslated
+                            : !isTranslated;
+                        translationStateMap.set(tab.id, nextState);
+                        await updateContextMenus(tab.id);
+                    } catch (error) {
+                        console.error('Failed to send message to content script:', error);
+                    }
+                })();
             });
         }
 
@@ -319,10 +760,11 @@ export default defineBackground({
             if (isContextMenuSupported) void updateContextMenus(activeInfo.tabId);
         });
 
-        // 监听标签页更新事件（页面刷新等）
+        // 在新导航开始时清理旧文档状态。内容脚本会在 document_end
+        // 上报新文档的真实状态；如果在 complete 再清零，会把始终
+        // 翻译刚上报的 true 覆盖掉。
         browser.tabs.onUpdated.addListener((tabId: any, changeInfo: any) => {
-            if (changeInfo.status === 'complete') {
-                // 页面加载完成，重置翻译状态
+            if (changeInfo.status === 'loading') {
                 translationStateMap.set(tabId, false);
                 if (isContextMenuSupported) void updateContextMenus(tabId);
             }
@@ -367,6 +809,8 @@ export default defineBackground({
                     }
 
                     if (message.type === CONFIG_PERSIST_MESSAGE) {
+                        const senderUrl = typeof sender?.url === 'string' ? sender.url : '';
+                        const allowCredentialUpdates = senderUrl.startsWith(browser.runtime.getURL('/'));
                         const clientId = typeof message.clientId === 'string'
                             ? message.clientId
                             : `${sender?.id || 'legacy'}:${sender?.tab?.id || 'extension'}:${sender?.frameId || 0}`;
@@ -379,9 +823,13 @@ export default defineBackground({
                         if (sequence) latestConfigSequenceByClient.set(clientId, sequence);
                         const persist = configPersistQueue
                             .catch(() => undefined)
-                            .then(() => {
+                            .then(async () => {
                                 if (sequence && latestConfigSequenceByClient.get(clientId) !== sequence) return;
-                                return saveConfig(message.config, {recordHistory: true});
+                                await configReady;
+                                return saveConfig(
+                                    prepareConfigSaveRequest(message.config, config, allowCredentialUpdates),
+                                    {recordHistory: true},
+                                );
                             });
                         configPersistQueue = persist.catch(() => undefined);
                         await persist;
@@ -579,7 +1027,9 @@ export default defineBackground({
                     // 隔离，也让不同标签页共享同一份结果和 pending 请求。
                     translateWithCache(message)
                         .then(resp => resolve(resp))    // 成功
-                        .catch(error => reject(error)); // 失败
+                        // Error instances do not preserve custom fields across
+                        // extension messaging. Send a plain, versioned payload.
+                        .catch(error => resolve(serializeTranslationError(error)));
                 } catch (error) {
                     const errorMessage = message?.type === CONNECTION_TEST_MESSAGE
                         ? formatConnectionTestError(

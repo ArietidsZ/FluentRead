@@ -1,6 +1,6 @@
 import {getTranslationLanguages} from "@/entrypoints/utils/translationLanguage";
 import type {TranslationLanguageOverride} from "@/entrypoints/utils/translationLanguage";
-import {runtimeFetch} from '@/entrypoints/utils/http';
+import {createHttpStatusError} from '@/entrypoints/utils/httpError';
 
 const GOOGLE_TRANSLATE_RPC_ID = 'MkEWBc';
 const GOOGLE_TRANSLATE_BATCH_URLS = [
@@ -10,7 +10,7 @@ const GOOGLE_TRANSLATE_BATCH_URLS = [
 const GOOGLE_TRANSLATE_LEGACY_URL = 'https://translate.googleapis.com/translate_a/single';
 const GOOGLE_TRANSLATE_TOTAL_TIMEOUT_MS = 15_000;
 const GOOGLE_TRANSLATE_ATTEMPT_TIMEOUT_MS = 8_000;
-const GOOGLE_ERROR_BODY_PREVIEW_LENGTH = 200;
+const GOOGLE_CAPTCHA_HINT = '可能触发了 CAPTCHA，请稍后重试';
 
 type GoogleProvider = {
     name: string;
@@ -108,16 +108,8 @@ export function parseGoogleLegacyResponse(responseBody: string): string {
     return translatedText;
 }
 
-function formatResponseBody(responseBody: string): string {
-    if (/<!doctype html|<html[\s>]/i.test(responseBody)) {
-        return '收到 HTML 页面（可能触发了 CAPTCHA）';
-    }
-
-    const compactBody = responseBody.replace(/\s+/g, ' ').trim();
-    if (compactBody.length === 0) {
-        return '';
-    }
-    return compactBody.slice(0, GOOGLE_ERROR_BODY_PREVIEW_LENGTH);
+function isHtmlResponse(responseBody: string): boolean {
+    return /<!doctype html|<html[\s>]/i.test(responseBody);
 }
 
 function getErrorMessage(error: unknown): string {
@@ -125,8 +117,8 @@ function getErrorMessage(error: unknown): string {
 }
 
 function createGoogleParseError(error: unknown, responseBody: string): Error {
-    const responsePreview = formatResponseBody(responseBody) || '空响应';
-    return new Error(`${getErrorMessage(error)}，响应摘要: ${responsePreview}`);
+    const message = getErrorMessage(error);
+    return new Error(isHtmlResponse(responseBody) ? `${message}（${GOOGLE_CAPTCHA_HINT}）` : message);
 }
 
 async function fetchGoogleResponse(
@@ -138,20 +130,33 @@ async function fetchGoogleResponse(
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-        const response = await runtimeFetch(url, {...init, signal: controller.signal});
-        const responseBody = await response.text();
+        let response: Response;
+        try {
+            response = await fetch(url, {...init, signal: controller.signal});
+        } catch {
+            if (controller.signal.aborted) {
+                throw new Error(`请求超时（${timeoutMs / 1000} 秒）`);
+            }
+            throw new Error('网络请求失败');
+        }
+
+        let responseBody: string;
+        try {
+            responseBody = await response.text();
+        } catch {
+            if (controller.signal.aborted) {
+                throw new Error(`请求超时（${timeoutMs / 1000} 秒）`);
+            }
+            throw new Error('响应读取失败');
+        }
         if (!response.ok) {
-            const bodyPreview = formatResponseBody(responseBody);
-            throw new Error(
-                `HTTP ${response.status} ${response.statusText}${bodyPreview ? `，响应: ${bodyPreview}` : ''}`,
-            );
+            const statusError = createHttpStatusError(response);
+            if (response.status === 429 || isHtmlResponse(responseBody)) {
+                throw new Error(`${statusError.message}（${GOOGLE_CAPTCHA_HINT}）`);
+            }
+            throw statusError;
         }
         return {responseBody};
-    } catch (error) {
-        if (controller.signal.aborted) {
-            throw new Error(`请求超时（${timeoutMs / 1000} 秒）`);
-        }
-        throw error;
     } finally {
         clearTimeout(timeout);
     }

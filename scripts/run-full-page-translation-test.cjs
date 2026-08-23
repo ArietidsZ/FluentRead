@@ -137,7 +137,7 @@ async function readShortcutDiagnostics(page) {
       save: document.querySelector('#save-button')?.textContent?.trim() || '',
       cancel: document.querySelector('#cancel-button')?.textContent?.trim() || '',
     },
-    targetStates: ['#paragraph-one', '#paragraph-two', '#save-button', '#cancel-button']
+    targetStates: ['#paragraph-one', '#paragraph-two', '#model-description', '#save-button', '#cancel-button']
       .map((selector) => ({
         selector,
         bilingual: document.querySelector(selector)?.querySelectorAll('.fluent-read-bilingual-content').length || 0,
@@ -154,6 +154,24 @@ async function pageState(page) {
   return page.evaluate(() => {
     const get = (selector) => document.querySelector(selector);
     const count = (selector) => get(selector)?.querySelectorAll('.fluent-read-bilingual-content').length || 0;
+    const clampState = (clampSelector, targetSelector) => {
+      const clamp = get(clampSelector);
+      const target = get(targetSelector);
+      const wrapper = target?.querySelector('.fluent-read-bilingual-content');
+      if (!clamp || !target) return null;
+      const clampRect = clamp.getBoundingClientRect();
+      const wrapperRect = wrapper?.getBoundingClientRect();
+      return {
+        bilingual: target.querySelectorAll('.fluent-read-bilingual-content').length,
+        lineClamp: getComputedStyle(clamp).webkitLineClamp,
+        inlineStyle: clamp.getAttribute('style'),
+        clientHeight: clamp.clientHeight,
+        scrollHeight: clamp.scrollHeight,
+        wrapperVisible: Boolean(wrapperRect && wrapperRect.width > 0 && wrapperRect.height > 0 &&
+          wrapperRect.top >= clampRect.top - 1 && wrapperRect.bottom <= clampRect.bottom + 1),
+        translationText: wrapper?.textContent?.trim() || '',
+      };
+    };
     const shadowParagraph = get('#shadow-host')?.shadowRoot?.querySelector('#shadow-paragraph');
     const button = get('#save-button');
     const cancelButton = get('#cancel-button');
@@ -163,6 +181,8 @@ async function pageState(page) {
       paragraphTwoText: get('#paragraph-two')?.textContent?.trim() || '',
       heading: count('h1'),
       dynamic: count('#dynamic-paragraph'),
+      staticClamp: clampState('#model-description-clamp', '#model-description'),
+      dynamicClamp: clampState('#dynamic-model-description-clamp', '#dynamic-paragraph'),
       shadow: shadowParagraph?.querySelectorAll('.fluent-read-bilingual-content').length || 0,
       header: count('header'),
       nav: count('nav'),
@@ -185,6 +205,13 @@ function assertTranslated(state, label) {
   if (!state.paragraphTwoText.includes('changed after full-page translation')) {
     throw new Error(`${label} 没有响应宿主页面的动态文本更新：${JSON.stringify(state)}`);
   }
+  for (const [name, clamp] of [['static', state.staticClamp], ['dynamic', state.dynamicClamp]]) {
+    if (!clamp || clamp.bilingual !== 1 || !clamp.wrapperVisible ||
+        !/[\u3400-\u9fff]/u.test(clamp.translationText) ||
+        !['none', 'unset'].includes(clamp.lineClamp)) {
+      throw new Error(`${label} ${name} line-clamp 译文仍被裁剪：${JSON.stringify(clamp)}`);
+    }
+  }
   if (state.header !== 0 || state.nav !== 0 || state.footer !== 0) throw new Error(`${label} 导航/页脚被误翻译`);
   if (state.buttonBilingualCount !== 0 || state.cancelButtonBilingualCount !== 0 ||
       !/[\u3400-\u9fff]/u.test(state.buttonText) || !/[\u3400-\u9fff]/u.test(state.cancelButtonText) ||
@@ -202,6 +229,11 @@ function assertRestored(state) {
   }
   if (!state.paragraphTwoText.includes('changed after full-page translation')) {
     throw new Error(`全文恢复覆盖了宿主页面更新：${JSON.stringify(state)}`);
+  }
+  for (const [name, clamp] of [['static', state.staticClamp], ['dynamic', state.dynamicClamp]]) {
+    if (!clamp || clamp.bilingual !== 0 || clamp.lineClamp !== '2' || clamp.inlineStyle !== null) {
+      throw new Error(`全文恢复后 ${name} line-clamp 样式没有精确还原：${JSON.stringify(clamp)}`);
+    }
   }
   if (state.buttonText !== '★Save changes' || state.cancelButtonText !== 'Cancel' ||
       !state.buttonIconPresent || state.buttonBilingualCount !== 0 || state.cancelButtonBilingualCount !== 0) {
@@ -271,10 +303,25 @@ async function main() {
     if (configResult.config?.service !== args.service) throw new Error(`翻译服务不符：预期 ${args.service}，实际 ${configResult.config?.service}`);
     await page.bringToFront();
 
+    const initialClamp = await page.evaluate(() => {
+      const clamp = document.querySelector('#model-description-clamp');
+      return clamp ? {
+        lineClamp: getComputedStyle(clamp).webkitLineClamp,
+        clientHeight: clamp.clientHeight,
+        scrollHeight: clamp.scrollHeight,
+        inlineStyle: clamp.getAttribute('style'),
+      } : null;
+    });
+    if (!initialClamp || initialClamp.lineClamp !== '2' || initialClamp.inlineStyle !== null ||
+        initialClamp.scrollHeight <= initialClamp.clientHeight) {
+      throw new Error(`line-clamp fixture 初始状态无效：${JSON.stringify(initialClamp)}`);
+    }
+
     await installShortcutDiagnostics(page);
     await toggleFullPage(page);
     try {
       await waitFor(page, () => document.querySelector('#paragraph-one .fluent-read-bilingual-content') &&
+        document.querySelector('#model-description .fluent-read-bilingual-content') &&
         document.querySelector('#shadow-host')?.shadowRoot?.querySelector('#shadow-paragraph .fluent-read-bilingual-content') &&
         /[\u3400-\u9fff]/u.test(document.querySelector('#save-button')?.textContent || '') &&
         /[\u3400-\u9fff]/u.test(document.querySelector('#cancel-button')?.textContent || ''), args.timeout);
@@ -286,10 +333,14 @@ async function main() {
     // 在会话已经启动后再插入节点，确认 MutationObserver 能把新内容纳入全文队列。
     await page.evaluate(() => {
       const container = document.querySelector('#dynamic-container');
+      const clamp = document.createElement('div');
+      clamp.id = 'dynamic-model-description-clamp';
+      clamp.className = 'model-description-clamp';
       const paragraph = document.createElement('p');
       paragraph.id = 'dynamic-paragraph';
-      paragraph.textContent = 'This paragraph is inserted after the full page session starts.';
-      container.appendChild(paragraph);
+      paragraph.textContent = 'This virtualized model description is inserted after the full page session starts. Its translated text must expand the newly mounted two-line clamp instead of remaining hidden beneath the source content.';
+      clamp.appendChild(paragraph);
+      container.appendChild(clamp);
     });
     await waitFor(page, () => document.querySelector('#dynamic-paragraph .fluent-read-bilingual-content'), args.timeout);
 
@@ -315,6 +366,7 @@ async function main() {
 
     await toggleFullPage(page);
     await waitFor(page, () => document.querySelector('#paragraph-one .fluent-read-bilingual-content') &&
+      document.querySelector('#model-description .fluent-read-bilingual-content') &&
       document.querySelector('#dynamic-paragraph .fluent-read-bilingual-content') &&
       document.querySelector('#shadow-host')?.shadowRoot?.querySelector('#shadow-paragraph .fluent-read-bilingual-content') &&
       /[\u3400-\u9fff]/u.test(document.querySelector('#save-button')?.textContent || '') &&

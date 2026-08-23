@@ -23,6 +23,7 @@ export async function runTranslationServiceConnectionTest(service: string): Prom
         summarySystemPrompt: '',
         serviceOverride: service,
         useCache: false,
+        requestTimeoutMs: 30_000,
     });
 
     if (!isNonEmptyText(result)) {
