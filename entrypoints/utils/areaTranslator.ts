@@ -21,6 +21,9 @@ export function mountAreaTranslator(ctx?: ContentScriptContext) {
     hostId: 'fluent-read-area-translator-container',
     component: AreaTranslator,
     zIndex: 2_147_483_647,
+    // The translated bitmap may contain pixels captured from cross-origin
+    // frames. Keep it out of the host page's script-visible shadow tree.
+    mode: 'closed',
   }).then((ui) => {
     if (requestId !== mountRequestId || config.selectionAreaEnabled !== true) {
       ui.remove();

@@ -2,6 +2,8 @@ import { method } from "../utils/constant";
 import { config } from "@/entrypoints/utils/config";
 import CryptoJS from 'crypto-js';
 import {getTranslationLanguages} from "@/entrypoints/utils/translationLanguage";
+import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 interface YoudaoResponse {
   errorCode: string;
@@ -116,7 +118,7 @@ async function youdao(message: any): Promise<string> {
   });
 
   try {
-    const response = await fetch('https://openapi.youdao.com/api', {
+    const response = await runtimeFetch('https://openapi.youdao.com/api', {
       method: method.POST,
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
@@ -125,10 +127,10 @@ async function youdao(message: any): Promise<string> {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      throw createHttpStatusError(response, '有道翻译请求失败');
     }
 
-    const result: YoudaoResponse = await response.json();
+    const result = await readJsonResponse<YoudaoResponse>(response, '有道翻译返回的不是有效 JSON');
 
     // 处理错误码
     if (result.errorCode !== '0') {
@@ -156,7 +158,7 @@ async function youdao(message: any): Promise<string> {
         '412': '长请求过于频繁'
       };
       
-      const errorMsg = errorMessages[result.errorCode] || `未知错误(${result.errorCode})`;
+      const errorMsg = errorMessages[result.errorCode] || '未知错误';
       throw new Error(`有道翻译API错误: ${errorMsg}`);
     }
 
@@ -168,7 +170,6 @@ async function youdao(message: any): Promise<string> {
     }
 
   } catch (error: any) {
-    console.error('有道翻译错误:', error);
     throw new Error(`翻译失败: ${error.message || error}`);
   }
 }

@@ -3,14 +3,24 @@ import { describe, expect, it } from 'vitest';
 import {
     Config,
     DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY,
+    DEFAULT_SELECTION_TRANSLATOR_DELAY,
     MOUSE_HOVER_TRANSLATION_DELAY_MAX,
     MOUSE_HOVER_TRANSLATION_DELAY_MIN,
+    SELECTION_TRANSLATOR_DELAY_MAX,
+    SELECTION_TRANSLATOR_DELAY_MIN,
     normalizeConfig,
 } from '@/entrypoints/utils/model';
 import { getMimoEndpoint, MIMO_ENDPOINTS, MINIMAX_ENDPOINTS, tongyiTokenPlanUrl, urls } from '@/entrypoints/utils/constant';
 import { customModelString, defaultModelIds, defaultModels, defaultOption, models, options, resolveConfiguredModel, services, servicesType } from '@/entrypoints/utils/option';
 
 describe('AI 模型编号列表', () => {
+    it('API 凭据跨重启持久化默认关闭，且只接受显式布尔 true', () => {
+        expect(new Config().persistCredentials).toBe(false);
+        expect(normalizeConfig({}).persistCredentials).toBe(false);
+        expect(normalizeConfig({persistCredentials: true}).persistCredentials).toBe(true);
+        expect(normalizeConfig({persistCredentials: 'true'}).persistCredentials).toBe(false);
+    });
+
     it('AI 智能上下文默认关闭，并能从旧配置平滑补齐', () => {
         expect(new Config().enableAIContext).toBe(false);
         expect(normalizeConfig({}).enableAIContext).toBe(false);
@@ -164,12 +174,12 @@ describe('全文翻译范围配置', () => {
 });
 
 describe('翻译进度面板配置', () => {
-    it('默认开启，并严格保留布尔设置', () => {
-        expect(new Config().translationProgressPanelEnabled).toBe(true);
-        expect(normalizeConfig({}).translationProgressPanelEnabled).toBe(true);
+    it('默认关闭，并保留用户主动启用的状态', () => {
+        expect(new Config().translationProgressPanelEnabled).toBe(false);
+        expect(normalizeConfig({}).translationProgressPanelEnabled).toBe(false);
         expect(normalizeConfig({translationProgressPanelEnabled: true}).translationProgressPanelEnabled).toBe(true);
         expect(normalizeConfig({translationProgressPanelEnabled: false}).translationProgressPanelEnabled).toBe(false);
-        expect(normalizeConfig({translationProgressPanelEnabled: 'false'}).translationProgressPanelEnabled).toBe(true);
+        expect(normalizeConfig({translationProgressPanelEnabled: 'false'}).translationProgressPanelEnabled).toBe(false);
     });
 
     it('迁移旧 translationStatus 布尔值并移除旧字段', () => {
@@ -198,6 +208,30 @@ describe('鼠标悬浮翻译延迟配置', () => {
             .toBe(MOUSE_HOVER_TRANSLATION_DELAY_MAX);
         expect(normalizeConfig({mouseHoverTranslationDelay: 'invalid'}).mouseHoverTranslationDelay)
             .toBe(DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY);
+    });
+});
+
+describe('划词翻译显示延迟配置', () => {
+    it('默认等待 300ms，并归一化用户设置', () => {
+        expect(new Config().selectionTranslatorDelay).toBe(DEFAULT_SELECTION_TRANSLATOR_DELAY);
+        expect(normalizeConfig({}).selectionTranslatorDelay).toBe(DEFAULT_SELECTION_TRANSLATOR_DELAY);
+        expect(normalizeConfig({selectionTranslatorDelay: 326}).selectionTranslatorDelay).toBe(350);
+        expect(normalizeConfig({selectionTranslatorDelay: '150'}).selectionTranslatorDelay).toBe(150);
+    });
+
+    it('允许显式立即显示，并限制越界或非法值', () => {
+        expect(normalizeConfig({selectionTranslatorDelay: 0}).selectionTranslatorDelay)
+            .toBe(SELECTION_TRANSLATOR_DELAY_MIN);
+        expect(normalizeConfig({selectionTranslatorDelay: -100}).selectionTranslatorDelay)
+            .toBe(SELECTION_TRANSLATOR_DELAY_MIN);
+        expect(normalizeConfig({selectionTranslatorDelay: 99999}).selectionTranslatorDelay)
+            .toBe(SELECTION_TRANSLATOR_DELAY_MAX);
+        expect(normalizeConfig({selectionTranslatorDelay: 'invalid'}).selectionTranslatorDelay)
+            .toBe(DEFAULT_SELECTION_TRANSLATOR_DELAY);
+        for (const value of [null, false, '', '   ']) {
+            expect(normalizeConfig({selectionTranslatorDelay: value}).selectionTranslatorDelay)
+                .toBe(DEFAULT_SELECTION_TRANSLATOR_DELAY);
+        }
     });
 });
 
@@ -345,6 +379,53 @@ describe('划词翻译配置兼容', () => {
         });
     });
 
+    it('将划词触发方式规范化为互斥触发选项，并兼容旧快捷键配置', () => {
+        expect(new Config().selectionTranslatorTrigger).toBe('icon');
+        expect(new Config().selectionTranslatorHotkey).toBe('none');
+        expect(new Config().customSelectionTranslatorHotkey).toBe('');
+        expect(normalizeConfig({selectionTranslatorTrigger: 'Control'})).toMatchObject({
+            selectionTranslatorTrigger: 'Control',
+            selectionTranslatorHotkey: 'Control',
+        });
+        expect(normalizeConfig({selectionTranslatorTrigger: 'icon', selectionTranslatorHotkey: 'Control'})).toMatchObject({
+            selectionTranslatorTrigger: 'icon',
+            selectionTranslatorHotkey: 'none',
+        });
+        expect(normalizeConfig({selectionTranslatorHotkey: 'Control'})).toMatchObject({
+            selectionTranslatorTrigger: 'Control',
+            selectionTranslatorHotkey: 'Control',
+        });
+        expect(normalizeConfig({selectionTranslatorTrigger: 'custom', selectionTranslatorHotkey: 'custom', customSelectionTranslatorHotkey: 'Ctrl+Shift+Y'})).toMatchObject({
+            selectionTranslatorTrigger: 'custom',
+            selectionTranslatorHotkey: 'custom',
+            customSelectionTranslatorHotkey: 'Ctrl+Shift+Y',
+        });
+        expect(normalizeConfig({selectionTranslatorTrigger: 'invalid', selectionTranslatorHotkey: 'invalid', customSelectionTranslatorHotkey: 42})).toMatchObject({
+            selectionTranslatorTrigger: 'icon',
+            selectionTranslatorHotkey: 'none',
+            customSelectionTranslatorHotkey: '',
+        });
+    });
+
+    it('保留三种视觉触发方式，并为每个预设快捷键镜像字段', () => {
+        for (const trigger of ['direct', 'icon', 'dot']) {
+            expect(normalizeConfig({selectionTranslatorTrigger: trigger, selectionTranslatorHotkey: 'Control'})).toMatchObject({
+                selectionTranslatorTrigger: trigger,
+                selectionTranslatorHotkey: 'none',
+            });
+            expect(normalizeConfig({selectionTranslatorTrigger: trigger, selectionTranslatorHotkey: 'none'})).toMatchObject({
+                selectionTranslatorTrigger: trigger,
+                selectionTranslatorHotkey: 'none',
+            });
+        }
+        for (const trigger of ['Alt', 'Shift']) {
+            expect(normalizeConfig({selectionTranslatorTrigger: trigger})).toMatchObject({
+                selectionTranslatorTrigger: trigger,
+                selectionTranslatorHotkey: trigger,
+            });
+        }
+    });
+
     it('normalizes and persists the optional TTS voice fallback order', () => {
         expect(new Config().selectionTtsVoices).toEqual([]);
         expect(normalizeConfig({selectionTtsVoices: [
@@ -356,6 +437,12 @@ describe('划词翻译配置兼容', () => {
             'en-US-JennyNeural',
             'zh-CN-XiaoyiNeural',
         ]);
+    });
+
+    it('keeps the vocabulary book beta opt-in and normalizes invalid values', () => {
+        expect(new Config().vocabularyBookEnabled).toBe(false);
+        expect(normalizeConfig({vocabularyBookEnabled: true}).vocabularyBookEnabled).toBe(true);
+        expect(normalizeConfig({vocabularyBookEnabled: 'yes'}).vocabularyBookEnabled).toBe(false);
     });
 });
 

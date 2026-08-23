@@ -1,6 +1,6 @@
 import { options } from "@/entrypoints/utils/option";
 import { config } from "@/entrypoints/utils/config";
-import {removeTranslationTruncation} from "@/entrypoints/translation-core/public";
+import {ensureTranslationTruncationLayout} from "@/entrypoints/main/translationLayout";
 
 /**
  * 译文允许保留的内联元素。
@@ -92,7 +92,7 @@ export function appendBilingualTranslation(node: HTMLElement, text: string): HTM
     // 当作可信 HTML 直接写回网页。
     const fragment = createSafeTranslationFragment(text);
     content.appendChild(fragment);
-    removeTranslationTruncation(node);
+    ensureTranslationTruncationLayout(node);
     node.appendChild(content);
     return content;
 }

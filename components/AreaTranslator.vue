@@ -111,6 +111,7 @@ function cancelSelection(): void {
 }
 
 function handleKeydown(event: KeyboardEvent): void {
+  if (!event.isTrusted) return;
   if (event.key === 'Escape' && (isSelecting.value || phase.value !== 'idle')) {
     event.preventDefault();
     cancelSelection();
@@ -123,6 +124,7 @@ function handleKeydown(event: KeyboardEvent): void {
 }
 
 function handleKeyup(event: KeyboardEvent): void {
+  if (!event.isTrusted) return;
   if (!isAreaZKey(event)) return;
   areaHotkeyPressed = false;
   if (isSelecting.value && !pointerDown) finishSelection();
@@ -133,6 +135,7 @@ function pointFromEvent(event: PointerEvent): AreaPoint {
 }
 
 function handlePointerdown(event: PointerEvent): void {
+  if (!event.isTrusted) return;
   if (!areaHotkeyPressed || event.button !== 0 || !isEnabled() || isInsideExtensionUi(event.target) || isEditableTarget(event.target)) return;
   event.preventDefault();
   event.stopPropagation();
@@ -147,6 +150,7 @@ function handlePointerdown(event: PointerEvent): void {
 }
 
 function handlePointermove(event: PointerEvent): void {
+  if (!event.isTrusted) return;
   if (!isSelecting.value || !startPoint) return;
   event.preventDefault();
   event.stopPropagation();
@@ -154,6 +158,7 @@ function handlePointermove(event: PointerEvent): void {
 }
 
 function handlePointerup(event: PointerEvent): void {
+  if (!event.isTrusted) return;
   if (!isSelecting.value) return;
   event.preventDefault();
   event.stopPropagation();
@@ -161,7 +166,8 @@ function handlePointerup(event: PointerEvent): void {
   finishSelection();
 }
 
-function handlePointercancel(): void {
+function handlePointercancel(event: PointerEvent): void {
+  if (!event.isTrusted) return;
   if (isSelecting.value) cancelSelection();
 }
 

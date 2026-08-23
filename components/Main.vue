@@ -108,7 +108,21 @@
   </div>
   </section>
 
-  <div v-if="!config.on && !['settings-general', 'settings-image-translation', 'settings-translation-center'].includes(props.activeSection)" class="disabled-section">
+  <section v-show="props.activeSection === 'settings-sites'" id="settings-sites" class="settings-section site-settings-section">
+    <el-row class="settings-control-row" data-setting="global-auto-translate">
+      <el-col :span="20" class="settings-control-label site-auto-translate-label lightblue rounded-corner">
+        <span class="popup-text popup-vertical-left">所有网站自动翻译</span>
+        <small>打开后，每个支持的网页都会在加载完成时自动开始翻译；关闭后仍会保留下面的网站名单。</small>
+      </el-col>
+      <el-col :span="4" class="settings-control-field flex-end">
+        <el-switch v-model="config.autoTranslate" class="settings-toggle" aria-label="所有网站自动翻译" />
+      </el-col>
+    </el-row>
+
+    <AlwaysTranslateSites v-model="config.alwaysTranslateDomains" />
+  </section>
+
+  <div v-if="!config.on && !['settings-general', 'settings-image-translation', 'settings-translation-center', 'settings-sites'].includes(props.activeSection)" class="disabled-section">
     <strong>插件当前已关闭</strong>
     <p>请先在“通用设置”中启用插件，再调整该分类。</p>
   </div>
@@ -294,7 +308,7 @@
           </span>
         </el-tooltip>
       </el-col>
-      <el-col :span="10" class="settings-control-field flex-end hover-delay-field">
+      <el-col :span="10" class="settings-control-field flex-end translation-delay-field">
         <el-input-number
           v-model="config.mouseHoverTranslationDelay"
           aria-label="悬浮翻译延迟"
@@ -396,7 +410,7 @@
     <!-- 划词翻译模式选择 -->
     <el-row v-if="config.on" class="settings-control-row">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="选中文本后显示翻译入口；不再依赖鼠标悬停，可选择直接弹出、显示图标或显示小点" placement="top-start" :show-after="500">
+        <el-tooltip class="box-item" effect="dark" content="选中文本后显示翻译入口；可选择直接弹出、图标、小点、预设快捷键或自定义快捷键。" placement="top-start" :show-after="500">
       <span class="popup-text popup-vertical-left">
         划词翻译
         <el-icon class="icon-margin">
@@ -413,16 +427,54 @@
         </el-select>
       </el-col>
     </el-row>
-    <el-row v-if="config.on && config.selectionTranslatorMode !== 'disabled'" class="settings-control-row">
+    <el-row v-if="config.on && config.selectionTranslatorMode !== 'disabled'" class="settings-control-row" :class="{ 'custom-hotkey-row': config.selectionTranslatorTrigger === 'custom' }">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
-        <span class="popup-text popup-vertical-left">划词触发方式</span>
+        <el-tooltip class="box-item" effect="dark" content="快捷键与直接弹出、显示图标和显示小点是并列的触发方式；选择快捷键后，选中文字时不会显示图标或小点。" placement="top-start" :show-after="500">
+          <span class="popup-text popup-vertical-left">
+            划词触发方式
+            <el-icon class="icon-margin"><InfoFilled /></el-icon>
+          </span>
+        </el-tooltip>
       </el-col>
       <el-col :span="10" class="settings-control-field flex-end">
-        <el-select v-model="config.selectionTranslatorTrigger" aria-label="划词翻译触发方式" placeholder="选择触发方式" size="small" style="width: 100%">
-          <el-option label="直接弹出" value="direct" />
-          <el-option label="显示图标" value="icon" />
-          <el-option label="显示小点" value="dot" />
-        </el-select>
+        <div class="hotkey-config">
+          <el-select v-model="config.selectionTranslatorTrigger" aria-label="划词翻译触发方式" placeholder="选择触发方式" size="small" style="width: 100%" @change="handleSelectionTriggerChange">
+            <el-option v-for="item in options.selectionTranslatorTriggers" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+          <div v-if="config.selectionTranslatorTrigger === 'custom'" class="custom-hotkey-display">
+            <span class="hotkey-text" v-if="config.customSelectionTranslatorHotkey">
+              {{ getCustomSelectionHotkeyDisplayName() }}
+            </span>
+            <span class="hotkey-text placeholder-text" v-else>
+              点击设置自定义快捷键
+            </span>
+            <el-button size="small" type="text" @click="openCustomSelectionHotkeyDialog" class="edit-button">
+              <el-icon><Edit /></el-icon>
+            </el-button>
+          </div>
+        </div>
+      </el-col>
+    </el-row>
+    <el-row v-if="config.on && config.selectionTranslatorMode !== 'disabled'" class="settings-control-row">
+      <el-col :span="14" class="settings-control-label lightblue rounded-corner">
+        <el-tooltip class="box-item" effect="dark" content="从选区稳定后开始计时，再显示图标、小点或翻译面板；快捷键在等待结束后按下会立即显示。" placement="top-start" :show-after="500">
+          <span class="popup-text popup-vertical-left">
+            划词显示延迟
+            <el-icon class="icon-margin"><InfoFilled /></el-icon>
+          </span>
+        </el-tooltip>
+      </el-col>
+      <el-col :span="10" class="settings-control-field flex-end translation-delay-field">
+        <el-input-number
+          v-model="config.selectionTranslatorDelay"
+          aria-label="划词翻译显示延迟"
+          :min="SELECTION_TRANSLATOR_DELAY_MIN"
+          :max="SELECTION_TRANSLATOR_DELAY_MAX"
+          :step="SELECTION_TRANSLATOR_DELAY_STEP"
+          controls-position="right"
+          @change="handleSelectionTranslatorDelayChange"
+        />
+        <span class="input-suffix">ms</span>
       </el-col>
     </el-row>
     </section>
@@ -430,7 +482,6 @@
     <!-- token -->
     <!-- 高级选项-->
     <section v-show="props.activeSection === 'settings-advanced'" id="settings-advanced" class="settings-section">
-
         <!-- 主题设置 -->
         <el-row class="settings-control-row">
           <el-col :span="12" class="settings-control-label lightblue rounded-corner">
@@ -652,12 +703,19 @@
     </section>
 
     <section v-show="props.activeSection === 'settings-data'" id="settings-data" class="settings-section data-section">
-        <!-- 配置导入导出 -->
-        <el-row class="margin-bottom margin-left-2em">
-          <el-col :span="24">
-            <el-divider content-position="center">配置管理</el-divider>
-          </el-col>
-        </el-row>
+        <section class="credential-persistence-panel" aria-label="API 凭据存储">
+          <div class="credential-persistence-copy">
+            <strong>跨浏览器重启保存 API 凭据</strong>
+            <p>默认仅保存在当前浏览器会话，关闭浏览器后清除。开启后会以明文写入扩展本地存储；本机其他可读取浏览器配置或诊断数据的程序可能看到这些凭据。</p>
+          </div>
+          <el-switch
+            :model-value="config.persistCredentials"
+            :loading="credentialPersistenceBusy"
+            aria-label="跨浏览器重启保存 API 凭据"
+            data-testid="persist-credentials-switch"
+            @change="setCredentialPersistence"
+          />
+        </section>
 
         <section class="config-history-panel" aria-label="最近配置">
           <div class="config-history-heading">
@@ -725,6 +783,7 @@
             </el-button>
           </el-col>
         </el-row>
+        <p class="config-transfer-note">导出会移除专用 API Key、Secret 与令牌字段；自定义请求体、代理和端点中的内嵌凭据无法自动识别，请在分享前检查。导入旧版配置时，专用凭据会迁移到当前浏览器会话。</p>
 
         <!-- 导出配置 -->
         <el-row v-if="showExportBox" class="margin-bottom margin-left-2em">
@@ -761,6 +820,12 @@
     @confirm="handleCustomMouseHotkeyConfirm"
     @cancel="handleCustomMouseHotkeyCancel"
   />
+  <CustomHotkeyInput
+    v-model="showCustomSelectionHotkeyDialog"
+    :current-value="config.customSelectionTranslatorHotkey"
+    @confirm="handleCustomSelectionHotkeyConfirm"
+    @cancel="handleCustomSelectionHotkeyCancel"
+  />
 
 
 
@@ -776,9 +841,13 @@ import {
   MOUSE_HOVER_TRANSLATION_DELAY_MAX,
   MOUSE_HOVER_TRANSLATION_DELAY_MIN,
   MOUSE_HOVER_TRANSLATION_DELAY_STEP,
+  SELECTION_TRANSLATOR_DELAY_MAX,
+  SELECTION_TRANSLATOR_DELAY_MIN,
+  SELECTION_TRANSLATOR_DELAY_STEP,
   VIDEO_SUBTITLE_FONT_SIZE_OPTIONS,
   normalizeConfig,
   normalizeMouseHoverTranslationDelay,
+  normalizeSelectionTranslatorDelay,
 } from "@/entrypoints/utils/model";
 import { InfoFilled, Refresh, Edit, Upload, Download } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -788,8 +857,9 @@ const CustomHotkeyInput = defineAsyncComponent(() => import('@/components/Custom
 import ServiceCatalog from '@/components/ServiceCatalog.vue';
 import ServiceConfiguration from '@/components/ServiceConfiguration.vue';
 import TranslationCenter from '@/components/TranslationCenter.vue';
+import AlwaysTranslateSites from '@/components/AlwaysTranslateSites.vue';
 import { parseHotkey } from '@/entrypoints/utils/hotkey';
-import { isConfigImportValid, sanitizeConfigForExport } from '@/entrypoints/utils/config-transfer';
+import { isConfigImportValid, prepareConfigForImport, sanitizeConfigForExport } from '@/entrypoints/utils/config-transfer';
 import { getApiKeyRequirementKey, getMissingCredentialMessage, isApiKeyRequired } from '@/entrypoints/utils/configValidation';
 import {
   IMAGE_OCR_LANGUAGE_PACKS,
@@ -804,7 +874,6 @@ import {
   configReady,
   getConfigHistorySnapshot,
   requestConfigHistoryAction,
-  saveConfig,
   requestConfigSave,
   subscribeConfigHistory,
   subscribeConfig,
@@ -914,7 +983,6 @@ watch(config, (newValue) => {
 function persistOnPageExit() {
   if (!hydrated || pageExitSaveStarted) return;
   pageExitSaveStarted = true;
-  void saveConfig(config.value).catch((error) => console.warn('[FluentRead] 设置页关闭前本地保存失败', error));
   void persistConfig(config.value).catch((error) => console.warn('[FluentRead] 设置页关闭前后台保存失败', error));
 }
 
@@ -1142,6 +1210,7 @@ const handlePluginStateChange = (val: boolean) => {
 // 自定义快捷键相关
 const showCustomHotkeyDialog = ref(false);
 const showCustomMouseHotkeyDialog = ref(false);
+const showCustomSelectionHotkeyDialog = ref(false);
 
 // 处理快捷键选择变化
 const handleHotkeyChange = (value: string) => {
@@ -1206,6 +1275,51 @@ const handleMouseHotkeyChange = (value: string) => {
   }
 };
 
+// 处理划词翻译触发方式选择变化
+const handleSelectionTriggerChange = (value: string) => {
+  config.value.selectionTranslatorHotkey = ['Control', 'Alt', 'Shift', 'custom'].includes(value) ? value : 'none';
+  if (value === 'custom' && !config.value.customSelectionTranslatorHotkey) {
+    setTimeout(() => {
+      openCustomSelectionHotkeyDialog();
+    }, 100);
+  }
+};
+
+// 打开自定义划词翻译快捷键对话框
+const openCustomSelectionHotkeyDialog = () => {
+  showCustomSelectionHotkeyDialog.value = true;
+};
+
+// 确认自定义划词翻译快捷键
+const handleCustomSelectionHotkeyConfirm = (hotkey: string) => {
+  config.value.customSelectionTranslatorHotkey = hotkey;
+  config.value.selectionTranslatorTrigger = 'custom';
+  config.value.selectionTranslatorHotkey = 'custom';
+
+  ElMessage({
+    message: hotkey === 'none' ? '已禁用划词翻译快捷键' : `划词翻译快捷键已设置为: ${getCustomSelectionHotkeyDisplayName()}`,
+    type: 'success',
+    duration: 2000,
+  });
+};
+
+// 取消自定义划词翻译快捷键
+const handleCustomSelectionHotkeyCancel = () => {
+  if (!config.value.customSelectionTranslatorHotkey) {
+    config.value.selectionTranslatorTrigger = 'icon';
+    config.value.selectionTranslatorHotkey = 'none';
+  }
+};
+
+// 获取自定义划词翻译快捷键显示名称
+const getCustomSelectionHotkeyDisplayName = () => {
+  if (!config.value.customSelectionTranslatorHotkey) return '';
+  if (config.value.customSelectionTranslatorHotkey === 'none') return '已禁用';
+
+  const parsed = parseHotkey(config.value.customSelectionTranslatorHotkey);
+  return parsed.isValid ? parsed.displayName : config.value.customSelectionTranslatorHotkey;
+};
+
 // 打开自定义鼠标悬浮快捷键对话框
 const openCustomMouseHotkeyDialog = () => {
   showCustomMouseHotkeyDialog.value = true;
@@ -1233,6 +1347,10 @@ const handleCustomMouseHotkeyCancel = () => {
 
 const handleMouseHoverTranslationDelayChange = (value: number | undefined) => {
   config.value.mouseHoverTranslationDelay = normalizeMouseHoverTranslationDelay(value);
+};
+
+const handleSelectionTranslatorDelayChange = (value: number | undefined) => {
+  config.value.selectionTranslatorDelay = normalizeSelectionTranslatorDelay(value);
 };
 
 // 获取自定义鼠标悬浮快捷键显示名称
@@ -1272,6 +1390,48 @@ const showExportBox = ref(false);
 const exportData = ref('');
 const showImportBox = ref(false);
 const importData = ref('');
+const credentialPersistenceBusy = ref(false);
+
+const setCredentialPersistence = async (value: string | number | boolean) => {
+  const enabled = value === true;
+  if (enabled === config.value.persistCredentials || credentialPersistenceBusy.value) return;
+
+  if (enabled) {
+    try {
+      await ElMessageBox.confirm(
+        '开启后，API Key、访问令牌及其他服务凭据会以明文写入扩展本地存储，并在浏览器重启后继续保留。仅应在受信任的个人设备上开启。',
+        '保存 API 凭据',
+        {
+          confirmButtonText: '了解风险并开启',
+          cancelButtonText: '取消',
+          type: 'warning',
+        },
+      );
+    } catch {
+      return;
+    }
+  }
+
+  credentialPersistenceBusy.value = true;
+  try {
+    const nextConfig = normalizeConfig({...config.value, persistCredentials: enabled});
+    // 后台只有在 session 写入并读回成功后，才会清理关闭开关前的 local 凭据。
+    await persistConfig(nextConfig);
+    applyingExternalConfig = true;
+    try {
+      Object.assign(config.value, nextConfig);
+      lastSerialized = JSON.stringify(nextConfig);
+    } finally {
+      applyingExternalConfig = false;
+    }
+    ElMessage.success(enabled ? '已允许跨浏览器重启保存 API 凭据' : 'API 凭据现仅保存在当前浏览器会话');
+  } catch (error) {
+    ElMessage.error(`凭据存储设置失败：${error instanceof Error ? error.message : '请稍后重试'}`);
+  } finally {
+    credentialPersistenceBusy.value = false;
+  }
+};
+
 const configHistory = ref<ConfigHistoryState>(getConfigHistorySnapshot());
 const historyBusy = ref(false);
 const historyEntries = computed(() => [...configHistory.value.entries].reverse());
@@ -1294,7 +1454,8 @@ const formatHistoryTime = (savedAt: string): string => {
 const historySummary = (entry: ConfigHistoryEntry): string => {
   const target = options.to.find((item: any) => item.value === entry.config.to)?.label || entry.config.to;
   const service = options.services.find((item: any) => item.value === entry.config.service)?.label || entry.config.service;
-  return `${target} · ${service}`;
+  const siteCount = entry.config.alwaysTranslateDomains?.length ?? 0;
+  return `${target} · ${service} · 始终翻译 ${siteCount} 个网站`;
 };
 
 void configHistoryReady.then(() => {
@@ -1376,7 +1537,7 @@ const saveImport = async () => {
       });
       return;
     }
-    await persistConfig(normalizeConfig(parsedConfig));
+    await persistConfig(prepareConfigForImport(parsedConfig, runtimeConfig));
     ElMessage({
       message: '配置导入成功!',
       type: 'success',
@@ -1398,6 +1559,39 @@ const saveImport = async () => {
 
 .settings-section {
   min-width: 0;
+}
+
+.credential-persistence-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  border: 1px solid #f0d2dc;
+  border-radius: 16px;
+  background: #fff8fa;
+}
+.credential-persistence-copy { min-width: 0; }
+.credential-persistence-copy strong { color: var(--ink); font-size: 13px; }
+.credential-persistence-copy p,
+.config-transfer-note { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.config-transfer-note { margin: -5px 2em 16px; }
+
+.site-settings-section {
+  padding: 0 12px 12px;
+}
+
+.site-auto-translate-label {
+  flex-direction: column;
+  align-items: flex-start !important;
+  gap: 4px;
+}
+
+.site-auto-translate-label small {
+  color: var(--muted, #737c8f);
+  font-size: 10px;
+  line-height: 1.45;
 }
 
 .config-history-panel {
@@ -1715,12 +1909,12 @@ const saveImport = async () => {
   justify-content: flex-end;
 }
 
-.hover-delay-field {
+.translation-delay-field {
   align-items: center;
   gap: 6px;
 }
 
-.hover-delay-field :deep(.el-input-number) {
+.translation-delay-field :deep(.el-input-number) {
   width: 100%;
 }
 

@@ -8,7 +8,7 @@
 
 一款开源浏览器翻译插件，提供网页双语阅读、即时划词翻译和灵活的翻译服务配置。
 
-[![版本](https://img.shields.io/badge/version-0.0.30-6d5dfc?style=flat-square)](https://github.com/Bistutu/FluentRead/releases)
+[![版本](https://img.shields.io/badge/version-0.0.31-6d5dfc?style=flat-square)](https://github.com/Bistutu/FluentRead/releases)
 [![许可证：GPL v3](https://img.shields.io/badge/license-GPL--3.0-22a06b?style=flat-square)](../LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/Bistutu/FluentRead?style=flat-square)](https://github.com/Bistutu/FluentRead)
 
@@ -30,7 +30,7 @@
 | --- | --- |
 | **网页双语阅读**：原文与译文同时保留，适合学习、研究和技术阅读。 | **多种翻译服务**：支持微软、谷歌、DeepL、DeepLX、Chrome 内置翻译，以及 OpenAI、DeepSeek、Gemini、Claude、Kimi、Ollama 兼容接口等 AI 服务。 |
 | **全文翻译**：通过悬浮球、右键菜单或自定义快捷键翻译和恢复网页，并可选择按阅读进度或立即翻译当前已加载内容到网页底部；不会自动滚动，后续新增内容仍会继续翻译。 | **自定义模型与接口**：在设置页配置兼容 API、模型、提示词、请求体、代理和密钥。 |
-| **划词翻译**：选中文本后打开聚焦的翻译卡片，支持复制和朗读。 | **本地优先**：偏好设置和翻译缓存保存在浏览器本地，API 密钥由插件在本地使用。 |
+| **划词翻译**：选中文本后打开聚焦的翻译卡片，支持复制和朗读。 | **隐私控制**：设置和缓存位于扩展私有存储；API 凭据默认仅保留当前会话，云端翻译会把文本发送给所选服务。 |
 | **悬浮与手势触发**：支持鼠标悬停、双击、长按、中键和触屏手势。 | **阅读体验可调**：可以调整译文样式、主题、动画、缓存、并发，以及全文和划词翻译的独立快捷键。 |
 
 ### 还包括
@@ -38,6 +38,7 @@
 - **免费翻译服务**：内置微软 → DeepLX → 谷歌的回退链；仅在服务报错或返回空结果时进入下一项。
 - **图片翻译（Beta）**：使用本地 OCR 识别图片文字，按需下载语言包，并用可恢复的覆盖层显示译文。
 - **翻译缓存**：按服务、模型、语言对和请求配置复用近期结果。
+- **数据说明**：查看[数据与隐私](https://fluent.thinkstu.com/guide/privacy)，了解各功能发送和保存哪些数据。
 - **跨浏览器支持**：基于 WXT 和 Manifest V3 构建 Chromium 浏览器与 Firefox 版本。
 
 ## 截图

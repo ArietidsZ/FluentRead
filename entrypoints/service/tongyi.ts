@@ -3,6 +3,8 @@ import {method, tongyiTokenPlanUrl, urls} from "../utils/constant";
 import {tongyiMsgTemplate} from "../utils/template";
 import {config} from "@/entrypoints/utils/config";
 import {appendOptionalBearer} from './auth';
+import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 // 文档：https://help.aliyun.com/zh/dashscope/developer-reference/tongyi-thousand-questions-metering-and-billing
 async function tongyi(message: any) {
@@ -19,18 +21,17 @@ async function tongyi(message: any) {
         : urls[services.tongyi];
     const url: string = config.proxy[service] || officialUrl;
 
-    const resp = await fetch(url, {
+    const resp = await runtimeFetch(url, {
         method: method.POST,
         headers: headers,
         body: tongyiMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride)
     });
 
     if (resp.ok) {
-        let result = await resp.json();
+        const result = await readJsonResponse<any>(resp, '通义千问返回的不是有效 JSON');
         return result.choices[0].message.content;
     } else {
-        console.log(resp)
-        throw new Error(`翻译失败: ${resp.status} ${resp.statusText} body: ${await resp.text()}`);
+        throw createHttpStatusError(resp, '翻译失败');
     }
 }
 

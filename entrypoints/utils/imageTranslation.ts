@@ -51,14 +51,16 @@ function ensureImageOverlayRoot(): HTMLDivElement {
         'pointer-events: none !important',
         'z-index: 2147483646 !important',
     ].join(';');
-    const shadow = host.attachShadow({ mode: 'open' });
+    // The canvas can contain pixels fetched from a cross-origin image. Do not
+    // expose the extension-owned controls or rendered bitmap to page scripts.
+    const shadow = host.attachShadow({ mode: 'closed' });
     const style = document.createElement('style');
     style.textContent = `
       :host { all: initial; position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 2147483646; }
       .${IMAGE_TRANSLATION_OVERLAY} { position: fixed !important; overflow: hidden !important; pointer-events: none !important; box-sizing: border-box !important; }
       .${IMAGE_TRANSLATION_OVERLAY} canvas { position: absolute !important; inset: 0 !important; display: none; width: 100%; height: 100%; pointer-events: none; }
       .${IMAGE_TRANSLATION_BUTTON} {
-        position: absolute !important; right: 8px !important; top: 8px !important; z-index: 1 !important;
+        position: absolute !important; left: 8px !important; bottom: 8px !important; z-index: 1 !important;
         width: 26px !important; height: 26px !important; padding: 0 !important;
         border: 1px solid rgba(255,255,255,.7) !important; border-radius: 999px !important;
         background: rgba(20,20,20,.68) !important; color: rgba(255,255,255,.95) !important;
@@ -149,10 +151,12 @@ function createState(image: HTMLImageElement): ImageTranslationState {
     button.setAttribute('aria-label', '翻译图片');
     button.addEventListener('pointerenter', event => event.stopPropagation());
     button.addEventListener('pointerdown', event => {
+        if (!event.isTrusted) return;
         event.preventDefault();
         event.stopPropagation();
     });
     button.addEventListener('click', event => {
+        if (!event.isTrusted) return;
         event.preventDefault();
         event.stopPropagation();
         const state = states.get(image);
@@ -390,12 +394,14 @@ async function translateImage(state: ImageTranslationState): Promise<void> {
 }
 
 function handlePointerOver(event: PointerEvent): void {
+    if (!event.isTrusted) return;
     if (event.pointerType === 'touch') return;
     const image = event.target instanceof HTMLImageElement ? event.target : null;
     if (image) showImageButton(image);
 }
 
 function handlePointerOut(event: PointerEvent): void {
+    if (!event.isTrusted) return;
     const image = event.target instanceof HTMLImageElement ? event.target : null;
     if (image && event.relatedTarget instanceof Node && image.contains(event.relatedTarget)) return;
     if (image) hideImageButton(image);

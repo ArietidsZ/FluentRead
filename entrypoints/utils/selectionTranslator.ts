@@ -30,6 +30,9 @@ export function mountSelectionTranslator(ctx?: ContentScriptContext) {
     hostId: 'fluent-read-selection-translator-container',
     component: SelectionTranslator,
     zIndex: 2_147_483_646,
+    // The card exposes copy, speech, and translation actions. A closed root
+    // prevents the host page from invoking them with synthetic DOM events.
+    mode: 'closed',
   }).then((ui) => {
     if (requestId !== mountRequestId || config.disableSelectionTranslator || config.selectionTranslatorMode === 'disabled') {
       ui.remove();

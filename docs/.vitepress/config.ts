@@ -51,7 +51,10 @@ export default defineConfig({
             { text: '认识 FluentRead', link: '/guide/' },
             { text: '安装与第一次翻译', link: '/guide/getting-started' },
             { text: '功能总览', link: '/guide/features' },
+            { text: 'Userscript 构建', link: '/guide/userscript' },
+            { text: '单词本 Beta', link: '/guide/vocabulary-book' },
             { text: '图片翻译', link: '/guide/image-translation' },
+            { text: '数据与隐私', link: '/guide/privacy' },
           ],
         },
         {
@@ -59,6 +62,7 @@ export default defineConfig({
           items: [
             { text: '自定义快捷键', link: '/guide/custom-hotkey' },
             { text: '常见问题', link: '/guide/faq' },
+            { text: '历史隐私政策归档', link: '/guide/privacy-policy' },
           ],
         },
       ],

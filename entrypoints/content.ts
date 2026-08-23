@@ -6,14 +6,17 @@ import {
     restoreOriginalContent,
 } from "./main/trans";
 import { constants } from "@/entrypoints/utils/constant";
-import { getCenterPoint } from "@/entrypoints/utils/common";
+import { detectlang, getCenterPoint } from "@/entrypoints/utils/common";
 import pageStyles from './style.css?inline';
 import { config, configReady, subscribeConfig } from "@/entrypoints/utils/config";
-import { mountFloatingBall, unmountFloatingBall } from "@/entrypoints/utils/floatingBall";
+import {
+    mountFloatingBall,
+    toggleFloatingBallTranslation,
+    unmountFloatingBall,
+} from "@/entrypoints/utils/floatingBall";
 import { mountSelectionTranslator, unmountSelectionTranslator } from "@/entrypoints/utils/selectionTranslator";
 import { mountAreaTranslator, unmountAreaTranslator } from "@/entrypoints/utils/areaTranslator";
 import { cancelAllTranslations } from "@/entrypoints/utils/translateApi";
-import { mountNewApiComponent, unmountNewApiComponent } from "@/entrypoints/utils/newApi";
 import { mountImageTranslator, unmountImageTranslator } from "@/entrypoints/utils/imageTranslation";
 import {
     mountTranslationProgressPanel,
@@ -31,11 +34,24 @@ import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { createShadowRootUi, type ShadowRootContentScriptUi } from 'wxt/utils/content-script-ui/shadow-root';
 import { mountVideoSubtitleTranslation } from './main/videoSubtitle';
 import {resetPageTranslationContextCache} from '@/entrypoints/utils/pageContext';
+import { matchesConfiguredHotkey, shouldClaimConfiguredHotkey } from '@/entrypoints/utils/hotkey';
+import { isSameLanguage, normalizeSelectionText, shouldIgnoreSelection } from '@/entrypoints/utils/selectionTranslatorCore';
+import { normalizeSelectionTranslatorDelay } from '@/entrypoints/utils/model';
+import {clearLegacyPageTranslationCache} from '@/entrypoints/utils/legacyPageCache';
+import {shouldAutoTranslatePage} from '@/entrypoints/utils/siteRules';
 
 let contentScriptContext: ContentScriptContext | null = null;
 let inputTooltipUi: ShadowRootContentScriptUi<HTMLElement> | null = null;
 let unmountVideoSubtitleTranslation: (() => void) | null = null;
-let unsubscribeTranslationProgressConfig: (() => void) | null = null;
+let unsubscribeContentConfig: (() => void) | null = null;
+
+function shouldAutomaticallyTranslateCurrentPage(nextConfig: typeof config): boolean {
+    return shouldAutoTranslatePage(window.location.href, {
+        on: nextConfig.on,
+        autoTranslate: nextConfig.autoTranslate,
+        alwaysTranslateDomains: nextConfig.alwaysTranslateDomains,
+    });
+}
 
 function installPageStyles(ctx: ContentScriptContext) {
     const existing = document.getElementById('fluent-read-page-styles');
@@ -90,6 +106,28 @@ function handleRuntimeMessage(
         return true;
     }
 
+    if (payload.type === 'updateSelectionTranslatorSettings') {
+        const trigger = payload.trigger;
+        const hotkey = payload.hotkey;
+        const customHotkey = payload.customHotkey;
+        const delay = payload.delay;
+        if (trigger !== 'direct' && trigger !== 'icon' && trigger !== 'dot' && trigger !== 'Control' && trigger !== 'Alt' && trigger !== 'Shift' && trigger !== 'custom') return false;
+        if (hotkey !== undefined && hotkey !== 'none' && hotkey !== 'Control' && hotkey !== 'Alt' && hotkey !== 'Shift' && hotkey !== 'custom') return false;
+        if (customHotkey !== undefined && typeof customHotkey !== 'string') return false;
+        if (delay !== undefined && typeof delay !== 'number' && typeof delay !== 'string') return false;
+
+        // trigger 是唯一运行时真源；hotkey 仅为兼容旧调用方的消息结构而校验。
+        const resolvedTrigger = trigger;
+        config.selectionTranslatorTrigger = resolvedTrigger;
+        config.selectionTranslatorHotkey = resolvedTrigger === 'Control' || resolvedTrigger === 'Alt' || resolvedTrigger === 'Shift' || resolvedTrigger === 'custom'
+            ? resolvedTrigger
+            : 'none';
+        config.customSelectionTranslatorHotkey = typeof customHotkey === 'string' ? customHotkey : '';
+        if (delay !== undefined) config.selectionTranslatorDelay = normalizeSelectionTranslatorDelay(delay);
+        sendResponse();
+        return true;
+    }
+
     if (payload.type === 'toggleSelectionAreaTranslator') {
         const isEnabled = payload.isEnabled === true;
         config.selectionAreaEnabled = isEnabled;
@@ -126,6 +164,14 @@ function handleRuntimeMessage(
         return true;
     }
 
+    if (payload.type === 'getFullPageTranslationState') {
+        sendResponse({
+            status: 'success',
+            isTranslated: isFullPageTranslationActive(),
+        });
+        return true;
+    }
+
     if (payload.type === 'contextMenuTranslate') {
         if (config.on === false) {
             sendResponse({ status: 'disabled' });
@@ -133,12 +179,22 @@ function handleRuntimeMessage(
         }
         if (payload.action === 'fullPage') {
             autoTranslateEnglishPage();
-            sendResponse({ status: 'success', action: 'translated' });
+            const isTranslated = isFullPageTranslationActive();
+            sendResponse({
+                status: isTranslated ? 'success' : 'failed',
+                action: isTranslated ? 'translated' : 'unchanged',
+                isTranslated,
+            });
             return true;
         }
         if (payload.action === 'restore') {
             restoreOriginalContent();
-            sendResponse({ status: 'success', action: 'restored' });
+            const isTranslated = isFullPageTranslationActive();
+            sendResponse({
+                status: isTranslated ? 'failed' : 'success',
+                action: isTranslated ? 'unchanged' : 'restored',
+                isTranslated,
+            });
             return true;
         }
     }
@@ -154,6 +210,8 @@ export default defineContentScript({
         contentScriptContext = ctx;
         installPageStyles(ctx);
         await configReady; // 等待配置加载完成
+        clearLegacyPageTranslationCache();
+        let shouldAutomaticallyTranslate = shouldAutomaticallyTranslateCurrentPage(config);
 
         const pageEventController = new AbortController();
         document.addEventListener('fluentread-route-change', resetPageTranslationContextCache, {
@@ -175,12 +233,11 @@ export default defineContentScript({
             unmountSelectionTranslator();
             unmountAreaTranslator();
             unmountImageTranslator();
-            unsubscribeTranslationProgressConfig?.();
-            unsubscribeTranslationProgressConfig = null;
+            unsubscribeContentConfig?.();
+            unsubscribeContentConfig = null;
             unmountTranslationProgressPanel();
             unmountVideoSubtitleTranslation?.();
             unmountVideoSubtitleTranslation = null;
-            unmountNewApiComponent();
             removeExistingTooltip();
             contentScriptContext = null;
         };
@@ -196,28 +253,29 @@ export default defineContentScript({
             sendResponse: (response?: unknown) => void,
         ) => handleRuntimeMessage(message, ctx, sendResponse);
         browser.runtime.onMessage.addListener(runtimeMessageListener);
-        unsubscribeTranslationProgressConfig = subscribeConfig((nextConfig) => {
+        unsubscribeContentConfig = subscribeConfig((nextConfig) => {
             if (nextConfig.translationProgressPanelEnabled === true) {
                 void mountTranslationProgressPanel(ctx);
             } else {
                 unmountTranslationProgressPanel();
+            }
+
+            const nextShouldAutomaticallyTranslate = shouldAutomaticallyTranslateCurrentPage(nextConfig);
+            const shouldStartNow = !shouldAutomaticallyTranslate && nextShouldAutomaticallyTranslate;
+            shouldAutomaticallyTranslate = nextShouldAutomaticallyTranslate;
+            // 关闭“始终翻译”只影响之后的页面加载，不撤销用户
+            // 已经手动启动的当前会话。只处理 false -> true 才能避免
+            // storage.watch 的同值回声重复触发全文翻译。
+            if (shouldStartNow && !isFullPageTranslationActive()) {
+                autoTranslateEnglishPage();
             }
         });
         // 监听器始终注册并在触发时读取实时配置。这样扩展在当前页面由关闭
         // 切换为开启后，无需刷新页面就能恢复 Control/Alt+T。
         setupManualTranslationTriggers(pageEventController.signal);
         setupFloatingBallHotkey(pageEventController.signal);
-        document.addEventListener('fluentread-toggle-translation', () => {
-            // 仅在悬浮球被禁用（未挂载）时由内容脚本接管快捷键
-            if (config.on === false || config.disableFloatingBall !== true) return;
-            if (isFullPageTranslationActive()) {
-                restoreOriginalContent();
-            } else {
-                autoTranslateEnglishPage();
-            }
-        }, { signal: pageEventController.signal });
-        // 添加自动翻译事件监听器
-        if (config.on && config.autoTranslate) autoTranslateEnglishPage();
+        // 全局自动翻译和当前站点规则共用同一个全文会话。
+        if (shouldAutomaticallyTranslate) autoTranslateEnglishPage();
 
         // 挂载悬浮球（如果配置未禁用）
         if (config.on && config.disableFloatingBall !== true) {
@@ -236,58 +294,114 @@ export default defineContentScript({
             if (cleanedUp) return;
         }
         
-        mountNewApiComponent();
         // 图片翻译使用独立覆盖层，不改写宿主页面的 img 元素；点击入口由事件委托处理动态图片。
         if (config.on && config.disableImageTranslator !== true) mountImageTranslator();
 
     }
 })
 
+function getConfiguredSelectionHotkey(): string {
+    const trigger = config.selectionTranslatorTrigger;
+    return ['Control', 'Alt', 'Shift', 'custom'].includes(trigger)
+        ? trigger
+        : 'none';
+}
+
+const activeSelectionCandidateByEvent = new WeakMap<KeyboardEvent, boolean>();
+
+function hasActiveSelectionTranslationCandidate(): boolean {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return false;
+    const selectionHost = document.getElementById('fluent-read-selection-translator-container');
+    if (selectionHost && selection.containsNode(selectionHost, true)) return false;
+
+    const text = normalizeSelectionText(selection.toString());
+    if (!text || text.length > 4096 || isSameLanguage(detectlang(text), config.to)) return false;
+
+    const range = selection.getRangeAt(0);
+    if (shouldIgnoreSelection(range)) return false;
+    const hasVisibleRect = Array.from(range.getClientRects()).some(rect => rect.width > 0 || rect.height > 0);
+    if (hasVisibleRect) return true;
+    const bounds = range.getBoundingClientRect();
+    return bounds.width > 0 || bounds.height > 0;
+}
+
+function shouldReserveSelectionShortcut(event: KeyboardEvent): boolean {
+    if (!config.on || config.selectionTranslatorMode === 'disabled' || config.disableSelectionTranslator) return false;
+    return shouldClaimConfiguredHotkey(
+        event,
+        getConfiguredSelectionHotkey(),
+        config.customSelectionTranslatorHotkey,
+        () => {
+            const cached = activeSelectionCandidateByEvent.get(event);
+            if (cached !== undefined) return cached;
+            const candidate = hasActiveSelectionTranslationCandidate();
+            activeSelectionCandidateByEvent.set(event, candidate);
+            return candidate;
+        },
+    );
+}
+
+function matchesSelectionTranslatorShortcut(event: KeyboardEvent): boolean {
+    if (!config.on || config.selectionTranslatorMode === 'disabled' || config.disableSelectionTranslator) return false;
+    return matchesConfiguredHotkey(
+        event,
+        getConfiguredSelectionHotkey(),
+        config.customSelectionTranslatorHotkey,
+    );
+}
+
 // 注册所有手动翻译触发事件监听器
 function setupManualTranslationTriggers(signal: AbortSignal) {
     const screen = { mouseX: 0, mouseY: 0, hotkeyPressed: false, otherKeyPressed: false, hasSlideTranslation: false };
     let mouseHotkeysPressed = new Set<string>();
     
-    // 获取当前配置的鼠标悬浮快捷键
-    const getConfiguredMouseHotkeyParts = () => {
-        // 如果选择了自定义快捷键，使用自定义的
-        const hotkeyString = config.hotkey === 'custom' 
-            ? config.customHotkey 
-            : config.hotkey;
-        
+    const normalizeHotkeyParts = (hotkeyString: string | undefined): string[] => {
         if (!hotkeyString || hotkeyString === 'none') {
             return [];
         }
-        
-        // 如果是旧的单个按键格式，直接返回
-        if (!hotkeyString.includes('+')) {
-            const k = hotkeyString.toLowerCase();
-            // 标准化修饰键名称
-            if (k === 'ctrl') return ['control'];
-            if (k === 'option') return ['alt'];
-            return [k];
-        }
-        
-        // 组合键格式
+
         return hotkeyString.split('+').map(key => {
-            const k = key.toLowerCase();
-            // 标准化修饰键名称
+            const k = key.trim().toLowerCase();
             if (k === 'ctrl') return 'control';
             if (k === 'option') return 'alt';
             return k;
-        });
+        }).filter(Boolean);
+    };
+
+    // 获取当前配置的鼠标悬浮快捷键
+    const getConfiguredMouseHotkeyParts = () => normalizeHotkeyParts(
+        config.hotkey === 'custom' ? config.customHotkey : config.hotkey,
+    );
+
+    const getConfiguredSelectionHotkeyParts = () => normalizeHotkeyParts(
+        getConfiguredSelectionHotkey() === 'custom'
+            ? config.customSelectionTranslatorHotkey
+            : getConfiguredSelectionHotkey(),
+    );
+
+    const matchesPressedHotkeyParts = (hotkeyParts: string[]): boolean => {
+        if (hotkeyParts.length === 0) return false;
+        return hotkeyParts.every(key => mouseHotkeysPressed.has(key))
+            && hotkeyParts.length === mouseHotkeysPressed.size;
     };
     
     // 检查是否匹配鼠标悬浮快捷键
     const checkMouseHotkey = () => {
-        const hotkeyParts = getConfiguredMouseHotkeyParts();
-        if (hotkeyParts.length === 0) return false;
-        
-        const allKeysPressed = hotkeyParts.every(key => mouseHotkeysPressed.has(key));
-        const exactMatch = allKeysPressed && hotkeyParts.length === mouseHotkeysPressed.size;
-        
-        return exactMatch;
+        return matchesPressedHotkeyParts(getConfiguredMouseHotkeyParts());
     };
+
+    const cancelHoverForActiveSelection = (): boolean => {
+        if (!screen.hotkeyPressed || !matchesPressedHotkeyParts(getConfiguredSelectionHotkeyParts())) return false;
+        if (!hasActiveSelectionTranslationCandidate()) return false;
+        screen.hotkeyPressed = false;
+        screen.otherKeyPressed = true;
+        screen.hasSlideTranslation = false;
+        cancelPendingHoverTranslation();
+        return true;
+    };
+
+    document.addEventListener('selectionchange', cancelHoverForActiveSelection, { signal });
 
     // 1. 失去焦点时
     window.addEventListener('blur', () => {
@@ -300,12 +414,24 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
 
     // 2. 按下按键时
     window.addEventListener('keydown', event => {
+        if (!event.isTrusted) return;
         // 防止重复事件
         if (event.repeat) return;
         
         // 在 Mac 上禁止 cmd 键参与快捷键
         const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
         if (isMac && event.metaKey) {
+            return;
+        }
+
+        const matchesSelectionShortcut = matchesSelectionTranslatorShortcut(event);
+        // 已有选区时划词立即拥有本次按键；没有选区时仍让悬浮记录按键，
+        // 但不要阻断 SelectionTranslator 记录“先按键、后拖选”的意图。
+        if (shouldReserveSelectionShortcut(event)) {
+            screen.hotkeyPressed = false;
+            screen.otherKeyPressed = true;
+            screen.hasSlideTranslation = false;
+            mouseHotkeysPressed.clear();
             return;
         }
         
@@ -359,7 +485,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
             screen.otherKeyPressed = false;
             if (config.on) {
                 event.preventDefault();
-                event.stopPropagation();
+                if (!matchesSelectionShortcut) event.stopPropagation();
             }
         } else if (screen.hotkeyPressed) {
             screen.otherKeyPressed = true;
@@ -368,8 +494,18 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
         }
     }, { signal, capture: true });
 
+    document.addEventListener('pointerdown', event => {
+        if (!event.isTrusted) return;
+        if (!screen.hotkeyPressed || !matchesPressedHotkeyParts(getConfiguredSelectionHotkeyParts())) return;
+        screen.hotkeyPressed = false;
+        screen.otherKeyPressed = true;
+        screen.hasSlideTranslation = false;
+        cancelPendingHoverTranslation();
+    }, { signal, capture: true });
+
     // 3. 抬起按键时
     window.addEventListener('keyup', event => {
+        if (!event.isTrusted) return;
         // 清除字母键状态（在检查前先清除）
         const releasedKey = event.key.toLowerCase();
         const releasedCode = event.code?.toLowerCase();
@@ -428,18 +564,30 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
         }
     }, { signal, capture: true });
 
-    // 4. 鼠标移动时更新位置，并根据 hotkeyPressed 决定是否触发翻译
-    document.body.addEventListener('mousemove', event => {
+    let longPressTimer: ReturnType<typeof setTimeout> | undefined;
+    const longPressStart = { x: 0, y: 0 };
+
+    // 4. 鼠标移动时更新位置，并根据 hotkeyPressed 决定是否触发翻译。
+    // 同一监听器同时取消长按，避免为每次 mousemove 注册两条全局路径。
+    document.addEventListener('mousemove', event => {
+        if (!event.isTrusted) return;
         screen.mouseX = event.clientX;
         screen.mouseY = event.clientY;
+        if (longPressTimer !== undefined
+            && (Math.abs(event.clientX - longPressStart.x) > 10 || Math.abs(event.clientY - longPressStart.y) > 10)) {
+            clearTimeout(longPressTimer);
+            longPressTimer = undefined;
+        }
         if (screen.hotkeyPressed && config.on) {
+            if (cancelHoverForActiveSelection()) return;
             screen.hasSlideTranslation = true;
             handleTranslation(screen.mouseX, screen.mouseY, config.mouseHoverTranslationDelay)
         }
     }, { signal });
 
     // 5、手机端触摸事件，取中心点翻译
-    document.body.addEventListener('touchstart', event => {
+    document.addEventListener('touchstart', event => {
+        if (!event.isTrusted) return;
         let coordinate;
         switch (config.hotkey) {
             case constants.TwoFinger:
@@ -462,7 +610,8 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
     }, { signal, capture: true });
 
     // 6、双击鼠标翻译事件
-    document.body.addEventListener('dblclick', event => {
+    document.addEventListener('dblclick', event => {
+        if (!event.isTrusted) return;
         if (config.hotkey == constants.DoubleClick && config.on) {
             // 通过双击事件获取鼠标位置
             let mouseX = event.clientX;
@@ -473,31 +622,30 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
     }, { signal });
 
     // 7、长按鼠标翻译事件（长按事件时鼠标不能移动）
-    let timer: number;
-    let startPos = { x: 0, y: 0 }; // startPos 记录鼠标按下时的位置
-    document.body.addEventListener('mouseup', () => clearTimeout(timer), { signal });
-    document.body.addEventListener('mousedown', event => {
+    document.addEventListener('mouseup', event => {
+        if (!event.isTrusted) return;
+        if (longPressTimer !== undefined) clearTimeout(longPressTimer);
+        longPressTimer = undefined;
+    }, { signal });
+    document.addEventListener('mousedown', event => {
+        if (!event.isTrusted) return;
         if (config.hotkey === constants.LongPress) {
-            clearTimeout(timer); // 清除之前的计时器
-            startPos.x = event.clientX; // 记录鼠标按下时的初始位置
-            startPos.y = event.clientY;
-            timer = setTimeout(() => {
+            if (longPressTimer !== undefined) clearTimeout(longPressTimer);
+            longPressStart.x = event.clientX;
+            longPressStart.y = event.clientY;
+            longPressTimer = setTimeout(() => {
+                longPressTimer = undefined;
                 if (config.on) {
                     let mouseX = event.clientX;
                     let mouseY = event.clientY;
                     handleTranslation(mouseX, mouseY);
                 }
-            }, 500) as unknown as number;
-        }
-    }, { signal });
-    document.body.addEventListener('mousemove', event => {
-        // 如果鼠标移动超过10像素，取消长按事件
-        if (Math.abs(event.clientX - startPos.x) > 10 || Math.abs(event.clientY - startPos.y) > 10) {
-            clearTimeout(timer);
+            }, 500);
         }
     }, { signal });
     // 8、鼠标中键翻译事件
-    document.body.addEventListener('mousedown', event => {
+    document.addEventListener('mousedown', event => {
+        if (!event.isTrusted) return;
         if (config.hotkey === constants.MiddleClick && config.on) {
             if (event.button === 1) {
                 let mouseX = event.clientX;
@@ -511,7 +659,8 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
     // 9、触屏设备双击/三击翻译事件
     let touchCount = 0;
     let touchTimer: any;
-    document.body.addEventListener('touchstart', event => {
+    document.addEventListener('touchstart', event => {
+        if (!event.isTrusted) return;
         // 检查是否为有效的热键配置，并且只处理单指触摸事件
         if (![constants.DoubleClickScreen, constants.TripleClickScreen].includes(config.hotkey)
             || event.touches.length !== 1) return;
@@ -535,7 +684,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
     }, { signal });
 
     signal.addEventListener('abort', () => {
-        clearTimeout(timer);
+        if (longPressTimer !== undefined) clearTimeout(longPressTimer);
         clearTimeout(touchTimer);
     }, { once: true });
 }
@@ -544,6 +693,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
 function setupFloatingBallHotkey(signal: AbortSignal) {
     // 添加全局键盘事件监听
     let hotkeysPressed = new Set<string>();
+    let pendingFullPageToggle = false;
     
     // 开发环境标志
     const isDev = process.env.NODE_ENV === 'development';
@@ -577,12 +727,21 @@ function setupFloatingBallHotkey(signal: AbortSignal) {
     
     // 监听按键按下事件
     document.addEventListener('keydown', (event) => {
+        if (!event.isTrusted) return;
         // 忽略长按产生的重复事件，但不能用全局时间窗口去重：
         // Alt 和 T 本来就可能在 50ms 内连续到达，时间去重会吞掉合法组合键。
         if (event.repeat) return;
         
         // 在 Mac 上禁止 cmd 键参与快捷键
         if (isMac && event.metaKey) {
+            return;
+        }
+
+        // 划词与全文快捷键冲突时，有有效选区的划词翻译拥有本次按键。
+        // 清空全文按键状态并让事件继续传播给 SelectionTranslator。
+        if (shouldReserveSelectionShortcut(event)) {
+            pendingFullPageToggle = false;
+            hotkeysPressed.clear();
             return;
         }
         
@@ -644,7 +803,6 @@ function setupFloatingBallHotkey(signal: AbortSignal) {
         const exactMatch = allKeysPressed && hotkeyParts.length === hotkeysPressed.size;
         
         // 如果按键组合完全匹配配置的快捷键
-        // 无论悬浮球是否启用，都派发统一事件，由对应处理方接管
         if (exactMatch) {
             // 检查插件是否开启
             if (!config.on) return;
@@ -652,9 +810,26 @@ function setupFloatingBallHotkey(signal: AbortSignal) {
             // 防止事件继续传播和默认行为
             event.preventDefault();
             event.stopPropagation();
+
+            if (matchesSelectionTranslatorShortcut(event)) {
+                // 悬浮与划词共享按键时，无选区由悬浮回退；否则把全文动作
+                // 延迟到 keyup，再确认用户没有完成一次划选手势。
+                pendingFullPageToggle = !matchesConfiguredHotkey(
+                    event,
+                    config.hotkey,
+                    config.customHotkey,
+                );
+                return;
+            }
             
-            // 通过自定义事件来触发翻译
-            document.dispatchEvent(new CustomEvent('fluentread-toggle-translation'));
+            // 内部调用不会跨越到页面共享 DOM，网页脚本无法伪造控制事件。
+            if (!toggleFloatingBallTranslation()) {
+                if (isFullPageTranslationActive()) {
+                    restoreOriginalContent();
+                } else {
+                    autoTranslateEnglishPage();
+                }
+            }
             
             if (isDev) {
                 const activeHotkey = config.floatingBallHotkey === 'custom' 
@@ -667,6 +842,21 @@ function setupFloatingBallHotkey(signal: AbortSignal) {
     
     // 监听按键释放事件
     document.addEventListener('keyup', (event) => {
+        if (!event.isTrusted) return;
+        if (pendingFullPageToggle) {
+            pendingFullPageToggle = false;
+            if (config.on && !hasActiveSelectionTranslationCandidate()) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!toggleFloatingBallTranslation()) {
+                    if (isFullPageTranslationActive()) {
+                        restoreOriginalContent();
+                    } else {
+                        autoTranslateEnglishPage();
+                    }
+                }
+            }
+        }
         // 清除字母键状态
         const releasedKey = event.key.toLowerCase();
         const releasedCode = event.code?.toLowerCase();
@@ -710,6 +900,7 @@ function setupFloatingBallHotkey(signal: AbortSignal) {
     
     // 页面失焦或切换标签页时，清除所有按键状态
     window.addEventListener('blur', () => {
+        pendingFullPageToggle = false;
         hotkeysPressed.clear();
     }, { signal });
 }
@@ -733,6 +924,7 @@ function setupInputBoxTranslation(signal: AbortSignal) {
     };
 
     const handleKeyDown = async (event: KeyboardEvent) => {
+        if (!event.isTrusted) return;
         // 检查功能是否启用
         if (config.on === false || config.inputBoxTranslationTrigger === 'disabled') {
             resetKeyPresses();
@@ -834,7 +1026,7 @@ async function createTranslationTooltip(element: HTMLElement, message: string, t
         position: 'overlay',
         alignment: 'top-left',
         zIndex: 2_147_483_647,
-        mode: 'open',
+        mode: 'closed',
         inheritStyles: false,
         css: `
             :host {

@@ -3,6 +3,8 @@ import {method, urls} from "../utils/constant";
 import {claudeMsgTemplate} from "../utils/template";
 import {config} from "@/entrypoints/utils/config";
 import {appendOptionalHeader} from './auth';
+import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 async function claude(message: any) {
     const service = message.serviceOverride || services.claude;
@@ -16,20 +18,19 @@ async function claude(message: any) {
     const url = config.proxy[service] || urls[services.claude];
 
     try {
-        const resp = await fetch(url, {
+        const resp = await runtimeFetch(url, {
             method: method.POST,
             headers,
             body: claudeMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride)
         });
 
         if (!resp.ok) {
-            throw new Error(`请求失败: ${resp.status} ${resp.statusText} body: ${await resp.text()}`);
+            throw createHttpStatusError(resp);
         }
 
-        const result = await resp.json();
+        const result = await readJsonResponse<any>(resp, 'Claude 返回的不是有效 JSON');
         return result.content[0].text;
     } catch (error) {
-        console.error('Claude API 调用失败:', error);
         throw error;
     }
 }

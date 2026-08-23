@@ -8,7 +8,7 @@
 
 An open-source browser extension for bilingual webpages, instant selection translation, and flexible translation services.
 
-[![Latest version](https://img.shields.io/badge/version-0.0.30-6d5dfc?style=flat-square)](https://github.com/Bistutu/FluentRead/releases)
+[![Latest version](https://img.shields.io/badge/version-0.0.31-6d5dfc?style=flat-square)](https://github.com/Bistutu/FluentRead/releases)
 [![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0-22a06b?style=flat-square)](./LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/Bistutu/FluentRead?style=flat-square)](https://github.com/Bistutu/FluentRead)
 
@@ -30,7 +30,7 @@ FluentRead brings translation into the reading flow. Keep the original text besi
 | --- | --- |
 | **Bilingual pages** — Keep original text and translation together for study, research, and technical reading. | **Many translation services** — Use Microsoft Translator, Google Translate, DeepL, DeepLX, Chrome Translator, or AI providers such as OpenAI, DeepSeek, Gemini, Claude, Kimi, Ollama-compatible endpoints, and more. |
 | **Whole-page translation** — Use the floating ball, context menu, or a customizable shortcut. In Settings, choose progressive translation or translate all currently loaded content to the page bottom. | **Custom models and endpoints** — Configure compatible APIs, models, prompts, request bodies, proxies, and credentials from the settings page. |
-| **Selection translation** — Select text and get a focused translation card with copy and speech actions. | **Local-first configuration** — Preferences and translation cache stay in the browser’s local storage. API keys are entered and used locally by the extension. |
+| **Selection translation** — Select text and get a focused translation card with copy and speech actions. | **Privacy controls** — Preferences and cache stay in extension-private storage. API credentials are session-only by default; cloud translation sends text to the selected provider. |
 | **Hover and gesture triggers** — Translate with a hover shortcut, double click, long press, middle click, or touch gestures. | **Reader-friendly controls** — Choose translation styles, themes, animation, cache behavior, concurrency, and separate shortcuts for page and selection translation. |
 
 ### Also included
@@ -38,6 +38,7 @@ FluentRead brings translation into the reading flow. Keep the original text besi
 - **Free Translation**: a built-in fallback chain that tries Microsoft first, then DeepLX, then Google when a service returns an error or empty result.
 - **Image translation (Beta)**: local OCR for text in images, with downloadable language packs and a reversible translated overlay.
 - **Translation cache**: reuse recent results for the same service, model, language pair, and request settings.
+- **Explicit data handling**: review what each feature sends and stores in the [data and privacy guide](https://fluent.thinkstu.com/guide/privacy).
 - **Cross-browser support**: build targets for Chromium browsers and Firefox through WXT and Manifest V3.
 
 ## See it in action
@@ -72,6 +73,8 @@ Use focused settings pages for reading preferences, services and models, shortcu
 
 For a local build, install dependencies with pnpm and load the generated `./.output/chrome-mv3` directory as an unpacked extension. See the [official documentation](https://fluent.thinkstu.com/) for setup and configuration details.
 
+An experimental userscript target for Via, Tampermonkey, and Violentmonkey can be generated with `pnpm build:userscript`. It produces the self-contained `./.output/userscript/fluent-read.user.js`; see the [userscript build guide](./docs/guide/userscript.md) for the supported feature matrix and browser-extension-only limitations.
+
 ## Documentation and community
 
 - [Official documentation](https://fluent.thinkstu.com/) — features, setup, services, shortcuts, and FAQ.
@@ -87,6 +90,7 @@ pnpm dev
 pnpm test
 pnpm compile
 pnpm build
+pnpm build:userscript
 ```
 
 FluentRead uses Vue 3, TypeScript, Element Plus, WXT, and Manifest V3. The project is licensed under [GPL-3.0](./LICENSE).

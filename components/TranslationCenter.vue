@@ -1,17 +1,5 @@
 <template>
-  <section class="translation-center" aria-labelledby="translation-center-title">
-    <header class="translation-center-hero">
-      <div>
-        <span class="translation-center-kicker">翻译工具 · 多服务对比</span>
-        <h2 id="translation-center-title">翻译中心</h2>
-        <p>输入一句话，同时查看多个翻译服务的结果。可以反复提交同一句话，方便比较措辞和风格。</p>
-      </div>
-      <div class="translation-center-run-status" :class="{ active: isRunning }" aria-live="polite">
-        <i />
-        <span>{{ isRunning ? '正在翻译' : runCount ? `已翻译 ${runCount} 次` : '等待输入' }}</span>
-      </div>
-    </header>
-
+  <section class="translation-center" aria-label="翻译中心">
     <div class="translation-center-toolbar">
       <div class="language-picker-group">
         <label for="translation-center-source">源语言</label>
@@ -38,56 +26,62 @@
         </select>
       </div>
 
-      <div ref="servicePicker" class="translation-center-service-picker">
-        <button
-          class="add-service-button"
-          type="button"
-          :aria-expanded="servicePickerOpen"
-          aria-haspopup="dialog"
-          @click.stop="servicePickerOpen = !servicePickerOpen"
-        >
-          <span>＋</span>
-          更多服务
-          <b>{{ cards.length }}</b>
-          <span class="add-service-chevron">⌄</span>
-        </button>
-        <div v-if="servicePickerOpen" class="service-picker-popover" role="dialog" aria-label="添加更多翻译服务">
-          <header class="service-picker-header">
-            <div>
-              <span class="service-picker-kicker">翻译服务</span>
-              <strong>添加更多服务</strong>
-              <small>选择后会加入右侧对比列表，并自动保存。</small>
-            </div>
-            <button type="button" class="service-picker-close" aria-label="关闭更多服务" @click="servicePickerOpen = false">×</button>
-          </header>
-          <label class="service-picker-search">
-            <span aria-hidden="true">⌕</span>
-            <input v-model.trim="serviceSearchQuery" type="search" placeholder="搜索服务名称" aria-label="搜索翻译服务" />
-          </label>
-          <div class="service-picker-groups">
-            <section v-for="group in filteredServiceGroups" :key="group.key" class="service-picker-group">
-              <div class="service-picker-group-heading">
-                <strong>{{ group.label }}</strong>
-                <span>{{ group.items.length }}</span>
+      <div class="translation-center-toolbar-actions">
+        <div ref="servicePicker" class="translation-center-service-picker">
+          <button
+            class="add-service-button"
+            type="button"
+            :aria-expanded="servicePickerOpen"
+            aria-haspopup="dialog"
+            @click.stop="servicePickerOpen = !servicePickerOpen"
+          >
+            <span>＋</span>
+            更多服务
+            <b>{{ cards.length }}</b>
+            <span class="add-service-chevron">⌄</span>
+          </button>
+          <div v-if="servicePickerOpen" class="service-picker-popover" role="dialog" aria-label="添加更多翻译服务">
+            <header class="service-picker-header">
+              <div>
+                <span class="service-picker-kicker">翻译服务</span>
+                <strong>添加更多服务</strong>
+                <small>选择后会加入右侧对比列表，并自动保存。</small>
               </div>
-              <button
-                v-for="item in group.items"
-                :key="item.value"
-                type="button"
-                class="service-picker-option"
-                @click="addService(item.value)"
-              >
-                <ServiceIcon :service="item.value" :label="item.label" size="small" />
-                <span class="service-picker-option-copy">
-                  <strong>{{ item.label }}</strong>
-                  <small>{{ serviceDescription(item.value) }}</small>
-                </span>
-                <b aria-hidden="true">＋</b>
-              </button>
-            </section>
-            <p v-if="filteredServiceGroups.length === 0">没有找到可添加的翻译服务</p>
+              <button type="button" class="service-picker-close" aria-label="关闭更多服务" @click="servicePickerOpen = false">×</button>
+            </header>
+            <label class="service-picker-search">
+              <span aria-hidden="true">⌕</span>
+              <input v-model.trim="serviceSearchQuery" type="search" placeholder="搜索服务名称" aria-label="搜索翻译服务" />
+            </label>
+            <div class="service-picker-groups">
+              <section v-for="group in filteredServiceGroups" :key="group.key" class="service-picker-group">
+                <div class="service-picker-group-heading">
+                  <strong>{{ group.label }}</strong>
+                  <span>{{ group.items.length }}</span>
+                </div>
+                <button
+                  v-for="item in group.items"
+                  :key="item.value"
+                  type="button"
+                  class="service-picker-option"
+                  @click="addService(item.value)"
+                >
+                  <ServiceIcon :service="item.value" :label="item.label" size="small" />
+                  <span class="service-picker-option-copy">
+                    <strong>{{ item.label }}</strong>
+                    <small>{{ serviceDescription(item.value) }}</small>
+                  </span>
+                  <b aria-hidden="true">＋</b>
+                </button>
+              </section>
+              <p v-if="filteredServiceGroups.length === 0">没有找到可添加的翻译服务</p>
+            </div>
+            <footer class="service-picker-footer">已选 {{ cards.length }} 个服务 · 右侧卡片可拖动排序</footer>
           </div>
-          <footer class="service-picker-footer">已选 {{ cards.length }} 个服务 · 右侧卡片可拖动排序</footer>
+        </div>
+        <div class="translation-center-run-status" :class="{ active: isRunning }" aria-live="polite">
+          <i />
+          <span>{{ isRunning ? '正在翻译' : runCount ? `已翻译 ${runCount} 次` : '等待输入' }}</span>
         </div>
       </div>
     </div>
@@ -581,7 +575,6 @@ onUnmounted(() => {
   background: #f8f9fc;
 }
 
-.translation-center-hero,
 .translation-center-toolbar,
 .translation-input-panel,
 .translation-results-panel {
@@ -590,18 +583,6 @@ onUnmounted(() => {
   box-shadow: 0 10px 30px rgba(31, 40, 61, .045);
 }
 
-.translation-center-hero {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 20px 24px;
-  border-color: #f3ced9;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #fff8fa 0%, #fff 55%, #f7f8ff 100%);
-}
-
-.translation-center-kicker,
 .translation-panel-kicker {
   display: block;
   color: var(--brand-strong);
@@ -610,10 +591,6 @@ onUnmounted(() => {
   letter-spacing: .12em;
   text-transform: uppercase;
 }
-
-.translation-center-kicker { margin-bottom: 6px; }
-.translation-center-hero h2 { margin: 0 0 6px; font-size: 23px; letter-spacing: -.04em; }
-.translation-center-hero p { max-width: 680px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
 
 .translation-center-run-status {
   display: inline-flex;
@@ -640,6 +617,8 @@ onUnmounted(() => {
   padding: 10px 12px;
   border-radius: 14px;
 }
+
+.translation-center-toolbar-actions { display: flex; align-items: center; gap: 10px; margin-left: auto; }
 
 .language-picker-group { display: grid; gap: 4px; min-width: 142px; }
 .language-picker-group label { color: var(--muted); font-size: 10px; font-weight: 750; }
@@ -814,13 +793,12 @@ onUnmounted(() => {
 
 @media (max-width: 760px) {
   .translation-center { padding: 16px 10px 14px; }
-  .translation-center-hero { padding: 18px; flex-direction: column; }
-  .translation-center-hero h2 { font-size: 21px; }
   .translation-center-toolbar { align-items: stretch; flex-wrap: wrap; }
   .language-picker-group { flex: 1 1 140px; }
   .language-picker-group select { min-width: 0; width: 100%; }
   .language-swap-button { align-self: flex-end; }
-  .translation-center-service-picker { width: 100%; margin-left: 0; }
+  .translation-center-toolbar-actions { width: 100%; margin-left: 0; }
+  .translation-center-service-picker { width: auto; margin-left: 0; flex: 1 1 auto; }
   .add-service-button { width: 100%; justify-content: center; }
   .service-picker-popover { left: 0; right: 0; width: auto; }
   .translation-center-layout { grid-template-columns: 1fr; height: auto; }

@@ -1,5 +1,4 @@
 import { customModelString, services, servicesType } from "./option";
-import { getMissingCredentialMessage } from "./configValidation";
 import { sendErrorMessage } from "./tip";
 import { config } from "@/entrypoints/utils/config";
 
@@ -8,14 +7,11 @@ export function checkConfig(): boolean {
     // 1. Check if the plugin is enabled
     if (!config.on) return false;
 
-    // 2. Check if the service credentials are provided.
-    const missingCredentialMessage = getMissingCredentialMessage(config.service, config);
-    if (missingCredentialMessage) {
-        sendErrorMessage(missingCredentialMessage);
-        return false;
-    }
+    // Credentials live in extension session storage and are intentionally not
+    // exposed to content scripts. The background validates them at the request
+    // boundary before calling a provider.
 
-    // 3. Check if a model is selected for AI services (except specific services like Coze)
+    // Check if a model is selected for AI services (except specific services like Coze)
     if (servicesType.isAI(config.service) && ![services.cozecn, services.cozecom].includes(config.service)) {
         const model = config.model[config.service];
         const customModel = config.customModel[config.service];

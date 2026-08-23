@@ -2,10 +2,10 @@ import {services} from "../utils/option";
 import {config} from "@/entrypoints/utils/config";
 import {getDeepLXEndpoints} from "@/entrypoints/utils/deeplx";
 import {getTranslationLanguages, type TranslationLanguageOverride} from "@/entrypoints/utils/translationLanguage";
+import {createHttpStatusError, createProviderCodeError} from '@/entrypoints/utils/httpError';
 
 const DEEPLX_TOTAL_TIMEOUT_MS = 20_000;
 const DEEPLX_ATTEMPT_TIMEOUT_MS = 8_000;
-const DEEPLX_ERROR_BODY_PREVIEW_LENGTH = 200;
 
 function normalizeLanguage(language: string): string {
     const normalized = language.toLowerCase();
@@ -25,22 +25,17 @@ function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
-function formatResponseBody(responseBody: string): string {
-    const compactBody = responseBody.replace(/\s+/g, " ").trim();
-    return compactBody.slice(0, DEEPLX_ERROR_BODY_PREVIEW_LENGTH);
-}
-
 async function fetchDeepLX(url: string, requestInit: RequestInit, timeoutMs: number): Promise<Response> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
         return await fetch(url, {...requestInit, signal: controller.signal});
-    } catch (error) {
+    } catch {
         if (controller.signal.aborted) {
             throw new Error(`请求超时（${timeoutMs / 1000} 秒）`);
         }
-        throw new Error(`网络错误: ${getErrorMessage(error)}`);
+        throw new Error('网络请求失败');
     } finally {
         clearTimeout(timeout);
     }
@@ -71,17 +66,16 @@ async function translateFromDeepLX(
         }),
     }, timeoutMs);
 
-    const responseBody = await response.text();
     if (!response.ok) {
-        const preview = formatResponseBody(responseBody);
-        throw new Error(`HTTP ${response.status} ${response.statusText}${preview ? `，响应: ${preview}` : ""}`);
+        throw createHttpStatusError(response);
     }
+    const responseBody = await response.text();
 
     let result: unknown;
     try {
         result = JSON.parse(responseBody);
-    } catch (error) {
-        throw new Error(`返回的不是 JSON: ${getErrorMessage(error)}`);
+    } catch {
+        throw new Error('返回的不是 JSON');
     }
 
     if (!result || typeof result !== "object") {
@@ -90,7 +84,7 @@ async function translateFromDeepLX(
 
     const responseData = result as {code?: unknown; data?: unknown; message?: unknown};
     if (responseData.code !== undefined && responseData.code !== 200) {
-        throw new Error(`DeepLX 返回错误: ${String(responseData.message || `code ${String(responseData.code)}`)}`);
+        throw createProviderCodeError('DeepLX 返回错误', responseData.code);
     }
     if (typeof responseData.data !== "string" || responseData.data.trim().length === 0) {
         throw new Error("返回格式异常：缺少译文");

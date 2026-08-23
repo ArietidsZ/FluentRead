@@ -47,13 +47,30 @@ export const navigationGroups: NavigationGroup[] = [
     ],
   },
   {
+    label: '学习工具',
+    items: [
+      {
+        id: 'settings-vocabulary', icon: '★', label: '单词本 Beta', description: '收藏与复习', group: '学习工具',
+        heading: '把阅读中遇到的词真正学会', summary: '收藏划词卡中的英文单词，用轻量复习跟踪从新词到掌握的过程。',
+        kicker: '本地学习 Beta', title: '单词本', detail: '词条、上下文与复习记录只保存在当前浏览器中，可独立导出和迁移。',
+        searchDescription: '单词本、收藏、复习、掌握程度、学习记录、Anki、导入导出',
+      },
+    ],
+  },
+  {
     label: '阅读工具',
     items: [
       {
         id: 'settings-shortcuts', icon: '⌘', label: '交互与快捷键', description: '悬停、划词、全文', group: '阅读工具',
         heading: '让翻译顺手发生', summary: '统一设置鼠标悬停、划词和全文翻译的触发习惯。',
         kicker: '操作方式', title: '交互与快捷键', detail: '为高频动作选择容易记忆且不冲突的触发方式。',
-        searchDescription: '鼠标悬停、划词翻译、全文翻译范围、翻译到网页底部、右键全文翻译与自定义按键',
+        searchDescription: '鼠标悬停、划词翻译、划词显示延迟、全文翻译范围、翻译到网页底部、右键全文翻译与自定义按键',
+      },
+      {
+        id: 'settings-sites', icon: '站', label: '网站自动翻译', description: '始终翻译名单', group: '阅读工具',
+        heading: '管理自动翻译网站', summary: '按网站主域名设置始终翻译，也可选择让所有网站自动开始翻译。',
+        kicker: '网站规则', title: '网站自动翻译', detail: '名单按主域名保存，并自动应用到同一网站的所有子域。',
+        searchDescription: '网站、域名、网址、主域名、自动翻译、始终翻译与子域',
       },
       {
         id: 'settings-image-translation', icon: '图', label: '图片翻译', description: 'OCR 与语言包', group: '阅读工具',

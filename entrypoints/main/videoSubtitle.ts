@@ -1,5 +1,5 @@
 import browser from 'webextension-polyfill';
-import { config, saveConfig, subscribeConfig } from '@/entrypoints/utils/config';
+import { config, requestConfigSave, subscribeConfig } from '@/entrypoints/utils/config';
 import { options, servicesType } from '@/entrypoints/utils/option';
 import {
   normalizeVideoSubtitleFontSize,
@@ -1285,7 +1285,10 @@ export function mountVideoSubtitleTranslation(): () => void {
 
   const persistVideoConfig = (patch: VideoConfigPatch) => {
     const nextConfig = { ...config, ...patch };
-    void saveConfig(nextConfig).catch((error) => {
+    void requestConfigSave(
+      nextConfig,
+      browser.runtime.sendMessage.bind(browser.runtime),
+    ).catch((error) => {
       console.warn('[FluentRead] 视频字幕设置保存失败', error);
     });
   };
@@ -1347,6 +1350,7 @@ export function mountVideoSubtitleTranslation(): () => void {
   };
 
   const handleMenuClick = async (event: MouseEvent) => {
+    if (!event.isTrusted) return;
     const menu = menuElement;
     if (!menu || !(event.target instanceof Element)) return;
     const target = event.target.closest<HTMLElement>('[data-action], [data-mode]');
@@ -1538,6 +1542,7 @@ export function mountVideoSubtitleTranslation(): () => void {
   };
 
   const handleButtonClick = (event: MouseEvent) => {
+    if (!event.isTrusted) return;
     event.preventDefault();
     event.stopPropagation();
     const menu = menuElement?.isConnected ? menuElement : document.getElementById(VIDEO_TRANSLATION_MENU_ID);
@@ -1614,6 +1619,7 @@ export function mountVideoSubtitleTranslation(): () => void {
   };
 
   const handleDocumentClick = (event: MouseEvent) => {
+    if (!event.isTrusted) return;
     const target = event.target;
     if (!(target instanceof Node)) return;
     if (buttonElement?.contains(target) || menuElement?.contains(target)) return;
@@ -1621,6 +1627,7 @@ export function mountVideoSubtitleTranslation(): () => void {
   };
 
   const handleDocumentKeydown = (event: KeyboardEvent) => {
+    if (!event.isTrusted) return;
     if (event.key === 'Escape') closeMenu();
   };
 

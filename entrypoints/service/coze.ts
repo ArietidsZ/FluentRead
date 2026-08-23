@@ -2,6 +2,8 @@ import {method, urls} from "../utils/constant";
 import {cozeTemplate} from "@/entrypoints/utils/template";
 import {config} from "@/entrypoints/utils/config";
 import {appendOptionalBearer} from './auth';
+import {createHttpStatusError, createProviderCodeError, readJsonResponse} from '@/entrypoints/utils/httpError';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 async function coze( message: any) {
     const service = message.serviceOverride || config.service;
@@ -14,23 +16,21 @@ async function coze( message: any) {
     let url: string = config.proxy[service] ? config.proxy[service] : urls[service];
 
     // 发起 fetch 请求
-    const resp = await fetch(url, {
+    const resp = await runtimeFetch(url, {
         method: method.POST,
         headers: headers,
         body: cozeTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage)
     });
 
     if (resp.ok) {
-        let result = await resp.json();
+        const result = await readJsonResponse<any>(resp, 'Coze 返回的不是有效 JSON');
         if (result.code === 0 && result.msg === "success") {
-            console.log(result.messages[0])
             return result.messages[0].content;
         } else {
-            throw new Error(`请求失败: ${result.msg}`);
+            throw createProviderCodeError('请求失败', result.code);
         }
     } else {
-        console.log(resp);
-        throw new Error(`请求失败: ${resp.status} ${resp.statusText} body: ${await resp.text()}`);
+        throw createHttpStatusError(resp);
     }
 }
 

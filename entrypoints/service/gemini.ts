@@ -2,29 +2,38 @@ import {method} from "../utils/constant";
 import {geminiMsgTemplate} from "../utils/template";
 import {customModelString} from "../utils/option";
 import {config} from "@/entrypoints/utils/config";
+import {appendOptionalHeader} from './auth';
+import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 
 async function gemini(message: any) {
     const service = message.serviceOverride || config.service;
 
-    let model = message.modelOverride
+    const model = message.modelOverride
         || (config.model[service] === customModelString ? config.customModel[service] : config.model[service]);
+    const proxyUrl = config.proxy[service]?.trim();
+    const usesOfficialEndpoint = !proxyUrl;
+    const url = proxyUrl
+        || `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
-    // 判断是否使用代理
-    let url: string = config.proxy[service] ?
-        config.proxy[service] : `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.token[service]}`;
+    const headers = new Headers({'Content-Type': 'application/json'});
+    // Google documents x-goog-api-key for direct Gemini REST requests. Never
+    // forward the Google credential to a user-configured proxy.
+    if (usesOfficialEndpoint) {
+        appendOptionalHeader(headers, 'x-goog-api-key', config.token[service]);
+    }
 
-    const resp = await fetch(url, {
+    const resp = await runtimeFetch(url, {
         method: method.POST,
-        headers: {'Content-Type': 'application/json'},
+        headers,
         body: geminiMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage),
     });
     if (resp.ok) {
-        let result = await resp.json();
+        const result = await readJsonResponse<any>(resp, 'Gemini 返回的不是有效 JSON');
         return result.candidates[0].content.parts[0].text;
     } else {
-        console.log(resp)
-        throw new Error(`翻译失败: ${resp.status} ${resp.statusText} body: ${await resp.text()}`);
+        throw createHttpStatusError(resp, '翻译失败');
     }
 }
 

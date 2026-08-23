@@ -1,5 +1,5 @@
 <template>
-  <div v-show="showIndicator || showTooltip || copySuccess" class="fr-selection-translator-root" @pointerdown.stop>
+  <div v-show="showIndicator || showTooltip || noticeMessage || copySuccess" class="fr-selection-translator-root" :data-display-delay="selectionSettings.delay" @pointerdown.stop>
     <button v-if="showIndicator && !showTooltip" class="fr-selection-indicator" :class="`fr-selection-indicator--${triggerMode}`" :style="indicatorStyle" type="button" aria-label="打开划词翻译" title="打开划词翻译" @pointerdown.prevent.stop @click="openTooltip">
       <span class="fr-selection-indicator-glyph" aria-hidden="true">↗</span>
     </button>
@@ -8,6 +8,17 @@
       <header class="fr-tooltip-header">
         <div class="fr-tooltip-title"><span>{{ isWordSelection ? '单词学习卡' : '翻译结果' }}</span><small>FluentRead</small></div>
         <div class="fr-tooltip-actions">
+          <button
+            v-if="config.vocabularyBookEnabled && isWordSelection && !isPrivateContext"
+            class="fr-action-btn fr-vocabulary-btn"
+            :class="{ 'fr-saved': isVocabularySaved }"
+            type="button"
+            :disabled="vocabularyBusy || !vocabularyAnswer"
+            :title="vocabularyButtonTitle"
+            :aria-label="vocabularyButtonTitle"
+            :aria-pressed="isVocabularySaved"
+            @click="saveVocabularyEntry"
+          ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.7 2.86 5.8 6.4.93-4.63 4.51 1.09 6.38L12 17.3l-5.72 3.02 1.09-6.38-4.63-4.51 6.4-.93L12 2.7Z" /></svg></button>
           <button class="fr-action-btn" type="button" title="复制译文" aria-label="复制译文" @click="copyTranslation"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg></button>
           <button class="fr-close-btn" type="button" title="关闭" aria-label="关闭翻译结果" @click="closeTooltip">×</button>
         </div>
@@ -68,14 +79,14 @@
             </template>
           </section>
           <div v-if="isWordSelection && wordCardError" class="fr-word-fallback-note">{{ wordCardError }}，已保留普通翻译。</div>
-          <div v-if="config.selectionTranslatorMode === 'bilingual' && !isWordCardVisible" class="fr-text-block fr-original-text">
+          <div v-if="selectionSettings.mode === 'bilingual' && !isWordCardVisible" class="fr-text-block fr-original-text">
             <div class="fr-text-label">原文</div><pre>{{ selectedText }}</pre>
             <button class="fr-text-audio-btn" type="button" :aria-label="audioLabel('source')" :title="audioLabel('source')" @click="toggleAudio(selectedText, 'source')">
               <svg v-if="isCurrentAudio('source')" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12M16 6v12" /></svg>
               <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z" /><path d="M16 9.5a4.5 4.5 0 0 1 0 5M18.5 7a8 8 0 0 1 0 10" /></svg>
             </button>
           </div>
-          <div v-if="(config.selectionTranslatorMode === 'bilingual' || config.selectionTranslatorMode === 'translation-only') && !isWordCardVisible" class="fr-text-block fr-translation-result">
+          <div v-if="(selectionSettings.mode === 'bilingual' || selectionSettings.mode === 'translation-only') && !isWordCardVisible" class="fr-text-block fr-translation-result">
             <div class="fr-text-label">译文</div><pre>{{ translationResult }}</pre>
             <button class="fr-text-audio-btn" type="button" :aria-label="audioLabel('translation')" :title="audioLabel('translation')" @click="toggleAudio(translationResult, 'translation')">
               <svg v-if="isCurrentAudio('translation')" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12M16 6v12" /></svg>
@@ -88,25 +99,31 @@
       </div>
     </section>
 
-    <div v-if="copySuccess" class="fr-copy-success-toast" :class="{ 'fr-dark-theme': isDarkTheme }" role="status">已复制译文</div>
+    <div v-if="noticeMessage" class="fr-action-toast" :class="{ 'fr-dark-theme': isDarkTheme }" role="status"><span>{{ noticeMessage }}</span><button v-if="noticeAction === 'open-vocabulary'" type="button" @click="openVocabularyBook">查看</button></div>
+    <div v-else-if="copySuccess" class="fr-copy-success-toast" :class="{ 'fr-dark-theme': isDarkTheme }" role="status">已复制译文</div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import browser from 'webextension-polyfill';
-import { config } from '@/entrypoints/utils/config';
+import { config, subscribeConfig } from '@/entrypoints/utils/config';
 import { translateText } from '@/entrypoints/utils/translateApi';
 import { detectlang } from '@/entrypoints/utils/common';
+import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey } from '@/entrypoints/utils/hotkey';
 import { isSingleEnglishWord, normalizeEnglishWord, type WordCardData, type WordPronunciation } from '@/entrypoints/utils/wordDictionary';
-import { calculateSelectionPopupPosition, chooseSelectionRect, isSameLanguage, normalizeSelectionText, normalizeSpeechLanguage, shouldIgnoreSelection, type SelectionRect } from '@/entrypoints/utils/selectionTranslatorCore';
+import { calculateSelectionPopupPosition, chooseSelectionRect, getSelectionPresentationDelayRemaining, isSameLanguage, normalizeSelectionText, normalizeSpeechLanguage, reconcileSelectionPresentation, resolveSelectionDictionaryFallback, resolveSelectionVocabularyAnswer, shouldIgnoreSelection, summarizeSelectionContext, type SelectionAnswerCandidate, type SelectionContentRequest, type SelectionRect } from '@/entrypoints/utils/selectionTranslatorCore';
+import { VOCABULARY_BOOK_MESSAGE, type VocabularyBookResponse, type VocabularyEntry } from '@/entrypoints/utils/vocabularyBookProtocol';
 
-type SelectionTrigger = 'direct' | 'icon' | 'dot';
+type SelectionTrigger = 'direct' | 'icon' | 'dot' | 'shortcut';
 type AudioKind = 'source' | 'translation' | 'word';
 interface SelectionSnapshot { text: string; range: Range; anchor: SelectionRect; isForward: boolean; }
 
 const tooltipRef = useTemplateRef<HTMLElement>('tooltip-ref');
 const selectedText = ref('');
+const activeContentRequest = ref<SelectionContentRequest | null>(null);
+const translationAnswer = ref<SelectionAnswerCandidate | null>(null);
+const dictionaryAnswer = ref<SelectionAnswerCandidate | null>(null);
 const translationResult = ref('');
 const isLoading = ref(false);
 const error = ref('');
@@ -126,12 +143,27 @@ const wordCard = ref<WordCardData | null>(null);
 const isWordCardLoading = ref(false);
 const wordCardError = ref('');
 const showChineseSupport = ref(true);
+const noticeMessage = ref('');
+const noticeAction = ref<'open-vocabulary' | null>(null);
+const isVocabularySaved = ref(false);
+const vocabularyBusy = ref(false);
 
 let selectionFrame: number | null = null;
 let positionFrame: number | null = null;
+let selectionLossTimer: number | null = null;
+let selectionPresentationTimer: number | null = null;
+let selectionPresentationVersion = 0;
+let selectionSettledAt = 0;
+let pendingSelectionPresentation: 'indicator' | 'tooltip' | null = null;
+let translationAbortController: AbortController | null = null;
 let translationRequestId = 0;
 let wordLookupRequestId = 0;
 let copyTimer: number | null = null;
+let vocabularyRequestId = 0;
+let contentRequestGeneration = 0;
+let noticeTimer: number | null = null;
+let lastTrustedSelectionInteractionAt = 0;
+const TRUSTED_SELECTION_INTERACTION_GRACE_MS = 1_500;
 let audio: HTMLAudioElement | null = null;
 let audioUrl = '';
 let utterance: SpeechSynthesisUtterance | null = null;
@@ -140,16 +172,65 @@ let remoteAudioActive = false;
 let remoteAudioRequestId: number | null = null;
 let pendingRemoteAudioRequestId: number | null = null;
 let isSelecting = false;
+let pendingSelectionShortcutUntil = 0;
+let selectionShortcutHeld = false;
 let uiPointerInteraction = false;
 let suppressSelectionUntil = 0;
 let systemThemeMedia: MediaQueryList | null = null;
+let unsubscribeConfig: (() => void) | null = null;
+let tooltipResizeObserver: ResizeObserver | null = null;
+const selectionConfigVersion = ref(0);
 
+const selectionShortcutTriggers = new Set(['Control', 'Alt', 'Shift', 'custom']);
+const selectionSettings = computed(() => {
+  // `config` is shared with the content-script runtime and is mutated outside
+  // Vue. Keep a local reactive version so Popup/Options changes refresh the
+  // active selection UI without requiring a page reload.
+  selectionConfigVersion.value;
+  return {
+    trigger: config.selectionTranslatorTrigger,
+    customHotkey: config.customSelectionTranslatorHotkey,
+    delay: config.selectionTranslatorDelay,
+    mode: config.selectionTranslatorMode,
+    theme: config.theme,
+    from: config.from,
+    to: config.to,
+    service: config.service,
+    model: `${config.model?.[config.service] || ''}:${config.customModel?.[config.service] || ''}`,
+  };
+});
+const selectionShortcutConfig = computed(() => selectionShortcutTriggers.has(selectionSettings.value.trigger)
+  ? selectionSettings.value.trigger
+  : 'none');
+const selectionShortcut = computed(() => {
+  const resolved = resolveConfiguredHotkey(selectionShortcutConfig.value, selectionSettings.value.customHotkey);
+  return resolved === 'none' ? '' : resolved;
+});
+const triggerMode = computed<SelectionTrigger>(() => {
+  if (selectionShortcut.value) return 'shortcut';
+  if (selectionSettings.value.trigger === 'direct' || selectionSettings.value.trigger === 'dot') return selectionSettings.value.trigger;
+  return 'icon';
+});
 const UI_SELECTION_SUPPRESSION_MS = 350;
+const SELECTION_LOSS_GRACE_MS = 160;
+const PENDING_SELECTION_SHORTCUT_MS = 250;
 
-const triggerMode = computed<SelectionTrigger>(() => config.selectionTranslatorTrigger === 'direct' || config.selectionTranslatorTrigger === 'dot' ? config.selectionTranslatorTrigger : 'icon');
 const selectedWord = computed(() => normalizeEnglishWord(selectedText.value));
-const isWordSelection = computed(() => Boolean(selectedWord.value) && (config.from === 'auto' || /^en(?:-|$)/i.test(config.from)));
+const isWordSelection = computed(() => Boolean(selectedWord.value) && (selectionSettings.value.from === 'auto' || /^en(?:-|$)/i.test(selectionSettings.value.from)));
 const isWordCardVisible = computed(() => isWordSelection.value && wordCard.value !== null);
+const isPrivateContext = browser.extension.inIncognitoContext === true;
+const currentContentRequest = computed<SelectionContentRequest | null>(() => {
+  const request = activeContentRequest.value;
+  if (!request || snapshot.value?.text !== request.text || selectedText.value !== request.text || config.to !== request.targetLanguage) return null;
+  return request;
+});
+const vocabularyAnswer = computed(() => resolveSelectionVocabularyAnswer(currentContentRequest.value, translationAnswer.value, dictionaryAnswer.value));
+const vocabularyButtonTitle = computed(() => {
+  if (vocabularyBusy.value) return '正在保存到单词本';
+  if (!vocabularyAnswer.value) return '译文准备完成后可收藏';
+  if (isVocabularySaved.value) return '已收藏；再次点击更新当前阅读上下文';
+  return '收藏到单词本';
+});
 
 function updateTheme(): void {
   isDarkTheme.value = config.theme === 'dark' || (config.theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -180,12 +261,15 @@ function readSelectionSnapshot(): SelectionSnapshot | null {
   return { text, range, anchor, isForward };
 }
 
-function scheduleSelectionRead(): void {
+function scheduleSelectionRead(shortcutTriggered = false): void {
+  if (shortcutTriggered) pendingSelectionShortcutUntil = performance.now() + PENDING_SELECTION_SHORTCUT_MS;
   if (isSelecting || isSelectionReadSuppressed()) return;
   if (selectionFrame !== null) return;
   selectionFrame = window.requestAnimationFrame(() => {
     selectionFrame = null;
-    if (!isSelecting && !isSelectionReadSuppressed()) applySelection(readSelectionSnapshot());
+    const shouldTriggerShortcut = pendingSelectionShortcutUntil >= performance.now();
+    pendingSelectionShortcutUntil = 0;
+    if (!isSelecting && !isSelectionReadSuppressed()) applySelection(readSelectionSnapshot(), shouldTriggerShortcut);
   });
 }
 
@@ -213,26 +297,127 @@ function isSameSelection(left: SelectionSnapshot | null, right: SelectionSnapsho
     && left.range.endOffset === right.range.endOffset;
 }
 
-function applySelection(next: SelectionSnapshot | null): void {
-  if (!next) { if (!isSelecting) hideAll(); return; }
-  if (isSameSelection(snapshot.value, next)) return;
+function cancelSelectionLoss(): void {
+  if (selectionLossTimer === null) return;
+  window.clearTimeout(selectionLossTimer);
+  selectionLossTimer = null;
+}
+
+function cancelSelectionPresentation(): void {
+  if (selectionPresentationTimer !== null) {
+    window.clearTimeout(selectionPresentationTimer);
+    selectionPresentationTimer = null;
+  }
+  pendingSelectionPresentation = null;
+  selectionPresentationVersion += 1;
+}
+
+function resetSelectionContentState(clearSelectionText = false): void {
+  translationRequestId += 1;
+  translationAbortController?.abort();
+  translationAbortController = null;
+  wordLookupRequestId += 1;
+  isLoading.value = false;
+  activeContentRequest.value = null;
+  translationAnswer.value = null;
+  dictionaryAnswer.value = null;
+  translationResult.value = '';
+  error.value = '';
+  wordCard.value = null;
+  isWordCardLoading.value = false;
+  wordCardError.value = '';
+  showChineseSupport.value = true;
+  if (clearSelectionText) selectedText.value = '';
+  stopAudio();
+}
+
+function revealSelectionPresentation(
+  presentation: 'indicator' | 'tooltip',
+  expectedVersion: number,
+): void {
+  if (expectedVersion !== selectionPresentationVersion
+    || pendingSelectionPresentation !== presentation
+    || !snapshot.value) return;
+
+  const expectedSelection = snapshot.value;
+  const currentSelection = readSelectionSnapshot();
+  if (!currentSelection) { hideAll(); return; }
+  if (!isSameSelection(expectedSelection, currentSelection)) {
+    applySelection(currentSelection);
+    return;
+  }
+
+  snapshot.value = currentSelection;
+  pendingSelectionPresentation = null;
+  if (presentation === 'tooltip') {
+    openTooltip();
+    return;
+  }
+  showIndicator.value = true;
+  showTooltip.value = false;
+  updatePosition(false);
+}
+
+function scheduleSelectionPresentation(presentation: 'indicator' | 'tooltip'): void {
+  if (!snapshot.value) return;
+  if (selectionPresentationTimer !== null) {
+    window.clearTimeout(selectionPresentationTimer);
+    selectionPresentationTimer = null;
+  }
+  pendingSelectionPresentation = presentation;
+  const expectedVersion = ++selectionPresentationVersion;
+  const remaining = getSelectionPresentationDelayRemaining(
+    selectionSettings.value.delay,
+    selectionSettledAt,
+    performance.now(),
+  );
+  if (remaining === 0) {
+    revealSelectionPresentation(presentation, expectedVersion);
+    return;
+  }
+  selectionPresentationTimer = window.setTimeout(() => {
+    selectionPresentationTimer = null;
+    revealSelectionPresentation(presentation, expectedVersion);
+  }, remaining);
+}
+
+function scheduleSelectionLoss(): void {
+  if (!snapshot.value) return;
+  if (selectionLossTimer !== null) return;
+  selectionLossTimer = window.setTimeout(() => {
+    selectionLossTimer = null;
+    if (isSelecting || isSelectionReadSuppressed()) return;
+    const recoveredSelection = readSelectionSnapshot();
+    if (recoveredSelection) {
+      applySelection(recoveredSelection);
+      return;
+    }
+    hideAll();
+  }, SELECTION_LOSS_GRACE_MS);
+}
+
+function applySelection(next: SelectionSnapshot | null, shortcutTriggered = false): void {
+  if (!next) {
+    if (!isSelecting) scheduleSelectionLoss();
+    return;
+  }
+  cancelSelectionLoss();
+  if (isSameSelection(snapshot.value, next)) {
+    if (shortcutTriggered) scheduleSelectionPresentation('tooltip');
+    return;
+  }
   if (isSelectionInTargetLanguage(next.text)) { hideAll(); return; }
-  const hadActiveSelection = snapshot.value !== null;
-  const changedText = selectedText.value !== next.text;
+  cancelSelectionPresentation();
+  selectionSettledAt = performance.now();
+  resetSelectionContentState();
   snapshot.value = next;
   selectedText.value = next.text;
-  showIndicator.value = triggerMode.value !== 'direct';
-  showTooltip.value = triggerMode.value === 'direct';
-  if (changedText) {
-    translationResult.value = '';
-    error.value = '';
-    wordCard.value = null;
-    isWordCardLoading.value = false;
-    wordCardError.value = '';
-    showChineseSupport.value = true;
-  }
+  const waitingForShortcut = triggerMode.value === 'shortcut' && Boolean(selectionShortcut.value) && !shortcutTriggered;
+  showIndicator.value = false;
+  showTooltip.value = false;
   updatePosition(false);
-  if (showTooltip.value && (!hadActiveSelection || changedText)) void requestSelectionContent(next.text);
+  if (waitingForShortcut) return;
+  scheduleSelectionPresentation(shortcutTriggered || triggerMode.value === 'direct' ? 'tooltip' : 'indicator');
 }
 
 function updatePosition(refreshSelection = true): void {
@@ -252,7 +437,7 @@ function updatePosition(refreshSelection = true): void {
     if (!tooltip || !snapshot.value) return;
     const rect = tooltip.getBoundingClientRect();
     const position = calculateSelectionPopupPosition(snapshot.value.anchor, { width: rect.width, height: rect.height }, { width: window.innerWidth, height: window.innerHeight });
-    tooltipStyle.value = { left: `${position.left}px`, top: `${position.top}px` };
+    tooltipStyle.value = { left: `${position.left}px`, top: `${position.top}px`, visibility: 'visible' };
     popupPlacement.value = position.placement;
   });
 }
@@ -265,9 +450,12 @@ function schedulePositionUpdate(): void {
 
 function openTooltip(): void {
   if (!snapshot.value || isSelectionInTargetLanguage(snapshot.value.text)) { hideAll(); return; }
+  cancelSelectionPresentation();
+  const wasVisible = showTooltip.value;
   showIndicator.value = true;
   showTooltip.value = true;
-  void requestSelectionContent(snapshot.value.text);
+  if (!wasVisible) tooltipStyle.value = { visibility: 'hidden' };
+  if (!wasVisible || error.value) void requestSelectionContent(snapshot.value.text);
   schedulePositionUpdate();
 }
 
@@ -275,62 +463,181 @@ function shouldUseWordCard(text: string): boolean {
   return isSingleEnglishWord(text) && (config.from === 'auto' || /^en(?:-|$)/i.test(config.from));
 }
 
+function beginSelectionContentRequest(text: string): SelectionContentRequest {
+  resetSelectionContentState();
+  const request = { text, targetLanguage: config.to, generation: ++contentRequestGeneration };
+  activeContentRequest.value = request;
+  return request;
+}
+
+function isContentRequestCurrent(request: SelectionContentRequest): boolean {
+  const current = currentContentRequest.value;
+  return Boolean(current && current.generation === request.generation && current.text === request.text && current.targetLanguage === request.targetLanguage);
+}
+
+function dictionaryDefinitions(card: WordCardData, targetLanguage: string): string {
+  return resolveSelectionDictionaryFallback(targetLanguage, card.meanings.flatMap(meaning => meaning.definitions).map(definition => definition.translatedDefinition));
+}
+
 function requestSelectionContent(text: string): void {
-  void requestTranslation(text);
-  if (shouldUseWordCard(text)) void requestWordCard(text);
+  const request = beginSelectionContentRequest(text);
+  void requestTranslation(request);
+  if (shouldUseWordCard(text)) {
+    void requestWordCard(request);
+    void refreshVocabularySaved(text);
+  }
   else {
     wordLookupRequestId += 1;
     wordCard.value = null;
     isWordCardLoading.value = false;
     wordCardError.value = '';
+    dictionaryAnswer.value = null;
+    vocabularyRequestId += 1;
+    isVocabularySaved.value = false;
+    vocabularyBusy.value = false;
   }
 }
 
-async function requestTranslation(text: string): Promise<void> {
+async function refreshVocabularySaved(text: string): Promise<void> {
+  const word = normalizeEnglishWord(text);
+  if (!word || !config.vocabularyBookEnabled || isPrivateContext) return;
+  const requestId = ++vocabularyRequestId;
+  try {
+    const response = await browser.runtime.sendMessage({type: VOCABULARY_BOOK_MESSAGE, action: 'getByTerm', term: word, sourceLanguage: 'en'}) as VocabularyBookResponse<VocabularyEntry | null>;
+    if (requestId !== vocabularyRequestId || snapshot.value?.text !== text) return;
+    isVocabularySaved.value = response?.success === true && Boolean(response.data);
+  } catch {
+    if (requestId === vocabularyRequestId) isVocabularySaved.value = false;
+  }
+}
+
+function selectionContextText(): string {
+  const range = snapshot.value?.range;
+  if (!range) return '';
+  const boundary = range.startContainer.nodeType === Node.ELEMENT_NODE ? range.startContainer as Element : range.startContainer.parentElement;
+  const prose = boundary?.closest('p, li, blockquote, dd, dt, figcaption, article') || boundary?.parentElement;
+  let selectedIndex: number | undefined;
+  if (prose?.contains(range.startContainer)) {
+    try {
+      const prefix = document.createRange();
+      prefix.selectNodeContents(prose);
+      prefix.setEnd(range.startContainer, range.startOffset);
+      selectedIndex = prefix.toString().replace(/\s+/gu, ' ').trimStart().length;
+    } catch { selectedIndex = undefined; }
+  }
+  return summarizeSelectionContext(prose?.textContent || '', selectedText.value, 500, selectedIndex);
+}
+
+function pageSourceUrl(): string {
+  try {
+    const url = new URL(location.href);
+    url.search = '';
+    url.hash = '';
+    return url.toString();
+  } catch { return ''; }
+}
+
+async function saveVocabularyEntry(event: MouseEvent): Promise<void> {
+  if (!event.isTrusted) return;
+  const contentRequest = currentContentRequest.value;
+  const answer = vocabularyAnswer.value;
+  if (!contentRequest || !selectedWord.value || !answer || vocabularyBusy.value || isPrivateContext) return;
+  vocabularyBusy.value = true;
+  const requestId = ++vocabularyRequestId;
+  try {
+    const response = await browser.runtime.sendMessage({
+      type: VOCABULARY_BOOK_MESSAGE,
+      action: 'upsert',
+      input: {
+        term: contentRequest.text,
+        sourceLanguage: 'en',
+        targetLanguage: contentRequest.targetLanguage,
+        translation: answer,
+        phonetic: wordCard.value?.phonetics.find(item => item.text)?.text || '',
+        partOfSpeech: wordCard.value?.meanings.map(meaning => meaning.partOfSpeech) || [],
+        context: {text: selectionContextText(), sourceUrl: pageSourceUrl(), pageTitle: document.title, capturedAt: Date.now()},
+      },
+    }) as VocabularyBookResponse<VocabularyEntry>;
+    if (requestId !== vocabularyRequestId || !isContentRequestCurrent(contentRequest)) return;
+    if (!response?.success || !response.data) throw new Error(response?.success ? '保存失败' : response?.error?.message || '保存失败');
+    const wasSaved = isVocabularySaved.value;
+    isVocabularySaved.value = true;
+    showNotice(wasSaved ? '已更新当前阅读上下文' : '已加入单词本', 'open-vocabulary');
+  } catch (cause) {
+    if (requestId === vocabularyRequestId) showNotice(cause instanceof Error ? `保存失败：${cause.message}` : '保存失败，未写入单词本');
+  } finally {
+    if (requestId === vocabularyRequestId) vocabularyBusy.value = false;
+  }
+}
+
+function showNotice(message: string, action: 'open-vocabulary' | null = null): void {
+  noticeMessage.value = message;
+  noticeAction.value = action;
+  if (noticeTimer !== null) window.clearTimeout(noticeTimer);
+  noticeTimer = window.setTimeout(() => { noticeMessage.value = ''; noticeAction.value = null; }, 2600);
+}
+
+function openVocabularyBook(): void {
+  void browser.runtime.sendMessage({type: 'openOptionsPage', section: 'settings-vocabulary'});
+  noticeMessage.value = '';
+  noticeAction.value = null;
+}
+
+async function requestTranslation(request: SelectionContentRequest): Promise<void> {
+  const text = request.text;
+  translationAbortController?.abort();
+  const controller = new AbortController();
+  translationAbortController = controller;
   const requestId = ++translationRequestId;
   isLoading.value = true;
   error.value = '';
   try {
-    const result = await translateText(text);
-    if (requestId !== translationRequestId || snapshot.value?.text !== text) return;
+    const result = await translateText(text, document.title, { signal: controller.signal, targetLanguage: request.targetLanguage });
+    if (requestId !== translationRequestId || !isContentRequestCurrent(request)) return;
     translationResult.value = result;
+    translationAnswer.value = {...request, answer: result};
   } catch (cause) {
-    if (requestId !== translationRequestId || snapshot.value?.text !== text) return;
+    if (requestId !== translationRequestId || !isContentRequestCurrent(request)) return;
+    if (cause instanceof Error && cause.name === 'AbortError') return;
     console.error('Selection translation error:', cause);
     error.value = '翻译失败，请重试';
   } finally {
+    if (translationAbortController === controller) translationAbortController = null;
     if (requestId === translationRequestId) isLoading.value = false;
   }
 }
 
 function retryTranslation(): void {
   if (!snapshot.value) return;
-  void requestTranslation(snapshot.value.text);
-  if (shouldUseWordCard(snapshot.value.text)) void requestWordCard(snapshot.value.text);
+  requestSelectionContent(snapshot.value.text);
 }
 
-async function requestWordCard(text: string): Promise<void> {
+async function requestWordCard(request: SelectionContentRequest): Promise<void> {
+  const text = request.text;
   const word = normalizeEnglishWord(text);
   if (!word) return;
   const requestId = ++wordLookupRequestId;
   isWordCardLoading.value = true;
   wordCardError.value = '';
   try {
-    const response = await browser.runtime.sendMessage({ type: 'selectionWordLookup', word }) as {
+    const response = await browser.runtime.sendMessage({ type: 'selectionWordLookup', word, targetLanguage: request.targetLanguage }) as {
       success?: boolean;
       data?: WordCardData | null;
     };
-    if (requestId !== wordLookupRequestId || snapshot.value?.text !== text) return;
+    if (requestId !== wordLookupRequestId || !isContentRequestCurrent(request)) return;
     if (!response?.success || !response.data) {
       wordCard.value = null;
+      dictionaryAnswer.value = null;
       wordCardError.value = '暂未找到这个单词的词典条目';
     } else {
       wordCard.value = response.data;
+      dictionaryAnswer.value = {...request, answer: dictionaryDefinitions(response.data, request.targetLanguage)};
     }
   } catch (cause) {
-    if (requestId !== wordLookupRequestId || snapshot.value?.text !== text) return;
+    if (requestId !== wordLookupRequestId || !isContentRequestCurrent(request)) return;
     console.warn('Selection word lookup unavailable:', cause);
     wordCard.value = null;
+    dictionaryAnswer.value = null;
     wordCardError.value = '词典服务暂时不可用';
   } finally {
     if (requestId === wordLookupRequestId) isWordCardLoading.value = false;
@@ -632,24 +939,40 @@ async function toggleWordAudio(pronunciation: WordPronunciation): Promise<void> 
 
 function closeTooltip(): void { hideAll(); }
 function hideAll(): void {
-  translationRequestId++;
-  wordLookupRequestId++;
+  cancelSelectionLoss();
+  cancelSelectionPresentation();
+  selectionSettledAt = 0;
+  resetSelectionContentState(true);
+  vocabularyRequestId += 1;
   showIndicator.value = false;
   showTooltip.value = false;
   snapshot.value = null;
-  wordCard.value = null;
-  isWordCardLoading.value = false;
-  wordCardError.value = '';
-  showChineseSupport.value = true;
-  stopAudio();
+  pendingSelectionShortcutUntil = 0;
+  isVocabularySaved.value = false;
+  vocabularyBusy.value = false;
 }
 function isInsideUi(target: EventTarget | null): boolean {
   const node = target instanceof Node ? target : null;
   if (!node) return false;
   const host = document.getElementById('fluent-read-selection-translator-container');
-  return Boolean(node === host || host?.contains(node) || node.getRootNode() instanceof ShadowRoot);
+  const root = node.getRootNode();
+  return Boolean(node === host || host?.contains(node) || root === host?.shadowRoot);
+}
+function matchesSelectionModifierOnPointer(event: PointerEvent): boolean {
+  const shortcut = selectionShortcut.value;
+  if (!['Control', 'Alt', 'Shift'].includes(shortcut)) return false;
+  const modifierState = {
+    ctrlKey: event.ctrlKey,
+    altKey: event.altKey,
+    shiftKey: event.shiftKey,
+    metaKey: event.metaKey,
+    key: shortcut === 'Control' ? 'Control' : shortcut === 'Alt' ? 'Alt' : 'Shift',
+  };
+  return matchesModifierOnlyHotkey(modifierState, shortcut);
 }
 function handlePointerDown(event: PointerEvent): void {
+  if (!event.isTrusted) return;
+  lastTrustedSelectionInteractionAt = Date.now();
   if (isInsideUi(event.target)) {
     uiPointerInteraction = true;
     isSelecting = false;
@@ -659,9 +982,12 @@ function handlePointerDown(event: PointerEvent): void {
   uiPointerInteraction = false;
   suppressSelectionUntil = 0;
   isSelecting = true;
-  if (showTooltip.value) hideAll();
+  pendingSelectionShortcutUntil = 0;
+  if (snapshot.value) hideAll();
 }
 function handlePointerUp(event: PointerEvent): void {
+  if (!event.isTrusted) return;
+  lastTrustedSelectionInteractionAt = Date.now();
   if (uiPointerInteraction || isInsideUi(event.target)) {
     uiPointerInteraction = false;
     isSelecting = false;
@@ -670,9 +996,10 @@ function handlePointerUp(event: PointerEvent): void {
   }
   uiPointerInteraction = false;
   isSelecting = false;
-  scheduleSelectionRead();
+  scheduleSelectionRead(matchesSelectionModifierOnPointer(event) || selectionShortcutHeld);
 }
 function handlePointerCancel(event: PointerEvent): void {
+  if (!event.isTrusted) return;
   if (uiPointerInteraction || isInsideUi(event.target)) {
     uiPointerInteraction = false;
     isSelecting = false;
@@ -681,7 +1008,10 @@ function handlePointerCancel(event: PointerEvent): void {
   }
   isSelecting = false;
 }
-function handleSelectionChange(): void { if (!isSelectionReadSuppressed()) scheduleSelectionRead(); }
+function handleSelectionChange(event: Event): void {
+  if (!event.isTrusted || Date.now() - lastTrustedSelectionInteractionAt > TRUSTED_SELECTION_INTERACTION_GRACE_MS) return;
+  if (!isSelectionReadSuppressed()) scheduleSelectionRead(selectionShortcutHeld);
+}
 function handleWheel(event: WheelEvent): void { if (isInsideUi(event.target)) suppressSelectionRead(); }
 function handleScroll(event: Event): void {
   if (isInsideUi(event.target)) {
@@ -691,32 +1021,123 @@ function handleScroll(event: Event): void {
   schedulePositionUpdate();
 }
 function handleKeydown(event: KeyboardEvent): void {
-  if (isInsideUi(event.target)) suppressSelectionRead();
-  if (event.key === 'Escape' && (showIndicator.value || showTooltip.value)) hideAll();
+  if (!event.isTrusted) return;
+  lastTrustedSelectionInteractionAt = Date.now();
+  if (isInsideUi(event.target)) {
+    suppressSelectionRead();
+    if (event.key === 'Escape' && snapshot.value) hideAll();
+    return;
+  }
+  if (event.key === 'Escape' && snapshot.value) { hideAll(); return; }
+  if (event.repeat) return;
+  const matchesSelectionShortcut = matchesConfiguredHotkey(event, selectionShortcutConfig.value, selectionSettings.value.customHotkey);
+  if (!matchesSelectionShortcut) return;
+  selectionShortcutHeld = true;
+  const currentSelection = readSelectionSnapshot();
+  if (currentSelection) {
+    event.preventDefault();
+    event.stopPropagation();
+    applySelection(currentSelection, true);
+    return;
+  }
+  if (!snapshot.value) {
+    scheduleSelectionRead(true);
+    return;
+  }
+  event.preventDefault();
+  event.stopPropagation();
+  scheduleSelectionPresentation('tooltip');
+}
+
+function handleKeyup(): void {
+  selectionShortcutHeld = false;
+}
+
+function handleWindowBlur(): void {
+  selectionShortcutHeld = false;
+  pendingSelectionShortcutUntil = 0;
+}
+
+function handleSelectionSettingsMessage(message: unknown): undefined {
+  if (!message || typeof message !== 'object') return undefined;
+  const type = (message as { type?: unknown }).type;
+  if (type !== 'updateSelectionTranslatorSettings' && type !== 'updateSelectionTranslatorMode') return undefined;
+  selectionConfigVersion.value += 1;
+  return undefined;
 }
 
 onMounted(() => {
   updateTheme();
   systemThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
   systemThemeMedia.addEventListener('change', updateTheme);
+  browser.runtime.onMessage.addListener(handleSelectionSettingsMessage);
+  unsubscribeConfig = subscribeConfig(() => { selectionConfigVersion.value += 1; });
   document.addEventListener('pointerdown', handlePointerDown, true);
   document.addEventListener('pointerup', handlePointerUp, true);
   document.addEventListener('pointercancel', handlePointerCancel, true);
   document.addEventListener('selectionchange', handleSelectionChange);
   document.addEventListener('keydown', handleKeydown, true);
+  document.addEventListener('keyup', handleKeyup, true);
+  window.addEventListener('blur', handleWindowBlur);
   browser.runtime.onMessage.addListener(handleSelectionTtsState);
-  window.addEventListener('scroll', schedulePositionUpdate, true);
   document.addEventListener('wheel', handleWheel, true);
   window.addEventListener('scroll', handleScroll, true);
   window.addEventListener('resize', schedulePositionUpdate);
-  watch(() => [config.theme, config.selectionTranslatorTrigger, config.to, config.from] as const, () => {
-    updateTheme();
-    if (snapshot.value) {
-      if (isSelectionInTargetLanguage(snapshot.value.text)) { hideAll(); return; }
-      showIndicator.value = triggerMode.value !== 'direct';
-      showTooltip.value = triggerMode.value === 'direct';
+  watch(tooltipRef, (tooltip) => {
+    tooltipResizeObserver?.disconnect();
+    tooltipResizeObserver = null;
+    if (!tooltip || typeof ResizeObserver === 'undefined') return;
+    tooltipResizeObserver = new ResizeObserver(schedulePositionUpdate);
+    tooltipResizeObserver.observe(tooltip);
+  }, { flush: 'post' });
+  watch(() => [
+    selectionSettings.value.theme,
+    selectionSettings.value.trigger,
+    selectionSettings.value.customHotkey,
+    selectionSettings.value.delay,
+    selectionSettings.value.mode,
+    selectionSettings.value.to,
+    selectionSettings.value.from,
+    selectionSettings.value.service,
+    selectionSettings.value.model,
+    config.vocabularyBookEnabled,
+  ] as const, (nextSettings, previousSettings) => {
+    const themeChanged = !previousSettings || nextSettings[0] !== previousSettings[0];
+    const triggerChanged = !previousSettings
+      || nextSettings[1] !== previousSettings[1]
+      || nextSettings[2] !== previousSettings[2];
+    const delayChanged = !previousSettings || nextSettings[3] !== previousSettings[3];
+    const languageChanged = !previousSettings
+      || nextSettings[5] !== previousSettings[5]
+      || nextSettings[6] !== previousSettings[6];
+    const translationProviderChanged = !previousSettings
+      || nextSettings[7] !== previousSettings[7]
+      || nextSettings[8] !== previousSettings[8];
+    if (themeChanged) updateTheme();
+    if (!snapshot.value) return;
+    if (languageChanged && isSelectionInTargetLanguage(snapshot.value.text)) { hideAll(); return; }
+    if (languageChanged || translationProviderChanged) resetSelectionContentState();
+    if (triggerChanged) {
+      const nextPresentation = reconcileSelectionPresentation({
+        showIndicator: showIndicator.value,
+        showTooltip: showTooltip.value,
+      }, triggerMode.value, true);
+      cancelSelectionPresentation();
+      showIndicator.value = false;
+      showTooltip.value = false;
+      if (nextPresentation.showTooltip) scheduleSelectionPresentation('tooltip');
+      else if (nextPresentation.showIndicator) scheduleSelectionPresentation('indicator');
+      return;
+    }
+    if (delayChanged && pendingSelectionPresentation) {
+      scheduleSelectionPresentation(pendingSelectionPresentation);
+      return;
+    }
+    if (languageChanged || translationProviderChanged) {
       if (showTooltip.value) void requestSelectionContent(snapshot.value.text);
-      schedulePositionUpdate();
+    }
+    if (previousSettings && nextSettings[9] !== previousSettings[9] && showTooltip.value && isWordSelection.value) {
+      void refreshVocabularySaved(snapshot.value.text);
     }
   });
 });
@@ -724,25 +1145,34 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (selectionFrame !== null) window.cancelAnimationFrame(selectionFrame);
   if (positionFrame !== null) window.cancelAnimationFrame(positionFrame);
+  cancelSelectionLoss();
+  cancelSelectionPresentation();
   if (copyTimer !== null) window.clearTimeout(copyTimer);
+  if (noticeTimer !== null) window.clearTimeout(noticeTimer);
   systemThemeMedia?.removeEventListener('change', updateTheme);
+  browser.runtime.onMessage.removeListener(handleSelectionSettingsMessage);
+  unsubscribeConfig?.();
+  unsubscribeConfig = null;
+  tooltipResizeObserver?.disconnect();
+  tooltipResizeObserver = null;
   document.removeEventListener('pointerdown', handlePointerDown, true);
   document.removeEventListener('pointerup', handlePointerUp, true);
   document.removeEventListener('pointercancel', handlePointerCancel, true);
   document.removeEventListener('selectionchange', handleSelectionChange);
   document.removeEventListener('keydown', handleKeydown, true);
+  document.removeEventListener('keyup', handleKeyup, true);
+  window.removeEventListener('blur', handleWindowBlur);
   browser.runtime.onMessage.removeListener(handleSelectionTtsState);
-  window.removeEventListener('scroll', schedulePositionUpdate, true);
   document.removeEventListener('wheel', handleWheel, true);
   window.removeEventListener('scroll', handleScroll, true);
   window.removeEventListener('resize', schedulePositionUpdate);
-  stopAudio();
+  resetSelectionContentState(true);
 });
 </script>
 
 <style scoped>
 .fr-selection-translator-root { position: fixed; inset: 0; z-index: 2147483647; width: 100vw; height: 100vh; pointer-events: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #25252a; }
-.fr-selection-indicator, .fr-translation-tooltip, .fr-copy-success-toast { pointer-events: auto; }
+.fr-selection-indicator, .fr-translation-tooltip, .fr-copy-success-toast, .fr-action-toast { pointer-events: auto; }
 .fr-selection-indicator { position: fixed; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; transform: translate(-50%, -50%); background: #ef4b86; color: #fff; box-shadow: 0 2px 7px rgba(204, 40, 104, .28), 0 0 0 2px rgba(255, 255, 255, .94); cursor: pointer; transition: transform .14s ease, box-shadow .14s ease; }
 .fr-selection-indicator--dot { width: 8px; height: 8px; }
 .fr-selection-indicator--dot .fr-selection-indicator-glyph { display: none; }
@@ -758,6 +1188,9 @@ onBeforeUnmount(() => {
 .fr-action-btn { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 7px; }
 .fr-action-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .fr-action-btn:hover, .fr-action-btn:focus-visible { background: #f4f4f7; color: #ef4b86; outline: none; }
+.fr-action-btn:disabled { cursor: not-allowed; opacity: .38; }
+.fr-vocabulary-btn.fr-saved { color: #ef4b86; }
+.fr-vocabulary-btn.fr-saved svg { fill: currentColor; stroke: currentColor; }
 .fr-close-btn { width: 26px; height: 26px; font-size: 21px; line-height: 1; border-radius: 7px; }
 .fr-close-btn:hover, .fr-close-btn:focus-visible { background: #f4f4f7; color: #303038; outline: none; }
 .fr-tooltip-content { max-height: min(440px, calc(100vh - 72px)); overflow: auto; padding: 13px 14px 15px; scrollbar-color: rgba(108, 105, 112, .4) transparent; scrollbar-width: thin; }
@@ -813,6 +1246,8 @@ onBeforeUnmount(() => {
 .fr-playing-status { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; color: #777780; font-size: 12px; }
 .fr-playing-status button { border: 1px solid #e8a4bc; border-radius: 7px; padding: 3px 8px; color: #d83e70; }
 .fr-copy-success-toast { position: fixed; right: 18px; bottom: 18px; padding: 9px 13px; border-radius: 9px; background: #2c2c35; color: #fff; font-size: 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); }
+.fr-action-toast { position: fixed; right: 18px; bottom: 18px; display: flex; align-items: center; gap: 10px; padding: 9px 13px; border-radius: 9px; background: #2c2c35; color: #fff; font-size: 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); }
+.fr-action-toast button { padding: 0; border: 0; color: #ffc2d5; background: transparent; cursor: pointer; font: inherit; font-weight: 700; }
 .fr-dark-theme { border-color: #44444e; background: rgba(40, 40, 48, .98); color: #f1f1f4; }
 .fr-dark-theme .fr-tooltip-header { border-color: #4b4b56; }
 .fr-dark-theme .fr-action-btn:hover, .fr-dark-theme .fr-close-btn:hover { background: #50505b; color: #fff; }

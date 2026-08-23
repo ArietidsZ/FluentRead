@@ -102,6 +102,10 @@ const props = defineProps({
     type: Function as PropType<(isTranslating: boolean) => void>,
     default: () => {},
   },
+  initialTranslating: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 interface PointerDragState {
@@ -116,7 +120,7 @@ const positionStyle = ref<CSSProperties>({});
 const isDragging = ref(false);
 const draggedY = ref<number | null>(null);
 const internalPosition = ref<'left' | 'right' | null>(null);
-const isTranslating = ref(false);
+const isTranslating = ref(props.initialTranslating);
 const floatingBall = ref<HTMLElement | null>(null);
 const showShortcutTooltip = ref(false);
 const shortcutTip = ref('快捷键：Alt+T');
@@ -263,9 +267,14 @@ function toggleTranslation() {
   props.onTranslationToggle(isTranslating.value);
 }
 
-function handleExternalToggle() {
-  if (!floatingBall.value) return;
-  toggleTranslation();
+defineExpose({ toggleTranslation });
+
+function handleTranslationStarted() {
+  isTranslating.value = true;
+}
+
+function handleTranslationEnded() {
+  isTranslating.value = false;
 }
 
 function handleSettingsClick(event: MouseEvent) {
@@ -281,14 +290,12 @@ onMounted(() => {
   updatePositionStyle();
   window.addEventListener('resize', updatePositionStyle);
   document.addEventListener('keydown', handleDocumentKeydown);
-  document.addEventListener('fluentread-toggle-translation', handleExternalToggle);
 });
 
 onBeforeUnmount(() => {
   removePointerListeners();
   window.removeEventListener('resize', updatePositionStyle);
   document.removeEventListener('keydown', handleDocumentKeydown);
-  document.removeEventListener('fluentread-toggle-translation', handleExternalToggle);
   if (animationTimer) clearTimeout(animationTimer);
   if (tooltipTimer) clearTimeout(tooltipTimer);
 });
@@ -298,6 +305,10 @@ watch(() => props.position, (newPosition) => {
   internalPosition.value = newPosition;
   draggedY.value = null;
   updatePositionStyle();
+});
+
+watch(() => props.initialTranslating, (nextState) => {
+  isTranslating.value = nextState;
 });
 </script>
 

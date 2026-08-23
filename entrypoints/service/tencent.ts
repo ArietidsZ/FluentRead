@@ -1,6 +1,8 @@
 import { method } from "../utils/constant";
 import { config } from "@/entrypoints/utils/config";
 import {getTranslationLanguages} from "@/entrypoints/utils/translationLanguage";
+import {createHttpStatusError, createProviderCodeError, readJsonResponse} from '@/entrypoints/utils/httpError';
+import {runtimeFetch} from '@/entrypoints/utils/http';
 
 // 腾讯云机器翻译语言代码映射
 const languageMap: Record<string, string> = {
@@ -127,7 +129,7 @@ async function tencent(message: any) {
         const service = message.serviceOverride || config.service;
         const url = config.proxy[service] || 'https://tmt.tencentcloudapi.com/';
         
-        const response = await fetch(url, {
+        const response = await runtimeFetch(url, {
             method: method.POST,
             headers: {
                 'Content-Type': 'application/json; charset=utf-8',
@@ -142,15 +144,14 @@ async function tencent(message: any) {
         });
         
         if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`腾讯云机器翻译请求失败: ${response.status} ${response.statusText}\n${errorText}`);
+            throw createHttpStatusError(response, '腾讯云机器翻译请求失败');
         }
         
-        const result = await response.json();
+        const result = await readJsonResponse<any>(response, '腾讯云机器翻译返回的不是有效 JSON');
         
         // 检查是否有错误
         if (result.Response?.Error) {
-            throw new Error(`腾讯云机器翻译错误: ${result.Response.Error.Code} - ${result.Response.Error.Message}`);
+            throw createProviderCodeError('腾讯云机器翻译错误', result.Response.Error.Code);
         }
         
         // 返回翻译结果
@@ -161,7 +162,6 @@ async function tencent(message: any) {
         }
         
     } catch (error) {
-        console.error('腾讯云机器翻译服务调用失败:', error);
         throw error;
     }
 }

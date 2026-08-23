@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { reactive } from 'vue';
 import { normalizeConfig } from '@/entrypoints/utils/model';
+import { sanitizeConfigCredentials } from '@/entrypoints/utils/credentials';
 
 const storageMock = vi.hoisted(() => ({
     getItem: vi.fn(),
     setItem: vi.fn(),
+    removeItem: vi.fn(),
     watch: vi.fn(),
 }));
 
@@ -17,10 +19,44 @@ const storedConfig = {
     to: 'zh-Hans',
 };
 
-async function loadConfigModule(value: unknown = null) {
+const storageState = new Map<string, unknown>();
+const storageOperations: string[] = [];
+
+interface LoadConfigOptions {
+    trusted?: boolean;
+    history?: unknown;
+    sessionCredentials?: unknown;
+    localCredentials?: unknown;
+    failSessionWrite?: boolean;
+}
+
+async function loadConfigModule(value: unknown = null, options: LoadConfigOptions = {}) {
     vi.resetModules();
-    storageMock.getItem.mockReset().mockResolvedValue(value);
-    storageMock.setItem.mockReset().mockResolvedValue(undefined);
+    storageState.clear();
+    storageOperations.length = 0;
+    if (value !== null) storageState.set('local:config', value);
+    if (options.history !== undefined) storageState.set('local:configHistory', options.history);
+    if (options.sessionCredentials !== undefined) storageState.set('session:credentials', options.sessionCredentials);
+    if (options.localCredentials !== undefined) storageState.set('local:credentials', options.localCredentials);
+    Object.defineProperty(globalThis, 'location', {
+        configurable: true,
+        value: {protocol: options.trusted === false ? 'https:' : 'chrome-extension:'},
+    });
+    storageMock.getItem.mockReset().mockImplementation(async (key: string) => {
+        storageOperations.push(`get:${key}`);
+        return storageState.get(key) ?? null;
+    });
+    storageMock.setItem.mockReset().mockImplementation(async (key: string, nextValue: unknown) => {
+        storageOperations.push(`set:${key}`);
+        if (options.failSessionWrite && key === 'session:credentials') {
+            throw new Error('storage.session unavailable');
+        }
+        storageState.set(key, structuredClone(nextValue));
+    });
+    storageMock.removeItem.mockReset().mockImplementation(async (key: string) => {
+        storageOperations.push(`remove:${key}`);
+        storageState.delete(key);
+    });
     storageMock.watch.mockReset().mockReturnValue(() => undefined);
     return import('@/entrypoints/utils/config');
 }
@@ -43,14 +79,30 @@ describe('统一配置存储', () => {
         expect(typeof storageMock.setItem.mock.calls[0][1]).toBe('object');
     });
 
-    it('读取已经规范化的对象时不产生初始化回写', async () => {
-        const canonicalConfig = normalizeConfig(storedConfig);
+    it('读取已经去凭据且带版本的规范化对象时不产生初始化回写', async () => {
+        const canonicalConfig = {
+            ...sanitizeConfigCredentials(normalizeConfig(storedConfig)),
+            __fluentConfigRevision: 5,
+        };
         const configStore = await loadConfigModule(canonicalConfig);
 
         await configStore.configReady;
 
         expect(storageMock.setItem).not.toHaveBeenCalled();
         expect(configStore.config).toMatchObject(storedConfig);
+    });
+
+    it('为旧配置补齐空的始终翻译域名列表，并只迁移回写一次', async () => {
+        const legacyConfig = normalizeConfig(storedConfig) as unknown as Record<string, unknown>;
+        delete legacyConfig.alwaysTranslateDomains;
+        const configStore = await loadConfigModule(legacyConfig);
+
+        await configStore.configReady;
+
+        expect(configStore.config.alwaysTranslateDomains).toEqual([]);
+        const localConfigWrites = storageMock.setItem.mock.calls.filter(([key]) => key === 'local:config');
+        expect(localConfigWrites).toHaveLength(1);
+        expect(localConfigWrites[0][1]).toEqual(expect.objectContaining({alwaysTranslateDomains: []}));
     });
 
     it('内部 storage revision 不进入运行时配置或历史快照', async () => {
@@ -166,7 +218,7 @@ describe('统一配置存储', () => {
         const latestSave = configStore.saveConfig({ ...configStore.config, on: true, to: 'en' });
         await Promise.all([firstSave, latestSave]);
 
-        expect(storageMock.setItem).toHaveBeenCalledTimes(1);
+        expect(storageMock.setItem).toHaveBeenCalledTimes(2);
         expect(storageMock.setItem).toHaveBeenLastCalledWith(
             'local:config',
             expect.objectContaining({ on: true, to: 'en' }),
@@ -240,18 +292,168 @@ describe('统一配置存储', () => {
         expect(sentConfig).toMatchObject({ to: 'ja', model: { openai: 'gpt-4o-mini' } });
     });
 
-    it('后台不可用时保留当前上下文的降级保存路径', async () => {
+    it('后台不可用时失败关闭，不在短生命周期上下文降级落盘', async () => {
         const configStore = await loadConfigModule(storedConfig);
         await configStore.configReady;
         storageMock.setItem.mockClear();
         const sendMessage = vi.fn().mockRejectedValue(new Error('Receiving end does not exist'));
 
-        await configStore.requestConfigSave({ ...configStore.config, to: 'ja' }, sendMessage);
+        await expect(configStore.requestConfigSave({ ...configStore.config, to: 'ja' }, sendMessage))
+            .rejects.toThrow('Receiving end does not exist');
+        expect(storageMock.setItem).not.toHaveBeenCalled();
+    });
 
-        expect(storageMock.setItem).toHaveBeenCalledWith(
-            'local:config',
-            expect.objectContaining({ to: 'ja' }),
-        );
+    it('content 保存公开字段时保留后台运行时凭据与持久化偏好', async () => {
+        const configStore = await loadConfigModule(storedConfig);
+        await configStore.configReady;
+        const current = normalizeConfig({
+            ...configStore.config,
+            token: {openai: 'background-session-secret'},
+            extra: {zhipu: {jwt: 'derived-secret'}},
+            persistCredentials: true,
+        });
+        const contentSnapshot = normalizeConfig({...current, to: 'ja', token: {}, extra: {}, persistCredentials: false});
+
+        const prepared = configStore.prepareConfigSaveRequest(contentSnapshot, current, false);
+        const extensionPrepared = configStore.prepareConfigSaveRequest(contentSnapshot, current, true);
+
+        expect(prepared).toMatchObject({
+            to: 'ja',
+            token: {openai: 'background-session-secret'},
+            extra: {zhipu: {jwt: 'derived-secret'}},
+            persistCredentials: true,
+        });
+        expect(extensionPrepared.token).toEqual({});
+        expect(extensionPrepared.extra).toEqual({});
+        expect(extensionPrepared.persistCredentials).toBe(false);
+    });
+
+    it('按 session 写入读回、清理 config/history、最后删除 local 的顺序迁移旧凭据', async () => {
+        const secret = 'legacy-secret-sentinel';
+        const legacyConfig = {
+            ...storedConfig,
+            token: {openai: secret},
+            ak: `${secret}-ak`,
+            extra: {jwt: `${secret}-jwt`},
+        };
+        const legacyHistory = {
+            schemaVersion: 1,
+            entries: [{version: 1, savedAt: new Date(0).toISOString(), config: legacyConfig}],
+            cursor: 0,
+            nextVersion: 2,
+        };
+        const configStore = await loadConfigModule(legacyConfig, {history: legacyHistory});
+
+        await configStore.configReady;
+
+        const setSession = storageOperations.indexOf('set:session:credentials');
+        const verifySession = storageOperations.indexOf('get:session:credentials', setSession + 1);
+        const setConfig = storageOperations.indexOf('set:local:config');
+        const setHistory = storageOperations.indexOf('set:local:configHistory');
+        const removeLocal = storageOperations.indexOf('remove:local:credentials');
+        expect(setSession).toBeGreaterThan(-1);
+        expect(verifySession).toBeGreaterThan(setSession);
+        expect(setConfig).toBeGreaterThan(verifySession);
+        expect(setHistory).toBeGreaterThan(setConfig);
+        expect(removeLocal).toBeGreaterThan(setHistory);
+        expect(storageState.get('session:credentials')).toMatchObject({token: {openai: secret}});
+        expect(JSON.stringify(storageState.get('local:config'))).not.toContain(secret);
+        expect(JSON.stringify(storageState.get('local:configHistory'))).not.toContain(secret);
+    });
+
+    it('默认只把新凭据保存到 session，local config 与历史不含敏感 sentinel', async () => {
+        const configStore = await loadConfigModule(storedConfig);
+        await Promise.all([configStore.configReady, configStore.configHistoryReady]);
+        const secret = 'session-only-secret-sentinel';
+
+        await configStore.saveConfig({
+            ...configStore.config,
+            token: {openai: secret},
+            to: 'en',
+        }, {recordHistory: true, immediateHistory: true});
+
+        expect(storageState.get('session:credentials')).toMatchObject({token: {openai: secret}});
+        expect(storageState.has('local:credentials')).toBe(false);
+        expect(JSON.stringify(storageState.get('local:config'))).not.toContain(secret);
+        expect(JSON.stringify(storageState.get('local:configHistory'))).not.toContain(secret);
+        const persistedConfig = storageState.get('local:config') as Record<string, unknown>;
+        expect(persistedConfig.token).toBeUndefined();
+        expect(persistedConfig.extra).toBeUndefined();
+
+        await configStore.saveConfig({...configStore.config, token: {}, to: 'ja'});
+        expect(storageState.get('session:credentials')).toMatchObject({token: {}});
+    });
+
+    it('只有明确 opt-in 才写 local:credentials，关闭时先校验 session 再删除', async () => {
+        const configStore = await loadConfigModule(storedConfig);
+        await configStore.configReady;
+        const secret = 'opt-in-secret-sentinel';
+
+        await configStore.saveConfig({
+            ...configStore.config,
+            token: {openai: secret},
+            persistCredentials: true,
+        });
+        expect(storageState.get('local:credentials')).toMatchObject({token: {openai: secret}});
+        expect(JSON.stringify(storageState.get('local:config'))).not.toContain(secret);
+
+        storageOperations.length = 0;
+        await configStore.saveConfig({...configStore.config, persistCredentials: false});
+        const setSession = storageOperations.indexOf('set:session:credentials');
+        const verifySession = storageOperations.indexOf('get:session:credentials', setSession + 1);
+        const removeLocal = storageOperations.indexOf('remove:local:credentials');
+        expect(setSession).toBeGreaterThan(-1);
+        expect(verifySession).toBeGreaterThan(setSession);
+        expect(removeLocal).toBeGreaterThan(verifySession);
+        expect(storageState.has('local:credentials')).toBe(false);
+    });
+
+    it('恢复历史只恢复公开字段，并保留当前凭据和显式持久化选择', async () => {
+        const configStore = await loadConfigModule(storedConfig);
+        await Promise.all([configStore.configReady, configStore.configHistoryReady]);
+        await configStore.saveConfig({...configStore.config, to: 'en'}, {recordHistory: true, immediateHistory: true});
+        const baselineVersion = configStore.getConfigHistorySnapshot().entries[0].version;
+        const secret = 'restore-secret-sentinel';
+        await configStore.saveConfig({
+            ...configStore.config,
+            token: {openai: secret},
+            persistCredentials: true,
+            to: 'ja',
+        }, {recordHistory: true, immediateHistory: true});
+
+        await configStore.applyConfigHistoryAction('restore', baselineVersion);
+
+        expect(configStore.config.to).toBe('zh-Hans');
+        expect(configStore.config.token.openai).toBe(secret);
+        expect(configStore.config.persistCredentials).toBe(true);
+        expect(JSON.stringify(configStore.getConfigHistorySnapshot())).not.toContain(secret);
+    });
+
+    it('session 写入或读回失败时不删除或改写旧明文', async () => {
+        const secret = 'must-not-delete-secret';
+        const legacyConfig = {...storedConfig, token: {openai: secret}};
+        const configStore = await loadConfigModule(legacyConfig, {failSessionWrite: true});
+
+        await expect(configStore.configReady).resolves.toBeUndefined();
+
+        expect(configStore.config.token.openai).toBe(secret);
+        expect(storageMock.removeItem).not.toHaveBeenCalled();
+        expect(storageMock.setItem).not.toHaveBeenCalledWith('local:config', expect.anything());
+        expect(storageState.get('local:config')).toEqual(legacyConfig);
+    });
+
+    it('网页/content 上下文不访问 session，也不执行危险迁移', async () => {
+        const secret = 'content-context-secret';
+        const legacyConfig = {...storedConfig, token: {openai: secret}};
+        const configStore = await loadConfigModule(legacyConfig, {trusted: false});
+
+        await configStore.configReady;
+
+        expect(configStore.config.token).toEqual({});
+        expect(storageOperations.some((operation) => operation.includes('session:credentials'))).toBe(false);
+        expect(storageMock.setItem).not.toHaveBeenCalled();
+        expect(storageMock.removeItem).not.toHaveBeenCalled();
+        expect(storageState.get('local:config')).toEqual(legacyConfig);
     });
 
     it('连续请求按页面顺序发送，避免旧快照覆盖最新快照', async () => {
@@ -351,6 +553,27 @@ describe('统一配置存储', () => {
         const restored = await configStore.applyConfigHistoryAction('restore', baselineVersion);
         expect(configStore.config.to).toBe('zh-Hans');
         expect(restored.entries[restored.cursor].version).toBe(baselineVersion);
+    });
+
+    it('在配置历史中保存规范化域名，并能恢复旧配置的空名单', async () => {
+        const configStore = await loadConfigModule(storedConfig);
+        await Promise.all([configStore.configReady, configStore.configHistoryReady]);
+
+        await configStore.saveConfig({
+            ...configStore.config,
+            alwaysTranslateDomains: [
+                'https://news.bbc.co.uk/world',
+                'BBC.CO.UK',
+                'https://docs.team.github.io/guide',
+            ],
+        }, {recordHistory: true, immediateHistory: true});
+
+        expect(configStore.config.alwaysTranslateDomains).toEqual(['bbc.co.uk', 'team.github.io']);
+        expect(configStore.getConfigHistorySnapshot().entries.at(-1)?.config.alwaysTranslateDomains)
+            .toEqual(['bbc.co.uk', 'team.github.io']);
+
+        await configStore.applyConfigHistoryAction('undo');
+        expect(configStore.config.alwaysTranslateDomains).toEqual([]);
     });
 
     it('配置历史操作优先通过后台消息传递，后台不可用时安全回退', async () => {

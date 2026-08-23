@@ -9,11 +9,19 @@ const runtime = vi.hoisted(() => ({
         nodes?: readonly Node[];
         adapterId?: string;
     }>,
+    pointCandidate: null as {
+        element: HTMLElement;
+        kind: "content";
+        reason: string;
+        nodes?: readonly Node[];
+        adapterId?: string;
+    } | null,
     requests: vi.fn<(origins: readonly string[]) => Promise<string[]>>(async (origins) =>
         origins.map((origin) => `译:${origin}`),
     ),
     retryCallbacks: [] as Array<() => void>,
     config: {service: "microsoft", display: 0, to: "zh", fullPageTranslationMode: "viewport" as "viewport" | "all"},
+    ensureTranslationTruncationLayout: vi.fn(() => true),
 }));
 
 vi.mock("@/entrypoints/utils/check", () => ({checkConfig: () => true}));
@@ -56,6 +64,9 @@ vi.mock("@/entrypoints/main/translationRenderer", () => ({
         node.appendChild(wrapper);
         return wrapper;
     },
+}));
+vi.mock("@/entrypoints/main/translationLayout", () => ({
+    ensureTranslationTruncationLayout: runtime.ensureTranslationTruncationLayout,
 }));
 vi.mock("@/entrypoints/translation-core/public", () => {
     const protectedSelector = [
@@ -132,7 +143,7 @@ vi.mock("@/entrypoints/translation-core/public", () => {
         parseTranslationSlots: () => null,
         resolveTranslationCandidate: (start: Node | null | undefined) =>
             [...runtime.candidates].reverse().find((candidate) => candidate.element === start),
-        resolveTranslationCandidateAtPoint: () => null,
+        resolveTranslationCandidateAtPoint: () => runtime.pointCandidate,
         selectPreferredTranslationCandidate: (
             existing: {element: HTMLElement; adapterId?: string},
             candidate: {element: HTMLElement; adapterId?: string},
@@ -144,6 +155,7 @@ vi.mock("@/entrypoints/translation-core/public", () => {
 import {
     autoTranslateEnglishPage,
     handleBilingualTranslation,
+    handleTranslation,
     isFullPageTranslationActive,
     restoreOriginalContent,
 } from "@/entrypoints/main/trans";
@@ -224,11 +236,13 @@ describe("全文翻译可见性锚点", () => {
     beforeEach(() => {
         vi.useFakeTimers();
         runtime.candidates = [];
+        runtime.pointCandidate = null;
         runtime.requests.mockReset();
         runtime.requests.mockImplementation(async (origins) => origins.map((origin) => `译:${origin}`));
         runtime.retryCallbacks = [];
         runtime.config.display = 0;
         runtime.config.fullPageTranslationMode = "viewport";
+        runtime.ensureTranslationTruncationLayout.mockClear();
         TestIntersectionObserver.instances = [];
         TestMutationObserver.instances = [];
 
@@ -256,6 +270,69 @@ describe("全文翻译可见性锚点", () => {
             else Reflect.deleteProperty(globalThis, name);
         }
         replacedGlobals.clear();
+    });
+
+    it("全文会话集中发布启动和结束状态事件", () => {
+        const states: string[] = [];
+        document.addEventListener("fluentread-translation-started", () => states.push("started"));
+        document.addEventListener("fluentread-translation-ended", () => states.push("ended"));
+
+        autoTranslateEnglishPage();
+        expect(isFullPageTranslationActive()).toBe(true);
+        expect(states).toEqual(["started"]);
+
+        restoreOriginalContent();
+        expect(isFullPageTranslationActive()).toBe(false);
+        expect(states).toEqual(["started", "ended"]);
+    });
+
+    it("全文翻译后按 Ctrl 恢复的单段不会被当前全文会话重新排队", async () => {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<p id="prose">Restore only this paragraph.</p>';
+        const paragraph = document.querySelector<HTMLElement>("#prose")!;
+        const candidate = {element: paragraph, kind: "content" as const, reason: "paragraph"};
+        setLayoutBox(paragraph, 640, 90);
+        runtime.candidates = [candidate];
+        runtime.pointCandidate = candidate;
+
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(50);
+        TestIntersectionObserver.instances[0]!.emit(paragraph, true);
+        await finishScheduledWork();
+
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(paragraph.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
+
+        // This is the same path used by the real Control hover trigger. It
+        // restores the current target while leaving the full-page session alive.
+        handleTranslation(20, 20);
+        await finishScheduledWork();
+
+        expect(isFullPageTranslationActive()).toBe(true);
+        expect(getTranslationState(paragraph)).toBeUndefined();
+        expect(paragraph.textContent).toBe("Restore only this paragraph.");
+        expect(paragraph.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(0);
+
+        // The browser delivers the extension restore as a mutation. A rescan
+        // must remember the explicit cancellation instead of translating again.
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: "childList",
+            target: paragraph,
+            addedNodes: [] as unknown as NodeList,
+            removedNodes: [] as unknown as NodeList,
+        } as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(paragraph.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(0);
+
+        // The cancellation is scoped to this session; starting a new full-page
+        // session is still allowed to translate the paragraph again.
+        restoreOriginalContent();
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(50);
+        TestIntersectionObserver.instances.at(-1)!.emit(paragraph, true);
+        await finishScheduledWork();
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
     });
 
     it("候选自身有布局盒时直接观察候选，不改用内部标签", async () => {
@@ -1420,6 +1497,40 @@ describe("全文翻译可见性锚点", () => {
 
         expect(runtime.requests).toHaveBeenCalledTimes(1);
     });
+
+    it.each([
+        {display: 0, expectedLayoutChecks: 0, label: "single"},
+        {display: 1, expectedLayoutChecks: 1, label: "bilingual"},
+    ] as const)(
+        "$label 已译内容发生纯布局 mutation 时只为双语 wrapper 续租 unclamp",
+        async ({display, expectedLayoutChecks}) => {
+            runtime.config.display = display;
+            document.body.innerHTML = '<p id="prose">Stable source under a layout-only mutation.</p>';
+            const paragraph = document.querySelector<HTMLElement>("#prose")!;
+            setLayoutBox(paragraph, 620, 90);
+            runtime.candidates = [{element: paragraph, kind: "content", reason: "paragraph"}];
+
+            autoTranslateEnglishPage();
+            await vi.advanceTimersByTimeAsync(50);
+            TestIntersectionObserver.instances[0]!.emit(paragraph, true);
+            await finishScheduledWork();
+            expect(getTranslationState(paragraph)?.phase).toBe("translated");
+
+            paragraph.classList.add("host-layout-update");
+            TestMutationObserver.instances.at(-1)!.emit([{
+                type: "attributes",
+                target: paragraph,
+                attributeName: "class",
+                addedNodes: [] as unknown as NodeList,
+                removedNodes: [] as unknown as NodeList,
+            } as unknown as MutationRecord]);
+            await finishScheduledWork();
+
+            expect(runtime.ensureTranslationTruncationLayout)
+                .toHaveBeenCalledTimes(expectedLayoutChecks);
+            expect(runtime.requests).toHaveBeenCalledTimes(1);
+        },
+    );
 
     it("已译 prose 忽略 MathJax/code 等保护后代 churn，但外层 source mutation 会重启", async () => {
         runtime.config.display = 1;

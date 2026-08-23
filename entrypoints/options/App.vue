@@ -13,6 +13,7 @@
             v-for="item in group.items"
             :key="item.id"
             type="button"
+            :data-section="item.id"
             :class="{ active: activeSection === item.id }"
             :aria-current="activeSection === item.id ? 'page' : undefined"
             @click="selectSection(item.id)"
@@ -27,9 +28,9 @@
     <main class="workspace">
       <header class="topbar">
         <div>
-          <span class="eyebrow">{{ activeItem.group }}</span>
-          <h1>{{ activeItem.heading }}</h1>
-          <p>{{ activeItem.summary }}</p>
+          <span class="eyebrow">{{ activeItem.kicker }}</span>
+          <h1>{{ activeItem.title }}</h1>
+          <p>{{ activeItem.detail }}</p>
         </div>
         <label class="search-box">
           <span aria-hidden="true">⌕</span>
@@ -44,7 +45,7 @@
       </div>
       <div v-else-if="query" class="search-empty">没有找到“{{ query }}”相关设置</div>
 
-      <section class="settings-card" :class="{ 'services-view': activeSection === 'settings-services', 'translation-center-view': activeSection === 'settings-translation-center' }" :aria-label="activeItem.heading">
+      <section class="settings-card" :class="{ 'services-view': activeSection === 'settings-services', 'translation-center-view': activeSection === 'settings-translation-center', 'vocabulary-view': activeSection === 'settings-vocabulary' }" :aria-label="activeItem.heading">
         <div v-if="!['settings-services', 'settings-about', 'settings-translation-center'].includes(activeSection)" class="card-intro">
           <span class="eyebrow">{{ activeItem.kicker }}</span>
           <h2>{{ activeItem.title }}</h2>
@@ -87,6 +88,7 @@
 
           <p class="about-footer">感谢你使用流畅阅读。</p>
         </section>
+        <VocabularyBook v-else-if="activeSection === 'settings-vocabulary'" @navigate="selectSection" />
         <Main v-else :active-section="activeSection" />
       </section>
 
@@ -97,6 +99,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import Main from '@/components/Main.vue'
+import VocabularyBook from '@/components/VocabularyBook.vue'
 import { navigationGroups, navigationItems } from './navigation'
 
 const version = process.env.VUE_APP_VERSION

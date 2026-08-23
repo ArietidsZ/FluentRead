@@ -6,6 +6,7 @@ import {
     configReady,
     CONFIG_HISTORY_MESSAGE,
     CONFIG_PERSIST_MESSAGE,
+    prepareConfigSaveRequest,
     saveConfig,
     subscribeConfig,
 } from "@/entrypoints/utils/config";
@@ -41,9 +42,121 @@ import {
     type ImageOcrLanguageCode,
 } from "@/entrypoints/utils/imageOcrLanguages";
 import {getTranslationLanguages, type TranslationLanguageOverride} from "@/entrypoints/utils/translationLanguage";
+import {serializeTranslationError} from '@/entrypoints/utils/translationError';
+import {
+    AI_SDK_TRANSPORT_PROFILE,
+    resolveOpenAICompatibleEndpoint,
+} from '@/entrypoints/service/ai-sdk/endpoints';
+import {vocabularyBook, VocabularyBookError} from "@/entrypoints/utils/vocabularyBook";
+import {
+    VOCABULARY_BOOK_CHANGED_MESSAGE,
+    VOCABULARY_BOOK_MESSAGE,
+    type VocabularyBookChangedMessage,
+    type VocabularyBookErrorCode,
+    type VocabularyBookResponse,
+    type VocabularyListOptions,
+    type VocabularyScheduledReviewRating,
+    type VocabularyUpsertInput,
+} from "@/entrypoints/utils/vocabularyBookProtocol";
 
 // 翻译状态管理
 let translationStateMap = new Map<number, boolean>(); // tabId -> isTranslated
+
+const OPTIONS_SECTION_IDS = new Set([
+    'settings-general',
+    'settings-services',
+    'settings-translation-center',
+    'settings-vocabulary',
+    'settings-shortcuts',
+    'settings-image-translation',
+    'settings-video',
+    'settings-advanced',
+    'settings-data',
+    'settings-about',
+    'settings-sites',
+]);
+
+function vocabularyEntryId(value: unknown): string {
+    if (typeof value !== 'string' || !value.trim()) throw new VocabularyBookError('invalid-input', '缺少有效的单词条目标识');
+    return value.trim();
+}
+
+function vocabularyFailure(error: unknown): VocabularyBookResponse<never> {
+    if (error instanceof VocabularyBookError) return {success: false, error: {code: error.code, message: error.message}};
+    console.error('[FluentRead] vocabulary book operation failed:', error);
+    return {success: false, error: {code: 'storage-error' satisfies VocabularyBookErrorCode, message: error instanceof Error ? error.message : '本地单词本暂时不可用'}};
+}
+
+function notifyVocabularyBookChanged(reason: VocabularyBookChangedMessage['reason'], entryId?: string): void {
+    void browser.runtime.sendMessage({
+        type: VOCABULARY_BOOK_CHANGED_MESSAGE,
+        reason,
+        ...(entryId ? {entryId} : {}),
+    }).catch(() => undefined);
+}
+
+async function handleVocabularyBookAction(message: any, sender: any): Promise<VocabularyBookResponse> {
+    try {
+        switch (message.action) {
+            case 'list': return {success: true, data: await vocabularyBook.list((message.options || {}) as VocabularyListOptions)};
+            case 'get': return {success: true, data: await vocabularyBook.get(vocabularyEntryId(message.entryId))};
+            case 'getByTerm': {
+                const term = typeof message.term === 'string' ? message.term : message.word;
+                const sourceLanguage = typeof message.sourceLanguage === 'string' ? message.sourceLanguage : '';
+                return {success: true, data: await vocabularyBook.getByTerm(sourceLanguage, term)};
+            }
+            case 'upsert': {
+                await configReady;
+                if (!config.vocabularyBookEnabled) throw new VocabularyBookError('invalid-input', '请先在单词本页面开启 Beta');
+                if (sender?.tab?.incognito === true) throw new VocabularyBookError('invalid-input', '无痕窗口不保存单词本数据');
+                const entry = await vocabularyBook.upsert(message.input as VocabularyUpsertInput);
+                notifyVocabularyBookChanged('upsert', entry.id);
+                return {success: true, data: entry};
+            }
+            case 'review': {
+                const entryId = vocabularyEntryId(message.entryId);
+                const result = await vocabularyBook.review(entryId, message.rating as VocabularyScheduledReviewRating);
+                notifyVocabularyBookChanged('review', entryId);
+                return {success: true, data: result};
+            }
+            case 'setMastery': {
+                const entryId = vocabularyEntryId(message.entryId);
+                const result = await vocabularyBook.setMastery(entryId);
+                notifyVocabularyBookChanged('manual-mastered', entryId);
+                return {success: true, data: result};
+            }
+            case 'relearn': {
+                const entryId = vocabularyEntryId(message.entryId);
+                const result = await vocabularyBook.relearn(entryId);
+                notifyVocabularyBookChanged('relearn', entryId);
+                return {success: true, data: result};
+            }
+            case 'getReviewLogs': return {success: true, data: await vocabularyBook.getReviewLogs(vocabularyEntryId(message.entryId))};
+            case 'remove': {
+                const entryId = vocabularyEntryId(message.entryId);
+                const removed = await vocabularyBook.remove(entryId);
+                if (removed) notifyVocabularyBookChanged('remove', entryId);
+                return {success: true, data: removed};
+            }
+            case 'removeWithSnapshot': {
+                const entryId = vocabularyEntryId(message.entryId);
+                const snapshot = await vocabularyBook.removeWithSnapshot(entryId);
+                if (snapshot) notifyVocabularyBookChanged('remove', entryId);
+                return {success: true, data: snapshot};
+            }
+            case 'clear': await vocabularyBook.clear(); notifyVocabularyBookChanged('clear'); return {success: true, data: true};
+            case 'exportData': return {success: true, data: await vocabularyBook.exportData(message.options || {})};
+            case 'importData': {
+                const result = await vocabularyBook.importData(message.data);
+                notifyVocabularyBookChanged('import');
+                return {success: true, data: result};
+            }
+            default: throw new VocabularyBookError('invalid-input', '不支持的单词本操作');
+        }
+    } catch (error) {
+        return vocabularyFailure(error);
+    }
+}
 
 /**
  * 在background脚本中调用微软翻译API（避免Firefox CORS问题）
@@ -75,6 +188,8 @@ interface TranslationRequestMessageBase {
     /** 翻译中心仅对当前请求使用的语言，不改变全局设置。 */
     sourceLanguage?: string;
     targetLanguage?: string;
+    /** Background provider deadline; kept slightly below the content-side timeout. */
+    requestTimeoutMs?: number;
 }
 
 type TranslationSingleRequestMessage = TranslationRequestMessageBase & { origin: string };
@@ -117,6 +232,8 @@ function isAreaTranslationSelection(value: unknown): value is AreaTranslationSel
 type CacheRequestMode = 'single' | 'batch';
 
 const TRANSLATION_CACHE_CLEANUP_ALARM = 'fluentread-translation-cache-cleanup';
+type BrowserAlarm = {name: string};
+type BrowserTabSummary = {id?: number};
 let configPersistQueue: Promise<void> = Promise.resolve();
 const latestConfigSequenceByClient = new Map<string, number>();
 
@@ -180,6 +297,15 @@ function isAIContextEnabled(service = config.service, modelOverride?: string): b
 }
 
 function getProviderEndpoint(service: string): string {
+    if (servicesType.isAiSdk(service)) {
+        try {
+            return resolveOpenAICompatibleEndpoint(service).endpoint;
+        } catch {
+            // Configuration validation owns the user-facing error. Cache-key
+            // generation must remain total while settings are incomplete.
+            return '';
+        }
+    }
     if (config.proxy[service]) return config.proxy[service];
     if (service === 'custom') return config.custom;
     if (service === 'deeplx') return config.deeplx;
@@ -224,6 +350,7 @@ function buildCacheKey(
         userRole: config.user_role[service] || '',
         deepseekApiType: config.deepseekApiType,
         deepseekThinkingMode: config.deepseekThinkingMode,
+        transportProfile: servicesType.isAiSdk(service) ? AI_SDK_TRANSPORT_PROFILE : undefined,
         // DeepL sends the title context to the provider. AI adapters send the
         // bounded webpage context through their prompt templates.
         context: service === 'deepL' ? context : undefined,
@@ -254,6 +381,13 @@ const pendingPageSummaries = new Map<string, Promise<string>>();
 const PAGE_SUMMARY_CACHE_SIZE = 8;
 const PAGE_SUMMARY_LIMIT = 1200;
 
+function buildPendingRequestKey(cacheKey: string, requestTimeoutMs?: number): string {
+    const timeoutBucket = typeof requestTimeoutMs === 'number' && Number.isFinite(requestTimeoutMs)
+        ? `${Math.ceil(Math.max(1_000, requestTimeoutMs) / 1_000)}s`
+        : 'default';
+    return `${cacheKey}:timeout:${timeoutBucket}`;
+}
+
 function buildPageSummaryCacheKey(pageContext: string, service = config.service, modelOverride?: string): string {
     return buildTranslationCacheKey({
         requestMode: 'page-summary',
@@ -264,6 +398,7 @@ function buildPageSummaryCacheKey(pageContext: string, service = config.service,
         model: getSelectedModel(service, modelOverride),
         endpoint: getProviderEndpoint(service),
         customBody: config.customBody[service] || '',
+        transportProfile: servicesType.isAiSdk(service) ? AI_SDK_TRANSPORT_PROFILE : undefined,
     });
 }
 
@@ -282,7 +417,12 @@ function cachePageSummary(key: string, value: string): void {
  * A summary failure is deliberately non-fatal: the raw readable context is
  * still useful and the ordinary translation must continue.
  */
-async function addPageSummary(pageContext: string, service = config.service, modelOverride?: string): Promise<string> {
+async function addPageSummary(
+    pageContext: string,
+    service = config.service,
+    modelOverride?: string,
+    requestTimeoutMs?: number,
+): Promise<string> {
     if (!isAIContextEnabled(service, modelOverride) || !pageContext.trim()) {
         return '';
     }
@@ -291,7 +431,8 @@ async function addPageSummary(pageContext: string, service = config.service, mod
     const cached = pageSummaryCache.get(key);
     if (cached) return cached;
 
-    const existing = pendingPageSummaries.get(key);
+    const pendingKey = buildPendingRequestKey(key, requestTimeoutMs);
+    const existing = pendingPageSummaries.get(pendingKey);
     if (existing) return existing;
 
     const request = (async () => {
@@ -313,6 +454,7 @@ async function addPageSummary(pageContext: string, service = config.service, mod
                 summarySystemPrompt: buildPageSummarySystemPrompt(),
                 serviceOverride: service,
                 modelOverride,
+                requestTimeoutMs,
             });
             const summary = typeof result === 'string' ? result.trim().slice(0, PAGE_SUMMARY_LIMIT) : '';
             if (!summary) {
@@ -331,16 +473,41 @@ async function addPageSummary(pageContext: string, service = config.service, mod
         }
     })();
 
-    pendingPageSummaries.set(key, request);
+    pendingPageSummaries.set(pendingKey, request);
     void request.then(
         () => {
-            if (pendingPageSummaries.get(key) === request) pendingPageSummaries.delete(key);
+            if (pendingPageSummaries.get(pendingKey) === request) pendingPageSummaries.delete(pendingKey);
         },
         () => {
-            if (pendingPageSummaries.get(key) === request) pendingPageSummaries.delete(key);
+            if (pendingPageSummaries.get(pendingKey) === request) pendingPageSummaries.delete(pendingKey);
         },
     );
     return request;
+}
+
+async function addPageSummaryWithinBudget(
+    pageContext: string,
+    service: string,
+    modelOverride?: string,
+    requestTimeoutMs?: number,
+): Promise<string> {
+    const request = addPageSummary(pageContext, service, modelOverride, requestTimeoutMs);
+    if (requestTimeoutMs === undefined) return request;
+
+    // Legacy specialist adapters do not all consume requestTimeoutMs yet.
+    // Stop waiting for this optional phase at the background boundary, while
+    // allowing the shared summary promise to finish and populate its cache.
+    return new Promise((resolve) => {
+        let settled = false;
+        const finish = (value: string) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            resolve(value);
+        };
+        const timer = setTimeout(() => finish(pageContext), requestTimeoutMs);
+        void request.then(finish, () => finish(pageContext));
+    });
 }
 
 async function translateSingleWithCache(
@@ -355,7 +522,8 @@ async function translateSingleWithCache(
     }
 
     const key = buildCacheKey(message.origin, context, pageContext, 'single', service, message, message.modelOverride);
-    const existing = pendingTranslations.get(key);
+    const pendingKey = buildPendingRequestKey(key, message.requestTimeoutMs);
+    const existing = pendingTranslations.get(pendingKey);
     if (existing) return existing;
 
     const request = (async () => {
@@ -369,13 +537,13 @@ async function translateSingleWithCache(
         return result as string;
     })();
 
-    pendingTranslations.set(key, request);
+    pendingTranslations.set(pendingKey, request);
     void request.then(
         () => {
-            if (pendingTranslations.get(key) === request) pendingTranslations.delete(key);
+            if (pendingTranslations.get(pendingKey) === request) pendingTranslations.delete(pendingKey);
         },
         () => {
-            if (pendingTranslations.get(key) === request) pendingTranslations.delete(key);
+            if (pendingTranslations.get(pendingKey) === request) pendingTranslations.delete(pendingKey);
         },
     );
     return request;
@@ -395,7 +563,8 @@ async function translateBatchWithCache(
     }
 
     const batchKey = buildCacheKey(message.origin, context, pageContext, 'batch', service, message, message.modelOverride);
-    const existing = pendingBatches.get(batchKey);
+    const pendingKey = buildPendingRequestKey(batchKey, message.requestTimeoutMs);
+    const existing = pendingBatches.get(pendingKey);
     if (existing) return existing;
 
     const request = (async () => {
@@ -450,13 +619,13 @@ async function translateBatchWithCache(
         return result as string[];
     })();
 
-    pendingBatches.set(batchKey, request);
+    pendingBatches.set(pendingKey, request);
     void request.then(
         () => {
-            if (pendingBatches.get(batchKey) === request) pendingBatches.delete(batchKey);
+            if (pendingBatches.get(pendingKey) === request) pendingBatches.delete(pendingKey);
         },
         () => {
-            if (pendingBatches.get(batchKey) === request) pendingBatches.delete(batchKey);
+            if (pendingBatches.get(pendingKey) === request) pendingBatches.delete(pendingKey);
         },
     );
     return request;
@@ -480,13 +649,34 @@ async function translateWithCache(message: TranslationRequestMessage): Promise<s
     }
     const context = typeof message.context === 'string' ? message.context : '';
     const rawPageContext = typeof message.pageContext === 'string' ? message.pageContext : '';
-    const pageContext = await addPageSummary(rawPageContext, selectedService, message.modelOverride);
+    const providerStartedAt = Date.now();
+    const providerBudget = typeof message.requestTimeoutMs === 'number'
+        && Number.isFinite(message.requestTimeoutMs)
+        ? Math.max(1_000, Math.floor(message.requestTimeoutMs))
+        : undefined;
+    // Page summarization is optional. Give a cold summary at most one quarter
+    // of the provider deadline so it cannot consume the whole translation
+    // request before the actual paragraph call starts.
+    const summaryBudget = providerBudget === undefined
+        ? undefined
+        : Math.min(10_000, Math.max(1_000, Math.floor(providerBudget / 4)));
+    const pageContext = await addPageSummaryWithinBudget(rawPageContext, selectedService, message.modelOverride, summaryBudget);
+    const elapsed = Date.now() - providerStartedAt;
+    if (providerBudget !== undefined && elapsed >= providerBudget) {
+        throw new Error('翻译请求超时');
+    }
+    const requestMessage = providerBudget === undefined
+        ? message
+        : {
+            ...message,
+            requestTimeoutMs: Math.max(1_000, providerBudget - elapsed),
+        } as TranslationRequestMessage;
     const useCache = isCacheEnabled(message);
 
-    if (Array.isArray(message.origin)) {
-        return translateBatchWithCache(message as TranslationBatchRequestMessage, context, pageContext, useCache);
+    if (Array.isArray(requestMessage.origin)) {
+        return translateBatchWithCache(requestMessage as TranslationBatchRequestMessage, context, pageContext, useCache);
     }
-    return translateSingleWithCache(message as TranslationSingleRequestMessage, context, pageContext, useCache);
+    return translateSingleWithCache(requestMessage as TranslationSingleRequestMessage, context, pageContext, useCache);
 }
 
 interface WordDefinitionTranslationSlot {
@@ -509,7 +699,7 @@ function cloneWordCard(card: WordCardData): WordCardData {
 }
 
 /** Translate only the visible dictionary fields; no page context is sent for this learning card. */
-async function translateWordCard(card: WordCardData): Promise<WordCardData> {
+async function translateWordCard(card: WordCardData, targetLanguage = config.to): Promise<WordCardData> {
     const slots: WordDefinitionTranslationSlot[] = [];
     for (const [meaningIndex, meaning] of card.meanings.slice(0, 4).entries()) {
         for (const [definitionIndex, definition] of meaning.definitions.slice(0, 4).entries()) {
@@ -526,6 +716,7 @@ async function translateWordCard(card: WordCardData): Promise<WordCardData> {
             context: '',
             pageContext: '',
             useCache: true,
+            targetLanguage,
         });
         if (!Array.isArray(translated) || translated.length !== uniqueOrigins.length) return card;
 
@@ -546,13 +737,13 @@ async function translateWordCard(card: WordCardData): Promise<WordCardData> {
 
 function setupTranslationCacheCleanup(): void {
     void translationCache.cleanup();
-    browser.alarms.onAlarm.addListener((alarm) => {
+    browser.alarms.onAlarm.addListener((alarm: BrowserAlarm) => {
         if (alarm.name === TRANSLATION_CACHE_CLEANUP_ALARM) {
             void translationCache.cleanup();
         }
     });
 
-    void browser.alarms.get(TRANSLATION_CACHE_CLEANUP_ALARM).then((alarm) => {
+    void browser.alarms.get(TRANSLATION_CACHE_CLEANUP_ALARM).then((alarm: BrowserAlarm | undefined) => {
         if (!alarm) {
             void browser.alarms.create(TRANSLATION_CACHE_CLEANUP_ALARM, {
                 delayInMinutes: 1,
@@ -572,10 +763,39 @@ export default defineBackground({
         let contextMenuEnabled = true;
         let contextMenuSyncQueue: Promise<void> = Promise.resolve();
 
+        const readTabTranslationState = async (tabId: number, force = false): Promise<boolean> => {
+            if (!force && translationStateMap.has(tabId)) {
+                return translationStateMap.get(tabId) === true;
+            }
+
+            try {
+                const response = await browser.tabs.sendMessage(tabId, {
+                    type: 'getFullPageTranslationState',
+                }) as { status?: string; isTranslated?: boolean } | undefined;
+                if (response?.status === 'success') {
+                    const isTranslated = response.isTranslated === true;
+                    translationStateMap.set(tabId, isTranslated);
+                    return isTranslated;
+                }
+            } catch {
+                // 浏览器内部页或尚未注入内容脚本的页面无法查询，按未翻译处理。
+            }
+
+            const fallback = translationStateMap.get(tabId) === true;
+            translationStateMap.set(tabId, fallback);
+            return fallback;
+        };
+
         // 更新右键菜单状态。菜单只有一个入口，标题随当前标签页的全文翻译状态切换。
         const updateContextMenus = async (tabId: number) => {
             if (!isContextMenuSupported || !contextMenusReady) return;
-            const isTranslated = translationStateMap.get(tabId) || false;
+            // contextMenus.update 修改的是全局菜单项。后台标签页的加载或
+            // 翻译消息不能覆盖用户当前活动页看到的标题。
+            const activeTabs = await browser.tabs.query({ active: true, lastFocusedWindow: true }) as BrowserTabSummary[];
+            if (!activeTabs.some((tab) => tab.id === tabId)) return;
+            // MV3 service worker 重启后内存 Map 会丢失；首次更新时向仍在运行的
+            // 内容脚本重新读取状态，避免菜单需要点击两次才能恢复原文。
+            const isTranslated = await readTabTranslationState(tabId);
 
             try {
                 await browser.contextMenus.update(CONTEXT_MENU_IDS.TRANSLATE_FULL_PAGE, {
@@ -609,7 +829,7 @@ export default defineBackground({
                     }
 
                     contextMenusReady = true;
-                    const activeTabs = await browser.tabs.query({ active: true });
+                    const activeTabs = await browser.tabs.query({ active: true, lastFocusedWindow: true }) as BrowserTabSummary[];
                     const activeTab = activeTabs.find((tab) => typeof tab.id === 'number');
                     if (activeTab?.id !== undefined) await updateContextMenus(activeTab.id);
                 })
@@ -641,17 +861,25 @@ export default defineBackground({
             browser.contextMenus.onClicked.addListener((info: any, tab: any) => {
                 if (!contextMenuEnabled || info.menuItemId !== CONTEXT_MENU_IDS.TRANSLATE_FULL_PAGE || !tab?.id) return;
 
-                const isTranslated = translationStateMap.get(tab.id) || false;
-                browser.tabs.sendMessage(tab.id, {
-                    type: 'contextMenuTranslate',
-                    action: isTranslated ? 'restore' : 'fullPage',
-                }).then((response: any) => {
-                    if (response?.status === 'disabled') return;
-                    translationStateMap.set(tab.id!, !isTranslated);
-                    void updateContextMenus(tab.id!);
-                }).catch((error: any) => {
-                    console.error('Failed to send message to content script:', error);
-                });
+                void (async () => {
+                    try {
+                        // 点击属于用户显式动作，始终读取页面真值，避免后台休眠或
+                        // 消息丢失留下的陈旧状态导致执行相反操作。
+                        const isTranslated = await readTabTranslationState(tab.id, true);
+                        const response = await browser.tabs.sendMessage(tab.id, {
+                            type: 'contextMenuTranslate',
+                            action: isTranslated ? 'restore' : 'fullPage',
+                        }) as { status?: string; isTranslated?: boolean } | undefined;
+                        if (response?.status !== 'success') return;
+                        const nextState = typeof response.isTranslated === 'boolean'
+                            ? response.isTranslated
+                            : !isTranslated;
+                        translationStateMap.set(tab.id, nextState);
+                        await updateContextMenus(tab.id);
+                    } catch (error) {
+                        console.error('Failed to send message to content script:', error);
+                    }
+                })();
             });
         }
 
@@ -660,10 +888,11 @@ export default defineBackground({
             if (isContextMenuSupported) void updateContextMenus(activeInfo.tabId);
         });
 
-        // 监听标签页更新事件（页面刷新等）
+        // 在新导航开始时清理旧文档状态。内容脚本会在 document_end
+        // 上报新文档的真实状态；如果在 complete 再清零，会把始终
+        // 翻译刚上报的 true 覆盖掉。
         browser.tabs.onUpdated.addListener((tabId: any, changeInfo: any) => {
-            if (changeInfo.status === 'complete') {
-                // 页面加载完成，重置翻译状态
+            if (changeInfo.status === 'loading') {
                 translationStateMap.set(tabId, false);
                 if (isContextMenuSupported) void updateContextMenus(tabId);
             }
@@ -686,14 +915,25 @@ export default defineBackground({
                     }
 
                     if (message.type === 'openOptionsPage') {
-                        if (message.section === 'settings-video') {
+                        if (typeof message.section === 'string') {
+                            if (!OPTIONS_SECTION_IDS.has(message.section)) throw new Error('无效的设置页面');
                             await browser.tabs.create({
-                                url: `${browser.runtime.getURL('/options.html')}#settings-video`,
+                                url: `${browser.runtime.getURL('/options.html')}#${message.section}`,
                             });
                         } else {
                             await browser.runtime.openOptionsPage();
                         }
                         resolve({ success: true });
+                        return;
+                    }
+
+                    if (message.type === VOCABULARY_BOOK_CHANGED_MESSAGE) {
+                        resolve({success: true});
+                        return;
+                    }
+
+                    if (message.type === VOCABULARY_BOOK_MESSAGE) {
+                        resolve(await handleVocabularyBookAction(message, sender));
                         return;
                     }
 
@@ -708,6 +948,8 @@ export default defineBackground({
                     }
 
                     if (message.type === CONFIG_PERSIST_MESSAGE) {
+                        const senderUrl = typeof sender?.url === 'string' ? sender.url : '';
+                        const allowCredentialUpdates = senderUrl.startsWith(browser.runtime.getURL('/'));
                         const clientId = typeof message.clientId === 'string'
                             ? message.clientId
                             : `${sender?.id || 'legacy'}:${sender?.tab?.id || 'extension'}:${sender?.frameId || 0}`;
@@ -720,9 +962,13 @@ export default defineBackground({
                         if (sequence) latestConfigSequenceByClient.set(clientId, sequence);
                         const persist = configPersistQueue
                             .catch(() => undefined)
-                            .then(() => {
+                            .then(async () => {
                                 if (sequence && latestConfigSequenceByClient.get(clientId) !== sequence) return;
-                                return saveConfig(message.config, {recordHistory: true});
+                                await configReady;
+                                return saveConfig(
+                                    prepareConfigSaveRequest(message.config, config, allowCredentialUpdates),
+                                    {recordHistory: true},
+                                );
                             });
                         configPersistQueue = persist.catch(() => undefined);
                         await persist;
@@ -832,8 +1078,9 @@ export default defineBackground({
 
                     if (message.type === 'selectionWordLookup') {
                         const word = typeof message.word === 'string' ? message.word : '';
+                        const targetLanguage = typeof message.targetLanguage === 'string' ? message.targetLanguage : config.to;
                         const result = await lookupWord(word);
-                        resolve({ success: true, data: result ? await translateWordCard(result) : result });
+                        resolve({ success: true, data: result ? await translateWordCard(result, targetLanguage) : result });
                         return;
                     }
 
@@ -921,7 +1168,9 @@ export default defineBackground({
                     // 隔离，也让不同标签页共享同一份结果和 pending 请求。
                     translateWithCache(message)
                         .then(resp => resolve(resp))    // 成功
-                        .catch(error => reject(error)); // 失败
+                        // Error instances do not preserve custom fields across
+                        // extension messaging. Send a plain, versioned payload.
+                        .catch(error => resolve(serializeTranslationError(error)));
                 } catch (error) {
                     const errorMessage = message?.type === CONNECTION_TEST_MESSAGE
                         ? formatConnectionTestError(
