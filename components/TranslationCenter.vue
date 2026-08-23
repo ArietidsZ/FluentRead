@@ -569,10 +569,13 @@ onUnmounted(() => {
 .translation-center {
   display: grid;
   gap: 14px;
+  height: 100%;
   min-height: 0;
   padding: 22px 28px 20px;
   color: var(--ink);
   background: #f8f9fc;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
 }
 
 .translation-center-toolbar,
@@ -709,7 +712,7 @@ onUnmounted(() => {
 .service-picker-groups > p { margin: 28px 8px; color: var(--muted); font-size: 11px; text-align: center; }
 .service-picker-footer { padding: 10px 15px; border-top: 1px solid var(--line); color: var(--muted); background: var(--surface-soft); font-size: 9px; }
 
-.translation-center-layout { display: grid; grid-template-columns: minmax(300px, .88fr) minmax(420px, 1.12fr); gap: 14px; height: clamp(420px, calc(100vh - 420px), 560px); min-height: 0; }
+.translation-center-layout { display: grid; grid-template-columns: minmax(300px, .88fr) minmax(420px, 1.12fr); gap: 14px; height: auto; min-height: 0; }
 .translation-input-panel,
 .translation-results-panel { min-width: 0; border-radius: 15px; }
 .translation-input-panel { display: flex; min-height: 340px; flex-direction: column; padding: 16px; }
@@ -791,8 +794,11 @@ onUnmounted(() => {
   .translation-result-service-name small { max-width: 200px; }
 }
 
-@media (max-width: 760px) {
-  .translation-center { padding: 16px 10px 14px; }
+@media (max-width: 900px) {
+  .translation-center { height: auto; max-height: 100%; padding: 16px 10px 14px; grid-template-rows: none; overflow-y: auto; }
+  .translation-center-layout { grid-template-columns: 1fr; height: auto; }
+  .translation-input-panel { min-height: 300px; }
+  .translation-results-panel { min-height: 320px; }
   .translation-center-toolbar { align-items: stretch; flex-wrap: wrap; }
   .language-picker-group { flex: 1 1 140px; }
   .language-picker-group select { min-width: 0; width: 100%; }
@@ -801,9 +807,6 @@ onUnmounted(() => {
   .translation-center-service-picker { width: auto; margin-left: 0; flex: 1 1 auto; }
   .add-service-button { width: 100%; justify-content: center; }
   .service-picker-popover { left: 0; right: 0; width: auto; }
-  .translation-center-layout { grid-template-columns: 1fr; height: auto; }
-  .translation-input-panel { min-height: 300px; }
-  .translation-results-panel { min-height: 320px; }
   .translation-result-service-name small { max-width: 160px; }
 }
 

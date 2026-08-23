@@ -88,7 +88,7 @@ h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.0
 .settings-card.translation-center-view > #settings-translation-center {
   display: flex !important; min-height: 0; height: 100%; flex: 1 1 auto; align-items: flex-start; justify-content: center; overflow: hidden;
 }
-.settings-card.translation-center-view .translation-center { width: min(100%, 1480px); height: auto; max-height: 100%; overflow-y: auto; }
+.settings-card.translation-center-view .translation-center { width: min(100%, 1480px); height: 100%; max-height: none; overflow: hidden; }
 .settings-card > div:last-child > .el-row,
 .settings-card > div:last-child > div > .el-row,
 .settings-card > div:last-child > div > .el-collapse {
@@ -293,6 +293,10 @@ h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.0
   .settings-card.translation-center-view { width: calc(100% + 56px); margin-right: -28px; margin-left: -28px; }
   .topbar { align-items: stretch; flex-direction: column; }
   .search-box { width: 100%; }
+}
+
+@media (max-width: 900px) {
+  .settings-card.translation-center-view .translation-center { height: auto; max-height: 100%; overflow-y: auto; }
 }
 
 @media (max-width: 700px) {
