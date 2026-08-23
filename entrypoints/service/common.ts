@@ -5,6 +5,7 @@ import {contentPostHandler} from "@/entrypoints/utils/check";
 import { services } from "../utils/option";
 import { appendOptionalBearer } from './auth';
 import {formatServiceError} from '@/entrypoints/utils/serviceError';
+import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
 
 async function common(message: any) {
     try {
@@ -36,14 +37,13 @@ async function common(message: any) {
         if (!resp.ok) {
             throw new Error(formatServiceError(
                 service,
-                `翻译失败: ${resp.status} ${resp.statusText} body: ${await resp.text()}`,
+                createHttpStatusError(resp, '翻译失败'),
             ));
         }
 
-        const result = await resp.json();
+        const result = await readJsonResponse<any>(resp);
         return contentPostHandler(result.choices[0].message.content);
     } catch (error) {
-        console.error('API调用失败:', error);
         throw error;
     }
 }

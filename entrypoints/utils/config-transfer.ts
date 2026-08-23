@@ -1,4 +1,11 @@
 import { isCustomBodyMapping } from './custom-body'
+import {
+  extractConfigCredentials,
+  hasCredentialFields,
+  mergeConfigCredentials,
+  sanitizeConfigCredentials,
+} from './credentials'
+import { normalizeConfig, type Config } from './model'
 import { defaultOption } from './option'
 
 type ConfigRecord = Record<string, any>
@@ -41,9 +48,29 @@ function removeEmptyCustomBodies(target: ConfigRecord) {
 export function sanitizeConfigForExport(value: unknown): ConfigRecord {
   if (!isRecord(value)) throw new Error('配置必须是 JSON 对象')
 
-  const sanitized = JSON.parse(JSON.stringify(value)) as ConfigRecord
+  const sanitized = sanitizeConfigCredentials(
+    JSON.parse(JSON.stringify(value)),
+  ) as ConfigRecord
+  delete sanitized.__fluentConfigRevision
   removeDefaultEntries(sanitized, 'system_role', defaultOption.system_role)
   removeDefaultEntries(sanitized, 'user_role', defaultOption.user_role)
   removeEmptyCustomBodies(sanitized)
   return sanitized
+}
+
+/**
+ * 新版导出不含凭据，因此导入时保留当前 session 凭据；旧版导出若含凭据，
+ * 则显式迁移该凭据。持久化开关始终保留当前值，不能由导入文件静默开启。
+ */
+export function prepareConfigForImport(value: unknown, current: unknown): Config {
+  const currentConfig = normalizeConfig(current)
+  const importedConfig = normalizeConfig(value)
+  const credentials = hasCredentialFields(value)
+    ? extractConfigCredentials(value)
+    : extractConfigCredentials(currentConfig)
+
+  return normalizeConfig(mergeConfigCredentials({
+    ...sanitizeConfigCredentials(importedConfig),
+    persistCredentials: currentConfig.persistCredentials,
+  }, credentials))
 }

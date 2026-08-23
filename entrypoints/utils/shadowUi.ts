@@ -16,6 +16,7 @@ interface VueShadowUiOptions {
   component: Component;
   props?: Record<string, unknown>;
   zIndex?: number;
+  mode?: 'open' | 'closed';
 }
 
 const SHADOW_FOUNDATION = `
@@ -61,7 +62,7 @@ export async function createVueShadowUi(
     position: 'overlay',
     alignment: 'top-left',
     zIndex: options.zIndex ?? 2_147_483_647,
-    mode: 'open',
+    mode: options.mode ?? 'open',
     inheritStyles: false,
     isolateEvents: ['keydown', 'keyup', 'keypress'],
     css: SHADOW_FOUNDATION,

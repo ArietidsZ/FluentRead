@@ -68,12 +68,18 @@ export default defineConfig({
             vueTemplate: true,
         },
     },
-    vite: () => ({
-        plugins: [vue(), escapeExtensionNoncharacters()],
-        define: {
-            'process.env.VUE_APP_VERSION': JSON.stringify(packageJson.version),
-        }
-    }),
+    vite: (env) => {
+        const isProductionBuild = env.command === 'build' && env.mode === 'production';
+        return {
+            plugins: [vue(), escapeExtensionNoncharacters()],
+            define: {
+                'process.env.VUE_APP_VERSION': JSON.stringify(packageJson.version),
+            },
+            // Source-level redaction is the primary control. Production-only
+            // stripping is defense in depth for future diagnostics added later.
+            esbuild: isProductionBuild ? {drop: ['console', 'debugger']} : undefined,
+        };
+    },
     manifest: {
         permissions: ['storage', 'alarms', 'contextMenus', 'offscreen'],
         content_security_policy: {

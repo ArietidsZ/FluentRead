@@ -61,7 +61,6 @@ async function translateWithOffscreen(message: any): Promise<any> {
 
         throw new Error('无效的响应格式');
     } catch (error) {
-        console.error('Offscreen 翻译失败:', error);
         throw new Error(`Chrome Translation API 不可用：${error instanceof Error ? error.message : '未知错误'}`);
     }
 }
@@ -96,9 +95,7 @@ export async function ensureOffscreenDocument(): Promise<void> {
         }
         await creatingOffscreenDocument;
 
-        console.log('Offscreen 文档创建成功');
     } catch (error) {
-        console.error('创建 offscreen 文档失败:', error);
         throw new Error('无法创建 offscreen 文档');
     }
 }
@@ -216,18 +213,14 @@ export async function downloadImageOcrLanguagesWithOffscreen(languages: ImageOcr
 
 // 主翻译函数
 export default async function chromeTranslator(message: any): Promise<any> {
-    // console.log('Chrome Translator 收到消息:', message);
-
     const text = message.origin;
     
     if (!text || typeof text !== 'string' || text.trim() === '') {
-        // console.error('翻译文本为空或无效:', { text, type: typeof text, message });
         throw new Error('翻译文本不能为空');
     }
 
     // 检查是否在 background script 环境中
     if (typeof window === 'undefined') {
-        // console.log('在 background script 中，使用 offscreen API');
         // 在 background script 中，使用 offscreen API
         return await translateWithOffscreen(message);
     }

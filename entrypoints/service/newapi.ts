@@ -3,6 +3,7 @@ import {commonMsgTemplate} from "../utils/template";
 import { config } from "@/entrypoints/utils/config";
 import { contentPostHandler } from "@/entrypoints/utils/check";
 import { appendOptionalBearer } from './auth';
+import {createHttpStatusError, readJsonResponse} from '@/entrypoints/utils/httpError';
 
 async function newapi(message: any) {
     try {
@@ -34,10 +35,10 @@ async function newapi(message: any) {
         });
 
         if (!resp.ok) {
-            throw new Error(`翻译失败: ${resp.status} ${resp.statusText} body: ${await resp.text()}`);
+            throw createHttpStatusError(resp, '翻译失败');
         }
 
-        const result = await resp.json();
+        const result = await readJsonResponse<any>(resp, 'New API 返回的不是有效 JSON');
 
         if (result.choices && result.choices.length > 0) {
             return contentPostHandler(result.choices[0].message.content);
@@ -45,7 +46,6 @@ async function newapi(message: any) {
 
         throw new Error('翻译失败: 上游未返回内容');
     } catch (error) {
-        console.error('API调用失败:', error);
         throw error;
     }
 }

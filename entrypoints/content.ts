@@ -9,11 +9,14 @@ import { constants } from "@/entrypoints/utils/constant";
 import { getCenterPoint } from "@/entrypoints/utils/common";
 import pageStyles from './style.css?inline';
 import { config, configReady, subscribeConfig } from "@/entrypoints/utils/config";
-import { mountFloatingBall, unmountFloatingBall } from "@/entrypoints/utils/floatingBall";
+import {
+    mountFloatingBall,
+    toggleFloatingBallTranslation,
+    unmountFloatingBall,
+} from "@/entrypoints/utils/floatingBall";
 import { mountSelectionTranslator, unmountSelectionTranslator } from "@/entrypoints/utils/selectionTranslator";
 import { mountAreaTranslator, unmountAreaTranslator } from "@/entrypoints/utils/areaTranslator";
 import { cancelAllTranslations } from "@/entrypoints/utils/translateApi";
-import { mountNewApiComponent, unmountNewApiComponent } from "@/entrypoints/utils/newApi";
 import { mountImageTranslator, unmountImageTranslator } from "@/entrypoints/utils/imageTranslation";
 import {
     mountTranslationProgressPanel,
@@ -31,6 +34,7 @@ import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { createShadowRootUi, type ShadowRootContentScriptUi } from 'wxt/utils/content-script-ui/shadow-root';
 import { mountVideoSubtitleTranslation } from './main/videoSubtitle';
 import {resetPageTranslationContextCache} from '@/entrypoints/utils/pageContext';
+import {clearLegacyPageTranslationCache} from '@/entrypoints/utils/legacyPageCache';
 
 let contentScriptContext: ContentScriptContext | null = null;
 let inputTooltipUi: ShadowRootContentScriptUi<HTMLElement> | null = null;
@@ -154,6 +158,7 @@ export default defineContentScript({
         contentScriptContext = ctx;
         installPageStyles(ctx);
         await configReady; // 等待配置加载完成
+        clearLegacyPageTranslationCache();
 
         const pageEventController = new AbortController();
         document.addEventListener('fluentread-route-change', resetPageTranslationContextCache, {
@@ -180,7 +185,6 @@ export default defineContentScript({
             unmountTranslationProgressPanel();
             unmountVideoSubtitleTranslation?.();
             unmountVideoSubtitleTranslation = null;
-            unmountNewApiComponent();
             removeExistingTooltip();
             contentScriptContext = null;
         };
@@ -207,15 +211,6 @@ export default defineContentScript({
         // 切换为开启后，无需刷新页面就能恢复 Control/Alt+T。
         setupManualTranslationTriggers(pageEventController.signal);
         setupFloatingBallHotkey(pageEventController.signal);
-        document.addEventListener('fluentread-toggle-translation', () => {
-            // 仅在悬浮球被禁用（未挂载）时由内容脚本接管快捷键
-            if (config.on === false || config.disableFloatingBall !== true) return;
-            if (isFullPageTranslationActive()) {
-                restoreOriginalContent();
-            } else {
-                autoTranslateEnglishPage();
-            }
-        }, { signal: pageEventController.signal });
         // 添加自动翻译事件监听器
         if (config.on && config.autoTranslate) autoTranslateEnglishPage();
 
@@ -236,7 +231,6 @@ export default defineContentScript({
             if (cleanedUp) return;
         }
         
-        mountNewApiComponent();
         // 图片翻译使用独立覆盖层，不改写宿主页面的 img 元素；点击入口由事件委托处理动态图片。
         if (config.on && config.disableImageTranslator !== true) mountImageTranslator();
 
@@ -300,6 +294,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
 
     // 2. 按下按键时
     window.addEventListener('keydown', event => {
+        if (!event.isTrusted) return;
         // 防止重复事件
         if (event.repeat) return;
         
@@ -370,6 +365,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
 
     // 3. 抬起按键时
     window.addEventListener('keyup', event => {
+        if (!event.isTrusted) return;
         // 清除字母键状态（在检查前先清除）
         const releasedKey = event.key.toLowerCase();
         const releasedCode = event.code?.toLowerCase();
@@ -430,6 +426,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
 
     // 4. 鼠标移动时更新位置，并根据 hotkeyPressed 决定是否触发翻译
     document.body.addEventListener('mousemove', event => {
+        if (!event.isTrusted) return;
         screen.mouseX = event.clientX;
         screen.mouseY = event.clientY;
         if (screen.hotkeyPressed && config.on) {
@@ -440,6 +437,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
 
     // 5、手机端触摸事件，取中心点翻译
     document.body.addEventListener('touchstart', event => {
+        if (!event.isTrusted) return;
         let coordinate;
         switch (config.hotkey) {
             case constants.TwoFinger:
@@ -463,6 +461,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
 
     // 6、双击鼠标翻译事件
     document.body.addEventListener('dblclick', event => {
+        if (!event.isTrusted) return;
         if (config.hotkey == constants.DoubleClick && config.on) {
             // 通过双击事件获取鼠标位置
             let mouseX = event.clientX;
@@ -475,8 +474,12 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
     // 7、长按鼠标翻译事件（长按事件时鼠标不能移动）
     let timer: number;
     let startPos = { x: 0, y: 0 }; // startPos 记录鼠标按下时的位置
-    document.body.addEventListener('mouseup', () => clearTimeout(timer), { signal });
+    document.body.addEventListener('mouseup', event => {
+        if (!event.isTrusted) return;
+        clearTimeout(timer);
+    }, { signal });
     document.body.addEventListener('mousedown', event => {
+        if (!event.isTrusted) return;
         if (config.hotkey === constants.LongPress) {
             clearTimeout(timer); // 清除之前的计时器
             startPos.x = event.clientX; // 记录鼠标按下时的初始位置
@@ -491,6 +494,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
         }
     }, { signal });
     document.body.addEventListener('mousemove', event => {
+        if (!event.isTrusted) return;
         // 如果鼠标移动超过10像素，取消长按事件
         if (Math.abs(event.clientX - startPos.x) > 10 || Math.abs(event.clientY - startPos.y) > 10) {
             clearTimeout(timer);
@@ -498,6 +502,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
     }, { signal });
     // 8、鼠标中键翻译事件
     document.body.addEventListener('mousedown', event => {
+        if (!event.isTrusted) return;
         if (config.hotkey === constants.MiddleClick && config.on) {
             if (event.button === 1) {
                 let mouseX = event.clientX;
@@ -512,6 +517,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
     let touchCount = 0;
     let touchTimer: any;
     document.body.addEventListener('touchstart', event => {
+        if (!event.isTrusted) return;
         // 检查是否为有效的热键配置，并且只处理单指触摸事件
         if (![constants.DoubleClickScreen, constants.TripleClickScreen].includes(config.hotkey)
             || event.touches.length !== 1) return;
@@ -577,6 +583,7 @@ function setupFloatingBallHotkey(signal: AbortSignal) {
     
     // 监听按键按下事件
     document.addEventListener('keydown', (event) => {
+        if (!event.isTrusted) return;
         // 忽略长按产生的重复事件，但不能用全局时间窗口去重：
         // Alt 和 T 本来就可能在 50ms 内连续到达，时间去重会吞掉合法组合键。
         if (event.repeat) return;
@@ -644,7 +651,6 @@ function setupFloatingBallHotkey(signal: AbortSignal) {
         const exactMatch = allKeysPressed && hotkeyParts.length === hotkeysPressed.size;
         
         // 如果按键组合完全匹配配置的快捷键
-        // 无论悬浮球是否启用，都派发统一事件，由对应处理方接管
         if (exactMatch) {
             // 检查插件是否开启
             if (!config.on) return;
@@ -653,8 +659,14 @@ function setupFloatingBallHotkey(signal: AbortSignal) {
             event.preventDefault();
             event.stopPropagation();
             
-            // 通过自定义事件来触发翻译
-            document.dispatchEvent(new CustomEvent('fluentread-toggle-translation'));
+            // 内部调用不会跨越到页面共享 DOM，网页脚本无法伪造控制事件。
+            if (!toggleFloatingBallTranslation()) {
+                if (isFullPageTranslationActive()) {
+                    restoreOriginalContent();
+                } else {
+                    autoTranslateEnglishPage();
+                }
+            }
             
             if (isDev) {
                 const activeHotkey = config.floatingBallHotkey === 'custom' 
@@ -667,6 +679,7 @@ function setupFloatingBallHotkey(signal: AbortSignal) {
     
     // 监听按键释放事件
     document.addEventListener('keyup', (event) => {
+        if (!event.isTrusted) return;
         // 清除字母键状态
         const releasedKey = event.key.toLowerCase();
         const releasedCode = event.code?.toLowerCase();
@@ -733,6 +746,7 @@ function setupInputBoxTranslation(signal: AbortSignal) {
     };
 
     const handleKeyDown = async (event: KeyboardEvent) => {
+        if (!event.isTrusted) return;
         // 检查功能是否启用
         if (config.on === false || config.inputBoxTranslationTrigger === 'disabled') {
             resetKeyPresses();
@@ -834,7 +848,7 @@ async function createTranslationTooltip(element: HTMLElement, message: string, t
         position: 'overlay',
         alignment: 'top-left',
         zIndex: 2_147_483_647,
-        mode: 'open',
+        mode: 'closed',
         inheritStyles: false,
         css: `
             :host {

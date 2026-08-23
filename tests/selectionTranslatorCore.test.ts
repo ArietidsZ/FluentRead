@@ -91,6 +91,27 @@ describe('selection translator text and speech language normalization', () => {
         ]);
     });
 
+    it('does not expose malformed Edge TTS endpoint JSON in errors', async () => {
+        const originalFetch = globalThis.fetch;
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => {
+                throw new SyntaxError('Unexpected token S in SENSITIVE_TTS_RESPONSE_SENTINEL');
+            },
+        });
+        vi.stubGlobal('fetch', fetchMock);
+
+        try {
+            const error = await synthesizeEdgeTts('hello', 'en-US').catch(cause => cause);
+
+            expect(error).toBeInstanceOf(Error);
+            expect((error as Error).message).toBe('Edge TTS endpoint returned invalid JSON');
+            expect((error as Error).message).not.toContain('SENSITIVE_TTS_RESPONSE_SENTINEL');
+        } finally {
+            vi.stubGlobal('fetch', originalFetch);
+        }
+    });
+
     it('continues to the next voice when Edge TTS rejects the first synthesis', async () => {
         const originalFetch = globalThis.fetch;
         const fetchMock = vi.fn()
