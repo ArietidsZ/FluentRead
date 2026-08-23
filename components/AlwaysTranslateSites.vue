@@ -1,17 +1,21 @@
 <template>
-  <section class="site-rules-editor" data-setting="always-translate-sites" aria-labelledby="always-translate-sites-title">
+  <section
+    class="site-rules-editor"
+    :data-setting="labels.settingId"
+    :aria-labelledby="labels.titleId"
+  >
     <header class="site-rules-heading">
       <div>
         <span class="site-rules-kicker">网站规则</span>
-        <h3 id="always-translate-sites-title">始终翻译网站</h3>
-        <p>输入任意域名或网址，保存时统一归并到主域名，并对它的所有子域生效。</p>
+        <h3 :id="labels.titleId">{{ labels.title }}</h3>
+        <p>{{ labels.description }}</p>
       </div>
-      <span class="site-rules-count" aria-label="始终翻译网站数量">{{ domains.length }} 个网站</span>
+      <span class="site-rules-count" :aria-label="labels.countLabel">{{ domains.length }} 个网站</span>
     </header>
 
     <form class="site-rules-form" @submit.prevent="addDomain">
       <label class="site-rules-input-wrap">
-        <span class="sr-only">添加始终翻译网站</span>
+        <span class="sr-only">{{ labels.inputLabel }}</span>
         <input
           ref="domainInput"
           v-model.trim="inputValue"
@@ -19,24 +23,24 @@
           inputmode="url"
           autocomplete="off"
           spellcheck="false"
-          aria-label="添加始终翻译网站"
-          placeholder="例如：https://docs.example.com/article"
+          :aria-label="labels.inputLabel"
+          :placeholder="labels.placeholder"
           :aria-invalid="Boolean(errorMessage)"
-          :aria-describedby="feedbackId"
+          :aria-describedby="labels.feedbackId"
           @input="clearFeedback"
         />
       </label>
-      <button class="site-rules-add" type="submit">添加网站</button>
+      <button class="site-rules-add" type="submit">{{ labels.addButton }}</button>
     </form>
 
-    <p :id="feedbackId" class="site-rules-feedback" :class="{ error: errorMessage }" aria-live="polite">
+    <p :id="labels.feedbackId" class="site-rules-feedback" :class="{ error: errorMessage }" aria-live="polite">
       <template v-if="errorMessage">{{ errorMessage }}</template>
       <template v-else-if="statusMessage">{{ statusMessage }}</template>
       <template v-else-if="normalizedPreview">将保存为 <strong>{{ normalizedPreview }}</strong>，并包含所有子域。</template>
       <template v-else>支持粘贴完整 URL；端口、路径和参数不会进入规则。</template>
     </p>
 
-    <div v-if="domains.length" class="site-rules-list" role="list" aria-label="始终翻译网站名单">
+    <div v-if="domains.length" class="site-rules-list" role="list" :aria-label="labels.listLabel">
       <article
         v-for="domain in domains"
         :key="domain"
@@ -44,10 +48,10 @@
         role="listitem"
         :data-site-rule="domain"
       >
-        <span class="site-rule-icon" aria-hidden="true">译</span>
+        <span class="site-rule-icon" aria-hidden="true">{{ labels.icon }}</span>
         <span class="site-rule-copy">
           <strong :title="domain">{{ domain }}</strong>
-          <small>该主域名及其所有子域会自动翻译</small>
+          <small>{{ labels.itemDescription }}</small>
         </span>
         <button class="site-rule-remove" type="button" :aria-label="`删除 ${domain}`" @click="removeDomain(domain)">
           删除
@@ -57,8 +61,8 @@
 
     <div v-else class="site-rules-empty" data-site-rules-empty>
       <span aria-hidden="true">◇</span>
-      <strong>还没有始终翻译的网站</strong>
-      <small>可从上方手动添加，也可在扩展弹窗中为当前网站快速开启。</small>
+      <strong>{{ labels.emptyTitle }}</strong>
+      <small>{{ labels.emptyDescription }}</small>
     </div>
   </section>
 </template>
@@ -69,8 +73,10 @@ import { getSiteBaseDomain } from '@/entrypoints/utils/siteRules';
 
 const props = withDefaults(defineProps<{
   modelValue?: string[];
+  variant?: 'always-translate' | 'disable-extension';
 }>(), {
   modelValue: () => [],
+  variant: 'always-translate',
 });
 
 const emit = defineEmits<{
@@ -81,9 +87,47 @@ const inputValue = ref('');
 const errorMessage = ref('');
 const statusMessage = ref('');
 const domainInput = ref<HTMLInputElement | null>(null);
-const feedbackId = 'always-translate-sites-feedback';
 const domains = computed(() => props.modelValue ?? []);
 const normalizedPreview = computed(() => inputValue.value ? getSiteBaseDomain(inputValue.value) : null);
+const labels = computed(() => props.variant === 'disable-extension'
+  ? {
+    settingId: 'disabled-extension-sites',
+    titleId: 'disabled-extension-sites-title',
+    feedbackId: 'disabled-extension-sites-feedback',
+    title: '禁用扩展网站',
+    description: '输入任意域名或网址，保存时统一归并到主域名；该网站及其所有子域都不会运行扩展功能。',
+    countLabel: '禁用扩展网站数量',
+    inputLabel: '添加禁用扩展网站',
+    placeholder: '例如：https://docs.example.com/article',
+    addButton: '添加网站',
+    listLabel: '禁用扩展网站名单',
+    icon: '禁',
+    itemDescription: '该主域名及其所有子域不会运行扩展功能',
+    emptyTitle: '还没有禁用扩展的网站',
+    emptyDescription: '可从上方手动添加，也可在扩展弹窗中为当前网站快速禁用。',
+    duplicateMessage: (domain: string) => `${domain} 已在禁用扩展名单中。`,
+    addedMessage: (domain: string) => `已添加 ${domain}。`,
+    removedMessage: (domain: string) => `已删除 ${domain}。`,
+  }
+  : {
+    settingId: 'always-translate-sites',
+    titleId: 'always-translate-sites-title',
+    feedbackId: 'always-translate-sites-feedback',
+    title: '始终翻译网站',
+    description: '输入任意域名或网址，保存时统一归并到主域名，并对它的所有子域生效。',
+    countLabel: '始终翻译网站数量',
+    inputLabel: '添加始终翻译网站',
+    placeholder: '例如：https://docs.example.com/article',
+    addButton: '添加网站',
+    listLabel: '始终翻译网站名单',
+    icon: '译',
+    itemDescription: '该主域名及其所有子域会自动翻译',
+    emptyTitle: '还没有始终翻译的网站',
+    emptyDescription: '可从上方手动添加，也可在扩展弹窗中为当前网站快速开启。',
+    duplicateMessage: (domain: string) => `${domain} 已在始终翻译名单中。`,
+    addedMessage: (domain: string) => `已添加 ${domain}。`,
+    removedMessage: (domain: string) => `已删除 ${domain}。`,
+  });
 
 function clearFeedback() {
   errorMessage.value = '';
@@ -103,20 +147,20 @@ function addDomain() {
     return;
   }
   if (domains.value.includes(domain)) {
-    errorMessage.value = `${domain} 已在始终翻译名单中。`;
+    errorMessage.value = labels.value.duplicateMessage(domain);
     return;
   }
 
   emit('update:modelValue', [...domains.value, domain]);
   inputValue.value = '';
   errorMessage.value = '';
-  statusMessage.value = `已添加 ${domain}。`;
+  statusMessage.value = labels.value.addedMessage(domain);
 }
 
 function removeDomain(domain: string) {
   emit('update:modelValue', domains.value.filter(item => item !== domain));
   errorMessage.value = '';
-  statusMessage.value = `已删除 ${domain}。`;
+  statusMessage.value = labels.value.removedMessage(domain);
   void nextTick(() => domainInput.value?.focus());
 }
 </script>

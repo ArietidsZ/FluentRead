@@ -38,30 +38,35 @@ import { matchesConfiguredHotkey, shouldClaimConfiguredHotkey } from '@/entrypoi
 import { isSameLanguage, normalizeSelectionText, shouldIgnoreSelection } from '@/entrypoints/utils/selectionTranslatorCore';
 import { normalizeSelectionTranslatorDelay } from '@/entrypoints/utils/model';
 import {clearLegacyPageTranslationCache} from '@/entrypoints/utils/legacyPageCache';
-import {shouldAutoTranslatePage} from '@/entrypoints/utils/siteRules';
+import {isExtensionDisabledOnSite, shouldAutoTranslatePage} from '@/entrypoints/utils/siteRules';
 
 let contentScriptContext: ContentScriptContext | null = null;
 let inputTooltipUi: ShadowRootContentScriptUi<HTMLElement> | null = null;
 let unmountVideoSubtitleTranslation: (() => void) | null = null;
 let unsubscribeContentConfig: (() => void) | null = null;
+let currentPageSiteDisabled = false;
+let updateCurrentPageSiteDisabled: ((disabled: boolean) => Promise<void>) | null = null;
 
 function shouldAutomaticallyTranslateCurrentPage(nextConfig: typeof config): boolean {
     return shouldAutoTranslatePage(window.location.href, {
         on: nextConfig.on,
         autoTranslate: nextConfig.autoTranslate,
         alwaysTranslateDomains: nextConfig.alwaysTranslateDomains,
+        disabledExtensionDomains: nextConfig.disabledExtensionDomains,
     });
 }
 
-function installPageStyles(ctx: ContentScriptContext) {
+function installPageStyles(ctx: ContentScriptContext): () => void {
     const existing = document.getElementById('fluent-read-page-styles');
-    if (existing) return;
+    if (existing) return () => undefined;
 
     const style = document.createElement('style');
     style.id = 'fluent-read-page-styles';
     style.textContent = pageStyles;
     (document.head ?? document.documentElement).appendChild(style);
-    ctx.onInvalidated(() => style.remove());
+    const remove = () => style.remove();
+    ctx.onInvalidated(remove);
+    return remove;
 }
 
 function handleRuntimeMessage(
@@ -76,6 +81,24 @@ function handleRuntimeMessage(
         browser.runtime.sendMessage({ type: 'clearTranslationCache' })
             .then(() => sendResponse())
             .catch(() => sendResponse());
+        return true;
+    }
+
+    if (payload.type === 'updateSiteExtensionDisabled') {
+        if (typeof payload.isDisabled !== 'boolean') return false;
+        const update = updateCurrentPageSiteDisabled;
+        if (!update) {
+            sendResponse({ status: 'unavailable' });
+            return true;
+        }
+        void update(payload.isDisabled)
+            .then(() => sendResponse({ status: 'success' }))
+            .catch(() => sendResponse({ status: 'failed' }));
+        return true;
+    }
+
+    if (currentPageSiteDisabled && payload.type !== 'getFullPageTranslationState') {
+        sendResponse({ status: 'disabled' });
         return true;
     }
 
@@ -167,13 +190,13 @@ function handleRuntimeMessage(
     if (payload.type === 'getFullPageTranslationState') {
         sendResponse({
             status: 'success',
-            isTranslated: isFullPageTranslationActive(),
+            isTranslated: !currentPageSiteDisabled && isFullPageTranslationActive(),
         });
         return true;
     }
 
     if (payload.type === 'contextMenuTranslate') {
-        if (config.on === false) {
+        if (config.on === false || currentPageSiteDisabled) {
             sendResponse({ status: 'disabled' });
             return true;
         }
@@ -208,10 +231,12 @@ export default defineContentScript({
     cssInjectionMode: 'ui',
     async main(ctx) {
         contentScriptContext = ctx;
-        installPageStyles(ctx);
         await configReady; // 等待配置加载完成
         clearLegacyPageTranslationCache();
-        let shouldAutomaticallyTranslate = shouldAutomaticallyTranslateCurrentPage(config);
+        currentPageSiteDisabled = isExtensionDisabledOnSite(
+            window.location.href,
+            config.disabledExtensionDomains,
+        );
 
         const pageEventController = new AbortController();
         document.addEventListener('fluentread-route-change', resetPageTranslationContextCache, {
@@ -219,6 +244,78 @@ export default defineContentScript({
         });
         let runtimeMessageListener: ((message: unknown, sender: unknown, sendResponse: (response?: unknown) => void) => boolean) | null = null;
         let cleanedUp = false;
+        let featureController: AbortController | null = null;
+        let removePageStyles: (() => void) | null = null;
+        let shouldAutomaticallyTranslate = false;
+
+        const disposePageFeatures = () => {
+            featureController?.abort();
+            featureController = null;
+            restoreOriginalContent();
+            cancelAllTranslations();
+            unmountFloatingBall();
+            unmountSelectionTranslator();
+            unmountAreaTranslator();
+            unmountImageTranslator();
+            unmountTranslationProgressPanel();
+            unmountVideoSubtitleTranslation?.();
+            unmountVideoSubtitleTranslation = null;
+            removeExistingTooltip();
+            removePageStyles?.();
+            removePageStyles = null;
+        };
+
+        const activatePageFeatures = async () => {
+            if (cleanedUp || currentPageSiteDisabled || featureController) return;
+
+            removePageStyles = installPageStyles(ctx);
+            featureController = new AbortController();
+            setupInputBoxTranslation(featureController.signal);
+            // 视频字幕 Beta 只在 YouTube 播放页监听原生字幕，不采集音频或视频内容。
+            unmountVideoSubtitleTranslation = mountVideoSubtitleTranslation();
+            // 监听器始终注册并在触发时读取实时配置。这样扩展在当前页面由关闭
+            // 切换为开启后，无需刷新页面就能恢复 Control/Alt+T。
+            setupManualTranslationTriggers(featureController.signal);
+            setupFloatingBallHotkey(featureController.signal);
+
+            if (config.on && config.disableFloatingBall !== true) {
+                await mountFloatingBall(ctx);
+                if (cleanedUp || currentPageSiteDisabled) return;
+            }
+
+            if (config.on && config.disableSelectionTranslator !== true) {
+                await mountSelectionTranslator(ctx);
+                if (cleanedUp || currentPageSiteDisabled) return;
+            }
+            if (config.on && config.selectionAreaEnabled === true) {
+                await mountAreaTranslator(ctx);
+                if (cleanedUp || currentPageSiteDisabled) return;
+            }
+
+            // 图片翻译使用独立覆盖层，不改写宿主页面的 img 元素；点击入口由事件委托处理动态图片。
+            if (config.on && config.disableImageTranslator !== true) mountImageTranslator();
+        };
+
+        const applySiteDisabledState = async (disabled: boolean) => {
+            if (cleanedUp) return;
+            currentPageSiteDisabled = disabled;
+            if (disabled) {
+                shouldAutomaticallyTranslate = false;
+                disposePageFeatures();
+                return;
+            }
+
+            await activatePageFeatures();
+            if (cleanedUp || currentPageSiteDisabled) return;
+            const nextShouldAutomaticallyTranslate = shouldAutomaticallyTranslateCurrentPage(config);
+            const shouldStartNow = !shouldAutomaticallyTranslate && nextShouldAutomaticallyTranslate;
+            shouldAutomaticallyTranslate = nextShouldAutomaticallyTranslate;
+            if (shouldStartNow && !isFullPageTranslationActive()) {
+                autoTranslateEnglishPage();
+            }
+        };
+        updateCurrentPageSiteDisabled = applySiteDisabledState;
+
         const cleanup = () => {
             if (cleanedUp) return;
             cleanedUp = true;
@@ -227,33 +324,42 @@ export default defineContentScript({
             if (runtimeMessageListener) {
                 browser.runtime.onMessage.removeListener(runtimeMessageListener);
             }
-            restoreOriginalContent();
-            cancelAllTranslations();
-            unmountFloatingBall();
-            unmountSelectionTranslator();
-            unmountAreaTranslator();
-            unmountImageTranslator();
+            disposePageFeatures();
             unsubscribeContentConfig?.();
             unsubscribeContentConfig = null;
-            unmountTranslationProgressPanel();
-            unmountVideoSubtitleTranslation?.();
-            unmountVideoSubtitleTranslation = null;
-            removeExistingTooltip();
+            updateCurrentPageSiteDisabled = null;
+            currentPageSiteDisabled = false;
             contentScriptContext = null;
         };
         ctx.onInvalidated(cleanup);
         window.addEventListener('beforeunload', cleanup, { once: true });
 
-        setupInputBoxTranslation(pageEventController.signal);
-        // 视频字幕 Beta 只在 YouTube 播放页监听原生字幕，不采集音频或视频内容。
-        unmountVideoSubtitleTranslation = mountVideoSubtitleTranslation();
         runtimeMessageListener = (
             message: unknown,
             _sender: unknown,
             sendResponse: (response?: unknown) => void,
         ) => handleRuntimeMessage(message, ctx, sendResponse);
         browser.runtime.onMessage.addListener(runtimeMessageListener);
+        if (!currentPageSiteDisabled) {
+            await activatePageFeatures();
+            shouldAutomaticallyTranslate = shouldAutomaticallyTranslateCurrentPage(config);
+            if (shouldAutomaticallyTranslate) autoTranslateEnglishPage();
+        }
+
         unsubscribeContentConfig = subscribeConfig((nextConfig) => {
+            const nextSiteDisabled = isExtensionDisabledOnSite(
+                window.location.href,
+                nextConfig.disabledExtensionDomains,
+            );
+            if (nextSiteDisabled !== currentPageSiteDisabled) {
+                void applySiteDisabledState(nextSiteDisabled);
+                return;
+            }
+
+            if (nextSiteDisabled) {
+                unmountTranslationProgressPanel();
+                return;
+            }
             if (nextConfig.translationProgressPanelEnabled === true) {
                 void mountTranslationProgressPanel(ctx);
             } else {
@@ -270,32 +376,6 @@ export default defineContentScript({
                 autoTranslateEnglishPage();
             }
         });
-        // 监听器始终注册并在触发时读取实时配置。这样扩展在当前页面由关闭
-        // 切换为开启后，无需刷新页面就能恢复 Control/Alt+T。
-        setupManualTranslationTriggers(pageEventController.signal);
-        setupFloatingBallHotkey(pageEventController.signal);
-        // 全局自动翻译和当前站点规则共用同一个全文会话。
-        if (shouldAutomaticallyTranslate) autoTranslateEnglishPage();
-
-        // 挂载悬浮球（如果配置未禁用）
-        if (config.on && config.disableFloatingBall !== true) {
-            // 使用配置中的位置
-            await mountFloatingBall(ctx);
-            if (cleanedUp) return;
-        }
-        
-        // 挂载划词翻译组件（如果配置未禁用）
-        if (config.on && config.disableSelectionTranslator !== true) {
-            await mountSelectionTranslator(ctx);
-            if (cleanedUp) return;
-        }
-        if (config.on && config.selectionAreaEnabled === true) {
-            await mountAreaTranslator(ctx);
-            if (cleanedUp) return;
-        }
-        
-        // 图片翻译使用独立覆盖层，不改写宿主页面的 img 元素；点击入口由事件委托处理动态图片。
-        if (config.on && config.disableImageTranslator !== true) mountImageTranslator();
 
     }
 })
@@ -310,6 +390,7 @@ function getConfiguredSelectionHotkey(): string {
 const activeSelectionCandidateByEvent = new WeakMap<KeyboardEvent, boolean>();
 
 function hasActiveSelectionTranslationCandidate(): boolean {
+    if (currentPageSiteDisabled) return false;
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return false;
     const selectionHost = document.getElementById('fluent-read-selection-translator-container');
@@ -327,7 +408,7 @@ function hasActiveSelectionTranslationCandidate(): boolean {
 }
 
 function shouldReserveSelectionShortcut(event: KeyboardEvent): boolean {
-    if (!config.on || config.selectionTranslatorMode === 'disabled' || config.disableSelectionTranslator) return false;
+    if (currentPageSiteDisabled || !config.on || config.selectionTranslatorMode === 'disabled' || config.disableSelectionTranslator) return false;
     return shouldClaimConfiguredHotkey(
         event,
         getConfiguredSelectionHotkey(),
@@ -343,7 +424,7 @@ function shouldReserveSelectionShortcut(event: KeyboardEvent): boolean {
 }
 
 function matchesSelectionTranslatorShortcut(event: KeyboardEvent): boolean {
-    if (!config.on || config.selectionTranslatorMode === 'disabled' || config.disableSelectionTranslator) return false;
+    if (currentPageSiteDisabled || !config.on || config.selectionTranslatorMode === 'disabled' || config.disableSelectionTranslator) return false;
     return matchesConfiguredHotkey(
         event,
         getConfiguredSelectionHotkey(),
@@ -415,6 +496,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
     // 2. 按下按键时
     window.addEventListener('keydown', event => {
         if (!event.isTrusted) return;
+        if (currentPageSiteDisabled) return;
         // 防止重复事件
         if (event.repeat) return;
         
@@ -496,6 +578,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
 
     document.addEventListener('pointerdown', event => {
         if (!event.isTrusted) return;
+        if (currentPageSiteDisabled) return;
         if (!screen.hotkeyPressed || !matchesPressedHotkeyParts(getConfiguredSelectionHotkeyParts())) return;
         screen.hotkeyPressed = false;
         screen.otherKeyPressed = true;
@@ -506,6 +589,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
     // 3. 抬起按键时
     window.addEventListener('keyup', event => {
         if (!event.isTrusted) return;
+        if (currentPageSiteDisabled) return;
         // 清除字母键状态（在检查前先清除）
         const releasedKey = event.key.toLowerCase();
         const releasedCode = event.code?.toLowerCase();
@@ -571,6 +655,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
     // 同一监听器同时取消长按，避免为每次 mousemove 注册两条全局路径。
     document.addEventListener('mousemove', event => {
         if (!event.isTrusted) return;
+        if (currentPageSiteDisabled) return;
         screen.mouseX = event.clientX;
         screen.mouseY = event.clientY;
         if (longPressTimer !== undefined
@@ -588,6 +673,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
     // 5、手机端触摸事件，取中心点翻译
     document.addEventListener('touchstart', event => {
         if (!event.isTrusted) return;
+        if (currentPageSiteDisabled) return;
         let coordinate;
         switch (config.hotkey) {
             case constants.TwoFinger:
@@ -612,6 +698,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
     // 6、双击鼠标翻译事件
     document.addEventListener('dblclick', event => {
         if (!event.isTrusted) return;
+        if (currentPageSiteDisabled) return;
         if (config.hotkey == constants.DoubleClick && config.on) {
             // 通过双击事件获取鼠标位置
             let mouseX = event.clientX;
@@ -624,18 +711,20 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
     // 7、长按鼠标翻译事件（长按事件时鼠标不能移动）
     document.addEventListener('mouseup', event => {
         if (!event.isTrusted) return;
+        if (currentPageSiteDisabled) return;
         if (longPressTimer !== undefined) clearTimeout(longPressTimer);
         longPressTimer = undefined;
     }, { signal });
     document.addEventListener('mousedown', event => {
         if (!event.isTrusted) return;
+        if (currentPageSiteDisabled) return;
         if (config.hotkey === constants.LongPress) {
             if (longPressTimer !== undefined) clearTimeout(longPressTimer);
             longPressStart.x = event.clientX;
             longPressStart.y = event.clientY;
             longPressTimer = setTimeout(() => {
                 longPressTimer = undefined;
-                if (config.on) {
+                if (!currentPageSiteDisabled && config.on) {
                     let mouseX = event.clientX;
                     let mouseY = event.clientY;
                     handleTranslation(mouseX, mouseY);
@@ -646,6 +735,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
     // 8、鼠标中键翻译事件
     document.addEventListener('mousedown', event => {
         if (!event.isTrusted) return;
+        if (currentPageSiteDisabled) return;
         if (config.hotkey === constants.MiddleClick && config.on) {
             if (event.button === 1) {
                 let mouseX = event.clientX;
@@ -661,6 +751,7 @@ function setupManualTranslationTriggers(signal: AbortSignal) {
     let touchTimer: any;
     document.addEventListener('touchstart', event => {
         if (!event.isTrusted) return;
+        if (currentPageSiteDisabled) return;
         // 检查是否为有效的热键配置，并且只处理单指触摸事件
         if (![constants.DoubleClickScreen, constants.TripleClickScreen].includes(config.hotkey)
             || event.touches.length !== 1) return;
@@ -728,6 +819,7 @@ function setupFloatingBallHotkey(signal: AbortSignal) {
     // 监听按键按下事件
     document.addEventListener('keydown', (event) => {
         if (!event.isTrusted) return;
+        if (currentPageSiteDisabled) return;
         // 忽略长按产生的重复事件，但不能用全局时间窗口去重：
         // Alt 和 T 本来就可能在 50ms 内连续到达，时间去重会吞掉合法组合键。
         if (event.repeat) return;
@@ -843,6 +935,7 @@ function setupFloatingBallHotkey(signal: AbortSignal) {
     // 监听按键释放事件
     document.addEventListener('keyup', (event) => {
         if (!event.isTrusted) return;
+        if (currentPageSiteDisabled) return;
         if (pendingFullPageToggle) {
             pendingFullPageToggle = false;
             if (config.on && !hasActiveSelectionTranslationCandidate()) {
@@ -925,6 +1018,7 @@ function setupInputBoxTranslation(signal: AbortSignal) {
 
     const handleKeyDown = async (event: KeyboardEvent) => {
         if (!event.isTrusted) return;
+        if (currentPageSiteDisabled) return;
         // 检查功能是否启用
         if (config.on === false || config.inputBoxTranslationTrigger === 'disabled') {
             resetKeyPresses();
@@ -1183,6 +1277,7 @@ async function translateWithMicrosoft(text: string, targetLang: string): Promise
  */
 async function handleInputBoxTranslation(element: HTMLElement): Promise<void> {
     try {
+        if (currentPageSiteDisabled) return;
         const originalText = getInputBoxText(element);
         
         if (!originalText) {
@@ -1199,10 +1294,20 @@ async function handleInputBoxTranslation(element: HTMLElement): Promise<void> {
         // 显示翻译中的动画和提示
         addInputBoxAnimation(element, 'translating');
         await createTranslationTooltip(element, '微软翻译中', 'translating');
+        if (currentPageSiteDisabled) {
+            element.classList.remove('fluent-input-translating');
+            removeExistingTooltip();
+            return;
+        }
         
         try {
             // 直接调用微软翻译API，不使用缓存
             const translatedText = await translateWithMicrosoft(cleanedText, config.inputBoxTranslationTarget);
+            if (currentPageSiteDisabled) {
+                element.classList.remove('fluent-input-translating');
+                removeExistingTooltip();
+                return;
+            }
             
             if (translatedText && translatedText !== cleanedText) {
                 // 移除翻译中的动画
@@ -1223,6 +1328,11 @@ async function handleInputBoxTranslation(element: HTMLElement): Promise<void> {
                 await createTranslationTooltip(element, '内容无需翻译', 'error');
             }
         } catch (translationError) {
+            if (currentPageSiteDisabled) {
+                element.classList.remove('fluent-input-translating');
+                removeExistingTooltip();
+                return;
+            }
             // 翻译失败
             element.classList.remove('fluent-input-translating');
             addInputBoxAnimation(element, 'error');
@@ -1235,6 +1345,11 @@ async function handleInputBoxTranslation(element: HTMLElement): Promise<void> {
         setTimeout(() => removeExistingTooltip(), 2500);
         
     } catch (error) {
+        if (currentPageSiteDisabled) {
+            element.classList.remove('fluent-input-translating');
+            removeExistingTooltip();
+            return;
+        }
         console.error('输入框翻译失败:', error);
         
         // 移除翻译中的动画
