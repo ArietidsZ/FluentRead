@@ -93,16 +93,22 @@ export type BinaryDocumentData =
 interface LiteralPart {
     kind: 'literal';
     value: string;
+    /** Markdown source-line group used to keep protected inline syntax in place. */
+    bilingualGroup?: number;
 }
 
 interface SegmentPart {
     kind: 'segment';
     segmentIndex: number;
     source: string;
+    /** Original encoded HTML text used when the bilingual source is rendered. */
+    rawSource?: string;
     prefix: string;
     suffix: string;
     /** Repeat a structural prefix when a bilingual line needs a second cue. */
     bilingualPrefix?: string;
+    /** Markdown source-line group used to render one coherent bilingual line. */
+    bilingualGroup?: number;
 }
 
 type DocumentPart = LiteralPart | SegmentPart;
@@ -140,7 +146,6 @@ const FORMAT_LABELS: Record<DocumentFormat, string> = {
 };
 
 const PROTECTED_HTML_TAGS = new Set(['head', 'script', 'style', 'pre', 'code', 'textarea']);
-const HTML_TOKEN_PATTERN = /<!--[\s\S]*?-->|<![^>]*>|<[^>]+>/gu;
 const MARKDOWN_PROTECTED_PATTERN = /(`{1,3}[^`\n]+`{1,3}|!\[[^\]]*\]\([^)]+\)|\[[^\]]+\]\((?:https?:\/\/|#)[^)]+\)|<https?:\/\/[^>]+>|https?:\/\/[^\s)]+)/gu;
 const TIMED_SUBTITLE_PATTERN = /^\s*(?:\d{1,3}:)?\d{2}:\d{2}[,.]\d{3}\s*-->\s*(?:\d{1,3}:)?\d{2}:\d{2}[,.]\d{3}(?:\s+.*)?$/u;
 const LRC_TIME_PATTERN = /^(\s*(?:\[[^\]\r\n]+\])+)/u;
@@ -189,38 +194,45 @@ function trimSource(value: string): {prefix: string; source: string; suffix: str
     return {prefix: match[1], source: match[2], suffix: match[3]};
 }
 
-function addLiteral(parts: DocumentPart[], value: string): void {
+type SegmentOptions = Pick<SegmentPart, 'bilingualPrefix' | 'bilingualGroup'>
+    & Omit<Partial<DocumentSegment>, 'id' | 'source'>;
+
+function addLiteral(parts: DocumentPart[], value: string, bilingualGroup?: number): void {
     if (!value) return;
     const last = parts[parts.length - 1];
-    if (last?.kind === 'literal') {
+    if (last?.kind === 'literal' && last.bilingualGroup === bilingualGroup) {
         last.value += value;
         return;
     }
-    parts.push({kind: 'literal', value});
+    parts.push({kind: 'literal', value, bilingualGroup});
 }
 
 function addSegment(
     parts: DocumentPart[],
     segments: DocumentSegment[],
     value: string,
-    options: Pick<SegmentPart, 'bilingualPrefix'> & Omit<Partial<DocumentSegment>, 'id' | 'source'> = {},
+    options: SegmentOptions = {},
+    transformSource?: (source: string) => string,
 ): void {
     const trimmed = trimSource(value);
     if (!trimmed) {
-        addLiteral(parts, value);
+        addLiteral(parts, value, options.bilingualGroup);
         return;
     }
 
     const segmentIndex = segments.length;
-    const {bilingualPrefix, ...segmentOptions} = options;
-    segments.push({id: segmentIndex, source: trimmed.source, ...segmentOptions});
+    const {bilingualPrefix, bilingualGroup, ...segmentOptions} = options;
+    const source = transformSource ? transformSource(trimmed.source) : trimmed.source;
+    segments.push({id: segmentIndex, source, ...segmentOptions});
     parts.push({
         kind: 'segment',
         segmentIndex,
-        source: trimmed.source,
+        source,
+        ...(source === trimmed.source ? {} : {rawSource: trimmed.source}),
         prefix: trimmed.prefix,
         suffix: trimmed.suffix,
         bilingualPrefix,
+        bilingualGroup,
     });
 }
 
@@ -229,14 +241,14 @@ function addProtectedText(
     segments: DocumentSegment[],
     value: string,
     pattern: RegExp,
-    options: Pick<SegmentPart, 'bilingualPrefix'> & Omit<Partial<DocumentSegment>, 'id' | 'source'> = {},
+    options: SegmentOptions = {},
 ): void {
     pattern.lastIndex = 0;
     let cursor = 0;
     let match = pattern.exec(value);
     while (match) {
         addSegment(parts, segments, value.slice(cursor, match.index), options);
-        addLiteral(parts, match[0]);
+        addLiteral(parts, match[0], options.bilingualGroup);
         cursor = match.index + match[0].length;
         match = pattern.exec(value);
     }
@@ -270,7 +282,7 @@ function parseTextDocument(content: string, format: 'txt' | 'markdown'): Pick<Pa
     const lines = splitWithEndings(content);
     let inFence = false;
 
-    lines.forEach((line) => {
+    lines.forEach((line, lineIndex) => {
         const fence = /^\s*(`{3,}|~{3,})/u.test(line.text);
         const horizontalRule = /^\s*(?:[-*_]\s*){3,}$/u.test(line.text);
         if (format === 'markdown' && (fence || inFence || horizontalRule)) {
@@ -280,7 +292,9 @@ function parseTextDocument(content: string, format: 'txt' | 'markdown'): Pick<Pa
         }
 
         if (format === 'markdown') {
-            addProtectedText(parts, segments, line.text, MARKDOWN_PROTECTED_PATTERN);
+            addProtectedText(parts, segments, line.text, MARKDOWN_PROTECTED_PATTERN, {
+                bilingualGroup: lineIndex,
+            });
         } else {
             addSegment(parts, segments, line.text);
         }
@@ -290,24 +304,109 @@ function parseTextDocument(content: string, format: 'txt' | 'markdown'): Pick<Pa
     return {parts, segments};
 }
 
+const HTML_ENTITY_FALLBACKS: Record<string, string> = {
+    amp: '&',
+    apos: "'",
+    bull: '•',
+    cent: '¢',
+    copy: '©',
+    emsp: ' ',
+    ensp: ' ',
+    euro: '€',
+    gt: '>',
+    hellip: '…',
+    laquo: '«',
+    ldquo: '“',
+    lsquo: '‘',
+    lt: '<',
+    mdash: '—',
+    middot: '·',
+    ndash: '–',
+    nbsp: ' ',
+    pound: '£',
+    quot: '"',
+    raquo: '»',
+    rdquo: '”',
+    reg: '®',
+    rsquo: '’',
+    thinsp: ' ',
+    trade: '™',
+    yen: '¥',
+};
+
+function decodeHtmlEntities(value: string): string {
+    if (!value.includes('&')) return value;
+    if (typeof globalThis.document !== 'undefined') {
+        const textarea = globalThis.document.createElement('textarea');
+        textarea.innerHTML = value;
+        return textarea.value;
+    }
+
+    return value.replace(/&(?:#x([0-9a-f]+)|#([0-9]+)|([a-z][a-z0-9]+));/giu, (entity, hex, decimal, name) => {
+        if (name) return HTML_ENTITY_FALLBACKS[String(name).toLowerCase()] ?? entity;
+        const codePoint = Number.parseInt(hex || decimal, hex ? 16 : 10);
+        return Number.isInteger(codePoint) && codePoint > 0 && codePoint <= 0x10ffff
+            ? String.fromCodePoint(codePoint)
+            : '�';
+    });
+}
+
+interface HtmlToken {
+    index: number;
+    value: string;
+}
+
+/** Find the next HTML token without treating `>` inside a quoted attribute as the tag boundary. */
+function findNextHtmlToken(content: string, from: number): HtmlToken | null {
+    let index = content.indexOf('<', from);
+    while (index >= 0) {
+        const next = content[index + 1];
+        if (next && (next === '!' || next === '?' || next === '/' || /[a-z]/iu.test(next))) {
+            if (content.startsWith('<!--', index)) {
+                const commentEnd = content.indexOf('-->', index + 4);
+                const end = commentEnd >= 0 ? commentEnd + 3 : content.length;
+                return {index, value: content.slice(index, end)};
+            }
+
+            let quote = '';
+            for (let cursor = index + 1; cursor < content.length; cursor += 1) {
+                const character = content[cursor];
+                if (quote) {
+                    if (character === quote) quote = '';
+                    continue;
+                }
+                if (character === '"' || character === "'") {
+                    quote = character;
+                    continue;
+                }
+                if (character === '>') {
+                    return {index, value: content.slice(index, cursor + 1)};
+                }
+            }
+            return null;
+        }
+        index = content.indexOf('<', index + 1);
+    }
+    return null;
+}
+
 function parseHtmlDocument(content: string): Pick<ParsedDocument, 'parts' | 'segments'> {
     const parts: DocumentPart[] = [];
     const segments: DocumentSegment[] = [];
     let cursor = 0;
     let protectedTag = '';
 
-    HTML_TOKEN_PATTERN.lastIndex = 0;
-    let match = HTML_TOKEN_PATTERN.exec(content);
+    let match = findNextHtmlToken(content, 0);
     while (match) {
-        const tag = match[0];
-        if (!protectedTag) addSegment(parts, segments, content.slice(cursor, match.index));
+        const tag = match.value;
+        if (!protectedTag) addSegment(parts, segments, content.slice(cursor, match.index), {}, decodeHtmlEntities);
         else addLiteral(parts, content.slice(cursor, match.index));
         addLiteral(parts, tag);
 
         const closing = tag.match(/^<\s*\/\s*([a-z0-9-]+)/iu)?.[1]?.toLowerCase();
         if (closing && closing === protectedTag) {
             protectedTag = '';
-        } else if (!closing) {
+        } else if (!closing && !protectedTag) {
             const opening = tag.match(/^<\s*([a-z0-9-]+)/iu)?.[1]?.toLowerCase();
             if (opening && PROTECTED_HTML_TAGS.has(opening) && !/\/\s*>$/u.test(tag)) {
                 protectedTag = opening;
@@ -315,17 +414,17 @@ function parseHtmlDocument(content: string): Pick<ParsedDocument, 'parts' | 'seg
         }
 
         cursor = match.index + tag.length;
-        match = HTML_TOKEN_PATTERN.exec(content);
+        match = findNextHtmlToken(content, cursor);
     }
 
     if (cursor < content.length) {
         if (protectedTag) addLiteral(parts, content.slice(cursor));
-        else addSegment(parts, segments, content.slice(cursor));
+        else addSegment(parts, segments, content.slice(cursor), {}, decodeHtmlEntities);
     }
     return {parts, segments};
 }
 
-function parseTimedSubtitleDocument(content: string): Pick<ParsedDocument, 'parts' | 'segments'> {
+function parseTimedSubtitleDocument(content: string, format: 'srt' | 'vtt'): Pick<ParsedDocument, 'parts' | 'segments'> {
     const parts: DocumentPart[] = [];
     const segments: DocumentSegment[] = [];
     const lines = splitWithEndings(content);
@@ -344,6 +443,10 @@ function parseTimedSubtitleDocument(content: string): Pick<ParsedDocument, 'part
         cursorLine += 1;
         const textStartLine = cursorLine;
         while (cursorLine < lines.length && lines[cursorLine].text.trim() && !TIMED_SUBTITLE_PATTERN.test(lines[cursorLine].text)) {
+            const nextLineStartsCue = format === 'srt'
+                && /^\s*\d+\s*$/u.test(lines[cursorLine].text)
+                && TIMED_SUBTITLE_PATTERN.test(lines[cursorLine + 1]?.text || '');
+            if (nextLineStartsCue) break;
             cursorLine += 1;
         }
 
@@ -513,7 +616,7 @@ export function parseDocument(fileName: string, content: string): ParsedDocument
                 ? parseAssDocument(content)
                 : format === 'lrc'
                     ? parseLrcDocument(content)
-                    : parseTimedSubtitleDocument(content);
+                    : parseTimedSubtitleDocument(content, format);
 
     return {fileName, format, label: getDocumentFormatLabel(format), ...parsed};
 }
@@ -541,38 +644,75 @@ function preserveSubtitleMarkup(source: string, translation: string): string {
     return translation;
 }
 
+function originalPartSource(part: SegmentPart): string {
+    return part.rawSource ?? part.source;
+}
+
 function formatBilingualTranslation(document: ParsedDocument, part: SegmentPart, translation: string): string {
+    const source = originalPartSource(part);
     const formattedTranslation = ['srt', 'vtt', 'ass'].includes(document.format)
         ? preserveSubtitleMarkup(part.source, translation)
         : translation;
     if (document.format === 'html') {
-        return `${part.prefix}${part.source}${part.suffix}<br><span data-fluent-read-document-translation="true">${escapeHtml(translation)}</span>`;
+        return `${part.prefix}${source}${part.suffix}<br><span data-fluent-read-document-translation="true">${escapeHtml(translation)}</span>`;
     }
     if (document.format === 'markdown') {
-        return `${part.prefix}${part.source}${part.suffix}\n> ${translation}`;
+        return `${part.prefix}${source}${part.suffix}\n> ${translation}`;
     }
     if (document.format === 'ass') {
-        return `${part.prefix}${part.source}${part.suffix}\\N${formattedTranslation.replace(/\r?\n/gu, '\\N')}`;
+        return `${part.prefix}${source}${part.suffix}\\N${formattedTranslation.replace(/\r?\n/gu, '\\N')}`;
     }
     if (part.bilingualPrefix) {
-        return `${part.prefix}${part.source}${part.suffix}\n${part.bilingualPrefix}${formattedTranslation}`;
+        return `${part.prefix}${source}${part.suffix}\n${part.bilingualPrefix}${formattedTranslation}`;
     }
-    return `${part.prefix}${part.source}${part.suffix}\n${formattedTranslation}`;
+    return `${part.prefix}${source}${part.suffix}\n${formattedTranslation}`;
 }
 
 function renderParts(document: ParsedDocument, translations: readonly string[], mode: DocumentRenderMode): string {
-    return document.parts.map((part) => {
-        if (part.kind === 'literal') return part.value;
+    const output: string[] = [];
+    for (let index = 0; index < document.parts.length; index += 1) {
+        const part = document.parts[index];
+        if (mode === 'bilingual' && document.format === 'markdown' && part.bilingualGroup !== undefined) {
+            const group = part.bilingualGroup;
+            const groupParts: DocumentPart[] = [];
+            while (index < document.parts.length && document.parts[index].bilingualGroup === group) {
+                groupParts.push(document.parts[index]);
+                index += 1;
+            }
+            index -= 1;
+            const source = groupParts.map((entry) => entry.kind === 'literal'
+                ? entry.value
+                : `${entry.prefix}${originalPartSource(entry)}${entry.suffix}`).join('');
+            if (!groupParts.some((entry) => entry.kind === 'segment')) {
+                output.push(source);
+                continue;
+            }
+            const translated = groupParts.map((entry) => {
+                if (entry.kind === 'literal') return entry.value;
+                return `${entry.prefix}${translations[entry.segmentIndex] ?? entry.source}${entry.suffix}`;
+            }).join('').replace(/\r\n?|\n/gu, '\n> ');
+            output.push(`${source}\n> ${translated}`);
+            continue;
+        }
+        if (part.kind === 'literal') {
+            output.push(part.value);
+            continue;
+        }
         const translation = translations[part.segmentIndex] ?? part.source;
-        if (mode === 'bilingual') return formatBilingualTranslation(document, part, translation);
+        if (mode === 'bilingual') {
+            output.push(formatBilingualTranslation(document, part, translation));
+            continue;
+        }
         if (document.format === 'html') {
-            return `${part.prefix}${escapeHtml(translation)}${part.suffix}`;
+            output.push(`${part.prefix}${escapeHtml(translation)}${part.suffix}`);
+            continue;
         }
         const formattedTranslation = ['srt', 'vtt', 'ass'].includes(document.format)
             ? preserveSubtitleMarkup(part.source, translation)
             : translation;
-        return `${part.prefix}${formattedTranslation}${part.suffix}`;
-    }).join('');
+        output.push(`${part.prefix}${formattedTranslation}${part.suffix}`);
+    }
+    return output.join('');
 }
 
 function getAtPath(value: unknown, path: Array<string | number>): unknown {

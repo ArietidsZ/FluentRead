@@ -107,6 +107,125 @@ export interface VocabularyEntry {
   schemaVersion: typeof VOCABULARY_ENTRY_SCHEMA_VERSION;
 }
 
+/**
+ * Keep an in-progress review batch stable while replacing pending cards with
+ * the latest persisted snapshots. Cards removed or reviewed elsewhere are no
+ * longer pending, and unrelated newly-due cards wait for the next batch.
+ */
+export function reconcileVocabularyReviewQueue(
+  queue: readonly VocabularyEntry[],
+  latestEntries: readonly VocabularyEntry[],
+  now = Date.now(),
+): VocabularyEntry[] {
+  const latestById = new Map(latestEntries.map((entry) => [entry.id, entry]));
+  const seen = new Set<string>();
+  const reconciled: VocabularyEntry[] = [];
+
+  for (const queuedEntry of queue) {
+    if (seen.has(queuedEntry.id)) continue;
+    seen.add(queuedEntry.id);
+    const latest = latestById.get(queuedEntry.id);
+    if (!latest || latest.nextReviewAt === null || latest.nextReviewAt > now) continue;
+    reconciled.push(latest);
+  }
+
+  return reconciled;
+}
+
+export interface VocabularyReviewSessionState {
+  queue: VocabularyEntry[];
+  completed: number;
+  answerVisible: boolean;
+}
+
+export interface VocabularyReviewSessionProgress {
+  current: VocabularyEntry | null;
+  position: number;
+  total: number;
+}
+
+export function createVocabularyReviewSession(
+  queue: readonly VocabularyEntry[],
+): VocabularyReviewSessionState {
+  return {
+    queue: [...queue],
+    completed: 0,
+    answerVisible: false,
+  };
+}
+
+export function advanceVocabularyReviewSession(
+  session: VocabularyReviewSessionState,
+  entryId: string,
+): VocabularyReviewSessionState {
+  const containsEntry = session.queue.some((entry) => entry.id === entryId);
+  return {
+    queue: session.queue[0]?.id === entryId
+      ? session.queue.slice(1)
+      : session.queue.filter((entry) => entry.id !== entryId),
+    completed: session.completed + (containsEntry ? 1 : 0),
+    answerVisible: false,
+  };
+}
+
+export function reconcileVocabularyReviewSession(
+  session: VocabularyReviewSessionState,
+  latestEntries: readonly VocabularyEntry[],
+  now = Date.now(),
+): VocabularyReviewSessionState {
+  const previous = session.queue[0];
+  const queue = reconcileVocabularyReviewQueue(session.queue, latestEntries, now);
+  const next = queue[0];
+  const currentChanged = !previous
+    || !next
+    || previous.id !== next.id
+    || previous.updatedAt !== next.updatedAt
+    || previous.reviewCount !== next.reviewCount;
+  return {
+    queue,
+    completed: session.completed,
+    answerVisible: currentChanged ? false : session.answerVisible,
+  };
+}
+
+export function vocabularyReviewSessionProgress(
+  session: VocabularyReviewSessionState,
+): VocabularyReviewSessionProgress {
+  const current = session.queue[0] ?? null;
+  const total = session.completed + session.queue.length;
+  return {
+    current,
+    position: current ? Math.min(session.completed + 1, total) : total,
+    total,
+  };
+}
+
+export interface VocabularyLifecycleGuard {
+  isActive(): boolean;
+  dispose(): void;
+  runAfterReady(
+    ready: PromiseLike<unknown>,
+    initialize: () => void | PromiseLike<void>,
+  ): Promise<boolean>;
+}
+
+/** Prevent an async mounted hook from registering work after its component was removed. */
+export function createVocabularyLifecycleGuard(): VocabularyLifecycleGuard {
+  let active = true;
+  return {
+    isActive: () => active,
+    dispose: () => {
+      active = false;
+    },
+    async runAfterReady(ready, initialize) {
+      await ready;
+      if (!active) return false;
+      await initialize();
+      return active;
+    },
+  };
+}
+
 export interface VocabularyReviewLog {
   id: string;
   entryId: string;
@@ -182,7 +301,9 @@ export interface VocabularyExportOptions {
 export interface VocabularyImportResult {
   inserted: number;
   updated: number;
+  /** Invalid, duplicate, colliding, or retention-pruned entries and logs. */
   skipped: number;
+  /** Imported review logs still present after per-entry retention pruning. */
   reviewLogsImported: number;
 }
 

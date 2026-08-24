@@ -111,25 +111,35 @@ export async function translateDocumentSegments(
     }
 
     let nextIndex = 0;
+    let stopped = false;
     const workerCount = Math.min(3, segments.length);
     const worker = async () => {
         while (true) {
+            if (stopped) return;
             throwIfAborted(options.signal);
             const index = nextIndex;
             nextIndex += 1;
             if (index >= segments.length) return;
 
             try {
-                translations[segments[index].id] = await translateText(segments[index].source, context, {
+                const translation = await translateText(segments[index].source, context, {
                     signal: options.signal,
                     pageContext,
                     serviceOverride: options.serviceOverride,
                     modelOverride: options.modelOverride,
                     maxRetries: options.maxRetries,
                 });
+                // Promise.all rejects as soon as one worker fails, but the other
+                // in-flight workers still settle later. Do not let those workers
+                // report stale progress or claim more document segments.
+                if (stopped) return;
+                translations[segments[index].id] = translation;
                 completed += 1;
                 reportProgress();
             } catch (error) {
+                if (stopped) return;
+                stopped = true;
+                if (options.signal?.aborted) throwIfAborted(options.signal);
                 throw new Error(`第 ${index + 1} 段文档翻译失败：${getErrorMessage(error)}`);
             }
         }

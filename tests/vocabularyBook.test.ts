@@ -5,15 +5,22 @@ import {
   VOCABULARY_BOOK_EXPORT_VERSION,
   VOCABULARY_BOOK_MAX_ENTRIES,
   VOCABULARY_ENTRY_SCHEMA_VERSION,
+  VOCABULARY_REVIEW_LOG_MAX_PER_ENTRY,
   VOCABULARY_REVIEW_AGAIN_DELAY_MS,
   VOCABULARY_REVIEW_GOOD_INTERVALS_MS,
   FluentReadVocabularyBookDatabase,
   VocabularyBookRepository,
+  advanceVocabularyReviewSession,
   buildAnkiTsv,
   buildVocabularyCloze,
   buildVocabularyIdentityKey,
+  createVocabularyLifecycleGuard,
+  createVocabularyReviewSession,
   normalizeEnglishWord,
+  reconcileVocabularyReviewQueue,
+  reconcileVocabularyReviewSession,
   sanitizeVocabularySourceUrl,
+  vocabularyReviewSessionProgress,
   vocabularyImportNeedsConfirmation,
   type VocabularyBookExport,
 } from '@/entrypoints/utils/vocabularyBook';
@@ -86,6 +93,77 @@ describe('review and import presentation helpers', () => {
     expect(vocabularyImportNeedsConfirmation(20 * 1024 * 1024)).toBe(false);
     expect(vocabularyImportNeedsConfirmation(20 * 1024 * 1024 + 1)).toBe(true);
     expect(vocabularyImportNeedsConfirmation(Number.MAX_SAFE_INTEGER)).toBe(true);
+  });
+
+  it('advances and reconciles review-session position after an external review or deletion', async () => {
+    const common = await repository.upsert(baseInput(), NOW);
+    const rare = await repository.upsert(
+      baseInput({ term: 'Rare', translation: '罕见' }),
+      NOW + 1,
+    );
+    const stable = await repository.upsert(
+      baseInput({ term: 'Stable', translation: '稳定' }),
+      NOW + 2,
+    );
+    const unrelated = await repository.upsert(
+      baseInput({ term: 'Other', translation: '其他' }),
+      NOW + 3,
+    );
+
+    const started = { ...createVocabularyReviewSession([common, rare, stable]), answerVisible: true };
+    const afterCommon = advanceVocabularyReviewSession(started, common.id);
+    expect(vocabularyReviewSessionProgress(afterCommon)).toMatchObject({
+      current: rare,
+      position: 2,
+      total: 3,
+    });
+    expect(afterCommon.answerVisible).toBe(false);
+
+    const withRareAnswer = { ...afterCommon, answerVisible: true };
+    await repository.review(rare.id, 'good', NOW + 10);
+    const afterExternalReview = reconcileVocabularyReviewSession(
+      withRareAnswer,
+      await repository.list(),
+      NOW + 20,
+    );
+    expect(afterExternalReview.queue.map((entry) => entry.id)).toEqual([stable.id]);
+    expect(afterExternalReview.answerVisible).toBe(false);
+    expect(vocabularyReviewSessionProgress(afterExternalReview)).toMatchObject({
+      current: stable,
+      position: 2,
+      total: 2,
+    });
+    expect(afterExternalReview.queue.some((entry) => entry.id === unrelated.id)).toBe(false);
+
+    await repository.remove(rare.id);
+    const afterExternalDelete = reconcileVocabularyReviewSession(
+      withRareAnswer,
+      await repository.list(),
+      NOW + 20,
+    );
+    expect(afterExternalDelete.queue.map((entry) => entry.id)).toEqual([stable.id]);
+    expect(afterExternalDelete.answerVisible).toBe(false);
+    expect(vocabularyReviewSessionProgress(afterExternalDelete)).toMatchObject({
+      current: stable,
+      position: 2,
+      total: 2,
+    });
+    expect(reconcileVocabularyReviewQueue([stable], [], NOW + 20)).toEqual([]);
+  });
+
+  it('does not initialize an async component lifecycle after it was disposed', async () => {
+    let resolveReady!: () => void;
+    const ready = new Promise<void>((resolve) => { resolveReady = resolve; });
+    const lifecycle = createVocabularyLifecycleGuard();
+    let initialized = false;
+    const initialization = lifecycle.runAfterReady(ready, () => { initialized = true; });
+
+    lifecycle.dispose();
+    resolveReady();
+
+    await expect(initialization).resolves.toBe(false);
+    expect(initialized).toBe(false);
+    expect(lifecycle.isActive()).toBe(false);
   });
 });
 
@@ -406,6 +484,53 @@ describe('JSON export and import', () => {
       status: 'mastered',
     });
     expect(merged?.translations['zh-cn'].text).toBe('本地新译文');
+  });
+
+  it('reports only imported review logs that remain after retention pruning', async () => {
+    const entry = await repository.upsert(baseInput(), NOW);
+    const incoming = await repository.exportData({ includePrivateContext: true, now: NOW + 1 });
+    incoming.reviewLogs = Array.from(
+      { length: VOCABULARY_REVIEW_LOG_MAX_PER_ENTRY + 1 },
+      (_, index) => ({
+        id: `10000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
+        entryId: entry.id,
+        rating: 'again' as const,
+        reviewedAt: NOW + index,
+        beforeLevel: 0 as const,
+        afterLevel: 0 as const,
+        nextReviewAt: NOW + index + VOCABULARY_REVIEW_AGAIN_DELAY_MS,
+      }),
+    );
+    await repository.clear();
+
+    const result = await repository.importData(incoming, NOW + 2);
+    const restored = await repository.getByTerm('en', 'common');
+    const retainedLogs = await repository.getReviewLogs(restored!.id);
+
+    expect(result).toMatchObject({
+      inserted: 1,
+      skipped: 1,
+      reviewLogsImported: VOCABULARY_REVIEW_LOG_MAX_PER_ENTRY,
+    });
+    expect(retainedLogs).toHaveLength(VOCABULARY_REVIEW_LOG_MAX_PER_ENTRY);
+    expect(retainedLogs[0]?.reviewedAt).toBe(NOW + 1);
+    expect(retainedLogs.at(-1)?.reviewedAt).toBe(NOW + VOCABULARY_REVIEW_LOG_MAX_PER_ENTRY);
+  });
+
+  it('counts immutable review-log collisions as skipped on idempotent re-import', async () => {
+    const entry = await repository.upsert(baseInput(), NOW);
+    await repository.review(entry.id, 'good', NOW + 1);
+    const incoming = await repository.exportData({ includePrivateContext: true, now: NOW + 2 });
+
+    const result = await repository.importData(incoming, NOW + 3);
+
+    expect(result).toMatchObject({
+      inserted: 0,
+      updated: 0,
+      skipped: 2,
+      reviewLogsImported: 0,
+    });
+    await expect(repository.getReviewLogs(entry.id)).resolves.toHaveLength(1);
   });
 
   it('merges encounter snapshots independently from the latest reviewed learning state', async () => {

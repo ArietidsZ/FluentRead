@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    getFullPageContextMenuPresentation,
     getSiteBaseDomain,
     isAlwaysTranslateSite,
     isExtensionDisabledOnSite,
@@ -77,6 +78,21 @@ describe('始终翻译网站规则', () => {
             alwaysTranslateDomains: [],
             disabledExtensionDomains: disabledDomains,
         })).toBe(false);
+    });
+
+    it('禁用站点时同步禁用全文翻译右键菜单', () => {
+        expect(getFullPageContextMenuPresentation(false, true)).toEqual({
+            enabled: false,
+            title: '流畅阅读（当前网站已禁用）',
+        });
+        expect(getFullPageContextMenuPresentation(false, false)).toEqual({
+            enabled: true,
+            title: '流畅阅读翻译',
+        });
+        expect(getFullPageContextMenuPresentation(true, false)).toEqual({
+            enabled: true,
+            title: '流畅阅读取消翻译',
+        });
     });
 
     it('同时保留旧全局自动翻译开关，并只对网站名单限制网页协议', () => {

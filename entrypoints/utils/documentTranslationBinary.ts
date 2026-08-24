@@ -30,7 +30,7 @@ if (typeof window !== 'undefined') {
 
 const BINARY_DOCUMENT_FORMATS = new Set<DocumentFormat>(['pdf', 'epub', 'docx']);
 const DOCX_PARAGRAPH_PATTERN = /<w:p\b[^>]*>[\s\S]*?<\/w:p>/gu;
-const DOCX_TEXT_TOKEN_PATTERN = /<w:t\b[^>]*>([\s\S]*?)<\/w:t>|<w:tab\b[^>]*\/>|<w:br\b[^>]*\/>/gu;
+const DOCX_TEXT_TOKEN_PATTERN = /<w:t\b[^>]*>([\s\S]*?)<\/w:t>|<w:tab\b[^>]*\/>|<w:(?:br|cr)\b[^>]*\/>/gu;
 const ARCHIVE_ENTRY_LIMIT = 4_000;
 const ARCHIVE_ENTRY_BYTES_LIMIT = 24 * 1024 * 1024;
 const ARCHIVE_TOTAL_BYTES_LIMIT = 96 * 1024 * 1024;
@@ -975,8 +975,13 @@ async function renderEpub(document: ParsedDocument, translations: readonly strin
 }
 
 function docxTextNodes(value: string): string {
-    const lines = value.replace(/\r\n?/gu, '\n').split('\n');
-    return lines.map((line, index) => `${index > 0 ? '<w:br/>' : ''}<w:t xml:space="preserve">${xmlEscape(line)}</w:t>`).join('');
+    const tokens = value.replace(/\r\n?/gu, '\n').split(/(\n|\t)/u);
+    const content = tokens.map((token) => {
+        if (token === '\n') return '<w:br/>';
+        if (token === '\t') return '<w:tab/>';
+        return token ? `<w:t xml:space="preserve">${xmlEscape(token)}</w:t>` : '';
+    }).join('');
+    return content || '<w:t></w:t>';
 }
 
 function translatedDocxParagraph(value: string): string {
@@ -985,8 +990,8 @@ function translatedDocxParagraph(value: string): string {
 
 function replaceDocxParagraphText(paragraph: string, value: string): string {
     let replaced = false;
-    return paragraph.replace(/<w:t\b[^>]*>[\s\S]*?<\/w:t>/gu, () => {
-        if (replaced) return '<w:t></w:t>';
+    return paragraph.replace(/<w:t\b[^>]*>[\s\S]*?<\/w:t>|<w:tab\b[^>]*\/>|<w:(?:br|cr)\b[^>]*\/>/gu, () => {
+        if (replaced) return '';
         replaced = true;
         return docxTextNodes(value);
     });

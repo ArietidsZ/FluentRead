@@ -59,6 +59,14 @@ describe('document translation parser', () => {
         expect(output).toContain('[Guide](https://example.com)');
     });
 
+    it('Markdown 双语导出按原始行组合内联代码前后的译文', () => {
+        const document = parseDocument('guide.md', 'Use `npm install` now.\n');
+
+        expect(renderDocument(document, ['使用', '现在。'], 'bilingual')).toBe(
+            'Use `npm install` now.\n> 使用 `npm install` 现在。\n',
+        );
+    });
+
     it('保留 SRT 时间轴、字幕标签和双语行', () => {
         const source = '1\n00:00:01,000 --> 00:00:03,000\n<i>Hello</i> world\n\n2\n00:00:04,000 --> 00:00:05,000\nNext line';
         const document = parseDocument('episode.srt', source);
@@ -68,6 +76,28 @@ describe('document translation parser', () => {
         expect(output).toContain('00:00:01,000 --> 00:00:03,000');
         expect(output).toContain('<i>Hello</i> world\n<i>你好</i> 世界');
         expect(output).toContain('2\n00:00:04,000 --> 00:00:05,000');
+    });
+
+    it('无空行分隔的 SRT 不会把下一条序号吞进上一段译文', () => {
+        const source = [
+            '1',
+            '00:00:01,000 --> 00:00:03,000',
+            'First cue',
+            '2',
+            '00:00:04,000 --> 00:00:05,000',
+            'Second cue',
+        ].join('\n');
+        const document = parseDocument('episode.srt', source);
+
+        expect(document.segments.map((segment) => segment.source)).toEqual(['First cue', 'Second cue']);
+        expect(renderDocument(document, ['第一条', '第二条'], 'translated')).toBe([
+            '1',
+            '00:00:01,000 --> 00:00:03,000',
+            '第一条',
+            '2',
+            '00:00:04,000 --> 00:00:05,000',
+            '第二条',
+        ].join('\n'));
     });
 
     it('保留 VTT 头部和 ASS 对话字段', () => {
@@ -114,5 +144,60 @@ describe('document translation parser', () => {
         const textPreview = createDocumentPreviewHtml(text, ['第一段', '第二段'], 'translated');
         expect(textPreview).toContain('第一段');
         expect(textPreview).not.toContain('First paragraph');
+    });
+
+    it('Markdown 译文包含换行时仍与原始行一一对应', () => {
+        const document = parseDocument('guide.md', '# One\n\nTwo');
+        const preview = createDocumentPreviewHtml(document, ['# 一\n额外行', '二'], 'translated');
+
+        expect(preview).toContain('<h1 class="reader-translation fluentread-translation">一<br>额外行</h1>');
+        expect(preview).toContain('<p class="reader-translation fluentread-translation">二</p>');
+        expect(preview).not.toContain('>Two<');
+    });
+
+    it('TXT 译文内的空行保留在当前段落而不会挤占下一段', () => {
+        const document = parseDocument('notes.txt', 'First\n\nSecond');
+        const preview = createDocumentPreviewHtml(document, ['第一\n\n补充', '第二'], 'translated');
+
+        expect(preview).toContain('<p class="reader-translation fluentread-translation">第一<br><br>补充</p>');
+        expect(preview).toContain('<p class="reader-translation fluentread-translation">第二</p>');
+        expect(preview).not.toContain('>First<');
+        expect(preview).not.toContain('>Second<');
+    });
+
+    it('HTML 文本实体以可读文本翻译且预览不会双重转义', () => {
+        const document = parseDocument('guide.html', '<p>Hello&nbsp;world &amp; friends</p>');
+
+        expect(document.segments.map((segment) => segment.source)).toEqual(['Hello\u00a0world & friends']);
+        const sourcePreview = createDocumentPreviewHtml(document, [], 'source');
+        expect(sourcePreview).toContain('Hello\u00a0world &amp; friends');
+        expect(sourcePreview).not.toContain('&amp;nbsp;');
+        expect(sourcePreview).not.toContain('&amp;amp; friends');
+
+        const bilingual = renderDocument(document, ['你好世界与朋友'], 'bilingual');
+        expect(bilingual).toContain('Hello&nbsp;world &amp; friends');
+        expect(bilingual).toContain('你好世界与朋友');
+    });
+
+    it('HTML 属性值中的大于号不会被当作标签结束位置', () => {
+        const source = '<p title="1 > 0" data-note="> stays quoted">Hello</p>';
+        const document = parseDocument('guide.html', source);
+
+        expect(document.segments.map((segment) => segment.source)).toEqual(['Hello']);
+        expect(renderDocument(document, ['你好'], 'translated')).toBe(
+            '<p title="1 > 0" data-note="> stays quoted">你好</p>',
+        );
+    });
+
+    it('HTML 嵌套受保护标签不会让 pre 剩余内容进入翻译队列', () => {
+        const document = parseDocument(
+            'guide.html',
+            '<pre>before<code>const value = 1;</code>after</pre><p>Translate me</p>',
+        );
+
+        expect(document.segments.map((segment) => segment.source)).toEqual(['Translate me']);
+        expect(renderDocument(document, ['翻译我'], 'translated')).toBe(
+            '<pre>before<code>const value = 1;</code>after</pre><p>翻译我</p>',
+        );
     });
 });

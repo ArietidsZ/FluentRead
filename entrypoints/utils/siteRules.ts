@@ -17,6 +17,11 @@ export interface AutoTranslatePageConfig {
     disabledExtensionDomains?: readonly string[];
 }
 
+export interface FullPageContextMenuPresentation {
+    enabled: boolean;
+    title: string;
+}
+
 function parseSiteUrl(input: string | URL): URL | null {
     if (input instanceof URL) {
         return input.protocol === 'http:' || input.protocol === 'https:'
@@ -139,4 +144,18 @@ export function shouldAutoTranslatePage(
     // 就应生效。HTTP(S) 与可注册域名限制只属于新增的网站名单。
     if (config.autoTranslate === true) return true;
     return isAlwaysTranslateSite(input, config.alwaysTranslateDomains);
+}
+
+/** 让右键菜单的可用性与当前站点生命周期状态保持一致。 */
+export function getFullPageContextMenuPresentation(
+    isTranslated: boolean,
+    isSiteDisabled: boolean,
+): FullPageContextMenuPresentation {
+    if (isSiteDisabled) {
+        return {enabled: false, title: '流畅阅读（当前网站已禁用）'};
+    }
+    return {
+        enabled: true,
+        title: isTranslated ? '流畅阅读取消翻译' : '流畅阅读翻译',
+    };
 }

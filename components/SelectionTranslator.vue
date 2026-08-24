@@ -112,8 +112,8 @@ import { translateText } from '@/entrypoints/utils/translateApi';
 import { detectlang } from '@/entrypoints/utils/common';
 import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey } from '@/entrypoints/utils/hotkey';
 import { isSingleEnglishWord, normalizeEnglishWord, type WordCardData, type WordPronunciation } from '@/entrypoints/utils/wordDictionary';
-import { calculateSelectionPopupPosition, chooseSelectionRect, getSelectionPresentationDelayRemaining, isSameLanguage, normalizeSelectionText, normalizeSpeechLanguage, reconcileSelectionPresentation, resolveSelectionDictionaryFallback, resolveSelectionVocabularyAnswer, shouldIgnoreSelection, summarizeSelectionContext, type SelectionAnswerCandidate, type SelectionContentRequest, type SelectionRect } from '@/entrypoints/utils/selectionTranslatorCore';
-import { VOCABULARY_BOOK_MESSAGE, type VocabularyBookResponse, type VocabularyEntry } from '@/entrypoints/utils/vocabularyBookProtocol';
+import { calculateSelectionPopupPosition, chooseSelectionRect, getSelectionPresentationDelayRemaining, isSameLanguage, normalizeSelectionText, normalizeSpeechLanguage, reconcileSelectionPresentation, resolveSelectionDictionaryFallback, resolveSelectionVocabularyAnswer, SelectionRequestTokenGate, shouldIgnoreSelection, summarizeSelectionContext, type SelectionAnswerCandidate, type SelectionContentRequest, type SelectionRect } from '@/entrypoints/utils/selectionTranslatorCore';
+import { VOCABULARY_BOOK_CHANGED_MESSAGE, VOCABULARY_BOOK_MESSAGE, type VocabularyBookResponse, type VocabularyEntry } from '@/entrypoints/utils/vocabularyBookProtocol';
 
 type SelectionTrigger = 'direct' | 'icon' | 'dot' | 'shortcut';
 type AudioKind = 'source' | 'translation' | 'word';
@@ -159,7 +159,8 @@ let translationAbortController: AbortController | null = null;
 let translationRequestId = 0;
 let wordLookupRequestId = 0;
 let copyTimer: number | null = null;
-let vocabularyRequestId = 0;
+const vocabularyLookupGate = new SelectionRequestTokenGate();
+const vocabularySaveGate = new SelectionRequestTokenGate();
 let contentRequestGeneration = 0;
 let noticeTimer: number | null = null;
 let lastTrustedSelectionInteractionAt = 0;
@@ -327,6 +328,10 @@ function resetSelectionContentState(clearSelectionText = false): void {
   isWordCardLoading.value = false;
   wordCardError.value = '';
   showChineseSupport.value = true;
+  vocabularyLookupGate.invalidate();
+  vocabularySaveGate.invalidate();
+  isVocabularySaved.value = false;
+  vocabularyBusy.value = false;
   if (clearSelectionText) selectedText.value = '';
   stopAudio();
 }
@@ -484,7 +489,7 @@ function requestSelectionContent(text: string): void {
   void requestTranslation(request);
   if (shouldUseWordCard(text)) {
     void requestWordCard(request);
-    void refreshVocabularySaved(text);
+    void refreshVocabularySaved(request);
   }
   else {
     wordLookupRequestId += 1;
@@ -492,22 +497,25 @@ function requestSelectionContent(text: string): void {
     isWordCardLoading.value = false;
     wordCardError.value = '';
     dictionaryAnswer.value = null;
-    vocabularyRequestId += 1;
     isVocabularySaved.value = false;
     vocabularyBusy.value = false;
   }
 }
 
-async function refreshVocabularySaved(text: string): Promise<void> {
-  const word = normalizeEnglishWord(text);
-  if (!word || !config.vocabularyBookEnabled || isPrivateContext) return;
-  const requestId = ++vocabularyRequestId;
+async function refreshVocabularySaved(request: SelectionContentRequest): Promise<void> {
+  const word = normalizeEnglishWord(request.text);
+  if (!word || !config.vocabularyBookEnabled || isPrivateContext) {
+    vocabularyLookupGate.invalidate();
+    isVocabularySaved.value = false;
+    return;
+  }
+  const requestToken = vocabularyLookupGate.begin();
   try {
     const response = await browser.runtime.sendMessage({type: VOCABULARY_BOOK_MESSAGE, action: 'getByTerm', term: word, sourceLanguage: 'en'}) as VocabularyBookResponse<VocabularyEntry | null>;
-    if (requestId !== vocabularyRequestId || snapshot.value?.text !== text) return;
+    if (!vocabularyLookupGate.isCurrent(requestToken) || !isContentRequestCurrent(request)) return;
     isVocabularySaved.value = response?.success === true && Boolean(response.data);
   } catch {
-    if (requestId === vocabularyRequestId) isVocabularySaved.value = false;
+    if (vocabularyLookupGate.isCurrent(requestToken)) isVocabularySaved.value = false;
   }
 }
 
@@ -542,8 +550,9 @@ async function saveVocabularyEntry(event: MouseEvent): Promise<void> {
   const contentRequest = currentContentRequest.value;
   const answer = vocabularyAnswer.value;
   if (!contentRequest || !selectedWord.value || !answer || vocabularyBusy.value || isPrivateContext) return;
+  const wasSaved = isVocabularySaved.value;
   vocabularyBusy.value = true;
-  const requestId = ++vocabularyRequestId;
+  const requestToken = vocabularySaveGate.begin();
   try {
     const response = await browser.runtime.sendMessage({
       type: VOCABULARY_BOOK_MESSAGE,
@@ -558,15 +567,14 @@ async function saveVocabularyEntry(event: MouseEvent): Promise<void> {
         context: {text: selectionContextText(), sourceUrl: pageSourceUrl(), pageTitle: document.title, capturedAt: Date.now()},
       },
     }) as VocabularyBookResponse<VocabularyEntry>;
-    if (requestId !== vocabularyRequestId || !isContentRequestCurrent(contentRequest)) return;
+    if (!vocabularySaveGate.isCurrent(requestToken) || !isContentRequestCurrent(contentRequest)) return;
     if (!response?.success || !response.data) throw new Error(response?.success ? '保存失败' : response?.error?.message || '保存失败');
-    const wasSaved = isVocabularySaved.value;
     isVocabularySaved.value = true;
     showNotice(wasSaved ? '已更新当前阅读上下文' : '已加入单词本', 'open-vocabulary');
   } catch (cause) {
-    if (requestId === vocabularyRequestId) showNotice(cause instanceof Error ? `保存失败：${cause.message}` : '保存失败，未写入单词本');
+    if (vocabularySaveGate.isCurrent(requestToken)) showNotice(cause instanceof Error ? `保存失败：${cause.message}` : '保存失败，未写入单词本');
   } finally {
-    if (requestId === vocabularyRequestId) vocabularyBusy.value = false;
+    if (vocabularySaveGate.isCurrent(requestToken)) vocabularyBusy.value = false;
   }
 }
 
@@ -700,8 +708,8 @@ function releasePageAudio(): void {
 }
 
 function stopAudio(notifyRemote = true): void {
-  const stoppedRemoteRequestId = remoteAudioRequestId;
-  const shouldNotifyRemote = notifyRemote && remoteAudioActive && stoppedRemoteRequestId !== null;
+  const stoppedRemoteRequestId = remoteAudioRequestId ?? pendingRemoteAudioRequestId;
+  const shouldNotifyRemote = notifyRemote && stoppedRemoteRequestId !== null;
   remoteAudioActive = false;
   remoteAudioRequestId = null;
   pendingRemoteAudioRequestId = null;
@@ -943,7 +951,6 @@ function hideAll(): void {
   cancelSelectionPresentation();
   selectionSettledAt = 0;
   resetSelectionContentState(true);
-  vocabularyRequestId += 1;
   showIndicator.value = false;
   showTooltip.value = false;
   snapshot.value = null;
@@ -1066,11 +1073,19 @@ function handleSelectionSettingsMessage(message: unknown): undefined {
   return undefined;
 }
 
+function handleVocabularyBookChanged(message: unknown): undefined {
+  if (!message || typeof message !== 'object' || (message as {type?: unknown}).type !== VOCABULARY_BOOK_CHANGED_MESSAGE) return undefined;
+  const request = currentContentRequest.value;
+  if (request && isWordSelection.value) void refreshVocabularySaved(request);
+  return undefined;
+}
+
 onMounted(() => {
   updateTheme();
   systemThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
   systemThemeMedia.addEventListener('change', updateTheme);
   browser.runtime.onMessage.addListener(handleSelectionSettingsMessage);
+  browser.runtime.onMessage.addListener(handleVocabularyBookChanged);
   unsubscribeConfig = subscribeConfig(() => { selectionConfigVersion.value += 1; });
   document.addEventListener('pointerdown', handlePointerDown, true);
   document.addEventListener('pointerup', handlePointerUp, true);
@@ -1137,7 +1152,8 @@ onMounted(() => {
       if (showTooltip.value) void requestSelectionContent(snapshot.value.text);
     }
     if (previousSettings && nextSettings[9] !== previousSettings[9] && showTooltip.value && isWordSelection.value) {
-      void refreshVocabularySaved(snapshot.value.text);
+      const request = currentContentRequest.value;
+      if (request) void refreshVocabularySaved(request);
     }
   });
 });
@@ -1151,6 +1167,7 @@ onBeforeUnmount(() => {
   if (noticeTimer !== null) window.clearTimeout(noticeTimer);
   systemThemeMedia?.removeEventListener('change', updateTheme);
   browser.runtime.onMessage.removeListener(handleSelectionSettingsMessage);
+  browser.runtime.onMessage.removeListener(handleVocabularyBookChanged);
   unsubscribeConfig?.();
   unsubscribeConfig = null;
   tooltipResizeObserver?.disconnect();

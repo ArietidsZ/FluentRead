@@ -15,7 +15,7 @@ import {
     unmountFloatingBall,
 } from "@/entrypoints/utils/floatingBall";
 import { mountSelectionTranslator, unmountSelectionTranslator } from "@/entrypoints/utils/selectionTranslator";
-import { mountAreaTranslator, unmountAreaTranslator } from "@/entrypoints/utils/areaTranslator";
+import { isAreaTranslatorMounted, mountAreaTranslator, unmountAreaTranslator } from "@/entrypoints/utils/areaTranslator";
 import { cancelAllTranslations } from "@/entrypoints/utils/translateApi";
 import { mountImageTranslator, unmountImageTranslator } from "@/entrypoints/utils/imageTranslation";
 import {
@@ -23,8 +23,10 @@ import {
     unmountTranslationProgressPanel,
 } from "@/entrypoints/utils/translationProgressPanel";
 import {
+    canCommitInputBoxTranslation,
     getDeepActiveElement,
     getInputBoxText,
+    getInputBoxValueSnapshot,
     isInputElement,
     matchesInputBoxTrigger,
     removeTriggerSymbols,
@@ -39,13 +41,36 @@ import { isSameLanguage, normalizeSelectionText, shouldIgnoreSelection } from '@
 import { normalizeSelectionTranslatorDelay } from '@/entrypoints/utils/model';
 import {clearLegacyPageTranslationCache} from '@/entrypoints/utils/legacyPageCache';
 import {isExtensionDisabledOnSite, shouldAutoTranslatePage} from '@/entrypoints/utils/siteRules';
+import {ensureContentFeatureMounted} from '@/entrypoints/utils/contentFeatureLifecycle';
 
 let contentScriptContext: ContentScriptContext | null = null;
 let inputTooltipUi: ShadowRootContentScriptUi<HTMLElement> | null = null;
+let inputTooltipOwnerRequestId: number | null = null;
+let activeInputTranslationRequestId = 0;
+let activeInputTranslationElement: HTMLElement | null = null;
 let unmountVideoSubtitleTranslation: (() => void) | null = null;
 let unsubscribeContentConfig: (() => void) | null = null;
 let currentPageSiteDisabled = false;
 let updateCurrentPageSiteDisabled: ((disabled: boolean) => Promise<void>) | null = null;
+
+function isInputBoxTranslationEnabled(): boolean {
+    return config.on !== false && config.inputBoxTranslationTrigger !== 'disabled';
+}
+
+function inputBoxTranslationConfigKey(value: typeof config): string {
+    return JSON.stringify([
+        value.on,
+        value.inputBoxTranslationTrigger,
+        value.inputBoxTranslationTarget,
+    ]);
+}
+
+function invalidateActiveInputBoxTranslation(): void {
+    activeInputTranslationRequestId += 1;
+    activeInputTranslationElement?.classList.remove('fluent-input-translating');
+    activeInputTranslationElement = null;
+    removeExistingTooltip();
+}
 
 function shouldAutomaticallyTranslateCurrentPage(nextConfig: typeof config): boolean {
     return shouldAutoTranslatePage(window.location.href, {
@@ -191,6 +216,7 @@ function handleRuntimeMessage(
         sendResponse({
             status: 'success',
             isTranslated: !currentPageSiteDisabled && isFullPageTranslationActive(),
+            isSiteDisabled: currentPageSiteDisabled,
         });
         return true;
     }
@@ -247,6 +273,15 @@ export default defineContentScript({
         let featureController: AbortController | null = null;
         let removePageStyles: (() => void) | null = null;
         let shouldAutomaticallyTranslate = false;
+        let inputBoxConfigGeneration = 0;
+        let previousInputBoxConfigKey = inputBoxTranslationConfigKey(config);
+
+        const reportSiteDisabledState = () => {
+            void browser.runtime.sendMessage({
+                type: 'siteExtensionDisabledState',
+                isDisabled: currentPageSiteDisabled,
+            }).catch(() => undefined);
+        };
 
         const disposePageFeatures = () => {
             featureController?.abort();
@@ -269,27 +304,44 @@ export default defineContentScript({
             if (cleanedUp || currentPageSiteDisabled || featureController) return;
 
             removePageStyles = installPageStyles(ctx);
-            featureController = new AbortController();
-            setupInputBoxTranslation(featureController.signal);
+            const activationController = new AbortController();
+            featureController = activationController;
+            const isActivationCurrent = () => !cleanedUp
+                && !currentPageSiteDisabled
+                && featureController === activationController
+                && !activationController.signal.aborted;
+            setupInputBoxTranslation(activationController.signal, () => inputBoxConfigGeneration);
             // 视频字幕 Beta 只在 YouTube 播放页监听原生字幕，不采集音频或视频内容。
             unmountVideoSubtitleTranslation = mountVideoSubtitleTranslation();
             // 监听器始终注册并在触发时读取实时配置。这样扩展在当前页面由关闭
             // 切换为开启后，无需刷新页面就能恢复 Control/Alt+T。
-            setupManualTranslationTriggers(featureController.signal);
-            setupFloatingBallHotkey(featureController.signal);
+            setupManualTranslationTriggers(activationController.signal);
+            setupFloatingBallHotkey(activationController.signal);
 
             if (config.on && config.disableFloatingBall !== true) {
-                await mountFloatingBall(ctx);
-                if (cleanedUp || currentPageSiteDisabled) return;
+                await ensureContentFeatureMounted({
+                    mount: () => mountFloatingBall(ctx),
+                    isMounted: () => Boolean(document.getElementById('fluent-read-floating-ball-container')),
+                    isStillDesired: () => isActivationCurrent() && config.on && config.disableFloatingBall !== true,
+                });
+                if (!isActivationCurrent()) return;
             }
 
             if (config.on && config.disableSelectionTranslator !== true) {
-                await mountSelectionTranslator(ctx);
-                if (cleanedUp || currentPageSiteDisabled) return;
+                await ensureContentFeatureMounted({
+                    mount: () => mountSelectionTranslator(ctx),
+                    isMounted: () => Boolean(document.getElementById('fluent-read-selection-translator-container')),
+                    isStillDesired: () => isActivationCurrent() && config.on && config.disableSelectionTranslator !== true,
+                });
+                if (!isActivationCurrent()) return;
             }
             if (config.on && config.selectionAreaEnabled === true) {
-                await mountAreaTranslator(ctx);
-                if (cleanedUp || currentPageSiteDisabled) return;
+                await ensureContentFeatureMounted({
+                    mount: () => mountAreaTranslator(ctx),
+                    isMounted: isAreaTranslatorMounted,
+                    isStillDesired: () => isActivationCurrent() && config.on && config.selectionAreaEnabled === true,
+                });
+                if (!isActivationCurrent()) return;
             }
 
             // 图片翻译使用独立覆盖层，不改写宿主页面的 img 元素；点击入口由事件委托处理动态图片。
@@ -299,6 +351,7 @@ export default defineContentScript({
         const applySiteDisabledState = async (disabled: boolean) => {
             if (cleanedUp) return;
             currentPageSiteDisabled = disabled;
+            reportSiteDisabledState();
             if (disabled) {
                 shouldAutomaticallyTranslate = false;
                 disposePageFeatures();
@@ -340,6 +393,7 @@ export default defineContentScript({
             sendResponse: (response?: unknown) => void,
         ) => handleRuntimeMessage(message, ctx, sendResponse);
         browser.runtime.onMessage.addListener(runtimeMessageListener);
+        reportSiteDisabledState();
         if (!currentPageSiteDisabled) {
             await activatePageFeatures();
             shouldAutomaticallyTranslate = shouldAutomaticallyTranslateCurrentPage(config);
@@ -347,6 +401,12 @@ export default defineContentScript({
         }
 
         unsubscribeContentConfig = subscribeConfig((nextConfig) => {
+            const nextInputBoxConfigKey = inputBoxTranslationConfigKey(nextConfig);
+            if (nextInputBoxConfigKey !== previousInputBoxConfigKey) {
+                previousInputBoxConfigKey = nextInputBoxConfigKey;
+                inputBoxConfigGeneration += 1;
+                invalidateActiveInputBoxTranslation();
+            }
             const nextSiteDisabled = isExtensionDisabledOnSite(
                 window.location.href,
                 nextConfig.disabledExtensionDomains,
@@ -1001,7 +1061,7 @@ function setupFloatingBallHotkey(signal: AbortSignal) {
 /**
  * 输入框翻译功能
  */
-function setupInputBoxTranslation(signal: AbortSignal) {
+function setupInputBoxTranslation(signal: AbortSignal, readConfigGeneration: () => number) {
     let keyPressCount = 0;
     let keyPressTimer: ReturnType<typeof setTimeout> | null = null;
     let lastInputElement: HTMLElement | null = null;
@@ -1039,7 +1099,7 @@ function setupInputBoxTranslation(signal: AbortSignal) {
             // Ctrl+Enter 触发
             if (event.ctrlKey && event.key === 'Enter') {
                 event.preventDefault();
-                await handleInputBoxTranslation(activeElement);
+                await handleInputBoxTranslation(activeElement, signal, readConfigGeneration);
                 return;
             }
         } else if (triggerType === 'triple_space' || triggerType === 'triple_equal' || triggerType === 'triple_dash') {
@@ -1062,7 +1122,7 @@ function setupInputBoxTranslation(signal: AbortSignal) {
             if (keyPressCount === 3) {
                 event.preventDefault(); // 阻止默认输入
                 resetKeyPresses();
-                await handleInputBoxTranslation(activeElement);
+                await handleInputBoxTranslation(activeElement, signal, readConfigGeneration);
                 return;
             }
 
@@ -1105,9 +1165,20 @@ function setInputBoxText(element: HTMLElement, text: string): void {
 /**
  * 创建并显示翻译提示弹窗
  */
-async function createTranslationTooltip(element: HTMLElement, message: string, type: 'translating' | 'success' | 'error'): Promise<HTMLElement> {
-    // 移除已存在的提示
+async function createTranslationTooltip(
+    element: HTMLElement,
+    message: string,
+    type: 'translating' | 'success' | 'error',
+    requestId: number,
+    signal: AbortSignal,
+): Promise<HTMLElement | null> {
+    if (signal.aborted || requestId !== activeInputTranslationRequestId || currentPageSiteDisabled || !isInputBoxTranslationEnabled()) {
+        return null;
+    }
+
+    // 只有当前最新请求能替换 tooltip；旧请求即使延迟返回也不会移除新提示。
     removeExistingTooltip();
+    inputTooltipOwnerRequestId = requestId;
 
     if (!contentScriptContext) {
         throw new Error('Content script context is not ready');
@@ -1115,7 +1186,7 @@ async function createTranslationTooltip(element: HTMLElement, message: string, t
 
     const rect = element.getBoundingClientRect();
 
-    inputTooltipUi = await createShadowRootUi<HTMLElement>(contentScriptContext, {
+    const ui = await createShadowRootUi<HTMLElement>(contentScriptContext, {
         name: 'fluent-read-input-tooltip-ui',
         position: 'overlay',
         alignment: 'top-left',
@@ -1174,11 +1245,23 @@ async function createTranslationTooltip(element: HTMLElement, message: string, t
         },
     });
 
-    inputTooltipUi.shadowHost.id = 'fluent-input-translation-tooltip-host';
-    inputTooltipUi.shadowHost.setAttribute('data-fluent-read-ui', 'input-tooltip');
-    inputTooltipUi.mount();
+    if (
+        signal.aborted
+        || requestId !== activeInputTranslationRequestId
+        || inputTooltipOwnerRequestId !== requestId
+        || currentPageSiteDisabled
+        || !isInputBoxTranslationEnabled()
+    ) {
+        ui.remove();
+        return null;
+    }
 
-    const tooltip = inputTooltipUi.mounted!;
+    inputTooltipUi = ui;
+    ui.shadowHost.id = 'fluent-input-translation-tooltip-host';
+    ui.shadowHost.setAttribute('data-fluent-read-ui', 'input-tooltip');
+    ui.mount();
+
+    const tooltip = ui.mounted!;
     
     // 如果禁用动画，直接显示，否则使用淡入效果
     if (!config.animations) {
@@ -1209,12 +1292,15 @@ function getTooltipIcon(type: 'translating' | 'success' | 'error'): string {
 /**
  * 移除现有的提示弹窗
  */
-function removeExistingTooltip(): void {
+function removeExistingTooltip(ownerRequestId?: number): void {
+    if (ownerRequestId !== undefined && inputTooltipOwnerRequestId !== ownerRequestId) return;
+
     const ui = inputTooltipUi;
     const existing = ui?.mounted;
     inputTooltipUi = null;
-    if (ui && existing) {
-        if (!config.animations) {
+    inputTooltipOwnerRequestId = null;
+    if (ui) {
+        if (!existing || !config.animations) {
             // 如果禁用动画，直接移除
             ui.remove();
         } else {
@@ -1228,7 +1314,11 @@ function removeExistingTooltip(): void {
 /**
  * 添加输入框动画效果
  */
-function addInputBoxAnimation(element: HTMLElement, animationType: 'translating' | 'success' | 'error'): void {
+function addInputBoxAnimation(
+    element: HTMLElement,
+    animationType: 'translating' | 'success' | 'error',
+    ownerRequestId: number,
+): void {
     // 如果禁用了动画，则不添加动画效果
     if (!config.animations) {
         return;
@@ -1243,6 +1333,7 @@ function addInputBoxAnimation(element: HTMLElement, animationType: 'translating'
     // 如果不是翻译中的动画，在动画完成后移除类
     if (animationType !== 'translating') {
         setTimeout(() => {
+            if (ownerRequestId !== activeInputTranslationRequestId) return;
             element.classList.remove(`fluent-input-${animationType}`);
         }, animationType === 'success' ? 1000 : 600);
     }
@@ -1275,92 +1366,106 @@ async function translateWithMicrosoft(text: string, targetLang: string): Promise
 /**
  * 处理输入框翻译
  */
-async function handleInputBoxTranslation(element: HTMLElement): Promise<void> {
+async function handleInputBoxTranslation(
+    element: HTMLElement,
+    signal: AbortSignal,
+    readConfigGeneration: () => number,
+): Promise<void> {
+    invalidateActiveInputBoxTranslation();
+    const requestId = activeInputTranslationRequestId;
+    activeInputTranslationElement = element;
+    const configGeneration = readConfigGeneration();
+    const inputSnapshot = getInputBoxValueSnapshot(element);
+    const originalText = getInputBoxText(element);
+    const trigger = config.inputBoxTranslationTrigger;
+    const targetLanguage = config.inputBoxTranslationTarget;
+
+    const isCurrentAndUnchanged = () => requestId === activeInputTranslationRequestId
+        && canCommitInputBoxTranslation({
+            signal,
+            expectedValue: inputSnapshot,
+            currentValue: getInputBoxValueSnapshot(element),
+            expectedConfigGeneration: configGeneration,
+            currentConfigGeneration: readConfigGeneration(),
+            isEnabled: isInputBoxTranslationEnabled(),
+            isSiteDisabled: currentPageSiteDisabled,
+        });
+    const clearOwnedVisuals = () => {
+        if (requestId !== activeInputTranslationRequestId) return;
+        element.classList.remove('fluent-input-translating');
+        if (activeInputTranslationElement === element) activeInputTranslationElement = null;
+        removeExistingTooltip(requestId);
+    };
+    const handleAbort = () => clearOwnedVisuals();
+    signal.addEventListener('abort', handleAbort, { once: true });
+
     try {
-        if (currentPageSiteDisabled) return;
-        const originalText = getInputBoxText(element);
-        
-        if (!originalText) {
-            return;
-        }
-        
+        if (!isCurrentAndUnchanged() || !originalText) return;
+
         // 根据触发方式去除末尾的触发符号
-        const cleanedText = removeTriggerSymbols(originalText, config.inputBoxTranslationTrigger);
-        
-        if (!cleanedText) {
+        const cleanedText = removeTriggerSymbols(originalText, trigger);
+        if (!cleanedText) return;
+
+        // 新请求接管当前提示，之前请求的 finally/定时器只能移除自己的 tooltip。
+        removeExistingTooltip();
+        addInputBoxAnimation(element, 'translating', requestId);
+        const loadingTooltip = await createTranslationTooltip(
+            element,
+            '微软翻译中',
+            'translating',
+            requestId,
+            signal,
+        );
+        if (!loadingTooltip || !isCurrentAndUnchanged()) {
+            clearOwnedVisuals();
             return;
         }
-        
-        // 显示翻译中的动画和提示
-        addInputBoxAnimation(element, 'translating');
-        await createTranslationTooltip(element, '微软翻译中', 'translating');
-        if (currentPageSiteDisabled) {
-            element.classList.remove('fluent-input-translating');
-            removeExistingTooltip();
-            return;
-        }
-        
+
         try {
-            // 直接调用微软翻译API，不使用缓存
-            const translatedText = await translateWithMicrosoft(cleanedText, config.inputBoxTranslationTarget);
-            if (currentPageSiteDisabled) {
-                element.classList.remove('fluent-input-translating');
-                removeExistingTooltip();
+            // runtime.sendMessage 无法中断已发往 background 的请求，
+            // 因此在结果落地前同时校验 feature signal、请求序号与输入快照。
+            const translatedText = await translateWithMicrosoft(cleanedText, targetLanguage);
+            if (!isCurrentAndUnchanged()) {
+                clearOwnedVisuals();
                 return;
             }
-            
+
+            element.classList.remove('fluent-input-translating');
+            removeExistingTooltip(requestId);
             if (translatedText && translatedText !== cleanedText) {
-                // 移除翻译中的动画
-                element.classList.remove('fluent-input-translating');
-                
-                // 设置翻译结果
                 setInputBoxText(element, translatedText);
-                
-                // 显示成功动画和提示
-                addInputBoxAnimation(element, 'success');
-                removeExistingTooltip();
-                await createTranslationTooltip(element, '翻译成功', 'success');
+                addInputBoxAnimation(element, 'success', requestId);
+                await createTranslationTooltip(element, '翻译成功', 'success', requestId, signal);
             } else {
-                // 翻译结果与原文相同或为空
-                element.classList.remove('fluent-input-translating');
-                addInputBoxAnimation(element, 'error');
-                removeExistingTooltip();
-                await createTranslationTooltip(element, '内容无需翻译', 'error');
+                addInputBoxAnimation(element, 'error', requestId);
+                await createTranslationTooltip(element, '内容无需翻译', 'error', requestId, signal);
             }
         } catch (translationError) {
-            if (currentPageSiteDisabled) {
-                element.classList.remove('fluent-input-translating');
-                removeExistingTooltip();
+            if (!isCurrentAndUnchanged()) {
+                clearOwnedVisuals();
                 return;
             }
-            // 翻译失败
             element.classList.remove('fluent-input-translating');
-            addInputBoxAnimation(element, 'error');
-            removeExistingTooltip();
-            await createTranslationTooltip(element, '微软翻译失败', 'error');
+            addInputBoxAnimation(element, 'error', requestId);
+            removeExistingTooltip(requestId);
+            await createTranslationTooltip(element, '微软翻译失败', 'error', requestId, signal);
             console.error('微软翻译失败:', translationError);
         }
-        
-        // 自动隐藏提示
-        setTimeout(() => removeExistingTooltip(), 2500);
-        
+
+        // 所有者校验保证旧请求的定时器不会移除新 tooltip。
+        setTimeout(() => removeExistingTooltip(requestId), 2500);
     } catch (error) {
-        if (currentPageSiteDisabled) {
-            element.classList.remove('fluent-input-translating');
-            removeExistingTooltip();
+        if (!isCurrentAndUnchanged()) {
+            clearOwnedVisuals();
             return;
         }
         console.error('输入框翻译失败:', error);
-        
-        // 移除翻译中的动画
         element.classList.remove('fluent-input-translating');
-        
-        // 显示错误动画和提示
-        addInputBoxAnimation(element, 'error');
-        removeExistingTooltip();
-        await createTranslationTooltip(element, '翻译服务暂时不可用', 'error');
-        
-        // 自动隐藏错误提示
-        setTimeout(() => removeExistingTooltip(), 3000);
+        addInputBoxAnimation(element, 'error', requestId);
+        removeExistingTooltip(requestId);
+        await createTranslationTooltip(element, '翻译服务暂时不可用', 'error', requestId, signal);
+        setTimeout(() => removeExistingTooltip(requestId), 3000);
+    } finally {
+        signal.removeEventListener('abort', handleAbort);
     }
 }

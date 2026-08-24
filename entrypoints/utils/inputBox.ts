@@ -39,6 +39,39 @@ export function getInputBoxText(element: HTMLElement): string {
     return (element.innerText || element.textContent || '').trim();
 }
 
+/**
+ * 获取输入目标的原始值快照。与 getInputBoxText 不同，这里保留首尾空白，
+ * 用于确认异步翻译返回前用户是否编辑过输入框。
+ */
+export function getInputBoxValueSnapshot(element: HTMLElement): string {
+    const tagName = element.tagName.toLowerCase();
+
+    if (tagName === 'input' || tagName === 'textarea') {
+        return (element as HTMLInputElement | HTMLTextAreaElement).value;
+    }
+
+    return element.innerText || element.textContent || '';
+}
+
+export interface InputBoxTranslationCommitState {
+    signal: AbortSignal;
+    expectedValue: string;
+    currentValue: string;
+    expectedConfigGeneration: number;
+    currentConfigGeneration: number;
+    isEnabled: boolean;
+    isSiteDisabled: boolean;
+}
+
+/** 判断一个异步输入框翻译结果是否仍可安全写回页面。 */
+export function canCommitInputBoxTranslation(state: InputBoxTranslationCommitState): boolean {
+    return !state.signal.aborted
+        && state.isEnabled
+        && !state.isSiteDisabled
+        && state.currentConfigGeneration === state.expectedConfigGeneration
+        && state.currentValue === state.expectedValue;
+}
+
 /** 判断一次键盘事件是否匹配当前的三连击触发方式。 */
 export function matchesInputBoxTrigger(event: KeyboardEvent, trigger: InputBoxTrigger): boolean {
     switch (trigger) {

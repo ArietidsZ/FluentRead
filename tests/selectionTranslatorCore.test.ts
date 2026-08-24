@@ -11,6 +11,7 @@ import {
     reconcileSelectionPresentation,
     resolveSelectionDictionaryFallback,
     resolveSelectionVocabularyAnswer,
+    SelectionRequestTokenGate,
     summarizeSelectionContext,
 } from '@/entrypoints/utils/selectionTranslatorCore';
 import { buildEdgeTtsSsml, edgeTtsVoiceCandidatesForLanguage, edgeTtsVoiceForLanguage, synthesizeEdgeTts } from '@/entrypoints/utils/edgeTts';
@@ -65,6 +66,33 @@ describe('selection translator presentation stability', () => {
         expect(reconcileSelectionPresentation(openTooltip, 'icon', true)).toEqual({showIndicator: true, showTooltip: false});
         expect(reconcileSelectionPresentation(openTooltip, 'dot', true)).toEqual({showIndicator: true, showTooltip: false});
         expect(reconcileSelectionPresentation(openTooltip, 'shortcut', true)).toEqual({showIndicator: false, showTooltip: false});
+    });
+});
+
+describe('selection translator async request generations', () => {
+    it('keeps vocabulary lookup refreshes independent from an in-flight save', () => {
+        const lookupGate = new SelectionRequestTokenGate();
+        const saveGate = new SelectionRequestTokenGate();
+        const saveToken = saveGate.begin();
+        const firstLookup = lookupGate.begin();
+        const refreshedLookup = lookupGate.begin();
+
+        expect(lookupGate.isCurrent(firstLookup)).toBe(false);
+        expect(lookupGate.isCurrent(refreshedLookup)).toBe(true);
+        expect(saveGate.isCurrent(saveToken)).toBe(true);
+    });
+
+    it('invalidates both channels when the active selection is reset', () => {
+        const lookupGate = new SelectionRequestTokenGate();
+        const saveGate = new SelectionRequestTokenGate();
+        const lookupToken = lookupGate.begin();
+        const saveToken = saveGate.begin();
+
+        lookupGate.invalidate();
+        saveGate.invalidate();
+
+        expect(lookupGate.isCurrent(lookupToken)).toBe(false);
+        expect(saveGate.isCurrent(saveToken)).toBe(false);
     });
 });
 
@@ -190,6 +218,39 @@ describe('selection translator text and speech language normalization', () => {
             expect(String(fetchMock.mock.calls[1]?.[0])).toContain('.tts.speech.microsoft.com');
             expect(fetchMock.mock.calls[1]?.[1]?.body).toContain('en-US-JennyNeural');
             expect(fetchMock.mock.calls[2]?.[1]?.body).toContain('en-US-AvaMultilingualNeural');
+        } finally {
+            vi.stubGlobal('fetch', originalFetch);
+        }
+    });
+
+    it('aborts a pending Edge TTS synthesis instead of trying another voice', async () => {
+        const originalFetch = globalThis.fetch;
+        const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+            if (String(input).includes('/apps/endpoint')) {
+                return Promise.resolve({ok: true, json: async () => ({t: 'abort-test-token', r: 'eastus'})} as Response);
+            }
+            return new Promise<Response>((_resolve, reject) => {
+                const rejectAbort = () => {
+                    const error = new Error('aborted');
+                    error.name = 'AbortError';
+                    reject(error);
+                };
+                init?.signal?.addEventListener('abort', rejectAbort, {once: true});
+                if (init?.signal?.aborted) rejectAbort();
+            });
+        });
+        vi.stubGlobal('fetch', fetchMock);
+        const controller = new AbortController();
+
+        try {
+            const request = synthesizeEdgeTts('cancel me', 'en-US', [], controller.signal);
+            await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+            controller.abort();
+
+            await expect(request).rejects.toMatchObject({name: 'AbortError'});
+            const synthesisCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('.tts.speech.microsoft.com'));
+            expect(synthesisCalls).toHaveLength(1);
+            expect(synthesisCalls[0]?.[1]?.signal).toBe(controller.signal);
         } finally {
             vi.stubGlobal('fetch', originalFetch);
         }

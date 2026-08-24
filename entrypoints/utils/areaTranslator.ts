@@ -10,6 +10,10 @@ let mountingPromise: Promise<any> | null = null;
 let mountRequestId = 0;
 let contentScriptContext: ContentScriptContext | null = null;
 
+export function isAreaTranslatorMounted(): boolean {
+  return Boolean(document.getElementById('fluent-read-area-translator-container'));
+}
+
 export function mountAreaTranslator(ctx?: ContentScriptContext) {
   if (ctx) contentScriptContext = ctx;
   if (areaTranslatorInstance || mountingPromise || config.selectionAreaEnabled !== true) return mountingPromise;

@@ -87,4 +87,33 @@ describe('document translation API', () => {
         await expect(translateDocumentSegments([{id: 0, source: 'Broken'}], {fileName: 'sample.json'}))
             .rejects.toThrow('第 1 段文档翻译失败：provider unavailable');
     });
+
+    it('AI 并行 worker 首次失败后不再派发余下段落或继续报告进度', async () => {
+        mocks.config.service = 'openai';
+        const releaseSlowRequests: Array<() => void> = [];
+        const progress: number[] = [];
+        mocks.translateText.mockImplementation((origin: string) => {
+            if (origin === 'fail') return Promise.reject(new Error('provider unavailable'));
+            return new Promise<string>((resolve) => {
+                releaseSlowRequests.push(() => resolve(`T:${origin}`));
+            });
+        });
+        const segments = Array.from({length: 8}, (_, id) => ({
+            id,
+            source: id === 0 ? 'fail' : `Source ${id}`,
+        }));
+
+        await expect(translateDocumentSegments(segments, {
+            fileName: 'sample.md',
+            onProgress: ({completed}) => progress.push(completed),
+        })).rejects.toThrow('第 1 段文档翻译失败');
+        expect(mocks.translateText).toHaveBeenCalledTimes(3);
+
+        releaseSlowRequests.forEach((release) => release());
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(mocks.translateText).toHaveBeenCalledTimes(3);
+        expect(progress).toEqual([0]);
+    });
 });
