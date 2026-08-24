@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   sendMessage: vi.fn(),
   getPageTranslationContext: vi.fn(),
   saveConfig: vi.fn(async () => undefined),
+  getMissingCredentialMessage: vi.fn(() => null as string | null),
   config: {
     count: 0,
     maxConcurrentTranslations: 6,
@@ -34,12 +35,13 @@ vi.mock('@/entrypoints/utils/option', () => ({
   },
 }));
 vi.mock('@/entrypoints/utils/pageContext', () => ({getPageTranslationContext: mocks.getPageTranslationContext}));
-vi.mock('@/entrypoints/utils/configValidation', () => ({getMissingCredentialMessage: () => null}));
+vi.mock('@/entrypoints/utils/configValidation', () => ({getMissingCredentialMessage: mocks.getMissingCredentialMessage}));
 
-import {cancelAllTranslations, translateText, translateVideoText} from '@/entrypoints/utils/translateApi';
+import {cancelAllTranslations, translateText, translateTextBatch, translateVideoText} from '@/entrypoints/utils/translateApi';
 import {clearTranslationQueue} from '@/entrypoints/utils/translateQueue';
 
 const originalDocument = globalThis.document;
+const originalLocation = globalThis.location;
 
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -57,6 +59,7 @@ describe('translation API request lifecycle performance', () => {
     mocks.sendMessage.mockReset();
     mocks.getPageTranslationContext.mockReset();
     mocks.saveConfig.mockClear();
+    mocks.getMissingCredentialMessage.mockReset().mockReturnValue(null);
     mocks.config.count = 0;
     mocks.config.maxConcurrentTranslations = 6;
     mocks.config.enableAIContext = false;
@@ -66,6 +69,10 @@ describe('translation API request lifecycle performance', () => {
       value: {title: 'Fixture video title'},
       configurable: true,
     });
+    Object.defineProperty(globalThis, 'location', {
+      value: {protocol: 'https:'},
+      configurable: true,
+    });
   });
 
   afterEach(async () => {
@@ -73,6 +80,42 @@ describe('translation API request lifecycle performance', () => {
     await vi.runAllTimersAsync();
     vi.useRealTimers();
     Object.defineProperty(globalThis, 'document', {value: originalDocument, configurable: true});
+    Object.defineProperty(globalThis, 'location', {value: originalLocation, configurable: true});
+  });
+
+  it('网页上下文不因无法读取 API Key 而阻止 background 请求', async () => {
+    mocks.config.service = 'mock-ai';
+    mocks.getMissingCredentialMessage.mockReturnValue('DeepSeek 需要 API Key（访问令牌），当前尚未配置');
+    mocks.sendMessage.mockResolvedValue('网页译文');
+
+    await expect(translateText('Readable source', 'Context', {maxRetries: 0})).resolves.toBe('网页译文');
+
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('网页批量翻译不因无法读取 API Key 而被本地拦截', async () => {
+    mocks.config.service = 'mock-ai';
+    mocks.getMissingCredentialMessage.mockReturnValue('DeepSeek 需要 API Key（访问令牌），当前尚未配置');
+    mocks.sendMessage.mockResolvedValue(['网页批量译文']);
+
+    await expect(translateTextBatch(['Readable source'], 'Context', {maxRetries: 0}))
+      .resolves.toEqual(['网页批量译文']);
+
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('扩展页面仍会在本地凭据缺失时快速失败', async () => {
+    Object.defineProperty(globalThis, 'location', {
+      value: {protocol: 'chrome-extension:'},
+      configurable: true,
+    });
+    mocks.config.service = 'mock-ai';
+    mocks.getMissingCredentialMessage.mockReturnValue('DeepSeek 需要 API Key（访问令牌），当前尚未配置');
+
+    await expect(translateText('Readable source', 'Context', {maxRetries: 0}))
+      .rejects.toThrow('DeepSeek 需要 API Key');
+
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
   });
 
   it('clears successful request timeouts and coalesces count persistence', async () => {
