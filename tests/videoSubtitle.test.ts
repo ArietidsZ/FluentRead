@@ -14,6 +14,7 @@ import {
     getVideoServiceLabel,
     getVideoPretranslationWindowMs,
     isYouTubeVideoPage,
+    isXHostPage,
     isXVideoPage,
     isSupportedVideoPage,
     isIncrementalVideoCaption,
@@ -39,6 +40,9 @@ describe('YouTube 视频字幕识别', () => {
         expect(isXVideoPage({ hostname: 'x.com', pathname: '/cerebras/status/2089870131291943228' })).toBe(true);
         expect(isXVideoPage({ hostname: 'twitter.com', pathname: '/cerebras/status/2089870131291943228/' })).toBe(true);
         expect(isXVideoPage({ hostname: 'x.com', pathname: '/home' })).toBe(false);
+        expect(isXHostPage({ hostname: 'x.com' })).toBe(true);
+        expect(isXHostPage({ hostname: 'twitter.com' })).toBe(true);
+        expect(isXHostPage({ hostname: 'example.com' })).toBe(false);
         expect(isSupportedVideoPage({ hostname: 'x.com', pathname: '/cerebras/status/2089870131291943228' })).toBe(true);
     });
 
@@ -121,7 +125,7 @@ describe('YouTube 视频字幕识别', () => {
         expect(cues[0]).toMatchObject({ startMs: 0, text: 'Hello world' });
         expect(cues[0].durationMs).toBe(2400);
         expect(getVisibleVideoAiCue(cues, 2450)?.text).toBe('Next sentence');
-        expect(getVisibleVideoAiCue(cues, 4050)).toBeNull();
+        expect(getVisibleVideoAiCue(cues, 8_000)).toBeNull();
     });
 
     it('填补短时间戳空隙，并让后一句在重叠处稳定接管', () => {

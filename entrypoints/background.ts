@@ -17,7 +17,7 @@ import {
     buildTranslationCacheKey,
     translationCache,
 } from "@/entrypoints/utils/translationCache";
-import { downloadImageOcrLanguagesWithOffscreen, prepareVideoTranscriptionModelWithOffscreen, recognizeImageWithOffscreen, transcribeVideoAudioWithOffscreen, translateAreaWithOffscreen, translateImageWithOffscreen } from "@/entrypoints/service/chrome-translator";
+import { cancelVideoTranscriptionWithOffscreen, closeOffscreenDocumentIfIdle, downloadImageOcrLanguagesWithOffscreen, prepareVideoTranscriptionModelWithOffscreen, recognizeImageWithOffscreen, transcribeVideoAudioWithOffscreen, translateAreaWithOffscreen, translateImageWithOffscreen } from "@/entrypoints/service/chrome-translator";
 import { imageBufferToDataUrl, MAX_REMOTE_IMAGE_BYTES, normalizeRemoteImageUrl } from "@/entrypoints/utils/imageFetch";
 import {
     formatConnectionTestError,
@@ -41,9 +41,68 @@ import {
     normalizeVideoTranscriptionLanguage,
     supportsVideoTranscription,
 } from "@/entrypoints/utils/videoTranscription";
+import { VideoAiCanceledGenerationRegistry } from '@/entrypoints/main/video-ai/generationRegistry';
 
 // 翻译状态管理
 let translationStateMap = new Map<number, boolean>(); // tabId -> isTranslated
+let localVideoTranscriptionOwner: { tabId: number; streamId: string; generation: number } | null = null;
+const canceledLocalVideoGenerations = new VideoAiCanceledGenerationRegistry();
+let localVideoOffscreenCloseTimer: ReturnType<typeof setTimeout> | undefined;
+
+function markLocalVideoGenerationCanceled(tabId: number, streamId: string, generation: number): void {
+    canceledLocalVideoGenerations.mark({ tabId, streamId, generation });
+}
+
+function wasLocalVideoGenerationCanceled(tabId: number, streamId: string, generation: number): boolean {
+    return canceledLocalVideoGenerations.has({ tabId, streamId, generation });
+}
+
+function cancelScheduledLocalVideoOffscreenClose(): void {
+    if (localVideoOffscreenCloseTimer === undefined) return;
+    clearTimeout(localVideoOffscreenCloseTimer);
+    localVideoOffscreenCloseTimer = undefined;
+}
+
+function scheduleLocalVideoOffscreenClose(attempt = 0): void {
+    cancelScheduledLocalVideoOffscreenClose();
+    localVideoOffscreenCloseTimer = setTimeout(() => {
+        localVideoOffscreenCloseTimer = undefined;
+        if (localVideoTranscriptionOwner !== null) return;
+        void closeOffscreenDocumentIfIdle(() => localVideoTranscriptionOwner !== null)
+            .then((closed) => {
+                if (!closed && attempt < 3 && localVideoTranscriptionOwner === null) {
+                    scheduleLocalVideoOffscreenClose(attempt + 1);
+                }
+            })
+            .catch(() => undefined);
+    }, attempt === 0 ? 350 : 500);
+}
+
+async function closeLocalVideoOffscreenBeforeMessageReturns(): Promise<void> {
+    if (localVideoTranscriptionOwner !== null) return;
+    try {
+        const closed = await closeOffscreenDocumentIfIdle(() => localVideoTranscriptionOwner !== null);
+        if (!closed && localVideoTranscriptionOwner === null) {
+            scheduleLocalVideoOffscreenClose();
+        }
+    } catch {
+        if (localVideoTranscriptionOwner === null) scheduleLocalVideoOffscreenClose();
+    }
+}
+
+function getLocalVideoWorkerStreamId(streamId: string, generation: number): string {
+    return `${streamId}:${generation}`;
+}
+
+function releaseLocalVideoTranscriptionOwnerForTab(tabId: number): void {
+    const owner = localVideoTranscriptionOwner;
+    if (owner === null || owner.tabId !== tabId) return;
+    localVideoTranscriptionOwner = null;
+    markLocalVideoGenerationCanceled(owner.tabId, owner.streamId, owner.generation);
+    void cancelVideoTranscriptionWithOffscreen(
+        getLocalVideoWorkerStreamId(owner.streamId, owner.generation),
+    ).catch(() => undefined).then(() => closeLocalVideoOffscreenBeforeMessageReturns());
+}
 
 /**
  * 在background脚本中调用微软翻译API（避免Firefox CORS问题）
@@ -632,6 +691,11 @@ export default defineBackground({
 
         // 监听标签页更新事件（页面刷新等）
         browser.tabs.onUpdated.addListener((tabId: any, changeInfo: any) => {
+            if (changeInfo.status === 'loading') {
+                // 完整导航可能在 content-script 的 unload 消息送达前销毁页面；
+                // background 主动终止旧 Worker，避免换页后 CPU 仍持续占用。
+                releaseLocalVideoTranscriptionOwnerForTab(Number(tabId));
+            }
             if (changeInfo.status === 'complete') {
                 // 页面加载完成，重置翻译状态
                 translationStateMap.set(tabId, false);
@@ -642,6 +706,7 @@ export default defineBackground({
         // 监听标签页关闭事件，清理状态
         browser.tabs.onRemoved.addListener((tabId: any) => {
             translationStateMap.delete(tabId);
+            releaseLocalVideoTranscriptionOwnerForTab(Number(tabId));
         });
 
         // 处理翻译请求
@@ -674,23 +739,146 @@ export default defineBackground({
                     }
 
                     if (message.type === 'fluentReadTranscribeLocalVideoAudio') {
-                        const result = await transcribeVideoAudioWithOffscreen({
-                            audioBase64: typeof message.audioBase64 === 'string' ? message.audioBase64 : '',
-                            model: message.model,
-                            sourceLanguage: message.sourceLanguage,
-                        });
+                        const streamId = typeof message.streamId === 'string' ? message.streamId.trim() : '';
+                        const generation = typeof message.generation === 'number' && Number.isFinite(message.generation)
+                            ? Math.max(0, Math.floor(message.generation))
+                            : 0;
+                        const tabId = typeof sender?.tab?.id === 'number' ? sender.tab.id : -1;
+                        if (!streamId || generation <= 0) throw new Error('本地视频 AI 字幕缺少流标识');
+                        if (wasLocalVideoGenerationCanceled(tabId, streamId, generation)) {
+                            throw new Error('本地视频 AI 字幕 generation 已取消');
+                        }
+                        cancelScheduledLocalVideoOffscreenClose();
+                        if (localVideoTranscriptionOwner
+                            && (localVideoTranscriptionOwner.streamId !== streamId || localVideoTranscriptionOwner.tabId !== tabId)) {
+                            throw new Error('另一个标签页正在使用本地 AI 字幕，请先停止后再试');
+                        }
+                        if (localVideoTranscriptionOwner
+                            && localVideoTranscriptionOwner.generation !== generation) {
+                            await cancelVideoTranscriptionWithOffscreen(getLocalVideoWorkerStreamId(
+                                localVideoTranscriptionOwner.streamId,
+                                localVideoTranscriptionOwner.generation,
+                            ));
+                        }
+                        const requestOwner = { tabId, streamId, generation };
+                        localVideoTranscriptionOwner = requestOwner;
+                        let result;
+                        try {
+                            result = await transcribeVideoAudioWithOffscreen({
+                                streamId: getLocalVideoWorkerStreamId(streamId, generation),
+                                audioBase64: typeof message.audioBase64 === 'string' ? message.audioBase64 : '',
+                                audioPcm16Base64: typeof message.audioPcm16Base64 === 'string' ? message.audioPcm16Base64 : '',
+                                model: message.model,
+                                sourceLanguage: message.sourceLanguage,
+                            });
+                            if (wasLocalVideoGenerationCanceled(tabId, streamId, generation)) {
+                                await cancelVideoTranscriptionWithOffscreen(
+                                    getLocalVideoWorkerStreamId(streamId, generation),
+                                ).catch(() => undefined);
+                                if (localVideoTranscriptionOwner === requestOwner) {
+                                    localVideoTranscriptionOwner = null;
+                                }
+                                scheduleLocalVideoOffscreenClose();
+                                throw new Error('本地视频 AI 字幕 generation 已取消');
+                            }
+                        } catch (error) {
+                            if (localVideoTranscriptionOwner === requestOwner) {
+                                localVideoTranscriptionOwner = null;
+                                scheduleLocalVideoOffscreenClose();
+                            }
+                            throw error;
+                        }
                         resolve({ success: true, ...result });
                         return;
                     }
 
+                    if (message.type === 'fluentReadCancelLocalVideoTranscription') {
+                        const streamId = typeof message.streamId === 'string' ? message.streamId.trim() : '';
+                        const generation = typeof message.generation === 'number' && Number.isFinite(message.generation)
+                            ? Math.max(0, Math.floor(message.generation))
+                            : 0;
+                        const tabId = typeof sender?.tab?.id === 'number' ? sender.tab.id : -1;
+                        const owner = localVideoTranscriptionOwner;
+                        const ownsCurrentGeneration = streamId && owner !== null && owner.streamId === streamId
+                            && owner.tabId === tabId && owner.generation === generation;
+                        // generation 已进入 offscreen 的真实流 key，因此旧取消即使
+                        // 晚到也只会命中旧 Worker，不会误伤同一页面的新一轮识别。
+                        // 即使 MV3 service worker 曾重启、内存 owner 丢失，也仍把
+                        // 取消转发给 offscreen，确保暂停/卸载能够真正释放 CPU。
+                        if (streamId && generation > 0) {
+                            markLocalVideoGenerationCanceled(tabId, streamId, generation);
+                            await cancelVideoTranscriptionWithOffscreen(getLocalVideoWorkerStreamId(streamId, generation));
+                        }
+                        if (ownsCurrentGeneration && localVideoTranscriptionOwner === owner) {
+                            localVideoTranscriptionOwner = null;
+                        }
+                        // MV3 service worker may be suspended as soon as this message
+                        // resolves. Close the offscreen renderer while the message is
+                        // still alive so the Whisper WASM heap is reclaimed reliably.
+                        await closeLocalVideoOffscreenBeforeMessageReturns();
+                        resolve({ success: true });
+                        return;
+                    }
+
                     if (message.type === 'fluentReadPrepareLocalVideoModel') {
+                        cancelScheduledLocalVideoOffscreenClose();
                         const model = normalizeVideoLocalTranscriptionModel(message.model);
-                        const preparedModel = await prepareVideoTranscriptionModelWithOffscreen(model);
+                        const keepWarm = message.keepWarm === true;
+                        const streamId = typeof message.streamId === 'string' ? message.streamId.trim() : '';
+                        const generation = typeof message.generation === 'number' && Number.isFinite(message.generation)
+                            ? Math.max(0, Math.floor(message.generation))
+                            : 0;
+                        const tabId = typeof sender?.tab?.id === 'number' ? sender.tab.id : -1;
+                        let warmOwner: typeof localVideoTranscriptionOwner = null;
+                        let workerStreamId = '';
+                        if (keepWarm) {
+                            if (!streamId || generation <= 0) throw new Error('本地视频 AI 预热缺少流标识');
+                            if (wasLocalVideoGenerationCanceled(tabId, streamId, generation)) {
+                                throw new Error('本地视频 AI 字幕 generation 已取消');
+                            }
+                            if (localVideoTranscriptionOwner
+                                && (localVideoTranscriptionOwner.streamId !== streamId
+                                    || localVideoTranscriptionOwner.tabId !== tabId)) {
+                                throw new Error('另一个标签页正在使用本地 AI 字幕，请先停止后再试');
+                            }
+                            if (localVideoTranscriptionOwner
+                                && localVideoTranscriptionOwner.generation !== generation) {
+                                await cancelVideoTranscriptionWithOffscreen(getLocalVideoWorkerStreamId(
+                                    localVideoTranscriptionOwner.streamId,
+                                    localVideoTranscriptionOwner.generation,
+                                ));
+                            }
+                            warmOwner = { tabId, streamId, generation };
+                            localVideoTranscriptionOwner = warmOwner;
+                            workerStreamId = getLocalVideoWorkerStreamId(streamId, generation);
+                        }
+                        let preparedModel;
+                        try {
+                            preparedModel = await prepareVideoTranscriptionModelWithOffscreen(model, {
+                                keepWarm,
+                                streamId: workerStreamId || undefined,
+                            });
+                            if (warmOwner && wasLocalVideoGenerationCanceled(tabId, streamId, generation)) {
+                                await cancelVideoTranscriptionWithOffscreen(workerStreamId).catch(() => undefined);
+                                if (localVideoTranscriptionOwner === warmOwner) {
+                                    localVideoTranscriptionOwner = null;
+                                }
+                                scheduleLocalVideoOffscreenClose();
+                                throw new Error('本地视频 AI 字幕 generation 已取消');
+                            }
+                        } catch (error) {
+                            if (warmOwner && localVideoTranscriptionOwner === warmOwner) {
+                                localVideoTranscriptionOwner = null;
+                                scheduleLocalVideoOffscreenClose();
+                            }
+                            throw error;
+                        }
                         const stored = await browser.storage.local.get(VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY);
                         const downloadedModels = normalizeVideoLocalTranscriptionModels(stored[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]);
-                        const nextModels = normalizeVideoLocalTranscriptionModels([...downloadedModels, preparedModel]);
+                        const nextModels = normalizeVideoLocalTranscriptionModels([...downloadedModels, preparedModel.model]);
                         await browser.storage.local.set({ [VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]: nextModels });
-                        resolve({ success: true, model: preparedModel, models: nextModels });
+                        if (!keepWarm) await closeLocalVideoOffscreenBeforeMessageReturns();
+                        resolve({ success: true, model: preparedModel.model, backend: preparedModel.backend, gpuInfo: preparedModel.gpuInfo, models: nextModels });
                         return;
                     }
 

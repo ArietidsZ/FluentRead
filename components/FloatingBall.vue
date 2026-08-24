@@ -43,7 +43,7 @@
       @pointerup="finishPointerInteraction"
       @pointercancel="cancelPointerInteraction"
     >
-      <svg class="floating-ball-mascot" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <svg class="floating-ball-mascot floating-ball-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <image v-if="logoUrl" :href="logoUrl" x="0" y="0" width="32" height="32" preserveAspectRatio="none" image-rendering="auto" />
       </svg>
       <span v-if="isTranslating" class="check-mark" aria-hidden="true" />
@@ -396,6 +396,7 @@ watch(() => props.position, (newPosition) => {
   display: block;
   width: 24px;
   height: 24px;
+  border-radius: 50%;
   pointer-events: none;
   image-rendering: auto;
 }

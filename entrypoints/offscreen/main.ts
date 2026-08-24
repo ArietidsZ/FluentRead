@@ -6,6 +6,23 @@
 import { downloadImageOcrLanguages, recognizeImage } from './imageOcr';
 import { translateAreaInOffscreen, translateImageInOffscreen } from './imageTranslation';
 
+let activeOffscreenTaskCount = 0;
+let activeSharedOffscreenTaskCount = 0;
+let offscreenActivityGeneration = 0;
+
+function trackOffscreenTask<T>(task: Promise<T>, scope: 'shared' | 'video' = 'shared'): Promise<T> {
+    activeOffscreenTaskCount += 1;
+    if (scope === 'shared') activeSharedOffscreenTaskCount += 1;
+    offscreenActivityGeneration += 1;
+    return task.finally(() => {
+        activeOffscreenTaskCount = Math.max(0, activeOffscreenTaskCount - 1);
+        if (scope === 'shared') {
+            activeSharedOffscreenTaskCount = Math.max(0, activeSharedOffscreenTaskCount - 1);
+        }
+        offscreenActivityGeneration += 1;
+    });
+}
+
 // 语言代码映射
 const languageMap: { [key: string]: string } = {
     'zh-Hans': 'zh',
@@ -216,9 +233,23 @@ async function handleTranslationRequest(data: any): Promise<string> {
 // 监听来自 background script 的消息
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     // console.log('Offscreen 收到消息:', message);
+
+    if (message.type === 'FLUENT_READ_OFFSCREEN_IDLE_CHECK') {
+        sendResponse({
+            success: true,
+            // 视频 generation 已由 background 判定无人持有时，允许关闭文档
+            // 强制回收迟到或卡住的视频 Promise；OCR/图片翻译/内置翻译仍是
+            // 共享任务，任何一个运行中都必须阻止关闭。
+            idle: activeSharedOffscreenTaskCount === 0,
+            activeTaskCount: activeOffscreenTaskCount,
+            activeSharedTaskCount: activeSharedOffscreenTaskCount,
+            generation: offscreenActivityGeneration,
+        });
+        return false;
+    }
     
     if (message.type === 'CHROME_TRANSLATE_OFFSCREEN') {
-        handleTranslationRequest(message.data)
+        trackOffscreenTask(handleTranslationRequest(message.data))
             .then(result => {
                 // console.log('Offscreen 翻译成功:', result.substring(0, 50) + '...');
                 sendResponse({ success: true, result });
@@ -232,7 +263,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
 
     if (message.type === 'FLUENT_READ_IMAGE_OCR_OFFSCREEN') {
-        recognizeImage(message.image, message.sourceLanguage)
+        trackOffscreenTask(recognizeImage(message.image, message.sourceLanguage))
             .then(lines => sendResponse({ success: true, lines }))
             .catch(error => {
                 console.error('图片 OCR 失败:', error);
@@ -246,7 +277,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
 
     if (message.type === 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN') {
-        translateImageInOffscreen(message.image, message.sourceLanguage, message.title || '')
+        trackOffscreenTask(translateImageInOffscreen(message.image, message.sourceLanguage, message.title || ''))
             .then(result => sendResponse({ success: true, ...result }))
             .catch(error => {
                 console.error('图片翻译失败:', error);
@@ -260,7 +291,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
 
     if (message.type === 'FLUENT_READ_AREA_TRANSLATE_OFFSCREEN') {
-        translateAreaInOffscreen(message.image, message.sourceLanguage, message.title || '', message.selection)
+        trackOffscreenTask(translateAreaInOffscreen(message.image, message.sourceLanguage, message.title || '', message.selection))
             .then(result => sendResponse({ success: true, ...result }))
             .catch(error => {
                 console.error('圈选翻译失败:', error);
@@ -274,7 +305,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
 
     if (message.type === 'FLUENT_READ_IMAGE_OCR_DOWNLOAD_OFFSCREEN') {
-        downloadImageOcrLanguages(message.languages || [])
+        trackOffscreenTask(downloadImageOcrLanguages(message.languages || []))
             .then(() => sendResponse({ success: true }))
             .catch(error => {
                 console.error('图片 OCR 语言包下载失败:', error);
@@ -288,12 +319,14 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
 
     if (message.type === 'FLUENT_READ_LOCAL_VIDEO_TRANSCRIBE_OFFSCREEN') {
-        import('./videoTranscription')
+        trackOffscreenTask(import('./videoTranscription')
             .then(({ transcribeLocalVideoAudio }) => transcribeLocalVideoAudio({
+                streamId: message.streamId,
                 audioBase64: message.audioBase64,
+                audioPcm16Base64: message.audioPcm16Base64,
                 model: message.model,
                 sourceLanguage: message.sourceLanguage,
-            }))
+            })), 'video')
             .then(result => sendResponse({ success: true, ...result }))
             .catch(error => {
                 console.error('本地视频 AI 字幕失败:', error);
@@ -306,9 +339,24 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         return true;
     }
 
+    if (message.type === 'FLUENT_READ_LOCAL_VIDEO_CANCEL_OFFSCREEN') {
+        trackOffscreenTask(import('./videoTranscription')
+            .then(({ cancelLocalVideoTranscription }) => cancelLocalVideoTranscription(message.streamId))
+        , 'video')
+            .then(() => sendResponse({ success: true }))
+            .catch(error => sendResponse({
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+            }));
+        return true;
+    }
+
     if (message.type === 'FLUENT_READ_LOCAL_VIDEO_PREPARE_OFFSCREEN') {
-        import('./videoTranscription')
-            .then(({ prepareLocalVideoTranscriptionModel }) => prepareLocalVideoTranscriptionModel(message.model))
+        trackOffscreenTask(import('./videoTranscription')
+            .then(({ prepareLocalVideoTranscriptionModel }) => prepareLocalVideoTranscriptionModel(message.model, {
+                keepWarm: message.keepWarm === true,
+                streamId: message.streamId,
+            })), 'video')
             .then(result => sendResponse({ success: true, ...result }))
             .catch(error => {
                 console.error('本地视频 AI 字幕模型下载失败:', error);

@@ -14,13 +14,14 @@ function isPotentialSubtitleResponse(url: string, responseText: string): boolean
     && (/WEBVTT/i.test(responseText) || /#EXT-X-MEDIA:[^\n]*TYPE=SUBTITLES/i.test(responseText));
 }
 
-function publishResource(url: string, responseText: string): void {
+function publishResource(url: string, responseText: string, pageHref: string): void {
   if (!isPotentialSubtitleResponse(url, responseText)) return;
   window.postMessage({
     source: 'fluent-read',
     type: X_SUBTITLE_RESOURCE_MESSAGE,
     url,
     responseText,
+    pageHref,
   }, window.location.origin);
 }
 
@@ -42,27 +43,31 @@ export default defineContentScript({
     const originalFetch = window.fetch.bind(window);
     window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = getRequestUrl(input);
+      const pageHref = window.location.href;
       const response = await originalFetch(input, init);
       if (isXSubtitleResourceUrl(url)) {
-        void response.clone().text().then((responseText) => publishResource(url, responseText)).catch(() => undefined);
+        void response.clone().text().then((responseText) => publishResource(url, responseText, pageHref)).catch(() => undefined);
       }
       return response;
     };
 
     const originalOpen = XMLHttpRequest.prototype.open;
     const originalSend = XMLHttpRequest.prototype.send;
-    const requestUrls = new WeakMap<XMLHttpRequest, string>();
+    const requestUrls = new WeakMap<XMLHttpRequest, { url: string; pageHref: string }>();
     XMLHttpRequest.prototype.open = function open(method: string, url: string | URL, ...rest: any[]) {
       const requestUrl = String(url);
-      if (isXSubtitleResourceUrl(requestUrl)) requestUrls.set(this, requestUrl);
+      if (isXSubtitleResourceUrl(requestUrl)) requestUrls.set(this, {
+        url: requestUrl,
+        pageHref: window.location.href,
+      });
       return Reflect.apply(originalOpen, this, [method, url, ...rest]);
     };
     XMLHttpRequest.prototype.send = function send(body?: Document | XMLHttpRequestBodyInit | null) {
-      const requestUrl = requestUrls.get(this);
-      if (requestUrl) {
+      const request = requestUrls.get(this);
+      if (request) {
         this.addEventListener('load', () => {
           try {
-            if (typeof this.responseText === 'string') publishResource(requestUrl, this.responseText);
+            if (typeof this.responseText === 'string') publishResource(request.url, this.responseText, request.pageHref);
           } catch {
             // 非文本 responseType 不能读取 responseText，忽略即可。
           }

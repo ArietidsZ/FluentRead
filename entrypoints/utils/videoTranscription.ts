@@ -4,24 +4,24 @@ import { services } from './option';
 export const VIDEO_LOCAL_TRANSCRIPTION_MODELS = [
   {
     value: 'tiny',
-    label: 'Whisper Tiny（本地，速度优先）',
+    label: 'Whisper Tiny（本地，实时推荐）',
     modelId: 'onnx-community/whisper-tiny',
-    description: '体积更小，适合边播边识别',
+    description: '占用较低，适合边播边识别',
   },
   {
     value: 'base',
-    label: 'Whisper Base（本地，准确度优先）',
+    label: 'Whisper Base（本地，实验）',
     modelId: 'onnx-community/whisper-base',
-    description: '识别更稳，首次下载和推理更慢',
+    description: '上下文更长，但占用和延迟明显更高',
   },
 ] as const;
 
 export type VideoLocalTranscriptionModel = typeof VIDEO_LOCAL_TRANSCRIPTION_MODELS[number]['value'];
 
 /**
- * 只记录“模型已经由扩展成功初始化过”的状态；模型文件本身仍由
- * Transformers.js 放在浏览器 Cache API 中。状态用于在 X 播放器里给出
- * 清晰的引导，避免用户第一次点“请求 AI 字幕”时才遇到一串解码错误。
+ * 只记录“模型所需文件已经完整写入浏览器缓存”的状态；真正的 ONNX
+ * session 在用户播放并请求字幕时才创建，避免设置页下载模型就长期占用
+ * 数百 MB 到 GB 内存。状态用于在 X 播放器里给出清晰的操作引导。
  */
 export const VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY = 'fluentReadVideoLocalTranscriptionModels';
 
@@ -63,26 +63,34 @@ export function resampleToWhisperAudio(
   const sourceLength = channels.reduce((longest, channel) => Math.max(longest, channel.length), 0);
   if (channelCount === 0 || sourceLength === 0) return new Float32Array();
 
-  const mono = new Float32Array(sourceLength);
-  for (let index = 0; index < sourceLength; index += 1) {
-    let sample = 0;
-    for (const channel of channels) sample += channel[index] || 0;
-    mono[index] = sample / channelCount;
-  }
-
   if (!Number.isFinite(sourceSampleRate) || sourceSampleRate <= 0 || sourceSampleRate === targetSampleRate) {
+    if (channelCount === 1 && channels[0].length === sourceLength) return channels[0].slice();
+    const mono = new Float32Array(sourceLength);
+    for (let index = 0; index < sourceLength; index += 1) {
+      let sample = 0;
+      for (const channel of channels) sample += channel[index] || 0;
+      mono[index] = sample / channelCount;
+    }
     return mono;
   }
 
-  const outputLength = Math.max(1, Math.round(mono.length * targetSampleRate / sourceSampleRate));
+  const outputLength = Math.max(1, Math.round(sourceLength * targetSampleRate / sourceSampleRate));
   const output = new Float32Array(outputLength);
   const ratio = sourceSampleRate / targetSampleRate;
   for (let index = 0; index < output.length; index += 1) {
     const sourcePosition = index * ratio;
-    const leftIndex = Math.min(Math.floor(sourcePosition), mono.length - 1);
-    const rightIndex = Math.min(leftIndex + 1, mono.length - 1);
+    const leftIndex = Math.min(Math.floor(sourcePosition), sourceLength - 1);
+    const rightIndex = Math.min(leftIndex + 1, sourceLength - 1);
     const fraction = sourcePosition - leftIndex;
-    output[index] = mono[leftIndex] + (mono[rightIndex] - mono[leftIndex]) * fraction;
+    let leftSample = 0;
+    let rightSample = 0;
+    for (const channel of channels) {
+      leftSample += channel[leftIndex] || 0;
+      rightSample += channel[rightIndex] || 0;
+    }
+    leftSample /= channelCount;
+    rightSample /= channelCount;
+    output[index] = leftSample + (rightSample - leftSample) * fraction;
   }
   return output;
 }

@@ -11,6 +11,10 @@ import {
   resampleToWhisperAudio,
   supportsVideoTranscription,
 } from '@/entrypoints/utils/videoTranscription';
+import {
+  getVideoAiModelFileUrl,
+  VIDEO_AI_Q4_MODEL_FILES,
+} from '@/entrypoints/offscreen/video-ai/modelCache';
 
 describe('视频 AI 字幕转写配置', () => {
   it('只允许 OpenAI-compatible 转写服务', () => {
@@ -41,8 +45,23 @@ describe('视频 AI 字幕转写配置', () => {
     expect(normalizeVideoLocalTranscriptionModel('unknown')).toBe('tiny');
     expect(getVideoLocalTranscriptionModelId('base')).toBe('onnx-community/whisper-base');
     expect(getVideoLocalTranscriptionModelLabel('tiny')).toContain('本地');
-    expect(getVideoLocalTranscriptionModelDescription('base')).toContain('更稳');
+    expect(getVideoLocalTranscriptionModelDescription('base')).toContain('上下文更长');
     expect(normalizeVideoLocalTranscriptionModels(['tiny', 'base', 'unknown', 'tiny'])).toEqual(['tiny', 'base']);
+  });
+
+  it('预下载只缓存 Whisper q4 运行所需文件，并使用与 Transformers.js 相同的 URL', () => {
+    expect(VIDEO_AI_Q4_MODEL_FILES).toEqual([
+      'config.json',
+      'generation_config.json',
+      'preprocessor_config.json',
+      'tokenizer.json',
+      'tokenizer_config.json',
+      'onnx/encoder_model_q4.onnx',
+      'onnx/decoder_model_merged_q4.onnx',
+    ]);
+    expect(getVideoAiModelFileUrl('base', 'onnx/encoder_model_q4.onnx')).toBe(
+      'https://modelscope.cn/models/onnx-community/whisper-base/resolve/master/onnx/encoder_model_q4.onnx',
+    );
   });
 
   it('将多声道音频重采样为单声道 PCM', () => {
