@@ -70,12 +70,13 @@ async function main() {
         featurePresent: Boolean(document.querySelector('[data-feature="video-subtitle"]')),
         featureCount: document.querySelectorAll('.feature-card').length,
         imageFeaturePresent: [...document.querySelectorAll('.feature-card')].some((node) => node.textContent?.includes('图片翻译')),
+        floatingFeaturePresent: [...document.querySelectorAll('.feature-card')].some((node) => node.textContent?.includes('全文悬浮球')),
         videoBetaLabel: document.querySelector('[data-feature="video-subtitle"] .beta-badge')?.textContent?.trim(),
         popupHeight: document.body.scrollHeight,
         config: stored.config,
       };
     });
-    if (popupState.featureCount !== 6 || !popupState.imageFeaturePresent || popupState.videoBetaLabel !== 'Beta 测试' || popupState.config.videoService !== 'microsoft') {
+    if (popupState.featureCount !== 6 || !popupState.imageFeaturePresent || popupState.floatingFeaturePresent || popupState.videoBetaLabel !== 'Beta 测试' || popupState.config.videoService !== 'microsoft') {
       throw new Error(`Popup 快捷功能卡校验失败：数量=${popupState.featureCount}，图片翻译=${popupState.imageFeaturePresent}`);
     }
     await popup.locator('[data-feature="video-subtitle"]').click();

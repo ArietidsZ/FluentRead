@@ -172,6 +172,7 @@ async function main() {
     result.extensionId = extensionId;
     const documentUrl = `chrome-extension://${extensionId}/document.html`;
     const popupUrl = `chrome-extension://${extensionId}/popup.html`;
+    const optionsUrl = `chrome-extension://${extensionId}/options.html`;
 
     const page = await newPageWithoutForeground(context, args.timeout);
     captureErrors(page, 'document', errors);
@@ -216,7 +217,7 @@ async function main() {
         if (pdfPageRows !== pdfPageCount || pdfPageRows < 2) {
           fail(`PDF 阅读器必须一次渲染全部页面并纵向排列：页面行 ${pdfPageRows}，页数 ${pdfPageCount}`);
         }
-        const pdfScroll = await page.locator('[data-pdf-scroll]').evaluate((element) => ({
+        pdfScroll = await page.locator('[data-pdf-scroll]').evaluate((element) => ({
           rows: element.querySelectorAll('.pdf-page-row').length,
           documentVerticalOverflow: document.documentElement.scrollHeight > document.documentElement.clientHeight,
           horizontalOverflow: element.scrollWidth > element.clientWidth,
@@ -364,9 +365,44 @@ async function main() {
     })));
     const videoIndex = featureOrder.findIndex((item) => item.text.includes('视频字幕'));
     const documentIndex = featureOrder.findIndex((item) => item.feature === 'document-translation');
+    if (featureOrder.length !== 6) fail(`Popup 快捷功能卡应为 6 个，实际为 ${featureOrder.length}`);
+    if (featureOrder.some((item) => item.text.includes('全文悬浮球'))) fail('Popup 不应显示全文翻译悬浮球设置入口');
+    if (await popup.getByRole('switch', {name: '启用或关闭全文翻译悬浮球'}).count() !== 0) {
+      fail('Popup 不应保留全文翻译悬浮球设置抽屉');
+    }
     if (videoIndex < 0 || documentIndex !== videoIndex + 1) fail('文档翻译卡片必须紧跟在视频字幕卡片下面');
     if (!featureOrder[documentIndex].text.includes('Beta 测试')) fail('文档翻译卡片必须标注 Beta 测试');
-    result.assertions.popupDocumentBeta = 'passed';
+    result.assertions.popupFeatures = {
+      count: featureOrder.length,
+      floatingBallSettingsHidden: true,
+      documentBetaAfterVideo: true,
+    };
+
+    const optionsPage = await newPageWithoutForeground(context, args.timeout);
+    captureErrors(optionsPage, 'options', errors);
+    await optionsPage.goto(`${optionsUrl}#settings-advanced`, {waitUntil: 'domcontentloaded', timeout: args.timeout});
+    const floatingBallRow = optionsPage.locator('.settings-control-row').filter({hasText: '全文翻译悬浮球'});
+    await floatingBallRow.waitFor({state: 'visible', timeout: args.timeout});
+    const floatingBallControlCount = await floatingBallRow.getByRole('switch').count();
+    if (floatingBallControlCount < 1) {
+      fail('完整设置页缺少全文翻译悬浮球开关');
+    }
+    await optionsPage.screenshot({path: path.join(artifactsDir, 'options-floating-ball-switch.png'), fullPage: true});
+    result.screenshots.push(path.join(artifactsDir, 'options-floating-ball-switch.png'));
+    await optionsPage.getByRole('button', {name: /交互与快捷键/u}).click();
+    const fullPageHotkeyRow = optionsPage.locator('.settings-control-row').filter({hasText: '全文翻译快捷键'});
+    await fullPageHotkeyRow.waitFor({state: 'visible', timeout: args.timeout});
+    const fullPageHotkeyControlCount = await fullPageHotkeyRow.getByRole('combobox').count();
+    if (fullPageHotkeyControlCount < 1) {
+      fail('完整设置页缺少全文翻译快捷键控件');
+    }
+    result.assertions.optionsFloatingBallSettings = {
+      switchControls: floatingBallControlCount,
+      hotkeyControls: fullPageHotkeyControlCount,
+    };
+    await optionsPage.screenshot({path: path.join(artifactsDir, 'options-floating-ball-hotkey.png'), fullPage: true});
+    result.screenshots.push(path.join(artifactsDir, 'options-floating-ball-hotkey.png'));
+    await optionsPage.close();
     const openedPagePromise = context.waitForEvent('page', {timeout: args.timeout});
     await popup.getByRole('button', {name: '打开文档翻译'}).click();
     const openedPage = await openedPagePromise;
