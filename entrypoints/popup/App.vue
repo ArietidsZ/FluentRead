@@ -230,11 +230,6 @@
           <span><strong>划词翻译</strong><small>{{ selectionSummary }}</small></span>
           <i :class="{ active: config.selectionTranslatorMode !== 'disabled' || config.selectionAreaEnabled }" />
         </button>
-        <button class="feature-card" type="button" :disabled="!config.on" @click="openDrawer('floating')">
-          <span class="feature-icon blue">◉</span>
-          <span><strong>全文悬浮球</strong><small>{{ config.disableFloatingBall ? '已关闭' : floatingSummary }}</small></span>
-          <i :class="{ active: !config.disableFloatingBall }" />
-        </button>
         <button class="feature-card" type="button" :disabled="!config.on" @click="openDrawer('appearance')">
           <span class="feature-icon amber">Aa</span>
           <span><strong>译文显示</strong><small>{{ displaySummary }}</small></span>
@@ -427,29 +422,6 @@
         </div>
       </div>
 
-      <div v-else-if="activeDrawer === 'floating'" class="drawer-content">
-        <div class="setting-row">
-          <span><strong>启用全文翻译悬浮球</strong><small>在页面边缘快速翻译或恢复全文</small></span>
-          <button class="switch compact" type="button" role="switch" :aria-checked="!config.disableFloatingBall" aria-label="启用或关闭全文翻译悬浮球" @click="setFloatingEnabled(config.disableFloatingBall)"><i /></button>
-        </div>
-        <div class="choice-block">
-          <label>悬浮位置</label>
-          <div class="chips two">
-            <button type="button" :class="{ selected: config.floatingBallPosition === 'left' }" @click="config.floatingBallPosition = 'left'">页面左侧</button>
-            <button type="button" :class="{ selected: config.floatingBallPosition === 'right' }" @click="config.floatingBallPosition = 'right'">页面右侧</button>
-          </div>
-        </div>
-        <label class="select-row">
-          <span><strong>全文翻译快捷键</strong><small>无需点击悬浮球即可切换</small></span>
-          <select v-model="config.floatingBallHotkey" @change="handleFloatingHotkeyChange">
-            <option v-for="item in options.floatingBallHotkeys" :key="item.value" :value="item.value">{{ item.label }}</option>
-          </select>
-        </label>
-        <button v-if="config.floatingBallHotkey === 'custom'" class="secondary-action" type="button" @click="showCustomHotkeyDialog = true">
-          {{ config.customFloatingBallHotkey ? `当前：${config.customFloatingBallHotkey}` : '录制自定义快捷键' }}
-        </button>
-      </div>
-
       <div v-else-if="activeDrawer === 'image'" class="drawer-content">
         <div class="image-translation-preview">
           <div class="image-translation-preview-art"><span>文字</span><b>文</b></div>
@@ -505,7 +477,6 @@
       <button v-if="activeDrawer !== 'image'" class="drawer-settings-link" type="button" @click="openOptions(drawerSettingsSection[activeDrawer])">在完整设置中查看全部选项 ↗</button>
     </el-drawer>
 
-    <CustomHotkeyInput v-model="showCustomHotkeyDialog" :current-value="config.customFloatingBallHotkey" @confirm="confirmFloatingHotkey" @cancel="cancelFloatingHotkey" />
     <CustomHotkeyInput v-model="showCustomMouseHotkeyDialog" :current-value="config.customHotkey" @confirm="confirmMouseHotkey" @cancel="cancelMouseHotkey" />
     <CustomHotkeyInput v-model="showCustomSelectionHotkeyDialog" :current-value="config.customSelectionTranslatorHotkey" @confirm="confirmSelectionHotkey" @cancel="cancelSelectionHotkey" />
   </main>
@@ -537,7 +508,7 @@ import { SELECTION_TTS_VOICE_OPTIONS } from '@/entrypoints/utils/selectionTtsCon
 import { getSiteBaseDomain } from '@/entrypoints/utils/siteRules';
 import ServiceIcon from '@/components/ServiceIcon.vue';
 
-type DrawerName = 'hover' | 'selection' | 'floating' | 'appearance' | 'image' | 'video';
+type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'video';
 type SettingsSection = 'settings-general' | 'settings-shortcuts' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/components/CustomHotkeyInput.vue'));
 const version = process.env.VUE_APP_VERSION;
@@ -553,7 +524,6 @@ const clearingCache = ref(false);
 const donationVisible = ref(false);
 const notice = ref('');
 const noticeType = ref<'success' | 'error'>('success');
-const showCustomHotkeyDialog = ref(false);
 const showCustomMouseHotkeyDialog = ref(false);
 const showCustomSelectionHotkeyDialog = ref(false);
 const servicePicker = ref<HTMLElement | null>(null);
@@ -568,7 +538,6 @@ const darkMode = window.matchMedia('(prefers-color-scheme: dark)');
 const drawerSettingsSection: Record<DrawerName, SettingsSection> = {
   hover: 'settings-shortcuts',
   selection: 'settings-shortcuts',
-  floating: 'settings-shortcuts',
   appearance: 'settings-general',
   image: 'settings-general',
   video: 'settings-video',
@@ -631,15 +600,13 @@ const selectionSummary = computed(() => {
   if (!config.value.selectionAreaEnabled) return selectionTextSummary;
   return textSummary === '已关闭' ? '圈选翻译已启用' : `${selectionTextSummary} · 圈选翻译`;
 });
-const floatingSummary = computed(() => `${config.value.floatingBallPosition === 'left' ? '页面左侧' : '页面右侧'} · ${fullPageHotkey.value}`);
 const displaySummary = computed(() => config.value.display === 1 ? `双语 · ${styleLabel.value}` : '仅显示译文');
 const imageTranslationSummary = computed(() => config.value.disableImageTranslator ? '已关闭' : '悬停图片');
 const videoSummary = computed(() => config.value.videoTranslationEnabled ? `${videoServiceLabel.value} · YouTube` : '点击开启 · YouTube');
-const drawerTitle = computed(() => ({ hover: '鼠标悬停翻译设置', selection: '划词翻译设置', floating: '全文悬浮球设置', appearance: '译文显示设置', image: '图片翻译设置', video: '视频字幕设置' }[activeDrawer.value]));
+const drawerTitle = computed(() => ({ hover: '鼠标悬停翻译设置', selection: '划词翻译设置', appearance: '译文显示设置', image: '图片翻译设置', video: '视频字幕设置' }[activeDrawer.value]));
 const drawerDescription = computed(() => ({
   hover: '把鼠标停在文本上，用轻量快捷键获取即时译文。',
   selection: '选中文字或圈选页面区域，按你的偏好获取译文。',
-  floating: '把全文翻译入口固定在最顺手的位置。',
   appearance: '调整双语布局、译文样式与界面主题。',
   image: '把鼠标移到图片上，从图片左下角打开翻译入口。',
   video: '在 YouTube 播放器中显示实时字幕译文。',
@@ -945,10 +912,6 @@ function setAreaEnabled(enabled: boolean) {
   config.value.selectionAreaEnabled = enabled;
   void broadcast({ type: 'toggleSelectionAreaTranslator', isEnabled: enabled });
 }
-function setFloatingEnabled(enabled: boolean) {
-  config.value.disableFloatingBall = !enabled;
-  void broadcast({ type: 'toggleFloatingBall', isEnabled: enabled });
-}
 function setImageTranslatorEnabled(enabled: boolean) {
   config.value.disableImageTranslator = !enabled;
   void broadcast({ type: 'toggleImageTranslator', isEnabled: enabled });
@@ -956,11 +919,6 @@ function setImageTranslatorEnabled(enabled: boolean) {
 function setVideoTranslationEnabled(enabled: boolean) {
   config.value.videoTranslationEnabled = enabled;
 }
-function handleFloatingHotkeyChange() {
-  if (config.value.floatingBallHotkey === 'custom' && !config.value.customFloatingBallHotkey) showCustomHotkeyDialog.value = true;
-}
-function confirmFloatingHotkey(hotkey: string) { config.value.customFloatingBallHotkey = hotkey; config.value.floatingBallHotkey = 'custom'; }
-function cancelFloatingHotkey() { if (!config.value.customFloatingBallHotkey) config.value.floatingBallHotkey = 'Alt+T'; }
 function confirmMouseHotkey(hotkey: string) { config.value.customHotkey = hotkey; config.value.hotkey = 'custom'; }
 function cancelMouseHotkey() { if (!config.value.customHotkey) config.value.hotkey = 'Control'; }
 function confirmSelectionHotkey(hotkey: string) {
