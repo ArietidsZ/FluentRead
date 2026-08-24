@@ -12,6 +12,7 @@ import {
 } from "@/entrypoints/utils/config";
 import {CONNECTION_TEST_MESSAGE, CONTEXT_MENU_IDS, getMimoEndpoint, MINIMAX_ENDPOINTS} from "@/entrypoints/utils/constant";
 import {getMissingCredentialMessage} from "@/entrypoints/utils/configValidation";
+import {getFullPageContextMenuPresentation} from "@/entrypoints/utils/siteRules";
 import {resolveConfiguredModel, services, servicesType} from "@/entrypoints/utils/option";
 import {synthesizeEdgeTts} from "@/entrypoints/utils/edgeTts";
 import {lookupWord, type WordCardData} from "@/entrypoints/utils/wordDictionary";
@@ -61,6 +62,7 @@ import {
 
 // 翻译状态管理
 let translationStateMap = new Map<number, boolean>(); // tabId -> isTranslated
+let siteDisabledStateMap = new Map<number, boolean>(); // tabId -> isSiteDisabled
 
 const OPTIONS_SECTION_IDS = new Set([
     'settings-general',
@@ -88,11 +90,22 @@ function vocabularyFailure(error: unknown): VocabularyBookResponse<never> {
 }
 
 function notifyVocabularyBookChanged(reason: VocabularyBookChangedMessage['reason'], entryId?: string): void {
-    void browser.runtime.sendMessage({
+    const message: VocabularyBookChangedMessage = {
         type: VOCABULARY_BOOK_CHANGED_MESSAGE,
         reason,
         ...(entryId ? {entryId} : {}),
-    }).catch(() => undefined);
+    };
+    // Extension pages receive runtime messages, while content scripts require
+    // tabs.sendMessage. Keep both broadcasts fire-and-forget so the originating
+    // upsert response is not delayed by unrelated or restricted tabs.
+    void browser.runtime.sendMessage(message).catch(() => undefined);
+    void browser.tabs.query({})
+        .then((tabs: Array<{id?: number}>) => Promise.allSettled(
+            tabs
+                .filter((tab) => typeof tab.id === 'number')
+                .map((tab) => browser.tabs.sendMessage(tab.id!, message)),
+        ))
+        .catch(() => undefined);
 }
 
 async function handleVocabularyBookAction(message: any, sender: any): Promise<VocabularyBookResponse> {
@@ -239,16 +252,35 @@ const latestConfigSequenceByClient = new Map<string, number>();
 
 interface ActiveSelectionTts {
     tabId: number;
-    requestId: number;
+    clientRequestId: number;
+    playbackRequestId: number;
+    controller: AbortController;
+    playbackStarted: boolean;
 }
 
 let activeSelectionTts: ActiveSelectionTts | null = null;
+let selectionTtsGeneration = 0;
+
+function beginSelectionTts(tabId: number, clientRequestId: number): ActiveSelectionTts {
+    const request: ActiveSelectionTts = {
+        tabId,
+        clientRequestId,
+        playbackRequestId: ++selectionTtsGeneration,
+        controller: new AbortController(),
+        playbackStarted: false,
+    };
+    activeSelectionTts = request;
+    return request;
+}
 
 async function stopActiveSelectionTts(): Promise<void> {
     const active = activeSelectionTts;
     activeSelectionTts = null;
     if (!active) return;
-    await stopSelectionTtsWithOffscreen(active.requestId).catch(() => undefined);
+    active.controller.abort();
+    if (active.playbackStarted) {
+        await stopSelectionTtsWithOffscreen(active.playbackRequestId).catch(() => undefined);
+    }
 }
 
 function googleSelectionTtsUrl(text: string, language: string): string {
@@ -257,15 +289,14 @@ function googleSelectionTtsUrl(text: string, language: string): string {
 
 async function forwardSelectionTtsState(message: any): Promise<void> {
     const tabId = Number.isInteger(message.tabId) ? message.tabId : null;
-    const requestId = Number.isInteger(message.requestId) ? message.requestId : null;
-    if (tabId === null || requestId === null) return;
+    const playbackRequestId = Number.isInteger(message.requestId) ? message.requestId : null;
+    if (tabId === null || playbackRequestId === null) return;
     const active = activeSelectionTts;
-    if (active && active.tabId === tabId && active.requestId === requestId) {
-        activeSelectionTts = null;
-    }
+    if (!active || active.tabId !== tabId || active.playbackRequestId !== playbackRequestId) return;
+    activeSelectionTts = null;
     await browser.tabs.sendMessage(tabId, {
         type: 'selectionTtsState',
-        requestId,
+        requestId: active.clientRequestId,
         state: message.state,
         error: typeof message.error === 'string' ? message.error : undefined,
     }).catch(() => undefined);
@@ -763,26 +794,35 @@ export default defineBackground({
         let contextMenuEnabled = true;
         let contextMenuSyncQueue: Promise<void> = Promise.resolve();
 
-        const readTabTranslationState = async (tabId: number, force = false): Promise<boolean> => {
-            if (!force && translationStateMap.has(tabId)) {
-                return translationStateMap.get(tabId) === true;
+        const readTabTranslationState = async (tabId: number, force = false): Promise<{isTranslated: boolean; isSiteDisabled: boolean}> => {
+            if (!force && translationStateMap.has(tabId) && siteDisabledStateMap.has(tabId)) {
+                return {
+                    isTranslated: translationStateMap.get(tabId) === true,
+                    isSiteDisabled: siteDisabledStateMap.get(tabId) === true,
+                };
             }
 
             try {
                 const response = await browser.tabs.sendMessage(tabId, {
                     type: 'getFullPageTranslationState',
-                }) as { status?: string; isTranslated?: boolean } | undefined;
+                }) as { status?: string; isTranslated?: boolean; isSiteDisabled?: boolean } | undefined;
                 if (response?.status === 'success') {
                     const isTranslated = response.isTranslated === true;
+                    const isSiteDisabled = response.isSiteDisabled === true;
                     translationStateMap.set(tabId, isTranslated);
-                    return isTranslated;
+                    siteDisabledStateMap.set(tabId, isSiteDisabled);
+                    return {isTranslated, isSiteDisabled};
                 }
             } catch {
                 // 浏览器内部页或尚未注入内容脚本的页面无法查询，按未翻译处理。
             }
 
-            const fallback = translationStateMap.get(tabId) === true;
-            translationStateMap.set(tabId, fallback);
+            const fallback = {
+                isTranslated: translationStateMap.get(tabId) === true,
+                isSiteDisabled: siteDisabledStateMap.get(tabId) === true,
+            };
+            translationStateMap.set(tabId, fallback.isTranslated);
+            siteDisabledStateMap.set(tabId, fallback.isSiteDisabled);
             return fallback;
         };
 
@@ -795,12 +835,13 @@ export default defineBackground({
             if (!activeTabs.some((tab) => tab.id === tabId)) return;
             // MV3 service worker 重启后内存 Map 会丢失；首次更新时向仍在运行的
             // 内容脚本重新读取状态，避免菜单需要点击两次才能恢复原文。
-            const isTranslated = await readTabTranslationState(tabId);
+            const state = await readTabTranslationState(tabId, true);
+            const presentation = getFullPageContextMenuPresentation(state.isTranslated, state.isSiteDisabled);
 
             try {
                 await browser.contextMenus.update(CONTEXT_MENU_IDS.TRANSLATE_FULL_PAGE, {
-                    enabled: true,
-                    title: isTranslated ? '流畅阅读取消翻译' : '流畅阅读翻译',
+                    enabled: presentation.enabled,
+                    title: presentation.title,
                 });
             } catch (error) {
                 console.error('Failed to update context menu:', error);
@@ -865,15 +906,19 @@ export default defineBackground({
                     try {
                         // 点击属于用户显式动作，始终读取页面真值，避免后台休眠或
                         // 消息丢失留下的陈旧状态导致执行相反操作。
-                        const isTranslated = await readTabTranslationState(tab.id, true);
+                        const state = await readTabTranslationState(tab.id, true);
+                        if (state.isSiteDisabled) {
+                            await updateContextMenus(tab.id);
+                            return;
+                        }
                         const response = await browser.tabs.sendMessage(tab.id, {
                             type: 'contextMenuTranslate',
-                            action: isTranslated ? 'restore' : 'fullPage',
+                            action: state.isTranslated ? 'restore' : 'fullPage',
                         }) as { status?: string; isTranslated?: boolean } | undefined;
                         if (response?.status !== 'success') return;
                         const nextState = typeof response.isTranslated === 'boolean'
                             ? response.isTranslated
-                            : !isTranslated;
+                            : !state.isTranslated;
                         translationStateMap.set(tab.id, nextState);
                         await updateContextMenus(tab.id);
                     } catch (error) {
@@ -894,6 +939,7 @@ export default defineBackground({
         browser.tabs.onUpdated.addListener((tabId: any, changeInfo: any) => {
             if (changeInfo.status === 'loading') {
                 translationStateMap.set(tabId, false);
+                siteDisabledStateMap.set(tabId, false);
                 if (isContextMenuSupported) void updateContextMenus(tabId);
             }
         });
@@ -901,6 +947,7 @@ export default defineBackground({
         // 监听标签页关闭事件，清理状态
         browser.tabs.onRemoved.addListener((tabId: any) => {
             translationStateMap.delete(tabId);
+            siteDisabledStateMap.delete(tabId);
         });
 
         // 处理翻译请求
@@ -941,6 +988,17 @@ export default defineBackground({
                         const tabId = sender?.tab?.id;
                         if (typeof tabId === 'number') {
                             translationStateMap.set(tabId, message.isTranslated === true);
+                            if (isContextMenuSupported) void updateContextMenus(tabId);
+                        }
+                        resolve({ success: true });
+                        return;
+                    }
+
+                    if (message.type === 'siteExtensionDisabledState') {
+                        const tabId = sender?.tab?.id;
+                        if (typeof tabId === 'number') {
+                            siteDisabledStateMap.set(tabId, message.isDisabled === true);
+                            if (message.isDisabled === true) translationStateMap.set(tabId, false);
                             if (isContextMenuSupported) void updateContextMenus(tabId);
                         }
                         resolve({ success: true });
@@ -1005,7 +1063,13 @@ export default defineBackground({
 
                     if (message.type === 'selectionTtsStop') {
                         const requestId = Number.isSafeInteger(message.requestId) ? message.requestId : undefined;
-                        if (activeSelectionTts && (requestId === undefined || activeSelectionTts.requestId === requestId)) {
+                        const tabId = Number.isInteger(sender?.tab?.id) ? sender.tab.id : null;
+                        if (
+                            activeSelectionTts
+                            && tabId !== null
+                            && activeSelectionTts.tabId === tabId
+                            && (requestId === undefined || activeSelectionTts.clientRequestId === requestId)
+                        ) {
                             await stopActiveSelectionTts();
                         }
                         resolve({ success: true });
@@ -1016,22 +1080,54 @@ export default defineBackground({
                         const tabId = Number.isInteger(sender?.tab?.id) ? sender.tab.id : null;
                         const requestId = Number.isSafeInteger(message.requestId) ? message.requestId : Date.now();
                         await stopActiveSelectionTts();
-                        const result = await synthesizeEdgeTts(message.text, message.language, config.selectionTtsVoices);
+                        const active = tabId === null ? null : beginSelectionTts(tabId, requestId);
+                        let result: Awaited<ReturnType<typeof synthesizeEdgeTts>>;
+                        try {
+                            result = await synthesizeEdgeTts(
+                                message.text,
+                                message.language,
+                                config.selectionTtsVoices,
+                                active?.controller.signal,
+                            );
+                        } catch (synthesisError) {
+                            if (active && activeSelectionTts === active) {
+                                activeSelectionTts = null;
+                            }
+                            throw synthesisError;
+                        }
 
-                        if (tabId !== null) {
-                            activeSelectionTts = { tabId, requestId };
+                        if (active && activeSelectionTts !== active) {
+                            resolve({ success: false, error: '语音合成已取消' });
+                            return;
+                        }
+
+                        if (tabId !== null && active) {
+                            active.playbackStarted = true;
                             try {
                                 await playSelectionTtsWithOffscreen({
                                     audioBase64: arrayBufferToBase64(result.audio),
                                     contentType: result.contentType,
                                     tabId,
-                                    requestId,
+                                    requestId: active.playbackRequestId,
                                 });
+                                if (activeSelectionTts !== active) {
+                                    // STOP 可能在 ensureOffscreenDocument 完成前已经发出，
+                                    // PLAY 随后才到达。此处二次 STOP 关闭这个窗口。
+                                    await stopSelectionTtsWithOffscreen(active.playbackRequestId).catch(() => undefined);
+                                    resolve({ success: false, error: '语音播放已取消' });
+                                    return;
+                                }
                                 resolve({ success: true, transport: 'offscreen', voice: result.voice });
                                 return;
                             } catch (offscreenError) {
-                                if (activeSelectionTts?.tabId === tabId && activeSelectionTts.requestId === requestId) {
+                                const stillCurrent = activeSelectionTts === active;
+                                if (stillCurrent) {
                                     activeSelectionTts = null;
+                                }
+                                if (!stillCurrent) {
+                                    await stopSelectionTtsWithOffscreen(active.playbackRequestId).catch(() => undefined);
+                                    resolve({ success: false, error: '语音播放已取消' });
+                                    return;
                                 }
                                 console.warn('Offscreen TTS playback unavailable, returning page audio:', offscreenError);
                             }
@@ -1059,19 +1155,30 @@ export default defineBackground({
                             return;
                         }
 
-                        activeSelectionTts = { tabId, requestId };
+                        const active = beginSelectionTts(tabId, requestId);
+                        active.playbackStarted = true;
                         try {
                             await playSelectionTtsWithOffscreen({
                                 sourceUrl: googleSelectionTtsUrl(text, language),
                                 tabId,
-                                requestId,
+                                requestId: active.playbackRequestId,
                             });
-                            resolve({ success: true, transport: 'offscreen' });
-                        } catch (offscreenError) {
-                            if (activeSelectionTts?.tabId === tabId && activeSelectionTts.requestId === requestId) {
-                                activeSelectionTts = null;
+                            if (activeSelectionTts !== active) {
+                                await stopSelectionTtsWithOffscreen(active.playbackRequestId).catch(() => undefined);
+                                resolve({ success: false, error: '语音播放已取消' });
+                            } else {
+                                resolve({ success: true, transport: 'offscreen' });
                             }
-                            resolve({ success: false, error: offscreenError instanceof Error ? offscreenError.message : String(offscreenError) });
+                        } catch (offscreenError) {
+                            const stillCurrent = activeSelectionTts === active;
+                            if (stillCurrent) {
+                                activeSelectionTts = null;
+                            } else {
+                                await stopSelectionTtsWithOffscreen(active.playbackRequestId).catch(() => undefined);
+                            }
+                            resolve(stillCurrent
+                                ? { success: false, error: offscreenError instanceof Error ? offscreenError.message : String(offscreenError) }
+                                : { success: false, error: '语音播放已取消' });
                         }
                         return;
                     }

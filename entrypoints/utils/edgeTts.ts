@@ -46,6 +46,20 @@ interface EndpointToken {
 
 let endpointToken: EndpointToken | null = null;
 
+function createAbortError(): Error {
+  try {
+    return new DOMException('语音合成已取消', 'AbortError');
+  } catch {
+    const error = new Error('语音合成已取消');
+    error.name = 'AbortError';
+    return error;
+  }
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw createAbortError();
+}
+
 function normalizeLanguage(language: string): string {
   const normalized = String(language || '').replace(/_/gu, '-').trim();
   if (!normalized || normalized === 'auto' || normalized === 'detect') return 'en-US';
@@ -111,10 +125,12 @@ function tokenExpiry(token: string): number {
   }
 }
 
-async function getEndpointToken(): Promise<EndpointToken> {
+async function getEndpointToken(signal?: AbortSignal): Promise<EndpointToken> {
+  throwIfAborted(signal);
   if (endpointToken && Date.now() < endpointToken.expiresAt - 3 * 60 * 1000) return endpointToken;
 
   const signature = await createSignature(ENDPOINT_URL);
+  throwIfAborted(signal);
   const response = await runtimeFetch(ENDPOINT_URL, {
     method: 'POST',
     headers: {
@@ -128,12 +144,14 @@ async function getEndpointToken(): Promise<EndpointToken> {
       'Content-Type': 'application/json; charset=utf-8',
     },
     body: '',
+    signal,
   });
   if (!response.ok) throw new Error(`Edge TTS endpoint failed: ${response.status}`);
   const payload = await readJsonResponse<{ t?: string; r?: string }>(
     response,
     'Edge TTS endpoint returned invalid JSON',
   );
+  throwIfAborted(signal);
   if (!payload.t || !payload.r) throw new Error('Edge TTS endpoint returned an invalid token');
   endpointToken = { token: payload.t, region: payload.r, expiresAt: tokenExpiry(payload.t) };
   return endpointToken;
@@ -179,9 +197,10 @@ function concatBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
   return output.buffer;
 }
 
-async function synthesizeWithVoice(voice: string, endpoint: EndpointToken, chunks: string[]): Promise<EdgeTtsAudio> {
+async function synthesizeWithVoice(voice: string, endpoint: EndpointToken, chunks: string[], signal?: AbortSignal): Promise<EdgeTtsAudio> {
   const audioBuffers: ArrayBuffer[] = [];
   for (const chunk of chunks) {
+    throwIfAborted(signal);
     const response = await runtimeFetch(`https://${endpoint.region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
       method: 'POST',
       headers: {
@@ -191,25 +210,29 @@ async function synthesizeWithVoice(voice: string, endpoint: EndpointToken, chunk
         'X-Microsoft-OutputFormat': OUTPUT_FORMAT,
       },
       body: buildEdgeTtsSsml(chunk, voice),
+      signal,
     });
     if (!response.ok) throw new Error(`Edge TTS synthesis failed: ${response.status}`);
     audioBuffers.push(await response.arrayBuffer());
   }
+  throwIfAborted(signal);
   return { audio: concatBuffers(audioBuffers), contentType: 'audio/mpeg', voice };
 }
 
-export async function synthesizeEdgeTts(text: string, language: string, preferredVoices: unknown = []): Promise<EdgeTtsAudio> {
+export async function synthesizeEdgeTts(text: string, language: string, preferredVoices: unknown = [], signal?: AbortSignal): Promise<EdgeTtsAudio> {
+  throwIfAborted(signal);
   if (!text.trim()) throw new Error('Edge TTS 文本为空');
   const voices = edgeTtsVoiceCandidatesForLanguage(language, preferredVoices);
   if (voices.length === 0) throw new Error('Edge TTS voice is unavailable for this language');
 
-  const endpoint = await getEndpointToken();
+  const endpoint = await getEndpointToken(signal);
   const chunks = splitText(text);
   const failures: string[] = [];
   for (const voice of voices) {
     try {
-      return await synthesizeWithVoice(voice, endpoint, chunks);
+      return await synthesizeWithVoice(voice, endpoint, chunks, signal);
     } catch (error) {
+      if (signal?.aborted || (error instanceof Error && error.name === 'AbortError')) throw createAbortError();
       failures.push(`${voice}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }

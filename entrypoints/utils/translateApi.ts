@@ -16,6 +16,7 @@ import { resolveConfiguredModel, servicesType } from './option';
 import { getPageTranslationContext } from './pageContext';
 import { getMissingCredentialMessage } from './configValidation';
 import { isTrustedCredentialStorageContext } from './credentials';
+import { getTranslationLanguages } from './translationLanguage';
 import {
   isRetryableTranslationError,
   TranslationRequestError,
@@ -163,17 +164,18 @@ function scheduleVideoCountSave(): void {
  */
 export async function translateText(origin: string, context: string = document.title, options: TranslateOptions = {}): Promise<string> {
   const selectedService = options.serviceOverride || config.service;
+  const selectedModel = resolveConfiguredModel(
+    options.modelOverride || config.model[selectedService],
+    options.modelOverride || config.customModel[selectedService],
+  );
+  const selectedLanguages = getTranslationLanguages(options);
   const {
     retryDelay = 1000, 
     timeout = 45000,
     useCache = config.useCache,
     skipLanguageDetection = false,
-    serviceOverride,
-    sourceLanguage,
-    targetLanguage,
     signal,
     queueSession,
-    modelOverride,
   } = options;
   const aiSdkService = servicesType.isAiSdk(selectedService);
   const explicitRetryPolicy = options.maxRetries !== undefined;
@@ -188,14 +190,13 @@ export async function translateText(origin: string, context: string = document.t
     return origin || '';
   }
 
-  const service = serviceOverride || config.service;
-  assertTranslationCredentials(service, modelOverride);
+  assertTranslationCredentials(selectedService, selectedModel);
   // 如果目标语言与当前文本语言相同，直接返回原文
-  if (!skipLanguageDetection && detectlang(origin.replace(/[\s\u3000]/g, '')) === (targetLanguage || config.to)) {
+  if (!skipLanguageDetection && detectlang(origin.replace(/[\s\u3000]/g, '')) === selectedLanguages.targetLanguage) {
     return origin;
   }
 
-  const pageContext = await resolvePageContext(options.pageContext, service, modelOverride);
+  const pageContext = await resolvePageContext(options.pageContext, selectedService, selectedModel);
   throwIfAborted(signal);
 
   // 同一富文本回退可能产生多个短请求；合并持久化写入，避免每个 slot
@@ -215,10 +216,10 @@ export async function translateText(origin: string, context: string = document.t
             pageContext,
             origin,
             useCache,
-            serviceOverride,
-            sourceLanguage,
-            targetLanguage,
-            modelOverride,
+            serviceOverride: selectedService,
+            sourceLanguage: selectedLanguages.sourceLanguage,
+            targetLanguage: selectedLanguages.targetLanguage,
+            modelOverride: selectedModel,
             requestTimeoutMs: Math.max(1_000, timeout - 1_000),
           }),
           timeout,
@@ -267,24 +268,24 @@ export async function translateTextBatch(
   if (origins.length === 0) return [];
 
   const selectedService = options.serviceOverride || config.service;
+  const selectedModel = resolveConfiguredModel(
+    options.modelOverride || config.model[selectedService],
+    options.modelOverride || config.customModel[selectedService],
+  );
+  const selectedLanguages = getTranslationLanguages(options);
   const {
     retryDelay = 1000,
     timeout = 45000,
     useCache = config.useCache,
-    serviceOverride,
-    sourceLanguage,
-    targetLanguage,
     signal,
     queueSession,
-    modelOverride,
   } = options;
-  const service = serviceOverride || config.service;
-  assertTranslationCredentials(service, modelOverride);
+  assertTranslationCredentials(selectedService, selectedModel);
   const aiSdkService = servicesType.isAiSdk(selectedService);
   const explicitRetryPolicy = options.maxRetries !== undefined;
   const maxRetries = options.maxRetries ?? (aiSdkService ? 2 : 3);
   throwIfAborted(signal);
-  const pageContext = await resolvePageContext(options.pageContext, service, modelOverride);
+  const pageContext = await resolvePageContext(options.pageContext, selectedService, selectedModel);
   throwIfAborted(signal);
 
   scheduleTranslationCountSave();
@@ -299,10 +300,10 @@ export async function translateTextBatch(
             pageContext,
             origin: origins,
             useCache,
-            serviceOverride,
-            sourceLanguage,
-            targetLanguage,
-            modelOverride,
+            serviceOverride: selectedService,
+            sourceLanguage: selectedLanguages.sourceLanguage,
+            targetLanguage: selectedLanguages.targetLanguage,
+            modelOverride: selectedModel,
             requestTimeoutMs: Math.max(1_000, timeout - 1_000),
           }),
           timeout,
@@ -339,7 +340,10 @@ export async function translateVideoText(origin: string): Promise<string> {
   if (!cleanedOrigin) return origin || '';
 
   const service = config.videoService;
-  const pageContext = await resolvePageContext(undefined, service);
+  const model = resolveConfiguredModel(config.model[service], config.customModel[service]);
+  const languages = getTranslationLanguages();
+  const useCache = config.useCache;
+  const pageContext = await resolvePageContext(undefined, service, model);
 
   // 视频字幕是高频、短文本请求。计数保留在内存中，并合并为低频写入，避免
   // storage 写入和配置订阅回调把播放器主线程拖入高频循环。
@@ -349,8 +353,11 @@ export async function translateVideoText(origin: string): Promise<string> {
         context: `YouTube 视频字幕：${typeof document === 'undefined' ? '' : document.title}`,
         pageContext,
         origin,
-        useCache: config.useCache,
+        useCache,
         serviceOverride: service,
+        modelOverride: model,
+        sourceLanguage: languages.sourceLanguage,
+        targetLanguage: languages.targetLanguage,
         requestTimeoutMs: 19_000,
       }), 20_000, undefined, lease);
     return unwrapTranslationResponse<string>(response);

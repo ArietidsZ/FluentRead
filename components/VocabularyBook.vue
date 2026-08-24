@@ -43,8 +43,8 @@
 
       <section v-if="reviewActive" class="review-shell" aria-live="polite">
         <header class="review-header">
-          <div><span class="eyebrow">主动回忆</span><strong>{{ reviewPosition }} / {{ reviewQueue.length }}</strong></div>
-          <button type="button" @click="finishReview">退出本轮</button>
+          <div><span class="eyebrow">主动回忆</span><strong>{{ reviewPosition }} / {{ reviewTotal }}</strong></div>
+          <button type="button" :disabled="actionBusy" @click="finishReview">退出本轮</button>
         </header>
 
         <div v-if="currentReview" class="review-card">
@@ -79,7 +79,7 @@
 
       <template v-else>
         <section class="primary-actions">
-          <button class="start-review" type="button" :disabled="loading || reviewPlan.length === 0" @click="startReview">
+          <button class="start-review" type="button" :disabled="loading || actionBusy || reviewPlan.length === 0" @click="startReview">
             <span aria-hidden="true">▶</span>
             <span><strong>{{ reviewPlan.length ? `开始复习 ${reviewPlan.length} 个` : '今天没有到期单词' }}</strong><small>先回忆，再用“忘了 / 记得”更新掌握程度</small></span>
           </button>
@@ -171,6 +171,11 @@ import {
 import {
   buildAnkiTsv,
   buildVocabularyCloze,
+  advanceVocabularyReviewSession,
+  createVocabularyLifecycleGuard,
+  createVocabularyReviewSession,
+  reconcileVocabularyReviewSession,
+  vocabularyReviewSessionProgress,
   VOCABULARY_BOOK_CHANGED_MESSAGE,
   VOCABULARY_BOOK_EXPORT_FORMAT,
   VOCABULARY_BOOK_EXPORT_VERSION,
@@ -184,6 +189,7 @@ import {
   type VocabularyImportResult,
   type VocabularyRemovalSnapshot,
   type VocabularyReviewResult,
+  type VocabularyReviewSessionState,
   type VocabularyScheduledReviewRating,
   type VocabularyStatus,
   vocabularyImportNeedsConfirmation,
@@ -215,6 +221,7 @@ const toastMessage = ref('');
 // Keep the structured-clone snapshot raw so browser.runtime.sendMessage never receives a Vue Proxy.
 const undoExport = shallowRef<VocabularyBookExport | null>(null);
 const currentTime = ref(Date.now());
+const lifecycle = createVocabularyLifecycleGuard();
 let toastTimer: number | null = null;
 let timeRefreshTimer: number | null = null;
 let darkMedia: MediaQueryList | null = null;
@@ -223,8 +230,10 @@ let completedLoadGeneration = 0;
 let loadLoopPromise: Promise<void> | null = null;
 
 const reviewActive = computed(() => reviewStarted.value);
-const currentReview = computed(() => reviewQueue.value[reviewIndex.value] || null);
-const reviewPosition = computed(() => Math.min(reviewIndex.value + 1, reviewQueue.value.length));
+const reviewSessionProgress = computed(() => vocabularyReviewSessionProgress(reviewSessionState()));
+const currentReview = computed(() => reviewSessionProgress.value.current);
+const reviewTotal = computed(() => reviewSessionProgress.value.total);
+const reviewPosition = computed(() => reviewSessionProgress.value.position);
 const dueEntries = computed(() => entries.value
   .filter(entry => entry.nextReviewAt !== null && entry.nextReviewAt <= currentTime.value)
   .sort((left, right) => (left.nextReviewAt || 0) - (right.nextReviewAt || 0)));
@@ -287,6 +296,7 @@ function applyTheme(): void {
 function scheduleTimeRefresh(): void {
   if (timeRefreshTimer !== null) window.clearTimeout(timeRefreshTimer);
   timeRefreshTimer = null;
+  if (!lifecycle.isActive()) return;
   const timestamp = Date.now();
   currentTime.value = timestamp;
   if (document.visibilityState === 'hidden') return;
@@ -302,11 +312,13 @@ function scheduleTimeRefresh(): void {
 }
 
 function handleVisibilityChange(): void {
+  if (!lifecycle.isActive()) return;
   scheduleTimeRefresh();
   if (document.visibilityState === 'visible') void loadEntries();
 }
 
 async function loadEntries(): Promise<void> {
+  if (!lifecycle.isActive()) return;
   loadRequestGeneration += 1;
   if (loadLoopPromise) return loadLoopPromise;
   loadLoopPromise = runLoadEntriesLoop().finally(() => { loadLoopPromise = null; });
@@ -314,19 +326,21 @@ async function loadEntries(): Promise<void> {
 }
 
 async function runLoadEntriesLoop(): Promise<void> {
+  if (!lifecycle.isActive()) return;
   loading.value = true;
   loadError.value = '';
   try {
-    while (completedLoadGeneration < loadRequestGeneration) {
+    while (lifecycle.isActive() && completedLoadGeneration < loadRequestGeneration) {
       const generation = loadRequestGeneration;
       try {
         const nextEntries = await requestVocabulary<VocabularyEntry[]>({ type: VOCABULARY_BOOK_MESSAGE, action: 'list' });
-        if (generation === loadRequestGeneration) {
+        if (lifecycle.isActive() && generation === loadRequestGeneration) {
           entries.value = nextEntries;
           loadError.value = '';
+          reconcileActiveReviewQueue();
         }
       } catch (cause) {
-        if (generation === loadRequestGeneration) {
+        if (lifecycle.isActive() && generation === loadRequestGeneration) {
           loadError.value = cause instanceof Error ? cause.message : '无法读取本地单词本';
         }
       } finally {
@@ -334,8 +348,10 @@ async function runLoadEntriesLoop(): Promise<void> {
       }
     }
   } finally {
-    loading.value = false;
-    scheduleTimeRefresh();
+    if (lifecycle.isActive()) {
+      loading.value = false;
+      scheduleTimeRefresh();
+    }
   }
 }
 
@@ -364,19 +380,38 @@ function replaceEntry(next: VocabularyEntry): void {
   scheduleTimeRefresh();
 }
 
+function reviewSessionState(): VocabularyReviewSessionState {
+  return {
+    queue: reviewQueue.value,
+    completed: reviewIndex.value,
+    answerVisible: reviewAnswerVisible.value,
+  };
+}
+
+function applyReviewSession(session: VocabularyReviewSessionState): void {
+  reviewQueue.value = session.queue;
+  reviewIndex.value = session.completed;
+  reviewAnswerVisible.value = session.answerVisible;
+}
+
+function reconcileActiveReviewQueue(): void {
+  if (!reviewActive.value || actionBusy.value) return;
+  applyReviewSession(reconcileVocabularyReviewSession(
+    reviewSessionState(),
+    entries.value,
+    Date.now(),
+  ));
+}
+
 function startReview(): void {
-  reviewQueue.value = [...reviewPlan.value];
-  reviewIndex.value = 0;
-  reviewAnswerVisible.value = false;
+  applyReviewSession(createVocabularyReviewSession(reviewPlan.value));
   reviewStats.value = { reviewed: 0, good: 0, again: 0 };
   reviewStarted.value = reviewQueue.value.length > 0;
 }
 
 function finishReview(): void {
   reviewStarted.value = false;
-  reviewQueue.value = [];
-  reviewIndex.value = 0;
-  reviewAnswerVisible.value = false;
+  applyReviewSession(createVocabularyReviewSession([]));
 }
 
 async function rateReview(rating: VocabularyScheduledReviewRating): Promise<void> {
@@ -393,12 +428,16 @@ async function rateReview(rating: VocabularyScheduledReviewRating): Promise<void
     replaceEntry(result.entry);
     reviewStats.value.reviewed += 1;
     reviewStats.value[rating] += 1;
-    reviewIndex.value += 1;
-    reviewAnswerVisible.value = false;
+    applyReviewSession(advanceVocabularyReviewSession(reviewSessionState(), entry.id));
   } catch (cause) {
     showToast(cause instanceof Error ? cause.message : '复习记录保存失败');
   } finally {
-    actionBusy.value = false;
+    try {
+      await loadEntries();
+    } finally {
+      actionBusy.value = false;
+      reconcileActiveReviewQueue();
+    }
   }
 }
 
@@ -563,6 +602,7 @@ function downloadFile(name: string, body: string, type: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function showToast(message: string, keepUndo = false): void {
+  if (!lifecycle.isActive()) return;
   toastMessage.value = message;
   if (!keepUndo) undoExport.value = null;
   if (toastTimer !== null) window.clearTimeout(toastTimer);
@@ -570,11 +610,11 @@ function showToast(message: string, keepUndo = false): void {
 }
 
 function handleBookChanged(message: unknown): undefined {
-  if ((message as VocabularyBookChangedMessage)?.type === VOCABULARY_BOOK_CHANGED_MESSAGE) void loadEntries();
+  if (lifecycle.isActive() && (message as VocabularyBookChangedMessage)?.type === VOCABULARY_BOOK_CHANGED_MESSAGE) void loadEntries();
   return undefined;
 }
 function handleReviewKeyboard(event: KeyboardEvent): void {
-  if (!reviewActive.value || actionBusy.value) return;
+  if (!lifecycle.isActive() || !reviewActive.value || actionBusy.value) return;
   const target = event.target as HTMLElement | null;
   if (target?.matches('input, textarea, select, button, a')) return;
   if (event.key === 'Escape') { event.preventDefault(); finishReview(); return; }
@@ -590,24 +630,26 @@ let unsubscribeConfig: (() => void) | null = null;
 onMounted(async () => {
   darkMedia = window.matchMedia('(prefers-color-scheme: dark)');
   darkMedia.addEventListener('change', applyTheme);
-  await configReady;
-  betaEnabled.value = runtimeConfig.vocabularyBookEnabled;
-  selectionTranslatorEnabled.value = runtimeConfig.selectionTranslatorMode !== 'disabled';
-  targetLanguageKey.value = normalizeLanguageKey(runtimeConfig.to);
-  applyTheme();
-  unsubscribeConfig = subscribeConfig(next => {
-    betaEnabled.value = next.vocabularyBookEnabled;
-    selectionTranslatorEnabled.value = next.selectionTranslatorMode !== 'disabled';
-    targetLanguageKey.value = normalizeLanguageKey(next.to);
+  await lifecycle.runAfterReady(configReady, async () => {
+    betaEnabled.value = runtimeConfig.vocabularyBookEnabled;
+    selectionTranslatorEnabled.value = runtimeConfig.selectionTranslatorMode !== 'disabled';
+    targetLanguageKey.value = normalizeLanguageKey(runtimeConfig.to);
     applyTheme();
+    unsubscribeConfig = subscribeConfig(next => {
+      betaEnabled.value = next.vocabularyBookEnabled;
+      selectionTranslatorEnabled.value = next.selectionTranslatorMode !== 'disabled';
+      targetLanguageKey.value = normalizeLanguageKey(next.to);
+      applyTheme();
+    });
+    browser.runtime.onMessage.addListener(handleBookChanged);
+    window.addEventListener('keydown', handleReviewKeyboard);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    await loadEntries();
   });
-  browser.runtime.onMessage.addListener(handleBookChanged);
-  window.addEventListener('keydown', handleReviewKeyboard);
-  document.addEventListener('visibilitychange', handleVisibilityChange);
-  await loadEntries();
 });
 
 onBeforeUnmount(() => {
+  lifecycle.dispose();
   unsubscribeConfig?.();
   browser.runtime.onMessage.removeListener(handleBookChanged);
   window.removeEventListener('keydown', handleReviewKeyboard);

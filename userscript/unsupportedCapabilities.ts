@@ -5,6 +5,10 @@ export function mountAreaTranslator(): undefined {
 
 export function unmountAreaTranslator(): void {}
 
+export function isAreaTranslatorMounted(): boolean {
+    return false;
+}
+
 export function mountImageTranslator(): void {}
 
 export function unmountImageTranslator(): void {}

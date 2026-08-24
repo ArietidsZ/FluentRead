@@ -6,6 +6,8 @@ import {
 
 export type DocumentPreviewMode = DocumentRenderMode | 'source';
 
+const PREVIEW_SOFT_BREAK = '\u2028';
+
 const PREVIEW_STYLE = `
 :root { color-scheme: light; font-family: Inter, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; color: #20242d; background: #fff; }
 * { box-sizing: border-box; }
@@ -75,7 +77,8 @@ function inlineMarkdown(value: string): string {
         const index = tokens.push(html) - 1;
         return `\u0000${index}\u0000`;
     };
-    let working = value.replace(/`([^`\n]+)`/gu, (_, code: string) => token(`<code>${escapeHtml(code)}</code>`));
+    let working = value.replace(new RegExp(PREVIEW_SOFT_BREAK, 'gu'), () => token('<br>'));
+    working = working.replace(/`([^`\n]+)`/gu, (_, code: string) => token(`<code>${escapeHtml(code)}</code>`));
     working = working.replace(/!\[([^\]]*)\]\([^)]+\)/gu, (_, alt: string) => token(`<span class="reader-link">${escapeHtml(alt || '图片')}</span>`));
     working = working.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+|#[^)]+)\)/gu, (_, label: string) => token(`<span class="reader-link">${escapeHtml(label)}</span>`));
     working = escapeHtml(working)
@@ -174,7 +177,15 @@ export function createDocumentPreviewHtml(
 ): string {
     const sourceTranslations = document.segments.map((segment) => segment.source);
     const source = renderDocument(document, sourceTranslations, 'translated');
-    const translated = renderDocument(document, translations, 'translated');
+    const previewTranslations = ['markdown', 'txt'].includes(document.format)
+        ? Array.from({length: document.segments.length}, (_, index) => {
+            const translation = translations[index];
+            return translation === undefined
+                ? document.segments[index].source
+                : translation.replace(/\r\n?|\n/gu, PREVIEW_SOFT_BREAK);
+        })
+        : translations;
+    const translated = renderDocument(document, previewTranslations, 'translated');
 
     if (document.format === 'html') {
         const content = mode === 'source'

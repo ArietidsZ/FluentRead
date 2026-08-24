@@ -510,13 +510,15 @@ export class VocabularyBookRepository {
     });
   }
 
-  private async pruneReviewLogs(entryId: string): Promise<void> {
+  private async pruneReviewLogs(entryId: string): Promise<string[]> {
     const logs = await this.db.reviewLogs.where('entryId').equals(entryId).sortBy('reviewedAt');
-    if (logs.length <= VOCABULARY_REVIEW_LOG_MAX_PER_ENTRY) return;
+    if (logs.length <= VOCABULARY_REVIEW_LOG_MAX_PER_ENTRY) return [];
     logs.sort((left, right) => left.reviewedAt - right.reviewedAt || left.id.localeCompare(right.id));
-    await this.db.reviewLogs.bulkDelete(
-      logs.slice(0, logs.length - VOCABULARY_REVIEW_LOG_MAX_PER_ENTRY).map((log) => log.id),
-    );
+    const deletedIds = logs
+      .slice(0, logs.length - VOCABULARY_REVIEW_LOG_MAX_PER_ENTRY)
+      .map((log) => log.id);
+    await this.db.reviewLogs.bulkDelete(deletedIds);
+    return deletedIds;
   }
 
   async review(
@@ -743,19 +745,30 @@ export class VocabularyBookRepository {
         // Review logs are immutable. Re-importing the same export is
         // idempotent, and a malicious ID collision may not overwrite a log
         // that belongs to another word.
-        if (usedLogIds.has(log.id)) continue;
+        if (usedLogIds.has(log.id)) {
+          skipped += 1;
+          continue;
+        }
         usedLogIds.add(log.id);
         logsToAdd.push(log);
       }
 
       if (logsToAdd.length > 0) await this.db.reviewLogs.bulkAdd(logsToAdd);
-      for (const entryId of affectedEntryIds) await this.pruneReviewLogs(entryId);
+      const deletedLogIds = new Set<string>();
+      for (const entryId of affectedEntryIds) {
+        for (const deletedId of await this.pruneReviewLogs(entryId)) deletedLogIds.add(deletedId);
+      }
+      const retainedImportedLogs = logsToAdd.reduce(
+        (count, log) => count + (deletedLogIds.has(log.id) ? 0 : 1),
+        0,
+      );
+      skipped += logsToAdd.length - retainedImportedLogs;
 
       return {
         inserted,
         updated,
         skipped,
-        reviewLogsImported: logsToAdd.length,
+        reviewLogsImported: retainedImportedLogs,
       };
     });
   }

@@ -443,8 +443,10 @@ const pdfPreviewPageStates = ref<PdfPreviewPageState[]>([]);
 const epubChapterIndex = ref(0);
 const docxPartIndex = ref(0);
 const hydrated = ref(false);
-const isDark = ref(window.matchMedia('(prefers-color-scheme: dark)').matches);
+const colorSchemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+const isDark = ref(colorSchemeMedia.matches);
 let abortController: AbortController | null = null;
+let translationRequestId = 0;
 let lastSerialized = '';
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 let pdfPreviewTimer: ReturnType<typeof setTimeout> | undefined;
@@ -747,8 +749,7 @@ function readerSourceClass(value: string): string {
 }
 
 function applyTheme(): void {
-  const media = window.matchMedia('(prefers-color-scheme: dark)');
-  isDark.value = media.matches;
+  isDark.value = colorSchemeMedia.matches;
 }
 
 async function hydrateConfig(): Promise<void> {
@@ -831,6 +832,7 @@ function handleDrop(event: DragEvent): void {
 }
 
 function resetDocument(): void {
+  translationRequestId += 1;
   abortController?.abort();
   abortController = null;
   translating.value = false;
@@ -861,6 +863,7 @@ async function startTranslation(): Promise<void> {
   progress.value = 0;
   errorMessage.value = '';
   const controller = new AbortController();
+  const requestId = ++translationRequestId;
   abortController = controller;
   try {
     const result = await translateDocumentSegments(document.segments, {
@@ -869,23 +872,28 @@ async function startTranslation(): Promise<void> {
       modelOverride: documentUsesModel.value ? documentModelValue.value : undefined,
       signal: controller.signal,
       onProgress: ({completed, total}) => {
+        if (requestId !== translationRequestId || parsedDocument.value !== document) return;
         progress.value = total > 0 ? Math.round((completed / total) * 100) : 100;
         translatedSegments.value = translatedSegments.value.length === total
           ? translatedSegments.value
           : new Array<string>(total).fill('');
       },
     });
+    if (requestId !== translationRequestId || parsedDocument.value !== document) return;
     translatedSegments.value = result;
     progress.value = 100;
   } catch (error) {
+    if (requestId !== translationRequestId || parsedDocument.value !== document) return;
     if (controller.signal.aborted) {
       showError('文档翻译已取消。');
     } else {
       showError(error instanceof Error ? error.message : String(error));
     }
   } finally {
-    translating.value = false;
-    abortController = null;
+    if (requestId === translationRequestId) {
+      translating.value = false;
+      if (abortController === controller) abortController = null;
+    }
   }
 }
 
@@ -919,19 +927,18 @@ async function openSettings(): Promise<void> {
 }
 
 onMounted(() => {
-  const media = window.matchMedia('(prefers-color-scheme: dark)');
-  media.addEventListener?.('change', applyTheme);
+  colorSchemeMedia.addEventListener?.('change', applyTheme);
   window.addEventListener('pagehide', resetDocument);
 });
 
 onUnmounted(() => {
+  translationRequestId += 1;
   abortController?.abort();
   void saveConfig(config).catch(() => undefined);
   if (noticeTimer) clearTimeout(noticeTimer);
   if (pdfPreviewTimer) clearTimeout(pdfPreviewTimer);
   clearPdfPreviewUrls();
-  const media = window.matchMedia('(prefers-color-scheme: dark)');
-  media.removeEventListener?.('change', applyTheme);
+  colorSchemeMedia.removeEventListener?.('change', applyTheme);
   window.removeEventListener('pagehide', resetDocument);
 });
 </script>

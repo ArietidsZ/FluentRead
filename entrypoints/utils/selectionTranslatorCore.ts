@@ -33,6 +33,24 @@ export interface SelectionAnswerCandidate extends SelectionContentRequest {
     answer: string;
 }
 
+/** Keep independent async channels from invalidating one another's completion. */
+export class SelectionRequestTokenGate {
+    private generation = 0;
+
+    begin(): number {
+        this.generation += 1;
+        return this.generation;
+    }
+
+    invalidate(): void {
+        this.generation += 1;
+    }
+
+    isCurrent(token: number): boolean {
+        return token === this.generation;
+    }
+}
+
 function normalizeSelectionRequestLanguage(value: string): string {
     return String(value || '').trim().replace(/_/g, '-').toLowerCase();
 }

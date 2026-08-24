@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+    canCommitInputBoxTranslation,
     getInputBoxText,
+    getInputBoxValueSnapshot,
     isInputElement,
     matchesInputBoxTrigger,
     removeTriggerSymbols,
@@ -41,5 +43,69 @@ describe('输入框快捷键', () => {
         expect(removeTriggerSymbols('Hello   ', 'triple_space')).toBe('Hello');
         expect(removeTriggerSymbols('Hello===', 'triple_equal')).toBe('Hello');
         expect(getInputBoxText({ ...fakeElement('DIV'), innerText: ' Hello world ' } as unknown as HTMLElement)).toBe('Hello world');
+    });
+
+    it('用原始值快照检测翻译期间的用户编辑', () => {
+        const input = { ...fakeElement('INPUT'), value: 'Hello  ' } as unknown as HTMLElement;
+        expect(getInputBoxValueSnapshot(input)).toBe('Hello  ');
+
+        const contentEditable = {
+            ...fakeElement('DIV', { contenteditable: 'true' }),
+            innerText: ' Hello\n',
+        } as unknown as HTMLElement;
+        expect(getInputBoxValueSnapshot(contentEditable)).toBe(' Hello\n');
+    });
+
+    it('禁用后即使恢复启用，旧 feature signal 的结果仍不可落地', () => {
+        const controller = new AbortController();
+        controller.abort();
+
+        expect(canCommitInputBoxTranslation({
+            signal: controller.signal,
+            expectedValue: 'Hello',
+            currentValue: 'Hello',
+            expectedConfigGeneration: 0,
+            currentConfigGeneration: 0,
+            isEnabled: true,
+            isSiteDisabled: false,
+        })).toBe(false);
+    });
+
+    it('用户在请求期间编辑输入框时拒绝覆盖新内容', () => {
+        const controller = new AbortController();
+
+        expect(canCommitInputBoxTranslation({
+            signal: controller.signal,
+            expectedValue: 'Hello',
+            currentValue: 'Hello!',
+            expectedConfigGeneration: 0,
+            currentConfigGeneration: 0,
+            isEnabled: true,
+            isSiteDisabled: false,
+        })).toBe(false);
+        expect(canCommitInputBoxTranslation({
+            signal: controller.signal,
+            expectedValue: 'Hello',
+            currentValue: 'Hello',
+            expectedConfigGeneration: 0,
+            currentConfigGeneration: 0,
+            isEnabled: true,
+            isSiteDisabled: false,
+        })).toBe(true);
+    });
+
+    it('输入翻译关闭后快速恢复也会永久作废旧配置 generation', () => {
+        const controller = new AbortController();
+
+        expect(canCommitInputBoxTranslation({
+            signal: controller.signal,
+            expectedValue: 'Hello',
+            currentValue: 'Hello',
+            expectedConfigGeneration: 2,
+            currentConfigGeneration: 3,
+            // 模拟关闭后已经快速恢复，当前看起来又是 enabled。
+            isEnabled: true,
+            isSiteDisabled: false,
+        })).toBe(false);
     });
 });
