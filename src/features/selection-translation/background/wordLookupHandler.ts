@@ -1,3 +1,9 @@
+/**
+ * @file src/features/selection-translation/background/wordLookupHandler.ts
+ * 文件职责：处理划词词典查询消息，并在基础词卡可用时仅翻译当前目标语言需要展示的释义字段，失败时保留原始词卡数据。
+ * 主要内容：定义 selectionWordLookup 协议和依赖，校验单词与目标语言，深拷贝词卡、收集可见释义槽位、批量翻译后按原位置回填，并由工厂返回类型化 handler。
+ * 模块边界：该文件不直接请求任何词典站点或翻译 provider；词典 lookup 和 translateTexts 由后台注入，数据解析/缓存归 services/wordDictionary，组件只消费返回词卡。
+ */
 import type {WordCardData} from '../services/wordDictionary';
 
 export type {

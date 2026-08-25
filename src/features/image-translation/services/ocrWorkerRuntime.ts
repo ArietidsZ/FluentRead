@@ -1,4 +1,10 @@
 /**
+ * @file src/features/image-translation/services/ocrWorkerRuntime.ts
+ * 文件职责：实现与具体 OCR 引擎无关的 Worker 生命周期和串行任务队列，保证识别、参数设置、语言切换及销毁不会在并发请求间交叉污染。
+ * 主要内容：定义 OcrWorkerPort、依赖与 runtime 契约，由 createOcrWorkerRuntime 复用同语言 worker、在切换时安全终止旧实例，并提供 recognize、downloadLanguages 与 dispose。
+ * 模块边界：此层不依赖 Tesseract.js 类型、浏览器 storage 或图片翻译 UI；具体 worker 工厂由 ocrRuntime 注入，语言状态记录和 Offscreen 消息编排位于其他模块。
+ */
+/**
  * OCR Worker 的最小能力边界。
  *
  * 这里不依赖 Tesseract.js 或 Chrome API，便于单测完整覆盖 Worker 的并发与切换语义。

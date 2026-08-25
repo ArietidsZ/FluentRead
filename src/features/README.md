@@ -1,3 +1,9 @@
+<!--
+ * @file src/features/README.md
+ * 文件职责：说明 FluentRead 纵向业务模块的目录约定、生命周期契约与公共出口规范，帮助维护者判断新增能力应落在哪个 feature 层级。
+ * 主要内容：文档列出 content、background、ui、services、domain 的职责，约定 isEnabled、mount、unmount、isMounted 等接口，并指向 composition root、Shadow UI 和迁移白名单规则。
+ * 模块边界：这里只记录 src/features 的组织和依赖原则，不实现任何运行时代码；完整的全仓分层、入口约束和验证责任仍以 docs/architecture.md 及架构测试为准。
+ -->
 # FluentRead Feature 目录
 
 FluentRead 的功能模块按“能力边界”组织，而不是按入口脚本堆放：

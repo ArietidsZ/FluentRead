@@ -1,3 +1,11 @@
+/**
+ * @file src/services/config/store.ts
+ *
+ * 文件职责：协调 FluentRead 配置、凭据与历史记录在浏览器存储中的读取、订阅、保存和并发持久化。
+ * 主要内容：维护 config 响应式状态和监听器，区分公开配置与 session/local 凭据，序列化 persist/history 消息，处理 debounce、revision 冲突、迁移及 undo/redo 请求。 可核对的公开符号包括 CONFIG_STORAGE_KEY、CONFIG_HISTORY_STORAGE_KEY、CONFIG_PERSIST_MESSAGE、CONFIG_HISTORY_MESSAGE、config、flushConfigHistory、configReady、configHistoryReady。
+ * 模块边界：本文件位于配置 application service 层，可协调 core 规则与浏览器存储端口；不包含设置页面组件，也不实现具体翻译供应商协议，调用方应通过公开服务 API 订阅或提交配置。
+ */
+
 import { storage } from '@wxt-dev/storage';
 import { Config, normalizeConfig } from '@/src/core/config/model';
 import {

@@ -23,6 +23,8 @@ node scripts/verify-userscript-build.mjs  # userscript 元数据与产物边界
 - `regression` 的用例名要写出历史失败条件，并保留能使旧实现失败的最小输入。
 - `architecture` 验证目录、依赖、协议、安全运行方式和流水线归属，不替代行为断言。
 
+`tests/architecture/sourceFileHeaders.test.ts` 会枚举 `src/` 下所有 TypeScript、Vue、CSS 与 Markdown 文件，检查首字符处的长注释、精确 `@file` 路径以及职责、内容、边界三个非空语义段。新增或移动源码时必须同步书写文件级说明，不能只让旧文件一次性通过。
+
 ## 覆盖率定义
 
 项目使用两道互补门禁，不能把“构建成功”和“代码行为已经覆盖”混为一谈：

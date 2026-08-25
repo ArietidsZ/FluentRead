@@ -1,3 +1,11 @@
+/**
+ * @file src/services/translation/requestSnapshot.ts
+ *
+ * 文件职责：在翻译消息上附加只读 provider 配置快照，消除异步缓存读取期间全局配置变化造成的请求身份错配。
+ * 主要内容：定义 TRANSLATION_PROVIDER_CONFIG 符号与请求上下文类型，精确复制 token、proxy、model、prompt 等字段，并提供 attach/get 函数供 broker 和 provider 共享同一快照。 可核对的公开符号包括 TRANSLATION_PROVIDER_CONFIG、TranslationProviderRequestContext、createTranslationProviderConfigSnapshot、attachTranslationProviderConfig、getTranslationProviderConfig。
+ * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
+ */
+
 import type {
     TranslationConfigSource,
     TranslationProviderConfigSnapshot,

@@ -1,3 +1,9 @@
+/**
+ * @file src/features/selection-translation/background/ttsHandler.ts
+ * 文件职责：编排划词朗读的后台消息路由，按标签页和客户端请求编号管理当前播放所有权，并在 Edge、Google 与页面回退之间传递音频或状态。
+ * 主要内容：定义四类 TTS 消息、音频/请求/响应契约，解析 tabId、文本和语言，生成 Google TTS URL、Base64 编码音频，并由工厂创建播放、停止及 Offscreen 状态转发 handlers。
+ * 模块边界：本文件不操作页面 Audio 或 speechSynthesis，也不实现 Edge SSML；具体合成由 services 注入，Offscreen 播放由 adapter 注入，内容页控制器负责忽略迟到状态。
+ */
 import {
     parseSelectionTtsClientRequestId,
     parseSelectionTtsPlaybackState,

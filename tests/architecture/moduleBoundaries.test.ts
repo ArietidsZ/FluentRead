@@ -68,7 +68,14 @@ function resolveProjectImport(fromFile: string, specifier: string): string | nul
 }
 
 function lineCount(path: string): number {
-    const source = readSource(projectPath(path));
+    let source = readSource(projectPath(path));
+    if (path.startsWith('src/')) {
+        const pattern = path.endsWith('.vue')
+            ? /^<!--[\s\S]*?-->\s*/u
+            : /^\/\*\*[\s\S]*?\*\/\s*/u;
+        const header = source.match(pattern)?.[0];
+        if (header?.includes('@file ' + path)) source = source.slice(header.length);
+    }
     return source.endsWith('\n') ? source.split('\n').length - 1 : source.split('\n').length;
 }
 

@@ -4,6 +4,7 @@
     "architecture": [
       "tests/architecture/moduleBoundaries.test.ts",
       "tests/architecture/providerBoundaries.test.ts",
+      "tests/architecture/sourceFileHeaders.test.ts",
       "tests/architecture/verificationOwnership.test.ts",
       "tests/backgroundConfigPersistenceHandler.test.ts",
       "tests/backgroundConnectionTestHandler.test.ts",

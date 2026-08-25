@@ -1,3 +1,9 @@
+/**
+ * @file src/features/area-translation/background/handlers.ts
+ * 文件职责：定义圈选截图与圈选翻译在后台消息路由中的类型化处理器，并在进入浏览器截图和 Offscreen OCR 边界前校验所有不可信消息字段。
+ * 主要内容：包含两种消息常量、请求与响应契约、窗口编号和 data:image 解析、视口选区尺寸校验，以及通过依赖注入创建 captureVisibleTab 与 translateArea handlers 的工厂。
+ * 模块边界：本文件只负责编排和输入防线，不直接访问 tabs、配置存储或 OCR 实现；这些副作用由 background composition root 注入，几何换算归 core，Offscreen 通信归 adapter。
+ */
 import type {AreaTranslationSelection} from '@/src/features/area-translation/core';
 
 export const AREA_CAPTURE_MESSAGE_TYPE = 'fluentReadAreaCapture' as const;

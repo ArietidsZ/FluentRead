@@ -1,3 +1,9 @@
+/**
+ * @file src/app/content/featureRegistry.ts
+ * 文件职责：提供 content 功能的静态注册表和激活所有权管理，使站点启停、能力门控与异步 mount/unmount 按统一生命周期执行。
+ * 主要内容：定义 feature runtime/definition/result 类型，按 isEnabled 选择挂载，记录 activation 代次，使用 ensureContentFeatureMounted 处理迟到挂载，并在失效或异常时精确卸载与上报阶段。
+ * 模块边界：注册表只编排 feature 公共生命周期，不知道悬浮、划词、OCR 等业务细节，不直接修改配置或 DOM；具体挂载器及能力判断由 runtime 注入。
+ */
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { ensureContentFeatureMounted } from './featureLifecycle';
 import {

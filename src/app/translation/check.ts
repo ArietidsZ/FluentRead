@@ -1,3 +1,9 @@
+/**
+ * @file src/app/translation/check.ts
+ * 文件职责：在内容侧翻译调用前执行最小配置可用性检查，并对模型输出做统一后处理，向页面用户反馈可操作错误。
+ * 主要内容：根据服务类型验证自定义模型和必需模型选择，使用 page-notice 发送中文提示；contentPostHandler 调用 stripTranslationReasoning 去除推理标记后返回净化文本。
+ * 模块边界：本文件不验证受保护凭据、不发起请求，也不决定 provider endpoint；可信凭据检查在后台或 extension page，网络与重试由 translation/client 负责。
+ */
 import {customModelString, services, servicesType} from '@/src/core/config/catalog';
 import {stripTranslationReasoning} from '@/src/core/translation/prompts';
 import {config} from '@/src/services/config/store';

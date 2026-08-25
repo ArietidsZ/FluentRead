@@ -1,3 +1,11 @@
+/**
+ * @file src/services/translation/cache.ts
+ *
+ * 文件职责：实现扩展自有的翻译结果缓存，统一键规范化、TTL、容量限制、内存热层和 Dexie 持久层。
+ * 主要内容：定义缓存 identity/record、canonicalize 与 buildTranslationCacheKey，维护 FluentReadCacheDatabase，并通过 translationCache 提供读取、写入、LRU 逐出、过期清理和 IndexedDB 失败时降级为未命中的 API。 可核对的公开符号包括 TRANSLATION_CACHE_VERSION、TRANSLATION_CACHE_TTL_MS、TRANSLATION_CACHE_MAX_ENTRIES、TRANSLATION_CACHE_MAX_BYTES、TRANSLATION_CACHE_MAX_ENTRY_BYTES、TRANSLATION_CACHE_MEMORY_ENTRIES、TranslationCacheIdentity、TranslationCacheRecord。
+ * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
+ */
+
 import CryptoJS from 'crypto-js';
 import Dexie, { type Table } from 'dexie';
 

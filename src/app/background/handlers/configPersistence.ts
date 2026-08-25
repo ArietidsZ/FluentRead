@@ -1,3 +1,9 @@
+/**
+ * @file src/app/background/handlers/configPersistence.ts
+ * 文件职责：在后台可信边界接收配置保存请求，规范化客户端身份与序号，并协调配置快照的串行持久化和响应。
+ * 主要内容：声明 persistConfig 协议及依赖，校验普通对象、clientId 与非负 sequence，结合 sender 生成回退身份，调用 prepareConfig 与 persistPreparedConfig 后返回已接受的序号。
+ * 模块边界：这里只处理跨上下文消息和保存编排，不定义 Config 字段、不直接操作 browser.storage，也不负责历史裁剪；校验、凭据拆分和存储事务由注入的配置服务承担。
+ */
 import type {BackgroundMessageHandler} from '../messageRouter';
 
 export const CONFIG_PERSIST_MESSAGE_TYPE = 'persistConfig' as const;
