@@ -40,6 +40,8 @@ export default defineConfig({
       { text: '快速开始', link: '/guide/getting-started' },
       { text: '使用指南', link: '/guide/' },
       { text: '配置', link: '/config/' },
+      { text: '架构', link: '/architecture' },
+      { text: '测试', link: '/testing' },
       { text: '下载', link: '/guide/getting-started#安装扩展' },
     ],
 

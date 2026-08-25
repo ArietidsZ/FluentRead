@@ -1,13 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/entrypoints/utils/config', () => ({
+vi.mock('@/src/services/config/store', () => ({
     config: {
         from: 'auto',
         to: 'zh-Hans',
     },
 }));
 
-import { getTranslationLanguages } from '@/entrypoints/utils/translationLanguage';
+import {resolveTranslationLanguages} from '@/src/core/translation/languages';
+import {getTranslationLanguages} from '@/src/services/translation/languages';
 
 describe('翻译请求语言隔离', () => {
     it('优先使用请求级语言而不需要改写默认配置', () => {
@@ -27,5 +28,25 @@ describe('翻译请求语言隔离', () => {
             sourceLanguage: 'auto',
             targetLanguage: 'zh-Hans',
         });
+    });
+
+    it('纯解析器清理请求值，并使用显式默认快照', () => {
+        expect(resolveTranslationLanguages({
+            sourceLanguage: '  de ',
+            targetLanguage: '',
+        }, {
+            sourceLanguage: 'auto',
+            targetLanguage: 'fr',
+        })).toEqual({
+            sourceLanguage: 'de',
+            targetLanguage: 'fr',
+        });
+    });
+
+    it('纯解析器允许 null 请求并完整回退', () => {
+        expect(resolveTranslationLanguages(null, {
+            sourceLanguage: 'en',
+            targetLanguage: 'ja',
+        })).toEqual({sourceLanguage: 'en', targetLanguage: 'ja'});
     });
 });

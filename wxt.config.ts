@@ -1,7 +1,8 @@
-import {defineConfig} from 'wxt';
+import {defineConfig, type ConfigEnv, type UserManifest} from 'wxt';
 import vue from '@vitejs/plugin-vue';
 import {resolve} from 'path';
 import fs from 'fs';
+import {resolveBrowserCapabilities} from './src/platform/browser/capabilities';
 
 
 const packageJson = JSON.parse(fs.readFileSync(resolve(__dirname, 'package.json'), 'utf-8'));
@@ -33,6 +34,44 @@ function escapeExtensionNoncharacters() {
                 if (escaped !== chunk.code) chunk.code = escaped;
             }
         },
+    };
+}
+
+export function createExtensionManifest(
+    env: Pick<ConfigEnv, 'browser' | 'manifestVersion'>,
+): UserManifest {
+    const capabilities = resolveBrowserCapabilities(env);
+    return {
+        permissions: [
+            'storage',
+            'alarms',
+            'contextMenus',
+            ...(capabilities.offscreenDocument ? ['offscreen'] : []),
+        ],
+        content_security_policy: {
+            extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
+        },
+        host_permissions: [
+            'https://translate.google.com/*',
+            'https://translate.google.co.uk/*',
+            'https://translate.googleapis.com/*',
+            'https://dev.microsofttranslator.com/*',
+            'https://*.tts.speech.microsoft.com/*',
+            'https://deeplx.1stg.me/*',
+            'https://freeapi.fanyimao.cn/*',
+            'https://api.deeplx.org/*',
+            'http://localhost/*',
+            'http://127.0.0.1/*',
+            'http://*/*',
+            'https://*/*',
+        ],
+        web_accessible_resources: [
+            {
+                resources: ['icon/32.png', 'icon/48.png', 'icon/128.png'],
+                matches: ['<all_urls>'],
+                use_dynamic_url: true,
+            },
+        ],
     };
 }
 
@@ -80,32 +119,6 @@ export default defineConfig({
             esbuild: isProductionBuild ? {drop: ['console', 'debugger']} : undefined,
         };
     },
-    manifest: {
-        permissions: ['storage', 'alarms', 'contextMenus', 'offscreen'],
-        content_security_policy: {
-            extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
-        },
-        host_permissions: [
-            'https://translate.google.com/*',
-            'https://translate.google.co.uk/*',
-            'https://translate.googleapis.com/*',
-            'https://dev.microsofttranslator.com/*',
-            'https://*.tts.speech.microsoft.com/*',
-            'https://deeplx.1stg.me/*',
-            'https://freeapi.fanyimao.cn/*',
-            'https://api.deeplx.org/*',
-            'http://localhost/*',
-            'http://127.0.0.1/*',
-            'http://*/*',
-            'https://*/*',
-        ],
-        web_accessible_resources: [
-            {
-                resources: ['icon/32.png', 'icon/48.png', 'icon/128.png'],
-                matches: ['<all_urls>'],
-                use_dynamic_url: true,
-            },
-        ],
-    },
+    manifest: createExtensionManifest,
 
 });

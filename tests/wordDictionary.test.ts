@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+    clearWordDictionaryCache,
     isSingleEnglishWord,
     lookupWord,
     mergeWordCardData,
@@ -10,7 +11,7 @@ import {
     parseYoudaoResponse,
     parseWiktApiEntry,
     selectPronunciations,
-} from '@/entrypoints/utils/wordDictionary';
+} from '@/src/features/selection-translation/services/wordDictionary';
 
 function response(payload: unknown, ok = true, status = ok ? 200 : 503): Response {
     return {
@@ -21,6 +22,8 @@ function response(payload: unknown, ok = true, status = ok ? 200 : 503): Respons
 }
 
 afterEach(() => {
+    clearWordDictionaryCache();
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
 });
 

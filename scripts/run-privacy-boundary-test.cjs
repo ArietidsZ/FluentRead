@@ -42,6 +42,7 @@ function parseArgs(argv) {
     background: true,
     timeout: 45_000,
     browserPath: null,
+    focusSafeHelper: process.env.FLUENTREAD_FOCUS_SAFE_HELPER || '',
     artifactsDir: path.join(os.tmpdir(), 'fluentread-privacy-boundary-evidence'),
   };
 
@@ -76,6 +77,21 @@ function loadPlaywright(playwrightRoot) {
     const loader = createRequire(path.join(root, '__fluentread_privacy_boundary_loader__.cjs'));
     return loader('playwright');
   }
+}
+
+function loadFocusSafeBrowser(helperPath) {
+  if (!helperPath) {
+    throw new Error('后台浏览器测试必须传入 --focus-safe-helper 或设置 FLUENTREAD_FOCUS_SAFE_HELPER');
+  }
+  const resolved = path.resolve(helperPath);
+  if (!fs.existsSync(resolved)) throw new Error(`focus-safe helper 不存在：${resolved}`);
+  const helper = require(resolved);
+  if (typeof helper.launchFocusSafePersistentContext !== 'function'
+    || typeof helper.newPageWithoutForeground !== 'function'
+    || typeof helper.activateExtensionTabWithoutForeground !== 'function') {
+    throw new Error(`focus-safe helper 缺少必要导出：${resolved}`);
+  }
+  return helper;
 }
 
 function resolveBrowserExecutable(configuredPath) {
@@ -434,11 +450,12 @@ async function waitForOptionsUi(page, timeout) {
   return { root: credentialSwitchRoot, input: credentialSwitchInput };
 }
 
-async function openOptionsPage(context, extensionId, optionsPath, timeout) {
+async function openOptionsPage(createPage, activatePage, extensionId, optionsPath, timeout) {
   const optionsUrl = new URL(optionsPath, `chrome-extension://${extensionId}/`);
   optionsUrl.hash = 'settings-data';
-  const optionsPage = await context.newPage();
+  const optionsPage = await createPage();
   await optionsPage.goto(optionsUrl.href, { waitUntil: 'domcontentloaded', timeout });
+  await activatePage(optionsPage);
   await waitForOptionsUi(optionsPage, timeout);
   return optionsPage;
 }
@@ -705,7 +722,16 @@ async function main() {
 
   const { chromium } = loadPlaywright(playwrightRoot);
   const fixture = await startFixtureServer();
+  const browserArgs = [
+    `--disable-extensions-except=${extensionDir}`,
+    `--load-extension=${extensionDir}`,
+    '--no-first-run',
+    '--no-default-browser-check',
+  ];
+  let browserSession;
   let context;
+  let createPage;
+  let activatePage;
   let page;
   let optionsPage;
   let evidence = {
@@ -714,6 +740,9 @@ async function main() {
     browserPath,
     fixtureUrl: fixture.url,
     windowMode: args.background ? 'background-screen-off' : 'headed-isolated',
+    launchMode: null,
+    focusPolicy: null,
+    windowPlacement: null,
     isolation: { temporaryProfile: true, profileDir, reusedUserProfile: false },
     manifest: manifestEvidence,
     credentialSentinelSha256,
@@ -734,23 +763,52 @@ async function main() {
   };
 
   try {
-    context = await chromium.launchPersistentContext(profileDir, {
-      executablePath: browserPath,
-      headless: false,
-      viewport: { width: 1280, height: 900 },
-      args: [
-        `--disable-extensions-except=${extensionDir}`,
-        `--load-extension=${extensionDir}`,
-        ...(args.background ? ['--start-minimized', '--window-position=-10000,-10000'] : []),
-        '--no-first-run',
-        '--no-default-browser-check',
-      ],
-    });
+    if (args.background) {
+      const {
+        activateExtensionTabWithoutForeground,
+        launchFocusSafePersistentContext,
+        newPageWithoutForeground,
+      } = loadFocusSafeBrowser(args.focusSafeHelper);
+      browserSession = await launchFocusSafePersistentContext({
+        chromium,
+        profileDir,
+        browserPath,
+        headless: false,
+        background: true,
+        browserArgs,
+        viewport: { width: 1280, height: 900 },
+        timeout: args.timeout,
+      });
+      context = browserSession.context;
+      createPage = () => newPageWithoutForeground(context, args.timeout);
+      activatePage = (targetPage) => activateExtensionTabWithoutForeground(context, targetPage, args.timeout);
+      evidence = {
+        ...evidence,
+        launchMode: browserSession.launchMode,
+        focusPolicy: browserSession.focusPolicy,
+        windowPlacement: browserSession.windowPlacement,
+      };
+    } else {
+      context = await chromium.launchPersistentContext(profileDir, {
+        executablePath: browserPath,
+        headless: false,
+        viewport: { width: 1280, height: 900 },
+        args: browserArgs,
+      });
+      createPage = () => context.newPage();
+      activatePage = async () => undefined;
+      evidence = {
+        ...evidence,
+        launchMode: 'playwright-headed',
+        focusPolicy: 'foreground-authorized',
+        windowPlacement: { state: 'normal', width: 1280, height: 900 },
+      };
+    }
     context.on('request', recordRequest);
 
     const worker = await waitForExtensionWorker(context, args.timeout);
     const extensionId = new URL(worker.url()).hostname;
-    page = context.pages()[0] || await context.newPage();
+    page = await createPage();
     page.on('dialog', async (dialog) => {
       dialogs.push({ type: dialog.type(), message: redactEvidenceText(dialog.message()) });
       await dialog.dismiss().catch(() => {});
@@ -762,6 +820,7 @@ async function main() {
     });
 
     await page.goto(fixture.url, { waitUntil: 'domcontentloaded', timeout: args.timeout });
+    await activatePage(page);
     await page.waitForSelector('#fluent-read-page-styles', { state: 'attached', timeout: args.timeout });
     await page.waitForFunction(
       ({ legacyKeys, timestampKey }) => legacyKeys.every((key) => localStorage.getItem(key) === null) && localStorage.getItem(timestampKey) === null,
@@ -808,7 +867,8 @@ async function main() {
     evidence.screenshots.push(finalScreenshot);
 
     optionsPage = await openOptionsPage(
-      context,
+      createPage,
+      activatePage,
       extensionId,
       manifestEvidence.optionsPage,
       args.timeout,
@@ -992,7 +1052,8 @@ async function main() {
       }).catch(() => {});
     }
   } finally {
-    if (context) await context.close().catch(() => {});
+    if (browserSession) await browserSession.close().catch(() => {});
+    else if (context) await context.close().catch(() => {});
     await closeServer(fixture.server).catch(() => {});
     fs.rmSync(profileDir, { recursive: true, force: true });
     evidence.isolation.temporaryProfileRemoved = !fs.existsSync(profileDir);

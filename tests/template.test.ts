@@ -12,10 +12,11 @@ const { mockConfig } = vi.hoisted(() => ({
         user_role: {} as Record<string, string>,
         customBody: {} as Record<string, string>,
         robot_id: {} as Record<string, string>,
+        deepseekThinkingMode: 'disabled' as 'enabled' | 'disabled',
     },
 }));
 
-vi.mock('@/entrypoints/utils/config', () => ({ config: mockConfig }));
+vi.mock('@/src/services/config/store', () => ({ config: mockConfig }));
 
 import {
     claudeMsgTemplate,
@@ -26,15 +27,16 @@ import {
     deepseekMsgTemplate,
     deepseekResponsesMsgTemplate,
     geminiMsgTemplate,
+    getCurrentModel,
     tongyiMsgTemplate,
-} from '@/entrypoints/utils/template';
+} from '@/src/services/translation/templates';
 import {
     isCustomBodyMapping,
     isValidCustomBody,
     mergeCustomBody,
     normalizeCustomBodyMapping,
 } from '@/entrypoints/utils/custom-body';
-import { buildHunyuanTranslationRequestBody } from '@/entrypoints/service/hunyuan-translation';
+import { buildHunyuanTranslationRequestBody } from '@/src/providers/translation/hunyuan-translation';
 import { customModelString, services, servicesType } from '@/entrypoints/utils/option';
 
 beforeEach(() => {
@@ -63,6 +65,7 @@ beforeEach(() => {
         cozecom: 'coze-bot',
         cozecn: 'coze-bot',
     };
+    mockConfig.deepseekThinkingMode = 'disabled';
 });
 
 describe('mergeCustomBody（纯函数）', () => {
@@ -327,6 +330,105 @@ describe('请求时旧模型编号兜底', () => {
 
         const body = JSON.parse(claudeMsgTemplate('hello'));
         expect(body.model).toBe('claude-3-5-sonnet');
+    });
+});
+
+describe('模板默认值与协议分支', () => {
+    it('缺少服务级角色和模型时使用全局默认值', () => {
+        mockConfig.system_role = {};
+        mockConfig.user_role = {};
+        mockConfig.model = {};
+
+        const body = JSON.parse(commonMsgTemplate('hello'));
+        expect(body.model).toBe('');
+        expect(body.messages[0].content).toBeTruthy();
+        expect(body.messages[1].content).toContain('hello');
+        expect(getCurrentModel('openai')).toBe('');
+    });
+
+    it('自定义模型未填写时保留空模型，让上游配置门禁给出提示', () => {
+        mockConfig.model.openai = customModelString;
+        mockConfig.customModel.openai = '';
+
+        expect(JSON.parse(commonMsgTemplate('hello')).model).toBe('');
+    });
+
+    it('DeepSeek 当前模型处理新编号、旧编号和四种思考模式', () => {
+        mockConfig.service = services.deepseek;
+        mockConfig.model[services.deepseek] = 'deepseek-v4';
+        expect(getCurrentModel()).toBe('deepseek-v4');
+
+        mockConfig.model[services.deepseek] = 'deepseek-chat';
+        expect(getCurrentModel()).not.toBe('deepseek-chat');
+
+        expect(JSON.parse(deepseekMsgTemplate('hello', undefined, undefined, undefined, undefined, undefined, 'deepseek-reasoner')).thinking)
+            .toEqual({type: 'enabled'});
+        expect(JSON.parse(deepseekMsgTemplate('hello', undefined, undefined, undefined, undefined, undefined, 'deepseek-chat')).thinking)
+            .toEqual({type: 'disabled'});
+
+        mockConfig.model[services.deepseek] = 'deepseek-v4';
+        mockConfig.deepseekThinkingMode = 'enabled';
+        expect(JSON.parse(deepseekMsgTemplate('hello')).thinking).toEqual({type: 'enabled'});
+        mockConfig.deepseekThinkingMode = 'disabled';
+        expect(JSON.parse(deepseekMsgTemplate('hello')).thinking).toEqual({type: 'disabled'});
+    });
+
+    it('DeepSeek 提示词支持显式系统提示并在缺省时回退全局默认值', () => {
+        mockConfig.service = services.deepseek;
+        mockConfig.model[services.deepseek] = 'deepseek-v4';
+        const explicit = JSON.parse(deepseekResponsesMsgTemplate(
+            'hello',
+            undefined,
+            undefined,
+            'Explicit DeepSeek system',
+        ));
+        expect(explicit.instructions).toBe('Explicit DeepSeek system');
+
+        mockConfig.system_role = {};
+        const fallback = JSON.parse(deepseekResponsesMsgTemplate('hello'));
+        expect(fallback.instructions).toBeTruthy();
+    });
+
+    it('显式系统提示词会覆盖 Gemini、Claude、通义和 Coze 默认值', () => {
+        const gemini = JSON.parse(geminiMsgTemplate('hello', undefined, undefined, 'Gemini system'));
+        expect(gemini.contents[0].parts[0].text).toContain('Gemini system');
+
+        const claude = JSON.parse(claudeMsgTemplate('hello', undefined, undefined, 'Claude system'));
+        expect(claude.system).toBe('Claude system');
+
+        const tongyi = JSON.parse(tongyiMsgTemplate('hello', undefined, undefined, 'Tongyi system'));
+        expect(tongyi.messages[0].content).toBe('Tongyi system');
+
+        const coze = JSON.parse(cozeTemplate('hello', undefined, undefined, 'Coze system'));
+        expect(coze.query).toContain('Coze system');
+    });
+
+    it('缺少服务级系统角色时 Claude、通义和 Coze 使用默认系统角色', () => {
+        mockConfig.system_role = {};
+
+        expect(JSON.parse(claudeMsgTemplate('hello')).system).toBeTruthy();
+        expect(JSON.parse(tongyiMsgTemplate('hello')).messages[0].content).toBeTruthy();
+        expect(JSON.parse(cozeTemplate('hello')).query).toContain('hello');
+    });
+
+    it.each([
+        ['zh-Hans', 'zh'],
+        ['ja', 'ja'],
+        ['unsupported', 'zh'],
+    ])('通义翻译模型将目标语言 %s 映射为 %s', (targetLanguage, expected) => {
+        mockConfig.service = services.tongyi;
+        mockConfig.model[services.tongyi] = 'qwen-mt-plus';
+
+        const body = JSON.parse(tongyiMsgTemplate(
+            'hello',
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            targetLanguage,
+        ));
+        expect(body.translation_options).toEqual({source_lang: 'auto', target_lang: expected});
+        expect(body.messages).toEqual([{role: 'user', content: 'hello'}]);
     });
 });
 

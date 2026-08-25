@@ -11,12 +11,12 @@ const {mockConfig} = vi.hoisted(() => ({
     },
 }));
 
-vi.mock("@/entrypoints/utils/config", () => ({config: mockConfig}));
+vi.mock("@/src/services/config/store", () => ({config: mockConfig}));
 
 import deeplx, {
     getDeepLXRequestLanguages,
     normalizeDeepLXLanguage,
-} from "@/entrypoints/service/deeplx";
+} from "@/src/providers/translation/deeplx";
 import {DEFAULT_DEEPLX_ENDPOINT, DEEPLX_ENDPOINT_PRESETS, getDeepLXEndpoints} from "@/entrypoints/utils/deeplx";
 
 const fetchMock = vi.fn<typeof fetch>();

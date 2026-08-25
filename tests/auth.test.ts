@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { appendOptionalBearer, appendOptionalHeader } from '@/entrypoints/service/auth';
+import { appendOptionalBearer, appendOptionalHeader } from '@/src/providers/translation/auth';
 
 describe('可选 API 鉴权请求头', () => {
     it('没有令牌时不发送伪造的 Bearer 请求头', () => {

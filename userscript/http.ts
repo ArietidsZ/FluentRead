@@ -1,4 +1,4 @@
-import type {RuntimeFetch} from '@/entrypoints/utils/http';
+import type {RuntimeFetch} from '@/src/platform/http/runtime';
 
 export function parseResponseHeaders(rawHeaders = ''): Headers {
     const headers = new Headers();

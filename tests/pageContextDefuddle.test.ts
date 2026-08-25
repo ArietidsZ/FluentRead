@@ -22,7 +22,7 @@ vi.mock('defuddle/full', () => ({
     createMarkdownContent: vi.fn(),
 }));
 
-import { getPageTranslationContext, resetPageTranslationContextCache } from '@/entrypoints/utils/pageContext';
+import {getPageTranslationContext, resetPageTranslationContextCache} from '@/src/services/translation/context';
 
 const originalDocument = globalThis.document;
 const originalLocation = globalThis.location;
@@ -46,6 +46,62 @@ afterEach(() => {
 });
 
 describe('Defuddle page snapshot adapter', () => {
+    it('在正常 Defuddle 路径移除表单、草稿、隐藏文本与敏感属性', async () => {
+        const {document: liveDocument} = parseHTML(`<html><body>
+          <article data-account="secret-data"><h1>Visible article</h1><a href="https://example.com/?token=secret-url" title="secret-title">Readable link</a></article>
+          <form><input value="secret-input"><textarea>secret-textarea</textarea></form>
+          <div contenteditable="true">secret-draft</div>
+          <div hidden>secret-hidden</div><div aria-hidden="true">secret-aria</div>
+        </body></html>`);
+        const {document: detachedDocument} = parseHTML('<html><head></head><body></body></html>');
+        Object.defineProperty(liveDocument, 'implementation', {
+            configurable: true,
+            value: {createHTMLDocument: () => detachedDocument},
+        });
+        Object.defineProperty(globalThis, 'location', {
+            value: {href: 'https://example.com/private-form'},
+            configurable: true,
+        });
+        Object.defineProperty(globalThis, 'document', {value: liveDocument, configurable: true});
+        parse.mockImplementation((snapshot: Document) => ({
+            contentMarkdown: snapshot.documentElement.textContent,
+        }));
+
+        const context = await getPageTranslationContext();
+
+        expect(context).toContain('Visible article');
+        expect(context).toContain('Readable link');
+        for (const secret of ['secret-data', 'secret-url', 'secret-title', 'secret-input', 'secret-textarea', 'secret-draft', 'secret-hidden', 'secret-aria']) {
+            expect(context).not.toContain(secret);
+        }
+        expect(detachedDocument.querySelector('form, input, textarea, [contenteditable], [hidden], [aria-hidden="true"]')).toBeNull();
+        expect(detachedDocument.querySelector('article')?.hasAttribute('data-account')).toBe(false);
+        expect(detachedDocument.querySelector('a')?.hasAttribute('href')).toBe(false);
+        expect(detachedDocument.querySelector('a')?.hasAttribute('title')).toBe(false);
+    });
+
+    it('在 body clone fallback 路径执行同一敏感节点清洗', async () => {
+        const {document: liveDocument} = parseHTML(`<html><body><main>
+          <p>Fallback visible article</p>
+          <form><input value="fallback-secret-input"><textarea>fallback-secret-text</textarea></form>
+          <section style="display: none">fallback-secret-hidden</section>
+        </main></body></html>`);
+        Object.defineProperty(liveDocument, 'implementation', {configurable: true, value: undefined});
+        Object.defineProperty(globalThis, 'location', {
+            value: {href: 'https://example.com/fallback-private'},
+            configurable: true,
+        });
+        Object.defineProperty(globalThis, 'document', {value: liveDocument, configurable: true});
+
+        const context = await getPageTranslationContext();
+
+        expect(context).toContain('Fallback visible article');
+        expect(context).not.toContain('fallback-secret-input');
+        expect(context).not.toContain('fallback-secret-text');
+        expect(context).not.toContain('fallback-secret-hidden');
+        expect(parse).not.toHaveBeenCalled();
+    });
+
     it('uses an isolated full-document snapshot and caches metadata by URL', async () => {
         const snapshot = {
             documentElement: { innerHTML: '' },

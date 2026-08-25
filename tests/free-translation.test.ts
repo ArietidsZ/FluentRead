@@ -10,22 +10,22 @@ const {mockConfig, microsoftMock, deeplxMock, googleMock} = vi.hoisted(() => ({
     googleMock: vi.fn(),
 }));
 
-vi.mock("@/entrypoints/utils/config", () => ({config: mockConfig}));
-vi.mock("@/entrypoints/utils/option", () => ({
+vi.mock("@/src/services/config/store", () => ({config: mockConfig}));
+vi.mock("@/src/core/config/catalog", () => ({
     services: {
         microsoft: "microsoft",
         deeplx: "deeplx",
         google: "google",
     },
 }));
-vi.mock("@/entrypoints/service/microsoft", () => ({translateMicrosoftTexts: microsoftMock}));
-vi.mock("@/entrypoints/service/deeplx", () => ({translateDeepLXText: deeplxMock}));
-vi.mock("@/entrypoints/service/google", () => ({translateGoogleText: googleMock}));
+vi.mock("@/src/providers/translation/microsoft", () => ({translateMicrosoftTexts: microsoftMock}));
+vi.mock("@/src/providers/translation/deeplx", () => ({translateDeepLXText: deeplxMock}));
+vi.mock("@/src/providers/translation/google", () => ({translateGoogleText: googleMock}));
 
 import freeTranslation, {
     FREE_TRANSLATION_ORDER,
     translateFreeText,
-} from "@/entrypoints/service/free-translation";
+} from "@/src/providers/translation/free-translation";
 
 beforeEach(() => {
     vi.clearAllMocks();
@@ -98,5 +98,31 @@ describe("免费翻译服务", () => {
             "World 的译文",
         ]);
         expect(deeplxMock).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([
+        [{sourceLanguage: "en"}, {sourceLanguage: "en"}],
+        [{targetLanguage: "ja"}, {targetLanguage: "ja"}],
+    ])("显式语言覆盖传递给 DeepLX %#", async (languages, expected) => {
+        microsoftMock.mockRejectedValue(new Error("unavailable"));
+        deeplxMock.mockResolvedValue("DeepLX 译文");
+
+        await expect(translateFreeText("Hello", languages)).resolves.toBe("DeepLX 译文");
+        expect(deeplxMock).toHaveBeenCalledWith("Hello", "deeplx", expected);
+    });
+
+    it("拒绝直接调用和消息入口中的非文本值", async () => {
+        await expect(translateFreeText(42 as unknown as string)).rejects.toThrow("仅支持文本输入");
+        await expect(freeTranslation({origin: 42 as unknown as string})).rejects.toThrow("仅支持文本输入");
+    });
+
+    it("将非 Error 失败和非字符串译文纳入完整降级摘要", async () => {
+        microsoftMock.mockRejectedValue("microsoft plain failure");
+        deeplxMock.mockRejectedValue("deeplx plain failure");
+        googleMock.mockResolvedValue(undefined);
+
+        await expect(translateFreeText("Hello")).rejects.toThrow(
+            "微软翻译: microsoft plain failure；DeepLX: deeplx plain failure；谷歌翻译: 谷歌翻译未返回有效译文",
+        );
     });
 });

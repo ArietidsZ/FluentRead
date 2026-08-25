@@ -13,9 +13,9 @@ const mockConfig = vi.hoisted(() => ({
     extra: {zhipu: {secret: 'legacy-persisted-jwt', expiration: Number.MAX_SAFE_INTEGER}},
 }));
 
-vi.mock('@/entrypoints/utils/config', () => ({config: mockConfig}));
+vi.mock('@/src/services/config/store', () => ({config: mockConfig}));
 
-import zhipu from '@/entrypoints/service/zhipu';
+import zhipu from '@/src/providers/translation/zhipu';
 
 describe('智谱派生 JWT 凭据', () => {
     beforeEach(() => {

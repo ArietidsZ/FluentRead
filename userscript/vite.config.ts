@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import {resolve} from 'node:path';
 import vue from '@vitejs/plugin-vue';
 import ts from 'typescript';
-import {defineConfig, type Plugin} from 'vite';
+import {defineConfig, normalizePath, type Plugin} from 'vite';
 import {createUserscriptMetadata} from './metadata';
 
 const root = resolve(__dirname, '..');
@@ -13,7 +13,7 @@ const packageJson = JSON.parse(fs.readFileSync(resolve(root, 'package.json'), 'u
 const iconDataUrl = `data:image/png;base64,${fs.readFileSync(resolve(root, 'public/icon/128.png')).toString('base64')}`;
 const metadata = createUserscriptMetadata({version: packageJson.userscriptVersion, iconDataUrl});
 const browserShimPath = resolve(root, 'userscript/browser.ts');
-const entrypointsRoot = `${resolve(root, 'entrypoints')}/`;
+const projectRoot = `${normalizePath(root)}/`;
 
 export const compatibilityPreludeStart = '/* FluentRead userscript compatibility prelude:start */';
 export const compatibilityPreludeEnd = '/* FluentRead userscript compatibility prelude:end */';
@@ -128,8 +128,12 @@ function findFreeBrowserGlobals(code: string, id: string): BrowserGlobal[] {
 }
 
 export function injectUserscriptBrowserImports(code: string, id: string): string | null {
-    const cleanId = id.split('?', 1)[0];
-    if (!cleanId.startsWith(entrypointsRoot) || !/\.[cm]?[jt]sx?$/u.test(cleanId)) return null;
+    const [rawId, query = ''] = id.split('?', 2);
+    const cleanId = normalizePath(rawId);
+    const isScriptModule = /\.[cm]?[jt]sx?$/u.test(cleanId);
+    const isVueScriptModule = cleanId.endsWith('.vue')
+        && new URLSearchParams(query).get('type') === 'script';
+    if (!cleanId.startsWith(projectRoot) || (!isScriptModule && !isVueScriptModule)) return null;
 
     const injected = findFreeBrowserGlobals(code, cleanId);
     if (injected.length === 0) return null;
@@ -174,6 +178,11 @@ function bundleUserscriptCss(): Plugin {
                 const codePoint = character.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0');
                 return `\\u${codePoint}`;
             });
+
+            const leakedGlobals = findFreeBrowserGlobals(entry.code, resolve(root, '.output/userscript/fluent-read.user.js'));
+            if (leakedGlobals.length > 0) {
+                throw new Error(`Userscript bundle contains unresolved extension globals: ${leakedGlobals.join(', ')}`);
+            }
           },
         },
         writeBundle(_options, bundle) {
@@ -188,7 +197,6 @@ function bundleUserscriptCss(): Plugin {
 function unwrapWxtEntrypoints(): Plugin {
     const entrypoints = new Set([
         resolve(root, 'entrypoints/content.ts'),
-        resolve(root, 'entrypoints/shadowBridge.content.ts'),
     ]);
     return {
         name: 'unwrap-wxt-entrypoints',
@@ -200,22 +208,26 @@ function unwrapWxtEntrypoints(): Plugin {
     };
 }
 
+export const userscriptAliases = [
+    {find: '@/src/platform/storage/credentialContext', replacement: resolve(root, 'userscript/credentialContext.ts')},
+    // app/content 只依赖 feature public contract；在这个边界替换才能保证扩展专属 runtime 不进入产物。
+    {find: '@/src/features/area-translation/public', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
+    {find: '@/src/features/image-translation/public', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
+    {find: '@/src/features/video-subtitle/public', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
+    {find: '@/entrypoints/utils/newApi', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
+    {find: /^\.\/chrome-translator$/u, replacement: resolve(root, 'userscript/chromeTranslator.ts')},
+    {find: '@wxt-dev/storage', replacement: resolve(root, 'userscript/storage.ts')},
+    {find: 'webextension-polyfill', replacement: resolve(root, 'userscript/browser.ts')},
+    {find: 'wxt/utils/content-script-ui/shadow-root', replacement: resolve(root, 'userscript/shadow-root.ts')},
+    {find: '@', replacement: root},
+];
+
 export default defineConfig({
     root,
     publicDir: false,
     plugins: [unwrapWxtEntrypoints(), injectUserscriptBrowserShim(), vue(), bundleUserscriptCss()],
     resolve: {
-        alias: [
-            {find: '@/entrypoints/utils/areaTranslator', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
-            {find: '@/entrypoints/utils/imageTranslation', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
-            {find: /^\.\/main\/videoSubtitle$/u, replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
-            {find: '@/entrypoints/utils/newApi', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
-            {find: /^\.\/chrome-translator$/u, replacement: resolve(root, 'userscript/chromeTranslator.ts')},
-            {find: '@wxt-dev/storage', replacement: resolve(root, 'userscript/storage.ts')},
-            {find: 'webextension-polyfill', replacement: resolve(root, 'userscript/browser.ts')},
-            {find: 'wxt/utils/content-script-ui/shadow-root', replacement: resolve(root, 'userscript/shadow-root.ts')},
-            {find: '@', replacement: root},
-        ],
+        alias: userscriptAliases,
     },
     define: {
         'process.env.NODE_ENV': JSON.stringify('production'),

@@ -2,14 +2,14 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {parseHTML} from 'linkedom';
 
-import {showPageNotice} from '@/entrypoints/utils/tip';
+import {showPageNotice} from '@/src/features/page-notice/public';
 
 const originalDocument = globalThis.document;
 const originalWindow = globalThis.window;
 const originalBrowser = (globalThis as typeof globalThis & {browser?: unknown}).browser;
 
 const sendMessage = vi.fn(async () => ({success: true}));
-const noticeCss = readFileSync(new URL('../entrypoints/utils/tip.css', import.meta.url), 'utf8');
+const noticeCss = readFileSync(new URL('../src/features/page-notice/content/notice.css', import.meta.url), 'utf8');
 
 describe('page error notice', () => {
     beforeEach(() => {
@@ -75,6 +75,22 @@ describe('page error notice', () => {
 
         action.click();
         expect(sendMessage).toHaveBeenCalledWith({type: 'openOptionsPage'});
+    });
+
+    it('隔离设置页打开失败，不产生未处理拒绝', async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        sendMessage.mockRejectedValueOnce(new Error('runtime disconnected'));
+        showPageNotice('DeepSeek 需要 API Key，当前尚未配置', 'error');
+        await Promise.resolve();
+
+        const action = document.getElementById('fluent-read-page-notice-host')!
+            .shadowRoot!.querySelector<HTMLButtonElement>('.notice-action')!;
+        action.click();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(consoleError).toHaveBeenCalledWith('[FluentRead] 打开设置页失败', expect.any(Error));
+        consoleError.mockRestore();
     });
 
     it.each([

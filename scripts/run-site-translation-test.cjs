@@ -101,6 +101,7 @@ function parseArgs(argv) {
   const args = {
     browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
     background: true,
+    allowNetwork: false,
     timeout: 60000,
   };
 
@@ -110,6 +111,10 @@ function parseArgs(argv) {
     if (token === '--background') continue;
     if (token === '--headed') {
       args.background = false;
+      continue;
+    }
+    if (token === '--allow-network') {
+      args.allowNetwork = true;
       continue;
     }
     if (!token.startsWith('--')) throw new Error(`无法识别参数：${token}`);
@@ -127,6 +132,10 @@ function parseArgs(argv) {
   if (!['hover', 'full'].includes(args.mode)) throw new Error('--mode 必须是 hover 或 full');
   if (!args.extensionDir) throw new Error('必须传入 --extension-dir');
   if (!args.playwrightRoot) throw new Error('必须传入 --playwright-root');
+  if (!args.allowNetwork) throw new Error('真实网络站点测试必须显式传入 --allow-network');
+  if (args.background && !args.focusSafeHelper) {
+    throw new Error('后台模式必须传入 --focus-safe-helper，禁止回退到会抢焦点的 Playwright 启动');
+  }
 
   const caseConfig = CASES[args.case];
   const normalized = normalizeCaseConfig(args.case, caseConfig);
@@ -828,6 +837,22 @@ function loadPlaywright(root) {
   }
 }
 
+function loadFocusSafeHelper(helperPath) {
+  if (!helperPath) return null;
+  const resolved = path.resolve(helperPath);
+  const helper = require(resolved);
+  for (const name of [
+    'launchFocusSafePersistentContext',
+    'newPageWithoutForeground',
+    'activateExtensionTabWithoutForeground',
+  ]) {
+    if (typeof helper[name] !== 'function') {
+      throw new Error(`--focus-safe-helper 缺少 ${name}`);
+    }
+  }
+  return helper;
+}
+
 function assertDedicatedProfile(profileDir) {
   const resolved = path.resolve(profileDir);
   const home = os.homedir();
@@ -854,14 +879,15 @@ function normalizeConfig(value) {
   }
 }
 
-async function readConfig(context, timeout) {
+async function readConfig(context, timeout, createPage, activateTab) {
   const workers = context.serviceWorkers();
   const worker = workers[0] || await context.waitForEvent('serviceworker', {timeout: Math.min(timeout, 30000)});
   const match = worker.url().match(/^chrome-extension:\/\/([^/]+)/);
   if (!match) throw new Error('没有找到扩展 service worker');
-  const popup = await context.newPage();
+  const popup = await createPage(context, timeout);
   try {
     await popup.goto(`chrome-extension://${match[1]}/popup.html`, {waitUntil: 'domcontentloaded', timeout: 30000});
+    await activateTab(context, popup, timeout);
     const stored = await popup.evaluate(() => chrome.storage.local.get('config'));
     return {extensionId: match[1], config: normalizeConfig(stored.config)};
   } finally {
@@ -2036,22 +2062,58 @@ async function main() {
   const artifactsDir = args.artifactsDir ? path.resolve(args.artifactsDir) : null;
   if (artifactsDir) fs.mkdirSync(artifactsDir, {recursive: true});
   const {chromium} = loadPlaywright(args.playwrightRoot);
+  const focusSafeHelper = loadFocusSafeHelper(args.focusSafeHelper);
+  const viewport = {width: 1280, height: 900};
+  const browserArgs = [
+    `--disable-extensions-except=${extensionDir}`,
+    `--load-extension=${extensionDir}`,
+    '--no-first-run',
+    '--no-default-browser-check',
+  ];
+  const createPage = focusSafeHelper
+    ? focusSafeHelper.newPageWithoutForeground
+    : async (targetContext) => targetContext.newPage();
+  const activateTab = focusSafeHelper
+    ? focusSafeHelper.activateExtensionTabWithoutForeground
+    : async () => undefined;
   let context;
+  let launched;
   try {
-    context = await chromium.launchPersistentContext(profileDir, {
-      executablePath: args.browserPath,
-      headless: false,
-      viewport: {width: 1280, height: 900},
-      args: [
-        `--disable-extensions-except=${extensionDir}`,
-        `--load-extension=${extensionDir}`,
-        ...(args.background ? ['--start-minimized', '--window-position=-10000,-10000'] : []),
-        '--no-first-run',
-        '--no-default-browser-check',
-      ],
-    });
-    const page = await context.newPage();
+    if (focusSafeHelper) {
+      launched = await focusSafeHelper.launchFocusSafePersistentContext({
+        chromium,
+        profileDir,
+        browserPath: args.browserPath,
+        headless: false,
+        background: args.background,
+        browserArgs,
+        viewport,
+        timeout: args.timeout,
+      });
+    } else {
+      context = await chromium.launchPersistentContext(profileDir, {
+        executablePath: args.browserPath,
+        headless: false,
+        viewport,
+        args: browserArgs,
+      });
+      launched = {
+        context,
+        launchMode: 'playwright-headed',
+        focusPolicy: 'foreground-authorized',
+        windowPlacement: {
+          mode: 'headed-isolated',
+          width: viewport.width,
+          height: viewport.height,
+          windowState: 'normal',
+        },
+        close: async () => context.close(),
+      };
+    }
+    context = launched.context;
+    const page = await createPage(context, args.timeout);
     await page.goto(args.url, {waitUntil: 'domcontentloaded', timeout: args.timeout});
+    await activateTab(context, page, args.timeout);
     reportProgress(`${args.case}/${args.mode} 页面已加载`);
     // 当前 main 默认关闭悬浮球，但 Control/Alt+T 快捷键仍独立工作；
     // 这里等待 content script 初始化，而不是要求 UI 浮球必须存在。
@@ -2077,14 +2139,13 @@ async function main() {
       args.optionalForbiddenSelectors,
       args.mutableForbiddenSelectors,
     );
-    const configResult = await readConfig(context, args.timeout);
+    const configResult = await readConfig(context, args.timeout, createPage, activateTab);
     const config = configResult.config || {};
     const expectedHotkey = args.mode === 'hover' ? args.hoverHotkey : args.fullPageHotkey;
     if (config.service !== args.service) throw new Error(`服务不符：预期 ${args.service}，实际 ${config.service}`);
     if (Number(config.display) !== 1) throw new Error(`预期双语模式 display=1，实际 ${config.display}`);
     if (args.mode === 'hover' && config.hotkey !== expectedHotkey) throw new Error(`悬浮快捷键不符：${config.hotkey}`);
     if (args.mode === 'full' && config.floatingBallHotkey !== expectedHotkey) throw new Error(`全文快捷键不符：${config.floatingBallHotkey}`);
-    await page.bringToFront();
     reportProgress(`${args.case}/${args.mode} 页面 contract 与扩展配置已就绪`);
 
     const result = args.mode === 'hover'
@@ -2128,13 +2189,20 @@ async function main() {
       interactionScenarios: args.interactionScenarios,
       tier: args.tier,
       windowMode: args.background ? 'background-screen-off' : 'headed-isolated',
+      launchMode: launched.launchMode,
+      focusPolicy: launched.focusPolicy,
+      windowPlacement: launched.windowPlacement,
       service: config.service,
       display: config.display,
       screenshots: artifactsDir ? fs.readdirSync(artifactsDir).map((name) => path.join(artifactsDir, name)) : [],
       ...result,
     }, null, 2)}\n`);
   } finally {
-    if (context) await context.close().catch(() => {});
+    if (launched?.close) {
+      await launched.close().catch(() => {});
+    } else if (context) {
+      await context.close().catch(() => {});
+    }
     fs.rmSync(profileDir, {recursive: true, force: true});
   }
 }

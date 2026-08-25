@@ -22,7 +22,7 @@ import {
     revealVideoSubtitleTranslation,
     translateVideoSubtitleCues,
     VIDEO_CAPTION_SEGMENT_SELECTOR,
-} from '@/entrypoints/main/videoSubtitle';
+} from '@/src/features/video-subtitle/content/runtime';
 import { normalizeVideoSubtitleFontSize } from '@/entrypoints/utils/model';
 
 describe('YouTube 视频字幕识别', () => {

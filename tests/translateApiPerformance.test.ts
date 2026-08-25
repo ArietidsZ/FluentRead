@@ -22,24 +22,24 @@ const mocks = vi.hoisted(() => ({
 vi.mock('webextension-polyfill', () => ({
   default: {runtime: {sendMessage: mocks.sendMessage}},
 }));
-vi.mock('@/entrypoints/utils/config', () => ({
+vi.mock('@/src/services/config/store', () => ({
   config: mocks.config,
   saveConfig: mocks.saveConfig,
   requestConfigSave: mocks.saveConfig,
 }));
-vi.mock('@/entrypoints/utils/common', () => ({detectlang: () => 'eng'}));
-vi.mock('@/entrypoints/utils/option', () => ({
+vi.mock('@/src/core/language/detect', () => ({detectlang: () => 'eng'}));
+vi.mock('@/src/core/config/catalog', () => ({
   resolveConfiguredModel: (model: string) => model,
   servicesType: {
     isUseAIContext: (service: string) => service === 'mock-ai',
     isAiSdk: (service: string) => service === 'mock-ai',
   },
 }));
-vi.mock('@/entrypoints/utils/pageContext', () => ({getPageTranslationContext: mocks.getPageTranslationContext}));
-vi.mock('@/entrypoints/utils/configValidation', () => ({getMissingCredentialMessage: mocks.getMissingCredentialMessage}));
+vi.mock('@/src/services/translation/context', () => ({getPageTranslationContext: mocks.getPageTranslationContext}));
+vi.mock('@/src/core/config/validation', () => ({getMissingCredentialMessage: mocks.getMissingCredentialMessage}));
 
-import {cancelAllTranslations, translateText, translateTextBatch, translateVideoText} from '@/entrypoints/utils/translateApi';
-import {clearTranslationQueue} from '@/entrypoints/utils/translateQueue';
+import {cancelAllTranslations, translateText, translateTextBatch, translateVideoText} from '@/src/app/translation/client';
+import {clearTranslationQueue} from '@/src/services/translation/queue';
 
 const originalDocument = globalThis.document;
 const originalLocation = globalThis.location;

@@ -5,7 +5,7 @@ import {
     createProviderCodeError,
     getSafeProviderErrorCode,
     readJsonResponse,
-} from '@/entrypoints/utils/httpError';
+} from '@/src/platform/http/errors';
 
 describe('safe provider error formatting', () => {
     it('surfaces only the numeric HTTP status and ignores a third-party statusText', () => {
@@ -16,6 +16,7 @@ describe('safe provider error formatting', () => {
 
         expect(error.message).toBe('翻译失败: 403');
         expect(error.message).not.toContain('SENSITIVE_STATUS_SENTINEL');
+        expect(createHttpStatusError({status: 500, statusText: ''}).message).toBe('请求失败: 500');
     });
 
     it('allows bounded numeric provider codes', () => {
@@ -26,6 +27,8 @@ describe('safe provider error formatting', () => {
     });
 
     it('rejects arbitrary strings and oversized numeric fields', () => {
+        expect(getSafeProviderErrorCode(null)).toBeUndefined();
+        expect(getSafeProviderErrorCode('   ')).toBeUndefined();
         expect(getSafeProviderErrorCode('AuthFailure.SENSITIVE_SENTINEL')).toBeUndefined();
         expect(getSafeProviderErrorCode('12abc')).toBeUndefined();
         expect(getSafeProviderErrorCode('1'.repeat(17))).toBeUndefined();

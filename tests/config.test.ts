@@ -364,6 +364,19 @@ describe('统一配置存储', () => {
         expect(JSON.stringify(storageState.get('local:configHistory'))).not.toContain(secret);
     });
 
+    it('损坏的旧历史字符串可能包含凭据时直接丢弃，不能把敏感片段原样写回', async () => {
+        const secret = 'malformed-history-secret-sentinel';
+        const legacyConfig = {...storedConfig, token: {openai: secret}};
+        const malformedHistory = `{"entries":[{"config":{"token":{"openai":"${secret}"}}}`;
+        const configStore = await loadConfigModule(legacyConfig, {history: malformedHistory});
+
+        await configStore.configReady;
+
+        expect(storageState.has('local:configHistory')).toBe(false);
+        expect(JSON.stringify([...storageState.values()])).not.toContain(malformedHistory);
+        expect(storageState.get('session:credentials')).toMatchObject({token: {openai: secret}});
+    });
+
     it('默认只把新凭据保存到 session，local config 与历史不含敏感 sentinel', async () => {
         const configStore = await loadConfigModule(storedConfig);
         await Promise.all([configStore.configReady, configStore.configHistoryReady]);
@@ -604,6 +617,40 @@ describe('统一配置存储', () => {
         const history = configStore.getConfigHistorySnapshot();
         expect(history.entries).toHaveLength(2);
         expect(history.entries.at(-1)?.config.to).toBe('ja');
+    });
+
+    it('两个立即历史写入重叠时串行提交，不能丢失较新的快照或复用版本号', async () => {
+        const configStore = await loadConfigModule(storedConfig);
+        await Promise.all([configStore.configReady, configStore.configHistoryReady]);
+        let releaseFirstHistoryWrite!: () => void;
+        const firstHistoryWriteBlocked = new Promise<void>((resolve) => {
+            releaseFirstHistoryWrite = resolve;
+        });
+        let historyWriteCount = 0;
+        storageMock.setItem.mockImplementation(async (key: string, nextValue: unknown) => {
+            storageOperations.push(`set:${key}`);
+            if (key === 'local:configHistory' && historyWriteCount++ === 0) {
+                await firstHistoryWriteBlocked;
+            }
+            storageState.set(key, structuredClone(nextValue));
+        });
+
+        const first = configStore.saveConfig(
+            {...configStore.config, to: 'en'},
+            {recordHistory: true, immediateHistory: true},
+        );
+        await vi.waitFor(() => expect(historyWriteCount).toBe(1));
+        const second = configStore.saveConfig(
+            {...configStore.config, to: 'ja'},
+            {recordHistory: true, immediateHistory: true},
+        );
+        releaseFirstHistoryWrite();
+        await Promise.all([first, second]);
+
+        const history = configStore.getConfigHistorySnapshot();
+        expect(history.entries.map((entry) => entry.config.to)).toEqual(['zh-Hans', 'en', 'ja']);
+        expect(new Set(history.entries.map((entry) => entry.version)).size).toBe(history.entries.length);
+        expect(storageState.get('local:configHistory')).toEqual(history);
     });
 
     it('配置历史 storage 外部更新会通知订阅者并保留版本结构', async () => {

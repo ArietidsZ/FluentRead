@@ -9,7 +9,7 @@ const path = require('node:path');
 const { createRequire } = require('node:module');
 
 const TARGET_TEXT = 'When switching between different filaments, the printer flushes residual material before printing.';
-let activateInputPage = page => page.bringToFront();
+let activateInputPage = async () => undefined;
 let createIsolatedPage = context => context.newPage();
 const selectionUiSessions = new WeakMap();
 const selectionUiTrackers = new WeakMap();
@@ -32,8 +32,15 @@ function parseArgs(argv) {
   args.extensionDir = path.resolve(args.extensionDir);
   args.artifactsDir = path.resolve(args.artifactsDir);
   if (args.focusSafeHelper) args.focusSafeHelper = path.resolve(args.focusSafeHelper);
+  if (!args.headed && !args.focusSafeHelper) {
+    throw new Error('后台模式必须传入 --focus-safe-helper，确保真实浏览器不抢占前台焦点');
+  }
   if (!fs.existsSync(path.join(args.extensionDir, 'manifest.json'))) {
     throw new Error(`找不到扩展构建产物：${args.extensionDir}`);
+  }
+  if (!fs.existsSync(args.browserPath)) throw new Error(`浏览器不存在：${args.browserPath}`);
+  if (args.focusSafeHelper && !fs.existsSync(args.focusSafeHelper)) {
+    throw new Error(`找不到后台浏览器辅助脚本：${args.focusSafeHelper}`);
   }
   return args;
 }
@@ -45,6 +52,14 @@ function loadPlaywright(root) {
     const runtimeRequire = createRequire(path.join(path.resolve(root), '__fluentread_selection_trigger_test__.cjs'));
     return runtimeRequire('playwright');
   }
+}
+
+function loadFocusSafeBrowser(helperPath) {
+  const helper = require(helperPath);
+  for (const name of ['launchFocusSafePersistentContext', 'newPageWithoutForeground', 'activateExtensionTabWithoutForeground']) {
+    if (typeof helper[name] !== 'function') throw new Error(`后台浏览器辅助脚本缺少接口：${name}`);
+  }
+  return helper;
 }
 
 function assert(condition, message) {
@@ -69,21 +84,35 @@ function assertDedicatedProfile(profileDir) {
 }
 
 async function waitForWorker(context) {
-  const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker', { timeout: 30000 });
+    const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker', { timeout: 30000 });
   const extensionId = worker.url().match(/^chrome-extension:\/\/([^/]+)/)?.[1];
   assert(extensionId, `无法获取扩展 ID：${worker.url()}`);
-  return { worker, extensionId };
+    return { worker, extensionId };
 }
 
-async function readStoredConfig(worker) {
-  return worker.evaluate(async () => (await chrome.storage.local.get('config')).config || {});
+async function readStoredConfig(extensionPage) {
+  return extensionPage.evaluate(async () => (await chrome.storage.local.get('config')).config || {});
 }
 
-async function patchStoredConfig(worker, patch) {
-  await worker.evaluate(async (nextPatch) => {
+async function patchStoredConfig(extensionPage, patch) {
+  await extensionPage.evaluate(async (nextPatch) => {
     const stored = await chrome.storage.local.get('config');
     await chrome.storage.local.set({ config: { ...(stored.config || {}), ...nextPatch } });
   }, patch);
+}
+
+async function assertBackgroundRoundTrip(extensionPage) {
+  const response = await extensionPage.evaluate(() => new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('后台消息 round-trip 超时')), 10000);
+    chrome.runtime.sendMessage({type: 'FLUENT_READ_BROWSER_FIXTURE_PING'}, (message) => {
+      const lastError = chrome.runtime.lastError?.message;
+      clearTimeout(timer);
+      if (lastError) reject(new Error(lastError));
+      else resolve(message);
+    });
+  }));
+  assert(response?.success === false && response?.error === '不支持的后台消息',
+    `后台消息 round-trip 返回异常：${JSON.stringify(response)}`);
 }
 
 async function waitForContentScript(page) {
@@ -99,6 +128,7 @@ async function openSelectionDrawer(popup) {
 }
 
 async function setSelectionEnabled(popup, drawer, enabled) {
+  await activateInputPage(popup);
   const toggle = drawer.getByRole('switch', { name: '启用或关闭划词翻译' });
   const current = (await toggle.getAttribute('aria-checked')) === 'true';
   if (current !== enabled) {
@@ -109,33 +139,15 @@ async function setSelectionEnabled(popup, drawer, enabled) {
 }
 
 async function setSelectionMode(popup, drawer, label) {
+  await activateInputPage(popup);
   await drawer.locator('.chips.two button').filter({ hasText: label }).click();
   await popup.waitForTimeout(450);
   const selected = await drawer.locator('.chips.two button.selected').textContent();
   assert(selected?.includes(label), `显示方式没有选中 ${label}：${selected}`);
 }
 
-async function setSelectionTrigger(popup, drawer, worker, label) {
-  await drawer.locator('.selection-trigger-chips button').filter({ hasText: label }).click();
-  await popup.waitForTimeout(500);
-
-  if (label === '自定义') {
-    let dialog = popup.locator('.el-dialog:visible').last();
-    if (await dialog.count() === 0) {
-      const recordButton = drawer.getByRole('button', { name: /录制自定义快捷键|当前：/ });
-      await recordButton.click();
-      dialog = popup.locator('.el-dialog:visible').last();
-    }
-    await dialog.waitFor({ state: 'visible', timeout: 10000 });
-    await dialog.locator('.preset-button').filter({ hasText: 'F9' }).click();
-    await dialog.getByRole('button', { name: '确认', exact: true }).click();
-    await popup.waitForTimeout(600);
-  }
-
-  const selected = await drawer.locator('.selection-trigger-chips button.selected').textContent();
-  assert(selected?.includes(label), `触发方式没有选中 ${label}：${selected}`);
-  const config = await readStoredConfig(worker);
-  const expected = label === '直接弹出'
+function expectedSelectionTrigger(label) {
+  return label === '直接弹出'
     ? { trigger: 'direct', hotkey: 'none' }
     : label === '显示图标'
       ? { trigger: 'icon', hotkey: 'none' }
@@ -148,20 +160,62 @@ async function setSelectionTrigger(popup, drawer, worker, label) {
             : label === 'Shift'
               ? { trigger: 'Shift', hotkey: 'Shift' }
               : { trigger: 'custom', hotkey: 'custom' };
-  assert(config.selectionTranslatorTrigger === expected.trigger && config.selectionTranslatorHotkey === expected.hotkey,
-    `选择 ${label} 后配置错误：${JSON.stringify({ trigger: config.selectionTranslatorTrigger, hotkey: config.selectionTranslatorHotkey })}`);
-  if (label === '自定义') {
-    assert(config.customSelectionTranslatorHotkey === 'F9', `自定义快捷键没有保存：${config.customSelectionTranslatorHotkey}`);
-  }
-  return { label, trigger: config.selectionTranslatorTrigger, hotkey: config.selectionTranslatorHotkey, customHotkey: config.customSelectionTranslatorHotkey || '' };
 }
 
-async function setSelectionDelay(popup, drawer, worker, delay, settleMs = 500) {
+async function waitForSelectionTriggerState(popup, drawer, storagePage, label, timeout = 10000) {
+  const expected = expectedSelectionTrigger(label);
+  const deadline = Date.now() + timeout;
+  let lastState = null;
+  while (Date.now() < deadline) {
+    const selected = await drawer.locator('.selection-trigger-chips button.selected').textContent();
+    const config = await readStoredConfig(storagePage);
+    lastState = {
+      selected,
+      trigger: config.selectionTranslatorTrigger,
+      hotkey: config.selectionTranslatorHotkey,
+      customHotkey: config.customSelectionTranslatorHotkey || '',
+    };
+    if (selected?.includes(label)
+      && config.selectionTranslatorTrigger === expected.trigger
+      && config.selectionTranslatorHotkey === expected.hotkey
+      && (label !== '自定义' || config.customSelectionTranslatorHotkey === 'F9')) {
+      return { label, ...lastState };
+    }
+    await popup.waitForTimeout(100);
+  }
+  throw new Error(`选择 ${label} 后 UI/配置未稳定：${JSON.stringify(lastState)}`);
+}
+
+async function setSelectionTrigger(popup, drawer, storagePage, label) {
+  await activateInputPage(popup);
+  await drawer.locator('.selection-trigger-chips button').filter({ hasText: label }).click();
+  await popup.waitForTimeout(500);
+
+  if (label === '自定义') {
+    let dialog = popup.locator('.custom-hotkey-dialog:visible').last();
+    try {
+      await dialog.waitFor({ state: 'visible', timeout: 3000 });
+    } catch {
+      const recordButton = drawer.getByRole('button', { name: /录制自定义快捷键|当前：/ });
+      await recordButton.click();
+      dialog = popup.locator('.custom-hotkey-dialog:visible').last();
+    }
+    await dialog.waitFor({ state: 'visible', timeout: 10000 });
+    await dialog.locator('.preset-button').filter({ hasText: 'F9' }).click();
+    await dialog.getByRole('button', { name: '确认', exact: true }).click();
+    await popup.waitForTimeout(600);
+  }
+
+  return waitForSelectionTriggerState(popup, drawer, storagePage, label);
+}
+
+async function setSelectionDelay(popup, drawer, storagePage, delay, settleMs = 500) {
+  await activateInputPage(popup);
   const input = drawer.locator('input[aria-label="划词翻译显示延迟"]');
   await input.fill(String(delay));
   await input.press('Tab');
   await popup.waitForTimeout(settleMs);
-  const config = await readStoredConfig(worker);
+  const config = await readStoredConfig(storagePage);
   assert(config.selectionTranslatorDelay === delay,
     `划词显示延迟没有保存：期望 ${delay}，实际 ${config.selectionTranslatorDelay}`);
   return config.selectionTranslatorDelay;
@@ -494,6 +548,7 @@ async function main() {
     consoleErrors: [],
     launchMode: null,
     focusPolicy: null,
+    windowPlacement: null,
   };
   let translationRequestCount = 0;
   const translationRequestEvents = [];
@@ -505,10 +560,9 @@ async function main() {
       `--load-extension=${args.extensionDir}`,
       '--no-first-run',
       '--no-default-browser-check',
-      ...(args.headed ? [] : ['--start-minimized', '--window-position=-10000,-10000']),
     ];
-    if (args.focusSafeHelper && !args.headed) {
-      const focusSafe = require(args.focusSafeHelper);
+    if (!args.headed) {
+      const focusSafe = loadFocusSafeBrowser(args.focusSafeHelper);
       const browserSession = await focusSafe.launchFocusSafePersistentContext({
         chromium,
         profileDir,
@@ -524,6 +578,7 @@ async function main() {
       activateInputPage = page => focusSafe.activateExtensionTabWithoutForeground(context, page);
       result.launchMode = browserSession.launchMode;
       result.focusPolicy = browserSession.focusPolicy;
+      result.windowPlacement = browserSession.windowPlacement;
     } else {
       context = await chromium.launchPersistentContext(profileDir, {
         executablePath: args.browserPath,
@@ -531,10 +586,17 @@ async function main() {
         args: browserArgs,
         viewport: { width: 1280, height: 900 },
       });
-      result.launchMode = args.headed ? 'playwright-headed' : 'playwright-minimized-fallback';
-      result.focusPolicy = args.headed ? 'foreground-authorized' : 'best-effort-minimized';
+      result.launchMode = 'playwright-headed';
+      result.focusPolicy = 'foreground-authorized';
+      result.windowPlacement = { mode: 'headed-explicit-foreground', windowState: 'normal', viewport: { width: 1280, height: 900 } };
     }
-    const { worker, extensionId } = await waitForWorker(context);
+    const {worker, extensionId} = await waitForWorker(context);
+    const attachWorkerDiagnostics = (target) => {
+      target.on('console', (message) => {
+        result.consoleErrors.push(`worker ${message.type()}: ${message.text()}`);
+      });
+    };
+    attachWorkerDiagnostics(worker);
     result.extensionId = extensionId;
 
     await context.route('https://example.com/**', async (route) => {
@@ -566,9 +628,15 @@ async function main() {
 
     const popup = await createIsolatedPage(context);
     popup.on('pageerror', (error) => result.consoleErrors.push(`popup pageerror: ${error.message}`));
-    popup.on('console', (message) => { if (message.type() === 'error') result.consoleErrors.push(`popup console: ${message.text()}`); });
+    popup.on('console', (message) => {
+      if (message.type() === 'error' || message.text().includes('保存 popup 设置失败')) {
+        result.consoleErrors.push(`popup ${message.type()}: ${message.text()}`);
+      }
+    });
     await popup.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await popup.locator('.popup-shell').waitFor({ state: 'visible', timeout: 60000 });
+    await popup.locator('.popup-shell[data-config-ready="true"]').waitFor({ state: 'visible', timeout: 60000 });
+    await assertBackgroundRoundTrip(popup);
 
     const page = await createIsolatedPage(context);
     page.on('pageerror', (error) => result.consoleErrors.push(`pageerror: ${error.message}`));
@@ -581,7 +649,7 @@ async function main() {
     await page.locator('#fluent-read-selection-translator-container').waitFor({ state: 'attached', timeout: 10000 });
     await setSelectionMode(popup, drawer, '双语显示');
 
-    const initialDelayConfig = await readStoredConfig(worker);
+    const initialDelayConfig = await readStoredConfig(popup);
     const initialDelayInput = await drawer.locator('input[aria-label="划词翻译显示延迟"]').inputValue();
     assert(initialDelayConfig.selectionTranslatorDelay === 300 && initialDelayInput === '300',
       `Popup 没有显示默认 300ms 延迟：${JSON.stringify({ stored: initialDelayConfig.selectionTranslatorDelay, input: initialDelayInput })}`);
@@ -604,23 +672,38 @@ async function main() {
     optionsPage.on('console', (message) => { if (message.type() === 'error') result.consoleErrors.push(`options console: ${message.text()}`); });
     await optionsPage.goto(`chrome-extension://${extensionId}/options.html#settings-shortcuts`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     const optionsDelayInput = optionsPage.locator('input[aria-label="划词翻译显示延迟"]');
-    await optionsDelayInput.waitFor({ state: 'visible', timeout: 60000 });
+    try {
+      await optionsDelayInput.waitFor({ state: 'visible', timeout: 15000 });
+    } catch (error) {
+      const diagnostic = await optionsPage.evaluate(async () => ({
+        hash: location.hash,
+        activeSection: document.querySelector('.sidebar button.active')?.getAttribute('data-section') || '',
+        storedConfig: (await chrome.storage.local.get('config')).config || {},
+        numberInputs: [...document.querySelectorAll('input[type="number"]')].map(input => ({
+          ariaLabel: input.getAttribute('aria-label') || '',
+          section: input.closest('.settings-section')?.id || '',
+          value: input.value,
+          visible: Boolean(input.getClientRects().length),
+        })),
+      }));
+      throw new Error(`完整配置页未显示划词翻译延迟控件：${JSON.stringify(diagnostic)}`, { cause: error });
+    }
     assert(await optionsDelayInput.inputValue() === '300', `完整配置页延迟值错误：${await optionsDelayInput.inputValue()}`);
     await optionsDelayInput.fill('450');
     await optionsDelayInput.press('Tab');
     await optionsPage.waitForTimeout(700);
-    assert((await readStoredConfig(worker)).selectionTranslatorDelay === 450, '完整配置页没有保存 450ms 延迟');
+    assert((await readStoredConfig(popup)).selectionTranslatorDelay === 450, '完整配置页没有保存 450ms 延迟');
     await popup.waitForFunction(() => document.querySelector('input[aria-label="划词翻译显示延迟"]')?.value === '450');
     const optionsDelayScreenshot = path.join(args.artifactsDir, 'options-selection-delay.png');
     await optionsPage.screenshot({ path: optionsDelayScreenshot });
     result.screenshots.push(optionsDelayScreenshot);
     result.cases.push({ id: 'ui.options-popup-delay-persistence', status: 'passed', configuredDelay: 450 });
     await optionsPage.close();
-    await setSelectionDelay(popup, drawer, worker, 300);
+    await setSelectionDelay(popup, drawer, popup, 300);
 
     // 显示延迟：计时期间不显示 UI、不发翻译请求；改选后旧计时器必须失效。
-    await setSelectionDelay(popup, drawer, worker, 800);
-    await setSelectionTrigger(popup, drawer, worker, '直接弹出');
+    await setSelectionDelay(popup, drawer, popup, 800);
+    await setSelectionTrigger(popup, drawer, popup, '直接弹出');
     await resetFixture(page);
     await startSelectionUiTracking(page);
     const delayedRequestsBefore = translationRequestCount;
@@ -681,8 +764,8 @@ async function main() {
     result.cases.push({ id: 'delay.changed-selection-invalidates-old-timer', status: 'passed', ui: replacementUi });
 
     await closeSelectionUi(page);
-    await setSelectionDelay(popup, drawer, worker, 1000);
-    await setSelectionTrigger(popup, drawer, worker, 'Ctrl');
+    await setSelectionDelay(popup, drawer, popup, 1000);
+    await setSelectionTrigger(popup, drawer, popup, 'Ctrl');
     await resetFixture(page);
     const shortcutDelayRequestsBefore = translationRequestCount;
     await selectTextWithDomRange(page, '#target');
@@ -695,20 +778,20 @@ async function main() {
 
     // Popup 在线修改延迟后，当前页面按原选区时间重算剩余时长，无需刷新。
     await closeSelectionUi(page);
-    await setSelectionTrigger(popup, drawer, worker, '直接弹出');
+    await setSelectionTrigger(popup, drawer, popup, '直接弹出');
     await resetFixture(page);
     await selectTextWithDomRange(page, '#target');
     await page.waitForTimeout(150);
     assert(!(await readSelectionUi(page)).tooltip, '在线修改延迟前翻译框已提前显示');
-    await setSelectionDelay(popup, drawer, worker, 200, 100);
+    await setSelectionDelay(popup, drawer, popup, 200, 100);
     await waitForSelectionUi(page, { tooltip: true, indicator: false, translation: true }, '在线缩短延迟后显示当前选区');
     result.cases.push({ id: 'delay.live-popup-reschedule', status: 'passed', configuredDelay: 200 });
 
     await closeSelectionUi(page);
-    await setSelectionDelay(popup, drawer, worker, 0);
-    await patchStoredConfig(worker, { to: 'fr' });
+    await setSelectionDelay(popup, drawer, popup, 0);
+    await patchStoredConfig(popup, { to: 'fr' });
     await page.waitForTimeout(700);
-    await setSelectionTrigger(popup, drawer, worker, '直接弹出');
+    await setSelectionTrigger(popup, drawer, popup, '直接弹出');
     await resetFixture(page);
     translationResponseDelayMs = 500;
     const sameTextRequestsBefore = translationRequestCount;
@@ -724,9 +807,9 @@ async function main() {
     result.cases.push({ id: 'delay.zero-and-same-text-no-stale-result', status: 'passed', pendingUi: sameTextPendingUi });
 
     await closeSelectionUi(page);
-    await patchStoredConfig(worker, { to: 'zh-Hans' });
+    await patchStoredConfig(popup, { to: 'zh-Hans' });
     await page.waitForTimeout(700);
-    await setSelectionDelay(popup, drawer, worker, 300);
+    await setSelectionDelay(popup, drawer, popup, 300);
 
     // 视觉触发方式：Popup 改设置后不刷新页面，真实鼠标划词仍应反映新模式。
     for (const mode of [
@@ -734,7 +817,7 @@ async function main() {
       { label: '显示小点', className: 'fr-selection-indicator fr-selection-indicator--dot' },
     ]) {
       await closeSelectionUi(page);
-      const popupState = await setSelectionTrigger(popup, drawer, worker, mode.label);
+      const popupState = await setSelectionTrigger(popup, drawer, popup, mode.label);
       await resetFixture(page);
       const selection = await selectTarget(page);
       await waitForSelectionUi(page, { indicator: true, tooltip: false, indicatorClass: mode.className }, `${mode.label} 显示入口`);
@@ -751,7 +834,7 @@ async function main() {
     }
 
     await closeSelectionUi(page);
-    const directPopupState = await setSelectionTrigger(popup, drawer, worker, '直接弹出');
+    const directPopupState = await setSelectionTrigger(popup, drawer, popup, '直接弹出');
     await resetFixture(page);
     const directSelection = await selectTarget(page);
     await waitForSelectionUi(page, { tooltip: true, indicator: false, translation: true, resultPrefix: '测试译文：' }, '直接弹出翻译框');
@@ -765,7 +848,7 @@ async function main() {
     // 显示方式：双语和仅译文应分别渲染对应内容。
     await closeSelectionUi(page);
     await setSelectionMode(popup, drawer, '仅译文');
-    await setSelectionTrigger(popup, drawer, worker, '直接弹出');
+    await setSelectionTrigger(popup, drawer, popup, '直接弹出');
     await resetFixture(page);
     await selectTarget(page);
     await waitForSelectionUi(page, { tooltip: true, original: false, translation: true, resultPrefix: '测试译文：' }, '仅译文模式');
@@ -794,7 +877,7 @@ async function main() {
     // 预设快捷键：选区旁不显示图标/小点，按对应键后直接打开翻译框。
     for (const label of ['Ctrl', 'Alt / Option', 'Shift']) {
       await closeSelectionUi(page);
-      const popupState = await setSelectionTrigger(popup, drawer, worker, label);
+      const popupState = await setSelectionTrigger(popup, drawer, popup, label);
       await resetFixture(page);
       await selectTarget(page);
       await page.waitForTimeout(350);
@@ -813,8 +896,8 @@ async function main() {
     // 冲突优先级与稳定性：Ctrl 同时配置为划词和鼠标悬浮快捷键时，
     // 有有效选区必须只打开划词框；没有选区时仍回退到悬浮翻译。
     await closeSelectionUi(page);
-    const conflictPopupState = await setSelectionTrigger(popup, drawer, worker, 'Ctrl');
-    await patchStoredConfig(worker, { hotkey: 'Control', customHotkey: '', floatingBallHotkey: 'Control' });
+    const conflictPopupState = await setSelectionTrigger(popup, drawer, popup, 'Ctrl');
+    await patchStoredConfig(popup, { hotkey: 'Control', customHotkey: '', floatingBallHotkey: 'Control' });
     await page.waitForTimeout(700);
     await resetFixture(page);
     const conflictSelection = await selectTarget(page);
@@ -827,8 +910,8 @@ async function main() {
     const conflictPageTranslationCount = await page.locator('.fluent-read-bilingual-content').count();
     assert(conflictPageTranslationCount === 0, `快捷键冲突时同时触发了全文翻译：${conflictPageTranslationCount}`);
     const requestsAfterOpen = translationRequestCount;
-    const configBeforeRefresh = await readStoredConfig(worker);
-    await patchStoredConfig(worker, { contextMenuEnabled: configBeforeRefresh.contextMenuEnabled === false });
+    const configBeforeRefresh = await readStoredConfig(popup);
+    await patchStoredConfig(popup, { contextMenuEnabled: configBeforeRefresh.contextMenuEnabled === false });
     await page.waitForTimeout(700);
     const configRefreshTransitions = await stopSelectionUiTracking(page);
     const firstVisibleTransition = configRefreshTransitions.findIndex(item => item.tooltip);
@@ -868,7 +951,7 @@ async function main() {
 
     // 划词与全文共享快捷键、但悬浮不共享时：没有选区应在 keyup 回退全文翻译。
     await closeSelectionUi(page);
-    await patchStoredConfig(worker, { hotkey: 'none', customHotkey: '', floatingBallHotkey: 'Control' });
+    await patchStoredConfig(popup, { hotkey: 'none', customHotkey: '', floatingBallHotkey: 'Control' });
     await page.waitForTimeout(700);
     await resetFixture(page);
     await clearPageSelection(page);
@@ -886,7 +969,7 @@ async function main() {
     await page.waitForFunction(() => document.querySelectorAll('.fluent-read-bilingual-content').length === 0, undefined, { timeout: 10000 });
 
     await closeSelectionUi(page);
-    const customPopupState = await setSelectionTrigger(popup, drawer, worker, '自定义');
+    const customPopupState = await setSelectionTrigger(popup, drawer, popup, '自定义');
     await resetFixture(page);
     await selectTarget(page);
     await page.waitForTimeout(350);
@@ -902,7 +985,7 @@ async function main() {
     result.cases.push({ id: 'shortcut.custom', status: 'passed', popupState: customPopupState, beforeShortcut: beforeCustom, afterShortcut: afterCustom });
 
     await closeSelectionUi(page);
-    await patchStoredConfig(worker, {
+    await patchStoredConfig(popup, {
       hotkey: 'custom',
       customHotkey: 'F9',
       floatingBallHotkey: 'custom',
@@ -932,8 +1015,8 @@ async function main() {
       { label: '自定义', hoverHotkey: 'custom', customHotkey: 'F9' },
     ]) {
       await closeSelectionUi(page);
-      const popupState = await setSelectionTrigger(popup, drawer, worker, conflictCase.label);
-      await patchStoredConfig(worker, { hotkey: conflictCase.hoverHotkey, customHotkey: conflictCase.customHotkey });
+      const popupState = await setSelectionTrigger(popup, drawer, popup, conflictCase.label);
+      await patchStoredConfig(popup, { hotkey: conflictCase.hoverHotkey, customHotkey: conflictCase.customHotkey });
       await page.waitForTimeout(700);
       await resetFixture(page);
       await selectTarget(page);
@@ -957,11 +1040,14 @@ async function main() {
       result.cases.push({ id: `conflict.${conflictCase.label}.hover-fallback`, status: 'passed', ui: hoverUi });
     }
 
-    result.finalConfig = await readStoredConfig(worker);
+    result.finalConfig = await readStoredConfig(popup);
     result.ok = result.cases.every(item => item.status === 'passed') && result.consoleErrors.length === 0;
+    if (!result.ok) throw new Error(`划词浏览器回归未通过：${JSON.stringify({consoleErrors: result.consoleErrors})}`);
+    fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), `${JSON.stringify(result, null, 2)}\n`);
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   } catch (error) {
     result.error = error.stack || error.message || String(error);
+    fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), `${JSON.stringify(result, null, 2)}\n`);
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     process.exitCode = 1;
   } finally {

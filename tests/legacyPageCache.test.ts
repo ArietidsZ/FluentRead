@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   clearLegacyPageTranslationCache,
   type LegacyPageStorage,
-} from '@/entrypoints/utils/legacyPageCache';
+} from '@/src/services/translation/legacyPageCache';
 
 function createStorage(entries: Record<string, string>): LegacyPageStorage & { snapshot: () => Record<string, string> } {
   const values = new Map(Object.entries(entries));
@@ -38,5 +38,40 @@ describe('legacy page cache migration', () => {
 
     expect(clearLegacyPageTranslationCache(broken)).toBe(0);
     expect(broken.removeItem).not.toHaveBeenCalled();
+  });
+
+  it('removes a standalone timestamp but leaves unrelated and sparse keys untouched', () => {
+    const values = new Map([['hostPreference', 'keep-me'], ['flLastSessionTimestamp', '1234']]);
+    const storage: LegacyPageStorage & {snapshot: () => Record<string, string>} = {
+      get length() { return 3; },
+      key(index) { return index === 0 ? null : [...values.keys()][index - 1] ?? null; },
+      getItem(key) { return values.get(key) ?? null; },
+      removeItem(key) { values.delete(key); },
+      snapshot() { return Object.fromEntries(values); },
+    };
+
+    expect(clearLegacyPageTranslationCache(storage)).toBe(0);
+    expect(storage.snapshot()).toEqual({hostPreference: 'keep-me'});
+
+    expect(clearLegacyPageTranslationCache(createStorage({hostPreference: 'still-here'}))).toBe(0);
+  });
+
+  it('uses page localStorage by default without touching host-owned records', () => {
+    const originalWindow = globalThis.window;
+    const storage = createStorage({
+      hostPreference: 'keep-me',
+      flcache_owned: 'delete-me',
+    });
+    Object.defineProperty(globalThis, 'window', {
+      value: {localStorage: storage},
+      configurable: true,
+    });
+
+    try {
+      expect(clearLegacyPageTranslationCache()).toBe(1);
+      expect(storage.snapshot()).toEqual({hostPreference: 'keep-me'});
+    } finally {
+      Object.defineProperty(globalThis, 'window', {value: originalWindow, configurable: true});
+    }
   });
 });

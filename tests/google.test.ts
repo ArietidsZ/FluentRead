@@ -7,13 +7,13 @@ const {mockConfig} = vi.hoisted(() => ({
     },
 }));
 
-vi.mock('@/entrypoints/utils/config', () => ({config: mockConfig}));
+vi.mock('@/src/services/config/store', () => ({config: mockConfig}));
 
 import google, {
     parseGoogleBatchResponse,
     parseGoogleLegacyResponse,
     translateGoogleText,
-} from '@/entrypoints/service/google';
+} from '@/src/providers/translation/google';
 
 const fetchMock = vi.fn<typeof fetch>();
 

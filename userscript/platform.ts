@@ -1,19 +1,19 @@
-import {translateMicrosoftTexts} from '@/entrypoints/service/microsoft';
-import {runTranslationServiceConnectionTest} from '@/entrypoints/service/connection-test';
+import {translateMicrosoftTexts} from '@/src/providers/translation/microsoft';
+import {runTranslationServiceConnectionTest} from '@/src/providers/translation/connectionTest';
 import {
     applyConfigHistoryAction,
     configReady,
     CONFIG_HISTORY_MESSAGE,
     CONFIG_PERSIST_MESSAGE,
     saveConfig,
-} from '@/entrypoints/utils/config';
-import {CONNECTION_TEST_MESSAGE} from '@/entrypoints/utils/constant';
+} from '@/src/services/config/store';
+import {CONNECTION_TEST_MESSAGE} from '@/src/core/config/constants';
 import {
     cleanupTranslationCache,
     clearTranslationCache,
     translateWithCache,
-} from '@/entrypoints/utils/translationBroker';
-import {lookupWord} from '@/entrypoints/utils/wordDictionary';
+} from '@/src/app/translation/runtime';
+import {lookupWord} from '@/src/features/selection-translation/services/wordDictionary';
 import {UNHANDLED_RUNTIME_MESSAGE} from './browser';
 
 const UNSUPPORTED_CAPABILITY_MESSAGE = '该功能依赖浏览器扩展权限，userscript 版本暂不支持';

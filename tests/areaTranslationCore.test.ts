@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { areaRectToImageCrop, isAreaHotkey, isAreaZKey, isUsableAreaRect, normalizeAreaRect } from '@/entrypoints/utils/areaTranslationCore';
+import { areaRectToImageCrop, isAreaHotkey, isAreaZKey, isUsableAreaRect, normalizeAreaRect } from '@/src/features/area-translation/core';
 
 describe('圈选翻译快捷键', () => {
     it('只接受 Shift+Z，不拦截单独的 Z', () => {
@@ -21,6 +21,12 @@ describe('圈选翻译区域几何', () => {
             top: 40,
             width: 480,
             height: 320,
+        });
+        expect(normalizeAreaRect({ x: Number.NaN, y: Number.POSITIVE_INFINITY }, { x: 8, y: 9 }, { width: Number.NaN, height: 0 })).toEqual({
+            left: 0,
+            top: 0,
+            width: 1,
+            height: 1,
         });
     });
 

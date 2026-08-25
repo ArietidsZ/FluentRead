@@ -8,23 +8,23 @@ const mocks = vi.hoisted(() => ({
     translateTextBatch: vi.fn(),
 }));
 
-vi.mock('@/entrypoints/utils/config', () => ({
+vi.mock('@/src/services/config/store', () => ({
     config: mocks.config,
     configReady: Promise.resolve(),
 }));
 
-vi.mock('@/entrypoints/utils/option', () => ({
+vi.mock('@/src/core/config/catalog', () => ({
     services: {microsoft: 'microsoft', freeTranslation: 'freeTranslation'},
 }));
 
-vi.mock('@/entrypoints/utils/translateApi', () => ({
+vi.mock('@/src/app/translation/client', () => ({
     translateText: mocks.translateText,
     translateTextBatch: mocks.translateTextBatch,
 }));
 
-import {getDocumentFormat, parseDocument, renderDocument} from '@/entrypoints/utils/documentTranslation';
-import {createDocumentDownload, parseBinaryDocument, type PdfPageRasterizer} from '@/entrypoints/utils/documentTranslationBinary';
-import {translateDocumentSegments} from '@/entrypoints/utils/documentTranslationApi';
+import {getDocumentFormat, parseDocument, renderDocument} from '@/src/features/document-translation/core/document';
+import {createDocumentDownload, parseBinaryDocument, type PdfPageRasterizer} from '@/src/features/document-translation/services/binary';
+import {translateDocumentSegments} from '@/src/app/document-translation/runtime';
 import {
     DOCUMENT_BINARY_EXAMPLES,
     DOCUMENT_EXAMPLES,

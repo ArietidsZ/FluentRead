@@ -8,8 +8,15 @@ function source(path: string): string {
 
 describe('host-page trust boundary', () => {
   it('does not expose page-dispatchable configuration or full-page controls', () => {
-    const content = source('entrypoints/content.ts');
-    const floatingBall = source('components/FloatingBall.vue');
+    const content = [
+      source('entrypoints/content.ts'),
+      source('src/app/content/runtime.ts'),
+      source('src/app/content/hotkeyRuntime.ts'),
+      source('src/app/content/messageRuntime.ts'),
+      source('src/features/hover-translation/content/index.ts'),
+      source('src/features/input-translation/content/index.ts'),
+    ].join('\n');
+    const floatingBall = source('src/features/floating-ball/ui/FloatingBall.vue');
 
     expect(existsSync(resolve(process.cwd(), 'entrypoints/utils/newApi.ts'))).toBe(false);
     expect(content).not.toContain('fluent:prefill');
@@ -19,11 +26,18 @@ describe('host-page trust boundary', () => {
   });
 
   it('rejects synthetic input before network and screenshot side effects', () => {
-    const content = source('entrypoints/content.ts');
-    const area = source('components/AreaTranslator.vue');
-    const selection = source('components/SelectionTranslator.vue');
-    const image = source('entrypoints/utils/imageTranslation.ts');
-    const video = source('entrypoints/main/videoSubtitle.ts');
+    const content = [
+      source('entrypoints/content.ts'),
+      source('src/app/content/runtime.ts'),
+      source('src/app/content/hotkeyRuntime.ts'),
+      source('src/app/content/messageRuntime.ts'),
+      source('src/features/hover-translation/content/index.ts'),
+      source('src/features/input-translation/content/index.ts'),
+    ].join('\n');
+    const area = source('src/features/area-translation/ui/AreaTranslator.vue');
+    const selection = source('src/features/selection-translation/ui/SelectionTranslator.vue');
+    const image = source('src/features/image-translation/content/runtime.ts');
+    const video = source('src/features/video-subtitle/content/runtime.ts');
 
     expect(content.match(/if \(!event\.isTrusted\) return;/g)?.length).toBeGreaterThanOrEqual(10);
     expect(area.match(/if \(!event\.isTrusted\) return;/g)?.length).toBeGreaterThanOrEqual(6);
@@ -33,10 +47,10 @@ describe('host-page trust boundary', () => {
   });
 
   it('keeps privileged controls and translated bitmaps out of page-visible shadow roots', () => {
-    expect(source('entrypoints/utils/floatingBall.ts')).toContain("mode: 'closed'");
-    expect(source('entrypoints/utils/selectionTranslator.ts')).toContain("mode: 'closed'");
-    expect(source('entrypoints/content.ts')).toContain("mode: 'closed'");
-    expect(source('entrypoints/utils/areaTranslator.ts')).toContain("mode: 'closed'");
-    expect(source('entrypoints/utils/imageTranslation.ts')).toContain("attachShadow({ mode: 'closed' })");
+    expect(source('src/features/floating-ball/content/runtime.ts')).toContain("mode: 'closed'");
+    expect(source('src/features/selection-translation/content/runtime.ts')).toContain("mode: 'closed'");
+    expect(source('src/features/input-translation/content/index.ts')).toContain("mode: 'closed'");
+    expect(source('src/features/area-translation/content/runtime.ts')).toContain("mode: 'closed'");
+    expect(source('src/features/image-translation/content/runtime.ts')).toContain("attachShadow({ mode: 'closed' })");
   });
 });

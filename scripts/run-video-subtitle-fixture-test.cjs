@@ -19,6 +19,42 @@ function loadPlaywright(root) {
   }
 }
 
+function loadFocusSafeBrowser(helperPath) {
+  if (!helperPath) throw new Error('必须传入 --focus-safe-helper，确保真实浏览器在后台隔离运行');
+  const resolved = path.resolve(helperPath);
+  if (!fs.existsSync(resolved)) throw new Error(`找不到后台浏览器辅助脚本：${resolved}`);
+  const helper = require(resolved);
+  if (typeof helper.launchFocusSafePersistentContext !== 'function'
+    || typeof helper.newPageWithoutForeground !== 'function'
+    || typeof helper.activateExtensionTabWithoutForeground !== 'function') {
+    throw new Error('后台浏览器辅助脚本缺少所需接口');
+  }
+  return helper;
+}
+
+function assertDedicatedTemporaryProfile(profileDir) {
+  const resolved = path.resolve(profileDir);
+  const temporaryRoot = path.resolve(os.tmpdir());
+  const relativeToTemp = path.relative(temporaryRoot, resolved);
+  if (relativeToTemp.startsWith('..') || path.isAbsolute(relativeToTemp)) {
+    throw new Error(`profile 不在系统临时目录：${resolved}`);
+  }
+
+  const home = os.homedir();
+  const forbidden = [
+    path.join(home, 'Library/Application Support/Google/Chrome'),
+    path.join(home, 'Library/Application Support/Microsoft Edge'),
+    path.join(home, '.config/google-chrome'),
+    path.join(home, '.config/microsoft-edge'),
+  ];
+  if (forbidden.some((root) => {
+    const relative = path.relative(root, resolved);
+    return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+  })) {
+    throw new Error(`拒绝使用日常浏览器 profile：${resolved}`);
+  }
+}
+
 const fixtureConfigClientId = `video-subtitle-fixture-${process.pid}-${Date.now()}`;
 let fixtureConfigSequence = 0;
 
@@ -83,64 +119,93 @@ const FIXTURE_NATIVE_VIDEO_DATA_URL = [
 async function main() {
   const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
   const playwrightRoot = arg('playwright-root', process.env.PLAYWRIGHT_ROOT);
-  const url = arg('url', 'https://www.youtube.com/watch?v=drSMZgnmJjk');
+  const url = arg('url', 'https://www.youtube.com/watch?v=fluentread-offline-fixture');
   const artifactsDir = path.resolve(arg('artifacts-dir', path.join(os.tmpdir(), 'fluentread-video-subtitle-fixture')));
   const browserPath = arg('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge');
+  const focusSafeHelper = arg('focus-safe-helper', process.env.FLUENTREAD_FOCUS_SAFE_HELPER || '');
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-edge-video-fixture-'));
+  assertDedicatedTemporaryProfile(profileDir);
   if (!fs.existsSync(path.join(extensionDir, 'manifest.json'))) throw new Error(`找不到扩展构建：${extensionDir}`);
   fs.mkdirSync(artifactsDir, { recursive: true });
 
   const { chromium } = loadPlaywright(playwrightRoot);
-  const context = await chromium.launchPersistentContext(profileDir, {
-    executablePath: browserPath,
+  const {
+    activateExtensionTabWithoutForeground,
+    launchFocusSafePersistentContext,
+    newPageWithoutForeground,
+  } = loadFocusSafeBrowser(focusSafeHelper);
+  const browserSession = await launchFocusSafePersistentContext({
+    chromium,
+    profileDir,
+    browserPath,
     headless: false,
-    args: [
+    background: true,
+    browserArgs: [
       `--disable-extensions-except=${extensionDir}`,
       `--load-extension=${extensionDir}`,
-      '--start-minimized',
-      '--window-position=-10000,-10000',
       '--no-first-run',
       '--no-default-browser-check',
     ],
     viewport: { width: 1280, height: 900 },
   });
+  const context = browserSession.context;
+  const createPage = () => newPageWithoutForeground(context);
+  const activatePage = (page) => activateExtensionTabWithoutForeground(context, page);
 
   let translationRequests = 0;
   const translationSources = [];
   const aiTranslationSources = [];
-  let navigationMode = 'live-youtube';
-  await context.route('https://edge.microsoft.com/translate/translatetext**', async (route) => {
-    translationRequests += 1;
-    const body = route.request().postDataJSON();
-    const source = Array.isArray(body) ? String(body[0] || '') : '';
-    translationSources.push(source);
-    const fixtureTranslations = {
-      'and the housing market took a hit.': '房地产市场受到了冲击。',
-      'Download translated subtitle.': '可下载的译文字幕。',
-      'Offline viewing stays in sync.': '离线观看仍与时间轴同步。',
-      'understand from [music] the axioms and the basics.': '从音乐中理解公理和基础。',
-      'Timeline subtitle catches up.': '时间轴已追上字幕。',
-      'This subtitle was translated in advance.': '预先翻译的字幕。',
-    };
-    const translated = fixtureTranslations[source] || `【译文】${source}`;
-    if (source === 'Download translated subtitle.' || source === 'Offline viewing stays in sync.') {
-      await new Promise(resolve => setTimeout(resolve, 300));
+  const navigationMode = 'offline-youtube-fixture';
+  const unexpectedNetworkRequests = [];
+  await context.route('**/*', async (route) => {
+    const request = route.request();
+    const requestUrl = new URL(request.url());
+    if (requestUrl.hostname === 'edge.microsoft.com' && requestUrl.pathname === '/translate/translatetext') {
+      translationRequests += 1;
+      const body = request.postDataJSON();
+      const source = Array.isArray(body) ? String(body[0] || '') : '';
+      translationSources.push(source);
+      const fixtureTranslations = {
+        'and the housing market took a hit.': '房地产市场受到了冲击。',
+        'Download translated subtitle.': '可下载的译文字幕。',
+        'Offline viewing stays in sync.': '离线观看仍与时间轴同步。',
+        'understand from [music] the axioms and the basics.': '从音乐中理解公理和基础。',
+        'Timeline subtitle catches up.': '时间轴已追上字幕。',
+        'This subtitle was translated in advance.': '预先翻译的字幕。',
+      };
+      const translated = fixtureTranslations[source] || `【译文】${source}`;
+      if (source === 'Download translated subtitle.' || source === 'Offline viewing stays in sync.') {
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([{ translations: [{ text: translated }] }]),
+      });
+      return;
     }
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify([{ translations: [{ text: translated }] }]),
-    });
-  });
-  await context.route('https://api.openai.com/v1/chat/completions**', async (route) => {
-    const body = route.request().postDataJSON();
-    const source = body?.messages?.findLast?.((message) => message?.role === 'user')?.content || '';
-    aiTranslationSources.push(String(source));
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ choices: [{ message: { content: 'AI预先翻译的字幕。' } }] }),
-    });
+    if (requestUrl.hostname === 'api.openai.com' && requestUrl.pathname === '/v1/chat/completions') {
+      const body = request.postDataJSON();
+      const source = body?.messages?.findLast?.((message) => message?.role === 'user')?.content || '';
+      aiTranslationSources.push(String(source));
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ choices: [{ message: { content: 'AI预先翻译的字幕。' } }] }),
+      });
+      return;
+    }
+    if (requestUrl.hostname === 'www.youtube.com' && requestUrl.pathname === '/api/timedtext') {
+      await route.fulfill({status: 200, contentType: 'application/json', body: JSON.stringify({events: []})});
+      return;
+    }
+    const isNetworkRequest = requestUrl.protocol === 'http:' || requestUrl.protocol === 'https:';
+    if (isNetworkRequest) {
+      unexpectedNetworkRequests.push(request.url());
+      await route.abort('blockedbyclient');
+      return;
+    }
+    await route.continue();
   });
 
   try {
@@ -149,8 +214,9 @@ async function main() {
     const extensionId = worker.url().match(/^chrome-extension:\/\/([^/]+)/)?.[1];
     if (!extensionId) throw new Error(`无法取得扩展 ID：${worker.url()}`);
 
-    const control = await context.newPage();
+    const control = await createPage();
     await control.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: 'domcontentloaded' });
+    await activatePage(control);
     await control.waitForTimeout(500);
     const initialPopupVideoState = await control.evaluate(() => {
       const card = document.querySelector('[data-feature="video-subtitle"]');
@@ -205,26 +271,21 @@ async function main() {
     }
     await control.screenshot({ path: path.join(artifactsDir, 'popup-video-beta-test.png'), fullPage: true });
 
-    let page = await context.newPage();
+    const page = await createPage();
     const pageErrors = [];
+    const consoleErrors = [];
     const collectPageError = (error) => pageErrors.push(error.stack || error.message);
     page.on('pageerror', collectPageError);
-    try {
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (!/ERR_CONNECTION_CLOSED|ERR_TIMED_OUT|ERR_FAILED|chrome-error|interrupted by another navigation/.test(message)) throw error;
-      navigationMode = 'offline-youtube-fixture';
-      await page.close();
-      page = await context.newPage();
-      page.on('pageerror', collectPageError);
-      await page.route(url, (route) => route.fulfill({
-        status: 200,
-        contentType: 'text/html',
-        body: OFFLINE_YOUTUBE_FIXTURE_HTML,
-      }), { times: 1 });
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    }
+    page.on('console', (message) => {
+      if (message.type() === 'error') consoleErrors.push(message.text());
+    });
+    await page.route(url, (route) => route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: OFFLINE_YOUTUBE_FIXTURE_HTML,
+    }), { times: 1 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await activatePage(page);
     await page.waitForTimeout(2500);
     await page.evaluate(() => {
       const description = document.querySelector('meta[name="description"]') || document.createElement('meta');
@@ -694,6 +755,7 @@ async function main() {
     if (progressiveRequests !== 1) {
       throw new Error(`渐进字幕没有合并为单次完整 cue 翻译请求：${JSON.stringify({ progressiveRequests, translationSources })}`);
     }
+    await page.screenshot({path: path.join(artifactsDir, 'video-subtitle-visible.png'), fullPage: false});
 
     await page.evaluate(() => {
       const segment = document.querySelector('#ytp-caption-window-container .ytp-caption-segment');
@@ -934,8 +996,8 @@ async function main() {
 
     await page.locator('#fluent-read-video-subtitle-panel').screenshot({ path: path.join(artifactsDir, 'video-subtitle-panel.png') });
     await page.screenshot({ path: path.join(artifactsDir, 'video-subtitle-fixture-player.png'), fullPage: false });
-    console.log(JSON.stringify({
-      ok: pageErrors.length === 0,
+    const evidence = {
+      ok: pageErrors.length === 0 && consoleErrors.length === 0 && unexpectedNetworkRequests.length === 0,
       url,
       navigationMode,
       playerUi,
@@ -970,10 +1032,20 @@ async function main() {
       translationRequests,
       translationSources,
       pageErrors,
+      consoleErrors,
+      unexpectedNetworkRequests,
       artifactsDir,
-    }, null, 2));
+      launchMode: browserSession.launchMode,
+      focusPolicy: browserSession.focusPolicy,
+      windowPlacement: browserSession.windowPlacement,
+    };
+    fs.writeFileSync(path.join(artifactsDir, 'report.json'), `${JSON.stringify(evidence, null, 2)}\n`);
+    console.log(JSON.stringify(evidence, null, 2));
+    if (!evidence.ok) {
+      throw new Error(`视频字幕浏览器回归未通过：${JSON.stringify({pageErrors, consoleErrors, unexpectedNetworkRequests})}`);
+    }
   } finally {
-    await context.close();
+    await browserSession.close();
     fs.rmSync(profileDir, { recursive: true, force: true });
   }
 }
