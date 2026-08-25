@@ -1,3 +1,11 @@
+<!--
+  @file src/core/translation/README.md
+
+  文件职责：记录翻译候选核心的职责、处理管线、适配器决策模型与验证契约，帮助维护者理解 DOM 到候选文本的统一政策。
+  主要内容：说明 dom、registry、engine、text、serialization 的协作顺序，解释安全守卫、Shadow DOM、站点适配优先级，以及单元与真实站点回归的覆盖要求。
+  模块边界：该文档只描述 core/translation 的维护契约，不充当运行时代码，也不放宽架构测试对 public.ts 公共入口、feature 调度和 provider 边界的限制。
+-->
+
 # Translation core
 
 This directory owns FluentRead's DOM-to-translation-candidate policy. Callers

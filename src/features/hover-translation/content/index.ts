@@ -1,3 +1,9 @@
+/**
+ * @file src/features/hover-translation/content/index.ts
+ * 文件职责：实现按住配置快捷键并移动鼠标触发的悬浮翻译手势控制器，统一管理按键集合、平台差异、节流采样和启停清理。
+ * 主要内容：定义可注入的配置、常量与依赖接口，提供快捷键字符串规范化和匹配函数，并在 mountHoverTranslationContentFeature 中监听 keydown、keyup、pointermove、blur 与 abort。
+ * 模块边界：该模块只识别手势和调用注入的 handleTranslation/cancelPending，不读取具体翻译服务或创建译文；配置源、站点禁用判断和全文运行时由 app composition root 提供。
+ */
 export interface HoverTranslationContentConfig {
     on?: boolean;
     hotkey?: string;

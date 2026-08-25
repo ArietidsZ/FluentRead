@@ -1,3 +1,9 @@
+/**
+ * @file src/app/content/featureLifecycle.ts
+ * 文件职责：解决 content 异步功能在快速禁用再启用时复用旧挂载 Promise 的竞态，保证仍被需要的功能最终拥有实际宿主。
+ * 主要内容：声明 mount、isMounted、isStillDesired 三个所有权回调；先等待功能自己的挂载，再校验当前激活与 DOM 状态，仅在“仍需要但未挂载”时额外重试一次。
+ * 模块边界：本文件不持有 feature 实例、不创建 Shadow DOM，也不无限重试；requestId、宿主节点和卸载资源仍由各具体 feature 管理。
+ */
 export interface EnsureContentFeatureMountedOptions {
     mount: () => unknown | PromiseLike<unknown>;
     isMounted: () => boolean;

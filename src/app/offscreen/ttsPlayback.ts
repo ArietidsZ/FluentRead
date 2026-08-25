@@ -1,3 +1,9 @@
+/**
+ * @file src/app/offscreen/ttsPlayback.ts
+ * 文件职责：管理 Offscreen 中划词 TTS 的单播放所有权，确保新旧请求、停止、结束、错误和 Blob URL 释放按精确 route 隔离。
+ * 主要内容：解析 tabId/clientRequestId 路由及 sourceUrl/base64 音频输入，创建 Audio 端口，给每次播放绑定独立回调与可选 object URL；SelectionTtsPlayer 支持 play、stop、dispose 并回传状态。
+ * 模块边界：播放器不合成语音、不发送后台请求，也不决定 voice/rate；音频构造和状态传输由依赖注入，网络 TTS 与跨上下文路由属于 selection-translation feature。
+ */
 import {
     parseSelectionTtsRoute,
     sameSelectionTtsRoute,

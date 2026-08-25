@@ -1,3 +1,9 @@
+/**
+ * @file src/features/document-translation/ui/pdfPreview.ts
+ * 文件职责：在浏览器 Canvas 环境中为 PDF 文档生成页面预览，并把译文按原页面文本块位置绘制成可嵌入导出 PDF 的 PNG 光栅页。
+ * 主要内容：文件配置 pdfjs worker，加载页面与 viewport，采样背景和前景颜色、换行与缩放译文、生成 PdfPagePreview，并实现 rasterizePdfTranslationPage 适配 services/binary 所需接口。
+ * 模块边界：这里负责视觉光栅化而不决定片段翻译或文件结构；PDF 文本块来自 binary 服务，领域类型来自 core，Canvas/PDF.js 仅应在文档 UI 环境调用，不能进入通用纯算法层。
+ */
 import {
     GlobalWorkerOptions,
     getDocument as getPdfDocument,

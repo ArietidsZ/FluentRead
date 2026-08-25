@@ -1,3 +1,9 @@
+/**
+ * @file src/app/offscreen/translation.ts
+ * 文件职责：封装 Chrome 内置 Translation API 在 Offscreen 环境中的检测、语言规范化、翻译执行和错误解释，并兼容新旧实验接口形态。
+ * 主要内容：定义最小环境与请求契约，验证 from/to 语言码并映射别名，按脚本回退检测语言，创建/销毁 detector 和 translator，支持流式或普通翻译并输出友好不可用原因。
+ * 模块边界：这里不读取扩展配置、不选择第三方 provider，也不监听 runtime 消息；调用协议由 offscreen/messageRouter 管理，宿主能力是否开放由 browser capability 层决定。
+ */
 /** Chrome Translation API 在 Offscreen Document 中暴露的最小能力。 */
 export interface ChromeTranslationEnvironment {
     readonly translation?: {

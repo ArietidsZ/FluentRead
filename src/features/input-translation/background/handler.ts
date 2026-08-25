@@ -1,3 +1,9 @@
+/**
+ * @file src/features/input-translation/background/handler.ts
+ * 文件职责：定义输入框快捷翻译的后台消息处理器，在调用固定翻译依赖前校验原文和目标语言，并统一返回成功译文结构。
+ * 主要内容：包含 inputBoxTranslation 消息常量、请求/响应与依赖接口、非空字符串解析，以及 createInputBoxTranslationHandler 工厂对 translateText 的薄编排。
+ * 模块边界：此文件不监听键盘、不修改输入框也不绑定具体 provider；content feature 负责触发和提交，翻译实现由 background composition root 注入，统一路由负责错误响应。
+ */
 export const INPUT_BOX_TRANSLATION_MESSAGE_TYPE = 'inputBoxTranslation' as const;
 
 export interface InputBoxTranslationMessage {

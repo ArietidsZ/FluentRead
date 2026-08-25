@@ -1,3 +1,9 @@
+/**
+ * @file src/features/input-translation/content/index.ts
+ * 文件职责：实现网页输入框翻译 feature 的可注入生命周期，根据配置识别三连触发符、冻结请求所有权、调用后台并把译文安全提交回原控件。
+ * 主要内容：定义配置、依赖和 feature 契约，提供启用判断、配置键和 input/change 事件写回，创建 closed Shadow tooltip 展示翻译中/成功/失败，并防止元素或配置变化后的迟到提交。
+ * 模块边界：本文件拥有内容页事件与临时 UI，不直接调用 provider 或全局 browser API；sendMessage、Shadow UI、站点禁用和 generation 均由 composition root 注入，输入纯算法来自 inputBox.ts。
+ */
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import type { ShadowRootContentScriptUi } from 'wxt/utils/content-script-ui/shadow-root';
 import {

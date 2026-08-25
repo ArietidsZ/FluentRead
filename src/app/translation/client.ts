@@ -1,4 +1,10 @@
 /**
+ * @file src/app/translation/client.ts
+ * 文件职责：作为页面与后台翻译 broker 之间的客户端代理，统一管理单条、批量和视频字幕翻译的队列、取消、重试、超时、上下文与统计。
+ * 主要内容：冻结服务/模型与语言参数，验证可用凭据上下文，获取页面摘要上下文，使用 runtime.sendMessage 分派请求；维护 AbortSignal、queue lease、指数退避、计数延迟保存及 cancelAllTranslations。
+ * 模块边界：客户端不实现供应商协议、不直接读写翻译缓存，也不修改全文 DOM；后台 runtime/broker 负责 provider 与缓存，调用它的各 feature 负责展示和会话状态。
+ */
+/**
  * 翻译API代理模块
  * 整合翻译队列管理，作为翻译函数和后台翻译服务之间的中间层
  */

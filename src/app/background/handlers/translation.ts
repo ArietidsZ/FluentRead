@@ -1,3 +1,9 @@
+/**
+ * @file src/app/background/handlers/translation.ts
+ * 文件职责：解析没有显式 type 的翻译请求，并把它作为后台消息路由的受控 fallback 接入共享翻译 broker。
+ * 主要内容：校验 text、texts 互斥关系及 endpoint、model、prompt 等可选字符串字段，构造 TranslationRequestMessage；fallback 仅识别合法候选并把结果或序列化错误返回调用方。
+ * 模块边界：本文件只承担协议验证与 fallback 适配，不选择 provider、不缓存结果、不读取配置或凭据；真正的翻译执行由注入的 translateWithCache 完成。
+ */
 import type {BackgroundFallbackHandler} from '../messageRouter';
 import type {
     TranslationRequestMessage,

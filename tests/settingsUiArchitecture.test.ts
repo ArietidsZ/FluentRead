@@ -6,6 +6,12 @@ function source(path: string): string {
   return readFileSync(resolve(process.cwd(), path), 'utf8')
 }
 
+function sourceBody(path: string): string {
+  const content = source(path)
+  const header = content.match(/^\/\*\*[\s\S]*?\*\/\s*/u)?.[0]
+  return header?.includes('@file ' + path) ? content.slice(header.length) : content
+}
+
 describe('options UI composition architecture', () => {
   it('keeps the WXT options entrypoint as a thin app composition shell', () => {
     const entrypoint = source('entrypoints/options/main.ts')
@@ -59,7 +65,7 @@ describe('options UI composition architecture', () => {
   })
 
   it('loads shared tokens before the unchanged settings page rules', () => {
-    const pageStyles = source('src/features/settings/ui/settings-page.css')
+    const pageStyles = sourceBody('src/features/settings/ui/settings-page.css')
     const tokens = source('src/ui/styles/tokens.css')
 
     expect(pageStyles.startsWith('@import "../../../ui/styles/tokens.css";')).toBe(true)
