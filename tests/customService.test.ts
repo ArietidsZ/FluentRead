@@ -15,9 +15,9 @@ const { mockConfig } = vi.hoisted(() => ({
     },
 }));
 
-vi.mock('@/entrypoints/utils/config', () => ({ config: mockConfig }));
+vi.mock('@/src/services/config/store', () => ({ config: mockConfig }));
 
-import {translateWithOpenAICompatibleAiSdk} from '@/entrypoints/service/ai-sdk/openai-compatible';
+import {translateWithOpenAICompatibleAiSdk} from '@/src/providers/translation/ai-sdk/openai-compatible';
 import { customModelString, services } from '@/entrypoints/utils/option';
 
 function successResponse() {

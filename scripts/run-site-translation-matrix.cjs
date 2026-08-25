@@ -17,6 +17,7 @@ const CASE_RUNNER = path.join(__dirname, 'run-site-translation-test.cjs');
 function parseArgs(argv) {
   const args = {
     background: true,
+    allowNetwork: false,
     includeQuarantine: false,
     failOnQuarantine: false,
     list: false,
@@ -30,6 +31,10 @@ function parseArgs(argv) {
     if (token === '--background') continue;
     if (token === '--headed') {
       args.background = false;
+      continue;
+    }
+    if (token === '--allow-network') {
+      args.allowNetwork = true;
       continue;
     }
     if (token === '--include-quarantine') {
@@ -65,6 +70,10 @@ function parseArgs(argv) {
   }
   if (!args.list && !args.extensionDir) throw new Error('必须传入 --extension-dir');
   if (!args.list && !args.playwrightRoot) throw new Error('必须传入 --playwright-root');
+  if (!args.list && !args.allowNetwork) throw new Error('真实网络矩阵必须显式传入 --allow-network');
+  if (!args.list && args.background && !args.focusSafeHelper) {
+    throw new Error('后台模式必须传入 --focus-safe-helper，禁止回退到会抢焦点的 Playwright 启动');
+  }
   return args;
 }
 
@@ -204,6 +213,8 @@ function childArgs(args, name, mode) {
   ];
   if (args.browserPath) values.push('--browser-path', args.browserPath);
   if (args.timeout) values.push('--timeout', args.timeout);
+  if (args.focusSafeHelper) values.push('--focus-safe-helper', args.focusSafeHelper);
+  if (args.allowNetwork) values.push('--allow-network');
   if (args.artifactsDir) values.push('--artifacts-dir', path.join(path.resolve(args.artifactsDir), name, mode));
   return values;
 }

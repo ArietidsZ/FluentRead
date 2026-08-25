@@ -6,8 +6,8 @@ import {
     getDocumentMimeType,
     parseDocument,
     renderDocument,
-} from '@/entrypoints/utils/documentTranslation';
-import {createDocumentPreviewHtml} from '@/entrypoints/utils/documentTranslationPreview';
+} from '@/src/features/document-translation/core/document';
+import {createDocumentPreviewHtml} from '@/src/features/document-translation/core/preview';
 
 describe('document translation parser', () => {
     it('识别首批支持的文件格式并生成下载文件名', () => {

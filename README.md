@@ -39,7 +39,7 @@ FluentRead brings translation into the reading flow. Keep the original text besi
 - **Image translation (Beta)**: local OCR for text in images, with downloadable language packs and a reversible translated overlay.
 - **Translation cache**: reuse recent results for the same service, model, language pair, and request settings.
 - **Explicit data handling**: review what each feature sends and stores in the [data and privacy guide](https://fluent.thinkstu.com/guide/privacy).
-- **Cross-browser support**: build targets for Chromium browsers and Firefox through WXT and Manifest V3.
+- **Cross-browser support**: WXT build targets for Chromium browsers (Manifest V3) and Firefox (Manifest V2).
 
 ## See it in action
 
@@ -87,13 +87,19 @@ An experimental userscript target for Via, Tampermonkey, and Violentmonkey can b
 ```bash
 pnpm install
 pnpm dev
-pnpm test
+pnpm test:audit
+pnpm test:unit
+pnpm test:functional
+pnpm test:regression
+pnpm test:coverage
 pnpm compile
 pnpm build
 pnpm build:userscript
 ```
 
-FluentRead uses Vue 3, TypeScript, Element Plus, WXT, and Manifest V3. The project is licensed under [GPL-3.0](./LICENSE).
+Run `pnpm test:regression:all` for the deterministic one-command regression pipeline (test audit, all grouped tests, strict coverage, cross-browser/userscript builds, and docs). Isolated browser and live-network layers are explicit gates; see the [architecture](./docs/architecture.md) and [testing guide](./docs/testing.md) before contributing a feature.
+
+FluentRead uses Vue 3, TypeScript, Element Plus, and WXT, targeting Chromium Manifest V3 and Firefox Manifest V2. The project is licensed under [GPL-3.0](./LICENSE).
 
 ## Star history
 

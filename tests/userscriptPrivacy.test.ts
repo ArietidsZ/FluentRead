@@ -9,10 +9,11 @@ function readSource(path: string): string {
 describe('standalone userscript privacy boundaries', () => {
     const userscriptStorage = readSource('userscript/storage.ts');
     const userscriptHttp = readSource('userscript/http.ts');
-    const translationCache = readSource('entrypoints/utils/translationCache.ts');
-    const legacyPageCache = readSource('entrypoints/utils/legacyPageCache.ts');
-    const gemini = readSource('entrypoints/service/gemini.ts');
-    const httpError = readSource('entrypoints/utils/httpError.ts');
+    const translationCache = readSource('src/services/translation/cache.ts');
+    const legacyPageCache = readSource('src/services/translation/legacyPageCache.ts');
+    const legacyPageCacheShim = readSource('entrypoints/utils/legacyPageCache.ts');
+    const gemini = readSource('src/providers/translation/gemini.ts');
+    const httpError = readSource('src/platform/http/errors.ts');
 
     it('keeps userscript configuration in GM storage instead of host-page Web Storage', () => {
         expect(userscriptStorage).not.toMatch(/\b(?:localStorage|sessionStorage)\b/);
@@ -26,6 +27,8 @@ describe('standalone userscript privacy boundaries', () => {
         expect(legacyPageCache).toContain('key?.startsWith(LEGACY_TRANSLATION_CACHE_PREFIX)');
         expect(legacyPageCache).toContain('pageStorage.removeItem(LEGACY_CACHE_TIMESTAMP_KEY)');
         expect(legacyPageCache).not.toMatch(/(?:localStorage|sessionStorage)\.clear\(\)/);
+        expect(legacyPageCacheShim).toContain('@deprecated');
+        expect(legacyPageCacheShim).toContain("export * from '@/src/services/translation/legacyPageCache';");
     });
 
     it('uses per-entry hard TTL for the shared IndexedDB translation cache', () => {

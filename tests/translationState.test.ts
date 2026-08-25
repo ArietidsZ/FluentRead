@@ -9,6 +9,7 @@ import {
     isCurrentTranslation,
     markTranslationComplete,
     markTranslationError,
+    restoreAllTranslations,
     restoreTranslation,
     setBilingualContent,
     setRenderedStyleAttribute,
@@ -16,7 +17,7 @@ import {
     setSpinner,
     setTextSlotsApplied,
     type TranslationState,
-} from "@/entrypoints/main/translationState";
+} from "@/src/features/full-page-translation/content/state";
 
 /**
  * 用最小的 DOM 替身测试状态机，不把 jsdom 引入生产依赖。
@@ -31,6 +32,7 @@ class FakeElement {
     classList = { remove: vi.fn() };
     attributes = new Map<string, string>();
     controller?: AbortController;
+    ownerDocument?: Document;
 
     get firstChild(): object | undefined {
         return this.childNodes[0];
@@ -435,5 +437,90 @@ describe("指定节点翻译状态机", () => {
         expect(parent.querySelector("#synthetic")).toBeNull();
         expect(parent.textContent).toContain("inline segment");
         expect(getTranslationOwnersForRemovedNode(synthetic)).toEqual([]);
+    });
+
+    it("未注册节点的 artifact setter 和失败 UI detach 都安全降级", () => {
+        const {document} = parseHTML('<html><body><p id="target">Readable paragraph.</p></body></html>');
+        const target = document.querySelector("#target") as HTMLElement;
+        const artifact = document.createElement("span");
+        const attempt = beginTranslation(target, "bilingual")!;
+
+        expect(restoreTranslation(artifact as HTMLElement)).toBe(false);
+        expect(discardTranslation(artifact as HTMLElement, attempt.state)).toBe(false);
+        expect(detachFailedTranslationUi(target, attempt.state)).toBe(false);
+        setSpinner(artifact as HTMLElement, artifact);
+        setBilingualContent(artifact as HTMLElement, artifact);
+        setRetryWrapper(artifact as HTMLElement, artifact);
+        setRenderedStyleAttribute(artifact as HTMLElement);
+        setTextSlotsApplied(artifact as HTMLElement);
+
+        expect(getTranslationState(artifact as HTMLElement)).toBeUndefined();
+        expect(discardTranslation(target, attempt.state)).toBe(true);
+    });
+
+    it("begin 对空 textContent 和空 Text.nodeValue 使用空字符串快照", () => {
+        const node = new FakeElement();
+        const textNode = {nodeValue: null};
+        node.textContent = null as unknown as string;
+        node.ownerDocument = {
+            createTreeWalker: () => {
+                let returned = false;
+                return {
+                    nextNode: () => {
+                        if (returned) return null;
+                        returned = true;
+                        return textNode;
+                    },
+                };
+            },
+        } as unknown as Document;
+
+        const attempt = beginTranslation(node as unknown as HTMLElement, "single")!;
+
+        expect(attempt.state.sourceText).toBe("");
+        expect(attempt.state.originalTextValues).toEqual([{node: textNode, value: ""}]);
+        expect(discardTranslation(node as unknown as HTMLElement, attempt.state)).toBe(true);
+    });
+
+    it("text-slot 默认记录所有原始文本节点，restoreAllTranslations 可统一清理活跃状态", () => {
+        const {document} = parseHTML(`
+            <html><body>
+                <p id="first">Open <a href="/guide">the guide</a>.</p>
+                <p id="second">Another paragraph.</p>
+            </body></html>
+        `);
+        const first = document.querySelector("#first") as HTMLElement;
+        const second = document.querySelector("#second") as HTMLElement;
+        const firstAttempt = beginTranslation(first, "single")!;
+        beginTranslation(second, "bilingual");
+        const originalTextNodes = firstAttempt.state.originalTextValues.map(({node: textNode}) => textNode);
+
+        originalTextNodes.forEach((textNode, index) => {
+            textNode.nodeValue = `译文 ${index}`;
+        });
+        setTextSlotsApplied(first);
+
+        expect(firstAttempt.state.translatedTextNodes).toEqual(originalTextNodes);
+        expect(firstAttempt.state.translatedTextValues?.get(originalTextNodes[0]!)).toBe("译文 0");
+
+        restoreAllTranslations();
+
+        expect(getTranslationState(first)).toBeUndefined();
+        expect(getTranslationState(second)).toBeUndefined();
+        expect(first.textContent).toBe("Open the guide.");
+    });
+
+    it("恢复时移除插件 class 且不留下空 class 属性", () => {
+        const target = new FakeElement();
+        target.classList = {
+            remove: vi.fn(() => target.setAttribute("class", "")),
+        };
+        beginTranslation(target as unknown as HTMLElement, "bilingual");
+        target.setAttribute("class", "fluent-read-bilingual");
+        setRenderedStyleAttribute(target as unknown as HTMLElement);
+        target.setAttribute("class", "fluent-read-bilingual fluent-read-failure");
+
+        expect(restoreTranslation(target as unknown as HTMLElement)).toBe(true);
+        expect(target.getAttribute("class")).toBeNull();
     });
 });

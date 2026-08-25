@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const source = readFileSync(resolve(process.cwd(), 'components/VocabularyBook.vue'), 'utf8');
+const source = readFileSync(resolve(process.cwd(), 'src/features/vocabulary/ui/VocabularyBook.vue'), 'utf8');
 
 function extractBlock(startNeedle: string, endNeedle: string): string {
   const start = source.indexOf(startNeedle);

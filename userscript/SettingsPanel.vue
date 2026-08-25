@@ -91,10 +91,10 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from 'vue';
 import browser from 'webextension-polyfill';
-import {Config} from '@/entrypoints/utils/model';
-import {config as runtimeConfig, configReady, saveConfig} from '@/entrypoints/utils/config';
-import {customModelString, models, options, services, servicesType} from '@/entrypoints/utils/option';
-import {getApiKeyRequirementKey, getMissingCredentialMessage, isApiKeyRequired} from '@/entrypoints/utils/configValidation';
+import {Config} from '@/src/core/config/model';
+import {config as runtimeConfig, configReady, saveConfig} from '@/src/services/config/store';
+import {customModelString, models, options, services, servicesType} from '@/src/core/config/catalog';
+import {getApiKeyRequirementKey, getMissingCredentialMessage, isApiKeyRequired} from '@/src/core/config/validation';
 import {isUserscriptServiceSupported, normalizeUserscriptConfig} from './initialize';
 
 const emit = defineEmits<{close: []}>();

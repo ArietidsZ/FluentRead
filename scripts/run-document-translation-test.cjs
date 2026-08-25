@@ -164,6 +164,7 @@ async function main() {
     context = browserHandle.context;
     result.launchMode = browserHandle.launchMode;
     result.focusPolicy = browserHandle.focusPolicy;
+    result.windowPlacement = browserHandle.windowPlacement;
 
     const worker = await waitForServiceWorker(context, Math.min(args.timeout, 30000));
     captureErrors(worker, 'service-worker', errors);

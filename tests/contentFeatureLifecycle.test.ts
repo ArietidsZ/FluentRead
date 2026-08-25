@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ensureContentFeatureMounted } from '@/entrypoints/utils/contentFeatureLifecycle';
+import { ensureContentFeatureMounted } from '@/src/app/content/featureLifecycle';
 
 function deferred<T>() {
     let resolve!: (value: T) => void;

@@ -3,29 +3,45 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 const {mockConfig} = vi.hoisted(() => ({
   mockConfig: {
     service: 'custom',
+    from: 'auto',
     to: 'zh-Hans',
+    useCache: true,
+    enableAIContext: false,
     token: {} as Record<string, string>,
     model: {} as Record<string, string>,
     customModel: {} as Record<string, string>,
     customBody: {} as Record<string, string>,
     system_role: {} as Record<string, string>,
     user_role: {} as Record<string, string>,
+    robot_id: {} as Record<string, string>,
+    requireApiKey: {} as Record<string, boolean>,
     proxy: {} as Record<string, string>,
     custom: 'http://127.0.0.1:11434/v1/chat/completions',
+    deeplx: '',
     newApiUrl: '',
     azureOpenaiEndpoint: '',
     minimaxBillingPlan: 'payg',
     minimaxRegion: 'cn',
     mimoBillingPlan: 'payg',
     mimoRegion: 'cn',
+    deepseekApiType: 'auto',
+    deepseekThinkingMode: 'disabled',
+    youdaoAppKey: '',
+    youdaoAppSecret: '',
+    tencentSecretId: '',
+    tencentSecretKey: '',
   },
 }));
 
-vi.mock('@/entrypoints/utils/config', () => ({config: mockConfig}));
+vi.mock('@/src/services/config/store', () => ({config: mockConfig}));
 
 import {services} from '@/entrypoints/utils/option';
-import {translateWithOpenAICompatibleAiSdk} from '@/entrypoints/service/ai-sdk/openai-compatible';
-import {normalizeAiSdkError} from '@/entrypoints/service/ai-sdk/errors';
+import {translateWithOpenAICompatibleAiSdk} from '@/src/providers/translation/ai-sdk/openai-compatible';
+import {normalizeAiSdkError} from '@/src/providers/translation/ai-sdk/errors';
+import {
+  attachTranslationProviderConfig,
+  createTranslationProviderConfigSnapshot,
+} from '@/src/services/translation/requestSnapshot';
 
 function successResponse(text = '译文') {
   return new Response(JSON.stringify({
@@ -94,6 +110,44 @@ describe('Vercel AI SDK OpenAI-compatible transport', () => {
       model: 'custom-model',
       stream: false,
       vendor_flag: 'kept',
+    });
+  });
+
+  it('uses the broker-attached endpoint, credential, prompt, and custom body snapshot', async () => {
+    mockConfig.custom = 'https://snapshot-a.example/v1/chat/completions';
+    mockConfig.token[services.custom] = 'snapshot-token-a';
+    mockConfig.model[services.custom] = 'snapshot-model-a';
+    mockConfig.customBody[services.custom] = '{"temperature":0.2,"snapshot":"a"}';
+    mockConfig.system_role[services.custom] = 'snapshot-system-a';
+    mockConfig.user_role[services.custom] = 'snapshot-user-a {{origin}} to {{to}}';
+    const snapshot = createTranslationProviderConfigSnapshot(mockConfig);
+
+    mockConfig.custom = 'https://snapshot-b.example/v1/chat/completions';
+    mockConfig.token[services.custom] = 'snapshot-token-b';
+    mockConfig.model[services.custom] = 'snapshot-model-b';
+    mockConfig.customBody[services.custom] = '{"temperature":0.9,"snapshot":"b"}';
+    mockConfig.system_role[services.custom] = 'snapshot-system-b';
+    mockConfig.user_role[services.custom] = 'snapshot-user-b {{origin}} to {{to}}';
+
+    const fetchMock = vi.fn().mockResolvedValue(successResponse());
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(translateWithOpenAICompatibleAiSdk(attachTranslationProviderConfig({
+      origin: 'hello',
+      serviceOverride: services.custom,
+      targetLanguage: 'fr',
+    }, snapshot))).resolves.toBe('译文');
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://snapshot-a.example/v1/chat/completions');
+    expect(new Headers(init.headers).get('Authorization')).toBe('Bearer snapshot-token-a');
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      model: 'snapshot-model-a',
+      temperature: 0.2,
+      snapshot: 'a',
+      messages: [
+        {role: 'system', content: 'snapshot-system-a'},
+        {role: 'user', content: 'snapshot-user-a hello to fr'},
+      ],
     });
   });
 

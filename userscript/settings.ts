@@ -1,5 +1,5 @@
 import SettingsPanel from './SettingsPanel.vue';
-import {createVueShadowUi, type VueShadowMount} from '@/entrypoints/utils/shadowUi';
+import {createVueShadowUi, type VueShadowMount} from '@/src/platform/shadow-ui';
 import type {ShadowRootContentScriptUi} from 'wxt/utils/content-script-ui/shadow-root';
 
 let settingsUi: ShadowRootContentScriptUi<VueShadowMount> | null = null;

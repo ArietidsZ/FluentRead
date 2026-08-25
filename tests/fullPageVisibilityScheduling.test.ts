@@ -24,26 +24,26 @@ const runtime = vi.hoisted(() => ({
     ensureTranslationTruncationLayout: vi.fn(() => true),
 }));
 
-vi.mock("@/entrypoints/utils/check", () => ({checkConfig: () => true}));
-vi.mock("@/entrypoints/utils/option", () => ({
+vi.mock("@/src/app/translation/check", () => ({checkConfig: () => true}));
+vi.mock("@/src/core/config/catalog", () => ({
     services: {microsoft: "microsoft", freeTranslation: "freeTranslation"},
 }));
-vi.mock("@/entrypoints/utils/constant", () => ({
+vi.mock("@/src/core/config/constants", () => ({
     styles: {singleTranslation: 0, bilingualTranslation: 1},
 }));
-vi.mock("@/entrypoints/utils/config", () => ({
+vi.mock("@/src/services/config/store", () => ({
     config: runtime.config,
 }));
-vi.mock("@/entrypoints/utils/common", () => ({detectlang: () => ""}));
-vi.mock("@/entrypoints/utils/translateApi", () => ({
+vi.mock("@/src/core/language/detect", () => ({detectlang: () => ""}));
+vi.mock("@/src/app/translation/client", () => ({
     translateText: async (origin: string) => (await runtime.requests([origin]))[0],
     translateTextBatch: (origins: readonly string[]) => runtime.requests(origins),
 }));
-vi.mock("@/entrypoints/utils/translateQueue", () => ({
+vi.mock("@/src/services/translation/queue", () => ({
     createTranslationQueueSession: () => ({}),
     cancelTranslationQueueSession: () => undefined,
 }));
-vi.mock("@/entrypoints/utils/icon", () => ({
+vi.mock('@/src/features/full-page-translation/ui/translationIndicators', () => ({
     insertLoadingSpinner: (node: HTMLElement) => {
         const spinner = node.ownerDocument.createElement("span");
         spinner.setAttribute("data-fr-translation-owned", "true");
@@ -55,7 +55,7 @@ vi.mock("@/entrypoints/utils/icon", () => ({
         return node.ownerDocument.createElement("span");
     },
 }));
-vi.mock("@/entrypoints/main/translationRenderer", () => ({
+vi.mock("@/src/features/full-page-translation/content/renderer", () => ({
     appendBilingualTranslation: (node: HTMLElement, text: string) => {
         const wrapper = node.ownerDocument.createElement("span");
         wrapper.className = "fluent-read-bilingual-content";
@@ -65,10 +65,10 @@ vi.mock("@/entrypoints/main/translationRenderer", () => ({
         return wrapper;
     },
 }));
-vi.mock("@/entrypoints/main/translationLayout", () => ({
+vi.mock("@/src/features/full-page-translation/content/layout", () => ({
     ensureTranslationTruncationLayout: runtime.ensureTranslationTruncationLayout,
 }));
-vi.mock("@/entrypoints/translation-core/public", () => {
+vi.mock("@/src/core/translation/public", () => {
     const protectedSelector = [
         "head", "script", "style", "noscript", "iframe", "input", "textarea", "select", "option",
         "math", "svg", "canvas", "audio", "video", "object", "template", "xmp", "pre", "code",
@@ -158,13 +158,13 @@ import {
     handleTranslation,
     isFullPageTranslationActive,
     restoreOriginalContent,
-} from "@/entrypoints/main/trans";
-import {getTranslationState} from "@/entrypoints/main/translationState";
+} from "@/src/features/full-page-translation/content/runtime";
+import {getTranslationState} from "@/src/features/full-page-translation/content/state";
 import {
     getFullPageTranslationProgress,
     subscribeFullPageTranslationProgress,
     type FullPageTranslationProgress,
-} from "@/entrypoints/utils/fullPageTranslationProgress";
+} from '@/src/features/full-page-translation/progress';
 
 class TestIntersectionObserver {
     static instances: TestIntersectionObserver[] = [];

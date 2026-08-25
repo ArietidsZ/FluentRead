@@ -8,8 +8,8 @@ import {
     extractTranslationText,
     extractTranslationTextFromNodes,
     isClearlyTargetLanguage,
-} from '@/entrypoints/translation-core/public';
-import type {TranslationCandidate, TranslationCandidateCore} from '@/entrypoints/translation-core/public';
+} from '@/src/core/translation/public';
+import type {TranslationCandidate, TranslationCandidateCore} from '@/src/core/translation/public';
 
 const fixtureRoot = new URL('./fixtures/translation-pages/', import.meta.url);
 

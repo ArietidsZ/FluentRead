@@ -29,8 +29,8 @@ FluentRead 锁定的 WXT 0.20.18 没有 userscript 入口类型；官方源码�
 
 | 层 | 浏览器扩展 | Userscript |
 | --- | --- | --- |
-| DOM 候选、翻译状态、恢复、动态节点 | 共享 `translation-core` 与 `main/trans.ts` | 同一份代码 |
-| 翻译服务与请求模板 | 共享 `entrypoints/service/` | 同一份代码 |
+| DOM 候选、翻译状态、恢复、动态节点 | 共享 `src/core/translation/` 与全文 feature runtime | 同一份代码 |
+| 翻译服务与请求模板 | 共享 `src/providers/translation/` | 同一份代码 |
 | HTTP | 原生 `fetch` + 扩展 host permissions | `GM_xmlhttpRequest` 的 fetch 兼容层 |
 | 配置 | WXT storage | legacy `GM_getValue` / `GM_setValue` |
 | 翻译调度与缓存 | 扩展 background | 当前页面内调用共享 broker |
@@ -89,8 +89,20 @@ node --check .output/userscript/fluent-read.user.js
 node scripts/run-userscript-smoke-test.cjs \
   --artifact .output/userscript/fluent-read.user.js \
   --playwright-root <playwright-node_modules> \
+  --focus-safe-helper <fluentread-browser-translation-test>/scripts/focus-safe-browser.cjs \
   --artifacts-dir /private/tmp/fluentread-userscript-evidence \
   --background
+```
+
+后台模式必须显式传入 `--focus-safe-helper`，或设置 `FLUENTREAD_FOCUS_SAFE_HELPER`。脚本会创建临时 profile，以 LaunchServices 隐藏 CDP 模式启动正常尺寸、屏幕外的 Edge 窗口；不使用最小化窗口、用户日常 profile 或 `bringToFront()`。成功证据会记录 `launchMode`、`focusPolicy` 和 `windowPlacement`。只有在已明确授权前台观察时才使用 `--headed`。
+
+一键回归在确定性 `build:userscript` 与静态验证完成后，会在显式的 `--browser` 门禁下自动运行同一个 smoke：
+
+```bash
+pnpm test:regression:all -- --browser \
+  --playwright-root <playwright-node_modules> \
+  --browser-path "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge" \
+  --focus-safe-helper <fluentread-browser-translation-test>/scripts/focus-safe-browser.cjs
 ```
 
 该测试覆盖 closed-Shadow 设置、light-DOM 错误提示样式、悬浮 `[1, 0, 1]`、全文“翻译—恢复—再翻译”、动态 DOM、脚本启动后创建的 open Shadow Root、`pushState` 路由事件、bridge 清理、扩展专属能力禁用、禁止翻译区域和重复译文。测试通过 `page.addScriptTag` 在 page-world 执行产物，只证明生成产物与 legacy GM API 协议能在真实 Edge page-world 中运行，不能代替 Via Android、Tampermonkey 和 Violentmonkey 各自的真实安装与 sandbox 测试。

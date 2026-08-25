@@ -36,9 +36,9 @@ function componentMocks(): Plugin {
     resolveId(id) {
       if (id === 'webextension-polyfill') return '\0vocabulary-browser-mock';
       if (
-        id === '@/entrypoints/utils/config'
-        || id.endsWith('/entrypoints/utils/config')
-        || id.endsWith('/entrypoints/utils/config.ts')
+        id === '@/src/services/config/store'
+        || id.endsWith('/src/services/config/store')
+        || id.endsWith('/src/services/config/store.ts')
       ) {
         return '\0vocabulary-config-mock';
       }
@@ -145,7 +145,7 @@ describe('VocabularyBook mounted lifecycle', () => {
     });
 
     try {
-      const loaded = await server.ssrLoadModule('/components/VocabularyBook.vue');
+      const loaded = await server.ssrLoadModule('/src/features/vocabulary/ui/VocabularyBook.vue');
       const component = loaded.default as { render?: () => null; ssrRender?: unknown };
       component.ssrRender = undefined;
       component.render = () => null;

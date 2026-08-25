@@ -4,7 +4,7 @@ import {describe, expect, it} from 'vitest';
 import {
     applyTranslationsToSnapshot,
     createTranslationSourceSnapshot,
-} from '@/entrypoints/translation-core/public';
+} from '@/src/core/translation/public';
 
 describe('translation snapshot mapping performance', () => {
     it('maps a large flat candidate with linear tree-walker work and no sibling path scans', () => {

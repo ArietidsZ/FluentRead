@@ -8,13 +8,13 @@ import {
     getDocumentAcceptAttribute,
     getDocumentFormat,
     getDocumentMimeType,
-} from '@/entrypoints/utils/documentTranslation';
+} from '@/src/features/document-translation/core/document';
 import {
     createDocumentDownload,
     parseBinaryDocument,
     parseDocumentFile,
     type PdfPageRasterizer,
-} from '@/entrypoints/utils/documentTranslationBinary';
+} from '@/src/features/document-translation/services/binary';
 
 const exampleRoot = new URL('../examples/document-translation/', import.meta.url);
 const onePixelPng = Uint8Array.from(Buffer.from(

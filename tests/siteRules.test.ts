@@ -8,7 +8,7 @@ import {
     normalizeAlwaysTranslateDomains,
     normalizeDisabledExtensionDomains,
     shouldAutoTranslatePage,
-} from '@/entrypoints/utils/siteRules';
+} from '@/src/features/site-rules/domain';
 
 describe('始终翻译网站规则', () => {
     it('使用 Public Suffix List 统一为可注册域名，并覆盖私有后缀', () => {
@@ -26,10 +26,19 @@ describe('始终翻译网站规则', () => {
     });
 
     it('拒绝 public suffix、非法主机及非网页协议', () => {
+        expect(getSiteBaseDomain(new URL('https://docs.example.com/page'))).toBe('example.com');
+        expect(getSiteBaseDomain(new URL('ftp://example.com/file'))).toBeNull();
+        expect(getSiteBaseDomain(42 as never)).toBeNull();
+        expect(getSiteBaseDomain('http://example.com/page')).toBe('example.com');
+        expect(getSiteBaseDomain('https://example.com/page')).toBe('example.com');
         expect(getSiteBaseDomain('com')).toBeNull();
         expect(getSiteBaseDomain('https://co.uk/')).toBeNull();
         expect(getSiteBaseDomain('github.io')).toBeNull();
         expect(getSiteBaseDomain('*.example.com')).toBeNull();
+        expect(getSiteBaseDomain('http://[::1')).toBeNull();
+        expect(getSiteBaseDomain('foo:123')).toBeNull();
+        expect(getSiteBaseDomain(`${'a'.repeat(64)}.example.com`)).toBeNull();
+        expect(getSiteBaseDomain(`${'a'.repeat(250)}.example.com`)).toBeNull();
         expect(getSiteBaseDomain('https://foo..com/')).toBeNull();
         expect(getSiteBaseDomain('file:///tmp/article.html')).toBeNull();
         expect(getSiteBaseDomain('chrome://settings')).toBeNull();

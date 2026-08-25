@@ -1,34 +1,58 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-const mocks = vi.hoisted(() => ({
-    config: {service: 'microsoft'},
+import {createDocumentSegmentTranslator} from '@/src/features/document-translation/services/translation';
+
+const mocks = {
+    defaultService: 'microsoft',
+    waitUntilReady: vi.fn<() => Promise<void>>(),
     translateText: vi.fn(),
     translateTextBatch: vi.fn(),
-}));
+};
 
-vi.mock('@/entrypoints/utils/config', () => ({
-    config: mocks.config,
-    configReady: Promise.resolve(),
-}));
-
-vi.mock('@/entrypoints/utils/option', () => ({
-    services: {microsoft: 'microsoft', freeTranslation: 'freeTranslation'},
-}));
-
-vi.mock('@/entrypoints/utils/translateApi', () => ({
+const translateDocumentSegments = createDocumentSegmentTranslator({
+    waitUntilReady: mocks.waitUntilReady,
+    getDefaultService: () => mocks.defaultService,
+    supportsBatch: (service) => service === 'microsoft' || service === 'freeTranslation',
     translateText: mocks.translateText,
     translateTextBatch: mocks.translateTextBatch,
-}));
-
-import {translateDocumentSegments} from '@/entrypoints/utils/documentTranslationApi';
+});
 
 beforeEach(() => {
-    mocks.config.service = 'microsoft';
+    mocks.defaultService = 'microsoft';
+    mocks.waitUntilReady.mockReset().mockResolvedValue();
     mocks.translateText.mockReset();
     mocks.translateTextBatch.mockReset();
 });
 
 describe('document translation API', () => {
+    it('等待运行时就绪，并对空文档短路', async () => {
+        await expect(translateDocumentSegments([], {fileName: 'empty.txt'})).resolves.toEqual([]);
+
+        expect(mocks.waitUntilReady).toHaveBeenCalledOnce();
+        expect(mocks.translateText).not.toHaveBeenCalled();
+        expect(mocks.translateTextBatch).not.toHaveBeenCalled();
+    });
+
+    it('在开始前或批次之间取消时抛出 AbortError', async () => {
+        const beforeStart = new AbortController();
+        beforeStart.abort();
+        await expect(translateDocumentSegments([{id: 0, source: 'Source'}], {
+            fileName: 'sample.txt',
+            signal: beforeStart.signal,
+        })).rejects.toMatchObject({name: 'AbortError', message: '文档翻译已取消'});
+
+        const betweenBatches = new AbortController();
+        mocks.translateTextBatch.mockImplementation(async (sources: string[]) => {
+            betweenBatches.abort();
+            return sources.map((source) => `T:${source}`);
+        });
+        const segments = Array.from({length: 17}, (_, id) => ({id, source: `Source ${id}`}));
+        await expect(translateDocumentSegments(segments, {
+            fileName: 'sample.txt',
+            signal: betweenBatches.signal,
+        })).rejects.toMatchObject({name: 'AbortError'});
+    });
+
     it('对机器翻译服务按大小分批，并报告完整进度', async () => {
         const segments = Array.from({length: 17}, (_, id) => ({id, source: `Source ${id}`}));
         const progress: number[] = [];
@@ -47,7 +71,7 @@ describe('document translation API', () => {
     });
 
     it('对 AI 服务使用逐段翻译，避免把数组隐式拼成一个请求', async () => {
-        mocks.config.service = 'openai';
+        mocks.defaultService = 'openai';
         mocks.translateText.mockImplementation(async (origin: string) => `T:${origin}`);
         const segments = [
             {id: 0, source: 'First'},
@@ -65,23 +89,78 @@ describe('document translation API', () => {
     });
 
     it('传递文档入口独立的服务和模型，不复用网页当前模型', async () => {
-        mocks.config.service = 'microsoft';
+        mocks.defaultService = 'microsoft';
         mocks.translateText.mockImplementation(async (origin: string) => `T:${origin}`);
 
         await translateDocumentSegments([{id: 0, source: 'Document source'}], {
             fileName: 'sample.md',
             serviceOverride: 'openai',
             modelOverride: 'gpt-document-model',
+            sourceLanguage: 'en',
+            targetLanguage: 'fr',
         });
 
         expect(mocks.translateText).toHaveBeenCalledWith('Document source', 'sample.md', expect.objectContaining({
             serviceOverride: 'openai',
             modelOverride: 'gpt-document-model',
+            sourceLanguage: 'en',
+            targetLanguage: 'fr',
         }));
     });
 
+    it('多批次任务在开始时快照语言对，不受任务期间配置变化影响', async () => {
+        const segments = Array.from({length: 17}, (_, id) => ({id, source: `Source ${id}`}));
+        const requestOptions = {
+            fileName: 'stable-language.txt',
+            sourceLanguage: 'en',
+            targetLanguage: 'fr',
+        };
+        mocks.translateTextBatch.mockImplementation(async (sources: string[]) => {
+            requestOptions.sourceLanguage = 'ja';
+            requestOptions.targetLanguage = 'de';
+            return sources.map((source) => `T:${source}`);
+        });
+
+        await translateDocumentSegments(segments, requestOptions);
+
+        expect(mocks.translateTextBatch).toHaveBeenCalledTimes(2);
+        for (const call of mocks.translateTextBatch.mock.calls) {
+            expect(call[2]).toEqual(expect.objectContaining({
+                sourceLanguage: 'en',
+                targetLanguage: 'fr',
+            }));
+        }
+    });
+
+    it('使用默认文件名、清理显式页面上下文，并按字符上限拆批', async () => {
+        mocks.defaultService = 'openai';
+        mocks.translateText.mockResolvedValue('译文');
+        await translateDocumentSegments([{id: 0, source: 'Source'}], {
+            fileName: '',
+            pageContext: '  supplied context  ',
+        });
+        expect(mocks.translateText).toHaveBeenCalledWith('Source', 'FluentRead 文档', expect.objectContaining({
+            pageContext: 'supplied context',
+        }));
+
+        mocks.defaultService = 'microsoft';
+        mocks.translateTextBatch.mockImplementation(async (sources: string[]) => sources);
+        await translateDocumentSegments([
+            {id: 0, source: 'a'.repeat(3_000)},
+            {id: 1, source: 'b'.repeat(600)},
+        ], {fileName: 'large.txt'});
+        expect(mocks.translateTextBatch).toHaveBeenCalledTimes(2);
+    });
+
+    it('批量服务失败时保留首个未完成片段序号和非 Error 原因', async () => {
+        mocks.translateTextBatch.mockRejectedValue('provider offline');
+
+        await expect(translateDocumentSegments([{id: 0, source: 'Broken'}], {fileName: 'sample.txt'}))
+            .rejects.toThrow('第 1 段文档翻译失败：provider offline');
+    });
+
     it('在单段失败时报告可定位的片段序号', async () => {
-        mocks.config.service = 'openai';
+        mocks.defaultService = 'openai';
         mocks.translateText.mockRejectedValue(new Error('provider unavailable'));
 
         await expect(translateDocumentSegments([{id: 0, source: 'Broken'}], {fileName: 'sample.json'}))
@@ -89,7 +168,7 @@ describe('document translation API', () => {
     });
 
     it('AI 并行 worker 首次失败后不再派发余下段落或继续报告进度', async () => {
-        mocks.config.service = 'openai';
+        mocks.defaultService = 'openai';
         const releaseSlowRequests: Array<() => void> = [];
         const progress: number[] = [];
         mocks.translateText.mockImplementation((origin: string) => {
@@ -115,5 +194,29 @@ describe('document translation API', () => {
 
         expect(mocks.translateText).toHaveBeenCalledTimes(3);
         expect(progress).toEqual([0]);
+    });
+
+    it('AI 请求取消和并发重复失败都只暴露首个终止结果', async () => {
+        mocks.defaultService = 'openai';
+        const controller = new AbortController();
+        mocks.translateText.mockImplementation(async () => {
+            controller.abort();
+            throw new Error('provider unavailable');
+        });
+        await expect(translateDocumentSegments([{id: 0, source: 'Source'}], {
+            fileName: 'sample.md',
+            signal: controller.signal,
+        })).rejects.toMatchObject({name: 'AbortError'});
+
+        const releases: Array<(value: never) => void> = [];
+        mocks.translateText.mockImplementation(() => new Promise((_, reject) => releases.push(reject)));
+        const pending = translateDocumentSegments([
+            {id: 0, source: 'One'},
+            {id: 1, source: 'Two'},
+        ], {fileName: 'sample.md'});
+        await vi.waitFor(() => expect(releases).toHaveLength(2));
+        releases.forEach((reject) => reject('duplicate failure' as never));
+        await expect(pending).rejects.toThrow('第 1 段文档翻译失败：duplicate failure');
+        await Promise.resolve();
     });
 });

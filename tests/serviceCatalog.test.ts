@@ -6,9 +6,9 @@ import {
   filterServiceGroups,
   getSelectedModelLabel,
   splitModelOptions,
-} from '@/entrypoints/utils/serviceCatalog'
-import { customModelString, defaultModels, models, servicesType } from '@/entrypoints/utils/option'
-import { Config, normalizeConfig } from '@/entrypoints/utils/model'
+} from '@/src/ui/view-model/serviceCatalog'
+import { customModelString, defaultModels, models, servicesType } from '@/src/core/config/catalog'
+import { Config, normalizeConfig } from '@/src/core/config/model'
 
 const options = [
   { value: 'machine', label: '机器翻译', disabled: true },
@@ -42,13 +42,20 @@ describe('service catalog helpers', () => {
   })
 
   it('filters services without losing their category', () => {
-    expect(filterServiceGroups(buildServiceGroups(options), 'open')).toEqual([
+    const groups = buildServiceGroups(options)
+    expect(filterServiceGroups(groups, '   ')).toBe(groups)
+    expect(filterServiceGroups(groups, 'open')).toEqual([
       { id: 'ai', label: 'AI翻译', items: [{ value: 'openai', label: 'OpenAI' }] },
     ])
+    expect(filterServiceGroups([
+      { id: 'ai', label: 'AI翻译', items: [{ value: 'openai', label: 'OpenAI', description: '通用服务' }] },
+    ], '通用')).toHaveLength(1)
   })
 
   it('filters model identifiers case-insensitively', () => {
-    expect(filterModels(['gpt-5-mini', 'GPT-4o', '自定义模型'], 'gpt')).toEqual([
+    const modelOptions = ['gpt-5-mini', 'GPT-4o', '自定义模型']
+    expect(filterModels(modelOptions, ' ')).toBe(modelOptions)
+    expect(filterModels(modelOptions, 'gpt')).toEqual([
       'gpt-5-mini',
       'GPT-4o',
     ])

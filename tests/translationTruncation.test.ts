@@ -1,10 +1,10 @@
 import {parseHTML} from 'linkedom';
 import {describe, expect, it, vi} from 'vitest';
 
-vi.mock('@/entrypoints/utils/config', () => ({
+vi.mock('@/src/services/config/store', () => ({
     config: {style: 1, to: 'zh-Hans'},
 }));
-vi.mock('@/entrypoints/utils/option', () => ({
+vi.mock('@/src/core/config/catalog', () => ({
     options: {styles: []},
 }));
 
@@ -12,7 +12,9 @@ import {
     findTranslationTruncationAncestors,
     hasActiveTranslationLineClamp,
     translationTruncationStyleOverrides,
-} from '@/entrypoints/translation-core/public';
+} from '@/src/core/translation/public';
+import {config} from '@/src/services/config/store';
+import {options} from '@/src/core/config/catalog';
 import {
     acquireTranslationLayoutOverride,
     beginTranslation,
@@ -22,9 +24,9 @@ import {
     reconcileTranslationLayoutOverrides,
     restoreTranslation,
     setBilingualContent,
-} from '@/entrypoints/main/translationState';
-import {ensureTranslationTruncationLayout} from '@/entrypoints/main/translationLayout';
-import {appendBilingualTranslation} from '@/entrypoints/main/translationRenderer';
+} from '@/src/features/full-page-translation/content/state';
+import {ensureTranslationTruncationLayout} from '@/src/features/full-page-translation/content/layout';
+import {appendBilingualTranslation} from '@/src/features/full-page-translation/content/renderer';
 
 function openRouterFixture() {
     const {document} = parseHTML(`
@@ -240,6 +242,96 @@ describe('translation truncation layout', () => {
             expect(wrapper.isConnected).toBe(false);
             expect(hasTranslationLayoutOverride(clamp)).toBe(false);
             expect(clamp.getAttribute('style')).toBe(originalClampStyle);
+        });
+    });
+
+    it('sanitizes renderer HTML while preserving safe inline markup and configured style class', async () => {
+        const {document} = parseHTML('<html><body><p id="owner">Readable paragraph.</p></body></html>');
+        Object.defineProperty(document, 'baseURI', {
+            configurable: true,
+            value: 'https://host.example/page',
+        });
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        const previousConfig = {...config};
+        const previousStyles = [...options.styles];
+
+        await withDocumentRealm(document, async () => {
+            try {
+                Object.assign(config, {style: 7, to: ''});
+                options.styles = [
+                    {value: 7, class: 'fr-rendered-style'},
+                    {value: 7, class: 'fr-disabled-style', disabled: true},
+                ] as typeof options.styles;
+
+                const attempt = beginTranslation(owner, 'bilingual')!;
+                attempt.state.phase = 'translated';
+                const wrapper = appendBilingualTranslation(owner, [
+                    '<a href="https://example.com/read" title="Read"><strong>safe link</strong></a>',
+                    '<a href="javascript:alert(1)" title="Unsafe">bad href</a>',
+                    '<a href="http://[">bad url</a>',
+                    '<div>block wrapper <em>keeps text</em></div>',
+                    '<script>alert(1)</script>',
+                    '<!--ignored comment-->',
+                ].join(''));
+
+                expect(wrapper.classList.contains('fr-rendered-style')).toBe(true);
+                expect(wrapper.classList.contains('fr-disabled-style')).toBe(false);
+                expect(wrapper.lang).toBe('');
+                expect(wrapper.querySelector('script')).toBeNull();
+                expect(wrapper.querySelector('div')).toBeNull();
+                expect(wrapper.textContent).toContain('block wrapper keeps text');
+
+                const links = wrapper.querySelectorAll('a');
+                expect(links).toHaveLength(3);
+                expect(links[0]!.getAttribute('href')).toBe('https://example.com/read');
+                expect(links[0]!.getAttribute('title')).toBe('Read');
+                expect(links[1]!.hasAttribute('href')).toBe(false);
+                expect(links[1]!.getAttribute('title')).toBe('Unsafe');
+                expect(links[2]!.hasAttribute('href')).toBe(false);
+
+                restoreTranslation(owner);
+            } finally {
+                Object.assign(config, previousConfig);
+                options.styles = previousStyles;
+            }
+        });
+    });
+
+    it('accepts empty renderer text and ignores parser nodes that are not element or text', async () => {
+        const {document} = parseHTML('<html><body><p id="owner">Readable paragraph.</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+
+        await withDocumentRealm(document, async () => {
+            const previousParser = Object.getOwnPropertyDescriptor(globalThis, 'DOMParser');
+            class FixtureDOMParser {
+                parseFromString(): Document {
+                    return {
+                        body: {
+                            childNodes: [
+                                {nodeType: Node.TEXT_NODE, nodeValue: null},
+                                {nodeType: Node.COMMENT_NODE, nodeValue: 'ignored'},
+                            ],
+                        },
+                    } as unknown as Document;
+                }
+            }
+
+            try {
+                Object.defineProperty(globalThis, 'DOMParser', {
+                    configurable: true,
+                    value: FixtureDOMParser,
+                });
+                const attempt = beginTranslation(owner, 'bilingual')!;
+                attempt.state.phase = 'translated';
+                const wrapper = appendBilingualTranslation(owner, '');
+
+                expect(wrapper.textContent).toBe('');
+                expect(wrapper.childNodes).toHaveLength(1);
+                expect(restoreTranslation(owner)).toBe(true);
+            } finally {
+                if (previousParser) Object.defineProperty(globalThis, 'DOMParser', previousParser);
+                else Reflect.deleteProperty(globalThis, 'DOMParser');
+            }
         });
     });
 

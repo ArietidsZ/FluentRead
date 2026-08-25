@@ -1,5 +1,5 @@
-import {setRuntimeFetch} from '@/entrypoints/utils/http';
-import {installShadowAndRouteBridge} from '@/entrypoints/shadowBridge.content';
+import {setRuntimeFetch} from '@/src/platform/http/runtime';
+import {installShadowAndRouteBridge} from '@/src/platform/shadow-ui/pageBridge';
 import browser, {setPlatformMessageHandler} from './browser';
 import {createUserscriptContentContext} from './context';
 import {userscriptFetch} from './http';
@@ -34,8 +34,8 @@ async function bootstrap(): Promise<void> {
         import('./platform'),
         import('./settings'),
         import('@/entrypoints/content'),
-        import('@/entrypoints/main/trans'),
-        import('@/entrypoints/utils/config'),
+        import('@/src/app/content/features'),
+        import('@/src/services/config/store'),
     ]);
     const ctx = createUserscriptContentContext();
     const openSettings = () => void settingsModule.openUserscriptSettings(ctx);

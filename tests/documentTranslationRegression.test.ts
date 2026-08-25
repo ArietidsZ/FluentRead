@@ -4,7 +4,7 @@ import {
     getDocumentFormat,
     parseDocument,
     renderDocument,
-} from '@/entrypoints/utils/documentTranslation';
+} from '@/src/features/document-translation/core/document';
 
 import {DOCUMENT_EXAMPLES, loadExample} from './documentTranslationExamples';
 

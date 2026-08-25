@@ -1,0 +1,277 @@
+import type {BackgroundMessageHandler} from '@/src/app/background/messageRouter';
+import {
+    VOCABULARY_BOOK_CHANGED_MESSAGE,
+    VOCABULARY_BOOK_MESSAGE,
+    type VocabularyBookChangedMessage,
+    type VocabularyBookErrorCode,
+    type VocabularyBookResponse,
+    type VocabularyBookRuntimeMessage,
+    type VocabularyExportOptions,
+    type VocabularyListOptions,
+    type VocabularyScheduledReviewRating,
+    type VocabularyUpsertInput,
+} from '@/src/features/vocabulary/protocol';
+
+export interface VocabularyBackgroundContext {
+    sender?: {
+        tab?: {
+            incognito?: boolean;
+        };
+    };
+}
+
+export interface VocabularyBookChangedBroadcaster {
+    (reason: VocabularyBookChangedMessage['reason'], entryId?: string): void;
+}
+
+export interface VocabularyBookChangeBroadcastAdapter {
+    sendRuntimeMessage(message: VocabularyBookChangedMessage): Promise<unknown>;
+    queryTabs(): Promise<Array<{id?: number}>>;
+    sendTabMessage(tabId: number, message: VocabularyBookChangedMessage): Promise<unknown>;
+}
+
+export interface VocabularyBookRepositoryContract {
+    list(options?: VocabularyListOptions): Promise<unknown>;
+    get(entryId: string): Promise<unknown>;
+    getByTerm(sourceLanguage: string, term: string): Promise<unknown>;
+    upsert(input: VocabularyUpsertInput): Promise<{id: string}>;
+    review(entryId: string, rating: VocabularyScheduledReviewRating): Promise<unknown>;
+    setMastery(entryId: string): Promise<unknown>;
+    relearn(entryId: string): Promise<unknown>;
+    getReviewLogs(entryId: string): Promise<unknown>;
+    remove(entryId: string): Promise<unknown>;
+    removeWithSnapshot(entryId: string): Promise<unknown>;
+    clear(): Promise<void>;
+    exportData(options?: VocabularyExportOptions): Promise<unknown>;
+    importData(data: Record<string, unknown>): Promise<unknown>;
+}
+
+export interface VocabularyBookBackgroundDependencies {
+    readonly configReady: Promise<void>;
+    readonly isVocabularyBookEnabled: () => boolean;
+    readonly vocabularyBook: VocabularyBookRepositoryContract;
+    readonly broadcastChanged: VocabularyBookChangedBroadcaster;
+    readonly logOperationFailure: (error: unknown) => void;
+}
+
+export const VOCABULARY_BOOK_CHANGED_ACK_RESPONSE = {success: true} as const;
+
+class VocabularyBookHandlerError extends Error {
+    constructor(
+        readonly code: VocabularyBookErrorCode,
+        message: string,
+    ) {
+        super(message);
+        this.name = 'VocabularyBookHandlerError';
+    }
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function requiredText(value: unknown, message: string): string {
+    if (typeof value !== 'string') throw new VocabularyBookHandlerError('invalid-input', message);
+    const text = value.trim();
+    if (!text) throw new VocabularyBookHandlerError('invalid-input', message);
+    return text;
+}
+
+function vocabularyEntryId(value: unknown): string {
+    return requiredText(value, '缺少有效的单词条目标识');
+}
+
+function validateGetByTermMessage(message: VocabularyBookRuntimeMessage): {sourceLanguage: string; term: string} {
+    // Step 1: 支持 beta 期间的 term/word 双字段，但必须至少提供一个非空字符串。
+    const term = typeof message.term === 'string'
+        ? requiredText(message.term, '缺少有效的查询单词')
+        : requiredText(message.word, '缺少有效的查询单词');
+
+    // Step 2: sourceLanguage 是词书 identity 的一部分，后台边界不再接受隐式空值。
+    const sourceLanguage = requiredText(message.sourceLanguage, '缺少有效的源语言');
+    return {sourceLanguage, term};
+}
+
+function validateUpsertInput(value: unknown): VocabularyUpsertInput {
+    if (!isPlainRecord(value)) throw new VocabularyBookHandlerError('invalid-input', '缺少有效的单词保存内容');
+    return {
+        ...value,
+        sourceLanguage: requiredText(value.sourceLanguage, '缺少有效的源语言'),
+        targetLanguage: requiredText(value.targetLanguage, '缺少有效的目标语言'),
+        term: requiredText(value.term, '缺少有效的单词'),
+        translation: requiredText(value.translation, '缺少有效的译文'),
+    };
+}
+
+function validateReviewRating(value: unknown): VocabularyScheduledReviewRating {
+    if (value === 'again' || value === 'good') return value;
+    throw new VocabularyBookHandlerError('invalid-input', '缺少有效的复习评分');
+}
+
+function validateListOptions(value: unknown): VocabularyListOptions | undefined {
+    if (value === undefined) return undefined;
+    if (isPlainRecord(value)) return value as VocabularyListOptions;
+    throw new VocabularyBookHandlerError('invalid-input', '查询选项无效');
+}
+
+function validateExportOptions(value: unknown): VocabularyExportOptions | undefined {
+    if (value === undefined) return undefined;
+    if (isPlainRecord(value)) return value as VocabularyExportOptions;
+    throw new VocabularyBookHandlerError('invalid-input', '导出选项无效');
+}
+
+function validateImportData(value: unknown): Record<string, unknown> {
+    if (isPlainRecord(value)) return value;
+    throw new VocabularyBookHandlerError('invalid-input', '导入数据无效');
+}
+
+function vocabularyFailure(error: unknown, logOperationFailure: (error: unknown) => void): VocabularyBookResponse<never> {
+    if (error instanceof VocabularyBookHandlerError) return {success: false, error: {code: error.code, message: error.message}};
+
+    logOperationFailure(error);
+    const message = error instanceof Error ? error.message : '本地单词本暂时不可用';
+    return {success: false, error: {code: 'storage-error', message}};
+}
+
+function notifyVocabularyBookChanged(
+    dependencies: VocabularyBookBackgroundDependencies,
+    reason: VocabularyBookChangedMessage['reason'],
+    entryId?: string,
+): void {
+    try {
+        // Step 1: 广播是附带通知，不能阻塞主操作响应。
+        dependencies.broadcastChanged(reason, entryId);
+    } catch (error) {
+        // Step 2: 注入的广播适配器同步失败时只记录，不回滚已完成的词书操作。
+        dependencies.logOperationFailure(error);
+    }
+}
+
+export function createVocabularyBookChangedMessage(
+    reason: VocabularyBookChangedMessage['reason'],
+    entryId?: string,
+): VocabularyBookChangedMessage {
+    const message: VocabularyBookChangedMessage = {type: VOCABULARY_BOOK_CHANGED_MESSAGE, reason};
+    if (entryId) message.entryId = entryId;
+    return message;
+}
+
+/** 创建真实 browser runtime/tabs 广播器；调用方负责注入隔离后的 browser API。 */
+export function createBrowserVocabularyBookChangedBroadcaster(
+    adapter: VocabularyBookChangeBroadcastAdapter,
+): VocabularyBookChangedBroadcaster {
+    return (reason, entryId) => {
+        const message = createVocabularyBookChangedMessage(reason, entryId);
+
+        // Step 1: 扩展页通过 runtime 消息接收变更通知。
+        void adapter.sendRuntimeMessage(message).catch(() => undefined);
+
+        // Step 2: content script 需要逐 tab 发送；受限页面失败不影响原请求。
+        void adapter.queryTabs()
+            .then((tabs) => Promise.allSettled(
+                tabs
+                    .filter((tab) => typeof tab.id === 'number')
+                    .map((tab) => adapter.sendTabMessage(tab.id!, message)),
+            ))
+            .catch(() => undefined);
+    };
+}
+
+export function createVocabularyBookChangedAckHandler():
+    BackgroundMessageHandler<VocabularyBackgroundContext, VocabularyBookChangedMessage, typeof VOCABULARY_BOOK_CHANGED_ACK_RESPONSE> {
+    return {
+        type: VOCABULARY_BOOK_CHANGED_MESSAGE,
+        handle() {
+            return VOCABULARY_BOOK_CHANGED_ACK_RESPONSE;
+        },
+    };
+}
+
+/** 创建词书后台 handler；存储、配置和广播都由 background composition root 注入。 */
+export function createVocabularyBookHandler(
+    dependencies: VocabularyBookBackgroundDependencies,
+): BackgroundMessageHandler<VocabularyBackgroundContext, VocabularyBookRuntimeMessage, VocabularyBookResponse> {
+    return {
+        type: VOCABULARY_BOOK_MESSAGE,
+        async handle(message, context) {
+            try {
+                // Step 1: 先在后台信任边界收窄 action 与必要参数。
+                switch (message.action) {
+                    case 'list':
+                        return {success: true, data: await dependencies.vocabularyBook.list(validateListOptions(message.options))};
+                    case 'get':
+                        return {success: true, data: await dependencies.vocabularyBook.get(vocabularyEntryId(message.entryId))};
+                    case 'getByTerm': {
+                        const {sourceLanguage, term} = validateGetByTermMessage(message);
+                        return {success: true, data: await dependencies.vocabularyBook.getByTerm(sourceLanguage, term)};
+                    }
+                    case 'upsert': {
+                        await dependencies.configReady;
+                        if (!dependencies.isVocabularyBookEnabled()) throw new VocabularyBookHandlerError('invalid-input', '请先在单词本页面开启 Beta');
+                        if (context.sender?.tab?.incognito === true) throw new VocabularyBookHandlerError('invalid-input', '无痕窗口不保存单词本数据');
+                        const entry = await dependencies.vocabularyBook.upsert(validateUpsertInput(message.input));
+                        notifyVocabularyBookChanged(dependencies, 'upsert', entry.id);
+                        return {success: true, data: entry};
+                    }
+                    case 'review': {
+                        const entryId = vocabularyEntryId(message.entryId);
+                        const result = await dependencies.vocabularyBook.review(entryId, validateReviewRating(message.rating));
+                        notifyVocabularyBookChanged(dependencies, 'review', entryId);
+                        return {success: true, data: result};
+                    }
+                    case 'setMastery': {
+                        const entryId = vocabularyEntryId(message.entryId);
+                        const result = await dependencies.vocabularyBook.setMastery(entryId);
+                        notifyVocabularyBookChanged(dependencies, 'manual-mastered', entryId);
+                        return {success: true, data: result};
+                    }
+                    case 'relearn': {
+                        const entryId = vocabularyEntryId(message.entryId);
+                        const result = await dependencies.vocabularyBook.relearn(entryId);
+                        notifyVocabularyBookChanged(dependencies, 'relearn', entryId);
+                        return {success: true, data: result};
+                    }
+                    case 'getReviewLogs':
+                        return {success: true, data: await dependencies.vocabularyBook.getReviewLogs(vocabularyEntryId(message.entryId))};
+                    case 'remove': {
+                        const entryId = vocabularyEntryId(message.entryId);
+                        const removed = await dependencies.vocabularyBook.remove(entryId);
+                        if (removed) notifyVocabularyBookChanged(dependencies, 'remove', entryId);
+                        return {success: true, data: removed};
+                    }
+                    case 'removeWithSnapshot': {
+                        const entryId = vocabularyEntryId(message.entryId);
+                        const snapshot = await dependencies.vocabularyBook.removeWithSnapshot(entryId);
+                        if (snapshot) notifyVocabularyBookChanged(dependencies, 'remove', entryId);
+                        return {success: true, data: snapshot};
+                    }
+                    case 'clear':
+                        await dependencies.vocabularyBook.clear();
+                        notifyVocabularyBookChanged(dependencies, 'clear');
+                        return {success: true, data: true};
+                    case 'exportData':
+                        return {success: true, data: await dependencies.vocabularyBook.exportData(validateExportOptions(message.options))};
+                    case 'importData': {
+                        const result = await dependencies.vocabularyBook.importData(validateImportData(message.data));
+                        notifyVocabularyBookChanged(dependencies, 'import');
+                        return {success: true, data: result};
+                    }
+                    default:
+                        throw new VocabularyBookHandlerError('invalid-input', '不支持的单词本操作');
+                }
+            } catch (error) {
+                // Step 2: 保持旧 background 行为：词书错误转为结构化响应，未知错误转为 storage-error。
+                return vocabularyFailure(error, dependencies.logOperationFailure);
+            }
+        },
+    };
+}
+
+export function createVocabularyBackgroundHandlers(
+    dependencies: VocabularyBookBackgroundDependencies,
+): Array<BackgroundMessageHandler<VocabularyBackgroundContext>> {
+    return [
+        createVocabularyBookChangedAckHandler(),
+        createVocabularyBookHandler(dependencies),
+    ];
+}

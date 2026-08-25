@@ -1,0 +1,1 @@
+export {mountHoverTranslationContentFeature} from './content';

@@ -6,7 +6,7 @@ import {
   startFullPageTranslationProgress,
   subscribeFullPageTranslationProgress,
   updateFullPageTranslationProgress,
-} from '@/entrypoints/utils/fullPageTranslationProgress';
+} from '@/src/features/full-page-translation/progress';
 
 afterEach(() => {
   const current = getFullPageTranslationProgress();
@@ -90,5 +90,45 @@ describe('全文翻译进度', () => {
       offscreen: 0,
     }));
     unsubscribe();
+  });
+
+  it('隔离订阅者快照与异常，取消订阅后不再通知', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const broken = vi.fn((snapshot: ReturnType<typeof getFullPageTranslationProgress>) => {
+      snapshot.running = 999;
+      throw new Error('listener failed');
+    });
+    const healthy = vi.fn();
+    const unsubscribeBroken = subscribeFullPageTranslationProgress(broken);
+    const unsubscribeHealthy = subscribeFullPageTranslationProgress(healthy);
+    healthy.mockClear();
+
+    const sessionId = startFullPageTranslationProgress();
+
+    expect(healthy).toHaveBeenLastCalledWith(expect.objectContaining({sessionId, running: 0}));
+    expect(consoleError).toHaveBeenCalledWith(
+      '[FluentRead] 全文翻译进度订阅者执行失败',
+      expect.any(Error),
+    );
+
+    unsubscribeBroken();
+    unsubscribeHealthy();
+    broken.mockClear();
+    healthy.mockClear();
+    updateFullPageTranslationProgress(sessionId, {running: 1, queued: 0, offscreen: 0});
+    expect(broken).not.toHaveBeenCalled();
+    expect(healthy).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it('在未激活时忽略更新和结束', () => {
+    const current = getFullPageTranslationProgress();
+    if (current.active) finishFullPageTranslationProgress(current.sessionId);
+    const before = getFullPageTranslationProgress();
+
+    updateFullPageTranslationProgress(before.sessionId, {running: 1, queued: 2, offscreen: 3});
+    finishFullPageTranslationProgress(before.sessionId);
+
+    expect(getFullPageTranslationProgress()).toEqual(before);
   });
 });

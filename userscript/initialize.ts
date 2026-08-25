@@ -1,6 +1,6 @@
-import {Config, normalizeConfig} from '@/entrypoints/utils/model';
-import {getApiKeyRequirementKey} from '@/entrypoints/utils/configValidation';
-import {customModelString, defaultModels, models, services, servicesType} from '@/entrypoints/utils/option';
+import {Config, normalizeConfig} from '@/src/core/config/model';
+import {getApiKeyRequirementKey} from '@/src/core/config/validation';
+import {customModelString, defaultModels, models, services, servicesType} from '@/src/core/config/catalog';
 import {getStoredValue, setStoredValue} from './storage';
 
 const CONFIG_STORAGE_KEY = 'local:config';

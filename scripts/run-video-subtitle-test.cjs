@@ -12,42 +12,116 @@ function loadPlaywright(root) {
   }
 }
 
-function arg(name, fallback) {
-  const index = process.argv.indexOf(`--${name}`);
-  return index >= 0 ? process.argv[index + 1] : fallback;
+function readArg(argv, name, fallback) {
+  const index = argv.indexOf(`--${name}`);
+  return index >= 0 ? argv[index + 1] : fallback;
+}
+
+function parseArgs(argv, env = process.env) {
+  const args = {
+    extensionDir: readArg(argv, 'extension-dir', '.output/chrome-mv3-dev'),
+    playwrightRoot: readArg(argv, 'playwright-root', env.PLAYWRIGHT_ROOT),
+    url: readArg(argv, 'url', 'https://www.youtube.com/watch?v=drSMZgnmJjk'),
+    artifactsDir: readArg(argv, 'artifacts-dir', path.join(os.tmpdir(), 'fluentread-video-subtitle-evidence')),
+    browserPath: readArg(argv, 'browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),
+    focusSafeHelper: readArg(argv, 'focus-safe-helper', env.FLUENTREAD_FOCUS_SAFE_HELPER || ''),
+    background: !argv.includes('--headed'),
+  };
+  if (!args.playwrightRoot) throw new Error('必须传入 --playwright-root 或设置 PLAYWRIGHT_ROOT');
+  if (args.background && !args.focusSafeHelper) {
+    throw new Error('后台模式必须传入 --focus-safe-helper 或设置 FLUENTREAD_FOCUS_SAFE_HELPER');
+  }
+  args.extensionDir = path.resolve(args.extensionDir);
+  args.artifactsDir = path.resolve(args.artifactsDir);
+  if (args.focusSafeHelper) args.focusSafeHelper = path.resolve(args.focusSafeHelper);
+  return args;
+}
+
+function loadFocusSafeBrowser(helperPath) {
+  if (!fs.existsSync(helperPath)) throw new Error(`找不到后台浏览器辅助脚本：${helperPath}`);
+  const helper = require(helperPath);
+  for (const name of [
+    'launchFocusSafePersistentContext',
+    'newPageWithoutForeground',
+    'activateExtensionTabWithoutForeground',
+  ]) {
+    if (typeof helper[name] !== 'function') throw new Error(`后台浏览器辅助脚本缺少接口：${name}`);
+  }
+  return helper;
+}
+
+function assertDedicatedTemporaryProfile(profileDir) {
+  const resolved = path.resolve(profileDir);
+  const temporaryRoot = path.resolve(os.tmpdir());
+  const relative = path.relative(temporaryRoot, resolved);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error(`拒绝使用非临时浏览器 profile：${resolved}`);
+  }
 }
 
 async function main() {
-  const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3-dev'));
-  const playwrightRoot = arg('playwright-root', process.env.PLAYWRIGHT_ROOT);
-  const url = arg('url', 'https://www.youtube.com/watch?v=drSMZgnmJjk');
-  const artifactsDir = path.resolve(arg('artifacts-dir', path.join(os.tmpdir(), 'fluentread-video-subtitle-evidence')));
-  const browserPath = arg('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge');
-  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-edge-video-profile-'));
-  fs.mkdirSync(artifactsDir, { recursive: true });
+  const args = parseArgs(process.argv.slice(2));
+  const {extensionDir, playwrightRoot, url, artifactsDir, browserPath} = args;
   if (!fs.existsSync(path.join(extensionDir, 'manifest.json'))) throw new Error(`找不到扩展构建：${extensionDir}`);
+  if (!fs.existsSync(browserPath)) throw new Error(`找不到浏览器：${browserPath}`);
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-edge-video-profile-'));
+  assertDedicatedTemporaryProfile(profileDir);
+  fs.mkdirSync(artifactsDir, { recursive: true });
 
   const { chromium } = loadPlaywright(playwrightRoot);
-  const context = await chromium.launchPersistentContext(profileDir, {
-    executablePath: browserPath,
-    headless: false,
-    args: [
+  const browserArgs = [
       `--disable-extensions-except=${extensionDir}`,
       `--load-extension=${extensionDir}`,
-      '--start-minimized', '--window-position=-10000,-10000',
       '--no-first-run', '--no-default-browser-check',
-    ],
-    viewport: { width: 1280, height: 900 },
-  });
-
+  ];
+  let context;
+  let closeBrowser = async () => { if (context) await context.close().catch(() => undefined); };
+  let createIsolatedPage;
+  let activateTestPage = async () => undefined;
+  let launchMode;
+  let focusPolicy;
+  let windowPlacement;
   try {
+    if (args.background) {
+      const focusSafe = loadFocusSafeBrowser(args.focusSafeHelper);
+      const browserSession = await focusSafe.launchFocusSafePersistentContext({
+        chromium,
+        profileDir,
+        browserPath,
+        headless: false,
+        background: true,
+        browserArgs,
+        viewport: { width: 1280, height: 900 },
+      });
+      context = browserSession.context;
+      closeBrowser = browserSession.close;
+      createIsolatedPage = () => focusSafe.newPageWithoutForeground(context);
+      activateTestPage = page => focusSafe.activateExtensionTabWithoutForeground(context, page);
+      launchMode = browserSession.launchMode;
+      focusPolicy = browserSession.focusPolicy;
+      windowPlacement = browserSession.windowPlacement;
+    } else {
+      context = await chromium.launchPersistentContext(profileDir, {
+        executablePath: browserPath,
+        headless: false,
+        args: browserArgs,
+        viewport: { width: 1280, height: 900 },
+      });
+      closeBrowser = () => context.close();
+      createIsolatedPage = () => context.newPage();
+      launchMode = 'playwright-headed';
+      focusPolicy = 'foreground-authorized';
+      windowPlacement = { mode: 'headed-explicit-foreground', windowState: 'normal', viewport: { width: 1280, height: 900 } };
+    }
+
     const workers = context.serviceWorkers();
     const worker = workers[0] || await context.waitForEvent('serviceworker', { timeout: 30000 });
     const extensionId = worker.url().match(/^chrome-extension:\/\/([^/]+)/)?.[1];
     if (!extensionId) throw new Error('无法取得扩展 ID');
 
-    const popup = await context.newPage();
+    const popup = await createIsolatedPage();
     await popup.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: 'domcontentloaded' });
+    await activateTestPage(popup);
     await popup.waitForSelector('[data-feature="video-subtitle"]', { timeout: 15000 });
     await popup.waitForFunction(() => document.querySelectorAll('.feature-card').length === 6, null, { timeout: 10000 });
     await worker.evaluate(async () => {
@@ -89,8 +163,9 @@ async function main() {
     await popup.screenshot({ path: path.join(artifactsDir, 'popup-video-beta.png'), fullPage: true });
     await popup.close();
 
-    const options = await context.newPage();
+    const options = await createIsolatedPage();
     await options.goto(`chrome-extension://${extensionId}/options.html#settings-video`, { waitUntil: 'domcontentloaded' });
+    await activateTestPage(options);
     await options.getByRole('heading', { name: '边看边译视频字幕' }).waitFor({ timeout: 15000 });
     const optionsState = await options.evaluate(() => ({
       activeNav: document.querySelector('.sidebar button.active')?.textContent?.replace(/\s+/g, ' ').trim(),
@@ -103,13 +178,14 @@ async function main() {
     await options.screenshot({ path: path.join(artifactsDir, 'options-video-subtitle.png'), fullPage: true });
     await options.close();
 
-    const page = await context.newPage();
+    const page = await createIsolatedPage();
     const extensionPageErrors = [];
     page.on('pageerror', (error) => {
       const message = error.stack || error.message || String(error);
       if (message.includes('chrome-extension://')) extensionPageErrors.push(message);
     });
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await activateTestPage(page);
     await page.waitForTimeout(6000);
 
     await page.waitForFunction(() => {
@@ -355,14 +431,21 @@ async function main() {
       extensionPageErrors,
       disabledClearedOverlay: disabledFromPlayer.buttonPressed === 'false' && disabledFromPlayer.overlayText === '',
       artifactsDir,
+      launchMode,
+      focusPolicy,
+      windowPlacement,
     }, null, 2));
   } finally {
-    await context.close();
+    await closeBrowser();
     fs.rmSync(profileDir, { recursive: true, force: true });
   }
 }
 
-main().catch((error) => {
-  console.error(error.stack || error);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error.stack || error);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {parseArgs};

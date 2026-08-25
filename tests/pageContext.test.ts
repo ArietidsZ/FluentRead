@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { getPageTranslationContext, resetPageTranslationContextCache } from '@/entrypoints/utils/pageContext';
+import {getPageTranslationContext, resetPageTranslationContextCache} from '@/src/services/translation/context';
 
 const originalDocument = globalThis.document;
 const originalLocation = globalThis.location;
@@ -17,7 +17,9 @@ describe('getPageTranslationContext', () => {
         const clone = {
             innerText: 'prefix context sentence target sentence suffix',
             textContent: '',
-            querySelectorAll: () => [{remove: () => removed.push('generated')}],
+            querySelectorAll: (selector: string) => selector === '*'
+                ? []
+                : [{remove: () => removed.push('generated')}],
         };
 
         Object.defineProperty(globalThis, 'location', {

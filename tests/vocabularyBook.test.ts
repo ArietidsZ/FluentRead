@@ -23,7 +23,7 @@ import {
   vocabularyReviewSessionProgress,
   vocabularyImportNeedsConfirmation,
   type VocabularyBookExport,
-} from '@/entrypoints/utils/vocabularyBook';
+} from '@/src/features/vocabulary/repository';
 
 const NOW = 1_000_000;
 let databaseSequence = 0;

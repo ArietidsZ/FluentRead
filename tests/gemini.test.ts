@@ -13,9 +13,9 @@ const {mockConfig} = vi.hoisted(() => ({
     },
 }));
 
-vi.mock('@/entrypoints/utils/config', () => ({config: mockConfig}));
+vi.mock('@/src/services/config/store', () => ({config: mockConfig}));
 
-import gemini from '@/entrypoints/service/gemini';
+import gemini from '@/src/providers/translation/gemini';
 
 const fetchMock = vi.fn<typeof fetch>();
 

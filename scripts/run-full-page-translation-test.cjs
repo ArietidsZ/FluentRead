@@ -5,13 +5,14 @@
 // 它不会连接用户正在使用的浏览器 profile，也不会通过 JS 合成键盘事件。
 
 const fs = require('node:fs');
+const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const { createRequire } = require('node:module');
 
 function parseArgs(argv) {
   const args = {
-    url: 'http://127.0.0.1:8123/unified-translation-fixture.html',
+    url: null,
     browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
     background: true,
     timeout: 120000,
@@ -21,6 +22,7 @@ function parseArgs(argv) {
     // 仅在本次临时 profile 中写入服务，便于把“回退服务慢”和“全文机制问题”分开。
     // 不传此参数时，脚本不会修改任何配置。
     configureService: null,
+    focusSafeHelper: null,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -40,7 +42,82 @@ function parseArgs(argv) {
   if (!Number.isFinite(args.timeout) || args.timeout <= 0) throw new Error('--timeout 必须为正数');
   if (!args.extensionDir) throw new Error('必须传入 --extension-dir');
   if (!args.playwrightRoot) throw new Error('必须传入 --playwright-root');
+  if (args.service !== 'freeTranslation' || (args.configureService && args.configureService !== 'freeTranslation')) {
+    throw new Error('全文本地 fixture 只允许 freeTranslation；真实 provider 必须使用显式 network matrix');
+  }
+  if (args.url) {
+    const url = new URL(args.url);
+    if (!['127.0.0.1', 'localhost', '::1'].includes(url.hostname)) {
+      throw new Error('全文本地 fixture 只允许 loopback URL；真实站点必须使用显式 network matrix');
+    }
+  }
+  if (args.background && !args.focusSafeHelper) {
+    throw new Error('后台模式必须传入 --focus-safe-helper，确保真实浏览器不抢占前台焦点');
+  }
+  if (args.focusSafeHelper) args.focusSafeHelper = path.resolve(args.focusSafeHelper);
   return args;
+}
+
+function createFixtureRequestHandler(html) {
+  return (request, response) => {
+    const pathname = new URL(request.url || '/', 'http://127.0.0.1').pathname;
+    if (pathname !== '/unified-translation-fixture.html') {
+      response.writeHead(404, {'content-type': 'text/plain; charset=utf-8'});
+      response.end('Not found');
+      return;
+    }
+    response.writeHead(200, {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-store',
+    });
+    response.end(html);
+  };
+}
+
+function buildFixtureMicrosoftResponseBody(payload) {
+  const texts = Array.isArray(payload) ? payload.map((value) => String(value)) : [];
+  return JSON.stringify(texts.map((text) => ({
+    translations: [{text: `测试译文：${text}`}],
+  })));
+}
+
+function assertNoRuntimeErrors(runtimeErrors) {
+  if (runtimeErrors.length > 0) {
+    throw new Error(`全文翻译浏览器回归出现运行时错误：${JSON.stringify(runtimeErrors)}`);
+  }
+}
+
+function assertDeterministicFixtureTraffic(fixtureTranslationRequestCount, unexpectedNetworkRequests) {
+  if (fixtureTranslationRequestCount <= 0) {
+    throw new Error('全文本地 fixture 未命中确定性微软翻译路由');
+  }
+  if (unexpectedNetworkRequests.length > 0) {
+    throw new Error(`全文本地 fixture 尝试访问未授权网络：${JSON.stringify(unexpectedNetworkRequests)}`);
+  }
+}
+
+async function startFixtureServer() {
+  const fixturePath = path.resolve(__dirname, '../tests/fixtures/unified-translation-fixture.html');
+  const html = fs.readFileSync(fixturePath);
+  const server = http.createServer(createFixtureRequestHandler(html));
+  await new Promise((resolve, reject) => {
+    const onError = (error) => reject(error);
+    server.once('error', onError);
+    server.listen(0, '127.0.0.1', () => {
+      server.off('error', onError);
+      resolve();
+    });
+  });
+  const address = server.address();
+  if (!address || typeof address === 'string') {
+    await new Promise((resolve) => server.close(resolve));
+    throw new Error('无法取得全文翻译 fixture server 地址');
+  }
+  return {
+    url: `http://127.0.0.1:${address.port}/unified-translation-fixture.html`,
+    isListening: () => server.listening,
+    close: () => new Promise((resolve) => server.close(resolve)),
+  };
 }
 
 function loadPlaywright(root) {
@@ -51,6 +128,16 @@ function loadPlaywright(root) {
     const loader = createRequire(path.join(resolvedRoot, '__fluentread_full_page_loader__.cjs'));
     return loader('playwright');
   }
+}
+
+function loadFocusSafeBrowser(helperPath) {
+  if (!helperPath) throw new Error('必须传入 --focus-safe-helper，确保真实浏览器在后台隔离运行');
+  if (!fs.existsSync(helperPath)) throw new Error(`找不到后台浏览器辅助脚本：${helperPath}`);
+  const helper = require(helperPath);
+  for (const name of ['launchFocusSafePersistentContext', 'newPageWithoutForeground', 'activateExtensionTabWithoutForeground']) {
+    if (typeof helper[name] !== 'function') throw new Error(`后台浏览器辅助脚本缺少接口：${name}`);
+  }
+  return helper;
 }
 
 function assertDedicatedProfile(profileDir) {
@@ -75,12 +162,12 @@ async function waitFor(page, predicate, timeout, description) {
   if (description) return description;
 }
 
-async function readConfig(context, timeout, updates = null) {
+async function readConfig(context, timeout, updates = null, createPage = () => context.newPage()) {
   const workers = context.serviceWorkers();
   const worker = workers[0] || await context.waitForEvent('serviceworker', { timeout: Math.min(timeout, 30000) });
   const match = worker.url().match(/^chrome-extension:\/\/([^/]+)/);
   if (!match) throw new Error('没有找到扩展 service worker');
-  const popup = await context.newPage();
+  const popup = await createPage();
   try {
     await popup.goto(`chrome-extension://${match[1]}/popup.html`, { waitUntil: 'domcontentloaded', timeout: 30000 });
     const stored = await popup.evaluate(() => chrome.storage.local.get('config'));
@@ -102,7 +189,8 @@ async function readConfig(context, timeout, updates = null) {
   }
 }
 
-async function toggleFullPage(page) {
+async function toggleFullPage(page, activatePage) {
+  await activatePage(page);
   // 使用 Playwright 的真实 Alt/T 键序列，对应插件默认全文快捷键 Alt+T。
   await page.keyboard.down('Alt');
   await page.keyboard.press('t');
@@ -252,25 +340,94 @@ async function main() {
   const artifactsDir = args.artifactsDir ? path.resolve(args.artifactsDir) : null;
   if (artifactsDir) fs.mkdirSync(artifactsDir, { recursive: true });
   const { chromium } = loadPlaywright(args.playwrightRoot);
+  const focusSafe = args.background ? loadFocusSafeBrowser(args.focusSafeHelper) : null;
   let context;
+  let closeBrowser = async () => { if (context) await context.close().catch(() => {}); };
+  let createIsolatedPage = () => context.newPage();
+  let activateTestPage = async () => undefined;
+  let launchMode = args.background ? null : 'playwright-headed';
+  let focusPolicy = args.background ? null : 'foreground-authorized';
+  let windowPlacement = args.background
+    ? null
+    : { mode: 'headed-explicit-foreground', windowState: 'normal', viewport: { width: 1280, height: 900 } };
+  let fixtureServer = null;
+  let fixtureTranslationRequestCount = 0;
+  const unexpectedNetworkRequests = [];
   try {
-    context = await chromium.launchPersistentContext(profileDir, {
-      executablePath: args.browserPath,
-      headless: false,
-      viewport: { width: 1280, height: 900 },
-      args: [
-        `--disable-extensions-except=${extensionDir}`,
-        `--load-extension=${extensionDir}`,
-        ...(args.background ? ['--start-minimized', '--window-position=-10000,-10000'] : []),
-        '--no-first-run',
-        '--no-default-browser-check',
-      ],
+    // 默认回归必须自包含；只有显式 --url 才使用调用方提供的页面。
+    if (!args.url) {
+      fixtureServer = await startFixtureServer();
+      args.url = fixtureServer.url;
+    }
+    const browserArgs = [
+      `--disable-extensions-except=${extensionDir}`,
+      `--load-extension=${extensionDir}`,
+      '--no-first-run',
+      '--no-default-browser-check',
+    ];
+    if (args.background) {
+      const browserSession = await focusSafe.launchFocusSafePersistentContext({
+        chromium,
+        profileDir,
+        browserPath: args.browserPath,
+        headless: false,
+        background: true,
+        browserArgs,
+        viewport: { width: 1280, height: 900 },
+        timeout: args.timeout,
+      });
+      context = browserSession.context;
+      closeBrowser = browserSession.close;
+      createIsolatedPage = () => focusSafe.newPageWithoutForeground(context, args.timeout);
+      activateTestPage = page => focusSafe.activateExtensionTabWithoutForeground(context, page, args.timeout);
+      launchMode = browserSession.launchMode;
+      focusPolicy = browserSession.focusPolicy;
+      windowPlacement = browserSession.windowPlacement;
+    } else {
+      context = await chromium.launchPersistentContext(profileDir, {
+        executablePath: args.browserPath,
+        headless: false,
+        viewport: { width: 1280, height: 900 },
+        args: browserArgs,
+      });
+    }
+    // 本地 fixture 对所有非 loopback 网络 fail-closed；唯一例外是被本地确定性响应
+    // 完整替代的 Microsoft 请求。真实站点/真实 provider 只属于显式 network matrix。
+    await context.route('**/*', async (route) => {
+      const request = route.request();
+      const requestUrl = new URL(request.url());
+      const isDeterministicMicrosoftRoute = requestUrl.hostname === 'edge.microsoft.com'
+        && requestUrl.pathname === '/translate/translatetext';
+      if (isDeterministicMicrosoftRoute) {
+        let payload = [];
+        try {
+          payload = request.postDataJSON();
+        } catch {
+          payload = [];
+        }
+        fixtureTranslationRequestCount += Array.isArray(payload) ? payload.length : 0;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: buildFixtureMicrosoftResponseBody(payload),
+        });
+        return;
+      }
+      const isNetworkRequest = requestUrl.protocol === 'http:' || requestUrl.protocol === 'https:';
+      const isLoopbackRequest = ['127.0.0.1', 'localhost', '::1'].includes(requestUrl.hostname);
+      if (isNetworkRequest && !isLoopbackRequest) {
+        unexpectedNetworkRequests.push(request.url());
+        await route.abort('blockedbyclient');
+        return;
+      }
+      await route.continue();
     });
     if (args.configureService) {
-      await readConfig(context, args.timeout, { service: args.configureService });
+      await readConfig(context, args.timeout, { service: args.configureService }, createIsolatedPage);
     }
-    const page = await context.newPage();
+    const page = await createIsolatedPage();
     const networkEvents = [];
+    const runtimeErrors = [];
     let omittedNetworkEvents = 0;
     const recordNetworkEvent = (event) => {
       if (networkEvents.length < 20) networkEvents.push(event);
@@ -291,17 +448,23 @@ async function main() {
     context.on('response', recordResponse);
     page.on('requestfailed', recordFailedRequest);
     page.on('response', recordResponse);
+    page.on('pageerror', (error) => {
+      runtimeErrors.push(`pageerror: ${error.message}`);
+    });
     page.on('console', (message) => {
-      if (message.type() === 'error') recordNetworkEvent({ type: 'console-error', text: message.text() });
+      if (message.type() === 'error') {
+        const text = message.text();
+        runtimeErrors.push(`console: ${text}`);
+        recordNetworkEvent({ type: 'console-error', text });
+      }
     });
     await page.goto(args.url, { waitUntil: 'domcontentloaded', timeout: args.timeout });
     // 当前 main 默认关闭悬浮球，但悬浮/全文快捷键仍由 content script 独立监听；
     // 不能把“悬浮球是否挂载”当作扩展已加载的判据。
     await page.waitForTimeout(1000);
-    const configResult = await readConfig(context, args.timeout);
+    const configResult = await readConfig(context, args.timeout, null, createIsolatedPage);
     if (configResult.config?.floatingBallHotkey !== 'Alt+T') throw new Error(`全文快捷键不是 Alt+T：${configResult.config?.floatingBallHotkey}`);
     if (configResult.config?.service !== args.service) throw new Error(`翻译服务不符：预期 ${args.service}，实际 ${configResult.config?.service}`);
-    await page.bringToFront();
 
     const initialClamp = await page.evaluate(() => {
       const clamp = document.querySelector('#model-description-clamp');
@@ -318,7 +481,7 @@ async function main() {
     }
 
     await installShortcutDiagnostics(page);
-    await toggleFullPage(page);
+    await toggleFullPage(page, activateTestPage);
     try {
       await waitFor(page, () => document.querySelector('#paragraph-one .fluent-read-bilingual-content') &&
         document.querySelector('#model-description .fluent-read-bilingual-content') &&
@@ -359,12 +522,13 @@ async function main() {
     assertTranslated(translated, '第一次全文翻译');
     if (artifactsDir) await page.screenshot({ path: path.join(artifactsDir, 'full-page-translated.png'), fullPage: true });
 
-    await toggleFullPage(page);
+    await toggleFullPage(page, activateTestPage);
     await waitFor(page, () => !document.querySelector('.fluent-read-bilingual-content'), args.timeout);
     const restored = await pageState(page);
     assertRestored(restored);
+    if (artifactsDir) await page.screenshot({ path: path.join(artifactsDir, 'full-page-restored.png'), fullPage: true });
 
-    await toggleFullPage(page);
+    await toggleFullPage(page, activateTestPage);
     await waitFor(page, () => document.querySelector('#paragraph-one .fluent-read-bilingual-content') &&
       document.querySelector('#model-description .fluent-read-bilingual-content') &&
       document.querySelector('#dynamic-paragraph .fluent-read-bilingual-content') &&
@@ -374,26 +538,54 @@ async function main() {
     const retranslated = await pageState(page);
     assertTranslated(retranslated, '再次全文翻译');
     if (artifactsDir) await page.screenshot({ path: path.join(artifactsDir, 'full-page-retranslated.png'), fullPage: true });
+    assertNoRuntimeErrors(runtimeErrors);
+    assertDeterministicFixtureTraffic(fixtureTranslationRequestCount, unexpectedNetworkRequests);
 
-    process.stdout.write(`${JSON.stringify({
+    const evidence = {
       ok: true,
       windowMode: args.background ? 'background-screen-off' : 'headed-isolated',
+      launchMode,
+      focusPolicy,
+      windowPlacement,
       profileDir,
       url: args.url,
       extensionId: configResult.extensionId,
       config: { floatingBallHotkey: configResult.config.floatingBallHotkey, service: configResult.config.service, display: configResult.config.display },
+      fixtureTranslationRequestCount,
+      unexpectedNetworkRequests,
       translated,
       restored,
       retranslated,
-      screenshots: artifactsDir ? [path.join(artifactsDir, 'full-page-translated.png'), path.join(artifactsDir, 'full-page-retranslated.png')] : [],
-    }, null, 2)}\n`);
+      consoleErrors: runtimeErrors,
+      screenshots: artifactsDir ? [
+        path.join(artifactsDir, 'full-page-translated.png'),
+        path.join(artifactsDir, 'full-page-restored.png'),
+        path.join(artifactsDir, 'full-page-retranslated.png'),
+      ] : [],
+    };
+    if (artifactsDir) {
+      fs.writeFileSync(path.join(artifactsDir, 'report.json'), `${JSON.stringify(evidence, null, 2)}\n`);
+    }
+    process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`);
   } finally {
-    if (context) await context.close().catch(() => {});
+    await closeBrowser();
+    await fixtureServer?.close().catch(() => {});
     fs.rmSync(profileDir, { recursive: true, force: true });
   }
 }
 
-main().catch((error) => {
-  process.stderr.write(`${error.stack || error}\n`);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    process.stderr.write(`${error.stack || error}\n`);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  assertDeterministicFixtureTraffic,
+  assertNoRuntimeErrors,
+  buildFixtureMicrosoftResponseBody,
+  createFixtureRequestHandler,
+  parseArgs,
+  startFixtureServer,
+};

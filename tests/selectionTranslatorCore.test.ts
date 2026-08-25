@@ -12,11 +12,73 @@ import {
     resolveSelectionDictionaryFallback,
     resolveSelectionVocabularyAnswer,
     SelectionRequestTokenGate,
+    shouldIgnoreSelection,
     summarizeSelectionContext,
-} from '@/entrypoints/utils/selectionTranslatorCore';
-import { buildEdgeTtsSsml, edgeTtsVoiceCandidatesForLanguage, edgeTtsVoiceForLanguage, synthesizeEdgeTts } from '@/entrypoints/utils/edgeTts';
-import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey, shouldClaimConfiguredHotkey } from '@/entrypoints/utils/hotkey';
-import { normalizeSelectionTtsVoiceOrder } from '@/entrypoints/utils/selectionTtsConfig';
+} from '@/src/features/selection-translation/core';
+import {
+    buildEdgeTtsSsml,
+    edgeTtsVoiceCandidatesForLanguage,
+    edgeTtsVoiceForLanguage,
+    synthesizeEdgeTts,
+} from '@/src/features/selection-translation/services/edgeTts';
+import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey, shouldClaimConfiguredHotkey } from '@/src/core/hotkey';
+import { normalizeSelectionTtsVoiceOrder, selectionTtsVoiceLocale, selectionTtsVoiceOption } from '@/src/features/selection-translation/ttsConfig';
+
+interface MockElementOptions {
+    tagName?: string;
+    role?: string;
+    attributes?: Record<string, string>;
+    closestMatch?: boolean;
+    isContentEditable?: boolean;
+    parentElement?: MockElement | null;
+}
+
+class MockElement {
+    readonly nodeType = 1;
+    readonly tagName: string;
+    readonly isContentEditable: boolean;
+    parentElement: MockElement | null;
+    private readonly attributes: Record<string, string>;
+    private readonly closestMatch: boolean;
+
+    constructor(options: MockElementOptions = {}) {
+        this.tagName = options.tagName ?? 'P';
+        this.attributes = options.attributes ?? {};
+        this.closestMatch = options.closestMatch === true;
+        this.isContentEditable = options.isContentEditable === true;
+        this.parentElement = options.parentElement ?? null;
+        if (options.role) this.attributes.role = options.role;
+    }
+
+    getAttribute(name: string): string | null {
+        return this.attributes[name] ?? null;
+    }
+
+    hasAttribute(name: string): boolean {
+        return Object.hasOwn(this.attributes, name);
+    }
+
+    closest(): MockElement | null {
+        return this.closestMatch ? this : null;
+    }
+}
+
+function mockTextNode(parentElement: MockElement | null): Node {
+    return {nodeType: 3, parentElement} as Node;
+}
+
+function mockRange(start: Node | null, end: Node | null, cloneResult: boolean | 'throw'): Range {
+    return {
+        startContainer: start,
+        endContainer: end,
+        cloneContents: () => {
+            if (cloneResult === 'throw') throw new Error('clone failed');
+            return {
+                querySelector: () => cloneResult ? {} : null,
+            };
+        },
+    } as unknown as Range;
+}
 
 describe('selection translator core geometry', () => {
     const rects = [
@@ -27,6 +89,7 @@ describe('selection translator core geometry', () => {
     it('anchors a forward multi-line selection at its visual end', () => {
         expect(chooseSelectionRect(rects, true)).toEqual(rects[1]);
         expect(chooseSelectionRect(rects, false)).toEqual(rects[0]);
+        expect(chooseSelectionRect([])).toBeNull();
     });
 
     it('keeps the popup above the selection when there is room', () => {
@@ -101,6 +164,8 @@ describe('selection translator text and speech language normalization', () => {
         expect(isSameLanguage('zh-Hans', 'zh-Hant')).toBe(true);
         expect(isSameLanguage('eng', 'en')).toBe(true);
         expect(isSameLanguage('ja', 'en')).toBe(false);
+        expect(isSameLanguage(undefined, 'en')).toBe(false);
+        expect(isSameLanguage('en', undefined)).toBe(false);
         expect(isSameLanguage('und', 'en')).toBe(false);
         expect(isSameLanguage('en', 'auto')).toBe(false);
     });
@@ -110,23 +175,32 @@ describe('selection translator text and speech language normalization', () => {
     });
 
     it('keeps a bounded context centered on the selected word', () => {
+        expect(summarizeSelectionContext('', 'common')).toBe('');
+        expect(summarizeSelectionContext('common text', '')).toBe('');
+        expect(summarizeSelectionContext('common text', 'common', 10)).toBe('');
         const context = summarizeSelectionContext(`Before ${'a'.repeat(80)} common ${'b'.repeat(80)} after`, 'common', 64);
         expect(context).toHaveLength(64);
         expect(context).toContain('common');
         expect(context.startsWith('…')).toBe(true);
         expect(context.endsWith('…')).toBe(true);
         expect(summarizeSelectionContext('  A   common\nexample. ', 'common')).toBe('A common example.');
+        expect(summarizeSelectionContext(`${'x'.repeat(80)} tail`, 'missing', 40)).toBe(`${'x'.repeat(39)}…`);
         const repeated = `common FIRST ${'x'.repeat(650)} common SECOND`;
         const lastCommon = repeated.lastIndexOf('common');
         const aroundLast = summarizeSelectionContext(repeated, 'common', 80, lastCommon);
         expect(aroundLast).toContain('SECOND');
         expect(aroundLast).not.toContain('FIRST');
+        expect(summarizeSelectionContext(`${'x'.repeat(40)} common tail ${'y'.repeat(80)}`, 'common', 40, 0)).toContain('common');
+        expect(summarizeSelectionContext(`${'x'.repeat(80)} common tail`, 'common', 40, 500)).toContain('common');
+        expect(summarizeSelectionContext(`common left ${'x'.repeat(40)} common right`, 'common', 40, 45)).toContain('right');
+        expect(summarizeSelectionContext(`common ${'x'.repeat(80)}`, 'common', 40, 0).startsWith('common')).toBe(true);
     });
 
     it('only exposes answers completed for the current selection request', () => {
         const current = {text: 'common', targetLanguage: 'zh-Hans', generation: 3};
         const translated = {...current, answer: '常见的'};
         const dictionary = {...current, answer: 'occurring often'};
+        expect(resolveSelectionVocabularyAnswer(null, translated, dictionary)).toBe('');
         expect(resolveSelectionVocabularyAnswer(current, translated, dictionary)).toBe('常见的');
         expect(resolveSelectionVocabularyAnswer(current, {...translated, text: 'current'}, dictionary)).toBe('occurring often');
         expect(resolveSelectionVocabularyAnswer(current, {...translated, targetLanguage: 'ja'}, null)).toBe('');
@@ -135,6 +209,7 @@ describe('selection translator text and speech language normalization', () => {
 
     it('only uses bundled ECDICT auxiliary text for Simplified Chinese targets', () => {
         expect(canUseBundledDictionaryFallback('zh-Hans')).toBe(true);
+        expect(canUseBundledDictionaryFallback('')).toBe(false);
         expect(canUseBundledDictionaryFallback('ZH_cn')).toBe(true);
         expect(canUseBundledDictionaryFallback('zh-Hant')).toBe(false);
         expect(canUseBundledDictionaryFallback('ja')).toBe(false);
@@ -150,10 +225,58 @@ describe('selection translator text and speech language normalization', () => {
         expect(isSelectionExcludedTagName('span')).toBe(false);
     });
 
+    it('忽略交互、可编辑和 FluentRead 自身 UI 内的选区', () => {
+        expect(shouldIgnoreSelection(mockRange(
+            new MockElement({tagName: 'IMG'}) as unknown as Node,
+            new MockElement() as unknown as Node,
+            false,
+        ))).toBe(true);
+        expect(shouldIgnoreSelection(mockRange(
+            new MockElement({role: 'button'}) as unknown as Node,
+            new MockElement() as unknown as Node,
+            false,
+        ))).toBe(true);
+        expect(shouldIgnoreSelection(mockRange(
+            new MockElement({isContentEditable: true}) as unknown as Node,
+            new MockElement() as unknown as Node,
+            false,
+        ))).toBe(true);
+        expect(shouldIgnoreSelection(mockRange(
+            mockTextNode(new MockElement({attributes: {contenteditable: 'plaintext-only'}})),
+            new MockElement() as unknown as Node,
+            false,
+        ))).toBe(true);
+        expect(shouldIgnoreSelection(mockRange(
+            mockTextNode(new MockElement({attributes: {contenteditable: 'false'}})),
+            new MockElement({closestMatch: true}) as unknown as Node,
+            false,
+        ))).toBe(true);
+    });
+
+    it('在 fragment 检查失败时 fail-open，避免破坏普通文本选择', () => {
+        expect(shouldIgnoreSelection(mockRange(
+            null,
+            mockTextNode(new MockElement()),
+            false,
+        ))).toBe(false);
+        expect(shouldIgnoreSelection(mockRange(
+            mockTextNode(new MockElement()),
+            mockTextNode(new MockElement()),
+            true,
+        ))).toBe(true);
+        expect(shouldIgnoreSelection(mockRange(
+            mockTextNode(new MockElement()),
+            mockTextNode(new MockElement()),
+            'throw',
+        ))).toBe(false);
+    });
+
     it('maps translation language codes to browser speech language codes', () => {
         expect(normalizeSpeechLanguage('zh-Hans')).toBe('zh-CN');
         expect(normalizeSpeechLanguage('en')).toBe('en-US');
+        expect(normalizeSpeechLanguage(undefined, 'fr-FR')).toBe('fr-FR');
         expect(normalizeSpeechLanguage('auto', 'zh-CN')).toBe('zh-CN');
+        expect(normalizeSpeechLanguage('en-GB')).toBe('en-GB');
         expect(normalizeSpeechLanguage('invalid value')).toBe('en-US');
     });
 
@@ -180,6 +303,10 @@ describe('selection translator text and speech language normalization', () => {
             'en-US-AriaNeural',
             'en-US-GuyNeural',
         ]);
+        expect(normalizeSelectionTtsVoiceOrder('en-US-JennyNeural')).toEqual([]);
+        expect(selectionTtsVoiceLocale('zh-CN-XiaoxiaoMultilingualNeural')).toBe('zh-CN');
+        expect(selectionTtsVoiceOption('zh-CN-XiaoyiNeural')?.label).toBe('晓伊');
+        expect(selectionTtsVoiceOption('unknown')).toBeUndefined();
     });
 
     it('does not expose malformed Edge TTS endpoint JSON in errors', async () => {

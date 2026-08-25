@@ -8,12 +8,15 @@
 ## 技术基线
 
 - 保持现有技术栈：WXT 0.20、Vue 3、TypeScript、Element Plus 和 pnpm 9。当前锁文件实际使用 WXT 0.20.18；未经明确升级任务，不按新版文档擅自使用仅在更高版本存在的 API。
-- 优先延续现有模块边界：
-  - `entrypoints/background.ts`：后台能力、扩展消息和浏览器 API。
-  - `entrypoints/content.ts` 与 `entrypoints/main/`：页面注入、DOM 处理和全文翻译流程。
-  - `entrypoints/service/`：翻译服务适配器。
-  - `entrypoints/utils/`：配置、缓存、队列、快捷键和组件挂载等共享能力。
-  - `components/` 与 `entrypoints/popup/`：Vue UI。
+- 遵循 [架构设计](docs/architecture.md) 的单向模块边界：
+  - `entrypoints/`：WXT 文件式入口，只绑定生命周期并组装 `src/app`。
+  - `src/app/`：background/content/popup/options/document/offscreen 的静态 composition root；`userscript/` 是独立发布出口。
+  - `src/features/`：全文、悬浮、划词、输入框、词书、图片、区域、文档和视频等纵向业务。
+  - `src/core/`：翻译候选、快捷键、OCR 等无浏览器副作用的纯算法。
+  - `src/services/`：翻译、缓存、配置等跨 feature 编排。
+  - `src/providers/` 与 `src/platform/`：供应商适配和浏览器/存储/HTTP/offscreen 边界。
+  - `src/shared/` 与 `src/ui/`：无业务语义的小型工具和复用 UI/token。
+- `entrypoints/utils/` 只允许保留带 `@deprecated` 的精确兼容导出；生产代码和新增测试必须直接使用 `src` 公共路径，不得为兼容壳增加新调用者。
 - 新功能应复用现有配置、消息、翻译服务和挂载机制，避免另建一套并行状态或通信体系。
 - 内容脚本运行在任意网页中。新增 DOM、样式和事件时使用 FluentRead 专属命名，避免污染宿主页面；卸载、关闭或页面离开时清理监听器、计时器、观察器、挂载节点和未完成请求。
 - 浏览器 API 优先使用项目现有的 `browser`/webextension-polyfill 方式，并同时考虑 Chrome、Edge 和 Firefox 的行为差异。
@@ -35,16 +38,20 @@
 ## 实现原则
 
 - 修复问题时处理根因，并覆盖翻译、恢复原文、重复触发、动态 DOM、页面卸载和失败重试等相关状态。
-- 引入新的翻译服务时沿用 `entrypoints/service/` 的适配器模式，补齐配置可见性、错误处理和调用路径，不在 UI 组件中直接散落网络请求。
+- 引入新的翻译服务时放入 `src/providers/translation/`，通过 provider registry 与 `src/services/translation` 接入；补齐配置可见性、错误处理和调用路径，不在 UI 组件中直接散落网络请求。
 - 从参考项目借鉴功能时，将概念适配为 Vue/TypeScript 实现；不要引入 React 专用依赖或跨仓库运行时耦合。
 - 控制改动范围，不顺手重写无关代码；除非任务需要，不升级依赖或改变构建工具。
 - 用户可见行为变化同步更新相关文档；版本号和发布产物仅在用户明确要求发布时修改。
 
 ## 验证
 
+- 测试分组、覆盖率定义和一键回归以 [测试与回归](docs/testing.md) 为准。
+- 使用 `pnpm test:audit` 检查测试唯一归类、重复用例、`.only`、无说明 `.skip` 和覆盖率忽略。
+- 按改动选择 `pnpm test:architecture`、`pnpm test:unit`、`pnpm test:functional`、`pnpm test:regression`。
+- 迁入 `src` 的可执行业务模块使用 `pnpm test:coverage`，statements/branches/functions/lines 四维均须 100%。
 - 使用 `pnpm compile` 做 TypeScript/Vue 类型检查。
-- 涉及扩展构建或入口行为时运行 `pnpm build`；涉及 Firefox 兼容性时再运行 `pnpm build:firefox`。
+- 涉及扩展构建或入口行为时同时运行 `pnpm build` 与 `pnpm build:firefox`；共享翻译或平台代码还要运行 `pnpm build:userscript` 和 userscript verifier。
 - 涉及文档时运行 `pnpm docs:build`。
-- 当前项目没有自动化测试脚本。对 DOM 翻译、悬浮球、划词翻译、快捷键、配置持久化或浏览器消息的改动，需要说明并执行相应的手动验证。
-- 需要由 Codex 操作 Chrome 测试指定段落翻译或翻译状态切换时，必须遵循 `docs/guide/codex-browser-testing.md`。自动化按键名称使用标准 `Control`，不要使用 `CTRL`；成功状态通过目标段落中的 `.fluent-read-bilingual-content` 判断。
+- `pnpm test:regression:all` 执行确定性的一键回归。真实浏览器层必须显式开启，使用临时 profile、屏幕外正常尺寸窗口和 focus-safe helper；不得连接用户日常 profile、最小化窗口或调用 `bringToFront()`。
+- 自动化按键名称使用标准 `Control`，不要使用 `CTRL`；浏览器报告必须说明 launch mode、focus policy、window placement、执行范围与证据目录。
 - 不把参考项目自身的测试通过视为 FluentRead 的验证结果。

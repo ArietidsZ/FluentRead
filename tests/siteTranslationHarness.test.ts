@@ -968,7 +968,7 @@ describe('site translation coverage contract', () => {
   });
 
   it('rejects stale production output but does not apply the production mtime gate to dev output', () => {
-    const latestSource = {path: '/repo/entrypoints/main/trans.ts', mtimeMs: 200};
+    const latestSource = {path: '/repo/src/features/full-page-translation/content/runtime.ts', mtimeMs: 200};
     expect(evaluateProductionBuildFreshness({
       extensionDir: '/repo/.output/chrome-mv3',
       manifestMtimeMs: 100,

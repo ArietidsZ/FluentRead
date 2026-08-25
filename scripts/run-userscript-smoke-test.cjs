@@ -6,10 +6,11 @@ const os = require('node:os');
 const path = require('node:path');
 const {createRequire} = require('node:module');
 
-function parseArgs(argv) {
+function parseArgs(argv, env = process.env) {
   const args = {
     browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
     background: true,
+    focusSafeHelper: env.FLUENTREAD_FOCUS_SAFE_HELPER || '',
     timeout: 60000,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -30,6 +31,10 @@ function parseArgs(argv) {
   if (!args.artifact) throw new Error('必须传入 --artifact');
   if (!args.playwrightRoot) throw new Error('必须传入 --playwright-root');
   if (!args.artifactsDir) throw new Error('必须传入 --artifacts-dir');
+  if (args.background && !args.focusSafeHelper) {
+    throw new Error('后台模式必须传入 --focus-safe-helper 或设置 FLUENTREAD_FOCUS_SAFE_HELPER');
+  }
+  if (args.focusSafeHelper) args.focusSafeHelper = path.resolve(args.focusSafeHelper);
   return args;
 }
 
@@ -39,6 +44,19 @@ function loadPlaywright(root) {
   } catch {
     return createRequire(path.join(path.resolve(root), '__fluentread_userscript_loader__.cjs'))('playwright');
   }
+}
+
+function loadFocusSafeBrowser(helperPath) {
+  if (!fs.existsSync(helperPath)) throw new Error(`找不到后台浏览器辅助脚本：${helperPath}`);
+  const helper = require(helperPath);
+  for (const name of [
+    'launchFocusSafePersistentContext',
+    'newPageWithoutForeground',
+    'activateExtensionTabWithoutForeground',
+  ]) {
+    if (typeof helper[name] !== 'function') throw new Error(`后台浏览器辅助脚本缺少接口：${name}`);
+  }
+  return helper;
 }
 
 function assertDedicatedProfile(profileDir) {
@@ -145,6 +163,13 @@ async function readState(page) {
   }));
 }
 
+async function selectUserscriptTestPage(background, context, createIsolatedPage) {
+  // focus-safe helper 可能持有并异步关闭自己的启动页；后台回归必须创建独立页面，
+  // 不能复用 context.pages()[0] 后再等待长 userscript 注入。
+  if (background) return createIsolatedPage();
+  return context.pages()[0] || createIsolatedPage();
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const artifact = path.resolve(args.artifact);
@@ -153,22 +178,49 @@ async function main() {
   if (!fs.existsSync(args.browserPath)) throw new Error(`Edge 不存在：${args.browserPath}`);
   fs.mkdirSync(artifactsDir, {recursive: true});
 
+  const {chromium} = loadPlaywright(args.playwrightRoot);
   const fixture = await startFixtureServer();
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-userscript-edge-'));
   assertDedicatedProfile(profileDir);
-  const {chromium} = loadPlaywright(args.playwrightRoot);
   let context;
+  let closeBrowser = async () => { if (context) await context.close().catch(() => undefined); };
+  let createIsolatedPage = () => context.newPage();
+  let launchMode = args.background ? null : 'playwright-headed';
+  let focusPolicy = args.background ? null : 'foreground-authorized';
+  let windowPlacement = args.background
+    ? null
+    : {mode: 'headed-explicit-foreground', windowState: 'normal', viewport: {width: 1280, height: 900}};
   try {
-    context = await chromium.launchPersistentContext(profileDir, {
-      executablePath: args.browserPath,
-      headless: false,
-      viewport: {width: 1280, height: 900},
-      args: [
-        ...(args.background ? ['--start-minimized', '--window-position=-10000,-10000'] : []),
+    const browserArgs = [
         '--no-first-run',
         '--no-default-browser-check',
-      ],
-    });
+    ];
+    if (args.background) {
+      const focusSafe = loadFocusSafeBrowser(args.focusSafeHelper);
+      const browserSession = await focusSafe.launchFocusSafePersistentContext({
+        chromium,
+        profileDir,
+        browserPath: args.browserPath,
+        headless: false,
+        background: true,
+        browserArgs,
+        viewport: {width: 1280, height: 900},
+        timeout: args.timeout,
+      });
+      context = browserSession.context;
+      closeBrowser = browserSession.close;
+      createIsolatedPage = () => focusSafe.newPageWithoutForeground(context, args.timeout);
+      launchMode = browserSession.launchMode;
+      focusPolicy = browserSession.focusPolicy;
+      windowPlacement = browserSession.windowPlacement;
+    } else {
+      context = await chromium.launchPersistentContext(profileDir, {
+        executablePath: args.browserPath,
+        headless: false,
+        viewport: {width: 1280, height: 900},
+        args: browserArgs,
+      });
+    }
     await context.addInitScript(() => {
       const store = new Map();
       store.set('local:config', JSON.stringify({
@@ -222,8 +274,7 @@ async function main() {
       };
     });
 
-    const pages = context.pages();
-    const page = pages[0] || await context.newPage();
+    const page = await selectUserscriptTestPage(args.background, context, createIsolatedPage);
     const consoleErrors = [];
     page.on('pageerror', (error) => consoleErrors.push(`pageerror: ${error.message}`));
     page.on('console', (message) => {
@@ -234,8 +285,21 @@ async function main() {
       Object.defineProperty(window, '__fluentReadBrowserBeforeInjection', {value: window.browser});
       Object.defineProperty(window, '__fluentReadChromeBeforeInjection', {value: window.chrome});
     });
-    await page.addScriptTag({path: artifact});
-    await page.waitForSelector('#fluent-read-page-styles', {state: 'attached', timeout: args.timeout});
+    try {
+      await page.addScriptTag({path: artifact});
+      await page.waitForSelector('#fluent-read-page-styles', {state: 'attached', timeout: args.timeout});
+    } catch (error) {
+      const bootstrapState = page.isClosed()
+        ? {pageClosed: true}
+        : await page.evaluate(() => ({
+          pageClosed: false,
+          bootstrapped: window.__fluentReadUserscriptBootstrapped,
+          readyState: document.readyState,
+          stylePresent: Boolean(document.querySelector('#fluent-read-page-styles')),
+          bodyText: document.body?.innerText?.slice(0, 200) || '',
+        })).catch((cause) => ({diagnosticError: String(cause)}));
+      throw new Error(`${error.message}\nuserscript 启动诊断：${JSON.stringify({bootstrapState, consoleErrors})}`);
+    }
     await page.waitForSelector('#fluent-read-floating-ball-container', {state: 'attached', timeout: args.timeout});
     const pageGlobalsPreserved = await page.evaluate(() => ({
       browser: window.browser === window.__fluentReadBrowserBeforeInjection,
@@ -319,6 +383,7 @@ async function main() {
     if (finalState.url !== fixture.url || finalState.target !== 1 || finalState.adjacent !== 1) {
       throw new Error(`最终状态断言失败：${JSON.stringify(finalState)}`);
     }
+    await page.screenshot({path: path.join(artifactsDir, 'userscript-translated.png'), fullPage: true});
 
     await fullPageToggle(page, 0, 0, args.timeout);
     await page.evaluate(() => {
@@ -403,18 +468,25 @@ async function main() {
       messageStyle,
       bridgeCleanup,
       consoleErrors,
+      launchMode,
+      focusPolicy,
+      windowPlacement,
     };
     fs.writeFileSync(path.join(artifactsDir, 'evidence.json'), `${JSON.stringify(evidence, null, 2)}\n`);
     if (consoleErrors.length) throw new Error(`浏览器控制台出现错误：${JSON.stringify(consoleErrors)}`);
     console.log(JSON.stringify(evidence, null, 2));
   } finally {
-    await context?.close().catch(() => undefined);
+    await closeBrowser();
     await fixture.close().catch(() => undefined);
     fs.rmSync(profileDir, {recursive: true, force: true});
   }
 }
 
-main().catch((error) => {
-  console.error(error.stack || error);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error.stack || error);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {parseArgs, selectUserscriptTestPage};
