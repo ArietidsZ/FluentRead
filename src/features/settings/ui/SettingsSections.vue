@@ -60,12 +60,27 @@
     <!-- 翻译服务 -->
     <section v-show="props.activeSection === 'settings-services'" id="settings-services" class="settings-section">
       <SettingsGroup class="service-default-group">
-        <SettingsItem label="默认网页翻译服务" description="网页、悬停和划词翻译会默认使用此服务；点击下方服务只会打开对应配置。">
+        <div
+          class="service-default-card"
+          data-testid="default-translation-service-card"
+          :data-default-service="config.service"
+        >
+          <div class="service-default-summary">
+            <ServiceIcon :service="config.service" :label="defaultTextServiceLabel" size="large" />
+            <div class="service-default-copy">
+              <span class="service-default-status"><i aria-hidden="true"></i>全局默认</span>
+              <strong>{{ defaultTextServiceLabel }}</strong>
+              <small>网页、悬停和划词翻译都使用此服务</small>
+            </div>
+          </div>
+          <div class="service-default-picker">
+            <span>切换默认服务</span>
           <el-select v-model="config.service" aria-label="默认网页翻译服务" placeholder="请选择翻译服务">
             <el-option v-if="selectedTextServiceUnavailableMessage" label="Chrome内置AI翻译（当前浏览器不可用）" :value="config.service" disabled />
             <el-option v-for="item in availableServiceOptions" :key="item.value" class="select-left" :label="item.label" :value="item.value" :disabled="item.disabled" />
           </el-select>
-        </SettingsItem>
+          </div>
+        </div>
       </SettingsGroup>
       <div v-if="selectedTextServiceUnavailableMessage" class="disabled-section" role="status">
         <strong>当前默认服务在此浏览器不可用</strong>
@@ -618,6 +633,7 @@ import browser from 'webextension-polyfill';
 import {isBrowserTabId} from '@/src/platform/browser/ids';
 import { defineAsyncComponent } from 'vue';
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'));
+import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
 import ServiceCatalog from './services/ServiceCatalog.vue';
 import ServiceConfiguration from './services/ServiceConfiguration.vue';
 import {TranslationCenter} from '@/src/features/translation-center/public';
@@ -733,6 +749,9 @@ const aiContextModel = computed(() => resolveConfiguredModel(
 ));
 const canUseAIContext = computed(() => servicesType.isUseAIContext(config.value.service, aiContextModel.value));
 const availableServiceOptions = computed(() => filterAvailableTranslationServices(options.services));
+const defaultTextServiceLabel = computed(() => (
+  options.services.find((item: any) => item.value === config.value.service)?.label || config.value.service
+));
 const videoServiceOptions = computed(() => availableServiceOptions.value.filter((item: any) => !item.disabled));
 const selectedTextServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.service));
 const selectedVideoServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.videoService));

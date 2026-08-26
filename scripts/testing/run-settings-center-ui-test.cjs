@@ -83,6 +83,7 @@ async function main() {
     focusPolicy: null,
     navigation: [],
     responsive: [],
+    defaultServiceCard: {responsive: []},
     assertions: {},
     consoleErrors: errors,
     screenshots: [],
@@ -187,6 +188,45 @@ async function main() {
     report.assertions.segmentedKeyboard = true;
     report.assertions.darkTheme = true;
 
+    await page.locator('button[data-section="settings-services"]').click();
+    const defaultServiceCard = page.getByTestId('default-translation-service-card');
+    await defaultServiceCard.waitFor({state: 'visible', timeout});
+    const defaultServiceMetrics = await defaultServiceCard.evaluate(card => {
+      const serviceName = card.querySelector('.service-default-copy strong');
+      const status = card.querySelector('.service-default-status');
+      const icon = card.querySelector('.service-brand-icon');
+      const picker = card.querySelector('.service-default-picker');
+      const selected = card.querySelector('.el-select__placeholder');
+      const cardStyle = getComputedStyle(card);
+      const serviceNameStyle = serviceName ? getComputedStyle(serviceName) : null;
+      const iconRect = icon?.getBoundingClientRect();
+      return {
+        defaultService: card.getAttribute('data-default-service'),
+        serviceName: serviceName?.textContent?.trim(),
+        selectedService: selected?.textContent?.trim(),
+        status: status?.textContent?.trim(),
+        pickerLabel: picker?.querySelector(':scope > span')?.textContent?.trim(),
+        backgroundImage: cardStyle.backgroundImage,
+        accentShadow: cardStyle.boxShadow,
+        serviceNameFontSize: Number.parseFloat(serviceNameStyle?.fontSize || '0'),
+        iconWidth: iconRect?.width || 0,
+      };
+    });
+    if (!defaultServiceMetrics.defaultService
+      || defaultServiceMetrics.serviceName !== defaultServiceMetrics.selectedService
+      || defaultServiceMetrics.status !== '全局默认'
+      || defaultServiceMetrics.pickerLabel !== '切换默认服务'
+      || defaultServiceMetrics.backgroundImage === 'none'
+      || !defaultServiceMetrics.accentShadow.includes('inset')
+      || defaultServiceMetrics.serviceNameFontSize < 18
+      || defaultServiceMetrics.iconWidth < 48) {
+      throw new Error(`默认翻译服务卡不够明确：${JSON.stringify(defaultServiceMetrics)}`);
+    }
+    report.defaultServiceCard.desktop = defaultServiceMetrics;
+    report.screenshots.push(await screenshot(page, 'settings-default-service-light.png'));
+    report.assertions.defaultServiceProminent = true;
+
+    await page.locator('button[data-section="settings-general"]').click();
     const targetChange = await chooseDifferentSelectOption(page, '默认目标语言');
     await page.waitForTimeout(500);
     await page.locator('button[data-section="settings-data"]').click();
@@ -280,6 +320,23 @@ async function main() {
     ]) {
       await page.setViewportSize(viewport);
       await page.locator('button[data-section="settings-general"]').click();
+      await page.locator('button[data-section="settings-services"]').click();
+      await page.waitForTimeout(150);
+      const serviceCardLayout = await defaultServiceCard.evaluate(card => {
+        const cardRect = card.getBoundingClientRect();
+        const summaryRect = card.querySelector('.service-default-summary')?.getBoundingClientRect();
+        const pickerRect = card.querySelector('.service-default-picker')?.getBoundingClientRect();
+        return {
+          withinViewport: cardRect.left >= -1 && cardRect.right <= window.innerWidth + 1,
+          stacked: Boolean(summaryRect && pickerRect && pickerRect.top >= summaryRect.bottom - 1),
+          cardWidth: cardRect.width,
+        };
+      });
+      if (!serviceCardLayout.withinViewport) throw new Error(`${viewport.width}px 默认服务卡超出视口`);
+      if (viewport.width <= 820 && !serviceCardLayout.stacked) throw new Error(`${viewport.width}px 默认服务卡没有纵向排列`);
+      const serviceFile = `settings-default-service-${viewport.width}.png`;
+      report.screenshots.push(await screenshot(page, serviceFile));
+      report.defaultServiceCard.responsive.push({...viewport, ...serviceCardLayout});
       await page.locator('button[data-section="settings-data"]').click();
       await page.waitForTimeout(150);
       const metrics = await page.evaluate(() => ({

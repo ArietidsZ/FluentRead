@@ -67,6 +67,20 @@ describe('options UI composition architecture', () => {
     expect(translationCenter).toContain('if (!isTranslationServiceAvailable(service)) return [service]')
   })
 
+  it('makes the global default translation service visually explicit without changing catalog clicks', () => {
+    const settings = source('src/features/settings/ui/SettingsSections.vue')
+    const styles = sourceBody('src/features/settings/ui/settings-sections.css')
+
+    expect(settings).toContain('data-testid="default-translation-service-card"')
+    expect(settings).toContain(':data-default-service="config.service"')
+    expect(settings).toContain('<ServiceIcon :service="config.service"')
+    expect(settings).toContain('全局默认')
+    expect(settings).toContain('切换默认服务')
+    expect(settings).toContain('defaultTextServiceLabel')
+    expect(styles).toContain('.service-default-card')
+    expect(styles).toContain('box-shadow: inset 4px 0 0 var(--brand);')
+  })
+
   it('loads shared tokens before the unchanged settings page rules', () => {
     const pageStyles = sourceBody('src/features/settings/ui/settings-page.css')
     const tokens = source('src/ui/styles/tokens.css')
