@@ -1,24 +1,38 @@
 /**
  * @file src/services/config/history.ts
  *
- * 文件职责：实现公开配置快照的撤销、重做和恢复状态机，限制历史长度并拒绝损坏或含凭据的旧记录。
- * 主要内容：定义 history schema、entry/state/action 类型，提供基线创建、序列化解析、克隆、追加快照、目标索引计算和结果应用，保持 cursor 与 revision 一致。 可核对的公开符号包括 CONFIG_HISTORY_LIMIT、CONFIG_HISTORY_SCHEMA_VERSION、ConfigHistoryAction、ConfigHistoryEntry、ConfigHistoryState、toPublicConfig、serializeConfigHistory、cloneConfigHistory。
+ * 文件职责：实现脱敏配置快照的撤销、重做和恢复状态机，限制历史长度并拒绝损坏或含凭据的旧记录。
+ * 主要内容：定义 history schema、entry/state/action 类型，提供可恢复字段投影、基线创建、序列化解析、追加快照、目标索引计算和安全恢复。
  * 模块边界：本文件位于配置 application service 层，可协调 core 规则与浏览器存储端口；不包含设置页面组件，也不实现具体翻译供应商协议，调用方应通过公开服务 API 订阅或提交配置。
  */
 
-import {normalizeConfig} from '@/src/core/config/model';
-import {sanitizeConfigCredentials, type PublicConfig} from '@/src/core/config/credentials';
+import {normalizeConfig, type Config} from '@/src/core/config/model';
+import {
+    extractConfigCredentials,
+    mergeConfigCredentials,
+    sanitizeConfigCredentials,
+    type PublicConfig,
+} from '@/src/core/config/credentials';
 import {isConfigRecord, parseStoredConfig, serializeConfig} from './schema';
 
-export const CONFIG_HISTORY_LIMIT = 5 as const;
+export const CONFIG_HISTORY_LIMIT = 10 as const;
 export const CONFIG_HISTORY_SCHEMA_VERSION = 1 as const;
+
+export const CONFIG_NON_RESTORABLE_FIELDS = [
+    'count',
+    'persistCredentials',
+    'videoServiceDefaultMigrated',
+] as const;
+
+export type ConfigNonRestorableField = typeof CONFIG_NON_RESTORABLE_FIELDS[number];
+export type RestorableConfig = Omit<PublicConfig, ConfigNonRestorableField>;
 
 export type ConfigHistoryAction = 'undo' | 'redo' | 'restore';
 
 export interface ConfigHistoryEntry {
     version: number;
     savedAt: string;
-    config: PublicConfig;
+    config: RestorableConfig;
 }
 
 export interface ConfigHistoryState {
@@ -32,6 +46,34 @@ export function toPublicConfig(value: unknown): PublicConfig {
     return sanitizeConfigCredentials(normalizeConfig(value)) as PublicConfig;
 }
 
+/**
+ * 历史与自动备份只保存真正可恢复的用户配置。
+ *
+ * 翻译计数和内部迁移标记会被运行时频繁更新，凭据持久化又是显式安全选择；
+ * 它们既不应挤占用户最近修改，也不能在恢复旧快照时被静默回滚。
+ */
+export function toRestorableConfig(value: unknown): RestorableConfig {
+    // 进入历史/备份的数据已经过运行时迁移。再次归一化一个不含内部标记的
+    // 快照时要补回迁移上下文，否则用户主动选择的 DeepLX 会被误判为旧默认值。
+    const snapshotSource = isConfigRecord(value)
+        ? {...value, videoServiceDefaultMigrated: true}
+        : value;
+    const restorable = {...toPublicConfig(snapshotSource)} as Record<string, unknown>;
+    for (const field of CONFIG_NON_RESTORABLE_FIELDS) delete restorable[field];
+    return restorable as RestorableConfig;
+}
+
+/** 把可恢复快照与当前的凭据、统计和安全选择重新组合成完整运行时配置。 */
+export function restoreRestorableConfig(value: unknown, currentValue: unknown): Config {
+    const current = normalizeConfig(currentValue);
+    return normalizeConfig(mergeConfigCredentials({
+        ...toRestorableConfig(value),
+        count: current.count,
+        persistCredentials: current.persistCredentials,
+        videoServiceDefaultMigrated: current.videoServiceDefaultMigrated,
+    }, extractConfigCredentials(current)));
+}
+
 export function serializeConfigHistory(value: ConfigHistoryState): string {
     return JSON.stringify(value);
 }
@@ -42,7 +84,7 @@ export function cloneConfigHistory(value: ConfigHistoryState): ConfigHistoryStat
         entries: value.entries.map((entry) => ({
             version: entry.version,
             savedAt: entry.savedAt,
-            config: toPublicConfig(entry.config),
+            config: toRestorableConfig(entry.config),
         })),
         cursor: value.cursor,
         nextVersion: value.nextVersion,
@@ -57,7 +99,7 @@ export function createBaselineConfigHistory(
     const version = Math.max(1, persistedRevision || 1);
     return {
         schemaVersion: CONFIG_HISTORY_SCHEMA_VERSION,
-        entries: [{version, savedAt, config: toPublicConfig(value)}],
+        entries: [{version, savedAt, config: toRestorableConfig(value)}],
         cursor: 0,
         nextVersion: version + 1,
     };
@@ -81,7 +123,7 @@ export function parseConfigHistory(value: unknown): ConfigHistoryState | null {
                 entry: {
                     version: entry.version,
                     savedAt: entry.savedAt,
-                    config: toPublicConfig(parsedConfig),
+                    config: toRestorableConfig(parsedConfig),
                 } satisfies ConfigHistoryEntry,
             };
         })
@@ -118,8 +160,11 @@ export function appendConfigHistorySnapshot(
     value: unknown,
     savedAt = new Date().toISOString(),
 ): ConfigHistoryState | null {
-    const normalized = toPublicConfig(value);
-    const currentEntries = state.entries.slice(0, state.cursor + 1);
+    const normalized = toRestorableConfig(value);
+    const currentEntries = state.entries.slice(0, state.cursor + 1).map((entry) => ({
+        ...entry,
+        config: toRestorableConfig(entry.config),
+    }));
     const current = currentEntries[currentEntries.length - 1];
     if (current && serializeConfig(current.config) === serializeConfig(normalized)) return null;
 
@@ -147,5 +192,6 @@ export function resolveConfigHistoryTargetIndex(
     if (action === 'redo') return Math.min(state.entries.length - 1, state.cursor + 1);
     if (version === undefined) return state.cursor;
     const index = state.entries.findIndex((entry) => entry.version === version);
-    return index >= 0 ? index : state.cursor;
+    if (index < 0) throw new Error(`配置历史 v${version} 不存在`);
+    return index;
 }

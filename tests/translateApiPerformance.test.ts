@@ -25,7 +25,7 @@ vi.mock('webextension-polyfill', () => ({
 vi.mock('@/src/services/config/store', () => ({
   config: mocks.config,
   saveConfig: mocks.saveConfig,
-  requestConfigSave: mocks.saveConfig,
+  requestConfigCountIncrement: mocks.saveConfig,
 }));
 vi.mock('@/src/core/language/detect', () => ({detectlang: () => 'eng'}));
 vi.mock('@/src/core/config/catalog', () => ({
@@ -137,6 +137,7 @@ describe('translation API request lifecycle performance', () => {
     expect(mocks.saveConfig).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(500);
     expect(mocks.saveConfig).toHaveBeenCalledTimes(1);
+    expect(mocks.saveConfig).toHaveBeenCalledWith(24, expect.any(Function));
     expect(mocks.config.count).toBe(24);
     expect(vi.getTimerCount()).toBe(0);
   });

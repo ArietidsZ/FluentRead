@@ -144,6 +144,8 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/app/background/contextMenuRuntime.ts',
     // 后台消息 composition 只把 provider、feature handler 与 browser API 静态注入；各 handler/路由均已严格覆盖。
     'src/app/background/messageRuntime.ts',
+    // 配置消息 composition 只将保存、计数、历史和备份 handler 接入同一 mutation 队列；各 handler 与队列均有功能测试。
+    'src/app/background/configMessageHandlers.ts',
     // content composition root 绑定 WXT context、页面生命周期和静态 feature registry；由内容功能测试与隔离浏览器回归验证。
     'src/app/content/runtime.ts',
     // 页面快捷键 runtime 绑定真实可信 KeyboardEvent、Selection/Range 与 AbortSignal；纯匹配策略已严格覆盖，信任边界由回归测试验证。
@@ -162,6 +164,10 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/app/document-translation/page.ts',
     // 该模块绑定 WXT storage.watch、session/local 凭据迁移与页面生命周期；纯 schema/历史算法严格覆盖，集成行为由 config.test 验证。
     'src/services/config/store.ts',
+    // 自动备份 store 绑定 WXT storage.watch 与配置保存队列；纯状态机严格覆盖，集成读写和恢复由 configAutoBackupStore.test 验证。
+    'src/services/config/autoBackupStore.ts',
+    // 后台维护组合根只把 browser alarms/storage 注入严格覆盖的自动备份 runtime，并复用缓存维护任务。
+    'src/app/background/maintenanceRuntime.ts',
     // WeakRef、MutationObserver、DOM lease 与 GC 时序属于浏览器生命周期状态机；由 translationState 功能测试和隔离浏览器回归验证。
     'src/features/full-page-translation/content/state.ts',
     // 全文翻译内容脚本 runtime 绑定页面 DOM、MutationObserver 与 WXT 翻译 glue；纯状态/布局/渲染已单独纳入 strict coverage。

@@ -686,4 +686,23 @@ watch(service, resetConnectionTest)
   --el-switch-on-color: #ef4776;
   --el-switch-off-color: #cfd5df;
 }
+
+:global(:root.dark) .credential-warning { border-color: #735c31; color: #f2d28f; background: #392f1f; }
+:global(:root.dark) .custom-template-heading { border-color: var(--line); }
+:global(:root.dark) .custom-template-heading strong,
+:global(:root.dark) .api-key-policy-title { color: var(--ink); }
+:global(:root.dark) .custom-template-heading small,
+:global(:root.dark) .connection-test-hint,
+:global(:root.dark) .api-key-policy-model,
+:global(:root.dark) .minimax-key-note,
+:global(:root.dark) .mimo-key-note,
+:global(:root.dark) .minimax-endpoint,
+:global(:root.dark) .mimo-endpoint { color: var(--muted); }
+:global(:root.dark) .connection-test-button { border-color: rgba(255, 138, 171, .52); color: var(--brand-strong); background: var(--brand-soft); }
+:global(:root.dark) .connection-test-result,
+:global(:root.dark) .api-key-policy { border-color: var(--line); color: var(--muted); background: var(--surface-soft); }
+:global(:root.dark) .api-key-policy:hover { border-color: rgba(255, 138, 171, .42); background: var(--surface); }
+:global(:root.dark) .connection-test-result.is-testing { border-color: #405477; color: #b9cff2; background: #202c40; }
+:global(:root.dark) .connection-test-result.is-success { border-color: #31594d; color: #9edcc8; background: #1c342d; }
+:global(:root.dark) .connection-test-result.is-error { border-color: #6f3949; color: #f1a7bc; background: #3c222b; }
 </style>

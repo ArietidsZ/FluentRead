@@ -7,6 +7,9 @@
  */
 
 import type { Config } from './model';
+import {isSensitiveConfigKey} from './sensitiveKeys';
+
+export {isSensitiveConfigKey} from './sensitiveKeys';
 
 export const SESSION_CREDENTIALS_STORAGE_KEY = 'session:credentials' as const;
 export const LOCAL_CREDENTIALS_STORAGE_KEY = 'local:credentials' as const;
@@ -53,6 +56,20 @@ function cloneValue(value: unknown): unknown {
     const cloned: Record<string, unknown> = {};
     for (const [key, item] of Object.entries(value)) cloned[key] = cloneValue(item);
     return cloned;
+}
+
+function cloneWithoutSensitiveKeys(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(cloneWithoutSensitiveKeys);
+    if (!isRecord(value)) return value;
+
+    const sanitized: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value)) {
+        if (CONFIG_CREDENTIAL_FIELDS.includes(key as ConfigCredentialField) || isSensitiveConfigKey(key)) {
+            continue;
+        }
+        sanitized[key] = cloneWithoutSensitiveKeys(item);
+    }
+    return sanitized;
 }
 
 function stringValue(value: unknown): string {
@@ -110,9 +127,7 @@ export function credentialsEqual(left: ConfigCredentials, right: ConfigCredentia
 }
 
 export function sanitizeConfigCredentials(value: unknown): Record<string, unknown> {
-    const sanitized = isRecord(value) ? cloneValue(value) as Record<string, unknown> : {};
-    for (const field of CONFIG_CREDENTIAL_FIELDS) delete sanitized[field];
-    return sanitized;
+    return isRecord(value) ? cloneWithoutSensitiveKeys(value) as Record<string, unknown> : {};
 }
 
 export function mergeConfigCredentials(value: unknown, credentials: ConfigCredentials): Record<string, unknown> {

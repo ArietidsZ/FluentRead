@@ -20,7 +20,6 @@ import {
     sanitizeConfigCredentials,
     sanitizeConfigHistoryCredentials,
     type ConfigCredentials,
-    type PublicConfig,
 } from '@/src/core/config/credentials';
 import {isTrustedCredentialStorageContext} from '@/src/platform/storage/credentialContext';
 import {
@@ -29,11 +28,14 @@ import {
     cloneConfigHistory,
     createBaselineConfigHistory,
     parseConfigHistory,
+    restoreRestorableConfig,
     resolveConfigHistoryTargetIndex,
     serializeConfigHistory,
     toPublicConfig,
+    toRestorableConfig,
     type ConfigHistoryAction,
     type ConfigHistoryState,
+    type RestorableConfig,
 } from './history';
 import {
     CONFIG_REVISION_FIELD,
@@ -42,6 +44,10 @@ import {
     parseStoredConfig,
     serializeConfig,
 } from './schema';
+import {
+    CONFIG_COUNT_INCREMENT_MESSAGE,
+    parseConfigCountIncrement,
+} from './count';
 
 export {CONFIG_HISTORY_LIMIT, parseStoredConfig, serializeConfig};
 export type {ConfigHistoryAction, ConfigHistoryEntry, ConfigHistoryState} from './history';
@@ -66,6 +72,11 @@ let writeQueue: Promise<void> = Promise.resolve();
 let latestRequestedSerialized = '';
 let persistedConfigRevision = 0;
 let requestSequence = 0;
+let requestGeneration = 0;
+let requestQueue: Promise<void> = Promise.resolve();
+let activeRequestSerialized = '';
+let hasDeferredStoredConfigChange = false;
+let deferredStoredConfigChange: unknown;
 const requestClientId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 let historyState: ConfigHistoryState;
 let historyInitialized = false;
@@ -73,7 +84,7 @@ let historyLastSerialized = '';
 let historyPendingSerialized = '';
 let historyWriteRevision = 0;
 let historyWriteQueue: Promise<void> = Promise.resolve();
-let pendingHistorySnapshot: PublicConfig | null = null;
+let pendingHistorySnapshot: RestorableConfig | null = null;
 let pendingHistoryTimer: ReturnType<typeof setTimeout> | undefined;
 let historyFlushPromise: Promise<void> | null = null;
 
@@ -142,6 +153,15 @@ async function initializeConfigHistory(): Promise<void> {
         historyInitialized = true;
         if (parsed) {
             setHistoryState(parsed);
+            // 旧历史可能仍含统计、安全开关或内部迁移字段；读取时立即迁移为
+            // 可恢复投影，避免这些字段继续占用存储或在其他上下文中泄漏出来。
+            if (serializeConfig(storedHistory) !== serializeConfig(parsed)) {
+                try {
+                    await storage.setItem<ConfigHistoryState>(CONFIG_HISTORY_STORAGE_KEY, parsed);
+                } catch (error) {
+                    console.warn('[FluentRead] 配置历史可恢复投影迁移暂未落盘', error);
+                }
+            }
         } else {
             setHistoryState(createBaselineConfigHistory(config, persistedConfigRevision), false);
         }
@@ -159,7 +179,7 @@ async function appendHistorySnapshotNow(value: unknown): Promise<void> {
     await queueHistoryWrite(nextHistory);
 }
 
-function takePendingHistorySnapshot(): PublicConfig | null {
+function takePendingHistorySnapshot(): RestorableConfig | null {
     if (pendingHistoryTimer) clearTimeout(pendingHistoryTimer);
     pendingHistoryTimer = undefined;
     const snapshot = pendingHistorySnapshot;
@@ -167,7 +187,7 @@ function takePendingHistorySnapshot(): PublicConfig | null {
     return snapshot;
 }
 
-function flushHistorySnapshot(snapshot: PublicConfig): Promise<void> {
+function flushHistorySnapshot(snapshot: RestorableConfig): Promise<void> {
     // Step 1: 每次追加都等待前一个追加完成，确保它读取到已提交的游标与 nextVersion。
     const previous = historyFlushPromise;
     const current = (previous ? previous.catch(() => undefined) : Promise.resolve())
@@ -184,7 +204,7 @@ function flushHistorySnapshot(snapshot: PublicConfig): Promise<void> {
 }
 
 function scheduleHistorySnapshot(value: unknown): void {
-    pendingHistorySnapshot = toPublicConfig(value);
+    pendingHistorySnapshot = toRestorableConfig(value);
     if (pendingHistoryTimer) clearTimeout(pendingHistoryTimer);
     pendingHistoryTimer = setTimeout(() => {
         const snapshot = takePendingHistorySnapshot();
@@ -243,13 +263,16 @@ async function sanitizeStoredHistory(rawHistory?: unknown): Promise<void> {
     await storage.setItem(CONFIG_HISTORY_STORAGE_KEY, sanitized);
 }
 
-function queueStorageWrite(nextConfig: Config, serialized: string, revision: number, storedRevision: number): Promise<void> {
+function queueStorageWrite(nextConfig: Config, serialized: string, revision: number): Promise<void> {
     writeQueue = writeQueue
         .catch(() => undefined)
         .then(async () => {
             // 只写最后一次快照，避免连续输入或多个页面初始化时排队回写旧配置。
             if (revision !== writeRevision || lastPersistedSerialized !== serialized) return;
             try {
+                // revision 代表已经成功提交到 local:config 的版本，不能在写入前发布。
+                // 若 storage 暂时失败，下一次保存仍应从原版本继续，而不是永久冲突。
+                const storedRevision = persistedConfigRevision + 1;
                 if (!trustedCredentialStorageContext) {
                     // Userscripts and extension content scripts can persist the
                     // public configuration, but they cannot access the
@@ -259,6 +282,7 @@ function queueStorageWrite(nextConfig: Config, serialized: string, revision: num
                         ...toPublicConfig(nextConfig),
                         [CONFIG_REVISION_FIELD]: storedRevision,
                     });
+                    persistedConfigRevision = Math.max(persistedConfigRevision, storedRevision);
                     return;
                 }
 
@@ -280,6 +304,7 @@ function queueStorageWrite(nextConfig: Config, serialized: string, revision: num
                     ...toPublicConfig(nextConfig),
                     [CONFIG_REVISION_FIELD]: storedRevision,
                 });
+                persistedConfigRevision = Math.max(persistedConfigRevision, storedRevision);
 
                 if (!nextConfig.persistCredentials && (credentialCleanupRequired || localCredentialSnapshotPresent)) {
                     // 先保证 session 中有已读回确认的快照，并清理历史泄漏，再删除本地凭据。
@@ -301,11 +326,22 @@ async function persistNormalizedConfig(nextConfig: Config, serialized = serializ
 
     lastPersistedSerialized = serialized;
     const revision = ++writeRevision;
-    const storedRevision = ++persistedConfigRevision;
-    await queueStorageWrite(nextConfig, serialized, revision, storedRevision);
+    await queueStorageWrite(nextConfig, serialized, revision);
 }
 
-function handleStoredConfigChange(value: unknown): void {
+interface StoredConfigChangeOptions {
+    confirmedRequestRevision?: number;
+    confirmedRequestSerialized?: string;
+}
+
+function takeDeferredStoredConfigChange(): {hasValue: boolean; value: unknown} {
+    const result = {hasValue: hasDeferredStoredConfigChange, value: deferredStoredConfigChange};
+    hasDeferredStoredConfigChange = false;
+    deferredStoredConfigChange = undefined;
+    return result;
+}
+
+function handleStoredConfigChange(value: unknown, options: StoredConfigChangeOptions = {}): void {
     storageRevision += 1;
     const parsed = parseStoredConfig(value);
     if (!parsed) return;
@@ -314,10 +350,41 @@ function handleStoredConfigChange(value: unknown): void {
     const serialized = serializeConfig(normalized);
     const storedRevision = getStoredConfigRevision(parsed);
     if (storedRevision && storedRevision < persistedConfigRevision) return;
+    const revisionAdvanced = storedRevision > persistedConfigRevision;
+    const isConfirmedRequestEcho = options.confirmedRequestRevision === storedRevision
+        && Boolean(options.confirmedRequestSerialized);
+
+    // runtime 消息的 storage 回声可能早于响应，并且后台会保留 count、凭据等
+    // canonical 字段，因此不能靠整份 serialized 猜测归属。先暂存，收到响应
+    // revision 后再判断它是本次提交还是更新的外部恢复。
+    if (revisionAdvanced && activeRequestSerialized && !isConfirmedRequestEcho) {
+        hasDeferredStoredConfigChange = true;
+        deferredStoredConfigChange = value;
+        return;
+    }
+
+    // 普通 watch 的更高 revision 不能只因内容等于 lastPersistedSerialized 就认作
+    // 本地回声：session 凭据事件可能先把 last 更新成另一个页面的新状态。
+    const isLocalEcho = isConfirmedRequestEcho
+        || (!revisionAdvanced && serialized === lastPersistedSerialized);
     if (storedRevision) persistedConfigRevision = storedRevision;
+
+    // 一个更高 revision 且无法归属于本页面保存请求的快照，必然来自恢复、导入
+    // 或其他页面。立即采用它并取消排队的旧整份快照，不能只借用它的 revision。
+    if (revisionAdvanced && !isLocalEcho && latestRequestedSerialized) {
+        requestGeneration += 1;
+        latestRequestedSerialized = '';
+    }
     // 同一个短生命周期页面可能在极短时间内产生多个快照。storage.watch
     // 可能先回传前一个快照，不能让它覆盖页面尚未完成发送的最新快照。
-    if (latestRequestedSerialized && serialized !== latestRequestedSerialized) return;
+    if (isConfirmedRequestEcho
+        && latestRequestedSerialized
+        && latestRequestedSerialized !== options.confirmedRequestSerialized) return;
+    if (!isConfirmedRequestEcho
+        && isLocalEcho
+        && latestRequestedSerialized
+        && serialized !== latestRequestedSerialized) return;
+    if (!revisionAdvanced && latestRequestedSerialized && serialized !== latestRequestedSerialized) return;
     if (serialized === lastPersistedSerialized) return;
 
     // 外部上下文已经产生了新快照，使尚未写入的旧快照失效。
@@ -327,7 +394,7 @@ function handleStoredConfigChange(value: unknown): void {
 }
 
 // 在首次读取前注册监听，避免设置页打开期间丢失其他上下文的更新。
-storage.watch(CONFIG_STORAGE_KEY, handleStoredConfigChange);
+storage.watch(CONFIG_STORAGE_KEY, (value) => handleStoredConfigChange(value));
 storage.watch(CONFIG_HISTORY_STORAGE_KEY, handleStoredHistoryChange);
 
 function registerSessionCredentialWatch(): void {
@@ -447,11 +514,12 @@ async function initializeConfig(): Promise<void> {
             || typeof storedValue === 'string'
             || serializeConfig(storedValue) !== serializeConfig(nextStoredConfig);
         if (storedNeedsMigration) {
-            persistedConfigRevision += 1;
+            const migratedRevision = persistedConfigRevision + 1;
             await storage.setItem(CONFIG_STORAGE_KEY, {
                 ...toPublicConfig(normalized),
-                [CONFIG_REVISION_FIELD]: persistedConfigRevision,
+                [CONFIG_REVISION_FIELD]: migratedRevision,
             });
+            persistedConfigRevision = Math.max(persistedConfigRevision, migratedRevision);
         }
         if (historyNeedsSanitizing) await sanitizeStoredHistory(rawHistory);
         if (!normalized.persistCredentials && hasLegacyCredentialStorage) {
@@ -491,6 +559,47 @@ export function getConfigSnapshot(): Config {
     return normalizeConfig(config);
 }
 
+export function getConfigRevision(): number {
+    return persistedConfigRevision;
+}
+
+/** 翻译计数只做后台原子增量，不携带可能过期的整份用户配置。 */
+export async function incrementConfigCount(delta: number): Promise<number> {
+    const normalizedDelta = parseConfigCountIncrement(delta);
+    if (normalizedDelta === null) throw new TypeError('无效的翻译计数增量');
+    await configReady;
+
+    const nextConfig = normalizeConfig({...config, count: config.count + normalizedDelta});
+    await storage.setItem(CONFIG_STORAGE_KEY, {
+        ...toPublicConfig(nextConfig),
+        [CONFIG_REVISION_FIELD]: persistedConfigRevision,
+    });
+    writeRevision += 1;
+    lastPersistedSerialized = serializeConfig(nextConfig);
+    applyConfig(nextConfig);
+    return nextConfig.count;
+}
+
+type ConfigCountMessageResponse = {success?: boolean; error?: string; count?: number} | undefined;
+type ConfigCountMessageSender = (message: {
+    type: typeof CONFIG_COUNT_INCREMENT_MESSAGE;
+    delta: number;
+}) => Promise<ConfigCountMessageResponse>;
+
+export async function requestConfigCountIncrement(
+    delta: number,
+    sendMessage?: ConfigCountMessageSender,
+): Promise<number> {
+    const normalizedDelta = parseConfigCountIncrement(delta);
+    if (normalizedDelta === null) throw new TypeError('无效的翻译计数增量');
+    if (!sendMessage) return incrementConfigCount(normalizedDelta);
+
+    const response = await sendMessage({type: CONFIG_COUNT_INCREMENT_MESSAGE, delta: normalizedDelta});
+    if (response?.success === false) throw new Error(response.error || '翻译计数保存失败');
+    if (typeof response?.count !== 'number') throw new Error('翻译计数保存没有返回结果');
+    return response.count;
+}
+
 /**
  * 网页/content 发来的保存请求只能修改公开配置；凭据与持久化偏好必须由
  * popup/options 等扩展 origin 明确更新，避免无凭据的 content 快照清空后台 session。
@@ -500,12 +609,21 @@ export function prepareConfigSaveRequest(
     currentValue: unknown = config,
     allowCredentialUpdates = false,
 ): Config {
-    if (allowCredentialUpdates) return normalizeConfig(value);
-
     const currentConfig = normalizeConfig(currentValue);
+    const incomingConfig = normalizeConfig(value);
+    if (allowCredentialUpdates) {
+        return normalizeConfig({
+            ...incomingConfig,
+            count: currentConfig.count,
+            videoServiceDefaultMigrated: currentConfig.videoServiceDefaultMigrated,
+        });
+    }
+
     return normalizeConfig(mergeConfigCredentials({
-        ...sanitizeConfigCredentials(normalizeConfig(value)),
+        ...sanitizeConfigCredentials(incomingConfig),
+        count: currentConfig.count,
         persistCredentials: currentConfig.persistCredentials,
+        videoServiceDefaultMigrated: currentConfig.videoServiceDefaultMigrated,
     }, extractConfigCredentials(currentConfig)));
 }
 
@@ -540,7 +658,7 @@ export async function saveConfig(value: unknown = config, options: SaveConfigOpt
     if (options.recordHistory) {
         if (options.immediateHistory) {
             await flushConfigHistory();
-            await flushHistorySnapshot(toPublicConfig(normalized));
+            await flushHistorySnapshot(toRestorableConfig(normalized));
         } else {
             scheduleHistorySnapshot(normalized);
         }
@@ -551,12 +669,13 @@ export async function saveConfig(value: unknown = config, options: SaveConfigOpt
  * 从 popup/options 等短生命周期页面请求后台保存配置。
  * Firefox 可能在 popup 关闭时销毁页面上下文，不能依赖页面内的异步 storage.set 完成。
  */
-type ConfigMessageResponse = { success?: boolean; error?: string } | undefined;
+type ConfigMessageResponse = { success?: boolean; error?: string; revision?: number } | undefined;
 type ConfigMessageSender = (message: {
     type: typeof CONFIG_PERSIST_MESSAGE;
     config: Config;
     clientId: string;
     sequence: number;
+    baseRevision: number;
 }) => Promise<ConfigMessageResponse>;
 
 export async function requestConfigSave(value: unknown = config, sendMessage?: ConfigMessageSender): Promise<void> {
@@ -564,22 +683,111 @@ export async function requestConfigSave(value: unknown = config, sendMessage?: C
     const serialized = serializeConfig(normalized);
     latestRequestedSerialized = serialized;
     const sequence = ++requestSequence;
-    try {
-        if (!sendMessage) {
+
+    if (!sendMessage) {
+        try {
             await saveConfig(normalized, {recordHistory: true, immediateHistory: true});
-            return;
+        } finally {
+            if (latestRequestedSerialized === serialized) latestRequestedSerialized = '';
         }
+        return;
+    }
 
-        const response = await sendMessage({
-            type: CONFIG_PERSIST_MESSAGE,
-            config: normalized,
-            clientId: requestClientId,
-            sequence,
+    const generation = requestGeneration;
+    const request = requestQueue
+        .catch(() => undefined)
+        .then(async () => {
+            // 外部恢复/导入导致 revision 冲突后，不能继续发送已经排队的旧整份快照。
+            if (generation !== requestGeneration) {
+                throw new Error('配置已更新，请根据最新配置重新修改');
+            }
+
+            activeRequestSerialized = serialized;
+            let response: ConfigMessageResponse;
+            try {
+                response = await sendMessage({
+                    type: CONFIG_PERSIST_MESSAGE,
+                    config: normalized,
+                    clientId: requestClientId,
+                    sequence,
+                    // 在真正发送时读取版本，让同一页面的连续编辑按前一次提交后的 revision 串行。
+                    baseRevision: persistedConfigRevision,
+                });
+            } catch (error) {
+                activeRequestSerialized = '';
+                const deferred = takeDeferredStoredConfigChange();
+                if (deferred.hasValue) handleStoredConfigChange(deferred.value);
+                throw error;
+            }
+
+            if (response?.success === false) {
+                requestGeneration += 1;
+                latestRequestedSerialized = '';
+                let deferred = takeDeferredStoredConfigChange();
+                let storedValue: unknown;
+                try {
+                    storedValue = deferred.hasValue
+                        ? deferred.value
+                        : await storage.getItem<unknown>(CONFIG_STORAGE_KEY);
+                    // storage.getItem 期间可能又收到更新，以最后一个 watch 快照为准。
+                    deferred = takeDeferredStoredConfigChange();
+                } finally {
+                    activeRequestSerialized = '';
+                }
+                handleStoredConfigChange(deferred.hasValue ? deferred.value : storedValue);
+                throw new Error(response.error || '后台保存配置失败');
+            }
+            if (typeof response?.revision !== 'number'
+                || !Number.isSafeInteger(response.revision)
+                || response.revision < 0) {
+                activeRequestSerialized = '';
+                const deferred = takeDeferredStoredConfigChange();
+                if (deferred.hasValue) handleStoredConfigChange(deferred.value);
+                throw new Error('后台保存配置没有返回有效 revision');
+            }
+
+            let deferred = takeDeferredStoredConfigChange();
+            let storedValue: unknown;
+            if (deferred.hasValue) {
+                storedValue = deferred.value;
+            } else {
+                try {
+                    storedValue = await storage.getItem<unknown>(CONFIG_STORAGE_KEY);
+                } catch {
+                    // 保存已经成功；读取暂时失败时至少同步本次用户快照与 revision，
+                    // 后续 storage.watch 仍会补齐后台保留的 canonical 字段。
+                    activeRequestSerialized = '';
+                    persistedConfigRevision = Math.max(persistedConfigRevision, response.revision);
+                    if (latestRequestedSerialized === serialized) applyConfig(normalized);
+                    return;
+                }
+                deferred = takeDeferredStoredConfigChange();
+                if (deferred.hasValue) storedValue = deferred.value;
+            }
+            activeRequestSerialized = '';
+
+            const storedRevision = getStoredConfigRevision(storedValue);
+            if (storedRevision > response.revision) {
+                handleStoredConfigChange(storedValue);
+                throw new Error('配置已由其他页面更新，请根据最新配置重新修改');
+            }
+            if (storedRevision === response.revision) {
+                handleStoredConfigChange(storedValue, {
+                    confirmedRequestRevision: response.revision,
+                    confirmedRequestSerialized: serialized,
+                });
+            } else {
+                persistedConfigRevision = Math.max(persistedConfigRevision, response.revision);
+                if (latestRequestedSerialized === serialized) applyConfig(normalized);
+            }
+            if (generation !== requestGeneration) {
+                throw new Error('配置已由其他页面更新，请根据最新配置重新修改');
+            }
         });
+    requestQueue = request.then(() => undefined, () => undefined);
 
-        if (response?.success === false) {
-            throw new Error(response.error || '后台保存配置失败');
-        }
+    try {
+        await request;
     } finally {
         if (latestRequestedSerialized === serialized) latestRequestedSerialized = '';
     }
@@ -593,14 +801,21 @@ export async function applyConfigHistoryAction(action: ConfigHistoryAction, vers
 
     if (targetIndex === historyState.cursor) return getConfigHistorySnapshot();
     const target = historyState.entries[targetIndex];
-    const currentCredentials = extractConfigCredentials(config);
-    const normalized = normalizeConfig(mergeConfigCredentials({
-        ...target.config,
-        // 凭据持久化是显式安全选择，不随普通配置历史静默回滚。
-        persistCredentials: config.persistCredentials,
-    }, currentCredentials));
+    const normalized = restoreRestorableConfig(target.config, config);
     await persistNormalizedConfig(normalized);
     if (serializeConfig(config) !== serializeConfig(normalized)) applyConfig(normalized);
+
+    if (action === 'restore') {
+        // 恢复不是把游标永久退回旧版本，而是把目标快照作为一次新的修改追加。
+        // 这样恢复前的状态和原有 redo 条目都仍可查看，之后继续编辑也不会静默丢失它们。
+        const historyWithLatestCursor = {
+            ...historyState,
+            cursor: historyState.entries.length - 1,
+        };
+        const restoredHistory = appendConfigHistorySnapshot(historyWithLatestCursor, normalized);
+        await queueHistoryWrite(restoredHistory || historyWithLatestCursor);
+        return getConfigHistorySnapshot();
+    }
 
     await queueHistoryWrite({
         ...historyState,
@@ -623,15 +838,16 @@ export async function requestConfigHistoryAction(
 ): Promise<ConfigHistoryState> {
     if (!sendMessage) return applyConfigHistoryAction(action, version);
 
+    let response: ConfigHistoryMessageResponse;
     try {
-        const response = await sendMessage({type: CONFIG_HISTORY_MESSAGE, action, version});
-        if (response?.success === false) throw new Error(response.error || '配置历史操作失败');
-        return response?.history || getConfigHistorySnapshot();
+        response = await sendMessage({type: CONFIG_HISTORY_MESSAGE, action, version});
     } catch (error) {
-        const history = await applyConfigHistoryAction(action, version);
-        if (error instanceof Error && !error.message.includes('Receiving end')) {
-            console.warn('[FluentRead] 后台配置历史操作失败，已回退到当前上下文', error);
-        }
-        return history;
+        // 只有明确“没有后台接收端”时才允许本地兜底。后台已经返回的保存失败
+        // 不能再执行一次，否则可能绕过共享 mutation 队列或造成重复恢复。
+        if (!(error instanceof Error) || !error.message.includes('Receiving end')) throw error;
+        return applyConfigHistoryAction(action, version);
     }
+    if (response?.success === false) throw new Error(response.error || '配置历史操作失败');
+    if (!response?.history) throw new Error('配置历史操作没有返回结果');
+    return response.history;
 }

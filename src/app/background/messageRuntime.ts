@@ -6,11 +6,8 @@
  */
 import {formatConnectionTestError, runTranslationServiceConnectionTest, translateMicrosoftTexts} from './providerRuntime';
 import {
-    applyConfigHistoryAction,
     config,
     configReady,
-    prepareConfigSaveRequest,
-    saveConfig,
 } from '@/src/services/config/store';
 import {synthesizeEdgeTts} from '@/src/features/selection-translation/services/edgeTts';
 import {lookupWord} from '@/src/features/selection-translation/services/wordDictionary';
@@ -22,9 +19,8 @@ import {
     createAreaTranslationBackgroundHandlers,
     type AreaTranslationBackgroundContext,
 } from './handlers/areaTranslation';
-import {createConfigHistoryHandler} from './handlers/configHistory';
 import {createTranslationCacheHandler} from './handlers/translationCache';
-import {createConfigPersistenceHandler, type ConfigPersistenceContext} from './handlers/configPersistence';
+import {type ConfigPersistenceContext} from './handlers/configPersistence';
 import {createConnectionTestHandler} from './handlers/connectionTest';
 import {
     createFullPageTranslationStateHandlers,
@@ -51,7 +47,7 @@ import {areaTranslationOffscreenAdapter} from '@/src/features/area-translation/b
 import {imageTranslationOffscreenAdapter} from '@/src/features/image-translation/background/offscreenAdapter';
 import {selectionTtsOffscreenAdapter} from '@/src/features/selection-translation/background/offscreenAdapter';
 import {createCapabilityGatedBackgroundHandlers, createCapabilityGatedSelectionTtsTransport} from './capabilityRegistry';
-
+import {createConfigBackgroundHandlers} from './configMessageHandlers';
 type BackgroundRuntimeContext = ConfigPersistenceContext
     & VocabularyBackgroundContext
     & SelectionTtsContext
@@ -62,7 +58,6 @@ export interface BackgroundMessageRuntimeOptions {
     onFullPageStateChanged(tabId: number): void;
     capabilities?: BrowserCapabilities;
 }
-
 /** 用静态 handler registry 组装唯一的 runtime.onMessage 入口。 */
 export function installBackgroundMessageRuntime(options: BackgroundMessageRuntimeOptions): void {
     const capabilities = options.capabilities ?? browserCapabilities;
@@ -73,14 +68,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     const selectionTtsTransport = createCapabilityGatedSelectionTtsTransport(capabilities, selectionTtsOffscreenAdapter);
     const handlers: Array<BackgroundMessageHandler<BackgroundRuntimeContext>> = [
         createTranslationCacheHandler(clearTranslationCache),
-        createConfigHistoryHandler(applyConfigHistoryAction),
-        createConfigPersistenceHandler({
-            ready: configReady,
-            getCurrentConfig: () => config,
-            prepareConfigSaveRequest,
-            saveConfig,
-            isExtensionUrl: (url) => url.startsWith(browser.runtime.getURL('/')),
-        }),
+        ...createConfigBackgroundHandlers<BackgroundRuntimeContext>(),
         createConnectionTestHandler({
             ready: configReady,
             runConnectionTest: runTranslationServiceConnectionTest,
@@ -157,7 +145,6 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             serializeError: serializeTranslationError,
         }),
     );
-
     browser.runtime.onMessage.addListener(async (message: unknown, sender: any) => {
         try {
             const dispatch = await router.dispatch(message, {sender});

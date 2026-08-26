@@ -5,7 +5,7 @@
  * 模块边界：UI 不直接创建 Tesseract Worker 或写存储；下载和持久化由后台 handlers/repository 完成，能力判断来自 platform/browser，语言元数据只依赖 ocrLanguages 公共契约。
  -->
 <template>
-  <section id="settings-image-translation" class="settings-section image-ocr-section">
+  <section class="settings-section image-ocr-section" aria-labelledby="image-ocr-pack-title">
     <div v-if="!browserCapabilities.imageOcr" class="image-ocr-unavailable" role="status">
       <strong>当前浏览器暂不支持图片翻译与 OCR</strong>
       <p>原有图片翻译偏好和语言包记录会保留；请在 Chrome 中使用及管理此功能。</p>
@@ -13,9 +13,8 @@
     <template v-else>
       <div class="image-ocr-heading">
         <div>
-          <span class="image-ocr-kicker">Beta 测试</span>
-          <h2>图片翻译需要 OCR 语言包</h2>
-          <p>语言包会在运行时按需下载并缓存在浏览器本地，不会随扩展安装包一起下载。</p>
+          <h2 id="image-ocr-pack-title">OCR 语言包</h2>
+          <p>按需下载并缓存在浏览器本地，不会随扩展安装包一起下载。</p>
         </div>
         <span class="image-ocr-runtime-badge">按需下载</span>
       </div>

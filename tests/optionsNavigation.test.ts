@@ -17,7 +17,8 @@ describe('options navigation view-model', () => {
   })
 
   it('resolves valid sections and falls back for malformed hashes', () => {
-    expect(resolveNavigationItem('settings-services').title).toBe('翻译服务与模型')
+    expect(resolveNavigationItem('settings-services').title).toBe('翻译服务')
+    expect(resolveNavigationItem('settings-webpage').title).toBe('网页翻译')
     expect(resolveNavigationItem('missing').id).toBe(DEFAULT_NAVIGATION_SECTION)
     expect(resolveRequestedSection('#settings-video')).toBe('settings-video')
     expect(resolveRequestedSection('settings-sites')).toBe('settings-sites')
@@ -30,6 +31,9 @@ describe('options navigation view-model', () => {
     ])
     expect(filterNavigationItems('主域名')).toEqual([
       expect.objectContaining({ id: 'settings-sites' }),
+    ])
+    expect(filterNavigationItems('悬浮球')).toEqual([
+      expect.objectContaining({ id: 'settings-webpage' }),
     ])
     expect(filterNavigationItems('')).toEqual([])
     expect(filterNavigationItems('不存在的设置项')).toEqual([])

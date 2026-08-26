@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { reactive } from 'vue';
-import { normalizeConfig } from '@/entrypoints/utils/model';
+import { normalizeConfig, type Config } from '@/entrypoints/utils/model';
 import { sanitizeConfigCredentials } from '@/entrypoints/utils/credentials';
 
 const storageMock = vi.hoisted(() => ({
@@ -267,21 +267,96 @@ describe('统一配置存储', () => {
         const configStore = await loadConfigModule(storedConfig);
         await configStore.configReady;
         storageMock.setItem.mockClear();
-        const sendMessage = vi.fn().mockResolvedValue({ success: true });
+        const sendMessage = vi.fn().mockResolvedValue({ success: true, revision: 2 });
 
         await configStore.requestConfigSave({ ...configStore.config, to: 'en' }, sendMessage);
 
         expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
             type: configStore.CONFIG_PERSIST_MESSAGE,
             config: expect.objectContaining({ to: 'en' }),
+            baseRevision: 1,
         }));
+        expect(configStore.getConfigRevision()).toBe(2);
         expect(storageMock.setItem).not.toHaveBeenCalled();
+    });
+
+    it('翻译计数使用同 revision 的原子增量，不生成用户配置历史版本', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, count: 10, __fluentConfigRevision: 4});
+        await Promise.all([configStore.configReady, configStore.configHistoryReady]);
+        const historyBefore = configStore.getConfigHistorySnapshot();
+
+        await expect(configStore.incrementConfigCount(3)).resolves.toBe(13);
+
+        expect(configStore.config.count).toBe(13);
+        expect(storageState.get('local:config')).toMatchObject({count: 13, __fluentConfigRevision: 4});
+        expect(configStore.getConfigRevision()).toBe(4);
+        expect(configStore.getConfigHistorySnapshot()).toEqual(historyBefore);
+        await expect(configStore.incrementConfigCount(0)).rejects.toThrow('无效的翻译计数增量');
+    });
+
+    it('计数增量请求只发送 delta，并校验后台响应', async () => {
+        const configStore = await loadConfigModule(storedConfig);
+        await configStore.configReady;
+        const sendMessage = vi.fn().mockResolvedValue({success: true, count: 7});
+
+        await expect(configStore.requestConfigCountIncrement(2, sendMessage)).resolves.toBe(7);
+        expect(sendMessage).toHaveBeenCalledWith({type: 'incrementConfigCount', delta: 2});
+        await expect(configStore.requestConfigCountIncrement(0, sendMessage)).rejects.toThrow('无效的翻译计数增量');
+        await expect(configStore.requestConfigCountIncrement(1, vi.fn().mockResolvedValue({success: false, error: 'failed'})))
+            .rejects.toThrow('failed');
+        await expect(configStore.requestConfigCountIncrement(1, vi.fn().mockResolvedValue({success: true})))
+            .rejects.toThrow('没有返回结果');
+    });
+
+    it('后台拒绝旧 revision 时重新读取最新配置，而不是保留会再次覆盖的旧快照', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4});
+        await configStore.configReady;
+        const sendMessage = vi.fn().mockImplementation(async () => {
+            storageState.set('local:config', {...canonical, to: 'ja', __fluentConfigRevision: 5});
+            return {success: false, error: '配置已更新（当前 revision 5）'};
+        });
+
+        await expect(configStore.requestConfigSave({...configStore.config, to: 'en'}, sendMessage))
+            .rejects.toThrow('当前 revision 5');
+
+        expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({baseRevision: 4}));
+        expect(configStore.config.to).toBe('ja');
+        expect(configStore.getConfigRevision()).toBe(5);
+    });
+
+    it('local config 写入失败不提前发布 revision，随后可以从原版本重试', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4});
+        await configStore.configReady;
+        let failNextConfigWrite = true;
+        storageMock.setItem.mockImplementation(async (key: string, nextValue: unknown) => {
+            storageOperations.push(`set:${key}`);
+            if (key === 'local:config' && failNextConfigWrite) {
+                failNextConfigWrite = false;
+                throw new Error('temporary local storage failure');
+            }
+            storageState.set(key, structuredClone(nextValue));
+        });
+
+        await expect(configStore.saveConfig({...configStore.config, to: 'en'}))
+            .rejects.toThrow('temporary local storage failure');
+        expect(configStore.getConfigRevision()).toBe(4);
+        expect(storageState.get('local:config')).toMatchObject({to: 'zh-Hans', __fluentConfigRevision: 4});
+
+        await expect(configStore.saveConfig({...configStore.config, to: 'ja'})).resolves.toBeUndefined();
+        expect(configStore.getConfigRevision()).toBe(5);
+        expect(storageState.get('local:config')).toMatchObject({to: 'ja', __fluentConfigRevision: 5});
     });
 
     it('发送响应式配置时先转换为 Firefox 可结构化克隆的纯对象', async () => {
         const configStore = await loadConfigModule(storedConfig);
         await configStore.configReady;
-        const sendMessage = vi.fn().mockResolvedValue({ success: true });
+        const sendMessage = vi.fn(async ({baseRevision}: {baseRevision: number; config: Config}) => ({
+            success: true,
+            revision: baseRevision + 1,
+        }));
         const reactiveConfig = reactive({
             ...configStore.config,
             to: 'ja',
@@ -314,8 +389,18 @@ describe('统一配置存储', () => {
             token: {openai: 'background-session-secret'},
             extra: {zhipu: {jwt: 'derived-secret'}},
             persistCredentials: true,
+            count: 42,
+            videoServiceDefaultMigrated: true,
         });
-        const contentSnapshot = normalizeConfig({...current, to: 'ja', token: {}, extra: {}, persistCredentials: false});
+        const contentSnapshot = normalizeConfig({
+            ...current,
+            to: 'ja',
+            token: {},
+            extra: {},
+            persistCredentials: false,
+            count: 1,
+            videoServiceDefaultMigrated: false,
+        });
 
         const prepared = configStore.prepareConfigSaveRequest(contentSnapshot, current, false);
         const extensionPrepared = configStore.prepareConfigSaveRequest(contentSnapshot, current, true);
@@ -325,10 +410,14 @@ describe('统一配置存储', () => {
             token: {openai: 'background-session-secret'},
             extra: {zhipu: {jwt: 'derived-secret'}},
             persistCredentials: true,
+            count: 42,
+            videoServiceDefaultMigrated: true,
         });
         expect(extensionPrepared.token).toEqual({});
         expect(extensionPrepared.extra).toEqual({});
         expect(extensionPrepared.persistCredentials).toBe(false);
+        expect(extensionPrepared.count).toBe(42);
+        expect(extensionPrepared.videoServiceDefaultMigrated).toBe(true);
     });
 
     it('按 session 写入读回、清理 config/history、最后删除 local 的顺序迁移旧凭据', async () => {
@@ -424,7 +513,7 @@ describe('统一配置存储', () => {
         expect(storageState.has('local:credentials')).toBe(false);
     });
 
-    it('恢复历史只恢复公开字段，并保留当前凭据和显式持久化选择', async () => {
+    it('恢复历史只恢复可恢复字段，并保留当前凭据、统计、安全选择和迁移标记', async () => {
         const configStore = await loadConfigModule(storedConfig);
         await Promise.all([configStore.configReady, configStore.configHistoryReady]);
         await configStore.saveConfig({...configStore.config, to: 'en'}, {recordHistory: true, immediateHistory: true});
@@ -434,6 +523,8 @@ describe('统一配置存储', () => {
             ...configStore.config,
             token: {openai: secret},
             persistCredentials: true,
+            count: 42,
+            videoServiceDefaultMigrated: true,
             to: 'ja',
         }, {recordHistory: true, immediateHistory: true});
 
@@ -442,7 +533,14 @@ describe('统一配置存储', () => {
         expect(configStore.config.to).toBe('zh-Hans');
         expect(configStore.config.token.openai).toBe(secret);
         expect(configStore.config.persistCredentials).toBe(true);
+        expect(configStore.config.count).toBe(42);
+        expect(configStore.config.videoServiceDefaultMigrated).toBe(true);
         expect(JSON.stringify(configStore.getConfigHistorySnapshot())).not.toContain(secret);
+        expect(configStore.getConfigHistorySnapshot().entries.every((entry) => (
+            !('count' in entry.config)
+            && !('persistCredentials' in entry.config)
+            && !('videoServiceDefaultMigrated' in entry.config)
+        ))).toBe(true);
     });
 
     it('session 写入或读回失败时不删除或改写旧明文', async () => {
@@ -472,25 +570,120 @@ describe('统一配置存储', () => {
         expect(storageState.get('local:config')).toEqual(legacyConfig);
     });
 
-    it('连续请求按页面顺序发送，避免旧快照覆盖最新快照', async () => {
+    it('连续请求按页面顺序串行发送，并让后一次使用前一次提交后的 revision', async () => {
         const configStore = await loadConfigModule(storedConfig);
         await configStore.configReady;
         const sent: string[] = [];
         let releaseFirst!: () => void;
         const firstFinished = new Promise<void>((resolve) => { releaseFirst = resolve; });
-        const sendMessage = vi.fn(async ({ config }: { config: { to: string } }) => {
+        const baseRevisions: number[] = [];
+        const sendMessage = vi.fn(async ({config, baseRevision}: {config: {to: string}; baseRevision: number}) => {
             sent.push(config.to);
+            baseRevisions.push(baseRevision);
             if (sent.length === 1) await firstFinished;
-            return { success: true };
+            return {success: true, revision: baseRevision + 1};
         });
 
         const first = configStore.requestConfigSave({ ...configStore.config, to: 'en' }, sendMessage);
         const latest = configStore.requestConfigSave({ ...configStore.config, to: 'ja' }, sendMessage);
-        await vi.waitFor(() => expect(sent).toEqual(['en', 'ja']));
+        await vi.waitFor(() => expect(sent).toEqual(['en']));
         releaseFirst();
         await Promise.all([first, latest]);
 
         expect(sent).toEqual(['en', 'ja']);
+        expect(baseRevisions).toEqual([1, 2]);
+    });
+
+    it('一次 revision 冲突会刷新当前配置并取消已经排队的旧快照', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4});
+        await configStore.configReady;
+        const sendMessage = vi.fn(async () => {
+            storageState.set('local:config', {...canonical, to: 'ko', __fluentConfigRevision: 5});
+            return {success: false, error: '配置已更新（当前 revision 5）'};
+        });
+
+        const first = configStore.requestConfigSave({...configStore.config, to: 'en'}, sendMessage);
+        const queued = configStore.requestConfigSave({...configStore.config, to: 'ja'}, sendMessage);
+
+        await expect(first).rejects.toThrow('当前 revision 5');
+        await expect(queued).rejects.toThrow('根据最新配置重新修改');
+        expect(sendMessage).toHaveBeenCalledOnce();
+        expect(configStore.config.to).toBe('ko');
+        expect(configStore.getConfigRevision()).toBe(5);
+    });
+
+    it('把后台保留 count 后的 canonical storage 回声识别为本次保存并同步 UI', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4});
+        await configStore.configReady;
+        const watchCallback = storageMock.watch.mock.calls[0][1];
+        const sendMessage = vi.fn(async () => {
+            watchCallback({...canonical, to: 'ja', count: 7, __fluentConfigRevision: 5});
+            return {success: true, revision: 5};
+        });
+
+        await expect(configStore.requestConfigSave({...configStore.config, to: 'ja'}, sendMessage))
+            .resolves.toBeUndefined();
+
+        expect(configStore.config).toMatchObject({to: 'ja', count: 7});
+        expect(configStore.getConfigRevision()).toBe(5);
+    });
+
+    it('响应前收到更高 revision 的外部恢复时采用恢复结果并取消排队快照', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4});
+        await configStore.configReady;
+        const watchCallback = storageMock.watch.mock.calls[0][1];
+        let releaseFirst!: () => void;
+        const firstGate = new Promise<void>((resolve) => { releaseFirst = resolve; });
+        const sendMessage = vi.fn(async () => {
+            await firstGate;
+            return {success: true, revision: 5};
+        });
+
+        const first = configStore.requestConfigSave({...configStore.config, to: 'en'}, sendMessage);
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        const queued = configStore.requestConfigSave({...configStore.config, to: 'ja'}, sendMessage);
+        watchCallback({...canonical, to: 'en', __fluentConfigRevision: 5});
+        watchCallback({...canonical, to: 'ko', __fluentConfigRevision: 6});
+        releaseFirst();
+
+        await expect(first).rejects.toThrow('其他页面更新');
+        await expect(queued).rejects.toThrow('根据最新配置重新修改');
+        expect(sendMessage).toHaveBeenCalledOnce();
+        expect(configStore.config.to).toBe('ko');
+        expect(configStore.getConfigRevision()).toBe(6);
+    });
+
+    it('外部仅更新 session 凭据并推进 revision 时也会取消携带旧凭据的排队快照', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            sessionCredentials: {token: {openai: 'old-secret'}},
+        });
+        await configStore.configReady;
+        const configWatch = storageMock.watch.mock.calls[0][1];
+        const sessionWatch = storageMock.watch.mock.calls.find(([key]) => key === 'session:credentials')?.[1];
+        let releaseFirst!: () => void;
+        const firstGate = new Promise<void>((resolve) => { releaseFirst = resolve; });
+        const sendMessage = vi.fn(async () => {
+            await firstGate;
+            return {success: true, revision: 5};
+        });
+
+        const first = configStore.requestConfigSave({...configStore.config, to: 'en'}, sendMessage);
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        const queued = configStore.requestConfigSave({...configStore.config, to: 'ja'}, sendMessage);
+        configWatch({...canonical, to: 'en', __fluentConfigRevision: 5});
+        sessionWatch?.({token: {openai: 'new-secret'}});
+        configWatch({...canonical, to: 'en', __fluentConfigRevision: 6});
+        releaseFirst();
+
+        await expect(first).rejects.toThrow('其他页面更新');
+        await expect(queued).rejects.toThrow('根据最新配置重新修改');
+        expect(sendMessage).toHaveBeenCalledOnce();
+        expect(configStore.config.token.openai).toBe('new-secret');
+        expect(configStore.getConfigRevision()).toBe(6);
     });
 
     it('本地存在更新请求时忽略旧 storage 回声', async () => {
@@ -500,7 +693,7 @@ describe('统一配置存储', () => {
         const pending = new Promise<void>((resolve) => { release = resolve; });
         const sendMessage = vi.fn(async () => {
             await pending;
-            return { success: true };
+            return {success: true, revision: 2};
         });
         const latest = { ...configStore.config, to: 'ja' };
         const request = configStore.requestConfigSave(latest, sendMessage);
@@ -529,21 +722,21 @@ describe('统一配置存储', () => {
         expect(configStore.config.to).toBe('ja');
     });
 
-    it('记录配置版本、时间，并限制为最近五条快照', async () => {
+    it('记录配置版本、时间，并限制为最近十条快照', async () => {
         const configStore = await loadConfigModule(storedConfig);
         await Promise.all([configStore.configReady, configStore.configHistoryReady]);
 
-        for (const to of ['en', 'ja', 'ko', 'fr', 'ru', 'de']) {
+        for (const to of ['en', 'ja', 'ko', 'fr', 'ru', 'de', 'es', 'it', 'pt', 'ar', 'th']) {
             await configStore.saveConfig({ ...configStore.config, to }, {recordHistory: true, immediateHistory: true});
         }
 
         const history = configStore.getConfigHistorySnapshot();
-        expect(history.entries).toHaveLength(5);
-        expect(history.cursor).toBe(4);
+        expect(history.entries).toHaveLength(10);
+        expect(history.cursor).toBe(9);
         expect(history.entries.at(-1)).toMatchObject({
             version: expect.any(Number),
             savedAt: expect.any(String),
-            config: expect.objectContaining({to: 'de'}),
+            config: expect.objectContaining({to: 'th'}),
         });
         expect(history.entries.map((entry) => entry.version)).toEqual(
             [...history.entries].sort((left, right) => left.version - right.version).map((entry) => entry.version),
@@ -565,10 +758,18 @@ describe('统一配置存储', () => {
         expect(configStore.config.to).toBe('ja');
         expect(redo.cursor).toBe(beforeUndo.cursor);
 
+        await configStore.applyConfigHistoryAction('undo');
+        expect(configStore.config.to).toBe('en');
+
         const baselineVersion = beforeUndo.entries[0].version;
         const restored = await configStore.applyConfigHistoryAction('restore', baselineVersion);
         expect(configStore.config.to).toBe('zh-Hans');
-        expect(restored.entries[restored.cursor].version).toBe(baselineVersion);
+        expect(restored.cursor).toBe(restored.entries.length - 1);
+        expect(restored.entries.at(-1)).toMatchObject({
+            version: beforeUndo.nextVersion,
+            config: expect.objectContaining({to: 'zh-Hans'}),
+        });
+        expect(restored.entries.some((entry) => entry.config.to === 'ja')).toBe(true);
     });
 
     it('在配置历史中保存规范化域名，并能恢复旧配置的空名单', async () => {
@@ -617,6 +818,29 @@ describe('统一配置存储', () => {
         const history = configStore.getConfigHistorySnapshot();
         expect(history.entries).toHaveLength(2);
         expect(history.entries.at(-1)?.config.to).toBe('ja');
+    });
+
+    it('仅翻译计数、安全选择或迁移标记变化时不新增最近修改快照', async () => {
+        const configStore = await loadConfigModule(storedConfig);
+        await Promise.all([configStore.configReady, configStore.configHistoryReady]);
+
+        await configStore.saveConfig({
+            ...configStore.config,
+            count: 12,
+            persistCredentials: true,
+            videoServiceDefaultMigrated: false,
+        }, {recordHistory: true, immediateHistory: true});
+
+        const history = configStore.getConfigHistorySnapshot();
+        expect(history.entries).toHaveLength(1);
+        expect(history.entries[0]?.config).not.toHaveProperty('count');
+        expect(history.entries[0]?.config).not.toHaveProperty('persistCredentials');
+        expect(history.entries[0]?.config).not.toHaveProperty('videoServiceDefaultMigrated');
+        expect(configStore.config).toMatchObject({
+            count: 12,
+            persistCredentials: true,
+            videoServiceDefaultMigrated: true,
+        });
     });
 
     it('两个立即历史写入重叠时串行提交，不能丢失较新的快照或复用版本号', async () => {
@@ -703,5 +927,24 @@ describe('统一配置存储', () => {
             'local:configHistory',
             expect.objectContaining({cursor: 1}),
         );
+    });
+
+    it('后台明确返回历史操作失败时不绕过后台队列再次本地恢复', async () => {
+        const configStore = await loadConfigModule(storedConfig);
+        await Promise.all([configStore.configReady, configStore.configHistoryReady]);
+        await configStore.saveConfig({...configStore.config, to: 'en'}, {recordHistory: true, immediateHistory: true});
+        storageMock.setItem.mockClear();
+
+        await expect(configStore.requestConfigHistoryAction(
+            'undo',
+            undefined,
+            vi.fn().mockResolvedValue({success: false, error: 'background restore failed'}),
+        )).rejects.toThrow('background restore failed');
+        await expect(configStore.requestConfigHistoryAction(
+            'undo',
+            undefined,
+            vi.fn().mockResolvedValue({success: true}),
+        )).rejects.toThrow('没有返回结果');
+        expect(storageMock.setItem).not.toHaveBeenCalled();
     });
 });

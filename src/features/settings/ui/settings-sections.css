@@ -27,7 +27,13 @@
 .config-transfer-note { margin: -5px 2em 16px; }
 
 .site-settings-section {
-  padding: 0 12px 12px;
+  padding: 0 0 12px;
+}
+
+.service-default-group {
+  flex: none;
+  margin-top: 14px;
+  margin-bottom: 14px;
 }
 
 .site-auto-translate-label {
@@ -119,20 +125,32 @@
 .settings-switch { --el-switch-on-color: #ef4776; --el-switch-off-color: #cfd5df; }
 
 .style-preview-card {
-  margin: 6px 12px 24px;
-  padding: 18px;
-  border: 1px solid #e3e7ef;
-  border-radius: 18px;
+  margin: 0;
+  padding: 14px 16px 16px;
+  border-top: 1px solid #e3e7ef;
   background: linear-gradient(145deg, #fbfcff, #fff8fa);
 }
 .style-preview-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .style-preview-heading div { display: flex; flex-direction: column; gap: 4px; }
 .style-preview-heading span { color: #dc315f; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
 .style-preview-heading strong { color: #172033; font-size: 14px; }
-.style-preview-example { margin-top: 14px; padding: 14px 16px; border: 1px solid #e5e8ef; border-radius: 14px; background: #fff; }
+.style-preview-example { margin: 0; padding: 14px 16px; border: 1px solid #e5e8ef; border-radius: 14px; background: #fff; }
 .style-preview-source { margin: 0 0 8px; color: #7f889b; font-size: 11px; }
 .style-preview-text { margin: 0; color: #172033; font-size: 15px; line-height: 1.7; transition: all 160ms ease; }
 .style-preview-note { display: block; margin-top: 10px; color: #8b93a4; font-size: 10px; }
+
+.feature-help {
+  width: min(100%, 1080px);
+  margin: -6px auto 22px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  color: var(--muted);
+  background: var(--surface-soft);
+  font-size: 10.5px;
+}
+.feature-help summary { padding: 11px 0; color: var(--ink); cursor: pointer; font-weight: 700; }
+.feature-help p { margin: 0; padding: 0 0 12px; line-height: 1.6; }
 .style-preview-text.fluent-display-default { color: #273247; }
 .style-preview-text.fluent-display-bold { font-weight: 800; }
 .style-preview-text.fluent-display-italic { font-style: italic; }

@@ -595,7 +595,7 @@ onUnmounted(() => {
   min-height: 0;
   padding: 22px 28px 20px;
   color: var(--ink);
-  background: #f8f9fc;
+  background: var(--surface-soft);
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
 }
@@ -801,7 +801,7 @@ onUnmounted(() => {
 .loading-bars i:nth-child(2) { animation-delay: .18s; }
 .loading-bars i:nth-child(3) { animation-delay: .36s; }
 @keyframes translation-center-pulse { from { opacity: .35; transform: scaleY(.6); } to { opacity: 1; transform: scaleY(1); } }
-.translation-result-content { margin-top: 11px; padding: 12px; border-radius: 10px; color: var(--ink); background: #fff7f9; }
+.translation-result-content { margin-top: 11px; padding: 12px; border-radius: 10px; color: var(--ink); background: var(--brand-soft); }
 .translation-result-content p { min-height: 24px; margin: 0; font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
 .translation-result-content footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; color: var(--muted); font-size: 9px; }
 .translation-result-content footer button { padding: 0; border: 0; color: var(--brand-strong); background: transparent; cursor: pointer; font-size: 10px; font-weight: 700; }
@@ -809,6 +809,11 @@ onUnmounted(() => {
 .translation-result-error p { flex: 1; margin: 0; font-size: 11px; line-height: 1.6; word-break: break-word; }
 .translation-result-error button { flex: none; padding: 4px 7px; border: 1px solid #efb1c1; border-radius: 7px; color: #a43755; background: transparent; cursor: pointer; font-size: 10px; font-weight: 700; }
 .translation-result-error button:disabled { cursor: not-allowed; opacity: .45; }
+
+:global(:root.dark) .result-state.success { color: #9edcc8; background: #1c342d; }
+:global(:root.dark) .result-state.loading { color: #e7c17e; background: #392f1f; }
+:global(:root.dark) .result-state.error,
+:global(:root.dark) .translation-result-error { color: #f1a7bc; background: #3c222b; }
 
 @media (max-width: 1050px) {
   .translation-center { padding: 20px 24px 18px; }

@@ -8,6 +8,7 @@ import {
 } from '@/src/core/config/catalog';
 import {
     extractConfigCredentials,
+    isSensitiveConfigKey,
     parseStoredCredentials,
     sanitizeConfigCredentials,
     sanitizeConfigHistoryCredentials,
@@ -57,6 +58,12 @@ describe('配置领域边界与防御分支', () => {
         })).toEqual({
             entries: [null, {config: {on: true}}],
         });
+        expect(isSensitiveConfigKey('key')).toBe(true);
+        expect(isSensitiveConfigKey('token')).toBe(true);
+        expect(isSensitiveConfigKey('authorization')).toBe(true);
+        expect(isSensitiveConfigKey('apiToken')).toBe(true);
+        expect(isSensitiveConfigKey('requireApiKey')).toBe(false);
+        expect(isSensitiveConfigKey('displayName')).toBe(false);
     });
 
     it('自定义请求体和 DeepLX 代理对不支持输入安全回退', () => {
