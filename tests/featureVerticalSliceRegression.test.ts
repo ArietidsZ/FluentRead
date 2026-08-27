@@ -52,6 +52,10 @@ describe('划词、圈选和图片翻译纵向切片回归', () => {
         expect(existsSync(resolve(projectRoot, 'entrypoints/offscreen/imageTranslation.ts'))).toBe(false);
         expect(source('src/app/offscreen/imageTranslation.ts')).toContain("@/src/features/image-translation/services/ocrRuntime");
         expect(source('src/app/offscreen/imageTranslation.ts')).toContain("@/src/features/image-translation/services/offscreenRuntime");
+        const offscreenImageRuntime = source('src/features/image-translation/services/offscreenRuntime.ts');
+        expect(offscreenImageRuntime).toContain("from '@/src/features/area-translation/protocol'");
+        expect(offscreenImageRuntime).not.toContain("from '@/src/features/area-translation/public'");
+        expect(offscreenImageRuntime).not.toContain('services/config/store');
         expect(source('src/features/area-translation/background/offscreenAdapter.ts'))
             .toContain("@/src/features/image-translation/public");
         expect(source('src/features/area-translation/background/offscreenAdapter.ts'))
@@ -63,5 +67,12 @@ describe('划词、圈选和图片翻译纵向切片回归', () => {
         expect(userscriptConfig).toContain("find: '@/src/features/video-subtitle/public'");
         expect(userscriptConfig).not.toContain("find: '@/entrypoints/utils/areaTranslator'");
         expect(userscriptConfig).not.toContain("find: '@/entrypoints/utils/imageTranslation'");
+    });
+
+    it('OCR 下载把接收端初始化故障与真实资源下载失败分开提示', () => {
+        const settings = source('src/features/image-translation/ui/ImageOcrSettings.vue');
+        expect(settings).toContain('OCR 服务初始化失败，请重新打开设置页后重试。');
+        expect(settings).toContain("message.includes('Receiving end does not exist')");
+        expect(settings).toContain('请检查网络后重试');
     });
 });

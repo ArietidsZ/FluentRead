@@ -22,27 +22,25 @@
         <SegmentedControl v-model="config.theme" :options="options.theme" label="界面主题" />
       </SettingsItem>
     </SettingsGroup>
-  </section>
-
-  <section v-show="props.activeSection === 'settings-webpage'" id="settings-webpage" class="settings-section">
-    <SettingsGroup title="译文显示" description="设置网页翻译后的内容形式和双语译文样式。">
-      <SettingsItem label="翻译模式" description="双语对照保留原文，仅译文模式会替换原文显示。">
-        <SegmentedControl v-model="config.display" :options="options.display" label="翻译模式" />
-      </SettingsItem>
-      <SettingsItem v-show="config.display === 1" label="译文样式" description="选择后可在下方立即查看效果。">
-        <el-select v-model="config.style" aria-label="译文样式" placeholder="请选择译文显示样式">
-          <el-option-group v-for="group in styleGroups" :key="group.value" :label="group.label">
-            <el-option v-for="item in group.options" :key="item.value" :label="item.label" :value="item.value" :class="item.class" />
-          </el-option-group>
-        </el-select>
-      </SettingsItem>
-      <div v-show="config.display === 1" class="style-preview-card" aria-live="polite">
-        <div class="style-preview-example">
-          <p class="style-preview-source">Reading should feel calm and effortless.</p>
-          <p :key="config.style" class="style-preview-text" :class="currentStyleClass">阅读应该轻松、自然，不打断你的节奏。</p>
+    <SettingsGroup title="选择翻译服务" description="设置网页翻译默认使用的服务；模型和凭据仍在“翻译服务”页配置。">
+      <SettingsItem label="默认网页翻译服务" description="全文、悬浮和划词翻译默认使用此服务。">
+        <div
+          class="service-default-control"
+          data-testid="default-translation-service-card"
+          :data-default-service="config.service"
+        >
+          <ServiceIcon :service="config.service" :label="defaultTextServiceLabel" size="medium" />
+          <el-select v-model="config.service" aria-label="默认网页翻译服务" placeholder="请选择翻译服务">
+            <el-option v-if="selectedTextServiceUnavailableMessage" label="Chrome内置AI翻译（当前浏览器不可用）" :value="config.service" disabled />
+            <el-option v-for="item in availableServiceOptions" :key="item.value" class="select-left" :label="item.label" :value="item.value" :disabled="item.disabled" />
+          </el-select>
         </div>
-      </div>
+      </SettingsItem>
     </SettingsGroup>
+    <div v-if="selectedTextServiceUnavailableMessage" class="disabled-section" role="status">
+      <strong>当前默认服务在此浏览器不可用</strong>
+      <p>{{ selectedTextServiceUnavailableMessage }}请在上方选择可用服务。</p>
+    </div>
   </section>
   <section v-show="props.activeSection === 'settings-sites'" id="settings-sites" class="settings-section site-settings-section">
     <SettingsGroup>
@@ -59,33 +57,6 @@
   <div class="settings-main-sections">
     <!-- 翻译服务 -->
     <section v-show="props.activeSection === 'settings-services'" id="settings-services" class="settings-section">
-      <SettingsGroup class="service-default-group">
-        <div
-          class="service-default-card"
-          data-testid="default-translation-service-card"
-          :data-default-service="config.service"
-        >
-          <div class="service-default-summary">
-            <ServiceIcon :service="config.service" :label="defaultTextServiceLabel" size="large" />
-            <div class="service-default-copy">
-              <span class="service-default-status"><i aria-hidden="true"></i>全局默认</span>
-              <strong>{{ defaultTextServiceLabel }}</strong>
-              <small>网页、悬停和划词翻译都使用此服务</small>
-            </div>
-          </div>
-          <div class="service-default-picker">
-            <span>切换默认服务</span>
-          <el-select v-model="config.service" aria-label="默认网页翻译服务" placeholder="请选择翻译服务">
-            <el-option v-if="selectedTextServiceUnavailableMessage" label="Chrome内置AI翻译（当前浏览器不可用）" :value="config.service" disabled />
-            <el-option v-for="item in availableServiceOptions" :key="item.value" class="select-left" :label="item.label" :value="item.value" :disabled="item.disabled" />
-          </el-select>
-          </div>
-        </div>
-      </SettingsGroup>
-      <div v-if="selectedTextServiceUnavailableMessage" class="disabled-section" role="status">
-        <strong>当前默认服务在此浏览器不可用</strong>
-        <p>{{ selectedTextServiceUnavailableMessage }}请在上方选择可用服务。</p>
-      </div>
       <ServiceCatalog
         :service="selectedConfigurationService"
         :default-service="config.service"
@@ -157,8 +128,8 @@
 
 
     <!-- 鼠标悬浮快捷键 -->
-    <section v-show="props.activeSection === 'settings-shortcuts'" id="settings-shortcuts" class="settings-section">
-    <SettingsGroup title="悬停翻译" description="按住快捷键并把鼠标移到文本上，等待设定时间后开始翻译。">
+    <section v-show="props.activeSection === 'settings-translation'" id="settings-translation" class="settings-section">
+    <SettingsGroup title="鼠标悬浮翻译" description="按住快捷键并把鼠标移到文本上，等待设定时间后开始翻译。">
     <el-row class="settings-control-row" :class="{ 'custom-hotkey-row': config.hotkey === 'custom' }">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="按住指定快捷键并悬停在文本上进行翻译" placement="top-start" :show-after="500">
@@ -233,100 +204,7 @@
     </SettingsGroup>
     </section>
 
-    <section v-show="props.activeSection === 'settings-webpage'" class="settings-section settings-section-continuation">
-    <SettingsGroup title="全文翻译" description="设置启动全文翻译的方式、处理范围和网页内入口。">
-    <!-- 全文翻译快捷键选择 -->
-    <el-row class="settings-control-row" :class="{ 'custom-hotkey-row': config.floatingBallHotkey === 'custom' }">
-      <el-col :span="14" class="settings-control-label lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="（测试版）设置快捷键以便快速切换全文翻译状态，无需鼠标点击悬浮球" placement="top-start" :show-after="500">
-        <span class="popup-text popup-vertical-left">
-          全文翻译快捷键
-          <el-icon class="icon-margin">
-            <InfoFilled />
-          </el-icon>
-        </span>
-        </el-tooltip>
-      </el-col>
-      <el-col :span="10" class="settings-control-field flex-end">
-        <div class="hotkey-config">
-          <el-select 
-            v-model="config.floatingBallHotkey" 
-            aria-label="全文翻译快捷键"
-            placeholder="选择快捷键" 
-            size="small" 
-            style="width: 100%"
-            @change="handleHotkeyChange"
-          >
-            <el-option v-for="item in options.floatingBallHotkeys" :key="item.value" :label="item.label" :value="item.value" />
-          </el-select>
-          
-          <!-- 自定义快捷键显示（选择自定义时总是显示） -->
-          <div v-if="config.floatingBallHotkey === 'custom'" class="custom-hotkey-display">
-            <span class="hotkey-text" v-if="config.customFloatingBallHotkey">
-              {{ getCustomHotkeyDisplayName() }}
-            </span>
-            <span class="hotkey-text placeholder-text" v-else>
-              点击设置自定义快捷键
-            </span>
-            <el-button
-              size="small"
-              type="text"
-              class="edit-button"
-              aria-label="编辑全文翻译快捷键"
-              title="编辑全文翻译快捷键"
-              @click="openCustomHotkeyDialog"
-            >
-              <el-icon><Edit /></el-icon>
-            </el-button>
-          </div>
-        </div>
-      </el-col>
-    </el-row>
-
-    <!-- 全文翻译范围 -->
-    <el-row class="settings-control-row">
-      <el-col :span="14" class="settings-control-label lightblue rounded-corner">
-        <el-tooltip
-          class="box-item"
-          effect="dark"
-          content="按阅读进度会预翻译视口附近内容；立即翻译到网页底部会处理当前已加载的整页内容，并持续翻译之后新增的内容。它不会自动滚动页面，但在无限滚动页面可能产生较多翻译请求和服务费用。设置会在下次启动全文翻译时生效。"
-          placement="top-start"
-          :show-after="500"
-        >
-          <span class="popup-text popup-vertical-left">
-            全文翻译范围
-            <el-icon class="icon-margin">
-              <InfoFilled />
-            </el-icon>
-          </span>
-        </el-tooltip>
-      </el-col>
-      <el-col :span="10" class="settings-control-field flex-end">
-        <SegmentedControl v-model="config.fullPageTranslationMode" :options="fullPageTranslationModeOptions" label="全文翻译范围" />
-      </el-col>
-    </el-row>
-
-    <!-- 右键全文翻译开关 -->
-    <el-row class="settings-control-row">
-      <el-col :span="20" class="settings-control-label lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="在网页右键菜单中显示“流畅阅读翻译”或“流畅阅读取消翻译”入口；关闭后不会影响全文翻译快捷键和悬浮球" placement="top-start" :show-after="500">
-          <span class="popup-text popup-vertical-left">
-            右键全文翻译
-            <el-icon class="icon-margin">
-              <InfoFilled />
-            </el-icon>
-          </span>
-        </el-tooltip>
-      </el-col>
-      <el-col :span="4" class="settings-control-field flex-end">
-        <el-switch v-model="config.contextMenuEnabled" class="settings-toggle" aria-label="右键全文翻译" />
-      </el-col>
-    </el-row>
-
-    </SettingsGroup>
-    </section>
-
-    <section v-show="props.activeSection === 'settings-shortcuts'" class="settings-section settings-section-continuation">
+    <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
     <SettingsGroup title="划词翻译" description="选择文字后的展示内容、触发方式和等待时间。">
     <!-- 划词翻译模式选择 -->
     <el-row class="settings-control-row">
@@ -426,7 +304,28 @@
       </SettingsGroup>
     </section>
 
-    <section v-show="props.activeSection === 'settings-webpage'" class="settings-section settings-section-continuation">
+    <section v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation">
+      <SettingsGroup title="译文显示" description="设置网页翻译后的内容形式和双语译文样式。">
+        <SettingsItem label="翻译模式" description="双语对照保留原文，仅译文模式会替换原文显示。">
+          <SegmentedControl v-model="config.display" :options="options.display" label="翻译模式" />
+        </SettingsItem>
+        <SettingsItem v-show="config.display === 1" label="译文样式" description="选择后可在下方立即查看效果。">
+          <el-select v-model="config.style" aria-label="译文样式" placeholder="请选择译文显示样式">
+            <el-option-group v-for="group in styleGroups" :key="group.value" :label="group.label">
+              <el-option v-for="item in group.options" :key="item.value" :label="item.label" :value="item.value" :class="item.class" />
+            </el-option-group>
+          </el-select>
+        </SettingsItem>
+        <div v-show="config.display === 1" class="style-preview-card" aria-live="polite">
+          <div class="style-preview-example">
+            <p class="style-preview-source">Reading should feel calm and effortless.</p>
+            <p :key="config.style" class="style-preview-text" :class="currentStyleClass">阅读应该轻松、自然，不打断你的节奏。</p>
+          </div>
+        </div>
+      </SettingsGroup>
+    </section>
+
+    <section v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation">
       <SettingsGroup title="网页辅助" description="控制全文翻译时显示的工具和 AI 语境增强。">
         <!-- AI 智能上下文 -->
         <el-row class="settings-control-row">
@@ -438,11 +337,11 @@
                   <InfoFilled />
                 </el-icon></span>
             </el-tooltip>
-            <small class="settings-control-hint">提升术语和歧义表达的语境准确度；首次请求还会额外生成摘要并增加一次调用。</small>
+            <small class="settings-control-hint">可提前开启；仅在支持的 AI 服务下采集网页语境并生效，其他服务会保留此偏好但不会发送上下文。</small>
           </el-col>
 
           <el-col :span="4" class="settings-control-field flex-end">
-            <el-switch v-model="config.enableAIContext" :disabled="!canUseAIContext" class="settings-toggle" aria-label="AI 智能上下文" />
+            <el-switch v-model="config.enableAIContext" class="settings-toggle" aria-label="AI 智能上下文" />
           </el-col>
         </el-row>
 
@@ -514,7 +413,7 @@
       </SettingsGroup>
     </section>
 
-    <section v-show="props.activeSection === 'settings-shortcuts'" class="settings-section settings-section-continuation">
+    <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
       <SettingsGroup title="输入框翻译" description="在网页输入框中输入触发字符，快速翻译正在编辑的内容。">
         <!-- 输入框翻译功能 -->
         <el-row class="settings-control-row">
@@ -548,6 +447,54 @@
           </el-col>
         </el-row>
 
+      </SettingsGroup>
+    </section>
+
+    <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
+      <SettingsGroup title="全文翻译" description="设置启动全文翻译的方式、处理范围和网页内入口。">
+        <el-row class="settings-control-row" :class="{ 'custom-hotkey-row': config.floatingBallHotkey === 'custom' }">
+          <el-col :span="14" class="settings-control-label lightblue rounded-corner">
+            <el-tooltip class="box-item" effect="dark" content="（测试版）设置快捷键以便快速切换全文翻译状态，无需鼠标点击悬浮球" placement="top-start" :show-after="500">
+              <span class="popup-text popup-vertical-left">全文翻译快捷键<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
+            </el-tooltip>
+          </el-col>
+          <el-col :span="10" class="settings-control-field flex-end">
+            <div class="hotkey-config">
+              <el-select v-model="config.floatingBallHotkey" aria-label="全文翻译快捷键" placeholder="选择快捷键" size="small" style="width: 100%" @change="handleHotkeyChange">
+                <el-option v-for="item in options.floatingBallHotkeys" :key="item.value" :label="item.label" :value="item.value" />
+              </el-select>
+              <div v-if="config.floatingBallHotkey === 'custom'" class="custom-hotkey-display">
+                <span v-if="config.customFloatingBallHotkey" class="hotkey-text">{{ getCustomHotkeyDisplayName() }}</span>
+                <span v-else class="hotkey-text placeholder-text">点击设置自定义快捷键</span>
+                <el-button size="small" type="text" class="edit-button" aria-label="编辑全文翻译快捷键" title="编辑全文翻译快捷键" @click="openCustomHotkeyDialog">
+                  <el-icon><Edit /></el-icon>
+                </el-button>
+              </div>
+            </div>
+          </el-col>
+        </el-row>
+
+        <el-row class="settings-control-row">
+          <el-col :span="14" class="settings-control-label lightblue rounded-corner">
+            <el-tooltip class="box-item" effect="dark" content="按阅读进度会预翻译视口附近内容；立即翻译到网页底部会处理当前已加载的整页内容，并持续翻译之后新增的内容。它不会自动滚动页面，但在无限滚动页面可能产生较多翻译请求和服务费用。设置会在下次启动全文翻译时生效。" placement="top-start" :show-after="500">
+              <span class="popup-text popup-vertical-left">全文翻译范围<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
+            </el-tooltip>
+          </el-col>
+          <el-col :span="10" class="settings-control-field flex-end">
+            <SegmentedControl v-model="config.fullPageTranslationMode" :options="fullPageTranslationModeOptions" label="全文翻译范围" />
+          </el-col>
+        </el-row>
+
+        <el-row class="settings-control-row">
+          <el-col :span="20" class="settings-control-label lightblue rounded-corner">
+            <el-tooltip class="box-item" effect="dark" content="在网页右键菜单中显示“流畅阅读翻译”或“流畅阅读取消翻译”入口；关闭后不会影响全文翻译快捷键和悬浮球" placement="top-start" :show-after="500">
+              <span class="popup-text popup-vertical-left">右键全文翻译<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
+            </el-tooltip>
+          </el-col>
+          <el-col :span="4" class="settings-control-field flex-end">
+            <el-switch v-model="config.contextMenuEnabled" class="settings-toggle" aria-label="右键全文翻译" />
+          </el-col>
+        </el-row>
       </SettingsGroup>
     </section>
 
@@ -613,7 +560,7 @@
 
 // Main 处理配置信息
 import { computed, ref, watch, onUnmounted } from 'vue'
-import { customModelString, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
+import { customModelString, models, options, services, servicesType } from '@/src/core/config/catalog';
 import {
   Config,
   MOUSE_HOVER_TRANSLATION_DELAY_MAX,
@@ -743,11 +690,6 @@ const setConfigurationService = (value: string) => {
 
 type ServiceSource = { value: string };
 
-const aiContextModel = computed(() => resolveConfiguredModel(
-  config.value.model[config.value.service],
-  config.value.customModel[config.value.service],
-));
-const canUseAIContext = computed(() => servicesType.isUseAIContext(config.value.service, aiContextModel.value));
 const availableServiceOptions = computed(() => filterAvailableTranslationServices(options.services));
 const defaultTextServiceLabel = computed(() => (
   options.services.find((item: any) => item.value === config.value.service)?.label || config.value.service

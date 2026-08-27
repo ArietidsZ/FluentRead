@@ -1,5 +1,6 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {createOffscreenMessageListener} from '@/src/app/offscreen/messageRouter';
+import {OFFSCREEN_READY_MESSAGE_TYPE} from '@/src/platform/offscreen/client';
 
 const mocks = {
     downloadOcrLanguages: vi.fn(async () => undefined),
@@ -48,6 +49,12 @@ describe('Offscreen 消息静态路由', () => {
         await expect(dispatch([])).resolves.toEqual({handled: false});
         await expect(dispatch({type: 1})).resolves.toEqual({handled: false});
         await expect(dispatch({type: 'UNKNOWN'})).resolves.toEqual({handled: false});
+    });
+
+    it('在业务消息前确认 Offscreen 接收端已经完成监听注册', async () => {
+        await expect(dispatch({type: OFFSCREEN_READY_MESSAGE_TYPE}))
+            .resolves.toEqual({handled: true, response: {success: true, ready: true}});
+        expect(Object.values(mocks).every(mock => mock.mock.calls.length === 0)).toBe(true);
     });
 
     it('TTS 只接收 offscreen target，并统一返回成功或错误', async () => {

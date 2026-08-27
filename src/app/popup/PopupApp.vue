@@ -540,7 +540,7 @@ import {
 } from '@/src/services/translation/capabilities';
 
 type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'video';
-type SettingsSection = 'settings-general' | 'settings-image-translation' | 'settings-shortcuts' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
+type SettingsSection = 'settings-general' | 'settings-image-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'));
 const version = process.env.VUE_APP_VERSION;
 const config = ref(new Config());
@@ -567,8 +567,8 @@ let pageExitSaveStarted = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 const darkMode = window.matchMedia('(prefers-color-scheme: dark)');
 const drawerSettingsSection: Record<DrawerName, SettingsSection> = {
-  hover: 'settings-shortcuts',
-  selection: 'settings-shortcuts',
+  hover: 'settings-translation',
+  selection: 'settings-translation',
   appearance: 'settings-general',
   image: 'settings-image-translation',
   video: 'settings-video',

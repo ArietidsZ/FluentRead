@@ -107,6 +107,8 @@ describe('browser regression focus safety', () => {
         }
         const selectionSource = readScript('scripts/run-selection-trigger-test.cjs');
         expect(selectionSource).toContain('if (!result.ok) throw new Error');
+        expect(selectionSource).toContain('/options.html#settings-translation');
+        expect(selectionSource).not.toContain('/options.html#settings-shortcuts');
         const videoSource = readScript('scripts/run-video-subtitle-fixture-test.cjs');
         expect(videoSource).toContain("const navigationMode = 'offline-youtube-fixture'");
         expect(videoSource).not.toContain('live-youtube');

@@ -166,13 +166,13 @@ async function main() {
     const options = await createIsolatedPage();
     await options.goto(`chrome-extension://${extensionId}/options.html#settings-video`, { waitUntil: 'domcontentloaded' });
     await activateTestPage(options);
-    await options.getByRole('heading', { name: '边看边译视频字幕' }).waitFor({ timeout: 15000 });
+    await options.getByRole('heading', { name: '视频字幕翻译' }).waitFor({ timeout: 15000 });
     const optionsState = await options.evaluate(() => ({
       activeNav: document.querySelector('.sidebar button.active')?.textContent?.replace(/\s+/g, ' ').trim(),
       videoSection: Boolean(document.querySelector('#settings-video')),
       providerControl: Boolean(document.querySelector('[aria-label="视频字幕翻译服务"]')),
     }));
-    if (!optionsState.activeNav?.includes('视频字幕 Beta 测试') || !optionsState.videoSection || !optionsState.providerControl) {
+    if (!optionsState.activeNav?.includes('视频字幕翻译') || !optionsState.videoSection || !optionsState.providerControl) {
       throw new Error(`视频字幕设置导航校验失败：${JSON.stringify(optionsState)}`);
     }
     await options.screenshot({ path: path.join(artifactsDir, 'options-video-subtitle.png'), fullPage: true });

@@ -34,9 +34,7 @@ describe('配置差异预览', () => {
 
         expect(result.groups.map((item) => item.id)).toEqual([
             'general',
-            'pageTranslation',
-            'translationServices',
-            'quickTranslation',
+            'translation',
             'siteRules',
             'imageAndArea',
             'videoSubtitles',
@@ -48,13 +46,13 @@ describe('配置差异预览', () => {
         expect(group(result, 'general')?.changes[0]).toMatchObject({
             key: 'on', label: '插件状态', before: '开启', after: '关闭',
         });
-        expect(group(result, 'pageTranslation')?.changes[0]).toMatchObject({
+        expect(group(result, 'general')?.changes).toEqual(expect.arrayContaining([expect.objectContaining({
             label: '翻译模式', before: '双语对照模式', after: '仅译文模式',
-        });
-        expect(group(result, 'translationServices')?.changes[0]).toMatchObject({
+        })]));
+        expect(group(result, 'general')?.changes).toEqual(expect.arrayContaining([expect.objectContaining({
             before: '微软翻译', after: 'OpenAI',
-        });
-        expect(group(result, 'quickTranslation')?.changes[0]).toMatchObject({before: 'Ctrl', after: 'Alt'});
+        })]));
+        expect(group(result, 'translation')?.changes[0]).toMatchObject({before: 'Ctrl', after: 'Alt'});
         expect(group(result, 'siteRules')?.changes[0]).toMatchObject({
             before: 'example.com', after: 'example.com、openai.com',
         });
@@ -389,7 +387,7 @@ describe('配置差异预览', () => {
             expect.objectContaining({key: 'robot_id.cozecn', after: '已设置（内容已隐藏）'}),
             expect.objectContaining({key: 'system_role.openai', after: '42'}),
         ]));
-        expect(group(result, 'quickTranslation')?.changes).toEqual(expect.arrayContaining([
+        expect(group(result, 'translation')?.changes).toEqual(expect.arrayContaining([
             expect.objectContaining({key: 'mouseHoverTranslationDelay', after: 'fast'}),
             expect.objectContaining({key: 'selectionTtsVoices', after: '5 项：a、b、c、d 等'}),
         ]));

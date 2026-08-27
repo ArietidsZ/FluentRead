@@ -593,6 +593,44 @@ describe('translation broker', () => {
         });
     });
 
+    it('does not summarize or forward page context to machine services and resumes it after an AI switch', async () => {
+        mocks.config.enableAIContext = true;
+        mocks.service.mockImplementation((message: {summaryPrompt?: string; origin: string}) => (
+            Promise.resolve(message.summaryPrompt ? 'AI summary' : `${message.origin}-译文`)
+        ));
+
+        await expect(translateWithCache({
+            origin: 'Machine source',
+            pageContext: 'Private machine context',
+            useCache: false,
+        })).resolves.toBe('Machine source-译文');
+
+        expect(mocks.service).toHaveBeenCalledTimes(1);
+        expect(mocks.service).toHaveBeenLastCalledWith(expect.objectContaining({
+            origin: 'Machine source',
+            pageContext: '',
+        }));
+        expect(mocks.service.mock.calls.some(([message]) => message.summaryPrompt)).toBe(false);
+        expect(mocks.config.enableAIContext).toBe(true);
+
+        mocks.config.service = 'ai';
+        await expect(translateWithCache({
+            origin: 'AI source',
+            pageContext: 'AI article context',
+            useCache: false,
+        })).resolves.toBe('AI source-译文');
+
+        expect(mocks.service.mock.calls.filter(([message]) => message.summaryPrompt)).toHaveLength(1);
+        expect(mocks.service).toHaveBeenCalledWith(expect.objectContaining({
+            summaryPrompt: 'summarize:AI article context',
+        }));
+        expect(mocks.service).toHaveBeenLastCalledWith(expect.objectContaining({
+            origin: 'AI source',
+            pageContext: 'Page summary (AI-generated reference):\nAI summary\n\nAI article context',
+        }));
+        expect(mocks.config.enableAIContext).toBe(true);
+    });
+
     it('uses persisted, shared, empty, failed, and evicted AI summaries without blocking translation', async () => {
         mocks.config.service = 'ai';
         mocks.config.enableAIContext = true;

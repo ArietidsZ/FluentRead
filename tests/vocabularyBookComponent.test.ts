@@ -13,6 +13,11 @@ function extractBlock(startNeedle: string, endNeedle: string): string {
 }
 
 describe('VocabularyBook component lifecycle wiring', () => {
+  it('opens the merged translation settings when selection translation is disabled', () => {
+    expect(source).toContain("emit('navigate', 'settings-translation')");
+    expect(source).not.toContain("emit('navigate', 'settings-shortcuts')");
+  });
+
   it('registers async listeners and initial load only after configReady is still active', () => {
     const mountedBlock = extractBlock('onMounted(async () => {', 'onBeforeUnmount(() => {');
     const guardedInitialization = extractBlock(
