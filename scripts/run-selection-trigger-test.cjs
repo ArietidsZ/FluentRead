@@ -670,7 +670,7 @@ async function main() {
     const optionsPage = await createIsolatedPage(context);
     optionsPage.on('pageerror', (error) => result.consoleErrors.push(`options pageerror: ${error.message}`));
     optionsPage.on('console', (message) => { if (message.type() === 'error') result.consoleErrors.push(`options console: ${message.text()}`); });
-    await optionsPage.goto(`chrome-extension://${extensionId}/options.html#settings-shortcuts`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await optionsPage.goto(`chrome-extension://${extensionId}/options.html#settings-translation`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     const optionsDelayInput = optionsPage.locator('input[aria-label="划词翻译显示延迟"]');
     try {
       await optionsDelayInput.waitFor({ state: 'visible', timeout: 15000 });

@@ -27,7 +27,7 @@
 
     <div v-if="betaEnabled && !selectionTranslatorEnabled" class="selection-reminder" role="note">
       <span>单词收藏入口位于划词翻译卡中；当前划词翻译仍是关闭状态。</span>
-      <button type="button" @click="emit('navigate', 'settings-shortcuts')">前往开启</button>
+      <button type="button" @click="emit('navigate', 'settings-translation')">前往开启</button>
     </div>
 
     <section class="privacy-note" aria-label="本地存储说明">

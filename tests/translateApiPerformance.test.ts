@@ -383,6 +383,36 @@ describe('translation API request lifecycle performance', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it('keeps AI context enabled without capturing it until the selected service supports it', async () => {
+    mocks.config.enableAIContext = true;
+    const pageContext = 'Page title: Fixture article\nReadable context for AI terminology.';
+    mocks.getPageTranslationContext.mockResolvedValue(pageContext);
+    mocks.sendMessage.mockImplementation(({origin}: {origin: string}) => Promise.resolve(`${origin}-译文`));
+
+    await expect(translateText('Machine source', 'Fixture article', {maxRetries: 0}))
+      .resolves.toBe('Machine source-译文');
+
+    expect(mocks.getPageTranslationContext).not.toHaveBeenCalled();
+    expect(mocks.sendMessage).toHaveBeenLastCalledWith(expect.objectContaining({
+      origin: 'Machine source',
+      serviceOverride: 'mock',
+      pageContext: undefined,
+    }));
+    expect(mocks.config.enableAIContext).toBe(true);
+
+    mocks.config.service = 'mock-ai';
+    await expect(translateText('AI source', 'Fixture article', {maxRetries: 0}))
+      .resolves.toBe('AI source-译文');
+
+    expect(mocks.getPageTranslationContext).toHaveBeenCalledTimes(1);
+    expect(mocks.sendMessage).toHaveBeenLastCalledWith(expect.objectContaining({
+      origin: 'AI source',
+      serviceOverride: 'mock-ai',
+      pageContext,
+    }));
+    expect(mocks.config.enableAIContext).toBe(true);
+  });
+
   it('uses the video AI service when resolving and sending page context', async () => {
     mocks.config.enableAIContext = true;
     mocks.config.videoService = 'mock-ai';

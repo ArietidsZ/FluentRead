@@ -28,39 +28,16 @@ export const navigationGroups: NavigationGroup[] = [
     label: '基础配置',
     items: [
       {
-        id: 'settings-general', icon: '⌂', label: '通用设置', description: '状态、语言与主题', group: '基础配置',
-        heading: '通用设置', summary: '管理插件状态、默认语言和界面主题。',
-        kicker: '基础配置', title: '通用设置', detail: '设置插件状态、默认目标语言和界面主题。',
-        searchDescription: '插件启停、默认目标语言、亮色主题、暗色主题',
+        id: 'settings-general', icon: '⌂', label: '通用设置', description: '服务、显示与网页辅助', group: '基础配置',
+        heading: '通用设置', summary: '选择默认翻译服务，并管理译文显示、网页辅助和基础偏好。',
+        kicker: '基础配置', title: '通用设置', detail: '选择翻译服务，设置译文显示、网页辅助与界面偏好。',
+        searchDescription: '选择翻译服务、默认服务、译文显示、网页辅助、AI 智能上下文、默认目标语言、主题',
       },
       {
         id: 'settings-services', icon: '译', label: '翻译服务', description: '服务与模型', group: '基础配置',
-        heading: '配置翻译服务与模型', summary: '按机器翻译和 AI 翻译分类，配置之后网页翻译默认使用的服务、模型及连接参数。',
-        kicker: '基础配置', title: '翻译服务', detail: '选择网页翻译的默认服务，并配置模型、连接和凭据。',
+        heading: '配置翻译服务与模型', summary: '按机器翻译和 AI 翻译分类，配置各服务的模型、连接参数与凭据。',
+        kicker: '基础配置', title: '翻译服务', detail: '配置可用的翻译服务、模型、连接和凭据。',
         searchDescription: '微软翻译、OpenAI、DeepSeek、Gemini、模型与令牌',
-      },
-    ],
-  },
-  {
-    label: '阅读翻译',
-    items: [
-      {
-        id: 'settings-webpage', icon: '页', label: '网页翻译', description: '译文显示与全文翻译', group: '阅读翻译',
-        heading: '网页翻译', summary: '管理译文显示、全文翻译范围与网页内的操作入口。',
-        kicker: '阅读翻译', title: '网页翻译', detail: '设置双语显示、全文翻译范围和网页内的翻译入口。',
-        searchDescription: '翻译模式、译文样式、全文翻译、快捷键、右键菜单、悬浮球、翻译进度、AI 上下文',
-      },
-      {
-        id: 'settings-shortcuts', icon: '⌘', label: '快捷翻译', description: '悬停、划词与输入框', group: '阅读翻译',
-        heading: '快捷翻译', summary: '统一设置悬停、划词和输入框翻译的触发方式。',
-        kicker: '阅读翻译', title: '快捷翻译', detail: '分别设置悬停、划词和输入框翻译，减少误触与快捷键冲突。',
-        searchDescription: '鼠标悬停、悬浮翻译、划词翻译、划词显示延迟、自定义快捷键、输入框翻译',
-      },
-      {
-        id: 'settings-sites', icon: '站', label: '网站规则', description: '自动翻译与禁用名单', group: '阅读翻译',
-        heading: '网站规则', summary: '按网站主域名设置自动翻译或禁用扩展。',
-        kicker: '阅读翻译', title: '网站规则', detail: '规则按主域名保存，并自动应用到同一网站的所有子域。',
-        searchDescription: '网站、域名、网址、主域名、自动翻译、始终翻译、禁用扩展与子域',
       },
     ],
   },
@@ -68,16 +45,28 @@ export const navigationGroups: NavigationGroup[] = [
     label: '专项翻译',
     items: [
       {
-        id: 'settings-image-translation', icon: '图', label: '图片与区域翻译', description: '图片、圈选与 OCR', group: '专项翻译',
-        heading: '图片与区域翻译', summary: '管理网页图片、圈选区域和本地 OCR 语言包。',
-        kicker: '专项翻译', title: '图片与区域翻译', detail: '控制图片与圈选翻译，并按需准备本地 OCR 语言包。',
+        id: 'settings-translation', icon: '译', label: '翻译设置', description: '悬浮、划词、输入框与全文', group: '专项翻译',
+        heading: '翻译设置', summary: '按使用顺序管理鼠标悬浮、划词、输入框和全文翻译。',
+        kicker: '专项翻译', title: '翻译设置', detail: '设置鼠标悬浮、划词、输入框与全文翻译的触发方式。',
+        searchDescription: '鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、自定义快捷键、右键菜单、悬浮球、翻译进度',
+      },
+      {
+        id: 'settings-image-translation', icon: '图', label: '图片与圈选翻译', description: '图片、圈选与 OCR', group: '专项翻译',
+        heading: '图片与圈选翻译', summary: '管理网页图片、圈选区域和本地 OCR 语言包。',
+        kicker: '专项翻译', title: '图片与圈选翻译', detail: '控制图片与圈选翻译，并按需准备本地 OCR 语言包。',
         searchDescription: '图片翻译、圈选翻译、区域翻译、OCR、语言包、中文、英文、日文、下载',
       },
       {
-        id: 'settings-video', icon: 'CC', label: '视频字幕', description: 'YouTube 边看边译', group: '专项翻译',
+        id: 'settings-video', icon: 'CC', label: '视频字幕翻译', description: 'YouTube 边看边译', group: '专项翻译',
         heading: '视频字幕翻译', summary: '在 YouTube 原生字幕下方显示译文，并独立选择视频翻译服务。',
-        kicker: '专项翻译 Beta', title: '视频字幕', detail: '设置 YouTube 字幕翻译服务、显示方式和字号。',
+        kicker: '专项翻译 Beta', title: '视频字幕翻译', detail: '设置 YouTube 字幕翻译服务、显示方式和字号。',
         searchDescription: 'YouTube、视频字幕、视频翻译服务、显示模式、字幕字号、DeepLX、微软翻译',
+      },
+      {
+        id: 'settings-sites', icon: '站', label: '网站规则', description: '自动翻译与禁用名单', group: '专项翻译',
+        heading: '网站规则', summary: '按网站主域名设置自动翻译或禁用扩展。',
+        kicker: '专项翻译', title: '网站规则', detail: '规则按主域名保存，并自动应用到同一网站的所有子域。',
+        searchDescription: '网站、域名、网址、主域名、自动翻译、始终翻译、禁用扩展与子域',
       },
     ],
   },
@@ -91,7 +80,7 @@ export const navigationGroups: NavigationGroup[] = [
         searchDescription: '多服务翻译、翻译对比、重复翻译、句子翻译',
       },
       {
-        id: 'settings-vocabulary', icon: '★', label: '单词本 Beta', description: '收藏与复习', group: '工具与学习',
+        id: 'settings-vocabulary', icon: '★', label: '单词本', description: '收藏与复习', group: '工具与学习',
         heading: '把阅读中遇到的词真正学会', summary: '收藏划词卡中的英文单词，用轻量复习跟踪从新词到掌握的过程。',
         kicker: '本地学习 Beta', title: '单词本', detail: '词条、上下文与复习记录只保存在当前浏览器中，可独立导出和迁移。',
         searchDescription: '单词本、收藏、复习、掌握程度、学习记录、Anki、导入导出',
@@ -125,18 +114,26 @@ export const navigationGroups: NavigationGroup[] = [
 
 export const navigationItems = navigationGroups.flatMap((group) => group.items)
 
+/** 旧链接仍定位到合并后的“翻译设置”，但不再作为独立导航项展示。 */
+export const NAVIGATION_SECTION_ALIASES: ReadonlyMap<string, string> = new Map([
+  ['settings-webpage', 'settings-translation'],
+  ['settings-shortcuts', 'settings-translation'],
+])
+
 export const DEFAULT_NAVIGATION_SECTION = navigationItems[0].id
 
 /** 根据 section id 返回有效导航项，无效值稳定回落到通用设置。 */
 export function resolveNavigationItem(sectionId: string): NavigationItem {
-  return navigationItems.find((item) => item.id === sectionId) ?? navigationItems[0]
+  const resolvedSection = NAVIGATION_SECTION_ALIASES.get(sectionId) ?? sectionId
+  return navigationItems.find((item) => item.id === resolvedSection) ?? navigationItems[0]
 }
 
 /** 统一解析 URL hash，避免入口组件重复维护导航校验。 */
 export function resolveRequestedSection(hash: string): string {
   const requestedSection = hash.startsWith('#') ? hash.slice(1) : hash
-  return navigationItems.some((item) => item.id === requestedSection)
-    ? requestedSection
+  const resolvedSection = NAVIGATION_SECTION_ALIASES.get(requestedSection) ?? requestedSection
+  return navigationItems.some((item) => item.id === resolvedSection)
+    ? resolvedSection
     : DEFAULT_NAVIGATION_SECTION
 }
 

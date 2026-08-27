@@ -15,6 +15,21 @@ const focusHelper = path.resolve(argument('focus-helper', ''));
 const artifactsDir = path.resolve(argument('artifacts-dir', '/private/tmp/fluentread-settings-center-ui'));
 const browserPath = argument('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge');
 const timeout = Number(argument('timeout', '30000'));
+const expectedNavigation = [
+  ['settings-general', '通用设置'],
+  ['settings-services', '翻译服务'],
+  ['settings-translation', '翻译设置'],
+  ['settings-image-translation', '图片与圈选翻译'],
+  ['settings-video', '视频字幕翻译'],
+  ['settings-sites', '网站规则'],
+  ['settings-translation-center', '翻译中心'],
+  ['settings-vocabulary', '单词本'],
+  ['settings-advanced', '高级选项'],
+  ['settings-data', '配置管理'],
+  ['settings-about', '关于流畅阅读'],
+];
+const expectedGeneralGroups = ['选择翻译服务', '译文显示', '网页辅助'];
+const expectedTranslationGroups = ['鼠标悬浮翻译', '划词翻译', '输入框翻译', '全文翻译'];
 
 if (!fs.existsSync(path.join(extensionDir, 'manifest.json'))) throw new Error(`扩展产物不存在：${extensionDir}`);
 if (!fs.existsSync(focusHelper)) throw new Error(`防抢焦点 helper 不存在：${focusHelper}`);
@@ -84,6 +99,7 @@ async function main() {
     navigation: [],
     responsive: [],
     defaultServiceCard: {responsive: []},
+    informationArchitecture: {},
     assertions: {},
     consoleErrors: errors,
     screenshots: [],
@@ -122,9 +138,17 @@ async function main() {
 
     const navButtons = page.locator('nav[aria-label="设置分类"] button');
     const navCount = await navButtons.count();
-    if (navCount !== 12) throw new Error(`导航数量异常：${navCount}`);
+    if (navCount !== expectedNavigation.length) throw new Error(`导航数量异常：${navCount}`);
     const ids = await navButtons.evaluateAll(buttons => buttons.map(button => button.dataset.section));
     if (new Set(ids).size !== ids.length) throw new Error('导航 section id 重复');
+    const navigationContract = await navButtons.evaluateAll(buttons => buttons.map(button => [
+      button.dataset.section,
+      button.querySelector('strong')?.textContent?.trim(),
+    ]));
+    if (JSON.stringify(navigationContract) !== JSON.stringify(expectedNavigation)) {
+      throw new Error(`导航顺序或名称异常：${JSON.stringify(navigationContract)}`);
+    }
+    report.informationArchitecture.navigation = navigationContract;
 
     for (let index = 0; index < navCount; index += 1) {
       const button = navButtons.nth(index);
@@ -180,6 +204,8 @@ async function main() {
     report.screenshots.push(await screenshot(page, 'settings-dark-general.png'));
     await page.locator('button[data-section="settings-services"]').click();
     report.screenshots.push(await screenshot(page, 'settings-dark-services.png'));
+    await page.locator('button[data-section="settings-translation"]').click();
+    report.screenshots.push(await screenshot(page, 'settings-dark-translation.png'));
     await page.locator('button[data-section="settings-data"]').click();
     report.screenshots.push(await screenshot(page, 'settings-dark-data.png'));
     await page.locator('button[data-section="settings-general"]').click();
@@ -188,43 +214,123 @@ async function main() {
     report.assertions.segmentedKeyboard = true;
     report.assertions.darkTheme = true;
 
-    await page.locator('button[data-section="settings-services"]').click();
-    const defaultServiceCard = page.getByTestId('default-translation-service-card');
+    const generalSection = page.locator('#settings-general');
+    const generalGroups = (await page.locator('.settings-section:visible .settings-group-heading h2').allTextContents())
+      .map(title => title.trim());
+    if (JSON.stringify(generalGroups) !== JSON.stringify(expectedGeneralGroups)) {
+      throw new Error(`通用设置分组异常：${JSON.stringify(generalGroups)}`);
+    }
+    report.informationArchitecture.generalGroups = generalGroups;
+
+    const defaultServiceCard = generalSection.getByTestId('default-translation-service-card');
     await defaultServiceCard.waitFor({state: 'visible', timeout});
     const defaultServiceMetrics = await defaultServiceCard.evaluate(card => {
-      const serviceName = card.querySelector('.service-default-copy strong');
-      const status = card.querySelector('.service-default-status');
+      const item = card.closest('.settings-item');
+      const label = item?.querySelector('.settings-item-copy strong');
+      const description = item?.querySelector('.settings-item-copy small');
       const icon = card.querySelector('.service-brand-icon');
-      const picker = card.querySelector('.service-default-picker');
       const selected = card.querySelector('.el-select__placeholder');
       const cardStyle = getComputedStyle(card);
-      const serviceNameStyle = serviceName ? getComputedStyle(serviceName) : null;
       const iconRect = icon?.getBoundingClientRect();
+      const selectRect = card.querySelector('.el-select')?.getBoundingClientRect();
       return {
         defaultService: card.getAttribute('data-default-service'),
-        serviceName: serviceName?.textContent?.trim(),
+        label: label?.textContent?.trim(),
+        description: description?.textContent?.trim(),
         selectedService: selected?.textContent?.trim(),
-        status: status?.textContent?.trim(),
-        pickerLabel: picker?.querySelector(':scope > span')?.textContent?.trim(),
         backgroundImage: cardStyle.backgroundImage,
-        accentShadow: cardStyle.boxShadow,
-        serviceNameFontSize: Number.parseFloat(serviceNameStyle?.fontSize || '0'),
+        controlShadow: cardStyle.boxShadow,
+        controlDisplay: cardStyle.display,
         iconWidth: iconRect?.width || 0,
+        selectWidth: selectRect?.width || 0,
       };
     });
     if (!defaultServiceMetrics.defaultService
-      || defaultServiceMetrics.serviceName !== defaultServiceMetrics.selectedService
-      || defaultServiceMetrics.status !== '全局默认'
-      || defaultServiceMetrics.pickerLabel !== '切换默认服务'
-      || defaultServiceMetrics.backgroundImage === 'none'
-      || !defaultServiceMetrics.accentShadow.includes('inset')
-      || defaultServiceMetrics.serviceNameFontSize < 18
-      || defaultServiceMetrics.iconWidth < 48) {
-      throw new Error(`默认翻译服务卡不够明确：${JSON.stringify(defaultServiceMetrics)}`);
+      || defaultServiceMetrics.label !== '默认网页翻译服务'
+      || defaultServiceMetrics.description !== '全文、悬浮和划词翻译默认使用此服务。'
+      || !defaultServiceMetrics.selectedService
+      || defaultServiceMetrics.backgroundImage !== 'none'
+      || defaultServiceMetrics.controlShadow !== 'none'
+      || defaultServiceMetrics.controlDisplay !== 'grid'
+      || defaultServiceMetrics.iconWidth < 39
+      || defaultServiceMetrics.selectWidth < 180) {
+      throw new Error(`默认翻译服务没有融入标准设置行：${JSON.stringify(defaultServiceMetrics)}`);
     }
     report.defaultServiceCard.desktop = defaultServiceMetrics;
     report.screenshots.push(await screenshot(page, 'settings-default-service-light.png'));
-    report.assertions.defaultServiceProminent = true;
+    report.assertions.defaultServiceHarmonious = true;
+
+    const aiContextSwitch = page.getByRole('switch', {name: 'AI 智能上下文', exact: true});
+    if (await aiContextSwitch.count() !== 1) throw new Error('通用设置没有唯一的 AI 智能上下文开关');
+    if (await aiContextSwitch.isDisabled()) throw new Error('机器翻译作为默认服务时，AI 智能上下文开关不可操作');
+    const aiContextControl = aiContextSwitch.locator('..');
+    if (!await aiContextControl.isVisible()) throw new Error('AI 智能上下文开关没有可见的交互控件');
+    const aiContextBefore = await aiContextSwitch.getAttribute('aria-checked');
+    if (!['true', 'false'].includes(aiContextBefore)) throw new Error(`AI 智能上下文开关状态异常：${aiContextBefore}`);
+    await aiContextControl.click();
+    await page.waitForFunction(
+      previous => document.querySelector('[aria-label="AI 智能上下文"]')
+        ?.getAttribute('aria-checked') !== previous,
+      aiContextBefore,
+      {timeout},
+    );
+    const aiContextAfter = await aiContextSwitch.getAttribute('aria-checked');
+    await aiContextControl.click();
+    await page.waitForFunction(
+      expected => document.querySelector('[aria-label="AI 智能上下文"]')
+        ?.getAttribute('aria-checked') === expected,
+      aiContextBefore,
+      {timeout},
+    );
+    const aiContextRestored = await aiContextSwitch.getAttribute('aria-checked');
+
+    await page.locator('button[data-section="settings-services"]').click();
+    const servicesSection = page.locator('#settings-services');
+    const serviceCatalog = servicesSection.locator('.service-catalog');
+    await serviceCatalog.waitFor({state: 'visible', timeout});
+    const serviceOnlyMetrics = {
+      catalogCount: await serviceCatalog.count(),
+      defaultCardCount: await servicesSection.getByTestId('default-translation-service-card').count(),
+      defaultSelectCount: await servicesSection.locator('[aria-label="默认网页翻译服务"]').count(),
+      settingsGroupCount: await servicesSection.locator('.settings-group').count(),
+      defaultService: await serviceCatalog.getAttribute('data-default-service'),
+    };
+    if (serviceOnlyMetrics.catalogCount !== 1
+      || serviceOnlyMetrics.defaultCardCount !== 0
+      || serviceOnlyMetrics.defaultSelectCount !== 0
+      || serviceOnlyMetrics.settingsGroupCount !== 0
+      || serviceOnlyMetrics.defaultService !== defaultServiceMetrics.defaultService) {
+      throw new Error(`翻译服务页不是纯服务目录：${JSON.stringify(serviceOnlyMetrics)}`);
+    }
+    const defaultServiceItem = serviceCatalog.locator(
+      `.service-item[data-service-value="${defaultServiceMetrics.defaultService}"]`,
+    );
+    if (await defaultServiceItem.count() !== 1) throw new Error('服务目录没有显示当前默认服务');
+    const defaultServiceKind = (await defaultServiceItem.locator('.service-copy small').textContent())?.trim();
+    if (defaultServiceKind !== '机器翻译') {
+      throw new Error(`AI 上下文开关用例没有运行在机器默认服务下：${defaultServiceKind}`);
+    }
+    report.informationArchitecture.services = serviceOnlyMetrics;
+    report.informationArchitecture.machineDefaultAiContext = {
+      defaultService: defaultServiceMetrics.defaultService,
+      serviceKind: defaultServiceKind,
+      before: aiContextBefore,
+      after: aiContextAfter,
+      restored: aiContextRestored,
+    };
+    report.assertions.servicesCatalogOnly = true;
+    report.assertions.machineDefaultAiContextOperable = true;
+
+    await page.locator('button[data-section="settings-translation"]').click();
+    const translationSection = page.locator('#settings-translation');
+    await translationSection.waitFor({state: 'visible', timeout});
+    const translationGroups = (await page.locator('.settings-section:visible .settings-group-heading h2').allTextContents())
+      .map(title => title.trim());
+    if (JSON.stringify(translationGroups) !== JSON.stringify(expectedTranslationGroups)) {
+      throw new Error(`翻译设置分组顺序异常：${JSON.stringify(translationGroups)}`);
+    }
+    report.informationArchitecture.translationGroups = translationGroups;
+    report.assertions.translationGroupOrder = true;
 
     await page.locator('button[data-section="settings-general"]').click();
     const targetChange = await chooseDifferentSelectOption(page, '默认目标语言');
@@ -320,29 +426,30 @@ async function main() {
     ]) {
       await page.setViewportSize(viewport);
       await page.locator('button[data-section="settings-general"]').click();
-      await page.locator('button[data-section="settings-services"]').click();
       await page.waitForTimeout(150);
       const serviceCardLayout = await defaultServiceCard.evaluate(card => {
+        const item = card.closest('.settings-item');
         const cardRect = card.getBoundingClientRect();
-        const summaryRect = card.querySelector('.service-default-summary')?.getBoundingClientRect();
-        const pickerRect = card.querySelector('.service-default-picker')?.getBoundingClientRect();
+        const itemRect = item?.getBoundingClientRect();
+        const copyRect = item?.querySelector('.settings-item-copy')?.getBoundingClientRect();
         return {
-          withinViewport: cardRect.left >= -1 && cardRect.right <= window.innerWidth + 1,
-          stacked: Boolean(summaryRect && pickerRect && pickerRect.top >= summaryRect.bottom - 1),
-          cardWidth: cardRect.width,
+          withinViewport: Boolean(itemRect && itemRect.left >= -1 && itemRect.right <= window.innerWidth + 1),
+          stacked: Boolean(copyRect && cardRect.top >= copyRect.bottom - 1),
+          controlWidth: cardRect.width,
         };
       });
       if (!serviceCardLayout.withinViewport) throw new Error(`${viewport.width}px 默认服务卡超出视口`);
-      if (viewport.width <= 820 && !serviceCardLayout.stacked) throw new Error(`${viewport.width}px 默认服务卡没有纵向排列`);
-      const serviceFile = `settings-default-service-${viewport.width}.png`;
-      report.screenshots.push(await screenshot(page, serviceFile));
-      report.defaultServiceCard.responsive.push({...viewport, ...serviceCardLayout});
-      await page.locator('button[data-section="settings-data"]').click();
-      await page.waitForTimeout(150);
-      const metrics = await page.evaluate(() => ({
+      if (viewport.width <= 480 && !serviceCardLayout.stacked) throw new Error(`${viewport.width}px 默认服务设置行没有纵向排列`);
+      const generalMetrics = await page.evaluate(() => ({
         horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
         scrollWidth: document.documentElement.scrollWidth,
         clientWidth: document.documentElement.clientWidth,
+        sectionWithinViewport: [...document.querySelectorAll('.settings-section')]
+          .filter(section => getComputedStyle(section).display !== 'none')
+          .every(section => {
+            const rect = section.getBoundingClientRect();
+            return rect.left >= -1 && rect.right <= window.innerWidth + 1;
+          }),
         activeNavigationVisible: (() => {
           const active = document.querySelector('nav[aria-label="设置分类"] button[aria-current="page"]');
           if (!active) return false;
@@ -353,11 +460,53 @@ async function main() {
             && rect.bottom <= window.innerHeight + 1;
         })(),
       }));
-      if (metrics.horizontalOverflow) throw new Error(`${viewport.width}px 出现横向滚动：${JSON.stringify(metrics)}`);
-      if (!metrics.activeNavigationVisible) throw new Error(`${viewport.width}px 当前导航不在可视区域`);
-      const file = `settings-data-${viewport.width}.png`;
-      report.screenshots.push(await screenshot(page, file));
-      report.responsive.push({...viewport, ...metrics});
+      if (generalMetrics.horizontalOverflow
+        || !generalMetrics.sectionWithinViewport
+        || !generalMetrics.activeNavigationVisible) {
+        throw new Error(`${viewport.width}px 通用设置响应式异常：${JSON.stringify(generalMetrics)}`);
+      }
+      const generalFile = `settings-general-${viewport.width}.png`;
+      report.screenshots.push(await screenshot(page, generalFile));
+      report.defaultServiceCard.responsive.push({...viewport, ...serviceCardLayout});
+      report.responsive.push({page: 'settings-general', ...viewport, ...generalMetrics});
+
+      await page.locator('button[data-section="settings-translation"]').click();
+      await page.waitForTimeout(150);
+      const translationMetrics = await page.evaluate(expectedGroups => ({
+        horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+        groupOrder: [...document.querySelectorAll('.settings-section')]
+          .filter(section => getComputedStyle(section).display !== 'none')
+          .flatMap(section => [...section.querySelectorAll('.settings-group-heading h2')])
+          .map(heading => heading.textContent?.trim()),
+        groupsWithinViewport: [...document.querySelectorAll('.settings-section')]
+          .filter(section => getComputedStyle(section).display !== 'none')
+          .flatMap(section => [...section.querySelectorAll('.settings-group')])
+          .every(group => {
+            const rect = group.getBoundingClientRect();
+            return rect.left >= -1 && rect.right <= window.innerWidth + 1;
+          }),
+        expectedOrder: JSON.stringify(expectedGroups),
+        activeNavigationVisible: (() => {
+          const active = document.querySelector('nav[aria-label="设置分类"] button[aria-current="page"]');
+          if (!active) return false;
+          const rect = active.getBoundingClientRect();
+          return rect.left >= -1
+            && rect.right <= window.innerWidth + 1
+            && rect.top >= -1
+            && rect.bottom <= window.innerHeight + 1;
+        })(),
+      }), expectedTranslationGroups);
+      if (translationMetrics.horizontalOverflow
+        || !translationMetrics.groupsWithinViewport
+        || !translationMetrics.activeNavigationVisible
+        || JSON.stringify(translationMetrics.groupOrder) !== translationMetrics.expectedOrder) {
+        throw new Error(`${viewport.width}px 翻译设置响应式异常：${JSON.stringify(translationMetrics)}`);
+      }
+      const translationFile = `settings-translation-${viewport.width}.png`;
+      report.screenshots.push(await screenshot(page, translationFile));
+      report.responsive.push({page: 'settings-translation', ...viewport, ...translationMetrics});
     }
     report.assertions.responsive = true;
     if (errors.length) throw new Error(`浏览器控制台存在错误：${errors.join(' | ')}`);

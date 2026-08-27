@@ -85,8 +85,14 @@ describe('后台 feature handlers', () => {
         await expect(handler.handle({type: OPEN_OPTIONS_PAGE_MESSAGE_TYPE})).resolves.toEqual({success: true});
         await expect(handler.handle({type: OPEN_OPTIONS_PAGE_MESSAGE_TYPE, section: 'settings-video'}))
             .resolves.toEqual({success: true});
+        await expect(handler.handle({type: OPEN_OPTIONS_PAGE_MESSAGE_TYPE, section: 'settings-webpage'}))
+            .resolves.toEqual({success: true});
+        await expect(handler.handle({type: OPEN_OPTIONS_PAGE_MESSAGE_TYPE, section: 'settings-shortcuts'}))
+            .resolves.toEqual({success: true});
         expect(openDefaultPage).toHaveBeenCalledOnce();
-        expect(openSection).toHaveBeenCalledWith('settings-video');
+        expect(openSection).toHaveBeenNthCalledWith(1, 'settings-video');
+        expect(openSection).toHaveBeenNthCalledWith(2, 'settings-translation');
+        expect(openSection).toHaveBeenNthCalledWith(3, 'settings-translation');
 
         await expect(handler.handle({type: OPEN_OPTIONS_PAGE_MESSAGE_TYPE, section: 'settings-secret'}))
             .rejects.toThrow('无效的设置页面');

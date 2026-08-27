@@ -49,6 +49,14 @@ describe('popup feature visibility', () => {
         expect(popup).not.toContain(':disabled="!browserCapabilities.areaTranslation"');
     });
 
+    it('routes hover and selection drawers to the merged translation settings section', () => {
+        const popup = source('src/app/popup/PopupApp.vue');
+
+        expect(popup).toContain("hover: 'settings-translation'");
+        expect(popup).toContain("selection: 'settings-translation'");
+        expect(popup).not.toContain("'settings-shortcuts'");
+    });
+
     it('filters Chrome Translator but renders old synchronized selections as unavailable', () => {
         const popup = source('src/app/popup/PopupApp.vue');
 

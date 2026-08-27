@@ -12,6 +12,36 @@ function sourceBody(path: string): string {
   return header?.includes('@file ' + path) ? content.slice(header.length) : content
 }
 
+function sectionAt(content: string, sectionStart: number): string {
+  const sectionTags = /<\/?section\b[^>]*>/gu
+  sectionTags.lastIndex = sectionStart
+  let depth = 0
+  let match: RegExpExecArray | null
+  while ((match = sectionTags.exec(content))) {
+    depth += match[0].startsWith('</') ? -1 : 1
+    if (depth === 0) return content.slice(sectionStart, sectionTags.lastIndex)
+  }
+  throw new Error(`Missing closing section at offset ${sectionStart}`)
+}
+
+function activeSectionSource(content: string, id: string): string {
+  const openingSections = /<section\b[^>]*>/gu
+  const sections: string[] = []
+  let match: RegExpExecArray | null
+  while ((match = openingSections.exec(content))) {
+    if (match[0].includes(`props.activeSection === '${id}'`)) {
+      sections.push(sectionAt(content, match.index))
+    }
+  }
+  if (!sections.length) throw new Error(`Missing active section ${id}`)
+  return sections.join('\n')
+}
+
+function settingsGroupTitles(content: string): string[] {
+  return [...content.matchAll(/<SettingsGroup\b[^>]*\btitle="([^"]+)"/gu)]
+    .map((match) => match[1])
+}
+
 describe('options UI composition architecture', () => {
   it('keeps the WXT options entrypoint as a thin app composition shell', () => {
     const entrypoint = source('entrypoints/options/main.ts')
@@ -35,7 +65,9 @@ describe('options UI composition architecture', () => {
     expect(settingsSections).not.toContain('@/entrypoints/')
     expect(settingsSections).toContain('<style scoped src="./settings-sections.css"></style>')
     expect(settingsSections).toContain('<ImageOcrSettings />')
-    expect(settingsSections).toContain("id=\"settings-webpage\"")
+    expect(settingsSections).toContain('id="settings-translation"')
+    expect(settingsSections).not.toContain('id="settings-webpage"')
+    expect(settingsSections).not.toContain('id="settings-shortcuts"')
     expect(settingsSections).toContain('<ConfigManagement')
     expect(settingsSections).toContain('<SettingsGroup')
     expect(settingsSections).not.toContain('fluentReadImageOcrDownload')
@@ -67,18 +99,52 @@ describe('options UI composition architecture', () => {
     expect(translationCenter).toContain('if (!isTranslationServiceAvailable(service)) return [service]')
   })
 
-  it('makes the global default translation service visually explicit without changing catalog clicks', () => {
+  it('puts service selection, webpage assistance and translated-text display in General', () => {
     const settings = source('src/features/settings/ui/SettingsSections.vue')
+    const general = activeSectionSource(settings, 'settings-general')
+    const services = activeSectionSource(settings, 'settings-services')
     const styles = sourceBody('src/features/settings/ui/settings-sections.css')
 
-    expect(settings).toContain('data-testid="default-translation-service-card"')
-    expect(settings).toContain(':data-default-service="config.service"')
-    expect(settings).toContain('<ServiceIcon :service="config.service"')
-    expect(settings).toContain('全局默认')
-    expect(settings).toContain('切换默认服务')
-    expect(settings).toContain('defaultTextServiceLabel')
-    expect(styles).toContain('.service-default-card')
-    expect(styles).toContain('box-shadow: inset 4px 0 0 var(--brand);')
+    expect(settingsGroupTitles(general)).toEqual(['选择翻译服务', '译文显示', '网页辅助'])
+    expect(general).toContain('data-testid="default-translation-service-card"')
+    expect(general).toContain(':data-default-service="config.service"')
+    expect(general).toContain('<SettingsItem label="默认网页翻译服务"')
+    expect(general).toContain('description="全文、悬浮和划词翻译默认使用此服务。"')
+    expect(general).not.toContain('全文、悬浮、划词和输入框翻译默认使用此服务')
+    expect(general).toContain('<ServiceIcon :service="config.service" :label="defaultTextServiceLabel" size="medium"')
+    expect(general).toContain('aria-label="默认网页翻译服务"')
+    expect(general).toContain('defaultTextServiceLabel')
+    expect(general).toContain('aria-label="AI 智能上下文"')
+    const aiContextSwitch = general.match(/<el-switch\b[^>]*aria-label="AI 智能上下文"[^>]*\/>/u)?.[0]
+    expect(aiContextSwitch).toBeDefined()
+    expect(aiContextSwitch).not.toContain(':disabled')
+    expect(general).toContain('label="翻译模式"')
+    expect(general).toContain('aria-label="译文样式"')
+
+    expect(services).toContain('<ServiceCatalog')
+    expect(services).not.toContain('data-testid="default-translation-service-card"')
+    expect(services).not.toContain('aria-label="默认网页翻译服务"')
+    expect(services).not.toContain('<SettingsGroup')
+    expect(styles).toContain('.service-default-control')
+    expect(styles).not.toContain('.service-default-status')
+    expect(styles).not.toContain('.service-default-picker')
+    expect(styles).not.toContain('box-shadow: inset 4px 0 0 var(--brand);')
+  })
+
+  it('keeps translation interactions together in the requested order', () => {
+    const settings = source('src/features/settings/ui/SettingsSections.vue')
+    const translation = activeSectionSource(settings, 'settings-translation')
+
+    expect(settingsGroupTitles(translation)).toEqual([
+      '鼠标悬浮翻译',
+      '划词翻译',
+      '输入框翻译',
+      '全文翻译',
+    ])
+    expect(translation).toContain('aria-label="鼠标悬浮快捷键"')
+    expect(translation).toContain('label="划词翻译模式"')
+    expect(translation).toContain('aria-label="输入框翻译触发方式"')
+    expect(translation).toContain('label="全文翻译范围"')
   })
 
   it('loads shared tokens before the unchanged settings page rules', () => {
