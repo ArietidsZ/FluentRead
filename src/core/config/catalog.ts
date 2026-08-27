@@ -316,7 +316,7 @@ export const models = new Map<string, Array<string>>([
     [services.gemini, [defaultModelIds[services.gemini], "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro", customModelString]],
     [services.yiyan, [defaultModelIds[services.yiyan], currentModelIds.yiyan, "ernie-5.0-thinking-preview", "ernie-x1.1-preview", "ernie-4.5-turbo-128k", "ernie-4.5-21b-a3b", customModelString]],
     [services.tongyi, [defaultModelIds[services.tongyi], currentModelIds.tongyiTokenPlan, "qwen3.7-max", "qwen3.7-plus", "qwen-mt-plus", "qwen-mt-turbo", "qwen-mt-flash", "qwen-mt-lite", "qwen-long-latest", customModelString]],
-    [services.zhipu, [defaultModelIds[services.zhipu], currentModelIds.zhipu, "glm-5.2", "glm-5.1", "glm-5-turbo", "glm-5", "glm-4.7", customModelString]],
+    [services.zhipu, [defaultModelIds[services.zhipu], currentModelIds.zhipu, "glm-5.3-flash","glm-5.3","glm-5.2", "glm-5.1", "glm-5-turbo", "glm-5", "glm-4.7", customModelString]],
     [services.moonshot, [defaultModelIds[services.moonshot], currentModelIds.moonshot, "kimi-k2.7-code-highspeed", "kimi-k2.7-code", "kimi-k2.5", customModelString]],
     [services.claude, [defaultModelIds[services.claude], currentModelIds.claude, currentModelIds.claudeOpus, currentModelIds.claudeSonnet, "claude-opus-4-8", "claude-sonnet-4-6", customModelString]],
     [services.custom, [currentModelIds.openai, "gpt-5.4-mini", "gpt-5.6-sol", "gemini-3.6-flash", currentModelIds.claude, currentModelIds.deepseek, "gemma:7b", "llama2:7b", "mistral:7b", customModelString]],
