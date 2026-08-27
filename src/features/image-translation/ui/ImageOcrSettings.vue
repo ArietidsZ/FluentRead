@@ -77,6 +77,19 @@ const downloadError = ref('');
 const recommendedReady = computed(() => recommendedCodes.every(code => downloadedCodes.value.includes(code)));
 const recommendedDownloading = computed(() => recommendedCodes.some(code => downloadingCodes.value.includes(code)));
 
+function formatDownloadError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error || '');
+  if (message.includes('Receiving end does not exist')
+    || message.includes('Could not establish connection')
+    || message.includes('Offscreen 文档')
+    || message.includes('接收端')) {
+    return 'OCR 服务初始化失败，请重新打开设置页后重试。';
+  }
+  return message
+    ? `${message}。请检查网络后重试。`
+    : '语言包下载失败，请检查网络后重试。';
+}
+
 async function refreshLanguageState() {
   const stored = await browser.storage.local.get(IMAGE_OCR_LANGUAGE_STATE_KEY);
   downloadedCodes.value = normalizeImageOcrLanguageCodes(stored[IMAGE_OCR_LANGUAGE_STATE_KEY]);
@@ -95,9 +108,7 @@ async function downloadLanguages(languages: ImageOcrLanguageCode[]) {
     if (!response?.success) throw new Error(response?.error || '语言包下载失败');
     downloadedCodes.value = normalizeImageOcrLanguageCodes(response.languages);
   } catch (error) {
-    downloadError.value = error instanceof Error
-      ? `${error.message}。请检查网络后重试。`
-      : '语言包下载失败，请检查网络后重试。';
+    downloadError.value = formatDownloadError(error);
   } finally {
     downloadingCodes.value = downloadingCodes.value.filter(code => !pending.includes(code));
   }

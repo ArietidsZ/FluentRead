@@ -5,7 +5,7 @@
  * 模块边界：该运行时只在具备 Canvas/DOM 的 Offscreen 环境执行，不直接接收 browser.runtime 事件；消息入口由 app/offscreen 组装，翻译函数由依赖注入，几何算法来自 area feature。
  */
 import { selectChangedTranslations, type OcrLine } from '@/src/features/image-translation/core';
-import { areaRectToImageCrop, type AreaTranslationSelection } from '@/src/features/area-translation/public';
+import { areaRectToImageCrop, type AreaTranslationSelection } from '@/src/features/area-translation/protocol';
 import { inpaintTextRegions } from './inpainting';
 import { recognizeImage } from './ocrRuntime';
 import { getImageTextBackgroundColor, getImageTextColor } from './rendering';
