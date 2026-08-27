@@ -13,6 +13,7 @@ export interface ConfigPersistenceMessage {
     config?: unknown;
     clientId?: unknown;
     sequence?: unknown;
+    baseRevision?: unknown;
 }
 
 export interface ConfigPersistenceContext {
@@ -28,6 +29,23 @@ export interface ConfigPersistenceContext {
 
 export interface ConfigPersistenceResponse {
     success: true;
+    revision: number;
+}
+
+export interface ConfigMutationCoordinator {
+    run<T>(mutation: () => Promise<T>): Promise<T>;
+}
+
+/** 所有配置写操作共用一条队列，避免恢复、导入和普通保存交叉落盘。 */
+export function createConfigMutationCoordinator(): ConfigMutationCoordinator {
+    let queue: Promise<unknown> = Promise.resolve();
+    return {
+        run<T>(mutation: () => Promise<T>): Promise<T> {
+            const result = queue.catch(() => undefined).then(mutation);
+            queue = result.then(() => undefined, () => undefined);
+            return result;
+        },
+    };
 }
 
 export interface ConfigPersistenceDependencies<TConfig> {
@@ -40,12 +58,15 @@ export interface ConfigPersistenceDependencies<TConfig> {
     ) => TConfig;
     readonly saveConfig: (config: TConfig, options: {recordHistory: true}) => Promise<void>;
     readonly isExtensionUrl: (url: string) => boolean;
+    readonly getCurrentRevision?: () => number;
+    readonly runMutation?: ConfigMutationCoordinator['run'];
 }
 
 interface ParsedConfigPersistenceRequest {
     config: Record<string, unknown>;
     clientId: string;
     sequence: number;
+    baseRevision?: number;
     allowCredentialUpdates: boolean;
 }
 
@@ -72,6 +93,12 @@ function parseSequence(value: unknown): number {
     throw new TypeError('配置保存 sequence 必须是非负安全整数');
 }
 
+function parseBaseRevision(value: unknown): number | undefined {
+    if (value === undefined) return undefined;
+    if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) return value;
+    throw new TypeError('配置保存 baseRevision 必须是非负安全整数');
+}
+
 function parseConfigPersistenceMessage(
     message: ConfigPersistenceMessage,
     context: ConfigPersistenceContext,
@@ -89,6 +116,7 @@ function parseConfigPersistenceMessage(
         config: message.config,
         clientId,
         sequence,
+        baseRevision: parseBaseRevision(message.baseRevision),
         allowCredentialUpdates: isExtensionUrl(senderUrl),
     };
 }
@@ -99,21 +127,34 @@ export function createConfigPersistenceHandler<TConfig>(
 ): BackgroundMessageHandler<ConfigPersistenceContext, ConfigPersistenceMessage, ConfigPersistenceResponse> {
     let persistQueue: Promise<void> = Promise.resolve();
     const latestSequenceByClient = new Map<string, number>();
+    const localCoordinator = createConfigMutationCoordinator();
+    const runMutation = dependencies.runMutation || localCoordinator.run;
 
     return {
         type: CONFIG_PERSIST_MESSAGE_TYPE,
         async handle(message, context) {
             const request = parseConfigPersistenceMessage(message, context, dependencies.isExtensionUrl);
             const lastSequence = latestSequenceByClient.get(request.clientId) || 0;
-            if (request.sequence && request.sequence <= lastSequence) return {success: true};
+            if (request.sequence && request.sequence <= lastSequence) {
+                return {success: true, revision: dependencies.getCurrentRevision?.() ?? 0};
+            }
             if (request.sequence) latestSequenceByClient.set(request.clientId, request.sequence);
 
             const persist = persistQueue
                 .catch(() => undefined)
-                .then(async () => {
+                .then(() => runMutation(async () => {
                     // Step 1: 队列轮到当前请求时再判断它是否仍是该 client 的最新序列。
-                    if (request.sequence && latestSequenceByClient.get(request.clientId) !== request.sequence) return;
+                    if (request.sequence && latestSequenceByClient.get(request.clientId) !== request.sequence) {
+                        return dependencies.getCurrentRevision?.() ?? 0;
+                    }
                     await dependencies.ready;
+
+                    const currentRevision = dependencies.getCurrentRevision?.();
+                    if (request.baseRevision !== undefined
+                        && currentRevision !== undefined
+                        && request.baseRevision !== currentRevision) {
+                        throw new Error(`配置已更新（当前 revision ${currentRevision}），请同步后重试`);
+                    }
 
                     // Step 2: 使用注入的 prepare/save 保持凭据策略、规范化和历史记录行为。
                     const prepared = dependencies.prepareConfigSaveRequest(
@@ -122,10 +163,13 @@ export function createConfigPersistenceHandler<TConfig>(
                         request.allowCredentialUpdates,
                     );
                     await dependencies.saveConfig(prepared, {recordHistory: true});
-                });
-            persistQueue = persist.catch(() => undefined);
-            await persist;
-            return {success: true};
+                    // 必须在同一个 mutation 临界区内捕获本次提交 revision；释放队列后
+                    // 其他恢复可能立刻推进全局 revision，不能把它误报成本请求的版本。
+                    return dependencies.getCurrentRevision?.() ?? 0;
+                }));
+            persistQueue = persist.then(() => undefined, () => undefined);
+            const committedRevision = await persist;
+            return {success: true, revision: committedRevision};
         },
     };
 }

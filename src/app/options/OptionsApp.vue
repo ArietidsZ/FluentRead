@@ -12,7 +12,7 @@
         <div><strong>流畅阅读</strong><small>FluentRead · V{{ version }}</small></div>
       </div>
 
-      <nav aria-label="设置分类">
+      <nav ref="navigationElement" aria-label="设置分类">
         <section v-for="group in navigationGroups" :key="group.label" class="nav-group">
           <span class="nav-group-label">{{ group.label }}</span>
           <button
@@ -25,7 +25,7 @@
             @click="selectSection(item.id)"
           >
             <span class="nav-icon">{{ item.icon }}</span>
-            <span><strong>{{ item.label }}</strong><small>{{ item.description }}</small></span>
+            <strong>{{ item.label }}</strong>
           </button>
         </section>
       </nav>
@@ -34,7 +34,6 @@
     <main class="workspace">
       <header class="topbar">
         <div>
-          <span class="eyebrow">{{ activeItem.kicker }}</span>
           <h1>{{ activeItem.title }}</h1>
           <p>{{ activeItem.detail }}</p>
         </div>
@@ -52,16 +51,10 @@
       <div v-else-if="query" class="search-empty">没有找到“{{ query }}”相关设置</div>
 
       <section class="settings-card" :class="{ 'services-view': activeSection === 'settings-services', 'translation-center-view': activeSection === 'settings-translation-center', 'vocabulary-view': activeSection === 'settings-vocabulary' }" :aria-label="activeItem.heading">
-        <div v-if="!['settings-services', 'settings-about', 'settings-translation-center'].includes(activeSection)" class="card-intro">
-          <span class="eyebrow">{{ activeItem.kicker }}</span>
-          <h2>{{ activeItem.title }}</h2>
-          <p>{{ activeItem.detail }}</p>
-        </div>
         <section v-if="activeSection === 'settings-about'" id="settings-about" class="about-page" aria-labelledby="about-title">
           <div class="about-hero">
             <img class="about-logo" src="/icon/128.png" alt="流畅阅读图标" />
             <div>
-              <span class="eyebrow">关于流畅阅读</span>
               <h3 id="about-title">让双语阅读自然发生</h3>
               <p>流畅阅读是一款开源浏览器翻译插件，帮助你在阅读网页时更自然地理解不同语言的内容。</p>
               <span class="about-version">FluentRead · V{{ version }}</span>
@@ -103,7 +96,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import SettingsSections from '@/src/features/settings/ui/SettingsSections.vue'
 import VocabularyBook from '@/src/features/vocabulary/ui/VocabularyBook.vue'
 import {
@@ -117,6 +110,8 @@ import {
 const version = process.env.VUE_APP_VERSION
 const query = ref('')
 const activeSection = ref('settings-general')
+const navigationElement = ref<HTMLElement | null>(null)
+const mobileNavigationMedia = window.matchMedia('(max-width: 700px)')
 
 const navigation = navigationItems
 const activeItem = computed(() => resolveNavigationItem(activeSection.value))
@@ -137,7 +132,31 @@ function selectResult(id: string) {
   selectSection(id)
 }
 
+async function revealActiveNavigation() {
+  await nextTick()
+  navigationElement.value
+    ?.querySelector<HTMLElement>(`button[data-section="${activeSection.value}"]`)
+    ?.scrollIntoView({
+      block: 'nearest',
+      inline: mobileNavigationMedia.matches ? 'center' : 'nearest',
+    })
+}
+
+watch(activeSection, () => {
+  void revealActiveNavigation()
+})
+
+function handleMobileNavigationChange() {
+  void revealActiveNavigation()
+}
+
 onMounted(() => {
   activeSection.value = resolveRequestedSection(window.location.hash)
+  mobileNavigationMedia.addEventListener('change', handleMobileNavigationChange)
+  void revealActiveNavigation()
+})
+
+onBeforeUnmount(() => {
+  mobileNavigationMedia.removeEventListener('change', handleMobileNavigationChange)
 })
 </script>

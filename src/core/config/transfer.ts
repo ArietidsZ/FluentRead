@@ -12,9 +12,10 @@ import {
   hasCredentialFields,
   mergeConfigCredentials,
   sanitizeConfigCredentials,
+  type ConfigCredentials,
 } from './credentials'
 import { normalizeConfig, type Config } from './model'
-import { defaultOption } from './catalog'
+import { defaultOption, servicesType } from './catalog'
 
 type ConfigRecord = Record<string, any>
 
@@ -27,7 +28,12 @@ function isRecord(value: unknown): value is ConfigRecord {
 export function isConfigImportValid(value: unknown): value is ConfigRecord {
   if (!isRecord(value)) return false
   if (!requiredConfigFields.every((field) => field in value)) return false
-  if (typeof value.service !== 'string') return false
+  if (typeof value.on !== 'boolean') return false
+  if (value.display !== 0 && value.display !== 1) return false
+  if (typeof value.from !== 'string' || !value.from.trim()) return false
+  if (typeof value.to !== 'string' || !value.to.trim()) return false
+  if (typeof value.service !== 'string'
+    || (!servicesType.machine.has(value.service) && !servicesType.isAI(value.service))) return false
   return !('customBody' in value) || isCustomBodyMapping(value.customBody)
 }
 
@@ -53,6 +59,32 @@ function removeEmptyCustomBodies(target: ConfigRecord) {
   if (Object.keys(entries).length === 0) delete target.customBody
 }
 
+const scalarCredentialFields = [
+  'ak', 'sk', 'appid', 'key', 'youdaoAppKey', 'youdaoAppSecret',
+  'tencentSecretId', 'tencentSecretKey',
+] as const
+
+/** 旧版文件只更新它明确提供的凭据；未提供的服务凭据继续保留。 */
+function prepareImportedCredentials(value: unknown, current: unknown): ConfigCredentials {
+  const currentCredentials = extractConfigCredentials(current)
+  if (!hasCredentialFields(value) || !isRecord(value)) return currentCredentials
+
+  const importedCredentials = extractConfigCredentials(value)
+  const merged: ConfigCredentials = {
+    ...currentCredentials,
+    token: isRecord(value.token)
+      ? {...currentCredentials.token, ...importedCredentials.token}
+      : currentCredentials.token,
+    extra: isRecord(value.extra)
+      ? {...currentCredentials.extra, ...importedCredentials.extra}
+      : currentCredentials.extra,
+  }
+  for (const field of scalarCredentialFields) {
+    if (typeof value[field] === 'string') merged[field] = importedCredentials[field]
+  }
+  return merged
+}
+
 export function sanitizeConfigForExport(value: unknown): ConfigRecord {
   if (!isRecord(value)) throw new Error('配置必须是 JSON 对象')
 
@@ -60,6 +92,10 @@ export function sanitizeConfigForExport(value: unknown): ConfigRecord {
     JSON.parse(JSON.stringify(value)),
   ) as ConfigRecord
   delete sanitized.__fluentConfigRevision
+  delete sanitized.count
+  delete sanitized.persistCredentials
+  // videoServiceDefaultMigrated 暂时保留，旧版 raw JSON 没有独立 schema；
+  // 删除它会让用户主动选择的 DeepLX 在重新导入时被误判为旧默认值。
   removeDefaultEntries(sanitized, 'system_role', defaultOption.system_role)
   removeDefaultEntries(sanitized, 'user_role', defaultOption.user_role)
   removeEmptyCustomBodies(sanitized)
@@ -68,17 +104,19 @@ export function sanitizeConfigForExport(value: unknown): ConfigRecord {
 
 /**
  * 新版导出不含凭据，因此导入时保留当前 session 凭据；旧版导出若含凭据，
- * 则显式迁移该凭据。持久化开关始终保留当前值，不能由导入文件静默开启。
+ * 则只迁移文件明确提供的字段，未提供的凭据继续保留。翻译统计、迁移标记和持久化开关始终保留当前值，
+ * 不能由导入文件静默覆盖。
  */
 export function prepareConfigForImport(value: unknown, current: unknown): Config {
+  if (!isConfigImportValid(value)) throw new TypeError('导入配置缺少有效的基础字段')
   const currentConfig = normalizeConfig(current)
   const importedConfig = normalizeConfig(value)
-  const credentials = hasCredentialFields(value)
-    ? extractConfigCredentials(value)
-    : extractConfigCredentials(currentConfig)
+  const credentials = prepareImportedCredentials(value, currentConfig)
 
   return normalizeConfig(mergeConfigCredentials({
     ...sanitizeConfigCredentials(importedConfig),
+    count: currentConfig.count,
     persistCredentials: currentConfig.persistCredentials,
+    videoServiceDefaultMigrated: currentConfig.videoServiceDefaultMigrated,
   }, credentials))
 }

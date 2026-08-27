@@ -260,6 +260,37 @@ watch(modelQuery, () => {
 .no-model-panel p { margin: 4px 0 0; color: #628074; font-size: 12px; }
 .service-configuration-slot { min-height: 0; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eceef3; overflow-y: auto; flex: 1; }
 .catalog-empty { margin: 20px 8px; color: #9299a8; font-size: 10px; text-align: center; }
+:global(:root.dark) .service-catalog,
+:global(:root.dark) .catalog-search,
+:global(:root.dark) .model-search,
+:global(:root.dark) .service-detail,
+:global(:root.dark) .model-item { border-color: var(--line); background: var(--surface); }
+:global(:root.dark) .service-rail,
+:global(:root.dark) .group-heading,
+:global(:root.dark) .more-models-toggle { border-color: var(--line); background: var(--surface-soft); }
+:global(:root.dark) .service-item,
+:global(:root.dark) .catalog-search input,
+:global(:root.dark) .model-search input,
+:global(:root.dark) .group-heading strong,
+:global(:root.dark) .detail-title-row h4,
+:global(:root.dark) .model-heading strong,
+:global(:root.dark) .model-item,
+:global(:root.dark) .more-models-toggle { color: var(--ink); }
+:global(:root.dark) .service-copy small,
+:global(:root.dark) .detail-hero p,
+:global(:root.dark) .model-heading span,
+:global(:root.dark) .model-list-heading,
+:global(:root.dark) .model-item small,
+:global(:root.dark) .more-models-toggle small { color: var(--muted); }
+:global(:root.dark) .detail-hero,
+:global(:root.dark) .service-configuration-slot { border-color: var(--line); }
+:global(:root.dark) .service-item:hover { border-color: var(--line); background: var(--surface); }
+:global(:root.dark) .service-item.active,
+:global(:root.dark) .model-item.active { border-color: rgba(255, 138, 171, .48); background: var(--brand-soft); }
+:global(:root.dark) .more-models-toggle:hover { border-color: rgba(255, 138, 171, .48); background: var(--brand-soft); }
+:global(:root.dark) .no-model-panel { border-color: #31594d; background: #1c342d; }
+:global(:root.dark) .no-model-panel strong { color: #a8e8d5; }
+:global(:root.dark) .no-model-panel p { color: #8fc5b5; }
 @media (max-width: 900px) {
   .catalog-layout { grid-template-columns: 220px minmax(0, 1fr); }
   .model-grid { grid-template-columns: 1fr; }

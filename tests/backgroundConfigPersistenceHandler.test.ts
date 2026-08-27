@@ -2,6 +2,7 @@ import {describe, expect, it, vi} from 'vitest';
 
 import {
     CONFIG_PERSIST_MESSAGE_TYPE,
+    createConfigMutationCoordinator,
     createConfigPersistenceHandler,
     type ConfigPersistenceDependencies,
 } from '@/src/app/background/handlers/configPersistence';
@@ -23,6 +24,7 @@ function createDependencies(overrides: Partial<ConfigPersistenceDependencies<Tes
         })),
         saveConfig: vi.fn(async () => undefined),
         isExtensionUrl: vi.fn((url) => url.startsWith('chrome-extension://extension-id/')),
+        getCurrentRevision: vi.fn(() => 4),
         ...overrides,
     };
     return dependencies;
@@ -40,9 +42,10 @@ describe('background config persistence handler', () => {
             config: {marker: 'extension-save'},
             clientId: 'options-page',
             sequence: 1,
+            baseRevision: 4,
         }, {sender: {url: 'chrome-extension://extension-id/options.html'}})).resolves.toEqual({
             handled: true,
-            response: {success: true},
+            response: {success: true, revision: 4},
         });
 
         expect(dependencies.prepareConfigSaveRequest).toHaveBeenCalledWith(
@@ -70,7 +73,7 @@ describe('background config persistence handler', () => {
                 frameId: 3,
                 tab: {id: 7},
             },
-        })).resolves.toEqual({success: true});
+        })).resolves.toEqual({success: true, revision: 4});
 
         expect(dependencies.prepareConfigSaveRequest).toHaveBeenCalledWith(
             {marker: 'content-save'},
@@ -96,12 +99,44 @@ describe('background config persistence handler', () => {
             sequence: 2,
         }, {});
 
-        await expect(Promise.all([first, second])).resolves.toEqual([{success: true}, {success: true}]);
+        await expect(Promise.all([first, second])).resolves.toEqual([
+            {success: true, revision: 4},
+            {success: true, revision: 4},
+        ]);
         expect(dependencies.saveConfig).toHaveBeenCalledOnce();
         expect(dependencies.saveConfig).toHaveBeenCalledWith(
             {marker: 'new', allowCredentialUpdates: false},
             {recordHistory: true},
         );
+    });
+
+    it('未注入 revision 读取器时所有 sequence 分支稳定回退为 revision 0', async () => {
+        const dependencies = createDependencies({getCurrentRevision: undefined});
+        const handler = createConfigPersistenceHandler(dependencies);
+        const first = handler.handle({
+            type: CONFIG_PERSIST_MESSAGE_TYPE,
+            config: {marker: 'superseded'},
+            clientId: 'legacy-client',
+            sequence: 1,
+        }, {});
+        const latest = handler.handle({
+            type: CONFIG_PERSIST_MESSAGE_TYPE,
+            config: {marker: 'latest'},
+            clientId: 'legacy-client',
+            sequence: 2,
+        }, {});
+
+        await expect(Promise.all([first, latest])).resolves.toEqual([
+            {success: true, revision: 0},
+            {success: true, revision: 0},
+        ]);
+        await expect(handler.handle({
+            type: CONFIG_PERSIST_MESSAGE_TYPE,
+            config: {marker: 'stale'},
+            clientId: 'legacy-client',
+            sequence: 1,
+        }, {})).resolves.toEqual({success: true, revision: 0});
+        expect(dependencies.saveConfig).toHaveBeenCalledOnce();
     });
 
     it('tabId 为 0 时仍保留独立 fallback client 身份', async () => {
@@ -119,7 +154,10 @@ describe('background config persistence handler', () => {
             sequence: 2,
         }, {sender: {frameId: 0}});
 
-        await expect(Promise.all([first, second])).resolves.toEqual([{success: true}, {success: true}]);
+        await expect(Promise.all([first, second])).resolves.toEqual([
+            {success: true, revision: 4},
+            {success: true, revision: 4},
+        ]);
         expect(dependencies.saveConfig).toHaveBeenCalledTimes(2);
         expect(dependencies.saveConfig).toHaveBeenNthCalledWith(
             1,
@@ -143,7 +181,7 @@ describe('background config persistence handler', () => {
             config: {marker: 'old'},
             clientId: 'options',
             sequence: 7,
-        }, {})).resolves.toEqual({success: true});
+        }, {})).resolves.toEqual({success: true, revision: 4});
 
         expect(dependencies.saveConfig).toHaveBeenCalledOnce();
         expect(dependencies.saveConfig).toHaveBeenCalledWith(
@@ -173,7 +211,7 @@ describe('background config persistence handler', () => {
         releaseFirst();
 
         await expect(first).rejects.toThrow('first failed');
-        await expect(second).resolves.toEqual({success: true});
+        await expect(second).resolves.toEqual({success: true, revision: 4});
         expect(saveOrder).toEqual(['first', 'second']);
     });
 
@@ -184,9 +222,86 @@ describe('background config persistence handler', () => {
         [{type: CONFIG_PERSIST_MESSAGE_TYPE, config: {}, clientId: 42}, 'clientId'],
         [{type: CONFIG_PERSIST_MESSAGE_TYPE, config: {}, sequence: -1}, 'sequence'],
         [{type: CONFIG_PERSIST_MESSAGE_TYPE, config: {}, sequence: 1.5}, 'sequence'],
+        [{type: CONFIG_PERSIST_MESSAGE_TYPE, config: {}, baseRevision: -1}, 'baseRevision'],
+        [{type: CONFIG_PERSIST_MESSAGE_TYPE, config: {}, baseRevision: 1.5}, 'baseRevision'],
     ])('拒绝非法配置保存消息 %#', async (message, field) => {
         const handler = createConfigPersistenceHandler(createDependencies());
 
         await expect(handler.handle(message, {})).rejects.toThrow(field);
+    });
+
+    it('拒绝基于旧 revision 的整份快照，避免覆盖刚恢复或导入的配置', async () => {
+        const dependencies = createDependencies({getCurrentRevision: vi.fn(() => 5)});
+        const handler = createConfigPersistenceHandler(dependencies);
+
+        await expect(handler.handle({
+            type: CONFIG_PERSIST_MESSAGE_TYPE,
+            config: {marker: 'stale-content-snapshot'},
+            clientId: 'content',
+            sequence: 1,
+            baseRevision: 4,
+        }, {})).rejects.toThrow('当前 revision 5');
+        expect(dependencies.saveConfig).not.toHaveBeenCalled();
+    });
+
+    it('外部恢复与普通保存共用 mutation coordinator 串行执行', async () => {
+        const coordinator = createConfigMutationCoordinator();
+        let revision = 4;
+        let releaseRestore!: () => void;
+        const restoreGate = new Promise<void>((resolve) => { releaseRestore = resolve; });
+        const order: string[] = [];
+        const dependencies = createDependencies({
+            getCurrentRevision: () => revision,
+            runMutation: coordinator.run,
+            saveConfig: vi.fn(async () => { order.push('save'); revision += 1; }),
+        });
+        const handler = createConfigPersistenceHandler(dependencies);
+        const restore = coordinator.run(async () => {
+            order.push('restore-start');
+            await restoreGate;
+            revision += 1;
+            order.push('restore-end');
+        });
+        const staleSave = handler.handle({
+            type: CONFIG_PERSIST_MESSAGE_TYPE,
+            config: {marker: 'stale-after-restore'},
+            baseRevision: 4,
+        }, {});
+
+        await vi.waitFor(() => expect(order).toEqual(['restore-start']));
+        releaseRestore();
+        await restore;
+        await expect(staleSave).rejects.toThrow('当前 revision 5');
+        expect(order).toEqual(['restore-start', 'restore-end']);
+    });
+
+    it('在 mutation 临界区内捕获本次提交 revision，不误报紧随其后的恢复版本', async () => {
+        const coordinator = createConfigMutationCoordinator();
+        let revision = 4;
+        let releaseSave!: () => void;
+        const saveGate = new Promise<void>((resolve) => { releaseSave = resolve; });
+        const saveStarted = vi.fn();
+        const dependencies = createDependencies({
+            getCurrentRevision: () => revision,
+            runMutation: coordinator.run,
+            saveConfig: vi.fn(async () => {
+                saveStarted();
+                await saveGate;
+                revision = 5;
+            }),
+        });
+        const handler = createConfigPersistenceHandler(dependencies);
+        const request = handler.handle({
+            type: CONFIG_PERSIST_MESSAGE_TYPE,
+            config: {marker: 'save-before-restore'},
+            baseRevision: 4,
+        }, {});
+        await vi.waitFor(() => expect(saveStarted).toHaveBeenCalledOnce());
+        const followingRestore = coordinator.run(async () => { revision = 6; });
+
+        releaseSave();
+        await expect(request).resolves.toEqual({success: true, revision: 5});
+        await followingRestore;
+        expect(revision).toBe(6);
     });
 });

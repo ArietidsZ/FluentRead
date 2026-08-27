@@ -34,7 +34,10 @@ describe('options UI composition architecture', () => {
     expect(optionsApp).toContain("@/src/features/vocabulary/ui/VocabularyBook.vue")
     expect(settingsSections).not.toContain('@/entrypoints/')
     expect(settingsSections).toContain('<style scoped src="./settings-sections.css"></style>')
-    expect(settingsSections).toContain('<ImageOcrSettings v-show="props.activeSection === \'settings-image-translation\'" />')
+    expect(settingsSections).toContain('<ImageOcrSettings />')
+    expect(settingsSections).toContain("id=\"settings-webpage\"")
+    expect(settingsSections).toContain('<ConfigManagement')
+    expect(settingsSections).toContain('<SettingsGroup')
     expect(settingsSections).not.toContain('fluentReadImageOcrDownload')
     expect(imagePublic).toContain("from './ui/ImageOcrSettings.vue'")
     expect(imageSettings).toContain('当前浏览器暂不支持图片翻译与 OCR')
@@ -62,6 +65,20 @@ describe('options UI composition architecture', () => {
     expect(translationCenter).toContain('filterAvailableTranslationServices(options.services)')
     expect(translationCenter).toContain('原配置会保留')
     expect(translationCenter).toContain('if (!isTranslationServiceAvailable(service)) return [service]')
+  })
+
+  it('makes the global default translation service visually explicit without changing catalog clicks', () => {
+    const settings = source('src/features/settings/ui/SettingsSections.vue')
+    const styles = sourceBody('src/features/settings/ui/settings-sections.css')
+
+    expect(settings).toContain('data-testid="default-translation-service-card"')
+    expect(settings).toContain(':data-default-service="config.service"')
+    expect(settings).toContain('<ServiceIcon :service="config.service"')
+    expect(settings).toContain('全局默认')
+    expect(settings).toContain('切换默认服务')
+    expect(settings).toContain('defaultTextServiceLabel')
+    expect(styles).toContain('.service-default-card')
+    expect(styles).toContain('box-shadow: inset 4px 0 0 var(--brand);')
   })
 
   it('loads shared tokens before the unchanged settings page rules', () => {

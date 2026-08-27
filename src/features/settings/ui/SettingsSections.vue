@@ -6,135 +6,85 @@
  -->
 <template>
   <section v-show="props.activeSection === 'settings-general'" id="settings-general" class="settings-section">
-  <!-- 开关 -->
-  <el-row class="margin-bottom margin-left-2em settings-status-row">
-    <el-col :span="18" class="lightblue rounded-corner">
-      <div class="settings-status-copy">
-        <span class="settings-status-kicker">{{ config.on ? '正在工作' : '已暂停' }}</span>
-        <strong>插件状态</strong>
-        <small>{{ config.on ? '网页翻译与快捷功能均已启用' : '重新启用后即可继续翻译网页' }}</small>
-      </div>
-    </el-col>
-    <el-col :span="6" class="flex-end settings-status-control">
-      <span class="settings-status-badge" :class="{ active: config.on }"><i />{{ config.on ? '已启用' : '已暂停' }}</span>
-      <el-switch class="settings-switch" v-model="config.on" aria-label="插件状态" size="large" @change="handlePluginStateChange" />
-    </el-col>
-  </el-row>
-  <!-- 占位符 -->
-  <div v-if="!config.on">
-    <el-empty description="插件处于禁用状态" />
-  </div>
-  <div v-show="config.on">
-    <!--    翻译模式-->
-    <el-row class="margin-bottom margin-left-2em settings-preference-row">
-      <el-col :span="12" class="lightblue rounded-corner">
-        <span class="popup-text popup-vertical-left">翻译模式</span>
-      </el-col>
-      <el-col :span="12">
-        <el-select v-model="config.display" aria-label="翻译模式" placeholder="请选择翻译模式">
-          <el-option class="select-left" v-for="item in options.display" :key="item.value" :label="item.label"
-            :value="item.value" />
-        </el-select>
-      </el-col>
-    </el-row>
-    <!-- 默认目标语言 -->
-    <el-row class="margin-bottom margin-left-2em settings-preference-row">
-      <el-col :span="12" class="lightblue rounded-corner">
-        <span class="popup-text popup-vertical-left">默认目标语言</span>
-      </el-col>
-      <el-col :span="12">
+    <SettingsGroup>
+      <SettingsItem
+        label="插件状态"
+        :description="config.on ? '网页翻译和快捷功能正在运行。' : '当前已暂停，其他偏好仍可继续调整。'"
+      >
+        <el-switch v-model="config.on" class="settings-switch" aria-label="插件状态" @change="handlePluginStateChange" />
+      </SettingsItem>
+      <SettingsItem label="默认目标语言" description="网页、划词和悬停翻译默认翻译成的语言。">
         <el-select v-model="config.to" aria-label="默认目标语言" placeholder="请选择目标语言">
-          <el-option class="select-left" v-for="item in options.to" :key="item.value" :label="item.label"
-            :value="item.value" />
+          <el-option v-for="item in options.to" :key="item.value" class="select-left" :label="item.label" :value="item.value" />
         </el-select>
-      </el-col>
-    </el-row>
-    <!-- 文本与视频使用独立的翻译服务 -->
-    <el-row class="margin-bottom margin-left-2em settings-preference-row">
-      <el-col :span="12" class="lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="网页、划词和悬停翻译使用的默认服务。视频字幕服务可以单独选择。" placement="top-start" :show-after="500">
-          <span class="popup-text popup-vertical-left">文本翻译服务<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-        </el-tooltip>
-      </el-col>
-      <el-col :span="12">
-        <el-select v-model="config.service" aria-label="文本翻译服务" placeholder="请选择文本翻译服务">
-          <el-option v-if="selectedTextServiceUnavailableMessage" :label="'Chrome内置AI翻译（当前浏览器不可用）'" :value="config.service" disabled />
-          <el-option class="select-left" v-for="item in availableServiceOptions" :key="item.value" :label="item.label" :value="item.value" :disabled="item.disabled" />
-        </el-select>
-        <p v-if="selectedTextServiceUnavailableMessage" class="capability-warning">{{ selectedTextServiceUnavailableMessage }}</p>
-      </el-col>
-    </el-row>
-    <el-row class="margin-bottom margin-left-2em settings-preference-row">
-      <el-col :span="12" class="lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="YouTube 原生字幕下方显示的译文使用此服务，与文本翻译服务互不影响。" placement="top-start" :show-after="500">
-          <span class="popup-text popup-vertical-left">视频翻译服务<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-        </el-tooltip>
-      </el-col>
-      <el-col :span="12">
-        <el-select v-model="config.videoService" aria-label="视频翻译服务" placeholder="请选择视频翻译服务">
-          <el-option v-if="selectedVideoServiceUnavailableMessage" :label="'Chrome内置AI翻译（当前浏览器不可用）'" :value="config.videoService" disabled />
-          <el-option class="select-left" v-for="item in videoServiceOptions" :key="item.value" :label="item.label" :value="item.value" />
-        </el-select>
-        <p v-if="selectedVideoServiceUnavailableMessage" class="capability-warning">{{ selectedVideoServiceUnavailableMessage }}</p>
-      </el-col>
-    </el-row>
-    <!--    译文样式选择器-->
-    <el-row v-show="config.display === 1" class="margin-bottom margin-left-2em settings-preference-row">
-      <el-col :span="12" class="lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="选择双语模式下译文的显示样式，提供多种美观的效果" placement="top-start"
-          :show-after="500">
-          <span class="popup-text popup-vertical-left">译文样式<el-icon class="icon-margin">
-              <InfoFilled />
-            </el-icon></span>
-        </el-tooltip>
-      </el-col>
-      <el-col :span="12">
+      </SettingsItem>
+      <SettingsItem label="界面主题" description="只影响扩展界面，不会改变网页本身的配色。">
+        <SegmentedControl v-model="config.theme" :options="options.theme" label="界面主题" />
+      </SettingsItem>
+    </SettingsGroup>
+  </section>
+
+  <section v-show="props.activeSection === 'settings-webpage'" id="settings-webpage" class="settings-section">
+    <SettingsGroup title="译文显示" description="设置网页翻译后的内容形式和双语译文样式。">
+      <SettingsItem label="翻译模式" description="双语对照保留原文，仅译文模式会替换原文显示。">
+        <SegmentedControl v-model="config.display" :options="options.display" label="翻译模式" />
+      </SettingsItem>
+      <SettingsItem v-show="config.display === 1" label="译文样式" description="选择后可在下方立即查看效果。">
         <el-select v-model="config.style" aria-label="译文样式" placeholder="请选择译文显示样式">
           <el-option-group v-for="group in styleGroups" :key="group.value" :label="group.label">
-            <el-option v-for="item in group.options" :key="item.value" :label="item.label" :value="item.value"
-              :class="item.class" />
+            <el-option v-for="item in group.options" :key="item.value" :label="item.label" :value="item.value" :class="item.class" />
           </el-option-group>
         </el-select>
-      </el-col>
-    </el-row>
-    <section v-show="config.display === 1" class="style-preview-card" aria-live="polite">
-      <div class="style-preview-heading">
-        <div><span>实时预览</span><strong>译文样式</strong></div>
+      </SettingsItem>
+      <div v-show="config.display === 1" class="style-preview-card" aria-live="polite">
+        <div class="style-preview-example">
+          <p class="style-preview-source">Reading should feel calm and effortless.</p>
+          <p :key="config.style" class="style-preview-text" :class="currentStyleClass">阅读应该轻松、自然，不打断你的节奏。</p>
+        </div>
       </div>
-      <div class="style-preview-example">
-        <p class="style-preview-source">Reading should feel calm and effortless.</p>
-        <p :key="config.style" class="style-preview-text" :class="currentStyleClass">阅读应该轻松、自然，不打断你的节奏。</p>
-      </div>
-      <small class="style-preview-note">切换上方选项即可预览译文在网页中的显示效果。</small>
-    </section>
-  </div>
+    </SettingsGroup>
   </section>
   <section v-show="props.activeSection === 'settings-sites'" id="settings-sites" class="settings-section site-settings-section">
-    <el-row class="settings-control-row" data-setting="global-auto-translate">
-      <el-col :span="20" class="settings-control-label site-auto-translate-label lightblue rounded-corner">
-        <span class="popup-text popup-vertical-left">所有网站自动翻译</span>
-        <small>打开后，每个支持的网页都会在加载完成时自动开始翻译；关闭后仍会保留下面的网站名单。</small>
-      </el-col>
-      <el-col :span="4" class="settings-control-field flex-end">
+    <SettingsGroup>
+      <SettingsItem label="所有网站自动翻译" description="每个支持的网页加载完成后自动开始翻译；关闭后仍保留下面的名单。">
         <el-switch v-model="config.autoTranslate" class="settings-toggle" aria-label="所有网站自动翻译" />
-      </el-col>
-    </el-row>
+      </SettingsItem>
+    </SettingsGroup>
     <AlwaysTranslateSites v-model="config.alwaysTranslateDomains" />
     <AlwaysTranslateSites v-model="config.disabledExtensionDomains" variant="disable-extension" />
   </section>
-  <div v-if="!config.on && !['settings-general', 'settings-image-translation', 'settings-translation-center', 'settings-sites'].includes(props.activeSection)" class="disabled-section">
-    <strong>插件当前已关闭</strong>
-    <p>请先在“通用设置”中启用插件，再调整该分类。</p>
-  </div>
   <section v-show="props.activeSection === 'settings-translation-center'" id="settings-translation-center" class="settings-section translation-center-section">
     <TranslationCenter />
   </section>
-  <div v-show="config.on" class="settings-main-sections">
+  <div class="settings-main-sections">
     <!-- 翻译服务 -->
     <section v-show="props.activeSection === 'settings-services'" id="settings-services" class="settings-section">
+      <SettingsGroup class="service-default-group">
+        <div
+          class="service-default-card"
+          data-testid="default-translation-service-card"
+          :data-default-service="config.service"
+        >
+          <div class="service-default-summary">
+            <ServiceIcon :service="config.service" :label="defaultTextServiceLabel" size="large" />
+            <div class="service-default-copy">
+              <span class="service-default-status"><i aria-hidden="true"></i>全局默认</span>
+              <strong>{{ defaultTextServiceLabel }}</strong>
+              <small>网页、悬停和划词翻译都使用此服务</small>
+            </div>
+          </div>
+          <div class="service-default-picker">
+            <span>切换默认服务</span>
+          <el-select v-model="config.service" aria-label="默认网页翻译服务" placeholder="请选择翻译服务">
+            <el-option v-if="selectedTextServiceUnavailableMessage" label="Chrome内置AI翻译（当前浏览器不可用）" :value="config.service" disabled />
+            <el-option v-for="item in availableServiceOptions" :key="item.value" class="select-left" :label="item.label" :value="item.value" :disabled="item.disabled" />
+          </el-select>
+          </div>
+        </div>
+      </SettingsGroup>
       <div v-if="selectedTextServiceUnavailableMessage" class="disabled-section" role="status">
         <strong>当前默认服务在此浏览器不可用</strong>
-        <p>{{ selectedTextServiceUnavailableMessage }}请在“通用设置”中选择可用服务。</p>
+        <p>{{ selectedTextServiceUnavailableMessage }}请在上方选择可用服务。</p>
       </div>
       <ServiceCatalog
         :service="selectedConfigurationService"
@@ -158,52 +108,57 @@
         </template>
       </ServiceCatalog>
     </section>
-    <ImageOcrSettings v-show="props.activeSection === 'settings-image-translation'" />
-    <!-- 视频字幕 Beta -->
+    <section v-show="props.activeSection === 'settings-image-translation'" id="settings-image-translation" class="settings-section image-translation-settings">
+      <SettingsGroup title="功能状态" description="图片翻译与圈选翻译共用本地 OCR 语言包，但可以分别开启。">
+        <SettingsItem label="网页图片翻译" description="悬停网页图片时显示翻译入口，默认关闭。">
+          <el-switch v-model="imageTranslationEnabled" class="settings-toggle" aria-label="网页图片翻译" />
+        </SettingsItem>
+        <SettingsItem label="圈选区域翻译" description="截取你主动圈选的屏幕区域进行 OCR 和翻译。">
+          <el-switch v-model="selectionAreaTranslationEnabled" class="settings-toggle" aria-label="圈选区域翻译" />
+        </SettingsItem>
+      </SettingsGroup>
+      <ImageOcrSettings />
+    </section>
     <section v-show="props.activeSection === 'settings-video'" id="settings-video" class="settings-section">
-      <div class="video-settings-hero">
-        <div><span class="eyebrow">Beta 功能</span><h2>YouTube 视频字幕</h2><p>边看边译 YouTube 原生字幕；不上传音频，不改变播放器时间轴。</p></div>
-        <el-switch v-model="config.videoTranslationEnabled" class="settings-switch" aria-label="视频字幕翻译" />
-      </div>
-
-      <el-row class="settings-control-row">
-        <el-col :span="12" class="settings-control-label lightblue rounded-corner">
-          <el-tooltip class="box-item" effect="dark" content="视频字幕独立选择翻译服务，默认微软翻译；AI 服务会提前预取字幕，网页翻译仍使用上方的文本翻译服务。" placement="top-start" :show-after="500">
-            <span class="popup-text popup-vertical-left">视频翻译服务<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-          </el-tooltip>
-        </el-col>
-        <el-col :span="12" class="settings-control-field">
+      <SettingsGroup>
+        <SettingsItem label="视频字幕翻译" description="翻译 YouTube 已提供的字幕文本，不上传音频或视频内容。">
+          <el-switch v-model="config.videoTranslationEnabled" class="settings-switch" aria-label="视频字幕翻译" />
+        </SettingsItem>
+        <SettingsItem label="视频翻译服务" description="与网页翻译服务相互独立；AI 服务会提前预取字幕。" :disabled="!config.videoTranslationEnabled">
           <el-select v-model="config.videoService" aria-label="视频字幕翻译服务" :disabled="!config.videoTranslationEnabled" placeholder="请选择服务">
-            <el-option v-if="selectedVideoServiceUnavailableMessage" :label="'Chrome内置AI翻译（当前浏览器不可用）'" :value="config.videoService" disabled />
-            <el-option class="select-left" v-for="item in videoServiceOptions" :key="item.value" :label="item.label" :value="item.value" />
+            <el-option v-if="selectedVideoServiceUnavailableMessage" label="Chrome内置AI翻译（当前浏览器不可用）" :value="config.videoService" disabled />
+            <el-option v-for="item in videoServiceOptions" :key="item.value" class="select-left" :label="item.label" :value="item.value" />
           </el-select>
           <p v-if="selectedVideoServiceUnavailableMessage" class="capability-warning">{{ selectedVideoServiceUnavailableMessage }}</p>
-        </el-col>
-      </el-row>
-
-      <el-row class="settings-control-row">
-        <el-col :span="12" class="settings-control-label lightblue rounded-corner">
-          <el-tooltip class="box-item" effect="dark" content="只调整 FluentRead 在播放器中显示的原文和译文字号，不改变 YouTube 原生字幕设置。" placement="top-start" :show-after="500">
-            <span class="popup-text popup-vertical-left">字幕字号<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-          </el-tooltip>
-        </el-col>
-        <el-col :span="12" class="settings-control-field">
+        </SettingsItem>
+        <SettingsItem label="显示 FluentRead 字幕" description="临时隐藏扩展字幕时保留当前翻译设置。" :disabled="!config.videoTranslationEnabled">
+          <el-switch v-model="config.videoSubtitleVisible" class="settings-toggle" aria-label="显示 FluentRead 视频字幕" :disabled="!config.videoTranslationEnabled" />
+        </SettingsItem>
+        <SettingsItem label="字幕显示模式" description="选择同时显示原文和译文，或只显示其中一种。" :disabled="!config.videoTranslationEnabled || !config.videoSubtitleVisible">
+          <SegmentedControl
+            v-model="config.videoSubtitleDisplayMode"
+            :options="videoSubtitleDisplayModeOptions"
+            label="视频字幕显示模式"
+            :disabled="!config.videoTranslationEnabled || !config.videoSubtitleVisible"
+          />
+        </SettingsItem>
+        <SettingsItem label="字幕字号" description="只调整 FluentRead 字幕，不改变 YouTube 原生字幕。" :disabled="!config.videoTranslationEnabled || !config.videoSubtitleVisible">
           <el-select v-model="config.videoSubtitleFontSize" aria-label="视频字幕字号" :disabled="!config.videoTranslationEnabled" placeholder="请选择字号">
-            <el-option class="select-left" v-for="size in videoSubtitleFontSizeOptions" :key="size" :label="size === 100 ? '默认' : `${size}%`" :value="size" />
+            <el-option v-for="size in videoSubtitleFontSizeOptions" :key="size" class="select-left" :label="size === 100 ? '默认' : `${size}%`" :value="size" />
           </el-select>
-        </el-col>
-      </el-row>
-
-      <div class="video-settings-note">
-        <strong>使用方式</strong>
-        <p>打开 YouTube 视频的原生字幕后，FluentRead 会在字幕下方显示译文。机器翻译约提前 10 秒、AI 服务约提前 30 秒准备字幕；播放器菜单可分别下载原文或译文 SRT，切换视频或关闭此功能会清理译文。</p>
-      </div>
+        </SettingsItem>
+      </SettingsGroup>
+      <details class="feature-help">
+        <summary>使用说明</summary>
+        <p>打开 YouTube 原生字幕后，FluentRead 会在播放器中显示译文。机器翻译约提前 10 秒、AI 服务约提前 30 秒准备字幕；播放器菜单可分别下载原文或译文 SRT。</p>
+      </details>
     </section>
 
 
 
     <!-- 鼠标悬浮快捷键 -->
     <section v-show="props.activeSection === 'settings-shortcuts'" id="settings-shortcuts" class="settings-section">
+    <SettingsGroup title="悬停翻译" description="按住快捷键并把鼠标移到文本上，等待设定时间后开始翻译。">
     <el-row class="settings-control-row" :class="{ 'custom-hotkey-row': config.hotkey === 'custom' }">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="按住指定快捷键并悬停在文本上进行翻译" placement="top-start" :show-after="500">
@@ -236,7 +191,14 @@
             <span class="hotkey-text placeholder-text" v-else>
               点击设置自定义快捷键
             </span>
-            <el-button size="small" type="text" @click="openCustomMouseHotkeyDialog" class="edit-button">
+            <el-button
+              size="small"
+              type="text"
+              class="edit-button"
+              aria-label="编辑鼠标悬浮快捷键"
+              title="编辑鼠标悬浮快捷键"
+              @click="openCustomMouseHotkeyDialog"
+            >
               <el-icon><Edit /></el-icon>
             </el-button>
           </div>
@@ -268,8 +230,13 @@
       </el-col>
     </el-row>
 
+    </SettingsGroup>
+    </section>
+
+    <section v-show="props.activeSection === 'settings-webpage'" class="settings-section settings-section-continuation">
+    <SettingsGroup title="全文翻译" description="设置启动全文翻译的方式、处理范围和网页内入口。">
     <!-- 全文翻译快捷键选择 -->
-    <el-row v-if="config.on" class="settings-control-row" :class="{ 'custom-hotkey-row': config.floatingBallHotkey === 'custom' }">
+    <el-row class="settings-control-row" :class="{ 'custom-hotkey-row': config.floatingBallHotkey === 'custom' }">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="（测试版）设置快捷键以便快速切换全文翻译状态，无需鼠标点击悬浮球" placement="top-start" :show-after="500">
         <span class="popup-text popup-vertical-left">
@@ -301,7 +268,14 @@
             <span class="hotkey-text placeholder-text" v-else>
               点击设置自定义快捷键
             </span>
-            <el-button size="small" type="text" @click="openCustomHotkeyDialog" class="edit-button">
+            <el-button
+              size="small"
+              type="text"
+              class="edit-button"
+              aria-label="编辑全文翻译快捷键"
+              title="编辑全文翻译快捷键"
+              @click="openCustomHotkeyDialog"
+            >
               <el-icon><Edit /></el-icon>
             </el-button>
           </div>
@@ -310,7 +284,7 @@
     </el-row>
 
     <!-- 全文翻译范围 -->
-    <el-row v-if="config.on" class="settings-control-row">
+    <el-row class="settings-control-row">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
         <el-tooltip
           class="box-item"
@@ -328,15 +302,12 @@
         </el-tooltip>
       </el-col>
       <el-col :span="10" class="settings-control-field flex-end">
-        <el-select v-model="config.fullPageTranslationMode" aria-label="全文翻译范围" size="small" style="width: 100%">
-          <el-option label="按阅读进度（推荐）" value="viewport" />
-          <el-option label="立即翻译到网页底部" value="all" />
-        </el-select>
+        <SegmentedControl v-model="config.fullPageTranslationMode" :options="fullPageTranslationModeOptions" label="全文翻译范围" />
       </el-col>
     </el-row>
 
     <!-- 右键全文翻译开关 -->
-    <el-row v-if="config.on" class="settings-control-row">
+    <el-row class="settings-control-row">
       <el-col :span="20" class="settings-control-label lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="在网页右键菜单中显示“流畅阅读翻译”或“流畅阅读取消翻译”入口；关闭后不会影响全文翻译快捷键和悬浮球" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">
@@ -352,9 +323,13 @@
       </el-col>
     </el-row>
 
+    </SettingsGroup>
+    </section>
 
+    <section v-show="props.activeSection === 'settings-shortcuts'" class="settings-section settings-section-continuation">
+    <SettingsGroup title="划词翻译" description="选择文字后的展示内容、触发方式和等待时间。">
     <!-- 划词翻译模式选择 -->
-    <el-row v-if="config.on" class="settings-control-row">
+    <el-row class="settings-control-row">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="选中文本后显示翻译入口；可选择直接弹出、图标、小点、预设快捷键或自定义快捷键。" placement="top-start" :show-after="500">
       <span class="popup-text popup-vertical-left">
@@ -366,14 +341,10 @@
         </el-tooltip>
       </el-col>
       <el-col :span="10" class="settings-control-field flex-end">
-        <el-select v-model="config.selectionTranslatorMode" aria-label="划词翻译模式" placeholder="选择模式" size="small" style="width: 100%">
-          <el-option label="关闭" value="disabled" />
-          <el-option label="双语显示" value="bilingual" />
-          <el-option label="只显示译文" value="translation-only" />
-        </el-select>
+        <SegmentedControl v-model="config.selectionTranslatorMode" :options="selectionTranslatorModeOptions" label="划词翻译模式" />
       </el-col>
     </el-row>
-    <el-row v-if="config.on && config.selectionTranslatorMode !== 'disabled'" class="settings-control-row" :class="{ 'custom-hotkey-row': config.selectionTranslatorTrigger === 'custom' }">
+    <el-row v-if="config.selectionTranslatorMode !== 'disabled'" class="settings-control-row" :class="{ 'custom-hotkey-row': config.selectionTranslatorTrigger === 'custom' }">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="快捷键与直接弹出、显示图标和显示小点是并列的触发方式；选择快捷键后，选中文字时不会显示图标或小点。" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">
@@ -394,14 +365,21 @@
             <span class="hotkey-text placeholder-text" v-else>
               点击设置自定义快捷键
             </span>
-            <el-button size="small" type="text" @click="openCustomSelectionHotkeyDialog" class="edit-button">
+            <el-button
+              size="small"
+              type="text"
+              class="edit-button"
+              aria-label="编辑划词翻译快捷键"
+              title="编辑划词翻译快捷键"
+              @click="openCustomSelectionHotkeyDialog"
+            >
               <el-icon><Edit /></el-icon>
             </el-button>
           </div>
         </div>
       </el-col>
     </el-row>
-    <el-row v-if="config.on && config.selectionTranslatorMode !== 'disabled'" class="settings-control-row">
+    <el-row v-if="config.selectionTranslatorMode !== 'disabled'" class="settings-control-row">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="从选区稳定后开始计时，再显示图标、小点或翻译面板；快捷键在等待结束后按下会立即显示。" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">
@@ -423,24 +401,13 @@
         <span class="input-suffix">ms</span>
       </el-col>
     </el-row>
+    </SettingsGroup>
     </section>
 
     <!-- token -->
     <!-- 高级选项-->
     <section v-show="props.activeSection === 'settings-advanced'" id="settings-advanced" class="settings-section">
-        <!-- 主题设置 -->
-        <el-row class="settings-control-row">
-          <el-col :span="12" class="settings-control-label lightblue rounded-corner">
-            <span class="popup-text popup-vertical-left">主题设置</span>
-          </el-col>
-          <el-col :span="12" class="settings-control-field">
-            <el-select v-model="config.theme" placeholder="请选择主题模式">
-              <el-option class="select-left" v-for="item in options.theme" :key="item.value" :label="item.label"
-                         :value="item.value" />
-            </el-select>
-          </el-col>
-        </el-row>
-
+      <SettingsGroup title="缓存策略" description="减少重复请求；需要最新结果时可临时关闭。">
         <!-- 缓存开关 -->
         <el-row class="settings-control-row">
           <el-col :span="20" class="settings-control-label lightblue rounded-corner">
@@ -456,6 +423,11 @@
           </el-col>
         </el-row>
 
+      </SettingsGroup>
+    </section>
+
+    <section v-show="props.activeSection === 'settings-webpage'" class="settings-section settings-section-continuation">
+      <SettingsGroup title="网页辅助" description="控制全文翻译时显示的工具和 AI 语境增强。">
         <!-- AI 智能上下文 -->
         <el-row class="settings-control-row">
           <el-col :span="20" class="settings-control-label ai-context-label lightblue rounded-corner">
@@ -475,7 +447,7 @@
         </el-row>
 
         <!-- 悬浮球开关 -->
-      <el-row v-if="config.on" class="settings-control-row">
+      <el-row class="settings-control-row">
         <el-col :span="20" class="settings-control-label lightblue rounded-corner">
           <el-tooltip class="box-item" effect="dark" content="（测试版）控制是否显示屏幕边缘的即时翻译悬浮球，用于对整个网页进行翻译" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">
@@ -518,6 +490,11 @@
           </el-col>
         </el-row>
 
+      </SettingsGroup>
+    </section>
+
+    <section v-show="props.activeSection === 'settings-advanced'" class="settings-section settings-section-continuation">
+      <SettingsGroup title="界面性能" description="低配置设备可以关闭动画以减少资源占用。">
         <!-- 禁用动画设置 -->
         <el-row class="settings-control-row">
           <el-col :span="20" class="settings-control-label lightblue rounded-corner">
@@ -534,6 +511,11 @@
           </el-col>
         </el-row>
 
+      </SettingsGroup>
+    </section>
+
+    <section v-show="props.activeSection === 'settings-shortcuts'" class="settings-section settings-section-continuation">
+      <SettingsGroup title="输入框翻译" description="在网页输入框中输入触发字符，快速翻译正在编辑的内容。">
         <!-- 输入框翻译功能 -->
         <el-row class="settings-control-row">
           <el-col :span="12" class="settings-control-label lightblue rounded-corner">
@@ -546,7 +528,7 @@
             </el-tooltip>
           </el-col>
           <el-col :span="12" class="settings-control-field">
-            <el-select v-model="config.inputBoxTranslationTrigger" placeholder="请选择触发方式">
+            <el-select v-model="config.inputBoxTranslationTrigger" aria-label="输入框翻译触发方式" placeholder="请选择触发方式">
               <el-option class="select-left" v-for="item in options.inputBoxTranslationTrigger" :key="item.value" 
                          :label="item.label" :value="item.value" />
             </el-select>
@@ -559,13 +541,18 @@
             <span class="popup-text popup-vertical-left">翻译目标语言</span>
           </el-col>
           <el-col :span="12" class="settings-control-field">
-            <el-select v-model="config.inputBoxTranslationTarget" placeholder="请选择目标语言">
+            <el-select v-model="config.inputBoxTranslationTarget" aria-label="输入框翻译目标语言" placeholder="请选择目标语言">
               <el-option class="select-left" v-for="item in options.inputBoxTranslationTarget" :key="item.value" 
                          :label="item.label" :value="item.value" />
             </el-select>
           </el-col>
         </el-row>
 
+      </SettingsGroup>
+    </section>
+
+    <section v-show="props.activeSection === 'settings-advanced'" class="settings-section settings-section-continuation">
+      <SettingsGroup title="任务调度" description="并发越高速度可能越快，也会增加资源占用和服务限流风险。">
         <!-- 翻译并发数 -->
         <el-row class="settings-control-row">
           <el-col :span="12" class="settings-control-label lightblue rounded-corner">
@@ -579,6 +566,7 @@
           <el-col :span="12" class="settings-control-field">
             <el-input-number
                 v-model="config.maxConcurrentTranslations"
+                aria-label="翻译并发数"
                 :min="1"
                 :max="100"
                 :step="1"
@@ -589,166 +577,10 @@
           </el-col>
         </el-row>
 
-        <!-- 使用代理转发 -->
-        <el-row v-show="compute.showProxy && !compute.showCustom" class="settings-control-row">
-          <el-col :span="8" class="settings-control-label lightblue rounded-corner">
-            <el-tooltip class="box-item" effect="dark" content="使用代理可以解决网络无法访问的问题，如不熟悉代理设置请留空！" placement="top-start"
-                        :show-after="500">
-              <span class="popup-text popup-vertical-left">代理地址<el-icon class="icon-margin">
-                  <InfoFilled />
-                </el-icon></span>
-            </el-tooltip>
-          </el-col>
-          <el-col :span="16" class="settings-control-field">
-            <el-input v-model="config.proxy[config.service]" placeholder="默认不使用代理" />
-          </el-col>
-        </el-row>
-
-        <!-- 角色和模板 -->
-        <el-row v-show="compute.showAI && !compute.showCustom" class="settings-control-row">
-          <el-col :span="8" class="settings-control-label lightblue rounded-corner">
-            <el-tooltip class="box-item" effect="dark" content="以系统身份 system 发送的对话，常用于指定 AI 要扮演的角色"
-              placement="top-start" :show-after="500">
-              <span class="popup-text popup-vertical-left">system<el-icon class="icon-margin">
-                  <InfoFilled />
-                </el-icon></span>
-            </el-tooltip>
-          </el-col>
-          <el-col :span="16" class="settings-control-field">
-            <el-input type="textarea" v-model="config.system_role[config.service]" maxlength="8192"
-              placeholder="system message " />
-          </el-col>
-        </el-row>
-        <el-row v-show="compute.showAI && !compute.showCustom" class="settings-control-row">
-          <el-col :span="8" class="settings-control-label lightblue rounded-corner">
-            <el-tooltip class="box-item" effect="dark"
-              content="以用户身份 user 发送的对话，其中{{to}}表示目标语言，{{origin}}表示待翻译的文本内容，两者不可缺少。"
-              placement="top-start" :show-after="500">
-              <span class="popup-text popup-vertical-left">user<el-icon class="icon-margin">
-                  <InfoFilled />
-                </el-icon></span>
-            </el-tooltip>
-          </el-col>
-          <el-col :span="16" class="settings-control-field">
-            <el-input type="textarea" v-model="config.user_role[config.service]" maxlength="8192"
-              placeholder="user message template" />
-          </el-col>
-        </el-row>
-        <!-- 恢夏默认模板按钮 -->
-        <el-row v-show="compute.showAI && !compute.showCustom" class="margin-bottom margin-left-2em">
-          <el-col :span="24" style="text-align: right;">
-            <el-button type="primary" link @click="resetTemplate">
-              <el-icon>
-                <Refresh />
-              </el-icon>
-              恢复默认模板
-            </el-button>
-          </el-col>
-        </el-row>
-
+      </SettingsGroup>
     </section>
 
-    <section v-show="props.activeSection === 'settings-data'" id="settings-data" class="settings-section data-section">
-        <section class="credential-persistence-panel" aria-label="API 凭据存储">
-          <div class="credential-persistence-copy">
-            <strong>跨浏览器重启保存 API 凭据</strong>
-            <p>默认仅保存在当前浏览器会话，关闭浏览器后清除。开启后会以明文写入扩展本地存储；本机其他可读取浏览器配置或诊断数据的程序可能看到这些凭据。</p>
-          </div>
-          <el-switch
-            :model-value="config.persistCredentials"
-            :loading="credentialPersistenceBusy"
-            aria-label="跨浏览器重启保存 API 凭据"
-            data-testid="persist-credentials-switch"
-            @change="setCredentialPersistence"
-          />
-        </section>
-
-        <section class="config-history-panel" aria-label="最近配置">
-          <div class="config-history-heading">
-            <div>
-              <span class="config-history-kicker">配置版本</span>
-              <h3>最近 5 次配置</h3>
-              <p>修改会自动保存，保留最近的稳定快照，可随时恢复。</p>
-            </div>
-            <div class="config-history-actions">
-              <el-button
-                size="small"
-                :disabled="historyBusy || !canUndo"
-                aria-label="撤销配置恢复"
-                @click="runHistoryAction('undo')"
-              >撤销</el-button>
-              <el-button
-                size="small"
-                :disabled="historyBusy || !canRedo"
-                aria-label="重做配置恢复"
-                @click="runHistoryAction('redo')"
-              >重做</el-button>
-            </div>
-          </div>
-
-          <div v-if="historyEntries.length" class="config-history-list">
-            <article
-              v-for="entry in historyEntries"
-              :key="entry.version"
-              class="config-history-entry"
-              :class="{ current: entry.version === currentHistoryVersion }"
-            >
-              <div class="config-history-version"><b>v{{ entry.version }}</b><span v-if="entry.version === currentHistoryVersion">当前</span></div>
-              <div class="config-history-detail">
-                <strong>{{ historySummary(entry) }}</strong>
-                <small>{{ formatHistoryTime(entry.savedAt) }}</small>
-              </div>
-              <el-button
-                size="small"
-                text
-                type="primary"
-                :disabled="historyBusy || entry.version === currentHistoryVersion"
-                :aria-label="`恢复配置 v${entry.version}`"
-                @click="runHistoryAction('restore', entry.version)"
-              >恢复</el-button>
-            </article>
-          </div>
-          <div v-else class="config-history-empty">还没有可恢复的配置版本。</div>
-        </section>
-
-        <el-row class="margin-bottom margin-left-2em">
-          <el-col :span="12">
-            <el-button type="primary" @click="handleExport">
-              <el-icon>
-                <Download />
-              </el-icon>
-              导出配置
-            </el-button>
-          </el-col>
-          <el-col :span="12">
-            <el-button type="success" @click="handleImport">
-              <el-icon>
-                <Upload />
-              </el-icon>
-              导入配置
-            </el-button>
-          </el-col>
-        </el-row>
-        <p class="config-transfer-note">导出会移除专用 API Key、Secret 与令牌字段；自定义请求体、代理和端点中的内嵌凭据无法自动识别，请在分享前检查。导入旧版配置时，专用凭据会迁移到当前浏览器会话。</p>
-
-        <!-- 导出配置 -->
-        <el-row v-if="showExportBox" class="margin-bottom margin-left-2em">
-          <el-col :span="24">
-            <el-input v-model="exportData" type="textarea" :rows="8" readonly />
-          </el-col>
-        </el-row>
-
-        <!-- 导入配置 -->
-        <el-row v-if="showImportBox" class="margin-bottom margin-left-2em">
-          <el-col :span="24">
-            <el-input v-model="importData" type="textarea" :rows="8" placeholder="请在此处粘贴您的JSON配置" />
-            <div style="margin-top: 10px; text-align: right;">
-              <el-button @click="saveImport">保存</el-button>
-            </div>
-          </el-col>
-        </el-row>
-    </section>
-    <!--    -->
+    <ConfigManagement v-show="props.activeSection === 'settings-data'" id="settings-data" :config="config" />
   </div>
 
   <!-- 自定义快捷键对话框 -->
@@ -781,7 +613,7 @@
 
 // Main 处理配置信息
 import { computed, ref, watch, onUnmounted } from 'vue'
-import { customModelString, models, options, resolveConfiguredModel, services, servicesType, defaultOption } from '@/src/core/config/catalog';
+import { customModelString, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
 import {
   Config,
   MOUSE_HOVER_TRANSLATION_DELAY_MAX,
@@ -795,32 +627,29 @@ import {
   normalizeMouseHoverTranslationDelay,
   normalizeSelectionTranslatorDelay,
 } from '@/src/core/config/model';
-import { InfoFilled, Refresh, Edit, Upload, Download } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { InfoFilled, Edit } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import browser from 'webextension-polyfill';
 import {isBrowserTabId} from '@/src/platform/browser/ids';
 import { defineAsyncComponent } from 'vue';
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'));
+import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
 import ServiceCatalog from './services/ServiceCatalog.vue';
 import ServiceConfiguration from './services/ServiceConfiguration.vue';
 import {TranslationCenter} from '@/src/features/translation-center/public';
 import AlwaysTranslateSites from './AlwaysTranslateSites.vue';
 import { parseHotkey } from '@/src/core/hotkey';
-import { isConfigImportValid, prepareConfigForImport, sanitizeConfigForExport } from '@/src/core/config/transfer';
 import { getApiKeyRequirementKey, getMissingCredentialMessage, isApiKeyRequired } from '@/src/core/config/validation';
 import {ImageOcrSettings} from '@/src/features/image-translation/public';
+import SettingsGroup from './components/SettingsGroup.vue';
+import SettingsItem from './components/SettingsItem.vue';
+import SegmentedControl from './components/SegmentedControl.vue';
+import ConfigManagement from './ConfigManagement.vue';
 import {
   config as runtimeConfig,
-  configHistoryReady,
   configReady,
-  getConfigHistorySnapshot,
-  requestConfigHistoryAction,
   requestConfigSave,
-  subscribeConfigHistory,
   subscribeConfig,
-  type ConfigHistoryAction,
-  type ConfigHistoryEntry,
-  type ConfigHistoryState,
 } from '@/src/services/config/store';
 import {
   filterAvailableTranslationServices,
@@ -914,17 +743,33 @@ const setConfigurationService = (value: string) => {
 
 type ServiceSource = { value: string };
 
-const actualService = computed(() => config.value.service);
 const aiContextModel = computed(() => resolveConfiguredModel(
   config.value.model[config.value.service],
   config.value.customModel[config.value.service],
 ));
 const canUseAIContext = computed(() => servicesType.isUseAIContext(config.value.service, aiContextModel.value));
 const availableServiceOptions = computed(() => filterAvailableTranslationServices(options.services));
+const defaultTextServiceLabel = computed(() => (
+  options.services.find((item: any) => item.value === config.value.service)?.label || config.value.service
+));
 const videoServiceOptions = computed(() => availableServiceOptions.value.filter((item: any) => !item.disabled));
 const selectedTextServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.service));
 const selectedVideoServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.videoService));
 const videoSubtitleFontSizeOptions = VIDEO_SUBTITLE_FONT_SIZE_OPTIONS;
+const fullPageTranslationModeOptions = [
+  {value: 'viewport', label: '按阅读进度'},
+  {value: 'all', label: '翻译到页底'},
+];
+const selectionTranslatorModeOptions = [
+  {value: 'disabled', label: '关闭'},
+  {value: 'bilingual', label: '双语'},
+  {value: 'translation-only', label: '仅译文'},
+];
+const videoSubtitleDisplayModeOptions = [
+  {value: 'bilingual', label: '双语'},
+  {value: 'translation-only', label: '仅译文'},
+  {value: 'original-only', label: '仅原文'},
+];
 const filteredServices = computed(() =>
   availableServiceOptions.value.filter((item: any) =>
     !([item.google].includes(item.value) && config.value.display !== 1),
@@ -970,7 +815,6 @@ const createServiceCompute = (serviceSource: ServiceSource) => ({
   ),
 });
 
-const compute = ref(createServiceCompute(actualService));
 // config.service 仍表示实际默认翻译服务；这里仅用于设置页正在编辑的服务。
 const configurationCompute = ref(createServiceCompute(selectedConfigurationService));
 
@@ -990,7 +834,6 @@ darkModeMediaQuery.onchange = () => {
 onUnmounted(() => {
   darkModeMediaQuery.onchange = null;
   unsubscribeConfig();
-  unsubscribeHistory();
 });
 
 // 计算样式分组
@@ -1006,32 +849,9 @@ const currentStyleClass = computed(() =>
   options.styles.find(item => item.value === config.value.style && !item.disabled)?.class || 'fluent-display-default'
 );
 
-// 恢复默认模板
-const resetTemplate = () => {
-  ElMessageBox.confirm(
-    '确定要恢复默认的 system 和 user 模板吗？此操作将覆盖当前的自定义模板。',
-    '恢复默认模板',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }
-  ).then(() => {
-    config.value.system_role[config.value.service] = defaultOption.system_role;
-    config.value.user_role[config.value.service] = defaultOption.user_role;
-    ElMessage({
-      message: '已成功恢复默认翻译模板',
-      type: 'success',
-      duration: 2000
-    });
-  }).catch(() => {
-    // 用户取消操作，不做任何处理
-  });
-};
-
 // 悬浮球开关的计算属性
 const floatingBallEnabled = computed({
-  get: () => !config.value.disableFloatingBall && config.value.on,
+  get: () => !config.value.disableFloatingBall,
   set: (value) => {
     config.value.disableFloatingBall = !value;
     // 向所有激活的标签页发送消息
@@ -1040,7 +860,7 @@ const floatingBallEnabled = computed({
         if (isBrowserTabId(tab.id)) {
           browser.tabs.sendMessage(tab.id, { 
             type: 'toggleFloatingBall',
-            isEnabled: value 
+            isEnabled: value && config.value.on,
           }).catch(() => {
             // 忽略发送失败的错误（可能是页面未加载内容脚本）
           });
@@ -1048,6 +868,38 @@ const floatingBallEnabled = computed({
       });
     });
   }
+});
+
+const imageTranslationEnabled = computed({
+  get: () => !config.value.disableImageTranslator,
+  set: (value) => {
+    config.value.disableImageTranslator = !value;
+    browser.tabs.query({}).then(tabs => {
+      tabs.forEach(tab => {
+        if (!isBrowserTabId(tab.id)) return;
+        browser.tabs.sendMessage(tab.id, {
+          type: 'toggleImageTranslator',
+          isEnabled: value && config.value.on,
+        }).catch(() => undefined);
+      });
+    }).catch(() => undefined);
+  },
+});
+
+const selectionAreaTranslationEnabled = computed({
+  get: () => config.value.selectionAreaEnabled,
+  set: (value) => {
+    config.value.selectionAreaEnabled = value;
+    browser.tabs.query({}).then(tabs => {
+      tabs.forEach(tab => {
+        if (!isBrowserTabId(tab.id)) return;
+        browser.tabs.sendMessage(tab.id, {
+          type: 'toggleSelectionAreaTranslator',
+          isEnabled: value && config.value.on,
+        }).catch(() => undefined);
+      });
+    }).catch(() => undefined);
+  },
 });
 
 const handleTranslationProgressPanelChange = (isEnabled: boolean) => {
@@ -1074,8 +926,8 @@ watch(() => config.value.selectionTranslatorMode, (newMode) => {
     tabs.forEach(tab => {
       if (isBrowserTabId(tab.id)) {
         browser.tabs.sendMessage(tab.id, { 
-          type: 'updateSelectionTranslatorMode',
-          mode: newMode 
+        type: 'updateSelectionTranslatorMode',
+        mode: config.value.on ? newMode : 'disabled',
         }).catch(() => {
           // 忽略发送失败的错误（可能是页面未加载内容脚本）
         });
@@ -1291,111 +1143,6 @@ const handleConcurrentChange = (currentValue: number | undefined) => {
   });
 };
 
-const showExportBox = ref(false);
-const exportData = ref('');
-const showImportBox = ref(false);
-const importData = ref('');
-const credentialPersistenceBusy = ref(false);
-
-const setCredentialPersistence = async (value: string | number | boolean) => {
-  const enabled = value === true;
-  if (enabled === config.value.persistCredentials || credentialPersistenceBusy.value) return;
-
-  if (enabled) {
-    try {
-      await ElMessageBox.confirm(
-        '开启后，API Key、访问令牌及其他服务凭据会以明文写入扩展本地存储，并在浏览器重启后继续保留。仅应在受信任的个人设备上开启。',
-        '保存 API 凭据',
-        {
-          confirmButtonText: '了解风险并开启',
-          cancelButtonText: '取消',
-          type: 'warning',
-        },
-      );
-    } catch {
-      return;
-    }
-  }
-
-  credentialPersistenceBusy.value = true;
-  try {
-    const nextConfig = normalizeConfig({...config.value, persistCredentials: enabled});
-    // 后台只有在 session 写入并读回成功后，才会清理关闭开关前的 local 凭据。
-    await persistConfig(nextConfig);
-    applyingExternalConfig = true;
-    try {
-      Object.assign(config.value, nextConfig);
-      lastSerialized = JSON.stringify(nextConfig);
-    } finally {
-      applyingExternalConfig = false;
-    }
-    ElMessage.success(enabled ? '已允许跨浏览器重启保存 API 凭据' : 'API 凭据现仅保存在当前浏览器会话');
-  } catch (error) {
-    ElMessage.error(`凭据存储设置失败：${error instanceof Error ? error.message : '请稍后重试'}`);
-  } finally {
-    credentialPersistenceBusy.value = false;
-  }
-};
-
-const configHistory = ref<ConfigHistoryState>(getConfigHistorySnapshot());
-const historyBusy = ref(false);
-const historyEntries = computed(() => [...configHistory.value.entries].reverse());
-const currentHistoryVersion = computed(() => configHistory.value.entries[configHistory.value.cursor]?.version ?? null);
-const canUndo = computed(() => configHistory.value.cursor > 0);
-const canRedo = computed(() => configHistory.value.cursor >= 0 && configHistory.value.cursor < configHistory.value.entries.length - 1);
-
-const formatHistoryTime = (savedAt: string): string => {
-  const date = new Date(savedAt);
-  if (Number.isNaN(date.getTime())) return '时间未知';
-  return new Intl.DateTimeFormat('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
-};
-
-const historySummary = (entry: ConfigHistoryEntry): string => {
-  const target = options.to.find((item: any) => item.value === entry.config.to)?.label || entry.config.to;
-  const service = options.services.find((item: any) => item.value === entry.config.service)?.label || entry.config.service;
-  const siteCount = entry.config.alwaysTranslateDomains?.length ?? 0;
-  const disabledSiteCount = entry.config.disabledExtensionDomains?.length ?? 0;
-  return `${target} · ${service} · 始终翻译 ${siteCount} 个网站 · 禁用扩展 ${disabledSiteCount} 个网站`;
-};
-
-void configHistoryReady.then(() => {
-  configHistory.value = getConfigHistorySnapshot();
-});
-const unsubscribeHistory = subscribeConfigHistory((nextHistory) => {
-  configHistory.value = nextHistory;
-});
-
-const runHistoryAction = async (action: ConfigHistoryAction, version?: number) => {
-  if (historyBusy.value) return;
-  historyBusy.value = true;
-  try {
-    const nextHistory = await requestConfigHistoryAction(
-      action,
-      version,
-      browser.runtime.sendMessage.bind(browser.runtime),
-    );
-    configHistory.value = nextHistory;
-    ElMessage({
-      message: action === 'restore' ? `已恢复配置 v${version}` : action === 'undo' ? '已撤销配置恢复' : '已重做配置恢复',
-      type: 'success',
-      duration: 1600,
-    });
-  } catch (error) {
-    ElMessage({
-      message: `配置历史操作失败：${error instanceof Error ? error.message : '请稍后重试'}`,
-      type: 'error',
-    });
-  } finally {
-    historyBusy.value = false;
-  }
-};
-
 // Azure OpenAI 端点地址验证函数
 const isValidAzureEndpoint = (endpoint: string) => {
   if (!endpoint || endpoint.trim() === '') {
@@ -1408,55 +1155,6 @@ const isValidAzureEndpoint = (endpoint: string) => {
   const hasHttps = endpoint.startsWith('https://');
 
   return hasHttps && hasAzureDomain && hasChatCompletions;
-};
-
-const handleExport = async () => {
-  try {
-    await configReady;
-    exportData.value = JSON.stringify(
-      sanitizeConfigForExport(runtimeConfig),
-      null,
-      2,
-    );
-    showExportBox.value = !showExportBox.value;
-    showImportBox.value = false;
-  } catch (error) {
-    ElMessage({
-      message: `导出配置失败：${error instanceof Error ? error.message : '配置格式错误'}`,
-      type: 'error',
-    });
-  }
-};
-
-const handleImport = () => {
-  showImportBox.value = !showImportBox.value;
-  showExportBox.value = false;
-};
-
-const saveImport = async () => {
-  try {
-    const parsedConfig = JSON.parse(importData.value);
-    if (!isConfigImportValid(parsedConfig)) {
-      ElMessage({
-        message: '配置无效或格式不正确, 请检查!',
-        type: 'error',
-      });
-      return;
-    }
-    await persistConfig(prepareConfigForImport(parsedConfig, runtimeConfig));
-    ElMessage({
-      message: '配置导入成功!',
-      type: 'success',
-    });
-    showImportBox.value = false;
-    importData.value = '';
-    // Optionally, reload the extension or relevant parts
-  } catch (e) {
-    ElMessage({
-      message: '配置格式错误, 请检查!',
-      type: 'error',
-    });
-  }
 };
 
 </script>

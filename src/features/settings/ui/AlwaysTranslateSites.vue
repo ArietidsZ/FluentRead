@@ -12,7 +12,6 @@
   >
     <header class="site-rules-heading">
       <div>
-        <span class="site-rules-kicker">网站规则</span>
         <h3 :id="labels.titleId">{{ labels.title }}</h3>
         <p>{{ labels.description }}</p>
       </div>
@@ -173,7 +172,8 @@ function removeDomain(domain: string) {
 
 <style scoped>
 .site-rules-editor {
-  margin-top: 16px;
+  width: min(100%, 1080px);
+  margin: 0 auto 16px;
   padding: 20px;
   border: 1px solid var(--line, #e5e8ef);
   border-radius: 20px;
@@ -189,15 +189,6 @@ function removeDomain(domain: string) {
 
 .site-rules-heading > div {
   min-width: 0;
-}
-
-.site-rules-kicker {
-  display: block;
-  margin-bottom: 5px;
-  color: var(--brand-strong, #dc315f);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .1em;
 }
 
 .site-rules-heading h3 {
@@ -375,24 +366,24 @@ function removeDomain(domain: string) {
 }
 
 .site-rules-empty {
-  display: flex;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
   align-items: center;
-  justify-content: center;
-  min-height: 150px;
+  min-height: 84px;
   margin-top: 14px;
-  padding: 20px;
+  padding: 14px 16px;
   border: 1px dashed #d9dde6;
   border-radius: 16px;
   color: var(--muted, #737c8f);
   background: var(--surface, #fff);
-  text-align: center;
-  flex-direction: column;
+  column-gap: 11px;
+  text-align: left;
 }
 
 .site-rules-empty > span {
-  margin-bottom: 8px;
+  grid-row: 1 / span 2;
   color: var(--brand-strong, #dc315f);
-  font-size: 24px;
+  font-size: 21px;
 }
 
 .site-rules-empty strong {
@@ -402,7 +393,7 @@ function removeDomain(domain: string) {
 
 .site-rules-empty small {
   max-width: 390px;
-  margin-top: 5px;
+  margin-top: 2px;
   font-size: 10px;
   line-height: 1.55;
 }

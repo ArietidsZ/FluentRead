@@ -9,6 +9,7 @@
 import { currentModelIds, defaultModels, defaultOption, services, servicesType } from "./catalog";
 import type { MiniMaxBillingPlan, MiniMaxRegion, MiMoBillingPlan, MiMoRegion } from "./catalog";
 import { normalizeCustomBodyMapping } from "./customBody";
+import {isSensitiveConfigKey} from './sensitiveKeys';
 import { normalizeSelectionTtsVoiceOrder } from "./selectionTts";
 import {
     normalizeAlwaysTranslateDomains,
@@ -302,6 +303,7 @@ const modelMigrations: Record<string, Record<string, string>> = {
  */
 export function normalizeConfig(value: unknown): Config {
     const normalized = new Config();
+    const knownFields = new Set(Object.keys(normalized));
     // Vue 的响应式对象是 Proxy。Chrome 的 runtime 通道有时会替调用方
     // 做隐式转换，但 Firefox 会严格按 structured clone 处理并直接抛出
     // DataCloneError，所以配置边界必须先落成纯对象。
@@ -309,6 +311,11 @@ export function normalizeConfig(value: unknown): Config {
         ? cloneConfigValue(value) as Partial<Config>
         : {};
     Object.assign(normalized, source);
+    for (const key of Object.keys(source)) {
+        if (!knownFields.has(key) && isSensitiveConfigKey(key)) {
+            delete (normalized as unknown as Record<string, unknown>)[key];
+        }
+    }
     const legacyTranslationStatus = (source as unknown as Record<string, unknown>).translationStatus;
     if (typeof source.translationProgressPanelEnabled !== 'boolean') {
         normalized.translationProgressPanelEnabled = typeof legacyTranslationStatus === 'boolean'
