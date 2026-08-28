@@ -126,7 +126,7 @@ export function installShadowRouteBridgeCore(environment: ShadowRouteBridgeEnvir
         delete environment.stateHost[SHADOW_BRIDGE_STATE_KEY];
     };
 
-    // Step 1: 三个宿主方法独立安装；单个只读 API 不妨碍其余路由/ShadowRoot 观测。
+    // 步骤 1：三个宿主方法独立安装；单个只读 API 不妨碍其余路由/ShadowRoot 观测。
     installMethod(environment.attachShadow, attachShadowWrapper);
     installMethod(environment.pushState, pushStateWrapper);
     installMethod(environment.replaceState, replaceStateWrapper);

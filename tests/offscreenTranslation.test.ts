@@ -16,6 +16,12 @@ function modernTranslator(translator: Record<string, unknown>): ChromeTranslatio
     return {translation: {createTranslator: vi.fn(async () => translator)}} as ChromeTranslationEnvironment;
 }
 
+function deferred<T>() {
+    let resolve!: (value: T | PromiseLike<T>) => void;
+    const promise = new Promise<T>((resolvePromise) => { resolve = resolvePromise; });
+    return {promise, resolve};
+}
+
 describe('Offscreen Chrome 翻译域', () => {
     it('严格解析文本与语言对，并拒绝 null、数组和非法语言', () => {
         expect(parseChromeTranslationRequest({text: ' hello ', from: ' auto ', to: ' zh-Hans '}))
@@ -90,6 +96,34 @@ describe('Offscreen Chrome 翻译域', () => {
         await expect(detectChromeLanguage('plain', {})).resolves.toBe('en');
     });
 
+    it('取消检测会立即拒绝并释放现有或迟到 detector', async () => {
+        const detectResult = deferred<unknown>();
+        const destroyActive = vi.fn();
+        const activeController = new AbortController();
+        const active = detectChromeLanguage('hello', {
+            translation: {createDetector: vi.fn(async () => ({
+                detect: vi.fn(() => detectResult.promise),
+                destroy: destroyActive,
+            }))},
+        }, activeController.signal);
+        await Promise.resolve();
+        activeController.abort();
+        await expect(active).rejects.toMatchObject({name: 'AbortError'});
+        expect(destroyActive).toHaveBeenCalledOnce();
+
+        const creation = deferred<Record<string, unknown>>();
+        const destroyLate = vi.fn();
+        const lateController = new AbortController();
+        const late = detectChromeLanguage('hello', {
+            translation: {createDetector: vi.fn(() => creation.promise as never)},
+        }, lateController.signal);
+        lateController.abort();
+        await expect(late).rejects.toMatchObject({name: 'AbortError'});
+        creation.resolve({detect: vi.fn(async () => []), destroy: destroyLate});
+        await vi.waitFor(() => expect(destroyLate).toHaveBeenCalledOnce());
+        detectResult.resolve([]);
+    });
+
     it('串接流式翻译并始终释放 translator', async () => {
         const destroy = vi.fn();
         const translateStreaming = vi.fn(async function* () {
@@ -101,6 +135,59 @@ describe('Offscreen Chrome 翻译域', () => {
         await expect(performChromeTranslation('hello', 'en', 'zh', environment)).resolves.toBe('你好');
         expect(translateStreaming).toHaveBeenCalledWith('hello');
         expect(destroy).toHaveBeenCalledOnce();
+    });
+
+    it('取消悬挂流会立即 return 并 destroy，迟到 chunk 不会成为结果', async () => {
+        const next = deferred<IteratorResult<unknown>>();
+        const destroy = vi.fn();
+        const close = vi.fn(() => { throw new Error('stream already closed'); });
+        const iterator: AsyncIterator<unknown> & AsyncIterable<unknown> = {
+            next: vi.fn(() => next.promise),
+            return: close,
+            [Symbol.asyncIterator]() { return this; },
+        };
+        const controller = new AbortController();
+        const pending = performChromeTranslation('hello', 'en', 'zh', modernTranslator({
+            translateStreaming: vi.fn(() => iterator),
+            destroy,
+        }), controller.signal);
+        await vi.waitFor(() => expect(iterator.next).toHaveBeenCalledOnce());
+
+        controller.abort();
+        await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+        expect(close).toHaveBeenCalledOnce();
+        expect(destroy).toHaveBeenCalledOnce();
+        next.resolve({done: false, value: '迟到'});
+    });
+
+    it('取消普通 translate Promise 会立即拒绝并释放 translator', async () => {
+        const translated = deferred<unknown>();
+        const destroy = vi.fn();
+        const controller = new AbortController();
+        const pending = performChromeTranslation('hello', 'en', 'zh', modernTranslator({
+            translate: vi.fn(() => translated.promise),
+            destroy,
+        }), controller.signal);
+        await Promise.resolve();
+
+        controller.abort();
+        await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+        expect(destroy).toHaveBeenCalledOnce();
+        translated.resolve('迟到译文');
+    });
+
+    it('createTranslator 在取消后迟到时仍会立即 destroy', async () => {
+        const creation = deferred<Record<string, unknown>>();
+        const destroy = vi.fn();
+        const controller = new AbortController();
+        const pending = performChromeTranslation('hello', 'en', 'zh', {
+            translation: {createTranslator: vi.fn(() => creation.promise)},
+        }, controller.signal);
+
+        controller.abort();
+        await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+        creation.resolve({translate: vi.fn(async () => '迟到译文'), destroy});
+        await vi.waitFor(() => expect(destroy).toHaveBeenCalledOnce());
     });
 
     it('拒绝无效流式块、普通结果和缺失翻译方法，并兼容旧 API', async () => {
@@ -131,6 +218,9 @@ describe('Offscreen Chrome 翻译域', () => {
             .toContain('模型未就绪');
         expect(friendlyChromeTranslationError('plain failure', 'en', 'ja').message).toBe('翻译失败：plain failure');
         expect(friendlyChromeTranslationError(null, 'en', 'ja').message).toBe('翻译失败：未知错误');
+        const abort = new Error('cancelled');
+        abort.name = 'AbortError';
+        expect(friendlyChromeTranslationError(abort, 'en', 'ja')).toBe(abort);
     });
 
     it('空白与同语言请求不创建 translator，auto 检测和语言映射进入真实请求', async () => {
@@ -156,5 +246,11 @@ describe('Offscreen Chrome 翻译域', () => {
         await expect(translateWithChromeApi({text: 'x', from: 'en', to: 'ja'}, {
             translation: {createTranslator: vi.fn(async () => { throw 'boom'; })},
         })).rejects.toThrow('翻译失败：boom');
+
+        const controller = new AbortController();
+        controller.abort();
+        await expect(translateWithChromeApi({text: 'x', from: 'en', to: 'ja'}, {
+            translation: {createTranslator: vi.fn()},
+        }, controller.signal)).rejects.toMatchObject({name: 'AbortError'});
     });
 });

@@ -12,9 +12,12 @@ import {config} from "@/src/services/config/store";
 import {appendOptionalBearer} from './auth';
 import {createHttpStatusError, createProviderCodeError, readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
-import {getTranslationProviderConfig} from '@/src/services/translation/requestSnapshot';
+import {
+    getTranslationProviderConfig,
+    type TranslationProviderRequest,
+} from '@/src/services/translation/requestSnapshot';
 
-async function coze( message: any) {
+async function coze(message: TranslationProviderRequest<string>) {
     const current = getTranslationProviderConfig(message, config);
     const service = message.serviceOverride || current.service;
     // 构建请求头
@@ -29,7 +32,8 @@ async function coze( message: any) {
     const resp = await runtimeFetch(url, {
         method: method.POST,
         headers: headers,
-        body: cozeTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, current)
+        body: cozeTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, current),
+        signal: message.abortSignal,
     });
 
     if (resp.ok) {

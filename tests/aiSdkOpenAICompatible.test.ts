@@ -35,13 +35,14 @@ const {mockConfig} = vi.hoisted(() => ({
 
 vi.mock('@/src/services/config/store', () => ({config: mockConfig}));
 
-import {services} from '@/entrypoints/utils/option';
+import {services} from '@/src/core/config/catalog';
 import {translateWithOpenAICompatibleAiSdk} from '@/src/providers/translation/ai-sdk/openai-compatible';
 import {normalizeAiSdkError} from '@/src/providers/translation/ai-sdk/errors';
 import {
   attachTranslationProviderConfig,
   createTranslationProviderConfigSnapshot,
 } from '@/src/services/translation/requestSnapshot';
+import {setRuntimeFetch} from '@/src/platform/http/runtime';
 
 function successResponse(text = '译文') {
   return new Response(JSON.stringify({
@@ -68,6 +69,7 @@ function errorResponse(status: number, message: string, headers: Record<string, 
 describe('Vercel AI SDK OpenAI-compatible transport', () => {
   beforeEach(() => {
     vi.useRealTimers();
+    setRuntimeFetch();
     mockConfig.service = services.custom;
     mockConfig.to = 'zh-Hans';
     mockConfig.token = {[services.custom]: 'sk-local-secret-value'};
@@ -83,6 +85,7 @@ describe('Vercel AI SDK OpenAI-compatible transport', () => {
   });
 
   afterEach(() => {
+    setRuntimeFetch();
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
@@ -111,6 +114,21 @@ describe('Vercel AI SDK OpenAI-compatible transport', () => {
       stream: false,
       vendor_flag: 'kept',
     });
+  });
+
+  it('通过 runtimeFetch 发起 AI SDK 请求，使 userscript 可复用 GM transport', async () => {
+    const nativeFetch = vi.fn().mockRejectedValue(new Error('不应调用原生 fetch'));
+    vi.stubGlobal('fetch', nativeFetch);
+    const runtimeTransport = vi.fn().mockResolvedValue(successResponse('GM 译文'));
+    setRuntimeFetch(runtimeTransport);
+
+    await expect(translateWithOpenAICompatibleAiSdk({
+      origin: 'hello',
+      serviceOverride: services.custom,
+    })).resolves.toBe('GM 译文');
+
+    expect(runtimeTransport).toHaveBeenCalledOnce();
+    expect(nativeFetch).not.toHaveBeenCalled();
   });
 
   it('uses the broker-attached endpoint, credential, prompt, and custom body snapshot', async () => {

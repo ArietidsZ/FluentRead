@@ -59,7 +59,7 @@ interface AdapterPrunedAncestor {
     adapterId?: string;
 }
 
-/** Caches that are valid only for one synchronous hover/inspection call. */
+/** 仅在一次同步悬浮或检查调用内有效的缓存集合。 */
 interface ResolutionEvaluationContext {
     textProtectionCache: TranslationTextProtectionCache;
     hardGuards: WeakMap<Element, HardGuardResult>;
@@ -132,7 +132,7 @@ export function getTranslationCandidateKey(candidate: TranslationCandidate): Nod
     return candidate.nodes?.find((node) => node.nodeType === 1 || node.nodeType === 3) ?? candidate.element;
 }
 
-/** Exact adapter decisions outrank generic candidates that share a DOM key. */
+/** 当候选共享同一 DOM key 时，适配器的精确决策优先于通用候选。 */
 export function selectPreferredTranslationCandidate(
     existing: TranslationCandidate | undefined,
     incoming: TranslationCandidate,
@@ -143,7 +143,7 @@ export function selectPreferredTranslationCandidate(
     return existing;
 }
 
-/** Candidate discovery facade. Translation scheduling/rendering stay in runtime ports. */
+/** 候选发现门面；翻译调度与渲染仍留在 runtime 端口。 */
 export class TranslationCandidateCore {
     readonly url: URL;
     readonly adapters: readonly TranslationSiteAdapter[];
@@ -183,7 +183,7 @@ export class TranslationCandidateCore {
                     return result;
                 }
             } catch {
-                // A stale third-party adapter must not abort generic discovery.
+                // 过期的第三方适配器不能中断通用候选发现。
             }
         }
         const result: AdapterDecisionResult = {decision: {kind: 'pass'}};
@@ -235,14 +235,14 @@ export class TranslationCandidateCore {
         if (evaluationContext.hardGuards.has(element) &&
             evaluationContext.structuralAncestors.has(element)) return;
 
+        // 先收集完整 composed 祖先链，再自根向命中节点回填继承守卫和结构缓存，避免逐层重复上溯。
         const chain: Element[] = [];
         let current: Element | null = element;
         while (current && chain.length < maxComposedAncestorDepth) {
             chain.push(current);
             current = getComposedParent(current);
         }
-        // Keep the existing bounded fallback for over-deep ancestry rather
-        // than evaluating or persisting a partial prefix.
+        // 祖先链过深时继续使用既有的有界回退，不评估或缓存不完整的链前缀。
         if (current) return;
 
         const ownGuards = chain.map((item) => evaluateElementHardGuard(item));
@@ -282,8 +282,7 @@ export class TranslationCandidateCore {
         let current: Element | null = element;
         while (current && !evaluationContext.extensionElements.has(current)) {
             chain.push(current);
-            // Element.closest(), used by the previous implementation, does not
-            // cross a ShadowRoot. Keep that exact ownership boundary here.
+            // 旧实现使用的 Element.closest() 不会跨越 ShadowRoot，这里保留相同的所有权边界。
             current = current.parentElement;
         }
         let inherited = inheritCachedFlag(current, evaluationContext.extensionElements);
@@ -468,10 +467,8 @@ export class TranslationCandidateCore {
             element.children.length === 0) {
             return null;
         }
-        // Use post-order ownership barriers from full discovery as probe
-        // priority, then revalidate every inline child within one strict
-        // budget. This preserves parity after live mutations without an
-        // unbounded subtree walk in pointer handling.
+        // 优先探测全文后序发现记录的所有权屏障，再在统一严格预算内复核每个内联子节点；
+        // 即使页面实时变更，也能保持两种发现结果一致，而不会在指针处理中无限遍历子树。
         const candidates = this.inlineRunCandidates(
             element,
             true,
@@ -496,9 +493,8 @@ export class TranslationCandidateCore {
         const barriers = new Set<Element>();
         let remainingSteps = maxHoverBarrierDiscoverySteps;
         const children = Array.from(element.children);
-        // Revalidate previous barriers first. They are the only children whose
-        // stale ownership can otherwise make hover diverge from a fresh dirty
-        // subtree discovery; unknown children still share the same total cap.
+        // 先复核既有屏障，因为只有它们的过期所有权会让悬浮结果偏离对脏子树的全新发现；
+        // 未知子节点仍与它们共享同一总预算。
         const orderedChildren = discoveredBarriers
             ? [
                 ...children.filter((child) => discoveredBarriers.has(child)),
@@ -507,13 +503,11 @@ export class TranslationCandidateCore {
             : children;
 
         for (const child of orderedChildren) {
-            // Native block boundaries already split direct runs in layout.ts.
+            // 原生块边界已由 layout.ts 切分直接内联 run。
             if (isBlockBoundary(child)) continue;
             if (remainingSteps <= 0) {
-                // Never reparent an uninspected subtree merely because the
-                // bounded hover probe ran out of budget. Previously discovered
-                // barriers must remain conservative too, but they are not
-                // trusted once the live subtree can be revalidated below.
+                // 有界悬浮探测耗尽预算时，绝不能仅因此移动尚未检查的子树。既有屏障也要
+                // 保守保留；只有后续能重新验证实时子树时，才不再盲目信任旧结果。
                 barriers.add(child);
                 continue;
             }
@@ -549,7 +543,7 @@ export class TranslationCandidateCore {
             if (current.matches('[data-fr-translation-segment="true"]')) {
                 return {element: current as HTMLElement, kind: 'content', reason: 'owned-inline-run'};
             }
-            // A hit inside our bilingual wrapper maps back to the host source.
+            // 命中扩展的双语 wrapper 时，继续映射回宿主页源节点。
             if (current.matches('.fluent-read-bilingual-content')) {
                 current = current.parentElement;
                 continue;
@@ -558,14 +552,11 @@ export class TranslationCandidateCore {
                 current = getComposedParent(current);
                 continue;
             }
-            // Inherited hard guards apply to every possible ancestor candidate.
-            // Stop immediately instead of repeatedly climbing an extreme tree.
+            // 继承硬守卫适用于每个可能的祖先候选；遇到极深树时立即停止，避免反复上溯。
             if (this.hardGuard(current, evaluationContext).reason === 'ancestor-depth-limit') return null;
-            // Full-page discovery prunes adapter-owned controlled subtrees before
-            // walking their children. Hover resolution must apply the same
-            // inherited prune decision before trying a generic inline run;
-            // otherwise a hit inside (for example) GitHub Quick Search can
-            // resolve its dialog ancestor even though discover() excludes it.
+            // 全文发现会在遍历子节点前裁剪适配器拥有的受控子树；悬浮解析也必须先应用
+            // 相同的继承裁剪，再尝试通用内联 run。否则命中 GitHub Quick Search 等区域时，
+            // 可能解析出本应被 discover() 排除的对话框祖先。
             if (this.hasAdapterPrunedAncestor(current, evaluationContext)) return null;
             const ownDecision = this.adapterDecision(current, evaluationContext).decision;
             if (ownDecision.kind === 'force-target' && ownDecision.atomic !== false) {
@@ -576,9 +567,8 @@ export class TranslationCandidateCore {
                 ).candidate;
                 if (exact) return exact;
             }
-            // Mixed direct content must resolve to the same run emitted by the
-            // full-page walk. This also keeps ordinary text next to an atomic
-            // adapter target from falling back to the whole parent container.
+            // 混合直接内容必须解析为全文遍历产出的同一个 run；这样原子适配目标旁的普通文本
+            // 也不会回退成整个父容器。
             const inlineRun = this.resolveInlineRun(current, hit, evaluationContext);
             if (inlineRun) return inlineRun;
             const inspection = this.inspectWithTextProtectionCache(
@@ -594,9 +584,8 @@ export class TranslationCandidateCore {
     }
 
     /**
-     * Incremental post-order discovery. A step is yielded for every visited
-     * element (including rejected/pruned elements), allowing full-page callers
-     * to enforce a frame budget without changing candidate semantics.
+     * 增量后序发现：每访问一个元素都会产出一步，包括被拒绝或裁剪的元素，
+     * 使全文调用方可以执行帧预算而不改变候选语义。
      */
     *discoverSteps(root: Node): Generator<TranslationDiscoveryStep> {
         const visited = new Set<Element>();
@@ -750,9 +739,8 @@ export class TranslationCandidateCore {
                     const parent = stack[stack.length - 1];
                     if (parent && hasCandidate) {
                         parent.descendantHasCandidate = true;
-                        // Discovery is post-order: once a direct child subtree
-                        // owns any candidate, an ancestor synthetic inline run
-                        // must not move that subtree into a second candidate.
+                        // 后序发现中，一旦直接子树已经拥有候选，祖先的合成内联 run
+                        // 就不能再把该子树移动到第二个候选中。
                         if (frame.element.parentElement === parent.element) {
                             parent.candidateChildBarriers.add(frame.element);
                         }

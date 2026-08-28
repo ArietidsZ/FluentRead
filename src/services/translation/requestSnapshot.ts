@@ -2,21 +2,47 @@
  * @file src/services/translation/requestSnapshot.ts
  *
  * 文件职责：在翻译消息上附加只读 provider 配置快照，消除异步缓存读取期间全局配置变化造成的请求身份错配。
- * 主要内容：定义 TRANSLATION_PROVIDER_CONFIG 符号与请求上下文类型，精确复制 token、proxy、model、prompt 等字段，并提供 attach/get 函数供 broker 和 provider 共享同一快照。 可核对的公开符号包括 TRANSLATION_PROVIDER_CONFIG、TranslationProviderRequestContext、createTranslationProviderConfigSnapshot、attachTranslationProviderConfig、getTranslationProviderConfig。
+ * 主要内容：定义配置快照与剩余预算 symbol，精确复制 token、proxy、model、prompt 等字段，并提供 attach/get 函数供 broker 和 provider 共享同一快照。 可核对的公开符号包括 TRANSLATION_PROVIDER_CONFIG、TRANSLATION_REMAINING_BUDGET、TranslationProviderRequestContext、markTranslationRemainingBudget、createTranslationProviderConfigSnapshot、attachTranslationProviderConfig、getTranslationProviderConfig。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
 import type {
     TranslationConfigSource,
     TranslationProviderConfigSnapshot,
+    TranslationRequestMessageBase,
 } from './types';
 
 /** 内部 symbol 无法由 content runtime 消息伪造，也不会进入网络 JSON。 */
 export const TRANSLATION_PROVIDER_CONFIG = Symbol('fluentread.translation-provider-config');
+export const TRANSLATION_REMAINING_BUDGET = Symbol('fluentread.translation-remaining-budget');
+
+export type TranslationRemainingBudgetContext = {
+    readonly [TRANSLATION_REMAINING_BUDGET]?: true;
+};
 
 export type TranslationProviderRequestContext = {
     readonly [TRANSLATION_PROVIDER_CONFIG]?: TranslationProviderConfigSnapshot;
+    /** 仅由 broker 在后台注入；provider 必须向底层 transport 继续传递。 */
+    readonly abortSignal?: AbortSignal;
 };
+
+/** 标记 requestTimeoutMs 已是上层事务的剩余预算，broker 不得再次抬高到公开入口下限。 */
+export function markTranslationRemainingBudget<T extends {requestTimeoutMs: number}>(
+    request: T,
+): T & TranslationRemainingBudgetContext {
+    Object.defineProperty(request, TRANSLATION_REMAINING_BUDGET, {value: true});
+    return request as T & TranslationRemainingBudgetContext;
+}
+
+/** Provider 收到的类型化内部请求；在公开翻译消息之上附加配置快照和取消信号。 */
+export type TranslationProviderRequest<TOrigin = string | string[]> = TranslationRequestMessageBase
+    & TranslationProviderRequestContext
+    & {
+        origin: TOrigin;
+        /** 仅摘要请求使用；普通正文 provider 可忽略。 */
+        summaryPrompt?: string;
+        summarySystemPrompt?: string;
+    };
 
 function frozenStringMap(value: Record<string, string> | undefined): Readonly<Record<string, string>> {
     return Object.freeze({...value});

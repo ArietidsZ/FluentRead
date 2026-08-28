@@ -4,7 +4,6 @@ import {
   VOCABULARY_BOOK_EXPORT_FORMAT,
   VOCABULARY_BOOK_EXPORT_VERSION,
   VOCABULARY_BOOK_MAX_ENTRIES,
-  VOCABULARY_ENTRY_SCHEMA_VERSION,
   FluentReadVocabularyBookDatabase,
   VocabularyBookRepository,
   buildVocabularyIdentityKey,
@@ -235,7 +234,7 @@ describe('vocabulary repository validation and list branches', () => {
     const recentOrdered = await repository.list({order: 'recent'});
     expect(recentOrdered[0]?.term).toBe('Rare');
 
-    // Step 1: 固定主键次序后逐次改变 due 值，确保 null/null、left-null、right-null 与数值比较都执行。
+    // 步骤 1：固定主键次序后逐次改变 due 值，确保 null/null、left-null、right-null 与数值比较都执行。
     await expect(repository.list({order: 'due'})).resolves.toHaveLength(4);
     await db.entries.update(entries[0]!.id, {nextReviewAt: NOW + 10});
     await expect(repository.list({order: 'due'})).resolves.toHaveLength(4);

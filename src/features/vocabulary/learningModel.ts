@@ -20,7 +20,7 @@ function sanitizeAnkiTsvCell(value: unknown): string {
   return String(value ?? '').replace(/[\t\r\n]+/g, ' ').trim();
 }
 
-/** Build an Anki text import without turning the column labels into a card. */
+/** 构建 Anki 文本导入格式，列名写入指令而不会被生成为卡片。 */
 export function buildAnkiTsv(columns: readonly string[], rows: readonly (readonly unknown[])[]): string {
   const columnHeader = columns.map(sanitizeAnkiTsvCell).join('\t');
   const dataRows = rows.map(row => row.map(sanitizeAnkiTsvCell).join('\t'));
@@ -46,7 +46,7 @@ function vocabularyTermPattern(term: string): string {
   }).join('');
 }
 
-/** Replace complete word occurrences only; return empty when no cloze can be made safely. */
+/** 仅替换完整单词；无法安全生成挖空文本时返回空字符串。 */
 export function buildVocabularyCloze(context: string, term: string): string {
   const source = String(context || '');
   const normalizedTerm = String(term || '').trim();
@@ -114,9 +114,8 @@ export interface VocabularyEntry {
 }
 
 /**
- * Keep an in-progress review batch stable while replacing pending cards with
- * the latest persisted snapshots. Cards removed or reviewed elsewhere are no
- * longer pending, and unrelated newly-due cards wait for the next batch.
+ * 保持进行中的复习批次稳定，同时用最新持久化快照替换待复习卡片。已在其他位置
+ * 删除或复习的卡片不再等待处理，无关的新到期卡片留到下一批次。
  */
 export function reconcileVocabularyReviewQueue(
   queue: readonly VocabularyEntry[],
@@ -215,7 +214,7 @@ export interface VocabularyLifecycleGuard {
   ): Promise<boolean>;
 }
 
-/** Prevent an async mounted hook from registering work after its component was removed. */
+/** 防止异步 mounted hook 在组件卸载后继续注册任务。 */
 export function createVocabularyLifecycleGuard(): VocabularyLifecycleGuard {
   let active = true;
   return {
@@ -276,8 +275,7 @@ export interface VocabularyRemovalSnapshot {
 }
 
 /**
- * Context fields are optional in exports because privacy-safe exports omit
- * page content and location by default while retaining capture timestamps.
+ * 导出中的上下文字段可选：隐私安全导出默认省略页面内容和位置，只保留采集时间。
  */
 export interface VocabularyExportContext {
   capturedAt: number;
@@ -307,9 +305,9 @@ export interface VocabularyExportOptions {
 export interface VocabularyImportResult {
   inserted: number;
   updated: number;
-  /** Invalid, duplicate, colliding, or retention-pruned entries and logs. */
+  /** 无效、重复、发生冲突或因保留上限被裁剪的词条与日志数量。 */
   skipped: number;
-  /** Imported review logs still present after per-entry retention pruning. */
+  /** 按词条执行保留上限裁剪后仍存在的已导入复习日志数量。 */
   reviewLogsImported: number;
 }
 
@@ -324,7 +322,7 @@ export type VocabularyGetByTermRequest = {
   type: typeof VOCABULARY_BOOK_MESSAGE;
   action: 'getByTerm';
   sourceLanguage: string;
-  /** Kept during the beta message rollout for callers that use word terminology. */
+  /** Beta 消息协议迁移期间保留，兼容仍使用 word 术语的调用方。 */
   targetLanguage?: string;
 } & ({ term: string; word?: never } | { word: string; term?: never });
 

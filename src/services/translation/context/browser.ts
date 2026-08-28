@@ -60,10 +60,10 @@ function currentUrl(): string {
 }
 
 function sanitizePageContextSnapshot(root: ParentNode): void {
-    // Step 1: 移除表单、草稿、隐藏区、代码与扩展自有节点，避免交给可读性解析器。
+    // 步骤 1：移除表单、草稿、隐藏区、代码与扩展自有节点，避免交给可读性解析器。
     root.querySelectorAll(PAGE_CONTEXT_EXCLUDED_SELECTOR).forEach((node) => node.remove());
 
-    // Step 2: 剩余文章节点只保留文本结构；URL、data/event 与辅助输入属性都可能携带私密值。
+    // 步骤 2：剩余文章节点只保留文本结构；URL、data/event 与辅助输入属性都可能携带私密值。
     root.querySelectorAll('*').forEach((node) => {
         const element = node as Element;
         if (!element.attributes || typeof element.removeAttribute !== 'function') return;
@@ -157,8 +157,7 @@ function collectBoundedReadableText(doc: Document): string {
 function createDefuddleSnapshotDocument(): Document | null {
     if (typeof document === 'undefined') return null;
 
-    // A detached document prevents the parser from reading or mutating the
-    // live page. This is the same isolation boundary used by Read Frog.
+    // 脱离页面的 document 可防止解析器读取或修改实时页面；这与 Read Frog 使用的隔离边界一致。
     if (document.implementation?.createHTMLDocument && document.documentElement?.outerHTML) {
         const snapshot = document.implementation.createHTMLDocument(document.title);
         snapshot.documentElement.innerHTML = document.documentElement.outerHTML;
@@ -228,8 +227,7 @@ async function extractReadablePageText(source: CapturedReadablePage): Promise<st
             }
         }
     } catch (error) {
-        // Content extraction is an enhancement. A parser/runtime failure must
-        // never prevent the normal translation request from being sent.
+        // 正文提取属于增强能力；解析器或 runtime 失败不能阻止正常翻译请求发送。
         console.warn('[FluentRead] readable page extraction failed; using body text:', error);
     }
 
@@ -248,9 +246,8 @@ async function getReadablePageSnapshot(): Promise<PageTranslationSnapshot | null
     const token = {};
     const title = normalizePageText(document.title || '');
     const description = getDocumentDescription();
-    // Capture the detached source before the first await. A SPA navigation
-    // during the dynamic Defuddle import can no longer mix an old title with a
-    // new route's body.
+    // 在第一次 await 前捕获脱离页面的源文档，防止动态导入 Defuddle 期间的 SPA 导航
+    // 把旧标题与新路由正文混在一起。
     const source = captureReadablePage();
     const promise = extractReadablePageText(source).then((readableText): PageTranslationSnapshot => {
         const text = readableText.slice(0, pageContextLimits.content);
@@ -286,9 +283,8 @@ function getDocumentDescription(): string {
 }
 
 /**
- * Extract a bounded page-level reference context for an LLM translation.
- * The returned material is reference data only; template.ts adds the prompt
- * boundary and the instruction not to follow text found inside the page.
+ * 为 LLM 翻译提取有长度上限的页面级参考上下文。
+ * 返回内容仅作为参考数据；template.ts 会补充 prompt 边界，以及不得遵循页面内文本的指令。
  */
 export async function getPageTranslationContext(): Promise<string> {
     if (typeof document === 'undefined') return '';

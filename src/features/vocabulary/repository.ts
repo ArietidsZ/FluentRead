@@ -38,9 +38,9 @@ export * from './learningModel';
 /**
  * 词汇本垂直切片的领域规则与 IndexedDB 仓储。
  *
- * Step 1: 所有外部输入先在本模块归一化并重建 identity，绝不信任导入文件里的派生字段。
- * Step 2: 词条、复习进度与日志在同一 Dexie 事务中更新，避免 MV3 worker 中途休眠留下半状态。
- * Step 3: 导出默认移除页面正文和地址；只有调用方明确选择时才携带私密上下文。
+ * 步骤 1：所有外部输入先在本模块归一化并重建 identity，绝不信任导入文件里的派生字段。
+ * 步骤 2：词条、复习进度与日志在同一 Dexie 事务中更新，避免 MV3 worker 中途休眠留下半状态。
+ * 步骤 3：导出默认移除页面正文和地址；只有调用方明确选择时才携带私密上下文。
  */
 
 export const VOCABULARY_REVIEW_AGAIN_DELAY_MS = 10 * 60 * 1000;
@@ -170,9 +170,8 @@ function normalizeComparableText(value: unknown, maxLength: number): string {
 }
 
 /**
- * Normalize identity without lemmatizing. Surface forms remain available in
- * `term`; identity only folds Unicode presentation, English quote/dash forms,
- * whitespace and casing.
+ * 规范化身份但不做词形还原。表面词形仍保存在 `term`；身份只折叠 Unicode 表现形式、
+ * 英文引号或连接线、空白与大小写差异。
  */
 export function normalizeEnglishWord(value: unknown): string {
   const normalized = normalizeComparableText(value, MAX_TERM_LENGTH + 1);
@@ -503,6 +502,7 @@ export class VocabularyBookRepository {
     now: number,
     mutate: (entry: VocabularyEntry) => VocabularyEntry,
   ): Promise<VocabularyReviewResult> {
+    // 词条状态、复习日志和日志裁剪必须在同一读写事务中提交，避免留下无法对应的半状态。
     return this.db.transaction('rw', this.db.entries, this.db.reviewLogs, async () => {
       const entry = await this.db.entries.get(entryId);
       if (!entry) throw new VocabularyBookError('not-found', 'Vocabulary entry was not found.');
@@ -672,8 +672,7 @@ export class VocabularyBookRepository {
         continue;
       }
 
-      // Review logs only carry a source entry ID. If an export reuses a valid
-      // ID for different normalized words, no target can be chosen safely.
+      // 复习日志只携带导出源词条 ID；若同一有效 ID 被复用于不同规范词形，就无法安全确定目标词条。
       for (const sourceId of candidate.sourceIds) {
         const previousIdentity = sourceIdToIdentity.get(sourceId);
         if (previousIdentity && previousIdentity !== candidate.entry.identityKey) {
@@ -692,6 +691,7 @@ export class VocabularyBookRepository {
       }
     }
 
+    // 清洗和身份聚合已在事务外完成；本地合并、ID 重映射、日志写入与裁剪必须基于同一事务快照提交。
     return this.db.transaction('rw', this.db.entries, this.db.reviewLogs, async () => {
       const existingEntries = await this.db.entries.toArray();
       const existingByIdentity = new Map(existingEntries.map((entry) => [entry.identityKey, entry]));
@@ -756,9 +756,7 @@ export class VocabularyBookRepository {
       );
       const logsToAdd: VocabularyReviewLog[] = [];
       for (const log of sanitizedLogs) {
-        // Review logs are immutable. Re-importing the same export is
-        // idempotent, and a malicious ID collision may not overwrite a log
-        // that belongs to another word.
+        // 复习日志不可变：重复导入同一备份应保持幂等，恶意 ID 冲突也不能覆盖其他词条的日志。
         if (usedLogIds.has(log.id)) {
           skipped += 1;
           continue;

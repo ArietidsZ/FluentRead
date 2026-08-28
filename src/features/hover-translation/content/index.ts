@@ -189,7 +189,7 @@ export function mountHoverTranslationContentFeature(
             return;
         }
 
-        // Step 1: 记录当前可信按键集合，只有与配置完全一致时才进入悬浮候选态。
+        // 步骤 1：记录当前可信按键集合，只有与配置完全一致时才进入悬浮候选态。
         addPressedKey(event, mouseHotkeysPressed, isMac);
         if (matchesPressed(getConfiguredMouseHotkeyParts())) {
             screen.hotkeyPressed = true;
@@ -199,7 +199,7 @@ export function mountHoverTranslationContentFeature(
                 if (!matchesSelectionShortcut) event.stopPropagation();
             }
         } else if (screen.hotkeyPressed) {
-            // Step 2: Ctrl+C 等额外组合键会作废已排队的悬浮翻译。
+            // 步骤 2：Ctrl+C 等额外组合键会作废已排队的悬浮翻译。
             screen.otherKeyPressed = true;
             deps.cancelPendingHoverTranslation();
         }
@@ -209,7 +209,7 @@ export function mountHoverTranslationContentFeature(
         if (!event.isTrusted) return;
         if (deps.isSiteDisabled()) return;
         if (!screen.hotkeyPressed || !matchesPressed(getConfiguredSelectionHotkeyParts())) return;
-        // Step 1: pointerdown 发生在新选区形成之前；共享划词快捷键已按下时先把拖选手势交给划词功能。
+        // 步骤 1：pointerdown 发生在新选区形成之前；共享划词快捷键已按下时先把拖选手势交给划词功能。
         screen.hotkeyPressed = false;
         screen.otherKeyPressed = true;
         screen.hasSlideTranslation = false;

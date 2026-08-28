@@ -12,7 +12,13 @@ import {getDeepLXEndpoints} from "@/src/core/config/deeplx";
 import {getTranslationLanguages, type TranslationLanguageOverride} from '@/src/services/translation/languages';
 import {createHttpStatusError, createProviderCodeError} from '@/src/platform/http/errors';
 import {
+    abortErrorFromSignal,
+    createRuntimeAbortContext,
+    runtimeFetch,
+} from '@/src/platform/http/runtime';
+import {
     getTranslationProviderConfig,
+    type TranslationProviderRequest,
     type TranslationProviderRequestContext,
 } from '@/src/services/translation/requestSnapshot';
 
@@ -37,19 +43,34 @@ function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
-async function fetchDeepLX(url: string, requestInit: RequestInit, timeoutMs: number): Promise<Response> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+async function fetchDeepLX(
+    url: string,
+    requestInit: RequestInit,
+    timeoutMs: number,
+    callerSignal?: AbortSignal,
+): Promise<{response: Response; responseBody: string}> {
+    const abortContext = createRuntimeAbortContext(timeoutMs, callerSignal);
 
     try {
-        return await fetch(url, {...requestInit, signal: controller.signal});
-    } catch {
-        if (controller.signal.aborted) {
-            throw new Error(`请求超时（${timeoutMs / 1000} 秒）`);
+        let response: Response;
+        try {
+            response = await runtimeFetch(url, {...requestInit, signal: abortContext.signal});
+        } catch {
+            if (callerSignal?.aborted) throw abortErrorFromSignal(callerSignal);
+            if (abortContext.didTimeout()) throw new Error(`请求超时（${timeoutMs / 1000} 秒）`);
+            throw new Error('网络请求失败');
         }
-        throw new Error('网络请求失败');
+
+        if (!response.ok) return {response, responseBody: ''};
+        try {
+            return {response, responseBody: await response.text()};
+        } catch {
+            if (callerSignal?.aborted) throw abortErrorFromSignal(callerSignal);
+            if (abortContext.didTimeout()) throw new Error(`请求超时（${timeoutMs / 1000} 秒）`);
+            throw new Error('响应读取失败');
+        }
     } finally {
-        clearTimeout(timeout);
+        abortContext.cleanup();
     }
 }
 
@@ -60,6 +81,7 @@ async function translateFromDeepLX(
     targetLang: string,
     token: string,
     timeoutMs: number,
+    callerSignal?: AbortSignal,
 ): Promise<string> {
     const headers: HeadersInit = {
         "Content-Type": "application/json",
@@ -68,7 +90,7 @@ async function translateFromDeepLX(
         headers.Authorization = `Bearer ${token}`;
     }
 
-    const response = await fetchDeepLX(url, {
+    const {response, responseBody} = await fetchDeepLX(url, {
         method: "POST",
         headers,
         body: JSON.stringify({
@@ -76,12 +98,11 @@ async function translateFromDeepLX(
             source_lang: sourceLang,
             target_lang: targetLang,
         }),
-    }, timeoutMs);
+    }, timeoutMs, callerSignal);
 
     if (!response.ok) {
         throw createHttpStatusError(response);
     }
-    const responseBody = await response.text();
 
     let result: unknown;
     try {
@@ -136,8 +157,10 @@ export async function translateDeepLXText(
     const {sourceLang, targetLang} = getDeepLXRequestLanguages(sourceLanguage, targetLanguage);
     const deadline = Date.now() + DEEPLX_TOTAL_TIMEOUT_MS;
     const failures: string[] = [];
+    const abortSignal = languageOverride?.abortSignal;
 
     for (const [index, endpoint] of endpoints.entries()) {
+        if (abortSignal?.aborted) throw abortErrorFromSignal(abortSignal);
         const remainingTime = deadline - Date.now();
         if (remainingTime <= 0) {
             break;
@@ -151,8 +174,10 @@ export async function translateDeepLXText(
                 targetLang,
                 token,
                 Math.min(DEEPLX_ATTEMPT_TIMEOUT_MS, remainingTime),
+                abortSignal,
             );
         } catch (error) {
+            if (abortSignal?.aborted) throw abortErrorFromSignal(abortSignal);
             failures.push(`备用站点 ${index + 1}: ${getErrorMessage(error)}`);
         }
     }
@@ -161,7 +186,7 @@ export async function translateDeepLXText(
     throw new Error(`DeepLX 所有备用站点均失败：${failureSummary}`);
 }
 
-async function deeplx(message: {origin: string; sourceLanguage?: string; targetLanguage?: string}) {
+async function deeplx(message: TranslationProviderRequest<string>) {
     if (typeof message.origin !== "string") {
         throw new Error("DeepLX 翻译仅支持单条文本");
     }

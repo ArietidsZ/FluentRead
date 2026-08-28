@@ -39,7 +39,7 @@ export function startOffscreenApp(): void {
         },
     });
     const listener = createOffscreenMessageListener({
-        translate: (data) => translateWithChromeApi(data, self as ChromeTranslationEnvironment),
+        translate: (data, signal) => translateWithChromeApi(data, self as ChromeTranslationEnvironment, signal),
         ttsPlayer,
         recognizeImage,
         translateImage: translateImageInOffscreen,

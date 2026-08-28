@@ -12,9 +12,12 @@ import {config} from "@/src/services/config/store";
 import {getTranslationLanguages} from '@/src/services/translation/languages';
 import {createHttpStatusError, readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
-import {getTranslationProviderConfig} from '@/src/services/translation/requestSnapshot';
+import {
+    getTranslationProviderConfig,
+    type TranslationProviderRequest,
+} from '@/src/services/translation/requestSnapshot';
 
-async function xiaoniu(message: any) {
+async function xiaoniu(message: TranslationProviderRequest<string>) {
     const current = getTranslationProviderConfig(message, config);
     const service = message.serviceOverride || current.service;
     // 根据需要调整目标语言
@@ -27,7 +30,8 @@ async function xiaoniu(message: any) {
     const resp = await runtimeFetch(url, {
         method: method.POST,
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: `from=auto&to=${targetLang}&apikey=${current.token[service]}&src_text=${encodeURIComponent(message.origin)}`
+        body: `from=auto&to=${targetLang}&apikey=${current.token[service]}&src_text=${encodeURIComponent(message.origin)}`,
+        signal: message.abortSignal,
     });
 
     if (resp.ok) {

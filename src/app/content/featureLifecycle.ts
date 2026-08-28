@@ -16,12 +16,12 @@ export interface EnsureContentFeatureMountedOptions {
  * 每个具体挂载器仍然拥有自己的 requestId、DOM 宿主和清理逻辑。
  */
 export async function ensureContentFeatureMounted(options: EnsureContentFeatureMountedOptions): Promise<void> {
-    // Step 1: 先执行功能自己的挂载逻辑，兼容已有的异步 UI mount。
+    // 步骤 1：先执行功能自己的挂载逻辑，兼容已有的异步 UI mount。
     await options.mount();
 
-    // Step 2: 若激活已失效，或宿主已经挂上，则不做额外动作。
+    // 步骤 2：若激活已失效，或宿主已经挂上，则不做额外动作。
     if (!options.isStillDesired() || options.isMounted()) return;
 
-    // Step 3: 仅在“还需要但未挂载”的场景重试一次，避免无限循环。
+    // 步骤 3：仅在“还需要但未挂载”的场景重试一次，避免无限循环。
     await options.mount();
 }

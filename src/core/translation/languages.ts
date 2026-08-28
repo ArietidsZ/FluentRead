@@ -28,8 +28,8 @@ function readLanguage(value: unknown, fallback: string): string {
 /**
  * 解析一次请求实际使用的语言对，不读取也不修改全局配置。
  *
- * Step 1: 请求级覆盖先经过空白清理。
- * Step 2: 缺失或空白值回退到调用方提供的配置快照。
+ * 步骤 1：请求级覆盖先经过空白清理。
+ * 步骤 2：缺失或空白值回退到调用方提供的配置快照。
  */
 export function resolveTranslationLanguages(
     message: TranslationLanguageOverride | null | undefined,

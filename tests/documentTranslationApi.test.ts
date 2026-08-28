@@ -1,6 +1,9 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-import {createDocumentSegmentTranslator} from '@/src/features/document-translation/services/translation';
+import {
+    createDocumentFileLoadGuard,
+    createDocumentSegmentTranslator,
+} from '@/src/features/document-translation/services/translation';
 
 const mocks = {
     defaultService: 'microsoft',
@@ -25,6 +28,32 @@ beforeEach(() => {
 });
 
 describe('document translation API', () => {
+    it('较慢的旧文件解析完成后不能覆盖后选文件，重置也会作废在途解析', async () => {
+        const guard = createDocumentFileLoadGuard();
+        const commits: string[] = [];
+        let resolveOld!: (value: string) => void;
+        let resolveNew!: (value: string) => void;
+        const oldParse = new Promise<string>((resolve) => { resolveOld = resolve; });
+        const newParse = new Promise<string>((resolve) => { resolveNew = resolve; });
+        const runLoad = async (parse: Promise<string>) => {
+            const request = guard.begin();
+            const value = await parse;
+            if (request.isCurrent()) commits.push(value);
+        };
+
+        const oldLoad = runLoad(oldParse);
+        const newLoad = runLoad(newParse);
+        resolveNew('new.epub');
+        await newLoad;
+        resolveOld('old.pdf');
+        await oldLoad;
+        expect(commits).toEqual(['new.epub']);
+
+        const pendingRequest = guard.begin();
+        guard.invalidate();
+        expect(pendingRequest.isCurrent()).toBe(false);
+    });
+
     it('等待运行时就绪，并对空文档短路', async () => {
         await expect(translateDocumentSegments([], {fileName: 'empty.txt'})).resolves.toEqual([]);
 

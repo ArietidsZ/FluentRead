@@ -81,6 +81,95 @@ function buildFixtureMicrosoftResponseBody(payload) {
   })));
 }
 
+async function readRequestBody(request) {
+  const chunks = [];
+  for await (const chunk of request) chunks.push(chunk);
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+async function startTranslationFixtureServer(unexpectedNetworkRequests = []) {
+  let requestCount = 0;
+  let translatedItemCount = 0;
+  const server = http.createServer(async (request, response) => {
+    const requestUrl = new URL(request.url || '/', 'http://127.0.0.1');
+    if (request.method === 'POST' && requestUrl.pathname === '/translate') {
+      let payload = [];
+      try {
+        payload = JSON.parse(await readRequestBody(request));
+      } catch {
+        payload = [];
+      }
+      requestCount += 1;
+      translatedItemCount += Array.isArray(payload) ? payload.length : 0;
+      response.writeHead(200, {
+        'access-control-allow-origin': '*',
+        'cache-control': 'no-store',
+        'content-type': 'application/json; charset=utf-8',
+      });
+      response.end(buildFixtureMicrosoftResponseBody(payload));
+      return;
+    }
+    if (requestUrl.pathname === '/blocked') {
+      unexpectedNetworkRequests.push(requestUrl.searchParams.get('url') || 'unknown');
+      response.writeHead(502, {
+        'access-control-allow-origin': '*',
+        'cache-control': 'no-store',
+        'content-type': 'text/plain; charset=utf-8',
+      });
+      response.end('External network is disabled in the full-page fixture');
+      return;
+    }
+    response.writeHead(404, {'content-type': 'text/plain; charset=utf-8'});
+    response.end('Not found');
+  });
+  await new Promise((resolve, reject) => {
+    const onError = (error) => reject(error);
+    server.once('error', onError);
+    server.listen(0, '127.0.0.1', () => {
+      server.off('error', onError);
+      resolve();
+    });
+  });
+  const address = server.address();
+  if (!address || typeof address === 'string') {
+    await new Promise((resolve) => server.close(resolve));
+    throw new Error('无法取得全文翻译响应 fixture server 地址');
+  }
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  return {
+    translationUrl: `${baseUrl}/translate`,
+    blockedUrl: `${baseUrl}/blocked`,
+    requestCount: () => requestCount,
+    translatedItemCount: () => translatedItemCount,
+    close: () => new Promise((resolve) => server.close(resolve)),
+  };
+}
+
+async function installTranslationFixtureOnWorker(worker, fixtureUrls) {
+  await worker.evaluate(({translationUrl, blockedUrl}) => {
+    if (globalThis.__fluentReadFullPageFixtureFetchInstalled) return;
+    const nativeFetch = globalThis.fetch.bind(globalThis);
+    globalThis.fetch = (input, init) => {
+      const requestUrl = typeof input === 'string' || input instanceof URL ? String(input) : input.url;
+      const parsedUrl = new URL(requestUrl);
+      const isMicrosoftTranslation = parsedUrl.hostname === 'edge.microsoft.com'
+        && parsedUrl.pathname === '/translate/translatetext';
+      if (isMicrosoftTranslation) {
+        const redirectedInput = typeof Request !== 'undefined' && input instanceof Request
+          ? new Request(translationUrl, input)
+          : translationUrl;
+        return nativeFetch(redirectedInput, init);
+      }
+      if ((parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:')
+          && !['127.0.0.1', 'localhost', '::1'].includes(parsedUrl.hostname)) {
+        return nativeFetch(`${blockedUrl}?url=${encodeURIComponent(requestUrl)}`, {method: 'GET'});
+      }
+      return nativeFetch(input, init);
+    };
+    globalThis.__fluentReadFullPageFixtureFetchInstalled = true;
+  }, fixtureUrls);
+}
+
 function assertNoRuntimeErrors(runtimeErrors) {
   if (runtimeErrors.length > 0) {
     throw new Error(`全文翻译浏览器回归出现运行时错误：${JSON.stringify(runtimeErrors)}`);
@@ -351,8 +440,10 @@ async function main() {
     ? null
     : { mode: 'headed-explicit-foreground', windowState: 'normal', viewport: { width: 1280, height: 900 } };
   let fixtureServer = null;
-  let fixtureTranslationRequestCount = 0;
+  let translationFixtureServer = null;
   const unexpectedNetworkRequests = [];
+  const workerFixtureInstallErrors = [];
+  const pendingWorkerFixtureInstalls = new Set();
   try {
     // 默认回归必须自包含；只有显式 --url 才使用调用方提供的页面。
     if (!args.url) {
@@ -391,28 +482,35 @@ async function main() {
         args: browserArgs,
       });
     }
-    // 本地 fixture 对所有非 loopback 网络 fail-closed；唯一例外是被本地确定性响应
-    // 完整替代的 Microsoft 请求。真实站点/真实 provider 只属于显式 network matrix。
+    translationFixtureServer = await startTranslationFixtureServer(unexpectedNetworkRequests);
+    const fixtureUrls = {
+      translationUrl: translationFixtureServer.translationUrl,
+      blockedUrl: translationFixtureServer.blockedUrl,
+    };
+    const scheduleWorkerFixtureInstall = (worker) => {
+      if (!worker.url().startsWith('chrome-extension://')) return;
+      const pending = installTranslationFixtureOnWorker(worker, fixtureUrls)
+        .catch((error) => {
+          workerFixtureInstallErrors.push(error.message);
+        })
+        .finally(() => pendingWorkerFixtureInstalls.delete(pending));
+      pendingWorkerFixtureInstalls.add(pending);
+    };
+    // BrowserContext.route 无法拦截 MV3 service worker 的 fetch，因此把当前 worker
+    // 和后续替换 worker 的微软请求直接改写到 loopback 确定性响应。
+    context.on('serviceworker', scheduleWorkerFixtureInstall);
+    const initialWorker = context.serviceWorkers().find((worker) => worker.url().startsWith('chrome-extension://'))
+      || await context.waitForEvent('serviceworker', {
+        predicate: (worker) => worker.url().startsWith('chrome-extension://'),
+        timeout: Math.min(args.timeout, 30000),
+      });
+    await installTranslationFixtureOnWorker(initialWorker, fixtureUrls);
+
+    // 页面网络仍由 BrowserContext fail-closed；worker 网络则由上面的 fetch 包装器
+    // 改写到 /translate 或 /blocked，确保不会泄漏到真实 provider。
     await context.route('**/*', async (route) => {
       const request = route.request();
       const requestUrl = new URL(request.url());
-      const isDeterministicMicrosoftRoute = requestUrl.hostname === 'edge.microsoft.com'
-        && requestUrl.pathname === '/translate/translatetext';
-      if (isDeterministicMicrosoftRoute) {
-        let payload = [];
-        try {
-          payload = request.postDataJSON();
-        } catch {
-          payload = [];
-        }
-        fixtureTranslationRequestCount += Array.isArray(payload) ? payload.length : 0;
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: buildFixtureMicrosoftResponseBody(payload),
-        });
-        return;
-      }
       const isNetworkRequest = requestUrl.protocol === 'http:' || requestUrl.protocol === 'https:';
       const isLoopbackRequest = ['127.0.0.1', 'localhost', '::1'].includes(requestUrl.hostname);
       if (isNetworkRequest && !isLoopbackRequest) {
@@ -538,7 +636,13 @@ async function main() {
     const retranslated = await pageState(page);
     assertTranslated(retranslated, '再次全文翻译');
     if (artifactsDir) await page.screenshot({ path: path.join(artifactsDir, 'full-page-retranslated.png'), fullPage: true });
+    await Promise.allSettled([...pendingWorkerFixtureInstalls]);
+    if (workerFixtureInstallErrors.length > 0) {
+      throw new Error(`替换 service worker 安装全文翻译 fixture 失败：${JSON.stringify(workerFixtureInstallErrors)}`);
+    }
     assertNoRuntimeErrors(runtimeErrors);
+    const fixtureTranslationRequestCount = translationFixtureServer.requestCount();
+    const fixtureTranslationItemCount = translationFixtureServer.translatedItemCount();
     assertDeterministicFixtureTraffic(fixtureTranslationRequestCount, unexpectedNetworkRequests);
 
     const evidence = {
@@ -552,6 +656,7 @@ async function main() {
       extensionId: configResult.extensionId,
       config: { floatingBallHotkey: configResult.config.floatingBallHotkey, service: configResult.config.service, display: configResult.config.display },
       fixtureTranslationRequestCount,
+      fixtureTranslationItemCount,
       unexpectedNetworkRequests,
       translated,
       restored,
@@ -569,6 +674,7 @@ async function main() {
     process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`);
   } finally {
     await closeBrowser();
+    await translationFixtureServer?.close().catch(() => {});
     await fixtureServer?.close().catch(() => {});
     fs.rmSync(profileDir, { recursive: true, force: true });
   }
@@ -588,4 +694,5 @@ module.exports = {
   createFixtureRequestHandler,
   parseArgs,
   startFixtureServer,
+  startTranslationFixtureServer,
 };

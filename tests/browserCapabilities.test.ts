@@ -14,6 +14,7 @@ import {
     filterAvailableTranslationServices,
     getTranslationServiceUnavailableMessage,
     isTranslationServiceAvailable,
+    supportsTranslationBatch,
 } from '@/src/services/translation/capabilities';
 
 describe('browser capability contract', () => {
@@ -147,5 +148,15 @@ describe('translation service capability contract', () => {
         expect(filterAvailableTranslationServices(options, chrome)).toEqual(options);
         expect(filterAvailableTranslationServices(options)).toEqual([options[0]]);
         expect(options).toHaveLength(2);
+    });
+
+    it('只把明确实现数组协议的 provider 标记为可批量翻译', () => {
+        expect(supportsTranslationBatch(services.microsoft)).toBe(true);
+        expect(supportsTranslationBatch(services.freeTranslation)).toBe(true);
+        expect(supportsTranslationBatch(services.openai)).toBe(true);
+        expect(supportsTranslationBatch(services.google)).toBe(false);
+        expect(supportsTranslationBatch(services.deeplx)).toBe(false);
+        expect(supportsTranslationBatch(services.chromeTranslator)).toBe(false);
+        expect(supportsTranslationBatch(services.tongyi)).toBe(false);
     });
 });

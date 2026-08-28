@@ -81,7 +81,7 @@ const ELEMENT_ICONS = {
 export function mountPopupApp(selector: string): void {
   const app = createApp(App)
 
-  // Step 1: 只注册 Popup 模板真正使用的 Element Plus 组件和图标。
+  // 步骤 1：只注册 Popup 模板真正使用的 Element Plus 组件和图标。
   for (const component of ELEMENT_COMPONENTS) {
     if (component.name) app.component(component.name, component)
   }
@@ -89,6 +89,6 @@ export function mountPopupApp(selector: string): void {
     app.component(name, component)
   }
 
-  // Step 2: 由唯一的 WXT 启动入口提供挂载目标，避免 app 层假定页面结构。
+  // 步骤 2：由唯一的 WXT 启动入口提供挂载目标，避免 app 层假定页面结构。
   app.mount(selector)
 }

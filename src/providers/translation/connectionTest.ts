@@ -10,6 +10,7 @@ import {translationProviderRegistry} from './registry';
 import {formatServiceError} from '@/src/services/translation/serviceErrors';
 
 export const CONNECTION_TEST_ORIGIN = 'Hello from FluentRead.';
+export const CONNECTION_TEST_TIMEOUT_MS = 30_000;
 
 function isNonEmptyText(value: unknown): value is string {
     return typeof value === 'string' && value.trim().length > 0;
@@ -23,16 +24,39 @@ export async function runTranslationServiceConnectionTest(service: string): Prom
     }
 
     const startedAt = Date.now();
-    const result = await adapter({
-        origin: CONNECTION_TEST_ORIGIN,
-        context: '',
-        pageContext: '',
-        summaryPrompt: '',
-        summarySystemPrompt: '',
-        serviceOverride: service,
-        useCache: false,
-        requestTimeoutMs: 30_000,
+    const controller = new AbortController();
+    let timedOut = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => {
+            timedOut = true;
+            controller.abort();
+            reject(new Error('翻译请求超时'));
+        }, CONNECTION_TEST_TIMEOUT_MS);
     });
+
+    let result: unknown;
+    try {
+        result = await Promise.race([
+            Promise.resolve().then(() => adapter({
+                origin: CONNECTION_TEST_ORIGIN,
+                context: '',
+                pageContext: '',
+                summaryPrompt: '',
+                summarySystemPrompt: '',
+                serviceOverride: service,
+                useCache: false,
+                requestTimeoutMs: CONNECTION_TEST_TIMEOUT_MS,
+                abortSignal: controller.signal,
+            })),
+            timeout,
+        ]);
+    } catch (error) {
+        if (timedOut) throw new Error('翻译请求超时');
+        throw error;
+    } finally {
+        clearTimeout(timer!);
+    }
 
     if (!isNonEmptyText(result)) {
         throw new Error('服务已响应，但没有返回有效译文');

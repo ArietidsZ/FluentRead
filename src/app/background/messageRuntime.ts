@@ -43,6 +43,7 @@ import {
     type VocabularyBackgroundContext,
 } from './handlers/vocabulary';
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
+import {supportsTranslationBatch} from '@/src/services/translation/capabilities';
 import {areaTranslationOffscreenAdapter} from '@/src/features/area-translation/background/offscreenAdapter';
 import {imageTranslationOffscreenAdapter} from '@/src/features/image-translation/background/offscreenAdapter';
 import {selectionTtsOffscreenAdapter} from '@/src/features/selection-translation/background/offscreenAdapter';
@@ -109,6 +110,8 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
                 recognizeImage: imageTranslationOffscreenAdapter.recognizeImage,
                 translateImage: imageTranslationOffscreenAdapter.translateImage,
                 translateTexts: translateWithCache,
+                getTranslationService: () => config.service,
+                supportsBatchTranslation: supportsTranslationBatch,
                 downloadLanguages: imageTranslationOffscreenAdapter.downloadLanguages,
                 markLanguagesDownloaded: imageOcrLanguageRepository.markDownloaded,
                 fetchImage: (url) => fetchRemoteImageForOcr(

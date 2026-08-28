@@ -80,17 +80,29 @@ function createSafeTranslationFragment(text: string): DocumentFragment {
  * 双语模式：译文仍放在目标段落内部，以保持现有 DOM 断言和页面布局习惯；
  * 但具体节点由状态机保存，恢复时只移除这一份 wrapper。
  */
-export function appendBilingualTranslation(node: HTMLElement, text: string): HTMLElement {
+export interface BilingualTranslationRenderOptions {
+    /** 全文会话启动时冻结的目标语言；普通悬浮翻译缺省仍读取当前配置。 */
+    targetLanguage?: string;
+    /** 全文会话启动时冻结的译文样式。 */
+    style?: number;
+}
+
+export function appendBilingualTranslation(
+    node: HTMLElement,
+    text: string,
+    renderOptions: BilingualTranslationRenderOptions = {},
+): HTMLElement {
     node.classList.add("fluent-read-bilingual");
 
     const content = document.createElement("span");
     content.classList.add("fluent-read-bilingual-content");
     content.setAttribute("data-fr-translation-owned", "true");
     content.setAttribute("translate", "no");
-    content.lang = config.to || "";
+    content.lang = (renderOptions.targetLanguage ?? config.to) || "";
     content.dir = "auto";
 
-    const style = options.styles.find((item) => item.value === config.style && !item.disabled);
+    const styleValue = renderOptions.style ?? config.style;
+    const style = options.styles.find((item) => item.value === styleValue && !item.disabled);
     if (style?.class) content.classList.add(style.class);
 
     // 译文可能来自机器翻译的 HTML 或大模型的富文本响应。统一经过

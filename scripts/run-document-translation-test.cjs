@@ -381,7 +381,8 @@ async function main() {
 
     const optionsPage = await newPageWithoutForeground(context, args.timeout);
     captureErrors(optionsPage, 'options', errors);
-    await optionsPage.goto(`${optionsUrl}#settings-advanced`, {waitUntil: 'domcontentloaded', timeout: args.timeout});
+    // “全文翻译悬浮球”属于通用设置的网页辅助分组，先验证开关仍可操作。
+    await optionsPage.goto(`${optionsUrl}#settings-general`, {waitUntil: 'domcontentloaded', timeout: args.timeout});
     const floatingBallRow = optionsPage.locator('.settings-control-row').filter({hasText: '全文翻译悬浮球'});
     await floatingBallRow.waitFor({state: 'visible', timeout: args.timeout});
     const floatingBallControlCount = await floatingBallRow.getByRole('switch').count();
@@ -390,7 +391,8 @@ async function main() {
     }
     await optionsPage.screenshot({path: path.join(artifactsDir, 'options-floating-ball-switch.png'), fullPage: true});
     result.screenshots.push(path.join(artifactsDir, 'options-floating-ball-switch.png'));
-    await optionsPage.getByRole('button', {name: /交互与快捷键/u}).click();
+    // 全文翻译快捷键位于翻译设置；按稳定的分区标识导航，避免依赖历史标题。
+    await optionsPage.locator('button[data-section="settings-translation"]').click();
     const fullPageHotkeyRow = optionsPage.locator('.settings-control-row').filter({hasText: '全文翻译快捷键'});
     await fullPageHotkeyRow.waitFor({state: 'visible', timeout: args.timeout});
     const fullPageHotkeyControlCount = await fullPageHotkeyRow.getByRole('combobox').count();

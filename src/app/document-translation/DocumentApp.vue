@@ -403,6 +403,7 @@ import {
   Config,
   DOCUMENT_MAX_BYTES,
   createDocumentDownload,
+  createDocumentFileLoadGuard,
   createDocumentPreviewHtml,
   createPdfPagePreview,
   filterAvailableTranslationServices,
@@ -427,7 +428,6 @@ import {
   requestConfigSave,
   resolveConfiguredModel,
   runtimeConfig,
-  saveConfig,
   servicesType,
   translateDocumentSegments,
   type DocumentRenderMode,
@@ -465,6 +465,7 @@ const hydrated = ref(false);
 const colorSchemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
 const isDark = ref(colorSchemeMedia.matches);
 let abortController: AbortController | null = null;
+const documentFileLoads = createDocumentFileLoadGuard();
 let translationRequestId = 0;
 let lastSerialized = '';
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -632,6 +633,7 @@ async function refreshPdfPreviews(): Promise<void> {
     clearPdfPreviewUrls();
     return;
   }
+  // 每轮预览刷新取得独立代次；旧渲染在创建或写入 Object URL 前都必须放弃提交权。
   const request = ++pdfPreviewRequest;
   pdfPreviewLoading.value = true;
 
@@ -645,7 +647,7 @@ async function refreshPdfPreviews(): Promise<void> {
       pageNumber: page.pageNumber,
       width: page.width,
       height: page.height,
-      // Reuse the original page while only the translated raster is changing.
+      // 仅译文栅格变化时复用原始页面，避免重复创建和释放相同的 Object URL。
       originalUrl: previous?.originalUrl || '',
       translatedUrl: '',
       loading: true,
@@ -728,12 +730,16 @@ function showError(message: string): void {
 }
 
 async function loadFile(file: File): Promise<void> {
+  // 步骤 1：每次选择文件都取得新的提交所有权；无效的新文件也会淘汰仍在解析的旧文件。
+  const loadRequest = documentFileLoads.begin();
   errorMessage.value = '';
   if (!getDocumentFormat(file.name)) {
+    openingFile.value = false;
     showError('暂不支持该文件格式，请选择 PDF、ePub、HTML、JSON、TXT、DOCX、Markdown 或字幕文件。');
     return;
   }
   if (file.size > DOCUMENT_MAX_BYTES) {
+    openingFile.value = false;
     showError(`文件大小超过 ${maxFileSizeLabel}，请先拆分文件后再翻译。`);
     return;
   }
@@ -741,6 +747,8 @@ async function loadFile(file: File): Promise<void> {
   try {
     openingFile.value = true;
     const parsed = await parseDocumentFile(file);
+    // 步骤 2：慢 PDF/ePub 可能晚于后选文件完成；旧请求不得覆盖当前页面状态。
+    if (!loadRequest.isCurrent()) return;
     if (parsed.segments.length === 0) throw new Error('文件中没有找到可翻译的文本片段。');
     clearPdfPreviewUrls();
     parsedDocument.value = parsed;
@@ -751,9 +759,10 @@ async function loadFile(file: File): Promise<void> {
     docxPartIndex.value = 0;
     progress.value = 0;
   } catch (error) {
+    if (!loadRequest.isCurrent()) return;
     showError(error instanceof Error ? error.message : String(error));
   } finally {
-    openingFile.value = false;
+    if (loadRequest.isCurrent()) openingFile.value = false;
   }
 }
 
@@ -771,6 +780,7 @@ function handleDrop(event: DragEvent): void {
 }
 
 function resetDocument(): void {
+  documentFileLoads.invalidate();
   translationRequestId += 1;
   abortController?.abort();
   abortController = null;
@@ -802,6 +812,7 @@ async function startTranslation(): Promise<void> {
   progress.value = 0;
   errorMessage.value = '';
   const controller = new AbortController();
+  // 进度、结果和错误只允许由当前文档的最新请求提交；重置或更换文档会使旧代次失效。
   const requestId = ++translationRequestId;
   abortController = controller;
   try {
@@ -873,9 +884,9 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  documentFileLoads.invalidate();
   translationRequestId += 1;
   abortController?.abort();
-  void saveConfig(config).catch(() => undefined);
   if (noticeTimer) clearTimeout(noticeTimer);
   if (pdfPreviewTimer) clearTimeout(pdfPreviewTimer);
   clearPdfPreviewUrls();

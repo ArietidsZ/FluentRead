@@ -22,7 +22,7 @@ function currentHref(): string {
     }
 }
 
-/** Return the URL-scoped core used by all content-script entry paths. */
+/** 返回所有内容脚本入口共享、按 URL 隔离的候选核心。 */
 export function getCurrentTranslationCore(): TranslationCandidateCore {
     const href = currentHref();
     if (!cachedCore || cachedHref !== href) {

@@ -9,6 +9,7 @@ import {
     normalizeImageOcrLanguageCodes,
     type ImageOcrLanguageCode,
 } from '@/src/features/image-translation/ocrLanguages';
+import {markTranslationRemainingBudget} from '@/src/services/translation/requestSnapshot';
 
 export const IMAGE_OCR_MESSAGE_TYPE = 'fluentReadImageOcr' as const;
 export const IMAGE_TRANSLATE_MESSAGE_TYPE = 'fluentReadImageTranslate' as const;
@@ -52,19 +53,30 @@ export type ImageTranslationBackgroundMessage =
     | ImageOcrDownloadMessage
     | ImageFetchMessage;
 
+type ImageTextTranslationRequestBase = {
+    context: string;
+    pageContext: '';
+    useCache: true;
+    serviceOverride: string;
+    requestTimeoutMs: number;
+};
+
+type ImageTextTranslationRequest = ImageTextTranslationRequestBase & (
+    | {origin: string}
+    | {origin: string[]}
+);
+
 export interface ImageTranslationBackgroundDependencies {
     readonly assertLanguagesDownloaded: (sourceLanguage: string) => Promise<void>;
     readonly recognizeImage: (image: string, sourceLanguage: string) => Promise<unknown>;
     readonly translateImage: (image: string, sourceLanguage: string, title: string) => Promise<unknown>;
-    readonly translateTexts: (request: {
-        origin: string[];
-        context: string;
-        pageContext: '';
-        useCache: true;
-    }) => Promise<string | string[]>;
+    readonly getTranslationService: () => string;
+    readonly supportsBatchTranslation: (service: string) => boolean;
+    readonly translateTexts: (request: ImageTextTranslationRequest) => Promise<string | string[]>;
     readonly downloadLanguages: (languages: ImageOcrLanguageCode[]) => Promise<void>;
     readonly markLanguagesDownloaded: (languages: ImageOcrLanguageCode[]) => Promise<ImageOcrLanguageCode[]>;
     readonly fetchImage: (url: string) => Promise<string>;
+    readonly now?: () => number;
 }
 
 export interface ImageTranslationBackgroundHandler<TMessage extends ImageTranslationBackgroundMessage> {
@@ -73,6 +85,7 @@ export interface ImageTranslationBackgroundHandler<TMessage extends ImageTransla
 }
 
 const SUPPORTED_OCR_LANGUAGES = new Set(IMAGE_OCR_LANGUAGE_PACKS.map((pack) => pack.code));
+export const IMAGE_TEXT_TRANSLATION_TIMEOUT_MS = 120_000;
 
 function parseDataImage(value: unknown): string {
     if (typeof value !== 'string' || !value.startsWith('data:image/')) {
@@ -118,6 +131,67 @@ function parseObjectResult(value: unknown, operation: string): Record<string, un
     return value as Record<string, unknown>;
 }
 
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
+async function translateImageTexts(
+    texts: string[],
+    title: string,
+    dependencies: ImageTranslationBackgroundDependencies,
+): Promise<string[]> {
+    // 步骤 1：冻结本次 OCR 事务使用的 provider，避免逐条回退期间设置变化混入另一服务。
+    const service = dependencies.getTranslationService();
+    const now = dependencies.now ?? (() => Date.now());
+    const deadline = now() + IMAGE_TEXT_TRANSLATION_TIMEOUT_MS;
+    const baseRequest = {
+        context: title,
+        pageContext: '' as const,
+        useCache: true as const,
+        serviceOverride: service,
+    };
+    const remainingBudget = () => {
+        const remaining = Math.floor(deadline - now());
+        if (remaining <= 0) throw new Error('图片文字翻译总时间已耗尽');
+        return remaining;
+    };
+
+    if (dependencies.supportsBatchTranslation(service)) {
+        try {
+            const translations = await dependencies.translateTexts(markTranslationRemainingBudget({
+                ...baseRequest,
+                origin: texts,
+                requestTimeoutMs: remainingBudget(),
+            }));
+            if (!Array.isArray(translations)
+                || translations.length !== texts.length
+                || !translations.every((translation) => typeof translation === 'string')) {
+                throw new Error('provider 未返回等长字符串数组');
+            }
+            return translations;
+        } catch (error) {
+            throw new Error(`图片文字批量翻译失败：${getErrorMessage(error)}`);
+        }
+    }
+
+    // 步骤 2：旧式单条 provider 按原 OCR 顺序串行调用，既保序也不会绕过共享并发上限。
+    const translations: string[] = [];
+    for (const [index, origin] of texts.entries()) {
+        try {
+            const translation = await dependencies.translateTexts(markTranslationRemainingBudget({
+                ...baseRequest,
+                origin,
+                requestTimeoutMs: remainingBudget(),
+            }));
+            if (typeof translation !== 'string') throw new Error('provider 未返回字符串译文');
+            translations.push(translation);
+        } catch (error) {
+            throw new Error(`图片第 ${index + 1} 段文字翻译失败：${getErrorMessage(error)}`);
+        }
+    }
+    return translations;
+}
+
 /** 创建图片 OCR/翻译/下载/远程读取 handlers。 */
 export function createImageTranslationBackgroundHandlers(
     dependencies: ImageTranslationBackgroundDependencies,
@@ -152,17 +226,11 @@ export function createImageTranslationBackgroundHandlers(
             type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE,
             async handle(message: ImageTranslateTextsMessage) {
                 const texts = parseTexts(message.texts);
-                const translations = await dependencies.translateTexts({
-                    origin: texts,
-                    context: parseOptionalTitle(message.title),
-                    pageContext: '',
-                    useCache: true,
-                });
-                if (!Array.isArray(translations)
-                    || translations.length !== texts.length
-                    || !translations.every((translation) => typeof translation === 'string')) {
-                    throw new Error('图片文字翻译结果无效');
-                }
+                const translations = await translateImageTexts(
+                    texts,
+                    parseOptionalTitle(message.title),
+                    dependencies,
+                );
                 return {success: true, translations};
             },
         },

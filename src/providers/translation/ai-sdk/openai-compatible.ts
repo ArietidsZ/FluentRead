@@ -17,6 +17,7 @@ import {
   type ResolvedOpenAICompatibleEndpoint,
 } from './endpoints';
 import {LlmTransportError, normalizeAiSdkError} from './errors';
+import {runtimeFetch} from '@/src/platform/http/runtime';
 import {
   getTranslationProviderConfig,
   type TranslationProviderRequestContext,
@@ -104,10 +105,8 @@ async function normalizeSuccessfulTextResponse(response: Response): Promise<Resp
     const finishReason = choice?.finish_reason;
     if (typeof content !== 'string') return response;
 
-    // FluentRead only consumes text. Rebuild the minimal response shape the
-    // legacy adapters accepted so non-standard optional metadata (for example
-    // string token counts) cannot make the SDK reject an otherwise valid
-    // translation.
+    // FluentRead 只消费文本。这里重建旧适配器接受的最小响应结构，避免非标准可选元数据
+    // （例如字符串形式的 token 数量）导致 SDK 拒绝原本有效的翻译。
     const normalizedBody = {
       choices: [{
         message: {role: 'assistant', content},
@@ -130,7 +129,7 @@ async function normalizeSuccessfulTextResponse(response: Response): Promise<Resp
 
 function compatibilityFetch(endpoint: ResolvedOpenAICompatibleEndpoint) {
   return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const response = await fetch(endpoint.exactEndpoint || input, init);
+    const response = await runtimeFetch(endpoint.exactEndpoint || input, init);
     return normalizeSuccessfulTextResponse(response);
   };
 }
@@ -150,8 +149,8 @@ function createRequestAbortContext(timeoutMs: number, callerSignal?: AbortSignal
   if (callerSignal?.aborted) onCallerAbort();
   else callerSignal?.addEventListener('abort', onCallerAbort, {once: true});
 
-  // Avoid AI SDK's AbortSignal.timeout dependency so the extension remains
-  // usable on browsers that support AbortController but not that newer helper.
+  // 避免依赖 AI SDK 的 AbortSignal.timeout，使扩展在支持 AbortController、
+  // 但尚不支持该新辅助方法的浏览器中仍能使用。
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   return {
     signal: controller.signal,
@@ -190,9 +189,8 @@ async function translateSingle(
     current,
   ));
 
-  // The SDK owns the protocol's stream flag. Custom bodies may still replace
-  // model/messages and add arbitrary OpenAI-compatible provider fields, but
-  // cannot switch a generateText call to SSE behind the parser's back.
+  // 协议的 stream 标记由 SDK 管理。自定义请求体仍可替换 model/messages，并添加任意
+  // OpenAI 兼容 provider 字段，但不能绕过解析器把 generateText 调用切换为 SSE。
   const requestBody: Record<string, unknown> = {...payload, stream: false};
   const provider = createOpenAICompatible({
     name: 'fluentread',
@@ -211,9 +209,9 @@ async function translateSingle(
   try {
     const result = await generateText({
       model: provider(payload.model),
-      // transformRequestBody supplies the actual provider payload. A fixed,
-      // SDK-valid prompt prevents its ModelMessage schema from rejecting valid
-      // OpenAI extensions such as developer roles or image_url content first.
+      // transformRequestBody 提供实际的 provider payload。固定且符合 SDK 要求的 prompt
+      // 可避免 ModelMessage schema 提前拒绝 developer role 或 image_url 内容等有效的
+      // OpenAI 扩展格式。
       prompt: 'FluentRead OpenAI-compatible request',
       maxRetries: AI_SDK_MAX_RETRIES,
       abortSignal: abortContext.signal,
@@ -244,9 +242,8 @@ export async function translateWithOpenAICompatibleAiSdk(
     return translateSingle({...request, requestTimeoutMs: requestBudget}, service, request.origin, current);
   }
 
-  // Batch messages are uncommon for AI services, but image translation can
-  // provide them. Keep one upstream request in flight at a time so a single
-  // background queue lease cannot bypass FluentRead's concurrency limit.
+  // AI 服务很少接收批量消息，但图片翻译会提供这类输入。每次仅允许一个上游请求在途，
+  // 避免单个后台队列租约绕过 FluentRead 的并发上限。
   const translations: string[] = [];
   const deadline = Date.now() + requestBudget;
   for (const origin of request.origin) {

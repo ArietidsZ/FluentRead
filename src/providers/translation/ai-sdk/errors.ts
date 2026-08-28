@@ -184,8 +184,7 @@ export function normalizeAiSdkError(
   const errorName = error instanceof Error ? error.name : '';
   const timedOut = /timeout|timed out|请求超时/u.test(normalized)
     || (error instanceof Error && error.name === 'TimeoutError')
-    // AI SDK also surfaces its internal total-timeout controller as an
-    // AbortError (for example while waiting for Retry-After).
+    // AI SDK 也会把内部总超时控制器表现为 AbortError，例如等待 Retry-After 时。
     || (error instanceof Error && error.name === 'AbortError' && !callerAborted);
   const aborted = error instanceof Error && error.name === 'AbortError' && callerAborted;
   const network = /failed to fetch|fetch failed|networkerror|network error|load failed|网络连接失败/u.test(normalized);

@@ -13,10 +13,13 @@ import {config} from "@/src/services/config/store";
 import {appendOptionalHeader} from './auth';
 import {createHttpStatusError, readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
-import {getTranslationProviderConfig} from '@/src/services/translation/requestSnapshot';
+import {
+    getTranslationProviderConfig,
+    type TranslationProviderRequest,
+} from '@/src/services/translation/requestSnapshot';
 
 
-async function gemini(message: any) {
+async function gemini(message: TranslationProviderRequest<string>) {
     const current = getTranslationProviderConfig(message, config);
     const service = message.serviceOverride || current.service;
 
@@ -28,8 +31,8 @@ async function gemini(message: any) {
         || `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
     const headers = new Headers({'Content-Type': 'application/json'});
-    // Google documents x-goog-api-key for direct Gemini REST requests. Never
-    // forward the Google credential to a user-configured proxy.
+    // Google 文档规定，直接 Gemini REST 请求使用 x-goog-api-key；绝不能把 Google
+    // 凭据转发给用户配置的代理。
     if (usesOfficialEndpoint) {
         appendOptionalHeader(headers, 'x-goog-api-key', current.token[service]);
     }
@@ -38,6 +41,7 @@ async function gemini(message: any) {
         method: method.POST,
         headers,
         body: geminiMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, current),
+        signal: message.abortSignal,
     });
     if (resp.ok) {
         const result = await readJsonResponse<any>(resp, 'Gemini 返回的不是有效 JSON');

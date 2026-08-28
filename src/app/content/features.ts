@@ -20,7 +20,10 @@ export {
     toggleFloatingBallTranslation,
     unmountFloatingBall,
 } from '@/src/features/floating-ball/public';
-export { mountVideoSubtitleTranslation } from '@/src/features/video-subtitle/public';
+export {
+    isYouTubeVideoPage,
+    mountVideoSubtitleTranslation,
+} from '@/src/features/video-subtitle/public';
 export {
     createInputTranslationContentFeature,
     inputBoxTranslationConfigKey,

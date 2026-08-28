@@ -22,7 +22,7 @@ export interface DeclarativeSelectorRule {
 }
 
 export interface DeclarativeTargetRule extends DeclarativeSelectorRule {
-    /** Resolve descendants to the declared semantic container. */
+    /** 匹配后代节点时，是否解析到规则声明的语义容器。 */
     match?: 'self' | 'closest';
     candidateKind?: TranslationCandidateKind;
     atomic?: boolean;
@@ -101,7 +101,7 @@ function matchesPathname(pathname: string, patterns: readonly RegExp[] | undefin
     if (!patterns?.length) return true;
     return patterns.some((pattern) => {
         try {
-            // Avoid observable lastIndex changes on global/sticky expressions.
+            // 每次克隆正则，避免 global/sticky 表达式的 lastIndex 产生可观察变化。
             return new RegExp(pattern.source, pattern.flags).test(pathname);
         } catch {
             return false;
@@ -110,8 +110,8 @@ function matchesPathname(pathname: string, patterns: readonly RegExp[] | undefin
 }
 
 /**
- * Build a site adapter from inert selector data. Every selector operation is
- * fail-closed, so a stale or unsupported site selector cannot abort discovery.
+ * 由无副作用的选择器数据构建站点适配器。所有选择器操作均按失败即拒绝处理，
+ * 过期或不受支持的站点选择器不能中断候选发现。
  */
 export function createDeclarativeAdapter(
     definition: DeclarativeSiteAdapterDefinition,

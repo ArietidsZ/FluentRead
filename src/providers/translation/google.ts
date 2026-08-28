@@ -7,8 +7,13 @@
  */
 
 import {getTranslationLanguages} from '@/src/services/translation/languages';
-import type {TranslationLanguageOverride} from '@/src/services/translation/languages';
 import {createHttpStatusError} from '@/src/platform/http/errors';
+import {
+    abortErrorFromSignal,
+    createRuntimeAbortContext,
+    runtimeFetch,
+} from '@/src/platform/http/runtime';
+import type {TranslationProviderRequest} from '@/src/services/translation/requestSnapshot';
 
 const GOOGLE_TRANSLATE_RPC_ID = 'MkEWBc';
 const GOOGLE_TRANSLATE_BATCH_URLS = [
@@ -133,16 +138,17 @@ async function fetchGoogleResponse(
     url: string | URL,
     init: RequestInit,
     timeoutMs: number,
+    callerSignal?: AbortSignal,
 ): Promise<{responseBody: string}> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const abortContext = createRuntimeAbortContext(timeoutMs, callerSignal);
 
     try {
         let response: Response;
         try {
-            response = await fetch(url, {...init, signal: controller.signal});
+            response = await runtimeFetch(url, {...init, signal: abortContext.signal});
         } catch {
-            if (controller.signal.aborted) {
+            if (callerSignal?.aborted) throw abortErrorFromSignal(callerSignal);
+            if (abortContext.didTimeout()) {
                 throw new Error(`请求超时（${timeoutMs / 1000} 秒）`);
             }
             throw new Error('网络请求失败');
@@ -152,7 +158,8 @@ async function fetchGoogleResponse(
         try {
             responseBody = await response.text();
         } catch {
-            if (controller.signal.aborted) {
+            if (callerSignal?.aborted) throw abortErrorFromSignal(callerSignal);
+            if (abortContext.didTimeout()) {
                 throw new Error(`请求超时（${timeoutMs / 1000} 秒）`);
             }
             throw new Error('响应读取失败');
@@ -166,7 +173,7 @@ async function fetchGoogleResponse(
         }
         return {responseBody};
     } finally {
-        clearTimeout(timeout);
+        abortContext.cleanup();
     }
 }
 
@@ -176,6 +183,7 @@ async function translateGoogleBatch(
     fromLang: string,
     toLang: string,
     timeoutMs: number,
+    callerSignal?: AbortSignal,
 ): Promise<string> {
     const {responseBody} = await fetchGoogleResponse(endpoint, {
         method: 'POST',
@@ -185,7 +193,7 @@ async function translateGoogleBatch(
         body: new URLSearchParams({
             'f.req': createGoogleBatchRequest(text, fromLang, toLang),
         }).toString(),
-    }, timeoutMs);
+    }, timeoutMs, callerSignal);
     try {
         return parseGoogleBatchResponse(responseBody);
     } catch (error) {
@@ -198,6 +206,7 @@ async function translateGoogleLegacy(
     fromLang: string,
     toLang: string,
     timeoutMs: number,
+    callerSignal?: AbortSignal,
 ): Promise<string> {
     const url = new URL(GOOGLE_TRANSLATE_LEGACY_URL);
     url.searchParams.set('client', 'gtx');
@@ -208,7 +217,7 @@ async function translateGoogleLegacy(
     url.searchParams.set('nonced', '1');
     url.searchParams.set('q', text);
 
-    const {responseBody} = await fetchGoogleResponse(url, {method: 'GET'}, timeoutMs);
+    const {responseBody} = await fetchGoogleResponse(url, {method: 'GET'}, timeoutMs, callerSignal);
     try {
         return parseGoogleLegacyResponse(responseBody);
     } catch (error) {
@@ -220,6 +229,7 @@ export async function translateGoogleText(
     text: string,
     fromLang: string,
     toLang: string,
+    abortSignal?: AbortSignal,
 ): Promise<string> {
     const providers: GoogleProvider[] = [
         ...GOOGLE_TRANSLATE_BATCH_URLS.map((endpoint, index) => ({
@@ -230,6 +240,7 @@ export async function translateGoogleText(
                 fromLang,
                 toLang,
                 timeoutMs,
+                abortSignal,
             ),
         })),
         {
@@ -239,6 +250,7 @@ export async function translateGoogleText(
                 fromLang,
                 toLang,
                 timeoutMs,
+                abortSignal,
             ),
         },
     ];
@@ -246,6 +258,7 @@ export async function translateGoogleText(
     const failures: string[] = [];
 
     for (const provider of providers) {
+        if (abortSignal?.aborted) throw abortErrorFromSignal(abortSignal);
         const remainingTime = deadline - Date.now();
         if (remainingTime <= 0) {
             break;
@@ -254,6 +267,7 @@ export async function translateGoogleText(
         try {
             return await provider.translate(Math.min(GOOGLE_TRANSLATE_ATTEMPT_TIMEOUT_MS, remainingTime));
         } catch (error) {
+            if (abortSignal?.aborted) throw abortErrorFromSignal(abortSignal);
             failures.push(`${provider.name}: ${getErrorMessage(error)}`);
         }
     }
@@ -262,12 +276,12 @@ export async function translateGoogleText(
     throw new Error(`谷歌翻译所有匿名接口均失败：${failureSummary}`);
 }
 
-async function google(message: TranslationLanguageOverride & {origin: string}) {
+async function google(message: TranslationProviderRequest<string>) {
     if (typeof message.origin !== 'string') {
         throw new Error('谷歌翻译仅支持单条文本');
     }
     const {sourceLanguage, targetLanguage} = getTranslationLanguages(message);
-    return translateGoogleText(message.origin, sourceLanguage, targetLanguage);
+    return translateGoogleText(message.origin, sourceLanguage, targetLanguage, message.abortSignal);
 }
 
 export default google;

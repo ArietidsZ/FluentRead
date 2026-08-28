@@ -78,10 +78,10 @@ export function mountFloatingBall(ctx?: ContentScriptContext) {
         }
       },
     },
-    // Host pages can dispatch synthetic clicks into an open shadow tree. Keep
-    // translation, settings, and position controls behind a closed boundary.
+    // 宿主页可以向开放的 Shadow Tree 派发合成点击，因此翻译、设置和位置控件必须留在 closed 边界内。
     mode: 'closed',
   }).then((ui) => {
+    // 异步挂载返回时重新核对请求所有权，禁止已禁用的旧实例回到页面。
     if (requestId !== mountRequestId || config.disableFloatingBall) {
       ui.remove();
       return null;
@@ -102,9 +102,8 @@ export function mountFloatingBall(ctx?: ContentScriptContext) {
 }
 
 /**
- * Toggle through the isolated Vue instance instead of a DOM CustomEvent. Host
- * pages share the DOM event surface with content scripts and must not be able
- * to invoke extension actions.
+ * 通过隔离的 Vue 实例切换翻译，不使用 DOM CustomEvent。宿主页与内容脚本共享 DOM
+ * 事件面，不能让页面脚本借此调用扩展动作。
  */
 export function toggleFloatingBallTranslation(): boolean {
   if (!floatingBallInstance?.toggleTranslation) return false;
@@ -116,6 +115,7 @@ export function toggleFloatingBallTranslation(): boolean {
  * 卸载悬浮球
  */
 export function unmountFloatingBall() {
+  // 先使仍在等待的挂载失效，再释放当前实例，避免迟到的 Promise 重新写回句柄。
   mountRequestId++;
   if (floatingBallUi || floatingBallInstance) {
     if (isFullPageTranslationActive()) {

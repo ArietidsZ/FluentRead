@@ -13,9 +13,8 @@ import {config} from '@/src/services/config/store';
 export type {TranslationLanguageOverride} from '@/src/core/translation/languages';
 
 /**
- * Resolve the language pair attached to a translation request without mutating
- * the shared extension configuration. This keeps comparison requests isolated
- * when several services are translated at the same time.
+ * 在不修改扩展共享配置的前提下，解析翻译请求携带的语言对，使多个服务同时翻译时的
+ * 对比请求彼此隔离。
  */
 export function getTranslationLanguages(message?: TranslationLanguageOverride | null): {
     sourceLanguage: string;

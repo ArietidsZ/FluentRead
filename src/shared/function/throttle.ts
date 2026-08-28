@@ -17,7 +17,7 @@ export function throttle<TThis, TArgs extends unknown[]>(
         const now = Date.now();
         if (now - lastRunAt < intervalMs) return;
 
-        // Step 1: 先更新窗口，再调用目标函数，避免目标函数同步重入绕过节流。
+        // 步骤 1：先更新窗口，再调用目标函数，避免目标函数同步重入绕过节流。
         lastRunAt = now;
         fn.apply(this, args);
     };

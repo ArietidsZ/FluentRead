@@ -231,7 +231,7 @@ export function createSelectionTtsBackgroundHandlers(
                 const clientRequestId = parseSelectionTtsClientRequestId(message.clientRequestId);
                 const tabId = parseTabId(context);
 
-                // Step 1: 新请求先取消旧请求；没有 tab 时保留旧行为，合成后回退到 page audio。
+                // 步骤 1：新请求先取消旧请求；没有 tab 时保留旧行为，合成后回退到 page audio。
                 await stopActiveSelectionTts();
                 const active = tabId === null ? null : beginSelectionTts(tabId, clientRequestId);
                 let result: SelectionTtsAudio;
@@ -263,7 +263,7 @@ export function createSelectionTtsBackgroundHandlers(
                             clientRequestId: active.clientRequestId,
                         });
                         if (activeSelectionTts !== active) {
-                            // Step 2: STOP 可能早于 PLAY 生效；PLAY 成功返回后必须二次 STOP 清理 late playback。
+                            // 步骤 2：STOP 可能早于 PLAY 生效；PLAY 成功返回后必须二次 STOP 清理 late playback。
                             return stopLatePlayback(active);
                         }
                         return {success: true, transport: 'offscreen', voice: result.voice};
@@ -297,7 +297,7 @@ export function createSelectionTtsBackgroundHandlers(
                 const clientRequestId = parseSelectionTtsClientRequestId(message.clientRequestId);
                 const tabId = parseTabId(context);
 
-                // Step 1: Google fallback 与 Edge 共用单例播放状态，新请求同样先取消旧播放。
+                // 步骤 1：Google fallback 与 Edge 共用单例播放状态，新请求同样先取消旧播放。
                 await stopActiveSelectionTts();
                 if (tabId === null) return {success: false, error: '无法确定当前标签页'};
                 if (dependencies.offscreenPlaybackEnabled === false) {

@@ -39,7 +39,7 @@ export interface SelectionAnswerCandidate extends SelectionContentRequest {
     answer: string;
 }
 
-/** Keep independent async channels from invalidating one another's completion. */
+/** 为每条异步通道维护独立代次，避免一种请求的完成结果误废弃另一种请求。 */
 export class SelectionRequestTokenGate {
     private generation = 0;
 
@@ -61,7 +61,7 @@ function normalizeSelectionRequestLanguage(value: string): string {
     return String(value || '').trim().replace(/_/g, '-').toLowerCase();
 }
 
-/** ECDICT's bundled auxiliary definitions are Simplified Chinese. */
+/** ECDICT 随包附带的辅助释义是简体中文，仅在目标语言兼容时参与回退。 */
 export function canUseBundledDictionaryFallback(targetLanguage: string): boolean {
     return ['zh', 'zh-cn', 'zh-hans', 'zh-sg'].includes(normalizeSelectionRequestLanguage(targetLanguage));
 }
@@ -99,7 +99,7 @@ export interface SelectionPresentationState {
 
 export type SelectionPresentationTrigger = 'direct' | 'icon' | 'dot' | 'shortcut';
 
-/** Keep delay changes anchored to when the current selection became stable. */
+/** 延迟配置变化仍以当前选区稳定时刻为起点，避免刷新配置后重新等待完整时长。 */
 export function getSelectionPresentationDelayRemaining(
     delay: number,
     selectionSettledAt: number,
@@ -109,7 +109,7 @@ export function getSelectionPresentationDelayRemaining(
     return Math.max(0, delay - elapsed);
 }
 
-/** Preserve an explicitly opened tooltip across unrelated config refreshes. */
+/** 与展示无关的配置刷新不能关闭用户已经明确打开的翻译浮层。 */
 export function reconcileSelectionPresentation(
     current: SelectionPresentationState,
     trigger: SelectionPresentationTrigger,
@@ -146,7 +146,7 @@ const languageAliases: Record<string, string> = {
     tur: 'tr',
 };
 
-/** Compare detected and configured languages without depending on region/script details. */
+/** 忽略地区与书写系统差异后比较检测语言和配置语言。 */
 export function isSameLanguage(detectedLanguage: string | undefined, targetLanguage: string | undefined): boolean {
     const detected = String(detectedLanguage ?? '').trim().replace(/_/g, '-').toLowerCase();
     const target = String(targetLanguage ?? '').trim().replace(/_/g, '-').toLowerCase();
@@ -160,7 +160,7 @@ export function isSameLanguage(detectedLanguage: string | undefined, targetLangu
 const DEFAULT_PADDING = 12;
 const DEFAULT_GAP = 10;
 
-/** Normalize browser selection text without destroying meaningful line breaks. */
+/** 规范化浏览器选区文本，同时保留对阅读有意义的换行。 */
 export function normalizeSelectionText(value: string): string {
     return value
         .replace(/\u00a0/g, ' ')
@@ -275,9 +275,8 @@ function elementFromSelectionNode(node: Node | null): Element | null {
 }
 
 /**
- * Selection translation is intended for page prose, not atomic or interactive
- * widgets. Check both boundaries and the cloned range so image-only selections
- * and selections that cross a special component do not leave a stale trigger.
+ * 划词翻译只处理页面正文，不处理原子内容或交互控件。这里同时检查选区两端
+ * 与克隆内容，避免纯图片选区或跨越特殊组件的选区留下失效触发器。
  */
 export function shouldIgnoreSelection(range: Range): boolean {
     const boundaries = [
@@ -294,8 +293,7 @@ export function shouldIgnoreSelection(range: Range): boolean {
 }
 
 /**
- * Select the visual edge closest to the selection focus. Using client rects
- * avoids placing the affordance in the middle of a multi-line selection.
+ * 选择最靠近选区焦点的视觉边缘；使用客户端矩形可以避免把入口放在多行选区中间。
  */
 export function chooseSelectionRect(rects: SelectionRect[], isForward = true): SelectionRect | null {
     if (rects.length === 0) return null;
@@ -303,9 +301,8 @@ export function chooseSelectionRect(rects: SelectionRect[], isForward = true): S
 }
 
 /**
- * Position the popover against the selected line and keep it inside the
- * viewport. The calculation is pure so scroll/resize behavior can be tested
- * without mounting Vue or depending on a page's CSS.
+ * 以当前选中行作为弹层锚点并限制在视口内。计算保持为纯函数，使滚动和缩放行为
+ * 无需挂载 Vue、也不依赖宿主页面 CSS 即可测试。
  */
 export function calculateSelectionPopupPosition(
     anchor: SelectionRect,

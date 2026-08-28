@@ -106,10 +106,9 @@ export function createTranslationTextProtectionCache(): TranslationTextProtectio
 }
 
 /**
- * Cache inherited text protection for one hover/discovery operation. When the
- * caller walks from an ancestor to its children, every lookup after the root is
- * O(1). A dirty subtree whose external ancestry is already adversarially deep
- * is conservatively marked protected after one bounded lookup.
+ * 在一次悬浮或发现操作中缓存继承的文本保护状态。调用方从祖先向子节点遍历时，
+ * 根节点之后的每次查询都是 O(1)。若脏子树的外部祖先已经恶意过深，完成一次
+ * 有界查询后便保守标记为受保护。
  */
 export function isTranslationTextElementProtected(
     element: Element,
@@ -149,9 +148,8 @@ export function isTranslationTextElementProtected(
 }
 
 /**
- * A bounded readability probe for discovery. Rendering still takes an exact
- * snapshot later, but one generator step must never walk an unbounded inline
- * subtree before the runtime can yield back to the host page.
+ * 用于候选发现的有界可读性探测。渲染稍后仍会取得精确快照，但单个生成器步骤
+ * 绝不能在 runtime 归还宿主页执行权之前遍历无限大的内联子树。
  */
 export function hasMeaningfulTranslationTextInNodes(
     roots: readonly Node[],
@@ -181,10 +179,8 @@ export function hasMeaningfulTranslationTextInNodes(
         if (!frame.entered) {
             frame.entered = true;
             visitedNodes += 1;
-            // Preserve whatever evidence has already been collected, but do
-            // not turn a huge text-free subtree into a translation target. A
-            // false positive would merely move the unbounded walk to exact
-            // source extraction immediately before the provider request.
+            // 保留已经收集的证据，但不能把庞大且无文本的子树误作翻译目标；
+            // 假阳性只会把无限遍历推迟到服务请求前的精确源文提取阶段。
             if (visitedNodes > discoveryVisitedNodeBudget) {
                 return isMeaningfulTranslationText(parts.join(' '));
             }
@@ -232,7 +228,7 @@ export function extractTranslationTextFromNodes(
     return collectReadableText(nodes, shouldStayOriginal, ignoredExtensionElement);
 }
 
-/** Extract readable host-page text without cloning the candidate subtree. */
+/** 无需克隆候选子树，直接提取宿主页中的可读文本。 */
 export function extractTranslationText(
     element: Element,
     shouldStayOriginal?: (element: Element) => boolean,
@@ -247,10 +243,8 @@ const hangulPattern = /\p{Script=Hangul}/gu;
 const latinPattern = /\p{Script=Latin}/gu;
 
 /**
- * Short UI strings are where statistical language detection is least reliable.
- * Only skip them when the target script is clearly dominant; otherwise let the
- * provider translate them. Long-text detection remains a secondary check in
- * the runtime.
+ * 统计式语言检测对短 UI 文本最不可靠。只有目标书写系统明显占优时才跳过，
+ * 否则交给翻译服务处理；长文本检测仍作为 runtime 中的第二道检查。
  */
 export function isClearlyTargetLanguage(value: string, targetLanguage: string): boolean {
     const text = normalizeTranslationText(value);

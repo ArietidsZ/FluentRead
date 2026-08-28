@@ -511,7 +511,6 @@ import browser from 'webextension-polyfill';
 import {
   config as runtimeConfig,
   configReady,
-  saveConfig,
   requestConfigSave,
   subscribeConfig,
 } from '@/src/services/config/store';
@@ -758,7 +757,6 @@ window.addEventListener('pagehide', saveOnPageHide);
 function persistOnPageExit() {
   if (!hydrated.value || pageExitSaveStarted) return;
   pageExitSaveStarted = true;
-  void saveConfig(config.value).catch((error) => console.warn('[FluentRead] popup 关闭前本地保存设置失败', error));
   void persistConfig(config.value).catch((error) => console.warn('[FluentRead] popup 关闭前后台保存设置失败', error));
 }
 

@@ -24,7 +24,6 @@ const EXPECTED_PROVIDER_FILES = [
     'free-translation.ts',
     'gemini.ts',
     'google.ts',
-    'grok.ts',
     'hunyuan-translation.ts',
     'microsoft.ts',
     'tencent.ts',
@@ -77,6 +76,29 @@ function resolveProjectSpecifier(providerPath: string, specifier: string): strin
     return relative(PROJECT_ROOT, absolute).split(sep).join('/');
 }
 
+function runtimeFetchCalls(path: string): ts.CallExpression[] {
+    const source = readProjectFile(`src/providers/translation/${path}`);
+    const sourceFile = ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    const calls: ts.CallExpression[] = [];
+    const visit = (node: ts.Node) => {
+        if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)
+            && node.expression.text === 'runtimeFetch') {
+            calls.push(node);
+        }
+        ts.forEachChild(node, visit);
+    };
+    visit(sourceFile);
+    return calls;
+}
+
+function objectLiteralHasSignal(node: ts.Node | undefined): boolean {
+    return Boolean(node && ts.isObjectLiteralExpression(node) && node.properties.some((property) => (
+        ts.isPropertyAssignment(property)
+        && ((ts.isIdentifier(property.name) && property.name.text === 'signal')
+            || (ts.isStringLiteral(property.name) && property.name.text === 'signal'))
+    )));
+}
+
 describe('translation provider architecture', () => {
     it('目标目录保留完整 provider 清单，旧 entrypoints 实现目录已经移除', () => {
         expect(listTypeScriptFiles(PROVIDER_ROOT)).toEqual([...EXPECTED_PROVIDER_FILES].sort());
@@ -118,5 +140,36 @@ describe('translation provider architecture', () => {
         expect(entrypoint).not.toContain('@/src/providers/translation/');
         expect(composition).toContain("from './providerRuntime';");
         expect(composition).not.toContain('@/src/providers/translation/');
+    });
+
+    it('所有 legacy 网络 provider 都把 broker signal 传入 runtimeFetch', () => {
+        const networkProviders = [
+            'claude.ts',
+            'coze.ts',
+            'deepl.ts',
+            'deeplx.ts',
+            'deepseek.ts',
+            'gemini.ts',
+            'google.ts',
+            'hunyuan-translation.ts',
+            'microsoft.ts',
+            'tencent.ts',
+            'tongyi.ts',
+            'xiaoniu.ts',
+            'youdao.ts',
+            'zhipu.ts',
+        ];
+        const violations = networkProviders.filter((path) => {
+            const calls = runtimeFetchCalls(path);
+            return calls.length === 0 || calls.some((call) => !objectLiteralHasSignal(call.arguments[1]));
+        });
+
+        expect(violations).toEqual([]);
+    });
+
+    it('AI SDK compatibility transport 通过 runtimeFetch，不绕过 userscript 网络端口', () => {
+        const source = readProjectFile('src/providers/translation/ai-sdk/openai-compatible.ts');
+        expect(source).toContain('runtimeFetch(endpoint.exactEndpoint || input, init)');
+        expect(source).not.toMatch(/\bawait\s+fetch\(/u);
     });
 });

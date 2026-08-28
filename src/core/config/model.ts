@@ -326,6 +326,15 @@ export function normalizeConfig(value: unknown): Config {
     // __fluentConfigRevision 只用于 storage 的写入顺序判断，不能进入运行时
     // 配置或历史快照，否则默认配置与同值的页面快照会因内部字段不同而无法去重。
     delete (normalized as unknown as Record<string, unknown>).__fluentConfigRevision;
+    // 后台计数幂等日志与 revision 一样只属于存储协议，不能进入 UI、历史或导出配置。
+    delete (normalized as unknown as Record<string, unknown>).__fluentCountOperations;
+
+    // 翻译次数只接受非负安全整数；旧版本或手工修改产生的字符串、负数和溢出值回退为 0。
+    normalized.count = typeof source.count === 'number'
+        && Number.isSafeInteger(source.count)
+        && source.count >= 0
+        ? source.count
+        : 0;
 
     normalized.token = normalizeStringMapping(source.token);
     normalized.model = normalizeStringMapping(source.model);

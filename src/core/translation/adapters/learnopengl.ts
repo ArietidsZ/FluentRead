@@ -9,10 +9,9 @@
 import {createDeclarativeAdapter} from './declarative';
 
 /**
- * LearnOpenGL's legacy image-backed navigation uses fixed-height menu rows.
- * Appending bilingual block content makes neighbouring rows overlap and can
- * cover their click targets, so the site-owned navigation stays untouched.
- * The reading surface under #content remains eligible for normal discovery.
+ * LearnOpenGL 的旧式图片导航使用固定高度菜单行。追加双语块会使相邻行重叠，
+ * 甚至遮住点击目标，因此站点拥有的导航保持原样；`#content` 下的阅读区域
+ * 仍可参与常规候选发现。
  */
 export const learnOpenGLAdapter = createDeclarativeAdapter({
     id: 'learnopengl',

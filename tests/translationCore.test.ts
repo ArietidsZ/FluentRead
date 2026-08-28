@@ -631,8 +631,8 @@ describe('translation candidate core', () => {
         expect(renderedDocument.querySelector('#mathjax-v3')?.textContent).toBe('V_clip=M_projection V_local');
         expect(renderedDocument.querySelector('#katex')?.textContent).toBe('KATEX_RENDERED_FORMULA');
 
-        // Snapshot/render work is clone-only: live math renderer identities and
-        // parents remain untouched for restore and a second translation pass.
+        // 快照和渲染只操作克隆：实时公式 renderer 的身份与父节点保持不变，
+        // 以支持恢复和第二轮翻译。
         expect(protectedNodes.map((node) => document.getElementById(node.id))).toEqual(protectedNodes);
         expect(protectedNodes.map((node) => node.parentNode)).toEqual(originalParents);
         expect(core.discover(document).find((candidate) => candidate.element === prose)?.nodes).toBeUndefined();

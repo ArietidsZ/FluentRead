@@ -10,12 +10,22 @@ type PlatformMessageHandler = (message: any) => Promise<any>;
 export const UNHANDLED_RUNTIME_MESSAGE = Symbol('unhandled-runtime-message');
 
 const runtimeListeners = new Set<RuntimeListener>();
-let platformMessageHandler: PlatformMessageHandler = async () => UNHANDLED_RUNTIME_MESSAGE;
+const defaultPlatformMessageHandler: PlatformMessageHandler = async () => UNHANDLED_RUNTIME_MESSAGE;
+let platformMessageHandler: PlatformMessageHandler = defaultPlatformMessageHandler;
 
 export function setPlatformMessageHandler(handler: PlatformMessageHandler): void {
     platformMessageHandler = handler;
 }
 
+/** 初始化失败或页面离开时恢复空适配器，防止后续重注入继续调用旧页面闭包。 */
+export function resetPlatformMessageHandler(): void {
+    platformMessageHandler = defaultPlatformMessageHandler;
+}
+
+/**
+ * 在同一页面内模拟 webextension runtime 消息分派，兼容同步 sendResponse、Promise
+ * 返回值以及返回 true 后异步应答三种监听器形式。
+ */
 export async function dispatchContentMessage(message: any): Promise<any> {
     for (const listener of runtimeListeners) {
         let didRespond = false;
@@ -47,6 +57,7 @@ function runtimeAssetUrl(path: string): string {
 
 const runtime = {
     async sendMessage(message: any): Promise<any> {
+        // 先交给 userscript 的“后台”适配器；未处理消息再回送内容侧监听器。
         const result = await platformMessageHandler(message);
         if (result !== UNHANDLED_RUNTIME_MESSAGE) return result;
         return dispatchContentMessage(message);
@@ -83,6 +94,7 @@ const browser = {
     },
     storage: {
         local: {
+            // webextension storage.local 在 userscript 中由 GM 存储承接，并维持相同的批量键形态。
             async get(keys?: string | string[] | Record<string, unknown>): Promise<Record<string, unknown>> {
                 if (typeof keys === 'string') return {[keys]: await getStoredValue(keys)};
                 if (Array.isArray(keys)) {

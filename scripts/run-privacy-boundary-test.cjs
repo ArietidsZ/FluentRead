@@ -361,8 +361,8 @@ function assertCredentialStorageState(label, storageEvidence, expected) {
   }
 }
 
-async function configurePrivacySurfaces(worker) {
-  return worker.evaluate(async () => {
+async function configurePrivacySurfaces(optionsPage, clientId, timeout) {
+  return optionsPage.evaluate(async ({ requestClientId, timeoutMs }) => {
     const parseConfig = (value) => {
       if (typeof value !== 'string') return value && typeof value === 'object' ? value : {};
       try {
@@ -371,51 +371,94 @@ async function configurePrivacySurfaces(worker) {
         return {};
       }
     };
-    const initializationDeadline = Date.now() + 10_000;
+    const readConfig = async () => {
+      const stored = await chrome.storage.local.get(['config', 'local:config']);
+      return parseConfig(stored.config || stored['local:config']);
+    };
+    const sendRuntimeMessage = (message) => new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage(message, (reply) => {
+        const lastError = chrome.runtime.lastError;
+        if (lastError) {
+          reject(new Error(lastError.message || 'runtime message failed'));
+          return;
+        }
+        resolve(reply);
+      });
+    });
+    const matchesExpectedSurfaces = (value) => value.on === true
+      && value.autoTranslate === false
+      && value.disableFloatingBall === false
+      && value.selectionTranslatorMode === 'bilingual'
+      && value.disableSelectionTranslator === false
+      && value.selectionAreaEnabled === true
+      && value.disableImageTranslator === false
+      && value.persistCredentials === false;
+
+    const initializationDeadline = Date.now() + Math.min(timeoutMs, 10_000);
     let current = {};
-    // A service worker can be observable before configReady has completed its
-    // first migration write. Wait for that revision so a late default snapshot
-    // cannot overwrite the privacy fixture's explicit surface configuration.
+    // options 页面完成挂载不代表 background 的 configReady 已经落下首次 revision；
+    // 先等待公开快照，随后通过 persistConfig 进入与产品相同的串行写入队列。
     while (Date.now() < initializationDeadline) {
-      const stored = await chrome.storage.local.get('config');
-      current = parseConfig(stored.config);
+      current = await readConfig();
       if (Number.isSafeInteger(current.__fluentConfigRevision)) break;
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
     if (!Number.isSafeInteger(current.__fluentConfigRevision)) {
       throw new Error('background config initialization did not complete');
     }
-    const next = {
-      ...current,
-      on: true,
-      autoTranslate: false,
-      floatingBallHotkey: 'Alt+T',
-      disableFloatingBall: false,
-      selectionTranslatorMode: 'bilingual',
-      disableSelectionTranslator: false,
-      selectionAreaEnabled: true,
-      disableImageTranslator: false,
-      persistCredentials: false,
-      __fluentConfigRevision: current.__fluentConfigRevision + 1,
-    };
-    await chrome.storage.local.set({ config: next });
-    const matchesExpectedSurfaces = (value) => value.__fluentConfigRevision === next.__fluentConfigRevision
-      && value.disableFloatingBall === false
-      && value.disableSelectionTranslator === false
-      && value.selectionAreaEnabled === true
-      && value.disableImageTranslator === false;
-    const writeDeadline = Date.now() + 10_000;
+
+    let response;
+    // 只有明确的 revision 冲突可以用最新快照重试；其他后台错误必须原样暴露。
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const baseRevision = current.__fluentConfigRevision;
+      response = await sendRuntimeMessage({
+        type: 'persistConfig',
+        config: {
+          ...current,
+          on: true,
+          autoTranslate: false,
+          floatingBallHotkey: 'Alt+T',
+          disableFloatingBall: false,
+          selectionTranslatorMode: 'bilingual',
+          disableSelectionTranslator: false,
+          selectionAreaEnabled: true,
+          disableImageTranslator: false,
+          persistCredentials: false,
+        },
+        clientId: requestClientId,
+        sequence: attempt,
+        baseRevision,
+      });
+      if (response?.success === true) break;
+      if (!String(response?.error || '').includes('配置已更新') || attempt === 3) {
+        throw new Error(`background rejected privacy surface config: ${response?.error || 'unknown error'}`);
+      }
+      current = await readConfig();
+      if (!Number.isSafeInteger(current.__fluentConfigRevision)) {
+        throw new Error('background config revision disappeared during retry');
+      }
+    }
+    if (response?.success !== true
+      || !Number.isSafeInteger(response.revision)
+      || response.revision < 0) {
+      throw new Error('background did not acknowledge privacy surface config with a valid revision');
+    }
+
+    const writeDeadline = Date.now() + Math.min(timeoutMs, 10_000);
     let verified = {};
     while (Date.now() < writeDeadline) {
-      const stored = await chrome.storage.local.get('config');
-      verified = parseConfig(stored.config);
-      if (matchesExpectedSurfaces(verified)) break;
+      verified = await readConfig();
+      if (verified.__fluentConfigRevision >= response.revision && matchesExpectedSurfaces(verified)) break;
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
-    if (!matchesExpectedSurfaces(verified)) {
+    if (verified.__fluentConfigRevision < response.revision || !matchesExpectedSurfaces(verified)) {
       throw new Error('privacy surface config was not durably written');
     }
     return {
+      saveTransport: 'chrome.runtime.sendMessage from options extension origin',
+      saveAcknowledged: true,
+      revision: response.revision,
+      directWorkerStorageWriteUsed: false,
       on: verified.on,
       autoTranslate: verified.autoTranslate,
       disableFloatingBall: verified.disableFloatingBall,
@@ -425,7 +468,7 @@ async function configurePrivacySurfaces(worker) {
       disableImageTranslator: verified.disableImageTranslator,
       persistCredentials: verified.persistCredentials,
     };
-  });
+  }, { requestClientId: clientId, timeoutMs: timeout });
 }
 
 async function waitForExtensionWorker(context, timeout) {
@@ -511,19 +554,18 @@ async function waitForOptionsRuntimeCredential(optionsPage, marker, timeout) {
   return true;
 }
 
-async function exportConfigViaOptionsUi(optionsPage, marker, timeout) {
-  await optionsPage.getByRole('button', { name: /导出配置/ }).click();
-  const exportTextarea = optionsPage.locator('#settings-data textarea[readonly]').first();
-  await exportTextarea.waitFor({ state: 'visible', timeout });
-
-  const deadline = Date.now() + timeout;
-  let exported = '';
-  while (Date.now() < deadline) {
-    exported = await exportTextarea.inputValue();
-    if (exported.trim()) break;
-    await optionsPage.waitForTimeout(50);
+async function exportConfigViaOptionsUi(optionsPage, marker, timeout, artifactsDir) {
+  // 真实设置页会直接下载 JSON 文件；监听下载事件可同时覆盖用户操作与导出脱敏边界。
+  const downloadPromise = optionsPage.waitForEvent('download', { timeout });
+  await optionsPage.getByRole('button', { name: '导出配置', exact: true }).click();
+  const download = await downloadPromise;
+  if (!/^fluentread-config-\d{4}-\d{2}-\d{2}\.json$/u.test(download.suggestedFilename())) {
+    throw new Error(`设置页导出文件名异常：${download.suggestedFilename()}`);
   }
-  if (!exported.trim()) throw new Error('设置页导出框没有生成配置');
+  const downloadPath = path.join(artifactsDir, 'privacy-exported-config.json');
+  await download.saveAs(downloadPath);
+  const exported = fs.readFileSync(downloadPath, 'utf8');
+  if (!exported.trim()) throw new Error('设置页导出的配置文件为空');
 
   let parsed;
   try {
@@ -716,6 +758,7 @@ async function main() {
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-privacy-boundary-'));
   const credentialSentinel = `${CREDENTIAL_SENTINEL_PREFIX}${randomUUID()}`;
   const credentialSentinelSha256 = createHash('sha256').update(credentialSentinel).digest('hex');
+  const privacySurfaceClientId = `privacy-boundary-surface-setup-${randomUUID()}`;
   const credentialMessageClientId = `privacy-boundary-credential-lifecycle-${randomUUID()}`;
   assertDedicatedTemporaryProfile(profileDir);
   fs.mkdirSync(artifactsDir, { recursive: true });
@@ -808,6 +851,18 @@ async function main() {
 
     const worker = await waitForExtensionWorker(context, args.timeout);
     const extensionId = new URL(worker.url()).hostname;
+    optionsPage = await openOptionsPage(
+      createPage,
+      activatePage,
+      extensionId,
+      manifestEvidence.optionsPage,
+      args.timeout,
+    );
+    optionsPage.on('console', (message) => {
+      if (message.type() === 'error') {
+        consoleErrors.push(redactEvidenceText(message.text()).slice(0, 500));
+      }
+    });
     page = await createPage();
     page.on('dialog', async (dialog) => {
       dialogs.push({ type: dialog.type(), message: redactEvidenceText(dialog.message()) });
@@ -831,7 +886,11 @@ async function main() {
     const migratedStorage = await page.evaluate(storageObjectFromPage);
     assertLegacyCacheBoundary(initialStorage, migratedStorage);
 
-    const configuredSurfaces = await configurePrivacySurfaces(worker);
+    const configuredSurfaces = await configurePrivacySurfaces(
+      optionsPage,
+      privacySurfaceClientId,
+      args.timeout,
+    );
     await page.reload({ waitUntil: 'domcontentloaded', timeout: args.timeout });
     await page.waitForSelector('#fluent-read-page-styles', { state: 'attached', timeout: args.timeout });
     await page.waitForSelector('#fluent-read-floating-ball-container', { state: 'attached', timeout: args.timeout });
@@ -842,14 +901,14 @@ async function main() {
     await page.screenshot({ path: path.join(artifactsDir, 'privacy-boundary-before-events.png'), fullPage: true });
     evidence.screenshots.push(path.join(artifactsDir, 'privacy-boundary-before-events.png'));
 
-    const storageBefore = await extensionStorageEvidence(worker, PREFILL_SECRET_MARKER);
+    const storageBefore = await extensionStorageEvidence(optionsPage, PREFILL_SECRET_MARKER);
     const extensionPagesBefore = context.pages()
       .map((candidate) => candidate.url())
       .filter((url) => url.startsWith(`chrome-extension://${extensionId}/`));
     const networkStart = networkEvents.length;
     const untrustedEventObservations = await dispatchUntrustedControls(page, PREFILL_SECRET_MARKER);
     await page.waitForTimeout(1_500);
-    const storageAfter = await extensionStorageEvidence(worker, PREFILL_SECRET_MARKER);
+    const storageAfter = await extensionStorageEvidence(optionsPage, PREFILL_SECRET_MARKER);
     const finalState = await pageBoundaryState(page, PREFILL_SECRET_MARKER);
     const extensionPagesAfter = context.pages()
       .map((candidate) => candidate.url())
@@ -865,19 +924,6 @@ async function main() {
     const finalScreenshot = path.join(artifactsDir, 'privacy-boundary-final.png');
     await page.screenshot({ path: finalScreenshot, fullPage: true });
     evidence.screenshots.push(finalScreenshot);
-
-    optionsPage = await openOptionsPage(
-      createPage,
-      activatePage,
-      extensionId,
-      manifestEvidence.optionsPage,
-      args.timeout,
-    );
-    optionsPage.on('console', (message) => {
-      if (message.type() === 'error') {
-        consoleErrors.push(redactEvidenceText(message.text()).slice(0, 500));
-      }
-    });
 
     const sessionOnlyExpected = {
       sessionCredentialsPresent: true,
@@ -929,7 +975,12 @@ async function main() {
     );
     assertCredentialStorageState('设置页重载后', sessionOnlyAfterReload, sessionOnlyExpected);
 
-    const exportEvidence = await exportConfigViaOptionsUi(optionsPage, credentialSentinel, args.timeout);
+    const exportEvidence = await exportConfigViaOptionsUi(
+      optionsPage,
+      credentialSentinel,
+      args.timeout,
+      artifactsDir,
+    );
     if (exportEvidence.containsCredentialSentinel || exportEvidence.containsCredentialFields) {
       throw new Error(`设置页导出泄露了凭据：${JSON.stringify(exportEvidence)}`);
     }

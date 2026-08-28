@@ -28,8 +28,8 @@ import {
 export function createConfigBackgroundHandlers<TContext extends ConfigPersistenceContext>(): Array<BackgroundMessageHandler<TContext>> {
     const mutations = createConfigMutationCoordinator();
     return [
-        createConfigCountIncrementHandler((delta) => (
-            mutations.run(() => incrementConfigCount(delta))
+        createConfigCountIncrementHandler((delta, operationId) => (
+            mutations.run(() => incrementConfigCount(delta, operationId))
         )),
         createConfigHistoryHandler((action, version) => (
             mutations.run(() => applyConfigHistoryAction(action, version))

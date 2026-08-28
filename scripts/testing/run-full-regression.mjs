@@ -48,6 +48,13 @@ const LOCAL_BROWSER_FIXTURES = [
         supportsHeaded: false,
     },
     {
+        id: 'settings-center-ui',
+        label: 'settings center UI browser regression',
+        script: 'scripts/testing/run-settings-center-ui-test.cjs',
+        backgroundArgs: ['--background'],
+        supportsHeaded: false,
+    },
+    {
         id: 'privacy-boundary',
         label: 'privacy boundary browser regression',
         script: 'scripts/run-privacy-boundary-test.cjs',

@@ -98,7 +98,7 @@ function sanitizeSensitiveValue(value: unknown, seen = new WeakSet<object>()): u
                     return sanitizeSensitiveValue(parsed, seen);
                 }
             } catch {
-                // Non-JSON prompt or template. It is handled as ordinary text below.
+                // 非 JSON 的 prompt 或模板会在下方按普通文本处理。
             }
         }
         return containsSensitiveContent(value) ? sensitiveSummary(value) : value;
@@ -410,9 +410,8 @@ function diffField(field: string, before: unknown, after: unknown): {group: Conf
 }
 
 /**
- * Compare two public configuration snapshots and return user-facing changes in
- * stable settings-page order. Credential fields are omitted before values are
- * formatted, so this result is safe to render in a backup preview.
+ * 比较两份公开配置快照，并按设置页的稳定顺序返回面向用户的变更。
+ * 格式化值之前会排除凭据字段，因此结果可以安全用于备份预览。
  */
 export function buildConfigDiff(current: unknown, target: unknown): ConfigDiffResult {
     const currentConfig = configRecord(current);

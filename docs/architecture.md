@@ -124,7 +124,7 @@ tests/
   test-matrix.json
 ```
 
-迁移期间允许旧目录与目标目录并存，但新业务不能继续写进 `entrypoints/utils/`、`components/Main.vue` 或巨型 entrypoint。
+旧 `entrypoints/utils/` 兼容层已经删除；业务代码和测试必须直接依赖 `src` 公共契约，不能重新创建入口工具目录、`components/Main.vue` 或巨型 entrypoint。
 
 ## 依赖方向
 
@@ -291,6 +291,15 @@ feature
 - `core/config`：类型、默认值、纯 normalize/validate/migrate。
 - `services/config`：latest-write-wins、历史记录、保存队列、凭据协调。
 - `platform/storage`：WXT storage/session/local 的读写适配。
+
+扩展页面提交整份配置时必须通过 background 的 mutation coordinator，不能在 popup、文档页或
+content 上下文直接写 `local:config`。翻译计数使用独立增量消息；最近的 operationId 与 count
+放在同一个存储记录中原子提交，但不会进入配置历史、导出文件或运行时 UI 对象。
+
+userscript 没有跨站点共享的原子后台，因此计数采用每个顶层文档独占的单调 GM 副本：总数等于
+迁移基数加所有副本绝对值，`local:config.count` 只是可重建的显示投影。热路径只写当前副本，
+启动、页面重新可见和打开设置时才聚合全部副本；经典 GM API 没有 CAS，不能在保持跨标签精确性的
+同时安全自动压缩旧副本，因此不得用有竞争的读改写“优化”掉这些键。
 
 消息必须使用版本化、可解析的 discriminated union。禁止在多个 feature 中散落同名字符串和 `any` payload。隐私或本机 bridge 协议还必须定义大小上限、TTL、URL 清洗、错误码和 stale-version 防护。
 

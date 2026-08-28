@@ -26,16 +26,15 @@ export interface AiSdkEndpointConfig {
 }
 
 export interface OpenAICompatibleEndpointResolution {
-    /** Canonical URL that the current FluentRead adapter would call. */
+    /** 当前 FluentRead 适配器实际调用的规范 URL。 */
     endpoint: string;
-    /** URL prefix passed to an OpenAI-compatible provider before it appends /chat/completions. */
+    /** 传给 OpenAI 兼容 provider 的 URL 前缀，provider 会在其后追加 `/chat/completions`。 */
     baseURL: string;
-    /** Query parameters removed from the endpoint and supplied at provider creation time. */
+    /** 从 endpoint 中移除、并在创建 provider 时单独传入的查询参数。 */
     queryParams?: Record<string, string>;
     /**
-     * An endpoint that cannot be represented losslessly as baseURL plus the
-     * provider query record, such as a non-standard path or duplicate query
-     * keys. The SDK adapter rewrites its injected fetch target to this URL.
+     * 无法用 baseURL 与 provider 查询记录无损表达的 endpoint，例如非标准路径或
+     * 重复查询键。SDK 适配器会把注入的 fetch 目标改写为此 URL。
      */
     exactEndpoint?: string;
 }
@@ -93,9 +92,8 @@ function withoutTrailingSlash(value: string): string {
 }
 
 /**
- * Split a complete Chat Completions URL into the fields expected by the
- * OpenAI-compatible provider. Non-standard paths retain an exactEndpoint marker
- * so the shared fetch wrapper preserves the configured direct target.
+ * 将完整的 Chat Completions URL 拆分为 OpenAI 兼容 provider 所需字段。
+ * 非标准路径会保留 exactEndpoint 标记，使共享 fetch 包装器维持配置中的直接目标。
  */
 export function parseChatCompletionsEndpoint(
     rawEndpoint: string,
@@ -134,7 +132,7 @@ export function parseChatCompletionsEndpoint(
     };
 }
 
-/** Match the URL completion rules in the existing New API adapter. */
+/** 与现有 New API 适配器的 URL 补全规则保持一致。 */
 export function normalizeNewApiEndpoint(rawEndpoint: string): string {
     const url = parseAbsoluteEndpoint(rawEndpoint, 'New API 地址');
     const path = url.pathname.replace(/\/+$/, '');

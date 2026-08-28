@@ -234,7 +234,7 @@ async function navigate(client, url) {
             const next = await selectedFrame(client);
             if (next.frame.url === url) return next;
         } catch {
-            // The browsing context is replaced during navigation.
+            // 导航期间 browsing context 会被替换，继续等待新 frame 即可。
         }
         await sleep(100);
     }
@@ -452,7 +452,7 @@ async function main() {
             app: Boolean(document.querySelector('.settings-app')),
             target: document.querySelector('[aria-label="默认目标语言"]')?.parentElement?.parentElement?.querySelector('.el-select__selected-item:not(.el-select__input-wrapper)')?.textContent?.trim() || null
         })`);
-        // Allow configReady/hydration and the first storage echo to settle before editing.
+        // 编辑前等待 configReady、水合及首次 storage 回声稳定。
         await sleep(500);
 
         const selectLanguage = async (label) => {
@@ -490,9 +490,8 @@ async function main() {
             await sleep(100);
         } while (Date.now() < storageDeadline);
 
-        // Trigger the real short-lifecycle path without touching the visible browser:
-        // navigating the same extension tab away fires pagehide/unmount, then opens the
-        // popup again in that same browsing context.
+        // 不触碰可见浏览器，直接触发真实的短生命周期路径：让同一扩展标签页导航离开，
+        // 触发 pagehide/unmount，再在同一 browsing context 中重新打开 popup。
         console.error('[firefox-test] quick close via extension navigation');
         await navigate(client, popupUrl);
         result.persistenceCases.quickClose = true;

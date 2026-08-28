@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const fs = require('node:fs');
+const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const { createRequire } = require('node:module');
@@ -98,7 +99,7 @@ async function persistExtensionConfig(extensionPage, patch) {
 }
 
 const OFFLINE_YOUTUBE_FIXTURE_HTML = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>YouTube subtitle fixture</title><script>var ytInitialPlayerResponse={"captions":{"playerCaptionsTracklistRenderer":{"captionTracks":[{"baseUrl":"https://www.youtube.com/api/timedtext?v=fixture-original-slow&lang=en","languageCode":"en","name":{"simpleText":"English"}}]}}};</script></head>
+<html lang="en"><head><meta charset="utf-8"><title>YouTube subtitle fixture</title><script>var ytInitialPlayerResponse={"captions":{"playerCaptionsTracklistRenderer":{"captionTracks":[{"baseUrl":"https://www.youtube.com/api/timedtext?v=fixture-original-slow&lang=en&kind=download","languageCode":"en","name":{"simpleText":"English"}}]}}};</script></head>
 <body><main><div id="movie_player" class="html5-video-player"></div></main></body></html>`;
 
 
@@ -157,62 +158,153 @@ async function main() {
   const aiTranslationSources = [];
   const navigationMode = 'offline-youtube-fixture';
   const unexpectedNetworkRequests = [];
-  await context.route('**/*', async (route) => {
-    const request = route.request();
-    const requestUrl = new URL(request.url());
-    if (requestUrl.hostname === 'edge.microsoft.com' && requestUrl.pathname === '/translate/translatetext') {
+  const consoleErrors = [];
+  const fixtureTranslations = {
+    'and the housing market took a hit.': '房地产市场受到了冲击。',
+    'Download translated subtitle.': '可下载的译文字幕。',
+    'Offline viewing stays in sync.': '离线观看仍与时间轴同步。',
+    'understand from [music] the axioms and the basics.': '从音乐中理解公理和基础。',
+    'Timeline subtitle catches up.': '时间轴已追上字幕。',
+    'This subtitle was translated in advance.': '预先翻译的字幕。',
+  };
+  const providerFixtureServer = http.createServer(async (request, response) => {
+    const responseHeaders = {
+      'access-control-allow-origin': '*',
+      'cache-control': 'no-store',
+      'content-type': 'application/json; charset=utf-8',
+    };
+    if (request.method === 'OPTIONS') {
+      response.writeHead(204, {
+        ...responseHeaders,
+        'access-control-allow-headers': '*',
+        'access-control-allow-methods': 'POST, OPTIONS',
+      });
+      response.end();
+      return;
+    }
+
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    let body;
+    try {
+      body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    } catch {
+      body = null;
+    }
+
+    if (request.method === 'POST' && request.url === '/microsoft') {
       translationRequests += 1;
-      const body = request.postDataJSON();
       const source = Array.isArray(body) ? String(body[0] || '') : '';
       translationSources.push(source);
-      const fixtureTranslations = {
-        'and the housing market took a hit.': '房地产市场受到了冲击。',
-        'Download translated subtitle.': '可下载的译文字幕。',
-        'Offline viewing stays in sync.': '离线观看仍与时间轴同步。',
-        'understand from [music] the axioms and the basics.': '从音乐中理解公理和基础。',
-        'Timeline subtitle catches up.': '时间轴已追上字幕。',
-        'This subtitle was translated in advance.': '预先翻译的字幕。',
-      };
-      const translated = fixtureTranslations[source] || `【译文】${source}`;
       if (source === 'Download translated subtitle.' || source === 'Offline viewing stays in sync.') {
         await new Promise(resolve => setTimeout(resolve, 300));
       }
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([{ translations: [{ text: translated }] }]),
-      });
+      response.writeHead(200, responseHeaders);
+      response.end(JSON.stringify([{ translations: [{ text: fixtureTranslations[source] || `【译文】${source}` }] }]));
       return;
     }
-    if (requestUrl.hostname === 'api.openai.com' && requestUrl.pathname === '/v1/chat/completions') {
-      const body = request.postDataJSON();
-      const source = body?.messages?.findLast?.((message) => message?.role === 'user')?.content || '';
+
+    if (request.method === 'POST' && request.url === '/openai') {
+      const messages = Array.isArray(body?.messages) ? body.messages : [];
+      const source = [...messages].reverse().find(message => message?.role === 'user')?.content || '';
       aiTranslationSources.push(String(source));
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ choices: [{ message: { content: 'AI预先翻译的字幕。' } }] }),
-      });
+      response.writeHead(200, responseHeaders);
+      response.end(JSON.stringify({ choices: [{ message: { content: 'AI预先翻译的字幕。' } }] }));
       return;
     }
-    if (requestUrl.hostname === 'www.youtube.com' && requestUrl.pathname === '/api/timedtext') {
-      await route.fulfill({status: 200, contentType: 'application/json', body: JSON.stringify({events: []})});
+
+    if (request.method === 'POST' && request.url === '/unexpected') {
+      const attemptedUrl = typeof body?.url === 'string' ? body.url : 'unknown-worker-request';
+      unexpectedNetworkRequests.push(attemptedUrl);
+      response.writeHead(502, responseHeaders);
+      response.end(JSON.stringify({ error: '视频字幕 fixture 已阻止未授权外网请求' }));
       return;
     }
-    const isNetworkRequest = requestUrl.protocol === 'http:' || requestUrl.protocol === 'https:';
-    if (isNetworkRequest) {
-      unexpectedNetworkRequests.push(request.url());
-      await route.abort('blockedbyclient');
-      return;
-    }
-    await route.continue();
+
+    response.writeHead(404, responseHeaders);
+    response.end(JSON.stringify({ error: 'unknown fixture route' }));
   });
 
   try {
+    await new Promise((resolve, reject) => {
+      providerFixtureServer.once('error', reject);
+      providerFixtureServer.listen(0, '127.0.0.1', resolve);
+    });
+    const providerFixtureAddress = providerFixtureServer.address();
+    if (!providerFixtureAddress || typeof providerFixtureAddress === 'string') {
+      throw new Error('无法取得 provider fixture 的 loopback 地址');
+    }
+    const providerFixtureOrigin = `http://127.0.0.1:${providerFixtureAddress.port}`;
+
+    // Playwright 的 route 不能可靠覆盖 MV3 Service Worker 内的 fetch。页面路由只负责
+    // YouTube fixture 与 fail-closed，provider 请求由下方 worker fetch 包装器重定向。
+    await context.route('**/*', async (route) => {
+      const request = route.request();
+      const requestUrl = new URL(request.url());
+      if (requestUrl.origin === providerFixtureOrigin) {
+        await route.continue();
+        return;
+      }
+      if (requestUrl.hostname === 'www.youtube.com' && requestUrl.pathname === '/api/timedtext') {
+        await route.fulfill({status: 200, contentType: 'application/json', body: JSON.stringify({events: []})});
+        return;
+      }
+      const isNetworkRequest = requestUrl.protocol === 'http:' || requestUrl.protocol === 'https:';
+      if (isNetworkRequest) {
+        unexpectedNetworkRequests.push(request.url());
+        await route.abort('blockedbyclient');
+        return;
+      }
+      await route.continue();
+    });
+
     const worker = context.serviceWorkers()[0]
       || await context.waitForEvent('serviceworker', { timeout: 30000 });
     const extensionId = worker.url().match(/^chrome-extension:\/\/([^/]+)/)?.[1];
     if (!extensionId) throw new Error(`无法取得扩展 ID：${worker.url()}`);
+    const attachWorkerDiagnostics = (target) => {
+      target.on('console', (message) => {
+        if (message.type() === 'error') consoleErrors.push(`worker console: ${message.text()}`);
+      });
+    };
+    const installProviderFixtures = (target) => target.evaluate((fixtureOrigin) => {
+      if (globalThis.__fluentReadVideoProviderFixtureInstalled) return;
+      const nativeFetch = globalThis.fetch.bind(globalThis);
+      const fixtureFetch = (pathname, init) => nativeFetch(`${fixtureOrigin}${pathname}`, init);
+      globalThis.fetch = (input, init) => {
+        const requestUrl = typeof input === 'string' || input instanceof URL ? String(input) : input?.url || '';
+        let parsedUrl;
+        try {
+          parsedUrl = new URL(requestUrl);
+        } catch {
+          return nativeFetch(input, init);
+        }
+        if (parsedUrl.hostname === 'edge.microsoft.com' && parsedUrl.pathname === '/translate/translatetext') {
+          return fixtureFetch('/microsoft', init);
+        }
+        if (parsedUrl.hostname === 'api.openai.com' && parsedUrl.pathname === '/v1/chat/completions') {
+          return fixtureFetch('/openai', init);
+        }
+        if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
+          return fixtureFetch('/unexpected', {
+            method: 'POST',
+            headers: {'content-type': 'application/json'},
+            body: JSON.stringify({url: requestUrl}),
+            signal: init?.signal,
+          });
+        }
+        return nativeFetch(input, init);
+      };
+      globalThis.__fluentReadVideoProviderFixtureInstalled = true;
+    }, providerFixtureOrigin);
+    attachWorkerDiagnostics(worker);
+    await installProviderFixtures(worker);
+    context.on('serviceworker', (target) => {
+      attachWorkerDiagnostics(target);
+      void installProviderFixtures(target).catch((error) => {
+        consoleErrors.push(`worker fixture install: ${error.message}`);
+      });
+    });
 
     const control = await createPage();
     await control.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: 'domcontentloaded' });
@@ -273,7 +365,6 @@ async function main() {
 
     const page = await createPage();
     const pageErrors = [];
-    const consoleErrors = [];
     const collectPageError = (error) => pageErrors.push(error.stack || error.message);
     page.on('pageerror', collectPageError);
     page.on('console', (message) => {
@@ -467,7 +558,7 @@ async function main() {
         captions: {
           playerCaptionsTracklistRenderer: {
             captionTracks: [{
-              baseUrl: 'https://www.youtube.com/api/timedtext?v=fixture-original-slow&lang=en',
+              baseUrl: 'https://www.youtube.com/api/timedtext?v=fixture-original-slow&lang=en&kind=download',
               languageCode: 'en',
               name: { simpleText: 'English' },
             }],
@@ -639,7 +730,7 @@ async function main() {
       window.postMessage({
         source: 'fluent-read',
         type: 'fluent-read-youtube-timedtext',
-        url: 'https://www.youtube.com/api/timedtext?v=fixture-progressive&lang=en',
+        url: 'https://www.youtube.com/api/timedtext?v=fixture-original-slow&lang=en',
         responseText: JSON.stringify({ events: [{ tStartMs: 0, dDurationMs: 5000, segs: [{ utf8: source }] }] }),
       }, window.location.origin);
     }, progressiveSource);
@@ -648,7 +739,24 @@ async function main() {
       await page.waitForTimeout(100);
     }
     if (translationSources.filter((source) => source === progressiveSource).length !== 1) {
-      throw new Error(`渐进字幕没有在播放前完成一次完整 cue 翻译：${JSON.stringify({ translationSources })}`);
+      // 失败诊断：用短前缀区分“轨道未接收”和“轨道已接收但时间轴没有触发预取”。
+      await page.evaluate(() => {
+        const segment = document.querySelector('#ytp-caption-window-container .ytp-caption-segment');
+        if (segment) segment.textContent = 'understand';
+      });
+      await page.waitForTimeout(1500);
+      const progressiveDiagnostics = await page.evaluate(() => {
+        const video = document.querySelector('video.html5-main-video');
+        return {
+          href: window.location.href,
+          currentTime: video instanceof HTMLVideoElement ? video.currentTime : null,
+          readyState: video instanceof HTMLVideoElement ? video.readyState : null,
+          menuEnabled: document.querySelector('#fluent-read-video-subtitle-menu [data-action="toggle-translation"] [data-state]')?.textContent || '',
+          original: document.querySelector('#fluent-read-video-subtitle-original')?.textContent || '',
+          translation: document.querySelector('#fluent-read-video-subtitle')?.textContent || '',
+        };
+      });
+      throw new Error(`渐进字幕没有在播放前完成一次完整 cue 翻译：${JSON.stringify({ translationSources, progressiveDiagnostics })}`);
     }
 
     const progressiveTexts = [
@@ -863,7 +971,7 @@ async function main() {
       window.postMessage({
         source: 'fluent-read',
         type: 'fluent-read-youtube-timedtext',
-        url: 'https://www.youtube.com/api/timedtext?v=fixture&lang=en',
+        url: 'https://www.youtube.com/api/timedtext?v=fixture-original-slow&lang=en&kind=prefetch',
         responseText: JSON.stringify({ events: [{ tStartMs: 8000, dDurationMs: 2000, segs: [{ utf8: source }] }] }),
       }, window.location.origin);
     }, pretranslatedSource);
@@ -902,7 +1010,7 @@ async function main() {
       window.postMessage({
         source: 'fluent-read',
         type: 'fluent-read-youtube-timedtext',
-        url: 'https://www.youtube.com/api/timedtext?v=fixture-ai&lang=en',
+        url: 'https://www.youtube.com/api/timedtext?v=fixture-original-slow&lang=en&kind=ai',
         responseText: JSON.stringify({ events: [{ tStartMs: 20000, dDurationMs: 2000, segs: [{ utf8: source }] }] }),
       }, window.location.origin);
     }, aiPretranslatedSource);
@@ -946,7 +1054,7 @@ async function main() {
       window.postMessage({
         source: 'fluent-read',
         type: 'fluent-read-youtube-timedtext',
-        url: 'https://www.youtube.com/api/timedtext?v=fixture-timeline&lang=en',
+        url: 'https://www.youtube.com/api/timedtext?v=fixture-original-slow&lang=en&kind=timeline',
         responseText: JSON.stringify({ events: [
           { tStartMs: 0, dDurationMs: 1800, segs: [{ utf8: oldSource }] },
           { tStartMs: 2000, dDurationMs: 3000, segs: [{ utf8: nextSource }] },
@@ -1046,6 +1154,9 @@ async function main() {
     }
   } finally {
     await browserSession.close();
+    if (providerFixtureServer.listening) {
+      await new Promise(resolve => providerFixtureServer.close(resolve));
+    }
     fs.rmSync(profileDir, { recursive: true, force: true });
   }
 }

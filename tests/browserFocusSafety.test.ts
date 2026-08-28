@@ -10,6 +10,7 @@ const FOCUS_SAFE_SCRIPTS = [
     'scripts/run-full-page-translation-test.cjs',
     'scripts/run-video-subtitle-fixture-test.cjs',
     'scripts/run-document-translation-test.cjs',
+    'scripts/testing/run-settings-center-ui-test.cjs',
     'scripts/run-privacy-boundary-test.cjs',
     'scripts/run-site-translation-test.cjs',
     'scripts/run-userscript-smoke-test.cjs',
@@ -20,6 +21,7 @@ const FOCUS_SAFE_SCRIPTS = [
 const ACTIVATED_EXTENSION_TAB_SCRIPTS = FOCUS_SAFE_SCRIPTS.filter(
     (path) => ![
         'scripts/run-document-translation-test.cjs',
+        'scripts/testing/run-settings-center-ui-test.cjs',
         'scripts/run-userscript-smoke-test.cjs',
     ].includes(path),
 );
@@ -115,6 +117,12 @@ describe('browser regression focus safety', () => {
         expect(videoSource).toContain("await context.route('**/*'");
         expect(videoSource).toContain('unexpectedNetworkRequests.length === 0');
         expect(videoSource).toContain('if (!evidence.ok)');
+        const privacySource = readScript('scripts/run-privacy-boundary-test.cjs');
+        expect(privacySource).toContain('configurePrivacySurfaces(optionsPage');
+        expect(privacySource).toContain("type: 'persistConfig'");
+        expect(privacySource).toContain('baseRevision');
+        expect(privacySource).not.toContain('configurePrivacySurfaces(worker');
+        expect(privacySource).not.toContain('chrome.storage.local.set({ config: next })');
     });
 
     it('userscript 后台 smoke 不复用 helper 可能关闭的启动页', async () => {

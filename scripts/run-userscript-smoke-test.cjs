@@ -170,6 +170,25 @@ async function selectUserscriptTestPage(background, context, createIsolatedPage)
   return context.pages()[0] || createIsolatedPage();
 }
 
+function decodeStoredValue(value) {
+  if (typeof value !== 'string') return value;
+  try { return JSON.parse(value); } catch { return value; }
+}
+
+function readSharedUserscriptCount(store) {
+  let base = 0;
+  let replicas = 0;
+  for (const [key, rawValue] of store) {
+    const value = decodeStoredValue(rawValue);
+    if (!value || value.version !== 1 || !Number.isSafeInteger(value.value) || value.value < 0) continue;
+    if (key.startsWith('fluentread:count:v1:base:')) base = Math.max(base, value.value);
+    if (key.startsWith('fluentread:count:v1:replica:')) replicas += value.value;
+  }
+  const total = base + replicas;
+  if (!Number.isSafeInteger(total)) throw new Error('userscript smoke 计数超过安全整数范围');
+  return total;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const artifact = path.resolve(args.artifact);
@@ -190,6 +209,18 @@ async function main() {
   let windowPlacement = args.background
     ? null
     : {mode: 'headed-explicit-foreground', windowState: 'normal', viewport: {width: 1280, height: 900}};
+  const sharedGmStore = new Map();
+  sharedGmStore.set('local:config', JSON.stringify({
+    on: true,
+    autoTranslate: false,
+    from: 'auto',
+    to: 'zh-Hans',
+    service: 'freeTranslation',
+    disableFloatingBall: false,
+    selectionAreaEnabled: true,
+    disableImageTranslator: false,
+    videoTranslationEnabled: true,
+  }));
   try {
     const browserArgs = [
         '--no-first-run',
@@ -221,28 +252,25 @@ async function main() {
         args: browserArgs,
       });
     }
+    await context.exposeFunction('__fluentReadGmGet', (key, fallback) => (
+      sharedGmStore.has(key) ? sharedGmStore.get(key) : fallback
+    ));
+    await context.exposeFunction('__fluentReadGmSet', (key, value) => {
+      sharedGmStore.set(key, value);
+    });
+    await context.exposeFunction('__fluentReadGmDelete', (key) => {
+      sharedGmStore.delete(key);
+    });
+    await context.exposeFunction('__fluentReadGmList', () => [...sharedGmStore.keys()]);
     await context.addInitScript(() => {
-      const store = new Map();
-      store.set('local:config', JSON.stringify({
-        on: true,
-        autoTranslate: false,
-        from: 'auto',
-        to: 'zh-Hans',
-        service: 'freeTranslation',
-        disableFloatingBall: false,
-        selectionAreaEnabled: true,
-        disableImageTranslator: false,
-        videoTranslationEnabled: true,
-      }));
-      Object.defineProperty(window, '__fluentReadSmokeStore', {value: store});
       Object.defineProperty(window, '__fluentReadOriginalAttachShadow', {value: Element.prototype.attachShadow});
       Object.defineProperty(window, '__fluentReadSmokeBridgeEvents', {value: {shadow: 0, route: 0}});
       document.addEventListener('fluentread-open-shadow-root', () => { window.__fluentReadSmokeBridgeEvents.shadow += 1; });
       document.addEventListener('fluentread-route-change', () => { window.__fluentReadSmokeBridgeEvents.route += 1; });
-      window.GM_getValue = (key, fallback) => store.has(key) ? store.get(key) : fallback;
-      window.GM_setValue = (key, value) => { store.set(key, value); };
-      window.GM_deleteValue = (key) => { store.delete(key); };
-      window.GM_listValues = () => [...store.keys()];
+      window.GM_getValue = (key, fallback) => window.__fluentReadGmGet(key, fallback);
+      window.GM_setValue = (key, value) => window.__fluentReadGmSet(key, value);
+      window.GM_deleteValue = (key) => window.__fluentReadGmDelete(key);
+      window.GM_listValues = () => window.__fluentReadGmList();
       window.GM_registerMenuCommand = () => 1;
       window.GM_addStyle = (css) => {
         const style = document.createElement('style');
@@ -282,6 +310,8 @@ async function main() {
     });
     await page.goto(fixture.url, {waitUntil: 'domcontentloaded', timeout: args.timeout});
     await page.evaluate(() => {
+      localStorage.setItem('__fluentReadHostLocalSentinel', 'host-local-sentinel');
+      sessionStorage.setItem('__fluentReadHostSessionSentinel', 'host-session-sentinel');
       Object.defineProperty(window, '__fluentReadBrowserBeforeInjection', {value: window.browser});
       Object.defineProperty(window, '__fluentReadChromeBeforeInjection', {value: window.chrome});
     });
@@ -386,13 +416,85 @@ async function main() {
     await page.screenshot({path: path.join(artifactsDir, 'userscript-translated.png'), fullPage: true});
 
     await fullPageToggle(page, 0, 0, args.timeout);
+    await page.waitForTimeout(700);
+    const concurrentPages = [];
+    let crossTabCount;
+    try {
+      const createCountingPage = async () => {
+        const countingPage = await createIsolatedPage();
+        concurrentPages.push(countingPage);
+        countingPage.on('pageerror', (error) => consoleErrors.push(`cross-tab pageerror: ${error.message}`));
+        countingPage.on('console', (message) => {
+          if (message.type() === 'error') consoleErrors.push(`cross-tab console: ${message.text()}`);
+        });
+        await countingPage.goto(fixture.url, {waitUntil: 'domcontentloaded', timeout: args.timeout});
+        await countingPage.evaluate(() => {
+          localStorage.setItem('__fluentReadHostLocalSentinel', 'host-local-sentinel');
+          sessionStorage.setItem('__fluentReadHostSessionSentinel', 'host-session-sentinel');
+        });
+        await countingPage.addScriptTag({path: artifact});
+        await countingPage.waitForSelector('#fluent-read-page-styles', {state: 'attached', timeout: args.timeout});
+        await countingPage.waitForSelector('#fluent-read-floating-ball-container', {state: 'attached', timeout: args.timeout});
+        return countingPage;
+      };
+
+      const baseline = readSharedUserscriptCount(sharedGmStore);
+      const firstCountingPage = await createCountingPage();
+      const secondCountingPage = await createCountingPage();
+      await Promise.all([
+        hoverToggle(firstCountingPage, 1, args.timeout),
+        hoverToggle(secondCountingPage, 1, args.timeout),
+      ]);
+      await firstCountingPage.waitForTimeout(800);
+      const afterConcurrentTranslation = readSharedUserscriptCount(sharedGmStore);
+      if (afterConcurrentTranslation !== baseline + 2) {
+        throw new Error(`userscript 跨标签计数丢失：${JSON.stringify({baseline, afterConcurrentTranslation})}`);
+      }
+      await Promise.all(concurrentPages.splice(0).map((countingPage) => countingPage.close()));
+
+      const recoveryPage = await createCountingPage();
+      const recovered = await recoveryPage.evaluate(async () => {
+        const rawConfig = await window.GM_getValue('local:config', null);
+        const parsedConfig = typeof rawConfig === 'string' ? JSON.parse(rawConfig) : rawConfig;
+        return {
+          count: parsedConfig?.count,
+          localSentinel: localStorage.getItem('__fluentReadHostLocalSentinel'),
+          sessionSentinel: sessionStorage.getItem('__fluentReadHostSessionSentinel'),
+        };
+      });
+      const countEntries = [...sharedGmStore.entries()].filter(([key]) => key.startsWith('fluentread:count:v1:'));
+      const countPayload = JSON.stringify(countEntries);
+      if (recovered.count !== afterConcurrentTranslation) {
+        throw new Error(`userscript 新页面没有恢复权威计数：${JSON.stringify({recovered, afterConcurrentTranslation})}`);
+      }
+      if (recovered.localSentinel !== 'host-local-sentinel' || recovered.sessionSentinel !== 'host-session-sentinel') {
+        throw new Error(`userscript 计数污染宿主 Web Storage：${JSON.stringify(recovered)}`);
+      }
+      if (countPayload.includes(fixture.url)
+        || countPayload.includes('FluentRead keeps the original paragraph')
+        || countPayload.includes('credential-sentinel')) {
+        throw new Error('userscript 计数 GM 键或记录包含页面证据或凭据');
+      }
+      crossTabCount = {
+        baseline,
+        afterConcurrentTranslation,
+        recoveredCount: recovered.count,
+        countKeyCount: countEntries.length,
+        hostStoragePreserved: true,
+      };
+    } finally {
+      await Promise.all(concurrentPages.map((countingPage) => countingPage.close().catch(() => undefined)));
+    }
+
     await page.evaluate(() => {
-      const store = window.__fluentReadSmokeStore;
-      const nextConfig = JSON.parse(String(store.get('local:config')));
-      nextConfig.service = 'openai';
-      nextConfig.token = {...nextConfig.token, openai: ''};
-      store.set('local:config', JSON.stringify(nextConfig));
-      window.dispatchEvent(new Event('focus'));
+      return window.GM_getValue('local:config', null).then((rawConfig) => {
+        const nextConfig = typeof rawConfig === 'string' ? JSON.parse(rawConfig) : rawConfig;
+        nextConfig.service = 'openai';
+        nextConfig.token = {...nextConfig.token, openai: ''};
+        return window.GM_setValue('local:config', JSON.stringify(nextConfig));
+      }).then(() => {
+        window.dispatchEvent(new Event('focus'));
+      });
     });
     await page.waitForTimeout(80);
     await hoverToggle(page, 0, args.timeout);
@@ -465,6 +567,7 @@ async function main() {
       settingsSecurity,
       unsupportedHosts,
       bridgeEvents,
+      crossTabCount,
       messageStyle,
       bridgeCleanup,
       consoleErrors,

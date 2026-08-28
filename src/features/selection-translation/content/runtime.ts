@@ -35,10 +35,10 @@ export function mountSelectionTranslator(ctx?: ContentScriptContext) {
     hostId: 'fluent-read-selection-translator-container',
     component: SelectionTranslator,
     zIndex: 2_147_483_646,
-    // The card exposes copy, speech, and translation actions. A closed root
-    // prevents the host page from invoking them with synthetic DOM events.
+    // 词卡包含复制、朗读和翻译动作，closed root 防止宿主页通过合成 DOM 事件调用这些能力。
     mode: 'closed',
   }).then((ui) => {
+    // 异步创建结束后复核代次和开关，旧请求不得覆盖较新的挂载状态。
     if (requestId !== mountRequestId || config.disableSelectionTranslator || config.selectionTranslatorMode === 'disabled') {
       ui.remove();
       return null;
@@ -58,6 +58,7 @@ export function mountSelectionTranslator(ctx?: ContentScriptContext) {
  * 卸载选词翻译组件
  */
 export function unmountSelectionTranslator() {
+  // 先使未完成的挂载失效，再清空 UI 与实例引用。
   mountRequestId++;
   selectionTranslatorUi?.remove();
   selectionTranslatorUi = null;

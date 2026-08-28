@@ -123,22 +123,80 @@ function safelyDestroy(resource: {destroy?: () => void}): void {
     }
 }
 
+function createAbortError(): Error {
+    const error = new Error('Chrome 翻译请求已取消');
+    error.name = 'AbortError';
+    return error;
+}
+
+function isAbortError(error: unknown): error is Error {
+    return error instanceof Error && error.name === 'AbortError';
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+    if (signal?.aborted) throw createAbortError();
+}
+
+function awaitWithAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+    if (!signal) return promise;
+    if (signal.aborted) return Promise.reject(createAbortError());
+    return new Promise<T>((resolve, reject) => {
+        let settled = false;
+        const finish = (callback: () => void) => {
+            if (settled) return;
+            settled = true;
+            signal.removeEventListener('abort', handleAbort);
+            callback();
+        };
+        const handleAbort = () => finish(() => reject(createAbortError()));
+        signal.addEventListener('abort', handleAbort, {once: true});
+        void promise.then(
+            (value) => finish(() => resolve(value)),
+            (error) => finish(() => reject(error)),
+        );
+    });
+}
+
+async function acquireAbortableResource<T extends {destroy?: () => void}>(
+    promise: Promise<T>,
+    signal?: AbortSignal,
+): Promise<T> {
+    try {
+        return await awaitWithAbort(promise, signal);
+    } catch (error) {
+        // create() 本身不可取消；若资源迟到，必须在它可用的第一刻释放。
+        if (signal?.aborted) void promise.then(safelyDestroy, () => undefined);
+        throw error;
+    }
+}
+
+function closeStream(iterator: AsyncIterator<unknown>): void {
+    try {
+        if (typeof iterator.return === 'function') void Promise.resolve(iterator.return()).catch(() => undefined);
+    } catch {
+        // stream.return() 属于尽力清理，translator.destroy() 仍会在 finally 执行。
+    }
+}
+
 export async function detectChromeLanguage(
     text: string,
     environment: ChromeTranslationEnvironment,
+    signal?: AbortSignal,
 ): Promise<string> {
     let detector: ChromeLanguageDetector | undefined;
     try {
+        throwIfAborted(signal);
         if (typeof environment.translation?.createDetector === 'function') {
-            detector = await environment.translation.createDetector();
+            detector = await acquireAbortableResource(environment.translation.createDetector(), signal);
         } else if (typeof environment.LanguageDetector?.create === 'function') {
-            detector = await environment.LanguageDetector.create();
+            detector = await acquireAbortableResource(environment.LanguageDetector.create(), signal);
         }
         if (detector) {
-            const detected = detectedLanguageFrom(await detector.detect(text));
+            const detected = detectedLanguageFrom(await awaitWithAbort(detector.detect(text), signal));
             if (detected) return detected;
         }
-    } catch {
+    } catch (error) {
+        if (isAbortError(error)) throw error;
         // 浏览器可能正在下载检测模型；此时回退到脚本检测，保持离线可用。
     } finally {
         if (detector) safelyDestroy(detector);
@@ -164,19 +222,36 @@ export async function performChromeTranslation(
     sourceLanguage: string,
     targetLanguage: string,
     environment: ChromeTranslationEnvironment,
+    signal?: AbortSignal,
 ): Promise<string> {
-    const translator = await createChromeTranslator(environment, {sourceLanguage, targetLanguage});
+    throwIfAborted(signal);
+    const translator = await acquireAbortableResource(
+        createChromeTranslator(environment, {sourceLanguage, targetLanguage}),
+        signal,
+    );
     try {
         if (typeof translator.translateStreaming === 'function') {
             let translated = '';
-            for await (const chunk of translator.translateStreaming(text)) {
-                if (typeof chunk !== 'string') throw new Error('翻译器返回了无效的流式结果');
-                translated += chunk;
+            const iterator = translator.translateStreaming(text)[Symbol.asyncIterator]();
+            let completed = false;
+            try {
+                while (true) {
+                    const next = await awaitWithAbort(Promise.resolve(iterator.next()), signal);
+                    if (next.done) {
+                        completed = true;
+                        break;
+                    }
+                    const chunk = next.value;
+                    if (typeof chunk !== 'string') throw new Error('翻译器返回了无效的流式结果');
+                    translated += chunk;
+                }
+            } finally {
+                if (!completed) closeStream(iterator);
             }
             return translated;
         }
         if (typeof translator.translate === 'function') {
-            const translated = await translator.translate(text);
+            const translated = await awaitWithAbort(translator.translate(text), signal);
             if (typeof translated !== 'string') throw new Error('翻译器返回了无效结果');
             return translated;
         }
@@ -191,6 +266,7 @@ export function friendlyChromeTranslationError(
     sourceLanguage: string,
     targetLanguage: string,
 ): Error {
+    if (isAbortError(error)) return error;
     const message = error instanceof Error ? error.message : String(error || '未知错误');
     if (message.includes('not available') || message.includes('not ready')) {
         return new Error('Chrome Translation API 暂时不可用。可能需要下载语言模型，请稍后重试。');
@@ -207,7 +283,9 @@ export function friendlyChromeTranslationError(
 export async function translateWithChromeApi(
     requestValue: unknown,
     environment: ChromeTranslationEnvironment,
+    signal?: AbortSignal,
 ): Promise<string> {
+    throwIfAborted(signal);
     const request = parseChromeTranslationRequest(requestValue);
     if (!request.text.trim()) return '';
     if (!isChromeTranslationSupported(environment)) {
@@ -217,14 +295,16 @@ export async function translateWithChromeApi(
     let sourceLanguage = request.from;
     let targetLanguage = request.to;
     try {
-        // Step 1: auto 只在源语言有效；检测失败由脚本规则兜底。
-        if (sourceLanguage === 'auto') sourceLanguage = await detectChromeLanguage(request.text, environment);
+        // 步骤 1：auto 只在源语言有效；检测失败由脚本规则兜底。
+        if (sourceLanguage === 'auto') {
+            sourceLanguage = await detectChromeLanguage(request.text, environment, signal);
+        }
         sourceLanguage = mapChromeLanguageCode(sourceLanguage);
         targetLanguage = mapChromeLanguageCode(targetLanguage);
 
-        // Step 2: 同语言直接返回原文，不创建昂贵的语言模型。
+        // 步骤 2：同语言直接返回原文，不创建昂贵的语言模型。
         if (sourceLanguage === targetLanguage) return request.text;
-        return await performChromeTranslation(request.text, sourceLanguage, targetLanguage, environment);
+        return await performChromeTranslation(request.text, sourceLanguage, targetLanguage, environment, signal);
     } catch (error) {
         throw friendlyChromeTranslationError(error, sourceLanguage, targetLanguage);
     }

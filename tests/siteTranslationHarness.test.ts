@@ -689,8 +689,8 @@ describe('site translation coverage contract', () => {
       const oldScript = math.querySelector('script[type^="math/tex"]')!;
       preview.remove();
       oldScript.remove();
-      // MathJax v2 can coalesce the prose Text nodes while replacing its
-      // Preview/script roots with the final Display/script pair.
+      // MathJax v2 在用最终 Display/script 对替换 Preview/script 根节点时，
+      // 可能同时合并正文 Text 节点。
       math.normalize();
       const display = document.createElement('div');
       display.className = 'MathJax_Display';
@@ -1123,8 +1123,7 @@ describe('site translation coverage contract', () => {
       expect(error).toBeInstanceOf(Error);
       expect((error as Error).message).toContain('forbidden DOM 被修改');
       expect((error as Error).message).toContain('"signatureCount":13');
-      // Contract comparison covers all 13 nodes, while diagnostics deliberately
-      // retain only the first 12 signatures to keep failures bounded.
+      // 契约比较覆盖全部 13 个节点，但诊断刻意只保留前 12 个签名，控制失败输出规模。
       expect((error as Error).message).not.toContain('damaged formula');
     } finally {
       for (const [name, descriptor] of previous) {
@@ -1414,8 +1413,8 @@ describe('real-site translation matrix gates', () => {
         killProcessGroupImpl: (_target, signal) => {
           signals.push(signal);
           if (signal === 'SIGTERM') {
-            // The runner exits, but a detached browser grandchild remains in
-            // the process group and therefore still requires group SIGKILL.
+            // runner 虽已退出，但脱离的浏览器孙进程仍留在进程组中，
+            // 因此仍需向整个进程组发送 SIGKILL。
             queueMicrotask(() => child.emit('close', null, 'SIGTERM'));
           }
           return true;

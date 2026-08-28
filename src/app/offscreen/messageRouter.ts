@@ -12,12 +12,15 @@ import {
 } from '@/src/features/image-translation/ocrLanguages';
 import type {SelectionTtsPlayer} from './ttsPlayback';
 import {parseLanguageCode} from './translation';
-import {OFFSCREEN_READY_MESSAGE_TYPE} from '@/src/platform/offscreen/client';
+import {
+    OFFSCREEN_CANCEL_CHROME_TRANSLATION_MESSAGE_TYPE,
+    OFFSCREEN_READY_MESSAGE_TYPE,
+} from '@/src/platform/offscreen/client';
 
 export type OffscreenSendResponse = (response: unknown) => void;
 
 export interface OffscreenMessageDependencies {
-    readonly translate: (data: unknown) => Promise<string>;
+    readonly translate: (data: unknown, signal: AbortSignal) => Promise<string>;
     readonly ttsPlayer: Pick<SelectionTtsPlayer, 'play' | 'stop'>;
     readonly recognizeImage: (image: string, sourceLanguage: string) => Promise<unknown>;
     readonly translateImage: (image: string, sourceLanguage: string, title: string) => Promise<unknown>;
@@ -37,6 +40,7 @@ type OffscreenMessageListener = (
 ) => boolean;
 
 const SUPPORTED_OCR_LANGUAGES = new Set(IMAGE_OCR_LANGUAGE_PACKS.map((pack) => pack.code));
+const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/u;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -45,6 +49,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function requiredString(value: unknown, field: string): string {
     if (typeof value !== 'string' || !value.trim()) throw new TypeError(`Offscreen ${field} 必须是非空字符串`);
     return value;
+}
+
+function requiredRequestId(value: unknown): string {
+    const requestId = requiredString(value, 'requestId');
+    if (!REQUEST_ID_PATTERN.test(requestId)) throw new TypeError('Offscreen requestId 格式无效');
+    return requestId;
 }
 
 function requiredImage(value: unknown): string {
@@ -101,7 +111,7 @@ function errorMessage(error: unknown): string {
 function respondWith(
     operation: () => Promise<unknown>,
     sendResponse: OffscreenSendResponse,
-    shape: (result: unknown) => unknown = (result) => ({success: true, result}),
+    shape: (result: unknown) => unknown,
 ): void {
     void Promise.resolve()
         .then(operation)
@@ -111,6 +121,7 @@ function respondWith(
 
 /** 静态路由 Offscreen 消息；未知或非对象消息不会占用其他 runtime listener。 */
 export function createOffscreenMessageListener(dependencies: OffscreenMessageDependencies): OffscreenMessageListener {
+    const activeChromeTranslations = new Map<string, AbortController>();
     return (message, _sender, sendResponse) => {
         if (!isRecord(message) || typeof message.type !== 'string') return false;
         if (message.target !== 'offscreen') return false;
@@ -125,9 +136,60 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
             case 'STOP_SELECTION_TTS':
                 respondWith(async () => dependencies.ttsPlayer.stop(message), sendResponse, () => ({success: true}));
                 return true;
-            case 'CHROME_TRANSLATE_OFFSCREEN':
-                respondWith(() => dependencies.translate(message.data), sendResponse);
+            case 'CHROME_TRANSLATE_OFFSCREEN': {
+                let requestId: string;
+                try {
+                    requestId = requiredRequestId(message.requestId);
+                    if (activeChromeTranslations.has(requestId)) {
+                        throw new Error('Offscreen Chrome 翻译 requestId 正在执行');
+                    }
+                } catch (error) {
+                    sendResponse({success: false, error: errorMessage(error)});
+                    return true;
+                }
+
+                const controller = new AbortController();
+                activeChromeTranslations.set(requestId, controller);
+                let settled = false;
+                const finish = (response: unknown) => {
+                    if (settled) return;
+                    settled = true;
+                    controller.signal.removeEventListener('abort', handleAbort);
+                    if (activeChromeTranslations.get(requestId) === controller) {
+                        activeChromeTranslations.delete(requestId);
+                    }
+                    sendResponse(response);
+                };
+                const handleAbort = () => finish({
+                    success: false,
+                    cancelled: true,
+                    requestId,
+                    error: 'Chrome 翻译请求已取消',
+                });
+                controller.signal.addEventListener('abort', handleAbort, {once: true});
+                void Promise.resolve()
+                    .then(() => dependencies.translate(message.data, controller.signal))
+                    .then(
+                        (result) => {
+                            if (typeof result !== 'string') throw new Error('Chrome 翻译结果无效');
+                            finish({success: true, result, requestId});
+                        },
+                        (error) => finish({success: false, requestId, error: errorMessage(error)}),
+                    )
+                    .catch((error) => finish({success: false, requestId, error: errorMessage(error)}));
                 return true;
+            }
+            case OFFSCREEN_CANCEL_CHROME_TRANSLATION_MESSAGE_TYPE: {
+                try {
+                    const requestId = requiredRequestId(message.requestId);
+                    const controller = activeChromeTranslations.get(requestId);
+                    controller?.abort();
+                    sendResponse({success: true, cancelled: Boolean(controller), requestId});
+                } catch (error) {
+                    sendResponse({success: false, error: errorMessage(error)});
+                }
+                return true;
+            }
             case 'FLUENT_READ_IMAGE_OCR_OFFSCREEN':
                 respondWith(
                     () => dependencies.recognizeImage(

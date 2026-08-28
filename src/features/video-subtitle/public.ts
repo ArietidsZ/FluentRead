@@ -4,5 +4,5 @@
  * 主要内容：文件精确再导出 mountVideoSubtitleTranslation 与 installYoutubeTimedTextBridge，使应用层能够按执行世界分别注册两个生命周期。
  * 模块边界：该 barrel 不执行自动挂载，也不暴露解析器或内部 DOM 常量；content composition root 决定启停和站点范围，桥与 UI 必须保持独立清理。
  */
-export {mountVideoSubtitleTranslation} from './content/runtime';
+export {isYouTubeVideoPage, mountVideoSubtitleTranslation} from './content/runtime';
 export {installYoutubeTimedTextBridge} from './content/youtubeTimedTextBridge';

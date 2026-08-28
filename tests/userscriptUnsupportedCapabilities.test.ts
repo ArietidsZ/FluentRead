@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import {
     isAreaTranslatorMounted,
+    isYouTubeVideoPage,
     mountAreaTranslator,
     mountImageTranslator,
     mountNewApiComponent,
@@ -20,5 +21,6 @@ describe('userscript extension-only capability stubs', () => {
         expect(mountNewApiComponent()).toBeUndefined();
         expect(unmountNewApiComponent()).toBeUndefined();
         expect(mountVideoSubtitleTranslation()()).toBeUndefined();
+        expect(isYouTubeVideoPage()).toBe(false);
     });
 });

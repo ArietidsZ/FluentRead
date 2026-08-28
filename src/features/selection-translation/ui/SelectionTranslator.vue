@@ -197,9 +197,8 @@ const selectionConfigVersion = ref(0);
 
 const selectionShortcutTriggers = new Set(['Control', 'Alt', 'Shift', 'custom']);
 const selectionSettings = computed(() => {
-  // `config` is shared with the content-script runtime and is mutated outside
-  // Vue. Keep a local reactive version so Popup/Options changes refresh the
-  // active selection UI without requiring a page reload.
+  // `config` 与内容脚本运行时共享，且会在 Vue 外部变更；用本地响应式版本让 Popup/Options
+  // 的配置变化立即刷新当前选词界面，无需重新加载页面。
   selectionConfigVersion.value;
   return {
     trigger: config.selectionTranslatorTrigger,
@@ -741,6 +740,8 @@ function base64ToBlobUrl(audioBase64: string, contentType: string): string {
 }
 
 async function playEdgeSpeech(text: string, language: string, kind: AudioKind, requestId: number): Promise<boolean> {
+  // 后台可能把播放权交给 Offscreen，也可能返回音频字节供当前页面播放；每一步都用代次校验
+  // 丢弃旧请求，仅由当前代次在远端播放失败后继续降级到浏览器语音。
   const remoteRequest = ttsContentController.beginRemoteRequest();
   try {
     const response = await browser.runtime.sendMessage({
@@ -821,6 +822,7 @@ function playBrowserSpeech(text: string, language: string, kind: AudioKind): boo
 }
 
 async function playGoogleFallback(text: string, language: string, kind: AudioKind): Promise<void> {
+  // 优先让 Offscreen 持有播放；只有仍属当前代次的请求才能退回页面音频 URL，避免停止后又响起。
   const requestId = ttsContentController.currentGeneration();
   const remoteRequest = ttsContentController.beginRemoteRequest();
   try {

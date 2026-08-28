@@ -46,7 +46,7 @@ function assertOptionalString(candidate: TranslationRequestCandidate, field: typ
 }
 
 export function parseTranslationRequest(candidate: TranslationRequestCandidate): TranslationRequestMessage {
-    // Step 1: origin 是无 type 翻译协议的判别字段；批量请求只能包含字符串。
+    // 步骤 1：origin 是无 type 翻译协议的判别字段；批量请求只能包含字符串。
     let origin: string | string[];
     if (typeof candidate.origin === 'string') {
         origin = candidate.origin;
@@ -57,7 +57,7 @@ export function parseTranslationRequest(candidate: TranslationRequestCandidate):
         throw new TypeError('翻译请求 origin 必须是字符串或字符串数组');
     }
 
-    // Step 2: 逐个收窄可选协议字段，避免未知 payload 直接流入 provider。
+    // 步骤 2：逐个收窄可选协议字段，避免未知 payload 直接流入 provider。
     for (const field of STRING_FIELDS) assertOptionalString(candidate, field);
     if (candidate.useCache !== undefined && typeof candidate.useCache !== 'boolean') {
         throw new TypeError('翻译请求字段 useCache 必须是布尔值');
@@ -67,7 +67,7 @@ export function parseTranslationRequest(candidate: TranslationRequestCandidate):
         throw new TypeError('翻译请求字段 requestTimeoutMs 必须是有限数字');
     }
 
-    // Step 3: 只复制版本化协议允许的字段，不把页面注入的任意属性传给 provider。
+    // 步骤 3：只复制版本化协议允许的字段，不把页面注入的任意属性传给 provider。
     const base: TranslationRequestMessageBase = {};
     for (const field of STRING_FIELDS) {
         const value = candidate[field];

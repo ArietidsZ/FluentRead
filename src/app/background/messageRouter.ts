@@ -45,7 +45,7 @@ export class BackgroundMessageRouter<TContext> {
         handlers: readonly BackgroundMessageHandler<TContext>[],
         fallback?: BackgroundFallbackHandler<TContext, unknown>,
     ) {
-        // Step 1: 启动时建立静态索引；重复 type 属于编程错误，立即失败。
+        // 步骤 1：启动时建立静态索引；重复 type 属于编程错误，立即失败。
         for (const handler of handlers) {
             if (this.handlers.has(handler.type)) {
                 throw new Error(`后台消息处理器重复注册: ${handler.type}`);
@@ -56,7 +56,7 @@ export class BackgroundMessageRouter<TContext> {
     }
 
     async dispatch(message: unknown, context: TContext): Promise<BackgroundDispatchResult> {
-        // Step 1: 有明确 type 且已注册时，交给对应 handler。
+        // 步骤 1：有明确 type 且已注册时，交给对应 handler。
         const type = readMessageType(message);
         const handler = type === null ? undefined : this.handlers.get(type);
         if (handler) {
@@ -64,13 +64,13 @@ export class BackgroundMessageRouter<TContext> {
             return {handled: true, response};
         }
 
-        // Step 2: 未命中普通 handler 时再尝试受类型守卫保护的兼容 fallback。
+        // 步骤 2：未命中普通 handler 时再尝试受类型守卫保护的兼容 fallback。
         if (this.fallback?.canHandle(message)) {
             const response = await this.fallback.handle(message, context);
             return {handled: true, response};
         }
 
-        // Step 3: 未知消息保持未处理，entrypoint 可以选择忽略或统一返回错误。
+        // 步骤 3：未知消息保持未处理，entrypoint 可以选择忽略或统一返回错误。
         return {handled: false};
     }
 }

@@ -88,12 +88,12 @@ function vocabularyEntryId(value: unknown): string {
 }
 
 function validateGetByTermMessage(message: VocabularyBookRuntimeMessage): {sourceLanguage: string; term: string} {
-    // Step 1: 支持 beta 期间的 term/word 双字段，但必须至少提供一个非空字符串。
+    // 步骤 1：支持 beta 期间的 term/word 双字段，但必须至少提供一个非空字符串。
     const term = typeof message.term === 'string'
         ? requiredText(message.term, '缺少有效的查询单词')
         : requiredText(message.word, '缺少有效的查询单词');
 
-    // Step 2: sourceLanguage 是词书 identity 的一部分，后台边界不再接受隐式空值。
+    // 步骤 2：sourceLanguage 是词书 identity 的一部分，后台边界不再接受隐式空值。
     const sourceLanguage = requiredText(message.sourceLanguage, '缺少有效的源语言');
     return {sourceLanguage, term};
 }
@@ -145,10 +145,10 @@ function notifyVocabularyBookChanged(
     entryId?: string,
 ): void {
     try {
-        // Step 1: 广播是附带通知，不能阻塞主操作响应。
+        // 步骤 1：广播是附带通知，不能阻塞主操作响应。
         dependencies.broadcastChanged(reason, entryId);
     } catch (error) {
-        // Step 2: 注入的广播适配器同步失败时只记录，不回滚已完成的词书操作。
+        // 步骤 2：注入的广播适配器同步失败时只记录，不回滚已完成的词书操作。
         dependencies.logOperationFailure(error);
     }
 }
@@ -169,10 +169,10 @@ export function createBrowserVocabularyBookChangedBroadcaster(
     return (reason, entryId) => {
         const message = createVocabularyBookChangedMessage(reason, entryId);
 
-        // Step 1: 扩展页通过 runtime 消息接收变更通知。
+        // 步骤 1：扩展页通过 runtime 消息接收变更通知。
         void adapter.sendRuntimeMessage(message).catch(() => undefined);
 
-        // Step 2: content script 需要逐 tab 发送；受限页面失败不影响原请求。
+        // 步骤 2：content script 需要逐 tab 发送；受限页面失败不影响原请求。
         void adapter.queryTabs()
             .then((tabs) => Promise.allSettled(
                 tabs
@@ -201,7 +201,7 @@ export function createVocabularyBookHandler(
         type: VOCABULARY_BOOK_MESSAGE,
         async handle(message, context) {
             try {
-                // Step 1: 先在后台信任边界收窄 action 与必要参数。
+                // 步骤 1：先在后台信任边界收窄 action 与必要参数。
                 switch (message.action) {
                     case 'list':
                         return {success: true, data: await dependencies.vocabularyBook.list(validateListOptions(message.options))};
@@ -266,7 +266,7 @@ export function createVocabularyBookHandler(
                         throw new VocabularyBookHandlerError('invalid-input', '不支持的单词本操作');
                 }
             } catch (error) {
-                // Step 2: 保持旧 background 行为：词书错误转为结构化响应，未知错误转为 storage-error。
+                // 步骤 2：保持旧 background 行为：词书错误转为结构化响应，未知错误转为 storage-error。
                 return vocabularyFailure(error, dependencies.logOperationFailure);
             }
         },

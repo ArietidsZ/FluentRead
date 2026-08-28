@@ -403,9 +403,8 @@ async function installCoverageTracker(page, rules) {
       if (!record.node?.isConnected) return;
       const wrapper = translationWrapper(record.node, state.rule.selector);
       if (!wrapper) return;
-      // A host generation can change while a stale wrapper remains mounted.
-      // The old wrapper identity must never certify the new source. A genuinely
-      // new extension wrapper promotes the current generation exactly once.
+      // 宿主页 generation 变化时，旧 wrapper 仍可能保持挂载。旧 wrapper 身份绝不能
+      // 为新原文背书；真正的新扩展 wrapper 只把当前 generation 提升一次。
       if (record.translatedWrapper === wrapper && record.translatedGeneration !== record.generation) return;
       record.translatedWrapper = wrapper;
       record.translatedGeneration = record.generation;
@@ -486,18 +485,16 @@ async function installCoverageTracker(page, rules) {
       if (isWithin(mutation.target, artifactSelector)) return true;
       if (mutation.type !== 'childList') return false;
       const changed = [...mutation.addedNodes, ...mutation.removedNodes];
-      // One React commit can remove an extension wrapper and mount new host
-      // prose in the same MutationRecord. Ignore only when every changed node
-      // is itself inside an artifact; descendant containment would let that
-      // mixed host update bypass dynamic coverage tracking.
+      // 一次 React commit 可能在同一 MutationRecord 中移除扩展 wrapper 并挂载新的宿主正文。
+      // 只有所有变更节点自身都位于扩展产物内时才能忽略；若按后代包含关系判断，
+      // 这种混合宿主更新就会绕过动态覆盖跟踪。
       return changed.length > 0 && changed.every((node) => isWithin(node, artifactSelector));
     };
     const onlyCanonicalIgnoredChildren = (mutation) => {
       if (mutation.type !== 'childList') return false;
       const changed = [...mutation.addedNodes, ...mutation.removedNodes];
-      // A whole paragraph/card may contain MathJax or code descendants while its
-      // surrounding prose is new. Only ignore nodes that are themselves inside
-      // the protected subtree; descendant containment is deliberately insufficient.
+      // 整个段落或卡片可能包含 MathJax、代码等后代，但周围正文是新内容。
+      // 只忽略自身位于受保护子树中的节点；刻意不采用后代包含关系。
       return changed.length > 0 && changed.every((node) => isWithin(node, protectedSelector));
     };
     const collectCandidates = (state, mutation) => {
@@ -758,13 +755,10 @@ function validateCoverageRevealStatuses(statuses, phase) {
   })))}`);
 }
 
-// The discovery walk is deliberately time-sliced. A synthetic test scroll can
-// move past a late-discovered node before its IntersectionObserver is attached,
-// even though a real user would trigger it when returning to that section. Take
-// one frozen batch of currently connected strict-coverage misses and give each
-// node exactly one visibility opportunity. Coverage itself is not relaxed: a
-// retry, unchanged provider result, disconnection, or missing wrapper still
-// fails after this bounded convergence pass.
+// 候选发现遍历会刻意分时执行。测试中的合成滚动可能在 IntersectionObserver 挂接前
+// 越过较晚发现的节点，而真实用户返回该区域时会触发它。这里冻结一批当前仍连接、
+// 尚未满足严格覆盖的节点，并各自给予一次可见机会。覆盖标准本身不会放宽：
+// 有界收敛后仍在重试、服务结果未变化、节点断开或缺少 wrapper，测试都会失败。
 async function settleCoverageByReveal(page, timeout, phase) {
   const startedAt = Date.now();
   const deadline = startedAt + timeout;
@@ -804,16 +798,14 @@ async function settleCoverageByReveal(page, timeout, phase) {
       validateCoverageRevealStatuses([activated], phase);
     }
     attempted += 1;
-    // Keep the exact leaf in the viewport long enough for the browser's IO
-    // callback and the next sliced discovery task; scrollIntoView naturally
-    // targets the nearest nested scroller when one exists.
+    // 让精确叶节点在视口中停留足够久，以等待浏览器 IO 回调和下一轮分时发现任务；
+    // 存在嵌套滚动容器时，scrollIntoView 会自然选择最近的一层。
     await page.waitForTimeout(Math.min(900, Math.max(1, deadline - Date.now())));
     await observeCoverage(page);
   }
 
-  // All newly visible candidates share the normal page queue. Wait once for
-  // the batch instead of multiplying the provider's worst-case retry budget by
-  // the number of missing leaves.
+  // 所有新可见候选共用常规页面队列。整批只等待一次，避免按缺失叶节点数量
+  // 成倍累加 provider 的最坏重试预算。
   const remaining = deadline - Date.now();
   if (remaining <= 0) {
     throw new Error(`${phase} 已用尽 ${timeout}ms 总预算，无法等待唤醒批次结束`);
@@ -1047,9 +1039,8 @@ async function capturePageContract(
           count + node.querySelectorAll('.fluent-read-bilingual-content').length, 0),
         ownedDescendants: nodes.reduce((count, node) => count +
           (node.matches(ownedSelector) ? 1 : 0) + node.querySelectorAll(ownedSelector).length, 0),
-        // Contract decisions compare every forbidden node. These snapshots are
-        // taken only at the small fixed set of page-contract phases, so a full
-        // topology walk is both bounded and necessary for long math/code pages.
+        // 契约判断会比较每个禁止节点。快照只在少量固定页面契约阶段采集，
+        // 因此对长公式或代码页面执行完整拓扑遍历既有界也必要。
         signatures: nodes.map(forbiddenSignature),
       };
     });
@@ -1103,9 +1094,8 @@ function reconcileForbiddenContractState(initial, current) {
         after: diagnosticState(current),
       })}`;
     }
-    // The host may lazily mount an optional renderer. Adopt its first clean,
-    // extension-free snapshot so restore/retranslate must retain its exact
-    // text/topology just like a baseline-present dynamic forbidden subtree.
+    // 宿主页可能延迟挂载可选 renderer。采用它首次干净且不含扩展产物的快照，
+    // 使恢复和重新翻译必须像处理基线已有的动态禁止子树一样，保留其精确文本与拓扑。
     Object.assign(initial, current);
     return null;
   }
@@ -1117,8 +1107,7 @@ function reconcileForbiddenContractState(initial, current) {
           after: diagnosticState(current),
         })}`;
       }
-      // A mutable renderer may append roots as it finishes. Advance the
-      // baseline waterline so a later phase cannot silently lose them again.
+      // 可变 renderer 完成时可能追加根节点。同步推进基线水位，防止后续阶段再次静默丢失。
       initial.count = current.count;
       return null;
     }
@@ -1328,7 +1317,7 @@ async function waitForTranslationIdle(page, timeout, phase, minimumRetryBudget =
   const ownedLoading = '.fluent-read-loading[data-fr-translation-owned="true"]';
   const ownedRetry = '.fluent-read-retry-wrapper[data-fr-translation-owned="true"]';
   const idleKey = `__fluentReadIdleSince${Date.now()}${Math.random().toString(36).slice(2)}`;
-  // One provider request may consume 4 x 45s attempts plus retry backoff.
+  // 一次 provider 请求可能消耗 4 次 45 秒尝试及额外重试退避时间。
   const idleTimeout = Math.max(timeout, minimumRetryBudget);
   try {
     await page.waitForFunction(
@@ -1479,9 +1468,8 @@ async function scrollAndWaitFullPage(page, timeout, scrollContainerSelector, tar
     else window.scrollTo(0, 0);
   }, scrollContainerSelector || '');
 
-  // Returning to the first viewport starts another IntersectionObserver
-  // round. Re-reveal the target and wait for the new lazy work before reading
-  // state; otherwise a valid intermediate state looks like a lost translation.
+  // 返回首屏会启动新一轮 IntersectionObserver。读取状态前重新暴露目标并等待新的
+  // 延迟任务，否则有效的中间状态会被误判为译文丢失。
   await revealFullPageTarget(page, targetSelector);
   await page.waitForFunction(
     (selector) => (document.querySelector(selector)?.querySelectorAll('.fluent-read-bilingual-content').length || 0) >= 1,
@@ -1498,14 +1486,11 @@ async function revealFullPageTarget(page, selector) {
   try {
     await target.scrollIntoViewIfNeeded({timeout: 10000});
   } catch {
-    // GitHub's virtualized React lists can keep an element in a transient
-    // actionability state even though it is attached and readable. A direct
-    // DOM scroll is sufficient here; all translation input still uses trusted
-    // keyboard events rather than synthetic page events.
+    // GitHub 的虚拟化 React 列表可能让已连接且可读的元素暂时处于不可操作状态。
+    // 此处直接滚动 DOM 即可；所有翻译输入仍使用可信键盘事件，而不是页面合成事件。
     await target.evaluate((node) => node.scrollIntoView({block: 'center', inline: 'nearest'}));
   }
-  // Some sites remove a hidden animation marker from an IntersectionObserver
-  // callback after the nearest scrolling container moves.
+  // 某些站点会在最近滚动容器移动后的 IntersectionObserver 回调中移除隐藏动画标记。
   await page.waitForTimeout(900);
 }
 
@@ -1570,9 +1555,8 @@ async function toggleHover(page, target, targetConfig, expectedCount, timeout) {
   const box = await target.boundingBox();
   if (!box) throw new Error('悬浮翻译目标不可见');
   const x = box.x + Math.min(Math.max(box.width * 0.35, 8), Math.max(box.width - 8, 8));
-  // Keep the pointer on the original first line. Bilingual mode appends a
-  // second line, so using the post-translation vertical center can drift into
-  // a neighbouring row on dense lists such as GitHub Pulls.
+  // 指针保持在原文首行。双语模式会追加第二行；若使用翻译后的垂直中心，
+  // 在 GitHub Pulls 等密集列表中可能漂移到相邻行。
   const y = box.y + Math.min(Math.max(box.height * 0.2, 4), 12);
   await page.mouse.move(x, y);
   await page.keyboard.down('Control');

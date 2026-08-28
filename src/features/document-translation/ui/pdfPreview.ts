@@ -208,7 +208,7 @@ function paintPdfTranslation(
         const y = Math.max(0, block.y * scaleY);
         const width = Math.max(8, Math.min(canvas.width - x, block.width * scaleX));
         const height = Math.max(8, Math.min(canvas.height - y, block.height * scaleY));
-        // Step 1: 只遮盖文字块，保留周围图表和分隔线，再用采样到的前景色绘制译文。
+        // 步骤 1：只遮盖文字块，保留周围图表和分隔线，再用采样到的前景色绘制译文。
         const padding = Math.max(2, Math.min(scaleX, scaleY) * 1.2);
         const background = sampledBackgroundRgb(context, x, y, width, height);
         const foreground = sampledForegroundColor(context, x, y, width, height, background);
@@ -246,7 +246,7 @@ function paintPdfTranslation(
         return {...painted, fontSize, lines, lineHeight};
     });
 
-    // Step 2: 先统一擦除全部原文字块，避免重叠块把已绘制的译文再次遮住。
+    // 步骤 2：先统一擦除全部原文字块，避免重叠块把已绘制的译文再次遮住。
     paintedBlocks.forEach(({x, y, width, height, padding, background}) => {
         context.fillStyle = `rgb(${background[0]}, ${background[1]}, ${background[2]})`;
         const left = Math.max(0, x - padding);
@@ -256,7 +256,7 @@ function paintPdfTranslation(
         context.fillRect(left, top, Math.max(1, right - left), Math.max(1, bottom - top));
     });
 
-    // Step 3: 在裁剪后的原坐标区域中绘制译文，保证多栏与图文混排不串位。
+    // 步骤 3：在裁剪后的原坐标区域中绘制译文，保证多栏与图文混排不串位。
     layout.forEach(({block, x, y, width, height, padding, foreground, fontSize, lines, lineHeight}) => {
         const family = familyForBlock(block);
         const maxWidth = Math.max(6, width - padding * 1.5);

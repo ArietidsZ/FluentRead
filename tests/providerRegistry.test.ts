@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from 'vitest';
 
-// Registry coverage only needs adapter identity; avoid starting WXT storage watchers in Node.
+// 注册表测试只需核对适配器身份，避免在 Node 环境启动 WXT 存储监听。
 vi.mock('@/src/services/config/store', () => ({config: {}}));
 import {services} from '@/src/core/config/catalog';
 import {translationProviderRegistry} from '@/src/providers/translation/registry';

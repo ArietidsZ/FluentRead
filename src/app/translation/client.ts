@@ -15,6 +15,7 @@ import {resolveConfiguredModel, servicesType} from '@/src/core/config/catalog';
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
 import {isTrustedCredentialStorageContext} from '@/src/platform/storage/credentialContext';
 import {config, requestConfigCountIncrement} from '@/src/services/config/store';
+import {createConfigCountPersistenceQueue} from '@/src/services/config/count';
 import {getTranslationLanguages} from '@/src/services/translation/languages';
 import {getPageTranslationContext} from '@/src/services/translation/context';
 import {
@@ -33,14 +34,31 @@ import {
 const isDev = process.env.NODE_ENV === 'development';
 const VIDEO_COUNT_SAVE_INTERVAL = 10_000;
 const TRANSLATION_COUNT_SAVE_INTERVAL = 500;
-let videoCountSaveTimer: ReturnType<typeof setTimeout> | undefined;
-let translationCountSaveTimer: ReturnType<typeof setTimeout> | undefined;
-let pendingVideoCount = 0;
-let pendingTranslationCount = 0;
+const COUNT_SAVE_RETRY_INTERVAL = 1_000;
+const COUNT_SAVE_MAX_AUTOMATIC_RETRIES = 3;
 
-function persistCountIncrement(delta: number): Promise<number> {
-  return requestConfigCountIncrement(delta, browser.runtime.sendMessage.bind(browser.runtime));
+function persistCountIncrement(delta: number, operationId: string): Promise<number> {
+  return requestConfigCountIncrement(
+    delta,
+    browser.runtime.sendMessage.bind(browser.runtime),
+    operationId,
+  );
 }
+
+const translationCountPersistence = createConfigCountPersistenceQueue({
+  delayMs: TRANSLATION_COUNT_SAVE_INTERVAL,
+  retryDelayMs: COUNT_SAVE_RETRY_INTERVAL,
+  maxAutomaticRetries: COUNT_SAVE_MAX_AUTOMATIC_RETRIES,
+  persist: persistCountIncrement,
+  onError: (error) => console.error('[FluentRead] 保存翻译计数失败:', error),
+});
+const videoCountPersistence = createConfigCountPersistenceQueue({
+  delayMs: VIDEO_COUNT_SAVE_INTERVAL,
+  retryDelayMs: COUNT_SAVE_RETRY_INTERVAL,
+  maxAutomaticRetries: COUNT_SAVE_MAX_AUTOMATIC_RETRIES,
+  persist: persistCountIncrement,
+  onError: (error) => console.error('[FluentRead] 保存视频翻译计数失败:', error),
+});
 
 function createAbortError(): Error {
   const error = new Error('翻译已取消');
@@ -64,9 +82,8 @@ function shouldRetryTranslationRequest(
   if (!isRetryableTranslationError(error)) return false;
   if (!aiSdkService || explicitRetryPolicy) return true;
 
-  // AI SDK already exhausts HTTP 429/5xx retries. Its browser fetch path does
-  // not retry a rejected fetch promise, so only that transport boundary gets
-  // a small outer fallback. Runtime messaging failures are treated likewise.
+  // AI SDK 已自行穷尽 HTTP 429/5xx 重试；其浏览器 fetch 路径不会重试被拒绝的
+  // Promise，因此只在该传输边界增加少量外层兜底。runtime 消息失败采用相同策略。
   return !(error instanceof TranslationRequestError) || error.kind === 'network';
 }
 
@@ -108,9 +125,8 @@ function waitForRequest<T>(
     );
   });
 
-  // Aborting a DOM attempt cannot cancel an already-dispatched extension
-  // message. Keep the queue slot leased until that transport settles or its
-  // timeout fires, while allowing the caller to stop waiting immediately.
+  // 中止一次 DOM 尝试无法撤回已经发出的扩展消息。队列槽位需要保持租用，直到
+  // 传输完成或触发超时；调用方仍可立即停止等待。
   lease?.holdUntil(transportSettlement);
   if (!signal) return transportSettlement;
 
@@ -136,37 +152,19 @@ function waitForRequest<T>(
 }
 
 function scheduleTranslationCountSave(): void {
-  config.count++;
-  pendingTranslationCount++;
-  if (translationCountSaveTimer) return;
-  translationCountSaveTimer = setTimeout(() => {
-    translationCountSaveTimer = undefined;
-    const delta = pendingTranslationCount;
-    pendingTranslationCount = 0;
-    void persistCountIncrement(delta).catch((error) => console.error('[FluentRead] 保存翻译计数失败:', error));
-  }, TRANSLATION_COUNT_SAVE_INTERVAL);
+  translationCountPersistence.record();
 }
 
 function flushTranslationCountSave(): void {
-  if (!translationCountSaveTimer) return;
-  clearTimeout(translationCountSaveTimer);
-  translationCountSaveTimer = undefined;
-  const delta = pendingTranslationCount;
-  pendingTranslationCount = 0;
-  void persistCountIncrement(delta).catch((error) => console.error('[FluentRead] 保存翻译计数失败:', error));
+  void translationCountPersistence.flush();
 }
 
 function scheduleVideoCountSave(): void {
-  config.count++;
-  pendingVideoCount++;
-  if (videoCountSaveTimer) return;
+  videoCountPersistence.record();
+}
 
-  videoCountSaveTimer = setTimeout(() => {
-    videoCountSaveTimer = undefined;
-    const delta = pendingVideoCount;
-    pendingVideoCount = 0;
-    void persistCountIncrement(delta).catch((error) => console.error('[FluentRead] 保存视频翻译计数失败:', error));
-  }, VIDEO_COUNT_SAVE_INTERVAL);
+function flushVideoCountSave(): void {
+  void videoCountPersistence.flush();
 }
 
 /**
@@ -195,9 +193,8 @@ export async function translateText(origin: string, context: string = document.t
   } = options;
   const aiSdkService = servicesType.isAiSdk(selectedService);
   const explicitRetryPolicy = options.maxRetries !== undefined;
-  // AI SDK services own protocol-aware HTTP retries (429/5xx). Keep the
-  // legacy outer retry loop for the adapters that have not migrated yet, plus
-  // two fallback attempts for browser-level fetch rejection.
+  // AI SDK 服务自行负责协议感知的 HTTP 重试（429/5xx）。尚未迁移的适配器继续使用
+  // 旧外层重试循环；浏览器层 fetch 被拒绝时额外保留两次兜底尝试。
   const maxRetries = options.maxRetries ?? (aiSdkService ? 2 : 3);
   throwIfAborted(signal);
   // 检查 origin 是否为空或只有空白字符
@@ -215,12 +212,8 @@ export async function translateText(origin: string, context: string = document.t
   const pageContext = await resolvePageContext(options.pageContext, selectedService, selectedModel);
   throwIfAborted(signal);
 
-  // 同一富文本回退可能产生多个短请求；合并持久化写入，避免每个 slot
-  // 都触发 storage watcher 和页面配置刷新。
-  scheduleTranslationCountSave();
-
   // 使用队列处理翻译请求
-  return enqueueTranslation(async (lease) => {
+  const result = await enqueueTranslation(async (lease) => {
     // 创建翻译任务
     const translationTask = async (retryCount: number = 0): Promise<string> => {
       throwIfAborted(signal);
@@ -271,6 +264,9 @@ export async function translateText(origin: string, context: string = document.t
     // 开始执行翻译任务
     return translationTask();
   }, queueSession);
+  // 只统计已成功完成的调用；同一富文本回退产生的短请求仍由延迟队列合并落盘。
+  scheduleTranslationCountSave();
+  return result;
 }
 
 /**
@@ -304,9 +300,7 @@ export async function translateTextBatch(
   const pageContext = await resolvePageContext(options.pageContext, selectedService, selectedModel);
   throwIfAborted(signal);
 
-  scheduleTranslationCountSave();
-
-  return enqueueTranslation(async (lease) => {
+  const result = await enqueueTranslation(async (lease) => {
     const translationTask = async (retryCount: number = 0): Promise<string[]> => {
       throwIfAborted(signal);
       try {
@@ -345,6 +339,8 @@ export async function translateTextBatch(
 
     return translationTask();
   }, queueSession);
+  scheduleTranslationCountSave();
+  return result;
 }
 
 /**
@@ -361,10 +357,7 @@ export async function translateVideoText(origin: string): Promise<string> {
   const useCache = config.useCache;
   const pageContext = await resolvePageContext(undefined, service, model);
 
-  // 视频字幕是高频、短文本请求。计数保留在内存中，并合并为低频写入，避免
-  // storage 写入和配置订阅回调把播放器主线程拖入高频循环。
-  scheduleVideoCountSave();
-  return enqueueTranslation(async (lease) => {
+  const result = await enqueueTranslation(async (lease) => {
     const response = await waitForRequest(browser.runtime.sendMessage({
         context: `YouTube 视频字幕：${typeof document === 'undefined' ? '' : document.title}`,
         pageContext,
@@ -378,6 +371,9 @@ export async function translateVideoText(origin: string): Promise<string> {
       }), 20_000, undefined, lease);
     return unwrapTranslationResponse<string>(response);
   });
+  // 视频字幕是高频短文本；成功后才记账，并合并为低频写入。
+  scheduleVideoCountSave();
+  return result;
 }
 
 /**
@@ -389,6 +385,7 @@ export function cancelAllTranslations() {
   }
   clearTranslationQueue();
   flushTranslationCountSave();
+  flushVideoCountSave();
 }
 
 /**
@@ -411,22 +408,19 @@ export interface TranslateOptions {
   targetLanguage?: string;
   /** 发送给 LLM 的网页参考上下文；未提供时按当前页面自动提取。 */
   pageContext?: string;
-  /** Internal structured packets contain ASCII sentinels that must not affect source-language detection. */
+  /** 内部结构化数据包含有 ASCII 哨兵标记，不应影响源语言检测。 */
   skipLanguageDetection?: boolean;
-  /** Cancel retry delays and ignore a late runtime response after the DOM attempt is restored. */
+  /** DOM 尝试恢复后，取消重试等待并忽略迟到的 runtime 响应。 */
   signal?: AbortSignal;
-  /** Queue scope used to reject work that has not started when one DOM attempt is cancelled. */
+  /** 一次 DOM 尝试取消时，用于拒绝尚未开始任务的队列作用域。 */
   queueSession?: TranslationQueueSession;
   /** 为文档等独立入口覆盖当前请求的实际模型，不改写网页翻译配置。 */
   modelOverride?: string;
 }
 
 function assertTranslationCredentials(service = config.service, modelOverride?: string): void {
-  // Content scripts intentionally receive only the public configuration and
-  // therefore cannot inspect API credentials. The background request boundary
-  // performs the authoritative check after it has loaded session credentials.
-  // Keep the local fast-fail only for extension pages, where the credentials
-  // are available by design.
+  // content script 按设计只接收公开配置，因此无法检查 API 凭据。后台请求边界加载
+  // session 凭据后执行权威校验。仅扩展页面按设计能够读取凭据，可保留本地快速失败。
   if (!isTrustedCredentialStorageContext()) return;
 
   const credentialConfig = modelOverride

@@ -9,11 +9,21 @@ import {
     SELECTION_TRANSLATOR_DELAY_MAX,
     SELECTION_TRANSLATOR_DELAY_MIN,
     normalizeConfig,
-} from '@/entrypoints/utils/model';
-import { getMimoEndpoint, MIMO_ENDPOINTS, MINIMAX_ENDPOINTS, tongyiTokenPlanUrl, urls } from '@/entrypoints/utils/constant';
-import { customModelString, defaultModelIds, defaultModels, defaultOption, models, options, resolveConfiguredModel, services, servicesType } from '@/entrypoints/utils/option';
+} from '@/src/core/config/model';
+import { getMimoEndpoint, MIMO_ENDPOINTS, MINIMAX_ENDPOINTS, tongyiTokenPlanUrl, urls } from '@/src/core/config/constants';
+import { customModelString, defaultModelIds, defaultModels, defaultOption, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
 
 describe('AI 模型编号列表', () => {
+    it('翻译计数只保留非负安全整数，并清理畸形旧值', () => {
+        expect(normalizeConfig({count: 12}).count).toBe(12);
+        expect(normalizeConfig({count: 0}).count).toBe(0);
+        for (const count of [-1, 1.5, '12', Number.MAX_SAFE_INTEGER + 1, Number.NaN]) {
+            expect(normalizeConfig({count}).count).toBe(0);
+        }
+        expect(normalizeConfig({__fluentCountOperations: [{id: 'private-operation'}]}))
+            .not.toHaveProperty('__fluentCountOperations');
+    });
+
     it('API 凭据跨重启持久化默认关闭，且只接受显式布尔 true', () => {
         expect(new Config().persistCredentials).toBe(false);
         expect(normalizeConfig({}).persistCredentials).toBe(false);

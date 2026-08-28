@@ -60,9 +60,9 @@ export function createContentRuntimeMessageHandler(ctx: ContentScriptContext, st
             return true;
         }
         if (payload.type === 'toggleFloatingBall') {
-            const isEnabled = payload.isEnabled === true;
-            config.disableFloatingBall = !isEnabled;
-            if (isEnabled) void mountFloatingBall(ctx);
+            const requestedEnabled = payload.isEnabled === true;
+            config.disableFloatingBall = !requestedEnabled;
+            if (requestedEnabled && config.on !== false) void mountFloatingBall(ctx);
             else unmountFloatingBall();
             sendResponse();
             return true;
@@ -74,7 +74,7 @@ export function createContentRuntimeMessageHandler(ctx: ContentScriptContext, st
 
             config.selectionTranslatorMode = mode;
             config.disableSelectionTranslator = mode === 'disabled';
-            if (mode === 'disabled') unmountSelectionTranslator();
+            if (mode === 'disabled' || config.on === false) unmountSelectionTranslator();
             else if (!document.getElementById('fluent-read-selection-translator-container')) {
                 void mountSelectionTranslator(ctx);
             }
@@ -106,9 +106,9 @@ export function createContentRuntimeMessageHandler(ctx: ContentScriptContext, st
         if (payload.type === 'toggleSelectionAreaTranslator') {
             if (rejectUnsupportedContentFeature(capabilities.areaTranslation, unmountAreaTranslator,
                 sendResponse, '当前浏览器暂不支持圈选翻译')) return true;
-            const isEnabled = payload.isEnabled === true;
-            config.selectionAreaEnabled = isEnabled;
-            if (isEnabled) void mountAreaTranslator(ctx);
+            const requestedEnabled = payload.isEnabled === true;
+            config.selectionAreaEnabled = requestedEnabled;
+            if (requestedEnabled && config.on !== false) void mountAreaTranslator(ctx);
             else unmountAreaTranslator();
             sendResponse();
             return true;
@@ -117,18 +117,18 @@ export function createContentRuntimeMessageHandler(ctx: ContentScriptContext, st
         if (payload.type === 'toggleImageTranslator') {
             if (rejectUnsupportedContentFeature(capabilities.imageTranslation, unmountImageTranslator,
                 sendResponse, '当前浏览器暂不支持图片翻译与 OCR')) return true;
-            const isEnabled = payload.isEnabled === true;
-            config.disableImageTranslator = !isEnabled;
-            if (isEnabled) mountImageTranslator();
+            const requestedEnabled = payload.isEnabled === true;
+            config.disableImageTranslator = !requestedEnabled;
+            if (requestedEnabled && config.on !== false) mountImageTranslator();
             else unmountImageTranslator();
             sendResponse();
             return true;
         }
 
         if (payload.type === 'toggleTranslationProgressPanel') {
-            const isEnabled = payload.isEnabled === true;
-            config.translationProgressPanelEnabled = isEnabled;
-            if (isEnabled) void mountTranslationProgressPanel(ctx);
+            const requestedEnabled = payload.isEnabled === true;
+            config.translationProgressPanelEnabled = requestedEnabled;
+            if (requestedEnabled && config.on !== false) void mountTranslationProgressPanel(ctx);
             else unmountTranslationProgressPanel();
             sendResponse();
             return true;
@@ -137,7 +137,7 @@ export function createContentRuntimeMessageHandler(ctx: ContentScriptContext, st
         if (payload.type === 'getFullPageTranslationState') {
             sendResponse({
                 status: 'success',
-                isTranslated: !state.isSiteDisabled() && isFullPageTranslationActive(),
+                isTranslated: config.on !== false && !state.isSiteDisabled() && isFullPageTranslationActive(),
                 isSiteDisabled: state.isSiteDisabled(),
             });
             return true;

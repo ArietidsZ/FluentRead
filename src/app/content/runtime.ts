@@ -7,7 +7,7 @@
 import type {ContentScriptContext} from 'wxt/utils/content-script-context';
 import {createShadowRootUi} from 'wxt/utils/content-script-ui/shadow-root';
 import {constants} from '@/src/core/config/constants';
-import {isExtensionDisabledOnSite, shouldAutoTranslatePage} from '@/src/features/site-rules/domain';
+import {isExtensionDisabledOnSite} from '@/src/features/site-rules/domain';
 import {config, configReady, subscribeConfig} from '@/src/services/config/store';
 import {cancelAllTranslations} from '@/src/app/translation/client';
 import {resetPageTranslationContextCache} from '@/src/services/translation/context';
@@ -34,6 +34,7 @@ import {
     mountSelectionTranslator,
     mountTranslationProgressPanel,
     mountVideoSubtitleTranslation,
+    isYouTubeVideoPage,
     restoreOriginalContent,
     unmountAreaTranslator,
     unmountFloatingBall,
@@ -44,14 +45,11 @@ import {
 import pageStyles from './page.css?inline';
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
 import {setMainWorldBridgesEnabled} from './mainWorldBridgeLifecycle';
-function shouldAutomaticallyTranslateCurrentPage(nextConfig: typeof config): boolean {
-    return shouldAutoTranslatePage(window.location.href, {
-        on: nextConfig.on,
-        autoTranslate: nextConfig.autoTranslate,
-        alwaysTranslateDomains: nextConfig.alwaysTranslateDomains,
-        disabledExtensionDomains: nextConfig.disabledExtensionDomains,
-    });
-}
+import {
+    createContentPageAvailabilityRuntime,
+    shouldAutomaticallyTranslatePage,
+    type ContentPageAvailabilityRuntime,
+} from './pageAvailability';
 function installPageStyles(ctx: ContentScriptContext): () => void {
     const existing = document.getElementById('fluent-read-page-styles');
     if (existing) return () => undefined;
@@ -75,18 +73,15 @@ export async function startContentApp(ctx: ContentScriptContext,
         window.location.href,
         config.disabledExtensionDomains,
     );
-    let unmountVideoSubtitleTranslation: (() => void) | null = null;
     let unsubscribeContentConfig: (() => void) | null = null;
     let runtimeMessageListener: ContentRuntimeMessageHandler | null = null;
     let cleanedUp = false;
     let featureController: AbortController | null = null;
     let activePageFeatureRegistry: ContentFeatureRegistry | null = null;
     let removePageStyles: (() => void) | null = null;
-    let shouldAutomaticallyTranslate = false;
     let inputBoxConfigGeneration = 0;
     let previousInputBoxConfigKey = inputBoxTranslationConfigKey(config);
     const pageEventController = new AbortController();
-    document.addEventListener('fluentread-route-change', resetPageTranslationContextCache, {signal: pageEventController.signal});
     const hotkeys = createContentHotkeyRuntime(() => currentPageSiteDisabled);
     const inputTranslationFeature = createInputTranslationContentFeature({
         context: ctx,
@@ -105,6 +100,9 @@ export async function startContentApp(ctx: ContentScriptContext,
         }).catch(() => undefined);
     };
 
+    const isPageRuntimeEnabled = (): boolean => !cleanedUp && !currentPageSiteDisabled && config.on !== false;
+    let pageAvailability: ContentPageAvailabilityRuntime | null = null;
+
     const disposePageFeatures = (): void => {
         featureController?.abort();
         featureController = null;
@@ -112,16 +110,14 @@ export async function startContentApp(ctx: ContentScriptContext,
         cancelAllTranslations();
         activePageFeatureRegistry?.unmountAll();
         activePageFeatureRegistry = null;
-        unmountTranslationProgressPanel();
-        unmountVideoSubtitleTranslation?.();
-        unmountVideoSubtitleTranslation = null;
+        pageAvailability?.disposeVideoSubtitlePage();
         inputTranslationFeature.invalidate();
         removePageStyles?.();
         removePageStyles = null;
     };
 
     const activatePageFeatures = async (): Promise<void> => {
-        if (cleanedUp || currentPageSiteDisabled || featureController) return;
+        if (!isPageRuntimeEnabled() || featureController) return;
 
         removePageStyles = installPageStyles(ctx);
         const activationController = new AbortController();
@@ -132,8 +128,6 @@ export async function startContentApp(ctx: ContentScriptContext,
             && !activationController.signal.aborted;
 
         inputTranslationFeature.mount(activationController.signal);
-        // 视频字幕 Beta 只在 YouTube 播放页监听原生字幕，不采集音频或视频内容。
-        unmountVideoSubtitleTranslation = mountVideoSubtitleTranslation();
         mountHoverTranslationContentFeature({
             config,
             constants,
@@ -182,6 +176,13 @@ export async function startContentApp(ctx: ContentScriptContext,
                 mount: () => mountImageTranslator(),
                 unmount: unmountImageTranslator,
             },
+            {
+                id: 'translation-progress-panel',
+                isEnabled: () => config.on && config.translationProgressPanelEnabled === true,
+                mount: () => mountTranslationProgressPanel(ctx),
+                unmount: unmountTranslationProgressPanel,
+                isMounted: () => Boolean(document.getElementById('fluent-read-translation-status-container')),
+            },
         ], {
             capabilities,
             onError: (featureId, phase, error) => {
@@ -196,25 +197,30 @@ export async function startContentApp(ctx: ContentScriptContext,
         });
     };
 
+    pageAvailability = createContentPageAvailabilityRuntime({
+        isEnabled: isPageRuntimeEnabled,
+        isPageFeaturesActive: () => featureController !== null,
+        isVideoPage: isYouTubeVideoPage,
+        shouldAutomaticallyTranslate: () => shouldAutomaticallyTranslatePage(window.location.href, config),
+        isFullPageTranslationActive,
+        setMainWorldBridgesEnabled: (enabled) => setMainWorldBridgesEnabled(document, enabled),
+        activatePageFeatures,
+        disposePageFeatures,
+        mountVideoSubtitle: mountVideoSubtitleTranslation,
+        autoTranslate: autoTranslateEnglishPage,
+    });
+
     const applySiteDisabledState = async (disabled: boolean): Promise<void> => {
         if (cleanedUp) return;
         currentPageSiteDisabled = disabled;
         reportSiteDisabledState();
-        if (disabled) {
-            shouldAutomaticallyTranslate = false;
-            setMainWorldBridgesEnabled(document, false);
-            disposePageFeatures();
-            return;
-        }
-
-        setMainWorldBridgesEnabled(document, true);
-        await activatePageFeatures();
-        if (cleanedUp || currentPageSiteDisabled) return;
-        const nextShouldAutomaticallyTranslate = shouldAutomaticallyTranslateCurrentPage(config);
-        const shouldStartNow = !shouldAutomaticallyTranslate && nextShouldAutomaticallyTranslate;
-        shouldAutomaticallyTranslate = nextShouldAutomaticallyTranslate;
-        if (shouldStartNow && !isFullPageTranslationActive()) autoTranslateEnglishPage();
+        await pageAvailability!.reconcile();
     };
+
+    document.addEventListener('fluentread-route-change', () => {
+        resetPageTranslationContextCache();
+        pageAvailability!.syncVideoSubtitlePage();
+    }, {signal: pageEventController.signal});
 
     const cleanup = (): void => {
         if (cleanedUp) return;
@@ -235,14 +241,6 @@ export async function startContentApp(ctx: ContentScriptContext,
     browser.runtime.onMessage.addListener(runtimeMessageListener);
     reportSiteDisabledState();
 
-    if (!currentPageSiteDisabled) {
-        await activatePageFeatures();
-        shouldAutomaticallyTranslate = shouldAutomaticallyTranslateCurrentPage(config);
-        if (shouldAutomaticallyTranslate) autoTranslateEnglishPage();
-    } else {
-        setMainWorldBridgesEnabled(document, false);
-    }
-
     unsubscribeContentConfig = subscribeConfig((nextConfig) => {
         const nextInputBoxConfigKey = inputBoxTranslationConfigKey(nextConfig);
         if (nextInputBoxConfigKey !== previousInputBoxConfigKey) {
@@ -259,17 +257,19 @@ export async function startContentApp(ctx: ContentScriptContext,
             return;
         }
 
-        if (nextSiteDisabled) {
-            unmountTranslationProgressPanel();
+        // 总开关是 content 生命周期的权威边界；配置历史/导入/其他上下文同步
+        // 不依赖 popup/options 的易丢广播，也必须完整恢复 DOM 和释放所有 feature。
+        if (pageAvailability!.needsLifecycleReconcile()) {
+            void pageAvailability!.reconcile();
             return;
         }
-        if (nextConfig.translationProgressPanelEnabled === true) void mountTranslationProgressPanel(ctx);
-        else unmountTranslationProgressPanel();
+        if (!isPageRuntimeEnabled()) return;
+        void activePageFeatureRegistry?.reconcileEnabled();
 
-        const nextShouldAutomaticallyTranslate = shouldAutomaticallyTranslateCurrentPage(nextConfig);
-        const shouldStartNow = !shouldAutomaticallyTranslate && nextShouldAutomaticallyTranslate;
-        shouldAutomaticallyTranslate = nextShouldAutomaticallyTranslate;
         // 关闭“始终翻译”不撤销当前会话；只处理 false -> true，避免 storage.watch 同值回声。
-        if (shouldStartNow && !isFullPageTranslationActive()) autoTranslateEnglishPage();
+        pageAvailability!.refreshAutoTranslation();
     });
+
+    // 先订阅再跨越首次 activation，避免初始化期间的总开关或站点规则写入永久漏同步。
+    await pageAvailability.reconcile();
 }

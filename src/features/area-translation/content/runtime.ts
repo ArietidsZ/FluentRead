@@ -31,10 +31,10 @@ export function mountAreaTranslator(ctx?: ContentScriptContext) {
     hostId: 'fluent-read-area-translator-container',
     component: AreaTranslator,
     zIndex: 2_147_483_647,
-    // The translated bitmap may contain pixels captured from cross-origin
-    // frames. Keep it out of the host page's script-visible shadow tree.
+    // 译图可能包含跨源 frame 的截图像素，必须与宿主页脚本可见的 Shadow Tree 隔离。
     mode: 'closed',
   }).then((ui) => {
+    // 挂载完成后复核配置与代次；失去所有权的 UI 立即销毁，不写回单例。
     if (requestId !== mountRequestId || config.selectionAreaEnabled !== true) {
       ui.remove();
       return null;
@@ -50,6 +50,7 @@ export function mountAreaTranslator(ctx?: ContentScriptContext) {
 }
 
 export function unmountAreaTranslator(): void {
+  // 先让未完成的挂载失效，再释放当前实例，避免迟到的 Promise 恢复已关闭的覆盖层。
   mountRequestId += 1;
   areaTranslatorUi?.remove();
   areaTranslatorUi = null;

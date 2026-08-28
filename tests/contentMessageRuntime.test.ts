@@ -174,7 +174,7 @@ describe('内容脚本 runtime 消息协议', () => {
         const handler = createContentRuntimeMessageHandler({} as never, {
             isSiteDisabled: () => false,
             updateSiteDisabled: vi.fn(async () => undefined),
-        });
+        }, {areaTranslation: true, imageTranslation: true} as never);
 
         expect(handler({type: 'toggleFloatingBall', isEnabled: true}, {}, respond)).toBe(true);
         expect(mocks.mountFloatingBall).toHaveBeenCalledOnce();
@@ -215,5 +215,41 @@ describe('内容脚本 runtime 消息协议', () => {
             isTranslated: false,
         });
         expect(handler({type: 'contextMenuTranslate', action: 'unknown'}, {}, respond)).toBe(false);
+    });
+
+    it('总开关关闭时只保存子功能偏好，不允许消息把页面功能重新挂载', async () => {
+        mocks.config.on = false;
+        mocks.isFullPageTranslationActive.mockReturnValue(true);
+        const {createContentRuntimeMessageHandler} = await import('@/src/app/content/messageRuntime');
+        const respond = vi.fn();
+        const handler = createContentRuntimeMessageHandler({} as never, {
+            isSiteDisabled: () => false,
+            updateSiteDisabled: vi.fn(async () => undefined),
+        }, {areaTranslation: true, imageTranslation: true} as never);
+
+        expect(handler({type: 'toggleFloatingBall', isEnabled: true}, {}, respond)).toBe(true);
+        expect(handler({type: 'updateSelectionTranslatorMode', mode: 'bilingual'}, {}, respond)).toBe(true);
+        expect(handler({type: 'toggleSelectionAreaTranslator', isEnabled: true}, {}, respond)).toBe(true);
+        expect(handler({type: 'toggleImageTranslator', isEnabled: true}, {}, respond)).toBe(true);
+        expect(handler({type: 'toggleTranslationProgressPanel', isEnabled: true}, {}, respond)).toBe(true);
+
+        expect(mocks.mountFloatingBall).not.toHaveBeenCalled();
+        expect(mocks.mountSelectionTranslator).not.toHaveBeenCalled();
+        expect(mocks.mountAreaTranslator).not.toHaveBeenCalled();
+        expect(mocks.mountImageTranslator).not.toHaveBeenCalled();
+        expect(mocks.mountTranslationProgressPanel).not.toHaveBeenCalled();
+        expect(handler({type: 'getFullPageTranslationState'}, {}, respond)).toBe(true);
+        expect(respond).toHaveBeenLastCalledWith({
+            status: 'success',
+            isTranslated: false,
+            isSiteDisabled: false,
+        });
+        expect(mocks.config).toMatchObject({
+            disableFloatingBall: false,
+            disableSelectionTranslator: false,
+            selectionAreaEnabled: true,
+            disableImageTranslator: false,
+            translationProgressPanelEnabled: true,
+        });
     });
 });

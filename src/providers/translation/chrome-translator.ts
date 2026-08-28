@@ -14,6 +14,7 @@ import {
 } from '@/src/platform/browser/capabilities';
 import {
     chromeOffscreenClient,
+    OFFSCREEN_CANCEL_CHROME_TRANSLATION_MESSAGE_TYPE,
     type OffscreenClient,
 } from '@/src/platform/offscreen/client';
 import {
@@ -25,11 +26,19 @@ interface ChromeTranslationOffscreenResponse {
     readonly success?: boolean;
     readonly result?: unknown;
     readonly error?: string;
+    readonly requestId?: unknown;
 }
+
+const DEFAULT_CHROME_TRANSLATION_TIMEOUT_MS = 45_000;
 
 export interface ChromeTranslatorDependencies {
     readonly capabilities: Pick<BrowserCapabilities, 'chromeTranslation'>;
     readonly offscreenClient: Pick<OffscreenClient, 'send'>;
+    readonly createRequestId: () => string;
+}
+
+export function createChromeTranslationRequestId(): string {
+    return crypto.randomUUID();
 }
 
 /** Chrome Translation provider；Offscreen 生命周期与 transport 由 platform client 所有。 */
@@ -44,14 +53,26 @@ export function createChromeTranslator(dependencies: ChromeTranslatorDependencie
 
         try {
             const current = getTranslationProviderConfig(message, config);
+            const requestId = dependencies.createRequestId();
             const response = await dependencies.offscreenClient.send<ChromeTranslationOffscreenResponse>({
                 type: 'CHROME_TRANSLATE_OFFSCREEN',
+                requestId,
                 data: buildChromeOffscreenTranslationData(message, {
                     sourceLanguage: current.from,
                     targetLanguage: current.to,
                 }),
+            }, {
+                signal: message.abortSignal,
+                timeoutMs: typeof message.requestTimeoutMs === 'number'
+                    ? message.requestTimeoutMs
+                    : DEFAULT_CHROME_TRANSLATION_TIMEOUT_MS,
+                cancelMessage: {
+                    type: OFFSCREEN_CANCEL_CHROME_TRANSLATION_MESSAGE_TYPE,
+                    requestId,
+                },
             });
-            if (!response?.success || typeof response.result !== 'string') {
+            if (response?.requestId !== requestId) throw new Error('Offscreen 翻译响应 requestId 不匹配');
+            if (!response.success || typeof response.result !== 'string') {
                 throw new Error(response?.error || '无效的翻译响应');
             }
             return response.result;
@@ -65,6 +86,7 @@ export function createChromeTranslator(dependencies: ChromeTranslatorDependencie
 const chromeTranslator = createChromeTranslator({
     capabilities: browserCapabilities,
     offscreenClient: chromeOffscreenClient,
+    createRequestId: createChromeTranslationRequestId,
 });
 
 export default chromeTranslator;

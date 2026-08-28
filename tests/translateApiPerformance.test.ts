@@ -3,7 +3,11 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 const mocks = vi.hoisted(() => ({
   sendMessage: vi.fn(),
   getPageTranslationContext: vi.fn(),
-  saveConfig: vi.fn(async () => undefined),
+  persistCountIncrement: vi.fn<(
+    delta: number,
+    sendMessage: (message: unknown) => Promise<unknown>,
+    operationId: string,
+  ) => Promise<number>>(async () => 0),
   getMissingCredentialMessage: vi.fn(() => null as string | null),
   config: {
     count: 0,
@@ -24,8 +28,7 @@ vi.mock('webextension-polyfill', () => ({
 }));
 vi.mock('@/src/services/config/store', () => ({
   config: mocks.config,
-  saveConfig: mocks.saveConfig,
-  requestConfigCountIncrement: mocks.saveConfig,
+  requestConfigCountIncrement: mocks.persistCountIncrement,
 }));
 vi.mock('@/src/core/language/detect', () => ({detectlang: () => 'eng'}));
 vi.mock('@/src/core/config/catalog', () => ({
@@ -59,7 +62,7 @@ describe('translation API request lifecycle performance', () => {
     vi.useFakeTimers();
     mocks.sendMessage.mockReset();
     mocks.getPageTranslationContext.mockReset();
-    mocks.saveConfig.mockClear();
+    mocks.persistCountIncrement.mockReset().mockResolvedValue(0);
     mocks.getMissingCredentialMessage.mockReset().mockReturnValue(null);
     mocks.config.count = 0;
     mocks.config.maxConcurrentTranslations = 6;
@@ -131,14 +134,47 @@ describe('translation API request lifecycle performance', () => {
       translateText(`Readable source ${index}`, 'Context'));
     await expect(Promise.all(requests)).resolves.toHaveLength(24);
 
-    // Every 45-second request timer has been cleared; only the shared 500ms
-    // count persistence timer remains.
+    // 所有 45 秒请求计时器均已清除，只剩共享的 500 毫秒计数持久化计时器。
     expect(vi.getTimerCount()).toBe(1);
-    expect(mocks.saveConfig).not.toHaveBeenCalled();
+    expect(mocks.persistCountIncrement).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(500);
-    expect(mocks.saveConfig).toHaveBeenCalledTimes(1);
-    expect(mocks.saveConfig).toHaveBeenCalledWith(24, expect.any(Function));
-    expect(mocks.config.count).toBe(24);
+    expect(mocks.persistCountIncrement).toHaveBeenCalledTimes(1);
+    expect(mocks.persistCountIncrement).toHaveBeenCalledWith(
+      24,
+      expect.any(Function),
+      expect.stringMatching(/^count-/u),
+    );
+    expect(mocks.config.count).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('计数持久化失败后复用 operationId 重试，成功调用不会丢失或重复', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    mocks.sendMessage.mockResolvedValue('译文');
+    mocks.persistCountIncrement
+      .mockRejectedValueOnce(new Error('runtime disconnected'))
+      .mockResolvedValueOnce(1);
+
+    await expect(translateText('Retryable count source', 'Context', {maxRetries: 0})).resolves.toBe('译文');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(mocks.persistCountIncrement).toHaveBeenCalledTimes(1);
+    const firstOperationId = mocks.persistCountIncrement.mock.calls[0]?.[2];
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(mocks.persistCountIncrement).toHaveBeenCalledTimes(2);
+    expect(mocks.persistCountIncrement.mock.calls[1]?.[2]).toBe(firstOperationId);
+    expect(consoleError).toHaveBeenCalledOnce();
+    consoleError.mockRestore();
+  });
+
+  it('失败或取消的翻译不会排入完成计数', async () => {
+    mocks.sendMessage.mockRejectedValue(new Error('provider unavailable'));
+
+    await expect(translateText('Failed count source', 'Context', {maxRetries: 0}))
+      .rejects.toThrow('provider unavailable');
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(mocks.persistCountIncrement).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -312,10 +348,10 @@ describe('translation API request lifecycle performance', () => {
 
     await expect(outcome).resolves.toMatchObject({name: 'AbortError'});
     expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
-    // The retry timer is removed synchronously; only count persistence remains.
-    expect(vi.getTimerCount()).toBe(1);
+    // 请求没有成功，因此既不会保留重试计时器，也不会新增完成计数。
+    expect(vi.getTimerCount()).toBe(0);
     cancelAllTranslations();
-    expect(mocks.saveConfig).toHaveBeenCalledTimes(1);
+    expect(mocks.persistCountIncrement).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -377,9 +413,13 @@ describe('translation API request lifecycle performance', () => {
     expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
     await expect(second).resolves.toBe('第二段译文');
 
-    // The late raw transport rejection is still observed by waitForRequest.
+    // waitForRequest 仍会观察到迟到的原始传输 rejection。
     firstTransport.reject(new Error('late transport rejection'));
     await Promise.resolve();
+    // 第一条已取消请求不计数，第二条成功请求仍保留共享的延迟持久化任务。
+    expect(vi.getTimerCount()).toBe(1);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(mocks.persistCountIncrement).toHaveBeenCalledTimes(1);
     expect(vi.getTimerCount()).toBe(0);
   });
 

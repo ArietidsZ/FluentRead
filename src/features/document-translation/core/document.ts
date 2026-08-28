@@ -41,28 +41,28 @@ export type DocumentRenderMode = 'bilingual' | 'translated';
 export interface DocumentSegment {
     id: number;
     source: string;
-    /** Optional reader context, such as a PDF page or ePub chapter. */
+    /** 可选的阅读上下文，例如 PDF 页码或 ePub 章节。 */
     contextLabel?: string;
-    /** Native subtitle timeline metadata. */
+    /** 字幕原生时间轴元数据。 */
     timeStart?: string;
     timeEnd?: string;
-    /** Native structured-document location, such as $.items[0].label. */
+    /** 结构化文档中的原生位置，例如 `$.items[0].label`。 */
     pathLabel?: string;
-    /** Native document role used by page/article previews. */
+    /** 页面或文章预览使用的原生文档角色。 */
     role?: 'title' | 'heading' | 'paragraph' | 'list-item' | 'header' | 'footer' | 'note';
 }
 
 export interface PdfDocumentBlock {
     segmentIndex: number;
-    /** Top-left PDF viewport coordinates at scale 1. */
+    /** PDF 视口在缩放比例 1 下的左上角坐标。 */
     x: number;
     y: number;
     width: number;
     height: number;
     fontSize: number;
-    /** Median source line height in PDF viewport units. */
+    /** 以 PDF 视口单位表示的源文本行高中位数。 */
     lineHeight: number;
-    /** Number of source text lines represented by this paragraph block. */
+    /** 此段落块包含的源文本行数。 */
     lineCount: number;
     fontFamily: string;
     fontWeight: 400 | 600 | 700;
@@ -99,7 +99,7 @@ export type BinaryDocumentData =
 interface LiteralPart {
     kind: 'literal';
     value: string;
-    /** Markdown source-line group used to keep protected inline syntax in place. */
+    /** Markdown 源行分组，用于让受保护的行内语法保持原位。 */
     bilingualGroup?: number;
 }
 
@@ -107,13 +107,13 @@ interface SegmentPart {
     kind: 'segment';
     segmentIndex: number;
     source: string;
-    /** Original encoded HTML text used when the bilingual source is rendered. */
+    /** 双语显示源文时使用的原始编码 HTML 文本。 */
     rawSource?: string;
     prefix: string;
     suffix: string;
-    /** Repeat a structural prefix when a bilingual line needs a second cue. */
+    /** 双语行需要第二个提示时重复使用的结构前缀。 */
     bilingualPrefix?: string;
-    /** Markdown source-line group used to render one coherent bilingual line. */
+    /** Markdown 源行分组，用于渲染一条结构完整的双语行。 */
     bilingualGroup?: number;
 }
 
@@ -362,7 +362,7 @@ interface HtmlToken {
     value: string;
 }
 
-/** Find the next HTML token without treating `>` inside a quoted attribute as the tag boundary. */
+/** 查找下一个 HTML token，带引号属性中的 `>` 不应被误判为标签边界。 */
 function findNextHtmlToken(content: string, from: number): HtmlToken | null {
     let index = content.indexOf('<', from);
     while (index >= 0) {
@@ -460,9 +460,8 @@ function parseTimedSubtitleDocument(content: string, format: 'srt' | 'vtt'): Pic
         const textStart = lines[textStartLine].start;
         const textEnd = lines[cursorLine - 1].textEnd;
         const source = content.slice(textStart, textEnd);
-        // Keep a complete cue in one translation unit. This lets the provider
-        // preserve inline subtitle tags such as <i>...</i> or ASS override
-        // codes while keeping timestamps and cue boundaries outside the request.
+        // 将完整字幕提示作为一个翻译单元，使服务能保留 `<i>...</i>` 等行内标签或 ASS
+        // 覆盖代码，同时不把时间戳和提示边界发送给翻译请求。
         addSegment(parts, segments, source, {
             timeStart: timeMatch?.[1],
             timeEnd: timeMatch?.[2],
@@ -565,6 +564,7 @@ function parseJsonDocument(content: string): Pick<ParsedDocument, 'segments' | '
 
     const segments: DocumentSegment[] = [];
     const jsonEntries: JsonSegmentEntry[] = [];
+    // 只把字符串叶节点送去翻译，并记录路径与首尾空白；渲染时在深拷贝上回填，原对象始终不变。
     const walk = (value: unknown, path: Array<string | number>) => {
         if (typeof value === 'string') {
             const trimmed = trimSource(value);
@@ -680,6 +680,7 @@ function renderParts(document: ParsedDocument, translations: readonly string[], 
     for (let index = 0; index < document.parts.length; index += 1) {
         const part = document.parts[index];
         if (mode === 'bilingual' && document.format === 'markdown' && part.bilingualGroup !== undefined) {
+            // 行内链接或代码会被切成多个 part；双语模式按源行重组，避免把一行引用拆成多段。
             const group = part.bilingualGroup;
             const groupParts: DocumentPart[] = [];
             while (index < document.parts.length && document.parts[index].bilingualGroup === group) {

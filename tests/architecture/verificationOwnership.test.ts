@@ -72,10 +72,10 @@ function coverageSourcePaths(): Set<string> {
 function verificationOwners(path: string, strictCoverage: Set<string>): VerificationOwner[] {
     const owners = new Set<VerificationOwner>();
 
-    // Step 1: 迁移到 src 的业务模块优先由严格 V8 门禁验证行为。
+    // 步骤 1：迁移到 src 的业务模块优先由严格 V8 门禁验证行为。
     if (strictCoverage.has(path)) owners.add('strict-v8-coverage');
 
-    // Step 2: WXT 入口、Vue 页面和共享样式必须同时经过 Chrome 与 Firefox 构建。
+    // 步骤 2：WXT 入口、Vue 页面和共享样式必须同时经过 Chrome 与 Firefox 构建。
     if (path.startsWith('components/')
         || path.startsWith('entrypoints/')
         || path.startsWith('src/')
@@ -84,7 +84,7 @@ function verificationOwners(path: string, strictCoverage: Set<string>): Verifica
         owners.add('chrome-firefox-build');
     }
 
-    // Step 3: 各自独立的发布出口和测试基础设施由对应流水线负责。
+    // 步骤 3：各自独立的发布出口和测试基础设施由对应流水线负责。
     if (path.startsWith('userscript/')) owners.add('userscript-build');
     if (path === 'src/services/config/store.ts') owners.add('config-storage-functional');
     if (path === 'src/features/document-translation/ui/pdfPreview.ts') owners.add('document-browser-functional');
@@ -200,7 +200,6 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/providers/translation/deepseek.ts',
     'src/providers/translation/gemini.ts',
     'src/providers/translation/google.ts',
-    'src/providers/translation/grok.ts',
     'src/providers/translation/hunyuan-translation.ts',
     'src/providers/translation/microsoft.ts',
     'src/providers/translation/tencent.ts',

@@ -10,11 +10,15 @@ function decodeStoredValue(value: unknown): unknown {
     try {
         return JSON.parse(value);
     } catch {
-        // Values from the 2024 userscript were stored as plain strings.
+        // 2024 版 userscript 的值以普通字符串保存，需要保持原值以便迁移。
         return value;
     }
 }
 
+/**
+ * GM 存储 API 在不同脚本管理器中可能同步或异步返回；这里统一归一为 Promise。
+ * 内存回退仅服务于缺少 GM API 的测试或受限环境，不跨页面持久化。
+ */
 export async function getStoredValue<T>(key: string): Promise<T | null> {
     const getValue = globalThis.GM_getValue;
     if (typeof getValue === 'function') {
@@ -47,6 +51,16 @@ export async function removeStoredValue(key: string): Promise<void> {
     listeners.get(key)?.forEach((listener) => listener(null, previousValue));
 }
 
+/** 统一枚举 GM 键；计数等跨页面派生状态只读取自己的命名空间。 */
+export async function listStoredKeys(): Promise<string[]> {
+    const listValues = globalThis.GM_listValues;
+    if (typeof listValues === 'function') {
+        const keys = await Promise.resolve(listValues());
+        return Array.isArray(keys) ? keys.filter((key): key is string => typeof key === 'string') : [];
+    }
+    return [...new Set([...memoryFallback.keys(), ...observedValues.keys()])];
+}
+
 function comparable(value: unknown): string {
     try {
         return JSON.stringify(value);
@@ -55,6 +69,7 @@ function comparable(value: unknown): string {
     }
 }
 
+/** 旧式 GM API 没有可靠的变更监听，因此页面重新获得焦点或可见时主动对比已订阅键。 */
 async function refreshWatchedValues(): Promise<void> {
     await Promise.all([...listeners.keys()].map(async (key) => {
         const previousValue = observedValues.get(key);

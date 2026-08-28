@@ -18,6 +18,12 @@ function runtime(
     };
 }
 
+function deferred<T>() {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((nextResolve) => { resolve = nextResolve; });
+    return {promise, resolve};
+}
+
 describe('content feature registry', () => {
     it('unsupported message helpers unmount and answer explicitly without touching supported features', () => {
         const unmount = vi.fn();
@@ -132,9 +138,9 @@ describe('content feature registry', () => {
         let mountCalls = 0;
         const mount = vi.fn(() => {
             mountCalls += 1;
-            // Step 1: 恢复 activation 首次调用会复用禁用前尚未 settle 的 singleton Promise。
+            // 步骤 1：恢复 activation 首次调用会复用禁用前尚未 settle 的 singleton Promise。
             if (mountCalls <= 2) return staleMount;
-            // Step 2: 旧 Promise settle 后，恢复 activation 的一次重试真正建立新宿主。
+            // 步骤 2：旧 Promise settle 后，恢复 activation 的一次重试真正建立新宿主。
             mounted = true;
             return undefined;
         });
@@ -235,6 +241,135 @@ describe('content feature registry', () => {
         ]);
         expect(isEnabled).not.toHaveBeenCalled();
         expect(mount).not.toHaveBeenCalled();
+    });
+
+    it('配置历史/导入可热同步四个页面功能和进度面板，并按 ownership 避免重复挂载', async () => {
+        const enabled = new Map([
+            ['floating-ball', false],
+            ['selection-translator', false],
+            ['selection-area-translator', false],
+            ['image-translator', false],
+            ['translation-progress-panel', true],
+        ]);
+        const mounted = new Map<string, boolean>();
+        const mounts = new Map<string, ReturnType<typeof vi.fn>>();
+        const unmounts = new Map<string, ReturnType<typeof vi.fn>>();
+        const definitions = [...enabled.keys()].map((id) => {
+            const mount = vi.fn(() => mounted.set(id, true));
+            const unmount = vi.fn(() => mounted.set(id, false));
+            mounts.set(id, mount);
+            unmounts.set(id, unmount);
+            return {
+                id,
+                isEnabled: () => enabled.get(id) === true,
+                mount,
+                unmount,
+                // 图片 runtime 没有 DOM isMounted 回调，专门验证 registry ownership 去重。
+                ...(id === 'image-translator' ? {} : {isMounted: () => mounted.get(id) === true}),
+            };
+        });
+        const registry = createContentFeatureRegistry(definitions);
+
+        await registry.mountEnabled(runtime());
+        expect(mounts.get('translation-progress-panel')).toHaveBeenCalledOnce();
+        for (const id of [...enabled.keys()].slice(0, 4)) expect(mounts.get(id)).not.toHaveBeenCalled();
+
+        enabled.set('translation-progress-panel', false);
+        for (const id of [...enabled.keys()].slice(0, 4)) enabled.set(id, true);
+        await registry.reconcileEnabled();
+        expect(unmounts.get('translation-progress-panel')).toHaveBeenCalledOnce();
+        for (const id of [...enabled.keys()].slice(0, 4)) expect(mounts.get(id)).toHaveBeenCalledOnce();
+
+        await registry.reconcileEnabled();
+        for (const id of [...enabled.keys()].slice(0, 4)) expect(mounts.get(id)).toHaveBeenCalledOnce();
+
+        for (const id of enabled.keys()) enabled.set(id, false);
+        await registry.reconcileEnabled();
+        for (const id of [...enabled.keys()].slice(0, 4)) expect(unmounts.get(id)).toHaveBeenCalledOnce();
+    });
+
+    it('总开关关闭后任意子配置同步都不能重新挂载进度面板或其他功能', async () => {
+        let globalEnabled = true;
+        let progressEnabled = true;
+        const mount = vi.fn();
+        const unmount = vi.fn();
+        const registry = createContentFeatureRegistry([{
+            id: 'translation-progress-panel',
+            isEnabled: () => globalEnabled && progressEnabled,
+            mount,
+            unmount,
+        }]);
+        await registry.mountEnabled(runtime());
+        expect(mount).toHaveBeenCalledOnce();
+
+        globalEnabled = false;
+        await registry.reconcileEnabled();
+        expect(unmount).toHaveBeenCalledOnce();
+        progressEnabled = false;
+        await registry.reconcileEnabled();
+        progressEnabled = true;
+        await registry.reconcileEnabled();
+        expect(mount).toHaveBeenCalledOnce();
+    });
+
+    it('并发热同步复用同一个在途 mount，并在完成后复验最新配置', async () => {
+        let enabled = true;
+        let mounted = false;
+        const pending = deferred<void>();
+        const mount = vi.fn(async () => {
+            await pending.promise;
+            mounted = true;
+        });
+        const unmount = vi.fn(() => { mounted = false; });
+        const registry = createContentFeatureRegistry([{
+            id: 'floating-ball',
+            isEnabled: () => enabled,
+            mount,
+            unmount,
+            isMounted: () => mounted,
+        }]);
+
+        const initial = registry.mountEnabled(runtime());
+        await Promise.resolve();
+        const duplicate = registry.reconcileEnabled();
+        enabled = false;
+        await expect(registry.reconcileEnabled()).resolves.toEqual([
+            {id: 'floating-ball', status: 'skipped'},
+        ]);
+        pending.resolve();
+        await expect(initial).resolves.toEqual([{id: 'floating-ball', status: 'skipped'}]);
+        await expect(duplicate).resolves.toEqual([{id: 'floating-ball', status: 'skipped'}]);
+        expect(mount).toHaveBeenCalledOnce();
+        expect(unmount).toHaveBeenCalledOnce();
+        expect(mounted).toBe(false);
+    });
+
+    it('尚未建立 activation 时 reconcile 确定性跳过所有功能', async () => {
+        const isEnabled = vi.fn(() => true);
+        const registry = createContentFeatureRegistry([{id: 'image', isEnabled, mount: vi.fn()}]);
+        await expect(registry.reconcileEnabled()).resolves.toEqual([{id: 'image', status: 'skipped'}]);
+        expect(isEnabled).not.toHaveBeenCalled();
+    });
+
+    it('热同步卸载失败时记录诊断，并继续清除 registry ownership', async () => {
+        let enabled = true;
+        const failure = new Error('hot unmount failed');
+        const onError = vi.fn();
+        const mount = vi.fn();
+        const registry = createContentFeatureRegistry([{
+            id: 'image',
+            isEnabled: () => enabled,
+            mount,
+            unmount: () => { throw failure; },
+        }], {onError});
+        await registry.mountEnabled(runtime());
+
+        enabled = false;
+        await registry.reconcileEnabled();
+        expect(onError).toHaveBeenCalledWith('image', 'unmount', failure);
+        enabled = true;
+        await registry.reconcileEnabled();
+        expect(mount).toHaveBeenCalledTimes(2);
     });
 
     it('按逆序卸载，且单个清理失败不会阻止其他功能释放资源', () => {

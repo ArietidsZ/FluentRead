@@ -11,7 +11,11 @@ import {translateDeepLXText} from "./deeplx";
 import {translateGoogleText} from "./google";
 import {services} from "@/src/core/config/catalog";
 import {getTranslationLanguages, type TranslationLanguageOverride} from '@/src/services/translation/languages';
-import type {TranslationProviderRequestContext} from '@/src/services/translation/requestSnapshot';
+import {abortErrorFromSignal} from '@/src/platform/http/runtime';
+import type {
+    TranslationProviderRequest,
+    TranslationProviderRequestContext,
+} from '@/src/services/translation/requestSnapshot';
 
 type FreeTranslationRequest = TranslationLanguageOverride & TranslationProviderRequestContext;
 
@@ -25,6 +29,7 @@ export const FREE_TRANSLATION_ORDER = [
     "DeepLX",
     "谷歌翻译",
 ] as const;
+export const FREE_TRANSLATION_BATCH_CONCURRENCY = 3;
 
 function requireTranslation(text: string, label: string): string {
     if (typeof text !== "string" || text.trim().length === 0) {
@@ -38,21 +43,24 @@ const providers: FreeTranslationProvider[] = [
         label: FREE_TRANSLATION_ORDER[0],
         translate: async (text, languages) => {
             const {sourceLanguage, targetLanguage} = getTranslationLanguages(languages);
-            const translations = await translateMicrosoftTexts([text], sourceLanguage, targetLanguage);
+            const translations = await translateMicrosoftTexts(
+                [text],
+                sourceLanguage,
+                targetLanguage,
+                languages.abortSignal,
+            );
             return requireTranslation(translations[0] || "", FREE_TRANSLATION_ORDER[0]);
         },
     },
     {
         label: FREE_TRANSLATION_ORDER[1],
-        translate: (text, languages) => languages.sourceLanguage || languages.targetLanguage
-            ? translateDeepLXText(text, services.deeplx, languages)
-            : translateDeepLXText(text, services.deeplx),
+        translate: (text, languages) => translateDeepLXText(text, services.deeplx, languages),
     },
     {
         label: FREE_TRANSLATION_ORDER[2],
         translate: (text, languages) => {
             const {sourceLanguage, targetLanguage} = getTranslationLanguages(languages);
-            return translateGoogleText(text, sourceLanguage, targetLanguage);
+            return translateGoogleText(text, sourceLanguage, targetLanguage, languages.abortSignal);
         },
     },
 ];
@@ -68,9 +76,11 @@ export async function translateFreeText(text: string, languages: FreeTranslation
 
     const failures: string[] = [];
     for (const provider of providers) {
+        if (languages.abortSignal?.aborted) throw abortErrorFromSignal(languages.abortSignal);
         try {
             return requireTranslation(await provider.translate(text, languages), provider.label);
         } catch (error) {
+            if (languages.abortSignal?.aborted) throw abortErrorFromSignal(languages.abortSignal);
             failures.push(`${provider.label}: ${getErrorMessage(error)}`);
         }
     }
@@ -78,17 +88,49 @@ export async function translateFreeText(text: string, languages: FreeTranslation
     throw new Error(`免费翻译服务均不可用（${FREE_TRANSLATION_ORDER.join(" → ")}）：${failures.join("；")}`);
 }
 
-async function freeTranslation(message: {
-    origin: string | string[];
-    sourceLanguage?: string;
-    targetLanguage?: string;
-} & TranslationProviderRequestContext) {
+async function translateFreeBatch(texts: string[], message: FreeTranslationRequest): Promise<string[]> {
+    const translations = new Array<string>(texts.length);
+    const batchController = new AbortController();
+    const onCallerAbort = () => batchController.abort(message.abortSignal?.reason);
+    if (message.abortSignal?.aborted) onCallerAbort();
+    else message.abortSignal?.addEventListener('abort', onCallerAbort, {once: true});
+    const batchMessage = {...message, abortSignal: batchController.signal};
+    let nextIndex = 0;
+    let stopped = false;
+
+    // 每个 worker 串行领取下一段，避免 OCR 文本一次并发整条三层回退链。
+    const worker = async () => {
+        while (!stopped) {
+            if (batchController.signal.aborted) throw abortErrorFromSignal(batchController.signal);
+            const index = nextIndex;
+            if (index >= texts.length) return;
+            nextIndex += 1;
+            try {
+                translations[index] = await translateFreeText(texts[index], batchMessage);
+            } catch (error) {
+                stopped = true;
+                if (!batchController.signal.aborted) batchController.abort(error);
+                throw error;
+            }
+        }
+    };
+
+    const workerCount = Math.min(FREE_TRANSLATION_BATCH_CONCURRENCY, texts.length);
+    try {
+        await Promise.all(Array.from({length: workerCount}, () => worker()));
+        return translations;
+    } finally {
+        message.abortSignal?.removeEventListener('abort', onCallerAbort);
+    }
+}
+
+async function freeTranslation(message: TranslationProviderRequest) {
     if (typeof message.origin === "string") {
         return translateFreeText(message.origin, message);
     }
 
     if (Array.isArray(message.origin)) {
-        return Promise.all(message.origin.map(text => translateFreeText(text, message)));
+        return translateFreeBatch(message.origin, message);
     }
 
     throw new Error("免费翻译服务仅支持文本输入");

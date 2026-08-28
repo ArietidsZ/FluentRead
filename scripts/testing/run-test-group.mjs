@@ -62,18 +62,18 @@ async function main() {
     const files = filesForGroup(matrix, group);
     if (files.length === 0) throw new Error(`测试组为空：${group}`);
 
-    // Step 1: 先从矩阵解析出本次要运行的文件，runner 不自行发明分类。
+    // 步骤 1：先从矩阵解析出本次要运行的文件，runner 不自行发明分类。
     const vitestArgs = ['exec', 'vitest', 'run'];
     if (coverage) vitestArgs.push('--coverage');
     vitestArgs.push(...files);
 
-    // Step 2: dry-run 用于 CI 或本地自检命令，不把未运行伪装成通过。
+    // 步骤 2：dry-run 用于 CI 或本地自检命令，不把未运行伪装成通过。
     if (dryRun) {
         console.log(JSON.stringify({group, coverage, files}, null, 2));
         return;
     }
 
-    // Step 3: 真正执行时继承 stdio，让失败栈和 Vitest 摘要完整暴露。
+    // 步骤 3：真正执行时继承 stdio，让失败栈和 Vitest 摘要完整暴露。
     const result = await run('pnpm', vitestArgs);
     if (result.code !== 0) {
         process.exit(result.code ?? 1);

@@ -5,7 +5,6 @@
  * 模块边界：这是 content 侧编排层，不实现 provider 协议、纯候选算法或底层状态存储；翻译调用经 app client，发现规则来自 core/translation，渲染与状态分别交给 renderer 和 state。
  */
 import { checkConfig } from "@/src/app/translation/check";
-import { services } from "@/src/core/config/catalog";
 import {insertFailedTip, insertLoadingSpinner} from '@/src/features/full-page-translation/ui/translationIndicators';
 import { styles } from "@/src/core/config/constants";
 import {
@@ -21,17 +20,14 @@ import {
     getTranslationCandidateKey,
     isClearlyTargetLanguage,
     isProtectedDescendantElement,
-    parseTranslationSlots,
     resolveTranslationCandidate,
     resolveTranslationCandidateAtPoint,
     selectPreferredTranslationCandidate,
-    serializeTranslationSlots,
 } from "@/src/core/translation/public";
 import type {TranslationCandidate, TranslationDiscoveryStep} from "@/src/core/translation/public";
 import { detectlang } from "@/src/core/language/detect";
 import { config } from "@/src/services/config/store";
 import type { FullPageTranslationMode } from "@/src/core/config/model";
-import { translateText, translateTextBatch } from "@/src/app/translation/client";
 import {
     cancelTranslationQueueSession,
     createTranslationQueueSession,
@@ -64,6 +60,12 @@ import {
     isTranslationLayoutOverrideMutation,
     type TranslationState,
 } from "@/src/features/full-page-translation/content/state";
+import {
+    captureFullPageTranslationConfig,
+    translateTextSlots,
+    type FullPageTranslationCacheEntry,
+    type FullPageTranslationConfigSnapshot,
+} from '@/src/features/full-page-translation/content/translationRequest';
 
 const TRANSLATION_ARTIFACT_SELECTOR = [
     '[data-fr-translation-segment="true"]',
@@ -78,7 +80,7 @@ type TranslationTargetOutcome =
     | {
         status: "stale" | "not-current" | "empty";
         retryRoot?: Node;
-        /** Attempt owner used to reject retries after a newer generation took over. */
+        /** 尝试 owner，用于在较新的 generation 接管后拒绝旧重试。 */
         attemptNode?: HTMLElement;
     };
 
@@ -88,11 +90,6 @@ interface FullPageLifecycleRetry {
     kind: TranslationCandidate["kind"];
     reason: string;
     attempts: number;
-}
-
-interface FullPageTranslationCacheEntry {
-    promise: Promise<string | undefined>;
-    settled: boolean;
 }
 
 interface SnapshotTranslationResult {
@@ -112,6 +109,8 @@ interface LiveTextTranslationResult {
 interface FullPageSession {
     active: boolean;
     translationMode: FullPageTranslationMode;
+    /** 会话启动时冻结所有会改变译文或 DOM 表达的配置，防止设置热更新混入当前页面。 */
+    translationConfig: FullPageTranslationConfigSnapshot;
     progressSessionId: number;
     progressPublishScheduled: boolean;
     observer: IntersectionObserver;
@@ -120,32 +119,30 @@ interface FullPageSession {
     roots: Set<Node>;
     pending: Map<Node, TranslationCandidate>;
     scheduled: Map<Node, TranslationCandidate>;
-    /** Visibility anchor -> candidates waiting for that anchor to enter the viewport. */
+    /** 可见性锚点 -> 等待该锚点进入视口的候选。 */
     observedCandidates: Map<HTMLElement, Map<Node, TranslationCandidate>>;
-    /** Candidate key -> its actual IntersectionObserver target (which can be a descendant). */
+    /** 候选 key -> 实际的 IntersectionObserver 目标，该目标可以是后代元素。 */
     candidateAnchors: Map<Node, HTMLElement>;
-    /** Candidate element -> candidate keys, kept separate from visibility anchors for cleanup. */
+    /** 候选元素 -> 候选 key；与可见性锚点分开保存，便于精确清理。 */
     candidateOwnerKeys: Map<HTMLElement, Set<Node>>;
-    /** Host owner/ancestor -> active translation targets below it, avoiding a global state scan on mutations. */
+    /** 宿主 owner/祖先 -> 其下活跃翻译目标，避免 mutation 时全局扫描状态。 */
     statefulTargetsByAncestor: Map<Element, Set<HTMLElement>>;
-    /** Active target -> the exact ancestor keys registered above. */
+    /** 活跃目标 -> 上述索引中为它登记的精确祖先 key。 */
     statefulAncestorsByTarget: WeakMap<HTMLElement, readonly Element[]>;
-    /** Bounded immediate retries for candidates invalidated while a provider request is in flight. */
+    /** provider 请求在途时失效候选的有界即时重试记录。 */
     lifecycleRetries: WeakMap<Node, FullPageLifecycleRetry>;
-    /** Explicit provider/language no-change decisions, scoped to this full-page session. */
+    /** 限定在本次全文会话内的 provider/语言“无需变更”判定。 */
     unchangedCandidates: WeakMap<Node, FullPageLifecycleRetry>;
     /**
-     * Candidate identities explicitly restored by the user during this full-page
-     * session. The source snapshot lets a real host edit clear the tombstone,
-     * while the extension's own restore mutations keep the segment excluded.
+     * 用户在本次全文会话中显式恢复的候选标识。来源快照允许真实宿主编辑
+     * 清除取消墓碑，同时让扩展自身产生的恢复 mutation 继续排除该片段。
      */
     userCancelledCandidates: Map<Node, string>;
-    /** Candidate keys currently consuming one of the full-page concurrency slots. */
+    /** 当前正在占用全文翻译并发槽位的候选 key。 */
     inFlightCandidates: Map<Node, TranslationCandidate>;
     /**
-     * Translation results already requested by this full-page session. Host
-     * frameworks can remount the same prose after a style/layout mutation;
-     * keep that lifecycle churn from issuing the same provider request again.
+     * 本次全文会话已经请求过的翻译结果。宿主框架可能在样式/布局 mutation 后
+     * 重新挂载同一段正文；此缓存避免生命周期抖动再次发出相同 provider 请求。
      */
     translationSlotCache: Map<string, FullPageTranslationCacheEntry>;
     draining: boolean;
@@ -167,7 +164,6 @@ const BROAD_RESCAN_COOLDOWN_MS = 1_000;
 const CANDIDATE_PRUNE_BUDGET_MS = 4;
 const STATEFUL_ATTRIBUTE_DEBOUNCE_MS = 500;
 const FULL_PAGE_LIFECYCLE_RETRY_LIMIT = 2;
-const FULL_PAGE_TRANSLATION_CACHE_LIMIT = 512;
 
 let hoverTimer: ReturnType<typeof setTimeout> | undefined;
 let fullPageSession: FullPageSession | null = null;
@@ -229,11 +225,16 @@ function currentTranslationDisplayMode(): "bilingual" | "single" {
     return config.display === styles.bilingualTranslation ? "bilingual" : "single";
 }
 
-function translateNode(node: unknown, displayMode: "bilingual" | "single", slide: boolean): void {
+function translateNode(
+    node: unknown,
+    displayMode: "bilingual" | "single",
+    slide: boolean,
+    owner?: FullPageSession,
+): void {
     const target = asHTMLElement(node);
     if (!target) return;
     const candidate = resolveTranslationCandidate(target);
-    if (candidate) void translateTarget(candidate, displayMode, slide);
+    if (candidate) void translateTarget(candidate, displayMode, slide, owner);
 }
 
 function mutationTargetElement(node: Node): Element | null {
@@ -281,9 +282,8 @@ function statefulSourceAndTextSlotsAreCurrent(
     if (currentNodes.length !== previousNodes.length ||
         currentNodes.some((textNode, index) => textNode !== previousNodes[index])) return false;
 
-    // single/control replace the live Text values themselves. Their logical
-    // source is still current only while every captured slot keeps both its
-    // identity and the exact value written by this generation.
+    // single/control 会直接替换实时 Text 值；只有每个已捕获文本槽仍保留原身份，
+    // 且值仍等于本 generation 写入的精确内容时，逻辑来源才仍然有效。
     if ((state.kind === "control" || state.mode === "single") && state.textSlotsApplied) {
         return currentNodes.every((textNode) =>
             state.translatedTextValues?.get(textNode) === (textNode.nodeValue ?? ""));
@@ -301,10 +301,8 @@ function mutationTouchesCurrentTranslationArtifact(
         .filter((node): node is HTMLElement => Boolean(node));
     if (artifacts.length === 0) return false;
 
-    // The stateful host necessarily contains its current artifact, so containment
-    // in this direction must only apply to added/removed subtrees. For the
-    // mutation target itself, only the artifact or one of its descendants is a
-    // tamper; an ordinary direct-host childList is not.
+    // 有状态宿主必然包含当前扩展产物，因此此方向的包含关系只能用于新增/移除子树。
+    // 对 mutation 目标本身，只有产物或其后代才算篡改；普通宿主直属 childList 不算。
     if (artifacts.some((artifact) =>
         mutation.target === artifact || artifact.contains(mutation.target))) return true;
     return [...Array.from(mutation.addedNodes), ...Array.from(mutation.removedNodes)]
@@ -319,10 +317,6 @@ function isTranslationArtifact(node: Node): boolean {
         (element.matches(TRANSLATION_ARTIFACT_SELECTOR) || element.closest(TRANSLATION_ARTIFACT_SELECTOR)));
 }
 
-function isBatchFriendlyService(): boolean {
-    return config.service === services.microsoft || config.service === services.freeTranslation;
-}
-
 function createAbortError(): Error {
     try {
         return new DOMException('翻译已取消', 'AbortError');
@@ -333,178 +327,6 @@ function createAbortError(): Error {
     }
 }
 
-function throwIfAborted(signal?: AbortSignal): void {
-    if (signal?.aborted) throw createAbortError();
-}
-
-async function translateSlotsIndividually(
-    origins: readonly string[],
-    signal?: AbortSignal,
-    queueSession?: TranslationQueueSession,
-): Promise<string[]> {
-    throwIfAborted(signal);
-    const translations = new Array<string>(origins.length);
-    let nextIndex = 0;
-    const workerCount = Math.min(3, origins.length);
-    let failed = false;
-    let firstError: unknown;
-    let hasFirstError = false;
-    const siblingController = new AbortController();
-    const abortSiblings = () => {
-        siblingController.abort();
-        if (queueSession) cancelTranslationQueueSession(queueSession, createAbortError());
-    };
-    signal?.addEventListener('abort', abortSiblings, {once: true});
-    const workers = Array.from({length: workerCount}, async () => {
-        while (!failed && nextIndex < origins.length) {
-            throwIfAborted(siblingController.signal);
-            const index = nextIndex;
-            nextIndex += 1;
-            try {
-                translations[index] = await translateText(origins[index] ?? '', document.title, {
-                    signal: siblingController.signal,
-                    queueSession,
-                });
-            } catch (error) {
-                if (!hasFirstError) {
-                    hasFirstError = true;
-                    firstError = error;
-                }
-                failed = true;
-                siblingController.abort();
-                if (queueSession) cancelTranslationQueueSession(queueSession, firstError);
-                throw error;
-            }
-        }
-    });
-    try {
-        const outcomes = await Promise.allSettled(workers);
-        if (hasFirstError) throw firstError;
-        const rejected = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected');
-        if (rejected) throw rejected.reason;
-        return translations;
-    } finally {
-        signal?.removeEventListener('abort', abortSiblings);
-    }
-}
-
-function createFullPageTranslationCacheKey(origin: string): string {
-    return JSON.stringify({
-        service: config.service,
-        from: config.from,
-        to: config.to,
-        origin,
-    });
-}
-
-function rememberFullPageTranslation(
-    session: FullPageSession,
-    key: string,
-    result: Promise<string | undefined>,
-): void {
-    if (!session.active) return;
-    const entry: FullPageTranslationCacheEntry = {promise: result, settled: false};
-    session.translationSlotCache.delete(key);
-    session.translationSlotCache.set(key, entry);
-    while (session.translationSlotCache.size > FULL_PAGE_TRANSLATION_CACHE_LIMIT) {
-        const oldestKey = session.translationSlotCache.keys().next().value as string | undefined;
-        if (!oldestKey) break;
-        session.translationSlotCache.delete(oldestKey);
-    }
-    void result.then(
-        () => {
-            if (session.translationSlotCache.get(key) === entry) entry.settled = true;
-        },
-        () => {
-            if (session.translationSlotCache.get(key) === entry) session.translationSlotCache.delete(key);
-        },
-    );
-}
-
-async function translateTextSlots(
-    origins: readonly string[],
-    signal?: AbortSignal,
-    queueSession?: TranslationQueueSession,
-    fullPageSession?: FullPageSession,
-): Promise<string[]> {
-    if (origins.length === 0) return [];
-    throwIfAborted(signal);
-    if (isBatchFriendlyService()) {
-        if (!fullPageSession?.active) {
-            return translateTextBatch([...origins], document.title, {useCache: false, signal, queueSession});
-        }
-
-        // React/Vue pages can remove a translated subtree and mount the same
-        // prose again after a layout/style pass. Cache each source slot only
-        // for this active full-page session, so that remounts reuse the result
-        // without turning repeated text on different pages into a global cache
-        // hit or changing the user's persistent-cache setting.
-        const resultPromises = new Array<Promise<string | undefined>>(origins.length);
-        const missing = new Map<string, {origin: string; indexes: number[]}>();
-        for (const [index, origin] of origins.entries()) {
-            const key = createFullPageTranslationCacheKey(origin);
-            const cached = fullPageSession.translationSlotCache.get(key);
-            if (cached?.settled) {
-                resultPromises[index] = cached.promise;
-                continue;
-            }
-            const entry = missing.get(key);
-            if (entry) entry.indexes.push(index);
-            else missing.set(key, {origin, indexes: [index]});
-        }
-
-        if (missing.size > 0) {
-            const entries = [...missing.values()];
-            const providerRequest = translateTextBatch(
-                entries.map(({origin}) => origin),
-                document.title,
-                // The session cache handles host remounts immediately; the
-                // normal background cache also prevents a later rescan from
-                // sending an already translated slot back to the provider.
-                {useCache: config.useCache, signal, queueSession},
-            ).then((translations) =>
-                Array.isArray(translations) && translations.length === entries.length &&
-                translations.every((translation) => typeof translation === "string")
-                    ? translations
-                    : null,
-            );
-            entries.forEach(({origin, indexes}, entryIndex) => {
-                const key = createFullPageTranslationCacheKey(origin);
-                const result = providerRequest.then((translations) => {
-                    return translations?.[entryIndex];
-                });
-                rememberFullPageTranslation(fullPageSession, key, result);
-                indexes.forEach((index) => {
-                    resultPromises[index] = result;
-                });
-            });
-        }
-
-        const translations = await Promise.all(resultPromises);
-        if (translations.some((translation) => typeof translation !== "string")) {
-            fullPageSession.translationSlotCache.clear();
-            return [];
-        }
-        return translations as string[];
-    }
-    if (origins.length === 1) {
-        return [await translateText(origins[0] ?? '', document.title, {signal, queueSession})];
-    }
-
-    const packet = serializeTranslationSlots(origins);
-    const combined = await translateText(packet.payload, document.title, {
-        skipLanguageDetection: true,
-        signal,
-        queueSession,
-    });
-    const parsed = parseTranslationSlots(packet, combined);
-    if (parsed?.length === origins.length) return parsed;
-
-    // Some classic MT engines rewrite sentinel tokens. Fall back only after a
-    // strict parse failure; AI providers normally keep the paragraph in one call.
-    return translateSlotsIndividually(origins, signal, queueSession);
-}
-
 /**
  * 对机器翻译的 HTML 克隆逐个替换文本节点。标签、链接、图标和原文 DOM
  * 都不直接交给服务端，避免响应把网页结构打碎；微软/免费翻译的数组接口
@@ -512,6 +334,7 @@ async function translateTextSlots(
  */
 async function translateElementHTML(
     node: HTMLElement,
+    snapshot: FullPageTranslationConfigSnapshot,
     signal?: AbortSignal,
     queueSession?: TranslationQueueSession,
     fullPageSession?: FullPageSession,
@@ -521,7 +344,7 @@ async function translateElementHTML(
     if (slots.length === 0) return {kind: "snapshot", sources: [], translations: []};
 
     const origins = slots.map((part) => part.source);
-    const translations = await translateTextSlots(origins, signal, queueSession, fullPageSession);
+    const translations = await translateTextSlots(origins, snapshot, signal, queueSession, fullPageSession);
     return {kind: "snapshot", sources: origins, translations};
 }
 
@@ -531,6 +354,7 @@ async function translateElementHTML(
  */
 async function translateLiveText(
     node: HTMLElement,
+    snapshot: FullPageTranslationConfigSnapshot,
     signal?: AbortSignal,
     queueSession?: TranslationQueueSession,
     fullPageSession?: FullPageSession,
@@ -545,7 +369,7 @@ async function translateLiveText(
     };
 
     const origins = parts.map((part) => part.source);
-    const translations = await translateTextSlots(origins, signal, queueSession, fullPageSession);
+    const translations = await translateTextSlots(origins, snapshot, signal, queueSession, fullPageSession);
     const changed = translations.some((translation, index) =>
         normalizeComparableText(translation) !== normalizeComparableText(origins[index] || ""),
     );
@@ -570,14 +394,15 @@ async function createTranslationRequest(
     node: HTMLElement,
     kind: "content" | "control",
     mode: "bilingual" | "single",
+    snapshot: FullPageTranslationConfigSnapshot,
     signal?: AbortSignal,
     queueSession?: TranslationQueueSession,
     fullPageSession?: FullPageSession,
 ): Promise<TranslationResult> {
     if (kind === "control" || mode === "single") {
-        return translateLiveText(node, signal, queueSession, fullPageSession);
+        return translateLiveText(node, snapshot, signal, queueSession, fullPageSession);
     }
-    return translateElementHTML(node, signal, queueSession, fullPageSession);
+    return translateElementHTML(node, snapshot, signal, queueSession, fullPageSession);
 }
 
 function attemptSourceIsCurrent(node: HTMLElement, state: TranslationState): boolean {
@@ -599,6 +424,7 @@ function markFailedTranslation(
     attempt: NonNullable<ReturnType<typeof beginTranslation>>,
     spinner: HTMLElement | undefined,
     error: unknown,
+    owner?: FullPageSession,
 ): TranslationTargetOutcome {
     spinner?.remove();
     if (!node.isConnected ||
@@ -613,7 +439,15 @@ function markFailedTranslation(
     const retryWrapper = insertFailedTip(
         node,
         error instanceof Error ? error.message : String(error || "翻译失败"),
-        () => translateNode(node, currentTranslationDisplayMode(), false),
+        () => {
+            const retryOwner = owner?.active ? owner : undefined;
+            translateNode(
+                node,
+                retryOwner?.translationConfig.displayMode ?? currentTranslationDisplayMode(),
+                false,
+                retryOwner,
+            );
+        },
     );
     setRetryWrapper(node, retryWrapper);
     setRenderedStyleAttribute(node);
@@ -625,6 +459,8 @@ async function renderTranslation(
     candidate: TranslationCandidate,
     attempt: NonNullable<ReturnType<typeof beginTranslation>>,
     request: Promise<TranslationResult>,
+    snapshot: FullPageTranslationConfigSnapshot,
+    owner?: FullPageSession,
 ): Promise<TranslationTargetOutcome> {
     const { state, generation } = attempt;
     const spinner = state.spinner;
@@ -639,10 +475,9 @@ async function renderTranslation(
         const result = await request;
         spinner?.remove();
 
-        // A target can keep identical text while class/role/visibility changes
-        // move ownership to a different semantic block. Revalidate the original
-        // owner before committing; synthetic inline runs are validated by their
-        // exact Text-node identities below because materialization moved them.
+        // 目标文本即使不变，class/role/可见性变化也可能把所有权移到另一语义块。
+        // 提交前必须复验原 owner；合成行内段因 materialize 已移动节点，
+        // 所以下方改用其精确 Text 节点身份校验。
         if (!node.isConnected || !attemptSourceIsCurrent(node, state) ||
             (!candidate.nodes?.length && !candidateIsCurrent(candidate))) return staleOutcome();
 
@@ -681,10 +516,8 @@ async function renderTranslation(
             return {status: "unchanged", source: state.sourceText, attemptNode: node};
         }
 
-        // Build the output skeleton at commit time. Host attributes and safe
-        // structure (for example a link changing href from /a to /b) therefore
-        // come from the current DOM, while provider text remains bound to the
-        // exact ordered sources captured at request creation.
+        // 在提交时才构建输出骨架，因此宿主属性和安全结构（例如链接 href 从 /a
+        // 变为 /b）来自当前 DOM；provider 译文仍绑定请求创建时捕获的精确有序原文。
         const core = getCurrentTranslationCore();
         const freshSnapshot = createTranslationSourceSnapshot(
             node,
@@ -701,12 +534,15 @@ async function renderTranslation(
             return staleOutcome();
         }
 
-        const content = appendBilingualTranslation(node, translatedText);
+        const content = appendBilingualTranslation(node, translatedText, {
+            targetLanguage: snapshot.targetLanguage,
+            style: snapshot.style,
+        });
         setBilingualContent(node, content);
         setRenderedStyleAttribute(node);
         return {status: "committed"};
     } catch (error) {
-        return markFailedTranslation(node, attempt, spinner, error);
+        return markFailedTranslation(node, attempt, spinner, error, owner);
     }
 }
 
@@ -744,17 +580,15 @@ function hasIntersectionLayoutBox(element: HTMLElement): boolean {
             if (rect && rect.width > 0 && rect.height > 0) return true;
         }
     } catch {
-        // Detached/custom elements can throw while their layout is being rebuilt.
+        // 脱离文档或自定义元素在重建布局时可能抛出异常。
     }
     return false;
 }
 
 /**
- * IntersectionObserver cannot reliably wake targets which generate no layout
- * box (notably `display: contents`). Prefer the candidate itself when it has a
- * box, then walk non-extension descendants in document order. If no element can
- * act as an anchor the caller queues the candidate directly; concurrency is
- * still enforced by the normal full-page drain.
+ * IntersectionObserver 无法可靠唤醒不生成布局盒的目标，典型情况是
+ * `display: contents`。候选自身有布局盒时优先使用自身，否则按文档顺序遍历
+ * 非扩展后代；找不到锚点时由调用方直接排队，并继续受全文 drain 并发限制。
  */
 function resolveFullPageVisibilityAnchor(candidate: HTMLElement): HTMLElement | null {
     if (hasIntersectionLayoutBox(candidate)) return candidate;
@@ -774,9 +608,8 @@ function resolveFullPageVisibilityAnchor(candidate: HTMLElement): HTMLElement | 
         const htmlElement = asHTMLElement(element);
         if (htmlElement && hasIntersectionLayoutBox(htmlElement)) return htmlElement;
 
-        // Open shadow content participates in full-page translation as its own
-        // observed root, but it can also be the only rendered box of a host.
-        // Push light children first so shadow children are visited first by LIFO.
+        // open Shadow DOM 既作为独立观察根参与全文翻译，也可能是宿主唯一的渲染盒。
+        // 先压入 light DOM 子节点，使 LIFO 顺序优先访问 shadow 子节点。
         pushChildrenInReverse(element);
         if (element.shadowRoot) pushChildrenInReverse(element.shadowRoot);
     }
@@ -833,9 +666,8 @@ function rememberUserCancelledCandidate(
         if (node) session.userCancelledCandidates.set(node, source);
     };
 
-    // Exact candidates use their element as the key. Synthetic inline runs use
-    // the first source node as the key, so retain every captured source node to
-    // survive the segment unwrap performed by restoreTranslation().
+    // 精确候选以元素作为 key；合成行内段以首个来源节点作为 key，因此需保留
+    // 所有已捕获来源节点，才能跨过 restoreTranslation() 对片段的解包过程。
     remember(getTranslationCandidateKey(candidate));
     if (!candidate.nodes?.length) remember(candidate.element);
     state.sourceTextNodes?.forEach((node) => remember(node));
@@ -859,8 +691,7 @@ function isUserCancelledCandidate(
         if (cancelledSource === source) {
             cancelled = true;
         } else {
-            // The host reused the same DOM node for different content. A
-            // previous user cancellation must not suppress the new source.
+            // 宿主复用同一 DOM 节点承载了不同内容，之前的用户取消不能屏蔽新原文。
             session.userCancelledCandidates.delete(identity);
         }
     });
@@ -913,9 +744,8 @@ function refreshCandidateVisibilityBinding(
     removeCandidateObservation(session, key);
 
     if (!nextAnchor) {
-        // Keep an already-visible candidate pending while its display:contents
-        // subtree is being rebuilt. If it was still waiting on the old anchor,
-        // direct scheduling is the only visibility-safe fallback.
+        // 已可见候选的 display:contents 子树重建时仍应保持 pending；若它仍在等待
+        // 旧锚点，直接调度是唯一不会丢失可见性的回退方式。
         if (!session.pending.has(key)) session.pending.set(key, candidate);
         scheduleFullPageProgressPublish(session);
         scheduleFullPageDrain(session);
@@ -960,6 +790,9 @@ async function translateTarget(
     const statefulSession = owner?.active
         ? owner
         : fullPageSession?.active ? fullPageSession : undefined;
+    const translationConfig = owner?.active
+        ? owner.translationConfig
+        : captureFullPageTranslationConfig();
     const existingNode = candidate.nodes?.length
         ? (() => {
             const firstSourceNode = candidate.nodes?.[0];
@@ -1025,10 +858,14 @@ async function translateTarget(
 
     // 短 UI 文案只做确定性的 script 判断；统计检测至少需要一段可读文本，
     // 否则 GitHub 的短标题/按钮很容易被 franc 误判后静默漏译。
-    if (isClearlyTargetLanguage(sourceText, config.to)) return {status: "unchanged", source: sourceText};
+    if (isClearlyTargetLanguage(sourceText, translationConfig.targetLanguage)) {
+        return {status: "unchanged", source: sourceText};
+    }
     try {
         const detected = sourceText.length >= 20 ? detectlang(normalizeComparableText(sourceText)) : '';
-        if (detected && detected === config.to) return {status: "unchanged", source: sourceText};
+        if (detected && detected === translationConfig.targetLanguage) {
+            return {status: "unchanged", source: sourceText};
+        }
     } catch {
         // 语言检测只是优化，不影响正常翻译流程。
     }
@@ -1043,10 +880,9 @@ async function translateTarget(
     const {node, synthetic} = materialized;
 
     const kind = candidate.kind;
-    // Capture every candidate's exact translatable Text-node identities. A
-    // renderer can replace only a protected MathJax/KaTeX child after commit;
-    // source equality alone cannot distinguish that harmless transaction from
-    // a same-text host/link replacement which makes the rendered snapshot old.
+    // 捕获每个候选中可翻译 Text 节点的精确身份。renderer 可能在提交后只替换受保护的
+    // MathJax/KaTeX 子节点；仅比较原文无法区分这种无害事务与同文本宿主/链接替换，
+    // 后者会使已渲染快照失效。
     const sourceTextNodes = collectLiveTranslationTextSlots(
         node,
         core.shouldStayOriginal,
@@ -1074,6 +910,7 @@ async function translateTarget(
         node,
         kind,
         displayMode,
+        translationConfig,
         signal,
         queueSession,
         owner?.active ? owner : undefined,
@@ -1083,7 +920,14 @@ async function translateTarget(
     const spinner = insertLoadingSpinner(node);
     setSpinner(node, spinner);
     registerSessionStatefulTarget(statefulSession, candidate.element, node);
-    const outcome = await renderTranslation(node, candidate, attempt, request);
+    const outcome = await renderTranslation(
+        node,
+        candidate,
+        attempt,
+        request,
+        translationConfig,
+        owner?.active ? owner : undefined,
+    );
     if (outcome.status === "stale" || outcome.status === "not-current" ||
         outcome.status === "empty" || outcome.status === "unchanged") {
         unregisterSessionStatefulTarget(statefulSession, node);
@@ -1155,9 +999,8 @@ function finalizeFullPageCandidate(
 ): void {
     const originalKey = getTranslationCandidateKey(candidate);
 
-    // A mutation restart or a newer discovery generation may already have
-    // replaced this scheduled entry. The old provider completion cannot delete
-    // or enqueue work for that newer owner.
+    // mutation 重启或更新的发现 generation 可能已替换 scheduled 条目；
+    // 旧 provider 结果不能删除新 owner，也不能替它重新排队。
     if (!session.active || fullPageSession !== session || session.scheduled.get(originalKey) !== candidate) return;
 
     if (outcome.status !== "stale" && outcome.status !== "not-current" && outcome.status !== "empty") {
@@ -1179,16 +1022,16 @@ function finalizeFullPageCandidate(
 
     session.unchangedCandidates.delete(originalKey);
 
-    // A new hover/full generation owns the same node already. Its own completion
-    // is authoritative, so the stale generation must not issue a duplicate.
+    // 新的悬浮/全文 generation 已拥有同一节点，其完成结果才是权威；
+    // 旧 generation 不得重复发起请求。
     if (outcome.attemptNode && getTranslationState(outcome.attemptNode)) {
         session.lifecycleRetries.delete(originalKey);
         forgetCandidate(session, candidate);
         return;
     }
 
-    // Class/style changes are deliberately debounced by the mutation pipeline.
-    // Preserve that single rescan instead of racing it with an immediate retry.
+    // mutation 流水线会刻意防抖 class/style 变化，应保留这次唯一重扫，
+    // 不要再用即时重试与其竞争。
     if (outcome.attemptNode && session.statefulAttributeTimers.has(outcome.attemptNode)) {
         session.statefulAttributeRescanTargets.add(outcome.attemptNode);
         forgetCandidate(session, candidate);
@@ -1201,9 +1044,8 @@ function finalizeFullPageCandidate(
         fresh.kind !== candidate.kind ||
         getTranslationCandidateKey(fresh) !== originalKey
     )) {
-        // The same live DOM subtree changed semantic ownership. This is a
-        // genuine new generation, unlike a disconnected host remount where
-        // the session cache is precisely what prevents a duplicate request.
+        // 同一实时 DOM 子树改变了语义所有权，这是全新的 generation；
+        // 它不同于脱离文档后的宿主重挂载，后者正应由会话缓存防止重复请求。
         session.translationSlotCache.clear();
     }
     const retryCandidate = fresh ?? candidate;
@@ -1225,9 +1067,8 @@ function finalizeFullPageCandidate(
     if (fresh) {
         scheduleDiscoveredCandidate(session, fresh);
         if (session.scheduled.get(retryKey) === fresh) {
-            // The original candidate has already crossed the visibility gate.
-            // Retry the freshly resolved owner directly; observing it again can
-            // otherwise wait forever when IntersectionObserver does not re-emit.
+            // 原候选已经通过可见性门禁，应直接重试新解析出的 owner；
+            // 若 IntersectionObserver 不再派发，重新观察可能永远等待。
             session.pending.set(retryKey, fresh);
             scheduleFullPageDrain(session);
         }
@@ -1262,13 +1103,12 @@ function drainFullPage(session: FullPageSession): void {
         const [key, candidate] = entry;
         session.pending.delete(key);
         session.inFlightCandidates.set(key, candidate);
-        void translateTarget(candidate, currentTranslationDisplayMode(), true, session)
+        void translateTarget(candidate, session.translationConfig.displayMode, true, session)
             .then(
                 (outcome) => finalizeFullPageCandidate(session, candidate, outcome),
                 () => {
-                    // Unexpected runtime failures retain the historical terminal
-                    // behavior; provider failures are represented explicitly by
-                    // translateTarget and render their retry UI before this point.
+                    // 意外 runtime 异常保留原有终止行为；provider 失败会由
+                    // translateTarget 显式表示，并在到达此处前渲染重试 UI。
                     forgetCandidate(session, candidate);
                 },
             )
@@ -1291,10 +1131,8 @@ function scheduleDiscoveredCandidate(session: FullPageSession, candidate: Transl
     if (!session.active || !target || !target.isConnected) return;
     const key = getTranslationCandidateKey(candidate);
     if (isUserCancelledCandidate(session, candidate)) {
-        // The restore mutation that follows an explicit user cancellation is
-        // still observed by the full-page session. Remove any stale queue entry
-        // before dropping the rediscovered candidate, otherwise it can be
-        // reintroduced by a delayed visibility callback.
+        // 用户显式取消后的恢复 mutation 仍会被全文会话观察到。丢弃重新发现的候选前
+        // 必须移除旧队列条目，否则延迟的可见性回调会再次引入它。
         const queuedCandidate = session.scheduled.get(key);
         if (queuedCandidate) {
             forgetCandidate(session, queuedCandidate);
@@ -1307,18 +1145,15 @@ function scheduleDiscoveredCandidate(session: FullPageSession, candidate: Transl
     }
     const targetState = getTranslationState(target);
     if (targetState) {
-        // Hover can commit this state before the full-page session exists. Add
-        // it to this session's observer-only ancestor index without replacing
-        // the state's generation/controller ownership, so ancestor hard guards
-        // still restore it and normal session teardown can drop the index.
+        // 悬浮翻译可能在全文会话创建前提交此状态。只把它加入本会话的观察型祖先索引，
+        // 不替换状态的 generation/controller 所有权，使祖先硬门禁仍能恢复它，
+        // 正常会话清理也能删除该索引。
         registerSessionStatefulTarget(session, candidate.element, target);
-        // An ancestor class/style mutation can change which label inside a
-        // translated target is visible. Discovery still reaches the same
-        // candidate; schedule a debounced source/slot check instead of silently
-        // skipping it or issuing an unconditional retry.
+        // 祖先 class/style mutation 可能改变翻译目标内实际可见的标签。发现流程仍会到达
+        // 同一候选，因此安排防抖后的来源/文本槽检查，不静默跳过也不无条件重试。
         scheduleStatefulAttributeReevaluation(session, target);
-        // loading/error/translated are all terminal for generic discovery.
-        // Explicit source/structure mutations restart them through the observer.
+        // loading/error/translated 对通用发现都属于终态；显式来源/结构 mutation
+        // 会通过 observer 重新启动它们。
         return;
     }
     const unchanged = session.unchangedCandidates.get(key);
@@ -1330,10 +1165,8 @@ function scheduleDiscoveredCandidate(session: FullPageSession, candidate: Transl
         session.lifecycleRetries.delete(key);
     }
 
-    // The exact descendant may already have finished while a very large
-    // ancestor is still being discovered in later frame slices. Its scheduled
-    // entry is intentionally forgotten after completion, so also consult the
-    // state attached to the shared key before accepting a late generic run.
+    // 很大的祖先仍在后续帧切片中发现时，精确后代可能已经完成。完成后 scheduled 条目会
+    // 被有意遗忘，因此接受迟到的通用候选前还要检查共享 key 上的状态。
     const keyedTarget = asHTMLElement(key);
     if (keyedTarget && getTranslationState(keyedTarget)) {
         registerSessionStatefulTarget(session, candidate.element, keyedTarget);
@@ -1341,17 +1174,14 @@ function scheduleDiscoveredCandidate(session: FullPageSession, candidate: Transl
         return;
     }
 
-    // Post-order discovery can produce a generic inline run on an ancestor
-    // whose first node is also the key of an exact adapter target. Keep the
-    // explicit site decision: otherwise GitHub's `.markdown-title` candidate
-    // is replaced by a synthetic parent run and the title itself never owns
-    // its translation wrapper.
+    // 后序发现可能在祖先上产生通用行内段，而其首节点同时是精确 adapter 目标的 key。
+    // 必须保留站点的显式决策，否则 GitHub 的 `.markdown-title` 候选会被合成父段替代，
+    // 标题自身将永远无法拥有译文 wrapper。
     const existing = session.scheduled.get(key);
     if (existing) {
         if (selectPreferredTranslationCandidate(existing, candidate) === existing) {
-            // A stable candidate can outlive the rendered descendant used as
-            // its IO target. Hydration and display changes must refresh that
-            // anchor without replacing scheduled/pending ownership.
+            // 稳定候选可能比用作 IO 目标的已渲染后代存活更久；hydration 与显示变化
+            // 必须刷新锚点，但不能替换 scheduled/pending 所有权。
             refreshCandidateVisibilityBinding(session, key, existing);
             return;
         }
@@ -1382,9 +1212,8 @@ function broadRescanRoot(node: Node): Node {
 }
 
 /**
- * React/Vue pages can emit hundreds of style/class mutations per scroll frame.
- * Keep the observer callback O(records), merge overlapping dirty subtrees, then
- * discover them in short tasks so host input/scroll callbacks keep running.
+ * React/Vue 页面每个滚动帧可能产生数百个 style/class mutation。observer 回调
+ * 保持 O(records)，合并重叠脏子树后以短任务发现，使宿主输入/滚动回调持续运行。
  */
 function enqueueFullPageRescan(session: FullPageSession, changedNode: Node): void {
     if (!session.active) return;
@@ -1394,9 +1223,8 @@ function enqueueFullPageRescan(session: FullPageSession, changedNode: Node): voi
 
     const dirtyRoot: Node = root;
 
-    // Keep per-record work bounded during React/Reddit mutation storms. Once
-    // enough disjoint roots accumulate, one incremental root scan is cheaper
-    // than quadratic pairwise merging and still preserves correctness.
+    // React/Reddit mutation 风暴期间限制单条记录的工作量；不相交根积累到一定数量后，
+    // 一次增量根扫描比二次复杂度的两两合并更便宜，同时保持正确性。
     if (session.dirtyRootsBroadMode) {
         const collapsed = broadRescanRoot(dirtyRoot);
         session.dirtyRoots.add(collapsed);
@@ -1410,9 +1238,8 @@ function enqueueFullPageRescan(session: FullPageSession, changedNode: Node): voi
             session.dirtyRoots.add(collapsed);
             session.broadRescanRoots.add(collapsed);
         });
-        // Once a burst crosses the merge threshold, keep new mutations O(1)
-        // by adding only their broad Document/ShadowRoot until this batch has
-        // fully drained. Never drop roots from another composed tree.
+        // 一轮突发越过合并阈值后，只加入其宽范围 Document/ShadowRoot，使新 mutation
+        // 在本批完全排空前保持 O(1)；绝不丢弃另一棵 composed tree 的根。
         session.dirtyRootsBroadMode = true;
     } else {
         for (const existing of session.dirtyRoots) {
@@ -1470,17 +1297,15 @@ function flushMutationRescans(session: FullPageSession): void {
                     ? asHTMLElement(statefulStepTarget.parentElement) ?? statefulStepTarget
                     : statefulStepTarget;
                 registerSessionStatefulTarget(session, candidateOwner, statefulStepTarget);
-                // Synthetic owners are intentionally hard-pruned from normal
-                // candidate discovery. Still re-evaluate their live source on
-                // an ancestor class/style rescan so label visibility changes
-                // cannot remain untranslated.
+                // 合成 owner 会被普通候选发现刻意硬剪枝；祖先 class/style 重扫时仍需
+                // 复验其实时原文，避免标签可见性变化后长期漏译。
                 scheduleStatefulAttributeReevaluation(session, statefulStepTarget);
             }
         }
         if (step.value.candidate) scheduleDiscoveredCandidate(session, step.value.candidate);
 
-        // Each step represents at most one visited element. Yield after a small
-        // frame budget even when one dirty root is an entire Reddit/Wikipedia DOM.
+        // 每一步最多代表一个已访问元素；即使脏根覆盖整个 Reddit/Wikipedia DOM，
+        // 也要在很小的帧预算后让出执行权。
         if (performance.now() - startedAt >= 8) break;
     }
 
@@ -1519,13 +1344,10 @@ function resolveStatefulMutationTarget(element: Element): HTMLElement | false {
 }
 
 /**
- * Renderer/code/no-translate descendants are atomic host-owned regions. Their
- * internal churn must not invalidate the translated prose ancestor. Attribute
- * changes intentionally exclude the mutation target itself: adding/removing a
- * protection marker must restore/reclassify the old translation, while style
- * churn on an already-protected root reaches the debounced source-slot check.
- * Extension artifacts are deliberately excluded: isOwnMutation runs first,
- * and host tampering inside a wrapper must continue through the stale path.
+ * renderer/code/no-translate 后代是宿主拥有的原子区域，其内部抖动不能使已翻译正文
+ * 祖先失效。属性变化会刻意排除 mutation 目标自身：新增/移除保护标记必须恢复并
+ * 重新分类旧译文，而已受保护根上的样式抖动进入防抖的来源文本槽检查。扩展产物
+ * 刻意不在此处理：isOwnMutation 会先运行，wrapper 内的宿主篡改仍须进入 stale 路径。
  */
 function isCoreProtectedDescendantMutation(
     node: Node,
@@ -1547,13 +1369,11 @@ function isCoreProtectedDescendantMutation(
 }
 
 /**
- * Materializing an inline run moves its source nodes into a synthetic span and
- * then appends one loading spinner. Those real childList records are delivered
- * after beginTranslation, while an asynchronous provider is still pending.
- * Accept them only while the exact source ownership, HTML and Text-slot
- * identities captured for this generation remain intact. A host insertion --
- * including a lookalike FluentRead artifact -- necessarily fails one of these
- * checks and continues through the stale/restart path.
+ * materialize 行内段会把来源节点移入合成 span，再追加一个 loading spinner。
+ * 这些真实 childList 记录会在 beginTranslation 之后、异步 provider 仍待完成时送达。
+ * 只有本 generation 捕获的精确来源所有权、HTML 和 Text 槽身份都保持完整时才接受；
+ * 任何宿主插入（包括伪装成 FluentRead 产物的节点）都必然无法通过至少一项检查，
+ * 并继续进入 stale/重启路径。
  */
 function isIntactLoadingSyntheticChildList(
     target: HTMLElement,
@@ -1605,9 +1425,8 @@ function isOwnMutation(
     const state = target ? getTranslationState(target as HTMLElement) : undefined;
     if (!target || !state) return false;
     if (state.phase === "error") {
-        // Failure UI is extension-owned state, not a host edit. Without this
-        // branch its class mutation restores/rescans the target and a permanent
-        // provider error becomes an automatic infinite retry loop.
+        // 失败 UI 是扩展拥有的状态，不是宿主编辑；若缺少此分支，其 class mutation
+        // 会恢复并重扫目标，使永久 provider 错误变成自动无限重试。
         if (mutation.type === "attributes" && mutation.attributeName === "class") {
             return target.getAttribute("class") === state.renderedClassAttribute;
         }
@@ -1624,9 +1443,8 @@ function isOwnMutation(
         return false;
     }
     if (state.phase === "loading") {
-        // A manual retry removes the previous failure class immediately before
-        // beginTranslation creates the next generation. Mutation delivery is
-        // asynchronous, so recognize that cleanup against the new snapshot.
+        // 手动重试会在 beginTranslation 创建下一 generation 前立即移除旧失败 class。
+        // mutation 异步送达，因此需依据新快照识别这次清理。
         if (mutation.type === "attributes" && mutation.attributeName === "class") {
             return target.getAttribute("class") === state.originalClassAttribute;
         }
@@ -1755,9 +1573,8 @@ function discardOwnersRemovedByHost(
         const syntheticState = syntheticParent?.matches('[data-fr-translation-segment="true"]')
             ? getTranslationState(syntheticParent as HTMLElement)
             : undefined;
-        // materializeCandidate moves a direct inline run into an owned segment
-        // before MutationObserver delivery. Descendant translation owners remain
-        // live in that exact segment and must not be treated as host deletions.
+        // materializeCandidate 会在 MutationObserver 送达前把直属行内段移入自有片段；
+        // 后代翻译 owner 仍存活于该精确片段中，不能当作宿主删除。
         if (removed.isConnected && syntheticState?.syntheticSegment === true) return;
         getTranslationOwnersForRemovedNode(removed).forEach((owner) => owners.add(owner));
     });
@@ -1779,9 +1596,8 @@ function discardOwnersRemovedByHost(
         }
         session.statefulAttributeRescanTargets.delete(owner);
         if (removedOnlyFailureUi) {
-            // Keep an error tombstone. Otherwise a framework that strips our
-            // retry child would make the next unrelated mutation auto-request
-            // the same permanently failing provider forever.
+            // 保留错误墓碑；否则框架移除重试子节点后，下一次无关 mutation 会永远
+            // 自动请求同一个持续失败的 provider。
             removeScheduledForStateTarget(session, owner);
             detachFailedTranslationUi(owner, state);
             return;
@@ -1789,8 +1605,7 @@ function discardOwnersRemovedByHost(
         unregisterSessionStatefulTarget(session, owner);
         shouldRescan = true;
         removeScheduledForStateTarget(session, owner);
-        // A host removal is authoritative. Clear our state/artifacts without
-        // reattaching stale source nodes that the framework intentionally removed.
+        // 宿主删除具有权威性：清除扩展状态/产物，但不重新挂回框架有意移除的旧来源节点。
         discardTranslation(owner, state);
     });
     return {removedAny: owners.size > 0, shouldRescan};
@@ -1806,8 +1621,8 @@ function restartStatefulTarget(session: FullPageSession, target: HTMLElement): b
     unregisterSessionStatefulTarget(session, target);
     const state = getTranslationState(target);
     if (!state) return false;
-    // An explicit source/structure mutation is a new translation generation;
-    // do not let the remount-dedupe cache hide a real host edit.
+    // 显式来源/结构 mutation 属于新的翻译 generation，不能让重挂载去重缓存
+    // 掩盖真实宿主编辑。
     session.translationSlotCache.clear();
     const rescanRoot = state.syntheticSegment ? target.parentElement : target;
     removeScheduledForStateTarget(session, target);
@@ -1844,10 +1659,9 @@ function scheduleStatefulAttributeReevaluation(
         session.statefulAttributeRescanTargets.delete(target);
         if (!target.isConnected) return;
 
-        // Compare both the logical source and exact slot identities. This keeps
-        // pure class/style churn cheap while still detecting same-text label or
-        // inline-link replacement. Live single/control slots are compared with
-        // the values written by this generation rather than their old source.
+        // 同时比较逻辑来源与精确文本槽身份，使纯 class/style 抖动保持低成本，
+        // 又能发现同文本标签或行内链接替换。实时 single/control 文本槽比较本
+        // generation 写入的值，而不是其旧原文。
         const shouldReconcileBilingualLayout =
             state.phase === "translated" &&
             state.mode === "bilingual" &&
@@ -1888,14 +1702,13 @@ function createFullPageMutationObserver(
         if (!session.active || fullPageSession !== session) return;
         scheduleDisconnectedCandidatePrune(session);
         const core = getCurrentTranslationCore();
-        // Materializing a wide inline run can enqueue one childList record per
-        // moved source node. Its exact snapshot is stable for this callback, so
-        // validate each loading generation once instead of cloning O(records).
+        // materialize 较宽行内段时，每个被移动来源节点都可能排入一条 childList 记录。
+        // 精确快照在本次回调内稳定，因此每个 loading generation 只校验一次，
+        // 避免进行 O(records) 次克隆。
         const loadingSyntheticChecks = new WeakMap<TranslationState, boolean>();
-        // MathJax v2 can emit hundreds of direct-parent records in one callback.
-        // The live DOM is already at the callback's final state, so compare each
-        // stateful source/slot snapshot once instead of walking a long P for
-        // every Preview <-> staging-span record.
+        // MathJax v2 单次回调可能产生数百条直属父级记录。实时 DOM 此时已处于回调
+        // 最终状态，因此每个有状态来源/文本槽快照只比较一次，不为每条
+        // Preview <-> staging-span 记录反复遍历很长的 P。
         const statefulChildListChecks = new WeakMap<TranslationState, boolean>();
         for (const mutation of mutations) {
             if (isOwnMutation(mutation, loadingSyntheticChecks)) continue;
@@ -1909,11 +1722,9 @@ function createFullPageMutationObserver(
 
             if (mutation.type === "childList") {
                 const changedNodes = [...Array.from(mutation.addedNodes), ...Array.from(mutation.removedNodes)];
-                // Normal extension insertion/removal targets the host owner. If
-                // the mutation target is inside an artifact, isOwnMutation has
-                // already compared every available state snapshot; treating its
-                // newly appended children as artifacts again would hide host
-                // tampering inside bilingual/loading/retry wrappers.
+                // 正常扩展插入/移除以宿主 owner 为目标。若 mutation 目标位于产物内，
+                // isOwnMutation 已比较所有可用状态快照；再次把新追加子节点视为产物，
+                // 会掩盖 bilingual/loading/retry wrapper 内的宿主篡改。
                 if (!isTranslationArtifact(mutation.target) &&
                     changedNodes.length > 0 && changedNodes.every((node) => {
                         if (isTranslationArtifact(node)) return true;
@@ -1927,13 +1738,11 @@ function createFullPageMutationObserver(
                 const changedTarget = mutationElement ? resolveStatefulMutationTarget(mutationElement) : false;
                 const changedState = changedTarget ? getTranslationState(changedTarget) : undefined;
 
-                // A direct host childList may be only a protected renderer
-                // transaction. Preserve loading/error/translated ownership when
-                // the translatable source and exact Text slots are unchanged;
-                // the old behavior removed a committed wrapper after MathJax v2
-                // swapped a detached, classless staging span at the parent P.
-                // Mutations inside or removing our current artifact remain
-                // authoritative host tampering and restart immediately.
+                // 宿主直属 childList 可能只是受保护 renderer 事务。可翻译来源与精确
+                // Text 槽不变时保留 loading/error/translated 所有权；旧行为会在
+                // MathJax v2 于父 P 替换脱离文档且无 class 的 staging span 后移除
+                // 已提交 wrapper。扩展当前产物内部或移除它的 mutation 仍属于
+                // 权威宿主篡改，必须立即重启。
                 if (changedTarget && changedState) {
                     const touchesArtifact = isTranslationArtifact(mutation.target) ||
                         mutationTouchesCurrentTranslationArtifact(mutation, changedState);
@@ -1947,13 +1756,11 @@ function createFullPageMutationObserver(
                     }
                 }
 
-                // A pure removal can turn a former structural container into a
-                // valid paragraph. Reclassify the mutation target in all cases.
+                // 纯删除可能把原结构容器变成有效段落，因此所有情况都要重新分类 mutation 目标。
                 enqueueFullPageRescan(session, mutation.target);
 
-                // Scanning the mutation target already includes every added
-                // descendant. Enqueuing each child separately turns one React
-                // commit into dozens of redundant dirty roots.
+                // 扫描 mutation 目标已经覆盖全部新增后代；逐个排入子节点会把一次 React
+                // commit 扩大为数十个冗余脏根。
             } else if (mutation.type === "characterData") {
                 const target = mutation.target.parentElement
                     ? resolveStatefulMutationTarget(mutation.target.parentElement)
@@ -1961,8 +1768,8 @@ function createFullPageMutationObserver(
                 if (target) {
                     restartStatefulTarget(session, target);
                 } else {
-                    // Hydration frameworks often append/replace a Text node without
-                    // adding a new Element. Reclassify its nearest semantic block.
+                    // hydration 框架常在不新增 Element 的情况下追加/替换 Text 节点，
+                    // 此时需重新分类其最近语义块。
                     enqueueFullPageRescan(session, mutation.target);
                 }
             } else if (mutation.type === "attributes") {
@@ -2008,6 +1815,7 @@ function createFullPageSession(root: HTMLElement): FullPageSession {
     session = {
         active: true,
         translationMode: config.fullPageTranslationMode,
+        translationConfig: captureFullPageTranslationConfig(),
         progressSessionId: startFullPageTranslationProgress(),
         progressPublishScheduled: false,
         observer,
