@@ -2,7 +2,7 @@
  * @file src/services/translation/context/browser.ts
  *
  * 文件职责：从当前浏览器页面捕获隐私受限、大小受控的翻译上下文，为页面摘要和大模型翻译提供可读背景。
- * 主要内容：克隆并清洗 DOM，排除表单、隐藏、脚本和敏感属性，在 X/Grok 原生翻译模式下禁用页面正文上下文，优先使用 Defuddle 后回退正文提取，缓存 snapshot，并导出 getPageTranslationContext 与 resetPageTranslationContextCache。 可核对的公开符号包括 getPageTranslationContext、resetPageTranslationContextCache、聚合导出。
+ * 主要内容：克隆并清洗 DOM，排除表单、隐藏、脚本和敏感属性，优先使用 Defuddle 后回退正文提取，缓存 snapshot，并导出 getPageTranslationContext 与 resetPageTranslationContextCache。 可核对的公开符号包括 getPageTranslationContext、resetPageTranslationContextCache、聚合导出。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
@@ -13,7 +13,6 @@ import {
     pageContextLimits,
     shouldUseBoundedPageCapture,
 } from './policy';
-import {X_GROK_NATIVE_TRANSLATION_ATTRIBUTE} from '@/src/core/translation/public';
 
 interface PageTranslationSnapshot {
     url: string;
@@ -289,13 +288,8 @@ function getDocumentDescription(): string {
  */
 export async function getPageTranslationContext(): Promise<string> {
     if (typeof document === 'undefined') return '';
-    // X 原生翻译模式仍允许用户翻译个人简介等非帖子文本，但页面级 AI 上下文
-    // 可能包含整条时间线、标题或 meta 中的帖子正文，因此该模式下必须整体禁用。
-    if (document.documentElement?.hasAttribute?.(X_GROK_NATIVE_TRANSLATION_ATTRIBUTE)) return '';
 
     const snapshot = await getReadablePageSnapshot();
-    // 捕获与 Defuddle 解析之间可能发生配置切换；再次检查可阻止旧快照在启用后出站。
-    if (document.documentElement?.hasAttribute?.(X_GROK_NATIVE_TRANSLATION_ATTRIBUTE)) return '';
     return buildPageTranslationContext({
         title: snapshot?.title,
         description: snapshot?.description,

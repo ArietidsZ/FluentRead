@@ -32,6 +32,14 @@ describe('AI 模型编号列表', () => {
         expect(normalizeConfig({persistCredentials: 'true'})).not.toHaveProperty('persistCredentials');
     });
 
+    it('移除已退役的 X 原生翻译配置，不让旧开关进入历史或迁移导出', () => {
+        expect(new Config()).not.toHaveProperty('xGrokAutoTranslateEnabled');
+        expect(normalizeConfig({xGrokAutoTranslateEnabled: true}))
+            .not.toHaveProperty('xGrokAutoTranslateEnabled');
+        expect(normalizeConfig({xGrokAutoTranslateEnabled: false}))
+            .not.toHaveProperty('xGrokAutoTranslateEnabled');
+    });
+
     it('AI 智能上下文默认关闭，并能从旧配置平滑补齐', () => {
         expect(new Config().enableAIContext).toBe(false);
         expect(normalizeConfig({}).enableAIContext).toBe(false);
@@ -49,14 +57,6 @@ describe('AI 模型编号列表', () => {
         expect(normalizeConfig({}).enableAIMultiSegment).toBe(false);
         expect(normalizeConfig({enableAIMultiSegment: true}).enableAIMultiSegment).toBe(true);
         expect(normalizeConfig({enableAIMultiSegment: 'true'}).enableAIMultiSegment).toBe(false);
-    });
-
-    it('X Grok 原生自动翻译默认关闭，且只接受显式布尔 true', () => {
-        expect(new Config().xGrokAutoTranslateEnabled).toBe(false);
-        expect(normalizeConfig({}).xGrokAutoTranslateEnabled).toBe(false);
-        expect(normalizeConfig({xGrokAutoTranslateEnabled: true}).xGrokAutoTranslateEnabled).toBe(true);
-        expect(normalizeConfig({xGrokAutoTranslateEnabled: 'true'}).xGrokAutoTranslateEnabled).toBe(false);
-        expect(normalizeConfig({xGrokAutoTranslateEnabled: 1}).xGrokAutoTranslateEnabled).toBe(false);
     });
 
     it('展示当前主流模型，并移除已退役或错误的预设编号', () => {

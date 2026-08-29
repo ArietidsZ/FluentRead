@@ -325,7 +325,6 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     videoSubtitleFontSize: {group: 'videoSubtitles', label: '视频字幕字号', format: (value) => formatNumber(value, '%')},
 
     useCache: {group: 'advanced', label: '缓存翻译结果', format: formatBoolean},
-    xGrokAutoTranslateEnabled: {group: 'advanced', label: 'X Grok 自动翻译', format: formatBoolean},
     enableAIContext: {group: 'general', label: 'AI 智能上下文', format: formatBoolean},
     enableAIMultiSegment: {group: 'translation', label: 'AI 多段翻译', format: formatBoolean},
     maxConcurrentTranslations: {group: 'advanced', label: '翻译并发数'},

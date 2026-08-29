@@ -107,14 +107,12 @@ describe('content 页面总开关与 SPA 路由生命周期', () => {
         expect(shouldAutomaticallyTranslatePage('https://example.com/article', {
             on: true,
             autoTranslate: true,
-            xGrokAutoTranslateEnabled: false,
             alwaysTranslateDomains: [],
             disabledExtensionDomains: [],
         })).toBe(true);
         expect(shouldAutomaticallyTranslatePage('https://example.com/article', {
             on: false,
             autoTranslate: true,
-            xGrokAutoTranslateEnabled: false,
             alwaysTranslateDomains: [],
             disabledExtensionDomains: [],
         })).toBe(false);
@@ -145,29 +143,6 @@ describe('content 页面总开关与 SPA 路由生命周期', () => {
         fullPageActive = true;
         runtime.refreshAutoTranslation();
         expect(autoTranslate).not.toHaveBeenCalled();
-    });
-
-    it('X/Grok 逐帖模式独占 X 自动翻译，离开 X 或关闭该模式后仍保留原自动规则', () => {
-        const baseConfig = {
-            on: true,
-            autoTranslate: true,
-            xGrokAutoTranslateEnabled: true,
-            alwaysTranslateDomains: [],
-            disabledExtensionDomains: [],
-        };
-
-        expect(shouldAutomaticallyTranslatePage('https://x.com/home', baseConfig)).toBe(false);
-        expect(shouldAutomaticallyTranslatePage('https://mobile.twitter.com/example/status/1', baseConfig)).toBe(false);
-        expect(shouldAutomaticallyTranslatePage('https://example.com/article', baseConfig)).toBe(true);
-        expect(shouldAutomaticallyTranslatePage('https://x.com/home', {
-            ...baseConfig,
-            xGrokAutoTranslateEnabled: false,
-        })).toBe(true);
-        expect(shouldAutomaticallyTranslatePage('https://x.com/home', {
-            ...baseConfig,
-            autoTranslate: false,
-            alwaysTranslateDomains: ['x.com'],
-        })).toBe(false);
     });
 
     it('进入 watch/shorts 才挂载字幕，离开播放页立即卸载且重复路由幂等', () => {
