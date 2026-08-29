@@ -34,7 +34,6 @@ describe('extension manifest capability contract', () => {
                 'unlimitedStorage',
                 'alarms',
                 'contextMenus',
-                'scripting',
             ]));
         }
     });
@@ -58,15 +57,6 @@ describe('extension manifest capability contract', () => {
         expect(source).not.toContain("permissions: ['storage', 'alarms', 'contextMenus', 'offscreen']");
     });
 
-    it('为 X 原生翻译的持久 document_start 激活器声明 scripting 权限', () => {
-        for (const [browser, manifestVersion] of [
-            ['chrome', 3],
-            ['firefox', 2],
-        ] as const) {
-            expect(permissionsFor(browser, manifestVersion)).toContain('scripting');
-        }
-    });
-
     it('从任意 YouTube 起始页预注入 timedtext bridge，但不扩大到非 YouTube 站点', () => {
         const source = sourceBody('entrypoints/youtubeBridge.content.ts');
         const matches = [...source.matchAll(/['"](\*:\/\/[^'"]+)['"]/gu)].map((match) => match[1]);
@@ -80,29 +70,5 @@ describe('extension manifest capability contract', () => {
         expect(matches).not.toContain('*://*/*');
         expect(matches.some((match) => match.includes('youtube-nocookie'))).toBe(false);
         expect(matches.every((match) => match.includes('youtube'))).toBe(true);
-    });
-
-    it('X 页面桥常驻监听，只有动态 activator 才以 runtime document_start 激活首屏', () => {
-        const bridge = sourceBody('entrypoints/xGrokPageBridge.content.ts');
-        const activator = sourceBody('entrypoints/xGrokPageBridgeActivator.content.ts');
-        const readMatches = (source: string) => [...source.matchAll(/['"](\*:\/\/[^'"]+)['"]/gu)]
-            .map((match) => match[1]);
-        const expected = [
-            '*://x.com/*',
-            '*://*.x.com/*',
-            '*://twitter.com/*',
-            '*://*.twitter.com/*',
-        ];
-
-        expect(readMatches(bridge)).toEqual(expected);
-        expect(readMatches(activator)).toEqual(expected);
-        expect(bridge).toContain("runAt: 'document_start'");
-        expect(bridge).toContain("world: 'MAIN'");
-        expect(bridge).not.toContain("registration: 'runtime'");
-        expect(activator).toContain("runAt: 'document_start'");
-        expect(activator).toContain("world: 'MAIN'");
-        expect(activator).toContain("registration: 'runtime'");
-        expect(bridge).not.toContain('<all_urls>');
-        expect(activator).not.toContain('<all_urls>');
     });
 });

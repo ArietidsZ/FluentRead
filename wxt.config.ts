@@ -48,7 +48,6 @@ export function createExtensionManifest(
             'unlimitedStorage',
             'alarms',
             'contextMenus',
-            'scripting',
             ...(capabilities.offscreenDocument ? ['offscreen'] : []),
         ],
         content_security_policy: {

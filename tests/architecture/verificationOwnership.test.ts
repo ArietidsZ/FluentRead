@@ -180,10 +180,6 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/features/video-subtitle/content/runtime.ts',
     // MAIN world adapter 只把 window Fetch/XHR 注入严格覆盖的 timedtext bridge core。
     'src/features/video-subtitle/content/youtubeTimedTextBridge.ts',
-    // X MAIN world adapter 只把页面 Fetch/XHR/Request 注入严格覆盖的 Grok Timeline 请求桥核心。
-    'src/features/x-grok-translation/content/pageBridge.ts',
-    // X 后台注册适配器只连接 config store 与严格覆盖的 scripting 注册协调器。
-    'src/features/x-grok-translation/background/registration.ts',
     // PDF Canvas 预览绑定 PDF.js worker、真实 Canvas 像素采样与对象 URL；由隔离文档浏览器回归和双浏览器构建验证。
     'src/features/document-translation/ui/pdfPreview.ts',
     // 图片悬停 runtime 绑定页面 Image/Canvas/Shadow DOM；协议、OCR、修复与远程图片规则由 strict coverage 验证。

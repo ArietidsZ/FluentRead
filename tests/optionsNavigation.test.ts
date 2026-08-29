@@ -93,9 +93,6 @@ describe('options navigation view-model', () => {
     expect(filterNavigationItems('Token')).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'settings-model-usage' }),
     ]))
-    expect(filterNavigationItems('Grok')).toEqual([
-      expect.objectContaining({ id: 'settings-advanced' }),
-    ])
     expect(filterNavigationItems('')).toEqual([])
     expect(filterNavigationItems('不存在的设置项')).toEqual([])
   })

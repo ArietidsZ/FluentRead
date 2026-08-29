@@ -868,34 +868,6 @@ describe('translation candidate core', () => {
         expect(core.resolve(tweetText.firstChild)?.element).toBe(tweetText);
     });
 
-    it('开启 X/Grok 自动翻译时仍保留帖子候选供 FluentRead 手动触发', () => {
-        const {document, core} = page(`
-            <main>
-                <article data-testid="tweet">
-                    <div id="profile" data-testid="UserDescription">Readable profile description.</div>
-                    <div id="tweet-text" data-testid="tweetText">Translate this post with X.</div>
-                    <div data-testid="twitterArticleReadView">
-                        <p id="article-prose">Long-form X post prose.</p>
-                    </div>
-                </article>
-            </main>
-        `, 'https://x.com/home');
-        const profile = document.querySelector('#profile')!;
-        const tweetText = document.querySelector('#tweet-text')!;
-        const articleProse = document.querySelector('#article-prose')!;
-
-        document.documentElement.setAttribute('data-fluentread-x-grok-native-translation', '');
-
-        expect(core.resolve(tweetText.firstChild)?.element).toBe(tweetText);
-        expect(core.resolve(articleProse.firstChild)?.element).toBe(articleProse);
-        expect(core.resolve(profile.firstChild)?.element).toBe(profile);
-        expect(core.discover(document).some((candidate) => candidate.element === tweetText)).toBe(true);
-
-        document.documentElement.removeAttribute('data-fluentread-x-grok-native-translation');
-        expect(core.resolve(tweetText.firstChild)?.element).toBe(tweetText);
-        expect(core.resolve(articleProse.firstChild)?.element).toBe(articleProse);
-    });
-
     it('keeps an exact adapter target out of an ancestor inline run', () => {
         const {document, core} = page(`
             <main><div id="row">
