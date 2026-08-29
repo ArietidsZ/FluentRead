@@ -8,9 +8,9 @@
 
 An open-source browser extension for bilingual webpages, instant selection translation, and flexible translation services.
 
-[![Latest version](https://img.shields.io/badge/version-0.0.31-6d5dfc?style=flat-square)](https://github.com/Bistutu/FluentRead/releases)
+[![Latest version](https://img.shields.io/badge/version-0.0.31-6d5dfc?style=flat-square)](https://github.com/FluentRead/FluentRead/releases)
 [![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0-22a06b?style=flat-square)](./LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/Bistutu/FluentRead?style=flat-square)](https://github.com/Bistutu/FluentRead)
+[![GitHub stars](https://img.shields.io/github/stars/FluentRead/FluentRead?style=flat-square)](https://github.com/FluentRead/FluentRead)
 
 <br />
 
@@ -78,9 +78,9 @@ An experimental userscript target for Via, Tampermonkey, and Violentmonkey can b
 ## Documentation and community
 
 - [Official documentation](https://fluent.thinkstu.com/) — features, setup, services, shortcuts, and FAQ.
-- [GitHub Discussions and Issues](https://github.com/Bistutu/FluentRead/issues) — report a problem or suggest an improvement.
+- [GitHub Discussions and Issues](https://github.com/FluentRead/FluentRead/issues) — report a problem or suggest an improvement.
 - [Bilibili introduction](https://www.bilibili.com/video/BV1ux4y1e73x/)
-- [DeepWiki architecture overview](https://deepwiki.com/Bistutu/FluentRead)
+- [DeepWiki architecture overview](https://deepwiki.com/FluentRead/FluentRead)
 
 ## Development
 
@@ -103,4 +103,4 @@ FluentRead uses Vue 3, TypeScript, Element Plus, and WXT, targeting Chromium Man
 
 ## Star history
 
-[![Star History Chart](https://star-history.dera.page/svg?repos=Bistutu/FluentRead&type=Date)](https://star-history.dera.page/#Bistutu/FluentRead&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=FluentRead/FluentRead&type=Date)](https://star-history.dera.page/#FluentRead/FluentRead&Date)
