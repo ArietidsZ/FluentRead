@@ -46,7 +46,6 @@
             <label><span>腾讯 Secret ID</span><input v-model.trim="draft.tencentSecretId" autocomplete="off" /></label>
             <label><span>腾讯 Secret Key</span><input v-model.trim="draft.tencentSecretKey" type="password" autocomplete="off" /></label>
           </template>
-          <label v-if="servicesType.isCoze(draft.service)"><span>Bot ID</span><input v-model.trim="draft.robot_id[draft.service]" autocomplete="off" /></label>
           <p v-if="credentialWarning" class="warning">{{ credentialWarning }}</p>
           <label class="toggle"><span>AI 网页上下文</span><input v-model="draft.enableAIContext" type="checkbox" :disabled="!canUseAIContext" /></label>
         </fieldset>

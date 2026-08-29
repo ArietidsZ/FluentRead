@@ -67,15 +67,65 @@ describe('AI 模型编号列表', () => {
         expect(models.get(services.grok)).toContain('grok-4.5');
         expect(models.get(services.groq)).not.toContain('whisper-large-v3');
         expect(models.get(services.openrouter)?.at(-1)).toBe(customModelString);
-        expect(options.services.find(option => option.value === services.zhipu)?.label).toBe('智谱');
+        expect(options.services.find(option => option.value === services.zhipu)?.label).toBe('智谱/GLM');
+        expect(options.services.find(option => option.value === services.moonshot)?.label).toBe('月之暗面/Kimi');
+        expect(options.services.find(option => option.value === services.tongyi)?.label).toBe('千问/Qwen');
         expect(options.services.find(option => option.value === services.freeTranslation)?.label).toBe('免费翻译服务');
         expect(options.services[1]?.value).toBe(services.freeTranslation);
         expect(options.services.find(option => option.value === services.freeTranslation)?.description)
             .toContain('微软翻译、DeepLX、谷歌翻译依次尝试');
         expect(options.services.find(option => option.value === services.mimo)?.label).toBe('小米 MiMo');
+        expect(options.services.some(option => option.value === services.baichuan)).toBe(false);
+        expect(options.services.some(option => option.value === services.lingyi)).toBe(false);
+        expect(options.services.find(option => option.value === services.infini)?.label).toBe('无问芯穹');
         expect(options.services.every(option => !/[🌟⭐★]/u.test(option.label))).toBe(true);
         expect(servicesType.isMachine(services.freeTranslation)).toBe(true);
         expect(defaultOption.service).toBe(services.freeTranslation);
+    });
+
+    it('退役服务回退到可用默认值并清除遗留连接配置', () => {
+        const normalized = normalizeConfig({
+            service: 'cozecom',
+            documentService: 'cozecn',
+            videoService: 'cozecom',
+            translationCenterServices: ['google', 'cozecom', 'cozecn'],
+            token: {openai: 'keep-token', cozecom: 'retired-token'},
+            model: {cozecom: 'retired-model'},
+            documentModel: {cozecn: 'retired-model'},
+            customModel: {cozecom: 'retired-custom-model'},
+            documentCustomModel: {cozecn: 'retired-custom-model'},
+            proxy: {cozecom: 'https://retired.example'},
+            customBody: {cozecn: '{"retired":true}'},
+            system_role: {cozecom: 'retired system'},
+            user_role: {cozecn: 'retired user'},
+            requireApiKey: {
+                'openai:gpt-5.6-luna': false,
+                'cozecom:retired-model': false,
+            },
+            robot_id: {cozecom: 'retired-bot'},
+        });
+
+        expect(normalized.service).toBe(services.freeTranslation);
+        expect(normalized.documentService).toBe(services.freeTranslation);
+        expect(normalized.videoService).toBe(services.microsoft);
+        expect(normalized.translationCenterServices).toEqual([services.google]);
+        expect(normalized.token).toMatchObject({openai: 'keep-token'});
+        expect(normalized.requireApiKey).toEqual({'openai:gpt-5.6-luna': false});
+        for (const mapping of [
+            normalized.token,
+            normalized.model,
+            normalized.documentModel,
+            normalized.customModel,
+            normalized.documentCustomModel,
+            normalized.proxy,
+            normalized.customBody,
+            normalized.system_role,
+            normalized.user_role,
+        ]) {
+            expect(mapping).not.toHaveProperty('cozecom');
+            expect(mapping).not.toHaveProperty('cozecn');
+        }
+        expect((normalized as unknown as Record<string, unknown>).robot_id).toBeUndefined();
     });
 
     it('所有需要模型的 AI 服务默认使用推荐模型档位', () => {

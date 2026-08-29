@@ -113,14 +113,6 @@
       <text x="12" y="16.5" text-anchor="middle">G</text>
       <path d="M15.5 13.5H19v3.7" />
     </svg>
-    <svg v-else-if="service === 'cozecom'" viewBox="0 0 24 24" role="img">
-      <path d="M19 11.5a7 7 0 0 1-7 7H7l-3 2v-5a7 7 0 1 1 15-4Z" />
-      <path d="M9 10.2h6M9 13.3h4" />
-    </svg>
-    <svg v-else-if="service === 'cozecn'" viewBox="0 0 24 24" role="img">
-      <path d="M19 11.5a7 7 0 0 1-7 7H7l-3 2v-5a7 7 0 1 1 15-4Z" />
-      <text x="12" y="14.5" text-anchor="middle">C</text>
-    </svg>
     <svg v-else-if="service === 'huanYuan'" viewBox="0 0 24 24" role="img">
       <text x="12" y="16.5" text-anchor="middle">混</text>
     </svg>
@@ -198,8 +190,6 @@ const fallbackGlyph = computed(() => {
     mimo: 'Mi',
     jieyue: '阶',
     groq: 'G',
-    cozecom: 'C',
-    cozecn: 'C',
     huanYuan: '混',
     huanYuanTranslation: '译',
     doubao: '豆',
@@ -277,9 +267,7 @@ const fallbackGlyph = computed(() => {
 
 .service-brand-icon[data-service='xiaoniu'],
 .service-brand-icon[data-service='youdao'],
-.service-brand-icon[data-service='doubao'],
-.service-brand-icon[data-service='cozecom'],
-.service-brand-icon[data-service='cozecn'] {
+.service-brand-icon[data-service='doubao'] {
   color: #e52b62;
   background: #ffeaf0;
 }

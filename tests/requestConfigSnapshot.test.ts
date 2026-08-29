@@ -25,7 +25,6 @@ function configSource(overrides: Partial<TranslationConfigSource> = {}): Transla
         mimoBillingPlan: 'payg',
         mimoRegion: 'cn',
         azureOpenaiEndpoint: 'https://azure-a.example/chat/completions',
-        robot_id: {aiSdk: 'robot-a'},
         customBody: {aiSdk: '{"snapshot":"a"}'},
         system_role: {aiSdk: 'system-a'},
         user_role: {aiSdk: 'user-a'},
@@ -50,7 +49,6 @@ describe('translation provider request config snapshot', () => {
         source.model.aiSdk = 'model-b';
         source.customModel.aiSdk = 'custom-model-b';
         source.proxy.aiSdk = 'https://b.example/v1';
-        source.robot_id.aiSdk = 'robot-b';
         source.customBody.aiSdk = '{"snapshot":"b"}';
         source.system_role.aiSdk = 'system-b';
         source.user_role.aiSdk = 'user-b';
@@ -61,7 +59,6 @@ describe('translation provider request config snapshot', () => {
             model: {aiSdk: 'model-a'},
             customModel: {aiSdk: 'custom-model-a'},
             proxy: {aiSdk: 'https://a.example/v1'},
-            robot_id: {aiSdk: 'robot-a'},
             customBody: {aiSdk: '{"snapshot":"a"}'},
             system_role: {aiSdk: 'system-a'},
             user_role: {aiSdk: 'user-a'},
@@ -77,7 +74,6 @@ describe('translation provider request config snapshot', () => {
             snapshot.model,
             snapshot.customModel,
             snapshot.proxy,
-            snapshot.robot_id,
             snapshot.customBody,
             snapshot.system_role,
             snapshot.user_role,

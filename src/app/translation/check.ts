@@ -17,8 +17,8 @@ export function checkConfig(): boolean {
     // 凭据保存在扩展 session 存储中，按设计不向 content script 暴露。
     // 后台会在调用 provider 前，于请求边界完成校验。
 
-    // 检查 AI 服务是否已选择模型（Coze 等特定服务除外）。
-    if (servicesType.isAI(config.service) && ![services.cozecn, services.cozecom].includes(config.service)) {
+    // 检查要求模型的服务是否已完成选择。
+    if (servicesType.isUseModel(config.service)) {
         const model = config.model[config.service];
         const customModel = config.customModel[config.service];
         if (!model || (model === customModelString && !customModel)) {

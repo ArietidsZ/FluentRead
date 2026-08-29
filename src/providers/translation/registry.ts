@@ -21,7 +21,6 @@ import xiaoniu from "./xiaoniu";
 import youdao from "./youdao";
 import tencent from "./tencent";
 import claude from "./claude";
-import coze from "./coze";
 import deepseek from "./deepseek";
 import azureOpenai from "./azure-openai";
 import chromeTranslator from "./chrome-translator";
@@ -47,8 +46,6 @@ const legacyServices: TranslationProviderRegistry = {
     [services.zhipu]: zhipu,
     [services.gemini]: gemini,
     [services.claude]: claude,
-    [services.cozecom]: coze,
-    [services.cozecn]: coze,
     [services.deepseek]: deepseek,
     [services.huanYuanTranslation]: hunyuanTranslation,
 };

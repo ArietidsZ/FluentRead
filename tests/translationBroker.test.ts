@@ -32,8 +32,6 @@ const mocks = vi.hoisted(() => {
         'newapi',
         'minimax',
         'mimo',
-        'cozecom',
-        'cozecn',
         'azureOpenai',
     ]);
     const aiServices = new Set(['ai', 'aiSdk', 'brokenAiSdk']);
@@ -50,8 +48,6 @@ const mocks = vi.hoisted(() => {
         azureOpenai: service,
         brokenAiSdk: service,
         custom: service,
-        cozecom: service,
-        cozecn: service,
         deeplx: service,
         deepL: service,
         minimax: service,
@@ -87,7 +83,6 @@ const mocks = vi.hoisted(() => {
         mimoBillingPlan: 'payg',
         mimoRegion: 'cn',
         azureOpenaiEndpoint: '',
-        robot_id: {} as Record<string, string>,
         customBody: {} as Record<string, string>,
         system_role: {} as Record<string, string>,
         user_role: {} as Record<string, string>,
@@ -210,7 +205,7 @@ describe('translation broker', () => {
         mocks.aiServices.add('aiSdk');
         mocks.aiServices.add('brokenAiSdk');
         mocks.machineServices.clear();
-        ['mock', 'custom', 'deeplx', 'newapi', 'minimax', 'mimo', 'cozecom', 'cozecn', 'azureOpenai'].forEach(service => mocks.machineServices.add(service));
+        ['mock', 'custom', 'deeplx', 'newapi', 'minimax', 'mimo', 'azureOpenai'].forEach(service => mocks.machineServices.add(service));
         Object.assign(mocks.config, {
             service: 'mock',
             from: 'auto',
@@ -226,7 +221,6 @@ describe('translation broker', () => {
             mimoBillingPlan: 'payg',
             mimoRegion: 'cn',
             azureOpenaiEndpoint: '',
-            robot_id: {},
             customBody: {},
             system_role: {},
             user_role: {},
@@ -240,8 +234,6 @@ describe('translation broker', () => {
             azureOpenai: 'azure-openai-model',
             brokenAiSdk: 'broken-ai-sdk-model',
             custom: 'custom-model',
-            cozecom: 'coze-model',
-            cozecn: 'coze-cn-model',
             deeplx: 'deeplx-model',
             newapi: 'newapi-model',
             minimax: 'minimax-model',
@@ -621,21 +613,6 @@ describe('translation broker', () => {
         expect(translationCacheIdentities().at(-1)).toMatchObject({
             endpoint: '',
             transportProfile: 'ai-sdk-profile',
-        });
-
-        mocks.config.service = 'cozecom';
-        mocks.config.robot_id.cozecom = 'robot-1';
-        await translateWithCache({origin: 'Coze'});
-        expect(translationCacheIdentities().at(-1)).toMatchObject({
-            robotId: 'robot-1',
-            service: 'cozecom',
-        });
-
-        mocks.config.service = 'cozecn';
-        await translateWithCache({origin: 'Coze CN'});
-        expect(translationCacheIdentities().at(-1)).toMatchObject({
-            robotId: '',
-            service: 'cozecn',
         });
 
         mocks.config.service = 'azureOpenai';
@@ -1488,7 +1465,6 @@ describe('translation broker', () => {
         mocks.config.customBody.aiSdk = '{"temperature":0}';
         mocks.config.system_role.aiSdk = 'system';
         mocks.config.user_role.aiSdk = 'user';
-        mocks.config.robot_id.aiSdk = 'ignored';
         mocks.config.deepseekApiType = 'reasoner';
         mocks.config.deepseekThinkingMode = 'enabled';
 

@@ -13,8 +13,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/src/core/config/catalog', () => ({
     customModelString: 'custom-model',
-    services: {cozecn: 'cozecn', cozecom: 'cozecom', google: 'google'},
-    servicesType: {isAI: (service: string) => service.startsWith('ai-') || service.startsWith('coze')},
+    services: {google: 'google'},
+    servicesType: {isUseModel: (service: string) => service.startsWith('ai-')},
 }));
 vi.mock('@/src/services/config/store', () => ({config: mocks.config}));
 vi.mock('@/src/features/page-notice/public', () => ({sendErrorMessage: mocks.sendErrorMessage}));
@@ -51,13 +51,6 @@ describe('translation configuration guard', () => {
         mocks.config.customModel['ai-demo'] = '';
 
         expect(checkConfig()).toBe(false);
-    });
-
-    it('Coze 不要求通用模型配置', () => {
-        mocks.config.service = 'cozecom';
-
-        expect(checkConfig()).toBe(true);
-        expect(mocks.sendErrorMessage).not.toHaveBeenCalled();
     });
 
     it('谷歌翻译在仅译文模式下拒绝并说明原因', () => {

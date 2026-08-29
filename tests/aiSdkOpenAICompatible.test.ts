@@ -13,7 +13,6 @@ const {mockConfig} = vi.hoisted(() => ({
     customBody: {} as Record<string, string>,
     system_role: {} as Record<string, string>,
     user_role: {} as Record<string, string>,
-    robot_id: {} as Record<string, string>,
     requireApiKey: {} as Record<string, boolean>,
     proxy: {} as Record<string, string>,
     custom: 'http://127.0.0.1:11434/v1/chat/completions',

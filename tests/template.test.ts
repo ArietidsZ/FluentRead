@@ -11,7 +11,6 @@ const { mockConfig } = vi.hoisted(() => ({
         system_role: {} as Record<string, string>,
         user_role: {} as Record<string, string>,
         customBody: {} as Record<string, string>,
-        robot_id: {} as Record<string, string>,
         deepseekThinkingMode: 'disabled' as 'enabled' | 'disabled',
     },
 }));
@@ -21,7 +20,6 @@ vi.mock('@/src/services/config/store', () => ({ config: mockConfig }));
 import {
     claudeMsgTemplate,
     commonMsgTemplate,
-    cozeTemplate,
     buildPageSummaryPrompt,
     buildPageSummarySystemPrompt,
     deepseekMsgTemplate,
@@ -61,10 +59,6 @@ beforeEach(() => {
         Object.values(services).map(service => [service, 'Translate to {{to}}: {{origin}}'])
     );
     mockConfig.customBody = {};
-    mockConfig.robot_id = {
-        cozecom: 'coze-bot',
-        cozecn: 'coze-bot',
-    };
     mockConfig.deepseekThinkingMode = 'disabled';
 });
 
@@ -265,7 +259,6 @@ describe('所有 AI 请求模板的自定义请求体支持', () => {
         [services.tongyi, tongyiMsgTemplate],
         [services.yiyan, commonMsgTemplate],
         [services.minimax, commonMsgTemplate],
-        [services.cozecom, cozeTemplate],
     ] as const;
     const temperatureTemplateCases = [
         ...templateCases,
@@ -389,7 +382,7 @@ describe('模板默认值与协议分支', () => {
         expect(fallback.instructions).toBeTruthy();
     });
 
-    it('显式系统提示词会覆盖 Gemini、Claude、通义和 Coze 默认值', () => {
+    it('显式系统提示词会覆盖 Gemini、Claude 和通义默认值', () => {
         const gemini = JSON.parse(geminiMsgTemplate('hello', undefined, undefined, 'Gemini system'));
         expect(gemini.contents[0].parts[0].text).toContain('Gemini system');
 
@@ -399,16 +392,13 @@ describe('模板默认值与协议分支', () => {
         const tongyi = JSON.parse(tongyiMsgTemplate('hello', undefined, undefined, 'Tongyi system'));
         expect(tongyi.messages[0].content).toBe('Tongyi system');
 
-        const coze = JSON.parse(cozeTemplate('hello', undefined, undefined, 'Coze system'));
-        expect(coze.query).toContain('Coze system');
     });
 
-    it('缺少服务级系统角色时 Claude、通义和 Coze 使用默认系统角色', () => {
+    it('缺少服务级系统角色时 Claude 和通义使用默认系统角色', () => {
         mockConfig.system_role = {};
 
         expect(JSON.parse(claudeMsgTemplate('hello')).system).toBeTruthy();
         expect(JSON.parse(tongyiMsgTemplate('hello')).messages[0].content).toBeTruthy();
-        expect(JSON.parse(cozeTemplate('hello')).query).toContain('hello');
     });
 
     it.each([

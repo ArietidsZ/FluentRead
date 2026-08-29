@@ -141,9 +141,6 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             model: getSelectedModel(current, service, modelOverride),
             endpoint: getProviderEndpoint(current, service),
             azureOpenaiEndpoint: service === 'azureOpenai' ? current.azureOpenaiEndpoint : undefined,
-            robotId: service === 'cozecom' || service === 'cozecn'
-                ? current.robot_id[service] || ''
-                : undefined,
             customBody: current.customBody[service] || '',
             systemRole: current.system_role[service] || '',
             userRole: current.user_role[service] || '',

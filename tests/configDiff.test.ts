@@ -257,7 +257,6 @@ describe('配置差异预览', () => {
             deeplx: '',
             newApiUrl: '',
             azureOpenaiEndpoint: '',
-            robot_id: {},
             system_role: {},
             user_role: {},
             deepseekApiType: 'auto',
@@ -330,7 +329,6 @@ describe('配置差异预览', () => {
             deeplx: 'https://deeplx.example.com',
             newApiUrl: 'https://new-api.example.com',
             azureOpenaiEndpoint: 'https://example.openai.azure.com/chat/completions',
-            robot_id: {cozecn: 'robot-123', cozecom: 'token=hidden'},
             system_role: {openai: 42, deepseek: 'short prompt'},
             user_role: {openai: 'authorization: Bearer hidden'},
             deepseekApiType: 'responses',
@@ -384,7 +382,6 @@ describe('配置差异预览', () => {
             expect.objectContaining({key: 'customBody.openai', after: '3 项 JSON（内容已摘要）'}),
             expect.objectContaining({key: 'customBody.deepseek', after: '文本请求体（9 字符，内容已摘要）'}),
             expect.objectContaining({key: 'customBody.custom', after: '已配置（内容已摘要）'}),
-            expect.objectContaining({key: 'robot_id.cozecn', after: '已设置（内容已隐藏）'}),
             expect.objectContaining({key: 'system_role.openai', after: '42'}),
         ]));
         expect(group(result, 'translation')?.changes).toEqual(expect.arrayContaining([

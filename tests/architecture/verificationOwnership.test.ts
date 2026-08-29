@@ -194,7 +194,6 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/providers/translation/azure-openai.ts',
     'src/providers/translation/chrome-translator.ts',
     'src/providers/translation/claude.ts',
-    'src/providers/translation/coze.ts',
     'src/providers/translation/deepl.ts',
     'src/providers/translation/deeplx.ts',
     'src/providers/translation/deepseek.ts',

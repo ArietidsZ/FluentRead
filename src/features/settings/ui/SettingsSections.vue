@@ -747,7 +747,6 @@ const createServiceCompute = (serviceSource: ServiceSource) => ({
       config.value.model[serviceSource.value] === customModelString,
   ),
   filteredServices,
-  showRobotId: computed(() => servicesType.isCoze(serviceSource.value)),
   showNewAPI: computed(() => servicesType.isNewApi(serviceSource.value)),
   showAzureOpenaiEndpoint: computed(() => servicesType.isAzureOpenai(serviceSource.value)),
   showDeepseekApiType: computed(() => serviceSource.value === 'deepseek'),

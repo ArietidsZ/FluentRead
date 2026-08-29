@@ -107,7 +107,6 @@ export class Config {
     proxy: IMapping;  // 代理地址
     custom: string; // 本地服务地址
     extra: IExtra;  // 额外信息（内包信息）
-    robot_id: IMapping;  // 机器人 ID（兼容 coze）
     system_role: IMapping;
     user_role: IMapping;
     count: number;  // 翻译次数
@@ -187,7 +186,6 @@ export class Config {
         this.proxy = {};
         this.custom = defaultOption.custom;
         this.extra = {};
-        this.robot_id = {};
         this.system_role = systemRoleFactory();
         this.user_role = userRoleFactory();
         this.count = 0;
@@ -298,6 +296,9 @@ const modelMigrations: Record<string, Record<string, string>> = {
     },
 };
 
+// 已退役服务只在配置迁移边界保留标识，用于清除旧版本遗留的不可见配置和凭据。
+const retiredServiceIds = new Set(['cozecom', 'cozecn']);
+
 /**
  * 将存储或导入的普通对象补齐为当前配置结构，并迁移已退役或错误的模型编号。
  */
@@ -328,6 +329,7 @@ export function normalizeConfig(value: unknown): Config {
     delete (normalized as unknown as Record<string, unknown>).__fluentConfigRevision;
     // 后台计数幂等日志与 revision 一样只属于存储协议，不能进入 UI、历史或导出配置。
     delete (normalized as unknown as Record<string, unknown>).__fluentCountOperations;
+    delete (normalized as unknown as Record<string, unknown>).robot_id;
 
     // 翻译次数只接受非负安全整数；旧版本或手工修改产生的字符串、负数和溢出值回退为 0。
     normalized.count = typeof source.count === 'number'
@@ -336,30 +338,33 @@ export function normalizeConfig(value: unknown): Config {
         ? source.count
         : 0;
 
-    normalized.token = normalizeStringMapping(source.token);
-    normalized.model = normalizeStringMapping(source.model);
-    normalized.documentModel = normalizeStringMapping(source.documentModel);
-    normalized.requireApiKey = isBooleanMapping(source.requireApiKey) ? {...source.requireApiKey} : {};
-    normalized.customModel = normalizeStringMapping(source.customModel);
-    normalized.documentCustomModel = normalizeStringMapping(source.documentCustomModel);
-    normalized.proxy = normalizeStringMapping(source.proxy);
-    normalized.robot_id = normalizeStringMapping(source.robot_id);
+    normalized.token = withoutRetiredServiceEntries(normalizeStringMapping(source.token));
+    normalized.model = withoutRetiredServiceEntries(normalizeStringMapping(source.model));
+    normalized.documentModel = withoutRetiredServiceEntries(normalizeStringMapping(source.documentModel));
+    normalized.requireApiKey = isBooleanMapping(source.requireApiKey)
+        ? withoutRetiredRequirementEntries({...source.requireApiKey})
+        : {};
+    normalized.customModel = withoutRetiredServiceEntries(normalizeStringMapping(source.customModel));
+    normalized.documentCustomModel = withoutRetiredServiceEntries(normalizeStringMapping(source.documentCustomModel));
+    normalized.proxy = withoutRetiredServiceEntries(normalizeStringMapping(source.proxy));
     normalized.system_role = {
         ...systemRoleFactory(),
-        ...normalizeStringMapping(source.system_role),
+        ...withoutRetiredServiceEntries(normalizeStringMapping(source.system_role)),
     };
     normalized.user_role = {
         ...userRoleFactory(),
-        ...normalizeStringMapping(source.user_role),
+        ...withoutRetiredServiceEntries(normalizeStringMapping(source.user_role)),
     };
-    normalized.customBody = normalizeCustomBodyMapping(source.customBody);
+    normalized.customBody = withoutRetiredServiceEntries(normalizeCustomBodyMapping(source.customBody));
 
     if (typeof normalized.custom !== 'string') normalized.custom = defaultOption.custom;
     if (typeof normalized.newApiUrl !== 'string') normalized.newApiUrl = DEFAULT_NEW_API_URL;
 
-    const supportsDocumentService = servicesType.machine.has(normalized.documentService)
-        || servicesType.isAI(normalized.documentService);
-    if (!supportsDocumentService) {
+    if (retiredServiceIds.has(normalized.service)) {
+        normalized.service = defaultOption.service;
+    }
+
+    if (!isSupportedTranslationService(normalized.documentService)) {
         normalized.documentService = defaultOption.service;
     }
 
@@ -370,9 +375,7 @@ export function normalizeConfig(value: unknown): Config {
     // 执行一次迁移，避免覆盖用户在新版本中主动选择的 DeepLX。
     const shouldMigrateLegacyVideoDefault = source.videoService === services.deeplx
         && source.videoServiceDefaultMigrated !== true;
-    const supportsVideoService = servicesType.machine.has(normalized.videoService)
-        || servicesType.isAI(normalized.videoService);
-    if (shouldMigrateLegacyVideoDefault || !supportsVideoService) {
+    if (shouldMigrateLegacyVideoDefault || !isSupportedTranslationService(normalized.videoService)) {
         normalized.videoService = services.microsoft;
     }
     normalized.videoServiceDefaultMigrated = true;
@@ -484,7 +487,8 @@ export function normalizeConfig(value: unknown): Config {
     if (!['viewport', 'all'].includes(normalized.fullPageTranslationMode)) {
         normalized.fullPageTranslationMode = 'viewport';
     }
-    normalized.translationCenterServices = normalizeStringList(source.translationCenterServices);
+    normalized.translationCenterServices = normalizeStringList(source.translationCenterServices)
+        .filter(service => !retiredServiceIds.has(service));
     normalized.translationCenterSourceLanguage = normalizeConfigLanguage(source.translationCenterSourceLanguage);
     normalized.translationCenterTargetLanguage = normalizeConfigLanguage(source.translationCenterTargetLanguage);
     normalized.persistCredentials = source.persistCredentials === true;
@@ -526,6 +530,25 @@ function normalizeStringMapping(value: unknown): IMapping {
     return Object.fromEntries(
         Object.entries(value).filter(([, item]) => typeof item === 'string'),
     );
+}
+
+function withoutRetiredServiceEntries<T>(mapping: Record<string, T>): Record<string, T> {
+    return Object.fromEntries(
+        Object.entries(mapping).filter(([service]) => !retiredServiceIds.has(service)),
+    );
+}
+
+function withoutRetiredRequirementEntries(mapping: Record<string, boolean>): Record<string, boolean> {
+    return Object.fromEntries(
+        Object.entries(mapping).filter(([key]) => !Array.from(retiredServiceIds).some(
+            service => key === service || key.startsWith(`${service}:`),
+        )),
+    );
+}
+
+function isSupportedTranslationService(value: unknown): value is string {
+    return typeof value === 'string'
+        && (servicesType.machine.has(value) || servicesType.isAI(value));
 }
 
 function normalizeStringList(value: unknown): string[] {
