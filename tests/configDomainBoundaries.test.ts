@@ -33,9 +33,8 @@ describe('配置领域边界与防御分支', () => {
         expect(servicesType.isCustom(services.openai)).toBe(false);
         expect(servicesType.isNewApi(services.newapi)).toBe(true);
         expect(servicesType.isNewApi(services.openai)).toBe(false);
-        expect(servicesType.isCoze(services.cozecom)).toBe(true);
-        expect(servicesType.isCoze(services.cozecn)).toBe(true);
-        expect(servicesType.isCoze(services.openai)).toBe(false);
+        expect(servicesType.isUseModel(services.openai)).toBe(true);
+        expect(servicesType.isUseModel(services.microsoft)).toBe(false);
         expect(servicesType.isYoudao(services.youdao)).toBe(true);
         expect(servicesType.isYoudao(services.openai)).toBe(false);
         expect(servicesType.isTencent(services.tencent)).toBe(true);

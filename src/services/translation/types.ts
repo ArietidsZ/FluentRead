@@ -62,7 +62,6 @@ export interface TranslationConfigSnapshot {
     mimoBillingPlan: string;
     mimoRegion: string;
     azureOpenaiEndpoint: string;
-    robot_id: Record<string, string>;
     customBody: Record<string, string>;
     system_role: Record<string, string>;
     user_role: Record<string, string>;

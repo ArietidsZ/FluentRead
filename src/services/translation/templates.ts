@@ -2,7 +2,7 @@
  * @file src/services/translation/templates.ts
  *
  * 文件职责：构造不同大模型协议所需的请求消息和 payload，是翻译语义与 provider transport 之间的模板层。
- * 主要内容：生成 common、DeepSeek chat/responses、Gemini、Claude、通义和 Coze 请求体，解析当前模型与自定义 body，并转出页面摘要 prompt 构建器。 可核对的公开符号包括 commonMsgTemplate、getCurrentModel、deepseekResponsesMsgTemplate、deepseekMsgTemplate、geminiMsgTemplate、claudeMsgTemplate、tongyiMsgTemplate、cozeTemplate。
+ * 主要内容：生成 common、DeepSeek chat/responses、Gemini、Claude 和通义请求体，解析当前模型与自定义 body，并转出页面摘要 prompt 构建器。 可核对的公开符号包括 commonMsgTemplate、getCurrentModel、deepseekResponsesMsgTemplate、deepseekMsgTemplate、geminiMsgTemplate、claudeMsgTemplate、tongyiMsgTemplate。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
@@ -285,28 +285,4 @@ export function tongyiMsgTemplate(
     }
     return model.startsWith("qwen-mt") ? mtModelTemplate() : normalTemplate()
 
-}
-
-export function cozeTemplate(
-    origin: string,
-    context?: string,
-    prompt?: string,
-    systemPrompt?: string,
-    serviceOverride?: string,
-    targetLanguage = config.to,
-    current: TranslationProviderConfigSnapshot = config,
-) {
-    const service = serviceOverride || current.service;
-
-    let system = systemPrompt?.trim() || current.system_role[service] || defaultOption.system_role;
-    const user = buildUserPrompt(origin, context, prompt, service, targetLanguage, current);
-
-    const payload: any = {
-        bot_id: current.robot_id[service],
-        user: "FluentRead",
-        query: system + user,
-        stream: false
-    };
-
-    return JSON.stringify(mergeCustomBody(payload, currentCustomBody(current, service)));
 }

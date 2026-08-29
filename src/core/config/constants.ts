@@ -67,8 +67,6 @@ export const urls: any = {
     [services.jieyue]: "https://api.stepfun.com/v1/chat/completions",
     [services.yiyan]: "https://qianfan.bj.baidubce.com/v2/chat/completions",
     [services.groq]: "https://api.groq.com/openai/v1/chat/completions",
-    [services.cozecom]: "https://api.coze.com/open_api/v2/chat",
-    [services.cozecn]: "https://api.coze.cn/open_api/v2/chat",
     [services.huanYuan]: "https://api.tokenhub.tencent.com/v1/chat/completions",
     [services.huanYuanTranslation]: "https://hunyuan.tencentcloudapi.com/",
     [services.doubao]: "https://ark.cn-beijing.volces.com/api/v3/chat/completions",

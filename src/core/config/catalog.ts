@@ -37,8 +37,6 @@ export const services = {
     mimo: "mimo", // 小米 MiMo
     jieyue: "jieyue", // 阶跃星辰
     groq: "groq",
-    cozecom: "cozecom", // coze 支持机器人不支持模型
-    cozecn: "cozecn",
     huanYuan: "huanYuan", // 腾讯混元
     huanYuanTranslation: "huanYuanTranslation", // 腾讯混元翻译大模型
     doubao: "doubao", // 字节豆包
@@ -68,8 +66,6 @@ export const servicesType = {
         services.mimo,
         services.jieyue,
         services.groq,
-        services.cozecom,
-        services.cozecn,
         services.huanYuan,
         services.huanYuanTranslation,
         services.doubao,
@@ -79,7 +75,7 @@ export const servicesType = {
         services.newapi,
     ]),
     // 首批由 Vercel AI SDK 的 OpenAI-compatible provider 承接。其他 AI
-    // 服务保留专用协议适配器，避免把 Claude/Gemini/Coze 等误当成兼容端点。
+    // 服务保留专用协议适配器，避免把 Claude/Gemini 等误当成兼容端点。
     aiSdk: new Set([
         services.openai,
         services.azureOpenai,
@@ -122,8 +118,6 @@ export const servicesType = {
         services.jieyue,
         services.groq,
         services.custom,
-        services.cozecom,
-        services.cozecn,
         services.huanYuan,
         services.doubao,
         services.siliconCloud,
@@ -178,8 +172,6 @@ export const servicesType = {
         services.mimo,
         services.jieyue,
         services.groq,
-        services.cozecom,
-        services.cozecn,
         services.huanYuan,
         services.huanYuanTranslation,
         services.doubao,
@@ -205,13 +197,12 @@ export const servicesType = {
     isUseToken: (service: string) => servicesType.useToken.has(service),
     isUseProxy: (service: string) => servicesType.useProxy.has(service),
     isUseModel: (service: string) => servicesType.useModel.has(service),
-    // 所有 AI 服务的请求体都支持附加顶层字段，包括不使用模型选择器的 Coze。
+    // 所有 AI 服务的请求体都支持附加顶层字段。
     isUseCustomBody: (service: string) => servicesType.AI.has(service),
     isCustom: (service: string) => service === services.custom,
     isNewApi: (service: string) => service === services.newapi,
     // 文心一言已迁移到千帆 v2 的 Bearer Token 鉴权；保留方法供 UI 兼容。
     isUseAkSk: (_service: string) => false,
-    isCoze: (service: string) => service === services.cozecom || service === services.cozecn,
     isYoudao: (service: string) => service === services.youdao,
     isTencent: (service: string) => service === services.tencent || service === services.huanYuanTranslation,
     isAzureOpenai: (service: string) => service === services.azureOpenai,
@@ -453,14 +444,12 @@ export const options = {
         {value: services.grok, label: "Grok (X.AI)"},
         {value: services.openrouter, label: "OpenRouter"},
         {value: services.groq, label: "Groq"},
-        {value: services.moonshot, label: "Kimi"},
-        {value: services.zhipu, label: "智谱"},
+        {value: services.moonshot, label: "月之暗面/Kimi"},
+        {value: services.zhipu, label: "智谱/GLM"},
         {value: services.minimax, label: "MiniMax"},
         {value: services.mimo, label: "小米 MiMo"},
         {value: services.jieyue, label: "阶跃星辰"},
         {value: services.infini, label: "无问芯穹"},
-        {value: services.cozecom, label: "Coze国际"},
-        {value: services.cozecn, label: "Coze国内"},
         {value: services.claude, label: "Claude"},
         {value: services.gemini, label: "Gemini"},
         {value: services.yiyan, label: "文心一言"},

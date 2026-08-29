@@ -17,7 +17,6 @@ const EXPECTED_PROVIDER_FILES = [
     'chromeTranslatorRequest.ts',
     'claude.ts',
     'connectionTest.ts',
-    'coze.ts',
     'deepl.ts',
     'deeplx.ts',
     'deepseek.ts',
@@ -145,7 +144,6 @@ describe('translation provider architecture', () => {
     it('所有 legacy 网络 provider 都把 broker signal 传入 runtimeFetch', () => {
         const networkProviders = [
             'claude.ts',
-            'coze.ts',
             'deepl.ts',
             'deeplx.ts',
             'deepseek.ts',

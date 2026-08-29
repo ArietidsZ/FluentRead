@@ -252,13 +252,6 @@ function formatCustomBody(value: unknown): string {
     return '已配置（内容已摘要）';
 }
 
-function formatMaskedSetting(value: unknown): string {
-    if (value === undefined || value === null || value === '') return '未设置';
-    return typeof value === 'string' && value.startsWith(SENSITIVE_SUMMARY_PREFIX)
-        ? value
-        : '已设置（内容已隐藏）';
-}
-
 function serviceName(key: string): string {
     return SERVICE_LABELS.get(key) ?? key;
 }
@@ -295,7 +288,6 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     deeplx: {group: 'translationServices', label: 'DeepLX 服务地址', format: formatEndpoint},
     newApiUrl: {group: 'translationServices', label: 'New API 地址', format: formatEndpoint},
     azureOpenaiEndpoint: {group: 'translationServices', label: 'Azure OpenAI 端点', format: formatEndpoint},
-    robot_id: {group: 'translationServices', label: '机器人 ID', mapping: serviceMapping('机器人 ID', formatMaskedSetting)},
     system_role: {group: 'translationServices', label: 'System 提示词', mapping: serviceMapping(' System 提示词', formatPrompt)},
     user_role: {group: 'translationServices', label: 'User 提示词', mapping: serviceMapping(' User 提示词', formatPrompt)},
     deepseekApiType: {group: 'translationServices', label: 'DeepSeek API 格式', format: (value) => formatEnum(value, DEEPSEEK_API_LABELS)},

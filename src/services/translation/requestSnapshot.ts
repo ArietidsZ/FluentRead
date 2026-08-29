@@ -64,7 +64,6 @@ export function createTranslationProviderConfigSnapshot(
         model: frozenStringMap(source.model),
         customModel: frozenStringMap(source.customModel),
         proxy: frozenStringMap(source.proxy),
-        robot_id: frozenStringMap(source.robot_id),
         customBody: frozenStringMap(source.customBody),
         system_role: frozenStringMap(source.system_role),
         user_role: frozenStringMap(source.user_role),
