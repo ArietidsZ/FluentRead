@@ -12,9 +12,12 @@ import {config} from "@/src/services/config/store";
 import {getTranslationLanguages} from '@/src/services/translation/languages';
 import {createHttpStatusError, readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
-import {getTranslationProviderConfig} from '@/src/services/translation/requestSnapshot';
+import {
+    getTranslationProviderConfig,
+    type TranslationProviderRequest,
+} from '@/src/services/translation/requestSnapshot';
 
-async function deepl(message: any) {
+async function deepl(message: TranslationProviderRequest<string>) {
     const current = getTranslationProviderConfig(message, config);
     const service = message.serviceOverride || current.service;
     // deepl 不支持 zh-Hans，需要转换为 zh
@@ -36,7 +39,8 @@ async function deepl(message: any) {
             tag_handling: 'html',
             context: message.context,  // 添加上下文辅助信息
             preserve_formatting: true
-        })
+        }),
+        signal: message.abortSignal,
     });
 
     if (resp.ok) {

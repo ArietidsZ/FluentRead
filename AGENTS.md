@@ -16,7 +16,7 @@
   - `src/services/`：翻译、缓存、配置等跨 feature 编排。
   - `src/providers/` 与 `src/platform/`：供应商适配和浏览器/存储/HTTP/offscreen 边界。
   - `src/shared/` 与 `src/ui/`：无业务语义的小型工具和复用 UI/token。
-- `entrypoints/utils/` 只允许保留带 `@deprecated` 的精确兼容导出；生产代码和新增测试必须直接使用 `src` 公共路径，不得为兼容壳增加新调用者。
+- 已删除旧 `entrypoints/utils/` 兼容层；生产代码和测试必须直接使用 `src` 公共路径，不得重新创建入口工具目录或兼容壳。
 - 新功能应复用现有配置、消息、翻译服务和挂载机制，避免另建一套并行状态或通信体系。
 - 内容脚本运行在任意网页中。新增 DOM、样式和事件时使用 FluentRead 专属命名，避免污染宿主页面；卸载、关闭或页面离开时清理监听器、计时器、观察器、挂载节点和未完成请求。
 - 浏览器 API 优先使用项目现有的 `browser`/webextension-polyfill 方式，并同时考虑 Chrome、Edge 和 Firefox 的行为差异。

@@ -1,4 +1,3 @@
-import {parseHTML} from 'linkedom';
 import { describe, expect, it } from 'vitest';
 import {
   buildYoutubeTimedTextUrl,

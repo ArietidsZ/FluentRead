@@ -168,7 +168,7 @@ export function installYoutubeTimedTextBridgeCore(
         return response;
     };
     const openWrapper: YoutubeXhrOpenPort = function open(method, url, ...rest) {
-        // Step 1: XHR 对象允许复用；每次 open 必须先清掉旧 timedtext URL。
+        // 步骤 1：XHR 对象允许复用；每次 open 必须先清掉旧 timedtext URL。
         requestUrls.delete(this);
         requestGenerations.set(this, (requestGenerations.get(this) ?? 0) + 1);
         const requestUrl = getYoutubeRequestUrl(url);
@@ -213,7 +213,7 @@ export function installYoutubeTimedTextBridgeCore(
         if (event?.persisted !== true) dispose();
     };
 
-    // Step 2: 某个宿主 API 不可写时保留其他采集通道，避免桥整体失效。
+    // 步骤 2：某个宿主 API 不可写时保留其他采集通道，避免桥整体失效。
     installMethod(environment.fetch, fetchWrapper);
     installMethod(environment.xhrOpen, openWrapper);
     installMethod(environment.xhrSend, sendWrapper);

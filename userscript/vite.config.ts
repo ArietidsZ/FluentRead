@@ -18,6 +18,7 @@ const projectRoot = `${normalizePath(root)}/`;
 export const compatibilityPreludeStart = '/* FluentRead userscript compatibility prelude:start */';
 export const compatibilityPreludeEnd = '/* FluentRead userscript compatibility prelude:end */';
 
+// Via 等旧内核可能缺少共享核心使用的基础方法；在单文件入口最前方注入小型兼容层。
 const compatibilityPrelude = `${compatibilityPreludeStart}
 (function () {
     if (typeof Object.fromEntries !== 'function') {
@@ -84,6 +85,10 @@ ${compatibilityPreludeEnd}`;
 
 type BrowserGlobal = 'browser' | 'chrome';
 
+/**
+ * 借助 TypeScript 符号解析查找真正未绑定的 browser/chrome 标识符；属性名和类型引用
+ * 不应触发注入，避免对普通业务对象产生误改写。
+ */
 function findFreeBrowserGlobals(code: string, id: string): BrowserGlobal[] {
     const sourceFile = ts.createSourceFile(id, code, ts.ScriptTarget.Latest, true);
     const options: ts.CompilerOptions = {
@@ -142,6 +147,7 @@ export function injectUserscriptBrowserImports(code: string, id: string): string
     return `import {${specifiers.join(', ')}} from ${JSON.stringify(browserShimPath)};\n${code}`;
 }
 
+/** 为项目内 TS/JS 与 Vue script 模块注入 userscript browser shim。 */
 function injectUserscriptBrowserShim(): Plugin {
     return {
         name: 'inject-userscript-browser-shim',
@@ -153,6 +159,9 @@ function injectUserscriptBrowserShim(): Plugin {
     };
 }
 
+/**
+ * 把拆分出的 CSS、Userscript 元数据和兼容层合并进唯一入口，并阻止扩展全局泄漏到产物。
+ */
 function bundleUserscriptCss(): Plugin {
     return {
         name: 'bundle-userscript-css',
@@ -194,6 +203,7 @@ function bundleUserscriptCss(): Plugin {
     };
 }
 
+/** 将 WXT 内容脚本声明展开为普通对象，使同一入口可在 userscript 单页 runtime 中复用。 */
 function unwrapWxtEntrypoints(): Plugin {
     const entrypoints = new Set([
         resolve(root, 'entrypoints/content.ts'),
@@ -210,11 +220,10 @@ function unwrapWxtEntrypoints(): Plugin {
 
 export const userscriptAliases = [
     {find: '@/src/platform/storage/credentialContext', replacement: resolve(root, 'userscript/credentialContext.ts')},
-    // app/content 只依赖 feature public contract；在这个边界替换才能保证扩展专属 runtime 不进入产物。
+    // app/content 只依赖 feature 公开契约；在此边界替换，才能保证扩展专属 runtime 不进入产物。
     {find: '@/src/features/area-translation/public', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
     {find: '@/src/features/image-translation/public', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
     {find: '@/src/features/video-subtitle/public', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
-    {find: '@/entrypoints/utils/newApi', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
     {find: /^\.\/chrome-translator$/u, replacement: resolve(root, 'userscript/chromeTranslator.ts')},
     {find: '@wxt-dev/storage', replacement: resolve(root, 'userscript/storage.ts')},
     {find: 'webextension-polyfill', replacement: resolve(root, 'userscript/browser.ts')},

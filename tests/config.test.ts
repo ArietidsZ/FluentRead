@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { reactive } from 'vue';
-import { normalizeConfig, type Config } from '@/entrypoints/utils/model';
-import { sanitizeConfigCredentials } from '@/entrypoints/utils/credentials';
+import { normalizeConfig, type Config } from '@/src/core/config/model';
+import { sanitizeConfigCredentials } from '@/src/core/config/credentials';
 
 const storageMock = vi.hoisted(() => ({
     getItem: vi.fn(),
@@ -27,6 +27,9 @@ interface LoadConfigOptions {
     history?: unknown;
     sessionCredentials?: unknown;
     localCredentials?: unknown;
+    configReadBarrier?: Promise<void>;
+    failLocalCredentialRead?: boolean;
+    failSessionRead?: boolean;
     failSessionWrite?: boolean;
 }
 
@@ -44,6 +47,15 @@ async function loadConfigModule(value: unknown = null, options: LoadConfigOption
     });
     storageMock.getItem.mockReset().mockImplementation(async (key: string) => {
         storageOperations.push(`get:${key}`);
+        if (key === 'local:config' && options.configReadBarrier) {
+            await options.configReadBarrier;
+        }
+        if (options.failLocalCredentialRead && key === 'local:credentials') {
+            throw new Error('storage.local credentials unavailable');
+        }
+        if (options.failSessionRead && key === 'session:credentials') {
+            throw new Error('storage.session unavailable');
+        }
         return storageState.get(key) ?? null;
     });
     storageMock.setItem.mockReset().mockImplementation(async (key: string, nextValue: unknown) => {
@@ -58,7 +70,7 @@ async function loadConfigModule(value: unknown = null, options: LoadConfigOption
         storageState.delete(key);
     });
     storageMock.watch.mockReset().mockReturnValue(() => undefined);
-    return import('@/entrypoints/utils/config');
+    return import('@/src/services/config/store');
 }
 
 describe('统一配置存储', () => {
@@ -286,13 +298,87 @@ describe('统一配置存储', () => {
         await Promise.all([configStore.configReady, configStore.configHistoryReady]);
         const historyBefore = configStore.getConfigHistorySnapshot();
 
-        await expect(configStore.incrementConfigCount(3)).resolves.toBe(13);
+        await expect(configStore.incrementConfigCount(3, 'count-operation-1')).resolves.toBe(13);
+        await expect(configStore.incrementConfigCount(3, 'count-operation-1')).resolves.toBe(13);
 
         expect(configStore.config.count).toBe(13);
-        expect(storageState.get('local:config')).toMatchObject({count: 13, __fluentConfigRevision: 4});
+        expect(storageState.get('local:config')).toMatchObject({
+            count: 13,
+            __fluentConfigRevision: 4,
+            __fluentCountOperations: [{id: 'count-operation-1', delta: 3, count: 13}],
+        });
         expect(configStore.getConfigRevision()).toBe(4);
         expect(configStore.getConfigHistorySnapshot()).toEqual(historyBefore);
         await expect(configStore.incrementConfigCount(0)).rejects.toThrow('无效的翻译计数增量');
+        await expect(configStore.incrementConfigCount(1, 'count-operation-1'))
+            .rejects.toThrow('操作标识与增量不一致');
+
+        await configStore.saveConfig({...configStore.config, count: 1, to: 'en'}, {
+            recordHistory: true,
+            immediateHistory: true,
+        });
+        expect(configStore.config.count).toBe(13);
+        expect(storageState.get('local:config')).toMatchObject({count: 13, to: 'en'});
+
+        const persistedAfterSave = structuredClone(storageState.get('local:config'));
+        const restartedStore = await loadConfigModule(persistedAfterSave);
+        await restartedStore.configReady;
+        storageMock.setItem.mockClear();
+        await expect(restartedStore.incrementConfigCount(3, 'count-operation-1')).resolves.toBe(13);
+        expect(restartedStore.config.count).toBe(13);
+        expect(storageMock.setItem).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['读取', {failSessionRead: true}],
+        ['检查点写入', {failSessionWrite: true}],
+    ] as const)('后台重启后 session 凭据%s失败仍先水合计数操作日志', async (_failure, failureOptions) => {
+        let releaseConfigRead!: () => void;
+        const configReadBarrier = new Promise<void>((resolve) => { releaseConfigRead = resolve; });
+        const secret = 'count-restart-session-secret';
+        const persisted = {
+            ...sanitizeConfigCredentials(normalizeConfig(storedConfig)),
+            token: {openai: secret},
+            count: 13,
+            __fluentConfigRevision: 4,
+            __fluentCountOperations: [{id: 'count-restart-operation', delta: 3, count: 13}],
+        };
+        const restartedStore = await loadConfigModule(persisted, {...failureOptions, configReadBarrier});
+        const retry = restartedStore.incrementConfigCount(3, 'count-restart-operation');
+
+        releaseConfigRead();
+        await expect(retry).resolves.toBe(13);
+        await expect(restartedStore.configReady).resolves.toBeUndefined();
+
+        expect(restartedStore.config.count).toBe(13);
+        expect(storageMock.setItem.mock.calls.filter(([key]) => key === 'local:config')).toHaveLength(0);
+        expect(storageState.get('local:config')).toEqual(persisted);
+        expect(restartedStore.config.token.openai).toBe(secret);
+        await expect(restartedStore.incrementConfigCount(1, 'count-new-operation'))
+            .rejects.toThrow('配置安全迁移未完成');
+        expect(storageState.get('local:config')).toEqual(persisted);
+    });
+
+    it('凭据载体读取失败时保留已读取的公开配置并禁止覆盖旧存储', async () => {
+        const secret = 'unread-local-credential-secret';
+        const persisted = {
+            ...sanitizeConfigCredentials(normalizeConfig({...storedConfig, to: 'ja'})),
+            token: {openai: secret},
+            count: 21,
+            __fluentConfigRevision: 7,
+            __fluentCountOperations: [{id: 'count-before-credential-read-failure', delta: 1, count: 21}],
+        };
+        const configStore = await loadConfigModule(persisted, {failLocalCredentialRead: true});
+
+        await expect(configStore.configReady).resolves.toBeUndefined();
+        expect(configStore.config).toMatchObject({to: 'ja', count: 21});
+        expect(configStore.config.token).toEqual({});
+        await expect(configStore.incrementConfigCount(1, 'count-after-credential-read-failure'))
+            .rejects.toThrow('配置安全迁移未完成');
+        await expect(configStore.saveConfig({...configStore.config, to: 'ko'}))
+            .rejects.toThrow('配置安全迁移未完成');
+        expect(storageState.get('local:config')).toEqual(persisted);
+        expect(storageMock.removeItem).not.toHaveBeenCalled();
     });
 
     it('计数增量请求只发送 delta，并校验后台响应', async () => {
@@ -300,13 +386,34 @@ describe('统一配置存储', () => {
         await configStore.configReady;
         const sendMessage = vi.fn().mockResolvedValue({success: true, count: 7});
 
-        await expect(configStore.requestConfigCountIncrement(2, sendMessage)).resolves.toBe(7);
-        expect(sendMessage).toHaveBeenCalledWith({type: 'incrementConfigCount', delta: 2});
-        await expect(configStore.requestConfigCountIncrement(0, sendMessage)).rejects.toThrow('无效的翻译计数增量');
-        await expect(configStore.requestConfigCountIncrement(1, vi.fn().mockResolvedValue({success: false, error: 'failed'})))
+        await expect(configStore.requestConfigCountIncrement(2, sendMessage, 'count-request-1')).resolves.toBe(7);
+        expect(sendMessage).toHaveBeenCalledWith({
+            type: 'incrementConfigCount',
+            delta: 2,
+            operationId: 'count-request-1',
+        });
+        await expect(configStore.requestConfigCountIncrement(0, sendMessage, 'count-request-2'))
+            .rejects.toThrow('无效的翻译计数增量');
+        await expect(configStore.requestConfigCountIncrement(1, vi.fn().mockResolvedValue({success: false, error: 'failed'}), 'count-request-3'))
             .rejects.toThrow('failed');
-        await expect(configStore.requestConfigCountIncrement(1, vi.fn().mockResolvedValue({success: true})))
+        await expect(configStore.requestConfigCountIncrement(1, vi.fn().mockResolvedValue({success: true}), 'count-request-4'))
             .rejects.toThrow('没有返回结果');
+    });
+
+    it('计数累加拒绝运行时畸形值和安全整数溢出，失败时不写存储', async () => {
+        const configStore = await loadConfigModule({...storedConfig, count: Number.MAX_SAFE_INTEGER});
+        await configStore.configReady;
+        storageMock.setItem.mockClear();
+
+        await expect(configStore.incrementConfigCount(1, 'count-overflow-operation'))
+            .rejects.toThrow('超过安全整数范围');
+        expect(configStore.config.count).toBe(Number.MAX_SAFE_INTEGER);
+        expect(storageMock.setItem).not.toHaveBeenCalled();
+
+        configStore.config.count = -1;
+        await expect(configStore.incrementConfigCount(1, 'count-invalid-current-operation'))
+            .rejects.toThrow('不是非负安全整数');
+        expect(storageMock.setItem).not.toHaveBeenCalled();
     });
 
     it('后台拒绝旧 revision 时重新读取最新配置，而不是保留会再次覆盖的旧快照', async () => {
@@ -519,11 +626,12 @@ describe('统一配置存储', () => {
         await configStore.saveConfig({...configStore.config, to: 'en'}, {recordHistory: true, immediateHistory: true});
         const baselineVersion = configStore.getConfigHistorySnapshot().entries[0].version;
         const secret = 'restore-secret-sentinel';
+        await configStore.incrementConfigCount(42, 'history-restore-count-operation');
         await configStore.saveConfig({
             ...configStore.config,
             token: {openai: secret},
             persistCredentials: true,
-            count: 42,
+            count: 1,
             videoServiceDefaultMigrated: true,
             to: 'ja',
         }, {recordHistory: true, immediateHistory: true});
@@ -824,9 +932,10 @@ describe('统一配置存储', () => {
         const configStore = await loadConfigModule(storedConfig);
         await Promise.all([configStore.configReady, configStore.configHistoryReady]);
 
+        await configStore.incrementConfigCount(12, 'history-excluded-count-operation');
         await configStore.saveConfig({
             ...configStore.config,
-            count: 12,
+            count: 1,
             persistCredentials: true,
             videoServiceDefaultMigrated: false,
         }, {recordHistory: true, immediateHistory: true});

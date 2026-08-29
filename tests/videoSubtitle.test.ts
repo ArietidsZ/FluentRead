@@ -23,12 +23,15 @@ import {
     translateVideoSubtitleCues,
     VIDEO_CAPTION_SEGMENT_SELECTOR,
 } from '@/src/features/video-subtitle/content/runtime';
-import { normalizeVideoSubtitleFontSize } from '@/entrypoints/utils/model';
+import {validateYoutubeTimedTextMessage} from '@/src/features/video-subtitle/content/youtubeTimedTextMessage';
+import { normalizeVideoSubtitleFontSize } from '@/src/core/config/model';
 
 describe('YouTube 视频字幕识别', () => {
     it('只把 YouTube 视频页识别为视频字幕目标', () => {
         expect(isYouTubeVideoPage({ hostname: 'www.youtube.com', pathname: '/watch' })).toBe(true);
-        expect(isYouTubeVideoPage({ hostname: 'youtube-nocookie.com', pathname: '/watch' })).toBe(true);
+        expect(isYouTubeVideoPage({ hostname: 'youtube-nocookie.com', pathname: '/embed/abc123' })).toBe(false);
+        expect(isYouTubeVideoPage({ hostname: 'www.youtube.com', pathname: '/shorts/abc123' })).toBe(true);
+        expect(isYouTubeVideoPage({ hostname: 'www.youtube.com', pathname: '/shorts' })).toBe(false);
         expect(isYouTubeVideoPage({ hostname: 'www.youtube.com', pathname: '/results' })).toBe(false);
         expect(isYouTubeVideoPage({ hostname: 'example.com', pathname: '/watch' })).toBe(false);
     });
@@ -148,5 +151,96 @@ describe('YouTube 视频字幕识别', () => {
             if (source === 'Broken subtitle.') throw new Error('fixture translation failed');
             return `译文：${source}`;
         }, { concurrency: 1 })).rejects.toThrow('fixture translation failed');
+    });
+});
+
+describe('YouTube timedtext MAIN bridge 消息边界', () => {
+    const responseText = JSON.stringify({
+        events: [{tStartMs: 0, dDurationMs: 1200, segs: [{utf8: 'Current subtitle.'}]}],
+    });
+    const payload = {
+        source: 'fluent-read',
+        type: 'fluent-read-youtube-timedtext',
+        url: 'https://www.youtube.com/api/timedtext?v=current-video&lang=en',
+        responseText,
+    };
+
+    it('只接收绑定到当前 watch/shorts videoId 的真实 timedtext URL', () => {
+        expect(validateYoutubeTimedTextMessage(
+            payload,
+            'https://www.youtube.com/watch?v=current-video',
+        )?.cues).toMatchObject([{text: 'Current subtitle.'}]);
+        expect(validateYoutubeTimedTextMessage(
+            {...payload, url: 'https://www.youtube.com/api/timedtext?v=stale-video&lang=en'},
+            'https://www.youtube.com/watch?v=current-video',
+        )).toBeNull();
+        expect(validateYoutubeTimedTextMessage(
+            {...payload, url: 'https://www.youtube.com/api/timedtext?v=short-id&lang=en'},
+            'https://www.youtube.com/shorts/short-id',
+        )?.cues).toHaveLength(1);
+    });
+
+    it('拒绝伪造协议、非 timedtext 资源与非播放页消息', () => {
+        expect(validateYoutubeTimedTextMessage(
+            {...payload, source: 'page-script'},
+            'https://www.youtube.com/watch?v=current-video',
+        )).toBeNull();
+        expect(validateYoutubeTimedTextMessage(
+            {...payload, url: 'https://www.youtube.com/watch?v=current-video'},
+            'https://www.youtube.com/watch?v=current-video',
+        )).toBeNull();
+        expect(validateYoutubeTimedTextMessage(
+            payload,
+            'https://www.youtube.com/results?search_query=current-video',
+        )).toBeNull();
+        expect(validateYoutubeTimedTextMessage(payload, 'https://www.youtube-nocookie.com/embed/current-video'))
+            .toBeNull();
+        expect(validateYoutubeTimedTextMessage(payload, 'https://example.com/watch?v=current-video')).toBeNull();
+        expect(validateYoutubeTimedTextMessage(payload, 'https://www.youtube.com/watch')).toBeNull();
+        expect(validateYoutubeTimedTextMessage(payload, 'not a valid page URL')).toBeNull();
+    });
+
+    it.each([
+        null,
+        [],
+        {},
+        {...payload, type: 'forged-type'},
+        {...payload, url: 42},
+        {...payload, responseText: 42},
+        {...payload, responseText: ''},
+    ])('拒绝畸形 bridge payload：%j', (invalidPayload) => {
+        expect(validateYoutubeTimedTextMessage(
+            invalidPayload,
+            'https://www.youtube.com/watch?v=current-video',
+        )).toBeNull();
+    });
+
+    it('在解析和缓存前限制响应体积、cue 数量与单条文本长度', () => {
+        const limits = {maxPayloadChars: responseText.length, maxCues: 1, maxCueChars: 20};
+        expect(validateYoutubeTimedTextMessage(
+            {...payload, responseText: `${responseText} `},
+            'https://www.youtube.com/watch?v=current-video',
+            limits,
+        )).toBeNull();
+
+        const twoCues = JSON.stringify({events: [
+            {tStartMs: 0, dDurationMs: 1000, segs: [{utf8: 'First cue.'}]},
+            {tStartMs: 10_000, dDurationMs: 1000, segs: [{utf8: 'Second cue.'}]},
+        ]});
+        expect(validateYoutubeTimedTextMessage(
+            {...payload, responseText: twoCues},
+            'https://www.youtube.com/watch?v=current-video',
+            {...limits, maxPayloadChars: twoCues.length},
+        )).toBeNull();
+        expect(validateYoutubeTimedTextMessage(
+            payload,
+            'https://www.youtube.com/watch?v=current-video',
+            {...limits, maxCueChars: 5},
+        )).toBeNull();
+        expect(validateYoutubeTimedTextMessage(
+            {...payload, responseText: JSON.stringify({events: []})},
+            'https://www.youtube.com/watch?v=current-video',
+            limits,
+        )).toBeNull();
     });
 });

@@ -282,8 +282,7 @@
     </SettingsGroup>
     </section>
 
-    <!-- token -->
-    <!-- 高级选项-->
+    <!-- 高级选项 -->
     <section v-show="props.activeSection === 'settings-advanced'" id="settings-advanced" class="settings-section">
       <SettingsGroup title="缓存策略" description="减少重复请求；需要最新结果时可临时关闭。">
         <!-- 缓存开关 -->

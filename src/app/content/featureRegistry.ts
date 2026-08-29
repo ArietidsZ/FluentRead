@@ -61,6 +61,9 @@ export class ContentFeatureRegistry {
     private readonly features: ContentFeatureDefinition[];
     private readonly options: ContentFeatureRegistryOptions;
     private readonly capabilities: BrowserCapabilities;
+    private readonly mountedFeatureIds = new Set<string>();
+    private readonly pendingMounts = new Map<string, Promise<ContentFeatureMountResult>>();
+    private activeRuntime: ContentFeatureRuntime | null = null;
 
     constructor(features: ContentFeatureDefinition[], options: ContentFeatureRegistryOptions = {}) {
         this.features = [...features];
@@ -69,71 +72,128 @@ export class ContentFeatureRegistry {
     }
 
     async mountEnabled(runtime: ContentFeatureRuntime): Promise<ContentFeatureMountResult[]> {
+        this.activeRuntime = runtime;
+        return this.reconcileEnabled();
+    }
+
+    /** 按最新配置协调已激活页面：关闭项立即卸载，开启项按 ownership 幂等挂载。 */
+    async reconcileEnabled(): Promise<ContentFeatureMountResult[]> {
+        const runtime = this.activeRuntime;
+        if (!runtime || runtime.signal.aborted || !runtime.isCurrent()) {
+            return this.features.map(({id}) => ({id, status: 'skipped'}));
+        }
         const results: ContentFeatureMountResult[] = [];
 
+        // 步骤 1：在任何异步等待前先释放已关闭或能力不支持的功能。
         for (const feature of this.features) {
-            // Step 1: 先确认 WXT 上下文和当前激活都有效，旧激活不再启动新功能。
+            if (!this.isFeatureDesired(feature) && this.isFeatureMounted(feature)) {
+                this.unmountFeature(feature);
+            }
+        }
+
+        for (const feature of this.features) {
+            // 步骤 2：先确认 WXT 上下文和当前激活都有效，旧激活不再启动新功能。
             if (runtime.signal.aborted || !runtime.isCurrent()) {
                 results.push({id: feature.id, status: 'skipped'});
                 continue;
             }
-
-            try {
-                // Step 2: 构建能力优先于同步配置；旧的 Chrome 偏好不会让 Firefox 挂载必失败功能。
-                if ((feature.requiredCapability && !this.capabilities[feature.requiredCapability])
-                    || !feature.isEnabled()) {
-                    results.push({id: feature.id, status: 'skipped'});
-                    continue;
-                }
-
-                // Step 3: 带 isMounted 的异步 UI 复用一次重试策略；普通功能只挂载一次。
-                if (feature.isMounted) {
-                    await ensureContentFeatureMounted({
-                        mount: () => feature.mount(runtime),
-                        isMounted: feature.isMounted,
-                        isStillDesired: () => !runtime.signal.aborted
-                            && runtime.isCurrent()
-                            && feature.isEnabled(),
-                    });
-                } else {
-                    await feature.mount(runtime);
-                }
-
-                // Step 4: 异步挂载结束后重新校验所有权。旧 activation 的全局 unmount
-                // 可能取消恢复 activation 刚重试的 singleton UI，因此失效时只跳过；
-                // 当前 activation 内配置关闭时才由本 registry 执行卸载。
-                if (runtime.signal.aborted || !runtime.isCurrent()) {
-                    results.push({id: feature.id, status: 'skipped'});
-                    continue;
-                }
-                if (!feature.isEnabled()) {
-                    feature.unmount?.();
-                    results.push({id: feature.id, status: 'skipped'});
-                    continue;
-                }
-
-                if (feature.isMounted && !feature.isMounted()) {
-                    throw new Error(`内容功能挂载后未就绪: ${feature.id}`);
-                }
-
-                results.push({id: feature.id, status: 'mounted'});
-            } catch (error) {
-                // Step 5: 一个可选功能失败不能阻断其余功能，统一交给入口记录诊断。
-                this.options.onError?.(feature.id, 'mount', error);
-                results.push({id: feature.id, status: 'failed', error});
+            if (!this.isFeatureDesired(feature)) {
+                results.push({id: feature.id, status: 'skipped'});
+                continue;
             }
+            results.push(await this.mountFeature(feature, runtime));
         }
 
         return results;
     }
 
+    private isFeatureDesired(feature: ContentFeatureDefinition): boolean {
+        return (!feature.requiredCapability || this.capabilities[feature.requiredCapability])
+            && feature.isEnabled();
+    }
+
+    private isFeatureMounted(feature: ContentFeatureDefinition): boolean {
+        return this.mountedFeatureIds.has(feature.id) || feature.isMounted?.() === true;
+    }
+
+    private mountFeature(
+        feature: ContentFeatureDefinition,
+        runtime: ContentFeatureRuntime,
+    ): Promise<ContentFeatureMountResult> {
+        const pending = this.pendingMounts.get(feature.id);
+        if (pending) return pending;
+        if (this.isFeatureMounted(feature)) {
+            this.mountedFeatureIds.add(feature.id);
+            return Promise.resolve({id: feature.id, status: 'mounted'});
+        }
+
+        let request!: Promise<ContentFeatureMountResult>;
+        request = this.performFeatureMount(feature, runtime).finally(() => {
+            if (this.pendingMounts.get(feature.id) === request) this.pendingMounts.delete(feature.id);
+        });
+        this.pendingMounts.set(feature.id, request);
+        return request;
+    }
+
+    private async performFeatureMount(
+        feature: ContentFeatureDefinition,
+        runtime: ContentFeatureRuntime,
+    ): Promise<ContentFeatureMountResult> {
+        try {
+            // 步骤 3：带 isMounted 的异步 UI 复用一次重试策略；普通功能由 registry ownership 去重。
+            if (feature.isMounted) {
+                await ensureContentFeatureMounted({
+                    mount: () => feature.mount(runtime),
+                    isMounted: feature.isMounted,
+                    isStillDesired: () => !runtime.signal.aborted
+                        && runtime.isCurrent()
+                        && this.isFeatureDesired(feature),
+                });
+            } else {
+                await feature.mount(runtime);
+            }
+
+            // 步骤 4：迟到挂载必须复验 activation 与最新配置，不能复活已关闭功能。
+            if (runtime.signal.aborted || !runtime.isCurrent()) {
+                return {id: feature.id, status: 'skipped'};
+            }
+            if (!this.isFeatureDesired(feature)) {
+                this.unmountFeature(feature);
+                return {id: feature.id, status: 'skipped'};
+            }
+            if (feature.isMounted && !feature.isMounted()) {
+                throw new Error(`内容功能挂载后未就绪: ${feature.id}`);
+            }
+
+            this.mountedFeatureIds.add(feature.id);
+            return {id: feature.id, status: 'mounted'};
+        } catch (error) {
+            // 步骤 5：一个可选功能失败不能阻断其余功能，统一交给入口记录诊断。
+            this.options.onError?.(feature.id, 'mount', error);
+            return {id: feature.id, status: 'failed', error};
+        }
+    }
+
+    private unmountFeature(feature: ContentFeatureDefinition): void {
+        try {
+            feature.unmount?.();
+        } catch (error) {
+            this.options.onError?.(feature.id, 'unmount', error);
+        } finally {
+            this.mountedFeatureIds.delete(feature.id);
+        }
+    }
+
     unmountAll(): void {
-        // Step 1: 反向卸载，让后挂载的覆盖层先释放自己的监听器和 DOM。
+        this.activeRuntime = null;
+        this.pendingMounts.clear();
+        this.mountedFeatureIds.clear();
+        // 步骤 1：反向卸载，让后挂载的覆盖层先释放自己的监听器和 DOM。
         for (const feature of [...this.features].reverse()) {
             try {
                 feature.unmount?.();
             } catch (error) {
-                // Step 2: 单个清理失败不应阻止其他功能释放资源。
+                // 步骤 2：单个清理失败不应阻止其他功能释放资源。
                 this.options.onError?.(feature.id, 'unmount', error);
             }
         }

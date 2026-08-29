@@ -1,5 +1,6 @@
 import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs';
 import {dirname, relative, resolve, sep} from 'node:path';
+import ts from 'typescript';
 import {describe, expect, it} from 'vitest';
 
 const PROJECT_ROOT = resolve(__dirname, '../..');
@@ -13,12 +14,12 @@ function listSourceFiles(directory: string): string[] {
     const files: string[] = [];
 
     const visit = (current: string) => {
-        // Step 1: 递归读取目录，只收集会参与 TypeScript/Vue 依赖图的源码。
+        // 步骤 1：递归读取目录，只收集会参与 TypeScript/Vue 依赖图的源码。
         for (const name of readdirSync(current)) {
             const absolute = resolve(current, name);
             if (statSync(absolute).isDirectory()) {
                 visit(absolute);
-            } else if (/\.(?:ts|vue)$/.test(name) && !name.endsWith('.d.ts')) {
+            } else if (/\.(?:cts|mts|ts|tsx|vue)$/.test(name) && !name.endsWith('.d.ts')) {
                 files.push(absolute);
             }
         }
@@ -32,16 +33,40 @@ function readSource(path: string): string {
     return readFileSync(path, 'utf8');
 }
 
+function sourceBody(path: string): string {
+    const source = readSource(projectPath(path));
+    const header = source.match(/^\/\*\*[\s\S]*?\*\/\s*/u)?.[0];
+    return header?.includes(`@file ${path}`) ? source.slice(header.length) : source;
+}
+
 function relativePath(path: string): string {
     return relative(PROJECT_ROOT, path).split(sep).join('/');
 }
 
 function importSpecifiers(source: string): string[] {
-    // Step 1: 同时识别静态 import/export-from 和动态 import，覆盖现有 WXT/userscript 写法。
+    // Vue 文件只把 script 区域交给 TypeScript；模板文字和样式不能伪装成依赖边。
+    const script = source.includes('<script')
+        ? [...source.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/giu)].map((match) => match[1]).join('\n')
+        : source;
+    const sourceFile = ts.createSourceFile('dependency-graph.tsx', script, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     const imports = new Set<string>();
-    const pattern = /(?:\bfrom\s*|\bimport\s*\()\s*['"]([^'"]+)['"]/g;
-    let match: RegExpExecArray | null;
-    while ((match = pattern.exec(source)) !== null) imports.add(match[1]);
+
+    const addStringLiteral = (node: ts.Node | undefined) => {
+        if (node && ts.isStringLiteralLike(node)) imports.add(node.text);
+    };
+    const visit = (node: ts.Node) => {
+        if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+            addStringLiteral(node.moduleSpecifier);
+        } else if (ts.isCallExpression(node)
+            && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+            addStringLiteral(node.arguments[0]);
+        } else if (ts.isImportTypeNode(node)
+            && ts.isLiteralTypeNode(node.argument)) {
+            addStringLiteral(node.argument.literal);
+        }
+        ts.forEachChild(node, visit);
+    };
+    visit(sourceFile);
     return [...imports];
 }
 
@@ -58,8 +83,14 @@ function resolveProjectImport(fromFile: string, specifier: string): string | nul
     for (const candidate of [
         unresolved,
         `${unresolved}.ts`,
+        `${unresolved}.tsx`,
+        `${unresolved}.mts`,
+        `${unresolved}.cts`,
         `${unresolved}.vue`,
         resolve(unresolved, 'index.ts'),
+        resolve(unresolved, 'index.tsx'),
+        resolve(unresolved, 'index.mts'),
+        resolve(unresolved, 'index.cts'),
         resolve(unresolved, 'index.vue'),
     ]) {
         if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
@@ -69,7 +100,7 @@ function resolveProjectImport(fromFile: string, specifier: string): string | nul
 
 function lineCount(path: string): number {
     let source = readSource(projectPath(path));
-    if (path.startsWith('src/')) {
+    if (path.startsWith('src/') || path.startsWith('entrypoints/')) {
         const pattern = path.endsWith('.vue')
             ? /^<!--[\s\S]*?-->\s*/u
             : /^\/\*\*[\s\S]*?\*\/\s*/u;
@@ -103,6 +134,54 @@ const COMPLEXITY_DEBT_CEILINGS: Record<string, number> = {
 };
 
 describe('architecture module boundaries', () => {
+    it('依赖提取覆盖副作用、导出、动态与类型 import，并忽略注释、字符串和 Vue 模板', () => {
+        const source = `
+            <template><p>import '@/src/template-decoy'</p></template>
+            <script setup lang="ts">
+                import '@/src/side-effect';
+                export {value} from '@/src/re-export';
+                const lazy = import('@/src/lazy');
+                type Imported = import('@/src/type-only').Imported;
+                const decoy = "import('@/src/string-decoy')";
+                // 注释诱饵：import '@/src/comment-decoy';
+            </script>
+        `;
+
+        expect(importSpecifiers(source)).toEqual([
+            '@/src/side-effect',
+            '@/src/re-export',
+            '@/src/lazy',
+            '@/src/type-only',
+        ]);
+    });
+
+    it('每个 WXT 入口都有语义化中文文件说明，HTML 保持 doctype 在首行', () => {
+        const files = [
+            'entrypoints/background.ts',
+            'entrypoints/content.ts',
+            'entrypoints/document/main.ts',
+            'entrypoints/offscreen/main.ts',
+            'entrypoints/options/main.ts',
+            'entrypoints/popup/main.ts',
+            'entrypoints/shadowBridge.content.ts',
+            'entrypoints/youtubeBridge.content.ts',
+            'entrypoints/document/index.html',
+            'entrypoints/offscreen/index.html',
+            'entrypoints/options/index.html',
+            'entrypoints/popup/index.html',
+        ];
+
+        for (const path of files) {
+            const source = readSource(projectPath(path));
+            if (path.endsWith('.html')) expect(source, path).toMatch(/^<!doctype html>\n<!--/iu);
+            else expect(source, path).toMatch(/^\/\*\*/u);
+            expect(source, path).toContain(`@file ${path}`);
+            expect(source, path).toMatch(/文件职责：[^\n]*[\u3400-\u9fff]/u);
+            expect(source, path).toMatch(/主要内容：[^\n]*[\u3400-\u9fff]/u);
+            expect(source, path).toMatch(/模块边界：[^\n]*[\u3400-\u9fff]/u);
+        }
+    });
+
     it('核心 WXT entrypoint 只声明元数据并委托给唯一 app composition root', () => {
         const contracts = [
             {
@@ -204,18 +283,18 @@ describe('architecture module boundaries', () => {
             for (const specifier of importSpecifiers(readSource(file))) {
                 if (!specifier.startsWith('@/entrypoints/')) continue;
 
-                // Step 1: app composition root 负责把 WXT/provider/config 依赖静态注入纯 service。
+                // 步骤 1：app composition root 负责把 WXT/provider/config 依赖静态注入纯 service。
                 if (APP_COMPOSITION_ROOT_ENTRYPOINT_IMPORTS.get(path)?.has(specifier)) {
                     appRuntimeImports.push(`${path} -> ${specifier}`);
                     continue;
                 }
-                // Step 2: provider 已迁入目标目录；配置/模板等尚在迁移的依赖只开放精确集合。
+                // 步骤 2：provider 已迁入目标目录；配置/模板等尚在迁移的依赖只开放精确集合。
                 if (path.startsWith('src/providers/translation/')
                     && PROVIDER_TRANSITIONAL_ENTRYPOINT_IMPORTS.has(specifier)) {
                     providerEntrypointImports.push(specifier);
                     continue;
                 }
-                // Step 3: 内容脚本 runtime/UI 仍承载浏览器 DOM/WXT glue；迁移期只允许逐文件精确列明的旧依赖。
+                // 步骤 3：内容脚本 runtime/UI 仍承载浏览器 DOM/WXT glue；迁移期只允许逐文件精确列明的旧依赖。
                 if (FEATURE_BROWSER_ENTRYPOINT_IMPORTS.get(path)?.has(specifier)) {
                     featureBrowserEntrypointEdges.push(`${path} -> ${specifier}`);
                     continue;
@@ -224,7 +303,7 @@ describe('architecture module boundaries', () => {
             }
         }
 
-        // Step 4: 已登记集合必须与实际依赖精确匹配，防止残留白名单静默扩大。
+        // 步骤 4：已登记集合必须与实际依赖精确匹配，防止残留白名单静默扩大。
         expect(violations).toEqual([]);
         expect(new Set(appRuntimeImports)).toEqual(new Set(
             [...APP_COMPOSITION_ROOT_ENTRYPOINT_IMPORTS].flatMap(([path, imports]) =>
@@ -281,7 +360,7 @@ describe('architecture module boundaries', () => {
     });
 
     it('文档 WXT 页面只通过 app public API 进入垂直功能切片', () => {
-        expect(readSource(projectPath('entrypoints/document/main.ts'))).toBe(
+        expect(sourceBody('entrypoints/document/main.ts')).toBe(
             "import {mountDocumentTranslationApp} from '@/src/app/document-translation/page';\n\nmountDocumentTranslationApp('#app');\n",
         );
         const documentUiImports = importSpecifiers(readSource(projectPath('src/app/document-translation/DocumentApp.vue')))
@@ -294,116 +373,20 @@ describe('architecture module boundaries', () => {
         expect(featureEntrypointImports).toEqual([]);
     });
 
-    it('WXT entrypoint 只能进入 app composition root，已知 service 直连只能递减', () => {
+    it('WXT entrypoint 只能进入 app composition root，兼容 utils 目录不得复活', () => {
         const violations: string[] = [];
-        const allowedDebt = new Set([
-            'entrypoints/utils/translationCache.ts -> @/src/services/translation/cache',
-            'entrypoints/utils/inputBox.ts -> @/src/features/input-translation/content/inputBox',
-            'entrypoints/utils/http.ts -> @/src/platform/http/runtime',
-            'entrypoints/utils/httpError.ts -> @/src/platform/http/errors',
-            'entrypoints/utils/hotkey.ts -> @/src/core/hotkey',
-            'entrypoints/utils/siteRules.ts -> @/src/features/site-rules/domain',
-            'entrypoints/utils/selectionTranslatorCore.ts -> @/src/features/selection-translation/core',
-            'entrypoints/utils/selectionTtsConfig.ts -> @/src/features/selection-translation/ttsConfig',
-            'entrypoints/utils/areaTranslationCore.ts -> @/src/features/area-translation/core',
-            'entrypoints/utils/imageTranslationCore.ts -> @/src/features/image-translation/core',
-            'entrypoints/utils/imageOcrLanguages.ts -> @/src/features/image-translation/ocrLanguages',
-            'entrypoints/utils/option.ts -> @/src/core/config/catalog',
-            'entrypoints/utils/model.ts -> @/src/core/config/model',
-            'entrypoints/utils/credentials.ts -> @/src/core/config/credentials',
-            'entrypoints/utils/configValidation.ts -> @/src/core/config/validation',
-            'entrypoints/utils/constant.ts -> @/src/core/config/constants',
-            'entrypoints/utils/config-transfer.ts -> @/src/core/config/transfer',
-            'entrypoints/utils/custom-body.ts -> @/src/core/config/customBody',
-            'entrypoints/utils/deeplx.ts -> @/src/core/config/deeplx',
-            'entrypoints/utils/config.ts -> @/src/services/config/store',
-            'entrypoints/utils/serviceCatalog.ts -> @/src/ui/view-model/serviceCatalog',
-            'entrypoints/utils/vocabularyBookProtocol.ts -> @/src/features/vocabulary/learningModel',
-            'entrypoints/utils/vocabularyBook.ts -> @/src/features/vocabulary/repository',
-            'entrypoints/utils/common.ts -> @/src/core/language/detect',
-            'entrypoints/utils/common.ts -> @/src/shared/dom/findMatchingElement',
-            'entrypoints/utils/common.ts -> @/src/shared/function/throttle',
-            'entrypoints/utils/common.ts -> @/src/shared/geometry/touch',
-            'entrypoints/utils/translationLanguage.ts -> @/src/services/translation/languages',
-            'entrypoints/utils/translationError.ts -> @/src/services/translation/errors',
-            'entrypoints/utils/serviceError.ts -> @/src/services/translation/serviceErrors',
-            'entrypoints/utils/template.ts -> @/src/services/translation/templates',
-            'entrypoints/utils/translateQueue.ts -> @/src/services/translation/queue',
-            'entrypoints/utils/pageContext.ts -> @/src/services/translation/context',
-            'entrypoints/utils/edgeTts.ts -> @/src/features/selection-translation/services/edgeTts',
-            'entrypoints/utils/wordDictionary.ts -> @/src/features/selection-translation/services/wordDictionary',
-            'entrypoints/utils/legacyPageCache.ts -> @/src/services/translation/legacyPageCache',
-        ]);
 
         for (const file of listSourceFiles('entrypoints')) {
             const path = relativePath(file);
             for (const specifier of importSpecifiers(readSource(file))) {
                 if (!specifier.startsWith('@/src/')) continue;
                 if (specifier.startsWith('@/src/app/')) continue;
-
-                const edge = `${path} -> ${specifier}`;
-                if (!allowedDebt.has(edge)) violations.push(edge);
+                violations.push(`${path} -> ${specifier}`);
             }
         }
 
         expect(violations).toEqual([]);
-    });
-
-    it('迁移后的旧 utils 路径只能保留 deprecated re-export', () => {
-        const shims = new Map([
-            ['entrypoints/utils/translationCache.ts', '@/src/services/translation/cache'],
-            ['entrypoints/utils/translationBroker.ts', '@/src/app/translation/runtime'],
-            ['entrypoints/utils/contentFeatureLifecycle.ts', '@/src/app/content/featureLifecycle'],
-            ['entrypoints/utils/inputBox.ts', '@/src/features/input-translation/content/inputBox'],
-            ['entrypoints/utils/http.ts', '@/src/platform/http/runtime'],
-            ['entrypoints/utils/httpError.ts', '@/src/platform/http/errors'],
-            ['entrypoints/utils/hotkey.ts', '@/src/core/hotkey'],
-            ['entrypoints/utils/siteRules.ts', '@/src/features/site-rules/domain'],
-            ['entrypoints/utils/selectionTranslatorCore.ts', '@/src/features/selection-translation/core'],
-            ['entrypoints/utils/selectionTtsConfig.ts', '@/src/features/selection-translation/ttsConfig'],
-            ['entrypoints/utils/areaTranslationCore.ts', '@/src/features/area-translation/core'],
-            ['entrypoints/utils/imageTranslationCore.ts', '@/src/features/image-translation/core'],
-            ['entrypoints/utils/imageOcrLanguages.ts', '@/src/features/image-translation/ocrLanguages'],
-            ['entrypoints/utils/option.ts', '@/src/core/config/catalog'],
-            ['entrypoints/utils/model.ts', '@/src/core/config/model'],
-            ['entrypoints/utils/credentials.ts', '@/src/core/config/credentials'],
-            ['entrypoints/utils/configValidation.ts', '@/src/core/config/validation'],
-            ['entrypoints/utils/constant.ts', '@/src/core/config/constants'],
-            ['entrypoints/utils/config-transfer.ts', '@/src/core/config/transfer'],
-            ['entrypoints/utils/custom-body.ts', '@/src/core/config/customBody'],
-            ['entrypoints/utils/deeplx.ts', '@/src/core/config/deeplx'],
-            ['entrypoints/utils/config.ts', '@/src/services/config/store'],
-            ['entrypoints/utils/serviceCatalog.ts', '@/src/ui/view-model/serviceCatalog'],
-            ['entrypoints/utils/vocabularyBookProtocol.ts', '@/src/features/vocabulary/learningModel'],
-            ['entrypoints/utils/vocabularyBook.ts', '@/src/features/vocabulary/repository'],
-            ['entrypoints/utils/translationLanguage.ts', '@/src/services/translation/languages'],
-            ['entrypoints/utils/translationError.ts', '@/src/services/translation/errors'],
-            ['entrypoints/utils/serviceError.ts', '@/src/services/translation/serviceErrors'],
-            ['entrypoints/utils/template.ts', '@/src/services/translation/templates'],
-            ['entrypoints/utils/check.ts', '@/src/app/translation/check'],
-            ['entrypoints/utils/translateQueue.ts', '@/src/services/translation/queue'],
-            ['entrypoints/utils/translateApi.ts', '@/src/app/translation/client'],
-            ['entrypoints/utils/pageContext.ts', '@/src/services/translation/context'],
-            ['entrypoints/utils/edgeTts.ts', '@/src/features/selection-translation/services/edgeTts'],
-            ['entrypoints/utils/wordDictionary.ts', '@/src/features/selection-translation/services/wordDictionary'],
-            ['entrypoints/utils/legacyPageCache.ts', '@/src/services/translation/legacyPageCache'],
-        ]);
-
-        for (const [path, target] of shims) {
-            const source = readSource(projectPath(path));
-            expect(source).toContain('@deprecated');
-            expect(source).toContain(`export * from '${target}';`);
-            expect(importSpecifiers(source)).toEqual([target]);
-        }
-
-        const commonSource = readSource(projectPath('entrypoints/utils/common.ts'));
-        expect(commonSource).toContain('@deprecated');
-        expect(new Set(importSpecifiers(commonSource))).toEqual(new Set([
-            '@/src/core/language/detect',
-            '@/src/shared/dom/findMatchingElement',
-            '@/src/shared/function/throttle',
-            '@/src/shared/geometry/touch',
-        ]));
+        expect(existsSync(projectPath('entrypoints/utils'))).toBe(false);
     });
 
     it('业务模块不能继续迁入 WXT entrypoints/core 或 entrypoints/features', () => {

@@ -201,6 +201,37 @@ describe('谷歌翻译适配器', () => {
         expect(signals.every(signal => signal.aborted)).toBe(true);
     });
 
+    it('调用方短预算取消会终止当前网络请求，且不再启动备用接口', async () => {
+        vi.useFakeTimers();
+        const controller = new AbortController();
+        let transportSignal: AbortSignal | undefined;
+        fetchMock.mockImplementation((_input, init) => {
+            transportSignal = init?.signal ?? undefined;
+            return new Promise((_resolve, reject) => {
+                transportSignal?.addEventListener('abort', () => reject(transportSignal?.reason), {once: true});
+            });
+        });
+
+        const request = translateGoogleText('hello', 'en', 'zh-Hans', controller.signal);
+        const rejection = expect(request).rejects.toThrow('broker 预算耗尽');
+        await vi.advanceTimersByTimeAsync(499);
+        expect(transportSignal?.aborted).toBe(false);
+        controller.abort(new Error('broker 预算耗尽'));
+        await rejection;
+
+        expect(transportSignal?.aborted).toBe(true);
+        expect(fetchMock).toHaveBeenCalledOnce();
+    });
+
+    it('调用前已取消时不启动网络请求', async () => {
+        const controller = new AbortController();
+        controller.abort('stop');
+
+        await expect(translateGoogleText('hello', 'en', 'zh-Hans', controller.signal))
+            .rejects.toMatchObject({name: 'AbortError'});
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
     it('按网页 RPC 服务端片段原样拼接译文，不额外插入空格', () => {
         expect(parseGoogleBatchResponse(createBatchResponse(['第一句话。', '第二句话！'])))
             .toBe('第一句话。第二句话！');

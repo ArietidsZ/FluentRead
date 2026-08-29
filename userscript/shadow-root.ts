@@ -20,6 +20,7 @@ export interface ShadowRootContentScriptUi<T> {
 }
 
 function installStyles(shadow: ShadowRoot, localCss = ''): void {
+    // 构建时汇总的全局 CSS 与当前组件 CSS 只写入 ShadowRoot，避免污染宿主网页样式。
     const css = [globalThis.__fluentReadUserscriptCss || '', localCss].filter(Boolean).join('\n');
     if (!css) return;
     const style = document.createElement('style');
@@ -28,13 +29,14 @@ function installStyles(shadow: ShadowRoot, localCss = ''): void {
     shadow.appendChild(style);
 }
 
-/** Minimal WXT-compatible Shadow UI host for the single-page userscript runtime. */
+/** 为单页 userscript runtime 提供兼容 WXT 契约的最小 Shadow UI 宿主。 */
 export async function createShadowRootUi<T>(
     _ctx: unknown,
     options: ShadowRootUiOptions<T>,
 ): Promise<ShadowRootContentScriptUi<T>> {
     const shadowHost = document.createElement('div');
     shadowHost.setAttribute('data-fluent-read-userscript-host', options.name);
+    // 用零尺寸固定宿主隔离网页布局；实际浮层由 ShadowRoot 子节点定位并接收事件。
     shadowHost.style.cssText = [
         'all: initial !important',
         'position: fixed !important',
@@ -54,6 +56,7 @@ export async function createShadowRootUi<T>(
     container.style.cssText = 'all: initial; width: 0; height: 0; overflow: visible; pointer-events: auto;';
     shadow.appendChild(container);
 
+    // 在捕获阶段阻断明确要求隔离的事件，保持与 WXT Shadow UI 的页面边界一致。
     for (const eventName of options.isolateEvents || []) {
         shadow.addEventListener(eventName, (event) => event.stopPropagation(), true);
     }

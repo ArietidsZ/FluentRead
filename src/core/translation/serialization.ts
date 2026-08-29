@@ -61,9 +61,8 @@ function hashSlotSources(sources: readonly string[]): string {
 }
 
 /**
- * Encode several pure-text slots into one provider request. The deterministic
- * nonce keeps whole-paragraph cache keys stable; a collision suffix is added
- * if source text already contains one of our exact sentinels.
+ * 将多个纯文本槽编码为一次服务请求。确定性 nonce 使整段缓存 key 保持稳定；
+ * 若源文本已包含完全相同的哨兵标记，则追加冲突后缀。
  */
 export function serializeTranslationSlots(
     sources: readonly string[],
@@ -85,7 +84,7 @@ export function serializeTranslationSlots(
     return {payload, starts, ends};
 }
 
-/** Strictly accept one ordered result per slot; prose/fences outside markers reject the packet. */
+/** 严格按顺序为每个槽接受一个结果；标记外出现正文或代码围栏时整包拒绝。 */
 export function parseTranslationSlots(
     packet: SerializedTranslationSlots,
     translated: string,
@@ -150,9 +149,8 @@ function collectSnapshotSlots(
     const document = liveRoot.ownerDocument;
     if (!document?.createTreeWalker) return [];
 
-    // cloneNode(true) preserves text-node document order. Walking both trees in
-    // lockstep maps each live slot to its clone in O(number of text nodes),
-    // without rebuilding a sibling-index path for every slot.
+    // cloneNode(true) 会保留文本节点的文档顺序；同步遍历两棵树可在线性复杂度内
+    // 将每个实时槽映射到克隆节点，无需为每个槽重建兄弟索引路径。
     const liveWalker = document.createTreeWalker(liveRoot, 4);
     const cloneWalker = document.createTreeWalker(cloneRoot, 4);
     const slots: TranslationTextSlot[] = [];
@@ -172,9 +170,8 @@ function collectSnapshotSlots(
 }
 
 /**
- * Build a local DOM skeleton and expose only its translatable text slots.
- * Provider responses can therefore never rewrite hrefs, inline code, opt-out
- * content, attributes, or host event-bearing nodes.
+ * 构建本地 DOM 骨架，只暴露可翻译文本槽。因此服务响应永远不能改写链接地址、
+ * 行内代码、明确退出翻译的内容、属性或带宿主页事件的节点。
  */
 export function createTranslationSourceSnapshot(
     node: HTMLElement,
@@ -182,10 +179,8 @@ export function createTranslationSourceSnapshot(
     ignoredExtensionElement?: Element,
 ): TranslationSourceSnapshot {
     const clone = node.cloneNode(true) as HTMLElement;
-    // Decide every slot against the live composed tree. The detached clone no
-    // longer has external ancestors needed by site selectors, inherited
-    // contenteditable, or CSS visibility rules; it is used only as the mapped
-    // output skeleton.
+    // 每个槽都依据实时 composed tree 判断。脱离文档的克隆已失去站点选择器、继承
+    // contenteditable 和 CSS 可见性规则所需的外部祖先，只能作为映射后的输出骨架。
     const slots = collectSnapshotSlots(node, clone, shouldStayOriginal, ignoredExtensionElement);
     clone.querySelectorAll(translationArtifactSelector).forEach((child) => child.remove());
     return {clone, slots};
@@ -199,6 +194,7 @@ export function collectLiveTranslationTextSlots(
     return collectSlots(node, shouldStayOriginal, ignoredExtensionElement);
 }
 
+/** 只修改脱离文档的快照文本节点；没有对应译文的槽位保持原文。 */
 export function applyTranslationsToSnapshot(
     snapshot: TranslationSourceSnapshot,
     translations: readonly string[],
@@ -232,11 +228,9 @@ export function hasActiveTranslationLineClamp(element: HTMLElement): boolean {
 }
 
 /**
- * A translated paragraph can sit inside a separate line-clamp wrapper. Walk a
- * small, bounded ancestor chain so rendering can temporarily lease every
- * active clipping container without turning candidate discovery into a style
- * mutation. Existing leases are included for sibling candidates that share
- * one clamp container after the first translation has already unset it.
+ * 译文段落可能位于独立的 line-clamp wrapper 内。沿短且有界的祖先链查找，使渲染
+ * 能临时租用每个生效的裁剪容器，同时不让候选发现产生样式写入。首个译文解除裁剪后，
+ * 共享同一容器的兄弟候选仍需识别并复用已有租约。
  */
 export function findTranslationTruncationAncestors(
     node: HTMLElement,

@@ -13,6 +13,7 @@ import {
 } from '@/src/features/full-page-translation/background/stateHandlers';
 import {
     createImageTranslationBackgroundHandlers,
+    IMAGE_TEXT_TRANSLATION_TIMEOUT_MS,
     IMAGE_FETCH_MESSAGE_TYPE,
     IMAGE_OCR_DOWNLOAD_MESSAGE_TYPE,
     IMAGE_OCR_MESSAGE_TYPE,
@@ -360,9 +361,12 @@ describe('后台 feature handlers', () => {
             recognizeImage: vi.fn(async () => [{text: 'hello'}]),
             translateImage: vi.fn(async () => ({image: 'data:image/png;base64,BB==', lines: []})),
             translateTexts: vi.fn(async () => ['你好', '世界']),
+            getTranslationService: vi.fn(() => 'microsoft'),
+            supportsBatchTranslation: vi.fn(() => true),
             downloadLanguages: vi.fn(async () => undefined),
             markLanguagesDownloaded: vi.fn(async () => ['eng' as const, 'chi_sim' as const]),
             fetchImage: vi.fn(async () => 'data:image/png;base64,CC=='),
+            now: () => 0,
         };
         const handlers = createImageTranslationBackgroundHandlers(dependencies);
         const find = (type: string) => handlers.find((handler) => handler.type === type)!;
@@ -389,6 +393,8 @@ describe('后台 feature handlers', () => {
             context: 'Page',
             pageContext: '',
             useCache: true,
+            serviceOverride: 'microsoft',
+            requestTimeoutMs: IMAGE_TEXT_TRANSLATION_TIMEOUT_MS,
         });
 
         await expect(find(IMAGE_OCR_DOWNLOAD_MESSAGE_TYPE).handle({
@@ -408,9 +414,12 @@ describe('后台 feature handlers', () => {
             recognizeImage: vi.fn(async () => [] as unknown),
             translateImage: vi.fn(async () => ({} as unknown)),
             translateTexts: vi.fn(async () => [] as string[] | string),
+            getTranslationService: vi.fn(() => 'microsoft'),
+            supportsBatchTranslation: vi.fn(() => true),
             downloadLanguages: vi.fn(async () => undefined),
             markLanguagesDownloaded: vi.fn(async () => []),
             fetchImage: vi.fn(async () => 'data:image/png,x'),
+            now: () => 0,
         };
         const handlers = createImageTranslationBackgroundHandlers(dependencies);
         const find = (type: string) => handlers.find((handler) => handler.type === type)!;
@@ -462,13 +471,13 @@ describe('后台 feature handlers', () => {
             .rejects.toThrow('texts 只能包含非空字符串');
         dependencies.translateTexts.mockResolvedValueOnce('single');
         await expect(texts.handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, texts: ['a']}))
-            .rejects.toThrow('图片文字翻译结果无效');
+            .rejects.toThrow('图片文字批量翻译失败：provider 未返回等长字符串数组');
         dependencies.translateTexts.mockResolvedValueOnce([]);
         await expect(texts.handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, texts: ['a']}))
-            .rejects.toThrow('图片文字翻译结果无效');
+            .rejects.toThrow('图片文字批量翻译失败：provider 未返回等长字符串数组');
         dependencies.translateTexts.mockResolvedValueOnce([1] as unknown as string[]);
         await expect(texts.handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, texts: ['a']}))
-            .rejects.toThrow('图片文字翻译结果无效');
+            .rejects.toThrow('图片文字批量翻译失败：provider 未返回等长字符串数组');
 
         await expect(download.handle({type: IMAGE_OCR_DOWNLOAD_MESSAGE_TYPE, languages: null}))
             .rejects.toThrow('OCR 语言包列表不能为空');
@@ -487,5 +496,135 @@ describe('后台 feature handlers', () => {
         dependencies.fetchImage.mockResolvedValueOnce(undefined as unknown as string);
         await expect(fetchImage.handle({type: IMAGE_FETCH_MESSAGE_TYPE, url: 'https://example.com/image.png'}))
             .rejects.toThrow('远程图片结果无效');
+    });
+
+    it('图片文字对不支持 batch 的 provider 逐条保序，并标明失败段号', async () => {
+        const translateTexts = vi.fn(async (request: {origin: string | string[]}) => {
+            if (Array.isArray(request.origin)) throw new Error('legacy provider 不接受数组');
+            return `译:${request.origin}`;
+        });
+        const dependencies = {
+            assertLanguagesDownloaded: vi.fn(async () => undefined),
+            recognizeImage: vi.fn(async () => []),
+            translateImage: vi.fn(async () => ({image: 'data:image/png,x', lines: []})),
+            translateTexts,
+            getTranslationService: vi.fn(() => 'google'),
+            supportsBatchTranslation: vi.fn(() => false),
+            downloadLanguages: vi.fn(async () => undefined),
+            markLanguagesDownloaded: vi.fn(async () => []),
+            fetchImage: vi.fn(async () => 'data:image/png,x'),
+            now: () => 0,
+        };
+        const handler = createImageTranslationBackgroundHandlers(dependencies)
+            .find((candidate) => candidate.type === IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE)!;
+
+        await expect(handler.handle({
+            type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE,
+            texts: ['first', 'second', 'third'],
+            title: 'Page',
+        })).resolves.toEqual({
+            success: true,
+            translations: ['译:first', '译:second', '译:third'],
+        });
+        expect(translateTexts.mock.calls.map(([request]) => request)).toEqual([
+            {origin: 'first', context: 'Page', pageContext: '', useCache: true, serviceOverride: 'google', requestTimeoutMs: IMAGE_TEXT_TRANSLATION_TIMEOUT_MS},
+            {origin: 'second', context: 'Page', pageContext: '', useCache: true, serviceOverride: 'google', requestTimeoutMs: IMAGE_TEXT_TRANSLATION_TIMEOUT_MS},
+            {origin: 'third', context: 'Page', pageContext: '', useCache: true, serviceOverride: 'google', requestTimeoutMs: IMAGE_TEXT_TRANSLATION_TIMEOUT_MS},
+        ]);
+
+        translateTexts.mockReset()
+            .mockResolvedValueOnce('译:first')
+            .mockRejectedValueOnce(new Error('provider down'));
+        await expect(handler.handle({
+            type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE,
+            texts: ['first', 'second', 'third'],
+        })).rejects.toThrow('图片第 2 段文字翻译失败：provider down');
+        expect(translateTexts).toHaveBeenCalledTimes(2);
+
+        translateTexts.mockReset()
+            .mockRejectedValueOnce('字符串错误');
+        await expect(handler.handle({
+            type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE,
+            texts: ['first'],
+        })).rejects.toThrow('图片第 1 段文字翻译失败：字符串错误');
+
+        translateTexts.mockReset()
+            .mockResolvedValueOnce(['错误数组'] as unknown as string);
+        await expect(handler.handle({
+            type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE,
+            texts: ['first'],
+        })).rejects.toThrow('图片第 1 段文字翻译失败：provider 未返回字符串译文');
+    });
+
+    it('图片 legacy 多段共享 120 秒绝对预算，当前段超时后不再启动后续段', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(0);
+        try {
+            const translateTexts = vi.fn((request: {origin: string | string[]; requestTimeoutMs: number}) => (
+                new Promise<string | string[]>((resolve, reject) => {
+                    if (Array.isArray(request.origin)) {
+                        reject(new Error('legacy provider 不应收到批量请求'));
+                        return;
+                    }
+                    if (request.origin === 'first') {
+                        setTimeout(() => resolve('译:first'), 70_000);
+                        return;
+                    }
+                    setTimeout(() => reject(new Error('翻译请求超时')), request.requestTimeoutMs);
+                })
+            ));
+            const dependencies = {
+                assertLanguagesDownloaded: vi.fn(async () => undefined),
+                recognizeImage: vi.fn(async () => []),
+                translateImage: vi.fn(async () => ({image: 'data:image/png,x', lines: []})),
+                translateTexts,
+                getTranslationService: vi.fn(() => 'google'),
+                supportsBatchTranslation: vi.fn(() => false),
+                downloadLanguages: vi.fn(async () => undefined),
+                markLanguagesDownloaded: vi.fn(async () => []),
+                fetchImage: vi.fn(async () => 'data:image/png,x'),
+            };
+            const handler = createImageTranslationBackgroundHandlers(dependencies)
+                .find((candidate) => candidate.type === IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE)!;
+            const request = handler.handle({
+                type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE,
+                texts: ['first', 'second', 'third'],
+            });
+            const rejection = expect(request).rejects.toThrow('图片第 2 段文字翻译失败：翻译请求超时');
+
+            await vi.advanceTimersByTimeAsync(70_000);
+            expect(translateTexts).toHaveBeenCalledTimes(2);
+            expect(translateTexts.mock.calls.map(([entry]) => entry.requestTimeoutMs))
+                .toEqual([120_000, 50_000]);
+
+            await vi.advanceTimersByTimeAsync(50_000);
+            await rejection;
+            expect(translateTexts).toHaveBeenCalledTimes(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('图片文字事务在首个 provider 调用前预算耗尽时立即停止', async () => {
+        const translateTexts = vi.fn();
+        let nowCalls = 0;
+        const dependencies = {
+            assertLanguagesDownloaded: vi.fn(async () => undefined),
+            recognizeImage: vi.fn(async () => []),
+            translateImage: vi.fn(async () => ({image: 'data:image/png,x', lines: []})),
+            translateTexts,
+            getTranslationService: vi.fn(() => 'microsoft'),
+            supportsBatchTranslation: vi.fn(() => true),
+            downloadLanguages: vi.fn(async () => undefined),
+            markLanguagesDownloaded: vi.fn(async () => []),
+            fetchImage: vi.fn(async () => 'data:image/png,x'),
+            now: () => nowCalls++ === 0 ? 0 : IMAGE_TEXT_TRANSLATION_TIMEOUT_MS,
+        };
+        const handler = createImageTranslationBackgroundHandlers(dependencies)
+            .find((candidate) => candidate.type === IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE)!;
+
+        await expect(handler.handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, texts: ['first']}))
+            .rejects.toThrow('图片文字批量翻译失败：图片文字翻译总时间已耗尽');
+        expect(translateTexts).not.toHaveBeenCalled();
     });
 });

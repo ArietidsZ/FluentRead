@@ -58,9 +58,9 @@ const SHADOW_FOUNDATION = `
 /**
  * 把 Vue 组件挂载到隔离的 Shadow DOM。
  *
- * Step 1: WXT 负责 host 的生命周期和内容脚本失效清理。
- * Step 2: 这里统一 Vue 的 mount/unmount，避免每个 feature 重复维护 glue。
- * Step 3: 显式的 host 基础样式阻断宿主页的继承和裁剪影响。
+ * 步骤 1：WXT 负责 host 的生命周期和内容脚本失效清理。
+ * 步骤 2：这里统一 Vue 的 mount/unmount，避免每个 feature 重复维护 glue。
+ * 步骤 3：显式的 host 基础样式阻断宿主页的继承和裁剪影响。
  */
 export async function createVueShadowUi(
   ctx: ContentScriptContext,

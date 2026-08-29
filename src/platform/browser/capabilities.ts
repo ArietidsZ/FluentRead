@@ -12,14 +12,14 @@ export interface BrowserBuildTarget {
 }
 
 export interface BrowserCapabilities extends BrowserBuildTarget {
-    /** Chrome MV3 extension-owned DOM used by Translation API, OCR and CSP-safe audio. */
+    /** Chrome MV3 扩展自有 DOM，供 Translation API、OCR 和符合 CSP 的音频能力使用。 */
     readonly offscreenDocument: boolean;
     readonly chromeTranslation: boolean;
     readonly imageOcr: boolean;
     readonly imageTranslation: boolean;
     readonly areaTranslation: boolean;
     readonly selectionTtsOffscreen: boolean;
-    /** Edge TTS can always return synthesized bytes for playback in the content page. */
+    /** Edge TTS 始终能够返回合成音频字节，供内容页面播放。 */
     readonly selectionTtsPageFallback: true;
 }
 
@@ -48,7 +48,7 @@ export function resolveBrowserCapabilities(target: BrowserBuildTarget): BrowserC
         browser,
         manifestVersion: target.manifestVersion,
         offscreenDocument: chromiumMv3,
-        // Offscreen 只是 transport 前提；offscreen runtime 仍会动态检查 Translator API readiness。
+        // Offscreen 只是传输前提；offscreen runtime 仍会动态检查 Translator API 就绪状态。
         chromeTranslation: target.manifestVersion === 3 && browser === 'chrome',
         imageOcr: chromiumMv3,
         imageTranslation: chromiumMv3,
@@ -75,7 +75,7 @@ function defaultManifestVersion(browser: string): 2 | 3 {
     return browser === 'chrome' || browser === 'edge' ? 3 : 2;
 }
 
-/** Read WXT's compile-time constants without making Node/Vitest provide them. */
+/** 读取 WXT 的编译期常量，无需由 Node/Vitest 提供。 */
 export function browserBuildTargetFromEnv(env?: Partial<ImportMetaEnv>): BrowserBuildTarget {
     const browser = normalizeBrowser(typeof env?.BROWSER === 'string' ? env.BROWSER : 'unknown');
     const manifestVersion = env?.MANIFEST_VERSION === 2 || env?.MANIFEST_VERSION === 3
@@ -84,7 +84,7 @@ export function browserBuildTargetFromEnv(env?: Partial<ImportMetaEnv>): Browser
     return {browser, manifestVersion};
 }
 
-/** Keep a missing import.meta.env conservative and independently testable. */
+/** import.meta.env 缺失时采用保守结果，并保持可独立测试。 */
 export function browserBuildTargetFromImportMeta(
     meta?: {readonly env?: Partial<ImportMetaEnv>},
 ): BrowserBuildTarget {
@@ -93,7 +93,7 @@ export function browserBuildTargetFromImportMeta(
 
 /**
  * 构建标记同时服务于产物审计。这里必须直接读取静态属性；把整个 import.meta 传给函数会绕过
- * Vite/WXT 的 compile-time replacement，导致 Chrome 生产包被误判为 unknown/MV2。
+ * Vite/WXT 的编译期替换，导致 Chrome 生产包被误判为 unknown/MV2。
  */
 export const browserCapabilityBuildMarker = `__FLUENTREAD_BROWSER_CAPABILITY_BUILD__:${import.meta.env.BROWSER}:mv${import.meta.env.MANIFEST_VERSION}__`;
 const compiledBrowserBuildTarget = browserBuildTargetFromEnv({
@@ -105,7 +105,7 @@ const runtimeBrowserCapabilities = applyRuntimeBrowserConstraints(
     readRuntimeUserAgent(globalThis),
 );
 
-/** Production singleton; composition roots accept an override for deterministic capability tests. */
+/** 生产环境单例；组合根允许覆盖它，以便能力测试获得确定结果。 */
 export const browserCapabilities = Object.freeze({
     ...runtimeBrowserCapabilities,
     buildTargetMarker: browserCapabilityBuildMarker,

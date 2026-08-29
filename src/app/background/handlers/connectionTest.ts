@@ -37,11 +37,11 @@ export function createConnectionTestHandler(
         async handle(message) {
             let service = '';
             try {
-                // Step 1: 后台边界先收窄服务 ID，避免非法 payload 进入 provider registry。
+                // 步骤 1：后台边界先收窄服务 ID，避免非法 payload 进入 provider registry。
                 service = parseService(message.service);
                 await dependencies.ready;
 
-                // Step 2: provider 测试失败时使用现有格式化器返回用户可读错误。
+                // 步骤 2：provider 测试失败时使用现有格式化器返回用户可读错误。
                 const result = await dependencies.runConnectionTest(service);
                 return {success: true, ...result};
             } catch (error) {

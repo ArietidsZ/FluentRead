@@ -12,14 +12,16 @@ vi.mock('@/src/providers/translation/registry', () => ({
 
 import {
     CONNECTION_TEST_ORIGIN,
+    CONNECTION_TEST_TIMEOUT_MS,
     formatConnectionTestError,
     runTranslationServiceConnectionTest,
 } from '@/src/providers/translation/connectionTest';
 import {formatServiceError, getServiceErrorMessage} from '@/src/services/translation/serviceErrors';
-import {services} from '@/entrypoints/utils/option';
+import {services} from '@/src/core/config/catalog';
 
 describe('翻译服务连接测试', () => {
     afterEach(() => {
+        vi.useRealTimers();
         vi.restoreAllMocks();
     });
 
@@ -33,6 +35,7 @@ describe('翻译服务连接测试', () => {
             origin: CONNECTION_TEST_ORIGIN,
             serviceOverride: 'demo',
             useCache: false,
+            abortSignal: expect.any(AbortSignal),
         }));
     });
 
@@ -54,6 +57,37 @@ describe('翻译服务连接测试', () => {
         vi.spyOn(Date, 'now').mockReturnValueOnce(100).mockReturnValueOnce(90);
 
         await expect(runTranslationServiceConnectionTest('demo')).resolves.toEqual({durationMs: 0});
+    });
+
+    it('30 秒后中止 legacy adapter signal，统一返回超时且忽略迟到结果', async () => {
+        vi.useFakeTimers();
+        let signal: AbortSignal | undefined;
+        let resolveLate!: (value: string) => void;
+        adapter.mockImplementation((message: {abortSignal?: AbortSignal}) => {
+            signal = message.abortSignal;
+            return new Promise<string>((resolve) => {
+                resolveLate = resolve;
+            });
+        });
+
+        const request = runTranslationServiceConnectionTest('demo');
+        const rejection = expect(request).rejects.toThrow('翻译请求超时');
+        await vi.advanceTimersByTimeAsync(CONNECTION_TEST_TIMEOUT_MS - 1);
+        expect(signal?.aborted).toBe(false);
+        await vi.advanceTimersByTimeAsync(1);
+        await rejection;
+        expect(signal?.aborted).toBe(true);
+
+        resolveLate('迟到译文');
+        await Promise.resolve();
+        expect(adapter).toHaveBeenCalledOnce();
+    });
+
+    it('非超时 adapter 错误保持原始原因', async () => {
+        const failure = new Error('provider failed');
+        adapter.mockRejectedValue(failure);
+
+        await expect(runTranslationServiceConnectionTest('demo')).rejects.toBe(failure);
     });
 
     it('复用统一服务错误格式化器', () => {

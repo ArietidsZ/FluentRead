@@ -3,6 +3,8 @@ export interface UserscriptContentContext {
     onInvalidated(callback: () => void): void;
     invalidate(): void;
 }
+
+/** 用显式失效回调模拟 WXT 内容脚本上下文，统一驱动共享功能在离页时清理资源。 */
 export function createUserscriptContentContext(): UserscriptContentContext {
     const callbacks = new Set<() => void>();
     let invalid = false;

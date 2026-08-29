@@ -37,9 +37,9 @@ export function createOcrWorkerRuntime<TResult>(
     let operationTail: Promise<void> = Promise.resolve();
 
     function runExclusive<T>(operation: () => Promise<T>): Promise<T> {
-        // Step 1: 无论上一项成功还是失败，后续 OCR 操作都必须继续执行。
+        // 步骤 1：无论上一项成功还是失败，后续 OCR 操作都必须继续执行。
         const result = operationTail.then(operation, operation);
-        // Step 2: 尾链只保存完成信号，调用方仍收到原始结果或异常。
+        // 步骤 2：尾链只保存完成信号，调用方仍收到原始结果或异常。
         operationTail = result.then(() => undefined, () => undefined);
         return result;
     }

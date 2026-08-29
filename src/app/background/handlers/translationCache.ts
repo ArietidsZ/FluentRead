@@ -22,9 +22,9 @@ export function createTranslationCacheHandler(
     return {
         type: CLEAR_TRANSLATION_CACHE_MESSAGE,
         async handle() {
-            // Step 1: 同时清理持久译文缓存和 broker 的页面摘要缓存。
+            // 步骤 1：同时清理持久译文缓存和 broker 的页面摘要缓存。
             await clearTranslationCache();
-            // Step 2: 只有底层清理成功后才向调用方报告成功。
+            // 步骤 2：只有底层清理成功后才向调用方报告成功。
             return {success: true};
         },
     };

@@ -54,7 +54,7 @@ function currentConfiguredModel(
     return migrateModelIdentifier(service, selectedModel || '');
 }
 
-// openai 格式的消息模板（通用模板）
+// OpenAI 格式的消息模板（通用模板）。
 export function commonMsgTemplate(
     origin: string,
     context?: string,
@@ -85,7 +85,7 @@ export function commonMsgTemplate(
     return JSON.stringify(mergeCustomBody(payload, currentCustomBody(current, service)))
 }
 
-// deepseek
+// DeepSeek 消息模板。
 export function getCurrentModel(
     serviceOverride?: string,
     modelOverride?: string,
@@ -179,7 +179,7 @@ export function deepseekMsgTemplate(
     return JSON.stringify(mergeCustomBody(payload, currentCustomBody(current, serviceOverride || current.service)));
 }
 
-// gemini
+// Gemini 消息模板。
 export function geminiMsgTemplate(
     origin: string,
     context?: string,
@@ -202,7 +202,7 @@ export function geminiMsgTemplate(
     return JSON.stringify(mergeCustomBody(payload, currentCustomBody(current, service)))
 }
 
-// claude
+// Claude 消息模板。
 export function claudeMsgTemplate(
     origin: string,
     context?: string,

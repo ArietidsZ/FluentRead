@@ -39,11 +39,11 @@ export function createInputBoxTranslationHandler(
     return {
         type: INPUT_BOX_TRANSLATION_MESSAGE_TYPE,
         async handle(message) {
-            // Step 1: 页面消息先经过严格协议收窄，避免 undefined 进入微软翻译。
+            // 步骤 1：页面消息先经过严格协议收窄，避免 undefined 进入微软翻译。
             const text = parseRequiredString(message.text, 'text');
             const targetLanguage = parseRequiredString(message.targetLang, 'targetLang');
 
-            // Step 2: provider 返回值同样属于不可信边界，必须是非空字符串。
+            // 步骤 2：provider 返回值同样属于不可信边界，必须是非空字符串。
             const translatedText = await dependencies.translateText(text, targetLanguage);
             if (typeof translatedText !== 'string' || !translatedText.trim()) {
                 throw new Error('微软翻译未返回译文');

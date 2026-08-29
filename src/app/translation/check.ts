@@ -9,16 +9,15 @@ import {stripTranslationReasoning} from '@/src/core/translation/prompts';
 import {config} from '@/src/services/config/store';
 import {sendErrorMessage} from '@/src/features/page-notice/public';
 
-// Check configuration before translation
+// 翻译前检查配置。
 export function checkConfig(): boolean {
-    // 1. Check if the plugin is enabled
+    // 步骤 1：检查插件是否启用。
     if (!config.on) return false;
 
-    // Credentials live in extension session storage and are intentionally not
-    // exposed to content scripts. The background validates them at the request
-    // boundary before calling a provider.
+    // 凭据保存在扩展 session 存储中，按设计不向 content script 暴露。
+    // 后台会在调用 provider 前，于请求边界完成校验。
 
-    // Check if a model is selected for AI services (except specific services like Coze)
+    // 检查 AI 服务是否已选择模型（Coze 等特定服务除外）。
     if (servicesType.isAI(config.service) && ![services.cozecn, services.cozecom].includes(config.service)) {
         const model = config.model[config.service];
         const customModel = config.customModel[config.service];
@@ -28,7 +27,7 @@ export function checkConfig(): boolean {
         }
     }
 
-    // Some translation services require "bilingual mode" to be enabled
+    // 部分翻译服务要求启用“双语模式”。
     if (config.display === 0 && config.service === services.google) {
         sendErrorMessage("「谷歌翻译」仅支持双语模式，请切换翻译服务");
         return false;

@@ -34,9 +34,9 @@ export interface TranslationSiteAdapter {
 }
 
 export interface TranslationCandidate {
-    /** Observation/render host. Inline-run candidates materialize only `nodes`. */
+    /** 用于观察和渲染的宿主；内联 run 候选只物化 `nodes`。 */
     element: HTMLElement;
-    /** Contiguous direct children used when a block mixes inline text and block children. */
+    /** 块内同时包含内联文本与块级子节点时使用的连续直接子节点。 */
     nodes?: readonly ChildNode[];
     kind: TranslationCandidateKind;
     reason: string;

@@ -18,7 +18,6 @@ export {
     config as runtimeConfig,
     configReady,
     requestConfigSave,
-    saveConfig,
 } from '@/src/services/config/store';
 export {createDocumentDownload, translateDocumentSegments} from './runtime';
 export {

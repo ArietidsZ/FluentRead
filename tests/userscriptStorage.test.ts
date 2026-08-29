@@ -1,11 +1,12 @@
 import {afterEach, describe, expect, it} from 'vitest';
-import {getStoredValue, removeStoredValue, setStoredValue} from '@/userscript/storage';
+import {getStoredValue, listStoredKeys, removeStoredValue, setStoredValue} from '@/userscript/storage';
 
 describe('userscript GM storage adapter', () => {
     afterEach(() => {
         globalThis.GM_getValue = undefined;
         globalThis.GM_setValue = undefined;
         globalThis.GM_deleteValue = undefined;
+        globalThis.GM_listValues = undefined;
     });
 
     it('serializes objects for legacy GM implementations', async () => {
@@ -13,10 +14,12 @@ describe('userscript GM storage adapter', () => {
         globalThis.GM_getValue = ((key, fallback) => values.has(key) ? values.get(key) : fallback) as NonNullable<typeof globalThis.GM_getValue>;
         globalThis.GM_setValue = (key, value) => { values.set(key, value); };
         globalThis.GM_deleteValue = (key) => { values.delete(key); };
+        globalThis.GM_listValues = () => [...values.keys()];
 
         await setStoredValue('local:config', {service: 'freeTranslation', on: true});
         expect(values.get('local:config')).toBe('{"service":"freeTranslation","on":true}');
         await expect(getStoredValue('local:config')).resolves.toEqual({service: 'freeTranslation', on: true});
+        await expect(listStoredKeys()).resolves.toEqual(['local:config']);
 
         await removeStoredValue('local:config');
         await expect(getStoredValue('local:config')).resolves.toBeNull();

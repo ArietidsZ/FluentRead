@@ -107,7 +107,7 @@ export async function translateVisibleWordCardFields(
         });
         if (!Array.isArray(translated) || translated.length !== uniqueOrigins.length) return card;
 
-        // Step 1: 只有 provider 返回与请求一一对应的批量结果时才克隆并写入卡片。
+        // 步骤 1：只有 provider 返回与请求一一对应的批量结果时才克隆并写入卡片。
         const translatedByOrigin = new Map(uniqueOrigins.map((origin, index) => [origin, translated[index]]));
         const result = cloneWordCard(card);
         for (const slot of slots) {

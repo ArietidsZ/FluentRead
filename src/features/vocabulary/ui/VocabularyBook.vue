@@ -224,7 +224,7 @@ const reviewAnswerVisible = ref(false);
 const reviewStarted = ref(false);
 const reviewStats = ref({ reviewed: 0, good: 0, again: 0 });
 const toastMessage = ref('');
-// Keep the structured-clone snapshot raw so browser.runtime.sendMessage never receives a Vue Proxy.
+// 保持可结构化克隆的快照为原始对象，避免 browser.runtime.sendMessage 收到 Vue Proxy。
 const undoExport = shallowRef<VocabularyBookExport | null>(null);
 const currentTime = ref(Date.now());
 const lifecycle = createVocabularyLifecycleGuard();
@@ -325,6 +325,7 @@ function handleVisibilityChange(): void {
 
 async function loadEntries(): Promise<void> {
   if (!lifecycle.isActive()) return;
+  // 并发刷新合并为一个串行循环；若等待期间代次增长，旧响应不提交，循环会继续读取最新快照。
   loadRequestGeneration += 1;
   if (loadLoopPromise) return loadLoopPromise;
   loadLoopPromise = runLoadEntriesLoop().finally(() => { loadLoopPromise = null; });

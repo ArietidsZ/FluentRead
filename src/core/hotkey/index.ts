@@ -264,14 +264,14 @@ const modifierOnlyHotkeys: Record<string, { eventKey: string; modifier: keyof Pi
   Shift: { eventKey: 'shift', modifier: 'shiftKey' },
 };
 
-/** Resolve a preset-or-custom configuration into the shortcut string used at runtime. */
+/** 将预设或自定义配置解析为 runtime 使用的快捷键字符串。 */
 export function resolveConfiguredHotkey(configuredHotkey: string | undefined, customHotkey: string | undefined): string {
   const configured = typeof configuredHotkey === 'string' ? configuredHotkey.trim() : '';
   if (configured === 'custom') return typeof customHotkey === 'string' ? customHotkey.trim() : '';
   return configured;
 }
 
-/** Match the Ctrl/Alt/Shift-only shortcuts used as selection modifiers. */
+/** 匹配仅含 Ctrl/Alt/Shift、用作划词修饰键的快捷键。 */
 export function matchesModifierOnlyHotkey(event: HotkeyModifierState, hotkey: string): boolean {
   const definition = modifierOnlyHotkeys[hotkey];
   if (!definition || event.key?.toLowerCase() !== definition.eventKey) return false;
@@ -285,7 +285,7 @@ export function matchesModifierOnlyHotkey(event: HotkeyModifierState, hotkey: st
   return actualModifiers.length === 1 && actualModifiers[0] === definition.modifier;
 }
 
-/** Match a selection shortcut, including preset modifier-only keys and custom combinations. */
+/** 匹配划词快捷键，包括预设的纯修饰键和自定义组合键。 */
 export function matchesConfiguredHotkey(event: KeyboardEvent, configuredHotkey: string | undefined, customHotkey = ''): boolean {
   const resolvedHotkey = resolveConfiguredHotkey(configuredHotkey, customHotkey);
   if (!resolvedHotkey || resolvedHotkey === 'none') return false;
@@ -294,9 +294,8 @@ export function matchesConfiguredHotkey(event: KeyboardEvent, configuredHotkey: 
 }
 
 /**
- * Claim a configured shortcut only after the inexpensive key match succeeds.
- * The lazy candidate check may read selection geometry and detect language, so
- * unrelated keyboard input must never evaluate it.
+ * 仅在低成本按键匹配成功后占用已配置的快捷键。延迟执行的候选检查可能读取选区布局并
+ * 检测语言，因此无关的键盘输入绝不能触发该检查。
  */
 export function shouldClaimConfiguredHotkey(
   event: KeyboardEvent,

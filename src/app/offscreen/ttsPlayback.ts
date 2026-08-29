@@ -9,7 +9,6 @@ import {
     sameSelectionTtsRoute,
     type SelectionTtsPlaybackRequest,
     type SelectionTtsPlaybackState,
-    type SelectionTtsRoute,
 } from '@/src/features/selection-translation/protocol';
 
 export type {
@@ -129,12 +128,12 @@ export class SelectionTtsPlayer {
             throw error;
         }
 
-        // Step 1: 新资源完整准备成功后才停止旧播放，非法 payload 不打断用户当前语音。
+        // 步骤 1：新资源完整准备成功后才停止旧播放，非法 payload 不打断用户当前语音。
         this.stopActive(true);
         const playback: PreparedPlayback = {request, audio, objectUrl};
         this.active = playback;
 
-        // Step 2: 回调只允许结束创建它的那一轮，过期事件不能污染当前状态。
+        // 步骤 2：回调只允许结束创建它的那一轮，过期事件不能污染当前状态。
         audio.onended = () => {
             if (this.active !== playback) return;
             this.active = null;
@@ -151,7 +150,7 @@ export class SelectionTtsPlayer {
         try {
             await audio.play();
         } catch (error) {
-            // Step 3: 只有仍然活跃的请求才上报错误；被后续请求替换的迟到失败已收到 stopped。
+            // 步骤 3：只有仍然活跃的请求才上报错误；被后续请求替换的迟到失败已收到 stopped。
             if (this.active === playback) {
                 this.active = null;
                 this.release(playback);

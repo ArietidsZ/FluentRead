@@ -60,6 +60,6 @@ const aiSdkServices: TranslationProviderRegistry = Object.fromEntries(
 export const translationProviderRegistry: TranslationProviderRegistry = {
     ...legacyServices,
     ...aiSdkServices,
-    // Azure keeps its endpoint/key validation before entering the shared transport.
+    // Azure 在进入共享 transport 前保留自身的 endpoint/key 校验。
     [services.azureOpenai]: azureOpenai,
 };

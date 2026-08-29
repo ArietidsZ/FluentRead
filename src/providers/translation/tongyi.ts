@@ -13,10 +13,13 @@ import {config} from "@/src/services/config/store";
 import {appendOptionalBearer} from './auth';
 import {createHttpStatusError, readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
-import {getTranslationProviderConfig} from '@/src/services/translation/requestSnapshot';
+import {
+    getTranslationProviderConfig,
+    type TranslationProviderRequest,
+} from '@/src/services/translation/requestSnapshot';
 
 // 文档：https://help.aliyun.com/zh/dashscope/developer-reference/tongyi-thousand-questions-metering-and-billing
-async function tongyi(message: any) {
+async function tongyi(message: TranslationProviderRequest<string>) {
     const current = getTranslationProviderConfig(message, config);
     const service = message.serviceOverride || services.tongyi;
     // 构建请求头
@@ -34,7 +37,8 @@ async function tongyi(message: any) {
     const resp = await runtimeFetch(url, {
         method: method.POST,
         headers: headers,
-        body: tongyiMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current)
+        body: tongyiMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current),
+        signal: message.abortSignal,
     });
 
     if (resp.ok) {

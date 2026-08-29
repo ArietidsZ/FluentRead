@@ -137,7 +137,7 @@ import { ElIcon } from 'element-plus';
 import { Loading, WarningFilled, Warning, CircleCheckFilled } from '@element-plus/icons-vue';
 import { parseHotkey, validateHotkeyConflicts, type ParsedHotkey } from '@/src/core/hotkey';
 
-// Props
+// 组件输入
 interface Props {
   modelValue: boolean;
   currentValue?: string;
@@ -147,7 +147,7 @@ const props = withDefaults(defineProps<Props>(), {
   currentValue: ''
 });
 
-// Emits
+// 组件事件
 interface Emits {
   (e: 'update:modelValue', value: boolean): void;
   (e: 'confirm', hotkey: string): void;

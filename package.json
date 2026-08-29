@@ -26,7 +26,7 @@
     "test:coverage": "vitest run --config vitest.coverage.config.ts",
     "test:regression:all": "node scripts/testing/run-full-regression.mjs",
     "verify:extension-manifests": "node scripts/testing/verify-extension-manifests.mjs",
-    "test:document": "vitest run tests/documentTranslation.test.ts tests/documentTranslationApi.test.ts tests/documentTranslationBinary.test.ts tests/documentTranslationBinaryEdge.test.ts tests/documentTranslationEdge.test.ts tests/documentTranslationExamplesApi.test.ts tests/documentTranslationPresentation.test.ts tests/documentTranslationRegression.test.ts",
+    "test:document": "vitest run tests/documentTranslation.test.ts tests/documentTranslationApi.test.ts tests/documentTranslationBinary.test.ts tests/documentTranslationBinaryEdge.test.ts tests/documentTranslationEdge.test.ts tests/documentTranslationExamplesApi.test.ts tests/documentTranslationPresentation.test.ts tests/documentTranslationRegression.test.ts tests/translationDocumentCorpus.test.ts",
     "test:translation-core": "vitest run tests/translationCore.test.ts tests/translationState.test.ts tests/serializationPerformance.test.ts tests/translateApiPerformance.test.ts tests/translateQueue.test.ts tests/pageContext.test.ts tests/pageContextDefuddle.test.ts",
     "test:selection-triggers": "node scripts/run-selection-trigger-test.cjs",
     "test:translation-sites": "node scripts/run-site-translation-matrix.cjs",
@@ -62,7 +62,6 @@
     "@types/webextension-polyfill": "^0.12.1",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vitest/coverage-v8": "2.1.9",
-    "@vuepress/client": "2.0.0-rc.19",
     "@wxt-dev/webextension-polyfill": "^1.0.0",
     "fake-indexeddb": "^6.0.0",
     "linkedom": "0.18.12",
@@ -73,7 +72,6 @@
     "vitest": "^2.1.9",
     "vue": "^3.5.13",
     "vue-tsc": "^2.2.0",
-    "vuepress": "2.0.0-rc.19",
     "wxt": "^0.20.18"
   },
   "pnpm": {

@@ -13,7 +13,10 @@ import {stripTranslationReasoning as contentPostHandler} from '@/src/core/transl
 import { appendOptionalBearer } from './auth';
 import {createHttpStatusError, readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
-import {getTranslationProviderConfig} from '@/src/services/translation/requestSnapshot';
+import {
+    getTranslationProviderConfig,
+    type TranslationProviderRequest,
+} from '@/src/services/translation/requestSnapshot';
 import type {TranslationProviderConfigSnapshot} from '@/src/services/translation/types';
 
 // 当前官方 V4 文档以 Chat Completion 为主；Responses API 仅在用户明确选择时启用，
@@ -24,36 +27,33 @@ function useResponsesApi(current: TranslationProviderConfigSnapshot) {
     return false;
 }
 
-async function deepseek(message: any) {
-    try {
-        const current = getTranslationProviderConfig(message, config);
-        const service = message.serviceOverride || current.service;
-        const headers = new Headers({'Content-Type': 'application/json'});
-        appendOptionalBearer(headers, current.token[service]);
+async function deepseek(message: TranslationProviderRequest<string>) {
+    const current = getTranslationProviderConfig(message, config);
+    const service = message.serviceOverride || current.service;
+    const headers = new Headers({'Content-Type': 'application/json'});
+    appendOptionalBearer(headers, current.token[service]);
 
-        const endpoint = current.proxy[service] || urls[service];
-        const isResponses = useResponsesApi(current);
-        const url = buildDeepSeekEndpoint(endpoint, isResponses);
+    const endpoint = current.proxy[service] || urls[service];
+    const isResponses = useResponsesApi(current);
+    const url = buildDeepSeekEndpoint(endpoint, isResponses);
 
-        const resp = await runtimeFetch(url, {
-            method: method.POST,
-            headers,
-            body: isResponses
-                ? deepseekResponsesMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current)
-                : deepseekMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current)
-        });
+    const resp = await runtimeFetch(url, {
+        method: method.POST,
+        headers,
+        body: isResponses
+            ? deepseekResponsesMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current)
+            : deepseekMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current),
+        signal: message.abortSignal,
+    });
 
-        if (!resp.ok) {
-            throw createHttpStatusError(resp, '翻译失败');
-        }
-
-        const result = await readJsonResponse<any>(resp, 'DeepSeek 返回的不是有效 JSON');
-        return isResponses
-            ? extractResponsesContent(result)
-            : extractChatContent(result);
-    } catch (error) {
-        throw error;
+    if (!resp.ok) {
+        throw createHttpStatusError(resp, '翻译失败');
     }
+
+    const result = await readJsonResponse<any>(resp, 'DeepSeek 返回的不是有效 JSON');
+    return isResponses
+        ? extractResponsesContent(result)
+        : extractChatContent(result);
 }
 
 function extractChatContent(result: any): string {
@@ -63,8 +63,8 @@ function extractChatContent(result: any): string {
         throw new Error('DeepSeek 返回数据格式异常：缺少 choices[0].message.content');
     }
 
-    // Only final message.content is rendered. DeepSeek thinking fields such as
-    // reasoning_content are intentionally ignored and must never reach the page.
+    // 页面只渲染最终的 message.content；reasoning_content 等 DeepSeek 思考字段会被
+    // 主动忽略，绝不能进入页面。
     return contentPostHandler(content);
 }
 

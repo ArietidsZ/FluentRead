@@ -10,6 +10,7 @@ import {getTranslationLanguages} from '@/src/services/translation/languages';
 import type {TranslationLanguageOverride} from '@/src/services/translation/languages';
 import {createHttpStatusError, readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
+import type {TranslationProviderRequest} from '@/src/services/translation/requestSnapshot';
 
 const MICROSOFT_TRANSLATE_URL = "https://edge.microsoft.com/translate/translatetext";
 
@@ -39,6 +40,7 @@ export async function translateMicrosoftTexts(
     texts: string[],
     fromLang: string,
     toLang: string,
+    abortSignal?: AbortSignal,
 ): Promise<string[]> {
     if (texts.length === 0) return [];
 
@@ -52,9 +54,10 @@ export async function translateMicrosoftTexts(
         headers: {
             'Content-Type': 'application/json',
         },
-        // The endpoint always runs an HTML tag aligner. Escaping keeps plain-text
-        // comparison operators and user input from being interpreted as markup.
+        // endpoint 始终会运行 HTML 标签对齐器。转义可避免纯文本比较运算符和用户输入
+        // 被解释为标记。
         body: JSON.stringify(texts.map(escapeHtmlText)),
+        signal: abortSignal,
     });
 
     if (!resp.ok) {
@@ -75,12 +78,12 @@ export async function translateMicrosoftTexts(
     });
 }
 
-async function microsoft(message: TranslationLanguageOverride & {origin: string | string[]}) {
+async function microsoft(message: TranslationProviderRequest & TranslationLanguageOverride) {
     const origin = message.origin;
     const isSingleText = typeof origin === 'string';
     const texts: string[] = typeof origin === 'string' ? [origin] : origin;
     const {sourceLanguage, targetLanguage} = getTranslationLanguages(message);
-    const translations = await translateMicrosoftTexts(texts, sourceLanguage, targetLanguage);
+    const translations = await translateMicrosoftTexts(texts, sourceLanguage, targetLanguage, message.abortSignal);
     if (!isSingleText) return translations;
 
     const translatedText = translations[0];

@@ -496,7 +496,7 @@ function parseEcdictLines(value: unknown, fallbackPartOfSpeech = '其他'): Ecdi
         });
 }
 
-/** Parse one compact local ECDICT row into the shared learning-card shape. */
+/** 将一条紧凑的本地 ECDICT 记录解析为统一的学习卡片结构。 */
 export function parseEcdictEntry(entry: EcdictEntry, normalizedWord: string): WordCardData {
     const source = sourceWithWord(SOURCE_INFO['ecdict-local'], normalizedWord);
     const card = createPartialCard(normalizedWord, source);
@@ -530,7 +530,7 @@ export function parseEcdictEntry(entry: EcdictEntry, normalizedWord: string): Wo
     return card;
 }
 
-/** Parse the no-key public dictionary payload used by the Chinese-region-first fallback. */
+/** 解析中国大陆优先回退链路所用的免密公开词典响应。 */
 export function parseYoudaoResponse(payload: unknown, normalizedWord: string): WordCardData {
     const source = sourceWithWord(SOURCE_INFO['youdao-web'], normalizedWord);
     const card = createPartialCard(normalizedWord, source);
@@ -708,7 +708,7 @@ function createEcdictProvider(): WordDictionaryProvider {
         const url = localDictionaryUrl();
         if (!url) return new Map();
 
-        // Step 1: 同一后台生命周期只解析一次本地词库；若读取失败则清掉失败 Promise，
+        // 步骤 1：同一后台生命周期只解析一次本地词库；若读取失败则清掉失败 Promise，
         // 让浏览器资源短暂不可用后的下一次查询能够自动恢复。
         indexPromise = (async () => {
             const response = await runtimeFetch(url, {credentials: 'omit'});

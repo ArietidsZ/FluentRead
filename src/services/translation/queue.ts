@@ -21,10 +21,8 @@ export interface TranslationQueueSession {
 }
 
 /**
- * A task may stop waiting before the transport it started has actually
- * settled (for example when the translated DOM is restored). Holding the
- * queue lease keeps that real transport inside the configured concurrency
- * limit without delaying the caller-facing cancellation result.
+ * 任务可能在其启动的传输真正结束前停止等待，例如恢复已翻译 DOM 时。继续持有队列租约
+ * 可让真实传输仍受配置的并发上限约束，同时不延迟返回给调用方的取消结果。
  */
 export interface TranslationQueueLease {
   holdUntil(settlement: PromiseLike<unknown>): void;
@@ -112,7 +110,7 @@ function processQueue(): void {
     const entry = dequeuePendingTranslation();
     if (!entry) return;
 
-    // Step 1: enqueue 会同步校验会话；取消操作也会在同一事件循环内把等待项移出数组。
+    // 步骤 1：enqueue 会同步校验会话；取消操作也会在同一事件循环内把等待项移出数组。
     // 因此能被 dequeue 取出的条目必然仍是有效的 pending 工作。
     activeTranslations += 1;
     void entry.execute().finally(() => {
@@ -189,9 +187,8 @@ export function enqueueTranslation<T>(
           reject(error);
         } finally {
           acceptsHolds = false;
-          // The caller may already have received an AbortError, but the queue
-          // slot remains occupied until every transport started by this task
-          // has either settled or reached its transport timeout.
+          // 调用方可能已经收到 AbortError，但队列槽位仍需保持占用，直到该任务启动的
+          // 每项传输均已结束或达到各自的传输超时。
           await Promise.all(heldSettlements);
         }
       },

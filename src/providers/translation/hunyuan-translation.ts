@@ -13,7 +13,11 @@ import { mergeCustomBody } from "@/src/core/config/customBody";
 import { services } from "@/src/core/config/catalog";
 import {getTranslationLanguages} from '@/src/services/translation/languages';
 import {createHttpStatusError, createProviderCodeError, readJsonResponse} from '@/src/platform/http/errors';
-import {getTranslationProviderConfig} from '@/src/services/translation/requestSnapshot';
+import {runtimeFetch} from '@/src/platform/http/runtime';
+import {
+    getTranslationProviderConfig,
+    type TranslationProviderRequest,
+} from '@/src/services/translation/requestSnapshot';
 
 // 混元翻译大模型支持的语言代码映射
 const languageMap: Record<string, string> = {
@@ -116,114 +120,73 @@ export function buildHunyuanTranslationRequestBody(
     }, customBody);
 }
 
-async function hunyuanTranslation(message: any) {
-    try {
-        const current = getTranslationProviderConfig(message, config);
-        const service = message.serviceOverride || services.huanYuanTranslation;
-        
-        // 从配置中获取 SecretId 和 SecretKey
-        const secretId = current.tencentSecretId?.trim();
-        const secretKey = current.tencentSecretKey?.trim();
-        
-        if (!secretId || !secretKey) {
-            throw new Error('腾讯混元翻译密钥未配置，请在设置中配置SecretId和SecretKey');
-        }
-        
-        // 基本格式验证
-        if (secretId.length < 10 || secretKey.length < 10) {
-            throw new Error('SecretId或SecretKey格式不正确，请检查是否完整复制了密钥信息');
-        }
-        
-        // 转换语言代码
-        // 对于自动检测，使用FluentRead内置的语言检测
-        const {sourceLanguage, targetLanguage} = getTranslationLanguages(message);
-        let sourceLang: string;
-        if (sourceLanguage === 'auto') {
-            const detectedLang = detectlang(message.origin.replace(/[\s\u3000]/g, ''));
-            sourceLang = languageMap[detectedLang] || detectedLang;
-        } else {
-            sourceLang = languageMap[sourceLanguage] || sourceLanguage;
-        }
-        
-        const mappedTargetLang = languageMap[targetLanguage] || targetLanguage;
-        
-        // 如果源语言和目标语言相同，直接返回原文
-        if (sourceLang === mappedTargetLang) {
-            return message.origin;
-        }
-        
-        if (!mappedTargetLang) {
-            throw new Error('混元翻译不支持该目标语言');
-        }
-        
-        // 获取模型配置，默认使用 hunyuan-translation
-        const model = message.modelOverride || current.model[service] || 'hunyuan-translation';
-        
-        // 自定义字段必须在序列化和签名前合并，否则签名内容会与实际请求体不一致。
-        const requestBody = buildHunyuanTranslationRequestBody(
-            message.origin,
-            mappedTargetLang,
-            model,
-            current.customBody?.[service],
-        );
-        
-        // 如果有配置领域信息，可以添加 Field 参数
-        // requestBody.Field = '通用';
-        
-        // 如果需要参考示例，可以添加 References 参数
-        // requestBody.References = [{
-        //     Type: "sentence",
-        //     Text: "示例原文",
-        //     Translation: "示例译文"
-        // }];
-        
-        const requestBodyStr = JSON.stringify(requestBody);
-        const timestamp = Math.floor(Date.now() / 1000);
-        
-        // 生成签名和Authorization头
-        const authorization = await createHunyuanSignature(requestBodyStr, timestamp, secretId, secretKey);
-        
-        // 判断是否使用代理
-        const url = current.proxy[service] || 'https://hunyuan.tencentcloudapi.com/';
-        
-        const response = await fetch(url, {
-            method: method.POST,
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                'Host': 'hunyuan.tencentcloudapi.com',
-                'Authorization': authorization,
-                'X-TC-Action': 'ChatTranslations',
-                'X-TC-Version': '2023-09-01',
-                'X-TC-Region': 'ap-beijing',
-                'X-TC-Timestamp': timestamp.toString()
-            },
-            body: requestBodyStr
-        });
-        
-        if (!response.ok) {
-            throw createHttpStatusError(response, '腾讯混元翻译请求失败');
-        }
-        
-        const result = await readJsonResponse<any>(response, '腾讯混元翻译返回的不是有效 JSON');
-        
-        // 检查是否有错误
-        if (result.Response?.Error) {
-            throw createProviderCodeError('腾讯混元翻译错误', result.Response.Error.Code);
-        }
-        
-        // 返回翻译结果
-        if (result.Response?.Choices && result.Response.Choices.length > 0) {
-            const translatedText = result.Response.Choices[0].Message?.Content;
-            if (translatedText) {
-                return translatedText;
-            }
-        }
-        
-        throw new Error('腾讯混元翻译返回格式异常');
-        
-    } catch (error) {
-        throw error;
+async function hunyuanTranslation(message: TranslationProviderRequest<string>) {
+    const current = getTranslationProviderConfig(message, config);
+    const service = message.serviceOverride || services.huanYuanTranslation;
+
+    const secretId = current.tencentSecretId?.trim();
+    const secretKey = current.tencentSecretKey?.trim();
+    if (!secretId || !secretKey) {
+        throw new Error('腾讯混元翻译密钥未配置，请在设置中配置SecretId和SecretKey');
     }
+    if (secretId.length < 10 || secretKey.length < 10) {
+        throw new Error('SecretId或SecretKey格式不正确，请检查是否完整复制了密钥信息');
+    }
+
+    // 自动检测使用 FluentRead 的本地语言识别，其余语言直接映射为混元协议代码。
+    const {sourceLanguage, targetLanguage} = getTranslationLanguages(message);
+    let sourceLang: string;
+    if (sourceLanguage === 'auto') {
+        const detectedLang = detectlang(message.origin.replace(/[\s\u3000]/g, ''));
+        sourceLang = languageMap[detectedLang] || detectedLang;
+    } else {
+        sourceLang = languageMap[sourceLanguage] || sourceLanguage;
+    }
+
+    const mappedTargetLang = languageMap[targetLanguage] || targetLanguage;
+    if (sourceLang === mappedTargetLang) return message.origin;
+    if (!mappedTargetLang) throw new Error('混元翻译不支持该目标语言');
+
+    const model = message.modelOverride || current.model[service] || 'hunyuan-translation';
+    const requestBody = buildHunyuanTranslationRequestBody(
+        message.origin,
+        mappedTargetLang,
+        model,
+        current.customBody?.[service],
+    );
+    const requestBodyStr = JSON.stringify(requestBody);
+    const timestamp = Math.floor(Date.now() / 1000);
+    const authorization = await createHunyuanSignature(requestBodyStr, timestamp, secretId, secretKey);
+    const url = current.proxy[service] || 'https://hunyuan.tencentcloudapi.com/';
+
+    const response = await runtimeFetch(url, {
+        method: method.POST,
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Host': 'hunyuan.tencentcloudapi.com',
+            'Authorization': authorization,
+            'X-TC-Action': 'ChatTranslations',
+            'X-TC-Version': '2023-09-01',
+            'X-TC-Region': 'ap-beijing',
+            'X-TC-Timestamp': timestamp.toString(),
+        },
+        body: requestBodyStr,
+        signal: message.abortSignal,
+    });
+
+    if (!response.ok) {
+        throw createHttpStatusError(response, '腾讯混元翻译请求失败');
+    }
+
+    const result = await readJsonResponse<any>(response, '腾讯混元翻译返回的不是有效 JSON');
+    if (result.Response?.Error) {
+        throw createProviderCodeError('腾讯混元翻译错误', result.Response.Error.Code);
+    }
+    if (result.Response?.Choices && result.Response.Choices.length > 0) {
+        const translatedText = result.Response.Choices[0].Message?.Content;
+        if (translatedText) return translatedText;
+    }
+    throw new Error('腾讯混元翻译返回格式异常');
 }
 
 export default hunyuanTranslation;

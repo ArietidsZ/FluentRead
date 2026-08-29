@@ -115,7 +115,7 @@ export function createAreaTranslationBackgroundHandlers<TResult extends object>(
         {
             type: AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE,
             async handle(message) {
-                // Step 1: 严格验证截图、视口选区和字符串字段，再进入 OCR/offscreen 边界。
+                // 步骤 1：严格验证截图、视口选区和字符串字段，再进入 OCR/offscreen 边界。
                 const image = parseDataImage(message.image);
                 if (!isAreaTranslationSelection(message.selection)) throw new TypeError('圈选区域无效');
                 const sourceLanguage = parseSourceLanguage(
@@ -124,7 +124,7 @@ export function createAreaTranslationBackgroundHandlers<TResult extends object>(
                 );
                 const title = parseTitle(message.title);
 
-                // Step 2: 先确认语言包，再复用同一个 offscreen 区域翻译事务。
+                // 步骤 2：先确认语言包，再复用同一个 offscreen 区域翻译事务。
                 await dependencies.assertLanguagesDownloaded(sourceLanguage);
                 const result = await dependencies.translateArea(image, sourceLanguage, title, message.selection);
                 return {success: true, ...result};

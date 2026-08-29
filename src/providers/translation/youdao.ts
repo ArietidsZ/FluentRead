@@ -12,7 +12,10 @@ import CryptoJS from 'crypto-js';
 import {getTranslationLanguages} from '@/src/services/translation/languages';
 import {createHttpStatusError, readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
-import {getTranslationProviderConfig} from '@/src/services/translation/requestSnapshot';
+import {
+  getTranslationProviderConfig,
+  type TranslationProviderRequest,
+} from '@/src/services/translation/requestSnapshot';
 
 interface YoudaoResponse {
   errorCode: string;
@@ -22,7 +25,7 @@ interface YoudaoResponse {
   };
 }
 
-async function youdao(message: any): Promise<string> {
+async function youdao(message: TranslationProviderRequest<string>): Promise<string> {
   const current = getTranslationProviderConfig(message, config);
   // 检查必需的配置
   if (!current.youdaoAppKey || !current.youdaoAppSecret) {
@@ -133,7 +136,8 @@ async function youdao(message: any): Promise<string> {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: params.toString()
+      body: params.toString(),
+      signal: message.abortSignal,
     });
 
     if (!response.ok) {

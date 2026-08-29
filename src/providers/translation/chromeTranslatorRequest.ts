@@ -7,11 +7,13 @@
  */
 
 import {resolveTranslationLanguages, type TranslationLanguageDefaults} from '@/src/core/translation/languages';
+import type {TranslationProviderRequestContext} from '@/src/services/translation/requestSnapshot';
 
-export interface ChromeTranslatorMessage {
+export interface ChromeTranslatorMessage extends TranslationProviderRequestContext {
     readonly origin?: unknown;
     readonly sourceLanguage?: unknown;
     readonly targetLanguage?: unknown;
+    readonly requestTimeoutMs?: unknown;
 }
 
 export interface ChromeOffscreenTranslationData {

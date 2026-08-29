@@ -37,6 +37,7 @@ function escapeExtensionNoncharacters() {
     };
 }
 
+/** 根据编译目标能力生成权限，避免 Firefox/MV2 产物声明不可用的 Offscreen API。 */
 export function createExtensionManifest(
     env: Pick<ConfigEnv, 'browser' | 'manifestVersion'>,
 ): UserManifest {
@@ -76,7 +77,7 @@ export function createExtensionManifest(
 }
 
 
-// See https://wxt.dev/api/config.html
+// WXT 配置参考：https://wxt.dev/api/config.html
 export default defineConfig({
     modules: ['@wxt-dev/webextension-polyfill'],
     // Firefox 的开发 runner 使用一次性 profile；预置启动参数，避免每轮 UI
@@ -114,8 +115,7 @@ export default defineConfig({
             define: {
                 'process.env.VUE_APP_VERSION': JSON.stringify(packageJson.version),
             },
-            // Source-level redaction is the primary control. Production-only
-            // stripping is defense in depth for future diagnostics added later.
+            // 源码层脱敏是主要控制；生产构建再移除诊断输出，作为未来新增日志的纵深防护。
             esbuild: isProductionBuild ? {drop: ['console', 'debugger']} : undefined,
         };
     },

@@ -47,6 +47,7 @@ import {
 import {
     CONFIG_COUNT_INCREMENT_MESSAGE,
     parseConfigCountIncrement,
+    parseConfigCountOperationId,
 } from './count';
 
 export {CONFIG_HISTORY_LIMIT, parseStoredConfig, serializeConfig};
@@ -77,6 +78,10 @@ let requestQueue: Promise<void> = Promise.resolve();
 let activeRequestSerialized = '';
 let hasDeferredStoredConfigChange = false;
 let deferredStoredConfigChange: unknown;
+const completedCountOperations = new Map<string, {delta: number; count: number}>();
+const activeCountOperations = new Map<string, {delta: number; promise: Promise<number>}>();
+const CONFIG_COUNT_OPERATION_CACHE_LIMIT = 1_024;
+const CONFIG_COUNT_OPERATIONS_FIELD = '__fluentCountOperations' as const;
 const requestClientId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 let historyState: ConfigHistoryState;
 let historyInitialized = false;
@@ -90,6 +95,62 @@ let historyFlushPromise: Promise<void> | null = null;
 
 // 所有运行时模块共享同一个可变配置对象；存储层负责把跨上下文变更同步进来。
 export const config = new Config();
+
+interface PersistedCountOperation {
+    id: string;
+    delta: number;
+    count: number;
+}
+
+function parsePersistedCountOperations(value: unknown): PersistedCountOperation[] | null {
+    const record = parseStoredConfig(value);
+    const rawOperations = record?.[CONFIG_COUNT_OPERATIONS_FIELD];
+    if (!Array.isArray(rawOperations)) return null;
+
+    const operations: PersistedCountOperation[] = [];
+    for (const value of rawOperations.slice(-CONFIG_COUNT_OPERATION_CACHE_LIMIT)) {
+        if (!value || typeof value !== 'object') continue;
+        const candidate = value as Partial<PersistedCountOperation>;
+        const id = parseConfigCountOperationId(candidate.id);
+        const delta = parseConfigCountIncrement(candidate.delta);
+        if (!id || delta === null || !Number.isSafeInteger(candidate.count) || Number(candidate.count) < delta) continue;
+        operations.push({id, delta, count: Number(candidate.count)});
+    }
+    return operations;
+}
+
+function replaceCompletedCountOperations(operations: PersistedCountOperation[], maximumCount: number): void {
+    completedCountOperations.clear();
+    for (const operation of operations) {
+        if (operation.count <= maximumCount) {
+            completedCountOperations.set(operation.id, {delta: operation.delta, count: operation.count});
+        }
+    }
+}
+
+function getPersistedCountOperations(nextOperation?: PersistedCountOperation): PersistedCountOperation[] {
+    const operations = [...completedCountOperations].map(([id, value]) => ({id, ...value}));
+    if (nextOperation) {
+        const existingIndex = operations.findIndex((operation) => operation.id === nextOperation.id);
+        if (existingIndex >= 0) operations.splice(existingIndex, 1);
+        operations.push(nextOperation);
+    }
+    return operations.slice(-CONFIG_COUNT_OPERATION_CACHE_LIMIT);
+}
+
+function createStoredConfigRecord(
+    nextConfig: Config,
+    revision: number,
+    countOperations = getPersistedCountOperations(),
+): Record<string, unknown> {
+    return {
+        ...toPublicConfig(nextConfig),
+        [CONFIG_REVISION_FIELD]: revision,
+        ...(trustedCredentialStorageContext && countOperations.length > 0
+            ? {[CONFIG_COUNT_OPERATIONS_FIELD]: countOperations}
+            : {}),
+    };
+}
 
 function notifyHistoryListeners(): void {
     if (!historyState) return;
@@ -108,10 +169,10 @@ function handleStoredHistoryChange(value: unknown): void {
     if (!parsed) return;
     const serialized = serializeConfigHistory(parsed);
     if (serialized === historyLastSerialized) return;
-    // Step 1: 写队列处理中只接收最新请求的回声，避免较慢的旧写入覆盖新快照。
+    // 步骤 1：写队列处理中只接收最新请求的回声，避免较慢的旧写入覆盖新快照。
     if (historyPendingSerialized && serialized !== historyPendingSerialized) return;
 
-    // Step 2: 外部上下文没有与本地写入竞争时，立即同步历史游标和订阅者。
+    // 步骤 2：外部上下文没有与本地写入竞争时，立即同步历史游标和订阅者。
     setHistoryState(parsed);
 }
 
@@ -126,11 +187,11 @@ async function queueHistoryWrite(nextHistory: ConfigHistoryState): Promise<void>
     historyWriteQueue = historyWriteQueue
         .catch(() => undefined)
         .then(async () => {
-            // Step 1: 队列轮到当前写入时再次执行 latest-write-wins 检查。
+            // 步骤 1：队列轮到当前写入时再次执行最后写入者优先检查。
             if (revision !== historyWriteRevision || historyPendingSerialized !== serialized) return;
             await storage.setItem<ConfigHistoryState>(CONFIG_HISTORY_STORAGE_KEY, sanitizedHistory);
 
-            // Step 2: storage.setItem 期间可能产生更新请求；旧写入完成后不能回滚内存状态。
+            // 步骤 2：storage.setItem 期间可能产生更新请求；旧写入完成后不能回滚内存状态。
             if (revision !== historyWriteRevision || historyPendingSerialized !== serialized) return;
             setHistoryState(sanitizedHistory);
             historyPendingSerialized = '';
@@ -188,13 +249,13 @@ function takePendingHistorySnapshot(): RestorableConfig | null {
 }
 
 function flushHistorySnapshot(snapshot: RestorableConfig): Promise<void> {
-    // Step 1: 每次追加都等待前一个追加完成，确保它读取到已提交的游标与 nextVersion。
+    // 步骤 1：每次追加都等待前一个追加完成，确保它读取到已提交的游标与 nextVersion。
     const previous = historyFlushPromise;
     const current = (previous ? previous.catch(() => undefined) : Promise.resolve())
         .then(() => appendHistorySnapshotNow(snapshot));
     historyFlushPromise = current;
 
-    // Step 2: 只有队尾任务可以清空引用；较早任务结束不能让调用方漏等后续快照。
+    // 步骤 2：只有队尾任务可以清空引用；较早任务结束不能让调用方漏等后续快照。
     const clearIfCurrent = () => {
         if (historyFlushPromise === current) historyFlushPromise = null;
     };
@@ -236,6 +297,13 @@ let credentialCleanupRequired = false;
 let localCredentialSnapshotPresent = false;
 let sessionCredentialWatchRegistered = false;
 let sessionCredentialStorageAvailable = false;
+let configStorageWritesBlocked = false;
+
+function assertConfigStorageWritesAllowed(): void {
+    if (configStorageWritesBlocked) {
+        throw new Error('配置安全迁移未完成，暂不写入存储；请重新加载扩展后重试');
+    }
+}
 
 async function writeAndVerifyCredentials(
     key: typeof SESSION_CREDENTIALS_STORAGE_KEY | typeof LOCAL_CREDENTIALS_STORAGE_KEY,
@@ -269,19 +337,15 @@ function queueStorageWrite(nextConfig: Config, serialized: string, revision: num
         .then(async () => {
             // 只写最后一次快照，避免连续输入或多个页面初始化时排队回写旧配置。
             if (revision !== writeRevision || lastPersistedSerialized !== serialized) return;
+            assertConfigStorageWritesAllowed();
             try {
                 // revision 代表已经成功提交到 local:config 的版本，不能在写入前发布。
                 // 若 storage 暂时失败，下一次保存仍应从原版本继续，而不是永久冲突。
                 const storedRevision = persistedConfigRevision + 1;
                 if (!trustedCredentialStorageContext) {
-                    // Userscripts and extension content scripts can persist the
-                    // public configuration, but they cannot access the
-                    // extension-only session credential store. Credentials are
-                    // stripped by toPublicConfig before this fallback write.
-                    await storage.setItem(CONFIG_STORAGE_KEY, {
-                        ...toPublicConfig(nextConfig),
-                        [CONFIG_REVISION_FIELD]: storedRevision,
-                    });
+                    // userscript 和扩展 content script 可以持久化公开配置，但无法访问
+                    // 扩展专属的 session 凭据存储。兜底写入前，toPublicConfig 会移除凭据。
+                    await storage.setItem(CONFIG_STORAGE_KEY, createStoredConfigRecord(nextConfig, storedRevision));
                     persistedConfigRevision = Math.max(persistedConfigRevision, storedRevision);
                     return;
                 }
@@ -300,10 +364,7 @@ function queueStorageWrite(nextConfig: Config, serialized: string, revision: num
                     localCredentialSnapshotPresent = true;
                 }
 
-                await storage.setItem(CONFIG_STORAGE_KEY, {
-                    ...toPublicConfig(nextConfig),
-                    [CONFIG_REVISION_FIELD]: storedRevision,
-                });
+                await storage.setItem(CONFIG_STORAGE_KEY, createStoredConfigRecord(nextConfig, storedRevision));
                 persistedConfigRevision = Math.max(persistedConfigRevision, storedRevision);
 
                 if (!nextConfig.persistCredentials && (credentialCleanupRequired || localCredentialSnapshotPresent)) {
@@ -385,6 +446,10 @@ function handleStoredConfigChange(value: unknown, options: StoredConfigChangeOpt
         && latestRequestedSerialized
         && serialized !== latestRequestedSerialized) return;
     if (!revisionAdvanced && latestRequestedSerialized && serialized !== latestRequestedSerialized) return;
+    const persistedCountOperations = parsePersistedCountOperations(value);
+    if (persistedCountOperations) {
+        replaceCompletedCountOperations(persistedCountOperations, normalized.count);
+    }
     if (serialized === lastPersistedSerialized) return;
 
     // 外部上下文已经产生了新快照，使尚未写入的旧快照失效。
@@ -415,6 +480,7 @@ function registerSessionCredentialWatch(): void {
 }
 
 async function initializeConfig(): Promise<void> {
+    let safePublicConfig: Config | null = null;
     try {
         let storedValue: unknown = null;
 
@@ -427,16 +493,24 @@ async function initializeConfig(): Promise<void> {
 
         const parsed = parseStoredConfig(storedValue);
         persistedConfigRevision = getStoredConfigRevision(storedValue);
+        const publicConfig = parsed
+            ? normalizeConfig(sanitizeConfigCredentials(parsed))
+            : new Config();
+        safePublicConfig = publicConfig;
+
+        // 计数操作日志与公开配置同属 local:config，必须在任何凭据 I/O 前恢复。
+        // 即使 session 读取、迁移或检查点失败，同一 operationId 的重试仍能保持幂等。
+        const persistedCountOperations = parsePersistedCountOperations(storedValue);
+        if (persistedCountOperations) {
+            replaceCompletedCountOperations(persistedCountOperations, publicConfig.count);
+        }
 
         if (!trustedCredentialStorageContext) {
             // content script 的 location 属于网页 origin，且默认无权访问 storage.session。
             // 只加载公开配置，不在此上下文迁移、回写或监听凭据。
-            const normalized = parsed
-                ? normalizeConfig(sanitizeConfigCredentials(parsed))
-                : new Config();
             initialized = true;
-            lastPersistedSerialized = serializeConfig(normalized);
-            applyConfig(normalized);
+            lastPersistedSerialized = serializeConfig(publicConfig);
+            applyConfig(publicConfig);
             return;
         }
 
@@ -485,6 +559,7 @@ async function initializeConfig(): Promise<void> {
                 if (sessionReadError) throw sessionReadError;
                 await writeAndVerifyCredentials(SESSION_CREDENTIALS_STORAGE_KEY, activeCredentials);
             } catch (error) {
+                configStorageWritesBlocked = true;
                 lastPersistedSerialized = serialized;
                 console.warn('[FluentRead] session 凭据不可用，保留旧凭据存储以避免数据丢失', error);
                 registerSessionCredentialWatch();
@@ -506,19 +581,13 @@ async function initializeConfig(): Promise<void> {
             localCredentialSnapshotPresent = true;
         }
 
-        const nextStoredConfig = {
-            ...toPublicConfig(normalized),
-            [CONFIG_REVISION_FIELD]: persistedConfigRevision,
-        };
+        const nextStoredConfig = createStoredConfigRecord(normalized, persistedConfigRevision);
         const storedNeedsMigration = !isConfigRecord(storedValue)
             || typeof storedValue === 'string'
             || serializeConfig(storedValue) !== serializeConfig(nextStoredConfig);
         if (storedNeedsMigration) {
             const migratedRevision = persistedConfigRevision + 1;
-            await storage.setItem(CONFIG_STORAGE_KEY, {
-                ...toPublicConfig(normalized),
-                [CONFIG_REVISION_FIELD]: migratedRevision,
-            });
+            await storage.setItem(CONFIG_STORAGE_KEY, createStoredConfigRecord(normalized, migratedRevision));
             persistedConfigRevision = Math.max(persistedConfigRevision, migratedRevision);
         }
         if (historyNeedsSanitizing) await sanitizeStoredHistory(rawHistory);
@@ -530,17 +599,19 @@ async function initializeConfig(): Promise<void> {
         lastPersistedSerialized = serialized;
         registerSessionCredentialWatch();
     } catch (error) {
+        // 在任何读取或迁移边界不确定时禁止后续覆盖 local:config；重新加载后会重新尝试水合。
+        configStorageWritesBlocked = true;
         if (initialized) {
             lastPersistedSerialized = serializeConfig(config);
             console.error('[FluentRead] 配置安全迁移未完成，保留当前运行时与旧存储以便重试', error);
             return;
         }
-        // 存储 API 暂时不可用时仍提供默认配置，避免 Firefox 设置页因初始化 rejection 反复重载。
-        console.error('[FluentRead] 配置读取失败，使用默认配置', error);
-        const fallback = new Config();
-        const serialized = serializeConfig(fallback);
+        // local:config 已成功读取时至少保留其公开字段；凭据相关 I/O 的失败不能把计数等
+        // 用户状态回滚到默认值。若连公开配置也无法读取，才使用安全默认配置。
+        console.error('[FluentRead] 配置读取或安全迁移失败，保留已读取的公开配置', error);
+        const fallback = safePublicConfig ?? new Config();
         initialized = true;
-        lastPersistedSerialized = '';
+        lastPersistedSerialized = safePublicConfig ? serializeConfig(fallback) : '';
         applyConfig(fallback);
         // 读取失败时不做清理或迁移，避免把暂时不可用误判为“没有凭据”。
     }
@@ -555,46 +626,101 @@ export function subscribeConfig(listener: ConfigListener): () => void {
     return () => listeners.delete(listener);
 }
 
-export function getConfigSnapshot(): Config {
-    return normalizeConfig(config);
-}
-
 export function getConfigRevision(): number {
     return persistedConfigRevision;
 }
 
 /** 翻译计数只做后台原子增量，不携带可能过期的整份用户配置。 */
-export async function incrementConfigCount(delta: number): Promise<number> {
+export async function incrementConfigCount(delta: number, operationId?: string): Promise<number> {
     const normalizedDelta = parseConfigCountIncrement(delta);
     if (normalizedDelta === null) throw new TypeError('无效的翻译计数增量');
-    await configReady;
+    const normalizedOperationId = operationId === undefined ? undefined : parseConfigCountOperationId(operationId);
+    if (operationId !== undefined && normalizedOperationId === null) throw new TypeError('无效的翻译计数操作标识');
 
-    const nextConfig = normalizeConfig({...config, count: config.count + normalizedDelta});
-    await storage.setItem(CONFIG_STORAGE_KEY, {
-        ...toPublicConfig(nextConfig),
-        [CONFIG_REVISION_FIELD]: persistedConfigRevision,
+    if (normalizedOperationId) {
+        const completed = completedCountOperations.get(normalizedOperationId);
+        if (completed) {
+            if (completed.delta !== normalizedDelta) throw new Error('翻译计数操作标识与增量不一致');
+            return completed.count;
+        }
+        const active = activeCountOperations.get(normalizedOperationId);
+        if (active) {
+            if (active.delta !== normalizedDelta) throw new Error('翻译计数操作标识与增量不一致');
+            return active.promise;
+        }
+    }
+
+    const operation = (async () => {
+        await configReady;
+        // 请求可能早于首次 local:config 读取完成；初始化水合后必须再次检查，
+        // 否则后台重启期间的同一 operationId 仍会被重复累加。
+        if (normalizedOperationId) {
+            const completed = completedCountOperations.get(normalizedOperationId);
+            if (completed) {
+                if (completed.delta !== normalizedDelta) throw new Error('翻译计数操作标识与增量不一致');
+                return {count: completed.count, persistedOperations: getPersistedCountOperations()};
+            }
+        }
+        assertConfigStorageWritesAllowed();
+        if (!Number.isSafeInteger(config.count) || config.count < 0) {
+            throw new TypeError('当前翻译计数不是非负安全整数');
+        }
+        const nextCount = config.count + normalizedDelta;
+        if (!Number.isSafeInteger(nextCount)) throw new RangeError('翻译计数超过安全整数范围');
+        const nextConfig = normalizeConfig({...config, count: nextCount});
+        const nextOperation = normalizedOperationId
+            ? {id: normalizedOperationId, delta: normalizedDelta, count: nextConfig.count}
+            : undefined;
+        const persistedOperations = getPersistedCountOperations(nextOperation);
+        // count 与 operationId 同属一个 storage 记录；后台在响应前退出后，新实例仍能识别已提交操作。
+        await storage.setItem(
+            CONFIG_STORAGE_KEY,
+            createStoredConfigRecord(nextConfig, persistedConfigRevision, persistedOperations),
+        );
+        writeRevision += 1;
+        lastPersistedSerialized = serializeConfig(nextConfig);
+        applyConfig(nextConfig);
+        return {count: nextConfig.count, persistedOperations};
     });
-    writeRevision += 1;
-    lastPersistedSerialized = serializeConfig(nextConfig);
-    applyConfig(nextConfig);
-    return nextConfig.count;
+    const operationPromise = operation();
+    if (!normalizedOperationId) return operationPromise.then((result) => result.count);
+
+    const promise = operationPromise.then((result) => {
+        replaceCompletedCountOperations(result.persistedOperations, result.count);
+        return result.count;
+    });
+
+    activeCountOperations.set(normalizedOperationId, {delta: normalizedDelta, promise});
+    try {
+        return await promise;
+    } finally {
+        activeCountOperations.delete(normalizedOperationId);
+    }
 }
 
 type ConfigCountMessageResponse = {success?: boolean; error?: string; count?: number} | undefined;
 type ConfigCountMessageSender = (message: {
     type: typeof CONFIG_COUNT_INCREMENT_MESSAGE;
     delta: number;
+    operationId: string;
 }) => Promise<ConfigCountMessageResponse>;
 
 export async function requestConfigCountIncrement(
     delta: number,
     sendMessage?: ConfigCountMessageSender,
+    operationId?: string,
 ): Promise<number> {
     const normalizedDelta = parseConfigCountIncrement(delta);
     if (normalizedDelta === null) throw new TypeError('无效的翻译计数增量');
-    if (!sendMessage) return incrementConfigCount(normalizedDelta);
+    const normalizedOperationId = parseConfigCountOperationId(operationId);
+    if (normalizedOperationId === null) throw new TypeError('无效的翻译计数操作标识');
+    if (!sendMessage) return incrementConfigCount(normalizedDelta, normalizedOperationId);
 
-    const response = await sendMessage({type: CONFIG_COUNT_INCREMENT_MESSAGE, delta: normalizedDelta});
+    const response = await sendMessage({
+        type: CONFIG_COUNT_INCREMENT_MESSAGE,
+        delta: normalizedDelta,
+        operationId: normalizedOperationId,
+    });
     if (response?.success === false) throw new Error(response.error || '翻译计数保存失败');
     if (typeof response?.count !== 'number') throw new Error('翻译计数保存没有返回结果');
     return response.count;
@@ -651,7 +777,8 @@ export interface SaveConfigOptions {
 export async function saveConfig(value: unknown = config, options: SaveConfigOptions = {}): Promise<void> {
     await configReady;
 
-    const normalized = normalizeConfig(value);
+    // 普通设置、导入与恢复都无权回滚统计；计数只能经专用增量协议修改。
+    const normalized = normalizeConfig({...normalizeConfig(value), count: config.count});
     const serialized = serializeConfig(normalized);
     if (serializeConfig(config) !== serialized) applyConfig(normalized);
     await persistNormalizedConfig(normalized, serialized);

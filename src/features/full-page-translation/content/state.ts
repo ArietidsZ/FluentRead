@@ -59,12 +59,12 @@ export interface TranslationState {
     phase: TranslationPhase;
     generation: number;
     sourceText: string;
-    /** Text-slot identities visible at request creation, before any live replacement. */
+    /** 创建请求时可见的文本槽节点身份，早于任何实时替换。 */
     sourceTextNodes?: readonly Text[];
     sourceHTML: string;
-    /** Runtime-only wrapper around a direct inline run; removed on every exit path. */
+    /** runtime 为直接内联 run 创建的临时 wrapper；所有退出路径都会移除。 */
     syntheticSegment: boolean;
-    /** Exact direct children captured before the loading spinner is appended. */
+    /** 添加加载指示器之前捕获的精确直接子节点。 */
     syntheticSourceNodes?: readonly ChildNode[];
     /** 翻译开始前的内联 style 属性，用于可条件恢复。 */
     originalStyleAttribute: string | null;
@@ -74,13 +74,13 @@ export interface TranslationState {
     renderedStyleAttribute?: string | null;
     /** 插件完成渲染后记录的 class 属性，用于过滤自身添加 bilingual class 的 mutation。 */
     renderedClassAttribute?: string | null;
-    /** Translation changed only the original Text nodes; DOM structure stayed live. */
+    /** 翻译只改动原始 Text 节点，DOM 结构仍保持实时。 */
     textSlotsApplied?: boolean;
     /** 控件翻译直接修改原 Text 节点；恢复时需要把节点内容写回原值。 */
     originalTextValues: Array<{node: Text; value: string}>;
-    /** Exact values written by the live text-slot renderer. */
+    /** 实时文本槽渲染器写入的精确值。 */
     translatedTextValues?: WeakMap<Text, string>;
-    /** Text nodes that were visible/translatable when single/control rendering ran. */
+    /** 单译文或控件渲染执行时可见且可翻译的 Text 节点。 */
     translatedTextNodes?: readonly Text[];
     controller: AbortController;
     spinner?: HTMLElement;
@@ -89,11 +89,11 @@ export interface TranslationState {
     retryWrapper?: HTMLElement;
     /** 双语 wrapper 最后一次由插件写入的 HTML，用于区分宿主重绘和插件自身 mutation。 */
     bilingualHTML?: string;
-    /** Candidate/ancestor nodes whose clipping styles are leased by this translation. */
+    /** 本次翻译租用裁剪样式的候选节点或祖先节点。 */
     layoutOverrideElements?: Set<HTMLElement>;
-    /** Bounded composed ancestors watched for newly activated line clamps or reparenting. */
+    /** 为新启用的 line-clamp 或重挂行为而观察的有界 composed 祖先。 */
     layoutWatchElements?: Set<HTMLElement>;
-    /** Document/ShadowRoot observers retained while the bilingual layout lease is active. */
+    /** 双语布局租约生效期间保留的 Document/ShadowRoot 观察器。 */
     layoutObserverRoots?: Set<TranslationLayoutObserverRoot>;
 }
 
@@ -103,6 +103,7 @@ interface TranslationAttempt {
 }
 
 const states = new WeakMap<HTMLElement, TranslationState>();
+// 反向所有权索引让移除处理只遍历受影响子树；WeakRef 不会为索引额外延长 DOM 节点生命周期。
 const activeNodeRefs = new Set<WeakRef<HTMLElement>>();
 const activeRefsByNode = new WeakMap<HTMLElement, WeakRef<HTMLElement>>();
 const ownersByIndexedNode = new WeakMap<Node, Set<WeakRef<HTMLElement>>>();
@@ -313,9 +314,8 @@ export function setRetryWrapper(node: HTMLElement, wrapper: HTMLElement): void {
 }
 
 /**
- * The host removed only our failure UI. Keep an error tombstone so generic
- * discovery cannot turn a permanent provider failure into automatic retries;
- * a real source mutation or an explicit user action can still clear it.
+ * 宿主页只移除了扩展的失败 UI 时，保留错误墓碑，避免通用发现把永久服务错误
+ * 变成自动重试；真实源文变更或用户明确操作仍可清除该状态。
  */
 export function detachFailedTranslationUi(
     node: HTMLElement,
@@ -365,9 +365,8 @@ function scheduleTranslationLayoutRefresh(owner: HTMLElement, removedNodes: read
         const state = states.get(owner);
         if (!state) return;
 
-        // Run after every MutationObserver callback from this checkpoint. The
-        // full-page observer can therefore unregister its own indexes before a
-        // standalone hover translation tears down shared state.
+        // 从当前检查点起，在所有 MutationObserver 回调之后执行；这样全文观察器可以先
+        // 注销自己的索引，再由独立悬浮翻译释放共享状态。
         if (!owner.isConnected) {
             discardTranslation(owner, state);
             return;
@@ -575,9 +574,8 @@ function releaseTranslationLayoutOverride(
 }
 
 /**
- * Lease one host element's truncation properties. The first owner records and
- * applies the override; later owners share it so restoring one paragraph
- * cannot hide a translated sibling that uses the same clamp container.
+ * 租用一个宿主元素的截断属性。首个所有者记录并应用覆盖，后续所有者共享该租约，
+ * 因此恢复一个段落不会隐藏共用同一裁剪容器的已翻译兄弟段落。
  */
 export function acquireTranslationLayoutOverride(
     owner: HTMLElement,
@@ -624,13 +622,13 @@ export function acquireTranslationLayoutOverride(
     return true;
 }
 
-/** Exact style-attribute equality keeps a host write in the same microtask authoritative. */
+/** 仅在 style 属性精确相等时视为扩展写入，使同一微任务中的宿主页写入保持权威。 */
 export function isTranslationLayoutOverrideMutation(element: HTMLElement): boolean {
     const override = sharedLayoutOverrides.get(element);
     return Boolean(override && element.getAttribute("style") === override.renderedStyleAttribute);
 }
 
-/** Rebase host style writes, then keep every active bilingual wrapper unclamped. */
+/** 先以宿主页样式写入为新基线，再让所有活动双语 wrapper 继续保持无截断。 */
 export function reconcileTranslationLayoutOverrides(owner: HTMLElement): boolean {
     const state = states.get(owner);
     if (!state) return false;
@@ -662,7 +660,7 @@ export function reconcileTranslationLayoutOverrides(owner: HTMLElement): boolean
     return true;
 }
 
-/** Discover new clamp ancestors, drop stale reparented leases, and reapply host-overwritten values. */
+/** 发现新的裁剪祖先，释放因重挂而过期的租约，并重新应用被宿主页覆盖的值。 */
 export function ensureTranslationTruncationLayout(owner: HTMLElement): boolean {
     const state = states.get(owner);
     if (!state || !owner.isConnected) return false;
@@ -818,11 +816,9 @@ export function setTextSlotsApplied(
 }
 
 /**
- * Find states owned by a node that the host removed. This includes a removed
- * translated target and a removed spinner/bilingual wrapper whose owner stays
- * connected. Walk only the removed subtree and consult the incrementally
- * maintained ownership index; unrelated active translations are never scanned.
- * The runtime uses this before its generic artifact filter.
+ * 查找宿主页移除节点所关联的翻译状态，包括被移除的翻译目标，以及所有者仍连接时
+ * 被移除的加载指示器或双语 wrapper。只遍历移除子树并查询增量维护的所有权索引，
+ * 从不扫描无关的活动翻译；runtime 会在通用工件过滤之前调用这里。
  */
 export function getTranslationOwnersForRemovedNode(removed: Node): HTMLElement[] {
     const owners = new Set<HTMLElement>();
@@ -848,7 +844,7 @@ export function getTranslationOwnersForRemovedNode(removed: Node): HTMLElement[]
     return [...owners];
 }
 
-/** Resolve only owners indexed directly on this node; dead weak references are pruned lazily. */
+/** 只解析直接索引在该节点上的所有者，并延迟清理已失效的弱引用。 */
 export function getTranslationOwnersForIndexedNode(indexedNode: Node): HTMLElement[] {
     const refs = ownersByIndexedNode.get(indexedNode);
     if (!refs) return [];

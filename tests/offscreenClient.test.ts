@@ -47,6 +47,7 @@ function createRuntime(options: {
 }
 
 afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
 });
 
@@ -484,6 +485,241 @@ describe('Offscreen platform client', () => {
         await expect(client.send({type: 'PING'})).rejects.toThrow('Offscreen 消息发送失败');
     });
 
+    it('AbortSignal 会立即拒绝悬挂 callback、发送一次纯数据取消消息并忽略迟到响应', async () => {
+        let businessCallback: ((response: unknown) => void) | undefined;
+        const sendMessage = vi.fn((message: unknown, callback: (response: unknown) => void) => {
+            const type = (message as {type?: unknown}).type;
+            if (type === OFFSCREEN_READY_MESSAGE_TYPE) callback({success: true, ready: true});
+            else if (type === 'PING') businessCallback = callback;
+            else callback({success: true});
+        });
+        const runtime: OffscreenRuntimeApi = {
+            getContexts: vi.fn(async () => [{}]),
+            sendMessage,
+        };
+        const client = createOffscreenClient({
+            getRuntime: () => runtime,
+            getOffscreen: () => ({createDocument: vi.fn(async () => undefined)}),
+        });
+        const controller = new AbortController();
+        const pending = client.send({type: 'PING', requestId: 'request-1'}, {
+            signal: controller.signal,
+            timeoutMs: 5_000,
+            cancelMessage: {type: 'CANCEL', requestId: 'request-1'},
+        });
+        await vi.waitFor(() => expect(businessCallback).toBeTypeOf('function'));
+
+        controller.abort();
+        await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+        expect(sendMessage).toHaveBeenCalledWith(
+            {type: 'CANCEL', requestId: 'request-1', target: 'offscreen'},
+            expect.any(Function),
+        );
+        businessCallback?.({success: true, value: '迟到'});
+        await Promise.resolve();
+        expect(sendMessage.mock.calls.filter(([message]) =>
+            (message as {type?: unknown}).type === 'CANCEL')).toHaveLength(1);
+    });
+
+    it('已取消请求不会启动 prepare，但仍尽力发送取消协议', async () => {
+        const runtime = createRuntime({contexts: [{}]});
+        const client = createOffscreenClient({
+            getRuntime: () => runtime.runtime,
+            getOffscreen: () => ({createDocument: vi.fn(async () => undefined)}),
+        });
+        const controller = new AbortController();
+        controller.abort();
+
+        await expect(client.send({type: 'PING'}, {
+            signal: controller.signal,
+            cancelMessage: {type: 'CANCEL', requestId: 'pre-aborted'},
+        })).rejects.toMatchObject({name: 'AbortError'});
+        expect(runtime.getContexts).not.toHaveBeenCalled();
+        expect(runtime.sendMessage).toHaveBeenCalledWith(
+            {type: 'CANCEL', requestId: 'pre-aborted', target: 'offscreen'},
+            expect.any(Function),
+        );
+    });
+
+    it('显式绝对预算会截止消息，未传 options 的兼容调用保持原有无业务 deadline 语义', async () => {
+        vi.useFakeTimers();
+        let longCallback: ((response: unknown) => void) | undefined;
+        const runtime: OffscreenRuntimeApi = {
+            getContexts: vi.fn(async () => [{}]),
+            sendMessage: vi.fn((message: unknown, callback: (response: unknown) => void) => {
+                if ((message as {type?: unknown}).type === OFFSCREEN_READY_MESSAGE_TYPE) {
+                    callback({success: true, ready: true});
+                } else if ((message as {type?: unknown}).type === 'LONG_OCR') {
+                    longCallback = callback;
+                }
+            }),
+        };
+        const client = createOffscreenClient({
+            getRuntime: () => runtime,
+            getOffscreen: () => ({createDocument: vi.fn(async () => undefined)}),
+        });
+
+        const explicit = client.send({type: 'PING'}, {timeoutMs: 25})
+            .then(() => null, (error: unknown) => error);
+        await vi.advanceTimersByTimeAsync(25);
+        await expect(explicit).resolves.toMatchObject({message: 'Offscreen 消息响应超时'});
+
+        const compatible = client.send({type: 'LONG_OCR'});
+        let settled = false;
+        void compatible.then(() => { settled = true; }, () => { settled = true; });
+        await vi.advanceTimersByTimeAsync(300_000);
+        expect(settled).toBe(false);
+        longCallback?.({success: true, value: '完成'});
+        await expect(compatible).resolves.toEqual({success: true, value: '完成'});
+    });
+
+    it('短预算 Chrome caller 不会缩短共享 prepare，后加入的长预算调用仍可成功', async () => {
+        vi.useFakeTimers();
+        const contexts = deferred<unknown[]>();
+        const runtime: OffscreenRuntimeApi = {
+            getContexts: vi.fn(() => contexts.promise),
+            sendMessage: vi.fn((message: unknown, callback: (response: unknown) => void) => {
+                if ((message as {type?: unknown}).type === OFFSCREEN_READY_MESSAGE_TYPE) {
+                    callback({success: true, ready: true});
+                }
+            }),
+        };
+        const createDocument = vi.fn(async () => undefined);
+        const client = createOffscreenClient({
+            getRuntime: () => runtime,
+            getOffscreen: () => ({createDocument}),
+            preparationTimeoutMs: 100,
+        });
+
+        const short = client.send({type: 'CHROME_TRANSLATE_OFFSCREEN'}, {timeoutMs: 1})
+            .then(() => null, (error: unknown) => error);
+        const long = client.ensureDocument({timeoutMs: 100});
+        await Promise.resolve();
+        await vi.advanceTimersByTimeAsync(1);
+        expect((await short as Error).message).toContain('Offscreen 文档准备超时');
+
+        contexts.resolve([]);
+        await expect(long).resolves.toBeUndefined();
+        expect(runtime.getContexts).toHaveBeenCalledOnce();
+        expect(createDocument).toHaveBeenCalledOnce();
+    });
+
+    it('准备超时会清空 preparingDocument，后续请求可以重新创建并成功', async () => {
+        vi.useFakeTimers();
+        const never = deferred<unknown[]>();
+        const getContexts = vi.fn()
+            .mockImplementationOnce(() => never.promise)
+            .mockResolvedValueOnce([]);
+        const runtime: OffscreenRuntimeApi = {
+            getContexts,
+            sendMessage: vi.fn((message: unknown, callback: (response: unknown) => void) => {
+                if ((message as {type?: unknown}).type === OFFSCREEN_READY_MESSAGE_TYPE) {
+                    callback({success: true, ready: true});
+                }
+            }),
+        };
+        const createDocument = vi.fn(async () => undefined);
+        const client = createOffscreenClient({
+            getRuntime: () => runtime,
+            getOffscreen: () => ({createDocument}),
+            preparationTimeoutMs: 20,
+        });
+
+        const timedOut = client.ensureDocument().then(() => null, (error: unknown) => error);
+        await vi.advanceTimersByTimeAsync(20);
+        await expect(timedOut).resolves.toMatchObject({message: '无法创建 Offscreen 文档：Offscreen 文档准备超时'});
+        await expect(client.ensureDocument()).resolves.toBeUndefined();
+        expect(getContexts).toHaveBeenCalledTimes(2);
+        expect(createDocument).toHaveBeenCalledOnce();
+        never.resolve([]);
+        await Promise.resolve();
+        await Promise.resolve();
+    });
+
+    it('绝对截止时间已过时不会启动操作，ready delay 同步失败也会释放准备所有权', async () => {
+        const expiredRuntime = createRuntime({contexts: [{}]});
+        const expiredClient = createOffscreenClient({
+            getRuntime: () => expiredRuntime.runtime,
+            getOffscreen: () => ({createDocument: vi.fn(async () => undefined)}),
+            messageTimeoutMs: 1,
+        });
+        const now = vi.spyOn(Date, 'now')
+            .mockReturnValueOnce(0)
+            .mockReturnValue(2);
+        await expect(expiredClient.send({type: 'PING'})).rejects.toThrow('Offscreen 文档准备超时');
+        expect(expiredRuntime.getContexts).not.toHaveBeenCalled();
+        now.mockRestore();
+
+        const runtime: OffscreenRuntimeApi = {
+            getContexts: vi.fn(async () => [{}]),
+            sendMessage: vi.fn((_message: unknown, callback: (response: unknown) => void) => {
+                callback({success: true, ready: false});
+            }),
+        };
+        const client = createOffscreenClient({
+            getRuntime: () => runtime,
+            getOffscreen: () => ({createDocument: vi.fn(async () => undefined)}),
+            readyRetryAttempts: 2,
+            readyRetryDelay: () => { throw new Error('delay failed'); },
+        });
+        await expect(client.ensureDocument()).rejects.toThrow('delay failed');
+        await expect(client.ensureDocument()).rejects.toThrow('delay failed');
+        expect(runtime.getContexts).toHaveBeenCalledTimes(2);
+    });
+
+    it('取消消息同步发送失败不会阻止本地 AbortSignal 结束等待', async () => {
+        const sendMessage = vi.fn((message: unknown, callback: (response: unknown) => void) => {
+            const type = (message as {type?: unknown}).type;
+            if (type === OFFSCREEN_READY_MESSAGE_TYPE) callback({success: true, ready: true});
+            else if (type === 'CANCEL') throw new Error('cancel transport gone');
+        });
+        const runtime: OffscreenRuntimeApi = {
+            getContexts: vi.fn(async () => [{}]),
+            sendMessage,
+        };
+        const client = createOffscreenClient({
+            getRuntime: () => runtime,
+            getOffscreen: () => ({createDocument: vi.fn(async () => undefined)}),
+        });
+        const controller = new AbortController();
+        const pending = client.send({type: 'PING'}, {
+            signal: controller.signal,
+            cancelMessage: {type: 'CANCEL'},
+        });
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledWith(
+            {type: 'PING', target: 'offscreen'}, expect.any(Function),
+        ));
+        controller.abort();
+        await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+    });
+
+    it('接收端丢失后的强制重建可由调用方 AbortSignal 立即终止', async () => {
+        let runtimeError: {message?: string} | undefined;
+        const runtime: OffscreenRuntimeApi = {
+            get lastError() { return runtimeError; },
+            getContexts: vi.fn(async () => [{}]),
+            sendMessage: vi.fn((_message: unknown, callback: (response: unknown) => void) => {
+                runtimeError = {message: 'Could not establish connection. Receiving end does not exist.'};
+                callback(undefined);
+                runtimeError = undefined;
+            }),
+        };
+        const closing = deferred<void>();
+        const closeDocument = vi.fn(() => closing.promise);
+        const client = createOffscreenClient({
+            getRuntime: () => runtime,
+            getOffscreen: () => ({createDocument: vi.fn(async () => undefined), closeDocument}),
+            readyRetryAttempts: 1,
+        });
+        const controller = new AbortController();
+        const pending = client.ensureDocument({signal: controller.signal});
+        await vi.waitFor(() => expect(closeDocument).toHaveBeenCalledOnce());
+
+        controller.abort();
+        await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+        closing.resolve();
+    });
+
     it('does not create for optional sends and propagates synchronous messaging failures', async () => {
         const absent = createRuntime();
         const absentCreate = vi.fn(async () => undefined);
@@ -501,6 +737,8 @@ describe('Offscreen platform client', () => {
             getOffscreen: () => ({createDocument: vi.fn(async () => undefined)}),
         });
         await expect(presentClient.sendIfPresent({type: 'STOP'})).resolves.toEqual({success: true});
+        await expect(presentClient.sendIfPresent({type: 'STOP'}, {timeoutMs: 100}))
+            .resolves.toEqual({success: true});
 
         present.sendMessage.mockImplementationOnce(() => {
             throw new TypeError('send failed');

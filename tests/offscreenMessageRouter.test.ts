@@ -81,14 +81,96 @@ describe('Offscreen 消息静态路由', () => {
             .resolves.toEqual({handled: true, response: {success: false, error: 'bad id'}});
     });
 
-    it('Chrome translate 转发原始 data，包含原始异常字符串', async () => {
+    it('Chrome translate 只接受合法 requestId，并把内部 AbortSignal 传给执行器', async () => {
         const data = {text: 'hello', from: 'en', to: 'ja'};
-        await expect(dispatch({type: 'CHROME_TRANSLATE_OFFSCREEN', data}))
-            .resolves.toEqual({handled: true, response: {success: true, result: '译文'}});
-        expect(mocks.translate).toHaveBeenCalledWith(data);
+        await expect(dispatch({type: 'CHROME_TRANSLATE_OFFSCREEN', requestId: 'chrome-1', data}))
+            .resolves.toEqual({
+                handled: true,
+                response: {success: true, result: '译文', requestId: 'chrome-1'},
+            });
+        expect(mocks.translate).toHaveBeenCalledWith(data, expect.any(AbortSignal));
         mocks.translate.mockRejectedValueOnce('translator failed');
-        await expect(dispatch({type: 'CHROME_TRANSLATE_OFFSCREEN', data}))
-            .resolves.toEqual({handled: true, response: {success: false, error: 'translator failed'}});
+        await expect(dispatch({type: 'CHROME_TRANSLATE_OFFSCREEN', requestId: 'chrome-2', data}))
+            .resolves.toEqual({
+                handled: true,
+                response: {success: false, requestId: 'chrome-2', error: 'translator failed'},
+            });
+
+        for (const requestId of [undefined, 1, '', 'bad request', 'x'.repeat(129)]) {
+            expect((await dispatch({type: 'CHROME_TRANSLATE_OFFSCREEN', requestId, data})).response)
+                .toMatchObject({success: false});
+        }
+    });
+
+    it('取消 active Chrome 翻译会立即响应一次，迟到结果不会再次提交', async () => {
+        let resolveTranslation!: (value: string) => void;
+        mocks.translate.mockImplementationOnce(() => new Promise<string>((resolve) => {
+            resolveTranslation = resolve;
+        }));
+        const originalResponses = vi.fn();
+        expect(listener({
+            type: 'CHROME_TRANSLATE_OFFSCREEN',
+            target: 'offscreen',
+            requestId: 'chrome-pending',
+            data: {text: 'hello', from: 'en', to: 'ja'},
+        }, {}, originalResponses)).toBe(true);
+        await vi.waitFor(() => expect(mocks.translate).toHaveBeenCalledOnce());
+        const signal = (mocks.translate.mock.calls as unknown[][])[0]?.[1] as AbortSignal;
+
+        await expect(dispatch({
+            type: 'CANCEL_CHROME_TRANSLATE_OFFSCREEN',
+            requestId: 'chrome-pending',
+        })).resolves.toEqual({
+            handled: true,
+            response: {success: true, cancelled: true, requestId: 'chrome-pending'},
+        });
+        expect(signal.aborted).toBe(true);
+        expect(originalResponses).toHaveBeenCalledOnce();
+        expect(originalResponses).toHaveBeenCalledWith(expect.objectContaining({
+            success: false,
+            cancelled: true,
+            requestId: 'chrome-pending',
+        }));
+
+        resolveTranslation('迟到译文');
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(originalResponses).toHaveBeenCalledOnce();
+
+        await expect(dispatch({
+            type: 'CANCEL_CHROME_TRANSLATE_OFFSCREEN', requestId: 'chrome-pending',
+        })).resolves.toEqual({
+            handled: true,
+            response: {success: true, cancelled: false, requestId: 'chrome-pending'},
+        });
+        expect((await dispatch({
+            type: 'CANCEL_CHROME_TRANSLATE_OFFSCREEN', requestId: 'bad request',
+        })).response).toMatchObject({success: false});
+    });
+
+    it('拒绝重复 active requestId 和非字符串 Chrome 翻译结果', async () => {
+        let resolveTranslation!: (value: string) => void;
+        mocks.translate.mockImplementationOnce(() => new Promise<string>((resolve) => {
+            resolveTranslation = resolve;
+        }));
+        const firstResponse = vi.fn();
+        const message = {
+            type: 'CHROME_TRANSLATE_OFFSCREEN', target: 'offscreen', requestId: 'duplicate-1', data: {},
+        };
+        expect(listener(message, {}, firstResponse)).toBe(true);
+        await vi.waitFor(() => expect(mocks.translate).toHaveBeenCalledOnce());
+        expect((await dispatch(message)).response).toEqual({
+            success: false,
+            error: 'Offscreen Chrome 翻译 requestId 正在执行',
+        });
+
+        resolveTranslation('完成');
+        await vi.waitFor(() => expect(firstResponse).toHaveBeenCalledOnce());
+        mocks.translate.mockResolvedValueOnce(null as never);
+        await expect(dispatch({...message, requestId: 'invalid-result'})).resolves.toEqual({
+            handled: true,
+            response: {success: false, requestId: 'invalid-result', error: 'Chrome 翻译结果无效'},
+        });
     });
 
     it('OCR 校验图片与语言并拒绝非数组结果', async () => {

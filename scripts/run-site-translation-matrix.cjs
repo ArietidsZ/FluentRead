@@ -234,7 +234,7 @@ function killProcessGroup(child, signal) {
       process.kill(-child.pid, signal);
       return true;
     } catch {
-      // The group may already be gone; fall through to the direct child.
+      // 进程组可能已经退出；继续尝试直接终止子进程。
     }
   }
   try {
@@ -283,10 +283,9 @@ function runChildWithWatchdog(command, values, options = {}) {
         finish(exitCode, signal, error);
         return;
       }
-      // Once the watchdog owns shutdown, a direct runner exit is not enough:
-      // detached Edge/renderer descendants may still be alive in its process
-      // group. Preserve the exit result, but do not settle or cancel the
-      // scheduled group SIGKILL until that signal has actually been sent.
+      // watchdog 接管关闭后，仅 runner 直接退出还不够：脱离的 Edge/renderer 后代
+      // 可能仍存活于进程组中。保留退出结果，但在真正发出计划中的进程组 SIGKILL 前，
+      // 不得结束流程或取消该信号。
       deferredClose = {exitCode, signal, error};
       if (killSent) finish(exitCode, signal, error);
     };

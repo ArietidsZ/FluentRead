@@ -157,9 +157,8 @@ def generate_pdf(output: Path) -> None:
         pdf.drawString(48, 25, "FLUENTREAD DOCUMENT LAYOUT REGRESSION")
         pdf.drawRightString(page_width - 48, 25, str(page_number))
 
-    # Page 1 deliberately combines a full-width title, two text columns, and a
-    # diagram. It catches regressions where PDF translation is flattened into a
-    # list of extracted strings instead of being written back to page boxes.
+    # 第 1 页刻意组合通栏标题、双栏正文和图示，用于捕获 PDF 翻译被压平成
+    # 提取字符串列表、而没有写回原页面文本框的回归。
     pdf.setFont("Helvetica-Bold", 22)
     pdf.setFillColor(HexColor("#202533"))
     pdf.drawCentredString(page_width / 2, 742, "Document Translation Example")
@@ -222,8 +221,7 @@ def generate_pdf(output: Path) -> None:
     draw_footer(1)
     pdf.showPage()
 
-    # Page 2 exercises a table, chart, full-width caption, and independent
-    # columns so that both parsing and exported placement stay covered.
+    # 第 2 页覆盖表格、图表、通栏说明和独立分栏，确保解析与导出定位都受到验证。
     pdf.setFont("Helvetica-Bold", 19)
     pdf.setFillColor(HexColor("#202533"))
     pdf.drawString(48, 742, "Regression Coverage")

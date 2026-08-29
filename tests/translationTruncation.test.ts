@@ -58,7 +58,7 @@ function openRouterFixture() {
     return {document, clamp, ordinary, first, second};
 }
 
-/** linkedom omits CSS priority APIs, so record the real setProperty calls explicitly. */
+/** linkedom 未实现 CSS priority API，因此显式记录真实的 setProperty 调用。 */
 function trackStylePriorities(element: HTMLElement) {
     const style = element.style;
     const priorities = new Map<string, string>();
@@ -290,6 +290,34 @@ describe('translation truncation layout', () => {
                 expect(links[2]!.hasAttribute('href')).toBe(false);
 
                 restoreTranslation(owner);
+            } finally {
+                Object.assign(config, previousConfig);
+                options.styles = previousStyles;
+            }
+        });
+    });
+
+    it('优先使用全文会话冻结的目标语言和译文样式，不受实时配置切换影响', async () => {
+        const {document} = parseHTML('<html><body><p id="owner">Readable paragraph.</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        const previousConfig = {...config};
+        const previousStyles = [...options.styles];
+
+        await withDocumentRealm(document, async () => {
+            try {
+                Object.assign(config, {style: 7, to: 'ja'});
+                options.styles = [
+                    {value: 7, class: 'fr-live-style'},
+                    {value: 9, class: 'fr-session-style'},
+                ] as typeof options.styles;
+
+                const wrapper = appendBilingualTranslation(owner, '会话译文', {
+                    targetLanguage: 'zh-Hans',
+                    style: 9,
+                });
+                expect(wrapper.lang).toBe('zh-Hans');
+                expect(wrapper.classList.contains('fr-session-style')).toBe(true);
+                expect(wrapper.classList.contains('fr-live-style')).toBe(false);
             } finally {
                 Object.assign(config, previousConfig);
                 options.styles = previousStyles;

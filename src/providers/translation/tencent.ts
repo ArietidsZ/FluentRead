@@ -11,7 +11,10 @@ import { config } from "@/src/services/config/store";
 import {getTranslationLanguages} from '@/src/services/translation/languages';
 import {createHttpStatusError, createProviderCodeError, readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
-import {getTranslationProviderConfig} from '@/src/services/translation/requestSnapshot';
+import {
+    getTranslationProviderConfig,
+    type TranslationProviderRequest,
+} from '@/src/services/translation/requestSnapshot';
 
 // 腾讯云机器翻译语言代码映射
 const languageMap: Record<string, string> = {
@@ -97,83 +100,70 @@ async function createTencentSignature(requestPayload: string, timestamp: number,
     return authorization;
 }
 
-async function tencent(message: any) {
-    try {
-        const current = getTranslationProviderConfig(message, config);
-        // 从配置中获取 SecretId 和 SecretKey
-        const secretId = current.tencentSecretId?.trim();
-        const secretKey = current.tencentSecretKey?.trim();
-        
-        if (!secretId || !secretKey) {
-            throw new Error('腾讯云机器翻译密钥未配置，请在设置中配置SecretId和SecretKey');
-        }
-        
-        // 基本格式验证
-        if (secretId.length < 10 || secretKey.length < 10) {
-            throw new Error('SecretId或SecretKey格式不正确，请检查是否完整复制了密钥信息');
-        }
-        
-        // 转换语言代码
-        const {sourceLanguage, targetLanguage} = getTranslationLanguages(message);
-        const sourceLang = languageMap[sourceLanguage] || sourceLanguage;
-        const targetLang = languageMap[targetLanguage] || targetLanguage;
-        
-        if (!targetLang || targetLang === 'auto') {
-            throw new Error('腾讯云机器翻译不支持目标语言自动检测');
-        }
-        
-        // 构建JSON请求体
-        const requestBody = JSON.stringify({
-            SourceText: message.origin,
-            Source: sourceLang,
-            Target: targetLang,
-            ProjectId: 0
-        });
-        
-        const timestamp = Math.floor(Date.now() / 1000);
-        
-        // 生成签名和Authorization头
-        const authorization = await createTencentSignature(requestBody, timestamp, secretId, secretKey);
-        
-        // 判断是否使用代理
-        const service = message.serviceOverride || current.service;
-        const url = current.proxy[service] || 'https://tmt.tencentcloudapi.com/';
-        
-        const response = await runtimeFetch(url, {
-            method: method.POST,
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                'Host': 'tmt.tencentcloudapi.com',
-                'Authorization': authorization,
-                'X-TC-Action': 'TextTranslate',
-                'X-TC-Version': '2018-03-21',
-                'X-TC-Region': 'ap-beijing',
-                'X-TC-Timestamp': timestamp.toString()
-            },
-            body: requestBody
-        });
-        
-        if (!response.ok) {
-            throw createHttpStatusError(response, '腾讯云机器翻译请求失败');
-        }
-        
-        const result = await readJsonResponse<any>(response, '腾讯云机器翻译返回的不是有效 JSON');
-        
-        // 检查是否有错误
-        if (result.Response?.Error) {
-            throw createProviderCodeError('腾讯云机器翻译错误', result.Response.Error.Code);
-        }
-        
-        // 返回翻译结果
-        if (result.Response?.TargetText) {
-            return result.Response.TargetText;
-        } else {
-            throw new Error('腾讯云机器翻译返回格式异常');
-        }
-        
-    } catch (error) {
-        throw error;
+async function tencent(message: TranslationProviderRequest<string>) {
+    const current = getTranslationProviderConfig(message, config);
+    // 从配置中获取 SecretId 和 SecretKey
+    const secretId = current.tencentSecretId?.trim();
+    const secretKey = current.tencentSecretKey?.trim();
+
+    if (!secretId || !secretKey) {
+        throw new Error('腾讯云机器翻译密钥未配置，请在设置中配置SecretId和SecretKey');
     }
+
+    // 基本格式验证
+    if (secretId.length < 10 || secretKey.length < 10) {
+        throw new Error('SecretId或SecretKey格式不正确，请检查是否完整复制了密钥信息');
+    }
+
+    // 转换语言代码
+    const {sourceLanguage, targetLanguage} = getTranslationLanguages(message);
+    const sourceLang = languageMap[sourceLanguage] || sourceLanguage;
+    const targetLang = languageMap[targetLanguage] || targetLanguage;
+
+    if (!targetLang || targetLang === 'auto') {
+        throw new Error('腾讯云机器翻译不支持目标语言自动检测');
+    }
+
+    // 构建 JSON 请求体
+    const requestBody = JSON.stringify({
+        SourceText: message.origin,
+        Source: sourceLang,
+        Target: targetLang,
+        ProjectId: 0,
+    });
+
+    const timestamp = Math.floor(Date.now() / 1000);
+    const authorization = await createTencentSignature(requestBody, timestamp, secretId, secretKey);
+    const service = message.serviceOverride || current.service;
+    const url = current.proxy[service] || 'https://tmt.tencentcloudapi.com/';
+
+    const response = await runtimeFetch(url, {
+        method: method.POST,
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Host': 'tmt.tencentcloudapi.com',
+            'Authorization': authorization,
+            'X-TC-Action': 'TextTranslate',
+            'X-TC-Version': '2018-03-21',
+            'X-TC-Region': 'ap-beijing',
+            'X-TC-Timestamp': timestamp.toString(),
+        },
+        body: requestBody,
+        signal: message.abortSignal,
+    });
+
+    if (!response.ok) {
+        throw createHttpStatusError(response, '腾讯云机器翻译请求失败');
+    }
+
+    const result = await readJsonResponse<any>(response, '腾讯云机器翻译返回的不是有效 JSON');
+    if (result.Response?.Error) {
+        throw createProviderCodeError('腾讯云机器翻译错误', result.Response.Error.Code);
+    }
+    if (result.Response?.TargetText) {
+        return result.Response.TargetText;
+    }
+    throw new Error('腾讯云机器翻译返回格式异常');
 }
 
 export default tencent;

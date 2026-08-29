@@ -166,15 +166,15 @@ async function main() {
         const absolute = path.join(PROJECT_ROOT, file);
         const source = await readFile(absolute, 'utf8');
 
-        // Step 1: 禁止覆盖率忽略注释，避免用注释伪造 100%。
+        // 步骤 1：禁止覆盖率忽略注释，避免用注释伪造 100%。
         const coverageIgnore = source.match(/\b(?:v8|istanbul|c8|coverage)\s+ignore\b/iu);
         if (coverageIgnore) errors.push(`${file} 包含覆盖率忽略指令`);
 
-        // Step 2: 用 TypeScript AST 提取 describe/it/test，避免简单 grep 漏掉 it.each。
+        // 步骤 2：用 TypeScript AST 提取 describe/it/test，避免简单 grep 漏掉 it.each。
         const {calls, problems} = collectTestCalls(file, source);
         errors.push(...problems);
 
-        // Step 3: 完整 suite+case 名不能重复，减少复制测试只改断言不改意图的情况。
+        // 步骤 3：完整 suite+case 名不能重复，减少复制测试只改断言不改意图的情况。
         for (const call of calls) {
             const key = call.fullName;
             const existing = fullNames.get(key);
@@ -186,7 +186,7 @@ async function main() {
         }
     }
 
-    // Step 4: 同一条 ignore 禁令覆盖业务源码与测试，不能把未覆盖分支藏在被测模块里。
+    // 步骤 4：同一条 ignore 禁令覆盖业务源码与测试，不能把未覆盖分支藏在被测模块里。
     for (const sourceRoot of SOURCE_ROOTS) {
         for (const absolute of await listAuditedSourceFiles(path.join(PROJECT_ROOT, sourceRoot))) {
             const source = await readFile(absolute, 'utf8');

@@ -31,7 +31,7 @@ export function createConfigHistoryHandler<T>(
     return {
         type: CONFIG_HISTORY_MESSAGE_TYPE,
         async handle(message) {
-            // Step 1: 在后台信任边界把未知 action 收窄为明确的历史操作。
+            // 步骤 1：在后台信任边界把未知 action 收窄为明确的历史操作。
             const action = message.action === 'undo'
                 || message.action === 'redo'
                 || message.action === 'restore'
@@ -39,7 +39,7 @@ export function createConfigHistoryHandler<T>(
                 : null;
             if (!action) return {success: false, error: '无效的配置历史操作'};
 
-            // Step 2: 只有有限数字版本才向 service 传递，其余值按“当前版本”处理。
+            // 步骤 2：只有有限数字版本才向 service 传递，其余值按“当前版本”处理。
             const version = typeof message.version === 'number' && Number.isFinite(message.version)
                 ? message.version
                 : undefined;

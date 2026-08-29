@@ -84,7 +84,7 @@ describe('full regression runner', () => {
         const plan = dryRun(['--browser', ...BROWSER_ARGS]);
         const browserSteps = plan.steps.filter((step: {phase: string}) => step.phase === 'browser');
 
-        expect(browserSteps).toHaveLength(6);
+        expect(browserSteps).toHaveLength(7);
         for (const step of browserSteps) {
             expect(step.gates).toEqual(['--browser']);
             expect(step.args).toContain('--focus-safe-helper');
@@ -140,6 +140,7 @@ describe('full regression runner', () => {
         expect(backgroundSteps.map((step: {id: string}) => step.id)).toEqual([
             'video-subtitle-fixture',
             'document-translation',
+            'settings-center-ui',
         ]);
         expect(backgroundSteps.every((step: {args: string[]}) => step.args.includes('--focus-safe-helper'))).toBe(true);
     });

@@ -11,7 +11,8 @@ function argument(name, fallback) {
 
 const extensionDir = path.resolve(argument('extension-dir', '.output/chrome-mv3'));
 const playwrightRoot = path.resolve(argument('playwright-root', ''));
-const focusHelper = path.resolve(argument('focus-helper', ''));
+// 统一回归 runner 使用 --focus-safe-helper；旧的 --focus-helper 仅保留为本脚本的兼容别名。
+const focusHelper = path.resolve(argument('focus-safe-helper', argument('focus-helper', '')));
 const artifactsDir = path.resolve(argument('artifacts-dir', '/private/tmp/fluentread-settings-center-ui'));
 const browserPath = argument('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge');
 const timeout = Number(argument('timeout', '30000'));
@@ -96,6 +97,7 @@ async function main() {
     artifactsDir,
     launchMode: null,
     focusPolicy: null,
+    windowPlacement: null,
     navigation: [],
     responsive: [],
     defaultServiceCard: {responsive: []},
@@ -123,6 +125,7 @@ async function main() {
     });
     report.launchMode = launched.launchMode;
     report.focusPolicy = launched.focusPolicy;
+    report.windowPlacement = launched.windowPlacement;
     const {context} = launched;
     let workers = context.serviceWorkers().filter(worker => worker.url().startsWith('chrome-extension://'));
     if (workers.length === 0) workers = [await context.waitForEvent('serviceworker', {timeout})];

@@ -8,10 +8,11 @@ function readSource(path: string): string {
 
 describe('standalone userscript privacy boundaries', () => {
     const userscriptStorage = readSource('userscript/storage.ts');
+    const userscriptCount = readSource('userscript/count.ts');
+    const userscriptMain = readSource('userscript/main.ts');
     const userscriptHttp = readSource('userscript/http.ts');
     const translationCache = readSource('src/services/translation/cache.ts');
     const legacyPageCache = readSource('src/services/translation/legacyPageCache.ts');
-    const legacyPageCacheShim = readSource('entrypoints/utils/legacyPageCache.ts');
     const gemini = readSource('src/providers/translation/gemini.ts');
     const httpError = readSource('src/platform/http/errors.ts');
 
@@ -22,13 +23,25 @@ describe('standalone userscript privacy boundaries', () => {
         expect(userscriptStorage).toContain('globalThis.GM_deleteValue');
     });
 
+    it('计数副本只使用随机 GM 命名空间，不把页面证据或凭据写入键名', () => {
+        expect(userscriptCount).toContain("'fluentread:count:v1:base:'");
+        expect(userscriptCount).toContain("'fluentread:count:v1:replica:'");
+        expect(userscriptCount).not.toMatch(/\b(?:location|localStorage|sessionStorage)\b/u);
+        expect(userscriptCount).not.toMatch(/config\.(?:token|proxy|custom)\b/u);
+    });
+
+    it('初始化失败和页面离开都会释放消息、可见性与设置监听器', () => {
+        expect(userscriptMain).toContain('browser.runtime.onMessage.removeListener(toggleTranslationListener)');
+        expect(userscriptMain).toContain('resetPlatformMessageHandler()');
+        expect(userscriptMain).toContain('disposeUserscriptRuntime?.()');
+        expect(userscriptMain).toContain("document.removeEventListener('visibilitychange', synchronizeVisibleCount)");
+    });
+
     it('migrates only FluentRead-owned legacy page-cache keys', () => {
         expect(legacyPageCache).not.toContain('.clear(');
         expect(legacyPageCache).toContain('key?.startsWith(LEGACY_TRANSLATION_CACHE_PREFIX)');
         expect(legacyPageCache).toContain('pageStorage.removeItem(LEGACY_CACHE_TIMESTAMP_KEY)');
         expect(legacyPageCache).not.toMatch(/(?:localStorage|sessionStorage)\.clear\(\)/);
-        expect(legacyPageCacheShim).toContain('@deprecated');
-        expect(legacyPageCacheShim).toContain("export * from '@/src/services/translation/legacyPageCache';");
     });
 
     it('uses per-entry hard TTL for the shared IndexedDB translation cache', () => {

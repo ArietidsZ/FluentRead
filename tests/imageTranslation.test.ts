@@ -115,8 +115,42 @@ describe('图片翻译 OCR 工具', () => {
     it('只允许通过扩展后台读取网页图片地址', () => {
         expect(normalizeRemoteImageUrl('https://cdn.example.com/image.png')).toBe('https://cdn.example.com/image.png');
         expect(normalizeRemoteImageUrl('http://cdn.example.com/image.png')).toBe('http://cdn.example.com/image.png');
+        expect(normalizeRemoteImageUrl('https://internal.example/image.png')).toBe('https://internal.example/image.png');
+        expect(normalizeRemoteImageUrl('https://8.8.8.8/image.png')).toBe('https://8.8.8.8/image.png');
+        expect(normalizeRemoteImageUrl('https://[2606:4700:4700::1111]/image.png'))
+            .toBe('https://[2606:4700:4700::1111]/image.png');
+        expect(normalizeRemoteImageUrl('https://[2001:4860:4860:0:0:0:0:8888]/image.png'))
+            .toBe('https://[2001:4860:4860::8888]/image.png');
+        expect(normalizeRemoteImageUrl('https://[2001:4860:1:2:3:4:5:6]/image.png'))
+            .toBe('https://[2001:4860:1:2:3:4:5:6]/image.png');
+        expect(normalizeRemoteImageUrl('https://[2001:4860::]/image.png'))
+            .toBe('https://[2001:4860::]/image.png');
+        expect(normalizeRemoteImageUrl('https://[::ffff:8.8.8.8]/image.png'))
+            .toBe('https://[::ffff:808:808]/image.png');
         expect(() => normalizeRemoteImageUrl('not a url')).toThrow('图片地址无效');
         expect(() => normalizeRemoteImageUrl('data:image/png;base64,AA==')).toThrow('只支持网页图片地址');
+        expect(() => normalizeRemoteImageUrl('https://user:secret@example.com/image.png')).toThrow('不能包含凭据');
+    });
+
+    it.each([
+        'http://localhost/image.png',
+        'http://assets.localhost/image.png',
+        'http://127.0.0.1/image.png',
+        'http://127.1/image.png',
+        'http://0.0.0.0/image.png',
+        'http://10.0.0.1/image.png',
+        'http://100.64.0.1/image.png',
+        'http://169.254.1.1/image.png',
+        'http://172.16.0.1/image.png',
+        'http://192.168.1.1/image.png',
+        'http://[::1]/image.png',
+        'http://[::]/image.png',
+        'http://[fe80::1]/image.png',
+        'http://[fc00::1]/image.png',
+        'http://[::ffff:127.0.0.1]/image.png',
+        'http://[::127.0.0.1]/image.png',
+    ])('拒绝本地、loopback、link-local 与私网 IP 字面量：%s', (url) => {
+        expect(() => normalizeRemoteImageUrl(url)).toThrow('本地或私有网络');
     });
 
     it('把远程图片字节转换成 OCR 可读取的数据地址', () => {

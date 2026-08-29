@@ -31,9 +31,8 @@ const protectedTextTags = new Set([
 ]);
 
 /**
- * Host pages can construct adversarially deep trees. Ancestor-dependent safety
- * checks run synchronously, so cap one lookup and conservatively prune beyond
- * the limit instead of blocking the renderer for hundreds of milliseconds.
+ * 宿主页可能构造恶意的超深节点树。依赖祖先的安全检查同步执行，因此单次查询必须
+ * 设置上限；超过上限时保守裁剪，避免让渲染线程阻塞数百毫秒。
  */
 export const maxComposedAncestorDepth = 512;
 
@@ -100,10 +99,9 @@ function hasContentEditableMarker(element: Element): boolean {
 }
 
 /**
- * MathJax v2/v3 and KaTeX render formulas into ordinary spans/divs rather than
- * native MathML. Their generated trees must remain atomic host-owned content:
- * translating or materializing an inner span can make restore remove the
- * visible formula while leaving only the hidden TeX source script behind.
+ * MathJax v2/v3 与 KaTeX 会把公式渲染为普通 span/div，而不是原生 MathML。
+ * 这些生成树必须作为宿主页拥有的原子内容保留：翻译或物化内部 span 后，恢复操作
+ * 可能删除可见公式，只留下隐藏的 TeX 源脚本。
  */
 export function isMathRendererElement(element: Element): boolean {
     const tagName = element.tagName.toLowerCase();
@@ -115,9 +113,8 @@ export function isMathRendererElement(element: Element): boolean {
 }
 
 /**
- * Descendant text guards are intentionally local. A protected inline child
- * must stay out of provider payloads without rejecting the readable paragraph
- * that contains it.
+ * 后代文本守卫刻意保持局部生效。受保护的内联子节点不能进入服务请求，
+ * 但不应因此拒绝包含它的可读段落。
  */
 export function isProtectedDescendantElement(
     element: Element,
@@ -147,8 +144,8 @@ export function evaluateElementHardGuard(element: Element): HardGuardResult {
 }
 
 /**
- * Hard guards are shared by initial discovery, hover resolution, mutations and
- * open Shadow DOM. Site adapters cannot override these safety boundaries.
+ * 初次发现、悬浮解析、DOM 变更和开放 Shadow DOM 共用同一组硬守卫；
+ * 站点适配器不能覆盖这些安全边界。
  */
 export function evaluateHardGuard(element: Element): HardGuardResult {
     let depth = 0;
@@ -182,6 +179,7 @@ function collectImmediateOpenShadowRoots(root: Node): ShadowRoot[] {
 }
 
 export function getOpenShadowRoots(root: Node): ShadowRoot[] {
+    // 逐层发现嵌套的开放 Shadow Root；closed root 不可见，也不应尝试穿透。
     const result: ShadowRoot[] = [];
     const seen = new Set<ShadowRoot>();
     const pending: Node[] = [root];
@@ -228,13 +226,13 @@ export function findNodeAtPoint(root: Document | ShadowRoot, x: number, y: numbe
         const caretPosition = document?.caretPositionFromPoint?.(x, y);
         if (caretPosition?.offsetNode && root.contains(caretPosition.offsetNode)) return caretPosition.offsetNode;
     } catch {
-        // Firefox-style caret lookup is optional and may reject shadow roots.
+        // Firefox 风格的光标命中 API 是可选能力，也可能拒绝 Shadow Root。
     }
     try {
         const range = document?.caretRangeFromPoint?.(x, y);
         if (range?.startContainer && root.contains(range.startContainer)) return range.startContainer;
     } catch {
-        // Chromium-style caret lookup is optional.
+        // Chromium 风格的光标命中 API 同样是可选能力。
     }
     return null;
 }

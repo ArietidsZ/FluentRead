@@ -5,6 +5,12 @@ import {createExtensionManifest} from '@/wxt.config';
 
 const PROJECT_ROOT = resolve(__dirname, '..');
 
+function sourceBody(path: string): string {
+    const source = readFileSync(resolve(PROJECT_ROOT, path), 'utf8');
+    const header = source.match(/^\/\*\*[\s\S]*?\*\/\s*/u)?.[0];
+    return header?.includes(`@file ${path}`) ? source.slice(header.length) : source;
+}
+
 function permissionsFor(browser: string, manifestVersion: 2 | 3): string[] {
     const manifest = createExtensionManifest({browser, manifestVersion} as Parameters<typeof createExtensionManifest>[0]);
     return manifest.permissions as string[];
@@ -29,7 +35,7 @@ describe('extension manifest capability contract', () => {
 
     it('keeps the Offscreen page entrypoint target-limited and delegates to the app composition root', () => {
         const html = readFileSync(resolve(PROJECT_ROOT, 'entrypoints/offscreen/index.html'), 'utf8');
-        const main = readFileSync(resolve(PROJECT_ROOT, 'entrypoints/offscreen/main.ts'), 'utf8');
+        const main = sourceBody('entrypoints/offscreen/main.ts');
         expect(html).toContain('<meta name="wxt.include" content="[\'chrome\', \'edge\']">');
         expect(html).toContain('<script type="module" src="./main.ts"></script>');
         expect(html).not.toContain('firefox');
@@ -44,5 +50,20 @@ describe('extension manifest capability contract', () => {
         expect(source).toContain('manifest: createExtensionManifest');
         expect(source).toContain("...(capabilities.offscreenDocument ? ['offscreen'] : [])");
         expect(source).not.toContain("permissions: ['storage', 'alarms', 'contextMenus', 'offscreen']");
+    });
+
+    it('从任意 YouTube 起始页预注入 timedtext bridge，但不扩大到非 YouTube 站点', () => {
+        const source = sourceBody('entrypoints/youtubeBridge.content.ts');
+        const matches = [...source.matchAll(/['"](\*:\/\/[^'"]+)['"]/gu)].map((match) => match[1]);
+
+        expect(matches).toEqual([
+            '*://*.youtube.com/*',
+            '*://youtube.com/*',
+        ]);
+        expect(source).toContain("runAt: 'document_start'");
+        expect(source).toContain("world: 'MAIN'");
+        expect(matches).not.toContain('*://*/*');
+        expect(matches.some((match) => match.includes('youtube-nocookie'))).toBe(false);
+        expect(matches.every((match) => match.includes('youtube'))).toBe(true);
     });
 });

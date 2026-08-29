@@ -17,7 +17,7 @@ import deeplx, {
     getDeepLXRequestLanguages,
     normalizeDeepLXLanguage,
 } from "@/src/providers/translation/deeplx";
-import {DEFAULT_DEEPLX_ENDPOINT, DEEPLX_ENDPOINT_PRESETS, getDeepLXEndpoints} from "@/entrypoints/utils/deeplx";
+import {DEFAULT_DEEPLX_ENDPOINT, DEEPLX_ENDPOINT_PRESETS, getDeepLXEndpoints} from '@/src/core/config/deeplx';
 
 const fetchMock = vi.fn<typeof fetch>();
 
@@ -130,6 +130,50 @@ describe("DeepLX adapter", () => {
         await expect(deeplx({origin: "Hello"})).resolves.toBe("你好");
 
         expect(fetchMock.mock.calls[0]?.[0]).toBe("https://freeapi.fanyimao.cn/translate?token=site-token");
+    });
+
+    it("单次 timeout 覆盖响应体读取，并真正中止 transport signal", async () => {
+        vi.useFakeTimers();
+        let transportSignal: AbortSignal | undefined;
+        fetchMock.mockImplementation((_input, init) => {
+            transportSignal = init?.signal ?? undefined;
+            return Promise.resolve(mockResponse({}, {
+                text: vi.fn(() => new Promise<string>((_resolve, reject) => {
+                    transportSignal?.addEventListener('abort', () => reject(transportSignal?.reason), {once: true});
+                })),
+            }));
+        });
+
+        const request = deeplx({origin: "Hello"});
+        const rejection = expect(request).rejects.toThrow("请求超时（8 秒）");
+        await vi.advanceTimersByTimeAsync(7_999);
+        expect(transportSignal?.aborted).toBe(false);
+        await vi.advanceTimersByTimeAsync(1);
+        await rejection;
+        expect(transportSignal?.aborted).toBe(true);
+        expect(fetchMock).toHaveBeenCalledOnce();
+    });
+
+    it("调用方取消响应体读取后不再尝试备用站点", async () => {
+        mockConfig.deeplx = "https://primary.example/translate,https://backup.example/translate";
+        const controller = new AbortController();
+        let transportSignal: AbortSignal | undefined;
+        const responseText = vi.fn(() => new Promise<string>((_resolve, reject) => {
+            transportSignal?.addEventListener('abort', () => reject(transportSignal?.reason), {once: true});
+        }));
+        fetchMock.mockImplementation((_input, init) => {
+            transportSignal = init?.signal ?? undefined;
+            return Promise.resolve(mockResponse({}, {
+                text: responseText,
+            }));
+        });
+
+        const request = deeplx({origin: "Hello", abortSignal: controller.signal});
+        await vi.waitFor(() => expect(responseText).toHaveBeenCalledOnce());
+        controller.abort(new Error('broker deadline'));
+        await expect(request).rejects.toThrow('broker deadline');
+        expect(transportSignal?.aborted).toBe(true);
+        expect(fetchMock).toHaveBeenCalledOnce();
     });
 
     it("normalizes Chinese language variants", () => {

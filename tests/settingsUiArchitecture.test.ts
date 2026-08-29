@@ -44,12 +44,12 @@ function settingsGroupTitles(content: string): string[] {
 
 describe('options UI composition architecture', () => {
   it('keeps the WXT options entrypoint as a thin app composition shell', () => {
-    const entrypoint = source('entrypoints/options/main.ts')
+    const entrypoint = sourceBody('entrypoints/options/main.ts')
     expect(entrypoint).toBe("import { mountOptionsApp } from '@/src/app/options'\n\nmountOptionsApp('#app')\n")
   })
 
   it('keeps the WXT popup entrypoint as a thin app composition shell', () => {
-    const entrypoint = source('entrypoints/popup/main.ts')
+    const entrypoint = sourceBody('entrypoints/popup/main.ts')
     expect(entrypoint).toBe("import {mountPopupApp} from '@/src/app/popup';\n\nmountPopupApp('#app');\n")
   })
 
@@ -78,6 +78,8 @@ describe('options UI composition architecture', () => {
     expect(popup).toContain('@/src/ui/components/CustomHotkeyInput.vue')
     expect(popup).toContain('@/src/ui/components/ServiceIcon.vue')
     expect(popup).toContain('@/src/platform/browser/ids')
+    expect(popup).toContain('requestConfigSave')
+    expect(popup).not.toMatch(/\bsaveConfig\b/u)
     expect(popup).not.toMatch(/(?:!tab\?\.id|filter\(tab\s*=>\s*tab\.id\))/u)
     expect(settingsSections).toContain('@/src/platform/browser/ids')
     expect(settingsSections).not.toMatch(/if\s*\(\s*!?tab\.id\s*\)/u)
@@ -93,6 +95,8 @@ describe('options UI composition architecture', () => {
     expect(settings).toContain('selectedVideoServiceUnavailableMessage')
     expect(settings).toContain('Chrome内置AI翻译（当前浏览器不可用）')
     expect(document).toContain('filterAvailableTranslationServices(options.services)')
+    expect(document).toContain('requestConfigSave')
+    expect(document).not.toMatch(/\bsaveConfig\b/u)
     expect(document).toContain('documentServiceUnavailableMessage')
     expect(translationCenter).toContain('filterAvailableTranslationServices(options.services)')
     expect(translationCenter).toContain('原配置会保留')

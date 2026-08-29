@@ -7,8 +7,8 @@
  */
 
 /**
- * The public endpoint is an unofficial DeepLX deployment. Keep it explicit so
- * users can replace it with a local or self-hosted endpoint at any time.
+ * 公共 endpoint 是非官方 DeepLX 部署，因此保持显式配置，方便用户随时替换为
+ * 本地或自行托管的 endpoint。
  */
 export const DEFAULT_DEEPLX_ENDPOINT = "https://deeplx.1stg.me/translate"
 

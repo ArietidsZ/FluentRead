@@ -106,11 +106,11 @@ function parseConfigPersistenceMessage(
 ): ParsedConfigPersistenceRequest {
     if (!isPlainRecord(message.config)) throw new TypeError('配置保存 payload 缺少有效 config');
 
-    // Step 1: clientId/sequence 是 latest-write-wins 的身份和版本边界。
+    // 步骤 1：clientId/sequence 是 latest-write-wins 的身份和版本边界。
     const clientId = parseClientId(message.clientId, context.sender);
     const sequence = parseSequence(message.sequence);
 
-    // Step 2: 只有扩展自身页面可以更新凭据；content/page 消息只能保存公开字段。
+    // 步骤 2：只有扩展自身页面可以更新凭据；content/page 消息只能保存公开字段。
     const senderUrl = typeof context.sender?.url === 'string' ? context.sender.url : '';
     return {
         config: message.config,
@@ -143,7 +143,7 @@ export function createConfigPersistenceHandler<TConfig>(
             const persist = persistQueue
                 .catch(() => undefined)
                 .then(() => runMutation(async () => {
-                    // Step 1: 队列轮到当前请求时再判断它是否仍是该 client 的最新序列。
+                    // 步骤 1：队列轮到当前请求时再判断它是否仍是该 client 的最新序列。
                     if (request.sequence && latestSequenceByClient.get(request.clientId) !== request.sequence) {
                         return dependencies.getCurrentRevision?.() ?? 0;
                     }
@@ -156,7 +156,7 @@ export function createConfigPersistenceHandler<TConfig>(
                         throw new Error(`配置已更新（当前 revision ${currentRevision}），请同步后重试`);
                     }
 
-                    // Step 2: 使用注入的 prepare/save 保持凭据策略、规范化和历史记录行为。
+                    // 步骤 2：使用注入的 prepare/save 保持凭据策略、规范化和历史记录行为。
                     const prepared = dependencies.prepareConfigSaveRequest(
                         request.config,
                         dependencies.getCurrentConfig(),

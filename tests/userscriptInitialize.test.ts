@@ -1,8 +1,13 @@
-import {afterEach, describe, expect, it} from 'vitest';
-import {Config} from '@/entrypoints/utils/model';
-import {getApiKeyRequirementKey} from '@/entrypoints/utils/configValidation';
-import {customModelString, defaultModels, services} from '@/entrypoints/utils/option';
-import {ensureUserscriptConfig, normalizeUserscriptConfig} from '@/userscript/initialize';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {Config} from '@/src/core/config/model';
+import {getApiKeyRequirementKey} from '@/src/core/config/validation';
+import {customModelString, defaultModels, services} from '@/src/core/config/catalog';
+import {normalizeUserscriptConfig} from '@/userscript/initialize';
+
+async function ensureUserscriptConfigForTest(): Promise<void> {
+    const {ensureUserscriptConfig} = await import('@/userscript/initialize');
+    await ensureUserscriptConfig();
+}
 
 function installLegacyStorage(entries: Array<[string, unknown]>) {
     const values = new Map<string, unknown>(entries);
@@ -12,6 +17,7 @@ function installLegacyStorage(entries: Array<[string, unknown]>) {
         writes += 1;
         values.set(key, value);
     };
+    globalThis.GM_listValues = () => [...values.keys()];
     return {values, get writes() { return writes; }};
 }
 
@@ -20,9 +26,12 @@ function readStoredConfig(values: Map<string, unknown>): Config {
 }
 
 describe('legacy userscript migration', () => {
+    beforeEach(() => vi.resetModules());
+
     afterEach(() => {
         globalThis.GM_getValue = undefined;
         globalThis.GM_setValue = undefined;
+        globalThis.GM_listValues = undefined;
     });
 
     it('migrates legacy identity-scoped GM settings into Config', async () => {
@@ -36,7 +45,7 @@ describe('legacy userscript migration', () => {
             ['openai_url', 'https://gateway.example.test/v1/chat/completions'],
         ]);
 
-        await ensureUserscriptConfig();
+        await ensureUserscriptConfigForTest();
 
         const stored = readStoredConfig(values);
         expect(stored.service).toBe('openai');
@@ -72,7 +81,7 @@ describe('legacy userscript migration', () => {
             ['userMsg', 'Legacy user prompt with {{origin}} and {{to}}'],
         ]);
 
-        await ensureUserscriptConfig();
+        await ensureUserscriptConfigForTest();
 
         const stored = readStoredConfig(values);
         expect(stored.service).toBe(services.custom);
@@ -111,7 +120,7 @@ describe('legacy userscript migration', () => {
             ['local:config', JSON.stringify(existing)],
         ]);
 
-        await ensureUserscriptConfig();
+        await ensureUserscriptConfigForTest();
 
         const stored = readStoredConfig(values);
         expect(stored.service).toBe(services.microsoft);
@@ -125,15 +134,17 @@ describe('legacy userscript migration', () => {
         expect(stored.extra).toEqual({preserved: true});
     });
 
-    it('does not rewrite an already-safe config only because it has an internal revision', async () => {
+    it('只为已有安全配置建立一次计数基数，不因内部 revision 重写配置', async () => {
         const safe = normalizeUserscriptConfig(new Config()) as Config & {__fluentConfigRevision?: number};
         safe.__fluentConfigRevision = 7;
         const storage = installLegacyStorage([
             ['local:config', JSON.stringify(safe)],
         ]);
 
-        await ensureUserscriptConfig();
+        await ensureUserscriptConfigForTest();
 
-        expect(storage.writes).toBe(0);
+        expect(storage.writes).toBe(1);
+        expect([...storage.values.keys()].some((key) => key.startsWith('fluentread:count:v1:base:'))).toBe(true);
+        expect((readStoredConfig(storage.values) as Config & {__fluentConfigRevision?: number}).__fluentConfigRevision).toBe(7);
     });
 });

@@ -21,7 +21,7 @@ export const services = {
     chromeTranslator: "chromeTranslator", // Chrome 内置翻译 API
     // 大模型翻译
     openai: "openai",
-    azureOpenai: "azureOpenai", // Azure OpenAI
+    azureOpenai: "azureOpenai", // Azure OpenAI 服务
     gemini: "gemini",
     yiyan: "yiyan",
     tongyi: "tongyi",
@@ -30,7 +30,6 @@ export const services = {
     claude: "claude",
     custom: "custom",
     infini: "infini",
-    // baidu: 'baidu',
     baichuan: "baichuan",
     lingyi: "lingyi",
     deepseek: "deepseek",
@@ -44,7 +43,7 @@ export const services = {
     huanYuanTranslation: "huanYuanTranslation", // 腾讯混元翻译大模型
     doubao: "doubao", // 字节豆包
     siliconCloud: "siliconCloud", // 硅流
-    openrouter: "openrouter", // openrouter
+    openrouter: "openrouter", // OpenRouter 聚合服务
     grok: "grok", // X.AI 的 Grok
     newapi: "newapi", // New API 接口
 };
@@ -250,7 +249,7 @@ export const mimoRegions = [
 
 export type MiMoRegion = typeof mimoRegions[number]["value"];
 
-/** Resolve the model that is actually sent to a provider. */
+/** 解析实际发送给 provider 的模型。 */
 export function resolveConfiguredModel(selectedModel?: string, customModel?: string): string {
     return selectedModel === customModelString ? customModel || '' : selectedModel || '';
 }
@@ -333,7 +332,7 @@ export const models = new Map<string, Array<string>>([
     [services.grok, [defaultModelIds[services.grok], currentModelIds.grok, customModelString]],
     [services.doubao, ["doubao-seed-1-6-250615", customModelString]],
 
-    // mix model
+    // 混合模型。
     [services.siliconCloud, [defaultModelIds[services.siliconCloud], "deepseek-ai/DeepSeek-V4-Pro", "zai-org/GLM-5.2", "Qwen/Qwen3.6-27B", "Qwen/Qwen3.6-35B-A3B", "deepseek-ai/DeepSeek-V3.2", "deepseek-ai/DeepSeek-R1", customModelString]],
 
     [services.groq, [defaultModelIds[services.groq], currentModelIds.groqLarge, "qwen/qwen3.6-27b", customModelString]],

@@ -14,14 +14,17 @@ import {config} from "@/src/services/config/store";
 import {isApiKeyRequired} from "@/src/core/config/validation";
 import {createHttpStatusError, readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
-import {getTranslationProviderConfig} from '@/src/services/translation/requestSnapshot';
+import {
+    getTranslationProviderConfig,
+    type TranslationProviderRequest,
+} from '@/src/services/translation/requestSnapshot';
 
 
 const JWT_CACHE_DURATION_MS = 3600000 * 24;
 const jwtCache = new Map<string, {apiKey: string; secret: string; expiration: number}>();
 
 // 文档参考：https://open.bigmodel.cn/dev/api#nosdk
-async function zhipu(message: any) {
+async function zhipu(message: TranslationProviderRequest<string>) {
     const current = getTranslationProviderConfig(message, config);
     const service = message.serviceOverride || services.zhipu;
     // 智谱根据 token 获取 secret（签名密钥） 和 expiration
@@ -49,7 +52,8 @@ async function zhipu(message: any) {
     const resp = await runtimeFetch(urls[services.zhipu], {
         method: method.POST,
         headers: headers,
-            body: commonMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current)
+        body: commonMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current),
+        signal: message.abortSignal,
     });
 
     if (resp.ok) {

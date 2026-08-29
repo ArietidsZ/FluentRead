@@ -4,6 +4,7 @@
 // 该脚本只操作本次创建的隔离 profile，不连接用户正在使用的浏览器。
 
 const fs = require('node:fs');
+const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const { createRequire } = require('node:module');
@@ -553,6 +554,37 @@ async function main() {
   let translationRequestCount = 0;
   const translationRequestEvents = [];
   let translationResponseDelayMs = 0;
+  const translationServer = http.createServer(async (request, response) => {
+    if (request.method !== 'POST' || request.url !== '/translate') {
+      response.writeHead(404).end();
+      return;
+    }
+    const chunks = [];
+    for await (const chunk of request) chunks.push(chunk);
+    translationRequestCount += 1;
+    translationRequestEvents.push(Date.now());
+    if (translationResponseDelayMs > 0) {
+      await new Promise(resolve => setTimeout(resolve, translationResponseDelayMs));
+    }
+    let source = '';
+    try {
+      const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      source = Array.isArray(body) ? String(body[0] || '') : String(body?.[0] || body?.text || '');
+    } catch {
+      source = '';
+    }
+    response.writeHead(200, {
+      'access-control-allow-origin': '*',
+      'content-type': 'application/json; charset=utf-8',
+    });
+    response.end(JSON.stringify([{ translations: [{ text: `测试译文：${source}` }] }]));
+  });
+  await new Promise((resolve, reject) => {
+    translationServer.once('error', reject);
+    translationServer.listen(0, '127.0.0.1', resolve);
+  });
+  const translationAddress = translationServer.address();
+  const translationFixtureUrl = `http://127.0.0.1:${translationAddress.port}/translate`;
 
   try {
     const browserArgs = [
@@ -597,6 +629,24 @@ async function main() {
       });
     };
     attachWorkerDiagnostics(worker);
+    const installTranslationFixture = (target) => target.evaluate((fixtureUrl) => {
+      if (globalThis.__fluentReadSelectionFixtureFetchInstalled) return;
+      const nativeFetch = globalThis.fetch.bind(globalThis);
+      globalThis.fetch = (input, init) => {
+        const requestUrl = typeof input === 'string' || input instanceof URL ? String(input) : input.url;
+        return requestUrl.startsWith('https://edge.microsoft.com/translate/translatetext')
+          ? nativeFetch(fixtureUrl, init)
+          : nativeFetch(input, init);
+      };
+      globalThis.__fluentReadSelectionFixtureFetchInstalled = true;
+    }, translationFixtureUrl);
+    await installTranslationFixture(worker);
+    context.on('serviceworker', (target) => {
+      attachWorkerDiagnostics(target);
+      void installTranslationFixture(target).catch((error) => {
+        result.consoleErrors.push(`worker fixture install: ${error.message}`);
+      });
+    });
     result.extensionId = extensionId;
 
     await context.route('https://example.com/**', async (route) => {
@@ -606,26 +656,6 @@ async function main() {
         body: '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>FluentRead selection fixture</title></head><body><main></main></body></html>',
       });
     });
-    await context.route('https://edge.microsoft.com/translate/translatetext**', async (route) => {
-      translationRequestCount += 1;
-      translationRequestEvents.push(Date.now());
-      if (translationResponseDelayMs > 0) {
-        await new Promise(resolve => setTimeout(resolve, translationResponseDelayMs));
-      }
-      let source = '';
-      try {
-        const body = route.request().postDataJSON();
-        source = Array.isArray(body) ? String(body[0] || '') : String(body?.[0] || body?.text || '');
-      } catch {
-        source = '';
-      }
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify([{ translations: [{ text: `测试译文：${source}` }] }]),
-      });
-    });
-
     const popup = await createIsolatedPage(context);
     popup.on('pageerror', (error) => result.consoleErrors.push(`popup pageerror: ${error.message}`));
     popup.on('console', (message) => {
@@ -1052,6 +1082,7 @@ async function main() {
     process.exitCode = 1;
   } finally {
     await closeBrowser();
+    await new Promise(resolve => translationServer.close(resolve));
     fs.rmSync(profileDir, { recursive: true, force: true });
   }
 }

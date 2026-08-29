@@ -2,6 +2,7 @@ import {Config, normalizeConfig} from '@/src/core/config/model';
 import {getApiKeyRequirementKey} from '@/src/core/config/validation';
 import {customModelString, defaultModels, models, services, servicesType} from '@/src/core/config/catalog';
 import {getStoredValue, setStoredValue} from './storage';
+import {initializeUserscriptCount} from './count';
 
 const CONFIG_STORAGE_KEY = 'local:config';
 
@@ -44,7 +45,7 @@ export function isUserscriptServiceSupported(service: unknown): service is strin
     return typeof service === 'string' && supportedUserscriptServices.has(service);
 }
 
-/** Keep extension-only capabilities disabled even when an existing GM config enables them. */
+/** 即使已有 GM 配置启用了扩展专属能力，userscript 启动时也要强制关闭这些能力。 */
 export function normalizeUserscriptConfig(value: unknown): Config {
     const next = normalizeConfig(value);
     if (!isUserscriptServiceSupported(next.service)) next.service = services.microsoft;
@@ -89,6 +90,10 @@ function allowLegacyOllamaWithoutApiKey(next: Config): void {
     next.requireApiKey[getApiKeyRequirementKey(services.custom, next)] = false;
 }
 
+/**
+ * 把 2024 版 userscript 的分散键迁移为当前统一配置，同时保留可识别的模型、凭据与模板。
+ * 迁移只在统一配置不存在时执行，旧键不会在每次启动时反复覆盖用户的新设置。
+ */
 async function migrateLegacyConfig(): Promise<Config> {
     const next = new Config();
     next.disableFloatingBall = false;
@@ -139,17 +144,25 @@ async function migrateLegacyConfig(): Promise<Config> {
     return normalizeUserscriptConfig(next);
 }
 
-/** Seed or migrate once, then enforce the userscript capability boundary on every startup. */
+/** 首次运行时写入或迁移配置；之后每次启动仍重新收紧 userscript 能力边界。 */
 export async function ensureUserscriptConfig(): Promise<void> {
     const existing = await getStoredValue(CONFIG_STORAGE_KEY);
+    let safe: Config;
     if (existing === null || existing === undefined) {
-        await setStoredValue(CONFIG_STORAGE_KEY, await migrateLegacyConfig());
-        return;
+        safe = await migrateLegacyConfig();
+        await setStoredValue(CONFIG_STORAGE_KEY, safe);
+    } else {
+        const normalized = normalizeConfig(existing);
+        safe = normalizeUserscriptConfig(existing);
+        if (JSON.stringify(normalized) !== JSON.stringify(safe)) {
+            await setStoredValue(CONFIG_STORAGE_KEY, safe);
+        }
     }
 
-    const normalized = normalizeConfig(existing);
-    const safe = normalizeUserscriptConfig(existing);
-    if (JSON.stringify(normalized) !== JSON.stringify(safe)) {
+    // G-counter 才是 userscript 的计数事实来源；启动时修复可能被旧标签回写的显示投影。
+    const authoritativeCount = await initializeUserscriptCount(safe.count);
+    if (safe.count !== authoritativeCount) {
+        safe.count = authoritativeCount;
         await setStoredValue(CONFIG_STORAGE_KEY, safe);
     }
 }

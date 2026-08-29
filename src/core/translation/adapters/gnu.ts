@@ -8,7 +8,7 @@
 
 import {createDeclarativeAdapter} from './declarative';
 
-/** Texinfo HTML uses plain divs for its previous/next navigation panel. */
+/** Texinfo HTML 的上一页/下一页导航面板只使用普通 div，需要通过站点规则明确排除。 */
 export const gnuManualAdapter = createDeclarativeAdapter({
     id: 'gnu-manual',
     priority: 360,

@@ -29,6 +29,7 @@ function headersToRecord(headers: Headers): Record<string, string> {
     return result;
 }
 
+/** 合并 Request 与 RequestInit；必要时先克隆并读取一次性请求体，供 GM API 复用。 */
 async function resolveRequest(input: RequestInfo | URL, init?: RequestInit): Promise<{
     url: string;
     method: string;
@@ -75,10 +76,11 @@ function shouldUseNativeFetch(url: string): boolean {
     }
 }
 
-/** Fetch-compatible transport backed by the legacy GM API supported by Via. */
+/** 以 Via 支持的旧式 GM API 实现兼容 fetch 的传输层。 */
 export const userscriptFetch: RuntimeFetch = async (input, init) => {
     const request = await resolveRequest(input, init);
     const gmRequest = globalThis.GM_xmlhttpRequest;
+    // GM_xmlhttpRequest 只接管 HTTP(S) 跨域请求；blob/data 等协议仍交给网页原生 fetch。
     if (!gmRequest || shouldUseNativeFetch(request.url)) {
         return globalThis.fetch(input, init);
     }
@@ -88,6 +90,7 @@ export const userscriptFetch: RuntimeFetch = async (input, init) => {
     return new Promise<Response>((resolve, reject) => {
         let settled = false;
         let handle: UserscriptXmlHttpRequestHandle | void;
+        // 所有 GM 回调与 AbortSignal 共用一次性完成门，避免取消后迟到回调重复结算。
         const finish = (callback: () => void) => {
             if (settled) return;
             settled = true;
@@ -109,9 +112,8 @@ export const userscriptFetch: RuntimeFetch = async (input, init) => {
                 onload(response) {
                     finish(() => {
                         const status = response.status >= 200 && response.status <= 599 ? response.status : 200;
-                        // Via documents responseText but not the optional
-                        // responseType/anonymous extensions used by desktop
-                        // managers, so text is the portable baseline.
+                        // Via 只明确支持 responseText，未声明桌面脚本管理器提供的可选
+                        // responseType/anonymous 扩展，因此以文本作为可移植基线。
                         const body = response.responseText ?? String(response.response || '');
                         resolve(new Response(body as BodyInit | null, {
                             status,

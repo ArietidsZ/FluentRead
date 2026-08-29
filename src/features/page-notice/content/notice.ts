@@ -28,9 +28,7 @@ function getMissingCredentialNotice(message: string): MissingCredentialNotice | 
         }
     }
 
-    // Retain a settings action for legacy adapters that only return a generic
-    // “not configured” sentence, while never treating invalid/expired keys as
-    // missing credentials.
+    // 兼容只返回笼统“未配置”文案的旧适配器，同时绝不把无效或过期密钥误判成缺少凭据。
     if (!/(?:尚未(?:完整)?配置|还没有配置|未配置|请先配置)/u.test(message)) return null;
     const credentialLabel = message.match(
         /API Key(?:（访问令牌）)?|App Key(?:\s*和\s*App Secret)?|SecretId(?:\s*和\s*SecretKey)?/iu,

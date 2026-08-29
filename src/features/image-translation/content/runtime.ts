@@ -57,8 +57,7 @@ function ensureImageOverlayRoot(): HTMLDivElement {
         'pointer-events: none !important',
         'z-index: 2147483646 !important',
     ].join(';');
-    // The canvas can contain pixels fetched from a cross-origin image. Do not
-    // expose the extension-owned controls or rendered bitmap to page scripts.
+    // Canvas 可能包含由扩展权限获取的跨源图片像素，不能向页面脚本暴露控件或译图。
     const shadow = host.attachShadow({ mode: 'closed' });
     const style = document.createElement('style');
     style.textContent = `
@@ -116,6 +115,7 @@ function clearHoverTimer(state: ImageTranslationState): void {
 }
 
 function removeState(state: ImageTranslationState): void {
+    // 先中止请求并断开所有观察器/监听器，再删除 DOM 与索引，避免失效回调复活状态。
     clearHoverTimer(state);
     state.abortController?.abort();
     state.resizeObserver?.disconnect();
@@ -162,6 +162,7 @@ function createState(image: HTMLImageElement): ImageTranslationState {
         event.stopPropagation();
     });
     button.addEventListener('click', event => {
+        // 只有可信用户手势能触发翻译或恢复，宿主页派发的合成事件直接忽略。
         if (!event.isTrusted) return;
         event.preventDefault();
         event.stopPropagation();

@@ -23,6 +23,7 @@ import {
   sanitizeSubtitleFilename,
   type VideoSubtitleCue,
 } from './youtubeSubtitleData';
+import {validateYoutubeTimedTextMessage} from './youtubeTimedTextMessage';
 
 export const VIDEO_CAPTION_CONTAINER_SELECTOR = '#ytp-caption-window-container, .ytp-caption-window-container';
 export const VIDEO_CAPTION_SEGMENT_SELECTOR = '.ytp-caption-segment';
@@ -44,8 +45,6 @@ const VIDEO_NORMALIZED_CAPTION_ACTIVE_CLASS = 'fluent-read-video-normalized-capt
 const VIDEO_SUBTITLE_PANEL_ACTIVE_CLASS = 'fluent-read-video-subtitle-panel-active';
 
 const YOUTUBE_HOST_PATTERN = /(^|\.)youtube\.com$/i;
-const YOUTUBE_MOBILE_HOST_PATTERN = /(^|\.)youtube-nocookie\.com$/i;
-const YOUTUBE_TIMED_TEXT_MESSAGE = 'fluent-read-youtube-timedtext';
 
 const VIDEO_DISPLAY_MODE_LABELS: Record<VideoSubtitleDisplayMode, string> = {
   bilingual: '双语',
@@ -256,8 +255,8 @@ function downloadSubtitleSrt(cues: VideoSubtitleCue[], languageCode: string): vo
 }
 
 export function isYouTubeVideoPage(locationLike: Pick<Location, 'hostname' | 'pathname'> = window.location): boolean {
-  const isYouTubeHost = YOUTUBE_HOST_PATTERN.test(locationLike.hostname) || YOUTUBE_MOBILE_HOST_PATTERN.test(locationLike.hostname);
-  return isYouTubeHost && (locationLike.pathname === '/watch' || locationLike.pathname === '/shorts');
+  return YOUTUBE_HOST_PATTERN.test(locationLike.hostname)
+    && (locationLike.pathname === '/watch' || locationLike.pathname.startsWith('/shorts/'));
 }
 
 /** 读取当前播放器可见的原生字幕，不读取插件自己的译文节点。 */
@@ -1308,14 +1307,10 @@ export function mountVideoSubtitleTranslation(): () => void {
 
   const handleTimedTextMessage = (event: MessageEvent) => {
     if (event.source !== window || event.origin !== window.location.origin) return;
-    const data = event.data as { source?: unknown; type?: unknown; url?: unknown; responseText?: unknown } | null;
-    if (data?.source !== 'fluent-read' || data.type !== YOUTUBE_TIMED_TEXT_MESSAGE) return;
-    if (typeof data.url !== 'string' || typeof data.responseText !== 'string') return;
-
-    const cues = finalizeVideoSubtitleCues(parseYoutubeTimedTextResponse(data.responseText));
-    if (cues.length === 0) return;
-    const key = getTimedTextCacheKey(data.url);
-    const entry = { url: data.url, cues };
+    const validated = validateYoutubeTimedTextMessage(event.data, window.location.href);
+    if (!validated) return;
+    const key = getTimedTextCacheKey(validated.url);
+    const entry = validated;
     capturedSubtitleTracks.delete(key);
     capturedSubtitleTracks.set(key, entry);
     if (canTranslateVideo()) {
