@@ -400,9 +400,11 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
 
         try {
             const result = await Promise.race([operation, timeout]);
+            clearTimeout(timer!);
             void persistModelUsage(execution, message, observations, startedAt, 'success', usageGeneration);
             return result;
         } catch (error) {
+            clearTimeout(timer!);
             const lastObservation = observations.at(-1);
             const errorOutcome = modelUsageOutcome(error);
             const outcome = errorOutcome === 'error' && lastObservation?.statusCode === 408
@@ -419,8 +421,6 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             }
             void persistModelUsage(execution, message, observations, startedAt, outcome, usageGeneration);
             throw error;
-        } finally {
-            clearTimeout(timer!);
         }
     }
 

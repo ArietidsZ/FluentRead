@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/SettingsSections.vue
  * 文件职责：承载 FluentRead Options 页面各业务设置分区，连接运行时配置、服务选择、快捷键、站点规则、翻译中心、OCR、词书以及导入导出和历史恢复。
- * 主要内容：模板按 activeSection 展示常规、外观、服务、视频、隐私等控件；脚本协调配置快照保存、加密凭据保存、历史游标、能力过滤、连接测试、文件传输和页面离开 flush。
+ * 主要内容：模板按 activeSection 展示常规、外观、服务、视频、X/Grok 原生翻译、隐私等控件；脚本协调配置快照保存、加密凭据保存、历史游标、能力过滤、连接测试、文件传输和页面离开 flush。
  * 模块边界：该组件负责设置 UI 编排但不实现 provider 网络、配置仓库或 feature 运行时；校验与迁移来自 core/config，持久化经 services/config，复杂子界面保持在各自 feature/组件内。
  -->
 <template>
@@ -541,6 +541,22 @@
       v-show="props.activeSection === 'settings-model-usage'"
       :active="props.activeSection === 'settings-model-usage'"
     />
+
+    <section v-show="props.activeSection === 'settings-advanced'" class="settings-section settings-section-continuation">
+      <SettingsGroup title="X 原生翻译" description="浏览 X 时直接使用站点提供的 Grok 翻译，目标语言与可用性由 X 决定。">
+        <SettingsItem
+          label="Grok 自动翻译帖子"
+          description="对每个出现的可翻译帖子自动触发；开启后 FluentRead 不再翻译 X 帖子正文，也不会修改 X 账号设置。没有入口时保留原文。"
+        >
+          <el-switch
+            v-model="config.xGrokAutoTranslateEnabled"
+            class="settings-toggle"
+            aria-label="X Grok 自动翻译帖子"
+          />
+        </SettingsItem>
+      </SettingsGroup>
+    </section>
+
     <ConfigManagement v-show="props.activeSection === 'settings-data'" id="settings-data" :config="config" />
   </div>
 

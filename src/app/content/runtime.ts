@@ -1,7 +1,7 @@
 /**
  * @file src/app/content/runtime.ts
  * 文件职责：作为内容脚本应用的顶层 composition root，协调配置就绪、站点规则、公共样式、主世界桥、功能注册表、快捷键和消息监听生命周期。
- * 主要内容：安装内联 page.css，构建输入框与页面 feature registry，按 capability 和配置挂载全文周边、悬浮、划词、区域、图片、视频等能力；订阅配置变化并处理停用、恢复与销毁。
+ * 主要内容：安装内联 page.css，构建输入框与页面 feature registry，按 capability 和配置挂载全文周边、X/Grok 原生翻译、悬浮、划词、区域、图片、视频等能力；订阅配置变化并处理停用、恢复与销毁。
  * 模块边界：本文件只负责依赖装配和页面激活所有权，不实现具体翻译算法、组件内部状态、provider 请求或配置存储；这些职责分别属于 features、services 与 platform。
  */
 import type {ContentScriptContext} from 'wxt/utils/content-script-context';
@@ -20,27 +20,19 @@ import {
     type ContentRuntimeMessageHandler,
 } from './messageRuntime';
 import {
-    autoTranslateEnglishPage,
-    cancelPendingHoverTranslation,
-    createInputTranslationContentFeature,
-    handleTranslation,
-    inputBoxTranslationConfigKey,
-    isAreaTranslatorMounted,
-    isFullPageTranslationActive,
-    mountAreaTranslator,
-    mountFloatingBall,
-    mountHoverTranslationContentFeature,
-    mountImageTranslator,
-    mountSelectionTranslator,
-    mountTranslationProgressPanel,
-    mountVideoSubtitleTranslation,
-    isYouTubeVideoPage,
-    restoreOriginalContent,
-    unmountAreaTranslator,
-    unmountFloatingBall,
-    unmountImageTranslator,
-    unmountSelectionTranslator,
-    unmountTranslationProgressPanel,
+    autoTranslateEnglishPage, cancelPendingHoverTranslation,
+    createInputTranslationContentFeature, handleTranslation,
+    inputBoxTranslationConfigKey, isAreaTranslatorMounted,
+    isFullPageTranslationActive, isXGrokAutoTranslateMounted,
+    isXGrokAutoTranslatePage, isYouTubeVideoPage,
+    mountAreaTranslator, mountFloatingBall,
+    mountHoverTranslationContentFeature, mountImageTranslator,
+    mountSelectionTranslator, mountTranslationProgressPanel,
+    mountVideoSubtitleTranslation, mountXGrokAutoTranslate,
+    restoreOriginalContent, unmountAreaTranslator,
+    unmountFloatingBall, unmountImageTranslator,
+    unmountSelectionTranslator, unmountTranslationProgressPanel,
+    unmountXGrokAutoTranslate,
 } from './features';
 import pageStyles from './page.css?inline';
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
@@ -73,6 +65,7 @@ export async function startContentApp(ctx: ContentScriptContext,
         window.location.href,
         config.disabledExtensionDomains,
     );
+    if (!config.on || currentPageSiteDisabled || config.xGrokAutoTranslateEnabled !== true) unmountXGrokAutoTranslate();
     let unsubscribeContentConfig: (() => void) | null = null;
     let runtimeMessageListener: ContentRuntimeMessageHandler | null = null;
     let cleanedUp = false;
@@ -99,7 +92,6 @@ export async function startContentApp(ctx: ContentScriptContext,
             isDisabled: currentPageSiteDisabled,
         }).catch(() => undefined);
     };
-
     const isPageRuntimeEnabled = (): boolean => !cleanedUp && !currentPageSiteDisabled && config.on !== false;
     let pageAvailability: ContentPageAvailabilityRuntime | null = null;
 
@@ -145,8 +137,21 @@ export async function startContentApp(ctx: ContentScriptContext,
             shouldReserveSelectionShortcut: hotkeys.shouldReserveSelectionShortcut,
         }, activationController.signal);
         hotkeys.installFloatingBallHotkey(activationController.signal);
-
         const pageFeatureRegistry = createContentFeatureRegistry([
+            {
+                id: 'x-grok-auto-translation',
+                isEnabled: () => config.on && config.xGrokAutoTranslateEnabled === true && isXGrokAutoTranslatePage(window.location.href),
+                mount: () => {
+                    restoreOriginalContent();
+                    resetPageTranslationContextCache();
+                    mountXGrokAutoTranslate();
+                },
+                unmount: () => {
+                    unmountXGrokAutoTranslate();
+                    resetPageTranslationContextCache();
+                },
+                isMounted: isXGrokAutoTranslateMounted,
+            },
             {
                 id: 'floating-ball',
                 isEnabled: () => config.on && config.disableFloatingBall !== true,
@@ -234,13 +239,11 @@ export async function startContentApp(ctx: ContentScriptContext,
     };
     ctx.onInvalidated(cleanup);
     window.addEventListener('beforeunload', cleanup, {once: true});
-
     runtimeMessageListener = createContentRuntimeMessageHandler(ctx, {
         isSiteDisabled: () => currentPageSiteDisabled, updateSiteDisabled: applySiteDisabledState,
     }, capabilities);
     browser.runtime.onMessage.addListener(runtimeMessageListener);
     reportSiteDisabledState();
-
     unsubscribeContentConfig = subscribeConfig((nextConfig) => {
         const nextInputBoxConfigKey = inputBoxTranslationConfigKey(nextConfig);
         if (nextInputBoxConfigKey !== previousInputBoxConfigKey) {
@@ -256,7 +259,6 @@ export async function startContentApp(ctx: ContentScriptContext,
             void applySiteDisabledState(nextSiteDisabled);
             return;
         }
-
         // 总开关是 content 生命周期的权威边界；配置历史/导入/其他上下文同步
         // 不依赖 popup/options 的易丢广播，也必须完整恢复 DOM 和释放所有 feature。
         if (pageAvailability!.needsLifecycleReconcile()) {
@@ -265,11 +267,9 @@ export async function startContentApp(ctx: ContentScriptContext,
         }
         if (!isPageRuntimeEnabled()) return;
         void activePageFeatureRegistry?.reconcileEnabled();
-
         // 关闭“始终翻译”不撤销当前会话；只处理 false -> true，避免 storage.watch 同值回声。
         pageAvailability!.refreshAutoTranslation();
     });
-
     // 先订阅再跨越首次 activation，避免初始化期间的总开关或站点规则写入永久漏同步。
     await pageAvailability.reconcile();
 }

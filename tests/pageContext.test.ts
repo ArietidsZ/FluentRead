@@ -12,6 +12,62 @@ afterEach(() => {
 });
 
 describe('getPageTranslationContext', () => {
+    it('X/Grok 原生翻译启用后不复用已经捕获的帖子页面上下文', async () => {
+        let xNativeTranslationEnabled = false;
+        const clone = {
+            innerText: 'timeline post must stay inside X',
+            textContent: '',
+            querySelectorAll: () => [],
+        };
+        Object.defineProperty(globalThis, 'location', {
+            value: {href: 'https://x.com/home'},
+            configurable: true,
+        });
+        Object.defineProperty(globalThis, 'document', {
+            value: {
+                title: 'X timeline',
+                documentElement: {
+                    hasAttribute: () => xNativeTranslationEnabled,
+                },
+                body: {cloneNode: () => clone},
+                querySelector: () => null,
+            },
+            configurable: true,
+        });
+
+        expect(await getPageTranslationContext()).toContain('timeline post must stay inside X');
+        xNativeTranslationEnabled = true;
+        expect(await getPageTranslationContext()).toBe('');
+    });
+
+    it('捕获期间开启 X/Grok 原生翻译时丢弃尚未返回的旧页面上下文', async () => {
+        let xNativeTranslationEnabled = false;
+        const clone = {
+            innerText: 'pending timeline post must not leave X',
+            textContent: '',
+            querySelectorAll: () => [],
+        };
+        Object.defineProperty(globalThis, 'location', {
+            value: {href: 'https://x.com/search?q=translation'},
+            configurable: true,
+        });
+        Object.defineProperty(globalThis, 'document', {
+            value: {
+                title: 'X search',
+                documentElement: {
+                    hasAttribute: () => xNativeTranslationEnabled,
+                },
+                body: {cloneNode: () => clone},
+                querySelector: () => null,
+            },
+            configurable: true,
+        });
+
+        const pendingContext = getPageTranslationContext();
+        xNativeTranslationEnabled = true;
+        await expect(pendingContext).resolves.toBe('');
+    });
+
     it('提取标题、描述和正文，并移除插件生成内容', async () => {
         const removed: string[] = [];
         const clone = {

@@ -547,6 +547,216 @@ describe("全文翻译可见性锚点", () => {
         expect(runtime.cancelQueue).not.toHaveBeenCalled();
     });
 
+    it('AI 多段在 queueMicrotask 缺失时回退到 Promise 调度并转发单候选失败', async () => {
+        replaceGlobal('queueMicrotask', undefined);
+        const session = {active: true, translationSlotCache: new Map()};
+        const enabled = translationSnapshot({
+            service: 'ai',
+            model: 'ai-model',
+            enableAIMultiSegment: true,
+        });
+        runtime.requests.mockRejectedValueOnce(new Error('single candidate failed'));
+
+        await expect(translateTextSlots(
+            [undefined as never],
+            enabled,
+            undefined,
+            undefined,
+            session,
+        )).rejects.toThrow('single candidate failed');
+        expect(runtime.requests).toHaveBeenCalledWith(['']);
+    });
+
+    it('AI 多段刷新队列时丢弃已经取消的待处理任务', async () => {
+        const session = {active: true, translationSlotCache: new Map()};
+        const enabled = translationSnapshot({
+            service: 'ai',
+            model: 'ai-model',
+            enableAIMultiSegment: true,
+        });
+        const controller = new AbortController();
+        const result = translateTextSlots(
+            ['Cancelled before flush'],
+            enabled,
+            controller.signal,
+            undefined,
+            session,
+        );
+
+        controller.abort();
+        await expect(result).rejects.toMatchObject({name: 'AbortError'});
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(runtime.requests).not.toHaveBeenCalled();
+    });
+
+    it('AI 多段执行前再次检查信号并忽略已经取消的批次', async () => {
+        const session = {active: true, translationSlotCache: new Map()};
+        const enabled = translationSnapshot({
+            service: 'ai',
+            model: 'ai-model',
+            enableAIMultiSegment: true,
+        });
+        let abortedReads = 0;
+        let abortListener: (() => void) | undefined;
+        const stagedSignal = {
+            get aborted() {
+                abortedReads += 1;
+                return abortedReads >= 4;
+            },
+            addEventListener: (_type: string, listener: EventListener) => {
+                abortListener = () => listener({type: 'abort'} as Event);
+            },
+            removeEventListener: vi.fn(),
+        } as unknown as AbortSignal;
+
+        const result = translateTextSlots(
+            ['Cancelled before execution'],
+            enabled,
+            stagedSignal,
+            undefined,
+            session,
+        );
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(runtime.requests).not.toHaveBeenCalled();
+
+        abortListener?.();
+        await expect(result).rejects.toMatchObject({name: 'AbortError'});
+    });
+
+    it('AI 多段单候选执行读取调用方提交时的可变槽列表', async () => {
+        const session = {active: true, translationSlotCache: new Map()};
+        const enabled = translationSnapshot({
+            service: 'ai',
+            model: 'ai-model',
+            enableAIMultiSegment: true,
+        });
+        const origins = ['Removed before execution'];
+        const result = translateTextSlots(origins, enabled, undefined, undefined, session);
+
+        origins.length = 0;
+        await expect(result).resolves.toEqual([]);
+        expect(runtime.requests).not.toHaveBeenCalled();
+    });
+
+    it('AI 多段共享请求在全部候选取消后终止底层批次', async () => {
+        const session = {active: true, translationSlotCache: new Map()};
+        const enabled = translationSnapshot({
+            service: 'ai',
+            model: 'ai-model',
+            enableAIMultiSegment: true,
+        });
+        const provider = deferred<string[]>();
+        runtime.requests.mockImplementation(() => provider.promise);
+        const firstController = new AbortController();
+        const secondController = new AbortController();
+        const first = translateTextSlots(['First'], enabled, firstController.signal, undefined, session);
+        const second = translateTextSlots(['Second'], enabled, secondController.signal, undefined, session);
+        await Promise.resolve();
+        await Promise.resolve();
+        const sharedSignal = runtime.requestOptions[0]?.signal as AbortSignal;
+
+        firstController.abort();
+        secondController.abort();
+        await expect(first).rejects.toMatchObject({name: 'AbortError'});
+        await expect(second).rejects.toMatchObject({name: 'AbortError'});
+        expect(sharedSignal.aborted).toBe(true);
+        expect(runtime.cancelQueue).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({name: 'AbortError'}));
+
+        const providerAbort = new Error('provider aborted');
+        providerAbort.name = 'AbortError';
+        provider.reject(providerAbort);
+        await Promise.resolve();
+    });
+
+    it('AI 多段共享请求保留未取消候选的 AbortError 并跳过重复拒绝', async () => {
+        const session = {active: true, translationSlotCache: new Map()};
+        const enabled = translationSnapshot({
+            service: 'ai',
+            model: 'ai-model',
+            enableAIMultiSegment: true,
+        });
+        const provider = deferred<string[]>();
+        runtime.requests.mockImplementation(() => provider.promise);
+        const firstController = new AbortController();
+        const first = translateTextSlots(['First'], enabled, firstController.signal, undefined, session);
+        const second = translateTextSlots(['Second'], enabled, undefined, undefined, session);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        firstController.abort();
+        await expect(first).rejects.toMatchObject({name: 'AbortError'});
+        const providerAbort = new Error('provider aborted');
+        providerAbort.name = 'AbortError';
+        provider.reject(providerAbort);
+        await expect(second).rejects.toBe(providerAbort);
+    });
+
+    it('AI 多段共享请求将非对象 provider 失败原样传给所有候选', async () => {
+        const session = {active: true, translationSlotCache: new Map()};
+        const enabled = translationSnapshot({
+            service: 'ai',
+            model: 'ai-model',
+            enableAIMultiSegment: true,
+        });
+        runtime.requests.mockRejectedValue('primitive provider failure');
+
+        const first = translateTextSlots(['First'], enabled, undefined, undefined, session);
+        const second = translateTextSlots(['Second'], enabled, undefined, undefined, session);
+        await expect(first).rejects.toBe('primitive provider failure');
+        await expect(second).rejects.toBe('primitive provider failure');
+    });
+
+    it('AI 多段协议回退隔离已取消候选并分别发布成功与失败结果', async () => {
+        const session = {active: true, translationSlotCache: new Map()};
+        const enabled = translationSnapshot({
+            service: 'ai',
+            model: 'ai-model',
+            enableAIMultiSegment: true,
+        });
+        let abortedReads = 0;
+        let abortListener: (() => void) | undefined;
+        const stagedSignal = {
+            get aborted() {
+                abortedReads += 1;
+                return abortedReads >= 5;
+            },
+            addEventListener: (_type: string, listener: EventListener) => {
+                abortListener = () => listener({type: 'abort'} as Event);
+            },
+            removeEventListener: vi.fn(),
+        } as unknown as AbortSignal;
+        let requestCount = 0;
+        runtime.requests.mockImplementation(async (origins) => {
+            requestCount += 1;
+            if (requestCount === 1) {
+                throw {kind: 'response', code: 'AI_MULTI_SEGMENT_RESPONSE_INVALID'};
+            }
+            if (origins[0] === 'Broken') throw new Error('fallback slot failed');
+            return origins.map((origin) => `译:${origin}`);
+        });
+        const nativeAllSettled = Promise.allSettled.bind(Promise);
+        const allSettledSpy = vi.spyOn(Promise, 'allSettled').mockImplementation(async (values) => [
+            ...await nativeAllSettled(values),
+            {status: 'fulfilled', value: []},
+        ] as never);
+
+        try {
+            const cancelled = translateTextSlots(['Cancelled'], enabled, stagedSignal, undefined, session);
+            const broken = translateTextSlots(['Broken'], enabled, undefined, undefined, session);
+            const healthy = translateTextSlots(['Healthy'], enabled, undefined, undefined, session);
+            await expect(broken).rejects.toThrow('fallback slot failed');
+            await expect(healthy).resolves.toEqual(['译:Healthy']);
+            expect(runtime.requests).toHaveBeenCalledTimes(3);
+
+            abortListener?.();
+            await expect(cancelled).rejects.toMatchObject({name: 'AbortError'});
+        } finally {
+            allSettledSpy.mockRestore();
+        }
+    });
+
     it('逐槽回退在兄弟失败和调用方取消时终止整个队列', async () => {
         const snapshot = translationSnapshot({service: 'custom-provider'});
         const queueSession = {} as never;
