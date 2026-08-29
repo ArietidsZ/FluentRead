@@ -56,6 +56,8 @@ export interface Totals {
     cachedInputTokens: number;
     reasoningTokens: number;
     averageTokensPerReportedRequest: number | null;
+    averageInputTokensPerReportedRequest: number | null;
+    averageOutputTokensPerReportedRequest: number | null;
 }
 
 export interface ModelUsageDimension {
