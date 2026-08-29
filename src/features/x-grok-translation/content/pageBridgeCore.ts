@@ -1,7 +1,7 @@
 /**
  * @file src/features/x-grok-translation/content/pageBridgeCore.ts
- * 文件职责：在 X 页面 MAIN world 中以可卸载方式改写时间线 GraphQL 请求的单一 Grok 原生译文 feature flag。
- * 主要内容：精确识别 X Timeline GET、解析 features JSON、仅把 responsive_web_grok_show_grok_translated_post 的 false 改为 true，并管理 Fetch/XHR 包装与启停生命周期。
+ * 文件职责：在 X 页面 MAIN world 中以可卸载方式改写返回帖子内容的 GraphQL 请求的单一 Grok 原生译文 feature flag。
+ * 主要内容：精确识别 X 时间线、资料、媒体、收藏和帖子详情 GET，解析 features JSON、仅把 responsive_web_grok_show_grok_translated_post 的 false 改为 true，并管理 Fetch/XHR 包装与启停生命周期。
  * 模块边界：桥不读取请求头、Cookie、变量或响应，不调用 FluentRead provider、不渲染译文，也不点击通用 Grok 操作；X 仍拥有请求、翻译结果和界面渲染。
  */
 
@@ -80,25 +80,26 @@ function getRequestMethod(input: unknown, init?: unknown): string {
     return typeof inputMethod === 'string' ? inputMethod.toLocaleUpperCase() : 'GET';
 }
 
-function isTimelineGraphqlPath(pathname: string): boolean {
+function isXPostGraphqlPath(pathname: string): boolean {
     const match = pathname.match(/^\/i\/api\/graphql\/[^/]+\/([^/]+)$/u);
     if (!match?.[1]) return false;
     try {
-        return /Timeline(?:V\d+)?$/u.test(decodeURIComponent(match[1]));
+        return /(?:Timeline(?:V\d+)?|Tweets(?:AndReplies)?|UserMedia|Likes|Bookmarks|TweetDetail|TweetResultByRestId)$/u
+            .test(decodeURIComponent(match[1]));
     } catch {
         return false;
     }
 }
 
-/** 仅为 X 的 Timeline GraphQL GET 翻开原生 Grok 译文字段；不匹配时返回 null。 */
-export function rewriteXGrokTimelineUrl(value: string, baseHref: string): string | null {
+/** 为 X 返回帖子内容的 GraphQL GET 翻开原生 Grok 译文字段；不匹配时返回 null。 */
+export function rewriteXGrokPostUrl(value: string, baseHref: string): string | null {
     try {
         const baseUrl = new URL(baseHref);
         const requestUrl = new URL(value, baseUrl);
         if (!/^https?:$/u.test(requestUrl.protocol)
             || !isXHostname(baseUrl.hostname)
             || !isXHostname(requestUrl.hostname)
-            || !isTimelineGraphqlPath(requestUrl.pathname)) return null;
+            || !isXPostGraphqlPath(requestUrl.pathname)) return null;
 
         const serializedFeatures = requestUrl.searchParams.get('features');
         if (!serializedFeatures) return null;
@@ -139,7 +140,7 @@ function restoreMethod<T extends (...args: never[]) => unknown>(
     }
 }
 
-/** 安装一层精确、可恢复的 X Timeline 请求包装。 */
+/** 安装一层精确、可恢复的 X 帖子请求包装。 */
 export function installXGrokPageBridgeCore(environment: XGrokPageBridgeEnvironment): () => void {
     const previous = environment.stateHost[X_GROK_PAGE_BRIDGE_STATE_KEY] as XGrokPageBridgeState | undefined;
     previous?.dispose?.();
@@ -152,7 +153,7 @@ export function installXGrokPageBridgeCore(environment: XGrokPageBridgeEnvironme
     const fetchWrapper: XGrokFetchPort = function fetch(input, init) {
         let nextInput = input;
         if (active && getRequestMethod(input, init) === 'GET') {
-            const rewritten = rewriteXGrokTimelineUrl(getRequestUrl(input), environment.getHref());
+            const rewritten = rewriteXGrokPostUrl(getRequestUrl(input), environment.getHref());
             if (rewritten) {
                 try {
                     nextInput = environment.replaceFetchInputUrl(input, rewritten);
@@ -165,7 +166,7 @@ export function installXGrokPageBridgeCore(environment: XGrokPageBridgeEnvironme
     };
     const openWrapper: XGrokXhrOpenPort = function open(method, url, ...rest) {
         const rewritten = active && method.toLocaleUpperCase() === 'GET'
-            ? rewriteXGrokTimelineUrl(getRequestUrl(url), environment.getHref())
+            ? rewriteXGrokPostUrl(getRequestUrl(url), environment.getHref())
             : null;
         return Reflect.apply(originalOpen, this, [method, rewritten ?? url, ...rest]);
     };

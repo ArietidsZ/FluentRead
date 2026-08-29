@@ -1,8 +1,8 @@
 /**
  * @file src/features/x-grok-translation/content/runtime.ts
- * 文件职责：在 X/Twitter 动态时间线中识别尚未翻译的 Grok 原生控件，并在帖子接近视口时为每个帖子幂等触发一次站点翻译。
- * 主要内容：启停 X 时间线请求桥，并以 documentElement 为动态观察根、IntersectionObserver 为近视口门禁，结合 status ID、DOM 控件结构和有限重试管理原生控件兜底。
- * 模块边界：运行时只启用 X 原生译文字段并点击可证明为翻译入口的原生按钮，不读取按钮文案、不调用 FluentRead provider、不插入译文 DOM；全文翻译互斥由 core 暴露的 document 标记协调。
+ * 文件职责：在 X/Twitter 各类帖子页面中识别尚未翻译的 Grok 原生控件，并在帖子接近视口时为每个帖子幂等触发一次站点翻译。
+ * 主要内容：以 documentElement 为动态观察根、IntersectionObserver 为近视口门禁，结合 status ID、DOM 控件结构和有限重试管理原生控件兜底。
+ * 模块边界：运行时只启用 X 原生译文字段并点击可证明为翻译入口的原生按钮，不读取按钮文案、不调用 FluentRead provider、不插入译文 DOM；document 标记只协调页面桥启用状态与页面上下文边界。
  */
 import {X_GROK_NATIVE_TRANSLATION_ATTRIBUTE} from '@/src/core/translation/public';
 import {
@@ -470,7 +470,7 @@ function createRuntime(): XGrokAutoTranslateRuntime {
     runtime.queueTimer = null;
     runtime.lastTriggerAt = null;
     runtime.pageHideHandler = (event) => {
-        // BFCache 会保留 document 与 content runtime；返回时入口不会重跑，不能提前丢失观察器和互斥标记。
+        // BFCache 会保留 document 与 content runtime；返回时入口不会重跑，不能提前丢失观察器和页面标记。
         if (event.persisted !== true) unmountXGrokAutoTranslate();
     };
     runtime.intersectionObserver = new IntersectionObserver((entries) => {

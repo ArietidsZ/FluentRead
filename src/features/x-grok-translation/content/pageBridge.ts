@@ -1,7 +1,7 @@
 /**
  * @file src/features/x-grok-translation/content/pageBridge.ts
- * 文件职责：把 X/Grok 时间线请求桥核心连接到页面 MAIN world 的 Fetch、XMLHttpRequest、URL、Request 与生命周期事件。
- * 主要内容：安装可启停的页面桥，并提供动态 document_start 激活器，使已开启配置在 X 首个 Timeline 请求前生效。
+ * 文件职责：把 X/Grok 帖子请求桥核心连接到页面 MAIN world 的 Fetch、XMLHttpRequest、URL、Request 与生命周期事件。
+ * 主要内容：安装可启停的页面桥，并提供动态 document_start 激活器，使已开启配置在 X 首个帖子请求前生效。
  * 模块边界：本文件运行在页面世界且无扩展 API 权限；配置权威仍在后台动态注册与 isolated content 生命周期中。
  */
 

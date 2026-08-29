@@ -13,7 +13,7 @@ import {installXGrokPageBridgeRegistration} from '@/src/features/x-grok-translat
 const tabTranslationStates = new TabTranslationStateStore();
 /** 启动一次 MV2 background page 或 MV3 service worker 实例。 */
 export function startBackgroundApp(): void {
-    installXGrokPageBridgeRegistration(); // 先对账 X document_start 激活器，避免首页首个 Timeline 请求漏过原生译文字段。
+    installXGrokPageBridgeRegistration(); // 先对账 X document_start 激活器，避免首页首个帖子请求漏过原生译文字段。
     // 步骤 1：先建立菜单与 tab 生命周期，保证消息上报可以立即刷新展示。
     const contextMenus = installBackgroundContextMenus(tabTranslationStates);
     // 步骤 2：注册单一消息入口，把 provider 与 feature handlers 静态组装起来。
