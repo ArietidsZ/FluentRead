@@ -144,7 +144,7 @@ export async function startContentApp(ctx: ContentScriptContext,
                 mount: () => {
                     restoreOriginalContent();
                     resetPageTranslationContextCache();
-                    mountXGrokAutoTranslate();
+                    mountXGrokAutoTranslate({translateAtPoint: handleTranslation});
                 },
                 unmount: () => {
                     unmountXGrokAutoTranslate();

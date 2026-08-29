@@ -209,9 +209,9 @@ describe('options UI composition architecture', () => {
       'X 原生翻译',
     ])
     expect(advanced).toContain('aria-label="X Grok 自动翻译帖子"')
-    expect(advanced).toContain('在 X 上优先使用 Grok 翻译')
-    expect(advanced).toContain('帖子进入视野后自动使用 Grok 翻译')
-    expect(advanced).toContain('需要时仍可手动使用 FluentRead')
+    expect(advanced).toContain('在 X 上优先使用 Grok')
+    expect(advanced).toContain('每条正文帖子都会保留翻译入口')
+    expect(advanced).toContain('X 未提供入口时仍可手动翻译')
     expect(advanced).not.toContain('FluentRead 不再翻译 X 帖子正文')
   })
 

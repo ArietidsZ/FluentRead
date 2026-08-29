@@ -3,6 +3,7 @@ import {parseHTML} from 'linkedom';
 
 import {X_GROK_NATIVE_TRANSLATION_ATTRIBUTE} from '@/src/core/translation/public';
 import {
+    X_GROK_POST_TRANSLATION_BUTTON_ATTRIBUTE,
     isXGrokAutoTranslatePage,
     isXGrokAutoTranslateMounted,
     mountXGrokAutoTranslate,
@@ -78,7 +79,28 @@ function installDom(hostname = 'x.com'): Document {
     replaceGlobal('HTMLButtonElement', window.HTMLButtonElement);
     replaceGlobal('MutationObserver', TestMutationObserver);
     replaceGlobal('IntersectionObserver', TestIntersectionObserver);
+    Object.defineProperty(window, 'innerWidth', {configurable: true, value: 1_024});
+    Object.defineProperty(window, 'innerHeight', {configurable: true, value: 768});
     return document;
+}
+
+function setTweetTextRect(
+    tweetText: HTMLElement,
+    rect: {left: number; top: number; right: number; bottom: number} = {
+        left: 10,
+        top: 20,
+        right: 210,
+        bottom: 80,
+    },
+): void {
+    tweetText.getBoundingClientRect = () => ({
+        ...rect,
+        x: rect.left,
+        y: rect.top,
+        width: rect.right - rect.left,
+        height: rect.bottom - rect.top,
+        toJSON: () => ({}),
+    });
 }
 
 function createTweet(
@@ -101,6 +123,8 @@ function createTweet(
             </div>
         `}
     `;
+    const tweetText = article.querySelector<HTMLElement>('[data-testid="tweetText"]')!;
+    setTweetTextRect(tweetText);
     return {
         article,
         button: article.querySelector('button') as HTMLButtonElement | null,
@@ -122,6 +146,11 @@ function childListRecord(
 
 function attributeRecord(target: Node): MutationRecord {
     return {type: 'attributes', target} as unknown as MutationRecord;
+}
+
+function getFallbackButton(article: HTMLElement): HTMLButtonElement | null {
+    const host = article.querySelector<HTMLElement>(`[${X_GROK_POST_TRANSLATION_BUTTON_ATTRIBUTE}]`);
+    return (host?.shadowRoot?.querySelector('button') as HTMLButtonElement | null | undefined) ?? null;
 }
 
 describe('X Grok 原生逐帖自动翻译', () => {
@@ -180,6 +209,7 @@ describe('X Grok 原生逐帖自动翻译', () => {
         const visibility = TestIntersectionObserver.instances[0]!;
         expect(visibility.options?.rootMargin).toBe('600px 0px');
         expect(visibility.observe).toHaveBeenCalledWith(article);
+        expect(article.querySelector(`[${X_GROK_POST_TRANSLATION_BUTTON_ATTRIBUTE}]`)).toBeNull();
         expect(click).not.toHaveBeenCalled();
 
         visibility.emit(article, true);
@@ -187,6 +217,144 @@ describe('X Grok 原生逐帖自动翻译', () => {
         visibility.emit(document.body, true);
         visibility.emit(document.createElement('article'), true);
         visibility.emit(document.createTextNode('not an element') as unknown as Element, true);
+    });
+
+    it('X 没有原生入口时为正文帖子立即补充可访问按钮，可信点击交给 FluentRead', () => {
+        const {article} = createTweet(document, '1040', {withControl: false});
+        const translateAtPoint = vi.fn();
+        document.body.append(article);
+
+        mountXGrokAutoTranslate({
+            translateAtPoint,
+            acceptsUserGesture: () => true,
+        });
+
+        const host = article.querySelector<HTMLElement>(`[${X_GROK_POST_TRANSLATION_BUTTON_ATTRIBUTE}]`)!;
+        const tweetText = article.querySelector<HTMLElement>('[data-testid="tweetText"]')!;
+        const button = getFallbackButton(article)!;
+        expect(host.getAttribute(X_GROK_POST_TRANSLATION_BUTTON_ATTRIBUTE)).toBe('fallback');
+        expect(host.nextSibling).toBe(tweetText);
+        expect(host.getAttribute('data-fr-translation-owned')).toBe('true');
+        expect(button.textContent).toBe('翻译帖子');
+        expect(button.getAttribute('aria-label')).toBe('翻译帖子（Grok 优先）');
+        expect(button.title).toContain('不可用时使用 FluentRead');
+
+        button.click();
+
+        expect(translateAtPoint).toHaveBeenCalledOnce();
+        expect(translateAtPoint).toHaveBeenCalledWith(110, 50);
+    });
+
+    it('宿主页合成事件不能通过每帖按钮触发 FluentRead 请求', () => {
+        const {article} = createTweet(document, '1041', {withControl: false});
+        const translateAtPoint = vi.fn();
+        document.body.append(article);
+        mountXGrokAutoTranslate({translateAtPoint});
+
+        getFallbackButton(article)!.click();
+
+        expect(translateAtPoint).not.toHaveBeenCalled();
+    });
+
+    it('补充按钮隔离 pointerdown，并只用正文在真实视口内的可见中心触发翻译', () => {
+        const clipped = createTweet(document, '1049', {withControl: false});
+        const offscreen = createTweet(document, '1050', {withControl: false});
+        setTweetTextRect(
+            clipped.article.querySelector<HTMLElement>('[data-testid="tweetText"]')!,
+            {left: -40, top: -20, right: 120, bottom: 80},
+        );
+        setTweetTextRect(
+            offscreen.article.querySelector<HTMLElement>('[data-testid="tweetText"]')!,
+            {left: -100, top: 20, right: -1, bottom: 80},
+        );
+        Object.defineProperty(window, 'innerWidth', {configurable: true, value: 0});
+        Object.defineProperty(window, 'innerHeight', {configurable: true, value: 0});
+        Object.defineProperty(document.documentElement, 'clientWidth', {configurable: true, value: 320});
+        Object.defineProperty(document.documentElement, 'clientHeight', {configurable: true, value: 200});
+        document.body.append(clipped.article, offscreen.article);
+        const translateAtPoint = vi.fn();
+        mountXGrokAutoTranslate({translateAtPoint, acceptsUserGesture: () => true});
+
+        const propagatedPointerDown = vi.fn();
+        clipped.article.addEventListener('pointerdown', propagatedPointerDown);
+        const pointerDown = new window.Event('pointerdown', {bubbles: true, cancelable: true});
+        getFallbackButton(clipped.article)!.dispatchEvent(pointerDown);
+        expect(pointerDown.defaultPrevented).toBe(true);
+        expect(propagatedPointerDown).not.toHaveBeenCalled();
+
+        getFallbackButton(clipped.article)!.click();
+        getFallbackButton(offscreen.article)!.click();
+
+        expect(translateAtPoint).toHaveBeenCalledOnce();
+        expect(translateAtPoint).toHaveBeenCalledWith(60, 40);
+    });
+
+    it('虚拟列表回收、帖子脱离和正文被替换后，旧按钮都不能触发翻译', () => {
+        const {article} = createTweet(document, '1051', {withControl: false});
+        document.body.append(article);
+        const translateAtPoint = vi.fn();
+        mountXGrokAutoTranslate({translateAtPoint, acceptsUserGesture: () => true});
+        const mutations = TestMutationObserver.instances[0]!;
+        const staleButton = getFallbackButton(article)!;
+
+        article.remove();
+        mutations.emit([childListRecord(document.body, [], [article])]);
+        document.body.append(article);
+        mutations.emit([childListRecord(document.body, [article])]);
+        staleButton.click();
+
+        const currentButton = getFallbackButton(article)!;
+        article.querySelector('[data-testid="tweetText"]')!.remove();
+        currentButton.click();
+        article.remove();
+        currentButton.click();
+
+        expect(translateAtPoint).not.toHaveBeenCalled();
+    });
+
+    it('点击补充按钮时若 X 已切换到翻译完成状态，只移除补充入口而不重复翻译', () => {
+        const empty = createTweet(document, '1052', {withControl: false});
+        document.body.append(empty.article);
+        const translateAtPoint = vi.fn();
+        mountXGrokAutoTranslate({translateAtPoint, acceptsUserGesture: () => true});
+        const fallbackButton = getFallbackButton(empty.article)!;
+        const translatedControl = createTweet(document, '1052', {translated: true, disabled: true})
+            .article.querySelector('[data-grok-control]')!;
+        empty.article.append(translatedControl);
+
+        fallbackButton.click();
+
+        expect(translateAtPoint).not.toHaveBeenCalled();
+        expect(getFallbackButton(empty.article)).toBeNull();
+    });
+
+    it('X 原生入口存在但不可操作时仍保留每帖补充按钮', () => {
+        const {article} = createTweet(document, '1047', {disabled: true});
+        document.body.append(article);
+
+        mountXGrokAutoTranslate({acceptsUserGesture: () => true});
+
+        const fallbackButton = getFallbackButton(article)!;
+        fallbackButton.click();
+        expect(fallbackButton.isConnected).toBe(true);
+    });
+
+    it('引用帖在 DOM 中更深时只给主帖正文补一个按钮', () => {
+        const article = document.createElement('article');
+        article.setAttribute('data-testid', 'tweet');
+        article.innerHTML = `
+            <a href="/fluentread/status/1042"><time></time></a>
+            <section data-quoted><div><div data-testid="tweetText">Quoted post</div></div></section>
+            <section data-main><div data-testid="tweetText">Main post</div></section>
+        `;
+        document.body.append(article);
+
+        mountXGrokAutoTranslate();
+
+        const hosts = article.querySelectorAll(`[${X_GROK_POST_TRANSLATION_BUTTON_ATTRIBUTE}]`);
+        const mainText = article.querySelector('[data-main] [data-testid="tweetText"]')!;
+        expect(hosts).toHaveLength(1);
+        expect(hosts[0]!.nextSibling).toBe(mainText);
     });
 
     it('发现挂载后动态加入的帖子，并在其进入近视口时触发', () => {
@@ -204,6 +372,74 @@ describe('X Grok 原生逐帖自动翻译', () => {
         visibility.emit(article, true);
 
         expect(click).toHaveBeenCalledOnce();
+    });
+
+    it('动态帖子没有原生入口时补按钮，X 后续给出入口后移除补充按钮并自动触发', () => {
+        const empty = createTweet(document, '1043', {withControl: false});
+        document.body.append(empty.article);
+        mountXGrokAutoTranslate();
+        const mutations = TestMutationObserver.instances[0]!;
+        const visibility = TestIntersectionObserver.instances[0]!;
+        visibility.emit(empty.article, true);
+        expect(getFallbackButton(empty.article)).not.toBeNull();
+
+        const control = createTweet(document, '1043').article.querySelector('[data-grok-control]')!;
+        empty.article.append(control);
+        const nativeButton = control.querySelector('button') as HTMLButtonElement;
+        const nativeClick = vi.fn();
+        nativeButton.click = nativeClick;
+        mutations.emit([childListRecord(empty.article, [control])]);
+
+        expect(getFallbackButton(empty.article)).toBeNull();
+        expect(nativeClick).toHaveBeenCalledOnce();
+    });
+
+    it('补充按钮点击瞬间发现 X 原生入口时优先委托 Grok，不调用 FluentRead', () => {
+        const empty = createTweet(document, '1044', {withControl: false});
+        const translateAtPoint = vi.fn();
+        document.body.append(empty.article);
+        mountXGrokAutoTranslate({
+            translateAtPoint,
+            acceptsUserGesture: () => true,
+        });
+        const fallbackButton = getFallbackButton(empty.article)!;
+
+        const control = createTweet(document, '1044').article.querySelector('[data-grok-control]')!;
+        const nativeButton = control.querySelector('button') as HTMLButtonElement;
+        const nativeClick = vi.fn();
+        nativeButton.click = nativeClick;
+        empty.article.append(control);
+
+        fallbackButton.click();
+
+        expect(nativeClick).toHaveBeenCalledOnce();
+        expect(translateAtPoint).not.toHaveBeenCalled();
+        expect(getFallbackButton(empty.article)).toBeNull();
+    });
+
+    it('用户已经选择 FluentRead 兜底后，迟到的 X 原生入口不会再自动造成双重翻译', () => {
+        const empty = createTweet(document, '1048', {withControl: false});
+        const translateAtPoint = vi.fn();
+        document.body.append(empty.article);
+        mountXGrokAutoTranslate({
+            translateAtPoint,
+            acceptsUserGesture: () => true,
+        });
+        const visibility = TestIntersectionObserver.instances[0]!;
+        const mutations = TestMutationObserver.instances[0]!;
+        visibility.emit(empty.article, true);
+        getFallbackButton(empty.article)!.click();
+        expect(translateAtPoint).toHaveBeenCalledOnce();
+
+        const control = createTweet(document, '1048').article.querySelector('[data-grok-control]')!;
+        const nativeButton = control.querySelector('button') as HTMLButtonElement;
+        const nativeClick = vi.fn();
+        nativeButton.click = nativeClick;
+        empty.article.append(control);
+        mutations.emit([childListRecord(empty.article, [control])]);
+
+        expect(nativeClick).not.toHaveBeenCalled();
+        expect(getFallbackButton(empty.article)).toBeNull();
     });
 
     it('重复可见回调和点击后的宿主 DOM 变化不会再次点击同一帖子', () => {
@@ -255,15 +491,24 @@ describe('X Grok 原生逐帖自动翻译', () => {
             </button>
         `;
         const grokAction = article.querySelector('button') as HTMLButtonElement;
+        const tweetText = article.querySelector<HTMLElement>('[data-testid="tweetText"]')!;
+        setTweetTextRect(tweetText);
         const click = vi.fn();
         grokAction.click = click;
         document.body.append(article);
-        mountXGrokAutoTranslate();
+        const translateAtPoint = vi.fn();
+        mountXGrokAutoTranslate({
+            translateAtPoint,
+            acceptsUserGesture: () => true,
+        });
 
         TestIntersectionObserver.instances[0]!.emit(article, true);
         vi.runAllTimers();
 
         expect(click).not.toHaveBeenCalled();
+        expect(getFallbackButton(article)).not.toBeNull();
+        getFallbackButton(article)!.click();
+        expect(translateAtPoint).toHaveBeenCalledWith(110, 50);
     });
 
     it('同批进入视口的多个帖子进入单队列，并保持至少 250ms 的触发间隔', () => {
@@ -507,6 +752,20 @@ describe('X Grok 原生逐帖自动翻译', () => {
         expect(TestIntersectionObserver.instances).toHaveLength(0);
         expect(TestMutationObserver.instances).toHaveLength(0);
         expect(document.documentElement.hasAttribute(X_GROK_NATIVE_TRANSLATION_ATTRIBUTE)).toBe(false);
+    });
+
+    it('关闭功能时移除所有 FluentRead 每帖按钮，不触碰帖子正文', () => {
+        const first = createTweet(document, '1045', {withControl: false});
+        const second = createTweet(document, '1046', {withControl: false});
+        document.body.append(first.article, second.article);
+        mountXGrokAutoTranslate();
+        expect(document.querySelectorAll(`[${X_GROK_POST_TRANSLATION_BUTTON_ATTRIBUTE}]`)).toHaveLength(2);
+
+        unmountXGrokAutoTranslate();
+
+        expect(document.querySelectorAll(`[${X_GROK_POST_TRANSLATION_BUTTON_ATTRIBUTE}]`)).toHaveLength(0);
+        expect(first.article.querySelector('[data-testid="tweetText"]')?.textContent).toBe('Post 1045');
+        expect(second.article.querySelector('[data-testid="tweetText"]')?.textContent).toBe('Post 1046');
     });
 
     it('同一个虚拟列表 article 被复用为新 status ID 时重置状态并触发新帖子', () => {
