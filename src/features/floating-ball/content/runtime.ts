@@ -1,7 +1,7 @@
 /**
  * @file src/features/floating-ball/content/runtime.ts
- * 文件职责：协调悬浮球组件在网页中的创建、恢复位置、显隐、翻译状态同步和卸载，并向组件注入全文翻译切换与打开设置页的动作。
- * 主要内容：维护单例 Shadow UI、迟到挂载 requestId、配置订阅与 position-change 消息，提供 mountFloatingBall、toggleFloatingBallTranslation、unmountFloatingBall 三个生命周期入口。
+ * 文件职责：协调悬浮球组件在网页中的创建、恢复位置、显隐、权威翻译状态同步和卸载，并向组件注入全文翻译切换与打开设置页的动作。
+ * 主要内容：维护单例 Shadow UI、迟到挂载 requestId、全文会话订阅与 position-change 消息，提供 mountFloatingBall、toggleFloatingBallTranslation、unmountFloatingBall 三个生命周期入口。
  * 模块边界：运行时只拥有挂载和桥接职责，不实现拖拽视觉或全文翻译算法；FloatingBall.vue 负责交互，full-page feature 提供翻译动作，配置持久化通过 services/config 完成。
  */
 import FloatingBall from '@/src/features/floating-ball/ui/FloatingBall.vue';
@@ -11,6 +11,7 @@ import {
   autoTranslateEnglishPage,
   isFullPageTranslationActive,
   restoreOriginalContent,
+  subscribeFullPageTranslationProgress,
 } from '@/src/features/full-page-translation/public';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import type { ShadowRootContentScriptUi } from 'wxt/utils/content-script-ui/shadow-root';
@@ -18,6 +19,7 @@ import {createVueShadowUi, type VueShadowMount} from '@/src/platform/shadow-ui';
 
 interface FloatingBallExposed {
   toggleTranslation: () => void;
+  setTranslationState: (isTranslating: boolean) => void;
 }
 
 let floatingBallInstance: FloatingBallExposed | null = null;
@@ -25,6 +27,7 @@ let floatingBallUi: ShadowRootContentScriptUi<VueShadowMount> | null = null;
 let mountingPromise: Promise<FloatingBallExposed | null> | null = null;
 let mountRequestId = 0;
 let contentScriptContext: ContentScriptContext | null = null;
+let unsubscribeFullPageTranslationProgress: (() => void) | null = null;
 
 /** 创建并挂载悬浮球 */
 export function mountFloatingBall(ctx?: ContentScriptContext) {
@@ -89,6 +92,12 @@ export function mountFloatingBall(ctx?: ContentScriptContext) {
 
     floatingBallUi = ui;
     floatingBallInstance = (ui.mounted?.instance as FloatingBallExposed | null | undefined) ?? null;
+    if (floatingBallInstance) {
+      unsubscribeFullPageTranslationProgress?.();
+      unsubscribeFullPageTranslationProgress = subscribeFullPageTranslationProgress((progress) => {
+        floatingBallInstance?.setTranslationState(progress.active);
+      });
+    }
 
     return floatingBallInstance;
   }).catch((error: unknown) => {
@@ -117,6 +126,8 @@ export function toggleFloatingBallTranslation(): boolean {
 export function unmountFloatingBall() {
   // 先使仍在等待的挂载失效，再释放当前实例，避免迟到的 Promise 重新写回句柄。
   mountRequestId++;
+  unsubscribeFullPageTranslationProgress?.();
+  unsubscribeFullPageTranslationProgress = null;
   if (floatingBallUi || floatingBallInstance) {
     if (isFullPageTranslationActive()) {
       restoreOriginalContent();

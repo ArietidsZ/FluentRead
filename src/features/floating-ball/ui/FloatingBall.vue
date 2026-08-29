@@ -1,7 +1,7 @@
 <!--
  * @file src/features/floating-ball/ui/FloatingBall.vue
- * 文件职责：呈现可拖拽、可展开的页面悬浮球，并把点击切换翻译、拖动停靠、状态动画、打开设置和键盘关闭整合为可复用 Vue 组件。
- * 主要内容：组件根据配置计算主题和位置，使用 Pointer Capture 区分点击与拖拽，限制球体在视口内，发出位置变更与动作事件，并通过 initialTranslating 同步图标和文案。
+ * 文件职责：呈现低干扰、可拖拽和按需展开的页面悬浮球，并把全文翻译状态、拖动停靠、打开设置和键盘关闭整合为可复用 Vue 组件。
+ * 主要内容：组件根据停靠位置控制收起透明度与勾选标记，使用 Pointer Capture 区分点击与拖拽，限制球体在视口内，发出位置变更与动作事件，并通过受控状态同步图标和文案。
  * 模块边界：它只负责视觉与局部交互，不直接调用浏览器消息、保存配置或执行全文翻译；这些副作用由 content/runtime 通过 props、事件和 defineExpose 桥接。
  -->
 <template>
@@ -12,8 +12,6 @@
       'floating-ball-expanded': isExpanded,
       dragging: isDragging,
       'is-translating': isTranslating,
-      animating: isAnimating && config.animations,
-      'static-mode': !config.animations,
     }"
     :data-position="currentDisplayPosition"
     :style="positionStyle"
@@ -69,15 +67,12 @@
         <circle cx="14.27" cy="12" r="2.4" stroke="currentColor" stroke-width="1.7" />
       </svg>
     </button>
-
-    <div v-if="showShortcutTooltip" class="shortcut-tooltip" role="status">{{ shortcutTip }}</div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { PropType, CSSProperties } from 'vue';
-import {config} from '@/src/services/config/store';
 
 const DRAG_THRESHOLD = 6;
 const BALL_SIZE = 42;
@@ -128,12 +123,7 @@ const draggedY = ref<number | null>(null);
 const internalPosition = ref<'left' | 'right' | null>(null);
 const isTranslating = ref(props.initialTranslating);
 const floatingBall = ref<HTMLElement | null>(null);
-const showShortcutTooltip = ref(false);
-const shortcutTip = ref('快捷键：Alt+T');
 const dragState = ref<PointerDragState | null>(null);
-const isAnimating = ref(false);
-let animationTimer: ReturnType<typeof setTimeout> | undefined;
-let tooltipTimer: ReturnType<typeof setTimeout> | undefined;
 
 const currentDisplayPosition = computed(() => internalPosition.value || props.position);
 
@@ -250,37 +240,28 @@ function removePointerListeners() {
   window.removeEventListener('pointercancel', cancelPointerInteraction);
 }
 
-function triggerAnimation() {
-  if (!config.animations) return;
-
-  if (animationTimer) clearTimeout(animationTimer);
-  if (tooltipTimer) clearTimeout(tooltipTimer);
-  isAnimating.value = true;
-  showShortcutTooltip.value = true;
-  isExpanded.value = true;
-  tooltipTimer = setTimeout(() => {
-    showShortcutTooltip.value = false;
-  }, 1800);
-  animationTimer = setTimeout(() => {
-    isAnimating.value = false;
-    animationTimer = undefined;
-  }, 500);
+function toggleTranslation(event?: MouseEvent) {
+  if (event && event.detail > 0) {
+    (event.currentTarget as HTMLElement | null)?.blur();
+    isExpanded.value = false;
+  }
+  props.onTranslationToggle(!isTranslating.value);
 }
 
-function toggleTranslation() {
-  isTranslating.value = !isTranslating.value;
-  triggerAnimation();
-  props.onTranslationToggle(isTranslating.value);
+function setTranslationState(nextState: boolean) {
+  isTranslating.value = nextState;
 }
 
-defineExpose({ toggleTranslation });
+defineExpose({ toggleTranslation, setTranslationState });
 
 function handleSettingsClick(event: MouseEvent) {
   props.onSettingsClick(event);
 }
 
 function handleDocumentKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') isExpanded.value = false;
+  if (event.key !== 'Escape' || !isExpanded.value) return;
+  floatingBall.value?.querySelector<HTMLElement>(':focus')?.blur();
+  isExpanded.value = false;
 }
 
 onMounted(() => {
@@ -294,8 +275,6 @@ onBeforeUnmount(() => {
   removePointerListeners();
   window.removeEventListener('resize', updatePositionStyle);
   document.removeEventListener('keydown', handleDocumentKeydown);
-  if (animationTimer) clearTimeout(animationTimer);
-  if (tooltipTimer) clearTimeout(tooltipTimer);
 });
 
 watch(() => props.position, (newPosition) => {
@@ -376,11 +355,13 @@ watch(() => props.initialTranslating, (nextState) => {
   overflow: visible;
 }
 
-.fr-floating-ball:not(.floating-ball-expanded)[data-position="right"] .floating-ball-main {
+.fr-floating-ball:not(.floating-ball-expanded):not(.dragging)[data-position="right"] .floating-ball-main {
+  opacity: 0.52;
   transform: translateX(50%);
 }
 
-.fr-floating-ball:not(.floating-ball-expanded)[data-position="left"] .floating-ball-main {
+.fr-floating-ball:not(.floating-ball-expanded):not(.dragging)[data-position="left"] .floating-ball-main {
+  opacity: 0.52;
   transform: translateX(-50%);
 }
 
@@ -442,14 +423,10 @@ watch(() => props.initialTranslating, (nextState) => {
   box-shadow: 0 8px 22px rgba(240, 106, 146, 0.2);
 }
 
-.is-translating .floating-ball-main {
+.floating-ball-expanded.is-translating .floating-ball-main {
   border-color: transparent;
   box-shadow: none;
   filter: drop-shadow(0 8px 12px rgba(240, 106, 146, 0.3));
-}
-
-.animating .floating-ball-main {
-  animation: floating-ball-pulse 0.62s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .check-mark {
@@ -460,7 +437,7 @@ watch(() => props.initialTranslating, (nextState) => {
   height: 9px;
   border: 1px solid #fff;
   border-radius: 50%;
-  background: #22c55e;
+  background: rgba(34, 197, 94, 0.82);
 }
 
 .check-mark::after {
@@ -475,25 +452,19 @@ watch(() => props.initialTranslating, (nextState) => {
   transform: rotate(45deg);
 }
 
+.fr-floating-ball[data-position="right"] .floating-ball-main .check-mark {
+  right: auto;
+  left: -1px;
+}
+
+.fr-floating-ball[data-position="left"] .floating-ball-main .check-mark {
+  right: -1px;
+  left: auto;
+}
+
 .floating-ball-settings svg {
   width: 18px;
   height: 18px;
-}
-
-.shortcut-tooltip {
-  position: absolute;
-  top: 50%;
-  right: calc(100% + 10px);
-  z-index: 2;
-  padding: 5px 8px;
-  border-radius: 6px;
-  background: rgba(17, 24, 39, 0.9);
-  color: #fff;
-  font-size: 12px;
-  white-space: nowrap;
-  pointer-events: none;
-  transform: translateY(-50%);
-  animation: floating-ball-tooltip-in 0.18s ease both;
 }
 
 .dragging {
@@ -508,21 +479,9 @@ watch(() => props.initialTranslating, (nextState) => {
   box-shadow: 0 8px 25px rgba(240, 106, 146, 0.28);
 }
 
-.dragging .floating-ball-tool,
-.static-mode .shortcut-tooltip {
+.dragging .floating-ball-tool {
   visibility: hidden;
   display: none;
-}
-
-@keyframes floating-ball-tooltip-in {
-  from { opacity: 0; transform: translate(4px, -50%); }
-  to { opacity: 1; transform: translate(0, -50%); }
-}
-
-@keyframes floating-ball-pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.06); }
-  100% { transform: scale(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -531,11 +490,6 @@ watch(() => props.initialTranslating, (nextState) => {
   .floating-ball-main,
   .floating-ball-tool {
     transition: none;
-  }
-
-  .shortcut-tooltip,
-  .animating .floating-ball-main {
-    animation: none;
   }
 }
 </style>

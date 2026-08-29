@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   autoTranslateEnglishPage: vi.fn(),
   isFullPageTranslationActive: vi.fn(),
   restoreOriginalContent: vi.fn(),
+  subscribeFullPageTranslationProgress: vi.fn(),
+  unsubscribeFullPageTranslationProgress: vi.fn(),
 }));
 
 vi.mock('@/src/services/config/store', () => ({
@@ -31,6 +33,7 @@ vi.mock('@/src/features/full-page-translation/public', () => ({
   autoTranslateEnglishPage: mocks.autoTranslateEnglishPage,
   isFullPageTranslationActive: mocks.isFullPageTranslationActive,
   restoreOriginalContent: mocks.restoreOriginalContent,
+  subscribeFullPageTranslationProgress: mocks.subscribeFullPageTranslationProgress,
 }));
 vi.mock('@/src/features/floating-ball/ui/FloatingBall.vue', () => ({default: {name: 'FloatingBall'}}));
 vi.mock('@/src/features/full-page-translation/ui/TranslationProgressPanel.vue', () => ({
@@ -70,11 +73,14 @@ beforeEach(() => {
     mocks.autoTranslateEnglishPage,
     mocks.isFullPageTranslationActive,
     mocks.restoreOriginalContent,
+    mocks.subscribeFullPageTranslationProgress,
+    mocks.unsubscribeFullPageTranslationProgress,
   ]) mock.mockReset();
   mocks.requestConfigSave.mockResolvedValue(undefined);
   mocks.sendMessage.mockResolvedValue({success: true});
   mocks.autoTranslateEnglishPage.mockResolvedValue(undefined);
   mocks.isFullPageTranslationActive.mockReturnValue(false);
+  mocks.subscribeFullPageTranslationProgress.mockReturnValue(mocks.unsubscribeFullPageTranslationProgress);
 });
 
 describe('悬浮球 content runtime', () => {
@@ -89,12 +95,13 @@ describe('悬浮球 content runtime', () => {
 
   it('通过关闭 Shadow DOM 组装交互，并在卸载时清理翻译状态', async () => {
     const toggleTranslation = vi.fn();
-    const mountedUi = ui({toggleTranslation});
+    const setTranslationState = vi.fn();
+    const mountedUi = ui({toggleTranslation, setTranslationState});
     mocks.createVueShadowUi.mockResolvedValue(mountedUi);
     const runtime = await import('@/src/features/floating-ball/content/runtime');
     const context = {name: 'content'} as never;
 
-    await expect(runtime.mountFloatingBall(context)).resolves.toEqual({toggleTranslation});
+    await expect(runtime.mountFloatingBall(context)).resolves.toEqual({toggleTranslation, setTranslationState});
     const [, options] = mocks.createVueShadowUi.mock.calls[0];
     expect(options).toEqual(expect.objectContaining({
       name: 'fluent-read-floating-ball-ui',
@@ -107,6 +114,12 @@ describe('悬浮球 content runtime', () => {
       initialTranslating: false,
     }));
     expect(runtime.mountFloatingBall()).toBeNull();
+    expect(mocks.subscribeFullPageTranslationProgress).toHaveBeenCalledOnce();
+    const progressListener = mocks.subscribeFullPageTranslationProgress.mock.calls[0][0];
+    progressListener({active: true});
+    progressListener({active: false});
+    expect(setTranslationState).toHaveBeenNthCalledWith(1, true);
+    expect(setTranslationState).toHaveBeenNthCalledWith(2, false);
     expect(runtime.toggleFloatingBallTranslation()).toBe(true);
     expect(toggleTranslation).toHaveBeenCalledOnce();
 
@@ -131,6 +144,7 @@ describe('悬浮球 content runtime', () => {
     runtime.unmountFloatingBall();
     runtime.unmountFloatingBall();
     expect(mountedUi.remove).toHaveBeenCalledOnce();
+    expect(mocks.unsubscribeFullPageTranslationProgress).toHaveBeenCalledOnce();
     expect(mocks.restoreOriginalContent).toHaveBeenCalledTimes(2);
   });
 
