@@ -1,26 +1,11 @@
 <!--
 @file src/features/settings/ui/ConfigManagement.vue
 文件职责：提供配置管理页面的完整用户界面，让用户查看最近修改和定时备份，并通过统一 JSON 对话框复制导出或预览导入。
-主要内容：渲染凭据持久化开关、两类十份版本列表、仅含导出与导入的迁移入口、完整配置复制与差异确认对话框，并在导入预览中隐藏专用 API 凭据的实际内容。
+主要内容：渲染两类十份版本列表、仅含导出与导入的迁移入口、完整配置复制与差异确认对话框，并在导入预览中隐藏专用 API 凭据的实际内容。
 模块边界：本组件只负责交互状态和展示，通过 core/config 生成包含凭据的用户主动导出内容，并通过 services/config 公共 API 读取或提交配置；快照保留、并发控制和浏览器存储不在 Vue 层实现。
 -->
 <template>
   <section class="config-management">
-    <SettingsGroup title="凭据安全" description="API 凭据默认只保留在当前浏览器会话。">
-      <SettingsItem
-        label="跨浏览器重启保存 API 凭据"
-        description="开启后凭据仍以密文保存，并可在浏览器重启后恢复；仅建议在受信任的个人设备上使用。"
-      >
-        <el-switch
-          :model-value="props.config.persistCredentials"
-          :loading="credentialPersistenceBusy"
-          aria-label="跨浏览器重启保存 API 凭据"
-          data-testid="persist-credentials-switch"
-          @change="setCredentialPersistence"
-        />
-      </SettingsItem>
-    </SettingsGroup>
-
     <div class="version-grid">
       <section class="version-panel" aria-labelledby="recent-config-title">
         <header class="version-panel-heading">
@@ -196,7 +181,7 @@ import browser from 'webextension-polyfill';
 import {options} from '@/src/core/config/catalog';
 import {extractConfigCredentials} from '@/src/core/config/credentials';
 import {buildConfigDiff} from '@/src/core/config/diff';
-import {normalizeConfig, type Config} from '@/src/core/config/model';
+import type {Config} from '@/src/core/config/model';
 import {isConfigImportValid, prepareConfigForExport, prepareConfigForImport} from '@/src/core/config/transfer';
 import {
   configAutoBackupsReady,
@@ -215,7 +200,6 @@ import {
 } from '@/src/services/config';
 import {toRestorableConfig} from '@/src/services/config/history';
 import SettingsGroup from './components/SettingsGroup.vue';
-import SettingsItem from './components/SettingsItem.vue';
 
 const props = defineProps<{config: Config}>();
 const sendRuntimeMessage = browser.runtime.sendMessage.bind(browser.runtime);
@@ -351,9 +335,9 @@ const previewSourceLabel = computed(() => previewTarget.value?.kind === 'history
 const previewActionLabel = computed(() => previewTarget.value?.kind === 'import' ? '确认导入' : '恢复此版本');
 const previewBoundary = computed(() => previewTarget.value?.kind === 'import'
   ? previewCredentialChanges.value.length
-    ? '这是包含服务凭据的旧版配置；上方逐项标出新增、替换或清除，内容始终隐藏。确认后仅更新文件明确提供的字段，其他凭据继续保留。“跨重启保存凭据”开关仍保持当前选择。'
-    : '导入文件不含服务凭据，将保留当前会话中的凭据；翻译次数和“跨重启保存凭据”开关也不会改变。'
-  : 'API 凭据、翻译次数和“跨重启保存凭据”开关不会随版本恢复。');
+    ? '这是包含服务凭据的旧版配置；上方逐项标出新增、替换或清除，内容始终隐藏。确认后仅更新文件明确提供的字段，其他凭据继续保留。'
+    : '导入文件不含服务凭据，将保留当前已保存的凭据；翻译次数不会改变。'
+  : 'API 凭据和翻译次数不会随版本恢复。');
 
 function showPreview(target: PreviewTarget) {
   previewTarget.value = target;
@@ -405,33 +389,6 @@ async function applyPreviewTarget() {
     ElMessage.error(`${target.kind === 'import' ? '导入' : '恢复'}失败：${error instanceof Error ? error.message : '请稍后重试'}`);
   } finally {
     applyBusy.value = false;
-  }
-}
-
-const credentialPersistenceBusy = ref(false);
-async function setCredentialPersistence(value: string | number | boolean) {
-  const enabled = value === true;
-  if (enabled === props.config.persistCredentials || credentialPersistenceBusy.value) return;
-  if (enabled) {
-    try {
-      await ElMessageBox.confirm(
-        '开启后，API Key、访问令牌及其他服务凭据会继续以密文保存在扩展私有 IndexedDB，并在浏览器重启后恢复。',
-        '保存 API 凭据',
-        {confirmButtonText: '了解风险并开启', cancelButtonText: '取消', type: 'warning'},
-      );
-    } catch {
-      return;
-    }
-  }
-
-  credentialPersistenceBusy.value = true;
-  try {
-    await requestConfigSave(normalizeConfig({...props.config, persistCredentials: enabled}), sendRuntimeMessage);
-    ElMessage.success(enabled ? '已允许跨浏览器重启恢复 API 凭据' : 'API 凭据将在当前浏览器会话结束后失效');
-  } catch (error) {
-    ElMessage.error(`凭据存储设置失败：${error instanceof Error ? error.message : '请稍后重试'}`);
-  } finally {
-    credentialPersistenceBusy.value = false;
   }
 }
 

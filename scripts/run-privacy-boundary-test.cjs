@@ -4,7 +4,7 @@
 // 1. 只迁移旧版 FluentRead 页面缓存，不触碰宿主站点 localStorage；
 // 2. 网页伪造的配置/全文翻译事件和合成键盘事件不能驱动扩展；
 // 3. 凭据不进入公开配置、宿主 DOM 或页面可访问的 Shadow DOM；
-// 4. options 真实消息/UI 路径遵守 session 默认、显式持久化 opt-in、完整明文导出和 opt-out 清理。
+// 4. options 真实消息/UI 路径始终使用加密持久凭据、完整明文导出，并能在扩展运行时重载后恢复。
 
 const fs = require('node:fs');
 const http = require('node:http');
@@ -379,7 +379,6 @@ async function extensionStorageEvidence(extensionContext, marker, credentialMark
       disableSelectionTranslator: config.disableSelectionTranslator,
       selectionAreaEnabled: config.selectionAreaEnabled,
       disableImageTranslator: config.disableImageTranslator,
-      persistCredentials: config.persistCredentials,
     } : null,
   };
 }
@@ -390,8 +389,7 @@ function credentialStateMatches(storageEvidence, expected) {
     && state.sessionCredentialsPresent === expected.sessionCredentialsPresent
     && state.sessionCredentialsContainsSentinel === expected.sessionCredentialsContainsSentinel
     && state.localCredentialsPresent === expected.localCredentialsPresent
-    && state.localCredentialsContainsSentinel === expected.localCredentialsContainsSentinel
-    && storageEvidence.configProjection?.persistCredentials === expected.persistCredentials;
+    && state.localCredentialsContainsSentinel === expected.localCredentialsContainsSentinel;
 }
 
 async function waitForCredentialStorageState(extensionContext, marker, expected, timeout) {
@@ -405,7 +403,6 @@ async function waitForCredentialStorageState(extensionContext, marker, expected,
   throw new Error(`等待凭据存储状态超时：${JSON.stringify({
     expected,
     actual: latest?.credentialLifecycle,
-    persistCredentials: latest?.configProjection?.persistCredentials,
   })}`);
 }
 
@@ -414,7 +411,6 @@ function assertCredentialStorageState(label, storageEvidence, expected) {
     throw new Error(`${label} 的凭据区域状态不符合预期：${JSON.stringify({
       expected,
       actual: storageEvidence.credentialLifecycle,
-      persistCredentials: storageEvidence.configProjection?.persistCredentials,
     })}`);
   }
   if (storageEvidence.credentialLifecycle.publicConfigContainsSentinel
@@ -430,6 +426,10 @@ function assertCredentialStorageState(label, storageEvidence, expected) {
     || storageEvidence.indexedDb.legacyLocalKeys.length
     || storageEvidence.indexedDb.legacySessionKeys.length) {
     throw new Error(`${label} 时配置没有完全落入加密 IndexedDB：${JSON.stringify(storageEvidence.indexedDb)}`);
+  }
+  if (!storageEvidence.indexedDb.recordKeys.includes('local:credentials')
+    || storageEvidence.indexedDb.recordKeys.includes('session:credentials')) {
+    throw new Error(`${label} 时凭据没有形成唯一的本地持久记录：${JSON.stringify(storageEvidence.indexedDb.recordKeys)}`);
   }
 }
 
@@ -465,7 +465,7 @@ async function configurePrivacySurfaces(optionsPage, clientId, timeout) {
       && value.disableSelectionTranslator === false
       && value.selectionAreaEnabled === true
       && value.disableImageTranslator === false
-      && value.persistCredentials === false;
+      && !Object.prototype.hasOwnProperty.call(value, 'persistCredentials');
 
     const initializationDeadline = Date.now() + Math.min(timeoutMs, 10_000);
     let current = {};
@@ -496,7 +496,6 @@ async function configurePrivacySurfaces(optionsPage, clientId, timeout) {
           disableSelectionTranslator: false,
           selectionAreaEnabled: true,
           disableImageTranslator: false,
-          persistCredentials: false,
         },
         clientId: requestClientId,
         sequence: attempt,
@@ -539,7 +538,6 @@ async function configurePrivacySurfaces(optionsPage, clientId, timeout) {
       disableSelectionTranslator: verified.disableSelectionTranslator,
       selectionAreaEnabled: verified.selectionAreaEnabled,
       disableImageTranslator: verified.disableImageTranslator,
-      persistCredentials: verified.persistCredentials,
     };
   }, { requestClientId: clientId, timeoutMs: timeout });
 }
@@ -555,15 +553,13 @@ async function waitForExtensionWorker(context, timeout) {
 
 async function waitForOptionsUi(page, timeout) {
   await page.waitForSelector('#settings-data', { state: 'visible', timeout });
-  const credentialSwitchRoot = page.locator('[data-testid="persist-credentials-switch"]');
-  const credentialSwitchInput = credentialSwitchRoot.locator('input[role="switch"]');
-  await credentialSwitchRoot.waitFor({ state: 'visible', timeout });
-  await credentialSwitchInput.waitFor({ state: 'attached', timeout });
-  await page.waitForFunction(() => {
-    const element = document.querySelector('[data-testid="persist-credentials-switch"] input[role="switch"]');
-    return element?.getAttribute('aria-checked') === 'true' || element?.getAttribute('aria-checked') === 'false';
-  }, null, { timeout });
-  return { root: credentialSwitchRoot, input: credentialSwitchInput };
+  if (await page.locator('[data-testid="persist-credentials-switch"]').count()) {
+    throw new Error('设置页仍显示已废弃的凭据持久化开关');
+  }
+  if ((await page.locator('#settings-data').textContent()).includes('跨浏览器重启保存 API 凭据')) {
+    throw new Error('设置页仍显示已废弃的凭据持久化文案');
+  }
+  return true;
 }
 
 async function openOptionsPage(createPage, activatePage, extensionId, optionsPath, timeout) {
@@ -600,7 +596,6 @@ async function persistCredentialViaExtensionMessage(optionsPage, marker, clientI
           ...(current && typeof current.token === 'object' ? current.token : {}),
           openai: credentialMarker,
         },
-        persistCredentials: false,
       },
       clientId: requestClientId,
       sequence: 1,
@@ -644,45 +639,12 @@ async function exportConfigViaOptionsUi(optionsPage, marker, timeout, artifactsD
   return {
     bytes: Buffer.byteLength(exported, 'utf8'),
     service: parsed?.service,
-    persistCredentials: parsed?.persistCredentials,
+    legacyPolicyFieldAbsent: !Object.prototype.hasOwnProperty.call(parsed || {}, 'persistCredentials'),
     containsCredentialSentinel: exported.includes(marker),
     containsCredentialFields: hasCredentialFields(parsed),
     plaintextDialog: true,
     screenshot: screenshotPath,
   };
-}
-
-async function requestCredentialPersistenceEnable(optionsPage, timeout) {
-  const credentialSwitch = await waitForOptionsUi(optionsPage, timeout);
-  if (await credentialSwitch.input.getAttribute('aria-checked') !== 'false') {
-    throw new Error('凭据持久化开关在显式 opt-in 前不是关闭状态');
-  }
-  // 点击真实组件根节点；内部 input 仅用于读取无障碍状态，避免重复触发 change。
-  await credentialSwitch.root.click();
-  await optionsPage.getByText('保存 API 凭据', { exact: true }).waitFor({ state: 'visible', timeout });
-  return credentialSwitch.root;
-}
-
-async function confirmCredentialPersistenceEnable(optionsPage, timeout) {
-  const confirmButton = optionsPage.getByRole('button', { name: '了解风险并开启', exact: true });
-  await confirmButton.waitFor({ state: 'visible', timeout });
-  await confirmButton.click();
-}
-
-async function disableCredentialPersistence(optionsPage, timeout) {
-  const credentialSwitch = await waitForOptionsUi(optionsPage, timeout);
-  if (await credentialSwitch.input.getAttribute('aria-checked') !== 'true') {
-    throw new Error('凭据持久化开关在关闭前不是开启状态');
-  }
-  await credentialSwitch.root.click();
-  return credentialSwitch.root;
-}
-
-async function waitForCredentialSwitchState(optionsPage, checked, timeout) {
-  const expected = checked ? 'true' : 'false';
-  await optionsPage.waitForFunction((expectedValue) => (
-    document.querySelector('[data-testid="persist-credentials-switch"] input[role="switch"]')?.getAttribute('aria-checked') === expectedValue
-  ), expected, { timeout });
 }
 
 async function pageBoundaryState(page, marker) {
@@ -1003,19 +965,11 @@ async function main() {
     await page.screenshot({ path: finalScreenshot, fullPage: true });
     evidence.screenshots.push(finalScreenshot);
 
-    const sessionOnlyExpected = {
-      sessionCredentialsPresent: true,
-      sessionCredentialsContainsSentinel: true,
-      localCredentialsPresent: false,
-      localCredentialsContainsSentinel: false,
-      persistCredentials: false,
-    };
     const persistentExpected = {
-      sessionCredentialsPresent: true,
-      sessionCredentialsContainsSentinel: true,
+      sessionCredentialsPresent: false,
+      sessionCredentialsContainsSentinel: false,
       localCredentialsPresent: true,
       localCredentialsContainsSentinel: true,
-      persistCredentials: true,
     };
 
     const credentialMessage = await persistCredentialViaExtensionMessage(
@@ -1023,15 +977,15 @@ async function main() {
       credentialSentinel,
       credentialMessageClientId,
     );
-    const sessionOnlyAfterMessage = await waitForCredentialStorageState(
+    const persistentAfterMessage = await waitForCredentialStorageState(
       optionsPage,
       credentialSentinel,
-      sessionOnlyExpected,
+      persistentExpected,
       args.timeout,
     );
-    assertCredentialStorageState('可信扩展页消息保存后', sessionOnlyAfterMessage, sessionOnlyExpected);
-    // pagehide 会提交 options 当前 Vue 快照；确认 session watcher 已把凭据合入
-    // 真实 token 输入后再 reload，避免旧页面快照清空刚写入的 session 凭据。
+    assertCredentialStorageState('可信扩展页消息保存后', persistentAfterMessage, persistentExpected);
+    // pagehide 会提交 options 当前 Vue 快照；先确认运行时已接收后台的持久凭据，
+    // 再重载页面，避免旧页面快照覆盖刚写入的 API Key。
     const optionsRuntimeHydratedBeforeReload = await waitForOptionsRuntimeCredential(
       optionsPage,
       credentialSentinel,
@@ -1045,13 +999,13 @@ async function main() {
       credentialSentinel,
       args.timeout,
     );
-    const sessionOnlyAfterReload = await waitForCredentialStorageState(
+    const persistentAfterOptionsReload = await waitForCredentialStorageState(
       optionsPage,
       credentialSentinel,
-      sessionOnlyExpected,
+      persistentExpected,
       args.timeout,
     );
-    assertCredentialStorageState('设置页重载后', sessionOnlyAfterReload, sessionOnlyExpected);
+    assertCredentialStorageState('设置页重载后', persistentAfterOptionsReload, persistentExpected);
 
     const exportEvidence = await exportConfigViaOptionsUi(
       optionsPage,
@@ -1062,36 +1016,65 @@ async function main() {
     if (!exportEvidence.containsCredentialSentinel || !exportEvidence.containsCredentialFields) {
       throw new Error(`设置页完整配置导出缺少凭据：${JSON.stringify(exportEvidence)}`);
     }
+    if (!exportEvidence.legacyPolicyFieldAbsent) {
+      throw new Error(`设置页导出仍包含已废弃的 persistCredentials 字段：${JSON.stringify(exportEvidence)}`);
+    }
     if (exportEvidence.service !== 'openai') {
       throw new Error(`设置页导出没有反映可信消息保存的公开配置：${JSON.stringify(exportEvidence)}`);
     }
-    const sessionOnlyScreenshot = path.join(artifactsDir, 'credentials-session-only.png');
-    await optionsPage.screenshot({ path: sessionOnlyScreenshot, fullPage: true });
-    evidence.screenshots.push(sessionOnlyScreenshot);
+    const persistentScreenshot = path.join(artifactsDir, 'credentials-persistent.png');
+    await optionsPage.screenshot({ path: persistentScreenshot, fullPage: true });
+    evidence.screenshots.push(persistentScreenshot);
 
-    await requestCredentialPersistenceEnable(optionsPage, args.timeout);
-    const warningScreenshot = path.join(artifactsDir, 'credentials-persistence-warning.png');
-    await optionsPage.screenshot({ path: warningScreenshot, fullPage: true });
-    evidence.screenshots.push(warningScreenshot);
-    await confirmCredentialPersistenceEnable(optionsPage, args.timeout);
-    const persistenceEnabled = await waitForCredentialStorageState(
+    // 页面 reload 只能证明 Vue 重新挂载；这里真实重载扩展运行时，随后重新打开同一
+    // 临时 profile 的设置页，证明 API Key 的恢复不依赖旧 background 内存。
+    await optionsPage.evaluate(() => {
+      setTimeout(() => chrome.runtime.reload(), 50);
+      return true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    if (!optionsPage.isClosed()) await optionsPage.close().catch(() => {});
+
+    let reopenError;
+    optionsPage = null;
+    for (let attempt = 1; attempt <= 10; attempt += 1) {
+      try {
+        optionsPage = await openOptionsPage(
+          createPage,
+          activatePage,
+          extensionId,
+          manifestEvidence.optionsPage,
+          args.timeout,
+        );
+        break;
+      } catch (error) {
+        reopenError = error;
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+    }
+    if (!optionsPage) {
+      throw new Error(`扩展运行时重载后无法重新打开设置页：${reopenError instanceof Error ? reopenError.message : String(reopenError)}`);
+    }
+    optionsPage.on('console', (message) => {
+      if (message.type() === 'error') {
+        consoleErrors.push(redactEvidenceText(message.text()).slice(0, 500));
+      }
+    });
+    const optionsRuntimeHydratedAfterExtensionReload = await waitForOptionsRuntimeCredential(
+      optionsPage,
+      credentialSentinel,
+      args.timeout,
+    );
+    const persistentAfterExtensionReload = await waitForCredentialStorageState(
       optionsPage,
       credentialSentinel,
       persistentExpected,
       args.timeout,
     );
-    await waitForCredentialSwitchState(optionsPage, true, args.timeout);
-    assertCredentialStorageState('显式允许本地持久化后', persistenceEnabled, persistentExpected);
-
-    await disableCredentialPersistence(optionsPage, args.timeout);
-    const persistenceDisabled = await waitForCredentialStorageState(
-      optionsPage,
-      credentialSentinel,
-      sessionOnlyExpected,
-      args.timeout,
-    );
-    await waitForCredentialSwitchState(optionsPage, false, args.timeout);
-    assertCredentialStorageState('关闭本地持久化后', persistenceDisabled, sessionOnlyExpected);
+    assertCredentialStorageState('扩展运行时重载后', persistentAfterExtensionReload, persistentExpected);
+    const extensionReloadScreenshot = path.join(artifactsDir, 'credentials-persistent-after-extension-reload.png');
+    await optionsPage.screenshot({ path: extensionReloadScreenshot, fullPage: true });
+    evidence.screenshots.push(extensionReloadScreenshot);
 
     // 等待防抖历史快照落盘，再重复检查导出/历史不会在稍后泄露凭据。
     await optionsPage.waitForTimeout(600);
@@ -1100,8 +1083,8 @@ async function main() {
       PREFILL_SECRET_MARKER,
       credentialSentinel,
     );
-    assertCredentialStorageState('凭据生命周期最终状态', credentialFinal, sessionOnlyExpected);
-    const credentialFinalScreenshot = path.join(artifactsDir, 'credentials-session-restored.png');
+    assertCredentialStorageState('凭据生命周期最终状态', credentialFinal, persistentExpected);
+    const credentialFinalScreenshot = path.join(artifactsDir, 'credentials-persistent-restored.png');
     await optionsPage.screenshot({ path: credentialFinalScreenshot, fullPage: true });
     evidence.screenshots.push(credentialFinalScreenshot);
     if (consoleErrors.length > 0) {
@@ -1149,14 +1132,13 @@ async function main() {
         directStorageWriteUsedForCredentialSave: false,
         optionsRuntimeHydratedBeforeReload,
         optionsRuntimeHydratedAfterReload,
-        sessionOnlyAfterMessage,
-        sessionOnlyAfterOptionsReload: sessionOnlyAfterReload,
+        optionsRuntimeHydratedAfterExtensionReload,
+        persistentAfterMessage,
+        persistentAfterOptionsReload,
+        persistentAfterExtensionReload,
         export: exportEvidence,
-        persistenceEnabled,
-        persistenceDisabled,
         final: credentialFinal,
-        riskConfirmationObserved: true,
-        persistToggleTestId: 'persist-credentials-switch',
+        legacyToggleAbsent: true,
       },
       consoleErrors,
     };

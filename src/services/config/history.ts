@@ -49,8 +49,8 @@ export function toPublicConfig(value: unknown): PublicConfig {
 /**
  * 历史与自动备份只保存真正可恢复的用户配置。
  *
- * 翻译计数和内部迁移标记会被运行时频繁更新，凭据持久化又是显式安全选择；
- * 它们既不应挤占用户最近修改，也不能在恢复旧快照时被静默回滚。
+ * 翻译计数和内部迁移标记会被运行时频繁更新；旧版 persistCredentials 已废弃。
+ * 它们既不应挤占用户最近修改，也不能在恢复旧快照时重新进入当前配置。
  */
 export function toRestorableConfig(value: unknown): RestorableConfig {
     // 进入历史/备份的数据已经过运行时迁移。再次归一化一个不含内部标记的
@@ -63,13 +63,12 @@ export function toRestorableConfig(value: unknown): RestorableConfig {
     return restorable as RestorableConfig;
 }
 
-/** 把可恢复快照与当前的凭据、统计和安全选择重新组合成完整运行时配置。 */
+/** 把可恢复快照与当前的凭据、统计和内部迁移状态重新组合成完整运行时配置。 */
 export function restoreRestorableConfig(value: unknown, currentValue: unknown): Config {
     const current = normalizeConfig(currentValue);
     return normalizeConfig(mergeConfigCredentials({
         ...toRestorableConfig(value),
         count: current.count,
-        persistCredentials: current.persistCredentials,
         videoServiceDefaultMigrated: current.videoServiceDefaultMigrated,
     }, extractConfigCredentials(current)));
 }

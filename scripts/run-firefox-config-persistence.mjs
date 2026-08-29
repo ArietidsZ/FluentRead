@@ -128,12 +128,20 @@ function credentialStorageSnapshotSource(sentinel) {
             if (response?.success !== true) throw new Error(response?.error || 'configStorageRead failed: ' + key);
             return response.value ?? null;
         };
-        const [config, history, localCredentials, sessionCredentials] = await Promise.all([
+        const readOptional = async key => {
+            try {
+                return {available: true, value: await read(key)};
+            } catch (error) {
+                return {available: false, value: null, error: String(error)};
+            }
+        };
+        const [config, history, localCredentials, sessionResult] = await Promise.all([
             read('local:config'),
             read('local:configHistory'),
             read('local:credentials'),
-            read('session:credentials'),
+            readOptional('session:credentials'),
         ]);
+        const sessionCredentials = sessionResult.value;
         const database = await new Promise((resolve, reject) => {
             const request = indexedDB.open('FluentReadConfiguration');
             request.onsuccess = () => resolve(request.result);
@@ -156,17 +164,21 @@ function credentialStorageSnapshotSource(sentinel) {
             : [];
         const containsSentinel = value => JSON.stringify(value ?? null).includes(${JSON.stringify(sentinel)});
         return {
-            sessionAvailable: true,
-            persistCredentials: config?.persistCredentials === true,
+            sessionAvailable: sessionResult.available,
+            sessionReadError: sessionResult.error || null,
+            legacyPolicyFieldPresent: Object.prototype.hasOwnProperty.call(config || {}, 'persistCredentials'),
             localConfigCredentialFields: credentialFields.filter(field => Object.prototype.hasOwnProperty.call(config || {}, field)),
             historyCredentialFields: [...new Set(historyConfigs.flatMap(item => credentialFields.filter(field => Object.prototype.hasOwnProperty.call(item || {}, field))))],
             configHasSentinel: containsSentinel(config),
             historyHasSentinel: containsSentinel(history),
             sessionHasSentinel: containsSentinel(sessionCredentials),
+            sessionCredentialsPresent: sessionCredentials !== null,
             localCredentialsPresent: localCredentials !== null,
             localCredentialsHasSentinel: containsSentinel(localCredentials),
             rawIndexedDbHasSentinel: containsSentinel(rawRecords),
             encryptedRecordKeys: rawRecords.map(record => record.key).sort(),
+            localCredentialsRecordEncrypted: rawRecords.some(record => record?.key === 'local:credentials'),
+            sessionCredentialsRecordPresent: rawRecords.some(record => record?.key === 'session:credentials'),
             requiredEncryptedRecordKeysPresent: requiredEncryptedRecordKeys
                 .every(key => rawRecords.some(record => record?.key === key)),
             encryptedEnvelopesValid: rawRecords.length > 0
@@ -206,21 +218,31 @@ async function waitForCredentialStorage(client, sentinel, expected, label) {
     throw new Error(`Firefox credential storage did not stabilize for ${label}: ${JSON.stringify({expected, actual: lastSnapshot})}`);
 }
 
-function credentialSaveSource({clientId, sequence, sentinel, sentinelKey, persistCredentials, removeSentinel = false}) {
+function credentialSaveSource({clientId, sequence, sentinel, sentinelKey, removeSentinel = false}) {
     return `(async () => {
         const read = async key => {
             const response = await browser.runtime.sendMessage({type: 'configStorageRead', key});
             if (response?.success !== true) throw new Error(response?.error || 'configStorageRead failed: ' + key);
             return response.value ?? null;
         };
-        const [current, sessionCredentials, localCredentials] = await Promise.all([
+        const readOptional = async key => {
+            try {
+                return await read(key);
+            } catch {
+                return null;
+            }
+        };
+        const [current, localCredentials, legacySessionCredentials] = await Promise.all([
             read('local:config'),
-            read('session:credentials'),
             read('local:credentials'),
+            readOptional('session:credentials'),
         ]);
         if (!current || typeof current !== 'object') throw new Error('encrypted config is unavailable');
-        const activeCredentials = sessionCredentials || localCredentials || {};
-        const config = {...current, persistCredentials: ${persistCredentials ? 'true' : 'false'}};
+        // local:credentials 是当前唯一权威。旧 session 只在升级迁移尚未完成、
+        // 本地持久副本不存在时作为兼容输入，不要求 Firefox 支持 storage.session。
+        const activeCredentials = localCredentials || legacySessionCredentials || {};
+        const config = {...current};
+        delete config.persistCredentials;
         for (const field of ${JSON.stringify(CREDENTIAL_FIELDS)}) {
             if (Object.prototype.hasOwnProperty.call(activeCredentials, field)) {
                 config[field] = activeCredentials[field];
@@ -288,7 +310,7 @@ async function runCredentialLifecycle(client, result) {
     let sentinelWriteAttempted = false;
     let lifecycleError;
     const commonCleanState = {
-        sessionAvailable: true,
+        legacyPolicyFieldPresent: false,
         localConfigCredentialFields: [],
         historyCredentialFields: [],
         configHasSentinel: false,
@@ -296,81 +318,59 @@ async function runCredentialLifecycle(client, result) {
         rawIndexedDbHasSentinel: false,
         requiredEncryptedRecordKeysPresent: true,
         encryptedEnvelopesValid: true,
+        sessionHasSentinel: false,
+        sessionCredentialsPresent: false,
+        sessionCredentialsRecordPresent: false,
     };
 
     result.credentialCases = {
-        sessionRequired: true,
+        sessionRequired: false,
         sessionAvailable: false,
         clientId,
         sentinel,
         sentinelKey,
-        sessionOnly: null,
-        persistentOptIn: null,
-        sessionOnlyAfterOptOut: null,
+        persistentDefault: null,
+        persistentAfterPageReload: null,
         cleanup: null,
     };
 
     try {
         const initial = await readCredentialStorageSnapshot(client, sentinel);
         result.credentialCases.sessionAvailable = initial?.sessionAvailable === true;
-        if (!result.credentialCases.sessionAvailable) {
-            throw new Error('Firefox credential lifecycle requires the encrypted session credential repository');
-        }
 
         sequence += 1;
         sentinelWriteAttempted = true;
-        const sessionOnlyRequest = await sendCredentialSave(client, {
-            clientId,
-            sequence,
-            sentinel,
-            sentinelKey,
-            persistCredentials: false,
-        });
-        await sleep(500);
-        const sessionOnlyStorage = await waitForCredentialStorage(client, sentinel, {
-            ...commonCleanState,
-            persistCredentials: false,
-            sessionHasSentinel: true,
-            localCredentialsPresent: false,
-            localCredentialsHasSentinel: false,
-        }, 'default session-only credentials');
-        result.credentialCases.sessionOnly = {request: sessionOnlyRequest, storage: sessionOnlyStorage};
-
-        sequence += 1;
         const persistentRequest = await sendCredentialSave(client, {
             clientId,
             sequence,
             sentinel,
             sentinelKey,
-            persistCredentials: true,
         });
         await sleep(500);
         const persistentStorage = await waitForCredentialStorage(client, sentinel, {
             ...commonCleanState,
-            persistCredentials: true,
-            sessionHasSentinel: true,
             localCredentialsPresent: true,
             localCredentialsHasSentinel: true,
-        }, 'explicit local credential opt-in');
-        result.credentialCases.persistentOptIn = {request: persistentRequest, storage: persistentStorage};
+            localCredentialsRecordEncrypted: true,
+        }, 'default persistent credentials');
+        result.credentialCases.persistentDefault = {request: persistentRequest, storage: persistentStorage};
 
-        sequence += 1;
-        const optOutRequest = await sendCredentialSave(client, {
-            clientId,
-            sequence,
-            sentinel,
-            sentinelKey,
-            persistCredentials: false,
-        });
+        // 销毁当前 options 页面，再经过 popup 回到全新的 options 页面，验证页面
+        // 生命周期重启后仍从 local:credentials 水合，而不是依赖 session 能力。
+        const optionsUrl = (await selectedFrame(client)).frame.url;
+        const popupUrl = new URL('popup.html', optionsUrl).href;
+        await navigate(client, popupUrl);
+        await waitForDom(client, `document.querySelector('.popup-shell')`, 'credential lifecycle popup mount');
+        await navigate(client, optionsUrl);
+        await waitForDom(client, `document.querySelector('.settings-app')`, 'credential lifecycle options remount');
         await sleep(500);
-        const optOutStorage = await waitForCredentialStorage(client, sentinel, {
+        const afterPageReload = await waitForCredentialStorage(client, sentinel, {
             ...commonCleanState,
-            persistCredentials: false,
-            sessionHasSentinel: true,
-            localCredentialsPresent: false,
-            localCredentialsHasSentinel: false,
-        }, 'local credential opt-out');
-        result.credentialCases.sessionOnlyAfterOptOut = {request: optOutRequest, storage: optOutStorage};
+            localCredentialsPresent: true,
+            localCredentialsHasSentinel: true,
+            localCredentialsRecordEncrypted: true,
+        }, 'persistent credentials after options page reload');
+        result.credentialCases.persistentAfterPageReload = {storage: afterPageReload};
     } catch (error) {
         lifecycleError = error;
         throw error;
@@ -383,16 +383,14 @@ async function runCredentialLifecycle(client, result) {
                     sequence,
                     sentinel,
                     sentinelKey,
-                    persistCredentials: false,
                     removeSentinel: true,
                 });
                 await sleep(500);
                 const cleanupStorage = await waitForCredentialStorage(client, sentinel, {
                     ...commonCleanState,
-                    persistCredentials: false,
-                    sessionHasSentinel: false,
-                    localCredentialsPresent: false,
+                    localCredentialsPresent: true,
                     localCredentialsHasSentinel: false,
+                    localCredentialsRecordEncrypted: true,
                 }, 'credential sentinel cleanup');
                 result.credentialCases.cleanup = {request: cleanupRequest, storage: cleanupStorage};
             } catch (error) {
@@ -426,7 +424,7 @@ async function main() {
             latestWriteWins: false,
         },
         credentialCases: {
-            sessionRequired: true,
+            sessionRequired: false,
             sessionAvailable: false,
         },
         errors: [],

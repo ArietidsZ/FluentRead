@@ -286,16 +286,16 @@ async function readConfig(context, timeout, updates = null, createPage = () => c
         return response.value ?? null;
       };
       const readCompleteConfig = async () => {
-        const [storedConfig, sessionCredentials, localCredentials] = await Promise.all([
+        const [storedConfig, localCredentials, sessionCredentials] = await Promise.all([
           readConfigRecord('local:config'),
-          readConfigRecord('session:credentials'),
           readConfigRecord('local:credentials'),
+          readConfigRecord('session:credentials'),
         ]);
         const publicConfig = parseRecord(storedConfig);
-        const credentialRecord = sessionCredentials && typeof sessionCredentials === 'object'
-          ? sessionCredentials
-          : localCredentials && typeof localCredentials === 'object'
-            ? localCredentials
+        const credentialRecord = localCredentials && typeof localCredentials === 'object'
+          ? localCredentials
+          : sessionCredentials && typeof sessionCredentials === 'object'
+            ? sessionCredentials
             : null;
         const credentials = credentialRecord ? {...credentialRecord} : {};
         delete credentials.schemaVersion;

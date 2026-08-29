@@ -10,6 +10,7 @@ const storageMock = vi.hoisted(() => ({
     removeItem: vi.fn(),
     watch: vi.fn(),
 }));
+const atomicSetItemsMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@wxt-dev/storage', () => ({ storage: storageMock }));
 vi.mock('@/src/platform/storage/configStorageRuntime', () => ({configStorage: storageMock}));
@@ -34,7 +35,10 @@ interface LoadConfigOptions {
     localCredentialReadBarrier?: Promise<void>;
     failLocalCredentialRead?: boolean;
     failSessionRead?: boolean;
-    failSessionWrite?: boolean;
+    failLocalCredentialWrite?: boolean;
+    failLocalCredentialVerification?: boolean;
+    atomicSetItems?: boolean;
+    failAtomicCommit?: boolean;
     writeOwner?: boolean;
 }
 
@@ -44,6 +48,7 @@ async function loadConfigModule(value: unknown = null, options: LoadConfigOption
     storageOperations.length = 0;
     storageWatchers.clear();
     storageMock.writeOwner = options.writeOwner !== false;
+    let localCredentialWritten = false;
     if (value !== null) storageState.set('local:config', value);
     if (options.history !== undefined) storageState.set('local:configHistory', options.history);
     if (options.sessionCredentials !== undefined) storageState.set('session:credentials', options.sessionCredentials);
@@ -63,6 +68,9 @@ async function loadConfigModule(value: unknown = null, options: LoadConfigOption
         if (options.failLocalCredentialRead && key === 'local:credentials') {
             throw new Error('storage.local credentials unavailable');
         }
+        if (options.failLocalCredentialVerification && key === 'local:credentials' && localCredentialWritten) {
+            return {token: {openai: 'stale-readback-secret'}};
+        }
         if (options.failSessionRead && key === 'session:credentials') {
             throw new Error('storage.session unavailable');
         }
@@ -70,15 +78,33 @@ async function loadConfigModule(value: unknown = null, options: LoadConfigOption
     });
     storageMock.setItem.mockReset().mockImplementation(async (key: string, nextValue: unknown) => {
         storageOperations.push(`set:${key}`);
-        if (options.failSessionWrite && key === 'session:credentials') {
-            throw new Error('storage.session unavailable');
+        if (options.failLocalCredentialWrite && key === 'local:credentials') {
+            throw new Error('persistent credentials unavailable');
         }
+        if (key === 'local:credentials') localCredentialWritten = true;
         storageState.set(key, structuredClone(nextValue));
     });
     storageMock.removeItem.mockReset().mockImplementation(async (key: string) => {
         storageOperations.push(`remove:${key}`);
         storageState.delete(key);
     });
+    atomicSetItemsMock.mockReset().mockImplementation(async (
+        entries: ReadonlyMap<string, unknown>,
+        removeKeys: readonly string[] = [],
+    ) => {
+        storageOperations.push(`setItems:${[...entries.keys()].join(',')}:${removeKeys.join(',')}`);
+        if (options.failAtomicCommit) throw new Error('atomic commit unavailable');
+        const nextState = new Map(storageState);
+        for (const [key, nextValue] of entries) nextState.set(key, structuredClone(nextValue));
+        for (const key of removeKeys) nextState.delete(key);
+        storageState.clear();
+        for (const [key, nextValue] of nextState) storageState.set(key, nextValue);
+    });
+    if (options.atomicSetItems) {
+        (storageMock as typeof storageMock & {setItems?: typeof atomicSetItemsMock}).setItems = atomicSetItemsMock;
+    } else {
+        delete (storageMock as typeof storageMock & {setItems?: typeof atomicSetItemsMock}).setItems;
+    }
     storageMock.watch.mockReset().mockImplementation((key: string, callback: (value: unknown) => void) => {
         storageWatchers.set(key, callback);
         return () => storageWatchers.delete(key);
@@ -117,6 +143,24 @@ describe('统一配置存储', () => {
         expect(configStore.config).toMatchObject(storedConfig);
     });
 
+    it('IndexedDB 已有相同持久凭据时直接水合，不在启动时重复写回', async () => {
+        const secret = 'existing-persistent-secret';
+        const canonicalConfig = {
+            ...sanitizeConfigCredentials(normalizeConfig(storedConfig)),
+            __fluentConfigRevision: 5,
+        };
+        const configStore = await loadConfigModule(canonicalConfig, {
+            localCredentials: {token: {openai: secret}},
+        });
+
+        await configStore.configReady;
+
+        expect(configStore.config.token.openai).toBe(secret);
+        expect(storageMock.setItem).not.toHaveBeenCalled();
+        expect(atomicSetItemsMock).not.toHaveBeenCalled();
+        expect(storageMock.removeItem).not.toHaveBeenCalled();
+    });
+
     it('可信扩展页面只从后台水合凭据，不重复执行迁移或直接写 IndexedDB', async () => {
         const secret = 'remote-extension-page-secret';
         const canonicalConfig = {
@@ -125,7 +169,7 @@ describe('统一配置存储', () => {
         };
         const configStore = await loadConfigModule(canonicalConfig, {
             writeOwner: false,
-            sessionCredentials: {token: {openai: secret}},
+            localCredentials: {token: {openai: secret}},
         });
 
         await configStore.configReady;
@@ -209,9 +253,10 @@ describe('统一配置存储', () => {
         expect(sendMessage).not.toHaveBeenCalled();
     });
 
-    it('可信远程页无法读取 session 凭据时拒绝发送可能清空 API Key 的保存请求', async () => {
+    it('可信远程页迁移旧策略时无法读取 session 凭据会拒绝发送可能清空 API Key 的保存请求', async () => {
         const canonicalConfig = {
             ...sanitizeConfigCredentials(normalizeConfig(storedConfig)),
+            persistCredentials: false,
             __fluentConfigRevision: 5,
         };
         const configStore = await loadConfigModule(canonicalConfig, {
@@ -355,10 +400,14 @@ describe('统一配置存储', () => {
         const latestSave = configStore.saveConfig({ ...configStore.config, on: true, to: 'en' });
         await Promise.all([firstSave, latestSave]);
 
-        expect(storageMock.setItem).toHaveBeenCalledTimes(1);
-        expect(storageMock.setItem).toHaveBeenLastCalledWith(
+        expect(storageMock.setItem.mock.calls.filter(([key]) => key === 'local:config')).toHaveLength(1);
+        expect(storageMock.setItem).toHaveBeenCalledWith(
             'local:config',
             expect.objectContaining({ on: true, to: 'en' }),
+        );
+        expect(storageMock.setItem).toHaveBeenCalledWith(
+            'local:credentials',
+            expect.objectContaining({token: {}}),
         );
 
         storageMock.setItem.mockClear();
@@ -452,15 +501,16 @@ describe('统一配置存储', () => {
     });
 
     it.each([
-        ['读取', {failSessionRead: true}],
-        ['检查点写入', {failSessionWrite: true}],
-    ] as const)('后台重启后 session 凭据%s失败仍先水合计数操作日志', async (_failure, failureOptions) => {
+        ['旧 session 读取', {failSessionRead: true}],
+        ['local 检查点写入', {failLocalCredentialWrite: true}],
+    ] as const)('后台重启后%s失败仍先水合计数操作日志', async (_failure, failureOptions) => {
         let releaseConfigRead!: () => void;
         const configReadBarrier = new Promise<void>((resolve) => { releaseConfigRead = resolve; });
         const secret = 'count-restart-session-secret';
         const persisted = {
             ...sanitizeConfigCredentials(normalizeConfig(storedConfig)),
             token: {openai: secret},
+            persistCredentials: false,
             count: 13,
             __fluentConfigRevision: 4,
             __fluentCountOperations: [{id: 'count-restart-operation', delta: 3, count: 13}],
@@ -610,7 +660,7 @@ describe('统一配置存储', () => {
         expect(storageMock.setItem).not.toHaveBeenCalled();
     });
 
-    it('content 保存公开字段时保留后台运行时凭据与持久化偏好', async () => {
+    it('content 保存公开字段时保留后台运行时凭据并忽略旧持久化策略字段', async () => {
         const configStore = await loadConfigModule(storedConfig);
         await configStore.configReady;
         const current = normalizeConfig({
@@ -638,18 +688,18 @@ describe('统一配置存储', () => {
             to: 'ja',
             token: {openai: 'background-session-secret'},
             extra: {zhipu: {jwt: 'derived-secret'}},
-            persistCredentials: true,
             count: 42,
             videoServiceDefaultMigrated: true,
         });
+        expect(prepared).not.toHaveProperty('persistCredentials');
         expect(extensionPrepared.token).toEqual({});
         expect(extensionPrepared.extra).toEqual({});
-        expect(extensionPrepared.persistCredentials).toBe(false);
+        expect(extensionPrepared).not.toHaveProperty('persistCredentials');
         expect(extensionPrepared.count).toBe(42);
         expect(extensionPrepared.videoServiceDefaultMigrated).toBe(true);
     });
 
-    it('按 session 写入读回、清理 config/history、最后删除 local 的顺序迁移旧凭据', async () => {
+    it('先写入并读回 local 凭据，再清理旧 config/history 明文', async () => {
         const secret = 'legacy-secret-sentinel';
         const legacyConfig = {
             ...storedConfig,
@@ -667,17 +717,16 @@ describe('统一配置存储', () => {
 
         await configStore.configReady;
 
-        const setSession = storageOperations.indexOf('set:session:credentials');
-        const verifySession = storageOperations.indexOf('get:session:credentials', setSession + 1);
+        const setLocal = storageOperations.indexOf('set:local:credentials');
+        const verifyLocal = storageOperations.indexOf('get:local:credentials', setLocal + 1);
         const setConfig = storageOperations.indexOf('set:local:config');
         const setHistory = storageOperations.indexOf('set:local:configHistory');
-        const removeLocal = storageOperations.indexOf('remove:local:credentials');
-        expect(setSession).toBeGreaterThan(-1);
-        expect(verifySession).toBeGreaterThan(setSession);
-        expect(setConfig).toBeGreaterThan(verifySession);
-        expect(setHistory).toBeGreaterThan(setConfig);
-        expect(removeLocal).toBeGreaterThan(setHistory);
-        expect(storageState.get('session:credentials')).toMatchObject({token: {openai: secret}});
+        expect(setLocal).toBeGreaterThan(-1);
+        expect(verifyLocal).toBeGreaterThan(setLocal);
+        expect(setHistory).toBeGreaterThan(verifyLocal);
+        expect(setConfig).toBeGreaterThan(setHistory);
+        expect(storageState.get('local:credentials')).toMatchObject({token: {openai: secret}});
+        expect(storageState.has('session:credentials')).toBe(false);
         expect(JSON.stringify(storageState.get('local:config'))).not.toContain(secret);
         expect(JSON.stringify(storageState.get('local:configHistory'))).not.toContain(secret);
     });
@@ -692,13 +741,13 @@ describe('统一配置存储', () => {
 
         expect(storageState.has('local:configHistory')).toBe(false);
         expect(JSON.stringify([...storageState.values()])).not.toContain(malformedHistory);
-        expect(storageState.get('session:credentials')).toMatchObject({token: {openai: secret}});
+        expect(storageState.get('local:credentials')).toMatchObject({token: {openai: secret}});
     });
 
-    it('默认只把新凭据保存到 session，local config 与历史不含敏感 sentinel', async () => {
+    it('默认把新凭据加密持久保存到 local，公开配置与历史不含敏感 sentinel', async () => {
         const configStore = await loadConfigModule(storedConfig);
         await Promise.all([configStore.configReady, configStore.configHistoryReady]);
-        const secret = 'session-only-secret-sentinel';
+        const secret = 'persistent-secret-sentinel';
 
         await configStore.saveConfig({
             ...configStore.config,
@@ -706,8 +755,8 @@ describe('统一配置存储', () => {
             to: 'en',
         }, {recordHistory: true, immediateHistory: true});
 
-        expect(storageState.get('session:credentials')).toMatchObject({token: {openai: secret}});
-        expect(storageState.has('local:credentials')).toBe(false);
+        expect(storageState.get('local:credentials')).toMatchObject({token: {openai: secret}});
+        expect(storageState.has('session:credentials')).toBe(false);
         expect(JSON.stringify(storageState.get('local:config'))).not.toContain(secret);
         expect(JSON.stringify(storageState.get('local:configHistory'))).not.toContain(secret);
         const persistedConfig = storageState.get('local:config') as Record<string, unknown>;
@@ -715,34 +764,99 @@ describe('统一配置存储', () => {
         expect(persistedConfig.extra).toBeUndefined();
 
         await configStore.saveConfig({...configStore.config, token: {}, to: 'ja'});
-        expect(storageState.get('session:credentials')).toMatchObject({token: {}});
+        expect(storageState.get('local:credentials')).toMatchObject({token: {}});
     });
 
-    it('只有明确 opt-in 才写 local:credentials，关闭时先校验 session 再删除', async () => {
-        const configStore = await loadConfigModule(storedConfig);
-        await configStore.configReady;
-        const secret = 'opt-in-secret-sentinel';
-
-        await configStore.saveConfig({
-            ...configStore.config,
-            token: {openai: secret},
-            persistCredentials: true,
+    it('扩展后台用一次原子提交写入持久凭据与公开配置，并清理旧 session', async () => {
+        const oldSecret = 'atomic-old-secret';
+        const newSecret = 'atomic-new-secret';
+        const canonicalConfig = {
+            ...sanitizeConfigCredentials(normalizeConfig(storedConfig)),
+            __fluentConfigRevision: 5,
+        };
+        const configStore = await loadConfigModule(canonicalConfig, {
+            atomicSetItems: true,
+            localCredentials: {token: {openai: oldSecret}},
         });
-        expect(storageState.get('local:credentials')).toMatchObject({token: {openai: secret}});
-        expect(JSON.stringify(storageState.get('local:config'))).not.toContain(secret);
+        await configStore.configReady;
+        storageState.set('session:credentials', {token: {openai: 'stale-session-secret'}});
 
-        storageOperations.length = 0;
-        await configStore.saveConfig({...configStore.config, persistCredentials: false});
-        const setSession = storageOperations.indexOf('set:session:credentials');
-        const verifySession = storageOperations.indexOf('get:session:credentials', setSession + 1);
-        const removeLocal = storageOperations.indexOf('remove:local:credentials');
-        expect(setSession).toBeGreaterThan(-1);
-        expect(verifySession).toBeGreaterThan(setSession);
-        expect(removeLocal).toBeGreaterThan(verifySession);
-        expect(storageState.has('local:credentials')).toBe(false);
+        await configStore.saveConfig({...configStore.config, token: {openai: newSecret}, to: 'en'});
+
+        expect(atomicSetItemsMock).toHaveBeenCalledTimes(1);
+        const [entries, removeKeys] = atomicSetItemsMock.mock.calls[0] as [Map<string, unknown>, string[]];
+        expect([...entries.keys()].sort()).toEqual(['local:config', 'local:credentials']);
+        expect(entries.get('local:credentials')).toMatchObject({token: {openai: newSecret}});
+        expect(JSON.stringify(entries.get('local:config'))).not.toContain(newSecret);
+        expect(removeKeys).toEqual(['session:credentials']);
+        expect(storageState.get('local:credentials')).toMatchObject({token: {openai: newSecret}});
+        expect(storageState.has('session:credentials')).toBe(false);
+        expect(configStore.getConfigRevision()).toBe(6);
     });
 
-    it('恢复历史只恢复可恢复字段，并保留当前凭据、统计、安全选择和迁移标记', async () => {
+    it('原子提交失败时不改变 IndexedDB 快照或推进持久 revision', async () => {
+        const oldSecret = 'atomic-preserved-secret';
+        const canonicalConfig = {
+            ...sanitizeConfigCredentials(normalizeConfig(storedConfig)),
+            __fluentConfigRevision: 5,
+        };
+        const configStore = await loadConfigModule(canonicalConfig, {
+            atomicSetItems: true,
+            failAtomicCommit: true,
+            localCredentials: {token: {openai: oldSecret}},
+        });
+        await configStore.configReady;
+
+        await expect(configStore.saveConfig({
+            ...configStore.config,
+            token: {openai: 'atomic-rejected-secret'},
+            to: 'en',
+        })).rejects.toThrow('atomic commit unavailable');
+
+        expect(storageState.get('local:credentials')).toMatchObject({token: {openai: oldSecret}});
+        expect(storageState.get('local:config')).toEqual(canonicalConfig);
+        expect(configStore.getConfigRevision()).toBe(5);
+    });
+
+    it('旧策略双副本不一致时采用最新 session，验证 local 后删除 session 与旧字段', async () => {
+        const configStore = await loadConfigModule({...storedConfig, persistCredentials: false}, {
+            localCredentials: {token: {openai: 'old-local-secret'}},
+            sessionCredentials: {token: {openai: 'new-session-secret'}},
+        });
+
+        await configStore.configReady;
+
+        expect(configStore.config.token.openai).toBe('new-session-secret');
+        expect(storageState.get('local:credentials')).toMatchObject({token: {openai: 'new-session-secret'}});
+        expect(storageState.has('session:credentials')).toBe(false);
+        expect(storageState.get('local:config')).not.toHaveProperty('persistCredentials');
+        const setLocal = storageOperations.indexOf('set:local:credentials');
+        const verifyLocal = storageOperations.indexOf('get:local:credentials', setLocal + 1);
+        const removeSession = storageOperations.indexOf('remove:session:credentials');
+        const setConfig = storageOperations.indexOf('set:local:config');
+        expect(verifyLocal).toBeGreaterThan(setLocal);
+        expect(removeSession).toBeGreaterThan(verifyLocal);
+        expect(setConfig).toBeGreaterThan(removeSession);
+    });
+
+    it('新配置以 local 凭据为权威，不被残留旧 session 回滚', async () => {
+        const canonical = {
+            ...sanitizeConfigCredentials(normalizeConfig(storedConfig)),
+            __fluentConfigRevision: 5,
+        };
+        const configStore = await loadConfigModule(canonical, {
+            localCredentials: {token: {openai: 'new-local-secret'}},
+            sessionCredentials: {token: {openai: 'stale-session-secret'}},
+        });
+
+        await configStore.configReady;
+
+        expect(configStore.config.token.openai).toBe('new-local-secret');
+        expect(storageState.get('local:credentials')).toMatchObject({token: {openai: 'new-local-secret'}});
+        expect(storageState.has('session:credentials')).toBe(false);
+    });
+
+    it('恢复历史只恢复可恢复字段，并保留当前凭据、统计和迁移标记', async () => {
         const configStore = await loadConfigModule(storedConfig);
         await Promise.all([configStore.configReady, configStore.configHistoryReady]);
         await configStore.saveConfig({...configStore.config, to: 'en'}, {recordHistory: true, immediateHistory: true});
@@ -752,7 +866,6 @@ describe('统一配置存储', () => {
         await configStore.saveConfig({
             ...configStore.config,
             token: {openai: secret},
-            persistCredentials: true,
             count: 1,
             videoServiceDefaultMigrated: true,
             to: 'ja',
@@ -762,7 +875,7 @@ describe('统一配置存储', () => {
 
         expect(configStore.config.to).toBe('zh-Hans');
         expect(configStore.config.token.openai).toBe(secret);
-        expect(configStore.config.persistCredentials).toBe(true);
+        expect(configStore.config).not.toHaveProperty('persistCredentials');
         expect(configStore.config.count).toBe(42);
         expect(configStore.config.videoServiceDefaultMigrated).toBe(true);
         expect(JSON.stringify(configStore.getConfigHistorySnapshot())).not.toContain(secret);
@@ -773,10 +886,16 @@ describe('统一配置存储', () => {
         ))).toBe(true);
     });
 
-    it('session 写入或读回失败时不删除或改写旧明文', async () => {
+    it.each([
+        ['写入', {failLocalCredentialWrite: true}],
+        ['读回校验', {failLocalCredentialVerification: true}],
+    ] as const)('local 凭据%s失败时不删除或改写旧载体', async (_failure, failureOptions) => {
         const secret = 'must-not-delete-secret';
-        const legacyConfig = {...storedConfig, token: {openai: secret}};
-        const configStore = await loadConfigModule(legacyConfig, {failSessionWrite: true});
+        const legacyConfig = {...storedConfig, token: {openai: secret}, persistCredentials: false};
+        const configStore = await loadConfigModule(legacyConfig, {
+            ...failureOptions,
+            sessionCredentials: {token: {openai: secret}},
+        });
 
         await expect(configStore.configReady).resolves.toBeUndefined();
 
@@ -784,6 +903,7 @@ describe('统一配置存储', () => {
         expect(storageMock.removeItem).not.toHaveBeenCalled();
         expect(storageMock.setItem).not.toHaveBeenCalledWith('local:config', expect.anything());
         expect(storageState.get('local:config')).toEqual(legacyConfig);
+        expect(storageState.get('session:credentials')).toMatchObject({token: {openai: secret}});
     });
 
     it('网页/content 上下文不访问 session，也不执行危险迁移', async () => {
@@ -794,7 +914,7 @@ describe('统一配置存储', () => {
         await configStore.configReady;
 
         expect(configStore.config.token).toEqual({});
-        expect(storageOperations.some((operation) => operation.includes('session:credentials'))).toBe(false);
+        expect(storageOperations.some((operation) => operation.includes(':credentials'))).toBe(false);
         expect(storageMock.setItem).not.toHaveBeenCalled();
         expect(storageMock.removeItem).not.toHaveBeenCalled();
         expect(storageState.get('local:config')).toEqual(legacyConfig);
@@ -886,14 +1006,14 @@ describe('统一配置存储', () => {
         expect(configStore.getConfigRevision()).toBe(6);
     });
 
-    it('外部仅更新 session 凭据并推进 revision 时也会取消携带旧凭据的排队快照', async () => {
+    it('外部仅更新 local 凭据并推进 revision 时也会取消携带旧凭据的排队快照', async () => {
         const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
         const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
-            sessionCredentials: {token: {openai: 'old-secret'}},
+            localCredentials: {token: {openai: 'old-secret'}},
         });
         await configStore.configReady;
         const configWatch = storageMock.watch.mock.calls[0][1];
-        const sessionWatch = storageMock.watch.mock.calls.find(([key]) => key === 'session:credentials')?.[1];
+        const credentialWatch = storageMock.watch.mock.calls.find(([key]) => key === 'local:credentials')?.[1];
         let releaseFirst!: () => void;
         const firstGate = new Promise<void>((resolve) => { releaseFirst = resolve; });
         const sendMessage = vi.fn(async () => {
@@ -905,7 +1025,7 @@ describe('统一配置存储', () => {
         await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
         const queued = configStore.requestConfigSave({...configStore.config, to: 'ja'}, sendMessage);
         configWatch({...canonical, to: 'en', __fluentConfigRevision: 5});
-        sessionWatch?.({token: {openai: 'new-secret'}});
+        credentialWatch?.({token: {openai: 'new-secret'}});
         configWatch({...canonical, to: 'en', __fluentConfigRevision: 6});
         releaseFirst();
 
@@ -1050,7 +1170,7 @@ describe('统一配置存储', () => {
         expect(history.entries.at(-1)?.config.to).toBe('ja');
     });
 
-    it('仅翻译计数、安全选择或迁移标记变化时不新增最近修改快照', async () => {
+    it('仅翻译计数、旧策略字段或迁移标记变化时不新增最近修改快照', async () => {
         const configStore = await loadConfigModule(storedConfig);
         await Promise.all([configStore.configReady, configStore.configHistoryReady]);
 
@@ -1069,9 +1189,9 @@ describe('统一配置存储', () => {
         expect(history.entries[0]?.config).not.toHaveProperty('videoServiceDefaultMigrated');
         expect(configStore.config).toMatchObject({
             count: 12,
-            persistCredentials: true,
             videoServiceDefaultMigrated: true,
         });
+        expect(configStore.config).not.toHaveProperty('persistCredentials');
     });
 
     it('两个立即历史写入重叠时串行提交，不能丢失较新的快照或复用版本号', async () => {

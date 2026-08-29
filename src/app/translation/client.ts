@@ -420,7 +420,7 @@ export interface TranslateOptions {
 
 function assertTranslationCredentials(service = config.service, modelOverride?: string): void {
   // content script 按设计只接收公开配置，因此无法检查 API 凭据。后台请求边界加载
-  // session 凭据后执行权威校验。仅扩展页面按设计能够读取凭据，可保留本地快速失败。
+  // 后台加载专用持久凭据后执行权威校验。仅扩展页面按设计能够读取凭据，可保留本地快速失败。
   if (!isTrustedCredentialStorageContext()) return;
 
   const credentialConfig = modelOverride

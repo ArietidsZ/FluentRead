@@ -106,22 +106,22 @@ export function sanitizeConfigForExport(value: unknown): ConfigRecord {
  * 生成由用户在配置管理页主动复制的完整迁移配置。
  *
  * 与可分享的公开配置不同，这份 JSON 会保留所有当前设置、提示词、自定义请求参数
- * 以及专用 API 凭据。翻译次数属于使用统计，不进入迁移文件；存储 revision 已由
- * normalizeConfig 在边界处移除。凭据持久化开关仍会如实导出，但现有导入边界会
- * 保持目标设备的当前选择，不允许配置文件静默改变凭据跨重启持久化策略。
+ * 以及专用 API 凭据。翻译次数属于使用统计，不进入迁移文件；存储 revision 与
+ * 已废弃的凭据持久化策略字段会由 normalizeConfig 在边界处移除。
  */
 export function prepareConfigForExport(value: unknown): ConfigRecord {
   if (!isRecord(value)) throw new Error('配置必须是 JSON 对象')
 
   const exported = normalizeConfig(value) as unknown as ConfigRecord
   delete exported.count
+  delete exported.persistCredentials
   return exported
 }
 
 /**
- * 导入不含凭据的公开配置时保留当前 session 凭据；导入完整迁移配置或含凭据的
+ * 导入不含凭据的公开配置时保留当前已保存凭据；导入完整迁移配置或含凭据的
  * 旧版文件时，只更新 JSON 明确提供的凭据字段，未提供的凭据继续保留。翻译统计、
- * 迁移标记和持久化开关始终保留当前值，不能由导入内容静默覆盖。
+ * 迁移标记始终保留当前值；旧文件中的 persistCredentials 会被忽略。
  */
 export function prepareConfigForImport(value: unknown, current: unknown): Config {
   if (!isConfigImportValid(value)) throw new TypeError('导入配置缺少有效的基础字段')
@@ -132,7 +132,6 @@ export function prepareConfigForImport(value: unknown, current: unknown): Config
   return normalizeConfig(mergeConfigCredentials({
     ...sanitizeConfigCredentials(importedConfig),
     count: currentConfig.count,
-    persistCredentials: currentConfig.persistCredentials,
     videoServiceDefaultMigrated: currentConfig.videoServiceDefaultMigrated,
   }, credentials))
 }

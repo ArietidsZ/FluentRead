@@ -181,7 +181,7 @@ describe('配置 schema 与历史纯状态机', () => {
         expect(bounded.entries.at(-1)?.config.to).toBe('target-11');
     });
 
-    it('可恢复投影排除凭据、统计、安全开关和内部迁移标记，恢复时保留当前值', () => {
+    it('可恢复投影排除凭据、统计、旧策略字段和内部迁移标记，恢复时保留当前值', () => {
         const snapshot = toRestorableConfig({
             ...baseConfig,
             to: 'ja',
@@ -207,9 +207,9 @@ describe('配置 schema 与历史纯状态机', () => {
             to: 'ja',
             token: {openai: 'current-secret'},
             count: 42,
-            persistCredentials: true,
             videoServiceDefaultMigrated: true,
         });
+        expect(restored).not.toHaveProperty('persistCredentials');
 
         const deepLxSnapshot = toRestorableConfig({
             ...baseConfig,

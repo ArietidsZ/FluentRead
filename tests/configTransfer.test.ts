@@ -177,12 +177,12 @@ describe('configuration transfer helpers', () => {
     expect(exported.system_role).toEqual(source.system_role)
     expect(exported.user_role).toEqual(source.user_role)
     expect(exported.alwaysTranslateDomains).toEqual(['example.com'])
-    expect(exported.persistCredentials).toBe(true)
+    expect(exported).not.toHaveProperty('persistCredentials')
     expect(exported).not.toHaveProperty('count')
     expect(exported).not.toHaveProperty('__fluentConfigRevision')
   })
 
-  it('完整迁移配置动态覆盖 Config 全字段，并按既有安全策略往返导入', () => {
+  it('完整迁移配置动态覆盖 Config 全字段，并按统一持久化契约往返导入', () => {
     const source = normalizeConfig({
       ...new Config(),
       on: false,
@@ -224,11 +224,11 @@ describe('configuration transfer helpers', () => {
     const target = normalizeConfig({...new Config(), count: 911, persistCredentials: false})
     const imported = prepareConfigForImport(exported, target)
     for (const key of Object.keys(source) as Array<keyof Config>) {
-      if (key === 'count' || key === 'persistCredentials' || key === 'videoServiceDefaultMigrated') continue
+      if (key === 'count' || key === 'videoServiceDefaultMigrated') continue
       expect(imported[key], `字段 ${key} 未完成完整导出/导入往返`).toEqual(source[key])
     }
     expect(imported.count).toBe(target.count)
-    expect(imported.persistCredentials).toBe(target.persistCredentials)
+    expect(imported).not.toHaveProperty('persistCredentials')
     expect(imported.videoServiceDefaultMigrated).toBe(target.videoServiceDefaultMigrated)
   })
 
@@ -236,8 +236,8 @@ describe('configuration transfer helpers', () => {
     expect(() => prepareConfigForExport(null)).toThrow('配置必须是 JSON 对象')
   })
 
-  it('导入新版公开配置时保留当前 session 凭据和持久化选择', () => {
-    const currentSecret = 'current-session-secret'
+  it('导入新版公开配置时保留当前已保存凭据并忽略旧策略字段', () => {
+    const currentSecret = 'current-saved-secret'
     const prepared = prepareConfigForImport(
       {...validConfig, to: 'ja', count: 1, persistCredentials: true, videoServiceDefaultMigrated: false},
       {...validConfig, token: {openai: currentSecret}, count: 42, persistCredentials: false, videoServiceDefaultMigrated: true},
@@ -246,11 +246,11 @@ describe('configuration transfer helpers', () => {
     expect(prepared.to).toBe('ja')
     expect(prepared.token.openai).toBe(currentSecret)
     expect(prepared.count).toBe(42)
-    expect(prepared.persistCredentials).toBe(false)
+    expect(prepared).not.toHaveProperty('persistCredentials')
     expect(prepared.videoServiceDefaultMigrated).toBe(true)
   })
 
-  it('导入旧文件时迁移其中凭据，但不能由文件静默开启本地持久化', () => {
+  it('导入旧文件时迁移其中凭据，并忽略已废弃的持久化开关', () => {
     const legacySecret = 'legacy-import-secret'
     const prepared = prepareConfigForImport(
       {...validConfig, token: {openai: legacySecret}, extra: {jwt: legacySecret}, persistCredentials: true},
@@ -269,7 +269,7 @@ describe('configuration transfer helpers', () => {
     expect(prepared.sk).toBe('keep-sk')
     expect(prepared.youdaoAppSecret).toBe('keep-youdao-secret')
     expect(prepared.extra).toEqual({keep: 'current-extra', jwt: legacySecret})
-    expect(prepared.persistCredentials).toBe(false)
+    expect(prepared).not.toHaveProperty('persistCredentials')
   })
 
   it('旧文件中的无效凭据映射不清空当前映射，只更新合法的显式字段', () => {

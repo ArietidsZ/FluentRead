@@ -42,7 +42,7 @@ const expectedEncryptedRecordKeys = [
   'local:config',
   'local:configHistory',
   'local:configAutoBackups',
-  'session:credentials',
+  'local:credentials',
 ];
 const legacyLocalStorageKeys = [
   'config', 'local:config',
@@ -53,9 +53,9 @@ const legacyLocalStorageKeys = [
 ];
 const legacySessionStorageKeys = ['credentials', 'session:credentials'];
 const legacyMigrationSentinels = {
-  token: 'legacy-local-openai-token-sensitive-sentinel',
-  appid: 'legacy-local-appid-sensitive-sentinel',
-  key: 'legacy-local-key-sensitive-sentinel',
+  token: 'legacy-session-openai-token-sensitive-sentinel',
+  appid: 'legacy-session-appid-sensitive-sentinel',
+  key: 'legacy-session-key-sensitive-sentinel',
   userRole: 'legacy-user-role-sensitive-sentinel {{text}}',
   systemRole: 'legacy-system-role-sensitive-sentinel',
 };
@@ -120,10 +120,7 @@ function assertExportContainsAllUserConfiguration(value) {
       throw new Error(`导出配置缺少完整用户映射：${field}`);
     }
   }
-  if (typeof value.persistCredentials !== 'boolean') {
-    throw new Error('导出配置缺少凭据持久化用户设置');
-  }
-  for (const field of ['count', '__fluentConfigRevision', '__fluentCountOperations']) {
+  for (const field of ['count', 'persistCredentials', '__fluentConfigRevision', '__fluentCountOperations']) {
     if (Object.prototype.hasOwnProperty.call(value, field)) {
       throw new Error(`导出配置包含不可迁移运行字段：${field}`);
     }
@@ -187,6 +184,9 @@ async function inspectEncryptedConfigurationStorage(page, sentinels, expectedRec
   for (const key of expectedRecordKeys) {
     if (!recordKeys.includes(key)) throw new Error(`加密配置数据库缺少记录：${key}`);
   }
+  if (recordKeys.includes('session:credentials')) {
+    throw new Error('旧 session:credentials 迁移后仍残留在加密配置数据库');
+  }
   for (const record of snapshot.records) {
     const payload = record?.payload;
     if (payload?.format !== 'fluentread-config'
@@ -208,8 +208,11 @@ async function inspectEncryptedConfigurationStorage(page, sentinels, expectedRec
   const sessionMaterialKeys = sessionKeys.filter(key => (
     key === 'configIndexedDbKeyMaterial' || key === 'session:configIndexedDbKeyMaterial'
   ));
-  if (snapshot.sessionSupported && sessionMaterialKeys.length !== 1) {
-    throw new Error(`会话密钥材料数量异常：${JSON.stringify(sessionKeys)}`);
+  // 升级旧 session 凭据时可能短暂生成一份随机会话材料；Chrome 也可能在
+  // runtime.reload 时直接清除它。它不是凭据权威记录，因此只禁止重复残留，
+  // 不把“必须存在”或“必须不存在”当成持久化正确性的前提。
+  if (sessionMaterialKeys.length > 1) {
+    throw new Error(`会话密钥材料出现重复别名：${JSON.stringify(sessionKeys)}`);
   }
   return {
     databaseName: configDatabaseName,
@@ -252,7 +255,7 @@ async function seedLegacyStorageAndReloadExtension(page, context, extensionOrigi
         display: 1,
         from: 'auto',
         to: 'zh-Hans',
-        persistCredentials: false,
+        persistCredentials: true,
         token: {openai: 'legacy-embedded-token-must-lose-precedence'},
         appid: 'legacy-embedded-appid-must-lose-precedence',
         key: 'legacy-embedded-key-must-lose-precedence',
@@ -263,13 +266,6 @@ async function seedLegacyStorageAndReloadExtension(page, context, extensionOrigi
         token: {openai: sentinels.token},
         appid: sentinels.appid,
         key: sentinels.key,
-      },
-    });
-    await chrome.storage.session.set({
-      credentials: {
-        token: {openai: 'legacy-session-token-must-expire-on-extension-reload'},
-        appid: 'legacy-session-appid-must-expire-on-extension-reload',
-        key: 'legacy-session-key-must-expire-on-extension-reload',
       },
     });
     const localBeforeReload = await chrome.storage.local.get(null);
@@ -365,7 +361,7 @@ async function main() {
     await page.locator('button[data-section="settings-data"]').click();
     await page.getByRole('heading', {name: '最近修改', exact: true}).waitFor({state: 'visible', timeout});
     await page.getByRole('heading', {name: '定时备份', exact: true}).waitFor({state: 'visible', timeout});
-    const migratedRecordKeys = ['local:config', 'local:configAutoBackups', 'session:credentials'];
+    const migratedRecordKeys = ['local:config', 'local:configAutoBackups', 'local:credentials'];
     await page.waitForFunction(async ({databaseName, expectedKeys}) => {
       const database = await new Promise((resolve, reject) => {
         const request = indexedDB.open(databaseName);
@@ -386,8 +382,8 @@ async function main() {
     report.legacyMigration = {
       ...migration.legacySources,
       ...(await inspectEncryptedConfigurationStorage(page, legacyMigrationSentinels, migratedRecordKeys)),
-      persistentCredentialsWonAfterExtensionReload: true,
-      sessionCredentialsExpiredWithExtensionReload: true,
+      legacyPersistentCredentialsMigratedAfterExtensionReload: true,
+      legacySessionRecordAbsent: true,
     };
     await page.locator('button[data-section="settings-general"]').click();
 
@@ -636,6 +632,12 @@ async function main() {
       .map(label => label.trim());
     if (JSON.stringify(transferActionLabels) !== JSON.stringify(['导出配置', '导入配置'])) {
       throw new Error(`配置迁移入口不是唯一的导出/导入两个选项：${JSON.stringify(transferActionLabels)}`);
+    }
+    if (await page.getByTestId('persist-credentials-switch').count()) {
+      throw new Error('配置管理仍显示已废弃的凭据持久化开关');
+    }
+    if ((await page.locator('#settings-data').textContent()).includes('跨浏览器重启保存 API 凭据')) {
+      throw new Error('配置管理仍显示已废弃的凭据持久化文案');
     }
     await page.evaluate(() => {
       const clipboard = navigator.clipboard;

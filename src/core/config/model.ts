@@ -148,7 +148,6 @@ export class Config {
     translationCenterServices: string[]; // 翻译中心已选服务及其展示顺序
     translationCenterSourceLanguage: string; // 翻译中心源语言
     translationCenterTargetLanguage: string; // 翻译中心目标语言
-    persistCredentials: boolean; // 是否明确允许跨浏览器重启保存 API 凭据
 
     constructor() {
         this.on = true;
@@ -227,7 +226,6 @@ export class Config {
         this.translationCenterServices = [];
         this.translationCenterSourceLanguage = '';
         this.translationCenterTargetLanguage = '';
-        this.persistCredentials = false;
     }
 }
 
@@ -312,6 +310,9 @@ export function normalizeConfig(value: unknown): Config {
         ? cloneConfigValue(value) as Partial<Config>
         : {};
     Object.assign(normalized, source);
+    // persistCredentials 是短期版本曾暴露给用户的旧策略开关。当前凭据统一
+    // 加密持久保存；归一化时主动丢弃该字段，避免旧配置继续分叉存储语义。
+    delete (normalized as unknown as Record<string, unknown>).persistCredentials;
     for (const key of Object.keys(source)) {
         if (!knownFields.has(key) && isSensitiveConfigKey(key)) {
             delete (normalized as unknown as Record<string, unknown>)[key];
@@ -491,8 +492,6 @@ export function normalizeConfig(value: unknown): Config {
         .filter(service => !retiredServiceIds.has(service));
     normalized.translationCenterSourceLanguage = normalizeConfigLanguage(source.translationCenterSourceLanguage);
     normalized.translationCenterTargetLanguage = normalizeConfigLanguage(source.translationCenterTargetLanguage);
-    normalized.persistCredentials = source.persistCredentials === true;
-
     return normalized;
 }
 

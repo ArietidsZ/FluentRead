@@ -24,11 +24,12 @@ describe('AI 模型编号列表', () => {
             .not.toHaveProperty('__fluentCountOperations');
     });
 
-    it('API 凭据跨重启持久化默认关闭，且只接受显式布尔 true', () => {
-        expect(new Config().persistCredentials).toBe(false);
-        expect(normalizeConfig({}).persistCredentials).toBe(false);
-        expect(normalizeConfig({persistCredentials: true}).persistCredentials).toBe(true);
-        expect(normalizeConfig({persistCredentials: 'true'}).persistCredentials).toBe(false);
+    it('移除旧版凭据持久化策略字段，统一由当前存储策略管理', () => {
+        expect(new Config()).not.toHaveProperty('persistCredentials');
+        expect(normalizeConfig({})).not.toHaveProperty('persistCredentials');
+        expect(normalizeConfig({persistCredentials: true})).not.toHaveProperty('persistCredentials');
+        expect(normalizeConfig({persistCredentials: false})).not.toHaveProperty('persistCredentials');
+        expect(normalizeConfig({persistCredentials: 'true'})).not.toHaveProperty('persistCredentials');
     });
 
     it('AI 智能上下文默认关闭，并能从旧配置平滑补齐', () => {
