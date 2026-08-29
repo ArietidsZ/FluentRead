@@ -2,6 +2,8 @@
 
 // 这个脚本只使用临时 Edge profile 和真实 Alt+T 键盘手势，回归全文翻译的
 // 识别、按钮特殊处理、富文本结构、动态节点、Shadow DOM 以及恢复流程。
+// 传入 --verify-floating-ui 时，还会从 closed Shadow DOM 读取悬浮球透明度、
+// 展开/收起、勾选标记几何与离屏任务下的进度面板显隐。
 // 它不会连接用户正在使用的浏览器 profile，也不会通过 JS 合成键盘事件。
 
 const fs = require('node:fs');
@@ -23,12 +25,17 @@ function parseArgs(argv) {
     // 不传此参数时，脚本不会修改任何配置。
     configureService: null,
     focusSafeHelper: null,
+    verifyFloatingUi: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (token === '--background') continue;
     if (token === '--headed') {
       args.background = false;
+      continue;
+    }
+    if (token === '--verify-floating-ui') {
+      args.verifyFloatingUi = true;
       continue;
     }
     if (!token.startsWith('--')) throw new Error(`无法识别参数：${token}`);
@@ -87,7 +94,7 @@ async function readRequestBody(request) {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-async function startTranslationFixtureServer(unexpectedNetworkRequests = []) {
+async function startTranslationFixtureServer(unexpectedNetworkRequests = [], responseDelayMs = 0) {
   let requestCount = 0;
   let translatedItemCount = 0;
   const server = http.createServer(async (request, response) => {
@@ -101,6 +108,9 @@ async function startTranslationFixtureServer(unexpectedNetworkRequests = []) {
       }
       requestCount += 1;
       translatedItemCount += Array.isArray(payload) ? payload.length : 0;
+      if (responseDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, responseDelayMs));
+      }
       response.writeHead(200, {
         'access-control-allow-origin': '*',
         'cache-control': 'no-store',
@@ -404,6 +414,214 @@ async function readShortcutDiagnostics(page) {
   }));
 }
 
+function cdpAttribute(node, name) {
+  const attributes = node?.attributes || [];
+  for (let index = 0; index < attributes.length; index += 2) {
+    if (attributes[index] === name) return attributes[index + 1] || '';
+  }
+  return '';
+}
+
+function cdpChildren(node) {
+  return [
+    ...(node?.children || []),
+    ...(node?.shadowRoots || []),
+    ...(node?.contentDocument ? [node.contentDocument] : []),
+  ];
+}
+
+function findCdpNode(node, predicate) {
+  if (!node) return null;
+  if (predicate(node)) return node;
+  for (const child of cdpChildren(node)) {
+    const match = findCdpNode(child, predicate);
+    if (match) return match;
+  }
+  return null;
+}
+
+function hasCdpClass(node, className) {
+  return cdpAttribute(node, 'class').split(/\s+/).includes(className);
+}
+
+function quadBounds(quad) {
+  if (!Array.isArray(quad) || quad.length < 8) return null;
+  const xs = [quad[0], quad[2], quad[4], quad[6]];
+  const ys = [quad[1], quad[3], quad[5], quad[7]];
+  return {
+    left: Math.min(...xs),
+    top: Math.min(...ys),
+    right: Math.max(...xs),
+    bottom: Math.max(...ys),
+  };
+}
+
+async function computedStyleValues(session, node, names) {
+  if (!node) return {};
+  const { computedStyle } = await session.send('CSS.getComputedStyleForNode', { nodeId: node.nodeId });
+  return Object.fromEntries(computedStyle
+    .filter((entry) => names.includes(entry.name))
+    .map((entry) => [entry.name, entry.value]));
+}
+
+async function nodeBounds(session, node) {
+  if (!node) return null;
+  try {
+    const { model } = await session.send('DOM.getBoxModel', { nodeId: node.nodeId });
+    return quadBounds(model.border || model.content);
+  } catch {
+    return null;
+  }
+}
+
+async function readFloatingUiState(page) {
+  const session = await page.context().newCDPSession(page);
+  try {
+    await session.send('DOM.enable');
+    await session.send('CSS.enable');
+    const { root } = await session.send('DOM.getDocument', { depth: -1, pierce: true });
+    const floatingHost = findCdpNode(root, node => cdpAttribute(node, 'id') === 'fluent-read-floating-ball-container');
+    const ball = findCdpNode(floatingHost, node => hasCdpClass(node, 'fr-floating-ball'));
+    const main = findCdpNode(ball, node => hasCdpClass(node, 'floating-ball-main'));
+    const translateTool = findCdpNode(ball, node => hasCdpClass(node, 'floating-ball-translate'));
+    const mainCheck = findCdpNode(main, node => node !== main && hasCdpClass(node, 'check-mark'));
+    const shortcutTooltip = findCdpNode(ball, node => hasCdpClass(node, 'shortcut-tooltip'));
+    const progressHost = findCdpNode(root, node => cdpAttribute(node, 'id') === 'fluent-read-translation-status-container');
+    const progressPanel = findCdpNode(progressHost, node => hasCdpClass(node, 'fr-translation-progress'));
+    const progressCompactCheck = findCdpNode(progressPanel, node => hasCdpClass(node, 'fr-progress-compact-check'));
+    const [mainStyle, toolStyle, mainBox, translateToolBox, checkBox] = await Promise.all([
+      computedStyleValues(session, main, ['opacity', 'transform']),
+      computedStyleValues(session, translateTool, ['opacity', 'visibility', 'display']),
+      nodeBounds(session, main),
+      nodeBounds(session, translateTool),
+      nodeBounds(session, mainCheck),
+    ]);
+    const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
+    const checkVisible = Boolean(checkBox &&
+      checkBox.right > 0 && checkBox.left < viewport.width &&
+      checkBox.bottom > 0 && checkBox.top < viewport.height);
+    return {
+      host: Boolean(floatingHost),
+      ball: Boolean(ball),
+      ballClass: cdpAttribute(ball, 'class'),
+      position: cdpAttribute(ball, 'data-position'),
+      expanded: hasCdpClass(ball, 'floating-ball-expanded'),
+      translated: hasCdpClass(ball, 'is-translating'),
+      mainOpacity: Number(mainStyle.opacity),
+      mainTransform: mainStyle.transform || '',
+      mainBox,
+      translateToolBox,
+      translateToolOpacity: Number(toolStyle.opacity),
+      translateToolVisibility: toolStyle.visibility || '',
+      translateToolDisplay: toolStyle.display || '',
+      check: Boolean(mainCheck),
+      checkBox,
+      checkVisible,
+      shortcutTooltip: Boolean(shortcutTooltip),
+      progressHost: Boolean(progressHost),
+      progressPanel: Boolean(progressPanel),
+      progressPanelClass: cdpAttribute(progressPanel, 'class'),
+      progressCompact: hasCdpClass(progressPanel, 'fr-compact'),
+      progressCompactCheck: Boolean(progressCompactCheck),
+      progress: progressPanel ? {
+        running: Number(cdpAttribute(progressPanel, 'data-running')),
+        remaining: Number(cdpAttribute(progressPanel, 'data-remaining')),
+        queued: Number(cdpAttribute(progressPanel, 'data-queued')),
+        offscreen: Number(cdpAttribute(progressPanel, 'data-offscreen')),
+      } : null,
+    };
+  } finally {
+    await session.detach().catch(() => {});
+  }
+}
+
+async function waitForFloatingUiState(page, predicate, timeout, description) {
+  const deadline = Date.now() + timeout;
+  let state;
+  while (Date.now() < deadline) {
+    state = await readFloatingUiState(page);
+    if (predicate(state)) return state;
+    await page.waitForTimeout(50);
+  }
+  throw new Error(`${description}：${JSON.stringify(state)}`);
+}
+
+async function assertNoAutomaticFloatingExpansion(page, durationMs = 160) {
+  const deadline = Date.now() + durationMs;
+  const samples = [];
+  do {
+    const state = await readFloatingUiState(page);
+    samples.push({expanded: state.expanded, translated: state.translated, check: state.check, shortcutTooltip: state.shortcutTooltip});
+    if (state.expanded || state.shortcutTooltip) {
+      throw new Error(`全文快捷键不应自动展开悬浮球或弹提示：${JSON.stringify({state, samples})}`);
+    }
+    await page.waitForTimeout(20);
+  } while (Date.now() < deadline);
+  return samples;
+}
+
+function isCollapsedFloatingUiState(state, translated) {
+  return Boolean(state.host && state.ball && !state.expanded && state.translated === translated &&
+    Math.abs(state.mainOpacity - 0.52) <= 0.03 && state.translateToolOpacity === 0 &&
+    state.check === translated && (!translated || state.checkVisible));
+}
+
+function assertCollapsedFloatingUi(state, translated, label) {
+  if (!isCollapsedFloatingUiState(state, translated)) {
+    throw new Error(`${label} 悬浮球没有保持低干扰收起状态：${JSON.stringify(state)}`);
+  }
+}
+
+function isExpandedFloatingUiState(state) {
+  return Boolean(state.expanded && Math.abs(state.mainOpacity - 1) <= 0.01 && state.translateToolOpacity === 1);
+}
+
+function assertExpandedFloatingUi(state, label) {
+  if (!isExpandedFloatingUiState(state)) {
+    throw new Error(`${label} 主动悬停后没有清晰展开：${JSON.stringify(state)}`);
+  }
+}
+
+async function movePointerToFloatingMain(page, state) {
+  const box = state.mainBox;
+  if (!box) throw new Error(`无法取得悬浮球几何位置：${JSON.stringify(state)}`);
+  const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  const visibleLeft = Math.max(1, box.left);
+  const visibleRight = Math.min(viewport.width - 1, box.right);
+  const visibleTop = Math.max(1, box.top);
+  const visibleBottom = Math.min(viewport.height - 1, box.bottom);
+  if (visibleLeft >= visibleRight || visibleTop >= visibleBottom) {
+    throw new Error(`悬浮球不在可交互视口内：${JSON.stringify({state, viewport})}`);
+  }
+  const session = await page.context().newCDPSession(page);
+  try {
+    await session.send('Input.dispatchMouseEvent', {type: 'mouseMoved', x: 100, y: 100});
+    await page.waitForTimeout(30);
+    await session.send('Input.dispatchMouseEvent', {
+      type: 'mouseMoved',
+      x: (visibleLeft + visibleRight) / 2,
+      y: (visibleTop + visibleBottom) / 2,
+    });
+  } finally {
+    await session.detach().catch(() => {});
+  }
+}
+
+async function clickFloatingTranslateTool(page, state) {
+  const box = state.translateToolBox;
+  if (!box) throw new Error(`无法取得全文翻译按钮几何位置：${JSON.stringify(state)}`);
+  const x = (box.left + box.right) / 2;
+  const y = (box.top + box.bottom) / 2;
+  const session = await page.context().newCDPSession(page);
+  try {
+    await session.send('Input.dispatchMouseEvent', {type: 'mouseMoved', x, y});
+    await session.send('Input.dispatchMouseEvent', {type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1});
+    await session.send('Input.dispatchMouseEvent', {type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1});
+  } finally {
+    await session.detach().catch(() => {});
+  }
+}
+
 async function pageState(page) {
   return page.evaluate(() => {
     const get = (selector) => document.querySelector(selector);
@@ -559,7 +777,10 @@ async function main() {
         args: browserArgs,
       });
     }
-    translationFixtureServer = await startTranslationFixtureServer(unexpectedNetworkRequests);
+    translationFixtureServer = await startTranslationFixtureServer(
+      unexpectedNetworkRequests,
+      args.verifyFloatingUi ? 400 : 0,
+    );
     const fixtureUrls = {
       translationUrl: translationFixtureServer.translationUrl,
       blockedUrl: translationFixtureServer.blockedUrl,
@@ -597,8 +818,17 @@ async function main() {
       }
       await route.continue();
     });
-    if (args.configureService) {
-      await readConfig(context, args.timeout, { service: args.configureService }, createIsolatedPage);
+    const configUpdates = {};
+    if (args.configureService) configUpdates.service = args.configureService;
+    if (args.verifyFloatingUi) {
+      Object.assign(configUpdates, {
+        disableFloatingBall: false,
+        translationProgressPanelEnabled: true,
+        fullPageTranslationMode: 'viewport',
+      });
+    }
+    if (Object.keys(configUpdates).length > 0) {
+      await readConfig(context, args.timeout, configUpdates, createIsolatedPage);
     }
     const page = await createIsolatedPage();
     const networkEvents = [];
@@ -640,6 +870,36 @@ async function main() {
     const configResult = await readConfig(context, args.timeout, null, createIsolatedPage);
     if (configResult.config?.floatingBallHotkey !== 'Alt+T') throw new Error(`全文快捷键不是 Alt+T：${configResult.config?.floatingBallHotkey}`);
     if (configResult.config?.service !== args.service) throw new Error(`翻译服务不符：预期 ${args.service}，实际 ${configResult.config?.service}`);
+    const floatingUiEvidence = args.verifyFloatingUi ? {} : null;
+    if (args.verifyFloatingUi) {
+      if (configResult.config?.disableFloatingBall !== false || configResult.config?.translationProgressPanelEnabled !== true ||
+          configResult.config?.fullPageTranslationMode !== 'viewport') {
+        throw new Error(`悬浮 UI 测试配置不正确：${JSON.stringify({
+          disableFloatingBall: configResult.config?.disableFloatingBall,
+          translationProgressPanelEnabled: configResult.config?.translationProgressPanelEnabled,
+          fullPageTranslationMode: configResult.config?.fullPageTranslationMode,
+        })}`);
+      }
+      await page.evaluate(() => {
+        const fixture = document.createElement('section');
+        fixture.id = 'floating-ui-offscreen-fixture';
+        for (let index = 0; index < 60; index += 1) {
+          const paragraph = document.createElement('p');
+          paragraph.id = `floating-ui-offscreen-${index}`;
+          paragraph.style.minHeight = '80px';
+          paragraph.textContent = `Offscreen paragraph ${index} remains pending until the reader scrolls near this part of the document.`;
+          fixture.appendChild(paragraph);
+        }
+        document.body.appendChild(fixture);
+      });
+      floatingUiEvidence.initial = await waitForFloatingUiState(
+        page,
+        state => state.progressHost && isCollapsedFloatingUiState(state, false),
+        args.timeout,
+        '等待低干扰悬浮球初始状态超时',
+      );
+      assertCollapsedFloatingUi(floatingUiEvidence.initial, false, '初始');
+    }
 
     const initialClamp = await page.evaluate(() => {
       const clamp = document.querySelector('#model-description-clamp');
@@ -657,6 +917,16 @@ async function main() {
 
     await installShortcutDiagnostics(page);
     await toggleFullPage(page, activateTestPage);
+    if (args.verifyFloatingUi) {
+      floatingUiEvidence.afterShortcutSamples = await assertNoAutomaticFloatingExpansion(page);
+      floatingUiEvidence.progressDuringWork = await waitForFloatingUiState(
+        page,
+        state => Boolean(state.progressPanel && state.progress &&
+          (state.progress.running > 0 || state.progress.queued > 0)),
+        args.timeout,
+        '等待实际翻译工作展开进度面板超时',
+      );
+    }
     try {
       await waitFor(page, () => document.querySelector('#paragraph-one .fluent-read-bilingual-content') &&
         document.querySelector('#model-description .fluent-read-bilingual-content') &&
@@ -695,13 +965,153 @@ async function main() {
     }, args.timeout);
     const translated = await pageState(page);
     assertTranslated(translated, '第一次全文翻译');
-    if (artifactsDir) await page.screenshot({ path: path.join(artifactsDir, 'full-page-translated.png'), fullPage: true });
+    if (args.verifyFloatingUi) {
+      await page.waitForFunction(() => !document.querySelector('.fluent-read-loading'), undefined, {timeout: args.timeout});
+      const offscreenState = await page.evaluate(() => ({
+        lastTranslated: Boolean(document.querySelector('#floating-ui-offscreen-59 .fluent-read-bilingual-content')),
+        translatedCount: document.querySelectorAll('#floating-ui-offscreen-fixture .fluent-read-bilingual-content').length,
+      }));
+      if (offscreenState.lastTranslated || offscreenState.translatedCount >= 60) {
+        throw new Error(`离屏 fixture 没有保留待滚动候选：${JSON.stringify(offscreenState)}`);
+      }
+      floatingUiEvidence.translatedCollapsed = await waitForFloatingUiState(
+        page,
+        state => isCollapsedFloatingUiState(state, true) && !state.progressPanel,
+        args.timeout,
+        '等待全文翻译后的低干扰勾选状态超时',
+      );
+      assertCollapsedFloatingUi(floatingUiEvidence.translatedCollapsed, true, '全文翻译后');
+      await activateTestPage(page);
+      await movePointerToFloatingMain(page, floatingUiEvidence.translatedCollapsed);
+      floatingUiEvidence.expandedOnHover = await waitForFloatingUiState(
+        page,
+        isExpandedFloatingUiState,
+        Math.min(args.timeout, 15_000),
+        '等待主动悬停展开悬浮球超时',
+      );
+      assertExpandedFloatingUi(floatingUiEvidence.expandedOnHover, '全文翻译后');
+      await clickFloatingTranslateTool(page, floatingUiEvidence.expandedOnHover);
+      await waitFor(page, () => !document.querySelector('.fluent-read-bilingual-content'), args.timeout);
+      floatingUiEvidence.pointerRestored = await waitForFloatingUiState(
+        page,
+        state => isCollapsedFloatingUiState(state, false) && !state.progressPanel,
+        args.timeout,
+        '等待鼠标点击恢复后收起悬浮球超时',
+      );
+      assertCollapsedFloatingUi(floatingUiEvidence.pointerRestored, false, '鼠标点击恢复后');
+      await toggleFullPage(page, activateTestPage);
+      floatingUiEvidence.pointerRetranslateSamples = await assertNoAutomaticFloatingExpansion(page);
+      await waitFor(page, () => document.querySelector('#paragraph-one .fluent-read-bilingual-content') &&
+        document.querySelector('#model-description .fluent-read-bilingual-content') &&
+        document.querySelector('#dynamic-paragraph .fluent-read-bilingual-content') &&
+        document.querySelector('#shadow-host')?.shadowRoot?.querySelector('#shadow-paragraph .fluent-read-bilingual-content') &&
+        /[\u3400-\u9fff]/u.test(document.querySelector('#save-button')?.textContent || '') &&
+        /[\u3400-\u9fff]/u.test(document.querySelector('#cancel-button')?.textContent || ''), args.timeout);
+      await page.waitForFunction(() => !document.querySelector('.fluent-read-loading'), undefined, {timeout: args.timeout});
+      const offscreenStateAfterPointerCycle = await page.evaluate(() => ({
+        lastTranslated: Boolean(document.querySelector('#floating-ui-offscreen-59 .fluent-read-bilingual-content')),
+        translatedCount: document.querySelectorAll('#floating-ui-offscreen-fixture .fluent-read-bilingual-content').length,
+      }));
+      if (offscreenStateAfterPointerCycle.lastTranslated || offscreenStateAfterPointerCycle.translatedCount >= 60) {
+        throw new Error(`鼠标恢复再翻译后离屏 fixture 状态不正确：${JSON.stringify(offscreenStateAfterPointerCycle)}`);
+      }
+      await page.evaluate(() => document.querySelector('#floating-ui-offscreen-59')?.scrollIntoView({block: 'center'}));
+      floatingUiEvidence.progressAfterScroll = await waitForFloatingUiState(
+        page,
+        state => Boolean(state.progressPanel && state.progress &&
+          (state.progress.running > 0 || state.progress.queued > 0)),
+        args.timeout,
+        '等待滚动后的离屏任务重新展开进度面板超时',
+      );
+      await page.waitForFunction(
+        () => Boolean(document.querySelector('#floating-ui-offscreen-59 .fluent-read-bilingual-content')),
+        undefined,
+        {timeout: args.timeout},
+      );
+      await page.waitForFunction(() => !document.querySelector('.fluent-read-loading'), undefined, {timeout: args.timeout});
+      await page.evaluate(() => window.scrollTo(0, 0));
+      floatingUiEvidence.collapsedAfterScroll = await waitForFloatingUiState(
+        page,
+        state => isCollapsedFloatingUiState(state, true) && !state.progressPanel,
+        args.timeout,
+        '等待滚动批次完成后收起进度面板超时',
+      );
+      floatingUiEvidence.offscreen = {
+        initial: offscreenState,
+        afterPointerCycle: offscreenStateAfterPointerCycle,
+        translatedAfterScroll: await page.evaluate(() => Boolean(
+          document.querySelector('#floating-ui-offscreen-59 .fluent-read-bilingual-content'),
+        )),
+      };
+    }
+    if (artifactsDir) await page.screenshot({
+      path: path.join(artifactsDir, 'full-page-translated.png'),
+      fullPage: !args.verifyFloatingUi,
+    });
 
     await toggleFullPage(page, activateTestPage);
     await waitFor(page, () => !document.querySelector('.fluent-read-bilingual-content'), args.timeout);
     const restored = await pageState(page);
     assertRestored(restored);
-    if (artifactsDir) await page.screenshot({ path: path.join(artifactsDir, 'full-page-restored.png'), fullPage: true });
+    if (args.verifyFloatingUi) {
+      floatingUiEvidence.restored = await waitForFloatingUiState(
+        page,
+        state => isCollapsedFloatingUiState(state, false) && !state.progressPanel,
+        args.timeout,
+        '等待恢复原文后的悬浮状态超时',
+      );
+      assertCollapsedFloatingUi(floatingUiEvidence.restored, false, '恢复原文后');
+    }
+    if (artifactsDir) await page.screenshot({
+      path: path.join(artifactsDir, 'full-page-restored.png'),
+      fullPage: !args.verifyFloatingUi,
+    });
+
+    if (args.verifyFloatingUi) {
+      await readConfig(context, args.timeout, {disableFloatingBall: true}, createIsolatedPage);
+      floatingUiEvidence.progressOnlyInitial = await waitForFloatingUiState(
+        page,
+        state => !state.host && state.progressHost && !state.progressPanel,
+        args.timeout,
+        '等待仅进度面板配置生效超时',
+      );
+      await toggleFullPage(page, activateTestPage);
+      floatingUiEvidence.progressOnlyDuringWork = await waitForFloatingUiState(
+        page,
+        state => Boolean(state.progressPanel && !state.progressCompact && state.progress &&
+          (state.progress.running > 0 || state.progress.queued > 0)),
+        args.timeout,
+        '等待无悬浮球时展开实际进度面板超时',
+      );
+      await page.waitForFunction(
+        () => Boolean(document.querySelector('#paragraph-one .fluent-read-bilingual-content')),
+        undefined,
+        {timeout: args.timeout},
+      );
+      await page.waitForFunction(() => !document.querySelector('.fluent-read-loading'), undefined, {timeout: args.timeout});
+      floatingUiEvidence.progressOnlyCompact = await waitForFloatingUiState(
+        page,
+        state => Boolean(!state.host && state.progressCompact && state.progressCompactCheck &&
+          state.progress && state.progress.running === 0 && state.progress.queued === 0 && state.progress.offscreen > 0),
+        args.timeout,
+        '等待离屏任务退化为淡勾选超时',
+      );
+      await toggleFullPage(page, activateTestPage);
+      await waitFor(page, () => !document.querySelector('.fluent-read-bilingual-content'), args.timeout);
+      floatingUiEvidence.progressOnlyRestored = await waitForFloatingUiState(
+        page,
+        state => !state.host && !state.progressPanel,
+        args.timeout,
+        '等待仅进度面板模式恢复原文超时',
+      );
+      await readConfig(context, args.timeout, {disableFloatingBall: false}, createIsolatedPage);
+      floatingUiEvidence.remountedBeforeRetranslate = await waitForFloatingUiState(
+        page,
+        state => isCollapsedFloatingUiState(state, false),
+        args.timeout,
+        '等待重新启用悬浮球超时',
+      );
+    }
 
     await toggleFullPage(page, activateTestPage);
     await waitFor(page, () => document.querySelector('#paragraph-one .fluent-read-bilingual-content') &&
@@ -712,7 +1122,20 @@ async function main() {
       /[\u3400-\u9fff]/u.test(document.querySelector('#cancel-button')?.textContent || ''), args.timeout);
     const retranslated = await pageState(page);
     assertTranslated(retranslated, '再次全文翻译');
-    if (artifactsDir) await page.screenshot({ path: path.join(artifactsDir, 'full-page-retranslated.png'), fullPage: true });
+    if (args.verifyFloatingUi) {
+      await page.waitForFunction(() => !document.querySelector('.fluent-read-loading'), undefined, {timeout: args.timeout});
+      floatingUiEvidence.retranslated = await waitForFloatingUiState(
+        page,
+        state => isCollapsedFloatingUiState(state, true) && !state.progressPanel,
+        args.timeout,
+        '等待再次全文翻译后的悬浮状态超时',
+      );
+      assertCollapsedFloatingUi(floatingUiEvidence.retranslated, true, '再次全文翻译后');
+    }
+    if (artifactsDir) await page.screenshot({
+      path: path.join(artifactsDir, 'full-page-retranslated.png'),
+      fullPage: !args.verifyFloatingUi,
+    });
     await Promise.allSettled([...pendingWorkerFixtureInstalls]);
     if (workerFixtureInstallErrors.length > 0) {
       throw new Error(`替换 service worker 安装全文翻译 fixture 失败：${JSON.stringify(workerFixtureInstallErrors)}`);
@@ -731,13 +1154,21 @@ async function main() {
       profileDir,
       url: args.url,
       extensionId: configResult.extensionId,
-      config: { floatingBallHotkey: configResult.config.floatingBallHotkey, service: configResult.config.service, display: configResult.config.display },
+      config: {
+        floatingBallHotkey: configResult.config.floatingBallHotkey,
+        service: configResult.config.service,
+        display: configResult.config.display,
+        disableFloatingBall: configResult.config.disableFloatingBall,
+        translationProgressPanelEnabled: configResult.config.translationProgressPanelEnabled,
+        fullPageTranslationMode: configResult.config.fullPageTranslationMode,
+      },
       fixtureTranslationRequestCount,
       fixtureTranslationItemCount,
       unexpectedNetworkRequests,
       translated,
       restored,
       retranslated,
+      floatingUi: floatingUiEvidence,
       consoleErrors: runtimeErrors,
       screenshots: artifactsDir ? [
         path.join(artifactsDir, 'full-page-translated.png'),

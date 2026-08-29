@@ -3,6 +3,8 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 import {
   finishFullPageTranslationProgress,
   getFullPageTranslationProgress,
+  hasActiveFullPageTranslationWork,
+  shouldShowCompactFullPageTranslationStatus,
   startFullPageTranslationProgress,
   subscribeFullPageTranslationProgress,
   updateFullPageTranslationProgress,
@@ -14,6 +16,27 @@ afterEach(() => {
 });
 
 describe('全文翻译进度', () => {
+  it('仅把请求中或已排队任务视为需要展开面板的活动工作', () => {
+    const offscreenOnly = {
+      sessionId: 1,
+      active: true,
+      running: 0,
+      remaining: 6,
+      queued: 0,
+      offscreen: 6,
+    };
+    expect(hasActiveFullPageTranslationWork(offscreenOnly)).toBe(false);
+    expect(hasActiveFullPageTranslationWork({active: true, running: 1, queued: 0})).toBe(true);
+    expect(hasActiveFullPageTranslationWork({active: true, running: 0, queued: 2})).toBe(true);
+    expect(hasActiveFullPageTranslationWork({active: false, running: 3, queued: 4})).toBe(false);
+    expect(hasActiveFullPageTranslationWork({active: true, running: Number.NaN, queued: -1})).toBe(false);
+
+    expect(shouldShowCompactFullPageTranslationStatus(offscreenOnly, false)).toBe(true);
+    expect(shouldShowCompactFullPageTranslationStatus(offscreenOnly, true)).toBe(false);
+    expect(shouldShowCompactFullPageTranslationStatus({active: true, running: 1, queued: 0}, false)).toBe(false);
+    expect(shouldShowCompactFullPageTranslationStatus({active: false, running: 0, queued: 0}, false)).toBe(false);
+  });
+
   it('立即提供快照，并发布进行中、队列与离屏任务数量', () => {
     const listener = vi.fn();
     const unsubscribe = subscribeFullPageTranslationProgress(listener);
