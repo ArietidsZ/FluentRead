@@ -9,7 +9,7 @@ import {
 } from '@/src/features/settings/model/navigation'
 
 describe('options navigation view-model', () => {
-  it('keeps the eleven sections unique, grouped exactly once and in the product IA order', () => {
+  it('keeps the twelve sections unique, grouped exactly once and in the product IA order', () => {
     const groupedItems = navigationGroups.flatMap((group) => group.items)
     expect(groupedItems).toEqual(navigationItems)
     expect(new Set(navigationItems.map((item) => item.id)).size).toBe(navigationItems.length)
@@ -31,7 +31,7 @@ describe('options navigation view-model', () => {
       },
       {
         label: '工具与学习',
-        items: ['settings-translation-center', 'settings-vocabulary'],
+        items: ['settings-translation-center', 'settings-model-usage', 'settings-vocabulary'],
       },
       {
         label: '系统与数据',
@@ -46,6 +46,7 @@ describe('options navigation view-model', () => {
       '视频字幕翻译',
       '网站规则',
       '翻译中心',
+      '模型用量',
       '单词本',
       '高级选项',
       '配置管理',
@@ -70,9 +71,10 @@ describe('options navigation view-model', () => {
   })
 
   it('searches all user-facing metadata case-insensitively and trims input', () => {
-    expect(filterNavigationItems(' OPENAI ')).toEqual([
+    expect(filterNavigationItems(' OPENAI ')).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'settings-services' }),
-    ])
+      expect.objectContaining({ id: 'settings-model-usage' }),
+    ]))
     expect(filterNavigationItems('主域名')).toEqual([
       expect.objectContaining({ id: 'settings-sites' }),
     ])
@@ -85,6 +87,12 @@ describe('options navigation view-model', () => {
     expect(filterNavigationItems('AI 多段翻译')).toEqual([
       expect.objectContaining({ id: 'settings-translation' }),
     ])
+    expect(filterNavigationItems(' KIMI ')).toEqual([
+      expect.objectContaining({ id: 'settings-model-usage' }),
+    ])
+    expect(filterNavigationItems('Token')).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'settings-model-usage' }),
+    ]))
     expect(filterNavigationItems('')).toEqual([])
     expect(filterNavigationItems('不存在的设置项')).toEqual([])
   })

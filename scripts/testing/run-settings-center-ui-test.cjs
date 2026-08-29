@@ -24,6 +24,7 @@ const expectedNavigation = [
   ['settings-video', '视频字幕翻译'],
   ['settings-sites', '网站规则'],
   ['settings-translation-center', '翻译中心'],
+  ['settings-model-usage', '模型用量'],
   ['settings-vocabulary', '单词本'],
   ['settings-advanced', '高级选项'],
   ['settings-data', '配置管理'],
@@ -32,7 +33,7 @@ const expectedNavigation = [
 const expectedNavigationGroups = [
   ['基础配置', ['settings-general', 'settings-services', 'settings-translation']],
   ['专项翻译', ['settings-image-translation', 'settings-video', 'settings-sites']],
-  ['工具与学习', ['settings-translation-center', 'settings-vocabulary']],
+  ['工具与学习', ['settings-translation-center', 'settings-model-usage', 'settings-vocabulary']],
   ['系统与数据', ['settings-advanced', 'settings-data', 'settings-about']],
 ];
 const expectedGeneralGroups = ['选择翻译服务', '译文显示', '网页辅助'];
@@ -74,6 +75,96 @@ async function screenshot(page, file) {
   const target = path.join(artifactsDir, file);
   await page.screenshot({path: target, fullPage: false});
   return target;
+}
+
+async function seedModelUsageFixture(page) {
+  return page.evaluate(async () => {
+    const now = Date.now();
+    const localDay = daysAgo => {
+      const date = new Date(now);
+      date.setDate(date.getDate() - daysAgo);
+      date.setHours(12, 0, 0, 0);
+      return date.getTime();
+    };
+    const base = {
+      schemaVersion: 1,
+      durationMs: 420,
+      purpose: 'translation',
+      outcome: 'success',
+      usageAvailability: 'reported',
+      statusCode: 200,
+    };
+    const events = [
+      {...base, id: 'ui-kimi-today', startedAt: now - 1000, serviceId: 'moonshot', configuredModel: 'kimi-k2.6', actualModel: 'kimi-k2.6', model: 'kimi-k2.6', inputTokens: 120, outputTokens: 80, totalTokens: 200, cachedInputTokens: 20},
+      {...base, id: 'ui-kimi-yesterday', startedAt: localDay(1), serviceId: 'moonshot', configuredModel: 'kimi-k2.6', actualModel: 'kimi-k2.6', model: 'kimi-k2.6', inputTokens: 180, outputTokens: 120, totalTokens: 300},
+      {...base, id: 'ui-openai-five-days', startedAt: localDay(5), serviceId: 'openai', configuredModel: 'gpt-5.6-luna', actualModel: 'gpt-5.6-luna', model: 'gpt-5.6-luna', inputTokens: 100, outputTokens: 50, totalTokens: 150},
+      {...base, id: 'ui-kimi-ten-days', startedAt: localDay(10), serviceId: 'moonshot', configuredModel: 'kimi-k3', actualModel: 'kimi-k3', model: 'kimi-k3', inputTokens: 420, outputTokens: 180, totalTokens: 600},
+      {...base, id: 'ui-kimi-unreported', startedAt: now - 500, serviceId: 'moonshot', configuredModel: 'kimi-k2.6', actualModel: 'kimi-k2.6', model: 'kimi-k2.6', usageAvailability: 'unreported'},
+      {...base, id: 'ui-deepseek-error', startedAt: now - 250, serviceId: 'deepseek', configuredModel: 'deepseek-chat', actualModel: 'deepseek-chat', model: 'deepseek-chat', outcome: 'error', usageAvailability: 'unreported', statusCode: 429},
+    ];
+
+    const database = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('FluentReadModelUsage');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      if (!database.objectStoreNames.contains('events')) throw new Error('模型用量 events 表未创建');
+      await new Promise((resolve, reject) => {
+        const transaction = database.transaction('events', 'readwrite');
+        const store = transaction.objectStore('events');
+        store.clear();
+        for (const event of events) store.put(event);
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error);
+      });
+    } finally {
+      database.close();
+    }
+    return {eventCount: events.length, allTokens: 1250, kimiTokens: 1100, kimiK2Tokens: 500, todayKimiTokens: 200};
+  });
+}
+
+async function appendModelUsageRefreshEvent(page) {
+  return page.evaluate(async () => {
+    const event = {
+      schemaVersion: 1,
+      id: 'ui-return-refresh',
+      startedAt: Date.now() - 100,
+      durationMs: 360,
+      serviceId: 'openai',
+      configuredModel: 'gpt-5.6-luna',
+      actualModel: 'gpt-5.6-luna',
+      model: 'gpt-5.6-luna',
+      purpose: 'translation',
+      outcome: 'success',
+      usageAvailability: 'reported',
+      statusCode: 200,
+      inputTokens: 30,
+      outputTokens: 20,
+      totalTokens: 50,
+      cachedInputTokens: 0,
+      reasoningTokens: 0,
+    };
+    const database = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('FluentReadModelUsage');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    try {
+      await new Promise((resolve, reject) => {
+        const transaction = database.transaction('events', 'readwrite');
+        transaction.objectStore('events').put(event);
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error);
+      });
+    } finally {
+      database.close();
+    }
+    return {deltaTokens: event.totalTokens};
+  });
 }
 
 async function chooseDifferentSelectOption(page, ariaLabel) {
@@ -438,6 +529,133 @@ async function main() {
     report.assertions.noLegacyIntros = await page.locator('.video-settings-hero, .image-ocr-kicker, .site-rules-kicker').count() === 0;
     if (!report.assertions.noLegacyIntros) throw new Error('仍存在旧的重复介绍元素');
 
+    await page.locator('button[data-section="settings-model-usage"]').click();
+    await page.locator('#settings-model-usage').waitFor({state: 'visible', timeout});
+    await page.waitForFunction(() => document.querySelector('#settings-model-usage .usage-state-card, #settings-model-usage .usage-summary-grid'), undefined, {timeout});
+    const modelUsageFixture = await seedModelUsageFixture(page);
+    await page.reload({waitUntil: 'domcontentloaded', timeout});
+    await page.locator('#settings-model-usage').waitFor({state: 'visible', timeout});
+    const usageTokenValue = () => page.locator('#settings-model-usage .usage-token-card .usage-card-heading strong').textContent()
+      .then(value => Number(String(value || '').replace(/[^0-9]/g, '')));
+    await page.waitForFunction(expected => {
+      const text = document.querySelector('#settings-model-usage .usage-token-card .usage-card-heading strong')?.textContent || '';
+      return Number(text.replace(/[^0-9]/g, '')) === expected;
+    }, modelUsageFixture.allTokens, {timeout});
+    const providerSelect = page.getByRole('combobox', {name: '模型用量服务', exact: true});
+    const modelSelect = page.getByRole('combobox', {name: '模型用量模型', exact: true});
+    await providerSelect.selectOption('moonshot');
+    await page.waitForFunction(expected => {
+      const text = document.querySelector('#settings-model-usage .usage-token-card .usage-card-heading strong')?.textContent || '';
+      return Number(text.replace(/[^0-9]/g, '')) === expected;
+    }, modelUsageFixture.kimiTokens, {timeout});
+    await modelSelect.selectOption('kimi-k2.6');
+    await page.waitForFunction(expected => {
+      const text = document.querySelector('#settings-model-usage .usage-token-card .usage-card-heading strong')?.textContent || '';
+      return Number(text.replace(/[^0-9]/g, '')) === expected;
+    }, modelUsageFixture.kimiK2Tokens, {timeout});
+    const usageRangeGroup = page.getByRole('radiogroup', {name: '模型用量时间范围'});
+    const usageThirtyDayRadio = usageRangeGroup.getByRole('radio', {name: '30 天', exact: true});
+    await usageThirtyDayRadio.focus();
+    await usageThirtyDayRadio.press('Home');
+    await page.waitForFunction(() => {
+      const group = document.querySelector('[role="radiogroup"][aria-label="模型用量时间范围"]');
+      const selected = group?.querySelector('[role="radio"][aria-checked="true"]');
+      return selected?.textContent?.trim() === '今日'
+        && selected === document.activeElement
+        && group?.querySelectorAll('[role="radio"][tabindex="0"]').length === 1;
+    }, undefined, {timeout});
+    await page.waitForFunction(expected => {
+      const text = document.querySelector('#settings-model-usage .usage-token-card .usage-card-heading strong')?.textContent || '';
+      return Number(text.replace(/[^0-9]/g, '')) === expected;
+    }, modelUsageFixture.todayKimiTokens, {timeout});
+    const usageRequestCount = Number((await page.locator('#settings-model-usage .usage-compact-card').first().locator('strong').textContent())?.replace(/[^0-9]/g, '') || 0);
+    if (usageRequestCount !== 2) throw new Error(`Kimi 今日请求数异常：${usageRequestCount}`);
+    const coverageNotice = (await page.locator('#settings-model-usage .usage-coverage-note').textContent())?.replace(/\s+/g, ' ').trim();
+    if (!coverageNotice?.includes('50%')) throw new Error(`Token 上报覆盖率异常：${coverageNotice}`);
+    await page.getByRole('button', {name: '清除统计', exact: true}).click();
+    const resetDialog = page.getByRole('alertdialog', {name: '清除本机模型用量？'});
+    await resetDialog.waitFor({state: 'visible', timeout});
+    if (!await resetDialog.getByText(/不会删除 API Key、翻译设置、缓存或配置历史/).isVisible()) {
+      throw new Error('模型用量重置没有明确隔离其他本地数据');
+    }
+    const resetCancelButton = resetDialog.getByRole('button', {name: '取消', exact: true});
+    const resetConfirmButton = resetDialog.getByRole('button', {name: '确认清除统计', exact: true});
+    if (!await resetCancelButton.evaluate(button => button === document.activeElement)) {
+      throw new Error('模型用量重置对话框没有将初始焦点放在安全的取消按钮');
+    }
+    if (await page.locator('.settings-app').getAttribute('inert') === null) {
+      throw new Error('模型用量重置对话框打开时背景设置仍可交互');
+    }
+    await resetCancelButton.press('Shift+Tab');
+    if (!await resetConfirmButton.evaluate(button => button === document.activeElement)) {
+      throw new Error('模型用量重置对话框没有向后闭环焦点');
+    }
+    await resetConfirmButton.press('Tab');
+    if (!await resetCancelButton.evaluate(button => button === document.activeElement)) {
+      throw new Error('模型用量重置对话框没有向前闭环焦点');
+    }
+    await resetCancelButton.click();
+    await resetDialog.waitFor({state: 'hidden', timeout});
+    if (await page.locator('.settings-app').getAttribute('inert') !== null) {
+      throw new Error('模型用量重置对话框关闭后背景仍被锁定');
+    }
+    if (!await page.getByRole('button', {name: '清除统计', exact: true}).evaluate(button => button === document.activeElement)) {
+      throw new Error('模型用量重置对话框关闭后没有恢复触发按钮焦点');
+    }
+    if (await usageTokenValue() !== modelUsageFixture.todayKimiTokens) throw new Error('取消清除后统计发生变化');
+
+    await providerSelect.selectOption('deepseek');
+    await modelSelect.selectOption('deepseek-chat');
+    await page.waitForFunction(() => {
+      const text = document.querySelector('#settings-model-usage .usage-token-card .usage-card-heading strong')?.textContent || '';
+      return Number(text.replace(/[^0-9]/g, '')) === 0
+        && document.querySelector('#settings-model-usage .usage-compact-card')?.textContent?.includes('1');
+    }, undefined, {timeout});
+    if (await page.locator('#settings-model-usage .usage-ratio').count() !== 0) {
+      throw new Error('零 Token 请求仍显示了虚假的输入输出比例');
+    }
+    if (!await page.getByText('尚无已报告的输入 / 输出 Token', {exact: true}).isVisible()) {
+      throw new Error('零 Token 请求没有显示未报告说明');
+    }
+    const zeroTokenBreakdownWidth = await page.locator('#settings-model-usage .usage-breakdown-copy i b').first().evaluate(bar => bar.style.width);
+    if (zeroTokenBreakdownWidth !== '0%') {
+      throw new Error(`零 Token 分布行仍显示了虚假长度：${zeroTokenBreakdownWidth}`);
+    }
+    await providerSelect.selectOption('');
+    await modelSelect.selectOption('');
+    await usageRangeGroup.getByRole('radio', {name: '30 天', exact: true}).click();
+    await page.waitForFunction(expected => {
+      const text = document.querySelector('#settings-model-usage .usage-token-card .usage-card-heading strong')?.textContent || '';
+      return Number(text.replace(/[^0-9]/g, '')) === expected;
+    }, modelUsageFixture.allTokens, {timeout});
+    report.modelUsage = {
+      ...modelUsageFixture,
+      filteredProvider: 'moonshot',
+      filteredModel: 'kimi-k2.6',
+      todayRequestCount: usageRequestCount,
+      tokenCoverage: coverageNotice,
+      resetCancelPreserved: true,
+      rangeKeyboard: true,
+      resetFocusLoop: true,
+      zeroTokenEncoding: true,
+    };
+    report.screenshots.push(await screenshot(page, 'settings-model-usage-seeded.png'));
+    report.assertions.modelUsageFilters = true;
+    report.assertions.modelUsageResetIsolation = true;
+    report.assertions.modelUsageRangeKeyboard = true;
+    report.assertions.modelUsageResetFocus = true;
+    report.assertions.modelUsageZeroTokenEncoding = true;
+
+    await page.locator('button[data-section="settings-general"]').click();
+    const refreshEvent = await appendModelUsageRefreshEvent(page);
+    await page.locator('button[data-section="settings-model-usage"]').click();
+    const refreshedTokenTotal = modelUsageFixture.allTokens + refreshEvent.deltaTokens;
+    await page.waitForFunction(expected => {
+      const text = document.querySelector('#settings-model-usage .usage-token-card .usage-card-heading strong')?.textContent || '';
+      return Number(text.replace(/[^0-9]/g, '')) === expected;
+    }, refreshedTokenTotal, {timeout});
+    report.modelUsage.returnRefreshTokens = refreshedTokenTotal;
+    report.assertions.modelUsageReturnRefresh = true;
     await page.locator('button[data-section="settings-general"]').click();
     const themeGroup = page.getByRole('radiogroup', {name: '界面主题'});
     const initialThemeRadio = themeGroup.locator('[role="radio"][aria-checked="true"]');
@@ -465,6 +683,10 @@ async function main() {
     report.screenshots.push(await screenshot(page, 'settings-dark-services.png'));
     await page.locator('button[data-section="settings-translation"]').click();
     report.screenshots.push(await screenshot(page, 'settings-dark-translation.png'));
+    await page.locator('button[data-section="settings-model-usage"]').click();
+    const usageDarkSurface = await page.locator('#settings-model-usage .usage-card').first().evaluate(card => getComputedStyle(card).backgroundColor);
+    if (!isDarkColor(usageDarkSurface)) throw new Error(`模型用量暗色卡片仍为亮色：${usageDarkSurface}`);
+    report.screenshots.push(await screenshot(page, 'settings-dark-model-usage.png'));
     await page.locator('button[data-section="settings-data"]').click();
     report.screenshots.push(await screenshot(page, 'settings-dark-data.png'));
     await page.locator('button[data-section="settings-general"]').click();
@@ -854,7 +1076,68 @@ async function main() {
       const translationFile = `settings-translation-${viewport.width}.png`;
       report.screenshots.push(await screenshot(page, translationFile));
       report.responsive.push({page: 'settings-translation', ...viewport, ...translationMetrics});
+
+      await page.locator('button[data-section="settings-model-usage"]').click();
+      await page.waitForTimeout(150);
+      const usageMetrics = await page.evaluate(() => {
+        const dashboard = document.querySelector('#settings-model-usage');
+        const toolbar = dashboard?.querySelector('.usage-toolbar');
+        const trend = dashboard?.querySelector('.usage-trend-plot');
+        const dashboardRect = dashboard?.getBoundingClientRect();
+        const toolbarRect = toolbar?.getBoundingClientRect();
+        return {
+          horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+          dashboardWithinViewport: Boolean(dashboardRect
+            && dashboardRect.left >= -1
+            && dashboardRect.right <= window.innerWidth + 1),
+          toolbarWithinDashboard: Boolean(dashboardRect && toolbarRect
+            && toolbarRect.left >= dashboardRect.left - 1
+            && toolbarRect.right <= dashboardRect.right + 1),
+          trendOverflow: trend ? trend.scrollWidth > trend.clientWidth + 1 : false,
+          providerFilterVisible: Boolean(dashboard?.querySelector('[aria-label="模型用量服务"]')?.getClientRects().length),
+          modelFilterVisible: Boolean(dashboard?.querySelector('[aria-label="模型用量模型"]')?.getClientRects().length),
+        };
+      });
+      if (usageMetrics.horizontalOverflow
+        || !usageMetrics.dashboardWithinViewport
+        || !usageMetrics.toolbarWithinDashboard
+        || usageMetrics.trendOverflow
+        || !usageMetrics.providerFilterVisible
+        || !usageMetrics.modelFilterVisible) {
+        throw new Error(`${viewport.width}px 模型用量响应式异常：${JSON.stringify(usageMetrics)}`);
+      }
+      const usageFile = `settings-model-usage-${viewport.width}.png`;
+      report.screenshots.push(await screenshot(page, usageFile));
+      report.responsive.push({page: 'settings-model-usage', ...viewport, ...usageMetrics});
     }
+    await page.getByRole('button', {name: '清除统计', exact: true}).click();
+    const finalResetDialog = page.getByRole('alertdialog', {name: '清除本机模型用量？'});
+    await finalResetDialog.waitFor({state: 'visible', timeout});
+    report.screenshots.push(await screenshot(page, 'settings-model-usage-reset-confirmation.png'));
+    await finalResetDialog.getByRole('button', {name: '确认清除统计', exact: true}).click();
+    await finalResetDialog.waitFor({state: 'hidden', timeout});
+    await page.getByText('还没有模型调用记录', {exact: true}).waitFor({state: 'visible', timeout});
+    const remainingUsageEvents = await page.evaluate(async () => {
+      const database = await new Promise((resolve, reject) => {
+        const request = indexedDB.open('FluentReadModelUsage');
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      try {
+        return await new Promise((resolve, reject) => {
+          const request = database.transaction('events', 'readonly').objectStore('events').count();
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      } finally {
+        database.close();
+      }
+    });
+    if (remainingUsageEvents !== 0) throw new Error(`确认清除后仍有 ${remainingUsageEvents} 条模型用量事件`);
+    report.modelUsage.resetConfirmed = true;
+    report.modelUsage.remainingEvents = remainingUsageEvents;
+    report.assertions.modelUsageReset = true;
+    report.screenshots.push(await screenshot(page, 'settings-model-usage-empty-after-reset.png'));
     report.assertions.responsive = true;
     if (errors.length) throw new Error(`浏览器控制台存在错误：${errors.join(' | ')}`);
   } finally {

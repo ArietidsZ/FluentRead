@@ -3,10 +3,12 @@ import {
     createTranslationBroker,
     type TranslationBroker,
 } from '@/src/services/translation/broker';
+import type {TranslationModelUsageRecord} from '@/src/services/translation/types';
 import {
     createTranslationProviderConfigSnapshot,
     getTranslationProviderConfig,
     markTranslationRemainingBudget,
+    reportTranslationModelUsage,
 } from '@/src/services/translation/requestSnapshot';
 
 type CacheIdentity = {
@@ -104,6 +106,7 @@ const mocks = vi.hoisted(() => {
         getMissingCredentialMessage: vi.fn(() => null as string | null),
         machineServices,
         minimaxEndpoints,
+        recordModelUsage: vi.fn(async (_events: readonly TranslationModelUsageRecord[]) => undefined),
         service,
         cacheGet: vi.fn(async (key: string) => cacheStore.get(key) ?? null),
         cacheSet: vi.fn(async (key: string, value: string) => {
@@ -156,6 +159,8 @@ function installBroker(now?: () => number, ready: Promise<unknown> = Promise.res
         }),
         resolveConfiguredModel: (selected?: string, custom?: string) => custom || selected || '',
         buildTranslationCacheKey: mocks.buildTranslationCacheKey,
+        captureModelUsageGeneration: () => 7,
+        recordModelUsage: mocks.recordModelUsage,
         now,
     });
     translateWithCache = broker.translateWithCache;
@@ -2108,5 +2113,283 @@ describe('translation broker', () => {
             expect.objectContaining({requestMode: 'page-summary', model: 'summary-model-b'}),
             expect.objectContaining({requestMode: 'single', model: 'summary-model-b'}),
         ]));
+    });
+
+    it('只在真实 AI provider 调用时记录服务商 usage，缓存命中不重复计数', async () => {
+        mocks.config.service = 'aiSdk';
+        mocks.config.useCache = true;
+        mocks.service.mockImplementation(async (message: Record<string, unknown>) => {
+            reportTranslationModelUsage(message, {
+                actualModel: 'kimi-k2.6',
+                outcome: 'success',
+                usageAvailability: 'reported',
+                inputTokens: 12,
+                outputTokens: 8,
+                totalTokens: 20,
+                cachedInputTokens: 4,
+            });
+            return '统计译文';
+        });
+
+        await expect(translateWithCache({origin: 'usage-source'})).resolves.toBe('统计译文');
+        await vi.waitFor(() => expect(mocks.cacheSet).toHaveBeenCalled());
+        await expect(translateWithCache({origin: 'usage-source'})).resolves.toBe('统计译文');
+
+        expect(mocks.service).toHaveBeenCalledOnce();
+        expect(mocks.recordModelUsage).toHaveBeenCalledOnce();
+        expect(mocks.recordModelUsage.mock.calls[0][0]).toEqual([
+            expect.objectContaining({
+                serviceId: 'aiSdk',
+                configuredModel: 'ai-sdk-model',
+                actualModel: 'kimi-k2.6',
+                purpose: 'translation',
+                outcome: 'success',
+                usageAvailability: 'reported',
+                inputTokens: 12,
+                outputTokens: 8,
+                totalTokens: 20,
+                cachedInputTokens: 4,
+            }),
+        ]);
+    });
+
+    it('区分摘要与正文，并把同一 provider 内的多次真实尝试逐条落库', async () => {
+        mocks.config.service = 'aiSdk';
+        mocks.config.enableAIContext = true;
+        mocks.config.useCache = false;
+        mocks.service.mockImplementation(async (message: Record<string, unknown>) => {
+            if (typeof message.summaryPrompt === 'string') {
+                reportTranslationModelUsage(message, {
+                    usageAvailability: 'reported',
+                    inputTokens: 5,
+                    outputTokens: 2,
+                    totalTokens: 7,
+                });
+                return '页面摘要';
+            }
+            reportTranslationModelUsage(message, {
+                outcome: 'error',
+                statusCode: 429,
+                usageAvailability: 'unreported',
+            });
+            reportTranslationModelUsage(message, {
+                outcome: 'success',
+                usageAvailability: 'reported',
+                inputTokens: 10,
+                outputTokens: 6,
+                totalTokens: 16,
+            });
+            return '正文译文';
+        });
+
+        await expect(translateWithCache({
+            origin: 'usage-with-context',
+            pageContext: 'article context',
+        })).resolves.toBe('正文译文');
+
+        expect(mocks.recordModelUsage).toHaveBeenCalledTimes(2);
+        expect(mocks.recordModelUsage.mock.calls[0][0]).toEqual([
+            expect.objectContaining({purpose: 'page-summary', totalTokens: 7}),
+        ]);
+        expect(mocks.recordModelUsage.mock.calls[1][0]).toEqual([
+            expect.objectContaining({purpose: 'translation', outcome: 'error', statusCode: 429}),
+            expect.objectContaining({purpose: 'translation', outcome: 'success', totalTokens: 16}),
+        ]);
+    });
+
+    it('provider 未报告 usage 或统计仓库失败都不改变翻译结果', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.useCache = false;
+        mocks.service.mockImplementation(async (message: Record<string, unknown>) => {
+            reportTranslationModelUsage(message, {usageAvailability: 'unreported'});
+            return '无 usage 译文';
+        });
+        mocks.recordModelUsage.mockRejectedValueOnce(new Error('IndexedDB unavailable'));
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+        await expect(translateWithCache({origin: 'unreported-source'})).resolves.toBe('无 usage 译文');
+        expect(mocks.recordModelUsage).toHaveBeenCalledWith([
+            expect.objectContaining({
+                serviceId: 'ai',
+                purpose: 'translation',
+                outcome: 'success',
+                usageAvailability: 'unreported',
+            }),
+        ], 7);
+        await vi.waitFor(() => expect(warn).toHaveBeenCalled());
+        warn.mockRestore();
+    });
+
+    it('规范化 provider 自报的时间与模型名，并保留已经发生的上游成功尝试', async () => {
+        mocks.config.service = 'aiSdk';
+        mocks.config.useCache = false;
+        mocks.service.mockImplementation(async (message: Record<string, unknown>) => {
+            reportTranslationModelUsage(message, {
+                actualModel: ' \u0000kimi-k2.6\u007f ',
+                startedAt: 123,
+                durationMs: -8,
+                outcome: 'success',
+                usageAvailability: 'reported',
+                inputTokens: 3,
+                outputTokens: 2,
+                totalTokens: 5,
+            });
+            throw new Error('response parse failed');
+        });
+
+        await expect(translateWithCache({origin: 'parse-error'})).rejects.toThrow('response parse failed');
+        expect(mocks.recordModelUsage).toHaveBeenCalledWith([
+            expect.objectContaining({
+                actualModel: 'kimi-k2.6',
+                startedAt: 123,
+                durationMs: 0,
+                outcome: 'success',
+            }),
+        ], 7);
+    });
+
+    it('把 provider 取消映射为 cancelled，并安全回退非法观察字段', async () => {
+        mocks.config.service = 'aiSdk';
+        mocks.config.useCache = false;
+        installBroker(() => 500);
+        const abortError = new Error('cancelled by caller');
+        abortError.name = 'AbortError';
+        mocks.service.mockImplementation(async (message: Record<string, unknown>) => {
+            reportTranslationModelUsage(message, {
+                actualModel: ' \u0000\u007f ',
+                startedAt: Number.NaN,
+                durationMs: Number.NaN,
+                usageAvailability: 'unreported',
+            });
+            throw abortError;
+        });
+
+        await expect(translateWithCache({origin: 'cancelled'})).rejects.toBe(abortError);
+        expect(mocks.recordModelUsage).toHaveBeenCalledWith([
+            expect.objectContaining({
+                actualModel: undefined,
+                startedAt: 500,
+                durationMs: 0,
+                outcome: 'cancelled',
+            }),
+        ], 7);
+    });
+
+    it('给同一 provider 的多条无时间观察使用零时长，并记录 AI 超时', async () => {
+        mocks.config.service = 'aiSdk';
+        mocks.config.useCache = false;
+        mocks.service.mockImplementationOnce(async (message: Record<string, unknown>) => {
+            reportTranslationModelUsage(message, {
+                actualModel: 42 as unknown as string,
+                usageAvailability: 'unreported',
+            });
+            reportTranslationModelUsage(message, {
+                usageAvailability: 'unreported',
+            });
+            return '双尝试译文';
+        });
+
+        await expect(translateWithCache({origin: 'two-attempts'})).resolves.toBe('双尝试译文');
+        expect(mocks.recordModelUsage.mock.calls[0][0]).toEqual([
+            expect.objectContaining({actualModel: undefined, durationMs: 0, outcome: 'success'}),
+            expect.objectContaining({durationMs: 0, outcome: 'success'}),
+        ]);
+
+        vi.useFakeTimers();
+        mocks.recordModelUsage.mockClear();
+        mocks.service.mockImplementationOnce((message: Record<string, unknown>) => new Promise<string>(() => {
+            const signal = message.abortSignal as AbortSignal;
+            signal.addEventListener('abort', () => {
+                reportTranslationModelUsage(message, {
+                    outcome: 'cancelled',
+                    usageAvailability: 'unreported',
+                });
+            }, {once: true});
+        }));
+        const timedOut = translateWithCache({origin: 'usage-timeout', requestTimeoutMs: 1_000});
+        const rejection = expect(timedOut).rejects.toThrow('翻译请求超时');
+        await flushMicrotasks();
+        await vi.advanceTimersByTimeAsync(1_000);
+        await rejection;
+        expect(mocks.recordModelUsage).toHaveBeenCalledWith([
+            expect.objectContaining({outcome: 'timeout', usageAvailability: 'unreported'}),
+        ], 7);
+    });
+
+    it('本地预检失败不会伪造上游请求，挂起的统计写入也不阻塞译文', async () => {
+        mocks.config.service = 'aiSdk';
+        mocks.config.useCache = false;
+        mocks.service.mockRejectedValueOnce(new Error('endpoint validation failed'));
+
+        await expect(translateWithCache({origin: 'preflight'})).rejects.toThrow('endpoint validation failed');
+        expect(mocks.recordModelUsage).not.toHaveBeenCalled();
+
+        mocks.recordModelUsage.mockImplementationOnce(() => new Promise<undefined>(() => undefined));
+        mocks.service.mockImplementationOnce(async (message: Record<string, unknown>) => {
+            reportTranslationModelUsage(message, {usageAvailability: 'unreported'});
+            return '不等待统计的译文';
+        });
+        await expect(translateWithCache({origin: 'non-blocking'})).resolves.toBe('不等待统计的译文');
+        expect(mocks.recordModelUsage).toHaveBeenCalledWith([
+            expect.objectContaining({usageAvailability: 'unreported'}),
+        ], 7);
+    });
+
+    it('把结构化 provider timeout 与 HTTP 408 校准为 timeout', async () => {
+        mocks.config.service = 'aiSdk';
+        mocks.config.useCache = false;
+        for (const {timeoutError, observation} of [
+            {
+                timeoutError: Object.assign(new Error('sdk timeout'), {kind: 'timeout'}),
+                observation: {outcome: 'cancelled' as const},
+            },
+            {
+                timeoutError: Object.assign(new Error('http timeout'), {statusCode: 408}),
+                observation: {outcome: 'cancelled' as const},
+            },
+            {
+                timeoutError: new Error('adapter omitted structured timeout'),
+                observation: {outcome: 'error' as const, statusCode: 408},
+            },
+        ]) {
+            mocks.service.mockImplementationOnce(async (message: Record<string, unknown>) => {
+                reportTranslationModelUsage(message, {
+                    ...observation,
+                    usageAvailability: 'unreported',
+                });
+                throw timeoutError;
+            });
+            await expect(translateWithCache({origin: `timeout-${mocks.service.mock.calls.length}`}))
+                .rejects.toBe(timeoutError);
+        }
+
+        expect(mocks.recordModelUsage).toHaveBeenCalledTimes(3);
+        expect(mocks.recordModelUsage.mock.calls.map(([events]) => events[0]?.outcome))
+            .toEqual(['timeout', 'timeout', 'timeout']);
+    });
+
+    it('HTTP 408 只校准最后一次失败，不改写批量中更早的成功 observation', async () => {
+        mocks.config.service = 'aiSdk';
+        mocks.config.useCache = false;
+        const timeoutError = new Error('later transport timed out');
+        mocks.service.mockImplementationOnce(async (message: Record<string, unknown>) => {
+            reportTranslationModelUsage(message, {
+                outcome: 'success',
+                usageAvailability: 'reported',
+                totalTokens: 12,
+            });
+            reportTranslationModelUsage(message, {
+                outcome: 'error',
+                statusCode: 408,
+                usageAvailability: 'unreported',
+            });
+            throw timeoutError;
+        });
+
+        await expect(translateWithCache({origin: ['first', 'second']})).rejects.toBe(timeoutError);
+        expect(mocks.recordModelUsage).toHaveBeenCalledWith([
+            expect.objectContaining({outcome: 'success', totalTokens: 12}),
+            expect.objectContaining({outcome: 'timeout', statusCode: 408}),
+        ], 7);
     });
 });

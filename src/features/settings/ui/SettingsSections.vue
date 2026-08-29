@@ -537,6 +537,10 @@
       </SettingsGroup>
     </section>
 
+    <ModelUsageDashboard
+      v-show="props.activeSection === 'settings-model-usage'"
+      :active="props.activeSection === 'settings-model-usage'"
+    />
     <ConfigManagement v-show="props.activeSection === 'settings-data'" id="settings-data" :config="config" />
   </div>
 
@@ -598,6 +602,7 @@ import AlwaysTranslateSites from './AlwaysTranslateSites.vue';
 import { parseHotkey } from '@/src/core/hotkey';
 import { getApiKeyRequirementKey, getMissingCredentialMessage, isApiKeyRequired } from '@/src/core/config/validation';
 import {ImageOcrSettings} from '@/src/features/image-translation/public';
+import {ModelUsageDashboard} from '@/src/features/model-usage/public';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
 import SegmentedControl from './components/SegmentedControl.vue';
