@@ -68,11 +68,15 @@ describe('AI 模型编号列表', () => {
         expect(models.get(services.groq)).not.toContain('whisper-large-v3');
         expect(models.get(services.openrouter)?.at(-1)).toBe(customModelString);
         expect(options.services.find(option => option.value === services.zhipu)?.label).toBe('智谱');
+        expect(options.services.find(option => option.value === services.tongyi)?.label).toBe('千问/Qwen');
         expect(options.services.find(option => option.value === services.freeTranslation)?.label).toBe('免费翻译服务');
         expect(options.services[1]?.value).toBe(services.freeTranslation);
         expect(options.services.find(option => option.value === services.freeTranslation)?.description)
             .toContain('微软翻译、DeepLX、谷歌翻译依次尝试');
         expect(options.services.find(option => option.value === services.mimo)?.label).toBe('小米 MiMo');
+        expect(options.services.some(option => option.value === services.baichuan)).toBe(false);
+        expect(options.services.some(option => option.value === services.lingyi)).toBe(false);
+        expect(options.services.find(option => option.value === services.infini)?.label).toBe('无问芯穹');
         expect(options.services.every(option => !/[🌟⭐★]/u.test(option.label))).toBe(true);
         expect(servicesType.isMachine(services.freeTranslation)).toBe(true);
         expect(defaultOption.service).toBe(services.freeTranslation);
