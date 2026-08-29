@@ -8,6 +8,7 @@ import {
     mountXGrokAutoTranslate,
     unmountXGrokAutoTranslate,
 } from '@/src/features/x-grok-translation/public';
+import {X_GROK_PAGE_BRIDGE_DISPOSE_EVENT} from '@/src/features/x-grok-translation/content/pageBridgeCore';
 
 class TestIntersectionObserver {
     static instances: TestIntersectionObserver[] = [];
@@ -152,6 +153,16 @@ describe('X Grok 原生逐帖自动翻译', () => {
         replacedGlobals.clear();
     });
 
+    it('运行时从未挂载时，关闭操作仍会停用 document_start 预激活的页面桥', () => {
+        const disposed = vi.fn();
+        document.addEventListener(X_GROK_PAGE_BRIDGE_DISPOSE_EVENT, disposed, {once: true});
+
+        unmountXGrokAutoTranslate();
+
+        expect(isXGrokAutoTranslateMounted()).toBe(false);
+        expect(disposed).toHaveBeenCalledOnce();
+    });
+
     it('挂载时标记 documentElement、观察动态根，并仅在初始帖子接近视口后点击', () => {
         const {article, button} = createTweet(document, '1001');
         const click = vi.fn();
@@ -228,6 +239,28 @@ describe('X Grok 原生逐帖自动翻译', () => {
 
         TestIntersectionObserver.instances[0]!.emit(article, true);
         TestMutationObserver.instances[0]!.emit([attributeRecord(button!.parentElement!)]);
+        vi.runAllTimers();
+
+        expect(click).not.toHaveBeenCalled();
+    });
+
+    it('首页只有内嵌 Grok 图标的通用“Grok 操作”时绝不把它误当翻译入口', () => {
+        const article = document.createElement('article');
+        article.setAttribute('data-testid', 'tweet');
+        article.innerHTML = `
+            <a href="/fluentread/status/1005"><time></time></a>
+            <div data-testid="tweetText">Timeline original post</div>
+            <button aria-label="Grok 操作" aria-haspopup="menu">
+                <svg viewBox="0 0 33 32"></svg>
+            </button>
+        `;
+        const grokAction = article.querySelector('button') as HTMLButtonElement;
+        const click = vi.fn();
+        grokAction.click = click;
+        document.body.append(article);
+        mountXGrokAutoTranslate();
+
+        TestIntersectionObserver.instances[0]!.emit(article, true);
         vi.runAllTimers();
 
         expect(click).not.toHaveBeenCalled();

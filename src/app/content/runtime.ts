@@ -65,6 +65,7 @@ export async function startContentApp(ctx: ContentScriptContext,
         window.location.href,
         config.disabledExtensionDomains,
     );
+    if (!config.on || currentPageSiteDisabled || config.xGrokAutoTranslateEnabled !== true) unmountXGrokAutoTranslate();
     let unsubscribeContentConfig: (() => void) | null = null;
     let runtimeMessageListener: ContentRuntimeMessageHandler | null = null;
     let cleanedUp = false;
@@ -91,7 +92,6 @@ export async function startContentApp(ctx: ContentScriptContext,
             isDisabled: currentPageSiteDisabled,
         }).catch(() => undefined);
     };
-
     const isPageRuntimeEnabled = (): boolean => !cleanedUp && !currentPageSiteDisabled && config.on !== false;
     let pageAvailability: ContentPageAvailabilityRuntime | null = null;
 

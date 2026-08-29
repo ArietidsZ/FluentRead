@@ -1,10 +1,14 @@
 /**
  * @file src/features/x-grok-translation/content/runtime.ts
  * 文件职责：在 X/Twitter 动态时间线中识别尚未翻译的 Grok 原生控件，并在帖子接近视口时为每个帖子幂等触发一次站点翻译。
- * 主要内容：以 documentElement 为动态观察根、IntersectionObserver 为近视口门禁，结合 status ID、DOM 控件结构、有限延迟重试和页面卸载清理管理虚拟列表生命周期。
- * 模块边界：运行时只点击 X 已渲染且可用的原生按钮，不读取按钮文案、不调用 FluentRead provider、不插入译文 DOM；全文翻译互斥由 core 暴露的 document 标记协调。
+ * 主要内容：启停 X 时间线请求桥，并以 documentElement 为动态观察根、IntersectionObserver 为近视口门禁，结合 status ID、DOM 控件结构和有限重试管理原生控件兜底。
+ * 模块边界：运行时只启用 X 原生译文字段并点击可证明为翻译入口的原生按钮，不读取按钮文案、不调用 FluentRead provider、不插入译文 DOM；全文翻译互斥由 core 暴露的 document 标记协调。
  */
 import {X_GROK_NATIVE_TRANSLATION_ATTRIBUTE} from '@/src/core/translation/public';
+import {
+    X_GROK_PAGE_BRIDGE_DISPOSE_EVENT,
+    X_GROK_PAGE_BRIDGE_ENABLE_EVENT,
+} from './pageBridgeCore';
 
 const X_TWEET_SELECTOR = 'article[data-testid="tweet"]';
 const X_STATUS_PATH_PATTERN = /\/status\/(\d+)/i;
@@ -493,6 +497,11 @@ export function isXGrokAutoTranslateMounted(): boolean {
     return activeRuntime !== null;
 }
 
+function dispatchPageBridgeEvent(type: string): void {
+    const EventConstructor = document.defaultView?.CustomEvent;
+    if (EventConstructor) document.dispatchEvent(new EventConstructor(type));
+}
+
 export function mountXGrokAutoTranslate(): void {
     if (activeRuntime || typeof window === 'undefined' || typeof document === 'undefined') return;
     if (!isXGrokAutoTranslatePage(window.location.href)) return;
@@ -501,6 +510,7 @@ export function mountXGrokAutoTranslate(): void {
 
     const runtime = createRuntime();
     activeRuntime = runtime;
+    dispatchPageBridgeEvent(X_GROK_PAGE_BRIDGE_ENABLE_EVENT);
     root.setAttribute(X_GROK_NATIVE_TRANSLATION_ATTRIBUTE, '');
     runtime.mutationObserver.observe(root, {
         childList: true,
@@ -535,6 +545,7 @@ export function unmountXGrokAutoTranslate(): void {
     }
 
     if (typeof document !== 'undefined') {
+        dispatchPageBridgeEvent(X_GROK_PAGE_BRIDGE_DISPOSE_EVENT);
         document.documentElement.removeAttribute(X_GROK_NATIVE_TRANSLATION_ATTRIBUTE);
     }
 }
