@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/ServiceConfiguration.vue
  * 文件职责：渲染当前翻译服务的详细连接配置，按服务能力显示模型、端点、区域、计费方式、密钥、代理、提示词和自定义请求体等字段。
- * 主要内容：组件派生字段可见性与 MiniMax/MiMo endpoint，校验 Azure 地址和 custom body，管理连接测试状态、模板重置、风险确认与凭据保存提示，并通过配置 store 提交修改。
+ * 主要内容：组件派生字段可见性与 MiniMax/MiMo endpoint，校验 Azure 地址和 custom body，管理连接测试状态、模板重置与加密凭据保存提示，并通过配置 store 提交修改。
  * 模块边界：本组件不实际执行翻译或保存公开配置中的明文凭据；连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
  -->
 <template>
@@ -17,7 +17,7 @@
     <div class="subsection-heading">
       <div>
         <strong>连接参数</strong>
-        <small class="connection-test-hint">修改会自动保存；API 凭据默认仅保留在当前浏览器会话。检查连接会发送一条很短的测试请求，可能产生少量用量。</small>
+        <small class="connection-test-hint">修改会自动加密保存到当前设备；检查连接会发送一条很短的测试请求，可能产生少量用量。</small>
       </div>
     </div>
 
@@ -63,7 +63,7 @@
 
     <el-row v-show="compute.showToken" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="API 访问令牌默认只在当前浏览器会话内可解密。只有在配置管理中明确开启后，才会以密文跨重启保留。获取方式请参考对应服务的官方文档；翻译服务为 ollama 时，token 可为任意值" placement="top-start" :show-after="500">
+        <el-tooltip class="box-item" effect="dark" content="API 访问令牌会加密保存在扩展私有 IndexedDB，并在浏览器重启后自动恢复。获取方式请参考对应服务的官方文档；翻译服务为 ollama 时，token 可为任意值" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">访问令牌<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
         </el-tooltip>
       </el-col>

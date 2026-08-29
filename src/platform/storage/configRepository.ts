@@ -1,7 +1,7 @@
 /**
  * @file src/platform/storage/configRepository.ts
  *
- * 文件职责：在扩展后台的专属 IndexedDB 中持久化加密配置记录，并为会话凭据维持“浏览器会话结束即失效”的读取边界。
+ * 文件职责：在扩展后台的专属 IndexedDB 中持久化加密配置记录，并保留旧版会话凭据的安全读取与迁移能力。
  * 主要内容：定义 FluentReadConfiguration Dexie 数据库、加密记录表、单键读写删除、配置与凭据的多键原子提交、主记录缺失条件下的完整旧快照导入，以及会话材料变化后的过期清理。
  * 模块边界：本文件只拥有扩展 IndexedDB 与加密记录不变量，不读取旧 browser.storage、不发送 runtime 消息、不归一化 Config；旧数据迁移和跨上下文代理由 configStorage 负责编排。
  */

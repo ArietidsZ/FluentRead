@@ -117,9 +117,10 @@ describe('完整配置加密 IndexedDB 集成', () => {
         }
         expect(rawAfterSave.map(record => record.key)).toEqual(expect.arrayContaining([
             'local:config',
-            'session:credentials',
+            'local:credentials',
             'local:configHistory',
         ]));
+        expect(rawAfterSave.map(record => record.key)).not.toContain('session:credentials');
 
         const sameSessionRepository = new EncryptedConfigRepository({
             database,
@@ -142,12 +143,26 @@ describe('完整配置加密 IndexedDB 集成', () => {
             legacy,
         }));
         expect(nextSession.config.to).toBe('ja');
-        expect(nextSession.config.token.openai).toBeUndefined();
-        expect(nextSession.config.appid).toBe('');
+        expect(nextSession.config.token.openai).toBe(legacySecret);
+        expect(nextSession.config.user_role.openai).toBe(userRole);
+        expect(nextSession.config.system_role.openai).toBe(systemRole);
+        expect(nextSession.config.appid).toBe('integration-app-id');
+        expect(nextSession.config.key).toBe('integration-secret-key');
+        await expect(nextSessionRepository.get<Record<string, unknown>>('local:credentials'))
+            .resolves.toMatchObject({
+                token: {openai: legacySecret},
+                appid: 'integration-app-id',
+                key: 'integration-secret-key',
+            });
+        await expect(nextSessionRepository.get<Record<string, unknown>>('local:config'))
+            .resolves.toMatchObject({
+                user_role: {openai: userRole},
+                system_role: {openai: systemRole},
+            });
         expect(await database.records.get('session:credentials')).toBeUndefined();
     });
 
-    it('旧 Firefox 无 storage.session 时普通配置可保存，API Key 使用后台内存材料并在重载后失效', async () => {
+    it('旧 Firefox 无 storage.session 时 API Key 仍持久加密，并在后台重载后恢复', async () => {
         Object.defineProperty(globalThis, 'location', {
             configurable: true,
             value: {protocol: 'moz-extension:'},
@@ -191,11 +206,12 @@ describe('完整配置加密 IndexedDB 集成', () => {
         await expect(firstRepository.get<Record<string, unknown>>('local:config'))
             .resolves.toMatchObject({to: 'en'});
 
-        const secret = 'firefox-memory-session-secret';
+        const secret = 'firefox-persistent-credential-secret';
         await first.saveConfig({...first.config, token: {openai: secret}});
         expect(first.config.token.openai).toBe(secret);
-        await expect(firstRepository.get<Record<string, unknown>>('session:credentials'))
+        await expect(firstRepository.get<Record<string, unknown>>('local:credentials'))
             .resolves.toMatchObject({token: {openai: secret}});
+        expect(await database.records.get('session:credentials')).toBeUndefined();
         expect(JSON.stringify(await database.records.toArray())).not.toContain(secret);
 
         const restartedRepository = new EncryptedConfigRepository({
@@ -211,10 +227,12 @@ describe('完整配置加密 IndexedDB 集成', () => {
             logger: {warn},
         }));
         expect(restarted.config.to).toBe('en');
-        expect(restarted.config.token.openai).toBeUndefined();
+        expect(restarted.config.token.openai).toBe(secret);
+        await expect(restartedRepository.get<Record<string, unknown>>('local:credentials'))
+            .resolves.toMatchObject({token: {openai: secret}});
         expect(await database.records.get('session:credentials')).toBeUndefined();
         expect(warn).toHaveBeenCalledWith(
-            expect.stringContaining('storage.session 不可用'),
+            expect.stringContaining('旧会话配置暂不可读'),
             expect.any(Error),
         );
     });

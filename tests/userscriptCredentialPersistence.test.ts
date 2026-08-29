@@ -52,16 +52,17 @@ describe('userscript credential persistence regression', () => {
 
         const first = await loadConfigStore();
         expect(first.config.token.openai).toBe('gm-secret-token');
-        expect(userscriptStorage.values.get('session:credentials')).toEqual(
+        expect(userscriptStorage.values.get('local:credentials')).toEqual(
             expect.objectContaining({token: {openai: 'gm-secret-token'}}),
         );
+        expect(userscriptStorage.values.has('session:credentials')).toBe(false);
 
         first.config.to = 'ja';
         await first.saveConfig(first.config, {recordHistory: true, immediateHistory: true});
         const publicConfig = userscriptStorage.values.get('local:config') as Record<string, unknown>;
         expect(publicConfig.to).toBe('ja');
         expect(publicConfig).not.toHaveProperty('token');
-        expect(userscriptStorage.values.get('session:credentials')).toEqual(
+        expect(userscriptStorage.values.get('local:credentials')).toEqual(
             expect.objectContaining({token: {openai: 'gm-secret-token'}}),
         );
 

@@ -164,7 +164,7 @@ describe('自动配置备份 store', () => {
         unsubscribe();
     });
 
-    it('恢复备份时保留当前凭据、统计、安全开关和迁移标记，并立即记录最近历史', async () => {
+    it('恢复备份时保留当前凭据、统计和迁移标记，并忽略旧策略字段', async () => {
         storageHarness.values.set('local:configAutoBackups', {
             schemaVersion: 1,
             entries: [{
@@ -182,9 +182,9 @@ describe('自动配置备份 store', () => {
             to: 'ja',
             token: {openai: 'current-secret'},
             count: 42,
-            persistCredentials: true,
             videoServiceDefaultMigrated: true,
         }), {recordHistory: true, immediateHistory: true});
+        expect(configHarness.saveConfig.mock.calls[0]?.[0]).not.toHaveProperty('persistCredentials');
         expect(result.backups.entries[0]?.version).toBe(3);
         expect(result.history).toEqual(configHarness.history);
     });

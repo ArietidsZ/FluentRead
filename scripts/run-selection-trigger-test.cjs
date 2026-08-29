@@ -124,12 +124,12 @@ async function readConfigRecord(extensionPage, key) {
 }
 
 async function readStoredConfig(extensionPage) {
-  const [publicConfig, sessionCredentials, localCredentials] = await Promise.all([
+  const [publicConfig, localCredentials, sessionCredentials] = await Promise.all([
     readConfigRecord(extensionPage, 'local:config'),
-    readConfigRecord(extensionPage, 'session:credentials'),
     readConfigRecord(extensionPage, 'local:credentials'),
+    readConfigRecord(extensionPage, 'session:credentials'),
   ]);
-  const credentials = Object.keys(sessionCredentials).length ? sessionCredentials : localCredentials;
+  const credentials = Object.keys(localCredentials).length ? localCredentials : sessionCredentials;
   const credentialFields = { ...credentials };
   delete credentialFields.schemaVersion;
   return { ...publicConfig, ...credentialFields };

@@ -79,12 +79,12 @@ async function readExtensionConfig(extensionPage) {
     };
 
     const publicConfig = parseRecord(await readRecord('local:config'));
-    const sessionCredentials = await readRecord('session:credentials');
-    const localCredentials = sessionCredentials === null
-      ? await readRecord('local:credentials')
+    const localCredentials = await readRecord('local:credentials');
+    const sessionCredentials = localCredentials === null
+      ? await readRecord('session:credentials')
       : null;
     const { schemaVersion: _schemaVersion, ...credentials } = parseRecord(
-      sessionCredentials ?? localCredentials,
+      localCredentials ?? sessionCredentials,
     );
     return { ...publicConfig, ...credentials };
   });
