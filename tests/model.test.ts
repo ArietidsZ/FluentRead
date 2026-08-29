@@ -51,6 +51,14 @@ describe('AI 模型编号列表', () => {
         expect(normalizeConfig({enableAIMultiSegment: 'true'}).enableAIMultiSegment).toBe(false);
     });
 
+    it('X Grok 原生自动翻译默认关闭，且只接受显式布尔 true', () => {
+        expect(new Config().xGrokAutoTranslateEnabled).toBe(false);
+        expect(normalizeConfig({}).xGrokAutoTranslateEnabled).toBe(false);
+        expect(normalizeConfig({xGrokAutoTranslateEnabled: true}).xGrokAutoTranslateEnabled).toBe(true);
+        expect(normalizeConfig({xGrokAutoTranslateEnabled: 'true'}).xGrokAutoTranslateEnabled).toBe(false);
+        expect(normalizeConfig({xGrokAutoTranslateEnabled: 1}).xGrokAutoTranslateEnabled).toBe(false);
+    });
+
     it('展示当前主流模型，并移除已退役或错误的预设编号', () => {
         expect(models.get(services.openai)?.at(0)).toBe('gpt-5.6-luna');
         expect(models.get(services.openai)).toContain('gpt-5.6-sol');

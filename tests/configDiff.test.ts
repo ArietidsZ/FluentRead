@@ -7,6 +7,21 @@ function group(result: ReturnType<typeof buildConfigDiff>, id: string) {
 }
 
 describe('配置差异预览', () => {
+    it('把 X Grok 自动翻译开关放入高级分组并显示为可读状态', () => {
+        const result = buildConfigDiff(
+            {xGrokAutoTranslateEnabled: false},
+            {xGrokAutoTranslateEnabled: true},
+        );
+
+        expect(result).toMatchObject({changeCount: 1});
+        expect(group(result, 'advanced')?.changes).toEqual([{
+            key: 'xGrokAutoTranslateEnabled',
+            label: 'X Grok 自动翻译',
+            before: '关闭',
+            after: '开启',
+        }]);
+    });
+
     it('按设置页稳定分组并把常用枚举、开关、数组和数字格式化为可读文本', () => {
         const result = buildConfigDiff({
             on: true,

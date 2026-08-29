@@ -2,7 +2,7 @@
  * @file src/core/config/model.ts
  *
  * 文件职责：定义 FluentRead 完整配置模型、默认值及各项设置的合法范围，是配置读取、保存、迁移和 UI 绑定共同依赖的领域契约。
- * 主要内容：包含 Config 接口、defaultConfig、字幕和翻译模式类型、延迟与字号范围、默认 API 地址及多项功能开关，使新增配置项在一个位置获得类型和初始语义。 可核对的公开符号包括 DeepSeekApiType、DeepSeekThinkingMode、VideoSubtitleDisplayMode、FullPageTranslationMode、DEFAULT_VIDEO_SUBTITLE_FONT_SIZE、DEFAULT_NEW_API_URL、VIDEO_SUBTITLE_FONT_SIZE_OPTIONS、DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY。
+ * 主要内容：包含 Config 接口、defaultConfig、字幕和翻译模式类型、延迟与字号范围、默认 API 地址、X/Grok 原生翻译偏好及多项功能开关，使新增配置项在一个位置获得类型和初始语义。 可核对的公开符号包括 DeepSeekApiType、DeepSeekThinkingMode、VideoSubtitleDisplayMode、FullPageTranslationMode、DEFAULT_VIDEO_SUBTITLE_FONT_SIZE、DEFAULT_NEW_API_URL、VIDEO_SUBTITLE_FONT_SIZE_OPTIONS、DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY。
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
@@ -112,6 +112,7 @@ export class Config {
     count: number;  // 翻译次数
     theme: string;  // 主题模式：'auto' | 'light' | 'dark'
     useCache: boolean; // 是否使用缓存
+    xGrokAutoTranslateEnabled: boolean; // 是否在 X 上使用 Grok 原生逐帖翻译替代 FluentRead 帖子翻译
     enableAIContext: boolean; // 是否为 AI 翻译附加网页上下文
     enableAIMultiSegment: boolean; // 是否把相邻全文段落合并为一次 AI 翻译请求
     contextMenuEnabled: boolean; // 是否显示右键全文翻译菜单
@@ -191,6 +192,7 @@ export class Config {
         this.count = 0;
         this.theme = 'auto';  // 默认跟随系统
         this.useCache = true; // 默认开启缓存
+        this.xGrokAutoTranslateEnabled = false; // 默认不操作站点原生按钮，由用户主动开启
         this.enableAIContext = false; // 默认关闭 AI 智能上下文，避免意外增加请求体和费用
         this.enableAIMultiSegment = false; // 默认逐段请求，由用户按需开启 AI 多段翻译
         this.contextMenuEnabled = true; // 默认显示右键全文翻译入口
@@ -487,6 +489,7 @@ export function normalizeConfig(value: unknown): Config {
     if (typeof normalized.contextMenuEnabled !== 'boolean') {
         normalized.contextMenuEnabled = true;
     }
+    normalized.xGrokAutoTranslateEnabled = source.xGrokAutoTranslateEnabled === true;
     if (!['viewport', 'all'].includes(normalized.fullPageTranslationMode)) {
         normalized.fullPageTranslationMode = 'viewport';
     }

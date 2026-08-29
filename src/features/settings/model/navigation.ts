@@ -97,10 +97,10 @@ export const navigationGroups: NavigationGroup[] = [
     label: '系统与数据',
     items: [
       {
-        id: 'settings-advanced', icon: '◇', label: '高级选项', description: '性能与模板', group: '系统与数据',
-        heading: '高级选项', summary: '管理缓存、并发和动画等低频运行策略。',
-        kicker: '系统与数据', title: '高级选项', detail: '调整缓存、并发和动画；不确定时建议保留默认值。',
-        searchDescription: '缓存、动画、并发、性能、资源占用',
+        id: 'settings-advanced', icon: '◇', label: '高级选项', description: '站点能力与性能', group: '系统与数据',
+        heading: '高级选项', summary: '管理 X/Grok 原生翻译、缓存、并发和动画等低频运行策略。',
+        kicker: '系统与数据', title: '高级选项', detail: '选择站点原生能力，并调整缓存、并发和动画；不确定时建议保留默认值。',
+        searchDescription: 'X、Twitter、Grok、帖子翻译、站点原生翻译、缓存、动画、并发、性能、资源占用',
       },
       {
         id: 'settings-data', icon: '⇅', label: '配置管理', description: '导入与导出', group: '系统与数据',

@@ -868,6 +868,34 @@ describe('translation candidate core', () => {
         expect(core.resolve(tweetText.firstChild)?.element).toBe(tweetText);
     });
 
+    it('defers X post prose to native Grok translation while preserving non-post candidates', () => {
+        const {document, core} = page(`
+            <main>
+                <article data-testid="tweet">
+                    <div id="profile" data-testid="UserDescription">Readable profile description.</div>
+                    <div id="tweet-text" data-testid="tweetText">Translate this post with X.</div>
+                    <div data-testid="twitterArticleReadView">
+                        <p id="article-prose">Long-form X post prose.</p>
+                    </div>
+                </article>
+            </main>
+        `, 'https://x.com/home');
+        const profile = document.querySelector('#profile')!;
+        const tweetText = document.querySelector('#tweet-text')!;
+        const articleProse = document.querySelector('#article-prose')!;
+
+        document.documentElement.setAttribute('data-fluentread-x-grok-native-translation', '');
+
+        expect(core.resolve(tweetText.firstChild)).toBeNull();
+        expect(core.resolve(articleProse.firstChild)).toBeNull();
+        expect(core.resolve(profile.firstChild)?.element).toBe(profile);
+        expect(core.discover(document).some((candidate) => candidate.element === tweetText)).toBe(false);
+
+        document.documentElement.removeAttribute('data-fluentread-x-grok-native-translation');
+        expect(core.resolve(tweetText.firstChild)?.element).toBe(tweetText);
+        expect(core.resolve(articleProse.firstChild)?.element).toBe(articleProse);
+    });
+
     it('keeps an exact adapter target out of an ancestor inline run', () => {
         const {document, core} = page(`
             <main><div id="row">

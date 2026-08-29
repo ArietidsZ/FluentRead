@@ -105,6 +105,7 @@
       "tests/vocabularyRepositoryEdges.test.ts",
       "tests/wordDictionary.test.ts",
       "tests/wordDictionaryEdge.test.ts",
+      "tests/xGrokAutoTranslate.test.ts",
       "tests/youtubeSubtitleData.test.ts"
     ],
     "functional": [
