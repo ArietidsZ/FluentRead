@@ -198,6 +198,19 @@ describe('options UI composition architecture', () => {
     expect(translation).toContain('v-model="config.enableAIMultiSegment"')
   })
 
+  it('places X native translation at the end of Advanced options', () => {
+    const settings = source('src/features/settings/ui/SettingsSections.vue')
+    const advanced = activeSectionSource(settings, 'settings-advanced')
+
+    expect(settingsGroupTitles(advanced)).toEqual([
+      '缓存策略',
+      '界面性能',
+      '任务调度',
+      'X 原生翻译',
+    ])
+    expect(advanced).toContain('aria-label="X Grok 自动翻译帖子"')
+  })
+
   it('loads shared tokens before the unchanged settings page rules', () => {
     const pageStyles = sourceBody('src/features/settings/ui/settings-page.css')
     const tokens = source('src/ui/styles/tokens.css')

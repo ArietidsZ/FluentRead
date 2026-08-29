@@ -303,21 +303,6 @@
       </SettingsGroup>
     </section>
 
-    <section v-show="props.activeSection === 'settings-advanced'" class="settings-section settings-section-continuation">
-      <SettingsGroup title="X 原生翻译" description="浏览 X 时直接使用站点提供的 Grok 翻译，目标语言与可用性由 X 决定。">
-        <SettingsItem
-          label="Grok 自动翻译帖子"
-          description="对每个出现的可翻译帖子自动触发；开启后 FluentRead 不再翻译 X 帖子正文，也不会修改 X 账号设置。没有入口时保留原文。"
-        >
-          <el-switch
-            v-model="config.xGrokAutoTranslateEnabled"
-            class="settings-toggle"
-            aria-label="X Grok 自动翻译帖子"
-          />
-        </SettingsItem>
-      </SettingsGroup>
-    </section>
-
     <section v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation">
       <SettingsGroup title="译文显示" description="设置网页翻译后的内容形式和双语译文样式。">
         <SettingsItem label="翻译模式" description="双语对照保留原文，仅译文模式会替换原文显示。">
@@ -556,6 +541,22 @@
       v-show="props.activeSection === 'settings-model-usage'"
       :active="props.activeSection === 'settings-model-usage'"
     />
+
+    <section v-show="props.activeSection === 'settings-advanced'" class="settings-section settings-section-continuation">
+      <SettingsGroup title="X 原生翻译" description="浏览 X 时直接使用站点提供的 Grok 翻译，目标语言与可用性由 X 决定。">
+        <SettingsItem
+          label="Grok 自动翻译帖子"
+          description="对每个出现的可翻译帖子自动触发；开启后 FluentRead 不再翻译 X 帖子正文，也不会修改 X 账号设置。没有入口时保留原文。"
+        >
+          <el-switch
+            v-model="config.xGrokAutoTranslateEnabled"
+            class="settings-toggle"
+            aria-label="X Grok 自动翻译帖子"
+          />
+        </SettingsItem>
+      </SettingsGroup>
+    </section>
+
     <ConfigManagement v-show="props.activeSection === 'settings-data'" id="settings-data" :config="config" />
   </div>
 
