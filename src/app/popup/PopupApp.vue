@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupApp.vue
  文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、功能抽屉和高频操作，提供轻量但完整的控制中心。
- 主要内容：在配置 hydration 后展示服务/模型选择、页面翻译、站点规则、悬浮/划词/区域/图片/视频开关、缓存清理、文档与设置入口；监听配置并持久化，广播即时变化和处理通知/捐赠弹层。
+ 主要内容：在配置 hydration 后展示可按服务或模型关键词搜索的翻译服务选择器、页面翻译、站点规则、悬浮/划词/区域/图片/视频开关、缓存清理、文档与设置入口；监听配置并持久化，广播即时变化和处理通知/捐赠弹层。
  模块边界：组件编排用户交互与运行时消息，不实现翻译 provider、缓存存储或 content 挂载细节；公共配置由 services/store 管理，页面行为由 content feature 接收消息完成。
 -->
 <!-- Popup 页面归 app 层所有；WXT 入口只负责调用挂载函数。 -->
@@ -104,50 +104,94 @@
           <span class="chevron" :class="{ open: servicePickerOpen }">⌄</span>
         </button>
 
-        <div v-if="servicePickerOpen" class="service-picker-panel" role="listbox" aria-label="翻译服务列表">
+        <div v-if="servicePickerOpen" class="service-picker-panel" role="dialog" aria-label="选择翻译服务">
           <div class="service-picker-heading">
-            <div><strong>选择翻译服务</strong><small>常用服务优先，更多服务{{ moreServicesOpen ? '已展开' : '已收起' }}</small></div>
-            <span>{{ serviceOptions.length }}</span>
+            <div><strong>选择翻译服务</strong><small>{{ servicePickerSummary }}</small></div>
+            <span>{{ servicePickerCount }}</span>
           </div>
 
-          <div class="service-group">
-            <span class="service-group-label">常用服务</span>
-            <button
-              v-for="item in popularServiceOptions"
-              :key="item.value"
-              class="service-option"
-              type="button"
-              role="option"
-              :data-service-value="item.value"
-              :aria-selected="config.service === item.value"
-              @click="selectService(item.value)"
-            >
-              <ServiceIcon :service="item.value" :label="item.label" size="small" />
-              <span>{{ item.label }}</span>
-              <span v-if="config.service === item.value" class="service-option-check">✓</span>
-            </button>
-          </div>
+          <label class="service-search">
+            <Search aria-hidden="true" />
+            <input
+              ref="serviceSearchInput"
+              v-model="serviceSearchQuery"
+              type="search"
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="搜索翻译服务或模型"
+              placeholder="搜索服务或模型，如 gpt、qwen"
+            />
+            <button v-if="serviceSearchQuery" type="button" aria-label="清空服务搜索" @click="clearServiceSearch">×</button>
+          </label>
 
-          <button class="service-more-toggle" type="button" :aria-expanded="moreServicesOpen" @click="moreServicesOpen = !moreServicesOpen">
-            <span>更多服务</span>
-            <span class="service-more-meta">{{ moreServiceOptions.length }} 项 <b :class="{ open: moreServicesOpen }">⌄</b></span>
-          </button>
+          <div class="service-picker-results">
+            <div v-if="serviceSearchActive && serviceSearchResults.length" class="service-group" role="listbox" aria-label="匹配的翻译服务">
+              <span class="service-group-label">匹配服务</span>
+              <button
+                v-for="item in serviceSearchResults"
+                :key="item.value"
+                class="service-option"
+                type="button"
+                role="option"
+                :data-service-value="item.value"
+                :data-matching-models="item.matchingModels.join(',') || undefined"
+                :aria-selected="config.service === item.value"
+                @click="selectService(item.value)"
+              >
+                <ServiceIcon :service="item.value" :label="item.label" size="small" />
+                <span class="service-option-copy">
+                  <strong>{{ item.label }}</strong>
+                  <small v-if="item.matchingModels.length">{{ matchingModelSummary(item.matchingModels) }}</small>
+                </span>
+                <span v-if="config.service === item.value" class="service-option-check">✓</span>
+              </button>
+            </div>
 
-          <div v-if="moreServicesOpen" class="service-group service-group-more">
-            <button
-              v-for="item in moreServiceOptions"
-              :key="item.value"
-              class="service-option"
-              type="button"
-              role="option"
-              :data-service-value="item.value"
-              :aria-selected="config.service === item.value"
-              @click="selectService(item.value)"
-            >
-              <ServiceIcon :service="item.value" :label="item.label" size="small" />
-              <span>{{ item.label }}</span>
-              <span v-if="config.service === item.value" class="service-option-check">✓</span>
-            </button>
+            <p v-else-if="serviceSearchActive" class="service-search-empty" role="status">
+              没有找到包含“{{ serviceSearchQuery.trim() }}”的服务或模型
+            </p>
+
+            <template v-else>
+              <div class="service-group" role="listbox" aria-label="常用翻译服务">
+                <span class="service-group-label">常用服务</span>
+                <button
+                  v-for="item in popularServiceOptions"
+                  :key="item.value"
+                  class="service-option"
+                  type="button"
+                  role="option"
+                  :data-service-value="item.value"
+                  :aria-selected="config.service === item.value"
+                  @click="selectService(item.value)"
+                >
+                  <ServiceIcon :service="item.value" :label="item.label" size="small" />
+                  <span class="service-option-copy"><strong>{{ item.label }}</strong></span>
+                  <span v-if="config.service === item.value" class="service-option-check">✓</span>
+                </button>
+              </div>
+
+              <button class="service-more-toggle" type="button" :aria-expanded="moreServicesOpen" @click="moreServicesOpen = !moreServicesOpen">
+                <span>更多服务</span>
+                <span class="service-more-meta">{{ moreServiceOptions.length }} 项 <b :class="{ open: moreServicesOpen }">⌄</b></span>
+              </button>
+
+              <div v-if="moreServicesOpen" class="service-group service-group-more" role="listbox" aria-label="更多翻译服务">
+                <button
+                  v-for="item in moreServiceOptions"
+                  :key="item.value"
+                  class="service-option"
+                  type="button"
+                  role="option"
+                  :data-service-value="item.value"
+                  :aria-selected="config.service === item.value"
+                  @click="selectService(item.value)"
+                >
+                  <ServiceIcon :service="item.value" :label="item.label" size="small" />
+                  <span class="service-option-copy"><strong>{{ item.label }}</strong></span>
+                  <span v-if="config.service === item.value" class="service-option-check">✓</span>
+                </button>
+              </div>
+            </template>
           </div>
         </div>
       </div>
@@ -506,7 +550,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import browser from 'webextension-polyfill';
 import {
   config as runtimeConfig,
@@ -514,7 +558,7 @@ import {
   requestConfigSave,
   subscribeConfig,
 } from '@/src/services/config/store';
-import { Setting } from '@element-plus/icons-vue';
+import { Search, Setting } from '@element-plus/icons-vue';
 import {
   Config,
   SELECTION_TRANSLATOR_DELAY_MAX,
@@ -524,9 +568,9 @@ import {
   normalizeConfig,
   normalizeSelectionTranslatorDelay,
 } from '@/src/core/config/model';
-import { options, resolveConfiguredModel, servicesType } from '@/src/core/config/catalog';
+import { models, options, resolveConfiguredModel, servicesType } from '@/src/core/config/catalog';
 import { getMissingCredentialMessage } from '@/src/core/config/validation';
-import { getSelectedModelLabel } from '@/src/ui/view-model/serviceCatalog';
+import { getSelectedModelLabel, searchServiceOptions } from '@/src/ui/view-model/serviceCatalog';
 import { SELECTION_TTS_VOICE_OPTIONS } from '@/src/core/config/selectionTts';
 import { getSiteBaseDomain } from '@/src/core/site-rules/domain';
 import { requestTranslationCacheClear } from './cache';
@@ -557,8 +601,10 @@ const noticeType = ref<'success' | 'error'>('success');
 const showCustomMouseHotkeyDialog = ref(false);
 const showCustomSelectionHotkeyDialog = ref(false);
 const servicePicker = ref<HTMLElement | null>(null);
+const serviceSearchInput = ref<HTMLInputElement | null>(null);
+const serviceSearchQuery = ref('');
 const servicePickerOpen = ref(false);
-const moreServicesOpen = ref(true);
+const moreServicesOpen = ref(false);
 const hydrated = ref(false);
 let lastSerialized = '';
 let applyingExternalConfig = false;
@@ -576,13 +622,29 @@ const persistConfig = (value: unknown) => requestConfigSave(value, browser.runti
 
 const allServiceOptions = computed(() => options.services.filter((item: any) => !item.disabled));
 const serviceOptions = computed(() => filterAvailableTranslationServices(allServiceOptions.value));
+const serviceSearchActive = computed(() => Boolean(serviceSearchQuery.value.trim()));
+const serviceSearchResults = computed(() => searchServiceOptions(
+  serviceOptions.value,
+  serviceSearchQuery.value,
+  models,
+  config.value.model,
+  config.value.customModel,
+));
 const videoServiceOptions = computed(() => filterAvailableTranslationServices(allServiceOptions.value));
 const videoSubtitleFontSizeOptions = VIDEO_SUBTITLE_FONT_SIZE_OPTIONS;
 const popularServiceValues = ['freeTranslation', 'microsoft', 'google', 'deepL', 'deeplx', 'deepseek', 'openai', 'gemini', 'claude'];
 const popularServiceOptions = computed(() => popularServiceValues
-  .map(value => serviceOptions.value.find((item: any) => item.value === value))
+  .map(value => serviceSearchResults.value.find((item: any) => item.value === value))
   .filter((item): item is any => Boolean(item)));
-const moreServiceOptions = computed(() => serviceOptions.value.filter((item: any) => !popularServiceValues.includes(item.value)));
+const moreServiceOptions = computed(() => serviceSearchResults.value.filter((item: any) => !popularServiceValues.includes(item.value)));
+const selectedServiceIsMore = computed(() => serviceOptions.value.some((item: any) =>
+  item.value === config.value.service && !popularServiceValues.includes(item.value)));
+const servicePickerCount = computed(() => serviceSearchActive.value
+  ? `${serviceSearchResults.value.length}/${serviceOptions.value.length}`
+  : serviceOptions.value.length);
+const servicePickerSummary = computed(() => serviceSearchActive.value
+  ? '正在按服务名称与模型关键词筛选'
+  : `常用服务优先，更多服务${moreServicesOpen.value ? '已展开' : '已收起'}`);
 const styleOptions = computed(() => options.styles.filter((item: any) => !item.disabled));
 const selectedServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.service));
 const selectedVideoServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.videoService));
@@ -710,6 +772,7 @@ darkMode.onchange = () => { if (config.value.theme === 'auto') applyTheme('auto'
 function closeServicePicker(event?: Event) {
   if (event && servicePicker.value?.contains(event.target as Node)) return;
   servicePickerOpen.value = false;
+  serviceSearchQuery.value = '';
 }
 function openDonation() { donationVisible.value = true; }
 function closeDonation() { donationVisible.value = false; }
@@ -722,11 +785,28 @@ function handleServicePickerKeydown(event: KeyboardEvent) {
 function toggleServicePicker() {
   if (!config.value.on) return;
   servicePickerOpen.value = !servicePickerOpen.value;
-  if (servicePickerOpen.value) moreServicesOpen.value = true;
+  if (servicePickerOpen.value) {
+    moreServicesOpen.value = selectedServiceIsMore.value;
+    void nextTick(() => serviceSearchInput.value?.focus());
+  } else {
+    serviceSearchQuery.value = '';
+  }
 }
 function selectService(value: string) {
   config.value.service = value;
   servicePickerOpen.value = false;
+  serviceSearchQuery.value = '';
+}
+function clearServiceSearch() {
+  serviceSearchQuery.value = '';
+  void nextTick(() => serviceSearchInput.value?.focus());
+}
+function matchingModelSummary(matchingModels: string[]) {
+  const visibleModels = matchingModels.slice(0, 2);
+  const remainingCount = matchingModels.length - visibleModels.length;
+  return remainingCount > 0
+    ? `${visibleModels.join(' · ')} +${remainingCount}`
+    : visibleModels.join(' · ');
 }
 function toggleAIContext() {
   if (!canUseAIContext.value || !config.value.on || translating.value) return;

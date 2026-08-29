@@ -5,6 +5,7 @@ import {
   filterModels,
   filterServiceGroups,
   getSelectedModelLabel,
+  searchServiceOptions,
   splitModelOptions,
 } from '@/src/ui/view-model/serviceCatalog'
 import { customModelString, defaultModels, models, servicesType } from '@/src/core/config/catalog'
@@ -58,6 +59,52 @@ describe('service catalog helpers', () => {
     expect(filterModels(modelOptions, 'gpt')).toEqual([
       'gpt-5-mini',
       'GPT-4o',
+    ])
+  })
+
+  it('searches popup services by service name and model keyword', () => {
+    const popupOptions = [
+      { value: 'openai', label: 'OpenAI' },
+      { value: 'tongyi', label: '千问/Qwen' },
+      { value: 'microsoft', label: '微软翻译' },
+    ]
+    const popupModels = new Map([
+      ['openai', ['gpt-5.6-luna', 'gpt-4.1-mini']],
+      ['tongyi', ['qwen3.7-max', 'qwen-mt-flash']],
+    ])
+
+    expect(searchServiceOptions(popupOptions, ' open ', popupModels)).toEqual([
+      { value: 'openai', label: 'OpenAI', matchingModels: [] },
+    ])
+    expect(searchServiceOptions(popupOptions, 'GPT 5.6', popupModels)).toEqual([
+      { value: 'openai', label: 'OpenAI', matchingModels: ['gpt-5.6-luna'] },
+    ])
+    expect(searchServiceOptions(popupOptions, 'qwen-mt', popupModels)).toEqual([
+      { value: 'tongyi', label: '千问/Qwen', matchingModels: ['qwen-mt-flash'] },
+    ])
+    expect(searchServiceOptions(popupOptions, '不存在', popupModels)).toEqual([])
+  })
+
+  it('searches the configured custom model and preserves the unfiltered order', () => {
+    const popupOptions = [
+      { value: 'custom', label: '自定义接口', description: 'OpenAI 兼容服务' },
+      { value: 'microsoft', label: '微软翻译' },
+    ]
+    const popupModels = new Map([['custom', ['gpt-5-mini', customModelString]]])
+
+    expect(searchServiceOptions(
+      popupOptions,
+      'local translation',
+      popupModels,
+      { custom: customModelString },
+      { custom: 'local/translation-model' },
+    )).toEqual([
+      { value: 'custom', label: '自定义接口', description: 'OpenAI 兼容服务', matchingModels: ['local/translation-model'] },
+    ])
+    expect(searchServiceOptions(popupOptions, ' ( ) ', popupModels)).toEqual([])
+    expect(searchServiceOptions(popupOptions, '  ', popupModels)).toEqual([
+      { value: 'custom', label: '自定义接口', description: 'OpenAI 兼容服务', matchingModels: [] },
+      { value: 'microsoft', label: '微软翻译', matchingModels: [] },
     ])
   })
 

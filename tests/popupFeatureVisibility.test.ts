@@ -66,4 +66,21 @@ describe('popup feature visibility', () => {
         expect(popup).toContain('Chrome内置AI翻译（当前浏览器不可用）');
         expect(popup).toContain('原有开关偏好已保留');
     });
+
+    it('supports quick popup search by service name and model keyword', () => {
+        const popup = source('src/app/popup/PopupApp.vue');
+        const styles = source('src/app/popup/popup.css');
+
+        expect(popup).toContain('searchServiceOptions(');
+        expect(popup).toContain('aria-label="搜索翻译服务或模型"');
+        expect(popup).toContain('class="service-picker-panel" role="dialog" aria-label="选择翻译服务"');
+        expect(popup).toContain('role="listbox" aria-label="匹配的翻译服务"');
+        expect(popup).toContain('placeholder="搜索服务或模型，如 gpt、qwen"');
+        expect(popup).toContain(':data-matching-models="item.matchingModels.join(\',\') || undefined"');
+        expect(popup).toContain('没有找到包含“{{ serviceSearchQuery.trim() }}”的服务或模型');
+        expect(popup).toContain('serviceSearchInput.value?.focus()');
+        expect(popup).toContain('const moreServicesOpen = ref(false)');
+        expect(popup).toContain('moreServicesOpen.value = selectedServiceIsMore.value');
+        expect(styles).toContain('.service-picker-results { min-height: 0; overflow-y: auto; scrollbar-width: thin; }');
+    });
 });
