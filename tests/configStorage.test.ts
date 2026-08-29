@@ -799,6 +799,31 @@ describe('远程配置 storage port', () => {
         await vi.waitFor(() => expect(listener).toHaveBeenLastCalledWith({revision: 4}, {revision: 3}));
     });
 
+    it('变更回读被随后的显式读取取代时仍通知订阅者', async () => {
+        const runtimeListeners: Array<(message: unknown) => void> = [];
+        const pending: Array<(value: unknown) => void> = [];
+        const sendMessage = vi.fn()
+            .mockResolvedValueOnce({success: true, value: {revision: 1}})
+            .mockImplementation(() => new Promise(resolve => pending.push(resolve)));
+        const storage = createRemoteConfigStorage({
+            sendMessage,
+            onMessage: {addListener: listener => runtimeListeners.push(listener)},
+        });
+        await storage.getItem('local:config');
+        const listener = vi.fn();
+        storage.watch('local:config', listener);
+
+        runtimeListeners[0]?.({type: CONFIG_STORAGE_CHANGED_MESSAGE, key: 'local:config'});
+        const explicitRead = storage.getItem<{revision: number}>('local:config');
+        pending[1]?.({success: true, value: {revision: 3}});
+        await expect(explicitRead).resolves.toEqual({revision: 3});
+        pending[0]?.({success: true, value: {revision: 2}});
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(listener).toHaveBeenCalledOnce();
+        expect(listener).toHaveBeenCalledWith({revision: 3}, {revision: 1});
+    });
+
     it('初始化旧读取先返回时仍等待变更回读，并把最新快照返回给原调用方', async () => {
         const runtimeListeners: Array<(message: unknown) => void> = [];
         const pending: Array<(value: unknown) => void> = [];
