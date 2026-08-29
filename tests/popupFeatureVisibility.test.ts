@@ -37,6 +37,16 @@ describe('popup feature visibility', () => {
         expect(options).toContain('aria-label="全文翻译快捷键"');
     });
 
+    it('keeps the default-disabled video subtitle card visually neutral', () => {
+        const popup = source('src/app/popup/PopupApp.vue');
+        const styles = source('src/app/popup/popup.css');
+
+        expect(popup).toContain(":class=\"{ 'needs-enable': !config.videoTranslationEnabled }\"");
+        expect(popup).toContain("'点击开启 · YouTube'");
+        expect(styles).not.toMatch(/\.video-feature-card\.needs-enable\s*\{/u);
+        expect(styles).toContain('.video-feature-card.needs-enable small { color: var(--brand-strong); font-weight: 700; }');
+    });
+
     it('keeps unsupported capability explanations reachable while disabling only their actions', () => {
         const popup = source('src/app/popup/PopupApp.vue');
 
