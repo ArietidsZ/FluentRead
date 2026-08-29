@@ -125,6 +125,12 @@ describe('background config persistence handler', () => {
             clientId: 'legacy-client',
             sequence: 2,
         }, {});
+        await expect(handler.handle({
+            type: CONFIG_PERSIST_MESSAGE_TYPE,
+            config: {marker: 'stale-while-latest-pending'},
+            clientId: 'legacy-client',
+            sequence: 1,
+        }, {})).resolves.toEqual({success: true, revision: 0});
 
         await expect(Promise.all([first, latest])).resolves.toEqual([
             {success: true, revision: 0},
@@ -213,6 +219,75 @@ describe('background config persistence handler', () => {
         await expect(first).rejects.toThrow('first failed');
         await expect(second).resolves.toEqual({success: true, revision: 4});
         expect(saveOrder).toEqual(['first', 'second']);
+    });
+
+    it('带 sequence 的保存失败后允许同序号重试真正落盘', async () => {
+        const saveConfig = vi.fn()
+            .mockRejectedValueOnce(new Error('storage temporarily unavailable'))
+            .mockResolvedValueOnce(undefined);
+        const handler = createConfigPersistenceHandler(createDependencies({saveConfig}));
+        const message = {
+            type: CONFIG_PERSIST_MESSAGE_TYPE,
+            config: {marker: 'retryable'},
+            clientId: 'options-retry',
+            sequence: 1,
+        } as const;
+
+        await expect(handler.handle(message, {})).rejects.toThrow('storage temporarily unavailable');
+        await expect(handler.handle(message, {})).resolves.toEqual({success: true, revision: 4});
+        expect(saveConfig).toHaveBeenCalledTimes(2);
+    });
+
+    it('同序号在途重试共享原请求结果，不在落盘前误报成功', async () => {
+        let releaseSave!: () => void;
+        const saveGate = new Promise<void>((resolve) => { releaseSave = resolve; });
+        const saveConfig = vi.fn(async () => {
+            await saveGate;
+            throw new Error('shared failure');
+        });
+        const handler = createConfigPersistenceHandler(createDependencies({saveConfig}));
+        const message = {
+            type: CONFIG_PERSIST_MESSAGE_TYPE,
+            config: {marker: 'deduplicated'},
+            clientId: 'popup-retry',
+            sequence: 1,
+        } as const;
+
+        const first = handler.handle(message, {});
+        await vi.waitFor(() => expect(saveConfig).toHaveBeenCalledOnce());
+        const duplicate = handler.handle(message, {});
+        releaseSave();
+
+        await expect(first).rejects.toThrow('shared failure');
+        await expect(duplicate).rejects.toThrow('shared failure');
+        expect(saveConfig).toHaveBeenCalledOnce();
+    });
+
+    it('未提交的最新序号屏蔽更旧请求，同序号重复共享成功 revision', async () => {
+        let releaseSave!: () => void;
+        const saveGate = new Promise<void>((resolve) => { releaseSave = resolve; });
+        const saveConfig = vi.fn(async () => saveGate);
+        const handler = createConfigPersistenceHandler(createDependencies({saveConfig}));
+        const latestMessage = {
+            type: CONFIG_PERSIST_MESSAGE_TYPE,
+            config: {marker: 'latest-pending'},
+            clientId: 'pending-client',
+            sequence: 2,
+        } as const;
+
+        const latest = handler.handle(latestMessage, {});
+        await vi.waitFor(() => expect(saveConfig).toHaveBeenCalledOnce());
+        await expect(handler.handle({
+            ...latestMessage,
+            config: {marker: 'stale-pending'},
+            sequence: 1,
+        }, {})).resolves.toEqual({success: true, revision: 4});
+        const duplicate = handler.handle(latestMessage, {});
+        releaseSave();
+
+        await expect(latest).resolves.toEqual({success: true, revision: 4});
+        await expect(duplicate).resolves.toEqual({success: true, revision: 4});
+        expect(saveConfig).toHaveBeenCalledOnce();
     });
 
     it.each([

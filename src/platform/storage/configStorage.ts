@@ -2,7 +2,7 @@
  * @file src/platform/storage/configStorage.ts
  *
  * 文件职责：为共享配置 store 提供统一持久化端口，在后台连接加密 IndexedDB，在扩展页面与 content 上下文通过受控 runtime 消息代理读取和订阅。
- * 主要内容：声明配置记录键、主记录存在时的 IndexedDB 直接短路、带加密清理标记的后台旧 storage 原子迁移与验证、会话随机密钥材料与旧 Firefox 内存降级、多键原子写入、内存 watch 通知，以及非后台上下文只读远程适配器和变更消息协议。
+ * 主要内容：声明配置记录键、主记录存在时的 IndexedDB 直接短路、带加密清理标记的后台旧 storage 原子迁移与验证、会话随机密钥材料与旧 Firefox 内存降级、多键原子写入、内存 watch 通知，以及能在并发回读中保留变更意图的非后台只读适配器。
  * 模块边界：本文件不理解 Config 字段、不决定凭据授权、不选择真实浏览器运行上下文；configStorageRuntime 负责装配 WXT legacy storage、后台 repository 或远程 runtime，userscript 构建在该边界替换为 GM storage。
  */
 
@@ -418,6 +418,7 @@ export function createRemoteConfigStorage(runtime: ConfigStorageRuntimePort): Co
     const listeners = new Map<string, Set<ConfigStorageListener>>();
     const values = new Map<string, unknown>();
     const latestReadRequests = new Map<string, Promise<SettledConfigStorageRead>>();
+    const pendingNotificationKeys = new Set<string>();
 
     const waitForStableRead = async (
         key: string,
@@ -436,6 +437,9 @@ export function createRemoteConfigStorage(runtime: ConfigStorageRuntimePort): Co
     };
 
     const readItem = async <T>(key: string, notify = false): Promise<T | null> => {
+        // 变更通知是键级意图，不能绑定在某一个具体读请求上。否则随后发起的
+        // 显式 getItem 会成为 latest owner，但因自身 notify=false 而吞掉 watch 更新。
+        if (notify) pendingNotificationKeys.add(key);
         const previous = values.get(key);
         const request = (async (): Promise<SettledConfigStorageRead> => {
             try {
@@ -455,7 +459,9 @@ export function createRemoteConfigStorage(runtime: ConfigStorageRuntimePort): Co
         // 最后发起请求的 owner 可以更新缓存或通知 watch，避免初始化采用陈旧快照。
         if (stable.owner) {
             values.set(key, value);
-            if (notify) listeners.get(key)?.forEach(listener => listener(value, previous));
+            if (pendingNotificationKeys.delete(key)) {
+                listeners.get(key)?.forEach(listener => listener(value, previous));
+            }
         }
         return value as T | null;
     };

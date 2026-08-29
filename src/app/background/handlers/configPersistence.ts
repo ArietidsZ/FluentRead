@@ -1,7 +1,7 @@
 /**
  * @file src/app/background/handlers/configPersistence.ts
  * 文件职责：在后台可信边界接收配置保存请求，规范化客户端身份与序号，并协调配置快照的串行持久化和响应。
- * 主要内容：声明 persistConfig 协议及依赖，校验普通对象、clientId 与非负 sequence，结合 sender 生成回退身份，调用 prepareConfig 与 persistPreparedConfig 后返回已接受的序号。
+ * 主要内容：声明 persistConfig 协议及依赖，校验普通对象、clientId 与非负 sequence，屏蔽同客户端过期序号，共享同序号在途结果并允许失败后重试，最后返回实际提交 revision。
  * 模块边界：这里只处理跨上下文消息和保存编排，不定义 Config 字段、不直接操作 browser.storage，也不负责历史裁剪；校验、凭据拆分和存储事务由注入的配置服务承担。
  */
 import type {BackgroundMessageHandler} from '../messageRouter';
@@ -127,6 +127,8 @@ export function createConfigPersistenceHandler<TConfig>(
 ): BackgroundMessageHandler<ConfigPersistenceContext, ConfigPersistenceMessage, ConfigPersistenceResponse> {
     let persistQueue: Promise<void> = Promise.resolve();
     const latestSequenceByClient = new Map<string, number>();
+    const committedSequenceByClient = new Map<string, number>();
+    const activeSequenceByClient = new Map<string, {sequence: number; result: Promise<number>}>();
     const localCoordinator = createConfigMutationCoordinator();
     const runMutation = dependencies.runMutation || localCoordinator.run;
 
@@ -134,11 +136,24 @@ export function createConfigPersistenceHandler<TConfig>(
         type: CONFIG_PERSIST_MESSAGE_TYPE,
         async handle(message, context) {
             const request = parseConfigPersistenceMessage(message, context, dependencies.isExtensionUrl);
-            const lastSequence = latestSequenceByClient.get(request.clientId) || 0;
-            if (request.sequence && request.sequence <= lastSequence) {
-                return {success: true, revision: dependencies.getCurrentRevision?.() ?? 0};
+            if (request.sequence) {
+                const committedSequence = committedSequenceByClient.get(request.clientId) || 0;
+                if (request.sequence <= committedSequence) {
+                    return {success: true, revision: dependencies.getCurrentRevision?.() ?? 0};
+                }
+
+                const latestSequence = latestSequenceByClient.get(request.clientId) || 0;
+                if (request.sequence < latestSequence) {
+                    return {success: true, revision: dependencies.getCurrentRevision?.() ?? 0};
+                }
+                const active = activeSequenceByClient.get(request.clientId);
+                if (request.sequence === latestSequence && active?.sequence === request.sequence) {
+                    return {success: true, revision: await active.result};
+                }
+                if (request.sequence > latestSequence) {
+                    latestSequenceByClient.set(request.clientId, request.sequence);
+                }
             }
-            if (request.sequence) latestSequenceByClient.set(request.clientId, request.sequence);
 
             const persist = persistQueue
                 .catch(() => undefined)
@@ -163,13 +178,27 @@ export function createConfigPersistenceHandler<TConfig>(
                         request.allowCredentialUpdates,
                     );
                     await dependencies.saveConfig(prepared, {recordHistory: true});
+                    if (request.sequence) {
+                        committedSequenceByClient.set(request.clientId, Math.max(
+                            committedSequenceByClient.get(request.clientId) || 0,
+                            request.sequence,
+                        ));
+                    }
                     // 必须在同一个 mutation 临界区内捕获本次提交 revision；释放队列后
                     // 其他恢复可能立刻推进全局 revision，不能把它误报成本请求的版本。
                     return dependencies.getCurrentRevision?.() ?? 0;
                 }));
             persistQueue = persist.then(() => undefined, () => undefined);
-            const committedRevision = await persist;
-            return {success: true, revision: committedRevision};
+            const active = request.sequence ? {sequence: request.sequence, result: persist} : null;
+            if (active) activeSequenceByClient.set(request.clientId, active);
+            try {
+                const committedRevision = await persist;
+                return {success: true, revision: committedRevision};
+            } finally {
+                if (activeSequenceByClient.get(request.clientId) === active) {
+                    activeSequenceByClient.delete(request.clientId);
+                }
+            }
         },
     };
 }
