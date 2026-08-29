@@ -27,6 +27,7 @@ describe('background translation fallback handler', () => {
             origin: 'hello',
             context: 'title',
             pageContext: 'article',
+            aiMultiSegment: true,
             useCache: false,
             serviceOverride: 'google',
             modelOverride: 'model',
@@ -41,6 +42,7 @@ describe('background translation fallback handler', () => {
             origin: 'hello',
             context: 'title',
             pageContext: 'article',
+            aiMultiSegment: true,
             useCache: false,
             serviceOverride: 'google',
             modelOverride: 'model',
@@ -55,6 +57,15 @@ describe('background translation fallback handler', () => {
         expect(parseTranslationRequest({origin: '', context: undefined})).toEqual({origin: ''});
     });
 
+    it('拒绝数量正确但包含稀疏空槽的 origin 数组', () => {
+        const fullySparse = new Array(2);
+        const trailingHole = ['ok'];
+        trailingHole.length = 2;
+
+        expect(() => parseTranslationRequest({origin: fullySparse})).toThrow('origin');
+        expect(() => parseTranslationRequest({origin: trailingHole})).toThrow('origin');
+    });
+
     it.each([
         [{origin: 1}, 'origin'],
         [{origin: ['ok', 2]}, 'origin'],
@@ -64,6 +75,7 @@ describe('background translation fallback handler', () => {
         [{origin: 'ok', modelOverride: null}, 'modelOverride'],
         [{origin: 'ok', sourceLanguage: []}, 'sourceLanguage'],
         [{origin: 'ok', targetLanguage: 1}, 'targetLanguage'],
+        [{origin: ['ok'], aiMultiSegment: 'yes'}, 'aiMultiSegment'],
         [{origin: 'ok', useCache: 'yes'}, 'useCache'],
         [{origin: 'ok', requestTimeoutMs: Number.NaN}, 'requestTimeoutMs'],
     ])('拒绝非法协议字段 %#', (candidate, field) => {

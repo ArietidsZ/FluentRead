@@ -166,6 +166,8 @@ describe('options UI composition architecture', () => {
     expect(translation).toContain('label="划词翻译模式"')
     expect(translation).toContain('aria-label="输入框翻译触发方式"')
     expect(translation).toContain('label="全文翻译范围"')
+    expect(translation).toContain('aria-label="AI 多段翻译"')
+    expect(translation).toContain('v-model="config.enableAIMultiSegment"')
   })
 
   it('loads shared tokens before the unchanged settings page rules', () => {

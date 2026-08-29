@@ -63,7 +63,7 @@ describe('translation cache identity', () => {
     const base = { sourceText: 'a_b', targetLanguage: 'zh-Hans', service: 'microsoft' };
     const key = buildTranslationCacheKey(base);
 
-    expect(key).toMatch(/^v1:[0-9a-f]{64}$/);
+    expect(key).toMatch(/^v2:[0-9a-f]{64}$/);
     expect(buildTranslationCacheKey({ ...base, sourceText: 'a' })).not.toBe(key);
     expect(buildTranslationCacheKey({ ...base, targetLanguage: 'en' })).not.toBe(key);
     expect(buildTranslationCacheKey({ ...base, service: 'google' })).not.toBe(key);

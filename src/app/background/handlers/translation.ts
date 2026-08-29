@@ -1,7 +1,7 @@
 /**
  * @file src/app/background/handlers/translation.ts
  * 文件职责：解析没有显式 type 的翻译请求，并把它作为后台消息路由的受控 fallback 接入共享翻译 broker。
- * 主要内容：校验 text、texts 互斥关系及 endpoint、model、prompt 等可选字符串字段，构造 TranslationRequestMessage；fallback 仅识别合法候选并把结果或序列化错误返回调用方。
+ * 主要内容：校验 origin、AI 多段标记及 endpoint、model、prompt 等可选字段，构造 TranslationRequestMessage；fallback 仅识别合法候选并把结果或序列化错误返回调用方。
  * 模块边界：本文件只承担协议验证与 fallback 适配，不选择 provider、不缓存结果、不读取配置或凭据；真正的翻译执行由注入的 translateWithCache 完成。
  */
 import type {BackgroundFallbackHandler} from '../messageRouter';
@@ -50,9 +50,12 @@ export function parseTranslationRequest(candidate: TranslationRequestCandidate):
     let origin: string | string[];
     if (typeof candidate.origin === 'string') {
         origin = candidate.origin;
-    } else if (Array.isArray(candidate.origin)
-        && candidate.origin.every((item): item is string => typeof item === 'string')) {
-        origin = [...candidate.origin];
+    } else if (Array.isArray(candidate.origin)) {
+        const denseOrigin = Array.from(candidate.origin);
+        if (!denseOrigin.every((item): item is string => typeof item === 'string')) {
+            throw new TypeError('翻译请求 origin 必须是字符串或字符串数组');
+        }
+        origin = denseOrigin;
     } else {
         throw new TypeError('翻译请求 origin 必须是字符串或字符串数组');
     }
@@ -61,6 +64,9 @@ export function parseTranslationRequest(candidate: TranslationRequestCandidate):
     for (const field of STRING_FIELDS) assertOptionalString(candidate, field);
     if (candidate.useCache !== undefined && typeof candidate.useCache !== 'boolean') {
         throw new TypeError('翻译请求字段 useCache 必须是布尔值');
+    }
+    if (candidate.aiMultiSegment !== undefined && typeof candidate.aiMultiSegment !== 'boolean') {
+        throw new TypeError('翻译请求字段 aiMultiSegment 必须是布尔值');
     }
     if (candidate.requestTimeoutMs !== undefined
         && (typeof candidate.requestTimeoutMs !== 'number' || !Number.isFinite(candidate.requestTimeoutMs))) {
@@ -74,6 +80,7 @@ export function parseTranslationRequest(candidate: TranslationRequestCandidate):
         if (typeof value === 'string') base[field] = value;
     }
     if (typeof candidate.useCache === 'boolean') base.useCache = candidate.useCache;
+    if (typeof candidate.aiMultiSegment === 'boolean') base.aiMultiSegment = candidate.aiMultiSegment;
     if (typeof candidate.requestTimeoutMs === 'number') base.requestTimeoutMs = candidate.requestTimeoutMs;
     return typeof origin === 'string' ? {...base, origin} : {...base, origin};
 }

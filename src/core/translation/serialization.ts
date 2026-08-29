@@ -90,6 +90,20 @@ export function parseTranslationSlots(
     translated: string,
 ): string[] | null {
     if (packet.starts.length !== packet.ends.length) return null;
+    const countMarker = (marker: string): number => {
+        let count = 0;
+        let offset = 0;
+        while (marker && offset <= translated.length - marker.length) {
+            const next = translated.indexOf(marker, offset);
+            if (next < 0) break;
+            count += 1;
+            offset = next + marker.length;
+        }
+        return count;
+    };
+    if ([...packet.starts, ...packet.ends].some((marker) => !marker || countMarker(marker) !== 1)) {
+        return null;
+    }
     const results: string[] = [];
     let cursor = 0;
     for (let index = 0; index < packet.starts.length; index += 1) {

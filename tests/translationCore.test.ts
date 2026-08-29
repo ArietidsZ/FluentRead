@@ -1419,6 +1419,10 @@ describe('translation candidate core', () => {
         expect(parseTranslationSlots({...packet, ends: packet.ends.slice(1)}, translated)).toBeNull();
         expect(parseTranslationSlots({...packet, starts: ['', packet.starts[1]]}, translated)).toBeNull();
         expect(parseTranslationSlots(packet, `${packet.starts[0]}一${packet.starts[0]}二${packet.ends[0]}`)).toBeNull();
+        expect(parseTranslationSlots(
+            packet,
+            `${packet.starts[0]}一${packet.starts[1]}${packet.ends[0]}${packet.starts[1]}二${packet.ends[1]}`,
+        )).toBeNull();
         expect(parseTranslationSlots(packet, `${packet.starts[0]}一`)).toBeNull();
         expect(parseTranslationSlots(packet, `${translated}\nextra prose`)).toBeNull();
         expect(serializeTranslationSlots(['Gamma'], '!!!').starts[0]).toBe('___FLUENTREAD_slots_0_BEGIN___');

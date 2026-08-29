@@ -31,6 +31,7 @@ const runtime = vi.hoisted(() => ({
         from: "en",
         to: "zh",
         useCache: true,
+        enableAIMultiSegment: false,
         display: 0,
         style: 0,
         fullPageTranslationMode: "viewport" as "viewport" | "all",
@@ -41,6 +42,9 @@ const runtime = vi.hoisted(() => ({
 vi.mock("@/src/app/translation/check", () => ({checkConfig: () => true}));
 vi.mock("@/src/core/config/catalog", () => ({
     services: {microsoft: "microsoft", freeTranslation: "freeTranslation"},
+    servicesType: {
+        isUseAIContext: (service: string) => service === 'ai',
+    },
     resolveConfiguredModel: (selected?: string, custom?: string) => selected === 'custom'
         ? custom || ''
         : selected || '',
@@ -265,6 +269,7 @@ function translationSnapshot(
         sourceLanguage: 'en',
         targetLanguage: 'zh',
         useCache: true,
+        enableAIMultiSegment: false,
         displayMode: 'bilingual',
         style: 0,
         ...overrides,
@@ -295,6 +300,7 @@ describe("全文翻译可见性锚点", () => {
         runtime.config.from = "en";
         runtime.config.to = "zh";
         runtime.config.useCache = true;
+        runtime.config.enableAIMultiSegment = false;
         runtime.config.display = 0;
         runtime.config.style = 0;
         runtime.config.fullPageTranslationMode = "viewport";
@@ -352,6 +358,7 @@ describe("全文翻译可见性锚点", () => {
             sourceLanguage: 'en',
             targetLanguage: 'zh',
             useCache: true,
+            enableAIMultiSegment: false,
             displayMode: 'bilingual',
         });
         runtime.config.display = 0;
@@ -378,6 +385,166 @@ describe("全文翻译可见性锚点", () => {
         expect(await translateTextSlots(['One', undefined as never], snapshot)).toEqual(['译:One', '译:']);
         expect(runtime.requests).toHaveBeenCalledTimes(3);
         expect(await translateTextSlots([undefined as never], snapshot)).toEqual(['译:']);
+    });
+
+    it('AI 多段开关只在活跃全文会话中合并相邻候选，并遵守字符上限', async () => {
+        const session = {active: true, translationSlotCache: new Map()};
+        const enabled = translationSnapshot({
+            service: 'ai',
+            model: 'ai-model',
+            enableAIMultiSegment: true,
+        });
+
+        const first = translateTextSlots(['First paragraph'], enabled, undefined, undefined, session);
+        const second = translateTextSlots(['Second paragraph'], enabled, undefined, undefined, session);
+        await expect(Promise.all([first, second])).resolves.toEqual([
+            ['译:First paragraph'],
+            ['译:Second paragraph'],
+        ]);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(runtime.requests).toHaveBeenLastCalledWith(['First paragraph', 'Second paragraph']);
+        expect(runtime.requestOptions.at(-1)).toMatchObject({aiMultiSegment: true});
+
+        runtime.requests.mockClear();
+        const disabled = translationSnapshot({service: 'ai', model: 'ai-model'});
+        await expect(Promise.all([
+            translateTextSlots(['First paragraph'], disabled, undefined, undefined, session),
+            translateTextSlots(['Second paragraph'], disabled, undefined, undefined, session),
+        ])).resolves.toEqual([['译:First paragraph'], ['译:Second paragraph']]);
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+
+        runtime.requests.mockClear();
+        const longFirst = 'A'.repeat(1_500);
+        const longSecond = 'B'.repeat(600);
+        await Promise.all([
+            translateTextSlots([longFirst], enabled, undefined, undefined, session),
+            translateTextSlots([longSecond], enabled, undefined, undefined, session),
+        ]);
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+    });
+
+    it('AI 多段按完整请求快照分批，并以四个文本槽为硬上限', async () => {
+        const session = {active: true, translationSlotCache: new Map()};
+        const firstModel = translationSnapshot({
+            service: 'ai',
+            model: 'first-model',
+            enableAIMultiSegment: true,
+        });
+        const secondModel = translationSnapshot({
+            service: 'ai',
+            model: 'second-model',
+            enableAIMultiSegment: true,
+        });
+
+        await expect(Promise.all([
+            translateTextSlots(['First'], firstModel, undefined, undefined, session),
+            translateTextSlots(['Second'], secondModel, undefined, undefined, session),
+        ])).resolves.toEqual([['译:First'], ['译:Second']]);
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(runtime.requestOptions.map((options) => options.modelOverride)).toEqual([
+            'first-model',
+            'second-model',
+        ]);
+
+        runtime.requests.mockClear();
+        runtime.requestOptions = [];
+        const enabled = translationSnapshot({
+            service: 'ai',
+            model: 'ai-model',
+            enableAIMultiSegment: true,
+        });
+        await expect(Promise.all([
+            translateTextSlots(['A1', 'A2'], enabled, undefined, undefined, session),
+            translateTextSlots(['B1', 'B2'], enabled, undefined, undefined, session),
+            translateTextSlots(['C1'], enabled, undefined, undefined, session),
+        ])).resolves.toEqual([
+            ['译:A1', '译:A2'],
+            ['译:B1', '译:B2'],
+            ['译:C1'],
+        ]);
+        expect(runtime.requests.mock.calls.map(([origins]) => origins)).toEqual([
+            ['A1', 'A2', 'B1', 'B2'],
+            ['C1'],
+        ]);
+        expect(runtime.requestOptions[0]).toMatchObject({aiMultiSegment: true});
+        expect(runtime.requestOptions[1]).not.toHaveProperty('aiMultiSegment');
+    });
+
+    it('AI 多段协议错误直接逐槽降级，且普通 provider 错误不放大请求', async () => {
+        const session = {active: true, translationSlotCache: new Map()};
+        const enabled = translationSnapshot({
+            service: 'ai',
+            model: 'ai-model',
+            enableAIMultiSegment: true,
+        });
+        let requestCount = 0;
+        runtime.requests.mockImplementation(async (origins) => {
+            requestCount += 1;
+            if (requestCount === 1) {
+                throw {
+                    kind: 'response',
+                    code: 'AI_MULTI_SEGMENT_RESPONSE_INVALID',
+                    message: 'localized message may change',
+                };
+            }
+            return origins.map((origin) => `译:${origin}`);
+        });
+
+        await expect(Promise.all([
+            translateTextSlots(['A1', 'A2'], enabled, undefined, undefined, session),
+            translateTextSlots(['B1', 'B2'], enabled, undefined, undefined, session),
+        ])).resolves.toEqual([
+            ['译:A1', '译:A2'],
+            ['译:B1', '译:B2'],
+        ]);
+        expect(runtime.requests).toHaveBeenCalledTimes(5);
+        expect(runtime.requests.mock.calls[0]?.[0]).toEqual(['A1', 'A2', 'B1', 'B2']);
+        expect(runtime.requests.mock.calls.slice(1).every(([origins]) => origins.length === 1)).toBe(true);
+
+        runtime.requests.mockReset();
+        runtime.requests.mockRejectedValue(new Error('provider unavailable'));
+        const first = translateTextSlots(['First'], enabled, undefined, undefined, session);
+        const second = translateTextSlots(['Second'], enabled, undefined, undefined, session);
+        await expect(Promise.all([first, second])).rejects.toThrow('provider unavailable');
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+    });
+
+    it('AI 多段共享请求允许取消单个候选，剩余候选仍按原槽位取回结果', async () => {
+        const session = {active: true, translationSlotCache: new Map()};
+        const enabled = translationSnapshot({
+            service: 'ai',
+            model: 'ai-model',
+            enableAIMultiSegment: true,
+        });
+        const provider = deferred<string[]>();
+        runtime.requests.mockImplementation(() => provider.promise);
+        const firstController = new AbortController();
+        const secondController = new AbortController();
+        const first = translateTextSlots(
+            ['First'],
+            enabled,
+            firstController.signal,
+            undefined,
+            session,
+        );
+        const second = translateTextSlots(
+            ['Second'],
+            enabled,
+            secondController.signal,
+            undefined,
+            session,
+        );
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        const sharedSignal = runtime.requestOptions[0]?.signal as AbortSignal;
+
+        firstController.abort();
+        await expect(first).rejects.toMatchObject({name: 'AbortError'});
+        expect(sharedSignal.aborted).toBe(false);
+        provider.resolve(['译:First', '译:Second']);
+        await expect(second).resolves.toEqual(['译:Second']);
+        expect(runtime.cancelQueue).not.toHaveBeenCalled();
     });
 
     it('逐槽回退在兄弟失败和调用方取消时终止整个队列', async () => {

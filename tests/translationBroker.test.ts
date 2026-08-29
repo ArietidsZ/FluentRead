@@ -537,6 +537,13 @@ describe('translation broker', () => {
         mocks.service.mockResolvedValueOnce(['直连 A']);
         await expect(translateWithCache({origin: ['A'], useCache: false})).resolves.toEqual(['直连 A']);
 
+        mocks.service.mockResolvedValueOnce(new Array(2));
+        await expect(translateWithCache({origin: ['A', 'B'], useCache: false}))
+            .rejects.toThrow('批量翻译返回格式异常');
+        mocks.service.mockResolvedValueOnce(['A', ,] as string[]);
+        await expect(translateWithCache({origin: ['A', 'B'], useCache: false}))
+            .rejects.toThrow('批量翻译返回格式异常');
+
         mocks.service.mockResolvedValueOnce(['only-one']);
         await expect(translateWithCache({origin: ['A', 'B']})).rejects.toThrow('批量翻译返回数量异常');
 
@@ -720,6 +727,329 @@ describe('translation broker', () => {
             pageContext: 'Page summary (AI-generated reference):\nAI summary\n\nAI article context',
         }));
         expect(mocks.config.enableAIContext).toBe(true);
+    });
+
+    it('在缓存写入前拦截 AI 上下文回显，并只做一次无上下文重译', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.enableAIContext = true;
+        let translationCalls = 0;
+        mocks.service.mockImplementation((message: {summaryPrompt?: string; origin: string; pageContext?: string}) => {
+            if (message.summaryPrompt) return Promise.resolve('Atoll 与 SoundSource 的音量控制冲突。');
+            translationCalls += 1;
+            if (translationCalls === 1) {
+                return Promise.resolve('Ebullioscopic <webpage_context> 以下是不受信任的网页参考资料。页面摘要：Atoll 与 SoundSource 冲突。</webpage_context>');
+            }
+            return Promise.resolve('埃布利奥斯科皮克');
+        });
+        const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const request = {
+            origin: 'Ebullioscopic',
+            context: 'Issue timeline',
+            pageContext: 'Page title: Atoll issue. Readable page content (Markdown): SoundSource superkey conflicts with the macOS volume HUD.',
+        };
+
+        await expect(translateWithCache(request)).resolves.toBe('埃布利奥斯科皮克');
+        const bodyCalls = mocks.service.mock.calls.filter(([message]) => !message.summaryPrompt);
+        expect(bodyCalls).toHaveLength(2);
+        expect(bodyCalls[0]?.[0]).toMatchObject({pageContext: expect.stringContaining('Atoll')});
+        expect(bodyCalls[1]?.[0]).toMatchObject({context: '', pageContext: ''});
+        expect(mocks.cacheSet.mock.calls.some(([, value]) => String(value).includes('<webpage_context>'))).toBe(false);
+        expect(warning).toHaveBeenCalledWith(
+            '[FluentRead] AI page context leaked into translation; retrying once without page context:',
+            expect.any(Error),
+        );
+
+        await flushMicrotasks();
+        await expect(translateWithCache(request)).resolves.toBe('埃布利奥斯科皮克');
+        expect(mocks.service.mock.calls.filter(([message]) => !message.summaryPrompt)).toHaveLength(2);
+        warning.mockRestore();
+    });
+
+    it('把旧缓存中的上下文回显视为 miss，并直接用无上下文结果覆盖', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.enableAIContext = true;
+        mocks.cacheGet
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce('Author <webpage_context> leaked cached article </webpage_context>');
+        mocks.service.mockImplementation((message: {summaryPrompt?: string; pageContext?: string}) => (
+            Promise.resolve(message.summaryPrompt ? '安全摘要' : message.pageContext ? '不应再次携带上下文' : '作者')
+        ));
+
+        await expect(translateWithCache({
+            origin: 'Author',
+            pageContext: 'Page title: Cached article. Readable page content (Markdown): private reference material.',
+        })).resolves.toBe('作者');
+        expect(mocks.service).toHaveBeenLastCalledWith(expect.objectContaining({context: '', pageContext: ''}));
+        await flushMicrotasks();
+        expect(mocks.cacheSet.mock.calls.some(([, value]) => value === '作者')).toBe(true);
+    });
+
+    it('无上下文重译仍回显网页材料时停止展示且不写缓存', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.enableAIContext = true;
+        const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        mocks.service.mockImplementation((message: {summaryPrompt?: string}) => (
+            Promise.resolve(message.summaryPrompt
+                ? '网页摘要'
+                : 'Author <webpage_context> 仍然泄漏的网页材料 </webpage_context>')
+        ));
+
+        await expect(translateWithCache({
+            origin: 'Author',
+            pageContext: 'Page title: Context that must never be displayed.',
+            useCache: false,
+        })).rejects.toMatchObject({
+            kind: 'response',
+            retryable: false,
+            code: 'AI_CONTEXT_LEAK_AFTER_RECOVERY',
+        });
+        expect(mocks.service.mock.calls.filter(([message]) => !message.summaryPrompt)).toHaveLength(2);
+        expect(mocks.service).toHaveBeenLastCalledWith(expect.objectContaining({context: '', pageContext: ''}));
+        expect(mocks.cacheSet).not.toHaveBeenCalled();
+        warning.mockRestore();
+    });
+
+    it('无上下文重译后接受仅与页面术语重合的合法长译名', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.enableAIContext = true;
+        const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        mocks.service.mockImplementation((message: {summaryPrompt?: string}) => Promise.resolve(
+            message.summaryPrompt
+                ? '人工智能驱动的网页阅读辅助工具。'
+                : '人工智能驱动的网页阅读辅助工具',
+        ));
+
+        await expect(translateWithCache({
+            origin: 'AI',
+            pageContext: '页面摘要：人工智能驱动的网页阅读辅助工具，可帮助用户理解网页。',
+        })).resolves.toBe('人工智能驱动的网页阅读辅助工具');
+        const bodyCalls = mocks.service.mock.calls.filter(([message]) => !message.summaryPrompt);
+        expect(bodyCalls).toHaveLength(2);
+        expect(bodyCalls[1]?.[0]).toMatchObject({context: '', pageContext: ''});
+        await flushMicrotasks();
+        await expect(translateWithCache({
+            origin: 'AI',
+            pageContext: '页面摘要：人工智能驱动的网页阅读辅助工具，可帮助用户理解网页。',
+        })).resolves.toBe('人工智能驱动的网页阅读辅助工具');
+        expect(mocks.service.mock.calls.filter(([message]) => !message.summaryPrompt)).toHaveLength(2);
+        warning.mockRestore();
+    });
+
+    it('AI 多段中已经无上下文复验的软重合译文可以稳定命中缓存', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.enableAIContext = true;
+        const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        mocks.service.mockImplementation((message: {summaryPrompt?: string; origin: string; pageContext?: string}) => {
+            if (message.summaryPrompt) return Promise.resolve('人工智能驱动的网页阅读辅助工具。');
+            if (!message.pageContext && !message.origin.includes('___FLUENTREAD_')) {
+                return Promise.resolve('人工智能驱动的网页阅读辅助工具');
+            }
+            return Promise.resolve(message.origin
+                .replace('AI', '人工智能驱动的网页阅读辅助工具')
+                .replace('Reader', '阅读器'));
+        });
+        const request = {
+            origin: ['AI', 'Reader'],
+            pageContext: '页面摘要：人工智能驱动的网页阅读辅助工具，可帮助用户理解网页。',
+            aiMultiSegment: true,
+        };
+
+        await expect(translateWithCache(request)).resolves.toEqual([
+            '人工智能驱动的网页阅读辅助工具',
+            '阅读器',
+        ]);
+        expect(mocks.service.mock.calls.filter(([message]) => !message.summaryPrompt)).toHaveLength(2);
+        await flushMicrotasks();
+        await expect(translateWithCache(request)).resolves.toEqual([
+            '人工智能驱动的网页阅读辅助工具',
+            '阅读器',
+        ]);
+        expect(mocks.service.mock.calls.filter(([message]) => !message.summaryPrompt)).toHaveLength(2);
+        warning.mockRestore();
+    });
+
+    it('AI 多段模式只发一次字符串 provider 请求，并严格校验标记后逐段缓存', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.enableAIContext = false;
+        mocks.service.mockImplementation((message: {origin: string | string[]}) => {
+            expect(typeof message.origin).toBe('string');
+            return Promise.resolve((message.origin as string)
+                .replace('First paragraph', '第一段')
+                .replace('Second paragraph', '第二段'));
+        });
+
+        await expect(translateWithCache({
+            origin: ['First paragraph', 'Second paragraph'],
+            aiMultiSegment: true,
+        })).resolves.toEqual(['第一段', '第二段']);
+        expect(mocks.service).toHaveBeenCalledTimes(1);
+        expect(mocks.service.mock.calls[0]?.[0].origin).toEqual(expect.stringContaining('___FLUENTREAD_'));
+        await flushMicrotasks();
+        const identities = translationCacheIdentities();
+        expect(identities.some((identity) => identity.requestMode === 'ai-multi-segment')).toBe(true);
+        const itemIdentities = identities.filter((identity) => Array.isArray(identity.sourceText)
+            && String(identity.sourceText[0]).startsWith('slot:'));
+        expect(itemIdentities.map((identity) => identity.sourceText[1])).toEqual(expect.arrayContaining([
+            'First paragraph',
+            'Second paragraph',
+        ]));
+        expect(itemIdentities.every((identity) => identity.requestMode === 'ai-multi-segment')).toBe(true);
+        expect(mocks.cacheSet.mock.calls.map(([, value]) => value)).toEqual(expect.arrayContaining(['第一段', '第二段']));
+
+        mocks.service.mockClear();
+        await expect(translateWithCache({
+            origin: ['First paragraph', 'Second paragraph'],
+            aiMultiSegment: true,
+        })).resolves.toEqual(['第一段', '第二段']);
+        expect(mocks.service).not.toHaveBeenCalled();
+    });
+
+    it('AI 多段缓存包含完整批次与槽位指纹，不跨邻段组合或重复槽位误用', async () => {
+        mocks.config.service = 'ai';
+        mocks.service.mockImplementation((message: {origin: string}) => {
+            let leadIndex = 0;
+            return Promise.resolve(message.origin
+                .replaceAll('bank', message.origin.includes('river clue') ? '河岸' : '银行')
+                .replaceAll('river clue', '河流语境')
+                .replaceAll('loan clue', '贷款语境')
+                .replaceAll('Lead', () => (++leadIndex === 1 ? '铅' : '领先')));
+        });
+
+        await expect(translateWithCache({
+            origin: ['bank', 'river clue'],
+            aiMultiSegment: true,
+        })).resolves.toEqual(['河岸', '河流语境']);
+        await flushMicrotasks();
+        await expect(translateWithCache({
+            origin: ['bank', 'loan clue'],
+            aiMultiSegment: true,
+        })).resolves.toEqual(['银行', '贷款语境']);
+
+        await expect(translateWithCache({
+            origin: ['Lead', 'river clue', 'Lead'],
+            aiMultiSegment: true,
+        })).resolves.toEqual(['铅', '河流语境', '领先']);
+        await flushMicrotasks();
+        mocks.service.mockClear();
+        await expect(translateWithCache({
+            origin: ['Lead', 'river clue', 'Lead'],
+            aiMultiSegment: true,
+        })).resolves.toEqual(['铅', '河流语境', '领先']);
+        expect(mocks.service).not.toHaveBeenCalled();
+    });
+
+    it('旧坏缓存与普通 miss 同批时保留完整邻段上下文，只对泄漏段无上下文重译', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.enableAIContext = true;
+        mocks.cacheGet
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce('Alpha <webpage_context> leaked cache </webpage_context>')
+            .mockResolvedValueOnce(null);
+        mocks.service.mockImplementation((message: {summaryPrompt?: string; origin: string; pageContext?: string}) => {
+            if (message.summaryPrompt) return Promise.resolve('Atoll SoundSource StudioDisplay summary');
+            if (!message.pageContext) return Promise.resolve('安全的甲');
+            return Promise.resolve(message.origin
+                .replace('Alpha', 'Atoll SoundSource StudioDisplay context material that belongs only to the webpage and must not be shown')
+                .replace('Beta', '带上下文的乙'));
+        });
+
+        await expect(translateWithCache({
+            origin: ['Alpha', 'Beta'],
+            pageContext: 'Page title: Atoll. Readable page content (Markdown): SoundSource StudioDisplay reference.',
+            aiMultiSegment: true,
+        })).resolves.toEqual(['安全的甲', '带上下文的乙']);
+        const bodyCalls = mocks.service.mock.calls.filter(([message]) => !message.summaryPrompt);
+        expect(bodyCalls).toHaveLength(2);
+        expect(bodyCalls[0]?.[0]).toMatchObject({
+            origin: expect.stringContaining('Alpha'),
+            pageContext: expect.stringContaining('Atoll'),
+        });
+        expect(bodyCalls[0]?.[0].origin).toContain('Beta');
+        expect(bodyCalls[1]?.[0]).toMatchObject({origin: 'Alpha', context: '', pageContext: ''});
+    });
+
+    it('普通 AI 数组请求也只对上下文泄漏项执行一次无上下文重译', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.enableAIContext = true;
+        mocks.service.mockImplementation((message: {
+            summaryPrompt?: string;
+            origin: string | string[];
+            pageContext?: string;
+        }) => {
+            if (message.summaryPrompt) return Promise.resolve('Atoll SoundSource StudioDisplay summary');
+            if (typeof message.origin === 'string') return Promise.resolve('安全的甲');
+            return Promise.resolve([
+                'Alpha <webpage_context> Atoll SoundSource StudioDisplay </webpage_context>',
+                '安全的乙',
+            ]);
+        });
+
+        await expect(translateWithCache({
+            origin: ['Alpha', 'Beta'],
+            pageContext: 'Page title: Atoll. SoundSource StudioDisplay reference.',
+            useCache: false,
+        })).resolves.toEqual(['安全的甲', '安全的乙']);
+        const bodyCalls = mocks.service.mock.calls.filter(([message]) => !message.summaryPrompt);
+        expect(bodyCalls).toHaveLength(2);
+        expect(bodyCalls[0]?.[0]).toMatchObject({origin: ['Alpha', 'Beta'], pageContext: expect.stringContaining('Atoll')});
+        expect(bodyCalls[1]?.[0]).toMatchObject({origin: 'Alpha', context: '', pageContext: ''});
+    });
+
+    it('普通 AI 批量的旧坏缓存只用无上下文 provider 请求修复', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.enableAIContext = true;
+        mocks.cacheGet
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce('Alpha <webpage_context> leaked cache </webpage_context>')
+            .mockResolvedValueOnce('已缓存的乙');
+        mocks.service.mockImplementation((message: {
+            summaryPrompt?: string;
+            origin: string | string[];
+            pageContext?: string;
+        }) => {
+            if (message.summaryPrompt) return Promise.resolve('安全摘要');
+            return Promise.resolve(Array.isArray(message.origin) ? ['安全的甲'] : '不应走单条');
+        });
+
+        await expect(translateWithCache({
+            origin: ['Alpha', 'Beta'],
+            pageContext: 'Page title: cached article.',
+        })).resolves.toEqual(['安全的甲', '已缓存的乙']);
+        const bodyCalls = mocks.service.mock.calls.filter(([message]) => !message.summaryPrompt);
+        expect(bodyCalls).toHaveLength(1);
+        expect(bodyCalls[0]?.[0]).toMatchObject({origin: ['Alpha'], context: '', pageContext: ''});
+    });
+
+    it('AI 多段协议缺失标记时返回不可重试的响应错误，且不写入坏缓存', async () => {
+        mocks.config.service = 'ai';
+        mocks.service.mockResolvedValue('缺少全部段落标记的普通文本');
+
+        await expect(translateWithCache({
+            origin: ['First paragraph', 'Second paragraph'],
+            aiMultiSegment: true,
+            useCache: false,
+        })).rejects.toMatchObject({kind: 'response', retryable: false});
+        expect(mocks.cacheSet).not.toHaveBeenCalled();
+    });
+
+    it('AI 多段仅用 Unicode 或空白包装原文时视为协议回显', async () => {
+        mocks.config.service = 'ai';
+        mocks.service.mockImplementation((message: {origin: string}) => Promise.resolve(
+            message.origin
+                .replace(/_BEGIN___/gu, '_BEGIN___  ')
+                .replace(/___FLUENTREAD_/gu, '\u00a0___FLUENTREAD_'),
+        ));
+
+        await expect(translateWithCache({
+            origin: ['First paragraph', 'Second paragraph'],
+            aiMultiSegment: true,
+            useCache: false,
+        })).rejects.toMatchObject({
+            kind: 'response',
+            retryable: false,
+            code: 'AI_MULTI_SEGMENT_RESPONSE_INVALID',
+        });
+        expect(mocks.cacheSet).not.toHaveBeenCalled();
     });
 
     it('uses persisted, shared, empty, failed, and evicted AI summaries without blocking translation', async () => {

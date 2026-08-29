@@ -44,6 +44,13 @@ describe('AI 模型编号列表', () => {
         expect(resolveConfiguredModel(customModelString, 'custom-model')).toBe('custom-model');
     });
 
+    it('AI 多段翻译默认关闭，并只接受显式布尔值开启', () => {
+        expect(new Config().enableAIMultiSegment).toBe(false);
+        expect(normalizeConfig({}).enableAIMultiSegment).toBe(false);
+        expect(normalizeConfig({enableAIMultiSegment: true}).enableAIMultiSegment).toBe(true);
+        expect(normalizeConfig({enableAIMultiSegment: 'true'}).enableAIMultiSegment).toBe(false);
+    });
+
     it('展示当前主流模型，并移除已退役或错误的预设编号', () => {
         expect(models.get(services.openai)?.at(0)).toBe('gpt-5.6-luna');
         expect(models.get(services.openai)).toContain('gpt-5.6-sol');

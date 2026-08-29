@@ -113,6 +113,13 @@ describe('translation API request lifecycle performance', () => {
     expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
   });
 
+  it('批量客户端拒绝数量正确但包含稀疏空槽的响应', async () => {
+    mocks.sendMessage.mockResolvedValue(new Array(2));
+
+    await expect(translateTextBatch(['First', 'Second'], 'Context', {maxRetries: 0}))
+      .rejects.toThrow('批量翻译返回格式异常');
+  });
+
   it('扩展页面仍会在本地凭据缺失时快速失败', async () => {
     Object.defineProperty(globalThis, 'location', {
       value: {protocol: 'chrome-extension:'},
