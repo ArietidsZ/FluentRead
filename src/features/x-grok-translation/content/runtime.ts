@@ -43,7 +43,7 @@ interface XGrokAutoTranslateRuntime {
     queuedArticles: Set<HTMLElement>;
     queueTimer: ReturnType<typeof setTimeout> | null;
     lastTriggerAt: number | null;
-    pageHideHandler: () => void;
+    pageHideHandler: (event: PageTransitionEvent) => void;
 }
 
 let activeRuntime: XGrokAutoTranslateRuntime | null = null;
@@ -465,7 +465,10 @@ function createRuntime(): XGrokAutoTranslateRuntime {
     runtime.queuedArticles = new Set();
     runtime.queueTimer = null;
     runtime.lastTriggerAt = null;
-    runtime.pageHideHandler = () => unmountXGrokAutoTranslate();
+    runtime.pageHideHandler = (event) => {
+        // BFCache 会保留 document 与 content runtime；返回时入口不会重跑，不能提前丢失观察器和互斥标记。
+        if (event.persisted !== true) unmountXGrokAutoTranslate();
+    };
     runtime.intersectionObserver = new IntersectionObserver((entries) => {
         if (runtime.disposed) return;
         entries.forEach((entry) => {
@@ -505,7 +508,7 @@ export function mountXGrokAutoTranslate(): void {
         attributes: true,
         attributeFilter: ['href', 'disabled', 'aria-disabled', 'aria-hidden', 'hidden', 'viewBox'],
     });
-    window.addEventListener('pagehide', runtime.pageHideHandler, {once: true});
+    window.addEventListener('pagehide', runtime.pageHideHandler);
 
     const articles = new Set<HTMLElement>();
     collectArticles(root, articles);

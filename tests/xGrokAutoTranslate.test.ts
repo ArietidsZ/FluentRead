@@ -617,6 +617,37 @@ describe('X Grok 原生逐帖自动翻译', () => {
         mutations.emit([childListRecord(document.body, [neverTracked])]);
     });
 
+    it('BFCache pagehide 保留运行时与页面标记，返回后仍能处理动态帖子', () => {
+        mountXGrokAutoTranslate();
+        const visibility = TestIntersectionObserver.instances[0]!;
+        const mutations = TestMutationObserver.instances[0]!;
+        const pageHide = new window.Event('pagehide');
+        Object.defineProperty(pageHide, 'persisted', {value: true});
+
+        window.dispatchEvent(pageHide);
+
+        expect(isXGrokAutoTranslateMounted()).toBe(true);
+        expect(document.documentElement.hasAttribute(X_GROK_NATIVE_TRANSLATION_ATTRIBUTE)).toBe(true);
+        expect(visibility.disconnect).not.toHaveBeenCalled();
+        expect(mutations.disconnect).not.toHaveBeenCalled();
+
+        const dynamic = createTweet(document, '1033');
+        const click = vi.fn();
+        dynamic.button!.click = click;
+        document.body.append(dynamic.article);
+        mutations.emit([childListRecord(document.body, [dynamic.article])]);
+        visibility.emit(dynamic.article, true);
+
+        expect(click).toHaveBeenCalledOnce();
+
+        // persisted 事件不能消耗监听器；随后的真实离开仍须完成清理。
+        window.dispatchEvent(new window.Event('pagehide'));
+        expect(isXGrokAutoTranslateMounted()).toBe(false);
+        expect(document.documentElement.hasAttribute(X_GROK_NATIVE_TRANSLATION_ATTRIBUTE)).toBe(false);
+        expect(visibility.disconnect).toHaveBeenCalledOnce();
+        expect(mutations.disconnect).toHaveBeenCalledOnce();
+    });
+
     it('卸载会断开观察器、清除重试与页面标记，迟到回调不能再触发', () => {
         const first = createTweet(document, '1007');
         const queued = createTweet(document, '1008');

@@ -143,9 +143,13 @@ export async function startContentApp(ctx: ContentScriptContext,
                 isEnabled: () => config.on && config.xGrokAutoTranslateEnabled === true && isXGrokAutoTranslatePage(window.location.href),
                 mount: () => {
                     restoreOriginalContent();
+                    resetPageTranslationContextCache();
                     mountXGrokAutoTranslate();
                 },
-                unmount: unmountXGrokAutoTranslate,
+                unmount: () => {
+                    unmountXGrokAutoTranslate();
+                    resetPageTranslationContextCache();
+                },
                 isMounted: isXGrokAutoTranslateMounted,
             },
             {
