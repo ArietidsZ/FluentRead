@@ -29,6 +29,12 @@ const expectedNavigation = [
   ['settings-data', '配置管理'],
   ['settings-about', '关于流畅阅读'],
 ];
+const expectedNavigationGroups = [
+  ['基础配置', ['settings-general', 'settings-services', 'settings-translation']],
+  ['专项翻译', ['settings-image-translation', 'settings-video', 'settings-sites']],
+  ['工具与学习', ['settings-translation-center', 'settings-vocabulary']],
+  ['系统与数据', ['settings-advanced', 'settings-data', 'settings-about']],
+];
 const expectedGeneralGroups = ['选择翻译服务', '译文显示', '网页辅助'];
 const expectedTranslationGroups = ['鼠标悬浮翻译', '划词翻译', '输入框翻译', '全文翻译'];
 const configDatabaseName = 'FluentReadConfiguration';
@@ -398,6 +404,14 @@ async function main() {
       throw new Error(`导航顺序或名称异常：${JSON.stringify(navigationContract)}`);
     }
     report.informationArchitecture.navigation = navigationContract;
+    const navigationGroupContract = await page.locator('nav[aria-label="设置分类"] .nav-group').evaluateAll(groups => groups.map(group => [
+      group.querySelector('.nav-group-label')?.textContent?.trim(),
+      [...group.querySelectorAll('button[data-section]')].map(button => button.dataset.section),
+    ]));
+    if (JSON.stringify(navigationGroupContract) !== JSON.stringify(expectedNavigationGroups)) {
+      throw new Error(`导航分组异常：${JSON.stringify(navigationGroupContract)}`);
+    }
+    report.informationArchitecture.navigationGroups = navigationGroupContract;
 
     for (let index = 0; index < navCount; index += 1) {
       const button = navButtons.nth(index);

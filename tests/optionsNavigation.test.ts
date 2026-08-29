@@ -19,12 +19,11 @@ describe('options navigation view-model', () => {
     }))).toEqual([
       {
         label: '基础配置',
-        items: ['settings-general', 'settings-services'],
+        items: ['settings-general', 'settings-services', 'settings-translation'],
       },
       {
         label: '专项翻译',
         items: [
-          'settings-translation',
           'settings-image-translation',
           'settings-video',
           'settings-sites',
@@ -52,6 +51,10 @@ describe('options navigation view-model', () => {
       '配置管理',
       '关于流畅阅读',
     ])
+    expect(resolveNavigationItem('settings-translation')).toMatchObject({
+      group: '基础配置',
+      kicker: '基础配置',
+    })
     expect(DEFAULT_NAVIGATION_SECTION).toBe('settings-general')
   })
 

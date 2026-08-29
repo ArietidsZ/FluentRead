@@ -39,17 +39,17 @@ export const navigationGroups: NavigationGroup[] = [
         kicker: '基础配置', title: '翻译服务', detail: '配置可用的翻译服务、模型、连接和凭据。',
         searchDescription: '微软翻译、OpenAI、DeepSeek、Gemini、模型与令牌',
       },
+      {
+        id: 'settings-translation', icon: '译', label: '翻译设置', description: '悬浮、划词、输入框与全文', group: '基础配置',
+        heading: '翻译设置', summary: '按使用顺序管理鼠标悬浮、划词、输入框和全文翻译。',
+        kicker: '基础配置', title: '翻译设置', detail: '设置鼠标悬浮、划词、输入框与全文翻译的触发方式。',
+        searchDescription: '鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、自定义快捷键、右键菜单、悬浮球、翻译进度',
+      },
     ],
   },
   {
     label: '专项翻译',
     items: [
-      {
-        id: 'settings-translation', icon: '译', label: '翻译设置', description: '悬浮、划词、输入框与全文', group: '专项翻译',
-        heading: '翻译设置', summary: '按使用顺序管理鼠标悬浮、划词、输入框和全文翻译。',
-        kicker: '专项翻译', title: '翻译设置', detail: '设置鼠标悬浮、划词、输入框与全文翻译的触发方式。',
-        searchDescription: '鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、自定义快捷键、右键菜单、悬浮球、翻译进度',
-      },
       {
         id: 'settings-image-translation', icon: '图', label: '图片与圈选翻译', description: '图片、圈选与 OCR', group: '专项翻译',
         heading: '图片与圈选翻译', summary: '管理网页图片、圈选区域和本地 OCR 语言包。',
