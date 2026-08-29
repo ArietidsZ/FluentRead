@@ -10,12 +10,16 @@ import type {
     TranslationBatchRequestMessage,
     TranslationBroker,
     TranslationBrokerDependencies,
+    TranslationModelUsageObservation,
+    TranslationModelUsageOutcome,
+    TranslationModelUsageRecord,
     TranslationProviderConfigSnapshot,
     TranslationProvider,
     TranslationRequestMessage,
     TranslationSingleRequestMessage,
 } from './types';
 import {
+    attachTranslationModelUsageObserver,
     attachTranslationProviderConfig,
     createTranslationProviderConfigSnapshot,
     TRANSLATION_REMAINING_BUDGET,
@@ -306,39 +310,118 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
      * 保留。这里无论 provider 是否主动消费 abortSignal，都会在截止时间释放调用方和
      * pending 所有权；支持 AbortSignal 的适配器还能同步停止底层请求。
      */
-    function callProviderWithinDeadline(
+    function modelUsagePurpose(message: TranslationRequestMessage): TranslationModelUsageRecord['purpose'] {
+        return 'summaryPrompt' in message && typeof message.summaryPrompt === 'string' && message.summaryPrompt.trim()
+            ? 'page-summary'
+            : 'translation';
+    }
+
+    function modelUsageOutcome(error: unknown): TranslationModelUsageOutcome {
+        if (error instanceof TranslationProviderDeadlineError) return 'timeout';
+        if (error && typeof error === 'object') {
+            const candidate = error as {kind?: unknown; statusCode?: unknown};
+            if (candidate.kind === 'timeout' || candidate.statusCode === 408) return 'timeout';
+        }
+        if (error instanceof Error && error.name === 'AbortError') return 'cancelled';
+        return 'error';
+    }
+
+    function cleanModelName(value: unknown): string | undefined {
+        if (typeof value !== 'string') return undefined;
+        const normalized = value
+            .replace(/[\u0000-\u001F\u007F]/g, '')
+            .trim()
+            .slice(0, 160);
+        return normalized || undefined;
+    }
+
+    async function persistModelUsage(
+        execution: TranslationRequestExecution,
+        message: TranslationRequestMessage,
+        observations: readonly TranslationModelUsageObservation[],
+        startedAt: number,
+        fallbackOutcome: TranslationModelUsageOutcome,
+        generation: number,
+    ): Promise<void> {
+        if (
+            !deps.recordModelUsage
+            || !deps.serviceTypes.isAI(execution.service)
+            || observations.length === 0
+        ) return;
+
+        const finishedAt = now();
+        const elapsed = Math.max(0, finishedAt - startedAt);
+        const configuredModel = getSelectedModel(execution.config, execution.service, message.modelOverride);
+        const records: TranslationModelUsageRecord[] = observations.map((observation) => ({
+            ...observation,
+            startedAt: typeof observation.startedAt === 'number' && Number.isFinite(observation.startedAt)
+                ? observation.startedAt
+                : startedAt,
+            durationMs: typeof observation.durationMs === 'number' && Number.isFinite(observation.durationMs)
+                ? Math.max(0, observation.durationMs)
+                : observations.length === 1 ? elapsed : 0,
+            serviceId: execution.service,
+            configuredModel,
+            actualModel: cleanModelName(observation.actualModel),
+            purpose: modelUsagePurpose(message),
+            outcome: observation.outcome ?? fallbackOutcome,
+        }));
+
+        try {
+            await deps.recordModelUsage(records, generation);
+        } catch (error) {
+            warn('[FluentRead] model usage write failed:', error);
+        }
+    }
+
+    async function callProviderWithinDeadline(
         execution: TranslationRequestExecution,
         message: TranslationRequestMessage,
     ): Promise<unknown> {
         const provider = getTranslationService(execution.service);
         const timeoutMs = normalizeDeadlineTimeoutMs(message.requestTimeoutMs as number);
-
+        const startedAt = now();
+        const usageGeneration = deps.captureModelUsageGeneration?.() ?? 0;
+        const observations: TranslationModelUsageObservation[] = [];
         const controller = new AbortController();
-        const providerMessage = {
+        const providerMessage = attachTranslationModelUsageObserver({
             ...message,
             abortSignal: controller.signal,
-        };
+        }, (observation) => observations.push({...observation}));
 
-        return new Promise((resolve, reject) => {
-            let settled = false;
-            const finish = (callback: () => void) => {
-                if (settled) return;
-                settled = true;
-                clearTimeout(timer);
-                callback();
-            };
-            const timer = setTimeout(() => {
+        let timer: ReturnType<typeof setTimeout>;
+        const timeout = new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(() => {
                 controller.abort();
-                finish(() => reject(new TranslationProviderDeadlineError()));
+                reject(new TranslationProviderDeadlineError());
             }, timeoutMs);
-
-            void Promise.resolve()
-                .then(() => provider(providerMessage))
-                .then(
-                    (result) => finish(() => resolve(result)),
-                    (error) => finish(() => reject(error)),
-                );
         });
+        const operation = Promise.resolve().then(() => provider(providerMessage));
+
+        try {
+            const result = await Promise.race([operation, timeout]);
+            void persistModelUsage(execution, message, observations, startedAt, 'success', usageGeneration);
+            return result;
+        } catch (error) {
+            const lastObservation = observations.at(-1);
+            const errorOutcome = modelUsageOutcome(error);
+            const outcome = errorOutcome === 'error' && lastObservation?.statusCode === 408
+                ? 'timeout'
+                : errorOutcome;
+            // Broker 自有 deadline 会先 abort transport；HTTP 408 也可能被第三方适配器先记为普通失败。
+            // 两者都校准为 timeout，避免同一种超时被拆成不同统计口径。
+            // 不覆盖更早的 success：批量下一项可能在真正 fetch 前就耗尽预算。
+            if (
+                outcome === 'timeout'
+                && (lastObservation?.outcome === 'cancelled' || lastObservation?.outcome === 'error')
+            ) {
+                lastObservation.outcome = 'timeout';
+            }
+            void persistModelUsage(execution, message, observations, startedAt, outcome, usageGeneration);
+            throw error;
+        } finally {
+            clearTimeout(timer!);
+        }
     }
 
     function shouldRecoverPageContextLeak(

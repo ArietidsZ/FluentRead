@@ -1,10 +1,10 @@
 /**
  * @file src/app/background/messageRuntime.ts
  * 文件职责：构建并安装后台消息总运行时，把配置、翻译、OCR、TTS、生词本和标签页状态等公开 handler 连接到 browser.runtime。
- * 主要内容：创建图片 OCR 语言仓库和能力门控传输，注入配置历史/持久化、连接测试、翻译 broker、词典与词汇仓库依赖，注册类型化 router 并为异步 sendResponse 管理响应与错误。
+ * 主要内容：创建图片 OCR 语言仓库和能力门控传输，注入配置历史/持久化、连接测试、翻译 broker、模型用量、词典与词汇仓库依赖，注册类型化 router 并为异步 sendResponse 管理响应与错误。
  * 模块边界：本文件是 composition root，只决定依赖装配和监听生命周期，不实现各 feature 的业务算法、provider 协议或存储事务；具体实现均来自 features、services、providers 与 platform。
  */
-import {formatConnectionTestError, runTranslationServiceConnectionTest, translateMicrosoftTexts} from './providerRuntime';
+import {formatConnectionTestError, runTranslationServiceConnectionTestWithUsage, translateMicrosoftTexts} from './providerRuntime';
 import {
     config,
     configReady,
@@ -32,6 +32,7 @@ import {
     fetchRemoteImageForOcr,
 } from './handlers/imageTranslation';
 import {createInputBoxTranslationHandler} from './handlers/inputTranslation';
+import {createModelUsageHandler} from './handlers/modelUsage';
 import {createOpenOptionsPageHandler} from './handlers/openOptions';
 import {createTranslationRequestFallback} from './handlers/translation';
 import {createSelectionTtsBackgroundHandlers, type SelectionTtsContext} from './handlers/selectionTts';
@@ -50,6 +51,7 @@ import {selectionTtsOffscreenAdapter} from '@/src/features/selection-translation
 import {createCapabilityGatedBackgroundHandlers, createCapabilityGatedSelectionTtsTransport} from './capabilityRegistry';
 import {createConfigBackgroundHandlers} from './configMessageHandlers';
 import {createConfigImageOcrLanguageStorage, installBrowserConfigStorageBroadcast} from './configStorageRuntime';
+import {modelUsageRepository} from '@/src/platform/storage/modelUsageRepository';
 type BackgroundRuntimeContext = ConfigPersistenceContext
     & VocabularyBackgroundContext
     & SelectionTtsContext
@@ -67,10 +69,11 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     const selectionTtsTransport = createCapabilityGatedSelectionTtsTransport(capabilities, selectionTtsOffscreenAdapter);
     const handlers: Array<BackgroundMessageHandler<BackgroundRuntimeContext>> = [
         createTranslationCacheHandler(clearTranslationCache),
+        createModelUsageHandler(modelUsageRepository),
         ...createConfigBackgroundHandlers<BackgroundRuntimeContext>(),
         createConnectionTestHandler({
             ready: configReady,
-            runConnectionTest: runTranslationServiceConnectionTest,
+            runConnectionTest: runTranslationServiceConnectionTestWithUsage,
             formatError: formatConnectionTestError,
         }),
         createInputBoxTranslationHandler({

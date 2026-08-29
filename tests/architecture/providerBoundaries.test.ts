@@ -27,6 +27,7 @@ const EXPECTED_PROVIDER_FILES = [
     'microsoft.ts',
     'tencent.ts',
     'tongyi.ts',
+    'usage.ts',
     'xiaoniu.ts',
     'youdao.ts',
     'zhipu.ts',

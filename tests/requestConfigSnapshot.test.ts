@@ -1,9 +1,13 @@
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import {
+    TRANSLATION_MODEL_USAGE_OBSERVER,
     TRANSLATION_PROVIDER_CONFIG,
+    attachTranslationModelUsageObserver,
     attachTranslationProviderConfig,
     createTranslationProviderConfigSnapshot,
     getTranslationProviderConfig,
+    reportTranslationModelUsage,
+    reportTranslationModelUsageFailure,
 } from '@/src/services/translation/requestSnapshot';
 import type {TranslationConfigSource} from '@/src/services/translation/types';
 
@@ -104,5 +108,78 @@ describe('translation provider request config snapshot', () => {
         });
         expect(Object.getOwnPropertySymbols(attached)).toEqual([TRANSLATION_PROVIDER_CONFIG]);
         expect(JSON.stringify(attached)).toBe('{"origin":"hello"}');
+    });
+
+    it('keeps model usage observers process-local and isolates observer failures', () => {
+        const observer = vi.fn();
+        const message = attachTranslationModelUsageObserver({origin: 'hello'}, observer);
+        const observation = {usageAvailability: 'unreported' as const};
+
+        expect(message[TRANSLATION_MODEL_USAGE_OBSERVER]).toBe(observer);
+        expect(JSON.stringify(message)).toBe('{"origin":"hello"}');
+        reportTranslationModelUsage(message, observation);
+        expect(observer).toHaveBeenCalledWith(observation);
+
+        reportTranslationModelUsage(null, observation);
+        reportTranslationModelUsage('not-an-object', observation);
+        reportTranslationModelUsage({}, observation);
+
+        const throwingMessage = attachTranslationModelUsageObserver({origin: 'safe'}, () => {
+            throw new Error('telemetry failed');
+        });
+        expect(() => reportTranslationModelUsage(throwingMessage, observation)).not.toThrow();
+    });
+
+    it('reports only safe transport failure metadata and classifies aborted attempts', () => {
+        vi.spyOn(Date, 'now').mockReturnValue(160);
+        const observer = vi.fn();
+        const controller = new AbortController();
+        const message = attachTranslationModelUsageObserver({
+            origin: 'hello',
+            abortSignal: controller.signal,
+        }, observer);
+
+        reportTranslationModelUsageFailure(message, {statusCode: 429}, 100, 'model-a');
+        reportTranslationModelUsageFailure(message, undefined, 120, 'model-b', 408);
+        const abortError = new Error('cancelled');
+        abortError.name = 'AbortError';
+        reportTranslationModelUsageFailure(message, abortError, 200, undefined, 999);
+        controller.abort();
+        reportTranslationModelUsageFailure(message, new Error('network'), 170);
+        reportTranslationModelUsageFailure(message, 'plain failure', 160);
+
+        expect(observer.mock.calls).toEqual([
+            [expect.objectContaining({
+                startedAt: 100,
+                durationMs: 60,
+                actualModel: 'model-a',
+                outcome: 'error',
+                statusCode: 429,
+            })],
+            [expect.objectContaining({
+                startedAt: 120,
+                durationMs: 40,
+                actualModel: 'model-b',
+                outcome: 'timeout',
+                statusCode: 408,
+            })],
+            [expect.objectContaining({
+                startedAt: 200,
+                durationMs: 0,
+                outcome: 'cancelled',
+            })],
+            [expect.objectContaining({
+                startedAt: 170,
+                durationMs: 0,
+                outcome: 'cancelled',
+            })],
+            [expect.objectContaining({
+                startedAt: 160,
+                durationMs: 0,
+                outcome: 'cancelled',
+            })],
+        ]);
+        expect(observer.mock.calls[2][0]).not.toHaveProperty('statusCode');
+        expect(observer.mock.calls[3][0]).not.toHaveProperty('actualModel');
     });
 });

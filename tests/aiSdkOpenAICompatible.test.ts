@@ -38,10 +38,12 @@ import {services} from '@/src/core/config/catalog';
 import {translateWithOpenAICompatibleAiSdk} from '@/src/providers/translation/ai-sdk/openai-compatible';
 import {normalizeAiSdkError} from '@/src/providers/translation/ai-sdk/errors';
 import {
+  attachTranslationModelUsageObserver,
   attachTranslationProviderConfig,
   createTranslationProviderConfigSnapshot,
 } from '@/src/services/translation/requestSnapshot';
 import {setRuntimeFetch} from '@/src/platform/http/runtime';
+import type {TranslationModelUsageObservation} from '@/src/services/translation/types';
 
 function successResponse(text = '译文') {
   return new Response(JSON.stringify({
@@ -128,6 +130,63 @@ describe('Vercel AI SDK OpenAI-compatible transport', () => {
 
     expect(runtimeTransport).toHaveBeenCalledOnce();
     expect(nativeFetch).not.toHaveBeenCalled();
+  });
+
+  it('逐次报告真实 transport 的服务商 Token，且不把 Kimi 缓存 Token 重复加入总量', async () => {
+    const observations: TranslationModelUsageObservation[] = [];
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      model: 'kimi-k2.6',
+      choices: [{message: {role: 'assistant', content: 'Kimi 译文'}, finish_reason: 'stop'}],
+      usage: {
+        prompt_tokens: 15,
+        completion_tokens: 5,
+        total_tokens: 20,
+        cached_tokens: 6,
+      },
+    }), {status: 200, headers: {'content-type': 'application/json'}}));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(translateWithOpenAICompatibleAiSdk(attachTranslationModelUsageObserver({
+      origin: 'hello',
+      serviceOverride: services.custom,
+    }, (observation) => observations.push(observation)))).resolves.toBe('Kimi 译文');
+
+    expect(observations).toEqual([
+      expect.objectContaining({
+        actualModel: 'kimi-k2.6',
+        outcome: 'success',
+        statusCode: 200,
+        usageAvailability: 'reported',
+        inputTokens: 15,
+        outputTokens: 5,
+        totalTokens: 20,
+        cachedInputTokens: 6,
+      }),
+    ]);
+  });
+
+  it('把每次 HTTP 408 transport 尝试报告为 timeout', async () => {
+    const observations: TranslationModelUsageObservation[] = [];
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(errorResponse(
+      408,
+      'request timeout',
+      {'retry-after': '0'},
+    )));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const error = await translateWithOpenAICompatibleAiSdk(attachTranslationModelUsageObserver({
+      origin: 'hello',
+      serviceOverride: services.custom,
+    }, (observation) => observations.push(observation))).catch((reason) => reason);
+
+    expect(error).toMatchObject({kind: 'timeout', statusCode: 408});
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(observations).toHaveLength(3);
+    expect(observations).toEqual(observations.map(() => expect.objectContaining({
+      outcome: 'timeout',
+      statusCode: 408,
+      usageAvailability: 'unreported',
+    })));
   });
 
   it('uses the broker-attached endpoint, credential, prompt, and custom body snapshot', async () => {

@@ -80,6 +80,12 @@ export const navigationGroups: NavigationGroup[] = [
         searchDescription: '多服务翻译、翻译对比、重复翻译、句子翻译',
       },
       {
+        id: 'settings-model-usage', icon: '▥', label: '模型用量', description: 'Token、请求与模型分布', group: '工具与学习',
+        heading: '查看大模型调用用量', summary: '按服务、模型和时间范围查看本机 FluentRead 的请求与 Token。',
+        kicker: '本地工具', title: '模型用量', detail: '查看本机 FluentRead 发起的大模型调用、Token 消耗与使用趋势。',
+        searchDescription: '模型用量、调用统计、Token、请求、输入 Token、输出 Token、Kimi、月之暗面、OpenAI、DeepSeek',
+      },
+      {
         id: 'settings-vocabulary', icon: '★', label: '单词本', description: '收藏与复习', group: '工具与学习',
         heading: '把阅读中遇到的词真正学会', summary: '收藏划词卡中的英文单词，用轻量复习跟踪从新词到掌握的过程。',
         kicker: '本地学习 Beta', title: '单词本', detail: '词条、上下文与复习记录只保存在当前浏览器中，可独立导出和迁移。',

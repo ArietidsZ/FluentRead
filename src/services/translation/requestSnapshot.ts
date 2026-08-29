@@ -8,6 +8,7 @@
 
 import type {
     TranslationConfigSource,
+    TranslationModelUsageObservation,
     TranslationProviderConfigSnapshot,
     TranslationRequestMessageBase,
 } from './types';
@@ -15,6 +16,9 @@ import type {
 /** 内部 symbol 无法由 content runtime 消息伪造，也不会进入网络 JSON。 */
 export const TRANSLATION_PROVIDER_CONFIG = Symbol('fluentread.translation-provider-config');
 export const TRANSLATION_REMAINING_BUDGET = Symbol('fluentread.translation-remaining-budget');
+export const TRANSLATION_MODEL_USAGE_OBSERVER = Symbol('fluentread.translation-model-usage-observer');
+
+export type TranslationModelUsageObserver = (observation: TranslationModelUsageObservation) => void;
 
 export type TranslationRemainingBudgetContext = {
     readonly [TRANSLATION_REMAINING_BUDGET]?: true;
@@ -22,9 +26,64 @@ export type TranslationRemainingBudgetContext = {
 
 export type TranslationProviderRequestContext = {
     readonly [TRANSLATION_PROVIDER_CONFIG]?: TranslationProviderConfigSnapshot;
+    readonly [TRANSLATION_MODEL_USAGE_OBSERVER]?: TranslationModelUsageObserver;
     /** 仅由 broker 在后台注入；provider 必须向底层 transport 继续传递。 */
     readonly abortSignal?: AbortSignal;
 };
+
+/** 把进程内观察器附到 provider 请求；symbol 不会通过 runtime 或 JSON 越过边界。 */
+export function attachTranslationModelUsageObserver<T extends object>(
+    message: T,
+    observer: TranslationModelUsageObserver,
+): T & TranslationProviderRequestContext {
+    return Object.assign(message, {[TRANSLATION_MODEL_USAGE_OBSERVER]: observer});
+}
+
+/** Provider 直调时没有观察器；统计旁路也绝不能让正常翻译失败。 */
+export function reportTranslationModelUsage(
+    message: unknown,
+    observation: TranslationModelUsageObservation,
+): void {
+    if (!message || typeof message !== 'object') return;
+    const observer = (message as TranslationProviderRequestContext)[TRANSLATION_MODEL_USAGE_OBSERVER];
+    if (!observer) return;
+    try {
+        observer(observation);
+    } catch {
+        // 统计观察器是旁路，不允许反向影响 provider 响应解析。
+    }
+}
+
+/** 只在 transport 已实际启动后调用；把网络/HTTP/解析失败记为无 usage 的真实尝试。 */
+export function reportTranslationModelUsageFailure(
+    message: unknown,
+    error: unknown,
+    startedAt: number,
+    actualModel?: string,
+    statusCode?: number,
+): void {
+    const candidateStatus = statusCode ?? (
+        error && typeof error === 'object'
+            ? (error as {statusCode?: unknown}).statusCode
+            : undefined
+    );
+    const safeStatusCode = typeof candidateStatus === 'number'
+        && Number.isInteger(candidateStatus)
+        && candidateStatus >= 100
+        && candidateStatus <= 599
+        ? candidateStatus
+        : undefined;
+    const aborted = (error instanceof Error && error.name === 'AbortError')
+        || Boolean((message as TranslationProviderRequestContext | null)?.abortSignal?.aborted);
+    reportTranslationModelUsage(message, {
+        startedAt,
+        durationMs: Math.max(0, Date.now() - startedAt),
+        ...(actualModel ? {actualModel} : {}),
+        outcome: safeStatusCode === 408 ? 'timeout' : aborted ? 'cancelled' : 'error',
+        usageAvailability: 'unreported',
+        ...(safeStatusCode !== undefined ? {statusCode: safeStatusCode} : {}),
+    });
+}
 
 /** 标记 requestTimeoutMs 已是上层事务的剩余预算，broker 不得再次抬高到公开入口下限。 */
 export function markTranslationRemainingBudget<T extends {requestTimeoutMs: number}>(

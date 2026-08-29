@@ -30,6 +30,36 @@ export type TranslationRequestMessage = TranslationSingleRequestMessage | Transl
 export type TranslationProvider = (message: Record<string, unknown>) => Promise<unknown>;
 export type TranslationProviderRegistry = Record<string, TranslationProvider>;
 
+export type TranslationModelUsageOutcome = 'success' | 'error' | 'timeout' | 'cancelled';
+export type TranslationModelUsageAvailability = 'reported' | 'unreported' | 'malformed';
+export type TranslationModelUsagePurpose = 'translation' | 'page-summary' | 'connection-test';
+
+/** Provider 或 transport 对单次真实上游尝试返回的最小、无敏感信息用量观察。 */
+export interface TranslationModelUsageObservation {
+    startedAt?: number;
+    durationMs?: number;
+    actualModel?: string;
+    outcome?: TranslationModelUsageOutcome;
+    usageAvailability: TranslationModelUsageAvailability;
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+    cachedInputTokens?: number;
+    cacheWriteTokens?: number;
+    reasoningTokens?: number;
+    statusCode?: number;
+}
+
+/** Broker 补齐服务、用途和输入规模后交给本地统计仓库的事件。 */
+export interface TranslationModelUsageRecord extends TranslationModelUsageObservation {
+    startedAt: number;
+    durationMs: number;
+    serviceId: string;
+    configuredModel: string;
+    purpose: TranslationModelUsagePurpose;
+    outcome: TranslationModelUsageOutcome;
+}
+
 export interface TranslationLanguageOverride {
     sourceLanguage?: string;
     targetLanguage?: string;
@@ -126,6 +156,13 @@ export interface TranslationBrokerDependencies {
     getTranslationLanguages: (override?: TranslationLanguageOverride) => TranslationLanguages;
     resolveConfiguredModel: (selected?: string, custom?: string) => string;
     buildTranslationCacheKey: (identity: Record<string, unknown>) => string;
+    /** 在 provider 真正开始前捕获重置代次，避免清除后在途旧请求把事件写回来。 */
+    captureModelUsageGeneration?: () => number;
+    /** 本地统计是旁路能力；写入失败或挂起不得改变、延迟翻译结果。 */
+    recordModelUsage?: (
+        events: readonly TranslationModelUsageRecord[],
+        generation: number,
+    ) => Promise<void>;
     now?: () => number;
     logger?: Pick<Console, 'warn'>;
 }

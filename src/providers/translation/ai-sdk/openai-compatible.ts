@@ -20,9 +20,11 @@ import {LlmTransportError, normalizeAiSdkError} from './errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
 import {
   getTranslationProviderConfig,
+  reportTranslationModelUsage,
   type TranslationProviderRequestContext,
 } from '@/src/services/translation/requestSnapshot';
 import type {TranslationProviderConfigSnapshot} from '@/src/services/translation/types';
+import {normalizeOpenAICompatibleUsage} from '../usage';
 
 export const AI_SDK_REQUEST_TIMEOUT_MS = 40_000;
 export const AI_SDK_MAX_RETRIES = 2;
@@ -93,44 +95,122 @@ function providerHeaders(service: string, apiKey: string): Record<string, string
   return Object.keys(headers).length > 0 ? headers : undefined;
 }
 
-async function normalizeSuccessfulTextResponse(response: Response): Promise<Response> {
-  if (!response.ok) return response;
+interface OpenAICompatibleResponseBody {
+  model?: unknown;
+  usage?: unknown;
+  choices?: Array<{message?: {content?: unknown}; finish_reason?: unknown}>;
+}
+
+function nonNegativeToken(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+    ? Math.floor(value)
+    : undefined;
+}
+
+/** 只把 SDK 能安全解析的数值 usage 字段放回响应，兼容字符串等非标准元数据。 */
+function sanitizeUsageForAiSdk(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const source = value as Record<string, unknown>;
+  const usage: Record<string, unknown> = {};
+  for (const key of ['prompt_tokens', 'completion_tokens', 'total_tokens', 'cached_tokens'] as const) {
+    const token = nonNegativeToken(source[key]);
+    if (token !== undefined) usage[key] = token;
+  }
+
+  const promptDetails = source.prompt_tokens_details;
+  if (promptDetails && typeof promptDetails === 'object' && !Array.isArray(promptDetails)) {
+    const details: Record<string, number> = {};
+    for (const key of ['cached_tokens', 'cache_write_tokens'] as const) {
+      const token = nonNegativeToken((promptDetails as Record<string, unknown>)[key]);
+      if (token !== undefined) details[key] = token;
+    }
+    if (Object.keys(details).length > 0) usage.prompt_tokens_details = details;
+  }
+
+  const completionDetails = source.completion_tokens_details;
+  if (completionDetails && typeof completionDetails === 'object' && !Array.isArray(completionDetails)) {
+    const reasoningTokens = nonNegativeToken(
+      (completionDetails as Record<string, unknown>).reasoning_tokens,
+    );
+    if (reasoningTokens !== undefined) {
+      usage.completion_tokens_details = {reasoning_tokens: reasoningTokens};
+    }
+  }
+  return Object.keys(usage).length > 0 ? usage : undefined;
+}
+
+async function normalizeSuccessfulTextResponse(
+  response: Response,
+): Promise<{response: Response; body?: OpenAICompatibleResponseBody}> {
+  if (!response.ok) return {response};
 
   try {
-    const body = await response.clone().json() as {
-      choices?: Array<{message?: {content?: unknown}; finish_reason?: unknown}>;
-    };
+    const body = await response.clone().json() as OpenAICompatibleResponseBody;
     const choice = body?.choices?.[0];
     const content = choice?.message?.content;
     const finishReason = choice?.finish_reason;
-    if (typeof content !== 'string') return response;
+    if (typeof content !== 'string') return {response, body};
 
     // FluentRead 只消费文本。这里重建旧适配器接受的最小响应结构，避免非标准可选元数据
-    // （例如字符串形式的 token 数量）导致 SDK 拒绝原本有效的翻译。
-    const normalizedBody = {
+    // （例如字符串形式的 token 数量）导致 SDK 拒绝原本有效的翻译；有效数值 usage
+    // 会继续交给 SDK，并同时由本地统计观察器读取。
+    const normalizedBody: Record<string, unknown> = {
       choices: [{
         message: {role: 'assistant', content},
         finish_reason: typeof finishReason === 'string' ? finishReason : null,
       }],
     };
+    const sanitizedUsage = sanitizeUsageForAiSdk(body.usage);
+    if (sanitizedUsage) normalizedBody.usage = sanitizedUsage;
+    if (typeof body.model === 'string' && body.model.trim()) normalizedBody.model = body.model.trim();
     const headers = new Headers(response.headers);
     headers.delete('content-length');
     headers.delete('content-encoding');
     headers.set('content-type', 'application/json');
-    return new Response(JSON.stringify(normalizedBody), {
-      status: response.status,
-      statusText: response.statusText,
-      headers,
-    });
+    return {
+      response: new Response(JSON.stringify(normalizedBody), {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      }),
+      body,
+    };
   } catch {
-    return response;
+    return {response};
   }
 }
 
-function compatibilityFetch(endpoint: ResolvedOpenAICompatibleEndpoint) {
+function compatibilityFetch(
+  endpoint: ResolvedOpenAICompatibleEndpoint,
+  request: AiSdkTranslationRequest,
+  requestedModel: string,
+) {
   return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const response = await runtimeFetch(endpoint.exactEndpoint || input, init);
-    return normalizeSuccessfulTextResponse(response);
+    const startedAt = Date.now();
+    let response: Response;
+    try {
+      response = await runtimeFetch(endpoint.exactEndpoint || input, init);
+    } catch (error) {
+      reportTranslationModelUsage(request, {
+        startedAt,
+        durationMs: Math.max(0, Date.now() - startedAt),
+        actualModel: requestedModel,
+        outcome: init?.signal?.aborted ? 'cancelled' : 'error',
+        usageAvailability: 'unreported',
+      });
+      throw error;
+    }
+
+    const normalized = await normalizeSuccessfulTextResponse(response);
+    const usage = normalizeOpenAICompatibleUsage(normalized.body?.usage, normalized.body?.model ?? requestedModel);
+    reportTranslationModelUsage(request, {
+      ...usage,
+      startedAt,
+      durationMs: Math.max(0, Date.now() - startedAt),
+      outcome: response.status === 408 ? 'timeout' : response.ok ? 'success' : 'error',
+      statusCode: response.status,
+    });
+    return normalized.response;
   };
 }
 
@@ -198,7 +278,7 @@ async function translateSingle(
     apiKey: service === services.azureOpenai ? undefined : apiKey || undefined,
     headers: providerHeaders(service, apiKey),
     queryParams: endpoint.queryParams,
-    fetch: compatibilityFetch(endpoint),
+    fetch: compatibilityFetch(endpoint, request, payload.model),
     transformRequestBody: () => requestBody,
   });
   const abortContext = createRequestAbortContext(

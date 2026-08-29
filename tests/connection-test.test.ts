@@ -18,6 +18,7 @@ import {
 } from '@/src/providers/translation/connectionTest';
 import {formatServiceError, getServiceErrorMessage} from '@/src/services/translation/serviceErrors';
 import {services} from '@/src/core/config/catalog';
+import {reportTranslationModelUsage} from '@/src/services/translation/requestSnapshot';
 
 describe('翻译服务连接测试', () => {
     afterEach(() => {
@@ -88,6 +89,141 @@ describe('翻译服务连接测试', () => {
         adapter.mockRejectedValue(failure);
 
         await expect(runTranslationServiceConnectionTest('demo')).rejects.toBe(failure);
+    });
+
+    it('把真实连接测试尝试旁路记录为 connection-test，且不等待统计写入', async () => {
+        const recordModelUsage = vi.fn(() => new Promise<void>(() => undefined));
+        adapter.mockImplementation(async (message: Record<string, unknown>) => {
+            reportTranslationModelUsage(message, {
+                actualModel: 'demo-model',
+                startedAt: 10,
+                durationMs: -5,
+                usageAvailability: 'reported',
+                inputTokens: 4,
+                outputTokens: 2,
+                totalTokens: 6,
+            });
+            reportTranslationModelUsage(message, {
+                startedAt: Number.NaN,
+                durationMs: Number.NaN,
+                usageAvailability: 'unreported',
+            });
+            return '测试译文';
+        });
+
+        await expect(runTranslationServiceConnectionTest('demo', {
+            configuredModel: '  demo-config  ',
+            recordModelUsage,
+        }))
+            .resolves.toEqual(expect.objectContaining({durationMs: expect.any(Number)}));
+        expect(recordModelUsage).toHaveBeenCalledWith([
+            expect.objectContaining({
+                serviceId: 'demo',
+                configuredModel: 'demo-config',
+                actualModel: 'demo-model',
+                startedAt: 10,
+                durationMs: 0,
+                purpose: 'connection-test',
+                outcome: 'success',
+                totalTokens: 6,
+            }),
+            expect.objectContaining({
+                startedAt: expect.any(Number),
+                durationMs: 0,
+                outcome: 'success',
+                usageAvailability: 'unreported',
+            }),
+        ]);
+    });
+
+    it('连接测试预检失败不造请求，结构化 timeout 会校准 transport cancelled', async () => {
+        const recordModelUsage = vi.fn(async () => undefined);
+        adapter.mockRejectedValueOnce(new Error('local validation failed'));
+        await expect(runTranslationServiceConnectionTest('demo', {recordModelUsage}))
+            .rejects.toThrow('local validation failed');
+        expect(recordModelUsage).not.toHaveBeenCalled();
+
+        const timeoutError = Object.assign(new Error('provider timeout'), {kind: 'timeout'});
+        adapter.mockImplementationOnce(async (message: Record<string, unknown>) => {
+            reportTranslationModelUsage(message, {
+                outcome: 'cancelled',
+                usageAvailability: 'unreported',
+            });
+            throw timeoutError;
+        });
+        await expect(runTranslationServiceConnectionTest('demo', {recordModelUsage}))
+            .rejects.toBe(timeoutError);
+        expect(recordModelUsage).toHaveBeenNthCalledWith(1, [
+            expect.objectContaining({
+                purpose: 'connection-test',
+                outcome: 'timeout',
+            }),
+        ]);
+
+        const httpTimeout = new Error('adapter omitted structured timeout');
+        adapter.mockImplementationOnce(async (message: Record<string, unknown>) => {
+            reportTranslationModelUsage(message, {
+                outcome: 'error',
+                statusCode: 408,
+                usageAvailability: 'unreported',
+            });
+            throw httpTimeout;
+        });
+        await expect(runTranslationServiceConnectionTest('demo', {recordModelUsage}))
+            .rejects.toBe(httpTimeout);
+        expect(recordModelUsage).toHaveBeenNthCalledWith(2, [
+            expect.objectContaining({
+                purpose: 'connection-test',
+                statusCode: 408,
+                outcome: 'timeout',
+            }),
+        ]);
+    });
+
+    it('区分取消与不同结构化超时，并处理非对象错误', async () => {
+        const abortError = new Error('caller cancelled');
+        abortError.name = 'AbortError';
+        adapter.mockRejectedValueOnce(abortError);
+        await expect(runTranslationServiceConnectionTest('demo')).rejects.toBe(abortError);
+
+        for (const timeoutError of [
+            Object.assign(new Error('named timeout'), {name: 'TimeoutError'}),
+            Object.assign(new Error('http timeout'), {statusCode: 408}),
+        ]) {
+            adapter.mockRejectedValueOnce(timeoutError);
+            await expect(runTranslationServiceConnectionTest('demo')).rejects.toBe(timeoutError);
+        }
+
+        adapter.mockRejectedValueOnce('plain failure');
+        await expect(runTranslationServiceConnectionTest('demo')).rejects.toBe('plain failure');
+    });
+
+    it('统计写入的异步或同步失败都只告警，不改变连接测试结果', async () => {
+        const asyncFailure = new Error('async usage failure');
+        const syncFailure = new Error('sync usage failure');
+        const warn = vi.fn();
+        adapter.mockImplementation(async (message: Record<string, unknown>) => {
+            reportTranslationModelUsage(message, {usageAvailability: 'unreported'});
+            return '测试译文';
+        });
+
+        await expect(runTranslationServiceConnectionTest('demo', {
+            recordModelUsage: vi.fn(async () => { throw asyncFailure; }),
+            warn,
+        })).resolves.toEqual(expect.objectContaining({durationMs: expect.any(Number)}));
+        await vi.waitFor(() => expect(warn).toHaveBeenCalledWith(
+            '[FluentRead] connection test usage write failed:',
+            asyncFailure,
+        ));
+
+        await expect(runTranslationServiceConnectionTest('demo', {
+            recordModelUsage: vi.fn(() => { throw syncFailure; }),
+            warn,
+        })).resolves.toEqual(expect.objectContaining({durationMs: expect.any(Number)}));
+        expect(warn).toHaveBeenCalledWith(
+            '[FluentRead] connection test usage write failed:',
+            syncFailure,
+        );
     });
 
     it('复用统一服务错误格式化器', () => {

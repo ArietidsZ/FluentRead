@@ -2,7 +2,7 @@
  * @file src/providers/translation/hunyuan-translation.ts
  *
  * 文件职责：适配腾讯混元翻译大模型的专用协议，处理支持语言映射、源语言检测和自定义请求体。
- * 主要内容：buildHunyuanTranslationRequestBody 生成模型 payload，provider 从快照读取 token/model，调用 endpoint 并校验 provider 错误码与翻译输出。 可核对的公开符号包括 buildHunyuanTranslationRequestBody、default:hunyuanTranslation。
+ * 主要内容：buildHunyuanTranslationRequestBody 生成模型 payload，provider 从快照读取 token/model，调用 endpoint、归一 Response.Usage 并校验 provider 错误码与翻译输出。 可核对的公开符号包括 buildHunyuanTranslationRequestBody、default:hunyuanTranslation。
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
@@ -10,14 +10,17 @@ import { method } from "@/src/core/config/constants";
 import { config } from "@/src/services/config/store";
 import { detectlang } from "@/src/core/language/detect";
 import { mergeCustomBody } from "@/src/core/config/customBody";
-import { services } from "@/src/core/config/catalog";
+import {resolveConfiguredModel, services} from "@/src/core/config/catalog";
 import {getTranslationLanguages} from '@/src/services/translation/languages';
 import {createHttpStatusError, createProviderCodeError, readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
 import {
     getTranslationProviderConfig,
+    reportTranslationModelUsage,
+    reportTranslationModelUsageFailure,
     type TranslationProviderRequest,
 } from '@/src/services/translation/requestSnapshot';
+import {normalizeHunyuanUsage} from './usage';
 
 // 混元翻译大模型支持的语言代码映射
 const languageMap: Record<string, string> = {
@@ -148,6 +151,7 @@ async function hunyuanTranslation(message: TranslationProviderRequest<string>) {
     if (!mappedTargetLang) throw new Error('混元翻译不支持该目标语言');
 
     const model = message.modelOverride || current.model[service] || 'hunyuan-translation';
+    const configuredModel = resolveConfiguredModel(model, current.customModel[service]) || model;
     const requestBody = buildHunyuanTranslationRequestBody(
         message.origin,
         mappedTargetLang,
@@ -159,34 +163,68 @@ async function hunyuanTranslation(message: TranslationProviderRequest<string>) {
     const authorization = await createHunyuanSignature(requestBodyStr, timestamp, secretId, secretKey);
     const url = current.proxy[service] || 'https://hunyuan.tencentcloudapi.com/';
 
-    const response = await runtimeFetch(url, {
-        method: method.POST,
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            'Host': 'hunyuan.tencentcloudapi.com',
-            'Authorization': authorization,
-            'X-TC-Action': 'ChatTranslations',
-            'X-TC-Version': '2023-09-01',
-            'X-TC-Region': 'ap-beijing',
-            'X-TC-Timestamp': timestamp.toString(),
-        },
-        body: requestBodyStr,
-        signal: message.abortSignal,
-    });
+    const startedAt = Date.now();
+    let attemptReported = false;
+    try {
+        const response = await runtimeFetch(url, {
+            method: method.POST,
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8',
+                'Host': 'hunyuan.tencentcloudapi.com',
+                'Authorization': authorization,
+                'X-TC-Action': 'ChatTranslations',
+                'X-TC-Version': '2023-09-01',
+                'X-TC-Region': 'ap-beijing',
+                'X-TC-Timestamp': timestamp.toString(),
+            },
+            body: requestBodyStr,
+            signal: message.abortSignal,
+        });
 
-    if (!response.ok) {
-        throw createHttpStatusError(response, '腾讯混元翻译请求失败');
-    }
+        if (!response.ok) {
+            reportTranslationModelUsageFailure(message, undefined, startedAt, configuredModel, response.status);
+            attemptReported = true;
+            throw createHttpStatusError(response, '腾讯混元翻译请求失败');
+        }
 
-    const result = await readJsonResponse<any>(response, '腾讯混元翻译返回的不是有效 JSON');
-    if (result.Response?.Error) {
-        throw createProviderCodeError('腾讯混元翻译错误', result.Response.Error.Code);
+        const result = await readJsonResponse<any>(response, '腾讯混元翻译返回的不是有效 JSON');
+        const reportedModel = result?.Response?.Model;
+        const actualModel = typeof reportedModel === 'string' && reportedModel.trim()
+            ? reportedModel
+            : configuredModel;
+        const usage = normalizeHunyuanUsage(result?.Response?.Usage, actualModel);
+        if (result.Response?.Error) {
+            reportTranslationModelUsage(message, {
+                ...usage,
+                startedAt,
+                durationMs: Math.max(0, Date.now() - startedAt),
+                outcome: 'error',
+                statusCode: response.status,
+            });
+            attemptReported = true;
+            throw createProviderCodeError('腾讯混元翻译错误', result.Response.Error.Code);
+        }
+        if (result.Response?.Choices && result.Response.Choices.length > 0) {
+            const translatedText = result.Response.Choices[0].Message?.Content;
+            if (translatedText) {
+                reportTranslationModelUsage(message, {
+                    ...usage,
+                    startedAt,
+                    durationMs: Math.max(0, Date.now() - startedAt),
+                    outcome: 'success',
+                    statusCode: response.status,
+                });
+                attemptReported = true;
+                return translatedText;
+            }
+        }
+        throw new Error('腾讯混元翻译返回格式异常');
+    } catch (error) {
+        if (!attemptReported) {
+            reportTranslationModelUsageFailure(message, error, startedAt, configuredModel);
+        }
+        throw error;
     }
-    if (result.Response?.Choices && result.Response.Choices.length > 0) {
-        const translatedText = result.Response.Choices[0].Message?.Content;
-        if (translatedText) return translatedText;
-    }
-    throw new Error('腾讯混元翻译返回格式异常');
 }
 
 export default hunyuanTranslation;
