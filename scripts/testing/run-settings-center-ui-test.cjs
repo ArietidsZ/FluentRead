@@ -77,14 +77,27 @@ async function chooseDifferentSelectOption(page, ariaLabel) {
   throw new Error(`${ariaLabel} 没有可切换的选项`);
 }
 
-function assertExportContainsNoDedicatedCredentials(value) {
+function assertExportContainsAllUserConfiguration(value) {
   const credentialFields = [
     'token', 'ak', 'sk', 'appid', 'key', 'youdaoAppKey', 'youdaoAppSecret',
     'tencentSecretId', 'tencentSecretKey', 'extra',
   ];
   for (const field of credentialFields) {
+    if (!Object.prototype.hasOwnProperty.call(value, field)) {
+      throw new Error(`导出配置缺少专用凭据字段：${field}`);
+    }
+  }
+  for (const field of ['system_role', 'user_role', 'model', 'customModel', 'customBody', 'proxy']) {
+    if (!value[field] || typeof value[field] !== 'object' || Array.isArray(value[field])) {
+      throw new Error(`导出配置缺少完整用户映射：${field}`);
+    }
+  }
+  if (typeof value.persistCredentials !== 'boolean') {
+    throw new Error('导出配置缺少凭据持久化用户设置');
+  }
+  for (const field of ['count', '__fluentConfigRevision', '__fluentCountOperations']) {
     if (Object.prototype.hasOwnProperty.call(value, field)) {
-      throw new Error(`导出配置仍包含专用凭据字段：${field}`);
+      throw new Error(`导出配置包含不可迁移运行字段：${field}`);
     }
   }
 }
@@ -130,12 +143,13 @@ async function main() {
     let workers = context.serviceWorkers().filter(worker => worker.url().startsWith('chrome-extension://'));
     if (workers.length === 0) workers = [await context.waitForEvent('serviceworker', {timeout})];
     const extensionId = new URL(workers[0].url()).host;
+    const extensionOrigin = `chrome-extension://${extensionId}`;
     const page = await newPageWithoutForeground(context, timeout);
     page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
     page.on('console', message => {
       if (message.type() === 'error') errors.push(`console: ${message.text()}`);
     });
-    await page.goto(`chrome-extension://${extensionId}/options.html#settings-general`, {waitUntil: 'domcontentloaded', timeout});
+    await page.goto(`${extensionOrigin}/options.html#settings-general`, {waitUntil: 'domcontentloaded', timeout});
     await page.locator('.settings-app').waitFor({state: 'visible', timeout});
     await page.setViewportSize({width: 1440, height: 1000});
 
@@ -372,16 +386,38 @@ async function main() {
     );
 
     await page.locator('button[data-section="settings-data"]').click();
-    const downloadPromise = page.waitForEvent('download', {timeout});
-    await page.getByRole('button', {name: '导出配置', exact: true}).click();
-    const download = await downloadPromise;
-    if (!/^fluentread-config-\d{4}-\d{2}-\d{2}\.json$/.test(download.suggestedFilename())) {
-      throw new Error(`导出文件名异常：${download.suggestedFilename()}`);
+    const transferActionLabels = (await page.locator('#settings-data .transfer-actions button').allTextContents())
+      .map(label => label.trim());
+    if (JSON.stringify(transferActionLabels) !== JSON.stringify(['导出配置', '导入配置'])) {
+      throw new Error(`配置迁移入口不是唯一的导出/导入两个选项：${JSON.stringify(transferActionLabels)}`);
     }
-    const exportedFile = path.join(artifactsDir, download.suggestedFilename());
-    await download.saveAs(exportedFile);
-    const exportedConfig = JSON.parse(fs.readFileSync(exportedFile, 'utf8'));
-    assertExportContainsNoDedicatedCredentials(exportedConfig);
+    await page.evaluate(() => {
+      const clipboard = navigator.clipboard;
+      if (!clipboard?.writeText) throw new Error('当前扩展页不支持 Clipboard.writeText');
+      const originalWriteText = clipboard.writeText.bind(clipboard);
+      Object.defineProperty(clipboard, 'writeText', {
+        configurable: true,
+        value: async text => {
+          await originalWriteText(text);
+          window.__fluentReadLastClipboardWrite = text;
+        },
+      });
+    });
+    await page.getByRole('button', {name: '导出配置', exact: true}).click();
+    const transferDialog = page.getByTestId('config-transfer-dialog');
+    await transferDialog.waitFor({state: 'visible', timeout});
+    await transferDialog.getByText('导出配置 JSON', {exact: true}).waitFor({state: 'visible', timeout});
+    const exportedText = await transferDialog.getByLabel('配置 JSON').inputValue();
+    const exportedConfig = JSON.parse(exportedText);
+    assertExportContainsAllUserConfiguration(exportedConfig);
+    await page.waitForTimeout(250);
+    report.screenshots.push(await screenshot(page, 'settings-config-export-dialog.png'));
+    await transferDialog.getByRole('button', {name: '复制', exact: true}).click();
+    await page.locator('.el-message:visible').filter({hasText: '配置 JSON 已复制'}).waitFor({state: 'visible', timeout});
+    const clipboardText = await page.evaluate(() => window.__fluentReadLastClipboardWrite);
+    if (clipboardText !== exportedText) throw new Error('复制按钮写入剪贴板的 JSON 与对话框内容不一致');
+    await transferDialog.getByRole('button', {name: '取消', exact: true}).click();
+    await transferDialog.waitFor({state: 'hidden', timeout});
 
     const legacyCredentialSentinel = 'legacy-preview-secret-sentinel';
     const importedConfig = {
@@ -389,11 +425,12 @@ async function main() {
       to: exportedConfig.to === 'en' ? 'ja' : 'en',
       token: {openai: legacyCredentialSentinel},
     };
-    await page.getByRole('button', {name: '粘贴 JSON', exact: true}).click();
-    const pasteDialog = page.locator('.el-dialog:visible').filter({hasText: '粘贴配置 JSON'});
-    await pasteDialog.waitFor({state: 'visible', timeout});
-    await pasteDialog.getByLabel('配置 JSON').fill(JSON.stringify(importedConfig));
-    await pasteDialog.getByRole('button', {name: '查看差异', exact: true}).click();
+    await page.getByRole('button', {name: '导入配置', exact: true}).click();
+    await transferDialog.waitFor({state: 'visible', timeout});
+    await transferDialog.getByText('粘贴配置 JSON', {exact: true}).waitFor({state: 'visible', timeout});
+    await transferDialog.getByLabel('配置 JSON').fill(JSON.stringify(importedConfig));
+    report.screenshots.push(await screenshot(page, 'settings-config-import-dialog.png'));
+    await transferDialog.getByRole('button', {name: '查看差异', exact: true}).click();
     await previewDialog.waitFor({state: 'visible', timeout});
     if (await previewDialog.locator('.diff-item').count() < 1) throw new Error('导入预览没有显示差异');
     await previewDialog.getByText('OpenAI API Key', {exact: true}).waitFor({state: 'visible', timeout});
@@ -418,7 +455,10 @@ async function main() {
     report.assertions.twoBackupStreams = true;
     report.assertions.previewBeforeRestore = true;
     report.assertions.restoreWithConfirmation = true;
-    report.assertions.exportDownload = true;
+    report.assertions.onlyTwoTransferActions = true;
+    report.assertions.exportDialog = true;
+    report.assertions.exportIncludesUserConfiguration = true;
+    report.assertions.exportClipboard = true;
     report.assertions.importPreview = true;
 
     for (const viewport of [

@@ -1,8 +1,8 @@
 /**
  * @file src/core/config/transfer.ts
  *
- * 文件职责：负责配置导入与导出的纯数据转换，确保外部文件只携带允许公开和恢复的配置字段。
- * 主要内容：验证导入对象所需字段，使用 sanitizeConfigForExport 剔除凭据和内部修订信息，并通过 prepareConfigForImport 将合法公开值合并到当前 Config。 可核对的公开符号包括 isConfigImportValid、sanitizeConfigForExport、prepareConfigForImport。
+ * 文件职责：负责配置导入与导出的纯数据转换，区分可公开配置与用户主动复制的完整可迁移配置。
+ * 主要内容：验证导入对象所需字段，使用 sanitizeConfigForExport 生成脱敏公开配置，使用 prepareConfigForExport 保留完整用户设置与专用凭据，并通过 prepareConfigForImport 将合法值合并到当前 Config。 可核对的公开符号包括 isConfigImportValid、sanitizeConfigForExport、prepareConfigForExport、prepareConfigForImport。
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
@@ -103,9 +103,25 @@ export function sanitizeConfigForExport(value: unknown): ConfigRecord {
 }
 
 /**
- * 新版导出不含凭据，因此导入时保留当前 session 凭据；旧版导出若含凭据，
- * 则只迁移文件明确提供的字段，未提供的凭据继续保留。翻译统计、迁移标记和持久化开关始终保留当前值，
- * 不能由导入文件静默覆盖。
+ * 生成由用户在配置管理页主动复制的完整迁移配置。
+ *
+ * 与可分享的公开配置不同，这份 JSON 会保留所有当前设置、提示词、自定义请求参数
+ * 以及专用 API 凭据。翻译次数属于使用统计，不进入迁移文件；存储 revision 已由
+ * normalizeConfig 在边界处移除。凭据持久化开关仍会如实导出，但现有导入边界会
+ * 保持目标设备的当前选择，不允许配置文件静默改变本地明文持久化策略。
+ */
+export function prepareConfigForExport(value: unknown): ConfigRecord {
+  if (!isRecord(value)) throw new Error('配置必须是 JSON 对象')
+
+  const exported = normalizeConfig(value) as unknown as ConfigRecord
+  delete exported.count
+  return exported
+}
+
+/**
+ * 导入不含凭据的公开配置时保留当前 session 凭据；导入完整迁移配置或含凭据的
+ * 旧版文件时，只更新 JSON 明确提供的凭据字段，未提供的凭据继续保留。翻译统计、
+ * 迁移标记和持久化开关始终保留当前值，不能由导入内容静默覆盖。
  */
 export function prepareConfigForImport(value: unknown, current: unknown): Config {
   if (!isConfigImportValid(value)) throw new TypeError('导入配置缺少有效的基础字段')
