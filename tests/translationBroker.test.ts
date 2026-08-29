@@ -124,7 +124,11 @@ let translateWithCache: TranslationBroker['translateWithCache'];
 let clearTranslationCache: TranslationBroker['clearTranslationCache'];
 let cleanupTranslationCache: TranslationBroker['cleanupTranslationCache'];
 
-function installBroker(now?: () => number, ready: Promise<unknown> = Promise.resolve()): void {
+function installBroker(
+    now?: () => number,
+    ready: Promise<unknown> = Promise.resolve(),
+    includeModelUsageGeneration = true,
+): void {
     const broker = createTranslationBroker({
         ready,
         getConfig: () => mocks.config,
@@ -159,7 +163,7 @@ function installBroker(now?: () => number, ready: Promise<unknown> = Promise.res
         }),
         resolveConfiguredModel: (selected?: string, custom?: string) => custom || selected || '',
         buildTranslationCacheKey: mocks.buildTranslationCacheKey,
-        captureModelUsageGeneration: () => 7,
+        captureModelUsageGeneration: includeModelUsageGeneration ? () => 7 : undefined,
         recordModelUsage: mocks.recordModelUsage,
         now,
     });
@@ -2521,6 +2525,21 @@ describe('translation broker', () => {
                 cachedInputTokens: 4,
             }),
         ]);
+    });
+
+    it('未提供模型用量代次端口时以零代次记录真实 AI 调用', async () => {
+        mocks.config.service = 'aiSdk';
+        mocks.config.useCache = false;
+        installBroker(undefined, Promise.resolve(), false);
+        mocks.service.mockImplementation(async (message: Record<string, unknown>) => {
+            reportTranslationModelUsage(message, {usageAvailability: 'unreported'});
+            return '零代次译文';
+        });
+
+        await expect(translateWithCache({origin: 'usage-generation-fallback'})).resolves.toBe('零代次译文');
+        expect(mocks.recordModelUsage).toHaveBeenCalledWith([
+            expect.objectContaining({purpose: 'translation', outcome: 'success'}),
+        ], 0);
     });
 
     it('区分摘要与正文，并把同一 provider 内的多次真实尝试逐条落库', async () => {
