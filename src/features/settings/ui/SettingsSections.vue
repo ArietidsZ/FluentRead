@@ -474,6 +474,17 @@
         </el-row>
 
         <el-row class="settings-control-row">
+          <el-col :span="20" class="settings-control-label lightblue rounded-corner">
+            <el-tooltip class="box-item" effect="dark" content="开启后，使用支持通用提示词的 AI 服务进行全文翻译时，会把相邻短段合并为一次请求；机器翻译、悬浮、划词和输入框翻译不受影响。" placement="top-start" :show-after="500">
+              <span class="popup-text popup-vertical-left">AI 多段翻译<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
+            </el-tooltip>
+          </el-col>
+          <el-col :span="4" class="settings-control-field flex-end">
+            <el-switch v-model="config.enableAIMultiSegment" class="settings-toggle" aria-label="AI 多段翻译" />
+          </el-col>
+        </el-row>
+
+        <el-row class="settings-control-row">
           <el-col :span="14" class="settings-control-label lightblue rounded-corner">
             <el-tooltip class="box-item" effect="dark" content="按阅读进度会预翻译视口附近内容；立即翻译到网页底部会处理当前已加载的整页内容，并持续翻译之后新增的内容。它不会自动滚动页面，但在无限滚动页面可能产生较多翻译请求和服务费用。设置会在下次启动全文翻译时生效。" placement="top-start" :show-after="500">
               <span class="popup-text popup-vertical-left">全文翻译范围<el-icon class="icon-margin"><InfoFilled /></el-icon></span>

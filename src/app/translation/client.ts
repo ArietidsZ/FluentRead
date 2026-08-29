@@ -309,6 +309,7 @@ export async function translateTextBatch(
             context,
             pageContext,
             origin: origins,
+            ...(options.aiMultiSegment === true ? {aiMultiSegment: true} : {}),
             useCache,
             serviceOverride: selectedService,
             sourceLanguage: selectedLanguages.sourceLanguage,
@@ -322,7 +323,10 @@ export async function translateTextBatch(
         );
         const result = unwrapTranslationResponse<string[]>(response);
 
-        if (!Array.isArray(result) || result.length !== origins.length || result.some(item => typeof item !== 'string')) {
+        if (!Array.isArray(result)
+          || result.length !== origins.length
+          || Array.from({length: origins.length}, (_, index) => result[index])
+            .some(item => typeof item !== 'string')) {
           throw new Error('批量翻译返回格式异常');
         }
 
@@ -410,6 +414,8 @@ export interface TranslateOptions {
   pageContext?: string;
   /** 内部结构化数据包含有 ASCII 哨兵标记，不应影响源语言检测。 */
   skipLanguageDetection?: boolean;
+  /** 仅全文翻译内部使用：要求 broker 将多个 AI 段落合并为一次上游请求。 */
+  aiMultiSegment?: boolean;
   /** DOM 尝试恢复后，取消重试等待并忽略迟到的 runtime 响应。 */
   signal?: AbortSignal;
   /** 一次 DOM 尝试取消时，用于拒绝尚未开始任务的队列作用域。 */

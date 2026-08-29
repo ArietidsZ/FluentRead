@@ -1,20 +1,23 @@
 /**
  * @file src/features/full-page-translation/content/translationRequest.ts
- * 文件职责：为单次全文翻译会话冻结请求配置，并执行文本槽的批量、分包、回退与会话级结果复用。
- * 主要内容：捕获服务/模型/语言/缓存/展示快照，构造显式 client 参数，按服务选择批译策略，并维护有界的会话槽缓存。
+ * 文件职责：为单次全文翻译会话冻结请求配置，并执行文本槽的批量、AI 跨候选合并、分包、回退与会话级结果复用。
+ * 主要内容：捕获服务/模型/语言/缓存/展示快照，构造显式 client 参数，按服务选择批译策略，严格隔离 AI 批次快照并维护有界的会话槽缓存。
  * 模块边界：本文件不发现候选、不持有 DOM 翻译状态也不渲染译文；runtime 提供会话缓存和取消作用域，client 负责后台协议与队列执行。
  */
-import {resolveConfiguredModel, services} from '@/src/core/config/catalog';
+import {resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
 import {styles} from '@/src/core/config/constants';
 import {parseTranslationSlots, serializeTranslationSlots} from '@/src/core/translation/public';
 import {config} from '@/src/services/config/store';
 import {translateText, translateTextBatch, type TranslateOptions} from '@/src/app/translation/client';
 import {
     cancelTranslationQueueSession,
+    createTranslationQueueSession,
     type TranslationQueueSession,
 } from '@/src/services/translation/queue';
 
 const FULL_PAGE_TRANSLATION_CACHE_LIMIT = 512;
+const AI_MULTI_SEGMENT_MAX_TEXT_SLOTS = 4;
+const AI_MULTI_SEGMENT_MAX_CHARACTERS = 2_000;
 
 export interface FullPageTranslationConfigSnapshot {
     service: string;
@@ -22,6 +25,7 @@ export interface FullPageTranslationConfigSnapshot {
     sourceLanguage: string;
     targetLanguage: string;
     useCache: boolean;
+    enableAIMultiSegment: boolean;
     displayMode: 'bilingual' | 'single';
     style: number;
 }
@@ -33,13 +37,32 @@ export interface FullPageTranslationCacheEntry {
 
 type SnapshotTranslateExecutionOptions = Pick<
     TranslateOptions,
-    'queueSession' | 'signal' | 'skipLanguageDetection' | 'useCache'
+    'aiMultiSegment' | 'queueSession' | 'signal' | 'skipLanguageDetection' | 'useCache'
 >;
 
 interface FullPageTranslationSessionCache {
     active: boolean;
     translationSlotCache: Map<string, FullPageTranslationCacheEntry>;
 }
+
+interface AIMultiSegmentTask {
+    origins: readonly string[];
+    snapshot: FullPageTranslationConfigSnapshot;
+    signal?: AbortSignal;
+    queueSession?: TranslationQueueSession;
+    settled: boolean;
+    resolve: (translations: string[]) => void;
+    reject: (error: unknown) => void;
+    removeAbortListener: () => void;
+    abortSharedBatch?: () => void;
+}
+
+interface AIMultiSegmentQueue {
+    pending: AIMultiSegmentTask[];
+    flushScheduled: boolean;
+}
+
+const aiMultiSegmentQueues = new WeakMap<FullPageTranslationSessionCache, AIMultiSegmentQueue>();
 
 export function captureFullPageTranslationConfig(): FullPageTranslationConfigSnapshot {
     const service = config.service;
@@ -49,6 +72,7 @@ export function captureFullPageTranslationConfig(): FullPageTranslationConfigSna
         sourceLanguage: config.from,
         targetLanguage: config.to,
         useCache: config.useCache,
+        enableAIMultiSegment: config.enableAIMultiSegment,
         displayMode: config.display === styles.bilingualTranslation ? 'bilingual' : 'single',
         style: config.style,
     };
@@ -81,6 +105,10 @@ function createAbortError(): Error {
 
 function throwIfAborted(signal?: AbortSignal): void {
     if (signal?.aborted) throw createAbortError();
+}
+
+function isAbortError(error: unknown): boolean {
+    return error instanceof Error && error.name === 'AbortError';
 }
 
 async function translateSlotsIndividually(
@@ -164,7 +192,195 @@ function rememberTranslation(
     );
 }
 
-export async function translateTextSlots(
+function resolveAIMultiSegmentTask(task: AIMultiSegmentTask, translations: string[]): void {
+    if (task.settled) return;
+    task.settled = true;
+    task.removeAbortListener();
+    task.resolve(translations);
+}
+
+function rejectAIMultiSegmentTask(task: AIMultiSegmentTask, error: unknown): void {
+    if (task.settled) return;
+    task.settled = true;
+    task.removeAbortListener();
+    task.reject(error);
+}
+
+function shouldFallbackAIMultiSegmentBatch(error: unknown): boolean {
+    if (!error || typeof error !== 'object') return false;
+    const candidate = error as {kind?: unknown; code?: unknown};
+    return candidate.kind === 'response'
+        && candidate.code === 'AI_MULTI_SEGMENT_RESPONSE_INVALID';
+}
+
+function createAIMultiSegmentSnapshotKey(snapshot: FullPageTranslationConfigSnapshot): string {
+    return JSON.stringify({
+        service: snapshot.service,
+        model: snapshot.model,
+        from: snapshot.sourceLanguage,
+        to: snapshot.targetLanguage,
+        useCache: snapshot.useCache,
+    });
+}
+
+function takeAIMultiSegmentBatch(queue: AIMultiSegmentQueue): AIMultiSegmentTask[] {
+    const batch: AIMultiSegmentTask[] = [];
+    let characters = 0;
+    let textSlots = 0;
+    let snapshotKey = '';
+    while (queue.pending.length > 0) {
+        const next = queue.pending[0]!;
+        if (next.settled || next.signal?.aborted) {
+            queue.pending.shift();
+            continue;
+        }
+        const nextSnapshotKey = createAIMultiSegmentSnapshotKey(next.snapshot);
+        if (batch.length > 0 && nextSnapshotKey !== snapshotKey) break;
+        const nextCharacters = next.origins.reduce((total, origin) => total + (origin?.length ?? 0), 0);
+        const nextTextSlots = next.origins.length;
+        if (batch.length > 0 && (
+            textSlots + nextTextSlots > AI_MULTI_SEGMENT_MAX_TEXT_SLOTS
+            || characters + nextCharacters > AI_MULTI_SEGMENT_MAX_CHARACTERS
+        )) break;
+        queue.pending.shift();
+        batch.push(next);
+        snapshotKey = nextSnapshotKey;
+        textSlots += nextTextSlots;
+        characters += nextCharacters;
+    }
+    return batch;
+}
+
+async function fallbackAIMultiSegmentTasks(tasks: readonly AIMultiSegmentTask[]): Promise<void> {
+    const activeTasks = tasks.filter((task) => !task.settled && !task.signal?.aborted);
+    // 多段协议已失败时直接逐槽降级，不再为每个候选重试一次相同结构化协议。
+    const outcomes = await Promise.allSettled(activeTasks.map((task) => translateSlotsIndividually(
+        task.origins,
+        task.snapshot,
+        task.signal,
+        task.queueSession,
+    )));
+    outcomes.forEach((outcome, index) => {
+        const task = activeTasks[index];
+        if (!task) return;
+        if (outcome.status === 'fulfilled') resolveAIMultiSegmentTask(task, outcome.value);
+        else rejectAIMultiSegmentTask(task, outcome.reason);
+    });
+}
+
+async function executeAIMultiSegmentBatch(tasks: AIMultiSegmentTask[]): Promise<void> {
+    const activeTasks = tasks.filter((task) => !task.settled && !task.signal?.aborted);
+    if (activeTasks.length === 0) return;
+    if (activeTasks.length === 1) {
+        const task = activeTasks[0]!;
+        try {
+            resolveAIMultiSegmentTask(task, await translateTextSlotsDirectly(
+                task.origins,
+                task.snapshot,
+                task.signal,
+                task.queueSession,
+            ));
+        } catch (error) {
+            rejectAIMultiSegmentTask(task, error);
+        }
+        return;
+    }
+
+    const snapshot = activeTasks[0]!.snapshot;
+    const controller = new AbortController();
+    const sharedQueueSession = createTranslationQueueSession();
+    const abortSharedBatchIfUnused = () => {
+        if (activeTasks.some((task) => !task.settled && !task.signal?.aborted)) return;
+        if (!controller.signal.aborted) controller.abort();
+        cancelTranslationQueueSession(sharedQueueSession, createAbortError());
+    };
+    activeTasks.forEach((task) => {
+        task.abortSharedBatch = abortSharedBatchIfUnused;
+    });
+
+    const origins = activeTasks.flatMap((task) => [...task.origins]);
+    try {
+        const translations = await translateTextBatch(
+            origins,
+            document.title,
+            createSnapshotTranslateOptions(snapshot, {
+                aiMultiSegment: true,
+                signal: controller.signal,
+                queueSession: sharedQueueSession,
+            }),
+        );
+        let offset = 0;
+        activeTasks.forEach((task) => {
+            const nextOffset = offset + task.origins.length;
+            resolveAIMultiSegmentTask(task, translations.slice(offset, nextOffset));
+            offset = nextOffset;
+        });
+    } catch (error) {
+        if (shouldFallbackAIMultiSegmentBatch(error)) {
+            await fallbackAIMultiSegmentTasks(activeTasks);
+        } else if (!isAbortError(error) || activeTasks.some((task) => !task.settled)) {
+            activeTasks.forEach((task) => rejectAIMultiSegmentTask(task, error));
+        }
+    } finally {
+        activeTasks.forEach((task) => {
+            task.abortSharedBatch = undefined;
+        });
+    }
+}
+
+function flushAIMultiSegmentQueue(queue: AIMultiSegmentQueue): void {
+    queue.flushScheduled = false;
+    while (queue.pending.length > 0) {
+        const batch = takeAIMultiSegmentBatch(queue);
+        if (batch.length === 0) continue;
+        void executeAIMultiSegmentBatch(batch);
+    }
+}
+
+function enqueueAIMultiSegmentTask(
+    origins: readonly string[],
+    snapshot: FullPageTranslationConfigSnapshot,
+    signal: AbortSignal | undefined,
+    queueSession: TranslationQueueSession | undefined,
+    session: FullPageTranslationSessionCache,
+): Promise<string[]> {
+    throwIfAborted(signal);
+    let queue = aiMultiSegmentQueues.get(session);
+    if (!queue) {
+        queue = {pending: [], flushScheduled: false};
+        aiMultiSegmentQueues.set(session, queue);
+    }
+
+    return new Promise<string[]>((resolve, reject) => {
+        const task: AIMultiSegmentTask = {
+            origins,
+            snapshot,
+            signal,
+            queueSession,
+            settled: false,
+            resolve,
+            reject,
+            removeAbortListener: () => undefined,
+        };
+        const onAbort = () => {
+            rejectAIMultiSegmentTask(task, createAbortError());
+            task.abortSharedBatch?.();
+        };
+        if (signal) {
+            signal.addEventListener('abort', onAbort, {once: true});
+            task.removeAbortListener = () => signal.removeEventListener('abort', onAbort);
+        }
+        queue!.pending.push(task);
+        if (!queue!.flushScheduled) {
+            queue!.flushScheduled = true;
+            const schedule = globalThis.queueMicrotask
+                ?? ((callback: VoidFunction) => void Promise.resolve().then(callback));
+            schedule(() => flushAIMultiSegmentQueue(queue!));
+        }
+    });
+}
+
+async function translateTextSlotsDirectly(
     origins: readonly string[],
     snapshot: FullPageTranslationConfigSnapshot,
     signal?: AbortSignal,
@@ -238,4 +454,22 @@ export async function translateTextSlots(
     const parsed = parseTranslationSlots(packet, combined);
     if (parsed?.length === origins.length) return parsed;
     return translateSlotsIndividually(origins, snapshot, signal, queueSession);
+}
+
+export async function translateTextSlots(
+    origins: readonly string[],
+    snapshot: FullPageTranslationConfigSnapshot,
+    signal?: AbortSignal,
+    queueSession?: TranslationQueueSession,
+    fullPageSession?: FullPageTranslationSessionCache,
+): Promise<string[]> {
+    if (origins.length === 0) return [];
+    throwIfAborted(signal);
+    const canCombineAIParagraphs = snapshot.enableAIMultiSegment
+        && servicesType.isUseAIContext(snapshot.service, snapshot.model)
+        && fullPageSession?.active;
+    if (canCombineAIParagraphs) {
+        return enqueueAIMultiSegmentTask(origins, snapshot, signal, queueSession, fullPageSession);
+    }
+    return translateTextSlotsDirectly(origins, snapshot, signal, queueSession, fullPageSession);
 }

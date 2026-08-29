@@ -10,6 +10,8 @@ export interface TranslationRequestMessageBase {
     context?: string;
     pageContext?: string;
     useCache?: boolean;
+    /** 全文翻译内部标记；仅允许通用提示词型 AI 把数组合并为一次上游请求。 */
+    aiMultiSegment?: boolean;
     /** 视频字幕、文档等独立入口使用的翻译服务；普通网页请求不设置。 */
     serviceOverride?: string;
     /** 文档、翻译中心等独立入口指定的实际模型；普通网页请求不设置。 */

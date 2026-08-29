@@ -82,6 +82,9 @@ describe('options navigation view-model', () => {
     expect(filterNavigationItems('鼠标悬浮')).toEqual([
       expect.objectContaining({ id: 'settings-translation' }),
     ])
+    expect(filterNavigationItems('AI 多段翻译')).toEqual([
+      expect.objectContaining({ id: 'settings-translation' }),
+    ])
     expect(filterNavigationItems('')).toEqual([])
     expect(filterNavigationItems('不存在的设置项')).toEqual([])
   })
