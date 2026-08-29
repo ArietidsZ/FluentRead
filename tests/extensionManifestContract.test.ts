@@ -29,7 +29,12 @@ describe('extension manifest capability contract', () => {
             const permissions = permissionsFor(browser, manifestVersion);
             expect(permissions.filter((permission) => permission === 'offscreen'), `${browser}-mv${manifestVersion}`)
                 .toHaveLength(expected);
-            expect(permissions).toEqual(expect.arrayContaining(['storage', 'alarms', 'contextMenus']));
+            expect(permissions).toEqual(expect.arrayContaining([
+                'storage',
+                'unlimitedStorage',
+                'alarms',
+                'contextMenus',
+            ]));
         }
     });
 

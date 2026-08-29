@@ -5,20 +5,23 @@ const userscriptStorage = vi.hoisted(() => ({
     writes: [] as Array<[string, unknown]>,
 }));
 
-vi.mock('@wxt-dev/storage', () => ({
-    storage: {
-        getItem: vi.fn(async (key: string) => userscriptStorage.values.get(key) ?? null),
-        setItem: vi.fn(async (key: string, value: unknown) => {
-            const snapshot = structuredClone(value);
-            userscriptStorage.values.set(key, snapshot);
-            userscriptStorage.writes.push([key, snapshot]);
-        }),
-        removeItem: vi.fn(async (key: string) => {
-            userscriptStorage.values.delete(key);
-        }),
-        watch: vi.fn(() => () => undefined),
-    },
+const userscriptStoragePort = vi.hoisted(() => ({
+    getItem: vi.fn(async (key: string) => userscriptStorage.values.get(key) ?? null),
+    setItem: vi.fn(async (key: string, value: unknown) => {
+        const snapshot = structuredClone(value);
+        userscriptStorage.values.set(key, snapshot);
+        userscriptStorage.writes.push([key, snapshot]);
+    }),
+    removeItem: vi.fn(async (key: string) => {
+        userscriptStorage.values.delete(key);
+    }),
+    watch: vi.fn(() => () => undefined),
 }));
+
+vi.mock('@wxt-dev/storage', () => ({
+    storage: userscriptStoragePort,
+}));
+vi.mock('@/src/platform/storage/configStorageRuntime', () => ({configStorage: userscriptStoragePort}));
 
 // Userscript Vite 使用同名平台替换模块；这里验证该可信 GM 模式下的完整读写生命周期。
 vi.mock('@/src/platform/storage/credentialContext', () => ({

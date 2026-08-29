@@ -98,8 +98,9 @@ async function evaluateAsyncJson(client, frame, source) {
     throw new Error('Firefox async evaluation timeout');
 }
 
-const CONFIG_PROJECTION_SOURCE = `browser.storage.local.get(null).then(all => {
-    const value = all.config || all['local:config'];
+const CONFIG_PROJECTION_SOURCE = `browser.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}).then(response => {
+    if (response?.success !== true) throw new Error(response?.error || 'configStorageRead failed');
+    const value = response.value;
     return {on: value?.on, from: value?.from, to: value?.to, service: value?.service, style: value?.style, display: value?.display, theme: value?.theme};
 })`;
 
@@ -122,18 +123,34 @@ const CREDENTIAL_FIELDS = [
 
 function credentialStorageSnapshotSource(sentinel) {
     return `(async () => {
-        if (!browser.storage.session || typeof browser.storage.session.get !== 'function') {
-            throw new Error('browser.storage.session is unavailable');
-        }
-        const [local, session] = await Promise.all([
-            browser.storage.local.get(null),
-            browser.storage.session.get(null),
+        const read = async key => {
+            const response = await browser.runtime.sendMessage({type: 'configStorageRead', key});
+            if (response?.success !== true) throw new Error(response?.error || 'configStorageRead failed: ' + key);
+            return response.value ?? null;
+        };
+        const [config, history, localCredentials, sessionCredentials] = await Promise.all([
+            read('local:config'),
+            read('local:configHistory'),
+            read('local:credentials'),
+            read('session:credentials'),
         ]);
-        const config = local.config || local['local:config'] || null;
-        const history = local.configHistory || local['local:configHistory'] || null;
-        const localCredentials = local.credentials || local['local:credentials'] || null;
-        const sessionCredentials = session.credentials || session['session:credentials'] || null;
+        const database = await new Promise((resolve, reject) => {
+            const request = indexedDB.open('FluentReadConfiguration');
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+        let rawRecords;
+        try {
+            rawRecords = await new Promise((resolve, reject) => {
+                const request = database.transaction('records', 'readonly').objectStore('records').getAll();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        } finally {
+            database.close();
+        }
         const credentialFields = ${JSON.stringify(CREDENTIAL_FIELDS)};
+        const requiredEncryptedRecordKeys = ['local:config', 'local:configHistory'];
         const historyConfigs = Array.isArray(history?.entries)
             ? history.entries.map(entry => entry?.config).filter(Boolean)
             : [];
@@ -148,6 +165,14 @@ function credentialStorageSnapshotSource(sentinel) {
             sessionHasSentinel: containsSentinel(sessionCredentials),
             localCredentialsPresent: localCredentials !== null,
             localCredentialsHasSentinel: containsSentinel(localCredentials),
+            rawIndexedDbHasSentinel: containsSentinel(rawRecords),
+            encryptedRecordKeys: rawRecords.map(record => record.key).sort(),
+            requiredEncryptedRecordKeysPresent: requiredEncryptedRecordKeys
+                .every(key => rawRecords.some(record => record?.key === key)),
+            encryptedEnvelopesValid: rawRecords.length > 0
+                && rawRecords.every(record => record?.payload?.format === 'fluentread-config'
+                && record?.payload?.version === 1
+                && record?.payload?.algorithm === 'AES-GCM'),
         };
     })()`;
 }
@@ -183,20 +208,18 @@ async function waitForCredentialStorage(client, sentinel, expected, label) {
 
 function credentialSaveSource({clientId, sequence, sentinel, sentinelKey, persistCredentials, removeSentinel = false}) {
     return `(async () => {
-        if (!browser.storage.session || typeof browser.storage.session.get !== 'function') {
-            throw new Error('browser.storage.session is unavailable');
-        }
-        const [local, session] = await Promise.all([
-            browser.storage.local.get(null),
-            browser.storage.session.get(null),
+        const read = async key => {
+            const response = await browser.runtime.sendMessage({type: 'configStorageRead', key});
+            if (response?.success !== true) throw new Error(response?.error || 'configStorageRead failed: ' + key);
+            return response.value ?? null;
+        };
+        const [current, sessionCredentials, localCredentials] = await Promise.all([
+            read('local:config'),
+            read('session:credentials'),
+            read('local:credentials'),
         ]);
-        const current = local.config || local['local:config'];
-        if (!current || typeof current !== 'object') throw new Error('local config is unavailable');
-        const activeCredentials = session.credentials
-            || session['session:credentials']
-            || local.credentials
-            || local['local:credentials']
-            || {};
+        if (!current || typeof current !== 'object') throw new Error('encrypted config is unavailable');
+        const activeCredentials = sessionCredentials || localCredentials || {};
         const config = {...current, persistCredentials: ${persistCredentials ? 'true' : 'false'}};
         for (const field of ${JSON.stringify(CREDENTIAL_FIELDS)}) {
             if (Object.prototype.hasOwnProperty.call(activeCredentials, field)) {
@@ -270,6 +293,9 @@ async function runCredentialLifecycle(client, result) {
         historyCredentialFields: [],
         configHasSentinel: false,
         historyHasSentinel: false,
+        rawIndexedDbHasSentinel: false,
+        requiredEncryptedRecordKeysPresent: true,
+        encryptedEnvelopesValid: true,
     };
 
     result.credentialCases = {
@@ -288,7 +314,7 @@ async function runCredentialLifecycle(client, result) {
         const initial = await readCredentialStorageSnapshot(client, sentinel);
         result.credentialCases.sessionAvailable = initial?.sessionAvailable === true;
         if (!result.credentialCases.sessionAvailable) {
-            throw new Error('Firefox credential lifecycle requires browser.storage.session');
+            throw new Error('Firefox credential lifecycle requires the encrypted session credential repository');
         }
 
         sequence += 1;
@@ -485,7 +511,10 @@ async function main() {
         result.persistenceCases.optionsLabel = await evaluateJson(client, beforeClose.frame, `document.querySelector('[aria-label="默认目标语言"]')?.parentElement?.parentElement?.querySelector('.el-select__selected-item:not(.el-select__input-wrapper)')?.textContent?.trim() || null`);
         const storageDeadline = Date.now() + 5000;
         do {
-            result.persistenceCases.storageBeforeClose = await evaluateAsyncJson(client, beforeClose.frame, `browser.storage.local.get(null).then(all => { const value = all.config || all['local:config']; return {keys: Object.keys(all), to: value?.to, revision: value?.__fluentConfigRevision}; })`);
+            result.persistenceCases.storageBeforeClose = await evaluateAsyncJson(client, beforeClose.frame, `browser.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}).then(response => {
+                if (response?.success !== true) throw new Error(response?.error || 'configStorageRead failed');
+                return {channel: 'configStorageRead', to: response.value?.to, revision: response.value?.__fluentConfigRevision};
+            })`);
             if (result.persistenceCases.storageBeforeClose.to === 'ja') break;
             await sleep(100);
         } while (Date.now() < storageDeadline);
@@ -497,7 +526,10 @@ async function main() {
         result.persistenceCases.quickClose = true;
         const reopened = await waitForDom(client, `document.querySelector('.popup-shell')`, 'popup reopen');
         result.persistenceCases.after = await evaluateJson(client, reopened.current.frame, `document.querySelectorAll('.language-pair select')[1]?.value || null`);
-        result.persistenceCases.storageAfterClose = await evaluateAsyncJson(client, reopened.current.frame, `browser.storage.local.get(null).then(all => { const value = all.config || all['local:config']; return {keys: Object.keys(all), to: value?.to, revision: value?.__fluentConfigRevision}; })`);
+        result.persistenceCases.storageAfterClose = await evaluateAsyncJson(client, reopened.current.frame, `browser.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}).then(response => {
+            if (response?.success !== true) throw new Error(response?.error || 'configStorageRead failed');
+            return {channel: 'configStorageRead', to: response.value?.to, revision: response.value?.__fluentConfigRevision};
+        })`);
         result.persistenceCases.crossPageSync = result.persistenceCases.after === 'ja';
         result.persistenceCases.latestWriteWins = result.persistenceCases.crossPageSync;
         result.evidence.push({step: 'popup-reopen', url: reopened.current.frame.url, target: result.persistenceCases.after, storage: result.persistenceCases.storageAfterClose});
@@ -514,34 +546,26 @@ async function main() {
             button.click();
             return true;
         })()`);
-        const historyPanel = await waitForDom(client, `document.querySelector('.config-history-panel')?.offsetParent !== null`, 'config history panel');
+        const historyPanel = await waitForDom(client, `document.querySelector('#settings-data .version-panel')?.offsetParent !== null`, 'config history panel');
         result.historyCases = await evaluateJson(client, historyPanel.current.frame, `(() => {
-            const entries = [...document.querySelectorAll('.config-history-entry')];
-            const current = document.querySelector('.config-history-entry.current .config-history-version b')?.textContent?.trim() || null;
-            const undoButton = document.querySelector('[aria-label="撤销配置恢复"]');
-            const redoButton = document.querySelector('[aria-label="重做配置恢复"]');
+            const entries = [...document.querySelectorAll('#settings-data .version-panel:first-of-type .version-entry')];
+            const current = document.querySelector('#settings-data .version-panel:first-of-type .version-entry.current .version-badge')?.textContent?.trim() || null;
             return {
                 count: entries.length,
-                versions: entries.map(entry => entry.querySelector('.config-history-version b')?.textContent?.trim() || null),
-                timestamps: entries.map(entry => entry.querySelector('.config-history-detail small')?.textContent?.trim() || null),
+                versions: entries.map(entry => entry.querySelector('.version-badge')?.textContent?.trim() || null),
+                timestamps: entries.map(entry => entry.querySelector('.version-copy small')?.textContent?.trim() || null),
                 current,
-                hasUndo: undoButton instanceof HTMLButtonElement,
-                hasRedo: redoButton instanceof HTMLButtonElement,
-                canUndo: undoButton instanceof HTMLButtonElement && !undoButton.disabled,
-                canRedo: redoButton instanceof HTMLButtonElement && !redoButton.disabled,
             };
         })()`);
         if (result.historyCases.count < 3 || result.historyCases.count > 5) throw new Error(`Firefox 配置历史条目数量异常: ${JSON.stringify(result.historyCases)}`);
-        if (!result.historyCases.hasUndo || !result.historyCases.hasRedo || !result.historyCases.canUndo || result.historyCases.canRedo) {
-            throw new Error(`Firefox 配置历史撤销/重做按钮状态异常: ${JSON.stringify(result.historyCases)}`);
-        }
         if (new Set(result.historyCases.versions).size !== result.historyCases.count || result.historyCases.versions.some(value => !/^v\d+$/.test(value))) {
             throw new Error(`Firefox 配置历史版本号异常: ${JSON.stringify(result.historyCases)}`);
         }
         if (result.historyCases.timestamps.some(value => !value)) throw new Error('Firefox 配置历史缺少时间');
 
-        const persistedHistory = await evaluateAsyncJson(client, (await selectedFrame(client)).frame, `browser.storage.local.get(null).then(all => {
-            const history = all.configHistory || all['local:configHistory'];
+        const persistedHistory = await evaluateAsyncJson(client, (await selectedFrame(client)).frame, `browser.runtime.sendMessage({type: 'configStorageRead', key: 'local:configHistory'}).then(response => {
+            if (response?.success !== true) throw new Error(response?.error || 'configStorageRead history failed');
+            const history = response.value;
             return {
                 cursor: history?.cursor ?? null,
                 entries: Array.isArray(history?.entries) ? history.entries.map(entry => ({
@@ -567,38 +591,57 @@ async function main() {
             throw new Error(`Firefox 配置历史未记录本次用户配置快照: ${JSON.stringify({entries: persistedHistory?.entries || [], currentIndex})}`);
         }
 
-        const historyClick = async (selector, label) => {
+        const restoreHistoryVersion = async (version, label) => {
             const before = await selectedFrame(client);
             const clicked = await evaluateJson(client, before.frame, `(() => {
-                const element = document.querySelector(${JSON.stringify(selector)});
-                if (!(element instanceof HTMLElement) || (element instanceof HTMLButtonElement && element.disabled)) return false;
+                const element = [...document.querySelectorAll('#settings-data .version-panel:first-of-type .version-entry')]
+                    .find(item => item.querySelector('.version-badge')?.textContent?.trim() === ${JSON.stringify(`v${version}`)});
+                if (!(element instanceof HTMLButtonElement) || element.disabled) return false;
                 element.click();
                 return true;
             })()`);
             if (!clicked) throw new Error(`Firefox 配置历史按钮不可用: ${label}`);
-            await sleep(450);
+            await waitForDom(client, `document.querySelector('.config-preview-dialog')?.offsetParent !== null`, `${label} preview`);
+            const previewFrame = await selectedFrame(client);
+            const restoreClicked = await evaluateJson(client, previewFrame.frame, `(() => {
+                const button = [...document.querySelectorAll('.config-preview-dialog button')]
+                    .find(item => item.textContent?.trim() === '恢复此版本');
+                if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+                button.click();
+                return true;
+            })()`);
+            if (!restoreClicked) throw new Error(`Firefox 配置历史预览恢复按钮不可用: ${label}`);
+            await waitForDom(client, `document.querySelector('.el-message-box')?.offsetParent !== null`, `${label} confirmation`);
+            const confirmFrame = await selectedFrame(client);
+            const confirmed = await evaluateJson(client, confirmFrame.frame, `(() => {
+                const button = [...document.querySelectorAll('.el-message-box button')]
+                    .find(item => item.textContent?.trim() === '恢复');
+                if (!(button instanceof HTMLButtonElement) || button.disabled) return false;
+                button.click();
+                return true;
+            })()`);
+            if (!confirmed) throw new Error(`Firefox 配置历史确认按钮不可用: ${label}`);
+            await sleep(500);
+            const after = await selectedFrame(client);
+            return {
+                version: await evaluateJson(client, after.frame, `document.querySelector('#settings-data .version-panel:first-of-type .version-entry.current .version-badge')?.textContent?.trim() || null`),
+                config: await readConfigProjection(client, after.frame),
+            };
         };
         const currentVersion = result.historyCases.current;
-        await historyClick(`[aria-label="恢复配置 v${restoreEntry.version}"]`, 'restore');
-        const restoredVersion = await evaluateJson(client, (await selectedFrame(client)).frame, `document.querySelector('.config-history-entry.current .config-history-version b')?.textContent?.trim() || null`);
-        const restoredStorage = await readConfigProjection(client, (await selectedFrame(client)).frame);
-        if (!restoredVersion || restoredVersion === currentVersion) throw new Error('Firefox 配置历史恢复没有改变当前版本');
-        if (JSON.stringify(restoredStorage) !== JSON.stringify(restoreEntry.config)) throw new Error(`Firefox 配置恢复未写入目标配置: ${JSON.stringify({expected: restoreEntry.config, actual: restoredStorage})}`);
-        await historyClick('[aria-label="撤销配置恢复"]', 'undo');
-        const undoneVersion = await evaluateJson(client, (await selectedFrame(client)).frame, `document.querySelector('.config-history-entry.current .config-history-version b')?.textContent?.trim() || null`);
-        const undoneStorage = await readConfigProjection(client, (await selectedFrame(client)).frame);
-        await historyClick('[aria-label="重做配置恢复"]', 'redo');
-        const redoneVersion = await evaluateJson(client, (await selectedFrame(client)).frame, `document.querySelector('.config-history-entry.current .config-history-version b')?.textContent?.trim() || null`);
-        const redoneStorage = await readConfigProjection(client, (await selectedFrame(client)).frame);
-        result.historyCases.restore = {before: currentVersion, restored: restoredVersion, undone: undoneVersion, redone: redoneVersion};
+        const restored = await restoreHistoryVersion(restoreEntry.version, 'restore English version');
+        if (!restored.version || restored.version === currentVersion) throw new Error('Firefox 配置历史恢复没有创建当前版本');
+        if (JSON.stringify(restored.config) !== JSON.stringify(restoreEntry.config)) throw new Error(`Firefox 配置恢复未写入目标配置: ${JSON.stringify({expected: restoreEntry.config, actual: restored.config})}`);
+        const japaneseEntry = persistedHistory.entries.find(entry => entry.config?.to === 'ja');
+        if (!japaneseEntry) throw new Error('Firefox 配置历史缺少日语版本');
+        const restoredJapanese = await restoreHistoryVersion(japaneseEntry.version, 'restore Japanese version');
+        result.historyCases.restore = {before: currentVersion, english: restored.version, japanese: restoredJapanese.version};
         result.historyCases.storageAfterActions = {
-            restoredTo: restoredStorage?.to || null,
-            undoneTo: undoneStorage?.to || null,
-            redoneTo: redoneStorage?.to || null,
+            englishTo: restored.config?.to || null,
+            japaneseTo: restoredJapanese.config?.to || null,
         };
-        const undoEntry = persistedHistory?.entries?.[restoreIndex - 1];
-        if (redoneVersion !== restoredVersion || undoneVersion === restoredVersion || !undoEntry || JSON.stringify(undoneStorage) !== JSON.stringify(undoEntry.config) || JSON.stringify(redoneStorage) !== JSON.stringify(restoreEntry.config)) {
-            throw new Error(`Firefox 配置历史撤销/重做结果异常: ${JSON.stringify(result.historyCases)}`);
+        if (restoredJapanese.config?.to !== 'ja' || restoredJapanese.version === restored.version) {
+            throw new Error(`Firefox 配置历史双向恢复结果异常: ${JSON.stringify(result.historyCases)}`);
         }
         result.evidence.push({step: 'config-history', url: (await selectedFrame(client)).frame.url, history: result.historyCases});
 

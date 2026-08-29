@@ -4,6 +4,7 @@ import { normalizeConfig, type Config } from '@/src/core/config/model';
 import { sanitizeConfigCredentials } from '@/src/core/config/credentials';
 
 const storageMock = vi.hoisted(() => ({
+    writeOwner: true,
     getItem: vi.fn(),
     setItem: vi.fn(),
     removeItem: vi.fn(),
@@ -11,6 +12,7 @@ const storageMock = vi.hoisted(() => ({
 }));
 
 vi.mock('@wxt-dev/storage', () => ({ storage: storageMock }));
+vi.mock('@/src/platform/storage/configStorageRuntime', () => ({configStorage: storageMock}));
 
 const storedConfig = {
     on: true,
@@ -21,6 +23,7 @@ const storedConfig = {
 
 const storageState = new Map<string, unknown>();
 const storageOperations: string[] = [];
+const storageWatchers = new Map<string, (value: unknown) => void>();
 
 interface LoadConfigOptions {
     trusted?: boolean;
@@ -28,15 +31,19 @@ interface LoadConfigOptions {
     sessionCredentials?: unknown;
     localCredentials?: unknown;
     configReadBarrier?: Promise<void>;
+    localCredentialReadBarrier?: Promise<void>;
     failLocalCredentialRead?: boolean;
     failSessionRead?: boolean;
     failSessionWrite?: boolean;
+    writeOwner?: boolean;
 }
 
 async function loadConfigModule(value: unknown = null, options: LoadConfigOptions = {}) {
     vi.resetModules();
     storageState.clear();
     storageOperations.length = 0;
+    storageWatchers.clear();
+    storageMock.writeOwner = options.writeOwner !== false;
     if (value !== null) storageState.set('local:config', value);
     if (options.history !== undefined) storageState.set('local:configHistory', options.history);
     if (options.sessionCredentials !== undefined) storageState.set('session:credentials', options.sessionCredentials);
@@ -49,6 +56,9 @@ async function loadConfigModule(value: unknown = null, options: LoadConfigOption
         storageOperations.push(`get:${key}`);
         if (key === 'local:config' && options.configReadBarrier) {
             await options.configReadBarrier;
+        }
+        if (key === 'local:credentials' && options.localCredentialReadBarrier) {
+            await options.localCredentialReadBarrier;
         }
         if (options.failLocalCredentialRead && key === 'local:credentials') {
             throw new Error('storage.local credentials unavailable');
@@ -69,7 +79,10 @@ async function loadConfigModule(value: unknown = null, options: LoadConfigOption
         storageOperations.push(`remove:${key}`);
         storageState.delete(key);
     });
-    storageMock.watch.mockReset().mockReturnValue(() => undefined);
+    storageMock.watch.mockReset().mockImplementation((key: string, callback: (value: unknown) => void) => {
+        storageWatchers.set(key, callback);
+        return () => storageWatchers.delete(key);
+    });
     return import('@/src/services/config/store');
 }
 
@@ -102,6 +115,115 @@ describe('统一配置存储', () => {
 
         expect(storageMock.setItem).not.toHaveBeenCalled();
         expect(configStore.config).toMatchObject(storedConfig);
+    });
+
+    it('可信扩展页面只从后台水合凭据，不重复执行迁移或直接写 IndexedDB', async () => {
+        const secret = 'remote-extension-page-secret';
+        const canonicalConfig = {
+            ...sanitizeConfigCredentials(normalizeConfig(storedConfig)),
+            __fluentConfigRevision: 5,
+        };
+        const configStore = await loadConfigModule(canonicalConfig, {
+            writeOwner: false,
+            sessionCredentials: {token: {openai: secret}},
+        });
+
+        await configStore.configReady;
+        expect(configStore.config.token.openai).toBe(secret);
+        expect(storageMock.setItem).not.toHaveBeenCalled();
+        expect(storageMock.removeItem).not.toHaveBeenCalled();
+        await expect(configStore.saveConfig({...configStore.config, to: 'en'}))
+            .rejects.toThrow('必须通过后台配置协议保存');
+    });
+
+    it('可信页面水合凭据期间收到更高配置 revision 时整轮重读，不用旧快照回滚', async () => {
+        let releaseCredentialRead!: () => void;
+        const credentialReadBarrier = new Promise<void>(resolve => {
+            releaseCredentialRead = resolve;
+        });
+        const oldConfig = {
+            ...sanitizeConfigCredentials(normalizeConfig({...storedConfig, to: 'en'})),
+            __fluentConfigRevision: 4,
+        };
+        const nextConfig = {
+            ...sanitizeConfigCredentials(normalizeConfig({...storedConfig, to: 'ja'})),
+            __fluentConfigRevision: 5,
+        };
+        const configStore = await loadConfigModule(oldConfig, {
+            writeOwner: false,
+            localCredentialReadBarrier: credentialReadBarrier,
+        });
+        await vi.waitFor(() => {
+            expect(storageOperations).toContain('get:local:credentials');
+            expect(storageWatchers.has('local:config')).toBe(true);
+        });
+
+        storageState.set('local:config', nextConfig);
+        storageWatchers.get('local:config')!(nextConfig);
+        expect(configStore.config.to).toBe('ja');
+        releaseCredentialRead();
+        await configStore.configReady;
+
+        expect(configStore.config.to).toBe('ja');
+        expect(configStore.getConfigRevision()).toBe(5);
+        expect(storageOperations.filter(operation => operation === 'get:local:config').length).toBeGreaterThan(1);
+        expect(storageMock.setItem).not.toHaveBeenCalled();
+    });
+
+    it('凭据水合失败前收到更高 revision 时 fallback 也采用最新公开配置', async () => {
+        let releaseCredentialRead!: () => void;
+        const credentialReadBarrier = new Promise<void>(resolve => {
+            releaseCredentialRead = resolve;
+        });
+        const oldConfig = {
+            ...sanitizeConfigCredentials(normalizeConfig({...storedConfig, to: 'en'})),
+            __fluentConfigRevision: 4,
+        };
+        const nextConfig = {
+            ...sanitizeConfigCredentials(normalizeConfig({...storedConfig, to: 'ja'})),
+            __fluentConfigRevision: 5,
+        };
+        const configStore = await loadConfigModule(oldConfig, {
+            writeOwner: false,
+            localCredentialReadBarrier: credentialReadBarrier,
+            failLocalCredentialRead: true,
+        });
+        await vi.waitFor(() => {
+            expect(storageOperations).toContain('get:local:credentials');
+            expect(storageWatchers.has('local:config')).toBe(true);
+        });
+
+        storageState.set('local:config', nextConfig);
+        storageWatchers.get('local:config')!(nextConfig);
+        expect(configStore.config.to).toBe('ja');
+        releaseCredentialRead();
+        await configStore.configReady;
+
+        expect(configStore.config.to).toBe('ja');
+        expect(configStore.getConfigRevision()).toBe(5);
+        expect(storageOperations.filter(operation => operation === 'get:local:config').length).toBeGreaterThan(1);
+        expect(storageMock.setItem).not.toHaveBeenCalled();
+        const sendMessage = vi.fn();
+        await expect(configStore.requestConfigSave({...configStore.config, to: 'zh-Hans'}, sendMessage))
+            .rejects.toThrow('配置安全水合未完成');
+        expect(sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('可信远程页无法读取 session 凭据时拒绝发送可能清空 API Key 的保存请求', async () => {
+        const canonicalConfig = {
+            ...sanitizeConfigCredentials(normalizeConfig(storedConfig)),
+            __fluentConfigRevision: 5,
+        };
+        const configStore = await loadConfigModule(canonicalConfig, {
+            writeOwner: false,
+            failSessionRead: true,
+        });
+        await configStore.configReady;
+        const sendMessage = vi.fn();
+
+        await expect(configStore.requestConfigSave({...configStore.config, to: 'en'}, sendMessage))
+            .rejects.toThrow('配置安全水合未完成');
+        expect(sendMessage).not.toHaveBeenCalled();
     });
 
     it('为旧配置补齐空的始终翻译域名列表，并只迁移回写一次', async () => {
@@ -233,7 +355,7 @@ describe('统一配置存储', () => {
         const latestSave = configStore.saveConfig({ ...configStore.config, on: true, to: 'en' });
         await Promise.all([firstSave, latestSave]);
 
-        expect(storageMock.setItem).toHaveBeenCalledTimes(2);
+        expect(storageMock.setItem).toHaveBeenCalledTimes(1);
         expect(storageMock.setItem).toHaveBeenLastCalledWith(
             'local:config',
             expect.objectContaining({ on: true, to: 'en' }),

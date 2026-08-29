@@ -9,7 +9,7 @@
     <SettingsGroup title="凭据安全" description="API 凭据默认只保留在当前浏览器会话。">
       <SettingsItem
         label="跨浏览器重启保存 API 凭据"
-        description="开启后会以明文写入扩展本地存储，仅建议在受信任的个人设备上使用。"
+        description="开启后凭据仍以密文保存，并可在浏览器重启后恢复；仅建议在受信任的个人设备上使用。"
       >
         <el-switch
           :model-value="props.config.persistCredentials"
@@ -415,7 +415,7 @@ async function setCredentialPersistence(value: string | number | boolean) {
   if (enabled) {
     try {
       await ElMessageBox.confirm(
-        '开启后，API Key、访问令牌及其他服务凭据会以明文写入扩展本地存储，并在浏览器重启后继续保留。',
+        '开启后，API Key、访问令牌及其他服务凭据会继续以密文保存在扩展私有 IndexedDB，并在浏览器重启后恢复。',
         '保存 API 凭据',
         {confirmButtonText: '了解风险并开启', cancelButtonText: '取消', type: 'warning'},
       );
@@ -427,7 +427,7 @@ async function setCredentialPersistence(value: string | number | boolean) {
   credentialPersistenceBusy.value = true;
   try {
     await requestConfigSave(normalizeConfig({...props.config, persistCredentials: enabled}), sendRuntimeMessage);
-    ElMessage.success(enabled ? '已允许跨浏览器重启保存 API 凭据' : 'API 凭据现仅保存在当前浏览器会话');
+    ElMessage.success(enabled ? '已允许跨浏览器重启恢复 API 凭据' : 'API 凭据将在当前浏览器会话结束后失效');
   } catch (error) {
     ElMessage.error(`凭据存储设置失败：${error instanceof Error ? error.message : '请稍后重试'}`);
   } finally {

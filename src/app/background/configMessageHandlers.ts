@@ -7,15 +7,21 @@
 import {
     applyConfigHistoryAction,
     config,
+    configHistoryReady,
     configReady,
     getConfigRevision,
     incrementConfigCount,
     prepareConfigSaveRequest,
     saveConfig,
 } from '@/src/services/config/store';
-import {restoreConfigAutoBackup} from '@/src/services/config/autoBackupStore';
+import {
+    configAutoBackupsReady,
+    restoreConfigAutoBackup,
+} from '@/src/services/config/autoBackupStore';
+import {configStorage} from '@/src/platform/storage/configStorageRuntime';
 import type {BackgroundMessageHandler} from './messageRouter';
 import {createConfigAutoBackupRestoreHandler} from './handlers/configAutoBackup';
+import {createConfigStorageReadHandler} from './handlers/configStorage';
 import {createConfigCountIncrementHandler} from './handlers/configCount';
 import {createConfigHistoryHandler} from './handlers/configHistory';
 import {
@@ -28,6 +34,11 @@ import {
 export function createConfigBackgroundHandlers<TContext extends ConfigPersistenceContext>(): Array<BackgroundMessageHandler<TContext>> {
     const mutations = createConfigMutationCoordinator();
     return [
+        createConfigStorageReadHandler({
+            ready: Promise.all([configReady, configHistoryReady, configAutoBackupsReady]),
+            read: key => configStorage.getItem(key),
+            isExtensionUrl: (url) => url.startsWith(browser.runtime.getURL('/')),
+        }),
         createConfigCountIncrementHandler((delta, operationId) => (
             mutations.run(() => incrementConfigCount(delta, operationId))
         )),

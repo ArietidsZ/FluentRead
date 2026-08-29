@@ -108,7 +108,7 @@ export function sanitizeConfigForExport(value: unknown): ConfigRecord {
  * 与可分享的公开配置不同，这份 JSON 会保留所有当前设置、提示词、自定义请求参数
  * 以及专用 API 凭据。翻译次数属于使用统计，不进入迁移文件；存储 revision 已由
  * normalizeConfig 在边界处移除。凭据持久化开关仍会如实导出，但现有导入边界会
- * 保持目标设备的当前选择，不允许配置文件静默改变本地明文持久化策略。
+ * 保持目标设备的当前选择，不允许配置文件静默改变凭据跨重启持久化策略。
  */
 export function prepareConfigForExport(value: unknown): ConfigRecord {
   if (!isRecord(value)) throw new Error('配置必须是 JSON 对象')

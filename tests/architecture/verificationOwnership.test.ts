@@ -124,6 +124,8 @@ function isCoverageExemptSrcModule(path: string): boolean {
 const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     // WXT ShadowRootUi/Vue 挂载适配器绑定真实 DOM 与组件生命周期；由 shadowUi 单测和双浏览器构建验证。
     'src/platform/shadow-ui/vue.ts',
+    // 配置存储运行时只识别 MV3/MV2 背景身份并装配 WXT、IndexedDB 或 runtime 端口；行为由纯端口测试和双浏览器构建验证。
+    'src/platform/storage/configStorageRuntime.ts',
     // 页内通知绑定 Shadow DOM、定时器和 runtime 消息；由 pageNotice 功能测试和双浏览器构建验证。
     'src/features/page-notice/content/notice.ts',
     // 悬浮球组装 Vue、WXT、配置持久化与全文翻译；生命周期由 contentUiRuntime 测试覆盖。
@@ -144,6 +146,8 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/app/background/contextMenuRuntime.ts',
     // 后台消息 composition 只把 provider、feature handler 与 browser API 静态注入；各 handler/路由均已严格覆盖。
     'src/app/background/messageRuntime.ts',
+    // 配置存储 runtime 只把真实 browser/configStorage API 注入严格覆盖的广播策略和 OCR 仓库。
+    'src/app/background/configStorageRuntime.ts',
     // 配置消息 composition 只将保存、计数、历史和备份 handler 接入同一 mutation 队列；各 handler 与队列均有功能测试。
     'src/app/background/configMessageHandlers.ts',
     // content composition root 绑定 WXT context、页面生命周期和静态 feature registry；由内容功能测试与隔离浏览器回归验证。
@@ -162,9 +166,9 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/app/document-translation/runtime.ts',
     // 文档 WXT 页面 composition 只挂载 Vue/Element Plus 与页面样式；由文档组件回归和双浏览器构建验证。
     'src/app/document-translation/page.ts',
-    // 该模块绑定 WXT storage.watch、session/local 凭据迁移与页面生命周期；纯 schema/历史算法严格覆盖，集成行为由 config.test 验证。
+    // 该模块绑定后台 IndexedDB 端口、会话/持久凭据迁移与页面生命周期；纯 schema/历史算法严格覆盖，集成行为由 config.test 验证。
     'src/services/config/store.ts',
-    // 自动备份 store 绑定 WXT storage.watch 与配置保存队列；纯状态机严格覆盖，集成读写和恢复由 configAutoBackupStore.test 验证。
+    // 自动备份 store 绑定加密配置仓库 watch 与配置保存队列；纯状态机严格覆盖，集成读写和恢复由 configAutoBackupStore.test 验证。
     'src/services/config/autoBackupStore.ts',
     // 后台维护组合根只把 browser alarms/storage 注入严格覆盖的自动备份 runtime，并复用缓存维护任务。
     'src/app/background/maintenanceRuntime.ts',

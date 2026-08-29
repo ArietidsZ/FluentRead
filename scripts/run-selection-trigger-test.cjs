@@ -10,6 +10,8 @@ const path = require('node:path');
 const { createRequire } = require('node:module');
 
 const TARGET_TEXT = 'When switching between different filaments, the printer flushes residual material before printing.';
+const CONFIG_FIXTURE_CLIENT_ID = `selection-trigger-${process.pid}-${Date.now()}`;
+let configFixtureSequence = 0;
 let activateInputPage = async () => undefined;
 let createIsolatedPage = context => context.newPage();
 const selectionUiSessions = new WeakMap();
@@ -91,15 +93,86 @@ async function waitForWorker(context) {
     return { worker, extensionId };
 }
 
+async function sendExtensionMessage(extensionPage, message) {
+  return extensionPage.evaluate((request) => new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`后台消息超时：${request.type}`)), 10000);
+    chrome.runtime.sendMessage(request, (response) => {
+      const lastError = chrome.runtime.lastError?.message;
+      clearTimeout(timer);
+      if (lastError) reject(new Error(lastError));
+      else resolve(response);
+    });
+  }), message);
+}
+
+function parseConfigRecord(value) {
+  if (typeof value !== 'string') return value && typeof value === 'object' ? value : {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+async function readConfigRecord(extensionPage, key) {
+  const response = await sendExtensionMessage(extensionPage, { type: 'configStorageRead', key });
+  if (response?.success !== true) {
+    throw new Error(`后台配置读取失败（${key}）：${response?.error || '没有返回结果'}`);
+  }
+  return parseConfigRecord(response.value);
+}
+
 async function readStoredConfig(extensionPage) {
-  return extensionPage.evaluate(async () => (await chrome.storage.local.get('config')).config || {});
+  const [publicConfig, sessionCredentials, localCredentials] = await Promise.all([
+    readConfigRecord(extensionPage, 'local:config'),
+    readConfigRecord(extensionPage, 'session:credentials'),
+    readConfigRecord(extensionPage, 'local:credentials'),
+  ]);
+  const credentials = Object.keys(sessionCredentials).length ? sessionCredentials : localCredentials;
+  const credentialFields = { ...credentials };
+  delete credentialFields.schemaVersion;
+  return { ...publicConfig, ...credentialFields };
+}
+
+function configPatchMatches(config, patch) {
+  return Object.entries(patch).every(([key, value]) => JSON.stringify(config[key]) === JSON.stringify(value));
 }
 
 async function patchStoredConfig(extensionPage, patch) {
-  await extensionPage.evaluate(async (nextPatch) => {
-    const stored = await chrome.storage.local.get('config');
-    await chrome.storage.local.set({ config: { ...(stored.config || {}), ...nextPatch } });
-  }, patch);
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const current = await readStoredConfig(extensionPage);
+    const baseRevision = current.__fluentConfigRevision;
+    if (!Number.isSafeInteger(baseRevision) || baseRevision < 0) {
+      throw new Error(`后台配置缺少有效 revision：${JSON.stringify(baseRevision)}`);
+    }
+    const response = await sendExtensionMessage(extensionPage, {
+      type: 'persistConfig',
+      config: { ...current, ...patch },
+      clientId: CONFIG_FIXTURE_CLIENT_ID,
+      sequence: ++configFixtureSequence,
+      baseRevision,
+    });
+    if (response?.success !== true) {
+      if (String(response?.error || '').includes('配置已更新') && attempt < 3) continue;
+      throw new Error(`后台配置保存失败：${response?.error || '没有返回结果'}`);
+    }
+    if (!Number.isSafeInteger(response.revision) || response.revision < 0) {
+      throw new Error(`后台配置保存没有返回有效 revision：${JSON.stringify(response)}`);
+    }
+
+    const deadline = Date.now() + 10000;
+    let verified = {};
+    while (Date.now() < deadline) {
+      verified = await readStoredConfig(extensionPage);
+      if (verified.__fluentConfigRevision >= response.revision && configPatchMatches(verified, patch)) {
+        return verified;
+      }
+      await extensionPage.waitForTimeout(50);
+    }
+    throw new Error(`后台配置没有完成持久化：${JSON.stringify({ patch, response, verified })}`);
+  }
+  throw new Error(`后台配置 revision 连续冲突：${JSON.stringify(patch)}`);
 }
 
 async function assertBackgroundRoundTrip(extensionPage) {
@@ -705,17 +778,20 @@ async function main() {
     try {
       await optionsDelayInput.waitFor({ state: 'visible', timeout: 15000 });
     } catch (error) {
-      const diagnostic = await optionsPage.evaluate(async () => ({
-        hash: location.hash,
-        activeSection: document.querySelector('.sidebar button.active')?.getAttribute('data-section') || '',
-        storedConfig: (await chrome.storage.local.get('config')).config || {},
-        numberInputs: [...document.querySelectorAll('input[type="number"]')].map(input => ({
-          ariaLabel: input.getAttribute('aria-label') || '',
-          section: input.closest('.settings-section')?.id || '',
-          value: input.value,
-          visible: Boolean(input.getClientRects().length),
+      const [pageDiagnostic, storedConfig] = await Promise.all([
+        optionsPage.evaluate(() => ({
+          hash: location.hash,
+          activeSection: document.querySelector('.sidebar button.active')?.getAttribute('data-section') || '',
+          numberInputs: [...document.querySelectorAll('input[type="number"]')].map(input => ({
+            ariaLabel: input.getAttribute('aria-label') || '',
+            section: input.closest('.settings-section')?.id || '',
+            value: input.value,
+            visible: Boolean(input.getClientRects().length),
+          })),
         })),
-      }));
+        readStoredConfig(optionsPage),
+      ]);
+      const diagnostic = { ...pageDiagnostic, storedConfig };
       throw new Error(`完整配置页未显示划词翻译延迟控件：${JSON.stringify(diagnostic)}`, { cause: error });
     }
     assert(await optionsDelayInput.inputValue() === '300', `完整配置页延迟值错误：${await optionsDelayInput.inputValue()}`);

@@ -31,6 +31,28 @@ const expectedNavigation = [
 ];
 const expectedGeneralGroups = ['选择翻译服务', '译文显示', '网页辅助'];
 const expectedTranslationGroups = ['鼠标悬浮翻译', '划词翻译', '输入框翻译', '全文翻译'];
+const configDatabaseName = 'FluentReadConfiguration';
+const expectedEncryptedRecordKeys = [
+  'local:config',
+  'local:configHistory',
+  'local:configAutoBackups',
+  'session:credentials',
+];
+const legacyLocalStorageKeys = [
+  'config', 'local:config',
+  'configHistory', 'local:configHistory',
+  'configAutoBackups', 'local:configAutoBackups',
+  'credentials', 'local:credentials',
+  'fluentReadImageOcrLanguages', 'local:fluentReadImageOcrLanguages',
+];
+const legacySessionStorageKeys = ['credentials', 'session:credentials'];
+const legacyMigrationSentinels = {
+  token: 'legacy-local-openai-token-sensitive-sentinel',
+  appid: 'legacy-local-appid-sensitive-sentinel',
+  key: 'legacy-local-key-sensitive-sentinel',
+  userRole: 'legacy-user-role-sensitive-sentinel {{text}}',
+  systemRole: 'legacy-system-role-sensitive-sentinel',
+};
 
 if (!fs.existsSync(path.join(extensionDir, 'manifest.json'))) throw new Error(`扩展产物不存在：${extensionDir}`);
 if (!fs.existsSync(focusHelper)) throw new Error(`防抢焦点 helper 不存在：${focusHelper}`);
@@ -102,6 +124,180 @@ function assertExportContainsAllUserConfiguration(value) {
   }
 }
 
+function assertImportedSentinels(value, sentinels) {
+  const expected = {
+    token: value.token?.openai,
+    ak: value.ak,
+    sk: value.sk,
+    appid: value.appid,
+    key: value.key,
+    youdaoAppKey: value.youdaoAppKey,
+    youdaoAppSecret: value.youdaoAppSecret,
+    tencentSecretId: value.tencentSecretId,
+    tencentSecretKey: value.tencentSecretKey,
+    extra: value.extra?.indexedDbProof,
+    userRole: value.user_role?.openai,
+    systemRole: value.system_role?.openai,
+    proxy: value.proxy?.openai,
+    customBody: value.customBody?.openai,
+  };
+  for (const [field, sentinel] of Object.entries(sentinels)) {
+    if (expected[field] !== sentinel) {
+      throw new Error(`重载后的导出配置未保留 ${field}：${JSON.stringify(expected[field])}`);
+    }
+  }
+}
+
+async function inspectEncryptedConfigurationStorage(page, sentinels, expectedRecordKeys = expectedEncryptedRecordKeys) {
+  const snapshot = await page.evaluate(async ({databaseName}) => {
+    const requestResult = request => new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('IndexedDB 请求失败'));
+    });
+    const database = await requestResult(indexedDB.open(databaseName));
+    let records;
+    try {
+      const transaction = database.transaction('records', 'readonly');
+      records = await requestResult(transaction.objectStore('records').getAll());
+    } finally {
+      database.close();
+    }
+    const local = await chrome.storage.local.get(null);
+    let session = {};
+    let sessionSupported = true;
+    try {
+      session = await chrome.storage.session.get(null);
+    } catch {
+      sessionSupported = false;
+    }
+    return {records, local, session, sessionSupported};
+  }, {databaseName: configDatabaseName});
+
+  const rawRecords = JSON.stringify(snapshot.records);
+  for (const sentinel of Object.values(sentinels)) {
+    if (rawRecords.includes(sentinel)) throw new Error(`IndexedDB 原始记录泄露明文：${sentinel}`);
+  }
+  const recordKeys = snapshot.records.map(record => record.key).sort();
+  for (const key of expectedRecordKeys) {
+    if (!recordKeys.includes(key)) throw new Error(`加密配置数据库缺少记录：${key}`);
+  }
+  for (const record of snapshot.records) {
+    const payload = record?.payload;
+    if (payload?.format !== 'fluentread-config'
+      || payload?.version !== 1
+      || payload?.algorithm !== 'AES-GCM'
+      || typeof payload?.iv !== 'string'
+      || typeof payload?.ciphertext !== 'string'
+      || 'value' in record) {
+      throw new Error(`IndexedDB 配置记录不是受支持的密文 envelope：${record?.key}`);
+    }
+  }
+  const localKeys = Object.keys(snapshot.local).sort();
+  const sessionKeys = Object.keys(snapshot.session).sort();
+  const retainedLegacyLocal = legacyLocalStorageKeys.filter(key => localKeys.includes(key));
+  const retainedLegacySession = legacySessionStorageKeys.filter(key => sessionKeys.includes(key));
+  if (retainedLegacyLocal.length || retainedLegacySession.length) {
+    throw new Error(`旧配置键未清理：${JSON.stringify({retainedLegacyLocal, retainedLegacySession})}`);
+  }
+  const sessionMaterialKeys = sessionKeys.filter(key => (
+    key === 'configIndexedDbKeyMaterial' || key === 'session:configIndexedDbKeyMaterial'
+  ));
+  if (snapshot.sessionSupported && sessionMaterialKeys.length !== 1) {
+    throw new Error(`会话密钥材料数量异常：${JSON.stringify(sessionKeys)}`);
+  }
+  return {
+    databaseName: configDatabaseName,
+    recordKeys,
+    encryptedEnvelopeCount: snapshot.records.length,
+    localStorageKeys: localKeys,
+    sessionStorageKeys: sessionKeys,
+    sessionMaterialKeys,
+    plaintextSentinelsAbsent: true,
+    legacyKeysAbsent: true,
+  };
+}
+
+async function seedLegacyStorageAndReloadExtension(page, context, extensionOrigin, timeout) {
+  const legacySources = await page.evaluate(async ({databaseName, sentinels}) => {
+    await new Promise((resolve, reject) => {
+      const request = indexedDB.deleteDatabase(databaseName);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error || new Error('删除配置数据库失败'));
+      request.onblocked = () => reject(new Error('配置数据库仍被旧后台连接占用'));
+    });
+
+    const localKeys = [
+      'config', 'local:config',
+      'configHistory', 'local:configHistory',
+      'configAutoBackups', 'local:configAutoBackups',
+      'credentials', 'local:credentials',
+      'fluentReadImageOcrLanguages', 'local:fluentReadImageOcrLanguages',
+    ];
+    const sessionKeys = [
+      'credentials', 'session:credentials',
+      'configIndexedDbKeyMaterial', 'session:configIndexedDbKeyMaterial',
+    ];
+    await chrome.storage.local.remove(localKeys);
+    await chrome.storage.session.remove(sessionKeys);
+    await chrome.storage.local.set({
+      config: JSON.stringify({
+        on: true,
+        service: 'freeTranslation',
+        display: 1,
+        from: 'auto',
+        to: 'zh-Hans',
+        persistCredentials: false,
+        token: {openai: 'legacy-embedded-token-must-lose-precedence'},
+        appid: 'legacy-embedded-appid-must-lose-precedence',
+        key: 'legacy-embedded-key-must-lose-precedence',
+        user_role: {openai: sentinels.userRole},
+        system_role: {openai: sentinels.systemRole},
+      }),
+      credentials: {
+        token: {openai: sentinels.token},
+        appid: sentinels.appid,
+        key: sentinels.key,
+      },
+    });
+    await chrome.storage.session.set({
+      credentials: {
+        token: {openai: 'legacy-session-token-must-expire-on-extension-reload'},
+        appid: 'legacy-session-appid-must-expire-on-extension-reload',
+        key: 'legacy-session-key-must-expire-on-extension-reload',
+      },
+    });
+    const localBeforeReload = await chrome.storage.local.get(null);
+    const sessionBeforeReload = await chrome.storage.session.get(null);
+    setTimeout(() => chrome.runtime.reload(), 50);
+    return {
+      localKeys: Object.keys(localBeforeReload).sort(),
+      sessionKeys: Object.keys(sessionBeforeReload).sort(),
+      configStoredAsJsonString: typeof localBeforeReload.config === 'string',
+    };
+  }, {databaseName: configDatabaseName, sentinels: legacyMigrationSentinels});
+
+  await new Promise(resolve => setTimeout(resolve, 750));
+  if (!page.isClosed()) await page.close().catch(() => undefined);
+  let migratedPage;
+  let lastError;
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    migratedPage = await newPageWithoutForeground(context, timeout);
+    try {
+      await migratedPage.goto(`${extensionOrigin}/options.html#settings-general`, {
+        waitUntil: 'domcontentloaded',
+        timeout,
+      });
+      await migratedPage.locator('.settings-app').waitFor({state: 'visible', timeout});
+      return {page: migratedPage, legacySources};
+    } catch (error) {
+      lastError = error;
+      await migratedPage.close().catch(() => undefined);
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+  }
+  throw new Error(`扩展重载后设置页不可用：${lastError instanceof Error ? lastError.message : String(lastError)}`);
+}
+
 async function main() {
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-settings-center-profile-'));
   const errors = [];
@@ -144,14 +340,50 @@ async function main() {
     if (workers.length === 0) workers = [await context.waitForEvent('serviceworker', {timeout})];
     const extensionId = new URL(workers[0].url()).host;
     const extensionOrigin = `chrome-extension://${extensionId}`;
-    const page = await newPageWithoutForeground(context, timeout);
-    page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
-    page.on('console', message => {
-      if (message.type() === 'error') errors.push(`console: ${message.text()}`);
-    });
+    const attachPageDiagnostics = targetPage => {
+      targetPage.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
+      targetPage.on('console', message => {
+        if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+      });
+    };
+    let page = await newPageWithoutForeground(context, timeout);
+    attachPageDiagnostics(page);
     await page.goto(`${extensionOrigin}/options.html#settings-general`, {waitUntil: 'domcontentloaded', timeout});
     await page.locator('.settings-app').waitFor({state: 'visible', timeout});
     await page.setViewportSize({width: 1440, height: 1000});
+
+    const migration = await seedLegacyStorageAndReloadExtension(page, context, extensionOrigin, timeout);
+    page = migration.page;
+    attachPageDiagnostics(page);
+    await page.setViewportSize({width: 1440, height: 1000});
+    await page.locator('button[data-section="settings-data"]').click();
+    await page.getByRole('heading', {name: '最近修改', exact: true}).waitFor({state: 'visible', timeout});
+    await page.getByRole('heading', {name: '定时备份', exact: true}).waitFor({state: 'visible', timeout});
+    const migratedRecordKeys = ['local:config', 'local:configAutoBackups', 'session:credentials'];
+    await page.waitForFunction(async ({databaseName, expectedKeys}) => {
+      const database = await new Promise((resolve, reject) => {
+        const request = indexedDB.open(databaseName);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      try {
+        const keys = await new Promise((resolve, reject) => {
+          const request = database.transaction('records', 'readonly').objectStore('records').getAllKeys();
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        return expectedKeys.every(key => keys.includes(key));
+      } finally {
+        database.close();
+      }
+    }, {databaseName: configDatabaseName, expectedKeys: migratedRecordKeys}, {timeout});
+    report.legacyMigration = {
+      ...migration.legacySources,
+      ...(await inspectEncryptedConfigurationStorage(page, legacyMigrationSentinels, migratedRecordKeys)),
+      persistentCredentialsWonAfterExtensionReload: true,
+      sessionCredentialsExpiredWithExtensionReload: true,
+    };
+    await page.locator('button[data-section="settings-general"]').click();
 
     const navButtons = page.locator('nav[aria-label="设置分类"] button');
     const navCount = await navButtons.count();
@@ -410,6 +642,7 @@ async function main() {
     const exportedText = await transferDialog.getByLabel('配置 JSON').inputValue();
     const exportedConfig = JSON.parse(exportedText);
     assertExportContainsAllUserConfiguration(exportedConfig);
+    assertImportedSentinels(exportedConfig, legacyMigrationSentinels);
     await page.waitForTimeout(250);
     report.screenshots.push(await screenshot(page, 'settings-config-export-dialog.png'));
     await transferDialog.getByRole('button', {name: '复制', exact: true}).click();
@@ -419,11 +652,39 @@ async function main() {
     await transferDialog.getByRole('button', {name: '取消', exact: true}).click();
     await transferDialog.waitFor({state: 'hidden', timeout});
 
-    const legacyCredentialSentinel = 'legacy-preview-secret-sentinel';
+    const sentinels = {
+      token: 'indexeddb-openai-token-sensitive-sentinel',
+      ak: 'indexeddb-ak-sensitive-sentinel',
+      sk: 'indexeddb-sk-sensitive-sentinel',
+      appid: 'indexeddb-appid-sensitive-sentinel',
+      key: 'indexeddb-key-sensitive-sentinel',
+      youdaoAppKey: 'indexeddb-youdao-app-key-sensitive-sentinel',
+      youdaoAppSecret: 'indexeddb-youdao-app-secret-sensitive-sentinel',
+      tencentSecretId: 'indexeddb-tencent-secret-id-sensitive-sentinel',
+      tencentSecretKey: 'indexeddb-tencent-secret-key-sensitive-sentinel',
+      extra: 'indexeddb-extra-sensitive-sentinel',
+      userRole: 'indexeddb-user-role-sensitive-sentinel {{text}}',
+      systemRole: 'indexeddb-system-role-sensitive-sentinel',
+      proxy: 'https://indexeddb-proxy-sensitive-sentinel.invalid/v1',
+      customBody: '{"indexedDbProof":"indexeddb-custom-body-sensitive-sentinel"}',
+    };
     const importedConfig = {
       ...exportedConfig,
       to: exportedConfig.to === 'en' ? 'ja' : 'en',
-      token: {openai: legacyCredentialSentinel},
+      token: {...exportedConfig.token, openai: sentinels.token},
+      ak: sentinels.ak,
+      sk: sentinels.sk,
+      appid: sentinels.appid,
+      key: sentinels.key,
+      youdaoAppKey: sentinels.youdaoAppKey,
+      youdaoAppSecret: sentinels.youdaoAppSecret,
+      tencentSecretId: sentinels.tencentSecretId,
+      tencentSecretKey: sentinels.tencentSecretKey,
+      extra: {...exportedConfig.extra, indexedDbProof: sentinels.extra},
+      user_role: {...exportedConfig.user_role, openai: sentinels.userRole},
+      system_role: {...exportedConfig.system_role, openai: sentinels.systemRole},
+      proxy: {...exportedConfig.proxy, openai: sentinels.proxy},
+      customBody: {...exportedConfig.customBody, openai: sentinels.customBody},
     };
     await page.getByRole('button', {name: '导入配置', exact: true}).click();
     await transferDialog.waitFor({state: 'visible', timeout});
@@ -434,8 +695,8 @@ async function main() {
     await previewDialog.waitFor({state: 'visible', timeout});
     if (await previewDialog.locator('.diff-item').count() < 1) throw new Error('导入预览没有显示差异');
     await previewDialog.getByText('OpenAI API Key', {exact: true}).waitFor({state: 'visible', timeout});
-    await previewDialog.getByText('将新增（内容已隐藏）', {exact: true}).waitFor({state: 'visible', timeout});
-    if ((await previewDialog.textContent()).includes(legacyCredentialSentinel)) throw new Error('导入预览泄露了凭据内容');
+    await previewDialog.getByText('将新增（内容已隐藏）', {exact: true}).first().waitFor({state: 'visible', timeout});
+    if ((await previewDialog.textContent()).includes(sentinels.token)) throw new Error('导入预览泄露了凭据内容');
     await previewDialog.getByRole('button', {name: '确认导入', exact: true}).click();
     const importConfirm = page.locator('.el-message-box:visible');
     await importConfirm.waitFor({state: 'visible', timeout});
@@ -452,6 +713,33 @@ async function main() {
       {timeout},
     );
     await page.locator('button[data-section="settings-data"]').click();
+
+    report.encryptedConfigurationStorage = await inspectEncryptedConfigurationStorage(page, sentinels);
+    report.assertions.indexedDbEncryptedAtRest = true;
+    report.assertions.legacyConfigStorageCleared = true;
+
+    await page.reload({waitUntil: 'domcontentloaded', timeout});
+    await page.locator('.settings-app').waitFor({state: 'visible', timeout});
+    await page.locator('button[data-section="settings-data"]').click();
+    await page.getByRole('button', {name: '导出配置', exact: true}).click();
+    await transferDialog.waitFor({state: 'visible', timeout});
+    const reloadedExportText = await transferDialog.getByLabel('配置 JSON').inputValue();
+    const reloadedExportConfig = JSON.parse(reloadedExportText);
+    assertExportContainsAllUserConfiguration(reloadedExportConfig);
+    assertImportedSentinels(reloadedExportConfig, sentinels);
+    if (reloadedExportConfig.to !== importedConfig.to) throw new Error('页面重载后目标语言没有从加密 IndexedDB 恢复');
+    report.reloadedExport = {
+      targetLanguage: reloadedExportConfig.to,
+      credentialFields: [
+        'token', 'ak', 'sk', 'appid', 'key', 'youdaoAppKey', 'youdaoAppSecret',
+        'tencentSecretId', 'tencentSecretKey', 'extra',
+      ],
+      roleFields: ['user_role', 'system_role'],
+      plaintextRoundTrip: true,
+    };
+    await transferDialog.getByRole('button', {name: '取消', exact: true}).click();
+    await transferDialog.waitFor({state: 'hidden', timeout});
+    report.assertions.encryptedConfigReloadRoundTrip = true;
     report.assertions.twoBackupStreams = true;
     report.assertions.previewBeforeRestore = true;
     report.assertions.restoreWithConfirmation = true;

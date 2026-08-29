@@ -36,6 +36,14 @@ vi.mock('@wxt-dev/storage', () => ({
     },
 }));
 
+vi.mock('@/src/platform/storage/configStorageRuntime', () => ({
+    configStorage: {
+        getItem: storageHarness.getItem,
+        setItem: storageHarness.setItem,
+        watch: storageHarness.watch,
+    },
+}));
+
 vi.mock('@/src/services/config/store', () => ({
     config: configHarness.config,
     configReady: Promise.resolve(),

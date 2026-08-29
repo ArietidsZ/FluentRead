@@ -259,19 +259,96 @@ async function readConfig(context, timeout, updates = null, createPage = () => c
   const popup = await createPage();
   try {
     await popup.goto(`chrome-extension://${match[1]}/popup.html`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    const stored = await popup.evaluate(() => chrome.storage.local.get('config'));
-    let config = typeof stored.config === 'string' ? JSON.parse(stored.config) : stored.config;
-    if (updates && Object.keys(updates).length > 0) {
-      config = { ...(config || {}), ...updates };
-      // 只写入当前脚本创建的临时 profile；不会触碰用户正在使用的配置。
-      await popup.evaluate((nextConfig) => new Promise((resolve, reject) => {
-        chrome.storage.local.set({ config: JSON.stringify(nextConfig) }, () => {
+    const config = await popup.evaluate(async ({configUpdates, timeoutMs}) => {
+      const parseRecord = (value) => {
+        if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+        if (typeof value !== 'string') return {};
+        try {
+          const parsed = JSON.parse(value);
+          return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+        } catch {
+          return {};
+        }
+      };
+      const sendRuntimeMessage = (message) => new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(message, (response) => {
           const error = chrome.runtime.lastError;
-          if (error) reject(new Error(error.message));
-          else resolve();
+          if (error) {
+            reject(new Error(error.message || '扩展后台消息失败'));
+            return;
+          }
+          resolve(response);
         });
-      }), config);
-    }
+      });
+      const readConfigRecord = async (key) => {
+        const response = await sendRuntimeMessage({type: 'configStorageRead', key});
+        if (response?.success !== true) throw new Error(response?.error || `后台配置读取失败：${key}`);
+        return response.value ?? null;
+      };
+      const readCompleteConfig = async () => {
+        const [storedConfig, sessionCredentials, localCredentials] = await Promise.all([
+          readConfigRecord('local:config'),
+          readConfigRecord('session:credentials'),
+          readConfigRecord('local:credentials'),
+        ]);
+        const publicConfig = parseRecord(storedConfig);
+        const credentialRecord = sessionCredentials && typeof sessionCredentials === 'object'
+          ? sessionCredentials
+          : localCredentials && typeof localCredentials === 'object'
+            ? localCredentials
+            : null;
+        const credentials = credentialRecord ? {...credentialRecord} : {};
+        delete credentials.schemaVersion;
+        return {
+          config: {...publicConfig, ...credentials},
+          revision: publicConfig.__fluentConfigRevision,
+        };
+      };
+
+      let current = await readCompleteConfig();
+      if (!configUpdates || Object.keys(configUpdates).length === 0) return current.config;
+      if (!Number.isSafeInteger(current.revision) || current.revision < 0) {
+        throw new Error('后台配置没有有效 revision');
+      }
+
+      const clientId = `full-page-fixture:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+      let response;
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        const nextConfig = {...current.config, ...configUpdates};
+        for (const key of Object.keys(nextConfig)) {
+          if (key.startsWith('__fluentConfig')) delete nextConfig[key];
+        }
+        response = await sendRuntimeMessage({
+          type: 'persistConfig',
+          config: nextConfig,
+          clientId,
+          sequence: attempt,
+          baseRevision: current.revision,
+        });
+        if (response?.success === true) break;
+        if (!String(response?.error || '').includes('配置已更新') || attempt === 3) {
+          throw new Error(response?.error || '后台拒绝保存全文测试配置');
+        }
+        current = await readCompleteConfig();
+        if (!Number.isSafeInteger(current.revision) || current.revision < 0) {
+          throw new Error('配置冲突重试时后台 revision 无效');
+        }
+      }
+      if (response?.success !== true || !Number.isSafeInteger(response.revision) || response.revision < 0) {
+        throw new Error('后台没有确认全文测试配置写入');
+      }
+
+      const deadline = Date.now() + Math.min(timeoutMs, 10_000);
+      do {
+        current = await readCompleteConfig();
+        const updatesApplied = Object.entries(configUpdates).every(([key, value]) => (
+          JSON.stringify(current.config[key]) === JSON.stringify(value)
+        ));
+        if (current.revision >= response.revision && updatesApplied) return current.config;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      } while (Date.now() < deadline);
+      throw new Error('全文测试配置没有通过后台协议持久化');
+    }, {configUpdates: updates, timeoutMs: timeout});
     return { extensionId: match[1], config };
   } finally {
     await popup.close();

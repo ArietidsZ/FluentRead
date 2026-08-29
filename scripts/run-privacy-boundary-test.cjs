@@ -4,7 +4,7 @@
 // 1. 只迁移旧版 FluentRead 页面缓存，不触碰宿主站点 localStorage；
 // 2. 网页伪造的配置/全文翻译事件和合成键盘事件不能驱动扩展；
 // 3. 凭据不进入公开配置、宿主 DOM 或页面可访问的 Shadow DOM；
-// 4. options 真实消息/UI 路径遵守 session 默认、显式 local opt-in、导出脱敏和 opt-out 清理。
+// 4. options 真实消息/UI 路径遵守 session 默认、显式持久化 opt-in、完整明文导出和 opt-out 清理。
 
 const fs = require('node:fs');
 const http = require('node:http');
@@ -277,34 +277,98 @@ function hasCredentialFields(value) {
 
 async function extensionStorageEvidence(extensionContext, marker, credentialMarker = null) {
   const snapshot = await extensionContext.evaluate(async () => {
+    const requestResult = (request) => new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('IndexedDB request failed'));
+    });
+    const database = await requestResult(indexedDB.open('FluentReadConfiguration'));
+    let records;
+    try {
+      records = await requestResult(database.transaction('records', 'readonly').objectStore('records').getAll());
+    } finally {
+      database.close();
+    }
+    const readConfigRecord = (key) => new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({ type: 'configStorageRead', key }, (response) => {
+        const lastError = chrome.runtime.lastError;
+        if (lastError) {
+          reject(new Error(lastError.message || 'config storage read failed'));
+          return;
+        }
+        if (response?.success !== true) {
+          reject(new Error(response?.error || `config storage read failed: ${key}`));
+          return;
+        }
+        resolve(response.value ?? null);
+      });
+    });
     const local = await chrome.storage.local.get(null);
     const sessionSupported = Boolean(chrome.storage.session);
     const session = sessionSupported ? await chrome.storage.session.get(null) : {};
-    return { local, session, sessionSupported };
+    const [config, history, backups, sessionCredentials, localCredentials, ocrLanguages] = await Promise.all([
+      readConfigRecord('local:config'),
+      readConfigRecord('local:configHistory'),
+      readConfigRecord('local:configAutoBackups'),
+      readConfigRecord('session:credentials'),
+      readConfigRecord('local:credentials'),
+      readConfigRecord('local:fluentReadImageOcrLanguages'),
+    ]);
+    return {
+      local,
+      session,
+      sessionSupported,
+      records,
+      decrypted: { config, history, backups, sessionCredentials, localCredentials, ocrLanguages },
+    };
   });
-  const rawConfig = snapshot.local.config ?? snapshot.local['local:config'];
-  const rawHistory = snapshot.local.configHistory ?? snapshot.local['local:configHistory'];
-  const sessionCredentials = snapshot.session.credentials ?? snapshot.session['session:credentials'];
-  const localCredentials = snapshot.local.credentials ?? snapshot.local['local:credentials'];
-  const config = typeof rawConfig === 'string' ? JSON.parse(rawConfig) : rawConfig;
-  const history = typeof rawHistory === 'string' ? JSON.parse(rawHistory) : rawHistory;
+  const { config, history, backups, sessionCredentials, localCredentials, ocrLanguages } = snapshot.decrypted;
   const historyEntries = Array.isArray(history?.entries) ? history.entries : [];
+  const localKeys = Object.keys(snapshot.local).sort();
+  const sessionKeys = Object.keys(snapshot.session).sort();
+  const recordKeys = snapshot.records.map((record) => record.key).sort();
+  const legacyLocalKeys = [
+    'config', 'local:config',
+    'configHistory', 'local:configHistory',
+    'configAutoBackups', 'local:configAutoBackups',
+    'credentials', 'local:credentials',
+    'fluentReadImageOcrLanguages', 'local:fluentReadImageOcrLanguages',
+  ].filter((key) => localKeys.includes(key));
+  const legacySessionKeys = ['credentials', 'session:credentials'].filter((key) => sessionKeys.includes(key));
+  const decryptedRecords = snapshot.decrypted;
   return {
-    localKeys: Object.keys(snapshot.local).sort(),
-    sessionKeys: Object.keys(snapshot.session).sort(),
+    localKeys,
+    sessionKeys,
     sessionSupported: snapshot.sessionSupported,
     localContainsPrefillMarker: containsMarker(snapshot.local, marker),
     sessionContainsPrefillMarker: containsMarker(snapshot.session, marker),
+    decryptedRecordsContainPrefillMarker: containsMarker(decryptedRecords, marker),
+    rawIndexedDbContainsPrefillMarker: containsMarker(snapshot.records, marker),
+    indexedDb: {
+      databaseName: 'FluentReadConfiguration',
+      recordKeys,
+      encryptedEnvelopeCount: snapshot.records.length,
+      recordsUseEncryptedEnvelope: snapshot.records.every((record) => (
+        record?.payload?.format === 'fluentread-config'
+          && record?.payload?.version === 1
+          && record?.payload?.algorithm === 'AES-GCM'
+          && typeof record?.payload?.iv === 'string'
+          && typeof record?.payload?.ciphertext === 'string'
+          && !Object.prototype.hasOwnProperty.call(record, 'value')
+      )),
+      legacyLocalKeys,
+      legacySessionKeys,
+    },
     configContainsCredentialFields: hasCredentialFields(config),
     historyContainsCredentialFields: historyEntries.some((entry) => hasCredentialFields(entry?.config)),
     credentialLifecycle: credentialMarker ? {
       publicConfigContainsSentinel: containsMarker(config, credentialMarker),
       publicHistoryContainsSentinel: containsMarker(history, credentialMarker),
-      sessionCredentialsPresent: Object.prototype.hasOwnProperty.call(snapshot.session, 'credentials')
-        || Object.prototype.hasOwnProperty.call(snapshot.session, 'session:credentials'),
+      backupsContainSentinel: containsMarker(backups, credentialMarker),
+      ocrLanguagesContainSentinel: containsMarker(ocrLanguages, credentialMarker),
+      rawIndexedDbContainsSentinel: containsMarker(snapshot.records, credentialMarker),
+      sessionCredentialsPresent: sessionCredentials !== null,
       sessionCredentialsContainsSentinel: containsMarker(sessionCredentials, credentialMarker),
-      localCredentialsPresent: Object.prototype.hasOwnProperty.call(snapshot.local, 'credentials')
-        || Object.prototype.hasOwnProperty.call(snapshot.local, 'local:credentials'),
+      localCredentialsPresent: localCredentials !== null,
       localCredentialsContainsSentinel: containsMarker(localCredentials, credentialMarker),
     } : null,
     configProjection: config ? {
@@ -355,9 +419,17 @@ function assertCredentialStorageState(label, storageEvidence, expected) {
   }
   if (storageEvidence.credentialLifecycle.publicConfigContainsSentinel
     || storageEvidence.credentialLifecycle.publicHistoryContainsSentinel
+    || storageEvidence.credentialLifecycle.backupsContainSentinel
+    || storageEvidence.credentialLifecycle.ocrLanguagesContainSentinel
+    || storageEvidence.credentialLifecycle.rawIndexedDbContainsSentinel
     || storageEvidence.configContainsCredentialFields
     || storageEvidence.historyContainsCredentialFields) {
-    throw new Error(`${label} 时公开 config/configHistory 泄露了凭据`);
+    throw new Error(`${label} 时公开配置、备份或 IndexedDB 原始记录泄露了凭据`);
+  }
+  if (!storageEvidence.indexedDb.recordsUseEncryptedEnvelope
+    || storageEvidence.indexedDb.legacyLocalKeys.length
+    || storageEvidence.indexedDb.legacySessionKeys.length) {
+    throw new Error(`${label} 时配置没有完全落入加密 IndexedDB：${JSON.stringify(storageEvidence.indexedDb)}`);
   }
 }
 
@@ -371,10 +443,6 @@ async function configurePrivacySurfaces(optionsPage, clientId, timeout) {
         return {};
       }
     };
-    const readConfig = async () => {
-      const stored = await chrome.storage.local.get(['config', 'local:config']);
-      return parseConfig(stored.config || stored['local:config']);
-    };
     const sendRuntimeMessage = (message) => new Promise((resolve, reject) => {
       chrome.runtime.sendMessage(message, (reply) => {
         const lastError = chrome.runtime.lastError;
@@ -385,6 +453,11 @@ async function configurePrivacySurfaces(optionsPage, clientId, timeout) {
         resolve(reply);
       });
     });
+    const readConfig = async () => {
+      const response = await sendRuntimeMessage({ type: 'configStorageRead', key: 'local:config' });
+      if (response?.success !== true) throw new Error(response?.error || 'background config read failed');
+      return parseConfig(response.value);
+    };
     const matchesExpectedSurfaces = (value) => value.on === true
       && value.autoTranslate === false
       && value.disableFloatingBall === false
@@ -505,15 +578,19 @@ async function openOptionsPage(createPage, activatePage, extensionId, optionsPat
 
 async function persistCredentialViaExtensionMessage(optionsPage, marker, clientId) {
   const result = await optionsPage.evaluate(async ({ credentialMarker, requestClientId }) => {
-    const stored = await chrome.storage.local.get(['config', 'local:config']);
-    let current = stored.config || stored['local:config'] || {};
-    if (typeof current === 'string') {
-      try {
-        current = JSON.parse(current);
-      } catch {
-        current = {};
-      }
-    }
+    const sendRuntimeMessage = (message) => new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage(message, (reply) => {
+        const lastError = chrome.runtime.lastError;
+        if (lastError) {
+          reject(new Error(lastError.message || 'runtime message failed'));
+          return;
+        }
+        resolve(reply);
+      });
+    });
+    const stored = await sendRuntimeMessage({ type: 'configStorageRead', key: 'local:config' });
+    if (stored?.success !== true) throw new Error(stored?.error || 'background config read failed');
+    const current = stored.value && typeof stored.value === 'object' ? stored.value : {};
     const message = {
       type: 'persistConfig',
       config: {
@@ -528,16 +605,7 @@ async function persistCredentialViaExtensionMessage(optionsPage, marker, clientI
       clientId: requestClientId,
       sequence: 1,
     };
-    const response = await new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage(message, (reply) => {
-        const lastError = chrome.runtime.lastError;
-        if (lastError) {
-          reject(new Error(lastError.message || 'runtime message failed'));
-          return;
-        }
-        resolve(reply);
-      });
-    });
+    const response = await sendRuntimeMessage(message);
     return { acknowledged: response?.success === true };
   }, { credentialMarker: marker, requestClientId: clientId });
 
@@ -555,16 +623,12 @@ async function waitForOptionsRuntimeCredential(optionsPage, marker, timeout) {
 }
 
 async function exportConfigViaOptionsUi(optionsPage, marker, timeout, artifactsDir) {
-  // 真实设置页会直接下载 JSON 文件；监听下载事件可同时覆盖用户操作与导出脱敏边界。
-  const downloadPromise = optionsPage.waitForEvent('download', { timeout });
+  // 真实设置页在对话框中展示完整明文 JSON；它是用户主动迁移边界，不会静默写入网页。
   await optionsPage.getByRole('button', { name: '导出配置', exact: true }).click();
-  const download = await downloadPromise;
-  if (!/^fluentread-config-\d{4}-\d{2}-\d{2}\.json$/u.test(download.suggestedFilename())) {
-    throw new Error(`设置页导出文件名异常：${download.suggestedFilename()}`);
-  }
-  const downloadPath = path.join(artifactsDir, 'privacy-exported-config.json');
-  await download.saveAs(downloadPath);
-  const exported = fs.readFileSync(downloadPath, 'utf8');
+  const transferDialog = optionsPage.getByTestId('config-transfer-dialog');
+  await transferDialog.waitFor({ state: 'visible', timeout });
+  await transferDialog.getByText('导出配置 JSON', { exact: true }).waitFor({ state: 'visible', timeout });
+  const exported = await transferDialog.getByLabel('配置 JSON').inputValue();
   if (!exported.trim()) throw new Error('设置页导出的配置文件为空');
 
   let parsed;
@@ -573,12 +637,18 @@ async function exportConfigViaOptionsUi(optionsPage, marker, timeout, artifactsD
   } catch {
     throw new Error('设置页导出的配置不是合法 JSON');
   }
+  const screenshotPath = path.join(artifactsDir, 'privacy-export-dialog.png');
+  await optionsPage.screenshot({ path: screenshotPath, fullPage: true });
+  await transferDialog.getByRole('button', { name: '取消', exact: true }).click();
+  await transferDialog.waitFor({ state: 'hidden', timeout });
   return {
     bytes: Buffer.byteLength(exported, 'utf8'),
     service: parsed?.service,
     persistCredentials: parsed?.persistCredentials,
     containsCredentialSentinel: exported.includes(marker),
     containsCredentialFields: hasCredentialFields(parsed),
+    plaintextDialog: true,
+    screenshot: screenshotPath,
   };
 }
 
@@ -720,6 +790,14 @@ function assertPrivacyBoundary(state, storageEvidence, dialogs, extensionPages, 
   if (networkEvents.length > 0) throw new Error(`网页伪造控制发起了翻译网络请求：${JSON.stringify(networkEvents)}`);
   if (storageEvidence.localContainsPrefillMarker || storageEvidence.sessionContainsPrefillMarker) {
     throw new Error('网页提供的伪造凭据进入了扩展存储');
+  }
+  if (storageEvidence.decryptedRecordsContainPrefillMarker || storageEvidence.rawIndexedDbContainsPrefillMarker) {
+    throw new Error('网页提供的伪造凭据进入了加密配置数据库');
+  }
+  if (!storageEvidence.indexedDb.recordsUseEncryptedEnvelope
+    || storageEvidence.indexedDb.legacyLocalKeys.length
+    || storageEvidence.indexedDb.legacySessionKeys.length) {
+    throw new Error(`配置存储边界异常：${JSON.stringify(storageEvidence.indexedDb)}`);
   }
   if (storageEvidence.configContainsCredentialFields || storageEvidence.historyContainsCredentialFields) {
     throw new Error('公开 local config/configHistory 仍包含凭据字段');
@@ -981,8 +1059,8 @@ async function main() {
       args.timeout,
       artifactsDir,
     );
-    if (exportEvidence.containsCredentialSentinel || exportEvidence.containsCredentialFields) {
-      throw new Error(`设置页导出泄露了凭据：${JSON.stringify(exportEvidence)}`);
+    if (!exportEvidence.containsCredentialSentinel || !exportEvidence.containsCredentialFields) {
+      throw new Error(`设置页完整配置导出缺少凭据：${JSON.stringify(exportEvidence)}`);
     }
     if (exportEvidence.service !== 'openai') {
       throw new Error(`设置页导出没有反映可信消息保存的公开配置：${JSON.stringify(exportEvidence)}`);
