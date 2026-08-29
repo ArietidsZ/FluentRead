@@ -7,6 +7,7 @@ import {
     isLikelyPageContextLeak,
     stripTranslationReasoning,
 } from '@/src/core/translation/prompts';
+import {parseTranslationSlots} from '@/src/core/translation/serialization';
 
 describe('translation prompt safety', () => {
     it('将清理后的页面材料放入明确的不可信边界', () => {
@@ -74,16 +75,87 @@ describe('translation prompt safety', () => {
         )).toBe(false);
     });
 
+    it('完整扫描中文上下文后放过没有重合长片段的膨胀译文', () => {
+        expect(isLikelyPageContextLeak(
+            'A',
+            '这是一段足够长但完全不同的正常翻译内容',
+            '页面摘要：项目代号海鸥，预算已经批准，发布日期定于下周。',
+        )).toBe(false);
+        expect(isLikelyPageContextLeak(
+            'A',
+            '这是一段足够长的正常翻译内容',
+            '短上下文',
+        )).toBe(false);
+        expect(isLikelyPageContextLeak(
+            'A',
+            'This is a sufficiently long normal translation.',
+            '页面摘要：项目代号海鸥，预算已经批准。',
+        )).toBe(false);
+    });
+
     it('将词法重合作为重译软信号，不作为无上下文后的最终拒绝依据', () => {
         const pageContext = '页面摘要：人工智能驱动的网页阅读辅助工具，可帮助用户理解网页。';
         const translation = '人工智能驱动的网页阅读辅助工具';
 
         expect(isLikelyPageContextLeak('AI', translation, pageContext)).toBe(true);
         expect(isDefinitePageContextLeak('AI', translation, pageContext)).toBe(false);
+        expect(isDefinitePageContextLeak('AI', '', pageContext)).toBe(false);
         expect(isDefinitePageContextLeak(
             'AI',
             `${translation} <webpage_context>泄漏</webpage_context>`,
             pageContext,
         )).toBe(true);
+        expect(isDefinitePageContextLeak(
+            '<webpage_context>原文标记</webpage_context>',
+            '<webpage_context>译文保留标记</webpage_context>',
+            '页面摘要：无关材料。',
+        )).toBe(false);
+    });
+});
+
+describe('translation slot packet safety', () => {
+    it('拒绝在预检后被改写为空值的槽位标记', () => {
+        const starts = [''];
+        let startReads = 0;
+        Object.defineProperty(starts, 0, {
+            configurable: true,
+            get: () => startReads++ === 0 ? 'START' : '',
+        });
+        expect(parseTranslationSlots(
+            {payload: '', starts, ends: ['END']},
+            'STARTEND',
+        )).toBeNull();
+
+        const ends = [''];
+        let endReads = 0;
+        Object.defineProperty(ends, 0, {
+            configurable: true,
+            get: () => endReads++ === 0 ? 'END' : '',
+        });
+        expect(parseTranslationSlots(
+            {payload: '', starts: ['START'], ends},
+            'STARTEND',
+        )).toBeNull();
+    });
+
+    it('拒绝仅在起始标记内出现结束标记的数据包', () => {
+        expect(parseTranslationSlots(
+            {payload: '', starts: ['ABC'], ends: ['BC']},
+            'ABC',
+        )).toBeNull();
+    });
+
+    it('拒绝在预检后暴露出嵌套起始标记的数据包', () => {
+        const starts = [''];
+        let reads = 0;
+        Object.defineProperty(starts, 0, {
+            configurable: true,
+            get: () => reads++ === 0 ? 'START_UNIQUE' : 'START',
+        });
+
+        expect(parseTranslationSlots(
+            {payload: '', starts, ends: ['END']},
+            'START_UNIQUE translated START nested END',
+        )).toBeNull();
     });
 });
