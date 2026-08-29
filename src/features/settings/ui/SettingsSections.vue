@@ -543,10 +543,10 @@
     />
 
     <section v-show="props.activeSection === 'settings-advanced'" class="settings-section settings-section-continuation">
-      <SettingsGroup title="X 原生翻译" description="在 X 上优先使用 Grok 翻译；需要时仍可手动使用 FluentRead。">
+      <SettingsGroup title="X 原生翻译" description="在 X 上优先使用 Grok；每条正文帖子都会保留翻译入口。">
         <SettingsItem
           label="Grok 自动翻译帖子"
-          description="帖子进入视野后自动使用 Grok 翻译；没有入口时保留原文。"
+          description="帖子进入视野后自动尝试 Grok；X 未提供入口时仍可手动翻译。"
         >
           <el-switch
             v-model="config.xGrokAutoTranslateEnabled"

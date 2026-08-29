@@ -1,14 +1,16 @@
 /**
  * @file src/app/content/pageAvailability.ts
  * 文件职责：统一协调 content 总开关、站点禁用、YouTube SPA 路由与页面功能的 activate/dispose 边界。
- * 主要内容：幂等启停 MAIN-world bridge 和页面 feature，维护视频字幕路由挂载，并仅在自动翻译条件由假变真时启动全文会话。
+ * 主要内容：幂等启停 MAIN-world bridge 和页面 feature，维护视频字幕路由挂载，并在排除 X/Grok 原生逐帖接管后仅于自动翻译条件由假变真时启动全文会话。
  * 模块边界：本模块不读取全局配置、不操作具体功能 DOM；composition root 注入当前可用性、挂载器和全文状态，具体 feature 保留自己的清理实现。
  */
 import {shouldAutoTranslatePage} from '@/src/features/site-rules/domain';
+import {isXGrokAutoTranslatePage} from '@/src/features/x-grok-translation/public';
 
 interface ContentAutoTranslationConfig {
     on: boolean;
     autoTranslate: boolean;
+    xGrokAutoTranslateEnabled: boolean;
     alwaysTranslateDomains: string[];
     disabledExtensionDomains: string[];
 }
@@ -17,6 +19,9 @@ export function shouldAutomaticallyTranslatePage(
     href: string,
     config: ContentAutoTranslationConfig,
 ): boolean {
+    // X/Grok 开启时，帖子正文只能由原生逐帖流程自动接管；FluentRead 仍可通过
+    // 每帖兜底按钮按需翻译，但不能再启动整页会话与 X 同时改写同一批 DOM。
+    if (config.xGrokAutoTranslateEnabled === true && isXGrokAutoTranslatePage(href)) return false;
     return shouldAutoTranslatePage(href, config);
 }
 

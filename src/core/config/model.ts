@@ -112,7 +112,7 @@ export class Config {
     count: number;  // 翻译次数
     theme: string;  // 主题模式：'auto' | 'light' | 'dark'
     useCache: boolean; // 是否使用缓存
-    xGrokAutoTranslateEnabled: boolean; // 是否在 X 上使用 Grok 原生逐帖翻译替代 FluentRead 帖子翻译
+    xGrokAutoTranslateEnabled: boolean; // 是否在 X 上优先使用 Grok，并为每条正文帖子保留手动翻译入口
     enableAIContext: boolean; // 是否为 AI 翻译附加网页上下文
     enableAIMultiSegment: boolean; // 是否把相邻全文段落合并为一次 AI 翻译请求
     contextMenuEnabled: boolean; // 是否显示右键全文翻译菜单
@@ -192,7 +192,7 @@ export class Config {
         this.count = 0;
         this.theme = 'auto';  // 默认跟随系统
         this.useCache = true; // 默认开启缓存
-        this.xGrokAutoTranslateEnabled = false; // 默认不操作站点原生按钮，由用户主动开启
+        this.xGrokAutoTranslateEnabled = false; // 默认不操作站点原生控件，也不向帖子注入翻译按钮
         this.enableAIContext = false; // 默认关闭 AI 智能上下文，避免意外增加请求体和费用
         this.enableAIMultiSegment = false; // 默认逐段请求，由用户按需开启 AI 多段翻译
         this.contextMenuEnabled = true; // 默认显示右键全文翻译入口
