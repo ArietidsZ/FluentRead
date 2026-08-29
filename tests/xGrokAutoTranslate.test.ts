@@ -497,7 +497,7 @@ describe('X Grok 原生逐帖自动翻译', () => {
         expect(vi.getTimerCount()).toBe(0);
     });
 
-    it('非 X/Twitter 域名不挂载观察器，也不留下全文翻译互斥标记', () => {
+    it('非 X/Twitter 域名不挂载观察器，也不留下 X/Grok 页面标记', () => {
         unmountXGrokAutoTranslate();
         installDom('example.com');
 

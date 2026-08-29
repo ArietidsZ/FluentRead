@@ -13,7 +13,7 @@ FluentRead 浏览器扩展没有账号体系，也不会把使用记录、网页
 | 英文单词卡 | 被选中的单词会发送给公共词典服务；词典返回的释义和例句会发送给当前翻译服务生成译文 | 公共词典服务和当前翻译服务；不附带页面地址和正文上下文 |
 | 划词朗读 | 需要朗读的文本与语言 | Microsoft Edge TTS；失败时可能回退到 Google TTS |
 | 图片与圈选翻译 | OCR 识别出的文字 | 当前翻译服务 |
-| X/Grok 自动翻译 | 由 X 页面原生翻译入口处理的当前帖子；FluentRead 只触发该入口，不把帖子发给 FluentRead 配置的 provider | 当前登录的 X 账号及 X/Grok |
+| X/Grok 自动翻译 | 由 X 页面原生翻译入口处理的当前帖子；FluentRead 自动模式只触发该入口，不把帖子发给 FluentRead 配置的 provider。若用户另行手动触发 FluentRead 翻译，则按“页面、划词和视频字幕翻译”规则处理 | 当前登录的 X 账号及 X/Grok；手动 FluentRead 翻译使用用户选择的服务 |
 | 独立 userscript 的自动语言检测 | 待判断的文本片段 | 百度翻译语言检测接口；文本放在 POST 请求体中，不放入 URL |
 | 独立 userscript 的站点兼容规则 | 当前页面的 origin（协议、主机名和端口），不含正文与查询参数 | FluentRead 的 `fr.unmeta.cn` `/preread`、`/read` 接口 |
 

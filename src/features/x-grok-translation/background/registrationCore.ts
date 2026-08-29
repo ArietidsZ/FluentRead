@@ -1,7 +1,7 @@
 /**
  * @file src/features/x-grok-translation/background/registrationCore.ts
- * 文件职责：计算并协调 X/Grok document_start 激活器的动态内容脚本注册，使已开启配置在页面首个时间线请求前可用。
- * 主要内容：按总开关、功能开关和禁用站点生成精确 X/Twitter match 列表，对 scripting 已有注册执行幂等保留、替换或注销。
+ * 文件职责：计算并协调 X/Grok document_start 激活器的动态内容脚本注册，使已开启配置在各类帖子页面的首个请求前可用。
+ * 主要内容：按总开关、功能开关和禁用站点生成精确 X/Twitter match 列表，对 scripting 已有注册执行幂等保留、替换或注销，使各类帖子页面都能在 document_start 激活。
  * 模块边界：核心只消费可注入的 scripting 端口，不读取真实存储、不访问标签页，也不持有 X 登录信息；MAIN-world 脚本只发布无数据的激活事件。
  */
 
