@@ -1,7 +1,7 @@
 <!--
  @file src/features/model-usage/ui/ModelUsageDashboard.vue
  文件职责：在 Options 设置页展示仅属于当前浏览器的模型调用统计，并提供服务、模型与时间范围筛选和统计重置入口。
- 主要内容：通过 modelUsage runtime 合同查询聚合快照，呈现今日、七天、三十天 Token、请求均值、趋势和服务模型分布，并处理加载、空数据、部分上报、失败与二次确认重置状态。
+ 主要内容：通过 modelUsage runtime 合同查询聚合快照，呈现今日、七天、三十天 Token、输入输出请求均值、趋势和服务模型分布，并支持按输入、输出、次数和总计查看排序；同时处理加载、空数据、部分上报、失败与二次确认重置状态。
  模块边界：组件只消费后台聚合结果，不读取 API Key、不记录原文或网址，也不直接访问统计仓库；事件采集、Token 解析、持久化与跨上下文消息处理由 services 和 background 层拥有。
 -->
 <template>
@@ -17,24 +17,20 @@
               :label="serviceLabel(selectedService)"
               size="small"
             />
-            <select v-model="selectedService" aria-label="模型用量服务" @change="handleServiceChange">
-              <option value="">全部 AI 服务</option>
-              <option v-for="service in serviceOptions" :key="service.id" :value="service.id">
-                {{ service.label }}
-              </option>
-            </select>
+            <el-select v-model="selectedService" class="usage-select" popper-class="usage-select-popper" fit-input-width aria-label="模型用量服务" placeholder="全部 AI 服务" @change="handleServiceChange">
+              <el-option label="全部 AI 服务" value="" />
+              <el-option v-for="service in serviceOptions" :key="service.id" :label="service.label" :value="service.id" />
+            </el-select>
           </div>
         </label>
 
         <label class="usage-filter">
           <span>模型</span>
           <div class="usage-select-shell">
-            <select v-model="selectedModel" aria-label="模型用量模型">
-              <option value="">全部模型</option>
-              <option v-for="model in modelOptions" :key="model" :value="model">
-                {{ modelLabel(model) }}
-              </option>
-            </select>
+            <el-select v-model="selectedModel" class="usage-select" popper-class="usage-select-popper" fit-input-width aria-label="模型用量模型" placeholder="全部模型">
+              <el-option label="全部模型" value="" />
+              <el-option v-for="model in modelOptions" :key="model" :label="modelLabel(model)" :value="model" />
+            </el-select>
           </div>
         </label>
 
@@ -96,14 +92,15 @@
       <div class="usage-summary-grid" :aria-busy="loading">
         <article class="usage-card usage-token-card">
           <div class="usage-card-heading">
-            <div>
+            <div class="usage-summary-copy">
               <span>Token 使用量</span>
               <strong>{{ formatNumber(selectedTotals.totalTokens) }}</strong>
+              <small class="usage-card-context">
+                {{ appliedRangeLabel }} · {{ appliedScopeLabel }}
+                <em v-if="loading">正在更新…</em>
+              </small>
             </div>
-            <small>
-              {{ appliedRangeLabel }} · {{ appliedScopeLabel }}
-              <em v-if="loading">正在更新…</em>
-            </small>
+            <span class="usage-card-badge">本机统计</span>
           </div>
           <div class="usage-periods" aria-label="各时间范围 Token 使用量">
             <div>
@@ -122,20 +119,40 @@
         </article>
 
         <article class="usage-card usage-compact-card">
-          <span>模型请求</span>
+          <div class="usage-metric-heading">
+            <span>模型请求</span>
+            <small>{{ appliedRangeLabel }}</small>
+          </div>
           <strong>{{ formatNumber(selectedTotals.requestCount) }}</strong>
           <small>{{ formatNumber(selectedTotals.successfulRequests) }} 次成功 · {{ formatNumber(selectedTotals.failedRequests) }} 次失败</small>
         </article>
 
-        <article class="usage-card usage-compact-card">
-          <span>平均每次请求</span>
-          <strong>{{ formatAverage(selectedTotals.averageTokensPerReportedRequest) }}</strong>
-          <small>只按返回 Token 明细的请求计算</small>
+        <article class="usage-card usage-compact-card usage-average-card">
+          <div class="usage-metric-heading">
+            <span>平均每次请求</span>
+            <small>分别计算</small>
+          </div>
+          <div class="usage-average-grid">
+            <div class="usage-average-value">
+              <span>输入 / 请求</span>
+              <strong>{{ formatAverageValue(selectedTotals.averageInputTokensPerReportedRequest) }}</strong>
+              <small>Token</small>
+            </div>
+            <div class="usage-average-value">
+              <span>输出 / 请求</span>
+              <strong>{{ formatAverageValue(selectedTotals.averageOutputTokensPerReportedRequest) }}</strong>
+              <small>Token</small>
+            </div>
+          </div>
+          <small class="usage-card-footnote">只按返回 Token 明细的请求计算</small>
         </article>
 
-        <article class="usage-card usage-compact-card">
-          <span>输入 / 输出</span>
-          <strong>{{ formatNumber(selectedTotals.inputTokens) }} <i>/</i> {{ formatNumber(selectedTotals.outputTokens) }}</strong>
+        <article class="usage-card usage-compact-card usage-input-output-card">
+          <div class="usage-metric-heading">
+            <span>输入 / 输出</span>
+            <small>总计</small>
+          </div>
+          <strong class="usage-split-total">{{ formatNumber(selectedTotals.inputTokens) }} <i>/</i> {{ formatNumber(selectedTotals.outputTokens) }}</strong>
           <div v-if="inputRatio !== null" class="usage-ratio" aria-hidden="true">
             <span class="usage-ratio-input" :style="{ width: `${inputRatio}%` }"></span>
             <span class="usage-ratio-output" :style="{ width: `${100 - inputRatio}%` }"></span>
@@ -208,8 +225,20 @@
             <small>点击一行筛选</small>
           </header>
 
-          <div class="usage-breakdown-heading" aria-hidden="true">
-            <span>服务 / 模型</span><span>请求</span><span>Token</span>
+          <div class="usage-breakdown-heading" aria-label="分布排序">
+            <span>服务 / 模型</span>
+            <button
+              v-for="option in breakdownSortOptions"
+              :key="option.key"
+              type="button"
+              :data-sort-key="option.key"
+              :aria-label="`按${option.label}排序`"
+              :aria-pressed="breakdownSort === option.key"
+              :class="{ active: breakdownSort === option.key }"
+              @click="breakdownSort = option.key"
+            >
+              {{ option.label }}
+            </button>
           </div>
           <div class="usage-breakdown-list">
             <button
@@ -217,7 +246,7 @@
               :key="`${row.serviceId}:${row.model}`"
               type="button"
               :class="{ active: appliedFilter.serviceId === row.serviceId && appliedFilter.model === row.model }"
-              :aria-label="`${serviceLabel(row.serviceId)} ${modelLabel(row.model)}，${formatNumber(row.totals.requestCount)} 次请求，${formatNumber(row.totals.totalTokens)} Token，点击筛选`"
+              :aria-label="`${serviceLabel(row.serviceId)} ${modelLabel(row.model)}，输入 ${formatNumber(row.totals.inputTokens)} Token，输出 ${formatNumber(row.totals.outputTokens)} Token，共 ${formatNumber(row.totals.totalTokens)} Token，${formatNumber(row.totals.requestCount)} 次请求，点击筛选`"
               @click="selectBreakdown(row.serviceId, row.model)"
             >
               <ServiceIcon :service="row.serviceId" :label="serviceLabel(row.serviceId)" size="small" />
@@ -226,8 +255,10 @@
                 <small>{{ modelLabel(row.model) }}</small>
                 <i aria-hidden="true"><b :style="{ width: `${breakdownShare(row.totals.totalTokens)}%` }"></b></i>
               </span>
-              <span>{{ formatNumber(row.totals.requestCount) }}</span>
-              <strong>{{ formatNumber(row.totals.totalTokens) }}</strong>
+              <strong class="usage-breakdown-value">{{ formatNumber(row.totals.inputTokens) }}</strong>
+              <strong class="usage-breakdown-value">{{ formatNumber(row.totals.outputTokens) }}</strong>
+              <strong class="usage-breakdown-value usage-breakdown-requests">{{ formatNumber(row.totals.requestCount) }}</strong>
+              <strong class="usage-breakdown-value usage-breakdown-total">{{ formatNumber(row.totals.totalTokens) }}</strong>
             </button>
           </div>
           <button
@@ -295,11 +326,19 @@ type ModelUsageResetResponse = {
   error?: string
 }
 
+type BreakdownSortKey = 'input' | 'output' | 'requests' | 'total'
+
 const BREAKDOWN_PREVIEW_COUNT = 8
 const rangeOptions: Array<{value: Range; label: string}> = [
   {value: 'today', label: '今日'},
   {value: '7d', label: '7 天'},
   {value: '30d', label: '30 天'},
+]
+const breakdownSortOptions: Array<{key: BreakdownSortKey; label: string}> = [
+  {key: 'input', label: '输入'},
+  {key: 'output', label: '输出'},
+  {key: 'requests', label: '次数'},
+  {key: 'total', label: '总计'},
 ]
 
 const snapshot = ref<DashboardSnapshot | null>(null)
@@ -314,6 +353,7 @@ const range = ref<Range>('30d')
 const loading = ref(false)
 const errorMessage = ref('')
 const showAllBreakdown = ref(false)
+const breakdownSort = ref<BreakdownSortKey>('total')
 const resetDialogOpen = ref(false)
 const resetting = ref(false)
 const resetError = ref('')
@@ -365,7 +405,30 @@ const inputRatio = computed<number | null>(() => {
   return total > 0 ? Math.round((selectedTotals.value.inputTokens / total) * 100) : null
 })
 const visibleBreakdown = computed(() => {
-  const rows = snapshot.value?.breakdown || []
+  const rows = [...(snapshot.value?.breakdown || [])].sort((left, right) => {
+    const key = breakdownSort.value
+    const leftValue = key === 'input'
+      ? left.totals.inputTokens
+      : key === 'output'
+        ? left.totals.outputTokens
+        : key === 'requests'
+          ? left.totals.requestCount
+          : left.totals.totalTokens
+    const rightValue = key === 'input'
+      ? right.totals.inputTokens
+      : key === 'output'
+        ? right.totals.outputTokens
+        : key === 'requests'
+          ? right.totals.requestCount
+          : right.totals.totalTokens
+    return rightValue - leftValue
+      || right.totals.totalTokens - left.totals.totalTokens
+      || right.totals.inputTokens - left.totals.inputTokens
+      || right.totals.outputTokens - left.totals.outputTokens
+      || right.totals.requestCount - left.totals.requestCount
+      || left.serviceId.localeCompare(right.serviceId)
+      || left.model.localeCompare(right.model)
+  })
   return showAllBreakdown.value ? rows : rows.slice(0, BREAKDOWN_PREVIEW_COUNT)
 })
 const largestBreakdownTotal = computed(() => Math.max(
@@ -408,8 +471,8 @@ function formatNumber(value: number): string {
   return new Intl.NumberFormat('zh-CN', {maximumFractionDigits: 0}).format(Math.max(0, value || 0))
 }
 
-function formatAverage(value: number | null): string {
-  return value === null ? '—' : `${formatNumber(value)} Token`
+function formatAverageValue(value: number | null): string {
+  return value === null ? '—' : formatNumber(value)
 }
 
 function formatDate(timestamp: number): string {

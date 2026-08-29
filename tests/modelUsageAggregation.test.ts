@@ -74,9 +74,15 @@ describe('模型用量纯聚合', () => {
             cachedInputTokens: 10,
             reasoningTokens: 4,
             averageTokensPerReportedRequest: 120,
+            averageInputTokensPerReportedRequest: 100,
+            averageOutputTokensPerReportedRequest: 20,
         });
         expect(aggregateModelUsageTotals([event({usageAvailability: 'unreported'})])
             .averageTokensPerReportedRequest).toBeNull();
+        expect(aggregateModelUsageTotals([event({usageAvailability: 'unreported'})])
+            .averageInputTokensPerReportedRequest).toBeNull();
+        expect(aggregateModelUsageTotals([event({usageAvailability: 'unreported'})])
+            .averageOutputTokensPerReportedRequest).toBeNull();
 
         const invalid = aggregateModelUsageTotals([event({
             inputTokens: Number.NaN,
@@ -91,6 +97,47 @@ describe('模型用量纯聚合', () => {
             totalTokens: 0,
             cachedInputTokens: 0,
             reasoningTokens: 0,
+        });
+    });
+
+    it('分别计算每个已报告请求的平均输入和平均输出 Token', () => {
+        const totals = aggregateModelUsageTotals([
+            event({inputTokens: 80, outputTokens: 20, totalTokens: 100}),
+            event({inputTokens: 40, outputTokens: 10, totalTokens: 50}),
+            event({
+                outcome: 'error',
+                usageAvailability: 'unreported',
+                inputTokens: undefined,
+                outputTokens: undefined,
+                totalTokens: undefined,
+            }),
+        ]);
+
+        expect(totals).toMatchObject({
+            requestCount: 3,
+            reportedTokenRequests: 2,
+            averageTokensPerReportedRequest: 75,
+            averageInputTokensPerReportedRequest: 60,
+            averageOutputTokensPerReportedRequest: 15,
+        });
+    });
+
+    it('按总 Token 排列服务模型分布，并以输入输出作为稳定排序依据', () => {
+        const snapshot = buildModelUsageDashboard([
+            event({serviceId: 'moonshot', configuredModel: 'kimi-k2.6', inputTokens: 120, outputTokens: 80, totalTokens: 200}),
+            event({serviceId: 'openai', configuredModel: 'gpt-5.6-luna', inputTokens: 150, outputTokens: 50, totalTokens: 200}),
+            event({serviceId: 'deepseek', configuredModel: 'deepseek-chat', inputTokens: 20, outputTokens: 10, totalTokens: 30}),
+        ], {range: '30d'}, {now: new Date(2026, 7, 29, 12).getTime()});
+
+        expect(snapshot.breakdown.map(({serviceId, model}) => [serviceId, model])).toEqual([
+            ['openai', 'gpt-5.6-luna'],
+            ['moonshot', 'kimi-k2.6'],
+            ['deepseek', 'deepseek-chat'],
+        ]);
+        expect(snapshot.breakdown[0]?.totals).toMatchObject({
+            inputTokens: 150,
+            outputTokens: 50,
+            totalTokens: 200,
         });
     });
 

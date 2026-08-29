@@ -122,7 +122,17 @@ async function seedModelUsageFixture(page) {
     } finally {
       database.close();
     }
-    return {eventCount: events.length, allTokens: 1250, kimiTokens: 1100, kimiK2Tokens: 500, todayKimiTokens: 200};
+    return {
+      eventCount: events.length,
+      allTokens: 1250,
+      kimiTokens: 1100,
+      kimiK2Tokens: 500,
+      todayKimiTokens: 200,
+      allAverageInput: 205,
+      allAverageOutput: 108,
+      todayKimiAverageInput: 120,
+      todayKimiAverageOutput: 80,
+    };
   });
 }
 
@@ -194,6 +204,40 @@ async function chooseDifferentSelectOption(page, ariaLabel) {
     }
   }
   throw new Error(`${ariaLabel} 没有可切换的选项`);
+}
+
+async function selectElementPlusOption(page, ariaLabel, optionText) {
+  const input = page.locator(`input[aria-label="${ariaLabel}"]`);
+  await input.waitFor({state: 'visible', timeout});
+  const wrapper = input.locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " el-select__wrapper ")][1]');
+  await wrapper.click();
+  const option = page.locator('.el-select-dropdown:visible .el-select-dropdown__item:not(.is-disabled)')
+    .filter({hasText: optionText})
+    .first();
+  await option.waitFor({state: 'visible', timeout});
+  await option.evaluate(element => element.click());
+  try {
+    await page.waitForFunction(({label, expected}) => {
+      const inputElement = [...document.querySelectorAll('input[aria-label]')]
+        .find(element => element.getAttribute('aria-label') === label);
+      const selectWrapper = inputElement?.closest('.el-select__wrapper');
+      const displayed = selectWrapper?.querySelector('.el-select__selected-item, .el-select__placeholder');
+      return displayed?.textContent?.trim() === expected
+        || selectWrapper?.textContent?.trim() === expected;
+    }, {label: ariaLabel, expected: optionText}, {timeout});
+  } catch (error) {
+    const state = await wrapper.evaluate(element => ({
+      text: element.textContent?.trim(),
+      html: element.innerHTML,
+      inputs: [...element.querySelectorAll('input')].map(input => ({
+        value: input.value,
+        ariaLabel: input.getAttribute('aria-label'),
+      })),
+    }));
+    throw new Error(`${ariaLabel} 选择后状态异常：${JSON.stringify(state)}；${error instanceof Error ? error.message : String(error)}`);
+  }
+  await page.keyboard.press('Escape');
+  await page.locator('.el-select-dropdown:visible').waitFor({state: 'hidden', timeout});
 }
 
 function assertExportContainsAllUserConfiguration(value) {
@@ -541,14 +585,96 @@ async function main() {
       const text = document.querySelector('#settings-model-usage .usage-token-card .usage-card-heading strong')?.textContent || '';
       return Number(text.replace(/[^0-9]/g, '')) === expected;
     }, modelUsageFixture.allTokens, {timeout});
-    const providerSelect = page.getByRole('combobox', {name: '模型用量服务', exact: true});
-    const modelSelect = page.getByRole('combobox', {name: '模型用量模型', exact: true});
-    await providerSelect.selectOption('moonshot');
+    const filterPlaceholders = await page.locator('#settings-model-usage .usage-select-shell .el-select__placeholder').allTextContents();
+    if (JSON.stringify(filterPlaceholders.map(value => value.trim())) !== JSON.stringify(['全部 AI 服务', '全部模型'])) {
+      throw new Error(`模型用量筛选占位文字异常：${JSON.stringify(filterPlaceholders)}`);
+    }
+    const filterPlaceholderMetrics = await page.locator('#settings-model-usage .usage-select-shell .el-select__placeholder').evaluateAll(elements => elements.map(element => {
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return {
+        text: element.textContent?.trim(),
+        opacity: style.opacity,
+        visibility: style.visibility,
+        display: style.display,
+        color: style.color,
+        width: rect.width,
+        height: rect.height,
+        parentOpacity: getComputedStyle(element.parentElement || element).opacity,
+      };
+    }));
+    if (filterPlaceholderMetrics.some(metric => metric.width <= 0 || metric.height <= 0 || metric.opacity === '0' || metric.visibility !== 'visible')) {
+      throw new Error('模型用量筛选占位文字不可见：' + JSON.stringify(filterPlaceholderMetrics));
+    }
+    await page.locator('#settings-model-usage .usage-select-shell').first().click();
+    const openFilterDropdown = page.locator('.el-select-dropdown:visible').first();
+    await openFilterDropdown.waitFor({state: 'visible', timeout});
+    const filterDropdownMetrics = await openFilterDropdown.evaluate(element => {
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return {
+        backgroundColor: style.backgroundColor,
+        borderRadius: style.borderRadius,
+        boxShadow: style.boxShadow,
+        width: rect.width,
+        height: rect.height,
+      };
+    });
+    if (filterDropdownMetrics.width <= 0 || filterDropdownMetrics.height <= 0) {
+      throw new Error('模型用量筛选下拉框展开尺寸异常：' + JSON.stringify(filterDropdownMetrics));
+    }
+    report.screenshots.push(await screenshot(page, 'settings-model-usage-filter-open.png'));
+    await page.keyboard.press('Escape');
+    await openFilterDropdown.waitFor({state: 'hidden', timeout});
+    const allAverageValues = (await page.locator('#settings-model-usage .usage-average-value strong').allTextContents())
+      .map(value => value.trim());
+    if (JSON.stringify(allAverageValues) !== JSON.stringify([
+      String(modelUsageFixture.allAverageInput),
+      String(modelUsageFixture.allAverageOutput),
+    ])) {
+      throw new Error(`全部范围的平均输入输出异常：${JSON.stringify(allAverageValues)}`);
+    }
+    const breakdownHeaders = (await page.locator('#settings-model-usage .usage-breakdown-heading > *').allTextContents())
+      .map(value => value.trim());
+    if (JSON.stringify(breakdownHeaders) !== JSON.stringify(['服务 / 模型', '输入', '输出', '次数', '总计'])) {
+      throw new Error('模型用量分布列异常：' + JSON.stringify(breakdownHeaders));
+    }
+    const breakdownTotals = (await page.locator('#settings-model-usage .usage-breakdown-total').allTextContents())
+      .map(value => value.trim());
+    if (JSON.stringify(breakdownTotals) !== JSON.stringify(['600', '500', '150', '0'])) {
+      throw new Error('模型用量分布排序异常：' + JSON.stringify(breakdownTotals));
+    }
+    const breakdownRequests = (await page.locator('#settings-model-usage .usage-breakdown-requests').allTextContents())
+      .map(value => value.trim());
+    if (JSON.stringify(breakdownRequests) !== JSON.stringify(['1', '3', '1', '1'])) {
+      throw new Error('模型用量请求次数列异常：' + JSON.stringify(breakdownRequests));
+    }
+    await page.getByRole('button', {name: '按输入排序', exact: true}).click();
+    const breakdownSortedByInput = (await page.locator('#settings-model-usage .usage-breakdown-value').evaluateAll(elements => elements
+      .filter((_, index) => index % 4 === 0)
+      .map(element => element.textContent?.trim())))
+      .every((value, index, values) => index === 0 || Number(values[index - 1]) >= Number(value));
+    if (!breakdownSortedByInput) throw new Error('模型用量没有按输入 Token 降序排列');
+    await page.getByRole('button', {name: '按输出排序', exact: true}).click();
+    const outputValues = (await page.locator('#settings-model-usage .usage-breakdown-list > button .usage-breakdown-value').evaluateAll(elements => elements
+      .filter((_, index) => index % 4 === 1)
+      .map(element => element.textContent?.trim())));
+    if (JSON.stringify(outputValues) !== JSON.stringify(['200', '180', '50', '0'])) {
+      throw new Error('模型用量没有按输出 Token 降序排列：' + JSON.stringify(outputValues));
+    }
+    await page.getByRole('button', {name: '按次数排序', exact: true}).click();
+    const requestsSortedByCount = (await page.locator('#settings-model-usage .usage-breakdown-requests').allTextContents())
+      .map(value => value.trim());
+    if (JSON.stringify(requestsSortedByCount) !== JSON.stringify(['3', '1', '1', '1'])) {
+      throw new Error('模型用量没有按请求次数降序排列：' + JSON.stringify(requestsSortedByCount));
+    }
+    await page.getByRole('button', {name: '按总计排序', exact: true}).click();
+    await selectElementPlusOption(page, '模型用量服务', '月之暗面/Kimi');
     await page.waitForFunction(expected => {
       const text = document.querySelector('#settings-model-usage .usage-token-card .usage-card-heading strong')?.textContent || '';
       return Number(text.replace(/[^0-9]/g, '')) === expected;
     }, modelUsageFixture.kimiTokens, {timeout});
-    await modelSelect.selectOption('kimi-k2.6');
+    await selectElementPlusOption(page, '模型用量模型', 'kimi-k2.6');
     await page.waitForFunction(expected => {
       const text = document.querySelector('#settings-model-usage .usage-token-card .usage-card-heading strong')?.textContent || '';
       return Number(text.replace(/[^0-9]/g, '')) === expected;
@@ -568,6 +694,14 @@ async function main() {
       const text = document.querySelector('#settings-model-usage .usage-token-card .usage-card-heading strong')?.textContent || '';
       return Number(text.replace(/[^0-9]/g, '')) === expected;
     }, modelUsageFixture.todayKimiTokens, {timeout});
+    const todayAverageValues = (await page.locator('#settings-model-usage .usage-average-value strong').allTextContents())
+      .map(value => value.trim());
+    if (JSON.stringify(todayAverageValues) !== JSON.stringify([
+      String(modelUsageFixture.todayKimiAverageInput),
+      String(modelUsageFixture.todayKimiAverageOutput),
+    ])) {
+      throw new Error(`今日范围的平均输入输出异常：${JSON.stringify(todayAverageValues)}`);
+    }
     const usageRequestCount = Number((await page.locator('#settings-model-usage .usage-compact-card').first().locator('strong').textContent())?.replace(/[^0-9]/g, '') || 0);
     if (usageRequestCount !== 2) throw new Error(`Kimi 今日请求数异常：${usageRequestCount}`);
     const coverageNotice = (await page.locator('#settings-model-usage .usage-coverage-note').textContent())?.replace(/\s+/g, ' ').trim();
@@ -604,8 +738,8 @@ async function main() {
     }
     if (await usageTokenValue() !== modelUsageFixture.todayKimiTokens) throw new Error('取消清除后统计发生变化');
 
-    await providerSelect.selectOption('deepseek');
-    await modelSelect.selectOption('deepseek-chat');
+    await selectElementPlusOption(page, '模型用量服务', 'DeepSeek');
+    await selectElementPlusOption(page, '模型用量模型', 'deepseek-chat');
     await page.waitForFunction(() => {
       const text = document.querySelector('#settings-model-usage .usage-token-card .usage-card-heading strong')?.textContent || '';
       return Number(text.replace(/[^0-9]/g, '')) === 0
@@ -621,8 +755,8 @@ async function main() {
     if (zeroTokenBreakdownWidth !== '0%') {
       throw new Error(`零 Token 分布行仍显示了虚假长度：${zeroTokenBreakdownWidth}`);
     }
-    await providerSelect.selectOption('');
-    await modelSelect.selectOption('');
+    await selectElementPlusOption(page, '模型用量服务', '全部 AI 服务');
+    await selectElementPlusOption(page, '模型用量模型', '全部模型');
     await usageRangeGroup.getByRole('radio', {name: '30 天', exact: true}).click();
     await page.waitForFunction(expected => {
       const text = document.querySelector('#settings-model-usage .usage-token-card .usage-card-heading strong')?.textContent || '';
@@ -633,6 +767,19 @@ async function main() {
       filteredProvider: 'moonshot',
       filteredModel: 'kimi-k2.6',
       todayRequestCount: usageRequestCount,
+      allAverageInput: modelUsageFixture.allAverageInput,
+      allAverageOutput: modelUsageFixture.allAverageOutput,
+      todayAverageInput: modelUsageFixture.todayKimiAverageInput,
+      todayAverageOutput: modelUsageFixture.todayKimiAverageOutput,
+      breakdownHeaders,
+      breakdownTotals,
+      breakdownRequests,
+      breakdownSortedByInput,
+      breakdownSortedByOutput: true,
+      breakdownSortedByRequests: true,
+      breakdownSortedByTotal: true,
+      filterPlaceholderMetrics,
+      filterDropdownMetrics,
       tokenCoverage: coverageNotice,
       resetCancelPreserved: true,
       rangeKeyboard: true,
