@@ -114,6 +114,8 @@ export function emptyModelUsageTotals(): Totals {
         cachedInputTokens: 0,
         reasoningTokens: 0,
         averageTokensPerReportedRequest: null,
+        averageInputTokensPerReportedRequest: null,
+        averageOutputTokensPerReportedRequest: null,
     };
 }
 
@@ -133,6 +135,12 @@ export function aggregateModelUsageTotals(events: readonly AggregatableEvent[]):
     }
     totals.averageTokensPerReportedRequest = totals.reportedTokenRequests > 0
         ? totals.totalTokens / totals.reportedTokenRequests
+        : null;
+    totals.averageInputTokensPerReportedRequest = totals.reportedTokenRequests > 0
+        ? totals.inputTokens / totals.reportedTokenRequests
+        : null;
+    totals.averageOutputTokensPerReportedRequest = totals.reportedTokenRequests > 0
+        ? totals.outputTokens / totals.reportedTokenRequests
         : null;
     return totals;
 }
@@ -214,7 +222,10 @@ function buildBreakdown(events: readonly AggregatableEvent[]): ModelUsageBreakdo
             totals: aggregateModelUsageTotals(group.events),
         }))
         .sort((left, right) => (
-            right.totals.requestCount - left.totals.requestCount
+            right.totals.totalTokens - left.totals.totalTokens
+            || right.totals.inputTokens - left.totals.inputTokens
+            || right.totals.outputTokens - left.totals.outputTokens
+            || right.totals.requestCount - left.totals.requestCount
             || left.serviceId.localeCompare(right.serviceId)
             || left.model.localeCompare(right.model)
         ));
