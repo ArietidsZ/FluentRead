@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { defaultOption } from '@/src/core/config/catalog'
 import {
   isConfigImportValid,
+  prepareConfigForExport,
   prepareConfigForImport,
   sanitizeConfigForExport,
 } from '@/src/core/config/transfer'
-import { normalizeConfig } from '@/src/core/config/model'
+import { Config, normalizeConfig } from '@/src/core/config/model'
 
 const validConfig = {
   on: true,
@@ -130,6 +131,109 @@ describe('configuration transfer helpers', () => {
     })
     expect(sanitized.customBody).toEqual({openai: customBody})
     expect(sanitized.proxy).toEqual({openai: proxy})
+  })
+
+  it('用户主动导出时保留全部设置、提示词和专用 API 凭据', () => {
+    const source = normalizeConfig({
+      ...validConfig,
+      token: {openai: 'openai-key', deepseek: 'deepseek-key'},
+      ak: 'access-key',
+      sk: 'secret-key',
+      appid: 'baidu-app-id',
+      key: 'baidu-secret-key',
+      youdaoAppKey: 'youdao-app-key',
+      youdaoAppSecret: 'youdao-app-secret',
+      tencentSecretId: 'tencent-secret-id',
+      tencentSecretKey: 'tencent-secret-key',
+      extra: {providerCredential: 'extra-secret'},
+      model: {openai: 'custom-model'},
+      customModel: {openai: 'private-deployment'},
+      customBody: {openai: '{"reasoning":{"effort":"low"}}'},
+      proxy: {openai: 'https://proxy.example/v1'},
+      system_role: {openai: 'Custom system prompt'},
+      user_role: {openai: 'Custom user prompt: {{text}}'},
+      alwaysTranslateDomains: ['example.com'],
+      count: 99,
+      persistCredentials: true,
+      __fluentConfigRevision: 42,
+    })
+
+    const exported = prepareConfigForExport(source)
+
+    expect(exported.token).toEqual(source.token)
+    expect(exported.ak).toBe(source.ak)
+    expect(exported.sk).toBe(source.sk)
+    expect(exported.appid).toBe(source.appid)
+    expect(exported.key).toBe(source.key)
+    expect(exported.youdaoAppKey).toBe(source.youdaoAppKey)
+    expect(exported.youdaoAppSecret).toBe(source.youdaoAppSecret)
+    expect(exported.tencentSecretId).toBe(source.tencentSecretId)
+    expect(exported.tencentSecretKey).toBe(source.tencentSecretKey)
+    expect(exported.extra).toEqual(source.extra)
+    expect(exported.model).toEqual(source.model)
+    expect(exported.customModel).toEqual(source.customModel)
+    expect(exported.customBody).toEqual(source.customBody)
+    expect(exported.proxy).toEqual(source.proxy)
+    expect(exported.system_role).toEqual(source.system_role)
+    expect(exported.user_role).toEqual(source.user_role)
+    expect(exported.alwaysTranslateDomains).toEqual(['example.com'])
+    expect(exported.persistCredentials).toBe(true)
+    expect(exported).not.toHaveProperty('count')
+    expect(exported).not.toHaveProperty('__fluentConfigRevision')
+  })
+
+  it('完整迁移配置动态覆盖 Config 全字段，并按既有安全策略往返导入', () => {
+    const source = normalizeConfig({
+      ...new Config(),
+      on: false,
+      autoTranslate: true,
+      from: 'en',
+      to: 'ja',
+      service: 'openai',
+      documentService: 'openai',
+      documentModel: {openai: 'document-model-sentinel'},
+      documentCustomModel: {openai: 'document-custom-model-sentinel'},
+      videoTranslationEnabled: true,
+      videoService: 'openai',
+      token: {openai: 'schema-token-sentinel'},
+      requireApiKey: {openai: true},
+      appid: 'schema-appid-sentinel',
+      key: 'schema-key-sentinel',
+      model: {openai: 'schema-model-sentinel'},
+      customModel: {openai: 'schema-custom-model-sentinel'},
+      customBody: {openai: '{"schema":"custom-body-sentinel"}'},
+      proxy: {openai: 'https://schema-proxy.invalid/v1'},
+      extra: {schema: 'extra-sentinel'},
+      system_role: {openai: 'schema-system-role-sentinel'},
+      user_role: {openai: 'schema-user-role-sentinel {{text}}'},
+      alwaysTranslateDomains: ['schema.example'],
+      disabledExtensionDomains: ['disabled.example'],
+      theme: 'dark',
+      translationCenterServices: ['openai'],
+      translationCenterSourceLanguage: 'en',
+      translationCenterTargetLanguage: 'ja',
+      count: 73,
+      persistCredentials: true,
+    })
+    const exported = prepareConfigForExport(source)
+    const expectedExportKeys = Object.keys(source)
+      .filter(key => key !== 'count')
+      .sort()
+    expect(Object.keys(exported).sort()).toEqual(expectedExportKeys)
+
+    const target = normalizeConfig({...new Config(), count: 911, persistCredentials: false})
+    const imported = prepareConfigForImport(exported, target)
+    for (const key of Object.keys(source) as Array<keyof Config>) {
+      if (key === 'count' || key === 'persistCredentials' || key === 'videoServiceDefaultMigrated') continue
+      expect(imported[key], `字段 ${key} 未完成完整导出/导入往返`).toEqual(source[key])
+    }
+    expect(imported.count).toBe(target.count)
+    expect(imported.persistCredentials).toBe(target.persistCredentials)
+    expect(imported.videoServiceDefaultMigrated).toBe(target.videoServiceDefaultMigrated)
+  })
+
+  it('完整用户导出拒绝非对象', () => {
+    expect(() => prepareConfigForExport(null)).toThrow('配置必须是 JSON 对象')
   })
 
   it('导入新版公开配置时保留当前 session 凭据和持久化选择', () => {

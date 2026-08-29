@@ -45,6 +45,7 @@ export function createExtensionManifest(
     return {
         permissions: [
             'storage',
+            'unlimitedStorage',
             'alarms',
             'contextMenus',
             ...(capabilities.offscreenDocument ? ['offscreen'] : []),

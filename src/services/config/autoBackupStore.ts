@@ -1,10 +1,10 @@
 /**
  * @file src/services/config/autoBackupStore.ts
- * 文件职责：在配置 store 与 WXT 本地存储之间持久化自动备份，并为设置页提供订阅、捕获和安全恢复入口。
- * 主要内容：初始化或修复备份基线，串行写入最多十份快照，响应 storage.watch，同步通知监听者，并优先通过后台消息恢复后返回最新历史状态。
+ * 文件职责：在配置 store 与后台加密 IndexedDB 之间持久化自动备份，并为设置页提供订阅、捕获和安全恢复入口。
+ * 主要内容：初始化或修复备份基线，串行写入最多十份加密 IndexedDB 快照，响应配置仓库 watch，同步通知监听者，并优先通过后台消息恢复后返回最新历史状态。
  * 模块边界：本文件编排存储和跨上下文通信，不定义快照领域规则或定时周期；纯状态转换位于 autoBackup，alarm 调度位于 app/background runtime。
  */
-import {storage} from '@wxt-dev/storage';
+import {configStorage as storage} from '@/src/platform/storage/configStorageRuntime';
 import {
     appendConfigAutoBackup,
     cloneConfigAutoBackups,

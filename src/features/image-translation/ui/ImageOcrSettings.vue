@@ -61,6 +61,7 @@
 import {computed, onMounted, ref} from 'vue';
 import browser from 'webextension-polyfill';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
+import {configStorage} from '@/src/platform/storage/configStorageRuntime';
 import {
   IMAGE_OCR_LANGUAGE_PACKS,
   IMAGE_OCR_LANGUAGE_STATE_KEY,
@@ -91,8 +92,8 @@ function formatDownloadError(error: unknown): string {
 }
 
 async function refreshLanguageState() {
-  const stored = await browser.storage.local.get(IMAGE_OCR_LANGUAGE_STATE_KEY);
-  downloadedCodes.value = normalizeImageOcrLanguageCodes(stored[IMAGE_OCR_LANGUAGE_STATE_KEY]);
+  const stored = await configStorage.getItem(`local:${IMAGE_OCR_LANGUAGE_STATE_KEY}`);
+  downloadedCodes.value = normalizeImageOcrLanguageCodes(stored);
 }
 
 async function downloadLanguages(languages: ImageOcrLanguageCode[]) {

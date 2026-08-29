@@ -880,8 +880,22 @@ async function readConfig(context, timeout, createPage, activateTab) {
   try {
     await popup.goto(`chrome-extension://${match[1]}/popup.html`, {waitUntil: 'domcontentloaded', timeout: 30000});
     await activateTab(context, popup, timeout);
-    const stored = await popup.evaluate(() => chrome.storage.local.get('config'));
-    return {extensionId: match[1], config: normalizeConfig(stored.config)};
+    const response = await popup.evaluate((messageTimeout) => new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('后台配置读取超时')), messageTimeout);
+      chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}, (reply) => {
+        const error = chrome.runtime.lastError;
+        clearTimeout(timer);
+        if (error) {
+          reject(new Error(error.message || '后台配置读取失败'));
+          return;
+        }
+        resolve(reply);
+      });
+    }), Math.min(timeout, 10000));
+    if (response?.success !== true) {
+      throw new Error(response?.error || '后台配置读取没有返回结果');
+    }
+    return {extensionId: match[1], config: normalizeConfig(response.value)};
   } finally {
     await popup.close();
   }

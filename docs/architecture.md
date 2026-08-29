@@ -290,11 +290,25 @@ feature
 
 - `core/config`：类型、默认值、纯 normalize/validate/migrate。
 - `services/config`：latest-write-wins、历史记录、保存队列、凭据协调。
-- `platform/storage`：WXT storage/session/local 的读写适配。
+- `platform/storage`：后台专属加密 IndexedDB、旧 WXT storage 迁移、会话解密材料与跨上下文只读代理。
+
+后台首次读取先检查 IndexedDB 的 `local:config` 主记录：存在时直接解密使用，完全不再读取旧
+storage；只有主记录不存在时，才加载旧配置、原子写入并读回验证 IndexedDB，成功后清理旧键。
+加密清理标记的检查优先于主记录，因此仅含历史或凭据的旧快照在清理中断后也只恢复既有迁移，
+不会重新扫描残缺旧 storage 或删除已经成功迁入的记录。若旧快照没有主配置，标记在清理完成后
+仍作为 durable authority 保留到默认主配置建立，保证并发事务检查期间不会同时缺少主记录和标记。
+迁移会在同一个写事务内再次检查主记录，只允许一个完整旧快照胜出，避免并发后台把不同
+快照的配置、历史和凭据逐键拼接。迁移记录和“待验证”加密清理标记同事务提交；该阶段只为
+持久记录保存内容摘要，会话凭据只做 AES-GCM 认证，不在持久标记中保留普通摘要。读回成功后
+先把标记改为只含实际待删键的“已验证”状态，再开始删除旧载体。清理被后台退出打断或配置随后
+发生变化时，后续启动仍可按已验证键执行幂等删除，绝不重新读取或回灌旧 storage，全部删除
+成功后再清除标记。
 
 扩展页面提交整份配置时必须通过 background 的 mutation coordinator，不能在 popup、文档页或
-content 上下文直接写 `local:config`。翻译计数使用独立增量消息；最近的 operationId 与 count
+content 上下文直接写配置记录。翻译计数使用独立增量消息；最近的 operationId 与 count
 放在同一个存储记录中原子提交，但不会进入配置历史、导出文件或运行时 UI 对象。
+后台保存普通配置时，公开配置、会话/持久凭据、历史脱敏和旧凭据清理会先完成加密，
+再通过同一个 IndexedDB 事务提交，避免后台在多条记录之间退出时留下新旧状态混合。
 
 userscript 没有跨站点共享的原子后台，因此计数采用每个顶层文档独占的单调 GM 副本：总数等于
 迁移基数加所有副本绝对值，`local:config.count` 只是可重建的显示投影。热路径只写当前副本，

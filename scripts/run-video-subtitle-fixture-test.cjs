@@ -59,9 +59,8 @@ function assertDedicatedTemporaryProfile(profileDir) {
 const fixtureConfigClientId = `video-subtitle-fixture-${process.pid}-${Date.now()}`;
 let fixtureConfigSequence = 0;
 
-async function persistExtensionConfig(extensionPage, patch) {
-  const sequence = ++fixtureConfigSequence;
-  const response = await extensionPage.evaluate(async ({ clientId, configPatch, requestSequence }) => {
+async function readExtensionConfig(extensionPage) {
+  return extensionPage.evaluate(async () => {
     const parseRecord = (value) => {
       if (typeof value !== 'string') return value && typeof value === 'object' ? value : {};
       try {
@@ -71,25 +70,48 @@ async function persistExtensionConfig(extensionPage, patch) {
         return {};
       }
     };
-    const local = await chrome.storage.local.get(['config', 'credentials']);
-    const session = chrome.storage.session ? await chrome.storage.session.get('credentials') : {};
-    const publicConfig = parseRecord(local.config);
-    const credentials = parseRecord(session.credentials || local.credentials);
-    const current = { ...publicConfig, ...credentials };
+    const readRecord = async (key) => {
+      const response = await chrome.runtime.sendMessage({ type: 'configStorageRead', key });
+      if (response?.success !== true) {
+        throw new Error(response?.error || `后台配置读取失败：${key}`);
+      }
+      return response.value ?? null;
+    };
+
+    const publicConfig = parseRecord(await readRecord('local:config'));
+    const sessionCredentials = await readRecord('session:credentials');
+    const localCredentials = sessionCredentials === null
+      ? await readRecord('local:credentials')
+      : null;
+    const { schemaVersion: _schemaVersion, ...credentials } = parseRecord(
+      sessionCredentials ?? localCredentials,
+    );
+    return { ...publicConfig, ...credentials };
+  });
+}
+
+async function persistExtensionConfig(extensionPage, patch) {
+  const sequence = ++fixtureConfigSequence;
+  const current = await readExtensionConfig(extensionPage);
+  const response = await extensionPage.evaluate(async ({ clientId, currentConfig, configPatch, requestSequence }) => {
     const next = {
-      ...current,
+      ...currentConfig,
       ...configPatch,
-      token: { ...(current.token || {}), ...(configPatch.token || {}) },
-      model: { ...(current.model || {}), ...(configPatch.model || {}) },
+      token: { ...(currentConfig.token || {}), ...(configPatch.token || {}) },
+      model: { ...(currentConfig.model || {}), ...(configPatch.model || {}) },
     };
     return chrome.runtime.sendMessage({
       type: 'persistConfig',
       config: next,
       clientId,
       sequence: requestSequence,
+      ...(Number.isSafeInteger(currentConfig.__fluentConfigRevision)
+        ? { baseRevision: currentConfig.__fluentConfigRevision }
+        : {}),
     });
   }, {
     clientId: fixtureConfigClientId,
+    currentConfig: current,
     configPatch: patch,
     requestSequence: sequence,
   });
@@ -354,10 +376,7 @@ async function main() {
     }
     await control.locator('.drawer-content select[aria-label="视频字幕字号"]').selectOption('140');
     await control.waitForTimeout(350);
-    const popupVideoFontSizePersisted = await control.evaluate(async () => {
-      const stored = await chrome.storage.local.get('config');
-      return stored.config?.videoSubtitleFontSize;
-    });
+    const popupVideoFontSizePersisted = (await readExtensionConfig(control)).videoSubtitleFontSize;
     if (popupVideoFontSizePersisted !== 140) {
       throw new Error(`Popup 视频字幕字号没有持久化：${JSON.stringify({ popupVideoFontSizePersisted })}`);
     }

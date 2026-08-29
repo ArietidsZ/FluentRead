@@ -49,6 +49,7 @@ import {imageTranslationOffscreenAdapter} from '@/src/features/image-translation
 import {selectionTtsOffscreenAdapter} from '@/src/features/selection-translation/background/offscreenAdapter';
 import {createCapabilityGatedBackgroundHandlers, createCapabilityGatedSelectionTtsTransport} from './capabilityRegistry';
 import {createConfigBackgroundHandlers} from './configMessageHandlers';
+import {createConfigImageOcrLanguageStorage, installBrowserConfigStorageBroadcast} from './configStorageRuntime';
 type BackgroundRuntimeContext = ConfigPersistenceContext
     & VocabularyBackgroundContext
     & SelectionTtsContext
@@ -62,10 +63,7 @@ export interface BackgroundMessageRuntimeOptions {
 /** 用静态 handler registry 组装唯一的 runtime.onMessage 入口。 */
 export function installBackgroundMessageRuntime(options: BackgroundMessageRuntimeOptions): void {
     const capabilities = options.capabilities ?? browserCapabilities;
-    const imageOcrLanguageRepository = createImageOcrLanguageRepository({
-        get: (key) => browser.storage.local.get(key),
-        set: (values) => browser.storage.local.set(values),
-    });
+    const imageOcrLanguageRepository = createImageOcrLanguageRepository(createConfigImageOcrLanguageStorage());
     const selectionTtsTransport = createCapabilityGatedSelectionTtsTransport(capabilities, selectionTtsOffscreenAdapter);
     const handlers: Array<BackgroundMessageHandler<BackgroundRuntimeContext>> = [
         createTranslationCacheHandler(clearTranslationCache),
@@ -158,4 +156,5 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             return {success: false, error: error instanceof Error ? error.message : String(error)};
         }
     });
+    installBrowserConfigStorageBroadcast();
 }

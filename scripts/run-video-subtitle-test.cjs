@@ -59,6 +59,70 @@ function assertDedicatedTemporaryProfile(profileDir) {
   }
 }
 
+const videoTestConfigClientId = `video-subtitle-test-${process.pid}-${Date.now()}`;
+let videoTestConfigSequence = 0;
+
+async function readExtensionConfig(extensionPage) {
+  return extensionPage.evaluate(async () => {
+    const parseRecord = (value) => {
+      if (typeof value !== 'string') return value && typeof value === 'object' ? value : {};
+      try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch {
+        return {};
+      }
+    };
+    const readRecord = async (key) => {
+      const response = await chrome.runtime.sendMessage({ type: 'configStorageRead', key });
+      if (response?.success !== true) {
+        throw new Error(response?.error || `后台配置读取失败：${key}`);
+      }
+      return response.value ?? null;
+    };
+
+    const publicConfig = parseRecord(await readRecord('local:config'));
+    const sessionCredentials = await readRecord('session:credentials');
+    const localCredentials = sessionCredentials === null
+      ? await readRecord('local:credentials')
+      : null;
+    const { schemaVersion: _schemaVersion, ...credentials } = parseRecord(
+      sessionCredentials ?? localCredentials,
+    );
+    return { ...publicConfig, ...credentials };
+  });
+}
+
+async function persistExtensionConfig(extensionPage, patch) {
+  const current = await readExtensionConfig(extensionPage);
+  const sequence = ++videoTestConfigSequence;
+  const response = await extensionPage.evaluate(async ({ clientId, currentConfig, configPatch, requestSequence }) => {
+    const next = {
+      ...currentConfig,
+      ...configPatch,
+      token: { ...(currentConfig.token || {}), ...(configPatch.token || {}) },
+      model: { ...(currentConfig.model || {}), ...(configPatch.model || {}) },
+    };
+    return chrome.runtime.sendMessage({
+      type: 'persistConfig',
+      config: next,
+      clientId,
+      sequence: requestSequence,
+      ...(Number.isSafeInteger(currentConfig.__fluentConfigRevision)
+        ? { baseRevision: currentConfig.__fluentConfigRevision }
+        : {}),
+    });
+  }, {
+    clientId: videoTestConfigClientId,
+    currentConfig: current,
+    configPatch: patch,
+    requestSequence: sequence,
+  });
+  if (response?.success !== true) {
+    throw new Error(`视频字幕配置保存失败：${JSON.stringify(response)}`);
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const {extensionDir, playwrightRoot, url, artifactsDir, browserPath} = args;
@@ -124,32 +188,25 @@ async function main() {
     await activateTestPage(popup);
     await popup.waitForSelector('[data-feature="video-subtitle"]', { timeout: 15000 });
     await popup.waitForFunction(() => document.querySelectorAll('.feature-card').length === 6, null, { timeout: 10000 });
-    await worker.evaluate(async () => {
-      const stored = await chrome.storage.local.get('config');
-      const config = stored.config || {};
-      await chrome.storage.local.set({ config: {
-        ...config,
-        on: true,
-        display: 1,
-        from: 'auto',
-        to: 'zh-Hans',
-        service: 'deeplx',
-        videoTranslationEnabled: true,
-        useCache: false,
-      }});
+    await persistExtensionConfig(popup, {
+      on: true,
+      display: 1,
+      from: 'auto',
+      to: 'zh-Hans',
+      service: 'deeplx',
+      videoTranslationEnabled: true,
+      useCache: false,
     });
-    const popupState = await popup.evaluate(async () => {
-      const stored = await chrome.storage.local.get('config');
-      return {
-        featurePresent: Boolean(document.querySelector('[data-feature="video-subtitle"]')),
-        featureCount: document.querySelectorAll('.feature-card').length,
-        imageFeaturePresent: [...document.querySelectorAll('.feature-card')].some((node) => node.textContent?.includes('图片翻译')),
-        floatingFeaturePresent: [...document.querySelectorAll('.feature-card')].some((node) => node.textContent?.includes('全文悬浮球')),
-        videoBetaLabel: document.querySelector('[data-feature="video-subtitle"] .beta-badge')?.textContent?.trim(),
-        popupHeight: document.body.scrollHeight,
-        config: stored.config,
-      };
-    });
+    const popupConfig = await readExtensionConfig(popup);
+    const popupState = await popup.evaluate((config) => ({
+      featurePresent: Boolean(document.querySelector('[data-feature="video-subtitle"]')),
+      featureCount: document.querySelectorAll('.feature-card').length,
+      imageFeaturePresent: [...document.querySelectorAll('.feature-card')].some((node) => node.textContent?.includes('图片翻译')),
+      floatingFeaturePresent: [...document.querySelectorAll('.feature-card')].some((node) => node.textContent?.includes('全文悬浮球')),
+      videoBetaLabel: document.querySelector('[data-feature="video-subtitle"] .beta-badge')?.textContent?.trim(),
+      popupHeight: document.body.scrollHeight,
+      config,
+    }), popupConfig);
     if (popupState.featureCount !== 6 || !popupState.imageFeaturePresent || popupState.floatingFeaturePresent || popupState.videoBetaLabel !== 'Beta 测试' || popupState.config.videoService !== 'microsoft') {
       throw new Error(`Popup 快捷功能卡校验失败：数量=${popupState.featureCount}，图片翻译=${popupState.imageFeaturePresent}`);
     }

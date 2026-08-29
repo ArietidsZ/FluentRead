@@ -1,15 +1,15 @@
 <!--
 @file src/features/settings/ui/ConfigManagement.vue
-文件职责：提供配置管理页面的完整用户界面，让用户查看最近修改和定时备份，并在预览差异后执行恢复或导入。
-主要内容：渲染凭据持久化开关、两类十份版本列表、导入导出操作、JSON 粘贴与差异确认对话框，并隐藏专用 API 凭据的实际内容。
-模块边界：本组件只负责交互状态和展示，通过 services/config 公共 API 读取或提交配置；快照保留、并发控制、脱敏和浏览器存储不在 Vue 层实现。
+文件职责：提供配置管理页面的完整用户界面，让用户查看最近修改和定时备份，并通过统一 JSON 对话框复制导出或预览导入。
+主要内容：渲染凭据持久化开关、两类十份版本列表、仅含导出与导入的迁移入口、完整配置复制与差异确认对话框，并在导入预览中隐藏专用 API 凭据的实际内容。
+模块边界：本组件只负责交互状态和展示，通过 core/config 生成包含凭据的用户主动导出内容，并通过 services/config 公共 API 读取或提交配置；快照保留、并发控制和浏览器存储不在 Vue 层实现。
 -->
 <template>
   <section class="config-management">
     <SettingsGroup title="凭据安全" description="API 凭据默认只保留在当前浏览器会话。">
       <SettingsItem
         label="跨浏览器重启保存 API 凭据"
-        description="开启后会以明文写入扩展本地存储，仅建议在受信任的个人设备上使用。"
+        description="开启后凭据仍以密文保存，并可在浏览器重启后恢复；仅建议在受信任的个人设备上使用。"
       >
         <el-switch
           :model-value="props.config.persistCredentials"
@@ -81,35 +81,48 @@
       </section>
     </div>
 
-    <SettingsGroup title="导入与导出" description="导出文件不会包含专用 API Key、Secret 或令牌字段。">
+    <SettingsGroup title="导入与导出" description="导出内容包含当前全部用户配置和 API 凭据，请仅复制到可信位置。">
       <div class="transfer-row">
         <div class="transfer-copy">
           <strong>当前配置 JSON</strong>
           <small>导入会先显示与当前配置的差异，确认后才会应用。</small>
         </div>
         <div class="transfer-actions">
-          <el-button @click="downloadConfig"><Download />导出配置</el-button>
-          <el-button @click="copyConfig"><CopyDocument />复制 JSON</el-button>
-          <el-button type="primary" @click="chooseImportFile"><Upload />导入配置</el-button>
-          <el-button text @click="openPasteDialog">粘贴 JSON</el-button>
+          <el-button @click="openExportDialog"><CopyDocument />导出配置</el-button>
+          <el-button type="primary" @click="openImportDialog"><Upload />导入配置</el-button>
         </div>
-        <input
-          ref="fileInput"
-          class="sr-only"
-          type="file"
-          accept=".json,application/json"
-          aria-label="选择配置 JSON 文件"
-          @change="handleImportFile"
-        />
       </div>
-      <p class="transfer-warning">自定义请求体、代理和端点中手动嵌入的凭据无法自动识别，分享文件前请自行检查。</p>
+      <p class="transfer-warning">导出会显示 API Key、Secret、提示词、自定义模型、请求体、代理与网站规则等完整配置。</p>
     </SettingsGroup>
 
-    <el-dialog v-model="pasteDialogVisible" title="粘贴配置 JSON" width="min(680px, calc(100vw - 32px))">
-      <el-input v-model="pastedJson" type="textarea" :rows="12" placeholder="粘贴 FluentRead 配置 JSON" aria-label="配置 JSON" />
+    <el-dialog
+      v-model="transferDialogVisible"
+      :title="transferDialogTitle"
+      width="min(680px, calc(100vw - 32px))"
+      data-testid="config-transfer-dialog"
+    >
+      <el-input
+        v-model="transferJson"
+        type="textarea"
+        :rows="12"
+        :readonly="transferDialogMode === 'export'"
+        :placeholder="transferDialogMode === 'export' ? '' : '粘贴 FluentRead 配置 JSON'"
+        aria-label="配置 JSON"
+      />
       <template #footer>
-        <el-button @click="pasteDialogVisible = false">取消</el-button>
-        <el-button type="primary" :disabled="!pastedJson.trim()" @click="previewPastedJson">查看差异</el-button>
+        <el-button @click="transferDialogVisible = false">取消</el-button>
+        <el-button
+          v-if="transferDialogMode === 'export'"
+          type="primary"
+          :disabled="!transferJson"
+          @click="copyExportedConfig"
+        >复制</el-button>
+        <el-button
+          v-else
+          type="primary"
+          :disabled="!transferJson.trim()"
+          @click="previewImportedConfig"
+        >查看差异</el-button>
       </template>
     </el-dialog>
 
@@ -177,14 +190,14 @@
 
 <script setup lang="ts">
 import {computed, onUnmounted, ref} from 'vue';
-import {CopyDocument, Download, Upload} from '@element-plus/icons-vue';
+import {CopyDocument, Upload} from '@element-plus/icons-vue';
 import {ElMessage, ElMessageBox} from 'element-plus';
 import browser from 'webextension-polyfill';
 import {options} from '@/src/core/config/catalog';
 import {extractConfigCredentials} from '@/src/core/config/credentials';
 import {buildConfigDiff} from '@/src/core/config/diff';
 import {normalizeConfig, type Config} from '@/src/core/config/model';
-import {isConfigImportValid, prepareConfigForImport, sanitizeConfigForExport} from '@/src/core/config/transfer';
+import {isConfigImportValid, prepareConfigForExport, prepareConfigForImport} from '@/src/core/config/transfer';
 import {
   configAutoBackupsReady,
   configHistoryReady,
@@ -402,7 +415,7 @@ async function setCredentialPersistence(value: string | number | boolean) {
   if (enabled) {
     try {
       await ElMessageBox.confirm(
-        '开启后，API Key、访问令牌及其他服务凭据会以明文写入扩展本地存储，并在浏览器重启后继续保留。',
+        '开启后，API Key、访问令牌及其他服务凭据会继续以密文保存在扩展私有 IndexedDB，并在浏览器重启后恢复。',
         '保存 API 凭据',
         {confirmButtonText: '了解风险并开启', cancelButtonText: '取消', type: 'warning'},
       );
@@ -414,7 +427,7 @@ async function setCredentialPersistence(value: string | number | boolean) {
   credentialPersistenceBusy.value = true;
   try {
     await requestConfigSave(normalizeConfig({...props.config, persistCredentials: enabled}), sendRuntimeMessage);
-    ElMessage.success(enabled ? '已允许跨浏览器重启保存 API 凭据' : 'API 凭据现仅保存在当前浏览器会话');
+    ElMessage.success(enabled ? '已允许跨浏览器重启恢复 API 凭据' : 'API 凭据将在当前浏览器会话结束后失效');
   } catch (error) {
     ElMessage.error(`凭据存储设置失败：${error instanceof Error ? error.message : '请稍后重试'}`);
   } finally {
@@ -423,34 +436,36 @@ async function setCredentialPersistence(value: string | number | boolean) {
 }
 
 function exportedJson(): string {
-  return JSON.stringify(sanitizeConfigForExport(props.config), null, 2);
+  return JSON.stringify(prepareConfigForExport(props.config), null, 2);
 }
 
-function downloadConfig() {
-  const blob = new Blob([exportedJson()], {type: 'application/json;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = `fluentread-config-${new Date().toISOString().slice(0, 10)}.json`;
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
-  ElMessage.success('配置文件已导出');
+type TransferDialogMode = 'export' | 'import';
+const transferDialogMode = ref<TransferDialogMode>('export');
+const transferDialogVisible = ref(false);
+const transferJson = ref('');
+const transferDialogTitle = computed(() => transferDialogMode.value === 'export'
+  ? '导出配置 JSON'
+  : '粘贴配置 JSON');
+
+function openExportDialog() {
+  transferDialogMode.value = 'export';
+  transferJson.value = exportedJson();
+  transferDialogVisible.value = true;
 }
 
-async function copyConfig() {
+function openImportDialog() {
+  transferDialogMode.value = 'import';
+  transferJson.value = '';
+  transferDialogVisible.value = true;
+}
+
+async function copyExportedConfig() {
   try {
-    await navigator.clipboard.writeText(exportedJson());
+    await navigator.clipboard.writeText(transferJson.value);
     ElMessage.success('配置 JSON 已复制');
   } catch (error) {
     ElMessage.error(`复制失败：${error instanceof Error ? error.message : '请检查剪贴板权限'}`);
   }
-}
-
-const fileInput = ref<HTMLInputElement | null>(null);
-function chooseImportFile() {
-  fileInput.value?.click();
 }
 
 function prepareImportPreview(text: string, label: string) {
@@ -459,28 +474,10 @@ function prepareImportPreview(text: string, label: string) {
   showPreview({kind: 'import', label, savedAt: new Date().toISOString(), config: parsed});
 }
 
-async function handleImportFile(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  input.value = '';
-  if (!file) return;
+function previewImportedConfig() {
   try {
-    prepareImportPreview(await file.text(), file.name);
-  } catch (error) {
-    ElMessage.error(`无法读取配置：${error instanceof Error ? error.message : 'JSON 格式错误'}`);
-  }
-}
-
-const pasteDialogVisible = ref(false);
-const pastedJson = ref('');
-function openPasteDialog() {
-  pastedJson.value = '';
-  pasteDialogVisible.value = true;
-}
-function previewPastedJson() {
-  try {
-    prepareImportPreview(pastedJson.value, '粘贴的 JSON');
-    pasteDialogVisible.value = false;
+    prepareImportPreview(transferJson.value, '粘贴的 JSON');
+    transferDialogVisible.value = false;
   } catch (error) {
     ElMessage.error(`无法读取配置：${error instanceof Error ? error.message : 'JSON 格式错误'}`);
   }
@@ -516,7 +513,6 @@ function previewPastedJson() {
 .transfer-actions :deep(.el-button) { margin-left: 0; }
 .transfer-actions :deep(svg) { width: 14px; margin-right: 5px; }
 .transfer-warning { margin: 0; padding: 0 16px 14px; }
-.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .preview-summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-soft); }
 .preview-summary > div { display: flex; flex-direction: column; gap: 3px; }
 .preview-summary span { color: var(--muted); font-size: 10px; }

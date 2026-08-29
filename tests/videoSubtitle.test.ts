@@ -1,12 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@wxt-dev/storage', () => ({
-    storage: {
-        getItem: vi.fn().mockResolvedValue(null),
-        setItem: vi.fn().mockResolvedValue(undefined),
-        watch: vi.fn().mockReturnValue(() => undefined),
-    },
+const configStorageMock = vi.hoisted(() => ({
+    getItem: vi.fn().mockResolvedValue(null),
+    setItem: vi.fn().mockResolvedValue(undefined),
+    removeItem: vi.fn().mockResolvedValue(undefined),
+    watch: vi.fn().mockReturnValue(() => undefined),
 }));
+
+vi.mock('@wxt-dev/storage', () => ({
+    storage: configStorageMock,
+}));
+vi.mock('@/src/platform/storage/configStorageRuntime', () => ({configStorage: configStorageMock}));
 vi.mock('webextension-polyfill', () => ({
     default: { runtime: { sendMessage: vi.fn() } },
 }));

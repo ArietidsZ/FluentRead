@@ -52,6 +52,64 @@ describe('图片后台服务', () => {
         });
     });
 
+    it('OCR 语言仓库串行合并并发下载结果，避免后写覆盖先写', async () => {
+        let downloaded: unknown = [];
+        let releaseFirstWrite!: () => void;
+        const firstWriteStarted = new Promise<void>((resolve) => {
+            releaseFirstWrite = resolve;
+        });
+        let allowFirstWrite!: () => void;
+        const firstWriteGate = new Promise<void>((resolve) => {
+            allowFirstWrite = resolve;
+        });
+        let writeCount = 0;
+        const storage = {
+            get: vi.fn(async (): Promise<Record<string, unknown>> => ({
+                [IMAGE_OCR_LANGUAGE_STATE_KEY]: downloaded,
+            })),
+            set: vi.fn(async (values: Record<string, unknown>) => {
+                writeCount += 1;
+                if (writeCount === 1) {
+                    releaseFirstWrite();
+                    await firstWriteGate;
+                }
+                downloaded = values[IMAGE_OCR_LANGUAGE_STATE_KEY];
+            }),
+        };
+        const repository = createImageOcrLanguageRepository(storage);
+
+        const english = repository.markDownloaded(['eng']);
+        await firstWriteStarted;
+        const chinese = repository.markDownloaded(['chi_sim']);
+        await Promise.resolve();
+        expect(storage.get).toHaveBeenCalledOnce();
+
+        allowFirstWrite();
+        await expect(english).resolves.toEqual(['eng']);
+        await expect(chinese).resolves.toEqual(['eng', 'chi_sim']);
+        expect(downloaded).toEqual(['eng', 'chi_sim']);
+        expect(storage.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('OCR 语言仓库在一次持久化失败后仍会继续后续合并', async () => {
+        let downloaded: unknown = ['eng'];
+        const storage = {
+            get: vi.fn(async (): Promise<Record<string, unknown>> => ({
+                [IMAGE_OCR_LANGUAGE_STATE_KEY]: downloaded,
+            })),
+            set: vi.fn()
+                .mockRejectedValueOnce(new Error('write failed'))
+                .mockImplementationOnce(async (values: Record<string, unknown>) => {
+                    downloaded = values[IMAGE_OCR_LANGUAGE_STATE_KEY];
+                }),
+        };
+        const repository = createImageOcrLanguageRepository(storage);
+
+        await expect(repository.markDownloaded(['chi_sim'])).rejects.toThrow('write failed');
+        await expect(repository.markDownloaded(['jpn'])).resolves.toEqual(['eng', 'jpn']);
+        expect(downloaded).toEqual(['eng', 'jpn']);
+    });
+
     it('OCR 语言仓库允许已安装组合并报告缺失语言包中文名', async () => {
         const storage = {
             get: vi.fn(async (): Promise<Record<string, unknown>> => ({

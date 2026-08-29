@@ -1,12 +1,12 @@
 /**
  * @file src/services/config/store.ts
  *
- * 文件职责：协调 FluentRead 配置、凭据与历史记录在浏览器存储中的读取、订阅、保存和并发持久化。
- * 主要内容：维护 config 响应式状态和监听器，区分公开配置与 session/local 凭据，序列化 persist/history 消息，处理 debounce、revision 冲突、迁移及 undo/redo 请求。 可核对的公开符号包括 CONFIG_STORAGE_KEY、CONFIG_HISTORY_STORAGE_KEY、CONFIG_PERSIST_MESSAGE、CONFIG_HISTORY_MESSAGE、config、flushConfigHistory、configReady、configHistoryReady。
+ * 文件职责：协调 FluentRead 配置、凭据与历史记录在后台加密配置仓库中的读取、订阅、保存和并发持久化。
+ * 主要内容：维护 config 响应式状态和监听器，区分公开配置与会话/持久凭据，序列化 persist/history 消息，处理 debounce、revision 冲突、旧存储迁移及 undo/redo 请求。 可核对的公开符号包括 CONFIG_STORAGE_KEY、CONFIG_HISTORY_STORAGE_KEY、CONFIG_PERSIST_MESSAGE、CONFIG_HISTORY_MESSAGE、config、flushConfigHistory、configReady、configHistoryReady。
  * 模块边界：本文件位于配置 application service 层，可协调 core 规则与浏览器存储端口；不包含设置页面组件，也不实现具体翻译供应商协议，调用方应通过公开服务 API 订阅或提交配置。
  */
 
-import { storage } from '@wxt-dev/storage';
+import {configStorage as storage} from '@/src/platform/storage/configStorageRuntime';
 import { Config, normalizeConfig } from '@/src/core/config/model';
 import {
     LOCAL_CREDENTIALS_STORAGE_KEY,
@@ -293,6 +293,7 @@ function applyConfig(nextConfig: Config): void {
 }
 
 const trustedCredentialStorageContext = isTrustedCredentialStorageContext();
+const configStorageWriteOwner = storage.writeOwner !== false;
 let credentialCleanupRequired = false;
 let localCredentialSnapshotPresent = false;
 let sessionCredentialWatchRegistered = false;
@@ -300,6 +301,9 @@ let sessionCredentialStorageAvailable = false;
 let configStorageWritesBlocked = false;
 
 function assertConfigStorageWritesAllowed(): void {
+    if (!configStorageWriteOwner) {
+        throw new Error('当前上下文必须通过后台配置协议保存');
+    }
     if (configStorageWritesBlocked) {
         throw new Error('配置安全迁移未完成，暂不写入存储；请重新加载扩展后重试');
     }
@@ -310,6 +314,13 @@ async function writeAndVerifyCredentials(
     credentials: ConfigCredentials,
 ): Promise<void> {
     await storage.setItem<ConfigCredentials>(key, credentials);
+    await verifyStoredCredentials(key, credentials);
+}
+
+async function verifyStoredCredentials(
+    key: typeof SESSION_CREDENTIALS_STORAGE_KEY | typeof LOCAL_CREDENTIALS_STORAGE_KEY,
+    credentials: ConfigCredentials,
+): Promise<void> {
     const verified = parseStoredCredentials(await storage.getItem<unknown>(key));
     if (!verified || !credentialsEqual(credentials, verified)) {
         throw new Error(`${key} 凭据写入校验失败`);
@@ -356,6 +367,44 @@ function queueStorageWrite(nextConfig: Config, serialized: string, revision: num
                     || localCredentialSnapshotPresent
                     || sessionCredentialStorageAvailable
                     || nextConfig.persistCredentials;
+
+                if (storage.setItems) {
+                    const entries = new Map<string, unknown>();
+                    const removeKeys: string[] = [];
+                    if (mustCheckpointCredentials) entries.set(SESSION_CREDENTIALS_STORAGE_KEY, credentials);
+                    if (nextConfig.persistCredentials) entries.set(LOCAL_CREDENTIALS_STORAGE_KEY, credentials);
+                    entries.set(CONFIG_STORAGE_KEY, createStoredConfigRecord(nextConfig, storedRevision));
+
+                    const shouldCleanupLocalCredentials = !nextConfig.persistCredentials
+                        && (credentialCleanupRequired || localCredentialSnapshotPresent);
+                    if (shouldCleanupLocalCredentials) {
+                        const storedHistory = await storage.getItem<unknown>(CONFIG_HISTORY_STORAGE_KEY);
+                        if (storedHistory !== null && storedHistory !== undefined) {
+                            const sanitized = sanitizeConfigHistoryCredentials(storedHistory);
+                            if (serializeConfig(storedHistory) !== serializeConfig(sanitized)) {
+                                if (sanitized === null) removeKeys.push(CONFIG_HISTORY_STORAGE_KEY);
+                                else entries.set(CONFIG_HISTORY_STORAGE_KEY, sanitized);
+                            }
+                        }
+                        removeKeys.push(LOCAL_CREDENTIALS_STORAGE_KEY);
+                    }
+
+                    await storage.setItems(entries, removeKeys);
+                    if (mustCheckpointCredentials) {
+                        await verifyStoredCredentials(SESSION_CREDENTIALS_STORAGE_KEY, credentials);
+                    }
+                    if (nextConfig.persistCredentials) {
+                        await verifyStoredCredentials(LOCAL_CREDENTIALS_STORAGE_KEY, credentials);
+                        localCredentialSnapshotPresent = true;
+                    }
+                    persistedConfigRevision = Math.max(persistedConfigRevision, storedRevision);
+                    if (shouldCleanupLocalCredentials) {
+                        credentialCleanupRequired = false;
+                        localCredentialSnapshotPresent = false;
+                    }
+                    return;
+                }
+
                 if (mustCheckpointCredentials) {
                     await writeAndVerifyCredentials(SESSION_CREDENTIALS_STORAGE_KEY, credentials);
                 }
@@ -481,6 +530,7 @@ function registerSessionCredentialWatch(): void {
 
 async function initializeConfig(): Promise<void> {
     let safePublicConfig: Config | null = null;
+    let storedValueRevision = storageRevision;
     try {
         let storedValue: unknown = null;
 
@@ -488,6 +538,7 @@ async function initializeConfig(): Promise<void> {
         for (let attempt = 0; attempt < 2; attempt += 1) {
             const revisionAtRead = storageRevision;
             storedValue = await storage.getItem<unknown>(CONFIG_STORAGE_KEY);
+            storedValueRevision = revisionAtRead;
             if (revisionAtRead === storageRevision) break;
         }
 
@@ -506,6 +557,7 @@ async function initializeConfig(): Promise<void> {
         }
 
         if (!trustedCredentialStorageContext) {
+            if (storedValueRevision !== storageRevision) return initializeConfig();
             // content script 的 location 属于网页 origin，且默认无权访问 storage.session。
             // 只加载公开配置，不在此上下文迁移、回写或监听凭据。
             initialized = true;
@@ -532,10 +584,17 @@ async function initializeConfig(): Promise<void> {
             sessionCredentials = parseStoredCredentials(
                 await storage.getItem<unknown>(SESSION_CREDENTIALS_STORAGE_KEY),
             );
-            sessionCredentialStorageAvailable = true;
+            // “读取到 null”只说明当前没有会话记录，不代表底层 storage.session
+            // 可写；旧 Firefox 会在真正创建随机材料时才暴露 API 缺失。
+            sessionCredentialStorageAvailable = sessionCredentials !== null;
         } catch (error) {
             sessionReadError = error;
         }
+
+        // config 读完后还要等待 local/history/session 凭据。若这段水合窗口内其他
+        // 页面提交了更高 revision，当前 parsed 与凭据不再属于同一个原子快照；
+        // 整轮重读，禁止旧配置在新 watch 已应用后回滚 UI 并覆盖新设置。
+        if (storedValueRevision !== storageRevision) return initializeConfig();
 
         const activeCredentials = sessionCredentials
             || localCredentials
@@ -548,6 +607,15 @@ async function initializeConfig(): Promise<void> {
 
         initialized = true;
         applyConfig(normalized);
+
+        // popup/options/document 可以从后台读取完整凭据，但不是 IndexedDB 写入所有者。
+        // 后台已经完成旧存储迁移与检查点；远程页面只水合并监听，不能再次 setItem。
+        if (!configStorageWriteOwner) {
+            if (sessionReadError) configStorageWritesBlocked = true;
+            lastPersistedSerialized = serialized;
+            registerSessionCredentialWatch();
+            return;
+        }
 
         const hasLegacyCredentialStorage = Boolean(legacyCredentials || localCredentials || historyNeedsSanitizing);
         credentialCleanupRequired = hasLegacyCredentialStorage && !normalized.persistCredentials;
@@ -599,6 +667,10 @@ async function initializeConfig(): Promise<void> {
         lastPersistedSerialized = serialized;
         registerSessionCredentialWatch();
     } catch (error) {
+        // 凭据 I/O 可能在更高 revision 的 watch 到达后失败。此时旧轮次的
+        // safePublicConfig 已经过期；先用最新主记录整轮重试。若同一 I/O 继续失败，
+        // 下一轮 fallback 也会基于最新公开配置，不能出现旧内容搭配新 revision。
+        if (storedValueRevision !== storageRevision) return initializeConfig();
         // 在任何读取或迁移边界不确定时禁止后续覆盖 local:config；重新加载后会重新尝试水合。
         configStorageWritesBlocked = true;
         if (initialized) {
@@ -808,11 +880,17 @@ type ConfigMessageSender = (message: {
 export async function requestConfigSave(value: unknown = config, sendMessage?: ConfigMessageSender): Promise<void> {
     const normalized = normalizeConfig(value);
     const serialized = serializeConfig(normalized);
+    // 必须在第一个 await 前登记最新请求；否则即使 configReady 已 resolved，微任务
+    // 让出期间到达的旧 storage 回声也会被误当外部更新并回滚本地编辑。
     latestRequestedSerialized = serialized;
     const sequence = ++requestSequence;
 
     if (!sendMessage) {
         try {
+            await configReady;
+            if (configStorageWritesBlocked) {
+                throw new Error('配置安全水合未完成，暂不保存；请重新加载扩展后重试');
+            }
             await saveConfig(normalized, {recordHistory: true, immediateHistory: true});
         } finally {
             if (latestRequestedSerialized === serialized) latestRequestedSerialized = '';
@@ -824,6 +902,12 @@ export async function requestConfigSave(value: unknown = config, sendMessage?: C
     const request = requestQueue
         .catch(() => undefined)
         .then(async () => {
+            await configReady;
+            // 远程扩展页在凭据水合失败后只有公开配置，绝不能把空 token/ak/sk 当成
+            // 用户修改发给后台并清除仍安全保存的 API Key。完整重载成功前统一拒绝保存。
+            if (configStorageWritesBlocked) {
+                throw new Error('配置安全水合未完成，暂不保存；请重新加载扩展后重试');
+            }
             // 外部恢复/导入导致 revision 冲突后，不能继续发送已经排队的旧整份快照。
             if (generation !== requestGeneration) {
                 throw new Error('配置已更新，请根据最新配置重新修改');

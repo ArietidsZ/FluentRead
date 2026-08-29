@@ -90,6 +90,7 @@ function installRefreshListeners(): void {
 }
 
 export const storage = {
+    writeOwner: true,
     getItem<T>(key: string): Promise<T | null> {
         return getStoredValue<T>(key);
     },
@@ -116,3 +117,7 @@ export const storage = {
         };
     },
 };
+
+// 共享配置 store 在扩展构建中使用后台 IndexedDB 端口；userscript 保持 GM 私有
+// 存储语义，并通过同名导出让 Vite alias 在模块边界完整替换扩展实现。
+export const configStorage = storage;

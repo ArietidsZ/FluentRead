@@ -23,24 +23,41 @@ export interface ImageOcrLanguageRepository {
     assertDownloaded(sourceLanguage: string): Promise<void>;
 }
 
-/** 创建 OCR 语言包仓库；browser.storage.local 仅通过 adapter 注入。 */
+/** 创建 OCR 语言包仓库；后台加密配置存储仅通过 adapter 注入。 */
 export function createImageOcrLanguageRepository(
     storage: ImageOcrLanguageStorage,
 ): ImageOcrLanguageRepository {
+    let pendingMark = Promise.resolve();
+
     const getDownloaded = async (): Promise<ImageOcrLanguageCode[]> => {
         const stored = await storage.get(IMAGE_OCR_LANGUAGE_STATE_KEY);
         return normalizeImageOcrLanguageCodes(stored[IMAGE_OCR_LANGUAGE_STATE_KEY]);
     };
 
-    return {
-        getDownloaded,
-        async markDownloaded(languages) {
+    const markDownloaded = async (
+        languages: ImageOcrLanguageCode[],
+    ): Promise<ImageOcrLanguageCode[]> => {
+        let releasePendingMark!: () => void;
+        const previousMark = pendingMark;
+        pendingMark = new Promise<void>((resolve) => {
+            releasePendingMark = resolve;
+        });
+
+        await previousMark;
+        try {
             const downloaded = new Set(await getDownloaded());
             for (const language of languages) downloaded.add(language);
             const next = normalizeImageOcrLanguageCodes([...downloaded]);
             await storage.set({[IMAGE_OCR_LANGUAGE_STATE_KEY]: next});
             return next;
-        },
+        } finally {
+            releasePendingMark();
+        }
+    };
+
+    return {
+        getDownloaded,
+        markDownloaded,
         async assertDownloaded(sourceLanguage) {
             const downloaded = new Set(await getDownloaded());
             const missing = getRequiredImageOcrLanguages(sourceLanguage)
