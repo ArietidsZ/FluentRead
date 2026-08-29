@@ -2,7 +2,7 @@ import {describe, expect, it, vi} from 'vitest';
 import {
     installXGrokPageBridgeCore,
     installXGrokPageBridgeLifecycleCore,
-    rewriteXGrokTimelineUrl,
+    rewriteXGrokPostUrl,
     X_GROK_PAGE_BRIDGE_ACTIVATION_KEY,
     X_GROK_PAGE_BRIDGE_DISPOSE_EVENT,
     X_GROK_PAGE_BRIDGE_ENABLE_EVENT,
@@ -79,7 +79,7 @@ function timelineUrl(options: {
 }
 
 function expectRewritten(value: string, baseHref: string): URL {
-    const rewritten = rewriteXGrokTimelineUrl(value, baseHref);
+    const rewritten = rewriteXGrokPostUrl(value, baseHref);
     expect(rewritten).not.toBeNull();
     const url = new URL(rewritten!);
     expect(JSON.parse(url.searchParams.get('features')!)).toEqual({
@@ -139,7 +139,7 @@ function pageBridgeFixture() {
     };
 }
 
-describe('X/Grok Timeline URL 改写', () => {
+describe('X/Grok 帖子请求 URL 改写', () => {
     it('支持 X/Twitter 裸域、子域、尾点、HTTP 与 Timeline 版本后缀', () => {
         expectRewritten(timelineUrl({host: 'api.x.com'}), 'https://x.com/home');
         expectRewritten(timelineUrl({host: 'mobile.twitter.com', operation: 'SearchTimelineV2'}), 'https://twitter.com/home');
@@ -153,17 +153,32 @@ describe('X/Grok Timeline URL 改写', () => {
         );
     });
 
-    it('严格拒绝非 X 来源、非 HTTP 请求和非 Timeline GraphQL 路径', () => {
+    it('为个人主页、媒体、收藏和帖子详情请求也开启原生翻译字段', () => {
+        for (const operation of [
+            'UserTweets',
+            'UserTweetsAndReplies',
+            'UserHighlightsTweets',
+            'UserMedia',
+            'Likes',
+            'Bookmarks',
+            'TweetDetail',
+            'TweetResultByRestId',
+        ]) {
+            expectRewritten(timelineUrl({operation}), 'https://x.com/home');
+        }
+    });
+
+    it('严格拒绝非 X 来源、非 HTTP 请求和不返回帖子内容的 GraphQL 路径', () => {
         const valid = timelineUrl();
-        expect(rewriteXGrokTimelineUrl(valid, 'https://example.com/home')).toBeNull();
-        expect(rewriteXGrokTimelineUrl(timelineUrl({host: 'example.com'}), 'https://x.com/home')).toBeNull();
-        expect(rewriteXGrokTimelineUrl(timelineUrl({protocol: 'ftp:'}), 'https://x.com/home')).toBeNull();
-        expect(rewriteXGrokTimelineUrl(timelineUrl({operation: 'TweetDetail'}), 'https://x.com/home')).toBeNull();
-        expect(rewriteXGrokTimelineUrl(
+        expect(rewriteXGrokPostUrl(valid, 'https://example.com/home')).toBeNull();
+        expect(rewriteXGrokPostUrl(timelineUrl({host: 'example.com'}), 'https://x.com/home')).toBeNull();
+        expect(rewriteXGrokPostUrl(timelineUrl({protocol: 'ftp:'}), 'https://x.com/home')).toBeNull();
+        expect(rewriteXGrokPostUrl(timelineUrl({operation: 'UserByScreenName'}), 'https://x.com/home')).toBeNull();
+        expect(rewriteXGrokPostUrl(
             timelineUrl({operation: 'HomeTimeline/extra'}),
             'https://x.com/home',
         )).toBeNull();
-        expect(rewriteXGrokTimelineUrl(
+        expect(rewriteXGrokPostUrl(
             timelineUrl({operation: '%E0%A4%A'}),
             'https://x.com/home',
         )).toBeNull();
@@ -177,18 +192,18 @@ describe('X/Grok Timeline URL 改写', () => {
             return url.href;
         };
 
-        expect(rewriteXGrokTimelineUrl(make(), base)).toBeNull();
-        expect(rewriteXGrokTimelineUrl(make(''), base)).toBeNull();
-        expect(rewriteXGrokTimelineUrl(make('{'), base)).toBeNull();
-        expect(rewriteXGrokTimelineUrl(make('null'), base)).toBeNull();
-        expect(rewriteXGrokTimelineUrl(make('1'), base)).toBeNull();
-        expect(rewriteXGrokTimelineUrl(make('[]'), base)).toBeNull();
-        expect(rewriteXGrokTimelineUrl(make('{}'), base)).toBeNull();
-        expect(rewriteXGrokTimelineUrl(make(JSON.stringify({
+        expect(rewriteXGrokPostUrl(make(), base)).toBeNull();
+        expect(rewriteXGrokPostUrl(make(''), base)).toBeNull();
+        expect(rewriteXGrokPostUrl(make('{'), base)).toBeNull();
+        expect(rewriteXGrokPostUrl(make('null'), base)).toBeNull();
+        expect(rewriteXGrokPostUrl(make('1'), base)).toBeNull();
+        expect(rewriteXGrokPostUrl(make('[]'), base)).toBeNull();
+        expect(rewriteXGrokPostUrl(make('{}'), base)).toBeNull();
+        expect(rewriteXGrokPostUrl(make(JSON.stringify({
             [X_GROK_TRANSLATED_POST_FEATURE]: true,
         })), base)).toBeNull();
-        expect(rewriteXGrokTimelineUrl('http://[bad', base)).toBeNull();
-        expect(rewriteXGrokTimelineUrl(timelineUrl(), 'http://[bad')).toBeNull();
+        expect(rewriteXGrokPostUrl('http://[bad', base)).toBeNull();
+        expect(rewriteXGrokPostUrl(timelineUrl(), 'http://[bad')).toBeNull();
     });
 });
 
@@ -250,7 +265,7 @@ describe('X/Grok MAIN world 请求桥', () => {
         expect(() => fixture.fetch.value('/home')).toThrow('network failed');
     });
 
-    it('XHR 只改写 GET Timeline URL，并保留 method、this 与其余 open 参数', () => {
+    it('XHR 只改写 GET 帖子请求 URL，并保留 method、this 与其余 open 参数', () => {
         const fixture = pageBridgeFixture();
         installXGrokPageBridgeCore(fixture.environment);
         const host = {name: 'xhr-host'};

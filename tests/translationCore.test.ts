@@ -868,7 +868,7 @@ describe('translation candidate core', () => {
         expect(core.resolve(tweetText.firstChild)?.element).toBe(tweetText);
     });
 
-    it('defers X post prose to native Grok translation while preserving non-post candidates', () => {
+    it('开启 X/Grok 自动翻译时仍保留帖子候选供 FluentRead 手动触发', () => {
         const {document, core} = page(`
             <main>
                 <article data-testid="tweet">
@@ -886,10 +886,10 @@ describe('translation candidate core', () => {
 
         document.documentElement.setAttribute('data-fluentread-x-grok-native-translation', '');
 
-        expect(core.resolve(tweetText.firstChild)).toBeNull();
-        expect(core.resolve(articleProse.firstChild)).toBeNull();
+        expect(core.resolve(tweetText.firstChild)?.element).toBe(tweetText);
+        expect(core.resolve(articleProse.firstChild)?.element).toBe(articleProse);
         expect(core.resolve(profile.firstChild)?.element).toBe(profile);
-        expect(core.discover(document).some((candidate) => candidate.element === tweetText)).toBe(false);
+        expect(core.discover(document).some((candidate) => candidate.element === tweetText)).toBe(true);
 
         document.documentElement.removeAttribute('data-fluentread-x-grok-native-translation');
         expect(core.resolve(tweetText.firstChild)?.element).toBe(tweetText);
