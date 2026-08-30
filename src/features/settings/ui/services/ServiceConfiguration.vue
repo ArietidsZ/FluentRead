@@ -262,7 +262,7 @@ import type { Config } from '@/src/core/config/model'
 import { defaultOption, options as optionConfig } from '@/src/core/config/catalog'
 import { isValidCustomBody } from '@/src/core/config/customBody'
 import browser from 'webextension-polyfill'
-import { requestConfigSave } from '@/src/services/config/store'
+import { requestConfigSave, waitForConfigPersistenceQueue } from '@/src/services/config/store'
 import { CONNECTION_TEST_MESSAGE, getMimoEndpoint, MINIMAX_ENDPOINTS } from '@/src/core/config/constants'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -350,6 +350,7 @@ async function testConnection(): Promise<void> {
   connectionTestMessage.value = '正在保存当前配置并请求服务…'
 
   try {
+    await waitForConfigPersistenceQueue()
     await requestConfigSave(config.value, browser.runtime.sendMessage.bind(browser.runtime))
     const response = await browser.runtime.sendMessage({
       type: CONNECTION_TEST_MESSAGE,

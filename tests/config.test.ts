@@ -699,6 +699,156 @@ describe('统一配置存储', () => {
         expect(extensionPrepared.videoServiceDefaultMigrated).toBe(true);
     });
 
+    it('字段补丁只接受已知目标字段，并保留最新配置、统计、迁移状态与 content 凭据边界', async () => {
+        const configStore = await loadConfigModule(storedConfig);
+        await configStore.configReady;
+        const current = normalizeConfig({
+            ...configStore.config,
+            to: 'ja',
+            theme: 'dark',
+            videoTranslationEnabled: true,
+            videoSubtitleVisible: true,
+            count: 42,
+            token: {openai: 'background-secret'},
+            futureNonSensitiveSetting: {enabled: true},
+        });
+
+        const contentPrepared = configStore.prepareConfigPatchRequest({
+            videoSubtitleVisible: false,
+            count: 0,
+            videoServiceDefaultMigrated: false,
+            token: {openai: 'content-stale-secret'},
+            unknownFutureToggle: true,
+        }, {
+            videoSubtitleVisible: true,
+        }, current, false);
+        const extensionPrepared = configStore.prepareConfigPatchRequest({
+            token: {openai: 'new-extension-secret'},
+        }, {
+            token: {openai: 'background-secret'},
+        }, current, true);
+
+        expect(contentPrepared).toMatchObject({
+            to: 'ja',
+            theme: 'dark',
+            videoTranslationEnabled: true,
+            videoSubtitleVisible: false,
+            count: 42,
+            videoServiceDefaultMigrated: true,
+            token: {openai: 'background-secret'},
+        });
+        expect(contentPrepared).not.toHaveProperty('unknownFutureToggle');
+        expect(contentPrepared).toHaveProperty('futureNonSensitiveSetting', {enabled: true});
+        expect(extensionPrepared.token).toEqual({openai: 'new-extension-secret'});
+        expect(extensionPrepared.count).toBe(42);
+        expect(() => configStore.prepareConfigPatchRequest({
+            videoSubtitleVisible: false,
+        }, {
+            videoSubtitleVisible: false,
+        }, current, false)).toThrow('videoSubtitleVisible');
+        expect(() => configStore.prepareConfigPatchRequest({
+            videoSubtitleVisible: true,
+        }, {
+            videoSubtitleVisible: false,
+        }, current, false)).toThrow('videoSubtitleVisible');
+    });
+
+    it('字段补丁先乐观更新，后台失败后回读权威快照并自动回滚', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig({
+            ...storedConfig,
+            videoTranslationEnabled: false,
+        }));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4});
+        await configStore.configReady;
+        const sendMessage = vi.fn(async (message: {
+            mode?: string;
+            config: Config;
+            expected?: Config;
+            baseRevision: number;
+        }) => {
+            expect(configStore.config.videoTranslationEnabled).toBe(true);
+            expect(message).toMatchObject({
+                mode: 'patch',
+                config: {videoTranslationEnabled: true},
+                expected: {videoTranslationEnabled: false},
+                baseRevision: 4,
+            });
+            return {success: false, error: 'patch failed'};
+        });
+
+        await expect(configStore.requestConfigPatch({
+            videoTranslationEnabled: true,
+            unknownFutureToggle: true,
+        }, sendMessage)).rejects.toThrow('patch failed');
+
+        expect(configStore.config.videoTranslationEnabled).toBe(false);
+        expect(configStore.getConfigRevision()).toBe(4);
+        expect(configStore.config).not.toHaveProperty('unknownFutureToggle');
+    });
+
+    it('字段补丁确认回声不重复 apply 或通知订阅者', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig({
+            ...storedConfig,
+            videoTranslationEnabled: false,
+        }));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4});
+        await configStore.configReady;
+        const listener = vi.fn();
+        const unsubscribe = configStore.subscribeConfig(listener);
+        listener.mockClear();
+        const sendMessage = vi.fn(async () => {
+            expect(configStore.config.videoTranslationEnabled).toBe(true);
+            expect(listener).toHaveBeenCalledOnce();
+            const committed = {
+                ...canonical,
+                videoTranslationEnabled: true,
+                __fluentConfigRevision: 5,
+            };
+            storageState.set('local:config', committed);
+            storageWatchers.get('local:config')!(committed);
+            return {success: true, revision: 5};
+        });
+
+        await configStore.requestConfigPatch({videoTranslationEnabled: true}, sendMessage);
+
+        expect(configStore.config.videoTranslationEnabled).toBe(true);
+        expect(configStore.getConfigRevision()).toBe(5);
+        expect(listener).toHaveBeenCalledOnce();
+        unsubscribe();
+    });
+
+    it('字段补丁冲突后回读同字段的权威新值', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4});
+        await configStore.configReady;
+        const sendMessage = vi.fn(async (message: {
+            mode?: string;
+            config: Config;
+            expected?: Config;
+            baseRevision: number;
+        }) => {
+            expect(configStore.config.to).toBe('ja');
+            expect(message).toMatchObject({
+                mode: 'patch',
+                config: {to: 'ja'},
+                expected: {to: 'zh-Hans'},
+                baseRevision: 4,
+            });
+            storageState.set('local:config', {
+                ...canonical,
+                to: 'ko',
+                __fluentConfigRevision: 5,
+            });
+            return {success: false, error: '配置字段已更新，请同步后重试：to'};
+        });
+
+        await expect(configStore.requestConfigPatch({to: 'ja'}, sendMessage))
+            .rejects.toThrow('to');
+
+        expect(configStore.config.to).toBe('ko');
+        expect(configStore.getConfigRevision()).toBe(5);
+    });
+
     it('先写入并读回 local 凭据，再清理旧 config/history 明文', async () => {
         const secret = 'legacy-secret-sentinel';
         const legacyConfig = {
@@ -942,6 +1092,309 @@ describe('统一配置存储', () => {
 
         expect(sent).toEqual(['en', 'ja']);
         expect(baseRevisions).toEqual([1, 2]);
+    });
+
+    it('配置持久化 barrier 等待已排队及等待期间追加的请求', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4});
+        await configStore.configReady;
+        const configWatch = storageMock.watch.mock.calls[0][1];
+        let releaseFirstPatch!: () => void;
+        let releaseSecondPatch!: () => void;
+        const firstPatchGate = new Promise<void>((resolve) => { releaseFirstPatch = resolve; });
+        const secondPatchGate = new Promise<void>((resolve) => { releaseSecondPatch = resolve; });
+        const sent: Array<{mode: string; baseRevision: number}> = [];
+        const sendMessage = vi.fn(async (message: {
+            mode?: 'replace' | 'patch';
+            config: Config;
+            expected?: Config;
+            baseRevision: number;
+        }) => {
+            sent.push({mode: message.mode || 'replace', baseRevision: message.baseRevision});
+            if (message.mode === 'patch' && 'videoTranslationEnabled' in message.config) {
+                await firstPatchGate;
+                const committed = {
+                    ...canonical,
+                    videoTranslationEnabled: true,
+                    __fluentConfigRevision: 5,
+                };
+                storageState.set('local:config', committed);
+                configWatch(committed);
+                return {success: true, revision: 5};
+            }
+            if (message.mode === 'patch') {
+                await secondPatchGate;
+                const committed = {
+                    ...canonical,
+                    videoTranslationEnabled: true,
+                    theme: 'dark',
+                    __fluentConfigRevision: 6,
+                };
+                storageState.set('local:config', committed);
+                configWatch(committed);
+                return {success: true, revision: 6};
+            }
+
+            expect(message.baseRevision).toBe(6);
+            const committed = {
+                ...canonical,
+                videoTranslationEnabled: true,
+                theme: 'dark',
+                to: 'ja',
+                __fluentConfigRevision: 7,
+            };
+            storageState.set('local:config', committed);
+            configWatch(committed);
+            return {success: true, revision: 7};
+        });
+
+        const firstPatch = configStore.requestConfigPatch({videoTranslationEnabled: true}, sendMessage);
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        let barrierResolved = false;
+        const barrier = configStore.waitForConfigPersistenceQueue().then(() => { barrierResolved = true; });
+        const secondPatch = configStore.requestConfigPatch({theme: 'dark'}, sendMessage);
+
+        await Promise.resolve();
+        expect(barrierResolved).toBe(false);
+        releaseFirstPatch();
+        await firstPatch;
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(2));
+        expect(barrierResolved).toBe(false);
+        releaseSecondPatch();
+        await Promise.all([secondPatch, barrier]);
+
+        expect(barrierResolved).toBe(true);
+        expect(configStore.getConfigRevision()).toBe(6);
+        await configStore.requestConfigSave({...configStore.config, to: 'ja'}, sendMessage);
+        expect(sent).toEqual([
+            {mode: 'patch', baseRevision: 4},
+            {mode: 'patch', baseRevision: 4},
+            {mode: 'replace', baseRevision: 6},
+        ]);
+        expect(configStore.config).toMatchObject({
+            to: 'ja',
+            theme: 'dark',
+            videoTranslationEnabled: true,
+        });
+        expect(configStore.getConfigRevision()).toBe(7);
+    });
+
+    it('字段补丁与整份替换共用请求队列，replace 不继承 patch revision', async () => {
+        const configStore = await loadConfigModule(storedConfig);
+        await configStore.configReady;
+        const sent: Array<{mode: string; to: string; sequence: number; baseRevision: number}> = [];
+        let releasePatch!: () => void;
+        const patchGate = new Promise<void>((resolve) => { releasePatch = resolve; });
+        const sendMessage = vi.fn(async (message: {
+            mode?: 'replace' | 'patch';
+            config: Config;
+            sequence: number;
+            baseRevision: number;
+        }) => {
+            sent.push({
+                mode: message.mode || 'replace',
+                to: String(message.config.to),
+                sequence: message.sequence,
+                baseRevision: message.baseRevision,
+            });
+            if (message.mode === 'patch') await patchGate;
+            return {success: true, revision: message.baseRevision + 1};
+        });
+
+        const patch = configStore.requestConfigPatch({to: 'en'}, sendMessage);
+        const replace = configStore.requestConfigSave({...configStore.config, to: 'ja'}, sendMessage);
+        await vi.waitFor(() => expect(sent).toHaveLength(1));
+        releasePatch();
+        await Promise.all([patch, replace]);
+
+        expect(sent).toEqual([
+            {mode: 'patch', to: 'en', sequence: 1, baseRevision: 1},
+            {mode: 'replace', to: 'ja', sequence: 2, baseRevision: 1},
+        ]);
+    });
+
+    it('排队 replace 不借用已吸收外部字段的 patch revision 覆盖新值', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4});
+        await configStore.configReady;
+        const configWatch = storageMock.watch.mock.calls[0][1];
+        const sent: Array<{mode: string; baseRevision: number}> = [];
+        const sendMessage = vi.fn(async (message: {
+            mode?: 'replace' | 'patch';
+            config: Config;
+            expected?: Config;
+            baseRevision: number;
+        }) => {
+            sent.push({mode: message.mode || 'replace', baseRevision: message.baseRevision});
+            if (message.mode === 'patch') {
+                expect(message).toMatchObject({
+                    config: {to: 'ja'},
+                    expected: {to: canonical.to},
+                    baseRevision: 4,
+                });
+                const external = {
+                    ...canonical,
+                    theme: 'dark',
+                    __fluentConfigRevision: 5,
+                };
+                storageState.set('local:config', external);
+                configWatch(external);
+                const committed = {
+                    ...external,
+                    to: 'ja',
+                    __fluentConfigRevision: 6,
+                };
+                storageState.set('local:config', committed);
+                configWatch(committed);
+                return {success: true, revision: 6};
+            }
+
+            expect(message.config).toMatchObject({
+                to: 'ja',
+                theme: canonical.theme,
+            });
+            expect(message.baseRevision).toBe(4);
+            return {success: false, error: '配置已更新（当前 revision 6）'};
+        });
+
+        const patch = configStore.requestConfigPatch({to: 'ja'}, sendMessage);
+        // patch 的乐观值 X1 已进入 runtime，但外部 Y1 尚未到达当前上下文。
+        const staleReplace = configStore.requestConfigSave(normalizeConfig(configStore.config), sendMessage);
+        const [patchResult, replaceResult] = await Promise.allSettled([patch, staleReplace]);
+
+        expect(patchResult.status).toBe('fulfilled');
+        expect(replaceResult).toMatchObject({
+            status: 'rejected',
+            reason: expect.objectContaining({message: expect.stringContaining('revision 6')}),
+        });
+        expect(sent).toEqual([
+            {mode: 'patch', baseRevision: 4},
+            {mode: 'replace', baseRevision: 4},
+        ]);
+        expect(configStore.config).toMatchObject({to: 'ja', theme: 'dark'});
+        expect(configStore.getConfigRevision()).toBe(6);
+    });
+
+    it('外部 revision 会取消混合队列中的旧 replace，但保留可做字段 CAS 的 patch', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4});
+        await configStore.configReady;
+        const configWatch = storageMock.watch.mock.calls[0][1];
+        const sendMessage = vi.fn(async (message: {
+            mode?: 'replace' | 'patch';
+            config: Config;
+            expected?: Config;
+            baseRevision: number;
+        }) => {
+            expect(message).toMatchObject({
+                mode: 'patch',
+                config: {videoTranslationEnabled: true},
+                expected: {videoTranslationEnabled: false},
+                // patch 的 baseRevision 只是协议兼容字段，后台依赖 expected 做 CAS。
+                baseRevision: 4,
+            });
+            const committed = {
+                ...canonical,
+                to: 'ko',
+                videoTranslationEnabled: true,
+                __fluentConfigRevision: 6,
+            };
+            storageState.set('local:config', committed);
+            configWatch(committed);
+            return {success: true, revision: 6};
+        });
+
+        const staleReplace = configStore.requestConfigSave({...configStore.config, to: 'en'}, sendMessage);
+        const patch = configStore.requestConfigPatch({videoTranslationEnabled: true}, sendMessage);
+        const external = {
+            ...canonical,
+            to: 'ko',
+            __fluentConfigRevision: 5,
+        };
+        storageState.set('local:config', external);
+        configWatch(external);
+
+        await expect(staleReplace).rejects.toThrow('根据最新配置重新修改');
+        await expect(patch).resolves.toBeUndefined();
+
+        expect(sendMessage).toHaveBeenCalledOnce();
+        expect(configStore.config).toMatchObject({
+            to: 'ko',
+            videoTranslationEnabled: true,
+        });
+        expect(configStore.getConfigRevision()).toBe(6);
+    });
+
+    it('active replace 期间 deferred 的外部更新会取消所有旧 replace，但后续 patch 仍可 CAS', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4});
+        await configStore.configReady;
+        const configWatch = storageMock.watch.mock.calls[0][1];
+        let releaseActiveReplace!: () => void;
+        const activeReplaceGate = new Promise<void>((resolve) => { releaseActiveReplace = resolve; });
+        const sent: Array<{mode: string; to: string; baseRevision: number}> = [];
+        const sendMessage = vi.fn(async (message: {
+            mode?: 'replace' | 'patch';
+            config: Config;
+            expected?: Config;
+            baseRevision: number;
+        }) => {
+            sent.push({
+                mode: message.mode || 'replace',
+                to: String(message.config.to ?? ''),
+                baseRevision: message.baseRevision,
+            });
+            if (message.mode !== 'patch') {
+                await activeReplaceGate;
+                return {success: true, revision: 5};
+            }
+
+            expect(message).toMatchObject({
+                mode: 'patch',
+                config: {videoTranslationEnabled: true},
+                expected: {videoTranslationEnabled: false},
+                baseRevision: 4,
+            });
+            const committed = {
+                ...canonical,
+                to: 'ko',
+                videoTranslationEnabled: true,
+                __fluentConfigRevision: 7,
+            };
+            storageState.set('local:config', committed);
+            configWatch(committed);
+            return {success: true, revision: 7};
+        });
+
+        const activeReplace = configStore.requestConfigSave({...configStore.config, to: 'en'}, sendMessage);
+        await vi.waitFor(() => expect(sent).toEqual([
+            {mode: 'replace', to: 'en', baseRevision: 4},
+        ]));
+        const staleReplace = configStore.requestConfigSave({...configStore.config, to: 'ja'}, sendMessage);
+        const patch = configStore.requestConfigPatch({videoTranslationEnabled: true}, sendMessage);
+        const external = {
+            ...canonical,
+            to: 'ko',
+            __fluentConfigRevision: 6,
+        };
+        storageState.set('local:config', external);
+        // activeRequestSerialized 存在时先 deferred，待 R0 响应后再判定为更高外部版本。
+        configWatch(external);
+        releaseActiveReplace();
+
+        await expect(activeReplace).rejects.toThrow('其他页面更新');
+        await expect(staleReplace).rejects.toThrow('根据最新配置重新修改');
+        await expect(patch).resolves.toBeUndefined();
+
+        expect(sent).toEqual([
+            {mode: 'replace', to: 'en', baseRevision: 4},
+            {mode: 'patch', to: '', baseRevision: 4},
+        ]);
+        expect(configStore.config).toMatchObject({
+            to: 'ko',
+            videoTranslationEnabled: true,
+        });
+        expect(configStore.getConfigRevision()).toBe(7);
     });
 
     it('一次 revision 冲突会刷新当前配置并取消已经排队的旧快照', async () => {

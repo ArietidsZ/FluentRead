@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
     translationProgressPanelEnabled: true,
   },
   createVueShadowUi: vi.fn(),
-  requestConfigSave: vi.fn(),
+  requestConfigPatch: vi.fn(),
   sendMessage: vi.fn(),
   autoTranslateEnglishPage: vi.fn(),
   isFullPageTranslationActive: vi.fn(),
@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/src/services/config/store', () => ({
   config: mocks.config,
-  requestConfigSave: mocks.requestConfigSave,
+  requestConfigPatch: mocks.requestConfigPatch,
 }));
 vi.mock('@/src/platform/shadow-ui', () => ({createVueShadowUi: mocks.createVueShadowUi}));
 vi.mock('webextension-polyfill', () => ({
@@ -68,7 +68,7 @@ beforeEach(() => {
   });
   for (const mock of [
     mocks.createVueShadowUi,
-    mocks.requestConfigSave,
+    mocks.requestConfigPatch,
     mocks.sendMessage,
     mocks.autoTranslateEnglishPage,
     mocks.isFullPageTranslationActive,
@@ -76,7 +76,9 @@ beforeEach(() => {
     mocks.subscribeFullPageTranslationProgress,
     mocks.unsubscribeFullPageTranslationProgress,
   ]) mock.mockReset();
-  mocks.requestConfigSave.mockResolvedValue(undefined);
+  mocks.requestConfigPatch.mockImplementation(async (patch: Record<string, unknown>) => {
+    Object.assign(mocks.config, patch);
+  });
   mocks.sendMessage.mockResolvedValue({success: true});
   mocks.autoTranslateEnglishPage.mockResolvedValue(undefined);
   mocks.isFullPageTranslationActive.mockReturnValue(false);
@@ -128,7 +130,7 @@ describe('悬浮球 content runtime', () => {
     await Promise.resolve();
     expect(mocks.sendMessage).toHaveBeenCalledWith({type: 'openOptionsPage'});
     expect(mocks.config.floatingBallPosition).toBe('left');
-    expect(mocks.requestConfigSave).toHaveBeenCalledWith(mocks.config, expect.any(Function));
+    expect(mocks.requestConfigPatch).toHaveBeenCalledWith({floatingBallPosition: 'left'}, expect.any(Function));
 
     mocks.isFullPageTranslationActive.mockReturnValueOnce(true);
     options.props.onTranslationToggle(true);
@@ -160,7 +162,7 @@ describe('悬浮球 content runtime', () => {
     const [, options] = mocks.createVueShadowUi.mock.calls[1];
 
     mocks.sendMessage.mockRejectedValueOnce(new Error('settings failed'));
-    mocks.requestConfigSave.mockRejectedValueOnce(new Error('save failed'));
+    mocks.requestConfigPatch.mockRejectedValueOnce(new Error('save failed'));
     options.props.onSettingsClick();
     options.props.onPositionChanged('right');
     mocks.isFullPageTranslationActive.mockReturnValueOnce(false);

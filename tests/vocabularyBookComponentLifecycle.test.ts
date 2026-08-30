@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import vue from '@vitejs/plugin-vue';
@@ -17,7 +18,7 @@ interface ComponentTestState {
   };
   config: Record<string, unknown>;
   configReady: Promise<void>;
-  requestConfigSave: () => Promise<void>;
+  requestConfigPatch: () => Promise<void>;
   subscribeConfig: () => () => void;
 }
 
@@ -53,7 +54,7 @@ function componentMocks(): Plugin {
           `const state = globalThis.${TEST_STATE_KEY};`,
           'export const config = state.config;',
           'export const configReady = state.configReady;',
-          'export const requestConfigSave = state.requestConfigSave;',
+          'export const requestConfigPatch = state.requestConfigPatch;',
           'export const subscribeConfig = state.subscribeConfig;',
         ].join('\n');
       }
@@ -68,6 +69,16 @@ afterEach(() => {
 });
 
 describe('VocabularyBook mounted lifecycle', () => {
+  it('refreshes failed optimistic updates from authoritative config without rewriting it', () => {
+    const component = readFileSync(resolve(
+      process.cwd(),
+      'src/features/vocabulary/ui/VocabularyBook.vue',
+    ), 'utf8');
+
+    expect(component).toContain('betaEnabled.value = runtimeConfig.vocabularyBookEnabled === true;');
+    expect(component).not.toContain('runtimeConfig.vocabularyBookEnabled = previous;');
+  });
+
   it('does not subscribe, register listeners, or list after unmounting before configReady', async () => {
     const calls = {
       runtimeAdd: 0,
@@ -96,7 +107,7 @@ describe('VocabularyBook mounted lifecycle', () => {
         to: 'zh-CN',
       },
       configReady,
-      requestConfigSave: async () => undefined,
+      requestConfigPatch: async () => undefined,
       subscribeConfig: () => {
         calls.subscribe += 1;
         return () => undefined;

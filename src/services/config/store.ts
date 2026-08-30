@@ -2,13 +2,14 @@
  * @file src/services/config/store.ts
  *
  * 文件职责：协调 FluentRead 配置、凭据与历史记录在后台加密配置仓库中的读取、订阅、保存和并发持久化。
- * 主要内容：维护 config 响应式状态和监听器，区分公开配置与加密持久凭据，序列化 persist/history 消息，处理 debounce、revision 冲突、旧会话凭据迁移及 undo/redo 请求。 可核对的公开符号包括 CONFIG_STORAGE_KEY、CONFIG_HISTORY_STORAGE_KEY、CONFIG_PERSIST_MESSAGE、CONFIG_HISTORY_MESSAGE、config、flushConfigHistory、configReady、configHistoryReady。
+ * 主要内容：维护 config 响应式状态和监听器，区分公开配置与加密持久凭据，串行发送整份替换或字段级 patch，处理乐观更新回滚、revision 冲突、旧会话凭据迁移、历史 debounce 及 undo/redo 请求。
  * 模块边界：本文件位于配置 application service 层，可协调 core 规则与浏览器存储端口；不包含设置页面组件，也不实现具体翻译供应商协议，调用方应通过公开服务 API 订阅或提交配置。
  */
 
 import {configStorage as storage} from '@/src/platform/storage/configStorageRuntime';
 import { Config, normalizeConfig } from '@/src/core/config/model';
 import {
+    CONFIG_CREDENTIAL_FIELDS,
     LOCAL_CREDENTIALS_STORAGE_KEY,
     SESSION_CREDENTIALS_STORAGE_KEY,
     credentialsEqual,
@@ -71,10 +72,16 @@ let lastPersistedSerialized = '';
 let writeRevision = 0;
 let writeQueue: Promise<void> = Promise.resolve();
 let latestRequestedSerialized = '';
+let latestRequestedMode: ConfigPersistenceMode | null = null;
 let persistedConfigRevision = 0;
 let requestSequence = 0;
 let requestGeneration = 0;
 let requestQueue: Promise<void> = Promise.resolve();
+let lastEnqueuedRemoteRequestSequence = 0;
+let lastCommittedRemoteRequestSequence = 0;
+let lastCommittedRemoteRequestRevision = 0;
+let lastCommittedRemoteRequestGeneration = -1;
+let lastCommittedRemoteRequestMode: ConfigPersistenceMode | null = null;
 let activeRequestSerialized = '';
 let hasDeferredStoredConfigChange = false;
 let deferredStoredConfigChange: unknown;
@@ -82,6 +89,12 @@ const completedCountOperations = new Map<string, {delta: number; count: number}>
 const activeCountOperations = new Map<string, {delta: number; promise: Promise<number>}>();
 const CONFIG_COUNT_OPERATION_CACHE_LIMIT = 1_024;
 const CONFIG_COUNT_OPERATIONS_FIELD = '__fluentCountOperations' as const;
+const CONFIG_PATCH_PROTECTED_FIELDS = new Set<string>([
+    'count',
+    'videoServiceDefaultMigrated',
+]);
+const CONFIG_KNOWN_FIELDS = new Set<string>(Object.keys(new Config()));
+const CONFIG_CREDENTIAL_FIELD_SET = new Set<string>(CONFIG_CREDENTIAL_FIELDS);
 const requestClientId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 let historyState: ConfigHistoryState;
 let historyInitialized = false;
@@ -92,6 +105,8 @@ let historyWriteQueue: Promise<void> = Promise.resolve();
 let pendingHistorySnapshot: RestorableConfig | null = null;
 let pendingHistoryTimer: ReturnType<typeof setTimeout> | undefined;
 let historyFlushPromise: Promise<void> | null = null;
+
+type ConfigPersistenceMode = 'replace' | 'patch';
 
 // 所有运行时模块共享同一个可变配置对象；存储层负责把跨上下文变更同步进来。
 export const config = new Config();
@@ -430,10 +445,14 @@ function handleStoredConfigChange(value: unknown, options: StoredConfigChangeOpt
     if (storedRevision) persistedConfigRevision = storedRevision;
 
     // 一个更高 revision 且无法归属于本页面保存请求的快照，必然来自恢复、导入
-    // 或其他页面。立即采用它并取消排队的旧整份快照，不能只借用它的 revision。
-    if (revisionAdvanced && !isLocalEcho && latestRequestedSerialized) {
+    // 或其他页面。replace 请求逐个捕获该 generation，因此即使队尾后来换成
+    // patch，队列中更早的旧整份快照也会失效；patch 自身则交给字段级 CAS。
+    if (revisionAdvanced && !isLocalEcho) {
         requestGeneration += 1;
-        latestRequestedSerialized = '';
+        if (latestRequestedSerialized && latestRequestedMode === 'replace') {
+            latestRequestedSerialized = '';
+            latestRequestedMode = null;
+        }
     }
     // 同一个短生命周期页面可能在极短时间内产生多个快照。storage.watch
     // 可能先回传前一个快照，不能让它覆盖页面尚未完成发送的最新快照。
@@ -449,11 +468,15 @@ function handleStoredConfigChange(value: unknown, options: StoredConfigChangeOpt
     if (persistedCountOperations) {
         replaceCompletedCountOperations(persistedCountOperations, normalized.count);
     }
-    if (serialized === lastPersistedSerialized) return;
+    const runtimeAlreadyMatches = serialized === serializeConfig(config);
+    if (serialized === lastPersistedSerialized && runtimeAlreadyMatches) return;
 
     // 外部上下文已经产生了新快照，使尚未写入的旧快照失效。
     writeRevision += 1;
     lastPersistedSerialized = serialized;
+    // patch 在请求发出前已经乐观更新并通知订阅者。确认回声只更新持久化
+    // revision/去重基线，不能再次 apply 同值导致 UI 重绘或监听器重复执行。
+    if (runtimeAlreadyMatches) return;
     applyConfig(normalized);
 }
 
@@ -738,6 +761,71 @@ export async function requestConfigCountIncrement(
     return response.count;
 }
 
+function isConfigObject(value: unknown): value is Record<string, unknown> {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function configPatchValuesEqual(left: unknown, right: unknown): boolean {
+    if (Object.is(left, right)) return true;
+    if (Array.isArray(left) || Array.isArray(right)) {
+        return Array.isArray(left)
+            && Array.isArray(right)
+            && left.length === right.length
+            && left.every((item, index) => configPatchValuesEqual(item, right[index]));
+    }
+    if (!isConfigObject(left) || !isConfigObject(right)) return false;
+    const leftKeys = Object.keys(left).sort();
+    const rightKeys = Object.keys(right).sort();
+    return leftKeys.length === rightKeys.length
+        && leftKeys.every((key, index) => (
+            key === rightKeys[index]
+            && configPatchValuesEqual(left[key], right[key])
+        ));
+}
+
+function createConfigPatch(
+    value: unknown,
+    currentValue: unknown,
+    allowCredentialUpdates: boolean,
+    omitUnchanged = true,
+): Record<string, unknown> {
+    if (!isConfigObject(value)) return {};
+    const currentConfig = normalizeConfig(currentValue);
+    const requestedFields = Object.fromEntries(
+        Object.entries(value).filter(([key]) => (
+            CONFIG_KNOWN_FIELDS.has(key)
+            && !CONFIG_PATCH_PROTECTED_FIELDS.has(key)
+            && (allowCredentialUpdates || !CONFIG_CREDENTIAL_FIELD_SET.has(key))
+        )),
+    );
+    if (Object.keys(requestedFields).length === 0) return {};
+
+    const normalized = normalizeConfig({
+        ...currentConfig,
+        ...requestedFields,
+        count: currentConfig.count,
+        videoServiceDefaultMigrated: currentConfig.videoServiceDefaultMigrated,
+    });
+    return Object.fromEntries(
+        Object.keys(requestedFields)
+            .filter((key) => !omitUnchanged || !configPatchValuesEqual(
+                normalized[key as keyof Config],
+                currentConfig[key as keyof Config],
+            ))
+            .map((key) => [key, normalized[key as keyof Config]]),
+    );
+}
+
+function createConfigPatchExpectedValues(
+    patch: Record<string, unknown>,
+    currentValue: unknown,
+): Record<string, unknown> {
+    const currentConfig = normalizeConfig(currentValue);
+    return Object.fromEntries(
+        Object.keys(patch).map((key) => [key, currentConfig[key as keyof Config]]),
+    );
+}
+
 /**
  * 网页/content 发来的保存请求只能修改公开配置；凭据必须由 popup/options
  * 等扩展 origin 明确更新，避免无凭据的 content 快照清空后台持久记录。
@@ -762,6 +850,36 @@ export function prepareConfigSaveRequest(
         count: currentConfig.count,
         videoServiceDefaultMigrated: currentConfig.videoServiceDefaultMigrated,
     }, extractConfigCredentials(currentConfig)));
+}
+
+/**
+ * 字段级配置修改在后台 mutation 临界区内基于最新配置合并。补丁只接受当前
+ * Config 已知顶层字段；统计和迁移标记永远由后台保留，content 也不能修改凭据。
+ */
+export function prepareConfigPatchRequest(
+    value: unknown,
+    expectedValue: unknown,
+    currentValue: unknown = config,
+    allowCredentialUpdates = false,
+): Config {
+    const currentConfig = normalizeConfig(currentValue);
+    // 后台必须对 wire patch 中每个合法字段执行 CAS；即使别的页面已经写成
+    // 相同目标值，也不能先按“当前无变化”删掉该字段并绕过 expected 校验。
+    const patch = createConfigPatch(value, currentConfig, allowCredentialUpdates, false);
+    const expected = isConfigObject(expectedValue) ? expectedValue : {};
+    const conflicts = Object.keys(patch).filter((key) => (
+        !Object.prototype.hasOwnProperty.call(expected, key)
+        || !configPatchValuesEqual(currentConfig[key as keyof Config], expected[key])
+    ));
+    if (conflicts.length > 0) {
+        throw new Error(`配置字段已更新，请同步后重试：${conflicts.join(', ')}`);
+    }
+    return normalizeConfig({
+        ...currentConfig,
+        ...patch,
+        count: currentConfig.count,
+        videoServiceDefaultMigrated: currentConfig.videoServiceDefaultMigrated,
+    });
 }
 
 export function getConfigHistorySnapshot(): ConfigHistoryState {
@@ -810,19 +928,64 @@ export async function saveConfig(value: unknown = config, options: SaveConfigOpt
 type ConfigMessageResponse = { success?: boolean; error?: string; revision?: number } | undefined;
 type ConfigMessageSender = (message: {
     type: typeof CONFIG_PERSIST_MESSAGE;
+    mode?: ConfigPersistenceMode;
     config: Config;
+    expected?: Config;
     clientId: string;
     sequence: number;
     baseRevision: number;
 }) => Promise<ConfigMessageResponse>;
 
-export async function requestConfigSave(value: unknown = config, sendMessage?: ConfigMessageSender): Promise<void> {
-    const normalized = normalizeConfig(value);
+async function reconcileFailedConfigRequest(fallbackConfig?: Config): Promise<void> {
+    let deferred = takeDeferredStoredConfigChange();
+    let storedValue: unknown;
+    try {
+        storedValue = deferred.hasValue
+            ? deferred.value
+            : await storage.getItem<unknown>(CONFIG_STORAGE_KEY);
+        // storage.getItem 期间可能又收到更新，以最后一个 watch 快照为准。
+        deferred = takeDeferredStoredConfigChange();
+    } catch (error) {
+        if (fallbackConfig && serializeConfig(config) !== serializeConfig(fallbackConfig)) {
+            applyConfig(fallbackConfig);
+        }
+        console.warn('[FluentRead] 配置保存失败后的权威快照回读失败', error);
+        return;
+    } finally {
+        activeRequestSerialized = '';
+    }
+
+    const latestValue = deferred.hasValue ? deferred.value : storedValue;
+    if (parseStoredConfig(latestValue)) {
+        handleStoredConfigChange(latestValue);
+    } else if (fallbackConfig && serializeConfig(config) !== serializeConfig(fallbackConfig)) {
+        applyConfig(fallbackConfig);
+    }
+}
+
+interface ConfigMutationRequest {
+    mode: ConfigPersistenceMode;
+    normalized: Config;
+    messageConfig: Config | Record<string, unknown>;
+    messageExpected?: Record<string, unknown>;
+    rollbackConfig?: Config;
+}
+
+async function requestConfigMutation(
+    mutation: ConfigMutationRequest,
+    sendMessage?: ConfigMessageSender,
+): Promise<void> {
+    const {mode, normalized, messageConfig, messageExpected, rollbackConfig} = mutation;
     const serialized = serializeConfig(normalized);
+    const enqueuedBaseRevision = persistedConfigRevision;
     // 必须在第一个 await 前登记最新请求；否则即使 configReady 已 resolved，微任务
     // 让出期间到达的旧 storage 回声也会被误当外部更新并回滚本地编辑。
     latestRequestedSerialized = serialized;
+    latestRequestedMode = mode;
+    const predecessorRemoteSequence = sendMessage ? lastEnqueuedRemoteRequestSequence : 0;
     const sequence = ++requestSequence;
+    if (sendMessage) lastEnqueuedRemoteRequestSequence = sequence;
+    if (mode === 'patch' && serializeConfig(config) !== serialized) applyConfig(normalized);
 
     if (!sendMessage) {
         try {
@@ -831,8 +994,19 @@ export async function requestConfigSave(value: unknown = config, sendMessage?: C
                 throw new Error('配置安全水合未完成，暂不保存；请重新加载扩展后重试');
             }
             await saveConfig(normalized, {recordHistory: true, immediateHistory: true});
+        } catch (error) {
+            if (mode === 'patch' && latestRequestedSerialized === serialized) {
+                requestGeneration += 1;
+                latestRequestedSerialized = '';
+                latestRequestedMode = null;
+                await reconcileFailedConfigRequest(rollbackConfig);
+            }
+            throw error;
         } finally {
-            if (latestRequestedSerialized === serialized) latestRequestedSerialized = '';
+            if (latestRequestedSerialized === serialized) {
+                latestRequestedSerialized = '';
+                latestRequestedMode = null;
+            }
         }
         return;
     }
@@ -848,51 +1022,73 @@ export async function requestConfigSave(value: unknown = config, sendMessage?: C
                 throw new Error('配置安全水合未完成，暂不保存；请重新加载扩展后重试');
             }
             // 外部恢复/导入导致 revision 冲突后，不能继续发送已经排队的旧整份快照。
-            if (generation !== requestGeneration) {
+            if (mode === 'replace' && generation !== requestGeneration) {
                 throw new Error('配置已更新，请根据最新配置重新修改');
             }
 
             activeRequestSerialized = serialized;
+            // replace 必须绑定入队时看到的基线，不能在排队后借用外部页面推进的
+            // persistedConfigRevision。唯一允许继承的是同一 client 队列中已经确认
+            // 成功的 replace 直接前驱，这样连续整份快照仍可按 revision 1 -> 2 -> 3
+            // 提交，而 patch 吸收的外部字段不会成为旧 replace 的授权基线。
+            const canInheritPredecessorRevision = predecessorRemoteSequence > 0
+                && lastCommittedRemoteRequestSequence === predecessorRemoteSequence
+                && lastCommittedRemoteRequestGeneration === generation
+                // patch 的提交 revision 可能已经吸收外部字段；旧整份 replace
+                // 不能借用该 revision，否则会把这些外部字段回写成自己的旧快照。
+                && lastCommittedRemoteRequestMode === 'replace';
+            const baseRevision = canInheritPredecessorRevision
+                ? Math.max(enqueuedBaseRevision, lastCommittedRemoteRequestRevision)
+                : enqueuedBaseRevision;
             let response: ConfigMessageResponse;
             try {
                 response = await sendMessage({
                     type: CONFIG_PERSIST_MESSAGE,
-                    config: normalized,
+                    ...(mode === 'patch' ? {mode} : {}),
+                    // replace 发送完整 Config；patch 只发送已过滤的已知字段。runtime
+                    // wire schema 在后台按 mode 区分，这里的断言保持旧 sender 回调兼容。
+                    config: messageConfig as Config,
+                    ...(mode === 'patch' ? {expected: messageExpected as unknown as Config} : {}),
                     clientId: requestClientId,
                     sequence,
-                    // 在真正发送时读取版本，让同一页面的连续编辑按前一次提交后的 revision 串行。
-                    baseRevision: persistedConfigRevision,
+                    baseRevision,
                 });
             } catch (error) {
                 activeRequestSerialized = '';
-                const deferred = takeDeferredStoredConfigChange();
-                if (deferred.hasValue) handleStoredConfigChange(deferred.value);
+                if (mode === 'patch' && latestRequestedSerialized === serialized) {
+                    requestGeneration += 1;
+                    latestRequestedSerialized = '';
+                    latestRequestedMode = null;
+                    await reconcileFailedConfigRequest(rollbackConfig);
+                } else {
+                    const deferred = takeDeferredStoredConfigChange();
+                    if (deferred.hasValue) handleStoredConfigChange(deferred.value);
+                }
                 throw error;
             }
 
             if (response?.success === false) {
                 requestGeneration += 1;
-                latestRequestedSerialized = '';
-                let deferred = takeDeferredStoredConfigChange();
-                let storedValue: unknown;
-                try {
-                    storedValue = deferred.hasValue
-                        ? deferred.value
-                        : await storage.getItem<unknown>(CONFIG_STORAGE_KEY);
-                    // storage.getItem 期间可能又收到更新，以最后一个 watch 快照为准。
-                    deferred = takeDeferredStoredConfigChange();
-                } finally {
-                    activeRequestSerialized = '';
+                if (latestRequestedSerialized === serialized) {
+                    latestRequestedSerialized = '';
+                    latestRequestedMode = null;
                 }
-                handleStoredConfigChange(deferred.hasValue ? deferred.value : storedValue);
+                await reconcileFailedConfigRequest(mode === 'patch' ? rollbackConfig : undefined);
                 throw new Error(response.error || '后台保存配置失败');
             }
             if (typeof response?.revision !== 'number'
                 || !Number.isSafeInteger(response.revision)
                 || response.revision < 0) {
                 activeRequestSerialized = '';
-                const deferred = takeDeferredStoredConfigChange();
-                if (deferred.hasValue) handleStoredConfigChange(deferred.value);
+                if (mode === 'patch' && latestRequestedSerialized === serialized) {
+                    requestGeneration += 1;
+                    latestRequestedSerialized = '';
+                    latestRequestedMode = null;
+                    await reconcileFailedConfigRequest(rollbackConfig);
+                } else {
+                    const deferred = takeDeferredStoredConfigChange();
+                    if (deferred.hasValue) handleStoredConfigChange(deferred.value);
+                }
                 throw new Error('后台保存配置没有返回有效 revision');
             }
 
@@ -908,7 +1104,15 @@ export async function requestConfigSave(value: unknown = config, sendMessage?: C
                     // 后续 storage.watch 仍会补齐后台保留的 canonical 字段。
                     activeRequestSerialized = '';
                     persistedConfigRevision = Math.max(persistedConfigRevision, response.revision);
-                    if (latestRequestedSerialized === serialized) applyConfig(normalized);
+                    if (latestRequestedSerialized === serialized
+                        && serializeConfig(config) !== serialized) applyConfig(normalized);
+                    if (mode === 'replace' && generation !== requestGeneration) {
+                        throw new Error('配置已由其他页面更新，请根据最新配置重新修改');
+                    }
+                    lastCommittedRemoteRequestSequence = sequence;
+                    lastCommittedRemoteRequestRevision = response.revision;
+                    lastCommittedRemoteRequestGeneration = generation;
+                    lastCommittedRemoteRequestMode = mode;
                     return;
                 }
                 deferred = takeDeferredStoredConfigChange();
@@ -928,19 +1132,101 @@ export async function requestConfigSave(value: unknown = config, sendMessage?: C
                 });
             } else {
                 persistedConfigRevision = Math.max(persistedConfigRevision, response.revision);
-                if (latestRequestedSerialized === serialized) applyConfig(normalized);
+                if (latestRequestedSerialized === serialized) {
+                    const storedBase = parseStoredConfig(storedValue);
+                    const storedBaseConfig = storedBase
+                        ? normalizeConfig(mergeConfigCredentials(
+                            storedBase,
+                            extractConfigCredentials(config),
+                        ))
+                        : null;
+                    const optimisticResult = mode === 'patch' && storedBaseConfig
+                        ? prepareConfigPatchRequest(
+                            messageConfig,
+                            createConfigPatchExpectedValues(
+                                messageConfig as unknown as Record<string, unknown>,
+                                storedBaseConfig,
+                            ),
+                            storedBaseConfig,
+                            trustedCredentialStorageContext,
+                        )
+                        : normalized;
+                    if (serializeConfig(config) !== serializeConfig(optimisticResult)) {
+                        applyConfig(optimisticResult);
+                    }
+                }
             }
-            if (generation !== requestGeneration) {
+            if (mode === 'replace' && generation !== requestGeneration) {
                 throw new Error('配置已由其他页面更新，请根据最新配置重新修改');
             }
+            lastCommittedRemoteRequestSequence = sequence;
+            lastCommittedRemoteRequestRevision = response.revision;
+            lastCommittedRemoteRequestGeneration = generation;
+            lastCommittedRemoteRequestMode = mode;
         });
     requestQueue = request.then(() => undefined, () => undefined);
 
     try {
         await request;
+    } catch (error) {
+        if (mode === 'patch'
+            && latestRequestedSerialized === serialized
+            && serializeConfig(config) === serialized) {
+            requestGeneration += 1;
+            latestRequestedSerialized = '';
+            latestRequestedMode = null;
+            await reconcileFailedConfigRequest(rollbackConfig);
+        }
+        throw error;
     } finally {
-        if (latestRequestedSerialized === serialized) latestRequestedSerialized = '';
+        if (latestRequestedSerialized === serialized) {
+            latestRequestedSerialized = '';
+            latestRequestedMode = null;
+        }
     }
+}
+
+/**
+ * 等待当前配置消息队列排空。等待期间若又有请求接到队尾，会继续等待新的
+ * queue 引用；调用完成之后才入队的请求不属于本次 barrier。
+ */
+export async function waitForConfigPersistenceQueue(): Promise<void> {
+    let pendingQueue = requestQueue;
+    while (true) {
+        await pendingQueue;
+        if (pendingQueue === requestQueue) return;
+        pendingQueue = requestQueue;
+    }
+}
+
+export async function requestConfigSave(value: unknown = config, sendMessage?: ConfigMessageSender): Promise<void> {
+    const normalized = normalizeConfig(value);
+    return requestConfigMutation({mode: 'replace', normalized, messageConfig: normalized}, sendMessage);
+}
+
+/**
+ * 提交字段级配置补丁。调用端先乐观应用合法字段；后台在共享 mutation 队列内
+ * 基于最新配置合并，因此无关字段不会被旧整份快照覆盖。失败时回读权威存储回滚。
+ */
+export async function requestConfigPatch(value: unknown, sendMessage?: ConfigMessageSender): Promise<void> {
+    if (!initialized) await configReady;
+    const previousConfig = normalizeConfig(config);
+    const patch = createConfigPatch(value, previousConfig, trustedCredentialStorageContext);
+    if (Object.keys(patch).length === 0) return;
+    const expected = createConfigPatchExpectedValues(patch, previousConfig);
+    const normalized = prepareConfigPatchRequest(
+        patch,
+        expected,
+        previousConfig,
+        trustedCredentialStorageContext,
+    );
+    return requestConfigMutation({
+        mode: 'patch',
+        normalized,
+        messageConfig: patch,
+        messageExpected: expected,
+        rollbackConfig: previousConfig,
+    }, sendMessage);
 }
 
 export async function applyConfigHistoryAction(action: ConfigHistoryAction, version?: number): Promise<ConfigHistoryState> {

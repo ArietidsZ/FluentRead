@@ -1,16 +1,19 @@
 /**
  * @file src/app/background/handlers/configPersistence.ts
- * 文件职责：在后台可信边界接收配置保存请求，规范化客户端身份与序号，并协调配置快照的串行持久化和响应。
- * 主要内容：声明 persistConfig 协议及依赖，校验普通对象、clientId 与非负 sequence，屏蔽同客户端过期序号，共享同序号在途结果并允许失败后重试，最后返回实际提交 revision。
+ * 文件职责：在后台可信边界接收整份配置替换或字段补丁，规范化客户端身份与序号，并协调串行持久化和响应。
+ * 主要内容：声明 persistConfig replace/patch 协议及依赖，校验普通对象、mode、clientId 与非负 sequence，屏蔽同客户端过期序号，共享同序号在途结果并允许失败后重试，最后返回实际提交 revision。
  * 模块边界：这里只处理跨上下文消息和保存编排，不定义 Config 字段、不直接操作 browser.storage，也不负责历史裁剪；校验、凭据拆分和存储事务由注入的配置服务承担。
  */
 import type {BackgroundMessageHandler} from '../messageRouter';
 
 export const CONFIG_PERSIST_MESSAGE_TYPE = 'persistConfig' as const;
+export type ConfigPersistenceMode = 'replace' | 'patch';
 
 export interface ConfigPersistenceMessage {
     type: typeof CONFIG_PERSIST_MESSAGE_TYPE;
+    mode?: unknown;
     config?: unknown;
+    expected?: unknown;
     clientId?: unknown;
     sequence?: unknown;
     baseRevision?: unknown;
@@ -56,6 +59,12 @@ export interface ConfigPersistenceDependencies<TConfig> {
         currentConfig: TConfig,
         allowCredentialUpdates: boolean,
     ) => TConfig;
+    readonly prepareConfigPatchRequest: (
+        incomingPatch: Record<string, unknown>,
+        expectedPatch: Record<string, unknown>,
+        currentConfig: TConfig,
+        allowCredentialUpdates: boolean,
+    ) => TConfig;
     readonly saveConfig: (config: TConfig, options: {recordHistory: true}) => Promise<void>;
     readonly isExtensionUrl: (url: string) => boolean;
     readonly getCurrentRevision?: () => number;
@@ -63,7 +72,9 @@ export interface ConfigPersistenceDependencies<TConfig> {
 }
 
 interface ParsedConfigPersistenceRequest {
+    mode: ConfigPersistenceMode;
     config: Record<string, unknown>;
+    expected?: Record<string, unknown>;
     clientId: string;
     sequence: number;
     baseRevision?: number;
@@ -99,6 +110,18 @@ function parseBaseRevision(value: unknown): number | undefined {
     throw new TypeError('配置保存 baseRevision 必须是非负安全整数');
 }
 
+function parsePersistenceMode(value: unknown): ConfigPersistenceMode {
+    if (value === undefined || value === 'replace') return 'replace';
+    if (value === 'patch') return 'patch';
+    throw new TypeError('配置保存 mode 必须是 replace 或 patch');
+}
+
+function parseExpectedPatch(value: unknown, mode: ConfigPersistenceMode): Record<string, unknown> | undefined {
+    if (mode === 'replace') return undefined;
+    if (!isPlainRecord(value)) throw new TypeError('配置 patch 缺少有效 expected');
+    return value;
+}
+
 function parseConfigPersistenceMessage(
     message: ConfigPersistenceMessage,
     context: ConfigPersistenceContext,
@@ -112,8 +135,11 @@ function parseConfigPersistenceMessage(
 
     // 步骤 2：只有扩展自身页面可以更新凭据；content/page 消息只能保存公开字段。
     const senderUrl = typeof context.sender?.url === 'string' ? context.sender.url : '';
+    const mode = parsePersistenceMode(message.mode);
     return {
+        mode,
         config: message.config,
+        expected: parseExpectedPatch(message.expected, mode),
         clientId,
         sequence,
         baseRevision: parseBaseRevision(message.baseRevision),
@@ -165,18 +191,27 @@ export function createConfigPersistenceHandler<TConfig>(
                     await dependencies.ready;
 
                     const currentRevision = dependencies.getCurrentRevision?.();
-                    if (request.baseRevision !== undefined
+                    if (request.mode === 'replace'
+                        && request.baseRevision !== undefined
                         && currentRevision !== undefined
                         && request.baseRevision !== currentRevision) {
                         throw new Error(`配置已更新（当前 revision ${currentRevision}），请同步后重试`);
                     }
 
                     // 步骤 2：使用注入的 prepare/save 保持凭据策略、规范化和历史记录行为。
-                    const prepared = dependencies.prepareConfigSaveRequest(
-                        request.config,
-                        dependencies.getCurrentConfig(),
-                        request.allowCredentialUpdates,
-                    );
+                    const currentConfig = dependencies.getCurrentConfig();
+                    const prepared = request.mode === 'patch'
+                        ? dependencies.prepareConfigPatchRequest(
+                            request.config,
+                            request.expected!,
+                            currentConfig,
+                            request.allowCredentialUpdates,
+                        )
+                        : dependencies.prepareConfigSaveRequest(
+                            request.config,
+                            currentConfig,
+                            request.allowCredentialUpdates,
+                        );
                     await dependencies.saveConfig(prepared, {recordHistory: true});
                     if (request.sequence) {
                         committedSequenceByClient.set(request.clientId, Math.max(

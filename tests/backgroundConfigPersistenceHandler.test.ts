@@ -11,6 +11,8 @@ import {createBackgroundMessageRouter} from '@/src/app/background/messageRouter'
 interface TestConfig {
     marker: string;
     allowCredentialUpdates?: boolean;
+    videoTranslationEnabled?: boolean;
+    theme?: string;
 }
 
 function createDependencies(overrides: Partial<ConfigPersistenceDependencies<TestConfig>> = {}) {
@@ -22,6 +24,11 @@ function createDependencies(overrides: Partial<ConfigPersistenceDependencies<Tes
             marker: String(incomingConfig.marker),
             allowCredentialUpdates,
         })),
+        prepareConfigPatchRequest: vi.fn((incomingPatch, _expectedPatch, currentConfig, allowCredentialUpdates) => ({
+            ...currentConfig,
+            ...incomingPatch,
+            allowCredentialUpdates,
+        })) as ConfigPersistenceDependencies<TestConfig>['prepareConfigPatchRequest'],
         saveConfig: vi.fn(async () => undefined),
         isExtensionUrl: vi.fn((url) => url.startsWith('chrome-extension://extension-id/')),
         getCurrentRevision: vi.fn(() => 4),
@@ -57,6 +64,89 @@ describe('background config persistence handler', () => {
             {marker: 'extension-save', allowCredentialUpdates: true},
             {recordHistory: true},
         );
+        expect(dependencies.prepareConfigPatchRequest).not.toHaveBeenCalled();
+    });
+
+    it('patch 忽略旧 baseRevision，并在临界区基于最新配置只合并目标字段', async () => {
+        const latestConfig: TestConfig = {
+            marker: 'latest-external-value',
+            videoTranslationEnabled: true,
+            theme: 'dark',
+        };
+        const prepareConfigPatchRequest = vi.fn((
+            incomingPatch: Record<string, unknown>,
+            _expectedPatch: Record<string, unknown>,
+            current: TestConfig,
+        ) => ({
+            ...current,
+            marker: String(incomingPatch.marker),
+        }));
+        const dependencies = createDependencies({
+            getCurrentConfig: () => latestConfig,
+            getCurrentRevision: () => 9,
+            prepareConfigPatchRequest,
+        });
+        const handler = createConfigPersistenceHandler(dependencies);
+
+        await expect(handler.handle({
+            type: CONFIG_PERSIST_MESSAGE_TYPE,
+            mode: 'patch',
+            config: {marker: 'patched-field'},
+            expected: {marker: 'latest-external-value'},
+            clientId: 'content-video',
+            sequence: 1,
+            baseRevision: 4,
+        }, {sender: {url: 'https://www.youtube.com/watch?v=test'}}))
+            .resolves.toEqual({success: true, revision: 9});
+
+        expect(prepareConfigPatchRequest).toHaveBeenCalledWith(
+            {marker: 'patched-field'},
+            {marker: 'latest-external-value'},
+            latestConfig,
+            false,
+        );
+        expect(dependencies.prepareConfigSaveRequest).not.toHaveBeenCalled();
+        expect(dependencies.saveConfig).toHaveBeenCalledWith({
+            marker: 'patched-field',
+            videoTranslationEnabled: true,
+            theme: 'dark',
+        }, {recordHistory: true});
+    });
+
+    it('patch 的目标字段在 base 后变化时拒绝迟到写入', async () => {
+        const latestConfig: TestConfig = {
+            marker: 'external-new-value',
+            videoTranslationEnabled: true,
+        };
+        const prepareConfigPatchRequest = vi.fn((
+            incomingPatch: Record<string, unknown>,
+            expectedPatch: Record<string, unknown>,
+            current: TestConfig,
+        ) => {
+            if (current.marker !== expectedPatch.marker) {
+                throw new Error('配置字段已更新，请同步后重试：marker');
+            }
+            return {...current, marker: String(incomingPatch.marker)};
+        });
+        const dependencies = createDependencies({
+            getCurrentConfig: () => latestConfig,
+            getCurrentRevision: () => 9,
+            prepareConfigPatchRequest,
+        });
+        const handler = createConfigPersistenceHandler(dependencies);
+
+        await expect(handler.handle({
+            type: CONFIG_PERSIST_MESSAGE_TYPE,
+            mode: 'patch',
+            config: {marker: 'late-local-value'},
+            expected: {marker: 'old-base-value'},
+            clientId: 'late-content',
+            sequence: 1,
+            baseRevision: 4,
+        }, {})).rejects.toThrow('marker');
+
+        expect(dependencies.saveConfig).not.toHaveBeenCalled();
+        expect(latestConfig).toEqual({marker: 'external-new-value', videoTranslationEnabled: true});
     });
 
     it('content sender 使用 legacy clientId fallback，且不能更新凭据', async () => {
@@ -299,6 +389,8 @@ describe('background config persistence handler', () => {
         [{type: CONFIG_PERSIST_MESSAGE_TYPE, config: {}, sequence: 1.5}, 'sequence'],
         [{type: CONFIG_PERSIST_MESSAGE_TYPE, config: {}, baseRevision: -1}, 'baseRevision'],
         [{type: CONFIG_PERSIST_MESSAGE_TYPE, config: {}, baseRevision: 1.5}, 'baseRevision'],
+        [{type: CONFIG_PERSIST_MESSAGE_TYPE, mode: 'merge', config: {}}, 'mode'],
+        [{type: CONFIG_PERSIST_MESSAGE_TYPE, mode: 'patch', config: {}}, 'expected'],
     ])('拒绝非法配置保存消息 %#', async (message, field) => {
         const handler = createConfigPersistenceHandler(createDependencies());
 

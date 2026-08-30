@@ -1,7 +1,7 @@
 <!--
  * @file src/features/translation-center/ui/TranslationCenter.vue
  * 文件职责：实现多翻译服务并排对比工作台，允许输入文本、选择和交换语言、增删服务、拖动排序、并发翻译、单项重试及复制结果。
- * 主要内容：组件持久化语言和服务顺序，按浏览器能力隐藏不可用项，维护每张卡片的 idle/loading/success/error 状态，支持搜索服务、指针与键盘排序、复制全部和最大长度约束。
+ * 主要内容：组件用字段级补丁持久化语言和服务顺序，按浏览器能力隐藏不可用项，维护每张卡片的 idle/loading/success/error 状态，支持搜索服务、指针与键盘排序、复制全部和最大长度约束。
  * 模块边界：该 UI 不实现 provider 协议或凭据存储；翻译统一调用 app/translation client，服务目录来自 core/config，Options 外层负责组件挂载且原配置在能力不足时保持不变。
  -->
 <template>
@@ -10,7 +10,7 @@
     <div class="translation-center-toolbar">
       <div class="language-picker-group">
         <label for="translation-center-source">源语言</label>
-        <select id="translation-center-source" v-model="sourceLanguage" aria-label="翻译中心源语言" @change="persistTranslationCenterConfig">
+        <select id="translation-center-source" v-model="sourceLanguage" aria-label="翻译中心源语言" @change="persistTranslationCenterConfig('source')">
           <option v-for="item in sourceLanguageOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
         </select>
       </div>
@@ -28,7 +28,7 @@
 
       <div class="language-picker-group">
         <label for="translation-center-target">目标语言</label>
-        <select id="translation-center-target" v-model="targetLanguage" aria-label="翻译中心目标语言" @change="persistTranslationCenterConfig">
+        <select id="translation-center-target" v-model="targetLanguage" aria-label="翻译中心目标语言" @change="persistTranslationCenterConfig('target')">
           <option v-for="item in targetLanguageOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
         </select>
       </div>
@@ -226,7 +226,7 @@ import {
   isTranslationServiceAvailable,
 } from '@/src/services/translation/capabilities'
 import { options, servicesType } from '@/src/core/config/catalog'
-import { config, configReady, requestConfigSave, subscribeConfig } from '@/src/services/config/store'
+import { config, configReady, requestConfigPatch, subscribeConfig } from '@/src/services/config/store'
 import { translateText } from '@/src/app/translation/client'
 
 type TranslationCardStatus = 'idle' | 'loading' | 'success' | 'error'
@@ -245,6 +245,13 @@ type ServiceOption = {
   label: string
   description?: string
   disabled?: boolean
+}
+
+type TranslationCenterConfigField = 'services' | 'source' | 'target'
+type TranslationCenterConfigPatch = {
+  translationCenterServices?: string[]
+  translationCenterSourceLanguage?: string
+  translationCenterTargetLanguage?: string
 }
 
 const DEFAULT_COMPARISON_SERVICES = ['freeTranslation', 'google', 'openai', 'deepseek', 'gemini', 'deeplx']
@@ -344,18 +351,32 @@ function hasSameOrder(left: string[], right: string[]): boolean {
   return left.length === right.length && left.every((service, index) => service === right[index])
 }
 
-function persistTranslationCenterConfig(): void {
+function persistTranslationCenterConfig(...fields: TranslationCenterConfigField[]): void {
   if (!configHydrated) return
-  const available = [...getCurrentServiceOrder()]
-  const stored = Array.isArray(config.translationCenterServices) ? config.translationCenterServices : []
-  config.translationCenterServices = stored.flatMap(service => {
-    if (!isTranslationServiceAvailable(service)) return [service]
-    const replacement = available.shift()
-    return replacement ? [replacement] : []
-  }).concat(available)
-  config.translationCenterSourceLanguage = sourceLanguage.value
-  config.translationCenterTargetLanguage = targetLanguage.value
-  void requestConfigSave(config, browser.runtime.sendMessage.bind(browser.runtime)).catch(error => {
+  const requestedFields = new Set(fields)
+  const patch: TranslationCenterConfigPatch = {}
+  if (requestedFields.has('services')) {
+    const available = [...getCurrentServiceOrder()]
+    const stored = Array.isArray(config.translationCenterServices) ? config.translationCenterServices : []
+    const translationCenterServices = stored.flatMap(service => {
+      if (!isTranslationServiceAvailable(service)) return [service]
+      const replacement = available.shift()
+      return replacement ? [replacement] : []
+    }).concat(available)
+    if (!hasSameOrder(translationCenterServices, stored)) {
+      patch.translationCenterServices = translationCenterServices
+    }
+  }
+  if (requestedFields.has('source')
+    && sourceLanguage.value !== config.translationCenterSourceLanguage) {
+    patch.translationCenterSourceLanguage = sourceLanguage.value
+  }
+  if (requestedFields.has('target')
+    && targetLanguage.value !== config.translationCenterTargetLanguage) {
+    patch.translationCenterTargetLanguage = targetLanguage.value
+  }
+  if (Object.keys(patch).length === 0) return
+  void requestConfigPatch(patch, browser.runtime.sendMessage.bind(browser.runtime)).catch(error => {
     console.warn('[FluentRead] 翻译中心配置保存失败', error)
   })
 }
@@ -375,7 +396,7 @@ function hydrateTranslationCenterConfig(nextConfig = config): void {
 function addService(service: string): void {
   if (selectedServiceValues.value.has(service)) return
   cards.value.push(createCard(service))
-  persistTranslationCenterConfig()
+  persistTranslationCenterConfig('services')
   serviceSearchQuery.value = ''
   servicePickerOpen.value = false
 }
@@ -383,7 +404,7 @@ function addService(service: string): void {
 function removeService(service: string): void {
   if (cards.value.length <= 1) return
   cards.value = cards.value.filter(card => card.service !== service)
-  persistTranslationCenterConfig()
+  persistTranslationCenterConfig('services')
 }
 
 function swapLanguages(): void {
@@ -391,7 +412,7 @@ function swapLanguages(): void {
   const nextSource = sourceLanguage.value
   sourceLanguage.value = targetLanguage.value
   targetLanguage.value = nextSource
-  persistTranslationCenterConfig()
+  persistTranslationCenterConfig('source', 'target')
 }
 
 function reorderCards(fromService: string, targetService: string): void {
@@ -403,7 +424,7 @@ function reorderCards(fromService: string, targetService: string): void {
   const [movedCard] = nextCards.splice(fromIndex, 1)
   nextCards.splice(targetIndex, 0, movedCard)
   cards.value = nextCards
-  persistTranslationCenterConfig()
+  persistTranslationCenterConfig('services')
 }
 
 function startPointerDrag(service: string, event: PointerEvent): void {
@@ -439,7 +460,7 @@ function moveCard(service: string, offset: number): void {
   const [movedCard] = nextCards.splice(fromIndex, 1)
   nextCards.splice(targetIndex, 0, movedCard)
   cards.value = nextCards
-  persistTranslationCenterConfig()
+  persistTranslationCenterConfig('services')
 }
 
 function endCardDrag(): void {

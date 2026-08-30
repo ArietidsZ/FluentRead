@@ -1,8 +1,8 @@
 <!--
  @file src/app/document-translation/DocumentApp.vue
  文件职责：实现独立文档翻译页面的完整 Vue 应用，承载文件导入、格式化预览、分段翻译、人工校订和双语文件导出的用户流程。
- 主要内容：支持 PDF、EPUB、DOCX、HTML、TXT、Markdown、字幕与 JSON 等格式，管理拖放/选择、服务与模型配置、翻译进度、PDF 位图预览、章节或部件导航、译文编辑和下载状态。
- 模块边界：组件负责页面交互与响应式状态，不自行解析二进制格式、不实现翻译队列或导出编码；解析渲染来自 document-translation feature，运行时适配由本目录 runtime 注入。
+ 主要内容：支持 PDF、EPUB、DOCX、HTML、TXT、Markdown、字幕与 JSON 等格式，管理拖放/选择、配置实时同步与字段级保存、翻译进度、PDF 位图预览、章节或部件导航、译文编辑和下载状态。
+ 模块边界：组件负责页面交互与响应式状态，不自行解析二进制格式、不实现翻译队列、配置存储协议或导出编码；解析渲染来自 document-translation feature，配置协调来自 services/config，运行时适配由本目录 runtime 注入。
 -->
 <!-- 文档页面归 app 层所有；WXT 入口只负责启动。 -->
 <template>
@@ -425,10 +425,11 @@ import {
   options,
   parseDocument,
   parseDocumentFile,
-  requestConfigSave,
+  requestConfigPatch,
   resolveConfiguredModel,
   runtimeConfig,
   servicesType,
+  subscribeConfig,
   translateDocumentSegments,
   type DocumentRenderMode,
   type ParsedDocument,
@@ -443,6 +444,31 @@ interface PdfPreviewPageState {
   originalUrl: string;
   translatedUrl: string;
   loading: boolean;
+}
+
+type DocumentConfigPatch = Partial<Pick<Config,
+  'from' | 'to' | 'documentService' | 'documentModel' | 'documentCustomModel'
+>>;
+type DocumentModelMapping = Config['documentModel'];
+
+function sameDocumentModelMapping(left: DocumentModelMapping, right: DocumentModelMapping): boolean {
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  return [...keys].every((key) => left[key] === right[key]);
+}
+
+function mergeChangedDocumentModelMapping(
+  latest: DocumentModelMapping,
+  previous: DocumentModelMapping,
+  next: DocumentModelMapping,
+): DocumentModelMapping {
+  const merged = {...latest};
+  const keys = new Set([...Object.keys(previous), ...Object.keys(next)]);
+  keys.forEach((key) => {
+    if (previous[key] === next[key]) return;
+    if (Object.prototype.hasOwnProperty.call(next, key)) merged[key] = next[key];
+    else delete merged[key];
+  });
+  return merged;
 }
 
 const config = reactive(new Config());
@@ -468,6 +494,8 @@ let abortController: AbortController | null = null;
 const documentFileLoads = createDocumentFileLoadGuard();
 let translationRequestId = 0;
 let lastSerialized = '';
+let applyingExternalConfig = false;
+let unsubscribeConfig: (() => void) | undefined;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 let pdfPreviewTimer: ReturnType<typeof setTimeout> | undefined;
 let pdfPreviewRequest = 0;
@@ -701,12 +729,44 @@ async function hydrateConfig(): Promise<void> {
 }
 void hydrateConfig();
 
-watch(config, (value) => {
-  if (!hydrated.value) return;
-  const serialized = JSON.stringify(value);
+unsubscribeConfig = subscribeConfig((nextConfig) => {
+  const serialized = JSON.stringify(nextConfig);
   if (serialized === lastSerialized) return;
   lastSerialized = serialized;
-  void requestConfigSave(value, browser.runtime.sendMessage.bind(browser.runtime)).catch((error) => {
+  applyingExternalConfig = true;
+  try {
+    Object.assign(config, nextConfig);
+  } finally {
+    applyingExternalConfig = false;
+  }
+});
+
+watch(config, (value) => {
+  if (!hydrated.value || applyingExternalConfig) return;
+  const serialized = JSON.stringify(value);
+  if (serialized === lastSerialized) return;
+  const previous = JSON.parse(lastSerialized) as Config;
+  lastSerialized = serialized;
+  const patch: DocumentConfigPatch = {};
+  if (value.from !== previous.from) patch.from = value.from;
+  if (value.to !== previous.to) patch.to = value.to;
+  if (value.documentService !== previous.documentService) patch.documentService = value.documentService;
+  if (!sameDocumentModelMapping(value.documentModel, previous.documentModel)) {
+    patch.documentModel = mergeChangedDocumentModelMapping(
+      runtimeConfig.documentModel,
+      previous.documentModel,
+      value.documentModel,
+    );
+  }
+  if (!sameDocumentModelMapping(value.documentCustomModel, previous.documentCustomModel)) {
+    patch.documentCustomModel = mergeChangedDocumentModelMapping(
+      runtimeConfig.documentCustomModel,
+      previous.documentCustomModel,
+      value.documentCustomModel,
+    );
+  }
+  if (Object.keys(patch).length === 0) return;
+  void requestConfigPatch(patch, browser.runtime.sendMessage.bind(browser.runtime)).catch((error) => {
     console.warn('[FluentRead] 保存文档翻译设置失败', error);
   });
 }, {deep: true, flush: 'sync'});
@@ -884,6 +944,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  unsubscribeConfig?.();
   documentFileLoads.invalidate();
   translationRequestId += 1;
   abortController?.abort();

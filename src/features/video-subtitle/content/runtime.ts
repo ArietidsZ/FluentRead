@@ -5,7 +5,7 @@
  * 模块边界：本文件只在 content 页面编排，不拦截 fetch/XHR 也不实现翻译 provider；MAIN-world bridge 在独立模块捕获 timedtext，解析算法在 youtubeSubtitleData，翻译经 app client。
  */
 import browser from 'webextension-polyfill';
-import { config, requestConfigSave, subscribeConfig } from '@/src/services/config/store';
+import { config, requestConfigPatch, subscribeConfig } from '@/src/services/config/store';
 import { options, servicesType } from '@/src/core/config/catalog';
 import {
   normalizeVideoSubtitleFontSize,
@@ -1289,9 +1289,10 @@ export function mountVideoSubtitleTranslation(): () => void {
   };
 
   const persistVideoConfig = (patch: VideoConfigPatch) => {
-    const nextConfig = { ...config, ...patch };
-    void requestConfigSave(
-      nextConfig,
+    // requestConfigPatch 会在返回 Promise 前乐观更新共享 config；连续点击会读取
+    // 用户刚看到的状态，同时后台只在最新权威配置上合并这几个视频字段。
+    void requestConfigPatch(
+      patch,
       browser.runtime.sendMessage.bind(browser.runtime),
     ).catch((error) => {
       console.warn('[FluentRead] 视频字幕设置保存失败', error);
@@ -1500,7 +1501,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     );
     menu.appendChild(title);
 
-    menu.appendChild(createMenuItem('toggle-translation', '开启字幕翻译'));
+    menu.appendChild(createMenuItem('toggle-translation', '字幕翻译'));
     const serviceCaption = createTextElement('span', 'fluent-read-video-menu-caption', '翻译服务');
     const serviceValue = createTextElement('span', 'fluent-read-video-menu-value', '');
     serviceValue.dataset.serviceLabel = 'true';
