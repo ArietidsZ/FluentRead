@@ -9,7 +9,7 @@ export const MODEL_USAGE_SCHEMA_VERSION = 1 as const;
 export const MODEL_USAGE_TRANSFER_FORMAT = 'fluentread-model-usage' as const;
 export const MODEL_USAGE_TRANSFER_VERSION = 1 as const;
 export const MODEL_USAGE_REQUEST_PAGE_SIZE = 20 as const;
-export const MODEL_USAGE_REQUEST_MAX_PAGE_SIZE = 50 as const;
+export const MODEL_USAGE_REQUEST_MAX_PAGE_SIZE = 100 as const;
 export const MODEL_USAGE_TRANSFER_MAX_EVENTS = 250_000 as const;
 export const MODEL_USAGE_TRANSFER_MAX_BYTES = 128 * 1024 * 1024;
 
@@ -69,6 +69,7 @@ export interface Totals {
     cacheReportedRequests: number;
     cacheHitRequests: number;
     cacheEligibleInputTokens: number;
+    cacheEligibleOutputTokens: number;
     cacheTokenHitRate: number | null;
     cacheRequestHitRate: number | null;
     cacheCoverageRate: number | null;
@@ -77,6 +78,12 @@ export interface Totals {
     averageTokensPerReportedRequest: number | null;
     averageInputTokensPerReportedRequest: number | null;
     averageOutputTokensPerReportedRequest: number | null;
+    averageUncachedInputTokensPerCacheReportedRequest: number | null;
+    averageCachedInputTokensPerCacheReportedRequest: number | null;
+    averageOutputTokensPerCacheReportedRequest: number | null;
+    uncachedInputTokenShare: number | null;
+    cachedInputTokenShare: number | null;
+    outputTokenShare: number | null;
 }
 
 export interface ModelUsageDimension {

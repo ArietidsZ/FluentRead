@@ -1,7 +1,7 @@
 /**
  * @file src/services/model-usage/aggregation.ts
  * 文件职责：把本地大模型调用事件按本地日界线聚合成设置页可直接消费的统计快照。
- * 主要内容：规范化筛选条件，计算今日、七日和三十日汇总，生成逐小时或逐日时间线，并按服务与模型分组。
+ * 主要内容：规范化筛选条件，计算今日、七日和三十日汇总、缓存可计算请求的三段 Token 构成，生成逐小时或逐日时间线，并按服务与模型分组。
  * 模块边界：本文件只执行确定性的内存计算，不访问 IndexedDB、浏览器 runtime、供应商响应或 Vue 组件。
  */
 
@@ -123,6 +123,7 @@ export function emptyModelUsageTotals(): Totals {
         cacheReportedRequests: 0,
         cacheHitRequests: 0,
         cacheEligibleInputTokens: 0,
+        cacheEligibleOutputTokens: 0,
         cacheTokenHitRate: null,
         cacheRequestHitRate: null,
         cacheCoverageRate: null,
@@ -131,12 +132,19 @@ export function emptyModelUsageTotals(): Totals {
         averageTokensPerReportedRequest: null,
         averageInputTokensPerReportedRequest: null,
         averageOutputTokensPerReportedRequest: null,
+        averageUncachedInputTokensPerCacheReportedRequest: null,
+        averageCachedInputTokensPerCacheReportedRequest: null,
+        averageOutputTokensPerCacheReportedRequest: null,
+        uncachedInputTokenShare: null,
+        cachedInputTokenShare: null,
+        outputTokenShare: null,
     };
 }
 
 export function aggregateModelUsageTotals(events: readonly AggregatableEvent[]): Totals {
     const totals = emptyModelUsageTotals();
     let totalDurationMs = 0;
+    let cacheCohortCachedInputTokens = 0;
     for (const event of events) {
         totals.requestCount += 1;
         if (event.outcome === 'success') totals.successfulRequests += 1;
@@ -160,15 +168,23 @@ export function aggregateModelUsageTotals(events: readonly AggregatableEvent[]):
 
         const cachedInputTokens = optionalSafeTokenCount(event.cachedInputTokens);
         const inputTokens = optionalSafeTokenCount(event.inputTokens);
-        if (event.usageAvailability === 'reported' && cachedInputTokens !== undefined) {
+        const outputTokens = optionalSafeTokenCount(event.outputTokens);
+        if (
+            event.usageAvailability === 'reported'
+            && cachedInputTokens !== undefined
+            && inputTokens !== undefined
+            && outputTokens !== undefined
+            && cachedInputTokens <= inputTokens
+        ) {
             totals.cacheReportedRequests += 1;
             if (cachedInputTokens > 0) totals.cacheHitRequests += 1;
-            if (inputTokens !== undefined) totals.cacheEligibleInputTokens += inputTokens;
+            totals.cacheEligibleInputTokens += inputTokens;
+            totals.cacheEligibleOutputTokens += outputTokens;
+            cacheCohortCachedInputTokens += cachedInputTokens;
         }
     }
     totals.cacheTokenHitRate = totals.cacheEligibleInputTokens > 0
-        && totals.cachedInputTokens <= totals.cacheEligibleInputTokens
-        ? totals.cachedInputTokens / totals.cacheEligibleInputTokens
+        ? cacheCohortCachedInputTokens / totals.cacheEligibleInputTokens
         : null;
     totals.cacheRequestHitRate = totals.cacheReportedRequests > 0
         ? totals.cacheHitRequests / totals.cacheReportedRequests
@@ -186,6 +202,20 @@ export function aggregateModelUsageTotals(events: readonly AggregatableEvent[]):
     totals.averageOutputTokensPerReportedRequest = totals.reportedTokenRequests > 0
         ? totals.outputTokens / totals.reportedTokenRequests
         : null;
+    const uncachedInputTokens = totals.cacheEligibleInputTokens - cacheCohortCachedInputTokens;
+    const compositionTokens = totals.cacheEligibleInputTokens + totals.cacheEligibleOutputTokens;
+    totals.averageUncachedInputTokensPerCacheReportedRequest = totals.cacheReportedRequests > 0
+        ? uncachedInputTokens / totals.cacheReportedRequests
+        : null;
+    totals.averageCachedInputTokensPerCacheReportedRequest = totals.cacheReportedRequests > 0
+        ? cacheCohortCachedInputTokens / totals.cacheReportedRequests
+        : null;
+    totals.averageOutputTokensPerCacheReportedRequest = totals.cacheReportedRequests > 0
+        ? totals.cacheEligibleOutputTokens / totals.cacheReportedRequests
+        : null;
+    totals.uncachedInputTokenShare = compositionTokens > 0 ? uncachedInputTokens / compositionTokens : null;
+    totals.cachedInputTokenShare = compositionTokens > 0 ? cacheCohortCachedInputTokens / compositionTokens : null;
+    totals.outputTokenShare = compositionTokens > 0 ? totals.cacheEligibleOutputTokens / compositionTokens : null;
     return totals;
 }
 

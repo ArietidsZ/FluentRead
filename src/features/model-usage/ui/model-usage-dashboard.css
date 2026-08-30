@@ -1,7 +1,7 @@
 /**
  * @file src/features/model-usage/ui/model-usage-dashboard.css
- * 文件职责：定义 Options 模型用量面板的筛选、缓存、请求日志、趋势、分布、空状态和重置确认视觉，并适配窄屏与深色主题。
- * 主要内容：复用设置页共享的表面、边框和品牌 token，以响应式卡片与表格呈现自适应大数、缓存命中率、逐请求 Token 明细和清除统计操作。
+ * 文件职责：定义 Options 模型用量面板的筛选、Token 构成、请求日志、趋势、分布、空状态和重置确认视觉，并适配窄屏与深色主题。
+ * 主要内容：复用设置页共享的表面、边框和品牌 token，以响应式卡片与表格呈现自适应大数、三段平均 Token/占比、清晰分离的逐请求缓存值与命中率、分页和清除统计操作。
  * 模块边界：样式只作用于 ModelUsageDashboard，不改变设置页骨架、业务聚合或浏览器消息行为；全局颜色语义继续由 src/ui/styles/tokens.css 提供。
  */
 .model-usage-dashboard {
@@ -280,7 +280,7 @@
 
 .usage-summary-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 1.25fr) repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(280px, 1.1fr) minmax(180px, .7fr) minmax(420px, 1.55fr);
   gap: 12px;
 }
 
@@ -437,7 +437,7 @@
 
 .usage-average-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 7px;
   margin-top: 16px;
 }
@@ -455,7 +455,7 @@
 .usage-average-value > span {
   overflow: hidden;
   color: var(--muted);
-  font-size: 8.5px;
+  font-size: 9px;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -475,51 +475,46 @@
   font-size: 8px;
 }
 
-.usage-card-footnote {
-  margin-top: auto !important;
+.usage-average-value > em {
+  align-self: flex-start;
+  margin-top: 7px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 750;
 }
 
-.usage-cache-card > strong {
+.usage-average-cache {
+  border-color: rgba(91, 110, 225, .2);
+  background: rgba(91, 110, 225, .08);
+}
+
+.usage-average-cache > strong,
+.usage-average-cache > em {
   color: #4659c7;
 }
 
-.usage-cache-caption {
-  margin-top: -2px;
-  color: var(--muted);
-  font-size: 9px;
-  font-weight: 700;
-}
-
-.usage-cache-values {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
-  margin: 10px 0 8px;
-}
-
-.usage-cache-values > div {
+.usage-average-footnote {
   display: flex;
-  min-width: 0;
-  padding: 8px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface-soft);
-  flex-direction: column;
-}
-
-.usage-cache-values span {
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 10px;
   color: var(--muted);
-  font-size: 8px;
-  font-weight: 700;
 }
 
-.usage-cache-values strong {
-  overflow: hidden;
-  margin-top: 4px;
+.usage-average-footnote strong {
   color: var(--ink);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 9.5px;
+}
+
+.usage-average-footnote span {
+  font-size: 8.5px;
+  text-align: right;
 }
 
 .usage-split-total {
@@ -1046,7 +1041,21 @@
   overflow: hidden;
   margin-top: 3px;
   color: var(--ink);
-  font-size: 9.5px;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-request-tokens small {
+  align-self: flex-start;
+  overflow: hidden;
+  margin-top: 4px;
+  padding: 2px 4px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 8px;
+  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1056,6 +1065,7 @@
 }
 
 .usage-request-tokens > span.hit b { color: #4659c7; }
+.usage-request-tokens > span.hit small { color: #5868bf; }
 .usage-request-tokens > span.miss b { color: var(--muted); }
 
 .usage-request-token-extra {
@@ -1119,10 +1129,33 @@
 }
 
 .usage-request-log-footer button:disabled {
-  cursor: wait;
+  cursor: not-allowed;
   opacity: .58;
 }
 
+.usage-page-size,
+.usage-request-pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.usage-page-size select {
+  min-height: 34px;
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink);
+  background: var(--surface);
+  font: inherit;
+}
+
+.usage-request-pagination span {
+  min-width: 72px;
+  color: var(--ink);
+  text-align: center;
+  white-space: nowrap;
+}
 .usage-state-card {
   display: grid;
   place-items: center;
@@ -1263,7 +1296,7 @@
   .usage-toolbar-actions { align-self: flex-end; }
 
   .usage-summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(180px, .7fr) minmax(0, 1.3fr);
   }
 
   .usage-token-card { grid-column: 1 / -1; }
@@ -1363,6 +1396,8 @@
 
   .usage-summary-grid { grid-template-columns: 1fr; }
   .usage-token-card { grid-column: auto; padding: 17px 17px 16px 19px; }
+  .usage-average-footnote { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .usage-average-footnote span { text-align: left; }
   .usage-card-heading { gap: 8px; }
   .usage-card-badge { padding-right: 6px; padding-left: 6px; }
   .usage-periods { gap: 5px; }
@@ -1388,6 +1423,9 @@
   .usage-request-table td.usage-request-token-cell { grid-column: auto; }
   .usage-request-tokens { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .usage-request-log-footer { align-items: stretch; flex-direction: column; }
+  .usage-page-size { justify-content: space-between; }
+  .usage-page-size select { min-height: 40px; }
+  .usage-request-pagination { display: grid; grid-template-columns: 1fr auto 1fr; }
   .usage-request-log-footer button { width: 100%; min-height: 40px; }
   .usage-reset-dialog > div { display: grid; grid-template-columns: 1fr 1fr; }
 }
@@ -1403,9 +1441,17 @@
 
 :global(:root.dark) .usage-periods > div,
 :global(:root.dark) .usage-average-value,
-:global(:root.dark) .usage-cache-values > div,
 :global(:root.dark) .usage-request-tokens > span {
   background: rgba(28, 31, 39, .72);
+}
+
+:global(:root.dark) .usage-average-cache {
+  border-color: rgba(122, 139, 255, .28);
+  background: rgba(91, 110, 225, .12);
+}
+
+:global(:root.dark) .usage-average-value > em {
+  background: rgba(255, 255, 255, .045);
 }
 
 :global(:root.dark) .usage-coverage-note {
