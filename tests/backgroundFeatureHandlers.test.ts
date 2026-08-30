@@ -16,6 +16,7 @@ import {
     createImageTranslationBackgroundHandlers,
     createImageOperationRegistry,
     IMAGE_CANCEL_MESSAGE_TYPE,
+    IMAGE_FETCH_MESSAGE_TYPE,
     IMAGE_TEXT_TRANSLATION_TIMEOUT_MS,
     IMAGE_OCR_DOWNLOAD_MESSAGE_TYPE,
     IMAGE_OCR_MESSAGE_TYPE,
@@ -438,6 +439,7 @@ describe('后台 feature handlers', () => {
             assertLanguagesDownloaded: vi.fn(async () => undefined),
             recognizeImage: vi.fn(async () => [{text: 'hello'}]),
             translateImage: vi.fn(async () => ({image: 'data:image/png;base64,BB==', lines: []})),
+            fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
             translateTexts: vi.fn(async () => ['你好', '世界']),
             getTranslationService: vi.fn(() => 'microsoft'),
             supportsBatchTranslation: vi.fn(() => true),
@@ -469,6 +471,27 @@ describe('后台 feature handlers', () => {
             }),
         );
 
+        await expect(find(IMAGE_FETCH_MESSAGE_TYPE).handle({
+            type: IMAGE_FETCH_MESSAGE_TYPE,
+            url: 'https://pbs.twimg.com/media/demo.png',
+            requestId: 'image-fetch-1',
+            timeoutMs: 15_000,
+        })).resolves.toEqual({success: true, image: 'data:image/png;base64,remote'});
+        expect(dependencies.fetchImage).toHaveBeenCalledWith(
+            'https://pbs.twimg.com/media/demo.png',
+            expect.objectContaining({
+                requestId: 'image-fetch-1',
+                signal: expect.any(AbortSignal),
+                timeoutMs: 15_000,
+            }),
+        );
+
+        dependencies.fetchImage.mockResolvedValueOnce('not-an-image');
+        await expect(find(IMAGE_FETCH_MESSAGE_TYPE).handle({
+            type: IMAGE_FETCH_MESSAGE_TYPE,
+            url: 'https://pbs.twimg.com/media/invalid.png',
+        })).rejects.toThrow('远程图片结果无效');
+
         await expect(find(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE).handle({
             type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE,
             texts: ['hello', 'world'],
@@ -498,6 +521,7 @@ describe('后台 feature handlers', () => {
             translateImage: vi.fn(() => new Promise<{image: string; lines: never[]}>((resolve) => {
                 resolveImage = resolve;
             })),
+            fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
             translateTexts: vi.fn(async () => []),
             getTranslationService: vi.fn(() => 'microsoft'),
             supportsBatchTranslation: vi.fn(() => true),
@@ -568,6 +592,7 @@ describe('后台 feature handlers', () => {
             assertLanguagesDownloaded: vi.fn(() => new Promise<void>(resolve => languageWaits.push(resolve))),
             recognizeImage: vi.fn(async () => []),
             translateImage: vi.fn(async () => ({image: 'translated', lines: []})),
+            fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
             translateTexts: vi.fn(async () => []),
             getTranslationService: vi.fn(() => 'microsoft'),
             supportsBatchTranslation: vi.fn(() => true),
@@ -619,6 +644,7 @@ describe('后台 feature handlers', () => {
             assertLanguagesDownloaded: vi.fn(async () => undefined),
             recognizeImage: vi.fn(async () => []),
             translateImage: vi.fn(async () => ({image: 'data:image/png,x', lines: []})),
+            fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
             translateTexts: vi.fn(() => new Promise<string[]>((resolve) => { resolveTexts = resolve; })),
             getTranslationService: vi.fn(() => 'microsoft'),
             supportsBatchTranslation: vi.fn(() => true),
@@ -655,6 +681,7 @@ describe('后台 feature handlers', () => {
             assertLanguagesDownloaded: vi.fn(async () => undefined),
             recognizeImage: vi.fn(async () => []),
             translateImage: vi.fn(async () => ({image: 'data:image/png,x', lines: []})),
+            fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
             translateTexts: vi.fn(async () => ['不应调用']),
             getTranslationService: vi.fn(() => 'microsoft'),
             supportsBatchTranslation: vi.fn(() => true),
@@ -686,6 +713,7 @@ describe('后台 feature handlers', () => {
             assertLanguagesDownloaded: vi.fn(async () => undefined),
             recognizeImage: vi.fn(async () => [] as unknown),
             translateImage: vi.fn(async () => ({} as unknown)),
+            fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
             translateTexts: vi.fn(async () => [] as string[] | string),
             getTranslationService: vi.fn(() => 'microsoft'),
             supportsBatchTranslation: vi.fn(() => true),
@@ -770,6 +798,7 @@ describe('后台 feature handlers', () => {
             assertLanguagesDownloaded: vi.fn(async () => undefined),
             recognizeImage: vi.fn(async () => []),
             translateImage: vi.fn(async () => ({image: 'data:image/png,x', lines: []})),
+            fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
             translateTexts,
             getTranslationService: vi.fn(() => 'google'),
             supportsBatchTranslation: vi.fn(() => false),
@@ -839,6 +868,7 @@ describe('后台 feature handlers', () => {
                 assertLanguagesDownloaded: vi.fn(async () => undefined),
                 recognizeImage: vi.fn(async () => []),
                 translateImage: vi.fn(async () => ({image: 'data:image/png,x', lines: []})),
+                fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
                 translateTexts,
                 getTranslationService: vi.fn(() => 'google'),
                 supportsBatchTranslation: vi.fn(() => false),
@@ -873,6 +903,7 @@ describe('后台 feature handlers', () => {
             assertLanguagesDownloaded: vi.fn(async () => undefined),
             recognizeImage: vi.fn(async () => []),
             translateImage: vi.fn(async () => ({image: 'data:image/png,x', lines: []})),
+            fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
             translateTexts,
             getTranslationService: vi.fn(() => 'microsoft'),
             supportsBatchTranslation: vi.fn(() => true),

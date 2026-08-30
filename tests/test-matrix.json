@@ -66,6 +66,7 @@
       "tests/http.test.ts",
       "tests/httpError.test.ts",
       "tests/imageTranslation.test.ts",
+      "tests/remoteImage.test.ts",
       "tests/inputBox.test.ts",
       "tests/legacyPageCache.test.ts",
       "tests/model.test.ts",

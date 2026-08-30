@@ -1,7 +1,7 @@
 /**
  * @file src/app/offscreen/messageRouter.ts
- * 文件职责：解析并分派发送到 Offscreen Document 的可信运行时消息，为 Chrome 翻译、TTS、OCR、整图和区域翻译提供统一响应纪律。
- * 主要内容：提供接收端 ready 握手，严格校验文本、语言码、图像数据、圈选坐标与 OCR 语言包，按 operation 调用注入依赖；对 Promise 成功结果验证对象形状，对异常统一返回 success/error 并保持异步 listener 语义。
+ * 文件职责：解析并分派发送到 Offscreen Document 的可信运行时消息，为 Chrome 翻译、TTS、远程图片读取、OCR、整图和区域翻译提供统一响应纪律。
+ * 主要内容：提供接收端 ready 握手，严格校验文本、语言码、图片 URL/data URL、圈选坐标与 OCR 语言包，按 operation 调用注入依赖；对 Promise 成功结果验证对象形状，对异常统一返回 success/error 并保持异步 listener 语义。
  * 模块边界：路由器不创建 Audio/Worker、不调用 browser.offscreen，也不实现翻译算法；资源实例由 offscreen runtime 构造，具体能力来自 translation、ttsPlayback 和 feature services。
  */
 import type {AreaTranslationSelection} from '@/src/features/area-translation/protocol';
@@ -24,6 +24,7 @@ export interface OffscreenMessageDependencies {
     readonly translate: (data: unknown, signal: AbortSignal) => Promise<string>;
     readonly ttsPlayer: Pick<SelectionTtsPlayer, 'play' | 'stop'>;
     readonly recognizeImage: (image: string, sourceLanguage: string, signal: AbortSignal) => Promise<unknown>;
+    readonly fetchImage: (url: string, signal: AbortSignal) => Promise<unknown>;
     readonly translateImage: (
         image: string,
         sourceLanguage: string,
@@ -70,6 +71,10 @@ function requiredImage(value: unknown): string {
     const image = requiredString(value, 'image');
     if (!image.startsWith('data:image/')) throw new TypeError('Offscreen image 必须是 data:image URL');
     return image;
+}
+
+function requiredImageUrl(value: unknown): string {
+    return requiredString(value, 'url');
 }
 
 function requiredSourceLanguage(value: unknown): string {
@@ -261,6 +266,19 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
                 }
                 return true;
             }
+            case 'FLUENT_READ_IMAGE_FETCH_OFFSCREEN':
+                startImageOperation(
+                    message,
+                    sendResponse,
+                    signal => dependencies.fetchImage(requiredImageUrl(message.url), signal),
+                    (image) => {
+                        if (typeof image !== 'string' || !image.startsWith('data:image/')) {
+                            throw new Error('远程图片结果无效');
+                        }
+                        return {success: true, image};
+                    },
+                );
+                return true;
             case 'FLUENT_READ_IMAGE_OCR_OFFSCREEN':
                 startImageOperation(
                     message,

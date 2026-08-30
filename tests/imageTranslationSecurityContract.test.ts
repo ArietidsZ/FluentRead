@@ -7,6 +7,7 @@ vi.mock('@/src/services/config/store', () => ({
 }));
 
 import {getImageData} from '@/src/features/image-translation/content/runtime';
+import {fetchRemoteImageForOcr} from '@/src/features/image-translation/services/remoteImage';
 
 const PROJECT_ROOT = resolve(__dirname, '..');
 const SRC_ROOT = resolve(PROJECT_ROOT, 'src');
@@ -38,26 +39,48 @@ describe('图片翻译跨域读取安全契约', () => {
         vi.unstubAllGlobals();
     });
 
-    it('源码不再暴露网页 URL 的后台特权抓取协议或客户端', () => {
+    it('跨域图片读取只经 content -> background -> Offscreen 链路，不在 background 直接联网', () => {
         const source = sourceText();
-        for (const removedSymbol of [
-            ['fluentRead', 'ImageFetch'].join(''),
-            ['fetchImage', 'InExtension'].join(''),
-            ['fetchRemoteImage', 'ForOcr'].join(''),
-            ['remoteImage', 'Fetcher'].join(''),
-        ]) {
-            expect(source).not.toContain(removedSymbol);
-        }
+        expect(source).toContain('fetchImageInExtension');
+        expect(source).toContain('FLUENT_READ_IMAGE_FETCH_OFFSCREEN');
+        expect(source).toContain('fetchRemoteImageForOcr');
+        expect(readFileSync(resolve(
+            SRC_ROOT,
+            'features/image-translation/background/handlers.ts',
+        ), 'utf8')).not.toContain('fetch(');
+        expect(existsSync(resolve(
+            SRC_ROOT,
+            'features/image-translation/background/remoteImageFetcher.ts',
+        ))).toBe(false);
+    });
+
+    it('Offscreen 远程图片只允许 HTTPS X/Twitter 媒体域，拒绝任意网页 URL', async () => {
+        const request = vi.fn(async () => ({
+            ok: true,
+            status: 200,
+            headers: {get: () => 'image/png'},
+            arrayBuffer: async () => new Uint8Array([1]).buffer,
+        }));
+
+        await expect(fetchRemoteImageForOcr('https://attacker.example/rebinding.png', request))
+            .rejects.toThrow('跨域图片来源');
+        expect(request).not.toHaveBeenCalled();
+        await expect(fetchRemoteImageForOcr('https://pbs.twimg.com/media/demo.png', request))
+            .resolves.toBe('data:image/png;base64,AQ==');
+        expect(request).toHaveBeenCalledOnce();
+    });
+
+    it('Offscreen 远程图片 helper 文件位于 services，而不是 background', () => {
         expect(existsSync(resolve(
             SRC_ROOT,
             'features/image-translation/background',
-            ['remoteImage', 'Fetcher.ts'].join(''),
+            'remoteImageFetcher.ts',
         ))).toBe(false);
         expect(existsSync(resolve(
             SRC_ROOT,
             'features/image-translation/services',
-            ['remote', 'Image.ts'].join(''),
-        ))).toBe(false);
+            'remoteImage.ts',
+        ))).toBe(true);
     });
 
     it('Canvas 可读时仍生成本地 data URL，不请求 runtime', async () => {
@@ -82,7 +105,7 @@ describe('图片翻译跨域读取安全契约', () => {
     });
 
     it.each(['pixel-read', 'serialization'] as const)(
-        'Canvas 跨域污染在 %s 阶段失败时关闭，不把 URL 发给 runtime',
+        'Canvas 跨域污染在 %s 阶段失败时把 URL 交给 Offscreen 读取',
         async (failureStage) => {
             const sendMessage = vi.fn();
             const securityError = new DOMException('The canvas has been tainted', 'SecurityError');
@@ -104,9 +127,13 @@ describe('图片翻译跨域读取安全契约', () => {
             };
             vi.stubGlobal('browser', {runtime: {sendMessage}});
             vi.stubGlobal('document', {createElement: vi.fn(() => canvas)});
+            sendMessage.mockResolvedValue({success: true, image: 'data:image/png;base64,remote'});
 
-            await expect(getImageData(imageElement())).rejects.toThrow('跨域 CORS 限制');
-            expect(sendMessage).not.toHaveBeenCalled();
+            await expect(getImageData(imageElement())).resolves.toBe('data:image/png;base64,remote');
+            expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+                type: 'fluentReadImageFetch',
+                url: 'https://attacker.example/rebinding.png',
+            }));
         },
     );
 });

@@ -10,6 +10,7 @@ const mocks = {
     downloadOcrLanguages: vi.fn(async () => undefined),
     play: vi.fn(async () => undefined),
     recognizeImage: vi.fn(async () => [{text: 'hello'}]),
+    fetchImage: vi.fn(async () => 'data:image/png;base64,remote'),
     stop: vi.fn(() => true),
     translate: vi.fn(async () => '译文'),
     translateArea: vi.fn(async () => ({image: 'area', lines: []})),
@@ -20,6 +21,7 @@ const listener = createOffscreenMessageListener({
     translate: mocks.translate,
     ttsPlayer: {play: mocks.play, stop: mocks.stop},
     recognizeImage: mocks.recognizeImage,
+    fetchImage: mocks.fetchImage,
     translateImage: mocks.translateImage,
     translateArea: mocks.translateArea,
     downloadOcrLanguages: mocks.downloadOcrLanguages,
@@ -43,6 +45,7 @@ describe('Offscreen 消息静态路由', () => {
         mocks.stop.mockReturnValue(true);
         mocks.translate.mockResolvedValue('译文');
         mocks.recognizeImage.mockResolvedValue([{text: 'hello'}]);
+        mocks.fetchImage.mockResolvedValue('data:image/png;base64,remote');
         mocks.translateImage.mockResolvedValue({image: 'translated', lines: []});
         mocks.translateArea.mockResolvedValue({image: 'area', lines: []});
         mocks.downloadOcrLanguages.mockResolvedValue(undefined);
@@ -227,6 +230,33 @@ describe('Offscreen 消息静态路由', () => {
         })).response).toEqual({image: 'safe', lines: [], success: true});
     });
 
+    it('跨域图片读取只在 Offscreen 中接收 URL，并返回受校验的 data URL', async () => {
+        await expect(dispatch({
+            type: 'FLUENT_READ_IMAGE_FETCH_OFFSCREEN',
+            requestId: 'image-fetch-1',
+            url: 'https://pbs.twimg.com/media/demo.png?format=png',
+        })).resolves.toEqual({
+            handled: true,
+            response: {success: true, image: 'data:image/png;base64,remote'},
+        });
+        expect(mocks.fetchImage).toHaveBeenCalledWith(
+            'https://pbs.twimg.com/media/demo.png?format=png',
+            expect.any(AbortSignal),
+        );
+
+        for (const url of [undefined, '', 1]) {
+            expect((await dispatch({
+                type: 'FLUENT_READ_IMAGE_FETCH_OFFSCREEN',
+                url,
+            })).response).toMatchObject({success: false});
+        }
+        mocks.fetchImage.mockResolvedValueOnce('not-an-image');
+        await expect(dispatch({
+            type: 'FLUENT_READ_IMAGE_FETCH_OFFSCREEN',
+            url: 'https://pbs.twimg.com/media/demo.png',
+        })).resolves.toEqual({handled: true, response: {success: false, error: '远程图片结果无效'}});
+    });
+
     it('区域翻译验证六个有限坐标和正尺寸', async () => {
         const selection = {left: 0, top: 1, width: 2, height: 3, viewportWidth: 100, viewportHeight: 80};
         await expect(dispatch({
@@ -397,6 +427,7 @@ describe('Offscreen 消息静态路由', () => {
             translate: mocks.translate,
             ttsPlayer: {play: mocks.play, stop: mocks.stop},
             recognizeImage: mocks.recognizeImage,
+            fetchImage: mocks.fetchImage,
             translateImage: mocks.translateImage,
             translateArea: mocks.translateArea,
             downloadOcrLanguages: mocks.downloadOcrLanguages,

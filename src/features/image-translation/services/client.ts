@@ -1,8 +1,8 @@
 /**
  * @file src/features/image-translation/services/client.ts
- * 文件职责：封装网页与扩展页面调用图片翻译后台的 runtime 消息，统一支持 OCR 识别与整图翻译两种可取消客户端操作。
- * 主要内容：提供 recognizeImageInExtension 与 translateImageInExtension，生成跨页面安全请求标识，传播取消和超时信号，并校验后台响应的图片与行数组。
- * 模块边界：客户端不读取图片像素、不接受任意 URL、不管理 UI 状态也不访问 tabs/offscreen；输入校验由 background handlers 完成，调用超时与用户反馈由 content/runtime 决定。
+ * 文件职责：封装网页与扩展页面调用图片翻译后台的 runtime 消息，统一支持跨域图片读取、OCR 识别与整图翻译三种可取消客户端操作。
+ * 主要内容：提供 fetchImageInExtension、recognizeImageInExtension 与 translateImageInExtension，生成跨页面安全请求标识，传播取消和超时信号，并校验后台响应。
+ * 模块边界：客户端不读取图片像素、不直接访问网络或 Offscreen；跨域 URL 只作为受控消息交给 background，再由 Offscreen 校验和读取，页面 UI 由 content/runtime 决定。
  */
 import type { OcrLine } from '@/src/features/image-translation/core';
 
@@ -20,6 +20,12 @@ interface ImageTranslationResponse {
 interface ImageOcrResponse {
     success: boolean;
     lines?: OcrLine[];
+    error?: string;
+}
+
+interface ImageFetchResponse {
+    success: boolean;
+    image?: string;
     error?: string;
 }
 
@@ -119,6 +125,21 @@ export async function recognizeImageInExtension(
     }
 
     return response.lines || [];
+}
+
+export async function fetchImageInExtension(
+    imageUrl: string,
+    options: ImageExtensionOperationOptions = {},
+): Promise<string> {
+    const response = await sendCancellableImageOperation<ImageFetchResponse>({
+        type: 'fluentReadImageFetch',
+        url: imageUrl,
+    }, options, '远程图片读取超时');
+
+    if (!response?.success || typeof response.image !== 'string' || !response.image.startsWith('data:image/')) {
+        throw new Error(response?.error || '远程图片读取失败');
+    }
+    return response.image;
 }
 
 export async function translateImageInExtension(
