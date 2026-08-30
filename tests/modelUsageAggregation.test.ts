@@ -81,6 +81,7 @@ describe('模型用量纯聚合', () => {
             cacheReportedRequests: 1,
             cacheHitRequests: 1,
             cacheEligibleInputTokens: 100,
+            cacheEligibleOutputTokens: 20,
             cacheTokenHitRate: 0.1,
             cacheRequestHitRate: 1,
             cacheCoverageRate: 1,
@@ -89,6 +90,12 @@ describe('模型用量纯聚合', () => {
             averageTokensPerReportedRequest: 120,
             averageInputTokensPerReportedRequest: 100,
             averageOutputTokensPerReportedRequest: 20,
+            averageUncachedInputTokensPerCacheReportedRequest: 90,
+            averageCachedInputTokensPerCacheReportedRequest: 10,
+            averageOutputTokensPerCacheReportedRequest: 20,
+            uncachedInputTokenShare: 0.75,
+            cachedInputTokenShare: 1 / 12,
+            outputTokenShare: 1 / 6,
         });
         expect(aggregateModelUsageTotals([event({usageAvailability: 'unreported'})])
             .averageTokensPerReportedRequest).toBeNull();
@@ -149,13 +156,34 @@ describe('模型用量纯聚合', () => {
             cacheReportedRequests: 2,
             cacheHitRequests: 1,
             cacheEligibleInputTokens: 150,
+            cacheEligibleOutputTokens: 15,
             cacheTokenHitRate: 40 / 150,
             cacheRequestHitRate: 0.5,
             cacheCoverageRate: 2 / 3,
+            averageUncachedInputTokensPerCacheReportedRequest: 55,
+            averageCachedInputTokensPerCacheReportedRequest: 20,
+            averageOutputTokensPerCacheReportedRequest: 7.5,
+            uncachedInputTokenShare: 110 / 165,
+            cachedInputTokenShare: 40 / 165,
+            outputTokenShare: 15 / 165,
         });
         expect(aggregateModelUsageTotals([
             event({inputTokens: 2, cachedInputTokens: 3}),
-        ]).cacheTokenHitRate).toBeNull();
+        ])).toMatchObject({
+            cacheReportedRequests: 0,
+            cacheTokenHitRate: null,
+            averageUncachedInputTokensPerCacheReportedRequest: null,
+        });
+        expect(aggregateModelUsageTotals([
+            event({inputTokens: 0, outputTokens: 0, totalTokens: 0, cachedInputTokens: 0}),
+        ])).toMatchObject({
+            averageUncachedInputTokensPerCacheReportedRequest: 0,
+            averageCachedInputTokensPerCacheReportedRequest: 0,
+            averageOutputTokensPerCacheReportedRequest: 0,
+            uncachedInputTokenShare: null,
+            cachedInputTokenShare: null,
+            outputTokenShare: null,
+        });
     });
 
     it('按总 Token 排列服务模型分布，并以输入输出作为稳定排序依据', () => {

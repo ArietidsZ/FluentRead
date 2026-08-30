@@ -145,7 +145,7 @@ describe('模型用量后台 handler', () => {
         });
         expect(response).toMatchObject({success: true, data: {totalCount: 0}});
         expect(parseModelUsageRequestQuery(undefined)).toEqual({filter: {range: '30d'}});
-        expect(() => parseModelUsageRequestQuery({filter: {range: '30d'}, limit: 51})).toThrow('1-50');
+        expect(() => parseModelUsageRequestQuery({filter: {range: '30d'}, limit: 101})).toThrow('1-100');
         expect(() => parseModelUsageRequestQuery({filter: {range: '30d', purpose: 'billing'}})).toThrow('purpose');
         expect(() => parseModelUsageRequestQuery({filter: {range: '30d', cacheStatus: 'unknown'}})).toThrow('cacheStatus');
         expect(() => parseModelUsageRequestQuery({filter: {range: '30d'}, cursor: {startedAt: 1, id: 'bad id'}})).toThrow('id');
@@ -182,7 +182,7 @@ describe('模型用量后台 handler', () => {
             expect(() => parseModelUsageRequestQuery({cursor: {startedAt: 1_000, id}})).toThrow('id 无效');
         }
         for (const limit of [1.5, 0]) {
-            expect(() => parseModelUsageRequestQuery({limit})).toThrow('limit 必须是 1-50 的整数');
+            expect(() => parseModelUsageRequestQuery({limit})).toThrow('limit 必须是 1-100 的整数');
         }
     });
 

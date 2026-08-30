@@ -223,6 +223,7 @@ describe('大模型用量 IndexedDB repository', () => {
 
         const misses = await repository.getRequestLog({
             filter: {range: '30d', cacheStatus: 'miss'},
+            limit: 100,
         }, now);
         expect(misses.items.map((item) => item.id)).toEqual(['cache-miss']);
 
@@ -236,7 +237,7 @@ describe('大模型用量 IndexedDB repository', () => {
             filter: {range: '30d', cacheStatus: 'partial' as never},
         }, now)).rejects.toThrow('cacheStatus');
 
-        for (const limit of [0, 51, 1.5, '20']) {
+        for (const limit of [0, 101, 1.5, '20']) {
             await expect(repository.getRequestLog({
                 filter: {range: '30d'},
                 limit: limit as never,

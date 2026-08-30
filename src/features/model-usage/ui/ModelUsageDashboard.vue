@@ -1,7 +1,7 @@
 <!--
  @file src/features/model-usage/ui/ModelUsageDashboard.vue
  文件职责：在 Options 设置页展示当前浏览器保存的模型调用可观测数据，并提供筛选、请求明细和清除统计入口。
- 主要内容：呈现自适应 Token 大数、缓存读取/写入与命中率、请求结果、输入输出均值、趋势、服务模型分布和稳定游标分页的逐请求记录。
+ 主要内容：呈现自适应 Token 大数、无缓存输入/缓存读取/输出三段均值与占比、请求结果、趋势、服务模型分布和可调页长的稳定游标分页。
  模块边界：组件只消费后台白名单数据，不读取 API Key、不记录原文、译文、提示词或网址，也不直接访问 IndexedDB；事件采集、Token 解释、持久化及备份恢复由 services、providers、background 与统一“备份与恢复”页面拥有。
 -->
 <template>
@@ -144,44 +144,39 @@
         <article class="usage-card usage-compact-card usage-average-card">
           <div class="usage-metric-heading">
             <span>平均每次请求</span>
-            <small>分别计算</small>
+            <small>Token 构成</small>
           </div>
           <div class="usage-average-grid">
             <div class="usage-average-value">
-              <span>输入 / 请求</span>
-              <strong :title="averageTokenTitle(selectedTotals.averageInputTokensPerReportedRequest)">{{ formatAverageValue(selectedTotals.averageInputTokensPerReportedRequest) }}</strong>
-              <small>Token</small>
+              <span>输入（无缓存）</span>
+              <strong :title="averageTokenTitle(selectedTotals.averageUncachedInputTokensPerCacheReportedRequest)">{{ formatAverageValue(selectedTotals.averageUncachedInputTokensPerCacheReportedRequest) }}</strong>
+              <small>平均 Token</small>
+              <em>占比 {{ formatUsageRate(selectedTotals.uncachedInputTokenShare) }}</em>
+            </div>
+            <div class="usage-average-value usage-average-cache">
+              <span>缓存读取</span>
+              <strong :title="averageTokenTitle(selectedTotals.averageCachedInputTokensPerCacheReportedRequest)">{{ formatAverageValue(selectedTotals.averageCachedInputTokensPerCacheReportedRequest) }}</strong>
+              <small>平均 Token</small>
+              <em>占比 {{ formatUsageRate(selectedTotals.cachedInputTokenShare) }}</em>
             </div>
             <div class="usage-average-value">
-              <span>输出 / 请求</span>
-              <strong :title="averageTokenTitle(selectedTotals.averageOutputTokensPerReportedRequest)">{{ formatAverageValue(selectedTotals.averageOutputTokensPerReportedRequest) }}</strong>
-              <small>Token</small>
+              <span>输出</span>
+              <strong :title="averageTokenTitle(selectedTotals.averageOutputTokensPerCacheReportedRequest)">{{ formatAverageValue(selectedTotals.averageOutputTokensPerCacheReportedRequest) }}</strong>
+              <small>平均 Token</small>
+              <em>占比 {{ formatUsageRate(selectedTotals.outputTokenShare) }}</em>
             </div>
           </div>
-          <small class="usage-card-footnote">只按返回 Token 明细的请求计算</small>
-        </article>
-
-        <article class="usage-card usage-compact-card usage-cache-card">
-          <div class="usage-metric-heading">
-            <span>模型缓存</span>
-            <small>输入 Token</small>
+          <div v-if="selectedTotals.cacheReportedRequests" class="usage-average-footnote">
+            <strong>
+              {{ selectedTotals.cacheHitRequests }}/{{ selectedTotals.cacheReportedRequests }}
+              次{{ selectedTotals.cacheReportedRequests < selectedTotals.reportedTokenRequests ? '可计算' : '' }}请求命中
+            </strong>
+            <span>平均值与占比按可计算请求统计</span>
           </div>
-          <strong>{{ formatUsageRate(selectedTotals.cacheTokenHitRate) }}</strong>
-          <span class="usage-cache-caption">Token 命中率</span>
-          <div class="usage-cache-values">
-            <div>
-              <span>缓存读取</span>
-              <strong :title="tokenExactTitle(selectedTotals.cachedInputTokens)">{{ formatToken(selectedTotals.cachedInputTokens) }}</strong>
-            </div>
-            <div>
-              <span>缓存写入</span>
-              <strong :title="tokenExactTitle(selectedTotals.cacheWriteTokens)">{{ formatToken(selectedTotals.cacheWriteTokens) }}</strong>
-            </div>
+          <div v-else class="usage-average-footnote">
+            <strong>缓存读取未上报</strong>
+            <span>暂时无法拆分输入与缓存构成</span>
           </div>
-          <small v-if="selectedTotals.cacheReportedRequests">
-            {{ selectedTotals.cacheHitRequests }}/{{ selectedTotals.cacheReportedRequests }} 次请求命中 · 缓存明细覆盖 {{ formatUsageRate(selectedTotals.cacheCoverageRate) }}
-          </small>
-          <small v-else>服务商尚未返回可计算的缓存读取明细</small>
         </article>
       </div>
 
@@ -299,7 +294,7 @@
           <div>
             <span>逐请求可观测记录</span>
             <strong id="usage-request-log-title">每一次上游大模型调用</strong>
-            <small>已显示 {{ requestLogItems.length }} / {{ formatNumber(requestLogTotalCount) }} 条</small>
+            <small>第 {{ requestPageStart }}–{{ requestPageEnd }} 条，共 {{ formatNumber(requestLogTotalCount) }} 条</small>
           </div>
           <div class="usage-request-filters" aria-label="请求记录筛选">
             <label>
@@ -339,7 +334,7 @@
 
         <div v-if="requestLogError" class="usage-request-log-error" role="alert">
           <span>{{ requestLogError }}</span>
-          <button type="button" @click="loadRequestLog(true)">重试</button>
+          <button type="button" @click="loadRequestPage(requestLogRetryPageIndex)">重试</button>
         </div>
         <div v-if="requestLogLoading && !requestLogItems.length" class="usage-request-log-loading" role="status">
           正在读取请求记录…
@@ -389,13 +384,14 @@
                       <span><i>输入</i><b :title="tokenExactTitle(item.inputTokens || 0)">{{ formatToken(item.inputTokens || 0) }}</b></span>
                       <span :class="{ hit: isCacheHit(item), miss: item.cachedInputTokens === 0 }">
                         <i>缓存读取</i>
-                        <b :title="requestCacheTitle(item)">{{ requestCacheValue(item) }}</b>
+                        <b :title="requestCacheTitle(item)">{{ requestCacheTokenValue(item) }}</b>
+                        <small>{{ requestCacheRateLabel(item) }}</small>
                       </span>
                       <span><i>输出</i><b :title="tokenExactTitle(item.outputTokens || 0)">{{ formatToken(item.outputTokens || 0) }}</b></span>
                       <span><i>总计</i><b :title="tokenExactTitle(item.totalTokens || 0)">{{ formatToken(item.totalTokens || 0) }}</b></span>
                     </div>
                     <small v-if="item.cacheWriteTokens || item.reasoningTokens" class="usage-request-token-extra">
-                      <span v-if="item.cacheWriteTokens">缓存写入 {{ formatToken(item.cacheWriteTokens) }}</span>
+                      <span v-if="item.cacheWriteTokens">缓存创建（服务商上报）{{ formatToken(item.cacheWriteTokens) }} Token</span>
                       <span v-if="item.reasoningTokens">推理 {{ formatToken(item.reasoningTokens) }}</span>
                     </small>
                   </template>
@@ -405,14 +401,18 @@
             </tbody>
           </table>
         </div>
-        <footer v-if="requestLogItems.length" class="usage-request-log-footer" aria-live="polite">
-          <span>{{ requestLogNextCursor ? '还可以查看更早记录' : '已显示当前筛选的全部记录' }}</span>
-          <button
-            v-if="requestLogNextCursor"
-            type="button"
-            :disabled="requestLogLoading"
-            @click="loadRequestLog(false)"
-          >{{ requestLogLoading ? '正在读取…' : '加载更早记录' }}</button>
+        <footer v-if="requestLogTotalCount" class="usage-request-log-footer" aria-live="polite">
+          <label class="usage-page-size">
+            <span>每页</span>
+            <select v-model.number="requestPageSize" aria-label="每页请求记录数量">
+              <option v-for="size in requestPageSizeOptions" :key="size" :value="size">{{ size }} 条</option>
+            </select>
+          </label>
+          <nav class="usage-request-pagination" aria-label="请求记录分页">
+            <button type="button" :disabled="requestLogLoading || requestPageIndex === 0" @click="loadRequestPage(requestPageIndex - 1)">上一页</button>
+            <span>第 {{ requestPageIndex + 1 }} / {{ requestPageCount }} 页</span>
+            <button type="button" :disabled="requestLogLoading || !requestLogNextCursor" @click="loadNextRequestPage">下一页</button>
+          </nav>
         </footer>
       </section>
     </template>
@@ -452,6 +452,7 @@ import {options} from '@/src/core/config/catalog'
 import {formatTokenCount, formatUsageRate} from '@/src/features/model-usage/model/tokenFormat'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 import {
+  MODEL_USAGE_REQUEST_MAX_PAGE_SIZE,
   MODEL_USAGE_REQUEST_PAGE_SIZE,
   type DashboardSnapshot,
   type Filter,
@@ -477,6 +478,7 @@ type RequestOutcomeFilter = '' | ModelUsageOutcome
 type RequestCacheFilter = '' | ModelUsageCacheStatus
 
 const BREAKDOWN_PREVIEW_COUNT = 8
+const requestPageSizeOptions = [20, 50, MODEL_USAGE_REQUEST_MAX_PAGE_SIZE] as const
 const numberFormatter = new Intl.NumberFormat('zh-CN', {maximumFractionDigits: 0})
 const requestDateFormatter = new Intl.DateTimeFormat('zh-CN', {
   month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
@@ -509,6 +511,10 @@ const requestCacheStatus = ref<RequestCacheFilter>('')
 const requestLogItems = ref<StoredModelUsageEvent[]>([])
 const requestLogNextCursor = ref<ModelUsageRequestCursor | null>(null)
 const requestLogTotalCount = ref(0)
+const requestPageSize = ref<number>(MODEL_USAGE_REQUEST_PAGE_SIZE)
+const requestPageIndex = ref(0)
+const requestPageCursors = ref<Array<ModelUsageRequestCursor | null>>([null])
+const requestLogRetryPageIndex = ref(0)
 const requestLogLoading = ref(false)
 const requestLogError = ref('')
 const resetMessage = ref('')
@@ -555,6 +561,16 @@ const coverageLabel = computed(() => {
   const successful = selectedTotals.value.successfulRequests
   return successful > 0 ? formatUsageRate(selectedTotals.value.reportedTokenRequests / successful) : '0%'
 })
+const requestPageCount = computed(() => Math.max(1, Math.ceil(
+  requestLogTotalCount.value / requestPageSize.value,
+)))
+const requestPageStart = computed(() => requestLogTotalCount.value > 0
+  ? requestPageIndex.value * requestPageSize.value + 1
+  : 0)
+const requestPageEnd = computed(() => Math.min(
+  (requestPageIndex.value + 1) * requestPageSize.value,
+  requestLogTotalCount.value,
+))
 const visibleBreakdown = computed(() => {
   const rows = [...(snapshot.value?.breakdown || [])].sort((left, right) => {
     const value = (totals: Totals) => breakdownSort.value === 'input'
@@ -676,9 +692,14 @@ function requestCacheRate(item: StoredModelUsageEvent): number | null {
   return item.cachedInputTokens / item.inputTokens
 }
 
-function requestCacheValue(item: StoredModelUsageEvent): string {
+function requestCacheTokenValue(item: StoredModelUsageEvent): string {
   if (item.cachedInputTokens === undefined) return '未上报'
-  return `${formatToken(item.cachedInputTokens)} · ${formatUsageRate(requestCacheRate(item))}`
+  return `${formatToken(item.cachedInputTokens)} Token`
+}
+
+function requestCacheRateLabel(item: StoredModelUsageEvent): string {
+  if (item.cachedInputTokens === undefined) return '命中率不可计算'
+  return `输入命中率 ${formatUsageRate(requestCacheRate(item))}`
 }
 
 function requestCacheTitle(item: StoredModelUsageEvent): string {
@@ -765,11 +786,14 @@ async function loadSnapshot(): Promise<void> {
       throw new Error(response?.error || '后台没有返回可用的统计快照')
     }
     snapshot.value = response.data
-    if (response.data.selected.totals.requestCount > 0) void loadRequestLog(true)
+    if (response.data.selected.totals.requestCount > 0) void resetRequestPagination()
     else {
       requestLogItems.value = []
       requestLogNextCursor.value = null
       requestLogTotalCount.value = 0
+      requestPageIndex.value = 0
+      requestPageCursors.value = [null]
+      requestLogRetryPageIndex.value = 0
     }
   } catch (error) {
     if (revision !== dashboardRevision) return
@@ -779,13 +803,22 @@ async function loadSnapshot(): Promise<void> {
   }
 }
 
-async function loadRequestLog(reset: boolean): Promise<void> {
-  if (!props.active) return
+function resetRequestPagination(): void {
+  requestLogItems.value = []
+  requestLogNextCursor.value = null
+  requestLogTotalCount.value = 0
+  requestPageIndex.value = 0
+  requestPageCursors.value = [null]
+  requestLogRetryPageIndex.value = 0
+  void loadRequestPage(0)
+}
+
+async function loadRequestPage(pageIndex: number): Promise<void> {
+  if (!props.active || pageIndex < 0) return
+  const cursor = requestPageCursors.value[pageIndex]
+  if (pageIndex > 0 && !cursor) return
   const revision = ++requestLogRevision
-  if (reset) {
-    requestLogItems.value = []
-    requestLogNextCursor.value = null
-  }
+  requestLogRetryPageIndex.value = pageIndex
   requestLogLoading.value = true
   requestLogError.value = ''
   try {
@@ -799,19 +832,22 @@ async function loadRequestLog(reset: boolean): Promise<void> {
           ...(requestOutcome.value ? {outcome: requestOutcome.value} : {}),
           ...(requestCacheStatus.value ? {cacheStatus: requestCacheStatus.value} : {}),
         },
-        ...(!reset && requestLogNextCursor.value ? {cursor: requestLogNextCursor.value} : {}),
-        limit: MODEL_USAGE_REQUEST_PAGE_SIZE,
+        ...(cursor ? {cursor} : {}),
+        limit: requestPageSize.value,
       },
     }) as ModelUsageResponse<ModelUsageRequestPage>
     if (revision !== requestLogRevision) return
     if (response?.success !== true || !response.data) {
       throw new Error(response?.error || '后台没有返回请求记录')
     }
-    const knownIds = new Set(reset ? [] : requestLogItems.value.map(item => item.id))
-    const incoming = response.data.items.filter(item => !knownIds.has(item.id))
-    requestLogItems.value = reset ? incoming : [...requestLogItems.value, ...incoming]
+    requestLogItems.value = response.data.items
+    requestPageIndex.value = pageIndex
     requestLogNextCursor.value = response.data.nextCursor
-    requestLogTotalCount.value = response.data.totalCount
+    // 固定第一页返回的总数，避免持续产生的新请求让当前游标链路的页数发生漂移。
+    if (pageIndex === 0) requestLogTotalCount.value = response.data.totalCount
+    const cursors = requestPageCursors.value.slice(0, pageIndex + 1)
+    if (response.data.nextCursor) cursors[pageIndex + 1] = response.data.nextCursor
+    requestPageCursors.value = cursors
   } catch (error) {
     if (revision !== requestLogRevision) return
     requestLogError.value = error instanceof Error ? error.message : '读取请求记录失败'
@@ -820,6 +856,11 @@ async function loadRequestLog(reset: boolean): Promise<void> {
   }
 }
 
+function loadNextRequestPage(): void {
+  if (!requestLogNextCursor.value) return
+  requestPageCursors.value[requestPageIndex.value + 1] = requestLogNextCursor.value
+  void loadRequestPage(requestPageIndex.value + 1)
+}
 async function openResetDialog(): Promise<void> {
   resetError.value = ''
   resetMessage.value = ''
@@ -892,9 +933,9 @@ watch([selectedService, selectedModel, range], () => {
   void loadSnapshot()
 }, {flush: 'post'})
 
-watch([requestPurpose, requestOutcome, requestCacheStatus], () => {
+watch([requestPurpose, requestOutcome, requestCacheStatus, requestPageSize], () => {
   if (!mounted || !props.active || !snapshot.value) return
-  void loadRequestLog(true)
+  resetRequestPagination()
 }, {flush: 'post'})
 
 watch(() => props.active, (active, previous) => {
