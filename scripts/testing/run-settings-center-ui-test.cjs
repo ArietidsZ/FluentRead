@@ -930,6 +930,61 @@ async function main() {
       || serviceOnlyMetrics.defaultService !== defaultServiceMetrics.defaultService) {
       throw new Error(`翻译服务页不是纯服务目录：${JSON.stringify(serviceOnlyMetrics)}`);
     }
+    const expectedProviderServices = [
+      'deepseek', 'tongyi', 'doubao', 'moonshot', 'zhipu', 'huanYuan',
+      'huanYuanTranslation', 'yiyan', 'minimax', 'mimo', 'jieyue', 'openai',
+      'gemini', 'claude', 'grok',
+    ];
+    const expectedPlatformServices = [
+      'siliconCloud', 'newapi', 'infini', 'openrouter', 'groq', 'azureOpenai', 'custom',
+    ];
+    const expectedMachineServices = [
+      'freeTranslation', 'microsoft', 'google', 'deepL', 'deeplx', 'xiaoniu', 'youdao', 'tencent',
+    ];
+    const providerServices = await serviceCatalog
+      .locator('[data-service-subgroup="ai-providers"] .service-item')
+      .evaluateAll(items => items.map(item => item.getAttribute('data-service-value')));
+    const platformServices = await serviceCatalog
+      .locator('[data-service-subgroup="ai-platforms"] .service-item')
+      .evaluateAll(items => items.map(item => item.getAttribute('data-service-value')));
+    if (JSON.stringify(providerServices) !== JSON.stringify(expectedProviderServices)) {
+      throw new Error(`模型服务商分类或顺序异常：${JSON.stringify(providerServices)}`);
+    }
+    if (JSON.stringify(platformServices) !== JSON.stringify(expectedPlatformServices)) {
+      throw new Error(`聚合平台分类或顺序异常：${JSON.stringify(platformServices)}`);
+    }
+
+    const machineGroup = serviceCatalog.locator('[data-service-section="machine"]');
+    const machineServices = await machineGroup.locator('.service-item')
+      .evaluateAll(items => items.map(item => item.getAttribute('data-service-value')));
+    const chromeMachineServices = [...expectedMachineServices, 'chromeTranslator'];
+    if (JSON.stringify(machineServices) !== JSON.stringify(expectedMachineServices)
+      && JSON.stringify(machineServices) !== JSON.stringify(chromeMachineServices)) {
+      throw new Error(`机器翻译分类或顺序异常：${JSON.stringify(machineServices)}`);
+    }
+    const machineToggle = machineGroup.locator('[data-service-section-toggle="machine"]');
+    if (await machineToggle.count() !== 1) throw new Error('机器翻译分组缺少唯一折叠按钮');
+    if (await machineToggle.getAttribute('aria-expanded') === 'true') await machineToggle.click();
+    if (await machineToggle.getAttribute('aria-expanded') !== 'false'
+      || await machineGroup.locator('.service-item').first().isVisible()) {
+      throw new Error('机器翻译分组无法收起');
+    }
+    const serviceSearch = serviceCatalog.getByPlaceholder('搜索翻译服务');
+    await serviceSearch.fill('微软翻译');
+    await machineGroup.locator('.service-item[data-service-value="microsoft"]').waitFor({state: 'visible', timeout});
+    if (await machineToggle.getAttribute('aria-expanded') !== 'true') {
+      throw new Error('搜索机器翻译时没有自动展开命中分组');
+    }
+    if (!await machineToggle.isDisabled()) throw new Error('搜索期间机器翻译折叠按钮仍可操作');
+    await serviceSearch.fill('');
+    if (await machineToggle.getAttribute('aria-expanded') !== 'false') {
+      throw new Error('清空搜索后没有恢复机器翻译折叠状态');
+    }
+    if (await machineToggle.isDisabled()) throw new Error('清空搜索后机器翻译折叠按钮没有恢复可用');
+    report.screenshots.push(await screenshot(page, 'settings-service-catalog-collapsed.png'));
+    await machineToggle.click();
+    if (await machineToggle.getAttribute('aria-expanded') !== 'true') throw new Error('机器翻译分组无法重新展开');
+
     const defaultServiceItem = serviceCatalog.locator(
       `.service-item[data-service-value="${defaultServiceMetrics.defaultService}"]`,
     );
@@ -939,6 +994,13 @@ async function main() {
       throw new Error(`AI 上下文开关用例没有运行在机器默认服务下：${defaultServiceKind}`);
     }
     report.informationArchitecture.services = serviceOnlyMetrics;
+    report.informationArchitecture.serviceCatalogHierarchy = {
+      providerServices,
+      platformServices,
+      machineServices,
+      machineSearchAutoExpanded: true,
+      machineCollapsedStateRestored: true,
+    };
     report.informationArchitecture.machineDefaultAiContext = {
       defaultService: defaultServiceMetrics.defaultService,
       serviceKind: defaultServiceKind,
@@ -947,6 +1009,8 @@ async function main() {
       restored: aiContextRestored,
     };
     report.assertions.servicesCatalogOnly = true;
+    report.assertions.serviceCatalogHierarchy = true;
+    report.assertions.machineServiceGroupCollapsible = true;
     report.assertions.machineDefaultAiContextOperable = true;
 
     await page.locator('button[data-section="settings-translation"]').click();

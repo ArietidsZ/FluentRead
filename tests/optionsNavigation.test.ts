@@ -89,6 +89,9 @@ describe('options navigation view-model', () => {
     expect(filterNavigationItems('AI 多段翻译')).toEqual([
       expect.objectContaining({ id: 'settings-translation' }),
     ])
+    expect(filterNavigationItems('聚合平台')).toEqual([
+      expect.objectContaining({ id: 'settings-services' }),
+    ])
     expect(filterNavigationItems(' KIMI ')).toEqual([
       expect.objectContaining({ id: 'settings-model-usage' }),
     ])

@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/ServiceCatalog.vue
- * 文件职责：实现翻译服务目录与筛选选择界面，把内置、AI 和自定义服务按分组、搜索条件与浏览器能力呈现为可切换的卡片列表。
- * 主要内容：组件接收当前服务和配置，使用 ServiceIcon、catalog 元数据及能力过滤计算可见选项，支持关键词搜索、分组计数、选择事件和自定义模型入口。
+ * 文件职责：实现翻译服务目录与筛选选择界面，把机器翻译、模型服务商和聚合平台按分层目录、搜索条件与浏览器能力呈现为可切换的卡片列表。
+ * 主要内容：组件接收当前服务和配置，使用 ServiceIcon、catalog 元数据及能力过滤计算可见选项，支持机器翻译折叠、AI 二级分类、关键词搜索、分组计数、选择事件和自定义模型入口。
  * 模块边界：目录只决定“选择哪个服务”，不编辑凭据、不测试连接也不保存配置；详细表单归 ServiceConfiguration.vue，服务定义来自 core/config，外层 SettingsSections 处理持久化。
  -->
 <template>
@@ -18,33 +18,75 @@
           <input v-model.trim="serviceQuery" type="search" placeholder="搜索翻译服务" />
         </label>
 
-        <div v-if="filteredGroups.length" class="service-groups">
-          <section v-for="group in filteredGroups" :key="group.id" class="service-group">
-            <div class="group-heading">
-              <strong>{{ group.label }}</strong>
-              <span>{{ group.items.length }} 项</span>
-            </div>
+        <div v-if="filteredSections.length" class="service-groups">
+          <section
+            v-for="section in filteredSections"
+            :key="section.id"
+            class="service-group"
+            :data-service-section="section.id"
+          >
             <button
-              v-for="item in group.items"
-              :key="item.value"
+              v-if="section.collapsible"
               type="button"
-              class="service-item"
-              :data-service-value="item.value"
-              :class="{ active: service === item.value }"
-              :aria-pressed="service === item.value"
-              @click="$emit('update:service', item.value)"
+              class="group-heading group-heading-toggle"
+              :data-service-section-toggle="section.id"
+              :aria-expanded="!isSectionCollapsed(section)"
+              :aria-controls="`service-section-${section.id}`"
+              :disabled="Boolean(serviceQuery)"
+              @click="toggleSection(section.id)"
             >
-              <ServiceIcon :service="item.value" :label="item.label" />
-              <span class="service-copy">
-                <strong>{{ item.label }}</strong>
-                <small>{{ group.id === 'machine' ? '机器翻译' : 'AI 翻译' }}</small>
+              <span class="group-heading-copy">
+                <strong>{{ section.label }}</strong>
+                <small>{{ sectionItemCount(section) }} 项</small>
               </span>
-              <span
-                v-if="defaultService === item.value"
-                class="current-dot"
-                title="默认翻译服务"
-              ></span>
+              <span class="group-toggle-copy">
+                {{ serviceQuery ? '搜索中' : isSectionCollapsed(section) ? '展开' : '收起' }}
+                <i aria-hidden="true">⌄</i>
+              </span>
             </button>
+            <div v-else class="group-heading">
+              <strong>{{ section.label }}</strong>
+              <span>{{ sectionItemCount(section) }} 项</span>
+            </div>
+
+            <div
+              v-show="!isSectionCollapsed(section)"
+              :id="`service-section-${section.id}`"
+              class="service-section-body"
+            >
+              <section
+                v-for="group in section.groups"
+                :key="group.id"
+                class="service-subgroup"
+                :data-service-subgroup="group.id"
+              >
+                <div v-if="group.label" class="subgroup-heading">
+                  <strong>{{ group.label }}</strong>
+                  <span>{{ group.items.length }} 项</span>
+                </div>
+                <button
+                  v-for="item in group.items"
+                  :key="item.value"
+                  type="button"
+                  class="service-item"
+                  :data-service-value="item.value"
+                  :class="{ active: service === item.value }"
+                  :aria-pressed="service === item.value"
+                  @click="$emit('update:service', item.value)"
+                >
+                  <ServiceIcon :service="item.value" :label="item.label" />
+                  <span class="service-copy">
+                    <strong>{{ item.label }}</strong>
+                    <small>{{ group.itemKind }}</small>
+                  </span>
+                  <span
+                    v-if="defaultService === item.value"
+                    class="current-dot"
+                    title="默认翻译服务"
+                  ></span>
+                </button>
+              </section>
+            </div>
           </section>
         </div>
         <p v-else class="catalog-empty">没有匹配的翻译服务</p>
@@ -142,12 +184,13 @@ import { computed, ref, watch } from 'vue'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 import { customModelString } from '@/src/core/config/catalog'
 import {
-  buildServiceGroups,
+  buildServiceSections,
   filterModels,
-  filterServiceGroups,
+  filterServiceSections,
   getSelectedModelLabel,
   splitModelOptions,
   type ServiceOption,
+  type ServiceSection,
 } from '@/src/ui/view-model/serviceCatalog'
 
 const props = defineProps<{
@@ -171,8 +214,10 @@ const moreModelsOpen = ref(false)
 const commonModelCount = 4
 const customModelLabel = customModelString
 
-const groups = computed(() => buildServiceGroups(props.services))
-const filteredGroups = computed(() => filterServiceGroups(groups.value, serviceQuery.value))
+const sections = computed(() => buildServiceSections(props.services))
+const filteredSections = computed(() => filterServiceSections(sections.value, serviceQuery.value))
+const collapsedSectionIds = ref(new Set(['machine']))
+const manuallyCollapsedSectionIds = ref(new Set<string>())
 const filteredModels = computed(() => filterModels(props.modelOptions, modelQuery.value))
 const modelGroups = computed(() => splitModelOptions(props.modelOptions, props.selectedModel, commonModelCount))
 const moreModels = computed(() => modelGroups.value.more)
@@ -184,7 +229,60 @@ const selectedModelLabel = computed(() => getSelectedModelLabel(
 const displayedModels = computed(() => modelQuery.value
   ? filteredModels.value
   : moreModelsOpen.value ? [...modelGroups.value.common, ...moreModels.value] : modelGroups.value.common)
-const selectedService = computed(() => groups.value.flatMap((group) => group.items).find((item) => item.value === props.service))
+const selectedService = computed(() => sections.value
+  .flatMap((section) => section.groups)
+  .flatMap((group) => group.items)
+  .find((item) => item.value === props.service))
+
+function sectionItemCount(section: ServiceSection) {
+  return section.groups.reduce((count, group) => count + group.items.length, 0)
+}
+
+function sectionContainsService(section: ServiceSection, service: string) {
+  return section.groups.some((group) => group.items.some((item) => item.value === service))
+}
+
+function isSectionCollapsed(section: ServiceSection) {
+  return section.collapsible
+    && !serviceQuery.value
+    && collapsedSectionIds.value.has(section.id)
+}
+
+function toggleSection(sectionId: string) {
+  const next = new Set(collapsedSectionIds.value)
+  const nextManual = new Set(manuallyCollapsedSectionIds.value)
+  if (next.has(sectionId)) {
+    next.delete(sectionId)
+    nextManual.delete(sectionId)
+  } else {
+    next.add(sectionId)
+    nextManual.add(sectionId)
+  }
+  collapsedSectionIds.value = next
+  manuallyCollapsedSectionIds.value = nextManual
+}
+
+watch(
+  [sections, () => props.service, () => props.defaultService],
+  ([currentSections, editingService, defaultService]) => {
+    const next = new Set(collapsedSectionIds.value)
+    const nextManual = new Set(manuallyCollapsedSectionIds.value)
+    currentSections.filter((section) => section.collapsible).forEach((section) => {
+      if (sectionContainsService(section, editingService)) {
+        next.delete(section.id)
+        nextManual.delete(section.id)
+      } else if (
+        sectionContainsService(section, defaultService)
+        && !nextManual.has(section.id)
+      ) {
+        next.delete(section.id)
+      }
+    })
+    collapsedSectionIds.value = next
+    manuallyCollapsedSectionIds.value = nextManual
+  },
+  { immediate: true },
+)
 
 watch(() => props.service, () => {
   modelQuery.value = ''
@@ -204,11 +302,24 @@ watch(modelQuery, () => {
 .catalog-search, .model-search { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 11px; border: 1px solid #dfe3eb; border-radius: 11px; background: #fff; }
 .catalog-search span, .model-search span { color: #8991a2; font-size: 16px; }
 .catalog-search input, .model-search input { width: 100%; min-width: 0; border: 0; outline: 0; color: #172033; background: transparent; font-size: 13px; }
-.service-groups { display: grid; gap: 18px; margin-top: 17px; }
-.group-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; padding: 8px 9px; border-bottom: 1px solid #e5e8ef; color: #667187; background: #f3f5f9; }
+.service-groups { display: grid; gap: 14px; margin-top: 17px; }
+.group-heading { display: flex; align-items: center; justify-content: space-between; width: 100%; margin: 0 0 5px; padding: 8px 9px; border: 0; border-bottom: 1px solid #e5e8ef; color: #667187; background: #f3f5f9; text-align: left; }
 .group-heading strong { color: #46526a; font-size: 12px; letter-spacing: .05em; }
 .group-heading span { font-size: 10px; }
 .service-group { min-width: 0; }
+.group-heading-toggle { cursor: pointer; }
+.group-heading-toggle:not(:disabled):hover { background: #eef1f6; }
+.group-heading-toggle:disabled { cursor: default; }
+.group-heading-copy { display: flex; align-items: baseline; gap: 7px; }
+.group-heading-copy small { color: #8a93a5; font-size: 10px; }
+.group-toggle-copy { display: flex; align-items: center; gap: 3px; color: #c72a56; font-weight: 750; }
+.group-toggle-copy i { display: inline-block; font-style: normal; transition: transform 150ms ease; }
+.group-heading-toggle[aria-expanded="true"] .group-toggle-copy i { transform: rotate(180deg); }
+.service-section-body { display: grid; gap: 14px; }
+.service-subgroup { min-width: 0; }
+.subgroup-heading { display: flex; align-items: center; justify-content: space-between; margin: 2px 9px 4px; color: #8a93a5; }
+.subgroup-heading strong { color: #657086; font-size: 10px; font-weight: 800; letter-spacing: .04em; }
+.subgroup-heading span { font-size: 9px; }
 .service-item { display: grid; grid-template-columns: 40px minmax(0, 1fr) 8px; align-items: center; gap: 10px; width: 100%; padding: 10px; border: 1px solid transparent; border-radius: 12px; color: #172033; background: transparent; text-align: left; cursor: pointer; transition: 150ms ease; }
 .service-item:hover { border-color: #e2e5ec; background: #fff; transform: translateX(2px); }
 .service-item.active { border-color: #f3c4d1; background: #fff0f4; box-shadow: 0 7px 18px rgba(214, 50, 96, .08); }
@@ -272,6 +383,7 @@ watch(modelQuery, () => {
 :global(:root.dark) .catalog-search input,
 :global(:root.dark) .model-search input,
 :global(:root.dark) .group-heading strong,
+:global(:root.dark) .subgroup-heading strong,
 :global(:root.dark) .detail-title-row h4,
 :global(:root.dark) .model-heading strong,
 :global(:root.dark) .model-item,
@@ -282,9 +394,12 @@ watch(modelQuery, () => {
 :global(:root.dark) .model-list-heading,
 :global(:root.dark) .model-item small,
 :global(:root.dark) .more-models-toggle small { color: var(--muted); }
+:global(:root.dark) .subgroup-heading { color: var(--muted); }
+:global(:root.dark) .group-toggle-copy { color: var(--brand-strong); }
 :global(:root.dark) .detail-hero,
 :global(:root.dark) .service-configuration-slot { border-color: var(--line); }
 :global(:root.dark) .service-item:hover { border-color: var(--line); background: var(--surface); }
+:global(:root.dark) .group-heading-toggle:not(:disabled):hover { background: var(--brand-soft); }
 :global(:root.dark) .service-item.active,
 :global(:root.dark) .model-item.active { border-color: rgba(255, 138, 171, .48); background: var(--brand-soft); }
 :global(:root.dark) .more-models-toggle:hover { border-color: rgba(255, 138, 171, .48); background: var(--brand-soft); }
@@ -299,7 +414,7 @@ watch(modelQuery, () => {
   .service-catalog { height: auto; min-height: 0; }
   .catalog-layout { display: block; flex: 0 0 auto; }
   .service-rail { border-right: 0; border-bottom: 1px solid #eceef3; }
-  .service-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .service-groups { grid-template-columns: 1fr; }
   .service-detail { padding: 18px; }
   .model-heading { align-items: stretch; flex-direction: column; }
   .model-search { width: 100%; }

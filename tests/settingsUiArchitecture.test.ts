@@ -290,6 +290,25 @@ describe('options UI composition architecture', () => {
     expect(styles).not.toContain('box-shadow: inset 4px 0 0 var(--brand);')
   })
 
+  it('keeps the service catalog hierarchy searchable and accessible', () => {
+    const catalog = source('src/features/settings/ui/services/ServiceCatalog.vue')
+    const viewModel = source('src/ui/view-model/serviceCatalog.ts')
+
+    expect(catalog).toContain(':data-service-section-toggle="section.id"')
+    expect(catalog).toContain(':aria-expanded="!isSectionCollapsed(section)"')
+    expect(catalog).toContain(':aria-controls="`service-section-${section.id}`"')
+    expect(catalog).toContain(':disabled="Boolean(serviceQuery)"')
+    expect(catalog).toContain("serviceQuery ? '搜索中'")
+    expect(catalog).toContain(':global(:root.dark) .group-toggle-copy { color: var(--brand-strong); }')
+    expect(catalog).toContain("const collapsedSectionIds = ref(new Set(['machine']))")
+    expect(catalog).toContain('&& !serviceQuery.value')
+    expect(catalog).toContain('sectionContainsService(section, editingService)')
+    expect(catalog).toContain('sectionContainsService(section, defaultService)')
+    expect(viewModel).toContain("label: '模型服务商'")
+    expect(viewModel).toContain("label: '聚合平台与接口'")
+    expect(viewModel).toContain("item.catalogKind === 'platform'")
+  })
+
   it('keeps translation interactions together in the requested order', () => {
     const settings = source('src/features/settings/ui/SettingsSections.vue')
     const translation = activeSectionSource(settings, 'settings-translation')

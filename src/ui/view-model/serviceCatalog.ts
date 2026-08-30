@@ -1,7 +1,7 @@
 /**
  * @file src/ui/view-model/serviceCatalog.ts
- * 文件职责：为服务与模型选择界面提供无框架的视图模型转换，把扁平配置选项整理成可搜索、可分组和可稳定展示的数据。
- * 主要内容：定义 ServiceOption/ServiceGroup，清理标签星标，按 disabled 分隔项构建服务组，按服务或模型关键词筛选并返回命中模型，解析当前模型标签，并把常用、选中和自定义模型稳定拆分。
+ * 文件职责：为服务与模型选择界面提供无框架的视图模型转换，把扁平配置选项整理成可搜索、可分层和可稳定展示的数据。
+ * 主要内容：定义服务目录的顶层分组与 AI 二级分类，清理标签星标，按服务或模型关键词筛选并返回命中模型，解析当前模型标签，并把常用、选中和自定义模型稳定拆分。
  * 模块边界：这些函数不读取 Vue 状态、不修改 Config，也不判断平台能力或发起连接测试；原始目录由 core/config 提供，Popup/Options 等调用方负责交互与渲染。
  */
 import { customModelString, resolveConfiguredModel, servicesType } from '@/src/core/config/catalog'
@@ -11,12 +11,24 @@ export interface ServiceOption {
   label: string
   description?: string
   disabled?: boolean
+  catalogKind?: string
 }
 
 export interface ServiceGroup {
   id: string
   label: string
   items: ServiceOption[]
+}
+
+export interface ServiceSubgroup extends ServiceGroup {
+  itemKind: string
+}
+
+export interface ServiceSection {
+  id: string
+  label: string
+  collapsible: boolean
+  groups: ServiceSubgroup[]
 }
 
 export interface ServiceSearchOption extends ServiceOption {
@@ -48,6 +60,36 @@ export function buildServiceGroups(options: ServiceOption[]): ServiceGroup[] {
   return groups
 }
 
+export function buildServiceSections(options: ServiceOption[]): ServiceSection[] {
+  return buildServiceGroups(options).map((group) => {
+    if (group.id === 'ai') {
+      const providers = group.items.filter((item) => item.catalogKind !== 'platform')
+      const platforms = group.items.filter((item) => item.catalogKind === 'platform')
+      return {
+        id: group.id,
+        label: group.label,
+        collapsible: false,
+        groups: [
+          { id: 'ai-providers', label: '模型服务商', itemKind: '模型服务商', items: providers },
+          { id: 'ai-platforms', label: '聚合平台与接口', itemKind: '聚合平台', items: platforms },
+        ].filter((subgroup) => subgroup.items.length > 0),
+      }
+    }
+
+    return {
+      id: group.id,
+      label: group.label,
+      collapsible: group.id === 'machine',
+      groups: [{
+        id: `${group.id}-services`,
+        label: '',
+        itemKind: group.id === 'machine' ? '机器翻译' : group.label,
+        items: group.items,
+      }],
+    }
+  })
+}
+
 export function filterServiceGroups(groups: ServiceGroup[], query: string) {
   const keyword = query.trim().toLocaleLowerCase()
   if (!keyword) return groups
@@ -60,6 +102,25 @@ export function filterServiceGroups(groups: ServiceGroup[], query: string) {
       ),
     }))
     .filter((group) => group.items.length > 0)
+}
+
+export function filterServiceSections(sections: ServiceSection[], query: string) {
+  const keyword = query.trim().toLocaleLowerCase()
+  if (!keyword) return sections
+
+  return sections
+    .map((section) => ({
+      ...section,
+      groups: section.groups
+        .map((group) => ({
+          ...group,
+          items: group.items.filter((item) =>
+            `${item.label}${item.value}${item.description || ''}`.toLocaleLowerCase().includes(keyword),
+          ),
+        }))
+        .filter((group) => group.items.length > 0),
+    }))
+    .filter((section) => section.groups.length > 0)
 }
 
 export function filterModels(modelOptions: string[], query: string) {
