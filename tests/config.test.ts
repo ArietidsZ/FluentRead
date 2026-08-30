@@ -536,6 +536,624 @@ describe('统一配置存储', () => {
         expect(storageMock.setItem).not.toHaveBeenCalled();
     });
 
+    it.each([
+        ['轮换', {openai: 'remote-imported-secret'}],
+        ['清除', {}],
+    ] as const)('远程整份凭据%s成功后不依赖凭据通知即可同步导出与后续整份保存', async (_operation, importedToken) => {
+        const oldSecret = 'remote-old-secret';
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+            localCredentials: {token: {openai: oldSecret}},
+        });
+        await configStore.configReady;
+        const sentTokens: Array<Record<string, string>> = [];
+        const sendMessage = vi.fn(async (message: {config: Config; baseRevision: number}) => {
+            const token = structuredClone(message.config.token);
+            sentTokens.push(token);
+            const revision = message.baseRevision + 1;
+            storageState.set('local:credentials', {token});
+            storageState.set('local:config', {
+                ...sanitizeConfigCredentials(normalizeConfig(message.config)),
+                __fluentConfigRevision: revision,
+            });
+            // 模拟 local:credentials 广播延迟或丢失；请求方只能依赖本次成功响应。
+            return {success: true, revision};
+        });
+
+        await configStore.requestConfigSave({
+            ...configStore.config,
+            token: importedToken,
+            to: 'ja',
+        }, sendMessage);
+        const exported = await configStore.prepareHydratedConfigForExport();
+        await configStore.requestConfigSave(configStore.config, sendMessage);
+
+        expect({
+            runtimeToken: configStore.config.token,
+            exportedToken: exported.token,
+            sentTokens,
+        }).toEqual({
+            runtimeToken: importedToken,
+            exportedToken: importedToken,
+            sentTokens: [importedToken, importedToken],
+        });
+    });
+
+    it.each([
+        ['轮换', {openai: 'queued-imported-secret'}],
+        ['清除', {}],
+    ] as const)('远程整份凭据%s响应前排入的普通 replace 继承前驱已提交凭据', async (_operation, importedToken) => {
+        const oldToken = {openai: 'queued-old-secret'};
+        const canonical = sanitizeConfigCredentials(normalizeConfig({...storedConfig, theme: 'auto'}));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+            localCredentials: {token: oldToken},
+        });
+        await configStore.configReady;
+        let releaseFirstResponse!: () => void;
+        const firstResponseGate = new Promise<void>(resolve => { releaseFirstResponse = resolve; });
+        const sent: Array<{token: Record<string, string>; baseRevision: number; theme: string}> = [];
+        const sendMessage = vi.fn(async (message: {config: Config; baseRevision: number}) => {
+            if (sent.length === 0) await firstResponseGate;
+            const token = structuredClone(message.config.token);
+            sent.push({token, baseRevision: message.baseRevision, theme: message.config.theme});
+            const revision = message.baseRevision + 1;
+            storageState.set('local:credentials', {token});
+            storageState.set('local:config', {
+                ...sanitizeConfigCredentials(normalizeConfig(message.config)),
+                __fluentConfigRevision: revision,
+            });
+            return {success: true, revision};
+        });
+
+        const imported = configStore.requestConfigSave({
+            ...configStore.config,
+            token: importedToken,
+            to: 'ja',
+        }, sendMessage);
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        const pageExitSnapshot = configStore.requestConfigSave({
+            ...configStore.config,
+            theme: 'dark',
+        }, sendMessage);
+        releaseFirstResponse();
+        await Promise.all([imported, pageExitSnapshot]);
+        const exported = await configStore.prepareHydratedConfigForExport();
+
+        expect({
+            runtimeToken: configStore.config.token,
+            exportedToken: exported.token,
+            theme: configStore.config.theme,
+            sent,
+        }).toEqual({
+            runtimeToken: importedToken,
+            exportedToken: importedToken,
+            theme: 'dark',
+            sent: [
+                {token: importedToken, baseRevision: 4, theme: 'auto'},
+                {token: importedToken, baseRevision: 5, theme: 'dark'},
+            ],
+        });
+    });
+
+    it('响应前排入且显式修改凭据的 replace 保持自身凭据意图', async () => {
+        const oldToken = {openai: 'explicit-old-secret'};
+        const firstToken = {openai: 'explicit-first-secret'};
+        const latestToken = {openai: 'explicit-latest-secret'};
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+            localCredentials: {token: oldToken},
+        });
+        await configStore.configReady;
+        let releaseFirstResponse!: () => void;
+        const firstResponseGate = new Promise<void>(resolve => { releaseFirstResponse = resolve; });
+        const sent: Array<{token: Record<string, string>; baseRevision: number}> = [];
+        const sendMessage = vi.fn(async (message: {config: Config; baseRevision: number}) => {
+            if (sent.length === 0) await firstResponseGate;
+            const token = structuredClone(message.config.token);
+            sent.push({token, baseRevision: message.baseRevision});
+            const revision = message.baseRevision + 1;
+            storageState.set('local:credentials', {token});
+            storageState.set('local:config', {
+                ...sanitizeConfigCredentials(normalizeConfig(message.config)),
+                __fluentConfigRevision: revision,
+            });
+            return {success: true, revision};
+        });
+
+        const first = configStore.requestConfigSave({...configStore.config, token: firstToken}, sendMessage);
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        const latest = configStore.requestConfigSave({...configStore.config, token: latestToken}, sendMessage);
+        releaseFirstResponse();
+        await Promise.all([first, latest]);
+        const exported = await configStore.prepareHydratedConfigForExport();
+
+        expect(configStore.config.token).toEqual(latestToken);
+        expect(exported.token).toEqual(latestToken);
+        expect(sent).toEqual([
+            {token: firstToken, baseRevision: 4},
+            {token: latestToken, baseRevision: 5},
+        ]);
+    });
+
+    it('远程凭据 replace 响应前排入的公开 patch 保留前驱凭据并继续提交公开字段', async () => {
+        const oldToken = {openai: 'patch-old-secret'};
+        const importedToken = {openai: 'patch-imported-secret'};
+        const canonical = sanitizeConfigCredentials(normalizeConfig({...storedConfig, theme: 'auto'}));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+            localCredentials: {token: oldToken},
+        });
+        await configStore.configReady;
+        let releaseFirstResponse!: () => void;
+        const firstResponseGate = new Promise<void>(resolve => { releaseFirstResponse = resolve; });
+        const sent: Array<{mode: string; baseRevision: number; hasToken: boolean}> = [];
+        let authoritativeToken: Record<string, string> = oldToken;
+        const sendMessage = vi.fn(async (message: {
+            mode?: 'replace' | 'patch';
+            config: Config | Record<string, unknown>;
+            baseRevision: number;
+        }) => {
+            if (sent.length === 0) await firstResponseGate;
+            const mode = message.mode || 'replace';
+            const hasToken = Object.prototype.hasOwnProperty.call(message.config, 'token');
+            sent.push({mode, baseRevision: message.baseRevision, hasToken});
+            if (mode === 'replace') {
+                authoritativeToken = structuredClone((message.config as Config).token);
+            }
+            const revision = message.baseRevision + 1;
+            const currentPublic = storageState.get('local:config') as Record<string, unknown>;
+            storageState.set('local:credentials', {token: authoritativeToken});
+            storageState.set('local:config', {
+                ...currentPublic,
+                ...sanitizeConfigCredentials(normalizeConfig({
+                    ...currentPublic,
+                    ...message.config,
+                })),
+                __fluentConfigRevision: revision,
+            });
+            return {success: true, revision};
+        });
+
+        const imported = configStore.requestConfigSave({
+            ...configStore.config,
+            token: importedToken,
+            to: 'ja',
+        }, sendMessage);
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        const publicPatch = configStore.requestConfigPatch({theme: 'dark'}, sendMessage);
+        releaseFirstResponse();
+        await Promise.all([imported, publicPatch]);
+        const exported = await configStore.prepareHydratedConfigForExport();
+
+        expect(configStore.config).toMatchObject({token: importedToken, theme: 'dark'});
+        expect(exported).toMatchObject({token: importedToken, theme: 'dark'});
+        expect(sent).toEqual([
+            {mode: 'replace', baseRevision: 4, hasToken: true},
+            {mode: 'patch', baseRevision: 5, hasToken: false},
+        ]);
+    });
+
+    it('凭据 replace 后连续排入的多个公开 patch 都继承已提交凭据', async () => {
+        const oldToken = {openai: 'multi-patch-old-secret'};
+        const importedToken = {openai: 'multi-patch-imported-secret'};
+        const canonical = sanitizeConfigCredentials(normalizeConfig({...storedConfig, theme: 'auto'}));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+            localCredentials: {token: oldToken},
+        });
+        await configStore.configReady;
+        let releaseFirstResponse!: () => void;
+        const firstResponseGate = new Promise<void>(resolve => { releaseFirstResponse = resolve; });
+        let invocation = 0;
+        let revision = 4;
+        let authoritativeToken: Record<string, string> = oldToken;
+        let authoritativePublic = canonical;
+        const sent: Array<{mode: string; baseRevision: number; hasToken: boolean}> = [];
+        const sendMessage = vi.fn(async (message: {
+            mode?: 'replace' | 'patch';
+            config: Config | Record<string, unknown>;
+            baseRevision: number;
+        }) => {
+            invocation += 1;
+            if (invocation === 1) await firstResponseGate;
+            const mode = message.mode || 'replace';
+            sent.push({
+                mode,
+                baseRevision: message.baseRevision,
+                hasToken: Object.prototype.hasOwnProperty.call(message.config, 'token'),
+            });
+            if (mode === 'replace') {
+                authoritativeToken = structuredClone((message.config as Config).token);
+                authoritativePublic = sanitizeConfigCredentials(normalizeConfig(message.config));
+            } else {
+                authoritativePublic = {
+                    ...authoritativePublic,
+                    ...sanitizeConfigCredentials(message.config),
+                };
+            }
+            revision += 1;
+            storageState.set('local:credentials', {token: authoritativeToken});
+            storageState.set('local:config', {
+                ...authoritativePublic,
+                __fluentConfigRevision: revision,
+            });
+            return {success: true, revision};
+        });
+
+        const imported = configStore.requestConfigSave({
+            ...configStore.config,
+            token: importedToken,
+        }, sendMessage);
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        const firstPatch = configStore.requestConfigPatch({theme: 'dark'}, sendMessage);
+        const secondPatch = configStore.requestConfigPatch({to: 'ja'}, sendMessage);
+        releaseFirstResponse();
+        await Promise.all([imported, firstPatch, secondPatch]);
+        const exported = await configStore.prepareHydratedConfigForExport();
+
+        expect(configStore.config).toMatchObject({token: importedToken, theme: 'dark', to: 'ja'});
+        expect(exported).toMatchObject({token: importedToken, theme: 'dark', to: 'ja'});
+        expect(sent).toEqual([
+            {mode: 'replace', baseRevision: 4, hasToken: true},
+            {mode: 'patch', baseRevision: 5, hasToken: false},
+            {mode: 'patch', baseRevision: 4, hasToken: false},
+        ]);
+    });
+
+    it('中间公开 patch 失败后队尾 patch 仍使用最近已提交凭据', async () => {
+        const oldToken = {openai: 'failed-middle-old-secret'};
+        const importedToken = {openai: 'failed-middle-imported-secret'};
+        const canonical = sanitizeConfigCredentials(normalizeConfig({...storedConfig, theme: 'auto'}));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+            localCredentials: {token: oldToken},
+        });
+        await configStore.configReady;
+        let releaseFirstResponse!: () => void;
+        const firstResponseGate = new Promise<void>(resolve => { releaseFirstResponse = resolve; });
+        let invocation = 0;
+        const sendMessage = vi.fn(async (message: {
+            mode?: 'replace' | 'patch';
+            config: Config | Record<string, unknown>;
+            baseRevision: number;
+        }) => {
+            invocation += 1;
+            if (invocation === 1) {
+                await firstResponseGate;
+                storageState.set('local:credentials', {token: importedToken});
+                storageState.set('local:config', {
+                    ...canonical,
+                    __fluentConfigRevision: 5,
+                });
+                return {success: true, revision: 5};
+            }
+            if (invocation === 2) return {success: false, error: 'middle patch failed'};
+            storageState.set('local:config', {
+                ...canonical,
+                ...sanitizeConfigCredentials(message.config),
+                to: 'ja',
+                __fluentConfigRevision: 6,
+            });
+            return {success: true, revision: 6};
+        });
+
+        const imported = configStore.requestConfigSave({
+            ...configStore.config,
+            token: importedToken,
+        }, sendMessage);
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        const failedPatch = configStore.requestConfigPatch({theme: 'dark'}, sendMessage);
+        const latestPatch = configStore.requestConfigPatch({to: 'ja'}, sendMessage);
+        const results = Promise.allSettled([imported, failedPatch, latestPatch]);
+        releaseFirstResponse();
+
+        const settled = await results;
+        const exported = await configStore.prepareHydratedConfigForExport();
+        expect(settled.map(result => result.status)).toEqual(['fulfilled', 'rejected', 'fulfilled']);
+        expect(configStore.config).toMatchObject({token: importedToken, theme: 'auto', to: 'ja'});
+        expect(exported).toMatchObject({token: importedToken, theme: 'auto', to: 'ja'});
+    });
+
+    it('请求途中到达的更新凭据通知会刷新后续队列基线', async () => {
+        const oldToken = {openai: 'watch-shadow-old-secret'};
+        const watchedToken = {openai: 'watch-shadow-latest-secret'};
+        const canonical = sanitizeConfigCredentials(normalizeConfig({...storedConfig, theme: 'auto'}));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+            localCredentials: {token: oldToken},
+        });
+        await configStore.configReady;
+        const credentialWatch = storageWatchers.get('local:credentials')!;
+        let releaseFirstResponse!: () => void;
+        const firstResponseGate = new Promise<void>(resolve => { releaseFirstResponse = resolve; });
+        let invocation = 0;
+        let revision = 4;
+        let publicConfig = canonical;
+        const sendMessage = vi.fn(async (message: {
+            mode?: 'replace' | 'patch';
+            config: Config | Record<string, unknown>;
+        }) => {
+            invocation += 1;
+            if (invocation === 1) await firstResponseGate;
+            publicConfig = {
+                ...publicConfig,
+                ...sanitizeConfigCredentials(message.config),
+            };
+            revision += 1;
+            storageState.set('local:config', {
+                ...publicConfig,
+                __fluentConfigRevision: revision,
+            });
+            return {success: true, revision};
+        });
+
+        const firstPatch = configStore.requestConfigPatch({theme: 'dark'}, sendMessage);
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        const latestPatch = configStore.requestConfigPatch({to: 'ja'}, sendMessage);
+        storageState.set('local:credentials', {token: watchedToken});
+        credentialWatch({token: watchedToken});
+        expect(configStore.config.token).toEqual(watchedToken);
+        releaseFirstResponse();
+        await Promise.all([firstPatch, latestPatch]);
+        const exported = await configStore.prepareHydratedConfigForExport();
+
+        expect(configStore.config).toMatchObject({token: watchedToken, theme: 'dark', to: 'ja'});
+        expect(exported).toMatchObject({token: watchedToken, theme: 'dark', to: 'ja'});
+    });
+
+    it('排队 replace 只重改自己显式修改的凭据字段', async () => {
+        const oldToken = {openai: 'partial-old-token'};
+        const importedToken = {openai: 'partial-imported-token'};
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+            localCredentials: {token: oldToken, ak: 'partial-old-ak'},
+        });
+        await configStore.configReady;
+        let releaseFirstResponse!: () => void;
+        const firstResponseGate = new Promise<void>(resolve => { releaseFirstResponse = resolve; });
+        let invocation = 0;
+        const sent: Array<{token: Record<string, string>; ak: string; baseRevision: number}> = [];
+        const sendMessage = vi.fn(async (message: {config: Config; baseRevision: number}) => {
+            invocation += 1;
+            if (invocation === 1) await firstResponseGate;
+            const credentials = {token: structuredClone(message.config.token), ak: message.config.ak};
+            sent.push({...credentials, baseRevision: message.baseRevision});
+            const revision = message.baseRevision + 1;
+            storageState.set('local:credentials', credentials);
+            storageState.set('local:config', {
+                ...sanitizeConfigCredentials(normalizeConfig(message.config)),
+                __fluentConfigRevision: revision,
+            });
+            return {success: true, revision};
+        });
+
+        const imported = configStore.requestConfigSave({
+            ...configStore.config,
+            token: importedToken,
+        }, sendMessage);
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        const partialEdit = configStore.requestConfigSave({
+            ...configStore.config,
+            ak: 'partial-latest-ak',
+        }, sendMessage);
+        releaseFirstResponse();
+        await Promise.all([imported, partialEdit]);
+
+        expect(configStore.config).toMatchObject({token: importedToken, ak: 'partial-latest-ak'});
+        expect(sent).toEqual([
+            {token: importedToken, ak: 'partial-old-ak', baseRevision: 4},
+            {token: importedToken, ak: 'partial-latest-ak', baseRevision: 5},
+        ]);
+    });
+
+    it('显式 exact replace 在排队后仍完整拥有入队时凭据快照', async () => {
+        const oldToken = {openai: 'exact-old-token'};
+        const importedToken = {openai: 'exact-imported-token'};
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+            localCredentials: {token: oldToken, ak: 'exact-old-ak'},
+        });
+        await configStore.configReady;
+        let releaseFirstResponse!: () => void;
+        const firstResponseGate = new Promise<void>(resolve => { releaseFirstResponse = resolve; });
+        let invocation = 0;
+        const sent: Array<{token: Record<string, string>; ak: string}> = [];
+        const sendMessage = vi.fn(async (message: {config: Config; baseRevision: number}) => {
+            invocation += 1;
+            if (invocation === 1) await firstResponseGate;
+            const credentials = {token: structuredClone(message.config.token), ak: message.config.ak};
+            sent.push(credentials);
+            const revision = message.baseRevision + 1;
+            storageState.set('local:credentials', credentials);
+            storageState.set('local:config', {
+                ...sanitizeConfigCredentials(normalizeConfig(message.config)),
+                __fluentConfigRevision: revision,
+            });
+            return {success: true, revision};
+        });
+
+        const imported = configStore.requestConfigSave({
+            ...configStore.config,
+            token: importedToken,
+        }, sendMessage);
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        const exactReplacement = configStore.requestConfigSave({
+            ...configStore.config,
+            token: oldToken,
+            ak: 'exact-latest-ak',
+        }, sendMessage, {credentialIntent: 'exact'});
+        releaseFirstResponse();
+        await Promise.all([imported, exactReplacement]);
+
+        expect(configStore.config).toMatchObject({token: oldToken, ak: 'exact-latest-ak'});
+        expect(sent).toEqual([
+            {token: importedToken, ak: 'exact-old-ak'},
+            {token: oldToken, ak: 'exact-latest-ak'},
+        ]);
+    });
+
+    it('旧 replace 响应不覆盖后续已乐观应用的显式凭据 patch', async () => {
+        const oldToken = {openai: 'publish-old-token'};
+        const firstToken = {openai: 'publish-first-token'};
+        const latestToken = {openai: 'publish-latest-token'};
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+            localCredentials: {token: oldToken},
+        });
+        await configStore.configReady;
+        let releaseFirstResponse!: () => void;
+        let releaseLatestResponse!: () => void;
+        const firstResponseGate = new Promise<void>(resolve => { releaseFirstResponse = resolve; });
+        const latestResponseGate = new Promise<void>(resolve => { releaseLatestResponse = resolve; });
+        let invocation = 0;
+        const sendMessage = vi.fn(async (message: {
+            mode?: 'replace' | 'patch';
+            config: Config;
+            baseRevision: number;
+        }) => {
+            invocation += 1;
+            if (invocation === 1) await firstResponseGate;
+            if (invocation === 2) await latestResponseGate;
+            const revision = message.baseRevision + 1;
+            if (Object.prototype.hasOwnProperty.call(message.config, 'token')) {
+                storageState.set('local:credentials', {token: structuredClone(message.config.token)});
+            }
+            storageState.set('local:config', {
+                ...canonical,
+                __fluentConfigRevision: revision,
+            });
+            return {success: true, revision};
+        });
+
+        const first = configStore.requestConfigSave({...configStore.config, token: firstToken}, sendMessage);
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        const latest = configStore.requestConfigPatch({token: latestToken}, sendMessage);
+        expect(configStore.config.token).toEqual(latestToken);
+        releaseFirstResponse();
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(2));
+
+        expect(configStore.config.token).toEqual(latestToken);
+        releaseLatestResponse();
+        await Promise.all([first, latest]);
+        expect(configStore.config.token).toEqual(latestToken);
+    });
+
+    it('replace 后的公开 patch 即使配置回读失败也不回滚前驱凭据', async () => {
+        const oldToken = {openai: 'read-failure-old-token'};
+        const importedToken = {openai: 'read-failure-imported-token'};
+        const canonical = sanitizeConfigCredentials(normalizeConfig({...storedConfig, theme: 'auto'}));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+            localCredentials: {token: oldToken},
+        });
+        await configStore.configReady;
+        const configWatch = storageWatchers.get('local:config')!;
+        let failConfigRead = false;
+        storageMock.getItem.mockImplementation(async (key: string) => {
+            if (failConfigRead && key === 'local:config') throw new Error('config read unavailable');
+            return storageState.get(key) ?? null;
+        });
+        let releaseFirstResponse!: () => void;
+        const firstResponseGate = new Promise<void>(resolve => { releaseFirstResponse = resolve; });
+        let invocation = 0;
+        const sendMessage = vi.fn(async (_message: {
+            mode?: 'replace' | 'patch';
+            config: Config | Record<string, unknown>;
+            baseRevision: number;
+        }) => {
+            invocation += 1;
+            if (invocation === 1) {
+                await firstResponseGate;
+                storageState.set('local:credentials', {token: importedToken});
+                const committed = {
+                    ...canonical,
+                    __fluentConfigRevision: 5,
+                };
+                storageState.set('local:config', committed);
+                configWatch(committed);
+                return {success: true, revision: 5};
+            }
+            const committed = {
+                ...canonical,
+                theme: 'dark',
+                __fluentConfigRevision: 6,
+            };
+            storageState.set('local:config', committed);
+            failConfigRead = true;
+            return {success: true, revision: 6};
+        });
+
+        const imported = configStore.requestConfigSave({
+            ...configStore.config,
+            token: importedToken,
+        }, sendMessage);
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        const publicPatch = configStore.requestConfigPatch({theme: 'dark'}, sendMessage);
+        releaseFirstResponse();
+        await Promise.all([imported, publicPatch]);
+
+        expect(configStore.config).toMatchObject({token: importedToken, theme: 'dark'});
+    });
+
+    it.each([
+        ['成功', false],
+        ['网络失败', true],
+    ] as const)('相同快照的第一次%s不清除第二次请求所有权', async (_outcome, firstFails) => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4});
+        await configStore.configReady;
+        configStore.config.to = 'ja';
+        const configWatch = storageWatchers.get('local:config')!;
+        let releaseFirstResponse!: () => void;
+        let releaseLatestResponse!: () => void;
+        const firstResponseGate = new Promise<void>(resolve => { releaseFirstResponse = resolve; });
+        const latestResponseGate = new Promise<void>(resolve => { releaseLatestResponse = resolve; });
+        let invocation = 0;
+        const sendMessage = vi.fn(async (message: {config: Config; baseRevision: number}) => {
+            invocation += 1;
+            if (invocation === 1) {
+                await firstResponseGate;
+                if (firstFails) throw new Error('first request unavailable');
+            } else {
+                await latestResponseGate;
+            }
+            const revision = firstFails ? 5 : message.baseRevision + 1;
+            storageState.set('local:config', {
+                ...canonical,
+                to: 'ja',
+                __fluentConfigRevision: revision,
+            });
+            return {success: true, revision};
+        });
+
+        const first = configStore.requestConfigSave(configStore.config, sendMessage);
+        const latest = configStore.requestConfigSave(configStore.config, sendMessage);
+        const results = Promise.allSettled([first, latest]);
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        releaseFirstResponse();
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(2));
+        await Promise.resolve();
+        configWatch({
+            ...canonical,
+            to: 'ko',
+            __fluentConfigRevision: firstFails ? 4 : 5,
+        });
+
+        expect(configStore.config.to).toBe('ja');
+        releaseLatestResponse();
+        const settled = await results;
+        expect(settled.map(result => result.status)).toEqual(
+            firstFails ? ['rejected', 'fulfilled'] : ['fulfilled', 'fulfilled'],
+        );
+        expect(configStore.config.to).toBe('ja');
+    });
+
     it('翻译计数使用同 revision 的原子增量，不生成用户配置历史版本', async () => {
         const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
         const configStore = await loadConfigModule({...canonical, count: 10, __fluentConfigRevision: 4});

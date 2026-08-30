@@ -7,6 +7,10 @@
 
 import {isConfigImportValid} from '@/src/core/config/transfer';
 import {
+    CONFIG_CREDENTIAL_FIELDS,
+    type ConfigCredentialField,
+} from '@/src/core/config/credentials';
+import {
     VOCABULARY_BOOK_EXPORT_FORMAT,
     VOCABULARY_BOOK_EXPORT_VERSION,
     type VocabularyBookExport,
@@ -52,6 +56,33 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
     return prototype === Object.prototype || prototype === null;
 }
 
+function isStringMapping(value: unknown): boolean {
+    return isPlainRecord(value) && Object.values(value).every(item => typeof item === 'string');
+}
+
+const exactCredentialFieldValidators: Record<ConfigCredentialField, (value: unknown) => boolean> = {
+    token: isStringMapping,
+    ak: value => typeof value === 'string',
+    sk: value => typeof value === 'string',
+    appid: value => typeof value === 'string',
+    key: value => typeof value === 'string',
+    youdaoAppKey: value => typeof value === 'string',
+    youdaoAppSecret: value => typeof value === 'string',
+    tencentSecretId: value => typeof value === 'string',
+    tencentSecretKey: value => typeof value === 'string',
+    extra: isPlainRecord,
+};
+
+/** v2 会覆盖整份凭据，因此所有凭据字段必须显式存在且类型完整。 */
+function hasExactCredentialSnapshot(value: unknown): boolean {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    const record = value as Record<string, unknown>;
+    return CONFIG_CREDENTIAL_FIELDS.every(field => (
+        Object.prototype.hasOwnProperty.call(record, field)
+        && exactCredentialFieldValidators[field](record[field])
+    ));
+}
+
 function isVocabularyExport(value: unknown): value is VocabularyBookExport {
     return isPlainRecord(value)
         && value.format === VOCABULARY_BOOK_EXPORT_FORMAT
@@ -77,6 +108,9 @@ export function createFluentReadDataBackup(input: {
     exportedAt?: number;
 }): FluentReadDataBackup {
     if (!isConfigImportValid(input.config)) throw new TypeError('完整备份中的配置无效');
+    if (!hasExactCredentialSnapshot(input.config)) {
+        throw new TypeError('完整备份配置的精确凭据快照无效');
+    }
     if (!isVocabularyExport(input.vocabulary)) throw new TypeError('完整备份中的单词本数据无效');
     if (!isModelUsageExport(input.modelUsage)) throw new TypeError('完整备份中的模型用量无效');
     const exportedAt = input.exportedAt ?? Date.now();
@@ -108,6 +142,10 @@ export function parseLocalDataImport(value: unknown): LocalDataImport {
             throw new TypeError('完整备份导出时间无效');
         }
         if (!isConfigImportValid(value.config)) throw new TypeError('完整备份中的配置无效');
+        if (value.version === FLUENTREAD_DATA_BACKUP_VERSION
+            && !hasExactCredentialSnapshot(value.config)) {
+            throw new TypeError('完整备份配置的精确凭据快照无效');
+        }
         if (!isVocabularyExport(value.vocabulary)) throw new TypeError('完整备份中的单词本数据无效');
         if (!isModelUsageExport(value.modelUsage)) throw new TypeError('完整备份中的模型用量无效');
         return {kind: 'complete', backup: value as unknown as FluentReadDataBackup};
@@ -122,7 +160,8 @@ export function parseLocalDataImport(value: unknown): LocalDataImport {
 /** 只有 v2 明确声明完整凭据快照；旧 v1 可能由未完成水合的页面导出，恢复时必须合并。 */
 export function usesExactCredentialReplacement(backup: FluentReadDataBackup): boolean {
     return backup.version === FLUENTREAD_DATA_BACKUP_VERSION
-        && backup.configCredentialMode === FLUENTREAD_DATA_BACKUP_EXACT_CREDENTIAL_MODE;
+        && backup.configCredentialMode === FLUENTREAD_DATA_BACKUP_EXACT_CREDENTIAL_MODE
+        && hasExactCredentialSnapshot(backup.config);
 }
 
 export function summarizeLocalDataImport(value: LocalDataImport): LocalDataImportSummary {

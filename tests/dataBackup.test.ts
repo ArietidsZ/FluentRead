@@ -83,6 +83,47 @@ describe('统一本机数据备份信封', () => {
         }
     });
 
+    it('v2 精确替换拒绝缺失或畸形凭据快照，v1 仍按旧协议兼容', () => {
+        const complete = createFluentReadDataBackup({
+            config: prepareConfigForExport(new Config()),
+            vocabulary: vocabulary(),
+            modelUsage: modelUsage(),
+            exportedAt: 100,
+        });
+        const {token: _token, ...missingToken} = complete.config;
+
+        expect(() => createFluentReadDataBackup({
+            config: missingToken,
+            vocabulary: vocabulary(),
+            modelUsage: modelUsage(),
+        })).toThrow('精确凭据快照');
+        expect(() => parseLocalDataImport({...complete, config: missingToken}))
+            .toThrow('精确凭据快照');
+        expect(usesExactCredentialReplacement({...complete, config: missingToken})).toBe(false);
+        expect(usesExactCredentialReplacement({...complete, config: null as never})).toBe(false);
+        expect(usesExactCredentialReplacement({...complete, config: 'broken' as never})).toBe(false);
+        expect(usesExactCredentialReplacement({...complete, config: [] as never})).toBe(false);
+        expect(() => parseLocalDataImport({
+            ...complete,
+            config: {...complete.config, token: {openai: 123}},
+        })).toThrow('精确凭据快照');
+        expect(() => parseLocalDataImport({
+            ...complete,
+            config: {...complete.config, extra: null},
+        })).toThrow('精确凭据快照');
+        expect(() => parseLocalDataImport({
+            ...complete,
+            config: {...complete.config, ak: null},
+        })).toThrow('精确凭据快照');
+
+        const {configCredentialMode: _marker, ...legacy} = complete;
+        const parsedLegacy = parseLocalDataImport({...legacy, version: 1, config: missingToken});
+        expect(parsedLegacy.kind).toBe('complete');
+        if (parsedLegacy.kind === 'complete') {
+            expect(usesExactCredentialReplacement(parsedLegacy.backup)).toBe(false);
+        }
+    });
+
     it('兼容识别旧版单词本、模型用量与配置文件', () => {
         expect(parseLocalDataImport(vocabulary())).toEqual({kind: 'vocabulary', vocabulary: vocabulary()});
         expect(parseLocalDataImport(modelUsage())).toEqual({kind: 'model-usage', modelUsage: modelUsage()});

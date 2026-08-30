@@ -402,7 +402,11 @@ async function applyPendingImport(): Promise<void> {
       }
       const targetConfig = prepareImportedConfig(target, props.config);
       if (!targetConfig) throw new Error('备份中不包含可恢复的设置');
-      await requestConfigSave(targetConfig, sendRuntimeMessage);
+      await requestConfigSave(targetConfig, sendRuntimeMessage, {
+        credentialIntent: target.kind === 'complete' && usesExactCredentialReplacement(target.backup)
+          ? 'exact'
+          : 'changed-fields',
+      });
       return `设置已应用（${confirmedConfigChangeCount} 项需确认）`;
     });
   }

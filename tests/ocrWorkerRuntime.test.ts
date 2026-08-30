@@ -197,6 +197,53 @@ describe('OCR worker runtime', () => {
         await vi.waitFor(() => expect(worker.terminate).toHaveBeenCalledOnce());
     });
 
+    it('取消语言切换时不让迟到的 getWorker 覆盖新 Worker 所有权', async () => {
+        const oldTermination = deferred<unknown>();
+        const nextCreation = deferred<OcrWorkerPort<RecognitionResult>>();
+        const nextRecognition = deferred<RecognitionResult>();
+        const staleCreation = deferred<OcrWorkerPort<RecognitionResult>>();
+        const initialWorker = createWorker('initial');
+        const nextWorker = createWorker('next');
+        const staleWorker = createWorker('stale');
+        vi.mocked(initialWorker.terminate).mockReturnValue(oldTermination.promise);
+        vi.mocked(nextWorker.recognize).mockReturnValue(nextRecognition.promise);
+        const factory = vi.fn((languages: string) => {
+            if (languages === 'eng') return Promise.resolve(initialWorker);
+            if (languages === 'fra') return nextCreation.promise;
+            return staleCreation.promise;
+        });
+        const runtime = createOcrWorkerRuntime({createWorker: factory, sparseTextMode: 11});
+
+        await runtime.recognize('seed', 'eng');
+        const switchingController = new AbortController();
+        const switching = runtime.recognize('switching', 'jpn', switchingController.signal);
+        await vi.waitFor(() => expect(initialWorker.terminate).toHaveBeenCalledOnce());
+
+        switchingController.abort();
+        await expect(switching).rejects.toMatchObject({name: 'AbortError'});
+
+        const nextController = new AbortController();
+        const next = runtime.recognize('next', 'fra', nextController.signal);
+        await vi.waitFor(() => expect(factory).toHaveBeenCalledWith('fra'));
+
+        oldTermination.resolve(undefined);
+        await Promise.resolve();
+        await Promise.resolve();
+        nextCreation.resolve(nextWorker);
+        await vi.waitFor(() => expect(nextWorker.recognize).toHaveBeenCalledOnce());
+
+        nextController.abort();
+        await expect(next).rejects.toMatchObject({name: 'AbortError'});
+        staleCreation.resolve(staleWorker);
+        nextRecognition.resolve({worker: 'next', image: 'late'});
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(factory).not.toHaveBeenCalledWith('jpn');
+        await vi.waitFor(() => expect(nextWorker.terminate).toHaveBeenCalledOnce());
+        expect(staleWorker.terminate).not.toHaveBeenCalled();
+    });
+
     it('操作已完成后忽略迟到的自定义 abort 回调', async () => {
         const worker = createWorker('settled');
         let abortListener: (() => void) | undefined;

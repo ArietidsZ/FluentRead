@@ -40,12 +40,14 @@ export function createOcrWorkerRuntime<TResult>(
 ): OcrWorkerRuntime<TResult> {
     let workerPromise: Promise<OcrWorkerPort<TResult>> | null = null;
     let workerLanguages = '';
+    let workerOwnershipGeneration = 0;
     let operationTail: Promise<void> = Promise.resolve();
 
     function terminateCurrentWorker(): void {
         const current = workerPromise;
         workerPromise = null;
         workerLanguages = '';
+        workerOwnershipGeneration += 1;
         // terminate 本身也可能等待底层 Worker；取消请求不能继续阻塞串行尾链。
         void current?.then(worker => worker.terminate()).catch(() => undefined);
     }
@@ -90,8 +92,20 @@ export function createOcrWorkerRuntime<TResult>(
         if (workerPromise && workerLanguages === languages) return workerPromise;
 
         if (workerPromise) {
-            const previousWorker = await workerPromise.catch(() => null);
+            const previousWorkerPromise = workerPromise;
+            const ownershipGeneration = workerOwnershipGeneration;
+            const assertTransitionOwnership = () => {
+                if (workerOwnershipGeneration !== ownershipGeneration
+                    || workerPromise !== previousWorkerPromise) {
+                    throw createOcrAbortError();
+                }
+            };
+            const previousWorker = await previousWorkerPromise.catch(() => null);
+            assertTransitionOwnership();
             await previousWorker?.terminate().catch(() => undefined);
+            // 调用方 abort 会立即放行队列中的下一项；旧切换恢复后只能
+            // 清理自己当时拥有的 Worker，不得覆盖新请求已安装的实例。
+            assertTransitionOwnership();
             workerPromise = null;
             workerLanguages = '';
         }
