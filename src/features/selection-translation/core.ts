@@ -261,13 +261,18 @@ function isEditableSelectionElement(element: Element): boolean {
     return false;
 }
 
-function isSelectionExcludedElement(element: Element | null): boolean {
-    if (!element) return false;
+function isIntrinsicallyExcludedSelectionElement(element: Element): boolean {
     if (isSelectionExcludedTagName(element.tagName)) return true;
 
     const role = element.getAttribute('role')?.trim().toLowerCase();
     if (role && selectionExcludedRoles.has(role)) return true;
-    if (isEditableSelectionElement(element)) return true;
+    return isEditableSelectionElement(element);
+}
+
+function isSelectionExcludedElement(element: Element | null): boolean {
+    if (!element) return false;
+    if (isIntrinsicallyExcludedSelectionElement(element)) return true;
+
     const excluded = element.closest(selectionExcludedSelector);
     if (!excluded) return false;
     // A broad marker on a body-level SPA shell should not suppress a direct user
@@ -280,9 +285,29 @@ function elementFromSelectionNode(node: Node | null): Element | null {
     return node.nodeType === 1 ? node as Element : node.parentElement;
 }
 
+function selectionExcludedDescendants(range: Range): Element[] {
+    const commonAncestor = range.commonAncestorContainer;
+    const queryRoot = commonAncestor.nodeType === 3 ? commonAncestor.parentElement : commonAncestor;
+    if (!queryRoot || !('querySelectorAll' in queryRoot)) return [];
+    return Array.from((queryRoot as ParentNode).querySelectorAll(selectionExcludedSelector));
+}
+
+function containsNonZeroClientRect(rects: DOMRectList): boolean {
+    return Array.from(rects).some(rect => rect.width > 0 || rect.height > 0);
+}
+
+function hasNonZeroClientRect(element: Element): boolean {
+    if (containsNonZeroClientRect(element.getClientRects())) return true;
+
+    const contentRange = element.ownerDocument?.createRange();
+    if (!contentRange) return false;
+    contentRange.selectNodeContents(element);
+    return containsNonZeroClientRect(contentRange.getClientRects());
+}
+
 /**
  * 划词翻译只处理页面正文，不处理原子内容或交互控件。这里同时检查选区两端
- * 与克隆内容，避免纯图片选区或跨越特殊组件的选区留下失效触发器。
+ * 与实时 DOM 中相交且具有可见几何的排除元素，避免隐藏控件误伤浏览器生成的段落选区。
  */
 export function shouldIgnoreSelection(range: Range): boolean {
     const boundaries = [
@@ -292,7 +317,15 @@ export function shouldIgnoreSelection(range: Range): boolean {
     if (boundaries.some(isSelectionExcludedElement)) return true;
 
     try {
-        return Boolean(range.cloneContents().querySelector(selectionExcludedSelector));
+        return selectionExcludedDescendants(range).some((element) => {
+            try {
+                if (!isIntrinsicallyExcludedSelectionElement(element) &&
+                    isTopLevelApplicationShell(element)) return false;
+                return range.intersectsNode(element) && hasNonZeroClientRect(element);
+            } catch {
+                return false;
+            }
+        });
     } catch {
         return false;
     }
