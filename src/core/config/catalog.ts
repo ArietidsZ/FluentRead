@@ -2,7 +2,7 @@
  * @file src/core/config/catalog.ts
  *
  * 文件职责：维护 FluentRead 翻译服务与模型的领域目录，让设置、校验和运行时能够引用同一组稳定的服务标识与模型元数据。
- * 主要内容：定义 services、servicesType、模型候选、MiniMax 与 MiMo 的计费和地域选项，并提供 resolveConfiguredModel 等解析函数，把“自定义模型”选择归一为可请求的模型编号。 可核对的公开符号包括 services、servicesType、customModelString、minimaxBillingPlans、MiniMaxBillingPlan、minimaxRegions、MiniMaxRegion、mimoBillingPlans。
+ * 主要内容：定义 services、servicesType、服务目录展示分类与排序、模型候选、MiniMax 与 MiMo 的计费和地域选项，并提供 resolveConfiguredModel 等解析函数，把“自定义模型”选择归一为可请求的模型编号。 可核对的公开符号包括 services、servicesType、customModelString、minimaxBillingPlans、MiniMaxBillingPlan、minimaxRegions、MiniMaxRegion、mimoBillingPlans。
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
@@ -432,28 +432,30 @@ export const options = {
         {value: services.chromeTranslator, label: "Chrome内置AI翻译"},
         // 大模型翻译
         {value: "ai", label: "AI翻译", disabled: true},
-        {value: services.siliconCloud, label: "硅基流动"},
-        {value: services.huanYuan, label: "腾讯混元"},
-        {value: services.newapi, label: "New API"},
-        {value: services.deepseek, label: "DeepSeek"},
-        {value: services.openai, label: "OpenAI"},
-        {value: services.azureOpenai, label: "Azure OpenAI"},
-        {value: services.huanYuanTranslation, label: "腾讯混元翻译"},
-        {value: services.tongyi, label: "千问/Qwen"},
-        {value: services.doubao, label: "字节豆包"},
-        {value: services.grok, label: "Grok (X.AI)"},
-        {value: services.openrouter, label: "OpenRouter"},
-        {value: services.groq, label: "Groq"},
-        {value: services.moonshot, label: "月之暗面/Kimi"},
-        {value: services.zhipu, label: "智谱/GLM"},
-        {value: services.minimax, label: "MiniMax"},
-        {value: services.mimo, label: "小米 MiMo"},
-        {value: services.jieyue, label: "阶跃星辰"},
-        {value: services.infini, label: "无问芯穹"},
-        {value: services.claude, label: "Claude"},
-        {value: services.gemini, label: "Gemini"},
-        {value: services.yiyan, label: "文心一言"},
-        {value: services.custom, label: "自定义接口"},
+        // 大模型服务商：中国常用厂商优先，其次为常用海外厂商。
+        {value: services.deepseek, label: "DeepSeek", catalogKind: "provider"},
+        {value: services.tongyi, label: "千问/Qwen", catalogKind: "provider"},
+        {value: services.doubao, label: "字节豆包", catalogKind: "provider"},
+        {value: services.moonshot, label: "月之暗面/Kimi", catalogKind: "provider"},
+        {value: services.zhipu, label: "智谱/GLM", catalogKind: "provider"},
+        {value: services.huanYuan, label: "腾讯混元", catalogKind: "provider"},
+        {value: services.huanYuanTranslation, label: "腾讯混元翻译", catalogKind: "provider"},
+        {value: services.yiyan, label: "文心一言", catalogKind: "provider"},
+        {value: services.minimax, label: "MiniMax", catalogKind: "provider"},
+        {value: services.mimo, label: "小米 MiMo", catalogKind: "provider"},
+        {value: services.jieyue, label: "阶跃星辰", catalogKind: "provider"},
+        {value: services.openai, label: "OpenAI", catalogKind: "provider"},
+        {value: services.gemini, label: "Gemini", catalogKind: "provider"},
+        {value: services.claude, label: "Claude", catalogKind: "provider"},
+        {value: services.grok, label: "Grok (X.AI)", catalogKind: "provider"},
+        // 聚合平台、托管平台与 OpenAI 兼容接口。
+        {value: services.siliconCloud, label: "硅基流动", catalogKind: "platform"},
+        {value: services.newapi, label: "New API", catalogKind: "platform"},
+        {value: services.infini, label: "无问芯穹", catalogKind: "platform"},
+        {value: services.openrouter, label: "OpenRouter", catalogKind: "platform"},
+        {value: services.groq, label: "Groq", catalogKind: "platform"},
+        {value: services.azureOpenai, label: "Azure OpenAI", catalogKind: "platform"},
+        {value: services.custom, label: "自定义接口", catalogKind: "platform"},
     ],
     display: [
         {value: 0, label: "仅译文模式"},

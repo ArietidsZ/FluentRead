@@ -95,6 +95,43 @@ describe('AI 模型编号列表', () => {
         expect(options.services.some(option => option.value === services.lingyi)).toBe(false);
         expect(options.services.find(option => option.value === services.infini)?.label).toBe('无问芯穹');
         expect(options.services.every(option => !/[🌟⭐★]/u.test(option.label))).toBe(true);
+        const aiServices = options.services.slice(
+            options.services.findIndex(option => option.value === 'ai') + 1,
+        );
+        expect(aiServices.map(option => option.value)).toEqual([
+            services.deepseek,
+            services.tongyi,
+            services.doubao,
+            services.moonshot,
+            services.zhipu,
+            services.huanYuan,
+            services.huanYuanTranslation,
+            services.yiyan,
+            services.minimax,
+            services.mimo,
+            services.jieyue,
+            services.openai,
+            services.gemini,
+            services.claude,
+            services.grok,
+            services.siliconCloud,
+            services.newapi,
+            services.infini,
+            services.openrouter,
+            services.groq,
+            services.azureOpenai,
+            services.custom,
+        ]);
+        expect(aiServices.filter(option => option.catalogKind === 'platform').map(option => option.value)).toEqual([
+            services.siliconCloud,
+            services.newapi,
+            services.infini,
+            services.openrouter,
+            services.groq,
+            services.azureOpenai,
+            services.custom,
+        ]);
+        expect(aiServices.filter(option => option.catalogKind === 'provider')).toHaveLength(15);
         expect(servicesType.isMachine(services.freeTranslation)).toBe(true);
         expect(defaultOption.service).toBe(services.freeTranslation);
     });

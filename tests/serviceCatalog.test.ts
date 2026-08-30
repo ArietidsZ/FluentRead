@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildServiceGroups,
+  buildServiceSections,
   cleanServiceLabel,
   filterModels,
   filterServiceGroups,
+  filterServiceSections,
   getSelectedModelLabel,
   searchServiceOptions,
   splitModelOptions,
@@ -16,8 +18,9 @@ const options = [
   { value: 'microsoft', label: '微软翻译' },
   { value: 'chromeTranslator', label: 'Chrome内置AI翻译⭐' },
   { value: 'ai', label: 'AI翻译', disabled: true },
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'deepseek', label: 'DeepSeek️' },
+  { value: 'deepseek', label: 'DeepSeek️', catalogKind: 'provider' },
+  { value: 'openai', label: 'OpenAI', catalogKind: 'provider' },
+  { value: 'newapi', label: 'New API', catalogKind: 'platform' },
 ]
 
 describe('service catalog helpers', () => {
@@ -35,9 +38,76 @@ describe('service catalog helpers', () => {
         id: 'ai',
         label: 'AI翻译',
         items: [
-          { value: 'openai', label: 'OpenAI' },
-          { value: 'deepseek', label: 'DeepSeek' },
+          { value: 'deepseek', label: 'DeepSeek', catalogKind: 'provider' },
+          { value: 'openai', label: 'OpenAI', catalogKind: 'provider' },
+          { value: 'newapi', label: 'New API', catalogKind: 'platform' },
         ],
+      },
+    ])
+  })
+
+  it('nests AI services into ordered provider and platform groups', () => {
+    expect(buildServiceSections(options)).toEqual([
+      {
+        id: 'machine',
+        label: '机器翻译',
+        collapsible: true,
+        groups: [{
+          id: 'machine-services',
+          label: '',
+          itemKind: '机器翻译',
+          items: [
+            { value: 'microsoft', label: '微软翻译' },
+            { value: 'chromeTranslator', label: 'Chrome内置AI翻译' },
+          ],
+        }],
+      },
+      {
+        id: 'ai',
+        label: 'AI翻译',
+        collapsible: false,
+        groups: [
+          {
+            id: 'ai-providers',
+            label: '模型服务商',
+            itemKind: '模型服务商',
+            items: [
+              { value: 'deepseek', label: 'DeepSeek', catalogKind: 'provider' },
+              { value: 'openai', label: 'OpenAI', catalogKind: 'provider' },
+            ],
+          },
+          {
+            id: 'ai-platforms',
+            label: '聚合平台与接口',
+            itemKind: '聚合平台',
+            items: [{ value: 'newapi', label: 'New API', catalogKind: 'platform' }],
+          },
+        ],
+      },
+    ])
+  })
+
+  it('keeps unclassified AI services visible as model providers', () => {
+    const sections = buildServiceSections([
+      { value: 'ai', label: 'AI翻译', disabled: true },
+      { value: 'future-provider', label: '未来模型' },
+    ])
+
+    expect(sections[0]?.groups[0]?.items.map((item) => item.value)).toEqual(['future-provider'])
+  })
+
+  it('keeps services before the first divider in a non-collapsible fallback section', () => {
+    expect(buildServiceSections([{ value: 'standalone', label: '独立服务' }])).toEqual([
+      {
+        id: 'other',
+        label: '其他服务',
+        collapsible: false,
+        groups: [{
+          id: 'other-services',
+          label: '',
+          itemKind: '其他服务',
+          items: [{ value: 'standalone', label: '独立服务' }],
+        }],
       },
     ])
   })
@@ -46,11 +116,29 @@ describe('service catalog helpers', () => {
     const groups = buildServiceGroups(options)
     expect(filterServiceGroups(groups, '   ')).toBe(groups)
     expect(filterServiceGroups(groups, 'open')).toEqual([
-      { id: 'ai', label: 'AI翻译', items: [{ value: 'openai', label: 'OpenAI' }] },
+      { id: 'ai', label: 'AI翻译', items: [{ value: 'openai', label: 'OpenAI', catalogKind: 'provider' }] },
     ])
     expect(filterServiceGroups([
       { id: 'ai', label: 'AI翻译', items: [{ value: 'openai', label: 'OpenAI', description: '通用服务' }] },
     ], '通用')).toHaveLength(1)
+  })
+
+  it('filters nested service sections without losing their parent or subgroup', () => {
+    const sections = buildServiceSections(options)
+    expect(filterServiceSections(sections, '   ')).toBe(sections)
+    expect(filterServiceSections(sections, 'new api')).toEqual([
+      {
+        id: 'ai',
+        label: 'AI翻译',
+        collapsible: false,
+        groups: [{
+          id: 'ai-platforms',
+          label: '聚合平台与接口',
+          itemKind: '聚合平台',
+          items: [{ value: 'newapi', label: 'New API', catalogKind: 'platform' }],
+        }],
+      },
+    ])
   })
 
   it('filters model identifiers case-insensitively', () => {
