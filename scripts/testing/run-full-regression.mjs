@@ -30,6 +30,7 @@ const LOCAL_BROWSER_FIXTURES = [
         id: 'full-page-translation',
         label: 'full-page translation browser regression',
         script: 'scripts/run-full-page-translation-test.cjs',
+        args: ['--verify-floating-ui'],
         backgroundArgs: ['--background'],
         supportsHeaded: true,
     },
@@ -311,6 +312,7 @@ function browserFixtureArgs(fixture, options) {
         args.push('--extension-dir', options.extensionDir);
     }
     if (options.timeout) args.push('--timeout', options.timeout);
+    if (fixture.args) args.push(...fixture.args);
 
     if (options.headed && fixture.supportsHeaded) {
         args.push('--headed');

@@ -67,6 +67,22 @@ describe('低干扰悬浮 UI', () => {
     )).toContain('right: -1px');
   });
 
+  it('中间 Logo 只有越过拖动阈值后才改变位置', () => {
+    const floatingBall = source('src/features/floating-ball/ui/FloatingBall.vue');
+    const startDrag = floatingBall.match(/function startDrag\([^)]*\) \{([\s\S]*?)\n\}/u)?.[1] ?? '';
+    const handlePointerMove = floatingBall.match(/function handlePointerMove\([^)]*\) \{([\s\S]*?)\n\}/u)?.[1] ?? '';
+
+    expect(startDrag).not.toContain('isExpanded.value = false');
+    expect(startDrag).not.toContain('isDragging.value = true');
+    expect(startDrag).not.toContain('positionStyle.value =');
+    expect(handlePointerMove).toContain('<= DRAG_THRESHOLD) return');
+    expect(handlePointerMove).toContain('currentDrag.moved = true');
+    expect(handlePointerMove).toContain('isExpanded.value = false');
+    expect(handlePointerMove).toContain('isDragging.value = true');
+    expect(handlePointerMove).toContain('event.clientX - currentDrag.pointerOffsetX');
+    expect(handlePointerMove).toContain('event.clientY - currentDrag.pointerOffsetY');
+  });
+
   it('进度面板使用半透明背景，并由活动请求而非离屏候选决定显隐', () => {
     const panel = source('src/features/full-page-translation/ui/TranslationProgressPanel.vue');
     const panelRule = cssRule(panel, '.fr-translation-progress');
