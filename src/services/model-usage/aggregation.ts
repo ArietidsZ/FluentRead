@@ -62,6 +62,10 @@ function safeTokenCount(value: unknown): number {
     return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : 0;
 }
 
+function optionalSafeTokenCount(value: unknown): number | undefined {
+    return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
+}
+
 function eventModel(event: AggregatableEvent): string {
     const storedModel = 'model' in event && typeof event.model === 'string' ? event.model.trim() : '';
     return storedModel || event.actualModel?.trim() || event.configuredModel.trim() || 'unknown';
@@ -107,12 +111,23 @@ export function emptyModelUsageTotals(): Totals {
         requestCount: 0,
         successfulRequests: 0,
         failedRequests: 0,
+        errorRequests: 0,
+        timeoutRequests: 0,
+        cancelledRequests: 0,
         reportedTokenRequests: 0,
         inputTokens: 0,
         outputTokens: 0,
         totalTokens: 0,
         cachedInputTokens: 0,
+        cacheWriteTokens: 0,
+        cacheReportedRequests: 0,
+        cacheHitRequests: 0,
+        cacheEligibleInputTokens: 0,
+        cacheTokenHitRate: null,
+        cacheRequestHitRate: null,
+        cacheCoverageRate: null,
         reasoningTokens: 0,
+        averageDurationMs: null,
         averageTokensPerReportedRequest: null,
         averageInputTokensPerReportedRequest: null,
         averageOutputTokensPerReportedRequest: null,
@@ -121,18 +136,47 @@ export function emptyModelUsageTotals(): Totals {
 
 export function aggregateModelUsageTotals(events: readonly AggregatableEvent[]): Totals {
     const totals = emptyModelUsageTotals();
+    let totalDurationMs = 0;
     for (const event of events) {
         totals.requestCount += 1;
         if (event.outcome === 'success') totals.successfulRequests += 1;
-        else totals.failedRequests += 1;
+        else {
+            totals.failedRequests += 1;
+            if (event.outcome === 'timeout') totals.timeoutRequests += 1;
+            else if (event.outcome === 'cancelled') totals.cancelledRequests += 1;
+            else totals.errorRequests += 1;
+        }
+        if (typeof event.durationMs === 'number' && Number.isFinite(event.durationMs) && event.durationMs >= 0) {
+            totalDurationMs += event.durationMs;
+        }
 
         if (event.usageAvailability === 'reported') totals.reportedTokenRequests += 1;
         totals.inputTokens += safeTokenCount(event.inputTokens);
         totals.outputTokens += safeTokenCount(event.outputTokens);
         totals.totalTokens += safeTokenCount(event.totalTokens);
         totals.cachedInputTokens += safeTokenCount(event.cachedInputTokens);
+        totals.cacheWriteTokens += safeTokenCount(event.cacheWriteTokens);
         totals.reasoningTokens += safeTokenCount(event.reasoningTokens);
+
+        const cachedInputTokens = optionalSafeTokenCount(event.cachedInputTokens);
+        const inputTokens = optionalSafeTokenCount(event.inputTokens);
+        if (event.usageAvailability === 'reported' && cachedInputTokens !== undefined) {
+            totals.cacheReportedRequests += 1;
+            if (cachedInputTokens > 0) totals.cacheHitRequests += 1;
+            if (inputTokens !== undefined) totals.cacheEligibleInputTokens += inputTokens;
+        }
     }
+    totals.cacheTokenHitRate = totals.cacheEligibleInputTokens > 0
+        && totals.cachedInputTokens <= totals.cacheEligibleInputTokens
+        ? totals.cachedInputTokens / totals.cacheEligibleInputTokens
+        : null;
+    totals.cacheRequestHitRate = totals.cacheReportedRequests > 0
+        ? totals.cacheHitRequests / totals.cacheReportedRequests
+        : null;
+    totals.cacheCoverageRate = totals.reportedTokenRequests > 0
+        ? totals.cacheReportedRequests / totals.reportedTokenRequests
+        : null;
+    totals.averageDurationMs = totals.requestCount > 0 ? totalDurationMs / totals.requestCount : null;
     totals.averageTokensPerReportedRequest = totals.reportedTokenRequests > 0
         ? totals.totalTokens / totals.reportedTokenRequests
         : null;

@@ -34,6 +34,7 @@ function event(overrides: Partial<ModelUsageEvent> = {}): ModelUsageEvent {
         outputTokens: overrides.outputTokens,
         totalTokens: overrides.totalTokens,
         cachedInputTokens: overrides.cachedInputTokens,
+        cacheWriteTokens: overrides.cacheWriteTokens,
         reasoningTokens: overrides.reasoningTokens,
         statusCode: overrides.statusCode,
     };
@@ -47,6 +48,7 @@ describe('模型用量纯聚合', () => {
                 outputTokens: 20,
                 totalTokens: 120,
                 cachedInputTokens: 10,
+                cacheWriteTokens: 5,
                 reasoningTokens: 4,
             }),
             event({
@@ -67,12 +69,23 @@ describe('模型用量纯聚合', () => {
             requestCount: 3,
             successfulRequests: 1,
             failedRequests: 2,
+            errorRequests: 1,
+            timeoutRequests: 0,
+            cancelledRequests: 1,
             reportedTokenRequests: 1,
             inputTokens: 100,
             outputTokens: 20,
             totalTokens: 120,
             cachedInputTokens: 10,
+            cacheWriteTokens: 5,
+            cacheReportedRequests: 1,
+            cacheHitRequests: 1,
+            cacheEligibleInputTokens: 100,
+            cacheTokenHitRate: 0.1,
+            cacheRequestHitRate: 1,
+            cacheCoverageRate: 1,
             reasoningTokens: 4,
+            averageDurationMs: 320,
             averageTokensPerReportedRequest: 120,
             averageInputTokensPerReportedRequest: 100,
             averageOutputTokensPerReportedRequest: 20,
@@ -120,6 +133,29 @@ describe('模型用量纯聚合', () => {
             averageInputTokensPerReportedRequest: 60,
             averageOutputTokensPerReportedRequest: 15,
         });
+    });
+
+    it('只用明确上报缓存读取明细的输入计算 Token 与请求命中率，并保留未知覆盖', () => {
+        const totals = aggregateModelUsageTotals([
+            event({inputTokens: 100, outputTokens: 10, totalTokens: 110, cachedInputTokens: 40, cacheWriteTokens: 5}),
+            event({inputTokens: 50, outputTokens: 5, totalTokens: 55, cachedInputTokens: 0, cacheWriteTokens: 8}),
+            event({inputTokens: 200, outputTokens: 20, totalTokens: 220, cachedInputTokens: undefined}),
+            event({usageAvailability: 'unreported', inputTokens: undefined, outputTokens: undefined, totalTokens: undefined}),
+        ]);
+
+        expect(totals).toMatchObject({
+            cachedInputTokens: 40,
+            cacheWriteTokens: 13,
+            cacheReportedRequests: 2,
+            cacheHitRequests: 1,
+            cacheEligibleInputTokens: 150,
+            cacheTokenHitRate: 40 / 150,
+            cacheRequestHitRate: 0.5,
+            cacheCoverageRate: 2 / 3,
+        });
+        expect(aggregateModelUsageTotals([
+            event({inputTokens: 2, cachedInputTokens: 3}),
+        ]).cacheTokenHitRate).toBeNull();
     });
 
     it('按总 Token 排列服务模型分布，并以输入输出作为稳定排序依据', () => {

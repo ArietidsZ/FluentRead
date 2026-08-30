@@ -69,7 +69,10 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     const selectionTtsTransport = createCapabilityGatedSelectionTtsTransport(capabilities, selectionTtsOffscreenAdapter);
     const handlers: Array<BackgroundMessageHandler<BackgroundRuntimeContext>> = [
         createTranslationCacheHandler(clearTranslationCache),
-        createModelUsageHandler(modelUsageRepository),
+        createModelUsageHandler(
+            modelUsageRepository,
+            (url) => url.startsWith(browser.runtime.getURL('/options.html')),
+        ),
         ...createConfigBackgroundHandlers<BackgroundRuntimeContext>(),
         createConnectionTestHandler({
             ready: configReady,

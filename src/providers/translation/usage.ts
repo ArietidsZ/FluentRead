@@ -49,9 +49,8 @@ function readToken(
     if (
         typeof value !== 'number'
         || !Number.isFinite(value)
-        || !Number.isInteger(value)
+        || !Number.isSafeInteger(value)
         || value < 0
-        || (allowCanonicalDecimalString && !Number.isSafeInteger(value))
     ) {
         return MALFORMED_TOKEN;
     }
@@ -87,7 +86,7 @@ function mergeEquivalentTokens(...values: TokenValue[]): TokenValue {
 
 function addTokens(...values: number[]): number | undefined {
     const total = values.reduce((sum, value) => sum + value, 0);
-    return Number.isFinite(total) && Number.isInteger(total) && total >= 0
+    return Number.isSafeInteger(total) && total >= 0
         ? total
         : undefined;
 }
@@ -141,6 +140,22 @@ function buildObservation(
         ? fields.total.value
         : addTokens(fields.input.value, fields.output.value);
     if (totalTokens === undefined) return availabilityOnly('malformed', actualModel);
+
+    const cachedInputTokens = fields.cachedInput?.kind === 'value'
+        ? fields.cachedInput.value
+        : 0;
+    const cacheWriteTokens = fields.cacheWrite?.kind === 'value'
+        ? fields.cacheWrite.value
+        : 0;
+    const cacheDetailsTotal = addTokens(cachedInputTokens, cacheWriteTokens);
+    if (
+        cacheDetailsTotal === undefined
+        || cachedInputTokens > fields.input.value
+        || cacheWriteTokens > fields.input.value
+        || cacheDetailsTotal > fields.input.value
+    ) {
+        return availabilityOnly('malformed', actualModel);
+    }
 
     const model = normalizeModelName(actualModel);
     return {
@@ -246,12 +261,20 @@ export function normalizeGeminiUsage(
         return availabilityOnly(usage, actualModel);
     }
 
+    const candidates = readToken(usage, 'candidatesTokenCount');
+    const thoughts = readToken(usage, 'thoughtsTokenCount');
+    let output = candidates;
+    if (candidates.kind === 'value' && thoughts.kind === 'value') {
+        const combinedOutput = addTokens(candidates.value, thoughts.value);
+        output = combinedOutput === undefined ? MALFORMED_TOKEN : {kind: 'value', value: combinedOutput};
+    }
+
     return buildObservation({
         input: readToken(usage, 'promptTokenCount'),
-        output: readToken(usage, 'candidatesTokenCount'),
+        output,
         total: readToken(usage, 'totalTokenCount'),
         cachedInput: readToken(usage, 'cachedContentTokenCount'),
-        reasoning: readToken(usage, 'thoughtsTokenCount'),
+        reasoning: thoughts,
     }, actualModel);
 }
 
