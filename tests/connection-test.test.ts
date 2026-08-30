@@ -6,6 +6,7 @@ const {adapter} = vi.hoisted(() => ({
 
 vi.mock('@/src/providers/translation/registry', () => ({
     translationProviderRegistry: {
+        custom: adapter,
         demo: adapter,
     },
 }));
@@ -37,6 +38,18 @@ describe('翻译服务连接测试', () => {
             serviceOverride: 'demo',
             useCache: false,
             abortSignal: expect.any(AbortSignal),
+        }));
+    });
+
+    it('动态 custom:* 服务回退到共享 custom adapter，同时保留动态 serviceOverride', async () => {
+        adapter.mockResolvedValue('动态服务译文');
+
+        await expect(runTranslationServiceConnectionTest('custom:1')).resolves.toEqual({
+            durationMs: expect.any(Number),
+        });
+        expect(adapter).toHaveBeenCalledWith(expect.objectContaining({
+            serviceOverride: 'custom:1',
+            origin: CONNECTION_TEST_ORIGIN,
         }));
     });
 

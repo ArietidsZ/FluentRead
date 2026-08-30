@@ -1,12 +1,13 @@
 /**
  * @file src/features/full-page-translation/ui/translationIndicators.ts
  * 文件职责：创建全文翻译过程中插入原页面的加载指示器和失败重试提示，并将错误详情转换为页面通知或可操作的重试控件。
- * 主要内容：提供 insertLoadingSpinner 与 insertFailedTip，组装 FluentRead 专属 DOM、完整点击区和按宿主语义启用的键盘操作控件，隔离宿主链接导航，调用错误文案映射，并把生成节点返回给调用方登记到 translation state。
+ * 主要内容：提供 insertLoadingSpinner 与 insertFailedTip，组装 FluentRead 专属 DOM、完整点击区和按宿主语义启用的键盘操作控件，隔离宿主链接导航，并使用内置或动态自定义服务名称生成错误文案。
  * 模块边界：本文件不发起翻译、不判断候选，也不持有 session；重试回调由 runtime 注入，节点生命周期由 state 管理，全局页面通知通过 page-notice 公共接口显示。
  */
 // 全文翻译节点中的加载与失败反馈。
 import {showPageNotice} from '@/src/features/page-notice/public';
 import {options} from '@/src/core/config/catalog';
+import {getCustomOpenAIProviderLabel} from '@/src/core/config/customOpenAI';
 import {config} from '@/src/services/config/store';
 import {getTranslationErrorMessage} from '@/src/features/full-page-translation/core/errorMessage';
 
@@ -163,7 +164,9 @@ function handleErrorClick(errMsg: string) {
 // 根据错误信息返回错误提示
 function resolveErrorMessage(errMsg: string): string {
   const service = options.services.find(({value}) => value === config.service);
-  return getTranslationErrorMessage(errMsg, service?.label || config.service);
+  const label = service?.label
+    || getCustomOpenAIProviderLabel(config.customOpenAIProviders, config.service);
+  return getTranslationErrorMessage(errMsg, label);
 }
 
 // 创建图标元素

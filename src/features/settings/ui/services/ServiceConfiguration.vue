@@ -8,29 +8,43 @@
   <section
     class="settings-section service-connection-section"
     :data-service-configuration-service="service"
-    :data-custom-service-configuration="compute.showCustom ? 'true' : 'false'"
+    :data-custom-service-configuration="compute.showCustomOpenAI ? 'true' : 'false'"
   >
-    <div v-if="compute.credentialWarning" class="credential-warning" role="alert">
-      <strong>配置提醒</strong>
-      <span>{{ compute.credentialWarning }}</span>
-    </div>
     <div class="subsection-heading">
       <div>
-        <strong>连接参数</strong>
-        <small class="connection-test-hint">修改会自动加密保存到当前设备；检查连接会发送一条很短的测试请求，可能产生少量用量。</small>
+        <strong>连接配置</strong>
+        <small class="connection-test-hint">修改会自动保存；凭据只保存在当前设备。</small>
       </div>
+      <span
+        v-if="compute.credentialWarning"
+        class="setup-status is-warning"
+        role="status"
+        :aria-label="compute.credentialWarning"
+      >待完成</span>
+      <span v-else class="setup-status">已就绪</span>
     </div>
 
     <Teleport defer to=".detail-hero">
-      <button
-        type="button"
-        class="connection-test-button"
-        data-connection-test-button
-        :disabled="connectionTestBusy"
-        @click="testConnection"
-      >
-        {{ connectionTestBusy ? '检查中…' : '检查连接' }}
-      </button>
+      <div class="detail-actions">
+        <button
+          v-if="compute.showCustomOpenAI"
+          type="button"
+          class="delete-service-button"
+          data-testid="custom-service-delete"
+          @click="confirmDeleteProvider"
+        >
+          删除服务
+        </button>
+        <button
+          type="button"
+          class="connection-test-button"
+          data-connection-test-button
+          :disabled="connectionTestBusy"
+          @click="testConnection"
+        >
+          {{ connectionTestBusy ? '检查中…' : '检查连接' }}
+        </button>
+      </div>
     </Teleport>
 
     <div
@@ -45,35 +59,56 @@
       <span>{{ connectionTestMessage }}</span>
     </div>
 
-    <div v-show="compute.showAI && compute.showToken" class="api-key-policy">
-      <div class="api-key-policy-copy">
-        <div class="api-key-policy-title">
-          <strong>API Key 鉴权</strong>
-          <el-tooltip class="box-item" effect="dark" content="关闭后，当前模型可在没有 API Key 时发起请求。" placement="top-start" :show-after="500">
-            <el-icon aria-label="API Key 鉴权说明"><InfoFilled /></el-icon>
-          </el-tooltip>
-          <span class="api-key-policy-status" :class="{ 'is-off': !compute.requireApiKey }">
-            {{ compute.requireApiKey ? '需要' : '免 Key' }}
-          </span>
+    <template v-if="compute.showCustomOpenAI && customProvider">
+      <div class="connection-field" data-testid="custom-service-name-row">
+        <div class="connection-field-label"><strong>服务名称</strong><small>仅用于识别此接口</small></div>
+        <div class="connection-field-control">
+          <el-input
+            :model-value="customProvider.name"
+            aria-label="自定义服务名称"
+            data-testid="custom-service-edit-name"
+            placeholder="请输入服务名称"
+            :maxlength="MAX_CUSTOM_OPENAI_PROVIDER_NAME_LENGTH"
+            @update:model-value="updateCustomProvider('name', String($event))"
+          />
         </div>
-        <small class="api-key-policy-model">{{ config.model[service] || '未选择' }}</small>
       </div>
-      <el-switch v-model="compute.requireApiKey" aria-label="当前模型是否需要 API Key" size="small" />
-    </div>
+      <div class="connection-field" data-testid="custom-service-endpoint-row">
+        <div class="connection-field-label"><strong>接口地址</strong><small>OpenAI Chat Completions 兼容地址</small></div>
+        <div class="connection-field-control">
+          <el-input
+            :model-value="customProvider.endpoint"
+            aria-label="自定义服务接口地址"
+            data-testid="custom-service-edit-endpoint"
+            placeholder="http://localhost:11434/v1/chat/completions"
+            :maxlength="MAX_CUSTOM_OPENAI_PROVIDER_ENDPOINT_LENGTH"
+            @update:model-value="updateCustomProvider('endpoint', String($event))"
+          />
+        </div>
+      </div>
+    </template>
 
-    <el-row v-show="compute.showToken" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="API 访问令牌会加密保存在扩展私有 IndexedDB，并在浏览器重启后自动恢复。获取方式请参考对应服务的官方文档；翻译服务为 ollama 时，token 可为任意值" placement="top-start" :show-after="500">
-          <span class="popup-text popup-vertical-left">访问令牌<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-        </el-tooltip>
-      </el-col>
-      <el-col :span="12"><el-input v-model="config.token[service]" type="password" show-password placeholder="请输入API访问令牌" /></el-col>
-    </el-row>
+    <div v-if="compute.showToken" class="connection-field credential-field">
+      <div class="connection-field-label">
+        <strong>API Key</strong>
+        <small>{{ effectiveModelLabel || '当前模型' }}</small>
+      </div>
+      <div class="connection-field-control credential-control">
+        <el-input v-model="config.token[service]" type="password" show-password placeholder="输入 API Key；留空表示尚未配置" />
+        <div v-if="compute.showAI" class="api-key-requirement">
+          <span>{{ compute.requireApiKey ? '此模型需要 API Key' : '允许无 Key 请求' }}</span>
+          <el-switch v-model="compute.requireApiKey" aria-label="当前模型是否需要 API Key" size="small" />
+        </div>
+        <small v-if="compute.showAI && compute.requireApiKey && !config.token[service]?.trim()" class="field-warning" role="status">
+          翻译前需要填写 API Key
+        </small>
+      </div>
+    </div>
     <p v-if="compute.showMiniMaxRegion && minimaxKeyMismatch" class="minimax-key-note is-warning">
       {{ minimaxKeyMismatch }}
     </p>
 
-    <el-row v-show="compute.showMiniMaxRegion" class="margin-bottom margin-left-2em">
+    <el-row v-if="compute.showMiniMaxRegion" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="按量付费和 Token Plan 使用不同的账户权益；请按控制台中 Key 的来源选择。" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">MiniMax 计费方式<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
@@ -86,7 +121,7 @@
       </el-col>
     </el-row>
 
-    <el-row v-show="compute.showMiniMaxRegion" class="margin-bottom margin-left-2em">
+    <el-row v-if="compute.showMiniMaxRegion" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="选择与 MiniMax Key 来源一致的 API 区域。Token Plan Key（sk-cp-）和按量付费 Key 不能互换。" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">MiniMax 区域<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
@@ -99,7 +134,7 @@
       </el-col>
     </el-row>
 
-    <div v-show="compute.showMiniMaxRegion" class="minimax-endpoint" data-minimax-endpoint>
+    <div v-if="compute.showMiniMaxRegion" class="minimax-endpoint" data-minimax-endpoint>
       <span>当前 API 地址</span>
       <code>{{ minimaxEndpoint }}</code>
     </div>
@@ -108,7 +143,7 @@
       {{ mimoKeyMismatch }}
     </p>
 
-    <el-row v-show="compute.showMiMoRegion" class="margin-bottom margin-left-2em">
+    <el-row v-if="compute.showMiMoRegion" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="按量付费和 Token Plan 使用不同的账户权益；请按小米 MiMo 控制台中 Key 的来源选择。" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">小米 MiMo 计费方式<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
@@ -121,7 +156,7 @@
       </el-col>
     </el-row>
 
-    <el-row v-show="compute.showMiMoRegion" class="margin-bottom margin-left-2em">
+    <el-row v-if="compute.showMiMoRegion" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="Token Plan 必须使用购买页面提供的集群地址；中国、新加坡和欧洲集群的 tp- Key 不能混用。按量付费统一使用 api.xiaomimimo.com。" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">MiMo API 集群<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
@@ -134,12 +169,12 @@
       </el-col>
     </el-row>
 
-    <div v-show="compute.showMiMoRegion" class="mimo-endpoint" data-mimo-endpoint>
+    <div v-if="compute.showMiMoRegion" class="mimo-endpoint" data-mimo-endpoint>
       <span>当前 API 地址</span>
       <code>{{ mimoEndpoint }}</code>
     </div>
 
-    <el-row v-show="compute.showAzureOpenaiEndpoint" class="margin-bottom margin-left-2em">
+    <el-row v-if="compute.showAzureOpenaiEndpoint" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="Azure OpenAI 服务端点地址，必须包含完整的部署信息。" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">Azure 端点<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
@@ -151,101 +186,107 @@
       </el-col>
     </el-row>
 
-    <el-row v-show="compute.showDeepLX" class="margin-bottom margin-left-2em">
+    <el-row v-if="compute.showDeepLX" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="DeepLX API 服务地址，默认为本地地址。如果使用远程 DeepLX 服务，请修改为对应的服务地址" placement="top-start" :show-after="500"><span class="popup-text popup-vertical-left">服务地址</span></el-tooltip>
       </el-col>
       <el-col :span="12"><el-input v-model="config.deeplx" placeholder="http://localhost:1188/translate" /></el-col>
     </el-row>
 
-    <el-row v-show="compute.showAkSk" class="margin-bottom margin-left-2em">
+    <el-row v-if="compute.showAkSk" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="服务商提供的访问密钥。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">API Key<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
       <el-col :span="12"><el-input v-model="config.ak" placeholder="请输入Access Key" /></el-col>
     </el-row>
-    <el-row v-show="compute.showAkSk" class="margin-bottom margin-left-2em">
+    <el-row v-if="compute.showAkSk" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="服务商提供的私密密钥，请妥善保管。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">Secret Key<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
       <el-col :span="12"><el-input v-model="config.sk" type="password" placeholder="请输入Secret Key" /></el-col>
     </el-row>
 
-    <el-row v-show="compute.showYoudao" class="margin-bottom margin-left-2em">
+    <el-row v-if="compute.showYoudao" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="有道翻译服务提供的 App Key。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">App Key<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
       <el-col :span="12"><el-input v-model="config.youdaoAppKey" placeholder="有道 AppKey" /></el-col>
     </el-row>
-    <el-row v-show="compute.showYoudao" class="margin-bottom margin-left-2em">
+    <el-row v-if="compute.showYoudao" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="有道翻译服务提供的 App Secret。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">App Secret<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
       <el-col :span="12"><el-input v-model="config.youdaoAppSecret" type="password" show-password placeholder="有道 AppSecret" /></el-col>
     </el-row>
 
-    <el-row v-show="compute.showTencent" class="margin-bottom margin-left-2em">
+    <el-row v-if="compute.showTencent" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="腾讯云翻译服务提供的 SecretId。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">Secret ID<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
       <el-col :span="12"><el-input v-model="config.tencentSecretId" placeholder="腾讯云 SecretId" /></el-col>
     </el-row>
-    <el-row v-show="compute.showTencent" class="margin-bottom margin-left-2em">
+    <el-row v-if="compute.showTencent" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="腾讯云翻译服务提供的 SecretKey。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">Secret Key<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
       <el-col :span="12"><el-input v-model="config.tencentSecretKey" type="password" show-password placeholder="腾讯云 SecretKey" /></el-col>
     </el-row>
 
-    <el-row v-show="compute.showCustom" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="填写兼容翻译请求的自定义接口地址。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">自定义接口<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
-      <el-col :span="12"><el-input v-model="config.custom" placeholder="请输入自定义接口地址" /></el-col>
-    </el-row>
-
-    <el-row v-show="compute.showCustom" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="可选的代理地址；填写后，自定义接口请求会优先发送到这里。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">代理地址<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
-      <el-col :span="12"><el-input v-model="config.proxy[service]" placeholder="默认直连自定义接口" /></el-col>
-    </el-row>
-    <el-row v-show="compute.showNewAPI" class="margin-bottom margin-left-2em">
+    <el-row v-if="compute.showNewAPI" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="填写 New API 服务的接口地址。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">NewAPI接口<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
       <el-col :span="12"><el-input v-model="config.newApiUrl" placeholder="请输入您的New API接口地址" /></el-col>
     </el-row>
 
-    <el-row v-show="compute.showCustomModel" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="填写服务商支持的模型标识；选择自定义模型后，网页翻译会使用这里的值。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">{{ service === 'doubao' ? '接入点' : '自定义模型' }}<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
-      <el-col :span="12"><el-input v-model="config.customModel[service]" placeholder="例如：gemma:7b" /></el-col>
-    </el-row>
+    <details v-if="compute.showCustomOpenAI" class="custom-advanced-settings" data-testid="custom-service-advanced">
+      <summary>
+        <span><strong>高级设置</strong><small>代理、提示词和自定义请求体</small></span>
+        <b aria-hidden="true">⌄</b>
+      </summary>
 
-    <template v-if="compute.showCustom">
-      <div class="custom-template-heading">
-        <div>
-          <strong>请求模板</strong>
-          <small>按 OpenAI Chat Completions 格式发送；修改会保存到当前自定义接口配置。</small>
+      <div class="custom-advanced-content">
+        <el-row class="margin-bottom margin-left-2em">
+          <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="可选的代理地址；填写后，自定义接口请求会优先发送到这里。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">代理地址<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
+          <el-col :span="12"><el-input v-model="config.proxy[service]" placeholder="默认直连自定义接口" /></el-col>
+        </el-row>
+
+        <div class="custom-template-heading">
+          <div>
+            <strong>请求模板</strong>
+            <small>按 OpenAI Chat Completions 格式发送；修改会保存到当前自定义服务。</small>
+          </div>
+          <el-button type="primary" link size="small" @click="resetCustomTemplate">恢复默认模板</el-button>
         </div>
-        <el-button type="primary" link size="small" @click="resetCustomTemplate">恢复默认模板</el-button>
+
+        <el-row class="settings-control-row">
+          <el-col :span="8" class="settings-control-label lightblue rounded-corner">
+            <el-tooltip effect="dark" content="以 system 身份发送的对话内容。" placement="top-start" :show-after="300">
+              <span class="popup-text popup-vertical-left">system<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
+            </el-tooltip>
+          </el-col>
+          <el-col :span="16" class="settings-control-field">
+            <el-input v-model="config.system_role[service]" type="textarea" maxlength="8192" placeholder="system message" />
+          </el-col>
+        </el-row>
+
+        <el-row class="settings-control-row">
+          <el-col :span="8" class="settings-control-label lightblue rounded-corner">
+            <el-tooltip effect="dark" content="以 user 身份发送的对话模板；{{to}} 表示目标语言，{{origin}} 表示待翻译文本。" placement="top-start" :show-after="300">
+              <span class="popup-text popup-vertical-left">user<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
+            </el-tooltip>
+          </el-col>
+          <el-col :span="16" class="settings-control-field">
+            <el-input v-model="config.user_role[service]" type="textarea" maxlength="8192" placeholder="user message template" />
+          </el-col>
+        </el-row>
+
+        <el-row class="margin-bottom margin-left-2em">
+          <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="填写要合并到翻译请求中的 JSON 参数对象。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">自定义请求体<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
+          <el-col :span="12">
+            <el-input v-model="config.customBody[service]" :class="{ 'input-error': !isValidCustomBody(config.customBody[service]) }" placeholder='例如：{"thinking": {"type": "disabled"}}' />
+            <div v-if="!isValidCustomBody(config.customBody[service])" class="error-text">请输入合法的 JSON 对象，否则该配置将被忽略</div>
+          </el-col>
+        </el-row>
       </div>
+    </details>
 
-      <el-row class="settings-control-row">
-        <el-col :span="8" class="settings-control-label lightblue rounded-corner">
-          <el-tooltip effect="dark" content="以 system 身份发送的对话内容。" placement="top-start" :show-after="300">
-            <span class="popup-text popup-vertical-left">system<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-          </el-tooltip>
-        </el-col>
-        <el-col :span="16" class="settings-control-field">
-          <el-input v-model="config.system_role[service]" type="textarea" maxlength="8192" placeholder="system message" />
-        </el-col>
-      </el-row>
-
-      <el-row class="settings-control-row">
-        <el-col :span="8" class="settings-control-label lightblue rounded-corner">
-          <el-tooltip effect="dark" content="以 user 身份发送的对话模板；{{to}} 表示目标语言，{{origin}} 表示待翻译文本。" placement="top-start" :show-after="300">
-            <span class="popup-text popup-vertical-left">user<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-          </el-tooltip>
-        </el-col>
-        <el-col :span="16" class="settings-control-field">
-          <el-input v-model="config.user_role[service]" type="textarea" maxlength="8192" placeholder="user message template" />
-        </el-col>
-      </el-row>
-    </template>
-
-    <el-row v-show="compute.showDeepseekApiType" class="margin-bottom margin-left-2em">
+    <el-row v-if="compute.showDeepseekApiType" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="选择 DeepSeek 接口使用的 API 格式。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">API 格式<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
       <el-col :span="12"><el-select v-model="config.deepseekApiType" placeholder="请选择 API 格式"><el-option class="select-left" v-for="item in options.deepseekApiType" :key="item.value" :label="item.label" :value="item.value" /></el-select></el-col>
     </el-row>
-    <el-row v-show="compute.showDeepseekThinkingMode" class="margin-bottom margin-left-2em">
+    <el-row v-if="compute.showDeepseekThinkingMode" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="控制 DeepSeek 是否启用思考过程。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">思考模式<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
       <el-col :span="12"><el-select v-model="config.deepseekThinkingMode" placeholder="请选择思考模式"><el-option class="select-left" v-for="item in options.deepseekThinkingMode" :key="item.value" :label="item.label" :value="item.value" /></el-select></el-col>
     </el-row>
 
-    <el-row v-show="compute.showCustomBody" class="margin-bottom margin-left-2em">
+    <el-row v-if="compute.showCustomBody && !compute.showCustomOpenAI" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="填写要合并到翻译请求中的 JSON 参数对象。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">自定义请求体<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
       <el-col :span="12">
         <el-input v-model="config.customBody[service]" :class="{ 'input-error': !isValidCustomBody(config.customBody[service]) }" placeholder='例如：{"thinking": {"type": "disabled"}}' />
@@ -259,7 +300,12 @@
 import { computed, ref, toRef, watch } from 'vue'
 import { InfoFilled } from '@element-plus/icons-vue'
 import type { Config } from '@/src/core/config/model'
-import { defaultOption, options as optionConfig } from '@/src/core/config/catalog'
+import { defaultOption, options as optionConfig, resolveConfiguredModel } from '@/src/core/config/catalog'
+import {
+  MAX_CUSTOM_OPENAI_PROVIDER_ENDPOINT_LENGTH,
+  MAX_CUSTOM_OPENAI_PROVIDER_NAME_LENGTH,
+  type CustomOpenAIProvider,
+} from '@/src/core/config/customOpenAI'
 import { isValidCustomBody } from '@/src/core/config/customBody'
 import browser from 'webextension-polyfill'
 import { requestConfigSave, waitForConfigPersistenceQueue } from '@/src/services/config/store'
@@ -272,6 +318,12 @@ const props = defineProps<{
   compute: Record<string, any>
   options: typeof optionConfig
   isValidAzureEndpoint: (endpoint: string) => boolean
+  customProvider?: CustomOpenAIProvider
+}>()
+
+const emit = defineEmits<{
+  'update:custom-provider': [patch: Partial<Pick<CustomOpenAIProvider, 'name' | 'endpoint'>>]
+  'delete:custom-provider': []
 }>()
 
 const config = toRef(props, 'config')
@@ -279,6 +331,15 @@ const service = toRef(props, 'service')
 const compute = toRef(props, 'compute')
 const options = toRef(props, 'options')
 const isValidAzureEndpoint = toRef(props, 'isValidAzureEndpoint')
+const customProvider = toRef(props, 'customProvider')
+const effectiveModelLabel = computed(() => resolveConfiguredModel(
+  config.value.model[service.value],
+  config.value.customModel[service.value],
+))
+
+function updateCustomProvider(field: 'name' | 'endpoint', value: string): void {
+  emit('update:custom-provider', {[field]: value})
+}
 
 const minimaxKeyKind = computed(() => {
   const token = config.value.token[service.value]?.trim() || ''
@@ -389,6 +450,22 @@ function resetCustomTemplate(): void {
   })
 }
 
+function confirmDeleteProvider(): void {
+  const providerName = customProvider.value?.name || '此自定义服务'
+  void ElMessageBox.confirm(
+    `确定要删除“${providerName}”吗？相关模型和连接配置也会一并清理。`,
+    '删除自定义服务',
+    {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      confirmButtonClass: 'el-button--danger',
+      type: 'warning',
+    },
+  ).then(() => emit('delete:custom-provider')).catch(() => {
+    // 用户取消删除，不修改配置。
+  })
+}
+
 watch(service, resetConnectionTest)
 </script>
 
@@ -411,8 +488,9 @@ watch(service, resetConnectionTest)
 .subsection-heading {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   gap: 16px;
+  margin-bottom: 4px;
 }
 
 .subsection-heading > div:first-child {
@@ -427,6 +505,57 @@ watch(service, resetConnectionTest)
   font-size: 11px;
   font-weight: 400;
 }
+
+.setup-status {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: #287447;
+  background: #edf8f1;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.setup-status.is-warning { color: #98600a; background: #fff5df; }
+
+.connection-field {
+  display: grid;
+  grid-template-columns: minmax(150px, 190px) minmax(240px, 1fr);
+  align-items: center;
+  gap: 20px;
+  min-height: 54px;
+  padding: 10px 0;
+  border-bottom: 1px solid #edf0f5;
+}
+
+.connection-field-label { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.connection-field-label strong { color: #263044; font-size: 12px; font-weight: 700; }
+.connection-field-label small { overflow: hidden; color: #9299a8; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.connection-field-control { min-width: 0; }
+.connection-field-control :deep(.el-input),
+.connection-field-control :deep(.el-select) { width: 100% !important; max-width: none !important; }
+.credential-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 12px; }
+.api-key-requirement { display: flex; align-items: center; gap: 8px; color: #747d8e; font-size: 10px; white-space: nowrap; }
+.api-key-requirement :deep(.el-switch) { --el-switch-on-color: #ef4776; --el-switch-off-color: #cfd5df; }
+.field-warning { grid-column: 1 / -1; color: #9a6208; font-size: 10px; text-align: right; }
+
+.service-connection-section :deep(.el-row) {
+  display: flex !important;
+  min-height: 50px !important;
+  margin: 0 !important;
+  padding: 9px 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid #edf0f5 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.service-connection-section :deep(.el-row > .el-col:first-child) { max-width: 190px; flex: 0 0 190px; }
+.service-connection-section :deep(.el-row > .el-col:last-child) { width: auto; max-width: none; flex: 1 1 auto; }
+.service-connection-section :deep(.el-row > .el-col:last-child > .el-input),
+.service-connection-section :deep(.el-row > .el-col:last-child > .el-select),
+.service-connection-section :deep(.settings-control-field > .el-input),
+.service-connection-section :deep(.settings-control-field > .el-select) { width: 100% !important; max-width: none !important; }
 
 .custom-template-heading {
   display: flex;
@@ -470,6 +599,54 @@ watch(service, resetConnectionTest)
   cursor: pointer;
   transition: 160ms ease;
 }
+
+.detail-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.delete-service-button {
+  padding: 8px 12px;
+  border: 1px solid #e2a4b5;
+  border-radius: 9px;
+  color: #ad3657;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.delete-service-button:hover { border-color: #d9345e; background: #fff1f4; }
+
+.custom-advanced-settings {
+  margin-top: 14px;
+  border: 1px solid #e5e8ef;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fbfcfe;
+}
+
+.custom-advanced-settings summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  color: #46526a;
+  cursor: pointer;
+  list-style: none;
+}
+
+.custom-advanced-settings summary::-webkit-details-marker { display: none; }
+.custom-advanced-settings summary > span { display: flex; flex-direction: column; }
+.custom-advanced-settings summary strong { font-size: 12px; }
+.custom-advanced-settings summary small { margin-top: 2px; color: #9098a8; font-size: 10px; }
+.custom-advanced-settings summary b { color: #c72a56; transition: transform 150ms ease; }
+.custom-advanced-settings[open] summary b { transform: rotate(180deg); }
+.custom-advanced-content { padding: 4px 12px 12px; border-top: 1px solid #eceef3; }
 
 .connection-test-button:hover:not(:disabled) {
   color: #fff;
@@ -585,10 +762,22 @@ watch(service, resetConnectionTest)
     margin-left: 0;
   }
 
+  .detail-actions { width: 100%; margin-left: 0; }
+  .detail-actions > button { flex: 1; }
+
   .custom-template-heading {
     align-items: stretch;
     flex-direction: column;
   }
+
+  .connection-field { grid-template-columns: 1fr; gap: 7px; }
+  .credential-control { grid-template-columns: 1fr; }
+  .api-key-requirement { justify-content: flex-start; }
+  .field-warning { grid-column: auto; text-align: left; }
+  .connection-field-label small { white-space: normal; }
+  .service-connection-section :deep(.el-row) { gap: 7px; flex-direction: column; }
+  .service-connection-section :deep(.el-row > .el-col:first-child),
+  .service-connection-section :deep(.el-row > .el-col:last-child) { width: 100%; max-width: none; flex: 0 0 auto; }
 }
 
 .credential-warning strong {
@@ -686,7 +875,8 @@ watch(service, resetConnectionTest)
 :global(:root.dark) .credential-warning { border-color: #735c31; color: #f2d28f; background: #392f1f; }
 :global(:root.dark) .custom-template-heading { border-color: var(--line); }
 :global(:root.dark) .custom-template-heading strong,
-:global(:root.dark) .api-key-policy-title { color: var(--ink); }
+:global(:root.dark) .api-key-policy-title,
+:global(:root.dark) .connection-field-label strong { color: var(--ink); }
 :global(:root.dark) .custom-template-heading small,
 :global(:root.dark) .connection-test-hint,
 :global(:root.dark) .api-key-policy-model,
@@ -694,6 +884,8 @@ watch(service, resetConnectionTest)
 :global(:root.dark) .mimo-key-note,
 :global(:root.dark) .minimax-endpoint,
 :global(:root.dark) .mimo-endpoint { color: var(--muted); }
+:global(:root.dark) .connection-field,
+:global(:root.dark) .service-connection-section :deep(.el-row) { border-color: var(--line) !important; }
 :global(:root.dark) .connection-test-button { border-color: rgba(255, 138, 171, .52); color: var(--brand-strong); background: var(--brand-soft); }
 :global(:root.dark) .connection-test-result,
 :global(:root.dark) .api-key-policy { border-color: var(--line); color: var(--muted); background: var(--surface-soft); }

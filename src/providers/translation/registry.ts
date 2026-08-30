@@ -7,6 +7,7 @@
  */
 
 import {services} from "@/src/core/config/catalog";
+import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
 import {AI_SDK_SERVICE_IDS} from './ai-sdk/endpoints';
 import microsoft from "./microsoft";
 import freeTranslation from "./free-translation";
@@ -60,3 +61,11 @@ export const translationProviderRegistry: TranslationProviderRegistry = {
     // Azure 在进入共享 transport 前保留自身的 endpoint/key 校验。
     [services.azureOpenai]: azureOpenai,
 };
+
+/** 动态 custom:* profile 与旧 custom 共用同一个 OpenAI-compatible transport。 */
+export function getTranslationProvider(service: string): TranslationProvider | undefined {
+    return translationProviderRegistry[service]
+        || (isCustomOpenAIProviderId(service)
+            ? translationProviderRegistry[LEGACY_CUSTOM_OPENAI_PROVIDER_ID]
+            : undefined);
+}

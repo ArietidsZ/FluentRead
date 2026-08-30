@@ -16,6 +16,13 @@ import {
 } from './credentials'
 import { normalizeConfig, type Config } from './model'
 import { defaultOption, servicesType } from './catalog'
+import {
+  isConfiguredCustomOpenAIProvider,
+  isCustomOpenAIProviderId,
+  LEGACY_CUSTOM_OPENAI_PROVIDER_ID,
+  normalizeCustomOpenAIProviders,
+} from './customOpenAI'
+import {dropTokensForChangedCredentialDestinations} from './credentialBinding'
 
 type ConfigRecord = Record<string, any>
 
@@ -32,8 +39,13 @@ export function isConfigImportValid(value: unknown): value is ConfigRecord {
   if (value.display !== 0 && value.display !== 1) return false
   if (typeof value.from !== 'string' || !value.from.trim()) return false
   if (typeof value.to !== 'string' || !value.to.trim()) return false
-  if (typeof value.service !== 'string'
-    || (!servicesType.machine.has(value.service) && !servicesType.isAI(value.service))) return false
+  if (typeof value.service !== 'string') return false
+  if (isCustomOpenAIProviderId(value.service)) {
+    const providers = normalizeCustomOpenAIProviders(value.customOpenAIProviders)
+    const isLegacyImport = value.service === LEGACY_CUSTOM_OPENAI_PROVIDER_ID
+      && !Array.isArray(value.customOpenAIProviders)
+    if (!isLegacyImport && !isConfiguredCustomOpenAIProvider(providers, value.service)) return false
+  } else if (!servicesType.machine.has(value.service) && !servicesType.AI.has(value.service)) return false
   return !('customBody' in value) || isCustomBodyMapping(value.customBody)
 }
 
@@ -64,25 +76,47 @@ const scalarCredentialFields = [
   'tencentSecretId', 'tencentSecretKey',
 ] as const
 
-/** 旧版文件只更新它明确提供的凭据；未提供的服务凭据继续保留。 */
-function prepareImportedCredentials(value: unknown, current: unknown): ConfigCredentials {
-  const currentCredentials = extractConfigCredentials(current)
-  if (!hasCredentialFields(value) || !isRecord(value)) return currentCredentials
+function clearTokensForChangedCredentialDestinations(
+  value: ConfigRecord,
+  current: Config,
+  imported: Config,
+  credentials: ConfigCredentials,
+): ConfigCredentials {
+  const explicitTokens = isRecord(value.token) ? value.token : {}
+  const explicitlyBoundTokens = new Set(Object.entries(explicitTokens)
+    .filter(([, token]) => typeof token === 'string')
+    .map(([service]) => service))
+  return dropTokensForChangedCredentialDestinations(
+    credentials,
+    current,
+    imported,
+    explicitlyBoundTokens,
+  )
+}
 
-  const importedCredentials = extractConfigCredentials(value)
-  const merged: ConfigCredentials = {
-    ...currentCredentials,
-    token: isRecord(value.token)
-      ? {...currentCredentials.token, ...importedCredentials.token}
-      : currentCredentials.token,
-    extra: isRecord(value.extra)
-      ? {...currentCredentials.extra, ...importedCredentials.extra}
-      : currentCredentials.extra,
+/**
+ * 旧版文件只更新它明确提供的凭据；未提供的服务凭据通常继续保留。
+ * 唯一例外是服务的有效请求地址发生变化，此时旧 token 必须与旧地址解绑。
+ */
+function prepareImportedCredentials(value: ConfigRecord, current: Config, imported: Config): ConfigCredentials {
+  const currentCredentials = extractConfigCredentials(current)
+  let merged = currentCredentials
+  if (hasCredentialFields(value)) {
+    const importedCredentials = extractConfigCredentials(value)
+    merged = {
+      ...currentCredentials,
+      token: isRecord(value.token)
+        ? {...currentCredentials.token, ...importedCredentials.token}
+        : currentCredentials.token,
+      extra: isRecord(value.extra)
+        ? {...currentCredentials.extra, ...importedCredentials.extra}
+        : currentCredentials.extra,
+    }
+    for (const field of scalarCredentialFields) {
+      if (typeof value[field] === 'string') merged[field] = importedCredentials[field]
+    }
   }
-  for (const field of scalarCredentialFields) {
-    if (typeof value[field] === 'string') merged[field] = importedCredentials[field]
-  }
-  return merged
+  return clearTokensForChangedCredentialDestinations(value, current, imported, merged)
 }
 
 export function sanitizeConfigForExport(value: unknown): ConfigRecord {
@@ -120,14 +154,15 @@ export function prepareConfigForExport(value: unknown): ConfigRecord {
 
 /**
  * 导入不含凭据的公开配置时保留当前已保存凭据；导入完整迁移配置或含凭据的
- * 旧版文件时，只更新 JSON 明确提供的凭据字段，未提供的凭据继续保留。翻译统计、
- * 迁移标记始终保留当前值；旧文件中的 persistCredentials 会被忽略。
+ * 旧版文件时，只更新 JSON 明确提供的凭据字段，未提供的凭据继续保留；若同 ID
+ * 服务换了 endpoint 或 proxy，则未随文件显式提供的旧 token 会被清除，避免误发。
+ * 翻译统计、迁移标记始终保留当前值；旧文件中的 persistCredentials 会被忽略。
  */
 export function prepareConfigForImport(value: unknown, current: unknown): Config {
   if (!isConfigImportValid(value)) throw new TypeError('导入配置缺少有效的基础字段')
   const currentConfig = normalizeConfig(current)
   const importedConfig = normalizeConfig(value)
-  const credentials = prepareImportedCredentials(value, currentConfig)
+  const credentials = prepareImportedCredentials(value, currentConfig, importedConfig)
 
   return normalizeConfig(mergeConfigCredentials({
     ...sanitizeConfigCredentials(importedConfig),

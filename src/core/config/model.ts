@@ -6,9 +6,34 @@
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
-import { currentModelIds, defaultModels, defaultOption, services, servicesType } from "./catalog";
+import {
+    currentModelIds,
+    defaultModels,
+    defaultOption,
+    models,
+    resolveConfiguredModel,
+    services,
+    servicesType,
+} from "./catalog";
 import type { MiniMaxBillingPlan, MiniMaxRegion, MiMoBillingPlan, MiMoRegion } from "./catalog";
+import {
+    getCustomOpenAIProvider,
+    isConfiguredCustomOpenAIProvider,
+    isCustomOpenAIProviderId,
+    LEGACY_CUSTOM_OPENAI_PROVIDER_ID,
+    CUSTOM_OPENAI_RESERVED_MODEL_ID,
+    MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER,
+    normalizeCustomOpenAIModels,
+    normalizeCustomOpenAIProviders,
+    type CustomOpenAIProvider,
+} from './customOpenAI';
 import { normalizeCustomBodyMapping } from "./customBody";
+import {
+    API_KEY_REQUIREMENT_KEY_PREFIX,
+    createApiKeyRequirementKey,
+    getLegacyApiKeyRequirementKey,
+    parseApiKeyRequirementKey,
+} from './validation';
 import {isSensitiveConfigKey} from './sensitiveKeys';
 import { normalizeSelectionTtsVoiceOrder } from "./selectionTts";
 import {
@@ -102,7 +127,9 @@ export class Config {
     appid: string;
     key: string;
     model: IMapping;
-    customModel: IMapping;  // 自定义模型名称
+    customModel: IMapping;  // 当前启用的自定义模型名称（兼容旧版运行时）
+    customModels: Record<string, string[]>; // 按内置服务保存的自定义模型列表
+    customOpenAIProviders: CustomOpenAIProvider[]; // 用户保存的 OpenAI-compatible 自定义服务（不含凭据）
     customBody: IMapping;  // 自定义请求体（JSON 字符串，按服务存储），会合并进请求体
     proxy: IMapping;  // 代理地址
     custom: string; // 本地服务地址
@@ -162,7 +189,9 @@ export class Config {
         this.hotkey = defaultOption.hotkey;
         this.service = defaultOption.service;
         this.documentService = defaultOption.service;
-        this.documentModel = Object.fromEntries(defaultModels);
+        this.documentModel = Object.fromEntries(
+            [...defaultModels].filter(([service]) => service !== LEGACY_CUSTOM_OPENAI_PROVIDER_ID),
+        );
         this.documentCustomModel = {};
         this.videoTranslationEnabled = false; // Beta 功能默认关闭
         this.videoService = services.microsoft; // 视频字幕默认使用微软翻译
@@ -180,8 +209,12 @@ export class Config {
         this.sk = '';
         this.appid = '';
         this.key = '';
-        this.model = Object.fromEntries(defaultModels);
+        this.model = Object.fromEntries(
+            [...defaultModels].filter(([service]) => service !== LEGACY_CUSTOM_OPENAI_PROVIDER_ID),
+        );
         this.customModel = {};
+        this.customModels = {};
+        this.customOpenAIProviders = [];
         this.customBody = {};
         this.proxy = {};
         this.custom = defaultOption.custom;
@@ -299,6 +332,196 @@ const modelMigrations: Record<string, Record<string, string>> = {
 // 已退役服务只在配置迁移边界保留标识，用于清除旧版本遗留的不可见配置和凭据。
 const retiredServiceIds = new Set(['cozecom', 'cozecn']);
 
+function hasOwn(value: object, key: string): boolean {
+    return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function configuredString(mapping: unknown, key: string): string {
+    if (!isRecord(mapping)) return '';
+    const value = mapping[key];
+    return typeof value === 'string' ? value.trim() : '';
+}
+
+function legacyCustomModel(
+    selectedModels: unknown,
+    customModels: unknown,
+): string {
+    return resolveConfiguredModel(
+        configuredString(selectedModels, LEGACY_CUSTOM_OPENAI_PROVIDER_ID),
+        configuredString(customModels, LEGACY_CUSTOM_OPENAI_PROVIDER_ID),
+    ).trim();
+}
+
+/** 默认 Config 本来就含 custom 地址和默认模型；只有真实修改或引用才创建旧 profile。 */
+function hasSubstantialLegacyCustomConfiguration(source: Partial<Config>): boolean {
+    const sourceRecord = source as unknown as Record<string, unknown>;
+    const referenced = source.service === LEGACY_CUSTOM_OPENAI_PROVIDER_ID
+        || source.documentService === LEGACY_CUSTOM_OPENAI_PROVIDER_ID
+        || source.videoService === LEGACY_CUSTOM_OPENAI_PROVIDER_ID
+        || (Array.isArray(source.translationCenterServices)
+            && source.translationCenterServices.includes(LEGACY_CUSTOM_OPENAI_PROVIDER_ID));
+    if (referenced) return true;
+
+    const endpoint = typeof source.custom === 'string' ? source.custom.trim() : '';
+    if (endpoint && endpoint !== defaultOption.custom) return true;
+
+    const defaultModel = defaultModels.get(LEGACY_CUSTOM_OPENAI_PROVIDER_ID)!;
+    const selectedModel = configuredString(source.model, LEGACY_CUSTOM_OPENAI_PROVIDER_ID);
+    const documentModel = configuredString(source.documentModel, LEGACY_CUSTOM_OPENAI_PROVIDER_ID);
+    if ((selectedModel && selectedModel !== defaultModel)
+        || (documentModel && documentModel !== defaultModel)
+        || configuredString(source.customModel, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)
+        || configuredString(source.documentCustomModel, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)) return true;
+
+    if (configuredString(source.token, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)
+        || configuredString(source.proxy, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)
+        || configuredString(source.customBody, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)) return true;
+    const systemRole = configuredString(source.system_role, LEGACY_CUSTOM_OPENAI_PROVIDER_ID);
+    const userRole = configuredString(source.user_role, LEGACY_CUSTOM_OPENAI_PROVIDER_ID);
+    if ((systemRole && systemRole !== defaultOption.system_role)
+        || (userRole && userRole !== defaultOption.user_role)) return true;
+
+    const requirementModel = legacyCustomModel(source.model, source.customModel);
+    const requirementKey = createApiKeyRequirementKey(LEGACY_CUSTOM_OPENAI_PROVIDER_ID, requirementModel);
+    const legacyRequirementKey = getLegacyApiKeyRequirementKey(
+        LEGACY_CUSTOM_OPENAI_PROVIDER_ID,
+        requirementModel,
+    );
+    return isBooleanMapping(source.requireApiKey)
+        && requirementModel !== ''
+        && (hasOwn(sourceRecord.requireApiKey as object, requirementKey)
+            || hasOwn(sourceRecord.requireApiKey as object, legacyRequirementKey));
+}
+
+function protectProviderModels(
+    providers: CustomOpenAIProvider[],
+    serviceId: string,
+    modelsToProtect: readonly string[],
+): CustomOpenAIProvider[] {
+    const protectedModels = Array.from(new Set(modelsToProtect.map(model => model.trim()).filter(Boolean)));
+    if (protectedModels.length === 0) return providers;
+    const protectedSet = new Set(protectedModels);
+    return providers.map((provider) => {
+        if (provider.id !== serviceId) return provider;
+        const missingModels = protectedModels.filter(model => !provider.models.includes(model));
+        if (missingModels.length === 0) return provider;
+
+        const combined = [...provider.models, ...missingModels];
+        let removeCount = Math.max(0, combined.length - MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER);
+        const removedIndexes = new Set<number>();
+        for (let index = provider.models.length - 1; index >= 0 && removeCount > 0; index -= 1) {
+            if (protectedSet.has(provider.models[index])) continue;
+            removedIndexes.add(index);
+            removeCount -= 1;
+        }
+        const models = combined.filter((_, index) => !removedIndexes.has(index));
+        return {...provider, models};
+    });
+}
+
+function withoutOrphanCustomProviderEntries<T>(
+    mapping: Record<string, T>,
+    configuredIds: ReadonlySet<string>,
+): Record<string, T> {
+    return Object.fromEntries(Object.entries(mapping).filter(([service]) => (
+        !isCustomOpenAIProviderId(service) || configuredIds.has(service)
+    )));
+}
+
+function normalizeCustomOpenAIProviderState(normalized: Config, source: Partial<Config>): void {
+    let providers = normalizeCustomOpenAIProviders(source.customOpenAIProviders);
+    const legacyProvider = getCustomOpenAIProvider(providers, LEGACY_CUSTOM_OPENAI_PROVIDER_ID);
+    if (!legacyProvider
+        && !Array.isArray(source.customOpenAIProviders)
+        && hasSubstantialLegacyCustomConfiguration(source)) {
+        const pageModel = legacyCustomModel(normalized.model, normalized.customModel)
+            || defaultModels.get(LEGACY_CUSTOM_OPENAI_PROVIDER_ID)!;
+        const documentModel = legacyCustomModel(normalized.documentModel, normalized.documentCustomModel)
+            || pageModel;
+        providers = normalizeCustomOpenAIProviders([...providers, {
+            id: LEGACY_CUSTOM_OPENAI_PROVIDER_ID,
+            name: '自定义接口',
+            endpoint: typeof source.custom === 'string' ? source.custom : defaultOption.custom,
+            models: [pageModel, documentModel],
+        }]);
+    } else if (legacyProvider && !legacyProvider.endpoint && typeof source.custom === 'string') {
+        const legacyEndpoint = source.custom;
+        providers = providers.map((provider) => provider.id === LEGACY_CUSTOM_OPENAI_PROVIDER_ID
+            ? {...provider, endpoint: legacyEndpoint}
+            : provider);
+    }
+
+    const configuredIds = new Set(providers.map((provider) => provider.id));
+    normalized.token = withoutOrphanCustomProviderEntries(normalized.token, configuredIds);
+    normalized.model = withoutOrphanCustomProviderEntries(normalized.model, configuredIds);
+    normalized.documentModel = withoutOrphanCustomProviderEntries(normalized.documentModel, configuredIds);
+    normalized.customModel = withoutOrphanCustomProviderEntries(normalized.customModel, configuredIds);
+    normalized.documentCustomModel = withoutOrphanCustomProviderEntries(normalized.documentCustomModel, configuredIds);
+    normalized.proxy = withoutOrphanCustomProviderEntries(normalized.proxy, configuredIds);
+    normalized.system_role = withoutOrphanCustomProviderEntries(normalized.system_role, configuredIds);
+    normalized.user_role = withoutOrphanCustomProviderEntries(normalized.user_role, configuredIds);
+    normalized.customBody = withoutOrphanCustomProviderEntries(normalized.customBody, configuredIds);
+
+    for (const provider of providers) {
+        const service = provider.id;
+        const savedPageCustomModel = configuredString(normalized.customModel, service);
+        const savedDocumentCustomModel = configuredString(normalized.documentCustomModel, service);
+        const resolvedPageModel = resolveConfiguredModel(
+            normalized.model[service],
+            normalized.customModel[service],
+        ).trim();
+        const pageModel = resolvedPageModel || provider.models[0] || '';
+        const resolvedDocumentModel = resolveConfiguredModel(
+            normalized.documentModel[service],
+            normalized.documentCustomModel[service],
+        ).trim();
+        const documentModel = resolvedDocumentModel || pageModel;
+        if (pageModel) normalized.model[service] = pageModel;
+        else delete normalized.model[service];
+        if (documentModel) normalized.documentModel[service] = documentModel;
+        else delete normalized.documentModel[service];
+        delete normalized.customModel[service];
+        delete normalized.documentCustomModel[service];
+        if (!normalized.system_role[service]) normalized.system_role[service] = defaultOption.system_role;
+        if (!normalized.user_role[service]) normalized.user_role[service] = defaultOption.user_role;
+        providers = protectProviderModels(providers, service, [
+            pageModel,
+            documentModel,
+            savedPageCustomModel,
+            savedDocumentCustomModel,
+        ]);
+    }
+
+    const validRequirementKeys = new Set<string>();
+    for (const provider of providers) {
+        const models = new Set([
+            ...provider.models,
+            normalized.model[provider.id],
+            normalized.documentModel[provider.id],
+        ].filter((model): model is string => Boolean(model)));
+        models.forEach((model) => {
+            const key = createApiKeyRequirementKey(provider.id, model);
+            const legacyKey = getLegacyApiKeyRequirementKey(provider.id, model);
+            validRequirementKeys.add(key);
+            validRequirementKeys.add(legacyKey);
+            if (provider.id === LEGACY_CUSTOM_OPENAI_PROVIDER_ID
+                && hasOwn(normalized.requireApiKey, legacyKey)
+                && !hasOwn(normalized.requireApiKey, key)) {
+                normalized.requireApiKey[key] = normalized.requireApiKey[legacyKey];
+            }
+        });
+    }
+    normalized.requireApiKey = Object.fromEntries(Object.entries(normalized.requireApiKey).filter(([key]) => {
+        if (key.startsWith(API_KEY_REQUIREMENT_KEY_PREFIX)) {
+            const parts = parseApiKeyRequirementKey(key);
+            if (!parts) return false;
+            return !isCustomOpenAIProviderId(parts[0]) || validRequirementKeys.has(key);
+        }
+        return !key.startsWith(`${LEGACY_CUSTOM_OPENAI_PROVIDER_ID}:`) || validRequirementKeys.has(key);
+    }));
+    normalized.customOpenAIProviders = normalizeCustomOpenAIProviders(providers);
+}
+
 /**
  * 将存储或导入的普通对象补齐为当前配置结构，并迁移已退役或错误的模型编号。
  */
@@ -350,6 +573,8 @@ export function normalizeConfig(value: unknown): Config {
         : {};
     normalized.customModel = withoutRetiredServiceEntries(normalizeStringMapping(source.customModel));
     normalized.documentCustomModel = withoutRetiredServiceEntries(normalizeStringMapping(source.documentCustomModel));
+    const hasSavedCustomModelSchema = hasOwn(source as object, 'customModels');
+    normalized.customModels = normalizeCustomModelMapping(source.customModels);
     normalized.proxy = withoutRetiredServiceEntries(normalizeStringMapping(source.proxy));
     normalized.system_role = {
         ...systemRoleFactory(),
@@ -363,12 +588,13 @@ export function normalizeConfig(value: unknown): Config {
 
     if (typeof normalized.custom !== 'string') normalized.custom = defaultOption.custom;
     if (typeof normalized.newApiUrl !== 'string') normalized.newApiUrl = DEFAULT_NEW_API_URL;
+    normalizeCustomOpenAIProviderState(normalized, source);
 
-    if (retiredServiceIds.has(normalized.service)) {
+    if (!isSupportedTranslationService(normalized.service, normalized.customOpenAIProviders)) {
         normalized.service = defaultOption.service;
     }
 
-    if (!isSupportedTranslationService(normalized.documentService)) {
+    if (!isSupportedTranslationService(normalized.documentService, normalized.customOpenAIProviders)) {
         normalized.documentService = defaultOption.service;
     }
 
@@ -379,7 +605,8 @@ export function normalizeConfig(value: unknown): Config {
     // 执行一次迁移，避免覆盖用户在新版本中主动选择的 DeepLX。
     const shouldMigrateLegacyVideoDefault = source.videoService === services.deeplx
         && source.videoServiceDefaultMigrated !== true;
-    if (shouldMigrateLegacyVideoDefault || !isSupportedTranslationService(normalized.videoService)) {
+    if (shouldMigrateLegacyVideoDefault
+        || !isSupportedTranslationService(normalized.videoService, normalized.customOpenAIProviders)) {
         normalized.videoService = services.microsoft;
     }
     normalized.videoServiceDefaultMigrated = true;
@@ -396,6 +623,8 @@ export function normalizeConfig(value: unknown): Config {
 
     // 旧配置可能没有保存过模型选择；为所有 AI 服务补齐各自的默认模型。
     defaultModels.forEach((defaultModel, service) => {
+        if (isCustomOpenAIProviderId(service)
+            && !isConfiguredCustomOpenAIProvider(normalized.customOpenAIProviders, service)) return;
         if (!normalized.model[service]) normalized.model[service] = defaultModel;
         if (!normalized.documentModel[service]) normalized.documentModel[service] = defaultModel;
     });
@@ -414,6 +643,7 @@ export function normalizeConfig(value: unknown): Config {
         // 兼容 #219 的早期配置：该实现把 v4-pro 作为默认思考模型。
         normalized.deepseekThinkingMode = selectedModel === 'deepseek-v4-pro' ? 'enabled' : 'disabled';
     }
+    normalizeSavedCustomModelState(normalized, hasSavedCustomModelSchema);
 
     if (!['auto', 'responses', 'chat'].includes(normalized.deepseekApiType)) {
         normalized.deepseekApiType = 'auto';
@@ -492,7 +722,7 @@ export function normalizeConfig(value: unknown): Config {
         normalized.fullPageTranslationMode = 'viewport';
     }
     normalized.translationCenterServices = normalizeStringList(source.translationCenterServices)
-        .filter(service => !retiredServiceIds.has(service));
+        .filter(service => isSupportedTranslationService(service, normalized.customOpenAIProviders));
     normalized.translationCenterSourceLanguage = normalizeConfigLanguage(source.translationCenterSourceLanguage);
     normalized.translationCenterTargetLanguage = normalizeConfigLanguage(source.translationCenterTargetLanguage);
     normalized.enableAIMultiSegment = source.enableAIMultiSegment === true;
@@ -535,6 +765,91 @@ function normalizeStringMapping(value: unknown): IMapping {
     );
 }
 
+function normalizeCustomModelMapping(value: unknown): Record<string, string[]> {
+    if (!isRecord(value)) return {};
+    const normalized: Record<string, string[]> = {};
+    for (const [service, models] of Object.entries(value)) {
+        if (!isPersistableBuiltInModelService(service)) continue;
+        const builtInModels = new Set(modelsForService(service));
+        const list = normalizeCustomOpenAIModels(models, builtInModels);
+        if (list.length > 0) normalized[service] = list;
+    }
+    return normalized;
+}
+
+function isPersistableBuiltInModelService(service: string): boolean {
+    return !isCustomOpenAIProviderId(service)
+        && servicesType.AI.has(service)
+        && servicesType.isUseModel(service);
+}
+
+function activeSavedCustomModel(selectedModel: string, customModel: string): string {
+    // direct ID 已由 canonicalizeDirectCustomModel 在调用前收敛为 sentinel。
+    if (selectedModel === CUSTOM_OPENAI_RESERVED_MODEL_ID) return customModel;
+    return '';
+}
+
+function modelsForService(service: string): string[] {
+    // catalog contract（由 serviceCatalog.test.ts 覆盖）：每个 useModel 服务都有模型列表。
+    return models.get(service)!.filter((model) => model !== CUSTOM_OPENAI_RESERVED_MODEL_ID);
+}
+
+function normalizeSavedCustomModelState(normalized: Config, hasSavedSchema: boolean): void {
+    const configuredServices = new Set([
+        ...Object.keys(normalized.customModels),
+        ...Object.keys(normalized.customModel),
+        ...Object.keys(normalized.documentCustomModel),
+        ...Object.keys(normalized.model),
+        ...Object.keys(normalized.documentModel),
+    ]);
+    for (const service of configuredServices) {
+        if (!isPersistableBuiltInModelService(service)) continue;
+        canonicalizeDirectCustomModel(service, normalized.model, normalized.customModel);
+        canonicalizeDirectCustomModel(service, normalized.documentModel, normalized.documentCustomModel);
+        const activeModels = [
+            activeSavedCustomModel(normalized.model[service], normalized.customModel[service]),
+            activeSavedCustomModel(
+                normalized.documentModel[service],
+                normalized.documentCustomModel[service],
+            ),
+        ];
+        protectSavedCustomModels(normalized.customModels, service, hasSavedSchema
+            ? activeModels
+            : [normalized.customModel[service], normalized.documentCustomModel[service], ...activeModels]);
+    }
+}
+
+function canonicalizeDirectCustomModel(service: string, selected: IMapping, custom: IMapping): void {
+    const selectedModel = selected[service];
+    if (!selectedModel
+        || selectedModel === CUSTOM_OPENAI_RESERVED_MODEL_ID
+        || modelsForService(service).includes(selectedModel)) return;
+    selected[service] = CUSTOM_OPENAI_RESERVED_MODEL_ID;
+    custom[service] = selectedModel;
+}
+
+function protectSavedCustomModels(
+    mapping: Record<string, string[]>,
+    service: string,
+    values: readonly string[],
+): void {
+    const builtInModels = new Set(modelsForService(service));
+    const protectedModels = normalizeCustomOpenAIModels(values).filter((model) => !builtInModels.has(model));
+    if (protectedModels.length === 0) return;
+    const protectedSet = new Set(protectedModels);
+    const savedModels = [...(mapping[service] || [])];
+    protectedModels.forEach((model) => {
+        if (!savedModels.includes(model)) savedModels.push(model);
+    });
+    while (savedModels.length > MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER) {
+        let removableIndex = savedModels.length - 1;
+        while (removableIndex >= 0 && protectedSet.has(savedModels[removableIndex])) removableIndex -= 1;
+        // protectedModels 本身最多 50 个，因此溢出时一定还存在一个非保护项。
+        savedModels.splice(removableIndex, 1);
+    }
+    mapping[service] = savedModels.slice(0, MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER);
+}
+
 function withoutRetiredServiceEntries<T>(mapping: Record<string, T>): Record<string, T> {
     return Object.fromEntries(
         Object.entries(mapping).filter(([service]) => !retiredServiceIds.has(service)),
@@ -549,9 +864,15 @@ function withoutRetiredRequirementEntries(mapping: Record<string, boolean>): Rec
     );
 }
 
-function isSupportedTranslationService(value: unknown): value is string {
-    return typeof value === 'string'
-        && (servicesType.machine.has(value) || servicesType.isAI(value));
+function isSupportedTranslationService(
+    value: unknown,
+    customProviders: readonly CustomOpenAIProvider[],
+): value is string {
+    if (typeof value !== 'string') return false;
+    if (isCustomOpenAIProviderId(value)) {
+        return isConfiguredCustomOpenAIProvider(customProviders, value);
+    }
+    return servicesType.machine.has(value) || servicesType.AI.has(value);
 }
 
 function normalizeStringList(value: unknown): string[] {

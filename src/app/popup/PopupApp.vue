@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupApp.vue
  文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、功能抽屉和高频操作，提供轻量但完整的控制中心。
- 主要内容：在配置 hydration 后展示可按服务或模型关键词搜索的翻译服务选择器、页面翻译、站点规则、悬浮/划词/区域/图片/视频开关、缓存清理、文档与设置入口；监听配置并持久化，广播即时变化和处理通知/捐赠弹层。
+ 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，展示可按服务或模型关键词搜索的选择器、页面翻译、站点规则、悬浮/划词/区域/图片/视频开关、缓存清理、文档与设置入口；监听配置并持久化，广播即时变化和处理通知/捐赠弹层。
  模块边界：组件编排用户交互与运行时消息，不实现翻译 provider、缓存存储或 content 挂载细节；公共配置由 services/store 管理，页面行为由 content feature 接收消息完成。
 -->
 <!-- Popup 页面归 app 层所有；WXT 入口只负责调用挂载函数。 -->
@@ -569,7 +569,11 @@ import {
   normalizeConfig,
   normalizeSelectionTranslatorDelay,
 } from '@/src/core/config/model';
-import { models, options, resolveConfiguredModel, servicesType } from '@/src/core/config/catalog';
+import { customModelString, models, options, resolveConfiguredModel, servicesType } from '@/src/core/config/catalog';
+import {
+  getCustomOpenAIProvider,
+  withCustomOpenAIServiceOptions,
+} from '@/src/core/config/customOpenAI';
 import { getMissingCredentialMessage } from '@/src/core/config/validation';
 import { getSelectedModelLabel, searchServiceOptions } from '@/src/ui/view-model/serviceCatalog';
 import { SELECTION_TTS_VOICE_OPTIONS } from '@/src/core/config/selectionTts';
@@ -623,13 +627,27 @@ const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
 const persistConfigPatch = (value: unknown) => requestConfigPatch(value, sendConfigMessage);
 const persistConfigReplace = (value: unknown) => requestConfigSave(value, sendConfigMessage);
 
-const allServiceOptions = computed(() => options.services.filter((item: any) => !item.disabled));
+const allServiceOptions = computed(() => withCustomOpenAIServiceOptions(
+  options.services,
+  config.value.customOpenAIProviders,
+).filter((item: any) => !item.disabled));
 const serviceOptions = computed(() => filterAvailableTranslationServices(allServiceOptions.value));
+const searchableModels = computed<ReadonlyMap<string, readonly string[]>>(() => {
+  const merged = new Map<string, readonly string[]>(models);
+  Object.entries(config.value.customModels).forEach(([service, savedModels]) => {
+    merged.set(service, Array.from(new Set([
+      ...(merged.get(service) || []).filter((model) => model !== customModelString),
+      ...savedModels,
+    ])));
+  });
+  config.value.customOpenAIProviders.forEach(provider => merged.set(provider.id, provider.models));
+  return merged;
+});
 const serviceSearchActive = computed(() => Boolean(serviceSearchQuery.value.trim()));
 const serviceSearchResults = computed(() => searchServiceOptions(
   serviceOptions.value,
   serviceSearchQuery.value,
-  models,
+  searchableModels.value,
   config.value.model,
   config.value.customModel,
 ));
@@ -651,16 +669,27 @@ const servicePickerSummary = computed(() => serviceSearchActive.value
 const styleOptions = computed(() => options.styles.filter((item: any) => !item.disabled));
 const selectedServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.service));
 const selectedVideoServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.videoService));
+const selectedCustomOpenAIProvider = computed(() => getCustomOpenAIProvider(
+  config.value.customOpenAIProviders,
+  config.value.service,
+));
 const serviceLabel = computed(() => {
   const label = allServiceOptions.value.find((item: any) => item.value === config.value.service)?.label || config.value.service;
   return selectedServiceUnavailableMessage.value ? `${label}（当前浏览器不可用）` : label;
 });
-const serviceModelLabel = computed(() => getSelectedModelLabel(config.value.service, config.value.model, config.value.customModel));
-const aiContextModel = computed(() => resolveConfiguredModel(
-  config.value.model[config.value.service],
-  config.value.customModel[config.value.service],
+const serviceModelLabel = computed(() => selectedCustomOpenAIProvider.value
+  ? config.value.model[config.value.service] || selectedCustomOpenAIProvider.value.models[0] || '未选择模型'
+  : getSelectedModelLabel(config.value.service, config.value.model, config.value.customModel));
+const aiContextModel = computed(() => selectedCustomOpenAIProvider.value
+  ? config.value.model[config.value.service] || selectedCustomOpenAIProvider.value.models[0] || ''
+  : resolveConfiguredModel(
+    config.value.model[config.value.service],
+    config.value.customModel[config.value.service],
+  ));
+const canUseAIContext = computed(() => servicesType.isUseAIContext(
+  selectedCustomOpenAIProvider.value ? 'custom' : config.value.service,
+  aiContextModel.value,
 ));
-const canUseAIContext = computed(() => servicesType.isUseAIContext(config.value.service, aiContextModel.value));
 const servicePickerAriaLabel = computed(() => serviceModelLabel.value
   ? `翻译服务：${serviceLabel.value}，当前模型：${serviceModelLabel.value}`
   : `翻译服务：${serviceLabel.value}`);

@@ -124,6 +124,23 @@ describe('AI SDK endpoint 选择规则', () => {
         expect(result.endpoint).toBe('http://127.0.0.1:11434/v1/chat/completions');
     });
 
+    it('动态 custom:* 服务按 profile ID 解析各自端点并保留代理优先级', () => {
+        const customOpenAIProviders = [
+            {id: 'custom:1', name: '本地', endpoint: 'http://127.0.0.1:11434/v1/chat/completions', models: ['local-model']},
+            {id: 'custom:2', name: '远程', endpoint: 'https://remote.example/v1/chat/completions', models: ['remote-model']},
+        ];
+
+        expect(getAiSdkEndpointRoute('custom:1')).toBe('custom');
+        expect(resolveOpenAICompatibleEndpoint('custom:1', endpointConfig({customOpenAIProviders})).endpoint)
+            .toBe('http://127.0.0.1:11434/v1/chat/completions');
+        expect(resolveOpenAICompatibleEndpoint('custom:2', endpointConfig({
+            customOpenAIProviders,
+            proxy: {'custom:2': 'https://gateway.example/v1/chat/completions'},
+        })).endpoint).toBe('https://gateway.example/v1/chat/completions');
+        expect(() => resolveOpenAICompatibleEndpoint('custom:3', endpointConfig({customOpenAIProviders})))
+            .toThrow('custom:3 接口地址未配置');
+    });
+
     it('MiniMax 保留计费方案和区域选择', () => {
         const result = resolveOpenAICompatibleEndpoint(services.minimax, endpointConfig({
             minimaxBillingPlan: 'token-plan',

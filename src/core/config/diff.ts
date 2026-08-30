@@ -6,6 +6,8 @@
  */
 import {CONFIG_CREDENTIAL_FIELDS, isSensitiveConfigKey} from './credentials';
 import {options} from './catalog';
+import {isCustomOpenAIProviderId} from './customOpenAI';
+import {parseApiKeyRequirementKey} from './validation';
 
 export const CONFIG_DIFF_GROUPS = [
     {id: 'general', label: '通用设置'},
@@ -253,13 +255,44 @@ function formatCustomBody(value: unknown): string {
 }
 
 function serviceName(key: string): string {
-    return SERVICE_LABELS.get(key) ?? key;
+    if (SERVICE_LABELS.has(key)) return SERVICE_LABELS.get(key)!;
+    if (isCustomOpenAIProviderId(key)) {
+        return `自定义服务 ${key.slice('custom:'.length)}`;
+    }
+    return key;
+}
+
+function formatService(value: unknown): string {
+    return typeof value === 'string' ? serviceName(value) : formatValue(value);
+}
+
+function formatCustomOpenAIProviders(value: unknown): string {
+    if (!Array.isArray(value) || value.length === 0) return '无';
+    return formatArray(value, (item) => {
+        if (!isRecord(item)) return formatValue(item);
+        const name = typeof item.name === 'string' && item.name.trim() ? item.name.trim() : '未命名服务';
+        const endpoint = formatEndpoint(item.endpoint);
+        const models = Array.isArray(item.models) ? formatArray(item.models) : '无';
+        return `${name}（接口：${endpoint}；模型：${models}）`;
+    });
 }
 
 function serviceMapping(label: string, format: ValueFormatter = formatValue): MappingDefinition {
     return {
         itemLabel: (key) => `${serviceName(key)}${label}`,
         format,
+    };
+}
+
+function apiKeyRequirementMapping(): MappingDefinition {
+    return {
+        itemLabel: (key) => {
+            const parsed = parseApiKeyRequirementKey(key);
+            if (!parsed) return `${serviceName(key)} API Key 校验`;
+            const [service, model] = parsed;
+            return `${serviceName(service)} · ${model || '默认模型'} API Key 校验`;
+        },
+        format: formatBoolean,
     };
 }
 
@@ -274,10 +307,12 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     disableFloatingBall: {group: 'general', label: '全文翻译悬浮球', format: (value) => formatBoolean(value, true)},
     translationProgressPanelEnabled: {group: 'general', label: '翻译进度面板', format: formatBoolean},
 
-    service: {group: 'general', label: '默认翻译服务', format: (value) => formatEnum(value, SERVICE_LABELS)},
+    service: {group: 'general', label: '默认翻译服务', format: formatService},
+    customOpenAIProviders: {group: 'translationServices', label: '自定义 OpenAI 服务', format: formatCustomOpenAIProviders},
     model: {group: 'translationServices', label: '服务模型', mapping: serviceMapping('模型')},
     customModel: {group: 'translationServices', label: '自定义模型', mapping: serviceMapping('自定义模型')},
-    requireApiKey: {group: 'translationServices', label: 'API Key 校验', mapping: serviceMapping(' API Key 校验', formatBoolean)},
+    customModels: {group: 'translationServices', label: '自定义模型列表', mapping: serviceMapping('自定义模型列表')},
+    requireApiKey: {group: 'translationServices', label: 'API Key 校验', mapping: apiKeyRequirementMapping()},
     minimaxBillingPlan: {group: 'translationServices', label: 'MiniMax 计费方案', format: (value) => formatEnum(value, BILLING_PLAN_LABELS)},
     minimaxRegion: {group: 'translationServices', label: 'MiniMax API 区域', format: (value) => formatEnum(value, REGION_LABELS)},
     mimoBillingPlan: {group: 'translationServices', label: 'MiMo 计费方案', format: (value) => formatEnum(value, BILLING_PLAN_LABELS)},
@@ -319,7 +354,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     selectionAreaEnabled: {group: 'imageAndArea', label: '圈选翻译', format: formatBoolean},
 
     videoTranslationEnabled: {group: 'videoSubtitles', label: '视频字幕翻译', format: formatBoolean},
-    videoService: {group: 'videoSubtitles', label: '视频翻译服务', format: (value) => formatEnum(value, SERVICE_LABELS)},
+    videoService: {group: 'videoSubtitles', label: '视频翻译服务', format: formatService},
     videoSubtitleVisible: {group: 'videoSubtitles', label: '显示视频字幕', format: formatBoolean},
     videoSubtitleDisplayMode: {group: 'videoSubtitles', label: '视频字幕显示模式', format: (value) => formatEnum(value, VIDEO_DISPLAY_MODE_LABELS)},
     videoSubtitleFontSize: {group: 'videoSubtitles', label: '视频字幕字号', format: (value) => formatNumber(value, '%')},
@@ -330,10 +365,10 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     maxConcurrentTranslations: {group: 'advanced', label: '翻译并发数'},
     animations: {group: 'advanced', label: '动画效果', format: formatBoolean},
 
-    documentService: {group: 'tools', label: '文档翻译服务', format: (value) => formatEnum(value, SERVICE_LABELS)},
+    documentService: {group: 'tools', label: '文档翻译服务', format: formatService},
     documentModel: {group: 'tools', label: '文档翻译模型', mapping: serviceMapping('文档模型')},
     documentCustomModel: {group: 'tools', label: '文档自定义模型', mapping: serviceMapping('文档自定义模型')},
-    translationCenterServices: {group: 'tools', label: '翻译中心服务', format: (value) => Array.isArray(value) ? formatArray(value, (item) => formatEnum(item, SERVICE_LABELS)) : formatValue(value)},
+    translationCenterServices: {group: 'tools', label: '翻译中心服务', format: (value) => Array.isArray(value) ? formatArray(value, formatService) : formatValue(value)},
     translationCenterSourceLanguage: {group: 'tools', label: '翻译中心源语言', format: (value) => formatEnum(value, LANGUAGE_LABELS)},
     translationCenterTargetLanguage: {group: 'tools', label: '翻译中心目标语言', format: (value) => formatEnum(value, LANGUAGE_LABELS)},
     vocabularyBookEnabled: {group: 'tools', label: '单词本', format: formatBoolean},

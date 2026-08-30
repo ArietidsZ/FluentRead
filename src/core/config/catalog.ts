@@ -7,6 +7,7 @@
  */
 
 import {DEFAULT_DEEPLX_ENDPOINT} from "./deeplx";
+import {CUSTOM_OPENAI_RESERVED_MODEL_ID, isCustomOpenAIProviderId} from './customOpenAI';
 
 export const services = {
     // 机器翻译
@@ -188,28 +189,28 @@ export const servicesType = {
     ]),
 
     isMachine: (service: string) => servicesType.machine.has(service),
-    isAI: (service: string) => servicesType.AI.has(service),
-    isAiSdk: (service: string) => servicesType.aiSdk.has(service),
+    isAI: (service: string) => servicesType.AI.has(service) || isCustomOpenAIProviderId(service),
+    isAiSdk: (service: string) => servicesType.aiSdk.has(service) || isCustomOpenAIProviderId(service),
     isUseAIContext: (service: string, model = '') =>
-        servicesType.AI.has(service)
+        servicesType.isAI(service)
         && service !== services.huanYuanTranslation
         && !(service === services.tongyi && model.startsWith('qwen-mt')),
-    isUseToken: (service: string) => servicesType.useToken.has(service),
-    isUseProxy: (service: string) => servicesType.useProxy.has(service),
-    isUseModel: (service: string) => servicesType.useModel.has(service),
+    isUseToken: (service: string) => servicesType.useToken.has(service) || isCustomOpenAIProviderId(service),
+    isUseProxy: (service: string) => servicesType.useProxy.has(service) || isCustomOpenAIProviderId(service),
+    isUseModel: (service: string) => servicesType.useModel.has(service) || isCustomOpenAIProviderId(service),
     // 所有 AI 服务的请求体都支持附加顶层字段。
-    isUseCustomBody: (service: string) => servicesType.AI.has(service),
-    isCustom: (service: string) => service === services.custom,
+    isUseCustomBody: (service: string) => servicesType.isAI(service),
+    isCustom: (service: string) => isCustomOpenAIProviderId(service),
     isNewApi: (service: string) => service === services.newapi,
     // 文心一言已迁移到千帆 v2 的 Bearer Token 鉴权；保留方法供 UI 兼容。
     isUseAkSk: (_service: string) => false,
     isYoudao: (service: string) => service === services.youdao,
     isTencent: (service: string) => service === services.tencent || service === services.huanYuanTranslation,
     isAzureOpenai: (service: string) => service === services.azureOpenai,
-    isUseCustomUrl: (service: string) => servicesType.useCustomUrl.has(service),
+    isUseCustomUrl: (service: string) => servicesType.useCustomUrl.has(service) || isCustomOpenAIProviderId(service),
 };
 
-export const customModelString = "自定义模型";
+export const customModelString = CUSTOM_OPENAI_RESERVED_MODEL_ID;
 
 export const minimaxBillingPlans = [
     {value: "payg", label: "按量付费（API）"},

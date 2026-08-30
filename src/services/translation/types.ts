@@ -6,6 +6,8 @@
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
+import type {CustomOpenAIProvider} from '@/src/core/config/customOpenAI';
+
 export interface TranslationRequestMessageBase {
     context?: string;
     pageContext?: string;
@@ -85,6 +87,7 @@ export interface TranslationConfigSnapshot {
     enableAIContext: boolean;
     model: Record<string, string>;
     customModel: Record<string, string>;
+    customOpenAIProviders?: CustomOpenAIProvider[];
     proxy: Record<string, string>;
     custom: string;
     deeplx: string;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { defaultOption } from '@/src/core/config/catalog'
+import {defaultOption, services} from '@/src/core/config/catalog'
 import {
   isConfigImportValid,
   prepareConfigForExport,
@@ -22,6 +22,11 @@ describe('configuration transfer helpers', () => {
     expect(isConfigImportValid({...validConfig, on: false, display: 0, service: 'freeTranslation'})).toBe(true)
     expect(isConfigImportValid({ ...validConfig, service: 42 })).toBe(false)
     expect(isConfigImportValid({ ...validConfig, service: 'not-a-real-service' })).toBe(false)
+    expect(isConfigImportValid({
+      ...validConfig,
+      service: 'custom:missing',
+      customOpenAIProviders: [],
+    })).toBe(false)
     expect(isConfigImportValid({ ...validConfig, on: null })).toBe(false)
     expect(isConfigImportValid({ ...validConfig, display: {} })).toBe(false)
     expect(isConfigImportValid({ ...validConfig, display: 2 })).toBe(false)
@@ -172,6 +177,7 @@ describe('configuration transfer helpers', () => {
     expect(exported.extra).toEqual(source.extra)
     expect(exported.model).toEqual(source.model)
     expect(exported.customModel).toEqual(source.customModel)
+    expect(exported.customModels).toEqual(source.customModels)
     expect(exported.customBody).toEqual(source.customBody)
     expect(exported.proxy).toEqual(source.proxy)
     expect(exported.system_role).toEqual(source.system_role)
@@ -201,6 +207,7 @@ describe('configuration transfer helpers', () => {
       key: 'schema-key-sentinel',
       model: {openai: 'schema-model-sentinel'},
       customModel: {openai: 'schema-custom-model-sentinel'},
+      customModels: {openai: ['schema-custom-model-sentinel', 'schema-custom-model-two']},
       customBody: {openai: '{"schema":"custom-body-sentinel"}'},
       proxy: {openai: 'https://schema-proxy.invalid/v1'},
       extra: {schema: 'extra-sentinel'},
@@ -283,6 +290,178 @@ describe('configuration transfer helpers', () => {
     expect(prepared.extra).toEqual({keep: true})
   })
 
+  it('动态自定义服务更换 endpoint 时不会把未显式导入的旧 token 发送给新地址', () => {
+    const service = 'custom:1'
+    const current = normalizeConfig({
+      ...validConfig,
+      service,
+      customOpenAIProviders: [{
+        id: service,
+        name: '当前服务',
+        endpoint: 'https://old.example/v1/chat/completions',
+        models: ['current-model'],
+      }],
+      model: {[service]: 'current-model'},
+      token: {[service]: 'current-secret', openai: 'keep-openai'},
+    })
+    const imported = (endpoint: string, token?: Record<string, string>) => ({
+      ...validConfig,
+      service,
+      customOpenAIProviders: [{
+        id: service,
+        name: '导入服务',
+        endpoint,
+        models: ['imported-model'],
+      }],
+      model: {[service]: 'imported-model'},
+      ...(token === undefined ? {} : {token}),
+    })
+
+    const sameEndpoint = prepareConfigForImport(
+      imported('https://old.example/v1/chat/completions'),
+      current,
+    )
+    expect(sameEndpoint.token[service]).toBe('current-secret')
+
+    const changedEndpoint = prepareConfigForImport(
+      imported('https://new.example/v1/chat/completions'),
+      current,
+    )
+    expect(changedEndpoint.token).not.toHaveProperty(service)
+    expect(changedEndpoint.token.openai).toBe('keep-openai')
+
+    const explicitToken = prepareConfigForImport(
+      imported('https://new.example/v1/chat/completions', {[service]: 'imported-secret'}),
+      current,
+    )
+    expect(explicitToken.token[service]).toBe('imported-secret')
+
+    const explicitEmptyToken = prepareConfigForImport(
+      imported('https://new.example/v1/chat/completions', {[service]: ''}),
+      current,
+    )
+    expect(explicitEmptyToken.token).toHaveProperty(service, '')
+  })
+
+  it('旧 custom 配置导入并更换地址时同样解绑本机旧 token', () => {
+    const current = normalizeConfig({
+      ...validConfig,
+      service: 'custom',
+      custom: 'https://old.example/v1/chat/completions',
+      token: {custom: 'legacy-secret'},
+    })
+    const imported = prepareConfigForImport({
+      ...validConfig,
+      service: 'custom',
+      custom: 'https://new.example/v1/chat/completions',
+      model: {custom: 'legacy-model'},
+    }, current)
+
+    expect(imported.customOpenAIProviders).toEqual([
+      expect.objectContaining({id: 'custom', endpoint: 'https://new.example/v1/chat/completions'}),
+    ])
+    expect(imported.token).not.toHaveProperty('custom')
+  })
+
+  it('导入孤立动态 token 时不会创建不存在的自定义服务', () => {
+    const imported = prepareConfigForImport({
+      ...validConfig,
+      token: {'custom:orphan': 'orphan-secret'},
+    }, validConfig)
+
+    expect(imported.customOpenAIProviders).toEqual([])
+    expect(imported.token).not.toHaveProperty('custom:orphan')
+  })
+
+  it('自定义或内置服务的 proxy 改道时不会沿用未显式导入的 token', () => {
+    const customService = 'custom:proxy'
+    const current = normalizeConfig({
+      ...validConfig,
+      service: customService,
+      customOpenAIProviders: [{
+        id: customService,
+        name: '代理服务',
+        endpoint: 'https://origin.example/v1/chat/completions',
+        models: ['proxy-model'],
+      }],
+      model: {[customService]: 'proxy-model'},
+      proxy: {
+        [customService]: 'https://old-proxy.example/v1/chat/completions',
+        openai: 'https://old-openai-proxy.example/v1/chat/completions',
+      },
+      token: {[customService]: 'custom-secret', openai: 'openai-secret'},
+    })
+    const imported = prepareConfigForImport({
+      ...validConfig,
+      service: customService,
+      customOpenAIProviders: current.customOpenAIProviders,
+      model: {[customService]: 'proxy-model'},
+      proxy: {
+        [customService]: 'https://new-proxy.example/v1/chat/completions',
+        openai: 'https://new-openai-proxy.example/v1/chat/completions',
+      },
+    }, current)
+
+    expect(imported.token).not.toHaveProperty(customService)
+    expect(imported.token).not.toHaveProperty('openai')
+  })
+
+  it('有效 proxy 未变时允许自定义 profile 更新而不丢失现有 token', () => {
+    const service = 'custom:stable-proxy'
+    const proxy = 'https://stable-proxy.example/v1/chat/completions'
+    const current = normalizeConfig({
+      ...validConfig,
+      service,
+      customOpenAIProviders: [{
+        id: service,
+        name: '旧名称',
+        endpoint: 'https://old-origin.example/v1/chat/completions',
+        models: ['stable-model'],
+      }],
+      model: {[service]: 'stable-model'},
+      proxy: {[service]: proxy},
+      token: {[service]: 'stable-secret'},
+    })
+    const imported = prepareConfigForImport({
+      ...validConfig,
+      service,
+      customOpenAIProviders: [{
+        id: service,
+        name: '新名称',
+        endpoint: 'https://new-origin.example/v1/chat/completions',
+        models: ['stable-model'],
+      }],
+      model: {[service]: 'stable-model'},
+      proxy: {[service]: proxy},
+    }, current)
+
+    expect(imported.token[service]).toBe('stable-secret')
+  })
+
+  it('NewAPI、Azure 与 DeepLX 直连地址改变时解绑未显式导入的 token', () => {
+    const current = normalizeConfig({
+      ...validConfig,
+      newApiUrl: 'https://current-newapi.example/v1',
+      azureOpenaiEndpoint: 'https://current-azure.example/openai/deployments/demo/chat/completions',
+      deeplx: 'https://current-deeplx.example/translate',
+      token: {
+        [services.newapi]: 'newapi-secret',
+        [services.azureOpenai]: 'azure-secret',
+        [services.deeplx]: 'deeplx-secret',
+      },
+    })
+    const imported = prepareConfigForImport({
+      ...validConfig,
+      newApiUrl: 'https://restored-newapi.example/v1',
+      azureOpenaiEndpoint: 'https://restored-azure.example/openai/deployments/demo/chat/completions',
+      deeplx: 'https://restored-deeplx.example/translate',
+    }, current)
+
+    expect(imported.token).not.toHaveProperty(services.newapi)
+    expect(imported.token).not.toHaveProperty(services.azureOpenai)
+    expect(imported.token).not.toHaveProperty(services.deeplx)
+  })
+
   it('导入时递归丢弃未知敏感字段，但保留普通前向兼容字段和原始字符串', () => {
     const customBody = '{"nested":{"password":"body-value"}}'
     const proxy = 'https://user:proxy-password@proxy.example'
@@ -331,6 +510,17 @@ describe('configuration transfer helpers', () => {
     expect(isConfigImportValid(exported)).toBe(true)
     expect(normalizeConfig(exported).alwaysTranslateDomains).toEqual(['example.com', 'bbc.co.uk'])
     expect(normalizeConfig(exported).disabledExtensionDomains).toEqual(['example.net'])
+  })
+
+  it('公开脱敏导出保留非敏感的自定义模型列表', () => {
+    const exported = sanitizeConfigForExport(normalizeConfig({
+      ...validConfig,
+      customModels: {grok: ['private-a', 'private-b']},
+      token: {grok: 'must-not-export'},
+    }))
+
+    expect(exported.customModels).toEqual({grok: ['private-a', 'private-b']})
+    expect(exported).not.toHaveProperty('token')
   })
 
   it('DeepLX 视频服务可以经过新版导出与导入往返而不触发旧默认迁移', () => {

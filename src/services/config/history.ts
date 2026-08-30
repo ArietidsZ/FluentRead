@@ -13,6 +13,7 @@ import {
     sanitizeConfigCredentials,
     type PublicConfig,
 } from '@/src/core/config/credentials';
+import {dropTokensForChangedCredentialDestinations} from '@/src/core/config/credentialBinding';
 import {isConfigRecord, parseStoredConfig, serializeConfig} from './schema';
 
 export const CONFIG_HISTORY_LIMIT = 10 as const;
@@ -63,14 +64,20 @@ export function toRestorableConfig(value: unknown): RestorableConfig {
     return restorable as RestorableConfig;
 }
 
-/** 把可恢复快照与当前的凭据、统计和内部迁移状态重新组合成完整运行时配置。 */
+/** 把可恢复快照与地址仍兼容的当前凭据、统计和内部迁移状态重新组合成完整运行时配置。 */
 export function restoreRestorableConfig(value: unknown, currentValue: unknown): Config {
     const current = normalizeConfig(currentValue);
-    return normalizeConfig(mergeConfigCredentials({
+    const next = normalizeConfig({
         ...toRestorableConfig(value),
         count: current.count,
         videoServiceDefaultMigrated: current.videoServiceDefaultMigrated,
-    }, extractConfigCredentials(current)));
+    });
+    const credentials = dropTokensForChangedCredentialDestinations(
+        extractConfigCredentials(current),
+        current,
+        next,
+    );
+    return normalizeConfig(mergeConfigCredentials(next, credentials));
 }
 
 export function serializeConfigHistory(value: ConfigHistoryState): string {

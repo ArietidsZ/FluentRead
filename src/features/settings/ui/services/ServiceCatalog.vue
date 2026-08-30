@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/ServiceCatalog.vue
- * 文件职责：实现翻译服务目录与筛选选择界面，把机器翻译、模型服务商和聚合平台按分层目录、搜索条件与浏览器能力呈现为可切换的卡片列表。
- * 主要内容：组件接收当前服务和配置，使用 ServiceIcon、catalog 元数据及能力过滤计算可见选项，支持机器翻译折叠、AI 二级分类、关键词搜索、分组计数、选择事件和自定义模型入口。
+ * 文件职责：实现翻译服务目录与筛选选择界面，把机器翻译、模型服务商、聚合平台和动态自定义服务按分层目录呈现为可切换的卡片列表。
+ * 主要内容：组件接收当前服务和配置，支持目录分组与折叠、关键词搜索、动态 OpenAI 兼容服务、分组计数和紧凑模型选择。
  * 模块边界：目录只决定“选择哪个服务”，不编辑凭据、不测试连接也不保存配置；详细表单归 ServiceConfiguration.vue，服务定义来自 core/config，外层 SettingsSections 处理持久化。
  -->
 <template>
@@ -15,10 +15,50 @@
       <aside class="service-rail" aria-label="翻译服务列表">
         <label class="catalog-search">
           <span aria-hidden="true">⌕</span>
-          <input v-model.trim="serviceQuery" type="search" placeholder="搜索翻译服务" />
+          <input v-model.trim="serviceQuery" type="search" aria-label="搜索翻译服务" placeholder="搜索翻译服务" />
         </label>
 
-        <div v-if="filteredSections.length" class="service-groups">
+        <div v-if="hasVisibleServices" class="service-groups">
+          <section v-if="showCustomServiceGroup" class="service-group custom-service-group">
+            <div class="group-heading custom-group-heading">
+              <span>
+                <strong>我的服务</strong>
+                <small data-testid="custom-service-count">{{ customServices.length }} / {{ maximumCustomServices }}</small>
+              </span>
+              <button
+                type="button"
+                class="custom-service-add"
+                data-testid="custom-service-add"
+                :disabled="customServiceLimitReached"
+                :aria-label="customServiceLimitReached ? `自定义服务已达到 ${maximumCustomServices} 个上限` : '添加 OpenAI 兼容服务'"
+                @click="$emit('add:service')"
+              >
+                + 添加
+              </button>
+            </div>
+            <p v-if="!filteredCustomServices.length" class="custom-service-empty">
+              {{ serviceQuery ? '没有匹配的自定义服务' : '还没有自定义服务' }}
+            </p>
+            <button
+              v-for="item in filteredCustomServices"
+              :key="item.value"
+              type="button"
+              class="service-item"
+              :data-service-value="item.value"
+              :data-custom-service-id="item.value"
+              :class="{ active: service === item.value }"
+              :aria-pressed="service === item.value"
+              @click="$emit('update:service', item.value)"
+            >
+              <ServiceIcon service="custom" :label="item.label" />
+              <span class="service-copy">
+                <strong>{{ item.label }}</strong>
+                <small :title="item.description">{{ item.description || 'OpenAI 兼容服务' }}</small>
+              </span>
+              <span v-if="defaultService === item.value" class="current-dot" title="默认翻译服务"></span>
+            </button>
+          </section>
+
           <section
             v-for="section in filteredSections"
             :key="section.id"
@@ -94,7 +134,7 @@
 
       <section class="service-detail" aria-label="当前翻译服务详情">
         <div class="detail-hero">
-          <ServiceIcon :service="service" :label="selectedService?.label" size="large" />
+          <ServiceIcon :service="isCustomOpenAIProviderId(service) ? 'custom' : service" :label="selectedService?.label" size="large" />
           <div>
             <div class="detail-title-row">
               <h4>{{ selectedService?.label || '尚未配置服务' }}</h4>
@@ -106,63 +146,19 @@
 
         <div v-if="showModel" class="model-section">
           <div class="model-heading">
-            <div>
-              <span>模型列表</span>
-              <strong>{{ selectedModelLabel || '尚未选择模型' }}</strong>
-            </div>
-            <label v-if="modelOptions.length > commonModelCount" class="model-search">
-              <span aria-hidden="true">⌕</span>
-              <input v-model.trim="modelQuery" type="search" placeholder="搜索模型" />
-            </label>
+            <strong>模型</strong>
+            <small>选择已保存模型，或添加新的模型标识</small>
           </div>
-
-          <div v-if="displayedModels.length" class="model-list">
-            <div class="model-list-heading">
-              <strong>{{ modelQuery ? '搜索结果' : moreModelsOpen ? '全部模型' : '常用模型' }}</strong>
-              <span>{{ displayedModels.length }}</span>
-            </div>
-            <div
-              id="model-options"
-              class="model-grid"
-              :class="{ expanded: moreModelsOpen || modelQuery }"
-              role="listbox"
-              aria-label="可用模型"
-            >
-              <button
-                v-for="model in displayedModels"
-                :key="model"
-                type="button"
-                class="model-item"
-                :class="{ active: selectedModel === model, custom: model === customModelLabel }"
-                role="option"
-                :aria-selected="selectedModel === model"
-                @click="$emit('update:model', model)"
-              >
-                <ServiceIcon :service="model === customModelLabel ? 'custom' : service" :label="model" size="model" />
-                <span>
-                  <strong>{{ model }}</strong>
-                  <small>{{ model === customModelLabel ? '填写服务商支持的模型标识' : '使用此模型进行翻译' }}</small>
-                </span>
-                <span v-if="selectedModel === model" class="checkmark">✓</span>
-              </button>
-            </div>
-
-            <button
-              v-if="!modelQuery && moreModels.length"
-              type="button"
-              class="more-models-toggle"
-              :aria-expanded="moreModelsOpen"
-              aria-controls="model-options"
-              @click="moreModelsOpen = !moreModelsOpen"
-            >
-              <span>
-                <strong>更多模型</strong>
-                <small>{{ moreModels.length }} 个较少使用的模型</small>
-              </span>
-              <b>{{ moreModelsOpen ? '收起' : '展开' }} <i aria-hidden="true">⌄</i></b>
-            </button>
-          </div>
-          <p v-else class="catalog-empty">没有匹配的模型</p>
+          <ModelPicker
+            :options="modelOptions"
+            :selected-model="selectedModel"
+            :maximum-models="maximumModels"
+            :maximum-model-length="maximumModelLength"
+            :custom-model-count="customModelCount"
+            @select="$emit('update:model', $event)"
+            @add="$emit('add:model', $event)"
+            @remove="$emit('remove:model', $event)"
+          />
         </div>
 
         <div v-else class="no-model-panel">
@@ -182,57 +178,65 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
-import { customModelString } from '@/src/core/config/catalog'
+import { isCustomOpenAIProviderId } from '@/src/core/config/customOpenAI'
 import {
   buildServiceSections,
-  filterModels,
   filterServiceSections,
-  getSelectedModelLabel,
-  splitModelOptions,
   type ServiceOption,
   type ServiceSection,
 } from '@/src/ui/view-model/serviceCatalog'
+import ModelPicker from './ModelPicker.vue'
+
+interface ModelPickerOption {
+  value: string
+  label?: string
+  removable?: boolean
+}
 
 const props = defineProps<{
   service: string
   defaultService: string
   selectedModel?: string
   services: ServiceOption[]
-  modelOptions: string[]
-  customModels: Record<string, string>
+  modelOptions: ModelPickerOption[]
   showModel: boolean
+  maximumCustomServices: number
+  maximumModels: number
+  maximumModelLength: number
+  customModelCount: number
 }>()
 
 defineEmits<{
   'update:service': [value: string]
   'update:model': [value: string]
+  'add:service': []
+  'add:model': [value: string]
+  'remove:model': [value: string]
 }>()
 
 const serviceQuery = ref('')
-const modelQuery = ref('')
-const moreModelsOpen = ref(false)
-const commonModelCount = 4
-const customModelLabel = customModelString
-
-const sections = computed(() => buildServiceSections(props.services))
+const customServices = computed(() => props.services.filter((item) => isCustomOpenAIProviderId(item.value)))
+const builtInServices = computed(() => props.services.filter((item) => !isCustomOpenAIProviderId(item.value)))
+const sections = computed(() => buildServiceSections(builtInServices.value))
 const filteredSections = computed(() => filterServiceSections(sections.value, serviceQuery.value))
 const collapsedSectionIds = ref(new Set(['machine']))
 const manuallyCollapsedSectionIds = ref(new Set<string>())
-const filteredModels = computed(() => filterModels(props.modelOptions, modelQuery.value))
-const modelGroups = computed(() => splitModelOptions(props.modelOptions, props.selectedModel, commonModelCount))
-const moreModels = computed(() => modelGroups.value.more)
-const selectedModelLabel = computed(() => getSelectedModelLabel(
-  props.service,
-  {[props.service]: props.selectedModel || ''},
-  props.customModels,
-))
-const displayedModels = computed(() => modelQuery.value
-  ? filteredModels.value
-  : moreModelsOpen.value ? [...modelGroups.value.common, ...moreModels.value] : modelGroups.value.common)
-const selectedService = computed(() => sections.value
-  .flatMap((section) => section.groups)
-  .flatMap((group) => group.items)
-  .find((item) => item.value === props.service))
+const filteredCustomServices = computed(() => {
+  const keyword = serviceQuery.value.trim().toLocaleLowerCase()
+  if (!keyword) return customServices.value
+  return customServices.value.filter((item) => (
+    `${item.label}${item.value}${item.description || ''}${item.searchTerms?.join('') || ''}`
+      .toLocaleLowerCase()
+      .includes(keyword)
+  ))
+})
+const showCustomServiceGroup = computed(() => !serviceQuery.value || filteredCustomServices.value.length > 0)
+const hasVisibleServices = computed(() => showCustomServiceGroup.value || filteredSections.value.length > 0)
+const customServiceLimitReached = computed(() => customServices.value.length >= props.maximumCustomServices)
+const selectedService = computed(() => [
+  ...customServices.value,
+  ...sections.value.flatMap((section) => section.groups).flatMap((group) => group.items),
+].find((item) => item.value === props.service))
 
 function sectionItemCount(section: ServiceSection) {
   return section.groups.reduce((count, group) => count + group.items.length, 0)
@@ -285,12 +289,7 @@ watch(
 )
 
 watch(() => props.service, () => {
-  modelQuery.value = ''
-  moreModelsOpen.value = false
-})
-
-watch(modelQuery, () => {
-  moreModelsOpen.value = false
+  serviceQuery.value = ''
 })
 
 </script>
@@ -299,13 +298,19 @@ watch(modelQuery, () => {
 .service-catalog { display: flex; height: clamp(520px, calc(100vh - 270px), 760px); min-height: 520px; margin: 2px 0 20px; border: 1px solid #e4e7ef; border-radius: 20px; overflow: hidden; background: #fff; flex-direction: column; }
 .catalog-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: 0; flex: 1; overflow: hidden; }
 .service-rail { min-height: 0; padding: 16px 12px 18px; border-right: 1px solid #eceef3; background: #fafbfc; overflow-y: auto; }
-.catalog-search, .model-search { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 11px; border: 1px solid #dfe3eb; border-radius: 11px; background: #fff; }
-.catalog-search span, .model-search span { color: #8991a2; font-size: 16px; }
-.catalog-search input, .model-search input { width: 100%; min-width: 0; border: 0; outline: 0; color: #172033; background: transparent; font-size: 13px; }
+.catalog-search { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 11px; border: 1px solid #dfe3eb; border-radius: 11px; background: #fff; }
+.catalog-search span { color: #8991a2; font-size: 16px; }
+.catalog-search input { width: 100%; min-width: 0; border: 0; outline: 0; color: #172033; background: transparent; font-size: 13px; }
 .service-groups { display: grid; gap: 14px; margin-top: 17px; }
 .group-heading { display: flex; align-items: center; justify-content: space-between; width: 100%; margin: 0 0 5px; padding: 8px 9px; border: 0; border-bottom: 1px solid #e5e8ef; color: #667187; background: #f3f5f9; text-align: left; }
 .group-heading strong { color: #46526a; font-size: 12px; letter-spacing: .05em; }
 .group-heading span { font-size: 10px; }
+.custom-group-heading { align-items: center; }
+.custom-group-heading > span { display: flex; align-items: center; gap: 7px; }
+.custom-group-heading > span small { color: #9097a7; font-size: 10px; }
+.custom-service-add { padding: 5px 7px; border: 1px solid #ef9ab1; border-radius: 8px; color: #c72a56; background: #fff7f9; font-size: 10px; font-weight: 750; cursor: pointer; }
+.custom-service-add:disabled { border-color: #dfe3eb; color: #9aa2b1; background: #f5f6f8; cursor: not-allowed; }
+.custom-service-empty { margin: 10px 8px; color: #9299a8; font-size: 10px; text-align: center; }
 .service-group { min-width: 0; }
 .group-heading-toggle { cursor: pointer; }
 .group-heading-toggle:not(:disabled):hover { background: #eef1f6; }
@@ -338,77 +343,56 @@ watch(modelQuery, () => {
 .detail-title-row h4 { margin: 1px 0 5px; color: #172033; font-size: 22px; }
 .active-badge { padding: 4px 8px; border-radius: 999px; color: #bd2853; background: #ffe9ef; font-size: 10px; font-weight: 800; }
 .detail-hero p { margin: 0; color: #737c8f; font-size: 13px; line-height: 1.6; }
-.model-section { display: flex; min-height: 0; margin-top: 20px; flex: 0 0 auto; flex-direction: column; }
-.model-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 15px; margin-bottom: 12px; }
-.model-heading > div { display: flex; min-width: 0; flex-direction: column; }
-.model-heading span { color: #81899a; font-size: 11px; font-weight: 750; }
-.model-heading strong { overflow: hidden; margin-top: 3px; color: #172033; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
-.model-search { width: 168px; height: 34px; }
-.model-list { display: flex; min-height: 0; flex: 1; flex-direction: column; }
-.model-list-heading { display: flex; align-items: center; justify-content: space-between; margin: 0 2px 8px; color: #81899a; flex: 0 0 auto; }
-.model-list-heading strong { font-size: 12px; }
-.model-list-heading span { font-size: 11px; }
-.model-grid { display: grid; min-height: 0; max-height: 246px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-content: start; overflow-y: auto; padding: 1px 4px 4px 1px; }
-.model-grid.expanded { max-height: none; overflow-y: visible; }
-.model-item { display: grid; grid-template-columns: 30px minmax(0, 1fr) 16px; align-items: center; gap: 9px; min-width: 0; padding: 10px; border: 1px solid #e4e7ee; border-radius: 12px; color: #172033; background: #fff; text-align: left; cursor: pointer; transition: 150ms ease; }
-.model-item:hover { border-color: #f0a9bc; transform: translateY(-1px); }
-.model-item.active { border-color: #ef4776; background: #fff4f7; box-shadow: 0 7px 16px rgba(214, 50, 96, .08); }
-.model-item > span:nth-child(2) { display: flex; min-width: 0; flex-direction: column; }
-.model-item strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.model-item small { overflow: hidden; margin-top: 3px; color: #9299a8; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.checkmark { color: #da315f; font-size: 12px; font-weight: 900; }
-.more-models-toggle { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 12px; width: 100%; margin-top: 10px; padding: 11px 12px; border: 1px solid #e4e7ee; border-radius: 12px; color: #172033; background: #fafbfc; text-align: left; cursor: pointer; }
-.more-models-toggle:hover { border-color: #f0a9bc; background: #fff8fa; }
-.more-models-toggle > span { display: flex; flex-direction: column; }
-.more-models-toggle strong { font-size: 10px; }
-.more-models-toggle small { margin-top: 2px; color: #9299a8; font-size: 8px; }
-.more-models-toggle b { color: #c72a56; font-size: 9px; font-weight: 750; white-space: nowrap; }
-.more-models-toggle i { display: inline-block; margin-left: 3px; font-style: normal; transition: transform 150ms ease; }
-.more-models-toggle[aria-expanded="true"] i { transform: rotate(180deg); }
+.model-section {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  align-items: center;
+  gap: 20px;
+  min-height: 54px;
+  margin-top: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #edf0f5;
+  flex: 0 0 auto;
+}
+.model-heading { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.model-heading strong { color: #46526a; font-size: 12px; }
+.model-heading small { color: #8b93a4; font-size: 10px; line-height: 1.4; }
 .no-model-panel { display: flex; align-items: center; gap: 12px; margin-top: 20px; padding: 18px; border: 1px solid #d9eee5; border-radius: 14px; background: #f2faf6; }
 .no-model-panel > span { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: #fff; background: #28aa79; font-size: 14px; }
 .no-model-panel strong { color: #185d46; font-size: 15px; }
 .no-model-panel p { margin: 4px 0 0; color: #628074; font-size: 12px; }
-.service-configuration-slot { min-height: 0; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eceef3; overflow-y: auto; flex: 1; }
+.service-configuration-slot { min-height: 0; margin-top: 16px; padding-top: 16px; border-top: 1px solid #eceef3; overflow-y: auto; flex: 1; }
 .catalog-empty { margin: 20px 8px; color: #9299a8; font-size: 10px; text-align: center; }
 :global(:root.dark) .service-catalog,
 :global(:root.dark) .catalog-search,
-:global(:root.dark) .model-search,
-:global(:root.dark) .service-detail,
-:global(:root.dark) .model-item { border-color: var(--line); background: var(--surface); }
+:global(:root.dark) .service-detail { border-color: var(--line); background: var(--surface); }
 :global(:root.dark) .service-rail,
 :global(:root.dark) .group-heading,
-:global(:root.dark) .more-models-toggle { border-color: var(--line); background: var(--surface-soft); }
+:global(:root.dark) .custom-service-add { border-color: var(--line); background: var(--surface-soft); }
 :global(:root.dark) .service-item,
 :global(:root.dark) .catalog-search input,
-:global(:root.dark) .model-search input,
 :global(:root.dark) .group-heading strong,
 :global(:root.dark) .subgroup-heading strong,
 :global(:root.dark) .detail-title-row h4,
 :global(:root.dark) .model-heading strong,
-:global(:root.dark) .model-item,
-:global(:root.dark) .more-models-toggle { color: var(--ink); }
+:global(:root.dark) .custom-service-add { color: var(--ink); }
 :global(:root.dark) .service-copy small,
 :global(:root.dark) .detail-hero p,
-:global(:root.dark) .model-heading span,
-:global(:root.dark) .model-list-heading,
-:global(:root.dark) .model-item small,
-:global(:root.dark) .more-models-toggle small { color: var(--muted); }
+:global(:root.dark) .model-heading small,
+:global(:root.dark) .custom-service-empty { color: var(--muted); }
 :global(:root.dark) .subgroup-heading { color: var(--muted); }
 :global(:root.dark) .group-toggle-copy { color: var(--brand-strong); }
 :global(:root.dark) .detail-hero,
+:global(:root.dark) .model-section,
 :global(:root.dark) .service-configuration-slot { border-color: var(--line); }
 :global(:root.dark) .service-item:hover { border-color: var(--line); background: var(--surface); }
 :global(:root.dark) .group-heading-toggle:not(:disabled):hover { background: var(--brand-soft); }
-:global(:root.dark) .service-item.active,
-:global(:root.dark) .model-item.active { border-color: rgba(255, 138, 171, .48); background: var(--brand-soft); }
-:global(:root.dark) .more-models-toggle:hover { border-color: rgba(255, 138, 171, .48); background: var(--brand-soft); }
+:global(:root.dark) .service-item.active { border-color: rgba(255, 138, 171, .48); background: var(--brand-soft); }
 :global(:root.dark) .no-model-panel { border-color: #31594d; background: #1c342d; }
 :global(:root.dark) .no-model-panel strong { color: #a8e8d5; }
 :global(:root.dark) .no-model-panel p { color: #8fc5b5; }
 @media (max-width: 900px) {
   .catalog-layout { grid-template-columns: 220px minmax(0, 1fr); }
-  .model-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 700px) {
   .service-catalog { height: auto; min-height: 0; }
@@ -416,11 +400,9 @@ watch(modelQuery, () => {
   .service-rail { border-right: 0; border-bottom: 1px solid #eceef3; }
   .service-groups { grid-template-columns: 1fr; }
   .service-detail { padding: 18px; }
-  .model-heading { align-items: stretch; flex-direction: column; }
-  .model-search { width: 100%; }
+  .model-section { grid-template-columns: 1fr; gap: 7px; }
   .service-detail { min-height: 520px; margin: 0; padding: 18px; border: 0; border-radius: 0; overflow: visible; }
   .detail-hero { flex-wrap: wrap; }
-  .model-grid { max-height: 400px; }
   .service-configuration-slot { max-height: none; overflow: visible; }
 }
 </style>

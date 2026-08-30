@@ -105,6 +105,20 @@ describe('配置 schema 与历史纯状态机', () => {
         expect(serializeConfigHistory(cloned)).toBe(JSON.stringify(cloned));
     });
 
+    it('历史快照与恢复往返保留内置服务的已保存模型列表', () => {
+        const snapshot = toRestorableConfig({
+            ...baseConfig,
+            customModels: {grok: ['private-a', 'private-b']},
+        });
+        const restored = restoreRestorableConfig(snapshot, {
+            ...baseConfig,
+            customModels: {grok: ['current-only']},
+        });
+
+        expect(snapshot.customModels).toEqual({grok: ['private-a', 'private-b']});
+        expect(restored.customModels).toEqual({grok: ['private-a', 'private-b']});
+    });
+
     it('基线版本尊重持久化 revision，并支持显式或默认保存时间', () => {
         const fixed = createBaselineConfigHistory(baseConfig, 4, 'fixed-time');
         expect(fixed).toMatchObject({
@@ -224,6 +238,83 @@ describe('配置 schema 与历史纯状态机', () => {
         })).entries[0]?.config.videoService).toBe('deeplx');
         expect(restoreRestorableConfig(deepLxSnapshot, baseConfig).videoService).toBe('deeplx');
         expect(toRestorableConfig(null)).toMatchObject({videoService: 'microsoft'});
+    });
+
+    it('恢复历史或自动备份时只保留仍绑定同一有效地址的 token', () => {
+        const service = 'custom:history';
+        const profile = (endpoint: string) => ({
+            id: service,
+            name: '历史服务',
+            endpoint,
+            models: ['history-model'],
+        });
+        const current = {
+            ...baseConfig,
+            service,
+            customOpenAIProviders: [profile('https://current.example/v1/chat/completions')],
+            model: {[service]: 'history-model'},
+            token: {[service]: 'current-secret', openai: 'openai-secret'},
+            proxy: {openai: 'https://current-openai-proxy.example/v1/chat/completions'},
+        };
+
+        const changedEndpoint = restoreRestorableConfig({
+            ...baseConfig,
+            service,
+            customOpenAIProviders: [profile('https://restored.example/v1/chat/completions')],
+            model: {[service]: 'history-model'},
+            proxy: current.proxy,
+        }, current);
+        expect(changedEndpoint.token).not.toHaveProperty(service);
+        expect(changedEndpoint.token.openai).toBe('openai-secret');
+
+        const changedProxies = restoreRestorableConfig({
+            ...baseConfig,
+            service,
+            customOpenAIProviders: current.customOpenAIProviders,
+            model: {[service]: 'history-model'},
+            proxy: {
+                [service]: 'https://restored-custom-proxy.example/v1/chat/completions',
+                openai: 'https://restored-openai-proxy.example/v1/chat/completions',
+            },
+        }, {
+            ...current,
+            proxy: {
+                [service]: 'https://current-custom-proxy.example/v1/chat/completions',
+                openai: 'https://current-openai-proxy.example/v1/chat/completions',
+            },
+        });
+        expect(changedProxies.token).not.toHaveProperty(service);
+        expect(changedProxies.token).not.toHaveProperty('openai');
+
+        const stableProxy = 'https://stable-history-proxy.example/v1/chat/completions';
+        const sameDestination = restoreRestorableConfig({
+            ...baseConfig,
+            service,
+            customOpenAIProviders: [profile('https://restored-origin.example/v1/chat/completions')],
+            model: {[service]: 'history-model'},
+            proxy: {[service]: stableProxy},
+        }, {
+            ...current,
+            proxy: {[service]: stableProxy},
+        });
+        expect(sameDestination.token[service]).toBe('current-secret');
+    });
+
+    it('恢复 legacy custom 的不同 endpoint 时不会复用当前 token', () => {
+        const restored = restoreRestorableConfig({
+            ...baseConfig,
+            service: 'custom',
+            custom: 'https://restored-legacy.example/v1/chat/completions',
+            model: {custom: 'legacy-model'},
+        }, {
+            ...baseConfig,
+            service: 'custom',
+            custom: 'https://current-legacy.example/v1/chat/completions',
+            model: {custom: 'legacy-model'},
+            token: {custom: 'legacy-secret'},
+        });
+
+        expect(restored.token).not.toHaveProperty('custom');
     });
 
     it('撤销、重做和版本恢复在边界处保持稳定游标', () => {

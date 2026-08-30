@@ -1,11 +1,15 @@
 /**
  * @file src/features/settings/model/credentialPreview.ts
  * 文件职责：为配置和备份导入预览生成不泄露明文的凭据变化清单。
- * 主要内容：比较服务 Token、旧版标量凭据和扩展凭据，只返回新增、替换或清除状态及用户可读标签。
+ * 主要内容：比较服务 Token、旧版标量凭据和扩展凭据，只返回新增、替换或清除状态，并用内置目录或导入配置中的动态 profile 名称生成用户可读标签。
  * 模块边界：该模块只做纯比较，不返回凭据内容、不读写配置，也不决定导入是否执行。
  */
 
 import {options} from '@/src/core/config/catalog';
+import {
+    getCustomOpenAIProviderLabel,
+    normalizeCustomOpenAIProviders,
+} from '@/src/core/config/customOpenAI';
 import {extractConfigCredentials} from '@/src/core/config/credentials';
 
 export interface CredentialPreviewChange {
@@ -56,10 +60,20 @@ function credentialChange(
 export function buildCredentialPreviewChanges(beforeValue: unknown, afterValue: unknown): CredentialPreviewChange[] {
     const before = extractConfigCredentials(beforeValue);
     const after = extractConfigCredentials(afterValue);
+    const recordProviders = (value: unknown) => normalizeCustomOpenAIProviders(
+        value && typeof value === 'object'
+            ? (value as Record<string, unknown>).customOpenAIProviders
+            : undefined,
+    );
+    const customProviders = normalizeCustomOpenAIProviders([
+        ...recordProviders(afterValue),
+        ...recordProviders(beforeValue),
+    ]);
     const changes: CredentialPreviewChange[] = [];
 
     for (const service of new Set([...Object.keys(before.token), ...Object.keys(after.token)])) {
-        const serviceLabel = options.services.find((item: any) => item.value === service)?.label || service;
+        const serviceLabel = options.services.find((item: any) => item.value === service)?.label
+            || getCustomOpenAIProviderLabel(customProviders, service);
         const change = credentialChange(
             `token.${service}`,
             `${serviceLabel} API Key`,

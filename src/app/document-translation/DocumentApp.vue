@@ -1,7 +1,7 @@
 <!--
  @file src/app/document-translation/DocumentApp.vue
  文件职责：实现独立文档翻译页面的完整 Vue 应用，承载文件导入、格式化预览、分段翻译、人工校订和双语文件导出的用户流程。
- 主要内容：支持 PDF、EPUB、DOCX、HTML、TXT、Markdown、字幕与 JSON 等格式，管理拖放/选择、配置实时同步与字段级保存、翻译进度、PDF 位图预览、章节或部件导航、译文编辑和下载状态。
+ 主要内容：支持 PDF、EPUB、DOCX、HTML、TXT、Markdown、字幕与 JSON 等格式，合并内置及动态自定义服务并直接选择其已保存模型，管理拖放/选择、配置实时同步与字段级保存、翻译进度、PDF 位图预览、章节或部件导航、译文编辑和下载状态。
  模块边界：组件负责页面交互与响应式状态，不自行解析二进制格式、不实现翻译队列、配置存储协议或导出编码；解析渲染来自 document-translation feature，配置协调来自 services/config，运行时适配由本目录 runtime 注入。
 -->
 <!-- 文档页面归 app 层所有；WXT 入口只负责启动。 -->
@@ -98,18 +98,10 @@
             </select>
           </label>
           <label v-if="documentUsesModel" class="model-control">
-            <span>模型</span>
+            <span class="model-control-heading">模型<button v-if="!documentIsCustomOpenAIProvider" type="button" @click.prevent="openSettings">管理模型 ↗</button></span>
             <select v-model="selectedDocumentModel" :disabled="translating" aria-label="文档翻译模型">
               <option v-for="model in documentModelOptions" :key="model" :value="model">{{ model }}</option>
             </select>
-            <input
-              v-if="selectedDocumentModel === customModelString"
-              v-model="selectedDocumentCustomModel"
-              :disabled="translating"
-              type="text"
-              placeholder="输入自定义模型名称"
-              aria-label="文档自定义模型名称"
-            />
           </label>
           <div v-else class="model-summary">
             <span>模型</span>
@@ -415,6 +407,7 @@ import {
   getDocumentPreviewMeta,
   getDocumentReaderSourceClass,
   getDocxPartLabel as docxPartLabel,
+  getCustomOpenAIProvider,
   getMissingCredentialMessage,
   getTranslationServiceUnavailableMessage,
   isRichDocumentFormat,
@@ -431,6 +424,7 @@ import {
   servicesType,
   subscribeConfig,
   translateDocumentSegments,
+  withCustomOpenAIServiceOptions,
   type DocumentRenderMode,
   type ParsedDocument,
 } from '@/src/app/document-translation';
@@ -514,29 +508,62 @@ const formatCards = [
   {code: 'SUB', label: '各种字幕文件', tone: 'violet'},
 ];
 
-const serviceOptions = computed(() => filterAvailableTranslationServices(options.services).filter((item: any) => !item.disabled));
+const serviceOptions = computed(() => filterAvailableTranslationServices(withCustomOpenAIServiceOptions(
+  options.services,
+  config.customOpenAIProviders,
+)).filter((item: any) => !item.disabled));
 const documentServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.documentService));
-const documentUsesModel = computed(() => servicesType.isUseModel(config.documentService));
-const documentModelOptions = computed(() => models.get(config.documentService) || []);
+const selectedCustomOpenAIProvider = computed(() => getCustomOpenAIProvider(
+  config.customOpenAIProviders,
+  config.documentService,
+));
+const documentIsCustomOpenAIProvider = computed(() => Boolean(selectedCustomOpenAIProvider.value));
+const documentUsesModel = computed(() => documentIsCustomOpenAIProvider.value
+  || servicesType.isUseModel(config.documentService));
+const builtInDocumentModels = computed(() => (models.get(config.documentService) || [])
+  .filter((model) => model !== customModelString));
+const documentModelOptions = computed(() => {
+  if (selectedCustomOpenAIProvider.value) return selectedCustomOpenAIProvider.value.models;
+  return Array.from(new Set([
+    ...builtInDocumentModels.value,
+    ...(config.customModels[config.documentService] || []),
+    config.documentModel[config.documentService] === customModelString
+      ? config.documentCustomModel[config.documentService] || ''
+      : '',
+  ].filter(Boolean)));
+});
 const selectedDocumentModel = computed({
-  get: () => config.documentModel[config.documentService] || documentModelOptions.value[0] || '',
-  set: (value: string) => { config.documentModel[config.documentService] = value; },
+  get: () => documentIsCustomOpenAIProvider.value
+    ? config.documentModel[config.documentService] || documentModelOptions.value[0] || ''
+    : resolveConfiguredModel(
+      config.documentModel[config.documentService],
+      config.documentCustomModel[config.documentService],
+    ) || documentModelOptions.value[0] || '',
+  set: (value: string) => {
+    const service = config.documentService;
+    if (documentIsCustomOpenAIProvider.value || builtInDocumentModels.value.includes(value)) {
+      config.documentModel[service] = value;
+      return;
+    }
+    // requestConfigPatch 只提交显式请求的顶层字段，因此必须在同一轮同时写入
+    // sentinel 和真实模型；post-flush watcher 会把它们合并成一个原子 patch。
+    config.documentCustomModel[service] = value;
+    config.documentModel[service] = customModelString;
+  },
 });
-const selectedDocumentCustomModel = computed({
-  get: () => config.documentCustomModel[config.documentService] || '',
-  set: (value: string) => { config.documentCustomModel[config.documentService] = value; },
-});
-const documentModelValue = computed(() => resolveConfiguredModel(selectedDocumentModel.value, selectedDocumentCustomModel.value));
+const documentModelValue = computed(() => selectedDocumentModel.value);
 const credentialWarning = computed(() => {
   if (documentServiceUnavailableMessage.value) return documentServiceUnavailableMessage.value;
   if (documentUsesModel.value && !documentModelValue.value.trim()) {
-    return '文档翻译模型尚未配置，请先选择模型或填写自定义模型名称。';
+    return documentIsCustomOpenAIProvider.value
+      ? '这个自定义服务尚未保存模型，请先前往服务设置添加模型。'
+      : '文档翻译模型尚未配置，请先选择模型或填写自定义模型名称。';
   }
 
   const credentialConfig = {
     ...config,
-    model: {...config.model, [config.documentService]: selectedDocumentModel.value},
-    customModel: {...config.customModel, [config.documentService]: selectedDocumentCustomModel.value},
+    model: {...config.model, [config.documentService]: config.documentModel[config.documentService]},
+    customModel: {...config.customModel, [config.documentService]: config.documentCustomModel[config.documentService]},
   };
   return getMissingCredentialMessage(config.documentService, credentialConfig);
 });
@@ -741,6 +768,8 @@ unsubscribeConfig = subscribeConfig((nextConfig) => {
   }
 });
 
+// post flush 会把一次模型选择对 documentModel/documentCustomModel 的同步修改
+// 合并成一个字段 patch，避免先保存 sentinel 或 scalar 的半成品。
 watch(config, (value) => {
   if (!hydrated.value || applyingExternalConfig) return;
   const serialized = JSON.stringify(value);
@@ -769,7 +798,7 @@ watch(config, (value) => {
   void requestConfigPatch(patch, browser.runtime.sendMessage.bind(browser.runtime)).catch((error) => {
     console.warn('[FluentRead] 保存文档翻译设置失败', error);
   });
-}, {deep: true, flush: 'sync'});
+}, {deep: true, flush: 'post'});
 
 watch(parsedDocument, () => {
   if (isPdfDocument.value) void refreshPdfPreviews();

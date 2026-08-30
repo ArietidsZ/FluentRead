@@ -1,7 +1,7 @@
 <!--
  * @file src/features/translation-center/ui/TranslationCenter.vue
  * 文件职责：实现多翻译服务并排对比工作台，允许输入文本、选择和交换语言、增删服务、拖动排序、并发翻译、单项重试及复制结果。
- * 主要内容：组件用字段级补丁持久化语言和服务顺序，按浏览器能力隐藏不可用项，维护每张卡片的 idle/loading/success/error 状态，支持搜索服务、指针与键盘排序、复制全部和最大长度约束。
+ * 主要内容：组件用字段级补丁持久化语言和服务顺序，合并内置及动态自定义服务并按名称、端点或模型搜索，按浏览器能力隐藏不可用项，维护每张卡片的 idle/loading/success/error 状态，支持指针与键盘排序、复制全部和最大长度约束。
  * 模块边界：该 UI 不实现 provider 协议或凭据存储；翻译统一调用 app/translation client，服务目录来自 core/config，Options 外层负责组件挂载且原配置在能力不足时保持不变。
  -->
 <template>
@@ -225,7 +225,13 @@ import {
   filterAvailableTranslationServices,
   isTranslationServiceAvailable,
 } from '@/src/services/translation/capabilities'
-import { options, servicesType } from '@/src/core/config/catalog'
+import { models, options, servicesType } from '@/src/core/config/catalog'
+import {
+  getCustomOpenAIProviderModels,
+  isConfiguredCustomOpenAIProvider,
+  type CustomOpenAIProvider,
+  withCustomOpenAIServiceOptions,
+} from '@/src/core/config/customOpenAI'
 import { config, configReady, requestConfigPatch, subscribeConfig } from '@/src/services/config/store'
 import { translateText } from '@/src/app/translation/client'
 
@@ -269,6 +275,7 @@ const servicePicker = ref<HTMLElement | null>(null)
 const cards = ref<TranslationCard[]>([])
 const draggingService = ref('')
 const dragOverService = ref('')
+const customOpenAIProviders = ref<CustomOpenAIProvider[]>([])
 let activeController: AbortController | null = null
 let activeRunId = 0
 let copiedTimer: ReturnType<typeof setTimeout> | undefined
@@ -276,7 +283,10 @@ let unsubscribeConfig: (() => void) | undefined
 let configHydrated = false
 let pointerDrag: { service: string; pointerId: number } | null = null
 
-const serviceOptions = computed<ServiceOption[]>(() => filterAvailableTranslationServices(options.services)
+const serviceOptions = computed<ServiceOption[]>(() => filterAvailableTranslationServices(withCustomOpenAIServiceOptions(
+  options.services,
+  customOpenAIProviders.value,
+))
   .filter((item: any) => !item.disabled) as ServiceOption[])
 const hiddenUnavailableServices = computed(() => Array.isArray(config.translationCenterServices)
   ? config.translationCenterServices.filter(service => !isTranslationServiceAvailable(service))
@@ -293,7 +303,13 @@ const filteredServiceGroups = computed(() => {
   const keyword = serviceSearchQuery.value.toLocaleLowerCase()
   const filterItems = (items: ServiceOption[]) => items.filter(item => {
     if (!keyword) return true
-    return `${item.label}${item.description || ''}`.toLocaleLowerCase().includes(keyword)
+    const modelOptions = getCustomOpenAIProviderModels(customOpenAIProviders.value, item.value)
+    const searchableModels = modelOptions.length
+      ? modelOptions
+      : [...(models.get(item.value) || []), ...(config.customModels[item.value] || [])]
+    return `${item.label}${item.value}${item.description || ''}${searchableModels.join('')}`
+      .toLocaleLowerCase()
+      .includes(keyword)
   })
   return [
     {
@@ -304,7 +320,8 @@ const filteredServiceGroups = computed(() => {
     {
       key: 'ai',
       label: 'AI 翻译',
-      items: filterItems(availableServiceOptions.value.filter(item => servicesType.isAI(item.value))),
+      items: filterItems(availableServiceOptions.value.filter(item => servicesType.isAI(item.value)
+        || isConfiguredCustomOpenAIProvider(customOpenAIProviders.value, item.value))),
     },
   ].filter(group => group.items.length > 0)
 })
@@ -382,6 +399,10 @@ function persistTranslationCenterConfig(...fields: TranslationCenterConfigField[
 }
 
 function hydrateTranslationCenterConfig(nextConfig = config): void {
+  customOpenAIProviders.value = nextConfig.customOpenAIProviders.map(provider => ({
+    ...provider,
+    models: [...provider.models],
+  }))
   const storedOrder = getValidServiceOrder(nextConfig.translationCenterServices)
   const nextOrder = storedOrder.length ? storedOrder : getDefaultServiceOrder()
   if (!hasSameOrder(getCurrentServiceOrder(), nextOrder)) applyServiceOrder(nextOrder)
@@ -590,7 +611,12 @@ onMounted(async () => {
   hydrateTranslationCenterConfig()
   configHydrated = true
   unsubscribeConfig = subscribeConfig(nextConfig => {
-    if (!configHydrated || draggingService.value) return
+    if (!configHydrated) return
+    customOpenAIProviders.value = nextConfig.customOpenAIProviders.map(provider => ({
+      ...provider,
+      models: [...provider.models],
+    }))
+    if (draggingService.value) return
     hydrateTranslationCenterConfig(nextConfig)
   })
   document.addEventListener('pointerdown', closeServicePicker)

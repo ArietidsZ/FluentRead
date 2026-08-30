@@ -82,6 +82,9 @@ describe('popup feature visibility', () => {
         const styles = source('src/app/popup/popup.css');
 
         expect(popup).toContain('searchServiceOptions(');
+        expect(popup).toContain('withCustomOpenAIServiceOptions(');
+        expect(popup).toContain('config.value.customOpenAIProviders.forEach(provider => merged.set(provider.id, provider.models))');
+        expect(popup).toContain('searchableModels.value');
         expect(popup).toContain('aria-label="搜索翻译服务或模型"');
         expect(popup).toContain('class="service-picker-panel" role="dialog" aria-label="选择翻译服务"');
         expect(popup).toContain('role="listbox" aria-label="匹配的翻译服务"');

@@ -29,15 +29,28 @@
           <legend>翻译服务</legend>
           <label><span>服务</span><select v-model="draft.service"><option v-for="item in serviceOptions" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
           <p v-if="serviceDescription" class="hint">{{ serviceDescription }}</p>
-          <label v-if="usesModel"><span>模型</span><select v-model="draft.model[draft.service]"><option v-for="model in modelOptions" :key="model" :value="model">{{ model }}</option></select></label>
-          <label v-if="usesModel && draft.model[draft.service] === customModelString"><span>自定义模型</span><input v-model.trim="draft.customModel[draft.service]" autocomplete="off" /></label>
-          <label v-if="servicesType.isAI(draft.service) && usesToken" class="toggle"><span>当前模型需要 API Key</span><input v-model="requiresApiKey" type="checkbox" /></label>
+          <label v-if="usesModel"><span>模型</span><select v-model="selectedServiceModel"><option v-for="model in modelOptions" :key="model" :value="model">{{ model }}</option></select></label>
+          <div v-if="usesModel" class="model-add-control">
+            <button v-if="selectedModelIsRemovable" type="button" class="inline-action is-danger" @click="removeSelectedCustomModel">
+              {{ isCustomOpenAIService ? '删除当前模型' : '删除当前自定义模型' }}
+            </button>
+            <button v-if="!addingCustomModel" type="button" class="inline-action" :disabled="customModelLimitReached" @click="beginAddCustomModel">
+              {{ customModelLimitReached ? '已达到 50 个模型上限' : '+ 添加模型' }}
+            </button>
+            <template v-else>
+              <input v-model="customModelDraft" :maxlength="MAX_CUSTOM_OPENAI_MODEL_LENGTH" autocomplete="off" placeholder="输入模型标识" @input="customModelError = ''" />
+              <button type="button" class="inline-action" @click="submitCustomModel">添加</button>
+              <button type="button" class="inline-action is-plain" @click="cancelAddCustomModel">取消</button>
+            </template>
+            <small v-if="customModelError" class="model-add-error" role="alert">{{ customModelError }}</small>
+          </div>
+          <label v-if="isAIService && usesToken" class="toggle"><span>当前模型需要 API Key</span><input v-model="requiresApiKey" type="checkbox" /></label>
           <label v-if="usesToken"><span>API Key / Token</span><input v-model.trim="draft.token[draft.service]" type="password" autocomplete="off" /></label>
-          <label v-if="draft.service === services.custom"><span>自定义接口地址</span><input v-model.trim="draft.custom" inputmode="url" /></label>
+          <label v-if="isCustomOpenAIService"><span>自定义接口地址</span><input v-model.trim="customOpenAIEndpoint" inputmode="url" :maxlength="MAX_CUSTOM_OPENAI_PROVIDER_ENDPOINT_LENGTH" /></label>
           <label v-if="draft.service === services.deeplx"><span>DeepLX 地址</span><input v-model.trim="draft.deeplx" inputmode="url" /></label>
           <label v-if="draft.service === services.newapi"><span>New API 地址</span><input v-model.trim="draft.newApiUrl" inputmode="url" /></label>
           <label v-if="draft.service === services.azureOpenai"><span>Azure OpenAI 地址</span><input v-model.trim="draft.azureOpenaiEndpoint" inputmode="url" /></label>
-          <label v-if="servicesType.isUseProxy(draft.service)"><span>代理地址（可选）</span><input v-model.trim="draft.proxy[draft.service]" inputmode="url" placeholder="留空使用默认接口" /></label>
+          <label v-if="usesProxy"><span>代理地址（可选）</span><input v-model.trim="draft.proxy[draft.service]" inputmode="url" placeholder="留空使用默认接口" /></label>
           <template v-if="draft.service === services.youdao">
             <label><span>有道 App Key</span><input v-model.trim="draft.youdaoAppKey" autocomplete="off" /></label>
             <label><span>有道 App Secret</span><input v-model.trim="draft.youdaoAppSecret" type="password" autocomplete="off" /></label>
@@ -88,12 +101,28 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, ref} from 'vue';
+import {computed, onMounted, ref, watch} from 'vue';
 import browser from 'webextension-polyfill';
 import {Config} from '@/src/core/config/model';
 import {config as runtimeConfig, configReady, saveConfig} from '@/src/services/config/store';
-import {customModelString, models, options, services, servicesType} from '@/src/core/config/catalog';
-import {getApiKeyRequirementKey, getMissingCredentialMessage, isApiKeyRequired} from '@/src/core/config/validation';
+import {customModelString, models, options, resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
+import {
+  getCustomOpenAIProvider,
+  isCustomOpenAIProviderId,
+  CUSTOM_OPENAI_RESERVED_MODEL_ID,
+  MAX_CUSTOM_OPENAI_MODEL_LENGTH,
+  MAX_CUSTOM_OPENAI_PROVIDER_ENDPOINT_LENGTH,
+  MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER,
+  normalizeCustomOpenAIModels,
+  withCustomOpenAIServiceOptions,
+} from '@/src/core/config/customOpenAI';
+import {
+  createApiKeyRequirementKey,
+  getApiKeyRequirementKey,
+  getLegacyApiKeyRequirementKey,
+  getMissingCredentialMessage,
+  isApiKeyRequired,
+} from '@/src/core/config/validation';
 import {isUserscriptServiceSupported, normalizeUserscriptConfig} from './initialize';
 
 const emit = defineEmits<{close: []}>();
@@ -103,24 +132,85 @@ const draft = ref(new Config());
 const saving = ref(false);
 const status = ref('');
 const statusIsError = ref(false);
+const addingCustomModel = ref(false);
+const customModelDraft = ref('');
+const customModelError = ref('');
 
-const serviceOptions = options.services.filter(item => !item.disabled && isUserscriptServiceSupported(item.value));
 const styleOptions = options.styles.filter(item => !item.disabled && typeof item.value === 'number');
 const hoverOptions = options.keys.filter(item => !item.disabled);
-const selectedService = computed(() => serviceOptions.find(item => item.value === draft.value.service));
+const serviceOptions = computed(() => withCustomOpenAIServiceOptions(
+  options.services,
+  draft.value.customOpenAIProviders,
+).filter(item => !item.disabled && isUserscriptServiceSupported(item.value)));
+const selectedService = computed(() => serviceOptions.value.find(item => item.value === draft.value.service));
 const serviceDescription = computed(() => selectedService.value && 'description' in selectedService.value ? selectedService.value.description : '');
-const modelOptions = computed(() => models.get(draft.value.service) || []);
-const usesModel = computed(() => servicesType.isUseModel(draft.value.service));
-const usesToken = computed(() => servicesType.isUseToken(draft.value.service));
+const selectedCustomOpenAIProvider = computed(() => getCustomOpenAIProvider(
+  draft.value.customOpenAIProviders,
+  draft.value.service,
+));
+const isCustomOpenAIService = computed(() => Boolean(selectedCustomOpenAIProvider.value));
+const builtInModelOptions = computed(() => (models.get(draft.value.service) || [])
+  .filter((model) => model !== customModelString));
+const modelOptions = computed(() => selectedCustomOpenAIProvider.value?.models || Array.from(new Set([
+  ...builtInModelOptions.value,
+  ...(draft.value.customModels[draft.value.service] || []),
+  draft.value.model[draft.value.service] === customModelString
+    ? draft.value.customModel[draft.value.service] || ''
+    : '',
+].filter(Boolean))));
+const selectedServiceModel = computed({
+  get: () => selectedCustomOpenAIProvider.value
+    ? draft.value.model[draft.value.service] || modelOptions.value[0] || ''
+    : resolveConfiguredModel(
+      draft.value.model[draft.value.service],
+      draft.value.customModel[draft.value.service],
+    ) || modelOptions.value[0] || '',
+  set: (model: string) => {
+    const service = draft.value.service;
+    if (selectedCustomOpenAIProvider.value || builtInModelOptions.value.includes(model)) {
+      draft.value.model[service] = model;
+      return;
+    }
+    draft.value.customModel[service] = model;
+    draft.value.model[service] = customModelString;
+  },
+});
+const customModelLimitReached = computed(() => (
+  selectedCustomOpenAIProvider.value?.models.length
+  ?? draft.value.customModels[draft.value.service]?.length
+  ?? 0
+) >= MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER);
+const selectedModelIsRemovable = computed(() => selectedCustomOpenAIProvider.value
+  ? selectedCustomOpenAIProvider.value.models.includes(selectedServiceModel.value)
+  : (draft.value.customModels[draft.value.service] || []).includes(selectedServiceModel.value));
+const usesModel = computed(() => isCustomOpenAIService.value || servicesType.isUseModel(draft.value.service));
+const usesToken = computed(() => isCustomOpenAIService.value || servicesType.isUseToken(draft.value.service));
+const usesProxy = computed(() => isCustomOpenAIService.value || servicesType.isUseProxy(draft.value.service));
+const isAIService = computed(() => isCustomOpenAIService.value || servicesType.isAI(draft.value.service));
+const customOpenAIEndpoint = computed({
+  get: () => selectedCustomOpenAIProvider.value?.endpoint || '',
+  set: (endpoint: string) => {
+    const service = draft.value.service;
+    if (!isCustomOpenAIProviderId(service)) return;
+    draft.value.customOpenAIProviders = draft.value.customOpenAIProviders.map(provider => (
+      provider.id === service ? {...provider, endpoint} : provider
+    ));
+    // 旧 `custom` 字段继续镜像 legacy profile，保证旧 userscript 版本回退时仍能读取同一地址。
+    if (service === services.custom) draft.value.custom = endpoint;
+  },
+});
 const requiresApiKey = computed({
   get: () => isApiKeyRequired(draft.value.service, draft.value),
   set: (required: boolean) => {
     draft.value.requireApiKey[getApiKeyRequirementKey(draft.value.service, draft.value)] = required;
   },
 });
-const canUseAIContext = computed(() => servicesType.isUseAIContext(
+const canUseAIContext = computed(() => isCustomOpenAIService.value || servicesType.isUseAIContext(
   draft.value.service,
-  draft.value.model[draft.value.service] || '',
+  resolveConfiguredModel(
+    draft.value.model[draft.value.service],
+    draft.value.customModel[draft.value.service],
+  ),
 ));
 const credentialWarning = computed(() => getMissingCredentialMessage(draft.value.service, draft.value) || '');
 const floatingBallEnabled = computed({
@@ -130,6 +220,101 @@ const floatingBallEnabled = computed({
 const isDark = computed(() => draft.value.theme === 'dark' || (
   draft.value.theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches
 ));
+
+function beginAddCustomModel(): void {
+  if (customModelLimitReached.value) return;
+  addingCustomModel.value = true;
+  customModelDraft.value = '';
+  customModelError.value = '';
+}
+
+function cancelAddCustomModel(): void {
+  addingCustomModel.value = false;
+  customModelDraft.value = '';
+  customModelError.value = '';
+}
+
+function submitCustomModel(): void {
+  const model = customModelDraft.value.trim();
+  if (!model) {
+    customModelError.value = '请输入模型标识';
+    return;
+  }
+  if (model === CUSTOM_OPENAI_RESERVED_MODEL_ID) {
+    customModelError.value = `“${CUSTOM_OPENAI_RESERVED_MODEL_ID}”是界面保留名称`;
+    return;
+  }
+  if (modelOptions.value.includes(model)) {
+    customModelError.value = '该模型已经存在';
+    return;
+  }
+  const service = draft.value.service;
+  if (selectedCustomOpenAIProvider.value) {
+    draft.value.customOpenAIProviders = draft.value.customOpenAIProviders.map((provider) => (
+      provider.id === service
+        ? {...provider, models: normalizeCustomOpenAIModels([...provider.models, model])}
+        : provider
+    ));
+    selectedServiceModel.value = model;
+    cancelAddCustomModel();
+    return;
+  }
+  draft.value.customModels[service] = normalizeCustomOpenAIModels([
+    ...(draft.value.customModels[service] || []),
+    model,
+  ]);
+  selectedServiceModel.value = model;
+  cancelAddCustomModel();
+}
+
+function removeSelectedCustomModel(): void {
+  const service = draft.value.service;
+  const model = selectedServiceModel.value;
+  if (selectedCustomOpenAIProvider.value) {
+    const remaining = selectedCustomOpenAIProvider.value.models.filter((item) => item !== model);
+    draft.value.customOpenAIProviders = draft.value.customOpenAIProviders.map((provider) => (
+      provider.id === service ? {...provider, models: remaining} : provider
+    ));
+    const fallback = remaining[0] || '';
+    if (draft.value.model[service] === model) {
+      if (fallback) draft.value.model[service] = fallback;
+      else delete draft.value.model[service];
+    }
+    if (draft.value.documentModel[service] === model) {
+      if (fallback) draft.value.documentModel[service] = fallback;
+      else delete draft.value.documentModel[service];
+    }
+    delete draft.value.requireApiKey[createApiKeyRequirementKey(service, model)];
+    delete draft.value.requireApiKey[getLegacyApiKeyRequirementKey(service, model)];
+    return;
+  }
+  const remaining = (draft.value.customModels[service] || []).filter((item) => item !== model);
+  if (remaining.length > 0) draft.value.customModels[service] = remaining;
+  else delete draft.value.customModels[service];
+  const fallbackCustom = remaining[0];
+  const fallbackBuiltIn = builtInModelOptions.value[0] || '';
+  if (draft.value.model[service] === customModelString && draft.value.customModel[service] === model) {
+    if (fallbackCustom) {
+      draft.value.customModel[service] = fallbackCustom;
+    } else {
+      delete draft.value.customModel[service];
+      draft.value.model[service] = fallbackBuiltIn;
+    }
+  }
+  if (draft.value.documentModel[service] === customModelString
+    && draft.value.documentCustomModel[service] === model) {
+    if (fallbackCustom) {
+      draft.value.documentCustomModel[service] = fallbackCustom;
+    } else {
+      delete draft.value.documentCustomModel[service];
+      draft.value.documentModel[service] = fallbackBuiltIn;
+    }
+  }
+  delete draft.value.requireApiKey[createApiKeyRequirementKey(service, model)];
+  delete draft.value.requireApiKey[getLegacyApiKeyRequirementKey(service, model)];
+}
+
+watch(() => draft.value.service, cancelAddCustomModel);
 
 onMounted(async () => {
   await configReady;
@@ -216,6 +401,13 @@ textarea { resize: vertical; line-height: 1.45; }
 .hint, .warning { margin: 8px 0 0; padding: 8px 10px; border-radius: 9px; font-size: 10px; line-height: 1.5; }
 .hint { background: #f3f5f9; color: #70798a; }
 .warning { background: #fff2e7; color: #8a4a1e; }
+.model-add-control { display: flex; margin-top: 9px; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+.model-add-control input { width: min(240px, 100%); padding: 7px 9px; }
+.inline-action { padding: 7px 9px; border: 1px solid #ef9ab1; border-radius: 8px; color: #c72a56; background: #fff7f9; font-size: 10px; font-weight: 700; }
+.inline-action.is-plain { border-color: transparent; color: #6f7888; background: transparent; }
+.inline-action.is-danger { border-color: transparent; color: #a83d5b; background: transparent; }
+.inline-action:disabled { border-color: #dfe3eb; color: #9aa2b1; background: #f5f6f8; cursor: not-allowed; }
+.model-add-error { width: 100%; color: #b72f4e; font-size: 10px; text-align: right; }
 footer > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 footer button { padding: 9px 13px; border-radius: 9px; font-size: 11px; font-weight: 700; }
 .secondary { border: 1px solid #dfe3eb; background: #fff; color: #4c5567; }

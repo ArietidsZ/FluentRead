@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { reactive } from 'vue';
 import { normalizeConfig, type Config } from '@/src/core/config/model';
 import { sanitizeConfigCredentials } from '@/src/core/config/credentials';
+import { customModelString } from '@/src/core/config/catalog';
 
 const storageMock = vi.hoisted(() => ({
     writeOwner: true,
@@ -325,8 +326,14 @@ describe('统一配置存储', () => {
         await configStore.configReady;
 
         expect(configStore.config.documentService).toBe('openai');
-        expect(configStore.config.documentModel.openai).toBe('document-model');
-        expect(configStore.config.model.openai).toBe('web-model');
+        expect(configStore.config.documentModel.openai).toBe(customModelString);
+        expect(configStore.config.documentCustomModel.openai).toBe('document-model');
+        expect(configStore.config.model.openai).toBe(customModelString);
+        expect(configStore.config.customModel.openai).toBe('web-model');
+        expect(configStore.config.customModels.openai).toEqual(expect.arrayContaining([
+            'web-model',
+            'document-model',
+        ]));
     });
 
     it('文档翻译遇到未知服务时回退到免费翻译服务', async () => {
@@ -646,7 +653,12 @@ describe('统一配置存储', () => {
 
         const sentConfig = sendMessage.mock.calls[0][0].config;
         expect(() => structuredClone(sentConfig)).not.toThrow();
-        expect(sentConfig).toMatchObject({ to: 'ja', model: { openai: 'gpt-4o-mini' } });
+        expect(sentConfig).toMatchObject({
+            to: 'ja',
+            model: {openai: customModelString},
+            customModel: {openai: 'gpt-4o-mini'},
+            customModels: {openai: expect.arrayContaining(['gpt-4o-mini'])},
+        });
     });
 
     it('后台不可用时失败关闭，不在短生命周期上下文降级落盘', async () => {
@@ -815,6 +827,33 @@ describe('统一配置存储', () => {
         expect(configStore.getConfigRevision()).toBe(5);
         expect(listener).toHaveBeenCalledOnce();
         unsubscribe();
+    });
+
+    it('字段补丁接受并持久化内置服务的自定义模型列表', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4});
+        await configStore.configReady;
+        const savedModels = {grok: ['private-a', 'private-b']};
+        const sendMessage = vi.fn(async (message: {
+            mode?: string;
+            config: Config;
+            expected?: Config;
+            baseRevision: number;
+        }) => {
+            expect(message).toMatchObject({
+                mode: 'patch',
+                config: {customModels: savedModels},
+                expected: {customModels: {}},
+                baseRevision: 4,
+            });
+            const committed = {...canonical, customModels: savedModels, __fluentConfigRevision: 5};
+            storageState.set('local:config', committed);
+            storageWatchers.get('local:config')!(committed);
+            return {success: true, revision: 5};
+        });
+
+        await configStore.requestConfigPatch({customModels: savedModels}, sendMessage);
+        expect(configStore.config.customModels).toEqual(savedModels);
     });
 
     it('字段补丁冲突后回读同字段的权威新值', async () => {

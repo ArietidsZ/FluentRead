@@ -8,6 +8,7 @@
 
 import {translationProviderRegistry} from './registry';
 import {formatServiceError} from '@/src/services/translation/serviceErrors';
+import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
 import {
     attachTranslationModelUsageObserver,
 } from '@/src/services/translation/requestSnapshot';
@@ -36,7 +37,10 @@ export async function runTranslationServiceConnectionTest(
     service: string,
     usageOptions: ConnectionTestUsageOptions = {},
 ): Promise<{durationMs: number}> {
-    const adapter = translationProviderRegistry[service];
+    const adapter = translationProviderRegistry[service]
+        || (isCustomOpenAIProviderId(service)
+            ? translationProviderRegistry[LEGACY_CUSTOM_OPENAI_PROVIDER_ID]
+            : undefined);
     if (!adapter) {
         throw new Error(`未找到翻译服务适配器: ${service}`);
     }

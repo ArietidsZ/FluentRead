@@ -1,7 +1,7 @@
 <!--
  @file src/features/model-usage/ui/ModelUsageDashboard.vue
  文件职责：在 Options 设置页展示当前浏览器保存的模型调用可观测数据，并提供筛选、请求明细和清除统计入口。
- 主要内容：呈现自适应 Token 大数、无缓存输入/缓存读取/输出三段均值与占比、请求结果、趋势、服务模型分布和可调页长的稳定游标分页。
+ 主要内容：呈现自适应 Token 大数、无缓存输入/缓存读取/输出三段均值与占比、请求结果、趋势、动态自定义服务名称、服务模型分布和可调页长的稳定游标分页。
  模块边界：组件只消费后台白名单数据，不读取 API Key、不记录原文、译文、提示词或网址，也不直接访问 IndexedDB；事件采集、Token 解释、持久化及备份恢复由 services、providers、background 与统一“备份与恢复”页面拥有。
 -->
 <template>
@@ -449,6 +449,11 @@
 import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import browser from 'webextension-polyfill'
 import {options} from '@/src/core/config/catalog'
+import {
+  getCustomOpenAIProviderLabel,
+  type CustomOpenAIProvider,
+} from '@/src/core/config/customOpenAI'
+import {config, subscribeConfig} from '@/src/services/config/store'
 import {formatTokenCount, formatUsageRate} from '@/src/features/model-usage/model/tokenFormat'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 import {
@@ -497,6 +502,7 @@ const breakdownSortOptions: Array<{key: BreakdownSortKey; label: string}> = [
 ]
 
 const props = withDefaults(defineProps<{active?: boolean}>(), {active: true})
+const customOpenAIProviders = ref<CustomOpenAIProvider[]>(config.customOpenAIProviders)
 const snapshot = ref<DashboardSnapshot | null>(null)
 const selectedService = ref('')
 const selectedModel = ref('')
@@ -528,6 +534,12 @@ const resetButton = ref<HTMLButtonElement | null>(null)
 let dashboardRevision = 0
 let requestLogRevision = 0
 let mounted = false
+const unsubscribeConfig = subscribeConfig(nextConfig => {
+  customOpenAIProviders.value = nextConfig.customOpenAIProviders.map(provider => ({
+    ...provider,
+    models: [...provider.models],
+  }))
+})
 
 const selectedTotals = computed<Totals>(() => snapshot.value!.selected.totals)
 const appliedFilter = computed<Filter>(() => snapshot.value?.selected.filter || {range: range.value})
@@ -621,7 +633,9 @@ const generatedAtLabel = computed(() => snapshot.value
   : '')
 
 function serviceLabel(serviceId: string): string {
-  return options.services.find(option => option.value === serviceId)?.label || serviceId || '未知服务'
+  return options.services.find(option => option.value === serviceId)?.label
+    || getCustomOpenAIProviderLabel(customOpenAIProviders.value, serviceId)
+    || '未知服务'
 }
 
 function modelLabel(model: string): string {
@@ -958,6 +972,7 @@ onBeforeUnmount(() => {
   dashboardRevision += 1
   requestLogRevision += 1
   document.removeEventListener('visibilitychange', handleVisibilityChange)
+  unsubscribeConfig()
   setSettingsBackgroundInert(false)
 })
 </script>

@@ -2,7 +2,12 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {parseHTML} from 'linkedom';
 
 const mocks = vi.hoisted(() => ({
-  config: {animations: true, service: 'deepseek'},
+  config: {animations: true, service: 'deepseek', customOpenAIProviders: [] as Array<{
+    id: string;
+    name: string;
+    endpoint: string;
+    models: string[];
+  }>},
   showPageNotice: vi.fn(),
 }));
 
@@ -41,6 +46,7 @@ beforeEach(() => {
   Object.defineProperty(globalThis, 'window', {value: window, configurable: true});
   mocks.config.animations = true;
   mocks.config.service = 'deepseek';
+  mocks.config.customOpenAIProviders = [];
   mocks.showPageNotice.mockReset();
 });
 
@@ -151,6 +157,25 @@ describe('全文翻译节点状态指示', () => {
     expect(mocks.showPageNotice).toHaveBeenCalledTimes(2);
     expect(mocks.showPageNotice).toHaveBeenLastCalledWith(
       '扩展已更新或重新加载，请刷新当前页面后再试。',
+      'error',
+    );
+  });
+
+  it('错误原因使用动态自定义服务的保存名称', () => {
+    mocks.config.service = 'custom:team';
+    mocks.config.customOpenAIProviders = [{
+      id: 'custom:team',
+      name: '团队模型网关',
+      endpoint: 'https://gateway.example/v1',
+      models: ['team-model'],
+    }];
+    const target = document.getElementById('target')!;
+    insertFailedTip(target, 'quota exceeded', vi.fn())
+      .querySelector<HTMLElement>('.fluent-read-reason')!
+      .click();
+
+    expect(mocks.showPageNotice).toHaveBeenCalledWith(
+      '你的请求频率过高，被【团队模型网关】拒绝了，请稍后再试吧~',
       'error',
     );
   });

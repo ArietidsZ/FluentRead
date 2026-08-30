@@ -7,34 +7,79 @@
  */
 
 import { customModelString, options, services, servicesType } from './catalog';
+import {
+    getCustomOpenAIProviderLabel,
+    isCustomOpenAIProviderId,
+    LEGACY_CUSTOM_OPENAI_PROVIDER_ID,
+    type CustomOpenAIProvider,
+} from './customOpenAI';
+
+export const API_KEY_REQUIREMENT_KEY_PREFIX = 'v2:' as const;
 
 export interface CredentialConfig {
     token?: Record<string, string | undefined>;
     model?: Record<string, string | undefined>;
     customModel?: Record<string, string | undefined>;
     requireApiKey?: Record<string, boolean | undefined>;
+    customOpenAIProviders?: readonly CustomOpenAIProvider[];
     youdaoAppKey?: string;
     youdaoAppSecret?: string;
     tencentSecretId?: string;
     tencentSecretKey?: string;
 }
 
-function getServiceLabel(service: string): string {
-    return options.services.find((item) => item.value === service)?.label || service;
+function getServiceLabel(service: string, config: CredentialConfig): string {
+    if (isCustomOpenAIProviderId(service)) {
+        return getCustomOpenAIProviderLabel(config.customOpenAIProviders, service);
+    }
+    return options.services.find((item) => item.value === service)?.label
+        || service;
 }
 
-/** 使用服务和实际模型共同定位开关，避免切换模型时误用另一模型的设置。 */
-export function getApiKeyRequirementKey(service: string, config: CredentialConfig): string {
+/** JSON 元组保留 service/model 边界，模型名即使包含冒号也不会与另一个服务碰撞。 */
+export function createApiKeyRequirementKey(service: string, model: string): string {
+    return `${API_KEY_REQUIREMENT_KEY_PREFIX}${JSON.stringify([service, model])}`;
+}
+
+export function getLegacyApiKeyRequirementKey(service: string, model: string): string {
+    return `${service}:${model}`;
+}
+
+export function parseApiKeyRequirementKey(key: string): [service: string, model: string] | null {
+    if (!key.startsWith(API_KEY_REQUIREMENT_KEY_PREFIX)) return null;
+    try {
+        const value: unknown = JSON.parse(key.slice(API_KEY_REQUIREMENT_KEY_PREFIX.length));
+        return Array.isArray(value)
+            && value.length === 2
+            && typeof value[0] === 'string'
+            && typeof value[1] === 'string'
+            ? [value[0], value[1]]
+            : null;
+    } catch {
+        return null;
+    }
+}
+
+function getActualModel(service: string, config: CredentialConfig): string {
     const selectedModel = config.model?.[service] || '';
-    const actualModel = selectedModel === customModelString
+    return selectedModel === customModelString
         ? config.customModel?.[service] || selectedModel
         : selectedModel;
-    return `${service}:${actualModel}`;
+}
+
+/** 使用服务和实际模型共同定位开关，避免切换模型或含冒号 ID 时误用另一项设置。 */
+export function getApiKeyRequirementKey(service: string, config: CredentialConfig): string {
+    return createApiKeyRequirementKey(service, getActualModel(service, config));
 }
 
 export function isApiKeyRequired(service: string, config: CredentialConfig): boolean {
     if (!servicesType.isAI(service)) return true;
-    return config.requireApiKey?.[getApiKeyRequirementKey(service, config)] !== false;
+    const requirement = config.requireApiKey?.[getApiKeyRequirementKey(service, config)];
+    if (typeof requirement === 'boolean') return requirement;
+    // custom:* 是新 schema，旧版本不可能为它写入无分隔键；禁止读取可能与
+    // legacy custom + 冒号模型碰撞的旧键。内置服务与 legacy custom 仍兼容读取。
+    if (isCustomOpenAIProviderId(service) && service !== LEGACY_CUSTOM_OPENAI_PROVIDER_ID) return true;
+    return config.requireApiKey?.[getLegacyApiKeyRequirementKey(service, getActualModel(service, config))] !== false;
 }
 
 /** 返回设置页和翻译前校验共用的凭据提示；返回 null 表示当前服务不缺凭据。 */
@@ -42,7 +87,7 @@ export function getMissingCredentialMessage(
     service: string,
     config: CredentialConfig,
 ): string | null {
-    const serviceLabel = getServiceLabel(service);
+    const serviceLabel = getServiceLabel(service, config);
 
     if (servicesType.isUseToken(service) && service !== services.deeplx && isApiKeyRequired(service, config)) {
         if (!config.token?.[service]?.trim()) {

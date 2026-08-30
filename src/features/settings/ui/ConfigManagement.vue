@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/ConfigManagement.vue
 文件职责：提供备份与恢复页面的完整数据备份和设置历史。
-主要内容：首先挂载唯一的完整备份入口，再展示最近修改与自动设置快照，并在恢复前展示差异。
+主要内容：首先挂载唯一的完整备份入口，再展示最近修改与自动设置快照，在摘要中解析动态自定义服务名称，并在恢复前展示差异。
 模块边界：本组件拥有设置历史的预览与恢复；主动备份和旧文件兼容导入由 LocalDataManagement 统一编排。
 -->
 <template>
@@ -129,6 +129,7 @@ import {computed, onUnmounted, ref} from 'vue';
 import {ElMessage, ElMessageBox} from 'element-plus';
 import browser from 'webextension-polyfill';
 import {options} from '@/src/core/config/catalog';
+import {getCustomOpenAIProviderLabel} from '@/src/core/config/customOpenAI';
 import {buildConfigDiff} from '@/src/core/config/diff';
 import type {Config} from '@/src/core/config/model';
 import {
@@ -177,7 +178,8 @@ function formatTime(savedAt: string): string {
 
 function snapshotSummary(value: ConfigHistoryEntry['config'] | ConfigAutoBackupEntry['config']): string {
   const target = options.to.find((item: any) => item.value === value.to)?.label || value.to;
-  const service = options.services.find((item: any) => item.value === value.service)?.label || value.service;
+  const service = options.services.find((item: any) => item.value === value.service)?.label
+    || getCustomOpenAIProviderLabel(value.customOpenAIProviders, value.service);
   const rules = (value.alwaysTranslateDomains?.length || 0) + (value.disabledExtensionDomains?.length || 0);
   return `${target} · ${service} · ${rules} 条网站规则`;
 }

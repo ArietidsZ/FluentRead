@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest';
 
 import {buildConfigDiff} from '@/src/core/config/diff';
+import {createApiKeyRequirementKey} from '@/src/core/config/validation';
 
 function group(result: ReturnType<typeof buildConfigDiff>, id: string) {
     return result.groups.find((item) => item.id === id);
@@ -89,6 +90,104 @@ describe('配置差异预览', () => {
 
         expect(buildConfigDiff({model: 'legacy'}, {model: {openai: 'gpt-5'}}).changeCount).toBe(1);
         expect(buildConfigDiff({model: {openai: 'gpt-5'}}, {model: 'legacy'}).changeCount).toBe(1);
+    });
+
+    it('把无碰撞 API Key 校验键显示为可读的服务和模型标签', () => {
+        const key = createApiKeyRequirementKey('custom:1', 'vendor:model/latest');
+        const result = buildConfigDiff(
+            {requireApiKey: {[key]: true}},
+            {requireApiKey: {[key]: false}},
+        );
+
+        expect(group(result, 'translationServices')?.changes[0]).toEqual({
+            key: `requireApiKey.${key}`,
+            label: '自定义服务 1 · vendor:model/latest API Key 校验',
+            before: '开启',
+            after: '关闭',
+        });
+        expect(group(result, 'translationServices')?.changes[0]?.label).not.toContain('v2:[');
+
+        const defaultModelKey = createApiKeyRequirementKey('openai', '');
+        const defaultModelResult = buildConfigDiff(
+            {requireApiKey: {[defaultModelKey]: true}},
+            {requireApiKey: {[defaultModelKey]: false}},
+        );
+        expect(group(defaultModelResult, 'translationServices')?.changes[0]?.label)
+            .toBe('OpenAI · 默认模型 API Key 校验');
+    });
+
+    it('逐服务显示已保存自定义模型列表，而不是暴露原始对象', () => {
+        const result = buildConfigDiff(
+            {customModels: {grok: ['private-a']}},
+            {customModels: {grok: ['private-a', 'private-b']}},
+        );
+
+        expect(group(result, 'translationServices')?.changes[0]).toEqual({
+            key: 'customModels.grok',
+            label: 'Grok (X.AI)自定义模型列表',
+            before: 'private-a',
+            after: 'private-a、private-b',
+        });
+    });
+
+    it('让自定义服务端点和模型变化在导入预览中可辨认且不泄露地址凭据', () => {
+        const result = buildConfigDiff({
+            service: 'custom:team',
+            customOpenAIProviders: [{
+                id: 'custom:team',
+                name: '团队网关',
+                endpoint: 'https://old.example/v1',
+                models: ['model-a'],
+            }],
+        }, {
+            service: 'custom:next',
+            customOpenAIProviders: [
+                {
+                    id: 'custom:team',
+                    name: '团队网关',
+                    endpoint: 'https://user:password@new.example/v1?token=secret',
+                    models: ['model-b', 'model-c'],
+                },
+                'legacy-invalid-item',
+            ],
+        });
+
+        expect(group(result, 'general')?.changes[0]).toMatchObject({
+            before: '自定义服务 team',
+            after: '自定义服务 next',
+        });
+        const profiles = group(result, 'translationServices')?.changes[0];
+        expect(profiles?.before).toContain('https://old.example/v1');
+        expect(profiles?.before).toContain('model-a');
+        expect(profiles?.after).toContain('敏感内容已隐藏');
+        expect(profiles?.after).toContain('model-b、model-c');
+        expect(profiles?.after).toContain('legacy-invalid-item');
+        expect(JSON.stringify(result)).not.toContain('password@new.example');
+        expect(JSON.stringify(result)).not.toContain('token=secret');
+    });
+
+    it('兼容 legacy、空列表和畸形自定义 profile 的可读预览', () => {
+        const result = buildConfigDiff({
+            service: 'custom',
+            customOpenAIProviders: [],
+        }, {
+            service: 42,
+            customOpenAIProviders: [{
+                id: 'custom:unnamed',
+                name: '',
+                endpoint: '',
+                models: 'legacy-model-shape',
+            }],
+        });
+
+        expect(group(result, 'general')?.changes[0]).toMatchObject({
+            before: '自定义接口',
+            after: '42',
+        });
+        expect(group(result, 'translationServices')?.changes[0]).toMatchObject({
+            before: '无',
+            after: '未命名服务（接口：未设置；模型：无）',
+        });
     });
 
     it('完全剔除凭据字段、疑似凭据字段和非用户配置元数据', () => {
