@@ -4,6 +4,8 @@
  * 主要内容：定义 SelectionRequestTokenGate、Presentation 状态机、选区/视口类型，处理同语种判断、文本清理、敏感或可编辑区域排除、多矩形选择及边界内弹窗定位。
  * 模块边界：本模块不监听 document selection、不发消息、不渲染 Vue 或播放音频；组件负责连接 DOM，词典和 TTS 由 services/background 提供，函数保持确定性以供单元测试。
  */
+import {isTopLevelApplicationShell} from '@/src/core/translation/public';
+
 export interface SelectionRect {
     top: number;
     right: number;
@@ -266,7 +268,11 @@ function isSelectionExcludedElement(element: Element | null): boolean {
     const role = element.getAttribute('role')?.trim().toLowerCase();
     if (role && selectionExcludedRoles.has(role)) return true;
     if (isEditableSelectionElement(element)) return true;
-    return Boolean(element.closest(selectionExcludedSelector));
+    const excluded = element.closest(selectionExcludedSelector);
+    if (!excluded) return false;
+    // A broad marker on a body-level SPA shell should not suppress a direct user
+    // selection, while the boundary element itself and nested protected regions remain excluded.
+    return excluded === element || !isTopLevelApplicationShell(excluded);
 }
 
 function elementFromSelectionNode(node: Node | null): Element | null {

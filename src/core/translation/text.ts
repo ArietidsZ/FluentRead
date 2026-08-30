@@ -12,6 +12,7 @@ import {
     isProtectedDescendantElement,
     maxComposedAncestorDepth,
 } from './dom';
+import type {TranslationTextProtectionOptions} from './dom';
 
 const identifierPatterns = [
     /^https?:\/\/\S+$/iu,
@@ -44,6 +45,7 @@ export function isTranslationTextNodeProtected(
     node: Text,
     shouldStayOriginal?: (element: Element) => boolean,
     ignoredExtensionElement?: Element,
+    protectionOptions?: TranslationTextProtectionOptions,
 ): boolean {
     const parent = node.parentElement;
     if (!parent) return true;
@@ -51,7 +53,11 @@ export function isTranslationTextNodeProtected(
     for (const ancestor of composedAncestors(parent)) {
         depth += 1;
         if (depth > maxComposedAncestorDepth) return true;
-        if (isProtectedDescendantElement(ancestor, ancestor === ignoredExtensionElement)) return true;
+        if (isProtectedDescendantElement(
+            ancestor,
+            ancestor === ignoredExtensionElement,
+            protectionOptions,
+        )) return true;
         if (shouldStayOriginal?.(ancestor)) return true;
     }
     return false;
@@ -61,12 +67,18 @@ function collectReadableText(
     roots: readonly Node[],
     shouldStayOriginal?: (element: Element) => boolean,
     ignoredExtensionElement?: Element,
+    protectionOptions?: TranslationTextProtectionOptions,
 ): string {
     const parts: string[] = [];
     for (const root of roots) {
         if (root.nodeType === 3) {
             const textNode = root as Text;
-            if (!isTranslationTextNodeProtected(textNode, shouldStayOriginal, ignoredExtensionElement)) {
+            if (!isTranslationTextNodeProtected(
+                textNode,
+                shouldStayOriginal,
+                ignoredExtensionElement,
+                protectionOptions,
+            )) {
                 const value = normalizeTranslationText(textNode.nodeValue ?? '');
                 if (value) parts.push(value);
             }
@@ -80,7 +92,12 @@ function collectReadableText(
         let current = walker.nextNode();
         while (current) {
             const textNode = current as Text;
-            if (!isTranslationTextNodeProtected(textNode, shouldStayOriginal, ignoredExtensionElement)) {
+            if (!isTranslationTextNodeProtected(
+                textNode,
+                shouldStayOriginal,
+                ignoredExtensionElement,
+                protectionOptions,
+            )) {
                 const value = normalizeTranslationText(textNode.nodeValue ?? '');
                 if (value) parts.push(value);
             }
@@ -114,6 +131,7 @@ export function isTranslationTextElementProtected(
     element: Element,
     shouldStayOriginal: ((element: Element) => boolean) | undefined,
     protectionCache: TranslationTextProtectionCache,
+    protectionOptions?: TranslationTextProtectionOptions,
 ): boolean {
     const cached = protectionCache.get(element);
     if (cached) return cached.protected;
@@ -140,7 +158,7 @@ export function isTranslationTextElementProtected(
         depth += 1;
         protectedByAncestor = protectedByAncestor ||
             depth > maxComposedAncestorDepth ||
-            isProtectedDescendantElement(item) ||
+            isProtectedDescendantElement(item, false, protectionOptions) ||
             shouldStayOriginal?.(item) === true;
         protectionCache.set(item, {depth, protected: protectedByAncestor});
     }
@@ -155,6 +173,7 @@ export function hasMeaningfulTranslationTextInNodes(
     roots: readonly Node[],
     shouldStayOriginal?: (element: Element) => boolean,
     protectionCache = createTranslationTextProtectionCache(),
+    protectionOptions?: TranslationTextProtectionOptions,
 ): boolean {
     const stack: Array<{node: Node; nextChildIndex: number; entered: boolean}> = [];
     const parts: string[] = [];
@@ -164,7 +183,12 @@ export function hasMeaningfulTranslationTextInNodes(
     let rootIndex = 0;
 
     const elementIsProtected = (element: Element): boolean =>
-        isTranslationTextElementProtected(element, shouldStayOriginal, protectionCache);
+        isTranslationTextElementProtected(
+            element,
+            shouldStayOriginal,
+            protectionCache,
+            protectionOptions,
+        );
 
     while (textNodes < discoveryTextNodeBudget && characters < discoveryCharacterBudget) {
         if (stack.length === 0) {
@@ -224,8 +248,14 @@ export function extractTranslationTextFromNodes(
     nodes: readonly Node[],
     shouldStayOriginal?: (element: Element) => boolean,
     ignoredExtensionElement?: Element,
+    protectionOptions?: TranslationTextProtectionOptions,
 ): string {
-    return collectReadableText(nodes, shouldStayOriginal, ignoredExtensionElement);
+    return collectReadableText(
+        nodes,
+        shouldStayOriginal,
+        ignoredExtensionElement,
+        protectionOptions,
+    );
 }
 
 /** 无需克隆候选子树，直接提取宿主页中的可读文本。 */
@@ -233,8 +263,14 @@ export function extractTranslationText(
     element: Element,
     shouldStayOriginal?: (element: Element) => boolean,
     ignoredExtensionElement?: Element,
+    protectionOptions?: TranslationTextProtectionOptions,
 ): string {
-    return collectReadableText([element], shouldStayOriginal, ignoredExtensionElement);
+    return collectReadableText(
+        [element],
+        shouldStayOriginal,
+        ignoredExtensionElement,
+        protectionOptions,
+    );
 }
 
 const hanPattern = /\p{Script=Han}/gu;

@@ -563,6 +563,53 @@ describe('translation candidate core', () => {
         expect(ids).toEqual(['allowed']);
     });
 
+    it('keeps full-page discovery strict while allowing explicit translation through a body-level app shell', () => {
+        const {document, core} = page(`
+            <div id="app" class="notranslate">
+                <main><article><p id="content">Readable application content.</p>
+                    <div class="notranslate"><p id="protected">Protected local content.</p></div>
+                </article></main>
+            </div>
+        `);
+        const content = document.querySelector('#content') as HTMLElement;
+        const source = content.firstChild;
+        if (!source) throw new Error('hover fixture text is missing');
+
+        expect(core.discover(document)).toEqual([]);
+        expect(core.inspect(content).candidate).toBeNull();
+        expect(core.resolve(document.querySelector('#app'))).toBeNull();
+        expect(core.resolve(source)).toMatchObject({
+            element: content,
+            kind: 'content',
+            allowTopLevelApplicationShell: true,
+        });
+        expect(extractTranslationText(
+            content,
+            core.shouldStayOriginal,
+            undefined,
+            {allowTopLevelApplicationShell: true, protectedElement: content},
+        )).toBe('Readable application content.');
+
+        Object.defineProperty(document, 'elementFromPoint', {
+            configurable: true,
+            value: () => content,
+        });
+        expect(core.resolveAtPoint(document, 1, 2)).toMatchObject({
+            element: content,
+            allowTopLevelApplicationShell: true,
+        });
+
+        const local = document.querySelector('#protected') as HTMLElement;
+        expect(core.resolve(local.firstChild)).toBeNull();
+
+        const {document: nestedDocument, core: nestedCore} = page(`
+            <div id="outer">
+                <div class="notranslate"><p id="nested">Nested protected content.</p></div>
+            </div>
+        `);
+        expect(nestedCore.resolve(nestedDocument.querySelector('#nested')?.firstChild)).toBeNull();
+    });
+
     it('preserves inline code/no-translate text without rejecting the outer prose', () => {
         const {document, core} = page(`
             <main><p id="issue-127">Set <code class="notranslate">xxx</code> to enable the feature safely.</p></main>

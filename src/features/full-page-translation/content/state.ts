@@ -64,6 +64,8 @@ export interface TranslationState {
     sourceHTML: string;
     /** runtime 为直接内联 run 创建的临时 wrapper；所有退出路径都会移除。 */
     syntheticSegment: boolean;
+    /** 显式翻译候选可穿过 body 直接子级的应用级 no-translate 外壳。 */
+    allowTopLevelApplicationShell?: boolean;
     /** 添加加载指示器之前捕获的精确直接子节点。 */
     syntheticSourceNodes?: readonly ChildNode[];
     /** 翻译开始前的内联 style 属性，用于可条件恢复。 */
@@ -195,6 +197,7 @@ export function beginTranslation(
     syntheticSegment = false,
     sourceText = node.textContent ?? "",
     sourceTextNodes?: readonly Text[],
+    allowTopLevelApplicationShell = false,
 ): TranslationAttempt | null {
     const previous = states.get(node);
     if (previous?.phase === "loading") return null;
@@ -220,6 +223,7 @@ export function beginTranslation(
         sourceTextNodes: sourceTextNodes ? [...sourceTextNodes] : undefined,
         sourceHTML: node.innerHTML,
         syntheticSegment,
+        allowTopLevelApplicationShell: allowTopLevelApplicationShell || undefined,
         syntheticSourceNodes: syntheticSegment ? Array.from(node.childNodes) : undefined,
         originalStyleAttribute: node.getAttribute("style"),
         originalClassAttribute: node.getAttribute("class"),

@@ -41,6 +41,8 @@ export interface TranslationCandidate {
     kind: TranslationCandidateKind;
     reason: string;
     adapterId?: string;
+    /** 显式选中/悬浮解析允许穿过 body 直接子级的应用级 no-translate 外壳。 */
+    allowTopLevelApplicationShell?: boolean;
 }
 
 export interface TranslationCoreOptions {

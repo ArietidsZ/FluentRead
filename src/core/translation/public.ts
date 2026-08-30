@@ -28,7 +28,9 @@ export {
     getComposedParent,
     getOpenShadowRoots,
     isProtectedDescendantElement,
+    isTopLevelApplicationShell,
 } from './dom';
+export type {TranslationTextProtectionOptions} from './dom';
 export {
     extractTranslationText,
     extractTranslationTextFromNodes,
