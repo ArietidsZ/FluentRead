@@ -31,6 +31,7 @@ const runtime = vi.hoisted(() => ({
         from: "en",
         to: "zh",
         useCache: true,
+        enableAIContext: false,
         enableAIMultiSegment: false,
         display: 0,
         style: 0,
@@ -269,6 +270,7 @@ function translationSnapshot(
         sourceLanguage: 'en',
         targetLanguage: 'zh',
         useCache: true,
+        enableAIContext: false,
         enableAIMultiSegment: false,
         displayMode: 'bilingual',
         style: 0,
@@ -300,6 +302,7 @@ describe("全文翻译可见性锚点", () => {
         runtime.config.from = "en";
         runtime.config.to = "zh";
         runtime.config.useCache = true;
+        runtime.config.enableAIContext = false;
         runtime.config.enableAIMultiSegment = false;
         runtime.config.display = 0;
         runtime.config.style = 0;
@@ -358,6 +361,7 @@ describe("全文翻译可见性锚点", () => {
             sourceLanguage: 'en',
             targetLanguage: 'zh',
             useCache: true,
+            enableAIContext: false,
             enableAIMultiSegment: false,
             displayMode: 'bilingual',
         });
@@ -1052,7 +1056,8 @@ describe("全文翻译可见性锚点", () => {
         expect(paragraph.textContent).toBe("译:Mode changes apply to the next session.");
     });
 
-    it("全文会话冻结服务、模型、语言、缓存、显示模式和样式，配置热更新不会混入后续候选", async () => {
+    it("全文会话冻结服务、模型、语言、缓存、AI 上下文、显示模式和样式，配置热更新不会混入后续候选", async () => {
+        runtime.config.enableAIContext = true;
         runtime.config.display = 1;
         runtime.config.style = 2;
         document.body.innerHTML = [
@@ -1084,6 +1089,7 @@ describe("全文翻译可见性锚点", () => {
         runtime.config.from = 'zh';
         runtime.config.to = 'ja';
         runtime.config.useCache = false;
+        runtime.config.enableAIContext = false;
         runtime.config.display = 0;
         runtime.config.style = 4;
         firstRequest.resolve(['译:First paragraph uses the session snapshot.']);
@@ -1099,6 +1105,7 @@ describe("全文翻译可见性锚点", () => {
             sourceLanguage: 'en',
             targetLanguage: 'zh',
             useCache: true,
+            enableAIContext: true,
         }));
         expect(runtime.renderOptions).toEqual([
             {targetLanguage: 'zh', style: 2},

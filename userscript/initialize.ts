@@ -180,19 +180,19 @@ export async function ensureUserscriptConfig(): Promise<void> {
     let safe: Config;
     if (existing === null || existing === undefined) {
         safe = await migrateLegacyConfig();
-        await setStoredValue(CONFIG_STORAGE_KEY, safe);
     } else {
         safe = normalizeUserscriptConfig(existing);
-        // 与原始存储值比较，确保只改变 schema 的 normalize 迁移也会真正落盘。
-        if (JSON.stringify(comparableStoredConfig(existing)) !== JSON.stringify(safe)) {
-            await setStoredValue(CONFIG_STORAGE_KEY, safe);
-        }
     }
 
     // G-counter 才是 userscript 的计数事实来源；启动时修复可能被旧标签回写的显示投影。
     const authoritativeCount = await initializeUserscriptCount(safe.count);
-    if (safe.count !== authoritativeCount) {
-        safe.count = authoritativeCount;
+    safe.count = authoritativeCount;
+
+    // 迁移、能力收紧与计数恢复合并成一次最终写入，配置 store 只会在这一步
+    // 成功后开始水合，不能捕获并回写中间快照。
+    if (existing === null
+        || existing === undefined
+        || JSON.stringify(comparableStoredConfig(existing)) !== JSON.stringify(safe)) {
         await setStoredValue(CONFIG_STORAGE_KEY, safe);
     }
 }

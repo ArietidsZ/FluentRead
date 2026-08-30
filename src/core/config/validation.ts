@@ -100,7 +100,7 @@ export function getMissingCredentialMessage(
         return `${serviceLabel} 需要 App Key 和 App Secret，当前尚未完整配置；请先在设置中填写，再开始翻译。`;
     }
 
-    if (service === services.tencent
+    if (servicesType.isTencent(service)
         && (!config.tencentSecretId?.trim() || !config.tencentSecretKey?.trim())) {
         return `${serviceLabel} 需要 SecretId 和 SecretKey，当前尚未完整配置；请先在设置中填写，再开始翻译。`;
     }

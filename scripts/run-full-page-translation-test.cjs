@@ -401,10 +401,18 @@ async function toggleHoverTranslation(page, selector, activatePage) {
     throw new Error(`悬浮翻译目标不可见：${selector}`);
   }
   // 链接本身绝不能为了“激活页面”而先点击。只移动真实指针，再发送可信 Control 手势。
+  // 先离开目标、再分步移入并等待 :hover，避免连续后台 fixture 切换时 CDP 鼠标位置
+  // 尚未进入内容脚本而把 Control 手势落到上一个坐标。
+  await page.mouse.move(0, 0);
   await page.mouse.move(
     box.x + Math.min(16, box.width / 2),
     box.y + Math.min(14, box.height / 2),
+    {steps: 4},
   );
+  await page.waitForFunction((targetSelector) => (
+    document.querySelector(targetSelector)?.matches(':hover') === true
+  ), selector, {timeout: 5000});
+  await page.waitForTimeout(50);
   await page.keyboard.down('Control');
   await page.keyboard.up('Control');
 }
@@ -1001,10 +1009,19 @@ async function runFailureActionScenario({
   }
 
   await toggleHoverTranslation(page, FAILURE_ACTION_LINK_SELECTOR, activateTestPage);
-  await page.waitForSelector(
-    `${FAILURE_ACTION_LINK_SELECTOR} > .fluent-read-retry-wrapper`,
-    {state: 'visible', timeout: args.timeout},
-  );
+  try {
+    await page.waitForSelector(
+      `${FAILURE_ACTION_LINK_SELECTOR} > .fluent-read-retry-wrapper`,
+      {state: 'visible', timeout: args.timeout},
+    );
+  } catch (error) {
+    const diagnostic = await readFailureActionState(page).catch(() => null);
+    throw new Error(`悬浮翻译可信手势未落到预期失败态：${JSON.stringify({
+      attempts: translationFixtureServer.failureActionAttempts(),
+      diagnostic,
+      originalError: error instanceof Error ? error.message : String(error),
+    })}`);
+  }
   const failed = await readFailureActionState(page);
   assertFailureLinkInvariant(failed, baseline, '首次失败后');
   assertFailureActionPresentation(failed);

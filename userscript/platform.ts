@@ -51,9 +51,10 @@ export function createPlatformMessageHandler(openSettings: () => void) {
             const operationId = parseConfigCountOperationId(message.operationId);
             if (operationId === null) return {success: false, error: '无效的翻译计数操作标识'};
             const count = await incrementUserscriptConfigCount(delta, operationId);
-            // local:config.count 只供当前 UI 展示；跨标签精确值始终可由专用副本重新聚合。
+            // local:config.count 只是可重建投影。跨标签同时递增时，每个标签返回的
+            // 瞬时总数都可能随后被另一个副本推进；热路径不能用整份配置把较旧投影
+            // 反向覆盖。启动、聚焦和打开设置时会从专用副本重新聚合并落盘。
             config.count = count;
-            await saveConfig(config);
             return {success: true, count};
         }
 

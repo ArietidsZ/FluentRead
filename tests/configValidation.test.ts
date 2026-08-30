@@ -96,9 +96,20 @@ describe('翻译服务凭据校验', () => {
         })).toBeNull();
     });
 
-    it('覆盖有道和腾讯云的专用凭据', () => {
+    it('覆盖有道的专用凭据', () => {
         expect(getMissingCredentialMessage(services.youdao, { token: {}, youdaoAppKey: 'key' })).toContain('App Secret');
-        expect(getMissingCredentialMessage(services.tencent, { token: {}, tencentSecretId: 'id' })).toContain('SecretKey');
-        expect(getMissingCredentialMessage(services.tencent, { token: {}, tencentSecretId: 'id', tencentSecretKey: 'secret' })).toBeNull();
     });
+
+    it.each([services.tencent, services.huanYuanTranslation])(
+        '%s 对共享腾讯 SecretId/SecretKey 使用同一缺失校验',
+        (service) => {
+            expect(getMissingCredentialMessage(service, {token: {}, tencentSecretId: 'id'}))
+                .toContain('SecretKey');
+            expect(getMissingCredentialMessage(service, {
+                token: {},
+                tencentSecretId: 'id',
+                tencentSecretKey: 'secret',
+            })).toBeNull();
+        },
+    );
 });

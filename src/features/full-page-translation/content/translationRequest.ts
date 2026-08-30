@@ -25,6 +25,7 @@ export interface FullPageTranslationConfigSnapshot {
     sourceLanguage: string;
     targetLanguage: string;
     useCache: boolean;
+    enableAIContext: boolean;
     enableAIMultiSegment: boolean;
     displayMode: 'bilingual' | 'single';
     style: number;
@@ -72,6 +73,7 @@ export function captureFullPageTranslationConfig(): FullPageTranslationConfigSna
         sourceLanguage: config.from,
         targetLanguage: config.to,
         useCache: config.useCache,
+        enableAIContext: config.enableAIContext,
         enableAIMultiSegment: config.enableAIMultiSegment,
         displayMode: config.display === styles.bilingualTranslation ? 'bilingual' : 'single',
         style: config.style,
@@ -88,6 +90,7 @@ function createSnapshotTranslateOptions(
         modelOverride: snapshot.model || undefined,
         sourceLanguage: snapshot.sourceLanguage,
         targetLanguage: snapshot.targetLanguage,
+        enableAIContext: snapshot.enableAIContext,
         // 非会话 batch 需要显式禁用 broker 缓存；其余调用继续使用冻结的会话值。
         useCache: options.useCache ?? snapshot.useCache,
     };
@@ -166,6 +169,7 @@ function createCacheKey(origin: string, snapshot: FullPageTranslationConfigSnaps
         model: snapshot.model,
         from: snapshot.sourceLanguage,
         to: snapshot.targetLanguage,
+        enableAIContext: snapshot.enableAIContext,
         origin,
     });
 }
@@ -220,6 +224,7 @@ function createAIMultiSegmentSnapshotKey(snapshot: FullPageTranslationConfigSnap
         from: snapshot.sourceLanguage,
         to: snapshot.targetLanguage,
         useCache: snapshot.useCache,
+        enableAIContext: snapshot.enableAIContext,
     });
 }
 

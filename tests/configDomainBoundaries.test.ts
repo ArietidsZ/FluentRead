@@ -15,7 +15,11 @@ import {
 } from '@/src/core/config/credentials';
 import {parseCustomBody} from '@/src/core/config/customBody';
 import {DEFAULT_DEEPLX_ENDPOINT, getDeepLXEndpoints} from '@/src/core/config/deeplx';
-import {normalizeConfig} from '@/src/core/config/model';
+import {
+    DEFAULT_MAX_CONCURRENT_TRANSLATIONS,
+    normalizeConfig,
+    normalizeMaxConcurrentTranslations,
+} from '@/src/core/config/model';
 import {sanitizeConfigForExport} from '@/src/core/config/transfer';
 import {
     getApiKeyRequirementKey,
@@ -29,7 +33,17 @@ describe('配置领域边界与防御分支', () => {
     it('服务能力查询覆盖正反例与复合供应商判断', () => {
         expect(servicesType.isAiSdk(services.openai)).toBe(true);
         expect(servicesType.isAiSdk(services.gemini)).toBe(false);
-        expect(servicesType.isUseProxy(services.google)).toBe(true);
+        for (const supported of [
+            services.openai,
+            services.yiyan,
+            services.infini,
+            services.minimax,
+        ]) expect(servicesType.isUseProxy(supported), supported).toBe(true);
+        for (const ignored of [
+            services.azureOpenai,
+            services.google,
+            services.youdao,
+        ]) expect(servicesType.isUseProxy(ignored), ignored).toBe(false);
         expect(servicesType.isUseProxy(services.chromeTranslator)).toBe(false);
         expect(servicesType.isCustom(services.custom)).toBe(true);
         expect(servicesType.isCustom(services.openai)).toBe(false);
@@ -97,6 +111,22 @@ describe('配置领域边界与防御分支', () => {
         expect(normalized.deepseekApiType).toBe('auto');
         expect(normalized.selectionTranslatorTrigger).toBe('icon');
         expect(normalized.selectionTranslatorHotkey).toBe('none');
+    });
+
+    it.each([
+        ['缺失值', undefined, DEFAULT_MAX_CONCURRENT_TRANSLATIONS],
+        ['字符串', '1000', DEFAULT_MAX_CONCURRENT_TRANSLATIONS],
+        ['非有限数', Number.POSITIVE_INFINITY, DEFAULT_MAX_CONCURRENT_TRANSLATIONS],
+        ['负数', -7, DEFAULT_MAX_CONCURRENT_TRANSLATIONS],
+        ['零', 0, DEFAULT_MAX_CONCURRENT_TRANSLATIONS],
+        ['小数', 1.6, DEFAULT_MAX_CONCURRENT_TRANSLATIONS],
+        ['超出上限', 1000, DEFAULT_MAX_CONCURRENT_TRANSLATIONS],
+        ['合法上限', 100, 100],
+    ])('并发配置规范化：%s', (_label, value, expected) => {
+        const normalized = normalizeMaxConcurrentTranslations(value);
+        expect(normalized).toBe(expected);
+        expect(Number.isSafeInteger(normalized)).toBe(true);
+        expect(normalizeConfig({maxConcurrentTranslations: value}).maxConcurrentTranslations).toBe(expected);
     });
 
     it('导出拒绝非对象，凭据提示覆盖未知服务和可选字段短路', () => {

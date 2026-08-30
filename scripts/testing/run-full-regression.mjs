@@ -269,11 +269,18 @@ function deterministicSteps() {
             args: ['build:firefox'],
         }),
         step({
+            id: 'firefox-zip',
+            phase: 'local',
+            label: 'firefox release archives',
+            command: 'pnpm',
+            args: ['zip:firefox'],
+        }),
+        step({
             id: 'extension-manifest-verifier',
             phase: 'local',
             label: 'Chrome/Firefox manifest capability verifier',
             command: 'node',
-            args: ['scripts/testing/verify-extension-manifests.mjs'],
+            args: ['scripts/testing/verify-extension-manifests.mjs', '--require-firefox-archives'],
         }),
         step({
             id: 'userscript-build',

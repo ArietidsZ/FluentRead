@@ -3,7 +3,7 @@
 /**
  * @file scripts/testing/run-service-catalog-ui-test.cjs
  * 文件职责：在屏幕外隔离 Edge 中验证翻译服务目录的二级分类、顺序、折叠、搜索与响应式布局。
- * 主要内容：加载生产扩展，检查模型服务商和聚合平台清单，覆盖机器翻译手动折叠、搜索自动展开、编辑状态与窄屏无横向溢出。
+ * 主要内容：加载生产扩展，检查动态自定义服务入口、模型服务商和聚合平台清单，覆盖机器翻译手动折叠、搜索自动展开、编辑状态与窄屏无横向溢出。
  * 模块边界：脚本只操作本次创建的临时浏览器 profile，不访问用户日常浏览器，也不修改扩展持久配置或调用翻译服务。
  */
 
@@ -29,7 +29,7 @@ const expectedProviderServices = [
   'gemini', 'claude', 'grok',
 ];
 const expectedPlatformServices = [
-  'siliconCloud', 'newapi', 'infini', 'openrouter', 'groq', 'azureOpenai', 'custom',
+  'siliconCloud', 'newapi', 'infini', 'openrouter', 'groq', 'azureOpenai',
 ];
 const expectedMachineServices = [
   'freeTranslation', 'microsoft', 'google', 'deepL', 'deeplx', 'xiaoniu', 'youdao', 'tencent',
@@ -118,7 +118,7 @@ async function main() {
     await catalog.waitFor({state: 'visible', timeout});
 
     const topLevelGroups = (await catalog.locator('.group-heading strong').allTextContents()).map(value => value.trim());
-    assertSameOrder(topLevelGroups, ['机器翻译', 'AI翻译'], '顶层服务');
+    assertSameOrder(topLevelGroups, ['我的服务', '机器翻译', 'AI翻译'], '顶层服务');
     const subgroupLabels = (await catalog.locator('.subgroup-heading strong').allTextContents()).map(value => value.trim());
     assertSameOrder(subgroupLabels, ['模型服务商', '聚合平台与接口'], 'AI 二级');
 
@@ -130,6 +130,13 @@ async function main() {
       .evaluateAll(items => items.map(item => item.getAttribute('data-service-value')));
     assertSameOrder(providerServices, expectedProviderServices, '模型服务商');
     assertSameOrder(platformServices, expectedPlatformServices, '聚合平台');
+    const customGroup = catalog.locator('.custom-service-group');
+    const customCount = (await customGroup.getByTestId('custom-service-count').textContent())?.trim();
+    if (customCount !== '0 / 20'
+      || await customGroup.getByTestId('custom-service-add').isDisabled()
+      || !await customGroup.getByText('还没有自定义服务', {exact: true}).isVisible()) {
+      throw new Error(`空自定义服务入口异常：${customCount}`);
+    }
     const machineGroup = catalog.locator('[data-service-section="machine"]');
     const serviceItems = catalog.locator('.service-item');
     const machineServices = await machineGroup.locator('.service-item')
@@ -142,7 +149,14 @@ async function main() {
     if (await serviceItems.count() !== machineServices.length + expectedProviderServices.length + expectedPlatformServices.length) {
       throw new Error(`服务项数量异常：机器翻译 ${machineServices.length}，全部 ${await serviceItems.count()}`);
     }
-    report.serviceGroups = {topLevelGroups, subgroupLabels, machineServices, providerServices, platformServices};
+    report.serviceGroups = {
+      topLevelGroups,
+      subgroupLabels,
+      machineServices,
+      providerServices,
+      platformServices,
+      customServices: {count: 0, limit: 20, addEnabled: true},
+    };
     if (await serviceItems.locator('.service-brand-icon svg').count() !== await serviceItems.count()) {
       throw new Error('服务列表存在未渲染的本地图标');
     }

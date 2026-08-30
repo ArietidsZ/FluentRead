@@ -5,6 +5,11 @@ import {
 } from '@/src/services/translation/broker';
 import type {TranslationModelUsageRecord} from '@/src/services/translation/types';
 import {
+    DEFAULT_TRANSLATION_PERSISTENCE_GRACE_MS,
+    waitForBoundedPersistence,
+} from '@/src/services/translation/persistenceBarrier';
+import {
+    attachTranslationRequestControl,
     createTranslationProviderConfigSnapshot,
     getTranslationProviderConfig,
     markTranslationRemainingBudget,
@@ -128,6 +133,7 @@ function installBroker(
     now?: () => number,
     ready: Promise<unknown> = Promise.resolve(),
     includeModelUsageGeneration = true,
+    persistenceGraceMs?: number,
 ): void {
     const broker = createTranslationBroker({
         ready,
@@ -165,6 +171,7 @@ function installBroker(
         buildTranslationCacheKey: mocks.buildTranslationCacheKey,
         captureModelUsageGeneration: includeModelUsageGeneration ? () => 7 : undefined,
         recordModelUsage: mocks.recordModelUsage,
+        persistenceGraceMs,
         now,
     });
     translateWithCache = broker.translateWithCache;
@@ -299,6 +306,242 @@ describe('translation broker', () => {
         expect(mocks.cacheGet).not.toHaveBeenCalled();
         expect(mocks.cacheSet).not.toHaveBeenCalled();
         expect(mocks.service).toHaveBeenCalledTimes(2);
+    });
+
+    it('关闭缓存仍按完整身份合并同一在途单条和批量请求，并在失败后释放 pending', async () => {
+        mocks.config.useCache = false;
+        const singleProvider = deferred<string>();
+        mocks.service.mockImplementationOnce(() => singleProvider.promise);
+
+        const firstSingle = translateWithCache({origin: 'No-cache pending'});
+        const secondSingle = translateWithCache({origin: 'No-cache pending'});
+        await flushMicrotasks();
+        expect(mocks.service).toHaveBeenCalledOnce();
+        singleProvider.resolve('共享单条译文');
+        await expect(Promise.all([firstSingle, secondSingle]))
+            .resolves.toEqual(['共享单条译文', '共享单条译文']);
+
+        mocks.service.mockRejectedValueOnce(new Error('temporary failure'));
+        await expect(translateWithCache({origin: 'No-cache retry'})).rejects.toThrow('temporary failure');
+        mocks.service.mockResolvedValueOnce('恢复译文');
+        await expect(translateWithCache({origin: 'No-cache retry'})).resolves.toBe('恢复译文');
+
+        const batchProvider = deferred<string[]>();
+        mocks.service.mockImplementationOnce(() => batchProvider.promise);
+        const firstBatch = translateWithCache({origin: ['No-cache A', 'No-cache B']});
+        const secondBatch = translateWithCache({origin: ['No-cache A', 'No-cache B']});
+        await flushMicrotasks();
+        expect(mocks.service).toHaveBeenCalledTimes(4);
+        batchProvider.resolve(['无缓存甲', '无缓存乙']);
+        await expect(Promise.all([firstBatch, secondBatch])).resolves.toEqual([
+            ['无缓存甲', '无缓存乙'],
+            ['无缓存甲', '无缓存乙'],
+        ]);
+        expect(mocks.cacheGet).not.toHaveBeenCalled();
+        expect(mocks.cacheSet).not.toHaveBeenCalled();
+    });
+
+    it('内部取消会中止自己的 provider，且所有权不会劫持同缓存身份的普通调用方', async () => {
+        mocks.config.useCache = false;
+        const controlledProvider = deferred<string>();
+        let controlledSignal: AbortSignal | undefined;
+        mocks.service
+            .mockImplementationOnce((message: {abortSignal?: AbortSignal}) => {
+                controlledSignal = message.abortSignal;
+                return controlledProvider.promise;
+            })
+            .mockResolvedValueOnce('普通译文');
+        const controller = new AbortController();
+        const controlled = translateWithCache(attachTranslationRequestControl({
+            origin: 'Owned pending',
+            useCache: false,
+            requestTimeoutMs: 5_000,
+        }, {
+            signal: controller.signal,
+            ownershipKey: 'image:owned-1',
+        }));
+        await vi.waitFor(() => expect(mocks.service).toHaveBeenCalledOnce());
+
+        const ordinary = translateWithCache({
+            origin: 'Owned pending',
+            useCache: false,
+            requestTimeoutMs: 5_000,
+        });
+        await vi.waitFor(() => expect(mocks.service).toHaveBeenCalledTimes(2));
+        await expect(ordinary).resolves.toBe('普通译文');
+
+        controller.abort();
+        await expect(controlled).rejects.toMatchObject({name: 'AbortError'});
+        expect(controlledSignal?.aborted).toBe(true);
+        const identities = translationCacheIdentities();
+        expect(identities).toHaveLength(2);
+        expect(identities[0]).toEqual(identities[1]);
+
+        controlledProvider.resolve('迟到译文');
+        await flushMicrotasks();
+    });
+
+    it('内部取消在配置水合或缓存读取阶段也立即释放且不启动 provider', async () => {
+        const ready = deferred<unknown>();
+        installBroker(undefined, ready.promise);
+        const readyController = new AbortController();
+        const waitingForReady = translateWithCache(attachTranslationRequestControl({
+            origin: 'Waiting ready',
+            requestTimeoutMs: 5_000,
+        }, {
+            signal: readyController.signal,
+            ownershipKey: 'image:ready',
+        }));
+        await flushMicrotasks();
+        readyController.abort();
+        await expect(waitingForReady).rejects.toMatchObject({name: 'AbortError'});
+        expect(mocks.service).not.toHaveBeenCalled();
+        ready.resolve(undefined);
+
+        installBroker();
+        const cacheRead = deferred<string | null>();
+        mocks.cacheGet.mockImplementationOnce(() => cacheRead.promise);
+        const cacheController = new AbortController();
+        const waitingForCache = translateWithCache(attachTranslationRequestControl({
+            origin: 'Waiting cache',
+            requestTimeoutMs: 5_000,
+        }, {
+            signal: cacheController.signal,
+            ownershipKey: 'image:cache',
+        }));
+        await vi.waitFor(() => expect(mocks.cacheGet).toHaveBeenCalledOnce());
+        cacheController.abort();
+        await expect(waitingForCache).rejects.toMatchObject({name: 'AbortError'});
+        expect(mocks.service).not.toHaveBeenCalled();
+        cacheRead.resolve(null);
+        await flushMicrotasks();
+    });
+
+    it('同步缓存操作触发取消时也已取得监听所有权', async () => {
+        const controller = new AbortController();
+        mocks.cacheGet.mockImplementationOnce(() => {
+            controller.abort();
+            return new Promise<string | null>(() => undefined);
+        });
+
+        const request = translateWithCache(attachTranslationRequestControl({
+            origin: 'Synchronous cache cancellation',
+            requestTimeoutMs: 5_000,
+        }, {
+            signal: controller.signal,
+            ownershipKey: 'image:sync-cache',
+        }));
+
+        await expect(request).rejects.toMatchObject({name: 'AbortError'});
+        expect(mocks.service).not.toHaveBeenCalled();
+    });
+
+    it('预取消立即拒绝，共享摘要等待者取消不影响 owner，owner 取消继续向上抛出', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.enableAIContext = true;
+        mocks.config.useCache = false;
+        const preAborted = new AbortController();
+        preAborted.abort();
+        await expect(translateWithCache(attachTranslationRequestControl({
+            origin: 'Pre-aborted summary',
+            pageContext: 'Article',
+            useCache: false,
+        }, {
+            signal: preAborted.signal,
+            ownershipKey: 'image:shared-summary',
+        }))).rejects.toMatchObject({name: 'AbortError'});
+        expect(mocks.service).not.toHaveBeenCalled();
+
+        const summary = deferred<string>();
+        let providerSignal: AbortSignal | undefined;
+        mocks.service.mockImplementation((message: {abortSignal?: AbortSignal; summaryPrompt?: string}) => {
+            if (!message.summaryPrompt) throw new Error('取消摘要后不应启动正文 provider');
+            providerSignal = message.abortSignal;
+            return summary.promise;
+        });
+        const ownerController = new AbortController();
+        const waiterController = new AbortController();
+        const owner = translateWithCache(attachTranslationRequestControl({
+            origin: 'Summary owner',
+            pageContext: 'Shared article context',
+            useCache: false,
+        }, {
+            signal: ownerController.signal,
+            ownershipKey: 'image:shared-summary',
+        }));
+        await vi.waitFor(() => expect(mocks.service).toHaveBeenCalledOnce());
+        const waiter = translateWithCache(attachTranslationRequestControl({
+            origin: 'Summary waiter',
+            pageContext: 'Shared article context',
+            useCache: false,
+        }, {
+            signal: waiterController.signal,
+            ownershipKey: 'image:shared-summary',
+        }));
+        await flushMicrotasks();
+        expect(mocks.service).toHaveBeenCalledOnce();
+
+        waiterController.abort();
+        await expect(waiter).rejects.toMatchObject({name: 'AbortError'});
+        expect(providerSignal?.aborted).toBe(false);
+        ownerController.abort();
+        await expect(owner).rejects.toMatchObject({name: 'AbortError'});
+        expect(providerSignal?.aborted).toBe(true);
+        summary.resolve('迟到摘要');
+        await flushMicrotasks();
+    });
+
+    it('持久化宽限直接覆盖成功、失败、默认时限和诊断器异常', async () => {
+        const failure = new Error('direct persistence failure');
+        const onFailure = vi.fn();
+        const onTimeout = vi.fn();
+        await expect(waitForBoundedPersistence(Promise.resolve(), {
+            graceMs: 1.9,
+            onFailure,
+            onTimeout,
+        })).resolves.toBeUndefined();
+        expect(onFailure).not.toHaveBeenCalled();
+        expect(onTimeout).not.toHaveBeenCalled();
+
+        await expect(waitForBoundedPersistence(Promise.reject(failure), {
+            graceMs: -1,
+            onFailure,
+            onTimeout,
+        })).resolves.toBeUndefined();
+        expect(onFailure).toHaveBeenCalledWith(failure);
+
+        await expect(waitForBoundedPersistence(Promise.reject(failure), {
+            graceMs: Number.NaN,
+            onFailure: () => { throw new Error('broken failure logger'); },
+            onTimeout,
+        })).resolves.toBeUndefined();
+
+        vi.useFakeTimers();
+        const hung = waitForBoundedPersistence(new Promise<void>(() => undefined), {
+            onFailure,
+            onTimeout: () => { throw new Error('broken timeout logger'); },
+        });
+        await vi.advanceTimersByTimeAsync(DEFAULT_TRANSLATION_PERSISTENCE_GRACE_MS);
+        await expect(hung).resolves.toBeUndefined();
+    });
+
+    it('关闭缓存不会合并模型或 deadline 不同的请求，也不与缓存请求共享 pending', async () => {
+        vi.spyOn(Date, 'now').mockReturnValue(0);
+        const requests = Array.from({length: 4}, () => deferred<string>());
+        requests.forEach(({promise}) => mocks.service.mockImplementationOnce(() => promise));
+
+        const outcomes = [
+            translateWithCache({origin: 'Full identity', modelOverride: 'model-a', useCache: false, requestTimeoutMs: 2_000}),
+            translateWithCache({origin: 'Full identity', modelOverride: 'model-b', useCache: false, requestTimeoutMs: 2_000}),
+            translateWithCache({origin: 'Full identity', modelOverride: 'model-a', useCache: false, requestTimeoutMs: 3_000}),
+            translateWithCache({origin: 'Full identity', modelOverride: 'model-a', useCache: true, requestTimeoutMs: 2_000}),
+        ];
+        await flushMicrotasks();
+        expect(mocks.service).toHaveBeenCalledTimes(4);
+        requests.forEach((request, index) => request.resolve(`译文 ${index}`));
+        await expect(Promise.all(outcomes)).resolves.toEqual(['译文 0', '译文 1', '译文 2', '译文 3']);
+        expect(mocks.cacheGet).toHaveBeenCalled();
+        expect(mocks.cacheSet).toHaveBeenCalledOnce();
     });
 
     it('空单条和空批量请求直接返回，不读取凭据、缓存或 provider', async () => {
@@ -753,6 +996,43 @@ describe('translation broker', () => {
             pageContext: 'Page summary (AI-generated reference):\nAI summary\n\nAI article context',
         }));
         expect(mocks.config.enableAIContext).toBe(true);
+    });
+
+    it('请求级 AI 上下文策略覆盖实时配置，并同时约束摘要与正文 provider', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.enableAIContext = false;
+        mocks.service.mockImplementation((message: {summaryPrompt?: string; origin: string}) => (
+            Promise.resolve(message.summaryPrompt ? '冻结摘要' : `${message.origin}-译文`)
+        ));
+
+        await expect(translateWithCache({
+            origin: 'Frozen enabled',
+            pageContext: 'Session context',
+            enableAIContext: true,
+            useCache: false,
+        })).resolves.toBe('Frozen enabled-译文');
+        expect(mocks.service).toHaveBeenCalledWith(expect.objectContaining({
+            summaryPrompt: 'summarize:Session context',
+        }));
+        expect(mocks.service).toHaveBeenLastCalledWith(expect.objectContaining({
+            origin: 'Frozen enabled',
+            pageContext: expect.stringContaining('Session context'),
+        }));
+
+        mocks.service.mockClear();
+        mocks.config.enableAIContext = true;
+        await expect(translateWithCache({
+            origin: 'Frozen disabled',
+            pageContext: 'Must not leave broker',
+            enableAIContext: false,
+            useCache: false,
+        })).resolves.toBe('Frozen disabled-译文');
+        expect(mocks.service).toHaveBeenCalledOnce();
+        expect(mocks.service).toHaveBeenCalledWith(expect.objectContaining({
+            origin: 'Frozen disabled',
+            pageContext: '',
+        }));
+        expect(mocks.service.mock.calls.some(([message]) => message.summaryPrompt)).toBe(false);
     });
 
     it('在缓存写入前拦截 AI 上下文回显，并只做一次无上下文重译', async () => {
@@ -1557,7 +1837,7 @@ describe('translation broker', () => {
             pageContext: 'Same article',
             requestTimeoutMs: 4_000,
         });
-        await flushMicrotasks(20);
+        await flushMicrotasks(100);
         expect(mocks.service).toHaveBeenCalledWith(expect.objectContaining({
             origin: 'Same deadline',
             requestTimeoutMs: 3_000,
@@ -1569,7 +1849,7 @@ describe('translation broker', () => {
             pageContext: 'Same article',
             requestTimeoutMs: 4_000,
         });
-        await flushMicrotasks(20);
+        await flushMicrotasks(100);
         const translationCalls = mocks.service.mock.calls.filter(([message]) => !message.summaryPrompt);
         expect(translationCalls.map(([message]) => message.requestTimeoutMs)).toEqual([3_000]);
 
@@ -1787,7 +2067,7 @@ describe('translation broker', () => {
         expect(mocks.service).not.toHaveBeenCalled();
     });
 
-    it('摘要缓存写悬挂不阻止正文 provider 启动或返回', async () => {
+    it('摘要缓存写入在消息响应前形成 barrier，完成后才继续正文 provider', async () => {
         mocks.config.service = 'ai';
         mocks.config.enableAIContext = true;
         const summaryWrite = deferred<boolean>();
@@ -1798,35 +2078,105 @@ describe('translation broker', () => {
             Promise.resolve(message.summaryPrompt ? '页面摘要' : `${message.origin}-译文`)
         ));
 
-        await expect(translateWithCache({origin: 'Body', pageContext: 'Article'}))
-            .resolves.toBe('Body-译文');
+        let settled = false;
+        const request = translateWithCache({origin: 'Body', pageContext: 'Article'});
+        void request.finally(() => {
+            settled = true;
+        });
+        await vi.waitFor(() => expect(mocks.cacheSet).toHaveBeenCalledOnce());
         expect(mocks.service.mock.calls.filter(([message]) => message.summaryPrompt)).toHaveLength(1);
-        expect(mocks.service.mock.calls.filter(([message]) => !message.summaryPrompt)).toHaveLength(1);
+        expect(mocks.service.mock.calls.filter(([message]) => !message.summaryPrompt)).toHaveLength(0);
+        expect(settled).toBe(false);
 
         summaryWrite.resolve(true);
+        await expect(request).resolves.toBe('Body-译文');
+        expect(mocks.service.mock.calls.filter(([message]) => !message.summaryPrompt)).toHaveLength(1);
+    });
+
+    it('单条缓存写悬挂时消息保持未完成，写入完成后释放 pending', async () => {
+        const write = deferred<boolean>();
+        mocks.cacheSet.mockImplementationOnce(async (key: string, value: string) => {
+            await write.promise;
+            mocks.cacheStore.set(key, value);
+            return true;
+        });
+        mocks.service.mockResolvedValueOnce('首个译文');
+
+        let settled = false;
+        const request = translateWithCache({origin: 'Deferred single'});
+        void request.finally(() => {
+            settled = true;
+        });
+        await vi.waitFor(() => expect(mocks.cacheSet).toHaveBeenCalledOnce());
+        expect(settled).toBe(false);
+        expect(mocks.service).toHaveBeenCalledOnce();
+
+        write.resolve(true);
+        await expect(request).resolves.toBe('首个译文');
+        await expect(translateWithCache({origin: 'Deferred single'})).resolves.toBe('首个译文');
+        expect(mocks.service).toHaveBeenCalledOnce();
+    });
+
+    it('单条缓存写超过宽限期会释放响应和 pending，迟到写仍被安全观察', async () => {
+        vi.useFakeTimers();
+        installBroker(undefined, Promise.resolve(), true, 25);
+        const lateWrite = deferred<boolean>();
+        mocks.cacheSet
+            .mockImplementationOnce(() => lateWrite.promise)
+            .mockResolvedValueOnce(true);
+        mocks.service
+            .mockResolvedValueOnce('宽限期首译')
+            .mockResolvedValueOnce('释放后重试');
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+        let settled = false;
+        const request = translateWithCache({origin: 'Hung cache persistence'});
+        void request.finally(() => { settled = true; });
+        await flushMicrotasks(100);
+        expect(mocks.cacheSet).toHaveBeenCalledOnce();
+        await vi.advanceTimersByTimeAsync(24);
+        expect(settled).toBe(false);
+        await vi.advanceTimersByTimeAsync(1);
+        await expect(request).resolves.toBe('宽限期首译');
+        expect(warn).toHaveBeenCalledWith(
+            '[FluentRead] translation cache write timed out:',
+            expect.any(Error),
+        );
+
+        await expect(translateWithCache({origin: 'Hung cache persistence'})).resolves.toBe('释放后重试');
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+
+        const clearing = clearTranslationCache();
         await flushMicrotasks();
+        expect(mocks.cacheClear).not.toHaveBeenCalled();
+        lateWrite.resolve(true);
+        await clearing;
+        expect(mocks.cacheClear).toHaveBeenCalledOnce();
     });
 
-    it('单条缓存写悬挂不覆盖成功译文，且 pending 已释放可重试', async () => {
-        mocks.cacheSet.mockImplementation(() => new Promise<boolean>(() => undefined));
-        mocks.service
-            .mockResolvedValueOnce('首个译文')
-            .mockResolvedValueOnce('重试译文');
+    it('批量缓存写全部完成前消息保持未完成，完成后整批可从缓存复用', async () => {
+        const writes = deferred<boolean>();
+        mocks.cacheSet.mockImplementation(async (key: string, value: string) => {
+            await writes.promise;
+            mocks.cacheStore.set(key, value);
+            return true;
+        });
+        mocks.service.mockResolvedValueOnce(['首个 A', '首个 B']);
 
-        await expect(translateWithCache({origin: 'Never-set single'})).resolves.toBe('首个译文');
-        await expect(translateWithCache({origin: 'Never-set single'})).resolves.toBe('重试译文');
-        expect(mocks.service).toHaveBeenCalledTimes(2);
-    });
+        let settled = false;
+        const request = translateWithCache({origin: ['Deferred A', 'Deferred B']});
+        void request.finally(() => {
+            settled = true;
+        });
+        await vi.waitFor(() => expect(mocks.cacheSet).toHaveBeenCalledTimes(2));
+        expect(settled).toBe(false);
+        expect(mocks.service).toHaveBeenCalledOnce();
 
-    it('批量缓存写悬挂不覆盖成功译文，且 pending 已释放可重试', async () => {
-        mocks.cacheSet.mockImplementation(() => new Promise<boolean>(() => undefined));
-        mocks.service
-            .mockResolvedValueOnce(['首个 A', '首个 B'])
-            .mockResolvedValueOnce(['重试 A', '重试 B']);
-
-        await expect(translateWithCache({origin: ['A', 'B']})).resolves.toEqual(['首个 A', '首个 B']);
-        await expect(translateWithCache({origin: ['A', 'B']})).resolves.toEqual(['重试 A', '重试 B']);
-        expect(mocks.service).toHaveBeenCalledTimes(2);
+        writes.resolve(true);
+        await expect(request).resolves.toEqual(['首个 A', '首个 B']);
+        await expect(translateWithCache({origin: ['Deferred A', 'Deferred B']}))
+            .resolves.toEqual(['首个 A', '首个 B']);
+        expect(mocks.service).toHaveBeenCalledOnce();
     });
 
     it('缓存写失败只记录旁路诊断，不产生 unhandled rejection 或覆盖译文', async () => {
@@ -1849,12 +2199,14 @@ describe('translation broker', () => {
         });
         mocks.service.mockResolvedValueOnce('迟到缓存译文');
 
-        await expect(translateWithCache({origin: 'Late set before clear'})).resolves.toBe('迟到缓存译文');
+        const translation = translateWithCache({origin: 'Late set before clear'});
+        await vi.waitFor(() => expect(mocks.cacheSet).toHaveBeenCalledOnce());
         const clearing = clearTranslationCache();
         await flushMicrotasks();
         expect(mocks.cacheClear).not.toHaveBeenCalled();
 
         lateWrite.resolve(true);
+        await expect(translation).resolves.toBe('迟到缓存译文');
         await clearing;
         expect(mocks.cacheClear).toHaveBeenCalledOnce();
         expect(mocks.cacheStore.size).toBe(0);
@@ -2724,7 +3076,7 @@ describe('translation broker', () => {
         ], 7);
     });
 
-    it('本地预检失败不会伪造上游请求，挂起的统计写入也不阻塞译文', async () => {
+    it('本地预检失败不伪造上游请求，统计写入在消息响应前形成 barrier', async () => {
         mocks.config.service = 'aiSdk';
         mocks.config.useCache = false;
         mocks.service.mockRejectedValueOnce(new Error('endpoint validation failed'));
@@ -2732,15 +3084,53 @@ describe('translation broker', () => {
         await expect(translateWithCache({origin: 'preflight'})).rejects.toThrow('endpoint validation failed');
         expect(mocks.recordModelUsage).not.toHaveBeenCalled();
 
-        mocks.recordModelUsage.mockImplementationOnce(() => new Promise<undefined>(() => undefined));
+        const usageWrite = deferred<undefined>();
+        mocks.recordModelUsage.mockImplementationOnce(() => usageWrite.promise);
         mocks.service.mockImplementationOnce(async (message: Record<string, unknown>) => {
             reportTranslationModelUsage(message, {usageAvailability: 'unreported'});
-            return '不等待统计的译文';
+            return '等待统计落盘的译文';
         });
-        await expect(translateWithCache({origin: 'non-blocking'})).resolves.toBe('不等待统计的译文');
+        let settled = false;
+        const request = translateWithCache({origin: 'durable-usage'});
+        void request.finally(() => {
+            settled = true;
+        });
+        await vi.waitFor(() => expect(mocks.recordModelUsage).toHaveBeenCalledOnce());
+        expect(settled).toBe(false);
         expect(mocks.recordModelUsage).toHaveBeenCalledWith([
             expect.objectContaining({usageAvailability: 'unreported'}),
         ], 7);
+        usageWrite.resolve(undefined);
+        await expect(request).resolves.toBe('等待统计落盘的译文');
+    });
+
+    it('模型用量写入超过宽限期不会永久占用无缓存 pending', async () => {
+        vi.useFakeTimers();
+        installBroker(undefined, Promise.resolve(), true, 25);
+        mocks.config.service = 'aiSdk';
+        mocks.config.useCache = false;
+        mocks.recordModelUsage.mockImplementation(() => new Promise<undefined>(() => undefined));
+        mocks.service.mockImplementation(async (message: Record<string, unknown>) => {
+            reportTranslationModelUsage(message, {usageAvailability: 'unreported'});
+            return '用量宽限译文';
+        });
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+        const first = translateWithCache({origin: 'Hung usage', useCache: false});
+        await flushMicrotasks(100);
+        expect(mocks.recordModelUsage).toHaveBeenCalledOnce();
+        await vi.advanceTimersByTimeAsync(25);
+        await expect(first).resolves.toBe('用量宽限译文');
+        expect(warn).toHaveBeenCalledWith(
+            '[FluentRead] model usage write timed out:',
+            expect.any(Error),
+        );
+
+        const second = translateWithCache({origin: 'Hung usage', useCache: false});
+        await flushMicrotasks(100);
+        await vi.advanceTimersByTimeAsync(25);
+        await expect(second).resolves.toBe('用量宽限译文');
+        expect(mocks.service).toHaveBeenCalledTimes(2);
     });
 
     it('把结构化 provider timeout 与 HTTP 408 校准为 timeout', async () => {

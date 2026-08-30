@@ -165,6 +165,13 @@ describe('options UI composition architecture', () => {
     expect(localDataManagement).toContain('activeElement === document.body || activeElement === document.documentElement')
     expect(localDataManagement).toContain('chooseBackupContext')
     expect(localDataManagement).toContain("confirmButtonText: '不包含并导出'")
+    expect(localDataManagement).toContain('prepareHydratedConfigForExport()')
+    expect(localDataManagement).toContain('credentialMode: resolveBackupConfigCredentialMode(target.backup)')
+    expect(localDataManagement).toContain("credentialIntent: target.kind === 'complete' && usesExactCredentialReplacement(target.backup)")
+    expect(localDataManagement).toContain("? 'exact'")
+    expect(localDataManagement).toContain(": 'changed-fields'")
+    expect(localDataManagement).toContain('computed(() => prepareImportedConfig(pendingImport.value, props.config))')
+    expect(localDataManagement).toContain('const targetConfig = prepareImportedConfig(target, props.config)')
     expect(localDataManagement).toContain("target?.kind === 'config'")
     expect(localDataManagement).not.toContain('dataset-row')
     expect(localDataManagement).not.toContain('按事件 ID')
@@ -174,6 +181,9 @@ describe('options UI composition architecture', () => {
     expect(serviceConfiguration).not.toContain('class="credential-warning"')
     expect(serviceConfiguration).not.toContain('默认仅保留在当前浏览器会话')
     expect(settingsSections).not.toContain('fluentReadImageOcrDownload')
+    expect(settingsSections).toContain('普通文本 input、textarea 与 plaintext-only 编辑区')
+    expect(settingsSections).toContain('密码框和富文本编辑器不参与')
+    expect(settingsSections).not.toContain('任何文本输入框')
     expect(imagePublic).toContain("from './ui/ImageOcrSettings.vue'")
     expect(imageSettings).toContain('当前浏览器暂不支持图片翻译与 OCR')
     expect(imageSettings).toContain("type: 'fluentReadImageOcrDownload'")
@@ -187,6 +197,17 @@ describe('options UI composition architecture', () => {
     expect(popup).not.toMatch(/(?:!tab\?\.id|filter\(tab\s*=>\s*tab\.id\))/u)
     expect(settingsSections).toContain('@/src/platform/browser/ids')
     expect(settingsSections).not.toMatch(/if\s*\(\s*!?tab\.id\s*\)/u)
+  })
+
+  it('keeps the Firefox persistence fixture aligned with the current data-section contract', () => {
+    const firefoxPersistence = source('scripts/run-firefox-config-persistence.mjs')
+
+    expect(firefoxPersistence).toContain('button[data-section="settings-data"]')
+    expect(firefoxPersistence).toContain('备份与恢复导航不存在')
+    expect(firefoxPersistence).toContain('result.historyCases.count > 10')
+    expect(firefoxPersistence).not.toContain("textContent?.includes('配置管理')")
+    expect(firefoxPersistence).not.toContain('配置管理导航不存在')
+    expect(firefoxPersistence).not.toContain('result.historyCases.count > 5')
   })
 
   it('filters Chrome-only providers in every options selector without overwriting old values', () => {

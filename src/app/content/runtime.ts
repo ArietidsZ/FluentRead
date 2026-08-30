@@ -233,7 +233,7 @@ export async function startContentApp(ctx: ContentScriptContext,
         unsubscribeContentConfig = null;
     };
     ctx.onInvalidated(cleanup);
-    window.addEventListener('beforeunload', cleanup, {once: true});
+    window.addEventListener('beforeunload', cleanup, {once: true, signal: pageEventController.signal});
 
     runtimeMessageListener = createContentRuntimeMessageHandler(ctx, {
         isSiteDisabled: () => currentPageSiteDisabled, updateSiteDisabled: applySiteDisabledState,

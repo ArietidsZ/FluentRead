@@ -14,9 +14,8 @@ import {
 import { translateVideoText } from '@/src/app/translation/client';
 import {
   buildYoutubeTimedTextUrl,
-  chooseYoutubeCaptionTrack,
+  chooseYoutubeCaptionTrackForLocation,
   cuesToSrt,
-  extractYoutubeCaptionTracks,
   finalizeVideoSubtitleCues,
   parseYoutubeTimedTextResponse,
   sanitizeSubtitleFilename,
@@ -1154,7 +1153,7 @@ export function mountVideoSubtitleTranslation(): () => void {
       return;
     }
 
-    const track = chooseYoutubeCaptionTrack(extractYoutubeCaptionTracks(document), config.from);
+    const track = chooseYoutubeCaptionTrackForLocation(document, window.location, config.from);
     if (!track) return;
     const url = buildYoutubeTimedTextUrl(track);
     const key = getTimedTextCacheKey(url);
@@ -1327,7 +1326,7 @@ export function mountVideoSubtitleTranslation(): () => void {
       return { languageCode: url.searchParams.get('lang') || 'original', cues: captured[0].cues };
     }
 
-    const track = chooseYoutubeCaptionTrack(extractYoutubeCaptionTracks(document), config.from);
+    const track = chooseYoutubeCaptionTrackForLocation(document, window.location, config.from);
     if (!track) throw new Error('当前视频没有可用的 YouTube 字幕轨道');
     const url = buildYoutubeTimedTextUrl(track);
     const response = await fetch(url, { credentials: 'include' });

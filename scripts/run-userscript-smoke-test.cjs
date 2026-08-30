@@ -339,6 +339,25 @@ async function main() {
       throw new Error(`页面 browser/chrome 全局被 userscript 覆盖：${JSON.stringify(pageGlobalsPreserved)}`);
     }
 
+    const gmStoreBeforeReinjection = new Map(sharedGmStore);
+    await page.addScriptTag({path: artifact});
+    await page.waitForTimeout(100);
+    const reinjectionState = await page.evaluate(() => ({
+      styleHosts: document.querySelectorAll('#fluent-read-page-styles').length,
+      floatingBallHosts: document.querySelectorAll('#fluent-read-floating-ball-container').length,
+      settingsHosts: document.querySelectorAll('#fluent-read-userscript-settings-container').length,
+    }));
+    const changedGmKeys = [...new Set([
+      ...gmStoreBeforeReinjection.keys(),
+      ...sharedGmStore.keys(),
+    ])].filter((key) => gmStoreBeforeReinjection.get(key) !== sharedGmStore.get(key));
+    if (reinjectionState.styleHosts !== 1
+      || reinjectionState.floatingBallHosts !== 1
+      || reinjectionState.settingsHosts !== 0
+      || changedGmKeys.length > 0) {
+      throw new Error(`userscript 重复注入不是幂等操作：${JSON.stringify({reinjectionState, changedGmKeys})}`);
+    }
+
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('fluentread-userscript-open-settings')));
     const settingsHost = page.locator('#fluent-read-userscript-settings-container');
     await settingsHost.waitFor({state: 'attached', timeout: args.timeout});
@@ -467,6 +486,18 @@ async function main() {
       if (recovered.count !== afterConcurrentTranslation) {
         throw new Error(`userscript 新页面没有恢复权威计数：${JSON.stringify({recovered, afterConcurrentTranslation})}`);
       }
+      await recoveryPage.waitForTimeout(250);
+      const stableRecoveredCount = await recoveryPage.evaluate(async () => {
+        const rawConfig = await window.GM_getValue('local:config', null);
+        const parsedConfig = typeof rawConfig === 'string' ? JSON.parse(rawConfig) : rawConfig;
+        return parsedConfig?.count;
+      });
+      if (stableRecoveredCount !== afterConcurrentTranslation) {
+        throw new Error(`userscript 权威计数被迟到初始化回滚：${JSON.stringify({
+          stableRecoveredCount,
+          afterConcurrentTranslation,
+        })}`);
+      }
       if (recovered.localSentinel !== 'host-local-sentinel' || recovered.sessionSentinel !== 'host-session-sentinel') {
         throw new Error(`userscript 计数污染宿主 Web Storage：${JSON.stringify(recovered)}`);
       }
@@ -564,6 +595,7 @@ async function main() {
       fullPageCounts,
       finalState,
       pageGlobalsPreserved,
+      reinjectionState: {...reinjectionState, gmStoreUnchanged: true},
       settingsSecurity,
       unsupportedHosts,
       bridgeEvents,

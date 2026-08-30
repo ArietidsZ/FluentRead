@@ -59,7 +59,7 @@ describe('userscript 平台消息适配', () => {
         mocks.incrementUserscriptConfigCount.mockResolvedValue(14);
     });
 
-    it('通过 userscript 专用副本累加，并只把权威总数投影到共享配置', async () => {
+    it('通过 userscript 专用副本累加，并避免把瞬时总数作为跨标签持久投影', async () => {
         mocks.config.count = 12;
         const handler = createPlatformMessageHandler(vi.fn());
 
@@ -72,8 +72,7 @@ describe('userscript 平台消息适配', () => {
             count: 14,
         });
         expect(mocks.incrementUserscriptConfigCount).toHaveBeenCalledWith(2, 'userscript-operation-1');
-        expect(mocks.saveConfig).toHaveBeenCalledOnce();
-        expect(mocks.saveConfig).toHaveBeenCalledWith(mocks.config);
+        expect(mocks.saveConfig).not.toHaveBeenCalled();
         expect(mocks.config.count).toBe(14);
     });
 

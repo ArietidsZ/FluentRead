@@ -143,4 +143,127 @@ describe('OCR worker runtime', () => {
         await expect(first).rejects.toThrow('recognize failed');
         await expect(second).resolves.toEqual({worker: 'eng', image: 'second'});
     });
+
+    it('取消永不结束的识别会终止旧 Worker，并允许下一请求使用新 Worker', async () => {
+        const never = deferred<RecognitionResult>();
+        const stuckWorker = createWorker('stuck');
+        const recoveredWorker = createWorker('recovered');
+        vi.mocked(stuckWorker.recognize).mockReturnValueOnce(never.promise);
+        const factory = vi.fn()
+            .mockResolvedValueOnce(stuckWorker)
+            .mockResolvedValueOnce(recoveredWorker);
+        const runtime = createOcrWorkerRuntime({createWorker: factory, sparseTextMode: 11});
+        const controller = new AbortController();
+
+        const stuck = runtime.recognize('first', 'eng', controller.signal);
+        await vi.waitFor(() => expect(stuckWorker.recognize).toHaveBeenCalledOnce());
+        controller.abort();
+
+        await expect(stuck).rejects.toMatchObject({name: 'AbortError'});
+        await vi.waitFor(() => expect(stuckWorker.terminate).toHaveBeenCalledOnce());
+        await expect(runtime.recognize('second', 'eng')).resolves.toEqual({
+            worker: 'recovered',
+            image: 'second',
+        });
+        expect(factory).toHaveBeenCalledTimes(2);
+    });
+
+    it('预取消的识别与语言准备不会创建 Worker', async () => {
+        const factory = vi.fn(async () => createWorker('unused'));
+        const runtime = createOcrWorkerRuntime({createWorker: factory, sparseTextMode: 11});
+        const controller = new AbortController();
+        controller.abort();
+
+        await expect(runtime.recognize('image', 'eng', controller.signal))
+            .rejects.toMatchObject({name: 'AbortError'});
+        await expect(runtime.ensureLanguages(['eng'], controller.signal))
+            .rejects.toMatchObject({name: 'AbortError'});
+        expect(factory).not.toHaveBeenCalled();
+    });
+
+    it('Worker 创建期间发生取消时命中 runAbortable 入口并终止刚创建的 Worker', async () => {
+        const worker = createWorker('creating');
+        const controller = new AbortController();
+        const runtime = createOcrWorkerRuntime({
+            createWorker: vi.fn(() => {
+                controller.abort();
+                return Promise.resolve(worker);
+            }),
+            sparseTextMode: 11,
+        });
+
+        await expect(runtime.recognize('image', 'eng', controller.signal))
+            .rejects.toMatchObject({name: 'AbortError'});
+        await vi.waitFor(() => expect(worker.terminate).toHaveBeenCalledOnce());
+    });
+
+    it('取消语言切换时不让迟到的 getWorker 覆盖新 Worker 所有权', async () => {
+        const oldTermination = deferred<unknown>();
+        const nextCreation = deferred<OcrWorkerPort<RecognitionResult>>();
+        const nextRecognition = deferred<RecognitionResult>();
+        const staleCreation = deferred<OcrWorkerPort<RecognitionResult>>();
+        const initialWorker = createWorker('initial');
+        const nextWorker = createWorker('next');
+        const staleWorker = createWorker('stale');
+        vi.mocked(initialWorker.terminate).mockReturnValue(oldTermination.promise);
+        vi.mocked(nextWorker.recognize).mockReturnValue(nextRecognition.promise);
+        const factory = vi.fn((languages: string) => {
+            if (languages === 'eng') return Promise.resolve(initialWorker);
+            if (languages === 'fra') return nextCreation.promise;
+            return staleCreation.promise;
+        });
+        const runtime = createOcrWorkerRuntime({createWorker: factory, sparseTextMode: 11});
+
+        await runtime.recognize('seed', 'eng');
+        const switchingController = new AbortController();
+        const switching = runtime.recognize('switching', 'jpn', switchingController.signal);
+        await vi.waitFor(() => expect(initialWorker.terminate).toHaveBeenCalledOnce());
+
+        switchingController.abort();
+        await expect(switching).rejects.toMatchObject({name: 'AbortError'});
+
+        const nextController = new AbortController();
+        const next = runtime.recognize('next', 'fra', nextController.signal);
+        await vi.waitFor(() => expect(factory).toHaveBeenCalledWith('fra'));
+
+        oldTermination.resolve(undefined);
+        await Promise.resolve();
+        await Promise.resolve();
+        nextCreation.resolve(nextWorker);
+        await vi.waitFor(() => expect(nextWorker.recognize).toHaveBeenCalledOnce());
+
+        nextController.abort();
+        await expect(next).rejects.toMatchObject({name: 'AbortError'});
+        staleCreation.resolve(staleWorker);
+        nextRecognition.resolve({worker: 'next', image: 'late'});
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(factory).not.toHaveBeenCalledWith('jpn');
+        await vi.waitFor(() => expect(nextWorker.terminate).toHaveBeenCalledOnce());
+        expect(staleWorker.terminate).not.toHaveBeenCalled();
+    });
+
+    it('操作已完成后忽略迟到的自定义 abort 回调', async () => {
+        const worker = createWorker('settled');
+        let abortListener: (() => void) | undefined;
+        const signal = {
+            aborted: false,
+            addEventListener: (_type: string, listener: EventListenerOrEventListenerObject) => {
+                abortListener = typeof listener === 'function'
+                    ? () => listener(new Event('abort'))
+                    : () => listener.handleEvent(new Event('abort'));
+            },
+            removeEventListener: vi.fn(),
+        } as unknown as AbortSignal;
+        const runtime = createOcrWorkerRuntime({
+            createWorker: vi.fn(async () => worker),
+            sparseTextMode: 11,
+        });
+
+        await expect(runtime.recognize('image', 'eng', signal))
+            .resolves.toEqual({worker: 'settled', image: 'image'});
+        abortListener?.();
+        expect(worker.terminate).not.toHaveBeenCalled();
+    });
 });

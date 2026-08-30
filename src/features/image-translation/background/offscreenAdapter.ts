@@ -9,6 +9,7 @@ import type {ImageOcrLanguageCode} from '@/src/features/image-translation/ocrLan
 import type {OffscreenImageTranslationResult} from '@/src/features/image-translation/services/offscreenRuntime';
 import {
     chromeOffscreenClient,
+    OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
     type OffscreenClient,
 } from '@/src/platform/offscreen/client';
 
@@ -17,6 +18,23 @@ interface OffscreenResponse {
     readonly error?: string;
     readonly image?: unknown;
     readonly lines?: unknown;
+}
+
+export interface ImageOffscreenOperationOptions {
+    readonly requestId: string;
+    readonly signal: AbortSignal;
+    readonly timeoutMs: number;
+}
+
+function sendOptions(options: ImageOffscreenOperationOptions) {
+    return {
+        signal: options.signal,
+        timeoutMs: options.timeoutMs,
+        cancelMessage: {
+            type: OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
+            requestId: options.requestId,
+        },
+    };
 }
 
 function errorMessage(response: OffscreenResponse | undefined, fallback: string): string {
@@ -36,12 +54,20 @@ function parseTranslationResult(
 /** 图片 feature 对平台 Offscreen client 的唯一适配器。 */
 export function createImageTranslationOffscreenAdapter(client: OffscreenClient = chromeOffscreenClient) {
     return {
-        async recognizeImage(image: string, sourceLanguage: string): Promise<OcrLine[]> {
-            const response = await client.send<OffscreenResponse>({
+        async recognizeImage(
+            image: string,
+            sourceLanguage: string,
+            options?: ImageOffscreenOperationOptions,
+        ): Promise<OcrLine[]> {
+            const message = {
                 type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN',
                 image,
                 sourceLanguage,
-            });
+                ...(options ? {requestId: options.requestId} : {}),
+            } as const;
+            const response = options
+                ? await client.send<OffscreenResponse>(message, sendOptions(options))
+                : await client.send<OffscreenResponse>(message);
             if (!response?.success || !Array.isArray(response.lines)) {
                 throw new Error(errorMessage(response, '图片 OCR 失败'));
             }
@@ -52,13 +78,18 @@ export function createImageTranslationOffscreenAdapter(client: OffscreenClient =
             image: string,
             sourceLanguage: string,
             title: string,
+            options?: ImageOffscreenOperationOptions,
         ): Promise<OffscreenImageTranslationResult> {
-            const response = await client.send<OffscreenResponse>({
+            const message = {
                 type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN',
                 image,
                 sourceLanguage,
                 title,
-            });
+                ...(options ? {requestId: options.requestId} : {}),
+            } as const;
+            const response = options
+                ? await client.send<OffscreenResponse>(message, sendOptions(options))
+                : await client.send<OffscreenResponse>(message);
             return parseTranslationResult(response, '图片翻译失败');
         },
 

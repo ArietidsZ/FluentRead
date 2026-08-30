@@ -426,12 +426,12 @@
     </section>
 
     <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
-      <SettingsGroup title="输入框翻译" description="在网页输入框中输入触发字符，快速翻译正在编辑的内容。">
+      <SettingsGroup title="输入框翻译" description="仅支持普通文本 input、textarea 与 plaintext-only 编辑区；密码框和富文本编辑器不参与。">
         <!-- 输入框翻译功能 -->
         <el-row class="settings-control-row">
           <el-col :span="12" class="settings-control-label lightblue rounded-corner">
             <el-tooltip class="box-item" effect="dark"
-                        content="输入框翻译：在任何文本输入框中使用指定方式触发翻译当前输入的内容。"
+                        content="输入框翻译仅作用于普通文本 input、textarea 与 plaintext-only 编辑区；密码框和富文本编辑器不参与。"
                         placement="top-start" :show-after="500">
               <span class="popup-text popup-vertical-left">输入框翻译<el-icon class="icon-margin">
                   <InfoFilled />

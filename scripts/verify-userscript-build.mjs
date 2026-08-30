@@ -12,6 +12,11 @@ const preludeEndMarker = '/* FluentRead userscript compatibility prelude:end */'
 const preludeStart = source.indexOf(preludeStartMarker);
 const preludeEnd = source.indexOf(preludeEndMarker, preludeStart) + preludeEndMarker.length;
 const bootstrapStart = source.indexOf('globalThis.__FLUENTREAD_ICON_DATA__=');
+const guardStartMarker = '/* FluentRead userscript execution guard:start */';
+const guardEndMarker = '/* FluentRead userscript execution guard:end */';
+const guardStart = source.indexOf(guardStartMarker);
+const guardCondition = source.indexOf('if (!globalThis.__fluentReadUserscriptBootstrapped) {', guardStart);
+const guardEnd = source.indexOf(guardEndMarker, guardCondition);
 
 const assertions = [
   [source.startsWith('// ==UserScript==\n'), 'metadata header must be the first bytes'],
@@ -24,6 +29,8 @@ const assertions = [
   [!/\bglobalThis\s*(?:\.\s*(?:browser|chrome)\b|\[\s*['"](?:browser|chrome)['"]\s*\])/u.test(source), 'privileged browser shims must stay lexical'],
   [source.split('// ==UserScript==').length === 2, 'metadata header must occur exactly once'],
   [preludeStart >= 0 && preludeEnd > preludeStart, 'compatibility prelude markers are missing'],
+  [guardStart >= 0 && guardCondition > guardStart && preludeStart > guardCondition && guardEnd > bootstrapStart, 'complete runtime must be inside the duplicate-injection guard'],
+  [source.split(guardStartMarker).length === 2 && source.split(guardEndMarker).length === 2, 'execution guard markers must occur exactly once'],
   [bootstrapStart > preludeEnd, 'compatibility prelude must run before the artifact bootstrap and IIFE'],
   [source.length > 10_000, 'artifact is unexpectedly small'],
   [!source.includes('fluent-read-area-translator-container'), 'area translator must be excluded from userscript'],

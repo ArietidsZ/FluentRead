@@ -31,13 +31,18 @@ vi.mock('@/src/services/config/store', () => ({
   requestConfigCountIncrement: mocks.persistCountIncrement,
 }));
 vi.mock('@/src/core/language/detect', () => ({detectlang: () => 'eng'}));
-vi.mock('@/src/core/config/catalog', () => ({
-  resolveConfiguredModel: (model: string) => model,
-  servicesType: {
+vi.mock('@/src/core/config/catalog', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/src/core/config/catalog')>();
+  return {
+    ...actual,
+    resolveConfiguredModel: (model: string) => model,
+    servicesType: {
+      ...actual.servicesType,
     isUseAIContext: (service: string) => service === 'mock-ai',
     isAiSdk: (service: string) => service === 'mock-ai',
-  },
-}));
+    },
+  };
+});
 vi.mock('@/src/services/translation/context', () => ({getPageTranslationContext: mocks.getPageTranslationContext}));
 vi.mock('@/src/core/config/validation', () => ({getMissingCredentialMessage: mocks.getMissingCredentialMessage}));
 
@@ -468,6 +473,36 @@ describe('translation API request lifecycle performance', () => {
       pageContext,
     }));
     expect(mocks.config.enableAIContext).toBe(true);
+  });
+
+  it('显式 AI 上下文策略覆盖实时配置并原样发送给 background', async () => {
+    mocks.config.service = 'mock-ai';
+    mocks.config.enableAIContext = false;
+    const pageContext = 'Frozen full-page session context.';
+    mocks.getPageTranslationContext.mockResolvedValue(pageContext);
+    mocks.sendMessage.mockImplementation(({origin}: {origin: string | string[]}) => Promise.resolve(
+      Array.isArray(origin) ? origin.map(value => `${value}-译文`) : `${origin}-译文`,
+    ));
+
+    await expect(translateText('Context-enabled source', 'Fixture article', {
+      enableAIContext: true,
+      maxRetries: 0,
+    })).resolves.toBe('Context-enabled source-译文');
+    expect(mocks.sendMessage).toHaveBeenLastCalledWith(expect.objectContaining({
+      enableAIContext: true,
+      pageContext,
+    }));
+
+    mocks.config.enableAIContext = true;
+    await expect(translateTextBatch(['Context-disabled source'], 'Fixture article', {
+      enableAIContext: false,
+      maxRetries: 0,
+    })).resolves.toEqual(['Context-disabled source-译文']);
+    expect(mocks.getPageTranslationContext).toHaveBeenCalledTimes(1);
+    expect(mocks.sendMessage).toHaveBeenLastCalledWith(expect.objectContaining({
+      enableAIContext: false,
+      pageContext: undefined,
+    }));
   });
 
   it('uses the video AI service when resolving and sending page context', async () => {

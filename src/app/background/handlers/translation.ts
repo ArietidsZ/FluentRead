@@ -65,6 +65,9 @@ export function parseTranslationRequest(candidate: TranslationRequestCandidate):
     if (candidate.useCache !== undefined && typeof candidate.useCache !== 'boolean') {
         throw new TypeError('翻译请求字段 useCache 必须是布尔值');
     }
+    if (candidate.enableAIContext !== undefined && typeof candidate.enableAIContext !== 'boolean') {
+        throw new TypeError('翻译请求字段 enableAIContext 必须是布尔值');
+    }
     if (candidate.aiMultiSegment !== undefined && typeof candidate.aiMultiSegment !== 'boolean') {
         throw new TypeError('翻译请求字段 aiMultiSegment 必须是布尔值');
     }
@@ -79,6 +82,7 @@ export function parseTranslationRequest(candidate: TranslationRequestCandidate):
         const value = candidate[field];
         if (typeof value === 'string') base[field] = value;
     }
+    if (typeof candidate.enableAIContext === 'boolean') base.enableAIContext = candidate.enableAIContext;
     if (typeof candidate.useCache === 'boolean') base.useCache = candidate.useCache;
     if (typeof candidate.aiMultiSegment === 'boolean') base.aiMultiSegment = candidate.aiMultiSegment;
     if (typeof candidate.requestTimeoutMs === 'number') base.requestTimeoutMs = candidate.requestTimeoutMs;

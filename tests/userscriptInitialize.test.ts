@@ -187,4 +187,27 @@ describe('legacy userscript migration', () => {
         expect([...storage.values.keys()].some((key) => key.startsWith('fluentread:count:v1:base:'))).toBe(true);
         expect((readStoredConfig(storage.values) as Config & {__fluentConfigRevision?: number}).__fluentConfigRevision).toBe(7);
     });
+
+    it('在配置 store 水合前把陈旧计数投影恢复为专用副本总数', async () => {
+        const existing = normalizeUserscriptConfig(new Config());
+        existing.count = 15;
+        const {values} = installLegacyStorage([
+            ['local:config', JSON.stringify(existing)],
+            ['fluentread:count:v1:base:existing', JSON.stringify({version: 1, value: 14})],
+            ['fluentread:count:v1:replica:first', JSON.stringify({
+                version: 1,
+                value: 1,
+                recentOperations: [{id: 'count-first-tab', delta: 1}],
+            })],
+            ['fluentread:count:v1:replica:second', JSON.stringify({
+                version: 1,
+                value: 1,
+                recentOperations: [{id: 'count-second-tab', delta: 1}],
+            })],
+        ]);
+
+        await ensureUserscriptConfigForTest();
+
+        expect(readStoredConfig(values).count).toBe(16);
+    });
 });

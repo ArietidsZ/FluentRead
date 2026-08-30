@@ -5,9 +5,13 @@
  * 模块边界：适配器只拥有 feature 到 OffscreenClient 的协议转换，不创建 offscreen document、不执行 OCR 或绘图；文档生命周期归 platform/offscreen，图像处理归 image-translation services。
  */
 import type {AreaTranslationSelection} from '@/src/features/area-translation/core';
+import type {
+    ImageOffscreenOperationOptions,
+} from '@/src/features/image-translation/protocol';
 import type {OffscreenImageTranslationResult} from '@/src/features/image-translation/public';
 import {
     chromeOffscreenClient,
+    OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
     type OffscreenClient,
 } from '@/src/platform/offscreen/client';
 
@@ -26,14 +30,26 @@ export function createAreaTranslationOffscreenAdapter(client: OffscreenClient = 
             sourceLanguage: string,
             title: string,
             selection: AreaTranslationSelection,
+            options?: ImageOffscreenOperationOptions,
         ): Promise<OffscreenImageTranslationResult> {
-            const response = await client.send<AreaOffscreenResponse>({
+            const message = {
                 type: 'FLUENT_READ_AREA_TRANSLATE_OFFSCREEN',
                 image,
                 sourceLanguage,
                 title,
                 selection,
-            });
+                ...(options ? {requestId: options.requestId} : {}),
+            } as const;
+            const response = options
+                ? await client.send<AreaOffscreenResponse>(message, {
+                    signal: options.signal,
+                    timeoutMs: options.timeoutMs,
+                    cancelMessage: {
+                        type: OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
+                        requestId: options.requestId,
+                    },
+                })
+                : await client.send<AreaOffscreenResponse>(message);
             if (!response?.success || typeof response.image !== 'string' || !Array.isArray(response.lines)) {
                 throw new Error(response?.error || '圈选翻译失败');
             }

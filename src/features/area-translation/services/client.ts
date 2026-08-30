@@ -7,6 +7,10 @@
 import browser from 'webextension-polyfill';
 import type { OcrLine } from '@/src/shared/image/types';
 import type { AreaTranslationSelection } from '@/src/features/area-translation/core';
+import {
+    sendCancellableImageOperation,
+    type ImageExtensionOperationOptions,
+} from '@/src/features/image-translation/protocol';
 
 export interface AreaTranslationResult {
     image: string;
@@ -31,14 +35,15 @@ export async function translateCapturedAreaInExtension(
     selection: AreaTranslationSelection,
     sourceLanguage: string,
     title: string,
+    options: ImageExtensionOperationOptions = {},
 ): Promise<AreaTranslationResult> {
-    const response = await browser.runtime.sendMessage({
+    const response = await sendCancellableImageOperation<AreaTranslationResponse>({
         type: 'fluentReadAreaTranslateCapture',
         image,
         selection,
         sourceLanguage,
         title,
-    }) as AreaTranslationResponse | undefined;
+    }, options, '圈选翻译超时', 'fluentReadAreaCancel');
 
     if (!response?.success || !response.image || !Array.isArray(response.lines)) {
         throw new Error(response?.error || '圈选翻译服务不可用');

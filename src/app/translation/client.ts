@@ -209,7 +209,12 @@ export async function translateText(origin: string, context: string = document.t
     return origin;
   }
 
-  const pageContext = await resolvePageContext(options.pageContext, selectedService, selectedModel);
+  const pageContext = await resolvePageContext(
+    options.pageContext,
+    selectedService,
+    selectedModel,
+    options.enableAIContext,
+  );
   throwIfAborted(signal);
 
   // 使用队列处理翻译请求
@@ -223,6 +228,7 @@ export async function translateText(origin: string, context: string = document.t
           browser.runtime.sendMessage({
             context,
             pageContext,
+            ...(options.enableAIContext !== undefined ? {enableAIContext: options.enableAIContext} : {}),
             origin,
             useCache,
             serviceOverride: selectedService,
@@ -297,7 +303,12 @@ export async function translateTextBatch(
   const explicitRetryPolicy = options.maxRetries !== undefined;
   const maxRetries = options.maxRetries ?? (aiSdkService ? 2 : 3);
   throwIfAborted(signal);
-  const pageContext = await resolvePageContext(options.pageContext, selectedService, selectedModel);
+  const pageContext = await resolvePageContext(
+    options.pageContext,
+    selectedService,
+    selectedModel,
+    options.enableAIContext,
+  );
   throwIfAborted(signal);
 
   const result = await enqueueTranslation(async (lease) => {
@@ -308,6 +319,7 @@ export async function translateTextBatch(
           browser.runtime.sendMessage({
             context,
             pageContext,
+            ...(options.enableAIContext !== undefined ? {enableAIContext: options.enableAIContext} : {}),
             origin: origins,
             ...(options.aiMultiSegment === true ? {aiMultiSegment: true} : {}),
             useCache,
@@ -412,6 +424,8 @@ export interface TranslateOptions {
   targetLanguage?: string;
   /** 发送给 LLM 的网页参考上下文；未提供时按当前页面自动提取。 */
   pageContext?: string;
+  /** 当前请求是否允许 AI 网页上下文；全文翻译用它固定会话启动时策略。 */
+  enableAIContext?: boolean;
   /** 内部结构化数据包含有 ASCII 哨兵标记，不应影响源语言检测。 */
   skipLanguageDetection?: boolean;
   /** 仅全文翻译内部使用：要求 broker 将多个 AI 段落合并为一次上游请求。 */
@@ -440,9 +454,15 @@ function assertTranslationCredentials(service = config.service, modelOverride?: 
   if (message) throw new Error(message);
 }
 
-async function resolvePageContext(suppliedContext?: string, serviceOverride = config.service, modelOverride?: string): Promise<string | undefined> {
+async function resolvePageContext(
+  suppliedContext?: string,
+  serviceOverride = config.service,
+  modelOverride?: string,
+  enableAIContextOverride?: boolean,
+): Promise<string | undefined> {
   const service = serviceOverride || config.service;
   const selectedModel = resolveConfiguredModel(modelOverride || config.model[service], modelOverride || config.customModel[service]);
-  if (!config.enableAIContext || !servicesType.isUseAIContext(service, selectedModel)) return undefined;
+  if (!(enableAIContextOverride ?? config.enableAIContext)
+    || !servicesType.isUseAIContext(service, selectedModel)) return undefined;
   return suppliedContext?.trim().slice(0, 4000) || await getPageTranslationContext() || undefined;
 }

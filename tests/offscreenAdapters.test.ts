@@ -2,7 +2,10 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {createAreaTranslationOffscreenAdapter} from '@/src/features/area-translation/background/offscreenAdapter';
 import {createImageTranslationOffscreenAdapter} from '@/src/features/image-translation/background/offscreenAdapter';
 import {createSelectionTtsOffscreenAdapter} from '@/src/features/selection-translation/background/offscreenAdapter';
-import type {OffscreenClient} from '@/src/platform/offscreen/client';
+import {
+    OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
+    type OffscreenClient,
+} from '@/src/platform/offscreen/client';
 
 const send = vi.fn();
 const sendIfPresent = vi.fn();
@@ -49,6 +52,30 @@ describe('area translation Offscreen adapter', () => {
         send.mockResolvedValueOnce(undefined);
         await expect(adapter.translateArea('image', 'en', '', selection)).rejects.toThrow('圈选翻译失败');
     });
+
+    it('把圈选 requestId、取消信号与超时预算传给共享 Offscreen OCR 路由', async () => {
+        const controller = new AbortController();
+        send.mockResolvedValueOnce({success: true, image: 'translated-area', lines: []});
+
+        await expect(adapter.translateArea('data:image/png,area', 'en', 'Page', selection, {
+            requestId: 'area-1', signal: controller.signal, timeoutMs: 5_000,
+        })).resolves.toEqual({image: 'translated-area', lines: []});
+        expect(send).toHaveBeenCalledWith({
+            type: 'FLUENT_READ_AREA_TRANSLATE_OFFSCREEN',
+            image: 'data:image/png,area',
+            sourceLanguage: 'en',
+            title: 'Page',
+            selection,
+            requestId: 'area-1',
+        }, {
+            signal: controller.signal,
+            timeoutMs: 5_000,
+            cancelMessage: {
+                type: OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
+                requestId: 'area-1',
+            },
+        });
+    });
 });
 
 describe('image translation Offscreen adapter', () => {
@@ -89,6 +116,52 @@ describe('image translation Offscreen adapter', () => {
         await expect(adapter.translateImage('image', 'en', '')).rejects.toThrow('图片翻译失败');
         send.mockResolvedValueOnce({success: true, image: 'translated', lines: null});
         await expect(adapter.translateImage('image', 'en', '')).rejects.toThrow('图片翻译失败');
+    });
+
+    it('把图片 requestId、取消信号与超时预算传给 Offscreen client', async () => {
+        const controller = new AbortController();
+        send
+            .mockResolvedValueOnce({success: true, lines: [{text: 'hello'}]})
+            .mockResolvedValueOnce({success: true, image: 'translated', lines: []});
+
+        await expect(adapter.recognizeImage('data:image/png,image', 'en', {
+            requestId: 'ocr-1',
+            signal: controller.signal,
+            timeoutMs: 4_000,
+        })).resolves.toEqual([{text: 'hello'}]);
+        expect(send).toHaveBeenNthCalledWith(1, {
+            type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN',
+            image: 'data:image/png,image',
+            sourceLanguage: 'en',
+            requestId: 'ocr-1',
+        }, {
+            signal: controller.signal,
+            timeoutMs: 4_000,
+            cancelMessage: {
+                type: OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
+                requestId: 'ocr-1',
+            },
+        });
+
+        await expect(adapter.translateImage('data:image/png,image', 'en', 'Page', {
+            requestId: 'image-1',
+            signal: controller.signal,
+            timeoutMs: 5_000,
+        })).resolves.toEqual({image: 'translated', lines: []});
+        expect(send).toHaveBeenNthCalledWith(2, {
+            type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN',
+            image: 'data:image/png,image',
+            sourceLanguage: 'en',
+            title: 'Page',
+            requestId: 'image-1',
+        }, {
+            signal: controller.signal,
+            timeoutMs: 5_000,
+            cancelMessage: {
+                type: OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
+                requestId: 'image-1',
+            },
+        });
     });
 
     it('downloads OCR languages and reports custom, empty and fallback failures', async () => {

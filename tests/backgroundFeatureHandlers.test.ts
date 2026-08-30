@@ -2,6 +2,7 @@ import {describe, expect, it, vi} from 'vitest';
 
 import {
     AREA_CAPTURE_MESSAGE_TYPE,
+    AREA_CANCEL_MESSAGE_TYPE,
     AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE,
     createAreaTranslationBackgroundHandlers,
     isAreaTranslationSelection,
@@ -13,8 +14,9 @@ import {
 } from '@/src/features/full-page-translation/background/stateHandlers';
 import {
     createImageTranslationBackgroundHandlers,
+    createImageOperationRegistry,
+    IMAGE_CANCEL_MESSAGE_TYPE,
     IMAGE_TEXT_TRANSLATION_TIMEOUT_MS,
-    IMAGE_FETCH_MESSAGE_TYPE,
     IMAGE_OCR_DOWNLOAD_MESSAGE_TYPE,
     IMAGE_OCR_MESSAGE_TYPE,
     IMAGE_TRANSLATE_MESSAGE_TYPE,
@@ -35,6 +37,7 @@ import {
     OPEN_OPTIONS_PAGE_MESSAGE_TYPE,
 } from '@/src/features/settings/background/openOptionsHandler';
 import {isBrowserTabId, TabTranslationStateStore} from '@/src/app/background/tabTranslationState';
+import {getTranslationRequestControl} from '@/src/services/translation/requestSnapshot';
 
 function wordCard(definitions: Array<{definition: string; example?: string}> = [
     {definition: 'to move quickly', example: 'Run home.'},
@@ -225,7 +228,17 @@ describe('后台 feature handlers', () => {
             selection,
         }, {})).resolves.toEqual({success: true, image: 'data:image/png;base64,BB==', lines: []});
         expect(events).toEqual(['assert:auto', 'translate:auto:']);
-        expect(translateArea).toHaveBeenCalledWith('data:image/png;base64,AA==', 'auto', '', selection);
+        expect(translateArea).toHaveBeenCalledWith(
+            'data:image/png;base64,AA==',
+            'auto',
+            '',
+            selection,
+            expect.objectContaining({
+                requestId: expect.stringMatching(/^legacy-area-/),
+                signal: expect.any(AbortSignal),
+                timeoutMs: 180_000,
+            }),
+        );
 
         await handler.handle({
             type: AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE,
@@ -234,7 +247,9 @@ describe('后台 feature handlers', () => {
             sourceLanguage: 'en',
             title: 'Page',
         }, {});
-        expect(translateArea).toHaveBeenLastCalledWith('data:image/png;base64,AA==', 'en', 'Page', selection);
+        expect(translateArea).toHaveBeenLastCalledWith(
+            'data:image/png;base64,AA==', 'en', 'Page', selection, expect.any(Object),
+        );
 
         await expect(handler.handle({type: AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE, image: 1, selection}, {}))
             .rejects.toThrow('圈选截图数据无效');
@@ -260,6 +275,69 @@ describe('后台 feature handlers', () => {
             selection,
             title: false,
         }, {})).rejects.toThrow('title 必须是字符串');
+    });
+
+    it('区域翻译取消会把 signal 传播给 Offscreen adapter', async () => {
+        let resolveArea!: (value: {image: string; lines: never[]}) => void;
+        const translateArea = vi.fn(() => new Promise<{image: string; lines: never[]}>((resolve) => {
+            resolveArea = resolve;
+        }));
+        const [, translateHandler, cancelHandler] = createAreaTranslationBackgroundHandlers({
+            captureVisibleTab: vi.fn(async () => 'unused'),
+            getDefaultSourceLanguage: () => 'auto',
+            assertLanguagesDownloaded: vi.fn(async () => undefined),
+            translateArea,
+        });
+        const pending = translateHandler.handle({
+            type: AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE,
+            image: 'data:image/png,x',
+            selection: {left: 0, top: 0, width: 20, height: 20, viewportWidth: 100, viewportHeight: 100},
+            requestId: 'area-pending',
+            timeoutMs: 5_000,
+        }, {});
+        await vi.waitFor(() => expect(translateArea).toHaveBeenCalledOnce());
+        const signal = ((translateArea.mock.calls as unknown[][])[0]?.[4] as {
+            signal?: AbortSignal;
+        } | undefined)?.signal;
+
+        await expect(cancelHandler.handle({
+            type: AREA_CANCEL_MESSAGE_TYPE,
+            requestId: 'area-pending',
+        }, {})).resolves.toEqual({success: true, cancelled: true, requestId: 'area-pending'});
+        expect(signal?.aborted).toBe(true);
+        await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+
+        resolveArea({image: 'data:image/png,late', lines: []});
+        await Promise.resolve();
+    });
+
+    it('区域翻译在语言包等待期间取消后不会进入 Offscreen', async () => {
+        let releaseLanguages!: () => void;
+        const assertLanguagesDownloaded = vi.fn(() => new Promise<void>(resolve => {
+            releaseLanguages = resolve;
+        }));
+        const translateArea = vi.fn(async () => ({image: 'translated', lines: []}));
+        const [, translateHandler, cancelHandler] = createAreaTranslationBackgroundHandlers({
+            captureVisibleTab: vi.fn(async () => 'unused'),
+            getDefaultSourceLanguage: () => 'auto',
+            assertLanguagesDownloaded,
+            translateArea,
+        });
+        const pending = translateHandler.handle({
+            type: AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE,
+            image: 'data:image/png,x',
+            selection: {left: 0, top: 0, width: 20, height: 20, viewportWidth: 100, viewportHeight: 100},
+            requestId: 'area-language-wait',
+            timeoutMs: 5_000,
+        }, {});
+        await vi.waitFor(() => expect(assertLanguagesDownloaded).toHaveBeenCalledOnce());
+
+        await cancelHandler.handle({type: AREA_CANCEL_MESSAGE_TYPE, requestId: 'area-language-wait'}, {});
+        await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+        releaseLanguages();
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(translateArea).not.toHaveBeenCalled();
     });
 
     it('划词词典 handler 使用默认/显式目标语言并处理无条目', async () => {
@@ -355,7 +433,7 @@ describe('后台 feature handlers', () => {
         });
     });
 
-    it('图片 handlers 完成 OCR、图片翻译、文字翻译、语言包下载和远程读取', async () => {
+    it('图片 handlers 完成 OCR、图片翻译、文字翻译和语言包下载', async () => {
         const dependencies = {
             assertLanguagesDownloaded: vi.fn(async () => undefined),
             recognizeImage: vi.fn(async () => [{text: 'hello'}]),
@@ -365,7 +443,6 @@ describe('后台 feature handlers', () => {
             supportsBatchTranslation: vi.fn(() => true),
             downloadLanguages: vi.fn(async () => undefined),
             markLanguagesDownloaded: vi.fn(async () => ['eng' as const, 'chi_sim' as const]),
-            fetchImage: vi.fn(async () => 'data:image/png;base64,CC=='),
             now: () => 0,
         };
         const handlers = createImageTranslationBackgroundHandlers(dependencies);
@@ -381,7 +458,16 @@ describe('后台 feature handlers', () => {
             image: 'data:image/png;base64,AA==',
             sourceLanguage: 'auto',
         })).resolves.toEqual({success: true, image: 'data:image/png;base64,BB==', lines: []});
-        expect(dependencies.translateImage).toHaveBeenCalledWith('data:image/png;base64,AA==', 'auto', '');
+        expect(dependencies.translateImage).toHaveBeenCalledWith(
+            'data:image/png;base64,AA==',
+            'auto',
+            '',
+            expect.objectContaining({
+                requestId: expect.stringMatching(/^legacy-image-/),
+                signal: expect.any(AbortSignal),
+                timeoutMs: 180_000,
+            }),
+        );
 
         await expect(find(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE).handle({
             type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE,
@@ -402,10 +488,197 @@ describe('后台 feature handlers', () => {
             languages: ['eng', 'eng'],
         })).resolves.toEqual({success: true, languages: ['eng', 'chi_sim']});
         expect(dependencies.downloadLanguages).toHaveBeenCalledWith(['eng']);
-        await expect(find(IMAGE_FETCH_MESSAGE_TYPE).handle({
-            type: IMAGE_FETCH_MESSAGE_TYPE,
-            url: 'https://example.com/image.png',
-        })).resolves.toEqual({success: true, image: 'data:image/png;base64,CC=='});
+    });
+
+    it('图片取消消息会中止同 requestId 的后台操作并忽略迟到结果', async () => {
+        let resolveImage!: (value: {image: string; lines: never[]}) => void;
+        const dependencies = {
+            assertLanguagesDownloaded: vi.fn(async () => undefined),
+            recognizeImage: vi.fn(async () => []),
+            translateImage: vi.fn(() => new Promise<{image: string; lines: never[]}>((resolve) => {
+                resolveImage = resolve;
+            })),
+            translateTexts: vi.fn(async () => []),
+            getTranslationService: vi.fn(() => 'microsoft'),
+            supportsBatchTranslation: vi.fn(() => true),
+            downloadLanguages: vi.fn(async () => undefined),
+            markLanguagesDownloaded: vi.fn(async () => []),
+        };
+        const handlers = createImageTranslationBackgroundHandlers(dependencies);
+        const find = (type: string) => handlers.find(handler => handler.type === type)!;
+        const pending = find(IMAGE_TRANSLATE_MESSAGE_TYPE).handle({
+            type: IMAGE_TRANSLATE_MESSAGE_TYPE,
+            image: 'data:image/png,x',
+            sourceLanguage: 'en',
+            requestId: 'image-pending',
+            timeoutMs: 5_000,
+        });
+        await vi.waitFor(() => expect(dependencies.translateImage).toHaveBeenCalledOnce());
+        const signal = ((dependencies.translateImage.mock.calls as unknown[][])[0]?.[3] as {
+            signal?: AbortSignal;
+        } | undefined)?.signal;
+
+        await expect(find(IMAGE_CANCEL_MESSAGE_TYPE).handle({
+            type: IMAGE_CANCEL_MESSAGE_TYPE,
+            requestId: 'image-pending',
+        })).resolves.toEqual({success: true, cancelled: true, requestId: 'image-pending'});
+        expect(signal?.aborted).toBe(true);
+        await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+
+        resolveImage({image: 'data:image/png,late', lines: []});
+        await Promise.resolve();
+        await expect(find(IMAGE_CANCEL_MESSAGE_TYPE).handle({
+            type: IMAGE_CANCEL_MESSAGE_TYPE,
+            requestId: 'image-pending',
+        })).resolves.toEqual({success: true, cancelled: false, requestId: 'image-pending'});
+    });
+
+    it('图片操作注册表覆盖非法协议、重复 ID、超时和有界取消墓碑', async () => {
+        const registry = createImageOperationRegistry('coverage');
+        await expect(registry.run({requestId: 'bad request'}, async () => 'unused'))
+            .rejects.toThrow('requestId 格式无效');
+        for (const [index, timeoutMs] of [null, Number.NaN, 0].entries()) {
+            await expect(registry.run({requestId: `bad-timeout-${index}`, timeoutMs}, async () => 'unused'))
+                .rejects.toThrow('timeoutMs 必须是正数');
+        }
+
+        let resolveActive!: (value: string) => void;
+        const active = registry.run({requestId: 'duplicate-active', timeoutMs: 5_000}, () =>
+            new Promise<string>(resolve => { resolveActive = resolve; }));
+        await Promise.resolve();
+        await expect(registry.run({requestId: 'duplicate-active'}, async () => 'duplicate'))
+            .rejects.toThrow('requestId 正在执行');
+        resolveActive('done');
+        await expect(active).resolves.toBe('done');
+
+        await expect(registry.run({requestId: 'times-out', timeoutMs: 1}, () =>
+            new Promise<string>(() => undefined))).rejects.toMatchObject({name: 'TimeoutError'});
+
+        expect(registry.cancel('repeat-cancel').cancelled).toBe(false);
+        expect(registry.cancel('repeat-cancel').cancelled).toBe(false);
+        for (let index = 0; index <= 512; index += 1) registry.cancel(`bounded-${index}`);
+        await expect(registry.run({requestId: 'bounded-0'}, async () => 'released'))
+            .resolves.toBe('released');
+
+    });
+
+    it('图片 OCR 与整图翻译在语言包等待期间取消后不进入 Offscreen', async () => {
+        const languageWaits: Array<() => void> = [];
+        const dependencies = {
+            assertLanguagesDownloaded: vi.fn(() => new Promise<void>(resolve => languageWaits.push(resolve))),
+            recognizeImage: vi.fn(async () => []),
+            translateImage: vi.fn(async () => ({image: 'translated', lines: []})),
+            translateTexts: vi.fn(async () => []),
+            getTranslationService: vi.fn(() => 'microsoft'),
+            supportsBatchTranslation: vi.fn(() => true),
+            downloadLanguages: vi.fn(async () => undefined),
+            markLanguagesDownloaded: vi.fn(async () => []),
+        };
+        const handlers = createImageTranslationBackgroundHandlers(dependencies);
+        const find = (type: string) => handlers.find(handler => handler.type === type)!;
+        const ocr = find(IMAGE_OCR_MESSAGE_TYPE).handle({
+            type: IMAGE_OCR_MESSAGE_TYPE,
+            image: 'data:image/png,x',
+            sourceLanguage: 'en',
+            requestId: 'ocr-language-wait',
+            timeoutMs: 5_000,
+        });
+        await vi.waitFor(() => expect(languageWaits).toHaveLength(1));
+        await find(IMAGE_CANCEL_MESSAGE_TYPE).handle({
+            type: IMAGE_CANCEL_MESSAGE_TYPE,
+            requestId: 'ocr-language-wait',
+        });
+        await expect(ocr).rejects.toMatchObject({name: 'AbortError'});
+        languageWaits.shift()?.();
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(dependencies.recognizeImage).not.toHaveBeenCalled();
+
+        const translated = find(IMAGE_TRANSLATE_MESSAGE_TYPE).handle({
+            type: IMAGE_TRANSLATE_MESSAGE_TYPE,
+            image: 'data:image/png,x',
+            sourceLanguage: 'en',
+            requestId: 'translate-language-wait',
+            timeoutMs: 5_000,
+        });
+        await vi.waitFor(() => expect(languageWaits).toHaveLength(1));
+        await find(IMAGE_CANCEL_MESSAGE_TYPE).handle({
+            type: IMAGE_CANCEL_MESSAGE_TYPE,
+            requestId: 'translate-language-wait',
+        });
+        await expect(translated).rejects.toMatchObject({name: 'AbortError'});
+        languageWaits.shift()?.();
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(dependencies.translateImage).not.toHaveBeenCalled();
+    });
+
+    it('Offscreen 文字翻译取消会中止同所有权的 broker 请求并忽略迟到结果', async () => {
+        let resolveTexts!: (value: string[]) => void;
+        const dependencies = {
+            assertLanguagesDownloaded: vi.fn(async () => undefined),
+            recognizeImage: vi.fn(async () => []),
+            translateImage: vi.fn(async () => ({image: 'data:image/png,x', lines: []})),
+            translateTexts: vi.fn(() => new Promise<string[]>((resolve) => { resolveTexts = resolve; })),
+            getTranslationService: vi.fn(() => 'microsoft'),
+            supportsBatchTranslation: vi.fn(() => true),
+            downloadLanguages: vi.fn(async () => undefined),
+            markLanguagesDownloaded: vi.fn(async () => []),
+        };
+        const handlers = createImageTranslationBackgroundHandlers(dependencies);
+        const find = (type: string) => handlers.find(handler => handler.type === type)!;
+        const pending = find(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE).handle({
+            type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE,
+            texts: ['hello'],
+            title: 'Page',
+            requestId: 'image-text-pending',
+            timeoutMs: 5_000,
+        });
+        await vi.waitFor(() => expect(dependencies.translateTexts).toHaveBeenCalledOnce());
+        const request = (dependencies.translateTexts.mock.calls as unknown[][])[0]?.[0];
+        const control = getTranslationRequestControl(request);
+        expect(control).toMatchObject({ownershipKey: 'image:image-text-pending'});
+
+        await expect(find(IMAGE_CANCEL_MESSAGE_TYPE).handle({
+            type: IMAGE_CANCEL_MESSAGE_TYPE,
+            requestId: 'image-text-pending',
+        })).resolves.toEqual({success: true, cancelled: true, requestId: 'image-text-pending'});
+        expect(control?.signal.aborted).toBe(true);
+        await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+
+        resolveTexts(['迟到译文']);
+        await Promise.resolve();
+    });
+
+    it('取消先于 Offscreen 文字消息到达时，后到请求 fail closed 且不启动 broker', async () => {
+        const dependencies = {
+            assertLanguagesDownloaded: vi.fn(async () => undefined),
+            recognizeImage: vi.fn(async () => []),
+            translateImage: vi.fn(async () => ({image: 'data:image/png,x', lines: []})),
+            translateTexts: vi.fn(async () => ['不应调用']),
+            getTranslationService: vi.fn(() => 'microsoft'),
+            supportsBatchTranslation: vi.fn(() => true),
+            downloadLanguages: vi.fn(async () => undefined),
+            markLanguagesDownloaded: vi.fn(async () => []),
+        };
+        const handlers = createImageTranslationBackgroundHandlers(dependencies);
+        const find = (type: string) => handlers.find(handler => handler.type === type)!;
+
+        await expect(find(IMAGE_CANCEL_MESSAGE_TYPE).handle({
+            type: IMAGE_CANCEL_MESSAGE_TYPE,
+            requestId: 'image-cancelled-before-text',
+        })).resolves.toEqual({
+            success: true,
+            cancelled: false,
+            requestId: 'image-cancelled-before-text',
+        });
+        await expect(find(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE).handle({
+            type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE,
+            texts: ['hello'],
+            requestId: 'image-cancelled-before-text',
+            timeoutMs: 5_000,
+        })).rejects.toMatchObject({name: 'AbortError'});
+        expect(dependencies.translateTexts).not.toHaveBeenCalled();
     });
 
     it('图片 handlers 严格拒绝非法页面 payload 和 provider 结果', async () => {
@@ -418,7 +691,6 @@ describe('后台 feature handlers', () => {
             supportsBatchTranslation: vi.fn(() => true),
             downloadLanguages: vi.fn(async () => undefined),
             markLanguagesDownloaded: vi.fn(async () => []),
-            fetchImage: vi.fn(async () => 'data:image/png,x'),
             now: () => 0,
         };
         const handlers = createImageTranslationBackgroundHandlers(dependencies);
@@ -427,7 +699,6 @@ describe('后台 feature handlers', () => {
         const imageTranslate = find(IMAGE_TRANSLATE_MESSAGE_TYPE);
         const texts = find(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE);
         const download = find(IMAGE_OCR_DOWNLOAD_MESSAGE_TYPE);
-        const fetchImage = find(IMAGE_FETCH_MESSAGE_TYPE);
 
         await expect(ocr.handle({type: IMAGE_OCR_MESSAGE_TYPE, image: 1, sourceLanguage: 'en'}))
             .rejects.toThrow('图片数据无效');
@@ -488,14 +759,6 @@ describe('后台 feature handlers', () => {
         await expect(download.handle({type: IMAGE_OCR_DOWNLOAD_MESSAGE_TYPE, languages: ['fra']}))
             .rejects.toThrow('包含不支持的语言');
 
-        await expect(fetchImage.handle({type: IMAGE_FETCH_MESSAGE_TYPE, url: ''}))
-            .rejects.toThrow('url 必须是非空字符串');
-        dependencies.fetchImage.mockResolvedValueOnce('https://example.com/image.png');
-        await expect(fetchImage.handle({type: IMAGE_FETCH_MESSAGE_TYPE, url: 'https://example.com/image.png'}))
-            .rejects.toThrow('远程图片结果无效');
-        dependencies.fetchImage.mockResolvedValueOnce(undefined as unknown as string);
-        await expect(fetchImage.handle({type: IMAGE_FETCH_MESSAGE_TYPE, url: 'https://example.com/image.png'}))
-            .rejects.toThrow('远程图片结果无效');
     });
 
     it('图片文字对不支持 batch 的 provider 逐条保序，并标明失败段号', async () => {
@@ -512,7 +775,6 @@ describe('后台 feature handlers', () => {
             supportsBatchTranslation: vi.fn(() => false),
             downloadLanguages: vi.fn(async () => undefined),
             markLanguagesDownloaded: vi.fn(async () => []),
-            fetchImage: vi.fn(async () => 'data:image/png,x'),
             now: () => 0,
         };
         const handler = createImageTranslationBackgroundHandlers(dependencies)
@@ -582,7 +844,6 @@ describe('后台 feature handlers', () => {
                 supportsBatchTranslation: vi.fn(() => false),
                 downloadLanguages: vi.fn(async () => undefined),
                 markLanguagesDownloaded: vi.fn(async () => []),
-                fetchImage: vi.fn(async () => 'data:image/png,x'),
             };
             const handler = createImageTranslationBackgroundHandlers(dependencies)
                 .find((candidate) => candidate.type === IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE)!;
@@ -617,7 +878,6 @@ describe('后台 feature handlers', () => {
             supportsBatchTranslation: vi.fn(() => true),
             downloadLanguages: vi.fn(async () => undefined),
             markLanguagesDownloaded: vi.fn(async () => []),
-            fetchImage: vi.fn(async () => 'data:image/png,x'),
             now: () => nowCalls++ === 0 ? 0 : IMAGE_TEXT_TRANSLATION_TIMEOUT_MS,
         };
         const handler = createImageTranslationBackgroundHandlers(dependencies)

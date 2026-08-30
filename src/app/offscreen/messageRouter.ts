@@ -14,6 +14,7 @@ import type {SelectionTtsPlayer} from './ttsPlayback';
 import {parseLanguageCode} from './translation';
 import {
     OFFSCREEN_CANCEL_CHROME_TRANSLATION_MESSAGE_TYPE,
+    OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
     OFFSCREEN_READY_MESSAGE_TYPE,
 } from '@/src/platform/offscreen/client';
 
@@ -22,13 +23,21 @@ export type OffscreenSendResponse = (response: unknown) => void;
 export interface OffscreenMessageDependencies {
     readonly translate: (data: unknown, signal: AbortSignal) => Promise<string>;
     readonly ttsPlayer: Pick<SelectionTtsPlayer, 'play' | 'stop'>;
-    readonly recognizeImage: (image: string, sourceLanguage: string) => Promise<unknown>;
-    readonly translateImage: (image: string, sourceLanguage: string, title: string) => Promise<unknown>;
+    readonly recognizeImage: (image: string, sourceLanguage: string, signal: AbortSignal) => Promise<unknown>;
+    readonly translateImage: (
+        image: string,
+        sourceLanguage: string,
+        title: string,
+        signal: AbortSignal,
+        requestId: string,
+    ) => Promise<unknown>;
     readonly translateArea: (
         image: string,
         sourceLanguage: string,
         title: string,
         selection: AreaTranslationSelection,
+        signal: AbortSignal,
+        requestId: string,
     ) => Promise<unknown>;
     readonly downloadOcrLanguages: (languages: ImageOcrLanguageCode[]) => Promise<void>;
 }
@@ -122,6 +131,68 @@ function respondWith(
 /** 静态路由 Offscreen 消息；未知或非对象消息不会占用其他 runtime listener。 */
 export function createOffscreenMessageListener(dependencies: OffscreenMessageDependencies): OffscreenMessageListener {
     const activeChromeTranslations = new Map<string, AbortController>();
+    const activeImageOperations = new Map<string, AbortController>();
+    const cancelledImageOperations = new Set<string>();
+    const cancellationOrder: string[] = [];
+    let legacyImageRequestSequence = 0;
+
+    const rememberImageCancellation = (requestId: string) => {
+        if (cancelledImageOperations.has(requestId)) return;
+        cancelledImageOperations.add(requestId);
+        cancellationOrder.push(requestId);
+        if (cancellationOrder.length <= 512) return;
+        cancelledImageOperations.delete(cancellationOrder.shift()!);
+    };
+
+    const startImageOperation = (
+        message: Record<string, unknown>,
+        sendResponse: OffscreenSendResponse,
+        operation: (signal: AbortSignal, requestId: string) => Promise<unknown>,
+        shape: (result: unknown) => unknown,
+    ): void => {
+        let requestId: string;
+        try {
+            requestId = message.requestId === undefined
+                ? `legacy-image-${++legacyImageRequestSequence}`
+                : requiredRequestId(message.requestId);
+            if (cancelledImageOperations.delete(requestId)) {
+                sendResponse({success: false, cancelled: true, requestId, error: '图片 OCR 请求已取消'});
+                return;
+            }
+            if (activeImageOperations.has(requestId)) {
+                throw new Error('Offscreen 图片 requestId 正在执行');
+            }
+        } catch (error) {
+            sendResponse({success: false, error: errorMessage(error)});
+            return;
+        }
+
+        const controller = new AbortController();
+        activeImageOperations.set(requestId, controller);
+        let settled = false;
+        const finish = (response: unknown) => {
+            if (settled) return;
+            settled = true;
+            controller.signal.removeEventListener('abort', handleAbort);
+            if (activeImageOperations.get(requestId) === controller) activeImageOperations.delete(requestId);
+            sendResponse(response);
+        };
+        const handleAbort = () => finish({
+            success: false,
+            cancelled: true,
+            requestId,
+            error: '图片 OCR 请求已取消',
+        });
+        controller.signal.addEventListener('abort', handleAbort, {once: true});
+        void Promise.resolve()
+            .then(() => operation(controller.signal, requestId))
+            .then(
+                result => finish(shape(result)),
+                error => finish({success: false, error: errorMessage(error)}),
+            )
+            .catch(error => finish({success: false, error: errorMessage(error)}));
+    };
+
     return (message, _sender, sendResponse) => {
         if (!isRecord(message) || typeof message.type !== 'string') return false;
         if (message.target !== 'offscreen') return false;
@@ -191,12 +262,14 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
                 return true;
             }
             case 'FLUENT_READ_IMAGE_OCR_OFFSCREEN':
-                respondWith(
-                    () => dependencies.recognizeImage(
+                startImageOperation(
+                    message,
+                    sendResponse,
+                    signal => dependencies.recognizeImage(
                         requiredImage(message.image),
                         requiredSourceLanguage(message.sourceLanguage),
+                        signal,
                     ),
-                    sendResponse,
                     (lines) => {
                         if (!Array.isArray(lines)) throw new Error('图片 OCR 结果无效');
                         return {success: true, lines};
@@ -204,28 +277,46 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
                 );
                 return true;
             case 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN':
-                respondWith(
-                    () => dependencies.translateImage(
+                startImageOperation(
+                    message,
+                    sendResponse,
+                    (signal, requestId) => dependencies.translateImage(
                         requiredImage(message.image),
                         requiredSourceLanguage(message.sourceLanguage),
                         optionalTitle(message.title),
+                        signal,
+                        requestId,
                     ),
-                    sendResponse,
                     (result) => ({...resultRecord(result, '图片翻译'), success: true}),
                 );
                 return true;
             case 'FLUENT_READ_AREA_TRANSLATE_OFFSCREEN':
-                respondWith(
-                    () => dependencies.translateArea(
+                startImageOperation(
+                    message,
+                    sendResponse,
+                    (signal, requestId) => dependencies.translateArea(
                         requiredImage(message.image),
                         requiredSourceLanguage(message.sourceLanguage),
                         optionalTitle(message.title),
                         parseSelection(message.selection),
+                        signal,
+                        requestId,
                     ),
-                    sendResponse,
                     (result) => ({...resultRecord(result, '区域翻译'), success: true}),
                 );
                 return true;
+            case OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE: {
+                try {
+                    const requestId = requiredRequestId(message.requestId);
+                    const controller = activeImageOperations.get(requestId);
+                    if (controller) controller.abort();
+                    else rememberImageCancellation(requestId);
+                    sendResponse({success: true, cancelled: Boolean(controller), requestId});
+                } catch (error) {
+                    sendResponse({success: false, error: errorMessage(error)});
+                }
+                return true;
+            }
             case 'FLUENT_READ_IMAGE_OCR_DOWNLOAD_OFFSCREEN':
                 respondWith(
                     () => dependencies.downloadOcrLanguages(parseOcrLanguages(message.languages)),

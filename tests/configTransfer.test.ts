@@ -239,6 +239,60 @@ describe('configuration transfer helpers', () => {
     expect(imported.videoServiceDefaultMigrated).toBe(target.videoServiceDefaultMigrated)
   })
 
+  it('完整备份精确替换凭据快照，不保留目标端多余 token、extra 或标量密钥', () => {
+    const exported = prepareConfigForExport(normalizeConfig({
+      ...new Config(),
+      token: {openai: 'backup-openai'},
+      extra: {backupCredential: 'backup-extra'},
+      ak: '',
+    }))
+    const current = normalizeConfig({
+      ...new Config(),
+      token: {openai: 'current-openai', deepseek: 'target-only-token'},
+      extra: {targetOnlyCredential: 'target-only-extra'},
+      ak: 'target-only-ak',
+    })
+
+    const imported = prepareConfigForImport(exported, current, {credentialMode: 'replace'})
+
+    expect(imported.token).toEqual({openai: 'backup-openai'})
+    expect(imported.extra).toEqual({backupCredential: 'backup-extra'})
+    expect(imported.ak).toBe('')
+  })
+
+  it('旧 v1 水合安全合并不让默认空标量清除目标端凭据，但仍接受非空更新', () => {
+    const current = normalizeConfig({
+      ...new Config(),
+      token: {openai: 'current-openai'},
+      ak: 'current-ak',
+      sk: 'current-sk',
+      appid: 'current-appid',
+      key: 'current-key',
+      youdaoAppKey: 'current-youdao-key',
+      youdaoAppSecret: 'current-youdao-secret',
+      tencentSecretId: 'current-tencent-id',
+      tencentSecretKey: 'current-tencent-key',
+    })
+    const earlyV1Snapshot = prepareConfigForExport(new Config())
+    const imported = prepareConfigForImport({
+      ...earlyV1Snapshot,
+      ak: 'replacement-ak',
+      youdaoAppSecret: '   ',
+    }, current, {credentialMode: 'merge-hydration-safe'})
+
+    expect(imported).toMatchObject({
+      token: {openai: 'current-openai'},
+      ak: 'replacement-ak',
+      sk: 'current-sk',
+      appid: 'current-appid',
+      key: 'current-key',
+      youdaoAppKey: 'current-youdao-key',
+      youdaoAppSecret: 'current-youdao-secret',
+      tencentSecretId: 'current-tencent-id',
+      tencentSecretKey: 'current-tencent-key',
+    })
+  })
+
   it('完整用户导出拒绝非对象', () => {
     expect(() => prepareConfigForExport(null)).toThrow('配置必须是 JSON 对象')
   })
@@ -404,6 +458,45 @@ describe('configuration transfer helpers', () => {
 
     expect(imported.token).not.toHaveProperty(customService)
     expect(imported.token).not.toHaveProperty('openai')
+  })
+
+  it('腾讯共享密钥在任一 proxy 改道时成对解绑，只有完整显式密钥对可以重绑', () => {
+    const current = normalizeConfig({
+      ...validConfig,
+      proxy: {[services.tencent]: 'https://old-tmt-proxy.example/'},
+      tencentSecretId: 'current-tencent-id',
+      tencentSecretKey: 'current-tencent-key',
+    })
+    const imported = (credentials: Record<string, string> = {}) => prepareConfigForImport({
+      ...validConfig,
+      proxy: {[services.tencent]: 'https://new-tmt-proxy.example/'},
+      ...credentials,
+    }, current)
+
+    expect(imported()).toMatchObject({tencentSecretId: '', tencentSecretKey: ''})
+    expect(imported({tencentSecretId: 'only-new-id'}))
+      .toMatchObject({tencentSecretId: '', tencentSecretKey: ''})
+    expect(imported({
+      tencentSecretId: 'new-tencent-id',
+      tencentSecretKey: 'new-tencent-key',
+    })).toMatchObject({
+      tencentSecretId: 'new-tencent-id',
+      tencentSecretKey: 'new-tencent-key',
+    })
+  })
+
+  it('Gemini proxy 变化不清除只会发往官方端点的 Google Key', () => {
+    const current = normalizeConfig({
+      ...validConfig,
+      proxy: {[services.gemini]: 'https://old-gemini-proxy.example/'},
+      token: {[services.gemini]: 'google-official-secret'},
+    })
+    const imported = prepareConfigForImport({
+      ...validConfig,
+      proxy: {[services.gemini]: 'https://new-gemini-proxy.example/'},
+    }, current)
+
+    expect(imported.token[services.gemini]).toBe('google-official-secret')
   })
 
   it('有效 proxy 未变时允许自定义 profile 更新而不丢失现有 token', () => {

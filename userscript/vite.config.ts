@@ -17,6 +17,20 @@ const projectRoot = `${normalizePath(root)}/`;
 
 export const compatibilityPreludeStart = '/* FluentRead userscript compatibility prelude:start */';
 export const compatibilityPreludeEnd = '/* FluentRead userscript compatibility prelude:end */';
+export const executionGuardStart = '/* FluentRead userscript execution guard:start */';
+export const executionGuardEnd = '/* FluentRead userscript execution guard:end */';
+
+export function wrapUserscriptEntry(entryCode: string, bootstrapCode: string): string {
+    return [
+        metadata,
+        executionGuardStart,
+        'if (!globalThis.__fluentReadUserscriptBootstrapped) {',
+        bootstrapCode,
+        entryCode,
+        '}',
+        executionGuardEnd,
+    ].join('\n');
+}
 
 // Via 等旧内核可能缺少共享核心使用的基础方法；在单文件入口最前方注入小型兼容层。
 const compatibilityPrelude = `${compatibilityPreludeStart}
@@ -181,7 +195,10 @@ function bundleUserscriptCss(): Plugin {
                 `globalThis.__FLUENTREAD_ICON_DATA__=${JSON.stringify(iconDataUrl)};`,
                 `globalThis.__fluentReadUserscriptCss=${JSON.stringify(css)};`,
             ].join('\n');
-            entry.code = `${metadata}${bootstrap}\n${entry.code}`;
+            // 入口内部的幂等标记只能在整个 IIFE 顶层求值后生效。脚本管理器若对同一
+            // 文档再次注入，必须在最外层跳过整个 bundle，否则内联模块会重复创建
+            // 配置 store、watch 和 preparation barrier，即使 bootstrap 最后选择返回。
+            entry.code = wrapUserscriptEntry(entry.code, bootstrap);
 
             entry.code = entry.code.replace(/[\uFFFE\uFFFF]/gu, (character) => {
                 const codePoint = character.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0');

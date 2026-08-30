@@ -17,6 +17,7 @@ import type {
     TranslationModelUsageOutcome,
     TranslationModelUsageRecord,
 } from '@/src/services/translation/types';
+import {waitForBoundedPersistence} from '@/src/services/translation/persistenceBarrier';
 
 export const CONNECTION_TEST_ORIGIN = 'Hello from FluentRead.';
 export const CONNECTION_TEST_TIMEOUT_MS = 30_000;
@@ -26,6 +27,7 @@ export interface ConnectionTestUsageOptions {
     recordModelUsage?: (events: readonly TranslationModelUsageRecord[]) => Promise<void>;
     now?: () => number;
     warn?: (message: string, error: unknown) => void;
+    persistenceGraceMs?: number;
 }
 
 function isNonEmptyText(value: unknown): value is string {
@@ -47,6 +49,7 @@ export async function runTranslationServiceConnectionTest(
 
     const now = usageOptions.now ?? Date.now;
     const startedAt = now();
+    let finishedAt = startedAt;
     const observations: TranslationModelUsageObservation[] = [];
     const configuredModel = usageOptions.configuredModel?.trim() || 'unknown';
     const controller = new AbortController();
@@ -79,8 +82,11 @@ export async function runTranslationServiceConnectionTest(
         if (!isNonEmptyText(result)) {
             throw new Error('服务已响应，但没有返回有效译文');
         }
-        scheduleConnectionTestUsage('success');
+        clearTimeout(timer!);
+        finishedAt = now();
+        await persistConnectionTestUsage('success');
     } catch (error) {
+        finishedAt = now();
         const lastObservation = observations.at(-1);
         const outcome = timedOut || isTimeoutError(error) || lastObservation?.statusCode === 408
             ? 'timeout'
@@ -93,18 +99,18 @@ export async function runTranslationServiceConnectionTest(
         ) {
             lastObservation.outcome = 'timeout';
         }
-        scheduleConnectionTestUsage(outcome);
+        await persistConnectionTestUsage(outcome);
         if (timedOut) throw new Error('翻译请求超时');
         throw error;
     } finally {
         clearTimeout(timer!);
     }
 
-    return {durationMs: Math.max(0, now() - startedAt)};
+    return {durationMs: Math.max(0, finishedAt - startedAt)};
 
-    function scheduleConnectionTestUsage(fallbackOutcome: TranslationModelUsageOutcome): void {
+    async function persistConnectionTestUsage(fallbackOutcome: TranslationModelUsageOutcome): Promise<void> {
         if (!usageOptions.recordModelUsage || observations.length === 0) return;
-        const elapsed = Math.max(0, now() - startedAt);
+        const elapsed = Math.max(0, finishedAt - startedAt);
         const records: TranslationModelUsageRecord[] = observations.map((observation) => ({
             ...observation,
             startedAt: typeof observation.startedAt === 'number' && Number.isFinite(observation.startedAt)
@@ -118,13 +124,14 @@ export async function runTranslationServiceConnectionTest(
             purpose: 'connection-test',
             outcome: observation.outcome ?? fallbackOutcome,
         }));
-        try {
-            void Promise.resolve(usageOptions.recordModelUsage(records)).catch((error) => {
-                usageOptions.warn?.('[FluentRead] connection test usage write failed:', error);
-            });
-        } catch (error) {
-            usageOptions.warn?.('[FluentRead] connection test usage write failed:', error);
-        }
+        await waitForBoundedPersistence(
+            Promise.resolve().then(() => usageOptions.recordModelUsage!(records)),
+            {
+                graceMs: usageOptions.persistenceGraceMs,
+                onFailure: (error) => usageOptions.warn?.('[FluentRead] connection test usage write failed:', error),
+                onTimeout: (error) => usageOptions.warn?.('[FluentRead] connection test usage write timed out:', error),
+            },
+        );
     }
 }
 

@@ -12,8 +12,8 @@
  */
 
 import {config} from '@/src/services/config/store';
+import {normalizeMaxConcurrentTranslations} from '@/src/core/config/model';
 
-const DEFAULT_MAX_CONCURRENT_TRANSLATIONS = 6;
 const COMPACTION_HEAD_THRESHOLD = 1024;
 
 export interface TranslationQueueSession {
@@ -62,7 +62,9 @@ function createSession(): TranslationQueueSession {
 let defaultSession = createSession();
 
 function getMaxConcurrentTranslations(): number {
-  return config.maxConcurrentTranslations || DEFAULT_MAX_CONCURRENT_TRANSLATIONS;
+  // config 通常已经在存储边界归一化；这里仍防御运行时污染和旧上下文中的畸形值，
+  // 确保队列至少推进一个任务，也绝不会突破设置页公开的 100 并发上限。
+  return normalizeMaxConcurrentTranslations(config.maxConcurrentTranslations);
 }
 
 function normalizeCancellationError(reason?: unknown): TranslationQueueCancelledError {

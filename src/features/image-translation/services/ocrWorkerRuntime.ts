@@ -21,9 +21,15 @@ export type OcrWorkerRuntimeDependencies<TResult> = {
 };
 
 export type OcrWorkerRuntime<TResult> = {
-    recognize: (image: string, languages: string) => Promise<TResult>;
-    ensureLanguages: (languages: string[]) => Promise<void>;
+    recognize: (image: string, languages: string, signal?: AbortSignal) => Promise<TResult>;
+    ensureLanguages: (languages: string[], signal?: AbortSignal) => Promise<void>;
 };
+
+function createOcrAbortError(): Error {
+    const error = new Error('图片 OCR 请求已取消');
+    error.name = 'AbortError';
+    return error;
+}
 
 /**
  * 串行化所有 Worker 操作，避免语言切换终止仍在识别的 Worker，也避免同一
@@ -34,7 +40,45 @@ export function createOcrWorkerRuntime<TResult>(
 ): OcrWorkerRuntime<TResult> {
     let workerPromise: Promise<OcrWorkerPort<TResult>> | null = null;
     let workerLanguages = '';
+    let workerOwnershipGeneration = 0;
     let operationTail: Promise<void> = Promise.resolve();
+
+    function terminateCurrentWorker(): void {
+        const current = workerPromise;
+        workerPromise = null;
+        workerLanguages = '';
+        workerOwnershipGeneration += 1;
+        // terminate 本身也可能等待底层 Worker；取消请求不能继续阻塞串行尾链。
+        void current?.then(worker => worker.terminate()).catch(() => undefined);
+    }
+
+    function runAbortable<T>(operation: Promise<T>, signal?: AbortSignal): Promise<T> {
+        if (!signal) return operation;
+        return new Promise<T>((resolve, reject) => {
+            let settled = false;
+            const cleanup = () => signal.removeEventListener('abort', handleAbort);
+            const finish = (callback: () => void) => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                callback();
+            };
+            const handleAbort = () => finish(() => {
+                terminateCurrentWorker();
+                reject(createOcrAbortError());
+            });
+
+            if (signal.aborted) {
+                handleAbort();
+                return;
+            }
+            signal.addEventListener('abort', handleAbort, {once: true});
+            void operation.then(
+                value => finish(() => resolve(value)),
+                error => finish(() => reject(error)),
+            );
+        });
+    }
 
     function runExclusive<T>(operation: () => Promise<T>): Promise<T> {
         // 步骤 1：无论上一项成功还是失败，后续 OCR 操作都必须继续执行。
@@ -48,8 +92,20 @@ export function createOcrWorkerRuntime<TResult>(
         if (workerPromise && workerLanguages === languages) return workerPromise;
 
         if (workerPromise) {
-            const previousWorker = await workerPromise.catch(() => null);
+            const previousWorkerPromise = workerPromise;
+            const ownershipGeneration = workerOwnershipGeneration;
+            const assertTransitionOwnership = () => {
+                if (workerOwnershipGeneration !== ownershipGeneration
+                    || workerPromise !== previousWorkerPromise) {
+                    throw createOcrAbortError();
+                }
+            };
+            const previousWorker = await previousWorkerPromise.catch(() => null);
+            assertTransitionOwnership();
             await previousWorker?.terminate().catch(() => undefined);
+            // 调用方 abort 会立即放行队列中的下一项；旧切换恢复后只能
+            // 清理自己当时拥有的 Worker，不得覆盖新请求已安装的实例。
+            assertTransitionOwnership();
             workerPromise = null;
             workerLanguages = '';
         }
@@ -70,20 +126,22 @@ export function createOcrWorkerRuntime<TResult>(
     }
 
     return {
-        recognize(image, languages) {
+        recognize(image, languages, signal) {
             return runExclusive(async () => {
-                const worker = await getWorker(languages);
-                await worker.setParameters({
+                if (signal?.aborted) throw createOcrAbortError();
+                const worker = await runAbortable(getWorker(languages), signal);
+                await runAbortable(worker.setParameters({
                     tessedit_pageseg_mode: dependencies.sparseTextMode,
                     preserve_interword_spaces: '1',
-                });
-                return worker.recognize(image, {}, {blocks: true});
+                }), signal);
+                return runAbortable(worker.recognize(image, {}, {blocks: true}), signal);
             });
         },
-        ensureLanguages(languages) {
+        ensureLanguages(languages, signal) {
             if (languages.length === 0) return Promise.resolve();
             return runExclusive(async () => {
-                await getWorker(languages.join('+'));
+                if (signal?.aborted) throw createOcrAbortError();
+                await runAbortable(getWorker(languages.join('+')), signal);
             });
         },
     };

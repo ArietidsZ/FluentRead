@@ -1,12 +1,33 @@
 import {resolve} from 'node:path';
 import {describe, expect, it} from 'vitest';
-import {injectUserscriptBrowserImports, userscriptAliases} from '@/userscript/vite.config';
+import {
+    executionGuardEnd,
+    executionGuardStart,
+    injectUserscriptBrowserImports,
+    userscriptAliases,
+    wrapUserscriptEntry,
+} from '@/userscript/vite.config';
 
 const entrypointId = resolve(process.cwd(), 'entrypoints/userscript-injection-fixture.ts');
 const sourceModuleId = resolve(process.cwd(), 'src/app/content/runtime.ts');
 const vueScriptModuleId = `${resolve(process.cwd(), 'src/features/selection-translation/ui/SelectionTranslator.vue')}?vue&type=script&setup=true&lang.ts`;
 
 describe('userscript browser shim injection', () => {
+    it('wraps the complete single-file runtime in a duplicate-injection guard', () => {
+        const wrapped = wrapUserscriptEntry('ENTRY_SENTINEL', 'BOOTSTRAP_SENTINEL');
+        const guardStart = wrapped.indexOf(executionGuardStart);
+        const condition = wrapped.indexOf('if (!globalThis.__fluentReadUserscriptBootstrapped) {');
+        const bootstrap = wrapped.indexOf('BOOTSTRAP_SENTINEL');
+        const entry = wrapped.indexOf('ENTRY_SENTINEL');
+        const guardEnd = wrapped.indexOf(executionGuardEnd);
+
+        expect(guardStart).toBeGreaterThan(-1);
+        expect(condition).toBeGreaterThan(guardStart);
+        expect(bootstrap).toBeGreaterThan(condition);
+        expect(entry).toBeGreaterThan(bootstrap);
+        expect(guardEnd).toBeGreaterThan(entry);
+    });
+
     it('在 app 使用的 public contract 边界替换扩展专属 feature 与可信 GM 凭据上下文', () => {
         const stringAliases = new Map(userscriptAliases
             .filter((entry): entry is {find: string; replacement: string} => typeof entry.find === 'string')

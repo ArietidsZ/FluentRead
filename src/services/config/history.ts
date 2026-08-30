@@ -13,7 +13,7 @@ import {
     sanitizeConfigCredentials,
     type PublicConfig,
 } from '@/src/core/config/credentials';
-import {dropTokensForChangedCredentialDestinations} from '@/src/core/config/credentialBinding';
+import {dropCredentialsForChangedDestinations} from '@/src/core/config/credentialBinding';
 import {isConfigRecord, parseStoredConfig, serializeConfig} from './schema';
 
 export const CONFIG_HISTORY_LIMIT = 10 as const;
@@ -72,7 +72,7 @@ export function restoreRestorableConfig(value: unknown, currentValue: unknown): 
         count: current.count,
         videoServiceDefaultMigrated: current.videoServiceDefaultMigrated,
     });
-    const credentials = dropTokensForChangedCredentialDestinations(
+    const credentials = dropCredentialsForChangedDestinations(
         extractConfigCredentials(current),
         current,
         next,

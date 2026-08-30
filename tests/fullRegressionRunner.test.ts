@@ -62,11 +62,21 @@ describe('full regression runner', () => {
             'vitest-regression',
             'chrome-build',
             'firefox-build',
+            'firefox-zip',
             'extension-manifest-verifier',
             'userscript-build',
             'userscript-verifier',
             'docs-build',
         ]);
+        const firefoxZip = plan.steps.find((step: {id: string}) => step.id === 'firefox-zip');
+        const manifestVerifier = plan.steps.find(
+            (step: {id: string}) => step.id === 'extension-manifest-verifier',
+        );
+        expect(firefoxZip).toMatchObject({command: 'pnpm', args: ['zip:firefox']});
+        expect(manifestVerifier).toMatchObject({
+            command: 'node',
+            args: ['scripts/testing/verify-extension-manifests.mjs', '--require-firefox-archives'],
+        });
         expect(plan.steps.some((step: {phase: string}) => step.phase === 'browser' || step.phase === 'network')).toBe(false);
     });
 
