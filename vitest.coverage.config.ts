@@ -229,6 +229,7 @@ export default defineConfig({
                 'src/features/video-subtitle/content/youtubeTimedTextMessage.ts',
                 'src/features/video-subtitle/content/serviceProfile.ts',
                 'src/core/translation/adapters/declarative.ts',
+                'src/core/translation/adapters/bilibili.ts',
                 'src/core/translation/adapters/github.ts',
                 'src/core/translation/adapters/gnu.ts',
                 'src/core/translation/adapters/hackernews.ts',
