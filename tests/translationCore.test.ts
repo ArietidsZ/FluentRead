@@ -455,13 +455,25 @@ describe('translation candidate core', () => {
             parent = child;
         }
         parent.textContent = 'Readable text at an adversarial depth.';
-        const core = createTranslationCore({url: new URL('https://example.test')});
+        let adapterDecisions = 0;
+        const core = createTranslationCore({
+            url: new URL('https://example.test'),
+            adapters: [{
+                id: 'depth-short-circuit',
+                matches: () => true,
+                decide: () => {
+                    adapterDecisions += 1;
+                    return {kind: 'pass'} as const;
+                },
+            }],
+        });
 
         expect(evaluateHardGuard(parent)).toMatchObject({
             prune: true,
             reason: 'ancestor-depth-limit',
         });
         expect(core.resolve(parent.firstChild)).toBeNull();
+        expect(adapterDecisions).toBe(0);
     });
 
     it('shares text ancestor protection across one adversarially deep discovery', () => {

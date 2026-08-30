@@ -4,6 +4,32 @@ const listeners = new Map<string, Set<StorageListener>>();
 const memoryFallback = new Map<string, unknown>();
 const observedValues = new Map<string, unknown>();
 let refreshListenersInstalled = false;
+type ConfigPreparationResult = {success: true} | {success: false; error: unknown};
+let settleConfigPreparation: ((result: ConfigPreparationResult) => void) | undefined;
+const configPreparationReady = new Promise<ConfigPreparationResult>((resolve) => {
+    settleConfigPreparation = resolve;
+});
+
+async function waitForConfigPreparation(): Promise<void> {
+    const result = await configPreparationReady;
+    if (!result.success) throw result.error;
+}
+
+/**
+ * 单文件 userscript 会把动态 import 内联，配置 store 的模块级水合可能早于 bootstrap。
+ * ensureUserscriptConfig 完成迁移、能力收紧和计数投影后再放行 store 的持久化读取，
+ * 避免 store 用迁移中的旧快照覆盖刚修复的权威配置。
+ */
+export function completeUserscriptConfigPreparation(): void {
+    settleConfigPreparation?.({success: true});
+    settleConfigPreparation = undefined;
+}
+
+/** 启动迁移失败时让提前求值的配置模块明确失败，不能永久等待或读取未收紧快照。 */
+export function failUserscriptConfigPreparation(error: unknown): void {
+    settleConfigPreparation?.({success: false, error});
+    settleConfigPreparation = undefined;
+}
 
 function decodeStoredValue(value: unknown): unknown {
     if (typeof value !== 'string') return value;
@@ -120,4 +146,22 @@ export const storage = {
 
 // 共享配置 store 在扩展构建中使用后台 IndexedDB 端口；userscript 保持 GM 私有
 // 存储语义，并通过同名导出让 Vite alias 在模块边界完整替换扩展实现。
-export const configStorage = storage;
+export const configStorage = {
+    ...storage,
+    async getItem<T>(key: string): Promise<T | null> {
+        await waitForConfigPreparation();
+        return storage.getItem<T>(key);
+    },
+    watch<T>(key: string, callback: (nextValue: T | null, previousValue?: T | null) => void): () => void {
+        let cancelled = false;
+        let stopWatching: (() => void) | undefined;
+        void waitForConfigPreparation().then(() => {
+            if (cancelled) return;
+            stopWatching = storage.watch<T>(key, callback);
+        }).catch(() => undefined);
+        return () => {
+            cancelled = true;
+            stopWatching?.();
+        };
+    },
+};

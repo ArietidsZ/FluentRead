@@ -33,7 +33,17 @@ describe('配置领域边界与防御分支', () => {
     it('服务能力查询覆盖正反例与复合供应商判断', () => {
         expect(servicesType.isAiSdk(services.openai)).toBe(true);
         expect(servicesType.isAiSdk(services.gemini)).toBe(false);
-        expect(servicesType.isUseProxy(services.google)).toBe(true);
+        for (const supported of [
+            services.openai,
+            services.yiyan,
+            services.infini,
+            services.minimax,
+        ]) expect(servicesType.isUseProxy(supported), supported).toBe(true);
+        for (const ignored of [
+            services.azureOpenai,
+            services.google,
+            services.youdao,
+        ]) expect(servicesType.isUseProxy(ignored), ignored).toBe(false);
         expect(servicesType.isUseProxy(services.chromeTranslator)).toBe(false);
         expect(servicesType.isCustom(services.custom)).toBe(true);
         expect(servicesType.isCustom(services.openai)).toBe(false);

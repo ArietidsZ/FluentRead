@@ -610,8 +610,7 @@ async function persistCredentialViaExtensionMessage(optionsPage, marker, clientI
 
 async function waitForOptionsRuntimeCredential(optionsPage, marker, timeout) {
   await optionsPage.waitForFunction((credentialMarker) => {
-    const configuration = document.querySelector('[data-service-configuration-service="openai"]');
-    const tokenInput = configuration?.querySelector('input[placeholder="请输入API访问令牌"]');
+    const tokenInput = document.querySelector('[data-service-configuration-service="openai"] .credential-field input[type="password"]');
     return tokenInput instanceof HTMLInputElement && tokenInput.value === credentialMarker;
   }, marker, { timeout });
   return true;

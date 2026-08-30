@@ -157,6 +157,7 @@ import {prepareConfigForExport, prepareConfigForImport} from '@/src/core/config/
 import {
   createFluentReadDataBackup,
   parseLocalDataImport,
+  resolveBackupConfigCredentialMode,
   summarizeLocalDataImport,
   type LocalDataImport,
   usesExactCredentialReplacement,
@@ -192,7 +193,7 @@ const importSummary = computed(() => pendingImport.value ? summarizeLocalDataImp
 function prepareImportedConfig(target: LocalDataImport | null, current: Config): Config | null {
   if (target?.kind === 'complete') {
     return prepareConfigForImport(target.backup.config, current, {
-      credentialMode: usesExactCredentialReplacement(target.backup) ? 'replace' : 'merge',
+      credentialMode: resolveBackupConfigCredentialMode(target.backup),
     });
   }
   if (target?.kind === 'config') return prepareConfigForImport(target.config, current);

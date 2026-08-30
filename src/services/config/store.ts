@@ -8,6 +8,7 @@
 
 import {configStorage as storage} from '@/src/platform/storage/configStorageRuntime';
 import { Config, normalizeConfig } from '@/src/core/config/model';
+import {dropCredentialsForChangedDestinations} from '@/src/core/config/credentialBinding';
 import {prepareConfigForExport as prepareCompleteConfigSnapshot} from '@/src/core/config/transfer';
 import {
     CONFIG_CREDENTIAL_FIELDS,
@@ -86,6 +87,8 @@ let lastCommittedRemoteRequestRevision = 0;
 let lastCommittedRemoteRequestGeneration = -1;
 let lastCommittedRemoteRequestMode: ConfigPersistenceMode | null = null;
 let lastKnownCommittedCredentials: ConfigCredentials | null = null;
+let lastKnownCommittedConfig: Config | null = null;
+let lastKnownCommittedConfigRevision = 0;
 let credentialWatchSequence = 0;
 let activeRequestSerialized = '';
 let hasDeferredStoredConfigChange = false;
@@ -313,6 +316,31 @@ function applyConfig(nextConfig: Config): void {
     notifyListeners(config);
 }
 
+function rememberCommittedConfig(
+    value: unknown,
+    revision = persistedConfigRevision,
+): Config {
+    const normalized = normalizeConfig(value);
+    const normalizedRevision = Number.isSafeInteger(revision) && revision >= 0 ? revision : 0;
+    if (!lastKnownCommittedConfig || normalizedRevision >= lastKnownCommittedConfigRevision) {
+        lastKnownCommittedConfig = normalized;
+        lastKnownCommittedConfigRevision = normalizedRevision;
+    }
+    return lastKnownCommittedConfig;
+}
+
+function committedConfigFromStoredValue(
+    value: unknown,
+    credentials: ConfigCredentials | null = lastKnownCommittedCredentials,
+): Config | null {
+    const parsed = parseStoredConfig(value);
+    if (!parsed) return null;
+    return rememberCommittedConfig(mergeConfigCredentials(
+        parsed,
+        credentials || extractConfigCredentials(config),
+    ), getStoredConfigRevision(parsed));
+}
+
 const trustedCredentialStorageContext = isTrustedCredentialStorageContext();
 const configStorageWriteOwner = storage.writeOwner !== false;
 let credentialWatchRegistered = false;
@@ -484,6 +512,7 @@ function handleStoredConfigChange(value: unknown, options: StoredConfigChangeOpt
     if (persistedCountOperations) {
         replaceCompletedCountOperations(persistedCountOperations, normalized.count);
     }
+    rememberCommittedConfig(normalized, storedRevision);
     const runtimeAlreadyMatches = serialized === serializeConfig(config);
     if (serialized === lastPersistedSerialized && runtimeAlreadyMatches) return;
 
@@ -506,6 +535,12 @@ function registerCredentialWatch(): void {
         storage.watch(LOCAL_CREDENTIALS_STORAGE_KEY, (value) => {
             const nextCredentials = parseStoredCredentials(value) || extractConfigCredentials({});
             lastKnownCommittedCredentials = nextCredentials;
+            if (lastKnownCommittedConfig) {
+                lastKnownCommittedConfig = normalizeConfig(mergeConfigCredentials(
+                    lastKnownCommittedConfig,
+                    nextCredentials,
+                ));
+            }
             credentialWatchSequence += 1;
             const normalized = normalizeConfig(mergeConfigCredentials(config, nextCredentials));
             const serialized = serializeConfig(normalized);
@@ -553,6 +588,7 @@ async function initializeConfig(): Promise<void> {
             // 只加载公开配置，不在此上下文迁移、回写或监听凭据。
             initialized = true;
             lastPersistedSerialized = serializeConfig(publicConfig);
+            rememberCommittedConfig(publicConfig);
             applyConfig(publicConfig);
             return;
         }
@@ -601,6 +637,7 @@ async function initializeConfig(): Promise<void> {
 
         initialized = true;
         lastKnownCommittedCredentials = activeCredentials;
+        rememberCommittedConfig(normalized);
         applyConfig(normalized);
 
         // popup/options/document 可以从后台读取完整凭据，但不是 IndexedDB 写入所有者。
@@ -646,6 +683,7 @@ async function initializeConfig(): Promise<void> {
             await storage.setItem(CONFIG_STORAGE_KEY, createStoredConfigRecord(normalized, migratedRevision));
             persistedConfigRevision = Math.max(persistedConfigRevision, migratedRevision);
         }
+        rememberCommittedConfig(normalized);
         lastPersistedSerialized = serialized;
         registerCredentialWatch();
     } catch (error) {
@@ -666,6 +704,7 @@ async function initializeConfig(): Promise<void> {
         const fallback = safePublicConfig ?? new Config();
         initialized = true;
         lastPersistedSerialized = safePublicConfig ? serializeConfig(fallback) : '';
+        rememberCommittedConfig(fallback);
         applyConfig(fallback);
         // 读取失败时不做清理或迁移，避免把暂时不可用误判为“没有凭据”。
     }
@@ -748,6 +787,7 @@ export async function incrementConfigCount(delta: number, operationId?: string):
         );
         writeRevision += 1;
         lastPersistedSerialized = serializeConfig(nextConfig);
+        rememberCommittedConfig(nextConfig);
         applyConfig(nextConfig);
         return {count: nextConfig.count, persistedOperations};
     });
@@ -860,13 +900,67 @@ function createConfigPatchExpectedValues(
     );
 }
 
+/**
+ * endpoint/proxy/计费路由变化但没有同时提供新凭据时，旧密钥不能被静默带到
+ * 新接收方。该清除是公开配置 patch 的领域副作用；content 等不可信上下文仍
+ * 不能借公开字段修改后台凭据。
+ */
+function bindConfigPatchCredentialsToDestinations(
+    patch: Record<string, unknown>,
+    currentValue: Config,
+    allowCredentialUpdates: boolean,
+): Record<string, unknown> {
+    if (!allowCredentialUpdates) return patch;
+    const nextConfig = normalizeConfig({...currentValue, ...patch});
+    const explicitlyBoundTokens = new Set([
+        ...Object.keys(currentValue.token),
+        ...Object.keys(nextConfig.token),
+    ].filter((service) => !configPatchValuesEqual(
+        currentValue.token[service],
+        nextConfig.token[service],
+    )));
+    const explicitlyBoundCredentialFields = new Set<ConfigCredentialField>(
+        CONFIG_CREDENTIAL_FIELDS.filter((field) => (
+            field !== 'token'
+            && Object.prototype.hasOwnProperty.call(patch, field)
+            && !configPatchValuesEqual(currentValue[field], nextConfig[field])
+        )),
+    );
+    const credentials = dropCredentialsForChangedDestinations(
+        extractConfigCredentials(nextConfig),
+        currentValue,
+        nextConfig,
+        explicitlyBoundTokens,
+        explicitlyBoundCredentialFields,
+    );
+    let boundPatch = patch;
+    for (const field of CONFIG_CREDENTIAL_FIELDS) {
+        if (configPatchValuesEqual(credentials[field], nextConfig[field])) continue;
+        if (boundPatch === patch) boundPatch = {...patch};
+        boundPatch[field] = credentials[field];
+    }
+    return boundPatch;
+}
+
 function mergeCredentialFields(
     baseCredentials: ConfigCredentials,
     requestedCredentials: ConfigCredentials,
     fields: ReadonlySet<ConfigCredentialField>,
+    tokenServices: ReadonlySet<string> = new Set(),
 ): ConfigCredentials {
     const candidate = mergeConfigCredentials({}, baseCredentials);
     for (const field of fields) candidate[field] = requestedCredentials[field];
+    if (tokenServices.size > 0) {
+        const token = {...baseCredentials.token};
+        for (const service of tokenServices) {
+            if (Object.prototype.hasOwnProperty.call(requestedCredentials.token, service)) {
+                token[service] = requestedCredentials.token[service];
+            } else {
+                delete token[service];
+            }
+        }
+        candidate.token = token;
+    }
     return extractConfigCredentials(candidate);
 }
 
@@ -909,15 +1003,22 @@ export function prepareConfigPatchRequest(
     const currentConfig = normalizeConfig(currentValue);
     // 后台必须对 wire patch 中每个合法字段执行 CAS；即使别的页面已经写成
     // 相同目标值，也不能先按“当前无变化”删掉该字段并绕过 expected 校验。
-    const patch = createConfigPatch(value, currentConfig, allowCredentialUpdates, false);
+    const explicitPatch = createConfigPatch(value, currentConfig, allowCredentialUpdates, false);
     const expected = isConfigObject(expectedValue) ? expectedValue : {};
-    const conflicts = Object.keys(patch).filter((key) => (
+    const conflicts = Object.keys(explicitPatch).filter((key) => (
         !Object.prototype.hasOwnProperty.call(expected, key)
         || !configPatchValuesEqual(currentConfig[key as keyof Config], expected[key])
     ));
     if (conflicts.length > 0) {
         throw new Error(`配置字段已更新，请同步后重试：${conflicts.join(', ')}`);
     }
+    // 凭据清除是路由 patch 在后台权威基线上派生的副作用，不要求旧客户端
+    // 额外伪造 expected 字段；显式凭据 patch 仍按上面的常规 CAS 校验。
+    const patch = bindConfigPatchCredentialsToDestinations(
+        explicitPatch,
+        currentConfig,
+        allowCredentialUpdates,
+    );
     return normalizeConfig({
         ...currentConfig,
         ...patch,
@@ -955,6 +1056,10 @@ export async function saveConfig(value: unknown = config, options: SaveConfigOpt
     const serialized = serializeConfig(normalized);
     if (serializeConfig(config) !== serialized) applyConfig(normalized);
     await persistNormalizedConfig(normalized, serialized);
+    rememberCommittedConfig(normalized);
+    if (trustedCredentialStorageContext) {
+        lastKnownCommittedCredentials = extractConfigCredentials(normalized);
+    }
     if (options.recordHistory) {
         if (options.immediateHistory) {
             await flushConfigHistory();
@@ -990,20 +1095,42 @@ async function reconcileFailedConfigRequest(fallbackConfig?: Config): Promise<vo
         // storage.getItem 期间可能又收到更新，以最后一个 watch 快照为准。
         deferred = takeDeferredStoredConfigChange();
     } catch (error) {
-        if (fallbackConfig && serializeConfig(config) !== serializeConfig(fallbackConfig)) {
-            applyConfig(fallbackConfig);
+        // pending read 失败前到达的更高 revision 已经是权威结果。先解除 active
+        // 所有权再消费，避免 handleStoredConfigChange 把同一快照重新 deferred。
+        activeRequestSerialized = '';
+        deferred = takeDeferredStoredConfigChange();
+        if (deferred.hasValue) {
+            storedValue = deferred.value;
+            console.warn('[FluentRead] 配置保存失败后的回读失败，采用并发到达的权威快照', error);
+        } else {
+            const committedFallback = lastKnownCommittedConfig || fallbackConfig;
+            // 前驱失败时，队尾请求可能仍拥有乐观 UI；只有队列已经没有后续所有者时
+            // 才回滚。rollbackConfig 只是请求前快照，不能反向升级成“已提交”影子。
+            if (committedFallback
+                && latestRequestedSequence === 0
+                && serializeConfig(config) !== serializeConfig(committedFallback)) {
+                applyConfig(committedFallback);
+            }
+            console.warn('[FluentRead] 配置保存失败后的权威快照回读失败', error);
+            return;
         }
-        console.warn('[FluentRead] 配置保存失败后的权威快照回读失败', error);
-        return;
     } finally {
         activeRequestSerialized = '';
     }
 
     const latestValue = deferred.hasValue ? deferred.value : storedValue;
     if (parseStoredConfig(latestValue)) {
+        // 即使后续 patch 仍保持乐观 UI 所有权，这次回读也是失败前驱的权威
+        // 提交基线；单独保存它，供队尾成功但回读失败时按字段重建。
+        committedConfigFromStoredValue(latestValue);
         handleStoredConfigChange(latestValue);
-    } else if (fallbackConfig && serializeConfig(config) !== serializeConfig(fallbackConfig)) {
-        applyConfig(fallbackConfig);
+    } else {
+        const committedFallback = lastKnownCommittedConfig || fallbackConfig;
+        if (committedFallback
+            && latestRequestedSequence === 0
+            && serializeConfig(config) !== serializeConfig(committedFallback)) {
+            applyConfig(committedFallback);
+        }
     }
 }
 
@@ -1031,17 +1158,48 @@ async function requestConfigMutation(
         mode === 'replace' && trustedCredentialStorageContext
             ? CONFIG_CREDENTIAL_FIELDS.filter(field => (
                 credentialIntent === 'exact'
-                || !configPatchValuesEqual(requestedCredentials[field], baselineCredentials[field])
+                || (field !== 'token'
+                    && !configPatchValuesEqual(requestedCredentials[field], baselineCredentials[field]))
             ))
             : [],
     );
     const patchCredentialFields = new Set<ConfigCredentialField>(
         mode === 'patch' && trustedCredentialStorageContext
             ? CONFIG_CREDENTIAL_FIELDS.filter(field => (
-                Object.prototype.hasOwnProperty.call(messageConfig, field)
+                field !== 'token'
+                && Object.prototype.hasOwnProperty.call(messageConfig, field)
             ))
             : [],
     );
+    const patchCredentialTokenServices = new Set<string>(
+        mode === 'patch'
+            && trustedCredentialStorageContext
+            && Object.prototype.hasOwnProperty.call(messageConfig, 'token')
+            ? [...new Set([
+                ...Object.keys(baselineCredentials.token),
+                ...Object.keys(requestedCredentials.token),
+            ])].filter((service) => !configPatchValuesEqual(
+                baselineCredentials.token[service],
+                requestedCredentials.token[service],
+            ))
+            : [],
+    );
+    const replaceCredentialTokenServices = new Set<string>(
+        mode === 'replace'
+            && trustedCredentialStorageContext
+            && credentialIntent !== 'exact'
+            ? [...new Set([
+                ...Object.keys(baselineCredentials.token),
+                ...Object.keys(requestedCredentials.token),
+            ])].filter((service) => !configPatchValuesEqual(
+                baselineCredentials.token[service],
+                requestedCredentials.token[service],
+            ))
+            : [],
+    );
+    const ownedCredentialTokenServices = mode === 'patch'
+        ? patchCredentialTokenServices
+        : replaceCredentialTokenServices;
     const predecessorRemoteSequence = sendMessage ? lastEnqueuedRemoteRequestSequence : 0;
     const sequence = ++requestSequence;
     // 必须在第一个 await 前登记最新请求；否则即使 configReady 已 resolved，微任务
@@ -1112,6 +1270,7 @@ async function requestConfigMutation(
                     lastKnownCommittedCredentials,
                     requestedCredentials,
                     mode === 'replace' ? replaceCredentialFields : patchCredentialFields,
+                    ownedCredentialTokenServices,
                 );
                 normalized = normalizeConfig(mergeConfigCredentials(
                     normalized,
@@ -1150,6 +1309,7 @@ async function requestConfigMutation(
                     lastKnownCommittedCredentials,
                     committedRequestCredentials,
                     mode === 'replace' ? replaceCredentialFields : patchCredentialFields,
+                    ownedCredentialTokenServices,
                 );
                 normalized = normalizeConfig(mergeConfigCredentials(
                     normalized,
@@ -1158,6 +1318,31 @@ async function requestConfigMutation(
                 if (mode === 'replace') messageConfig = normalized;
                 serialized = serializeConfig(normalized);
                 if (latestRequestedSequence === sequence) latestRequestedSerialized = serialized;
+            };
+            const buildCommittedMutationResult = (baseValue?: Config | null): Config => {
+                if (mode === 'replace') return normalizeConfig(normalized);
+                let committedBase = normalizeConfig(
+                    baseValue || lastKnownCommittedConfig || rollbackConfig || config,
+                );
+                if (trustedCredentialStorageContext) {
+                    committedBase = normalizeConfig(mergeConfigCredentials(
+                        committedBase,
+                        lastKnownCommittedCredentials || extractConfigCredentials(committedBase),
+                    ));
+                }
+                const patched = prepareConfigPatchRequest(
+                    messageConfig,
+                    createConfigPatchExpectedValues(
+                        messageConfig as unknown as Record<string, unknown>,
+                        committedBase,
+                    ),
+                    committedBase,
+                    trustedCredentialStorageContext,
+                );
+                return normalizeConfig(mergeConfigCredentials(
+                    patched,
+                    committedRequestCredentials,
+                ));
             };
             let response: ConfigMessageResponse;
             try {
@@ -1225,24 +1410,38 @@ async function requestConfigMutation(
                 try {
                     storedValue = await storage.getItem<unknown>(CONFIG_STORAGE_KEY);
                 } catch {
-                    // 保存已经成功；读取暂时失败时至少同步本次用户快照与 revision，
-                    // 后续 storage.watch 仍会补齐后台保留的 canonical 字段。
                     activeRequestSerialized = '';
-                    preserveNewerCredentialWatch();
-                    persistedConfigRevision = Math.max(persistedConfigRevision, response.revision);
-                    if (latestRequestedSequence === sequence
-                        && serializeConfig(config) !== serialized) applyConfig(normalized);
-                    if (mode === 'replace' && generation !== requestGeneration) {
-                        throw new Error('配置已由其他页面更新，请根据最新配置重新修改');
+                    deferred = takeDeferredStoredConfigChange();
+                    if (deferred.hasValue) {
+                        // getItem 拒绝不代表没有结果；等待期间到达的更高 revision
+                        // 必须进入下面统一的 revision 比较，不能遗留到下一次请求。
+                        storedValue = deferred.value;
+                    } else {
+                        // 保存已经成功；读取暂时失败时至少同步本次用户快照与 revision，
+                        // 后续 storage.watch 仍会补齐后台保留的 canonical 字段。patch 只能
+                        // 叠加到最近确认的提交影子，不能采用包含失败前驱乐观字段的 normalized。
+                        preserveNewerCredentialWatch();
+                        persistedConfigRevision = Math.max(persistedConfigRevision, response.revision);
+                        if (mode === 'replace' && generation !== requestGeneration) {
+                            throw new Error('配置已由其他页面更新，请根据最新配置重新修改');
+                        }
+                        const committedResult = rememberCommittedConfig(
+                            buildCommittedMutationResult(),
+                            response.revision,
+                        );
+                        if (latestRequestedSequence === sequence
+                            && serializeConfig(config) !== serializeConfig(committedResult)) {
+                            applyConfig(committedResult);
+                        }
+                        lastCommittedRemoteRequestSequence = sequence;
+                        lastCommittedRemoteRequestRevision = response.revision;
+                        lastCommittedRemoteRequestGeneration = generation;
+                        lastCommittedRemoteRequestMode = mode;
+                        if (trustedCredentialStorageContext) {
+                            lastKnownCommittedCredentials = committedRequestCredentials;
+                        }
+                        return;
                     }
-                    lastCommittedRemoteRequestSequence = sequence;
-                    lastCommittedRemoteRequestRevision = response.revision;
-                    lastCommittedRemoteRequestGeneration = generation;
-                    lastCommittedRemoteRequestMode = mode;
-                    if (trustedCredentialStorageContext) {
-                        lastKnownCommittedCredentials = committedRequestCredentials;
-                    }
-                    return;
                 }
                 deferred = takeDeferredStoredConfigChange();
                 if (deferred.hasValue) storedValue = deferred.value;
@@ -1256,6 +1455,10 @@ async function requestConfigMutation(
                 throw new Error('配置已由其他页面更新，请根据最新配置重新修改');
             }
             if (storedRevision === response.revision) {
+                committedConfigFromStoredValue(
+                    storedValue,
+                    trustedCredentialStorageContext ? committedRequestCredentials : null,
+                );
                 handleStoredConfigChange(storedValue, {
                     confirmedRequestRevision: response.revision,
                     confirmedRequestSerialized: serialized,
@@ -1266,29 +1469,29 @@ async function requestConfigMutation(
                 });
             } else {
                 persistedConfigRevision = Math.max(persistedConfigRevision, response.revision);
+                const storedBase = parseStoredConfig(storedValue);
+                const storedBaseConfig = storedBase
+                    ? normalizeConfig(mergeConfigCredentials(
+                        storedBase,
+                        trustedCredentialStorageContext
+                            ? committedRequestCredentials
+                            : extractConfigCredentials(config),
+                    ))
+                    : null;
+                // 回读可能仍停在前一个甚至更早的 revision。选择较新的已确认
+                // 基线，再叠加本次已成功 patch，避免 stale read 丢掉前驱提交字段。
+                const committedBase = storedBaseConfig
+                    && (!lastKnownCommittedConfig
+                        || storedRevision >= lastKnownCommittedConfigRevision)
+                    ? storedBaseConfig
+                    : lastKnownCommittedConfig;
+                const committedResult = rememberCommittedConfig(
+                    buildCommittedMutationResult(committedBase),
+                    response.revision,
+                );
                 if (latestRequestedSequence === sequence) {
-                    const storedBase = parseStoredConfig(storedValue);
-                    const storedBaseConfig = storedBase
-                        ? normalizeConfig(mergeConfigCredentials(
-                            storedBase,
-                            trustedCredentialStorageContext
-                                ? committedRequestCredentials
-                                : extractConfigCredentials(config),
-                        ))
-                        : null;
-                    const optimisticResult = mode === 'patch' && storedBaseConfig
-                        ? prepareConfigPatchRequest(
-                            messageConfig,
-                            createConfigPatchExpectedValues(
-                                messageConfig as unknown as Record<string, unknown>,
-                                storedBaseConfig,
-                            ),
-                            storedBaseConfig,
-                            trustedCredentialStorageContext,
-                        )
-                        : normalized;
-                    if (serializeConfig(config) !== serializeConfig(optimisticResult)) {
-                        applyConfig(optimisticResult);
+                    if (serializeConfig(config) !== serializeConfig(committedResult)) {
+                        applyConfig(committedResult);
                     }
                 }
             }
@@ -1368,7 +1571,11 @@ export async function requestConfigSave(
 export async function requestConfigPatch(value: unknown, sendMessage?: ConfigMessageSender): Promise<void> {
     if (!initialized) await configReady;
     const previousConfig = normalizeConfig(config);
-    const patch = createConfigPatch(value, previousConfig, trustedCredentialStorageContext);
+    const patch = bindConfigPatchCredentialsToDestinations(
+        createConfigPatch(value, previousConfig, trustedCredentialStorageContext),
+        previousConfig,
+        trustedCredentialStorageContext,
+    );
     if (Object.keys(patch).length === 0) return;
     const expected = createConfigPatchExpectedValues(patch, previousConfig);
     const normalized = prepareConfigPatchRequest(
@@ -1396,6 +1603,10 @@ export async function applyConfigHistoryAction(action: ConfigHistoryAction, vers
     const target = historyState.entries[targetIndex];
     const normalized = restoreRestorableConfig(target.config, config);
     await persistNormalizedConfig(normalized);
+    rememberCommittedConfig(normalized);
+    if (trustedCredentialStorageContext) {
+        lastKnownCommittedCredentials = extractConfigCredentials(normalized);
+    }
     if (serializeConfig(config) !== serializeConfig(normalized)) applyConfig(normalized);
 
     if (action === 'restore') {

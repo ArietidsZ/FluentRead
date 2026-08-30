@@ -1,4 +1,5 @@
 import {describe, expect, it} from 'vitest';
+import {services} from '@/src/core/config/catalog';
 
 import {
     CONFIG_HISTORY_LIMIT,
@@ -315,6 +316,29 @@ describe('配置 schema 与历史纯状态机', () => {
         });
 
         expect(restored.token).not.toHaveProperty('custom');
+    });
+
+    it('历史恢复按真实 provider 路由处理 Gemini 与腾讯共享凭据', () => {
+        const current = {
+            ...baseConfig,
+            proxy: {
+                [services.gemini]: 'https://current-gemini-proxy.example/',
+                [services.huanYuanTranslation]: 'https://current-hunyuan-proxy.example/',
+            },
+            token: {[services.gemini]: 'google-official-secret'},
+            tencentSecretId: 'current-tencent-id',
+            tencentSecretKey: 'current-tencent-key',
+        };
+        const restored = restoreRestorableConfig({
+            ...baseConfig,
+            proxy: {
+                [services.gemini]: 'https://restored-gemini-proxy.example/',
+                [services.huanYuanTranslation]: 'https://restored-hunyuan-proxy.example/',
+            },
+        }, current);
+
+        expect(restored.token[services.gemini]).toBe('google-official-secret');
+        expect(restored).toMatchObject({tencentSecretId: '', tencentSecretKey: ''});
     });
 
     it('撤销、重做和版本恢复在边界处保持稳定游标', () => {

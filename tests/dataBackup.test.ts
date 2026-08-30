@@ -6,6 +6,7 @@ import {
     FLUENTREAD_DATA_BACKUP_FORMAT,
     createFluentReadDataBackup,
     parseLocalDataImport,
+    resolveBackupConfigCredentialMode,
     summarizeLocalDataImport,
     usesExactCredentialReplacement,
 } from '@/src/features/settings/model/dataBackup';
@@ -57,7 +58,10 @@ describe('统一本机数据备份信封', () => {
         });
         const parsed = parseLocalDataImport(JSON.parse(JSON.stringify(backup)));
         expect(parsed).toEqual({kind: 'complete', backup});
-        if (parsed.kind === 'complete') expect(usesExactCredentialReplacement(parsed.backup)).toBe(true);
+        if (parsed.kind === 'complete') {
+            expect(usesExactCredentialReplacement(parsed.backup)).toBe(true);
+            expect(resolveBackupConfigCredentialMode(parsed.backup)).toBe('replace');
+        }
         expect(summarizeLocalDataImport(parsed)).toEqual({
             kind: 'complete',
             configIncluded: true,
@@ -80,6 +84,7 @@ describe('统一本机数据备份信封', () => {
         expect(parsed.kind).toBe('complete');
         if (parsed.kind === 'complete') {
             expect(usesExactCredentialReplacement(parsed.backup)).toBe(false);
+            expect(resolveBackupConfigCredentialMode(parsed.backup)).toBe('merge-hydration-safe');
         }
     });
 

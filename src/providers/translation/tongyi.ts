@@ -33,7 +33,7 @@ async function tongyi(message: TranslationProviderRequest<string>) {
     // 判断是否使用代理
     const selectedModel = message.modelOverride || current.model[service];
     const configuredModel = resolveConfiguredModel(selectedModel, current.customModel[service]);
-    const officialUrl = selectedModel === currentModelIds.tongyiTokenPlan
+    const officialUrl = configuredModel === currentModelIds.tongyiTokenPlan
         ? tongyiTokenPlanUrl
         : urls[services.tongyi];
     const url: string = current.proxy[service] || officialUrl;

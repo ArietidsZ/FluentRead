@@ -26,7 +26,9 @@ interface ImageTranslationState {
     button: HTMLButtonElement;
     phase: ImageTranslationPhase;
     abortController: AbortController | null;
+    hovered: boolean;
     hoverTimer: number | null;
+    errorResetTimer: number | null;
     resizeObserver: ResizeObserver | null;
     imageLoadHandler: (() => void) | null;
     lines: Array<OcrLine & { backgroundColor: string }>;
@@ -139,9 +141,32 @@ function clearHoverTimer(state: ImageTranslationState): void {
     }
 }
 
+function clearErrorResetTimer(state: ImageTranslationState): void {
+    if (state.errorResetTimer !== null) {
+        window.clearTimeout(state.errorResetTimer);
+        state.errorResetTimer = null;
+    }
+}
+
+function scheduleIdleStateRemoval(state: ImageTranslationState): void {
+    clearHoverTimer(state);
+    if (state.phase !== 'idle' || state.hovered) return;
+    state.hoverTimer = window.setTimeout(() => {
+        state.hoverTimer = null;
+        if (state.phase === 'idle' && !state.hovered) removeState(state);
+    }, 180);
+}
+
+function setStateHovered(state: ImageTranslationState, hovered: boolean): void {
+    state.hovered = hovered;
+    if (hovered) clearHoverTimer(state);
+    else scheduleIdleStateRemoval(state);
+}
+
 function removeState(state: ImageTranslationState): void {
     // 先中止请求并断开所有观察器/监听器，再删除 DOM 与索引，避免失效回调复活状态。
     clearHoverTimer(state);
+    clearErrorResetTimer(state);
     state.abortController?.abort();
     state.resizeObserver?.disconnect();
     if (state.imageLoadHandler) state.image.removeEventListener('load', state.imageLoadHandler);
@@ -213,7 +238,9 @@ function createState(image: HTMLImageElement): ImageTranslationState {
         button,
         phase: 'idle',
         abortController: null,
+        hovered: true,
         hoverTimer: null,
+        errorResetTimer: null,
         resizeObserver: null,
         imageLoadHandler: null,
         lines: [],
@@ -229,7 +256,11 @@ function createState(image: HTMLImageElement): ImageTranslationState {
     activeStates.add(state);
     overlay.addEventListener('pointerenter', () => {
         const current = states.get(image);
-        if (current) clearHoverTimer(current);
+        if (current) setStateHovered(current, true);
+    });
+    overlay.addEventListener('pointerleave', () => {
+        const current = states.get(image);
+        if (current) setStateHovered(current, false);
     });
     updateOverlayPosition(state);
     return state;
@@ -242,17 +273,14 @@ function getState(image: HTMLImageElement): ImageTranslationState {
 function showImageButton(image: HTMLImageElement): void {
     if (!mounted || !config.on || image.closest(`[${IMAGE_TRANSLATION_OVERLAY}]`) || image.closest('video')) return;
     const state = getState(image);
-    clearHoverTimer(state);
+    setStateHovered(state, true);
     updateOverlayPosition(state);
 }
 
 function hideImageButton(image: HTMLImageElement): void {
     const state = states.get(image);
-    if (!state || state.phase !== 'idle') return;
-    clearHoverTimer(state);
-    state.hoverTimer = window.setTimeout(() => {
-        if (state.phase === 'idle') removeState(state);
-    }, 180);
+    if (!state) return;
+    setStateHovered(state, false);
 }
 
 export async function getImageData(image: HTMLImageElement): Promise<string> {
@@ -388,6 +416,7 @@ function setButtonState(state: ImageTranslationState, phase: ImageTranslationPha
 }
 
 function restoreImageTranslation(state: ImageTranslationState): void {
+    clearErrorResetTimer(state);
     state.abortController?.abort();
     state.abortController = null;
     state.lines = [];
@@ -397,12 +426,14 @@ function restoreImageTranslation(state: ImageTranslationState): void {
     state.canvas.style.display = 'none';
     setButtonState(state, 'idle', '翻译图片');
     updateOverlayPosition(state);
+    scheduleIdleStateRemoval(state);
 }
 
 async function translateImage(state: ImageTranslationState): Promise<void> {
     if (state.phase === 'loading') return;
     if (!state.image.isConnected) return;
 
+    clearErrorResetTimer(state);
     const controller = new AbortController();
     state.abortController = controller;
     setButtonState(state, 'loading', '正在识别图片文字');
@@ -436,9 +467,16 @@ async function translateImage(state: ImageTranslationState): Promise<void> {
         controller.abort();
         const message = error instanceof Error ? error.message : String(error);
         setButtonState(state, 'error', `图片翻译失败：${message}`);
-        window.setTimeout(() => {
-            if (state.phase === 'error') setButtonState(state, 'idle', '翻译图片');
+        clearErrorResetTimer(state);
+        const errorResetTimer = window.setTimeout(() => {
+            if (state.errorResetTimer !== errorResetTimer) return;
+            state.errorResetTimer = null;
+            if (state.phase === 'error' && states.get(state.image) === state) {
+                setButtonState(state, 'idle', '翻译图片');
+                scheduleIdleStateRemoval(state);
+            }
         }, 3000);
+        state.errorResetTimer = errorResetTimer;
         console.warn('[FluentRead] 图片翻译失败:', error);
     } finally {
         if (state.abortController === controller) state.abortController = null;

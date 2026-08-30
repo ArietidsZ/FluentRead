@@ -1075,7 +1075,7 @@ async function main() {
       'gemini', 'claude', 'grok',
     ];
     const expectedPlatformServices = [
-      'siliconCloud', 'newapi', 'infini', 'openrouter', 'groq', 'azureOpenai', 'custom',
+      'siliconCloud', 'newapi', 'infini', 'openrouter', 'groq', 'azureOpenai',
     ];
     const expectedMachineServices = [
       'freeTranslation', 'microsoft', 'google', 'deepL', 'deeplx', 'xiaoniu', 'youdao', 'tencent',
@@ -1092,6 +1092,23 @@ async function main() {
     if (JSON.stringify(platformServices) !== JSON.stringify(expectedPlatformServices)) {
       throw new Error(`聚合平台分类或顺序异常：${JSON.stringify(platformServices)}`);
     }
+
+    // 新版自定义 OpenAI 服务使用持久化的 custom:* profile，不再把不可用的旧
+    // static `custom` 入口混入聚合平台。
+    const customServiceFixture = {
+      name: '浏览器自定义服务',
+      endpoint: 'https://custom-browser-fixture.invalid/v1/chat/completions',
+      apiKey: 'browser-custom-key-sensitive-sentinel',
+      model: 'fixture-model-v1',
+    };
+    const customServiceGroup = serviceCatalog.locator('.custom-service-group');
+    const customServiceCount = customServiceGroup.getByTestId('custom-service-count');
+    const customServiceAdd = customServiceGroup.getByTestId('custom-service-add');
+    if ((await customServiceCount.textContent())?.trim() !== '0 / 20') {
+      throw new Error(`自定义服务初始计数异常：${await customServiceCount.textContent()}`);
+    }
+    if (await customServiceAdd.isDisabled()) throw new Error('空自定义服务列表无法添加首个服务');
+    let customServiceId;
 
     const machineGroup = serviceCatalog.locator('[data-service-section="machine"]');
     const machineServices = await machineGroup.locator('.service-item')
@@ -1137,6 +1154,11 @@ async function main() {
       providerServices,
       platformServices,
       machineServices,
+      customService: {
+        initialCount: 0,
+        limit: 20,
+        addEnabled: true,
+      },
       machineSearchAutoExpanded: true,
       machineCollapsedStateRestored: true,
     };
@@ -1199,6 +1221,53 @@ async function main() {
       {timeout},
     );
 
+    // 配置版本恢复按设计会回到旧快照，所以在该用例之后创建 profile，再把它继续
+    // 带过完整备份、精确恢复和页面重载，覆盖目录、配置、凭据与持久化整条链路。
+    await page.locator('button[data-section="settings-services"]').click();
+    await serviceCatalog.waitFor({state: 'visible', timeout});
+    await customServiceAdd.click();
+    const customServiceDialog = page.getByTestId('custom-service-dialog');
+    await customServiceDialog.waitFor({state: 'visible', timeout});
+    await customServiceDialog.getByTestId('custom-service-save').click();
+    if (await customServiceDialog.getByRole('alert').count() !== 3) {
+      throw new Error('自定义服务空表单没有同时校验名称、接口和模型');
+    }
+    await customServiceDialog.getByTestId('custom-service-name').fill(customServiceFixture.name);
+    await customServiceDialog.getByTestId('custom-service-endpoint').fill(customServiceFixture.endpoint);
+    await customServiceDialog.getByTestId('custom-service-api-key').fill(customServiceFixture.apiKey);
+    await customServiceDialog.getByTestId('custom-service-model').fill(customServiceFixture.model);
+    await customServiceDialog.getByTestId('custom-service-save').click();
+    await customServiceDialog.waitFor({state: 'hidden', timeout});
+    const customServiceItem = customServiceGroup.locator('.service-item[data-custom-service-id^="custom:"]');
+    await customServiceItem.waitFor({state: 'visible', timeout});
+    customServiceId = await customServiceItem.getAttribute('data-custom-service-id');
+    if (!customServiceId?.startsWith('custom:')) throw new Error(`自定义服务没有稳定动态 ID：${customServiceId}`);
+    if ((await customServiceCount.textContent())?.trim() !== '1 / 20') {
+      throw new Error(`创建后的自定义服务计数异常：${await customServiceCount.textContent()}`);
+    }
+    if (await customServiceItem.getAttribute('aria-pressed') !== 'true'
+      || await serviceCatalog.getAttribute('data-editing-service') !== customServiceId
+      || await serviceCatalog.getAttribute('data-default-service') !== defaultServiceMetrics.defaultService) {
+      throw new Error('新建自定义服务没有成为当前配置项，或误改了默认服务');
+    }
+    if (await serviceCatalog.getByLabel('自定义服务名称').inputValue() !== customServiceFixture.name
+      || await serviceCatalog.getByLabel('自定义服务接口地址').inputValue() !== customServiceFixture.endpoint
+      || !(await serviceCatalog.getByTestId('model-picker-trigger').getAttribute('aria-label'))
+        ?.includes(customServiceFixture.model)
+      || await serviceCatalog.locator('.credential-field input[type="password"]').inputValue()
+        !== customServiceFixture.apiKey) {
+      throw new Error('新建自定义服务的名称、接口、模型或 API Key 没有进入详情配置');
+    }
+    await page.waitForTimeout(500);
+    report.informationArchitecture.serviceCatalogHierarchy.customService = {
+      dynamicId: true,
+      count: 1,
+      defaultServiceUnchanged: true,
+      endpointPersisted: true,
+      model: customServiceFixture.model,
+    };
+    report.screenshots.push(await screenshot(page, 'settings-custom-service-created.png'));
+
     const vocabularyBackupFixture = await seedVocabularyBackupFixture(page);
     await page.locator('button[data-section="settings-data"]').click();
     const transferActionLabels = (await page.locator('#settings-data .transfer-actions button').allTextContents())
@@ -1222,6 +1291,14 @@ async function main() {
       privateContextSentinels: vocabularyBackupFixture.privateContext,
     });
     const exportedConfig = exportedBackup.config;
+    const exportedCustomProvider = exportedConfig.customOpenAIProviders
+      ?.find(provider => provider.id === customServiceId);
+    if (exportedCustomProvider?.name !== customServiceFixture.name
+      || exportedCustomProvider.endpoint !== customServiceFixture.endpoint
+      || !exportedCustomProvider.models?.includes(customServiceFixture.model)
+      || exportedConfig.token?.[customServiceId] !== customServiceFixture.apiKey) {
+      throw new Error('首次完整备份没有包含动态自定义服务及其凭据');
+    }
     report.completeBackup = {
       contextChoice: 'exclude-private-context',
       initialDownload: {
@@ -1357,6 +1434,14 @@ async function main() {
     });
     const reloadedExportConfig = reloadedBackup.config;
     if (reloadedExportConfig.to !== importedConfig.to) throw new Error('页面重载后目标语言没有从加密 IndexedDB 恢复');
+    const reloadedCustomProvider = reloadedExportConfig.customOpenAIProviders
+      ?.find(provider => provider.id === customServiceId);
+    if (reloadedCustomProvider?.name !== customServiceFixture.name
+      || reloadedCustomProvider.endpoint !== customServiceFixture.endpoint
+      || !reloadedCustomProvider.models?.includes(customServiceFixture.model)
+      || reloadedExportConfig.token?.[customServiceId] !== customServiceFixture.apiKey) {
+      throw new Error('动态自定义服务没有完整经过备份精确恢复、加密存储和页面重载');
+    }
     report.reloadedCompleteBackup = {
       suggestedFilename: reloadedDownload.suggestedFilename,
       format: reloadedBackup.format,
@@ -1369,6 +1454,7 @@ async function main() {
       roleFields: ['user_role', 'system_role'],
       vocabularyEntries: reloadedBackup.vocabulary.entries.length,
       modelUsageEvents: reloadedBackup.modelUsage.events.length,
+      customOpenAIServiceRoundTrip: true,
       encryptedStorageRoundTrip: true,
     };
     report.completeBackup.restore = {

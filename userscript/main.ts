@@ -5,6 +5,10 @@ import {createUserscriptContentContext} from './context';
 import {userscriptFetch} from './http';
 import {ensureUserscriptConfig} from './initialize';
 import {getUserscriptConfigCount} from './count';
+import {
+    completeUserscriptConfigPreparation,
+    failUserscriptConfigPreparation,
+} from './storage';
 
 declare global {
     // 脚本管理器可能在 SPA 状态变化时重新注入，因此在当前沙箱中保存幂等启动标记。
@@ -34,7 +38,13 @@ async function bootstrap(): Promise<void> {
 
     disposeShadowAndRouteBridge = installShadowAndRouteBridge();
     setRuntimeFetch(userscriptFetch);
-    await ensureUserscriptConfig();
+    try {
+        await ensureUserscriptConfig();
+        completeUserscriptConfigPreparation();
+    } catch (error) {
+        failUserscriptConfigPreparation(error);
+        throw error;
+    }
 
     // 配置边界就绪后再加载这些模块，避免模块级初始化观察到尚未迁移的旧配置。
     const [platformModule, settingsModule, contentModule, translationModule, configModule] = await Promise.all([

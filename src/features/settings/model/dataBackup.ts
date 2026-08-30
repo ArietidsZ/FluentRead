@@ -5,7 +5,10 @@
  * 模块边界：该模块只处理可序列化数据形状，不读取 IndexedDB、不保存配置、不下载文件；各领域仓库继续拥有自己的校验与合并语义。
  */
 
-import {isConfigImportValid} from '@/src/core/config/transfer';
+import {
+    isConfigImportValid,
+    type ConfigImportCredentialMode,
+} from '@/src/core/config/transfer';
 import {
     CONFIG_CREDENTIAL_FIELDS,
     type ConfigCredentialField,
@@ -162,6 +165,16 @@ export function usesExactCredentialReplacement(backup: FluentReadDataBackup): bo
     return backup.version === FLUENTREAD_DATA_BACKUP_VERSION
         && backup.configCredentialMode === FLUENTREAD_DATA_BACKUP_EXACT_CREDENTIAL_MODE
         && hasExactCredentialSnapshot(backup.config);
+}
+
+/**
+ * v2 带有经过校验的完整凭据快照，可以精确替换。v1 没有水合完成标记，
+ * 其默认空标量不能证明用户主动清空，因此使用只接受非空标量的安全合并。
+ */
+export function resolveBackupConfigCredentialMode(
+    backup: FluentReadDataBackup,
+): ConfigImportCredentialMode {
+    return usesExactCredentialReplacement(backup) ? 'replace' : 'merge-hydration-safe';
 }
 
 export function summarizeLocalDataImport(value: LocalDataImport): LocalDataImportSummary {

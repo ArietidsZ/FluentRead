@@ -166,7 +166,7 @@ describe('options UI composition architecture', () => {
     expect(localDataManagement).toContain('chooseBackupContext')
     expect(localDataManagement).toContain("confirmButtonText: '不包含并导出'")
     expect(localDataManagement).toContain('prepareHydratedConfigForExport()')
-    expect(localDataManagement).toContain("credentialMode: usesExactCredentialReplacement(target.backup) ? 'replace' : 'merge'")
+    expect(localDataManagement).toContain('credentialMode: resolveBackupConfigCredentialMode(target.backup)')
     expect(localDataManagement).toContain("credentialIntent: target.kind === 'complete' && usesExactCredentialReplacement(target.backup)")
     expect(localDataManagement).toContain("? 'exact'")
     expect(localDataManagement).toContain(": 'changed-fields'")

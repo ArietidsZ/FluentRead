@@ -111,6 +111,9 @@ describe('browser regression focus safety', () => {
         expect(selectionSource).toContain('if (!result.ok) throw new Error');
         expect(selectionSource).toContain('/options.html#settings-translation');
         expect(selectionSource).not.toContain('/options.html#settings-shortcuts');
+        const fullPageSource = readScript('scripts/run-full-page-translation-test.cjs');
+        expect(fullPageSource).toContain("matches(':hover') === true");
+        expect(fullPageSource).toContain('悬浮翻译可信手势未落到预期失败态');
         const videoSource = readScript('scripts/run-video-subtitle-fixture-test.cjs');
         expect(videoSource).toContain("const navigationMode = 'offline-youtube-fixture'");
         expect(videoSource).not.toContain('live-youtube');
@@ -126,6 +129,10 @@ describe('browser regression focus safety', () => {
         expect(privacySource).toContain("name: '不包含并导出'");
         expect(privacySource).toContain("waitForEvent('download'");
         expect(privacySource).toContain('includesPrivateVocabularyContext');
+        expect(privacySource).toContain(
+            "document.querySelector('[data-service-configuration-service=\"openai\"] .credential-field input[type=\"password\"]')",
+        );
+        expect(privacySource).not.toContain('input[placeholder="\u8bf7\u8f93\u5165API\u8bbf\u95ee\u4ee4\u724c"]');
         expect(privacySource).not.toContain("name: '导出配置'");
         expect(privacySource).not.toContain('config-transfer-dialog');
         expect(privacySource).not.toContain('configurePrivacySurfaces(worker');

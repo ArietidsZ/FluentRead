@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { reactive } from 'vue';
 import { normalizeConfig, type Config } from '@/src/core/config/model';
 import { sanitizeConfigCredentials } from '@/src/core/config/credentials';
-import { customModelString } from '@/src/core/config/catalog';
+import { customModelString, services } from '@/src/core/config/catalog';
 
 const storageMock = vi.hoisted(() => ({
     writeOwner: true,
@@ -1101,6 +1101,130 @@ describe('统一配置存储', () => {
         expect(configStore.config).toMatchObject({token: importedToken, theme: 'dark'});
     });
 
+    it('失败前驱的乐观字段不会被后继成功 patch 的回读失败 fallback 复活', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig({
+            ...storedConfig,
+            theme: 'auto',
+            to: 'zh-Hans',
+        }));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+        });
+        await configStore.configReady;
+        let failConfigRead = false;
+        storageMock.getItem.mockImplementation(async (key: string) => {
+            if (failConfigRead && key === 'local:config') throw new Error('config read unavailable');
+            return storageState.get(key) ?? null;
+        });
+        let releaseFirstResponse!: () => void;
+        const firstResponseGate = new Promise<void>(resolve => { releaseFirstResponse = resolve; });
+        let invocation = 0;
+        const sendMessage = vi.fn(async () => {
+            invocation += 1;
+            if (invocation === 1) {
+                await firstResponseGate;
+                return {success: false, error: 'first patch failed'};
+            }
+            storageState.set('local:config', {
+                ...canonical,
+                to: 'ja',
+                __fluentConfigRevision: 5,
+            });
+            failConfigRead = true;
+            return {success: true, revision: 5};
+        });
+
+        const failedTheme = configStore.requestConfigPatch({theme: 'dark'}, sendMessage);
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        const successfulLanguage = configStore.requestConfigPatch({to: 'ja'}, sendMessage);
+        expect(configStore.config).toMatchObject({theme: 'dark', to: 'ja'});
+        releaseFirstResponse();
+
+        const outcomes = await Promise.allSettled([failedTheme, successfulLanguage]);
+        expect(outcomes.map(outcome => outcome.status)).toEqual(['rejected', 'fulfilled']);
+        expect(configStore.config).toMatchObject({theme: 'auto', to: 'ja'});
+        expect(configStore.getConfigRevision()).toBe(5);
+    });
+
+    it('后继成功 patch 读到旧 revision 时保留前驱已提交字段', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig({
+            ...storedConfig,
+            theme: 'auto',
+            to: 'zh-Hans',
+        }));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+        });
+        await configStore.configReady;
+        let releaseFirstResponse!: () => void;
+        const firstResponseGate = new Promise<void>(resolve => { releaseFirstResponse = resolve; });
+        let invocation = 0;
+        const sendMessage = vi.fn(async () => {
+            invocation += 1;
+            if (invocation === 1) {
+                await firstResponseGate;
+                storageState.set('local:config', {
+                    ...canonical,
+                    theme: 'dark',
+                    __fluentConfigRevision: 5,
+                });
+                return {success: true, revision: 5};
+            }
+            // 后台已经把 to patch 提交为 rev6，但这个页面的读取仍命中旧 rev4。
+            storageState.set('local:config', {...canonical, __fluentConfigRevision: 4});
+            return {success: true, revision: 6};
+        });
+
+        const firstTheme = configStore.requestConfigPatch({theme: 'dark'}, sendMessage);
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        const secondLanguage = configStore.requestConfigPatch({to: 'ja'}, sendMessage);
+        releaseFirstResponse();
+
+        await Promise.all([firstTheme, secondLanguage]);
+        expect(configStore.config).toMatchObject({theme: 'dark', to: 'ja'});
+        expect(configStore.getConfigRevision()).toBe(6);
+    });
+
+    it('前驱与队尾 patch 都失败且队尾回读失败时不复活前驱乐观字段', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig({
+            ...storedConfig,
+            theme: 'auto',
+            to: 'zh-Hans',
+        }));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+        });
+        await configStore.configReady;
+        let failConfigRead = false;
+        storageMock.getItem.mockImplementation(async (key: string) => {
+            if (failConfigRead && key === 'local:config') throw new Error('config read unavailable');
+            return storageState.get(key) ?? null;
+        });
+        let releaseFirstResponse!: () => void;
+        const firstResponseGate = new Promise<void>(resolve => { releaseFirstResponse = resolve; });
+        let invocation = 0;
+        const sendMessage = vi.fn(async () => {
+            invocation += 1;
+            if (invocation === 1) {
+                await firstResponseGate;
+                return {success: false, error: 'first patch failed'};
+            }
+            failConfigRead = true;
+            return {success: false, error: 'tail patch failed'};
+        });
+
+        const failedTheme = configStore.requestConfigPatch({theme: 'dark'}, sendMessage);
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        const failedLanguage = configStore.requestConfigPatch({to: 'ja'}, sendMessage);
+        expect(configStore.config).toMatchObject({theme: 'dark', to: 'ja'});
+        releaseFirstResponse();
+
+        const outcomes = await Promise.allSettled([failedTheme, failedLanguage]);
+        expect(outcomes.map(outcome => outcome.status)).toEqual(['rejected', 'rejected']);
+        expect(configStore.config).toMatchObject({theme: 'auto', to: 'zh-Hans'});
+        expect(configStore.getConfigRevision()).toBe(4);
+    });
+
     it.each([
         ['成功', false],
         ['网络失败', true],
@@ -1449,6 +1573,303 @@ describe('统一配置存储', () => {
         }, {
             videoSubtitleVisible: false,
         }, current, false)).toThrow('videoSubtitleVisible');
+    });
+
+    it('endpoint/proxy patch 按真实目的地解绑旧 token，并让 proxy 遮蔽的 endpoint 编辑保留凭据', async () => {
+        const configStore = await loadConfigModule(storedConfig);
+        await configStore.configReady;
+        const service = 'custom:destination-test';
+        const provider = {
+            id: service,
+            name: 'Destination Test',
+            endpoint: 'https://old-endpoint.example/v1/chat/completions',
+            models: ['model-a'],
+        };
+        const current = normalizeConfig({
+            ...configStore.config,
+            customOpenAIProviders: [provider],
+            model: {...configStore.config.model, [service]: 'model-a'},
+            documentModel: {...configStore.config.documentModel, [service]: 'model-a'},
+            token: {[service]: 'old-destination-secret'},
+            proxy: {},
+        });
+        const changedProvider = [{
+            ...provider,
+            endpoint: 'https://new-endpoint.example/v1/chat/completions',
+        }];
+
+        const endpointChanged = configStore.prepareConfigPatchRequest({
+            customOpenAIProviders: changedProvider,
+        }, {
+            customOpenAIProviders: current.customOpenAIProviders,
+        }, current, true);
+        expect(endpointChanged.token).toEqual({});
+
+        const explicitRotation = configStore.prepareConfigPatchRequest({
+            customOpenAIProviders: changedProvider,
+            token: {[service]: 'new-destination-secret'},
+        }, {
+            customOpenAIProviders: current.customOpenAIProviders,
+            token: current.token,
+        }, current, true);
+        expect(explicitRotation.token).toEqual({[service]: 'new-destination-secret'});
+
+        const proxied = normalizeConfig({
+            ...current,
+            proxy: {[service]: 'https://stable-proxy.example/v1/chat/completions'},
+        });
+        const maskedEndpointChange = configStore.prepareConfigPatchRequest({
+            customOpenAIProviders: changedProvider,
+        }, {
+            customOpenAIProviders: proxied.customOpenAIProviders,
+        }, proxied, true);
+        expect(maskedEndpointChange.token).toEqual({[service]: 'old-destination-secret'});
+
+        const proxyChanged = configStore.prepareConfigPatchRequest({
+            proxy: {[service]: 'https://next-proxy.example/v1/chat/completions'},
+        }, {
+            proxy: proxied.proxy,
+        }, proxied, true);
+        expect(proxyChanged.token).toEqual({});
+
+        const untrustedEndpointChange = configStore.prepareConfigPatchRequest({
+            customOpenAIProviders: changedProvider,
+        }, {
+            customOpenAIProviders: current.customOpenAIProviders,
+        }, current, false);
+        expect(untrustedEndpointChange.token).toEqual({[service]: 'old-destination-secret'});
+    });
+
+    it('日常 destination patch 把派生 token 清理及其 CAS 基线发送给后台', async () => {
+        const service = 'custom:wire-destination';
+        const provider = {
+            id: service,
+            name: 'Wire Destination',
+            endpoint: 'https://wire-endpoint.example/v1/chat/completions',
+            models: ['wire-model'],
+        };
+        const canonical = sanitizeConfigCredentials(normalizeConfig({
+            ...storedConfig,
+            customOpenAIProviders: [provider],
+            model: {[service]: 'wire-model'},
+            documentModel: {[service]: 'wire-model'},
+            proxy: {[service]: 'https://old-proxy.example/v1/chat/completions'},
+        }));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+            localCredentials: {token: {[service]: 'wire-secret'}},
+        });
+        await configStore.configReady;
+        const sendMessage = vi.fn(async () => ({success: true, revision: 5}));
+
+        await configStore.requestConfigPatch({
+            proxy: {[service]: 'https://new-proxy.example/v1/chat/completions'},
+        }, sendMessage);
+
+        expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+            mode: 'patch',
+            config: {
+                proxy: {[service]: 'https://new-proxy.example/v1/chat/completions'},
+                token: {},
+            },
+            expected: {
+                proxy: {[service]: 'https://old-proxy.example/v1/chat/completions'},
+                token: {[service]: 'wire-secret'},
+            },
+        }));
+        expect(configStore.config.token).toEqual({});
+    });
+
+    it('日常腾讯 proxy patch 把共享密钥成对清理及其 CAS 基线发送给后台', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig({
+            ...storedConfig,
+            proxy: {[services.tencent]: 'https://old-tmt-proxy.example/'},
+        }));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+            localCredentials: {
+                tencentSecretId: 'wire-tencent-id',
+                tencentSecretKey: 'wire-tencent-key',
+            },
+        });
+        await configStore.configReady;
+        const sendMessage = vi.fn(async () => ({success: true, revision: 5}));
+
+        await configStore.requestConfigPatch({
+            proxy: {[services.tencent]: 'https://new-tmt-proxy.example/'},
+        }, sendMessage);
+
+        expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+            mode: 'patch',
+            config: {
+                proxy: {[services.tencent]: 'https://new-tmt-proxy.example/'},
+                tencentSecretId: '',
+                tencentSecretKey: '',
+            },
+            expected: {
+                proxy: {[services.tencent]: 'https://old-tmt-proxy.example/'},
+                tencentSecretId: 'wire-tencent-id',
+                tencentSecretKey: 'wire-tencent-key',
+            },
+        }));
+        expect(configStore.config).toMatchObject({tencentSecretId: '', tencentSecretKey: ''});
+    });
+
+    it('destination 派生解绑只拥有目标 service，不覆盖响应前 watch 更新的其他 token', async () => {
+        const service = 'custom:owned-token-a';
+        const provider = {
+            id: service,
+            name: 'Owned Token A',
+            endpoint: 'https://old-a.example/v1/chat/completions',
+            models: ['model-a'],
+        };
+        const canonical = sanitizeConfigCredentials(normalizeConfig({
+            ...storedConfig,
+            customOpenAIProviders: [provider],
+            model: {[service]: 'model-a'},
+            documentModel: {[service]: 'model-a'},
+        }));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+            localCredentials: {token: {[service]: 'a-old', openai: 'b-old'}},
+        });
+        await configStore.configReady;
+        const credentialWatch = storageWatchers.get('local:credentials')!;
+        let markCommitted!: () => void;
+        let releaseResponse!: () => void;
+        const committed = new Promise<void>(resolve => { markCommitted = resolve; });
+        const responseGate = new Promise<void>(resolve => { releaseResponse = resolve; });
+        const sendMessage = vi.fn(async (message: {config: Config}) => {
+            storageState.set('local:credentials', {token: {openai: 'b-old'}});
+            storageState.set('local:config', {
+                ...canonical,
+                ...sanitizeConfigCredentials(message.config),
+                __fluentConfigRevision: 5,
+            });
+            markCommitted();
+            await responseGate;
+            return {success: true, revision: 5};
+        });
+
+        const request = configStore.requestConfigPatch({
+            customOpenAIProviders: [{
+                ...provider,
+                endpoint: 'https://new-a.example/v1/chat/completions',
+            }],
+        }, sendMessage);
+        await committed;
+        const watchedCredentials = {token: {[service]: 'a-old', openai: 'b-new'}};
+        storageState.set('local:credentials', watchedCredentials);
+        credentialWatch(watchedCredentials);
+        releaseResponse();
+        await request;
+
+        expect(configStore.config.token).toEqual({openai: 'b-new'});
+        expect((await configStore.prepareHydratedConfigForExport()).token).toEqual({openai: 'b-new'});
+    });
+
+    it('changed-fields replace 只拥有发生变化的 token service，exact 语义仍单独保留', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+            localCredentials: {token: {openai: 'a-old', deepseek: 'b-old'}},
+        });
+        await configStore.configReady;
+        const credentialWatch = storageWatchers.get('local:credentials')!;
+        let markCommitted!: () => void;
+        let releaseResponse!: () => void;
+        const committed = new Promise<void>(resolve => { markCommitted = resolve; });
+        const responseGate = new Promise<void>(resolve => { releaseResponse = resolve; });
+        const sendMessage = vi.fn(async (message: {config: Config}) => {
+            storageState.set('local:credentials', {token: structuredClone(message.config.token)});
+            storageState.set('local:config', {...canonical, __fluentConfigRevision: 5});
+            markCommitted();
+            await responseGate;
+            return {success: true, revision: 5};
+        });
+
+        const request = configStore.requestConfigSave({
+            ...configStore.config,
+            token: {openai: 'a-new', deepseek: 'b-old'},
+        }, sendMessage);
+        await committed;
+        const watchedCredentials = {token: {openai: 'a-new', deepseek: 'b-new'}};
+        storageState.set('local:credentials', watchedCredentials);
+        credentialWatch(watchedCredentials);
+        releaseResponse();
+        await request;
+
+        expect(configStore.config.token).toEqual({openai: 'a-new', deepseek: 'b-new'});
+    });
+
+    it('成功响应回读失败时消费等待期间 deferred 的更高 revision', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig({...storedConfig, theme: 'auto'}));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+        });
+        await configStore.configReady;
+        const configWatch = storageWatchers.get('local:config')!;
+        let rejectRead!: (reason?: unknown) => void;
+        let markReadStarted!: () => void;
+        const readStarted = new Promise<void>(resolve => { markReadStarted = resolve; });
+        let blockNextConfigRead = false;
+        storageMock.getItem.mockImplementation(async (key: string) => {
+            if (key === 'local:config' && blockNextConfigRead) {
+                markReadStarted();
+                return new Promise<never>((_resolve, reject) => { rejectRead = reject; });
+            }
+            return storageState.get(key) ?? null;
+        });
+        const sendMessage = vi.fn(async () => {
+            blockNextConfigRead = true;
+            return {success: true, revision: 5};
+        });
+
+        const request = configStore.requestConfigPatch({theme: 'dark'}, sendMessage);
+        await readStarted;
+        const external = {...canonical, to: 'ja', __fluentConfigRevision: 6};
+        storageState.set('local:config', external);
+        configWatch(external);
+        rejectRead(new Error('config read unavailable'));
+
+        await expect(request).rejects.toThrow('配置已由其他页面更新');
+        expect(configStore.config).toMatchObject({theme: 'auto', to: 'ja'});
+        expect(configStore.getConfigRevision()).toBe(6);
+    });
+
+    it('失败请求回读失败时同样消费等待期间 deferred 的权威快照', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig({...storedConfig, theme: 'auto'}));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4}, {
+            writeOwner: false,
+        });
+        await configStore.configReady;
+        const configWatch = storageWatchers.get('local:config')!;
+        let rejectRead!: (reason?: unknown) => void;
+        let markReadStarted!: () => void;
+        const readStarted = new Promise<void>(resolve => { markReadStarted = resolve; });
+        let blockNextConfigRead = false;
+        storageMock.getItem.mockImplementation(async (key: string) => {
+            if (key === 'local:config' && blockNextConfigRead) {
+                markReadStarted();
+                return new Promise<never>((_resolve, reject) => { rejectRead = reject; });
+            }
+            return storageState.get(key) ?? null;
+        });
+        const sendMessage = vi.fn(async () => {
+            blockNextConfigRead = true;
+            return {success: false, error: 'patch rejected'};
+        });
+
+        const request = configStore.requestConfigPatch({theme: 'dark'}, sendMessage);
+        await readStarted;
+        const external = {...canonical, to: 'ja', __fluentConfigRevision: 5};
+        storageState.set('local:config', external);
+        configWatch(external);
+        rejectRead(new Error('config read unavailable'));
+
+        await expect(request).rejects.toThrow('patch rejected');
+        expect(configStore.config).toMatchObject({theme: 'auto', to: 'ja'});
+        expect(configStore.getConfigRevision()).toBe(5);
     });
 
     it('字段补丁先乐观更新，后台失败后回读权威快照并自动回滚', async () => {

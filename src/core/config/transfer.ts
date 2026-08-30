@@ -12,6 +12,7 @@ import {
   hasCredentialFields,
   mergeConfigCredentials,
   sanitizeConfigCredentials,
+  type ConfigCredentialField,
   type ConfigCredentials,
 } from './credentials'
 import { normalizeConfig, type Config } from './model'
@@ -22,10 +23,10 @@ import {
   LEGACY_CUSTOM_OPENAI_PROVIDER_ID,
   normalizeCustomOpenAIProviders,
 } from './customOpenAI'
-import {dropTokensForChangedCredentialDestinations} from './credentialBinding'
+import {dropCredentialsForChangedDestinations} from './credentialBinding'
 
 type ConfigRecord = Record<string, any>
-export type ConfigImportCredentialMode = 'merge' | 'replace'
+export type ConfigImportCredentialMode = 'merge' | 'merge-hydration-safe' | 'replace'
 
 export interface ConfigImportOptions {
   credentialMode?: ConfigImportCredentialMode
@@ -81,21 +82,23 @@ const scalarCredentialFields = [
   'tencentSecretId', 'tencentSecretKey',
 ] as const
 
-function clearTokensForChangedCredentialDestinations(
+function clearCredentialsForChangedDestinations(
   value: ConfigRecord,
   current: Config,
   imported: Config,
   credentials: ConfigCredentials,
+  explicitlyBoundCredentialFields: ReadonlySet<ConfigCredentialField>,
 ): ConfigCredentials {
   const explicitTokens = isRecord(value.token) ? value.token : {}
   const explicitlyBoundTokens = new Set(Object.entries(explicitTokens)
     .filter(([, token]) => typeof token === 'string')
     .map(([service]) => service))
-  return dropTokensForChangedCredentialDestinations(
+  return dropCredentialsForChangedDestinations(
     credentials,
     current,
     imported,
     explicitlyBoundTokens,
+    explicitlyBoundCredentialFields,
   )
 }
 
@@ -114,6 +117,7 @@ function prepareImportedCredentials(
 
   const currentCredentials = extractConfigCredentials(current)
   let merged = currentCredentials
+  const explicitlyBoundCredentialFields = new Set<ConfigCredentialField>()
   if (hasCredentialFields(value)) {
     const importedCredentials = extractConfigCredentials(value)
     merged = {
@@ -126,10 +130,22 @@ function prepareImportedCredentials(
         : currentCredentials.extra,
     }
     for (const field of scalarCredentialFields) {
-      if (typeof value[field] === 'string') merged[field] = importedCredentials[field]
+      if (typeof value[field] !== 'string') continue
+      // v1 完整备份可能在设置页凭据尚未水合时，把 Config 默认的空标量
+      // 当成真实快照导出。该格式无法区分“尚未读取”与“用户主动清空”，
+      // 因此兼容恢复时只接受非空标量，避免覆盖目标端仍安全保存的密钥。
+      if (mode === 'merge-hydration-safe' && !value[field].trim()) continue
+      merged[field] = importedCredentials[field]
+      explicitlyBoundCredentialFields.add(field)
     }
   }
-  return clearTokensForChangedCredentialDestinations(value, current, imported, merged)
+  return clearCredentialsForChangedDestinations(
+    value,
+    current,
+    imported,
+    merged,
+    explicitlyBoundCredentialFields,
+  )
 }
 
 export function sanitizeConfigForExport(value: unknown): ConfigRecord {

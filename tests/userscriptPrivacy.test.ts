@@ -37,6 +37,21 @@ describe('standalone userscript privacy boundaries', () => {
         expect(userscriptMain).toContain("document.removeEventListener('visibilitychange', synchronizeVisibleCount)");
     });
 
+    it('在共享配置 store 和内容应用就绪前完成 userscript 配置准备', () => {
+        const ensureIndex = userscriptMain.indexOf('await ensureUserscriptConfig()');
+        const releaseIndex = userscriptMain.indexOf('completeUserscriptConfigPreparation()');
+        const dynamicImportIndex = userscriptMain.indexOf('const [platformModule');
+        const contentMountIndex = userscriptMain.indexOf('await contentModule.default.main');
+
+        expect(ensureIndex).toBeGreaterThan(-1);
+        expect(releaseIndex).toBeGreaterThan(ensureIndex);
+        expect(dynamicImportIndex).toBeGreaterThan(releaseIndex);
+        expect(contentMountIndex).toBeGreaterThan(dynamicImportIndex);
+        expect(userscriptMain).toContain('failUserscriptConfigPreparation(error)');
+        expect(userscriptStorage).toContain('await waitForConfigPreparation()');
+        expect(userscriptStorage).toContain('void waitForConfigPreparation().then');
+    });
+
     it('migrates only FluentRead-owned legacy page-cache keys', () => {
         expect(legacyPageCache).not.toContain('.clear(');
         expect(legacyPageCache).toContain('key?.startsWith(LEGACY_TRANSLATION_CACHE_PREFIX)');

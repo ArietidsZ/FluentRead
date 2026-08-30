@@ -274,8 +274,15 @@ export class TranslationCandidateCore {
             chain.push(current);
             current = getComposedParent(current);
         }
-        // 祖先链过深时继续使用既有的有界回退，不评估或缓存不完整的链前缀。
-        if (current) return;
+        // 祖先链过深时直接缓存保守裁剪，不评估或缓存不完整的链前缀，也不再进入
+        // 后续适配器祖先扫描。
+        if (current) {
+            evaluationContext.hardGuards.set(element, {
+                prune: true,
+                reason: 'ancestor-depth-limit',
+            });
+            return;
+        }
 
         const ownGuards = chain.map((item) =>
             this.evaluateResolutionElementHardGuard(item, evaluationContext));
@@ -301,8 +308,8 @@ export class TranslationCandidateCore {
     ): HardGuardResult {
         if (!evaluationContext) return evaluateHardGuard(element);
         this.primeResolutionAncestry(element, evaluationContext);
-        return evaluationContext.hardGuards.get(element) ??
-            this.evaluateResolutionElementHardGuard(element, evaluationContext);
+        // primeResolutionAncestry 的正常、缓存命中与超深路径都会为命中元素写入结果。
+        return evaluationContext.hardGuards.get(element)!;
     }
 
     private isExtensionElementForResolution(
