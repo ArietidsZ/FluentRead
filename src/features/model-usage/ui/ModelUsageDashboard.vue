@@ -1,8 +1,8 @@
 <!--
  @file src/features/model-usage/ui/ModelUsageDashboard.vue
- 文件职责：在 Options 设置页展示当前浏览器保存的模型调用可观测数据，并提供筛选、请求明细、迁移和独立重置入口。
- 主要内容：呈现自适应 Token 大数、缓存读取/写入与命中率、请求结果、输入输出均值、趋势、服务模型分布和稳定游标分页的逐请求记录，并支持版本化 JSON 导入导出。
- 模块边界：组件只消费后台白名单数据，不读取 API Key、不记录原文、译文、提示词或网址，也不直接访问 IndexedDB；事件采集、Token 解释、持久化和导入校验由 services、providers 与 background 层拥有。
+ 文件职责：在 Options 设置页展示当前浏览器保存的模型调用可观测数据，并提供筛选、请求明细和清除统计入口。
+ 主要内容：呈现自适应 Token 大数、缓存读取/写入与命中率、请求结果、输入输出均值、趋势、服务模型分布和稳定游标分页的逐请求记录。
+ 模块边界：组件只消费后台白名单数据，不读取 API Key、不记录原文、译文、提示词或网址，也不直接访问 IndexedDB；事件采集、Token 解释、持久化及备份恢复由 services、providers、background 与统一“备份与恢复”页面拥有。
 -->
 <template>
   <section id="settings-model-usage" class="model-usage-dashboard" aria-label="模型用量统计">
@@ -55,44 +55,25 @@
         </div>
       </div>
 
-      <div class="usage-toolbar-actions" aria-label="模型用量数据管理">
-        <button type="button" class="usage-data-button" :disabled="exporting" @click="exportUsageData">
-          {{ exporting ? '正在导出…' : '导出全部数据' }}
-        </button>
-        <button type="button" class="usage-data-button" :disabled="importing" @click="openImportPicker">
-          {{ importing ? '正在导入…' : '导入数据' }}
-        </button>
+      <div class="usage-toolbar-actions">
         <button ref="resetButton" type="button" class="usage-reset-button" @click="openResetDialog">
           清除统计
         </button>
-        <input
-          ref="importFileInput"
-          class="usage-file-input"
-          type="file"
-          accept=".json,application/json"
-          aria-label="选择模型用量 JSON 文件"
-          @change="handleImportFile"
-        />
       </div>
     </div>
 
     <div class="usage-local-notice">
       <span aria-hidden="true">本机</span>
       <p>
-        统计保存在当前浏览器，包含 FluentRead 在此设备发起及从用量文件导入的调用。普通 API Key 不能读取服务商账号的全部历史用量。
+        统计保存在当前浏览器，只反映 FluentRead 保存的调用记录，不等同于服务商账号的全部历史用量。完整备份与恢复统一在“备份与恢复”中管理。
       </p>
       <small v-if="snapshot">
         {{ recordingStartLabel }} · {{ generatedAtLabel }}
       </small>
     </div>
 
-    <div
-      v-if="transferMessage"
-      class="usage-transfer-message"
-      :class="{ error: transferMessageIsError }"
-      :role="transferMessageIsError ? 'alert' : 'status'"
-    >
-      {{ transferMessage }}
+    <div v-if="resetMessage" class="usage-reset-message" role="status">
+      {{ resetMessage }}
     </div>
 
     <div v-if="errorMessage && snapshot" class="usage-inline-error" role="status">
@@ -436,42 +417,6 @@
       </section>
     </template>
 
-    <el-dialog
-      v-model="importDialogOpen"
-      title="导入模型用量数据"
-      width="min(560px, calc(100vw - 32px))"
-      :close-on-click-modal="!importing"
-      :close-on-press-escape="!importing"
-      :show-close="!importing"
-      destroy-on-close
-      data-testid="model-usage-import-dialog"
-      @closed="clearPendingImport"
-    >
-      <div v-if="pendingImportDocument" class="usage-import-preview">
-        <div>
-          <span>文件</span>
-          <strong>{{ pendingImportFileName }}</strong>
-        </div>
-        <div>
-          <span>请求记录</span>
-          <strong>{{ formatNumber(pendingImportDocument.events.length) }} 条</strong>
-        </div>
-        <div>
-          <span>时间范围</span>
-          <strong>{{ pendingImportRangeLabel }}</strong>
-        </div>
-        <p>导入会按事件 ID 与当前统计合并：完全相同的记录自动跳过，冲突或非法记录会拒绝整批文件，不会覆盖现有数据。</p>
-        <p class="usage-import-warning">JSON 未加密，会暴露调用时间、服务、模型和 Token 使用习惯；文件不包含原文、译文、网页地址或 API Key。</p>
-        <p v-if="transferMessageIsError && transferMessage.startsWith('导入失败')" class="usage-dialog-error" role="alert">{{ transferMessage }}</p>
-      </div>
-      <template #footer>
-        <el-button :disabled="importing" @click="importDialogOpen = false">取消</el-button>
-        <el-button type="primary" :loading="importing" :disabled="!pendingImportDocument" @click="confirmImport">
-          合并并导入
-        </el-button>
-      </template>
-    </el-dialog>
-
     <Teleport to="body">
       <div v-if="resetDialogOpen" class="usage-dialog-backdrop" @click.self="closeResetDialog">
         <section
@@ -508,18 +453,13 @@ import {formatTokenCount, formatUsageRate} from '@/src/features/model-usage/mode
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 import {
   MODEL_USAGE_REQUEST_PAGE_SIZE,
-  MODEL_USAGE_TRANSFER_FORMAT,
-  MODEL_USAGE_TRANSFER_MAX_BYTES,
-  MODEL_USAGE_TRANSFER_VERSION,
   type DashboardSnapshot,
   type Filter,
   type ModelUsageCacheStatus,
-  type ModelUsageImportResult,
   type ModelUsageOutcome,
   type ModelUsagePurpose,
   type ModelUsageRequestCursor,
   type ModelUsageRequestPage,
-  type ModelUsageTransferDocument,
   type Range,
   type StoredModelUsageEvent,
   type Totals,
@@ -538,9 +478,6 @@ type RequestCacheFilter = '' | ModelUsageCacheStatus
 
 const BREAKDOWN_PREVIEW_COUNT = 8
 const numberFormatter = new Intl.NumberFormat('zh-CN', {maximumFractionDigits: 0})
-const rangeDateFormatter = new Intl.DateTimeFormat('zh-CN', {
-  year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
-})
 const requestDateFormatter = new Intl.DateTimeFormat('zh-CN', {
   month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
 })
@@ -574,14 +511,7 @@ const requestLogNextCursor = ref<ModelUsageRequestCursor | null>(null)
 const requestLogTotalCount = ref(0)
 const requestLogLoading = ref(false)
 const requestLogError = ref('')
-const exporting = ref(false)
-const importing = ref(false)
-const transferMessage = ref('')
-const transferMessageIsError = ref(false)
-const importDialogOpen = ref(false)
-const pendingImportDocument = ref<ModelUsageTransferDocument | null>(null)
-const pendingImportFileName = ref('')
-const importFileInput = ref<HTMLInputElement | null>(null)
+const resetMessage = ref('')
 const resetDialogOpen = ref(false)
 const resetting = ref(false)
 const resetError = ref('')
@@ -673,14 +603,6 @@ const recordingStartLabel = computed(() => snapshot.value?.recordingStartedAt
 const generatedAtLabel = computed(() => snapshot.value
   ? `更新于 ${formatDate(snapshot.value.generatedAt)}`
   : '')
-const pendingImportRangeLabel = computed(() => {
-  const timestamps = (pendingImportDocument.value?.events || [])
-    .map(event => event.startedAt)
-    .filter(timestamp => typeof timestamp === 'number' && Number.isFinite(timestamp) && timestamp >= 0)
-    .sort((left, right) => left - right)
-  if (!timestamps.length) return '无记录'
-  return `${rangeDateFormatter.format(timestamps[0])} — ${rangeDateFormatter.format(timestamps.at(-1)!)}`
-})
 
 function serviceLabel(serviceId: string): string {
   return options.services.find(option => option.value === serviceId)?.label || serviceId || '未知服务'
@@ -898,99 +820,9 @@ async function loadRequestLog(reset: boolean): Promise<void> {
   }
 }
 
-async function exportUsageData(): Promise<void> {
-  if (exporting.value) return
-  exporting.value = true
-  transferMessage.value = ''
-  try {
-    const response = await browser.runtime.sendMessage({type: 'modelUsage', action: 'export'}) as ModelUsageResponse<ModelUsageTransferDocument>
-    if (response?.success !== true || !response.data) throw new Error(response?.error || '后台没有返回导出数据')
-    const serialized = JSON.stringify(response.data, null, 2)
-    const url = URL.createObjectURL(new Blob([serialized], {type: 'application/json'}))
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = `FluentRead-model-usage-${new Date().toISOString().slice(0, 10)}.json`
-    anchor.style.display = 'none'
-    document.body.append(anchor)
-    anchor.click()
-    anchor.remove()
-    setTimeout(() => URL.revokeObjectURL(url), 0)
-    transferMessageIsError.value = false
-    transferMessage.value = `已导出 ${formatNumber(response.data.events.length)} 条脱敏请求记录。`
-  } catch (error) {
-    transferMessageIsError.value = true
-    transferMessage.value = `导出失败：${error instanceof Error ? error.message : '未知错误'}`
-  } finally {
-    exporting.value = false
-  }
-}
-
-function openImportPicker(): void {
-  transferMessage.value = ''
-  if (importFileInput.value) importFileInput.value.value = ''
-  importFileInput.value?.click()
-}
-
-function parseImportPreview(value: unknown): ModelUsageTransferDocument {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('文件内容必须是 JSON 对象')
-  const document = value as Partial<ModelUsageTransferDocument>
-  if (document.format !== MODEL_USAGE_TRANSFER_FORMAT || document.version !== MODEL_USAGE_TRANSFER_VERSION) {
-    throw new Error('这不是受支持的 FluentRead 模型用量文件')
-  }
-  if (!Array.isArray(document.events)) throw new Error('文件缺少请求记录数组')
-  return document as ModelUsageTransferDocument
-}
-
-async function handleImportFile(event: Event): Promise<void> {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-  transferMessage.value = ''
-  try {
-    if (file.size > MODEL_USAGE_TRANSFER_MAX_BYTES) throw new Error('文件超过 128 MiB 上限')
-    pendingImportDocument.value = parseImportPreview(JSON.parse(await file.text()))
-    pendingImportFileName.value = file.name
-    importDialogOpen.value = true
-  } catch (error) {
-    transferMessageIsError.value = true
-    transferMessage.value = `无法读取导入文件：${error instanceof Error ? error.message : '未知错误'}`
-  } finally {
-    input.value = ''
-  }
-}
-
-function clearPendingImport(): void {
-  if (importing.value) return
-  pendingImportDocument.value = null
-  pendingImportFileName.value = ''
-}
-
-async function confirmImport(): Promise<void> {
-  if (!pendingImportDocument.value || importing.value) return
-  importing.value = true
-  transferMessage.value = ''
-  try {
-    const response = await browser.runtime.sendMessage({
-      type: 'modelUsage',
-      action: 'import',
-      document: pendingImportDocument.value,
-    }) as ModelUsageResponse<ModelUsageImportResult>
-    if (response?.success !== true || !response.data) throw new Error(response?.error || '后台没有确认导入结果')
-    importDialogOpen.value = false
-    transferMessageIsError.value = false
-    transferMessage.value = `导入完成：新增 ${formatNumber(response.data.importedCount)} 条，跳过 ${formatNumber(response.data.duplicateCount)} 条重复记录。`
-    await loadSnapshot()
-  } catch (error) {
-    transferMessageIsError.value = true
-    transferMessage.value = `导入失败：${error instanceof Error ? error.message : '未知错误'}`
-  } finally {
-    importing.value = false
-    if (!importDialogOpen.value) clearPendingImport()
-  }
-}
-
 async function openResetDialog(): Promise<void> {
   resetError.value = ''
+  resetMessage.value = ''
   setSettingsBackgroundInert(true)
   resetDialogOpen.value = true
   await nextTick()
@@ -1044,8 +876,7 @@ async function resetUsage(): Promise<void> {
     if (response?.success !== true) throw new Error(response?.error || '后台没有确认清除结果')
     resetDialogOpen.value = false
     setSettingsBackgroundInert(false)
-    transferMessageIsError.value = false
-    transferMessage.value = '模型用量请求记录及汇总已清除。'
+    resetMessage.value = '模型用量请求记录及汇总已清除。'
     await loadSnapshot()
     await nextTick()
     resetButton.value?.focus()

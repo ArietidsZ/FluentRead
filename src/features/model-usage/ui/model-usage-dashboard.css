@@ -1,7 +1,7 @@
 /**
  * @file src/features/model-usage/ui/model-usage-dashboard.css
- * 文件职责：定义 Options 模型用量面板的筛选、缓存、请求日志、迁移、趋势、分布、空状态和确认对话框视觉，并适配窄屏与深色主题。
- * 主要内容：复用设置页共享的表面、边框和品牌 token，以响应式卡片与表格呈现自适应大数、缓存命中率、逐请求 Token 明细和数据管理操作。
+ * 文件职责：定义 Options 模型用量面板的筛选、缓存、请求日志、趋势、分布、空状态和重置确认视觉，并适配窄屏与深色主题。
+ * 主要内容：复用设置页共享的表面、边框和品牌 token，以响应式卡片与表格呈现自适应大数、缓存命中率、逐请求 Token 明细和清除统计操作。
  * 模块边界：样式只作用于 ModelUsageDashboard，不改变设置页骨架、业务聚合或浏览器消息行为；全局颜色语义继续由 src/ui/styles/tokens.css 提供。
  */
 .model-usage-dashboard {
@@ -26,15 +26,6 @@
   align-items: center;
   gap: 7px;
   flex: 0 0 auto;
-}
-
-.usage-file-input {
-  position: fixed;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 
 .usage-filter-grid {
@@ -204,7 +195,6 @@
 }
 
 .usage-range-control button:focus-visible,
-.usage-data-button:focus-visible,
 .usage-reset-button:focus-visible,
 .usage-breakdown-list button:focus-visible,
 .usage-show-all:focus-visible,
@@ -214,7 +204,6 @@
   outline-offset: 2px;
 }
 
-.usage-data-button,
 .usage-reset-button {
   min-height: 48px;
   padding: 0 15px;
@@ -229,17 +218,6 @@
   transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
 }
 
-.usage-data-button {
-  color: var(--ink);
-}
-
-.usage-data-button:hover {
-  border-color: rgba(91, 110, 225, .35);
-  color: #4659c7;
-  background: rgba(91, 110, 225, .07);
-}
-
-.usage-data-button:disabled,
 .usage-reset-button:disabled {
   cursor: wait;
   opacity: .58;
@@ -251,7 +229,7 @@
   background: var(--brand-soft);
 }
 
-.usage-transfer-message {
+.usage-reset-message {
   margin: -5px 2px 14px;
   padding: 9px 11px;
   border: 1px solid rgba(70, 89, 199, .2);
@@ -260,12 +238,6 @@
   background: rgba(91, 110, 225, .07);
   font-size: 10.5px;
   line-height: 1.5;
-}
-
-.usage-transfer-message.error {
-  border-color: #f2c4cf;
-  color: #a3274b;
-  background: var(--brand-soft);
 }
 
 .usage-local-notice {
@@ -1151,56 +1123,6 @@
   opacity: .58;
 }
 
-.usage-import-preview {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 9px;
-}
-
-.usage-import-preview > div {
-  display: flex;
-  min-width: 0;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface-soft);
-  flex-direction: column;
-}
-
-.usage-import-preview > div span {
-  color: var(--muted);
-  font-size: 9px;
-}
-
-.usage-import-preview > div strong {
-  overflow: hidden;
-  margin-top: 4px;
-  color: var(--ink);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.usage-import-preview p {
-  grid-column: 1 / -1;
-  margin: 2px 0 0;
-  color: var(--muted);
-  font-size: 10.5px;
-  line-height: 1.6;
-}
-
-.usage-import-preview p.usage-import-warning {
-  padding: 9px 10px;
-  border-radius: 9px;
-  color: #735c19;
-  background: #fff9e8;
-}
-
-.usage-import-preview p.usage-dialog-error {
-  color: #a3274b;
-  background: var(--brand-soft);
-}
-
 .usage-state-card {
   display: grid;
   place-items: center;
@@ -1419,23 +1341,17 @@
   .usage-range-filter { grid-column: auto; }
 
   .usage-select-shell,
-  .usage-data-button,
   .usage-reset-button {
     min-height: 48px;
   }
 
   .usage-toolbar-actions {
-    display: grid;
     width: 100%;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .usage-data-button,
   .usage-reset-button {
     width: 100%;
   }
-
-  .usage-reset-button { grid-column: 1 / -1; }
 
   .usage-local-notice {
     align-items: flex-start;
@@ -1473,8 +1389,6 @@
   .usage-request-tokens { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .usage-request-log-footer { align-items: stretch; flex-direction: column; }
   .usage-request-log-footer button { width: 100%; min-height: 40px; }
-  .usage-import-preview { grid-template-columns: 1fr; }
-  .usage-import-preview p { grid-column: auto; }
   .usage-reset-dialog > div { display: grid; grid-template-columns: 1fr 1fr; }
 }
 
@@ -1490,8 +1404,7 @@
 :global(:root.dark) .usage-periods > div,
 :global(:root.dark) .usage-average-value,
 :global(:root.dark) .usage-cache-values > div,
-:global(:root.dark) .usage-request-tokens > span,
-:global(:root.dark) .usage-import-preview > div {
+:global(:root.dark) .usage-request-tokens > span {
   background: rgba(28, 31, 39, .72);
 }
 
@@ -1506,15 +1419,10 @@
   color: #ff9ab6;
 }
 
-:global(:root.dark) .usage-transfer-message {
+:global(:root.dark) .usage-reset-message {
   border-color: rgba(122, 139, 255, .3);
   color: #aeb9ff;
   background: rgba(91, 110, 225, .14);
-}
-
-:global(:root.dark) .usage-import-preview p.usage-import-warning {
-  color: #ead995;
-  background: #302c1d;
 }
 
 :global(:root.dark) .usage-request-status strong.is-success { color: #73d7ad; }

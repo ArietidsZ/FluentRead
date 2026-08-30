@@ -1,11 +1,17 @@
 <!--
 @file src/features/settings/ui/ConfigManagement.vue
-文件职责：提供配置管理页面的完整用户界面，让用户查看最近修改和定时备份，并通过统一 JSON 对话框复制导出或预览导入。
-主要内容：渲染两类十份版本列表、仅含导出与导入的迁移入口、完整配置复制与差异确认对话框，并在导入预览中隐藏专用 API 凭据的实际内容。
-模块边界：本组件只负责交互状态和展示，通过 core/config 生成包含凭据的用户主动导出内容，并通过 services/config 公共 API 读取或提交配置；快照保留、并发控制和浏览器存储不在 Vue 层实现。
+文件职责：提供备份与恢复页面的完整数据备份和设置历史。
+主要内容：首先挂载唯一的完整备份入口，再展示最近修改与自动设置快照，并在恢复前展示差异。
+模块边界：本组件拥有设置历史的预览与恢复；主动备份和旧文件兼容导入由 LocalDataManagement 统一编排。
 -->
 <template>
   <section class="config-management">
+    <LocalDataManagement :config="config" />
+
+    <header class="history-heading">
+      <h2>设置历史</h2>
+      <p>用于找回误改的设置；不包含单词本、模型用量或 API 凭据。</p>
+    </header>
     <div class="version-grid">
       <section class="version-panel" aria-labelledby="recent-config-title">
         <header class="version-panel-heading">
@@ -40,8 +46,8 @@
       <section class="version-panel" aria-labelledby="automatic-backup-title">
         <header class="version-panel-heading">
           <div>
-            <h2 id="automatic-backup-title">定时备份</h2>
-            <p>后台每 6 小时备份一次，最多保留 10 份（约 2.5 天）。</p>
+            <h2 id="automatic-backup-title">自动设置快照</h2>
+            <p>后台每 6 小时保存一次设置，最多保留 10 份。</p>
           </div>
           <span>{{ backupEntries.length }}/10</span>
         </header>
@@ -51,7 +57,7 @@
             :key="entry.version"
             type="button"
             class="version-entry"
-            :aria-label="`查看定时备份 b${entry.version}，${snapshotSummary(entry.config)}，${formatTime(entry.savedAt)}`"
+            :aria-label="`查看自动设置快照 b${entry.version}，${snapshotSummary(entry.config)}，${formatTime(entry.savedAt)}`"
             @click="openBackupPreview(entry)"
           >
             <span class="version-badge backup">b{{ entry.version }}</span>
@@ -65,51 +71,6 @@
         <div v-else class="version-empty">首次启动后台后会建立一份基线备份。</div>
       </section>
     </div>
-
-    <SettingsGroup title="导入与导出" description="导出内容包含当前全部用户配置和 API 凭据，请仅复制到可信位置。">
-      <div class="transfer-row">
-        <div class="transfer-copy">
-          <strong>当前配置 JSON</strong>
-          <small>导入会先显示与当前配置的差异，确认后才会应用。</small>
-        </div>
-        <div class="transfer-actions">
-          <el-button @click="openExportDialog"><CopyDocument />导出配置</el-button>
-          <el-button type="primary" @click="openImportDialog"><Upload />导入配置</el-button>
-        </div>
-      </div>
-      <p class="transfer-warning">导出会显示 API Key、Secret、提示词、自定义模型、请求体、代理与网站规则等完整配置。</p>
-    </SettingsGroup>
-
-    <el-dialog
-      v-model="transferDialogVisible"
-      :title="transferDialogTitle"
-      width="min(680px, calc(100vw - 32px))"
-      data-testid="config-transfer-dialog"
-    >
-      <el-input
-        v-model="transferJson"
-        type="textarea"
-        :rows="12"
-        :readonly="transferDialogMode === 'export'"
-        :placeholder="transferDialogMode === 'export' ? '' : '粘贴 FluentRead 配置 JSON'"
-        aria-label="配置 JSON"
-      />
-      <template #footer>
-        <el-button @click="transferDialogVisible = false">取消</el-button>
-        <el-button
-          v-if="transferDialogMode === 'export'"
-          type="primary"
-          :disabled="!transferJson"
-          @click="copyExportedConfig"
-        >复制</el-button>
-        <el-button
-          v-else
-          type="primary"
-          :disabled="!transferJson.trim()"
-          @click="previewImportedConfig"
-        >查看差异</el-button>
-      </template>
-    </el-dialog>
 
     <el-dialog
       v-model="previewVisible"
@@ -130,7 +91,7 @@
           </b>
         </div>
 
-        <div v-if="previewDiff.groups.length || previewCredentialChanges.length" class="diff-groups">
+        <div v-if="previewDiff.groups.length" class="diff-groups">
           <section v-for="group in previewDiff.groups" :key="group.id" class="diff-group">
             <h3>{{ group.label }}<span>{{ group.changes.length }}</span></h3>
             <div class="diff-list">
@@ -138,16 +99,6 @@
                 <strong>{{ change.label }}</strong>
                 <div><span>当前</span><p>{{ change.before }}</p></div>
                 <div><span>此版本</span><p>{{ change.after }}</p></div>
-              </article>
-            </div>
-          </section>
-          <section v-if="previewCredentialChanges.length" class="diff-group">
-            <h3>凭据安全<span>{{ previewCredentialChanges.length }}</span></h3>
-            <div class="diff-list">
-              <article v-for="change in previewCredentialChanges" :key="change.key" class="diff-item">
-                <strong>{{ change.label }}</strong>
-                <div><span>当前</span><p>{{ change.before }}</p></div>
-                <div><span>导入后</span><p>{{ change.after }}</p></div>
               </article>
             </div>
           </section>
@@ -175,14 +126,11 @@
 
 <script setup lang="ts">
 import {computed, onUnmounted, ref} from 'vue';
-import {CopyDocument, Upload} from '@element-plus/icons-vue';
 import {ElMessage, ElMessageBox} from 'element-plus';
 import browser from 'webextension-polyfill';
 import {options} from '@/src/core/config/catalog';
-import {extractConfigCredentials} from '@/src/core/config/credentials';
 import {buildConfigDiff} from '@/src/core/config/diff';
 import type {Config} from '@/src/core/config/model';
-import {isConfigImportValid, prepareConfigForExport, prepareConfigForImport} from '@/src/core/config/transfer';
 import {
   configAutoBackupsReady,
   configHistoryReady,
@@ -190,7 +138,6 @@ import {
   getConfigHistorySnapshot,
   requestConfigAutoBackupRestore,
   requestConfigHistoryAction,
-  requestConfigSave,
   subscribeConfigAutoBackups,
   subscribeConfigHistory,
   type ConfigAutoBackupEntry,
@@ -199,7 +146,7 @@ import {
   type ConfigHistoryState,
 } from '@/src/services/config';
 import {toRestorableConfig} from '@/src/services/config/history';
-import SettingsGroup from './components/SettingsGroup.vue';
+import LocalDataManagement from './LocalDataManagement.vue';
 
 const props = defineProps<{config: Config}>();
 const sendRuntimeMessage = browser.runtime.sendMessage.bind(browser.runtime);
@@ -235,7 +182,7 @@ function snapshotSummary(value: ConfigHistoryEntry['config'] | ConfigAutoBackupE
   return `${target} · ${service} · ${rules} 条网站规则`;
 }
 
-type PreviewKind = 'history' | 'backup' | 'import';
+type PreviewKind = 'history' | 'backup';
 interface PreviewTarget {
   kind: PreviewKind;
   version?: number;
@@ -247,97 +194,19 @@ interface PreviewTarget {
 const previewTarget = ref<PreviewTarget | null>(null);
 const previewVisible = ref(false);
 const applyBusy = ref(false);
-const resolvedPreviewConfig = computed(() => {
-  const target = previewTarget.value;
-  if (!target) return undefined;
-  return target.kind === 'import'
-    ? prepareConfigForImport(target.config, props.config)
-    : target.config;
-});
+const resolvedPreviewConfig = computed(() => previewTarget.value?.config);
 const previewDiff = computed(() => buildConfigDiff(
   toRestorableConfig(props.config),
   toRestorableConfig(resolvedPreviewConfig.value),
 ));
-interface CredentialPreviewChange {
-  key: string;
-  label: string;
-  before: string;
-  after: string;
-}
-
-const scalarCredentialLabels = {
-  ak: 'Access Key',
-  sk: 'Secret Key',
-  appid: '旧版 App ID',
-  key: '旧版服务 Key',
-  youdaoAppKey: '有道 AppKey',
-  youdaoAppSecret: '有道 AppSecret',
-  tencentSecretId: '腾讯云 SecretId',
-  tencentSecretKey: '腾讯云 SecretKey',
-} as const;
-
-function isCredentialConfigured(value: unknown): boolean {
-  if (typeof value === 'string') return Boolean(value.trim());
-  if (Array.isArray(value)) return value.length > 0;
-  if (value && typeof value === 'object') return Object.keys(value).length > 0;
-  return value !== null && value !== undefined && value !== false;
-}
-
-function credentialChange(
-  key: string,
-  label: string,
-  before: unknown,
-  after: unknown,
-): CredentialPreviewChange | null {
-  if (JSON.stringify(before ?? '') === JSON.stringify(after ?? '')) return null;
-  const hadValue = isCredentialConfigured(before);
-  const hasValue = isCredentialConfigured(after);
-  if (!hadValue && !hasValue) return null;
-  return {
-    key,
-    label,
-    before: hadValue ? '已配置（内容已隐藏）' : '未设置',
-    after: hasValue
-      ? hadValue ? '将替换（内容已隐藏）' : '将新增（内容已隐藏）'
-      : '将清除',
-  };
-}
-
-const previewCredentialChanges = computed(() => {
-  if (previewTarget.value?.kind !== 'import') return [];
-  const before = extractConfigCredentials(props.config);
-  const after = extractConfigCredentials(resolvedPreviewConfig.value);
-  const changes: CredentialPreviewChange[] = [];
-
-  for (const service of new Set([...Object.keys(before.token), ...Object.keys(after.token)])) {
-    const serviceLabel = options.services.find((item: any) => item.value === service)?.label || service;
-    const change = credentialChange(`token.${service}`, `${serviceLabel} API Key`, before.token[service], after.token[service]);
-    if (change) changes.push(change);
-  }
-  for (const field of Object.keys(scalarCredentialLabels) as Array<keyof typeof scalarCredentialLabels>) {
-    const change = credentialChange(field, scalarCredentialLabels[field], before[field], after[field]);
-    if (change) changes.push(change);
-  }
-  for (const key of new Set([...Object.keys(before.extra), ...Object.keys(after.extra)])) {
-    const change = credentialChange(`extra.${key}`, `${key} 扩展凭据`, before.extra[key], after.extra[key]);
-    if (change) changes.push(change);
-  }
-  return changes;
-});
-const previewChangeCount = computed(() => previewDiff.value.changeCount + previewCredentialChanges.value.length);
+const previewChangeCount = computed(() => previewDiff.value.changeCount);
 const previewJson = computed(() => JSON.stringify(toRestorableConfig(resolvedPreviewConfig.value), null, 2));
-const previewTitle = computed(() => previewTarget.value?.kind === 'import' ? '导入前查看差异' : '配置版本详情');
+const previewTitle = '设置版本详情';
 const previewSourceLabel = computed(() => previewTarget.value?.kind === 'history'
   ? `最近修改 ${previewTarget.value.label}`
-  : previewTarget.value?.kind === 'backup'
-    ? `定时备份 ${previewTarget.value.label}`
-    : previewTarget.value?.label || '导入配置');
-const previewActionLabel = computed(() => previewTarget.value?.kind === 'import' ? '确认导入' : '恢复此版本');
-const previewBoundary = computed(() => previewTarget.value?.kind === 'import'
-  ? previewCredentialChanges.value.length
-    ? '这是包含服务凭据的旧版配置；上方逐项标出新增、替换或清除，内容始终隐藏。确认后仅更新文件明确提供的字段，其他凭据继续保留。'
-    : '导入文件不含服务凭据，将保留当前已保存的凭据；翻译次数不会改变。'
-  : 'API 凭据和翻译次数不会随版本恢复。');
+  : `自动设置快照 ${previewTarget.value?.label || ''}`);
+const previewActionLabel = '恢复此版本';
+const previewBoundary = 'API 凭据和翻译次数不会随设置版本恢复。';
 
 function showPreview(target: PreviewTarget) {
   previewTarget.value = target;
@@ -362,11 +231,9 @@ async function applyPreviewTarget() {
   if (!target || previewChangeCount.value === 0 || applyBusy.value) return;
   try {
     await ElMessageBox.confirm(
-      target.kind === 'import'
-        ? `将应用 ${previewChangeCount.value} 项配置变化，是否继续？`
-        : `将恢复 ${target.label}，并生成一份新的最近修改记录。是否继续？`,
-      target.kind === 'import' ? '确认导入配置' : '确认恢复配置',
-      {confirmButtonText: target.kind === 'import' ? '导入' : '恢复', cancelButtonText: '取消', type: 'warning'},
+      `将恢复 ${target.label}，并生成一份新的最近修改记录。是否继续？`,
+      '确认恢复设置',
+      {confirmButtonText: '恢复', cancelButtonText: '取消', type: 'warning'},
     );
   } catch {
     return;
@@ -380,69 +247,22 @@ async function applyPreviewTarget() {
       const result = await requestConfigAutoBackupRestore(target.version!, sendRuntimeMessage);
       configBackups.value = result.backups;
       configHistory.value = result.history;
-    } else {
-      await requestConfigSave(resolvedPreviewConfig.value, sendRuntimeMessage);
     }
     previewVisible.value = false;
-    ElMessage.success(target.kind === 'import' ? '配置已导入' : '配置已恢复');
+    ElMessage.success('设置已恢复');
   } catch (error) {
-    ElMessage.error(`${target.kind === 'import' ? '导入' : '恢复'}失败：${error instanceof Error ? error.message : '请稍后重试'}`);
+    ElMessage.error(`恢复失败：${error instanceof Error ? error.message : '请稍后重试'}`);
   } finally {
     applyBusy.value = false;
-  }
-}
-
-function exportedJson(): string {
-  return JSON.stringify(prepareConfigForExport(props.config), null, 2);
-}
-
-type TransferDialogMode = 'export' | 'import';
-const transferDialogMode = ref<TransferDialogMode>('export');
-const transferDialogVisible = ref(false);
-const transferJson = ref('');
-const transferDialogTitle = computed(() => transferDialogMode.value === 'export'
-  ? '导出配置 JSON'
-  : '粘贴配置 JSON');
-
-function openExportDialog() {
-  transferDialogMode.value = 'export';
-  transferJson.value = exportedJson();
-  transferDialogVisible.value = true;
-}
-
-function openImportDialog() {
-  transferDialogMode.value = 'import';
-  transferJson.value = '';
-  transferDialogVisible.value = true;
-}
-
-async function copyExportedConfig() {
-  try {
-    await navigator.clipboard.writeText(transferJson.value);
-    ElMessage.success('配置 JSON 已复制');
-  } catch (error) {
-    ElMessage.error(`复制失败：${error instanceof Error ? error.message : '请检查剪贴板权限'}`);
-  }
-}
-
-function prepareImportPreview(text: string, label: string) {
-  const parsed = JSON.parse(text) as unknown;
-  if (!isConfigImportValid(parsed)) throw new Error('配置无效或格式不正确');
-  showPreview({kind: 'import', label, savedAt: new Date().toISOString(), config: parsed});
-}
-
-function previewImportedConfig() {
-  try {
-    prepareImportPreview(transferJson.value, '粘贴的 JSON');
-    transferDialogVisible.value = false;
-  } catch (error) {
-    ElMessage.error(`无法读取配置：${error instanceof Error ? error.message : 'JSON 格式错误'}`);
   }
 }
 </script>
 
 <style scoped>
 .config-management { width: 100%; }
+.history-heading { width: min(100%, 1080px); margin: 0 auto 10px; padding: 0 4px; }
+.history-heading h2 { margin: 0; color: var(--ink); font-size: 15px; line-height: 1.4; }
+.history-heading p { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .version-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; width: min(100%, 1080px); margin: 0 auto 22px; }
 .version-panel { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: 0 7px 22px rgba(31, 40, 61, .035); }
 .version-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 16px; border-bottom: 1px solid var(--line); }
@@ -462,14 +282,6 @@ function previewImportedConfig() {
 .view-link, .current-mark { color: var(--brand-strong); font-size: 10px; font-weight: 750; }
 .current-mark { padding: 3px 7px; border-radius: 999px; background: var(--brand-soft); }
 .version-empty { padding: 28px 16px; color: var(--muted); font-size: 11px; text-align: center; }
-.transfer-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 15px 16px; }
-.transfer-copy { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
-.transfer-copy strong { color: var(--ink); font-size: 12.5px; }
-.transfer-copy small, .transfer-warning { color: var(--muted); font-size: 10.5px; line-height: 1.55; }
-.transfer-actions { display: flex; flex: none; align-items: center; gap: 7px; }
-.transfer-actions :deep(.el-button) { margin-left: 0; }
-.transfer-actions :deep(svg) { width: 14px; margin-right: 5px; }
-.transfer-warning { margin: 0; padding: 0 16px 14px; }
 .preview-summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-soft); }
 .preview-summary > div { display: flex; flex-direction: column; gap: 3px; }
 .preview-summary span { color: var(--muted); font-size: 10px; }
@@ -494,8 +306,6 @@ function previewImportedConfig() {
 
 @media (max-width: 900px) {
   .version-grid { grid-template-columns: 1fr; }
-  .transfer-row { align-items: flex-start; flex-direction: column; }
-  .transfer-actions { width: 100%; flex-wrap: wrap; }
 }
 @media (max-width: 600px) {
   .diff-item { grid-template-columns: minmax(0, 1fr); gap: 6px; }
