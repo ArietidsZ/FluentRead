@@ -50,6 +50,12 @@ import {
 } from './internal';
 
 const maxHoverBarrierDiscoverySteps = 256;
+/**
+ * Shadow DOM 的坐标命中 API 属于宿主页面实现，异常组件可能把同一个 host
+ * 再次返回给嵌套 root。坐标解析必须有独立于祖先扫描的深度上限，避免递归耗尽
+ * content script 的调用栈并让页面看起来失去响应。
+ */
+const maxPointResolutionDepth = 64;
 
 interface AdapterDecisionResult {
     decision: AdapterDecision;
@@ -830,19 +836,28 @@ export class TranslationCandidateCore {
     }
 
     resolveAtPoint(root: Document | ShadowRoot, x: number, y: number): TranslationCandidate | null {
-        const pointedNode = findNodeAtPoint(root, x, y);
-        if (pointedNode) {
-            const pointedCandidate = this.resolve(pointedNode);
-            if (pointedCandidate) return pointedCandidate;
-        }
-        for (const element of findElementsAtPoint(root, x, y)) {
-            if (element.shadowRoot) {
-                const shadowCandidate = this.resolveAtPoint(element.shadowRoot, x, y);
-                if (shadowCandidate) return shadowCandidate;
+        const visitedRoots = new Set<Document | ShadowRoot>();
+        const resolveInRoot = (currentRoot: Document | ShadowRoot, depth: number): TranslationCandidate | null => {
+            if (depth > maxPointResolutionDepth || visitedRoots.has(currentRoot)) return null;
+            visitedRoots.add(currentRoot);
+
+            const pointedNode = findNodeAtPoint(currentRoot, x, y);
+            if (pointedNode) {
+                const pointedCandidate = this.resolve(pointedNode);
+                if (pointedCandidate) return pointedCandidate;
             }
-            const candidate = this.resolve(element);
-            if (candidate) return candidate;
-        }
-        return null;
+
+            for (const element of findElementsAtPoint(currentRoot, x, y)) {
+                if (element.shadowRoot) {
+                    const shadowCandidate = resolveInRoot(element.shadowRoot, depth + 1);
+                    if (shadowCandidate) return shadowCandidate;
+                }
+                const candidate = this.resolve(element);
+                if (candidate) return candidate;
+            }
+            return null;
+        };
+
+        return resolveInRoot(root, 0);
     }
 }

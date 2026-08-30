@@ -50,6 +50,7 @@ import {
     partitionInlineRunAtBarriers,
     readCachedFlagOr,
 } from '@/src/core/translation/internal';
+import {bilibiliAdapter} from '@/src/core/translation/adapters/bilibili';
 
 function page(html: string, url = 'https://example.test/article') {
     const {document} = parseHTML(`<html><head></head><body>${html}</body></html>`);
@@ -884,6 +885,76 @@ describe('translation candidate core', () => {
 
         expect(core.discover(document).map((item) => item.element.id)).toContain('shadow-prose');
         expect(core.resolve(shadowRoot.querySelector('#shadow-prose'))?.element.id).toBe('shadow-prose');
+    });
+
+    it('prunes Bilibili comments across nested Shadow DOM without hiding page prose', () => {
+        const {document, core} = page(`
+            <main>
+                <bili-comments id="comments"></bili-comments>
+                <p id="page-prose">The surrounding video page remains translatable.</p>
+            </main>
+        `, 'https://www.bilibili.com/video/BV1ux4y1e73x/');
+        const comments = document.querySelector('#comments')!;
+        const commentsShadow = comments.attachShadow({mode: 'open'});
+        const thread = document.createElement('bili-comment-thread-renderer');
+        commentsShadow.append(thread);
+        const threadShadow = thread.attachShadow({mode: 'open'});
+        const renderer = document.createElement('bili-comment-renderer');
+        threadShadow.append(renderer);
+        const rendererShadow = renderer.attachShadow({mode: 'open'});
+        const richText = document.createElement('bili-rich-text');
+        rendererShadow.append(richText);
+        const richTextShadow = richText.attachShadow({mode: 'open'});
+        const commentText = document.createElement('p');
+        commentText.id = 'comment-prose';
+        commentText.textContent = 'A Bilibili comment that must remain owned by the site.';
+        richTextShadow.append(commentText);
+
+        expect(bilibiliAdapter.matches(new URL('https://www.bilibili.com/video/BV1ux4y1e73x/'))).toBe(true);
+        expect(bilibiliAdapter.matches(new URL('https://example.test/video'))).toBe(false);
+        expect(core.discover(document).map((candidate) => candidate.element.id)).toContain('page-prose');
+        expect(core.discover(document).some((candidate) => candidate.element === commentText)).toBe(false);
+        expect(core.resolve(commentText.firstChild)).toBeNull();
+
+        Object.defineProperty(document, 'elementFromPoint', {
+            configurable: true,
+            value: () => comments,
+        });
+        Object.defineProperty(commentsShadow, 'elementFromPoint', {
+            configurable: true,
+            value: () => thread,
+        });
+        Object.defineProperty(threadShadow, 'elementFromPoint', {
+            configurable: true,
+            value: () => renderer,
+        });
+        Object.defineProperty(rendererShadow, 'elementFromPoint', {
+            configurable: true,
+            value: () => richText,
+        });
+        Object.defineProperty(richTextShadow, 'elementFromPoint', {
+            configurable: true,
+            value: () => commentText,
+        });
+        expect(core.resolveAtPoint(document, 10, 20)).toBeNull();
+    });
+
+    it('bounds cyclic Shadow DOM coordinate lookup without overflowing the call stack', () => {
+        const {document, core} = page('<main><article-card id="host"></article-card></main>');
+        const host = document.querySelector('#host')!;
+        const shadowRoot = host.attachShadow({mode: 'open'});
+
+        Object.defineProperty(document, 'elementFromPoint', {
+            configurable: true,
+            value: () => host,
+        });
+        Object.defineProperty(shadowRoot, 'elementFromPoint', {
+            configurable: true,
+            value: () => host,
+        });
+
+        expect(() => core.resolveAtPoint(document, 10, 20)).not.toThrow();
+        expect(core.resolveAtPoint(document, 10, 20)).toBeNull();
     });
 
     it('translates GitHub PR titles instead of pruning repository-content', () => {
