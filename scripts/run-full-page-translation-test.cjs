@@ -3,7 +3,7 @@
 // 这个脚本只使用临时 Edge profile 和真实 Alt+T 键盘手势，回归全文翻译的
 // 识别、按钮特殊处理、富文本结构、动态节点、Shadow DOM 以及恢复流程。
 // 传入 --verify-floating-ui 时，还会从 closed Shadow DOM 读取悬浮球透明度、
-// 展开/收起、勾选标记几何与离屏任务下的进度面板显隐。
+// 展开/收起、中间 Logo 点击稳定性、勾选标记几何与离屏任务下的进度面板显隐。
 // 它不会连接用户正在使用的浏览器 profile，也不会通过 JS 合成键盘事件。
 
 const fs = require('node:fs');
@@ -504,6 +504,7 @@ async function readFloatingUiState(page) {
       host: Boolean(floatingHost),
       ball: Boolean(ball),
       ballClass: cdpAttribute(ball, 'class'),
+      ballStyle: cdpAttribute(ball, 'style'),
       position: cdpAttribute(ball, 'data-position'),
       expanded: hasCdpClass(ball, 'floating-ball-expanded'),
       translated: hasCdpClass(ball, 'is-translating'),
@@ -619,6 +620,99 @@ async function clickFloatingTranslateTool(page, state) {
     await session.send('Input.dispatchMouseEvent', {type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1});
   } finally {
     await session.detach().catch(() => {});
+  }
+}
+
+async function clickFloatingMain(page, state) {
+  const box = state.mainBox;
+  if (!box) throw new Error(`无法取得悬浮球中间 Logo 几何位置：${JSON.stringify(state)}`);
+  const x = (box.left + box.right) / 2;
+  const y = (box.top + box.bottom) / 2;
+  const session = await page.context().newCDPSession(page);
+  try {
+    await session.send('Input.dispatchMouseEvent', {type: 'mouseMoved', x, y});
+    await session.send('Input.dispatchMouseEvent', {type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1});
+    await page.waitForTimeout(30);
+    const pressed = await readFloatingUiState(page);
+    // 夹带 5px 的真实指针抖动，证明未越过 6px 拖动阈值的普通点击仍保持原位。
+    await session.send('Input.dispatchMouseEvent', {type: 'mouseMoved', x: x + 5, y, button: 'left', buttons: 1});
+    await page.waitForTimeout(30);
+    const jittered = await readFloatingUiState(page);
+    await session.send('Input.dispatchMouseEvent', {type: 'mouseReleased', x: x + 5, y, button: 'left', buttons: 0, clickCount: 1});
+    return {pressed, jittered};
+  } finally {
+    await session.detach().catch(() => {});
+  }
+}
+
+async function dragFloatingMain(page, state, targetX) {
+  const box = state.mainBox;
+  if (!box) throw new Error(`无法取得悬浮球拖动前的几何位置：${JSON.stringify(state)}`);
+  const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  const visibleLeft = Math.max(1, box.left);
+  const visibleRight = Math.min(viewport.width - 1, box.right);
+  const visibleTop = Math.max(1, box.top);
+  const visibleBottom = Math.min(viewport.height - 1, box.bottom);
+  const startX = (visibleLeft + visibleRight) / 2;
+  const startY = (visibleTop + visibleBottom) / 2;
+  const session = await page.context().newCDPSession(page);
+  try {
+    await session.send('Input.dispatchMouseEvent', {type: 'mouseMoved', x: startX, y: startY});
+    await session.send('Input.dispatchMouseEvent', {type: 'mousePressed', x: startX, y: startY, button: 'left', buttons: 1, clickCount: 1});
+    await session.send('Input.dispatchMouseEvent', {type: 'mouseMoved', x: targetX, y: startY, button: 'left', buttons: 1});
+    await page.waitForTimeout(50);
+    const during = await readFloatingUiState(page);
+    await session.send('Input.dispatchMouseEvent', {type: 'mouseReleased', x: targetX, y: startY, button: 'left', buttons: 0, clickCount: 1});
+    return during;
+  } finally {
+    await session.detach().catch(() => {});
+  }
+}
+
+async function movePointerAwayFromFloatingUi(page) {
+  const session = await page.context().newCDPSession(page);
+  try {
+    await session.send('Input.dispatchMouseEvent', {type: 'mouseMoved', x: 100, y: 100});
+  } finally {
+    await session.detach().catch(() => {});
+  }
+}
+
+function assertFloatingMainClickStable(before, after, beforeUrl, afterUrl) {
+  const tolerance = 1;
+  const geometryStable = before.mainBox && after.mainBox &&
+    ['left', 'top', 'right', 'bottom'].every((key) => Math.abs(before.mainBox[key] - after.mainBox[key]) <= tolerance);
+  if (!geometryStable || !before.expanded || !after.expanded || before.position !== after.position ||
+      before.translated !== after.translated || before.ballStyle !== after.ballStyle ||
+      after.ballClass.includes('dragging') || beforeUrl !== afterUrl) {
+    throw new Error(`点击中间 Logo 不应改变悬浮球或页面状态：${JSON.stringify({before, after, beforeUrl, afterUrl})}`);
+  }
+}
+
+async function readFloatingInteractionDomState(page) {
+  return page.evaluate(() => ({
+    url: location.href,
+    bilingualCount: document.querySelectorAll('.fluent-read-bilingual-content').length,
+    loadingCount: document.querySelectorAll('.fluent-read-loading').length,
+  }));
+}
+
+function assertFloatingInteractionDomStable(before, after, label) {
+  if (JSON.stringify(before) !== JSON.stringify(after)) {
+    throw new Error(`${label} 不应改变页面译文、加载态或 URL：${JSON.stringify({before, after})}`);
+  }
+}
+
+function assertFloatingMainDragKeepsPageStable(before, during, after, beforeUrl, afterUrl) {
+  const centerY = state => state.mainBox ? (state.mainBox.top + state.mainBox.bottom) / 2 : Number.NaN;
+  const centerX = state => state.mainBox ? (state.mainBox.left + state.mainBox.right) / 2 : Number.NaN;
+  const verticalStable = Math.abs(centerY(before) - centerY(during)) <= 1 &&
+    Math.abs(centerY(before) - centerY(after)) <= 1;
+  const horizontalMoved = Math.abs(centerX(before) - centerX(after)) > 100;
+  if (before.position === after.position || after.position !== 'left' || before.translated !== after.translated ||
+      !during.ballClass.includes('dragging') || after.ballClass.includes('dragging') ||
+      !verticalStable || !horizontalMoved || beforeUrl !== afterUrl) {
+    throw new Error(`拖动中间 Logo 应平稳地只改变停靠位置：${JSON.stringify({before, during, after, beforeUrl, afterUrl})}`);
   }
 }
 
@@ -899,6 +993,89 @@ async function main() {
         '等待低干扰悬浮球初始状态超时',
       );
       assertCollapsedFloatingUi(floatingUiEvidence.initial, false, '初始');
+      await movePointerToFloatingMain(page, floatingUiEvidence.initial);
+      await waitForFloatingUiState(
+        page,
+        state => isExpandedFloatingUiState(state),
+        args.timeout,
+        '等待中间 Logo 点击前悬浮球展开超时',
+      );
+      await page.waitForTimeout(520);
+      floatingUiEvidence.expandedBeforeMainClick = await readFloatingUiState(page);
+      assertExpandedFloatingUi(floatingUiEvidence.expandedBeforeMainClick, '中间 Logo 点击前');
+      const urlBeforeMainClick = page.url();
+      const requestCountBeforeMainClick = translationFixtureServer.requestCount();
+      const domBeforeMainClick = await readFloatingInteractionDomState(page);
+      const mainClickStages = await clickFloatingMain(page, floatingUiEvidence.expandedBeforeMainClick);
+      floatingUiEvidence.pressedDuringMainClick = mainClickStages.pressed;
+      floatingUiEvidence.jitteredDuringMainClick = mainClickStages.jittered;
+      assertFloatingMainClickStable(
+        floatingUiEvidence.expandedBeforeMainClick,
+        floatingUiEvidence.pressedDuringMainClick,
+        urlBeforeMainClick,
+        page.url(),
+      );
+      assertFloatingMainClickStable(
+        floatingUiEvidence.expandedBeforeMainClick,
+        floatingUiEvidence.jitteredDuringMainClick,
+        urlBeforeMainClick,
+        page.url(),
+      );
+      await page.waitForTimeout(520);
+      floatingUiEvidence.afterMainClick = await readFloatingUiState(page);
+      assertFloatingMainClickStable(
+        floatingUiEvidence.expandedBeforeMainClick,
+        floatingUiEvidence.afterMainClick,
+        urlBeforeMainClick,
+        page.url(),
+      );
+      const domAfterMainClick = await readFloatingInteractionDomState(page);
+      floatingUiEvidence.mainClickDom = {before: domBeforeMainClick, after: domAfterMainClick};
+      assertFloatingInteractionDomStable(domBeforeMainClick, domAfterMainClick, '点击中间 Logo');
+      floatingUiEvidence.mainClickTranslationRequests = {
+        before: requestCountBeforeMainClick,
+        after: translationFixtureServer.requestCount(),
+      };
+      if (floatingUiEvidence.mainClickTranslationRequests.before !== floatingUiEvidence.mainClickTranslationRequests.after) {
+        throw new Error(`点击中间 Logo 不应发起翻译请求：${JSON.stringify(floatingUiEvidence.mainClickTranslationRequests)}`);
+      }
+      await movePointerAwayFromFloatingUi(page);
+      floatingUiEvidence.collapsedAfterMainClick = await waitForFloatingUiState(
+        page,
+        state => isCollapsedFloatingUiState(state, false),
+        args.timeout,
+        '等待中间 Logo 点击验证后悬浮球收起超时',
+      );
+      const urlBeforeMainDrag = page.url();
+      const requestCountBeforeMainDrag = translationFixtureServer.requestCount();
+      const domBeforeMainDrag = await readFloatingInteractionDomState(page);
+      floatingUiEvidence.duringMainDrag = await dragFloatingMain(page, floatingUiEvidence.collapsedAfterMainClick, 72);
+      await waitForFloatingUiState(
+        page,
+        state => state.position === 'left' && isCollapsedFloatingUiState(state, false),
+        args.timeout,
+        '等待中间 Logo 真正拖动后停靠左侧超时',
+      );
+      await page.waitForTimeout(520);
+      floatingUiEvidence.afterMainDrag = await readFloatingUiState(page);
+      assertCollapsedFloatingUi(floatingUiEvidence.afterMainDrag, false, '中间 Logo 拖动后');
+      assertFloatingMainDragKeepsPageStable(
+        floatingUiEvidence.collapsedAfterMainClick,
+        floatingUiEvidence.duringMainDrag,
+        floatingUiEvidence.afterMainDrag,
+        urlBeforeMainDrag,
+        page.url(),
+      );
+      const domAfterMainDrag = await readFloatingInteractionDomState(page);
+      floatingUiEvidence.mainDragDom = {before: domBeforeMainDrag, after: domAfterMainDrag};
+      assertFloatingInteractionDomStable(domBeforeMainDrag, domAfterMainDrag, '拖动中间 Logo');
+      floatingUiEvidence.mainDragTranslationRequests = {
+        before: requestCountBeforeMainDrag,
+        after: translationFixtureServer.requestCount(),
+      };
+      if (floatingUiEvidence.mainDragTranslationRequests.before !== floatingUiEvidence.mainDragTranslationRequests.after) {
+        throw new Error(`拖动中间 Logo 不应发起翻译请求：${JSON.stringify(floatingUiEvidence.mainDragTranslationRequests)}`);
+      }
     }
 
     const initialClamp = await page.evaluate(() => {
@@ -1068,6 +1245,12 @@ async function main() {
     });
 
     if (args.verifyFloatingUi) {
+      await page.evaluate(() => {
+        const paragraph = document.createElement('p');
+        paragraph.id = 'floating-ui-progress-only-fixture';
+        paragraph.textContent = `A newly visible uncached paragraph keeps the progress-only assertion observable ${crypto.randomUUID()}.`;
+        document.body.prepend(paragraph);
+      });
       await readConfig(context, args.timeout, {disableFloatingBall: true}, createIsolatedPage);
       floatingUiEvidence.progressOnlyInitial = await waitForFloatingUiState(
         page,
@@ -1084,7 +1267,8 @@ async function main() {
         '等待无悬浮球时展开实际进度面板超时',
       );
       await page.waitForFunction(
-        () => Boolean(document.querySelector('#paragraph-one .fluent-read-bilingual-content')),
+        () => Boolean(document.querySelector('#paragraph-one .fluent-read-bilingual-content') &&
+          document.querySelector('#floating-ui-progress-only-fixture .fluent-read-bilingual-content')),
         undefined,
         {timeout: args.timeout},
       );
@@ -1104,6 +1288,7 @@ async function main() {
         args.timeout,
         '等待仅进度面板模式恢复原文超时',
       );
+      await movePointerAwayFromFloatingUi(page);
       await readConfig(context, args.timeout, {disableFloatingBall: false}, createIsolatedPage);
       floatingUiEvidence.remountedBeforeRetranslate = await waitForFloatingUiState(
         page,

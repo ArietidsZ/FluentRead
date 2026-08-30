@@ -1,7 +1,7 @@
 <!--
  * @file src/features/floating-ball/ui/FloatingBall.vue
  * 文件职责：呈现低干扰、可拖拽和按需展开的页面悬浮球，并把全文翻译状态、拖动停靠、打开设置和键盘关闭整合为可复用 Vue 组件。
- * 主要内容：组件根据停靠位置控制收起透明度与勾选标记，使用 Pointer Capture 区分点击与拖拽，限制球体在视口内，发出位置变更与动作事件，并通过受控状态同步图标和文案。
+ * 主要内容：组件根据停靠位置控制收起透明度与勾选标记，使用指针位移阈值区分点击与拖拽，限制球体在视口内，发出位置变更与动作事件，并通过受控状态同步图标和文案。
  * 模块边界：它只负责视觉与局部交互，不直接调用浏览器消息、保存配置或执行全文翻译；这些副作用由 content/runtime 通过 props、事件和 defineExpose 桥接。
  -->
 <template>
@@ -39,6 +39,7 @@
     </button>
 
     <div
+      ref="floatingBallMain"
       class="floating-ball-main floating-ball-item"
       role="img"
       aria-label="FluentRead"
@@ -75,7 +76,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { PropType, CSSProperties } from 'vue';
 
 const DRAG_THRESHOLD = 6;
-const BALL_SIZE = 42;
+const BALL_SIZE = 48;
 
 const props = defineProps({
   position: {
@@ -113,6 +114,11 @@ interface PointerDragState {
   pointerId: number;
   startX: number;
   startY: number;
+  pointerOffsetX: number;
+  pointerOffsetY: number;
+  mainWidth: number;
+  mainHeight: number;
+  dockHeight: number;
   moved: boolean;
 }
 
@@ -123,6 +129,7 @@ const draggedY = ref<number | null>(null);
 const internalPosition = ref<'left' | 'right' | null>(null);
 const isTranslating = ref(props.initialTranslating);
 const floatingBall = ref<HTMLElement | null>(null);
+const floatingBallMain = ref<HTMLElement | null>(null);
 const dragState = ref<PointerDragState | null>(null);
 
 const currentDisplayPosition = computed(() => internalPosition.value || props.position);
@@ -139,10 +146,7 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function updatePositionStyle() {
-  if (isDragging.value) return;
-
-  const containerHeight = floatingBall.value?.getBoundingClientRect().height || BALL_SIZE;
+function applyDockPositionStyle(containerHeight: number) {
   const halfHeight = containerHeight / 2;
   const centerY = draggedY.value === null
     ? '50%'
@@ -156,27 +160,29 @@ function updatePositionStyle() {
   };
 }
 
+function updatePositionStyle() {
+  if (isDragging.value) return;
+  applyDockPositionStyle(floatingBall.value?.getBoundingClientRect().height || BALL_SIZE);
+}
+
 function startDrag(event: PointerEvent) {
   if (event.pointerType === 'mouse' && event.button !== 0) return;
 
   event.preventDefault();
-  isExpanded.value = false;
-  isDragging.value = true;
+  const dockRect = floatingBall.value?.getBoundingClientRect();
+  const rect = floatingBallMain.value?.getBoundingClientRect() || dockRect;
+  const mainWidth = rect?.width || BALL_SIZE;
+  const mainHeight = rect?.height || BALL_SIZE;
   dragState.value = {
     pointerId: event.pointerId,
     startX: event.clientX,
     startY: event.clientY,
+    pointerOffsetX: rect ? event.clientX - rect.left : mainWidth / 2,
+    pointerOffsetY: rect ? event.clientY - rect.top : mainHeight / 2,
+    mainWidth,
+    mainHeight,
+    dockHeight: dockRect?.height || mainHeight,
     moved: false,
-  };
-
-  const containerHeight = floatingBall.value?.getBoundingClientRect().height || BALL_SIZE;
-  const startLeft = clamp(event.clientX - BALL_SIZE / 2, 0, Math.max(0, window.innerWidth - BALL_SIZE));
-  const startTop = clamp(event.clientY - containerHeight / 2, 0, Math.max(0, window.innerHeight - containerHeight));
-  positionStyle.value = {
-    left: `${startLeft}px`,
-    top: `${startTop}px`,
-    right: 'auto',
-    transform: 'none',
   };
 
   window.addEventListener('pointermove', handlePointerMove);
@@ -188,13 +194,23 @@ function handlePointerMove(event: PointerEvent) {
   const currentDrag = dragState.value;
   if (!currentDrag || currentDrag.pointerId !== event.pointerId) return;
 
-  if (Math.hypot(event.clientX - currentDrag.startX, event.clientY - currentDrag.startY) > DRAG_THRESHOLD) {
+  if (!currentDrag.moved) {
+    if (Math.hypot(event.clientX - currentDrag.startX, event.clientY - currentDrag.startY) <= DRAG_THRESHOLD) return;
     currentDrag.moved = true;
+    isExpanded.value = false;
+    isDragging.value = true;
   }
 
-  const containerHeight = floatingBall.value?.getBoundingClientRect().height || BALL_SIZE;
-  const nextLeft = clamp(event.clientX - BALL_SIZE / 2, 0, Math.max(0, window.innerWidth - BALL_SIZE));
-  const nextTop = clamp(event.clientY - containerHeight / 2, 0, Math.max(0, window.innerHeight - containerHeight));
+  const nextLeft = clamp(
+    event.clientX - currentDrag.pointerOffsetX,
+    0,
+    Math.max(0, window.innerWidth - currentDrag.mainWidth),
+  );
+  const nextTop = clamp(
+    event.clientY - currentDrag.pointerOffsetY,
+    0,
+    Math.max(0, window.innerHeight - currentDrag.mainHeight),
+  );
   positionStyle.value = {
     left: `${nextLeft}px`,
     top: `${nextTop}px`,
@@ -209,19 +225,22 @@ function finishPointerInteraction(event: PointerEvent) {
 
   removePointerListeners();
   dragState.value = null;
-  isDragging.value = false;
-
-  if (currentDrag.moved) {
-    const rect = floatingBall.value?.getBoundingClientRect();
-    const finalCenterY = rect ? rect.top + rect.height / 2 : event.clientY;
-    const nextPosition = event.clientX < window.innerWidth / 2 ? 'left' : 'right';
-    const halfHeight = (rect?.height || BALL_SIZE) / 2;
-    draggedY.value = clamp(finalCenterY, halfHeight, Math.max(halfHeight, window.innerHeight - halfHeight));
-    internalPosition.value = nextPosition;
-    props.onPositionChanged(nextPosition);
-    nextTick(updatePositionStyle);
+  if (!currentDrag.moved) {
+    isDragging.value = false;
     return;
   }
+
+  const rect = floatingBallMain.value?.getBoundingClientRect();
+  const finalCenterY = rect ? rect.top + rect.height / 2 : event.clientY;
+  const nextPosition = event.clientX < window.innerWidth / 2 ? 'left' : 'right';
+  const halfHeight = currentDrag.dockHeight / 2;
+  draggedY.value = clamp(finalCenterY, halfHeight, Math.max(halfHeight, window.innerHeight - halfHeight));
+  internalPosition.value = nextPosition;
+  props.onPositionChanged(nextPosition);
+  applyDockPositionStyle(currentDrag.dockHeight);
+  nextTick(() => {
+    isDragging.value = false;
+  });
 }
 
 function cancelPointerInteraction(event: PointerEvent) {
@@ -230,8 +249,14 @@ function cancelPointerInteraction(event: PointerEvent) {
 
   removePointerListeners();
   dragState.value = null;
-  isDragging.value = false;
-  updatePositionStyle();
+  if (!currentDrag.moved) {
+    isDragging.value = false;
+    return;
+  }
+  applyDockPositionStyle(currentDrag.dockHeight);
+  nextTick(() => {
+    isDragging.value = false;
+  });
 }
 
 function removePointerListeners() {
