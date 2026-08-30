@@ -74,7 +74,7 @@ describe('provider model usage normalization', () => {
         }, 'gemini-test')).toEqual({
             usageAvailability: 'reported',
             inputTokens: 30,
-            outputTokens: 12,
+            outputTokens: 17,
             totalTokens: 47,
             cachedInputTokens: 8,
             reasoningTokens: 5,
@@ -203,7 +203,9 @@ describe('provider model usage normalization', () => {
             PromptTokensDetails: {CachedTokens: 4},
         })).toMatchObject({usageAvailability: 'reported', cachedInputTokens: 4});
         expect(normalizeHunyuanUsage({
-            ...coreUsage,
+            PromptTokens: Number.MAX_SAFE_INTEGER,
+            CompletionTokens: 0,
+            TotalTokens: Number.MAX_SAFE_INTEGER,
             PromptTokensDetails: {CachedTokens: String(Number.MAX_SAFE_INTEGER)},
         })).toMatchObject({
             usageAvailability: 'reported',
@@ -254,6 +256,10 @@ describe('provider model usage normalization', () => {
             prompt_tokens: Number.MAX_VALUE,
             completion_tokens: Number.MAX_VALUE,
         })).toEqual({usageAvailability: 'malformed'});
+        expect(normalizeOpenAICompatibleUsage({
+            prompt_tokens: Number.MAX_SAFE_INTEGER + 1,
+            completion_tokens: 0,
+        })).toEqual({usageAvailability: 'malformed'});
     });
 
     it('derives total only from normalized input and output when total is absent', () => {
@@ -272,7 +278,8 @@ describe('provider model usage normalization', () => {
             thoughtsTokenCount: 2,
         })).toMatchObject({
             usageAvailability: 'reported',
-            totalTokens: 10,
+            outputTokens: 5,
+            totalTokens: 12,
             reasoningTokens: 2,
         });
         expect(normalizeDeepSeekResponsesUsage({
@@ -290,6 +297,69 @@ describe('provider model usage normalization', () => {
         })).toMatchObject({
             usageAvailability: 'reported',
             totalTokens: 10,
+        });
+    });
+
+    it('rejects malformed explicit totals and safe-integer overflow in derived totals', () => {
+        expect(normalizeOpenAICompatibleUsage({
+            prompt_tokens: 1,
+            completion_tokens: 1,
+            total_tokens: '2',
+        })).toEqual({usageAvailability: 'malformed'});
+        expect(normalizeOpenAICompatibleUsage({
+            prompt_tokens: Number.MAX_SAFE_INTEGER,
+            completion_tokens: 1,
+        })).toEqual({usageAvailability: 'malformed'});
+    });
+
+    it('rejects Claude and Gemini provider-detail sums that overflow safe integers', () => {
+        expect(normalizeClaudeUsage({
+            input_tokens: Number.MAX_SAFE_INTEGER,
+            cache_read_input_tokens: 1,
+            output_tokens: 0,
+        })).toEqual({usageAvailability: 'malformed'});
+        expect(normalizeGeminiUsage({
+            promptTokenCount: 0,
+            candidatesTokenCount: Number.MAX_SAFE_INTEGER,
+            thoughtsTokenCount: 1,
+            totalTokenCount: Number.MAX_SAFE_INTEGER,
+        })).toEqual({usageAvailability: 'malformed'});
+    });
+
+    it('keeps Claude and Gemini output handling explicit when optional detail counts are absent', () => {
+        expect(normalizeClaudeUsage({output_tokens: 2})).toEqual({usageAvailability: 'unreported'});
+        expect(normalizeGeminiUsage({
+            promptTokenCount: 2,
+            candidatesTokenCount: 3,
+        })).toEqual({
+            usageAvailability: 'reported',
+            inputTokens: 2,
+            outputTokens: 3,
+            totalTokens: 5,
+        });
+        expect(normalizeGeminiUsage({
+            promptTokenCount: 2,
+            thoughtsTokenCount: 1,
+        })).toEqual({usageAvailability: 'unreported'});
+    });
+
+    it('把超过输入的缓存读取或写入明细降级为 malformed，避免整批仓库存储失败', () => {
+        expect(normalizeOpenAICompatibleUsage({
+            prompt_tokens: 10,
+            completion_tokens: 2,
+            cached_tokens: 8,
+            cache_write_tokens: 3,
+        })).toEqual({usageAvailability: 'malformed'});
+        expect(normalizeClaudeUsage({
+            input_tokens: 0,
+            cache_read_input_tokens: 8,
+            cache_creation_input_tokens: 3,
+            output_tokens: 2,
+        })).toMatchObject({
+            usageAvailability: 'reported',
+            inputTokens: 11,
+            cachedInputTokens: 8,
+            cacheWriteTokens: 3,
         });
     });
 });

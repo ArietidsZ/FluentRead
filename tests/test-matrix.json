@@ -65,6 +65,7 @@
       "tests/model.test.ts",
       "tests/modelUsageAggregation.test.ts",
       "tests/modelUsageHandler.test.ts",
+      "tests/modelUsageTokenFormat.test.ts",
       "tests/optionsNavigation.test.ts",
       "tests/ocrWorkerRuntime.test.ts",
       "tests/offscreenTranslation.test.ts",

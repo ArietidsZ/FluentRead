@@ -62,6 +62,8 @@ describe('options navigation view-model', () => {
   it('resolves valid sections and falls back for malformed hashes', () => {
     expect(resolveNavigationItem('settings-services').title).toBe('翻译服务')
     expect(resolveNavigationItem('settings-translation').title).toBe('翻译设置')
+    expect(resolveNavigationItem('settings-model-usage').detail)
+      .toBe('查看发起的大模型调用、Token 消耗与使用趋势。')
     expect(resolveNavigationItem('missing').id).toBe(DEFAULT_NAVIGATION_SECTION)
     expect(resolveRequestedSection('#settings-video')).toBe('settings-video')
     expect(resolveRequestedSection('settings-sites')).toBe('settings-sites')

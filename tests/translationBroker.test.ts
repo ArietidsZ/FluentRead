@@ -2501,6 +2501,7 @@ describe('translation broker', () => {
                 outputTokens: 8,
                 totalTokens: 20,
                 cachedInputTokens: 4,
+                cacheWriteTokens: 2,
             });
             return '统计译文';
         });
@@ -2523,6 +2524,7 @@ describe('translation broker', () => {
                 outputTokens: 8,
                 totalTokens: 20,
                 cachedInputTokens: 4,
+                cacheWriteTokens: 2,
             }),
         ]);
     });
