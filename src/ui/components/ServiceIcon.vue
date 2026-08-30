@@ -1,7 +1,7 @@
 <!--
  @file src/ui/components/ServiceIcon.vue
  文件职责：为翻译服务和模型选项提供统一品牌图标组件，在没有专用图形时仍输出稳定、可辨识的回退字形。
- 主要内容：根据 service、label、size 与 model props 选择尺寸和色调，为 Microsoft、Google、DeepL、OpenAI 兼容及多种国内外模型服务渲染内联 SVG，并计算 fallbackGlyph。
+ 主要内容：根据 service、label、size 与 model props 选择尺寸和色调，为 Microsoft、Google、DeepL、内置及动态 OpenAI-compatible 服务渲染内联 SVG，并计算 fallbackGlyph。
  模块边界：组件只负责装饰性视觉且 aria-hidden，不加载远程商标、不判断服务可用性，也不选择模型；服务目录和能力过滤由 core/catalog 与 services/capabilities 管理。
 -->
 <template>
@@ -82,7 +82,7 @@
       <path d="M12 2.5v19M2.5 12h19M5.3 5.3l13.4 13.4M18.7 5.3 5.3 18.7" />
       <circle cx="12" cy="12" r="2.2" />
     </svg>
-    <svg v-else-if="service === 'custom'" viewBox="0 0 24 24" role="img">
+    <svg v-else-if="isCustomOpenAIService" viewBox="0 0 24 24" role="img">
       <path d="M12 5v14M5 12h14" />
     </svg>
     <svg v-else-if="service === 'infini'" viewBox="0 0 24 24" role="img">
@@ -145,6 +145,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import {isCustomOpenAIProviderId} from '@/src/core/config/customOpenAI'
 
 const props = withDefaults(defineProps<{
   service: string
@@ -155,7 +156,10 @@ const props = withDefaults(defineProps<{
   size: 'medium',
 })
 
+const isCustomOpenAIService = computed(() => isCustomOpenAIProviderId(props.service))
+
 const tone = computed(() => {
+  if (isCustomOpenAIService.value) return 'violet'
   if (['openai', 'azureOpenai', 'newapi'].includes(props.service)) return 'violet'
   if (['deepseek', 'deepL', 'deeplx', 'microsoft', 'freeTranslation'].includes(props.service)) return 'blue'
   if (['gemini', 'google', 'chromeTranslator'].includes(props.service)) return 'green'

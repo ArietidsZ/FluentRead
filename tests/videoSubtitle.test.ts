@@ -78,13 +78,21 @@ describe('YouTube 视频字幕识别', () => {
     });
 
     it('保留播放器菜单需要的三种显示模式，并为服务显示用户可读名称', () => {
+        const customProviders = [{
+            id: 'custom:team',
+            name: '团队视频模型',
+            endpoint: 'https://gateway.example/v1',
+            models: ['video-model'],
+        }];
         expect(normalizeVideoSubtitleDisplayMode('translation-only')).toBe('translation-only');
         expect(normalizeVideoSubtitleDisplayMode('original-only')).toBe('original-only');
         expect(normalizeVideoSubtitleDisplayMode('unknown')).toBe('bilingual');
         expect(getVideoServiceLabel('microsoft')).toBe('微软翻译');
         expect(getVideoServiceLabel('custom-service')).toBe('custom-service');
+        expect(getVideoServiceLabel('custom:team', customProviders)).toBe('团队视频模型');
         expect(getVideoPretranslationWindowMs('microsoft')).toBe(10_000);
         expect(getVideoPretranslationWindowMs('openai')).toBe(30_000);
+        expect(getVideoPretranslationWindowMs('custom:team', customProviders)).toBe(30_000);
         expect(normalizeVideoSubtitleFontSize(undefined)).toBe(100);
         expect(normalizeVideoSubtitleFontSize(125)).toBe(130);
         expect(normalizeVideoSubtitleFontSize(10)).toBe(80);

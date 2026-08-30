@@ -29,6 +29,28 @@ describe('配置凭据变化预览', () => {
 
     it('相同或都未配置的凭据不产生噪音', () => {
         expect(buildCredentialPreviewChanges({token: {}, ak: ''}, {token: {}, ak: ''})).toEqual([]);
+        expect(buildCredentialPreviewChanges(null, undefined)).toEqual([]);
+    });
+
+    it('使用导入配置中的动态服务名称标注 API Key', () => {
+        const changes = buildCredentialPreviewChanges({token: {}}, {
+            token: {'custom:team': 'private-team-key'},
+            customOpenAIProviders: [{
+                id: 'custom:team',
+                name: '团队模型网关',
+                endpoint: 'https://gateway.example/v1',
+                models: ['team-model'],
+            }],
+        });
+
+        expect(changes).toEqual([
+            expect.objectContaining({
+                key: 'token.custom:team',
+                label: '团队模型网关 API Key',
+                after: '将新增（内容已隐藏）',
+            }),
+        ]);
+        expect(JSON.stringify(changes)).not.toContain('private-team-key');
     });
 
     it('覆盖扩展凭据的数组、对象和原始值，并为未知服务使用稳定回退标签', () => {

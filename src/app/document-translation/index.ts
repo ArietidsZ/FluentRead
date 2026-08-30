@@ -15,6 +15,10 @@ export {
     servicesType,
 } from '@/src/core/config/catalog';
 export {
+    getCustomOpenAIProvider,
+    withCustomOpenAIServiceOptions,
+} from '@/src/core/config/customOpenAI';
+export {
     config as runtimeConfig,
     configReady,
     requestConfigPatch,

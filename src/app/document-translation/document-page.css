@@ -120,8 +120,9 @@ h1, h2, p { margin-top: 0; }
 .model-control { width: 190px; }
 .model-summary { min-width: 145px; flex: 1; padding: 0 6px; }
 .language-control > span, .service-control > span, .model-control > span, .model-summary > span, .mode-control > span { margin-left: 2px; color: var(--muted); font-size: 10px; font-weight: 700; }
-.language-control select, .service-control select, .model-control select, .model-control input { width: 100%; height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface-soft); cursor: pointer; }
-.model-control input { height: 32px; cursor: text; }
+.model-control-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.model-control-heading button { padding: 0; border: 0; color: var(--brand-strong); background: transparent; font-size: 9px; font-weight: 700; cursor: pointer; }
+.language-control select, .service-control select, .model-control select { width: 100%; height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface-soft); cursor: pointer; }
 .language-arrow { align-self: center; padding-top: 18px; color: var(--muted); }
 .model-summary strong { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
 .mode-buttons { display: flex; height: 38px; padding: 3px; border-radius: 10px; background: var(--surface-soft); }

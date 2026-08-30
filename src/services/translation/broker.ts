@@ -30,6 +30,7 @@ import {
     isDefinitePageContextLeak,
     isLikelyPageContextLeak,
 } from '@/src/core/translation/prompts';
+import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
 
 export type {
     TranslationBatchRequestMessage,
@@ -248,7 +249,10 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
     }
 
     function getTranslationService(serviceName: string): TranslationProvider {
-        const service = deps.providers[serviceName];
+        const service = deps.providers[serviceName]
+            || (isCustomOpenAIProviderId(serviceName)
+                ? deps.providers[LEGACY_CUSTOM_OPENAI_PROVIDER_ID]
+                : undefined);
         if (!service) throw new Error(`未找到翻译服务适配器: ${serviceName}`);
         return service;
     }

@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { getApiKeyRequirementKey, getMissingCredentialMessage } from '@/src/core/config/validation';
-import { services } from '@/src/core/config/catalog';
+import {
+    createApiKeyRequirementKey,
+    getApiKeyRequirementKey,
+    getMissingCredentialMessage,
+} from '@/src/core/config/validation';
+import {customModelString, services} from '@/src/core/config/catalog';
 
 describe('翻译服务凭据校验', () => {
     it('提示需要 API Key 的服务填写访问令牌', () => {
@@ -23,7 +27,9 @@ describe('翻译服务凭据校验', () => {
             requireApiKey: { [`${services.deepseek}:deepseek-v4-flash`]: false },
             token: {},
         };
-        expect(getApiKeyRequirementKey(services.deepseek, config)).toBe('deepseek:deepseek-v4-flash');
+        expect(getApiKeyRequirementKey(services.deepseek, config)).toBe(
+            createApiKeyRequirementKey(services.deepseek, 'deepseek-v4-flash'),
+        );
         expect(getMissingCredentialMessage(services.deepseek, config)).toBeNull();
     });
 
@@ -38,6 +44,56 @@ describe('翻译服务凭据校验', () => {
 
     it('保留 DeepLX 可选令牌的行为', () => {
         expect(getMissingCredentialMessage(services.deeplx, { token: {} })).toBeNull();
+    });
+
+    it('用动态服务名称提示缺失凭据并兼容旧自定义模型键', () => {
+        const config = {
+            token: {},
+            model: {'custom:team': customModelString},
+            customModel: {'custom:team': 'team-private-model'},
+            customOpenAIProviders: [{
+                id: 'custom:team',
+                name: '团队模型网关',
+                endpoint: 'https://gateway.example/v1',
+                models: ['team-private-model'],
+            }],
+        };
+
+        expect(getApiKeyRequirementKey('custom:team', config)).toBe(
+            createApiKeyRequirementKey('custom:team', 'team-private-model'),
+        );
+        expect(getMissingCredentialMessage('custom:team', config)).toBe(
+            '团队模型网关 需要 API Key（访问令牌），当前尚未配置；请先在设置中填写，再开始翻译。',
+        );
+    });
+
+    it('含冒号的 legacy 模型不会与动态服务的免 Key 开关碰撞', () => {
+        const collidingLegacyKey = 'custom:1:latest';
+        const legacyConfig = {
+            model: {custom: '1:latest'},
+            requireApiKey: {[collidingLegacyKey]: false},
+            token: {},
+        };
+        const dynamicConfig = {
+            model: {'custom:1': 'latest'},
+            requireApiKey: {[collidingLegacyKey]: false},
+            customOpenAIProviders: [{
+                id: 'custom:1',
+                name: '动态服务',
+                endpoint: 'https://dynamic.example/v1',
+                models: ['latest'],
+            }],
+            token: {},
+        };
+
+        expect(getMissingCredentialMessage('custom', legacyConfig)).toBeNull();
+        expect(getMissingCredentialMessage('custom:1', dynamicConfig)).toContain('API Key');
+        const dynamicKey = getApiKeyRequirementKey('custom:1', dynamicConfig);
+        expect(dynamicKey).not.toBe(collidingLegacyKey);
+        expect(getMissingCredentialMessage('custom:1', {
+            ...dynamicConfig,
+            requireApiKey: {[dynamicKey]: false},
+        })).toBeNull();
     });
 
     it('覆盖有道和腾讯云的专用凭据', () => {

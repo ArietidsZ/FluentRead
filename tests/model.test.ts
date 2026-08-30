@@ -12,6 +12,12 @@ import {
 } from '@/src/core/config/model';
 import { getMimoEndpoint, MIMO_ENDPOINTS, MINIMAX_ENDPOINTS, tongyiTokenPlanUrl, urls } from '@/src/core/config/constants';
 import { customModelString, defaultModelIds, defaultModels, defaultOption, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
+import {
+    CUSTOM_OPENAI_RESERVED_MODEL_ID,
+    MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER,
+    MAX_CUSTOM_OPENAI_PROVIDERS,
+} from '@/src/core/config/customOpenAI';
+import {createApiKeyRequirementKey} from '@/src/core/config/validation';
 
 describe('AI 模型编号列表', () => {
     it('翻译计数只保留非负安全整数，并清理畸形旧值', () => {
@@ -188,7 +194,7 @@ describe('AI 模型编号列表', () => {
         }
     });
 
-    it('保留自定义接口的地址、模型和其他按服务配置', () => {
+    it('把旧自定义接口迁移为 profile，并保留地址、实际模型和其他按服务配置', () => {
         const normalized = normalizeConfig({
             service: services.custom,
             custom: 'http://127.0.0.1:11434/v1/chat/completions',
@@ -204,8 +210,14 @@ describe('AI 模型编号列表', () => {
         expect(normalized).toMatchObject({
             service: services.custom,
             custom: 'http://127.0.0.1:11434/v1/chat/completions',
-            model: {[services.custom]: customModelString},
-            customModel: {[services.custom]: 'local/translation-model'},
+            model: {[services.custom]: 'local/translation-model'},
+            customModel: {},
+            customOpenAIProviders: [{
+                id: services.custom,
+                name: '自定义接口',
+                endpoint: 'http://127.0.0.1:11434/v1/chat/completions',
+                models: ['local/translation-model'],
+            }],
             token: {[services.custom]: 'local-token'},
             proxy: {[services.custom]: 'http://127.0.0.1:8080'},
             system_role: {[services.custom]: 'Translate safely.'},
@@ -214,13 +226,295 @@ describe('AI 模型编号列表', () => {
         });
     });
 
+    it('旧 custom 当前选择预设模型时仍保留页面与文档曾保存的自定义模型', () => {
+        const normalized = normalizeConfig({
+            service: services.custom,
+            documentService: services.custom,
+            model: {[services.custom]: 'page-preset-model'},
+            documentModel: {[services.custom]: 'document-preset-model'},
+            customModel: {[services.custom]: 'saved-page-custom-model'},
+            documentCustomModel: {[services.custom]: 'saved-document-custom-model'},
+        });
+
+        expect(normalized.model[services.custom]).toBe('page-preset-model');
+        expect(normalized.documentModel[services.custom]).toBe('document-preset-model');
+        expect(normalized.customModel).not.toHaveProperty(services.custom);
+        expect(normalized.documentCustomModel).not.toHaveProperty(services.custom);
+        expect(normalized.customOpenAIProviders).toEqual([{
+            id: services.custom,
+            name: '自定义接口',
+            endpoint: defaultOption.custom,
+            models: [
+                'page-preset-model',
+                'document-preset-model',
+                'saved-page-custom-model',
+                'saved-document-custom-model',
+            ],
+        }]);
+    });
+
+    it('从每一种未引用的 legacy 自定义字段发现并迁移旧服务', () => {
+        const defaultCustomModel = defaultModels.get(services.custom)!;
+        const cases = [
+            {
+                value: {custom: 'https://endpoint-only.example/v1/chat/completions'},
+                expected: (config: Config) => config.customOpenAIProviders[0].endpoint
+                    === 'https://endpoint-only.example/v1/chat/completions',
+            },
+            {
+                value: {documentModel: {[services.custom]: 'document-only-model'}},
+                expected: (config: Config) => config.customOpenAIProviders[0].models.includes('document-only-model'),
+            },
+            {
+                value: {system_role: {[services.custom]: 'system-only-role'}},
+                expected: (config: Config) => config.system_role[services.custom] === 'system-only-role',
+            },
+            {
+                value: {user_role: {[services.custom]: 'user-only-role'}},
+                expected: (config: Config) => config.user_role[services.custom] === 'user-only-role',
+            },
+            {
+                value: {
+                    model: {[services.custom]: defaultCustomModel},
+                    requireApiKey: {[`${services.custom}:${defaultCustomModel}`]: false},
+                },
+                expected: (config: Config) => config.requireApiKey[`${services.custom}:${defaultCustomModel}`] === false
+                    && config.requireApiKey[createApiKeyRequirementKey(services.custom, defaultCustomModel)] === false,
+            },
+            {
+                value: {
+                    model: {[services.custom]: defaultCustomModel},
+                    requireApiKey: {[createApiKeyRequirementKey(services.custom, defaultCustomModel)]: false},
+                },
+                expected: (config: Config) => config.requireApiKey[
+                    createApiKeyRequirementKey(services.custom, defaultCustomModel)
+                ] === false,
+            },
+        ];
+
+        for (const item of cases) {
+            const normalized = normalizeConfig(item.value);
+            expect(normalized.customOpenAIProviders).toHaveLength(1);
+            expect(item.expected(normalized)).toBe(true);
+        }
+        expect(normalizeConfig({custom: defaultOption.custom}).customOpenAIProviders).toEqual([]);
+    });
+
+    it('回填空 legacy profile 地址，并容忍没有任何模型的动态 profile', () => {
+        const normalizedLegacy = normalizeConfig({
+            custom: 'https://legacy-fill.example/v1/chat/completions',
+            customOpenAIProviders: [{
+                id: services.custom,
+                name: '旧接口',
+                endpoint: '',
+                models: ['legacy-profile-model'],
+            }, {
+                id: 'custom:other',
+                name: '其他接口',
+                endpoint: 'https://other.example/v1/chat/completions',
+                models: ['other-model'],
+            }],
+        });
+        expect(normalizedLegacy.customOpenAIProviders[0]).toMatchObject({
+            endpoint: 'https://legacy-fill.example/v1/chat/completions',
+            models: ['legacy-profile-model'],
+        });
+        expect(normalizedLegacy.customOpenAIProviders[1]).toMatchObject({
+            endpoint: 'https://other.example/v1/chat/completions',
+            models: ['other-model'],
+        });
+        expect(normalizedLegacy.model[services.custom]).toBe('legacy-profile-model');
+
+        const emptyService = 'custom:empty';
+        const normalizedEmpty = normalizeConfig({
+            service: emptyService,
+            documentService: emptyService,
+            customOpenAIProviders: [{
+                id: emptyService,
+                name: '空模型服务',
+                endpoint: 'https://empty.example/v1/chat/completions',
+                models: [],
+            }],
+        });
+        expect(normalizedEmpty.customOpenAIProviders[0].models).toEqual([]);
+        expect(normalizedEmpty.model).not.toHaveProperty(emptyService);
+        expect(normalizedEmpty.documentModel).not.toHaveProperty(emptyService);
+        expect(normalizeConfig({...new Config(), service: null}).service).toBe(defaultOption.service);
+    });
+
+    it('动态 profile 拒绝界面保留的模型哨兵并回退到真实已保存模型', () => {
+        const service = 'custom:reserved';
+        const normalized = normalizeConfig({
+            service,
+            documentService: service,
+            customOpenAIProviders: [{
+                id: service,
+                name: '保留名测试',
+                endpoint: 'https://reserved.example/v1/chat/completions',
+                models: [CUSTOM_OPENAI_RESERVED_MODEL_ID, 'real-model'],
+            }],
+            model: {[service]: CUSTOM_OPENAI_RESERVED_MODEL_ID},
+            documentModel: {[service]: CUSTOM_OPENAI_RESERVED_MODEL_ID},
+        });
+
+        expect(normalized.customOpenAIProviders[0].models).toEqual(['real-model']);
+        expect(normalized.model[service]).toBe('real-model');
+        expect(normalized.documentModel[service]).toBe('real-model');
+    });
+
+    it('模型列表满额时同时保护页面与文档的活跃模型且不突破容量上限', () => {
+        const service = 'custom:full';
+        const storedModels = Array.from(
+            {length: MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER},
+            (_, index) => `stored-model-${index + 1}`,
+        );
+        const normalized = normalizeConfig({
+            service,
+            documentService: service,
+            customOpenAIProviders: [{
+                id: service,
+                name: '满额服务',
+                endpoint: 'https://full.example/v1/chat/completions',
+                models: storedModels,
+            }],
+            model: {[service]: 'active-page-model'},
+            documentModel: {[service]: 'active-document-model'},
+        });
+
+        const models = normalized.customOpenAIProviders[0].models;
+        expect(models).toHaveLength(MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER);
+        expect(models).toContain('active-page-model');
+        expect(models).toContain('active-document-model');
+        expect(new Set(models)).toHaveLength(MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER);
+    });
+
+    it('满额腾位时不会删除已保存且仍需保护的旧自定义模型', () => {
+        const service = 'custom:protected';
+        const storedModels = Array.from(
+            {length: MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER},
+            (_, index) => `stored-model-${index + 1}`,
+        );
+        const protectedStoredModel = storedModels.at(-1)!;
+        const normalized = normalizeConfig({
+            customOpenAIProviders: [{
+                id: service,
+                name: '保护模型服务',
+                endpoint: 'https://protected.example/v1/chat/completions',
+                models: storedModels,
+            }],
+            model: {[service]: 'active-page-model'},
+            documentModel: {[service]: 'active-document-model'},
+            customModel: {[service]: protectedStoredModel},
+        });
+
+        expect(normalized.customOpenAIProviders[0].models).toHaveLength(MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER);
+        expect(normalized.customOpenAIProviders[0].models).toEqual(expect.arrayContaining([
+            protectedStoredModel,
+            'active-page-model',
+            'active-document-model',
+        ]));
+    });
+
     it('不会把下拉列表中仍可选择的模型当成退役编号改写', () => {
         for (const [service, selectableModels] of models) {
             for (const selectedModel of selectableModels) {
-                const normalized = normalizeConfig({model: {[service]: selectedModel}});
+                if (service === services.custom && selectedModel === customModelString) continue;
+                const normalized = normalizeConfig(service === services.custom
+                    ? {service, model: {[service]: selectedModel}}
+                    : {model: {[service]: selectedModel}});
                 expect(normalized.model[service], `${service}: ${selectedModel}`).toBe(selectedModel);
             }
         }
+    });
+
+    it('显式新 schema 删除 legacy profile 后不会被 deprecated scalar 重建', () => {
+        const normalized = normalizeConfig({
+            ...new Config(),
+            service: services.custom,
+            custom: 'https://legacy.example/v1/chat/completions',
+            customOpenAIProviders: [],
+            model: {[services.custom]: 'legacy-model'},
+            token: {[services.custom]: 'legacy-token'},
+            proxy: {[services.custom]: 'https://proxy.example'},
+            customBody: {[services.custom]: '{"legacy":true}'},
+            system_role: {[services.custom]: 'legacy system'},
+            user_role: {[services.custom]: 'legacy user'},
+            requireApiKey: {'custom:legacy-model': false},
+        });
+
+        expect(normalized.service).toBe(defaultOption.service);
+        expect(normalized.customOpenAIProviders).toEqual([]);
+        for (const mapping of [
+            normalized.model,
+            normalized.token,
+            normalized.proxy,
+            normalized.customBody,
+            normalized.system_role,
+            normalized.user_role,
+        ]) expect(mapping).not.toHaveProperty(services.custom);
+        expect(normalized.requireApiKey).not.toHaveProperty('custom:legacy-model');
+        expect(normalizeConfig(normalized)).toEqual(normalized);
+    });
+
+    it('仅凭旧 token.custom 也创建 legacy profile，迁移后重复归一化完全幂等', () => {
+        const normalized = normalizeConfig({
+            token: {[services.custom]: 'legacy-token'},
+        });
+
+        expect(normalized.customOpenAIProviders).toEqual([{
+            id: services.custom,
+            name: '自定义接口',
+            endpoint: defaultOption.custom,
+            models: [defaultModels.get(services.custom)],
+        }]);
+        expect(normalized.token[services.custom]).toBe('legacy-token');
+        expect(normalized.model[services.custom]).toBe(defaultModels.get(services.custom));
+        expect(normalizeConfig(normalized)).toEqual(normalized);
+    });
+
+    it('动态 profile 可用于全部服务引用，并在二十项截断后清理不可达项', () => {
+        const providers = Array.from({length: MAX_CUSTOM_OPENAI_PROVIDERS + 1}, (_, index) => ({
+            id: `custom:${index + 1}`,
+            name: `服务 ${index + 1}`,
+            endpoint: `https://provider-${index + 1}.example/v1/chat/completions`,
+            models: [`model-${index + 1}`],
+        }));
+        const normalized = normalizeConfig({
+            customOpenAIProviders: providers,
+            service: 'custom:1',
+            documentService: 'custom:2',
+            videoService: 'custom:3',
+            translationCenterServices: ['custom:1', 'custom:20', 'custom:21'],
+            model: {'custom:1': 'model-1', 'custom:21': 'model-21'},
+            token: {'custom:1': 'keep', 'custom:21': 'drop'},
+            proxy: {'custom:21': 'https://drop.example'},
+            requireApiKey: {
+                'custom:legacy-model': false,
+                'custom:1:model-1': false,
+                'custom:21:model-21': false,
+                [createApiKeyRequirementKey('custom:1', 'model-1')]: true,
+                [createApiKeyRequirementKey('custom:21', 'model-21')]: false,
+                [createApiKeyRequirementKey('openai', 'static-model')]: false,
+                'v2:{bad-json': false,
+            },
+        });
+
+        expect(normalized.customOpenAIProviders).toHaveLength(MAX_CUSTOM_OPENAI_PROVIDERS);
+        expect(normalized).toMatchObject({
+            service: 'custom:1',
+            documentService: 'custom:2',
+            videoService: 'custom:3',
+            translationCenterServices: ['custom:1', 'custom:20'],
+        });
+        expect(normalized.token).toMatchObject({'custom:1': 'keep'});
+        expect(normalized.token).not.toHaveProperty('custom:21');
+        expect(normalized.model).not.toHaveProperty('custom:21');
+        expect(normalized.proxy).not.toHaveProperty('custom:21');
+        expect(normalized.requireApiKey).toEqual({
+            'custom:1:model-1': false,
+            [createApiKeyRequirementKey('custom:1', 'model-1')]: true,
+            [createApiKeyRequirementKey('openai', 'static-model')]: false,
+        });
     });
 });
 
@@ -442,7 +736,7 @@ describe('旧模型编号兼容迁移', () => {
         });
     });
 
-    it('不改写 Azure、自定义接口或 New API 的部署别名', () => {
+    it('把内置兼容服务的部署别名收敛为可收藏模型，同时保留动态自定义接口的直接模型', () => {
         const normalized = normalizeConfig({
             model: {
                 [services.azureOpenai]: 'gpt5',
@@ -452,18 +746,115 @@ describe('旧模型编号兼容迁移', () => {
         });
 
         expect(normalized.model).toMatchObject({
-            [services.azureOpenai]: 'gpt5',
+            [services.azureOpenai]: customModelString,
             [services.custom]: 'gpt5',
+            [services.newapi]: customModelString,
+        });
+        expect(normalized.customModel).toMatchObject({
+            [services.azureOpenai]: 'gpt5',
             [services.newapi]: 'gpt5',
+        });
+        expect(normalized.customModels).toMatchObject({
+            [services.azureOpenai]: ['gpt5'],
+            [services.newapi]: ['gpt5'],
         });
     });
 
-    it('不改写未知的 OpenAI 直连模型编号', () => {
+    it('迁移未知的 OpenAI 直连模型编号而不改变实际请求模型', () => {
         const normalized = normalizeConfig({
             model: {[services.openai]: 'gpt-private-deployment'},
         });
 
-        expect(normalized.model[services.openai]).toBe('gpt-private-deployment');
+        expect(normalized.model[services.openai]).toBe(customModelString);
+        expect(normalized.customModel[services.openai]).toBe('gpt-private-deployment');
+        expect(normalized.customModels[services.openai]).toEqual(['gpt-private-deployment']);
+        expect(resolveConfiguredModel(
+            normalized.model[services.openai],
+            normalized.customModel[services.openai],
+        )).toBe('gpt-private-deployment');
+    });
+
+    it('把旧网页与文档 singular 模型迁入服务级列表并保持归一化幂等', () => {
+        const normalized = normalizeConfig({
+            model: {[services.grok]: defaultModels.get(services.grok)},
+            documentModel: {[services.grok]: defaultModels.get(services.grok)},
+            customModel: {[services.grok]: 'legacy-page-model'},
+            documentCustomModel: {[services.grok]: 'legacy-document-model'},
+        });
+
+        expect(normalized.customModels[services.grok]).toEqual([
+            'legacy-page-model',
+            'legacy-document-model',
+        ]);
+        expect(normalizeConfig(normalized)).toEqual(normalized);
+    });
+
+    it('显式新模型列表不会复活未激活 singular，但会保护真正活跃的网页与文档模型', () => {
+        const preset = defaultModels.get(services.grok)!;
+        const deleted = normalizeConfig({
+            ...new Config(),
+            model: {...new Config().model, [services.grok]: preset},
+            customModel: {[services.grok]: 'deleted-stale-model'},
+            customModels: {[services.grok]: ['kept-model']},
+        });
+        expect(deleted.customModels[services.grok]).toEqual(['kept-model']);
+
+        const active = normalizeConfig({
+            ...new Config(),
+            model: {...new Config().model, [services.grok]: customModelString},
+            documentModel: {...new Config().documentModel, [services.grok]: customModelString},
+            customModel: {[services.grok]: 'active-page-model'},
+            documentCustomModel: {[services.grok]: 'active-document-model'},
+            customModels: {},
+        });
+        expect(active.customModels[services.grok]).toEqual([
+            'active-page-model',
+            'active-document-model',
+        ]);
+    });
+
+    it('内置服务模型列表满额时腾位保护两个活跃模型，并清理无效、官方及动态服务条目', () => {
+        const storedModels = Array.from(
+            {length: MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER},
+            (_, index) => `stored-grok-model-${index + 1}`,
+        );
+        const preset = defaultModels.get(services.grok)!;
+        const normalized = normalizeConfig({
+            ...new Config(),
+            model: {...new Config().model, [services.grok]: customModelString},
+            documentModel: {...new Config().documentModel, [services.grok]: customModelString},
+            customModel: {[services.grok]: 'active-page-model'},
+            documentCustomModel: {[services.grok]: 'active-document-model'},
+            customModels: {
+                [services.grok]: [
+                    ...storedModels,
+                    '  stored-grok-model-1  ',
+                    CUSTOM_OPENAI_RESERVED_MODEL_ID,
+                    preset,
+                    'x'.repeat(257),
+                ],
+                [services.microsoft]: ['machine-model'],
+                'custom:1': ['dynamic-duplicate'],
+                futureProvider: ['unbounded-future-model'],
+            },
+        });
+
+        expect(normalized.customModels[services.grok]).toHaveLength(MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER);
+        expect(normalized.customModels[services.grok]).toEqual(expect.arrayContaining([
+            'active-page-model',
+            'active-document-model',
+        ]));
+        expect(normalized.customModels[services.grok]).not.toContain(preset);
+        expect(normalized.customModels).not.toHaveProperty(services.microsoft);
+        expect(normalized.customModels).not.toHaveProperty('custom:1');
+        expect(normalized.customModels).not.toHaveProperty('futureProvider');
+        expect(normalizeConfig(normalized)).toEqual(normalized);
+
+        const officialBeforeFullList = normalizeConfig({
+            ...new Config(),
+            customModels: {[services.grok]: [preset, ...storedModels]},
+        });
+        expect(officialBeforeFullList.customModels[services.grok]).toEqual(storedModels);
     });
 
     it('保留 DeepSeek 旧编号迁移及思考模式兼容行为', () => {

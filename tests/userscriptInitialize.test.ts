@@ -91,8 +91,14 @@ describe('legacy userscript migration', () => {
         expect(stored.model[services.tongyi]).toBe(defaultModels.get(services.tongyi));
         expect(stored.model[services.zhipu]).toBe(defaultModels.get(services.zhipu));
         expect(stored.model[services.moonshot]).toBe(defaultModels.get(services.moonshot));
-        expect(stored.model[services.custom]).toBe(customModelString);
-        expect(stored.customModel[services.custom]).toBe('private-ollama-model:latest');
+        expect(stored.model[services.custom]).toBe('private-ollama-model:latest');
+        expect(stored.customModel[services.custom]).toBeUndefined();
+        expect(stored.customOpenAIProviders).toEqual([{
+            id: services.custom,
+            name: '自定义接口',
+            endpoint: 'http://127.0.0.1:11434/v1/chat/completions',
+            models: ['private-ollama-model:latest'],
+        }]);
         expect(stored.custom).toBe('http://127.0.0.1:11434/v1/chat/completions');
         expect(stored.requireApiKey[getApiKeyRequirementKey(services.custom, stored)]).toBe(false);
         expect(stored.token[services.yiyan]).toBe('legacy-yiyan-access-token');
@@ -132,6 +138,40 @@ describe('legacy userscript migration', () => {
         expect(stored.maxConcurrentTranslations).toBe(20);
         expect(stored.token[services.openai]).toBe('preserved-token');
         expect(stored.extra).toEqual({preserved: true});
+    });
+
+    it('preserves a configured dynamic OpenAI-compatible service and its saved model', () => {
+        const existing = new Config();
+        existing.customOpenAIProviders = [{
+            id: 'custom:1',
+            name: '本地网关',
+            endpoint: 'http://127.0.0.1:11434/v1/chat/completions',
+            models: ['qwen-local', 'gemma:7b'],
+        }];
+        existing.service = 'custom:1';
+        existing.model['custom:1'] = 'gemma:7b';
+        existing.token['custom:1'] = 'dynamic-provider-token';
+
+        const normalized = normalizeUserscriptConfig(existing);
+
+        expect(normalized.service).toBe('custom:1');
+        expect(normalized.model['custom:1']).toBe('gemma:7b');
+        expect(normalized.token['custom:1']).toBe('dynamic-provider-token');
+        expect(normalized.customOpenAIProviders).toEqual(existing.customOpenAIProviders);
+    });
+
+    it('往返保留内置服务的多个自定义模型与当前选择', () => {
+        const existing = new Config();
+        existing.service = services.grok;
+        existing.model[services.grok] = customModelString;
+        existing.customModel[services.grok] = 'grok-private-b';
+        existing.customModels[services.grok] = ['grok-private-a', 'grok-private-b'];
+
+        const normalized = normalizeUserscriptConfig(existing);
+        expect(normalized.customModels[services.grok]).toEqual(['grok-private-a', 'grok-private-b']);
+        expect(normalized.model[services.grok]).toBe(customModelString);
+        expect(normalized.customModel[services.grok]).toBe('grok-private-b');
+        expect(normalizeUserscriptConfig(normalized)).toEqual(normalized);
     });
 
     it('只为已有安全配置建立一次计数基数，不因内部 revision 重写配置', async () => {

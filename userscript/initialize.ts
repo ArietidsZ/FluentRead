@@ -1,6 +1,7 @@
 import {Config, normalizeConfig} from '@/src/core/config/model';
 import {getApiKeyRequirementKey} from '@/src/core/config/validation';
 import {customModelString, defaultModels, models, services, servicesType} from '@/src/core/config/catalog';
+import {isCustomOpenAIProviderId} from '@/src/core/config/customOpenAI';
 import {getStoredValue, setStoredValue} from './storage';
 import {initializeUserscriptCount} from './count';
 
@@ -42,20 +43,40 @@ function nonEmptyString(value: unknown): string {
 }
 
 export function isUserscriptServiceSupported(service: unknown): service is string {
-    return typeof service === 'string' && supportedUserscriptServices.has(service);
+    return typeof service === 'string'
+        && service !== services.chromeTranslator
+        && (supportedUserscriptServices.has(service) || isCustomOpenAIProviderId(service));
 }
 
 /** 即使已有 GM 配置启用了扩展专属能力，userscript 启动时也要强制关闭这些能力。 */
 export function normalizeUserscriptConfig(value: unknown): Config {
+    const rawService = isRecord(value) ? value.service : undefined;
+    const rawVideoService = isRecord(value) ? value.videoService : undefined;
     const next = normalizeConfig(value);
-    if (!isUserscriptServiceSupported(next.service)) next.service = services.microsoft;
-    if (!isUserscriptServiceSupported(next.videoService)) next.videoService = services.microsoft;
+    if (typeof rawService === 'string' && !isUserscriptServiceSupported(rawService)) {
+        next.service = services.microsoft;
+    } else if (!isUserscriptServiceSupported(next.service)) {
+        next.service = services.microsoft;
+    }
+    if (typeof rawVideoService === 'string' && !isUserscriptServiceSupported(rawVideoService)) {
+        next.videoService = services.microsoft;
+    } else if (!isUserscriptServiceSupported(next.videoService)) {
+        next.videoService = services.microsoft;
+    }
     next.contextMenuEnabled = false;
     next.selectionAreaEnabled = false;
     next.disableImageTranslator = true;
     next.videoTranslationEnabled = false;
     next.maxConcurrentTranslations = Math.min(20, Math.max(1, Number(next.maxConcurrentTranslations) || 6));
     return next;
+}
+
+function comparableStoredConfig(value: unknown): unknown {
+    if (!isRecord(value)) return value;
+    const comparable = {...value};
+    delete comparable.__fluentConfigRevision;
+    delete comparable.__fluentCountOperations;
+    return comparable;
 }
 
 function migrateLegacyModel(next: Config, legacyName: string, service: string, selectedModel: string): void {
@@ -138,6 +159,15 @@ async function migrateLegacyConfig(): Promise<Config> {
     const legacyOllamaUrl = await getStoredValue<string>('ollama_url');
     if (legacyOllamaUrl) next.custom = legacyOllamaUrl;
     if (legacyOllamaUrl || await getStoredValue<string>('model_ollama')) {
+        const ollamaModel = next.model[services.custom] === customModelString
+            ? next.customModel[services.custom]
+            : next.model[services.custom];
+        next.customOpenAIProviders = [{
+            id: services.custom,
+            name: '自定义接口',
+            endpoint: legacyOllamaUrl || next.custom,
+            models: ollamaModel ? [ollamaModel] : [],
+        }];
         allowLegacyOllamaWithoutApiKey(next);
     }
 
@@ -152,9 +182,9 @@ export async function ensureUserscriptConfig(): Promise<void> {
         safe = await migrateLegacyConfig();
         await setStoredValue(CONFIG_STORAGE_KEY, safe);
     } else {
-        const normalized = normalizeConfig(existing);
         safe = normalizeUserscriptConfig(existing);
-        if (JSON.stringify(normalized) !== JSON.stringify(safe)) {
+        // 与原始存储值比较，确保只改变 schema 的 normalize 迁移也会真正落盘。
+        if (JSON.stringify(comparableStoredConfig(existing)) !== JSON.stringify(safe)) {
             await setStoredValue(CONFIG_STORAGE_KEY, safe);
         }
     }

@@ -9,6 +9,12 @@
 import {getMimoEndpoint, MINIMAX_ENDPOINTS, urls} from '@/src/core/config/constants';
 import {config as runtimeConfig} from '@/src/services/config/store';
 import {services} from '@/src/core/config/catalog';
+import {
+    getCustomOpenAIProvider,
+    isCustomOpenAIProviderId,
+    LEGACY_CUSTOM_OPENAI_PROVIDER_ID,
+    type CustomOpenAIProvider,
+} from '@/src/core/config/customOpenAI';
 
 export type AiSdkEndpointRoute = 'common' | 'custom' | 'newapi' | 'azure';
 
@@ -17,6 +23,7 @@ export const AI_SDK_TRANSPORT_PROFILE = 'vercel-ai-sdk-openai-compatible-v1' as 
 export interface AiSdkEndpointConfig {
     proxy?: Record<string, string | undefined>;
     custom?: string;
+    customOpenAIProviders?: readonly CustomOpenAIProvider[];
     newApiUrl?: string;
     azureOpenaiEndpoint?: string;
     minimaxBillingPlan?: string;
@@ -150,7 +157,7 @@ export function normalizeNewApiEndpoint(rawEndpoint: string): string {
 
 export function getAiSdkEndpointRoute(service: string): AiSdkEndpointRoute | null {
     if (commonServices.has(service)) return 'common';
-    if (service === services.custom) return 'custom';
+    if (isCustomOpenAIProviderId(service)) return 'custom';
     if (service === services.newapi) return 'newapi';
     if (service === services.azureOpenai) return 'azure';
     return null;
@@ -190,7 +197,10 @@ export function resolveOpenAICompatibleEndpoint(
             endpoint = resolveCommonEndpoint(service, config);
             break;
         case 'custom':
-            endpoint = config.proxy?.[service]?.trim() || config.custom || '';
+            endpoint = config.proxy?.[service]?.trim()
+                || getCustomOpenAIProvider(config.customOpenAIProviders, service)?.endpoint
+                || (service === LEGACY_CUSTOM_OPENAI_PROVIDER_ID ? config.custom : '')
+                || '';
             break;
         case 'newapi':
             endpoint = normalizeNewApiEndpoint(config.newApiUrl || '');

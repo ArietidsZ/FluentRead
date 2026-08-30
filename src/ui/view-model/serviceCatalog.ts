@@ -10,6 +10,7 @@ export interface ServiceOption {
   value: string
   label: string
   description?: string
+  searchTerms?: string[]
   disabled?: boolean
   catalogKind?: string
 }
@@ -98,7 +99,7 @@ export function filterServiceGroups(groups: ServiceGroup[], query: string) {
     .map((group) => ({
       ...group,
       items: group.items.filter((item) =>
-        `${item.label}${item.value}${item.description || ''}`.toLocaleLowerCase().includes(keyword),
+        `${item.label}${item.value}${item.description || ''}${item.searchTerms?.join('') || ''}`.toLocaleLowerCase().includes(keyword),
       ),
     }))
     .filter((group) => group.items.length > 0)
@@ -141,7 +142,7 @@ export function searchServiceOptions(
   query: string,
   modelOptions: ReadonlyMap<string, readonly string[]>,
   selectedModels: Record<string, string> = {},
-  customModels: Record<string, string> = {},
+  activeCustomModels: Record<string, string> = {},
 ): ServiceSearchOption[] {
   const rawKeyword = query.trim().normalize('NFKC').toLocaleLowerCase()
   if (!rawKeyword) return serviceOptions.map((item) => ({ ...item, matchingModels: [] }))
@@ -149,7 +150,7 @@ export function searchServiceOptions(
   const compactKeyword = rawKeyword.replace(/[\s._/()-]+/gu, '')
   return serviceOptions.flatMap((item) => {
     const selectedModel = selectedModels[item.value]
-    const configuredModel = resolveConfiguredModel(selectedModel, customModels[item.value])
+    const configuredModel = resolveConfiguredModel(selectedModel, activeCustomModels[item.value])
     const searchableModels = Array.from(new Set([
       ...(modelOptions.get(item.value) || []),
       selectedModel,
@@ -157,7 +158,7 @@ export function searchServiceOptions(
     ].filter((model): model is string => Boolean(model))))
     const matchingModels = searchableModels.filter((model) => searchTextMatches(model, rawKeyword, compactKeyword))
     const serviceMatches = searchTextMatches(
-      `${item.label} ${item.value} ${item.description || ''}`,
+      `${item.label} ${item.value} ${item.description || ''} ${item.searchTerms?.join(' ') || ''}`,
       rawKeyword,
       compactKeyword,
     )
@@ -171,12 +172,12 @@ export function searchServiceOptions(
 export function getSelectedModelLabel(
   service: string,
   selectedModels: Record<string, string>,
-  customModels: Record<string, string>,
+  activeCustomModels: Record<string, string>,
 ) {
   if (!servicesType.isUseModel(service)) return ''
 
   const selectedModel = selectedModels[service]
-  const configuredModel = resolveConfiguredModel(selectedModel, customModels[service])
+  const configuredModel = resolveConfiguredModel(selectedModel, activeCustomModels[service])
   return configuredModel || (selectedModel === customModelString ? customModelString : '未选择模型')
 }
 

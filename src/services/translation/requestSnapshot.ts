@@ -12,6 +12,7 @@ import type {
     TranslationProviderConfigSnapshot,
     TranslationRequestMessageBase,
 } from './types';
+import type {CustomOpenAIProvider} from '@/src/core/config/customOpenAI';
 
 /** 内部 symbol 无法由 content runtime 消息伪造，也不会进入网络 JSON。 */
 export const TRANSLATION_PROVIDER_CONFIG = Symbol('fluentread.translation-provider-config');
@@ -111,6 +112,15 @@ function frozenBooleanMap(value: Record<string, boolean> | undefined): Readonly<
     return Object.freeze({...value});
 }
 
+function frozenCustomOpenAIProviders(
+    value: readonly CustomOpenAIProvider[] | undefined,
+): readonly Readonly<CustomOpenAIProvider>[] {
+    return Object.freeze((value || []).map((provider) => Object.freeze({
+        ...provider,
+        models: Object.freeze([...provider.models]) as unknown as string[],
+    })));
+}
+
 /**
  * 在任何 await 之前复制 provider 与缓存身份会读取的字段。嵌套映射和顶层对象
  * 均冻结，配置页后续原地修改不会改变已在途请求。
@@ -118,10 +128,16 @@ function frozenBooleanMap(value: Record<string, boolean> | undefined): Readonly<
 export function createTranslationProviderConfigSnapshot(
     source: TranslationConfigSource,
 ): TranslationProviderConfigSnapshot {
+    // 已保存模型列表只服务于设置 UI，不参与一次请求的模型身份；显式排除，避免
+    // Config 结构化兼容传入时把可变数组引用带进冻结快照。
+    const {customModels: _savedCustomModels, ...providerSource} = source as TranslationConfigSource & {
+        customModels?: unknown;
+    };
     return Object.freeze({
-        ...source,
+        ...providerSource,
         model: frozenStringMap(source.model),
         customModel: frozenStringMap(source.customModel),
+        customOpenAIProviders: frozenCustomOpenAIProviders(source.customOpenAIProviders),
         proxy: frozenStringMap(source.proxy),
         customBody: frozenStringMap(source.customBody),
         system_role: frozenStringMap(source.system_role),

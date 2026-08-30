@@ -60,13 +60,19 @@
       <ServiceCatalog
         :service="selectedConfigurationService"
         :default-service="config.service"
-        :selected-model="config.model[selectedConfigurationService]"
+        :selected-model="selectedConfigurationModel"
         :services="configurationCompute.filteredServices"
-        :model-options="configurationCompute.model"
-        :custom-models="config.customModel"
+        :model-options="configurationModelOptions"
         :show-model="configurationCompute.showModel"
+        :maximum-custom-services="MAX_CUSTOM_OPENAI_PROVIDERS"
+        :maximum-models="MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER"
+        :maximum-model-length="MAX_CUSTOM_OPENAI_MODEL_LENGTH"
+        :custom-model-count="selectedConfigurationCustomModelCount"
         @update:service="setConfigurationService"
-        @update:model="config.model[selectedConfigurationService] = $event"
+        @update:model="selectConfigurationModel"
+        @add:service="openCustomProviderDialog"
+        @add:model="addConfigurationModel"
+        @remove:model="removeConfigurationModel"
       >
         <template #configuration>
           <ServiceConfiguration
@@ -75,9 +81,16 @@
             :compute="configurationCompute"
             :options="options"
             :is-valid-azure-endpoint="isValidAzureEndpoint"
+            :custom-provider="selectedCustomProvider"
+            @update:custom-provider="updateSelectedCustomProvider"
+            @delete:custom-provider="deleteSelectedCustomProvider"
           />
         </template>
       </ServiceCatalog>
+      <CustomOpenAIProviderDialog
+        v-model="customProviderDialogOpen"
+        @submit="createCustomProvider"
+      />
     </section>
     <section v-show="props.activeSection === 'settings-image-translation'" id="settings-image-translation" class="settings-section image-translation-settings">
       <SettingsGroup title="功能状态" description="图片翻译与圈选翻译共用本地 OCR 语言包，但可以分别开启。">
@@ -574,7 +587,21 @@
 
 // Main 处理配置信息
 import { computed, ref, watch, onUnmounted } from 'vue'
-import { customModelString, models, options, services, servicesType } from '@/src/core/config/catalog';
+import { customModelString, defaultOption, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
+import {
+  createNextCustomOpenAIProviderId,
+  getCustomOpenAIProvider,
+  isCustomOpenAIProviderId,
+  LEGACY_CUSTOM_OPENAI_PROVIDER_ID,
+  MAX_CUSTOM_OPENAI_MODEL_LENGTH,
+  MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER,
+  MAX_CUSTOM_OPENAI_PROVIDERS,
+  normalizeCustomOpenAIModels,
+  normalizeCustomOpenAIProviders,
+  removeCustomOpenAIProvider,
+  withCustomOpenAIServiceOptions,
+  type CustomOpenAIProvider,
+} from '@/src/core/config/customOpenAI';
 import {
   Config,
   MOUSE_HOVER_TRANSLATION_DELAY_MAX,
@@ -597,10 +624,17 @@ const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
 import ServiceCatalog from './services/ServiceCatalog.vue';
 import ServiceConfiguration from './services/ServiceConfiguration.vue';
+import CustomOpenAIProviderDialog from './services/CustomOpenAIProviderDialog.vue';
 import {TranslationCenter} from '@/src/features/translation-center/public';
 import AlwaysTranslateSites from './AlwaysTranslateSites.vue';
 import { parseHotkey } from '@/src/core/hotkey';
-import { getApiKeyRequirementKey, getMissingCredentialMessage, isApiKeyRequired } from '@/src/core/config/validation';
+import {
+  createApiKeyRequirementKey,
+  getApiKeyRequirementKey,
+  getLegacyApiKeyRequirementKey,
+  getMissingCredentialMessage,
+  isApiKeyRequired,
+} from '@/src/core/config/validation';
 import {ImageOcrSettings} from '@/src/features/image-translation/public';
 import {ModelUsageDashboard} from '@/src/features/model-usage/public';
 import SettingsGroup from './components/SettingsGroup.vue';
@@ -639,6 +673,7 @@ function updateTheme(theme: string) {
 }
 // 配置信息
 const config = ref(new Config());
+const customProviderDialogOpen = ref(false);
 const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
 const persistConfigPatch = (value: unknown) => requestConfigPatch(value, sendConfigMessage);
 const persistConfigReplace = (value: unknown) => requestConfigSave(value, sendConfigMessage);
@@ -703,15 +738,35 @@ const selectedConfigurationService = computed(
   () => configurationService.value ?? config.value.service,
 );
 
+// 导入、撤销或恢复可能在当前页面仍打开时删除正在编辑的 profile。
+// 失效的 custom:* 选择应立即回退到新的默认服务，避免渲染孤儿配置字段。
+watch(
+  () => [configurationService.value, config.value.customOpenAIProviders.map((provider) => provider.id)] as const,
+  ([service]) => {
+    if (service && isCustomOpenAIProviderId(service)
+      && !getCustomOpenAIProvider(config.value.customOpenAIProviders, service)) {
+      configurationService.value = null;
+    }
+  },
+  {flush: 'sync'},
+);
+
 const setConfigurationService = (value: string) => {
   configurationService.value = value;
 };
 
 type ServiceSource = { value: string };
 
-const availableServiceOptions = computed(() => filterAvailableTranslationServices(options.services));
+const serviceOptionsWithCustomProviders = computed(() => withCustomOpenAIServiceOptions(
+  options.services,
+  config.value.customOpenAIProviders,
+).map((option) => {
+  const provider = getCustomOpenAIProvider(config.value.customOpenAIProviders, option.value);
+  return provider ? {...option, searchTerms: [provider.endpoint, ...provider.models]} : option;
+}));
+const availableServiceOptions = computed(() => filterAvailableTranslationServices(serviceOptionsWithCustomProviders.value));
 const defaultTextServiceLabel = computed(() => (
-  options.services.find((item: any) => item.value === config.value.service)?.label || config.value.service
+  serviceOptionsWithCustomProviders.value.find((item: any) => item.value === config.value.service)?.label || config.value.service
 ));
 const videoServiceOptions = computed(() => availableServiceOptions.value.filter((item: any) => !item.disabled));
 const selectedTextServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.service));
@@ -737,15 +792,242 @@ const filteredServices = computed(() =>
   ),
 );
 
+interface CustomProviderDraft {
+  name: string
+  endpoint: string
+  apiKey: string
+  model: string
+}
+
+interface ConfigurationModelOption {
+  value: string
+  label?: string
+  removable?: boolean
+}
+
+/**
+ * 需要同时改变 profile 与其模型/凭据映射的操作必须只发布一个完整快照。
+ * 全局配置监听使用 flush: sync；逐字段修改会让中间态先被 normalize 后回灌，
+ * 既产生多条历史，也可能把刚删除的当前模型重新补回列表。
+ */
+function updateConfigAtomically(update: (draft: Config) => void): void {
+  const draft = normalizeConfig(config.value);
+  update(draft);
+  config.value = normalizeConfig(draft);
+}
+
+const selectedCustomProvider = computed(() => getCustomOpenAIProvider(
+  config.value.customOpenAIProviders,
+  selectedConfigurationService.value,
+));
+const selectedConfigurationModel = computed(() => resolveConfiguredModel(
+  config.value.model[selectedConfigurationService.value],
+  config.value.customModel[selectedConfigurationService.value],
+));
+const builtInConfigurationModels = computed(() => (
+  models.get(selectedConfigurationService.value) || []
+).filter((model) => model !== customModelString));
+const configurationModelOptions = computed<ConfigurationModelOption[]>(() => {
+  const provider = selectedCustomProvider.value;
+  if (provider) {
+    return provider.models.map((model) => ({value: model, removable: true}));
+  }
+
+  const builtIn = builtInConfigurationModels.value.map((model) => ({value: model}));
+  const activeCustomModel = config.value.model[selectedConfigurationService.value] === customModelString
+    ? config.value.customModel[selectedConfigurationService.value]?.trim()
+    : '';
+  const customModels = Array.from(new Set([
+    ...(config.value.customModels[selectedConfigurationService.value] || []),
+    activeCustomModel,
+  ].filter((model): model is string => Boolean(model))))
+    .filter((model) => !builtIn.some((option) => option.value === model));
+  return [...builtIn, ...customModels.map((model) => ({value: model, removable: true}))];
+});
+const selectedConfigurationCustomModelCount = computed(() => (
+  selectedCustomProvider.value?.models.length
+  ?? config.value.customModels[selectedConfigurationService.value]?.length
+  ?? 0
+));
+
+function openCustomProviderDialog(): void {
+  if (config.value.customOpenAIProviders.length >= MAX_CUSTOM_OPENAI_PROVIDERS) {
+    ElMessage.warning(`最多只能保存 ${MAX_CUSTOM_OPENAI_PROVIDERS} 个自定义服务`);
+    return;
+  }
+  customProviderDialogOpen.value = true;
+}
+
+function createCustomProvider(draft: CustomProviderDraft): void {
+  if (config.value.customOpenAIProviders.length >= MAX_CUSTOM_OPENAI_PROVIDERS) return;
+  const id = createNextCustomOpenAIProviderId(config.value.customOpenAIProviders);
+  const provider: CustomOpenAIProvider = {
+    id,
+    name: draft.name,
+    endpoint: draft.endpoint,
+    models: [draft.model],
+  };
+  updateConfigAtomically((next) => {
+    next.customOpenAIProviders = normalizeCustomOpenAIProviders([
+      ...next.customOpenAIProviders,
+      provider,
+    ]);
+    next.model[id] = draft.model;
+    next.documentModel[id] = draft.model;
+    next.system_role[id] = defaultOption.system_role;
+    next.user_role[id] = defaultOption.user_role;
+    if (draft.apiKey) next.token[id] = draft.apiKey;
+  });
+  configurationService.value = id;
+  ElMessage({message: '自定义服务已添加', type: 'success', grouping: true, duration: 1800});
+}
+
+function updateSelectedCustomProvider(patch: Partial<Pick<CustomOpenAIProvider, 'name' | 'endpoint'>>): void {
+  const service = selectedConfigurationService.value;
+  config.value.customOpenAIProviders = config.value.customOpenAIProviders.map((provider) => (
+    provider.id === service ? {...provider, ...patch} : provider
+  ));
+}
+
+function deleteSelectedCustomProvider(): void {
+  const service = selectedConfigurationService.value;
+  if (!getCustomOpenAIProvider(config.value.customOpenAIProviders, service)) return;
+  updateConfigAtomically((next) => {
+    next.customOpenAIProviders = removeCustomOpenAIProvider(next.customOpenAIProviders, service);
+    for (const mapping of [
+      next.token,
+      next.model,
+      next.documentModel,
+      next.customModel,
+      next.customModels,
+      next.documentCustomModel,
+      next.proxy,
+      next.system_role,
+      next.user_role,
+      next.customBody,
+    ]) delete mapping[service];
+    // normalizeConfig 会根据删除后的 profile 列表精确保留仍可达的鉴权键。
+    // 不能用 `${service}:` 做前缀删除：旧 ID `custom` 也是新 ID
+    // `custom:*` 的前缀，会误删其他自定义服务的免 Key 偏好。
+    if (next.service === service) next.service = defaultOption.service;
+    if (next.documentService === service) next.documentService = defaultOption.service;
+    if (next.videoService === service) next.videoService = services.microsoft;
+    next.translationCenterServices = next.translationCenterServices.filter((item) => item !== service);
+    if (service === LEGACY_CUSTOM_OPENAI_PROVIDER_ID) next.custom = defaultOption.custom;
+  });
+  configurationService.value = config.value.service;
+  ElMessage({message: '自定义服务已删除', type: 'success', grouping: true, duration: 1800});
+}
+
+function selectConfigurationModel(model: string): void {
+  const service = selectedConfigurationService.value;
+  if (selectedCustomProvider.value) {
+    config.value.model[service] = model;
+    return;
+  }
+  if (builtInConfigurationModels.value.includes(model)) {
+    config.value.model[service] = model;
+    return;
+  }
+  updateConfigAtomically((next) => {
+    next.customModel[service] = model;
+    next.model[service] = customModelString;
+  });
+}
+
+function addConfigurationModel(model: string): void {
+  const service = selectedConfigurationService.value;
+  const provider = selectedCustomProvider.value;
+  if (provider) {
+    updateConfigAtomically((next) => {
+      next.customOpenAIProviders = normalizeCustomOpenAIProviders(
+        next.customOpenAIProviders.map((item) => item.id === service
+          ? {...item, models: [...item.models, model]}
+          : item),
+      );
+      next.model[service] = model;
+    });
+    return;
+  }
+  updateConfigAtomically((next) => {
+    next.customModels[service] = normalizeCustomOpenAIModels([
+      ...(next.customModels[service] || []),
+      model,
+    ]);
+    next.customModel[service] = model;
+    next.model[service] = customModelString;
+  });
+}
+
+function removeConfigurationModel(model: string): void {
+  const service = selectedConfigurationService.value;
+  const provider = selectedCustomProvider.value;
+  if (provider) {
+    const remainingModels = provider.models.filter((item) => item !== model);
+    const fallback = remainingModels[0] || '';
+    updateConfigAtomically((next) => {
+      next.customOpenAIProviders = normalizeCustomOpenAIProviders(
+        next.customOpenAIProviders.map((item) => item.id === service
+          ? {...item, models: remainingModels}
+          : item),
+      );
+      if (next.model[service] === model) {
+        if (fallback) next.model[service] = fallback;
+        else delete next.model[service];
+      }
+      if (next.documentModel[service] === model) {
+        if (fallback) next.documentModel[service] = fallback;
+        else delete next.documentModel[service];
+      }
+    });
+    return;
+  }
+  updateConfigAtomically((next) => {
+    const remainingModels = (next.customModels[service] || []).filter((item) => item !== model);
+    if (remainingModels.length > 0) next.customModels[service] = remainingModels;
+    else delete next.customModels[service];
+    const fallbackCustomModel = remainingModels[0];
+    const fallbackBuiltInModel = builtInConfigurationModels.value[0] || '';
+    const pageUsesRemovedModel = next.model[service] === customModelString
+      && next.customModel[service] === model;
+    if (next.customModel[service] === model) {
+      if (!pageUsesRemovedModel) {
+        delete next.customModel[service];
+      } else if (fallbackCustomModel) {
+        next.customModel[service] = fallbackCustomModel;
+        next.model[service] = customModelString;
+      } else {
+        delete next.customModel[service];
+        next.model[service] = fallbackBuiltInModel;
+      }
+    }
+    const documentUsesRemovedModel = next.documentModel[service] === customModelString
+      && next.documentCustomModel[service] === model;
+    if (next.documentCustomModel[service] === model) {
+      if (!documentUsesRemovedModel) {
+        delete next.documentCustomModel[service];
+      } else if (fallbackCustomModel) {
+        next.documentCustomModel[service] = fallbackCustomModel;
+        next.documentModel[service] = customModelString;
+      } else {
+        delete next.documentCustomModel[service];
+        next.documentModel[service] = fallbackBuiltInModel;
+      }
+    }
+    delete next.requireApiKey[createApiKeyRequirementKey(service, model)];
+    delete next.requireApiKey[getLegacyApiKeyRequirementKey(service, model)];
+  });
+}
+
 // 两个页面都需要相同的服务能力判断，但数据源不同：实际翻译使用默认服务，
 // 设置页右侧表单使用正在配置的服务。统一从这里生成，避免两套逻辑继续漂移。
 const createServiceCompute = (serviceSource: ServiceSource) => ({
-  showAI: computed(() => servicesType.isAI(serviceSource.value)),
+  showAI: computed(() => isCustomOpenAIProviderId(serviceSource.value) || servicesType.isAI(serviceSource.value)),
   showMachine: computed(() => servicesType.isMachine(serviceSource.value)),
-  showProxy: computed(() => servicesType.isUseProxy(serviceSource.value)),
-  showModel: computed(() => servicesType.isUseModel(serviceSource.value)),
-  showCustomBody: computed(() => servicesType.isUseCustomBody(serviceSource.value)),
-  showToken: computed(() => servicesType.isUseToken(serviceSource.value)),
+  showProxy: computed(() => isCustomOpenAIProviderId(serviceSource.value) || servicesType.isUseProxy(serviceSource.value)),
+  showModel: computed(() => isCustomOpenAIProviderId(serviceSource.value) || servicesType.isUseModel(serviceSource.value)),
+  showCustomBody: computed(() => isCustomOpenAIProviderId(serviceSource.value) || servicesType.isUseCustomBody(serviceSource.value)),
+  showToken: computed(() => isCustomOpenAIProviderId(serviceSource.value) || servicesType.isUseToken(serviceSource.value)),
   requireApiKey: computed({
     get: () => isApiKeyRequired(serviceSource.value, config.value),
     set: (value: boolean) => {
@@ -757,7 +1039,8 @@ const createServiceCompute = (serviceSource: ServiceSource) => ({
   showYoudao: computed(() => servicesType.isYoudao(serviceSource.value)),
   showTencent: computed(() => servicesType.isTencent(serviceSource.value)),
   model: computed(() => models.get(serviceSource.value) || []),
-  showCustom: computed(() => servicesType.isCustom(serviceSource.value)),
+  showCustom: computed(() => isCustomOpenAIProviderId(serviceSource.value)),
+  showCustomOpenAI: computed(() => Boolean(getCustomOpenAIProvider(config.value.customOpenAIProviders, serviceSource.value))),
   showDeepLX: computed(() => serviceSource.value === 'deeplx'),
   showMiniMaxRegion: computed(() => serviceSource.value === services.minimax),
   showMiMoRegion: computed(() => serviceSource.value === services.mimo),

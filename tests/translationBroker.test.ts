@@ -650,6 +650,23 @@ describe('translation broker', () => {
         expect(translationCacheIdentities().at(-1)).toMatchObject({service: ''});
     });
 
+    it('动态 custom:* 服务复用 custom provider，并以动态 ID、端点和模型隔离缓存', async () => {
+        mocks.aiServices.add('custom:1');
+        mocks.aiSdkServices.add('custom:1');
+        mocks.config.service = 'custom:1';
+        mocks.config.model['custom:1'] = 'local-model';
+
+        await expect(translateWithCache({origin: 'Dynamic custom'})).resolves.toBe('默认译文');
+
+        expect(mocks.service).toHaveBeenCalledOnce();
+        expect(translationCacheIdentities().at(-1)).toMatchObject({
+            service: 'custom:1',
+            model: 'local-model',
+            endpoint: 'https://custom:1.endpoint.test',
+            transportProfile: 'ai-sdk-profile',
+        });
+    });
+
     it('passes modelOverride through credential checks, cache identity, and provider calls', async () => {
         mocks.service.mockResolvedValue('覆盖模型译文');
 

@@ -20,6 +20,12 @@ function configSource(overrides: Partial<TranslationConfigSource> = {}): Transla
         enableAIContext: true,
         model: {aiSdk: 'model-a'},
         customModel: {aiSdk: 'custom-model-a'},
+        customOpenAIProviders: [{
+            id: 'custom:1',
+            name: 'provider-a',
+            endpoint: 'https://provider-a.example/v1/chat/completions',
+            models: ['provider-model-a'],
+        }],
         proxy: {aiSdk: 'https://a.example/v1'},
         custom: 'https://custom-a.example/v1',
         deeplx: 'https://deeplx-a.example',
@@ -40,28 +46,41 @@ function configSource(overrides: Partial<TranslationConfigSource> = {}): Transla
 
 describe('translation provider request config snapshot', () => {
     it('clones and freezes every provider-visible nested map and credential', () => {
-        const source = configSource({
-            token: {aiSdk: 'token-a'},
-            requireApiKey: {'aiSdk:model-a': true},
-            youdaoAppKey: 'youdao-key-a',
-            youdaoAppSecret: 'youdao-secret-a',
-            tencentSecretId: 'tencent-id-a',
-            tencentSecretKey: 'tencent-key-a',
-        });
+        const source = {
+            ...configSource({
+                token: {aiSdk: 'token-a'},
+                requireApiKey: {'aiSdk:model-a': true},
+                youdaoAppKey: 'youdao-key-a',
+                youdaoAppSecret: 'youdao-secret-a',
+                tencentSecretId: 'tencent-id-a',
+                tencentSecretKey: 'tencent-key-a',
+            }),
+            customModels: {aiSdk: ['saved-ui-model']},
+        } as TranslationConfigSource & {customModels: Record<string, string[]>};
         const snapshot = createTranslationProviderConfigSnapshot(source);
 
         source.model.aiSdk = 'model-b';
         source.customModel.aiSdk = 'custom-model-b';
+        source.customOpenAIProviders![0].name = 'provider-b';
+        source.customOpenAIProviders![0].endpoint = 'https://provider-b.example/v1/chat/completions';
+        source.customOpenAIProviders![0].models[0] = 'provider-model-b';
         source.proxy.aiSdk = 'https://b.example/v1';
         source.customBody.aiSdk = '{"snapshot":"b"}';
         source.system_role.aiSdk = 'system-b';
         source.user_role.aiSdk = 'user-b';
         source.token!.aiSdk = 'token-b';
         source.requireApiKey!['aiSdk:model-a'] = false;
+        source.customModels.aiSdk[0] = 'mutated-ui-model';
 
         expect(snapshot).toMatchObject({
             model: {aiSdk: 'model-a'},
             customModel: {aiSdk: 'custom-model-a'},
+            customOpenAIProviders: [{
+                id: 'custom:1',
+                name: 'provider-a',
+                endpoint: 'https://provider-a.example/v1/chat/completions',
+                models: ['provider-model-a'],
+            }],
             proxy: {aiSdk: 'https://a.example/v1'},
             customBody: {aiSdk: '{"snapshot":"a"}'},
             system_role: {aiSdk: 'system-a'},
@@ -73,10 +92,14 @@ describe('translation provider request config snapshot', () => {
             tencentSecretId: 'tencent-id-a',
             tencentSecretKey: 'tencent-key-a',
         });
+        expect(snapshot).not.toHaveProperty('customModels');
         expect([
             snapshot,
             snapshot.model,
             snapshot.customModel,
+            snapshot.customOpenAIProviders,
+            snapshot.customOpenAIProviders?.[0],
+            snapshot.customOpenAIProviders?.[0].models,
             snapshot.proxy,
             snapshot.customBody,
             snapshot.system_role,

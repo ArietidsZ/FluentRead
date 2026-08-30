@@ -10,7 +10,7 @@ import {
   searchServiceOptions,
   splitModelOptions,
 } from '@/src/ui/view-model/serviceCatalog'
-import { customModelString, defaultModels, models, servicesType } from '@/src/core/config/catalog'
+import { customModelString, defaultModels, models, services, servicesType } from '@/src/core/config/catalog'
 import { Config, normalizeConfig } from '@/src/core/config/model'
 
 const options = [
@@ -121,6 +121,18 @@ describe('service catalog helpers', () => {
     expect(filterServiceGroups([
       { id: 'ai', label: 'AI翻译', items: [{ value: 'openai', label: 'OpenAI', description: '通用服务' }] },
     ], '通用')).toHaveLength(1)
+    expect(filterServiceGroups([
+      {
+        id: 'custom',
+        label: '我的服务',
+        items: [{
+          value: 'custom:1',
+          label: '本地模型',
+          description: 'http://localhost:11434/v1',
+          searchTerms: ['gemma:7b', 'qwen-local'],
+        }],
+      },
+    ], 'qwen-local')).toHaveLength(1)
   })
 
   it('filters nested service sections without losing their parent or subgroup', () => {
@@ -196,6 +208,22 @@ describe('service catalog helpers', () => {
     ])
   })
 
+  it('searches dynamic service metadata supplied by saved profiles', () => {
+    const dynamicOptions = [{
+      value: 'custom:1',
+      label: '公司网关',
+      description: 'https://gateway.example/v1/chat/completions',
+      searchTerms: ['private-translation-model'],
+    }]
+
+    expect(searchServiceOptions(dynamicOptions, 'gateway.example', new Map())).toEqual([
+      {...dynamicOptions[0], matchingModels: []},
+    ])
+    expect(searchServiceOptions(dynamicOptions, 'private-translation', new Map())).toEqual([
+      {...dynamicOptions[0], matchingModels: []},
+    ])
+  })
+
   it('removes decorative recommendation stars from labels', () => {
     expect(cleanServiceLabel('硅基流动⭐️')).toBe('硅基流动')
   })
@@ -244,6 +272,10 @@ describe('service catalog helpers', () => {
     for (const service of servicesType.useModel) {
       const defaultModel = defaultModels.get(service)
       expect(defaultModel, `${service} 缺少默认模型`).toBeTruthy()
+      if (service === services.custom) {
+        expect(normalized.model[service], '未创建 profile 时不应保留静态自定义服务模型').toBeUndefined()
+        continue
+      }
       expect(normalized.model[service], `${service} 未选中默认模型`).toBe(defaultModel)
       expect(new Config().model[service], `${service} 的初始配置未选中默认模型`).toBe(defaultModel)
     }

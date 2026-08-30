@@ -6,6 +6,7 @@ import {
     getModelUsageRangeStart,
     normalizeModelUsageFilter,
 } from '@/src/services/model-usage/aggregation';
+import {createNextCustomOpenAIProviderId} from '@/src/core/config/customOpenAI';
 import type {ModelUsageEvent} from '@/src/services/model-usage/types';
 
 function inTimezone<T>(timezone: string, run: () => T): T {
@@ -203,6 +204,33 @@ describe('模型用量纯聚合', () => {
             outputTokens: 50,
             totalTokens: 200,
         });
+    });
+
+    it('删除自定义服务后新建身份不会继承同模型的旧用量', () => {
+        const retiredServiceId = 'custom:retired-profile';
+        const replacementServiceId = createNextCustomOpenAIProviderId([], () => 'replacement-profile');
+        const snapshot = buildModelUsageDashboard([
+            event({
+                serviceId: retiredServiceId,
+                configuredModel: 'shared-model',
+                inputTokens: 70,
+                outputTokens: 30,
+                totalTokens: 100,
+            }),
+            event({
+                serviceId: replacementServiceId,
+                configuredModel: 'shared-model',
+                inputTokens: 15,
+                outputTokens: 5,
+                totalTokens: 20,
+            }),
+        ], {range: '30d'}, {now: new Date(2026, 7, 29, 12).getTime()});
+
+        expect(replacementServiceId).not.toBe(retiredServiceId);
+        expect(snapshot.breakdown.map(({serviceId, totals}) => [serviceId, totals.totalTokens])).toEqual([
+            [retiredServiceId, 100],
+            [replacementServiceId, 20],
+        ]);
     });
 
     it('按本地午夜计算 today，并生成完整二十四小时时间线', () => {

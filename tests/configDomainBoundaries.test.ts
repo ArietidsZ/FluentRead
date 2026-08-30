@@ -19,6 +19,8 @@ import {normalizeConfig} from '@/src/core/config/model';
 import {sanitizeConfigForExport} from '@/src/core/config/transfer';
 import {
     getApiKeyRequirementKey,
+    createApiKeyRequirementKey,
+    parseApiKeyRequirementKey,
     getMissingCredentialMessage,
     isApiKeyRequired,
 } from '@/src/core/config/validation';
@@ -99,14 +101,22 @@ describe('配置领域边界与防御分支', () => {
 
     it('导出拒绝非对象，凭据提示覆盖未知服务和可选字段短路', () => {
         expect(() => sanitizeConfigForExport(null)).toThrow('配置必须是 JSON 对象');
-        expect(getApiKeyRequirementKey('unknown-service', {})).toBe('unknown-service:');
+        expect(getApiKeyRequirementKey('unknown-service', {})).toBe(
+            createApiKeyRequirementKey('unknown-service', ''),
+        );
         expect(getApiKeyRequirementKey(services.openai, {
             model: {[services.openai]: '自定义模型'},
-        })).toBe(`${services.openai}:自定义模型`);
+        })).toBe(createApiKeyRequirementKey(services.openai, '自定义模型'));
         expect(getApiKeyRequirementKey(services.openai, {
             model: {[services.openai]: '自定义模型'},
             customModel: {[services.openai]: 'local-model'},
-        })).toBe(`${services.openai}:local-model`);
+        })).toBe(createApiKeyRequirementKey(services.openai, 'local-model'));
+        const encodedRequirement = createApiKeyRequirementKey('custom:1', 'model:latest');
+        expect(parseApiKeyRequirementKey(encodedRequirement)).toEqual(['custom:1', 'model:latest']);
+        expect(parseApiKeyRequirementKey('legacy:key')).toBeNull();
+        expect(parseApiKeyRequirementKey('v2:{bad-json')).toBeNull();
+        expect(parseApiKeyRequirementKey('v2:["only-one"]')).toBeNull();
+        expect(parseApiKeyRequirementKey('v2:[42,"model"]')).toBeNull();
         expect(isApiKeyRequired(services.microsoft, {})).toBe(true);
         expect(getMissingCredentialMessage('unknown-service', {})).toBeNull();
         expect(getMissingCredentialMessage(services.youdao, {

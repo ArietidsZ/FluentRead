@@ -59,6 +59,7 @@
       "tests/inputTranslationContentFeature.test.ts",
       "tests/mainWorldBridgeLifecycle.test.ts",
       "tests/customService.test.ts",
+      "tests/customOpenAI.test.ts",
       "tests/http.test.ts",
       "tests/httpError.test.ts",
       "tests/imageTranslation.test.ts",
