@@ -42,16 +42,99 @@
 }
 
 .fluent-read-retry-wrapper {
-    display: inline-flex;
-    align-items: center;
+    display: inline-flex !important;
+    max-width: 100% !important;
+    margin-inline-start: 0.45em !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 0.38em !important;
+    color: inherit !important;
+    font: inherit !important;
+    line-height: 1.2 !important;
+    vertical-align: middle !important;
+    white-space: normal !important;
+    pointer-events: auto !important;
 }
-.fluent-read-retry, .fluent-read-reason {
-    color: #428ADF;
-    text-decoration: underline;
-    text-underline-offset: 0.2em;
-    margin-left: 0.2em;
-    font-size: 1em;
-    cursor: pointer;
+
+.fluent-read-failure-action {
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    min-height: 1.7em !important;
+    margin: 0 !important;
+    padding: 0.16em 0.46em !important;
+    border: 1px solid rgba(66, 138, 223, 0.28) !important;
+    align-items: center !important;
+    gap: 0.26em !important;
+    border-radius: 999px !important;
+    color: #2f78c9 !important;
+    background: rgba(66, 138, 223, 0.08) !important;
+    box-shadow: none !important;
+    font: inherit !important;
+    font-size: 0.88em !important;
+    font-style: normal !important;
+    font-weight: 600 !important;
+    letter-spacing: normal !important;
+    line-height: 1.2 !important;
+    text-decoration: none !important;
+    text-transform: none !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    user-select: none !important;
+}
+
+.fluent-read-failure-action:hover,
+.fluent-read-failure-action:focus-visible {
+    border-color: rgba(66, 138, 223, 0.48) !important;
+    background: rgba(66, 138, 223, 0.14) !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(66, 138, 223, 0.12) !important;
+}
+
+.fluent-read-reason {
+    border-color: rgba(180, 107, 0, 0.28) !important;
+    color: #9a5b12 !important;
+    background: rgba(245, 158, 11, 0.08) !important;
+}
+
+.fluent-read-reason:hover,
+.fluent-read-reason:focus-visible {
+    border-color: rgba(180, 107, 0, 0.46) !important;
+    background: rgba(245, 158, 11, 0.14) !important;
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.12) !important;
+}
+
+.fluent-read-action-icon {
+    display: inline-flex !important;
+    width: 1em !important;
+    height: 1em !important;
+    flex: 0 0 1em !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: inherit !important;
+    line-height: 1 !important;
+    pointer-events: none !important;
+}
+
+.fluent-read-action-icon > svg {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    pointer-events: none !important;
+}
+
+.fluent-read-action-icon > svg path {
+    fill: currentColor !important;
+}
+
+.fluent-read-action-label {
+    color: inherit !important;
+    font: inherit !important;
+    line-height: inherit !important;
+    pointer-events: none !important;
 }
 
 /* 图片翻译覆盖层：翻译完成后用同尺寸位图层覆盖原图，避免原文字从译文下面透出。 */

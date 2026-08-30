@@ -64,6 +64,27 @@ describe('page error notice', () => {
         expect(notice.classList.contains('is-visible')).toBe(true);
     });
 
+    it('扩展上下文失效时仍显示错误详情，并使用本地品牌占位', async () => {
+        Object.defineProperty(globalThis, 'browser', {
+            value: {
+                runtime: {
+                    getURL: () => {
+                        throw new Error('Extension context invalidated.');
+                    },
+                    sendMessage,
+                },
+            },
+            configurable: true,
+        });
+
+        expect(() => showPageNotice('扩展已更新，请刷新当前页面后重试。', 'error')).not.toThrow();
+        await Promise.resolve();
+
+        const shadow = document.getElementById('fluent-read-page-notice-host')!.shadowRoot!;
+        expect(shadow.querySelector('.notice-detail')?.textContent).toContain('请刷新当前页面');
+        expect(shadow.querySelector('.notice-mark-fallback')?.textContent).toBe('流');
+    });
+
     it('keeps credential guidance interactive inside the isolated notice', async () => {
         showPageNotice('DeepSeek 需要 API Key（访问令牌），当前尚未配置', 'error');
         await Promise.resolve();

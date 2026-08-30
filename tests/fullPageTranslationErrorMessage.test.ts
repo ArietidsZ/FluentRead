@@ -29,6 +29,7 @@ describe('全文翻译错误文案', () => {
     ['timeout', '请求超时啦，请稍后再试一次。'],
     ['timed out', '请求超时啦，请稍后再试一次。'],
     ['请求超时', '请求超时啦，请稍后再试一次。'],
+    ['Extension context invalidated.', '扩展已更新或重新加载，请刷新当前页面后再试。'],
     ['provider unavailable', 'provider unavailable'],
     ['', '出现了未知错误，请前往开源社区联系开发者吧~'],
   ])('归类 %s', (message, expected) => {

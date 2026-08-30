@@ -206,13 +206,17 @@ function notifyFullPageTranslationState(isTranslated: boolean): void {
             ));
         }
     }
-    if (typeof browser === "undefined" || !browser.runtime?.sendMessage) return;
-    void browser.runtime.sendMessage({
-        type: "fullPageTranslationState",
-        isTranslated,
-    }).catch(() => {
-        // 后台可能正在重载；页面内的翻译状态不应因此失败。
-    });
+    try {
+        if (typeof browser === "undefined" || !browser.runtime?.sendMessage) return;
+        void Promise.resolve(browser.runtime.sendMessage({
+            type: "fullPageTranslationState",
+            isTranslated,
+        })).catch(() => {
+            // 后台可能正在重载；页面内的翻译状态不应因此失败。
+        });
+    } catch {
+        // runtime API 在扩展上下文失效时可能同步抛错；页面清理仍须继续。
+    }
 }
 
 function asHTMLElement(node: unknown): HTMLElement | null {
@@ -421,6 +425,7 @@ function discardStaleAttempt(
 
 function markFailedTranslation(
     node: HTMLElement,
+    candidate: TranslationCandidate,
     attempt: NonNullable<ReturnType<typeof beginTranslation>>,
     spinner: HTMLElement | undefined,
     error: unknown,
@@ -441,8 +446,8 @@ function markFailedTranslation(
         error instanceof Error ? error.message : String(error || "翻译失败"),
         () => {
             const retryOwner = owner?.active ? owner : undefined;
-            translateNode(
-                node,
+            void translateTarget(
+                candidate,
                 retryOwner?.translationConfig.displayMode ?? currentTranslationDisplayMode(),
                 false,
                 retryOwner,
@@ -542,7 +547,7 @@ async function renderTranslation(
         setRenderedStyleAttribute(node);
         return {status: "committed"};
     } catch (error) {
-        return markFailedTranslation(node, attempt, spinner, error, owner);
+        return markFailedTranslation(node, candidate, attempt, spinner, error, owner);
     }
 }
 

@@ -1,7 +1,7 @@
 /**
  * @file src/features/page-notice/content/notice.ts
  * 文件职责：在任意宿主页面的隔离 Shadow Root 中显示 FluentRead 成功或错误通知，并把缺少 API 凭据的错误转换为可直接前往设置的提醒。
- * 主要内容：包含凭据文案识别、通知标题与详情生成、宿主抗样式污染、堆栈复用、进入/离场计时和关闭按钮，导出 showPageNotice 与一秒节流的 sendErrorMessage。
+ * 主要内容：包含凭据文案识别、通知标题与详情生成、扩展上下文失效时的本地品牌占位、宿主抗样式污染、堆栈复用、进入/离场计时和关闭按钮，导出 showPageNotice 与一秒节流的 sendErrorMessage。
  * 模块边界：本文件只拥有通知 DOM 和打开设置消息，不记录凭据、不处理翻译重试；外观来自 notice.css，后台 openOptions handler 处理导航，调用方传入的文本一律通过 textContent 展示。
  */
 import {throttle} from '@/src/shared/function/throttle';
@@ -46,6 +46,36 @@ function getNoticeTitle(type: NoticeType, credential: boolean): string {
 function getNoticeDetail(message: string, missingCredential: MissingCredentialNotice | null): string {
     if (!missingCredential) return message;
     return `还差一步：为 ${missingCredential.service} 填写 ${missingCredential.credentialLabel}，就可以开始翻译了。`;
+}
+
+function resolveNoticeIconUrl(): string | null {
+    try {
+        if (typeof browser === 'undefined') return null;
+        const runtime = browser.runtime;
+        if (typeof runtime?.getURL !== 'function') return null;
+        const url = runtime.getURL('/icon/48.png');
+        return typeof url === 'string' && url ? url : null;
+    } catch {
+        // 扩展更新后旧内容脚本仍可能存活；通知必须继续可见，提醒用户刷新页面。
+        return null;
+    }
+}
+
+function createNoticeMark(): HTMLElement {
+    const iconUrl = resolveNoticeIconUrl();
+    if (iconUrl) {
+        const mark = document.createElement('img');
+        mark.className = 'notice-mark';
+        mark.src = iconUrl;
+        mark.alt = '流畅阅读';
+        return mark;
+    }
+
+    const fallback = document.createElement('span');
+    fallback.className = 'notice-mark notice-mark-fallback';
+    fallback.setAttribute('aria-hidden', 'true');
+    fallback.textContent = '流';
+    return fallback;
 }
 
 function applyHostStyles(host: HTMLElement): void {
@@ -142,10 +172,7 @@ export function showPageNotice(message: string, type: NoticeType): HTMLElement {
     notice.setAttribute('role', 'alert');
     notice.setAttribute('aria-atomic', 'true');
 
-    const mark = document.createElement('img');
-    mark.className = 'notice-mark';
-    mark.src = browser.runtime.getURL('/icon/48.png');
-    mark.alt = '流畅阅读';
+    const mark = createNoticeMark();
 
     const copy = document.createElement('span');
     copy.className = 'notice-copy';
@@ -164,9 +191,15 @@ export function showPageNotice(message: string, type: NoticeType): HTMLElement {
         action.type = 'button';
         action.textContent = '去设置';
         action.addEventListener('click', () => {
-            void browser.runtime.sendMessage({type: 'openOptionsPage'}).catch((error: unknown) => {
+            const reportFailure = (error: unknown) => {
                 console.error('[FluentRead] 打开设置页失败', error);
-            });
+            };
+            try {
+                void Promise.resolve(browser.runtime.sendMessage({type: 'openOptionsPage'}))
+                    .catch(reportFailure);
+            } catch (error) {
+                reportFailure(error);
+            }
         });
         body.appendChild(action);
     }

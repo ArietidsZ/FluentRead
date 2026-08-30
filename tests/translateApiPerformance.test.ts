@@ -340,6 +340,16 @@ describe('translation API request lifecycle performance', () => {
     expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
   });
 
+  it('扩展上下文失效时立即失败，不进入无效的传输重试', async () => {
+    mocks.sendMessage.mockRejectedValue(new Error('Extension context invalidated.'));
+
+    await expect(translateText('Readable source', 'Context', {retryDelay: 100}))
+      .rejects.toThrow('Extension context invalidated.');
+
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it('aborts a retry delay without sending another runtime request', async () => {
     mocks.sendMessage.mockRejectedValue(new Error('temporary failure'));
     const controller = new AbortController();

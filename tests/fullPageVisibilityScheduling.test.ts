@@ -1573,6 +1573,38 @@ describe("全文翻译可见性锚点", () => {
         expect(paragraph.textContent).toBe("译:Retry with the latest display mode.");
     });
 
+    it("行内片段首次失败后会从原始候选恢复并完成手动重试", async () => {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<p id="prose">Inline retry source <strong>keeps structure</strong>.</p>';
+        const paragraph = document.querySelector<HTMLElement>("#prose")!;
+        const inlineSource = paragraph.firstChild as Text;
+        runtime.candidates = [{
+            element: paragraph,
+            kind: "content",
+            reason: "generic-inline-run",
+            nodes: [inlineSource],
+        }];
+        runtime.requests.mockRejectedValueOnce(new Error("provider unavailable"));
+
+        handleBilingualTranslation(paragraph, false);
+        await finishScheduledWork();
+
+        const failedSegment = paragraph.querySelector<HTMLElement>('[data-fr-translation-segment="true"]')!;
+        expect(getTranslationState(failedSegment)?.phase).toBe("error");
+        expect(runtime.retryCallbacks).toHaveLength(1);
+
+        runtime.retryCallbacks[0]!();
+        await finishScheduledWork();
+
+        const translatedSegment = paragraph.querySelector<HTMLElement>('[data-fr-translation-segment="true"]')!;
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(failedSegment.isConnected).toBe(false);
+        expect(getTranslationState(translatedSegment)?.phase).toBe("translated");
+        expect(translatedSegment.querySelector(".fluent-read-bilingual-content")?.textContent)
+            .toBe("译:Inline retry source ");
+        expect(paragraph.querySelector("strong")?.textContent).toBe("keeps structure");
+    });
+
     it.each(["translate-no", "hidden"] as const)(
         "全文会话登记启动前 hover 状态的祖先索引，新增 %s 会恢复且 stop 后不再响应",
         async (guard) => {

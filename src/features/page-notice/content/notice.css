@@ -71,6 +71,18 @@
     object-fit: cover;
 }
 
+.notice-mark-fallback {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: linear-gradient(135deg, #ed5d87, #d83263);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .28);
+    font-size: 15px;
+    font-weight: 850;
+    line-height: 1;
+}
+
 .notice-copy {
     display: flex;
     width: 0;
