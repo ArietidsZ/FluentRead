@@ -1,8 +1,8 @@
 <!--
  * @file src/features/vocabulary/ui/VocabularyBook.vue
- * 文件职责：实现设置页本地单词本与主动复习界面，覆盖 Beta 开关、统计、筛选分页、记忆卡、掌握/重学、删除撤销以及 JSON/Anki 迁移。
- * 主要内容：组件通过 runtime 消息读取和修改词条，使用字段级配置补丁保存 Beta 开关，并协调稳定复习队列、页面生命周期、键盘评分、主题、时间刷新、隐私导出确认、大文件导入警告和跨页面变更通知。
- * 模块边界：UI 不直接访问 Dexie 或上传学习数据；数据库操作集中在后台 repository/handler，配置通过 services/config 保存，导出的上下文和来源只有用户明确勾选时才包含。
+ * 文件职责：实现设置页本地单词本与主动复习界面，覆盖 Beta 开关、学习统计、筛选分页、记忆卡、掌握/重学、删除撤销和单词本专属数据操作。
+ * 主要内容：组件通过 runtime 消息读取和修改词条，使用字段级配置补丁保存 Beta 开关，协调稳定复习队列、页面生命周期、键盘评分、主题、时间刷新与跨页面变更通知，并在轻量“更多”菜单中提供隐私安全的 Anki 导出和清空操作。
+ * 模块边界：UI 不直接访问 Dexie 或上传学习数据；完整备份与旧文件导入统一进入备份与恢复页，数据库操作集中在后台 repository/handler，导出的上下文和来源只有用户明确选择时才包含。
  -->
 <template>
   <div id="settings-vocabulary" class="vocabulary-book">
@@ -32,7 +32,8 @@
 
     <section class="privacy-note" aria-label="本地存储说明">
       <span aria-hidden="true">⌂</span>
-      <div><strong>学习数据仅保存在当前浏览器</strong><small>不建账号、不上传复习记录；卸载扩展前请导出备份。无痕窗口不提供持久收藏。</small></div>
+      <div><strong>学习数据仅保存在当前浏览器</strong><small>不建账号、不上传复习记录；无痕窗口不提供持久收藏。</small></div>
+      <button type="button" @click="emit('navigate', 'settings-data')">备份与恢复</button>
     </section>
 
     <div v-if="loadError" class="error-state" role="alert">
@@ -89,7 +90,16 @@
             <span aria-hidden="true">▶</span>
             <span><strong>{{ reviewPlan.length ? `开始复习 ${reviewPlan.length} 个` : '今天没有到期单词' }}</strong><small>先回忆，再用“忘了 / 记得”更新掌握程度</small></span>
           </button>
-          <button type="button" class="refresh-button" :disabled="loading" @click="loadEntries">{{ loading ? '读取中…' : '刷新' }}</button>
+          <div class="secondary-actions">
+            <button type="button" class="refresh-button" :disabled="loading" @click="loadEntries">{{ loading ? '读取中…' : '刷新' }}</button>
+            <details ref="moreMenu" class="book-more">
+              <summary aria-label="更多单词本操作">更多</summary>
+              <div class="book-more-menu">
+                <button type="button" :disabled="actionBusy" @click="exportAnki">导出到 Anki</button>
+                <button type="button" class="danger" :disabled="actionBusy || entries.length === 0" @click="clearVocabulary">清空单词本</button>
+              </div>
+            </details>
+          </div>
         </section>
 
         <section class="toolbar" aria-label="筛选单词">
@@ -112,6 +122,7 @@
         <section v-if="loading && entries.length === 0" class="empty-state"><span class="loading-ring" /><p>正在读取本地单词本…</p></section>
         <section v-else-if="entries.length === 0" class="empty-state">
           <span aria-hidden="true">☆</span><h3>还没有收藏单词</h3><p>开启 Beta 后，在网页中划选一个英文单词，再点击学习卡标题栏的星标。</p>
+          <button type="button" @click="emit('navigate', 'settings-data')">从备份恢复</button>
         </section>
         <section v-else-if="filteredEntries.length === 0" class="empty-state"><span aria-hidden="true">⌕</span><h3>没有匹配的词条</h3><p>试试清空搜索内容或切换掌握状态。</p></section>
 
@@ -145,17 +156,6 @@
           </nav>
         </section>
 
-        <section class="data-panel">
-          <div class="data-heading"><div><span class="eyebrow">学习数据</span><h3>独立备份与迁移</h3><p>不会混入普通配置 JSON，也不会被清除翻译缓存。</p></div></div>
-          <label class="privacy-export"><input v-model="includePrivateContext" type="checkbox" /><span><strong>导出上下文和来源</strong><small>可能包含浏览过的页面标题、文本片段与去参数后的网址，默认不导出。</small></span></label>
-          <div class="data-actions">
-            <button type="button" :disabled="actionBusy || entries.length === 0" @click="exportJson">导出 FluentRead JSON</button>
-            <button type="button" :disabled="actionBusy || entries.length === 0" @click="exportAnki">导出 Anki TSV</button>
-            <button type="button" :disabled="actionBusy" @click="importInput?.click()">合并导入 JSON</button>
-            <button type="button" class="danger" :disabled="actionBusy || entries.length === 0" @click="clearAll">清空单词本</button>
-            <input ref="import-input" class="visually-hidden" type="file" accept="application/json,.json" @change="importJson" />
-          </div>
-        </section>
       </template>
     </template>
 
@@ -166,7 +166,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import {ElMessageBox} from 'element-plus';
 import browser from 'webextension-polyfill';
 import {
   config as runtimeConfig,
@@ -175,8 +176,8 @@ import {
   subscribeConfig,
 } from '@/src/services/config/store';
 import {
-  buildAnkiTsv,
   buildVocabularyCloze,
+  buildAnkiTsv,
   advanceVocabularyReviewSession,
   createVocabularyLifecycleGuard,
   createVocabularyReviewSession,
@@ -198,11 +199,9 @@ import {
   type VocabularyReviewSessionState,
   type VocabularyScheduledReviewRating,
   type VocabularyStatus,
-  vocabularyImportNeedsConfirmation,
 } from '@/src/features/vocabulary/learningModel';
 
 const emit = defineEmits<{ navigate: [section: string] }>();
-const importInput = useTemplateRef<HTMLInputElement>('import-input');
 const betaEnabled = ref(false);
 const selectionTranslatorEnabled = ref(false);
 const targetLanguageKey = ref('');
@@ -214,7 +213,6 @@ const loadError = ref('');
 const query = ref('');
 const statusFilter = ref<'all' | 'due' | VocabularyStatus>('all');
 const sortOrder = ref<'due' | 'recent' | 'term'>('due');
-const includePrivateContext = ref(false);
 const page = ref(1);
 const pageSize = 50;
 const reviewBatchSize = 20;
@@ -226,6 +224,7 @@ const reviewStats = ref({ reviewed: 0, good: 0, again: 0 });
 const toastMessage = ref('');
 // 保持可结构化克隆的快照为原始对象，避免 browser.runtime.sendMessage 收到 Vue Proxy。
 const undoExport = shallowRef<VocabularyBookExport | null>(null);
+const moreMenu = ref<HTMLDetailsElement | null>(null);
 const currentTime = ref(Date.now());
 const lifecycle = createVocabularyLifecycleGuard();
 let toastTimer: number | null = null;
@@ -505,72 +504,104 @@ async function undoRemove(): Promise<void> {
   finally { actionBusy.value = false; }
 }
 
-async function exportJson(): Promise<void> {
+async function chooseAnkiContext(): Promise<boolean | null> {
+  try {
+    await ElMessageBox.confirm(
+      '默认不导出收藏时的网页片段和来源。这些内容可能包含浏览隐私。',
+      '导出到 Anki',
+      {
+        confirmButtonText: '不包含',
+        cancelButtonText: '包含上下文',
+        distinguishCancelAndClose: true,
+        type: 'warning',
+      },
+    );
+    return false;
+  } catch (action) {
+    return action === 'cancel' ? true : null;
+  }
+}
+
+async function exportAnki(): Promise<void> {
+  if (actionBusy.value) return;
+  const includePrivateContext = await chooseAnkiContext();
+  if (includePrivateContext === null) return;
+  await closeMoreMenuAndFocus();
   actionBusy.value = true;
   try {
     const data = await requestVocabulary<VocabularyBookExport>({
       type: VOCABULARY_BOOK_MESSAGE,
       action: 'exportData',
-      options: { includePrivateContext: includePrivateContext.value },
+      options: {includePrivateContext},
     });
-    downloadFile(`fluentread-vocabulary-${dateStamp()}.json`, JSON.stringify(data, null, 2), 'application/json;charset=utf-8');
-    showToast(`已导出 ${data.entries.length} 个词条`);
-  } catch (cause) { showToast(cause instanceof Error ? cause.message : '导出失败'); }
-  finally { actionBusy.value = false; }
-}
-
-function exportAnki(): void {
-  const header = ['Term', 'Meaning', 'Context', 'Source', 'Tags'];
-  const rows = entries.value.map(entry => {
-    const context = includePrivateContext.value ? latestContext(entry) : undefined;
-    return [
-      entry.term,
-      entryTranslation(entry),
-      context?.text || '',
-      context?.sourceUrl || '',
-      `fluentread ${entry.status}`,
-    ];
-  });
-  const body = buildAnkiTsv(header, rows);
-  downloadFile(`fluentread-anki-${dateStamp()}.tsv`, `\uFEFF${body}`, 'text/tab-separated-values;charset=utf-8');
-  showToast(`已导出 ${rows.length} 个 Anki 词条`);
-}
-
-async function importJson(event: Event): Promise<void> {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  input.value = '';
-  if (!file) return;
-  if (vocabularyImportNeedsConfirmation(file.size)) {
-    const sizeMb = Math.ceil(file.size / (1024 * 1024));
-    if (!window.confirm(`这个备份约 ${sizeMb} MB，读取和校验可能需要较长时间。确认继续吗？`)) return;
+    const rows = data.entries.map(entry => {
+      const context = includePrivateContext ? entry.contexts.at(-1) : undefined;
+      return [
+        entry.term,
+        entryTranslation(entry),
+        context?.text || '',
+        context?.sourceUrl || '',
+        `fluentread ${entry.status}`,
+      ];
+    });
+    const body = buildAnkiTsv(['Term', 'Meaning', 'Context', 'Source', 'Tags'], rows);
+    downloadFile(
+      `fluentread-anki-${new Date().toISOString().slice(0, 10)}.tsv`,
+      `\uFEFF${body}`,
+      'text/tab-separated-values;charset=utf-8',
+    );
+    showToast(`已导出 ${rows.length} 个 Anki 词条`);
+  } catch (cause) {
+    showToast(cause instanceof Error ? cause.message : 'Anki 导出失败');
+  } finally {
+    actionBusy.value = false;
   }
-  actionBusy.value = true;
-  try {
-    const data = JSON.parse(await file.text()) as unknown;
-    const count = Array.isArray((data as { entries?: unknown[] })?.entries) ? (data as { entries: unknown[] }).entries.length : 0;
-    if (!window.confirm(`将把文件中的 ${count} 个词条合并到当前单词本，继续吗？`)) return;
-    const result = await requestVocabulary<VocabularyImportResult>({ type: VOCABULARY_BOOK_MESSAGE, action: 'importData', data });
-    await loadEntries();
-    showToast(`导入完成：新增 ${result.inserted}，更新 ${result.updated}，跳过 ${result.skipped}`);
-  } catch (cause) { showToast(cause instanceof Error ? cause.message : 'JSON 文件无效'); }
-  finally { actionBusy.value = false; }
 }
 
-async function clearAll(): Promise<void> {
-  if (!window.confirm('确认清空全部词条和复习记录吗？此操作无法撤销。')) return;
+async function clearVocabulary(): Promise<void> {
+  if (actionBusy.value || entries.value.length === 0) return;
+  try {
+    await ElMessageBox.confirm(
+      '将删除全部单词、上下文和复习记录。设置和模型用量不受影响，此操作无法撤销。',
+      '清空单词本？',
+      {confirmButtonText: '确认清空', cancelButtonText: '取消', type: 'warning'},
+    );
+  } catch {
+    return;
+  }
+  await closeMoreMenuAndFocus();
   actionBusy.value = true;
   try {
-    await requestVocabulary<boolean>({ type: VOCABULARY_BOOK_MESSAGE, action: 'clear' });
+    await requestVocabulary<boolean>({type: VOCABULARY_BOOK_MESSAGE, action: 'clear'});
     entries.value = [];
-    scheduleTimeRefresh();
     finishReview();
+    scheduleTimeRefresh();
     showToast('单词本已清空');
-  } catch (cause) { showToast(cause instanceof Error ? cause.message : '清空失败'); }
-  finally { actionBusy.value = false; }
+  } catch (cause) {
+    showToast(cause instanceof Error ? cause.message : '清空失败');
+  } finally {
+    actionBusy.value = false;
+  }
 }
 
-function entryTranslation(entry: VocabularyEntry): string {
+async function closeMoreMenuAndFocus(): Promise<void> {
+  const details = moreMenu.value;
+  if (!details) return;
+  details.open = false;
+  await nextTick();
+  details.querySelector<HTMLElement>('summary')?.focus();
+}
+
+function downloadFile(name: string, body: string, type: string): void {
+  const url = URL.createObjectURL(new Blob([body], {type}));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = name;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function entryTranslation(entry: Pick<VocabularyEntry, 'translations'>): string {
   const preferred = entry.translations[targetLanguageKey.value];
   if (preferred?.text) return preferred.text;
   return Object.values(entry.translations).sort((left, right) => right.updatedAt - left.updatedAt)[0]?.text || '';
@@ -595,15 +626,6 @@ function normalizeLanguageKey(value: unknown): string {
 }
 function goodIntervalLabel(entry: VocabularyEntry): string {
   return ['1 天后', '1 天后', '3 天后', '7 天后', '14 天后', '30 天后'][Math.min(5, entry.masteryLevel + 1)] || '30 天后';
-}
-function dateStamp(): string { return new Date().toISOString().slice(0, 10); }
-function downloadFile(name: string, body: string, type: string): void {
-  const url = URL.createObjectURL(new Blob([body], { type }));
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = name;
-  anchor.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function showToast(message: string, keepUndo = false): void {
   if (!lifecycle.isActive()) return;
@@ -666,12 +688,12 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .vocabulary-book { position: relative; display: grid; gap: 18px; color: #172033; }
-.beta-panel, .privacy-note, .selection-reminder, .primary-actions, .toolbar, .data-panel, .review-shell { border: 1px solid #e6e8ef; border-radius: 18px; background: #fff; }
+.beta-panel, .privacy-note, .selection-reminder, .primary-actions, .toolbar, .review-shell { border: 1px solid #e6e8ef; border-radius: 18px; background: #fff; }
 .beta-panel { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 17px 18px; background: linear-gradient(135deg, #fff, #fff7f9); }
 .beta-panel.enabled { border-color: rgba(239, 71, 118, .25); }
 .beta-copy { display: flex; min-width: 0; align-items: flex-start; gap: 12px; }
-.beta-copy h3, .data-heading h3 { margin: 0; font-size: 15px; }
-.beta-copy p, .data-heading p { margin: 5px 0 0; color: #737c8f; font-size: 11px; line-height: 1.55; }
+.beta-copy h3 { margin: 0; font-size: 15px; }
+.beta-copy p { margin: 5px 0 0; color: #737c8f; font-size: 11px; line-height: 1.55; }
 .beta-mark { flex: none; padding: 4px 7px; border-radius: 7px; color: #d72f61; background: #ffe8ef; font-size: 9px; font-weight: 800; letter-spacing: .06em; }
 .beta-switch { position: relative; flex: none; width: 48px; height: 28px; padding: 3px; border: 0; border-radius: 999px; background: #cfd3dc; cursor: pointer; }
 .beta-switch i { display: block; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,.16); transition: transform 180ms ease; }
@@ -684,6 +706,7 @@ onBeforeUnmount(() => {
 .privacy-note div { display: flex; flex-direction: column; }
 .privacy-note strong { font-size: 11px; }
 .privacy-note small { margin-top: 3px; color: #628078; font-size: 9.5px; line-height: 1.45; }
+.privacy-note button { margin-left: auto; padding: 0; border: 0; color: #267260; background: transparent; cursor: pointer; font-size: 9.5px; font-weight: 800; }
 .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .summary-grid article { display: flex; min-height: 105px; padding: 14px; border: 1px solid #e8eaf0; border-radius: 16px; background: #fbfcfe; flex-direction: column; }
 .summary-grid span { color: #737c8f; font-size: 10px; font-weight: 700; }
@@ -696,7 +719,16 @@ onBeforeUnmount(() => {
 .start-review > span:last-child { display: flex; flex-direction: column; }
 .start-review strong { font-size: 12px; }
 .start-review small { margin-top: 3px; font-size: 9px; opacity: .85; }
+.secondary-actions { display: flex; align-items: stretch; gap: 8px; }
 .refresh-button { min-width: 74px; border: 1px solid #e1e4ec; border-radius: 13px; color: #dc315f; background: #fff; cursor: pointer; font-size: 10px; font-weight: 750; }
+.book-more { position: relative; }
+.book-more summary { display: grid; min-width: 68px; height: 100%; place-items: center; border: 1px solid #e1e4ec; border-radius: 13px; color: #4a5261; background: #fff; cursor: pointer; font-size: 10px; font-weight: 750; list-style: none; }
+.book-more summary::-webkit-details-marker { display: none; }
+.book-more[open] summary { border-color: #ef9ab1; color: #dc315f; }
+.book-more-menu { position: absolute; z-index: 5; top: calc(100% + 7px); right: 0; display: grid; min-width: 150px; padding: 6px; border: 1px solid #e1e4ec; border-radius: 12px; background: #fff; box-shadow: 0 12px 30px rgba(31, 40, 61, .14); }
+.book-more-menu button { min-height: 34px; padding: 0 9px; border: 0; border-radius: 8px; color: #4a5261; background: transparent; cursor: pointer; font-size: 9.5px; font-weight: 700; text-align: left; }
+.book-more-menu button:hover { color: #dc315f; background: #fff3f7; }
+.book-more-menu button.danger { color: #c53d4f; }
 .toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) 150px 150px; gap: 10px; padding: 10px; background: #f8f9fc; }
 .search-field { display: flex; height: 42px; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid #e1e4ec; border-radius: 12px; background: #fff; }
 .search-field span { color: #8b93a2; font-size: 17px; }
@@ -720,27 +752,19 @@ onBeforeUnmount(() => {
 .status-familiar { color: #2a68a1; background: #e8f3ff; }
 .status-mastered { color: #17765a; background: #e3f7ef; }
 .row-actions { display: flex; gap: 6px; margin-top: auto; padding-top: 14px; }
-.row-actions button, .data-actions button, .pagination button { min-height: 30px; padding: 0 9px; border: 1px solid #e1e4ec; border-radius: 9px; color: #4a5261; background: #fff; cursor: pointer; font-size: 9px; font-weight: 700; }
-.row-actions button:hover, .data-actions button:hover, .pagination button:hover { border-color: #ef9ab1; color: #dc315f; }
+.row-actions button, .pagination button { min-height: 30px; padding: 0 9px; border: 1px solid #e1e4ec; border-radius: 9px; color: #4a5261; background: #fff; cursor: pointer; font-size: 9px; font-weight: 700; }
+.row-actions button:hover, .pagination button:hover { border-color: #ef9ab1; color: #dc315f; }
 button.danger { color: #c53d4f; }
 button:disabled { cursor: not-allowed; opacity: .55; }
 .pagination { display: flex; align-items: center; justify-content: center; gap: 12px; padding-top: 7px; }
 .pagination span { color: #737c8f; font-size: 9px; }
-.data-panel { padding: 16px; background: #f9fafc; }
-.data-heading { display: flex; align-items: flex-start; justify-content: space-between; }
 .eyebrow { display: block; margin-bottom: 5px; color: #dc315f; font-size: 9px; font-weight: 800; letter-spacing: .1em; }
-.privacy-export { display: flex; gap: 9px; margin-top: 14px; padding: 11px; border: 1px solid #e5e8ef; border-radius: 12px; background: #fff; }
-.privacy-export input { margin-top: 2px; accent-color: #ef4776; }
-.privacy-export span { display: flex; flex-direction: column; }
-.privacy-export strong { font-size: 10px; }
-.privacy-export small { margin-top: 3px; color: #737c8f; font-size: 9px; line-height: 1.4; }
-.data-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-.data-actions button { min-height: 34px; padding: 0 11px; background: #fff; }
 .empty-state { display: grid; min-height: 210px; place-items: center; align-content: center; gap: 7px; padding: 30px; border: 1px dashed #dfe3eb; border-radius: 18px; color: #9aa1af; background: #fbfcfe; text-align: center; }
 .empty-state > span { font-size: 28px; }
 .empty-state h3, .empty-state p { margin: 0; }
 .empty-state h3 { color: #4d5563; font-size: 14px; }
 .empty-state p { max-width: 420px; font-size: 10px; line-height: 1.55; }
+.empty-state button { min-height: 32px; margin-top: 3px; padding: 0 11px; border: 1px solid #ef9ab1; border-radius: 9px; color: #dc315f; background: #fff; cursor: pointer; font-size: 9px; font-weight: 750; }
 .loading-ring { width: 24px; height: 24px; border: 2px solid #f6cada; border-top-color: #ef4776; border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .error-state { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 14px; border: 1px solid #f2c7ce; border-radius: 14px; color: #a73045; background: #fff3f5; font-size: 11px; }
@@ -780,23 +804,21 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .review-complete button { min-height: 38px; margin-top: 10px; padding: 0 15px; border: 0; border-radius: 11px; color: #fff; background: #ef4776; cursor: pointer; font-size: 10px; font-weight: 750; }
 .book-toast { position: fixed; z-index: 30; right: 28px; bottom: 24px; display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 11px; color: #fff; background: #252a33; box-shadow: 0 12px 30px rgba(0,0,0,.2); font-size: 10px; }
 .book-toast button { padding: 0; border: 0; color: #ffb8ce; background: transparent; cursor: pointer; font: inherit; font-weight: 800; }
-.visually-hidden { position: fixed; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-
 :global(:root.dark .vocabulary-book) { color: #f4f5f8; }
 :global(:root.dark .beta-panel), :global(:root.dark .privacy-note), :global(:root.dark .selection-reminder),
-:global(:root.dark .primary-actions), :global(:root.dark .toolbar), :global(:root.dark .data-panel),
+:global(:root.dark .primary-actions), :global(:root.dark .toolbar),
 :global(:root.dark .review-shell), :global(:root.dark .word-row), :global(:root.dark .review-card),
-:global(:root.dark .privacy-export) { border-color: #343844; background: #20232a; }
+:global(:root.dark .empty-state button) { border-color: #343844; background: #20232a; }
 :global(:root.dark .beta-panel), :global(:root.dark .review-shell) { background: linear-gradient(135deg, #20232a, #2a2227); }
 :global(:root.dark .summary-grid article), :global(:root.dark .empty-state) { border-color: #343844; background: #252830; }
 :global(:root.dark .summary-grid strong), :global(:root.dark .word-heading h3),
 :global(:root.dark .review-prompt h3), :global(:root.dark .answer-heading h3),
 :global(:root.dark .empty-state h3), :global(:root.dark .search-field input),
 :global(:root.dark .toolbar select) { color: #f4f5f8; }
-:global(:root.dark .beta-copy p), :global(:root.dark .data-heading p),
+:global(:root.dark .beta-copy p),
 :global(:root.dark .summary-grid span), :global(:root.dark .summary-grid small),
 :global(:root.dark .context-preview), :global(:root.dark .word-meta),
-:global(:root.dark .word-progress > small), :global(:root.dark .privacy-export small),
+:global(:root.dark .word-progress > small),
 :global(:root.dark .review-header button), :global(:root.dark .review-prompt small),
 :global(:root.dark .review-actions button > span), :global(:root.dark .review-actions small),
 :global(:root.dark .review-complete p) { color: #b8bec9; }
@@ -804,7 +826,10 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 :global(:root.dark .review-answer > a) { color: #ff9abb; }
 :global(:root.dark .search-field), :global(:root.dark .toolbar select),
 :global(:root.dark .refresh-button), :global(:root.dark .row-actions button),
-:global(:root.dark .data-actions button), :global(:root.dark .pagination button) { border-color: #3b3f4a; color: #d9dce3; background: #292c34; }
+:global(:root.dark .pagination button), :global(:root.dark .book-more summary),
+:global(:root.dark .book-more-menu) { border-color: #3b3f4a; color: #d9dce3; background: #292c34; }
+:global(:root.dark .book-more-menu button) { color: #d9dce3; }
+:global(:root.dark .book-more-menu button:hover) { color: #ff9abb; background: #352831; }
 :global(:root.dark .review-actions button) { border-color: #3b3f4a; color: #e8eaf0; background: #292c34; }
 :global(:root.dark .word-main > p), :global(:root.dark .cloze-context) { color: #e5e7eb; }
 :global(:root.dark .answer-context) { color: #c1c6d0; background: #292c34; }
@@ -828,10 +853,11 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   .toolbar { grid-template-columns: 1fr; }
   .search-field { grid-column: auto; }
   .primary-actions { flex-direction: column; }
-  .refresh-button { min-height: 38px; }
+  .secondary-actions { min-height: 38px; }
+  .refresh-button, .book-more { flex: 1; }
+  .book-more-menu { right: 0; left: 0; }
   .review-card { padding: 18px 13px; }
   .review-actions { grid-template-columns: 1fr; }
-  .data-actions { display: grid; grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { .beta-switch i, .loading-ring { transition: none; animation: none; } }
 </style>

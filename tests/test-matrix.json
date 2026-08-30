@@ -39,6 +39,8 @@
       "tests/configAutoBackupDomain.test.ts",
       "tests/configCount.test.ts",
       "tests/configDiff.test.ts",
+      "tests/credentialPreview.test.ts",
+      "tests/dataBackup.test.ts",
       "tests/configEncryption.test.ts",
       "tests/configHistoryDomain.test.ts",
       "tests/configTransfer.test.ts",

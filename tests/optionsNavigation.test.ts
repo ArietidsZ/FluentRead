@@ -49,7 +49,7 @@ describe('options navigation view-model', () => {
       '模型用量',
       '单词本',
       '高级选项',
-      '配置管理',
+      '备份与恢复',
       '关于流畅阅读',
     ])
     expect(resolveNavigationItem('settings-translation')).toMatchObject({
@@ -95,6 +95,9 @@ describe('options navigation view-model', () => {
     expect(filterNavigationItems('Token')).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'settings-model-usage' }),
     ]))
+    expect(filterNavigationItems('备份与恢复')).toEqual([
+      expect.objectContaining({ id: 'settings-data' }),
+    ])
     expect(filterNavigationItems('')).toEqual([])
     expect(filterNavigationItems('不存在的设置项')).toEqual([])
   })

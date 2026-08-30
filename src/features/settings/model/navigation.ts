@@ -88,7 +88,7 @@ export const navigationGroups: NavigationGroup[] = [
       {
         id: 'settings-vocabulary', icon: '★', label: '单词本', description: '收藏与复习', group: '工具与学习',
         heading: '把阅读中遇到的词真正学会', summary: '收藏划词卡中的英文单词，用轻量复习跟踪从新词到掌握的过程。',
-        kicker: '本地学习 Beta', title: '单词本', detail: '词条、上下文与复习记录只保存在当前浏览器中，可独立导出和迁移。',
+        kicker: '本地学习 Beta', title: '单词本', detail: '词条、上下文与复习记录只保存在当前浏览器；可在这里复习或导出到 Anki。',
         searchDescription: '单词本、收藏、复习、掌握程度、学习记录、Anki、导入导出',
       },
     ],
@@ -103,10 +103,10 @@ export const navigationGroups: NavigationGroup[] = [
         searchDescription: '缓存、动画、并发、性能、资源占用',
       },
       {
-        id: 'settings-data', icon: '⇅', label: '配置管理', description: '导入与导出', group: '系统与数据',
-        heading: '备份与迁移配置', summary: '导出当前设置，或从已有配置恢复你的使用习惯。',
-        kicker: '系统与数据', title: '配置管理', detail: '查看最近修改与定时备份，并安全导入或导出配置。',
-        searchDescription: '最近修改、定时备份、六小时、恢复、差异、迁移、导出与导入 JSON 配置',
+        id: 'settings-data', icon: '⇅', label: '备份与恢复', description: '导出备份、恢复数据', group: '系统与数据',
+        heading: '备份与恢复 FluentRead', summary: '一次备份设置、单词本和模型用量，也可找回之前的设置。',
+        kicker: '系统与数据', title: '备份与恢复', detail: '导出或恢复设置、单词本和模型用量，并查看自动保存的设置历史。',
+        searchDescription: '备份、恢复、最近修改、自动设置快照、六小时、差异、迁移、单词本、模型用量、导出与导入',
       },
       {
         id: 'settings-about', icon: 'i', label: '关于流畅阅读', description: '版本与项目', group: '系统与数据',

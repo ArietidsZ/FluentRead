@@ -18,6 +18,19 @@ describe('VocabularyBook component lifecycle wiring', () => {
     expect(source).not.toContain("emit('navigate', 'settings-shortcuts')");
   });
 
+  it('keeps learning and domain actions in the wordbook while routing full restore to one page', () => {
+    expect(source).toContain("emit('navigate', 'settings-data')");
+    expect(source).toContain('>备份与恢复</button>');
+    expect(source).toContain('>从备份恢复</button>');
+    expect(source).toContain('>导出到 Anki</button>');
+    expect(source).toContain('>清空单词本</button>');
+    expect(source).toContain("confirmButtonText: '不包含'");
+    expect(source).not.toContain('独立备份与迁移');
+    expect(source).not.toContain('分别管理');
+    expect(source).not.toContain('class="data-panel"');
+    expect(source).not.toContain('导出 FluentRead JSON');
+  });
+
   it('registers async listeners and initial load only after configReady is still active', () => {
     const mountedBlock = extractBlock('onMounted(async () => {', 'onBeforeUnmount(() => {');
     const guardedInitialization = extractBlock(
