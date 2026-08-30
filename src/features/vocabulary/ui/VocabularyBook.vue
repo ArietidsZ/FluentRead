@@ -1,7 +1,7 @@
 <!--
  * @file src/features/vocabulary/ui/VocabularyBook.vue
  * 文件职责：实现设置页本地单词本与主动复习界面，覆盖 Beta 开关、统计、筛选分页、记忆卡、掌握/重学、删除撤销以及 JSON/Anki 迁移。
- * 主要内容：组件通过 runtime 消息读取和修改词条，使用学习模型协调稳定复习队列与页面生命周期，处理键盘评分、主题、时间刷新、隐私导出确认、大文件导入警告和跨页面变更通知。
+ * 主要内容：组件通过 runtime 消息读取和修改词条，使用字段级配置补丁保存 Beta 开关，并协调稳定复习队列、页面生命周期、键盘评分、主题、时间刷新、隐私导出确认、大文件导入警告和跨页面变更通知。
  * 模块边界：UI 不直接访问 Dexie 或上传学习数据；数据库操作集中在后台 repository/handler，配置通过 services/config 保存，导出的上下文和来源只有用户明确勾选时才包含。
  -->
 <template>
@@ -171,7 +171,7 @@ import browser from 'webextension-polyfill';
 import {
   config as runtimeConfig,
   configReady,
-  requestConfigSave,
+  requestConfigPatch,
   subscribeConfig,
 } from '@/src/services/config/store';
 import {
@@ -364,16 +364,13 @@ async function runLoadEntriesLoop(): Promise<void> {
 
 async function setBetaEnabled(enabled: boolean): Promise<void> {
   if (configBusy.value) return;
-  const previous = runtimeConfig.vocabularyBookEnabled;
   configBusy.value = true;
-  runtimeConfig.vocabularyBookEnabled = enabled;
   betaEnabled.value = enabled;
   try {
-    await requestConfigSave(runtimeConfig, browser.runtime.sendMessage.bind(browser.runtime));
+    await requestConfigPatch({vocabularyBookEnabled: enabled}, browser.runtime.sendMessage.bind(browser.runtime));
     showToast(enabled ? '单词本 Beta 已开启' : '收藏入口已关闭，学习数据仍保留');
   } catch (cause) {
-    runtimeConfig.vocabularyBookEnabled = previous;
-    betaEnabled.value = previous;
+    betaEnabled.value = runtimeConfig.vocabularyBookEnabled === true;
     showToast(cause instanceof Error ? cause.message : '设置保存失败');
   } finally {
     configBusy.value = false;

@@ -610,6 +610,7 @@ import ConfigManagement from './ConfigManagement.vue';
 import {
   config as runtimeConfig,
   configReady,
+  requestConfigPatch,
   requestConfigSave,
   subscribeConfig,
 } from '@/src/services/config/store';
@@ -638,7 +639,9 @@ function updateTheme(theme: string) {
 }
 // 配置信息
 const config = ref(new Config());
-const persistConfig = (value: unknown) => requestConfigSave(value, browser.runtime.sendMessage.bind(browser.runtime));
+const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
+const persistConfigPatch = (value: unknown) => requestConfigPatch(value, sendConfigMessage);
+const persistConfigReplace = (value: unknown) => requestConfigSave(value, sendConfigMessage);
 let lastSerialized = '';
 let hydrated = false;
 let applyingExternalConfig = false;
@@ -668,19 +671,20 @@ watch(() => JSON.stringify(config.value), (serialized) => {
   if (serialized === lastSerialized) return;
   lastSerialized = serialized;
   const snapshot = normalizeConfig(config.value);
-  void persistConfig(snapshot).catch((error) => {
+  void persistConfigPatch(snapshot).catch((error) => {
     // 失败时释放去重标记，下一次修改或 pagehide 仍能提交最新快照。
     if (lastSerialized === serialized) lastSerialized = '';
     console.warn('[FluentRead] 保存设置失败', error);
   });
 }, { flush: 'sync' });
 
-// 设置页关闭前提交最新快照，避免 Firefox 销毁页面时丢失最后一次修改。
+// 设置页关闭前 best-effort 补交最终快照；页面仍可能在消息真正发送前销毁。
 // pagehide 和 unmounted 可能连续触发，只提交一次，避免重复写入和重复历史。
+// revision 边界会拒绝过期 replace，普通交互则始终使用字段 patch。
 function persistOnPageExit() {
   if (!hydrated || pageExitSaveStarted) return;
   pageExitSaveStarted = true;
-  void persistConfig(config.value).catch((error) => console.warn('[FluentRead] 设置页关闭前后台保存失败', error));
+  void persistConfigReplace(config.value).catch((error) => console.warn('[FluentRead] 设置页关闭前后台保存失败', error));
 }
 
 onUnmounted(() => {

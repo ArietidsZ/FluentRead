@@ -1,11 +1,11 @@
 /**
  * @file src/features/floating-ball/content/runtime.ts
  * 文件职责：协调悬浮球组件在网页中的创建、恢复位置、显隐、权威翻译状态同步和卸载，并向组件注入全文翻译切换与打开设置页的动作。
- * 主要内容：维护单例 Shadow UI、迟到挂载 requestId、全文会话订阅与 position-change 消息，提供 mountFloatingBall、toggleFloatingBallTranslation、unmountFloatingBall 三个生命周期入口。
+ * 主要内容：维护单例 Shadow UI、迟到挂载 requestId、全文会话订阅与 position-change 字段补丁，提供 mountFloatingBall、toggleFloatingBallTranslation、unmountFloatingBall 三个生命周期入口。
  * 模块边界：运行时只拥有挂载和桥接职责，不实现拖拽视觉或全文翻译算法；FloatingBall.vue 负责交互，full-page feature 提供翻译动作，配置持久化通过 services/config 完成。
  */
 import FloatingBall from '@/src/features/floating-ball/ui/FloatingBall.vue';
-import {config, requestConfigSave} from '@/src/services/config/store';
+import {config, requestConfigPatch} from '@/src/services/config/store';
 import browser from 'webextension-polyfill';
 import {
   autoTranslateEnglishPage,
@@ -61,12 +61,9 @@ export function mountFloatingBall(ctx?: ContentScriptContext) {
       },
       // 添加位置变化事件监听
       onPositionChanged: (newPosition: 'left' | 'right') => {
-        // 保存位置到配置
-        config.floatingBallPosition = newPosition;
-
-        // 保存配置到存储
-        void requestConfigSave(
-          config,
+        // 只提交位置字段；配置服务会立即乐观同步，并在后台基于最新快照合并。
+        void requestConfigPatch(
+          {floatingBallPosition: newPosition},
           browser.runtime.sendMessage.bind(browser.runtime),
         ).catch((error: unknown) => console.error('Failed to save config:', error));
       },

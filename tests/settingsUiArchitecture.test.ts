@@ -138,6 +138,7 @@ describe('options UI composition architecture', () => {
     expect(popup).toContain('@/src/ui/components/CustomHotkeyInput.vue')
     expect(popup).toContain('@/src/ui/components/ServiceIcon.vue')
     expect(popup).toContain('@/src/platform/browser/ids')
+    expect(popup).toContain('requestConfigPatch')
     expect(popup).toContain('requestConfigSave')
     expect(popup).not.toMatch(/\bsaveConfig\b/u)
     expect(popup).not.toMatch(/(?:!tab\?\.id|filter\(tab\s*=>\s*tab\.id\))/u)
@@ -155,12 +156,65 @@ describe('options UI composition architecture', () => {
     expect(settings).toContain('selectedVideoServiceUnavailableMessage')
     expect(settings).toContain('Chrome内置AI翻译（当前浏览器不可用）')
     expect(document).toContain('filterAvailableTranslationServices(options.services)')
-    expect(document).toContain('requestConfigSave')
+    expect(document).toContain('requestConfigPatch')
+    expect(document).toContain('subscribeConfig')
     expect(document).not.toMatch(/\bsaveConfig\b/u)
     expect(document).toContain('documentServiceUnavailableMessage')
     expect(translationCenter).toContain('filterAvailableTranslationServices(options.services)')
     expect(translationCenter).toContain('原配置会保留')
     expect(translationCenter).toContain('if (!isTranslationServiceAvailable(service)) return [service]')
+  })
+
+  it('persists document and translation-center edits as precise field patches', () => {
+    const document = source('src/app/document-translation/DocumentApp.vue')
+    const translationCenter = source('src/features/translation-center/ui/TranslationCenter.vue')
+
+    expect(document).toContain('const patch: DocumentConfigPatch = {}')
+    expect(document).toContain('if (value.from !== previous.from) patch.from = value.from')
+    expect(document).toContain('if (value.documentService !== previous.documentService)')
+    expect(document).toContain('mergeChangedDocumentModelMapping(')
+    expect(document).toContain('runtimeConfig.documentModel')
+    expect(document).toContain('runtimeConfig.documentCustomModel')
+    expect(document).not.toContain('documentModel: value.documentModel')
+    expect(document).not.toContain('documentCustomModel: value.documentCustomModel')
+
+    expect(translationCenter).toContain("persistTranslationCenterConfig('source')")
+    expect(translationCenter).toContain("persistTranslationCenterConfig('target')")
+    expect(translationCenter).toContain("persistTranslationCenterConfig('services')")
+    expect(translationCenter).toContain("persistTranslationCenterConfig('source', 'target')")
+    expect(translationCenter).toContain('const requestedFields = new Set(fields)')
+    expect(translationCenter).toContain('if (Object.keys(patch).length === 0) return')
+  })
+
+  it('uses patches for ordinary autosaves while retaining a best-effort page-exit snapshot', () => {
+    const popup = source('src/app/popup/PopupApp.vue')
+    const settings = source('src/features/settings/ui/SettingsSections.vue')
+
+    for (const content of [popup, settings]) {
+      expect(content).toContain('requestConfigPatch')
+      expect(content).toContain('requestConfigSave')
+      expect(content).toContain('persistConfigPatch(snapshot)')
+      expect(content).toContain('persistConfigReplace(config.value)')
+      expect(content).toContain('best-effort')
+      expect(content).toContain('revision 边界会拒绝过期 replace')
+      expect(content).not.toContain('replace 作为队列 flush/barrier')
+    }
+  })
+
+  it('persists the latest service configuration before testing its connection', () => {
+    const serviceConfiguration = source('src/features/settings/ui/services/ServiceConfiguration.vue')
+    const testConnectionStart = serviceConfiguration.indexOf('async function testConnection(): Promise<void>')
+    const testConnectionEnd = serviceConfiguration.indexOf('function resetCustomTemplate(): void', testConnectionStart)
+    const testConnection = serviceConfiguration.slice(testConnectionStart, testConnectionEnd)
+    const waitIndex = testConnection.indexOf('await waitForConfigPersistenceQueue()')
+    const saveIndex = testConnection.indexOf('await requestConfigSave(config.value')
+    const connectionTestIndex = testConnection.indexOf('type: CONNECTION_TEST_MESSAGE')
+
+    expect(testConnectionStart).toBeGreaterThanOrEqual(0)
+    expect(testConnectionEnd).toBeGreaterThan(testConnectionStart)
+    expect(waitIndex).toBeGreaterThanOrEqual(0)
+    expect(saveIndex).toBeGreaterThan(waitIndex)
+    expect(connectionTestIndex).toBeGreaterThan(saveIndex)
   })
 
   it('puts service selection, webpage assistance and translated-text display in General', () => {

@@ -555,6 +555,7 @@ import browser from 'webextension-polyfill';
 import {
   config as runtimeConfig,
   configReady,
+  requestConfigPatch,
   requestConfigSave,
   subscribeConfig,
 } from '@/src/services/config/store';
@@ -618,7 +619,9 @@ const drawerSettingsSection: Record<DrawerName, SettingsSection> = {
   image: 'settings-image-translation',
   video: 'settings-video',
 };
-const persistConfig = (value: unknown) => requestConfigSave(value, browser.runtime.sendMessage.bind(browser.runtime));
+const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
+const persistConfigPatch = (value: unknown) => requestConfigPatch(value, sendConfigMessage);
+const persistConfigReplace = (value: unknown) => requestConfigSave(value, sendConfigMessage);
 
 const allServiceOptions = computed(() => options.services.filter((item: any) => !item.disabled));
 const serviceOptions = computed(() => filterAvailableTranslationServices(allServiceOptions.value));
@@ -759,7 +762,7 @@ watch(() => JSON.stringify(config.value), async serialized => {
   lastSerialized = serialized;
   const snapshot = normalizeConfig(config.value);
   try {
-    await persistConfig(snapshot);
+    await persistConfigPatch(snapshot);
   } catch (error) {
     // 保存失败后允许下一次交互重试，不能让去重标记永久吞掉同一快照。
     if (lastSerialized === serialized) lastSerialized = '';
@@ -833,11 +836,13 @@ function saveOnPageHide() {
 }
 window.addEventListener('pagehide', saveOnPageHide);
 
-// Firefox 可能同时触发 pagehide 和 unmounted；只提交一次最新快照。
+// Firefox 可能同时触发 pagehide 和 unmounted；只补交一次最终快照。
+// 这是一层 best-effort 兜底而非持久化 barrier；revision 边界会拒绝过期 replace，
+// 普通交互则始终使用字段 patch。
 function persistOnPageExit() {
   if (!hydrated.value || pageExitSaveStarted) return;
   pageExitSaveStarted = true;
-  void persistConfig(config.value).catch((error) => console.warn('[FluentRead] popup 关闭前后台保存设置失败', error));
+  void persistConfigReplace(config.value).catch((error) => console.warn('[FluentRead] popup 关闭前后台保存设置失败', error));
 }
 
 function showNotice(message: string, type: 'success' | 'error' = 'success') {
