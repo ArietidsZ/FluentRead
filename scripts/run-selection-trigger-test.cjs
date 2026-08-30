@@ -307,6 +307,23 @@ async function resetFixture(page) {
   await page.waitForTimeout(200);
 }
 
+async function resetTripleClickFixture(page, buttonVisible = false) {
+  await page.evaluate(({ targetText, visible }) => {
+    document.querySelector('#selection-test-fixture')?.remove();
+    const buttonDisplay = visible ? 'inline-block' : 'none';
+    document.body.insertAdjacentHTML('beforeend', `
+      <main id="selection-test-fixture" style="padding: 80px; font: 24px/1.7 Arial, sans-serif;">
+        <article id="selection-triple-click-review" style="max-width: 900px;">
+          <p id="target" style="margin: 0;">${targetText}</p>
+          <button id="selection-triple-click-more" type="button" style="display: ${buttonDisplay};">more</button>
+          <div id="selection-triple-click-footer"><span>1 reply</span></div>
+        </article>
+        <p id="neighbor">This neighboring paragraph must remain untouched.</p>
+      </main>`);
+  }, { targetText: TARGET_TEXT, visible: buttonVisible });
+  await page.waitForTimeout(200);
+}
+
 async function selectTarget(page, dispatchPointerUpAfterFallback = false) {
   await activateInputPage(page);
   const target = page.locator('#target');
@@ -347,6 +364,104 @@ async function selectTarget(page, dispatchPointerUpAfterFallback = false) {
   }
   assert(selectedText.length > 0, '划词测试没有产生选区');
   return { text: selectedText, method };
+}
+
+async function tripleClickTarget(page) {
+  await activateInputPage(page);
+  await page.keyboard.press('Escape');
+  const target = page.locator('#target');
+  const box = await target.boundingBox();
+  assert(box, '三击测试的目标段落没有可用几何位置');
+  await page.evaluate(() => {
+    const targetElement = document.querySelector('#target');
+    if (!targetElement) throw new Error('三击测试找不到目标段落');
+    globalThis.__fluentReadTripleClickMouseDownSequence = [];
+    targetElement.addEventListener('mousedown', (event) => {
+      globalThis.__fluentReadTripleClickMouseDownSequence.push({
+        isTrusted: event.isTrusted,
+        detail: event.detail,
+        button: event.button,
+      });
+    }, { capture: true });
+  });
+  await page.mouse.click(
+    box.x + Math.min(80, Math.max(8, box.width / 2)),
+    box.y + box.height / 2,
+    { button: 'left', clickCount: 3, delay: 80 },
+  );
+  await page.waitForTimeout(500);
+  return page.evaluate(() => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) throw new Error('原生三击没有产生选区 Range');
+    const range = selection.getRangeAt(0);
+    const fragment = range.cloneContents();
+    const sourceButton = document.querySelector('#selection-triple-click-more');
+    const fragmentButton = fragment.querySelector('#selection-triple-click-more');
+    const rangeRects = Array.from(range.getClientRects(), rect => ({
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      width: rect.width,
+      height: rect.height,
+    }));
+    const buttonRects = sourceButton
+      ? Array.from(sourceButton.getClientRects(), rect => ({
+          left: rect.left,
+          top: rect.top,
+          right: rect.right,
+          bottom: rect.bottom,
+          width: rect.width,
+          height: rect.height,
+        }))
+      : [];
+    const rectsOverlap = (first, second) => first.right > second.left
+      && first.left < second.right
+      && first.bottom > second.top
+      && first.top < second.bottom;
+    const describeBoundary = (node, offset) => ({
+      nodeName: node.nodeName,
+      tagName: node.nodeType === Node.ELEMENT_NODE ? node.tagName : node.parentElement?.tagName || '',
+      id: node.nodeType === Node.ELEMENT_NODE ? node.id : node.parentElement?.id || '',
+      offset,
+    });
+    let intersectsButton = false;
+    if (sourceButton) {
+      try { intersectsButton = range.intersectsNode(sourceButton); } catch { /* 断开节点不应阻塞诊断。 */ }
+    }
+    const buttonStyle = sourceButton ? getComputedStyle(sourceButton) : null;
+    const selectedText = selection.toString();
+    const mouseDownSequence = globalThis.__fluentReadTripleClickMouseDownSequence || [];
+    return {
+      mouseDown: mouseDownSequence.at(-1) || null,
+      mouseDownSequence,
+      text: selectedText.trim(),
+      rawText: selectedText,
+      rangeCount: selection.rangeCount,
+      isCollapsed: selection.isCollapsed,
+      start: describeBoundary(range.startContainer, range.startOffset),
+      end: describeBoundary(range.endContainer, range.endOffset),
+      rangeRects,
+      fragment: {
+        text: fragment.textContent || '',
+        button: fragmentButton ? {
+          tagName: fragmentButton.tagName,
+          text: fragmentButton.textContent || '',
+        } : null,
+        footer: Boolean(fragment.querySelector('#selection-triple-click-footer')),
+      },
+      sourceButton: sourceButton ? {
+        text: sourceButton.textContent || '',
+        display: buttonStyle?.display || '',
+        visibility: buttonStyle?.visibility || '',
+        opacity: buttonStyle?.opacity || '',
+        rects: buttonRects,
+        intersectsRange: intersectsButton,
+        overlapsSelectionRects: buttonRects.some(buttonRect => rangeRects.some(rangeRect => rectsOverlap(buttonRect, rangeRect))),
+      } : null,
+      selectedTextIncludesButtonText: Boolean(sourceButton?.textContent && selectedText.includes(sourceButton.textContent)),
+    };
+  });
 }
 
 async function selectTextWithDomRange(page, selector, maxLength = 72) {
@@ -915,6 +1030,100 @@ async function main() {
     await closeSelectionUi(page);
     await patchStoredConfig(popup, { to: 'zh-Hans' });
     await page.waitForTimeout(700);
+    await setSelectionDelay(popup, drawer, popup, 300);
+
+    // 原生三击：普通段落和 JetBrains 评论形状都应显示入口。
+    // JetBrains 形状的 Range 会夹带一个 display:none 的 button，但可见选区只有正文。
+    await closeSelectionUi(page);
+    await setSelectionDelay(popup, drawer, popup, 0);
+    const tripleClickPopupState = await setSelectionTrigger(popup, drawer, popup, '显示图标');
+
+    await resetFixture(page);
+    const standardTripleClick = await tripleClickTarget(page);
+    assert(standardTripleClick.mouseDown?.isTrusted === true
+      && standardTripleClick.mouseDown.detail === 3
+      && standardTripleClick.mouseDown.button === 0,
+    `普通段落没有收到可信的左键三击：${JSON.stringify(standardTripleClick.mouseDown)}`);
+    assert(standardTripleClick.text === TARGET_TEXT && !standardTripleClick.fragment.button,
+      `普通段落三击 Range 形状异常：${JSON.stringify(standardTripleClick)}`);
+    await waitForSelectionUi(page, {
+      indicator: true,
+      tooltip: false,
+      indicatorClass: 'fr-selection-indicator fr-selection-indicator--icon',
+    }, '普通段落三击显示入口');
+    const standardTripleClickUi = await readSelectionUi(page);
+    result.cases.push({
+      id: 'selection.triple-click-standard-control',
+      status: 'passed',
+      selection: standardTripleClick,
+      ui: standardTripleClickUi,
+    });
+
+    await closeSelectionUi(page);
+    await resetTripleClickFixture(page, false);
+    const hiddenButtonTripleClick = await tripleClickTarget(page);
+    assert(hiddenButtonTripleClick.mouseDown?.isTrusted === true
+      && hiddenButtonTripleClick.mouseDown.detail === 3
+      && hiddenButtonTripleClick.mouseDown.button === 0,
+    `JetBrains 形状选区没有收到可信的左键三击：${JSON.stringify(hiddenButtonTripleClick.mouseDown)}`);
+    assert(hiddenButtonTripleClick.text === TARGET_TEXT
+      && hiddenButtonTripleClick.start.id === 'target'
+      && hiddenButtonTripleClick.start.offset === 0
+      && hiddenButtonTripleClick.end.id === 'selection-triple-click-footer'
+      && hiddenButtonTripleClick.end.offset === 0,
+    `JetBrains 形状的三击 Range 边界不符合前置条件：${JSON.stringify(hiddenButtonTripleClick)}`);
+    assert(hiddenButtonTripleClick.fragment.button?.tagName === 'BUTTON'
+      && hiddenButtonTripleClick.fragment.button.text === 'more'
+      && hiddenButtonTripleClick.fragment.footer,
+    `JetBrains 形状的 Range clone 没有夹带隐藏按钮和 footer 边界：${JSON.stringify(hiddenButtonTripleClick.fragment)}`);
+    assert(hiddenButtonTripleClick.sourceButton?.display === 'none'
+      && hiddenButtonTripleClick.sourceButton.rects.length === 0
+      && hiddenButtonTripleClick.sourceButton.intersectsRange
+      && !hiddenButtonTripleClick.sourceButton.overlapsSelectionRects
+      && !hiddenButtonTripleClick.selectedTextIncludesButtonText,
+    `JetBrains 形状的夹带按钮不是无可见几何的结构噪声：${JSON.stringify(hiddenButtonTripleClick.sourceButton)}`);
+    await waitForSelectionUi(page, {
+      indicator: true,
+      tooltip: false,
+      indicatorClass: 'fr-selection-indicator fr-selection-indicator--icon',
+    }, 'JetBrains 形状三击忽略隐藏按钮后显示入口');
+    const hiddenButtonTripleClickUi = await readSelectionUi(page);
+    const hiddenButtonTripleClickScreenshot = path.join(args.artifactsDir, 'selection-triple-click-hidden-button.png');
+    await page.screenshot({ path: hiddenButtonTripleClickScreenshot });
+    result.screenshots.push(hiddenButtonTripleClickScreenshot);
+    result.cases.push({
+      id: 'selection.triple-click-hidden-button-regression',
+      status: 'passed',
+      popupState: tripleClickPopupState,
+      selection: hiddenButtonTripleClick,
+      ui: hiddenButtonTripleClickUi,
+    });
+
+    // 可见交互控件仍是安全边界：同样的 DOM 顺序改为可见 button 后必须拒绝。
+    await closeSelectionUi(page);
+    await resetTripleClickFixture(page, true);
+    const visibleButtonTripleClick = await tripleClickTarget(page);
+    assert(visibleButtonTripleClick.mouseDown?.isTrusted === true
+      && visibleButtonTripleClick.mouseDown.detail === 3
+      && visibleButtonTripleClick.mouseDown.button === 0
+      && visibleButtonTripleClick.text === TARGET_TEXT
+      && visibleButtonTripleClick.fragment.button?.tagName === 'BUTTON'
+      && visibleButtonTripleClick.sourceButton?.display !== 'none'
+      && visibleButtonTripleClick.sourceButton?.rects.length > 0
+      && visibleButtonTripleClick.sourceButton?.intersectsRange,
+    `可见 button 对照没有产生预期 Range：${JSON.stringify(visibleButtonTripleClick)}`);
+    await page.waitForTimeout(500);
+    const visibleButtonTripleClickUi = await readSelectionUi(page);
+    assert(!visibleButtonTripleClickUi.indicator && !visibleButtonTripleClickUi.tooltip,
+      `三击 Range 包含可见 button 时仍显示了划词入口：${JSON.stringify(visibleButtonTripleClickUi)}`);
+    result.cases.push({
+      id: 'selection.triple-click-visible-button-rejected',
+      status: 'passed',
+      selection: visibleButtonTripleClick,
+      ui: visibleButtonTripleClickUi,
+    });
+
+    await closeSelectionUi(page);
     await setSelectionDelay(popup, drawer, popup, 300);
 
     // 视觉触发方式：Popup 改设置后不刷新页面，真实鼠标划词仍应反映新模式。

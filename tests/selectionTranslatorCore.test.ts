@@ -26,28 +26,62 @@ import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHo
 import { normalizeSelectionTtsVoiceOrder, selectionTtsVoiceLocale, selectionTtsVoiceOption } from '@/src/features/selection-translation/ttsConfig';
 
 interface MockElementOptions {
+    nodeType?: number;
     tagName?: string;
     role?: string;
     attributes?: Record<string, string>;
     closestMatch?: boolean;
     isContentEditable?: boolean;
     parentElement?: MockElement | null;
+    descendants?: MockElement[];
+    clientRects?: Array<{width: number; height: number}>;
+    contentRects?: Array<{width: number; height: number}>;
+    querySelectorAllThrows?: boolean;
+    getClientRectsThrows?: boolean;
+    contentRangeFailure?: 'create' | 'select' | 'rects';
 }
 
 class MockElement {
-    readonly nodeType = 1;
+    readonly nodeType: number;
     readonly tagName: string;
     readonly isContentEditable: boolean;
+    readonly ownerDocument: Document | null;
     parentElement: MockElement | null;
     private readonly attributes: Record<string, string>;
     private readonly closestMatch: boolean;
+    private readonly descendants: MockElement[];
+    private readonly clientRects: Array<{width: number; height: number}>;
+    private readonly querySelectorAllThrows: boolean;
+    private readonly getClientRectsThrows: boolean;
 
     constructor(options: MockElementOptions = {}) {
+        this.nodeType = options.nodeType ?? 1;
         this.tagName = options.tagName ?? 'P';
         this.attributes = options.attributes ?? {};
         this.closestMatch = options.closestMatch === true;
         this.isContentEditable = options.isContentEditable === true;
         this.parentElement = options.parentElement ?? null;
+        this.descendants = options.descendants ?? [];
+        this.clientRects = options.clientRects ?? [];
+        this.querySelectorAllThrows = options.querySelectorAllThrows === true;
+        this.getClientRectsThrows = options.getClientRectsThrows === true;
+        const contentRects = options.contentRects ?? [];
+        this.ownerDocument = options.contentRects !== undefined || options.contentRangeFailure !== undefined
+            ? {
+                createRange: () => {
+                    if (options.contentRangeFailure === 'create') throw new Error('content range creation failed');
+                    return {
+                        selectNodeContents: () => {
+                            if (options.contentRangeFailure === 'select') throw new Error('content range selection failed');
+                        },
+                        getClientRects: () => {
+                            if (options.contentRangeFailure === 'rects') throw new Error('content geometry failed');
+                            return contentRects;
+                        },
+                    };
+                },
+            } as unknown as Document
+            : null;
         if (options.role) this.attributes.role = options.role;
     }
 
@@ -62,21 +96,36 @@ class MockElement {
     closest(): MockElement | null {
         return this.closestMatch ? this : null;
     }
+
+    querySelectorAll(): MockElement[] {
+        if (this.querySelectorAllThrows) throw new Error('query failed');
+        return this.descendants;
+    }
+
+    getClientRects(): Array<{width: number; height: number}> {
+        if (this.getClientRectsThrows) throw new Error('geometry failed');
+        return this.clientRects;
+    }
 }
 
 function mockTextNode(parentElement: MockElement | null): Node {
     return {nodeType: 3, parentElement} as Node;
 }
 
-function mockRange(start: Node | null, end: Node | null, cloneResult: boolean | 'throw'): Range {
+interface MockRangeOptions {
+    commonAncestor?: Node;
+    intersectingNodes?: Node[];
+    intersectionFailureNodes?: Node[];
+}
+
+function mockRange(start: Node | null, end: Node | null, options: MockRangeOptions = {}): Range {
     return {
         startContainer: start,
         endContainer: end,
-        cloneContents: () => {
-            if (cloneResult === 'throw') throw new Error('clone failed');
-            return {
-                querySelector: () => cloneResult ? {} : null,
-            };
+        commonAncestorContainer: options.commonAncestor ?? new MockElement() as unknown as Node,
+        intersectsNode: (node: Node) => {
+            if (options.intersectionFailureNodes?.includes(node)) throw new Error('intersection failed');
+            return options.intersectingNodes?.includes(node) === true;
         },
     } as unknown as Range;
 }
@@ -230,27 +279,22 @@ describe('selection translator text and speech language normalization', () => {
         expect(shouldIgnoreSelection(mockRange(
             new MockElement({tagName: 'IMG'}) as unknown as Node,
             new MockElement() as unknown as Node,
-            false,
         ))).toBe(true);
         expect(shouldIgnoreSelection(mockRange(
             new MockElement({role: 'button'}) as unknown as Node,
             new MockElement() as unknown as Node,
-            false,
         ))).toBe(true);
         expect(shouldIgnoreSelection(mockRange(
             new MockElement({isContentEditable: true}) as unknown as Node,
             new MockElement() as unknown as Node,
-            false,
         ))).toBe(true);
         expect(shouldIgnoreSelection(mockRange(
             mockTextNode(new MockElement({attributes: {contenteditable: 'plaintext-only'}})),
             new MockElement() as unknown as Node,
-            false,
         ))).toBe(true);
         expect(shouldIgnoreSelection(mockRange(
             mockTextNode(new MockElement({attributes: {contenteditable: 'false'}})),
             new MockElement({closestMatch: true}) as unknown as Node,
-            false,
         ))).toBe(true);
     });
 
@@ -263,12 +307,18 @@ describe('selection translator text and speech language normalization', () => {
             </body></html>
         `);
         const text = document.querySelector('#content')?.firstChild;
+        const shell = document.querySelector('#app');
         if (!text) throw new Error('selection fixture text is missing');
+        if (!shell) throw new Error('selection fixture shell is missing');
+        Object.defineProperty(shell, 'getClientRects', {
+            value: () => [{width: 640, height: 480}],
+        });
 
         const range = {
             startContainer: text,
             endContainer: text,
-            cloneContents: () => ({querySelector: () => null}),
+            commonAncestorContainer: document,
+            intersectsNode: (node: Node) => node === shell,
         } as unknown as Range;
         expect(shouldIgnoreSelection(range)).toBe(false);
 
@@ -277,38 +327,196 @@ describe('selection translator text and speech language normalization', () => {
         protectedRegion.className = 'notranslate';
         protectedRegion.append(protectedText);
         document.querySelector('#content')?.append(' ', protectedRegion);
+        Object.defineProperty(protectedRegion, 'getClientRects', {
+            value: () => [{width: 160, height: 20}],
+        });
         const protectedRange = {
-            startContainer: protectedText,
-            endContainer: protectedText,
-            cloneContents: () => ({querySelector: () => null}),
+            startContainer: text,
+            endContainer: text,
+            commonAncestorContainer: document,
+            intersectsNode: (node: Node) => node === shell || node === protectedRegion,
         } as unknown as Range;
         expect(shouldIgnoreSelection(protectedRange)).toBe(true);
 
-        const shell = document.querySelector('#app');
+        const button = document.createElement('button');
+        button.textContent = 'Visible action';
+        document.querySelector('#content')?.append(' ', button);
+        Object.defineProperty(button, 'getClientRects', {
+            value: () => [{width: 100, height: 24}],
+        });
+        const controlRange = {
+            startContainer: text,
+            endContainer: text,
+            commonAncestorContainer: document,
+            intersectsNode: (node: Node) => node === shell || node === button,
+        } as unknown as Range;
+        expect(shouldIgnoreSelection(controlRange)).toBe(true);
+
         const shellRange = {
             startContainer: shell,
             endContainer: shell,
-            cloneContents: () => ({querySelector: () => null}),
+            commonAncestorContainer: shell,
+            intersectsNode: (node: Node) => node === shell,
         } as unknown as Range;
         expect(shouldIgnoreSelection(shellRange)).toBe(true);
     });
 
-    it('在 fragment 检查失败时 fail-open，避免破坏普通文本选择', () => {
+    it('允许选区内部与 Range 相交但没有可见几何的排除元素', () => {
+        const hiddenButton = new MockElement({tagName: 'BUTTON', contentRects: []});
+        const root = new MockElement({descendants: [hiddenButton]});
+
         expect(shouldIgnoreSelection(mockRange(
-            null,
-            mockTextNode(new MockElement()),
-            false,
+            mockTextNode(root),
+            mockTextNode(root),
+            {
+                commonAncestor: root as unknown as Node,
+                intersectingNodes: [hiddenButton as unknown as Node],
+            },
         ))).toBe(false);
+    });
+
+    it('拒绝自身无盒子但内容具有可见几何的 display-contents 排除元素', () => {
+        const displayContentsButton = new MockElement({
+            tagName: 'BUTTON',
+            contentRects: [{width: 36, height: 18}],
+        });
+        const root = new MockElement({descendants: [displayContentsButton]});
+
         expect(shouldIgnoreSelection(mockRange(
-            mockTextNode(new MockElement()),
-            mockTextNode(new MockElement()),
-            true,
+            mockTextNode(root),
+            mockTextNode(root),
+            {
+                commonAncestor: root as unknown as Node,
+                intersectingNodes: [displayContentsButton as unknown as Node],
+            },
         ))).toBe(true);
+    });
+
+    it('从 Document 和 ShadowRoot 公共祖先枚举实时排除元素', () => {
+        for (const nodeType of [9, 11]) {
+            const visibleButton = new MockElement({tagName: 'BUTTON', clientRects: [{width: 20, height: 16}]});
+            const queryRoot = new MockElement({nodeType, descendants: [visibleButton]});
+            const textParent = new MockElement();
+
+            expect(shouldIgnoreSelection(mockRange(
+                mockTextNode(textParent),
+                mockTextNode(textParent),
+                {
+                    commonAncestor: queryRoot as unknown as Node,
+                    intersectingNodes: [visibleButton as unknown as Node],
+                },
+            ))).toBe(true);
+        }
+    });
+
+    it('只拒绝选区内部与 Range 相交且具有非零几何的排除元素', () => {
+        const visibleButton = new MockElement({
+            tagName: 'BUTTON',
+            clientRects: [{width: 0, height: 0}, {width: 24, height: 18}],
+        });
+        const root = new MockElement({descendants: [visibleButton]});
+
         expect(shouldIgnoreSelection(mockRange(
-            mockTextNode(new MockElement()),
-            mockTextNode(new MockElement()),
-            'throw',
+            mockTextNode(root),
+            mockTextNode(root),
+            {commonAncestor: root as unknown as Node},
         ))).toBe(false);
+        expect(shouldIgnoreSelection(mockRange(
+            mockTextNode(root),
+            mockTextNode(root),
+            {
+                commonAncestor: root as unknown as Node,
+                intersectingNodes: [visibleButton as unknown as Node],
+            },
+        ))).toBe(true);
+    });
+
+    it('选区端点位于排除元素内时保持严格拒绝，不受内部元素几何影响', () => {
+        const button = new MockElement({tagName: 'BUTTON'});
+        const hiddenRoot = new MockElement({descendants: [button]});
+
+        expect(shouldIgnoreSelection(mockRange(
+            mockTextNode(button),
+            mockTextNode(hiddenRoot),
+            {
+                commonAncestor: hiddenRoot as unknown as Node,
+                intersectingNodes: [button as unknown as Node],
+            },
+        ))).toBe(true);
+    });
+
+    it('实时排除元素检查失败时 fail-open，避免破坏普通文本选择', () => {
+        const textParent = new MockElement();
+        const excluded = new MockElement({tagName: 'BUTTON', clientRects: [{width: 10, height: 10}]});
+        const queryFailureRoot = new MockElement({querySelectorAllThrows: true});
+        const intersectionRoot = new MockElement({descendants: [excluded]});
+        const missingOwnerDocument = new MockElement({tagName: 'BUTTON'});
+        const missingOwnerDocumentRoot = new MockElement({descendants: [missingOwnerDocument]});
+        const geometryFailure = new MockElement({tagName: 'BUTTON', getClientRectsThrows: true});
+        const geometryRoot = new MockElement({descendants: [geometryFailure]});
+        const contentRangeFailures = (['create', 'select', 'rects'] as const).map(failure => (
+            new MockElement({tagName: 'BUTTON', contentRangeFailure: failure})
+        ));
+
+        expect(shouldIgnoreSelection(mockRange(
+            mockTextNode(textParent),
+            mockTextNode(textParent),
+            {commonAncestor: queryFailureRoot as unknown as Node},
+        ))).toBe(false);
+        expect(shouldIgnoreSelection(mockRange(
+            mockTextNode(textParent),
+            mockTextNode(textParent),
+            {
+                commonAncestor: intersectionRoot as unknown as Node,
+                intersectingNodes: [excluded as unknown as Node],
+                intersectionFailureNodes: [excluded as unknown as Node],
+            },
+        ))).toBe(false);
+        expect(shouldIgnoreSelection(mockRange(
+            mockTextNode(textParent),
+            mockTextNode(textParent),
+            {
+                commonAncestor: missingOwnerDocumentRoot as unknown as Node,
+                intersectingNodes: [missingOwnerDocument as unknown as Node],
+            },
+        ))).toBe(false);
+        expect(shouldIgnoreSelection(mockRange(
+            mockTextNode(textParent),
+            mockTextNode(textParent),
+            {
+                commonAncestor: geometryRoot as unknown as Node,
+                intersectingNodes: [geometryFailure as unknown as Node],
+            },
+        ))).toBe(false);
+        for (const contentRangeFailure of contentRangeFailures) {
+            const contentGeometryRoot = new MockElement({descendants: [contentRangeFailure]});
+            expect(shouldIgnoreSelection(mockRange(
+                mockTextNode(textParent),
+                mockTextNode(textParent),
+                {
+                    commonAncestor: contentGeometryRoot as unknown as Node,
+                    intersectingNodes: [contentRangeFailure as unknown as Node],
+                },
+            ))).toBe(false);
+        }
+    });
+
+    it('单个排除元素检查失败时继续识别后续可见排除元素', () => {
+        const geometryFailure = new MockElement({tagName: 'BUTTON', getClientRectsThrows: true});
+        const visibleButton = new MockElement({tagName: 'BUTTON', clientRects: [{width: 20, height: 16}]});
+        const root = new MockElement({descendants: [geometryFailure, visibleButton]});
+
+        expect(shouldIgnoreSelection(mockRange(
+            mockTextNode(root),
+            mockTextNode(root),
+            {
+                commonAncestor: root as unknown as Node,
+                intersectingNodes: [
+                    geometryFailure as unknown as Node,
+                    visibleButton as unknown as Node,
+                ],
+            },
+        ))).toBe(true);
     });
 
     it('maps translation language codes to browser speech language codes', () => {
