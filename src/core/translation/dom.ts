@@ -2,7 +2,7 @@
  * @file src/core/translation/dom.ts
  *
  * 文件职责：封装翻译候选发现使用的 composed tree 遍历与不可覆盖安全守卫，识别扩展 DOM、脚本、表单及禁止翻译区域。
- * 主要内容：提供 Shadow DOM 父级与祖先遍历、硬裁剪标签、受保护文本元素、隐藏/可编辑/no-translate 判断，并限制祖先深度以避免异常页面结构拖垮扫描。 可核对的公开符号包括 maxComposedAncestorDepth、getComposedParent、isDocumentSurface、isExtensionElement、isExtensionElementSelf、isHardPruneTag、isProtectedTextElement、hasNoTranslateMarker。
+ * 主要内容：提供 Shadow DOM 父级与祖先遍历、硬裁剪标签、受保护文本元素、隐藏/可编辑/no-translate 判断，并限制祖先深度以避免异常页面结构拖垮扫描。 可核对的公开符号包括 maxComposedAncestorDepth、getComposedParent、isDocumentSurface、isExtensionElement、isExtensionElementSelf、isHardPruneTag、isProtectedTextElement、hasNoTranslateMarker、isTopLevelApplicationShell。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
@@ -77,6 +77,26 @@ export function hasNoTranslateMarker(element: Element): boolean {
         element.getAttribute('data-notranslate') === 'true';
 }
 
+/**
+ * 显式翻译可有限穿过应用级 no-translate 外壳，但不能把这个例外扩大到局部区域。
+ * 直接挂在 body 下是刻意保守的边界：嵌套 no-translate 容器仍代表页面作者明确保护的内容。
+ */
+export function isTopLevelApplicationShell(element: Element): boolean {
+    const body = element.ownerDocument?.body;
+    return Boolean(
+        body &&
+        element.parentElement === body &&
+        hasNoTranslateMarker(element),
+    );
+}
+
+export interface TranslationTextProtectionOptions {
+    /** 仅显式选中/悬浮翻译允许穿过 body 直接子级的应用外壳。 */
+    allowTopLevelApplicationShell?: boolean;
+    /** 显式命中的元素自身仍是保护边界，不能因为它的 marker 被放行。 */
+    protectedElement?: Element;
+}
+
 export function hasHiddenMarker(element: Element): boolean {
     const htmlElement = element as HTMLElement;
     if (htmlElement.hidden || htmlElement.inert || element.hasAttribute('inert')) return true;
@@ -119,11 +139,15 @@ export function isMathRendererElement(element: Element): boolean {
 export function isProtectedDescendantElement(
     element: Element,
     ignoreExtensionSelf = false,
+    options?: TranslationTextProtectionOptions,
 ): boolean {
     return (!ignoreExtensionSelf && isExtensionElementSelf(element)) ||
         isProtectedTextElement(element) ||
         isMathRendererElement(element) ||
-        hasNoTranslateMarker(element) ||
+        (hasNoTranslateMarker(element) &&
+            !(options?.allowTopLevelApplicationShell === true &&
+                element !== options.protectedElement &&
+                isTopLevelApplicationShell(element))) ||
         hasContentEditableMarker(element) ||
         hasHiddenMarker(element);
 }

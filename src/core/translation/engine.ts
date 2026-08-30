@@ -15,9 +15,11 @@ import {
     getComposedParent,
     isDocumentSurface,
     isExtensionElementSelf,
+    isTopLevelApplicationShell,
     maxComposedAncestorDepth,
 } from './dom';
 import type {HardGuardResult} from './dom';
+import type {TranslationTextProtectionOptions} from './dom';
 import {
     classifyGenericCandidate,
     getDirectInlineRuns,
@@ -62,6 +64,8 @@ interface AdapterPrunedAncestor {
 /** 仅在一次同步悬浮或检查调用内有效的缓存集合。 */
 interface ResolutionEvaluationContext {
     textProtectionCache: TranslationTextProtectionCache;
+    textProtectionOptions?: TranslationTextProtectionOptions;
+    topLevelApplicationShellBypassed: boolean;
     hardGuards: WeakMap<Element, HardGuardResult>;
     adapterDecisions: WeakMap<Element, AdapterDecisionResult>;
     adapterPrunedAncestors: WeakMap<Element, AdapterPrunedAncestor | null>;
@@ -70,9 +74,13 @@ interface ResolutionEvaluationContext {
     structuralAncestors: WeakMap<Element, boolean>;
 }
 
-function createResolutionEvaluationContext(): ResolutionEvaluationContext {
+function createResolutionEvaluationContext(
+    textProtectionOptions?: TranslationTextProtectionOptions,
+): ResolutionEvaluationContext {
     return {
         textProtectionCache: createTranslationTextProtectionCache(),
+        textProtectionOptions,
+        topLevelApplicationShellBypassed: false,
         hardGuards: new WeakMap(),
         adapterDecisions: new WeakMap(),
         adapterPrunedAncestors: new WeakMap(),
@@ -167,6 +175,14 @@ export class TranslationCandidateCore {
         this.context = {url: this.url};
     }
 
+    private candidateResolutionMetadata(
+        evaluationContext?: ResolutionEvaluationContext,
+    ): Pick<TranslationCandidate, 'allowTopLevelApplicationShell'> {
+        return evaluationContext?.topLevelApplicationShellBypassed === true
+            ? {allowTopLevelApplicationShell: true}
+            : {};
+    }
+
     private adapterDecision(
         element: Element,
         evaluationContext?: ResolutionEvaluationContext,
@@ -228,6 +244,22 @@ export class TranslationCandidateCore {
         return null;
     }
 
+    private evaluateResolutionElementHardGuard(
+        element: Element,
+        evaluationContext: ResolutionEvaluationContext,
+    ): HardGuardResult {
+        const guard = evaluateElementHardGuard(element);
+        const protectionOptions = evaluationContext.textProtectionOptions;
+        if (guard.reason === 'inherited-no-translate' &&
+            protectionOptions?.allowTopLevelApplicationShell === true &&
+            element !== protectionOptions.protectedElement &&
+            isTopLevelApplicationShell(element)) {
+            evaluationContext.topLevelApplicationShellBypassed = true;
+            return {prune: false};
+        }
+        return guard;
+    }
+
     private primeResolutionAncestry(
         element: Element,
         evaluationContext: ResolutionEvaluationContext,
@@ -245,7 +277,8 @@ export class TranslationCandidateCore {
         // 祖先链过深时继续使用既有的有界回退，不评估或缓存不完整的链前缀。
         if (current) return;
 
-        const ownGuards = chain.map((item) => evaluateElementHardGuard(item));
+        const ownGuards = chain.map((item) =>
+            this.evaluateResolutionElementHardGuard(item, evaluationContext));
         let inheritedGuard: HardGuardResult = {prune: false};
         for (let index = chain.length - 1; index >= 0; index -= 1) {
             const item = chain[index]!;
@@ -268,7 +301,8 @@ export class TranslationCandidateCore {
     ): HardGuardResult {
         if (!evaluationContext) return evaluateHardGuard(element);
         this.primeResolutionAncestry(element, evaluationContext);
-        return evaluationContext.hardGuards.get(element) ?? evaluateHardGuard(element);
+        return evaluationContext.hardGuards.get(element) ??
+            this.evaluateResolutionElementHardGuard(element, evaluationContext);
     }
 
     private isExtensionElementForResolution(
@@ -350,6 +384,7 @@ export class TranslationCandidateCore {
                 [target],
                 this.shouldStayOriginal,
                 textProtectionCache,
+                evaluationContext?.textProtectionOptions,
             ) ||
                 this.hardGuard(target, evaluationContext).prune) {
                 return {candidate: null};
@@ -359,6 +394,7 @@ export class TranslationCandidateCore {
                 kind: decision.candidateKind ?? (isTranslationControlElement(target) ? 'control' : 'content'),
                 reason: decision.reason,
                 adapterId,
+                ...this.candidateResolutionMetadata(evaluationContext),
             };
             return {candidate};
         }
@@ -373,6 +409,7 @@ export class TranslationCandidateCore {
             this.shouldStayOriginal,
             evaluationContext !== undefined,
             textProtectionCache,
+            evaluationContext?.textProtectionOptions,
         );
         if (!classification) {
             return {candidate: null};
@@ -381,6 +418,7 @@ export class TranslationCandidateCore {
             element: element as HTMLElement,
             kind: classification.kind,
             reason: classification.reason,
+            ...this.candidateResolutionMetadata(evaluationContext),
         };
         return {candidate};
     }
@@ -394,6 +432,7 @@ export class TranslationCandidateCore {
     ): TranslationCandidate[] {
         const candidates: TranslationCandidate[] = [];
         const atomicTargetCache = new WeakMap<Element, boolean>();
+        const protectionOptions = evaluationContext?.textProtectionOptions;
         const isAtomicAdapterTarget = (candidate: Element): boolean => {
             const cached = atomicTargetCache.get(candidate);
             if (cached !== undefined) return cached;
@@ -412,6 +451,7 @@ export class TranslationCandidateCore {
             skipStructuralAncestorCheck,
             isDirectRunBarrier,
             textProtectionCache,
+            protectionOptions,
         )) {
             const partitions = partitionInlineRunAtBarriers(
                 run,
@@ -422,12 +462,14 @@ export class TranslationCandidateCore {
                     nodes,
                     this.shouldStayOriginal,
                     textProtectionCache,
+                    protectionOptions,
                 )) {
                     candidates.push({
                         element: element as HTMLElement,
                         nodes,
                         kind: 'content',
                         reason: 'generic-inline-run',
+                        ...this.candidateResolutionMetadata(evaluationContext),
                     });
                 }
             }
@@ -533,15 +575,24 @@ export class TranslationCandidateCore {
     resolve(start: Node | null | undefined): TranslationCandidate | null {
         if (!start) return null;
         const hit = start;
-        const evaluationContext = createResolutionEvaluationContext();
-        const textProtectionCache = evaluationContext.textProtectionCache;
         let current: Element | null = start.nodeType === 3
             ? (start as Text).parentElement
             : isElementNode(start) ? start : null;
+        if (!current) return null;
+        const evaluationContext = createResolutionEvaluationContext({
+            allowTopLevelApplicationShell: true,
+            protectedElement: current,
+        });
+        const textProtectionCache = evaluationContext.textProtectionCache;
 
         while (current && !isDocumentSurface(current)) {
             if (current.matches('[data-fr-translation-segment="true"]')) {
-                return {element: current as HTMLElement, kind: 'content', reason: 'owned-inline-run'};
+                return {
+                    element: current as HTMLElement,
+                    kind: 'content',
+                    reason: 'owned-inline-run',
+                    ...this.candidateResolutionMetadata(evaluationContext),
+                };
             }
             // 命中扩展的双语 wrapper 时，继续映射回宿主页源节点。
             if (current.matches('.fluent-read-bilingual-content')) {
@@ -554,6 +605,13 @@ export class TranslationCandidateCore {
             }
             // 继承硬守卫适用于每个可能的祖先候选；遇到极深树时立即停止，避免反复上溯。
             if (this.hardGuard(current, evaluationContext).reason === 'ancestor-depth-limit') return null;
+            // 外壳本身不是显式目标；避免在缺少更细粒度块边界的 SPA 中把整个应用根
+            // 当作候选，同时允许继续向其上方寻找正常的页面结构。
+            if (isTopLevelApplicationShell(current) &&
+                current !== evaluationContext.textProtectionOptions?.protectedElement) {
+                current = getComposedParent(current);
+                continue;
+            }
             // 全文发现会在遍历子节点前裁剪适配器拥有的受控子树；悬浮解析也必须先应用
             // 相同的继承裁剪，再尝试通用内联 run。否则命中 GitHub Quick Search 等区域时，
             // 可能解析出本应被 discover() 排除的对话框祖先。

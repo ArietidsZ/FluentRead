@@ -16,6 +16,7 @@ import {
     hasMeaningfulTranslationTextInNodes,
 } from './text';
 import type {TranslationTextProtectionCache} from './text';
+import type {TranslationTextProtectionOptions} from './dom';
 
 // 这些上限把同步布局分类限制为有界工作；超限时按保守边界处理，避免大型页面阻塞主线程。
 const maxDirectRunNodes = 2048;
@@ -159,22 +160,34 @@ export function hasDirectReadableText(
     element: Element,
     shouldStayOriginal?: (element: Element) => boolean,
     protectionCache?: TranslationTextProtectionCache,
+    protectionOptions?: TranslationTextProtectionOptions,
 ): boolean {
     if (element.childNodes.length > maxDirectRunNodes) return false;
     const inlineNodes = Array.from(element.childNodes).filter((child) =>
         child.nodeType === 3 || (child.nodeType === 1 && !isBlockBoundary(child as Element)));
-    return hasMeaningfulTranslationTextInNodes(inlineNodes, shouldStayOriginal, protectionCache);
+    return hasMeaningfulTranslationTextInNodes(
+        inlineNodes,
+        shouldStayOriginal,
+        protectionCache,
+        protectionOptions,
+    );
 }
 
 export function hasReadableBlockChild(
     element: Element,
     shouldStayOriginal?: (element: Element) => boolean,
     protectionCache?: TranslationTextProtectionCache,
+    protectionOptions?: TranslationTextProtectionOptions,
 ): boolean {
     if (element.children.length > maxBlockChildrenToProbe) return true;
     return Array.from(element.children).some((child) => {
         if (!isBlockBoundary(child)) return false;
-        return hasMeaningfulTranslationTextInNodes([child], shouldStayOriginal, protectionCache);
+        return hasMeaningfulTranslationTextInNodes(
+            [child],
+            shouldStayOriginal,
+            protectionCache,
+            protectionOptions,
+        );
     });
 }
 
@@ -188,13 +201,14 @@ export function getDirectInlineRuns(
     skipStructuralAncestorCheck = false,
     isAdditionalBarrier?: (element: Element) => boolean,
     protectionCache?: TranslationTextProtectionCache,
+    protectionOptions?: TranslationTextProtectionOptions,
 ): ChildNode[][] {
     if (isDocumentSurface(element) || isStructuralContainer(element) ||
         (!skipStructuralAncestorCheck && hasStructuralAncestor(element))) return [];
     if (shouldStayOriginal?.(element) || isProtectedTextElement(element) || !isBlockBoundary(element)) return [];
     if (element.childNodes.length > maxDirectRunNodes) return [];
-    if (!hasDirectReadableText(element, shouldStayOriginal, protectionCache)) return [];
-    const hasBlockBarrier = hasReadableBlockChild(element, shouldStayOriginal, protectionCache);
+    if (!hasDirectReadableText(element, shouldStayOriginal, protectionCache, protectionOptions)) return [];
+    const hasBlockBarrier = hasReadableBlockChild(element, shouldStayOriginal, protectionCache, protectionOptions);
     const hasAdditionalBarrier = !hasBlockBarrier && isAdditionalBarrier &&
         Array.from(element.children).some((child) => isAdditionalBarrier(child));
     if (!hasBlockBarrier && !hasAdditionalBarrier) return [];
@@ -203,7 +217,12 @@ export function getDirectInlineRuns(
     let current: ChildNode[] = [];
     const flush = () => {
         if (current.length > 0 &&
-            hasMeaningfulTranslationTextInNodes(current, shouldStayOriginal, protectionCache)) {
+            hasMeaningfulTranslationTextInNodes(
+                current,
+                shouldStayOriginal,
+                protectionCache,
+                protectionOptions,
+            )) {
             runs.push(current);
         }
         current = [];
@@ -234,6 +253,7 @@ export function classifyGenericCandidate(
     shouldStayOriginal?: (element: Element) => boolean,
     skipStructuralAncestorCheck = false,
     protectionCache?: TranslationTextProtectionCache,
+    protectionOptions?: TranslationTextProtectionOptions,
 ): GenericClassification | null {
     const semanticHeading = isSemanticHeadingElement(element);
     if (isDocumentSurface(element) || isStructuralContainer(element) ||
@@ -243,14 +263,24 @@ export function classifyGenericCandidate(
     if (shouldStayOriginal?.(element) || isProtectedTextElement(element)) return null;
 
     if (isTranslationControlElement(element)) {
-        if (!hasMeaningfulTranslationTextInNodes([element], shouldStayOriginal, protectionCache)) return null;
+        if (!hasMeaningfulTranslationTextInNodes(
+            [element],
+            shouldStayOriginal,
+            protectionCache,
+            protectionOptions,
+        )) return null;
         return {kind: 'control', reason: 'generic-control'};
     }
 
     if (!isBlockBoundary(element)) return null;
-    if (!hasMeaningfulTranslationTextInNodes([element], shouldStayOriginal, protectionCache)) return null;
+    if (!hasMeaningfulTranslationTextInNodes(
+        [element],
+        shouldStayOriginal,
+        protectionCache,
+        protectionOptions,
+    )) return null;
     // 含可读块级子节点的容器是结构边界，不是回退目标。若悬浮时选中它，实际命中位于
     // header/aside 子节点时可能误翻译整个应用外壳。
-    if (hasReadableBlockChild(element, shouldStayOriginal, protectionCache)) return null;
+    if (hasReadableBlockChild(element, shouldStayOriginal, protectionCache, protectionOptions)) return null;
     return {kind: 'content', reason: 'generic-readable-block'};
 }

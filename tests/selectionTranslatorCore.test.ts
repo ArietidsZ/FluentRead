@@ -1,3 +1,4 @@
+import {parseHTML} from 'linkedom';
 import { describe, expect, it, vi } from 'vitest';
 import {
     canUseBundledDictionaryFallback,
@@ -251,6 +252,45 @@ describe('selection translator text and speech language normalization', () => {
             new MockElement({closestMatch: true}) as unknown as Node,
             false,
         ))).toBe(true);
+    });
+
+    it('allows selection inside a body-level application shell but keeps local opt-outs protected', () => {
+        const {document} = parseHTML(`
+            <html><body>
+                <div id="app" class="notranslate">
+                    <main><p id="content">Readable application content.</p></main>
+                </div>
+            </body></html>
+        `);
+        const text = document.querySelector('#content')?.firstChild;
+        if (!text) throw new Error('selection fixture text is missing');
+
+        const range = {
+            startContainer: text,
+            endContainer: text,
+            cloneContents: () => ({querySelector: () => null}),
+        } as unknown as Range;
+        expect(shouldIgnoreSelection(range)).toBe(false);
+
+        const protectedText = document.createTextNode('Protected local content.');
+        const protectedRegion = document.createElement('span');
+        protectedRegion.className = 'notranslate';
+        protectedRegion.append(protectedText);
+        document.querySelector('#content')?.append(' ', protectedRegion);
+        const protectedRange = {
+            startContainer: protectedText,
+            endContainer: protectedText,
+            cloneContents: () => ({querySelector: () => null}),
+        } as unknown as Range;
+        expect(shouldIgnoreSelection(protectedRange)).toBe(true);
+
+        const shell = document.querySelector('#app');
+        const shellRange = {
+            startContainer: shell,
+            endContainer: shell,
+            cloneContents: () => ({querySelector: () => null}),
+        } as unknown as Range;
+        expect(shouldIgnoreSelection(shellRange)).toBe(true);
     });
 
     it('在 fragment 检查失败时 fail-open，避免破坏普通文本选择', () => {

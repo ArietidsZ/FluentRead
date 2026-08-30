@@ -24,7 +24,11 @@ import {
     resolveTranslationCandidateAtPoint,
     selectPreferredTranslationCandidate,
 } from "@/src/core/translation/public";
-import type {TranslationCandidate, TranslationDiscoveryStep} from "@/src/core/translation/public";
+import type {
+    TranslationCandidate,
+    TranslationDiscoveryStep,
+    TranslationTextProtectionOptions,
+} from "@/src/core/translation/public";
 import { detectlang } from "@/src/core/language/detect";
 import { config } from "@/src/services/config/store";
 import type { FullPageTranslationMode } from "@/src/core/config/model";
@@ -261,11 +265,30 @@ function stateProtectionBoundary(
     return state.syntheticSegment ? node : undefined;
 }
 
+function textProtectionOptions(
+    allowTopLevelApplicationShell: boolean | undefined,
+    protectedElement: Element,
+): TranslationTextProtectionOptions | undefined {
+    return allowTopLevelApplicationShell === true
+        ? {allowTopLevelApplicationShell: true, protectedElement}
+        : undefined;
+}
+
+function candidateTextProtectionOptions(
+    candidate: TranslationCandidate,
+): TranslationTextProtectionOptions | undefined {
+    return textProtectionOptions(
+        candidate.allowTopLevelApplicationShell,
+        candidate.element,
+    );
+}
+
 function currentStateSourceText(node: HTMLElement, state: TranslationState): string {
     return extractTranslationText(
         node,
         getCurrentTranslationCore().shouldStayOriginal,
         stateProtectionBoundary(node, state),
+        textProtectionOptions(state.allowTopLevelApplicationShell, node),
     );
 }
 
@@ -274,6 +297,7 @@ function currentStateTextNodes(node: HTMLElement, state: TranslationState): Text
         node,
         getCurrentTranslationCore().shouldStayOriginal,
         stateProtectionBoundary(node, state),
+        textProtectionOptions(state.allowTopLevelApplicationShell, node),
     ).map((slot) => slot.node);
 }
 
@@ -342,9 +366,10 @@ async function translateElementHTML(
     signal?: AbortSignal,
     queueSession?: TranslationQueueSession,
     fullPageSession?: FullPageSession,
+    protectionOptions?: TranslationTextProtectionOptions,
 ): Promise<SnapshotTranslationResult> {
     const core = getCurrentTranslationCore();
-    const slots = collectLiveTranslationTextSlots(node, core.shouldStayOriginal);
+    const slots = collectLiveTranslationTextSlots(node, core.shouldStayOriginal, undefined, protectionOptions);
     if (slots.length === 0) return {kind: "snapshot", sources: [], translations: []};
 
     const origins = slots.map((part) => part.source);
@@ -362,8 +387,14 @@ async function translateLiveText(
     signal?: AbortSignal,
     queueSession?: TranslationQueueSession,
     fullPageSession?: FullPageSession,
+    protectionOptions?: TranslationTextProtectionOptions,
 ): Promise<LiveTextTranslationResult> {
-    const parts = collectLiveTranslationTextSlots(node, getCurrentTranslationCore().shouldStayOriginal);
+    const parts = collectLiveTranslationTextSlots(
+        node,
+        getCurrentTranslationCore().shouldStayOriginal,
+        undefined,
+        protectionOptions,
+    );
     if (parts.length === 0) return {
         kind: "live-text",
         complete: false,
@@ -402,11 +433,26 @@ async function createTranslationRequest(
     signal?: AbortSignal,
     queueSession?: TranslationQueueSession,
     fullPageSession?: FullPageSession,
+    protectionOptions?: TranslationTextProtectionOptions,
 ): Promise<TranslationResult> {
     if (kind === "control" || mode === "single") {
-        return translateLiveText(node, snapshot, signal, queueSession, fullPageSession);
+        return translateLiveText(
+            node,
+            snapshot,
+            signal,
+            queueSession,
+            fullPageSession,
+            protectionOptions,
+        );
     }
-    return translateElementHTML(node, snapshot, signal, queueSession, fullPageSession);
+    return translateElementHTML(
+        node,
+        snapshot,
+        signal,
+        queueSession,
+        fullPageSession,
+        protectionOptions,
+    );
 }
 
 function attemptSourceIsCurrent(node: HTMLElement, state: TranslationState): boolean {
@@ -528,6 +574,7 @@ async function renderTranslation(
             node,
             core.shouldStayOriginal,
             stateProtectionBoundary(node, state),
+            textProtectionOptions(state.allowTopLevelApplicationShell, node),
         );
         const freshSources = freshSnapshot.slots.map((slot) => slot.source);
         if (freshSources.length !== result.sources.length ||
@@ -559,10 +606,17 @@ function candidateIsCurrent(candidate: TranslationCandidate): boolean {
         const fresh = core.resolve(getTranslationCandidateKey(candidate));
         return Boolean(fresh && fresh.element === candidate.element &&
             fresh.kind === candidate.kind &&
+            fresh.allowTopLevelApplicationShell === candidate.allowTopLevelApplicationShell &&
             getTranslationCandidateKey(fresh) === getTranslationCandidateKey(candidate));
     }
-    const fresh = core.inspect(candidate.element).candidate;
-    return fresh?.element === candidate.element && fresh.kind === candidate.kind;
+    const fresh = candidate.allowTopLevelApplicationShell === true
+        ? core.resolve(candidate.element)
+        : core.inspect(candidate.element).candidate;
+    return Boolean(
+        fresh?.element === candidate.element &&
+        fresh.kind === candidate.kind &&
+        fresh.allowTopLevelApplicationShell === candidate.allowTopLevelApplicationShell,
+    );
 }
 
 function materializeCandidate(candidate: TranslationCandidate): {node: HTMLElement; synthetic: boolean} | null {
@@ -851,9 +905,20 @@ async function translateTarget(
     }
 
     const core = getCurrentTranslationCore();
+    const candidateProtectionOptions = candidateTextProtectionOptions(candidate);
     const sourceText = candidate.nodes?.length
-        ? extractTranslationTextFromNodes(candidate.nodes, core.shouldStayOriginal)
-        : extractTranslationText(candidate.element, core.shouldStayOriginal);
+        ? extractTranslationTextFromNodes(
+            candidate.nodes,
+            core.shouldStayOriginal,
+            undefined,
+            candidateProtectionOptions,
+        )
+        : extractTranslationText(
+            candidate.element,
+            core.shouldStayOriginal,
+            undefined,
+            candidateProtectionOptions,
+        );
     if (!normalizeComparableText(sourceText)) {
         return {
             status: "empty",
@@ -892,6 +957,7 @@ async function translateTarget(
         node,
         core.shouldStayOriginal,
         synthetic ? node : undefined,
+        textProtectionOptions(candidate.allowTopLevelApplicationShell, node),
     ).map((slot) => slot.node);
     const attempt = beginTranslation(
         node,
@@ -900,6 +966,7 @@ async function translateTarget(
         synthetic,
         sourceText,
         sourceTextNodes,
+        candidate.allowTopLevelApplicationShell === true,
     );
     if (!attempt) {
         if (synthetic) node.replaceWith(...Array.from(node.childNodes));
@@ -919,6 +986,7 @@ async function translateTarget(
         signal,
         queueSession,
         owner?.active ? owner : undefined,
+        textProtectionOptions(candidate.allowTopLevelApplicationShell, node),
     )
         .finally(() => signal.removeEventListener('abort', cancelQueuedRequest));
     if (synthetic) node.setAttribute('data-fr-translation-segment', 'true');
@@ -943,9 +1011,20 @@ async function translateTarget(
 function candidateLifecycleSource(candidate: TranslationCandidate): string {
     try {
         const core = getCurrentTranslationCore();
+        const protectionOptions = candidateTextProtectionOptions(candidate);
         return normalizeComparableText(candidate.nodes?.length
-            ? extractTranslationTextFromNodes(candidate.nodes, core.shouldStayOriginal)
-            : extractTranslationText(candidate.element, core.shouldStayOriginal));
+            ? extractTranslationTextFromNodes(
+                candidate.nodes,
+                core.shouldStayOriginal,
+                undefined,
+                protectionOptions,
+            )
+            : extractTranslationText(
+                candidate.element,
+                core.shouldStayOriginal,
+                undefined,
+                protectionOptions,
+            ));
     } catch {
         return normalizeComparableText(candidate.element.textContent ?? "");
     }

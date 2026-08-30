@@ -7,6 +7,7 @@
  */
 
 import {isTranslationTextNodeProtected} from './text';
+import type {TranslationTextProtectionOptions} from './dom';
 
 const translationArtifactSelector = [
     '.fluent-read-bilingual-content',
@@ -128,10 +129,16 @@ function translationTextSlotParts(
     node: Text,
     shouldStayOriginal?: (element: Element) => boolean,
     ignoredExtensionElement?: Element,
+    protectionOptions?: TranslationTextProtectionOptions,
 ): TranslationTextSlotParts | null {
     const value = node.nodeValue ?? '';
     const match = value.match(/^(\s*)([\s\S]*?\S)(\s*)$/u);
-    if (!match || isTranslationTextNodeProtected(node, shouldStayOriginal, ignoredExtensionElement)) return null;
+    if (!match || isTranslationTextNodeProtected(
+        node,
+        shouldStayOriginal,
+        ignoredExtensionElement,
+        protectionOptions,
+    )) return null;
     return {prefix: match[1], source: match[2], suffix: match[3]};
 }
 
@@ -139,6 +146,7 @@ function collectSlots(
     root: HTMLElement,
     shouldStayOriginal?: (element: Element) => boolean,
     ignoredExtensionElement?: Element,
+    protectionOptions?: TranslationTextProtectionOptions,
 ): TranslationTextSlot[] {
     const slots: TranslationTextSlot[] = [];
     const document = root.ownerDocument;
@@ -147,7 +155,12 @@ function collectSlots(
     let current = walker.nextNode();
     while (current) {
         const node = current as Text;
-        const parts = translationTextSlotParts(node, shouldStayOriginal, ignoredExtensionElement);
+        const parts = translationTextSlotParts(
+            node,
+            shouldStayOriginal,
+            ignoredExtensionElement,
+            protectionOptions,
+        );
         if (parts) slots.push({node, ...parts});
         current = walker.nextNode();
     }
@@ -159,6 +172,7 @@ function collectSnapshotSlots(
     cloneRoot: HTMLElement,
     shouldStayOriginal?: (element: Element) => boolean,
     ignoredExtensionElement?: Element,
+    protectionOptions?: TranslationTextProtectionOptions,
 ): TranslationTextSlot[] {
     const document = liveRoot.ownerDocument;
     if (!document?.createTreeWalker) return [];
@@ -175,6 +189,7 @@ function collectSnapshotSlots(
             liveNode as Text,
             shouldStayOriginal,
             ignoredExtensionElement,
+            protectionOptions,
         );
         if (parts) slots.push({node: cloneNode as Text, ...parts});
         liveNode = liveWalker.nextNode();
@@ -191,11 +206,18 @@ export function createTranslationSourceSnapshot(
     node: HTMLElement,
     shouldStayOriginal?: (element: Element) => boolean,
     ignoredExtensionElement?: Element,
+    protectionOptions?: TranslationTextProtectionOptions,
 ): TranslationSourceSnapshot {
     const clone = node.cloneNode(true) as HTMLElement;
     // 每个槽都依据实时 composed tree 判断。脱离文档的克隆已失去站点选择器、继承
     // contenteditable 和 CSS 可见性规则所需的外部祖先，只能作为映射后的输出骨架。
-    const slots = collectSnapshotSlots(node, clone, shouldStayOriginal, ignoredExtensionElement);
+    const slots = collectSnapshotSlots(
+        node,
+        clone,
+        shouldStayOriginal,
+        ignoredExtensionElement,
+        protectionOptions,
+    );
     clone.querySelectorAll(translationArtifactSelector).forEach((child) => child.remove());
     return {clone, slots};
 }
@@ -204,8 +226,14 @@ export function collectLiveTranslationTextSlots(
     node: HTMLElement,
     shouldStayOriginal?: (element: Element) => boolean,
     ignoredExtensionElement?: Element,
+    protectionOptions?: TranslationTextProtectionOptions,
 ): TranslationTextSlot[] {
-    return collectSlots(node, shouldStayOriginal, ignoredExtensionElement);
+    return collectSlots(
+        node,
+        shouldStayOriginal,
+        ignoredExtensionElement,
+        protectionOptions,
+    );
 }
 
 /** 只修改脱离文档的快照文本节点；没有对应译文的槽位保持原文。 */
