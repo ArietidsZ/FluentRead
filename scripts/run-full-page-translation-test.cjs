@@ -12,6 +12,9 @@ const os = require('node:os');
 const path = require('node:path');
 const { createRequire } = require('node:module');
 
+const FAILURE_ACTION_LINK_SELECTOR = '#translation-error-link';
+const FAILURE_ACTION_TEXT_MARKER = 'This block link fails once';
+
 function parseArgs(argv) {
   const args = {
     url: null,
@@ -97,6 +100,7 @@ async function readRequestBody(request) {
 async function startTranslationFixtureServer(unexpectedNetworkRequests = [], responseDelayMs = 0) {
   let requestCount = 0;
   let translatedItemCount = 0;
+  let failureActionAttempts = 0;
   const server = http.createServer(async (request, response) => {
     const requestUrl = new URL(request.url || '/', 'http://127.0.0.1');
     if (request.method === 'POST' && requestUrl.pathname === '/translate') {
@@ -110,6 +114,20 @@ async function startTranslationFixtureServer(unexpectedNetworkRequests = [], res
       translatedItemCount += Array.isArray(payload) ? payload.length : 0;
       if (responseDelayMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, responseDelayMs));
+      }
+      const matchesFailureActionLink = Array.isArray(payload) && payload.some((text) =>
+        String(text).includes(FAILURE_ACTION_TEXT_MARKER));
+      if (matchesFailureActionLink) {
+        failureActionAttempts += 1;
+        if (failureActionAttempts === 1) {
+          response.writeHead(400, {
+            'access-control-allow-origin': '*',
+            'cache-control': 'no-store',
+            'content-type': 'application/json; charset=utf-8',
+          });
+          response.end(JSON.stringify({error: 'fixture link fails on its first translation attempt'}));
+          return;
+        }
       }
       response.writeHead(200, {
         'access-control-allow-origin': '*',
@@ -151,6 +169,7 @@ async function startTranslationFixtureServer(unexpectedNetworkRequests = [], res
     blockedUrl: `${baseUrl}/blocked`,
     requestCount: () => requestCount,
     translatedItemCount: () => translatedItemCount,
+    failureActionAttempts: () => failureActionAttempts,
     close: () => new Promise((resolve) => server.close(resolve)),
   };
 }
@@ -371,6 +390,23 @@ async function toggleFullPage(page, activatePage) {
   await page.keyboard.down('Alt');
   await page.keyboard.press('t');
   await page.keyboard.up('Alt');
+}
+
+async function toggleHoverTranslation(page, selector, activatePage) {
+  await activatePage(page);
+  const target = page.locator(selector);
+  await target.scrollIntoViewIfNeeded();
+  const box = await target.boundingBox();
+  if (!box || box.width <= 0 || box.height <= 0) {
+    throw new Error(`悬浮翻译目标不可见：${selector}`);
+  }
+  // 链接本身绝不能为了“激活页面”而先点击。只移动真实指针，再发送可信 Control 手势。
+  await page.mouse.move(
+    box.x + Math.min(16, box.width / 2),
+    box.y + Math.min(14, box.height / 2),
+  );
+  await page.keyboard.down('Control');
+  await page.keyboard.up('Control');
 }
 
 async function installShortcutDiagnostics(page) {
@@ -711,6 +747,256 @@ function assertRestored(state) {
       !state.buttonIconPresent || state.buttonBilingualCount !== 0 || state.cancelButtonBilingualCount !== 0) {
     throw new Error(`按钮恢复不完整：${JSON.stringify(state)}`);
   }
+}
+
+async function readFailureActionState(page) {
+  return page.evaluate((selector) => {
+    const link = document.querySelector(selector);
+    const wrapper = link?.querySelector(':scope > .fluent-read-retry-wrapper');
+    const retry = wrapper?.querySelector('.fluent-read-retry');
+    const reason = wrapper?.querySelector('.fluent-read-reason');
+    const retryIcon = retry?.querySelector('.fluent-read-action-icon');
+    const reasonIcon = reason?.querySelector('.fluent-read-action-icon');
+    const geometry = (element) => {
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      return {
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height,
+      };
+    };
+    const presentation = (element) => {
+      if (!element) return null;
+      const style = getComputedStyle(element);
+      return {
+        role: element.getAttribute('role') || '',
+        tabIndex: element.getAttribute('tabindex'),
+        text: element.textContent?.replace(/\s+/gu, ' ').trim() || '',
+        display: style.display,
+        alignItems: style.alignItems,
+        flexWrap: style.flexWrap,
+        gap: style.gap,
+        color: style.color,
+        backgroundColor: style.backgroundColor,
+        borderRadius: style.borderRadius,
+        cursor: style.cursor,
+        fontSize: style.fontSize,
+        lineHeight: style.lineHeight,
+        pointerEvents: style.pointerEvents,
+        textDecorationLine: style.textDecorationLine,
+        geometry: geometry(element),
+      };
+    };
+    const noticeHost = document.querySelector('#fluent-read-page-notice-host');
+    const notice = noticeHost?.shadowRoot?.querySelector('.page-notice');
+    return {
+      url: location.href,
+      href: link instanceof HTMLAnchorElement ? link.href : '',
+      hrefAttribute: link?.getAttribute('href') || '',
+      hidden: Boolean(link?.hasAttribute('hidden')),
+      linkDisplay: link ? getComputedStyle(link).display : '',
+      linkGeometry: geometry(link),
+      activations: Number(globalThis.__fluentReadFailureLinkActivations || 0),
+      wrapperCount: link?.querySelectorAll(':scope > .fluent-read-retry-wrapper').length || 0,
+      translationCount: link?.querySelectorAll(':scope > .fluent-read-bilingual-content').length || 0,
+      translationText: link?.querySelector(':scope > .fluent-read-bilingual-content')?.textContent?.trim() || '',
+      wrapper: presentation(wrapper),
+      retry: presentation(retry),
+      reason: presentation(reason),
+      retryIcon: presentation(retryIcon),
+      reasonIcon: presentation(reasonIcon),
+      notice: {
+        present: Boolean(notice),
+        role: notice?.getAttribute('role') || '',
+        detail: notice?.querySelector('.notice-detail')?.textContent?.trim() || '',
+      },
+    };
+  }, FAILURE_ACTION_LINK_SELECTOR);
+}
+
+function assertFailureLinkInvariant(state, baseline, phase) {
+  if (state.url !== baseline.url || state.href !== baseline.href ||
+      state.hrefAttribute !== baseline.hrefAttribute || state.activations !== 0) {
+    throw new Error(`${phase} 触发了原链接：${JSON.stringify({baseline, state})}`);
+  }
+}
+
+function assertFailureActionPresentation(state) {
+  const hasArea = (item) => Boolean(item?.geometry && item.geometry.width > 0 && item.geometry.height > 0);
+  const isFlexDisplay = (display) => display === 'flex' || display === 'inline-flex';
+  const transparent = new Set(['transparent', 'rgba(0, 0, 0, 0)']);
+  const issues = [];
+  if (state.wrapperCount !== 1 || state.wrapper?.role !== 'group' ||
+      !isFlexDisplay(state.wrapper?.display) || state.wrapper?.pointerEvents !== 'auto' ||
+      state.wrapper?.flexWrap !== 'wrap' ||
+      !hasArea(state.wrapper)) issues.push('wrapper 不可见或不是 inline-flex group');
+  for (const [name, action, expectedText] of [
+    ['retry', state.retry, '重试'],
+    ['reason', state.reason, '错误原因'],
+  ]) {
+    if (action?.role !== '' || action?.tabIndex !== null || !isFlexDisplay(action?.display) ||
+        action?.cursor !== 'pointer' || action?.pointerEvents !== 'auto' ||
+        action?.textDecorationLine !== 'none' || action?.text !== expectedText || !hasArea(action) ||
+        transparent.has(action?.backgroundColor) || !action?.borderRadius || action.borderRadius === '0px') {
+      issues.push(`${name} action 样式或语义无效`);
+    }
+  }
+  for (const [name, icon, action] of [
+    ['retry', state.retryIcon, state.retry],
+    ['reason', state.reasonIcon, state.reason],
+  ]) {
+    if (!hasArea(icon) || !hasArea(action) || !isFlexDisplay(icon?.display) ||
+        icon.geometry.width > action.geometry.height || icon.geometry.height > action.geometry.height) {
+      issues.push(`${name} icon 几何无效`);
+    }
+  }
+  const retryBox = state.retry?.geometry;
+  const reasonBox = state.reason?.geometry;
+  const wrapperBox = state.wrapper?.geometry;
+  const linkBox = state.linkGeometry;
+  if (retryBox && reasonBox) {
+    const retryCenter = (retryBox.top + retryBox.bottom) / 2;
+    const reasonCenter = (reasonBox.top + reasonBox.bottom) / 2;
+    if (reasonBox.left < retryBox.right - 0.5 || Math.abs(retryCenter - reasonCenter) > 2) {
+      issues.push('两个 action 重叠或未对齐');
+    }
+  }
+  if (wrapperBox && linkBox && (wrapperBox.left < linkBox.left - 1 || wrapperBox.right > linkBox.right + 1 ||
+      wrapperBox.top < linkBox.top - 1 || wrapperBox.bottom > linkBox.bottom + 1)) {
+    issues.push('失败操作超出链接几何边界');
+  }
+  if (issues.length > 0) {
+    throw new Error(`链接失败操作样式断言失败：${issues.join('；')}；${JSON.stringify(state)}`);
+  }
+}
+
+async function runFailureActionScenario({
+  page,
+  context,
+  args,
+  createIsolatedPage,
+  activateTestPage,
+  translationFixtureServer,
+  artifactsDir,
+}) {
+  const microsoftConfig = await readConfig(
+    context,
+    args.timeout,
+    {service: 'microsoft'},
+    createIsolatedPage,
+  );
+  if (microsoftConfig.config.service !== 'microsoft') {
+    throw new Error(`链接失败 fixture 无法切换到确定性微软服务：${microsoftConfig.config.service}`);
+  }
+  await page.waitForTimeout(250);
+  await page.evaluate((selector) => {
+    const link = document.querySelector(selector);
+    if (!(link instanceof HTMLAnchorElement)) throw new Error('缺少链接失败 fixture');
+    link.hidden = false;
+    globalThis.__fluentReadFailureLinkActivations = 0;
+  }, FAILURE_ACTION_LINK_SELECTOR);
+  await page.waitForSelector(FAILURE_ACTION_LINK_SELECTOR, {state: 'visible', timeout: args.timeout});
+
+  const baseline = await readFailureActionState(page);
+  if (baseline.linkDisplay !== 'block' || baseline.hidden || !baseline.href.includes('#translation-error-destination')) {
+    throw new Error(`链接失败 fixture 初始状态无效：${JSON.stringify(baseline)}`);
+  }
+
+  await toggleHoverTranslation(page, FAILURE_ACTION_LINK_SELECTOR, activateTestPage);
+  await page.waitForSelector(
+    `${FAILURE_ACTION_LINK_SELECTOR} > .fluent-read-retry-wrapper`,
+    {state: 'visible', timeout: args.timeout},
+  );
+  const failed = await readFailureActionState(page);
+  assertFailureLinkInvariant(failed, baseline, '首次失败后');
+  assertFailureActionPresentation(failed);
+  if (translationFixtureServer.failureActionAttempts() !== 1 || failed.translationCount !== 0) {
+    throw new Error(`链接没有在首次翻译后进入失败态：${JSON.stringify({
+      attempts: translationFixtureServer.failureActionAttempts(),
+      failed,
+    })}`);
+  }
+
+  const screenshots = [];
+  if (artifactsDir) {
+    const failureScreenshot = path.join(artifactsDir, 'full-page-link-failure.png');
+    await page.screenshot({path: failureScreenshot, fullPage: false});
+    screenshots.push(failureScreenshot);
+  }
+
+  await page.locator(`${FAILURE_ACTION_LINK_SELECTOR} .fluent-read-reason`).click();
+  await page.waitForFunction(() => Boolean(
+    document.querySelector('#fluent-read-page-notice-host')?.shadowRoot?.querySelector('.page-notice .notice-detail'),
+  ), undefined, {timeout: args.timeout});
+  const afterReason = await readFailureActionState(page);
+  assertFailureLinkInvariant(afterReason, baseline, '点击错误原因后');
+  if (!afterReason.notice.present || afterReason.notice.role !== 'alert' || !afterReason.notice.detail) {
+    throw new Error(`点击错误原因后没有显示通知：${JSON.stringify(afterReason)}`);
+  }
+  if (artifactsDir) {
+    const reasonScreenshot = path.join(artifactsDir, 'full-page-link-error-reason.png');
+    await page.screenshot({path: reasonScreenshot, fullPage: false});
+    screenshots.push(reasonScreenshot);
+  }
+
+  await page.locator(`${FAILURE_ACTION_LINK_SELECTOR} .fluent-read-retry`).click();
+  await page.waitForFunction((selector) => {
+    const link = document.querySelector(selector);
+    return Boolean(link?.querySelector(':scope > .fluent-read-bilingual-content')) &&
+      !link?.querySelector(':scope > .fluent-read-retry-wrapper');
+  }, FAILURE_ACTION_LINK_SELECTOR, {timeout: args.timeout});
+  const retried = await readFailureActionState(page);
+  assertFailureLinkInvariant(retried, baseline, '点击重试成功后');
+  if (translationFixtureServer.failureActionAttempts() !== 2 || retried.translationCount !== 1 ||
+      !/[\u3400-\u9fff]/u.test(retried.translationText)) {
+    throw new Error(`链接手动重试没有在第二次成功：${JSON.stringify({
+      attempts: translationFixtureServer.failureActionAttempts(),
+      retried,
+    })}`);
+  }
+  if (artifactsDir) {
+    const successScreenshot = path.join(artifactsDir, 'full-page-link-retry-success.png');
+    await page.screenshot({path: successScreenshot, fullPage: false});
+    screenshots.push(successScreenshot);
+  }
+
+  await toggleHoverTranslation(page, FAILURE_ACTION_LINK_SELECTOR, activateTestPage);
+  await page.waitForFunction((selector) => {
+    const link = document.querySelector(selector);
+    return Boolean(link) && !link.querySelector('.fluent-read-bilingual-content, .fluent-read-retry-wrapper');
+  }, FAILURE_ACTION_LINK_SELECTOR, {timeout: args.timeout});
+  const restored = await readFailureActionState(page);
+  assertFailureLinkInvariant(restored, baseline, '链接恢复后');
+  await page.evaluate((selector) => {
+    const link = document.querySelector(selector);
+    if (link) link.hidden = true;
+  }, FAILURE_ACTION_LINK_SELECTOR);
+
+  const freeConfig = await readConfig(
+    context,
+    args.timeout,
+    {service: 'freeTranslation'},
+    createIsolatedPage,
+  );
+  if (freeConfig.config.service !== 'freeTranslation') {
+    throw new Error(`链接失败 fixture 后没有恢复免费翻译服务：${freeConfig.config.service}`);
+  }
+  await page.waitForTimeout(250);
+
+  return {
+    baseline,
+    failed,
+    afterReason,
+    retried,
+    restored,
+    provider: 'microsoft loopback fail-once',
+    attempts: translationFixtureServer.failureActionAttempts(),
+    screenshots,
+  };
 }
 
 async function main() {
@@ -1067,6 +1353,18 @@ async function main() {
       fullPage: !args.verifyFloatingUi,
     });
 
+    // 在全文会话已恢复的干净状态下验证失败操作。专用临时配置只在这一小段切到
+    // Microsoft loopback，避免 freeTranslation 的 DeepLX/Google 回退吞掉预期失败。
+    const failureActions = await runFailureActionScenario({
+      page,
+      context,
+      args,
+      createIsolatedPage,
+      activateTestPage,
+      translationFixtureServer,
+      artifactsDir,
+    });
+
     if (args.verifyFloatingUi) {
       await readConfig(context, args.timeout, {disableFloatingBall: true}, createIsolatedPage);
       floatingUiEvidence.progressOnlyInitial = await waitForFloatingUiState(
@@ -1168,12 +1466,14 @@ async function main() {
       translated,
       restored,
       retranslated,
+      failureActions,
       floatingUi: floatingUiEvidence,
       consoleErrors: runtimeErrors,
       screenshots: artifactsDir ? [
         path.join(artifactsDir, 'full-page-translated.png'),
         path.join(artifactsDir, 'full-page-restored.png'),
         path.join(artifactsDir, 'full-page-retranslated.png'),
+        ...failureActions.screenshots,
       ] : [],
     };
     if (artifactsDir) {

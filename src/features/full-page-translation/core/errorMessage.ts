@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/core/errorMessage.ts
  * 文件职责：把底层翻译异常字符串转换成适合全文翻译失败提示的中文用户文案，并在需要时带上当前翻译服务名称。
- * 主要内容：函数识别凭据未配置、请求超时、网络错误、频率限制、额度不足、服务异常等常见模式，返回可操作且不暴露内部堆栈的提示文本。
+ * 主要内容：函数识别扩展上下文失效、凭据未配置、请求超时、网络错误、频率限制、额度不足、服务异常等常见模式，返回可操作且不暴露内部堆栈的提示文本。
  * 模块边界：这是无副作用的错误文案映射，不记录日志、不打开设置也不处理重试；错误 UI 由 translationIndicators 调用，provider 原始异常的产生和分类属于服务层。
  */
 /**
@@ -12,6 +12,9 @@
 export function getTranslationErrorMessage(errMsg: string, serviceLabel: string): string {
   const normalizedError = errMsg.toLowerCase();
 
+  if (normalizedError.includes('extension context invalidated')) {
+    return '扩展已更新或重新加载，请刷新当前页面后再试。';
+  }
   if (/^当前翻译服务/u.test(errMsg) || /请求 ID：|\bHTTP\s+\d{3}\b/iu.test(errMsg)) {
     return errMsg;
   }

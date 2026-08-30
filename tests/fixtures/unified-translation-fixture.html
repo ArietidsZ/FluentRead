@@ -17,6 +17,17 @@
       -webkit-line-clamp: 2;
     }
     .model-description-clamp p { margin: 0; }
+    #translation-error-link {
+      display: block;
+      margin: 18px 0;
+      padding: 12px 14px;
+      border: 1px solid #b8c4d6;
+      border-radius: 10px;
+      color: #8f2f5e;
+      background: #f7f9fc;
+      font: 700 20px/1.35 Georgia, serif;
+      text-decoration: underline wavy currentColor 1px;
+    }
   </style>
 </head>
 <body>
@@ -40,6 +51,12 @@
       <button id="save-button"><span aria-hidden="true">★</span><span>Save changes</span></button>
       <button id="cancel-button">Cancel</button>
     </div>
+    <a
+      id="translation-error-link"
+      href="#translation-error-destination"
+      hidden
+    >This block link fails once so its translation error actions can be verified without leaving the page.</a>
+    <span id="translation-error-destination" hidden></span>
     <section id="dynamic-container"></section>
     <div id="shadow-host"></div>
   </main>
@@ -48,6 +65,10 @@
     const host = document.querySelector('#shadow-host');
     const shadow = host.attachShadow({ mode: 'open' });
     shadow.innerHTML = '<p id="shadow-paragraph">This paragraph lives inside an open shadow root.</p>';
+    window.__fluentReadFailureLinkActivations = 0;
+    document.querySelector('#translation-error-link').addEventListener('click', () => {
+      window.__fluentReadFailureLinkActivations += 1;
+    });
   </script>
 </body>
 </html>
