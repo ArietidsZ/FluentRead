@@ -14,6 +14,7 @@ import {
     setBilingualContent,
     setRenderedStyleAttribute,
     setRetryWrapper,
+    setSingleTextSlotHosts,
     setSpinner,
     setTextSlotsApplied,
     type TranslationState,
@@ -245,6 +246,26 @@ describe("指定节点翻译状态机", () => {
         expect(target.querySelector('a')).toBe(link);
         expect(originalNodes[0]!.nodeValue).toBe('Open ');
         expect(originalNodes[1]!.nodeValue).toBe('Host updated link');
+    });
+
+    it("仅译文视觉槽恢复原 Text 身份，并保留宿主在槽内的实时更新", () => {
+        const {document} = parseHTML('<html><body><relative-time id="time">12 hours ago</relative-time></body></html>');
+        const target = document.querySelector<HTMLElement>('#time')!;
+        const source = target.firstChild as Text;
+        beginTranslation(target, 'single', 'content', false, '12 hours ago', [source]);
+
+        const host = document.createElement('span');
+        host.setAttribute('data-fr-translation-owned', 'true');
+        target.insertBefore(host, source);
+        host.appendChild(source);
+        setSingleTextSlotHosts(target, [host]);
+
+        source.nodeValue = '11 hours ago';
+        expect(restoreTranslation(target)).toBe(true);
+
+        expect(target.firstChild).toBe(source);
+        expect(target.textContent).toBe('11 hours ago');
+        expect(host.isConnected).toBe(false);
     });
 
     it("能在宿主移除双语 wrapper 后找到并清理其 owner", () => {

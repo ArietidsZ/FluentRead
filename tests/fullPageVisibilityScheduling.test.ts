@@ -84,6 +84,24 @@ vi.mock('@/src/features/full-page-translation/ui/translationIndicators', () => (
     },
 }));
 vi.mock("@/src/features/full-page-translation/content/renderer", () => ({
+    appendSingleTranslationSlots: (
+        node: HTMLElement,
+        slots: readonly {node: Text; text: string}[],
+        options: Record<string, unknown> = {},
+    ) => slots.map((slot) => {
+        const host = node.ownerDocument.createElement("span");
+        host.className = "fluent-read-single-slot";
+        host.setAttribute("data-fr-translation-owned", "true");
+        host.setAttribute("aria-label", slot.text);
+        host.lang = typeof options.targetLanguage === "string" ? options.targetLanguage : "";
+        const shadow = host.attachShadow({mode: "open"});
+        const translated = node.ownerDocument.createElement("span");
+        translated.textContent = slot.text;
+        shadow.appendChild(translated);
+        slot.node.parentNode!.insertBefore(host, slot.node);
+        host.appendChild(slot.node);
+        return host;
+    }),
     appendBilingualTranslation: (node: HTMLElement, text: string, options: Record<string, unknown> = {}) => {
         runtime.renderOptions.push(options);
         const wrapper = node.ownerDocument.createElement("span");
@@ -200,6 +218,12 @@ import {
     translateTextSlots,
     type FullPageTranslationConfigSnapshot,
 } from '@/src/features/full-page-translation/content/translationRequest';
+
+function singleTranslationText(owner: HTMLElement): string {
+    return Array.from(owner.querySelectorAll<HTMLElement>('.fluent-read-single-slot'))
+        .map((host) => host.getAttribute('aria-label') ?? '')
+        .join('');
+}
 
 class TestIntersectionObserver {
     static instances: TestIntersectionObserver[] = [];
@@ -960,8 +984,8 @@ describe("全文翻译可见性锚点", () => {
         expect(runtime.requests).toHaveBeenCalledTimes(2);
         expect(runtime.requests).toHaveBeenCalledWith(["Visible paragraph"]);
         expect(runtime.requests).toHaveBeenCalledWith(["Paragraph near the page bottom"]);
-        expect(visible.textContent).toBe("译:Visible paragraph");
-        expect(belowFold.textContent).toBe("译:Paragraph near the page bottom");
+        expect(singleTranslationText(visible)).toBe("译:Visible paragraph");
+        expect(singleTranslationText(belowFold)).toBe("译:Paragraph near the page bottom");
     });
 
     it("立即翻译整页仍只并发三个候选，释放槽位后才启动下一项", async () => {
@@ -995,7 +1019,7 @@ describe("全文翻译可见性锚点", () => {
         requests[2]!.resolve(["译:Three"]);
         requests[3]!.resolve(["译:Four"]);
         await finishScheduledWork();
-        expect(candidates.map((candidate) => candidate.textContent)).toEqual([
+        expect(candidates.map(singleTranslationText)).toEqual([
             "译:One", "译:Two", "译:Three", "译:Four",
         ]);
     });
@@ -1053,7 +1077,7 @@ describe("全文翻译可见性锚点", () => {
 
         expect(TestIntersectionObserver.instances[1]!.observe).not.toHaveBeenCalled();
         expect(runtime.requests).toHaveBeenCalledWith(["Mode changes apply to the next session."]);
-        expect(paragraph.textContent).toBe("译:Mode changes apply to the next session.");
+        expect(singleTranslationText(paragraph)).toBe("译:Mode changes apply to the next session.");
     });
 
     it("全文会话冻结服务、模型、语言、缓存、AI 上下文、显示模式和样式，配置热更新不会混入后续候选", async () => {
@@ -1136,7 +1160,7 @@ describe("全文翻译可见性锚点", () => {
         await finishScheduledWork();
 
         expect(runtime.requests).toHaveBeenCalledWith(["A paragraph appended by infinite scroll"]);
-        expect(paragraph.textContent).toBe("译:A paragraph appended by infinite scroll");
+        expect(singleTranslationText(paragraph)).toBe("译:A paragraph appended by infinite scroll");
         expect(TestIntersectionObserver.instances[0]!.observe).not.toHaveBeenCalled();
     });
 
@@ -1160,7 +1184,7 @@ describe("全文翻译可见性锚点", () => {
         await finishScheduledWork();
 
         expect(runtime.requests).toHaveBeenCalledWith(["Pull request title"]);
-        expect(title.textContent).toBe("译:Pull request title");
+        expect(singleTranslationText(title)).toBe("译:Pull request title");
         expect(observer.unobserve).toHaveBeenCalledWith(label);
     });
 
@@ -1215,7 +1239,7 @@ describe("全文翻译可见性锚点", () => {
 
         request.resolve(["译:Hydrated title"]);
         await finishScheduledWork();
-        expect(title.textContent).toBe("译:Hydrated title");
+        expect(singleTranslationText(title)).toBe("译:Hydrated title");
         expect(runtime.requests).toHaveBeenCalledTimes(1);
     });
 
@@ -1275,7 +1299,7 @@ describe("全文翻译可见性锚点", () => {
         expect(observer.observe).not.toHaveBeenCalled();
         expect(runtime.requests).toHaveBeenCalledTimes(1);
         expect(runtime.requests).toHaveBeenCalledWith(["Text-only heading"]);
-        expect(title.textContent).toBe("译:Text-only heading");
+        expect(singleTranslationText(title)).toBe("译:Text-only heading");
     });
 
     it("inFlightCandidates 是唯一并发计数，并在 settle 后释放下一候选", async () => {
@@ -1312,7 +1336,7 @@ describe("全文翻译可见性锚点", () => {
         requests[2]!.resolve(["译:Three"]);
         requests[3]!.resolve(["译:Four"]);
         await finishScheduledWork();
-        expect(candidates.map((candidate) => candidate.textContent)).toEqual([
+        expect(candidates.map(singleTranslationText)).toEqual([
             "译:One", "译:Two", "译:Three", "译:Four",
         ]);
     });
@@ -1410,7 +1434,7 @@ describe("全文翻译可见性锚点", () => {
             requests[4]!.resolve(["译:Five"]);
             await finishScheduledWork();
 
-            expect(candidates.map((candidate) => candidate.textContent)).toEqual([
+            expect(candidates.map(singleTranslationText)).toEqual([
                 "译:One", "译:Two", "译:Three", "译:Four", "译:Five",
             ]);
             expectCurrentProgress({
@@ -1577,7 +1601,7 @@ describe("全文翻译可见性锚点", () => {
         expect(runtime.requests).toHaveBeenCalledTimes(2);
         expect(getTranslationState(paragraph)).toMatchObject({phase: "translated", mode: "single"});
         expect(paragraph.querySelector(".fluent-read-bilingual-content")).toBeNull();
-        expect(paragraph.textContent).toBe("译:Retry with the latest display mode.");
+        expect(singleTranslationText(paragraph)).toBe("译:Retry with the latest display mode.");
     });
 
     it("行内片段首次失败后会从原始候选恢复并完成手动重试", async () => {
@@ -2131,7 +2155,7 @@ describe("全文翻译可见性锚点", () => {
         expect(runtime.requests).toHaveBeenNthCalledWith(3, [
             "The settled perspective paragraph keeps the inline formula intact.",
         ]);
-        expect(paragraph.textContent).toBe("译:The settled perspective paragraph keeps the inline formula intact.");
+        expect(singleTranslationText(paragraph)).toBe("译:The settled perspective paragraph keeps the inline formula intact.");
 
         await finishScheduledWork();
         expect(runtime.requests).toHaveBeenCalledTimes(3);
@@ -2198,6 +2222,41 @@ describe("全文翻译可见性锚点", () => {
             expect(runtime.requests).toHaveBeenCalledTimes(1);
         },
     );
+
+    it("仅译文保留动态组件的原 Text，宿主一致性校验不再与重译循环争用", async () => {
+        runtime.config.display = 0;
+        runtime.config.fullPageTranslationMode = "all";
+        document.body.innerHTML = '<relative-time id="time">12 hours ago</relative-time>';
+        const time = document.querySelector<HTMLElement>("#time")!;
+        const originalText = time.firstChild as Text;
+        setLayoutBox(time, 120, 24);
+        runtime.candidates = [{element: time, kind: "content", reason: "generic-text-container"}];
+
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(runtime.requests).toHaveBeenCalledWith(["12 hours ago"]);
+        expect(singleTranslationText(time)).toBe("译:12 hours ago");
+        expect(time.textContent).toBe("12 hours ago");
+        expect(time.querySelector('.fluent-read-single-slot')?.firstChild).toBe(originalText);
+
+        // GitHub 这类组件会读取 textContent 并在值偏离时写回。旧实现每轮
+        // 都会看到译文并写回英文；新实现中连续校验不产生任何 mutation。
+        let hostCorrections = 0;
+        for (let index = 0; index < 5; index += 1) {
+            if (time.textContent !== "12 hours ago") {
+                time.textContent = "12 hours ago";
+                hostCorrections += 1;
+            }
+        }
+        expect(hostCorrections).toBe(0);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+
+        restoreOriginalContent();
+        expect(time.textContent).toBe("12 hours ago");
+        expect(time.querySelector('.fluent-read-single-slot')).toBeNull();
+    });
 
     it("已译 prose 忽略 MathJax/code 等保护后代 churn，但外层 source mutation 会重启", async () => {
         runtime.config.display = 1;
@@ -2573,6 +2632,6 @@ describe("全文翻译可见性锚点", () => {
         await finishScheduledWork();
 
         expect(runtime.requests).toHaveBeenCalledTimes(4);
-        expect(paragraph.textContent).toBe("译:Late prose became readable after hydration.");
+        expect(singleTranslationText(paragraph)).toBe("译:Late prose became readable after hydration.");
     });
 });

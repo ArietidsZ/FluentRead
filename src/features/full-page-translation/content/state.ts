@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/state.ts
  * 文件职责：维护每个被翻译 DOM 节点的可恢复状态、请求代次、译文工件和共享布局覆盖所有权，确保重复翻译、宿主变更和移除节点都能安全收敛。
- * 主要内容：包含 WeakMap 状态索引、begin/complete/error/discard 状态机、spinner/译文/retry 节点登记、截断祖先样式快照与观察器引用计数、文本槽回写以及全量恢复。
+ * 主要内容：包含 WeakMap 状态索引、begin/complete/error/discard 状态机、spinner/译文/retry/仅译文槽节点登记、截断祖先样式快照与观察器引用计数、文本槽回写以及全量恢复。
  * 模块边界：该模块不发现候选、不请求翻译也不生成译文 HTML；runtime 负责会话编排，renderer 负责内容创建，本文件仅拥有 DOM 状态与可逆样式资源，避免跨 session 误删新结果。
  */
 import {
@@ -84,6 +84,8 @@ export interface TranslationState {
     translatedTextValues?: WeakMap<Text, string>;
     /** 单译文或控件渲染执行时可见且可翻译的 Text 节点。 */
     translatedTextNodes?: readonly Text[];
+    /** 仅译文 content 的视觉替换槽；每个 host 的轻 DOM 仍保存宿主原 Text。 */
+    singleTextSlotHosts?: Array<{host: HTMLElement; source: Text; sourceValue: string}>;
     controller: AbortController;
     spinner?: HTMLElement;
     bilingualContent?: HTMLElement;
@@ -166,6 +168,7 @@ function refreshOwnershipIndex(owner: HTMLElement, state: TranslationState): voi
         ...(state.spinner ? [state.spinner] : []),
         ...(state.bilingualContent ? [state.bilingualContent] : []),
         ...(state.retryWrapper ? [state.retryWrapper] : []),
+        ...(state.singleTextSlotHosts?.map(({host}) => host) ?? []),
         ...(state.layoutOverrideElements ?? []),
         ...(state.layoutWatchElements ?? []),
     ]);
@@ -782,6 +785,16 @@ function teardownAttempt(
 ): void {
     state.generation += 1;
     state.controller.abort();
+
+    // 仅译文槽的轻 DOM 保存原始 Text 节点，必须在通用扩展产物
+    // 清理之前解包。宿主已移除或移走的槽保持宿主权威，不重新插回。
+    state.singleTextSlotHosts?.forEach(({host}) => {
+        if (!node.contains(host) || !host.parentNode) return;
+        const parent = host.parentNode;
+        while (host.firstChild) parent.insertBefore(host.firstChild, host);
+        parent.removeChild(host);
+    });
+
     removeExtensionNode(state.spinner);
     removeExtensionNode(state.bilingualContent);
     removeRetryArtifacts(node);
@@ -817,6 +830,23 @@ export function setTextSlotsApplied(
             state.originalTextValues.map(({node: textNode}) => [textNode, textNode.nodeValue ?? ""]),
         );
     }
+}
+
+export function setSingleTextSlotHosts(
+    node: HTMLElement,
+    hosts: readonly HTMLElement[],
+): void {
+    const state = states.get(node);
+    if (!state) return;
+    const originalValues = new WeakMap(
+        state.originalTextValues.map(({node: textNode, value}) => [textNode, value]),
+    );
+    state.singleTextSlotHosts = hosts.flatMap((host) => {
+        const source = Array.from(host.childNodes).find((child): child is Text => child.nodeType === 3);
+        if (!source) return [];
+        return [{host, source, sourceValue: originalValues.get(source) ?? source.nodeValue ?? ""}];
+    });
+    refreshOwnershipIndex(node, state);
 }
 
 /**

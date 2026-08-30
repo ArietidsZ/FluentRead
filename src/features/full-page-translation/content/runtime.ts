@@ -44,6 +44,7 @@ import {
 } from '@/src/features/full-page-translation/progress';
 import {
     appendBilingualTranslation,
+    appendSingleTranslationSlots,
 } from "@/src/features/full-page-translation/content/renderer";
 import {ensureTranslationTruncationLayout} from "@/src/features/full-page-translation/content/layout";
 import {
@@ -59,6 +60,7 @@ import {
     setBilingualContent,
     setRenderedStyleAttribute,
     setRetryWrapper,
+    setSingleTextSlotHosts,
     setSpinner,
     setTextSlotsApplied,
     isTranslationLayoutOverrideMutation,
@@ -107,6 +109,7 @@ interface LiveTextTranslationResult {
     complete: boolean;
     changed: boolean;
     nodes: readonly Text[];
+    slots: readonly {node: Text; text: string}[];
     apply: () => void;
 }
 
@@ -305,6 +308,17 @@ function statefulSourceAndTextSlotsAreCurrent(
     node: HTMLElement,
     state: TranslationState,
 ): boolean {
+    if (state.singleTextSlotHosts) {
+        const previousNodes = state.sourceTextNodes ?? [];
+        if (state.singleTextSlotHosts.length !== previousNodes.length) return false;
+        return state.singleTextSlotHosts.every(({host, source, sourceValue}, index) =>
+            previousNodes[index] === source &&
+            host.parentNode !== null &&
+            node.contains(host) &&
+            host.contains(source) &&
+            (source.nodeValue ?? "") === sourceValue);
+    }
+
     const currentNodes = currentStateTextNodes(node, state);
     const previousNodes = state.translatedTextNodes ?? state.sourceTextNodes ?? [];
     if (currentNodes.length !== previousNodes.length ||
@@ -400,6 +414,7 @@ async function translateLiveText(
         complete: false,
         changed: false,
         nodes: [],
+        slots: [],
         apply: () => undefined,
     };
 
@@ -414,6 +429,10 @@ async function translateLiveText(
         complete: translations.length === origins.length,
         changed,
         nodes: parts.map((part) => part.node),
+        slots: parts.map((part, index) => ({
+            node: part.node,
+            text: `${part.prefix}${translations[index] ?? part.source}${part.suffix}`,
+        })),
         apply: () => {
             translations.forEach((translation, index) => {
                 const part = parts[index];
@@ -552,8 +571,16 @@ async function renderTranslation(
             if (!markTranslationComplete(node, state, generation, false)) {
                 return staleOutcome();
             }
-            liveResult.apply();
-            setTextSlotsApplied(node, liveResult.nodes);
+            if (state.mode === "single" && state.kind === "content") {
+                const hosts = appendSingleTranslationSlots(node, liveResult.slots, {
+                    targetLanguage: snapshot.targetLanguage,
+                });
+                if (hosts.length !== liveResult.slots.length) return staleOutcome();
+                setSingleTextSlotHosts(node, hosts);
+            } else {
+                liveResult.apply();
+                setTextSlotsApplied(node, liveResult.nodes);
+            }
             return {status: "committed"};
         }
 
