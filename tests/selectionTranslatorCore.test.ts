@@ -298,6 +298,21 @@ describe('selection translator text and speech language normalization', () => {
         ))).toBe(true);
     });
 
+    it('安全处理缺失选区节点并支持文本节点共同祖先', () => {
+        expect(shouldIgnoreSelection(mockRange(
+            null,
+            null,
+            {commonAncestor: mockTextNode(null)},
+        ))).toBe(false);
+
+        const queryRoot = new MockElement();
+        expect(shouldIgnoreSelection(mockRange(
+            mockTextNode(queryRoot),
+            mockTextNode(queryRoot),
+            {commonAncestor: mockTextNode(queryRoot)},
+        ))).toBe(false);
+    });
+
     it('allows selection inside a body-level application shell but keeps local opt-outs protected', () => {
         const {document} = parseHTML(`
             <html><body>
