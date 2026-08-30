@@ -121,6 +121,13 @@ describe('browser regression focus safety', () => {
         expect(privacySource).toContain('configurePrivacySurfaces(optionsPage');
         expect(privacySource).toContain("type: 'persistConfig'");
         expect(privacySource).toContain('baseRevision');
+        expect(privacySource).toContain('exportCompleteBackupViaOptionsUi');
+        expect(privacySource).toContain("name: '导出备份'");
+        expect(privacySource).toContain("name: '不包含并导出'");
+        expect(privacySource).toContain("waitForEvent('download'");
+        expect(privacySource).toContain('includesPrivateVocabularyContext');
+        expect(privacySource).not.toContain("name: '导出配置'");
+        expect(privacySource).not.toContain('config-transfer-dialog');
         expect(privacySource).not.toContain('configurePrivacySurfaces(worker');
         expect(privacySource).not.toContain('chrome.storage.local.set({ config: next })');
     });
@@ -143,6 +150,39 @@ describe('browser regression focus safety', () => {
         await expect(selectUserscriptTestPage(false, context, createIsolatedPage)).resolves.toBe(startupPage);
         expect(context.pages).toHaveBeenCalledOnce();
         expect(createIsolatedPage).not.toHaveBeenCalled();
+    });
+
+    it('设置中心浏览器回归锁定完整备份与恢复契约', () => {
+        const source = readScript('scripts/testing/run-settings-center-ui-test.cjs');
+
+        expect(source).toContain("['settings-data', '备份与恢复']");
+        expect(source).toContain("name: '自动设置快照'");
+        expect(source).toContain("name: '导出备份'");
+        expect(source).toContain("name: '从备份恢复'");
+        expect(source).toContain("getByText('是否包含单词上下文？'");
+        expect(source).toContain("page.waitForEvent('download'");
+        expect(source).toContain("page.waitForEvent('filechooser'");
+        expect(source).toContain("getByTestId('restore-source-dialog')");
+        expect(source).toContain("getByTestId('local-data-import-dialog')");
+        expect(source).toContain("filter({hasText: /^凭据安全/u})");
+        expect(source).toContain('const hiddenCredentialSentinels = [');
+        expect(source).toContain('importPreviewText.includes(sentinels.proxy)');
+        expect(source).toContain("value.format !== 'fluentread-data-backup'");
+        expect(source).toContain("value.configCredentialMode !== 'exact-replace'");
+        expect(source).toContain("['服务 / 模型', '输入', '缓存', '输出', '次数', '总计']");
+        expect(source).toContain('index % 5 === 0');
+        expect(source).toContain('index % 5 === 2');
+        expect(source).toContain('FluentRead 译文缓存或配置历史');
+        expect(source).toContain("getByText('缓存读取未上报'");
+        expect(source).toContain("getByText('暂时无法拆分输入与缓存构成'");
+        expect(source).toContain("mode: 'patch'");
+        expect(source).toContain('expected: {vocabularyBookEnabled: previousBetaEnabled}');
+        expect(source).toContain('vocabularyBookEnabled: true');
+        expect(source).not.toContain("['settings-data', '配置管理']");
+        expect(source).not.toContain("name: '定时备份'");
+        expect(source).not.toContain("getByRole('button', {name: '导出配置'");
+        expect(source).not.toContain("getByRole('button', {name: '导入配置'");
+        expect(source).not.toContain("getByTestId('config-transfer-dialog')");
     });
 
     it.each(FOCUS_SAFE_SCRIPTS)('%s 的后台路径强制使用焦点安全 helper', (path) => {

@@ -22,6 +22,7 @@ import {
     attachTranslationModelUsageObserver,
     attachTranslationProviderConfig,
     createTranslationProviderConfigSnapshot,
+    getTranslationRequestControl,
     TRANSLATION_REMAINING_BUDGET,
     type TranslationRemainingBudgetContext,
 } from './requestSnapshot';
@@ -31,6 +32,7 @@ import {
     isLikelyPageContextLeak,
 } from '@/src/core/translation/prompts';
 import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
+import {waitForBoundedPersistence} from './persistenceBarrier';
 
 export type {
     TranslationBatchRequestMessage,
@@ -53,6 +55,9 @@ interface TranslationRequestExecution {
     readonly service: string;
     readonly sourceLanguage: string;
     readonly targetLanguage: string;
+    readonly enableAIContext: boolean;
+    readonly abortSignal?: AbortSignal;
+    readonly ownershipKey?: string;
 }
 
 const PAGE_SUMMARY_CACHE_SIZE = 8;
@@ -130,11 +135,14 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
     }
 
     function isAIContextEnabled(
-        current: TranslationProviderConfigSnapshot,
-        service: string,
+        execution: TranslationRequestExecution,
         modelOverride?: string,
     ): boolean {
-        return current.enableAIContext && isPromptBasedAI(current, service, modelOverride);
+        return execution.enableAIContext && isPromptBasedAI(
+            execution.config,
+            execution.service,
+            modelOverride,
+        );
     }
 
     function getProviderEndpoint(current: TranslationProviderConfigSnapshot, service: string): string {
@@ -190,7 +198,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 : undefined,
             // 步骤 1：DeepL 把标题上下文直接发送给 provider；AI adapter 通过 prompt 注入页面上下文。
             context: service === 'deepL' ? context : undefined,
-            pageContext: isAIContextEnabled(current, service, modelOverride) ? pageContext : undefined,
+            pageContext: isAIContextEnabled(execution, modelOverride) ? pageContext : undefined,
         });
     }
 
@@ -278,18 +286,31 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
     async function runWithinDeadline<T>(
         operation: () => Promise<T>,
         requestDeadline: number,
+        signal?: AbortSignal,
     ): Promise<T> {
+        throwIfRequestAborted(signal);
         const remaining = getRemainingDeadlineMs(requestDeadline);
-        const work = operation();
 
         let timer: ReturnType<typeof setTimeout>;
         const timeout = new Promise<never>((_resolve, reject) => {
             timer = setTimeout(() => reject(new TranslationProviderDeadlineError()), remaining);
         });
+        const abortListenerCleanup = new AbortController();
+        const aborted = new Promise<never>((_resolve, reject) => {
+            if (!signal) return;
+            signal.addEventListener(
+                'abort',
+                () => reject(requestAbortError()),
+                {once: true, signal: abortListenerCleanup.signal},
+            );
+        });
         try {
-            return await Promise.race([work, timeout]);
+            // 先注册取消监听，再启动可能同步改变 signal 的操作，关闭检查与监听之间的窗口。
+            const work = operation();
+            return await Promise.race([work, timeout, aborted]);
         } finally {
             clearTimeout(timer!);
+            abortListenerCleanup.abort();
         }
     }
 
@@ -304,6 +325,21 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
     function buildPendingRequestKey(cacheKey: string, requestTimeoutMs: number): string {
         const normalizedTimeoutMs = normalizeDeadlineTimeoutMs(requestTimeoutMs);
         return `${cacheKey}:timeout:${normalizedTimeoutMs}ms`;
+    }
+
+    function pendingOwnershipSuffix(execution: TranslationRequestExecution): string {
+        const ownershipKey = execution.ownershipKey;
+        return ownershipKey ? `:owner:${ownershipKey.length}:${ownershipKey}` : '';
+    }
+
+    function requestAbortError(): Error {
+        const error = new Error('翻译请求已取消');
+        error.name = 'AbortError';
+        return error;
+    }
+
+    function throwIfRequestAborted(signal?: AbortSignal): void {
+        if (signal?.aborted) throw requestAbortError();
     }
 
     /**
@@ -371,60 +407,85 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             outcome: observation.outcome ?? fallbackOutcome,
         }));
 
-        try {
-            await deps.recordModelUsage(records, generation);
-        } catch (error) {
-            warn('[FluentRead] model usage write failed:', error);
-        }
+        await waitForBoundedPersistence(
+            Promise.resolve().then(() => deps.recordModelUsage!(records, generation)),
+            {
+                graceMs: deps.persistenceGraceMs,
+                onFailure: (error) => warn('[FluentRead] model usage write failed:', error),
+                onTimeout: (error) => warn('[FluentRead] model usage write timed out:', error),
+            },
+        );
     }
 
     async function callProviderWithinDeadline(
         execution: TranslationRequestExecution,
         message: TranslationRequestMessage,
     ): Promise<unknown> {
-        const provider = getTranslationService(execution.service);
-        const timeoutMs = normalizeDeadlineTimeoutMs(message.requestTimeoutMs as number);
-        const startedAt = now();
-        const usageGeneration = deps.captureModelUsageGeneration?.() ?? 0;
-        const observations: TranslationModelUsageObservation[] = [];
+        throwIfRequestAborted(execution.abortSignal);
         const controller = new AbortController();
-        const providerMessage = attachTranslationModelUsageObserver({
-            ...message,
-            abortSignal: controller.signal,
-        }, (observation) => observations.push({...observation}));
-
-        let timer: ReturnType<typeof setTimeout>;
-        const timeout = new Promise<never>((_resolve, reject) => {
-            timer = setTimeout(() => {
-                controller.abort();
-                reject(new TranslationProviderDeadlineError());
-            }, timeoutMs);
+        const externalAbortListenerCleanup = new AbortController();
+        const externalAbort = new Promise<never>((_resolve, reject) => {
+            if (!execution.abortSignal) return;
+            execution.abortSignal.addEventListener(
+                'abort',
+                () => {
+                    controller.abort();
+                    reject(requestAbortError());
+                },
+                {once: true, signal: externalAbortListenerCleanup.signal},
+            );
         });
-        const operation = Promise.resolve().then(() => provider(providerMessage));
 
         try {
-            const result = await Promise.race([operation, timeout]);
-            clearTimeout(timer!);
-            void persistModelUsage(execution, message, observations, startedAt, 'success', usageGeneration);
-            return result;
-        } catch (error) {
-            clearTimeout(timer!);
-            const lastObservation = observations.at(-1);
-            const errorOutcome = modelUsageOutcome(error);
-            const outcome = errorOutcome === 'error' && lastObservation?.statusCode === 408
-                ? 'timeout'
-                : errorOutcome;
-            // Broker 自有 deadline 会先 abort transport；HTTP 408 也可能被第三方适配器先记为普通失败。
-            // 两者都校准为 timeout，避免同一种超时被拆成不同统计口径。
-            // 不覆盖更早的 success：批量下一项可能在真正 fetch 前就耗尽预算。
-            if (
-                outcome === 'timeout'
-                && (lastObservation?.outcome === 'cancelled' || lastObservation?.outcome === 'error')
-            ) {
-                lastObservation.outcome = 'timeout';
+            // 外部取消先取得监听所有权，再执行可能同步触发依赖回调的 provider 准备步骤。
+            const provider = getTranslationService(execution.service);
+            const timeoutMs = normalizeDeadlineTimeoutMs(message.requestTimeoutMs as number);
+            const startedAt = now();
+            const usageGeneration = deps.captureModelUsageGeneration?.() ?? 0;
+            const observations: TranslationModelUsageObservation[] = [];
+            const providerMessage = attachTranslationModelUsageObserver({
+                ...message,
+                abortSignal: controller.signal,
+            }, (observation) => observations.push({...observation}));
+
+            let timer: ReturnType<typeof setTimeout>;
+            const timeout = new Promise<never>((_resolve, reject) => {
+                timer = setTimeout(() => {
+                    controller.abort();
+                    reject(new TranslationProviderDeadlineError());
+                }, timeoutMs);
+            });
+            const operation = Promise.resolve().then(() => {
+                throwIfRequestAborted(execution.abortSignal);
+                return provider(providerMessage);
+            });
+
+            try {
+                const result = await Promise.race([operation, timeout, externalAbort]);
+                clearTimeout(timer!);
+                await persistModelUsage(execution, message, observations, startedAt, 'success', usageGeneration);
+                return result;
+            } catch (error) {
+                clearTimeout(timer!);
+                const lastObservation = observations.at(-1);
+                const errorOutcome = modelUsageOutcome(error);
+                const outcome = errorOutcome === 'error' && lastObservation?.statusCode === 408
+                    ? 'timeout'
+                    : errorOutcome;
+                // Broker 自有 deadline 会先 abort transport；HTTP 408 也可能被第三方适配器先记为普通失败。
+                // 两者都校准为 timeout，避免同一种超时被拆成不同统计口径。
+                // 不覆盖更早的 success：批量下一项可能在真正 fetch 前就耗尽预算。
+                if (
+                    outcome === 'timeout'
+                    && (lastObservation?.outcome === 'cancelled' || lastObservation?.outcome === 'error')
+                ) {
+                    lastObservation.outcome = 'timeout';
+                }
+                await persistModelUsage(execution, message, observations, startedAt, outcome, usageGeneration);
+                throw error;
             }
-            void persistModelUsage(execution, message, observations, startedAt, outcome, usageGeneration);
-            throw error;
+        } finally {
+            externalAbortListenerCleanup.abort();
         }
     }
 
@@ -436,7 +497,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         modelOverride?: string,
     ): boolean {
         return Boolean(pageContext.trim())
-            && isAIContextEnabled(execution.config, execution.service, modelOverride)
+            && isAIContextEnabled(execution, modelOverride)
             && isLikelyPageContextLeak(origin, result, pageContext);
     }
 
@@ -448,7 +509,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         modelOverride?: string,
     ): boolean {
         return Boolean(pageContext.trim())
-            && isAIContextEnabled(execution.config, execution.service, modelOverride)
+            && isAIContextEnabled(execution, modelOverride)
             && isDefinitePageContextLeak(origin, result, pageContext);
     }
 
@@ -719,11 +780,17 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         }
     }
 
-    function scheduleCacheWrite(generation: number, key: string, value: string): void {
-        // 缓存是旁路优化：写入仍参与 generation/clear 纪律，但不能阻塞成功译文或摘要正文。
-        void writeCacheIfCurrent(generation, key, value).catch((error) => {
-            warn('[FluentRead] translation cache write failed:', error);
-        });
+    async function persistCacheWrite(generation: number, key: string, value: string): Promise<void> {
+        // MV3 service worker 可能在消息 Promise 完成后立即挂起；成功响应前必须持有写入，
+        // 但只等待有限宽限期；迟到写仍留在 pendingCacheWrites 中供 clear 严格排空。
+        await waitForBoundedPersistence(
+            Promise.resolve().then(() => writeCacheIfCurrent(generation, key, value)),
+            {
+                graceMs: deps.persistenceGraceMs,
+                onFailure: (error) => warn('[FluentRead] translation cache write failed:', error),
+                onTimeout: (error) => warn('[FluentRead] translation cache write timed out:', error),
+            },
+        );
     }
 
     async function addPageSummary(
@@ -735,7 +802,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         modelOverride?: string,
         requestTimeoutMs?: number,
     ): Promise<string> {
-        if (!isAIContextEnabled(execution.config, execution.service, modelOverride) || !pageContext.trim()) return '';
+        if (!isAIContextEnabled(execution, modelOverride) || !pageContext.trim()) return '';
 
         const key = buildPageSummaryCacheKey(execution, pageContext, modelOverride);
         if (useCache) {
@@ -744,15 +811,17 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         }
 
         const summaryTimeoutMs = normalizeDeadlineTimeoutMs(requestTimeoutMs as number);
-        const pendingKey = `${buildPendingRequestKey(key, summaryTimeoutMs)}:cache:${useCache ? 'on' : 'off'}`;
+        const pendingKey = `${buildPendingRequestKey(key, summaryTimeoutMs)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}`;
         const existing = pendingPageSummaries.get(pendingKey);
-        if (existing) return runWithinDeadline(() => existing, requestDeadline);
+        if (existing) return runWithinDeadline(() => existing, requestDeadline, execution.abortSignal);
 
         const request = (async () => {
             try {
                 // 步骤 1：先读持久缓存，覆盖 MV3 service worker 重启后的重复摘要。
                 if (useCache) {
-                    const persisted = await runWithinDeadline(() => deps.cache.get(key), requestDeadline);
+                    const persisted = await runWithinDeadline(
+                        () => deps.cache.get(key), requestDeadline, execution.abortSignal,
+                    );
                     if (persisted !== null) {
                         if (requestGeneration === cacheGeneration) cachePageSummary(key, persisted);
                         return persisted;
@@ -785,9 +854,12 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
 
                 const summarizedContext = `Page summary (AI-generated reference):\n${summary}\n\n${pageContext}`.slice(0, 4000);
                 if (useCache && requestGeneration === cacheGeneration) cachePageSummary(key, summarizedContext);
-                if (useCache) scheduleCacheWrite(requestGeneration, key, summarizedContext);
+                if (useCache) await persistCacheWrite(requestGeneration, key, summarizedContext);
                 return summarizedContext;
             } catch (error) {
+                if (execution.abortSignal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
+                    throw error;
+                }
                 warn('[FluentRead] page context summary failed; using extracted context:', error);
                 // 超时只是本次摘要预算耗尽，不能把原上下文当成成功摘要缓存，否则同 key 无法重试。
                 if (!(error instanceof TranslationProviderDeadlineError)
@@ -800,10 +872,10 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         })();
 
         pendingPageSummaries.set(pendingKey, request);
-        // addPageSummary 内部把 provider/cache/logger 失败都降级为原始上下文，因此该 Promise 只会 fulfilled。
-        void request.then(() => {
+        const releasePendingSummary = () => {
             if (pendingPageSummaries.get(pendingKey) === request) pendingPageSummaries.delete(pendingKey);
-        });
+        };
+        void request.then(releasePendingSummary, releasePendingSummary);
         return request;
     }
 
@@ -817,24 +889,16 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         requestDeadline: number,
         pendingBudgetMs: number,
     ): Promise<string> {
-        if (!useCache) {
-            return callSingleProviderWithContextRecovery(
-                execution,
-                message,
-                context,
-                pageContext,
-                requestDeadline,
-            );
-        }
-
         const key = buildCacheKey(execution, message.origin, context, pageContext, 'single', message.modelOverride);
-        const pendingKey = buildPendingRequestKey(key, pendingBudgetMs);
+        const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}`;
         const existing = pendingTranslations.get(pendingKey);
         if (existing) return existing;
 
-        const request = (async () => {
+        const request = useCache ? (async () => {
             // 步骤 1：先读持久缓存；未命中后只发起一次 provider 请求。
-            const cached = await runWithinDeadline(() => deps.cache.get(key), requestDeadline);
+            const cached = await runWithinDeadline(
+                () => deps.cache.get(key), requestDeadline, execution.abortSignal,
+            );
             if (cached !== null) {
                 getRemainingDeadlineMs(requestDeadline);
                 // 缓存中的软重合可能是已经经过无上下文复验的合法译名；
@@ -863,7 +927,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                         requestDeadline,
                     );
                 if (isCacheableResult(message.origin, recovered)) {
-                    scheduleCacheWrite(requestGeneration, key, recovered);
+                    await persistCacheWrite(requestGeneration, key, recovered);
                 }
                 return recovered;
             }
@@ -876,10 +940,16 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 requestDeadline,
             );
             if (isCacheableResult(message.origin, result)) {
-                scheduleCacheWrite(requestGeneration, key, result);
+                await persistCacheWrite(requestGeneration, key, result);
             }
             return result;
-        })();
+        })() : callSingleProviderWithContextRecovery(
+            execution,
+            message,
+            context,
+            pageContext,
+            requestDeadline,
+        );
 
         pendingTranslations.set(pendingKey, request);
         void request.then(
@@ -903,16 +973,6 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         requestDeadline: number,
         pendingBudgetMs: number,
     ): Promise<string[]> {
-        if (!useCache) {
-            return callBatchProviderWithContextRecovery(
-                execution,
-                message,
-                context,
-                pageContext,
-                requestDeadline,
-            );
-        }
-
         const cacheMode: CacheRequestMode = message.aiMultiSegment === true
             ? 'ai-multi-segment'
             : 'batch';
@@ -924,11 +984,11 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             cacheMode,
             message.modelOverride,
         );
-        const pendingKey = buildPendingRequestKey(batchKey, pendingBudgetMs);
+        const pendingKey = `${buildPendingRequestKey(batchKey, pendingBudgetMs)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}`;
         const existing = pendingBatches.get(pendingKey);
         if (existing) return existing;
 
-        const request = (async () => {
+        const request = useCache ? (async () => {
             // 步骤 1：分项读取缓存，只把缺失且去重后的原文交给 provider。
             const cached = await runWithinDeadline(
                 () => Promise.all(message.origin.map((origin, index) => deps.cache.get(
@@ -944,6 +1004,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                     ),
                 ))),
                 requestDeadline,
+                execution.abortSignal,
             );
             const leakedCachedIndexes = new Set<number>();
             const validatedCached = cached.map((value, index) => {
@@ -979,10 +1040,10 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                     pageContext,
                     requestDeadline,
                 );
-                translated.forEach((value, index) => {
+                await Promise.all(translated.map(async (value, index) => {
                     const origin = message.origin[index] ?? '';
                     if (!isCacheableResult(origin, value)) return;
-                    scheduleCacheWrite(
+                    await persistCacheWrite(
                         requestGeneration,
                         buildBatchItemCacheKey(
                             execution,
@@ -996,7 +1057,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                         ),
                         value,
                     );
-                });
+                }));
                 return translated;
             }
             const translatedByKey = new Map<string, string>();
@@ -1041,6 +1102,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
 
             // 步骤 2：按原请求顺序回填结果，并只缓存有效译文。
             const result = [...validatedCached] as Array<string | null>;
+            const cacheWrites: Promise<void>[] = [];
             missingEntries.forEach(({index, origin}) => {
                 const itemKey = buildBatchItemCacheKey(
                     execution,
@@ -1055,16 +1117,23 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 const value = translatedByKey.get(itemKey);
                 result[index] = value as string;
                 if (isCacheableResult(origin, value)) {
-                    scheduleCacheWrite(
+                    cacheWrites.push(persistCacheWrite(
                         requestGeneration,
                         itemKey,
                         value,
-                    );
+                    ));
                 }
             });
 
+            await Promise.all(cacheWrites);
             return result as string[];
-        })();
+        })() : callBatchProviderWithContextRecovery(
+            execution,
+            message,
+            context,
+            pageContext,
+            requestDeadline,
+        );
 
         pendingBatches.set(pendingKey, request);
         void request.then(
@@ -1083,6 +1152,9 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         if (Array.isArray(message.origin) && message.origin.length === 0) return [];
         if (typeof message.origin === 'string' && !message.origin.trim()) return message.origin;
 
+        const requestControl = getTranslationRequestControl(message);
+        throwIfRequestAborted(requestControl?.signal);
+
         // deadline 从公开入口开始计时，配置水合不能让上层剩余预算重新获得完整时长。
         const providerStartedAt = now();
         const isRemainingBudget = (message as TranslationRequestMessage & TranslationRemainingBudgetContext)
@@ -1091,7 +1163,8 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             ? normalizeDeadlineTimeoutMs(message.requestTimeoutMs as number)
             : normalizeExternalRequestTimeoutMs(message.requestTimeoutMs)) ?? DEFAULT_PROVIDER_TIMEOUT_MS;
         const providerDeadline = providerStartedAt + providerBudget;
-        await runWithinDeadline(() => deps.ready, providerDeadline);
+        await runWithinDeadline(() => deps.ready, providerDeadline, requestControl?.signal);
+        throwIfRequestAborted(requestControl?.signal);
 
         const requestGeneration = cacheGeneration;
 
@@ -1108,6 +1181,9 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             service: selectedService,
             sourceLanguage,
             targetLanguage,
+            enableAIContext: message.enableAIContext ?? current.enableAIContext,
+            abortSignal: requestControl?.signal,
+            ownershipKey: requestControl?.ownershipKey,
         };
         const credentialConfig = message.modelOverride
             ? {

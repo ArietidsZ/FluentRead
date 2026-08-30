@@ -141,17 +141,34 @@ describe('input translation content feature', () => {
         expect(isInputBoxTranslationEnabled({on: true, inputBoxTranslationTrigger: 'ctrl_enter'}, true)).toBe(false);
     });
 
-    it('写回 input/textarea/contenteditable 时派发页面可感知事件', () => {
+    it('只写回 input、textarea 和 plaintext-only，不破坏富文本子结构', () => {
         const input = fakeElement('input');
         setInputBoxText(input, 'translated');
         expect(input.value).toBe('translated');
         expect(input.dispatchEvent).toHaveBeenCalledTimes(2);
 
-        const editable = fakeElement('div', {contenteditable: 'true'});
-        editable.isContentEditable = true;
-        setInputBoxText(editable, '正文');
-        expect(editable.innerText).toBe('正文');
-        expect(editable.dispatchEvent).toHaveBeenCalledTimes(1);
+        const password = fakeElement('input');
+        password.type = 'password';
+        password.value = 'Secret42';
+        setInputBoxText(password, '不应覆盖');
+        expect(password.value).toBe('Secret42');
+        expect(password.dispatchEvent).not.toHaveBeenCalled();
+
+        const plaintext = fakeElement('div', {contenteditable: 'plaintext-only'});
+        plaintext.isContentEditable = true;
+        setInputBoxText(plaintext, '正文');
+        expect(plaintext.innerText).toBe('正文');
+        expect(plaintext.dispatchEvent).toHaveBeenCalledTimes(1);
+
+        const inlineWidget = {id: 'mention'};
+        const rich = fakeElement('div', {contenteditable: 'true'});
+        rich.isContentEditable = true;
+        rich.innerText = '保留富文本草稿';
+        rich.children.push(inlineWidget);
+        setInputBoxText(rich, '不应覆盖');
+        expect(rich.innerText).toBe('保留富文本草稿');
+        expect(rich.children).toEqual([inlineWidget]);
+        expect(rich.dispatchEvent).not.toHaveBeenCalled();
 
         const plain = fakeElement('div');
         setInputBoxText(plain, 'skip');
@@ -177,6 +194,79 @@ describe('input translation content feature', () => {
         expect(input.value).toBe('你好');
         expect(tooltipRecords.map(record => record.options.mode)).toEqual(['closed', 'closed']);
         expect(tooltipRecords.at(-1).ui.shadowHost.setAttribute).toHaveBeenCalledWith('data-fluent-read-ui', 'input-tooltip');
+    });
+
+    it.each([
+        ['password', (element: any) => { element.type = 'password'; }],
+        ['rich contenteditable', (element: any) => {
+            element.tagName = 'DIV';
+            element.getAttribute = vi.fn((name: string) => name === 'contenteditable' ? 'true' : null);
+            element.isContentEditable = true;
+        }],
+    ])('发送前重新校验控件资格，异步期间变为 %s 时不发送或写回', async (_label, mutate) => {
+        let releaseTooltip!: () => void;
+        const tooltipBarrier = new Promise<void>((resolve) => { releaseTooltip = resolve; });
+        const records: any[] = [];
+        const baseFactory = createUiFactory(records);
+        const createUi = vi.fn(async (context: unknown, options: unknown) => {
+            await tooltipBarrier;
+            return baseFactory(context, options);
+        });
+        const {fakeDocument, sendMessage} = mountHarness({createUi});
+        const input = fakeElement('input');
+        input.value = 'Secret42';
+        fakeDocument.activeElement = input;
+
+        const pending = fakeDocument.emit('keydown', trustedKey({key: 'Enter', ctrlKey: true}));
+        await Promise.resolve();
+        mutate(input);
+        releaseTooltip();
+        await pending;
+
+        expect(sendMessage).not.toHaveBeenCalled();
+        expect(input.value).toBe('Secret42');
+    });
+
+    it('provider 返回前控件变成密码框时拒绝写回迟到译文', async () => {
+        let resolveTranslation!: (value: unknown) => void;
+        const {fakeDocument, sendMessage} = mountHarness({
+            sendMessage: () => new Promise(resolve => { resolveTranslation = resolve; }),
+        });
+        const input = fakeElement('input');
+        input.value = 'Public draft';
+        fakeDocument.activeElement = input;
+
+        const pending = fakeDocument.emit('keydown', trustedKey({key: 'Enter', ctrlKey: true}));
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        input.type = 'password';
+        resolveTranslation({success: true, translatedText: '不应覆盖'});
+        await pending;
+
+        expect(input.value).toBe('Public draft');
+    });
+
+    it.each([
+        ['ctrl_enter', [{key: 'Enter', code: 'Enter', ctrlKey: true}], 'Secret42'],
+        ['triple_space', Array.from({length: 3}, () => ({key: ' ', code: 'Space'})), 'Secret42   '],
+        ['triple_equal', Array.from({length: 3}, () => ({key: '=', code: 'Equal'})), 'Secret42==='],
+        ['triple_dash', Array.from({length: 3}, () => ({key: '-', code: 'Minus'})), 'Secret42---'],
+    ] as const)('开放 Shadow DOM 密码框不会被 %s 触发或发送', async (trigger, eventInputs, value) => {
+        const {fakeDocument, sendMessage} = mountHarness({
+            config: {inputBoxTranslationTrigger: trigger},
+        });
+        const password = fakeElement('input');
+        password.type = 'password';
+        password.value = value;
+        const host = fakeElement('div');
+        host.shadowRoot = {activeElement: password};
+        fakeDocument.activeElement = host;
+        const events = eventInputs.map((event) => trustedKey(event));
+
+        for (const event of events) await fakeDocument.emit('keydown', event);
+
+        expect(sendMessage).not.toHaveBeenCalled();
+        expect(password.value).toBe(value);
+        expect(events.every((event) => event.preventDefault.mock.calls.length === 0)).toBe(true);
     });
 
     it('三连击只在同一输入目标连续命中时触发，并清理触发符号', async () => {

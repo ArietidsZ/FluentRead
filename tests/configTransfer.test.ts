@@ -239,6 +239,27 @@ describe('configuration transfer helpers', () => {
     expect(imported.videoServiceDefaultMigrated).toBe(target.videoServiceDefaultMigrated)
   })
 
+  it('完整备份精确替换凭据快照，不保留目标端多余 token、extra 或标量密钥', () => {
+    const exported = prepareConfigForExport(normalizeConfig({
+      ...new Config(),
+      token: {openai: 'backup-openai'},
+      extra: {backupCredential: 'backup-extra'},
+      ak: '',
+    }))
+    const current = normalizeConfig({
+      ...new Config(),
+      token: {openai: 'current-openai', deepseek: 'target-only-token'},
+      extra: {targetOnlyCredential: 'target-only-extra'},
+      ak: 'target-only-ak',
+    })
+
+    const imported = prepareConfigForImport(exported, current, {credentialMode: 'replace'})
+
+    expect(imported.token).toEqual({openai: 'backup-openai'})
+    expect(imported.extra).toEqual({backupCredential: 'backup-extra'})
+    expect(imported.ak).toBe('')
+  })
+
   it('完整用户导出拒绝非对象', () => {
     expect(() => prepareConfigForExport(null)).toThrow('配置必须是 JSON 对象')
   })

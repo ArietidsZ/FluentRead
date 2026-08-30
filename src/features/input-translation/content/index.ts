@@ -70,6 +70,9 @@ export function isInputBoxTranslationEnabled(
 }
 
 export function setInputBoxText(element: HTMLElement, text: string): void {
+    // 写回本身也是安全边界：异步期间页面可能把普通输入框改成 password，
+    // 或把 plaintext-only 编辑区升级成富文本。直接调用者也不能绕过资格判定。
+    if (!isInputElement(element)) return;
     const tagName = element.tagName.toLowerCase();
 
     if (tagName === 'input' || tagName === 'textarea') {
@@ -80,10 +83,8 @@ export function setInputBoxText(element: HTMLElement, text: string): void {
         return;
     }
 
-    if (isInputElement(element)) {
-        element.innerText = text;
-        element.dispatchEvent(new Event('input', { bubbles: true }));
-    }
+    element.innerText = text;
+    element.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 function getTooltipIcon(type: 'translating' | 'success' | 'error'): string {
@@ -277,6 +278,7 @@ export function createInputTranslationContentFeature(
         const targetLanguage = deps.config.inputBoxTranslationTarget;
 
         const isCurrentAndUnchanged = () => requestId === activeInputTranslationRequestId
+            && isInputElement(element)
             && canCommitInputBoxTranslation({
                 signal,
                 expectedValue: inputSnapshot,

@@ -538,9 +538,8 @@ async function main() {
         await navigate(client, optionsUrl);
         const historyOptions = await waitForDom(client, `document.querySelector('.settings-app')`, 'history options mount');
         await evaluate(client, historyOptions.current.frame, `(() => {
-            const button = [...document.querySelectorAll('nav[aria-label="设置分类"] button')]
-                .find(item => item.textContent?.includes('配置管理'));
-            if (!(button instanceof HTMLElement)) throw new Error('配置管理导航不存在');
+            const button = document.querySelector('nav[aria-label="设置分类"] button[data-section="settings-data"]');
+            if (!(button instanceof HTMLButtonElement)) throw new Error('备份与恢复导航不存在');
             button.click();
             return true;
         })()`);
@@ -555,7 +554,7 @@ async function main() {
                 current,
             };
         })()`);
-        if (result.historyCases.count < 3 || result.historyCases.count > 5) throw new Error(`Firefox 配置历史条目数量异常: ${JSON.stringify(result.historyCases)}`);
+        if (result.historyCases.count < 3 || result.historyCases.count > 10) throw new Error(`Firefox 配置历史条目数量异常: ${JSON.stringify(result.historyCases)}`);
         if (new Set(result.historyCases.versions).size !== result.historyCases.count || result.historyCases.versions.some(value => !/^v\d+$/.test(value))) {
             throw new Error(`Firefox 配置历史版本号异常: ${JSON.stringify(result.historyCases)}`);
         }

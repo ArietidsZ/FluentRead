@@ -37,24 +37,31 @@ describe('输入框快捷键', () => {
         expect(matchesInputBoxTrigger(keyEvent('_', 'Minus', true), 'triple_dash')).toBe(false);
     });
 
-    it('识别 plaintext-only 可编辑区域并跳过只读输入框', () => {
+    it('只识别非敏感输入与 plaintext-only，并拒绝密码、富文本和只读控件', () => {
         expect(isInputElement(null)).toBe(false);
         expect(isInputElement({ ...fakeElement('INPUT'), disabled: true } as unknown as HTMLElement)).toBe(false);
         expect(isInputElement(fakeElement('DIV', { contenteditable: 'plaintext-only' }))).toBe(true);
         expect(isInputElement(fakeElement('INPUT'))).toBe(true);
+        expect(isInputElement({ ...fakeElement('INPUT'), type: 'password' } as unknown as HTMLElement)).toBe(false);
+        expect(isInputElement({ ...fakeElement('INPUT'), type: 'PASSWORD' } as unknown as HTMLElement)).toBe(false);
+        expect(isInputElement({
+            ...fakeElement('DIV', { contenteditable: 'true' }),
+            isContentEditable: true,
+        } as unknown as HTMLElement)).toBe(false);
         expect(isInputElement({ ...fakeElement('INPUT'), type: 'button' } as unknown as HTMLElement)).toBe(false);
         expect(isInputElement({ ...fakeElement('TEXTAREA'), readOnly: true } as unknown as HTMLElement)).toBe(false);
         expect(isInputElement(fakeElement('DIV'))).toBe(false);
     });
 
-    it('能穿透开放 Shadow DOM 获取真实焦点，并拒绝未知三连击类型', () => {
-        const inner = fakeElement('INPUT');
+    it('能穿透开放 Shadow DOM 获取真实焦点，但仍拒绝其中的密码框', () => {
+        const inner = {...fakeElement('INPUT'), type: 'password'} as unknown as HTMLElement;
         const host = {
             ...fakeElement('DIV'),
             shadowRoot: { activeElement: inner },
         } as unknown as Element;
 
         expect(getDeepActiveElement({ activeElement: host } as Document)).toBe(inner);
+        expect(isInputElement(getDeepActiveElement({activeElement: host} as Document))).toBe(false);
         expect(matchesInputBoxTrigger(keyEvent('x', 'KeyX'), 'unknown' as never)).toBe(false);
     });
 

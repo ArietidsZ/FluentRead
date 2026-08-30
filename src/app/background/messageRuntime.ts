@@ -29,7 +29,6 @@ import {
 import {
     createImageOcrLanguageRepository,
     createImageTranslationBackgroundHandlers,
-    fetchRemoteImageForOcr,
 } from './handlers/imageTranslation';
 import {createInputBoxTranslationHandler} from './handlers/inputTranslation';
 import {createModelUsageHandler} from './handlers/modelUsage';
@@ -118,10 +117,6 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
                 supportsBatchTranslation: supportsTranslationBatch,
                 downloadLanguages: imageTranslationOffscreenAdapter.downloadLanguages,
                 markLanguagesDownloaded: imageOcrLanguageRepository.markDownloaded,
-                fetchImage: (url) => fetchRemoteImageForOcr(
-                    url,
-                    (requestUrl, init) => fetch(requestUrl, init),
-                ),
             }),
         }),
         ...createSelectionTtsBackgroundHandlers({

@@ -1,6 +1,10 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {createOffscreenMessageListener} from '@/src/app/offscreen/messageRouter';
-import {OFFSCREEN_READY_MESSAGE_TYPE} from '@/src/platform/offscreen/client';
+import {
+    OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
+    OFFSCREEN_READY_MESSAGE_TYPE,
+} from '@/src/platform/offscreen/client';
+import {translateImageTextsInExtension} from '@/src/features/image-translation/services/offscreenRuntime';
 
 const mocks = {
     downloadOcrLanguages: vi.fn(async () => undefined),
@@ -177,7 +181,7 @@ describe('Offscreen 消息静态路由', () => {
         await expect(dispatch({
             type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN', image: 'data:image/png,x', sourceLanguage: 'en',
         })).resolves.toEqual({handled: true, response: {success: true, lines: [{text: 'hello'}]}});
-        expect(mocks.recognizeImage).toHaveBeenCalledWith('data:image/png,x', 'en');
+        expect(mocks.recognizeImage).toHaveBeenCalledWith('data:image/png,x', 'en', expect.any(AbortSignal));
 
         for (const message of [
             {type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN', image: null, sourceLanguage: 'en'},
@@ -196,13 +200,19 @@ describe('Offscreen 消息静态路由', () => {
 
     it('图片翻译规范化缺省 title 并校验结果对象', async () => {
         await expect(dispatch({
-            type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN', image: 'data:image/png,image', sourceLanguage: 'en',
+            type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN', requestId: 'image-translate-1',
+            image: 'data:image/png,image', sourceLanguage: 'en',
         })).resolves.toEqual({handled: true, response: {success: true, image: 'translated', lines: []}});
-        expect(mocks.translateImage).toHaveBeenCalledWith('data:image/png,image', 'en', '');
+        expect(mocks.translateImage).toHaveBeenCalledWith(
+            'data:image/png,image', 'en', '', expect.any(AbortSignal), 'image-translate-1',
+        );
         await dispatch({
-            type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN', image: 'data:image/png,image', sourceLanguage: 'en', title: 'Page',
+            type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN', requestId: 'image-translate-2',
+            image: 'data:image/png,image', sourceLanguage: 'en', title: 'Page',
         });
-        expect(mocks.translateImage).toHaveBeenLastCalledWith('data:image/png,image', 'en', 'Page');
+        expect(mocks.translateImage).toHaveBeenLastCalledWith(
+            'data:image/png,image', 'en', 'Page', expect.any(AbortSignal), 'image-translate-2',
+        );
 
         expect((await dispatch({
             type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN', image: 'data:image/png,image', sourceLanguage: 'en', title: 1,
@@ -225,8 +235,11 @@ describe('Offscreen 消息静态路由', () => {
             sourceLanguage: 'auto',
             title: 'Area',
             selection,
+            requestId: 'area-translate-1',
         })).resolves.toEqual({handled: true, response: {success: true, image: 'area', lines: []}});
-        expect(mocks.translateArea).toHaveBeenCalledWith('data:image/png,image', 'auto', 'Area', selection);
+        expect(mocks.translateArea).toHaveBeenCalledWith(
+            'data:image/png,image', 'auto', 'Area', selection, expect.any(AbortSignal), 'area-translate-1',
+        );
 
         expect((await dispatch({
             type: 'FLUENT_READ_AREA_TRANSLATE_OFFSCREEN', image: 'data:image/png,image', sourceLanguage: 'en', selection: null,
@@ -267,5 +280,140 @@ describe('Offscreen 消息静态路由', () => {
             .toEqual({success: false, error: 'Offscreen OCR languages 包含不支持的语言'});
         expect((await dispatch({type: 'FLUENT_READ_IMAGE_OCR_DOWNLOAD_OFFSCREEN', languages: [1]})).response)
             .toEqual({success: false, error: 'Offscreen OCR languages 包含不支持的语言'});
+    });
+
+    it('取消 active 图片 OCR 会中止 Worker signal，迟到结果不会再次响应', async () => {
+        let resolveRecognition!: (value: Array<{text: string}>) => void;
+        mocks.recognizeImage.mockImplementationOnce(() => new Promise(resolve => {
+            resolveRecognition = resolve;
+        }));
+        const originalResponses = vi.fn();
+        expect(listener({
+            type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN',
+            target: 'offscreen',
+            requestId: 'image-pending',
+            image: 'data:image/png,x',
+            sourceLanguage: 'en',
+        }, {}, originalResponses)).toBe(true);
+        await vi.waitFor(() => expect(mocks.recognizeImage).toHaveBeenCalledOnce());
+        const signal = (mocks.recognizeImage.mock.calls as unknown[][])[0]?.[2] as AbortSignal;
+
+        await expect(dispatch({
+            type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN',
+            requestId: 'image-pending',
+            image: 'data:image/png,x',
+            sourceLanguage: 'en',
+        })).resolves.toEqual({
+            handled: true,
+            response: {success: false, error: 'Offscreen 图片 requestId 正在执行'},
+        });
+
+        await expect(dispatch({
+            type: OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
+            requestId: 'image-pending',
+        })).resolves.toEqual({
+            handled: true,
+            response: {success: true, cancelled: true, requestId: 'image-pending'},
+        });
+        expect(signal.aborted).toBe(true);
+        expect(originalResponses).toHaveBeenCalledOnce();
+        expect(originalResponses).toHaveBeenCalledWith(expect.objectContaining({
+            success: false,
+            cancelled: true,
+            requestId: 'image-pending',
+        }));
+
+        resolveRecognition([{text: 'late'}]);
+        await Promise.resolve();
+        expect(originalResponses).toHaveBeenCalledOnce();
+    });
+
+    it('Offscreen 取消图片翻译时向 background 终止同 requestId 的 provider 子请求', async () => {
+        let resolveTextMessage!: (response: unknown) => void;
+        const sendMessage = vi.fn((message: {type: string}, callback: (response: unknown) => void) => {
+            if (message.type === 'fluentReadImageTranslateTexts') resolveTextMessage = callback;
+            else callback({success: true});
+        });
+        vi.stubGlobal('chrome', {runtime: {sendMessage, lastError: undefined}});
+        const controller = new AbortController();
+        const pending = translateImageTextsInExtension(
+            ['hello'], 'Page', 'image-provider-pending', controller.signal,
+        );
+        expect(sendMessage).toHaveBeenCalledWith({
+            type: 'fluentReadImageTranslateTexts',
+            texts: ['hello'],
+            title: 'Page',
+            requestId: 'image-provider-pending',
+            timeoutMs: 120_000,
+        }, expect.any(Function));
+
+        controller.abort();
+
+        await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+        expect(sendMessage).toHaveBeenLastCalledWith({
+            type: 'fluentReadImageCancel',
+            requestId: 'image-provider-pending',
+        }, expect.any(Function));
+        resolveTextMessage({success: true, translations: ['迟到译文']});
+        await Promise.resolve();
+    });
+
+    it('Offscreen cancel 先到时拒绝后到的同 requestId OCR，不启动 Worker', async () => {
+        await expect(dispatch({
+            type: OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
+            requestId: 'offscreen-cancelled-before-start',
+        })).resolves.toEqual({
+            handled: true,
+            response: {success: true, cancelled: false, requestId: 'offscreen-cancelled-before-start'},
+        });
+
+        await expect(dispatch({
+            type: 'FLUENT_READ_IMAGE_OCR_OFFSCREEN',
+            requestId: 'offscreen-cancelled-before-start',
+            image: 'data:image/png,x',
+            sourceLanguage: 'en',
+        })).resolves.toEqual({
+            handled: true,
+            response: {
+                success: false,
+                cancelled: true,
+                requestId: 'offscreen-cancelled-before-start',
+                error: '图片 OCR 请求已取消',
+            },
+        });
+        expect(mocks.recognizeImage).not.toHaveBeenCalled();
+    });
+
+    it('Offscreen 图片取消严格校验 ID，并有界保存重复的 cancel-before-start', async () => {
+        await expect(dispatch({
+            type: OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
+            requestId: 'bad request',
+        })).resolves.toEqual({
+            handled: true,
+            response: {success: false, error: 'Offscreen requestId 格式无效'},
+        });
+
+        const localListener = createOffscreenMessageListener({
+            translate: mocks.translate,
+            ttsPlayer: {play: mocks.play, stop: mocks.stop},
+            recognizeImage: mocks.recognizeImage,
+            translateImage: mocks.translateImage,
+            translateArea: mocks.translateArea,
+            downloadOcrLanguages: mocks.downloadOcrLanguages,
+        });
+        const cancel = (requestId: string) => {
+            const response = vi.fn();
+            expect(localListener({
+                type: OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
+                target: 'offscreen',
+                requestId,
+            }, {}, response)).toBe(true);
+            expect(response).toHaveBeenCalledOnce();
+        };
+
+        cancel('repeat-before-start');
+        cancel('repeat-before-start');
+        for (let index = 0; index <= 512; index += 1) cancel(`bounded-offscreen-${index}`);
+
     });
 });

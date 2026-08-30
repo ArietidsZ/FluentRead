@@ -3,6 +3,10 @@ import {
     createTranslationRequestFallback,
     parseTranslationRequest,
 } from '@/src/app/background/handlers/translation';
+import {
+    attachTranslationRequestControl,
+    getTranslationRequestControl,
+} from '@/src/services/translation/requestSnapshot';
 
 describe('background translation fallback handler', () => {
     it('只认无 type 且自有 origin 的历史翻译消息', () => {
@@ -27,6 +31,7 @@ describe('background translation fallback handler', () => {
             origin: 'hello',
             context: 'title',
             pageContext: 'article',
+            enableAIContext: true,
             aiMultiSegment: true,
             useCache: false,
             serviceOverride: 'google',
@@ -42,6 +47,7 @@ describe('background translation fallback handler', () => {
             origin: 'hello',
             context: 'title',
             pageContext: 'article',
+            enableAIContext: true,
             aiMultiSegment: true,
             useCache: false,
             serviceOverride: 'google',
@@ -50,6 +56,24 @@ describe('background translation fallback handler', () => {
             targetLanguage: 'zh-CN',
             requestTimeoutMs: 12_000,
         });
+    });
+
+    it('外部 runtime parser 不复制进程内取消 symbol 或同名伪造字段', () => {
+        const controller = new AbortController();
+        const candidate = attachTranslationRequestControl({
+            origin: 'hello',
+            abortSignal: 'forged',
+            ownershipKey: 'forged-string',
+        }, {
+            signal: controller.signal,
+            ownershipKey: 'forged-symbol',
+        });
+        const parsed = parseTranslationRequest(candidate);
+
+        expect(getTranslationRequestControl(candidate)).toBeDefined();
+        expect(getTranslationRequestControl(parsed)).toBeUndefined();
+        expect(Object.getOwnPropertySymbols(parsed)).toEqual([]);
+        expect(parsed).toEqual({origin: 'hello'});
     });
 
     it('保留字符串数组并忽略未提供的可选字段', () => {
@@ -75,6 +99,7 @@ describe('background translation fallback handler', () => {
         [{origin: 'ok', modelOverride: null}, 'modelOverride'],
         [{origin: 'ok', sourceLanguage: []}, 'sourceLanguage'],
         [{origin: 'ok', targetLanguage: 1}, 'targetLanguage'],
+        [{origin: 'ok', enableAIContext: 'yes'}, 'enableAIContext'],
         [{origin: ['ok'], aiMultiSegment: 'yes'}, 'aiMultiSegment'],
         [{origin: 'ok', useCache: 'yes'}, 'useCache'],
         [{origin: 'ok', requestTimeoutMs: Number.NaN}, 'requestTimeoutMs'],

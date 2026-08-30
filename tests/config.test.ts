@@ -162,6 +162,72 @@ describe('统一配置存储', () => {
         expect(storageMock.removeItem).not.toHaveBeenCalled();
     });
 
+    it('页面立即请求完整导出时等待公开配置与凭据完成同一轮水合', async () => {
+        let releaseCredentialRead!: () => void;
+        const credentialReadBarrier = new Promise<void>(resolve => {
+            releaseCredentialRead = resolve;
+        });
+        const secret = 'hydrated-export-secret';
+        const canonicalConfig = {
+            ...sanitizeConfigCredentials(normalizeConfig({...storedConfig, to: 'ja'})),
+            __fluentConfigRevision: 5,
+        };
+        const configStore = await loadConfigModule(canonicalConfig, {
+            writeOwner: false,
+            localCredentials: {token: {openai: secret}},
+            localCredentialReadBarrier: credentialReadBarrier,
+        });
+        let settled = false;
+        const exportedPromise = configStore.prepareHydratedConfigForExport()
+            .finally(() => { settled = true; });
+
+        await vi.waitFor(() => expect(storageOperations).toContain('get:local:credentials'));
+        await Promise.resolve();
+        expect(settled).toBe(false);
+
+        releaseCredentialRead();
+        await expect(exportedPromise).resolves.toMatchObject({
+            to: 'ja',
+            token: {openai: secret},
+        });
+        const exported = await exportedPromise;
+        expect(exported).not.toHaveProperty('count');
+        expect(exported).not.toHaveProperty('__fluentConfigRevision');
+    });
+
+    it('完整导出等待乐观补丁结束，并在 revision 冲突回滚后读取权威快照', async () => {
+        const canonicalConfig = {
+            ...sanitizeConfigCredentials(normalizeConfig({...storedConfig, theme: 'auto'})),
+            __fluentConfigRevision: 5,
+        };
+        const configStore = await loadConfigModule(canonicalConfig, {
+            writeOwner: false,
+            localCredentials: {token: {openai: 'authoritative-secret'}},
+        });
+        await configStore.configReady;
+        let releasePatch!: (value: {success: false; error: string}) => void;
+        const patchResponse = new Promise<{success: false; error: string}>((resolve) => {
+            releasePatch = resolve;
+        });
+        const sendMessage = vi.fn(() => patchResponse);
+
+        const patch = configStore.requestConfigPatch({theme: 'dark'}, sendMessage);
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+        expect(configStore.config.theme).toBe('dark');
+        let exportSettled = false;
+        const exported = configStore.prepareHydratedConfigForExport()
+            .finally(() => { exportSettled = true; });
+        await Promise.resolve();
+        expect(exportSettled).toBe(false);
+
+        releasePatch({success: false, error: '配置已更新（当前 revision 6），请同步后重试'});
+        await expect(patch).rejects.toThrow('配置已更新');
+        await expect(exported).resolves.toMatchObject({
+            theme: 'auto',
+            token: {openai: 'authoritative-secret'},
+        });
+    });
+
     it('可信扩展页面只从后台水合凭据，不重复执行迁移或直接写 IndexedDB', async () => {
         const secret = 'remote-extension-page-secret';
         const canonicalConfig = {
@@ -552,6 +618,8 @@ describe('统一配置存储', () => {
         await expect(configStore.configReady).resolves.toBeUndefined();
         expect(configStore.config).toMatchObject({to: 'ja', count: 21});
         expect(configStore.config.token).toEqual({});
+        await expect(configStore.prepareHydratedConfigForExport())
+            .rejects.toThrow('配置或凭据安全水合未完成，无法导出完整备份');
         await expect(configStore.incrementConfigCount(1, 'count-after-credential-read-failure'))
             .rejects.toThrow('配置安全迁移未完成');
         await expect(configStore.saveConfig({...configStore.config, to: 'ko'}))

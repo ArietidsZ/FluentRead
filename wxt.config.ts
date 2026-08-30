@@ -42,6 +42,21 @@ export function createExtensionManifest(
     env: Pick<ConfigEnv, 'browser' | 'manifestVersion'>,
 ): UserManifest {
     const capabilities = resolveBrowserCapabilities(env);
+    const firefoxManifest = env.browser === 'firefox' ? {
+        browser_specific_settings: {
+            gecko: {
+                id: '{3096bd53-3bda-4556-b076-ebf47442a5c1}',
+                // data_collection_permissions requires Firefox 140 or later.
+                strict_min_version: '140.0',
+                // Firefox taxonomy counts any transmission outside the add-on/browser.
+                // FluentRead sends page/image/subtitle text, user-supplied provider credentials,
+                // and may translate text/chat/social content through the selected provider.
+                data_collection_permissions: {
+                    required: ['websiteContent', 'authenticationInfo', 'personalCommunications'],
+                },
+            },
+        },
+    } : {};
     return {
         permissions: [
             'storage',
@@ -74,7 +89,8 @@ export function createExtensionManifest(
                 use_dynamic_url: true,
             },
         ],
-    };
+        ...firefoxManifest,
+    } as UserManifest;
 }
 
 
@@ -121,5 +137,19 @@ export default defineConfig({
         };
     },
     manifest: createExtensionManifest,
+    zip: {
+        name: 'fluent-read',
+        // coverage 是本地测试产物；Firefox 不启用的 OCR 二进制也无需进入 AMO 源码包。
+        excludeSources: ['coverage/**', 'public/fluent-read-ocr/**'],
+    },
+    hooks: {
+        'build:publicAssets': (wxt, files) => {
+            if (wxt.config.browser !== 'firefox') return;
+            for (let index = files.length - 1; index >= 0; index -= 1) {
+                const destination = files[index]?.relativeDest.replaceAll('\\', '/');
+                if (destination?.startsWith('fluent-read-ocr/')) files.splice(index, 1);
+            }
+        },
+    },
 
 });

@@ -21,6 +21,16 @@ import {formatServiceError, getServiceErrorMessage} from '@/src/services/transla
 import {services} from '@/src/core/config/catalog';
 import {reportTranslationModelUsage} from '@/src/services/translation/requestSnapshot';
 
+function deferred<T>() {
+    let resolve!: (value: T | PromiseLike<T>) => void;
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+        resolve = resolvePromise;
+        reject = rejectPromise;
+    });
+    return {promise, reject, resolve};
+}
+
 describe('翻译服务连接测试', () => {
     afterEach(() => {
         vi.useRealTimers();
@@ -104,8 +114,9 @@ describe('翻译服务连接测试', () => {
         await expect(runTranslationServiceConnectionTest('demo')).rejects.toBe(failure);
     });
 
-    it('把真实连接测试尝试旁路记录为 connection-test，且不等待统计写入', async () => {
-        const recordModelUsage = vi.fn(() => new Promise<void>(() => undefined));
+    it('把真实连接测试尝试记录为 connection-test，并在返回前等待统计写入', async () => {
+        const usageWrite = deferred<void>();
+        const recordModelUsage = vi.fn(() => usageWrite.promise);
         adapter.mockImplementation(async (message: Record<string, unknown>) => {
             reportTranslationModelUsage(message, {
                 actualModel: 'demo-model',
@@ -124,11 +135,16 @@ describe('翻译服务连接测试', () => {
             return '测试译文';
         });
 
-        await expect(runTranslationServiceConnectionTest('demo', {
+        let settled = false;
+        const request = runTranslationServiceConnectionTest('demo', {
             configuredModel: '  demo-config  ',
             recordModelUsage,
-        }))
-            .resolves.toEqual(expect.objectContaining({durationMs: expect.any(Number)}));
+        });
+        void request.finally(() => {
+            settled = true;
+        });
+        await vi.waitFor(() => expect(recordModelUsage).toHaveBeenCalledOnce());
+        expect(settled).toBe(false);
         expect(recordModelUsage).toHaveBeenCalledWith([
             expect.objectContaining({
                 serviceId: 'demo',
@@ -147,6 +163,37 @@ describe('翻译服务连接测试', () => {
                 usageAvailability: 'unreported',
             }),
         ]);
+        usageWrite.resolve();
+        await expect(request).resolves.toEqual(expect.objectContaining({durationMs: expect.any(Number)}));
+    });
+
+    it('连接测试用量写入超过宽限期后释放成功响应', async () => {
+        vi.useFakeTimers();
+        const recordModelUsage = vi.fn(() => new Promise<void>(() => undefined));
+        const warn = vi.fn();
+        adapter.mockImplementation(async (message: Record<string, unknown>) => {
+            reportTranslationModelUsage(message, {usageAvailability: 'unreported'});
+            return '测试译文';
+        });
+
+        const request = runTranslationServiceConnectionTest('demo', {
+            recordModelUsage,
+            warn,
+            persistenceGraceMs: 25,
+        });
+        for (let index = 0; index < 20; index += 1) await Promise.resolve();
+        expect(recordModelUsage).toHaveBeenCalledOnce();
+        await vi.advanceTimersByTimeAsync(24);
+        let settled = false;
+        void request.finally(() => { settled = true; });
+        await Promise.resolve();
+        expect(settled).toBe(false);
+        await vi.advanceTimersByTimeAsync(1);
+        await expect(request).resolves.toEqual(expect.objectContaining({durationMs: expect.any(Number)}));
+        expect(warn).toHaveBeenCalledWith(
+            '[FluentRead] connection test usage write timed out:',
+            expect.any(Error),
+        );
     });
 
     it('连接测试预检失败不造请求，结构化 timeout 会校准 transport cancelled', async () => {

@@ -8,6 +8,7 @@
 
 import {configStorage as storage} from '@/src/platform/storage/configStorageRuntime';
 import { Config, normalizeConfig } from '@/src/core/config/model';
+import {prepareConfigForExport as prepareCompleteConfigSnapshot} from '@/src/core/config/transfer';
 import {
     CONFIG_CREDENTIAL_FIELDS,
     LOCAL_CREDENTIALS_STORAGE_KEY,
@@ -655,6 +656,21 @@ async function initializeConfig(): Promise<void> {
 export const configReady = initializeConfig();
 export const configHistoryReady = initializeConfigHistory();
 
+/**
+ * 返回可写入用户完整备份的权威配置快照。调用会等待公开配置和专用凭据完成同一轮
+ * 水合；若凭据读取或安全迁移处于不确定状态，则明确拒绝而不是导出默认或脱敏配置。
+ */
+export async function prepareHydratedConfigForExport(): Promise<Record<string, unknown>> {
+    await waitForConfigPersistenceQueue();
+    if (!trustedCredentialStorageContext) {
+        throw new Error('当前页面无权导出包含 API 凭据的完整备份');
+    }
+    if (!initialized || configStorageWritesBlocked) {
+        throw new Error('配置或凭据安全水合未完成，无法导出完整备份；请重新加载扩展后重试');
+    }
+    return prepareCompleteConfigSnapshot(config);
+}
+
 export function subscribeConfig(listener: ConfigListener): () => void {
     listeners.add(listener);
     if (initialized) listener(normalizeConfig(config));
@@ -1191,11 +1207,14 @@ async function requestConfigMutation(
  * queue 引用；调用完成之后才入队的请求不属于本次 barrier。
  */
 export async function waitForConfigPersistenceQueue(): Promise<void> {
-    let pendingQueue = requestQueue;
+    await configReady;
+    let pendingRequestQueue = requestQueue;
+    let pendingWriteQueue = writeQueue;
     while (true) {
-        await pendingQueue;
-        if (pendingQueue === requestQueue) return;
-        pendingQueue = requestQueue;
+        await Promise.all([pendingRequestQueue, pendingWriteQueue]);
+        if (pendingRequestQueue === requestQueue && pendingWriteQueue === writeQueue) return;
+        pendingRequestQueue = requestQueue;
+        pendingWriteQueue = writeQueue;
     }
 }
 

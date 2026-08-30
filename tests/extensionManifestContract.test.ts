@@ -1,5 +1,6 @@
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
 import {describe, expect, it} from 'vitest';
 import {createExtensionManifest} from '@/wxt.config';
 
@@ -55,6 +56,61 @@ describe('extension manifest capability contract', () => {
         expect(source).toContain('manifest: createExtensionManifest');
         expect(source).toContain("...(capabilities.offscreenDocument ? ['offscreen'] : [])");
         expect(source).not.toContain("permissions: ['storage', 'alarms', 'contextMenus', 'offscreen']");
+    });
+
+    it('只给 Firefox 声明稳定 AMO 身份、最低版本和准确的数据传输分类', () => {
+        const firefox = createExtensionManifest({browser: 'firefox', manifestVersion: 2} as never) as any;
+        const chrome = createExtensionManifest({browser: 'chrome', manifestVersion: 3} as never) as any;
+
+        expect(firefox.browser_specific_settings?.gecko).toEqual({
+            id: '{3096bd53-3bda-4556-b076-ebf47442a5c1}',
+            strict_min_version: '140.0',
+            data_collection_permissions: {
+                required: ['websiteContent', 'authenticationInfo', 'personalCommunications'],
+            },
+        });
+        expect(chrome.browser_specific_settings).toBeUndefined();
+    });
+
+    it('固定发布包英文名称，并在 Firefox 构建时排除不可用 OCR 资产', () => {
+        const source = readFileSync(resolve(PROJECT_ROOT, 'wxt.config.ts'), 'utf8');
+
+        expect(source).toContain("name: 'fluent-read'");
+        expect(source).toContain("excludeSources: ['coverage/**', 'public/fluent-read-ocr/**']");
+        expect(source).toContain("'build:publicAssets'");
+        expect(source).toContain("startsWith('fluent-read-ocr/')");
+    });
+
+    it('拒绝当前版本的非期望 Firefox 归档名，但允许其他版本归档留存', async () => {
+        const verifierUrl = pathToFileURL(
+            resolve(PROJECT_ROOT, 'scripts/testing/verify-extension-manifests.mjs'),
+        ).href;
+        const verifier = await import(/* @vite-ignore */ verifierUrl) as {
+            findUnexpectedCurrentVersionArchives(
+                files: string[],
+                version: string,
+                expected: string[],
+            ): string[];
+        };
+        const expected = [
+            'fluent-read-0.0.31-firefox.zip',
+            'fluent-read-0.0.31-sources.zip',
+        ];
+
+        expect(verifier.findUnexpectedCurrentVersionArchives([
+            ...expected,
+            '-0.0.30-firefox.zip',
+            'legacy-10.0.31-sources.zip',
+        ], '0.0.31', expected)).toEqual([]);
+        expect(verifier.findUnexpectedCurrentVersionArchives([
+            ...expected,
+            '-0.0.31-firefox.zip',
+            'legacy-v0.0.31-sources.zip',
+            'fluent-read-0.0.30-firefox.zip',
+        ], '0.0.31', expected)).toEqual([
+            '-0.0.31-firefox.zip',
+            'legacy-v0.0.31-sources.zip',
+        ]);
     });
 
     it('从任意 YouTube 起始页预注入 timedtext bridge，但不扩大到非 YouTube 站点', () => {

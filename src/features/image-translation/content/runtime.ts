@@ -2,10 +2,10 @@
  * @file src/features/image-translation/content/runtime.ts
  * 文件职责：实现网页图片翻译的悬浮按钮与译图覆盖层生命周期，针对可见且尺寸足够的图片读取源数据、请求翻译、定位结果并支持恢复。
  * 主要内容：维护每张 HTMLImageElement 的请求阶段和 Abort/timeout 所有权，处理 pointerover/out、滚动缩放和 DOM 移除，解析 object-fit 后的实际图像区域并绘制返回位图。
- * 模块边界：本运行时不执行 OCR 或跨域抓取，而是调用 services/client；它只拥有页面 DOM 和事件资源，后台权限、Offscreen 运算及语言包管理位于对应 background/services 模块。
+ * 模块边界：本运行时只读取页面允许 Canvas 访问的图片像素，跨域污染时明确失败且不请求后台代抓；OCR、Offscreen 运算及语言包管理位于对应 background/services 模块。
  */
 import { config } from '@/src/services/config/store';
-import { fetchImageInExtension, translateImageInExtension } from '@/src/features/image-translation/services/client';
+import { translateImageInExtension } from '@/src/features/image-translation/services/client';
 import type { OcrLine } from '@/src/features/image-translation/core';
 
 const IMAGE_TRANSLATION_OVERLAY = 'fluent-read-image-translation-overlay';
@@ -57,7 +57,7 @@ function ensureImageOverlayRoot(): HTMLDivElement {
         'pointer-events: none !important',
         'z-index: 2147483646 !important',
     ].join(';');
-    // Canvas 可能包含由扩展权限获取的跨源图片像素，不能向页面脚本暴露控件或译图。
+    // Canvas 可能包含页面允许读取的图片像素，不向页面脚本暴露控件或译图。
     const shadow = host.attachShadow({ mode: 'closed' });
     const style = document.createElement('style');
     style.textContent = `
@@ -93,18 +93,43 @@ function removeImageOverlayRoot(): void {
     imageOverlayContainer = null;
 }
 
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
-    let timer: number | undefined;
-    try {
-        return await Promise.race([
-            promise,
-            new Promise<T>((_, reject) => {
-                timer = window.setTimeout(() => reject(new Error(message)), timeoutMs);
-            }),
-        ]);
-    } finally {
-        if (timer !== undefined) window.clearTimeout(timer);
-    }
+function createImageAbortError(): Error {
+    const error = new Error('图片翻译已取消');
+    error.name = 'AbortError';
+    return error;
+}
+
+function withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    message: string,
+    signal?: AbortSignal,
+): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        let settled = false;
+        const cleanup = () => {
+            window.clearTimeout(timer);
+            signal?.removeEventListener('abort', handleAbort);
+        };
+        const finish = (callback: () => void) => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            callback();
+        };
+        const handleAbort = () => finish(() => reject(createImageAbortError()));
+        const timer = window.setTimeout(() => finish(() => reject(new Error(message))), timeoutMs);
+
+        if (signal?.aborted) {
+            handleAbort();
+            return;
+        }
+        signal?.addEventListener('abort', handleAbort, {once: true});
+        void promise.then(
+            value => finish(() => resolve(value)),
+            error => finish(() => reject(error)),
+        );
+    });
 }
 
 function clearHoverTimer(state: ImageTranslationState): void {
@@ -168,9 +193,9 @@ function createState(image: HTMLImageElement): ImageTranslationState {
         event.stopPropagation();
         const state = states.get(image);
         if (!state) return;
-        if (state.phase === 'translated') {
+        if (state.phase === 'translated' || state.phase === 'loading') {
             restoreImageTranslation(state);
-        } else if (state.phase !== 'loading') {
+        } else {
             void translateImage(state);
         }
     });
@@ -230,7 +255,7 @@ function hideImageButton(image: HTMLImageElement): void {
     }, 180);
 }
 
-async function getImageData(image: HTMLImageElement): Promise<string> {
+export async function getImageData(image: HTMLImageElement): Promise<string> {
     const width = image.naturalWidth;
     const height = image.naturalHeight;
     if (!width || !height) throw new Error('图片尚未加载完成');
@@ -247,14 +272,12 @@ async function getImageData(image: HTMLImageElement): Promise<string> {
         context.getImageData(0, 0, 1, 1);
         return canvas.toDataURL('image/png');
     } catch {
-        const source = image.currentSrc || image.src;
-        if (!source) throw new Error('图片地址不可用');
-        // 网页 canvas 受 CORS 限制时，改由扩展后台按网页地址抓取图片。
-        return fetchImageInExtension(source);
+        // 不把网页可控 URL 交给扩展后台代抓，避免绕过浏览器同源和内网边界。
+        throw new Error('当前站点不允许读取这张图片（跨域 CORS 限制）');
     }
 }
 
-async function waitForImageReady(image: HTMLImageElement): Promise<void> {
+async function waitForImageReady(image: HTMLImageElement, signal?: AbortSignal): Promise<void> {
     if (image.naturalWidth > 0 && image.naturalHeight > 0) return;
     if (image.complete) throw new Error('图片尚未加载完成');
 
@@ -268,12 +291,22 @@ async function waitForImageReady(image: HTMLImageElement): Promise<void> {
             cleanup();
             reject(new Error('图片加载失败'));
         };
+        const onAbort = () => {
+            cleanup();
+            reject(createImageAbortError());
+        };
         const cleanup = () => {
             image.removeEventListener('load', onLoad);
             image.removeEventListener('error', onError);
+            signal?.removeEventListener('abort', onAbort);
         };
+        if (signal?.aborted) {
+            onAbort();
+            return;
+        }
         image.addEventListener('load', onLoad, { once: true });
         image.addEventListener('error', onError, { once: true });
+        signal?.addEventListener('abort', onAbort, {once: true});
     });
 }
 
@@ -374,15 +407,27 @@ async function translateImage(state: ImageTranslationState): Promise<void> {
     state.abortController = controller;
     setButtonState(state, 'loading', '正在识别图片文字');
     try {
-        await withTimeout(waitForImageReady(state.image), IMAGE_READ_TIMEOUT_MS, '图片加载超时');
-        const imageData = await withTimeout(getImageData(state.image), IMAGE_READ_TIMEOUT_MS, '图片读取超时');
-        const result = await withTimeout(
-            translateImageInExtension(imageData, config.from, document.title),
-            IMAGE_OCR_TIMEOUT_MS + IMAGE_TRANSLATION_TIMEOUT_MS,
-            '图片翻译超时',
+        await withTimeout(
+            waitForImageReady(state.image, controller.signal),
+            IMAGE_READ_TIMEOUT_MS,
+            '图片加载超时',
+            controller.signal,
+        );
+        const imageData = await withTimeout(
+            getImageData(state.image),
+            IMAGE_READ_TIMEOUT_MS,
+            '图片读取超时',
+            controller.signal,
         );
         if (controller.signal.aborted) return;
-        state.translatedImage = await loadImage(result.image);
+        const result = await translateImageInExtension(imageData, config.from, document.title, {
+            signal: controller.signal,
+            timeoutMs: IMAGE_OCR_TIMEOUT_MS + IMAGE_TRANSLATION_TIMEOUT_MS,
+        });
+        if (controller.signal.aborted) return;
+        const translatedImage = await loadImage(result.image);
+        if (controller.signal.aborted || state.abortController !== controller) return;
+        state.translatedImage = translatedImage;
         state.lines = result.lines;
         setButtonState(state, 'translated', '恢复原图');
         updateOverlayPosition(state);

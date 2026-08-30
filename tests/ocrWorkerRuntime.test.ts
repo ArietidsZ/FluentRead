@@ -143,4 +143,80 @@ describe('OCR worker runtime', () => {
         await expect(first).rejects.toThrow('recognize failed');
         await expect(second).resolves.toEqual({worker: 'eng', image: 'second'});
     });
+
+    it('取消永不结束的识别会终止旧 Worker，并允许下一请求使用新 Worker', async () => {
+        const never = deferred<RecognitionResult>();
+        const stuckWorker = createWorker('stuck');
+        const recoveredWorker = createWorker('recovered');
+        vi.mocked(stuckWorker.recognize).mockReturnValueOnce(never.promise);
+        const factory = vi.fn()
+            .mockResolvedValueOnce(stuckWorker)
+            .mockResolvedValueOnce(recoveredWorker);
+        const runtime = createOcrWorkerRuntime({createWorker: factory, sparseTextMode: 11});
+        const controller = new AbortController();
+
+        const stuck = runtime.recognize('first', 'eng', controller.signal);
+        await vi.waitFor(() => expect(stuckWorker.recognize).toHaveBeenCalledOnce());
+        controller.abort();
+
+        await expect(stuck).rejects.toMatchObject({name: 'AbortError'});
+        await vi.waitFor(() => expect(stuckWorker.terminate).toHaveBeenCalledOnce());
+        await expect(runtime.recognize('second', 'eng')).resolves.toEqual({
+            worker: 'recovered',
+            image: 'second',
+        });
+        expect(factory).toHaveBeenCalledTimes(2);
+    });
+
+    it('预取消的识别与语言准备不会创建 Worker', async () => {
+        const factory = vi.fn(async () => createWorker('unused'));
+        const runtime = createOcrWorkerRuntime({createWorker: factory, sparseTextMode: 11});
+        const controller = new AbortController();
+        controller.abort();
+
+        await expect(runtime.recognize('image', 'eng', controller.signal))
+            .rejects.toMatchObject({name: 'AbortError'});
+        await expect(runtime.ensureLanguages(['eng'], controller.signal))
+            .rejects.toMatchObject({name: 'AbortError'});
+        expect(factory).not.toHaveBeenCalled();
+    });
+
+    it('Worker 创建期间发生取消时命中 runAbortable 入口并终止刚创建的 Worker', async () => {
+        const worker = createWorker('creating');
+        const controller = new AbortController();
+        const runtime = createOcrWorkerRuntime({
+            createWorker: vi.fn(() => {
+                controller.abort();
+                return Promise.resolve(worker);
+            }),
+            sparseTextMode: 11,
+        });
+
+        await expect(runtime.recognize('image', 'eng', controller.signal))
+            .rejects.toMatchObject({name: 'AbortError'});
+        await vi.waitFor(() => expect(worker.terminate).toHaveBeenCalledOnce());
+    });
+
+    it('操作已完成后忽略迟到的自定义 abort 回调', async () => {
+        const worker = createWorker('settled');
+        let abortListener: (() => void) | undefined;
+        const signal = {
+            aborted: false,
+            addEventListener: (_type: string, listener: EventListenerOrEventListenerObject) => {
+                abortListener = typeof listener === 'function'
+                    ? () => listener(new Event('abort'))
+                    : () => listener.handleEvent(new Event('abort'));
+            },
+            removeEventListener: vi.fn(),
+        } as unknown as AbortSignal;
+        const runtime = createOcrWorkerRuntime({
+            createWorker: vi.fn(async () => worker),
+            sparseTextMode: 11,
+        });
+
+        await expect(runtime.recognize('image', 'eng', signal))
+            .resolves.toEqual({worker: 'settled', image: 'image'});
+        abortListener?.();
+        expect(worker.terminate).not.toHaveBeenCalled();
+    });
 });

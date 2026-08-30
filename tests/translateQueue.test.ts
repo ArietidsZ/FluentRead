@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-const mockConfig = vi.hoisted(() => ({maxConcurrentTranslations: 2}));
+const mockConfig = vi.hoisted((): {maxConcurrentTranslations: unknown} => ({maxConcurrentTranslations: 2}));
 
 vi.mock('@/src/services/config/store', () => ({config: mockConfig}));
 
@@ -200,6 +200,29 @@ describe('translation queue', () => {
     await vi.waitFor(() => expect(started).toEqual([0, 1, 2, 3, 4, 5, 6]));
     controls.slice(1).forEach((control, index) => control.resolve(index + 1));
     await expect(Promise.all(jobs)).resolves.toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+
+  it.each([
+    ['负数回退默认值并继续推进', -7, 6],
+    ['字符串回退默认值', '1000', 6],
+    ['小数回退默认值', 1.6, 6],
+    ['超大数回退默认值', 1_000_000, 6],
+    ['合法上限保持一百', 100, 100],
+    ['非有限数回退默认值', Number.POSITIVE_INFINITY, 6],
+  ] as const)('%s', async (_label, configuredValue, expectedConcurrent) => {
+    mockConfig.maxConcurrentTranslations = configuredValue;
+    const controls = Array.from({length: expectedConcurrent + 1}, () => deferred<number>());
+    const started: number[] = [];
+    const jobs = controls.map((control, index) => enqueueTranslation(async () => {
+      started.push(index);
+      return control.promise;
+    }));
+
+    expect(started).toEqual(Array.from({length: expectedConcurrent}, (_, index) => index));
+    controls[0].resolve(0);
+    await vi.waitFor(() => expect(started).toHaveLength(expectedConcurrent + 1));
+    controls.slice(1).forEach((control, index) => control.resolve(index + 1));
+    await expect(Promise.all(jobs)).resolves.toHaveLength(expectedConcurrent + 1);
   });
 
   it('保留显式取消错误，并把 Error 或缺省原因标准化', async () => {

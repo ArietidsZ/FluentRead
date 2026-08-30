@@ -4,7 +4,6 @@ import {
     translateCapturedAreaInExtension,
 } from '@/src/features/area-translation/services/client';
 import {
-    fetchImageInExtension,
     recognizeImageInExtension,
     translateImageInExtension,
 } from '@/src/features/image-translation/services/client';
@@ -42,7 +41,9 @@ describe('圈选翻译内容脚本客户端', () => {
         sendMessage.mockResolvedValue({success: true, image: 'translated', lines});
         const selection = {left: 1, top: 2, width: 30, height: 20, viewportWidth: 800, viewportHeight: 600};
 
-        await expect(translateCapturedAreaInExtension('capture', selection, 'en', 'Article')).resolves.toEqual({
+        await expect(translateCapturedAreaInExtension('capture', selection, 'en', 'Article', {
+            requestId: 'area-1', timeoutMs: 5_000,
+        })).resolves.toEqual({
             image: 'translated',
             lines,
         });
@@ -52,7 +53,32 @@ describe('圈选翻译内容脚本客户端', () => {
             selection,
             sourceLanguage: 'en',
             title: 'Article',
+            requestId: 'area-1',
+            timeoutMs: 5_000,
         });
+    });
+
+    it('取消圈选翻译时发送 area cancel，并忽略后台迟到结果', async () => {
+        let resolveOperation!: (value: unknown) => void;
+        sendMessage
+            .mockImplementationOnce(() => new Promise(resolve => { resolveOperation = resolve; }))
+            .mockResolvedValueOnce({success: true, cancelled: true});
+        const controller = new AbortController();
+        const pending = translateCapturedAreaInExtension('capture', {
+            left: 0, top: 0, width: 20, height: 20, viewportWidth: 100, viewportHeight: 100,
+        }, 'en', 'Article', {
+            requestId: 'area-pending', signal: controller.signal, timeoutMs: 5_000,
+        });
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+
+        controller.abort();
+
+        await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+        expect(sendMessage).toHaveBeenNthCalledWith(2, {
+            type: 'fluentReadAreaCancel',
+            requestId: 'area-pending',
+        });
+        resolveOperation({success: true, image: 'late', lines: []});
     });
 
     it.each([
@@ -74,16 +100,82 @@ describe('圈选翻译内容脚本客户端', () => {
 });
 
 describe('图片翻译内容脚本客户端', () => {
+    it('未指定 requestId 时使用跨页面安全随机 UUID', async () => {
+        sendMessage.mockResolvedValue({success: true, lines: []});
+
+        await recognizeImageInExtension('image-a', 'en');
+        await recognizeImageInExtension('image-b', 'en');
+        const requestIds = sendMessage.mock.calls.map(([message]) => message.requestId as string);
+
+        expect(requestIds).toHaveLength(2);
+        expect(new Set(requestIds).size).toBe(2);
+        requestIds.forEach(requestId => expect(requestId).toMatch(
+            /^image-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u,
+        ));
+    });
+
+    it('安全随机 API 不可用时使用进程随机 nonce，而不是跨页面 Date+计数器', async () => {
+        const originalCrypto = globalThis.crypto;
+        try {
+            Object.defineProperty(globalThis, 'crypto', {
+                configurable: true,
+                value: {getRandomValues: () => { throw new Error('random unavailable'); }},
+            });
+            vi.resetModules();
+            const fallbackClient = await import('@/src/features/image-translation/services/client');
+            sendMessage.mockResolvedValue({success: true, lines: []});
+
+            await fallbackClient.recognizeImageInExtension('image', 'en');
+
+            expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+                requestId: expect.stringMatching(/^image-[a-z0-9-]+-1$/u),
+            }));
+        } finally {
+            Object.defineProperty(globalThis, 'crypto', {configurable: true, value: originalCrypto});
+            vi.resetModules();
+        }
+    });
+
+    it('预取消信号不会发送业务请求，超时会发送同 requestId 的取消消息', async () => {
+        const preCancelled = new AbortController();
+        preCancelled.abort();
+        await expect(recognizeImageInExtension('image', 'en', {
+            requestId: 'pre-cancelled',
+            signal: preCancelled.signal,
+        })).rejects.toMatchObject({name: 'AbortError'});
+        expect(sendMessage).not.toHaveBeenCalled();
+
+        sendMessage
+            .mockImplementationOnce(() => new Promise(() => undefined))
+            .mockResolvedValueOnce({success: true, cancelled: true});
+        const timedOut = translateImageInExtension('image', 'en', 'Page', {
+            requestId: 'translate-timeout',
+            timeoutMs: 1,
+        });
+
+        await expect(timedOut).rejects.toMatchObject({name: 'TimeoutError'});
+        expect(sendMessage).toHaveBeenNthCalledWith(2, {
+            type: 'fluentReadImageCancel',
+            requestId: 'translate-timeout',
+        });
+    });
+
     it('识别图片并在后台省略行数组时返回空结果', async () => {
         const lines = [{text: 'Hello', bbox: {x0: 1, y0: 2, x1: 3, y1: 4}}];
         sendMessage.mockResolvedValueOnce({success: true, lines}).mockResolvedValueOnce({success: true});
 
-        await expect(recognizeImageInExtension('image', 'en')).resolves.toEqual(lines);
-        await expect(recognizeImageInExtension('image', 'auto')).resolves.toEqual([]);
+        await expect(recognizeImageInExtension('image', 'en', {
+            requestId: 'ocr-1', timeoutMs: 5_000,
+        })).resolves.toEqual(lines);
+        await expect(recognizeImageInExtension('image', 'auto', {
+            requestId: 'ocr-2', timeoutMs: 5_000,
+        })).resolves.toEqual([]);
         expect(sendMessage).toHaveBeenNthCalledWith(1, {
             type: 'fluentReadImageOcr',
             image: 'image',
             sourceLanguage: 'en',
+            requestId: 'ocr-1',
+            timeoutMs: 5_000,
         });
     });
 
@@ -99,13 +191,52 @@ describe('图片翻译内容脚本客户端', () => {
         const lines = [{text: '你好', bbox: {x0: 1, y0: 2, x1: 3, y1: 4}, backgroundColor: '#fff'}];
         sendMessage.mockResolvedValue({success: true, image: 'translated', lines});
 
-        await expect(translateImageInExtension('image', 'en', 'Page')).resolves.toEqual({image: 'translated', lines});
+        await expect(translateImageInExtension('image', 'en', 'Page', {
+            requestId: 'translate-1', timeoutMs: 5_000,
+        })).resolves.toEqual({image: 'translated', lines});
         expect(sendMessage).toHaveBeenCalledWith({
             type: 'fluentReadImageTranslate',
             image: 'image',
             sourceLanguage: 'en',
             title: 'Page',
+            requestId: 'translate-1',
+            timeoutMs: 5_000,
         });
+    });
+
+    it('页面取消图片翻译时发送同 requestId 的取消消息并立即拒绝', async () => {
+        let resolveOperation!: (value: unknown) => void;
+        sendMessage
+            .mockImplementationOnce(() => new Promise(resolve => { resolveOperation = resolve; }))
+            .mockResolvedValueOnce({success: true, cancelled: true});
+        const controller = new AbortController();
+        const pending = translateImageInExtension('image', 'en', 'Page', {
+            requestId: 'translate-pending',
+            signal: controller.signal,
+            timeoutMs: 5_000,
+        });
+        await vi.waitFor(() => expect(sendMessage).toHaveBeenCalledOnce());
+
+        controller.abort();
+
+        await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+        expect(sendMessage).toHaveBeenNthCalledWith(2, {
+            type: 'fluentReadImageCancel',
+            requestId: 'translate-pending',
+        });
+        resolveOperation({success: true, image: 'late', lines: []});
+    });
+
+    it('把非有限 timeoutMs 归一化为图片操作默认预算', async () => {
+        sendMessage.mockResolvedValue({success: true, image: 'translated', lines: []});
+
+        await expect(translateImageInExtension('image', 'en', 'Page', {
+            requestId: 'translate-nan', timeoutMs: Number.NaN,
+        })).resolves.toEqual({image: 'translated', lines: []});
+        expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+            requestId: 'translate-nan',
+            timeoutMs: 180_000,
+        }));
     });
 
     it.each([
@@ -118,22 +249,4 @@ describe('图片翻译内容脚本客户端', () => {
         await expect(translateImageInExtension('image', 'auto', '')).rejects.toThrow(message);
     });
 
-    it('通过后台读取跨域图片', async () => {
-        sendMessage.mockResolvedValue({success: true, image: 'data:image/png;base64,remote'});
-
-        await expect(fetchImageInExtension('https://example.com/a.png')).resolves.toBe('data:image/png;base64,remote');
-        expect(sendMessage).toHaveBeenCalledWith({
-            type: 'fluentReadImageFetch',
-            url: 'https://example.com/a.png',
-        });
-    });
-
-    it.each([
-        [{success: false, error: '读取失败'}, '读取失败'],
-        [undefined, '无法读取远程图片'],
-        [{success: true}, '无法读取远程图片'],
-    ])('拒绝无效跨域图片响应 %#', async (response, message) => {
-        sendMessage.mockResolvedValue(response);
-        await expect(fetchImageInExtension('https://example.com/a.png')).rejects.toThrow(message);
-    });
 });

@@ -54,6 +54,7 @@ let areaHotkeyPressed = false;
 let pointerDown = false;
 let startPoint: AreaPoint | null = null;
 let translationRequestId = 0;
+let translationAbortController: AbortController | null = null;
 let systemThemeMedia: MediaQueryList | null = null;
 
 function areaStyle(rect: AreaRect): Record<string, string> {
@@ -101,6 +102,8 @@ function isEnabled(): boolean {
 
 function clearResult(): void {
   translationRequestId += 1;
+  translationAbortController?.abort();
+  translationAbortController = null;
   capturePending.value = false;
   phase.value = 'idle';
   selectionRect.value = null;
@@ -197,6 +200,9 @@ function finishSelection(): void {
 }
 
 async function requestTranslation(rect: AreaRect): Promise<void> {
+  translationAbortController?.abort();
+  const controller = new AbortController();
+  translationAbortController = controller;
   const requestId = ++translationRequestId;
   errorMessage.value = '';
   try {
@@ -208,10 +214,13 @@ async function requestTranslation(rect: AreaRect): Promise<void> {
     // 先让框选层完全消失，再截图；否则选区边框会被 OCR 当作页面内容。
     await nextTick();
     const screenshot = await captureVisibleAreaInExtension();
-    if (requestId !== translationRequestId || activeRect.value !== rect) return;
+    if (controller.signal.aborted || requestId !== translationRequestId || activeRect.value !== rect) return;
     capturePending.value = false;
-    const result = await translateCapturedAreaInExtension(screenshot, selection, config.from, document.title);
-    if (requestId !== translationRequestId || activeRect.value !== rect) return;
+    const result = await translateCapturedAreaInExtension(screenshot, selection, config.from, document.title, {
+      signal: controller.signal,
+      timeoutMs: 180_000,
+    });
+    if (controller.signal.aborted || requestId !== translationRequestId || activeRect.value !== rect) return;
     translatedImage.value = result.image;
     phase.value = 'translated';
   } catch (error) {
@@ -219,6 +228,8 @@ async function requestTranslation(rect: AreaRect): Promise<void> {
     capturePending.value = false;
     errorMessage.value = error instanceof Error ? error.message : String(error);
     phase.value = 'error';
+  } finally {
+    if (translationAbortController === controller) translationAbortController = null;
   }
 }
 

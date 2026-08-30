@@ -5,9 +5,14 @@
  * 模块边界：本文件只负责编排和输入防线，不直接访问 tabs、配置存储或 OCR 实现；这些副作用由 background composition root 注入，几何换算归 core，Offscreen 通信归 adapter。
  */
 import type {AreaTranslationSelection} from '@/src/features/area-translation/core';
+import {
+    createImageOperationRegistry,
+    type ImageOperationOptions,
+} from '@/src/features/image-translation/protocol';
 
 export const AREA_CAPTURE_MESSAGE_TYPE = 'fluentReadAreaCapture' as const;
 export const AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE = 'fluentReadAreaTranslateCapture' as const;
+export const AREA_CANCEL_MESSAGE_TYPE = 'fluentReadAreaCancel' as const;
 
 export interface AreaTranslationBackgroundContext {
     sender?: {
@@ -27,9 +32,16 @@ export interface AreaTranslateCaptureMessage {
     selection?: unknown;
     sourceLanguage?: unknown;
     title?: unknown;
+    requestId?: unknown;
+    timeoutMs?: unknown;
 }
 
-export type AreaTranslationBackgroundMessage = AreaCaptureMessage | AreaTranslateCaptureMessage;
+export interface AreaCancelMessage {
+    type: typeof AREA_CANCEL_MESSAGE_TYPE;
+    requestId?: unknown;
+}
+
+export type AreaTranslationBackgroundMessage = AreaCaptureMessage | AreaTranslateCaptureMessage | AreaCancelMessage;
 
 export interface AreaCaptureResponse {
     success: true;
@@ -45,6 +57,7 @@ export interface AreaTranslationBackgroundDependencies<TResult extends object> {
         sourceLanguage: string,
         title: string,
         selection: AreaTranslationSelection,
+        options: ImageOperationOptions,
     ) => Promise<TResult>;
 }
 
@@ -95,13 +108,21 @@ function parseTitle(value: unknown): string {
     return value;
 }
 
+function areaAbortError(): Error {
+    const error = new Error('圈选翻译请求已取消');
+    error.name = 'AbortError';
+    return error;
+}
+
 /** 创建区域截图与翻译 handlers；tabs/offscreen/config 均由 app composition root 注入。 */
 export function createAreaTranslationBackgroundHandlers<TResult extends object>(
     dependencies: AreaTranslationBackgroundDependencies<TResult>,
 ): [
     AreaTranslationBackgroundHandler<AreaCaptureMessage, AreaCaptureResponse>,
     AreaTranslationBackgroundHandler<AreaTranslateCaptureMessage, {success: true} & TResult>,
+    AreaTranslationBackgroundHandler<AreaCancelMessage, {success: true; cancelled: boolean; requestId: string}>,
 ] {
+    const operationRegistry = createImageOperationRegistry('area');
     return [
         {
             type: AREA_CAPTURE_MESSAGE_TYPE,
@@ -125,9 +146,24 @@ export function createAreaTranslationBackgroundHandlers<TResult extends object>(
                 const title = parseTitle(message.title);
 
                 // 步骤 2：先确认语言包，再复用同一个 offscreen 区域翻译事务。
-                await dependencies.assertLanguagesDownloaded(sourceLanguage);
-                const result = await dependencies.translateArea(image, sourceLanguage, title, message.selection);
+                const result = await operationRegistry.run(message, async (options) => {
+                    await dependencies.assertLanguagesDownloaded(sourceLanguage);
+                    if (options.signal.aborted) throw areaAbortError();
+                    return dependencies.translateArea(
+                        image,
+                        sourceLanguage,
+                        title,
+                        message.selection as AreaTranslationSelection,
+                        options,
+                    );
+                });
                 return {success: true, ...result};
+            },
+        },
+        {
+            type: AREA_CANCEL_MESSAGE_TYPE,
+            async handle(message) {
+                return operationRegistry.cancel(message.requestId);
             },
         },
     ];

@@ -159,6 +159,7 @@ import {
   parseLocalDataImport,
   summarizeLocalDataImport,
   type LocalDataImport,
+  usesExactCredentialReplacement,
 } from '@/src/features/settings/model/dataBackup';
 import {buildCredentialPreviewChanges} from '@/src/features/settings/model/credentialPreview';
 import {
@@ -170,7 +171,7 @@ import {
   vocabularyImportNeedsConfirmation,
 } from '@/src/features/vocabulary/public';
 import type {ModelUsageImportResult, ModelUsageTransferDocument} from '@/src/services/model-usage/types';
-import {requestConfigSave} from '@/src/services/config';
+import {prepareHydratedConfigForExport, requestConfigSave} from '@/src/services/config';
 import {toRestorableConfig} from '@/src/services/config/history';
 import SettingsGroup from './components/SettingsGroup.vue';
 
@@ -188,12 +189,16 @@ let importTrigger: HTMLElement | null = null;
 let restoreActionTrigger: HTMLElement | null = null;
 
 const importSummary = computed(() => pendingImport.value ? summarizeLocalDataImport(pendingImport.value) : null);
-const importedConfig = computed(() => {
-  const target = pendingImport.value;
-  if (target?.kind === 'complete') return prepareConfigForImport(target.backup.config, props.config);
-  if (target?.kind === 'config') return prepareConfigForImport(target.config, props.config);
+function prepareImportedConfig(target: LocalDataImport | null, current: Config): Config | null {
+  if (target?.kind === 'complete') {
+    return prepareConfigForImport(target.backup.config, current, {
+      credentialMode: usesExactCredentialReplacement(target.backup) ? 'replace' : 'merge',
+    });
+  }
+  if (target?.kind === 'config') return prepareConfigForImport(target.config, current);
   return null;
-});
+}
+const importedConfig = computed(() => prepareImportedConfig(pendingImport.value, props.config));
 const configPreviewDiff = computed(() => buildConfigDiff(
   toRestorableConfig(props.config),
   toRestorableConfig(importedConfig.value),
@@ -252,12 +257,13 @@ async function exportCompleteBackup(event?: MouseEvent): Promise<void> {
   if (includePrivateContext === null) return;
   busy.value = true;
   try {
-    const [vocabulary, modelUsage] = await Promise.all([
+    const [configSnapshot, vocabulary, modelUsage] = await Promise.all([
+      prepareHydratedConfigForExport(),
       vocabularyExport(includePrivateContext),
       modelUsageExport(),
     ]);
     const backup = createFluentReadDataBackup({
-      config: prepareConfigForExport(props.config),
+      config: configSnapshot,
       vocabulary,
       modelUsage,
     });
@@ -394,8 +400,8 @@ async function applyPendingImport(): Promise<void> {
       if (JSON.stringify(prepareConfigForExport(props.config)) !== configBaseFingerprint) {
         throw new Error('设置在导入期间已被其他页面修改，本次未覆盖；请重新预览后再导入设置');
       }
-      const sourceConfig = target.kind === 'complete' ? target.backup.config : target.config;
-      const targetConfig = prepareConfigForImport(sourceConfig, props.config);
+      const targetConfig = prepareImportedConfig(target, props.config);
+      if (!targetConfig) throw new Error('备份中不包含可恢复的设置');
       await requestConfigSave(targetConfig, sendRuntimeMessage);
       return `设置已应用（${confirmedConfigChangeCount} 项需确认）`;
     });

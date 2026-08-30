@@ -2,10 +2,13 @@ import {describe, expect, it, vi} from 'vitest';
 import {
     TRANSLATION_MODEL_USAGE_OBSERVER,
     TRANSLATION_PROVIDER_CONFIG,
+    TRANSLATION_REQUEST_CONTROL,
     attachTranslationModelUsageObserver,
     attachTranslationProviderConfig,
+    attachTranslationRequestControl,
     createTranslationProviderConfigSnapshot,
     getTranslationProviderConfig,
+    getTranslationRequestControl,
     reportTranslationModelUsage,
     reportTranslationModelUsageFailure,
 } from '@/src/services/translation/requestSnapshot';
@@ -131,6 +134,29 @@ describe('translation provider request config snapshot', () => {
         });
         expect(Object.getOwnPropertySymbols(attached)).toEqual([TRANSLATION_PROVIDER_CONFIG]);
         expect(JSON.stringify(attached)).toBe('{"origin":"hello"}');
+    });
+
+    it('keeps abort ownership process-local and out of runtime JSON', () => {
+        const controller = new AbortController();
+        const message = attachTranslationRequestControl({origin: 'hello'}, {
+            signal: controller.signal,
+            ownershipKey: 'image:req-1',
+        });
+
+        expect(message[TRANSLATION_REQUEST_CONTROL]).toEqual({
+            signal: controller.signal,
+            ownershipKey: 'image:req-1',
+        });
+        expect(Object.isFrozen(message[TRANSLATION_REQUEST_CONTROL])).toBe(true);
+        expect(getTranslationRequestControl(message)).toBe(message[TRANSLATION_REQUEST_CONTROL]);
+        expect(getTranslationRequestControl({})).toBeUndefined();
+        expect(getTranslationRequestControl(null)).toBeUndefined();
+        expect(getTranslationRequestControl('forged-control')).toBeUndefined();
+        expect(JSON.stringify(message)).toBe('{"origin":"hello"}');
+        expect(() => attachTranslationRequestControl({}, {
+            signal: controller.signal,
+            ownershipKey: '  ',
+        })).toThrow('ownershipKey');
     });
 
     it('keeps model usage observers process-local and isolates observer failures', () => {

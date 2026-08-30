@@ -56,6 +56,9 @@ export const DEFAULT_SELECTION_TRANSLATOR_DELAY = 300;
 export const SELECTION_TRANSLATOR_DELAY_MIN = 0;
 export const SELECTION_TRANSLATOR_DELAY_MAX = 2000;
 export const SELECTION_TRANSLATOR_DELAY_STEP = 50;
+export const DEFAULT_MAX_CONCURRENT_TRANSLATIONS = 6;
+export const MIN_CONCURRENT_TRANSLATIONS = 1;
+export const MAX_CONCURRENT_TRANSLATIONS = 100;
 
 export function normalizeVideoSubtitleFontSize(value: unknown): number {
     const number = typeof value === 'number' ? value : Number(value);
@@ -85,6 +88,15 @@ export function normalizeSelectionTranslatorDelay(value: unknown): number {
         SELECTION_TRANSLATOR_DELAY_MAX,
         Math.max(SELECTION_TRANSLATOR_DELAY_MIN, rounded),
     );
+}
+
+export function normalizeMaxConcurrentTranslations(value: unknown): number {
+    return typeof value === 'number'
+        && Number.isSafeInteger(value)
+        && value >= MIN_CONCURRENT_TRANSLATIONS
+        && value <= MAX_CONCURRENT_TRANSLATIONS
+        ? value
+        : DEFAULT_MAX_CONCURRENT_TRANSLATIONS;
 }
 
 interface IMapping {
@@ -246,7 +258,7 @@ export class Config {
         this.selectionTtsVoices = []; // 默认按当前语言使用内置音色回退顺序
         this.vocabularyBookEnabled = false; // Beta 默认关闭，由用户在单词本页面主动开启
         this.newApiUrl = DEFAULT_NEW_API_URL; // NewAPI 默认地址
-        this.maxConcurrentTranslations = 6; // 默认最大并发数为6
+        this.maxConcurrentTranslations = DEFAULT_MAX_CONCURRENT_TRANSLATIONS; // 默认最大并发数为6
         this.youdaoAppKey = ''; // 有道翻译 App Key
         this.youdaoAppSecret = ''; // 有道翻译 App Secret
         this.tencentSecretId = ''; // 腾讯云 Secret ID
@@ -564,6 +576,9 @@ export function normalizeConfig(value: unknown): Config {
         && source.count >= 0
         ? source.count
         : 0;
+    normalized.maxConcurrentTranslations = normalizeMaxConcurrentTranslations(
+        source.maxConcurrentTranslations,
+    );
 
     normalized.token = withoutRetiredServiceEntries(normalizeStringMapping(source.token));
     normalized.model = withoutRetiredServiceEntries(normalizeStringMapping(source.model));

@@ -27,7 +27,7 @@ const expectedNavigation = [
   ['settings-model-usage', '模型用量'],
   ['settings-vocabulary', '单词本'],
   ['settings-advanced', '高级选项'],
-  ['settings-data', '配置管理'],
+  ['settings-data', '备份与恢复'],
   ['settings-about', '关于流畅阅读'],
 ];
 const expectedNavigationGroups = [
@@ -128,10 +128,64 @@ async function seedModelUsageFixture(page) {
       kimiTokens: 1100,
       kimiK2Tokens: 500,
       todayKimiTokens: 200,
-      allAverageInput: 205,
-      allAverageOutput: 108,
-      todayKimiAverageInput: 120,
+      // 缓存构成只对服务商确实返回 cachedInputTokens 的请求计算；当前 fixture
+      // 唯一可计算请求为 120 输入（其中 20 缓存读取）与 80 输出。
+      allAverageUncachedInput: 100,
+      allAverageCachedInput: 20,
+      allAverageOutput: 80,
+      todayKimiAverageUncachedInput: 100,
+      todayKimiAverageCachedInput: 20,
       todayKimiAverageOutput: 80,
+    };
+  });
+}
+
+async function seedVocabularyBackupFixture(page) {
+  return page.evaluate(async () => {
+    const privateContext = {
+      text: 'private vocabulary context sentinel',
+      sourceUrl: 'https://private-vocabulary-context.invalid/article',
+      pageTitle: 'Private vocabulary context title sentinel',
+    };
+    const stored = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
+    if (!stored?.success || !stored.value || typeof stored.value !== 'object') {
+      throw new Error(stored?.error || '读取单词本 Beta 配置基线失败');
+    }
+    const previousBetaEnabled = stored.value.vocabularyBookEnabled === true;
+    const enabled = await chrome.runtime.sendMessage({
+      type: 'persistConfig',
+      mode: 'patch',
+      config: {vocabularyBookEnabled: true},
+      expected: {vocabularyBookEnabled: previousBetaEnabled},
+      clientId: 'settings-browser-vocabulary-backup-fixture',
+      sequence: 1,
+    });
+    if (!enabled?.success) throw new Error(enabled?.error || '开启单词本 Beta 测试基线失败');
+    const clearResponse = await chrome.runtime.sendMessage({
+      type: 'fluentReadVocabularyBook',
+      action: 'clear',
+    });
+    if (!clearResponse?.success) {
+      throw new Error(clearResponse?.error?.message || '清空单词本测试基线失败');
+    }
+    const response = await chrome.runtime.sendMessage({
+      type: 'fluentReadVocabularyBook',
+      action: 'upsert',
+      input: {
+        sourceLanguage: 'en',
+        targetLanguage: 'zh-Hans',
+        term: 'backup-contract-sentinel',
+        translation: '备份契约测试',
+        context: {...privateContext, capturedAt: Date.now()},
+      },
+    });
+    if (!response?.success || !response.data?.id) {
+      throw new Error(response?.error?.message || '建立单词本备份测试基线失败');
+    }
+    return {
+      entryId: response.data.id,
+      term: 'backup-contract-sentinel',
+      privateContext,
     };
   });
 }
@@ -247,17 +301,17 @@ function assertExportContainsAllUserConfiguration(value) {
   ];
   for (const field of credentialFields) {
     if (!Object.prototype.hasOwnProperty.call(value, field)) {
-      throw new Error(`导出配置缺少专用凭据字段：${field}`);
+      throw new Error(`完整备份配置缺少专用凭据字段：${field}`);
     }
   }
   for (const field of ['system_role', 'user_role', 'model', 'customModel', 'customBody', 'proxy']) {
     if (!value[field] || typeof value[field] !== 'object' || Array.isArray(value[field])) {
-      throw new Error(`导出配置缺少完整用户映射：${field}`);
+      throw new Error(`完整备份配置缺少完整用户映射：${field}`);
     }
   }
   for (const field of ['count', 'persistCredentials', '__fluentConfigRevision', '__fluentCountOperations']) {
     if (Object.prototype.hasOwnProperty.call(value, field)) {
-      throw new Error(`导出配置包含不可迁移运行字段：${field}`);
+      throw new Error(`完整备份配置包含不可迁移运行字段：${field}`);
     }
   }
 }
@@ -281,9 +335,89 @@ function assertImportedSentinels(value, sentinels) {
   };
   for (const [field, sentinel] of Object.entries(sentinels)) {
     if (expected[field] !== sentinel) {
-      throw new Error(`重载后的导出配置未保留 ${field}：${JSON.stringify(expected[field])}`);
+      throw new Error(`重载后的完整备份未保留 ${field}：${JSON.stringify(expected[field])}`);
     }
   }
+}
+
+function assertCompleteBackupEnvelope(value, sentinels, options = {}) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('下载内容不是完整备份 JSON 对象');
+  }
+  if (value.format !== 'fluentread-data-backup'
+    || value.version !== 2
+    || value.configCredentialMode !== 'exact-replace'
+    || !Number.isFinite(value.exportedAt)) {
+    throw new Error(`完整备份顶层信封异常：${JSON.stringify({
+      format: value.format,
+      version: value.version,
+      configCredentialMode: value.configCredentialMode,
+      exportedAt: value.exportedAt,
+    })}`);
+  }
+  assertExportContainsAllUserConfiguration(value.config);
+  assertImportedSentinels(value.config, sentinels);
+  if (value.vocabulary?.format !== 'fluentread-vocabulary-book'
+    || value.vocabulary?.version !== 1
+    || !Number.isFinite(value.vocabulary?.exportedAt)
+    || typeof value.vocabulary?.includesPrivateContext !== 'boolean'
+    || !Array.isArray(value.vocabulary?.entries)
+    || !Array.isArray(value.vocabulary?.reviewLogs)) {
+    throw new Error('完整备份中的单词本信封异常');
+  }
+  if (value.modelUsage?.format !== 'fluentread-model-usage'
+    || value.modelUsage?.version !== 1
+    || !Number.isFinite(value.modelUsage?.exportedAt)
+    || !Array.isArray(value.modelUsage?.events)) {
+    throw new Error('完整备份中的模型用量信封异常');
+  }
+  if (Number.isInteger(options.minimumVocabularyEntries)
+    && value.vocabulary.entries.length < options.minimumVocabularyEntries) {
+    throw new Error(`完整备份丢失单词本记录：${value.vocabulary.entries.length}`);
+  }
+  if (Number.isInteger(options.minimumModelUsageEvents)
+    && value.modelUsage.events.length < options.minimumModelUsageEvents) {
+    throw new Error(`完整备份丢失模型用量记录：${value.modelUsage.events.length}`);
+  }
+  if (options.expectPrivateContext === false) {
+    if (value.vocabulary.includesPrivateContext !== false) {
+      throw new Error('选择“不包含并导出”后备份仍标记为包含单词上下文');
+    }
+    const serializedVocabulary = JSON.stringify(value.vocabulary);
+    for (const sentinel of Object.values(options.privateContextSentinels || {})) {
+      if (serializedVocabulary.includes(sentinel)) {
+        throw new Error(`安全导出的单词本泄露上下文：${sentinel}`);
+      }
+    }
+  }
+}
+
+async function downloadCompleteBackup(page, includePrivateContext = false) {
+  const downloadPromise = page.waitForEvent('download', {timeout});
+  await page.getByRole('button', {name: '导出备份', exact: true}).click();
+  const contextDialog = page.locator('.el-message-box:visible');
+  await contextDialog.getByText('是否包含单词上下文？', {exact: true}).waitFor({state: 'visible', timeout});
+  for (const label of ['不包含并导出', '包含并导出']) {
+    await contextDialog.getByRole('button', {name: label, exact: true}).waitFor({state: 'visible', timeout});
+  }
+  await contextDialog.getByRole('button', {
+    name: includePrivateContext ? '包含并导出' : '不包含并导出',
+    exact: true,
+  }).click();
+  const download = await downloadPromise;
+  const downloadedPath = await download.path();
+  if (!downloadedPath) throw new Error('完整备份下载未产生可读文件');
+  const suggestedFilename = download.suggestedFilename();
+  if (!/^fluentread-backup-\d{4}-\d{2}-\d{2}\.json$/.test(suggestedFilename)) {
+    throw new Error(`完整备份文件名异常：${suggestedFilename}`);
+  }
+  let backup;
+  try {
+    backup = JSON.parse(fs.readFileSync(downloadedPath, 'utf8'));
+  } catch (error) {
+    throw new Error(`完整备份下载内容不是有效 JSON：${error instanceof Error ? error.message : String(error)}`);
+  }
+  return {backup, suggestedFilename};
 }
 
 async function inspectEncryptedConfigurationStorage(page, sentinels, expectedRecordKeys = expectedEncryptedRecordKeys) {
@@ -495,7 +629,7 @@ async function main() {
     await page.setViewportSize({width: 1440, height: 1000});
     await page.locator('button[data-section="settings-data"]').click();
     await page.getByRole('heading', {name: '最近修改', exact: true}).waitFor({state: 'visible', timeout});
-    await page.getByRole('heading', {name: '定时备份', exact: true}).waitFor({state: 'visible', timeout});
+    await page.getByRole('heading', {name: '自动设置快照', exact: true}).waitFor({state: 'visible', timeout});
     const migratedRecordKeys = ['local:config', 'local:configAutoBackups', 'local:credentials'];
     await page.waitForFunction(async ({databaseName, expectedKeys}) => {
       const database = await new Promise((resolve, reject) => {
@@ -629,14 +763,15 @@ async function main() {
     const allAverageValues = (await page.locator('#settings-model-usage .usage-average-value strong').allTextContents())
       .map(value => value.trim());
     if (JSON.stringify(allAverageValues) !== JSON.stringify([
-      String(modelUsageFixture.allAverageInput),
+      String(modelUsageFixture.allAverageUncachedInput),
+      String(modelUsageFixture.allAverageCachedInput),
       String(modelUsageFixture.allAverageOutput),
     ])) {
-      throw new Error(`全部范围的平均输入输出异常：${JSON.stringify(allAverageValues)}`);
+      throw new Error(`全部范围的平均无缓存输入/缓存读取/输出异常：${JSON.stringify(allAverageValues)}`);
     }
     const breakdownHeaders = (await page.locator('#settings-model-usage .usage-breakdown-heading > *').allTextContents())
       .map(value => value.trim());
-    if (JSON.stringify(breakdownHeaders) !== JSON.stringify(['服务 / 模型', '输入', '输出', '次数', '总计'])) {
+    if (JSON.stringify(breakdownHeaders) !== JSON.stringify(['服务 / 模型', '输入', '缓存', '输出', '次数', '总计'])) {
       throw new Error('模型用量分布列异常：' + JSON.stringify(breakdownHeaders));
     }
     const breakdownTotals = (await page.locator('#settings-model-usage .usage-breakdown-total').allTextContents())
@@ -651,13 +786,13 @@ async function main() {
     }
     await page.getByRole('button', {name: '按输入排序', exact: true}).click();
     const breakdownSortedByInput = (await page.locator('#settings-model-usage .usage-breakdown-value').evaluateAll(elements => elements
-      .filter((_, index) => index % 4 === 0)
+      .filter((_, index) => index % 5 === 0)
       .map(element => element.textContent?.trim())))
       .every((value, index, values) => index === 0 || Number(values[index - 1]) >= Number(value));
     if (!breakdownSortedByInput) throw new Error('模型用量没有按输入 Token 降序排列');
     await page.getByRole('button', {name: '按输出排序', exact: true}).click();
     const outputValues = (await page.locator('#settings-model-usage .usage-breakdown-list > button .usage-breakdown-value').evaluateAll(elements => elements
-      .filter((_, index) => index % 4 === 1)
+      .filter((_, index) => index % 5 === 2)
       .map(element => element.textContent?.trim())));
     if (JSON.stringify(outputValues) !== JSON.stringify(['200', '180', '50', '0'])) {
       throw new Error('模型用量没有按输出 Token 降序排列：' + JSON.stringify(outputValues));
@@ -697,10 +832,11 @@ async function main() {
     const todayAverageValues = (await page.locator('#settings-model-usage .usage-average-value strong').allTextContents())
       .map(value => value.trim());
     if (JSON.stringify(todayAverageValues) !== JSON.stringify([
-      String(modelUsageFixture.todayKimiAverageInput),
+      String(modelUsageFixture.todayKimiAverageUncachedInput),
+      String(modelUsageFixture.todayKimiAverageCachedInput),
       String(modelUsageFixture.todayKimiAverageOutput),
     ])) {
-      throw new Error(`今日范围的平均输入输出异常：${JSON.stringify(todayAverageValues)}`);
+      throw new Error(`今日范围的平均无缓存输入/缓存读取/输出异常：${JSON.stringify(todayAverageValues)}`);
     }
     const usageRequestCount = Number((await page.locator('#settings-model-usage .usage-compact-card').first().locator('strong').textContent())?.replace(/[^0-9]/g, '') || 0);
     if (usageRequestCount !== 2) throw new Error(`Kimi 今日请求数异常：${usageRequestCount}`);
@@ -709,7 +845,7 @@ async function main() {
     await page.getByRole('button', {name: '清除统计', exact: true}).click();
     const resetDialog = page.getByRole('alertdialog', {name: '清除本机模型用量？'});
     await resetDialog.waitFor({state: 'visible', timeout});
-    if (!await resetDialog.getByText(/不会删除 API Key、翻译设置、缓存或配置历史/).isVisible()) {
+    if (!await resetDialog.getByText(/不会删除 API Key、翻译设置、FluentRead 译文缓存或配置历史/).isVisible()) {
       throw new Error('模型用量重置没有明确隔离其他本地数据');
     }
     const resetCancelButton = resetDialog.getByRole('button', {name: '取消', exact: true});
@@ -748,8 +884,9 @@ async function main() {
     if (await page.locator('#settings-model-usage .usage-ratio').count() !== 0) {
       throw new Error('零 Token 请求仍显示了虚假的输入输出比例');
     }
-    if (!await page.getByText('尚无已报告的输入 / 输出 Token', {exact: true}).isVisible()) {
-      throw new Error('零 Token 请求没有显示未报告说明');
+    if (!await page.getByText('缓存读取未上报', {exact: true}).isVisible()
+      || !await page.getByText('暂时无法拆分输入与缓存构成', {exact: true}).isVisible()) {
+      throw new Error('零 Token 请求没有显示缓存明细未上报边界');
     }
     const zeroTokenBreakdownWidth = await page.locator('#settings-model-usage .usage-breakdown-copy i b').first().evaluate(bar => bar.style.width);
     if (zeroTokenBreakdownWidth !== '0%') {
@@ -767,9 +904,11 @@ async function main() {
       filteredProvider: 'moonshot',
       filteredModel: 'kimi-k2.6',
       todayRequestCount: usageRequestCount,
-      allAverageInput: modelUsageFixture.allAverageInput,
+      allAverageUncachedInput: modelUsageFixture.allAverageUncachedInput,
+      allAverageCachedInput: modelUsageFixture.allAverageCachedInput,
       allAverageOutput: modelUsageFixture.allAverageOutput,
-      todayAverageInput: modelUsageFixture.todayKimiAverageInput,
+      todayAverageUncachedInput: modelUsageFixture.todayKimiAverageUncachedInput,
+      todayAverageCachedInput: modelUsageFixture.todayKimiAverageCachedInput,
       todayAverageOutput: modelUsageFixture.todayKimiAverageOutput,
       breakdownHeaders,
       breakdownTotals,
@@ -1029,10 +1168,10 @@ async function main() {
     await page.waitForTimeout(500);
     await page.locator('button[data-section="settings-data"]').click();
     await page.getByRole('heading', {name: '最近修改', exact: true}).waitFor({state: 'visible', timeout});
-    await page.getByRole('heading', {name: '定时备份', exact: true}).waitFor({state: 'visible', timeout});
+    await page.getByRole('heading', {name: '自动设置快照', exact: true}).waitFor({state: 'visible', timeout});
     const recentEntries = page.locator('#settings-data .version-panel').nth(0).locator('.version-entry');
     const backupEntries = page.locator('#settings-data .version-panel').nth(1).locator('.version-entry');
-    if (await recentEntries.count() < 1 || await backupEntries.count() < 1) throw new Error('最近修改或定时备份没有建立基线');
+    if (await recentEntries.count() < 1 || await backupEntries.count() < 1) throw new Error('最近修改或自动设置快照没有建立基线');
     await backupEntries.first().click();
     const previewDialog = page.locator('.config-preview-dialog:visible');
     await previewDialog.waitFor({state: 'visible', timeout});
@@ -1060,46 +1199,43 @@ async function main() {
       {timeout},
     );
 
+    const vocabularyBackupFixture = await seedVocabularyBackupFixture(page);
     await page.locator('button[data-section="settings-data"]').click();
     const transferActionLabels = (await page.locator('#settings-data .transfer-actions button').allTextContents())
       .map(label => label.trim());
-    if (JSON.stringify(transferActionLabels) !== JSON.stringify(['导出配置', '导入配置'])) {
-      throw new Error(`配置迁移入口不是唯一的导出/导入两个选项：${JSON.stringify(transferActionLabels)}`);
+    if (JSON.stringify(transferActionLabels) !== JSON.stringify(['导出备份', '从备份恢复'])) {
+      throw new Error(`完整备份区不是唯一的导出/恢复两个入口：${JSON.stringify(transferActionLabels)}`);
     }
     if (await page.getByTestId('persist-credentials-switch').count()) {
-      throw new Error('配置管理仍显示已废弃的凭据持久化开关');
+      throw new Error('备份与恢复页仍显示已废弃的凭据持久化开关');
     }
     if ((await page.locator('#settings-data').textContent()).includes('跨浏览器重启保存 API 凭据')) {
-      throw new Error('配置管理仍显示已废弃的凭据持久化文案');
+      throw new Error('备份与恢复页仍显示已废弃的凭据持久化文案');
     }
-    await page.evaluate(() => {
-      const clipboard = navigator.clipboard;
-      if (!clipboard?.writeText) throw new Error('当前扩展页不支持 Clipboard.writeText');
-      const originalWriteText = clipboard.writeText.bind(clipboard);
-      Object.defineProperty(clipboard, 'writeText', {
-        configurable: true,
-        value: async text => {
-          await originalWriteText(text);
-          window.__fluentReadLastClipboardWrite = text;
-        },
-      });
+
+    const initialDownload = await downloadCompleteBackup(page, false);
+    const exportedBackup = initialDownload.backup;
+    assertCompleteBackupEnvelope(exportedBackup, legacyMigrationSentinels, {
+      minimumVocabularyEntries: 1,
+      minimumModelUsageEvents: modelUsageFixture.eventCount,
+      expectPrivateContext: false,
+      privateContextSentinels: vocabularyBackupFixture.privateContext,
     });
-    await page.getByRole('button', {name: '导出配置', exact: true}).click();
-    const transferDialog = page.getByTestId('config-transfer-dialog');
-    await transferDialog.waitFor({state: 'visible', timeout});
-    await transferDialog.getByText('导出配置 JSON', {exact: true}).waitFor({state: 'visible', timeout});
-    const exportedText = await transferDialog.getByLabel('配置 JSON').inputValue();
-    const exportedConfig = JSON.parse(exportedText);
-    assertExportContainsAllUserConfiguration(exportedConfig);
-    assertImportedSentinels(exportedConfig, legacyMigrationSentinels);
-    await page.waitForTimeout(250);
-    report.screenshots.push(await screenshot(page, 'settings-config-export-dialog.png'));
-    await transferDialog.getByRole('button', {name: '复制', exact: true}).click();
-    await page.locator('.el-message:visible').filter({hasText: '配置 JSON 已复制'}).waitFor({state: 'visible', timeout});
-    const clipboardText = await page.evaluate(() => window.__fluentReadLastClipboardWrite);
-    if (clipboardText !== exportedText) throw new Error('复制按钮写入剪贴板的 JSON 与对话框内容不一致');
-    await transferDialog.getByRole('button', {name: '取消', exact: true}).click();
-    await transferDialog.waitFor({state: 'hidden', timeout});
+    const exportedConfig = exportedBackup.config;
+    report.completeBackup = {
+      contextChoice: 'exclude-private-context',
+      initialDownload: {
+        suggestedFilename: initialDownload.suggestedFilename,
+        format: exportedBackup.format,
+        version: exportedBackup.version,
+        configCredentialMode: exportedBackup.configCredentialMode,
+        vocabularyEntries: exportedBackup.vocabulary.entries.length,
+        vocabularyReviewLogs: exportedBackup.vocabulary.reviewLogs.length,
+        modelUsageEvents: exportedBackup.modelUsage.events.length,
+        privateVocabularyContextExcluded: true,
+        credentialsIncluded: true,
+      },
+    };
 
     const sentinels = {
       token: 'indexeddb-openai-token-sensitive-sentinel',
@@ -1135,22 +1271,63 @@ async function main() {
       proxy: {...exportedConfig.proxy, openai: sentinels.proxy},
       customBody: {...exportedConfig.customBody, openai: sentinels.customBody},
     };
-    await page.getByRole('button', {name: '导入配置', exact: true}).click();
-    await transferDialog.waitFor({state: 'visible', timeout});
-    await transferDialog.getByText('粘贴配置 JSON', {exact: true}).waitFor({state: 'visible', timeout});
-    await transferDialog.getByLabel('配置 JSON').fill(JSON.stringify(importedConfig));
-    report.screenshots.push(await screenshot(page, 'settings-config-import-dialog.png'));
-    await transferDialog.getByRole('button', {name: '查看差异', exact: true}).click();
-    await previewDialog.waitFor({state: 'visible', timeout});
-    if (await previewDialog.locator('.diff-item').count() < 1) throw new Error('导入预览没有显示差异');
-    await previewDialog.getByText('OpenAI API Key', {exact: true}).waitFor({state: 'visible', timeout});
-    await previewDialog.getByText('将新增（内容已隐藏）', {exact: true}).first().waitFor({state: 'visible', timeout});
-    if ((await previewDialog.textContent()).includes(sentinels.token)) throw new Error('导入预览泄露了凭据内容');
-    await previewDialog.getByRole('button', {name: '确认导入', exact: true}).click();
-    const importConfirm = page.locator('.el-message-box:visible');
-    await importConfirm.waitFor({state: 'visible', timeout});
-    await importConfirm.getByRole('button', {name: '导入', exact: true}).click();
-    await previewDialog.waitFor({state: 'hidden', timeout});
+    const importedBackup = {
+      ...exportedBackup,
+      exportedAt: Date.now(),
+      config: importedConfig,
+    };
+    await page.getByRole('button', {name: '从备份恢复', exact: true}).click();
+    const restoreSourceDialog = page.getByTestId('restore-source-dialog');
+    await restoreSourceDialog.waitFor({state: 'visible', timeout});
+    await restoreSourceDialog.getByText('选择备份文件', {exact: true}).waitFor({state: 'visible', timeout});
+    await restoreSourceDialog.getByText('粘贴旧版配置 JSON', {exact: true}).waitFor({state: 'visible', timeout});
+    const fileChooserPromise = page.waitForEvent('filechooser', {timeout});
+    await restoreSourceDialog.getByRole('button', {name: '选择文件', exact: true}).click();
+    const fileChooser = await fileChooserPromise;
+    const importFileName = 'fluentread-backup-browser-round-trip.json';
+    await fileChooser.setFiles({
+      name: importFileName,
+      mimeType: 'application/json',
+      buffer: Buffer.from(JSON.stringify(importedBackup)),
+    });
+    const localDataImportDialog = page.getByTestId('local-data-import-dialog');
+    await localDataImportDialog.waitFor({state: 'visible', timeout});
+    await localDataImportDialog.getByText('FluentRead 备份', {exact: true}).waitFor({state: 'visible', timeout});
+    await localDataImportDialog.getByText(importFileName, {exact: true}).waitFor({state: 'visible', timeout});
+    for (const sectionLabel of ['设置与凭据', '单词本', '模型用量']) {
+      await localDataImportDialog.getByText(sectionLabel, {exact: true}).first().waitFor({state: 'visible', timeout});
+    }
+    await localDataImportDialog.locator('.config-change-group h4')
+      .filter({hasText: /^凭据安全/u})
+      .waitFor({state: 'visible', timeout});
+    if (await localDataImportDialog.locator('.config-change-list article').count() < 1) {
+      throw new Error('完整备份导入预览没有显示配置或凭据变化');
+    }
+    await localDataImportDialog.getByText('OpenAI API Key', {exact: true}).waitFor({state: 'visible', timeout});
+    await localDataImportDialog.getByText('将替换（内容已隐藏）', {exact: true}).first().waitFor({state: 'visible', timeout});
+    const importPreviewText = await localDataImportDialog.textContent();
+    const hiddenCredentialSentinels = [
+      sentinels.token,
+      sentinels.ak,
+      sentinels.sk,
+      sentinels.appid,
+      sentinels.key,
+      sentinels.youdaoAppKey,
+      sentinels.youdaoAppSecret,
+      sentinels.tencentSecretId,
+      sentinels.tencentSecretKey,
+      sentinels.extra,
+    ];
+    for (const sentinel of hiddenCredentialSentinels) {
+      if (importPreviewText.includes(sentinel)) throw new Error(`完整备份导入预览泄露凭据内容：${sentinel}`);
+    }
+    if (!importPreviewText.includes(sentinels.proxy)) {
+      throw new Error('完整备份导入预览没有展示作为普通设置管理的代理地址变化');
+    }
+    report.screenshots.push(await screenshot(page, 'settings-complete-backup-import-preview.png'));
+    await localDataImportDialog.getByRole('button', {name: '确认导入', exact: true}).click();
+    await localDataImportDialog.waitFor({state: 'hidden', timeout});
+    await page.locator('.el-message:visible').filter({hasText: '导入完成'}).waitFor({state: 'visible', timeout});
 
     await page.locator('button[data-section="settings-general"]').click();
     await page.waitForFunction(
@@ -1170,33 +1347,46 @@ async function main() {
     await page.reload({waitUntil: 'domcontentloaded', timeout});
     await page.locator('.settings-app').waitFor({state: 'visible', timeout});
     await page.locator('button[data-section="settings-data"]').click();
-    await page.getByRole('button', {name: '导出配置', exact: true}).click();
-    await transferDialog.waitFor({state: 'visible', timeout});
-    const reloadedExportText = await transferDialog.getByLabel('配置 JSON').inputValue();
-    const reloadedExportConfig = JSON.parse(reloadedExportText);
-    assertExportContainsAllUserConfiguration(reloadedExportConfig);
-    assertImportedSentinels(reloadedExportConfig, sentinels);
+    const reloadedDownload = await downloadCompleteBackup(page, false);
+    const reloadedBackup = reloadedDownload.backup;
+    assertCompleteBackupEnvelope(reloadedBackup, sentinels, {
+      minimumVocabularyEntries: exportedBackup.vocabulary.entries.length,
+      minimumModelUsageEvents: exportedBackup.modelUsage.events.length,
+      expectPrivateContext: false,
+      privateContextSentinels: vocabularyBackupFixture.privateContext,
+    });
+    const reloadedExportConfig = reloadedBackup.config;
     if (reloadedExportConfig.to !== importedConfig.to) throw new Error('页面重载后目标语言没有从加密 IndexedDB 恢复');
-    report.reloadedExport = {
+    report.reloadedCompleteBackup = {
+      suggestedFilename: reloadedDownload.suggestedFilename,
+      format: reloadedBackup.format,
+      version: reloadedBackup.version,
       targetLanguage: reloadedExportConfig.to,
       credentialFields: [
         'token', 'ak', 'sk', 'appid', 'key', 'youdaoAppKey', 'youdaoAppSecret',
         'tencentSecretId', 'tencentSecretKey', 'extra',
       ],
       roleFields: ['user_role', 'system_role'],
-      plaintextRoundTrip: true,
+      vocabularyEntries: reloadedBackup.vocabulary.entries.length,
+      modelUsageEvents: reloadedBackup.modelUsage.events.length,
+      encryptedStorageRoundTrip: true,
     };
-    await transferDialog.getByRole('button', {name: '取消', exact: true}).click();
-    await transferDialog.waitFor({state: 'hidden', timeout});
+    report.completeBackup.restore = {
+      source: 'file-chooser',
+      fileName: importFileName,
+      credentialPreviewHidden: true,
+      confirmed: true,
+    };
     report.assertions.encryptedConfigReloadRoundTrip = true;
-    report.assertions.twoBackupStreams = true;
-    report.assertions.previewBeforeRestore = true;
-    report.assertions.restoreWithConfirmation = true;
-    report.assertions.onlyTwoTransferActions = true;
-    report.assertions.exportDialog = true;
-    report.assertions.exportIncludesUserConfiguration = true;
-    report.assertions.exportClipboard = true;
-    report.assertions.importPreview = true;
+    report.assertions.settingHistoryAndAutomaticSnapshots = true;
+    report.assertions.settingSnapshotPreviewBeforeRestore = true;
+    report.assertions.settingSnapshotRestoreWithConfirmation = true;
+    report.assertions.completeBackupOnlyTwoTransferActions = true;
+    report.assertions.completeBackupDownload = true;
+    report.assertions.completeBackupEnvelope = true;
+    report.assertions.completeBackupContextConfirmation = true;
+    report.assertions.completeBackupImportPreview = true;
+    report.assertions.completeBackupFileRestore = true;
 
     for (const viewport of [
       {width: 1366, height: 700},

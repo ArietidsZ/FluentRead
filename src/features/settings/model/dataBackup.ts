@@ -18,11 +18,14 @@ import {
 } from '@/src/services/model-usage/types';
 
 export const FLUENTREAD_DATA_BACKUP_FORMAT = 'fluentread-data-backup' as const;
-export const FLUENTREAD_DATA_BACKUP_VERSION = 1 as const;
+export const FLUENTREAD_DATA_BACKUP_LEGACY_VERSION = 1 as const;
+export const FLUENTREAD_DATA_BACKUP_VERSION = 2 as const;
+export const FLUENTREAD_DATA_BACKUP_EXACT_CREDENTIAL_MODE = 'exact-replace' as const;
 
 export interface FluentReadDataBackup {
     format: typeof FLUENTREAD_DATA_BACKUP_FORMAT;
-    version: typeof FLUENTREAD_DATA_BACKUP_VERSION;
+    version: typeof FLUENTREAD_DATA_BACKUP_LEGACY_VERSION | typeof FLUENTREAD_DATA_BACKUP_VERSION;
+    configCredentialMode?: typeof FLUENTREAD_DATA_BACKUP_EXACT_CREDENTIAL_MODE;
     exportedAt: number;
     config: Record<string, unknown>;
     vocabulary: VocabularyBookExport;
@@ -81,6 +84,7 @@ export function createFluentReadDataBackup(input: {
     return {
         format: FLUENTREAD_DATA_BACKUP_FORMAT,
         version: FLUENTREAD_DATA_BACKUP_VERSION,
+        configCredentialMode: FLUENTREAD_DATA_BACKUP_EXACT_CREDENTIAL_MODE,
         exportedAt,
         config: input.config,
         vocabulary: input.vocabulary,
@@ -92,7 +96,14 @@ export function parseLocalDataImport(value: unknown): LocalDataImport {
     if (!isPlainRecord(value)) throw new TypeError('备份文件必须是 JSON 对象');
 
     if (value.format === FLUENTREAD_DATA_BACKUP_FORMAT) {
-        if (value.version !== FLUENTREAD_DATA_BACKUP_VERSION) throw new TypeError('完整备份版本不受支持');
+        if (value.version !== FLUENTREAD_DATA_BACKUP_LEGACY_VERSION
+            && value.version !== FLUENTREAD_DATA_BACKUP_VERSION) {
+            throw new TypeError('完整备份版本不受支持');
+        }
+        if (value.version === FLUENTREAD_DATA_BACKUP_VERSION
+            && value.configCredentialMode !== FLUENTREAD_DATA_BACKUP_EXACT_CREDENTIAL_MODE) {
+            throw new TypeError('完整备份缺少精确凭据快照标记');
+        }
         if (!Number.isFinite(value.exportedAt) || (value.exportedAt as number) < 0) {
             throw new TypeError('完整备份导出时间无效');
         }
@@ -106,6 +117,12 @@ export function parseLocalDataImport(value: unknown): LocalDataImport {
     if (isModelUsageExport(value)) return {kind: 'model-usage', modelUsage: value};
     if (isConfigImportValid(value)) return {kind: 'config', config: value};
     throw new TypeError('不是受支持的 FluentRead 备份或旧版配置文件');
+}
+
+/** 只有 v2 明确声明完整凭据快照；旧 v1 可能由未完成水合的页面导出，恢复时必须合并。 */
+export function usesExactCredentialReplacement(backup: FluentReadDataBackup): boolean {
+    return backup.version === FLUENTREAD_DATA_BACKUP_VERSION
+        && backup.configCredentialMode === FLUENTREAD_DATA_BACKUP_EXACT_CREDENTIAL_MODE;
 }
 
 export function summarizeLocalDataImport(value: LocalDataImport): LocalDataImportSummary {

@@ -11,6 +11,8 @@ import type {CustomOpenAIProvider} from '@/src/core/config/customOpenAI';
 export interface TranslationRequestMessageBase {
     context?: string;
     pageContext?: string;
+    /** 当前请求是否允许 AI 网页上下文；全文翻译会显式携带会话启动时的冻结值。 */
+    enableAIContext?: boolean;
     useCache?: boolean;
     /** 全文翻译内部标记；仅允许通用提示词型 AI 把数组合并为一次上游请求。 */
     aiMultiSegment?: boolean;
@@ -161,11 +163,13 @@ export interface TranslationBrokerDependencies {
     buildTranslationCacheKey: (identity: Record<string, unknown>) => string;
     /** 在 provider 真正开始前捕获重置代次，避免清除后在途旧请求把事件写回来。 */
     captureModelUsageGeneration?: () => number;
-    /** 本地统计是旁路能力；写入失败或挂起不得改变、延迟翻译结果。 */
+    /** 本地统计是旁路能力；正常写入可在响应前短暂等待，失败或超时不得改变翻译结果。 */
     recordModelUsage?: (
         events: readonly TranslationModelUsageRecord[],
         generation: number,
     ) => Promise<void>;
+    /** 响应前等待本地缓存和用量写入的最长宽限期；主要供测试和受限运行时注入。 */
+    persistenceGraceMs?: number;
     now?: () => number;
     logger?: Pick<Console, 'warn'>;
 }

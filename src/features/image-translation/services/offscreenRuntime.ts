@@ -17,6 +17,20 @@ export interface OffscreenImageTranslationResult {
     lines: OffscreenImageTranslationLine[];
 }
 
+const IMAGE_TEXT_TRANSLATION_TIMEOUT_MS = 120_000;
+let legacyImageTextRequestSequence = 0;
+
+function createImageOperationAbortError(): Error {
+    const error = new Error('图片翻译请求已取消');
+    error.name = 'AbortError';
+    return error;
+}
+
+function throwIfImageOperationAborted(signal?: AbortSignal): void {
+    if (!signal?.aborted) return;
+    throw createImageOperationAbortError();
+}
+
 function loadImage(dataUrl: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
         const source = new Image();
@@ -76,19 +90,50 @@ function drawTranslatedText(
     });
 }
 
-async function translateTexts(texts: string[], title: string): Promise<string[]> {
+export async function translateImageTextsInExtension(
+    texts: string[],
+    title: string,
+    requestId: string | undefined,
+    signal?: AbortSignal,
+): Promise<string[]> {
+    const operationId = requestId || `legacy-image-text-${++legacyImageTextRequestSequence}`;
     const response = await new Promise<any>((resolve, reject) => {
+        let settled = false;
+        const finish = (callback: () => void) => {
+            if (settled) return;
+            settled = true;
+            signal?.removeEventListener('abort', handleAbort);
+            callback();
+        };
+        const notifyCancellation = () => {
+            try {
+                chrome.runtime.sendMessage({
+                    type: 'fluentReadImageCancel',
+                    requestId: operationId,
+                }, () => void chrome.runtime.lastError);
+            } catch {
+                // Offscreen 正在销毁时取消消息可能无法投递；本地等待仍必须立即结束。
+            }
+        };
+        const handleAbort = () => finish(() => {
+            notifyCancellation();
+            reject(createImageOperationAbortError());
+        });
+        if (signal?.aborted) {
+            handleAbort();
+            return;
+        }
+        signal?.addEventListener('abort', handleAbort, {once: true});
         chrome.runtime.sendMessage({
             type: 'fluentReadImageTranslateTexts',
             texts,
             title,
-        }, result => {
-            if (chrome.runtime.lastError) {
-                reject(new Error(chrome.runtime.lastError.message));
-            } else {
-                resolve(result);
-            }
-        });
+            requestId: operationId,
+            timeoutMs: IMAGE_TEXT_TRANSLATION_TIMEOUT_MS,
+        }, result => finish(() => {
+            if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+            else resolve(result);
+        }));
     });
     if (!response?.success || !Array.isArray(response.translations)) {
         throw new Error(response?.error || '图片文字翻译失败');
@@ -165,10 +210,16 @@ export async function translateImageInOffscreen(
     image: string,
     sourceLanguage: string,
     title: string,
+    signal?: AbortSignal,
+    requestId?: string,
 ): Promise<OffscreenImageTranslationResult> {
-    const lines = await recognizeImage(image, sourceLanguage);
+    const lines = await recognizeImage(image, sourceLanguage, signal);
+    throwIfImageOperationAborted(signal);
     if (lines.length === 0) throw new Error('没有识别到图片文字');
-    const translations = await translateTexts(lines.map(line => line.text), title);
+    const translations = await translateImageTextsInExtension(
+        lines.map(line => line.text), title, requestId, signal,
+    );
+    throwIfImageOperationAborted(signal);
     return prepareTranslatedImage(image, lines, translations);
 }
 
@@ -177,7 +228,10 @@ export async function translateAreaInOffscreen(
     sourceLanguage: string,
     title: string,
     selection: AreaTranslationSelection,
+    signal?: AbortSignal,
+    requestId?: string,
 ): Promise<OffscreenImageTranslationResult> {
     const croppedImage = await cropImage(image, selection);
-    return translateImageInOffscreen(croppedImage, sourceLanguage, title);
+    throwIfImageOperationAborted(signal);
+    return translateImageInOffscreen(croppedImage, sourceLanguage, title, signal, requestId);
 }

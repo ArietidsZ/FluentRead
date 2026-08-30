@@ -2,7 +2,7 @@
  * @file src/services/translation/requestSnapshot.ts
  *
  * 文件职责：在翻译消息上附加只读 provider 配置快照，消除异步缓存读取期间全局配置变化造成的请求身份错配。
- * 主要内容：定义配置快照与剩余预算 symbol，精确复制 token、proxy、model、prompt 等字段，并提供 attach/get 函数供 broker 和 provider 共享同一快照。 可核对的公开符号包括 TRANSLATION_PROVIDER_CONFIG、TRANSLATION_REMAINING_BUDGET、TranslationProviderRequestContext、markTranslationRemainingBudget、createTranslationProviderConfigSnapshot、attachTranslationProviderConfig、getTranslationProviderConfig。
+ * 主要内容：定义配置快照、剩余预算及内部请求取消 symbol，精确复制 provider 配置，并提供 attach/get 函数供后台 broker 安全传递进程内状态。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
@@ -18,11 +18,22 @@ import type {CustomOpenAIProvider} from '@/src/core/config/customOpenAI';
 export const TRANSLATION_PROVIDER_CONFIG = Symbol('fluentread.translation-provider-config');
 export const TRANSLATION_REMAINING_BUDGET = Symbol('fluentread.translation-remaining-budget');
 export const TRANSLATION_MODEL_USAGE_OBSERVER = Symbol('fluentread.translation-model-usage-observer');
+export const TRANSLATION_REQUEST_CONTROL = Symbol('fluentread.translation-request-control');
 
 export type TranslationModelUsageObserver = (observation: TranslationModelUsageObservation) => void;
 
 export type TranslationRemainingBudgetContext = {
     readonly [TRANSLATION_REMAINING_BUDGET]?: true;
+};
+
+export interface TranslationRequestControl {
+    readonly signal: AbortSignal;
+    /** 只影响 pending 去重所有权，不进入持久缓存 identity。 */
+    readonly ownershipKey: string;
+}
+
+export type TranslationRequestControlContext = {
+    readonly [TRANSLATION_REQUEST_CONTROL]?: TranslationRequestControl;
 };
 
 export type TranslationProviderRequestContext = {
@@ -31,6 +42,25 @@ export type TranslationProviderRequestContext = {
     /** 仅由 broker 在后台注入；provider 必须向底层 transport 继续传递。 */
     readonly abortSignal?: AbortSignal;
 };
+
+/** 为后台内部调用附加不可序列化的取消所有权；runtime payload 无法构造 symbol key。 */
+export function attachTranslationRequestControl<T extends object>(
+    message: T,
+    control: TranslationRequestControl,
+): T & TranslationRequestControlContext {
+    if (!control.ownershipKey.trim()) throw new TypeError('翻译请求 ownershipKey 不能为空');
+    Object.defineProperty(message, TRANSLATION_REQUEST_CONTROL, {
+        value: Object.freeze({...control}),
+        enumerable: false,
+    });
+    return message as T & TranslationRequestControlContext;
+}
+
+/** 普通 runtime 请求没有该 symbol，只有同一后台进程内的受信调用能取得控制信息。 */
+export function getTranslationRequestControl(message: unknown): TranslationRequestControl | undefined {
+    if (!message || typeof message !== 'object') return undefined;
+    return (message as TranslationRequestControlContext)[TRANSLATION_REQUEST_CONTROL];
+}
 
 /** 把进程内观察器附到 provider 请求；symbol 不会通过 runtime 或 JSON 越过边界。 */
 export function attachTranslationModelUsageObserver<T extends object>(

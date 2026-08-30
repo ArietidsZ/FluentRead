@@ -617,32 +617,46 @@ async function waitForOptionsRuntimeCredential(optionsPage, marker, timeout) {
   return true;
 }
 
-async function exportConfigViaOptionsUi(optionsPage, marker, timeout, artifactsDir) {
-  // 真实设置页在对话框中展示完整明文 JSON；它是用户主动迁移边界，不会静默写入网页。
-  await optionsPage.getByRole('button', { name: '导出配置', exact: true }).click();
-  const transferDialog = optionsPage.getByTestId('config-transfer-dialog');
-  await transferDialog.waitFor({ state: 'visible', timeout });
-  await transferDialog.getByText('导出配置 JSON', { exact: true }).waitFor({ state: 'visible', timeout });
-  const exported = await transferDialog.getByLabel('配置 JSON').inputValue();
-  if (!exported.trim()) throw new Error('设置页导出的配置文件为空');
+async function exportCompleteBackupViaOptionsUi(optionsPage, marker, timeout, artifactsDir) {
+  // 真实设置页仅在用户明确点击后下载明文完整备份；默认选择不包含可能暴露浏览隐私的单词上下文。
+  await optionsPage.getByRole('button', { name: '导出备份', exact: true }).click();
+  const contextDialog = optionsPage.locator('.el-message-box');
+  await contextDialog.getByText('是否包含单词上下文？', { exact: true }).waitFor({ state: 'visible', timeout });
+  const screenshotPath = path.join(artifactsDir, 'privacy-backup-context-dialog.png');
+  await optionsPage.screenshot({ path: screenshotPath, fullPage: true });
+  const [download] = await Promise.all([
+    optionsPage.waitForEvent('download', { timeout }),
+    contextDialog.getByRole('button', { name: '不包含并导出', exact: true }).click(),
+  ]);
+  const suggestedFilename = download.suggestedFilename();
+  if (!/^fluentread-backup-\d{4}-\d{2}-\d{2}\.json$/u.test(suggestedFilename)) {
+    throw new Error(`设置页完整备份文件名异常：${suggestedFilename}`);
+  }
+  const downloadPath = path.join(artifactsDir, 'privacy-complete-backup.json');
+  await download.saveAs(downloadPath);
+  const exported = fs.readFileSync(downloadPath, 'utf8');
+  if (!exported.trim()) throw new Error('设置页导出的完整备份为空');
 
   let parsed;
   try {
     parsed = JSON.parse(exported);
   } catch {
-    throw new Error('设置页导出的配置不是合法 JSON');
+    throw new Error('设置页导出的完整备份不是合法 JSON');
   }
-  const screenshotPath = path.join(artifactsDir, 'privacy-export-dialog.png');
-  await optionsPage.screenshot({ path: screenshotPath, fullPage: true });
-  await transferDialog.getByRole('button', { name: '取消', exact: true }).click();
-  await transferDialog.waitFor({ state: 'hidden', timeout });
+  const config = parsed?.config;
   return {
     bytes: Buffer.byteLength(exported, 'utf8'),
-    service: parsed?.service,
-    legacyPolicyFieldAbsent: !Object.prototype.hasOwnProperty.call(parsed || {}, 'persistCredentials'),
+    format: parsed?.format,
+    version: parsed?.version,
+    configCredentialMode: parsed?.configCredentialMode,
+    service: config?.service,
+    legacyPolicyFieldAbsent: !Object.prototype.hasOwnProperty.call(config || {}, 'persistCredentials'),
     containsCredentialSentinel: exported.includes(marker),
-    containsCredentialFields: hasCredentialFields(parsed),
-    plaintextDialog: true,
+    containsCredentialFields: hasCredentialFields(config),
+    includesPrivateVocabularyContext: parsed?.vocabulary?.includesPrivateContext,
+    plaintextFile: true,
+    suggestedFilename,
+    download: downloadPath,
     screenshot: screenshotPath,
   };
 }
@@ -1007,20 +1021,28 @@ async function main() {
     );
     assertCredentialStorageState('设置页重载后', persistentAfterOptionsReload, persistentExpected);
 
-    const exportEvidence = await exportConfigViaOptionsUi(
+    const exportEvidence = await exportCompleteBackupViaOptionsUi(
       optionsPage,
       credentialSentinel,
       args.timeout,
       artifactsDir,
     );
     if (!exportEvidence.containsCredentialSentinel || !exportEvidence.containsCredentialFields) {
-      throw new Error(`设置页完整配置导出缺少凭据：${JSON.stringify(exportEvidence)}`);
+      throw new Error(`设置页完整备份缺少凭据：${JSON.stringify(exportEvidence)}`);
     }
     if (!exportEvidence.legacyPolicyFieldAbsent) {
-      throw new Error(`设置页导出仍包含已废弃的 persistCredentials 字段：${JSON.stringify(exportEvidence)}`);
+      throw new Error(`设置页完整备份仍包含已废弃的 persistCredentials 字段：${JSON.stringify(exportEvidence)}`);
+    }
+    if (exportEvidence.format !== 'fluentread-data-backup'
+      || exportEvidence.version !== 2
+      || exportEvidence.configCredentialMode !== 'exact-replace') {
+      throw new Error(`设置页未导出当前完整备份格式：${JSON.stringify(exportEvidence)}`);
+    }
+    if (exportEvidence.includesPrivateVocabularyContext !== false) {
+      throw new Error(`设置页默认导出泄露了单词上下文：${JSON.stringify(exportEvidence)}`);
     }
     if (exportEvidence.service !== 'openai') {
-      throw new Error(`设置页导出没有反映可信消息保存的公开配置：${JSON.stringify(exportEvidence)}`);
+      throw new Error(`设置页完整备份没有反映可信消息保存的公开配置：${JSON.stringify(exportEvidence)}`);
     }
     const persistentScreenshot = path.join(artifactsDir, 'credentials-persistent.png');
     await optionsPage.screenshot({ path: persistentScreenshot, fullPage: true });

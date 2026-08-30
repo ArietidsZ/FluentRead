@@ -29,12 +29,19 @@ const ocrWorkerRuntime = createOcrWorkerRuntime<TesseractRecognitionResult>({
     }) as unknown as Promise<OcrWorkerPort<TesseractRecognitionResult>>,
 });
 
-export async function recognizeImage(image: string, sourceLanguage: string): Promise<OcrLine[]> {
+export async function recognizeImage(
+    image: string,
+    sourceLanguage: string,
+    signal?: AbortSignal,
+): Promise<OcrLine[]> {
     const languages = getOcrLanguages(sourceLanguage).join('+');
-    const result = await ocrWorkerRuntime.recognize(image, languages);
+    const result = await ocrWorkerRuntime.recognize(image, languages, signal);
     return normalizeOcrLines(result.data.blocks);
 }
 
-export async function downloadImageOcrLanguages(languages: ImageOcrLanguageCode[]): Promise<void> {
-    await ocrWorkerRuntime.ensureLanguages(languages);
+export async function downloadImageOcrLanguages(
+    languages: ImageOcrLanguageCode[],
+    signal?: AbortSignal,
+): Promise<void> {
+    await ocrWorkerRuntime.ensureLanguages(languages, signal);
 }
