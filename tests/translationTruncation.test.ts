@@ -24,9 +24,13 @@ import {
     reconcileTranslationLayoutOverrides,
     restoreTranslation,
     setBilingualContent,
+    setSingleTextSlotHosts,
 } from '@/src/features/full-page-translation/content/state';
 import {ensureTranslationTruncationLayout} from '@/src/features/full-page-translation/content/layout';
-import {appendBilingualTranslation} from '@/src/features/full-page-translation/content/renderer';
+import {
+    appendBilingualTranslation,
+    appendSingleTranslationSlots,
+} from '@/src/features/full-page-translation/content/renderer';
 
 function openRouterFixture() {
     const {document} = parseHTML(`
@@ -293,6 +297,62 @@ describe('translation truncation layout', () => {
             } finally {
                 Object.assign(config, previousConfig);
                 options.styles = previousStyles;
+            }
+        });
+    });
+
+    it('仅译文 renderer 在闭合 ShadowRoot 显示译文，不改写宿主 textContent', async () => {
+        const {document} = parseHTML('<html><body><relative-time id="time">12 hours ago</relative-time></body></html>');
+        const owner = document.querySelector<HTMLElement>('#time')!;
+        const source = owner.firstChild as Text;
+
+        await withDocumentRealm(document, async () => {
+            beginTranslation(owner, 'single', 'content', false, '12 hours ago', [source]);
+            const hosts = appendSingleTranslationSlots(owner, [{node: source, text: '12 小时前'}], {
+                targetLanguage: 'zh-Hans',
+            });
+            setSingleTextSlotHosts(owner, hosts);
+
+            expect(hosts).toHaveLength(1);
+            expect(hosts[0]!.firstChild).toBe(source);
+            expect(hosts[0]!.shadowRoot).toBeNull();
+            expect(hosts[0]!.lang).toBe('zh-Hans');
+            expect(hosts[0]!.getAttribute('translate')).toBe('no');
+            expect(hosts[0]!.getAttribute('aria-label')).toBe('12 小时前');
+            expect(owner.textContent).toBe('12 hours ago');
+            expect(source.nodeValue).toBe('12 hours ago');
+
+            expect(restoreTranslation(owner)).toBe(true);
+            expect(owner.firstChild).toBe(source);
+            expect(owner.textContent).toBe('12 hours ago');
+        });
+    });
+
+    it('仅译文 renderer 原子拒绝失效文本槽，并覆盖空语言回退', async () => {
+        const {document} = parseHTML('<html><body><p id="owner">Owner</p><p id="foreign">Foreign</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        const foreign = document.querySelector<HTMLElement>('#foreign')!;
+        const ownerSource = owner.firstChild as Text;
+        const foreignSource = foreign.firstChild as Text;
+        const detached = document.createTextNode('Detached');
+        const previousTo = config.to;
+
+        await withDocumentRealm(document, async () => {
+            expect(appendSingleTranslationSlots(owner, [])).toEqual([]);
+            expect(appendSingleTranslationSlots(owner, [{node: detached, text: '脱离'}])).toEqual([]);
+            expect(appendSingleTranslationSlots(owner, [{node: foreignSource, text: '外部'}])).toEqual([]);
+            expect(owner.textContent).toBe('Owner');
+            expect(foreign.textContent).toBe('Foreign');
+
+            try {
+                config.to = '';
+                beginTranslation(owner, 'single', 'content', false, 'Owner', [ownerSource]);
+                const hosts = appendSingleTranslationSlots(owner, [{node: ownerSource, text: '所有者'}]);
+                setSingleTextSlotHosts(owner, hosts);
+                expect(hosts[0]!.lang).toBe('');
+                expect(restoreTranslation(owner)).toBe(true);
+            } finally {
+                config.to = previousTo;
             }
         });
     });
