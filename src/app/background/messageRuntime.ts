@@ -112,6 +112,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
                 assertLanguagesDownloaded: imageOcrLanguageRepository.assertDownloaded,
                 recognizeImage: imageTranslationOffscreenAdapter.recognizeImage,
                 translateImage: imageTranslationOffscreenAdapter.translateImage,
+                fetchImage: imageTranslationOffscreenAdapter.fetchImage,
                 translateTexts: translateWithCache,
                 getTranslationService: () => config.service,
                 supportsBatchTranslation: supportsTranslationBatch,

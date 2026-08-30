@@ -4,6 +4,7 @@ import {
     translateCapturedAreaInExtension,
 } from '@/src/features/area-translation/services/client';
 import {
+    fetchImageInExtension,
     recognizeImageInExtension,
     translateImageInExtension,
 } from '@/src/features/image-translation/services/client';
@@ -177,6 +178,23 @@ describe('图片翻译内容脚本客户端', () => {
             requestId: 'ocr-1',
             timeoutMs: 5_000,
         });
+    });
+
+    it('跨域图片读取通过后台消息转发到 Offscreen，并校验 data URL', async () => {
+        sendMessage.mockResolvedValueOnce({success: true, image: 'data:image/png;base64,remote'});
+
+        await expect(fetchImageInExtension('https://pbs.twimg.com/media/demo.png', {
+            requestId: 'fetch-1', timeoutMs: 15_000,
+        })).resolves.toBe('data:image/png;base64,remote');
+        expect(sendMessage).toHaveBeenCalledWith({
+            type: 'fluentReadImageFetch',
+            url: 'https://pbs.twimg.com/media/demo.png',
+            requestId: 'fetch-1',
+            timeoutMs: 15_000,
+        });
+
+        sendMessage.mockResolvedValueOnce({success: true, image: 'not-data'});
+        await expect(fetchImageInExtension('https://pbs.twimg.com/media/demo.png')).rejects.toThrow('远程图片读取失败');
     });
 
     it.each([

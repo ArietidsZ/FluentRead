@@ -118,11 +118,27 @@ describe('image translation Offscreen adapter', () => {
         await expect(adapter.translateImage('image', 'en', '')).rejects.toThrow('图片翻译失败');
     });
 
+    it('把跨域图片 URL 交给 Offscreen，并只接受 data:image 返回值', async () => {
+        send.mockResolvedValueOnce({success: true, image: 'data:image/png;base64,remote'});
+        await expect(adapter.fetchImage('https://pbs.twimg.com/media/demo.png')).resolves
+            .toBe('data:image/png;base64,remote');
+        expect(send).toHaveBeenCalledWith({
+            type: 'FLUENT_READ_IMAGE_FETCH_OFFSCREEN',
+            url: 'https://pbs.twimg.com/media/demo.png',
+        });
+
+        send.mockResolvedValueOnce({success: true, image: 'not-data'});
+        await expect(adapter.fetchImage('https://pbs.twimg.com/media/demo.png')).rejects.toThrow('远程图片读取失败');
+        send.mockResolvedValueOnce({success: false, error: 'media custom'});
+        await expect(adapter.fetchImage('https://pbs.twimg.com/media/demo.png')).rejects.toThrow('media custom');
+    });
+
     it('把图片 requestId、取消信号与超时预算传给 Offscreen client', async () => {
         const controller = new AbortController();
         send
             .mockResolvedValueOnce({success: true, lines: [{text: 'hello'}]})
-            .mockResolvedValueOnce({success: true, image: 'translated', lines: []});
+            .mockResolvedValueOnce({success: true, image: 'translated', lines: []})
+            .mockResolvedValueOnce({success: true, image: 'data:image/png;base64,remote'});
 
         await expect(adapter.recognizeImage('data:image/png,image', 'en', {
             requestId: 'ocr-1',
@@ -160,6 +176,24 @@ describe('image translation Offscreen adapter', () => {
             cancelMessage: {
                 type: OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
                 requestId: 'image-1',
+            },
+        });
+
+        await expect(adapter.fetchImage('https://pbs.twimg.com/media/demo.png', {
+            requestId: 'fetch-1',
+            signal: controller.signal,
+            timeoutMs: 3_000,
+        })).resolves.toBe('data:image/png;base64,remote');
+        expect(send).toHaveBeenNthCalledWith(3, {
+            type: 'FLUENT_READ_IMAGE_FETCH_OFFSCREEN',
+            url: 'https://pbs.twimg.com/media/demo.png',
+            requestId: 'fetch-1',
+        }, {
+            signal: controller.signal,
+            timeoutMs: 3_000,
+            cancelMessage: {
+                type: OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
+                requestId: 'fetch-1',
             },
         });
     });

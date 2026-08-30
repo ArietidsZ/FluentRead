@@ -1,8 +1,8 @@
 /**
  * @file src/features/image-translation/background/handlers.ts
- * 文件职责：定义图片 OCR、整图翻译、文本批译、取消和语言包下载后台消息，并对来自页面或扩展 UI 的未知输入执行严格校验。
- * 主要内容：包含消息常量与联合类型、data:image 和字符串数组解析、OCR 语言白名单、对象结果断言，以及通过依赖注入创建各操作 handler 的 createImageTranslationBackgroundHandlers。
- * 模块边界：本文件只负责协议入口与用例编排，不直接运行 Tesseract、Canvas、网络 fetch 或 Offscreen；这些图像运算能力由 repository、adapter 与 services 实现并由 app 注入。
+ * 文件职责：定义跨域图片读取、图片 OCR、整图翻译、文本批译、取消和语言包下载后台消息，并对来自页面或扩展 UI 的未知输入执行严格校验。
+ * 主要内容：包含消息常量与联合类型、data:image/URL 和字符串数组解析、OCR 语言白名单、对象结果断言，以及通过依赖注入创建各操作 handler 的 createImageTranslationBackgroundHandlers。
+ * 模块边界：本文件只负责协议入口与用例编排，不直接运行 Tesseract、Canvas、网络 fetch 或 Offscreen；图像读取和运算能力均由 Offscreen adapter 与 services 实现并由 app 注入。
  */
 import {
     IMAGE_OCR_LANGUAGE_PACKS,
@@ -19,6 +19,7 @@ export const IMAGE_TRANSLATE_MESSAGE_TYPE = 'fluentReadImageTranslate' as const;
 export const IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE = 'fluentReadImageTranslateTexts' as const;
 export const IMAGE_OCR_DOWNLOAD_MESSAGE_TYPE = 'fluentReadImageOcrDownload' as const;
 export const IMAGE_CANCEL_MESSAGE_TYPE = 'fluentReadImageCancel' as const;
+export const IMAGE_FETCH_MESSAGE_TYPE = 'fluentReadImageFetch' as const;
 export const IMAGE_OPERATION_TIMEOUT_MS = 180_000;
 
 export interface ImageOcrMessage {
@@ -56,11 +57,19 @@ export interface ImageOcrDownloadMessage {
     languages?: unknown;
 }
 
+export interface ImageFetchMessage {
+    type: typeof IMAGE_FETCH_MESSAGE_TYPE;
+    url?: unknown;
+    requestId?: unknown;
+    timeoutMs?: unknown;
+}
+
 export type ImageTranslationBackgroundMessage =
     | ImageOcrMessage
     | ImageTranslateMessage
     | ImageTranslateTextsMessage
     | ImageOcrDownloadMessage
+    | ImageFetchMessage
     | ImageCancelMessage;
 
 type ImageTextTranslationRequestBase = {
@@ -89,6 +98,7 @@ export interface ImageTranslationBackgroundDependencies {
         title: string,
         options: ImageOperationOptions,
     ) => Promise<unknown>;
+    readonly fetchImage: (url: string, options: ImageOperationOptions) => Promise<unknown>;
     readonly getTranslationService: () => string;
     readonly supportsBatchTranslation: (service: string) => boolean;
     readonly translateTexts: (request: ImageTextTranslationRequest) => Promise<string | string[]>;
@@ -362,6 +372,17 @@ export function createImageTranslationBackgroundHandlers(
                     '图片翻译',
                 );
                 return {success: true, ...result};
+            },
+        },
+        {
+            type: IMAGE_FETCH_MESSAGE_TYPE,
+            async handle(message: ImageFetchMessage) {
+                const url = parseRequiredString(message.url, 'url');
+                const image = await operationRegistry.run(message, options => dependencies.fetchImage(url, options));
+                if (typeof image !== 'string' || !image.startsWith('data:image/')) {
+                    throw new Error('远程图片结果无效');
+                }
+                return {success: true, image};
             },
         },
         {

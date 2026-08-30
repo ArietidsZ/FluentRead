@@ -6,6 +6,7 @@
  */
 import {
     downloadImageOcrLanguages,
+    fetchImageInOffscreen,
     recognizeImage,
     translateAreaInOffscreen,
     translateImageInOffscreen,
@@ -44,6 +45,7 @@ export function startOffscreenApp(): void {
         recognizeImage,
         translateImage: translateImageInOffscreen,
         translateArea: translateAreaInOffscreen,
+        fetchImage: fetchImageInOffscreen,
         downloadOcrLanguages: downloadImageOcrLanguages,
     });
 

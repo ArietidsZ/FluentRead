@@ -2,10 +2,13 @@
  * @file src/features/image-translation/content/runtime.ts
  * 文件职责：实现网页图片翻译的悬浮按钮与译图覆盖层生命周期，针对可见且尺寸足够的图片读取源数据、请求翻译、定位结果并支持恢复。
  * 主要内容：维护每张 HTMLImageElement 的请求阶段和 Abort/timeout 所有权，处理 pointerover/out、滚动缩放和 DOM 移除，解析 object-fit 后的实际图像区域并绘制返回位图。
- * 模块边界：本运行时只读取页面允许 Canvas 访问的图片像素，跨域污染时明确失败且不请求后台代抓；OCR、Offscreen 运算及语言包管理位于对应 background/services 模块。
+ * 模块边界：本运行时优先读取页面允许 Canvas 访问的图片像素；跨域污染时只把图片 URL 交给 Offscreen 读取，OCR、译图运算及语言包管理位于对应 background/services 模块。
  */
 import { config } from '@/src/services/config/store';
-import { translateImageInExtension } from '@/src/features/image-translation/services/client';
+import {
+    fetchImageInExtension,
+    translateImageInExtension,
+} from '@/src/features/image-translation/services/client';
 import type { OcrLine } from '@/src/features/image-translation/core';
 
 const IMAGE_TRANSLATION_OVERLAY = 'fluent-read-image-translation-overlay';
@@ -283,7 +286,10 @@ function hideImageButton(image: HTMLImageElement): void {
     setStateHovered(state, false);
 }
 
-export async function getImageData(image: HTMLImageElement): Promise<string> {
+export async function getImageData(
+    image: HTMLImageElement,
+    options: {readonly signal?: AbortSignal; readonly timeoutMs?: number} = {},
+): Promise<string> {
     const width = image.naturalWidth;
     const height = image.naturalHeight;
     if (!width || !height) throw new Error('图片尚未加载完成');
@@ -300,8 +306,11 @@ export async function getImageData(image: HTMLImageElement): Promise<string> {
         context.getImageData(0, 0, 1, 1);
         return canvas.toDataURL('image/png');
     } catch {
-        // 不把网页可控 URL 交给扩展后台代抓，避免绕过浏览器同源和内网边界。
-        throw new Error('当前站点不允许读取这张图片（跨域 CORS 限制）');
+        const source = image.currentSrc || image.src;
+        if (!source) throw new Error('图片地址不可用');
+        // 页面 Canvas 被 CORS 污染时，改由 Offscreen 在扩展权限边界内读取；
+        // Offscreen 只接受受控的 X/Twitter 媒体域，不把任意网页 URL 交给特权网络层。
+        return fetchImageInExtension(source, options);
     }
 }
 
@@ -445,7 +454,7 @@ async function translateImage(state: ImageTranslationState): Promise<void> {
             controller.signal,
         );
         const imageData = await withTimeout(
-            getImageData(state.image),
+            getImageData(state.image, {signal: controller.signal, timeoutMs: IMAGE_READ_TIMEOUT_MS}),
             IMAGE_READ_TIMEOUT_MS,
             '图片读取超时',
             controller.signal,
