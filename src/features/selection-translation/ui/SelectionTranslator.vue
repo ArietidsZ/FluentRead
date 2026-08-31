@@ -12,7 +12,10 @@
 
     <section v-if="showTooltip" ref="tooltip-ref" class="fr-translation-tooltip" :class="{ 'fr-dark-theme': isDarkTheme }" :data-placement="popupPlacement" :style="tooltipStyle" role="dialog" aria-label="划词翻译结果" @pointerdown.stop>
       <header class="fr-tooltip-header">
-        <div class="fr-tooltip-title"><span>{{ isWordSelection ? '单词学习卡' : '翻译结果' }}</span><small>FluentRead</small></div>
+        <div class="fr-tooltip-title">
+          <img class="fr-tooltip-brand-icon" :src="selectionTranslatorIconUrl" alt="" aria-hidden="true" />
+          <span>{{ isWordSelection ? '单词学习卡' : '翻译结果' }}</span>
+        </div>
         <div class="fr-tooltip-actions">
           <button
             v-if="config.vocabularyBookEnabled && isWordSelection && !isPrivateContext"
@@ -25,7 +28,6 @@
             :aria-pressed="isVocabularySaved"
             @click="saveVocabularyEntry"
           ><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.7 2.86 5.8 6.4.93-4.63 4.51 1.09 6.38L12 17.3l-5.72 3.02 1.09-6.38-4.63-4.51 6.4-.93L12 2.7Z" /></svg></button>
-          <button class="fr-action-btn" type="button" title="复制译文" aria-label="复制译文" @click="copyTranslation"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg></button>
           <button class="fr-close-btn" type="button" title="关闭" aria-label="关闭翻译结果" @click="closeTooltip">×</button>
         </div>
       </header>
@@ -42,9 +44,16 @@
                   <h3>{{ selectedText }}</h3>
                   <span class="fr-word-normalized" v-if="selectedText.toLowerCase() !== wordCard.normalizedWord">词典词形：{{ wordCard.word }}</span>
                 </div>
-                <button v-if="wordCard.phonetics.length === 0" class="fr-text-audio-btn fr-word-heading-audio" type="button" :aria-label="wordAudioLabel({ text: wordCard.word })" :title="wordAudioLabel({ text: wordCard.word })" @click="toggleWordAudio({ text: wordCard.word })">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z" /><path d="M16 9.5a4.5 4.5 0 0 1 0 5M18.5 7a8 8 0 0 1 0 10" /></svg>
-                </button>
+                <div class="fr-word-heading-actions">
+                  <button class="fr-text-copy-btn" :class="{ 'fr-copied': isCopied('source') }" data-copy-kind="source" type="button" :title="copyButtonTitle('source')" :aria-label="copyButtonTitle('source')" @click="copyText(selectedText, 'source')">
+                    <svg v-if="isCopied('source')" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
+                    <svg v-else viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                    <span>{{ isCopied('source') ? '已复制' : '复制' }}</span>
+                  </button>
+                  <button v-if="wordCard.phonetics.length === 0" class="fr-text-audio-btn fr-word-heading-audio" type="button" :aria-label="wordAudioLabel({ text: wordCard.word })" :title="wordAudioLabel({ text: wordCard.word })" @click="toggleWordAudio({ text: wordCard.word })">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z" /><path d="M16 9.5a4.5 4.5 0 0 1 0 5M18.5 7a8 8 0 0 1 0 10" /></svg>
+                  </button>
+                </div>
               </div>
               <div v-if="wordCard.phonetics.length > 0" class="fr-word-pronunciations" aria-label="发音">
                 <div v-for="(pronunciation, index) in wordCard.phonetics.slice(0, 4)" :key="`${pronunciation.text || ''}-${pronunciation.audio || ''}-${index}`" class="fr-word-pronunciation">
@@ -56,7 +65,17 @@
                   </button>
                 </div>
               </div>
-              <div v-if="translationResult" class="fr-word-translation"><span class="fr-text-label">译文</span><pre>{{ translationResult }}</pre></div>
+              <div v-if="translationResult" class="fr-word-translation">
+                <div class="fr-word-translation-header">
+                  <span class="fr-text-label">译文</span>
+                  <button class="fr-text-copy-btn" :class="{ 'fr-copied': isCopied('translation') }" data-copy-kind="translation" type="button" :title="copyButtonTitle('translation')" :aria-label="copyButtonTitle('translation')" @click="copyText(translationResult, 'translation')">
+                    <svg v-if="isCopied('translation')" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
+                    <svg v-else viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                    <span>{{ isCopied('translation') ? '已复制' : '复制' }}</span>
+                  </button>
+                </div>
+                <pre>{{ translationResult }}</pre>
+              </div>
               <div v-else-if="isLoading" class="fr-word-translation-loading">正在翻译释义…</div>
               <div v-if="wordCard.meanings.length > 0" class="fr-word-meaning-toolbar">
                 <span>英文释义 · 中文辅助</span>
@@ -86,18 +105,38 @@
           </section>
           <div v-if="isWordSelection && wordCardError" class="fr-word-fallback-note">{{ wordCardError }}，已保留普通翻译。</div>
           <div v-if="selectionSettings.mode === 'bilingual' && !isWordCardVisible" class="fr-text-block fr-original-text">
-            <div class="fr-text-label">原文</div><pre>{{ selectedText }}</pre>
-            <button class="fr-text-audio-btn" type="button" :aria-label="audioLabel('source')" :title="audioLabel('source')" @click="toggleAudio(selectedText, 'source')">
-              <svg v-if="isCurrentAudio('source')" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12M16 6v12" /></svg>
-              <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z" /><path d="M16 9.5a4.5 4.5 0 0 1 0 5M18.5 7a8 8 0 0 1 0 10" /></svg>
-            </button>
+            <div class="fr-text-block-header">
+              <span class="fr-text-label">原文</span>
+              <div class="fr-text-actions">
+                <button class="fr-text-copy-btn" :class="{ 'fr-copied': isCopied('source') }" data-copy-kind="source" type="button" :title="copyButtonTitle('source')" :aria-label="copyButtonTitle('source')" @click="copyText(selectedText, 'source')">
+                  <svg v-if="isCopied('source')" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
+                  <svg v-else viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                  <span>{{ isCopied('source') ? '已复制' : '复制' }}</span>
+                </button>
+                <button class="fr-text-audio-btn" type="button" :aria-label="audioLabel('source')" :title="audioLabel('source')" @click="toggleAudio(selectedText, 'source')">
+                  <svg v-if="isCurrentAudio('source')" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12M16 6v12" /></svg>
+                  <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z" /><path d="M16 9.5a4.5 4.5 0 0 1 0 5M18.5 7a8 8 0 0 1 0 10" /></svg>
+                </button>
+              </div>
+            </div>
+            <pre>{{ selectedText }}</pre>
           </div>
           <div v-if="(selectionSettings.mode === 'bilingual' || selectionSettings.mode === 'translation-only') && !isWordCardVisible" class="fr-text-block fr-translation-result">
-            <div class="fr-text-label">译文</div><pre>{{ translationResult }}</pre>
-            <button class="fr-text-audio-btn" type="button" :aria-label="audioLabel('translation')" :title="audioLabel('translation')" @click="toggleAudio(translationResult, 'translation')">
-              <svg v-if="isCurrentAudio('translation')" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12M16 6v12" /></svg>
-              <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z" /><path d="M16 9.5a4.5 4.5 0 0 1 0 5M18.5 7a8 8 0 0 1 0 10" /></svg>
-            </button>
+            <div class="fr-text-block-header">
+              <span class="fr-text-label">译文</span>
+              <div class="fr-text-actions">
+                <button class="fr-text-copy-btn" :class="{ 'fr-copied': isCopied('translation') }" data-copy-kind="translation" type="button" :title="copyButtonTitle('translation')" :aria-label="copyButtonTitle('translation')" @click="copyText(translationResult, 'translation')">
+                  <svg v-if="isCopied('translation')" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
+                  <svg v-else viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                  <span>{{ isCopied('translation') ? '已复制' : '复制' }}</span>
+                </button>
+                <button class="fr-text-audio-btn" type="button" :aria-label="audioLabel('translation')" :title="audioLabel('translation')" @click="toggleAudio(translationResult, 'translation')">
+                  <svg v-if="isCurrentAudio('translation')" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12M16 6v12" /></svg>
+                  <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z" /><path d="M16 9.5a4.5 4.5 0 0 1 0 5M18.5 7a8 8 0 0 1 0 10" /></svg>
+                </button>
+              </div>
+            </div>
+            <pre>{{ translationResult }}</pre>
           </div>
           <div v-if="error && (translationResult || wordCard)" class="fr-inline-error"><span>{{ error }}</span><button type="button" @click="retryTranslation">重试</button></div>
           <div v-if="isPlaying" class="fr-playing-status"><span>正在播放{{ currentAudioKind === 'source' ? '原文' : currentAudioKind === 'word' ? '单词' : '译文' }}</span><button type="button" aria-label="停止播放" title="停止播放" @click="stopAudioFromUi">停止</button></div>
@@ -106,7 +145,7 @@
     </section>
 
     <div v-if="noticeMessage" class="fr-action-toast" :class="{ 'fr-dark-theme': isDarkTheme }" role="status"><span>{{ noticeMessage }}</span><button v-if="noticeAction === 'open-vocabulary'" type="button" @click="openVocabularyBook">查看</button></div>
-    <div v-else-if="copySuccess" class="fr-copy-success-toast" :class="{ 'fr-dark-theme': isDarkTheme }" role="status">已复制译文</div>
+    <div v-else-if="copySuccess" class="fr-copy-success-toast" :class="{ 'fr-dark-theme': isDarkTheme }" role="status">{{ copySuccessMessage }}</div>
   </div>
 </template>
 
@@ -127,9 +166,11 @@ import { VOCABULARY_BOOK_CHANGED_MESSAGE, VOCABULARY_BOOK_MESSAGE, type Vocabula
 
 type SelectionTrigger = 'direct' | 'icon' | 'dot' | 'shortcut';
 type AudioKind = 'source' | 'translation' | 'word';
+type CopyKind = 'source' | 'translation';
 interface SelectionSnapshot { text: string; range: Range; anchor: SelectionRect; isForward: boolean; }
 
 const tooltipRef = useTemplateRef<HTMLElement>('tooltip-ref');
+const selectionTranslatorIconUrl = browser.runtime.getURL('/icon/128.png');
 const selectedText = ref('');
 const activeContentRequest = ref<SelectionContentRequest | null>(null);
 const translationAnswer = ref<SelectionAnswerCandidate | null>(null);
@@ -140,6 +181,7 @@ const error = ref('');
 const showIndicator = ref(false);
 const showTooltip = ref(false);
 const copySuccess = ref(false);
+const copiedTextKind = ref<CopyKind | null>(null);
 const isDarkTheme = ref(false);
 const indicatorStyle = ref<Record<string, string>>({});
 const tooltipStyle = ref<Record<string, string>>({});
@@ -244,6 +286,7 @@ const vocabularyButtonTitle = computed(() => {
   if (isVocabularySaved.value) return '已收藏；再次点击更新当前阅读上下文';
   return '收藏到单词本';
 });
+const copySuccessMessage = computed(() => copiedTextKind.value === 'source' ? '已复制原文' : '已复制译文');
 
 function updateTheme(): void {
   isDarkTheme.value = config.theme === 'dark' || (config.theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -325,6 +368,13 @@ function cancelSelectionPresentation(): void {
   selectionPresentationVersion += 1;
 }
 
+function clearCopyFeedback(): void {
+  if (copyTimer !== null) window.clearTimeout(copyTimer);
+  copyTimer = null;
+  copySuccess.value = false;
+  copiedTextKind.value = null;
+}
+
 function resetSelectionContentState(clearSelectionText = false): void {
   translationRequestId += 1;
   translationAbortController?.abort();
@@ -340,6 +390,7 @@ function resetSelectionContentState(clearSelectionText = false): void {
   isWordCardLoading.value = false;
   wordCardError.value = '';
   showChineseSupport.value = true;
+  clearCopyFeedback();
   vocabularyLookupGate.invalidate();
   vocabularySaveGate.invalidate();
   isVocabularySaved.value = false;
@@ -664,14 +715,29 @@ async function requestWordCard(request: SelectionContentRequest): Promise<void> 
   }
 }
 
-async function copyTranslation(): Promise<void> {
-  if (!translationResult.value) return;
+function isCopied(kind: CopyKind): boolean {
+  return copiedTextKind.value === kind;
+}
+
+function copyButtonTitle(kind: CopyKind): string {
+  const label = kind === 'source' ? '原文' : '译文';
+  return isCopied(kind) ? `已复制${label}` : `复制${label}`;
+}
+
+async function copyText(text: string, kind: CopyKind): Promise<void> {
+  const value = text.trim();
+  if (!value) return;
   try {
-    await navigator.clipboard.writeText(translationResult.value);
+    await navigator.clipboard.writeText(value);
+    copiedTextKind.value = kind;
     copySuccess.value = true;
     if (copyTimer !== null) window.clearTimeout(copyTimer);
-    copyTimer = window.setTimeout(() => { copySuccess.value = false; }, 1500);
-  } catch (cause) { console.error('Copy translation failed:', cause); }
+    copyTimer = window.setTimeout(() => {
+      copySuccess.value = false;
+      copiedTextKind.value = null;
+      copyTimer = null;
+    }, 1500);
+  } catch (cause) { console.error('Copy selection text failed:', cause); }
 }
 
 function sourceLanguage(text: string): string { return normalizeSpeechLanguage(config.from === 'auto' ? detectlang(text) : config.from, 'en-US'); }
@@ -1177,7 +1243,7 @@ onBeforeUnmount(() => {
   if (positionFrame !== null) window.cancelAnimationFrame(positionFrame);
   cancelSelectionLoss();
   cancelSelectionPresentation();
-  if (copyTimer !== null) window.clearTimeout(copyTimer);
+  clearCopyFeedback();
   if (noticeTimer !== null) window.clearTimeout(noticeTimer);
   systemThemeMedia?.removeEventListener('change', updateTheme);
   browser.runtime.onMessage.removeListener(handleSelectionSettingsMessage);
@@ -1210,21 +1276,23 @@ onBeforeUnmount(() => {
 .fr-selection-indicator:hover, .fr-selection-indicator:focus-visible { transform: translate(-50%, -50%) scale(1.1); box-shadow: 0 4px 14px rgba(204, 40, 104, .4), 0 0 0 3px rgba(255, 255, 255, .95); outline: none; }
 .fr-selection-indicator-glyph { font-size: 10px; font-weight: 700; line-height: 1; }
 .fr-translation-tooltip, .fr-translation-tooltip * { box-sizing: border-box; }
-.fr-translation-tooltip { position: fixed; width: min(360px, calc(100vw - 20px)); max-height: min(500px, calc(100vh - 20px)); overflow: hidden; border: 1px solid rgba(35, 35, 43, .11); border-radius: 17px; background: rgba(255, 254, 252, .98); box-shadow: 0 18px 46px rgba(35, 33, 43, .15), 0 3px 10px rgba(35, 33, 43, .06); backdrop-filter: blur(18px); -webkit-user-select: none; user-select: none; }
-.fr-tooltip-header { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; border-bottom: 1px solid #eeecee; font-size: 14px; font-weight: 700; }
-.fr-tooltip-title { display: flex; align-items: baseline; gap: 6px; }
-.fr-tooltip-header small { color: #aaa7ae; font-size: 10px; font-weight: 550; letter-spacing: .01em; }
-.fr-tooltip-actions { display: flex; align-items: center; gap: 2px; }
+.fr-translation-tooltip { position: fixed; width: min(388px, calc(100vw - 24px)); max-height: min(520px, calc(100vh - 20px)); overflow: hidden; border: 1px solid rgba(35, 35, 43, .1); border-radius: 20px; background: rgba(255, 255, 255, .98); box-shadow: 0 24px 62px rgba(35, 33, 43, .16), 0 4px 14px rgba(35, 33, 43, .07); backdrop-filter: blur(18px); -webkit-user-select: none; user-select: none; }
+.fr-tooltip-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px 7px; border-bottom: 1px solid rgba(44, 43, 53, .08); font-size: 15px; font-weight: 750; }
+.fr-tooltip-title { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.fr-tooltip-brand-icon { display: block; flex: none; width: 18px; height: 18px; border-radius: 5px; object-fit: contain; opacity: .78; }
+.fr-tooltip-title span { overflow: hidden; color: #292832; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
+.fr-tooltip-actions { display: flex; align-items: center; gap: 4px; }
 .fr-action-btn, .fr-close-btn, .fr-text-audio-btn, .fr-playing-status button { border: 0; background: transparent; color: #777780; cursor: pointer; }
-.fr-action-btn { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 7px; }
+.fr-action-btn { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 10px; }
 .fr-action-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.fr-action-btn:hover, .fr-action-btn:focus-visible { background: #f4f4f7; color: #ef4b86; outline: none; }
+.fr-action-btn:hover, .fr-action-btn:focus-visible { background: #f7eaf0; color: #d63f76; outline: none; }
 .fr-action-btn:disabled { cursor: not-allowed; opacity: .38; }
 .fr-vocabulary-btn.fr-saved { color: #ef4b86; }
 .fr-vocabulary-btn.fr-saved svg { fill: currentColor; stroke: currentColor; }
-.fr-close-btn { width: 26px; height: 26px; font-size: 21px; line-height: 1; border-radius: 7px; }
-.fr-close-btn:hover, .fr-close-btn:focus-visible { background: #f4f4f7; color: #303038; outline: none; }
-.fr-tooltip-content { max-height: min(440px, calc(100vh - 72px)); overflow: auto; padding: 13px 14px 15px; scrollbar-color: rgba(108, 105, 112, .4) transparent; scrollbar-width: thin; }
+.fr-close-btn { width: 30px; height: 30px; font-size: 21px; line-height: 1; border-radius: 10px; }
+.fr-close-btn:hover, .fr-close-btn:focus-visible { background: #f1f1f5; color: #303038; outline: none; }
+.fr-tooltip-content { max-height: min(460px, calc(100vh - 62px)); overflow: auto; padding: 10px 12px 12px; scrollbar-color: rgba(108, 105, 112, .4) transparent; scrollbar-width: thin; }
+.fr-translation-container { display: grid; gap: 10px; }
 .fr-loading-state, .fr-error-state { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 80px; color: #777780; font-size: 13px; }
 .fr-error-state { flex-direction: column; color: #c43b63; }
 .fr-error-state button { border: 1px solid currentColor; border-radius: 7px; padding: 4px 10px; background: transparent; color: inherit; cursor: pointer; }
@@ -1233,17 +1301,22 @@ onBeforeUnmount(() => {
 @keyframes fr-spin { to { transform: rotate(360deg); } }
 .fr-word-learning-card { padding: 1px 1px 0; color: #39363d; }
 .fr-word-card-loading { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 74px; color: #77747c; font-size: 13px; }
-.fr-word-heading { position: relative; display: flex; align-items: flex-start; justify-content: space-between; min-height: 58px; padding: 4px 34px 14px 1px; border-bottom: 1px solid #eeecee; }
-.fr-word-heading h3 { margin: 0; color: #292832; font-size: 27px; font-weight: 700; letter-spacing: -.035em; line-height: 1.08; }
+.fr-word-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; min-height: 58px; padding: 4px 1px 14px; border-bottom: 1px solid #eeecee; }
+.fr-word-heading > div:first-child { min-width: 0; }
+.fr-word-heading h3 { margin: 0; color: #292832; font-size: 27px; font-weight: 700; letter-spacing: -.035em; line-height: 1.08; overflow-wrap: anywhere; user-select: text; }
 .fr-word-normalized { display: block; margin-top: 5px; color: #aaa1a6; font-size: 10px; }
-.fr-word-heading-audio { top: 1px; right: 0; background: #f5eff1; color: #936173; }
+.fr-word-heading-actions { display: flex; flex: none; align-items: center; gap: 4px; }
+.fr-word-heading-audio { background: #f8f5f6; color: #9b8d94; }
 .fr-word-pronunciations { display: grid; gap: 0; margin-top: 10px; padding-bottom: 10px; border-bottom: 1px solid #eeecee; }
-.fr-word-pronunciation { position: relative; display: flex; align-items: center; gap: 8px; min-height: 29px; padding: 3px 31px 3px 1px; border-bottom: 1px solid #f2f0f1; }
+.fr-word-pronunciation { display: flex; align-items: center; gap: 8px; min-height: 29px; padding: 3px 1px; border-bottom: 1px solid #f2f0f1; }
 .fr-word-pronunciation:last-child { border-bottom: 0; }
 .fr-word-pronunciation-label { min-width: 34px; color: #a36b7b; font-size: 10px; font-weight: 700; }
 .fr-word-ipa { color: #4a454c; font-family: Georgia, "Times New Roman", serif; font-size: 14px; }
+.fr-word-pronunciation .fr-text-audio-btn { margin-left: auto; }
 .fr-word-translation { margin-top: 12px; padding: 1px 1px 12px; border-bottom: 1px solid #eeecee; color: #3a363d; }
-.fr-word-translation pre { margin: 0; white-space: pre-wrap; word-break: break-word; font: inherit; font-size: 18px; font-weight: 700; line-height: 1.3; }
+.fr-word-translation-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.fr-word-translation .fr-text-label { margin: 0; }
+.fr-word-translation pre { margin: 8px 0 0; white-space: pre-wrap; word-break: break-word; font: inherit; font-size: 18px; font-weight: 700; line-height: 1.3; user-select: text; }
 .fr-word-translation-loading, .fr-word-empty { margin-top: 12px; color: #9a9298; font-size: 12px; }
 .fr-word-meaning-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; color: #9a9298; font-size: 11px; font-weight: 700; }
 .fr-word-meaning-toolbar button { border: 0; padding: 3px 0; background: transparent; color: #9e5d71; cursor: pointer; font: inherit; font-weight: 600; }
@@ -1265,15 +1338,22 @@ onBeforeUnmount(() => {
 .fr-word-fallback-note, .fr-inline-error { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; color: #a56578; font-size: 11px; }
 .fr-word-fallback-note { padding: 6px 8px; border-radius: 7px; background: #fff8fa; }
 .fr-inline-error button, .fr-word-fallback-note button { border: 1px solid currentColor; border-radius: 6px; padding: 2px 7px; background: transparent; color: inherit; cursor: pointer; font-size: 11px; }
-.fr-text-block { position: relative; padding: 9px 36px 10px 11px; border-radius: 11px; }
-.fr-text-block + .fr-text-block { margin-top: 8px; }
-.fr-original-text { background: #f7f7f9; color: #666670; }
-.fr-translation-result { background: #fff3f7; color: #33333a; box-shadow: inset 2px 0 0 rgba(239, 75, 134, .28); }
-.fr-text-label { margin-bottom: 3px; color: #9a9aa4; font-size: 10px; font-weight: 700; letter-spacing: .02em; }
-.fr-text-block pre { max-height: 170px; margin: 0; overflow: auto; white-space: pre-wrap; word-break: break-word; font: inherit; font-size: 15px; line-height: 1.48; }
-.fr-text-audio-btn { position: absolute; top: 8px; right: 7px; display: grid; width: 26px; height: 26px; place-items: center; border-radius: 8px; }
+.fr-text-block { padding: 12px 13px 13px; border: 1px solid transparent; border-radius: 15px; }
+.fr-text-block + .fr-text-block { margin-top: 0; }
+.fr-original-text { border-color: #ededf2; background: linear-gradient(145deg, #fbfbfd, #f7f7fa); color: #666570; }
+.fr-translation-result { border-color: #f0e7eb; background: linear-gradient(145deg, #fffdfd, #fffafb); color: #39373d; box-shadow: inset 2px 0 0 rgba(239, 75, 134, .14); }
+.fr-text-block-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 28px; }
+.fr-text-label { margin: 0; color: #9797a4; font-size: 11px; font-weight: 750; letter-spacing: .01em; }
+.fr-text-actions { display: flex; flex: none; align-items: center; gap: 4px; }
+.fr-text-copy-btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 28px; padding: 0 8px; border: 1px solid rgba(126, 113, 121, .12); border-radius: 9px; background: rgba(255, 255, 255, .45); color: #8c8188; cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; line-height: 1; white-space: nowrap; transition: background .14s ease, border-color .14s ease, color .14s ease, transform .14s ease; }
+.fr-text-copy-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.fr-text-copy-btn:hover, .fr-text-copy-btn:focus-visible { border-color: rgba(214, 63, 118, .35); background: #fff; color: #d63f76; outline: none; transform: translateY(-1px); }
+.fr-text-copy-btn.fr-copied { border-color: rgba(214, 63, 118, .2); background: rgba(255, 255, 255, .72); color: #b85c7b; }
+.fr-text-copy-btn:disabled { cursor: not-allowed; opacity: .42; transform: none; }
+.fr-text-audio-btn { position: static; display: grid; flex: none; width: 36px; height: 28px; place-items: center; border: 1px solid rgba(126, 113, 121, .12); border-radius: 9px; background: rgba(255, 255, 255, .45); color: #8c8188; transition: background .14s ease, border-color .14s ease, color .14s ease, transform .14s ease; }
 .fr-text-audio-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.fr-text-audio-btn:hover, .fr-text-audio-btn:focus-visible { background: rgba(239, 75, 134, .13); color: #ef4b86; outline: none; }
+.fr-text-audio-btn:hover, .fr-text-audio-btn:focus-visible { border-color: rgba(214, 63, 118, .25); background: rgba(255, 255, 255, .72); color: #d63f76; outline: none; transform: translateY(-1px); }
+.fr-text-block pre { max-height: 170px; margin: 9px 0 0; overflow: auto; white-space: pre-wrap; word-break: break-word; font: inherit; font-size: 15.5px; line-height: 1.55; user-select: text; }
 .fr-playing-status { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; color: #777780; font-size: 12px; }
 .fr-playing-status button { border: 1px solid #e8a4bc; border-radius: 7px; padding: 3px 8px; color: #d83e70; }
 .fr-copy-success-toast { position: fixed; right: 18px; bottom: 18px; padding: 9px 13px; border-radius: 9px; background: #2c2c35; color: #fff; font-size: 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); }
@@ -1281,15 +1361,22 @@ onBeforeUnmount(() => {
 .fr-action-toast button { padding: 0; border: 0; color: #ffc2d5; background: transparent; cursor: pointer; font: inherit; font-weight: 700; }
 .fr-dark-theme { border-color: #44444e; background: rgba(40, 40, 48, .98); color: #f1f1f4; }
 .fr-dark-theme .fr-tooltip-header { border-color: #4b4b56; }
+.fr-dark-theme .fr-tooltip-title span { color: #f1edf1; }
+.fr-dark-theme .fr-tooltip-brand-icon { opacity: .86; }
 .fr-dark-theme .fr-action-btn:hover, .fr-dark-theme .fr-close-btn:hover { background: #50505b; color: #fff; }
-.fr-dark-theme .fr-original-text { background: #34343d; color: #d0d0d7; }
-.fr-dark-theme .fr-translation-result { background: #4b2e3a; color: #fff0f5; }
+.fr-dark-theme .fr-text-copy-btn { border-color: #554e56; background: rgba(61, 57, 64, .72); color: #c4b8bf; }
+.fr-dark-theme .fr-text-copy-btn:hover, .fr-dark-theme .fr-text-copy-btn:focus-visible { border-color: #c96a8b; background: #553846; color: #ffd9e7; }
+.fr-dark-theme .fr-text-copy-btn.fr-copied { border-color: #98617a; background: rgba(93, 52, 71, .62); color: #f2bdcd; }
+.fr-dark-theme .fr-text-audio-btn { border-color: #554e56; background: rgba(61, 57, 64, .72); color: #c4b8bf; }
+.fr-dark-theme .fr-text-audio-btn:hover, .fr-dark-theme .fr-text-audio-btn:focus-visible { border-color: #c96a8b; background: #553846; color: #ffd9e7; }
+.fr-dark-theme .fr-original-text { border-color: #4d4d59; background: linear-gradient(145deg, #393943, #32323b); color: #d0d0d7; }
+.fr-dark-theme .fr-translation-result { border-color: #544e56; background: linear-gradient(145deg, #443f47, #3a363d); box-shadow: inset 2px 0 0 rgba(239, 145, 174, .18); color: #f1ecef; }
 .fr-dark-theme .fr-word-learning-card { background: transparent; }
 .fr-dark-theme .fr-word-heading, .fr-dark-theme .fr-word-pronunciations, .fr-dark-theme .fr-word-translation, .fr-dark-theme .fr-word-card-footer { border-color: #4b4148; }
 .fr-dark-theme .fr-word-heading h3, .fr-dark-theme .fr-word-meaning, .fr-dark-theme .fr-word-translation { color: #f2e8ed; }
 .fr-dark-theme .fr-word-meaning-toolbar { color: #c8aab5; }
 .fr-dark-theme .fr-word-meaning-toolbar button { color: #f0b9cb; }
-.fr-dark-theme .fr-word-heading-audio { background: #493842; color: #f0c3d2; }
+.fr-dark-theme .fr-word-heading-audio { background: #4a454b; color: #d5c4cb; }
 .fr-dark-theme .fr-word-pronunciation { border-color: #443a42; }
 .fr-dark-theme .fr-word-pronunciation-label { color: #e0a7b9; }
 .fr-dark-theme .fr-word-ipa { color: #f0dce4; }
