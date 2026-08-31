@@ -69,6 +69,7 @@ export function createExtensionManifest(
             extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
         },
         host_permissions: [
+            '<all_urls>',
             'https://translate.google.com/*',
             'https://translate.google.co.uk/*',
             'https://translate.googleapis.com/*',
