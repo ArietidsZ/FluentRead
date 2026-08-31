@@ -16,6 +16,9 @@ hero:
       text: 查看功能
       link: /guide/features
     - theme: alt
+      text: 下载油猴脚本
+      link: https://greasyfork.org/zh-CN/scripts/482986-%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB
+    - theme: alt
       text: GitHub
       link: https://github.com/Bistutu/FluentRead
 

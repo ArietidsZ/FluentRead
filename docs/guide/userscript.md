@@ -2,6 +2,10 @@
 
 FluentRead 可以从当前 Vue / TypeScript 源码生成一个自包含的 userscript，目标是让 Via、Tampermonkey 和 Violentmonkey 用户获得与浏览器扩展接近的核心网页翻译体验。该方案对应 [Issue #220](https://github.com/FluentRead/FluentRead/issues/220)，目前仍属于实验性构建目标。
 
+## 直接安装
+
+如果你使用 Tampermonkey、Violentmonkey 或 Via，可以直接从 [Greasy Fork 安装流畅阅读油猴脚本](https://greasyfork.org/zh-CN/scripts/482986-%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB)。
+
 ## 本地生成
 
 ```bash
