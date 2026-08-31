@@ -1,63 +1,53 @@
 # 安装与第一次翻译
 
-下面的流程适用于 FluentRead 0.0.31。安装完成后，不需要注册账号即可开始使用。
+FluentRead 不需要注册账号。安装后打开一篇普通网页，通常几分钟就能完成第一次翻译。
 
-## 安装扩展
+## 安装
 
-从浏览器商店安装是最省事的方式：
+选择你正在使用的浏览器：
 
 - [Chrome Web Store](https://chromewebstore.google.com/detail/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/djnlaiohfaaifbibleebjggkghlmcpcj?hl=zh-CN)
 - [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/kakgmllfpjldjhcnkghpplmlbnmcoflp?hl=zh-CN)
 - [Firefox Add-ons](https://addons.mozilla.org/zh-CN/firefox/addon/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/)
 - [油猴脚本（Tampermonkey / Violentmonkey / Via）](https://greasyfork.org/zh-CN/scripts/482986-%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB)
 
-安装后，建议把 FluentRead 固定到浏览器工具栏，方便随时打开控制面板。
+安装后，建议把 FluentRead 固定到浏览器工具栏，之后打开弹窗会更方便。
 
-## 三分钟完成第一次翻译
+## 第一次翻译
 
-### 1. 打开一篇可阅读的网页
+### 1. 打开一篇普通网页
 
-选择一篇包含普通段落的文章或文档。浏览器内部页面、扩展商店、部分登录页和受保护的编辑器通常不允许扩展注入内容，建议先用普通网页测试。
+新闻、博客、技术文档和论坛文章都可以。浏览器内部页面、扩展商店和部分受保护的编辑器通常不允许扩展注入内容，第一次使用时请先换一篇普通网页。
 
-### 2. 打开 FluentRead 弹窗
+### 2. 选择语言和服务
 
-选择源语言和目标语言，然后确认当前使用的翻译服务。第一次使用可以先保留默认设置。
+打开 FluentRead 弹窗，确认源语言、目标语言和翻译服务。第一次使用可以保留默认值；免费翻译服务可以直接开始。
 
-<img class="doc-screenshot" src="/screenshots/popup.png" alt="FluentRead popup controls" />
+<figure class="doc-figure">
+  <img class="doc-screenshot" src="/screenshots/popup.webp" alt="FluentRead 弹窗中的语言选择、翻译服务和翻译按钮" />
+  <figcaption>弹窗会集中显示语言、服务和常用翻译入口。</figcaption>
+</figure>
 
 ### 3. 点击“翻译页面”
 
-FluentRead 会按页面结构处理可翻译文本，并在原文附近插入译文。页面较长时，翻译可能分批出现；请保持当前标签页打开。
+译文会出现在原文附近。长页面可能分批显示，请保持当前标签页打开；页面不会自动滚动。
 
-<img class="doc-screenshot" src="/screenshots/translation.png" alt="FluentRead translating an article" />
+<figure class="doc-figure">
+  <img class="doc-screenshot" src="/screenshots/translation.webp" alt="网页原文和译文按段落对照显示" />
+  <figcaption>页面翻译保留原文，译文紧跟在对应段落下方。</figcaption>
+</figure>
 
 ### 4. 恢复或重新翻译
 
-翻译完成后，你可以：
-
-- 点击“恢复原文”，移除当前页面中的译文。
-- 修改目标语言或翻译服务，再次执行翻译。
-- 只选中一段文字，使用选区翻译获取局部结果。
-- 在弹窗“划词翻译”中进入“圈选翻译”并开启后，按住 `Shift + Z` 拖拽图片或不可选文字区域。
+- 使用“恢复原文”移除 FluentRead 添加的译文。
+- 修改目标语言或翻译服务后，再次点击翻译。
+- 只想确认一句话时，直接选中文本进行划词翻译。
 
 ## 如果点击后没有结果
 
-按下面顺序检查：
+1. 确认当前页面不是浏览器内部页、扩展商店或受保护页面。
+2. 在弹窗中检查目标语言和翻译服务是否正确。
+3. 先选中一句话测试，再尝试整页翻译。
+4. 如果页面内容刚刚加载完成，等待片刻后重试。
 
-1. 当前页面是否允许扩展注入内容。
-2. 弹窗中的翻译服务是否已启用并配置完整。
-3. 是否已经存在翻译结果；此时可以先恢复，再重新翻译。
-4. 打开设置确认目标语言和快捷键没有冲突。
-
-仍然无法使用时，请查看[常见问题](/guide/faq)，并在 GitHub Issue 中附上浏览器、网页类型和控制台错误，不要直接粘贴 API 密钥。
-
-## 手动安装开发版本
-
-如果你需要测试 GitHub 上的最新构建：
-
-1. 在仓库的 Releases 或 Actions 中下载对应浏览器的构建产物。
-2. 打开浏览器的扩展管理页并开启“开发者模式”。
-3. 选择“加载已解压的扩展”，指向解压后的扩展目录。
-4. 测试完成后，回到扩展管理页移除该开发版本，避免与商店版本重复注入。
-
-开发者需要从源码构建时，请参考仓库 README 中的开发章节。
+仍然无法使用时，请查看[常见问题](/guide/faq)，反馈时不要粘贴 API Key、Cookie 或隐私内容。

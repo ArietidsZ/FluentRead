@@ -1,39 +1,43 @@
 # 认识 FluentRead
 
-FluentRead 是一个面向真实阅读场景的浏览器翻译扩展。它不要求你离开当前页面，也不把原文替换掉，而是把译文以双语段落、选区气泡或图片文本的方式放回阅读现场。
+FluentRead 是一款把翻译放回阅读现场的浏览器扩展。它保留原文、段落和页面结构，让你不用切换标签页，也能自然地读懂外语内容。
 
-<img class="doc-screenshot" src="/screenshots/translation.png" alt="FluentRead bilingual translation in a real article" />
+<figure class="doc-figure">
+  <img class="doc-screenshot" src="/screenshots/translation.webp" alt="英文网页中原文和中文译文按段落显示" />
+  <figcaption>译文紧跟原文出现，方便对照阅读，也方便随时恢复。</figcaption>
+</figure>
 
-## 它适合什么场景？
+## 你可以用它做什么？
 
-- 阅读英文新闻、技术文档、论文和产品说明时，需要快速建立上下文。
-- 只想确认一个句子、术语或段落，不想等待整页翻译。
-- 需要在原文与译文之间来回切换，并保留原页面的排版。
-- 希望使用自己的 API、AI 服务或本地模型，而不是被固定服务绑定。
+- 阅读英文新闻、技术文档、论文和产品说明。
+- 只确认一个句子、术语或英文单词，不等待整页翻译。
+- 翻译图片、扫描资料、文档或 YouTube 字幕中的文字。
+- 使用免费翻译、云端服务、AI 服务或本地模型。
+- 保留原文，随时恢复页面，换服务或换语言后再次翻译。
 
-## FluentRead 的工作方式
+## 三步开始
 
-1. 在当前页面中识别适合翻译的文本节点。
-2. 按你选择的服务和目标语言请求翻译。
-3. 将译文作为独立的双语内容插入原文附近。
-4. 你可以恢复原文，或者在调整设置后重新翻译。
+1. 从[安装页面](/guide/getting-started#安装)选择浏览器版本。
+2. 打开一篇普通网页，在 FluentRead 弹窗中确认目标语言和翻译服务。
+3. 点击“翻译页面”，或直接选中一句话查看译文。
 
-不同网站的 DOM 结构差异很大，因此极少数站点可能需要手动选择文本或调整过滤规则。遇到异常时，先参考[常见问题](/guide/faq)。
+## 按你的阅读方式继续
 
-## 三条推荐路径
+<div class="link-grid">
+  <a class="link-card" href="/guide/getting-started">
+    <strong>第一次使用</strong>
+    <span>跟着简单步骤完成安装和第一次翻译。</span>
+  </a>
+  <a class="link-card" href="/guide/features">
+    <strong>功能介绍</strong>
+    <span>了解全文、划词、图片、文档、字幕和单词本。</span>
+  </a>
+  <a class="link-card" href="/config/translation-engines">
+    <strong>选择翻译服务</strong>
+    <span>按速度、质量、成本或隐私选择服务。</span>
+  </a>
+</div>
 
-### 只想马上读懂一页内容
+## 关于数据
 
-打开[安装与第一次翻译](/guide/getting-started)，使用默认服务完成第一次页面翻译。
-
-### 想控制质量、速度或成本
-
-阅读[翻译服务](/config/translation-engines)，再到[设置总览](/config/)选择合适的引擎。
-
-### 想让体验更贴合自己的工作流
-
-先看[功能总览](/guide/features)，然后在[自定义快捷键](/guide/custom-hotkey)中修改触发方式。
-
-## 关于隐私
-
-FluentRead 不托管你的翻译账号。翻译请求由你在设置中启用的服务处理；使用云端服务时，选中的文本或页面内容会发送到对应服务。免费翻译也会按回退顺序尝试第三方接口。若不希望内容离开本机，可以使用本地 Ollama（前提是本机已运行兼容模型）。完整说明见[数据与隐私](/guide/privacy)。
+FluentRead 没有账号体系，也没有自己的翻译服务器。使用云端服务时，待翻译内容会发送给你选择的服务；使用本地服务时，可以减少内容出站。具体数据范围见[数据与隐私](/guide/privacy)。
