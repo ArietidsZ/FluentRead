@@ -2258,6 +2258,45 @@ describe("全文翻译可见性锚点", () => {
         expect(time.querySelector('.fluent-read-single-slot')).toBeNull();
     });
 
+    it("仅译文 slot 内部的 childList mutation 不应触发 GitHub 侧边栏翻译恢复循环", async () => {
+        runtime.config.display = 0;
+        runtime.config.fullPageTranslationMode = "all";
+        document.body.innerHTML = '<relative-time id="sidebar-time">12 hours ago</relative-time>';
+        const time = document.querySelector<HTMLElement>("#sidebar-time")!;
+        setLayoutBox(time, 120, 24);
+        runtime.candidates = [{element: time, kind: "content", reason: "generic-text-container"}];
+
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        const slot = time.querySelector<HTMLElement>(".fluent-read-single-slot")!;
+        const source = slot.firstChild!;
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: "childList",
+            target: slot,
+            addedNodes: [source] as unknown as NodeList,
+            removedNodes: [] as unknown as NodeList,
+        } as unknown as MutationRecord]);
+        await finishScheduledWork();
+
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(getTranslationState(time)?.phase).toBe("translated");
+        expect(singleTranslationText(time)).toBe("译:12 hours ago");
+
+        source.nodeValue = "13 hours ago";
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: "characterData",
+            target: source,
+            addedNodes: [] as unknown as NodeList,
+            removedNodes: [] as unknown as NodeList,
+        } as unknown as MutationRecord]);
+        await finishScheduledWork();
+
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(runtime.requests).toHaveBeenLastCalledWith(["13 hours ago"]);
+    });
+
     it("已译 prose 忽略 MathJax/code 等保护后代 churn，但外层 source mutation 会重启", async () => {
         runtime.config.display = 1;
         document.body.innerHTML = `

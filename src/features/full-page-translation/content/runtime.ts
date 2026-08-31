@@ -353,6 +353,23 @@ function mutationTouchesCurrentTranslationArtifact(
             (isElementNode(node) && node.contains(artifact))));
 }
 
+function isOwnSingleTextSlotMove(
+    mutation: MutationRecord,
+    target: HTMLElement,
+    state: TranslationState,
+): boolean {
+    if (mutation.type !== "childList" || !state.singleTextSlotHosts?.length) return false;
+    const mutationElement = mutationTargetElement(mutation.target);
+    if (!mutationElement) return false;
+
+    const changedNodes = [...Array.from(mutation.addedNodes), ...Array.from(mutation.removedNodes)];
+    if (changedNodes.length === 0) return false;
+
+    const slot = state.singleTextSlotHosts.find(({host}) => host === mutationElement);
+    return Boolean(slot && changedNodes.every((node) => node === slot.source) &&
+        statefulSourceAndTextSlotsAreCurrent(target, state));
+}
+
 function isTranslationArtifact(node: Node): boolean {
     const element = isElementNode(node) ? node : node.parentElement;
     return Boolean(element &&
@@ -1572,6 +1589,7 @@ function isOwnMutation(
         return false;
     }
     if (state.phase !== "translated") return false;
+    if (isOwnSingleTextSlotMove(mutation, target, state)) return true;
     if ((state.kind === "control" || state.mode === "single") && mutation.type === "characterData") {
         const textNode = mutation.target as Text;
         return state.textSlotsApplied === true &&
