@@ -593,8 +593,11 @@ async function readSelectionUi(page) {
   const translatorRoot = findCdpNode(host, node => hasCdpClass(node, 'fr-selection-translator-root'));
   const indicator = findCdpNode(host, node => hasCdpClass(node, 'fr-selection-indicator'));
   const tooltip = findCdpNode(host, node => hasCdpClass(node, 'fr-translation-tooltip'));
+  const brandIcon = findCdpNode(tooltip, node => hasCdpClass(node, 'fr-tooltip-brand-icon'));
   const original = findCdpNode(host, node => hasCdpClass(node, 'fr-original-text'));
   const translation = findCdpNode(host, node => hasCdpClass(node, 'fr-translation-result'));
+  const sourceCopyButton = findCdpNode(host, node => cdpAttribute(node, 'data-copy-kind') === 'source');
+  const translationCopyButton = findCdpNode(host, node => cdpAttribute(node, 'data-copy-kind') === 'translation');
   const originalPre = findCdpDescendantByName(original, 'PRE');
   const translationPre = findCdpDescendantByName(translation, 'PRE');
   return {
@@ -603,10 +606,21 @@ async function readSelectionUi(page) {
     indicator: Boolean(indicator),
     indicatorClass: cdpAttribute(indicator, 'class'),
     tooltip: Boolean(tooltip),
+    brandIcon: {
+      present: Boolean(brandIcon),
+      src: cdpAttribute(brandIcon, 'src'),
+    },
     original: Boolean(original),
     translation: Boolean(translation),
     originalText: cdpText(originalPre).trim(),
     resultText: cdpText(translationPre).trim(),
+    tooltipText: cdpText(tooltip).trim(),
+    copyButtons: {
+      source: Boolean(sourceCopyButton),
+      translation: Boolean(translationCopyButton),
+      sourceLabel: cdpText(sourceCopyButton).trim(),
+      translationLabel: cdpText(translationCopyButton).trim(),
+    },
     ...pageState,
   };
 }
@@ -704,6 +718,33 @@ async function clickSelectionIndicator(page) {
   await session.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
   await session.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 });
   await session.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1 });
+}
+
+async function clickSelectionCopyButton(page, kind) {
+  await activateInputPage(page);
+  const { session, root } = await getSelectionUiTree(page);
+  const button = findCdpNode(root, node => cdpAttribute(node, 'data-copy-kind') === kind);
+  if (!button) throw new Error(`找不到${kind === 'source' ? '原文' : '译文'}复制按钮`);
+  const { model } = await session.send('DOM.getBoxModel', { nodeId: button.nodeId });
+  const quad = model.border || model.content;
+  const x = (quad[0] + quad[2] + quad[4] + quad[6]) / 4;
+  const y = (quad[1] + quad[3] + quad[5] + quad[7]) / 4;
+  await session.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+  await session.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 });
+  await session.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', buttons: 0, clickCount: 1 });
+}
+
+async function waitForCopyFeedback(page, expectedText) {
+  const deadline = Date.now() + 3000;
+  let actualText = '';
+  while (Date.now() < deadline) {
+    const { root } = await getSelectionUiTree(page);
+    const toast = findCdpNode(root, node => hasCdpClass(node, 'fr-copy-success-toast'));
+    actualText = cdpText(toast).trim();
+    if (actualText === expectedText) return actualText;
+    await page.waitForTimeout(50);
+  }
+  throw new Error(`复制反馈不符合预期：期望 ${expectedText}，实际 ${actualText}`);
 }
 
 async function closeSelectionUi(page) {
@@ -1155,10 +1196,33 @@ async function main() {
     await waitForSelectionUi(page, { tooltip: true, indicator: false, translation: true, resultPrefix: '测试译文：' }, '直接弹出翻译框');
     const directUi = await readSelectionUi(page);
     assert(directUi.selectionText === directSelection.text && !directUi.indicator && directUi.targetText === TARGET_TEXT, '直接弹出改变了入口或页面正文');
+    assert(!directUi.tooltipText.includes('FluentRead')
+      && directUi.brandIcon.present
+      && directUi.brandIcon.src.includes('/icon/128.png')
+      && directUi.copyButtons.source
+      && directUi.copyButtons.translation,
+    `翻译结果没有显示 FluentRead 图标或按内容卡提供独立复制入口：${JSON.stringify(directUi)}`);
     const directScreenshot = path.join(args.artifactsDir, 'selection-direct.png');
     await page.screenshot({ path: directScreenshot });
     result.screenshots.push(directScreenshot);
     result.cases.push({ id: 'visual.直接弹出', status: 'passed', popupState: directPopupState, selection: directSelection, ui: directUi });
+
+    await clickSelectionCopyButton(page, 'source');
+    const sourceCopyFeedback = await waitForCopyFeedback(page, '已复制原文');
+    const sourceCopiedUi = await readSelectionUi(page);
+    assert(sourceCopiedUi.copyButtons.sourceLabel === '已复制', `原文复制按钮没有进入已复制状态：${JSON.stringify(sourceCopiedUi)}`);
+    await clickSelectionCopyButton(page, 'translation');
+    const translationCopyFeedback = await waitForCopyFeedback(page, '已复制译文');
+    const translationCopiedUi = await readSelectionUi(page);
+    assert(translationCopiedUi.copyButtons.translationLabel === '已复制', `译文复制按钮没有进入已复制状态：${JSON.stringify(translationCopiedUi)}`);
+    result.cases.push({
+      id: 'copy.source-and-translation-actions',
+      status: 'passed',
+      sourceCopyFeedback,
+      translationCopyFeedback,
+      sourceCopiedUi,
+      translationCopiedUi,
+    });
 
     // 显示方式：双语和仅译文应分别渲染对应内容。
     await closeSelectionUi(page);
