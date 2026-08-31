@@ -419,6 +419,7 @@ describe('options UI composition architecture', () => {
   it('keeps the service catalog hierarchy searchable and accessible', () => {
     const catalog = source('src/features/settings/ui/services/ServiceCatalog.vue')
     const viewModel = source('src/ui/view-model/serviceCatalog.ts')
+    const serviceDescriptionStyles = catalog.match(/\.service-copy small \{([^}]*)\}/u)?.[1] || ''
 
     expect(catalog).toContain(':data-service-section-toggle="section.id"')
     expect(catalog).toContain(':aria-expanded="!isSectionCollapsed(section)"')
@@ -433,6 +434,11 @@ describe('options UI composition architecture', () => {
     expect(viewModel).toContain("label: '模型服务商'")
     expect(viewModel).toContain("label: '聚合平台与接口'")
     expect(viewModel).toContain("item.catalogKind === 'platform'")
+    expect(serviceDescriptionStyles).toContain('display: block')
+    expect(serviceDescriptionStyles).toContain('min-width: 0')
+    expect(serviceDescriptionStyles).toContain('overflow: hidden')
+    expect(serviceDescriptionStyles).toContain('text-overflow: ellipsis')
+    expect(serviceDescriptionStyles).toContain('white-space: nowrap')
   })
 
   it('keeps translation interactions together in the requested order', () => {

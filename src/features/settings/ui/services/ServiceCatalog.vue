@@ -330,7 +330,16 @@ watch(() => props.service, () => {
 .service-item.active { border-color: #f3c4d1; background: #fff0f4; box-shadow: 0 7px 18px rgba(214, 50, 96, .08); }
 .service-copy { display: flex; min-width: 0; flex-direction: column; }
 .service-copy strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.service-copy small { margin-top: 3px; color: #9097a7; font-size: 10px; }
+.service-copy small {
+  display: block;
+  min-width: 0;
+  margin-top: 3px;
+  overflow: hidden;
+  color: #9097a7;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .current-dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4776; box-shadow: 0 0 0 4px rgba(239, 71, 118, .12); }
 .service-detail { display: flex; min-width: 0; min-height: 0; margin: 14px; padding: 22px; border: 1px solid #e4e7ef; border-radius: 16px; background: #fff; flex-direction: column; overflow: hidden; }
 .service-detail > .detail-hero,

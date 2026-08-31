@@ -1245,6 +1245,33 @@ async function main() {
     if ((await customServiceCount.textContent())?.trim() !== '1 / 20') {
       throw new Error(`创建后的自定义服务计数异常：${await customServiceCount.textContent()}`);
     }
+    const customServiceDescriptionLayout = await customServiceItem.evaluate(item => {
+      const card = item.getBoundingClientRect();
+      const copy = item.querySelector('.service-copy')?.getBoundingClientRect();
+      const description = item.querySelector('.service-copy small');
+      const descriptionRect = description?.getBoundingClientRect();
+      const descriptionStyle = description ? getComputedStyle(description) : null;
+      return {
+        cardRight: card.right,
+        copyRight: copy?.right ?? null,
+        descriptionRight: descriptionRect?.right ?? null,
+        descriptionWidth: descriptionRect?.width ?? null,
+        descriptionScrollWidth: description?.scrollWidth ?? null,
+        overflow: descriptionStyle?.overflow ?? '',
+        textOverflow: descriptionStyle?.textOverflow ?? '',
+        whiteSpace: descriptionStyle?.whiteSpace ?? '',
+      };
+    });
+    if (customServiceDescriptionLayout.descriptionRight === null
+      || customServiceDescriptionLayout.descriptionRight > customServiceDescriptionLayout.cardRight + 1
+      || customServiceDescriptionLayout.descriptionRight > (customServiceDescriptionLayout.copyRight ?? Infinity) + 1
+      || customServiceDescriptionLayout.overflow !== 'hidden'
+      || customServiceDescriptionLayout.textOverflow !== 'ellipsis'
+      || customServiceDescriptionLayout.whiteSpace !== 'nowrap') {
+      throw new Error(`自定义服务接口地址超出卡片边界：${JSON.stringify(customServiceDescriptionLayout)}`);
+    }
+    report.informationArchitecture.serviceCatalogHierarchy.customServiceDescription = customServiceDescriptionLayout;
+    report.assertions.customServiceDescriptionBounded = true;
     if (await customServiceItem.getAttribute('aria-pressed') !== 'true'
       || await serviceCatalog.getAttribute('data-editing-service') !== customServiceId
       || await serviceCatalog.getAttribute('data-default-service') !== defaultServiceMetrics.defaultService) {
