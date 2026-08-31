@@ -36,6 +36,7 @@ const runtime = vi.hoisted(() => ({
         display: 0,
         style: 0,
         fullPageTranslationMode: "viewport" as "viewport" | "all",
+        maxConcurrentTranslations: 3,
     },
     ensureTranslationTruncationLayout: vi.fn(() => true),
 }));
@@ -331,6 +332,7 @@ describe("全文翻译可见性锚点", () => {
         runtime.config.display = 0;
         runtime.config.style = 0;
         runtime.config.fullPageTranslationMode = "viewport";
+        runtime.config.maxConcurrentTranslations = 3;
         runtime.ensureTranslationTruncationLayout.mockClear();
         TestIntersectionObserver.instances = [];
         TestMutationObserver.instances = [];
@@ -988,8 +990,9 @@ describe("全文翻译可见性锚点", () => {
         expect(singleTranslationText(belowFold)).toBe("译:Paragraph near the page bottom");
     });
 
-    it("立即翻译整页仍只并发三个候选，释放槽位后才启动下一项", async () => {
+    it("立即翻译整页按任务调度配置限制候选并发，释放槽位后才启动下一项", async () => {
         runtime.config.fullPageTranslationMode = "all";
+        runtime.config.maxConcurrentTranslations = 2;
         document.body.innerHTML = ["One", "Two", "Three", "Four"]
             .map((label, index) => `<p id="all-candidate-${index}">${label}</p>`)
             .join("");
@@ -1007,13 +1010,13 @@ describe("全文翻译可见性锚点", () => {
         autoTranslateEnglishPage();
         await vi.advanceTimersByTimeAsync(51);
         await Promise.resolve();
-        expect(runtime.requests).toHaveBeenCalledTimes(3);
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
 
         requests[0]!.resolve(["译:One"]);
         await vi.advanceTimersByTimeAsync(1);
         await Promise.resolve();
         await Promise.resolve();
-        expect(runtime.requests).toHaveBeenCalledTimes(4);
+        expect(runtime.requests).toHaveBeenCalledTimes(3);
 
         requests[1]!.resolve(["译:Two"]);
         requests[2]!.resolve(["译:Three"]);

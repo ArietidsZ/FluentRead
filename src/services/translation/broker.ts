@@ -33,6 +33,10 @@ import {
 } from '@/src/core/translation/prompts';
 import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
 import {waitForBoundedPersistence} from './persistenceBarrier';
+import {
+    createTranslationRequestScheduler,
+    TranslationRequestSchedulerDeadlineError,
+} from './requestScheduler';
 
 export type {
     TranslationBatchRequestMessage,
@@ -102,6 +106,14 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
     let cacheGeneration = 0;
     const now = deps.now ?? (() => Date.now());
     const logger = deps.logger ?? console;
+    const requestScheduler = createTranslationRequestScheduler(
+        () => deps.getConfig() as unknown as {
+            maxConcurrentTranslations?: unknown;
+            translationRequestsPerSecond?: unknown;
+            translationRequestsPerMinute?: unknown;
+        },
+        {now},
+    );
 
     function warn(message: string, error: unknown): void {
         try {
@@ -357,7 +369,8 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
     }
 
     function modelUsageOutcome(error: unknown): TranslationModelUsageOutcome {
-        if (error instanceof TranslationProviderDeadlineError) return 'timeout';
+        if (error instanceof TranslationProviderDeadlineError
+            || error instanceof TranslationRequestSchedulerDeadlineError) return 'timeout';
         if (error && typeof error === 'object') {
             const candidate = error as {kind?: unknown; statusCode?: unknown};
             if (candidate.kind === 'timeout' || candidate.statusCode === 408) return 'timeout';
@@ -422,70 +435,88 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         message: TranslationRequestMessage,
     ): Promise<unknown> {
         throwIfRequestAborted(execution.abortSignal);
-        const controller = new AbortController();
-        const externalAbortListenerCleanup = new AbortController();
-        const externalAbort = new Promise<never>((_resolve, reject) => {
-            if (!execution.abortSignal) return;
-            execution.abortSignal.addEventListener(
-                'abort',
-                () => {
-                    controller.abort();
-                    reject(requestAbortError());
-                },
-                {once: true, signal: externalAbortListenerCleanup.signal},
-            );
-        });
+        const timeoutMs = normalizeDeadlineTimeoutMs(message.requestTimeoutMs as number);
+        const providerDeadline = now() + timeoutMs;
 
         try {
-            // 外部取消先取得监听所有权，再执行可能同步触发依赖回调的 provider 准备步骤。
-            const provider = getTranslationService(execution.service);
-            const timeoutMs = normalizeDeadlineTimeoutMs(message.requestTimeoutMs as number);
-            const startedAt = now();
-            const usageGeneration = deps.captureModelUsageGeneration?.() ?? 0;
-            const observations: TranslationModelUsageObservation[] = [];
-            const providerMessage = attachTranslationModelUsageObserver({
-                ...message,
-                abortSignal: controller.signal,
-            }, (observation) => observations.push({...observation}));
+            return await requestScheduler.schedule(async (lease) => {
+                const controller = new AbortController();
+                const externalAbortListenerCleanup = new AbortController();
+                const externalAbort = new Promise<never>((_resolve, reject) => {
+                    if (!execution.abortSignal) return;
+                    execution.abortSignal.addEventListener(
+                        'abort',
+                        () => {
+                            controller.abort();
+                            reject(requestAbortError());
+                        },
+                        {once: true, signal: externalAbortListenerCleanup.signal},
+                    );
+                });
 
-            let timer: ReturnType<typeof setTimeout>;
-            const timeout = new Promise<never>((_resolve, reject) => {
-                timer = setTimeout(() => {
-                    controller.abort();
-                    reject(new TranslationProviderDeadlineError());
-                }, timeoutMs);
-            });
-            const operation = Promise.resolve().then(() => {
-                throwIfRequestAborted(execution.abortSignal);
-                return provider(providerMessage);
-            });
+                try {
+                    // 外部取消先取得监听所有权，再执行可能同步触发依赖回调的 provider 准备步骤。
+                    const provider = getTranslationService(execution.service);
+                    const remainingTimeoutMs = getRemainingDeadlineMs(providerDeadline);
+                    const startedAt = now();
+                    const usageGeneration = deps.captureModelUsageGeneration?.() ?? 0;
+                    const observations: TranslationModelUsageObservation[] = [];
+                    const providerMessage = attachTranslationModelUsageObserver({
+                        ...message,
+                        abortSignal: controller.signal,
+                    }, (observation) => observations.push({...observation}));
 
-            try {
-                const result = await Promise.race([operation, timeout, externalAbort]);
-                clearTimeout(timer!);
-                await persistModelUsage(execution, message, observations, startedAt, 'success', usageGeneration);
-                return result;
-            } catch (error) {
-                clearTimeout(timer!);
-                const lastObservation = observations.at(-1);
-                const errorOutcome = modelUsageOutcome(error);
-                const outcome = errorOutcome === 'error' && lastObservation?.statusCode === 408
-                    ? 'timeout'
-                    : errorOutcome;
-                // Broker 自有 deadline 会先 abort transport；HTTP 408 也可能被第三方适配器先记为普通失败。
-                // 两者都校准为 timeout，避免同一种超时被拆成不同统计口径。
-                // 不覆盖更早的 success：批量下一项可能在真正 fetch 前就耗尽预算。
-                if (
-                    outcome === 'timeout'
-                    && (lastObservation?.outcome === 'cancelled' || lastObservation?.outcome === 'error')
-                ) {
-                    lastObservation.outcome = 'timeout';
+                    let timer: ReturnType<typeof setTimeout>;
+                    const timeout = new Promise<never>((_resolve, reject) => {
+                        timer = setTimeout(() => {
+                            controller.abort();
+                            reject(new TranslationProviderDeadlineError());
+                        }, remainingTimeoutMs);
+                    });
+                    const operation = Promise.resolve().then(() => {
+                        throwIfRequestAborted(execution.abortSignal);
+                        return provider(providerMessage);
+                    });
+                    // 调度调用方可能已因 deadline/取消收到结果，但真实 provider transport
+                    // 仍需结束后才能释放后台并发槽，避免旧请求与新请求叠加。
+                    lease.holdUntil(operation);
+
+                    try {
+                        const result = await Promise.race([operation, timeout, externalAbort]);
+                        clearTimeout(timer!);
+                        await persistModelUsage(execution, message, observations, startedAt, 'success', usageGeneration);
+                        return result;
+                    } catch (error) {
+                        clearTimeout(timer!);
+                        const lastObservation = observations.at(-1);
+                        const errorOutcome = modelUsageOutcome(error);
+                        const outcome = errorOutcome === 'error' && lastObservation?.statusCode === 408
+                            ? 'timeout'
+                            : errorOutcome;
+                        // Broker 自有 deadline 会先 abort transport；HTTP 408 也可能被第三方适配器先记为普通失败。
+                        // 两者都校准为 timeout，避免同一种超时被拆成不同统计口径。
+                        // 不覆盖更早的 success：批量下一项可能在真正 fetch 前就耗尽预算。
+                        if (
+                            outcome === 'timeout'
+                            && (lastObservation?.outcome === 'cancelled' || lastObservation?.outcome === 'error')
+                        ) {
+                            lastObservation.outcome = 'timeout';
+                        }
+                        await persistModelUsage(execution, message, observations, startedAt, outcome, usageGeneration);
+                        throw error;
+                    }
+                } finally {
+                    externalAbortListenerCleanup.abort();
                 }
-                await persistModelUsage(execution, message, observations, startedAt, outcome, usageGeneration);
-                throw error;
+            }, {
+                signal: execution.abortSignal,
+                deadlineAt: providerDeadline,
+            });
+        } catch (error) {
+            if (error instanceof TranslationRequestSchedulerDeadlineError) {
+                throw new TranslationProviderDeadlineError();
             }
-        } finally {
-            externalAbortListenerCleanup.abort();
+            throw error;
         }
     }
 

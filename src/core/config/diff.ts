@@ -196,6 +196,10 @@ function formatNumber(value: unknown, suffix = ''): string {
         : formatValue(value);
 }
 
+function formatRequestRate(value: unknown): string {
+    return value === 0 ? '不限速' : formatNumber(value, ' 次');
+}
+
 function formatString(value: string): string {
     if (!value.trim()) return '未设置';
     if (value.startsWith(SENSITIVE_SUMMARY_PREFIX)) return value;
@@ -363,6 +367,11 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     enableAIContext: {group: 'general', label: 'AI 智能上下文', format: formatBoolean},
     enableAIMultiSegment: {group: 'translation', label: 'AI 多段翻译', format: formatBoolean},
     maxConcurrentTranslations: {group: 'advanced', label: '翻译并发数'},
+    translationRequestsPerSecond: {group: 'advanced', label: '每秒最多请求数', format: formatRequestRate},
+    translationRequestsPerMinute: {group: 'advanced', label: '每分钟最多请求数', format: formatRequestRate},
+    translationMaxRetries: {group: 'advanced', label: '失败后最多重试', format: (value) => formatNumber(value, ' 次')},
+    translationBackoffBaseMs: {group: 'advanced', label: '退避初始间隔', format: (value) => formatNumber(value, ' ms')},
+    translationBackoffMaxMs: {group: 'advanced', label: '退避最大间隔', format: (value) => formatNumber(value, ' ms')},
     animations: {group: 'advanced', label: '动画效果', format: formatBoolean},
 
     documentService: {group: 'tools', label: '文档翻译服务', format: formatService},

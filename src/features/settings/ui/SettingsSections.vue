@@ -522,31 +522,133 @@
     </section>
 
     <section v-show="props.activeSection === 'settings-advanced'" class="settings-section settings-section-continuation">
-      <SettingsGroup title="任务调度" description="并发越高速度可能越快，也会增加资源占用和服务限流风险。">
-        <!-- 翻译并发数 -->
-        <el-row class="settings-control-row">
-          <el-col :span="12" class="settings-control-label lightblue rounded-corner">
-            <el-tooltip class="box-item" effect="dark" content="控制同时进行的最大翻译任务数，数值越高翻译速度越快，但可能占用更多系统资源" placement="top-start"
-                        :show-after="500">
-          <span class="popup-text popup-vertical-left">翻译并发数<el-icon class="icon-margin">
-              <InfoFilled />
-            </el-icon></span>
-            </el-tooltip>
-          </el-col>
-          <el-col :span="12" class="settings-control-field">
-            <el-input-number
-                v-model="config.maxConcurrentTranslations"
-                aria-label="翻译并发数"
-                :min="1"
-                :max="100"
-                :step="1"
-                style="width: 100%"
-                @change="handleConcurrentChange"
-                controls-position="right"
-            />
-          </el-col>
-        </el-row>
-
+      <SettingsGroup title="任务调度" description="控制并发数量、请求速率和失败重试的退避范围。" class="task-scheduler-group">
+        <div class="task-scheduler-grid" data-testid="translation-scheduler-settings">
+          <div class="scheduler-setting-row">
+            <div class="settings-control-label">
+              <el-tooltip class="box-item" effect="dark" content="控制同时进行的最大翻译任务数，数值越高翻译速度越快，但可能占用更多系统资源" placement="top-start" :show-after="500">
+                <span class="popup-text popup-vertical-left">翻译并发数<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
+              </el-tooltip>
+            </div>
+            <div class="settings-control-field">
+              <div class="scheduler-number-field">
+                <el-input-number
+                  v-model="config.maxConcurrentTranslations"
+                  aria-label="翻译并发数"
+                  :min="1"
+                  :max="100"
+                  :step="1"
+                  :controls="false"
+                  @change="handleConcurrentChange"
+                />
+              </div>
+            </div>
+          </div>
+          <div class="scheduler-setting-row">
+            <div class="settings-control-label">
+              <el-tooltip class="box-item" effect="dark" content="限制所有翻译服务每秒启动的真实请求数；设为 0 表示不限速。设置会在下一次请求调度时生效。" placement="top-start" :show-after="500">
+                <span class="popup-text popup-vertical-left">每秒最多请求数<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
+              </el-tooltip>
+            </div>
+            <div class="settings-control-field">
+              <div class="scheduler-number-field" data-unit="次">
+                <el-input-number
+                  v-model="config.translationRequestsPerSecond"
+                  aria-label="每秒最多请求数"
+                  :min="MIN_TRANSLATION_REQUESTS_PER_SECOND"
+                  :max="MAX_TRANSLATION_REQUESTS_PER_SECOND"
+                  :step="1"
+                  :controls="false"
+                  @change="handleTranslationRequestsPerSecondChange"
+                />
+              </div>
+            </div>
+          </div>
+          <div class="scheduler-setting-row">
+            <div class="settings-control-label">
+              <el-tooltip class="box-item" effect="dark" content="限制所有翻译服务每分钟启动的真实请求数；设为 0 表示不限速。与每秒限制同时满足。" placement="top-start" :show-after="500">
+                <span class="popup-text popup-vertical-left">每分钟最多请求数<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
+              </el-tooltip>
+            </div>
+            <div class="settings-control-field">
+              <div class="scheduler-number-field" data-unit="次">
+                <el-input-number
+                  v-model="config.translationRequestsPerMinute"
+                  aria-label="每分钟最多请求数"
+                  :min="MIN_TRANSLATION_REQUESTS_PER_MINUTE"
+                  :max="MAX_TRANSLATION_REQUESTS_PER_MINUTE"
+                  :step="1"
+                  :controls="false"
+                  @change="handleTranslationRequestsPerMinuteChange"
+                />
+              </div>
+            </div>
+          </div>
+          <div class="scheduler-setting-row">
+            <div class="settings-control-label">
+              <el-tooltip class="box-item" effect="dark" content="请求失败且错误可重试时，最多额外发送多少次；设为 0 表示不自动重试。" placement="top-start" :show-after="500">
+                <span class="popup-text popup-vertical-left">失败后最多重试<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
+              </el-tooltip>
+            </div>
+            <div class="settings-control-field">
+              <div class="scheduler-number-field" data-unit="次">
+                <el-input-number
+                  v-model="config.translationMaxRetries"
+                  aria-label="失败后最多重试"
+                  :min="MIN_TRANSLATION_MAX_RETRIES"
+                  :max="MAX_TRANSLATION_MAX_RETRIES"
+                  :step="1"
+                  :controls="false"
+                  @change="handleTranslationMaxRetriesChange"
+                />
+              </div>
+            </div>
+          </div>
+          <div class="scheduler-setting-row">
+            <div class="settings-control-label">
+              <el-tooltip class="box-item" effect="dark" content="第一次自动重试前等待的时间；之后按指数退避逐步增加，受最大退避间隔限制。" placement="top-start" :show-after="500">
+                <span class="popup-text popup-vertical-left">退避初始间隔<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
+              </el-tooltip>
+            </div>
+            <div class="settings-control-field">
+              <div class="scheduler-number-field" data-unit="ms">
+                <el-input-number
+                  v-model="config.translationBackoffBaseMs"
+                  aria-label="退避初始间隔"
+                  :min="MIN_TRANSLATION_BACKOFF_BASE_MS"
+                  :max="MAX_TRANSLATION_BACKOFF_BASE_MS"
+                  :step="100"
+                  :controls="false"
+                  @change="handleTranslationBackoffBaseChange"
+                />
+              </div>
+            </div>
+          </div>
+          <div class="scheduler-setting-row">
+            <div class="settings-control-label">
+              <el-tooltip class="box-item" effect="dark" content="指数退避的本地最大等待时间；服务端返回 Retry-After 时会优先遵守服务端要求。" placement="top-start" :show-after="500">
+                <span class="popup-text popup-vertical-left">退避最大间隔<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
+              </el-tooltip>
+            </div>
+            <div class="settings-control-field">
+              <div class="scheduler-number-field" data-unit="ms">
+                <el-input-number
+                  v-model="config.translationBackoffMaxMs"
+                  aria-label="退避最大间隔"
+                  :min="Math.max(MIN_TRANSLATION_BACKOFF_MAX_MS, config.translationBackoffBaseMs)"
+                  :max="MAX_TRANSLATION_BACKOFF_MAX_MS"
+                  :step="1000"
+                  :controls="false"
+                  @change="handleTranslationBackoffMaxChange"
+                />
+              </div>
+            </div>
+          </div>
+          <div class="scheduler-effect-row" role="status" aria-live="polite">
+            <span class="scheduler-effect-label">当前效果</span>
+            <p>{{ translationSchedulerEffect }}</p>
+          </div>
+        </div>
       </SettingsGroup>
     </section>
 
@@ -604,9 +706,20 @@ import {
 } from '@/src/core/config/customOpenAI';
 import {
   Config,
+  DEFAULT_MAX_CONCURRENT_TRANSLATIONS,
   MOUSE_HOVER_TRANSLATION_DELAY_MAX,
   MOUSE_HOVER_TRANSLATION_DELAY_MIN,
   MOUSE_HOVER_TRANSLATION_DELAY_STEP,
+  MAX_TRANSLATION_BACKOFF_BASE_MS,
+  MAX_TRANSLATION_BACKOFF_MAX_MS,
+  MAX_TRANSLATION_MAX_RETRIES,
+  MAX_TRANSLATION_REQUESTS_PER_MINUTE,
+  MAX_TRANSLATION_REQUESTS_PER_SECOND,
+  MIN_TRANSLATION_BACKOFF_BASE_MS,
+  MIN_TRANSLATION_BACKOFF_MAX_MS,
+  MIN_TRANSLATION_MAX_RETRIES,
+  MIN_TRANSLATION_REQUESTS_PER_MINUTE,
+  MIN_TRANSLATION_REQUESTS_PER_SECOND,
   SELECTION_TRANSLATOR_DELAY_MAX,
   SELECTION_TRANSLATOR_DELAY_MIN,
   SELECTION_TRANSLATOR_DELAY_STEP,
@@ -614,6 +727,11 @@ import {
   normalizeConfig,
   normalizeMouseHoverTranslationDelay,
   normalizeSelectionTranslatorDelay,
+  normalizeTranslationBackoffBaseMs,
+  normalizeTranslationBackoffMaxMs,
+  normalizeTranslationMaxRetries,
+  normalizeTranslationRequestsPerMinute,
+  normalizeTranslationRequestsPerSecond,
 } from '@/src/core/config/model';
 import { InfoFilled, Edit } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -673,6 +791,13 @@ function updateTheme(theme: string) {
 }
 // 配置信息
 const config = ref(new Config());
+const translationSchedulerEffect = computed(() => {
+  const current = config.value;
+  const requestLimit = (value: number, period: string) => value === 0 ? `${period}不限速` : `${period}最多 ${value} 次`;
+  const duration = (value: number) => value >= 1000 && value % 1000 === 0 ? `${value / 1000} 秒` : `${value} ms`;
+  return `最多同时处理 ${current.maxConcurrentTranslations} 个翻译任务，${requestLimit(current.translationRequestsPerSecond, '每秒')}、${requestLimit(current.translationRequestsPerMinute, '每分钟')}；失败后最多重试 ${current.translationMaxRetries} 次，退避从 ${duration(current.translationBackoffBaseMs)} 逐步增加到最多 ${duration(current.translationBackoffMaxMs)}。`;
+});
+
 const customProviderDialogOpen = ref(false);
 const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
 const persistConfigPatch = (value: unknown) => requestConfigPatch(value, sendConfigMessage);
@@ -1375,7 +1500,7 @@ const handleConcurrentChange = (currentValue: number | undefined) => {
       duration: 2000
     });
     // 恢复默认值
-    config.value.maxConcurrentTranslations = 6;
+    config.value.maxConcurrentTranslations = DEFAULT_MAX_CONCURRENT_TRANSLATIONS;
     return;
   }
   
@@ -1384,6 +1509,34 @@ const handleConcurrentChange = (currentValue: number | undefined) => {
     type: 'success',
     duration: 2000
   });
+};
+
+const handleTranslationRequestsPerSecondChange = (currentValue: number | undefined) => {
+  config.value.translationRequestsPerSecond = normalizeTranslationRequestsPerSecond(currentValue);
+};
+
+const handleTranslationRequestsPerMinuteChange = (currentValue: number | undefined) => {
+  config.value.translationRequestsPerMinute = normalizeTranslationRequestsPerMinute(currentValue);
+};
+
+const handleTranslationMaxRetriesChange = (currentValue: number | undefined) => {
+  config.value.translationMaxRetries = normalizeTranslationMaxRetries(currentValue);
+};
+
+const handleTranslationBackoffBaseChange = (currentValue: number | undefined) => {
+  const nextBase = normalizeTranslationBackoffBaseMs(currentValue);
+  config.value.translationBackoffBaseMs = nextBase;
+  if (config.value.translationBackoffMaxMs < nextBase) {
+    config.value.translationBackoffMaxMs = nextBase;
+  }
+};
+
+const handleTranslationBackoffMaxChange = (currentValue: number | undefined) => {
+  const normalized = normalizeTranslationBackoffMaxMs(currentValue);
+  config.value.translationBackoffMaxMs = Math.max(
+    config.value.translationBackoffBaseMs,
+    normalized,
+  );
 };
 
 // Azure OpenAI 端点地址验证函数

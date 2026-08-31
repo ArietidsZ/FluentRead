@@ -65,6 +65,9 @@ const mocks = vi.hoisted(() => {
     const buildTranslationCacheKey = vi.fn((identity: unknown) => JSON.stringify(identity));
     const config = {
         service: 'mock',
+        maxConcurrentTranslations: 6,
+        translationRequestsPerSecond: 0,
+        translationRequestsPerMinute: 0,
         from: 'auto',
         to: 'zh-Hans',
         useCache: true,
@@ -228,6 +231,9 @@ describe('translation broker', () => {
             to: 'zh-Hans',
             useCache: true,
             enableAIContext: false,
+            maxConcurrentTranslations: 6,
+            translationRequestsPerSecond: 0,
+            translationRequestsPerMinute: 0,
             proxy: {},
             custom: '',
             deeplx: '',
@@ -586,6 +592,75 @@ describe('translation broker', () => {
         await expect(translateWithCache({origin: 'Reject once'})).rejects.toThrow('provider down');
         await expect(translateWithCache({origin: 'Reject once'})).resolves.toBe('恢复译文');
         expect(mocks.service).toHaveBeenCalledTimes(3);
+    });
+
+    it('在后台 provider 入口按配置限制跨调用方的真实并发', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(0);
+        mocks.config.useCache = false;
+        mocks.config.maxConcurrentTranslations = 1;
+        const firstProvider = deferred<string>();
+        mocks.service
+            .mockImplementationOnce(() => firstProvider.promise)
+            .mockResolvedValueOnce('第二个译文');
+
+        const first = translateWithCache({origin: 'Scheduler first', useCache: false});
+        const second = translateWithCache({origin: 'Scheduler second', useCache: false});
+        await flushMicrotasks();
+        expect(mocks.service).toHaveBeenCalledTimes(1);
+
+        firstProvider.resolve('第一个译文');
+        await flushMicrotasks();
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        await expect(Promise.all([first, second])).resolves.toEqual(['第一个译文', '第二个译文']);
+    });
+
+    it('在后台 provider 入口按每秒请求上限延后新的真实请求', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(0);
+        mocks.config.useCache = false;
+        mocks.config.maxConcurrentTranslations = 10;
+        mocks.config.translationRequestsPerSecond = 1;
+        mocks.service
+            .mockResolvedValueOnce('第一秒译文')
+            .mockResolvedValueOnce('下一秒译文');
+
+        const first = translateWithCache({origin: 'Rate first', useCache: false});
+        const second = translateWithCache({origin: 'Rate second', useCache: false});
+        await flushMicrotasks();
+        expect(mocks.service).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(999);
+        expect(mocks.service).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(1);
+        await flushMicrotasks();
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        await expect(Promise.all([first, second])).resolves.toEqual(['第一秒译文', '下一秒译文']);
+    });
+
+    it('provider 调度排队超过请求预算时返回统一超时错误', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(0);
+        mocks.config.useCache = false;
+        mocks.config.maxConcurrentTranslations = 1;
+        const firstProvider = deferred<string>();
+        mocks.service.mockImplementationOnce(() => firstProvider.promise);
+
+        const first = translateWithCache({origin: 'Deadline scheduler first', useCache: false});
+        await flushMicrotasks();
+        expect(mocks.service).toHaveBeenCalledOnce();
+
+        const second = translateWithCache({
+            origin: 'Deadline scheduler second',
+            useCache: false,
+            requestTimeoutMs: 1_000,
+        });
+        const secondOutcome = second.catch((error) => error);
+        await vi.advanceTimersByTimeAsync(1_000);
+        await expect(secondOutcome).resolves.toMatchObject({message: '翻译请求超时'});
+        expect(mocks.service).toHaveBeenCalledOnce();
+
+        firstProvider.resolve('第一个译文');
+        await expect(first).resolves.toBe('第一个译文');
     });
 
     it('跨毫秒启动的同预算单条与批量请求仍使用稳定 pending 身份', async () => {

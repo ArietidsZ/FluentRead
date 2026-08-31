@@ -25,6 +25,7 @@ const {mockConfig} = vi.hoisted(() => ({
     mimoRegion: 'cn',
     deepseekApiType: 'auto',
     deepseekThinkingMode: 'disabled',
+    translationMaxRetries: 2,
     youdaoAppKey: '',
     youdaoAppSecret: '',
     tencentSecretId: '',
@@ -80,6 +81,7 @@ describe('Vercel AI SDK OpenAI-compatible transport', () => {
     mockConfig.system_role = {[services.custom]: 'You are a translator.'};
     mockConfig.user_role = {[services.custom]: 'Translate {{origin}} into {{to}}.'};
     mockConfig.proxy = {};
+    mockConfig.translationMaxRetries = 2;
     mockConfig.custom = 'http://127.0.0.1:11434/v1/chat/completions';
     mockConfig.newApiUrl = '';
     mockConfig.azureOpenaiEndpoint = '';
@@ -350,6 +352,23 @@ describe('Vercel AI SDK OpenAI-compatible transport', () => {
       requestId: 'req-rate-test',
     });
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('uses the configured maximum retry count for SDK-owned HTTP retries', async () => {
+    vi.useFakeTimers();
+    mockConfig.translationMaxRetries = 1;
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(errorResponse(429, 'rate limited')));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const request = translateWithOpenAICompatibleAiSdk({
+      origin: 'hello',
+      serviceOverride: services.custom,
+      requestTimeoutMs: 30_000,
+    });
+    const outcome = request.catch((reason) => reason);
+    await vi.runAllTimersAsync();
+    await expect(outcome).resolves.toMatchObject({kind: 'rate-limit', statusCode: 429});
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('classifies a rejected browser fetch for the outer network-only fallback', async () => {

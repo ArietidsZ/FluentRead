@@ -8,6 +8,7 @@ import {resolveConfiguredModel, services, servicesType} from '@/src/core/config/
 import {styles} from '@/src/core/config/constants';
 import {parseTranslationSlots, serializeTranslationSlots} from '@/src/core/translation/public';
 import {config} from '@/src/services/config/store';
+import {normalizeMaxConcurrentTranslations} from '@/src/core/config/scheduling';
 import {translateText, translateTextBatch, type TranslateOptions} from '@/src/app/translation/client';
 import {
     cancelTranslationQueueSession,
@@ -123,7 +124,10 @@ async function translateSlotsIndividually(
     throwIfAborted(signal);
     const translations = new Array<string>(origins.length);
     let nextIndex = 0;
-    const workerCount = Math.min(3, origins.length);
+    const workerCount = Math.min(
+        normalizeMaxConcurrentTranslations(config.maxConcurrentTranslations),
+        origins.length,
+    );
     let failed = false;
     let firstError: unknown;
     let hasFirstError = false;

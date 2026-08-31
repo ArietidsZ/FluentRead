@@ -12,6 +12,9 @@ const mocks = vi.hoisted(() => ({
   config: {
     count: 0,
     maxConcurrentTranslations: 6,
+    translationMaxRetries: 3,
+    translationBackoffBaseMs: 1000,
+    translationBackoffMaxMs: 30000,
     model: {mock: 'mock-model', 'mock-ai': 'mock-ai-model'} as Record<string, string>,
     customModel: {mock: '', 'mock-ai': ''} as Record<string, string>,
     service: 'mock',
@@ -62,6 +65,10 @@ function deferred<T>() {
   return {promise, resolve, reject};
 }
 
+async function flushMicrotasks(times = 8): Promise<void> {
+  for (let index = 0; index < times; index += 1) await Promise.resolve();
+}
+
 describe('translation API request lifecycle performance', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -71,6 +78,9 @@ describe('translation API request lifecycle performance', () => {
     mocks.getMissingCredentialMessage.mockReset().mockReturnValue(null);
     mocks.config.count = 0;
     mocks.config.maxConcurrentTranslations = 6;
+    mocks.config.translationMaxRetries = 3;
+    mocks.config.translationBackoffBaseMs = 1000;
+    mocks.config.translationBackoffMaxMs = 30000;
     mocks.config.enableAIContext = false;
     mocks.config.service = 'mock';
     mocks.config.videoService = 'mock';
@@ -327,7 +337,7 @@ describe('translation API request lifecycle performance', () => {
       .mockResolvedValueOnce('网络恢复后的译文');
 
     const request = translateText('Readable source', 'Context', {retryDelay: 100});
-    await vi.advanceTimersByTimeAsync(200);
+    await vi.advanceTimersByTimeAsync(300);
     await expect(request).resolves.toBe('网络恢复后的译文');
     expect(mocks.sendMessage).toHaveBeenCalledTimes(3);
 
@@ -343,6 +353,54 @@ describe('translation API request lifecycle performance', () => {
     await expect(translateText('Another readable source', 'Context', {retryDelay: 100}))
       .rejects.toMatchObject({kind: 'rate-limit', statusCode: 429});
     expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('读取任务调度设置，按指数退避并在上限处封顶', async () => {
+    mocks.config.translationMaxRetries = 2;
+    mocks.config.translationBackoffBaseMs = 600;
+    mocks.config.translationBackoffMaxMs = 1000;
+    mocks.sendMessage
+      .mockRejectedValueOnce(new Error('temporary failure'))
+      .mockRejectedValueOnce(new Error('temporary failure'))
+      .mockResolvedValueOnce('退避后的译文');
+
+    const request = translateText('Backoff source', 'Context');
+    await flushMicrotasks();
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(599);
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await flushMicrotasks();
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(999);
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(request).resolves.toBe('退避后的译文');
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(3);
+  });
+
+  it('尊重服务端 Retry-After，不被本地退避上限缩短', async () => {
+    mocks.config.translationMaxRetries = 1;
+    mocks.config.translationBackoffBaseMs = 100;
+    mocks.config.translationBackoffMaxMs = 200;
+    mocks.sendMessage
+      .mockResolvedValueOnce({
+        marker: 'fluentread-translation-error-v1',
+        message: '请求频率超限',
+        kind: 'rate-limit',
+        retryable: true,
+        retryAfterMs: 500,
+      })
+      .mockResolvedValueOnce('Retry-After 后的译文');
+
+    const request = translateText('Retry-After source', 'Context');
+    await flushMicrotasks();
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(499);
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(request).resolves.toBe('Retry-After 后的译文');
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
   });
 
   it('扩展上下文失效时立即失败，不进入无效的传输重试', async () => {

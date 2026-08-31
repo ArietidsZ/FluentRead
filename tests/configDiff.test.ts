@@ -68,6 +68,30 @@ describe('配置差异预览', () => {
         });
     });
 
+    it('把任务调度的不限速和退避参数格式化为可读差异', () => {
+        const result = buildConfigDiff({
+            translationRequestsPerSecond: 0,
+            translationRequestsPerMinute: 2,
+            translationMaxRetries: 0,
+            translationBackoffBaseMs: 1000,
+            translationBackoffMaxMs: 30000,
+        }, {
+            translationRequestsPerSecond: 4,
+            translationRequestsPerMinute: 0,
+            translationMaxRetries: 3,
+            translationBackoffBaseMs: 2000,
+            translationBackoffMaxMs: 60000,
+        });
+
+        expect(group(result, 'advanced')?.changes).toEqual(expect.arrayContaining([
+            {key: 'translationRequestsPerSecond', label: '每秒最多请求数', before: '不限速', after: '4 次'},
+            {key: 'translationRequestsPerMinute', label: '每分钟最多请求数', before: '2 次', after: '不限速'},
+            {key: 'translationMaxRetries', label: '失败后最多重试', before: '0 次', after: '3 次'},
+            {key: 'translationBackoffBaseMs', label: '退避初始间隔', before: '1000 ms', after: '2000 ms'},
+            {key: 'translationBackoffMaxMs', label: '退避最大间隔', before: '30000 ms', after: '60000 ms'},
+        ]));
+    });
+
     it('展开服务对象映射，只报告真正变化的服务项且忽略对象键顺序', () => {
         const unchanged = buildConfigDiff(
             {model: {openai: 'gpt-5', deepseek: 'deepseek-chat'}},

@@ -128,7 +128,7 @@ const COMPLEXITY_DEBT_CEILINGS: Record<string, number> = {
     'src/app/content/hotkeyRuntime.ts': 208,
     'src/app/content/messageRuntime.ts': 169,
     'src/app/content/runtime.ts': 269,
-    'src/features/settings/ui/SettingsSections.vue': 1458,
+    'src/features/settings/ui/SettingsSections.vue': 1558,
     'src/features/full-page-translation/content/runtime.ts': 2164,
     'src/features/video-subtitle/content/runtime.ts': 1887,
 };
