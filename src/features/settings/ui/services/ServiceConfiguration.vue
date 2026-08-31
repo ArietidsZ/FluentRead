@@ -9,6 +9,7 @@
     class="settings-section service-connection-section"
     :data-service-configuration-service="service"
     :data-custom-service-configuration="compute.showCustomOpenAI ? 'true' : 'false'"
+    :data-ai-advanced-settings="compute.showAI ? 'true' : 'false'"
   >
     <div class="subsection-heading">
       <div>
@@ -225,49 +226,32 @@
       <el-col :span="12"><el-input v-model="config.newApiUrl" placeholder="请输入您的New API接口地址" /></el-col>
     </el-row>
 
-    <details v-if="compute.showCustomOpenAI" class="custom-advanced-settings" data-testid="custom-service-advanced">
+    <details v-if="compute.showAI" class="custom-advanced-settings" data-testid="custom-service-advanced">
       <summary>
         <span><strong>高级设置</strong><small>代理、提示词和自定义请求体</small></span>
         <b aria-hidden="true">⌄</b>
       </summary>
 
       <div class="custom-advanced-content">
-        <el-row class="margin-bottom margin-left-2em">
-          <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="可选的代理地址；填写后，自定义接口请求会优先发送到这里。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">代理地址<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
+        <el-row v-if="compute.showProxy" class="margin-bottom margin-left-2em">
+          <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="可选的代理地址；填写后，当前 AI 服务请求会优先发送到这里。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">代理地址<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
           <el-col :span="12"><el-input v-model="config.proxy[service]" placeholder="默认直连自定义接口" /></el-col>
         </el-row>
 
         <div class="custom-template-heading">
           <div>
             <strong>请求模板</strong>
-            <small>按 OpenAI Chat Completions 格式发送；修改会保存到当前自定义服务。</small>
+            <small>修改会自动保存到当前 AI 服务；可用变量可以一键插入。</small>
           </div>
           <el-button type="primary" link size="small" @click="resetCustomTemplate">恢复默认模板</el-button>
         </div>
 
-        <el-row class="settings-control-row">
-          <el-col :span="8" class="settings-control-label lightblue rounded-corner">
-            <el-tooltip effect="dark" content="以 system 身份发送的对话内容。" placement="top-start" :show-after="300">
-              <span class="popup-text popup-vertical-left">system<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-            </el-tooltip>
-          </el-col>
-          <el-col :span="16" class="settings-control-field">
-            <el-input v-model="config.system_role[service]" type="textarea" maxlength="8192" placeholder="system message" />
-          </el-col>
-        </el-row>
+        <div class="prompt-template-list" data-testid="prompt-template-list">
+          <PromptTemplateEditor v-model="config.system_role[service]" role="system" />
+          <PromptTemplateEditor v-model="config.user_role[service]" role="user" />
+        </div>
 
-        <el-row class="settings-control-row">
-          <el-col :span="8" class="settings-control-label lightblue rounded-corner">
-            <el-tooltip effect="dark" content="以 user 身份发送的对话模板；{{to}} 表示目标语言，{{origin}} 表示待翻译文本。" placement="top-start" :show-after="300">
-              <span class="popup-text popup-vertical-left">user<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-            </el-tooltip>
-          </el-col>
-          <el-col :span="16" class="settings-control-field">
-            <el-input v-model="config.user_role[service]" type="textarea" maxlength="8192" placeholder="user message template" />
-          </el-col>
-        </el-row>
-
-        <el-row class="margin-bottom margin-left-2em">
+        <el-row v-if="compute.showCustomBody" class="margin-bottom margin-left-2em">
           <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="填写要合并到翻译请求中的 JSON 参数对象。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">自定义请求体<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
           <el-col :span="12">
             <el-input v-model="config.customBody[service]" :class="{ 'input-error': !isValidCustomBody(config.customBody[service]) }" placeholder='例如：{"thinking": {"type": "disabled"}}' />
@@ -311,6 +295,7 @@ import browser from 'webextension-polyfill'
 import { requestConfigSave, waitForConfigPersistenceQueue } from '@/src/services/config/store'
 import { CONNECTION_TEST_MESSAGE, getMimoEndpoint, MINIMAX_ENDPOINTS } from '@/src/core/config/constants'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import PromptTemplateEditor from './PromptTemplateEditor.vue'
 
 const props = defineProps<{
   config: Config
@@ -434,7 +419,7 @@ async function testConnection(): Promise<void> {
 
 function resetCustomTemplate(): void {
   void ElMessageBox.confirm(
-    '确定要恢复自定义接口的默认 system 和 user 模板吗？此操作会覆盖当前模板。',
+    '确定要恢复当前 AI 服务的默认 system 和 user 模板吗？此操作会覆盖当前模板。',
     '恢复默认模板',
     {
       confirmButtonText: '确定',
@@ -444,7 +429,7 @@ function resetCustomTemplate(): void {
   ).then(() => {
     config.value.system_role[service.value] = defaultOption.system_role
     config.value.user_role[service.value] = defaultOption.user_role
-    ElMessage.success('已恢复自定义接口默认模板')
+    ElMessage.success('已恢复当前 AI 服务默认模板')
   }).catch(() => {
     // 用户取消操作，不做任何处理。
   })
@@ -583,6 +568,12 @@ watch(service, resetConnectionTest)
   color: #9098a8;
   font-size: 11px;
   line-height: 1.5;
+}
+
+.prompt-template-list {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .connection-test-button {

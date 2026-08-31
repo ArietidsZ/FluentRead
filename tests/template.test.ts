@@ -413,6 +413,16 @@ describe('模板默认值与协议分支', () => {
         expect(JSON.parse(tongyiMsgTemplate('hello')).messages[0].content).toBeTruthy();
     });
 
+    it('仅 user 模板会替换所有动态变量，并保留原文中的美元字符', () => {
+        mockConfig.system_role.openai = 'Translate {{origin}} into {{to}}; target={{to}}';
+        mockConfig.user_role.openai = 'Source={{origin}}; language={{to}}; again={{origin}}';
+
+        const body = JSON.parse(commonMsgTemplate('hello $&', undefined, undefined, undefined, undefined, 'ja'));
+
+        expect(body.messages[0].content).toBe('Translate {{origin}} into {{to}}; target={{to}}');
+        expect(body.messages[1].content).toBe('Source=hello $&; language=ja; again=hello $&');
+    });
+
     it.each([
         ['zh-Hans', 'zh'],
         ['ja', 'ja'],
