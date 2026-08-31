@@ -104,6 +104,10 @@ export interface TranslationConfigSnapshot {
     user_role: Record<string, string>;
     deepseekApiType: string;
     deepseekThinkingMode: string;
+    /** 请求调度策略；provider 适配器只读取重试次数，其余字段由调度边界消费。 */
+    translationMaxRetries?: number;
+    translationBackoffBaseMs?: number;
+    translationBackoffMaxMs?: number;
 }
 
 export interface TranslationProviderConfigFields {

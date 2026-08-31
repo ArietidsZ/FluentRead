@@ -16,6 +16,11 @@ import {getMissingCredentialMessage} from '@/src/core/config/validation';
 import {isTrustedCredentialStorageContext} from '@/src/platform/storage/credentialContext';
 import {config, requestConfigCountIncrement} from '@/src/services/config/store';
 import {createConfigCountPersistenceQueue} from '@/src/services/config/count';
+import {
+  normalizeTranslationBackoffBaseMs,
+  normalizeTranslationBackoffMaxMs,
+  normalizeTranslationMaxRetries,
+} from '@/src/core/config/scheduling';
 import {getTranslationLanguages} from '@/src/services/translation/languages';
 import {getPageTranslationContext} from '@/src/services/translation/context';
 import {
@@ -103,6 +108,61 @@ function waitForDelay(delay: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+interface TranslationRetryPolicy {
+  maxRetries: number;
+  baseDelayMs: number;
+  maxDelayMs: number;
+  explicitRetryPolicy: boolean;
+}
+
+function normalizeExplicitRetryDelay(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+    ? Math.floor(value)
+    : fallback;
+}
+
+function getTranslationRetryPolicy(options: TranslateOptions): TranslationRetryPolicy {
+  const configuredMaxRetries = normalizeTranslationMaxRetries(config.translationMaxRetries);
+  const maxRetries = options.maxRetries !== undefined
+    ? normalizeTranslationMaxRetries(options.maxRetries)
+    : configuredMaxRetries;
+  const baseDelayMs = options.retryDelay !== undefined
+    ? normalizeExplicitRetryDelay(options.retryDelay, 1000)
+    : normalizeTranslationBackoffBaseMs(config.translationBackoffBaseMs);
+  const configuredMaxDelayMs = normalizeTranslationBackoffMaxMs(config.translationBackoffMaxMs);
+  const maxDelayMs = options.retryMaxDelay !== undefined
+    ? Math.max(baseDelayMs, normalizeExplicitRetryDelay(options.retryMaxDelay, baseDelayMs))
+    : Math.max(baseDelayMs, configuredMaxDelayMs);
+
+  // AI SDK 已在 provider 内部处理 HTTP 429/5xx；不显式覆盖 maxRetries 时仍沿用
+  // 其外围只对浏览器网络失败做额外兜底的判定，调用方显式传值才会改变该边界。
+  return {
+    maxRetries,
+    baseDelayMs,
+    maxDelayMs,
+    explicitRetryPolicy: options.maxRetries !== undefined,
+  };
+}
+
+function getTranslationRetryDelay(
+  error: unknown,
+  retryCount: number,
+  policy: TranslationRetryPolicy,
+): number {
+  const exponentialDelay = Math.min(
+    policy.maxDelayMs,
+    policy.baseDelayMs * (2 ** Math.min(retryCount, 30)),
+  );
+  const retryAfterMs = error instanceof TranslationRequestError
+    && typeof error.retryAfterMs === 'number'
+    && Number.isFinite(error.retryAfterMs)
+    && error.retryAfterMs >= 0
+    ? error.retryAfterMs
+    : 0;
+  // 服务端 Retry-After 是明确的节流信号，不能被本地上限缩短。
+  return Math.max(exponentialDelay, retryAfterMs);
+}
+
 function waitForRequest<T>(
   request: PromiseLike<T>,
   timeout: number,
@@ -184,7 +244,6 @@ export async function translateText(origin: string, context: string = document.t
   );
   const selectedLanguages = getTranslationLanguages(options);
   const {
-    retryDelay = 1000,
     timeout = 45000,
     useCache = config.useCache,
     skipLanguageDetection = false,
@@ -192,10 +251,9 @@ export async function translateText(origin: string, context: string = document.t
     queueSession,
   } = options;
   const aiSdkService = servicesType.isAiSdk(selectedService);
-  const explicitRetryPolicy = options.maxRetries !== undefined;
+  const retryPolicy = getTranslationRetryPolicy(options);
   // AI SDK 服务自行负责协议感知的 HTTP 重试（429/5xx）。尚未迁移的适配器继续使用
-  // 旧外层重试循环；浏览器层 fetch 被拒绝时额外保留两次兜底尝试。
-  const maxRetries = options.maxRetries ?? (aiSdkService ? 2 : 3);
+  // 外层重试循环；重试次数和退避间隔由任务调度设置控制。
   throwIfAborted(signal);
   // 检查 origin 是否为空或只有空白字符
   const cleanedOrigin = origin?.replace(/[\s\u3000]/g, '') || '';
@@ -252,13 +310,13 @@ export async function translateText(origin: string, context: string = document.t
       } catch (error) {
         if (isAbortError(error)) throw error;
         // 处理错误，根据重试策略决定是否重试
-        if (retryCount < maxRetries && shouldRetryTranslationRequest(error, aiSdkService, explicitRetryPolicy)) {
+        if (retryCount < retryPolicy.maxRetries
+          && shouldRetryTranslationRequest(error, aiSdkService, retryPolicy.explicitRetryPolicy)) {
           if (isDev) {
-            console.log(`[翻译API] 翻译失败，${retryCount + 1}/${maxRetries} 次重试`);
+            console.log(`[翻译API] 翻译失败，${retryCount + 1}/${retryPolicy.maxRetries} 次重试`);
           }
 
-          // 等待一段时间后重试
-          await waitForDelay(retryDelay, signal);
+          await waitForDelay(getTranslationRetryDelay(error, retryCount, retryPolicy), signal);
           return translationTask(retryCount + 1);
         }
 
@@ -292,7 +350,6 @@ export async function translateTextBatch(
   );
   const selectedLanguages = getTranslationLanguages(options);
   const {
-    retryDelay = 1000,
     timeout = 45000,
     useCache = config.useCache,
     signal,
@@ -300,8 +357,7 @@ export async function translateTextBatch(
   } = options;
   assertTranslationCredentials(selectedService, selectedModel);
   const aiSdkService = servicesType.isAiSdk(selectedService);
-  const explicitRetryPolicy = options.maxRetries !== undefined;
-  const maxRetries = options.maxRetries ?? (aiSdkService ? 2 : 3);
+  const retryPolicy = getTranslationRetryPolicy(options);
   throwIfAborted(signal);
   const pageContext = await resolvePageContext(
     options.pageContext,
@@ -345,8 +401,9 @@ export async function translateTextBatch(
         return result as string[];
       } catch (error) {
         if (isAbortError(error)) throw error;
-        if (retryCount < maxRetries && shouldRetryTranslationRequest(error, aiSdkService, explicitRetryPolicy)) {
-          await waitForDelay(retryDelay, signal);
+        if (retryCount < retryPolicy.maxRetries
+          && shouldRetryTranslationRequest(error, aiSdkService, retryPolicy.explicitRetryPolicy)) {
+          await waitForDelay(getTranslationRetryDelay(error, retryCount, retryPolicy), signal);
           return translationTask(retryCount + 1);
         }
         throw error;
@@ -372,20 +429,34 @@ export async function translateVideoText(origin: string): Promise<string> {
   const languages = getTranslationLanguages();
   const useCache = config.useCache;
   const pageContext = await resolvePageContext(undefined, service, model);
+  const aiSdkService = servicesType.isAiSdk(service);
+  const retryPolicy = getTranslationRetryPolicy({});
 
   const result = await enqueueTranslation(async (lease) => {
-    const response = await waitForRequest(browser.runtime.sendMessage({
-        context: `YouTube 视频字幕：${typeof document === 'undefined' ? '' : document.title}`,
-        pageContext,
-        origin,
-        useCache,
-        serviceOverride: service,
-        modelOverride: model,
-        sourceLanguage: languages.sourceLanguage,
-        targetLanguage: languages.targetLanguage,
-        requestTimeoutMs: 19_000,
-      }), 20_000, undefined, lease);
-    return unwrapTranslationResponse<string>(response);
+    const translationTask = async (retryCount = 0): Promise<string> => {
+      try {
+        const response = await waitForRequest(browser.runtime.sendMessage({
+          context: `YouTube 视频字幕：${typeof document === 'undefined' ? '' : document.title}`,
+          pageContext,
+          origin,
+          useCache,
+          serviceOverride: service,
+          modelOverride: model,
+          sourceLanguage: languages.sourceLanguage,
+          targetLanguage: languages.targetLanguage,
+          requestTimeoutMs: 19_000,
+        }), 20_000, undefined, lease);
+        return unwrapTranslationResponse<string>(response);
+      } catch (error) {
+        if (retryCount < retryPolicy.maxRetries
+          && shouldRetryTranslationRequest(error, aiSdkService, retryPolicy.explicitRetryPolicy)) {
+          await waitForDelay(getTranslationRetryDelay(error, retryCount, retryPolicy));
+          return translationTask(retryCount + 1);
+        }
+        throw error;
+      }
+    };
+    return translationTask();
   });
   // 视频字幕是高频短文本；成功后才记账，并合并为低频写入。
   scheduleVideoCountSave();
@@ -410,8 +481,10 @@ export function cancelAllTranslations() {
 export interface TranslateOptions {
   /** 最大重试次数 */
   maxRetries?: number;
-  /** 重试间隔(毫秒) */
+  /** 重试退避初始间隔(毫秒) */
   retryDelay?: number;
+  /** 重试间隔上限(毫秒)；未提供时读取任务调度设置。 */
+  retryMaxDelay?: number;
   /** 超时时间(毫秒) */
   timeout?: number;
   /** 是否使用缓存 */

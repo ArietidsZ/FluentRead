@@ -98,9 +98,9 @@ export const navigationGroups: NavigationGroup[] = [
     items: [
       {
         id: 'settings-advanced', icon: '◇', label: '高级选项', description: '性能与模板', group: '系统与数据',
-        heading: '高级选项', summary: '管理缓存、并发和动画等低频运行策略。',
-        kicker: '系统与数据', title: '高级选项', detail: '调整缓存、并发和动画；不确定时建议保留默认值。',
-        searchDescription: '缓存、动画、并发、性能、资源占用',
+        heading: '高级选项', summary: '管理缓存、并发、限流、重试和动画等运行策略。',
+        kicker: '系统与数据', title: '高级选项', detail: '调整缓存、并发、限流和重试；不确定时建议保留默认值。',
+        searchDescription: '缓存、动画、并发、限流、重试、性能、资源占用',
       },
       {
         id: 'settings-data', icon: '⇅', label: '备份与恢复', description: '导出备份、恢复数据', group: '系统与数据',

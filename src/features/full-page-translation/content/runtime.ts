@@ -32,6 +32,7 @@ import type {
 import { detectlang } from "@/src/core/language/detect";
 import { config } from "@/src/services/config/store";
 import type { FullPageTranslationMode } from "@/src/core/config/model";
+import {normalizeMaxConcurrentTranslations} from "@/src/core/config/scheduling";
 import {
     cancelTranslationQueueSession,
     createTranslationQueueSession,
@@ -1217,7 +1218,7 @@ function scheduleFullPageDrain(session: FullPageSession): void {
 function drainFullPage(session: FullPageSession): void {
     if (!session.active || session.draining) return;
     session.draining = true;
-    const maxConcurrent = 3;
+    const maxConcurrent = normalizeMaxConcurrentTranslations(config.maxConcurrentTranslations);
 
     while (session.active && session.inFlightCandidates.size < maxConcurrent && session.pending.size > 0) {
         let entry: [Node, TranslationCandidate] | undefined;

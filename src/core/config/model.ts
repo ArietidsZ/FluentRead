@@ -40,6 +40,22 @@ import {
     normalizeAlwaysTranslateDomains,
     normalizeDisabledExtensionDomains,
 } from "@/src/core/site-rules/domain";
+import {
+    DEFAULT_MAX_CONCURRENT_TRANSLATIONS,
+    DEFAULT_TRANSLATION_BACKOFF_BASE_MS,
+    DEFAULT_TRANSLATION_BACKOFF_MAX_MS,
+    DEFAULT_TRANSLATION_MAX_RETRIES,
+    DEFAULT_TRANSLATION_REQUESTS_PER_MINUTE,
+    DEFAULT_TRANSLATION_REQUESTS_PER_SECOND,
+    normalizeMaxConcurrentTranslations,
+    normalizeTranslationBackoffBaseMs,
+    normalizeTranslationBackoffMaxMs,
+    normalizeTranslationMaxRetries,
+    normalizeTranslationRequestsPerMinute,
+    normalizeTranslationRequestsPerSecond,
+} from './scheduling';
+
+export * from './scheduling';
 
 export type DeepSeekApiType = 'auto' | 'responses' | 'chat';
 export type DeepSeekThinkingMode = 'enabled' | 'disabled';
@@ -56,9 +72,6 @@ export const DEFAULT_SELECTION_TRANSLATOR_DELAY = 300;
 export const SELECTION_TRANSLATOR_DELAY_MIN = 0;
 export const SELECTION_TRANSLATOR_DELAY_MAX = 2000;
 export const SELECTION_TRANSLATOR_DELAY_STEP = 50;
-export const DEFAULT_MAX_CONCURRENT_TRANSLATIONS = 6;
-export const MIN_CONCURRENT_TRANSLATIONS = 1;
-export const MAX_CONCURRENT_TRANSLATIONS = 100;
 
 export function normalizeVideoSubtitleFontSize(value: unknown): number {
     const number = typeof value === 'number' ? value : Number(value);
@@ -88,15 +101,6 @@ export function normalizeSelectionTranslatorDelay(value: unknown): number {
         SELECTION_TRANSLATOR_DELAY_MAX,
         Math.max(SELECTION_TRANSLATOR_DELAY_MIN, rounded),
     );
-}
-
-export function normalizeMaxConcurrentTranslations(value: unknown): number {
-    return typeof value === 'number'
-        && Number.isSafeInteger(value)
-        && value >= MIN_CONCURRENT_TRANSLATIONS
-        && value <= MAX_CONCURRENT_TRANSLATIONS
-        ? value
-        : DEFAULT_MAX_CONCURRENT_TRANSLATIONS;
 }
 
 interface IMapping {
@@ -174,6 +178,11 @@ export class Config {
     vocabularyBookEnabled: boolean; // 是否启用本地单词本 Beta
     newApiUrl: string; // NewAPI地址
     maxConcurrentTranslations: number; // 最大并发翻译数量
+    translationRequestsPerSecond: number; // 每秒最多启动的翻译请求数，0 表示不限速
+    translationRequestsPerMinute: number; // 每分钟最多启动的翻译请求数，0 表示不限速
+    translationMaxRetries: number; // 单次翻译失败后的最大重试次数
+    translationBackoffBaseMs: number; // 指数退避初始间隔
+    translationBackoffMaxMs: number; // 指数退避最大间隔
     youdaoAppKey: string; // 有道翻译 App Key
     youdaoAppSecret: string; // 有道翻译 App Secret
     tencentSecretId: string; // 腾讯云 Secret ID
@@ -259,6 +268,11 @@ export class Config {
         this.vocabularyBookEnabled = false; // Beta 默认关闭，由用户在单词本页面主动开启
         this.newApiUrl = DEFAULT_NEW_API_URL; // NewAPI 默认地址
         this.maxConcurrentTranslations = DEFAULT_MAX_CONCURRENT_TRANSLATIONS; // 默认最大并发数为6
+        this.translationRequestsPerSecond = DEFAULT_TRANSLATION_REQUESTS_PER_SECOND;
+        this.translationRequestsPerMinute = DEFAULT_TRANSLATION_REQUESTS_PER_MINUTE;
+        this.translationMaxRetries = DEFAULT_TRANSLATION_MAX_RETRIES;
+        this.translationBackoffBaseMs = DEFAULT_TRANSLATION_BACKOFF_BASE_MS;
+        this.translationBackoffMaxMs = DEFAULT_TRANSLATION_BACKOFF_MAX_MS;
         this.youdaoAppKey = ''; // 有道翻译 App Key
         this.youdaoAppSecret = ''; // 有道翻译 App Secret
         this.tencentSecretId = ''; // 腾讯云 Secret ID
@@ -578,6 +592,20 @@ export function normalizeConfig(value: unknown): Config {
         : 0;
     normalized.maxConcurrentTranslations = normalizeMaxConcurrentTranslations(
         source.maxConcurrentTranslations,
+    );
+    normalized.translationRequestsPerSecond = normalizeTranslationRequestsPerSecond(
+        source.translationRequestsPerSecond,
+    );
+    normalized.translationRequestsPerMinute = normalizeTranslationRequestsPerMinute(
+        source.translationRequestsPerMinute,
+    );
+    normalized.translationMaxRetries = normalizeTranslationMaxRetries(source.translationMaxRetries);
+    normalized.translationBackoffBaseMs = normalizeTranslationBackoffBaseMs(
+        source.translationBackoffBaseMs,
+    );
+    normalized.translationBackoffMaxMs = Math.max(
+        normalized.translationBackoffBaseMs,
+        normalizeTranslationBackoffMaxMs(source.translationBackoffMaxMs),
     );
 
     normalized.token = withoutRetiredServiceEntries(normalizeStringMapping(source.token));

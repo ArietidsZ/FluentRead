@@ -16,9 +16,19 @@ import {
 import {parseCustomBody} from '@/src/core/config/customBody';
 import {DEFAULT_DEEPLX_ENDPOINT, getDeepLXEndpoints} from '@/src/core/config/deeplx';
 import {
+    DEFAULT_TRANSLATION_BACKOFF_BASE_MS,
+    DEFAULT_TRANSLATION_BACKOFF_MAX_MS,
+    DEFAULT_TRANSLATION_MAX_RETRIES,
+    DEFAULT_TRANSLATION_REQUESTS_PER_MINUTE,
+    DEFAULT_TRANSLATION_REQUESTS_PER_SECOND,
     DEFAULT_MAX_CONCURRENT_TRANSLATIONS,
     normalizeConfig,
     normalizeMaxConcurrentTranslations,
+    normalizeTranslationBackoffBaseMs,
+    normalizeTranslationBackoffMaxMs,
+    normalizeTranslationMaxRetries,
+    normalizeTranslationRequestsPerMinute,
+    normalizeTranslationRequestsPerSecond,
 } from '@/src/core/config/model';
 import {sanitizeConfigForExport} from '@/src/core/config/transfer';
 import {
@@ -127,6 +137,39 @@ describe('配置领域边界与防御分支', () => {
         expect(normalized).toBe(expected);
         expect(Number.isSafeInteger(normalized)).toBe(true);
         expect(normalizeConfig({maxConcurrentTranslations: value}).maxConcurrentTranslations).toBe(expected);
+    });
+
+    it('任务调度配置保留 0 不限速语义，并限制重试与退避范围', () => {
+        expect(normalizeTranslationRequestsPerSecond(undefined)).toBe(DEFAULT_TRANSLATION_REQUESTS_PER_SECOND);
+        expect(normalizeTranslationRequestsPerSecond(-1)).toBe(0);
+        expect(normalizeTranslationRequestsPerSecond(2_000)).toBe(1_000);
+        expect(normalizeTranslationRequestsPerMinute('10')).toBe(DEFAULT_TRANSLATION_REQUESTS_PER_MINUTE);
+        expect(normalizeTranslationRequestsPerMinute(20_000)).toBe(10_000);
+        expect(normalizeTranslationMaxRetries(-1)).toBe(0);
+        expect(normalizeTranslationMaxRetries(99)).toBe(10);
+        expect(normalizeTranslationBackoffBaseMs(1)).toBe(100);
+        expect(normalizeTranslationBackoffBaseMs(99_999)).toBe(60_000);
+        expect(normalizeTranslationBackoffMaxMs(1)).toBe(1_000);
+        expect(normalizeTranslationBackoffMaxMs(999_999)).toBe(300_000);
+
+        expect(normalizeConfig({
+            translationRequestsPerSecond: 4,
+            translationRequestsPerMinute: 120,
+            translationMaxRetries: 5,
+            translationBackoffBaseMs: 400,
+            translationBackoffMaxMs: 8_000,
+        })).toMatchObject({
+            translationRequestsPerSecond: 4,
+            translationRequestsPerMinute: 120,
+            translationMaxRetries: 5,
+            translationBackoffBaseMs: 400,
+            translationBackoffMaxMs: 8_000,
+        });
+        expect(normalizeConfig({translationBackoffBaseMs: 60_000, translationBackoffMaxMs: 1})
+            .translationBackoffMaxMs).toBe(60_000);
+        expect(normalizeConfig({}).translationBackoffBaseMs).toBe(DEFAULT_TRANSLATION_BACKOFF_BASE_MS);
+        expect(normalizeConfig({}).translationBackoffMaxMs).toBe(DEFAULT_TRANSLATION_BACKOFF_MAX_MS);
+        expect(normalizeConfig({}).translationMaxRetries).toBe(DEFAULT_TRANSLATION_MAX_RETRIES);
     });
 
     it('导出拒绝非对象，凭据提示覆盖未知服务和可选字段短路', () => {

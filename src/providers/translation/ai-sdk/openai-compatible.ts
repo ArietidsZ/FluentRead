@@ -25,6 +25,7 @@ import {
 } from '@/src/services/translation/requestSnapshot';
 import type {TranslationProviderConfigSnapshot} from '@/src/services/translation/types';
 import {normalizeOpenAICompatibleUsage} from '../usage';
+import {normalizeTranslationMaxRetries} from '@/src/core/config/scheduling';
 
 export const AI_SDK_REQUEST_TIMEOUT_MS = 40_000;
 export const AI_SDK_MAX_RETRIES = 2;
@@ -293,7 +294,9 @@ async function translateSingle(
       // 可避免 ModelMessage schema 提前拒绝 developer role 或 image_url 内容等有效的
       // OpenAI 扩展格式。
       prompt: 'FluentRead OpenAI-compatible request',
-      maxRetries: AI_SDK_MAX_RETRIES,
+      maxRetries: current.translationMaxRetries === undefined
+        ? AI_SDK_MAX_RETRIES
+        : normalizeTranslationMaxRetries(current.translationMaxRetries),
       abortSignal: abortContext.signal,
     });
     const text = contentPostHandler(result.text || '');
