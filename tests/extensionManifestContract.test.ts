@@ -18,6 +18,16 @@ function permissionsFor(browser: string, manifestVersion: 2 | 3): string[] {
 }
 
 describe('extension manifest capability contract', () => {
+    it('declares the literal all-URLs host permission required by captureVisibleTab', () => {
+        for (const [browser, manifestVersion] of [
+            ['chrome', 3],
+            ['edge', 3],
+        ] as const) {
+            const manifest = createExtensionManifest({browser, manifestVersion} as Parameters<typeof createExtensionManifest>[0]);
+            expect(manifest.host_permissions, `${browser}-mv${manifestVersion}`).toContain('<all_urls>');
+        }
+    });
+
     it('declares Offscreen exactly once only for supported Chrome and Edge MV3 builds', () => {
         for (const [browser, manifestVersion, expected] of [
             ['chrome', 3, 1],
