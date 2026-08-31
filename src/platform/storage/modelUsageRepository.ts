@@ -1,7 +1,7 @@
 /**
  * @file src/platform/storage/modelUsageRepository.ts
  * 文件职责：在扩展后台专属 IndexedDB 中永久保存脱敏的大模型上游调用事件，并提供统计、请求日志、迁移与独立重置能力。
- * 主要内容：定义 FluentReadModelUsage Dexie 数据库、严格事件白名单、稳定游标分页、幂等批量写入、版本化导入导出，以及最近三十日聚合和全历史维度查询。
+ * 主要内容：定义 FluentReadModelUsage Dexie 数据库、严格事件白名单、稳定游标分页、幂等批量写入、最近 1000 条记录保留、版本化导入导出，以及最近三十日聚合和全历史维度查询。
  * 模块边界：本文件只拥有模型用量的本地持久化适配，不采集网页文本、不读取 API Key，也不注册 runtime 消息或渲染设置页面。
  */
 
@@ -13,6 +13,7 @@ import {
 } from '@/src/services/model-usage/aggregation';
 import {
     MODEL_USAGE_SCHEMA_VERSION,
+    MODEL_USAGE_MAX_STORED_EVENTS,
     MODEL_USAGE_REQUEST_MAX_PAGE_SIZE,
     MODEL_USAGE_REQUEST_PAGE_SIZE,
     MODEL_USAGE_TRANSFER_FORMAT,
@@ -340,6 +341,16 @@ export function parseModelUsageTransferDocument(value: unknown): ModelUsageTrans
     };
 }
 
+/** 每次写入后按请求开始时间和事件 id 保留最近记录，避免模型用量库无限增长。 */
+async function pruneStoredModelUsageEvents(
+    events: Table<StoredModelUsageEvent, string>,
+): Promise<void> {
+    const ordered = await events.orderBy('[startedAt+id]').toArray();
+    const overflowCount = ordered.length - MODEL_USAGE_MAX_STORED_EVENTS;
+    if (overflowCount <= 0) return;
+    await events.bulkDelete(ordered.slice(0, overflowCount).map((event) => event.id));
+}
+
 export class ModelUsageRepository {
     private usageGeneration = 0;
 
@@ -382,6 +393,7 @@ export class ModelUsageRepository {
                 if (!sameEvent(stored, event)) throw new Error(`模型用量事件 id 冲突: ${event.id}`);
             });
             if (pending.length > 0) await this.database.events.bulkAdd(pending);
+            await pruneStoredModelUsageEvents(this.database.events);
             return pending.length;
         });
     }

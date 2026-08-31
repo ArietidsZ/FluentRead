@@ -6,7 +6,7 @@ import {
     normalizeStoredModelUsageEvent,
     parseModelUsageTransferDocument,
 } from '@/src/platform/storage/modelUsageRepository';
-import type {ModelUsageEvent} from '@/src/services/model-usage/types';
+import {MODEL_USAGE_MAX_STORED_EVENTS, type ModelUsageEvent} from '@/src/services/model-usage/types';
 
 let databaseSequence = 0;
 const databases: FluentReadModelUsageDatabase[] = [];
@@ -79,6 +79,29 @@ describe('大模型用量 IndexedDB repository', () => {
         expect(JSON.stringify(stored)).not.toContain('private.example');
         expect(JSON.stringify(stored)).not.toContain('sk-sensitive-sentinel');
         await expect(repository.recordMany([])).resolves.toBe(0);
+    });
+
+    it('最多保存按请求时间排序的最近 1000 条事件，并删除更早记录', async () => {
+        const repository = createRepository('retention');
+        const baseline = Array.from({length: MODEL_USAGE_MAX_STORED_EVENTS}, (_, index) => usageEvent({
+            id: `retained-${String(index).padStart(4, '0')}`,
+            startedAt: index,
+        }));
+
+        await expect(repository.recordMany(baseline)).resolves.toBe(MODEL_USAGE_MAX_STORED_EVENTS);
+        await expect(repository.database.events.count()).resolves.toBe(MODEL_USAGE_MAX_STORED_EVENTS);
+
+        await expect(repository.recordMany([
+            usageEvent({id: 'newer-1000', startedAt: MODEL_USAGE_MAX_STORED_EVENTS}),
+            usageEvent({id: 'newer-1001', startedAt: MODEL_USAGE_MAX_STORED_EVENTS + 1}),
+        ])).resolves.toBe(2);
+
+        const stored = await repository.database.events.orderBy('[startedAt+id]').toArray();
+        expect(stored).toHaveLength(MODEL_USAGE_MAX_STORED_EVENTS);
+        expect(stored.slice(0, 2).map((event) => event.id)).toEqual(['retained-0002', 'retained-0003']);
+        expect(stored.at(-1)?.id).toBe('newer-1001');
+        await expect(repository.database.events.get('retained-0000')).resolves.toBeUndefined();
+        await expect(repository.database.events.get('retained-0001')).resolves.toBeUndefined();
     });
 
     it('同批验证失败不留下半批事件，重复 id 的不同内容也不会覆盖旧记录', async () => {
