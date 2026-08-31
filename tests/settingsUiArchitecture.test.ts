@@ -330,6 +330,7 @@ describe('options UI composition architecture', () => {
     const modelPicker = source('src/features/settings/ui/services/ModelPicker.vue')
     const providerDialog = source('src/features/settings/ui/services/CustomOpenAIProviderDialog.vue')
     const serviceConfiguration = source('src/features/settings/ui/services/ServiceConfiguration.vue')
+    const promptEditor = source('src/features/settings/ui/services/PromptTemplateEditor.vue')
 
     expect(catalog).toContain('data-testid="custom-service-add"')
     expect(catalog).toContain('我的服务')
@@ -372,6 +373,15 @@ describe('options UI composition architecture', () => {
     expect(serviceConfiguration).toContain('v-if="compute.showMiniMaxRegion"')
     expect(serviceConfiguration).toContain('width: 100% !important; max-width: none !important;')
     expect(serviceConfiguration).toContain('data-testid="custom-service-advanced"')
+    expect(serviceConfiguration).toContain('v-if="compute.showAI" class="custom-advanced-settings"')
+    expect(serviceConfiguration).toContain('<PromptTemplateEditor v-model="config.system_role[service]" role="system" />')
+    expect(serviceConfiguration).toContain('<PromptTemplateEditor v-model="config.user_role[service]" role="user" />')
+    expect(promptEditor).toContain('data-prompt-token')
+    expect(promptEditor).toContain("{value: '{{to}}', label: '目标语言'}")
+    expect(promptEditor).toContain("{value: '{{origin}}', label: '待翻译原文'}")
+    expect(promptEditor).toContain('v-if="promptTokens.length"')
+    expect(promptEditor).toContain("props.role === 'user'")
+    expect(promptEditor).toContain('@mousedown.prevent')
   })
 
   it('puts service selection, webpage assistance and translated-text display in General', () => {

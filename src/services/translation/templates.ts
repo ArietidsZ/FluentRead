@@ -21,6 +21,13 @@ function currentCustomBody(current: TranslationProviderConfigSnapshot, service =
     return current.customBody?.[service];
 }
 
+// user 模板使用可替换变量；使用替换函数保留原文中的 `$` 等字符，并替换每一次出现。
+function fillPromptTemplate(template: string, origin: string, targetLanguage: string): string {
+    return template
+        .replace(/\{\{to\}\}/gu, () => targetLanguage)
+        .replace(/\{\{origin\}\}/gu, () => origin);
+}
+
 function buildUserPrompt(
     origin: string,
     context: string | undefined,
@@ -32,8 +39,11 @@ function buildUserPrompt(
     const normalizedPrompt = prompt?.trim();
     if (normalizedPrompt) return normalizedPrompt;
 
-    const user = (current.user_role[service] || defaultOption.user_role)
-        .replace('{{to}}', targetLanguage).replace('{{origin}}', origin);
+    const user = fillPromptTemplate(
+        current.user_role[service] || defaultOption.user_role,
+        origin,
+        targetLanguage,
+    );
     const normalizedContext = context?.trim();
     const usesSegmentProtocol = /___FLUENTREAD_[a-z0-9_-]+_\d+_BEGIN___/iu.test(origin)
         && /___FLUENTREAD_[a-z0-9_-]+_\d+_END___/iu.test(origin);
@@ -86,7 +96,7 @@ export function commonMsgTemplate(
     // 删除模型名称中的中文括号及其内容，如"gpt-4（推荐）" -> "gpt-4"
     model = model.replace(/（.*）/g, "");
 
-    let system = systemPrompt?.trim() || current.system_role[service] || defaultOption.system_role;
+    const system = systemPrompt?.trim() || current.system_role[service] || defaultOption.system_role;
     const user = buildUserPrompt(origin, context, prompt, service, targetLanguage, current);
 
     const payload: any = {
@@ -231,7 +241,7 @@ export function claudeMsgTemplate(
     const service = serviceOverride || services.claude;
     const model = currentConfiguredModel(current, service, modelOverride);
 
-    let system = systemPrompt?.trim() || current.system_role[service] || defaultOption.system_role;
+    const system = systemPrompt?.trim() || current.system_role[service] || defaultOption.system_role;
     const user = buildUserPrompt(origin, context, prompt, service, targetLanguage, current);
 
     const payload: any = {
@@ -261,7 +271,7 @@ export function tongyiMsgTemplate(
     const service = serviceOverride || current.service;
     const model = currentConfiguredModel(current, service, modelOverride);
     const normalTemplate = () => {
-        let system = systemPrompt?.trim() || current.system_role[service] || defaultOption.system_role;
+        const system = systemPrompt?.trim() || current.system_role[service] || defaultOption.system_role;
         const user = buildUserPrompt(origin, context, prompt, service, targetLanguage, current);
 
         const payload: any = {
