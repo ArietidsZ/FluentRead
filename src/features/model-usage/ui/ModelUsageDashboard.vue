@@ -65,7 +65,7 @@
     <div class="usage-local-notice">
       <span aria-hidden="true">本机</span>
       <p>
-        统计保存在当前浏览器，只反映 FluentRead 保存的调用记录，不等同于服务商账号的全部历史用量。完整备份与恢复统一在“备份与恢复”中管理。
+        统计保存在当前浏览器，最多保留最近 1,000 条调用记录，超出后删除更早记录；它只反映 FluentRead 保存的调用，不等同于服务商账号的全部历史用量。完整备份与恢复统一在“备份与恢复”中管理。
       </p>
       <small v-if="snapshot">
         {{ recordingStartLabel }} · {{ generatedAtLabel }}
