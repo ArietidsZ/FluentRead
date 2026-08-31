@@ -4,13 +4,13 @@
 
 # 流畅阅读（FluentRead）
 
-### 让每个网页都自然地读起来。
+### 看懂外语网页，不打断阅读。
 
-一款开源浏览器翻译插件，提供网页双语阅读、即时划词翻译和灵活的翻译服务配置。
+一款帮助你在当前页面读懂外语内容的开源浏览器翻译插件。
 
-[![版本](https://img.shields.io/badge/version-0.0.31-6d5dfc?style=flat-square)](https://github.com/Bistutu/FluentRead/releases)
+[![版本](https://img.shields.io/badge/version-0.0.31-6d5dfc?style=flat-square)](https://github.com/FluentRead/FluentRead/releases)
 [![许可证：GPL v3](https://img.shields.io/badge/license-GPL--3.0-22a06b?style=flat-square)](../LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/Bistutu/FluentRead?style=flat-square)](https://github.com/Bistutu/FluentRead)
+[![GitHub stars](https://img.shields.io/github/stars/FluentRead/FluentRead?style=flat-square)](https://github.com/FluentRead/FluentRead)
 
 <br />
 
@@ -19,86 +19,62 @@
 </div>
 
 <p align="center">
-  <img src="./screenshots/translation.png" alt="网页双语翻译效果" width="920" />
+  <img src="./screenshots/translation.webp" alt="网页中原文和译文按段落一起显示" width="920" />
 </p>
 
-流畅阅读把翻译放回阅读流程：可以保留原文与译文对照，只翻译当前需要的句子，也可以不离开当前页面完成全文翻译。你可以选择传统翻译服务、AI 服务或内置的免费回退服务，并按照自己的阅读习惯调整样式与快捷键。
+流畅阅读把翻译放回阅读流程：保留原文和页面结构，只查你需要的句子，或者直接在当前页面完成长文阅读，不必来回切换标签页。
 
 ## 你可以用它做什么
 
-| 读得自然 | 控制得细致 |
+| 读得自然 | 控制得清楚 |
 | --- | --- |
-| **网页双语阅读**：原文与译文同时保留，适合学习、研究和技术阅读。 | **多种翻译服务**：支持微软、谷歌、DeepL、DeepLX、Chrome 内置翻译，以及 OpenAI、DeepSeek、Gemini、Claude、Kimi、Ollama 兼容接口等 AI 服务。 |
-| **全文翻译**：通过悬浮球、右键菜单或自定义快捷键翻译和恢复网页，并可选择按阅读进度或立即翻译当前已加载内容到网页底部；不会自动滚动，后续新增内容仍会继续翻译。 | **自定义模型与接口**：在设置页配置兼容 API、模型、提示词、请求体、代理和密钥。 |
-| **划词翻译**：选中文本后打开聚焦的翻译卡片，支持复制和朗读。 | **隐私控制**：设置和缓存位于扩展私有存储；API 凭据默认仅保留当前会话，云端翻译会把文本发送给所选服务。 |
-| **悬浮与手势触发**：支持鼠标悬停、双击、长按、中键和触屏手势。 | **阅读体验可调**：可以调整译文样式、主题、动画、缓存、并发，以及全文和划词翻译的独立快捷键。 |
+| **网页双语阅读**：原文与译文同时保留，适合新闻、研究、文档和日常阅读。 | **自由选择服务**：可以先用免费翻译，也可以选择微软、谷歌、DeepL、AI 服务或本地 Ollama。 |
+| **全文翻译**：按页面结构翻译文章，随时恢复原文，换语言或服务后还能再次翻译。 | **设置集中明白**：在一个地方调整目标语言、译文样式、主题、网站规则和快捷键。 |
+| **划词翻译**：选中一句话、术语或单词，马上查看聚焦的翻译卡片。 | **隐私边界清楚**：没有账号体系，也没有流畅阅读自己的翻译服务器，翻译请求发往哪里由你选择。 |
+| **支持更多内容**：在支持的场景中翻译图片文字、本地文档和 YouTube 字幕。 | **阅读可以反悔**：译文不会取代原文，恢复后可以重新选择方式。 |
 
-### 还包括
+## 看看它怎么工作
 
-- **免费翻译服务**：内置微软 → DeepLX → 谷歌的回退链；仅在服务报错或返回空结果时进入下一项。
-- **图片翻译（Beta）**：使用本地 OCR 识别图片文字，按需下载语言包，并用可恢复的覆盖层显示译文。
-- **翻译缓存**：按服务、模型、语言对和请求配置复用近期结果。
-- **数据说明**：查看[数据与隐私](https://fluent.thinkstu.com/guide/privacy)，了解各功能发送和保存哪些数据。
-- **跨浏览器支持**：基于 WXT 和 Manifest V3 构建 Chromium 浏览器与 Firefox 版本。
+<figure>
+  <img src="./screenshots/popup.webp" alt="流畅阅读弹窗中的语言、服务和翻译操作" width="400" />
+  <figcaption>弹窗：语言、服务和常用阅读操作集中在手边。</figcaption>
+</figure>
 
-## 截图
+<figure>
+  <img src="./screenshots/settings-general.webp" alt="流畅阅读通用设置页面" width="920" />
+  <figcaption>设置：按自己的习惯调整语言、外观、网站规则和阅读辅助。</figcaption>
+</figure>
 
-### 小巧的日常控制面板
-
-弹窗集中放置常用操作：启用或暂停插件、选择语言和默认服务、打开完整设置，以及清理本地翻译缓存。
-
-<p align="center">
-  <img src="./screenshots/popup.png" alt="流畅阅读弹窗" width="400" />
-</p>
-
-### 能随阅读习惯扩展的设置页
-
-设置页按通用设置、翻译服务与模型、交互与快捷键、图片翻译、高级选项和配置管理分区，保持界面清晰。
-
-<p align="center">
-  <img src="./screenshots/settings-general.png" alt="流畅阅读通用设置页" width="920" />
-</p>
-
-<p align="center">
-  <img src="./screenshots/settings-services.png" alt="流畅阅读翻译服务目录" width="920" />
-</p>
+<figure>
+  <img src="./screenshots/settings-services.webp" alt="流畅阅读翻译服务设置页面" width="920" />
+  <figcaption>翻译服务：需要时选择服务并完成连接设置。</figcaption>
+</figure>
 
 ## 安装
 
-| 浏览器 | 商店 |
+| 浏览器或管理器 | 链接 |
 | --- | --- |
 | Chrome | [Chrome 应用商店](https://chromewebstore.google.com/detail/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/djnlaiohfaaifbibleebjggkghlmcpcj?hl=zh-CN) · [CrxSoso 国内镜像](https://www.crxsoso.com/webstore/detail/djnlaiohfaaifbibleebjggkghlmcpcj) |
 | Edge | [Microsoft Edge 加载项](https://microsoftedge.microsoft.com/addons/detail/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/kakgmllfpjldjhcnkghpplmlbnmcoflp?hl=zh-CN) |
 | Firefox | [Firefox 附加组件](https://addons.mozilla.org/zh-CN/firefox/addon/%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB/) |
-| 油猴脚本 | [Greasy Fork（Tampermonkey / Violentmonkey / Via）](https://greasyfork.org/zh-CN/scripts/482986-%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB) |
+| Tampermonkey / Violentmonkey / Via | [Greasy Fork 油猴脚本](https://greasyfork.org/zh-CN/scripts/482986-%E6%B5%81%E7%95%85%E9%98%85%E8%AF%BB) |
 
-如果需要本地构建，请使用 pnpm 安装依赖，然后把生成的 `./.output/chrome-mv3` 目录作为“已解压的扩展程序”加载。详细配置请查看[官方文档](https://fluent.thinkstu.com/)。
+## 开始阅读
 
-## 文档与社区
+1. 从上面的商店或脚本管理器安装流畅阅读。
+2. 打开一篇普通网页，选择目标语言。
+3. 点击“翻译页面”，或者选中一句话快速翻译。
 
-- [官方文档](https://fluent.thinkstu.com/)：功能、安装、翻译服务、快捷键和常见问题。
-- [GitHub Issues](https://github.com/Bistutu/FluentRead/issues)：反馈问题或提出建议。
+[官方文档](https://fluent.thinkstu.com/)会用简单的说明介绍主要功能、翻译服务、网站规则和隐私边界。
+
+## 隐私
+
+流畅阅读没有账号体系，也没有自己的翻译服务器。使用云端服务时，你要求翻译的文字会发送给对应服务；你也可以选择本地 Ollama，让更多内容留在电脑上。详情请查看[数据与隐私](https://fluent.thinkstu.com/guide/privacy)。
+
+## 帮助
+
+- [常见问题](https://fluent.thinkstu.com/guide/faq)
+- [GitHub Issues](https://github.com/FluentRead/FluentRead/issues)
 - [B站视频介绍](https://www.bilibili.com/video/BV1ux4y1e73x/)
-- [DeepWiki 架构介绍](https://deepwiki.com/Bistutu/FluentRead)
 
-## 开发
-
-```bash
-pnpm install
-pnpm dev
-pnpm test:audit
-pnpm test:unit
-pnpm test:functional
-pnpm test:regression
-pnpm test:coverage
-pnpm compile
-pnpm build
-```
-
-`pnpm test:regression:all` 会执行确定性的一键回归：测试审计、全部分组测试、严格覆盖率、Chrome/Firefox/userscript 构建和文档构建。隔离真实浏览器与真实网络矩阵使用显式安全门禁；贡献功能前请阅读[架构设计](../docs/architecture.md)和[测试说明](../docs/testing.md)。
-
-流畅阅读使用 Vue 3、TypeScript、Element Plus 和 WXT，面向 Chromium Manifest V3 与 Firefox Manifest V2 构建，项目遵循 [GPL-3.0](../LICENSE) 开源许可证。
-
-## Star 历史
-
-[![Star History Chart](https://star-history.dera.page/svg?repos=Bistutu/FluentRead&type=Date)](https://star-history.dera.page/#Bistutu/FluentRead&Date)
+流畅阅读遵循 [GPL-3.0](../LICENSE) 开源许可证。
