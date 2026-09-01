@@ -974,6 +974,109 @@ describe('translation candidate core', () => {
         expect(core.resolve(title)?.element).toBe(title);
     });
 
+    it('keeps GitHub issue-list labels and metadata original while translating titles', () => {
+        const {document, core} = page(`
+            <main>
+                <div class="IssueRow-module__row__fixture">
+                    <li id="issue-row" role="listitem">
+                        <div data-listview-item-title-container="true">
+                            <h3>
+                                <a id="issue-title" data-testid="issue-pr-title-link" href="/Eugeny/tabby/issues/10084">
+                                    right click not working
+                                </a>
+                            </h3>
+                            <span>
+                                <div data-listview-component="trailing-badge">
+                                    <a href="/Eugeny/tabby/issues?q=label%3A%22T%3A%20Bug%22">
+                                        <span class="prc-Token-TokenBase-te5-F prc-Token-IssueLabel-2IazM">
+                                            <span>T: Bug</span>
+                                        </span>
+                                    </a>
+                                </div>
+                            </span>
+                        </div>
+                        <div data-testid="list-row-repo-name-and-number">
+                            <span>#10084 <span class="sr-only">In Eugeny/tabby;</span></span>
+                        </div>
+                        <div data-testid="created-at">
+                            <span>· </span>
+                            <a href="/kikyoulg">kikyoulg</a>
+                            <span> opened </span>
+                            <relative-time>on Dec 6, 2024</relative-time>
+                        </div>
+                    </li>
+                </div>
+            </main>
+        `, 'https://github.com/Eugeny/tabby/issues?q=is%3Aissue%20state%3Aopen%20macos27');
+        const title = document.querySelector('#issue-title')!;
+        const label = document.querySelector('.prc-Token-IssueLabel-2IazM')!;
+        const repoMetadata = document.querySelector('[data-testid="list-row-repo-name-and-number"]')!;
+        const createdAt = document.querySelector('[data-testid="created-at"]')!;
+        const candidates = core.discover(document);
+
+        expect(candidates.find((candidate) => candidate.element === title))
+            .toMatchObject({adapterId: 'github', reason: 'github-issue-or-pr-title'});
+        expect(core.resolve(label.querySelector('span')?.firstChild)).toBeNull();
+        expect(core.resolve(repoMetadata.querySelector('span')?.firstChild)).toBeNull();
+        expect(core.resolve(createdAt.querySelector('a')?.firstChild)).toBeNull();
+        expect(core.shouldStayOriginal(label)).toBe(true);
+        expect(core.shouldStayOriginal(repoMetadata)).toBe(true);
+        expect(core.shouldStayOriginal(createdAt)).toBe(true);
+        expect(core.shouldIgnoreMutation(label)).toBe(true);
+        expect(core.shouldIgnoreMutation(repoMetadata)).toBe(true);
+        expect(core.shouldIgnoreMutation(createdAt)).toBe(true);
+    });
+
+    it('keeps GitHub issue-detail labels and activity metadata original while translating body prose', () => {
+        const {document, core} = page(`
+            <main>
+                <h1>
+                    <bdi id="detail-title" class="markdown-title" data-testid="issue-title">right click not working</bdi>
+                </h1>
+                <div data-testid="issue-body">
+                    <div class="IssueBodyHeader-module__IssueBodyHeaderContainer__fixture">
+                        <a data-testid="issue-body-header-author" href="/kikyoulg">kikyoulg</a>
+                        <span>opened </span>
+                        <a data-testid="issue-body-header-link" href="#issue-10084">
+                            <relative-time>on Dec 6, 2024</relative-time>
+                        </a>
+                    </div>
+                    <div data-testid="issue-body-viewer">
+                        <div class="markdown-body" data-testid="markdown-body">
+                            <p id="issue-body-copy">Paste or menu both not working.</p>
+                        </div>
+                    </div>
+                </div>
+                <div data-testid="sidebar-labels-section">
+                    <h3>Labels</h3>
+                    <div data-testid="issue-labels">
+                        <a href="/Eugeny/tabby/issues?q=label%3A%22T%3A%20Bug%22">
+                            <span class="prc-Token-TokenBase-te5-F prc-Token-IssueLabel-2IazM">
+                                <span>T: Bug</span>
+                            </span>
+                        </a>
+                    </div>
+                </div>
+            </main>
+        `, 'https://github.com/Eugeny/tabby/issues/10084');
+        const title = document.querySelector('#detail-title')!;
+        const body = document.querySelector('#issue-body-copy')!;
+        const activityHeader = document.querySelector('[class*="IssueBodyHeader-module__IssueBodyHeaderContainer"]')!;
+        const labels = document.querySelector('[data-testid="issue-labels"]')!;
+        const candidates = core.discover(document);
+
+        expect(candidates.find((candidate) => candidate.element === title))
+            .toMatchObject({adapterId: 'github'});
+        expect(candidates.find((candidate) => candidate.element === body))
+            .toMatchObject({adapterId: 'github', reason: 'github-markdown-prose'});
+        expect(core.resolve(activityHeader.querySelector('a')?.firstChild)).toBeNull();
+        expect(core.resolve(labels.querySelector('span')?.firstChild)).toBeNull();
+        expect(core.shouldStayOriginal(activityHeader)).toBe(true);
+        expect(core.shouldStayOriginal(labels)).toBe(true);
+        expect(core.shouldIgnoreMutation(activityHeader)).toBe(true);
+        expect(core.shouldIgnoreMutation(labels)).toBe(true);
+    });
+
     it('keeps X usernames out of full and hover translation candidates', () => {
         const {document, core} = page(`
             <main>
