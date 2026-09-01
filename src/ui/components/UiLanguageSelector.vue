@@ -19,7 +19,6 @@
         {{ t(option.labelKey) }}
       </option>
     </select>
-    <small v-if="!compact">{{ t('language.help') }}</small>
     <span v-if="errorMessage" class="ui-language-error" role="status" aria-live="polite">{{ errorMessage }}</span>
   </label>
 </template>

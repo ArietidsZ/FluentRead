@@ -9,12 +9,12 @@
 import type {MessageCatalog} from '../types';
 
 export const zhCNMessages = {
-    'language.selectorLabel': '界面语言 / Language',
+    'language.selectorLabel': '界面语言',
     'language.zhCN': '中文',
     'language.enUS': 'English',
     'language.settingsLabel': '界面语言',
     'language.settingsDescription': '选择 FluentRead popup、设置页、通知和工具使用的界面语言。',
-    'language.help': '切换后立即生效；之后可以随时在这里改回中文或 English。',
+    'language.help': '切换后立即生效。',
     'language.saveFailed': '界面语言保存失败，请重新打开设置页后重试。',
     'language.changed': '界面语言已切换',
     'common.brand': '流畅阅读',

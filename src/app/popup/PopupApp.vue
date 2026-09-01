@@ -18,11 +18,9 @@
         <img src="/icon/128.png" alt="" />
         <div>
           <strong>流畅阅读</strong>
-          <small>FluentRead · V{{ version }}</small>
         </div>
       </div>
       <div class="header-actions">
-        <UiLanguageSelector compact />
         <button class="donation-button" type="button" title="赞赏流畅阅读" aria-label="打开赞赏页" @click="openDonation()">
           <Coffee />
           <span>赞赏</span>
@@ -584,7 +582,6 @@ import { getSiteBaseDomain } from '@/src/core/site-rules/domain';
 import { requestTranslationCacheClear } from './cache';
 import {isBrowserTabId} from '@/src/platform/browser/ids';
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
-import UiLanguageSelector from '@/src/ui/components/UiLanguageSelector.vue';
 import {useUiI18n} from '@/src/ui/i18n';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import {
@@ -595,7 +592,6 @@ import {
 type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'video';
 type SettingsSection = 'settings-general' | 'settings-image-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'));
-const version = process.env.VUE_APP_VERSION;
 const {translateLegacy} = useUiI18n();
 const config = ref(new Config());
 const drawerVisible = ref(false);

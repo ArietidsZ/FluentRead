@@ -9,7 +9,7 @@
     <aside class="sidebar">
       <div class="brand">
         <img src="/icon/128.png" alt="" />
-        <div><strong>流畅阅读</strong><small>FluentRead · V{{ version }}</small></div>
+        <div><strong>流畅阅读</strong></div>
       </div>
 
       <nav ref="navigationElement" :aria-label="t('options.navLabel')">

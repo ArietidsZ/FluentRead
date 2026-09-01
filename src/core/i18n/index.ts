@@ -83,6 +83,7 @@ const legacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) =
     [/^你的请求频率过高，被【(.+)】拒绝了，请稍后再试吧~$/u, (match) => `Your request was rate-limited by ${match[1]}. Try again later.`],
     [/^网络连接失败：(.+)$/u, (match) => `Network connection failed: ${match[1]}`],
     [/^第 (\d+) 条字幕译文$/u, (match) => `Translation for subtitle ${match[1]}`],
+    [/^(\d+) 条网站规则$/u, (match) => `${match[1]} website rules`],
     [/^已选 (\d+) 个服务 · 右侧卡片可拖动排序$/u, (match) => `${match[1]} services selected · drag the cards on the right to reorder`],
     [/^(\d+) 个翻译服务$/u, (match) => `${match[1]} translation services`],
     [/^已翻译 (\d+) 次$/u, (match) => `Translated ${match[1]} times`],
