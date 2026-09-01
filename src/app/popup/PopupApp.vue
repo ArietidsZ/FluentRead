@@ -22,6 +22,7 @@
         </div>
       </div>
       <div class="header-actions">
+        <UiLanguageSelector compact />
         <button class="donation-button" type="button" title="赞赏流畅阅读" aria-label="打开赞赏页" @click="openDonation()">
           <Coffee />
           <span>赞赏</span>
@@ -361,11 +362,12 @@
       modal-class="popup-drawer-modal"
       class="popup-drawer"
     >
-      <div class="drawer-handle" />
-      <header class="drawer-header">
+      <div v-ui-i18n class="drawer-surface">
+        <div class="drawer-handle" />
+        <header class="drawer-header">
         <div><span class="eyebrow">快捷设置</span><h2>{{ drawerTitle }}</h2><p>{{ drawerDescription }}</p></div>
         <button type="button" aria-label="关闭" @click="drawerVisible = false">×</button>
-      </header>
+        </header>
 
       <div v-if="activeDrawer === 'hover'" class="drawer-content">
         <div class="interaction-preview"><span class="cursor">↖</span><span>＋</span><kbd>{{ hoverKey }}</kbd><span>＝</span><strong>即时翻译</strong></div>
@@ -541,7 +543,8 @@
         </label>
       </div>
 
-      <button class="drawer-settings-link" type="button" @click="openOptions(drawerSettingsSection[activeDrawer])">在完整设置中查看全部选项 ↗</button>
+        <button class="drawer-settings-link" type="button" @click="openOptions(drawerSettingsSection[activeDrawer])">在完整设置中查看全部选项 ↗</button>
+      </div>
     </el-drawer>
 
     <CustomHotkeyInput v-model="showCustomMouseHotkeyDialog" :current-value="config.customHotkey" @confirm="confirmMouseHotkey" @cancel="cancelMouseHotkey" />
@@ -581,6 +584,8 @@ import { getSiteBaseDomain } from '@/src/core/site-rules/domain';
 import { requestTranslationCacheClear } from './cache';
 import {isBrowserTabId} from '@/src/platform/browser/ids';
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
+import UiLanguageSelector from '@/src/ui/components/UiLanguageSelector.vue';
+import {useUiI18n} from '@/src/ui/i18n';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import {
   filterAvailableTranslationServices,
@@ -591,6 +596,7 @@ type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'video';
 type SettingsSection = 'settings-general' | 'settings-image-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'));
 const version = process.env.VUE_APP_VERSION;
+const {translateLegacy} = useUiI18n();
 const config = ref(new Config());
 const drawerVisible = ref(false);
 const activeDrawer = ref<DrawerName>('hover');
@@ -630,7 +636,12 @@ const persistConfigReplace = (value: unknown) => requestConfigSave(value, sendCo
 const allServiceOptions = computed(() => withCustomOpenAIServiceOptions(
   options.services,
   config.value.customOpenAIProviders,
-).filter((item: any) => !item.disabled));
+).filter((item: any) => !item.disabled).map((item: any) => ({
+  ...item,
+  label: translateLegacy(item.label),
+  description: item.description ? translateLegacy(item.description) : item.description,
+  searchTerms: [...(item.searchTerms || []), translateLegacy(item.label)],
+})));
 const serviceOptions = computed(() => filterAvailableTranslationServices(allServiceOptions.value));
 const searchableModels = computed<ReadonlyMap<string, readonly string[]>>(() => {
   const merged = new Map<string, readonly string[]>(models);

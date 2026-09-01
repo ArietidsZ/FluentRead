@@ -35,6 +35,7 @@ import {
   ElInputNumber,
   ElDrawer
 } from 'element-plus'
+import {createUiI18nPlugin} from '@/src/ui/i18n'
 
 const ELEMENT_COMPONENTS = [
   ElRow,
@@ -80,6 +81,7 @@ const ELEMENT_ICONS = {
 /** Popup 的唯一组装入口：注册页面依赖后挂载 Vue 根组件。 */
 export function mountPopupApp(selector: string): void {
   const app = createApp(App)
+  app.use(createUiI18nPlugin({documentRoot: document.body, documentTitleKey: 'metadata.popupTitle'}))
 
   // 步骤 1：只注册 Popup 模板真正使用的 Element Plus 组件和图标。
   for (const component of ELEMENT_COMPONENTS) {

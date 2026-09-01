@@ -221,6 +221,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import browser from 'webextension-polyfill'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
+import {useUiI18n} from '@/src/ui/i18n'
 import {
   filterAvailableTranslationServices,
   isTranslationServiceAvailable,
@@ -264,6 +265,7 @@ const DEFAULT_COMPARISON_SERVICES = ['freeTranslation', 'google', 'openai', 'dee
 const MAX_TEXT_LENGTH = 5000
 
 const sourceText = ref('')
+const {translateLegacy} = useUiI18n()
 const sourceLanguage = ref('auto')
 const targetLanguage = ref('zh-Hans')
 const runCount = ref(0)
@@ -287,7 +289,12 @@ const serviceOptions = computed<ServiceOption[]>(() => filterAvailableTranslatio
   options.services,
   customOpenAIProviders.value,
 ))
-  .filter((item: any) => !item.disabled) as ServiceOption[])
+  .filter((item: any) => !item.disabled)
+  .map((item: any) => ({
+    ...item,
+    label: translateLegacy(item.label),
+    description: item.description ? translateLegacy(item.description) : item.description,
+  })) as ServiceOption[])
 const hiddenUnavailableServices = computed(() => Array.isArray(config.translationCenterServices)
   ? config.translationCenterServices.filter(service => !isTranslationServiceAvailable(service))
   : [])

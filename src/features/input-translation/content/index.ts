@@ -6,6 +6,7 @@
  */
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import type { ShadowRootContentScriptUi } from 'wxt/utils/content-script-ui/shadow-root';
+import {normalizeUiLanguage, translateLegacyText} from '@/src/core/i18n';
 import {
     canCommitInputBoxTranslation,
     getDeepActiveElement,
@@ -19,6 +20,7 @@ import {
 
 export interface InputTranslationContentConfig {
     on?: boolean;
+    uiLanguage?: string;
     inputBoxTranslationTrigger: string;
     inputBoxTranslationTarget: string;
     animations?: boolean;
@@ -227,7 +229,10 @@ export function createInputTranslationContentFeature(
                 const tooltip = rootDocument.createElement('div');
                 tooltip.className = `fluent-input-tooltip ${type}`;
                 tooltip.id = 'fluent-input-translation-tooltip';
-                tooltip.textContent = `${getTooltipIcon(type)} ${message}`;
+                tooltip.textContent = `${getTooltipIcon(type)} ${translateLegacyText(
+                    message,
+                    normalizeUiLanguage(deps.config.uiLanguage),
+                )}`;
                 tooltip.style.top = `${rect.bottom + 12}px`;
                 tooltip.style.left = `${rect.left + (rect.width / 2)}px`;
                 tooltip.style.transform = 'translateX(-50%) translateY(3px)';

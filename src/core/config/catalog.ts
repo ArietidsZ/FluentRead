@@ -557,6 +557,7 @@ export const options = {
 
 export const defaultOption = {
     on: true,
+    uiLanguage: "zh-CN" as const,
     from: "auto",
     to: "zh-Hans",
     style: 1,

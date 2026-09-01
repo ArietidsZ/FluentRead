@@ -12,6 +12,7 @@ import {
   createShadowRootUi,
   type ShadowRootContentScriptUi,
 } from 'wxt/utils/content-script-ui/shadow-root';
+import {createUiI18nPlugin} from '@/src/ui/i18n';
 
 export interface VueShadowMount {
   app: VueApp;
@@ -77,6 +78,7 @@ export async function createVueShadowUi(
     css: SHADOW_FOUNDATION,
     onMount(container) {
       const app = createApp(options.component, options.props ?? {});
+      app.use(createUiI18nPlugin());
       const instance = app.mount(container);
       return { app, instance };
     },

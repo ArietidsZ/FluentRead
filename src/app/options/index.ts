@@ -42,6 +42,7 @@ import {
 import OptionsApp from './OptionsApp.vue'
 import 'element-plus/dist/index.css'
 import '@/src/features/settings/ui/settings-page.css'
+import {createUiI18nPlugin} from '@/src/ui/i18n'
 
 const ELEMENT_COMPONENTS: Component[] = [
   ElButton,
@@ -82,6 +83,7 @@ const ELEMENT_ICONS: Record<string, Component> = {
 /** options 的唯一组装入口：注册页面依赖后挂载 Vue 根组件。 */
 export function mountOptionsApp(selector: string): void {
   const app = createApp(OptionsApp)
+  app.use(createUiI18nPlugin({documentRoot: document.body, documentTitleKey: 'metadata.optionsTitle'}))
 
   for (const component of ELEMENT_COMPONENTS) {
     if (component.name) app.component(component.name, component)

@@ -21,6 +21,7 @@
       </span>
       <div class="header-actions">
         <span class="privacy-note"><i /> 文件只在当前浏览器中处理</span>
+        <UiLanguageSelector compact />
         <button class="ghost-button" type="button" @click="openSettings">翻译设置 ↗</button>
       </div>
     </header>
@@ -425,6 +426,8 @@ import {
   subscribeConfig,
   translateDocumentSegments,
   withCustomOpenAIServiceOptions,
+  UiLanguageSelector,
+  useUiI18n,
   type DocumentRenderMode,
   type ParsedDocument,
 } from '@/src/app/document-translation';
@@ -466,6 +469,7 @@ function mergeChangedDocumentModelMapping(
 }
 
 const config = reactive(new Config());
+const {translateLegacy} = useUiI18n();
 const fileInput = ref<HTMLInputElement | null>(null);
 const parsedDocument = ref<ParsedDocument | null>(null);
 const translatedSegments = ref<string[]>([]);
@@ -511,7 +515,11 @@ const formatCards = [
 const serviceOptions = computed(() => filterAvailableTranslationServices(withCustomOpenAIServiceOptions(
   options.services,
   config.customOpenAIProviders,
-)).filter((item: any) => !item.disabled));
+)).filter((item: any) => !item.disabled).map((item: any) => ({
+  ...item,
+  label: translateLegacy(item.label),
+  description: item.description ? translateLegacy(item.description) : item.description,
+})));
 const documentServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.documentService));
 const selectedCustomOpenAIProvider = computed(() => getCustomOpenAIProvider(
   config.customOpenAIProviders,

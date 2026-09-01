@@ -150,6 +150,10 @@ const LANGUAGE_LABELS = labelsFor(options.to, options.inputBoxTranslationTarget,
 const SERVICE_LABELS = labelsFor(options.services);
 const STYLE_LABELS = labelsFor(options.styles);
 const THEME_LABELS = labelsFor(options.theme);
+const UI_LANGUAGE_LABELS = new Map<unknown, string>([
+    ['zh-CN', '中文'],
+    ['en-US', 'English'],
+]);
 const HOVER_TRIGGER_LABELS = labelsFor(options.keys);
 const SELECTION_TRIGGER_LABELS = labelsFor(options.selectionTranslatorTriggers);
 const FLOATING_HOTKEY_LABELS = labelsFor(options.floatingBallHotkeys);
@@ -302,6 +306,7 @@ function apiKeyRequirementMapping(): MappingDefinition {
 
 const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     on: {group: 'general', label: '插件状态', format: formatBoolean},
+    uiLanguage: {group: 'general', label: '界面语言', format: (value) => formatEnum(value, UI_LANGUAGE_LABELS)},
     from: {group: 'general', label: '默认源语言', format: (value) => formatEnum(value, LANGUAGE_LABELS)},
     to: {group: 'general', label: '默认目标语言', format: (value) => formatEnum(value, LANGUAGE_LABELS)},
     theme: {group: 'general', label: '主题', format: (value) => formatEnum(value, THEME_LABELS)},

@@ -121,6 +121,10 @@ describe('YouTube 视频字幕识别', () => {
         expect(getVideoSubtitleDownloadErrorMessage(new Error('YouTube 未返回完整字幕数据，请先打开原生字幕后重试'))).toBe('请先开启 YouTube 字幕');
         expect(getVideoSubtitleDownloadErrorMessage(new Error('字幕轨道请求失败（403）'))).toBe('获取失败，请重试');
         expect(getVideoSubtitleDownloadErrorMessage(new Error('unknown'))).toBe('下载失败，请重试');
+        expect(getVideoSubtitleDownloadErrorMessage(new Error('当前视频没有可用的 YouTube 字幕轨道'), 'en-US')).toBe('This video has no subtitles');
+        expect(getVideoSubtitleDownloadErrorMessage(new Error('YouTube 未返回完整字幕数据，请先打开原生字幕后重试'), 'en-US')).toBe('Enable YouTube captions first');
+        expect(getVideoSubtitleDownloadErrorMessage(new Error('字幕轨道请求失败（403）'), 'en-US')).toBe('Could not fetch subtitles. Try again.');
+        expect(getVideoSubtitleDownloadErrorMessage(new Error('unknown'), 'en-US')).toBe('Download failed. Try again.');
     });
 
     it('下载译文字幕时去重原文、限制并发并保留完整时间轴', async () => {

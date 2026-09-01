@@ -13,6 +13,7 @@
       >
         <el-switch v-model="config.on" class="settings-switch" aria-label="插件状态" @change="handlePluginStateChange" />
       </SettingsItem>
+      <SettingsItem :label="t('settings.general.language')" :description="t('language.settingsDescription')"><UiLanguageSelector compact /></SettingsItem>
       <SettingsItem label="默认目标语言" description="网页、划词和悬停翻译默认翻译成的语言。">
         <el-select v-model="config.to" aria-label="默认目标语言" placeholder="请选择目标语言">
           <el-option v-for="item in options.to" :key="item.value" class="select-left" :label="item.label" :value="item.value" />
@@ -758,6 +759,8 @@ import {ModelUsageDashboard} from '@/src/features/model-usage/public';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
 import SegmentedControl from './components/SegmentedControl.vue';
+import UiLanguageSelector from '@/src/ui/components/UiLanguageSelector.vue';
+import {localizeServiceOptions, useUiI18n} from '@/src/ui/i18n';
 import ConfigManagement from './ConfigManagement.vue';
 import {
   config as runtimeConfig,
@@ -776,6 +779,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   activeSection: 'settings-general',
 })
+const {t, translateLegacy} = useUiI18n();
 
 // 初始化深色模式媒体查询
 const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -882,13 +886,11 @@ const setConfigurationService = (value: string) => {
 
 type ServiceSource = { value: string };
 
-const serviceOptionsWithCustomProviders = computed(() => withCustomOpenAIServiceOptions(
-  options.services,
+const serviceOptionsWithCustomProviders = computed(() => localizeServiceOptions(
+  withCustomOpenAIServiceOptions(options.services, config.value.customOpenAIProviders),
   config.value.customOpenAIProviders,
-).map((option) => {
-  const provider = getCustomOpenAIProvider(config.value.customOpenAIProviders, option.value);
-  return provider ? {...option, searchTerms: [provider.endpoint, ...provider.models]} : option;
-}));
+  translateLegacy,
+));
 const availableServiceOptions = computed(() => filterAvailableTranslationServices(serviceOptionsWithCustomProviders.value));
 const defaultTextServiceLabel = computed(() => (
   serviceOptionsWithCustomProviders.value.find((item: any) => item.value === config.value.service)?.label || config.value.service

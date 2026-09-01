@@ -7,6 +7,7 @@
 import {CONTEXT_MENU_IDS} from '@/src/core/config/constants';
 import {getFullPageContextMenuPresentation} from '@/src/features/site-rules/domain';
 import {config, configReady, subscribeConfig} from '@/src/services/config/store';
+import {getContextMenuTitle, resolveContextMenuLanguage} from './contextMenuUi';
 import {isBrowserTabId, type TabTranslationState, TabTranslationStateStore} from './tabTranslationState';
 
 interface BrowserTabSummary {
@@ -35,6 +36,7 @@ export function installBackgroundContextMenus(
     const isSupported = !!browser.contextMenus;
     let contextMenusReady = false;
     let contextMenuEnabled = true;
+    let contextMenuLanguage = resolveContextMenuLanguage(config.uiLanguage);
     let contextMenuSyncQueue: Promise<void> = Promise.resolve();
 
     const readTabTranslationState = async (tabId: number, force = false): Promise<TabTranslationState> => {
@@ -65,8 +67,9 @@ export function installBackgroundContextMenus(
 
         const state = await readTabTranslationState(tabId, true);
         const presentation = getFullPageContextMenuPresentation(state.isTranslated, state.isSiteDisabled);
+        const localizedPresentation = {...presentation, title: getContextMenuTitle(state.isTranslated, state.isSiteDisabled, contextMenuLanguage)};
         try {
-            await browser.contextMenus.update(CONTEXT_MENU_IDS.TRANSLATE_FULL_PAGE, presentation);
+            await browser.contextMenus.update(CONTEXT_MENU_IDS.TRANSLATE_FULL_PAGE, localizedPresentation);
         } catch (error) {
             console.error('Failed to update context menu:', error);
         }
@@ -84,7 +87,7 @@ export function installBackgroundContextMenus(
 
                 await browser.contextMenus.create({
                     id: CONTEXT_MENU_IDS.TRANSLATE_FULL_PAGE,
-                    title: '流畅阅读翻译',
+                    title: getContextMenuTitle(false, false, contextMenuLanguage),
                     contexts: ['page', 'selection'],
                 });
                 if (requestedEnabled !== contextMenuEnabled) {
@@ -109,10 +112,13 @@ export function installBackgroundContextMenus(
     } else {
         void configReady.then(() => {
             contextMenuEnabled = config.contextMenuEnabled !== false;
+            contextMenuLanguage = resolveContextMenuLanguage(config.uiLanguage);
             void sync();
             subscribeConfig((nextConfig) => {
                 const nextEnabled = nextConfig.contextMenuEnabled !== false;
-                if (nextEnabled === contextMenuEnabled) return;
+                const nextLanguage = resolveContextMenuLanguage(nextConfig.uiLanguage); const languageChanged = nextLanguage !== contextMenuLanguage;
+                contextMenuLanguage = nextLanguage;
+                if (nextEnabled === contextMenuEnabled && !languageChanged) return;
                 contextMenuEnabled = nextEnabled;
                 void sync();
             });
@@ -149,14 +155,8 @@ export function installBackgroundContextMenus(
         });
     }
 
-    browser.tabs.onActivated.addListener((activeInfo: any) => {
-        if (isSupported) void update(activeInfo.tabId);
-    });
-    browser.tabs.onUpdated.addListener((tabId: any, changeInfo: any) => {
-        if (changeInfo.status !== 'loading') return;
-        tabTranslationStates.reset(tabId);
-        if (isSupported) void update(tabId);
-    });
+    browser.tabs.onActivated.addListener((activeInfo: any) => { if (isSupported) void update(activeInfo.tabId); });
+    browser.tabs.onUpdated.addListener((tabId: any, changeInfo: any) => { if (changeInfo.status !== 'loading') return; tabTranslationStates.reset(tabId); if (isSupported) void update(tabId); });
     browser.tabs.onRemoved.addListener((tabId: any) => tabTranslationStates.delete(tabId));
 
     return {isSupported, update};

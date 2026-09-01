@@ -7,6 +7,7 @@
 <template>
   <Teleport to="body">
     <div
+      v-ui-i18n
       v-if="dialogVisible"
       class="custom-hotkey-overlay"
       role="presentation"

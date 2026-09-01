@@ -7,8 +7,11 @@
 import {createApp} from 'vue';
 import DocumentApp from './DocumentApp.vue';
 import './document-page.css';
+import {createUiI18nPlugin} from '@/src/ui/i18n';
 
 /** 文档翻译 WXT 页面唯一挂载入口。 */
 export function mountDocumentTranslationApp(selector: string): void {
-    createApp(DocumentApp).mount(selector);
+    const app = createApp(DocumentApp);
+    app.use(createUiI18nPlugin({documentRoot: document.body, documentTitleKey: 'metadata.documentTitle'}));
+    app.mount(selector);
 }

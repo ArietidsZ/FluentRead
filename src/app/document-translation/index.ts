@@ -25,6 +25,8 @@ export {
     subscribeConfig,
 } from '@/src/services/config/store';
 export {createDocumentDownload, translateDocumentSegments} from './runtime';
+export {createUiI18nPlugin, useUiI18n} from '@/src/ui/i18n';
+export {default as UiLanguageSelector} from '@/src/ui/components/UiLanguageSelector.vue';
 export {
     filterAvailableTranslationServices,
     getTranslationServiceUnavailableMessage,

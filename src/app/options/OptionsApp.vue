@@ -12,8 +12,8 @@
         <div><strong>流畅阅读</strong><small>FluentRead · V{{ version }}</small></div>
       </div>
 
-      <nav ref="navigationElement" aria-label="设置分类">
-        <section v-for="group in navigationGroups" :key="group.label" class="nav-group">
+      <nav ref="navigationElement" :aria-label="t('options.navLabel')">
+        <section v-for="group in localizedNavigationGroups" :key="group.label" class="nav-group">
           <span class="nav-group-label">{{ group.label }}</span>
           <button
             v-for="item in group.items"
@@ -37,10 +37,13 @@
           <h1>{{ activeItem.title }}</h1>
           <p>{{ activeItem.detail }}</p>
         </div>
-        <label class="search-box">
-          <span aria-hidden="true">⌕</span>
-          <input v-model.trim="query" type="search" placeholder="搜索设置，例如：快捷键、缓存、OpenAI" />
-        </label>
+        <div class="topbar-tools">
+          <UiLanguageSelector />
+          <label class="search-box">
+            <span aria-hidden="true">⌕</span>
+            <input v-model.trim="query" type="search" :placeholder="t('options.searchPlaceholder')" />
+          </label>
+        </div>
       </header>
 
       <div v-if="query && filteredResults.length" class="search-results">
@@ -48,7 +51,7 @@
           <span><strong>{{ result.label }}</strong><small>{{ result.searchDescription }}</small></span><b>打开 →</b>
         </button>
       </div>
-      <div v-else-if="query" class="search-empty">没有找到“{{ query }}”相关设置</div>
+      <div v-else-if="query" class="search-empty">{{ t('options.searchEmpty', {query}) }}</div>
 
       <section class="settings-card" :class="{ 'services-view': activeSection === 'settings-services', 'translation-center-view': activeSection === 'settings-translation-center', 'vocabulary-view': activeSection === 'settings-vocabulary' }" :aria-label="activeItem.heading">
         <section v-if="activeSection === 'settings-about'" id="settings-about" class="about-page" aria-labelledby="about-title">
@@ -99,8 +102,9 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import SettingsSections from '@/src/features/settings/ui/SettingsSections.vue'
 import VocabularyBook from '@/src/features/vocabulary/ui/VocabularyBook.vue'
+import UiLanguageSelector from '@/src/ui/components/UiLanguageSelector.vue'
+import {useUiI18n} from '@/src/ui/i18n'
 import {
-  filterNavigationItems,
   navigationGroups,
   navigationItems,
   resolveNavigationItem,
@@ -108,16 +112,40 @@ import {
 } from '@/src/features/settings/model/navigation'
 
 const version = process.env.VUE_APP_VERSION
+const {t, translateLegacy} = useUiI18n()
 const query = ref('')
 const activeSection = ref('settings-general')
 const navigationElement = ref<HTMLElement | null>(null)
 const mobileNavigationMedia = window.matchMedia('(max-width: 700px)')
 
 const navigation = navigationItems
-const activeItem = computed(() => resolveNavigationItem(activeSection.value))
+const localizedNavigationGroups = computed(() => navigationGroups.map((group) => ({
+  ...group,
+  label: translateLegacy(group.label),
+  items: group.items.map((item) => ({
+    ...item,
+    label: translateLegacy(item.label),
+    description: translateLegacy(item.description),
+    heading: translateLegacy(item.heading),
+    summary: translateLegacy(item.summary),
+    kicker: translateLegacy(item.kicker),
+    title: translateLegacy(item.title),
+    detail: translateLegacy(item.detail),
+    searchDescription: translateLegacy(item.searchDescription),
+  })),
+})))
+const localizedNavigationItems = computed(() => localizedNavigationGroups.value.flatMap((group) => group.items))
+const activeItem = computed(() => localizedNavigationItems.value.find((item) => item.id === resolveNavigationItem(activeSection.value).id)
+  || localizedNavigationItems.value[0])
 
 const filteredResults = computed(() => {
-  return filterNavigationItems(query.value)
+  const keyword = query.value.trim().toLocaleLowerCase()
+  if (!keyword) return []
+  return localizedNavigationItems.value.filter((item) => (
+    `${item.label}${item.description}${item.heading}${item.summary}${item.searchDescription}`
+      .toLocaleLowerCase()
+      .includes(keyword)
+  ))
 })
 
 function selectSection(id: string) {

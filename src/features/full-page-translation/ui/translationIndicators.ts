@@ -10,6 +10,7 @@ import {options} from '@/src/core/config/catalog';
 import {getCustomOpenAIProviderLabel} from '@/src/core/config/customOpenAI';
 import {config} from '@/src/services/config/store';
 import {getTranslationErrorMessage} from '@/src/features/full-page-translation/core/errorMessage';
+import {normalizeUiLanguage, translate} from '@/src/core/i18n';
 
 const icon = {
   retry: `<svg fill="none" viewBox="0 0 40 40" height="40" width="40" style="display: inline; align-items: center; justify-content: center; width: 1em; height: 1em; margin-left: 1em; pointer-events: none;">
@@ -54,13 +55,14 @@ export function insertFailedTip(
   wrapper.classList.add("fluent-read-retry-wrapper");
   wrapper.setAttribute("data-fr-translation-owned", "true");
   wrapper.setAttribute("role", "group");
-  wrapper.setAttribute("aria-label", "翻译失败操作");
+  const language = normalizeUiLanguage(config.uiLanguage);
+  wrapper.setAttribute("aria-label", translate('content.translationFailedActions', language));
   wrapper.addEventListener("click", blockHostLinkActivation);
   wrapper.addEventListener("auxclick", blockHostLinkActivation);
 
   // 创建重试按钮
   const retryBtn = createActionElement(
-    '重试',
+    translate('content.retry', language),
     'fluent-read-retry',
     icon.retry,
     contextInvalidated
@@ -74,7 +76,7 @@ export function insertFailedTip(
 
   // 创建错误信息提示按钮
   const errorTip = createActionElement(
-    '错误原因',
+    translate('content.errorReason', language),
     'fluent-read-reason',
     icon.warn,
     handleErrorClick(errMsg),
