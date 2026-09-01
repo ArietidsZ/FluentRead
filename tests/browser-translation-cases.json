@@ -46,6 +46,39 @@
     "fullPageHotkey": "Alt+T",
     "service": "freeTranslation"
   },
+  "github-eugeny-issue-list": {
+    "url": "https://github.com/Eugeny/tabby/issues?q=is%3Aissue%20state%3Aopen%20in%3Atitle%20%22right%20click%20not%20working%22",
+    "hoverSelector": "[data-testid='issue-pr-title-link']",
+    "requiredSelectors": ["[data-testid='issue-pr-title-link']"],
+    "coverageRules": [
+      {
+        "name": "issue-list-titles",
+        "selector": "[data-testid='issue-pr-title-link']",
+        "kind": "content",
+        "minInitial": 1,
+        "trackDynamic": true,
+        "sourceIncludes": ["right click not working"]
+      }
+    ],
+    "forbiddenSelectors": [
+      "span[class*='IssueLabel']",
+      "[data-testid='list-row-repo-name-and-number']",
+      "[data-testid='created-at']"
+    ],
+    "forbiddenMustExistSelectors": [
+      "span[class*='IssueLabel']",
+      "[data-testid='list-row-repo-name-and-number']",
+      "[data-testid='created-at']"
+    ],
+    "dynamicForbiddenSelectors": ["span[class*='IssueLabel']"],
+    "interactionSelectors": ["main a[href]"],
+    "modes": ["hover", "full"],
+    "tier": "required",
+    "notes": "GitHub Issue 列表回归页：标题可翻译，但 label、Issue 编号/仓库、作者和日期元数据必须保持原文。",
+    "hoverHotkey": "Control",
+    "fullPageHotkey": "Alt+T",
+    "service": "freeTranslation"
+  },
   "github-immersive-pulls": {
     "url": "https://github.com/immersive-translate/immersive-translate/pulls",
     "hoverSelector": ".markdown-title",

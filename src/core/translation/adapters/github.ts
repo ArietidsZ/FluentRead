@@ -1,7 +1,7 @@
 /**
  * @file src/core/translation/adapters/github.ts
  *
- * 文件职责：声明 GitHub 页面翻译适配规则，使 Markdown 正文、议题和评论成为候选，同时避开代码、导航及交互控件。
+ * 文件职责：声明 GitHub 页面翻译适配规则，使 Markdown 正文、议题和评论成为候选，同时避开代码、导航、标签和议题元数据。
  * 主要内容：通过 createDeclarativeAdapter 配置 githubAdapter，集中列出 Markdown prose 等 GitHub 特有选择器，并将站点差异转换为通用 pass、skip 或 target 决策。 可核对的公开符号包括 githubAdapter。
  * 模块边界：本文件位于 core 的站点规则层，只表达 URL 与 DOM 候选决策；不发送翻译请求、不渲染译文、不监听业务生命周期，通用安全守卫仍由 TranslationCandidateCore 执行。
  */
@@ -24,6 +24,31 @@ const markdownProseSelectors = [
     '.markdown-body dd',
     '.markdown-body th',
     '.markdown-body td',
+] as const;
+
+/** GitHub label 是可点击的受控标记，不应被翻译成另一种 label 名称。 */
+const githubIssueLabelSelectors = [
+    '[data-testid="issue-labels"]',
+    'span[class*="IssueLabel"]',
+] as const;
+
+/**
+ * Issue/PR 列表与详情头部中的编号、仓库、作者、状态和日期属于 GitHub 元数据。
+ * 优先使用 data-testid，同时保留当前 CSS module 的稳定语义前缀以覆盖 pinned issue
+ * 和活动头部等没有 data-testid 的布局。
+ */
+const githubIssueMetadataSelectors = [
+    '[data-testid="list-row-repo-name-and-number"]',
+    '[data-testid="created-at"]',
+    '[class*="IssueItem-module__defaultNumberDescription"]',
+    '[class*="PinnedIssue-module__metadataContainer"]',
+    '[class*="PinnedIssue-module__issueMetadata"]',
+    '[class*="IssueBodyHeader-module__IssueBodyHeaderContainer"]',
+] as const;
+
+const githubNonTranslatableSelectors = [
+    ...githubIssueLabelSelectors,
+    ...githubIssueMetadataSelectors,
 ] as const;
 
 export const githubAdapter = createDeclarativeAdapter({
@@ -50,6 +75,14 @@ export const githubAdapter = createDeclarativeAdapter({
                 'input[data-target="qbsearch-input.inputButton"]',
             ],
             reason: 'github-quick-search',
+        },
+        {
+            selector: githubIssueLabelSelectors,
+            reason: 'github-issue-label',
+        },
+        {
+            selector: githubIssueMetadataSelectors,
+            reason: 'github-issue-metadata',
         },
     ],
     targets: [
@@ -92,6 +125,7 @@ export const githubAdapter = createDeclarativeAdapter({
     keepOriginal: [
         {
             selector: [
+                ...githubNonTranslatableSelectors,
                 '[aria-live]',
                 '[role="status"]',
                 '[role="alert"]',
@@ -107,6 +141,7 @@ export const githubAdapter = createDeclarativeAdapter({
     mutationExclude: [
         {
             selector: [
+                ...githubNonTranslatableSelectors,
                 'dialog',
                 '[role="dialog"]',
                 'form[role="search"]',
