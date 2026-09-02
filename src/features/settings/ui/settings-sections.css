@@ -49,8 +49,26 @@
   background: linear-gradient(145deg, #fbfcff, #fff8fa);
 }
 .style-preview-example { margin: 0; padding: 14px 16px; border: 1px solid #e5e8ef; border-radius: 14px; background: #fff; }
+.bilingual-highlight-preview { outline: none; transition: background-color 140ms ease, box-shadow 140ms ease; }
+.bilingual-highlight-preview.is-bilingual-highlight-enabled:hover,
+.bilingual-highlight-preview.is-bilingual-highlight-enabled:focus-visible {
+  background-color: rgba(239, 71, 118, .065);
+  box-shadow: inset 0 0 0 1px rgba(239, 71, 118, .18);
+}
 .style-preview-source { margin: 0 0 8px; color: #7f889b; font-size: 11px; }
-.style-preview-text { margin: 0; color: #172033; font-size: 15px; line-height: 1.7; transition: all 160ms ease; }
+.style-preview-text { position: relative; margin: 0; color: #172033; font-size: 15px; line-height: 1.7; transition: all 160ms ease; }
+.bilingual-highlight-preview.is-bilingual-highlight-enabled:hover .style-preview-text::before,
+.bilingual-highlight-preview.is-bilingual-highlight-enabled:focus-visible .style-preview-text::before {
+  position: absolute;
+  top: .2em;
+  bottom: .2em;
+  inset-inline-start: -8px;
+  width: 2px;
+  border-radius: 999px;
+  background-color: rgba(239, 71, 118, .58);
+  content: "";
+  pointer-events: none;
+}
 
 .feature-help {
   width: min(100%, 1080px);

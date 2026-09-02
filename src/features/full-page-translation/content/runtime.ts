@@ -2139,15 +2139,20 @@ export function cancelPendingHoverTranslation(): void {
  * 处理鼠标悬浮/快捷键翻译。坐标只负责找到内容块，真正的翻译调用与全文
  * 会话共用 translateTarget，因此按钮、富文本和恢复行为不会出现两套规则。
  */
-export function handleTranslation(mouseX: number, mouseY: number, delayTime = 0): void {
+export function handleTranslation(
+    mouseX: number,
+    mouseY: number,
+    invocation: {delayMs?: number; continuous?: boolean} = {},
+): void {
     if (!checkConfig()) return;
     cancelPendingHoverTranslation();
+    const delayMs = invocation.delayMs ?? 0;
     hoverTimer = setTimeout(() => {
         hoverTimer = undefined;
         const candidate = resolveTranslationCandidateAtPoint(mouseX, mouseY);
         if (!candidate) return;
-        void translateTarget(candidate, currentTranslationDisplayMode(), delayTime > 0);
-    }, delayTime);
+        void translateTarget(candidate, currentTranslationDisplayMode(), invocation.continuous === true);
+    }, delayMs);
 }
 
 export function handleBilingualTranslation(node: unknown, slide: boolean): void {

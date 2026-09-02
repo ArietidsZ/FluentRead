@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-// 这个脚本只使用临时 Edge profile 和真实 Alt+T 键盘手势，回归全文翻译的
-// 识别、按钮特殊处理、富文本结构、动态节点、Shadow DOM 以及恢复流程。
+// 这个脚本只使用临时 Edge profile 和真实 Alt+T / Control 键盘手势，回归全文翻译的
+// 识别、按钮特殊处理、富文本结构、动态节点、Shadow DOM、0ms 连续悬浮稳定性以及恢复流程。
 // 传入 --verify-floating-ui 时，还会从 closed Shadow DOM 读取悬浮球透明度、
 // 展开/收起、中间 Logo 点击稳定性、勾选标记几何与离屏任务下的进度面板显隐。
 // 它不会连接用户正在使用的浏览器 profile，也不会通过 JS 合成键盘事件。
@@ -571,6 +571,173 @@ async function toggleHoverTranslation(page, selector, activatePage) {
   await page.waitForTimeout(50);
   await page.keyboard.down('Control');
   await page.keyboard.up('Control');
+}
+
+async function verifyZeroDelayHoverStability(page, selector, activatePage, screenshotPath = null) {
+  await activatePage(page);
+  const initial = await page.evaluate((targetSelector) => {
+    const owner = document.querySelector(targetSelector);
+    const wrapper = owner?.querySelector(':scope > .fluent-read-bilingual-content');
+    const source = owner?.firstChild;
+    if (!(owner instanceof HTMLElement) || !(wrapper instanceof HTMLElement) || !source) return null;
+
+    const sourceRange = document.createRange();
+    sourceRange.selectNodeContents(source);
+    const sourceRect = sourceRange.getBoundingClientRect();
+    sourceRange.detach();
+    const ownerRect = owner.getBoundingClientRect();
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const probe = {
+      owner,
+      wrapper,
+      html: owner.innerHTML,
+      mutations: 0,
+      observer: null,
+    };
+    probe.observer = new MutationObserver(records => {
+      probe.mutations += records.filter(record =>
+        record.type === 'childList' || record.type === 'characterData').length;
+    });
+    probe.observer.observe(owner, {childList: true, subtree: true, characterData: true});
+    window.__fluentReadZeroDelayHoverProbe = probe;
+    return {
+      ownerRect: {
+        x: ownerRect.x,
+        y: ownerRect.y,
+        width: ownerRect.width,
+        height: ownerRect.height,
+      },
+      sourcePoint: {
+        x: sourceRect.width > 0 ? sourceRect.x + Math.min(18, sourceRect.width / 2) : ownerRect.x + 12,
+        y: sourceRect.height > 0 ? sourceRect.y + sourceRect.height / 2 : ownerRect.y + 10,
+      },
+      wrapperPoint: {
+        x: wrapperRect.x + Math.min(24, wrapperRect.width / 2),
+        y: wrapperRect.y + wrapperRect.height / 2,
+      },
+    };
+  }, selector);
+  if (!initial) throw new Error(`0ms 连续悬浮目标或译文不存在：${selector}`);
+
+  const readHighlightStyle = () => page.locator(selector).evaluate(owner => {
+    const style = getComputedStyle(owner);
+    const translation = owner.querySelector(':scope > .fluent-read-bilingual-content');
+    const marker = translation ? getComputedStyle(translation, '::before') : null;
+    return {
+      backgroundColor: style.backgroundColor,
+      boxShadow: style.boxShadow,
+      translationMarker: marker ? {
+        content: marker.content,
+        width: marker.width,
+        backgroundColor: marker.backgroundColor,
+      } : null,
+    };
+  });
+
+  const hoverAcrossSourceAndTranslation = async () => {
+    await page.mouse.move(initial.sourcePoint.x, initial.sourcePoint.y, {steps: 4});
+    await page.waitForTimeout(80);
+    const source = await readHighlightStyle();
+
+    await page.mouse.move(initial.wrapperPoint.x, initial.wrapperPoint.y, {steps: 6});
+    for (let index = 0; index < 8; index += 1) {
+      await page.mouse.move(
+        initial.wrapperPoint.x + (index % 2 === 0 ? 3 : -3),
+        initial.wrapperPoint.y + (index % 2 === 0 ? 2 : -2),
+      );
+      await page.waitForTimeout(25);
+    }
+    return {source, translation: await readHighlightStyle()};
+  };
+
+  await page.mouse.move(0, 0);
+  const passiveHighlight = await hoverAcrossSourceAndTranslation();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(80);
+
+  await page.keyboard.down('Control');
+  let sourceHighlight;
+  let translationHighlight;
+  try {
+    const continuousHighlight = await hoverAcrossSourceAndTranslation();
+    sourceHighlight = continuousHighlight.source;
+    translationHighlight = continuousHighlight.translation;
+    if (screenshotPath) await page.screenshot({path: screenshotPath, fullPage: false});
+  } finally {
+    await page.keyboard.up('Control').catch(() => {});
+  }
+  await page.waitForTimeout(350);
+
+  const final = await page.evaluate((targetSelector) => {
+    const probe = window.__fluentReadZeroDelayHoverProbe;
+    const owner = document.querySelector(targetSelector);
+    const wrapper = owner?.querySelector(':scope > .fluent-read-bilingual-content');
+    const ownerRect = owner?.getBoundingClientRect();
+    probe?.observer?.disconnect();
+    delete window.__fluentReadZeroDelayHoverProbe;
+    if (!(owner instanceof HTMLElement) || !(wrapper instanceof HTMLElement) || !ownerRect || !probe) return null;
+    return {
+      sameOwner: owner === probe.owner,
+      sameWrapper: wrapper === probe.wrapper,
+      wrapperConnected: probe.wrapper.isConnected,
+      wrapperCount: owner.querySelectorAll(':scope > .fluent-read-bilingual-content').length,
+      htmlStable: owner.innerHTML === probe.html,
+      mutations: probe.mutations,
+      ownerRect: {
+        x: ownerRect.x,
+        y: ownerRect.y,
+        width: ownerRect.width,
+        height: ownerRect.height,
+      },
+    };
+  }, selector);
+  await page.mouse.move(0, 0);
+  if (!final) throw new Error(`0ms 连续悬浮结束状态不可读：${selector}`);
+
+  const geometryDelta = Math.max(
+    Math.abs(final.ownerRect.x - initial.ownerRect.x),
+    Math.abs(final.ownerRect.y - initial.ownerRect.y),
+    Math.abs(final.ownerRect.width - initial.ownerRect.width),
+    Math.abs(final.ownerRect.height - initial.ownerRect.height),
+  );
+  const transparent = new Set(['rgba(0, 0, 0, 0)', 'transparent']);
+  if (!final.sameOwner || !final.sameWrapper || !final.wrapperConnected ||
+      final.wrapperCount !== 1 || !final.htmlStable || final.mutations !== 0) {
+    throw new Error(`0ms 连续悬浮改变了已译 DOM：${JSON.stringify(final)}`);
+  }
+  if (geometryDelta > 0.5) {
+    throw new Error(`双语高亮改变了段落几何尺寸：${geometryDelta}px`);
+  }
+  if (!sourceHighlight || !translationHighlight ||
+      transparent.has(sourceHighlight.backgroundColor) ||
+      sourceHighlight.backgroundColor !== translationHighlight.backgroundColor ||
+      sourceHighlight.boxShadow !== translationHighlight.boxShadow ||
+      !sourceHighlight.translationMarker ||
+      sourceHighlight.translationMarker.content === 'none' ||
+      sourceHighlight.translationMarker.width !== '2px' ||
+      transparent.has(sourceHighlight.translationMarker.backgroundColor) ||
+      JSON.stringify(sourceHighlight.translationMarker) !== JSON.stringify(translationHighlight.translationMarker)) {
+    throw new Error(`原文与译文没有触发同一个高亮效果：${JSON.stringify({sourceHighlight, translationHighlight})}`);
+  }
+  if (transparent.has(passiveHighlight.source.backgroundColor) ||
+      passiveHighlight.source.backgroundColor !== passiveHighlight.translation.backgroundColor ||
+      passiveHighlight.source.boxShadow !== passiveHighlight.translation.boxShadow ||
+      JSON.stringify(passiveHighlight.source.translationMarker) !== JSON.stringify(passiveHighlight.translation.translationMarker) ||
+      JSON.stringify(passiveHighlight) !== JSON.stringify({
+        source: sourceHighlight,
+        translation: translationHighlight,
+      })) {
+    throw new Error(`普通 hover 与连续翻译手势的高亮效果不一致：${JSON.stringify({passiveHighlight, sourceHighlight, translationHighlight})}`);
+  }
+
+  return {
+    ...final,
+    geometryDelta,
+    passiveHighlight,
+    sourceHighlight,
+    translationHighlight,
+    screenshot: screenshotPath,
+  };
 }
 
 async function installShortcutDiagnostics(page) {
@@ -1371,7 +1538,10 @@ async function main() {
       }
       await route.continue();
     });
-    const configUpdates = {};
+    const configUpdates = {
+      mouseHoverTranslationDelay: 0,
+      bilingualSentenceHighlightEnabled: true,
+    };
     if (args.configureService) configUpdates.service = args.configureService;
     if (args.verifyFloatingUi) {
       Object.assign(configUpdates, {
@@ -1432,6 +1602,13 @@ async function main() {
     const configResult = await readConfig(context, args.timeout, null, createIsolatedPage);
     if (configResult.config?.floatingBallHotkey !== 'Alt+T') throw new Error(`全文快捷键不是 Alt+T：${configResult.config?.floatingBallHotkey}`);
     if (configResult.config?.service !== args.service) throw new Error(`翻译服务不符：预期 ${args.service}，实际 ${configResult.config?.service}`);
+    if (configResult.config?.mouseHoverTranslationDelay !== 0 ||
+        configResult.config?.bilingualSentenceHighlightEnabled !== true) {
+      throw new Error(`0ms 连续悬浮测试配置不正确：${JSON.stringify({
+        mouseHoverTranslationDelay: configResult.config?.mouseHoverTranslationDelay,
+        bilingualSentenceHighlightEnabled: configResult.config?.bilingualSentenceHighlightEnabled,
+      })}`);
+    }
     if (args.verifyLoadingStyleIsolation &&
         (configResult.config?.animations !== true || configResult.config?.translationLoadingStyle !== 'sparkle')) {
       throw new Error(`加载样式隔离测试配置不正确：${JSON.stringify({
@@ -1669,6 +1846,21 @@ async function main() {
     }, args.timeout);
     const translated = await pageState(page);
     assertTranslated(translated, '第一次全文翻译');
+    const zeroDelayHoverRequestCountBefore = translationFixtureServer.requestCount();
+    const zeroDelayHover = await verifyZeroDelayHoverStability(
+      page,
+      '#paragraph-one',
+      activateTestPage,
+      artifactsDir ? path.join(artifactsDir, 'full-page-zero-delay-hover-stable.png') : null,
+    );
+    const zeroDelayHoverRequestCountAfter = translationFixtureServer.requestCount();
+    zeroDelayHover.translationRequests = {
+      before: zeroDelayHoverRequestCountBefore,
+      after: zeroDelayHoverRequestCountAfter,
+    };
+    if (zeroDelayHoverRequestCountAfter !== zeroDelayHoverRequestCountBefore) {
+      throw new Error(`0ms 连续悬浮不应新增翻译请求：${JSON.stringify(zeroDelayHover.translationRequests)}`);
+    }
     if (args.verifyFloatingUi) {
       await page.waitForFunction(() => !document.querySelector('.fluent-read-loading'), undefined, {timeout: args.timeout});
       const offscreenState = await page.evaluate(() => ({
@@ -1900,6 +2092,8 @@ async function main() {
         floatingBallHotkey: configResult.config.floatingBallHotkey,
         service: configResult.config.service,
         display: configResult.config.display,
+        mouseHoverTranslationDelay: configResult.config.mouseHoverTranslationDelay,
+        bilingualSentenceHighlightEnabled: configResult.config.bilingualSentenceHighlightEnabled,
         disableFloatingBall: configResult.config.disableFloatingBall,
         translationProgressPanelEnabled: configResult.config.translationProgressPanelEnabled,
         fullPageTranslationMode: configResult.config.fullPageTranslationMode,
@@ -1912,6 +2106,7 @@ async function main() {
       translated,
       restored,
       retranslated,
+      zeroDelayHover,
       failureActions,
       floatingUi: floatingUiEvidence,
       loadingStyleIsolation: loadingStyleIsolationEvidence,
@@ -1920,6 +2115,7 @@ async function main() {
         path.join(artifactsDir, 'full-page-translated.png'),
         path.join(artifactsDir, 'full-page-restored.png'),
         path.join(artifactsDir, 'full-page-retranslated.png'),
+        ...(zeroDelayHover.screenshot ? [zeroDelayHover.screenshot] : []),
         ...(loadingStyleIsolationEvidence?.screenshot ? [loadingStyleIsolationEvidence.screenshot] : []),
         ...failureActions.screenshots,
       ] : [],

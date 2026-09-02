@@ -221,6 +221,7 @@ vi.mock("@/src/core/translation/public", () => {
 
 import {
     autoTranslateEnglishPage,
+    cancelPendingHoverTranslation,
     handleBilingualTranslation,
     handleTranslation,
     isFullPageTranslationActive,
@@ -1418,7 +1419,10 @@ describe("全文翻译可见性锚点", () => {
         expect(session.translationSlotCache.size).toBe(2);
     });
 
-    it("全文翻译后按 Ctrl 恢复的单段不会被当前全文会话重新排队", async () => {
+    it.each([
+        {label: "默认参数", invocation: undefined},
+        {label: "显式 continuous=false", invocation: {delayMs: 40, continuous: false}},
+    ] as const)("$label 的单次悬浮调用恢复全文中的当前段落，且不会被当前会话重新排队", async ({invocation}) => {
         runtime.config.display = 1;
         document.body.innerHTML = '<p id="prose">Restore only this paragraph.</p>';
         const paragraph = document.querySelector<HTMLElement>("#prose")!;
@@ -1435,8 +1439,10 @@ describe("全文翻译可见性锚点", () => {
         expect(runtime.requests).toHaveBeenCalledTimes(1);
         expect(paragraph.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
 
-        // 这与真实 Control 悬浮触发器使用同一路径：恢复当前目标，但保持全文会话活跃。
-        handleTranslation(20, 20);
+        // 真实 Control 释放与显式 continuous=false 都是单次切换：
+        // 恢复当前目标，但保持全文会话活跃。
+        if (invocation) handleTranslation(20, 20, invocation);
+        else handleTranslation(20, 20);
         await finishScheduledWork();
 
         expect(isFullPageTranslationActive()).toBe(true);
@@ -1462,6 +1468,96 @@ describe("全文翻译可见性锚点", () => {
         TestIntersectionObserver.instances.at(-1)!.emit(paragraph, true);
         await finishScheduledWork();
         expect(runtime.requests).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([
+        {label: "0ms", delayMs: 0},
+        {label: "120ms", delayMs: 120},
+    ] as const)("$label continuous=true 连续悬浮重复命中已译句子时保持状态、译文节点和请求稳定", async ({delayMs}) => {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<article data-testid="tweet"><div id="tweet-text" data-testid="tweetText">Hovering across this translated X post stays stable.</div></article>';
+        const tweetText = document.querySelector<HTMLElement>("#tweet-text")!;
+        const candidate = {element: tweetText, kind: "content" as const, reason: "x-post-text", adapterId: "x"};
+        setLayoutBox(tweetText, 620, 96);
+        runtime.candidates = [candidate];
+        runtime.pointCandidate = candidate;
+
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(50);
+        TestIntersectionObserver.instances[0]!.emit(tweetText, true);
+        await finishScheduledWork();
+
+        const wrapper = tweetText.querySelector<HTMLElement>(".fluent-read-bilingual-content")!;
+        const state = getTranslationState(tweetText)!;
+        expect(state.phase).toBe("translated");
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+
+        for (const y of [20, 34]) {
+            handleTranslation(20, y, {delayMs, continuous: true});
+            await finishScheduledWork();
+
+            expect(isFullPageTranslationActive()).toBe(true);
+            expect(getTranslationState(tweetText)).toBe(state);
+            expect(wrapper.isConnected).toBe(true);
+            expect(tweetText.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
+            expect(tweetText.querySelector(".fluent-read-bilingual-content")).toBe(wrapper);
+            expect(runtime.requests).toHaveBeenCalledTimes(1);
+        }
+    });
+
+    it.each([
+        {label: "0ms", delayMs: 0},
+        {label: "120ms", delayMs: 120},
+    ] as const)("$label continuous=true 从原文开始时只翻译一次，后续命中保持同一译文", async ({delayMs}) => {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<p id="prose">Continuous hover translates this source once.</p>';
+        const paragraph = document.querySelector<HTMLElement>("#prose")!;
+        const candidate = {element: paragraph, kind: "content" as const, reason: "paragraph"};
+        setLayoutBox(paragraph, 620, 96);
+        runtime.candidates = [candidate];
+        runtime.pointCandidate = candidate;
+
+        handleTranslation(20, 20, {delayMs, continuous: true});
+        if (delayMs > 0) {
+            await vi.advanceTimersByTimeAsync(delayMs - 1);
+            expect(runtime.requests).not.toHaveBeenCalled();
+            expect(getTranslationState(paragraph)).toBeUndefined();
+            await vi.advanceTimersByTimeAsync(1);
+        }
+        await finishScheduledWork();
+
+        const state = getTranslationState(paragraph)!;
+        const wrapper = paragraph.querySelector<HTMLElement>(".fluent-read-bilingual-content")!;
+        expect(state.phase).toBe("translated");
+        expect(wrapper.isConnected).toBe(true);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+
+        handleTranslation(20, 34, {delayMs, continuous: true});
+        await finishScheduledWork();
+        expect(getTranslationState(paragraph)).toBe(state);
+        expect(paragraph.querySelector(".fluent-read-bilingual-content")).toBe(wrapper);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+    });
+
+    it("取消已排队的延迟悬浮后，计时器到期也不会晚到翻译", async () => {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<article data-testid="tweet"><div id="tweet-text" data-testid="tweetText">Cancelled hover work must stay cancelled.</div></article>';
+        const tweetText = document.querySelector<HTMLElement>("#tweet-text")!;
+        const candidate = {element: tweetText, kind: "content" as const, reason: "x-post-text", adapterId: "x"};
+        setLayoutBox(tweetText, 620, 96);
+        runtime.candidates = [candidate];
+        runtime.pointCandidate = candidate;
+
+        handleTranslation(20, 20, {delayMs: 120, continuous: true});
+        await vi.advanceTimersByTimeAsync(119);
+        cancelPendingHoverTranslation();
+        await vi.advanceTimersByTimeAsync(1);
+        await finishScheduledWork();
+
+        expect(runtime.requests).not.toHaveBeenCalled();
+        expect(getTranslationState(tweetText)).toBeUndefined();
+        expect(tweetText.classList.contains("fluent-read-bilingual")).toBe(false);
+        expect(tweetText.querySelector(".fluent-read-bilingual-content")).toBeNull();
     });
 
     it("候选自身有布局盒时直接观察候选，不改用内部标签", async () => {
