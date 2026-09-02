@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupApp.vue
  文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、可插拔皮肤、功能抽屉和高频操作，提供轻量但完整的控制中心。
- 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，展示可搜索服务、页面翻译、站点规则与各类快捷功能；监听配置并持久化，按皮肤注册元数据及栏目显隐自动计算高度。
+ 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，按保存布局编排翻译、站点规则、快捷功能与底栏模块；监听配置并持久化，按皮肤注册元数据及栏目显隐自动计算高度。
  模块边界：组件编排用户交互与运行时消息，不实现翻译 provider、缓存存储或 content 挂载细节；公共配置由 services/store 管理，页面行为由 content feature 接收消息完成。
 -->
 <!-- Popup 页面归 app 层所有；WXT 入口只负责调用挂载函数。 -->
@@ -12,6 +12,12 @@
     :aria-busy="!hydrated"
     :data-config-ready="hydrated ? 'true' : 'false'"
     :data-interface-skin="config.interfaceSkin"
+    :data-popup-module-order="config.popupModuleOrder.join(',')"
+    :data-popup-quick-feature-order="config.popupQuickFeatureOrder.join(',')"
+    :data-popup-quick-features="visiblePopupQuickFeatureIds.join(',')"
+    :data-popup-quick-features-visible="String(config.interfaceVisibility.popupQuickFeatures)"
+    :data-popup-site-rule-visible="String(config.interfaceVisibility.popupSiteRule)"
+    :data-popup-footer-visible="String(config.interfaceVisibility.popupFooter)"
     :inert="!hydrated"
   >
     <UiLanguageOnboarding
@@ -62,7 +68,8 @@
       </div>
     </Transition>
 
-    <section class="hero-card">
+    <template v-for="moduleId in visiblePopupModuleOrder" :key="moduleId">
+    <section v-if="moduleId === 'translation'" class="hero-card" data-popup-module="translation">
       <div class="hero-heading">
         <div>
           <span class="eyebrow">网页翻译</span>
@@ -237,111 +244,62 @@
         </button>
       </div>
 
-      <div v-if="config.interfaceVisibility.popupSiteRule && currentSiteSupported" class="site-rule-row">
-        <div class="site-rule-copy">
-          <span>当前网站</span>
-          <strong :title="currentSiteDomain">{{ currentSiteDomain }}</strong>
-        </div>
-        <div class="site-rule-actions">
-          <button
-            class="site-rule-button"
-            :class="{ enabled: currentSiteAlwaysTranslated, 'global-enabled': config.autoTranslate }"
-            data-setting="always-translate-site"
-            :data-site-domain="currentSiteDomain"
-            :data-enabled="currentSiteAlwaysTranslated"
-            type="button"
-            role="switch"
-            :aria-checked="currentSiteAlwaysTranslated"
-            :aria-label="currentSiteSwitchLabel"
-            :disabled="translating || config.autoTranslate || currentSiteExtensionDisabled"
-            @click="setCurrentSiteAlwaysTranslated(!currentSiteAlwaysTranslated)"
-          >
-            <span>{{ config.autoTranslate ? '全局自动翻译' : currentSiteAlwaysTranslated ? '始终翻译已开启' : '始终翻译此网站' }}</span>
-            <i aria-hidden="true" />
-          </button>
-          <button
-            class="site-rule-button site-disable-rule-button"
-            :class="{ enabled: currentSiteExtensionDisabled }"
-            data-setting="disable-extension-site"
-            :data-site-domain="currentSiteDomain"
-            :data-enabled="currentSiteExtensionDisabled"
-            type="button"
-            role="switch"
-            :aria-checked="currentSiteExtensionDisabled"
-            :aria-label="currentSiteExtensionSwitchLabel"
-            :disabled="translating"
-            @click="setCurrentSiteExtensionDisabled(!currentSiteExtensionDisabled)"
-          >
-            <span>{{ currentSiteExtensionDisabled ? '已禁用扩展' : '在此网站禁用扩展' }}</span>
-            <i aria-hidden="true" />
-          </button>
-        </div>
-      </div>
+      <PopupSiteRule
+        v-if="siteModuleNestedInTranslation && isSiteModuleVisible"
+        v-bind="siteRuleModuleProps"
+        @set-always-translated="setCurrentSiteAlwaysTranslated"
+        @set-extension-disabled="setCurrentSiteExtensionDisabled"
+      />
 
       <p v-if="notice" class="notice" :class="noticeType">{{ notice }}</p>
     </section>
 
-    <section v-if="config.interfaceVisibility.popupQuickFeatures" class="features">
+    <PopupSiteRule
+      v-else-if="moduleId === 'siteRule' && !siteModuleNestedInTranslation"
+      v-bind="siteRuleModuleProps"
+      @set-always-translated="setCurrentSiteAlwaysTranslated"
+      @set-extension-disabled="setCurrentSiteExtensionDisabled"
+    />
+
+    <section
+      v-else-if="moduleId === 'quickFeatures'"
+      class="features"
+      data-popup-module="quickFeatures"
+    >
       <span class="eyebrow features-eyebrow">快捷功能</span>
       <div class="feature-grid">
-        <button class="feature-card" type="button" :disabled="!config.on" @click="openDrawer('hover')">
-          <span class="feature-icon rose">↖</span>
-          <span><strong>鼠标悬停翻译</strong><small>{{ hoverSummary }}</small></span>
-          <i :class="{ active: config.hotkey !== 'none' }" />
-        </button>
-        <button class="feature-card" type="button" :disabled="!config.on" @click="openDrawer('selection')">
-          <span class="feature-icon violet">I</span>
-          <span><strong>划词翻译</strong><small>{{ selectionSummary }}</small></span>
-          <i :class="{ active: config.selectionTranslatorMode !== 'disabled' || (browserCapabilities.areaTranslation && config.selectionAreaEnabled) }" />
-        </button>
-        <button class="feature-card" type="button" :disabled="!config.on" @click="openDrawer('appearance')">
-          <span class="feature-icon amber">Aa</span>
-          <span><strong>译文显示</strong><small>{{ displaySummary }}</small></span>
-          <b>›</b>
-        </button>
-        <button class="feature-card" type="button" :disabled="!config.on" @click="openDrawer('image')">
-          <span class="feature-icon teal">▧</span>
-          <span class="feature-copy">
-            <span class="feature-title"><strong>图片翻译</strong><em class="beta-badge">Beta 测试</em></span>
-            <small>{{ imageTranslationSummary }}</small>
-          </span>
-          <i :class="{ active: browserCapabilities.imageTranslation && !config.disableImageTranslator }" />
-        </button>
         <button
-          class="feature-card video-feature-card"
-          :class="{ 'needs-enable': !config.videoTranslationEnabled }"
-          data-feature="video-subtitle"
+          v-for="feature in visiblePopupQuickFeatures"
+          :key="feature.id"
+          class="feature-card"
+          :class="feature.className"
+          :data-feature="feature.dataFeature"
+          :data-popup-quick-feature="feature.id"
           type="button"
           :disabled="!config.on"
-          :aria-label="config.videoTranslationEnabled ? '打开视频字幕设置，当前已开启' : '打开视频字幕设置，点击开启字幕翻译'"
-          @click="openDrawer('video')"
+          :aria-label="feature.ariaLabel"
+          @click="feature.open()"
         >
-          <span class="feature-icon teal">CC</span>
+          <span class="feature-icon" :class="feature.iconTone">{{ feature.icon }}</span>
           <span class="feature-copy">
-            <span class="feature-title"><strong>视频字幕</strong><em class="beta-badge">Beta 测试</em></span>
-            <small>{{ videoSummary }}</small>
+            <span v-if="feature.badge" class="feature-title">
+              <strong>{{ feature.label }}</strong>
+              <em class="beta-badge">{{ feature.badge }}</em>
+            </span>
+            <strong v-else>{{ feature.label }}</strong>
+            <small>{{ feature.summary }}</small>
           </span>
-          <i :class="{ active: config.videoTranslationEnabled }" />
-        </button>
-        <button
-          class="feature-card document-feature-card"
-          data-feature="document-translation"
-          type="button"
-          :disabled="!config.on"
-          aria-label="打开文档翻译，Beta 测试"
-          @click="openDocumentTranslation()"
-        >
-          <span class="feature-icon blue">文</span>
-          <span class="feature-copy">
-            <span class="feature-title"><strong>文档翻译</strong><em class="beta-badge">Beta 测试</em></span>
-            <small>HTML / TXT / Markdown / 字幕 / JSON</small>
-          </span>
-          <b>›</b>
+          <i v-if="feature.showStatus" :class="{active: feature.active}" />
+          <b v-else>›</b>
         </button>
       </div>
     </section>
 
-    <footer v-if="config.interfaceVisibility.popupFooter">
+    <footer
+      v-else-if="moduleId === 'footer'"
+      data-popup-module="footer"
+      :data-popup-module-last="lastVisiblePopupModule === 'footer'"
+    >
       <span>已完成 {{ config.count }} 次翻译</span>
       <a
         class="opensource-link"
@@ -358,6 +316,7 @@
       </a>
       <button type="button" :disabled="clearingCache" @click="clearCache">{{ clearingCache ? '清理中…' : '清除缓存' }}</button>
     </footer>
+    </template>
 
     <el-drawer
       v-model="drawerVisible"
@@ -593,7 +552,10 @@ import {
   withCustomOpenAIServiceOptions,
 } from '@/src/core/config/customOpenAI';
 import { getMissingCredentialMessage } from '@/src/core/config/validation';
-import {interfaceSkinUsesContentHeight} from '@/src/core/config/interfaceAppearance';
+import {
+  interfaceSkinUsesContentHeight,
+  type PopupQuickFeatureId,
+} from '@/src/core/config/interfaceAppearance';
 import { getSelectedModelLabel, searchServiceOptions } from '@/src/ui/view-model/serviceCatalog';
 import { SELECTION_TTS_VOICE_OPTIONS } from '@/src/core/config/selectionTts';
 import { getSiteBaseDomain } from '@/src/core/site-rules/domain';
@@ -603,6 +565,7 @@ import {isBrowserTabId} from '@/src/platform/browser/ids';
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
 import UiLanguageOnboarding from '@/src/ui/components/UiLanguageOnboarding.vue';
 import {useUiI18n} from '@/src/ui/i18n';
+import PopupSiteRule from './PopupSiteRule.vue';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import {
   filterAvailableTranslationServices,
@@ -611,6 +574,20 @@ import {
 
 type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'video';
 type SettingsSection = 'settings-general' | 'settings-image-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
+interface PopupQuickFeatureViewModel {
+  id: PopupQuickFeatureId;
+  label: string;
+  summary: string;
+  icon: string;
+  iconTone: 'rose' | 'violet' | 'amber' | 'teal' | 'blue';
+  showStatus: boolean;
+  active?: boolean;
+  badge?: string;
+  className?: string;
+  dataFeature?: string;
+  ariaLabel?: string;
+  open: () => void | Promise<void>;
+}
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'));
 const {language, translateLegacy} = useUiI18n();
 const config = ref(new Config());
@@ -742,10 +719,30 @@ const currentSiteAlwaysTranslated = computed(() => currentSiteSupported.value
   && (config.value.autoTranslate || currentSiteRuleEnabled.value));
 const currentSiteExtensionDisabled = computed(() => currentSiteSupported.value
   && (config.value.disabledExtensionDomains ?? []).includes(currentSiteDomain.value));
+const isSiteModuleVisible = computed(() => config.value.interfaceVisibility.popupSiteRule
+  && currentSiteSupported.value);
+const visiblePopupQuickFeatureIds = computed(() => config.value.popupQuickFeatureOrder.filter(
+  (featureId) => config.value.popupQuickFeatureVisibility[featureId],
+));
+const visiblePopupModuleOrder = computed(() => config.value.popupModuleOrder.filter((moduleId) => {
+  if (moduleId === 'translation') return true;
+  if (moduleId === 'siteRule') return isSiteModuleVisible.value;
+  if (moduleId === 'quickFeatures') {
+    return config.value.interfaceVisibility.popupQuickFeatures
+      && visiblePopupQuickFeatureIds.value.length > 0;
+  }
+  return config.value.interfaceVisibility.popupFooter;
+}));
+const siteModuleNestedInTranslation = computed(() => {
+  const translationIndex = visiblePopupModuleOrder.value.indexOf('translation');
+  return translationIndex >= 0 && visiblePopupModuleOrder.value[translationIndex + 1] === 'siteRule';
+});
+const lastVisiblePopupModule = computed(() => visiblePopupModuleOrder.value.at(-1));
 const popupUsesContentHeight = computed(() => interfaceSkinUsesContentHeight(config.value.interfaceSkin)
   || !config.value.interfaceVisibility.popupQuickFeatures
   || !config.value.interfaceVisibility.popupSiteRule
-  || !config.value.interfaceVisibility.popupFooter);
+  || !config.value.interfaceVisibility.popupFooter
+  || Object.values(config.value.popupQuickFeatureVisibility).some((visible) => !visible));
 const currentSiteSwitchLabel = computed(() => currentSiteSupported.value
   ? currentSiteExtensionDisabled.value
     ? `${currentSiteDomain.value} 已禁用扩展，无法开启始终翻译`
@@ -758,6 +755,15 @@ const currentSiteExtensionSwitchLabel = computed(() => currentSiteSupported.valu
     ? `恢复 ${currentSiteDomain.value} 的扩展`
     : `在 ${currentSiteDomain.value} 禁用扩展`
   : '在此网站禁用扩展（当前页面不可用）');
+const siteRuleModuleProps = computed(() => ({
+  domain: currentSiteDomain.value,
+  alwaysTranslated: currentSiteAlwaysTranslated.value,
+  extensionDisabled: currentSiteExtensionDisabled.value,
+  autoTranslate: config.value.autoTranslate,
+  translating: translating.value,
+  switchLabel: currentSiteSwitchLabel.value,
+  extensionSwitchLabel: currentSiteExtensionSwitchLabel.value,
+}));
 const videoServiceLabel = computed(() => videoServiceOptions.value.find((item: any) => item.value === config.value.videoService)?.label || config.value.videoService);
 const styleLabel = computed(() => styleOptions.value.find((item: any) => item.value === config.value.style)?.label || '默认样式');
 const hoverKey = computed(() => config.value.hotkey === 'custom' ? (config.value.customHotkey || '自定义') : config.value.hotkey);
@@ -781,6 +787,80 @@ const imageTranslationSummary = computed(() => !browserCapabilities.imageTransla
   ? '当前浏览器不可用'
   : config.value.disableImageTranslator ? '已关闭' : '悬停图片');
 const videoSummary = computed(() => config.value.videoTranslationEnabled ? `${videoServiceLabel.value} · YouTube` : '点击开启 · YouTube');
+const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQuickFeatureViewModel>>(() => ({
+  hover: {
+    id: 'hover',
+    label: '鼠标悬停翻译',
+    summary: hoverSummary.value,
+    icon: '↖',
+    iconTone: 'rose',
+    showStatus: true,
+    active: config.value.hotkey !== 'none',
+    open: () => openDrawer('hover'),
+  },
+  selection: {
+    id: 'selection',
+    label: '划词翻译',
+    summary: selectionSummary.value,
+    icon: 'I',
+    iconTone: 'violet',
+    showStatus: true,
+    active: config.value.selectionTranslatorMode !== 'disabled'
+      || (browserCapabilities.areaTranslation && config.value.selectionAreaEnabled),
+    open: () => openDrawer('selection'),
+  },
+  appearance: {
+    id: 'appearance',
+    label: '译文显示',
+    summary: displaySummary.value,
+    icon: 'Aa',
+    iconTone: 'amber',
+    showStatus: false,
+    open: () => openDrawer('appearance'),
+  },
+  image: {
+    id: 'image',
+    label: '图片翻译',
+    summary: imageTranslationSummary.value,
+    icon: '▧',
+    iconTone: 'teal',
+    showStatus: true,
+    active: browserCapabilities.imageTranslation && !config.value.disableImageTranslator,
+    badge: 'Beta 测试',
+    open: () => openDrawer('image'),
+  },
+  video: {
+    id: 'video',
+    label: '视频字幕',
+    summary: videoSummary.value,
+    icon: 'CC',
+    iconTone: 'teal',
+    showStatus: true,
+    active: config.value.videoTranslationEnabled,
+    badge: 'Beta 测试',
+    className: `video-feature-card${config.value.videoTranslationEnabled ? '' : ' needs-enable'}`,
+    dataFeature: 'video-subtitle',
+    ariaLabel: config.value.videoTranslationEnabled
+      ? '打开视频字幕设置，当前已开启'
+      : '打开视频字幕设置，点击开启字幕翻译',
+    open: () => openDrawer('video'),
+  },
+  document: {
+    id: 'document',
+    label: '文档翻译',
+    summary: 'HTML / TXT / Markdown / 字幕 / JSON',
+    icon: '文',
+    iconTone: 'blue',
+    showStatus: false,
+    badge: 'Beta 测试',
+    className: 'document-feature-card',
+    dataFeature: 'document-translation',
+    ariaLabel: '打开文档翻译，Beta 测试',
+    open: openDocumentTranslation,
+  },
+}));
+const visiblePopupQuickFeatures = computed(() => visiblePopupQuickFeatureIds.value
+  .map((featureId) => popupQuickFeatureViewModels.value[featureId]));
 const drawerTitle = computed(() => ({ hover: '鼠标悬停翻译设置', selection: '划词翻译设置', appearance: '译文显示设置', image: '图片翻译设置', video: '视频字幕设置' }[activeDrawer.value]));
 const drawerDescription = computed(() => ({
   hover: '把鼠标停在文本上，用轻量快捷键获取即时译文。',

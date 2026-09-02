@@ -356,13 +356,21 @@
   font-size: 15px;
 }
 
-:root[data-interface-skin="minimal"] .popup-shell > footer {
+:root[data-interface-skin="minimal"] .popup-content > footer {
   min-height: 32px;
-  margin: 9px -16px -10px;
+  margin: 9px 0 0;
   padding: 7px 14px;
   border: 0;
+  border-radius: 11px;
   background: var(--surface-soft);
   font-size: 10px;
+}
+
+:root[data-interface-skin="minimal"] .popup-content > footer[data-popup-module-last="true"] {
+  margin-right: -16px;
+  margin-bottom: -10px;
+  margin-left: -16px;
+  border-radius: 0;
 }
 
 :root[data-interface-skin="minimal"] .opensource-link {

@@ -276,9 +276,10 @@ export function translateLegacyText(value: string, language: UiLanguage): string
     const exact = legacyCatalogs[language]?.[trimmed];
     if (exact) return preserveWhitespace(value, exact);
 
-    const compound = trimmed.split(' · ');
-    if (compound.length > 1) {
-        const translatedCompound = compound.map((part) => translateLegacyText(part, language)).join(' · ');
+    for (const separator of [' · ', ' → ']) {
+        const compound = trimmed.split(separator);
+        if (compound.length <= 1) continue;
+        const translatedCompound = compound.map((part) => translateLegacyText(part, language)).join(separator);
         if (translatedCompound !== trimmed) return preserveWhitespace(value, translatedCompound);
     }
 

@@ -43,10 +43,19 @@ import { normalizeSelectionTtsVoiceOrder } from "./selectionTts";
 import { normalizeUiLanguage, type UiLanguage } from '@/src/core/i18n/language';
 import {
     DEFAULT_INTERFACE_VISIBILITY,
+    DEFAULT_POPUP_MODULE_ORDER,
+    DEFAULT_POPUP_QUICK_FEATURE_ORDER,
+    DEFAULT_POPUP_QUICK_FEATURE_VISIBILITY,
     normalizeInterfaceSkin,
     normalizeInterfaceVisibility,
+    normalizePopupModuleOrder,
+    normalizePopupQuickFeatureOrder,
+    normalizePopupQuickFeatureVisibility,
     type InterfaceSkin,
     type InterfaceVisibility,
+    type PopupModuleId,
+    type PopupQuickFeatureId,
+    type PopupQuickFeatureVisibility,
 } from './interfaceAppearance';
 import {
     DEFAULT_TRANSLATION_LOADING_STYLE,
@@ -176,6 +185,9 @@ export class Config {
     theme: string;  // 主题模式：'auto' | 'light' | 'dark'
     interfaceSkin: InterfaceSkin; // 扩展界面皮肤；默认保留当前界面
     interfaceVisibility: InterfaceVisibility; // Popup 栏目可见性
+    popupModuleOrder: PopupModuleId[]; // Popup 可编排模块的显示顺序
+    popupQuickFeatureOrder: PopupQuickFeatureId[]; // 快捷功能卡片的显示顺序
+    popupQuickFeatureVisibility: PopupQuickFeatureVisibility; // 单张快捷功能卡片的可见性
     useCache: boolean; // 是否使用缓存
     enableAIContext: boolean; // 是否为 AI 翻译附加网页上下文
     enableAIMultiSegment: boolean; // 是否把相邻全文段落合并为一次 AI 翻译请求
@@ -273,6 +285,9 @@ export class Config {
         this.theme = 'auto';  // 默认跟随系统
         this.interfaceSkin = 'default'; // 默认保留当前界面
         this.interfaceVisibility = {...DEFAULT_INTERFACE_VISIBILITY};
+        this.popupModuleOrder = [...DEFAULT_POPUP_MODULE_ORDER];
+        this.popupQuickFeatureOrder = [...DEFAULT_POPUP_QUICK_FEATURE_ORDER];
+        this.popupQuickFeatureVisibility = {...DEFAULT_POPUP_QUICK_FEATURE_VISIBILITY};
         this.useCache = true; // 默认开启缓存
         this.enableAIContext = false; // 默认关闭 AI 智能上下文，避免意外增加请求体和费用
         this.enableAIMultiSegment = false; // 默认逐段请求，由用户按需开启 AI 多段翻译
@@ -755,6 +770,9 @@ export function normalizeConfig(value: unknown): Config {
     normalized.disabledExtensionDomains = normalizeDisabledExtensionDomains(source.disabledExtensionDomains);
     normalized.interfaceSkin = normalizeInterfaceSkin(source.interfaceSkin);
     normalized.interfaceVisibility = normalizeInterfaceVisibility(source.interfaceVisibility);
+    normalized.popupModuleOrder = normalizePopupModuleOrder(source.popupModuleOrder);
+    normalized.popupQuickFeatureOrder = normalizePopupQuickFeatureOrder(source.popupQuickFeatureOrder);
+    normalized.popupQuickFeatureVisibility = normalizePopupQuickFeatureVisibility(source.popupQuickFeatureVisibility);
 
     if (!['disabled', 'bilingual', 'translation-only'].includes(normalized.selectionTranslatorMode)) {
         normalized.selectionTranslatorMode = 'disabled';

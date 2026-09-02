@@ -7,7 +7,12 @@
 import {CONFIG_CREDENTIAL_FIELDS, isSensitiveConfigKey} from './credentials';
 import {options} from './catalog';
 import {isCustomOpenAIProviderId} from './customOpenAI';
-import {interfaceSkinOptions, interfaceVisibilityOptions} from './interfaceAppearance';
+import {
+    interfaceSkinOptions,
+    interfaceVisibilityOptions,
+    popupModuleOptions,
+    popupQuickFeatureOptions,
+} from './interfaceAppearance';
 import {translationLoadingStyleOptions} from './translationLoadingStyle';
 import {parseApiKeyRequirementKey} from './validation';
 
@@ -164,6 +169,10 @@ const UI_LANGUAGE_LABELS = new Map<unknown, string>([
 ]);
 const INTERFACE_SKIN_LABELS = labelsFor(interfaceSkinOptions);
 const TRANSLATION_LOADING_STYLE_LABELS = labelsFor(translationLoadingStyleOptions);
+const POPUP_MODULE_LABELS = new Map<string, string>(popupModuleOptions.map((item) => [item.id, item.label]));
+const POPUP_QUICK_FEATURE_LABELS = new Map<string, string>(
+    popupQuickFeatureOptions.map((item) => [item.id, item.label]),
+);
 const HOVER_TRIGGER_LABELS = labelsFor(options.keys);
 const SELECTION_TRIGGER_LABELS = labelsFor(options.selectionTranslatorTriggers);
 const FLOATING_HOTKEY_LABELS = labelsFor(options.floatingBallHotkeys);
@@ -291,6 +300,29 @@ function formatInterfaceVisibility(value: unknown): string {
         .join('、');
 }
 
+function formatPopupModuleOrder(value: unknown): string {
+    if (!Array.isArray(value)) return formatValue(value);
+    if (value.length === 0) return '无';
+    return value.map((item) => typeof item === 'string'
+        ? POPUP_MODULE_LABELS.get(item) ?? item
+        : formatValue(item)).join(' → ');
+}
+
+function formatPopupQuickFeatureVisibility(value: unknown): string {
+    if (!isRecord(value)) return formatValue(value);
+    return popupQuickFeatureOptions
+        .map(({id, label}) => `${label}：${value[id] === false ? '隐藏' : '显示'}`)
+        .join('、');
+}
+
+function formatPopupQuickFeatureOrder(value: unknown): string {
+    if (!Array.isArray(value)) return formatValue(value);
+    if (value.length === 0) return '无';
+    return value.map((item) => typeof item === 'string'
+        ? POPUP_QUICK_FEATURE_LABELS.get(item) ?? item
+        : formatValue(item)).join(' → ');
+}
+
 function formatCustomOpenAIProviders(value: unknown): string {
     if (!Array.isArray(value) || value.length === 0) return '无';
     return formatArray(value, (item) => {
@@ -329,6 +361,9 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     theme: {group: 'general', label: '主题', format: (value) => formatEnum(value, THEME_LABELS)},
     interfaceSkin: {group: 'general', label: '界面皮肤', format: (value) => formatEnum(value, INTERFACE_SKIN_LABELS)},
     interfaceVisibility: {group: 'general', label: '界面栏目', format: formatInterfaceVisibility},
+    popupModuleOrder: {group: 'general', label: 'Popup 布局顺序', format: formatPopupModuleOrder},
+    popupQuickFeatureVisibility: {group: 'general', label: '快捷功能卡片', format: formatPopupQuickFeatureVisibility},
+    popupQuickFeatureOrder: {group: 'general', label: '快捷功能顺序', format: formatPopupQuickFeatureOrder},
 
     display: {group: 'general', label: '翻译模式', format: (value) => formatEnum(value, DISPLAY_LABELS)},
     style: {group: 'general', label: '译文样式', format: (value) => formatEnum(value, STYLE_LABELS)},
