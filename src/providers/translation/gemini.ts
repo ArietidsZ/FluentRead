@@ -40,7 +40,7 @@ async function gemini(message: TranslationProviderRequest<string>) {
         appendOptionalHeader(headers, 'x-goog-api-key', current.token[service]);
     }
 
-    const body = geminiMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, current);
+    const body = geminiMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, current, message.modelOverride, message.thinkingOverride);
     const startedAt = Date.now();
     let attemptReported = false;
     try {

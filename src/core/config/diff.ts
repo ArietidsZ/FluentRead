@@ -339,6 +339,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     model: {group: 'translationServices', label: '服务模型', mapping: serviceMapping('模型')},
     customModel: {group: 'translationServices', label: '自定义模型', mapping: serviceMapping('自定义模型')},
     customModels: {group: 'translationServices', label: '自定义模型列表', mapping: serviceMapping('自定义模型列表')},
+    modelThinking: {group: 'translationServices', label: '模型 Thinking', mapping: serviceMapping('模型 Thinking')},
     requireApiKey: {group: 'translationServices', label: 'API Key 校验', mapping: apiKeyRequirementMapping()},
     minimaxBillingPlan: {group: 'translationServices', label: 'MiniMax 计费方案', format: (value) => formatEnum(value, BILLING_PLAN_LABELS)},
     minimaxRegion: {group: 'translationServices', label: 'MiniMax API 区域', format: (value) => formatEnum(value, REGION_LABELS)},

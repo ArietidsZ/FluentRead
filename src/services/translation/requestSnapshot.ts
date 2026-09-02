@@ -142,6 +142,14 @@ function frozenBooleanMap(value: Record<string, boolean> | undefined): Readonly<
     return Object.freeze({...value});
 }
 
+function frozenNestedBooleanMap(
+    value: Record<string, Record<string, boolean>> | undefined,
+): Readonly<Record<string, Readonly<Record<string, boolean>>>> {
+    return Object.freeze(Object.fromEntries(
+        Object.entries(value || {}).map(([service, models]) => [service, frozenBooleanMap(models)]),
+    ));
+}
+
 function frozenCustomOpenAIProviders(
     value: readonly CustomOpenAIProvider[] | undefined,
 ): readonly Readonly<CustomOpenAIProvider>[] {
@@ -167,6 +175,7 @@ export function createTranslationProviderConfigSnapshot(
         ...providerSource,
         model: frozenStringMap(source.model),
         customModel: frozenStringMap(source.customModel),
+        modelThinking: frozenNestedBooleanMap(source.modelThinking),
         customOpenAIProviders: frozenCustomOpenAIProviders(source.customOpenAIProviders),
         proxy: frozenStringMap(source.proxy),
         customBody: frozenStringMap(source.customBody),

@@ -37,7 +37,7 @@ async function claude(message: TranslationProviderRequest<string>) {
 
     const url = current.proxy[service] || urls[services.claude];
 
-    const body = claudeMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current);
+    const body = claudeMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current, message.thinkingOverride);
     const startedAt = Date.now();
     let attemptReported = false;
     try {
@@ -57,7 +57,16 @@ async function claude(message: TranslationProviderRequest<string>) {
         const actualModel = typeof result?.model === 'string' && result.model.trim()
             ? result.model
             : configuredModel;
-        const translatedText = result.content[0].text;
+        const translatedText = Array.isArray(result?.content)
+            ? result.content
+                .filter((item: unknown): item is {type?: string; text: string} => Boolean(
+                    item && typeof item === 'object' && typeof (item as {text?: unknown}).text === 'string'
+                        && (!(item as {type?: unknown}).type || (item as {type?: unknown}).type === 'text'),
+                ))
+                .map((item: {text: string}) => item.text)
+                .join('')
+            : '';
+        if (!translatedText) throw new Error('Claude 返回数据格式异常：缺少文本内容');
         reportTranslationModelUsage(message, {
             ...normalizeClaudeUsage(result?.usage, actualModel),
             startedAt,

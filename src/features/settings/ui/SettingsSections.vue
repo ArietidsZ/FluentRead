@@ -71,10 +71,12 @@
           <ServiceConfiguration
             :config="config"
             :service="selectedConfigurationService"
+            :selected-model-thinking="selectedConfigurationModelThinking"
             :compute="configurationCompute"
             :options="options"
             :is-valid-azure-endpoint="isValidAzureEndpoint"
             :custom-provider="selectedCustomProvider"
+            @update:model-thinking="updateSelectedConfigurationModelThinking"
             @update:custom-provider="updateSelectedCustomProvider"
             @delete:custom-provider="deleteSelectedCustomProvider"
           />
@@ -692,7 +694,7 @@
 
 // Main 处理配置信息
 import { computed, ref, watch, onUnmounted } from 'vue'
-import { customModelString, defaultOption, getMultilingualTargetLanguageLabel, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
+import { customModelString, defaultOption, getMultilingualTargetLanguageLabel, models, options, services, servicesType } from '@/src/core/config/catalog';
 import {
   createNextCustomOpenAIProviderId,
   getCustomOpenAIProvider,
@@ -707,6 +709,11 @@ import {
   withCustomOpenAIServiceOptions,
   type CustomOpenAIProvider,
 } from '@/src/core/config/customOpenAI';
+import {
+  withModelThinkingPreference,
+  withoutModelThinkingPreference,
+} from '@/src/core/config/modelThinking';
+import {useServiceModelOptions} from './services/modelOptions';
 import {
   Config,
   DEFAULT_MAX_CONCURRENT_TRANSLATIONS,
@@ -929,12 +936,6 @@ interface CustomProviderDraft {
   model: string
 }
 
-interface ConfigurationModelOption {
-  value: string
-  label?: string
-  removable?: boolean
-}
-
 /**
  * 需要同时改变 profile 与其模型/凭据映射的操作必须只发布一个完整快照。
  * 全局配置监听使用 flush: sync；逐字段修改会让中间态先被 normalize 后回灌，
@@ -946,39 +947,14 @@ function updateConfigAtomically(update: (draft: Config) => void): void {
   config.value = normalizeConfig(draft);
 }
 
-const selectedCustomProvider = computed(() => getCustomOpenAIProvider(
-  config.value.customOpenAIProviders,
-  selectedConfigurationService.value,
-));
-const selectedConfigurationModel = computed(() => resolveConfiguredModel(
-  config.value.model[selectedConfigurationService.value],
-  config.value.customModel[selectedConfigurationService.value],
-));
-const builtInConfigurationModels = computed(() => (
-  models.get(selectedConfigurationService.value) || []
-).filter((model) => model !== customModelString));
-const configurationModelOptions = computed<ConfigurationModelOption[]>(() => {
-  const provider = selectedCustomProvider.value;
-  if (provider) {
-    return provider.models.map((model) => ({value: model, removable: true}));
-  }
-
-  const builtIn = builtInConfigurationModels.value.map((model) => ({value: model}));
-  const activeCustomModel = config.value.model[selectedConfigurationService.value] === customModelString
-    ? config.value.customModel[selectedConfigurationService.value]?.trim()
-    : '';
-  const customModels = Array.from(new Set([
-    ...(config.value.customModels[selectedConfigurationService.value] || []),
-    activeCustomModel,
-  ].filter((model): model is string => Boolean(model))))
-    .filter((model) => !builtIn.some((option) => option.value === model));
-  return [...builtIn, ...customModels.map((model) => ({value: model, removable: true}))];
-});
-const selectedConfigurationCustomModelCount = computed(() => (
-  selectedCustomProvider.value?.models.length
-  ?? config.value.customModels[selectedConfigurationService.value]?.length
-  ?? 0
-));
+const {
+  builtInModels: builtInConfigurationModels,
+  customModelCount: selectedConfigurationCustomModelCount,
+  modelOptions: configurationModelOptions,
+  selectedCustomProvider,
+  selectedModel: selectedConfigurationModel,
+  selectedModelThinking: selectedConfigurationModelThinking,
+} = useServiceModelOptions(config, selectedConfigurationService);
 
 function openCustomProviderDialog(): void {
   if (config.value.customOpenAIProviders.length >= MAX_CUSTOM_OPENAI_PROVIDERS) {
@@ -1007,6 +983,7 @@ function createCustomProvider(draft: CustomProviderDraft): void {
     next.system_role[id] = defaultOption.system_role;
     next.user_role[id] = defaultOption.user_role;
     if (draft.apiKey) next.token[id] = draft.apiKey;
+    next.modelThinking = withModelThinkingPreference(next.modelThinking, id, draft.model, false);
   });
   configurationService.value = id;
   ElMessage({message: '自定义服务已添加', type: 'success', grouping: true, duration: 1800});
@@ -1030,6 +1007,7 @@ function deleteSelectedCustomProvider(): void {
       next.documentModel,
       next.customModel,
       next.customModels,
+      next.modelThinking,
       next.documentCustomModel,
       next.proxy,
       next.system_role,
@@ -1065,6 +1043,18 @@ function selectConfigurationModel(model: string): void {
   });
 }
 
+function updateSelectedConfigurationModelThinking(enabled: boolean): void {
+  const service = selectedConfigurationService.value;
+  const model = selectedConfigurationModel.value;
+  if (!model) return;
+  config.value.modelThinking = withModelThinkingPreference(
+    config.value.modelThinking,
+    service,
+    model,
+    enabled,
+  );
+}
+
 function addConfigurationModel(model: string): void {
   const service = selectedConfigurationService.value;
   const provider = selectedCustomProvider.value;
@@ -1076,6 +1066,7 @@ function addConfigurationModel(model: string): void {
           : item),
       );
       next.model[service] = model;
+      next.modelThinking = withModelThinkingPreference(next.modelThinking, service, model, false);
     });
     return;
   }
@@ -1086,6 +1077,7 @@ function addConfigurationModel(model: string): void {
     ]);
     next.customModel[service] = model;
     next.model[service] = customModelString;
+    next.modelThinking = withModelThinkingPreference(next.modelThinking, service, model, false);
   });
 }
 
@@ -1109,6 +1101,7 @@ function removeConfigurationModel(model: string): void {
         if (fallback) next.documentModel[service] = fallback;
         else delete next.documentModel[service];
       }
+      next.modelThinking = withoutModelThinkingPreference(next.modelThinking, service, model);
     });
     return;
   }
@@ -1146,6 +1139,7 @@ function removeConfigurationModel(model: string): void {
     }
     delete next.requireApiKey[createApiKeyRequirementKey(service, model)];
     delete next.requireApiKey[getLegacyApiKeyRequirementKey(service, model)];
+    next.modelThinking = withoutModelThinkingPreference(next.modelThinking, service, model);
   });
 }
 
@@ -1183,9 +1177,6 @@ const createServiceCompute = (serviceSource: ServiceSource) => ({
   showNewAPI: computed(() => servicesType.isNewApi(serviceSource.value)),
   showAzureOpenaiEndpoint: computed(() => servicesType.isAzureOpenai(serviceSource.value)),
   showDeepseekApiType: computed(() => serviceSource.value === 'deepseek'),
-  showDeepseekThinkingMode: computed(
-    () => serviceSource.value === 'deepseek' && config.value.deepseekApiType !== 'responses',
-  ),
 });
 
 // config.service 仍表示实际默认翻译服务；这里仅用于设置页正在编辑的服务。

@@ -18,7 +18,7 @@ vi.mock('@/src/features/full-page-translation/content/translationRequest', () =>
 import {parseHTML} from 'linkedom';
 import {translateLiveText} from '@/src/features/full-page-translation/content/liveTextTranslation';
 
-const snapshot = {service: 'microsoft', model: 'default', sourceLanguage: 'en', targetLanguage: 'zh',
+const snapshot = {service: 'microsoft', model: 'default', thinking: false, sourceLanguage: 'en', targetLanguage: 'zh',
     useCache: true, enableAIContext: false, enableAIMultiSegment: false, displayMode: 'single' as const, style: 0};
 
 describe('实时文本翻译快照', () => {

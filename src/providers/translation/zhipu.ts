@@ -55,7 +55,7 @@ async function zhipu(message: TranslationProviderRequest<string>) {
     headers.append('Content-Type', 'application/json');
     if (secret) headers.append('Authorization', `Bearer ${secret}`);
 
-    const body = commonMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current);
+    const body = commonMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current, message.thinkingOverride);
     const startedAt = Date.now();
     let attemptReported = false;
     try {

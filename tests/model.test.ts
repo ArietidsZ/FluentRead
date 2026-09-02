@@ -873,8 +873,94 @@ describe('旧模型编号兼容迁移', () => {
 
         expect(chat.model[services.deepseek]).toBe('deepseek-v4-flash');
         expect(chat.deepseekThinkingMode).toBe('disabled');
+        expect(chat.modelThinking[services.deepseek]).toEqual({'deepseek-v4-flash': false});
         expect(reasoner.model[services.deepseek]).toBe('deepseek-v4-flash');
         expect(reasoner.deepseekThinkingMode).toBe('enabled');
+        expect(reasoner.modelThinking[services.deepseek]).toEqual({'deepseek-v4-flash': true});
+    });
+
+    it('模型 Thinking 默认关闭，并规范化迁移可达模型状态', () => {
+        expect(new Config().modelThinking).toEqual({});
+
+        const normalized = normalizeConfig({
+            ...new Config(),
+            customModels: {[services.openai]: ['private-model']},
+            modelThinking: {
+                [services.openai]: {
+                    gpt5: true,
+                    [defaultModelIds[services.openai]]: false,
+                    'private-model': true,
+                    orphan: true,
+                    invalid: 'yes',
+                },
+                [services.microsoft]: {'machine-model': true},
+                unknown: {'future-model': true},
+            },
+        });
+
+        expect(normalized.modelThinking).toEqual({
+            [services.openai]: {
+                [defaultModelIds[services.openai]]: false,
+                'private-model': true,
+            },
+        });
+        expect(normalizeConfig(normalized)).toEqual(normalized);
+    });
+
+    it('模型 Thinking 迁移不改写同名自定义模型，并让当前编号优先于旧编号', () => {
+        const customLegacyName = normalizeConfig({
+            ...new Config(),
+            model: {...new Config().model, [services.openai]: customModelString},
+            customModel: {[services.openai]: 'gpt5'},
+            customModels: {[services.openai]: ['gpt5']},
+            modelThinking: {[services.openai]: {gpt5: true}},
+        });
+        expect(customLegacyName.modelThinking[services.openai]).toEqual({gpt5: true});
+
+        const officialLegacyName = normalizeConfig({
+            ...new Config(),
+            modelThinking: {[services.openai]: {
+                gpt5: true,
+                [defaultModelIds[services.openai]]: false,
+            }},
+        });
+        expect(officialLegacyName.modelThinking[services.openai])
+            .toEqual({[defaultModelIds[services.openai]]: false});
+    });
+
+    it('显式模型级 DeepSeek 值覆盖旧服务级开关并迁移旧模型键', () => {
+        const explicit = normalizeConfig({
+            model: {[services.deepseek]: 'deepseek-v4-flash'},
+            deepseekThinkingMode: 'enabled',
+            modelThinking: {[services.deepseek]: {'deepseek-v4-flash': false}},
+        });
+        expect(explicit.modelThinking[services.deepseek]).toEqual({'deepseek-v4-flash': false});
+
+        const legacyKey = normalizeConfig({
+            modelThinking: {[services.deepseek]: {'deepseek-reasoner': true}},
+        });
+        expect(legacyKey.modelThinking[services.deepseek]).toEqual({'deepseek-v4-flash': true});
+
+        const legacyChatKey = normalizeConfig({
+            modelThinking: {[services.deepseek]: {'deepseek-chat': false}},
+        });
+        expect(legacyChatKey.modelThinking[services.deepseek]).toEqual({'deepseek-v4-flash': false});
+    });
+
+    it('动态自定义服务只保留 profile 中仍可达模型的 Thinking 状态', () => {
+        const normalized = normalizeConfig({
+            customOpenAIProviders: [{
+                id: 'custom:team',
+                name: '团队模型',
+                endpoint: 'https://example.com/v1/chat/completions',
+                models: ['model-a'],
+            }],
+            model: {'custom:team': 'model-a'},
+            documentModel: {'custom:team': 'model-a'},
+            modelThinking: {'custom:team': {'model-a': true, orphan: false}},
+        });
+
+        expect(normalized.modelThinking).toEqual({'custom:team': {'model-a': true}});
     });
 });
 

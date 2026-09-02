@@ -38,7 +38,7 @@ async function tongyi(message: TranslationProviderRequest<string>) {
         : urls[services.tongyi];
     const url: string = current.proxy[service] || officialUrl;
 
-    const body = tongyiMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current);
+    const body = tongyiMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current, message.thinkingOverride);
     const startedAt = Date.now();
     let attemptReported = false;
     try {
