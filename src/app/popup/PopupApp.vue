@@ -609,7 +609,7 @@ const servicePicker = ref<HTMLElement | null>(null);
 const serviceSearchInput = ref<HTMLInputElement | null>(null);
 const serviceSearchQuery = ref('');
 const servicePickerOpen = ref(false);
-const moreServicesOpen = ref(false);
+const moreServicesOpen = ref(true);
 const hydrated = ref(false);
 let lastSerialized = '';
 let applyingExternalConfig = false;
@@ -658,8 +658,6 @@ const popularServiceOptions = computed(() => popularServiceValues
   .map(value => serviceSearchResults.value.find((item: any) => item.value === value))
   .filter((item): item is any => Boolean(item)));
 const moreServiceOptions = computed(() => serviceSearchResults.value.filter((item: any) => !popularServiceValues.includes(item.value)));
-const selectedServiceIsMore = computed(() => serviceOptions.value.some((item: any) =>
-  item.value === config.value.service && !popularServiceValues.includes(item.value)));
 const servicePickerCount = computed(() => serviceSearchActive.value
   ? `${serviceSearchResults.value.length}/${serviceOptions.value.length}`
   : serviceOptions.value.length);
@@ -818,7 +816,7 @@ function toggleServicePicker() {
   if (!config.value.on) return;
   servicePickerOpen.value = !servicePickerOpen.value;
   if (servicePickerOpen.value) {
-    moreServicesOpen.value = selectedServiceIsMore.value;
+    moreServicesOpen.value = true;
     void nextTick(() => serviceSearchInput.value?.focus());
   } else {
     serviceSearchQuery.value = '';
