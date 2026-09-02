@@ -332,9 +332,16 @@
           <el-switch v-model="config.bilingualSentenceHighlightEnabled" class="settings-toggle" :aria-label="t('settings.general.bilingualSentenceHighlight')" />
         </SettingsItem>
         <div v-show="config.display === 1" class="style-preview-card" aria-live="polite">
-          <div class="style-preview-example">
-            <p class="style-preview-source">Reading should feel calm and effortless.</p>
-            <p :key="config.style" class="style-preview-text" :class="currentStyleClass">阅读应该轻松、自然，不打断你的节奏。</p>
+          <div
+            class="style-preview-example bilingual-highlight-preview"
+            :class="{ 'is-bilingual-highlight-enabled': config.bilingualSentenceHighlightEnabled }"
+            :data-bilingual-highlight-enabled="String(config.bilingualSentenceHighlightEnabled)"
+            data-testid="bilingual-highlight-preview"
+            :tabindex="config.bilingualSentenceHighlightEnabled ? 0 : -1"
+            :aria-label="t('settings.general.bilingualSentenceHighlightDescription')"
+          >
+            <p class="style-preview-source" data-testid="bilingual-highlight-preview-source">Reading should feel calm and effortless.</p>
+            <p :key="config.style" class="style-preview-text" :class="currentStyleClass" data-testid="bilingual-highlight-preview-translation">阅读应该轻松、自然，不打断你的节奏。</p>
           </div>
         </div>
       </SettingsGroup>

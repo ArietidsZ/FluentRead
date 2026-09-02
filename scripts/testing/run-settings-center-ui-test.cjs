@@ -102,6 +102,124 @@ async function screenshotElement(locator, file) {
   return target;
 }
 
+async function verifyBilingualHighlightPreview(page) {
+  const preview = page.getByTestId('bilingual-highlight-preview');
+  const source = page.getByTestId('bilingual-highlight-preview-source');
+  const translation = page.getByTestId('bilingual-highlight-preview-translation');
+  const toggle = page.getByRole('switch', {name: '双语逐句高亮', exact: true});
+  await preview.waitFor({state: 'visible', timeout});
+  if (await source.count() !== 1 || await translation.count() !== 1 || await toggle.count() !== 1) {
+    throw new Error('双语逐句高亮预览缺少唯一的原文、译文或开关');
+  }
+
+  const initialEnabled = await toggle.getAttribute('aria-checked') === 'true';
+  if (initialEnabled) {
+    await toggle.locator('..').click();
+    await page.waitForFunction(() =>
+      document.querySelector('[data-testid="bilingual-highlight-preview"]')
+        ?.getAttribute('data-bilingual-highlight-enabled') === 'false', undefined, {timeout});
+  }
+
+  const readState = () => preview.evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    const source = element.querySelector('[data-testid="bilingual-highlight-preview-source"]');
+    const translation = element.querySelector('[data-testid="bilingual-highlight-preview-translation"]');
+    const sourceMarker = source ? getComputedStyle(source, '::before') : null;
+    const translationMarker = translation ? getComputedStyle(translation, '::before') : null;
+    return {
+      enabled: element.getAttribute('data-bilingual-highlight-enabled'),
+      backgroundColor: style.backgroundColor,
+      boxShadow: style.boxShadow,
+      sourceMarker: sourceMarker ? {
+        content: sourceMarker.content,
+        width: sourceMarker.width,
+        backgroundColor: sourceMarker.backgroundColor,
+      } : null,
+      translationMarker: translationMarker ? {
+        content: translationMarker.content,
+        width: translationMarker.width,
+        backgroundColor: translationMarker.backgroundColor,
+      } : null,
+      rect: {x: rect.x, y: rect.y, width: rect.width, height: rect.height},
+    };
+  });
+  await page.mouse.move(0, 0);
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  });
+  await page.waitForTimeout(220);
+  const before = await readState();
+  await source.hover();
+  await page.waitForTimeout(180);
+  const disabledHover = await readState();
+  if (disabledHover.backgroundColor !== before.backgroundColor ||
+      disabledHover.boxShadow !== before.boxShadow ||
+      disabledHover.translationMarker?.content !== 'none') {
+    throw new Error(`关闭双语逐句高亮后预览仍响应 hover：${JSON.stringify({before, disabledHover})}`);
+  }
+
+  await toggle.locator('..').click();
+  await page.waitForFunction(() =>
+    document.querySelector('[data-testid="bilingual-highlight-preview"]')
+      ?.getAttribute('data-bilingual-highlight-enabled') === 'true', undefined, {timeout});
+  await source.hover();
+  await page.waitForTimeout(180);
+  const sourceHover = await readState();
+  await translation.hover();
+  await page.waitForTimeout(180);
+  const translationHover = await readState();
+  await page.mouse.move(0, 0);
+  await toggle.focus();
+  await page.keyboard.press('Tab');
+  await page.waitForFunction(() =>
+    document.activeElement?.getAttribute('data-testid') === 'bilingual-highlight-preview', undefined, {timeout});
+  await page.waitForTimeout(180);
+  const keyboardFocus = await readState();
+  const geometryDelta = Math.max(
+    Math.abs(keyboardFocus.rect.x - before.rect.x),
+    Math.abs(keyboardFocus.rect.y - before.rect.y),
+    Math.abs(keyboardFocus.rect.width - before.rect.width),
+    Math.abs(keyboardFocus.rect.height - before.rect.height),
+  );
+  const transparent = new Set(['rgba(0, 0, 0, 0)', 'transparent']);
+  if (transparent.has(sourceHover.backgroundColor) ||
+      sourceHover.backgroundColor === before.backgroundColor ||
+      sourceHover.backgroundColor !== translationHover.backgroundColor ||
+      sourceHover.boxShadow !== translationHover.boxShadow ||
+      sourceHover.backgroundColor !== keyboardFocus.backgroundColor ||
+      sourceHover.boxShadow !== keyboardFocus.boxShadow ||
+      sourceHover.sourceMarker?.content !== 'none' ||
+      !sourceHover.translationMarker ||
+      sourceHover.translationMarker.content === 'none' ||
+      sourceHover.translationMarker.width !== '2px' ||
+      transparent.has(sourceHover.translationMarker.backgroundColor) ||
+      JSON.stringify(sourceHover.translationMarker) !== JSON.stringify(translationHover.translationMarker) ||
+      JSON.stringify(sourceHover.translationMarker) !== JSON.stringify(keyboardFocus.translationMarker)) {
+    throw new Error(`双语逐句高亮预览的原文、译文和键盘焦点效果不一致：${JSON.stringify({before, sourceHover, translationHover, keyboardFocus})}`);
+  }
+  if (geometryDelta > 0.5) throw new Error(`双语逐句高亮预览改变了几何尺寸：${geometryDelta}px`);
+
+  const screenshot = await screenshotElement(preview, 'settings-bilingual-highlight-preview.png');
+  if (!initialEnabled) {
+    await toggle.locator('..').click();
+    await page.waitForFunction(() =>
+      document.querySelector('[data-testid="bilingual-highlight-preview"]')
+        ?.getAttribute('data-bilingual-highlight-enabled') === 'false', undefined, {timeout});
+  }
+  await page.mouse.move(0, 0);
+
+  return {
+    initialEnabled,
+    disabledHover,
+    sourceHover,
+    translationHover,
+    keyboardFocus,
+    geometryDelta,
+    screenshot,
+  };
+}
+
 async function seedModelUsageFixture(page) {
   return page.evaluate(async () => {
     const now = Date.now();
@@ -615,6 +733,7 @@ async function main() {
     navigation: [],
     responsive: [],
     defaultServiceCard: {responsive: []},
+    bilingualHighlightPreview: null,
     translationLoadingStyles: {},
     informationArchitecture: {},
     persistenceCases: [],
@@ -1858,6 +1977,9 @@ async function main() {
       throw new Error(`通用设置分组异常：${JSON.stringify(generalGroups)}`);
     }
     report.informationArchitecture.generalGroups = generalGroups;
+    report.bilingualHighlightPreview = await verifyBilingualHighlightPreview(page);
+    report.screenshots.push(report.bilingualHighlightPreview.screenshot);
+    report.assertions.bilingualHighlightPreview = true;
 
     const defaultServiceCard = generalSection.getByTestId('default-translation-service-card');
     await defaultServiceCard.waitFor({state: 'visible', timeout});

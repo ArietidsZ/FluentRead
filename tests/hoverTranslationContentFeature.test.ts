@@ -95,17 +95,29 @@ describe('hover translation content feature', () => {
         expect(matchesPressedHotkeyParts(['control'], new Set(['control', 'c']))).toBe(false);
     });
 
-    it('按住 hover 快捷键移动鼠标时延迟触发翻译，keyup 不重复触发', () => {
+    it.each([
+        {label: '0ms', delayMs: 0},
+        {label: '120ms', delayMs: 120},
+    ] as const)('$label 移动手势每次都显式传 continuous=true，keyup 不重复触发', ({delayMs}) => {
         const {deps, documentTarget, windowTarget} = mountHarness();
+        deps.config.mouseHoverTranslationDelay = delayMs;
         const keydown = trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true});
 
         windowTarget.emit('keydown', keydown);
         documentTarget.emit('mousemove', trustedEvent({clientX: 10, clientY: 20}));
+        documentTarget.emit('mousemove', trustedEvent({clientX: 10, clientY: 26}));
         windowTarget.emit('keyup', trustedEvent({key: 'Control', code: 'ControlLeft'}));
 
         expect(keydown.preventDefault).toHaveBeenCalledOnce();
-        expect(deps.handleTranslation).toHaveBeenCalledWith(10, 20, 120);
-        expect(deps.handleTranslation).toHaveBeenCalledTimes(1);
+        expect(deps.handleTranslation).toHaveBeenNthCalledWith(1, 10, 20, {
+            delayMs,
+            continuous: true,
+        });
+        expect(deps.handleTranslation).toHaveBeenNthCalledWith(2, 10, 26, {
+            delayMs,
+            continuous: true,
+        });
+        expect(deps.handleTranslation).toHaveBeenCalledTimes(2);
     });
 
     it('未移动时在释放完整快捷键后触发一次当前位置翻译', () => {
@@ -118,6 +130,7 @@ describe('hover translation content feature', () => {
         expect(keyup.preventDefault).toHaveBeenCalledOnce();
         expect(keyup.stopPropagation).toHaveBeenCalledOnce();
         expect(deps.handleTranslation).toHaveBeenCalledWith(0, 0);
+        expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[0, 0]]);
     });
 
     it('站点禁用、非可信事件、重复按键和 macOS Command 都不会触发', () => {
@@ -198,7 +211,10 @@ describe('hover translation content feature', () => {
         documentTarget.emit('mousemove', trustedEvent({clientX: 12, clientY: 24}));
 
         expect(deps.cancelPendingHoverTranslation).not.toHaveBeenCalled();
-        expect(deps.handleTranslation).toHaveBeenCalledWith(12, 24, 120);
+        expect(deps.handleTranslation).toHaveBeenCalledWith(12, 24, {
+            delayMs: 120,
+            continuous: true,
+        });
     });
 
     it('selectionchange 在划词快捷键匹配且存在有效选区时取消 hover 候选', () => {
@@ -333,6 +349,7 @@ describe('hover translation content feature', () => {
         expect(deps.handleTranslation).toHaveBeenCalledWith(21, 34);
         expect(deps.handleTranslation).toHaveBeenCalledWith(55, 89);
         expect(deps.handleTranslation).toHaveBeenCalledWith(5, 8);
+        expect(vi.mocked(deps.handleTranslation).mock.calls.every(call => call.length === 2)).toBe(true);
     });
 
     it('中键和屏幕连击在站点禁用时被 guard 拦截', () => {

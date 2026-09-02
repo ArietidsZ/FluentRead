@@ -1,7 +1,7 @@
 /**
  * @file src/features/hover-translation/content/index.ts
  * 文件职责：实现按住配置快捷键并移动鼠标触发的悬浮翻译手势控制器，统一管理按键集合、平台差异、节流采样和启停清理。
- * 主要内容：定义可注入的配置、常量与依赖接口，提供快捷键字符串规范化和匹配函数，并在 mountHoverTranslationContentFeature 中监听 keydown、keyup、pointermove、blur 与 abort。
+ * 主要内容：定义可注入的配置、常量与依赖接口，提供快捷键字符串规范化和匹配函数，并在 mountHoverTranslationContentFeature 中监听 keydown、keyup、pointermove、blur 与 abort，显式区分单次切换和连续移动手势。
  * 模块边界：该模块只识别手势和调用注入的 handleTranslation/cancelPending，不读取具体翻译服务或创建译文；配置源、站点禁用判断和全文运行时由 app composition root 提供。
  */
 export interface HoverTranslationContentConfig {
@@ -22,6 +22,11 @@ export interface HoverTranslationGestureConstants {
     TripleClickScreen: string;
 }
 
+export interface HoverTranslationInvocation {
+    delayMs?: number;
+    continuous?: boolean;
+}
+
 export interface HoverTranslationContentDependencies {
     config: HoverTranslationContentConfig;
     constants: HoverTranslationGestureConstants;
@@ -30,7 +35,11 @@ export interface HoverTranslationContentDependencies {
     navigator: Navigator;
     isSiteDisabled: () => boolean;
     getCenterPoint: (touches: TouchList, requiredTouches: number) => { x: number; y: number } | null | undefined;
-    handleTranslation: (mouseX: number, mouseY: number, delay?: number) => void;
+    handleTranslation: (
+        mouseX: number,
+        mouseY: number,
+        invocation?: HoverTranslationInvocation,
+    ) => void;
     cancelPendingHoverTranslation: () => void;
     hasActiveSelectionTranslationCandidate: () => boolean;
     getConfiguredSelectionHotkey: () => string;
@@ -248,7 +257,16 @@ export function mountHoverTranslationContentFeature(
         if (screen.hotkeyPressed && deps.config.on) {
             if (cancelHoverForActiveSelection()) return;
             screen.hasSlideTranslation = true;
-            deps.handleTranslation(screen.mouseX, screen.mouseY, deps.config.mouseHoverTranslationDelay);
+            // 连续移动与延迟是两个独立维度。0ms 只是立即响应，不能退化成
+            // “再次命中已译句子就恢复原文”的单次切换手势。
+            deps.handleTranslation(
+                screen.mouseX,
+                screen.mouseY,
+                {
+                    delayMs: deps.config.mouseHoverTranslationDelay,
+                    continuous: true,
+                },
+            );
         }
     }, { signal });
 
