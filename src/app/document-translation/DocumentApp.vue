@@ -59,7 +59,7 @@
             {{ openingFile ? '正在解析文件…' : '打开文件' }}
           </button>
           <p>点击打开文件，或把本地文件拖到这里</p>
-          <small>支持单个文件，最大 {{ maxFileSizeLabel }} · 文件不会上传到 FluentRead 服务器</small>
+          <small>{{ t('document.fileLimitNote', {size: maxFileSizeLabel}) }}</small>
         </div>
 
         <p v-if="errorMessage" class="notice error" role="alert">{{ errorMessage }}</p>
@@ -71,7 +71,7 @@
             <span class="file-type-badge" :class="formatTone">{{ formatCode }}</span>
             <div>
               <h1>{{ parsedDocument.fileName }}</h1>
-              <p>{{ parsedDocument.label }} · {{ parsedDocument.segments.length }} 个可翻译片段</p>
+              <p>{{ parsedDocument.label }} · {{ t('document.translatableSegments', {count: parsedDocument.segments.length}) }}</p>
             </div>
           </div>
           <button class="ghost-button" type="button" :disabled="translating" @click="resetDocument">打开新文件</button>
@@ -81,7 +81,7 @@
           <label class="language-control">
             <span>源语言</span>
             <select v-model="config.from" :disabled="translating" aria-label="文档源语言">
-              <option v-for="item in sourceLanguageOptions" :key="item.value" :value="item.value" :data-i18n-ignore="item.value === 'auto' ? undefined : ''">{{ item.label }}</option>
+              <option v-for="item in sourceLanguageOptions" :key="item.value" :value="item.value" data-i18n-ignore>{{ item.value === 'auto' ? translateLegacy(item.label) : getMultilingualTargetLanguageLabel(item.value, item.label, language) }}</option>
             </select>
           </label>
           <span class="language-arrow" aria-hidden="true">→</span>
@@ -130,7 +130,7 @@
         <div v-if="translating || hasTranslation" class="progress-panel" :class="{ complete: hasTranslation && !translating }">
           <div class="progress-copy">
             <strong>{{ translating ? `正在翻译 ${parsedDocument.fileName}` : '翻译完成，可以编辑译文后下载' }}</strong>
-            <span>{{ completedSegments }} / {{ parsedDocument.segments.length }} 个片段</span>
+            <span>{{ t('document.progressSegments', {completed: completedSegments, total: parsedDocument.segments.length}) }}</span>
           </div>
           <div class="progress-track"><i :style="{ width: `${progress}%` }" /></div>
         </div>
@@ -152,7 +152,7 @@
         >
           <div class="pdf-viewer-toolbar">
             <div class="pdf-page-summary" aria-label="PDF 连续页面阅读状态">
-              <strong>{{ pdfPageCount }} 页</strong>
+              <strong>{{ t('document.pageCount', {count: pdfPageCount}) }}</strong>
               <span>原文与译文已按页面纵向连续排列</span>
             </div>
             <label class="pdf-zoom-control">
@@ -174,7 +174,7 @@
               :data-page-number="pdfPage.pageNumber"
             >
               <div class="pdf-page-row-heading">
-                <strong>第 {{ pdfPage.pageNumber }} 页</strong>
+                <strong>{{ t('document.pageNumber', {page: pdfPage.pageNumber}) }}</strong>
                 <span>{{ pdfPage.loading ? '正在渲染…' : '版式已保留' }}</span>
               </div>
               <div
@@ -183,7 +183,7 @@
                 :style="{ '--pdf-page-min-width': `${400 * pdfZoom}px`, '--pdf-page-max-width': `${720 * pdfZoom}px` }"
               >
                 <figure v-if="outputMode === 'bilingual'" class="pdf-page-column">
-                  <figcaption><span>原文</span><strong>第 {{ pdfPage.pageNumber }} 页</strong></figcaption>
+                  <figcaption><span>原文</span><strong>{{ t('document.pageNumber', {page: pdfPage.pageNumber}) }}</strong></figcaption>
                   <div class="pdf-page-frame" :style="{ aspectRatio: `${pdfPage.width} / ${pdfPage.height}` }">
                     <img v-if="pdfPage.originalUrl" :src="pdfPage.originalUrl" :alt="`PDF 原文第 ${pdfPage.pageNumber} 页`" />
                     <span v-else class="pdf-page-loading">正在渲染原页…</span>
@@ -203,7 +203,7 @@
               </div>
 
               <details v-if="pdfRowsForPage(pdfPage.pageNumber).length" class="pdf-proofreading">
-                <summary>校对第 {{ pdfPage.pageNumber }} 页译文 <span>{{ pdfRowsForPage(pdfPage.pageNumber).length }} 个版面文本块</span></summary>
+                <summary>{{ t('document.proofreadPage', {page: pdfPage.pageNumber}) }} <span>{{ t('document.layoutTextBlocks', {count: pdfRowsForPage(pdfPage.pageNumber).length}) }}</span></summary>
                 <article v-for="row in pdfRowsForPage(pdfPage.pageNumber)" :key="row.index" class="pdf-proofreading-row">
                   <p class="document-source">{{ row.source }}</p>
                   <textarea
@@ -249,7 +249,7 @@
             :title="`${parsedDocument.label}排版阅读预览`"
           />
           <details class="native-proofreading">
-            <summary>校对当前{{ isEpubDocument ? '章节' : '文档' }}译文 <span>{{ currentRichRows.length }} 个文本片段</span></summary>
+            <summary>{{ t(isEpubDocument ? 'document.proofreadCurrentChapter' : 'document.proofreadCurrentDocument') }} <span>{{ t('document.textSegments', {count: currentRichRows.length}) }}</span></summary>
             <article v-for="row in currentRichRows" :key="row.index" class="native-proofreading-row">
               <p class="document-source">{{ readerText(row.source) }}</p>
               <textarea
@@ -378,7 +378,7 @@
         <p v-if="!hasTranslation" class="reader-empty">
           {{ emptyReaderHint }}
         </p>
-        <p v-if="showPreviewLimitNote" class="preview-more">当前展示前 {{ previewLimit }} 个片段，下载时会包含完整文件。</p>
+        <p v-if="showPreviewLimitNote" class="preview-more">{{ t('document.previewLimit', {count: previewLimit}) }}</p>
       </section>
     </main>
 
@@ -470,7 +470,7 @@ function mergeChangedDocumentModelMapping(
 }
 
 const config = reactive(new Config());
-const {language, translateLegacy} = useUiI18n();
+const {language, t, translateLegacy} = useUiI18n();
 const fileInput = ref<HTMLInputElement | null>(null);
 const parsedDocument = ref<ParsedDocument | null>(null);
 const translatedSegments = ref<string[]>([]);

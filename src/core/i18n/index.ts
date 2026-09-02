@@ -270,13 +270,6 @@ export function translateLegacyText(value: string, language: UiLanguage): string
     const exact = legacyCatalogs[language]?.[trimmed];
     if (exact) return preserveWhitespace(value, exact);
 
-    // 未完成 key 化的旧文案优先使用当前语言的显式词典；缺失时回退 English，
-    // 保证新增 locale 不把中文模板泄漏到用户界面。稳定资源仍应继续迁移到 t()。
-    if (language !== 'en-US') {
-        const englishFallback = enUSLegacyText[trimmed];
-        if (englishFallback) return preserveWhitespace(value, englishFallback);
-    }
-
     const compound = trimmed.split(' · ');
     if (compound.length > 1) {
         const translatedCompound = compound.map((part) => translateLegacyText(part, language)).join(' · ');
@@ -287,6 +280,17 @@ export function translateLegacyText(value: string, language: UiLanguage): string
     for (const [pattern, resolver] of patterns) {
         const match = pattern.exec(trimmed);
         if (match) return preserveWhitespace(value, resolver(match));
+    }
+
+    // 复合状态和当前语言的动态模板必须先于 English 回退处理，否则只漏掉一个
+    // 词时会把整行降级为 English，形成例如「オフ · Show icon」的混合界面。
+    if (language !== 'en-US') {
+        const englishFallback = enUSLegacyText[trimmed];
+        if (englishFallback) return preserveWhitespace(value, englishFallback);
+        for (const [pattern, resolver] of legacyPatterns) {
+            const match = pattern.exec(trimmed);
+            if (match) return preserveWhitespace(value, resolver(match));
+        }
     }
     return value;
 }

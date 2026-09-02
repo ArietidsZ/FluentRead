@@ -123,7 +123,7 @@ describe('options UI composition architecture', () => {
     expect(modelUsageDashboard).toContain('averageCachedInputTokensPerCacheReportedRequest')
     expect(modelUsageDashboard).toContain('averageOutputTokensPerCacheReportedRequest')
     expect(modelUsageDashboard).toContain('输入（无缓存）')
-    expect(modelUsageDashboard).toContain('占比 {{ formatUsageRate(selectedTotals.cachedInputTokenShare) }}')
+    expect(modelUsageDashboard).toContain('<em><span>占比</span> {{ formatUsageRate(selectedTotals.cachedInputTokenShare) }}</em>')
     expect(modelUsageDashboard).toContain('usage-average-grid')
     expect(modelUsageDashboard).toContain('按${option.label}排序')
     expect(modelUsageDashboard).toContain("{key: 'requests', label: '次数'}")

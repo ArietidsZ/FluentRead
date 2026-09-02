@@ -10,12 +10,12 @@ import {
   translate,
   translateLegacyText,
 } from '@/src/core/i18n';
-import {enUSMessages} from '@/src/core/i18n/messages/en-US';
-import {esESMessages} from '@/src/core/i18n/messages/es-ES';
-import {frFRMessages} from '@/src/core/i18n/messages/fr-FR';
-import {jaJPMessages} from '@/src/core/i18n/messages/ja-JP';
-import {koKRMessages} from '@/src/core/i18n/messages/ko-KR';
-import {ruRUMessages} from '@/src/core/i18n/messages/ru-RU';
+import {enUSLegacyText, enUSMessages} from '@/src/core/i18n/messages/en-US';
+import {esESLegacyText, esESMessages} from '@/src/core/i18n/messages/es-ES';
+import {frFRLegacyText, frFRMessages} from '@/src/core/i18n/messages/fr-FR';
+import {jaJPLegacyText, jaJPMessages} from '@/src/core/i18n/messages/ja-JP';
+import {koKRLegacyText, koKRMessages} from '@/src/core/i18n/messages/ko-KR';
+import {ruRULegacyText, ruRUMessages} from '@/src/core/i18n/messages/ru-RU';
 import {zhCNMessages} from '@/src/core/i18n/messages/zh-CN';
 import {Config, normalizeConfig} from '@/src/core/config/model';
 import {getMultilingualTargetLanguageLabel, options} from '@/src/core/config/catalog';
@@ -24,6 +24,27 @@ import {toRestorableConfig} from '@/src/services/config/history';
 import {getContextMenuTitle} from '@/src/app/background/contextMenuUi';
 
 describe('界面 i18n 契约', () => {
+  const translatedCatalogs: ReadonlyArray<Readonly<Record<string, string>>> = [
+    enUSMessages,
+    jaJPMessages,
+    koKRMessages,
+    frFRMessages,
+    ruRUMessages,
+    esESMessages,
+  ];
+
+  const translatedLegacyCatalogs = [
+    jaJPLegacyText,
+    koKRLegacyText,
+    frFRLegacyText,
+    ruRULegacyText,
+    esESLegacyText,
+  ];
+
+  const placeholders = (message: string) => (
+    [...message.matchAll(/\{([a-zA-Z0-9_]+)\}/g)].map((match) => match[1]).sort()
+  );
+
   it('保留中文默认值，并只接受受支持的界面语言', () => {
     expect(DEFAULT_UI_LANGUAGE).toBe('zh-CN');
     expect(new Config().uiLanguage).toBe('zh-CN');
@@ -122,6 +143,86 @@ describe('界面 i18n 契约', () => {
     for (const catalog of [jaJPMessages, koKRMessages, frFRMessages, ruRUMessages]) {
       expect(Object.keys(catalog).sort()).toEqual(Object.keys(enUSMessages).sort());
     }
+  });
+
+  it('每种正式语言目录都完整，并保留相同的插值参数', () => {
+    const chineseCatalog: Readonly<Record<string, string>> = zhCNMessages;
+    for (const catalog of translatedCatalogs) {
+      expect(Object.keys(catalog).sort()).toEqual(Object.keys(chineseCatalog).sort());
+      for (const key of Object.keys(chineseCatalog)) {
+        expect(placeholders(catalog[key]), key).toEqual(placeholders(chineseCatalog[key]));
+      }
+    }
+  });
+
+  it('每种旧界面词典都覆盖 English 基线，且 English 界面不夹杂中文', () => {
+    for (const catalog of translatedLegacyCatalogs) {
+      expect(Object.keys(enUSLegacyText).filter((key) => !catalog[key])).toEqual([]);
+    }
+
+    const allowedNativeLabels = new Set(['中文', '日本語']);
+    const unexpectedHan = Object.entries(enUSLegacyText).filter(([, value]) => (
+      /[\u3400-\u9fff]/u.test(value) && !allowedNativeLabels.has(value)
+    ));
+    expect(unexpectedHan).toEqual([]);
+  });
+
+  it('逐段翻译复合状态，不把整行回退成 English', () => {
+    const offWithIcon = {
+      'en-US': 'Off · Show icon',
+      'ja-JP': 'オフ · アイコンを表示',
+      'ko-KR': '끔 · 아이콘 표시',
+      'fr-FR': 'Désactivé · Afficher l’icône',
+      'ru-RU': 'Выключено · Показывать значок',
+      'es-ES': 'Desactivado · Mostrar icono',
+    } as const;
+    const bilingualBold = {
+      'en-US': 'Bilingual · Bold',
+      'ja-JP': '二言語 · 太字表示',
+      'ko-KR': '이중 언어 · 굵게 표시',
+      'fr-FR': 'Bilingue · Affichage en gras',
+      'ru-RU': 'Двуязычный режим · Полужирный текст',
+      'es-ES': 'Bilingüe · Negrita',
+    } as const;
+
+    for (const language of Object.keys(offWithIcon) as Array<keyof typeof offWithIcon>) {
+      expect(translateLegacyText('已关闭 · 显示图标', language)).toBe(offWithIcon[language]);
+      expect(translateLegacyText('双语 · 加粗显示', language)).toBe(bilingualBold[language]);
+    }
+  });
+
+  it('人工校正容易发生语义误判的高频设置文案', () => {
+    expect(translateLegacyText('日本語', 'en-US')).toBe('Japanese');
+    expect(translateLegacyText('显示 FluentRead 字幕', 'ja-JP')).toBe('FluentRead 字幕を表示');
+    expect(translateLegacyText('显示 FluentRead 字幕', 'ko-KR')).toBe('FluentRead 자막 표시');
+    expect(translateLegacyText('禁用扩展网站', 'fr-FR')).toBe('Sites où désactiver l’extension');
+    expect(translateLegacyText('禁用扩展网站', 'ru-RU')).toBe('Сайты с отключённым расширением');
+    expect(translateLegacyText('禁用扩展网站', 'es-ES')).toBe('Sitios con la extensión desactivada');
+    expect(translateLegacyText('控制并发数量、请求速率和失败重试的退避范围。', 'ko-KR'))
+      .toBe('동시 실행 수, 요청 속도, 실패 시 재시도 간격을 설정합니다.');
+    expect(translateLegacyText('控制并发数量、请求速率和失败重试的退避范围。', 'fr-FR'))
+      .toBe('Réglez le nombre de tâches simultanées, la fréquence des requêtes et les délais entre les tentatives.');
+  });
+
+  it('为高级调度摘要按语言插值，不残留中文模板', () => {
+    expect(translate('settings.advanced.schedulerSummary', 'en-US', {
+      concurrency: 6,
+      perSecond: '∞',
+      perMinute: 60,
+      retries: 3,
+      baseDelay: '500ms',
+      maxDelay: '8s',
+    })).toBe('Up to 6 translation tasks at once; limits: ∞/s and 60/min; up to 3 retries; backoff: 500ms–8s.');
+    expect(translate('settings.advanced.schedulerSummary', 'ja-JP', {
+      concurrency: 6,
+      perSecond: '∞',
+      perMinute: 60,
+      retries: 3,
+      baseDelay: '500ms',
+      maxDelay: '8s',
+    })).toBe('翻訳タスクを最大 6 件同時に処理します。上限：毎秒 ∞ 件、毎分 60 件。再試行は最大 3 回、待機時間は 500ms～8s。');
+    expect(translate('settings.sites.count', 'en-US', {count: 0})).toBe('Websites: 0');
+    expect(translate('settings.sites.count', 'ko-KR', {count: 3})).toBe('사이트 3개');
   });
 
   it('只把显式登记的旧 UI 文案翻译为当前界面语言', () => {

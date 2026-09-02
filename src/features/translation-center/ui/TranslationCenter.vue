@@ -11,7 +11,7 @@
       <div class="language-picker-group">
         <label for="translation-center-source">源语言</label>
         <select id="translation-center-source" v-model="sourceLanguage" aria-label="翻译中心源语言" @change="persistTranslationCenterConfig('source')">
-          <option v-for="item in sourceLanguageOptions" :key="item.value" :value="item.value" :data-i18n-ignore="item.value === 'auto' ? undefined : ''">{{ item.label }}</option>
+          <option v-for="item in sourceLanguageOptions" :key="item.value" :value="item.value" data-i18n-ignore>{{ languageLabel(item.value) }}</option>
         </select>
       </div>
 
@@ -130,7 +130,7 @@
         <div class="translation-panel-heading results-heading">
           <div>
             <span class="translation-panel-kicker">对比结果</span>
-            <h3 id="translation-results-title">{{ cards.length }} 个翻译服务</h3>
+            <h3 id="translation-results-title">{{ cards.length }} <span>个翻译服务</span></h3>
           </div>
           <div class="results-heading-actions">
             <span class="results-order-hint">⠿ 拖动卡片可排序</span>
@@ -348,7 +348,7 @@ function serviceDescription(service: string): string {
 }
 
 function languageLabel(value: string): string {
-  if (value === 'auto') return '自动检测'
+  if (value === 'auto') return translateLegacy('自动检测')
   const option = targetLanguageOptions.value.find(item => item.value === value)
   return getMultilingualTargetLanguageLabel(value, option?.label || value, language.value)
 }

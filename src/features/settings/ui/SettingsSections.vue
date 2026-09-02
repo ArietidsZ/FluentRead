@@ -211,7 +211,7 @@
     </section>
 
     <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
-    <SettingsGroup title="划词翻译" description="选择文字后的展示内容、触发方式和等待时间。">
+    <SettingsGroup title="划词翻译" description="选中文字后的展示内容、触发方式和等待时间。">
     <!-- 划词翻译模式选择 -->
     <el-row class="settings-control-row">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
@@ -554,7 +554,7 @@
               </el-tooltip>
             </div>
             <div class="settings-control-field">
-              <div class="scheduler-number-field" data-unit="次">
+              <div class="scheduler-number-field">
                 <el-input-number
                   v-model="config.translationRequestsPerSecond"
                   aria-label="每秒最多请求数"
@@ -574,7 +574,7 @@
               </el-tooltip>
             </div>
             <div class="settings-control-field">
-              <div class="scheduler-number-field" data-unit="次">
+              <div class="scheduler-number-field">
                 <el-input-number
                   v-model="config.translationRequestsPerMinute"
                   aria-label="每分钟最多请求数"
@@ -594,7 +594,7 @@
               </el-tooltip>
             </div>
             <div class="settings-control-field">
-              <div class="scheduler-number-field" data-unit="次">
+              <div class="scheduler-number-field">
                 <el-input-number
                   v-model="config.translationMaxRetries"
                   aria-label="失败后最多重试"
@@ -798,12 +798,12 @@ function updateTheme(theme: string) {
 }
 // 配置信息
 const config = ref(new Config());
-const translationSchedulerEffect = computed(() => {
-  const current = config.value;
-  const requestLimit = (value: number, period: string) => value === 0 ? `${period}不限速` : `${period}最多 ${value} 次`;
-  const duration = (value: number) => value >= 1000 && value % 1000 === 0 ? `${value / 1000} 秒` : `${value} ms`;
-  return `最多同时处理 ${current.maxConcurrentTranslations} 个翻译任务，${requestLimit(current.translationRequestsPerSecond, '每秒')}、${requestLimit(current.translationRequestsPerMinute, '每分钟')}；失败后最多重试 ${current.translationMaxRetries} 次，退避从 ${duration(current.translationBackoffBaseMs)} 逐步增加到最多 ${duration(current.translationBackoffMaxMs)}。`;
-});
+const translationLimit = (value: number) => value === 0 ? '∞' : value;
+const translationDuration = (value: number) => value >= 1000 && value % 1000 === 0 ? `${value / 1000} s` : `${value} ms`;
+const translationSchedulerEffect = computed(() => t('settings.advanced.schedulerSummary', {
+  concurrency: config.value.maxConcurrentTranslations, perSecond: translationLimit(config.value.translationRequestsPerSecond),
+  perMinute: translationLimit(config.value.translationRequestsPerMinute), retries: config.value.translationMaxRetries,
+  baseDelay: translationDuration(config.value.translationBackoffBaseMs), maxDelay: translationDuration(config.value.translationBackoffMaxMs), }));
 
 const customProviderDialogOpen = ref(false);
 const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
@@ -907,7 +907,7 @@ const fullPageTranslationModeOptions = [
   {value: 'all', label: '翻译到页底'},
 ];
 const selectionTranslatorModeOptions = [
-  {value: 'disabled', label: '关闭'},
+  {value: 'disabled', label: '已关闭'},
   {value: 'bilingual', label: '双语'},
   {value: 'translation-only', label: '仅译文'},
 ];

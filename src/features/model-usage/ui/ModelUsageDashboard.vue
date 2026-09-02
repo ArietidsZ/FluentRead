@@ -134,10 +134,10 @@
           </div>
           <strong>{{ formatNumber(selectedTotals.requestCount) }}</strong>
           <small>
-            {{ formatNumber(selectedTotals.successfulRequests) }} 成功 ·
-            {{ formatNumber(selectedTotals.errorRequests) }} 错误 ·
-            {{ formatNumber(selectedTotals.timeoutRequests) }} 超时 ·
-            {{ formatNumber(selectedTotals.cancelledRequests) }} 取消
+            {{ formatNumber(selectedTotals.successfulRequests) }} <span>成功</span> <span aria-hidden="true">·</span>
+            {{ formatNumber(selectedTotals.errorRequests) }} <span>错误</span> <span aria-hidden="true">·</span>
+            {{ formatNumber(selectedTotals.timeoutRequests) }} <span>超时</span> <span aria-hidden="true">·</span>
+            {{ formatNumber(selectedTotals.cancelledRequests) }} <span>取消</span>
           </small>
         </article>
 
@@ -151,19 +151,19 @@
               <span>输入（无缓存）</span>
               <strong :title="averageTokenTitle(selectedTotals.averageUncachedInputTokensPerCacheReportedRequest)">{{ formatAverageValue(selectedTotals.averageUncachedInputTokensPerCacheReportedRequest) }}</strong>
               <small>平均 Token</small>
-              <em>占比 {{ formatUsageRate(selectedTotals.uncachedInputTokenShare) }}</em>
+              <em><span>占比</span> {{ formatUsageRate(selectedTotals.uncachedInputTokenShare) }}</em>
             </div>
             <div class="usage-average-value usage-average-cache">
               <span>缓存读取</span>
               <strong :title="averageTokenTitle(selectedTotals.averageCachedInputTokensPerCacheReportedRequest)">{{ formatAverageValue(selectedTotals.averageCachedInputTokensPerCacheReportedRequest) }}</strong>
               <small>平均 Token</small>
-              <em>占比 {{ formatUsageRate(selectedTotals.cachedInputTokenShare) }}</em>
+              <em><span>占比</span> {{ formatUsageRate(selectedTotals.cachedInputTokenShare) }}</em>
             </div>
             <div class="usage-average-value">
               <span>输出</span>
               <strong :title="averageTokenTitle(selectedTotals.averageOutputTokensPerCacheReportedRequest)">{{ formatAverageValue(selectedTotals.averageOutputTokensPerCacheReportedRequest) }}</strong>
               <small>平均 Token</small>
-              <em>占比 {{ formatUsageRate(selectedTotals.outputTokenShare) }}</em>
+              <em><span>占比</span> {{ formatUsageRate(selectedTotals.outputTokenShare) }}</em>
             </div>
           </div>
           <div v-if="selectedTotals.cacheReportedRequests" class="usage-average-footnote">
@@ -456,6 +456,7 @@ import {
 import {config, subscribeConfig} from '@/src/services/config/store'
 import {formatTokenCount, formatUsageRate} from '@/src/features/model-usage/model/tokenFormat'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
+import {useUiI18n} from '@/src/ui/i18n'
 import {
   MODEL_USAGE_REQUEST_MAX_PAGE_SIZE,
   MODEL_USAGE_REQUEST_PAGE_SIZE,
@@ -502,6 +503,7 @@ const breakdownSortOptions: Array<{key: BreakdownSortKey; label: string}> = [
 ]
 
 const props = withDefaults(defineProps<{active?: boolean}>(), {active: true})
+const {t} = useUiI18n()
 const customOpenAIProviders = ref<CustomOpenAIProvider[]>(config.customOpenAIProviders)
 const snapshot = ref<DashboardSnapshot | null>(null)
 const selectedService = ref('')
@@ -626,10 +628,10 @@ const trendAriaLabel = computed(() => (
   `${appliedRangeLabel.value}${appliedScopeLabel.value}用量趋势，共 ${formatNumber(selectedTotals.value.totalTokens)} Token`
 ))
 const recordingStartLabel = computed(() => snapshot.value?.recordingStartedAt
-  ? `开始记录于 ${formatDate(snapshot.value.recordingStartedAt)}`
+  ? t('common.recordingStartedAt', {value: formatDate(snapshot.value.recordingStartedAt)})
   : '尚未开始记录')
 const generatedAtLabel = computed(() => snapshot.value
-  ? `更新于 ${formatDate(snapshot.value.generatedAt)}`
+  ? t('common.updatedAt', {value: formatDate(snapshot.value.generatedAt)})
   : '')
 
 function serviceLabel(serviceId: string): string {

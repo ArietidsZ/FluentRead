@@ -56,37 +56,37 @@
           <div class="about-hero">
             <img class="about-logo" src="/icon/128.png" alt="流畅阅读图标" />
             <div>
-              <h3 id="about-title">让双语阅读自然发生</h3>
-              <p>流畅阅读是一款开源浏览器翻译插件，帮助你在阅读网页时更自然地理解不同语言的内容。</p>
+              <h3 id="about-title">{{ t('options.aboutHeroTitle') }}</h3>
+              <p>{{ t('options.aboutHeroDescription') }}</p>
               <span class="about-version">FluentRead · V{{ version }}</span>
             </div>
           </div>
 
           <div class="about-grid">
             <article class="about-panel">
-              <span class="about-panel-kicker">核心体验</span>
-              <h3>为阅读而生</h3>
-              <p>从网页翻译到划词、悬浮与快捷键，把常用能力放在真正需要的位置。</p>
+              <span class="about-panel-kicker">{{ t('options.aboutCoreExperience') }}</span>
+              <h3>{{ t('options.aboutBornForReading') }}</h3>
+              <p>{{ t('options.aboutCoreDescription') }}</p>
               <div class="about-feature-list">
-                <span><b>译</b>网页双语阅读</span>
-                <span><b>⌘</b>顺手的阅读工具</span>
-                <span><b>AI</b>灵活的翻译服务</span>
+                <span><b>译</b>{{ t('options.aboutWebReading') }}</span>
+                <span><b>⌘</b>{{ t('options.aboutReadingTools') }}</span>
+                <span><b>AI</b>{{ t('options.aboutFlexibleServices') }}</span>
               </div>
             </article>
 
             <article class="about-panel about-links-panel">
-              <span class="about-panel-kicker">了解更多</span>
-              <h3>一起让它变得更好</h3>
-              <p>查看项目代码、使用文档，或反馈你在阅读中的想法。</p>
+              <span class="about-panel-kicker">{{ t('options.aboutLearnMore') }}</span>
+              <h3>{{ t('options.aboutMakeBetter') }}</h3>
+              <p>{{ t('options.aboutLinksDescription') }}</p>
               <div class="about-links">
-                <a href="https://github.com/Bistutu/FluentRead" target="_blank" rel="noreferrer">开源项目 <span>↗</span></a>
-                <a href="https://fluent.thinkstu.com/" target="_blank" rel="noreferrer">使用文档 <span>↗</span></a>
-                <a href="https://github.com/Bistutu/FluentRead/issues" target="_blank" rel="noreferrer">问题反馈 <span>↗</span></a>
+                <a href="https://github.com/Bistutu/FluentRead" target="_blank" rel="noreferrer">{{ t('options.aboutProject') }} <span>↗</span></a>
+                <a href="https://fluent.thinkstu.com/" target="_blank" rel="noreferrer">{{ t('options.aboutDocs') }} <span>↗</span></a>
+                <a href="https://github.com/Bistutu/FluentRead/issues" target="_blank" rel="noreferrer">{{ t('options.aboutFeedback') }} <span>↗</span></a>
               </div>
             </article>
           </div>
 
-          <p class="about-footer">感谢你使用流畅阅读。</p>
+          <p class="about-footer">{{ t('options.aboutThanks') }}</p>
         </section>
         <VocabularyBook v-else-if="activeSection === 'settings-vocabulary'" @navigate="selectSection" />
         <SettingsSections v-else :active-section="activeSection" />

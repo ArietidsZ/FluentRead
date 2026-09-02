@@ -350,17 +350,17 @@ export const options = {
     mimoRegion: mimoRegions,
     on: [
         {value: true, label: "开启"},
-        {value: false, label: "关闭"},
+        {value: false, label: "已关闭"},
     ],
     // 是否即时翻译
     autoTranslate: [
         {value: true, label: "开启"},
-        {value: false, label: "关闭"},
+        {value: false, label: "已关闭"},
     ],
     // 是否使用缓存
     useCache: [
         {value: true, label: "开启"},
-        {value: false, label: "关闭"},
+        {value: false, label: "已关闭"},
     ],
     form: [{value: "auto", label: "自动检测"}],
     // DeepSeek API 格式（仅 DeepSeek 服务显示）
@@ -516,7 +516,7 @@ export const options = {
     // 悬浮球快捷键选项
     floatingBallHotkeys: [
         {value: "none", label: "禁用快捷键"},
-        {value: "Alt+T", label: "Alt+T / Option+T (默认)"},
+        {value: "Alt+T", label: "Alt+T / Option+T"},
         {value: "Alt+A", label: "Alt+A / Option+A"},
         {value: "Alt+S", label: "Alt+S / Option+S"},
         {value: "Alt+D", label: "Alt+D / Option+D"},
@@ -549,7 +549,7 @@ export const options = {
     ],
     // 输入框翻译触发方式选项
     inputBoxTranslationTrigger: [
-        {value: "disabled", label: "关闭"},
+        {value: "disabled", label: "已关闭"},
         {value: "triple_space", label: "连按三下空格"},
         {value: "triple_equal", label: "连按三下等号(=)"},
         {value: "triple_dash", label: "连按三下短横线(-)"},
