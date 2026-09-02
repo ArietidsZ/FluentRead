@@ -1,7 +1,7 @@
 /**
  * @file src/ui/styles/interface-skins/minimal.css
  * 文件职责：实现 FluentRead 真正的简约风格，用独立、可移除的样式模块重排 Popup 与 Options 的视觉密度。
- * 主要内容：使用大块留白、浅灰控件、清晰主按钮和圆角功能入口，同时为长标题、长按钮文案与窄屏布局保留自然换行空间。
+ * 主要内容：使用大块留白、浅灰控件、低饱和主操作和无装饰标签的圆角功能入口，同时为长标题、长按钮文案与窄屏布局保留自然换行空间。
  * 模块边界：本文件只服务 data-interface-skin="minimal"，不隐藏用户选择保留的栏目、不修改配置和翻译行为，也不影响默认风格。
  */
 
@@ -32,6 +32,7 @@
   width: 38px;
   height: 38px;
   border-radius: 12px;
+  opacity: .78;
   box-shadow: none;
 }
 
@@ -119,6 +120,11 @@
   padding: 3px;
 }
 
+:root[data-interface-skin="minimal"] .hero-card .switch[aria-checked="true"] {
+  background: color-mix(in srgb, var(--brand) 16%, var(--surface-soft));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 20%, var(--line));
+}
+
 :root[data-interface-skin="minimal"] .hero-card .switch i {
   width: 18px;
   height: 18px;
@@ -126,6 +132,7 @@
 }
 
 :root[data-interface-skin="minimal"] .hero-card .switch[aria-checked="true"] i {
+  background: color-mix(in srgb, var(--brand) 58%, var(--surface));
   transform: translateX(16px);
 }
 
@@ -199,17 +206,37 @@
   min-height: 46px;
   height: auto;
   padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--brand) 12%, var(--line));
   border-radius: 14px;
-  background: var(--brand);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--brand) 5%, var(--surface-soft));
   box-shadow: none;
 }
 
-:root[data-interface-skin="minimal"] .translate-button:hover:not(:disabled),
-:root[data-interface-skin="minimal"] .translate-button.translated,
-:root[data-interface-skin="minimal"] .translate-button.translated:hover:not(:disabled) {
-  background: var(--brand-strong);
+:root[data-interface-skin="minimal"] .translate-button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--brand) 22%, var(--line));
+  color: var(--ink);
+  background: color-mix(in srgb, var(--brand) 9%, var(--surface-soft));
   box-shadow: none;
   transform: none;
+}
+
+:root[data-interface-skin="minimal"] .translate-button.translated,
+:root[data-interface-skin="minimal"] .translate-button.translated:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--brand) 26%, var(--line));
+  color: var(--ink);
+  background: color-mix(in srgb, var(--brand) 12%, var(--surface-soft));
+  box-shadow: none;
+  transform: none;
+}
+
+:root[data-interface-skin="minimal"] .translate-glyph {
+  color: var(--brand-strong);
+}
+
+:root[data-interface-skin="minimal"] .translate-button .spinner {
+  border-color: var(--line);
+  border-top-color: var(--muted);
 }
 
 :root[data-interface-skin="minimal"] .translate-label {
@@ -220,9 +247,13 @@
   white-space: normal;
 }
 
-:root[data-interface-skin="minimal"] .translate-hotkey {
+:root[data-interface-skin="minimal"] .translate-hotkey,
+:root[data-interface-skin="minimal"] .translate-button.translated .translate-hotkey {
   flex: none;
+  border-color: var(--line);
   border-radius: 5px;
+  color: var(--muted);
+  background: var(--surface);
 }
 
 :root[data-interface-skin="minimal"] .ai-context-toggle,
@@ -347,9 +378,7 @@
 }
 
 :root[data-interface-skin="minimal"] .beta-badge {
-  height: 13px;
-  padding: 0 4px;
-  font-size: 6px;
+  display: none;
 }
 
 :root[data-interface-skin="minimal"] .feature-card > b {

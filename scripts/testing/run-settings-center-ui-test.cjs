@@ -845,7 +845,7 @@ async function main() {
     }
     const expectedInterfaceSkins = [
       {value: 'default', label: '默认风格', kind: 'default', contentHeight: false, popupWidth: 400, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
-      {value: 'minimal', label: '简约风格', kind: 'minimal', contentHeight: true, popupWidth: 400, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
+      {value: 'minimal', label: '简约风格', kind: 'minimal', contentHeight: true, popupWidth: 380, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
       {value: 'compact', label: '紧凑风格', kind: 'compact', contentHeight: true, popupWidth: 360, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
       {value: 'contrast', label: '高对比 ⚡', kind: 'contrast', contentHeight: true, popupWidth: 400, brand: '#111', surface: '#fff', darkSurface: '#050505'},
       {value: 'cheese', label: '奶酪 🧀', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#d99a16', surface: '#fffdf6', darkSurface: '#2f291b'},
@@ -1151,6 +1151,15 @@ async function main() {
           actionText: rootStyle.getPropertyValue('--skin-action-text').trim(),
           shellBackground: getComputedStyle(element).backgroundImage,
           heroRadius: getComputedStyle(document.querySelector('.hero-card')).borderRadius,
+          visibleBetaBadges: [...document.querySelectorAll('.beta-badge')]
+            .filter(badge => getComputedStyle(badge).display !== 'none').length,
+          translateButtonBackground: getComputedStyle(document.querySelector('.translate-button')).backgroundColor,
+          translateButtonBackgroundImage: getComputedStyle(document.querySelector('.translate-button')).backgroundImage,
+          translateButtonShadow: getComputedStyle(document.querySelector('.translate-button')).boxShadow,
+          heroSwitchBackground: getComputedStyle(document.querySelector('.hero-card .switch')).backgroundColor,
+          heroSwitchKnobBackground: getComputedStyle(document.querySelector('.hero-card .switch i')).backgroundColor,
+          brandIconFilter: getComputedStyle(document.querySelector('.popup-shell .brand img')).filter,
+          brandIconOpacity: getComputedStyle(document.querySelector('.popup-shell .brand img')).opacity,
         };
       });
       metrics.textContrast = contrastRatio(metrics.ink, metrics.surface);
@@ -1177,6 +1186,17 @@ async function main() {
         || metrics.textContrast < 4.5
         || (skin.kind === 'palette' && metrics.actionContrast < 4.5)) {
         throw new Error(`${skin.label}基础布局异常：${JSON.stringify(metrics)}`);
+      }
+      if (skin.value === 'minimal' && (
+        metrics.visibleBetaBadges !== 0
+        || metrics.translateButtonBackgroundImage !== 'none'
+        || metrics.translateButtonShadow !== 'none'
+        || metrics.translateButtonBackground === 'rgb(239, 71, 118)'
+        || metrics.heroSwitchBackground === 'rgb(239, 71, 118)'
+        || metrics.brandIconFilter !== 'none'
+        || metrics.brandIconOpacity !== '0.78'
+      )) {
+        throw new Error(`简约风格仍包含装饰标签或高强调控件：${JSON.stringify(metrics)}`);
       }
       visualSignatures.add(JSON.stringify([
         skin.kind,
