@@ -14,7 +14,6 @@ import {
     normalizeSelectionText,
     restoreOriginalContent,
     shouldIgnoreSelection,
-    toggleFloatingBallTranslation,
 } from './features';
 
 const SPECIAL_KEYS: Readonly<Record<string, string>> = {
@@ -97,7 +96,8 @@ export function createContentHotkeyRuntime(isSiteDisabled: () => boolean): Conte
     };
 
     const toggleFullPageTranslation = (): void => {
-        if (toggleFloatingBallTranslation()) return;
+        // 快捷键必须读取全文会话真值，不能把悬浮球组件的局部状态当成另一份真源。
+        // 否则快捷键触发后，右键菜单和 Popup 仍可能认为页面未翻译并再次启动会话。
         if (isFullPageTranslationActive()) restoreOriginalContent();
         else autoTranslateEnglishPage();
     };
