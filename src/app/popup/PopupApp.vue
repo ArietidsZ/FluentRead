@@ -701,6 +701,10 @@ const currentSiteAlwaysTranslated = computed(() => currentSiteSupported.value
   && (config.value.autoTranslate || currentSiteRuleEnabled.value));
 const currentSiteExtensionDisabled = computed(() => currentSiteSupported.value
   && (config.value.disabledExtensionDomains ?? []).includes(currentSiteDomain.value));
+const popupUsesContentHeight = computed(() => config.value.interfaceSkin === 'minimal'
+  || !config.value.interfaceVisibility.popupQuickFeatures
+  || !config.value.interfaceVisibility.popupSiteRule
+  || !config.value.interfaceVisibility.popupFooter);
 const currentSiteSwitchLabel = computed(() => currentSiteSupported.value
   ? currentSiteExtensionDisabled.value
     ? `${currentSiteDomain.value} 已禁用扩展，无法开启始终翻译`
@@ -763,6 +767,10 @@ function applyTheme(theme: string) {
   document.documentElement.classList.toggle('dark', theme === 'dark' || (theme === 'auto' && darkMode.matches));
 }
 
+function applyPopupHeightMode(usesContentHeight: boolean) {
+  document.documentElement.dataset.popupHeight = usesContentHeight ? 'content' : 'fixed';
+}
+
 async function hydrate() {
   await configReady;
   Object.assign(config.value, runtimeConfig);
@@ -801,6 +809,7 @@ watch(() => JSON.stringify(config.value), async serialized => {
 }, { flush: 'sync' });
 watch(() => config.value.theme, theme => applyTheme(theme || 'auto'));
 watch(() => config.value.interfaceSkin, skin => applyInterfaceSkin(skin));
+watch(popupUsesContentHeight, applyPopupHeightMode, {immediate: true});
 darkMode.onchange = () => { if (config.value.theme === 'auto') applyTheme('auto'); };
 
 function closeServicePicker(event?: Event) {
@@ -859,6 +868,7 @@ onUnmounted(() => {
   document.removeEventListener('keydown', handleServicePickerKeydown);
   document.removeEventListener('keydown', handleDonationKeydown);
   darkMode.onchange = null;
+  delete document.documentElement.dataset.popupHeight;
   if (noticeTimer) clearTimeout(noticeTimer);
 });
 

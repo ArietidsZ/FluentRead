@@ -17,16 +17,10 @@ describe('界面皮肤与栏目配置', () => {
     expect(interfaceSkinOptions.map((item) => item.value)).toEqual([
       'default',
       'minimal',
-      'plain',
-      'compact',
-      'soft',
     ])
     expect(interfaceSkinOptions.map((item) => item.label)).toEqual([
       '默认风格',
       '简约风格',
-      '朴素风格',
-      '紧凑风格',
-      '柔和风格',
     ])
     expect(interfaceVisibilityOptions.map((item) => item.key)).toEqual([
       'popupQuickFeatures',
@@ -37,9 +31,9 @@ describe('界面皮肤与栏目配置', () => {
 
   it('只接受注册皮肤，并为升级旧配置补齐栏目开关', () => {
     expect(normalizeInterfaceSkin('minimal')).toBe('minimal')
-    expect(normalizeInterfaceSkin('plain')).toBe('plain')
-    expect(normalizeInterfaceSkin('compact')).toBe('compact')
-    expect(normalizeInterfaceSkin('soft')).toBe('soft')
+    expect(normalizeInterfaceSkin('plain')).toBe('default')
+    expect(normalizeInterfaceSkin('compact')).toBe('default')
+    expect(normalizeInterfaceSkin('soft')).toBe('default')
     expect(normalizeInterfaceSkin('unknown')).toBe('default')
     expect(normalizeInterfaceSkin(null)).toBe('default')
 

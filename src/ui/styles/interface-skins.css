@@ -1,19 +1,21 @@
 /**
  * @file src/ui/styles/interface-skins.css
  * 文件职责：集中装配 FluentRead 的可选界面皮肤 CSS 模块，让 Popup 和 Options 使用同一套可插拔样式入口。
- * 主要内容：按注册表中的皮肤 ID 引入简约、朴素、紧凑和柔和四个独立样式文件；默认风格不需要覆盖 CSS，直接沿用现有界面。
+ * 主要内容：按注册表中的皮肤 ID 引入独立的简约样式文件；默认风格不需要覆盖 CSS，直接沿用现有界面。
  * 模块边界：本文件只负责样式模块装配，不定义配置、不修改 DOM，也不承载 Popup 或 Options 的业务布局逻辑。
  */
 
 @import './interface-skins/minimal.css';
-@import './interface-skins/plain.css';
-@import './interface-skins/compact.css';
-@import './interface-skins/soft.css';
 
-/* 非默认皮肤按 Popup 实际可见内容决定高度；默认风格保留原有固定高度。 */
-:root[data-interface-skin]:not([data-interface-skin="default"]) body.popup-page,
-:root[data-interface-skin]:not([data-interface-skin="default"]) body.popup-page #app,
-:root[data-interface-skin]:not([data-interface-skin="default"]) body.popup-page .popup-shell {
+/* 简约风格或隐藏任一栏目后按实际内容决定 Popup 高度；默认风格的完整布局仍保留原尺寸。 */
+:root[data-popup-height="content"] {
+  min-height: 0;
+  height: auto;
+}
+
+:root[data-popup-height="content"] body.popup-page,
+:root[data-popup-height="content"] body.popup-page #app,
+:root[data-popup-height="content"] body.popup-page .popup-shell {
   min-height: 0;
   height: auto;
 }

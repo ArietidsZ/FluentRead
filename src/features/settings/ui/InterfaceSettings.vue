@@ -1,45 +1,43 @@
 <!--
  * @file src/features/settings/ui/InterfaceSettings.vue
- * 文件职责：提供 FluentRead 的界面皮肤选择和 Popup 栏目可见性设置，作为“界面设置”导航分区的业务 UI。
- * 主要内容：展示可扩展皮肤卡片、简约风格预览以及快捷功能栏、当前网站栏目和底部信息栏开关；配置修改直接交给父级 SettingsSections 的统一保存链路。
+ * 文件职责：提供 FluentRead 的弹窗风格选择和 Popup 栏目可见性设置，作为“通用设置”中的紧凑偏好分组。
+ * 主要内容：从皮肤注册表渲染默认与简约风格选择器，并提供快捷功能栏、当前网站栏目和底部信息栏开关；配置修改直接交给父级 SettingsSections 的统一保存链路。
  * 模块边界：本组件只负责界面配置的展示与双向绑定，不直接读写浏览器存储、不负责主题模式，也不关闭翻译功能本身；界面皮肤由 Options composition root 统一应用。
 -->
 <template>
-  <div class="interface-settings-content">
-    <SettingsGroup
-      title="界面皮肤"
-      description="默认风格保留当前界面；选择其他皮肤只改变扩展页面的布局装饰，不影响网页翻译效果。"
+  <SettingsGroup
+    title="界面与弹窗"
+    description="保留熟悉的默认界面，或切换到更轻量的简约界面；也可以只留下常用栏目。"
+  >
+    <SettingsItem
+      label="弹窗风格"
+      description="风格只改变扩展界面的呈现，不影响网页翻译效果。"
     >
-      <div class="interface-skin-picker" role="radiogroup" aria-label="界面皮肤">
+      <div class="interface-skin-picker" role="radiogroup" aria-label="弹窗风格">
         <button
           v-for="skin in interfaceSkinOptions"
           :key="skin.value"
-          class="interface-skin-card"
+          class="interface-skin-option"
           :class="{ selected: props.config.interfaceSkin === skin.value }"
           type="button"
           role="radio"
           :aria-checked="props.config.interfaceSkin === skin.value"
+          :aria-label="`${skin.label}：${skin.description}`"
           :data-skin="skin.value"
           @click="props.config.interfaceSkin = skin.value"
         >
           <span class="interface-skin-preview" :class="`preview-${skin.value}`" aria-hidden="true">
-            <span class="preview-header"><i /><b /></span>
-            <span class="preview-hero"><i /><i /></span>
-            <span class="preview-features"><i /><i /><i /></span>
+            <i /><i /><i />
           </span>
           <span class="interface-skin-copy">
             <strong>{{ skin.label }}</strong>
             <small>{{ skin.description }}</small>
           </span>
-          <span v-if="props.config.interfaceSkin === skin.value" class="interface-skin-check" aria-hidden="true">✓</span>
+          <span class="interface-skin-radio" aria-hidden="true"><i /></span>
         </button>
       </div>
-    </SettingsGroup>
+    </SettingsItem>
 
-    <SettingsGroup
-      title="弹窗栏目"
-      description="关闭后只隐藏工具栏 Popup 中对应的栏目，不会停用相关翻译能力；需要时可以随时恢复。"
-    >
       <SettingsItem
         v-for="item in interfaceVisibilityOptions"
         :key="item.key"
@@ -52,12 +50,7 @@
           :aria-label="`显示${item.label}`"
         />
       </SettingsItem>
-    </SettingsGroup>
-
-    <p class="interface-settings-note" role="note">
-      皮肤和栏目设置会同步应用到 Popup；后续新增皮肤或可选栏目时，也会沿用这里的配置入口。
-    </p>
-  </div>
+  </SettingsGroup>
 </template>
 
 <script lang="ts" setup>
@@ -75,281 +68,133 @@ const props = defineProps<{
 </script>
 
 <style scoped>
-.interface-settings-content {
-  width: min(100%, 1080px);
-  margin: 0 auto;
-}
-
 .interface-skin-picker {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  padding: 16px;
+  width: 100%;
+  gap: 7px;
 }
 
-.interface-skin-card {
+.interface-skin-option {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
+  grid-template-columns: 34px minmax(0, 1fr) 14px;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
-  padding: 12px;
+  min-height: 58px;
+  padding: 8px;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 11px;
   color: var(--ink);
   background: var(--surface);
   text-align: left;
   cursor: pointer;
-  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
 }
 
-.interface-skin-card:hover {
+.interface-skin-option:hover {
   border-color: rgba(239, 71, 118, .38);
   background: var(--surface-soft);
-  transform: translateY(-1px);
 }
 
-.interface-skin-card.selected {
+.interface-skin-option.selected {
   border-color: var(--brand);
   background: var(--brand-soft);
-  box-shadow: 0 8px 20px rgba(239, 71, 118, .1);
+  box-shadow: 0 0 0 2px rgba(239, 71, 118, .08);
 }
 
 .interface-skin-preview {
-  display: grid;
-  grid-column: 1 / -1;
-  gap: 7px;
-  min-height: 104px;
-  padding: 11px;
+  display: flex;
+  width: 34px;
+  height: 34px;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+  padding: 6px;
   overflow: hidden;
-  border: 1px solid #e7e9f0;
-  border-radius: 12px;
+  border: 1px solid #e1e5ed;
+  border-radius: 9px;
   background: #f7f8fb;
 }
 
-.interface-skin-preview > span {
-  display: flex;
-  align-items: center;
-}
-
-.preview-header {
-  justify-content: space-between;
-}
-
-.preview-header i {
-  width: 42px;
-  height: 7px;
+.interface-skin-preview > i {
+  display: block;
+  width: 100%;
+  height: 3px;
   border-radius: 99px;
+  background: #c8ced9;
+}
+
+.interface-skin-preview > i:first-child {
+  width: 58%;
   background: #ef4776;
-  opacity: .82;
-}
-
-.preview-header b {
-  width: 20px;
-  height: 7px;
-  border-radius: 99px;
-  background: #d9dde7;
-}
-
-.preview-hero {
-  gap: 7px;
-  height: 37px;
-  padding: 7px;
-  border: 1px solid #e4e7ef;
-  border-radius: 9px;
-  background: #fff;
-}
-
-.preview-hero i:first-child {
-  width: 42%;
-  height: 8px;
-  border-radius: 99px;
-  background: #263044;
-  opacity: .78;
-}
-
-.preview-hero i:last-child {
-  width: 22%;
-  height: 18px;
-  margin-left: auto;
-  border-radius: 99px;
-  background: #ef4776;
-  opacity: .78;
-}
-
-.preview-features {
-  gap: 5px;
-}
-
-.preview-features i {
-  flex: 1;
-  height: 20px;
-  border: 1px solid #e0e4ed;
-  border-radius: 6px;
-  background: #fff;
 }
 
 .preview-minimal {
-  gap: 6px;
-  border-color: #e0e3e9;
-  border-radius: 8px;
-  background: #f4f5f7;
-}
-
-.preview-minimal .preview-header i {
-  width: 34px;
-  height: 6px;
-  background: #303641;
-}
-
-.preview-minimal .preview-hero {
-  border-color: #dfe2e8;
   border-radius: 6px;
-  background: transparent;
-}
-
-.preview-minimal .preview-hero i:last-child {
-  width: 18%;
-  height: 14px;
-  border-radius: 5px;
-  background: #303641;
-}
-
-.preview-minimal .preview-features i {
-  border-color: #dfe2e8;
-  border-radius: 4px;
-  background: #fafafa;
-}
-
-.preview-plain {
-  border-color: #e6e7ea;
-  border-radius: 17px;
   background: #fff;
 }
 
-.preview-plain .preview-header i {
-  width: 34px;
-  background: #72767d;
+.preview-minimal > i {
+  border-radius: 1px;
+  background: #aeb4bf;
 }
 
-.preview-plain .preview-hero {
-  border-color: #ededee;
-  border-radius: 14px;
-  background: #f5f5f6;
-}
-
-.preview-plain .preview-hero i:last-child {
-  width: 17%;
-  height: 15px;
-  border-radius: 6px;
-  background: #eb4784;
-}
-
-.preview-plain .preview-features i {
-  border-color: #ededee;
-  border-radius: 10px;
-  background: #fff;
-}
-
-.preview-compact {
-  gap: 4px;
-  min-height: 88px;
-  padding: 8px;
-  border-radius: 9px;
-  background: #f7f8fb;
-}
-
-.preview-compact .preview-hero {
-  height: 29px;
-  padding: 5px;
-  border-radius: 6px;
-}
-
-.preview-compact .preview-hero i:first-child {
-  height: 6px;
-}
-
-.preview-compact .preview-hero i:last-child {
-  height: 13px;
-  border-radius: 4px;
-}
-
-.preview-compact .preview-features i {
-  height: 15px;
-  border-radius: 4px;
-}
-
-.preview-soft {
-  border-color: #f1dce6;
-  border-radius: 16px;
-  background: #fff7fa;
-}
-
-.preview-soft .preview-header i {
-  background: #ef6f9d;
-}
-
-.preview-soft .preview-hero {
-  border-color: #f1dce6;
-  border-radius: 12px;
-  background: #fffafd;
-}
-
-.preview-soft .preview-hero i:last-child {
-  background: #ef6f9d;
-}
-
-.preview-soft .preview-features i {
-  border-color: #f1dce6;
-  border-radius: 8px;
-  background: #fffafd;
+.preview-minimal > i:first-child {
+  background: #313743;
 }
 
 .interface-skin-copy {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .interface-skin-copy strong {
-  font-size: 13px;
+  font-size: 11.5px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .interface-skin-copy small {
   color: var(--muted);
-  font-size: 10.5px;
-  line-height: 1.5;
+  font-size: 8.5px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
-.interface-skin-check {
+.interface-skin-radio {
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 14px;
+  height: 14px;
+  border: 1px solid #b9c0cd;
   border-radius: 999px;
-  color: #fff;
+  background: var(--surface);
+}
+
+.interface-skin-option.selected .interface-skin-radio {
+  border-color: var(--brand);
   background: var(--brand);
-  font-size: 14px;
-  font-weight: 800;
 }
 
-.interface-settings-note {
-  width: min(100%, 1080px);
-  margin: -4px auto 20px;
-  padding: 10px 14px;
-  border: 1px solid rgba(239, 71, 118, .16);
-  border-radius: 12px;
-  color: var(--muted);
-  background: var(--brand-soft);
-  font-size: 10.5px;
-  line-height: 1.55;
+.interface-skin-radio > i {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #fff;
+  opacity: 0;
 }
 
-@media (max-width: 700px) {
+.interface-skin-option.selected .interface-skin-radio > i {
+  opacity: 1;
+}
+
+@media (max-width: 520px) {
   .interface-skin-picker {
     grid-template-columns: minmax(0, 1fr);
-    padding: 12px;
   }
 }
 </style>

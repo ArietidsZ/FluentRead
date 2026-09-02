@@ -28,16 +28,10 @@ export const navigationGroups: NavigationGroup[] = [
     label: '基础配置',
     items: [
       {
-        id: 'settings-general', icon: '⌂', label: '通用设置', description: '服务、显示与网页辅助', group: '基础配置',
-        heading: '通用设置', summary: '选择默认翻译服务，并管理译文显示、网页辅助和基础偏好。',
+        id: 'settings-general', icon: '⌂', label: '通用设置', description: '服务、界面、显示与网页辅助', group: '基础配置',
+        heading: '通用设置', summary: '选择默认翻译服务，并管理扩展界面、译文显示、网页辅助和基础偏好。',
         kicker: '基础配置', title: '通用设置', detail: '选择翻译服务，设置译文显示、网页辅助与界面偏好。',
-        searchDescription: '选择翻译服务、默认服务、译文显示、双语逐句高亮、网页辅助、AI 智能上下文、默认目标语言、主题',
-      },
-      {
-        id: 'settings-interface', icon: '✦', label: '界面设置', description: '皮肤与栏目显示', group: '基础配置',
-        heading: '界面设置', summary: '选择扩展界面皮肤，并按你的习惯控制 Popup 中显示的栏目。',
-        kicker: '基础配置', title: '界面设置', detail: '更换扩展界面皮肤，并选择需要显示的 Popup 栏目。',
-        searchDescription: '界面设置、界面皮肤、默认风格、简约风格、朴素风格、紧凑风格、柔和风格、栏目、快捷功能栏、当前网站、底部信息栏',
+        searchDescription: '选择翻译服务、默认服务、界面设置、弹窗风格、默认风格、简约风格、弹窗栏目、快捷功能栏、当前网站栏目、底部信息栏、译文显示、双语逐句高亮、网页辅助、AI 智能上下文、默认目标语言、主题',
       },
       {
         id: 'settings-services', icon: '译', label: '翻译服务', description: '服务与模型', group: '基础配置',
@@ -128,6 +122,7 @@ export const navigationItems = navigationGroups.flatMap((group) => group.items)
 
 /** 旧链接仍定位到合并后的“翻译设置”，但不再作为独立导航项展示。 */
 export const NAVIGATION_SECTION_ALIASES: ReadonlyMap<string, string> = new Map([
+  ['settings-interface', 'settings-general'],
   ['settings-webpage', 'settings-translation'],
   ['settings-shortcuts', 'settings-translation'],
 ])
