@@ -30,6 +30,7 @@ export {
     inputBoxTranslationConfigKey,
 } from '@/src/features/input-translation/public';
 export { mountHoverTranslationContentFeature } from '@/src/features/hover-translation/public';
+export { mountQuickTranslationContentFeature } from '@/src/features/quick-translation/public';
 export {
     mountSelectionTranslator,
     unmountSelectionTranslator,

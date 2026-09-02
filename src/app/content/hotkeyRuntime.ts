@@ -38,20 +38,22 @@ export interface ContentHotkeyRuntime {
     hasActiveSelectionTranslationCandidate(): boolean;
     matchesSelectionTranslatorShortcut(event: KeyboardEvent): boolean;
     shouldReserveSelectionShortcut(event: KeyboardEvent): boolean;
-    installFloatingBallHotkey(signal: AbortSignal): void;
+    installFloatingBallHotkey(signal: AbortSignal): () => void;
 }
 
 /** 为单个 document 创建隔离的键盘状态，避免页面失效后残留按键组合。 */
 export function createContentHotkeyRuntime(isSiteDisabled: () => boolean): ContentHotkeyRuntime {
     const activeSelectionCandidateByEvent = new WeakMap<KeyboardEvent, boolean>();
+    const isSelectionTranslatorEnabled = (): boolean => !isSiteDisabled() && config.on && config.selectionTranslatorMode !== 'disabled' && config.disableSelectionTranslator !== true;
 
     const getConfiguredSelectionHotkey = (): string => {
+        if (!isSelectionTranslatorEnabled()) return 'none';
         const trigger = config.selectionTranslatorTrigger;
         return ['Control', 'Alt', 'Shift', 'custom'].includes(trigger) ? trigger : 'none';
     };
 
     const hasActiveSelectionTranslationCandidate = (): boolean => {
-        if (isSiteDisabled()) return false;
+        if (!isSelectionTranslatorEnabled()) return false;
         const selection = window.getSelection();
         if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return false;
         const selectionHost = document.getElementById('fluent-read-selection-translator-container');
@@ -68,8 +70,7 @@ export function createContentHotkeyRuntime(isSiteDisabled: () => boolean): Conte
     };
 
     const shouldReserveSelectionShortcut = (event: KeyboardEvent): boolean => {
-        if (isSiteDisabled() || !config.on || config.selectionTranslatorMode === 'disabled'
-            || config.disableSelectionTranslator) return false;
+        if (!isSelectionTranslatorEnabled()) return false;
         return shouldClaimConfiguredHotkey(
             event,
             getConfiguredSelectionHotkey(),
@@ -85,8 +86,7 @@ export function createContentHotkeyRuntime(isSiteDisabled: () => boolean): Conte
     };
 
     const matchesSelectionTranslatorShortcut = (event: KeyboardEvent): boolean => {
-        if (isSiteDisabled() || !config.on || config.selectionTranslatorMode === 'disabled'
-            || config.disableSelectionTranslator) return false;
+        if (!isSelectionTranslatorEnabled()) return false;
         return matchesConfiguredHotkey(
             event,
             getConfiguredSelectionHotkey(),
@@ -101,9 +101,10 @@ export function createContentHotkeyRuntime(isSiteDisabled: () => boolean): Conte
         else autoTranslateEnglishPage();
     };
 
-    const installFloatingBallHotkey = (signal: AbortSignal): void => {
+    const installFloatingBallHotkey = (signal: AbortSignal): (() => void) => {
         const hotkeysPressed = new Set<string>();
         let pendingFullPageToggle = false;
+        const resetKeyboardGesture = () => { pendingFullPageToggle = false; hotkeysPressed.clear(); };
         const isDev = process.env.NODE_ENV === 'development';
         const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 
@@ -197,10 +198,9 @@ export function createContentHotkeyRuntime(isSiteDisabled: () => boolean): Conte
             if (!event.shiftKey) hotkeysPressed.delete('shift');
         }, {signal, capture: true});
 
-        window.addEventListener('blur', () => {
-            pendingFullPageToggle = false;
-            hotkeysPressed.clear();
-        }, {signal});
+        window.addEventListener('blur', resetKeyboardGesture, {signal});
+        signal.addEventListener('abort', resetKeyboardGesture, {once: true});
+        return resetKeyboardGesture;
     };
 
     return {

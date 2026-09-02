@@ -137,7 +137,7 @@ function removeReleasedKey(event: KeyboardEvent, pressed: Set<string>): void {
 export function mountHoverTranslationContentFeature(
     deps: HoverTranslationContentDependencies,
     signal: AbortSignal,
-): void {
+): () => void {
     const rootDocument = deps.document;
     const rootWindow = deps.window;
     const runtimeNavigator = deps.navigator;
@@ -166,6 +166,10 @@ export function mountHoverTranslationContentFeature(
         screen.otherKeyPressed = false;
         screen.hasSlideTranslation = false;
         mouseHotkeysPressed.clear();
+    };
+    const cancelAndResetHoverHotkeyState = () => {
+        resetHoverHotkeyState();
+        deps.cancelPendingHoverTranslation();
     };
 
     const cancelHoverForActiveSelection = (): boolean => {
@@ -351,7 +355,9 @@ export function mountHoverTranslationContentFeature(
     }, { signal });
 
     signal.addEventListener('abort', () => {
+        resetHoverHotkeyState();
         if (longPressTimer !== undefined) clearTimeout(longPressTimer);
         clearTimeout(touchTimer);
     }, { once: true });
+    return cancelAndResetHoverHotkeyState;
 }

@@ -4,6 +4,7 @@ import {
     beginTranslation,
     detachFailedTranslationUi,
     discardTranslation,
+    getOwnedTranslationCandidateAtPoint,
     getTranslationOwnersForRemovedNode,
     getTranslationState,
     isCurrentTranslation,
@@ -266,6 +267,29 @@ describe("指定节点翻译状态机", () => {
         expect(target.firstChild).toBe(source);
         expect(target.textContent).toBe('11 hours ago');
         expect(host.isConnected).toBe(false);
+    });
+
+    it("仅译文 closed-shadow slot 命中可通过所有权索引找回状态 owner", () => {
+        const {document} = parseHTML('<html><body><p id="target">Readable paragraph.</p></body></html>');
+        const target = document.querySelector<HTMLElement>('#target')!;
+        const source = target.firstChild as Text;
+        beginTranslation(target, 'single', 'content', false, source.nodeValue ?? '', [source]);
+        const host = document.createElement('span');
+        host.setAttribute('data-fr-translation-owned', 'true');
+        target.insertBefore(host, source);
+        host.appendChild(source);
+        setSingleTextSlotHosts(target, [host]);
+        Object.defineProperty(document, 'elementsFromPoint', {configurable: true, value: () => [host, target]});
+
+        const candidate = getOwnedTranslationCandidateAtPoint(document, 20, 20);
+        expect(candidate).toMatchObject({
+            element: target,
+            kind: 'content',
+            reason: 'existing-translation-at-point',
+        });
+        expect(candidate).not.toHaveProperty('nodes');
+        Object.defineProperty(document, 'elementsFromPoint', {value: () => []});
+        expect(getOwnedTranslationCandidateAtPoint(document, 999, 999)).toBeNull();
     });
 
     it("能在宿主移除双语 wrapper 后找到并清理其 owner", () => {

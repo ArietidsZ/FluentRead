@@ -11,7 +11,9 @@ export {
     invalidateFullPageTranslationSessionCache,
     isFullPageTranslationActive,
     restoreOriginalContent,
+    type PageTranslationInvocation,
 } from './content/runtime';
+export type {PageTranslationConfigOverrides} from './content/translationRequest';
 export {
     mountTranslationProgressPanel,
     unmountTranslationProgressPanel,

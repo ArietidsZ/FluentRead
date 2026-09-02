@@ -17,6 +17,10 @@ import {
     MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER,
     MAX_CUSTOM_OPENAI_PROVIDERS,
 } from '@/src/core/config/customOpenAI';
+import {
+    MAX_QUICK_TRANSLATION_MODEL_LENGTH,
+    MAX_QUICK_TRANSLATION_PROFILES,
+} from '@/src/core/config/quickTranslation';
 import {createApiKeyRequirementKey} from '@/src/core/config/validation';
 
 describe('AI 模型编号列表', () => {
@@ -550,6 +554,209 @@ describe('翻译中心配置', () => {
             translationCenterSourceLanguage: '',
             translationCenterTargetLanguage: '',
         });
+    });
+});
+
+describe('快捷翻译方案配置', () => {
+    it('默认为空列表，并保留 Ctrl+T/Ctrl+Y 的独立动作与展示设置', () => {
+        expect(new Config().quickTranslationProfiles).toEqual([]);
+        expect(normalizeConfig({}).quickTranslationProfiles).toEqual([]);
+
+        const normalized = normalizeConfig({
+            quickTranslationProfiles: [
+                {
+                    id: ' hover / primary ',
+                    enabled: true,
+                    action: 'hover',
+                    hotkey: ' control + t ',
+                    service: services.openai,
+                    model: '  quick-gpt  ',
+                    targetLanguage: ' ja ',
+                    displayMode: 'bilingual',
+                    fullPageMode: 'all',
+                },
+                {
+                    id: 'page',
+                    enabled: false,
+                    action: 'full-page',
+                    hotkey: 'CTRL+y',
+                    service: services.microsoft,
+                    model: 'machine-services-do-not-use-models',
+                    targetLanguage: ' en ',
+                    displayMode: 'translation-only',
+                    fullPageMode: 'all',
+                },
+            ],
+        });
+
+        expect(normalized.quickTranslationProfiles).toEqual([
+            {
+                id: 'hover-primary',
+                enabled: true,
+                action: 'hover',
+                hotkey: 'Ctrl+T',
+                service: services.openai,
+                model: 'quick-gpt',
+                targetLanguage: 'ja',
+                displayMode: 'bilingual',
+                fullPageMode: 'inherit',
+            },
+            {
+                id: 'page',
+                enabled: false,
+                action: 'full-page',
+                hotkey: 'Ctrl+Y',
+                service: services.microsoft,
+                model: '',
+                targetLanguage: 'en',
+                displayMode: 'translation-only',
+                fullPageMode: 'all',
+            },
+        ]);
+    });
+
+    it('清理畸形/重复热键与未知服务，并只为支持模型的服务保留有界模型名', () => {
+        const longModel = 'm'.repeat(MAX_QUICK_TRANSLATION_MODEL_LENGTH + 20);
+        const normalized = normalizeConfig({
+            customOpenAIProviders: [{
+                id: 'custom:team',
+                name: '团队网关',
+                endpoint: 'https://team.example/v1/chat/completions',
+                models: ['team-default'],
+            }],
+            quickTranslationProfiles: [
+                {
+                    id: 'first', action: 'hover', hotkey: 'Ctrl+T',
+                    service: services.openai, model: longModel,
+                },
+                {
+                    id: 'duplicate', action: 'full-page', hotkey: 'control+t',
+                    service: services.microsoft, model: 'must-clear',
+                    displayMode: 'invalid', fullPageMode: 'viewport',
+                },
+                {
+                    id: 'custom', action: 'hover', hotkey: 'Option+Y',
+                    service: 'custom:team', model: '  vendor-model  ',
+                },
+                {
+                    id: 'unknown', action: 'hover', hotkey: 'Ctrl+Hyper+Y',
+                    service: 'removed-service', model: 'must-clear',
+                },
+            ],
+        });
+
+        expect(normalized.quickTranslationProfiles[0].model).toBe(
+            'm'.repeat(MAX_QUICK_TRANSLATION_MODEL_LENGTH),
+        );
+        expect(normalized.quickTranslationProfiles[1]).toMatchObject({
+            hotkey: '',
+            service: services.microsoft,
+            model: '',
+            displayMode: 'inherit',
+            fullPageMode: 'viewport',
+        });
+        expect(normalized.quickTranslationProfiles[2]).toMatchObject({
+            hotkey: 'Alt+Y',
+            service: 'custom:team',
+            model: 'vendor-model',
+            fullPageMode: 'inherit',
+        });
+        expect(normalized.quickTranslationProfiles[3]).toMatchObject({
+            hotkey: '',
+            service: '',
+            model: '',
+            enabled: false,
+        });
+    });
+
+    it('孤儿服务与旧快捷键冲突会安全停用，Google 切换后仍保留显示偏好', () => {
+        const normalized = normalizeConfig({
+            floatingBallHotkey: 'Alt+T',
+            quickTranslationProfiles: [
+                {id: 'orphan', enabled: true, action: 'hover', hotkey: 'Ctrl+Y',
+                    service: 'custom:removed', model: 'private-model'},
+                {id: 'conflict', enabled: true, action: 'hover', hotkey: 'Alt+T',
+                    service: services.openai, model: 'gpt-4o-mini'},
+                {id: 'google', enabled: true, action: 'full-page', hotkey: 'Ctrl+U',
+                    service: services.google, displayMode: 'translation-only'},
+            ],
+        }).quickTranslationProfiles;
+
+        expect(normalized[0]).toMatchObject({
+            enabled: false, hotkey: 'Ctrl+Y', service: '', model: '',
+        });
+        expect(normalized[1]).toMatchObject({enabled: false, hotkey: 'Alt+T'});
+        expect(normalized[2]).toMatchObject({enabled: true, displayMode: 'translation-only'});
+    });
+
+    it.each([
+        ['ctrl_enter', 'Ctrl+Enter'],
+        ['triple_space', 'Space'],
+        ['triple_equal', '='],
+        ['triple_dash', '-'],
+    ])('输入框触发 %s 启用时保留既有功能的 %s 所有权', (trigger, hotkey) => {
+        const [normalized] = normalizeConfig({
+            inputBoxTranslationTrigger: trigger,
+            quickTranslationProfiles: [{
+                id: 'input-conflict', enabled: true, action: 'hover', hotkey,
+                service: services.openai, model: 'gpt-4o-mini',
+            }],
+        }).quickTranslationProfiles;
+
+        expect(normalized).toMatchObject({hotkey, enabled: false});
+    });
+
+    it('划词快捷键与快捷翻译可共存，圈选的固定快捷键仍保留既有所有权', () => {
+        const normalized = normalizeConfig({
+            selectionTranslatorMode: 'bilingual',
+            selectionTranslatorTrigger: 'custom',
+            customSelectionTranslatorHotkey: 'Ctrl+Y',
+            selectionAreaEnabled: true,
+            quickTranslationProfiles: [
+                {id: 'selection-fallback', enabled: true, action: 'hover', hotkey: 'Ctrl+Y'},
+                {id: 'area-conflict', enabled: true, action: 'hover', hotkey: 'Shift+Z'},
+            ],
+        }).quickTranslationProfiles;
+
+        expect(normalized[0]).toMatchObject({hotkey: 'Ctrl+Y', enabled: true});
+        expect(normalized[1]).toMatchObject({hotkey: 'Shift+Z', enabled: false});
+    });
+
+    it('忽略畸形项，为重复 ID 生成稳定替代值，并分别限制两种动作各八条', () => {
+        const candidates = [
+            ...Array.from({length: MAX_QUICK_TRANSLATION_PROFILES + 2}, (_, index) => ({
+                id: 'same-id',
+                action: 'hover',
+                hotkey: `Ctrl+${String.fromCharCode(65 + index)}`,
+                service: services.openai,
+                model: `hover-model-${index}`,
+            })),
+            ...Array.from({length: MAX_QUICK_TRANSLATION_PROFILES + 2}, (_, index) => ({
+                id: 'same-id',
+                action: 'full-page',
+                hotkey: `Alt+${String.fromCharCode(65 + index)}`,
+                service: services.openai,
+                model: `page-model-${index}`,
+            })),
+        ];
+        const normalized = normalizeConfig({
+            quickTranslationProfiles: [null, 'legacy', {action: 'selection'}, ...candidates],
+        }).quickTranslationProfiles;
+
+        expect(normalized).toHaveLength(MAX_QUICK_TRANSLATION_PROFILES * 2);
+        expect(normalized.filter((profile) => profile.action === 'hover'))
+            .toHaveLength(MAX_QUICK_TRANSLATION_PROFILES);
+        expect(normalized.filter((profile) => profile.action === 'full-page'))
+            .toHaveLength(MAX_QUICK_TRANSLATION_PROFILES);
+        expect(normalized.map((profile) => profile.hotkey)).toEqual([
+            'Ctrl+A', 'Ctrl+B', 'Ctrl+C', 'Ctrl+D',
+            'Ctrl+E', 'Ctrl+F', 'Ctrl+G', 'Ctrl+H',
+            'Alt+A', 'Alt+B', 'Alt+C', 'Alt+D',
+            'Alt+E', 'Alt+F', 'Alt+G', 'Alt+H',
+        ]);
+        expect(new Set(normalized.map((profile) => profile.id)).size)
+            .toBe(MAX_QUICK_TRANSLATION_PROFILES * 2);
+        expect(normalizeConfig({quickTranslationProfiles: {}}).quickTranslationProfiles).toEqual([]);
     });
 });
 

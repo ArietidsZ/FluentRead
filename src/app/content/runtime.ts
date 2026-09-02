@@ -15,10 +15,7 @@ import {clearLegacyPageTranslationCache} from '@/src/services/translation/legacy
 import {getCenterPoint} from '@/src/shared/geometry/touch';
 import {createContentFeatureRegistry, type ContentFeatureRegistry} from './featureRegistry';
 import {createContentHotkeyRuntime} from './hotkeyRuntime';
-import {
-    createContentRuntimeMessageHandler,
-    type ContentRuntimeMessageHandler,
-} from './messageRuntime';
+import {createContentRuntimeMessageHandler, type ContentRuntimeMessageHandler} from './messageRuntime';
 import {
     autoTranslateEnglishPage,
     cancelPendingHoverTranslation,
@@ -42,6 +39,7 @@ import {
     unmountSelectionTranslator,
     unmountTranslationProgressPanel,
 } from './features';
+import {mountConfiguredQuickTranslation} from './quickTranslationRuntime';
 import pageStyles from './page.css?inline';
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
 import {setMainWorldBridgesEnabled} from './mainWorldBridgeLifecycle';
@@ -128,7 +126,7 @@ export async function startContentApp(ctx: ContentScriptContext,
             && !activationController.signal.aborted;
 
         inputTranslationFeature.mount(activationController.signal);
-        mountHoverTranslationContentFeature({
+        const resetHoverKeyboardGesture = mountHoverTranslationContentFeature({
             config,
             constants,
             document,
@@ -144,7 +142,9 @@ export async function startContentApp(ctx: ContentScriptContext,
             matchesSelectionTranslatorShortcut: hotkeys.matchesSelectionTranslatorShortcut,
             shouldReserveSelectionShortcut: hotkeys.shouldReserveSelectionShortcut,
         }, activationController.signal);
-        hotkeys.installFloatingBallHotkey(activationController.signal);
+        const resetFullPageKeyboardGesture = hotkeys.installFloatingBallHotkey(activationController.signal);
+        mountConfiguredQuickTranslation(config, hotkeys, () => currentPageSiteDisabled, activationController.signal,
+            () => { resetHoverKeyboardGesture(); resetFullPageKeyboardGesture(); });
 
         const pageFeatureRegistry = createContentFeatureRegistry([
             {

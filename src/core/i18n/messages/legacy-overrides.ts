@@ -33,6 +33,82 @@ const languageBadges = {
     '日': 'JA',
 } as const;
 
+/** 快捷键冲突检测返回的有限原因集；避免动态警告在非中文界面中夹带中文。 */
+const systemShortcutTextOverrides: Record<Exclude<UiLanguage, 'zh-CN'>, Readonly<Record<string, string>>> = {
+    'en-US': {
+        '复制': 'Copy', '粘贴': 'Paste', '剪切': 'Cut', '撤销': 'Undo', '重做': 'Redo',
+        '全选': 'Select all', '保存': 'Save', '打开': 'Open', '新建': 'New', '关闭标签页': 'Close tab',
+        '新建标签页': 'New tab', '刷新页面': 'Reload page', '查找': 'Find', '历史记录': 'History',
+        '添加书签': 'Add bookmark', '关闭程序': 'Close application', '重新打开关闭的标签页': 'Reopen closed tab',
+        '无痕模式': 'Incognito mode', '清除浏览数据': 'Clear browsing data', '退出程序': 'Quit application',
+        'Spotlight搜索': 'Spotlight search',
+        '快捷键不能为空': 'Shortcut cannot be empty',
+        '单个字母键需要与修饰键组合使用': 'A letter key must be combined with a modifier',
+        'CMD 键已被禁用，请使用其他修饰键组合': 'The Command/Meta key is disabled. Use another modifier combination.',
+        '可能存在冲突': 'This shortcut may conflict with another action',
+    },
+    'ja-JP': {
+        '复制': 'コピー', '粘贴': 'ペースト', '剪切': '切り取り', '撤销': '元に戻す', '重做': 'やり直す',
+        '全选': 'すべて選択', '保存': '保存', '打开': '開く', '新建': '新規作成', '关闭标签页': 'タブを閉じる',
+        '新建标签页': '新しいタブ', '刷新页面': 'ページを再読み込み', '查找': '検索', '历史记录': '履歴',
+        '添加书签': 'ブックマークに追加', '关闭程序': 'アプリを閉じる', '重新打开关闭的标签页': '閉じたタブを開き直す',
+        '无痕模式': 'シークレットモード', '清除浏览数据': '閲覧履歴データを削除', '退出程序': 'アプリを終了',
+        'Spotlight搜索': 'Spotlight 検索',
+        '快捷键不能为空': 'ショートカットを空にはできません',
+        '单个字母键需要与修饰键组合使用': '文字キーは修飾キーと組み合わせてください',
+        'CMD 键已被禁用，请使用其他修饰键组合': 'Command/Meta キーは使用できません。別の修飾キーを使用してください。',
+        '可能存在冲突': '別の操作と競合する可能性があります',
+    },
+    'ko-KR': {
+        '复制': '복사', '粘贴': '붙여넣기', '剪切': '잘라내기', '撤销': '실행 취소', '重做': '다시 실행',
+        '全选': '모두 선택', '保存': '저장', '打开': '열기', '新建': '새로 만들기', '关闭标签页': '탭 닫기',
+        '新建标签页': '새 탭', '刷新页面': '페이지 새로고침', '查找': '찾기', '历史记录': '방문 기록',
+        '添加书签': '북마크 추가', '关闭程序': '프로그램 닫기', '重新打开关闭的标签页': '닫은 탭 다시 열기',
+        '无痕模式': '시크릿 모드', '清除浏览数据': '인터넷 사용 기록 삭제', '退出程序': '프로그램 종료',
+        'Spotlight搜索': 'Spotlight 검색',
+        '快捷键不能为空': '단축키는 비워 둘 수 없습니다',
+        '单个字母键需要与修饰键组合使用': '문자 키는 수정 키와 함께 사용해야 합니다',
+        'CMD 键已被禁用，请使用其他修饰键组合': 'Command/Meta 키는 사용할 수 없습니다. 다른 수정 키 조합을 사용하세요.',
+        '可能存在冲突': '다른 동작과 충돌할 수 있습니다',
+    },
+    'fr-FR': {
+        '复制': 'Copier', '粘贴': 'Coller', '剪切': 'Couper', '撤销': 'Annuler', '重做': 'Rétablir',
+        '全选': 'Tout sélectionner', '保存': 'Enregistrer', '打开': 'Ouvrir', '新建': 'Nouveau', '关闭标签页': 'Fermer l’onglet',
+        '新建标签页': 'Nouvel onglet', '刷新页面': 'Actualiser la page', '查找': 'Rechercher', '历史记录': 'Historique',
+        '添加书签': 'Ajouter un favori', '关闭程序': 'Fermer l’application', '重新打开关闭的标签页': 'Rouvrir l’onglet fermé',
+        '无痕模式': 'Navigation privée', '清除浏览数据': 'Effacer les données de navigation', '退出程序': 'Quitter l’application',
+        'Spotlight搜索': 'Recherche Spotlight',
+        '快捷键不能为空': 'Le raccourci ne peut pas être vide',
+        '单个字母键需要与修饰键组合使用': 'Une lettre doit être associée à une touche de modification',
+        'CMD 键已被禁用，请使用其他修饰键组合': 'La touche Command/Meta est désactivée. Utilisez une autre combinaison de touches de modification.',
+        '可能存在冲突': 'Ce raccourci peut entrer en conflit avec une autre action',
+    },
+    'ru-RU': {
+        '复制': 'Копировать', '粘贴': 'Вставить', '剪切': 'Вырезать', '撤销': 'Отменить', '重做': 'Повторить',
+        '全选': 'Выбрать всё', '保存': 'Сохранить', '打开': 'Открыть', '新建': 'Создать', '关闭标签页': 'Закрыть вкладку',
+        '新建标签页': 'Новая вкладка', '刷新页面': 'Обновить страницу', '查找': 'Найти', '历史记录': 'История',
+        '添加书签': 'Добавить закладку', '关闭程序': 'Закрыть приложение', '重新打开关闭的标签页': 'Открыть закрытую вкладку',
+        '无痕模式': 'Режим инкогнито', '清除浏览数据': 'Очистить данные браузера', '退出程序': 'Выйти из приложения',
+        'Spotlight搜索': 'Поиск Spotlight',
+        '快捷键不能为空': 'Сочетание клавиш не может быть пустым',
+        '单个字母键需要与修饰键组合使用': 'Букву нужно использовать вместе с клавишей-модификатором',
+        'CMD 键已被禁用，请使用其他修饰键组合': 'Клавиша Command/Meta отключена. Используйте другую комбинацию модификаторов.',
+        '可能存在冲突': 'Это сочетание может конфликтовать с другим действием',
+    },
+    'es-ES': {
+        '复制': 'Copiar', '粘贴': 'Pegar', '剪切': 'Cortar', '撤销': 'Deshacer', '重做': 'Rehacer',
+        '全选': 'Seleccionar todo', '保存': 'Guardar', '打开': 'Abrir', '新建': 'Nuevo', '关闭标签页': 'Cerrar pestaña',
+        '新建标签页': 'Nueva pestaña', '刷新页面': 'Recargar página', '查找': 'Buscar', '历史记录': 'Historial',
+        '添加书签': 'Añadir marcador', '关闭程序': 'Cerrar aplicación', '重新打开关闭的标签页': 'Volver a abrir pestaña cerrada',
+        '无痕模式': 'Modo incógnito', '清除浏览数据': 'Borrar datos de navegación', '退出程序': 'Salir de la aplicación',
+        'Spotlight搜索': 'Búsqueda de Spotlight',
+        '快捷键不能为空': 'El atajo no puede estar vacío',
+        '单个字母键需要与修饰键组合使用': 'Una letra debe combinarse con una tecla modificadora',
+        'CMD 键已被禁用，请使用其他修饰键组合': 'La tecla Command/Meta está desactivada. Usa otra combinación de modificadores.',
+        '可能存在冲突': 'Este atajo puede entrar en conflicto con otra acción',
+    },
+};
+
 /** 十套界面皮肤的人工本地化；与注册表源文案一一对应，避免配色名称被机器式直译。 */
 const interfaceSkinTextOverrides: Record<Exclude<UiLanguage, 'zh-CN'>, Readonly<Record<string, string>>> = {
     'en-US': {
@@ -190,6 +266,7 @@ const interfaceSkinTextOverrides: Record<Exclude<UiLanguage, 'zh-CN'>, Readonly<
 export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<string, string>>>> = {
     'en-US': {
         ...providerNames,
+        ...systemShortcutTextOverrides['en-US'],
         ...languageBadges,
         ...interfaceSkinTextOverrides['en-US'],
         'English': 'English',
@@ -266,6 +343,7 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
     },
     'ja-JP': {
         ...providerNames,
+        ...systemShortcutTextOverrides['ja-JP'],
         ...languageBadges,
         ...interfaceSkinTextOverrides['ja-JP'],
         '显示图标': 'アイコンを表示',
@@ -418,6 +496,7 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
     },
     'ko-KR': {
         ...providerNames,
+        ...systemShortcutTextOverrides['ko-KR'],
         ...languageBadges,
         ...interfaceSkinTextOverrides['ko-KR'],
         '显示图标': '아이콘 표시',
@@ -572,6 +651,7 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
     },
     'fr-FR': {
         ...providerNames,
+        ...systemShortcutTextOverrides['fr-FR'],
         ...languageBadges,
         ...interfaceSkinTextOverrides['fr-FR'],
         '显示图标': 'Afficher l’icône',
@@ -731,6 +811,7 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
     },
     'ru-RU': {
         ...providerNames,
+        ...systemShortcutTextOverrides['ru-RU'],
         ...languageBadges,
         ...interfaceSkinTextOverrides['ru-RU'],
         '显示图标': 'Показывать значок',
@@ -886,6 +967,7 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
     },
     'es-ES': {
         ...providerNames,
+        ...systemShortcutTextOverrides['es-ES'],
         ...languageBadges,
         ...interfaceSkinTextOverrides['es-ES'],
         '显示图标': 'Mostrar icono',

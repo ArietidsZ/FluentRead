@@ -8,6 +8,7 @@ import {
     getComposedParent,
     hasActiveTranslationLineClamp,
     translationTruncationStyleOverrides,
+    type TranslationCandidate,
 } from "@/src/core/translation/public";
 
 /**
@@ -62,6 +63,8 @@ export interface TranslationState {
     /** 创建请求时可见的文本槽节点身份，早于任何实时替换。 */
     sourceTextNodes?: readonly Text[];
     sourceHTML: string;
+    /** 仅快捷方案使用；用于区分同一节点上的不同服务/模型/展示请求。 */
+    translationInvocationIdentity?: string;
     /** runtime 为直接内联 run 创建的临时 wrapper；所有退出路径都会移除。 */
     syntheticSegment: boolean;
     /** 显式翻译候选可穿过 body 直接子级的应用级 no-translate 外壳。 */
@@ -189,6 +192,17 @@ export function getTranslationState(node: HTMLElement): TranslationState | undef
     return states.get(node);
 }
 
+/** 将文本槽候选映射回持有翻译状态的祖先；普通候选仍直接使用自身节点。 */
+export function resolveTranslationStateNode(candidate: TranslationCandidate): HTMLElement | null {
+    if (!candidate.nodes?.length) return candidate.element;
+    let current = candidate.nodes[0]?.parentElement ?? null;
+    while (current) {
+        if (current.matches('[data-fr-translation-segment="true"]') && states.has(current)) return current;
+        current = current.parentElement;
+    }
+    return null;
+}
+
 /**
  * 开始一次新的节点翻译请求。
  * loading 状态不能重复发起请求；error 状态可以被调用方先恢复后重试。
@@ -201,6 +215,7 @@ export function beginTranslation(
     sourceText = node.textContent ?? "",
     sourceTextNodes?: readonly Text[],
     allowTopLevelApplicationShell = false,
+    translationInvocationIdentity?: string,
 ): TranslationAttempt | null {
     const previous = states.get(node);
     if (previous?.phase === "loading") return null;
@@ -225,6 +240,7 @@ export function beginTranslation(
         sourceText,
         sourceTextNodes: sourceTextNodes ? [...sourceTextNodes] : undefined,
         sourceHTML: node.innerHTML,
+        translationInvocationIdentity,
         syntheticSegment,
         allowTopLevelApplicationShell: allowTopLevelApplicationShell || undefined,
         syntheticSourceNodes: syntheticSegment ? Array.from(node.childNodes) : undefined,
@@ -890,6 +906,33 @@ export function getTranslationOwnersForIndexedNode(indexedNode: Node): HTMLEleme
     });
     if (refs.size === 0) ownersByIndexedNode.delete(indexedNode);
     return [...owners];
+}
+
+/**
+ * closed ShadowRoot 会把点击/悬停命中重定向到仅译文 slot host。借助已有所有权索引
+ * 恢复一个仅供 runtime 识别当前状态的候选；恢复原文后仍由 core 重新解析真实候选。
+ */
+export function getOwnedTranslationCandidateAtPoint(
+    root: Document,
+    x: number,
+    y: number,
+): TranslationCandidate | null {
+    if (typeof root.elementsFromPoint !== "function") return null;
+    for (const element of root.elementsFromPoint(x, y)) {
+        const owner = getTranslationOwnersForIndexedNode(element)
+            .find((candidate) => candidate === element || candidate.contains(element));
+        const state = owner ? states.get(owner) : undefined;
+        if (!owner || !state) continue;
+        return {
+            element: owner,
+            kind: state.kind,
+            reason: "existing-translation-at-point",
+            ...(state.syntheticSegment && state.sourceTextNodes?.length
+                ? {nodes: state.sourceTextNodes} : {}),
+            ...(state.allowTopLevelApplicationShell ? {allowTopLevelApplicationShell: true} : {}),
+        };
+    }
+    return null;
 }
 
 /**

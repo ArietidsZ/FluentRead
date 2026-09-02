@@ -21,11 +21,13 @@ import {Config, normalizeConfig} from '@/src/core/config/model';
 import {translationLoadingStyleOptions} from '@/src/core/config/translationLoadingStyle';
 import {popupModuleOptions, popupQuickFeatureOptions} from '@/src/core/config/interfaceAppearance';
 import {buildConfigDiff} from '@/src/core/config/diff';
-import {getMultilingualTargetLanguageLabel, options} from '@/src/core/config/catalog';
+import {getMultilingualTargetLanguageLabel, options, services} from '@/src/core/config/catalog';
+import {getMissingCredentialMessage} from '@/src/core/config/validation';
 import {prepareConfigForExport, prepareConfigForImport} from '@/src/core/config/transfer';
 import {toRestorableConfig} from '@/src/services/config/history';
 import {getContextMenuTitle} from '@/src/app/background/contextMenuUi';
 import {navigationItems} from '@/src/features/settings/model/navigation';
+import {parseHotkey} from '@/src/core/hotkey';
 
 describe('界面 i18n 契约', () => {
   const translatedCatalogs: ReadonlyArray<Readonly<Record<string, string>>> = [
@@ -230,6 +232,176 @@ describe('界面 i18n 契约', () => {
     for (const option of translationLoadingStyleOptions) {
       expect(translate(option.labelKey, 'zh-CN')).toBe(option.label);
       expect(translate(option.descriptionKey, 'zh-CN')).toBe(option.description);
+    }
+  });
+
+  it('用稳定 key 完整本地化快捷翻译方案及其动态提示', () => {
+    const cases: Array<{key: string; params?: Record<string, string | number>}> = [
+      {key: 'quickTranslation.heading.hover'},
+      {key: 'quickTranslation.heading.fullPage'},
+      {key: 'quickTranslation.description'},
+      {key: 'quickTranslation.capacityReached'},
+      {key: 'quickTranslation.capacityLimit', params: {count: 8}},
+      {key: 'quickTranslation.clickEdit'},
+      {key: 'quickTranslation.clickRecord'},
+      {key: 'quickTranslation.systemConflict', params: {warning: 'Copy'}},
+      {key: 'quickTranslation.followDefault', params: {value: 'Default service'}},
+      {key: 'quickTranslation.translationServiceAria', params: {hotkey: 'Ctrl+T'}},
+      {key: 'quickTranslation.serviceUnavailable', params: {service: 'Service'}},
+      {key: 'quickTranslation.translationModelAria', params: {hotkey: 'Ctrl+T'}},
+      {key: 'quickTranslation.pinServiceHint'},
+      {key: 'quickTranslation.targetLanguageAria', params: {hotkey: 'Ctrl+T'}},
+      {key: 'quickTranslation.displayModeAria', params: {hotkey: 'Ctrl+T'}},
+      {key: 'quickTranslation.field.range'},
+      {key: 'quickTranslation.fullPageRangeAria', params: {hotkey: 'Ctrl+T'}},
+      {key: 'quickTranslation.delete'},
+      {key: 'quickTranslation.deleteAria', params: {profile: 'Profile 1'}},
+      {key: 'quickTranslation.defaultModel'},
+      {key: 'quickTranslation.followServiceDefault'},
+      {key: 'quickTranslation.followServiceDefaultModel', params: {model: 'Model'}},
+      {key: 'quickTranslation.serviceRestriction'},
+      {key: 'quickTranslation.useDefaults'},
+      {key: 'quickTranslation.profileUnavailable', params: {detail: 'English · Bilingual'}},
+      {key: 'quickTranslation.profilePaused', params: {detail: 'English · Bilingual'}},
+      {key: 'quickTranslation.action.hover'},
+      {key: 'quickTranslation.action.fullPage'},
+      {key: 'quickTranslation.profileName', params: {action: 'Hover', index: 1, hotkey: 'Ctrl+T'}},
+      {key: 'quickTranslation.profileNeedsHotkey', params: {profile: 'Profile 1'}},
+      {key: 'quickTranslation.enableProfile', params: {profile: 'Profile 1'}},
+      {key: 'quickTranslation.disableProfile', params: {profile: 'Profile 1'}},
+      {key: 'quickTranslation.enableProfileUnavailable', params: {profile: 'Profile 1'}},
+      {key: 'quickTranslation.disableProfileUnavailable', params: {profile: 'Profile 1'}},
+      {key: 'quickTranslation.defaultHover'},
+      {key: 'quickTranslation.defaultFullPage'},
+      {key: 'quickTranslation.duplicate'},
+      {key: 'quickTranslation.legacyConflictEdit', params: {feature: 'Default hover translation'}},
+      {key: 'quickTranslation.legacyConflictEnable', params: {feature: 'Default hover translation'}},
+      {key: 'quickTranslation.recordFirst'},
+      {key: 'quickTranslation.setFirst'},
+      {key: 'quickTranslation.selectionPrecedence'},
+      {key: 'quickTranslation.googleNotice'},
+      {key: 'quickTranslation.googleOnly'},
+      {key: 'quickTranslation.conflictProfile', params: {group: 'Extra hover shortcuts'}},
+      {key: 'quickTranslation.conflictProfilePopup', params: {group: 'Extra hover shortcuts'}},
+      {key: 'quickTranslation.shortcutDisabled'},
+      {key: 'quickTranslation.shortcutSet', params: {shortcut: 'Ctrl+T'}},
+      {key: 'quickTranslation.selectionShortcutDisabled'},
+      {key: 'quickTranslation.selectionShortcutSet', params: {shortcut: 'Ctrl+T'}},
+      {key: 'quickTranslation.defaultServiceDescription'},
+      {key: 'quickTranslation.commonHoverShortcut'},
+      {key: 'quickTranslation.commonFullPageShortcut'},
+      {key: 'popup.quickTranslation.defaultHoverShortcut'},
+      {key: 'popup.quickTranslation.defaultOnly', params: {count: 2}},
+      {key: 'popup.quickTranslation.defaultOff'},
+      {key: 'popup.quickTranslation.toggleDefaultHover'},
+      {key: 'popup.quickTranslation.extraProfiles'},
+      {key: 'popup.quickTranslation.moreProfiles', params: {count: 2}},
+      {key: 'popup.quickTranslation.profileCount', params: {count: 3}},
+      {key: 'popup.quickTranslation.defaultNotSet'},
+      {key: 'popup.quickTranslation.fullPageHint', params: {count: 2}},
+    ];
+    const languages = ['zh-CN', 'en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const;
+
+    for (const {key, params} of cases) {
+      const chinese = translate(key, 'zh-CN', params);
+      for (const language of languages) {
+        const localized = translate(key, language, params);
+        expect(localized, `${language}: ${key}`).not.toBe(key);
+        expect(localized, `${language}: ${key}`).not.toMatch(/\{[a-zA-Z0-9_]+\}/u);
+        if (language !== 'zh-CN') expect(localized, `${language}: ${key}`).not.toBe(chinese);
+        if (['en-US', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'].includes(language)) {
+          expect(localized, `${language}: ${key}`).not.toMatch(/[\u3400-\u9fff]/u);
+        }
+      }
+    }
+
+    expect(translate('quickTranslation.heading.hover', 'en-US')).toBe('More hover shortcuts');
+    expect(translate('popup.quickTranslation.profileCount', 'ja-JP', {count: 3})).toContain('3');
+
+    for (const language of languages) {
+      expect(translate('quickTranslation.serviceRestriction', language)).not.toContain(' · ');
+    }
+    const chineseProfileName = translate('quickTranslation.profileName', 'zh-CN', {
+      action: translate('quickTranslation.action.hover', 'zh-CN'), index: 1, hotkey: 'Ctrl+T',
+    });
+    expect(translate('quickTranslation.deleteAria', 'zh-CN', {profile: chineseProfileName}))
+      .toBe('删除悬浮快捷方案 1 Ctrl+T');
+
+    const countNeutralEnglish = {
+      'popup.quickTranslation.defaultOnly': 'This switch only controls the default shortcut · independent profile count: 1',
+      'popup.quickTranslation.moreProfiles': 'Additional profile count in full settings: 1.',
+      'popup.quickTranslation.profileCount': 'Shortcut profile count: 1',
+      'popup.quickTranslation.fullPageHint': 'Additional full-page profile count: 1. This badge only shows the default shortcut.',
+    } as const;
+    for (const [key, expected] of Object.entries(countNeutralEnglish)) {
+      expect(translate(key, 'en-US', {count: 1})).toBe(expected);
+    }
+    for (const language of ['fr-FR', 'ru-RU', 'es-ES'] as const) {
+      for (const key of Object.keys(countNeutralEnglish)) {
+        const localized = translate(key, language, {count: 1});
+        expect(localized, `${language}: ${key}`).toContain('1');
+        expect(localized, `${language}: ${key}`).not.toMatch(/[\u3400-\u9fff]/u);
+      }
+    }
+  });
+
+  it('本地化快捷键冲突检测返回的系统操作名称', () => {
+    const conflictReasons = [
+      '复制', '粘贴', '剪切', '撤销', '重做', '全选', '保存', '打开', '新建', '关闭标签页',
+      '新建标签页', '刷新页面', '查找', '历史记录', '添加书签', '关闭程序', '重新打开关闭的标签页',
+      '无痕模式', '清除浏览数据', '退出程序', 'Spotlight搜索',
+    ];
+    const nonChineseLanguages = ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const;
+    const malformedValidationMessages = ['Ctrl+', '+T', 'Ctrl++T'].map((hotkey) => {
+      const message = parseHotkey(hotkey).errorMessage;
+      if (!message) throw new Error(`预期 ${hotkey} 产生快捷键解析错误`);
+      return message;
+    });
+    expect(malformedValidationMessages).toEqual([
+      '不支持的按键: ',
+      '不支持的修饰键: ',
+      '不支持的修饰键: ',
+    ]);
+    const validationMessages = [
+      '与系统快捷键冲突: 新建标签页',
+      '与系统快捷键冲突: 重新打开关闭的标签页',
+      '单个字母键需要与修饰键组合使用',
+      'CMD 键已被禁用，请使用其他修饰键组合',
+      '不支持的按键: mystery',
+      '不支持的修饰键: mystery',
+      '当前快捷键为 Alt+T',
+      ...malformedValidationMessages,
+    ];
+
+    for (const language of nonChineseLanguages) {
+      expect(translateLegacyText('新建标签页', language)).not.toBe('新建标签页');
+      expect(translateLegacyText('重新打开关闭的标签页', language)).not.toBe('重新打开关闭的标签页');
+      for (const message of validationMessages) {
+        const localized = translateLegacyText(message, language);
+        expect(localized, `${language}: ${message}`).not.toBe(message);
+        if (language !== 'ja-JP') expect(localized, `${language}: ${message}`).not.toMatch(/[\u3400-\u9fff]/u);
+      }
+      for (const reason of conflictReasons) {
+        const localized = translateLegacyText(reason, language);
+        if (language !== 'ja-JP') expect(localized, `${language}: ${reason}`).not.toMatch(/[\u3400-\u9fff]/u);
+      }
+    }
+  });
+
+  it('本地化动态凭据缺失提示并保留服务名称', () => {
+    const credentialMessages = [
+      getMissingCredentialMessage(services.deepseek, {token: {}}),
+      getMissingCredentialMessage(services.youdao, {token: {}, youdaoAppKey: 'configured'}),
+      getMissingCredentialMessage(services.tencent, {token: {}, tencentSecretId: 'configured'}),
+    ];
+    expect(credentialMessages.every((message): message is string => Boolean(message))).toBe(true);
+
+    for (const language of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
+      for (const message of credentialMessages) {
+        const localized = translateLegacyText(message!, language);
+        expect(localized, `${language}: ${message}`).not.toBe(message);
+        if (language !== 'ja-JP') expect(localized, `${language}: ${message}`).not.toMatch(/[\u3400-\u9fff]/u);
+      }
     }
   });
 

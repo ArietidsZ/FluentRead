@@ -251,6 +251,81 @@ describe('配置差异预览', () => {
         });
     });
 
+    it('把多个快捷翻译方案展示为可辨认的动作、热键和服务摘要', () => {
+        const result = buildConfigDiff({quickTranslationProfiles: []}, {
+            quickTranslationProfiles: [
+                {
+                    id: 'hover', enabled: true, action: 'hover', hotkey: 'Ctrl+T',
+                    service: 'openai', model: 'gpt-5.6-luna', targetLanguage: 'ja',
+                    displayMode: 'bilingual', fullPageMode: 'inherit',
+                },
+                {
+                    id: 'page', enabled: false, action: 'full-page', hotkey: 'Ctrl+Y',
+                    service: '', model: '', targetLanguage: '',
+                    displayMode: 'translation-only', fullPageMode: 'all',
+                },
+            ],
+        });
+
+        expect(result.changeCount).toBe(1);
+        const change = group(result, 'translation')?.changes[0];
+        expect(change).toMatchObject({
+            key: 'quickTranslationProfiles',
+            label: '快捷翻译方案',
+            before: '无',
+        });
+        expect(change?.after).toContain('悬停 Ctrl+T：OpenAI · gpt-5.6-luna，日本語，双语');
+        expect(change?.after).toContain('全文 Ctrl+Y（已停用）：默认服务，默认语言，仅译文');
+    });
+
+    it('全文方案只改变翻译范围时，diff 仍能直接说明改了什么', () => {
+        const profile = {
+            id: 'page', enabled: true, action: 'full-page', hotkey: 'Ctrl+Y',
+            service: '', model: '', targetLanguage: '', displayMode: 'inherit',
+        };
+        const result = buildConfigDiff(
+            {quickTranslationProfiles: [{...profile, fullPageMode: 'viewport'}]},
+            {quickTranslationProfiles: [{...profile, fullPageMode: 'all'}]},
+        );
+        const change = group(result, 'translation')?.changes[0];
+
+        expect(change?.before).toContain('按阅读进度');
+        expect(change?.after).toContain('立即翻译到网页底部');
+        expect(change?.before).not.toBe(change?.after);
+    });
+
+    it('第 5 至 8 个快捷方案的变化也会出现在历史差异中', () => {
+        const profiles = Array.from({length: 8}, (_, index) => ({
+            id: `quick-${index + 1}`, enabled: true, action: 'hover',
+            hotkey: `Ctrl+${String.fromCharCode(65 + index)}`, service: 'openai',
+            model: `model-${index + 1}`, targetLanguage: '', displayMode: 'inherit',
+            fullPageMode: 'inherit',
+        }));
+        const result = buildConfigDiff(
+            {quickTranslationProfiles: profiles},
+            {quickTranslationProfiles: profiles.map((profile, index) => index === 7
+                ? {...profile, model: 'changed-eighth-model'} : profile)},
+        );
+        const change = group(result, 'translation')?.changes[0];
+
+        expect(change?.before).toContain('model-8');
+        expect(change?.after).toContain('changed-eighth-model');
+        expect(change?.before).not.toBe(change?.after);
+    });
+
+    it('畸形或未完成的快捷方案差异仍可读且不遗漏默认范围', () => {
+        const result = buildConfigDiff({quickTranslationProfiles: []}, {
+            quickTranslationProfiles: [null, {
+                action: 'full-page', hotkey: '', service: '', model: '', targetLanguage: '',
+                displayMode: 'inherit', fullPageMode: 'inherit',
+            }],
+        });
+        const after = group(result, 'translation')?.changes[0]?.after || '';
+
+        expect(after).toContain('未设置');
+        expect(after).toContain('默认范围');
+    });
+
     it('把任务调度的不限速和退避参数格式化为可读差异', () => {
         const result = buildConfigDiff({
             translationRequestsPerSecond: 0,
