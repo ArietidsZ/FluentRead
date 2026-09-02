@@ -407,9 +407,7 @@
       </SettingsGroup>
     </section>
 
-    <section v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation">
-      <InterfaceSettings :config="config" />
-    </section>
+    <section v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation"><InterfaceSettings :config="config" /></section>
 
     <section v-show="props.activeSection === 'settings-advanced'" class="settings-section settings-section-continuation">
       <SettingsGroup title="界面性能" description="低配置设备可以关闭动画以减少资源占用。">
