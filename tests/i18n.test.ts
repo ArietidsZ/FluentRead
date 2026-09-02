@@ -16,7 +16,7 @@ import {koKRMessages} from '@/src/core/i18n/messages/ko-KR';
 import {ruRUMessages} from '@/src/core/i18n/messages/ru-RU';
 import {zhCNMessages} from '@/src/core/i18n/messages/zh-CN';
 import {Config, normalizeConfig} from '@/src/core/config/model';
-import {options} from '@/src/core/config/catalog';
+import {getMultilingualTargetLanguageLabel, options} from '@/src/core/config/catalog';
 import {prepareConfigForExport, prepareConfigForImport} from '@/src/core/config/transfer';
 import {toRestorableConfig} from '@/src/services/config/history';
 import {getContextMenuTitle} from '@/src/app/background/contextMenuUi';
@@ -54,6 +54,22 @@ describe('界面 i18n 契约', () => {
     ]);
     expect(translate('settings.general.defaultTargetLanguage', 'zh-CN')).toBe('语言');
     expect(translate('settings.general.defaultTargetLanguage', 'en-US')).toBe('language');
+  });
+
+  it('为目标语言选择器提供中文、英文和原生名称的组合标签', () => {
+    expect(options.to.map(item => getMultilingualTargetLanguageLabel(item.value, item.label))).toEqual([
+      '中文 / Chinese',
+      'English / 英语',
+      '日本語 / Japanese / 日语',
+      '한국어 / Korean / 韩语',
+      'Français / French / 法语',
+      'Русский / Russian / 俄语',
+      'Español / Spanish / 西班牙语',
+    ]);
+    expect(getMultilingualTargetLanguageLabel('de', 'Deutsch')).toBe('Deutsch / German / 德语');
+    expect(getMultilingualTargetLanguageLabel('ja', '日本語', 'en-US')).toBe('Japanese');
+    expect(getMultilingualTargetLanguageLabel('unknown', 'Custom language', 'en-US')).toBe('Custom language');
+    expect(getMultilingualTargetLanguageLabel('unknown', '自定义语言')).toBe('自定义语言');
   });
 
   it('提供可继续扩展的语言选择器和参数插值', () => {

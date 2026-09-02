@@ -313,7 +313,7 @@
       <SettingsGroup title="译文显示" description="设置网页翻译后的内容形式和双语译文样式。">
         <SettingsItem :label="t('settings.general.defaultTargetLanguage')" :description="t('settings.general.defaultTargetLanguageDescription')">
           <el-select v-model="config.to" :aria-label="t('settings.general.defaultTargetLanguage')" :placeholder="t('settings.general.targetLanguagePlaceholder')">
-            <el-option v-for="item in options.to" :key="item.value" data-i18n-ignore class="select-left" :label="item.label" :value="item.value" />
+            <el-option v-for="item in options.to" :key="item.value" data-i18n-ignore class="select-left" :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" :value="item.value" />
           </el-select>
         </SettingsItem>
         <SettingsItem label="翻译模式" description="双语对照保留原文，仅译文模式会替换原文显示。">
@@ -452,7 +452,7 @@
           <el-col :span="12" class="settings-control-field">
             <el-select v-model="config.inputBoxTranslationTarget" aria-label="输入框翻译目标语言" placeholder="请选择目标语言">
               <el-option class="select-left" data-i18n-ignore v-for="item in options.inputBoxTranslationTarget" :key="item.value"
-                         :label="item.label" :value="item.value" />
+                         :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" :value="item.value" />
             </el-select>
           </el-col>
         </el-row>
@@ -687,7 +687,7 @@
 
 // Main 处理配置信息
 import { computed, ref, watch, onUnmounted } from 'vue'
-import { customModelString, defaultOption, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
+import { customModelString, defaultOption, getMultilingualTargetLanguageLabel, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
 import {
   createNextCustomOpenAIProviderId,
   getCustomOpenAIProvider,
@@ -776,7 +776,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   activeSection: 'settings-general',
 })
-const {t, translateLegacy} = useUiI18n();
+const {language, t, translateLegacy} = useUiI18n();
 
 // 初始化深色模式媒体查询
 const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');

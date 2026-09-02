@@ -48,6 +48,18 @@ describe('popup feature visibility', () => {
         expect(options).not.toContain('<p>{{ activeItem.detail }}</p>');
     });
 
+    it('uses multilingual labels in every target-language control', () => {
+        const popup = source('src/app/popup/PopupApp.vue');
+        const settings = source('src/features/settings/ui/SettingsSections.vue');
+        const center = source('src/features/translation-center/ui/TranslationCenter.vue');
+        const documentApp = source('src/app/document-translation/DocumentApp.vue');
+
+        expect(popup).toContain('getMultilingualTargetLanguageLabel(item.value, item.label, language)');
+        expect(settings).toContain(':label="getMultilingualTargetLanguageLabel(item.value, item.label, language)"');
+        expect(center).toContain('getMultilingualTargetLanguageLabel(item.value, item.label, language)');
+        expect(documentApp).toContain('getMultilingualTargetLanguageLabel(item.value, item.label, language)');
+    });
+
     it('blocks early interaction until the stored configuration is hydrated', () => {
         const popup = source('src/app/popup/PopupApp.vue');
         const styles = source('src/app/popup/popup.css');

@@ -9,6 +9,7 @@ export {Config} from '@/src/core/config/model';
 export {getMissingCredentialMessage} from '@/src/core/config/validation';
 export {
     customModelString,
+    getMultilingualTargetLanguageLabel,
     models,
     options,
     resolveConfiguredModel,

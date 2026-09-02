@@ -556,6 +556,111 @@ export const options = {
     ],
 };
 
+/**
+ * Target-language controls deliberately keep a multilingual label so that the
+ * selected translation language remains understandable before the interface
+ * language has been configured.
+ */
+export const multilingualTargetLanguageLabels: Readonly<Record<string, string>> = {
+    "zh-Hans": "中文 / Chinese",
+    en: "English / 英语",
+    ja: "日本語 / Japanese / 日语",
+    ko: "한국어 / Korean / 韩语",
+    fr: "Français / French / 法语",
+    ru: "Русский / Russian / 俄语",
+    es: "Español / Spanish / 西班牙语",
+    de: "Deutsch / German / 德语",
+    pt: "Português / Portuguese / 葡萄牙语",
+    it: "Italiano / Italian / 意大利语",
+};
+
+export const englishTargetLanguageLabels: Readonly<Record<string, string>> = {
+    "zh-Hans": "Chinese",
+    en: "English",
+    ja: "Japanese",
+    ko: "Korean",
+    fr: "French",
+    ru: "Russian",
+    es: "Spanish",
+    de: "German",
+    pt: "Portuguese",
+    it: "Italian",
+};
+
+const localizedTargetLanguageLabels: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+    "ja-JP": {
+        "zh-Hans": "中国語 / Chinese / 中文",
+        en: "英語 / English",
+        ja: "日本語 / Japanese",
+        ko: "韓国語 / Korean / 한국어",
+        fr: "フランス語 / French / Français",
+        ru: "ロシア語 / Russian / Русский",
+        es: "スペイン語 / Spanish / Español",
+        de: "ドイツ語 / German / Deutsch",
+        pt: "ポルトガル語 / Portuguese / Português",
+        it: "イタリア語 / Italian / Italiano",
+    },
+    "ko-KR": {
+        "zh-Hans": "중국어 / Chinese / 中文",
+        en: "영어 / English",
+        ja: "일본어 / Japanese / 日本語",
+        ko: "한국어 / Korean",
+        fr: "프랑스어 / French / Français",
+        ru: "러시아어 / Russian / Русский",
+        es: "스페인어 / Spanish / Español",
+        de: "독일어 / German / Deutsch",
+        pt: "포르투갈어 / Portuguese / Português",
+        it: "이탈리아어 / Italian / Italiano",
+    },
+    "fr-FR": {
+        "zh-Hans": "chinois / Chinese / 中文",
+        en: "anglais / English",
+        ja: "japonais / Japanese / 日本語",
+        ko: "coréen / Korean / 한국어",
+        fr: "français / French",
+        ru: "russe / Russian / Русский",
+        es: "espagnol / Spanish / Español",
+        de: "allemand / German / Deutsch",
+        pt: "portugais / Portuguese / Português",
+        it: "italien / Italian / Italiano",
+    },
+    "ru-RU": {
+        "zh-Hans": "китайский / Chinese / 中文",
+        en: "английский / English",
+        ja: "японский / Japanese / 日本語",
+        ko: "корейский / Korean / 한국어",
+        fr: "французский / French / Français",
+        ru: "русский / Russian",
+        es: "испанский / Spanish / Español",
+        de: "немецкий / German / Deutsch",
+        pt: "португальский / Portuguese / Português",
+        it: "итальянский / Italian / Italiano",
+    },
+    "es-ES": {
+        "zh-Hans": "Chino / Chinese / 中文",
+        en: "Inglés / English",
+        ja: "Japonés / Japanese / 日本語",
+        ko: "Coreano / Korean / 한국어",
+        fr: "Francés / French / Français",
+        ru: "Ruso / Russian / Русский",
+        es: "Español / Spanish",
+        de: "Alemán / German / Deutsch",
+        pt: "Portugués / Portuguese / Português",
+        it: "Italiano / Italian",
+    },
+};
+
+const targetLanguageLabelsByUiLanguage: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+    "zh-CN": multilingualTargetLanguageLabels,
+    "en-US": englishTargetLanguageLabels,
+    ...localizedTargetLanguageLabels,
+};
+
+export function getMultilingualTargetLanguageLabel(value: string, fallback = value, uiLanguage = "zh-CN"): string {
+    const labels = targetLanguageLabelsByUiLanguage[uiLanguage] || multilingualTargetLanguageLabels;
+    return labels[value] || fallback;
+}
+
 export const defaultOption = {
     on: true,
     uiLanguage: "zh-CN" as const,

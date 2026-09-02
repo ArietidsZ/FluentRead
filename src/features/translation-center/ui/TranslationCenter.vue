@@ -29,7 +29,7 @@
       <div class="language-picker-group">
         <label for="translation-center-target">目标语言</label>
         <select id="translation-center-target" v-model="targetLanguage" aria-label="翻译中心目标语言" @change="persistTranslationCenterConfig('target')">
-          <option v-for="item in targetLanguageOptions" :key="item.value" :value="item.value" data-i18n-ignore>{{ item.label }}</option>
+          <option v-for="item in targetLanguageOptions" :key="item.value" :value="item.value" data-i18n-ignore>{{ getMultilingualTargetLanguageLabel(item.value, item.label, language) }}</option>
         </select>
       </div>
 
@@ -226,7 +226,7 @@ import {
   filterAvailableTranslationServices,
   isTranslationServiceAvailable,
 } from '@/src/services/translation/capabilities'
-import { models, options, servicesType } from '@/src/core/config/catalog'
+import { getMultilingualTargetLanguageLabel, models, options, servicesType } from '@/src/core/config/catalog'
 import {
   getCustomOpenAIProviderModels,
   isConfiguredCustomOpenAIProvider,
@@ -265,7 +265,7 @@ const DEFAULT_COMPARISON_SERVICES = ['freeTranslation', 'google', 'openai', 'dee
 const MAX_TEXT_LENGTH = 5000
 
 const sourceText = ref('')
-const {translateLegacy} = useUiI18n()
+const {language, translateLegacy} = useUiI18n()
 const sourceLanguage = ref('auto')
 const targetLanguage = ref('zh-Hans')
 const runCount = ref(0)
@@ -349,7 +349,8 @@ function serviceDescription(service: string): string {
 
 function languageLabel(value: string): string {
   if (value === 'auto') return '自动检测'
-  return targetLanguageOptions.value.find(item => item.value === value)?.label || value
+  const option = targetLanguageOptions.value.find(item => item.value === value)
+  return getMultilingualTargetLanguageLabel(value, option?.label || value, language.value)
 }
 
 function getValidServiceOrder(value: unknown): string[] {

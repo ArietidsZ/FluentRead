@@ -88,7 +88,7 @@
           <label class="language-control">
             <span>目标语言</span>
             <select v-model="config.to" :disabled="translating" aria-label="文档目标语言">
-              <option v-for="item in options.to" :key="item.value" :value="item.value" data-i18n-ignore>{{ item.label }}</option>
+              <option v-for="item in options.to" :key="item.value" :value="item.value" data-i18n-ignore>{{ getMultilingualTargetLanguageLabel(item.value, item.label, language) }}</option>
             </select>
           </label>
           <label class="service-control">
@@ -410,6 +410,7 @@ import {
   getDocxPartLabel as docxPartLabel,
   getCustomOpenAIProvider,
   getMissingCredentialMessage,
+  getMultilingualTargetLanguageLabel,
   getTranslationServiceUnavailableMessage,
   isRichDocumentFormat,
   isSubtitleDocumentFormat,
@@ -469,7 +470,7 @@ function mergeChangedDocumentModelMapping(
 }
 
 const config = reactive(new Config());
-const {translateLegacy} = useUiI18n();
+const {language, translateLegacy} = useUiI18n();
 const fileInput = ref<HTMLInputElement | null>(null);
 const parsedDocument = ref<ParsedDocument | null>(null);
 const translatedSegments = ref<string[]>([]);

@@ -83,7 +83,7 @@
         <label>
           <span>目标语言</span>
           <select v-model="config.to" :disabled="!config.on">
-            <option v-for="item in options.to" :key="item.value" :value="item.value" data-i18n-ignore>{{ item.label }}</option>
+            <option v-for="item in options.to" :key="item.value" :value="item.value" data-i18n-ignore>{{ getMultilingualTargetLanguageLabel(item.value, item.label, language) }}</option>
           </select>
         </label>
       </div>
@@ -579,7 +579,14 @@ import {
   normalizeSelectionTranslatorDelay,
 } from '@/src/core/config/model';
 import {resolveUiLanguageFromLocale, type UiLanguage} from '@/src/core/i18n';
-import { customModelString, models, options, resolveConfiguredModel, servicesType } from '@/src/core/config/catalog';
+import {
+  customModelString,
+  getMultilingualTargetLanguageLabel,
+  models,
+  options,
+  resolveConfiguredModel,
+  servicesType,
+} from '@/src/core/config/catalog';
 import {
   getCustomOpenAIProvider,
   withCustomOpenAIServiceOptions,
@@ -602,7 +609,7 @@ import {
 type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'video';
 type SettingsSection = 'settings-general' | 'settings-image-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'));
-const {translateLegacy} = useUiI18n();
+const {language, translateLegacy} = useUiI18n();
 const config = ref(new Config());
 const onboardingLanguage = ref<UiLanguage>('zh-CN');
 const drawerVisible = ref(false);
