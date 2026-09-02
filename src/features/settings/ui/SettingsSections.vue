@@ -7,17 +7,10 @@
 <template>
   <section v-show="props.activeSection === 'settings-general'" id="settings-general" class="settings-section">
     <SettingsGroup>
-      <SettingsItem
-        label="插件状态"
-        :description="config.on ? '网页翻译和快捷功能正在运行。' : '当前已暂停，其他偏好仍可继续调整。'"
-      >
+      <SettingsItem label="插件状态" :description="config.on ? '网页翻译和快捷功能正在运行。' : '当前已暂停，其他偏好仍可继续调整。'">
         <el-switch v-model="config.on" class="settings-switch" aria-label="插件状态" @change="handlePluginStateChange" />
       </SettingsItem>
-      <SettingsItem label="默认目标语言" description="网页、划词和悬停翻译默认翻译成的语言。">
-        <el-select v-model="config.to" aria-label="默认目标语言" placeholder="请选择目标语言">
-          <el-option v-for="item in options.to" :key="item.value" class="select-left" :label="item.label" :value="item.value" />
-        </el-select>
-      </SettingsItem>
+      <SettingsItem :label="t('settings.general.language')" :description="t('language.settingsDescription')"><UiLanguageSelector compact /></SettingsItem>
       <SettingsItem label="界面主题" description="只影响扩展界面，不会改变网页本身的配色。">
         <SegmentedControl v-model="config.theme" :options="options.theme" label="界面主题" />
       </SettingsItem>
@@ -318,6 +311,11 @@
 
     <section v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation">
       <SettingsGroup title="译文显示" description="设置网页翻译后的内容形式和双语译文样式。">
+        <SettingsItem :label="t('settings.general.defaultTargetLanguage')" :description="t('settings.general.defaultTargetLanguageDescription')">
+          <el-select v-model="config.to" :aria-label="t('settings.general.defaultTargetLanguage')" :placeholder="t('settings.general.targetLanguagePlaceholder')">
+            <el-option v-for="item in options.to" :key="item.value" data-i18n-ignore class="select-left" :label="item.label" :value="item.value" />
+          </el-select>
+        </SettingsItem>
         <SettingsItem label="翻译模式" description="双语对照保留原文，仅译文模式会替换原文显示。">
           <SegmentedControl v-model="config.display" :options="options.display" label="翻译模式" />
         </SettingsItem>
@@ -453,7 +451,7 @@
           </el-col>
           <el-col :span="12" class="settings-control-field">
             <el-select v-model="config.inputBoxTranslationTarget" aria-label="输入框翻译目标语言" placeholder="请选择目标语言">
-              <el-option class="select-left" v-for="item in options.inputBoxTranslationTarget" :key="item.value" 
+              <el-option class="select-left" data-i18n-ignore v-for="item in options.inputBoxTranslationTarget" :key="item.value"
                          :label="item.label" :value="item.value" />
             </el-select>
           </el-col>
@@ -740,6 +738,7 @@ import {isBrowserTabId} from '@/src/platform/browser/ids';
 import { defineAsyncComponent } from 'vue';
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'));
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
+import UiLanguageSelector from '@/src/ui/components/UiLanguageSelector.vue';
 import ServiceCatalog from './services/ServiceCatalog.vue';
 import ServiceConfiguration from './services/ServiceConfiguration.vue';
 import CustomOpenAIProviderDialog from './services/CustomOpenAIProviderDialog.vue';
@@ -777,7 +776,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   activeSection: 'settings-general',
 })
-const {translateLegacy} = useUiI18n();
+const {t, translateLegacy} = useUiI18n();
 
 // 初始化深色模式媒体查询
 const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');

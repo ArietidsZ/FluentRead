@@ -3,12 +3,15 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 const mocks = vi.hoisted(() => ({
   createApp: vi.fn(),
   createShadowRootUi: vi.fn(),
+  browser: {runtime: {sendMessage: vi.fn()}},
 }));
 
 vi.mock('vue', () => ({createApp: mocks.createApp}));
 vi.mock('wxt/utils/content-script-ui/shadow-root', () => ({
   createShadowRootUi: mocks.createShadowRootUi,
 }));
+vi.mock('webextension-polyfill', () => ({default: mocks.browser}));
+vi.mock('@/src/ui/i18n', () => ({createUiI18nPlugin: vi.fn(() => ({}))}));
 
 import {createVueShadowUi} from '@/src/platform/shadow-ui';
 
@@ -37,7 +40,7 @@ describe('Vue Shadow UI 平台适配器', () => {
   it('使用安全默认值挂载，并在 WXT 移除时卸载 Vue', async () => {
     const fixture = shadowUi();
     const instance = {kind: 'component'};
-    const app = {mount: vi.fn(() => instance), unmount: vi.fn()};
+    const app = {use: vi.fn(), mount: vi.fn(() => instance), unmount: vi.fn()};
     mocks.createApp.mockReturnValue(app);
     mocks.createShadowRootUi.mockResolvedValue(fixture.ui);
     const component = {name: 'Fixture'};
@@ -77,7 +80,7 @@ describe('Vue Shadow UI 平台适配器', () => {
 
   it('透传 props、层级和关闭模式', async () => {
     const fixture = shadowUi();
-    const app = {mount: vi.fn(() => null), unmount: vi.fn()};
+    const app = {use: vi.fn(), mount: vi.fn(() => null), unmount: vi.fn()};
     mocks.createApp.mockReturnValue(app);
     mocks.createShadowRootUi.mockResolvedValue(fixture.ui);
     const props = {label: '测试'};

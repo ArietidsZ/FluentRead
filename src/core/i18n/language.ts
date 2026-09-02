@@ -16,12 +16,27 @@ export const DEFAULT_UI_LANGUAGE: UiLanguage = 'zh-CN';
 export const UI_LANGUAGE_OPTIONS = [
     {value: 'zh-CN', labelKey: 'language.zhCN'},
     {value: 'en-US', labelKey: 'language.enUS'},
+    {value: 'es-ES', labelKey: 'language.esES'},
 ] as const satisfies ReadonlyArray<{value: UiLanguage; labelKey: string}>;
 
 export function normalizeUiLanguage(value: unknown): UiLanguage {
-    return value === 'en-US' ? 'en-US' : DEFAULT_UI_LANGUAGE;
+    if (value === 'en-US') return 'en-US';
+    if (value === 'es-ES') return 'es-ES';
+    return DEFAULT_UI_LANGUAGE;
+}
+
+/** 将浏览器 locale 映射到当前支持的界面语言；未支持的语言回退到中文。 */
+export function resolveUiLanguageFromLocale(value: unknown): UiLanguage {
+    if (typeof value !== 'string') return DEFAULT_UI_LANGUAGE;
+    const locale = value.trim().toLowerCase().replace(/_/gu, '-');
+    if (locale === 'en' || locale.startsWith('en-')) return 'en-US';
+    if (locale === 'es' || locale.startsWith('es-')) return 'es-ES';
+    if (locale === 'zh' || locale.startsWith('zh-')) return 'zh-CN';
+    return DEFAULT_UI_LANGUAGE;
 }
 
 export function getUiLanguageLabel(language: UiLanguage): string {
-    return language === 'en-US' ? 'English' : '中文';
+    if (language === 'en-US') return 'English';
+    if (language === 'es-ES') return 'Español';
+    return '中文';
 }

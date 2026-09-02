@@ -8,6 +8,14 @@ function group(result: ReturnType<typeof buildConfigDiff>, id: string) {
 }
 
 describe('配置差异预览', () => {
+    it('格式化界面语言选择，包括西班牙语', () => {
+        const result = buildConfigDiff({uiLanguage: 'zh-CN'}, {uiLanguage: 'es-ES'});
+
+        expect(group(result, 'general')?.changes).toEqual([
+            {key: 'uiLanguage', label: '界面语言', before: '中文', after: 'Español'},
+        ]);
+    });
+
     it('按设置页稳定分组并把常用枚举、开关、数组和数字格式化为可读文本', () => {
         const result = buildConfigDiff({
             on: true,

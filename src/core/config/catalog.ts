@@ -375,11 +375,12 @@ export const options = {
     ],
     to: [
         {value: "zh-Hans", label: "中文"},
-        {value: "en", label: "英语"},
-        {value: "ja", label: "日语"},
-        {value: "ko", label: "韩语"},
-        {value: "fr", label: "法语"},
-        {value: "ru", label: "俄语"},
+        {value: "en", label: "English"},
+        {value: "ja", label: "日本語"},
+        {value: "ko", label: "한국어"},
+        {value: "fr", label: "Français"},
+        {value: "ru", label: "Русский"},
+        {value: "es", label: "Español"},
     ],
     keys: [
         {value: "none", label: "禁用快捷键"},
@@ -536,15 +537,15 @@ export const options = {
     // 输入框翻译目标语言选项
     inputBoxTranslationTarget: [
         {value: "zh-Hans", label: "中文"},
-        {value: "en", label: "英语"},
-        {value: "ja", label: "日语"},
-        {value: "ko", label: "韩语"},
-        {value: "fr", label: "法语"},
-        {value: "ru", label: "俄语"},
-        {value: "es", label: "西班牙语"},
-        {value: "de", label: "德语"},
-        {value: "pt", label: "葡萄牙语"},
-        {value: "it", label: "意大利语"},
+        {value: "en", label: "English"},
+        {value: "ja", label: "日本語"},
+        {value: "ko", label: "한국어"},
+        {value: "fr", label: "Français"},
+        {value: "ru", label: "Русский"},
+        {value: "es", label: "Español"},
+        {value: "de", label: "Deutsch"},
+        {value: "pt", label: "Português"},
+        {value: "it", label: "Italiano"},
     ],
     // 输入框翻译触发方式选项
     inputBoxTranslationTrigger: [

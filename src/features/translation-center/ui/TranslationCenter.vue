@@ -11,7 +11,7 @@
       <div class="language-picker-group">
         <label for="translation-center-source">源语言</label>
         <select id="translation-center-source" v-model="sourceLanguage" aria-label="翻译中心源语言" @change="persistTranslationCenterConfig('source')">
-          <option v-for="item in sourceLanguageOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+          <option v-for="item in sourceLanguageOptions" :key="item.value" :value="item.value" :data-i18n-ignore="item.value === 'auto' ? undefined : ''">{{ item.label }}</option>
         </select>
       </div>
 
@@ -29,7 +29,7 @@
       <div class="language-picker-group">
         <label for="translation-center-target">目标语言</label>
         <select id="translation-center-target" v-model="targetLanguage" aria-label="翻译中心目标语言" @change="persistTranslationCenterConfig('target')">
-          <option v-for="item in targetLanguageOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+          <option v-for="item in targetLanguageOptions" :key="item.value" :value="item.value" data-i18n-ignore>{{ item.label }}</option>
         </select>
       </div>
 

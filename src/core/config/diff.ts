@@ -62,6 +62,7 @@ const EXCLUDED_FIELDS = new Set([
     'count',
     'persistCredentials',
     'videoServiceDefaultMigrated',
+    'uiLanguageSetupCompleted',
     '__fluentConfigRevision',
 ]);
 const CREDENTIAL_FIELDS = new Set<string>(CONFIG_CREDENTIAL_FIELDS);
@@ -153,6 +154,7 @@ const THEME_LABELS = labelsFor(options.theme);
 const UI_LANGUAGE_LABELS = new Map<unknown, string>([
     ['zh-CN', '中文'],
     ['en-US', 'English'],
+    ['es-ES', 'Español'],
 ]);
 const HOVER_TRIGGER_LABELS = labelsFor(options.keys);
 const SELECTION_TRIGGER_LABELS = labelsFor(options.selectionTranslatorTriggers);

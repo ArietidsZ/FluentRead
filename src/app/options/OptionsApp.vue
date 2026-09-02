@@ -35,10 +35,8 @@
       <header class="topbar">
         <div>
           <h1>{{ activeItem.title }}</h1>
-          <p>{{ activeItem.detail }}</p>
         </div>
         <div class="topbar-tools">
-          <UiLanguageSelector />
           <label class="search-box">
             <span aria-hidden="true">⌕</span>
             <input v-model.trim="query" type="search" :placeholder="t('options.searchPlaceholder')" />
@@ -102,7 +100,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import SettingsSections from '@/src/features/settings/ui/SettingsSections.vue'
 import VocabularyBook from '@/src/features/vocabulary/ui/VocabularyBook.vue'
-import UiLanguageSelector from '@/src/ui/components/UiLanguageSelector.vue'
 import {useUiI18n} from '@/src/ui/i18n'
 import {
   navigationGroups,

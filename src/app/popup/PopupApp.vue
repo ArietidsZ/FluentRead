@@ -8,11 +8,18 @@
 <template>
   <main
     class="popup-shell"
-    :class="{ 'config-loading': !hydrated }"
+    :class="{ 'config-loading': !hydrated, 'language-onboarding-shell': showLanguageOnboarding }"
     :aria-busy="!hydrated"
     :data-config-ready="hydrated ? 'true' : 'false'"
     :inert="!hydrated"
   >
+    <UiLanguageOnboarding
+      v-if="showLanguageOnboarding"
+      :initial-language="onboardingLanguage"
+      @confirmed="handleLanguageOnboardingConfirmed"
+    />
+
+    <div class="popup-content" :inert="showLanguageOnboarding">
     <header class="popup-header">
       <div class="brand">
         <img src="/icon/128.png" alt="" />
@@ -76,7 +83,7 @@
         <label>
           <span>目标语言</span>
           <select v-model="config.to" :disabled="!config.on">
-            <option v-for="item in options.to" :key="item.value" :value="item.value">{{ item.label }}</option>
+            <option v-for="item in options.to" :key="item.value" :value="item.value" data-i18n-ignore>{{ item.label }}</option>
           </select>
         </label>
       </div>
@@ -547,6 +554,7 @@
 
     <CustomHotkeyInput v-model="showCustomMouseHotkeyDialog" :current-value="config.customHotkey" @confirm="confirmMouseHotkey" @cancel="cancelMouseHotkey" />
     <CustomHotkeyInput v-model="showCustomSelectionHotkeyDialog" :current-value="config.customSelectionTranslatorHotkey" @confirm="confirmSelectionHotkey" @cancel="cancelSelectionHotkey" />
+    </div>
   </main>
 </template>
 
@@ -570,6 +578,7 @@ import {
   normalizeConfig,
   normalizeSelectionTranslatorDelay,
 } from '@/src/core/config/model';
+import {resolveUiLanguageFromLocale, type UiLanguage} from '@/src/core/i18n';
 import { customModelString, models, options, resolveConfiguredModel, servicesType } from '@/src/core/config/catalog';
 import {
   getCustomOpenAIProvider,
@@ -582,6 +591,7 @@ import { getSiteBaseDomain } from '@/src/core/site-rules/domain';
 import { requestTranslationCacheClear } from './cache';
 import {isBrowserTabId} from '@/src/platform/browser/ids';
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
+import UiLanguageOnboarding from '@/src/ui/components/UiLanguageOnboarding.vue';
 import {useUiI18n} from '@/src/ui/i18n';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import {
@@ -594,6 +604,7 @@ type SettingsSection = 'settings-general' | 'settings-image-translation' | 'sett
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'));
 const {translateLegacy} = useUiI18n();
 const config = ref(new Config());
+const onboardingLanguage = ref<UiLanguage>('zh-CN');
 const drawerVisible = ref(false);
 const activeDrawer = ref<DrawerName>('hover');
 const selectionDrawerTab = ref<'text' | 'area'>('text');
@@ -613,6 +624,7 @@ const serviceSearchQuery = ref('');
 const servicePickerOpen = ref(false);
 const moreServicesOpen = ref(false);
 const hydrated = ref(false);
+const showLanguageOnboarding = ref(false);
 let lastSerialized = '';
 let applyingExternalConfig = false;
 let pageExitSaveStarted = false;
@@ -628,6 +640,20 @@ const drawerSettingsSection: Record<DrawerName, SettingsSection> = {
 const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
 const persistConfigPatch = (value: unknown) => requestConfigPatch(value, sendConfigMessage);
 const persistConfigReplace = (value: unknown) => requestConfigSave(value, sendConfigMessage);
+
+function readBrowserUiLocale(): unknown {
+  const browserI18n = (browser as unknown as {i18n?: {getUILanguage?: () => unknown}}).i18n;
+  try {
+    const extensionLocale = browserI18n?.getUILanguage?.();
+    if (typeof extensionLocale === 'string' && extensionLocale.trim()) return extensionLocale;
+  } catch {
+    // navigator.language remains a reliable fallback in extension pages.
+  }
+  if (typeof navigator === 'undefined') return '';
+  return navigator.languages?.find(locale => typeof locale === 'string' && locale.trim())
+    || navigator.language
+    || '';
+}
 
 const allServiceOptions = computed(() => withCustomOpenAIServiceOptions(
   options.services,
@@ -773,12 +799,21 @@ function applyTheme(theme: string) {
 async function hydrate() {
   await configReady;
   Object.assign(config.value, runtimeConfig);
+  if (!config.value.uiLanguageSetupCompleted) {
+    onboardingLanguage.value = resolveUiLanguageFromLocale(readBrowserUiLocale());
+  }
+  showLanguageOnboarding.value = !config.value.uiLanguageSetupCompleted;
   lastSerialized = JSON.stringify(config.value);
   hydrated.value = true;
   applyTheme(config.value.theme || 'auto');
   await hydrateCurrentSite();
 }
 void hydrate();
+
+function handleLanguageOnboardingConfirmed(language: UiLanguage): void {
+  onboardingLanguage.value = language;
+  showLanguageOnboarding.value = false;
+}
 
 const unsubscribeConfig = subscribeConfig((value) => {
   const serialized = JSON.stringify(value);

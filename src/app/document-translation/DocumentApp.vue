@@ -81,14 +81,14 @@
           <label class="language-control">
             <span>源语言</span>
             <select v-model="config.from" :disabled="translating" aria-label="文档源语言">
-              <option v-for="item in sourceLanguageOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+              <option v-for="item in sourceLanguageOptions" :key="item.value" :value="item.value" :data-i18n-ignore="item.value === 'auto' ? undefined : ''">{{ item.label }}</option>
             </select>
           </label>
           <span class="language-arrow" aria-hidden="true">→</span>
           <label class="language-control">
             <span>目标语言</span>
             <select v-model="config.to" :disabled="translating" aria-label="文档目标语言">
-              <option v-for="item in options.to" :key="item.value" :value="item.value">{{ item.label }}</option>
+              <option v-for="item in options.to" :key="item.value" :value="item.value" data-i18n-ignore>{{ item.label }}</option>
             </select>
           </label>
           <label class="service-control">

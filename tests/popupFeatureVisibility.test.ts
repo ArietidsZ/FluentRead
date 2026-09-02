@@ -7,6 +7,32 @@ function source(path: string): string {
 }
 
 describe('popup feature visibility', () => {
+    it('keeps the real Popup under a first-open language mask until confirmation', () => {
+        const popup = source('src/app/popup/PopupApp.vue');
+        const onboarding = source('src/ui/components/UiLanguageOnboarding.vue');
+        const styles = source('src/app/popup/popup.css');
+
+        expect(popup).toContain('uiLanguageSetupCompleted');
+        expect(popup).toContain('<UiLanguageOnboarding');
+        expect(popup).toContain('<div class="popup-content" :inert="showLanguageOnboarding">');
+        expect(popup).toContain('@confirmed="handleLanguageOnboardingConfirmed"');
+        expect(onboarding).toContain('class="language-onboarding-backdrop"');
+        expect(onboarding).toContain('class="onboarding-success"');
+        expect(onboarding).toContain('setTimeout(() =>');
+        expect(styles).toContain('.popup-shell.language-onboarding-shell { overflow: hidden; }');
+    });
+
+    it('places app language after extension status and target language first in translation display', () => {
+        const settings = source('src/features/settings/ui/SettingsSections.vue');
+        const options = source('src/app/options/OptionsApp.vue');
+
+        expect(settings.indexOf('label="插件状态"')).toBeLessThan(settings.indexOf("t('settings.general.language')"));
+        expect(settings.indexOf("t('settings.general.language')")).toBeLessThan(settings.indexOf('label="界面主题"'));
+        expect(settings.indexOf("t('settings.general.defaultTargetLanguage')")).toBeGreaterThan(settings.indexOf('title="译文显示"'));
+        expect(options).not.toContain('<UiLanguageSelector />');
+        expect(options).not.toContain('<p>{{ activeItem.detail }}</p>');
+    });
+
     it('blocks early interaction until the stored configuration is hydrated', () => {
         const popup = source('src/app/popup/PopupApp.vue');
         const styles = source('src/app/popup/popup.css');

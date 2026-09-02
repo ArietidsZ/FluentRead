@@ -7,7 +7,7 @@
  -->
 <template>
   <label class="ui-language-selector" :class="{ compact }">
-    <span class="ui-language-label">{{ t('language.selectorLabel') }}</span>
+    <span v-if="!compact" class="ui-language-label">{{ t('language.selectorLabel') }}</span>
     <select
       :value="language"
       data-testid="ui-language-select"

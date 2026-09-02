@@ -98,7 +98,7 @@ export function createUiI18nContext(): UiI18nContext {
         languageState.value = nextLanguage;
         try {
             await requestConfigPatch(
-                {uiLanguage: nextLanguage},
+                {uiLanguage: nextLanguage, uiLanguageSetupCompleted: true},
                 browser.runtime.sendMessage.bind(browser.runtime),
             );
         } catch (error) {

@@ -9,6 +9,7 @@
  */
 
 import {enUSLegacyText, enUSMessages} from './messages/en-US';
+import {esESLegacyText, esESMessages} from './messages/es-ES';
 import {zhCNMessages} from './messages/zh-CN';
 import {
     DEFAULT_UI_LANGUAGE,
@@ -21,6 +22,12 @@ export * from './language';
 const catalogs: Record<UiLanguage, MessageCatalog> = {
     'zh-CN': zhCNMessages,
     'en-US': enUSMessages,
+    'es-ES': esESMessages,
+};
+
+const legacyCatalogs: Partial<Record<UiLanguage, Readonly<Record<string, string>>>> = {
+    'en-US': enUSLegacyText,
+    'es-ES': esESLegacyText,
 };
 
 function formatMessage(template: string, params?: TranslationParams): string {
@@ -127,6 +134,32 @@ const legacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) =
     [/^(.+)（当前浏览器不可用）$/u, (match) => `${match[1]} (unavailable in this browser)`],
 ];
 
+const esLegacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => string]> = [
+    [/^没有找到“(.+)”相关设置$/u, (match) => `No se encontraron ajustes relacionados con “${match[1]}”`],
+    [/^没有找到包含“(.+)”的服务或模型$/u, (match) => `Ningún servicio o modelo contiene “${match[1]}”`],
+    [/^已完成 (\d+) 次翻译$/u, (match) => `${match[1]} traducciones completadas`],
+    [/^已完成 (\d+) 个词条$/u, (match) => `${match[1]} entradas de vocabulario`],
+    [/^(\d+) 项$/u, (match) => `${match[1]} elementos`],
+    [/^(\d+) 个模型，点击切换$/u, (match) => `${match[1]} modelos · haz clic para cambiar`],
+    [/^当前：(.+)$/u, (match) => `Actual: ${match[1]}`],
+    [/^点击开启 · YouTube$/u, () => 'Haz clic para activar · YouTube'],
+    [/^(.+) · YouTube$/u, (match) => `${match[1]} · YouTube`],
+    [/^(.+) \+ 鼠标悬停$/u, (match) => `${match[1]} + pasar el ratón`],
+    [/^翻译服务：(.+)，当前模型：(.+)$/u, (match) => `Servicio de traducción: ${match[1]}, modelo actual: ${match[2]}`],
+    [/^翻译服务：(.+)$/u, (match) => `Servicio de traducción: ${match[1]}`],
+    [/^快捷键已设置为: (.+)$/u, (match) => `Atajo configurado como: ${match[1]}`],
+    [/^划词翻译快捷键已设置为: (.+)$/u, (match) => `Atajo de selección configurado como: ${match[1]}`],
+    [/^并发数量已更新为 (.+)$/u, (match) => `Concurrencia actualizada a ${match[1]}`],
+    [/^正在请求 (.+)…$/u, (match) => `Solicitando ${match[1]}…`],
+    [/^已翻译 (\d+) 次$/u, (match) => `Traducido ${match[1]} veces`],
+    [/^双语 · (.+)$/u, (match) => `Bilingüe · ${match[1]}`],
+    [/^第 (\d+) 页$/u, (match) => `Página ${match[1]}`],
+    [/^第 (\d+) \/ (\d+) 页$/u, (match) => `Página ${match[1]} / ${match[2]}`],
+    [/^第 (\d+) 条字幕译文$/u, (match) => `Traducción del subtítulo ${match[1]}`],
+    [/^(\d+) 条网站规则$/u, (match) => `${match[1]} reglas de sitios web`],
+    [/^(.+)（当前浏览器不可用）$/u, (match) => `${match[1]} (no disponible en este navegador)`],
+];
+
 /**
  * 将尚未完成 key 化的扩展 UI 文案翻译成 English。
  *
@@ -134,10 +167,17 @@ const legacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) =
  * 并且 UI directive 会跳过 textarea、pre、code 和用户内容，避免误伤网页正文或译文。
  */
 export function translateLegacyText(value: string, language: UiLanguage): string {
-    if (language !== 'en-US' || !value.trim()) return value;
+    if (language === 'zh-CN' || !value.trim()) return value;
     const trimmed = value.trim();
-    const exact = enUSLegacyText[trimmed];
+    const exact = legacyCatalogs[language]?.[trimmed];
     if (exact) return preserveWhitespace(value, exact);
+
+    // 未完成 key 化的旧文案优先使用当前语言的显式词典；缺失时回退 English，
+    // 保证新增 locale 不把中文模板泄漏到用户界面。稳定资源仍应继续迁移到 t()。
+    if (language !== 'en-US') {
+        const englishFallback = enUSLegacyText[trimmed];
+        if (englishFallback) return preserveWhitespace(value, englishFallback);
+    }
 
     const compound = trimmed.split(' · ');
     if (compound.length > 1) {
@@ -145,11 +185,12 @@ export function translateLegacyText(value: string, language: UiLanguage): string
         if (translatedCompound !== trimmed) return preserveWhitespace(value, translatedCompound);
     }
 
-    for (const [pattern, resolver] of legacyPatterns) {
+    const patterns = language === 'es-ES' ? esLegacyPatterns : legacyPatterns;
+    for (const [pattern, resolver] of patterns) {
         const match = pattern.exec(trimmed);
         if (match) return preserveWhitespace(value, resolver(match));
     }
     return value;
 }
 
-export {enUSMessages, enUSLegacyText, zhCNMessages};
+export {enUSMessages, enUSLegacyText, esESMessages, esESLegacyText, zhCNMessages};
