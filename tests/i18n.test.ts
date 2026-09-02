@@ -440,6 +440,8 @@ describe('界面 i18n 契约', () => {
     const layoutKeys = [
       'settings.interface.popupLayout.label',
       'settings.interface.popupLayout.description',
+      'settings.interface.popupLayout.previewTitle',
+      'settings.interface.popupLayout.previewDescription',
       'settings.interface.popupLayout.orderHint',
       'settings.interface.popupLayout.restoreDefault',
       'settings.interface.popupLayout.listAria',

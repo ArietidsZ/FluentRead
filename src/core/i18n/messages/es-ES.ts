@@ -189,6 +189,8 @@ export const esESMessages = {
     'settings.general.bilingualSentenceHighlightDescription': 'Pasa el ratón por el original o la traducción para resaltar el fragmento bilingüe correspondiente. Solo funciona en modo bilingüe.',
     'settings.interface.popupLayout.label': 'Diseño de la ventana emergente',
     'settings.interface.popupLayout.description': 'Arrastra los módulos para reordenarlos y oculta las áreas que no uses. El diseño se guarda automáticamente.',
+    'settings.interface.popupLayout.previewTitle': 'Vista previa de la ventana',
+    'settings.interface.popupLayout.previewDescription': 'Los cambios de orden y visibilidad aparecen aquí al instante.',
     'settings.interface.popupLayout.orderHint': 'Orden de arriba abajo en la ventana emergente',
     'settings.interface.popupLayout.restoreDefault': 'Restaurar el orden predeterminado',
     'settings.interface.popupLayout.listAria': 'Diseño de los módulos de la ventana emergente',

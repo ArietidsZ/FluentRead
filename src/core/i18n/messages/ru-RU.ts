@@ -189,6 +189,8 @@ export const ruRUMessages = {
     'settings.general.bilingualSentenceHighlightDescription': 'Наведите указатель на оригинал или перевод, чтобы выделить соответствующий двуязычный фрагмент. Работает только в двуязычном режиме.',
     'settings.interface.popupLayout.label': 'Компоновка всплывающего окна',
     'settings.interface.popupLayout.description': 'Перетаскивайте модули, чтобы изменить порядок, и скрывайте ненужные области. Компоновка сохраняется автоматически.',
+    'settings.interface.popupLayout.previewTitle': 'Предпросмотр всплывающего окна',
+    'settings.interface.popupLayout.previewDescription': 'Изменения порядка и видимости сразу отображаются здесь.',
     'settings.interface.popupLayout.orderHint': 'Порядок отображения во всплывающем окне сверху вниз',
     'settings.interface.popupLayout.restoreDefault': 'Восстановить порядок по умолчанию',
     'settings.interface.popupLayout.listAria': 'Компоновка модулей всплывающего окна',

@@ -189,6 +189,8 @@ export const frFRMessages = {
     'settings.general.bilingualSentenceHighlightDescription': 'Survolez le texte source ou traduit pour surligner le passage bilingue correspondant. Disponible uniquement en mode bilingue.',
     'settings.interface.popupLayout.label': 'Disposition de la fenêtre',
     'settings.interface.popupLayout.description': 'Faites glisser les modules pour les réorganiser et masquez les zones inutiles. La disposition est enregistrée automatiquement.',
+    'settings.interface.popupLayout.previewTitle': 'Aperçu de la fenêtre',
+    'settings.interface.popupLayout.previewDescription': 'Les changements d’ordre et de visibilité apparaissent ici immédiatement.',
     'settings.interface.popupLayout.orderHint': 'Ordre d’affichage de haut en bas dans la fenêtre',
     'settings.interface.popupLayout.restoreDefault': 'Rétablir l’ordre par défaut',
     'settings.interface.popupLayout.listAria': 'Disposition des modules de la fenêtre',

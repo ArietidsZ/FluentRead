@@ -187,6 +187,8 @@ export const zhCNMessages = {
     'settings.general.bilingualSentenceHighlightDescription': '开启后，鼠标悬停在原文或译文上会同步高亮对应的双语段落；仅双语模式生效。',
     'settings.interface.popupLayout.label': 'Popup 布局',
     'settings.interface.popupLayout.description': '拖动模块调整顺序，并按需要隐藏不常用的区域；布局会自动保存。',
+    'settings.interface.popupLayout.previewTitle': '弹窗范例',
+    'settings.interface.popupLayout.previewDescription': '调整顺序或显隐后，这里会立即更新。',
     'settings.interface.popupLayout.orderHint': '从上到下对应弹窗中的显示顺序',
     'settings.interface.popupLayout.restoreDefault': '恢复默认顺序',
     'settings.interface.popupLayout.listAria': 'Popup 模块布局',

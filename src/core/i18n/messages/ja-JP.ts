@@ -189,6 +189,8 @@ export const jaJPMessages = {
     'settings.general.bilingualSentenceHighlightDescription': '原文または訳文にカーソルを合わせると、対応する二言語の段落を同時にハイライトします。二言語モードでのみ有効です。',
     'settings.interface.popupLayout.label': 'ポップアップのレイアウト',
     'settings.interface.popupLayout.description': 'モジュールをドラッグして並べ替え、不要な領域を非表示にできます。レイアウトは自動保存されます。',
+    'settings.interface.popupLayout.previewTitle': 'ポップアップのプレビュー',
+    'settings.interface.popupLayout.previewDescription': '順序や表示の変更がすぐにここへ反映されます。',
     'settings.interface.popupLayout.orderHint': '上から下がポップアップでの表示順です',
     'settings.interface.popupLayout.restoreDefault': 'デフォルトの順序に戻す',
     'settings.interface.popupLayout.listAria': 'ポップアップモジュールのレイアウト',
