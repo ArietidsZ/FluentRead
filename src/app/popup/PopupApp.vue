@@ -11,6 +11,7 @@
     :class="{ 'config-loading': !hydrated }"
     :aria-busy="!hydrated"
     :data-config-ready="hydrated ? 'true' : 'false'"
+    :data-interface-skin="config.interfaceSkin"
     :inert="!hydrated"
   >
     <header class="popup-header">
@@ -230,7 +231,7 @@
         </button>
       </div>
 
-      <div v-if="currentSiteSupported" class="site-rule-row">
+      <div v-if="config.interfaceVisibility.popupSiteRule && currentSiteSupported" class="site-rule-row">
         <div class="site-rule-copy">
           <span>当前网站</span>
           <strong :title="currentSiteDomain">{{ currentSiteDomain }}</strong>
@@ -274,7 +275,7 @@
       <p v-if="notice" class="notice" :class="noticeType">{{ notice }}</p>
     </section>
 
-    <section class="features">
+    <section v-if="config.interfaceVisibility.popupQuickFeatures" class="features">
       <span class="eyebrow features-eyebrow">快捷功能</span>
       <div class="feature-grid">
         <button class="feature-card" type="button" :disabled="!config.on" @click="openDrawer('hover')">
@@ -334,7 +335,7 @@
       </div>
     </section>
 
-    <footer>
+    <footer v-if="config.interfaceVisibility.popupFooter">
       <span>已完成 {{ config.count }} 次翻译</span>
       <a
         class="opensource-link"
@@ -578,6 +579,7 @@ import { getMissingCredentialMessage } from '@/src/core/config/validation';
 import { getSelectedModelLabel, searchServiceOptions } from '@/src/ui/view-model/serviceCatalog';
 import { SELECTION_TTS_VOICE_OPTIONS } from '@/src/core/config/selectionTts';
 import { getSiteBaseDomain } from '@/src/core/site-rules/domain';
+import {applyInterfaceSkin} from '@/src/ui/interfaceAppearance';
 import { requestTranslationCacheClear } from './cache';
 import {isBrowserTabId} from '@/src/platform/browser/ids';
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
@@ -767,6 +769,7 @@ async function hydrate() {
   lastSerialized = JSON.stringify(config.value);
   hydrated.value = true;
   applyTheme(config.value.theme || 'auto');
+  applyInterfaceSkin(config.value.interfaceSkin);
   await hydrateCurrentSite();
 }
 void hydrate();
@@ -797,6 +800,7 @@ watch(() => JSON.stringify(config.value), async serialized => {
   }
 }, { flush: 'sync' });
 watch(() => config.value.theme, theme => applyTheme(theme || 'auto'));
+watch(() => config.value.interfaceSkin, skin => applyInterfaceSkin(skin));
 darkMode.onchange = () => { if (config.value.theme === 'auto') applyTheme('auto'); };
 
 function closeServicePicker(event?: Event) {

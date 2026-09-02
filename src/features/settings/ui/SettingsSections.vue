@@ -55,6 +55,11 @@
     <TranslationCenter />
   </section>
   <div class="settings-main-sections">
+    <!-- 界面设置 -->
+    <section v-show="props.activeSection === 'settings-interface'" id="settings-interface" class="settings-section">
+      <InterfaceSettings :config="config" />
+    </section>
+
     <!-- 翻译服务 -->
     <section v-show="props.activeSection === 'settings-services'" id="settings-services" class="settings-section">
       <ServiceCatalog
@@ -758,6 +763,7 @@ import {
 } from '@/src/core/config/validation';
 import {ImageOcrSettings} from '@/src/features/image-translation/public';
 import {ModelUsageDashboard} from '@/src/features/model-usage/public';
+import InterfaceSettings from './InterfaceSettings.vue';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
 import SegmentedControl from './components/SegmentedControl.vue';

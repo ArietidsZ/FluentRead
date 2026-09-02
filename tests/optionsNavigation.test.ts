@@ -9,7 +9,7 @@ import {
 } from '@/src/features/settings/model/navigation'
 
 describe('options navigation view-model', () => {
-  it('keeps the twelve sections unique, grouped exactly once and in the product IA order', () => {
+  it('keeps the thirteen sections unique, grouped exactly once and in the product IA order', () => {
     const groupedItems = navigationGroups.flatMap((group) => group.items)
     expect(groupedItems).toEqual(navigationItems)
     expect(new Set(navigationItems.map((item) => item.id)).size).toBe(navigationItems.length)
@@ -19,7 +19,7 @@ describe('options navigation view-model', () => {
     }))).toEqual([
       {
         label: '基础配置',
-        items: ['settings-general', 'settings-services', 'settings-translation'],
+        items: ['settings-general', 'settings-interface', 'settings-services', 'settings-translation'],
       },
       {
         label: '专项翻译',
@@ -40,6 +40,7 @@ describe('options navigation view-model', () => {
     ])
     expect(navigationItems.map((item) => item.label)).toEqual([
       '通用设置',
+      '界面设置',
       '翻译服务',
       '翻译设置',
       '图片与圈选翻译',
@@ -62,6 +63,7 @@ describe('options navigation view-model', () => {
   it('resolves valid sections and falls back for malformed hashes', () => {
     expect(resolveNavigationItem('settings-services').title).toBe('翻译服务')
     expect(resolveNavigationItem('settings-translation').title).toBe('翻译设置')
+    expect(resolveNavigationItem('settings-interface').title).toBe('界面设置')
     expect(resolveNavigationItem('settings-model-usage').detail)
       .toBe('查看发起的大模型调用、Token 消耗与使用趋势。')
     expect(resolveNavigationItem('missing').id).toBe(DEFAULT_NAVIGATION_SECTION)
@@ -82,6 +84,9 @@ describe('options navigation view-model', () => {
     ])
     expect(filterNavigationItems('AI 智能上下文')).toEqual([
       expect.objectContaining({ id: 'settings-general' }),
+    ])
+    expect(filterNavigationItems('简约风格')).toEqual([
+      expect.objectContaining({ id: 'settings-interface' }),
     ])
     expect(filterNavigationItems('鼠标悬浮')).toEqual([
       expect.objectContaining({ id: 'settings-translation' }),

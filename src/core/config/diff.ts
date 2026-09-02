@@ -7,6 +7,7 @@
 import {CONFIG_CREDENTIAL_FIELDS, isSensitiveConfigKey} from './credentials';
 import {options} from './catalog';
 import {isCustomOpenAIProviderId} from './customOpenAI';
+import {interfaceSkinOptions, interfaceVisibilityOptions} from './interfaceAppearance';
 import {parseApiKeyRequirementKey} from './validation';
 
 export const CONFIG_DIFF_GROUPS = [
@@ -150,6 +151,7 @@ const LANGUAGE_LABELS = labelsFor(options.to, options.inputBoxTranslationTarget,
 const SERVICE_LABELS = labelsFor(options.services);
 const STYLE_LABELS = labelsFor(options.styles);
 const THEME_LABELS = labelsFor(options.theme);
+const INTERFACE_SKIN_LABELS = labelsFor(interfaceSkinOptions);
 const HOVER_TRIGGER_LABELS = labelsFor(options.keys);
 const SELECTION_TRIGGER_LABELS = labelsFor(options.selectionTranslatorTriggers);
 const FLOATING_HOTKEY_LABELS = labelsFor(options.floatingBallHotkeys);
@@ -270,6 +272,13 @@ function formatService(value: unknown): string {
     return typeof value === 'string' ? serviceName(value) : formatValue(value);
 }
 
+function formatInterfaceVisibility(value: unknown): string {
+    if (!isRecord(value)) return formatValue(value);
+    return interfaceVisibilityOptions
+        .map(({key, label}) => `${label}${value[key] === false ? '关闭' : '开启'}`)
+        .join('、');
+}
+
 function formatCustomOpenAIProviders(value: unknown): string {
     if (!Array.isArray(value) || value.length === 0) return '无';
     return formatArray(value, (item) => {
@@ -305,6 +314,8 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     from: {group: 'general', label: '默认源语言', format: (value) => formatEnum(value, LANGUAGE_LABELS)},
     to: {group: 'general', label: '默认目标语言', format: (value) => formatEnum(value, LANGUAGE_LABELS)},
     theme: {group: 'general', label: '主题', format: (value) => formatEnum(value, THEME_LABELS)},
+    interfaceSkin: {group: 'general', label: '界面皮肤', format: (value) => formatEnum(value, INTERFACE_SKIN_LABELS)},
+    interfaceVisibility: {group: 'general', label: '界面栏目', format: formatInterfaceVisibility},
 
     display: {group: 'general', label: '翻译模式', format: (value) => formatEnum(value, DISPLAY_LABELS)},
     style: {group: 'general', label: '译文样式', format: (value) => formatEnum(value, STYLE_LABELS)},

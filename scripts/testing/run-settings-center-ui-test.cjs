@@ -18,6 +18,7 @@ const browserPath = argument('browser-path', '/Applications/Microsoft Edge.app/C
 const timeout = Number(argument('timeout', '30000'));
 const expectedNavigation = [
   ['settings-general', '通用设置'],
+  ['settings-interface', '界面设置'],
   ['settings-services', '翻译服务'],
   ['settings-translation', '翻译设置'],
   ['settings-image-translation', '图片与圈选翻译'],
@@ -31,7 +32,7 @@ const expectedNavigation = [
   ['settings-about', '关于流畅阅读'],
 ];
 const expectedNavigationGroups = [
-  ['基础配置', ['settings-general', 'settings-services', 'settings-translation']],
+  ['基础配置', ['settings-general', 'settings-interface', 'settings-services', 'settings-translation']],
   ['专项翻译', ['settings-image-translation', 'settings-video', 'settings-sites']],
   ['工具与学习', ['settings-translation-center', 'settings-model-usage', 'settings-vocabulary']],
   ['系统与数据', ['settings-advanced', 'settings-data', 'settings-about']],
@@ -706,6 +707,64 @@ async function main() {
     report.assertions.singlePageIntro = true;
     report.assertions.noLegacyIntros = await page.locator('.video-settings-hero, .image-ocr-kicker, .site-rules-kicker').count() === 0;
     if (!report.assertions.noLegacyIntros) throw new Error('仍存在旧的重复介绍元素');
+
+    // 界面设置：默认皮肤必须保持当前界面；切换简约皮肤和栏目开关后，
+    // Popup 重新打开应消费同一份配置，而不是只改变 Options 当前页面。
+    await page.locator('button[data-section="settings-interface"]').click();
+    const interfaceSection = page.locator('#settings-interface');
+    await interfaceSection.waitFor({state: 'visible', timeout});
+    const skinCards = interfaceSection.locator('.interface-skin-card');
+    if (await skinCards.count() !== 2) throw new Error(`界面皮肤选项数量异常：${await skinCards.count()}`);
+    if (await interfaceSection.locator('.interface-skin-card[data-skin="default"][aria-checked="true"]').count() !== 1) {
+      throw new Error('默认皮肤没有保持当前界面选中状态');
+    }
+    const visibilitySwitches = interfaceSection.locator('.settings-item input[aria-label^="显示"]');
+    if (await visibilitySwitches.count() !== 3) throw new Error(`界面栏目开关数量异常：${await visibilitySwitches.count()}`);
+    if (await page.locator('html').getAttribute('data-interface-skin') !== 'default') {
+      throw new Error('Options 初始界面皮肤不是默认风格');
+    }
+    await interfaceSection.locator('.interface-skin-card[data-skin="minimal"]').click();
+    await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'minimal', undefined, {timeout});
+    if (!await interfaceSection.locator('.interface-skin-card[data-skin="minimal"][aria-checked="true"]').isVisible()) {
+      throw new Error('简约皮肤切换后没有进入选中状态');
+    }
+    report.screenshots.push(await screenshot(page, 'settings-interface-minimal.png'));
+    await interfaceSection.locator('.settings-item').filter({hasText: '快捷功能栏'}).locator('.el-switch').click({force: true});
+    await interfaceSection.locator('.settings-item').filter({hasText: '底部信息栏'}).locator('.el-switch').click({force: true});
+    await page.waitForFunction(() => (
+      document.querySelector('[aria-label="显示快捷功能栏"]')?.getAttribute('aria-checked') === 'false'
+      && document.querySelector('[aria-label="显示底部信息栏"]')?.getAttribute('aria-checked') === 'false'
+    ), undefined, {timeout});
+    await page.waitForTimeout(500);
+
+    const interfacePopup = await newPageWithoutForeground(context, timeout);
+    attachPageDiagnostics(interfacePopup);
+    await interfacePopup.setViewportSize({width: 400, height: 600});
+    await interfacePopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
+    await interfacePopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
+    await interfacePopup.waitForTimeout(350);
+    if (await interfacePopup.locator('.features').count() !== 0) throw new Error('关闭快捷功能栏后 Popup 仍显示快捷功能');
+    if (await interfacePopup.locator('footer').count() !== 0) throw new Error('关闭底部信息栏后 Popup 仍显示底部信息');
+    if (await interfacePopup.locator('main[data-interface-skin="minimal"]').count() !== 1) {
+      throw new Error('Popup 重开后没有应用简约皮肤');
+    }
+    report.screenshots.push(await screenshot(interfacePopup, 'popup-interface-minimal-hidden-sections.png'));
+    await interfacePopup.close();
+    report.informationArchitecture.interfaceSettings = {
+      skinOptions: ['default', 'minimal'],
+      selectedSkin: 'minimal',
+      hiddenSections: ['popupQuickFeatures', 'popupFooter'],
+      popupRoundTrip: true,
+    };
+    report.assertions.interfaceSettings = true;
+    report.assertions.interfaceVisibility = true;
+
+    // 后续用例需要完整的默认界面，恢复测试改动并确认根节点回到默认皮肤。
+    await interfaceSection.locator('.settings-item').filter({hasText: '快捷功能栏'}).locator('.el-switch').click({force: true});
+    await interfaceSection.locator('.settings-item').filter({hasText: '底部信息栏'}).locator('.el-switch').click({force: true});
+    await interfaceSection.locator('.interface-skin-card[data-skin="default"]').click();
+    await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'default', undefined, {timeout});
+    await page.waitForTimeout(500);
 
     await page.locator('button[data-section="settings-model-usage"]').click();
     await page.locator('#settings-model-usage').waitFor({state: 'visible', timeout});

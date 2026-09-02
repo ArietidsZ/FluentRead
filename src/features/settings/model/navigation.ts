@@ -34,6 +34,12 @@ export const navigationGroups: NavigationGroup[] = [
         searchDescription: '选择翻译服务、默认服务、译文显示、双语逐句高亮、网页辅助、AI 智能上下文、默认目标语言、主题',
       },
       {
+        id: 'settings-interface', icon: '✦', label: '界面设置', description: '皮肤与栏目显示', group: '基础配置',
+        heading: '界面设置', summary: '选择扩展界面皮肤，并按你的习惯控制 Popup 中显示的栏目。',
+        kicker: '基础配置', title: '界面设置', detail: '更换扩展界面皮肤，并选择需要显示的 Popup 栏目。',
+        searchDescription: '界面设置、界面皮肤、默认风格、简约风格、栏目、快捷功能栏、当前网站、底部信息栏',
+      },
+      {
         id: 'settings-services', icon: '译', label: '翻译服务', description: '服务与模型', group: '基础配置',
         heading: '配置翻译服务与模型', summary: '按机器翻译、模型服务商和聚合平台分类，配置各服务的模型、连接参数与凭据。',
         kicker: '基础配置', title: '翻译服务', detail: '配置可用的翻译服务、模型、连接和凭据。',
