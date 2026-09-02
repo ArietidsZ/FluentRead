@@ -1,0 +1,61 @@
+/**
+ * @file src/ui/styles/interface-skins/sakura.css
+ * 文件职责：声明 FluentRead 樱花皮肤的淡粉语义色与轻盈圆角视觉。
+ * 主要内容：提供樱粉、莓红文字、柔白表面和花瓣式渐变，降低默认品牌粉的浓度并补齐暗色主题。
+ * 模块边界：本文件只服务 data-interface-skin="sakura" 并向 palette.css 提供变量，不复写功能逻辑或栏目显隐。
+ */
+
+:root[data-interface-skin="sakura"] {
+  --brand: #d95784;
+  --brand-strong: #a83a63;
+  --brand-soft: #fbe3eb;
+  --ink: #51303d;
+  --muted: #826571;
+  --line: #eccdd7;
+  --surface: #fffafd;
+  --surface-soft: #fceef3;
+  --skin-page: #f9e8ee;
+  --skin-page-alt: #fff9fc;
+  --skin-sidebar: #fff5f8;
+  --skin-glow: rgba(220, 94, 137, .18);
+  --skin-shadow: rgba(156, 70, 103, .11);
+  --skin-action-start: #c43e70;
+  --skin-action-end: #a93460;
+  --skin-action-shadow: rgba(174, 51, 96, .21);
+  --skin-action-text: #fffafd;
+  --skin-focus: rgba(211, 78, 124, .27);
+  --skin-radius: 22px;
+}
+
+:root.dark[data-interface-skin="sakura"] {
+  --brand: #ff83ad;
+  --brand-strong: #ffb0c8;
+  --brand-soft: rgba(255, 117, 162, .16);
+  --ink: #fff1f6;
+  --muted: #d5b1bd;
+  --line: #62404d;
+  --surface: #33242b;
+  --surface-soft: #402b34;
+  --skin-page: #21171c;
+  --skin-page-alt: #2b1d23;
+  --skin-sidebar: #2b1d23;
+  --skin-glow: rgba(255, 117, 162, .14);
+  --skin-shadow: rgba(0, 0, 0, .28);
+  --skin-action-start: #ef719b;
+  --skin-action-end: #d75c86;
+  --skin-action-text: #2a0f19;
+  --skin-focus: rgba(255, 137, 176, .34);
+}
+
+:root[data-interface-skin="sakura"] .popup-shell {
+  background:
+    radial-gradient(circle at 92% 4%, var(--skin-glow), transparent 32%),
+    radial-gradient(circle at 4% 58%, rgba(247, 151, 183, .1), transparent 30%),
+    linear-gradient(180deg, var(--skin-page-alt), var(--skin-page));
+}
+
+:root[data-interface-skin="sakura"] .feature-card,
+:root[data-interface-skin="sakura"] .language-pair select,
+:root[data-interface-skin="sakura"] .service-field {
+  border-radius: 17px;
+}

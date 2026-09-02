@@ -1,0 +1,63 @@
+/**
+ * @file src/ui/styles/interface-skins/matcha.css
+ * 文件职责：声明 FluentRead 抹茶皮肤的低饱和绿色语义色与安静方圆层次。
+ * 主要内容：提供抹茶绿、米白表面、叶色文字和较克制的阴影，亮暗主题均保持自然、低刺激的视觉感受。
+ * 模块边界：本文件只服务 data-interface-skin="matcha" 并向 palette.css 提供变量，不影响网页翻译样式或配置行为。
+ */
+
+:root[data-interface-skin="matcha"] {
+  --brand: #648b4e;
+  --brand-strong: #3f6733;
+  --brand-soft: #e4efd9;
+  --ink: #31452d;
+  --muted: #6d7c66;
+  --line: #d1ddc6;
+  --surface: #fcfdf8;
+  --surface-soft: #eef4e8;
+  --skin-page: #e7eedf;
+  --skin-page-alt: #f8faf3;
+  --skin-sidebar: #f3f7ee;
+  --skin-glow: rgba(105, 143, 79, .16);
+  --skin-shadow: rgba(70, 94, 53, .11);
+  --skin-action-start: #587c45;
+  --skin-action-end: #426735;
+  --skin-action-shadow: rgba(62, 102, 48, .21);
+  --skin-action-text: #fbfff8;
+  --skin-focus: rgba(82, 126, 62, .27);
+  --skin-radius: 16px;
+}
+
+:root.dark[data-interface-skin="matcha"] {
+  --brand: #9acb7d;
+  --brand-strong: #c0e6a9;
+  --brand-soft: rgba(145, 197, 113, .16);
+  --ink: #f0f8e9;
+  --muted: #b4c5aa;
+  --line: #46583d;
+  --surface: #252f21;
+  --surface-soft: #2e3a28;
+  --skin-page: #171f15;
+  --skin-page-alt: #20291c;
+  --skin-sidebar: #1e281b;
+  --skin-glow: rgba(140, 190, 108, .13);
+  --skin-shadow: rgba(0, 0, 0, .28);
+  --skin-action-start: #92c374;
+  --skin-action-end: #70a156;
+  --skin-action-text: #14210f;
+  --skin-focus: rgba(169, 218, 139, .34);
+}
+
+:root[data-interface-skin="matcha"] .popup-shell {
+  background:
+    linear-gradient(145deg, transparent 72%, var(--skin-glow)),
+    linear-gradient(180deg, var(--skin-page-alt), var(--skin-page));
+}
+
+:root[data-interface-skin="matcha"] .hero-card,
+:root[data-interface-skin="matcha"] .feature-card {
+  box-shadow: 0 8px 20px var(--skin-shadow);
+}
+
+:root[data-interface-skin="matcha"] .feature-card:hover:not(:disabled) {
+  transform: none;
+}

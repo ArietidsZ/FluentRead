@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupApp.vue
- 文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、功能抽屉和高频操作，提供轻量但完整的控制中心。
- 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，展示可按服务或模型关键词搜索的选择器、页面翻译、站点规则、悬浮/划词/区域/图片/视频开关、缓存清理、文档与设置入口；监听配置并持久化，广播即时变化和处理通知/捐赠弹层。
+ 文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、可插拔皮肤、功能抽屉和高频操作，提供轻量但完整的控制中心。
+ 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，展示可搜索服务、页面翻译、站点规则与各类快捷功能；监听配置并持久化，按皮肤注册元数据及栏目显隐自动计算高度。
  模块边界：组件编排用户交互与运行时消息，不实现翻译 provider、缓存存储或 content 挂载细节；公共配置由 services/store 管理，页面行为由 content feature 接收消息完成。
 -->
 <!-- Popup 页面归 app 层所有；WXT 入口只负责调用挂载函数。 -->
@@ -593,6 +593,7 @@ import {
   withCustomOpenAIServiceOptions,
 } from '@/src/core/config/customOpenAI';
 import { getMissingCredentialMessage } from '@/src/core/config/validation';
+import {interfaceSkinUsesContentHeight} from '@/src/core/config/interfaceAppearance';
 import { getSelectedModelLabel, searchServiceOptions } from '@/src/ui/view-model/serviceCatalog';
 import { SELECTION_TTS_VOICE_OPTIONS } from '@/src/core/config/selectionTts';
 import { getSiteBaseDomain } from '@/src/core/site-rules/domain';
@@ -741,7 +742,7 @@ const currentSiteAlwaysTranslated = computed(() => currentSiteSupported.value
   && (config.value.autoTranslate || currentSiteRuleEnabled.value));
 const currentSiteExtensionDisabled = computed(() => currentSiteSupported.value
   && (config.value.disabledExtensionDomains ?? []).includes(currentSiteDomain.value));
-const popupUsesContentHeight = computed(() => config.value.interfaceSkin === 'minimal'
+const popupUsesContentHeight = computed(() => interfaceSkinUsesContentHeight(config.value.interfaceSkin)
   || !config.value.interfaceVisibility.popupQuickFeatures
   || !config.value.interfaceVisibility.popupSiteRule
   || !config.value.interfaceVisibility.popupFooter);
