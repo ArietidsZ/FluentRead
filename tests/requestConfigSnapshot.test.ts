@@ -119,6 +119,7 @@ describe('translation provider request config snapshot', () => {
 
     it('uses safe credential defaults and resolves attached context without trusting message JSON', () => {
         const snapshot = createTranslationProviderConfigSnapshot(configSource());
+        const withoutThinking = createTranslationProviderConfigSnapshot(configSource({modelThinking: undefined}));
         const fallback = createTranslationProviderConfigSnapshot(configSource({service: 'fallback'}));
         const message = {origin: 'hello'};
         const attached = attachTranslationProviderConfig(message, snapshot);
@@ -137,6 +138,8 @@ describe('translation provider request config snapshot', () => {
             tencentSecretId: '',
             tencentSecretKey: '',
         });
+        expect(withoutThinking.modelThinking).toEqual({});
+        expect(Object.isFrozen(withoutThinking.modelThinking)).toBe(true);
         expect(Object.getOwnPropertySymbols(attached)).toEqual([TRANSLATION_PROVIDER_CONFIG]);
         expect(JSON.stringify(attached)).toBe('{"origin":"hello"}');
     });

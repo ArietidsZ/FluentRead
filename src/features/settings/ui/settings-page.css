@@ -82,10 +82,10 @@ nav strong { font-size: 13px; }
 nav small { margin-top: 2px; color: var(--muted); font-size: 10px; }
 .workspace { display: flex; width: auto; height: 100vh; min-width: 0; min-height: 0; margin-left: 0; padding: 28px 40px 20px; flex: 1 1 auto; flex-direction: column; overflow: hidden; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 28px; margin-bottom: 20px; }
+.topbar-tools { display: flex; min-width: 0; align-items: center; justify-content: flex-end; gap: 14px; }
 .eyebrow { display: block; margin-bottom: 7px; color: var(--brand-strong); font-size: 11px; font-weight: 780; letter-spacing: .12em; }
 h1, h2, p { margin-top: 0; }
 h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.035em; }
-.topbar p { margin-bottom: 0; color: var(--muted); font-size: 13px; }
 .search-box {
   display: flex; align-items: center; gap: 10px; width: 310px; height: 46px; padding: 0 15px;
   border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: 0 8px 24px rgba(31, 40, 61, .05);
@@ -305,6 +305,7 @@ h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.0
   .settings-card.services-view { width: calc(100% + 56px); margin-right: -28px; margin-left: -28px; }
   .settings-card.translation-center-view { width: calc(100% + 56px); margin-right: -28px; margin-left: -28px; }
   .topbar { align-items: stretch; flex-direction: column; }
+  .topbar-tools { align-items: stretch; justify-content: space-between; }
   .search-box { width: 100%; }
 }
 
@@ -331,8 +332,8 @@ h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.0
   nav small { display: none; }
   .workspace { width: 100%; height: auto; min-height: 0; padding: 24px 14px; flex: 1 1 auto; overflow: hidden; }
   .topbar { gap: 18px; margin-bottom: 20px; }
+  .topbar-tools { align-items: flex-start; flex-direction: column; gap: 10px; }
   h1 { font-size: 25px; }
-  .topbar p { font-size: 12px; line-height: 1.55; }
   .search-box { height: 44px; }
   .settings-card { padding: 20px 8px 14px; border-radius: 20px; }
   .settings-card.services-view { display: flex; width: 100%; margin-right: 0; margin-left: 0; border-right: 1px solid var(--line); border-left: 1px solid var(--line); border-radius: 20px; overflow: hidden; }

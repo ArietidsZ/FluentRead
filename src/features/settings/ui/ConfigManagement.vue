@@ -128,7 +128,7 @@
 import {computed, onUnmounted, ref} from 'vue';
 import {ElMessage, ElMessageBox} from 'element-plus';
 import browser from 'webextension-polyfill';
-import {options} from '@/src/core/config/catalog';
+import {getMultilingualTargetLanguageLabel, options} from '@/src/core/config/catalog';
 import {getCustomOpenAIProviderLabel} from '@/src/core/config/customOpenAI';
 import {buildConfigDiff} from '@/src/core/config/diff';
 import type {Config} from '@/src/core/config/model';
@@ -147,9 +147,11 @@ import {
   type ConfigHistoryState,
 } from '@/src/services/config';
 import {toRestorableConfig} from '@/src/services/config/history';
+import {useUiI18n} from '@/src/ui/i18n';
 import LocalDataManagement from './LocalDataManagement.vue';
 
 const props = defineProps<{config: Config}>();
+const {language, translateLegacy} = useUiI18n();
 const sendRuntimeMessage = browser.runtime.sendMessage.bind(browser.runtime);
 
 const configHistory = ref<ConfigHistoryState>(getConfigHistorySnapshot());
@@ -169,19 +171,24 @@ onUnmounted(() => {
 
 function formatTime(savedAt: string): string {
   const date = new Date(savedAt);
-  if (Number.isNaN(date.getTime())) return '时间未知';
-  return new Intl.DateTimeFormat('zh-CN', {
+  if (Number.isNaN(date.getTime())) return translateLegacy('时间未知');
+  return new Intl.DateTimeFormat(language.value, {
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', hour12: false,
   }).format(date);
 }
 
 function snapshotSummary(value: ConfigHistoryEntry['config'] | ConfigAutoBackupEntry['config']): string {
-  const target = options.to.find((item: any) => item.value === value.to)?.label || value.to;
+  const targetOption = options.to.find((item: any) => item.value === value.to);
+  const target = getMultilingualTargetLanguageLabel(
+    value.to,
+    targetOption?.label || value.to,
+    language.value,
+  );
   const service = options.services.find((item: any) => item.value === value.service)?.label
     || getCustomOpenAIProviderLabel(value.customOpenAIProviders, value.service);
   const rules = (value.alwaysTranslateDomains?.length || 0) + (value.disabledExtensionDomains?.length || 0);
-  return `${target} · ${service} · ${rules} 条网站规则`;
+  return `${target} · ${translateLegacy(service)} · ${translateLegacy(`${rules} 条网站规则`)}`;
 }
 
 type PreviewKind = 'history' | 'backup';

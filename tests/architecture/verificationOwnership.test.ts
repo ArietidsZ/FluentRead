@@ -122,6 +122,17 @@ function isCoverageExemptSrcModule(path: string): boolean {
 }
 
 const BUILD_ONLY_SRC_ALLOWLIST = new Set([
+    // i18n 资源和 Vue 文案适配由纯资源测试、扩展双浏览器构建与隔离 UI 回归共同验证。
+    'src/core/i18n/index.ts',
+    'src/core/i18n/language.ts',
+    'src/core/i18n/messages/en-US.ts',
+    'src/core/i18n/messages/es-ES.ts',
+    'src/core/i18n/messages/fr-FR.ts',
+    'src/core/i18n/messages/ja-JP.ts',
+    'src/core/i18n/messages/ko-KR.ts',
+    'src/core/i18n/messages/ru-RU.ts',
+    'src/core/i18n/messages/zh-CN.ts',
+    'src/ui/i18n.ts',
     // WXT ShadowRootUi/Vue 挂载适配器绑定真实 DOM 与组件生命周期；由 shadowUi 单测和双浏览器构建验证。
     'src/platform/shadow-ui/vue.ts',
     // 配置存储运行时只识别 MV3/MV2 背景身份并装配 WXT、IndexedDB 或 runtime 端口；行为由纯端口测试和双浏览器构建验证。
@@ -146,6 +157,10 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/app/background/runtime.ts',
     // 右键菜单绑定 browser tabs/contextMenus 生命周期；纯标题策略与 tab 状态仓库已严格覆盖，真实交互由隔离浏览器回归验证。
     'src/app/background/contextMenuRuntime.ts',
+    // 右键菜单标题只做纯资源适配；由 i18n 单测与双浏览器构建验证。
+    'src/app/background/contextMenuUi.ts',
+    // 视频字幕菜单文案只绑定已拥有的播放器 DOM；由视频单测与双浏览器构建验证。
+    'src/features/video-subtitle/content/ui.ts',
     // 后台消息 composition 只把 provider、feature handler 与 browser API 静态注入；各 handler/路由均已严格覆盖。
     'src/app/background/messageRuntime.ts',
     // 配置存储 runtime 只把真实 browser/configStorage API 注入严格覆盖的广播策略和 OCR 仓库。

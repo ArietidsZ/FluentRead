@@ -5,7 +5,7 @@
  * 模块边界：组件不拥有浏览器截图权限或 OCR 算法，只调用 services/client；是否挂载由 content/runtime 控制，选区规范化复用 core，跨域像素隔离由 closed Shadow Root 与后台链路保证。
  -->
 <template>
-  <div v-show="isSelecting || phase !== 'idle'" class="fr-area-translator-root" @pointerdown.stop>
+  <div v-ui-i18n v-show="isSelecting || phase !== 'idle'" class="fr-area-translator-root" @pointerdown.stop>
     <div v-if="isSelecting && selectionRect" class="fr-area-selection" :style="areaStyle(selectionRect)" aria-hidden="true">
       <span>松开鼠标翻译</span>
     </div>

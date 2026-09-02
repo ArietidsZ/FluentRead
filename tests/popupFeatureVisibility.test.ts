@@ -7,6 +7,83 @@ function source(path: string): string {
 }
 
 describe('popup feature visibility', () => {
+    it('keeps the real Popup under a first-open language mask until confirmation', () => {
+        const popup = source('src/app/popup/PopupApp.vue');
+        const onboarding = source('src/ui/components/UiLanguageOnboarding.vue');
+        const styles = source('src/app/popup/popup.css');
+        const i18n = source('src/ui/i18n.ts');
+
+        expect(popup).toContain('uiLanguageSetupCompleted');
+        expect(popup).toContain('<UiLanguageOnboarding');
+        expect(popup).toContain('<div class="popup-content" :inert="showLanguageOnboarding">');
+        expect(popup).toContain('@confirmed="handleLanguageOnboardingConfirmed"');
+        expect(popup).toContain('if (!showLanguageOnboarding.value) await hydrateCurrentSite();');
+        expect(popup).toContain('void hydrateCurrentSite();');
+        expect(onboarding).toContain('class="language-onboarding-backdrop"');
+        expect(onboarding).toContain('data-testid="onboarding-welcome"');
+        expect(onboarding).toContain('data-testid="onboarding-language-step"');
+        expect(onboarding).toContain('WELCOME_GREETING_WORDS');
+        expect(onboarding).toContain('getUiLanguageBilingualLabel(option.value)');
+        expect(onboarding).toContain("messageZh('language.onboardingTitle')");
+        expect(onboarding).toContain("messageEn('language.onboardingTitle')");
+        expect(onboarding).toContain("messageZh('language.onboardingConfirm')");
+        expect(onboarding).toContain("messageEn('language.onboardingConfirm')");
+        expect(onboarding).not.toContain("messageZh('language.onboardingWelcomeDescription')");
+        expect(onboarding).not.toContain("messageEn('language.onboardingWelcomeDescription')");
+        expect(onboarding).not.toContain("messageZh('language.onboardingDescription')");
+        expect(onboarding).not.toContain("messageEn('language.onboardingDescription')");
+        expect(onboarding).not.toContain("language.onboardingBrowserHint");
+        expect(onboarding).not.toContain("language.onboardingConfirmHint");
+        expect(onboarding).not.toContain('class="onboarding-language-code"');
+        expect(onboarding).toContain('class="onboarding-confirm-guide"');
+        expect(onboarding).toContain('animation: onboarding-point 1.05s ease-in-out infinite');
+        expect(onboarding).toContain('M8 1v15M3 12l5 5 5-5');
+        expect(onboarding).not.toContain('>↘</span>');
+        expect(onboarding).not.toContain('transform: rotate(8deg);\n  animation: onboarding-point');
+        expect(onboarding).not.toContain('.onboarding-language-option:last-child:nth-child(odd)');
+        expect(onboarding).toContain('data-testid="onboarding-language-next"');
+        expect(onboarding).not.toContain('<select');
+        expect(onboarding).toContain('.onboarding-success::before');
+        expect(onboarding).not.toContain('.language-onboarding-card::before');
+        expect(onboarding).toContain('class="onboarding-success"');
+        expect(onboarding).toContain('setTimeout(() =>');
+        expect(styles).toContain('.popup-shell.language-onboarding-shell { overflow: hidden; }');
+        expect(i18n).toContain('function isRelevantUiMutation');
+        expect(i18n).toContain('setTimeout(() => {');
+        expect(i18n).toContain('state.observer.disconnect();');
+    });
+
+    it('places app language after extension status and target language first in translation display', () => {
+        const settings = source('src/features/settings/ui/SettingsSections.vue');
+        const options = source('src/app/options/OptionsApp.vue');
+
+        expect(settings.indexOf('label="插件状态"')).toBeLessThan(settings.indexOf("t('settings.general.language')"));
+        expect(settings.indexOf("t('settings.general.language')")).toBeLessThan(settings.indexOf('label="界面主题"'));
+        expect(settings.indexOf("t('settings.general.defaultTargetLanguage')")).toBeGreaterThan(settings.indexOf('title="译文显示"'));
+        expect(options).not.toContain('<UiLanguageSelector />');
+        expect(options).not.toContain('<p>{{ activeItem.detail }}</p>');
+    });
+
+    it('uses multilingual labels in every target-language control', () => {
+        const popup = source('src/app/popup/PopupApp.vue');
+        const settings = source('src/features/settings/ui/SettingsSections.vue');
+        const center = source('src/features/translation-center/ui/TranslationCenter.vue');
+        const documentApp = source('src/app/document-translation/DocumentApp.vue');
+
+        expect(popup).toContain('getMultilingualTargetLanguageLabel(item.value, item.label, language)');
+        expect(settings).toContain(':label="getMultilingualTargetLanguageLabel(item.value, item.label, language)"');
+        expect(center).toContain('getMultilingualTargetLanguageLabel(item.value, item.label, language)');
+        expect(documentApp).toContain('getMultilingualTargetLanguageLabel(item.value, item.label, language)');
+    });
+
+    it('uses the same multilingual display policy for interface-language selectors', () => {
+        const selector = source('src/ui/components/UiLanguageSelector.vue');
+        const onboarding = source('src/ui/components/UiLanguageOnboarding.vue');
+
+        expect(selector).toContain('getUiLanguageDisplayLabel(option.value, language)');
+        expect(onboarding).toContain('getUiLanguageBilingualLabel(option.value)');
+    });
+
     it('blocks early interaction until the stored configuration is hydrated', () => {
         const popup = source('src/app/popup/PopupApp.vue');
         const styles = source('src/app/popup/popup.css');
@@ -15,6 +92,8 @@ describe('popup feature visibility', () => {
         expect(popup).toContain(':inert="!hydrated"');
         expect(popup).toContain(':aria-busy="!hydrated"');
         expect(popup).toContain('watch(() => JSON.stringify(config.value)');
+        expect(popup).toContain("}, { flush: 'post' });");
+        expect(popup).toContain('!config.value.uiLanguageSetupCompleted');
         expect(styles).toContain('.popup-shell.config-loading { pointer-events: none; }');
     });
 

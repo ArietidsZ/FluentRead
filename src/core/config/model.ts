@@ -40,6 +40,7 @@ import {
 } from './validation';
 import {isSensitiveConfigKey} from './sensitiveKeys';
 import { normalizeSelectionTtsVoiceOrder } from "./selectionTts";
+import { normalizeUiLanguage, type UiLanguage } from '@/src/core/i18n/language';
 import {
     DEFAULT_INTERFACE_VISIBILITY,
     normalizeInterfaceSkin,
@@ -125,6 +126,8 @@ interface IExtra {
 
 export class Config {
     on: boolean; // 是否开启
+    uiLanguage: UiLanguage; // 扩展界面语言，不影响网页翻译的目标语言
+    uiLanguageSetupCompleted: boolean; // 是否已完成首次 Popup 的界面语言选择
     autoTranslate: boolean; // 是否即时翻译
     alwaysTranslateDomains: string[]; // 始终自动翻译的可注册域名（eTLD+1）
     disabledExtensionDomains: string[]; // 禁用扩展的可注册域名（eTLD+1）
@@ -215,6 +218,8 @@ export class Config {
 
     constructor() {
         this.on = true;
+        this.uiLanguage = defaultOption.uiLanguage;
+        this.uiLanguageSetupCompleted = false;
         this.autoTranslate = false;
         this.alwaysTranslateDomains = [];
         this.disabledExtensionDomains = [];
@@ -610,6 +615,8 @@ export function normalizeConfig(value: unknown): Config {
         && source.count >= 0
         ? source.count
         : 0;
+    normalized.uiLanguage = normalizeUiLanguage(source.uiLanguage);
+    normalized.uiLanguageSetupCompleted = source.uiLanguageSetupCompleted === true;
     normalized.maxConcurrentTranslations = normalizeMaxConcurrentTranslations(
         source.maxConcurrentTranslations,
     );

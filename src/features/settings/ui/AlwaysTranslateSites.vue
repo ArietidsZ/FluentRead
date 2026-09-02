@@ -15,7 +15,7 @@
         <h3 :id="labels.titleId">{{ labels.title }}</h3>
         <p>{{ labels.description }}</p>
       </div>
-      <span class="site-rules-count" :aria-label="labels.countLabel">{{ domains.length }} 个网站</span>
+      <span class="site-rules-count" :aria-label="labels.countLabel">{{ t('settings.sites.count', {count: domains.length}) }}</span>
     </header>
 
     <form class="site-rules-form" @submit.prevent="addDomain">
@@ -75,6 +75,7 @@
 <script lang="ts" setup>
 import { computed, nextTick, ref } from 'vue';
 import { getSiteBaseDomain } from '@/src/core/site-rules/domain';
+import {useUiI18n} from '@/src/ui/i18n';
 
 const props = withDefaults(defineProps<{
   modelValue?: string[];
@@ -88,6 +89,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: string[]];
 }>();
 
+const {t} = useUiI18n();
 const inputValue = ref('');
 const errorMessage = ref('');
 const statusMessage = ref('');

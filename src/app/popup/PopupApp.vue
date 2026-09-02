@@ -8,18 +8,24 @@
 <template>
   <main
     class="popup-shell"
-    :class="{ 'config-loading': !hydrated }"
+    :class="{ 'config-loading': !hydrated, 'language-onboarding-shell': showLanguageOnboarding }"
     :aria-busy="!hydrated"
     :data-config-ready="hydrated ? 'true' : 'false'"
     :data-interface-skin="config.interfaceSkin"
     :inert="!hydrated"
   >
+    <UiLanguageOnboarding
+      v-if="showLanguageOnboarding"
+      :initial-language="onboardingLanguage"
+      @confirmed="handleLanguageOnboardingConfirmed"
+    />
+
+    <div class="popup-content" :inert="showLanguageOnboarding">
     <header class="popup-header">
       <div class="brand">
         <img src="/icon/128.png" alt="" />
         <div>
           <strong>流畅阅读</strong>
-          <small>FluentRead · V{{ version }}</small>
         </div>
       </div>
       <div class="header-actions">
@@ -78,7 +84,7 @@
         <label>
           <span>目标语言</span>
           <select v-model="config.to" :disabled="!config.on">
-            <option v-for="item in options.to" :key="item.value" :value="item.value">{{ item.label }}</option>
+            <option v-for="item in options.to" :key="item.value" :value="item.value" data-i18n-ignore>{{ getMultilingualTargetLanguageLabel(item.value, item.label, language) }}</option>
           </select>
         </label>
       </div>
@@ -362,11 +368,12 @@
       modal-class="popup-drawer-modal"
       class="popup-drawer"
     >
-      <div class="drawer-handle" />
-      <header class="drawer-header">
+      <div v-ui-i18n class="drawer-surface">
+        <div class="drawer-handle" />
+        <header class="drawer-header">
         <div><span class="eyebrow">快捷设置</span><h2>{{ drawerTitle }}</h2><p>{{ drawerDescription }}</p></div>
         <button type="button" aria-label="关闭" @click="drawerVisible = false">×</button>
-      </header>
+        </header>
 
       <div v-if="activeDrawer === 'hover'" class="drawer-content">
         <div class="interaction-preview"><span class="cursor">↖</span><span>＋</span><kbd>{{ hoverKey }}</kbd><span>＝</span><strong>即时翻译</strong></div>
@@ -542,11 +549,13 @@
         </label>
       </div>
 
-      <button class="drawer-settings-link" type="button" @click="openOptions(drawerSettingsSection[activeDrawer])">在完整设置中查看全部选项 ↗</button>
+        <button class="drawer-settings-link" type="button" @click="openOptions(drawerSettingsSection[activeDrawer])">在完整设置中查看全部选项 ↗</button>
+      </div>
     </el-drawer>
 
     <CustomHotkeyInput v-model="showCustomMouseHotkeyDialog" :current-value="config.customHotkey" @confirm="confirmMouseHotkey" @cancel="cancelMouseHotkey" />
     <CustomHotkeyInput v-model="showCustomSelectionHotkeyDialog" :current-value="config.customSelectionTranslatorHotkey" @confirm="confirmSelectionHotkey" @cancel="cancelSelectionHotkey" />
+    </div>
   </main>
 </template>
 
@@ -570,7 +579,15 @@ import {
   normalizeConfig,
   normalizeSelectionTranslatorDelay,
 } from '@/src/core/config/model';
-import { customModelString, models, options, resolveConfiguredModel, servicesType } from '@/src/core/config/catalog';
+import {resolveUiLanguageFromLocale, type UiLanguage} from '@/src/core/i18n';
+import {
+  customModelString,
+  getMultilingualTargetLanguageLabel,
+  models,
+  options,
+  resolveConfiguredModel,
+  servicesType,
+} from '@/src/core/config/catalog';
 import {
   getCustomOpenAIProvider,
   withCustomOpenAIServiceOptions,
@@ -583,6 +600,8 @@ import {applyInterfaceSkin} from '@/src/ui/interfaceAppearance';
 import { requestTranslationCacheClear } from './cache';
 import {isBrowserTabId} from '@/src/platform/browser/ids';
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
+import UiLanguageOnboarding from '@/src/ui/components/UiLanguageOnboarding.vue';
+import {useUiI18n} from '@/src/ui/i18n';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import {
   filterAvailableTranslationServices,
@@ -592,8 +611,9 @@ import {
 type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'video';
 type SettingsSection = 'settings-general' | 'settings-image-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'));
-const version = process.env.VUE_APP_VERSION;
+const {language, translateLegacy} = useUiI18n();
 const config = ref(new Config());
+const onboardingLanguage = ref<UiLanguage>('zh-CN');
 const drawerVisible = ref(false);
 const activeDrawer = ref<DrawerName>('hover');
 const selectionDrawerTab = ref<'text' | 'area'>('text');
@@ -613,6 +633,7 @@ const serviceSearchQuery = ref('');
 const servicePickerOpen = ref(false);
 const moreServicesOpen = ref(true);
 const hydrated = ref(false);
+const showLanguageOnboarding = ref(false);
 let lastSerialized = '';
 let applyingExternalConfig = false;
 let pageExitSaveStarted = false;
@@ -629,10 +650,29 @@ const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
 const persistConfigPatch = (value: unknown) => requestConfigPatch(value, sendConfigMessage);
 const persistConfigReplace = (value: unknown) => requestConfigSave(value, sendConfigMessage);
 
+function readBrowserUiLocale(): unknown {
+  const browserI18n = (browser as unknown as {i18n?: {getUILanguage?: () => unknown}}).i18n;
+  try {
+    const extensionLocale = browserI18n?.getUILanguage?.();
+    if (typeof extensionLocale === 'string' && extensionLocale.trim()) return extensionLocale;
+  } catch {
+    // navigator.language remains a reliable fallback in extension pages.
+  }
+  if (typeof navigator === 'undefined') return '';
+  return navigator.languages?.find(locale => typeof locale === 'string' && locale.trim())
+    || navigator.language
+    || '';
+}
+
 const allServiceOptions = computed(() => withCustomOpenAIServiceOptions(
   options.services,
   config.value.customOpenAIProviders,
-).filter((item: any) => !item.disabled));
+).filter((item: any) => !item.disabled).map((item: any) => ({
+  ...item,
+  label: translateLegacy(item.label),
+  description: item.description ? translateLegacy(item.description) : item.description,
+  searchTerms: [...(item.searchTerms || []), translateLegacy(item.label)],
+})));
 const serviceOptions = computed(() => filterAvailableTranslationServices(allServiceOptions.value));
 const searchableModels = computed<ReadonlyMap<string, readonly string[]>>(() => {
   const merged = new Map<string, readonly string[]>(models);
@@ -774,13 +814,23 @@ function applyPopupHeightMode(usesContentHeight: boolean) {
 async function hydrate() {
   await configReady;
   Object.assign(config.value, runtimeConfig);
+  if (!config.value.uiLanguageSetupCompleted) {
+    onboardingLanguage.value = resolveUiLanguageFromLocale(readBrowserUiLocale());
+  }
+  showLanguageOnboarding.value = !config.value.uiLanguageSetupCompleted;
   lastSerialized = JSON.stringify(config.value);
   hydrated.value = true;
   applyTheme(config.value.theme || 'auto');
   applyInterfaceSkin(config.value.interfaceSkin);
-  await hydrateCurrentSite();
+  if (!showLanguageOnboarding.value) await hydrateCurrentSite();
 }
 void hydrate();
+
+function handleLanguageOnboardingConfirmed(language: UiLanguage): void {
+  onboardingLanguage.value = language;
+  showLanguageOnboarding.value = false;
+  void hydrateCurrentSite();
+}
 
 const unsubscribeConfig = subscribeConfig((value) => {
   const serialized = JSON.stringify(value);
@@ -806,7 +856,7 @@ watch(() => JSON.stringify(config.value), async serialized => {
     if (lastSerialized === serialized) lastSerialized = '';
     console.warn('[FluentRead] 保存 popup 设置失败', error);
   }
-}, { flush: 'sync' });
+}, { flush: 'post' });
 watch(() => config.value.theme, theme => applyTheme(theme || 'auto'));
 watch(() => config.value.interfaceSkin, skin => applyInterfaceSkin(skin));
 watch(popupUsesContentHeight, applyPopupHeightMode, {immediate: true});
@@ -881,7 +931,7 @@ window.addEventListener('pagehide', saveOnPageHide);
 // 这是一层 best-effort 兜底而非持久化 barrier；revision 边界会拒绝过期 replace，
 // 普通交互则始终使用字段 patch。
 function persistOnPageExit() {
-  if (!hydrated.value || pageExitSaveStarted) return;
+  if (!hydrated.value || !config.value.uiLanguageSetupCompleted || pageExitSaveStarted) return;
   pageExitSaveStarted = true;
   void persistConfigReplace(config.value).catch((error) => console.warn('[FluentRead] popup 关闭前后台保存设置失败', error));
 }

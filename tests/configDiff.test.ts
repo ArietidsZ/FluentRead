@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest';
 
 import {buildConfigDiff} from '@/src/core/config/diff';
+import {getMultilingualTargetLanguageLabel} from '@/src/core/config/catalog';
 import {createApiKeyRequirementKey} from '@/src/core/config/validation';
 
 function group(result: ReturnType<typeof buildConfigDiff>, id: string) {
@@ -8,6 +9,24 @@ function group(result: ReturnType<typeof buildConfigDiff>, id: string) {
 }
 
 describe('配置差异预览', () => {
+    it('为新增目标语言选项提供跨语言可识别的标签，并保留未知值回退', () => {
+        expect(getMultilingualTargetLanguageLabel('de', 'Deutsch')).toBe('Deutsch / German / 德语');
+        expect(getMultilingualTargetLanguageLabel('pt', 'Português')).toBe('Português / Portuguese / 葡萄牙语');
+        expect(getMultilingualTargetLanguageLabel('it', 'Italiano')).toBe('Italiano / Italian / 意大利语');
+        expect(getMultilingualTargetLanguageLabel('ja', '日本語', 'en-US')).toBe('Japanese');
+        expect(getMultilingualTargetLanguageLabel('ja', '日本語', 'es-ES')).toBe('Japonés / Japanese / 日本語');
+        expect(getMultilingualTargetLanguageLabel('ja', '日本語', 'de-DE')).toBe('日本語 / Japanese / 日语');
+        expect(getMultilingualTargetLanguageLabel('unknown', '自定义语言')).toBe('自定义语言');
+    });
+
+    it('格式化界面语言选择，包括西班牙语', () => {
+        const result = buildConfigDiff({uiLanguage: 'zh-CN'}, {uiLanguage: 'es-ES'});
+
+        expect(group(result, 'general')?.changes).toEqual([
+            {key: 'uiLanguage', label: '界面语言', before: '中文', after: 'Español'},
+        ]);
+    });
+
     it('预览双语逐句高亮开关', () => {
         const result = buildConfigDiff({bilingualSentenceHighlightEnabled: false}, {
             bilingualSentenceHighlightEnabled: true,

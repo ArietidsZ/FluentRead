@@ -6,6 +6,7 @@
  */
 import browser from 'webextension-polyfill';
 import { config, requestConfigPatch, subscribeConfig } from '@/src/services/config/store';
+import {createVideoUiTextElement, getVideoUiLanguage, localizeVideoUiText, refreshVideoUiAccessibility, refreshVideoUiText, translateVideoUi, type UiLanguage} from './ui';
 import {
   normalizeVideoSubtitleFontSize,
   type Config,
@@ -154,14 +155,14 @@ export function normalizeVideoCaptionText(value: string): string {
   return value.replace(/[\s\u3000]+/g, ' ').trim();
 }
 
-export function getVideoSubtitleDownloadErrorMessage(error: unknown): string {
+export function getVideoSubtitleDownloadErrorMessage(error: unknown, language: UiLanguage = 'zh-CN'): string {
   const message = error instanceof Error ? error.message : String(error || '');
-  if (message.includes('没有可用的 YouTube 字幕轨道')) return '当前视频没有字幕';
+  if (message.includes('没有可用的 YouTube 字幕轨道')) return localizeVideoUiText('当前视频没有字幕', language);
   if (message.includes('未返回完整字幕数据') || message.includes('先打开原生字幕')) {
-    return '请先开启 YouTube 字幕';
+    return localizeVideoUiText('请先开启 YouTube 字幕', language);
   }
-  if (message.includes('字幕轨道请求失败')) return '获取失败，请重试';
-  return '下载失败，请重试';
+  if (message.includes('字幕轨道请求失败')) return localizeVideoUiText('获取失败，请重试', language);
+  return localizeVideoUiText('下载失败，请重试', language);
 }
 
 export function isIncrementalVideoCaption(visibleSource: string, fullSource: string): boolean {
@@ -305,6 +306,10 @@ function createTextElement<K extends keyof HTMLElementTagNameMap>(
   return element;
 }
 
+function videoUi(key: string, params?: Record<string, string | number | boolean>): string {
+  return translateVideoUi(key, getVideoUiLanguage(config.uiLanguage), params);
+}
+
 function getOrCreateVideoSubtitleLayer(player: HTMLElement): HTMLElement {
   let layer = player.querySelector<HTMLElement>(`#${VIDEO_TRANSLATION_LAYER_ID}`);
   if (!layer) {
@@ -328,7 +333,7 @@ function getOrCreateVideoSubtitlePanel(player: HTMLElement): HTMLElement {
   panel.className = 'fluent-read-video-subtitle-panel fluent-read-video-ui notranslate';
   panel.setAttribute('data-fluent-read-ui', 'video-subtitle');
   panel.setAttribute('translate', 'no');
-  panel.setAttribute('aria-label', 'FluentRead 双语视频字幕');
+  panel.setAttribute('aria-label', videoUi('video.panelAriaLabel'));
   layer.appendChild(panel);
   return panel;
 }
@@ -348,7 +353,7 @@ function getOrCreateTranslationOverlay(player: HTMLElement): HTMLElement {
   overlay.setAttribute('data-fluent-read-ui', 'video-subtitle');
   overlay.setAttribute('translate', 'no');
   overlay.setAttribute('aria-live', 'polite');
-  overlay.setAttribute('aria-label', 'FluentRead 视频字幕译文');
+  overlay.setAttribute('aria-label', videoUi('video.translationOverlayAriaLabel'));
   panel.appendChild(overlay);
   return overlay;
 }
@@ -367,7 +372,7 @@ function getOrCreateNormalizedCaptionOverlay(player: HTMLElement): HTMLElement {
   overlay.setAttribute('data-fluent-read-ui', 'video-subtitle');
   overlay.setAttribute('translate', 'no');
   overlay.setAttribute('aria-live', 'polite');
-  overlay.setAttribute('aria-label', 'YouTube 整段原文字幕');
+  overlay.setAttribute('aria-label', videoUi('video.originalOverlayAriaLabel'));
   panel.appendChild(overlay);
   return overlay;
 }
@@ -1248,14 +1253,11 @@ export function mountVideoSubtitleTranslation(): () => void {
     const mode = normalizeVideoSubtitleDisplayMode(config.videoSubtitleDisplayMode);
     const visible = config.videoSubtitleVisible !== false;
     const status = config.on
-      ? (config.videoTranslationEnabled ? '已开启' : '已关闭')
-      : 'FluentRead 总开关已关闭';
-
+      ? (config.videoTranslationEnabled ? videoUi('video.enabled') : videoUi('video.disabled'))
+      : videoUi('video.globalDisabled');
     button.classList.toggle(VIDEO_TRANSLATION_ACTIVE_CLASS, enabled);
     button.setAttribute('aria-pressed', String(enabled));
     button.setAttribute('aria-expanded', String(!menu.hidden));
-    button.setAttribute('aria-label', `FluentRead 字幕翻译：${status}`);
-    button.title = `FluentRead 字幕翻译：${status}`;
 
     const toggle = menu.querySelector<HTMLButtonElement>('[data-action="toggle-translation"]');
     if (toggle) {
@@ -1263,17 +1265,22 @@ export function mountVideoSubtitleTranslation(): () => void {
       toggle.setAttribute('aria-checked', String(enabled));
       toggle.querySelector<HTMLElement>('[data-check]')!.textContent = enabled ? '✓' : '';
       toggle.querySelector<HTMLElement>('[data-state]')!.textContent = config.on
-        ? (enabled ? '已开启' : '立即开启')
+        ? (enabled ? videoUi('video.enabled') : videoUi('video.turnOnNow'))
         : status;
     }
     const service = menu.querySelector<HTMLElement>('[data-service-label]');
-    if (service) service.textContent = getVideoServiceLabel(config.videoService);
+    if (service) service.textContent = localizeVideoUiText(getVideoServiceLabel(config.videoService), getVideoUiLanguage(config.uiLanguage));
     const visibility = menu.querySelector<HTMLButtonElement>('[data-action="toggle-visible"]');
     if (visibility) {
       visibility.setAttribute('aria-checked', String(visible));
       visibility.querySelector<HTMLElement>('[data-check]')!.textContent = visible ? '✓' : '';
-      visibility.querySelector<HTMLElement>('[data-state]')!.textContent = visible ? '显示中' : '已隐藏';
+      visibility.querySelector<HTMLElement>('[data-state]')!.textContent = visible
+        ? videoUi('video.showing')
+        : videoUi('video.hidden');
     }
+    const language = getVideoUiLanguage(config.uiLanguage);
+    refreshVideoUiText(menu, language);
+    refreshVideoUiAccessibility(menu, button, document, language, status);
     menu.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((item) => {
       const selected = item.dataset.mode === mode;
       item.setAttribute('aria-checked', String(selected));
@@ -1368,19 +1375,19 @@ export function mountVideoSubtitleTranslation(): () => void {
       const state = downloadButton.querySelector<HTMLElement>('[data-state]');
       downloadButton.disabled = true;
       downloadButton.setAttribute('aria-busy', 'true');
-      if (state) state.textContent = '正在获取…';
+      if (state) state.textContent = videoUi('video.fetching');
       const slowFeedbackTimer = window.setTimeout(() => {
         if (downloadButton.getAttribute('aria-busy') === 'true' && state) {
-          state.textContent = '仍在读取…';
+          state.textContent = videoUi('video.reading');
         }
       }, 2000);
       let feedbackDelay = 2400;
       try {
         const result = await resolveDownloadTrack();
         downloadSubtitleSrt(result.cues, result.languageCode);
-        if (state) state.textContent = `已下载 · ${result.cues.length} 条`;
+        if (state) state.textContent = videoUi('video.downloaded', {count: result.cues.length});
       } catch (error) {
-        const message = getVideoSubtitleDownloadErrorMessage(error);
+        const message = getVideoSubtitleDownloadErrorMessage(error, getVideoUiLanguage(config.uiLanguage));
         if (state) state.textContent = message;
         downloadButton.title = message;
         feedbackDelay = 3200;
@@ -1401,7 +1408,7 @@ export function mountVideoSubtitleTranslation(): () => void {
       const state = downloadButton.querySelector<HTMLElement>('[data-state]');
       downloadButton.disabled = true;
       if (!config.on || !config.videoTranslationEnabled) {
-        if (state) state.textContent = '请先开启翻译';
+        if (state) state.textContent = videoUi('video.enableFirst');
         window.setTimeout(() => {
           downloadButton.disabled = false;
           if (state) state.textContent = '';
@@ -1414,22 +1421,24 @@ export function mountVideoSubtitleTranslation(): () => void {
       subtitleDownloadAbortController = controller;
       const targetLanguage = config.to || 'translated';
       downloadButton.setAttribute('aria-busy', 'true');
-      if (state) state.textContent = '正在获取…';
+      if (state) state.textContent = videoUi('video.fetching');
       try {
         const result = await resolveDownloadTrack();
         const translatedCues = await translateVideoSubtitleCues(result.cues, getCachedVideoTranslation, {
           concurrency: VIDEO_SUBTITLE_DOWNLOAD_CONCURRENCY,
           signal: controller.signal,
           onProgress: (completed, total) => {
-            if (state) state.textContent = `翻译 ${completed}/${total}`;
+            if (state) state.textContent = videoUi('video.translating', {completed, total});
           },
         });
         if (destroyed || controller.signal.aborted) throw createVideoSubtitleAbortError();
         downloadSubtitleSrt(translatedCues, `${targetLanguage}-translated`);
-        if (state) state.textContent = `已下载 · ${translatedCues.length} 条`;
+        if (state) state.textContent = videoUi('video.downloaded', {count: translatedCues.length});
       } catch (error) {
         const aborted = error instanceof Error && error.name === 'AbortError';
-        if (state) state.textContent = aborted ? '已取消' : '翻译失败，请重试';
+        if (state) state.textContent = aborted
+          ? videoUi('video.cancelled')
+          : videoUi('video.downloadFailed');
         if (!aborted) console.warn('[FluentRead] 译文字幕下载失败', error);
       } finally {
         if (subtitleDownloadAbortController === controller) subtitleDownloadAbortController = undefined;
@@ -1463,7 +1472,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     }
     const check = createTextElement('span', 'fluent-read-video-menu-check', '');
     check.dataset.check = 'true';
-    const labelElement = createTextElement('span', 'fluent-read-video-menu-label', label);
+    const labelElement = createVideoUiTextElement('span', 'fluent-read-video-menu-label', label, getVideoUiLanguage(config.uiLanguage));
     const state = createTextElement('span', 'fluent-read-video-menu-value', '');
     state.dataset.state = 'true';
     item.append(check, labelElement, state);
@@ -1476,7 +1485,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     menu.className = 'fluent-read-video-subtitle-menu fluent-read-video-ui notranslate';
     menu.hidden = true;
     menu.setAttribute('role', 'menu');
-    menu.setAttribute('aria-label', '流畅阅读视频字幕翻译菜单');
+    menu.setAttribute('aria-label', videoUi('video.menuAriaLabel'));
     markVideoUi(menu);
 
     const title = document.createElement('div');
@@ -1484,34 +1493,36 @@ export function mountVideoSubtitleTranslation(): () => void {
     const heading = document.createElement('span');
     heading.className = 'fluent-read-video-menu-heading';
     heading.append(
-      createTextElement('span', 'fluent-read-video-menu-brand', '流畅阅读'),
-      createTextElement('span', 'fluent-read-video-menu-title-text', '视频字幕翻译'),
+      createVideoUiTextElement('span', 'fluent-read-video-menu-brand', '流畅阅读', getVideoUiLanguage(config.uiLanguage)),
+      createVideoUiTextElement('span', 'fluent-read-video-menu-title-text', '视频字幕翻译', getVideoUiLanguage(config.uiLanguage)),
     );
     title.append(
       heading,
-      createTextElement('span', 'fluent-read-video-menu-beta', 'Beta 测试'),
+      createVideoUiTextElement('span', 'fluent-read-video-menu-beta', 'Beta 测试', getVideoUiLanguage(config.uiLanguage)),
     );
     menu.appendChild(title);
 
     menu.appendChild(createMenuItem('toggle-translation', '字幕翻译'));
-    const serviceCaption = createTextElement('span', 'fluent-read-video-menu-caption', '翻译服务');
+    const serviceCaption = document.createElement('span');
+    serviceCaption.className = 'fluent-read-video-menu-caption';
+    const serviceCaptionLabel = createVideoUiTextElement('span', 'fluent-read-video-menu-caption-label', '翻译服务', getVideoUiLanguage(config.uiLanguage));
     const serviceValue = createTextElement('span', 'fluent-read-video-menu-value', '');
     serviceValue.dataset.serviceLabel = 'true';
-    serviceCaption.append('：', serviceValue);
+    serviceCaption.append(serviceCaptionLabel, '：', serviceValue);
     menu.appendChild(serviceCaption);
 
     const divider = createTextElement('div', 'fluent-read-video-menu-divider', '');
     divider.setAttribute('aria-hidden', 'true');
     menu.appendChild(divider);
 
-    const modeCaption = createTextElement('span', 'fluent-read-video-menu-caption', '字幕显示模式');
+    const modeCaption = createVideoUiTextElement('span', 'fluent-read-video-menu-caption', '字幕显示模式', getVideoUiLanguage(config.uiLanguage));
     menu.appendChild(modeCaption);
     const modeGroup = document.createElement('div');
     modeGroup.className = 'fluent-read-video-menu-mode-group';
     modeGroup.setAttribute('role', 'radiogroup');
-    modeGroup.setAttribute('aria-label', '字幕显示模式');
+    modeGroup.setAttribute('aria-label', videoUi('video.displayMode'));
     (Object.keys(VIDEO_DISPLAY_MODE_LABELS) as VideoSubtitleDisplayMode[]).forEach((mode) => {
-      const item = createTextElement('button', 'fluent-read-video-menu-mode', VIDEO_DISPLAY_MODE_LABELS[mode]);
+      const item = createVideoUiTextElement('button', 'fluent-read-video-menu-mode', VIDEO_DISPLAY_MODE_LABELS[mode], getVideoUiLanguage(config.uiLanguage));
       item.type = 'button';
       item.dataset.mode = mode;
       item.setAttribute('role', 'menuitemradio');
@@ -1569,8 +1580,9 @@ export function mountVideoSubtitleTranslation(): () => void {
     button.setAttribute('role', 'button');
     button.setAttribute('aria-pressed', 'false');
     button.setAttribute('aria-expanded', 'false');
-    button.setAttribute('aria-label', 'FluentRead 字幕翻译：已关闭');
-    button.title = 'FluentRead 字幕翻译：已关闭';
+    const initialLabel = videoUi('video.buttonAriaLabel', {status: videoUi('video.disabled')});
+    button.setAttribute('aria-label', initialLabel);
+    button.title = initialLabel;
     const icon = document.createElement('img');
     icon.className = 'fluent-read-video-subtitle-button-icon';
     icon.src = browser.runtime.getURL('icon/128.png');

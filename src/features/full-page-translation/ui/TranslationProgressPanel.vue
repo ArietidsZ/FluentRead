@@ -7,6 +7,7 @@
 <template>
   <Transition name="fr-progress-panel">
     <aside
+      v-ui-i18n
       v-if="isVisible"
       class="fr-translation-progress"
       :class="{ 'fr-dark': isDark, 'fr-static': !animationsEnabled, 'fr-compact': isCompact }"

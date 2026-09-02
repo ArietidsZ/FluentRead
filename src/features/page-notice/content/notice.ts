@@ -5,6 +5,8 @@
  * 模块边界：本文件只拥有通知 DOM 和打开设置消息，不记录凭据、不处理翻译重试；外观来自 notice.css，后台 openOptions handler 处理导航，调用方传入的文本一律通过 textContent 展示。
  */
 import {throttle} from '@/src/shared/function/throttle';
+import {config} from '@/src/services/config/store';
+import {normalizeUiLanguage, translate, translateLegacyText} from '@/src/core/i18n';
 import noticeStyles from './notice.css?inline';
 
 type NoticeType = 'error' | 'success';
@@ -38,14 +40,17 @@ function getMissingCredentialNotice(message: string): MissingCredentialNotice | 
         : null;
 }
 
-function getNoticeTitle(type: NoticeType, credential: boolean): string {
-    if (credential) return '配置提醒';
-    return type === 'success' ? '操作完成' : '翻译提醒';
+function getNoticeTitle(type: NoticeType, credential: boolean, language: Parameters<typeof translate>[1]): string {
+    if (credential) return translate('notice.configurationReminder', language);
+    return translate(type === 'success' ? 'notice.operationComplete' : 'notice.translationNotice', language);
 }
 
-function getNoticeDetail(message: string, missingCredential: MissingCredentialNotice | null): string {
-    if (!missingCredential) return message;
-    return `还差一步：为 ${missingCredential.service} 填写 ${missingCredential.credentialLabel}，就可以开始翻译了。`;
+function getNoticeDetail(message: string, missingCredential: MissingCredentialNotice | null, language: Parameters<typeof translate>[1]): string {
+    if (!missingCredential) return translateLegacyText(message, language);
+    const service = translateLegacyText(missingCredential.service, language);
+    return language === 'en-US'
+        ? `One more step: add ${missingCredential.credentialLabel} for ${service} to start translating.`
+        : `还差一步：为 ${missingCredential.service} 填写 ${missingCredential.credentialLabel}，就可以开始翻译了。`;
 }
 
 function resolveNoticeIconUrl(): string | null {
@@ -163,6 +168,7 @@ function removeNotice(notice: HTMLElement): void {
  * 调用方不应依赖其内部结构。
  */
 export function showPageNotice(message: string, type: NoticeType): HTMLElement {
+    const language = normalizeUiLanguage(config.uiLanguage);
     const missingCredential = getMissingCredentialNotice(message);
     const credential = missingCredential !== null;
     const tone = credential ? 'warning' : type;
@@ -178,18 +184,18 @@ export function showPageNotice(message: string, type: NoticeType): HTMLElement {
     copy.className = 'notice-copy';
     const heading = document.createElement('span');
     heading.className = 'notice-heading';
-    appendTextElement(heading, 'strong', 'notice-brand', '流畅阅读');
+    appendTextElement(heading, 'strong', 'notice-brand', translate('common.brand', language));
     appendTextElement(heading, 'span', 'notice-divider', '·');
-    appendTextElement(heading, 'span', 'notice-title', getNoticeTitle(type, credential));
+    appendTextElement(heading, 'span', 'notice-title', getNoticeTitle(type, credential, language));
 
     const body = document.createElement('span');
     body.className = 'notice-body';
-    appendTextElement(body, 'span', 'notice-detail', getNoticeDetail(message, missingCredential));
+    appendTextElement(body, 'span', 'notice-detail', getNoticeDetail(message, missingCredential, language));
     if (credential) {
         const action = document.createElement('button');
         action.className = 'notice-action';
         action.type = 'button';
-        action.textContent = '去设置';
+        action.textContent = translate('notice.openSettings', language);
         action.addEventListener('click', () => {
             const reportFailure = (error: unknown) => {
                 console.error('[FluentRead] 打开设置页失败', error);
@@ -208,7 +214,7 @@ export function showPageNotice(message: string, type: NoticeType): HTMLElement {
     const close = document.createElement('button');
     close.className = 'notice-close';
     close.type = 'button';
-    close.setAttribute('aria-label', '关闭通知');
+    close.setAttribute('aria-label', translate('notice.close', language));
     close.textContent = '×';
 
     notice.append(mark, copy, close);

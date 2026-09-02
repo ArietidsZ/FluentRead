@@ -11,7 +11,7 @@
       <div class="language-picker-group">
         <label for="translation-center-source">源语言</label>
         <select id="translation-center-source" v-model="sourceLanguage" aria-label="翻译中心源语言" @change="persistTranslationCenterConfig('source')">
-          <option v-for="item in sourceLanguageOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+          <option v-for="item in sourceLanguageOptions" :key="item.value" :value="item.value" data-i18n-ignore>{{ languageLabel(item.value) }}</option>
         </select>
       </div>
 
@@ -29,7 +29,7 @@
       <div class="language-picker-group">
         <label for="translation-center-target">目标语言</label>
         <select id="translation-center-target" v-model="targetLanguage" aria-label="翻译中心目标语言" @change="persistTranslationCenterConfig('target')">
-          <option v-for="item in targetLanguageOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+          <option v-for="item in targetLanguageOptions" :key="item.value" :value="item.value" data-i18n-ignore>{{ getMultilingualTargetLanguageLabel(item.value, item.label, language) }}</option>
         </select>
       </div>
 
@@ -130,7 +130,7 @@
         <div class="translation-panel-heading results-heading">
           <div>
             <span class="translation-panel-kicker">对比结果</span>
-            <h3 id="translation-results-title">{{ cards.length }} 个翻译服务</h3>
+            <h3 id="translation-results-title">{{ cards.length }} <span>个翻译服务</span></h3>
           </div>
           <div class="results-heading-actions">
             <span class="results-order-hint">⠿ 拖动卡片可排序</span>
@@ -221,11 +221,12 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import browser from 'webextension-polyfill'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
+import {useUiI18n} from '@/src/ui/i18n'
 import {
   filterAvailableTranslationServices,
   isTranslationServiceAvailable,
 } from '@/src/services/translation/capabilities'
-import { models, options, servicesType } from '@/src/core/config/catalog'
+import { getMultilingualTargetLanguageLabel, models, options, servicesType } from '@/src/core/config/catalog'
 import {
   getCustomOpenAIProviderModels,
   isConfiguredCustomOpenAIProvider,
@@ -264,6 +265,7 @@ const DEFAULT_COMPARISON_SERVICES = ['freeTranslation', 'google', 'openai', 'dee
 const MAX_TEXT_LENGTH = 5000
 
 const sourceText = ref('')
+const {language, translateLegacy} = useUiI18n()
 const sourceLanguage = ref('auto')
 const targetLanguage = ref('zh-Hans')
 const runCount = ref(0)
@@ -287,7 +289,12 @@ const serviceOptions = computed<ServiceOption[]>(() => filterAvailableTranslatio
   options.services,
   customOpenAIProviders.value,
 ))
-  .filter((item: any) => !item.disabled) as ServiceOption[])
+  .filter((item: any) => !item.disabled)
+  .map((item: any) => ({
+    ...item,
+    label: translateLegacy(item.label),
+    description: item.description ? translateLegacy(item.description) : item.description,
+  })) as ServiceOption[])
 const hiddenUnavailableServices = computed(() => Array.isArray(config.translationCenterServices)
   ? config.translationCenterServices.filter(service => !isTranslationServiceAvailable(service))
   : [])
@@ -341,8 +348,9 @@ function serviceDescription(service: string): string {
 }
 
 function languageLabel(value: string): string {
-  if (value === 'auto') return '自动检测'
-  return targetLanguageOptions.value.find(item => item.value === value)?.label || value
+  if (value === 'auto') return translateLegacy('自动检测')
+  const option = targetLanguageOptions.value.find(item => item.value === value)
+  return getMultilingualTargetLanguageLabel(value, option?.label || value, language.value)
 }
 
 function getValidServiceOrder(value: unknown): string[] {

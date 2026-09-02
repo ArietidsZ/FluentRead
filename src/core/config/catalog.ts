@@ -350,17 +350,17 @@ export const options = {
     mimoRegion: mimoRegions,
     on: [
         {value: true, label: "开启"},
-        {value: false, label: "关闭"},
+        {value: false, label: "已关闭"},
     ],
     // 是否即时翻译
     autoTranslate: [
         {value: true, label: "开启"},
-        {value: false, label: "关闭"},
+        {value: false, label: "已关闭"},
     ],
     // 是否使用缓存
     useCache: [
         {value: true, label: "开启"},
-        {value: false, label: "关闭"},
+        {value: false, label: "已关闭"},
     ],
     form: [{value: "auto", label: "自动检测"}],
     // DeepSeek API 格式（仅 DeepSeek 服务显示）
@@ -375,11 +375,12 @@ export const options = {
     ],
     to: [
         {value: "zh-Hans", label: "中文"},
-        {value: "en", label: "英语"},
-        {value: "ja", label: "日语"},
-        {value: "ko", label: "韩语"},
-        {value: "fr", label: "法语"},
-        {value: "ru", label: "俄语"},
+        {value: "en", label: "English"},
+        {value: "ja", label: "日本語"},
+        {value: "ko", label: "한국어"},
+        {value: "fr", label: "Français"},
+        {value: "ru", label: "Русский"},
+        {value: "es", label: "Español"},
     ],
     keys: [
         {value: "none", label: "禁用快捷键"},
@@ -515,7 +516,7 @@ export const options = {
     // 悬浮球快捷键选项
     floatingBallHotkeys: [
         {value: "none", label: "禁用快捷键"},
-        {value: "Alt+T", label: "Alt+T / Option+T (默认)"},
+        {value: "Alt+T", label: "Alt+T / Option+T"},
         {value: "Alt+A", label: "Alt+A / Option+A"},
         {value: "Alt+S", label: "Alt+S / Option+S"},
         {value: "Alt+D", label: "Alt+D / Option+D"},
@@ -536,27 +537,133 @@ export const options = {
     // 输入框翻译目标语言选项
     inputBoxTranslationTarget: [
         {value: "zh-Hans", label: "中文"},
-        {value: "en", label: "英语"},
-        {value: "ja", label: "日语"},
-        {value: "ko", label: "韩语"},
-        {value: "fr", label: "法语"},
-        {value: "ru", label: "俄语"},
-        {value: "es", label: "西班牙语"},
-        {value: "de", label: "德语"},
-        {value: "pt", label: "葡萄牙语"},
-        {value: "it", label: "意大利语"},
+        {value: "en", label: "English"},
+        {value: "ja", label: "日本語"},
+        {value: "ko", label: "한국어"},
+        {value: "fr", label: "Français"},
+        {value: "ru", label: "Русский"},
+        {value: "es", label: "Español"},
+        {value: "de", label: "Deutsch"},
+        {value: "pt", label: "Português"},
+        {value: "it", label: "Italiano"},
     ],
     // 输入框翻译触发方式选项
     inputBoxTranslationTrigger: [
-        {value: "disabled", label: "关闭"},
+        {value: "disabled", label: "已关闭"},
         {value: "triple_space", label: "连按三下空格"},
         {value: "triple_equal", label: "连按三下等号(=)"},
         {value: "triple_dash", label: "连按三下短横线(-)"},
     ],
 };
 
+/**
+ * Target-language controls deliberately keep a multilingual label so that the
+ * selected translation language remains understandable before the interface
+ * language has been configured.
+ */
+export const multilingualTargetLanguageLabels: Readonly<Record<string, string>> = {
+    "zh-Hans": "中文 / Chinese",
+    en: "English / 英语",
+    ja: "日本語 / Japanese / 日语",
+    ko: "한국어 / Korean / 韩语",
+    fr: "Français / French / 法语",
+    ru: "Русский / Russian / 俄语",
+    es: "Español / Spanish / 西班牙语",
+    de: "Deutsch / German / 德语",
+    pt: "Português / Portuguese / 葡萄牙语",
+    it: "Italiano / Italian / 意大利语",
+};
+
+export const englishTargetLanguageLabels: Readonly<Record<string, string>> = {
+    "zh-Hans": "Chinese",
+    en: "English",
+    ja: "Japanese",
+    ko: "Korean",
+    fr: "French",
+    ru: "Russian",
+    es: "Spanish",
+    de: "German",
+    pt: "Portuguese",
+    it: "Italian",
+};
+
+const localizedTargetLanguageLabels: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+    "ja-JP": {
+        "zh-Hans": "中国語 / Chinese / 中文",
+        en: "英語 / English",
+        ja: "日本語 / Japanese",
+        ko: "韓国語 / Korean / 한국어",
+        fr: "フランス語 / French / Français",
+        ru: "ロシア語 / Russian / Русский",
+        es: "スペイン語 / Spanish / Español",
+        de: "ドイツ語 / German / Deutsch",
+        pt: "ポルトガル語 / Portuguese / Português",
+        it: "イタリア語 / Italian / Italiano",
+    },
+    "ko-KR": {
+        "zh-Hans": "중국어 / Chinese / 中文",
+        en: "영어 / English",
+        ja: "일본어 / Japanese / 日本語",
+        ko: "한국어 / Korean",
+        fr: "프랑스어 / French / Français",
+        ru: "러시아어 / Russian / Русский",
+        es: "스페인어 / Spanish / Español",
+        de: "독일어 / German / Deutsch",
+        pt: "포르투갈어 / Portuguese / Português",
+        it: "이탈리아어 / Italian / Italiano",
+    },
+    "fr-FR": {
+        "zh-Hans": "chinois / Chinese / 中文",
+        en: "anglais / English",
+        ja: "japonais / Japanese / 日本語",
+        ko: "coréen / Korean / 한국어",
+        fr: "français / French",
+        ru: "russe / Russian / Русский",
+        es: "espagnol / Spanish / Español",
+        de: "allemand / German / Deutsch",
+        pt: "portugais / Portuguese / Português",
+        it: "italien / Italian / Italiano",
+    },
+    "ru-RU": {
+        "zh-Hans": "китайский / Chinese / 中文",
+        en: "английский / English",
+        ja: "японский / Japanese / 日本語",
+        ko: "корейский / Korean / 한국어",
+        fr: "французский / French / Français",
+        ru: "русский / Russian",
+        es: "испанский / Spanish / Español",
+        de: "немецкий / German / Deutsch",
+        pt: "португальский / Portuguese / Português",
+        it: "итальянский / Italian / Italiano",
+    },
+    "es-ES": {
+        "zh-Hans": "Chino / Chinese / 中文",
+        en: "Inglés / English",
+        ja: "Japonés / Japanese / 日本語",
+        ko: "Coreano / Korean / 한국어",
+        fr: "Francés / French / Français",
+        ru: "Ruso / Russian / Русский",
+        es: "Español / Spanish",
+        de: "Alemán / German / Deutsch",
+        pt: "Portugués / Portuguese / Português",
+        it: "Italiano / Italian",
+    },
+};
+
+const targetLanguageLabelsByUiLanguage: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+    "zh-CN": multilingualTargetLanguageLabels,
+    "en-US": englishTargetLanguageLabels,
+    ...localizedTargetLanguageLabels,
+};
+
+export function getMultilingualTargetLanguageLabel(value: string, fallback = value, uiLanguage = "zh-CN"): string {
+    const labels = targetLanguageLabelsByUiLanguage[uiLanguage] || multilingualTargetLanguageLabels;
+    return labels[value] || fallback;
+}
+
 export const defaultOption = {
     on: true,
+    uiLanguage: "zh-CN" as const,
     from: "auto",
     to: "zh-Hans",
     style: 1,

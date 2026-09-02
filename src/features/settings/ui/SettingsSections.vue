@@ -7,17 +7,10 @@
 <template>
   <section v-show="props.activeSection === 'settings-general'" id="settings-general" class="settings-section">
     <SettingsGroup>
-      <SettingsItem
-        label="插件状态"
-        :description="config.on ? '网页翻译和快捷功能正在运行。' : '当前已暂停，其他偏好仍可继续调整。'"
-      >
+      <SettingsItem label="插件状态" :description="config.on ? '网页翻译和快捷功能正在运行。' : '当前已暂停，其他偏好仍可继续调整。'">
         <el-switch v-model="config.on" class="settings-switch" aria-label="插件状态" @change="handlePluginStateChange" />
       </SettingsItem>
-      <SettingsItem label="默认目标语言" description="网页、划词和悬停翻译默认翻译成的语言。">
-        <el-select v-model="config.to" aria-label="默认目标语言" placeholder="请选择目标语言">
-          <el-option v-for="item in options.to" :key="item.value" class="select-left" :label="item.label" :value="item.value" />
-        </el-select>
-      </SettingsItem>
+      <SettingsItem :label="t('settings.general.language')" :description="t('language.settingsDescription')"><UiLanguageSelector compact /></SettingsItem>
       <SettingsItem label="界面主题" description="只影响扩展界面，不会改变网页本身的配色。">
         <SegmentedControl v-model="config.theme" :options="options.theme" label="界面主题" />
       </SettingsItem>
@@ -220,7 +213,7 @@
     </section>
 
     <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
-    <SettingsGroup title="划词翻译" description="选择文字后的展示内容、触发方式和等待时间。">
+    <SettingsGroup title="划词翻译" description="选中文字后的展示内容、触发方式和等待时间。">
     <!-- 划词翻译模式选择 -->
     <el-row class="settings-control-row">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
@@ -320,6 +313,11 @@
 
     <section v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation">
       <SettingsGroup title="译文显示" description="设置网页翻译后的内容形式和双语译文样式。">
+        <SettingsItem :label="t('settings.general.defaultTargetLanguage')" :description="t('settings.general.defaultTargetLanguageDescription')">
+          <el-select v-model="config.to" :aria-label="t('settings.general.defaultTargetLanguage')" :placeholder="t('settings.general.targetLanguagePlaceholder')">
+            <el-option v-for="item in options.to" :key="item.value" data-i18n-ignore class="select-left" :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" :value="item.value" />
+          </el-select>
+        </SettingsItem>
         <SettingsItem label="翻译模式" description="双语对照保留原文，仅译文模式会替换原文显示。">
           <SegmentedControl v-model="config.display" :options="options.display" label="翻译模式" />
         </SettingsItem>
@@ -330,8 +328,8 @@
             </el-option-group>
           </el-select>
         </SettingsItem>
-        <SettingsItem v-show="config.display === 1" label="双语逐句高亮" description="开启后，鼠标悬停在原文或译文上会同步高亮对应的双语段落；仅双语模式生效。">
-          <el-switch v-model="config.bilingualSentenceHighlightEnabled" class="settings-toggle" aria-label="双语逐句高亮" />
+        <SettingsItem v-show="config.display === 1" :label="t('settings.general.bilingualSentenceHighlight')" :description="t('settings.general.bilingualSentenceHighlightDescription')">
+          <el-switch v-model="config.bilingualSentenceHighlightEnabled" class="settings-toggle" :aria-label="t('settings.general.bilingualSentenceHighlight')" />
         </SettingsItem>
         <div v-show="config.display === 1" class="style-preview-card" aria-live="polite">
           <div class="style-preview-example">
@@ -460,8 +458,8 @@
           </el-col>
           <el-col :span="12" class="settings-control-field">
             <el-select v-model="config.inputBoxTranslationTarget" aria-label="输入框翻译目标语言" placeholder="请选择目标语言">
-              <el-option class="select-left" v-for="item in options.inputBoxTranslationTarget" :key="item.value" 
-                         :label="item.label" :value="item.value" />
+              <el-option class="select-left" data-i18n-ignore v-for="item in options.inputBoxTranslationTarget" :key="item.value"
+                         :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" :value="item.value" />
             </el-select>
           </el-col>
         </el-row>
@@ -558,7 +556,7 @@
               </el-tooltip>
             </div>
             <div class="settings-control-field">
-              <div class="scheduler-number-field" data-unit="次">
+              <div class="scheduler-number-field">
                 <el-input-number
                   v-model="config.translationRequestsPerSecond"
                   aria-label="每秒最多请求数"
@@ -578,7 +576,7 @@
               </el-tooltip>
             </div>
             <div class="settings-control-field">
-              <div class="scheduler-number-field" data-unit="次">
+              <div class="scheduler-number-field">
                 <el-input-number
                   v-model="config.translationRequestsPerMinute"
                   aria-label="每分钟最多请求数"
@@ -598,7 +596,7 @@
               </el-tooltip>
             </div>
             <div class="settings-control-field">
-              <div class="scheduler-number-field" data-unit="次">
+              <div class="scheduler-number-field">
                 <el-input-number
                   v-model="config.translationMaxRetries"
                   aria-label="失败后最多重试"
@@ -696,7 +694,7 @@
 
 // Main 处理配置信息
 import { computed, ref, watch, onUnmounted } from 'vue'
-import { customModelString, defaultOption, models, options, services, servicesType } from '@/src/core/config/catalog';
+import { customModelString, defaultOption, getMultilingualTargetLanguageLabel, models, options, services, servicesType } from '@/src/core/config/catalog';
 import {
   createNextCustomOpenAIProviderId,
   getCustomOpenAIProvider,
@@ -752,6 +750,7 @@ import {isBrowserTabId} from '@/src/platform/browser/ids';
 import { defineAsyncComponent } from 'vue';
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'));
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
+import UiLanguageSelector from '@/src/ui/components/UiLanguageSelector.vue';
 import ServiceCatalog from './services/ServiceCatalog.vue';
 import ServiceConfiguration from './services/ServiceConfiguration.vue';
 import CustomOpenAIProviderDialog from './services/CustomOpenAIProviderDialog.vue';
@@ -771,6 +770,7 @@ import InterfaceSettings from './InterfaceSettings.vue';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
 import SegmentedControl from './components/SegmentedControl.vue';
+import {localizeServiceOptions, useUiI18n} from '@/src/ui/i18n';
 import ConfigManagement from './ConfigManagement.vue';
 import {
   config as runtimeConfig,
@@ -789,6 +789,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   activeSection: 'settings-general',
 })
+const {language, t, translateLegacy} = useUiI18n();
 
 // 初始化深色模式媒体查询
 const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -804,12 +805,12 @@ function updateTheme(theme: string) {
 }
 // 配置信息
 const config = ref(new Config());
-const translationSchedulerEffect = computed(() => {
-  const current = config.value;
-  const requestLimit = (value: number, period: string) => value === 0 ? `${period}不限速` : `${period}最多 ${value} 次`;
-  const duration = (value: number) => value >= 1000 && value % 1000 === 0 ? `${value / 1000} 秒` : `${value} ms`;
-  return `最多同时处理 ${current.maxConcurrentTranslations} 个翻译任务，${requestLimit(current.translationRequestsPerSecond, '每秒')}、${requestLimit(current.translationRequestsPerMinute, '每分钟')}；失败后最多重试 ${current.translationMaxRetries} 次，退避从 ${duration(current.translationBackoffBaseMs)} 逐步增加到最多 ${duration(current.translationBackoffMaxMs)}。`;
-});
+const translationLimit = (value: number) => value === 0 ? '∞' : value;
+const translationDuration = (value: number) => value >= 1000 && value % 1000 === 0 ? `${value / 1000} s` : `${value} ms`;
+const translationSchedulerEffect = computed(() => t('settings.advanced.schedulerSummary', {
+  concurrency: config.value.maxConcurrentTranslations, perSecond: translationLimit(config.value.translationRequestsPerSecond),
+  perMinute: translationLimit(config.value.translationRequestsPerMinute), retries: config.value.translationMaxRetries,
+  baseDelay: translationDuration(config.value.translationBackoffBaseMs), maxDelay: translationDuration(config.value.translationBackoffMaxMs), }));
 
 const customProviderDialogOpen = ref(false);
 const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
@@ -895,13 +896,11 @@ const setConfigurationService = (value: string) => {
 
 type ServiceSource = { value: string };
 
-const serviceOptionsWithCustomProviders = computed(() => withCustomOpenAIServiceOptions(
-  options.services,
+const serviceOptionsWithCustomProviders = computed(() => localizeServiceOptions(
+  withCustomOpenAIServiceOptions(options.services, config.value.customOpenAIProviders),
   config.value.customOpenAIProviders,
-).map((option) => {
-  const provider = getCustomOpenAIProvider(config.value.customOpenAIProviders, option.value);
-  return provider ? {...option, searchTerms: [provider.endpoint, ...provider.models]} : option;
-}));
+  translateLegacy,
+));
 const availableServiceOptions = computed(() => filterAvailableTranslationServices(serviceOptionsWithCustomProviders.value));
 const defaultTextServiceLabel = computed(() => (
   serviceOptionsWithCustomProviders.value.find((item: any) => item.value === config.value.service)?.label || config.value.service
@@ -915,7 +914,7 @@ const fullPageTranslationModeOptions = [
   {value: 'all', label: '翻译到页底'},
 ];
 const selectionTranslatorModeOptions = [
-  {value: 'disabled', label: '关闭'},
+  {value: 'disabled', label: '已关闭'},
   {value: 'bilingual', label: '双语'},
   {value: 'translation-only', label: '仅译文'},
 ];

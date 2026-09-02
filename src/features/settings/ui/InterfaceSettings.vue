@@ -6,14 +6,14 @@
 -->
 <template>
   <SettingsGroup
-    title="界面与弹窗"
-    description="保留熟悉的默认界面，或切换到更轻量的简约界面；也可以只留下常用栏目。"
+    :title="translateLegacy('界面与弹窗')"
+    :description="translateLegacy('保留熟悉的默认界面，或切换到更轻量的简约界面；也可以只留下常用栏目。')"
   >
     <SettingsItem
-      label="弹窗风格"
-      description="风格只改变扩展界面的呈现，不影响网页翻译效果。"
+      :label="translateLegacy('弹窗风格')"
+      :description="translateLegacy('风格只改变扩展界面的呈现，不影响网页翻译效果。')"
     >
-      <div class="interface-skin-picker" role="radiogroup" aria-label="弹窗风格">
+      <div class="interface-skin-picker" role="radiogroup" :aria-label="translateLegacy('弹窗风格')">
         <button
           v-for="skin in interfaceSkinOptions"
           :key="skin.value"
@@ -22,7 +22,7 @@
           type="button"
           role="radio"
           :aria-checked="props.config.interfaceSkin === skin.value"
-          :aria-label="`${skin.label}：${skin.description}`"
+          :aria-label="`${translateLegacy(skin.label)}: ${translateLegacy(skin.description)}`"
           :data-skin="skin.value"
           @click="props.config.interfaceSkin = skin.value"
         >
@@ -30,8 +30,8 @@
             <i /><i /><i />
           </span>
           <span class="interface-skin-copy">
-            <strong>{{ skin.label }}</strong>
-            <small>{{ skin.description }}</small>
+            <strong>{{ translateLegacy(skin.label) }}</strong>
+            <small>{{ translateLegacy(skin.description) }}</small>
           </span>
           <span class="interface-skin-radio" aria-hidden="true"><i /></span>
         </button>
@@ -41,13 +41,13 @@
       <SettingsItem
         v-for="item in interfaceVisibilityOptions"
         :key="item.key"
-        :label="item.label"
-        :description="item.description"
+        :label="translateLegacy(item.label)"
+        :description="translateLegacy(item.description)"
       >
         <el-switch
           v-model="props.config.interfaceVisibility[item.key]"
           class="settings-toggle"
-          :aria-label="`显示${item.label}`"
+          :aria-label="translateLegacy(item.label)"
         />
       </SettingsItem>
   </SettingsGroup>
@@ -59,12 +59,14 @@ import {
   interfaceSkinOptions,
   interfaceVisibilityOptions,
 } from '@/src/core/config/interfaceAppearance'
+import {useUiI18n} from '@/src/ui/i18n'
 import SettingsGroup from './components/SettingsGroup.vue'
 import SettingsItem from './components/SettingsItem.vue'
 
 const props = defineProps<{
   config: Config
 }>()
+const {translateLegacy} = useUiI18n()
 </script>
 
 <style scoped>

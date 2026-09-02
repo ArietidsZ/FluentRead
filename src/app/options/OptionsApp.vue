@@ -9,11 +9,11 @@
     <aside class="sidebar">
       <div class="brand">
         <img src="/icon/128.png" alt="" />
-        <div><strong>流畅阅读</strong><small>FluentRead · V{{ version }}</small></div>
+        <div><strong>流畅阅读</strong></div>
       </div>
 
-      <nav ref="navigationElement" aria-label="设置分类">
-        <section v-for="group in navigationGroups" :key="group.label" class="nav-group">
+      <nav ref="navigationElement" :aria-label="t('options.navLabel')">
+        <section v-for="group in localizedNavigationGroups" :key="group.label" class="nav-group">
           <span class="nav-group-label">{{ group.label }}</span>
           <button
             v-for="item in group.items"
@@ -35,12 +35,13 @@
       <header class="topbar">
         <div>
           <h1>{{ activeItem.title }}</h1>
-          <p>{{ activeItem.detail }}</p>
         </div>
-        <label class="search-box">
-          <span aria-hidden="true">⌕</span>
-          <input v-model.trim="query" type="search" placeholder="搜索设置，例如：快捷键、缓存、OpenAI" />
-        </label>
+        <div class="topbar-tools">
+          <label class="search-box">
+            <span aria-hidden="true">⌕</span>
+            <input v-model.trim="query" type="search" :placeholder="t('options.searchPlaceholder')" />
+          </label>
+        </div>
       </header>
 
       <div v-if="query && filteredResults.length" class="search-results">
@@ -48,44 +49,44 @@
           <span><strong>{{ result.label }}</strong><small>{{ result.searchDescription }}</small></span><b>打开 →</b>
         </button>
       </div>
-      <div v-else-if="query" class="search-empty">没有找到“{{ query }}”相关设置</div>
+      <div v-else-if="query" class="search-empty">{{ t('options.searchEmpty', {query}) }}</div>
 
       <section class="settings-card" :class="{ 'services-view': activeSection === 'settings-services', 'translation-center-view': activeSection === 'settings-translation-center', 'vocabulary-view': activeSection === 'settings-vocabulary' }" :aria-label="activeItem.heading">
         <section v-if="activeSection === 'settings-about'" id="settings-about" class="about-page" aria-labelledby="about-title">
           <div class="about-hero">
             <img class="about-logo" src="/icon/128.png" alt="流畅阅读图标" />
             <div>
-              <h3 id="about-title">让双语阅读自然发生</h3>
-              <p>流畅阅读是一款开源浏览器翻译插件，帮助你在阅读网页时更自然地理解不同语言的内容。</p>
+              <h3 id="about-title">{{ t('options.aboutHeroTitle') }}</h3>
+              <p>{{ t('options.aboutHeroDescription') }}</p>
               <span class="about-version">FluentRead · V{{ version }}</span>
             </div>
           </div>
 
           <div class="about-grid">
             <article class="about-panel">
-              <span class="about-panel-kicker">核心体验</span>
-              <h3>为阅读而生</h3>
-              <p>从网页翻译到划词、悬浮与快捷键，把常用能力放在真正需要的位置。</p>
+              <span class="about-panel-kicker">{{ t('options.aboutCoreExperience') }}</span>
+              <h3>{{ t('options.aboutBornForReading') }}</h3>
+              <p>{{ t('options.aboutCoreDescription') }}</p>
               <div class="about-feature-list">
-                <span><b>译</b>网页双语阅读</span>
-                <span><b>⌘</b>顺手的阅读工具</span>
-                <span><b>AI</b>灵活的翻译服务</span>
+                <span><b>译</b>{{ t('options.aboutWebReading') }}</span>
+                <span><b>⌘</b>{{ t('options.aboutReadingTools') }}</span>
+                <span><b>AI</b>{{ t('options.aboutFlexibleServices') }}</span>
               </div>
             </article>
 
             <article class="about-panel about-links-panel">
-              <span class="about-panel-kicker">了解更多</span>
-              <h3>一起让它变得更好</h3>
-              <p>查看项目代码、使用文档，或反馈你在阅读中的想法。</p>
+              <span class="about-panel-kicker">{{ t('options.aboutLearnMore') }}</span>
+              <h3>{{ t('options.aboutMakeBetter') }}</h3>
+              <p>{{ t('options.aboutLinksDescription') }}</p>
               <div class="about-links">
-                <a href="https://github.com/Bistutu/FluentRead" target="_blank" rel="noreferrer">开源项目 <span>↗</span></a>
-                <a href="https://fluent.thinkstu.com/" target="_blank" rel="noreferrer">使用文档 <span>↗</span></a>
-                <a href="https://github.com/Bistutu/FluentRead/issues" target="_blank" rel="noreferrer">问题反馈 <span>↗</span></a>
+                <a href="https://github.com/Bistutu/FluentRead" target="_blank" rel="noreferrer">{{ t('options.aboutProject') }} <span>↗</span></a>
+                <a href="https://fluent.thinkstu.com/" target="_blank" rel="noreferrer">{{ t('options.aboutDocs') }} <span>↗</span></a>
+                <a href="https://github.com/Bistutu/FluentRead/issues" target="_blank" rel="noreferrer">{{ t('options.aboutFeedback') }} <span>↗</span></a>
               </div>
             </article>
           </div>
 
-          <p class="about-footer">感谢你使用流畅阅读。</p>
+          <p class="about-footer">{{ t('options.aboutThanks') }}</p>
         </section>
         <VocabularyBook v-else-if="activeSection === 'settings-vocabulary'" @navigate="selectSection" />
         <SettingsSections v-else :active-section="activeSection" />
@@ -99,8 +100,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import SettingsSections from '@/src/features/settings/ui/SettingsSections.vue'
 import VocabularyBook from '@/src/features/vocabulary/ui/VocabularyBook.vue'
+import {useUiI18n} from '@/src/ui/i18n'
 import {
-  filterNavigationItems,
   navigationGroups,
   navigationItems,
   resolveNavigationItem,
@@ -114,13 +115,31 @@ import {
 import {applyInterfaceSkin} from '@/src/ui/interfaceAppearance'
 
 const version = process.env.VUE_APP_VERSION
+const {t, translateLegacy} = useUiI18n()
 const query = ref('')
 const activeSection = ref('settings-general')
 const navigationElement = ref<HTMLElement | null>(null)
 const mobileNavigationMedia = window.matchMedia('(max-width: 700px)')
 
 const navigation = navigationItems
-const activeItem = computed(() => resolveNavigationItem(activeSection.value))
+const localizedNavigationGroups = computed(() => navigationGroups.map((group) => ({
+  ...group,
+  label: translateLegacy(group.label),
+  items: group.items.map((item) => ({
+    ...item,
+    label: translateLegacy(item.label),
+    description: translateLegacy(item.description),
+    heading: translateLegacy(item.heading),
+    summary: translateLegacy(item.summary),
+    kicker: translateLegacy(item.kicker),
+    title: translateLegacy(item.title),
+    detail: translateLegacy(item.detail),
+    searchDescription: translateLegacy(item.searchDescription),
+  })),
+})))
+const localizedNavigationItems = computed(() => localizedNavigationGroups.value.flatMap((group) => group.items))
+const activeItem = computed(() => localizedNavigationItems.value.find((item) => item.id === resolveNavigationItem(activeSection.value).id)
+  || localizedNavigationItems.value[0])
 const unsubscribeInterfaceConfig = subscribeConfig((nextConfig) => {
   applyInterfaceSkin(nextConfig.interfaceSkin)
 })
@@ -130,7 +149,13 @@ void configReady
   .catch(() => applyInterfaceSkin('default'))
 
 const filteredResults = computed(() => {
-  return filterNavigationItems(query.value)
+  const keyword = query.value.trim().toLocaleLowerCase()
+  if (!keyword) return []
+  return localizedNavigationItems.value.filter((item) => (
+    `${item.label}${item.description}${item.heading}${item.summary}${item.searchDescription}`
+      .toLocaleLowerCase()
+      .includes(keyword)
+  ))
 })
 
 function selectSection(id: string) {

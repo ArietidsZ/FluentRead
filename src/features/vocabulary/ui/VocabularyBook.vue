@@ -169,6 +169,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import {ElMessageBox} from 'element-plus';
 import browser from 'webextension-polyfill';
+import {normalizeUiLanguage, translateLegacyText} from '@/src/core/i18n';
 import {
   config as runtimeConfig,
   configReady,
@@ -467,7 +468,10 @@ async function relearn(entry: VocabularyEntry): Promise<void> {
 }
 
 async function removeEntry(entry: VocabularyEntry): Promise<void> {
-  if (actionBusy.value || !window.confirm(`确认删除“${entry.term}”及其复习记录吗？`)) return;
+  if (actionBusy.value || !window.confirm(translateLegacyText(
+    `确认删除“${entry.term}”及其复习记录吗？`,
+    normalizeUiLanguage(runtimeConfig.uiLanguage),
+  ))) return;
   actionBusy.value = true;
   try {
     const snapshot = await requestVocabulary<VocabularyRemovalSnapshot | null>({

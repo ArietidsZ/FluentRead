@@ -23,6 +23,7 @@ export const CONFIG_NON_RESTORABLE_FIELDS = [
     'count',
     'persistCredentials',
     'videoServiceDefaultMigrated',
+    'uiLanguageSetupCompleted',
 ] as const;
 
 export type ConfigNonRestorableField = typeof CONFIG_NON_RESTORABLE_FIELDS[number];
@@ -71,6 +72,7 @@ export function restoreRestorableConfig(value: unknown, currentValue: unknown): 
         ...toRestorableConfig(value),
         count: current.count,
         videoServiceDefaultMigrated: current.videoServiceDefaultMigrated,
+        uiLanguageSetupCompleted: current.uiLanguageSetupCompleted,
     });
     const credentials = dropCredentialsForChangedDestinations(
         extractConfigCredentials(current),

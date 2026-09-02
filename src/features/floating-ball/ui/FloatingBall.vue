@@ -6,6 +6,7 @@
  -->
 <template>
   <div
+    v-ui-i18n
     ref="floatingBall"
     class="fr-floating-ball"
     :class="{

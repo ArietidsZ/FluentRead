@@ -62,6 +62,7 @@ import {computed, onMounted, ref} from 'vue';
 import browser from 'webextension-polyfill';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import {configStorage} from '@/src/platform/storage/configStorageRuntime';
+import {useUiI18n} from '@/src/ui/i18n';
 import {
   IMAGE_OCR_LANGUAGE_PACKS,
   IMAGE_OCR_LANGUAGE_STATE_KEY,
@@ -70,7 +71,11 @@ import {
   type ImageOcrLanguageCode,
 } from '../ocrLanguages';
 
-const languagePacks = IMAGE_OCR_LANGUAGE_PACKS;
+const {translateLegacy} = useUiI18n();
+const languagePacks = computed(() => IMAGE_OCR_LANGUAGE_PACKS.map(pack => ({
+  ...pack,
+  label: translateLegacy(pack.label),
+})));
 const recommendedCodes = IMAGE_OCR_RECOMMENDED_LANGUAGES;
 const downloadedCodes = ref<ImageOcrLanguageCode[]>([]);
 const downloadingCodes = ref<ImageOcrLanguageCode[]>([]);
