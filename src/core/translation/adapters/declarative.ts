@@ -10,6 +10,7 @@ import {safeClosest, safeMatches} from '../dom';
 import type {
     AdapterContext,
     AdapterDecision,
+    TranslationGenericCandidatePolicy,
     TranslationCandidateKind,
     TranslationSiteAdapter,
 } from '../types';
@@ -36,6 +37,7 @@ export interface DeclarativeHostRule {
 export interface DeclarativeSiteAdapterDefinition {
     id: string;
     priority?: number;
+    genericCandidatePolicy?: TranslationGenericCandidatePolicy;
     hosts: readonly (string | DeclarativeHostRule)[];
     pathnames?: readonly RegExp[];
     targets?: readonly DeclarativeTargetRule[];
@@ -124,6 +126,7 @@ export function createDeclarativeAdapter(
     return {
         id: definition.id,
         priority: definition.priority,
+        genericCandidatePolicy: definition.genericCandidatePolicy,
         matches(url: URL): boolean {
             return definition.hosts.some((host) => matchesHost(url, host)) &&
                 matchesPathname(url.pathname, definition.pathnames);

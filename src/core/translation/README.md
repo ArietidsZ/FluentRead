@@ -33,6 +33,11 @@ adapter targets and cannot be reopened. Adapters are sorted by priority, while
 registration order is stable for ties. Invalid selectors only invalidate that
 match and never abort the page scan.
 
+An adapter may set `genericCandidatePolicy` to `targets-only` when a site has a
+large application shell and a stable content allowlist. This disables generic
+block and inline-run fallbacks for that matched site while preserving explicit
+`force-target` decisions for both hover and full-page translation.
+
 Every accepted candidate includes a reason and optional adapter id. This keeps
 hover/full equality and adapter precedence directly testable without starting a
 browser. Open Shadow DOM is traversed through the same policy.

@@ -213,6 +213,14 @@ export class TranslationCandidateCore {
         return result;
     }
 
+    /**
+     * 站点可以选择只翻译自己明确声明的 target。该策略只收紧通用回退，
+     * 不会阻止适配器返回的 force-target，因此全文与悬浮仍共享同一白名单。
+     */
+    private allowsGenericCandidates(): boolean {
+        return !this.adapters.some((adapter) => adapter.genericCandidatePolicy === 'targets-only');
+    }
+
     shouldStayOriginal = (element: Element): boolean => this.adapters.some((adapter) => {
         try {
             return adapter.shouldStayOriginal?.(element, this.context) === true;
@@ -412,6 +420,10 @@ export class TranslationCandidateCore {
             return {candidate};
         }
 
+        if (!this.allowsGenericCandidates()) {
+            return {candidate: null};
+        }
+
         if (evaluationContext &&
             this.hasStructuralAncestorForResolution(element, evaluationContext) &&
             !isSemanticHeadingElement(element)) {
@@ -443,6 +455,7 @@ export class TranslationCandidateCore {
         candidateChildBarriers?: ReadonlySet<Element>,
         evaluationContext?: ResolutionEvaluationContext,
     ): TranslationCandidate[] {
+        if (!this.allowsGenericCandidates()) return [];
         const candidates: TranslationCandidate[] = [];
         const atomicTargetCache = new WeakMap<Element, boolean>();
         const protectionOptions = evaluationContext?.textProtectionOptions;
@@ -495,6 +508,7 @@ export class TranslationCandidateCore {
         insideStructural: boolean,
         textProtectionCache: TranslationTextProtectionCache,
     ): TranslationCandidate | null {
+        if (!this.allowsGenericCandidates()) return null;
         if (insideStructural && !isSemanticHeadingElement(element)) return null;
         const classification = classifyGenericCandidate(
             element,
