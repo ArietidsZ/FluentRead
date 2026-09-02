@@ -757,12 +757,25 @@ async function main() {
     if (await interfacePopup.locator('main[data-interface-skin="plain"]').count() !== 1) {
       throw new Error('Popup 重开后没有应用朴素皮肤');
     }
+    const popupMetrics = await interfacePopup.locator('.popup-shell').evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      return {
+        shellHeight: rect.height,
+        shellBottom: rect.bottom,
+        bodyMinHeight: getComputedStyle(document.body).minHeight,
+        appMinHeight: getComputedStyle(document.querySelector('#app')).minHeight,
+      };
+    });
+    if (popupMetrics.shellHeight >= 560) {
+      throw new Error(`隐藏 Popup 栏目后空白区域没有随内容收缩：${JSON.stringify(popupMetrics)}`);
+    }
     report.screenshots.push(await screenshot(interfacePopup, 'popup-interface-plain-hidden-sections.png'));
     await interfacePopup.close();
     report.informationArchitecture.interfaceSettings = {
       skinOptions: ['default', 'minimal', 'plain', 'compact', 'soft'],
       selectedSkin: 'plain',
       hiddenSections: ['popupQuickFeatures', 'popupFooter'],
+      popupMetrics,
       popupRoundTrip: true,
     };
     report.assertions.interfaceSettings = true;

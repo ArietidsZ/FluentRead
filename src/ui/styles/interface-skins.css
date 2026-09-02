@@ -9,3 +9,11 @@
 @import './interface-skins/plain.css';
 @import './interface-skins/compact.css';
 @import './interface-skins/soft.css';
+
+/* 非默认皮肤按 Popup 实际可见内容决定高度；默认风格保留原有固定高度。 */
+:root[data-interface-skin]:not([data-interface-skin="default"]) body.popup-page,
+:root[data-interface-skin]:not([data-interface-skin="default"]) body.popup-page #app,
+:root[data-interface-skin]:not([data-interface-skin="default"]) body.popup-page .popup-shell {
+  min-height: 0;
+  height: auto;
+}
