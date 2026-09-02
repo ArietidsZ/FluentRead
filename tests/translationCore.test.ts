@@ -51,6 +51,7 @@ import {
     readCachedFlagOr,
 } from '@/src/core/translation/internal';
 import {bilibiliAdapter} from '@/src/core/translation/adapters/bilibili';
+import {redditAdapter} from '@/src/core/translation/adapters/reddit';
 
 function page(html: string, url = 'https://example.test/article') {
     const {document} = parseHTML(`<html><head></head><body>${html}</body></html>`);
@@ -937,6 +938,68 @@ describe('translation candidate core', () => {
             value: () => commentText,
         });
         expect(core.resolveAtPoint(document, 10, 20)).toBeNull();
+    });
+
+    it('limits Reddit to explicit post/comment targets and preserves navigation actions', () => {
+        const {document, core} = page(`
+            <header id="reddit-header">
+                <button id="open-menu" aria-label="Open menu">Open menu</button>
+                <a id="reddit-home" href="/">Go to Reddit Home</a>
+                <a id="community" href="/r/MiniMax_AI">r/MiniMax_AI</a>
+                <button id="open-chat">Open chat</button>
+                <button id="create-post">Create</button>
+                <button id="open-inbox">Open inbox</button>
+                <span id="advertise">Advertise on Reddit</span>
+            </header>
+            <main>
+                <shreddit-post id="post">
+                    <h1 id="post-title-t3_fixture">M3.1 has strong potential to be the most cost-efficient large model ahead</h1>
+                    <div slot="text-body">
+                        <p id="post-body">I have gone through the technical specifications and want to share my analysis here.</p>
+                        <ul><li id="post-list-item">The model uses sparse attention.</li></ul>
+                    </div>
+                    <div id="post-actions">
+                        <button id="share">Share</button>
+                        <button id="reply">Reply</button>
+                    </div>
+                </shreddit-post>
+                <shreddit-comment id="comment-host">
+                    <div slot="comment"><p id="comment-body">This is a useful comment.</p></div>
+                    <button id="comment-reply">Reply</button>
+                </shreddit-comment>
+                <p id="unscoped-copy">Open profile menu</p>
+            </main>
+        `, 'https://www.reddit.com/r/MiniMax_AI/comments/1v73a0r/m31_has_strong_potential_to_be_the_most/');
+        const title = document.querySelector('#post-title-t3_fixture')!;
+        const body = document.querySelector('#post-body')!;
+        const listItem = document.querySelector('#post-list-item')!;
+        const comment = document.querySelector('#comment-body')!;
+        const controls = ['open-menu', 'open-chat', 'create-post', 'open-inbox', 'share', 'reply', 'comment-reply']
+            .map((id) => document.querySelector(`#${id}`)!);
+
+        expect(redditAdapter.matches(new URL('https://www.reddit.com/r/MiniMax_AI/comments/1'))).toBe(true);
+        expect(redditAdapter.matches(new URL('https://example.test/article'))).toBe(false);
+
+        const candidates = core.discover(document);
+        expect(candidates.find((candidate) => candidate.element === title))
+            .toMatchObject({adapterId: 'reddit', reason: 'reddit-post-title'});
+        expect(candidates.find((candidate) => candidate.element === body))
+            .toMatchObject({adapterId: 'reddit', reason: 'reddit-post-prose'});
+        expect(candidates.find((candidate) => candidate.element === listItem))
+            .toMatchObject({adapterId: 'reddit', reason: 'reddit-post-prose'});
+        expect(candidates.find((candidate) => candidate.element === comment))
+            .toMatchObject({adapterId: 'reddit', reason: 'reddit-comment-prose'});
+        expect(candidates.some((candidate) => candidate.adapterId !== 'reddit')).toBe(false);
+
+        for (const control of controls) {
+            expect(core.resolve(control.firstChild)).toBeNull();
+            expect(core.shouldStayOriginal(control)).toBe(true);
+            expect(core.shouldIgnoreMutation(control)).toBe(true);
+        }
+        expect(core.resolve(document.querySelector('#reddit-home')?.firstChild)).toBeNull();
+        expect(core.resolve(document.querySelector('#community')?.firstChild)).toBeNull();
+        expect(core.resolve(document.querySelector('#advertise')?.firstChild)).toBeNull();
+        expect(core.resolve(document.querySelector('#unscoped-copy')?.firstChild)).toBeNull();
     });
 
     it('bounds cyclic Shadow DOM coordinate lookup without overflowing the call stack', () => {
