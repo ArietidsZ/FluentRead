@@ -59,6 +59,7 @@
       "tests/fullPageTranslationErrorMessage.test.ts",
       "tests/hoverTranslationContentFeature.test.ts",
       "tests/hotkey.test.ts",
+      "tests/contentHotkeyRuntime.test.ts",
       "tests/inputTranslationContentFeature.test.ts",
       "tests/mainWorldBridgeLifecycle.test.ts",
       "tests/customService.test.ts",

@@ -17,12 +17,14 @@ describe('host-page trust boundary', () => {
       source('src/features/input-translation/content/index.ts'),
     ].join('\n');
     const floatingBall = source('src/features/floating-ball/ui/FloatingBall.vue');
+    const hotkeyRuntime = source('src/app/content/hotkeyRuntime.ts');
 
     expect(existsSync(resolve(process.cwd(), 'entrypoints/utils/newApi.ts'))).toBe(false);
     expect(content).not.toContain('fluent:prefill');
     expect(content).not.toContain('fluentread-toggle-translation');
     expect(floatingBall).not.toContain('fluentread-toggle-translation');
-    expect(content).toContain('toggleFloatingBallTranslation()');
+    expect(hotkeyRuntime).not.toContain('toggleFloatingBallTranslation()');
+    expect(hotkeyRuntime).toContain('if (isFullPageTranslationActive()) restoreOriginalContent();');
   });
 
   it('rejects synthetic input before network and screenshot side effects', () => {
