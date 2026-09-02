@@ -31,6 +31,12 @@ import {
     appendBilingualTranslation,
     appendSingleTranslationSlots,
 } from '@/src/features/full-page-translation/content/renderer';
+import {
+    consumeOrphanedOwnerClassMutation,
+    isTextEquivalentHostReplacement,
+    normalizeOrphanedTranslationArtifacts,
+} from
+    '@/src/features/full-page-translation/content/orphanArtifacts';
 
 function openRouterFixture() {
     const {document} = parseHTML(`
@@ -197,6 +203,76 @@ function dynamicClampFixture() {
 }
 
 describe('translation truncation layout', () => {
+    it('清理以产物自身为 root 的直属孤儿，并忽略无 HTML owner 的 SVG 产物', async () => {
+        const {document} = parseHTML('<html><body></body></html>');
+
+        await withDocumentRealm(document, async () => {
+            const artifactClasses = [
+                'fluent-read-bilingual-content',
+                'fluent-read-loading',
+                'fluent-read-retry-wrapper',
+            ];
+            let detachedArtifact: HTMLElement | undefined;
+            artifactClasses.forEach((artifactClass, index) => {
+                const owner = document.createElement('p');
+                owner.className = `${index === 0 ? 'host-class ' : ''}fluent-read-bilingual fluent-read-failure`;
+                const artifact = document.createElement('span');
+                artifact.className = artifactClass;
+                artifact.setAttribute('data-fr-translation-owned', 'true');
+                owner.appendChild(artifact);
+                document.body.appendChild(owner);
+
+                normalizeOrphanedTranslationArtifacts(artifact);
+
+                expect(artifact.isConnected).toBe(false);
+                if (index === 0) expect(owner.className).toBe('host-class');
+                else expect(owner.hasAttribute('class')).toBe(false);
+                expect(consumeOrphanedOwnerClassMutation(owner)).toBe(true);
+                expect(consumeOrphanedOwnerClassMutation(owner)).toBe(false);
+                if (index === 0) detachedArtifact = artifact;
+            });
+
+            expect(() => normalizeOrphanedTranslationArtifacts(detachedArtifact!)).not.toThrow();
+
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('class', 'fluent-read-bilingual');
+            const svgArtifact = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            svgArtifact.setAttribute('class', 'fluent-read-bilingual-content');
+            svgArtifact.setAttribute('data-fr-translation-owned', 'true');
+            svg.appendChild(svgArtifact);
+            document.body.appendChild(svg);
+
+            normalizeOrphanedTranslationArtifacts(svgArtifact);
+
+            expect(svgArtifact.parentElement).toBe(svg);
+            expect(svg.getAttribute('class')).toBe('fluent-read-bilingual');
+        });
+    });
+
+    it('只把同文本 childList 替换识别为页面上下文不变的框架重挂', () => {
+        const {document} = parseHTML('<html><body></body></html>');
+        const source = document.createElement('p');
+        source.textContent = 'Same   source';
+        const clone = document.createElement('p');
+        clone.textContent = 'Same source';
+        const record = (type: MutationRecordType, added: Node[], removed: Node[]) => ({
+            type,
+            addedNodes: added as unknown as NodeList,
+            removedNodes: removed as unknown as NodeList,
+        } as MutationRecord);
+
+        expect(isTextEquivalentHostReplacement(record('childList', [clone], [source]))).toBe(false);
+        const artifact = document.createElement('span');
+        artifact.setAttribute('data-fr-translation-owned', 'true');
+        source.appendChild(artifact);
+        clone.appendChild(artifact.cloneNode(true));
+        expect(isTextEquivalentHostReplacement(record('childList', [clone], [source]))).toBe(true);
+        clone.textContent = 'Changed source';
+        expect(isTextEquivalentHostReplacement(record('childList', [clone], [source]))).toBe(false);
+        expect(isTextEquivalentHostReplacement(record('childList', [], [source]))).toBe(false);
+        expect(isTextEquivalentHostReplacement(record('attributes', [source], [source]))).toBe(false);
+    });
+
     it('finds the active OpenRouter-style ancestor but ignores ordinary overflow clipping', () => {
         const {clamp, ordinary, first} = openRouterFixture();
 
@@ -298,6 +374,43 @@ describe('translation truncation layout', () => {
                 Object.assign(config, previousConfig);
                 options.styles = previousStyles;
             }
+        });
+    });
+
+    it('双语 renderer 只替换直属 owned 孤儿 wrapper，并保留后代独立译文与非 owned 节点', async () => {
+        const {document} = parseHTML(`
+            <html><body>
+                <p id="owner" class="fluent-read-bilingual">
+                    Source text.
+                    <span id="direct-owned" class="fluent-read-bilingual-content"
+                        data-fr-translation-owned="true" translate="no">旧直属译文</span>
+                    <span id="direct-unowned" class="fluent-read-bilingual-content">宿主同名节点</span>
+                    <span id="nested-owner">
+                        <span id="nested-owned" class="fluent-read-bilingual-content"
+                            data-fr-translation-owned="true" translate="no">独立后代译文</span>
+                    </span>
+                </p>
+            </body></html>
+        `);
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        const directOwned = document.querySelector<HTMLElement>('#direct-owned')!;
+        const directUnowned = document.querySelector<HTMLElement>('#direct-unowned')!;
+        const nestedOwned = document.querySelector<HTMLElement>('#nested-owned')!;
+
+        await withDocumentRealm(document, async () => {
+            const wrapper = appendBilingualTranslation(owner, '新的直属译文');
+            const directOwnedWrappers = Array.from(owner.children).filter((child) =>
+                child.matches('.fluent-read-bilingual-content[data-fr-translation-owned="true"]'));
+
+            expect(directOwned.isConnected).toBe(false);
+            expect(directOwnedWrappers).toEqual([wrapper]);
+            expect(wrapper.textContent).toBe('新的直属译文');
+            expect(directUnowned.parentElement).toBe(owner);
+            expect(nestedOwned.isConnected).toBe(true);
+            expect(nestedOwned.textContent).toBe('独立后代译文');
+            expect(owner.querySelectorAll(
+                '.fluent-read-bilingual-content[data-fr-translation-owned="true"]',
+            )).toHaveLength(2);
         });
     });
 

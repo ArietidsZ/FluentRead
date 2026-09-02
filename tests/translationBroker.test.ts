@@ -288,7 +288,7 @@ describe('translation broker', () => {
         vi.restoreAllMocks();
     });
 
-    it('reuses persisted single cache entries and skips storing unchanged or empty results', async () => {
+    it('reuses persisted single cache entries, including successful unchanged results', async () => {
         mocks.service.mockResolvedValueOnce('共享译文');
         await expect(translateWithCache({origin: 'Readable source'})).resolves.toBe('共享译文');
         await expect(translateWithCache({origin: 'Readable source'})).resolves.toBe('共享译文');
@@ -301,6 +301,17 @@ describe('translation broker', () => {
         vi.clearAllMocks();
         mocks.service.mockResolvedValueOnce('Same');
         await expect(translateWithCache({origin: 'Same'})).resolves.toBe('Same');
+        await expect(translateWithCache({origin: 'Same'})).resolves.toBe('Same');
+        expect(mocks.service).toHaveBeenCalledOnce();
+        expect(mocks.cacheSet).toHaveBeenCalledWith(expect.any(String), 'Same');
+
+        await clearTranslationCache();
+        mocks.service.mockResolvedValueOnce('Same');
+        await expect(translateWithCache({origin: 'Same'})).resolves.toBe('Same');
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+
+        await clearTranslationCache();
+        vi.clearAllMocks();
         mocks.service.mockResolvedValueOnce('');
         await expect(translateWithCache({origin: 'Empty'})).resolves.toBe('');
 
@@ -856,6 +867,25 @@ describe('translation broker', () => {
             targetLanguage: 'zh-Hans',
         })).resolves.toEqual(['same-译文', 'other-译文']);
         expect(mocks.service).not.toHaveBeenCalled();
+    });
+
+    it('persists unchanged batch items so ambiguous target-language text is not translated again', async () => {
+        mocks.service.mockResolvedValueOnce(['中文', '英文译文']);
+
+        await expect(translateWithCache({
+            origin: ['中文', 'English source'],
+            sourceLanguage: 'auto',
+            targetLanguage: 'zh-Hans',
+        })).resolves.toEqual(['中文', '英文译文']);
+        await expect(translateWithCache({
+            origin: ['中文', 'English source'],
+            sourceLanguage: 'auto',
+            targetLanguage: 'zh-Hans',
+        })).resolves.toEqual(['中文', '英文译文']);
+
+        expect(mocks.service).toHaveBeenCalledOnce();
+        expect(mocks.cacheSet.mock.calls.map(([, value]) => value))
+            .toEqual(expect.arrayContaining(['中文', '英文译文']));
     });
 
     it('rejects invalid batch provider results and clears rejected pending batches', async () => {
@@ -1603,8 +1633,8 @@ describe('translation broker', () => {
         })).rejects.toMatchObject({code: 'AI_CONTEXT_LEAK_AFTER_RECOVERY'});
     });
 
-    it('不可复用但未泄漏的单条缓存重新走常规上下文恢复', async () => {
-        mocks.cacheGet.mockResolvedValueOnce('Stale source');
+    it('空白单条缓存重新走常规上下文恢复', async () => {
+        mocks.cacheGet.mockResolvedValueOnce('   ');
         mocks.service.mockResolvedValueOnce('新译文');
 
         await expect(translateWithCache({origin: 'Stale source'})).resolves.toBe('新译文');
@@ -2200,16 +2230,20 @@ describe('translation broker', () => {
         expect(mocks.service).toHaveBeenCalledOnce();
     });
 
-    it('单条缓存写超过宽限期会释放响应和 pending，迟到写仍被安全观察', async () => {
+    it('单条缓存写超过宽限期后复用待写值，clear 仍等待旧写并使其失效', async () => {
         vi.useFakeTimers();
         installBroker(undefined, Promise.resolve(), true, 25);
         const lateWrite = deferred<boolean>();
         mocks.cacheSet
-            .mockImplementationOnce(() => lateWrite.promise)
+            .mockImplementationOnce(async (key: string, value: string) => {
+                await lateWrite.promise;
+                mocks.cacheStore.set(key, value);
+                return true;
+            })
             .mockResolvedValueOnce(true);
         mocks.service
             .mockResolvedValueOnce('宽限期首译')
-            .mockResolvedValueOnce('释放后重试');
+            .mockResolvedValueOnce('清理后重译');
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
         let settled = false;
@@ -2226,8 +2260,11 @@ describe('translation broker', () => {
             expect.any(Error),
         );
 
-        await expect(translateWithCache({origin: 'Hung cache persistence'})).resolves.toBe('释放后重试');
-        expect(mocks.service).toHaveBeenCalledTimes(2);
+        await flushMicrotasks();
+        mocks.cacheGet.mockClear();
+        await expect(translateWithCache({origin: 'Hung cache persistence'})).resolves.toBe('宽限期首译');
+        expect(mocks.cacheGet).not.toHaveBeenCalled();
+        expect(mocks.service).toHaveBeenCalledOnce();
 
         const clearing = clearTranslationCache();
         await flushMicrotasks();
@@ -2235,6 +2272,76 @@ describe('translation broker', () => {
         lateWrite.resolve(true);
         await clearing;
         expect(mocks.cacheClear).toHaveBeenCalledOnce();
+        expect(mocks.cacheStore.size).toBe(0);
+
+        await expect(translateWithCache({origin: 'Hung cache persistence'})).resolves.toBe('清理后重译');
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+    });
+
+    it('批量缓存写超过宽限期后按 item key 复用待写值', async () => {
+        vi.useFakeTimers();
+        installBroker(undefined, Promise.resolve(), true, 25);
+        const lateWrites = deferred<boolean>();
+        vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        mocks.cacheSet.mockImplementation(async (key: string, value: string) => {
+            await lateWrites.promise;
+            mocks.cacheStore.set(key, value);
+            return true;
+        });
+        mocks.service.mockResolvedValueOnce(['待写 A', '待写 B']);
+
+        const first = translateWithCache({origin: ['Pending batch A', 'Pending batch B']});
+        await flushMicrotasks(100);
+        expect(mocks.cacheSet).toHaveBeenCalledTimes(2);
+        await vi.advanceTimersByTimeAsync(25);
+        await expect(first).resolves.toEqual(['待写 A', '待写 B']);
+
+        // 反转整批身份，确保本次不是 pendingBatches 的整批 Promise 复用，而是逐项命中待写值。
+        await flushMicrotasks();
+        mocks.cacheGet.mockClear();
+        await expect(translateWithCache({origin: ['Pending batch B', 'Pending batch A']}))
+            .resolves.toEqual(['待写 B', '待写 A']);
+        expect(mocks.cacheGet).not.toHaveBeenCalled();
+        expect(mocks.service).toHaveBeenCalledOnce();
+
+        const clearing = clearTranslationCache();
+        await flushMicrotasks();
+        expect(mocks.cacheClear).not.toHaveBeenCalled();
+        lateWrites.resolve(true);
+        await clearing;
+        expect(mocks.cacheClear).toHaveBeenCalledOnce();
+        expect(mocks.cacheStore.size).toBe(0);
+    });
+
+    it('迟到缓存写失败后移除待写值并允许重新请求 provider', async () => {
+        vi.useFakeTimers();
+        installBroker(undefined, Promise.resolve(), true, 25);
+        const lateFailure = deferred<boolean>();
+        const failure = new Error('late cache set failed');
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        mocks.cacheSet
+            .mockImplementationOnce(() => lateFailure.promise)
+            .mockResolvedValueOnce(true);
+        mocks.service
+            .mockResolvedValueOnce('失败前可复用译文')
+            .mockResolvedValueOnce('持久化失败后重译');
+
+        const first = translateWithCache({origin: 'Late failed persistence'});
+        await flushMicrotasks(100);
+        await vi.advanceTimersByTimeAsync(25);
+        await expect(first).resolves.toBe('失败前可复用译文');
+        await flushMicrotasks();
+        await expect(translateWithCache({origin: 'Late failed persistence'}))
+            .resolves.toBe('失败前可复用译文');
+        expect(mocks.service).toHaveBeenCalledOnce();
+
+        lateFailure.reject(failure);
+        await flushMicrotasks(100);
+        expect(warn).toHaveBeenCalledWith('[FluentRead] translation cache write failed:', failure);
+
+        await expect(translateWithCache({origin: 'Late failed persistence'}))
+            .resolves.toBe('持久化失败后重译');
+        expect(mocks.service).toHaveBeenCalledTimes(2);
     });
 
     it('批量缓存写全部完成前消息保持未完成，完成后整批可从缓存复用', async () => {
@@ -2597,6 +2704,51 @@ describe('translation broker', () => {
         expect(mocks.cacheSet).toHaveBeenCalledTimes(2);
     });
 
+    it('旧摘要在 clear 后才进入正文时，正文 pending 不得被新代请求复用', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.enableAIContext = true;
+        mocks.config.useCache = false;
+        const oldSummary = deferred<string>();
+        const oldBody = deferred<string>();
+        const freshSummary = deferred<string>();
+        const freshBody = deferred<string>();
+        let summaryCalls = 0;
+        let bodyCalls = 0;
+        mocks.service.mockImplementation((message: {summaryPrompt?: string}) => {
+            if (message.summaryPrompt) {
+                summaryCalls += 1;
+                return summaryCalls === 1 ? oldSummary.promise : freshSummary.promise;
+            }
+            bodyCalls += 1;
+            return bodyCalls === 1 ? oldBody.promise : freshBody.promise;
+        });
+        const message = {
+            origin: 'generation-sensitive-body',
+            pageContext: 'shared generation context',
+            useCache: false,
+        } as const;
+
+        const staleRequest = translateWithCache({...message});
+        await vi.waitFor(() => expect(summaryCalls).toBe(1));
+        await clearTranslationCache();
+
+        oldSummary.resolve('shared summary');
+        await vi.waitFor(() => expect(bodyCalls).toBe(1));
+
+        const freshRequest = translateWithCache({...message});
+        await vi.waitFor(() => expect(summaryCalls).toBe(2));
+        freshSummary.resolve('shared summary');
+        await vi.waitFor(() => expect(bodyCalls).toBe(2));
+
+        freshBody.resolve('新代正文译文');
+        await expect(freshRequest).resolves.toBe('新代正文译文');
+        oldBody.resolve('旧代正文译文');
+        await expect(staleRequest).resolves.toBe('旧代正文译文');
+        expect(mocks.service).toHaveBeenCalledTimes(4);
+        expect(mocks.cacheGet).not.toHaveBeenCalled();
+        expect(mocks.cacheSet).not.toHaveBeenCalled();
+    });
+
     it('清理会等待已经进入存储适配器的旧写入，再执行最终清库', async () => {
         let releaseWrite!: () => void;
         mocks.service.mockResolvedValueOnce('待清理译文');
@@ -2619,6 +2771,92 @@ describe('translation broker', () => {
         await clearing;
         expect(mocks.cacheClear).toHaveBeenCalledOnce();
         expect(mocks.cacheStore.size).toBe(0);
+    });
+
+    it('清理期间的新缓存请求等待所有连续 clear，随后读取、翻译并持久化新值', async () => {
+        const staleWrite = deferred<boolean>();
+        mocks.cacheSet.mockImplementationOnce(async (key: string, value: string) => {
+            await staleWrite.promise;
+            mocks.cacheStore.set(key, value);
+            return true;
+        });
+        mocks.service
+            .mockResolvedValueOnce('清理前旧译文')
+            .mockResolvedValueOnce('连续清理后新译文');
+
+        const staleRequest = translateWithCache({origin: 'clear-barrier-source'});
+        await vi.waitFor(() => expect(mocks.cacheSet).toHaveBeenCalledOnce());
+        const firstClear = clearTranslationCache();
+
+        mocks.cacheGet.mockClear();
+        const freshRequest = translateWithCache({origin: 'clear-barrier-source'});
+        await flushMicrotasks();
+        expect(mocks.cacheGet).not.toHaveBeenCalled();
+        expect(mocks.service).toHaveBeenCalledOnce();
+
+        // 请求已经在等待第一道屏障后再加入第二次 clear；不能从两次 clear
+        // 之间的短窗口继续执行。
+        const secondClear = clearTranslationCache();
+        await flushMicrotasks();
+        expect(mocks.cacheClear).not.toHaveBeenCalled();
+        expect(mocks.cacheGet).not.toHaveBeenCalled();
+
+        staleWrite.resolve(true);
+        await expect(staleRequest).resolves.toBe('清理前旧译文');
+        await Promise.all([firstClear, secondClear]);
+        await expect(freshRequest).resolves.toBe('连续清理后新译文');
+
+        expect(mocks.cacheClear).toHaveBeenCalledTimes(2);
+        expect(mocks.cacheGet).toHaveBeenCalledOnce();
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        expect(mocks.cacheSet).toHaveBeenCalledTimes(2);
+        await expect(translateWithCache({origin: 'clear-barrier-source'}))
+            .resolves.toBe('连续清理后新译文');
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+    });
+
+    it('等待 clear 屏障仍服从调用方取消和绝对 deadline', async () => {
+        vi.useFakeTimers();
+        installBroker(undefined, Promise.resolve(), true, 5_000);
+        const staleWrite = deferred<boolean>();
+        mocks.cacheSet.mockImplementationOnce(async (key: string, value: string) => {
+            await staleWrite.promise;
+            mocks.cacheStore.set(key, value);
+            return true;
+        });
+        mocks.service.mockResolvedValueOnce('占用清理屏障的旧译文');
+
+        const staleRequest = translateWithCache({origin: 'barrier-owner'});
+        await flushMicrotasks(100);
+        expect(mocks.cacheSet).toHaveBeenCalledOnce();
+        const clearing = clearTranslationCache();
+
+        const controller = new AbortController();
+        const aborted = translateWithCache(attachTranslationRequestControl({
+            origin: 'aborted-during-clear',
+        }, {
+            signal: controller.signal,
+            ownershipKey: 'clear-barrier-abort',
+        }));
+        const timedOut = translateWithCache({
+            origin: 'timed-out-during-clear',
+            requestTimeoutMs: 1_000,
+        });
+        const timedOutOutcome = timedOut.catch((error: unknown) => error);
+        await flushMicrotasks();
+        controller.abort();
+        await expect(aborted).rejects.toMatchObject({name: 'AbortError'});
+
+        await vi.advanceTimersByTimeAsync(1_000);
+        await expect(timedOutOutcome).resolves.toMatchObject({
+            name: 'TranslationProviderDeadlineError',
+        });
+        expect(mocks.service).toHaveBeenCalledOnce();
+
+        staleWrite.resolve(true);
+        await expect(staleRequest).resolves.toBe('占用清理屏障的旧译文');
+        await clearing;
+        expect(mocks.cacheClear).toHaveBeenCalledOnce();
     });
 
     it('records every cache identity input expected by the broker contract', async () => {

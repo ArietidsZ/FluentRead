@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
     },
     normalizeDelay: vi.fn((value: number | string) => Number(value)),
     autoTranslateEnglishPage: vi.fn(),
+    invalidateFullPageTranslationSessionCache: vi.fn(),
     isFullPageTranslationActive: vi.fn(),
     mountAreaTranslator: vi.fn(),
     mountFloatingBall: vi.fn(),
@@ -37,6 +38,7 @@ vi.mock('@/src/core/config/model', () => ({
 vi.mock('@/src/services/config/store', () => ({config: mocks.config}));
 vi.mock('@/src/app/content/features', () => ({
     autoTranslateEnglishPage: mocks.autoTranslateEnglishPage,
+    invalidateFullPageTranslationSessionCache: mocks.invalidateFullPageTranslationSessionCache,
     isFullPageTranslationActive: mocks.isFullPageTranslationActive,
     mountAreaTranslator: mocks.mountAreaTranslator,
     mountFloatingBall: mocks.mountFloatingBall,
@@ -146,6 +148,19 @@ describe('内容脚本 runtime 消息协议', () => {
         await Promise.resolve();
         await Promise.resolve();
         expect(respond).toHaveBeenLastCalledWith({status: 'failed'});
+    });
+
+    it('缓存清理广播在站点禁用时仍失效当前全文会话', async () => {
+        const {createContentRuntimeMessageHandler} = await import('@/src/app/content/messageRuntime');
+        const respond = vi.fn();
+        const handler = createContentRuntimeMessageHandler({} as never, {
+            isSiteDisabled: () => true,
+            updateSiteDisabled: vi.fn(async () => undefined),
+        });
+
+        expect(handler({type: 'translationCacheCleared'}, {}, respond)).toBe(true);
+        expect(mocks.invalidateFullPageTranslationSessionCache).toHaveBeenCalledOnce();
+        expect(respond).toHaveBeenCalledWith({status: 'success'});
     });
 
     it('站点禁用时只开放状态读取，并保留 tabId 菜单所需的真实字段', async () => {

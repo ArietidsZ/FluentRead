@@ -94,15 +94,47 @@ describe('translation cache persistence policy', () => {
     expect(getSpy).not.toHaveBeenCalled();
   });
 
-  it('loads cold IndexedDB hits, persists last access time, and promotes them to memory', async () => {
+  it('loads cold IndexedDB hits promptly, touches last access time, and promotes them to memory', async () => {
     await translationCacheDb.entries.put(record('cold', { lastAccessedAt: 1_000 }));
+    const actualUpdate = translationCacheDb.entries.update.bind(translationCacheDb.entries);
+    let releaseTouch!: () => void;
+    const touchGate = new Promise<void>((resolve) => {
+      releaseTouch = resolve;
+    });
+    const updateSpy = vi.spyOn(translationCacheDb.entries, 'update').mockImplementationOnce((
+      async (
+        key: string | TranslationCacheRecord,
+        changes: Parameters<typeof actualUpdate>[1],
+      ) => {
+        await touchGate;
+        return actualUpdate(key, changes);
+      }
+    ) as never);
 
     await expect(translationCache.get('cold', 5_000)).resolves.toBe('译文-cold');
-    await expect(translationCacheDb.entries.get('cold')).resolves.toMatchObject({ lastAccessedAt: 5_000 });
+    expect(updateSpy).toHaveBeenCalledWith('cold', { lastAccessedAt: 5_000 });
+    await expect(translationCacheDb.entries.get('cold')).resolves.toMatchObject({ lastAccessedAt: 1_000 });
+
+    releaseTouch();
+    await vi.waitFor(async () => {
+      await expect(translationCacheDb.entries.get('cold')).resolves.toMatchObject({ lastAccessedAt: 5_000 });
+    });
 
     const getSpy = vi.spyOn(translationCacheDb.entries, 'get');
     await expect(translationCache.get('cold', 6_000)).resolves.toBe('译文-cold');
     expect(getSpy).not.toHaveBeenCalled();
+  });
+
+  it('serves and promotes a cold hit even when the asynchronous LRU touch fails', async () => {
+    const failure = new Error('touch blocked');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await translationCacheDb.entries.put(record('cold-touch-failure'));
+    vi.spyOn(translationCacheDb.entries, 'update').mockRejectedValueOnce(failure);
+
+    await expect(translationCache.get('cold-touch-failure', 5_000)).resolves.toBe('译文-cold-touch-failure');
+    await vi.waitFor(() => {
+      expect(warn).toHaveBeenCalledWith('[FluentRead] translation cache read failed:', failure);
+    });
   });
 
   it('expires hot records by TTL and removes their persistent copy asynchronously', async () => {
@@ -226,6 +258,54 @@ describe('translation cache persistence policy', () => {
 
     await expect(translationCache.get('clear-me', 2_000)).resolves.toBeNull();
     await expect(translationCacheDb.entries.count()).resolves.toBe(0);
+  });
+
+  it('clear invalidates a deferred cold read without repopulating memory or IndexedDB', async () => {
+    const staleRecord = record('clear-cold-race', { lastAccessedAt: 1_000 });
+    await translationCacheDb.entries.put(staleRecord);
+    let resolveRead!: (value: TranslationCacheRecord) => void;
+    const deferredRead = new Promise<TranslationCacheRecord>((resolve) => {
+      resolveRead = resolve;
+    });
+    const getSpy = vi.spyOn(translationCacheDb.entries, 'get')
+      .mockReturnValueOnce(deferredRead as never);
+
+    const read = translationCache.get('clear-cold-race', 5_000);
+    await vi.waitFor(() => {
+      expect(getSpy).toHaveBeenCalledWith('clear-cold-race');
+    });
+
+    await translationCache.clear();
+    resolveRead(staleRecord);
+
+    await expect(read).resolves.toBeNull();
+    await expect(translationCacheDb.entries.count()).resolves.toBe(0);
+    await expect(translationCache.get('clear-cold-race', 6_000)).resolves.toBeNull();
+    expect(getSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('clear invalidates a write that entered the old epoch before its transaction starts', async () => {
+    let releaseTransaction!: () => void;
+    const transactionGate = new Promise<void>((resolve) => {
+      releaseTransaction = resolve;
+    });
+    const transactionSpy = vi.spyOn(translationCacheDb, 'transaction').mockImplementationOnce((
+      async (...args: unknown[]) => {
+        await transactionGate;
+        const scope = args.at(-1) as () => unknown;
+        return scope();
+      }
+    ) as never);
+
+    const staleWrite = translationCache.set('clear-write-race', '旧代译文', 5_000);
+    await vi.waitFor(() => expect(transactionSpy).toHaveBeenCalledOnce());
+
+    await translationCache.clear();
+    releaseTransaction();
+
+    await expect(staleWrite).resolves.toBe(false);
+    await expect(translationCacheDb.entries.get('clear-write-race')).resolves.toBeUndefined();
+    await expect(translationCache.get('clear-write-race', 6_000)).resolves.toBeNull();
   });
 
   it('clear rethrows IndexedDB failures after clearing memory', async () => {

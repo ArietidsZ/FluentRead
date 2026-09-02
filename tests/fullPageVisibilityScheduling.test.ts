@@ -40,6 +40,7 @@ const runtime = vi.hoisted(() => ({
         maxConcurrentTranslations: 3,
     },
     ensureTranslationTruncationLayout: vi.fn(() => true),
+    clearlyTargetLanguage: vi.fn<(value: string, targetLanguage: string) => boolean>(() => false),
 }));
 
 vi.mock("@/src/app/translation/check", () => ({checkConfig: () => true}));
@@ -83,6 +84,7 @@ vi.mock("@/src/services/translation/queue", () => ({
 vi.mock('@/src/features/full-page-translation/ui/translationIndicators', () => ({
     insertLoadingSpinner: (node: HTMLElement) => {
         const spinner = node.ownerDocument.createElement("span");
+        spinner.className = "fluent-read-loading";
         spinner.setAttribute("data-fr-translation-owned", "true");
         node.appendChild(spinner);
         return spinner;
@@ -113,6 +115,7 @@ vi.mock("@/src/features/full-page-translation/content/renderer", () => ({
     }),
     appendBilingualTranslation: (node: HTMLElement, text: string, options: Record<string, unknown> = {}) => {
         runtime.renderOptions.push(options);
+        node.classList.add("fluent-read-bilingual");
         const wrapper = node.ownerDocument.createElement("span");
         wrapper.className = "fluent-read-bilingual-content";
         wrapper.setAttribute("data-fr-translation-owned", "true");
@@ -196,7 +199,8 @@ vi.mock("@/src/core/translation/public", () => {
         getOpenShadowRoots: () => [],
         getTranslationCandidateKey: (candidate: {element: HTMLElement; nodes?: readonly Node[]}) =>
             candidate.nodes?.[0] ?? candidate.element,
-        isClearlyTargetLanguage: () => false,
+        isClearlyTargetLanguage: (value: string, targetLanguage: string) =>
+            runtime.clearlyTargetLanguage(value, targetLanguage),
         parseTranslationSlots: () => runtime.parsedSlots,
         resolveTranslationCandidate: (start: Node | null | undefined) =>
             [...runtime.candidates].reverse().find((candidate) => candidate.element === start),
@@ -230,9 +234,16 @@ import {
 } from '@/src/features/full-page-translation/progress';
 import {
     captureFullPageTranslationConfig,
+    clearFullPageTranslationRequestCache,
     translateTextSlots,
     type FullPageTranslationConfigSnapshot,
 } from '@/src/features/full-page-translation/content/translationRequest';
+import {
+    createFullPageRequestSessionState,
+    invalidateContextSensitiveRequestCache,
+    invalidateFullPageRequestSessionCache,
+} from '@/src/features/full-page-translation/content/requestSession';
+import type {TranslationQueueSession} from '@/src/services/translation/queue';
 
 function singleTranslationText(owner: HTMLElement): string {
     return Array.from(owner.querySelectorAll<HTMLElement>('.fluent-read-single-slot'))
@@ -369,6 +380,8 @@ describe("全文翻译可见性锚点", () => {
         runtime.config.fullPageTranslationMode = "viewport";
         runtime.config.maxConcurrentTranslations = 3;
         runtime.ensureTranslationTruncationLayout.mockClear();
+        runtime.clearlyTargetLanguage.mockReset();
+        runtime.clearlyTargetLanguage.mockReturnValue(false);
         TestIntersectionObserver.instances = [];
         TestMutationObserver.instances = [];
 
@@ -489,6 +502,52 @@ describe("全文翻译可见性锚点", () => {
             sourceLanguage: 'auto',
         }));
         expect(runtime.requestOptions[0]).not.toHaveProperty('sourceLanguageDetectionText');
+    });
+
+    it('文本槽在请求前保留目标语言与非文字内容，并按原索引回填译文', async () => {
+        runtime.clearlyTargetLanguage.mockImplementation((value) =>
+            value === '中文' || value === '≡' || value === '8');
+        const snapshot = translationSnapshot({service: 'freeTranslation'});
+        const session = {active: true, translationSlotCache: new Map()};
+
+        await expect(translateTextSlots(
+            ['English source', '中文', '≡', '8'],
+            snapshot,
+            undefined,
+            undefined,
+            session,
+        )).resolves.toEqual(['译:English source', '中文', '≡', '8']);
+        expect(runtime.requests).toHaveBeenCalledOnce();
+        expect(runtime.requests).toHaveBeenCalledWith(['English source']);
+
+        await expect(translateTextSlots(['中文', '≡', '8'], snapshot, undefined, undefined, session))
+            .resolves.toEqual(['中文', '≡', '8']);
+        expect(runtime.requests).toHaveBeenCalledOnce();
+
+        runtime.requests.mockClear();
+        await expect(translateTextSlots(
+            [undefined as never, '中文'],
+            snapshot,
+            undefined,
+            undefined,
+            session,
+        )).resolves.toEqual(['译:', '中文']);
+        expect(runtime.requests).toHaveBeenCalledWith(['']);
+
+        runtime.requests.mockResolvedValueOnce([]);
+        await expect(translateTextSlots(
+            ['Invalid batch', '中文'],
+            snapshot,
+            undefined,
+            undefined,
+            session,
+        )).resolves.toEqual([]);
+
+        runtime.requests.mockResolvedValueOnce([undefined as never]);
+        await expect(translateTextSlots(
+            ['Invalid item', '中文'],
+            translationSnapshot({service: 'custom-provider'}),
+        )).resolves.toEqual(['', '中文']);
     });
 
     it('AI 多段开关只在活跃全文会话中合并相邻候选，并遵守字符上限', async () => {
@@ -911,6 +970,392 @@ describe("全文翻译可见性锚点", () => {
             .rejects.toMatchObject({name: 'AbortError'});
     });
 
+    it('全文会话合并相同的在途请求，候选取消只停止自身等待', async () => {
+        const snapshot = translationSnapshot({service: 'custom-provider', model: 'custom-model'});
+        Object.defineProperty(document, 'location', {
+            configurable: true,
+            value: {href: 'https://example.test/first-route'},
+        });
+        const requestController = new AbortController();
+        const session = {
+            active: true,
+            translationSlotCache: new Map(),
+            translationRequestCache: new Map(),
+            requestSignal: requestController.signal,
+            requestQueueSessions: new Set<TranslationQueueSession>(),
+            requestControllers: new Set<AbortController>(),
+        };
+        const provider = deferred<string[]>();
+        runtime.requests.mockImplementation(() => provider.promise);
+        const firstController = new AbortController();
+        const secondController = new AbortController();
+
+        const first = translateTextSlots(
+            ['Remounted paragraph'],
+            snapshot,
+            firstController.signal,
+            undefined,
+            session,
+        );
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        const providerSignal = runtime.requestOptions[0]?.signal as AbortSignal;
+        expect(providerSignal).not.toBe(requestController.signal);
+        expect([...session.requestControllers].map((controller) => controller.signal)).toContain(providerSignal);
+        expect(session.requestQueueSessions.size).toBe(1);
+        expect(runtime.requestOptions[0]?.queueSession).toBe([...session.requestQueueSessions][0]);
+
+        firstController.abort();
+        await expect(first).rejects.toMatchObject({name: 'AbortError'});
+        expect(requestController.signal.aborted).toBe(false);
+
+        // 框架重挂会短暂让 waiter 归零；宽限期内的新 owner 必须接管原请求。
+        const second = translateTextSlots(
+            ['Remounted paragraph'],
+            snapshot,
+            secondController.signal,
+            undefined,
+            session,
+        );
+        await vi.advanceTimersByTimeAsync(250);
+        expect(providerSignal.aborted).toBe(false);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+
+        provider.resolve(['重挂段落']);
+        await expect(second).resolves.toEqual(['重挂段落']);
+        expect(session.requestQueueSessions.size).toBe(0);
+        await expect(translateTextSlots(
+            ['Remounted paragraph'],
+            snapshot,
+            undefined,
+            undefined,
+            session,
+        )).resolves.toEqual(['重挂段落']);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+
+        // Thinking 会改变 provider 输出，必须进入会话级整请求缓存身份。
+        await expect(translateTextSlots(
+            ['Remounted paragraph'],
+            {...snapshot, thinking: true},
+            undefined,
+            undefined,
+            session,
+        )).resolves.toEqual(['重挂段落']);
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+
+        // SPA 在相同标题下换路由时，页面上下文可能已经改变，不能复用上一 URL 的结果。
+        document.location.href = 'https://example.test/second-route';
+        await expect(translateTextSlots(
+            ['Remounted paragraph'],
+            snapshot,
+            undefined,
+            undefined,
+            session,
+        )).resolves.toEqual(['重挂段落']);
+        expect(runtime.requests).toHaveBeenCalledTimes(3);
+    });
+
+    it('最后一个调用方离开且超过重挂宽限期后取消无消费者底层请求', async () => {
+        const snapshot = translationSnapshot({service: 'custom-provider'});
+        const sessionState = createFullPageRequestSessionState();
+        const session = {active: true, translationSlotCache: new Map(), ...sessionState};
+        const provider = deferred<string[]>();
+        runtime.requests.mockImplementationOnce(() => provider.promise);
+        const caller = new AbortController();
+
+        const result = translateTextSlots(
+            ['Removed before provider starts'],
+            snapshot,
+            caller.signal,
+            undefined,
+            session,
+        );
+        const providerSignal = runtime.requestOptions[0]?.signal as AbortSignal;
+        expect(providerSignal.aborted).toBe(false);
+
+        caller.abort();
+        await expect(result).rejects.toMatchObject({name: 'AbortError'});
+        await vi.advanceTimersByTimeAsync(249);
+        expect(providerSignal.aborted).toBe(false);
+        expect(runtime.cancelQueue).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(1);
+        expect(providerSignal.aborted).toBe(true);
+        expect(runtime.cancelQueue).toHaveBeenCalledOnce();
+        expect(session.translationRequestCache.size).toBe(0);
+
+        const providerAbort = new Error('provider aborted');
+        providerAbort.name = 'AbortError';
+        provider.reject(providerAbort);
+        await vi.waitFor(() => {
+            expect(session.requestControllers.size).toBe(0);
+            expect(session.requestQueueSessions.size).toBe(0);
+        });
+    });
+
+    it('部分重叠批次不复用属于另一整请求取消域的未结算槽', async () => {
+        const snapshot = translationSnapshot({service: 'microsoft'});
+        const session = {
+            active: true,
+            translationSlotCache: new Map(),
+            ...createFullPageRequestSessionState(),
+        };
+        const firstProvider = deferred<string[]>();
+        const secondProvider = deferred<string[]>();
+        runtime.requests
+            .mockImplementationOnce(() => firstProvider.promise)
+            .mockImplementationOnce(() => secondProvider.promise);
+        const firstOwner = new AbortController();
+
+        const first = translateTextSlots(
+            ['Shared slot', 'First-only slot'],
+            snapshot,
+            firstOwner.signal,
+            undefined,
+            session,
+        );
+        const second = translateTextSlots(
+            ['Shared slot', 'Second-only slot'],
+            snapshot,
+            undefined,
+            undefined,
+            session,
+        );
+
+        expect(runtime.requests).toHaveBeenNthCalledWith(1, ['Shared slot', 'First-only slot']);
+        expect(runtime.requests).toHaveBeenNthCalledWith(2, ['Shared slot', 'Second-only slot']);
+        const firstProviderSignal = runtime.requestOptions[0]?.signal as AbortSignal;
+        const secondProviderSignal = runtime.requestOptions[1]?.signal as AbortSignal;
+
+        firstOwner.abort();
+        await expect(first).rejects.toMatchObject({name: 'AbortError'});
+        await vi.advanceTimersByTimeAsync(250);
+        expect(firstProviderSignal.aborted).toBe(true);
+        expect(secondProviderSignal.aborted).toBe(false);
+
+        const providerAbort = new Error('first provider aborted');
+        providerAbort.name = 'AbortError';
+        firstProvider.reject(providerAbort);
+        secondProvider.resolve(['共享译文', '第二批译文']);
+        await expect(second).resolves.toEqual(['共享译文', '第二批译文']);
+    });
+
+    it('已结束的全文会话信号在 provider 前中止请求并清除 AbortError 条目', async () => {
+        const snapshot = translationSnapshot({service: 'custom-provider'});
+        const requestController = new AbortController();
+        requestController.abort();
+        const session = {
+            active: true,
+            translationSlotCache: new Map(),
+            translationRequestCache: new Map(),
+            requestSignal: requestController.signal,
+            requestQueueSessions: new Set<TranslationQueueSession>(),
+            requestControllers: new Set<AbortController>(),
+            pageContextGeneration: 0,
+        };
+
+        await expect(translateTextSlots(
+            ['Must not reach provider'],
+            snapshot,
+            undefined,
+            undefined,
+            session,
+        )).rejects.toMatchObject({name: 'AbortError'});
+        expect(runtime.requests).not.toHaveBeenCalled();
+        expect(session.translationRequestCache.size).toBe(0);
+        expect(() => clearFullPageTranslationRequestCache({})).not.toThrow();
+    });
+
+    it('AI 页面上下文代次变化后不复用相同 URL 与原文的旧会话结果', async () => {
+        const snapshot = translationSnapshot({
+            service: 'ai',
+            model: 'ai-model',
+            enableAIContext: true,
+        });
+        const session = {
+            active: true,
+            translationSlotCache: new Map(),
+            translationConfig: snapshot,
+            ...createFullPageRequestSessionState(),
+        };
+
+        await expect(translateTextSlots(
+            ['Context-sensitive paragraph'],
+            snapshot,
+            undefined,
+            undefined,
+            session,
+        )).resolves.toEqual(['译:Context-sensitive paragraph']);
+        await expect(translateTextSlots(
+            ['Context-sensitive paragraph'],
+            snapshot,
+            undefined,
+            undefined,
+            session,
+        )).resolves.toEqual(['译:Context-sensitive paragraph']);
+        expect(runtime.requests).toHaveBeenCalledOnce();
+
+        invalidateContextSensitiveRequestCache(session);
+        expect(session.pageContextGeneration).toBe(1);
+        expect(session.translationRequestCache.size).toBe(0);
+
+        await expect(translateTextSlots(
+            ['Context-sensitive paragraph'],
+            snapshot,
+            undefined,
+            undefined,
+            session,
+        )).resolves.toEqual(['译:Context-sensitive paragraph']);
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+    });
+
+    it('AI 页面上下文变化保留失败墓碑，只有显式清理才允许再次请求', async () => {
+        const snapshot = translationSnapshot({
+            service: 'ai',
+            model: 'ai-model',
+            enableAIContext: true,
+        });
+        const session = {
+            active: true,
+            translationSlotCache: new Map(),
+            translationConfig: snapshot,
+            ...createFullPageRequestSessionState(),
+        };
+        runtime.requests.mockRejectedValue(new Error('provider unavailable'));
+
+        await expect(translateTextSlots(
+            ['Failed context-sensitive paragraph'], snapshot, undefined, undefined, session,
+        )).rejects.toThrow('provider unavailable');
+        expect(runtime.requests).toHaveBeenCalledOnce();
+
+        invalidateContextSensitiveRequestCache(session);
+        await expect(translateTextSlots(
+            ['Failed context-sensitive paragraph'], snapshot, undefined, undefined, session,
+        )).rejects.toThrow('provider unavailable');
+        expect(runtime.requests).toHaveBeenCalledOnce();
+
+        invalidateFullPageRequestSessionCache(session);
+        await expect(translateTextSlots(
+            ['Failed context-sensitive paragraph'], snapshot, undefined, undefined, session,
+        )).rejects.toThrow('provider unavailable');
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+    });
+
+    it('用户清理缓存后旧在途结果可以返回当前 owner，但不会重新进入会话缓存', async () => {
+        const snapshot = translationSnapshot({service: 'custom-provider'});
+        const session = {
+            active: true,
+            translationSlotCache: new Map(),
+            ...createFullPageRequestSessionState(),
+        };
+        const provider = deferred<string[]>();
+        runtime.requests.mockImplementationOnce(() => provider.promise);
+
+        const beforeClear = translateTextSlots(
+            ['Pending during explicit cache clear'],
+            snapshot,
+            undefined,
+            undefined,
+            session,
+        );
+        expect(session.translationRequestCache.size).toBe(1);
+
+        invalidateFullPageRequestSessionCache(session);
+        expect(session.pageContextGeneration).toBe(1);
+        expect(session.translationRequestCache.size).toBe(0);
+
+        provider.resolve(['清理前已开始的结果']);
+        await expect(beforeClear).resolves.toEqual(['清理前已开始的结果']);
+        expect(session.translationRequestCache.size).toBe(0);
+
+        await expect(translateTextSlots(
+            ['Pending during explicit cache clear'],
+            snapshot,
+            undefined,
+            undefined,
+            session,
+        )).resolves.toEqual(['译:Pending during explicit cache clear']);
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+    });
+
+    it('全文请求缓存淘汰最旧请求，且过期失败不能删除同 key 的新条目', async () => {
+        const snapshot = translationSnapshot({service: 'custom-provider'});
+        const requestController = new AbortController();
+        const session = {
+            active: true,
+            translationSlotCache: new Map(),
+            translationRequestCache: new Map(),
+            requestSignal: requestController.signal,
+            requestQueueSessions: new Set<TranslationQueueSession>(),
+            requestControllers: new Set<AbortController>(),
+        };
+        const stale = deferred<string[]>();
+        runtime.requests.mockImplementationOnce(() => stale.promise);
+
+        const staleResult = translateTextSlots(['Stale request'], snapshot, undefined, undefined, session);
+        await Promise.all(Array.from({length: 512}, (_, index) =>
+            translateTextSlots([`Fresh request ${index}`], snapshot, undefined, undefined, session)));
+
+        expect(session.translationRequestCache.size).toBe(512);
+        expect(runtime.requests).toHaveBeenCalledTimes(513);
+        await expect(translateTextSlots(
+            ['Stale request'],
+            snapshot,
+            undefined,
+            undefined,
+            session,
+        )).resolves.toEqual(['译:Stale request']);
+        expect(runtime.requests).toHaveBeenCalledTimes(514);
+
+        stale.reject(new Error('stale request failed'));
+        await expect(staleResult).rejects.toThrow('stale request failed');
+        await expect(translateTextSlots(
+            ['Stale request'],
+            snapshot,
+            undefined,
+            undefined,
+            session,
+        )).resolves.toEqual(['译:Stale request']);
+        expect(runtime.requests).toHaveBeenCalledTimes(514);
+
+        runtime.requests.mockClear();
+        runtime.requests.mockRejectedValueOnce(new Error('current request failed'));
+        const failedSession = {
+            active: true,
+            translationSlotCache: new Map(),
+            translationRequestCache: new Map(),
+            requestSignal: new AbortController().signal,
+            requestQueueSessions: new Set<TranslationQueueSession>(),
+            requestControllers: new Set<AbortController>(),
+        };
+        await expect(translateTextSlots(
+            ['Retry after failure'],
+            snapshot,
+            undefined,
+            undefined,
+            failedSession,
+        )).rejects.toThrow('current request failed');
+        expect(failedSession.translationRequestCache.size).toBe(1);
+
+        await expect(translateTextSlots(
+            ['Retry after failure'],
+            snapshot,
+            undefined,
+            undefined,
+            failedSession,
+        )).rejects.toThrow('current request failed');
+        expect(runtime.requests).toHaveBeenCalledOnce();
+
+        await expect(translateTextSlots(
+            ['Retry after failure'],
+            snapshot,
+            undefined,
+            undefined,
+            failedSession,
+            true,
+        )).resolves.toEqual(['译:Retry after failure']);
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+    });
+
     it('批量会话按配置去重、复用、校验异常响应并限制缓存容量', async () => {
         const snapshot = translationSnapshot({service: 'freeTranslation'});
         const session = {active: true, translationSlotCache: new Map()};
@@ -1319,7 +1764,10 @@ describe("全文翻译可见性锚点", () => {
         expect(runtime.requests).toHaveBeenCalledTimes(1);
     });
 
-    it("宿主因样式或布局重绘重挂同一段原文时复用全文结果，不重复请求", async () => {
+    it("宿主连续克隆重挂已翻译 owner 时清理孤儿产物并始终只保留一个直属 wrapper", async () => {
+        runtime.config.service = 'ai';
+        runtime.config.model.ai = 'ai-model';
+        runtime.config.enableAIContext = true;
         runtime.config.display = 1;
         const source = "The same paragraph survives a layout remount.";
         document.body.innerHTML = `<p id="prose">${source}</p>`;
@@ -1336,29 +1784,165 @@ describe("全文翻译可见性锚点", () => {
         expect(runtime.requests).toHaveBeenCalledTimes(1);
         const firstWrapper = firstParagraph.querySelector<HTMLElement>(".fluent-read-bilingual-content")!;
         expect(firstWrapper).toBeTruthy();
+        expect(firstParagraph.classList.contains("fluent-read-bilingual")).toBe(true);
 
-        // 页面框架可能在 class/style 处理后替换已翻译 owner；新节点身份不同，但来源文本槽相同。
-        const replacement = document.createElement("p");
-        replacement.id = "prose-remounted";
-        replacement.textContent = source;
-        setLayoutBox(replacement, 620, 90);
-        firstParagraph.replaceWith(replacement);
-        runtime.candidates = [{element: replacement, kind: "content", reason: "paragraph"}];
-        TestMutationObserver.instances.at(-1)!.emit([{
-            type: "childList",
-            target: document.body,
-            addedNodes: [replacement] as unknown as NodeList,
-            removedNodes: [firstParagraph] as unknown as NodeList,
-        } as unknown as MutationRecord]);
-        await vi.advanceTimersByTimeAsync(50);
+        let current = firstParagraph;
+        for (let remount = 1; remount <= 2; remount += 1) {
+            // React/Vue cloneNode(true) 会同时复制 FluentRead class 和已渲染 wrapper，
+            // 但 WeakMap 状态仍只属于已经脱离文档的旧 owner。
+            const replacement = current.cloneNode(true) as HTMLElement;
+            replacement.id = `prose-remounted-${remount}`;
+            setLayoutBox(replacement, 620, 90);
+            const removed = current;
+            removed.replaceWith(replacement);
+            runtime.candidates = [{element: replacement, kind: "content", reason: "paragraph"}];
+            TestMutationObserver.instances.at(-1)!.emit([{
+                type: "childList",
+                target: document.body,
+                addedNodes: [replacement] as unknown as NodeList,
+                removedNodes: [removed] as unknown as NodeList,
+            } as unknown as MutationRecord]);
+            await vi.advanceTimersByTimeAsync(50);
 
-        observer.emit(replacement, true);
-        await finishScheduledWork();
+            observer.emit(replacement, true);
+            await finishScheduledWork();
+
+            const directWrappers = Array.from(replacement.children).filter((child) =>
+                child.matches('.fluent-read-bilingual-content[data-fr-translation-owned="true"]'));
+            expect(removed.isConnected).toBe(false);
+            expect(directWrappers).toHaveLength(1);
+            expect(replacement.textContent).toContain(`译:${source}`);
+            expect(replacement.classList.contains("fluent-read-bilingual")).toBe(true);
+            current = replacement;
+        }
 
         expect(runtime.requests).toHaveBeenCalledTimes(1);
         expect(firstParagraph.isConnected).toBe(false);
-        expect(replacement.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
-        expect(replacement.textContent).toContain(`译:${source}`);
+        restoreOriginalContent();
+        expect(current.querySelector(".fluent-read-bilingual-content")).toBeNull();
+        expect(current.classList.contains("fluent-read-bilingual")).toBe(false);
+        expect(current.textContent).toBe(source);
+    });
+
+    it("provider 未决时连续克隆重挂只保留一个 loading，并由最新 owner 提交一次结果", async () => {
+        runtime.config.service = 'ai';
+        runtime.config.model.ai = 'ai-model';
+        runtime.config.enableAIContext = true;
+        runtime.config.display = 1;
+        const source = "The pending paragraph survives repeated framework remounts.";
+        document.body.innerHTML = `<p id="pending-prose">${source}</p>`;
+        const firstParagraph = document.querySelector<HTMLElement>("#pending-prose")!;
+        setLayoutBox(firstParagraph, 620, 90);
+        runtime.candidates = [{element: firstParagraph, kind: "content", reason: "paragraph"}];
+        const provider = deferred<string[]>();
+        runtime.requests.mockImplementation(() => provider.promise);
+
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(50);
+        const observer = TestIntersectionObserver.instances[0]!;
+        observer.emit(firstParagraph, true);
+        await vi.advanceTimersByTimeAsync(1);
+        await Promise.resolve();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(firstParagraph.querySelectorAll('.fluent-read-loading')).toHaveLength(1);
+
+        let current = firstParagraph;
+        for (let remount = 1; remount <= 2; remount += 1) {
+            const replacement = current.cloneNode(true) as HTMLElement;
+            replacement.id = `pending-prose-remounted-${remount}`;
+            setLayoutBox(replacement, 620, 90);
+            const removed = current;
+            removed.replaceWith(replacement);
+            runtime.candidates = [{element: replacement, kind: "content", reason: "paragraph"}];
+            TestMutationObserver.instances.at(-1)!.emit([{
+                type: "childList",
+                target: document.body,
+                addedNodes: [replacement] as unknown as NodeList,
+                removedNodes: [removed] as unknown as NodeList,
+            } as unknown as MutationRecord]);
+            await vi.advanceTimersByTimeAsync(50);
+            observer.emit(replacement, true);
+            await vi.advanceTimersByTimeAsync(1);
+            await Promise.resolve();
+            await Promise.resolve();
+
+            const directLoading = Array.from(replacement.children).filter((child) =>
+                child.matches('.fluent-read-loading[data-fr-translation-owned="true"]'));
+            expect(removed.isConnected).toBe(false);
+            expect(directLoading).toHaveLength(1);
+            expect(replacement.querySelector('.fluent-read-bilingual-content')).toBeNull();
+            expect(runtime.requests).toHaveBeenCalledTimes(1);
+            current = replacement;
+        }
+
+        provider.resolve([`译:${source}`]);
+        await finishScheduledWork();
+
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(current.querySelectorAll('.fluent-read-loading')).toHaveLength(0);
+        expect(Array.from(current.children).filter((child) =>
+            child.matches('.fluent-read-bilingual-content[data-fr-translation-owned="true"]')),
+        ).toHaveLength(1);
+        expect(current.textContent).toContain(`译:${source}`);
+    });
+
+    it("仅译文 owner 连续克隆重挂时先解包 light DOM 原文，再恢复为一个可见译文槽", async () => {
+        runtime.config.display = 0;
+        const source = "Translation-only source survives repeated remounts.";
+        document.body.innerHTML = `<p id="single-prose">${source}</p>`;
+        const firstParagraph = document.querySelector<HTMLElement>("#single-prose")!;
+        setLayoutBox(firstParagraph, 620, 90);
+        runtime.candidates = [{element: firstParagraph, kind: "content", reason: "paragraph"}];
+
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(50);
+        const observer = TestIntersectionObserver.instances[0]!;
+        observer.emit(firstParagraph, true);
+        await finishScheduledWork();
+
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(firstParagraph.querySelectorAll(".fluent-read-single-slot")).toHaveLength(1);
+        expect(singleTranslationText(firstParagraph)).toBe(`译:${source}`);
+
+        let current = firstParagraph;
+        for (let remount = 1; remount <= 2; remount += 1) {
+            const replacement = current.cloneNode(true) as HTMLElement;
+            replacement.id = `single-prose-remounted-${remount}`;
+            setLayoutBox(replacement, 620, 90);
+            const removed = current;
+            removed.replaceWith(replacement);
+            runtime.candidates = [{element: replacement, kind: "content", reason: "paragraph"}];
+            TestMutationObserver.instances.at(-1)!.emit([{
+                type: "childList",
+                target: document.body,
+                addedNodes: [replacement] as unknown as NodeList,
+                removedNodes: [removed] as unknown as NodeList,
+            } as unknown as MutationRecord]);
+            await vi.advanceTimersByTimeAsync(50);
+
+            // 候选发现前，孤儿 single-slot 已被解包为可重新翻译的宿主原文。
+            expect(replacement.querySelector(".fluent-read-single-slot")).toBeNull();
+            expect(replacement.textContent).toBe(source);
+
+            observer.emit(replacement, true);
+            await finishScheduledWork();
+
+            expect(removed.isConnected).toBe(false);
+            expect(replacement.querySelectorAll(".fluent-read-single-slot")).toHaveLength(1);
+            expect(singleTranslationText(replacement)).toBe(`译:${source}`);
+            expect(replacement.textContent).toBe(source);
+            current = replacement;
+        }
+
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        // 恢复可能早于下一轮 50ms discovery；此时克隆仍携带无状态 single-slot，
+        // 通用 orphan 清理也必须先解包其中的 light DOM 原文。
+        const restoreBeforeDiscovery = current.cloneNode(true) as HTMLElement;
+        current.replaceWith(restoreBeforeDiscovery);
+        current = restoreBeforeDiscovery;
+        restoreOriginalContent();
+        expect(current.querySelector(".fluent-read-single-slot")).toBeNull();
+        expect(current.textContent).toBe(source);
     });
 
     it("没有任何布局锚点的 H1 仍直接进入受控翻译队列", async () => {
@@ -1681,6 +2265,52 @@ describe("全文翻译可见性锚点", () => {
         expect(singleTranslationText(paragraph)).toBe("译:Retry with the latest display mode.");
     });
 
+    it("全文失败 owner 克隆重挂只复用错误墓碑，直到用户明确重试", async () => {
+        runtime.config.service = 'ai';
+        runtime.config.model.ai = 'ai-model';
+        runtime.config.enableAIContext = true;
+        runtime.config.display = 1;
+        const source = "Failed translation survives a framework remount.";
+        document.body.innerHTML = `<p id="failed-prose">${source}</p>`;
+        const first = document.querySelector<HTMLElement>("#failed-prose")!;
+        setLayoutBox(first, 620, 90);
+        runtime.candidates = [{element: first, kind: "content", reason: "paragraph"}];
+        runtime.requests.mockRejectedValueOnce(new Error("provider unavailable"));
+
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(50);
+        const observer = TestIntersectionObserver.instances[0]!;
+        observer.emit(first, true);
+        await finishScheduledWork();
+        expect(runtime.requests).toHaveBeenCalledOnce();
+        expect(getTranslationState(first)?.phase).toBe("error");
+
+        const replacement = first.cloneNode(true) as HTMLElement;
+        replacement.id = "failed-prose-remounted";
+        setLayoutBox(replacement, 620, 90);
+        first.replaceWith(replacement);
+        runtime.candidates = [{element: replacement, kind: "content", reason: "paragraph"}];
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: "childList",
+            target: document.body,
+            addedNodes: [replacement] as unknown as NodeList,
+            removedNodes: [first] as unknown as NodeList,
+        } as unknown as MutationRecord]);
+        await vi.advanceTimersByTimeAsync(50);
+        observer.emit(replacement, true);
+        await finishScheduledWork();
+
+        expect(runtime.requests).toHaveBeenCalledOnce();
+        expect(getTranslationState(replacement)?.phase).toBe("error");
+        expect(runtime.retryCallbacks).toHaveLength(2);
+
+        runtime.retryCallbacks.at(-1)!();
+        await finishScheduledWork();
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(getTranslationState(replacement)?.phase).toBe("translated");
+        expect(replacement.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
+    });
+
     it("行内片段首次失败后会从原始候选恢复并完成手动重试", async () => {
         runtime.config.display = 1;
         document.body.innerHTML = '<p id="prose">Inline retry source <strong>keeps structure</strong>.</p>';
@@ -1993,7 +2623,7 @@ describe("全文翻译可见性锚点", () => {
         expect(segment.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
     });
 
-    it("已译 synthetic inline-run 的祖先新增 translate=no 会 abort、unwrap，移除后可重译", async () => {
+    it("已译 synthetic inline-run 的祖先新增 translate=no 会 abort、unwrap，移除后复用会话结果", async () => {
         runtime.config.display = 1;
         document.body.innerHTML = `
             <section id="ancestor">
@@ -2048,12 +2678,12 @@ describe("全文翻译可见性锚点", () => {
         visibilityObserver.emit(host, true);
         await finishScheduledWork();
 
-        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
         expect(host.querySelectorAll('[data-fr-translation-segment="true"]')).toHaveLength(1);
         expect(host.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
     });
 
-    it("in-flight synthetic inline-run 的祖先 hidden 会 abort，旧结果不可覆盖且解除后可翻译", async () => {
+    it("in-flight synthetic inline-run 隐藏时不提交，解除后由新 generation 复用结果", async () => {
         runtime.config.display = 1;
         document.body.innerHTML = `
             <section id="ancestor">
@@ -2114,13 +2744,13 @@ describe("全文翻译可见性锚点", () => {
         visibilityObserver.emit(host, true);
         await finishScheduledWork();
 
-        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
         expect(host.querySelectorAll('[data-fr-translation-segment="true"]')).toHaveLength(1);
         expect(host.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
-        expect(host.textContent).not.toContain("旧译:");
+        expect(host.textContent).toContain("旧译:");
     });
 
-    it("loading synthetic 内新增 lookalike owned artifact 仍会 stale、恢复并重译", async () => {
+    it("loading synthetic 内新增 lookalike owned artifact 后安全恢复并复用原请求", async () => {
         runtime.config.display = 1;
         document.body.innerHTML = `
             <div id="mixed">Readable inline prefix <strong id="emphasis">with emphasized prose.</strong>
@@ -2172,11 +2802,14 @@ describe("全文翻译可见性锚点", () => {
         visibilityObserver.emit(host, true);
         await finishScheduledWork();
 
-        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
         expect(host.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
     });
 
-    it("provider 进行中 attribute/owner 与下一代 source 依次失效后只提交最新 generation", async () => {
+    it("AI 上下文请求在 attribute/owner 与下一代 source 依次失效后只提交最新 generation", async () => {
+        runtime.config.service = "ai";
+        runtime.config.model.ai = "ai-model";
+        runtime.config.enableAIContext = true;
         document.body.innerHTML = `
             <article id="owner" data-layout="paragraph">
                 <p id="math">A long perspective paragraph with an inline formula.</p>
@@ -2718,10 +3351,10 @@ describe("全文翻译可见性锚点", () => {
         expect(runtime.requests).toHaveBeenCalledTimes(2);
         visibilityObserver.emit(paragraph, true);
         await finishScheduledWork();
-        expect(runtime.requests).toHaveBeenCalledTimes(3);
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
     });
 
-    it("宿主篡改译文 wrapper 不会被 hard guard 当成可忽略 mutation", async () => {
+    it("宿主篡改译文 wrapper 后以会话缓存的可信结果恢复", async () => {
         runtime.config.display = 1;
         document.body.innerHTML = '<p id="prose">Host prose remains authoritative.</p>';
         const paragraph = document.querySelector<HTMLElement>("#prose")!;
@@ -2748,13 +3381,14 @@ describe("全文翻译可见性锚点", () => {
         visibilityObserver.emit(paragraph, true);
         await finishScheduledWork();
 
-        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
         expect(firstWrapper.isConnected).toBe(false);
         expect(paragraph.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
+        expect(paragraph.textContent).toContain("译:Host prose remains authoritative.");
     });
 
     it.each(["element", "text"] as const)(
-        "宿主向译文 wrapper append %s 的 childList mutation 会恢复并重译",
+        "宿主向译文 wrapper append %s 后以会话缓存的可信结果恢复",
         async (kind) => {
             runtime.config.display = 1;
             document.body.innerHTML = '<p id="prose">Host prose remains authoritative.</p>';
@@ -2798,13 +3432,13 @@ describe("全文翻译可见性锚点", () => {
             visibilityObserver.emit(paragraph, true);
             await finishScheduledWork();
 
-            expect(runtime.requests).toHaveBeenCalledTimes(2);
+            expect(runtime.requests).toHaveBeenCalledTimes(1);
             expect(firstWrapper.isConnected).toBe(false);
             expect(paragraph.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
         },
     );
 
-    it("普通后代新增 translate=no 会重启，且新 payload 排除受保护文本", async () => {
+    it("普通后代新增 translate=no 后复用未变文本槽并排除受保护文本", async () => {
         runtime.config.display = 1;
         document.body.innerHTML = `
             <p id="prose">
@@ -2839,10 +3473,12 @@ describe("全文翻译可见性锚点", () => {
         visibilityObserver.emit(paragraph, true);
         await finishScheduledWork();
 
-        expect(runtime.requests).toHaveBeenCalledTimes(2);
-        expect(runtime.requests.mock.calls[1]![0].join(" ")).not.toContain("This text becomes protected.");
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
         expect(firstWrapper.isConnected).toBe(false);
-        expect(paragraph.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
+        const refreshedWrapper = paragraph.querySelector<HTMLElement>(".fluent-read-bilingual-content")!;
+        expect(refreshedWrapper).toBeTruthy();
+        expect(refreshedWrapper.textContent).toContain("译:Readable prefix.");
+        expect(refreshedWrapper.textContent).not.toContain("译:This text becomes protected.");
     });
 
     it("provider 空结果的立即重排有上限，source 变化后才开启新 generation", async () => {

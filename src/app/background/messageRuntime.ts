@@ -5,10 +5,7 @@
  * 模块边界：本文件是 composition root，只决定依赖装配和监听生命周期，不实现各 feature 的业务算法、provider 协议或存储事务；具体实现均来自 features、services、providers 与 platform。
  */
 import {formatConnectionTestError, runTranslationServiceConnectionTestWithUsage, translateMicrosoftTexts} from './providerRuntime';
-import {
-    config,
-    configReady,
-} from '@/src/services/config/store';
+import {config, configReady} from '@/src/services/config/store';
 import {synthesizeEdgeTts} from '@/src/features/selection-translation/services/edgeTts';
 import {lookupWord} from '@/src/features/selection-translation/services/wordDictionary';
 import {vocabularyBook} from '@/src/features/vocabulary/repository';
@@ -19,7 +16,10 @@ import {
     createAreaTranslationBackgroundHandlers,
     type AreaTranslationBackgroundContext,
 } from './handlers/areaTranslation';
-import {createTranslationCacheHandler} from './handlers/translationCache';
+import {
+    createTranslationCacheHandler,
+    createTranslationCacheInvalidationBroadcaster,
+} from './handlers/translationCache';
 import {type ConfigPersistenceContext} from './handlers/configPersistence';
 import {createConnectionTestHandler} from './handlers/connectionTest';
 import {
@@ -55,11 +55,8 @@ import {createCapabilityGatedBackgroundHandlers, createCapabilityGatedSelectionT
 import {createConfigBackgroundHandlers} from './configMessageHandlers';
 import {createConfigImageOcrLanguageStorage, installBrowserConfigStorageBroadcast} from './configStorageRuntime';
 import {modelUsageRepository} from '@/src/platform/storage/modelUsageRepository';
-type BackgroundRuntimeContext = ConfigPersistenceContext
-    & VocabularyBackgroundContext
-    & SelectionTtsContext
-    & FullPageBackgroundContext
-    & AreaTranslationBackgroundContext;
+type BackgroundRuntimeContext = ConfigPersistenceContext & VocabularyBackgroundContext & SelectionTtsContext
+    & FullPageBackgroundContext & AreaTranslationBackgroundContext;
 export interface BackgroundMessageRuntimeOptions {
     tabTranslationStates: TabTranslationStateStore;
     onFullPageStateChanged(tabId: number): void;
@@ -73,7 +70,11 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     const selectionTtsTransport = createCapabilityGatedSelectionTtsTransport(capabilities, selectionTtsOffscreenAdapter);
     const handlers: Array<BackgroundMessageHandler<BackgroundRuntimeContext>> = [
         createTranslationCancelHandler(translationRequestRegistry),
-        createTranslationCacheHandler(clearTranslationCache),
+        createTranslationCacheHandler(clearTranslationCache, createTranslationCacheInvalidationBroadcaster({
+            queryTabs: () => browser.tabs.query({}) as Promise<Array<{id?: number}>>,
+            sendTabMessage: (tabId, message) => browser.tabs.sendMessage(tabId, message),
+            warn: (message, error) => console.warn(message, error),
+        })),
         createModelUsageHandler(
             modelUsageRepository,
             (url) => url.startsWith(browser.runtime.getURL('/options.html')),

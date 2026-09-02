@@ -12,8 +12,8 @@ import type {TranslationTextProtectionOptions} from '@/src/core/translation/publ
 import type {TranslationQueueSession} from '@/src/services/translation/queue';
 import {
     translateTextSlots,
-    type FullPageTranslationCacheEntry,
     type FullPageTranslationConfigSnapshot,
+    type FullPageTranslationSessionCache,
 } from './translationRequest';
 
 export interface LiveTextTranslationResult {
@@ -31,8 +31,9 @@ export async function translateLiveText(
     snapshot: FullPageTranslationConfigSnapshot,
     signal?: AbortSignal,
     queueSession?: TranslationQueueSession,
-    fullPageSession?: {active: boolean; translationSlotCache: Map<string, FullPageTranslationCacheEntry>},
+    fullPageSession?: FullPageTranslationSessionCache,
     protectionOptions?: TranslationTextProtectionOptions,
+    forceFailedRequest = false,
 ): Promise<LiveTextTranslationResult> {
     const parts = collectLiveTranslationTextSlots(
         node,
@@ -51,7 +52,14 @@ export async function translateLiveText(
     };
 
     const origins = parts.map((part) => part.source);
-    const translations = await translateTextSlots(origins, snapshot, signal, queueSession, fullPageSession);
+    const translations = await translateTextSlots(
+        origins,
+        snapshot,
+        signal,
+        queueSession,
+        fullPageSession,
+        forceFailedRequest,
+    );
     const changed = translations.some((translation, index) =>
         translation.replace(/[\s\u3000]+/gu, ' ').trim() !== (origins[index] || '').replace(/[\s\u3000]+/gu, ' ').trim(),
     );

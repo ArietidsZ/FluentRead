@@ -6,7 +6,11 @@
  */
 import {resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
 import {styles} from '@/src/core/config/constants';
-import {parseTranslationSlots, serializeTranslationSlots} from '@/src/core/translation/public';
+import {
+    isClearlyTargetLanguage,
+    parseTranslationSlots,
+    serializeTranslationSlots,
+} from '@/src/core/translation/public';
 import {config} from '@/src/services/config/store';
 import {normalizeMaxConcurrentTranslations} from '@/src/core/config/scheduling';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
@@ -18,6 +22,8 @@ import {
 } from '@/src/services/translation/queue';
 
 const FULL_PAGE_TRANSLATION_CACHE_LIMIT = 512;
+const FULL_PAGE_TRANSLATION_REQUEST_CACHE_LIMIT = 512;
+const FULL_PAGE_TRANSLATION_REMOUNT_GRACE_MS = 250;
 const AI_MULTI_SEGMENT_MAX_TEXT_SLOTS = 4;
 const AI_MULTI_SEGMENT_MAX_CHARACTERS = 2_000;
 
@@ -39,15 +45,31 @@ export interface FullPageTranslationCacheEntry {
     settled: boolean;
 }
 
+export interface FullPageTranslationRequestCacheEntry {
+    promise: Promise<string[]>;
+    settled: boolean;
+    failed: boolean;
+    cancelled: boolean;
+    waiters: number;
+    cancelTimer: ReturnType<typeof setTimeout> | null;
+    controller: AbortController;
+    queueSession: TranslationQueueSession;
+}
+
 type SnapshotTranslateExecutionOptions = Pick<
     TranslateOptions,
     'aiMultiSegment' | 'queueSession' | 'signal' | 'skipLanguageDetection'
     | 'sourceLanguageDetectionText' | 'useCache'
 >;
 
-interface FullPageTranslationSessionCache {
+export interface FullPageTranslationSessionCache {
     active: boolean;
     translationSlotCache: Map<string, FullPageTranslationCacheEntry>;
+    translationRequestCache?: Map<string, FullPageTranslationRequestCacheEntry>;
+    requestSignal?: AbortSignal;
+    requestQueueSessions?: Set<TranslationQueueSession>;
+    requestControllers?: Set<AbortController>;
+    pageContextGeneration?: number;
 }
 
 interface AIMultiSegmentTask {
@@ -117,6 +139,23 @@ function throwIfAborted(signal?: AbortSignal): void {
     if (signal?.aborted) throw createAbortError();
 }
 
+function shouldKeepOriginalSlot(origin: string, targetLanguage: string): boolean {
+    return Boolean(origin.trim()) && isClearlyTargetLanguage(origin, targetLanguage);
+}
+
+function restoreSkippedSlots(
+    origins: readonly string[],
+    translatedIndexes: readonly number[],
+    translations: readonly string[],
+): string[] {
+    if (translations.length !== translatedIndexes.length) return [];
+    const result = origins.map((origin) => origin ?? '');
+    translatedIndexes.forEach((originIndex, translationIndex) => {
+        result[originIndex] = translations[translationIndex] ?? '';
+    });
+    return result;
+}
+
 function isAbortError(error: unknown): boolean {
     return error instanceof Error && error.name === 'AbortError';
 }
@@ -183,6 +222,156 @@ function createCacheKey(origin: string, snapshot: FullPageTranslationConfigSnaps
         enableAIContext: snapshot.enableAIContext,
         origin,
     });
+}
+
+function createRequestCacheKey(
+    origins: readonly string[],
+    snapshot: FullPageTranslationConfigSnapshot,
+    pageContextGeneration: number,
+): string {
+    return JSON.stringify({
+        service: snapshot.service,
+        model: snapshot.model,
+        thinking: snapshot.thinking,
+        from: snapshot.sourceLanguage,
+        to: snapshot.targetLanguage,
+        useCache: snapshot.useCache,
+        enableAIContext: snapshot.enableAIContext,
+        enableAIMultiSegment: snapshot.enableAIMultiSegment,
+        context: document.title,
+        pageUrl: document.location?.href ?? document.URL ?? '',
+        pageContextGeneration,
+        origins,
+    });
+}
+
+function waitForCaller<T>(result: Promise<T>, signal?: AbortSignal): Promise<T> {
+    throwIfAborted(signal);
+    if (!signal) return result;
+    return new Promise<T>((resolve, reject) => {
+        let settled = false;
+        const finish = (callback: () => void) => {
+            if (settled) return;
+            settled = true;
+            signal.removeEventListener('abort', onAbort);
+            callback();
+        };
+        const onAbort = () => finish(() => reject(createAbortError()));
+        signal.addEventListener('abort', onAbort, {once: true});
+        void result.then(
+            (value) => finish(() => resolve(value)),
+            (error) => finish(() => reject(error)),
+        );
+    });
+}
+
+function rememberTranslationRequest(
+    session: FullPageTranslationSessionCache,
+    key: string,
+    failureKey: string,
+    result: Promise<string[]>,
+    expectedLength: number,
+    controller: AbortController,
+    queueSession: TranslationQueueSession,
+): FullPageTranslationRequestCacheEntry {
+    const cache = session.translationRequestCache ??= new Map();
+    const entry: FullPageTranslationRequestCacheEntry = {
+        promise: result,
+        settled: false,
+        failed: false,
+        cancelled: false,
+        waiters: 0,
+        cancelTimer: null,
+        controller,
+        queueSession,
+    };
+    cache.delete(key);
+    cache.set(key, entry);
+    while (cache.size > FULL_PAGE_TRANSLATION_REQUEST_CACHE_LIMIT) {
+        const oldestKey = cache.keys().next().value as string;
+        retireTranslationRequest(cache, oldestKey, cache.get(oldestKey)!);
+    }
+    void result.then(
+        (translations) => {
+            entry.settled = true;
+            clearTranslationRequestCancelTimer(entry);
+            if (cache.get(key) !== entry) return;
+            if (translations.length !== expectedLength
+                || translations.some((translation) => typeof translation !== 'string')) {
+                cache.delete(key);
+            }
+        },
+        (error) => {
+            entry.settled = true;
+            clearTranslationRequestCancelTimer(entry);
+            if (cache.get(key) !== entry) return;
+            if (entry.cancelled || isAbortError(error)) cache.delete(key);
+            else {
+                entry.failed = true;
+                cache.delete(key);
+                cache.delete(failureKey);
+                cache.set(failureKey, entry);
+            }
+        },
+    );
+    return entry;
+}
+
+function clearTranslationRequestCancelTimer(entry: FullPageTranslationRequestCacheEntry): void {
+    if (entry.cancelTimer === null) return;
+    globalThis.clearTimeout(entry.cancelTimer);
+    entry.cancelTimer = null;
+}
+
+function cancelTranslationRequest(entry: FullPageTranslationRequestCacheEntry): void {
+    if (entry.settled || entry.cancelled) return;
+    entry.cancelled = true;
+    entry.controller.abort();
+    cancelTranslationQueueSession(entry.queueSession, createAbortError());
+}
+
+function retireTranslationRequest(
+    cache: Map<string, FullPageTranslationRequestCacheEntry>,
+    key: string,
+    entry: FullPageTranslationRequestCacheEntry,
+): void {
+    if (cache.get(key) === entry) cache.delete(key);
+    clearTranslationRequestCancelTimer(entry);
+    if (entry.waiters === 0) cancelTranslationRequest(entry);
+}
+
+function waitForTranslationRequest(
+    cache: Map<string, FullPageTranslationRequestCacheEntry>,
+    key: string,
+    entry: FullPageTranslationRequestCacheEntry,
+    signal?: AbortSignal,
+): Promise<string[]> {
+    entry.waiters += 1;
+    clearTranslationRequestCancelTimer(entry);
+    return Promise.resolve()
+        .then(() => waitForCaller(entry.promise, signal))
+        .finally(() => {
+            entry.waiters -= 1;
+            if (entry.waiters > 0 || entry.settled || entry.cancelled) return;
+            entry.cancelTimer = globalThis.setTimeout(() => {
+                entry.cancelTimer = null;
+                if (cache.get(key) === entry) cache.delete(key);
+                cancelTranslationRequest(entry);
+            }, FULL_PAGE_TRANSLATION_REMOUNT_GRACE_MS);
+        });
+}
+
+/** 清空会话级结果；仍有调用方的在途请求可完成，但不再参与后续重挂复用。 */
+export function clearFullPageTranslationRequestCache(
+    session: Pick<FullPageTranslationSessionCache, 'translationRequestCache'>,
+    preserveFailedRequests = false,
+): void {
+    const cache = session.translationRequestCache;
+    if (!cache) return;
+    for (const [key, entry] of cache) {
+        if (preserveFailedRequests && entry.failed) continue;
+        retireTranslationRequest(cache, key, entry);
+    }
 }
 
 function rememberTranslation(
@@ -419,6 +608,8 @@ async function translateTextSlotsDirectly(
         for (const [index, origin] of origins.entries()) {
             const key = createCacheKey(origin, snapshot);
             const cached = fullPageSession.translationSlotCache.get(key);
+            // 未结算的逐槽 promise 仍属于创建它的整请求取消域。只复用稳定结果；
+            // 完全相同的重挂请求由外层 request cache 安全合并并统计 waiter。
             if (cached?.settled) {
                 resultPromises[index] = cached.promise;
                 continue;
@@ -482,14 +673,84 @@ export async function translateTextSlots(
     signal?: AbortSignal,
     queueSession?: TranslationQueueSession,
     fullPageSession?: FullPageTranslationSessionCache,
+    forceFailedRequest = false,
 ): Promise<string[]> {
     if (origins.length === 0) return [];
     throwIfAborted(signal);
-    const canCombineAIParagraphs = snapshot.enableAIMultiSegment
-        && servicesType.isUseAIContext(snapshot.service, snapshot.model)
-        && fullPageSession?.active;
-    if (canCombineAIParagraphs) {
-        return enqueueAIMultiSegmentTask(origins, snapshot, signal, queueSession, fullPageSession);
+    const translatedIndexes = origins
+        .map((origin, index) => shouldKeepOriginalSlot(origin ?? '', snapshot.targetLanguage) ? -1 : index)
+        .filter((index) => index >= 0);
+    if (translatedIndexes.length === 0) return [...origins];
+    // 保留全量数组的原引用，使 AI 微任务合批仍读取调用方提交时的槽列表；
+    // 只有确实跳过目标语言/非文字槽时才创建需要回填的新数组。
+    const requestOrigins = translatedIndexes.length === origins.length
+        ? origins
+        : translatedIndexes.map((index) => origins[index] ?? '');
+    const execute = (
+        executionSignal: AbortSignal | undefined,
+        executionQueueSession: TranslationQueueSession | undefined,
+    ) => {
+        const canCombineAIParagraphs = snapshot.enableAIMultiSegment
+            && servicesType.isUseAIContext(snapshot.service, snapshot.model)
+            && fullPageSession?.active;
+        const request = canCombineAIParagraphs
+            ? enqueueAIMultiSegmentTask(
+                requestOrigins,
+                snapshot,
+                executionSignal,
+                executionQueueSession,
+                fullPageSession,
+            )
+            : translateTextSlotsDirectly(
+                requestOrigins,
+                snapshot,
+                executionSignal,
+                executionQueueSession,
+                fullPageSession,
+            );
+        return translatedIndexes.length === origins.length
+            ? request
+            : request.then((translations) => restoreSkippedSlots(origins, translatedIndexes, translations));
+    };
+
+    // 候选节点会因虚拟列表或前端框架重挂载而更换自己的 AbortSignal。
+    // 将相同请求归属到全文会话后，旧候选取消只停止等待，不会终止新候选
+    // 正在复用的 provider 请求；会话结束仍会统一中止底层工作。
+    if (fullPageSession?.active && fullPageSession.requestSignal) {
+        const key = createRequestCacheKey(origins, snapshot, fullPageSession.pageContextGeneration ?? 0);
+        const failureKey = createRequestCacheKey(origins, snapshot, -1);
+        const requestCache = fullPageSession.translationRequestCache ??= new Map();
+        const failed = requestCache.get(failureKey);
+        if (failed) {
+            if (!forceFailedRequest) return waitForTranslationRequest(requestCache, failureKey, failed, signal);
+            retireTranslationRequest(requestCache, failureKey, failed);
+        }
+        const cached = requestCache.get(key);
+        if (cached) return waitForTranslationRequest(requestCache, key, cached, signal);
+        // 每个底层请求保留独立 queue session，避免某次逐槽降级失败时取消
+        // 全文会话里其他无关请求；AbortSignal 仍由会话统一持有和结束。
+        const requestQueueSession = createTranslationQueueSession();
+        fullPageSession.requestQueueSessions?.add(requestQueueSession);
+        const requestController = new AbortController();
+        fullPageSession.requestControllers?.add(requestController);
+        if (fullPageSession.requestSignal.aborted) requestController.abort();
+        const result = execute(requestController.signal, requestQueueSession);
+        const releaseQueueSession = () => {
+            fullPageSession.requestControllers?.delete(requestController);
+            fullPageSession.requestQueueSessions?.delete(requestQueueSession);
+        };
+        void result.then(releaseQueueSession, releaseQueueSession);
+        const entry = rememberTranslationRequest(
+            fullPageSession,
+            key,
+            failureKey,
+            result,
+            origins.length,
+            requestController,
+            requestQueueSession,
+        );
+        return waitForTranslationRequest(requestCache, key, entry, signal);
     }
-    return translateTextSlotsDirectly(origins, snapshot, signal, queueSession, fullPageSession);
+
+    return execute(signal, queueSession);
 }

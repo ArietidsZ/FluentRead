@@ -104,6 +104,7 @@ function isExpired(record: TranslationCacheRecord, now: number): boolean {
  */
 class TranslationCache {
   private readonly memory = new Map<string, TranslationCacheRecord>();
+  private clearEpoch = 0;
 
   private remember(record: TranslationCacheRecord): void {
     // 步骤 1：重新插入记录，把它移动到内存 LRU 的最新位置。
@@ -137,9 +138,11 @@ class TranslationCache {
       return memoryRecord.translation;
     }
 
+    const epoch = this.clearEpoch;
     try {
-      // 步骤 2：冷数据从 IndexedDB 读取，并同步刷新持久层 LRU 时间。
+      // 步骤 2：冷数据从 IndexedDB 读取；clear 期间完成的旧读取不能重新填充缓存。
       const record = await translationCacheDb.entries.get(key);
+      if (epoch !== this.clearEpoch) return null;
       if (!record) return null;
 
       if (isExpired(record, now)) {
@@ -148,8 +151,11 @@ class TranslationCache {
       }
 
       record.lastAccessedAt = now;
-      await translationCacheDb.entries.put(record);
       this.remember(record);
+      // update 不会在 clear 已删除记录后将旧冷读重新插回持久层；LRU touch 也不阻塞命中返回。
+      void translationCacheDb.entries.update(key, { lastAccessedAt: now }).catch((error) => {
+        console.warn('[FluentRead] translation cache read failed:', error);
+      });
       return record.translation;
     } catch (error) {
       // 步骤 3：缓存不可用时只按未命中处理，不能阻断真实翻译。
@@ -173,10 +179,14 @@ class TranslationCache {
       expiresAt: now + TRANSLATION_CACHE_TTL_MS,
       byteSize,
     };
+    const epoch = this.clearEpoch;
+    let persisted = false;
 
     try {
       // 步骤 2：在同一事务中写入新记录，并按条目数与总字节数执行持久层 LRU。
       await translationCacheDb.transaction('rw', translationCacheDb.entries, async () => {
+        // clear 已经开始时，调用开始于旧代际的写入必须失效。
+        if (epoch !== this.clearEpoch) return;
         await translationCacheDb.entries.put(record);
 
         const entries = await translationCacheDb.entries.orderBy('lastAccessedAt').toArray();
@@ -197,9 +207,12 @@ class TranslationCache {
           await translationCacheDb.entries.bulkDelete(keysToDelete);
           keysToDelete.forEach((entryKey) => this.forget(entryKey));
         }
+
+        persisted = true;
       });
 
       // 步骤 3：持久化成功后再进入热数据层，防止内存和 IndexedDB 状态分叉。
+      if (!persisted || epoch !== this.clearEpoch) return false;
       this.remember(record);
       return true;
     } catch (error) {
@@ -226,7 +239,8 @@ class TranslationCache {
   }
 
   async clear(): Promise<void> {
-    // 步骤 1：先清空当前 service worker 的热数据。
+    // 步骤 1：先切换代际，使尚未完成的冷读和写入不能在 clear 后重新填充缓存。
+    this.clearEpoch += 1;
     this.memory.clear();
     try {
       // 步骤 2：再清空 IndexedDB；失败时向调用方报告，避免 UI 误报已清除。
