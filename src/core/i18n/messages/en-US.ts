@@ -30,7 +30,7 @@ export const enUSMessages = {
     'language.onboardingEyebrow': 'One last step',
     'language.onboardingTitle': 'Choose your interface language',
     'language.onboardingDescription': 'Choose the language used by FluentRead.',
-    'language.onboardingLabel': 'language',
+    'language.onboardingLabel': 'Language',
     'language.onboardingRecommended': 'Recommended',
     'language.onboardingBrowserHint': 'Preselected from your browser language. You can change it later in settings.',
     'language.onboardingConfirmHint': 'Choose one, then confirm',

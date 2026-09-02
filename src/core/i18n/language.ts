@@ -43,6 +43,16 @@ const englishUiLanguageLabels: Readonly<Record<UiLanguage, string>> = {
     'es-ES': 'Spanish',
 };
 
+const bilingualUiLanguageLabels: Readonly<Record<UiLanguage, string>> = {
+    'zh-CN': '中文 / Chinese',
+    'en-US': '英语 / English',
+    'ja-JP': '日语 / Japanese',
+    'ko-KR': '韩语 / Korean',
+    'fr-FR': '法语 / French',
+    'ru-RU': '俄语 / Russian',
+    'es-ES': '西班牙语 / Spanish',
+};
+
 const localizedUiLanguageLabels: Readonly<Partial<Record<UiLanguage, Readonly<Record<UiLanguage, string>>>>> = {
     'ja-JP': {
         'zh-CN': '中国語 / Chinese / 中文',
@@ -129,6 +139,10 @@ export function getUiLanguageLabel(language: UiLanguage): string {
     if (language === 'ru-RU') return 'Русский';
     if (language === 'es-ES') return 'Español';
     return '中文';
+}
+
+export function getUiLanguageBilingualLabel(language: UiLanguage): string {
+    return bilingualUiLanguageLabels[language] || getUiLanguageLabel(language);
 }
 
 export function getUiLanguageDisplayLabel(language: UiLanguage, interfaceLanguage: UiLanguage = DEFAULT_UI_LANGUAGE): string {

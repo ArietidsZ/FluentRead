@@ -23,9 +23,17 @@ describe('popup feature visibility', () => {
         expect(onboarding).toContain('data-testid="onboarding-welcome"');
         expect(onboarding).toContain('data-testid="onboarding-language-step"');
         expect(onboarding).toContain('WELCOME_GREETING_WORDS');
-        expect(onboarding).toContain('getUiLanguageDisplayLabel(option.value, selectedLanguage)');
+        expect(onboarding).toContain('getUiLanguageBilingualLabel(option.value)');
+        expect(onboarding).toContain("messageZh('language.onboardingTitle')");
+        expect(onboarding).toContain("messageEn('language.onboardingTitle')");
+        expect(onboarding).toContain("messageZh('language.onboardingConfirm')");
+        expect(onboarding).toContain("messageEn('language.onboardingConfirm')");
+        expect(onboarding).not.toContain('class="onboarding-language-code"');
         expect(onboarding).toContain('class="onboarding-confirm-guide"');
         expect(onboarding).toContain('animation: onboarding-point 1.05s ease-in-out infinite');
+        expect(onboarding).toContain('M8 1v15M3 12l5 5 5-5');
+        expect(onboarding).not.toContain('>↘</span>');
+        expect(onboarding).not.toContain('transform: rotate(8deg);\n  animation: onboarding-point');
         expect(onboarding).toContain('data-testid="onboarding-language-next"');
         expect(onboarding).not.toContain('<select');
         expect(onboarding).toContain('.onboarding-success::before');
@@ -66,7 +74,7 @@ describe('popup feature visibility', () => {
         const onboarding = source('src/ui/components/UiLanguageOnboarding.vue');
 
         expect(selector).toContain('getUiLanguageDisplayLabel(option.value, language)');
-        expect(onboarding).toContain('getUiLanguageDisplayLabel(option.value, selectedLanguage)');
+        expect(onboarding).toContain('getUiLanguageBilingualLabel(option.value)');
     });
 
     it('blocks early interaction until the stored configuration is hydrated', () => {

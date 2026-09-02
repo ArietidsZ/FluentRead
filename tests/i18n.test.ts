@@ -2,6 +2,7 @@ import {describe, expect, it} from 'vitest';
 
 import {
   DEFAULT_UI_LANGUAGE,
+  getUiLanguageBilingualLabel,
   getUiLanguageDisplayLabel,
   UI_LANGUAGE_OPTIONS,
   normalizeUiLanguage,
@@ -88,6 +89,15 @@ describe('界面 i18n 契约', () => {
     ]);
     expect(UI_LANGUAGE_OPTIONS.map((item) => getUiLanguageDisplayLabel(item.value, 'en-US'))).toEqual([
       'Chinese', 'English', 'Japanese', 'Korean', 'French', 'Russian', 'Spanish',
+    ]);
+    expect(UI_LANGUAGE_OPTIONS.map((item) => getUiLanguageBilingualLabel(item.value))).toEqual([
+      '中文 / Chinese',
+      '英语 / English',
+      '日语 / Japanese',
+      '韩语 / Korean',
+      '法语 / French',
+      '俄语 / Russian',
+      '西班牙语 / Spanish',
     ]);
     expect(getUiLanguageDisplayLabel('ja-JP', 'es-ES')).toBe('Japonés / Japanese / 日本語');
     expect(translate('popup.current', 'en-US', {value: 'Ctrl'})).toBe('Current: Ctrl');

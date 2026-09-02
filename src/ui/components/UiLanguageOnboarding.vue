@@ -18,15 +18,21 @@
       <Transition name="onboarding-content" mode="out-in">
         <div v-if="celebrating" key="success" class="onboarding-success">
           <div class="onboarding-success-mark" aria-hidden="true"><span>✓</span></div>
-          <span class="eyebrow">{{ message('language.onboardingSuccessEyebrow') }}</span>
-          <h1 id="language-onboarding-title">{{ message('language.onboardingSuccessTitle') }}</h1>
-          <p>{{ message('language.onboardingSuccessDescription') }}</p>
+          <span class="eyebrow">{{ bilingualMessage('language.onboardingSuccessEyebrow') }}</span>
+          <h1 id="language-onboarding-title">
+            {{ messageZh('language.onboardingSuccessTitle') }}
+            <small class="onboarding-title-secondary">{{ messageEn('language.onboardingSuccessTitle') }}</small>
+          </h1>
+          <p>
+            <span>{{ messageZh('language.onboardingSuccessDescription') }}</span>
+            <span class="onboarding-secondary-copy">{{ messageEn('language.onboardingSuccessDescription') }}</span>
+          </p>
         </div>
 
         <div v-else-if="step === 'welcome'" key="welcome" class="onboarding-welcome" data-testid="onboarding-welcome">
           <div class="onboarding-brand">
             <img src="/icon/128.png" alt="" />
-            <strong>{{ message('common.brand') }}</strong>
+            <strong>流畅阅读 · FluentRead</strong>
           </div>
 
           <div class="welcome-art" aria-hidden="true">
@@ -38,9 +44,15 @@
           </div>
 
           <div class="onboarding-copy welcome-copy">
-            <span class="eyebrow">{{ message('language.onboardingWelcomeEyebrow') }}</span>
-            <h1 id="language-onboarding-title">{{ message('language.onboardingWelcomeTitle') }}</h1>
-            <p>{{ message('language.onboardingWelcomeDescription') }}</p>
+            <span class="eyebrow">{{ bilingualMessage('language.onboardingWelcomeEyebrow') }}</span>
+            <h1 id="language-onboarding-title">
+              {{ messageZh('language.onboardingWelcomeTitle') }}
+              <small class="onboarding-title-secondary">{{ messageEn('language.onboardingWelcomeTitle') }}</small>
+            </h1>
+            <p>
+              <span>{{ messageZh('language.onboardingWelcomeDescription') }}</span>
+              <span class="onboarding-secondary-copy">{{ messageEn('language.onboardingWelcomeDescription') }}</span>
+            </p>
           </div>
 
           <button
@@ -50,32 +62,44 @@
             type="button"
             @click="goToLanguage"
           >
-            <span>{{ message('language.onboardingWelcomeNext') }}</span>
-            <span class="onboarding-next-arrow" aria-hidden="true">→</span>
+            <span class="onboarding-button-copy">
+              <strong>{{ messageZh('language.onboardingWelcomeNext') }}</strong>
+              <small>{{ messageEn('language.onboardingWelcomeNext') }}</small>
+            </span>
+            <svg class="onboarding-next-arrow" aria-hidden="true" viewBox="0 0 16 12" focusable="false">
+              <path d="M1 6h13M9 1l5 5-5 5" />
+            </svg>
           </button>
         </div>
 
         <div v-else key="setup" class="onboarding-form" data-testid="onboarding-language-step">
           <button class="onboarding-back" type="button" @click="goToWelcome">
-            <span aria-hidden="true">←</span>
-            <span>{{ message('language.onboardingBack') }}</span>
+            <svg class="onboarding-back-arrow" aria-hidden="true" viewBox="0 0 16 12" focusable="false">
+              <path d="M15 6H1M7 1L1 6l6 5" />
+            </svg>
+            <span>{{ bilingualMessage('language.onboardingBack') }}</span>
           </button>
 
           <div class="onboarding-copy">
-            <span class="eyebrow">{{ message('language.onboardingEyebrow') }}</span>
-            <h1 id="language-onboarding-title">{{ message('language.onboardingTitle') }}</h1>
-            <p>{{ message('language.onboardingDescription') }}</p>
+            <h1 id="language-onboarding-title">
+              {{ messageZh('language.onboardingTitle') }}
+              <small class="onboarding-title-secondary">{{ messageEn('language.onboardingTitle') }}</small>
+            </h1>
+            <p>
+              <span>{{ messageZh('language.onboardingDescription') }}</span>
+              <span class="onboarding-secondary-copy">{{ messageEn('language.onboardingDescription') }}</span>
+            </p>
           </div>
 
           <div class="onboarding-language-field">
-            <span class="onboarding-field-label">{{ message('language.onboardingLabel') }}</span>
+            <span class="onboarding-field-label">{{ bilingualMessage('language.onboardingLabel') }}</span>
             <div
               class="onboarding-language-options"
               role="radiogroup"
-              :aria-label="message('language.onboardingLabel')"
+              :aria-label="bilingualMessage('language.onboardingLabel')"
             >
               <button
-                v-for="(option, index) in UI_LANGUAGE_OPTIONS"
+                v-for="option in UI_LANGUAGE_OPTIONS"
                 :key="option.value"
                 ref="languageOptionButtons"
                 class="onboarding-language-option"
@@ -86,19 +110,22 @@
                 :data-language="option.value"
                 @click="selectedLanguage = option.value"
               >
-                <span class="onboarding-language-name">{{ getUiLanguageDisplayLabel(option.value, selectedLanguage) }}</span>
-                <span class="onboarding-language-code">{{ option.value }}</span>
-                <span v-if="index === 0" class="onboarding-language-note">{{ message('language.onboardingRecommended') }}</span>
+                <span class="onboarding-language-name">{{ getUiLanguageBilingualLabel(option.value) }}</span>
                 <span class="onboarding-language-check" aria-hidden="true">✓</span>
               </button>
             </div>
           </div>
 
-          <p class="onboarding-browser-hint">{{ message('language.onboardingBrowserHint') }}</p>
+          <p class="onboarding-browser-hint">
+            <span>{{ messageZh('language.onboardingBrowserHint') }}</span>
+            <span class="onboarding-secondary-copy">{{ messageEn('language.onboardingBrowserHint') }}</span>
+          </p>
 
           <div class="onboarding-confirm-guide" aria-hidden="true">
-            <span>{{ message('language.onboardingConfirmHint') }}</span>
-            <span class="onboarding-guide-arrow">↘</span>
+            <span>{{ bilingualMessage('language.onboardingConfirmHint') }}</span>
+            <svg class="onboarding-guide-arrow" viewBox="0 0 16 22" focusable="false">
+              <path d="M8 1v15M3 12l5 5 5-5" />
+            </svg>
           </div>
 
           <button
@@ -107,7 +134,10 @@
             :disabled="confirming"
             @click="confirm"
           >
-            {{ confirming ? message('common.loading') : message('language.onboardingConfirm') }}
+            <span class="onboarding-button-copy">
+              <strong>{{ confirming ? messageZh('common.loading') : messageZh('language.onboardingConfirm') }}</strong>
+              <small>{{ confirming ? messageEn('common.loading') : messageEn('language.onboardingConfirm') }}</small>
+            </span>
           </button>
 
           <p v-if="errorMessage" class="onboarding-error" role="alert">{{ errorMessage }}</p>
@@ -120,7 +150,7 @@
 <script setup lang="ts">
 import {nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue';
 import {
-  getUiLanguageDisplayLabel,
+  getUiLanguageBilingualLabel,
   UI_LANGUAGE_OPTIONS,
   translate,
   type TranslationParams,
@@ -167,8 +197,16 @@ watch(selectedLanguage, value => {
   document.documentElement.lang = value;
 }, {immediate: true});
 
-function message(key: string, params?: TranslationParams): string {
-  return translate(key, selectedLanguage.value, params);
+function messageZh(key: string, params?: TranslationParams): string {
+  return translate(key, 'zh-CN', params);
+}
+
+function messageEn(key: string, params?: TranslationParams): string {
+  return translate(key, 'en-US', params);
+}
+
+function bilingualMessage(key: string, params?: TranslationParams): string {
+  return `${messageZh(key, params)} / ${messageEn(key, params)}`;
 }
 
 function focusCurrentStep(): void {
@@ -202,7 +240,7 @@ async function confirm(): Promise<void> {
     }, 1200);
   } catch {
     document.documentElement.lang = language.value;
-    errorMessage.value = translate('language.saveFailed', selectedLanguage.value);
+    errorMessage.value = bilingualMessage('language.saveFailed');
   } finally {
     confirming.value = false;
   }
@@ -340,7 +378,7 @@ onMounted(focusCurrentStep);
 }
 
 .onboarding-copy h1 {
-  margin: 0 0 8px;
+  margin: 0 0 7px;
   color: var(--ink);
   font-size: 24px;
   line-height: 1.2;
@@ -349,6 +387,20 @@ onMounted(focusCurrentStep);
 
 .welcome-copy h1 {
   font-size: 26px;
+}
+
+.onboarding-title-secondary {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 680;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+.welcome-copy .onboarding-title-secondary {
+  font-size: 13px;
 }
 
 .onboarding-copy p,
@@ -364,9 +416,19 @@ onMounted(focusCurrentStep);
   max-width: 280px;
 }
 
+.onboarding-secondary-copy {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
 .onboarding-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  min-height: 42px;
+  min-height: 46px;
   margin-top: 0;
   border: 0;
   border-radius: 12px;
@@ -388,18 +450,46 @@ onMounted(focusCurrentStep);
   opacity: .65;
 }
 
-.onboarding-next {
-  display: flex;
+.onboarding-button-copy {
+  display: inline-flex;
+  flex-direction: column;
   align-items: center;
+  gap: 1px;
+}
+
+.onboarding-button-copy strong {
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1.15;
+}
+
+.onboarding-button-copy small {
+  font-size: 9.5px;
+  font-weight: 650;
+  line-height: 1.15;
+  opacity: .84;
+}
+
+.onboarding-next {
   justify-content: space-between;
   margin-top: 20px;
   padding: 0 15px 0 17px;
   text-align: left;
 }
 
+.onboarding-next .onboarding-button-copy {
+  align-items: flex-start;
+}
+
 .onboarding-next-arrow {
-  font-size: 22px;
-  line-height: 1;
+  width: 18px;
+  height: 14px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
   animation: onboarding-arrow-nudge 1.15s ease-in-out infinite;
 }
 
@@ -407,7 +497,7 @@ onMounted(focusCurrentStep);
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin: -2px 0 18px;
+  margin: -2px 0 13px;
   padding: 0;
   border: 0;
   color: var(--muted);
@@ -416,12 +506,23 @@ onMounted(focusCurrentStep);
   cursor: pointer;
 }
 
+.onboarding-back-arrow {
+  width: 13px;
+  height: 11px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .onboarding-back:hover {
   color: var(--brand-strong);
 }
 
 .onboarding-language-field {
-  margin-top: 22px;
+  margin-top: 16px;
 }
 
 .onboarding-field-label {
@@ -440,9 +541,10 @@ onMounted(focusCurrentStep);
 
 .onboarding-language-option {
   position: relative;
-  display: grid;
-  min-height: 48px;
-  padding: 8px 27px 7px 10px;
+  display: flex;
+  min-height: 43px;
+  align-items: center;
+  padding: 8px 29px 8px 11px;
   border: 1px solid var(--line);
   border-radius: 12px;
   color: var(--ink);
@@ -463,26 +565,19 @@ onMounted(focusCurrentStep);
   box-shadow: 0 0 0 3px rgba(239, 71, 118, .1);
 }
 
+.onboarding-language-option:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+  width: calc(50% - 3.5px);
+  justify-self: center;
+}
+
 .onboarding-language-name {
-  font-size: 12px;
+  overflow: hidden;
+  font-size: 11.5px;
   font-weight: 760;
   line-height: 1.3;
-}
-
-.onboarding-language-code {
-  margin-top: 2px;
-  color: var(--muted);
-  font-size: 9px;
-  line-height: 1.2;
-}
-
-.onboarding-language-note {
-  position: absolute;
-  right: 26px;
-  bottom: 7px;
-  color: var(--brand-strong);
-  font-size: 8px;
-  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .onboarding-language-check {
@@ -509,27 +604,35 @@ onMounted(focusCurrentStep);
 }
 
 .onboarding-browser-hint {
-  margin-top: 9px;
-  font-size: 10px;
+  margin-top: 8px;
+  font-size: 9.5px;
 }
 
 .onboarding-confirm-guide {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  min-height: 34px;
-  margin-top: 10px;
+  justify-content: center;
+  gap: 1px;
+  min-height: 39px;
+  margin-top: 7px;
   margin-bottom: 0;
   color: var(--brand-strong);
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 760;
+  line-height: 1.2;
+  text-align: center;
 }
 
 .onboarding-guide-arrow {
-  font-size: 27px;
-  line-height: .8;
-  transform: rotate(8deg);
+  width: 14px;
+  height: 18px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
   animation: onboarding-point 1.05s ease-in-out infinite;
 }
 
@@ -656,8 +759,8 @@ onMounted(focusCurrentStep);
 }
 
 @keyframes onboarding-point {
-  0%, 100% { translate: 0 0; rotate: 0deg; }
-  50% { translate: 4px 4px; rotate: 8deg; }
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(3px); }
 }
 
 @keyframes onboarding-confetti {
@@ -682,7 +785,8 @@ onMounted(focusCurrentStep);
   .welcome-art { height: 132px; }
   .onboarding-language-options { gap: 5px; }
   .onboarding-language-option { padding-right: 24px; padding-left: 8px; }
-  .onboarding-language-code { font-size: 8px; }
+  .onboarding-language-option:last-child:nth-child(odd) { width: calc(50% - 2.5px); }
+  .onboarding-language-name { font-size: 10.5px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
