@@ -2,6 +2,7 @@ import {describe, expect, it} from 'vitest';
 
 import {
   DEFAULT_UI_LANGUAGE,
+  getUiLanguageDisplayLabel,
   UI_LANGUAGE_OPTIONS,
   normalizeUiLanguage,
   resolveUiLanguageFromLocale,
@@ -76,6 +77,19 @@ describe('界面 i18n 契约', () => {
     expect(UI_LANGUAGE_OPTIONS.map((item) => item.value)).toEqual([
       'zh-CN', 'en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES',
     ]);
+    expect(UI_LANGUAGE_OPTIONS.map((item) => getUiLanguageDisplayLabel(item.value, 'zh-CN'))).toEqual([
+      '中文 / Chinese',
+      'English / 英语',
+      '日本語 / Japanese / 日语',
+      '한국어 / Korean / 韩语',
+      'Français / French / 法语',
+      'Русский / Russian / 俄语',
+      'Español / Spanish / 西班牙语',
+    ]);
+    expect(UI_LANGUAGE_OPTIONS.map((item) => getUiLanguageDisplayLabel(item.value, 'en-US'))).toEqual([
+      'Chinese', 'English', 'Japanese', 'Korean', 'French', 'Russian', 'Spanish',
+    ]);
+    expect(getUiLanguageDisplayLabel('ja-JP', 'es-ES')).toBe('Japonés / Japanese / 日本語');
     expect(translate('popup.current', 'en-US', {value: 'Ctrl'})).toBe('Current: Ctrl');
     expect(translate('popup.current', 'zh-CN', {value: 'Ctrl'})).toBe('当前：Ctrl');
     expect(translate('popup.current', 'es-ES', {value: 'Ctrl'})).toBe('Actual: Ctrl');

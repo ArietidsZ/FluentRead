@@ -16,7 +16,7 @@
       @change="handleChange"
     >
       <option v-for="option in UI_LANGUAGE_OPTIONS" :key="option.value" :value="option.value">
-        {{ t(option.labelKey) }}
+        {{ getUiLanguageDisplayLabel(option.value, language) }}
       </option>
     </select>
     <span v-if="errorMessage" class="ui-language-error" role="status" aria-live="polite">{{ errorMessage }}</span>
@@ -25,7 +25,7 @@
 
 <script setup lang="ts">
 import {ref} from 'vue';
-import {UI_LANGUAGE_OPTIONS, type UiLanguage} from '@/src/core/i18n';
+import {getUiLanguageDisplayLabel, UI_LANGUAGE_OPTIONS, type UiLanguage} from '@/src/core/i18n';
 import {useUiI18n} from '@/src/ui/i18n';
 
 withDefaults(defineProps<{

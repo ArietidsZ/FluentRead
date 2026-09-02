@@ -86,7 +86,7 @@
                 :data-language="option.value"
                 @click="selectedLanguage = option.value"
               >
-                <span class="onboarding-language-name">{{ message(option.labelKey) }}</span>
+                <span class="onboarding-language-name">{{ getUiLanguageDisplayLabel(option.value, selectedLanguage) }}</span>
                 <span class="onboarding-language-code">{{ option.value }}</span>
                 <span v-if="index === 0" class="onboarding-language-note">{{ message('language.onboardingRecommended') }}</span>
                 <span class="onboarding-language-check" aria-hidden="true">✓</span>
@@ -120,6 +120,7 @@
 <script setup lang="ts">
 import {nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue';
 import {
+  getUiLanguageDisplayLabel,
   UI_LANGUAGE_OPTIONS,
   translate,
   type TranslationParams,

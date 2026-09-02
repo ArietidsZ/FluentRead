@@ -23,6 +23,80 @@ export const UI_LANGUAGE_OPTIONS = [
     {value: 'es-ES', labelKey: 'language.esES'},
 ] as const satisfies ReadonlyArray<{value: UiLanguage; labelKey: string}>;
 
+const multilingualUiLanguageLabels: Readonly<Record<UiLanguage, string>> = {
+    'zh-CN': '中文 / Chinese',
+    'en-US': 'English / 英语',
+    'ja-JP': '日本語 / Japanese / 日语',
+    'ko-KR': '한국어 / Korean / 韩语',
+    'fr-FR': 'Français / French / 法语',
+    'ru-RU': 'Русский / Russian / 俄语',
+    'es-ES': 'Español / Spanish / 西班牙语',
+};
+
+const englishUiLanguageLabels: Readonly<Record<UiLanguage, string>> = {
+    'zh-CN': 'Chinese',
+    'en-US': 'English',
+    'ja-JP': 'Japanese',
+    'ko-KR': 'Korean',
+    'fr-FR': 'French',
+    'ru-RU': 'Russian',
+    'es-ES': 'Spanish',
+};
+
+const localizedUiLanguageLabels: Readonly<Partial<Record<UiLanguage, Readonly<Record<UiLanguage, string>>>>> = {
+    'ja-JP': {
+        'zh-CN': '中国語 / Chinese / 中文',
+        'en-US': '英語 / English',
+        'ja-JP': '日本語 / Japanese',
+        'ko-KR': '韓国語 / Korean / 한국어',
+        'fr-FR': 'フランス語 / French / Français',
+        'ru-RU': 'ロシア語 / Russian / Русский',
+        'es-ES': 'スペイン語 / Spanish / Español',
+    },
+    'ko-KR': {
+        'zh-CN': '중국어 / Chinese / 中文',
+        'en-US': '영어 / English',
+        'ja-JP': '일본어 / Japanese / 日本語',
+        'ko-KR': '한국어 / Korean',
+        'fr-FR': '프랑스어 / French / Français',
+        'ru-RU': '러시아어 / Russian / Русский',
+        'es-ES': '스페인어 / Spanish / Español',
+    },
+    'fr-FR': {
+        'zh-CN': 'chinois / Chinese / 中文',
+        'en-US': 'anglais / English',
+        'ja-JP': 'japonais / Japanese / 日本語',
+        'ko-KR': 'coréen / Korean / 한국어',
+        'fr-FR': 'français / French',
+        'ru-RU': 'russe / Russian / Русский',
+        'es-ES': 'espagnol / Spanish / Español',
+    },
+    'ru-RU': {
+        'zh-CN': 'китайский / Chinese / 中文',
+        'en-US': 'английский / English',
+        'ja-JP': 'японский / Japanese / 日本語',
+        'ko-KR': 'корейский / Korean / 한국어',
+        'fr-FR': 'французский / French / Français',
+        'ru-RU': 'русский / Russian',
+        'es-ES': 'испанский / Spanish / Español',
+    },
+    'es-ES': {
+        'zh-CN': 'Chino / Chinese / 中文',
+        'en-US': 'Inglés / English',
+        'ja-JP': 'Japonés / Japanese / 日本語',
+        'ko-KR': 'Coreano / Korean / 한국어',
+        'fr-FR': 'Francés / French / Français',
+        'ru-RU': 'Ruso / Russian / Русский',
+        'es-ES': 'Español / Spanish',
+    },
+};
+
+const uiLanguageLabelsByInterfaceLanguage: Readonly<Partial<Record<UiLanguage, Readonly<Record<UiLanguage, string>>>>> = {
+    ...localizedUiLanguageLabels,
+    'zh-CN': multilingualUiLanguageLabels,
+    'en-US': englishUiLanguageLabels,
+};
+
 export function normalizeUiLanguage(value: unknown): UiLanguage {
     if (value === 'en-US') return 'en-US';
     if (value === 'ja-JP') return 'ja-JP';
@@ -55,4 +129,9 @@ export function getUiLanguageLabel(language: UiLanguage): string {
     if (language === 'ru-RU') return 'Русский';
     if (language === 'es-ES') return 'Español';
     return '中文';
+}
+
+export function getUiLanguageDisplayLabel(language: UiLanguage, interfaceLanguage: UiLanguage = DEFAULT_UI_LANGUAGE): string {
+    const labels = uiLanguageLabelsByInterfaceLanguage[interfaceLanguage] || multilingualUiLanguageLabels;
+    return labels[language] || getUiLanguageLabel(language);
 }

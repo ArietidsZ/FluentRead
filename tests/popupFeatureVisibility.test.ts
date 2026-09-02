@@ -23,6 +23,7 @@ describe('popup feature visibility', () => {
         expect(onboarding).toContain('data-testid="onboarding-welcome"');
         expect(onboarding).toContain('data-testid="onboarding-language-step"');
         expect(onboarding).toContain('WELCOME_GREETING_WORDS');
+        expect(onboarding).toContain('getUiLanguageDisplayLabel(option.value, selectedLanguage)');
         expect(onboarding).toContain('class="onboarding-confirm-guide"');
         expect(onboarding).toContain('animation: onboarding-point 1.05s ease-in-out infinite');
         expect(onboarding).toContain('data-testid="onboarding-language-next"');
@@ -58,6 +59,14 @@ describe('popup feature visibility', () => {
         expect(settings).toContain(':label="getMultilingualTargetLanguageLabel(item.value, item.label, language)"');
         expect(center).toContain('getMultilingualTargetLanguageLabel(item.value, item.label, language)');
         expect(documentApp).toContain('getMultilingualTargetLanguageLabel(item.value, item.label, language)');
+    });
+
+    it('uses the same multilingual display policy for interface-language selectors', () => {
+        const selector = source('src/ui/components/UiLanguageSelector.vue');
+        const onboarding = source('src/ui/components/UiLanguageOnboarding.vue');
+
+        expect(selector).toContain('getUiLanguageDisplayLabel(option.value, language)');
+        expect(onboarding).toContain('getUiLanguageDisplayLabel(option.value, selectedLanguage)');
     });
 
     it('blocks early interaction until the stored configuration is hydrated', () => {
