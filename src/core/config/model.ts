@@ -160,6 +160,7 @@ export class Config {
     useCache: boolean; // 是否使用缓存
     enableAIContext: boolean; // 是否为 AI 翻译附加网页上下文
     enableAIMultiSegment: boolean; // 是否把相邻全文段落合并为一次 AI 翻译请求
+    bilingualSentenceHighlightEnabled: boolean; // 是否在双语翻译中同步高亮原文与译文
     contextMenuEnabled: boolean; // 是否显示右键全文翻译菜单
     fullPageTranslationMode: FullPageTranslationMode; // 全文翻译按视口加载或立即处理整页
     disableFloatingBall: boolean; // 是否禁用悬浮球
@@ -252,6 +253,7 @@ export class Config {
         this.useCache = true; // 默认开启缓存
         this.enableAIContext = false; // 默认关闭 AI 智能上下文，避免意外增加请求体和费用
         this.enableAIMultiSegment = false; // 默认逐段请求，由用户按需开启 AI 多段翻译
+        this.bilingualSentenceHighlightEnabled = false; // 默认关闭双语逐句高亮，避免改变现有网页视觉
         this.contextMenuEnabled = true; // 默认显示右键全文翻译入口
         this.fullPageTranslationMode = 'viewport'; // 默认按阅读进度翻译，避免一次发出过多请求
         this.disableFloatingBall = true; // 默认关闭悬浮球
@@ -581,6 +583,7 @@ export function normalizeConfig(value: unknown): Config {
             ? legacyTranslationStatus
             : false;
     }
+    normalized.bilingualSentenceHighlightEnabled = source.bilingualSentenceHighlightEnabled === true;
     delete (normalized as unknown as Record<string, unknown>).translationStatus;
     // __fluentConfigRevision 只用于 storage 的写入顺序判断，不能进入运行时
     // 配置或历史快照，否则默认配置与同值的页面快照会因内部字段不同而无法去重。

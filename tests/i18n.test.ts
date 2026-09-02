@@ -107,6 +107,12 @@ describe('界面 i18n 契约', () => {
     expect(translate('popup.current', 'ko-KR', {value: 'Ctrl'})).toBe('현재: Ctrl');
     expect(translate('popup.current', 'fr-FR', {value: 'Ctrl'})).toBe('Actuel : Ctrl');
     expect(translate('popup.current', 'ru-RU', {value: 'Ctrl'})).toBe('Текущее: Ctrl');
+    expect(translate('settings.general.bilingualSentenceHighlight', 'en-US')).toBe('Bilingual sentence highlighting');
+    expect(translate('settings.general.bilingualSentenceHighlight', 'ja-JP')).toBe('二言語の文をハイライト');
+    expect(translate('settings.general.bilingualSentenceHighlight', 'ko-KR')).toBe('이중 언어 문장 강조');
+    expect(translate('settings.general.bilingualSentenceHighlight', 'fr-FR')).toBe('Surlignage bilingue par phrase');
+    expect(translate('settings.general.bilingualSentenceHighlight', 'ru-RU')).toBe('Подсветка двуязычных предложений');
+    expect(translate('settings.general.bilingualSentenceHighlight', 'es-ES')).toBe('Resaltado bilingüe por oración');
     expect(translate('language.onboardingTitle', 'es-ES')).toBe('Elige el idioma de la interfaz');
     expect(translate('language.onboardingTitle', 'ja-JP')).toBe('インターフェースの言語を選択');
     expect(translate('contextMenu.translate', 'en-US')).toBe('Translate with FluentRead');
@@ -128,6 +134,8 @@ describe('界面 i18n 契约', () => {
     expect(translateLegacyText('软件语言', 'es-ES')).toBe('Idioma de la aplicación');
     expect(translateLegacyText('软件语言', 'ja-JP')).toBe('アプリの言語');
     expect(translateLegacyText('软件语言', 'ko-KR')).toBe('앱 언어');
+    expect(translateLegacyText('双语逐句高亮', 'en-US')).toBe('Bilingual sentence highlighting');
+    expect(translateLegacyText('双语逐句高亮', 'es-ES')).toBe('Resaltado bilingüe por oración');
     expect(translateLegacyText('软件语言', 'fr-FR')).toBe('Langue de l’application');
     expect(translateLegacyText('软件语言', 'ru-RU')).toBe('Язык приложения');
     expect(translateLegacyText('My services', 'ja-JP')).toBe('マイサービス');

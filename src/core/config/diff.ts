@@ -321,6 +321,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     style: {group: 'general', label: '译文样式', format: (value) => formatEnum(value, STYLE_LABELS)},
     disableFloatingBall: {group: 'general', label: '全文翻译悬浮球', format: (value) => formatBoolean(value, true)},
     translationProgressPanelEnabled: {group: 'general', label: '翻译进度面板', format: formatBoolean},
+    bilingualSentenceHighlightEnabled: {group: 'general', label: '双语逐句高亮', format: formatBoolean},
 
     service: {group: 'general', label: '默认翻译服务', format: formatService},
     customOpenAIProviders: {group: 'translationServices', label: '自定义 OpenAI 服务', format: formatCustomOpenAIProviders},

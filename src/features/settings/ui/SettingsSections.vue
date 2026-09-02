@@ -326,6 +326,9 @@
             </el-option-group>
           </el-select>
         </SettingsItem>
+        <SettingsItem v-show="config.display === 1" :label="t('settings.general.bilingualSentenceHighlight')" :description="t('settings.general.bilingualSentenceHighlightDescription')">
+          <el-switch v-model="config.bilingualSentenceHighlightEnabled" class="settings-toggle" :aria-label="t('settings.general.bilingualSentenceHighlight')" />
+        </SettingsItem>
         <div v-show="config.display === 1" class="style-preview-card" aria-live="polite">
           <div class="style-preview-example">
             <p class="style-preview-source">Reading should feel calm and effortless.</p>

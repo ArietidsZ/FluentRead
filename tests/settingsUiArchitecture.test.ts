@@ -405,6 +405,10 @@ describe('options UI composition architecture', () => {
     expect(aiContextSwitch).not.toContain(':disabled')
     expect(general).toContain('label="翻译模式"')
     expect(general).toContain('aria-label="译文样式"')
+    expect(general).toContain('v-model="config.bilingualSentenceHighlightEnabled"')
+    expect(general).toContain(":label=\"t('settings.general.bilingualSentenceHighlight')\"")
+    expect(general).toContain(":description=\"t('settings.general.bilingualSentenceHighlightDescription')\"")
+    expect(general).toContain(":aria-label=\"t('settings.general.bilingualSentenceHighlight')\"")
 
     expect(services).toContain('<ServiceCatalog')
     expect(services).not.toContain('data-testid="default-translation-service-card"')
@@ -466,5 +470,12 @@ describe('options UI composition architecture', () => {
     expect(pageStyles.startsWith('@import "../../../ui/styles/tokens.css";')).toBe(true)
     expect(tokens).toContain('--fr-color-brand: #ef4776;')
     expect(tokens).toContain('--surface-soft: var(--fr-color-surface-soft);')
+  })
+
+  it('keeps bilingual sentence highlighting opt-in and scoped to bilingual wrappers', () => {
+    const page = source('src/app/content/page.css')
+
+    expect(page).toContain('html[data-fr-bilingual-sentence-highlight="true"] .fluent-read-bilingual:hover')
+    expect(page).toContain('> .fluent-read-bilingual-content')
   })
 })

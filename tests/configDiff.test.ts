@@ -27,6 +27,19 @@ describe('配置差异预览', () => {
         ]);
     });
 
+    it('预览双语逐句高亮开关', () => {
+        const result = buildConfigDiff({bilingualSentenceHighlightEnabled: false}, {
+            bilingualSentenceHighlightEnabled: true,
+        });
+
+        expect(group(result, 'general')?.changes).toEqual(expect.arrayContaining([expect.objectContaining({
+            key: 'bilingualSentenceHighlightEnabled',
+            label: '双语逐句高亮',
+            before: '关闭',
+            after: '开启',
+        })]));
+    });
+
     it('按设置页稳定分组并把常用枚举、开关、数组和数字格式化为可读文本', () => {
         const result = buildConfigDiff({
             on: true,

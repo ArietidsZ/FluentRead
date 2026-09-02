@@ -170,6 +170,8 @@ export const zhCNMessages = {
     'settings.general.translationDisplay': '译文显示',
     'settings.general.webAssist': '网页辅助',
     'settings.general.translationMode': '翻译模式',
+    'settings.general.bilingualSentenceHighlight': '双语逐句高亮',
+    'settings.general.bilingualSentenceHighlightDescription': '开启后，鼠标悬停在原文或译文上会同步高亮对应的双语段落；仅双语模式生效。',
     'settings.translation.hover': '鼠标悬浮翻译',
     'settings.translation.selection': '划词翻译',
     'settings.translation.input': '输入框翻译',

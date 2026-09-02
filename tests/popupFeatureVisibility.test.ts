@@ -164,8 +164,8 @@ describe('popup feature visibility', () => {
         expect(popup).toContain(':data-matching-models="item.matchingModels.join(\',\') || undefined"');
         expect(popup).toContain('没有找到包含“{{ serviceSearchQuery.trim() }}”的服务或模型');
         expect(popup).toContain('serviceSearchInput.value?.focus()');
-        expect(popup).toContain('const moreServicesOpen = ref(false)');
-        expect(popup).toContain('moreServicesOpen.value = selectedServiceIsMore.value');
+        expect(popup).toContain('const moreServicesOpen = ref(true)');
+        expect(popup).toContain('moreServicesOpen.value = true');
         expect(styles).toContain('.service-picker-results { min-height: 0; overflow-y: auto; scrollbar-width: thin; }');
     });
 });
