@@ -1,0 +1,528 @@
+/**
+ * @file src/ui/styles/interface-skins/palette.css
+ * 文件职责：为所有配色型界面皮肤提供共享的 Popup 与 Options 组件适配层，避免每套配色重复维护完整选择器集合。
+ * 主要内容：消费各皮肤独立模块声明的语义色、页面渐变、阴影和圆角变量，统一映射到翻译卡片、功能入口、设置导航与表单控件。
+ * 模块边界：本文件只匹配 data-interface-skin-kind="palette"，不声明任何具体皮肤色值；新增或删除单套配色只需调整注册表、入口 import 和对应色值模块。
+ */
+
+:root[data-interface-skin-kind="palette"] {
+  --el-color-primary: var(--brand);
+  --el-color-primary-light-7: color-mix(in srgb, var(--brand) 30%, var(--surface));
+  --el-color-primary-light-8: color-mix(in srgb, var(--brand) 20%, var(--surface));
+  --el-color-primary-light-9: var(--brand-soft);
+  --el-bg-color: var(--surface);
+  --el-bg-color-overlay: var(--surface);
+  --el-fill-color-blank: var(--surface);
+  --el-fill-color-light: var(--surface-soft);
+  --el-fill-color-lighter: color-mix(in srgb, var(--surface-soft) 70%, var(--surface));
+  --el-border-color: var(--line);
+  --el-border-color-light: var(--line);
+  --el-border-color-lighter: color-mix(in srgb, var(--line) 70%, transparent);
+  --el-text-color-primary: var(--ink);
+  --el-text-color-regular: color-mix(in srgb, var(--ink) 88%, var(--surface));
+  --el-text-color-secondary: var(--muted);
+  --el-text-color-placeholder: color-mix(in srgb, var(--muted) 72%, var(--surface));
+  color: var(--ink);
+  background: var(--skin-page);
+}
+
+:root[data-interface-skin-kind="palette"] body.popup-page,
+:root[data-interface-skin-kind="palette"] body.popup-page #app {
+  color: var(--ink);
+  background: var(--skin-page);
+}
+
+:root[data-interface-skin-kind="palette"] .popup-shell {
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 92% 0, var(--skin-glow), transparent 34%),
+    linear-gradient(180deg, var(--skin-page-alt) 0, var(--skin-page) 190px);
+}
+
+:root[data-interface-skin-kind="palette"] .popup-shell .brand img {
+  box-shadow: 0 8px 20px var(--skin-shadow);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-button,
+:root[data-interface-skin-kind="palette"] .donation-button,
+:root[data-interface-skin-kind="palette"] .hero-card,
+:root[data-interface-skin-kind="palette"] .service-field,
+:root[data-interface-skin-kind="palette"] .site-rule-row,
+:root[data-interface-skin-kind="palette"] .feature-card {
+  border-color: var(--line);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-button,
+:root[data-interface-skin-kind="palette"] .hero-card,
+:root[data-interface-skin-kind="palette"] .feature-card {
+  background: var(--surface);
+}
+
+:root[data-interface-skin-kind="palette"] .hero-card {
+  border-radius: var(--skin-radius, 20px);
+  box-shadow: 0 14px 32px var(--skin-shadow);
+}
+
+:root[data-interface-skin-kind="palette"] .language-pair select,
+:root[data-interface-skin-kind="palette"] .service-field,
+:root[data-interface-skin-kind="palette"] .site-rule-row {
+  color: var(--ink);
+  background: var(--surface-soft);
+}
+
+:root[data-interface-skin-kind="palette"] .language-pair select,
+:root[data-interface-skin-kind="palette"] .service-field,
+:root[data-interface-skin-kind="palette"] .feature-card,
+:root[data-interface-skin-kind="palette"] .site-rule-row {
+  border-radius: calc(var(--skin-radius, 20px) - 6px);
+}
+
+:root[data-interface-skin-kind="palette"] .service-field:hover:not(:disabled),
+:root[data-interface-skin-kind="palette"] .service-field[aria-expanded="true"],
+:root[data-interface-skin-kind="palette"] .feature-card:hover:not(:disabled) {
+  border-color: var(--brand);
+  box-shadow: 0 8px 20px var(--skin-shadow);
+}
+
+:root[data-interface-skin-kind="palette"] .translate-button,
+:root[data-interface-skin-kind="palette"] .translate-button.translated,
+:root[data-interface-skin-kind="palette"] .ai-context-toggle,
+:root[data-interface-skin-kind="palette"] .ai-context-toggle[aria-pressed="true"] {
+  color: var(--skin-action-text, #fff);
+  background: linear-gradient(110deg, var(--skin-action-start, var(--brand)), var(--skin-action-end, var(--brand-strong)));
+  box-shadow: 0 10px 22px var(--skin-action-shadow, var(--skin-shadow));
+}
+
+:root[data-interface-skin-kind="palette"] .translate-button:hover:not(:disabled),
+:root[data-interface-skin-kind="palette"] .translate-button.translated:hover:not(:disabled),
+:root[data-interface-skin-kind="palette"] .ai-context-toggle:hover:not(:disabled),
+:root[data-interface-skin-kind="palette"] .ai-context-toggle[aria-pressed="true"]:hover:not(:disabled) {
+  background: linear-gradient(110deg, var(--skin-action-end, var(--brand-strong)), var(--skin-action-start, var(--brand)));
+  box-shadow: 0 13px 26px var(--skin-action-shadow, var(--skin-shadow));
+}
+
+:root[data-interface-skin-kind="palette"] .ai-context-toggle[aria-pressed="false"] {
+  border-color: var(--line);
+  color: var(--brand-strong);
+  background: var(--brand-soft);
+  box-shadow: none;
+}
+
+:root[data-interface-skin-kind="palette"] .feature-card .feature-icon,
+:root[data-interface-skin-kind="palette"] .feature-card .feature-icon.rose,
+:root[data-interface-skin-kind="palette"] .feature-card .feature-icon.violet,
+:root[data-interface-skin-kind="palette"] .feature-card .feature-icon.blue,
+:root[data-interface-skin-kind="palette"] .feature-card .feature-icon.amber,
+:root[data-interface-skin-kind="palette"] .feature-card .feature-icon.teal {
+  color: var(--brand-strong);
+  background: var(--brand-soft);
+}
+
+:root[data-interface-skin-kind="palette"] .popup-shell > footer {
+  color: var(--muted);
+}
+
+:root[data-interface-skin-kind="palette"] .popup-drawer,
+:root[data-interface-skin-kind="palette"] .donation-card,
+:root[data-interface-skin-kind="palette"] .service-picker-panel {
+  border-color: var(--line);
+  color: var(--ink);
+  background: var(--surface) !important;
+}
+
+:root[data-interface-skin-kind="palette"] .setting-row,
+:root[data-interface-skin-kind="palette"] .select-row,
+:root[data-interface-skin-kind="palette"] .interaction-preview,
+:root[data-interface-skin-kind="palette"] .image-translation-preview,
+:root[data-interface-skin-kind="palette"] .area-translation-block,
+:root[data-interface-skin-kind="palette"] .wordbook-shortcut {
+  border-color: var(--line);
+  background: var(--surface-soft);
+}
+
+:root[data-interface-skin-kind="palette"] button:focus-visible,
+:root[data-interface-skin-kind="palette"] select:focus-visible,
+:root[data-interface-skin-kind="palette"] input:focus-visible,
+:root[data-interface-skin-kind="palette"] a:focus-visible {
+  outline-color: var(--skin-focus);
+}
+
+/* Options：使用同一组语义变量覆盖页面骨架与高频控件。 */
+:root[data-interface-skin-kind="palette"] body,
+:root[data-interface-skin-kind="palette"] .settings-app,
+:root[data-interface-skin-kind="palette"] .workspace {
+  color: var(--ink);
+  background: var(--skin-page);
+}
+
+:root[data-interface-skin-kind="palette"] .sidebar {
+  border-color: var(--line);
+  background: var(--skin-sidebar, var(--surface));
+  backdrop-filter: none;
+}
+
+:root[data-interface-skin-kind="palette"] .nav-icon,
+:root[data-interface-skin-kind="palette"] .search-box,
+:root[data-interface-skin-kind="palette"] .settings-group-body,
+:root[data-interface-skin-kind="palette"] .settings-card .settings-control-row,
+:root[data-interface-skin-kind="palette"] .settings-card .el-row,
+:root[data-interface-skin-kind="palette"] .settings-card .el-collapse,
+:root[data-interface-skin-kind="palette"] .about-panel {
+  border-color: var(--line);
+  background: var(--surface);
+  box-shadow: 0 8px 22px var(--skin-shadow);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card .settings-control-row,
+:root[data-interface-skin-kind="palette"] .settings-card .el-row {
+  background: var(--surface-soft);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card .settings-control-row:hover,
+:root[data-interface-skin-kind="palette"] .settings-card .el-row:hover {
+  border-color: var(--brand);
+  background: var(--surface);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card .el-select__wrapper,
+:root[data-interface-skin-kind="palette"] .settings-card .el-input__wrapper,
+:root[data-interface-skin-kind="palette"] .settings-card .el-input-number .el-input__wrapper,
+:root[data-interface-skin-kind="palette"] .settings-card .custom-hotkey-display {
+  border-color: var(--line);
+  color: var(--ink);
+  background: var(--surface);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card .el-select__wrapper:hover,
+:root[data-interface-skin-kind="palette"] .settings-card .el-input__wrapper:hover,
+:root[data-interface-skin-kind="palette"] .settings-card .el-input-number .el-input__wrapper:hover,
+:root[data-interface-skin-kind="palette"] .settings-card .el-select__wrapper.is-focused,
+:root[data-interface-skin-kind="palette"] .settings-card .el-input__wrapper.is-focus,
+:root[data-interface-skin-kind="palette"] .settings-card .el-input-number .el-input__wrapper.is-focus {
+  border-color: var(--brand);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--skin-focus);
+}
+
+:root[data-interface-skin-kind="palette"] .interface-skin-option {
+  border-color: var(--line);
+  background: var(--surface);
+}
+
+:root[data-interface-skin-kind="palette"] .interface-skin-option:hover {
+  border-color: var(--brand);
+  background: var(--surface-soft);
+}
+
+/*
+ * Options 功能表面：独立 feature 可以保留自己的布局与状态色，所有大面积容器、
+ * 输入面和正文仍统一消费皮肤语义色。新增配色皮肤只需注册变量，无需逐页复制规则。
+ */
+:root[data-interface-skin-kind="palette"] .settings-card .service-catalog {
+  border-color: var(--line);
+  color: var(--ink);
+  background: var(--surface-soft);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card .service-rail {
+  border-color: var(--line);
+  background: var(--skin-sidebar, var(--surface-soft));
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card :is(
+  .catalog-search,
+  .service-detail,
+  .model-picker-trigger,
+  .custom-provider-form input,
+  .secondary-button,
+  .delete-service-button
+) {
+  border-color: var(--line);
+  color: var(--ink);
+  background: var(--surface);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card :is(
+  .group-heading,
+  .custom-advanced-settings,
+  .api-key-policy,
+  .connection-test-result,
+  .model-add-form,
+  .model-picker-chip
+) {
+  border-color: var(--line);
+  color: var(--ink);
+  background: var(--surface-soft);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card :is(
+  .detail-hero,
+  .model-section,
+  .service-configuration-slot,
+  .connection-field,
+  .custom-template-heading,
+  .custom-advanced-content,
+  .service-connection-section .el-row
+) {
+  border-color: var(--line) !important;
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card :is(
+  .catalog-search input,
+  .group-heading strong,
+  .subgroup-heading strong,
+  .service-item,
+  .detail-title-row h4,
+  .model-heading strong,
+  .connection-field-label strong,
+  .custom-template-heading strong,
+  .custom-advanced-settings summary,
+  .api-key-policy-title,
+  .model-picker-option,
+  .custom-provider-form > label
+) {
+  color: var(--ink);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card :is(
+  .catalog-search span,
+  .custom-group-heading small,
+  .custom-service-empty,
+  .group-heading-copy small,
+  .subgroup-heading,
+  .service-copy small,
+  .detail-hero p,
+  .model-heading small,
+  .connection-field-label small,
+  .connection-test-hint,
+  .model-thinking-setting > small,
+  .custom-template-heading small,
+  .custom-advanced-settings summary small,
+  .api-key-policy-model,
+  .model-picker-trigger small,
+  .model-picker-heading small,
+  .model-picker-empty,
+  .custom-provider-form > label > small,
+  .custom-provider-form > label > span small
+) {
+  color: var(--muted);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card .service-item:hover {
+  border-color: var(--line);
+  background: var(--surface);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card :is(
+  .service-item.active,
+  .custom-service-add,
+  .connection-test-button,
+  .model-add-button,
+  .model-add-form button,
+  .model-picker-chip.active
+) {
+  border-color: color-mix(in srgb, var(--brand) 48%, var(--line));
+  color: var(--brand-strong);
+  background: var(--brand-soft);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card .group-heading-toggle:not(:disabled):hover {
+  background: color-mix(in srgb, var(--brand-soft) 60%, var(--surface-soft));
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card .no-model-panel {
+  border-color: color-mix(in srgb, #28aa79 34%, var(--line));
+  background: color-mix(in srgb, #28aa79 10%, var(--surface));
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card .no-model-panel strong {
+  color: color-mix(in srgb, #08734e 72%, var(--ink));
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card .no-model-panel p {
+  color: color-mix(in srgb, #318067 54%, var(--muted));
+}
+
+/* Element Plus 把模型选择器传送到 body，需要在设置卡之外单独接入同一语义表面。 */
+:root[data-interface-skin-kind="palette"] .model-picker-popper.el-popper {
+  border-color: var(--line) !important;
+  color: var(--ink);
+  background: var(--surface) !important;
+  box-shadow: 0 18px 46px var(--skin-shadow) !important;
+}
+
+:root[data-interface-skin-kind="palette"] .model-picker-popper.el-popper .el-popper__arrow::before {
+  border-color: var(--line) !important;
+  background: var(--surface) !important;
+}
+
+:root[data-interface-skin-kind="palette"] .model-picker-panel {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+:root[data-interface-skin-kind="palette"] .model-picker-panel :is(.model-add-form input, .model-picker-search input) {
+  border-color: var(--line);
+  color: var(--ink);
+  background: var(--surface);
+}
+
+/* 图片与圈选翻译：卡片保持可辨层次，但不再回退到固定冷白。 */
+:root[data-interface-skin-kind="palette"] .settings-card .image-ocr-section {
+  color: var(--ink);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card .image-ocr-recommendation {
+  border-color: color-mix(in srgb, var(--brand) 28%, var(--line));
+  background: linear-gradient(135deg, var(--brand-soft), var(--surface) 72%);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card :is(.image-ocr-pack-card, .image-ocr-unavailable) {
+  border-color: var(--line);
+  background: var(--surface);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card :is(
+  .image-ocr-heading h2,
+  .image-ocr-recommendation strong,
+  .image-ocr-pack-title strong,
+  .image-ocr-unavailable strong
+) {
+  color: var(--ink);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card :is(
+  .image-ocr-heading p,
+  .image-ocr-recommendation p,
+  .image-ocr-pack-copy small,
+  .image-ocr-footnote,
+  .image-ocr-unavailable
+) {
+  color: var(--muted);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card :is(.image-ocr-primary-action, .image-ocr-download-button:not(:disabled)) {
+  color: var(--skin-action-text, #fff);
+  background: linear-gradient(110deg, var(--skin-action-start, var(--brand)), var(--skin-action-end, var(--brand-strong)));
+  box-shadow: 0 7px 16px var(--skin-action-shadow, var(--skin-shadow));
+}
+
+/* 单词本拥有独立的大型工作台，表面与文字也必须随选中皮肤变化。 */
+:root[data-interface-skin-kind="palette"] .settings-card.vocabulary-view .vocabulary-book {
+  color: var(--ink);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card.vocabulary-view .vocabulary-book :is(
+  .beta-panel,
+  .word-row,
+  .review-card,
+  .refresh-button,
+  .book-more summary,
+  .book-more-menu,
+  .search-field,
+  .toolbar select,
+  .row-actions button,
+  .pagination button,
+  .empty-state button,
+  .review-actions button
+) {
+  border-color: var(--line);
+  color: var(--ink);
+  background: var(--surface);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card.vocabulary-view .vocabulary-book :is(
+  .primary-actions,
+  .toolbar,
+  .summary-grid article,
+  .empty-state,
+  .answer-context
+) {
+  border-color: var(--line);
+  color: var(--ink);
+  background: var(--surface-soft);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card.vocabulary-view .vocabulary-book :is(.beta-panel, .review-shell) {
+  border-color: var(--line);
+  background: linear-gradient(135deg, var(--surface), var(--brand-soft));
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card.vocabulary-view .vocabulary-book :is(
+  .beta-copy p,
+  .summary-grid span,
+  .summary-grid small,
+  .context-preview,
+  .word-meta,
+  .word-progress > small,
+  .pagination span,
+  .review-header button,
+  .review-prompt small,
+  .review-actions button > span,
+  .review-actions small,
+  .review-complete p
+) {
+  color: var(--muted);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card.vocabulary-view .vocabulary-book :is(
+  .summary-grid strong,
+  .word-heading h3,
+  .word-main > p,
+  .empty-state h3,
+  .review-prompt h3,
+  .cloze-context,
+  .answer-heading h3,
+  .search-field input,
+  .toolbar select
+) {
+  color: var(--ink);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card.vocabulary-view .vocabulary-book :is(
+  .start-review,
+  .reveal-button,
+  .review-complete button
+) {
+  color: var(--skin-action-text, #fff);
+  background: linear-gradient(110deg, var(--skin-action-start, var(--brand)), var(--skin-action-end, var(--brand-strong)));
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card.vocabulary-view .vocabulary-book .privacy-note {
+  border-color: color-mix(in srgb, #28aa79 30%, var(--line));
+  background: color-mix(in srgb, #28aa79 9%, var(--surface));
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card.vocabulary-view .vocabulary-book .selection-reminder {
+  border-color: color-mix(in srgb, #d29a28 32%, var(--line));
+  background: color-mix(in srgb, #e4aa33 10%, var(--surface));
+}
+
+/* 其余设置页的框架性大表面。译文效果范例本身不重着色，以免误导网页翻译效果。 */
+:root[data-interface-skin-kind="palette"] .settings-card :is(.about-hero, .style-preview-card) {
+  border-color: var(--line);
+  background: linear-gradient(135deg, var(--surface), var(--brand-soft));
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card :is(.disabled-section, .select-divider) {
+  border-color: var(--line);
+  color: var(--muted);
+  background: var(--surface-soft);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card .disabled-section strong {
+  color: var(--ink);
+}
+
+:root[data-interface-skin-kind="palette"] .settings-card .custom-hotkey-row:hover {
+  border-color: var(--brand);
+  background: var(--surface);
+}
+
+:root[data-interface-skin-kind="palette"] ::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 42%, transparent);
+}
+
+:root[data-interface-skin-kind="palette"] ::-webkit-scrollbar-track {
+  background: var(--surface-soft);
+}

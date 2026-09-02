@@ -1,0 +1,60 @@
+/**
+ * @file src/ui/styles/interface-skins/midnight.css
+ * 文件职责：声明 FluentRead 夜幕皮肤的固定深蓝低眩光配色，供白天或夜间主题下主动选择。
+ * 主要内容：提供深海军蓝表面、冰蓝强调、清晰浅色文字与深色 Element Plus 变量，并保持柔和光晕而非纯黑强反差。
+ * 模块边界：本文件只服务 data-interface-skin="midnight" 并向 palette.css 提供变量；它不修改全局主题配置，切回其他皮肤即可恢复原主题。
+ */
+
+:root[data-interface-skin="midnight"],
+:root.dark[data-interface-skin="midnight"] {
+  --brand: #64c9e7;
+  --brand-strong: #a8e6f6;
+  --brand-soft: rgba(78, 185, 218, .16);
+  --ink: #f2f7fb;
+  --muted: #a8b7c9;
+  --line: #33445b;
+  --surface: #172337;
+  --surface-soft: #1d2c42;
+  --skin-page: #0c1523;
+  --skin-page-alt: #121f31;
+  --skin-sidebar: #111d2d;
+  --skin-glow: rgba(80, 108, 214, .2);
+  --skin-shadow: rgba(0, 0, 0, .36);
+  --skin-action-start: #69d1eb;
+  --skin-action-end: #3aa8c8;
+  --skin-action-shadow: rgba(45, 156, 192, .25);
+  --skin-action-text: #081923;
+  --skin-focus: rgba(96, 207, 239, .38);
+  --skin-radius: 18px;
+  --el-color-primary: #55c8ec;
+  --el-bg-color: var(--surface);
+  --el-bg-color-overlay: #20314b;
+  --el-fill-color-blank: var(--surface);
+  --el-fill-color-light: var(--surface-soft);
+  --el-border-color: var(--line);
+  --el-border-color-light: var(--line);
+  --el-text-color-primary: var(--ink);
+  --el-text-color-regular: #dbe7f4;
+  --el-text-color-secondary: var(--muted);
+  color-scheme: dark;
+}
+
+:root[data-interface-skin="midnight"] .popup-shell {
+  background:
+    radial-gradient(circle at 88% -4%, rgba(91, 90, 255, .26), transparent 34%),
+    radial-gradient(circle at 5% 100%, rgba(50, 190, 219, .12), transparent 38%),
+    linear-gradient(180deg, var(--skin-page-alt), var(--skin-page));
+}
+
+:root[data-interface-skin="midnight"] .hero-card,
+:root[data-interface-skin="midnight"] .feature-card,
+:root[data-interface-skin="midnight"] .search-box,
+:root[data-interface-skin="midnight"] .settings-group-body {
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .28);
+}
+
+:root[data-interface-skin="midnight"] .donation-button {
+  border-color: #6b5830;
+  color: #f2cf77;
+  background: #2d2930;
+}

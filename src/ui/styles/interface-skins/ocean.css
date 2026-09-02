@@ -1,0 +1,69 @@
+/**
+ * @file src/ui/styles/interface-skins/ocean.css
+ * 文件职责：声明 FluentRead 海盐皮肤的清爽蓝青配色与水面层次。
+ * 主要内容：提供海盐蓝、深海文字、微透明蓝白表面和柔和波纹渐变，并为暗色主题切换到低眩光深海色。
+ * 模块边界：本文件只服务 data-interface-skin="ocean" 并向 palette.css 提供变量，不修改翻译状态或页面结构。
+ */
+
+:root[data-interface-skin="ocean"] {
+  --brand: #1689a9;
+  --brand-strong: #075f78;
+  --brand-soft: #d9f1f6;
+  --ink: #173844;
+  --muted: #607985;
+  --line: #c5dfe5;
+  --surface: #fbfeff;
+  --surface-soft: #eaf6f8;
+  --skin-page: #e2f1f4;
+  --skin-page-alt: #f8fdff;
+  --skin-sidebar: #f2fafb;
+  --skin-glow: rgba(31, 158, 188, .18);
+  --skin-shadow: rgba(22, 106, 132, .12);
+  --skin-action-start: #117b9a;
+  --skin-action-end: #08647f;
+  --skin-action-shadow: rgba(8, 100, 127, .22);
+  --skin-action-text: #f8fdff;
+  --skin-focus: rgba(22, 137, 169, .28);
+  --skin-radius: 18px;
+}
+
+:root.dark[data-interface-skin="ocean"] {
+  --brand: #37c3df;
+  --brand-strong: #86e2f2;
+  --brand-soft: rgba(55, 195, 223, .15);
+  --ink: #ecfbff;
+  --muted: #a6c6cf;
+  --line: #2f5765;
+  --surface: #142b35;
+  --surface-soft: #193844;
+  --skin-page: #0b1c24;
+  --skin-page-alt: #102732;
+  --skin-sidebar: #102630;
+  --skin-glow: rgba(42, 190, 221, .14);
+  --skin-shadow: rgba(0, 0, 0, .3);
+  --skin-action-start: #42c1de;
+  --skin-action-end: #2398b7;
+  --skin-action-text: #071c24;
+  --skin-focus: rgba(80, 208, 233, .35);
+}
+
+:root[data-interface-skin="ocean"] .popup-shell {
+  background:
+    radial-gradient(ellipse at 90% 0, var(--skin-glow), transparent 38%),
+    radial-gradient(ellipse at 8% 100%, rgba(79, 181, 199, .12), transparent 44%),
+    linear-gradient(180deg, var(--skin-page-alt), var(--skin-page));
+}
+
+:root[data-interface-skin="ocean"] .service-field,
+:root[data-interface-skin="ocean"] .site-rule-row {
+  border-color: #bfdee6;
+}
+
+:root.dark[data-interface-skin="ocean"] .service-field,
+:root.dark[data-interface-skin="ocean"] .site-rule-row {
+  border-color: var(--line);
+}
+
+:root[data-interface-skin="ocean"] .feature-card:hover:not(:disabled) {
+  transform: translateY(-1px);
+}

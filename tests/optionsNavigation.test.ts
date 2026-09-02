@@ -88,6 +88,9 @@ describe('options navigation view-model', () => {
     expect(filterNavigationItems('简约风格')).toEqual([
       expect.objectContaining({ id: 'settings-general' }),
     ])
+    expect(filterNavigationItems('奶酪')).toEqual([
+      expect.objectContaining({ id: 'settings-general' }),
+    ])
     expect(filterNavigationItems('鼠标悬浮')).toEqual([
       expect.objectContaining({ id: 'settings-translation' }),
     ])

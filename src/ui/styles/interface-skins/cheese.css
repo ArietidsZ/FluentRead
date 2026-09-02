@@ -1,0 +1,71 @@
+/**
+ * @file src/ui/styles/interface-skins/cheese.css
+ * 文件职责：声明 FluentRead 奶酪皮肤的暖黄色语义色与轻松视觉细节。
+ * 主要内容：提供奶油黄、焦糖棕、暖白表面和圆润卡片，并用低透明圆点营造克制的奶酪联想；同时给出暗色适配。
+ * 模块边界：本文件只服务 data-interface-skin="cheese" 并向 palette.css 提供变量，不改变组件结构、布局顺序或业务状态。
+ */
+
+:root[data-interface-skin="cheese"] {
+  --brand: #d99a16;
+  --brand-strong: #784b08;
+  --brand-soft: #ffedb4;
+  --ink: #3c3121;
+  --muted: #75654d;
+  --line: #e6d29f;
+  --surface: #fffdf6;
+  --surface-soft: #fff5d6;
+  --skin-page: #f7edcf;
+  --skin-page-alt: #fff9e8;
+  --skin-sidebar: #fff8e5;
+  --skin-glow: rgba(226, 165, 29, .2);
+  --skin-shadow: rgba(105, 75, 25, .11);
+  --skin-action-start: #e0a51d;
+  --skin-action-end: #c9850c;
+  --skin-action-shadow: rgba(148, 96, 8, .22);
+  --skin-action-text: #30220c;
+  --skin-focus: rgba(176, 113, 7, .3);
+  --skin-radius: 20px;
+}
+
+:root.dark[data-interface-skin="cheese"] {
+  --brand: #f2c44f;
+  --brand-strong: #ffe8a0;
+  --brand-soft: rgba(255, 210, 76, .17);
+  --ink: #fff7dc;
+  --muted: #d5c18b;
+  --line: #5d502c;
+  --surface: #2f291b;
+  --surface-soft: #3a321f;
+  --skin-page: #1f1b13;
+  --skin-page-alt: #292315;
+  --skin-sidebar: #272116;
+  --skin-glow: rgba(242, 190, 58, .14);
+  --skin-shadow: rgba(0, 0, 0, .28);
+  --skin-action-start: #efbd3c;
+  --skin-action-end: #d49719;
+  --skin-action-text: #302000;
+  --skin-focus: rgba(255, 220, 104, .38);
+}
+
+:root[data-interface-skin="cheese"] .popup-shell {
+  background:
+    radial-gradient(circle at 94% 5%, rgba(174, 112, 5, .07) 0 7px, transparent 8px),
+    radial-gradient(circle at 7% 42%, rgba(174, 112, 5, .045) 0 5px, transparent 6px),
+    linear-gradient(180deg, var(--skin-page-alt), var(--skin-page));
+}
+
+:root[data-interface-skin="cheese"] .hero-card {
+  border-color: #e3c980;
+  box-shadow: 0 7px 0 rgba(212, 154, 22, .09), 0 15px 28px var(--skin-shadow);
+}
+
+:root.dark[data-interface-skin="cheese"] .hero-card {
+  border-color: var(--line);
+  box-shadow: 0 9px 0 rgba(255, 207, 67, .07), 0 16px 30px var(--skin-shadow);
+}
+
+:root[data-interface-skin="cheese"] .translate-hotkey {
+  border-color: rgba(74, 50, 0, .3);
+  color: inherit;
+  background: rgba(255, 255, 255, .28);
+}

@@ -1,0 +1,67 @@
+/**
+ * @file src/ui/styles/interface-skins/paper.css
+ * 文件职责：声明 FluentRead 纸张护眼皮肤的暖纸色语义变量与低反光层次。
+ * 主要内容：提供米纸白、墨棕文字、克制铜色强调和近乎无阴影的卡片，并为暗色主题提供深褐阅读环境。
+ * 模块边界：本文件只服务 data-interface-skin="paper" 并向 palette.css 提供变量，不宣称医疗护眼效果，也不改变网页内容颜色。
+ */
+
+:root[data-interface-skin="paper"] {
+  --brand: #93623a;
+  --brand-strong: #69411f;
+  --brand-soft: #e8d9c1;
+  --ink: #40372f;
+  --muted: #756a5e;
+  --line: #d7c9b3;
+  --surface: #fffaf1;
+  --surface-soft: #f3ebdc;
+  --skin-page: #ebe1cd;
+  --skin-page-alt: #faf3e6;
+  --skin-sidebar: #f7efdf;
+  --skin-glow: rgba(143, 91, 44, .1);
+  --skin-shadow: rgba(78, 58, 37, .09);
+  --skin-action-start: #936039;
+  --skin-action-end: #744820;
+  --skin-action-shadow: rgba(103, 64, 28, .19);
+  --skin-action-text: #fffaf1;
+  --skin-focus: rgba(133, 83, 39, .28);
+  --skin-radius: 14px;
+}
+
+:root.dark[data-interface-skin="paper"] {
+  --brand: #c99a67;
+  --brand-strong: #e9c59f;
+  --brand-soft: rgba(201, 154, 103, .16);
+  --ink: #f3e8d6;
+  --muted: #c4b39d;
+  --line: #584938;
+  --surface: #2b241d;
+  --surface-soft: #352c23;
+  --skin-page: #1d1915;
+  --skin-page-alt: #262019;
+  --skin-sidebar: #251f19;
+  --skin-glow: rgba(187, 133, 79, .11);
+  --skin-shadow: rgba(0, 0, 0, .26);
+  --skin-action-start: #c18d59;
+  --skin-action-end: #b77e4c;
+  --skin-action-text: #21150c;
+  --skin-focus: rgba(221, 175, 127, .33);
+}
+
+:root[data-interface-skin="paper"] .popup-shell {
+  background:
+    linear-gradient(rgba(112, 82, 52, .025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(112, 82, 52, .018) 1px, transparent 1px),
+    linear-gradient(180deg, var(--skin-page-alt), var(--skin-page));
+  background-size: 18px 18px, 18px 18px, auto;
+}
+
+:root[data-interface-skin="paper"] .hero-card,
+:root[data-interface-skin="paper"] .feature-card,
+:root[data-interface-skin="paper"] .search-box,
+:root[data-interface-skin="paper"] .settings-group-body {
+  box-shadow: 0 5px 14px var(--skin-shadow);
+}
+
+:root[data-interface-skin="paper"] .feature-card:hover:not(:disabled) {
+  transform: none;
+}

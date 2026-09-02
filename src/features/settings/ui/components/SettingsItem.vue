@@ -1,14 +1,16 @@
 <!--
 @file src/features/settings/ui/components/SettingsItem.vue
 文件职责：统一单条设置的标签、辅助说明和操作控件布局，使长配置页面保持清晰的阅读节奏与对齐关系。
-主要内容：支持常规双列和 stacked 单列模式、禁用视觉状态、控制区插槽，以及窄屏下从横向到纵向的响应式排列。
+主要内容：支持常规双列和 stacked 单列模式、禁用视觉状态、可替换的说明区与控制区插槽，以及窄屏下从横向到纵向的响应式排列。
 模块边界：本组件只处理展示和插槽排版，不拥有字段值、不触发持久化，也不约束所嵌套 Element Plus 或自定义控件的业务行为。
 -->
 <template>
   <div class="settings-item" :class="{ stacked, disabled }">
     <div class="settings-item-copy">
-      <strong>{{ label }}</strong>
-      <small v-if="description">{{ description }}</small>
+      <slot name="copy">
+        <strong>{{ label }}</strong>
+        <small v-if="description">{{ description }}</small>
+      </slot>
     </div>
     <div class="settings-item-control">
       <slot />

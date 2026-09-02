@@ -81,6 +81,17 @@ describe('配置差异预览', () => {
             },
         ]));
 
+        const paletteResult = buildConfigDiff(
+            {interfaceSkin: 'ocean'},
+            {interfaceSkin: 'cheese'},
+        );
+        expect(group(paletteResult, 'general')?.changes).toContainEqual({
+            key: 'interfaceSkin',
+            label: '界面皮肤',
+            before: '海盐 🌊',
+            after: '奶酪 🧀',
+        });
+
         const malformed = buildConfigDiff(
             {interfaceVisibility: true},
             {interfaceVisibility: false},

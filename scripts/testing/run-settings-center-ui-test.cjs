@@ -16,6 +16,24 @@ const focusHelper = path.resolve(argument('focus-safe-helper', argument('focus-h
 const artifactsDir = path.resolve(argument('artifacts-dir', '/private/tmp/fluentread-settings-center-ui'));
 const browserPath = argument('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge');
 const timeout = Number(argument('timeout', '30000'));
+
+function parseHexColor(value) {
+  const raw = String(value || '').trim().replace(/^#/u, '');
+  const normalized = raw.length === 3 ? [...raw].map(char => `${char}${char}`).join('') : raw;
+  if (!/^[\da-f]{6}$/iu.test(normalized)) return null;
+  return [0, 2, 4].map(offset => Number.parseInt(normalized.slice(offset, offset + 2), 16));
+}
+
+function contrastRatio(foreground, background) {
+  const colors = [foreground, background].map(parseHexColor);
+  if (colors.some(color => color === null)) return 0;
+  const luminance = color => color
+    .map(channel => channel / 255)
+    .map(channel => channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4)
+    .reduce((sum, channel, index) => sum + channel * [.2126, .7152, .0722][index], 0);
+  const [first, second] = colors.map(luminance).sort((left, right) => right - left);
+  return (first + .05) / (second + .05);
+}
 const expectedNavigation = [
   ['settings-general', '通用设置'],
   ['settings-services', '翻译服务'],
@@ -238,8 +256,8 @@ async function appendModelUsageRefreshEvent(page) {
   });
 }
 
-async function chooseDifferentSelectOption(page, ariaLabel) {
-  const input = page.locator(`input[aria-label="${ariaLabel}"]`);
+async function chooseDifferentSelectOption(page, inputSelector) {
+  const input = page.locator(inputSelector);
   await input.waitFor({state: 'visible', timeout});
   const wrapper = input.locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " el-select__wrapper ")][1]');
   const selectedLabel = wrapper.locator('.el-select__placeholder');
@@ -252,19 +270,19 @@ async function chooseDifferentSelectOption(page, ariaLabel) {
     if ((await option.textContent())?.trim() !== before) {
       await option.click();
       await page.waitForFunction(
-        ({label, previous}) => document.querySelector(`input[aria-label="${label}"]`)
+        ({selector, previous}) => document.querySelector(selector)
           ?.closest('.el-select__wrapper')
           ?.querySelector('.el-select__placeholder')
           ?.textContent?.trim() !== previous,
-        {label: ariaLabel, previous: before},
+        {selector: inputSelector, previous: before},
         {timeout},
       );
       const after = (await selectedLabel.textContent())?.trim();
-      if (after === before) throw new Error(`${ariaLabel} 未切换到其他选项`);
+      if (after === before) throw new Error(`${inputSelector} 未切换到其他选项`);
       return {before, after};
     }
   }
-  throw new Error(`${ariaLabel} 没有可切换的选项`);
+  throw new Error(`${inputSelector} 没有可切换的选项`);
 }
 
 async function selectElementPlusOption(page, ariaLabel, optionText) {
@@ -821,28 +839,44 @@ async function main() {
     if (await page.locator('button[data-section="settings-interface"]').count() !== 0) {
       throw new Error('界面设置仍被保留为独立导航');
     }
+    const expectedInterfaceSkins = [
+      {value: 'default', label: '默认风格', kind: 'default', contentHeight: false, popupWidth: 400, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
+      {value: 'minimal', label: '简约风格', kind: 'minimal', contentHeight: true, popupWidth: 400, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
+      {value: 'compact', label: '紧凑风格', kind: 'compact', contentHeight: true, popupWidth: 360, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
+      {value: 'contrast', label: '高对比 ⚡', kind: 'contrast', contentHeight: true, popupWidth: 400, brand: '#111', surface: '#fff', darkSurface: '#050505'},
+      {value: 'cheese', label: '奶酪 🧀', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#d99a16', surface: '#fffdf6', darkSurface: '#2f291b'},
+      {value: 'ocean', label: '海盐 🌊', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#1689a9', surface: '#fbfeff', darkSurface: '#142b35'},
+      {value: 'matcha', label: '抹茶 🍵', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#648b4e', surface: '#fcfdf8', darkSurface: '#252f21'},
+      {value: 'sakura', label: '樱花 🌸', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#d95784', surface: '#fffafd', darkSurface: '#33242b'},
+      {value: 'midnight', label: '夜幕 🌙', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#64c9e7', surface: '#172337', darkSurface: '#172337'},
+      {value: 'paper', label: '纸张护眼 📖', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#93623a', surface: '#fffaf1', darkSurface: '#2b241d'},
+    ];
     const skinCards = interfaceSettingsGroup.locator('.interface-skin-option');
-    if (await skinCards.count() !== 2) throw new Error(`弹窗风格选项数量异常：${await skinCards.count()}`);
+    if (await skinCards.count() !== expectedInterfaceSkins.length) {
+      throw new Error(`弹窗风格选项数量异常：${await skinCards.count()}`);
+    }
     const skinLabels = (await skinCards.locator('.interface-skin-copy strong').allTextContents()).map(value => value.trim());
-    if (JSON.stringify(skinLabels) !== JSON.stringify(['默认风格', '简约风格'])) {
+    if (JSON.stringify(skinLabels) !== JSON.stringify(expectedInterfaceSkins.map(item => item.label))) {
       throw new Error(`弹窗风格名称或顺序异常：${JSON.stringify(skinLabels)}`);
     }
     if (await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="default"][aria-checked="true"]').count() !== 1) {
       throw new Error('默认风格没有保持当前界面选中状态');
     }
-    const visibilitySwitches = interfaceSettingsGroup.locator('.settings-item .el-switch');
+    const liveSkinPreview = interfaceSettingsGroup.locator('.interface-skin-live-preview');
+    if (await liveSkinPreview.count() !== 1
+      || await liveSkinPreview.getAttribute('data-preview-skin') !== 'default'
+      || await interfaceSettingsGroup.getByText('风格只改变扩展界面的呈现，不影响网页翻译效果。', {exact: true}).count() !== 0) {
+      throw new Error('弹窗风格没有用唯一的实时 DOM 范例替换静态说明');
+    }
+    const visibilitySwitches = interfaceSettingsGroup.locator('[data-interface-visibility]');
     if (await visibilitySwitches.count() !== 3) throw new Error(`弹窗栏目开关数量异常：${await visibilitySwitches.count()}`);
     if (await page.locator('html').getAttribute('data-interface-skin') !== 'default') {
       throw new Error('Options 初始弹窗风格不是默认风格');
     }
-
-    await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="minimal"]').click();
-    await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'minimal', undefined, {timeout});
-    if (!await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="minimal"][aria-checked="true"]').isVisible()) {
-      throw new Error('简约风格切换后没有进入选中状态');
-    }
-    report.screenshots.push(await screenshot(page, 'settings-general-interface-minimal.png'));
-    await page.waitForTimeout(500);
+    report.screenshots.push(await screenshotElement(
+      interfaceSettingsGroup.locator('.interface-skin-picker'),
+      'settings-interface-skin-picker.png',
+    ));
 
     await context.route('http://fluentread-interface.test/**', route => route.fulfill({
       status: 200,
@@ -853,78 +887,286 @@ async function main() {
     await interfaceHostPage.goto('http://fluentread-interface.test/article', {waitUntil: 'domcontentloaded', timeout});
     await activateExtensionTabWithoutForeground(context, interfaceHostPage, timeout);
 
-    const minimalPopup = await newPageWithoutForeground(context, timeout);
-    attachPageDiagnostics(minimalPopup);
-    await minimalPopup.setViewportSize({width: 400, height: 600});
-    await minimalPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
-    await minimalPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
-    await minimalPopup.waitForTimeout(350);
-    if (await minimalPopup.locator('main[data-interface-skin="minimal"]').count() !== 1) {
-      throw new Error('Popup 重开后没有应用简约风格');
+    // 迁移基线已明确完成界面语言设置；先用真实 Popup 确认不会重新弹出引导，
+    // 再验证每套皮肤，避免把尚未读取当前标签页的中间态误判成栏目缺失。
+    const initializedPopup = await newPageWithoutForeground(context, timeout);
+    attachPageDiagnostics(initializedPopup);
+    await initializedPopup.setViewportSize({width: 400, height: 600});
+    await initializedPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
+    await initializedPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
+    await initializedPopup.locator('.site-rule-row').waitFor({state: 'visible', timeout});
+    if (await initializedPopup.getByTestId('ui-language-onboarding').count() !== 0) {
+      throw new Error('已完成界面语言设置的迁移配置仍重复显示首次引导');
     }
-    if (await minimalPopup.locator('.site-rule-row').count() !== 1) {
-      throw new Error('简约风格没有在普通网页上下文显示当前网站栏目');
-    }
-    const minimalPopupMetrics = await minimalPopup.locator('.popup-shell').evaluate(element => {
-      const rect = element.getBoundingClientRect();
-      return {
-        shellHeight: rect.height,
-        heightMode: document.documentElement.dataset.popupHeight,
-        htmlMinHeight: getComputedStyle(document.documentElement).minHeight,
-        bodyMinHeight: getComputedStyle(document.body).minHeight,
-        appMinHeight: getComputedStyle(document.querySelector('#app')).minHeight,
-        shellMinHeight: getComputedStyle(element).minHeight,
-      };
-    });
-    if (minimalPopupMetrics.heightMode !== 'content'
-      || minimalPopupMetrics.htmlMinHeight !== '0px'
-      || minimalPopupMetrics.bodyMinHeight !== '0px'
-      || minimalPopupMetrics.appMinHeight !== '0px'
-      || minimalPopupMetrics.shellMinHeight !== '0px'
-      || minimalPopupMetrics.shellHeight > 600) {
-      throw new Error(`简约风格没有使用内容高度：${JSON.stringify(minimalPopupMetrics)}`);
-    }
-    report.screenshots.push(await screenshotElement(minimalPopup.locator('.popup-shell'), 'popup-interface-minimal.png'));
+    report.assertions.uiLanguageOnboardingCompletedBaseline = true;
+    await initializedPopup.close();
 
-    // 用明显长于中文的德文式文案验证关键操作可换行且不会造成横向溢出。
-    await minimalPopup.evaluate(() => {
-      const longCopy = new Map([
-        ['.translate-label', 'Diese gesamte Webseite jetzt in die ausgewählte Sprache übersetzen'],
-        ['.feature-card:nth-child(1) strong', 'Übersetzung beim Bewegen des Mauszeigers'],
-        ['.feature-card:nth-child(3) strong', 'Darstellung der Übersetzung anpassen'],
-        ['.feature-card:nth-child(6) strong', 'Dokumente in mehreren Sprachen übersetzen'],
-      ]);
-      for (const [selector, value] of longCopy) {
-        const element = document.querySelector(selector);
-        if (element) element.textContent = value;
+    const skinCases = [];
+    const visualSignatures = new Set();
+    for (const skin of expectedInterfaceSkins) {
+      const skinCard = interfaceSettingsGroup.locator(`.interface-skin-option[data-skin="${skin.value}"]`);
+      await skinCard.click();
+      await page.waitForFunction(({value, kind}) => (
+        document.documentElement.dataset.interfaceSkin === value
+        && document.documentElement.dataset.interfaceSkinKind === kind
+        && document.querySelector('.interface-skin-live-preview')?.getAttribute('data-preview-skin') === value
+      ), {value: skin.value, kind: skin.kind}, {timeout});
+      if (await skinCard.getAttribute('aria-checked') !== 'true') {
+        throw new Error(`${skin.label}切换后没有进入选中状态`);
       }
-    });
-    const multilingualMetrics = await minimalPopup.evaluate(() => {
-      const selectors = ['.translate-button', '.feature-card:nth-child(1)', '.feature-card:nth-child(3)', '.feature-card:nth-child(6)'];
-      return {
-        horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
-        items: selectors.map(selector => {
+      const optionsMetrics = await page.evaluate(() => {
+        const rootStyle = getComputedStyle(document.documentElement);
+        return {
+          horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+          brand: rootStyle.getPropertyValue('--brand').trim(),
+          workspaceBackground: getComputedStyle(document.querySelector('.workspace')).backgroundColor,
+          sidebarBackground: getComputedStyle(document.querySelector('.sidebar')).backgroundColor,
+          groupBackground: getComputedStyle(document.querySelector('#settings-general .settings-group-body')).backgroundColor,
+        };
+      });
+      if (optionsMetrics.horizontalOverflow
+        || optionsMetrics.brand !== skin.brand
+        || !optionsMetrics.workspaceBackground
+        || !optionsMetrics.sidebarBackground
+        || !optionsMetrics.groupBackground) {
+        throw new Error(`${skin.label}设置页布局异常：${JSON.stringify(optionsMetrics)}`);
+      }
+      report.screenshots.push(await screenshotElement(skinCard, `settings-interface-${skin.value}.png`));
+      report.screenshots.push(await screenshotElement(liveSkinPreview, `settings-interface-preview-${skin.value}.png`));
+      await page.waitForTimeout(320);
+
+      const skinPopup = await newPageWithoutForeground(context, timeout);
+      attachPageDiagnostics(skinPopup);
+      await skinPopup.setViewportSize({width: 400, height: 600});
+      await skinPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
+      await skinPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
+      await skinPopup.waitForTimeout(280);
+      await skinPopup.evaluate(() => document.documentElement.classList.remove('dark'));
+      if (await skinPopup.locator(`main[data-interface-skin="${skin.value}"]`).count() !== 1) {
+        throw new Error(`Popup 重开后没有应用${skin.label}`);
+      }
+      if (await skinPopup.locator('html').getAttribute('data-interface-skin-kind') !== skin.kind) {
+        throw new Error(`${skin.label}没有应用注册的布局类型 ${skin.kind}`);
+      }
+      if (await skinPopup.locator('.site-rule-row').count() !== 1) {
+        throw new Error(`${skin.label}没有在普通网页上下文显示当前网站栏目`);
+      }
+      const metrics = await skinPopup.locator('.popup-shell').evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        const rootStyle = getComputedStyle(document.documentElement);
+        return {
+          shellHeight: rect.height,
+          shellWidth: rect.width,
+          heightMode: document.documentElement.dataset.popupHeight,
+          popupWidthVariable: rootStyle.getPropertyValue('--interface-popup-width').trim(),
+          htmlMinHeight: rootStyle.minHeight,
+          bodyMinHeight: getComputedStyle(document.body).minHeight,
+          appMinHeight: getComputedStyle(document.querySelector('#app')).minHeight,
+          shellMinHeight: getComputedStyle(element).minHeight,
+          horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+          brand: rootStyle.getPropertyValue('--brand').trim(),
+          surface: rootStyle.getPropertyValue('--surface').trim(),
+          ink: rootStyle.getPropertyValue('--ink').trim(),
+          actionStart: rootStyle.getPropertyValue('--skin-action-start').trim(),
+          actionEnd: rootStyle.getPropertyValue('--skin-action-end').trim(),
+          actionText: rootStyle.getPropertyValue('--skin-action-text').trim(),
+          shellBackground: getComputedStyle(element).backgroundImage,
+          heroRadius: getComputedStyle(document.querySelector('.hero-card')).borderRadius,
+        };
+      });
+      metrics.textContrast = contrastRatio(metrics.ink, metrics.surface);
+      metrics.actionContrast = skin.kind === 'palette'
+        ? Math.min(
+          contrastRatio(metrics.actionText, metrics.actionStart),
+          contrastRatio(metrics.actionText, metrics.actionEnd),
+        )
+        : null;
+      const expectedHeightMode = skin.contentHeight ? 'content' : 'fixed';
+      const expectedMinHeight = skin.contentHeight ? '0px' : '560px';
+      if (metrics.heightMode !== expectedHeightMode
+        || metrics.htmlMinHeight !== expectedMinHeight
+        || metrics.bodyMinHeight !== expectedMinHeight
+        || metrics.appMinHeight !== expectedMinHeight
+        || metrics.shellMinHeight !== expectedMinHeight
+        || Math.abs(metrics.shellWidth - skin.popupWidth) > 1
+        || metrics.popupWidthVariable !== `${skin.popupWidth}px`
+        || metrics.shellHeight > 600
+        || metrics.horizontalOverflow
+        || metrics.brand !== skin.brand
+        || metrics.surface !== skin.surface
+        || !metrics.ink
+        || metrics.textContrast < 4.5
+        || (skin.kind === 'palette' && metrics.actionContrast < 4.5)) {
+        throw new Error(`${skin.label}基础布局异常：${JSON.stringify(metrics)}`);
+      }
+      visualSignatures.add(JSON.stringify([
+        skin.kind,
+        metrics.brand,
+        metrics.surface,
+        metrics.shellBackground,
+        metrics.heroRadius,
+      ]));
+      report.screenshots.push(await screenshotElement(skinPopup.locator('.popup-shell'), `popup-interface-${skin.value}.png`));
+
+      await skinPopup.evaluate(() => document.documentElement.classList.add('dark'));
+      await skinPopup.waitForTimeout(80);
+      const darkMetrics = await skinPopup.evaluate(() => {
+        const rootStyle = getComputedStyle(document.documentElement);
+        return {
+          horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+          brand: rootStyle.getPropertyValue('--brand').trim(),
+          surface: rootStyle.getPropertyValue('--surface').trim(),
+          ink: rootStyle.getPropertyValue('--ink').trim(),
+          actionStart: rootStyle.getPropertyValue('--skin-action-start').trim(),
+          actionEnd: rootStyle.getPropertyValue('--skin-action-end').trim(),
+          actionText: rootStyle.getPropertyValue('--skin-action-text').trim(),
+          bodyBackground: getComputedStyle(document.body).backgroundColor,
+        };
+      });
+      darkMetrics.textContrast = contrastRatio(darkMetrics.ink, darkMetrics.surface);
+      darkMetrics.actionContrast = skin.kind === 'palette'
+        ? Math.min(
+          contrastRatio(darkMetrics.actionText, darkMetrics.actionStart),
+          contrastRatio(darkMetrics.actionText, darkMetrics.actionEnd),
+        )
+        : null;
+      if (darkMetrics.horizontalOverflow
+        || darkMetrics.surface !== skin.darkSurface
+        || !darkMetrics.brand
+        || !darkMetrics.ink
+        || darkMetrics.textContrast < 4.5
+        || (skin.kind === 'palette' && darkMetrics.actionContrast < 4.5)) {
+        throw new Error(`${skin.label}暗色布局异常：${JSON.stringify(darkMetrics)}`);
+      }
+      report.screenshots.push(await screenshotElement(skinPopup.locator('.popup-shell'), `popup-interface-${skin.value}-dark.png`));
+      await skinPopup.evaluate(() => document.documentElement.classList.remove('dark'));
+
+      // 用明显长于中文的德文式文案逐套验证关键操作可换行且不会造成横向溢出。
+      await skinPopup.evaluate(() => {
+        const longCopy = new Map([
+          ['.translate-label', 'Diese gesamte Webseite jetzt in die ausgewählte Sprache übersetzen'],
+          ['.feature-card:nth-child(1) strong', 'Übersetzung beim Bewegen des Mauszeigers'],
+          ['.feature-card:nth-child(3) strong', 'Darstellung der Übersetzung anpassen'],
+          ['.feature-card:nth-child(6) strong', 'Dokumente in mehreren Sprachen übersetzen'],
+        ]);
+        for (const [selector, value] of longCopy) {
           const element = document.querySelector(selector);
-          return {
-            selector,
-            clientWidth: element?.clientWidth || 0,
-            scrollWidth: element?.scrollWidth || 0,
-          };
-        }),
-      };
-    });
-    if (multilingualMetrics.horizontalOverflow
-      || multilingualMetrics.items.some(item => item.scrollWidth > item.clientWidth + 1)) {
-      throw new Error(`简约风格无法容纳长文案：${JSON.stringify(multilingualMetrics)}`);
+          if (element) element.textContent = value;
+        }
+      });
+      const multilingualMetrics = await skinPopup.evaluate(() => {
+        const selectors = ['.translate-button', '.feature-card:nth-child(1)', '.feature-card:nth-child(3)', '.feature-card:nth-child(6)'];
+        return {
+          horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+          shellHeight: document.querySelector('.popup-shell')?.getBoundingClientRect().height || 0,
+          items: selectors.map(selector => {
+            const element = document.querySelector(selector);
+            return {
+              selector,
+              clientWidth: element?.clientWidth || 0,
+              scrollWidth: element?.scrollWidth || 0,
+            };
+          }),
+        };
+      });
+      if (multilingualMetrics.horizontalOverflow
+        || multilingualMetrics.items.some(item => item.scrollWidth > item.clientWidth + 1)) {
+        throw new Error(`${skin.label}无法容纳长文案：${JSON.stringify(multilingualMetrics)}`);
+      }
+      report.screenshots.push(await screenshotElement(skinPopup.locator('.popup-shell'), `popup-interface-${skin.value}-long-copy.png`));
+      skinCases.push({
+        ...skin,
+        optionsMetrics,
+        metrics,
+        darkMetrics,
+        multilingualMetrics,
+      });
+      await skinPopup.close();
     }
-    report.screenshots.push(await screenshotElement(minimalPopup.locator('.popup-shell'), 'popup-interface-minimal-long-copy.png'));
-    await minimalPopup.close();
+    if (visualSignatures.size !== expectedInterfaceSkins.length) {
+      throw new Error(`十套皮肤没有形成十个独立视觉签名：${visualSignatures.size}`);
+    }
+
+    // 配色型皮肤的共享适配层必须覆盖独立 feature，而不是只覆盖通用设置组件。
+    // 同时用纸张护眼遍历全部导航，阻止任何新页面重新引入大面积纯白表面。
+    const paletteSkins = expectedInterfaceSkins.filter(item => item.kind === 'palette');
+    const specialtyPages = [
+      {section: 'settings-services', ready: '.service-detail'},
+      {section: 'settings-image-translation', ready: '.image-ocr-pack-card'},
+      {section: 'settings-vocabulary', ready: '.vocabulary-book'},
+    ];
+    const auditLargeWhiteSurfaces = () => page.evaluate(() => {
+      const excluded = '.style-preview-example, .interface-skin-live-preview';
+      return [...document.querySelectorAll('.settings-card *')]
+        .filter(element => {
+          if (!(element instanceof HTMLElement) || element.closest(excluded)) return false;
+          const rect = element.getBoundingClientRect();
+          if (rect.width * rect.height < 2800 || rect.width < 90 || rect.height < 26) return false;
+          const style = getComputedStyle(element);
+          return style.display !== 'none'
+            && style.visibility !== 'hidden'
+            && Number(style.opacity) > 0
+            && style.backgroundColor === 'rgb(255, 255, 255)';
+        })
+        .map(element => ({
+          tag: element.tagName.toLowerCase(),
+          className: element.className,
+          width: Math.round(element.getBoundingClientRect().width),
+          height: Math.round(element.getBoundingClientRect().height),
+        }));
+    });
+    const paletteSurfaceCoverage = [];
+    for (const skin of paletteSkins) {
+      await interfaceSettingsGroup.locator(`.interface-skin-option[data-skin="${skin.value}"]`).click();
+      await page.waitForFunction(value => document.documentElement.dataset.interfaceSkin === value, skin.value, {timeout});
+      for (const specialty of specialtyPages) {
+        await page.locator(`button[data-section="${specialty.section}"]`).click();
+        await page.locator(specialty.ready).first().waitFor({state: 'visible', timeout});
+        await page.waitForTimeout(120);
+        const whiteSurfaces = await auditLargeWhiteSurfaces();
+        if (whiteSurfaces.length) {
+          throw new Error(`${skin.label}在${specialty.section}仍有大面积纯白表面：${JSON.stringify(whiteSurfaces)}`);
+        }
+        paletteSurfaceCoverage.push({skin: skin.value, section: specialty.section});
+      }
+      await page.locator('button[data-section="settings-general"]').click();
+      await liveSkinPreview.waitFor({state: 'visible', timeout});
+    }
+
+    await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="paper"]').click();
+    await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'paper', undefined, {timeout});
+    const paperPageCoverage = [];
+    for (const [section] of expectedNavigation) {
+      await page.locator(`button[data-section="${section}"]`).click();
+      await page.locator(`button[data-section="${section}"].active`).waitFor({state: 'visible', timeout});
+      await page.waitForTimeout(120);
+      const whiteSurfaces = await auditLargeWhiteSurfaces();
+      if (whiteSurfaces.length) {
+        throw new Error(`纸张护眼在${section}仍有大面积纯白表面：${JSON.stringify(whiteSurfaces)}`);
+      }
+      paperPageCoverage.push(section);
+      report.screenshots.push(await screenshot(page, `settings-paper-${section}.png`));
+    }
+    report.paletteSurfaceCoverage = paletteSurfaceCoverage;
+    report.paperPageCoverage = paperPageCoverage;
+    report.assertions.paletteSurfaceCoverage = true;
+
+    await page.locator('button[data-section="settings-general"]').click();
+    await interfaceSettingsGroup.waitFor({state: 'visible', timeout});
+    const minimalSkinCase = skinCases.find(item => item.value === 'minimal');
+    if (!minimalSkinCase) throw new Error('缺少简约风格验证结果');
+    const minimalPopupMetrics = minimalSkinCase.metrics;
+    const multilingualMetrics = minimalSkinCase.multilingualMetrics;
+
+    await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="minimal"]').click();
+    await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'minimal', undefined, {timeout});
+    await page.waitForTimeout(400);
 
     await interfaceSettingsGroup.locator('.settings-item').filter({hasText: '快捷功能栏'}).locator('.el-switch').click({force: true});
     await interfaceSettingsGroup.locator('.settings-item').filter({hasText: '底部信息栏'}).locator('.el-switch').click({force: true});
     await page.waitForFunction(() => (
-      document.querySelector('[aria-label="快捷功能栏"]')?.getAttribute('aria-checked') === 'false'
-      && document.querySelector('[aria-label="底部信息栏"]')?.getAttribute('aria-checked') === 'false'
+      document.querySelector('[data-interface-visibility="popupQuickFeatures"] input')?.getAttribute('aria-checked') === 'false'
+      && document.querySelector('[data-interface-visibility="popupFooter"] input')?.getAttribute('aria-checked') === 'false'
     ), undefined, {timeout});
     await page.waitForTimeout(500);
 
@@ -987,8 +1229,8 @@ async function main() {
     await interfaceSettingsGroup.locator('.settings-item').filter({hasText: '快捷功能栏'}).locator('.el-switch').click({force: true});
     await interfaceSettingsGroup.locator('.settings-item').filter({hasText: '底部信息栏'}).locator('.el-switch').click({force: true});
     await page.waitForFunction(() => (
-      document.querySelector('[aria-label="快捷功能栏"]')?.getAttribute('aria-checked') === 'true'
-      && document.querySelector('[aria-label="底部信息栏"]')?.getAttribute('aria-checked') === 'true'
+      document.querySelector('[data-interface-visibility="popupQuickFeatures"] input')?.getAttribute('aria-checked') === 'true'
+      && document.querySelector('[data-interface-visibility="popupFooter"] input')?.getAttribute('aria-checked') === 'true'
     ), undefined, {timeout});
     await page.waitForTimeout(500);
     const defaultFullPopup = await newPageWithoutForeground(context, timeout);
@@ -1015,8 +1257,13 @@ async function main() {
 
     report.informationArchitecture.interfaceSettings = {
       location: 'settings-general',
-      skinOptions: ['default', 'minimal'],
+      skinOptions: expectedInterfaceSkins.map(item => item.value),
+      skinGroups: {
+        utility: expectedInterfaceSkins.filter(item => item.kind !== 'palette').map(item => item.value),
+        palette: expectedInterfaceSkins.filter(item => item.kind === 'palette').map(item => item.value),
+      },
       selectedSkin: 'default',
+      skinCases,
       minimalPopupMetrics,
       hiddenSections: ['popupQuickFeatures', 'popupFooter'],
       hiddenMinimalMetrics: popupMetrics,
@@ -1026,6 +1273,7 @@ async function main() {
       popupRoundTrip: true,
     };
     report.assertions.interfaceSettings = true;
+    report.assertions.interfaceSkinMatrix = true;
     report.assertions.interfaceVisibility = true;
     report.assertions.multilingualInterfaceLayout = true;
 
@@ -1547,7 +1795,8 @@ async function main() {
     report.assertions.translationGroupOrder = true;
 
     await page.locator('button[data-section="settings-general"]').click();
-    const targetChange = await chooseDifferentSelectOption(page, '语言');
+    const targetLanguageSelector = '[data-config-field="to"] input';
+    const targetChange = await chooseDifferentSelectOption(page, targetLanguageSelector);
     await page.waitForTimeout(500);
     await page.locator('button[data-section="settings-data"]').click();
     await page.getByRole('heading', {name: '最近修改', exact: true}).waitFor({state: 'visible', timeout});
@@ -1571,14 +1820,14 @@ async function main() {
     await previewDialog.waitFor({state: 'hidden', timeout});
 
     await page.locator('button[data-section="settings-general"]').click();
-    const targetInput = page.locator('input[aria-label="语言"]');
+    const targetInput = page.locator(targetLanguageSelector);
     await targetInput.waitFor({state: 'visible', timeout});
     await page.waitForFunction(
       ({selector, expected}) => document.querySelector(selector)
         ?.closest('.el-select__wrapper')
         ?.querySelector('.el-select__placeholder')
         ?.textContent?.trim() === expected,
-      {selector: 'input[aria-label="语言"]', expected: targetChange.before},
+      {selector: targetLanguageSelector, expected: targetChange.before},
       {timeout},
     );
 
@@ -1859,7 +2108,7 @@ async function main() {
         ?.querySelector('.el-select__placeholder')
         ?.textContent?.trim() === expected,
       {
-        selector: 'input[aria-label="语言"]',
+        selector: targetLanguageSelector,
         expected: importedConfig.to === 'en' ? 'English / 英语' : '日本語 / Japanese / 日语',
       },
       {timeout},
