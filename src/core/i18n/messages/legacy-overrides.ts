@@ -98,6 +98,9 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
         '按最近收藏': 'By recently saved',
         '还没有收藏单词': 'No saved words yet',
         '点击开启 · YouTube': 'Click to enable · YouTube',
+        'Thinking、代理、提示词和自定义请求体': 'Thinking, proxy, prompts, and custom request body',
+        '默认关闭；仅在已适配接口生效，无法关闭时使用最低档': 'Off by default. Applies only to supported APIs and uses the lowest level when it cannot be disabled.',
+        '当前模型是否启用 Thinking': 'Enable Thinking for the current model',
     },
     'ja-JP': {
         ...providerNames,
@@ -239,6 +242,9 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
         '流畅阅读 · 文档翻译 Beta': 'FluentRead · ドキュメント翻訳 Beta',
         'FluentRead · 文档翻译 Beta': 'FluentRead · ドキュメント翻訳 Beta',
         '流畅阅读文档翻译 Beta · PDF / ePub / HTML / JSON / TXT / DOCX / Markdown / 字幕': 'FluentRead ドキュメント翻訳 Beta · PDF / ePub / HTML / JSON / TXT / DOCX / Markdown / 字幕',
+        'Thinking、代理、提示词和自定义请求体': 'Thinking、プロキシ、プロンプト、カスタムリクエスト本文',
+        '默认关闭；仅在已适配接口生效，无法关闭时使用最低档': 'デフォルトではオフです。対応済みの API でのみ有効になり、無効化できない場合は最小レベルを使用します。',
+        '当前模型是否启用 Thinking': '現在のモデルで Thinking を有効にする',
     },
     'ko-KR': {
         ...providerNames,
@@ -382,6 +388,9 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
         '流畅阅读文档翻译 Beta · PDF / ePub / HTML / JSON / TXT / DOCX / Markdown / 字幕': 'FluentRead 문서 번역 베타 · PDF / ePub / HTML / JSON / TXT / DOCX / Markdown / 자막',
         '打开文件': '파일 열기',
         '把本地文件变成双语阅读体验': '로컬 파일을 편리한 이중 언어 읽기 자료로 바꾸세요',
+        'Thinking、代理、提示词和自定义请求体': 'Thinking, 프록시, 프롬프트 및 사용자 지정 요청 본문',
+        '默认关闭；仅在已适配接口生效，无法关闭时使用最低档': '기본적으로 꺼져 있습니다. 지원되는 API에서만 적용되며 끌 수 없는 경우 가장 낮은 수준을 사용합니다.',
+        '当前模型是否启用 Thinking': '현재 모델에서 Thinking 사용',
     },
     'fr-FR': {
         ...providerNames,
@@ -530,6 +539,9 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
         '翻译设置 ↗': 'Réglages de traduction ↗',
         '打开文件': 'Ouvrir un fichier',
         '开源项目 ↗': 'Projet open source ↗',
+        'Thinking、代理、提示词和自定义请求体': 'Thinking, proxy, invites et corps de requête personnalisé',
+        '默认关闭；仅在已适配接口生效，无法关闭时使用最低档': 'Désactivé par défaut. S’applique uniquement aux API compatibles et utilise le niveau minimal lorsqu’il est impossible de le désactiver.',
+        '当前模型是否启用 Thinking': 'Activer Thinking pour le modèle actuel',
     },
     'ru-RU': {
         ...providerNames,
@@ -674,6 +686,9 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
         '翻译设置 ↗': 'Настройки перевода ↗',
         '把本地文件变成双语阅读体验': 'Превратите локальные файлы в удобный двуязычный формат для чтения',
         '开源项目 ↗': 'Проект с открытым исходным кодом ↗',
+        'Thinking、代理、提示词和自定义请求体': 'Thinking, прокси, промпты и пользовательское тело запроса',
+        '默认关闭；仅在已适配接口生效，无法关闭时使用最低档': 'По умолчанию выключено. Работает только с поддерживаемыми API; если отключение невозможно, используется минимальный уровень.',
+        '当前模型是否启用 Thinking': 'Включить Thinking для текущей модели',
     },
     'es-ES': {
         ...providerNames,
@@ -822,5 +837,8 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
         '翻译设置 ↗': 'Ajustes de traducción ↗',
         '打开文件': 'Abrir archivo',
         '开源项目 ↗': 'Proyecto de código abierto ↗',
+        'Thinking、代理、提示词和自定义请求体': 'Thinking, proxy, instrucciones y cuerpo de solicitud personalizado',
+        '默认关闭；仅在已适配接口生效，无法关闭时使用最低档': 'Desactivado de forma predeterminada. Solo se aplica a las API compatibles y usa el nivel mínimo cuando no se puede desactivar.',
+        '当前模型是否启用 Thinking': 'Activar Thinking para el modelo actual',
     },
 };

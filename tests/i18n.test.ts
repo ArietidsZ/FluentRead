@@ -191,6 +191,15 @@ describe('界面 i18n 契约', () => {
     }
   });
 
+  it('翻译 AI 服务展开态中的动态字符上限', () => {
+    expect(translateLegacyText('最多 8192 字符', 'en-US')).toBe('Up to 8192 characters');
+    expect(translateLegacyText('最多 8192 字符', 'ja-JP')).toBe('最大 8192 文字');
+    expect(translateLegacyText('最多 8192 字符', 'ko-KR')).toBe('최대 8192자');
+    expect(translateLegacyText('最多 8192 字符', 'fr-FR')).toBe('8192 caractères maximum');
+    expect(translateLegacyText('最多 8192 字符', 'ru-RU')).toBe('Не более 8192 символов');
+    expect(translateLegacyText('最多 8192 字符', 'es-ES')).toBe('Máximo 8192 caracteres');
+  });
+
   it('人工校正容易发生语义误判的高频设置文案', () => {
     expect(translateLegacyText('日本語', 'en-US')).toBe('Japanese');
     expect(translateLegacyText('显示 FluentRead 字幕', 'ja-JP')).toBe('FluentRead 字幕を表示');
@@ -202,6 +211,12 @@ describe('界面 i18n 契约', () => {
       .toBe('동시 실행 수, 요청 속도, 실패 시 재시도 간격을 설정합니다.');
     expect(translateLegacyText('控制并发数量、请求速率和失败重试的退避范围。', 'fr-FR'))
       .toBe('Réglez le nombre de tâches simultanées, la fréquence des requêtes et les délais entre les tentatives.');
+    expect(translateLegacyText('Thinking、代理、提示词和自定义请求体', 'en-US'))
+      .toBe('Thinking, proxy, prompts, and custom request body');
+    expect(translateLegacyText('默认关闭；仅在已适配接口生效，无法关闭时使用最低档', 'ja-JP'))
+      .toBe('デフォルトではオフです。対応済みの API でのみ有効になり、無効化できない場合は最小レベルを使用します。');
+    expect(translateLegacyText('当前模型是否启用 Thinking', 'es-ES'))
+      .toBe('Activar Thinking para el modelo actual');
   });
 
   it('为高级调度摘要按语言插值，不残留中文模板', () => {

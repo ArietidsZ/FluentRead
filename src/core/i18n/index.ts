@@ -66,6 +66,7 @@ function preserveWhitespace(value: string, translated: string): string {
 }
 
 const legacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => string]> = [
+    [/^最多 (\d+) 字符$/u, (match) => `Up to ${match[1]} characters`],
     [/^没有找到“(.+)”相关设置$/u, (match) => `No settings found for “${match[1]}”`],
     [/^没有找到包含“(.+)”的服务或模型$/u, (match) => `No service or model contains “${match[1]}”`],
     [/^已完成 (\d+) 次翻译$/u, (match) => `${match[1]} translations completed`],
@@ -148,6 +149,7 @@ const legacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) =
 ];
 
 const esLegacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => string]> = [
+    [/^最多 (\d+) 字符$/u, (match) => `Máximo ${match[1]} caracteres`],
     [/^没有找到“(.+)”相关设置$/u, (match) => `No se encontraron ajustes relacionados con “${match[1]}”`],
     [/^没有找到包含“(.+)”的服务或模型$/u, (match) => `Ningún servicio o modelo contiene “${match[1]}”`],
     [/^已完成 (\d+) 次翻译$/u, (match) => `${match[1]} traducciones completadas`],
@@ -174,6 +176,7 @@ const esLegacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray)
 ];
 
 const jaLegacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => string]> = [
+    [/^最多 (\d+) 字符$/u, (match) => `最大 ${match[1]} 文字`],
     [/^没有找到“(.+)”相关设置$/u, (match) => `「${match[1]}」に一致する設定が見つかりません`],
     [/^没有找到包含“(.+)”的服务或模型$/u, (match) => `「${match[1]}」を含むサービスやモデルはありません`],
     [/^已完成 (\d+) 次翻译$/u, (match) => `${match[1]} 件の翻訳が完了しました`],
@@ -193,6 +196,7 @@ const jaLegacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray)
 ];
 
 const koLegacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => string]> = [
+    [/^最多 (\d+) 字符$/u, (match) => `최대 ${match[1]}자`],
     [/^没有找到“(.+)”相关设置$/u, (match) => `“${match[1]}” 관련 설정이 없습니다`],
     [/^没有找到包含“(.+)”的服务或模型$/u, (match) => `“${match[1]}”을(를) 포함하는 서비스 또는 모델이 없습니다`],
     [/^已完成 (\d+) 次翻译$/u, (match) => `번역 ${match[1]}회 완료`],
@@ -212,6 +216,7 @@ const koLegacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray)
 ];
 
 const frLegacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => string]> = [
+    [/^最多 (\d+) 字符$/u, (match) => `${match[1]} caractères maximum`],
     [/^没有找到“(.+)”相关设置$/u, (match) => `Aucun réglage trouvé pour « ${match[1]} »`],
     [/^没有找到包含“(.+)”的服务或模型$/u, (match) => `Aucun service ou modèle ne contient « ${match[1]} »`],
     [/^已完成 (\d+) 次翻译$/u, (match) => `${match[1]} traductions terminées`],
@@ -231,6 +236,7 @@ const frLegacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray)
 ];
 
 const ruLegacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => string]> = [
+    [/^最多 (\d+) 字符$/u, (match) => `Не более ${match[1]} символов`],
     [/^没有找到“(.+)”相关设置$/u, (match) => `Настройки для «${match[1]}» не найдены`],
     [/^没有找到包含“(.+)”的服务或模型$/u, (match) => `Сервисов или моделей с «${match[1]}» не найдено`],
     [/^已完成 (\d+) 次翻译$/u, (match) => `Переводов завершено: ${match[1]}`],
