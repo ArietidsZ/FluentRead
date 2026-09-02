@@ -2,7 +2,7 @@
  @file src/app/options/OptionsApp.vue
  文件职责：实现扩展 Options 页的顶层布局，组织设置导航、全局搜索结果和生词本入口，并把选中分区交给对应 feature UI。
  主要内容：渲染品牌侧栏、版本信息、搜索框与主内容区，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 VocabularyBook 之间切换，并从 URL hash 恢复目标分区。
- 模块边界：组件只负责页面壳与导航状态，不定义具体配置字段、不直接写 browser.storage，也不实现词汇仓库；设置表单和生词本业务由各 feature 组件拥有。
+ 模块边界：组件负责页面壳、导航状态和界面皮肤根属性同步，不定义具体配置字段、不直接写 browser.storage，也不实现词汇仓库；设置表单和生词本业务由各 feature 组件拥有。
 -->
 <template>
   <div class="settings-app">
@@ -106,6 +106,12 @@ import {
   resolveNavigationItem,
   resolveRequestedSection,
 } from '@/src/features/settings/model/navigation'
+import {
+  config as runtimeConfig,
+  configReady,
+  subscribeConfig,
+} from '@/src/services/config/store'
+import {applyInterfaceSkin} from '@/src/ui/interfaceAppearance'
 
 const version = process.env.VUE_APP_VERSION
 const query = ref('')
@@ -115,6 +121,13 @@ const mobileNavigationMedia = window.matchMedia('(max-width: 700px)')
 
 const navigation = navigationItems
 const activeItem = computed(() => resolveNavigationItem(activeSection.value))
+const unsubscribeInterfaceConfig = subscribeConfig((nextConfig) => {
+  applyInterfaceSkin(nextConfig.interfaceSkin)
+})
+
+void configReady
+  .then(() => applyInterfaceSkin(runtimeConfig.interfaceSkin))
+  .catch(() => applyInterfaceSkin('default'))
 
 const filteredResults = computed(() => {
   return filterNavigationItems(query.value)
@@ -157,6 +170,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  unsubscribeInterfaceConfig()
   mobileNavigationMedia.removeEventListener('change', handleMobileNavigationChange)
 })
 </script>

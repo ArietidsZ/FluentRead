@@ -37,6 +37,13 @@ import {
 import {isSensitiveConfigKey} from './sensitiveKeys';
 import { normalizeSelectionTtsVoiceOrder } from "./selectionTts";
 import {
+    DEFAULT_INTERFACE_VISIBILITY,
+    normalizeInterfaceSkin,
+    normalizeInterfaceVisibility,
+    type InterfaceSkin,
+    type InterfaceVisibility,
+} from './interfaceAppearance';
+import {
     normalizeAlwaysTranslateDomains,
     normalizeDisabledExtensionDomains,
 } from "@/src/core/site-rules/domain";
@@ -154,6 +161,8 @@ export class Config {
     user_role: IMapping;
     count: number;  // 翻译次数
     theme: string;  // 主题模式：'auto' | 'light' | 'dark'
+    interfaceSkin: InterfaceSkin; // 扩展界面皮肤；默认保留当前界面
+    interfaceVisibility: InterfaceVisibility; // Popup 栏目可见性
     useCache: boolean; // 是否使用缓存
     enableAIContext: boolean; // 是否为 AI 翻译附加网页上下文
     enableAIMultiSegment: boolean; // 是否把相邻全文段落合并为一次 AI 翻译请求
@@ -245,6 +254,8 @@ export class Config {
         this.user_role = userRoleFactory();
         this.count = 0;
         this.theme = 'auto';  // 默认跟随系统
+        this.interfaceSkin = 'default'; // 默认保留当前界面
+        this.interfaceVisibility = {...DEFAULT_INTERFACE_VISIBILITY};
         this.useCache = true; // 默认开启缓存
         this.enableAIContext = false; // 默认关闭 AI 智能上下文，避免意外增加请求体和费用
         this.enableAIMultiSegment = false; // 默认逐段请求，由用户按需开启 AI 多段翻译
@@ -716,6 +727,8 @@ export function normalizeConfig(value: unknown): Config {
     );
     normalized.alwaysTranslateDomains = normalizeAlwaysTranslateDomains(source.alwaysTranslateDomains);
     normalized.disabledExtensionDomains = normalizeDisabledExtensionDomains(source.disabledExtensionDomains);
+    normalized.interfaceSkin = normalizeInterfaceSkin(source.interfaceSkin);
+    normalized.interfaceVisibility = normalizeInterfaceVisibility(source.interfaceVisibility);
 
     if (!['disabled', 'bilingual', 'translation-only'].includes(normalized.selectionTranslatorMode)) {
         normalized.selectionTranslatorMode = 'disabled';

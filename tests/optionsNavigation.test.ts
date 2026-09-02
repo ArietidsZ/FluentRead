@@ -62,6 +62,7 @@ describe('options navigation view-model', () => {
   it('resolves valid sections and falls back for malformed hashes', () => {
     expect(resolveNavigationItem('settings-services').title).toBe('翻译服务')
     expect(resolveNavigationItem('settings-translation').title).toBe('翻译设置')
+    expect(resolveNavigationItem('settings-interface').title).toBe('通用设置')
     expect(resolveNavigationItem('settings-model-usage').detail)
       .toBe('查看发起的大模型调用、Token 消耗与使用趋势。')
     expect(resolveNavigationItem('missing').id).toBe(DEFAULT_NAVIGATION_SECTION)
@@ -69,6 +70,7 @@ describe('options navigation view-model', () => {
     expect(resolveRequestedSection('settings-sites')).toBe('settings-sites')
     expect(resolveRequestedSection('#settings-webpage')).toBe('settings-translation')
     expect(resolveRequestedSection('#settings-shortcuts')).toBe('settings-translation')
+    expect(resolveRequestedSection('#settings-interface')).toBe('settings-general')
     expect(resolveRequestedSection('#missing')).toBe(DEFAULT_NAVIGATION_SECTION)
   })
 
@@ -81,6 +83,9 @@ describe('options navigation view-model', () => {
       expect.objectContaining({ id: 'settings-sites' }),
     ])
     expect(filterNavigationItems('AI 智能上下文')).toEqual([
+      expect.objectContaining({ id: 'settings-general' }),
+    ])
+    expect(filterNavigationItems('简约风格')).toEqual([
       expect.objectContaining({ id: 'settings-general' }),
     ])
     expect(filterNavigationItems('鼠标悬浮')).toEqual([

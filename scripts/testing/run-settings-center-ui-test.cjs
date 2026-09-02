@@ -36,7 +36,7 @@ const expectedNavigationGroups = [
   ['工具与学习', ['settings-translation-center', 'settings-model-usage', 'settings-vocabulary']],
   ['系统与数据', ['settings-advanced', 'settings-data', 'settings-about']],
 ];
-const expectedGeneralGroups = ['选择翻译服务', '译文显示', '网页辅助'];
+const expectedGeneralGroups = ['选择翻译服务', '译文显示', '网页辅助', '界面与弹窗'];
 const expectedTranslationGroups = ['鼠标悬浮翻译', '划词翻译', '输入框翻译', '全文翻译'];
 const configDatabaseName = 'FluentReadConfiguration';
 const expectedEncryptedRecordKeys = [
@@ -67,6 +67,7 @@ fs.mkdirSync(artifactsDir, {recursive: true});
 
 const {chromium} = require(path.join(playwrightRoot, 'playwright'));
 const {
+  activateExtensionTabWithoutForeground,
   launchFocusSafePersistentContext,
   newPageWithoutForeground,
 } = require(focusHelper);
@@ -74,6 +75,12 @@ const {
 async function screenshot(page, file) {
   const target = path.join(artifactsDir, file);
   await page.screenshot({path: target, fullPage: false});
+  return target;
+}
+
+async function screenshotElement(locator, file) {
+  const target = path.join(artifactsDir, file);
+  await locator.screenshot({path: target});
   return target;
 }
 
@@ -706,6 +713,224 @@ async function main() {
     report.assertions.singlePageIntro = true;
     report.assertions.noLegacyIntros = await page.locator('.video-settings-hero, .image-ocr-kicker, .site-rules-kicker').count() === 0;
     if (!report.assertions.noLegacyIntros) throw new Error('仍存在旧的重复介绍元素');
+
+    // 界面偏好必须收拢在通用设置；默认风格保持原布局，简约风格使用独立模块。
+    // Popup 重新打开时还要消费同一份栏目配置，并按实际内容自动改变高度。
+    await page.locator('button[data-section="settings-general"]').click();
+    const interfaceGeneralSection = page.locator('#settings-general');
+    await interfaceGeneralSection.waitFor({state: 'visible', timeout});
+    const interfaceSettingsGroup = page.locator('.settings-section:visible .settings-group').filter({hasText: '界面与弹窗'});
+    if (await interfaceSettingsGroup.count() !== 1) throw new Error('通用设置中没有唯一的“界面与弹窗”分组');
+    if (await page.locator('button[data-section="settings-interface"]').count() !== 0) {
+      throw new Error('界面设置仍被保留为独立导航');
+    }
+    const skinCards = interfaceSettingsGroup.locator('.interface-skin-option');
+    if (await skinCards.count() !== 2) throw new Error(`弹窗风格选项数量异常：${await skinCards.count()}`);
+    const skinLabels = (await skinCards.locator('.interface-skin-copy strong').allTextContents()).map(value => value.trim());
+    if (JSON.stringify(skinLabels) !== JSON.stringify(['默认风格', '简约风格'])) {
+      throw new Error(`弹窗风格名称或顺序异常：${JSON.stringify(skinLabels)}`);
+    }
+    if (await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="default"][aria-checked="true"]').count() !== 1) {
+      throw new Error('默认风格没有保持当前界面选中状态');
+    }
+    const visibilitySwitches = interfaceSettingsGroup.locator('.settings-item input[aria-label^="显示"]');
+    if (await visibilitySwitches.count() !== 3) throw new Error(`弹窗栏目开关数量异常：${await visibilitySwitches.count()}`);
+    if (await page.locator('html').getAttribute('data-interface-skin') !== 'default') {
+      throw new Error('Options 初始弹窗风格不是默认风格');
+    }
+
+    await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="minimal"]').click();
+    await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'minimal', undefined, {timeout});
+    if (!await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="minimal"][aria-checked="true"]').isVisible()) {
+      throw new Error('简约风格切换后没有进入选中状态');
+    }
+    report.screenshots.push(await screenshot(page, 'settings-general-interface-minimal.png'));
+    await page.waitForTimeout(500);
+
+    await context.route('http://fluentread-interface.test/**', route => route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<!doctype html><html><body><main>FluentRead interface fixture</main></body></html>',
+    }));
+    const interfaceHostPage = await newPageWithoutForeground(context, timeout);
+    await interfaceHostPage.goto('http://fluentread-interface.test/article', {waitUntil: 'domcontentloaded', timeout});
+    await activateExtensionTabWithoutForeground(context, interfaceHostPage, timeout);
+
+    const minimalPopup = await newPageWithoutForeground(context, timeout);
+    attachPageDiagnostics(minimalPopup);
+    await minimalPopup.setViewportSize({width: 400, height: 600});
+    await minimalPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
+    await minimalPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
+    await minimalPopup.waitForTimeout(350);
+    if (await minimalPopup.locator('main[data-interface-skin="minimal"]').count() !== 1) {
+      throw new Error('Popup 重开后没有应用简约风格');
+    }
+    if (await minimalPopup.locator('.site-rule-row').count() !== 1) {
+      throw new Error('简约风格没有在普通网页上下文显示当前网站栏目');
+    }
+    const minimalPopupMetrics = await minimalPopup.locator('.popup-shell').evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      return {
+        shellHeight: rect.height,
+        heightMode: document.documentElement.dataset.popupHeight,
+        htmlMinHeight: getComputedStyle(document.documentElement).minHeight,
+        bodyMinHeight: getComputedStyle(document.body).minHeight,
+        appMinHeight: getComputedStyle(document.querySelector('#app')).minHeight,
+        shellMinHeight: getComputedStyle(element).minHeight,
+      };
+    });
+    if (minimalPopupMetrics.heightMode !== 'content'
+      || minimalPopupMetrics.htmlMinHeight !== '0px'
+      || minimalPopupMetrics.bodyMinHeight !== '0px'
+      || minimalPopupMetrics.appMinHeight !== '0px'
+      || minimalPopupMetrics.shellMinHeight !== '0px'
+      || minimalPopupMetrics.shellHeight > 600) {
+      throw new Error(`简约风格没有使用内容高度：${JSON.stringify(minimalPopupMetrics)}`);
+    }
+    report.screenshots.push(await screenshotElement(minimalPopup.locator('.popup-shell'), 'popup-interface-minimal.png'));
+
+    // 用明显长于中文的德文式文案验证关键操作可换行且不会造成横向溢出。
+    await minimalPopup.evaluate(() => {
+      const longCopy = new Map([
+        ['.translate-label', 'Diese gesamte Webseite jetzt in die ausgewählte Sprache übersetzen'],
+        ['.feature-card:nth-child(1) strong', 'Übersetzung beim Bewegen des Mauszeigers'],
+        ['.feature-card:nth-child(3) strong', 'Darstellung der Übersetzung anpassen'],
+        ['.feature-card:nth-child(6) strong', 'Dokumente in mehreren Sprachen übersetzen'],
+      ]);
+      for (const [selector, value] of longCopy) {
+        const element = document.querySelector(selector);
+        if (element) element.textContent = value;
+      }
+    });
+    const multilingualMetrics = await minimalPopup.evaluate(() => {
+      const selectors = ['.translate-button', '.feature-card:nth-child(1)', '.feature-card:nth-child(3)', '.feature-card:nth-child(6)'];
+      return {
+        horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+        items: selectors.map(selector => {
+          const element = document.querySelector(selector);
+          return {
+            selector,
+            clientWidth: element?.clientWidth || 0,
+            scrollWidth: element?.scrollWidth || 0,
+          };
+        }),
+      };
+    });
+    if (multilingualMetrics.horizontalOverflow
+      || multilingualMetrics.items.some(item => item.scrollWidth > item.clientWidth + 1)) {
+      throw new Error(`简约风格无法容纳长文案：${JSON.stringify(multilingualMetrics)}`);
+    }
+    report.screenshots.push(await screenshotElement(minimalPopup.locator('.popup-shell'), 'popup-interface-minimal-long-copy.png'));
+    await minimalPopup.close();
+
+    await interfaceSettingsGroup.locator('.settings-item').filter({hasText: '快捷功能栏'}).locator('.el-switch').click({force: true});
+    await interfaceSettingsGroup.locator('.settings-item').filter({hasText: '底部信息栏'}).locator('.el-switch').click({force: true});
+    await page.waitForFunction(() => (
+      document.querySelector('[aria-label="显示快捷功能栏"]')?.getAttribute('aria-checked') === 'false'
+      && document.querySelector('[aria-label="显示底部信息栏"]')?.getAttribute('aria-checked') === 'false'
+    ), undefined, {timeout});
+    await page.waitForTimeout(500);
+
+    const interfacePopup = await newPageWithoutForeground(context, timeout);
+    attachPageDiagnostics(interfacePopup);
+    await interfacePopup.setViewportSize({width: 400, height: 600});
+    await interfacePopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
+    await interfacePopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
+    await interfacePopup.waitForTimeout(350);
+    if (await interfacePopup.locator('.features').count() !== 0) throw new Error('关闭快捷功能栏后 Popup 仍显示快捷功能');
+    if (await interfacePopup.locator('footer').count() !== 0) throw new Error('关闭底部信息栏后 Popup 仍显示底部信息');
+    if (await interfacePopup.locator('main[data-interface-skin="minimal"]').count() !== 1) {
+      throw new Error('Popup 重开后没有应用简约风格');
+    }
+    const popupMetrics = await interfacePopup.locator('.popup-shell').evaluate(element => {
+      const rect = element.getBoundingClientRect();
+      return {
+        shellHeight: rect.height,
+        shellBottom: rect.bottom,
+        heightMode: document.documentElement.dataset.popupHeight,
+        htmlMinHeight: getComputedStyle(document.documentElement).minHeight,
+        bodyMinHeight: getComputedStyle(document.body).minHeight,
+        appMinHeight: getComputedStyle(document.querySelector('#app')).minHeight,
+      };
+    });
+    if (popupMetrics.heightMode !== 'content'
+      || popupMetrics.htmlMinHeight !== '0px'
+      || popupMetrics.shellHeight >= 560
+      || popupMetrics.shellHeight >= minimalPopupMetrics.shellHeight - 40) {
+      throw new Error(`隐藏 Popup 栏目后空白区域没有随内容收缩：${JSON.stringify(popupMetrics)}`);
+    }
+    report.screenshots.push(await screenshotElement(interfacePopup.locator('.popup-shell'), 'popup-interface-minimal-hidden-sections.png'));
+    await interfacePopup.close();
+
+    // 默认风格在栏目齐全时保持原高度；隐藏栏目时同样不能留下固定空白。
+    await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="default"]').click();
+    await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'default', undefined, {timeout});
+    await page.waitForTimeout(500);
+    const defaultHiddenPopup = await newPageWithoutForeground(context, timeout);
+    attachPageDiagnostics(defaultHiddenPopup);
+    await defaultHiddenPopup.setViewportSize({width: 400, height: 600});
+    await defaultHiddenPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
+    await defaultHiddenPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
+    await defaultHiddenPopup.waitForTimeout(350);
+    const defaultHiddenMetrics = await defaultHiddenPopup.locator('.popup-shell').evaluate(element => ({
+      shellHeight: element.getBoundingClientRect().height,
+      heightMode: document.documentElement.dataset.popupHeight,
+      htmlMinHeight: getComputedStyle(document.documentElement).minHeight,
+      bodyMinHeight: getComputedStyle(document.body).minHeight,
+    }));
+    if (defaultHiddenMetrics.heightMode !== 'content'
+      || defaultHiddenMetrics.htmlMinHeight !== '0px'
+      || defaultHiddenMetrics.bodyMinHeight !== '0px'
+      || defaultHiddenMetrics.shellHeight >= 560) {
+      throw new Error(`默认风格隐藏栏目后没有按内容收缩：${JSON.stringify(defaultHiddenMetrics)}`);
+    }
+    report.screenshots.push(await screenshotElement(defaultHiddenPopup.locator('.popup-shell'), 'popup-interface-default-hidden-sections.png'));
+    await defaultHiddenPopup.close();
+
+    await interfaceSettingsGroup.locator('.settings-item').filter({hasText: '快捷功能栏'}).locator('.el-switch').click({force: true});
+    await interfaceSettingsGroup.locator('.settings-item').filter({hasText: '底部信息栏'}).locator('.el-switch').click({force: true});
+    await page.waitForFunction(() => (
+      document.querySelector('[aria-label="显示快捷功能栏"]')?.getAttribute('aria-checked') === 'true'
+      && document.querySelector('[aria-label="显示底部信息栏"]')?.getAttribute('aria-checked') === 'true'
+    ), undefined, {timeout});
+    await page.waitForTimeout(500);
+    const defaultFullPopup = await newPageWithoutForeground(context, timeout);
+    attachPageDiagnostics(defaultFullPopup);
+    await defaultFullPopup.setViewportSize({width: 400, height: 600});
+    await defaultFullPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
+    await defaultFullPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
+    await defaultFullPopup.waitForTimeout(350);
+    const defaultFullMetrics = await defaultFullPopup.locator('.popup-shell').evaluate(element => ({
+      shellHeight: element.getBoundingClientRect().height,
+      heightMode: document.documentElement.dataset.popupHeight,
+      htmlMinHeight: getComputedStyle(document.documentElement).minHeight,
+      bodyMinHeight: getComputedStyle(document.body).minHeight,
+    }));
+    if (defaultFullMetrics.heightMode !== 'fixed'
+      || defaultFullMetrics.shellHeight < 560
+      || defaultFullMetrics.shellHeight > 600
+      || defaultFullMetrics.htmlMinHeight !== '560px'
+      || defaultFullMetrics.bodyMinHeight !== '560px') {
+      throw new Error(`默认风格完整栏目没有保持原有高度：${JSON.stringify(defaultFullMetrics)}`);
+    }
+    await defaultFullPopup.close();
+    await interfaceHostPage.close();
+
+    report.informationArchitecture.interfaceSettings = {
+      location: 'settings-general',
+      skinOptions: ['default', 'minimal'],
+      selectedSkin: 'default',
+      minimalPopupMetrics,
+      hiddenSections: ['popupQuickFeatures', 'popupFooter'],
+      hiddenMinimalMetrics: popupMetrics,
+      hiddenDefaultMetrics: defaultHiddenMetrics,
+      fullDefaultMetrics: defaultFullMetrics,
+      multilingualMetrics,
+      popupRoundTrip: true,
+    };
+    report.assertions.interfaceSettings = true;
+    report.assertions.interfaceVisibility = true;
+    report.assertions.multilingualInterfaceLayout = true;
 
     await page.locator('button[data-section="settings-model-usage"]').click();
     await page.locator('#settings-model-usage').waitFor({state: 'visible', timeout});

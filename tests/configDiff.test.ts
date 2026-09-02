@@ -21,6 +21,44 @@ describe('配置差异预览', () => {
         })]));
     });
 
+    it('显示界面皮肤和 Popup 栏目可见性，并安全处理异常栏目值', () => {
+        const result = buildConfigDiff({
+            interfaceSkin: 'default',
+            interfaceVisibility: {
+                popupQuickFeatures: true,
+                popupSiteRule: true,
+                popupFooter: true,
+            },
+        }, {
+            interfaceSkin: 'minimal',
+            interfaceVisibility: {
+                popupQuickFeatures: false,
+                popupSiteRule: true,
+                popupFooter: false,
+            },
+        });
+
+        expect(group(result, 'general')?.changes).toEqual(expect.arrayContaining([
+            {key: 'interfaceSkin', label: '界面皮肤', before: '默认风格', after: '简约风格'},
+            {
+                key: 'interfaceVisibility',
+                label: '界面栏目',
+                before: '快捷功能栏开启、当前网站栏目开启、底部信息栏开启',
+                after: '快捷功能栏关闭、当前网站栏目开启、底部信息栏关闭',
+            },
+        ]));
+
+        const malformed = buildConfigDiff(
+            {interfaceVisibility: true},
+            {interfaceVisibility: false},
+        );
+        expect(group(malformed, 'general')?.changes[0]).toMatchObject({
+            key: 'interfaceVisibility',
+            before: '开启',
+            after: '关闭',
+        });
+    });
+
     it('按设置页稳定分组并把常用枚举、开关、数组和数字格式化为可读文本', () => {
         const result = buildConfigDiff({
             on: true,

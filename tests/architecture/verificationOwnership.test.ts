@@ -136,6 +136,8 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/features/full-page-translation/ui/translationIndicators.ts',
     // options composition root 只注册 Element Plus 组件、图标、全局样式并挂载 Vue；由组件契约与双浏览器构建验证。
     'src/app/options/index.ts',
+    // 界面皮肤应用只设置扩展页面根节点 data 属性；纯归一化由 strict coverage 验证，真实跨页面效果由隔离 UI 回归验证。
+    'src/ui/interfaceAppearance.ts',
     // popup composition root 只注册 Vue/Element Plus 并挂载页面；由 popup 契约测试、隔离 UI 回归和双浏览器构建验证。
     'src/app/popup/index.ts',
     // Offscreen composition root 只注入真实 Audio/Blob/Chrome runtime 与 OCR 能力；协议、翻译和播放状态机均已严格覆盖。

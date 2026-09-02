@@ -6,6 +6,7 @@
  */
 import {createApp} from 'vue';
 import './popup.css';
+import '@/src/ui/styles/interface-skins.css';
 import App from './PopupApp.vue';
 import 'element-plus/dist/index.css'
 import { ChatDotRound, Setting, Refresh, Edit, Upload, Download, Star, Loading, Coffee, WarningFilled, Warning, CircleCheckFilled } from '@element-plus/icons-vue'
