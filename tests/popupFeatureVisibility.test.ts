@@ -118,7 +118,7 @@ describe('popup feature visibility', () => {
 
         expect(options).toContain('v-model="floatingBallEnabled"');
         expect(options).toContain('aria-label="全文翻译悬浮球"');
-        expect(options).toContain('v-model="config.floatingBallHotkey"');
+        expect(options).toContain(':model-value="config.floatingBallHotkey"');
         expect(options).toContain('aria-label="全文翻译快捷键"');
     });
 
@@ -153,6 +153,39 @@ describe('popup feature visibility', () => {
         expect(popup).not.toContain("'settings-shortcuts'");
     });
 
+    it('keeps multi-profile editing in options while surfacing an accurate popup summary', () => {
+        const popup = source('src/app/popup/PopupApp.vue');
+        const styles = source('src/app/popup/popup.css');
+
+        expect(popup).toContain("enabledQuickTranslationProfiles(config.value.quickTranslationProfiles, 'hover')");
+        expect(popup).toContain('data-testid="popup-quick-hover-profiles"');
+        expect(popup).toContain('{{ quickProfileSummary(profile) }}');
+        expect(popup).toContain("t('popup.quickTranslation.defaultHoverShortcut')");
+        expect(popup).toContain("t('popup.quickTranslation.defaultOnly', {count: quickHoverProfiles.length})");
+        expect(popup).toContain(":aria-label=\"t('popup.quickTranslation.toggleDefaultHover')\"");
+        expect(popup).toContain(':aria-checked="defaultHoverEnabled"');
+        expect(popup).toContain("resolveConfiguredHotkey(config.value.hotkey, config.value.customHotkey)");
+        expect(popup).not.toContain('aria-label="启用或关闭鼠标悬停翻译"');
+        expect(popup).toContain("t('popup.quickTranslation.extraProfiles')");
+        expect(popup).not.toContain('<QuickTranslationProfiles');
+        expect(popup).toContain("enabledQuickTranslationProfiles(config.value.quickTranslationProfiles, 'full-page')");
+        expect(popup).toContain("quickFullPageProfiles.value.length ? t('popup.quickTranslation.defaultNotSet') : t('common.notSet')");
+        expect(popup).toContain("t('popup.quickTranslation.fullPageHint', {count: quickFullPageProfiles.value.length})");
+        expect(popup).toContain(':title="fullPageHotkeyTitle"');
+        expect(popup).toContain('findEnabledQuickTranslationHotkeyConflict');
+        expect(popup).toContain(':validate="validateCustomMouseHotkey"');
+        expect(styles).toContain('.quick-profile-preview-row');
+        expect(styles).toContain('.setting-row small.independent-profile-note');
+        expect(styles).toContain('flex: 0 1 84px');
+        expect(styles).toContain('.translate-hotkey span');
+        expect(popup).toContain('ref<HTMLElement | HTMLElement[] | null>(null)');
+        expect(popup).toContain('Array.isArray(servicePicker.value)');
+        expect(popup).toContain('pickers.some(picker => picker?.contains(target))');
+        expect(popup).toContain('ref<HTMLInputElement | HTMLInputElement[] | null>(null)');
+        expect(popup).toContain('Array.isArray(serviceSearchInput.value)');
+        expect(popup).toContain('void nextTick(focusServiceSearchInput)');
+    });
+
     it('filters Chrome Translator but renders old synchronized selections as unavailable', () => {
         const popup = source('src/app/popup/PopupApp.vue');
 
@@ -177,7 +210,7 @@ describe('popup feature visibility', () => {
         expect(popup).toContain('placeholder="搜索服务或模型，如 gpt、qwen"');
         expect(popup).toContain(':data-matching-models="item.matchingModels.join(\',\') || undefined"');
         expect(popup).toContain('没有找到包含“{{ serviceSearchQuery.trim() }}”的服务或模型');
-        expect(popup).toContain('serviceSearchInput.value?.focus()');
+        expect(popup).toContain('inputs[0]?.focus()');
         expect(popup).toContain('const moreServicesOpen = ref(true)');
         expect(popup).toContain('moreServicesOpen.value = true');
         expect(styles).toContain('.service-picker-results { min-height: 0; overflow-y: auto; scrollbar-width: thin; }');

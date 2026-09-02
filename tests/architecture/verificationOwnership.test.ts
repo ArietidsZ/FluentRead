@@ -133,6 +133,8 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/core/i18n/messages/ru-RU.ts',
     'src/core/i18n/messages/zh-CN.ts',
     'src/ui/i18n.ts',
+    // 设置快捷键组合器只协调 Vue ref、Element Plus 消息和 SFC 对话框；纯冲突识别由 strict coverage 验证，交互由隔离浏览器回归验证。
+    'src/features/settings/ui/useTranslationShortcutSettings.ts',
     // WXT ShadowRootUi/Vue 挂载适配器绑定真实 DOM 与组件生命周期；由 shadowUi 单测和双浏览器构建验证。
     'src/platform/shadow-ui/vue.ts',
     // 配置存储运行时只识别 MV3/MV2 背景身份并装配 WXT、IndexedDB 或 runtime 端口；行为由纯端口测试和双浏览器构建验证。
@@ -169,6 +171,8 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/app/background/configMessageHandlers.ts',
     // content composition root 绑定 WXT context、页面生命周期和静态 feature registry；由内容功能测试与隔离浏览器回归验证。
     'src/app/content/runtime.ts',
+    // 快捷翻译 composition 只把实时配置、旧手势仲裁与两类页面执行器接线；行为由 feature/runtime 单测和隔离浏览器回归验证。
+    'src/app/content/quickTranslationRuntime.ts',
     // 双语高亮只同步 page.css 使用的 Document 根属性；由设置契约、构建和隔离浏览器回归验证。
     'src/app/content/bilingualSentenceHighlight.ts',
     // 页面快捷键 runtime 绑定真实可信 KeyboardEvent、Selection/Range 与 AbortSignal；纯匹配策略已严格覆盖，信任边界由回归测试验证。

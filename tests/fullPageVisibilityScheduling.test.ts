@@ -444,6 +444,189 @@ describe("全文翻译可见性锚点", () => {
         });
         runtime.config.display = 0;
         expect(captureFullPageTranslationConfig().displayMode).toBe('single');
+
+        expect(captureFullPageTranslationConfig({
+            service: 'freeTranslation',
+            model: 'profile-model',
+            targetLanguage: 'ja',
+            displayMode: 'bilingual',
+        })).toMatchObject({
+            service: 'freeTranslation',
+            model: 'profile-model',
+            sourceLanguage: 'en',
+            targetLanguage: 'ja',
+            displayMode: 'bilingual',
+        });
+    });
+
+    it('悬停快捷方案把独立服务、模型、语言和显示方式冻结到请求', async () => {
+        document.body.innerHTML = '<p id="profile-target">Translate this with the selected profile.</p>';
+        const paragraph = document.querySelector<HTMLElement>('#profile-target')!;
+        const candidate = {element: paragraph, kind: 'content' as const, reason: 'paragraph'};
+        runtime.candidates = [candidate];
+        runtime.pointCandidate = candidate;
+
+        handleTranslation(20, 20, {
+            profileId: 'hover-profile',
+            service: 'freeTranslation',
+            model: 'profile-model',
+            targetLanguage: 'ja',
+            displayMode: 'bilingual',
+        });
+        await finishScheduledWork();
+
+        expect(runtime.requestOptions.at(-1)).toMatchObject({
+            serviceOverride: 'freeTranslation',
+            modelOverride: 'profile-model',
+            sourceLanguage: 'en',
+            targetLanguage: 'ja',
+        });
+        expect(paragraph.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+    });
+
+    it('同一目标可由另一个快捷方案直接切换模型和显示方式', async () => {
+        document.body.innerHTML = '<p id="profile-switch">Switch this translated paragraph.</p>';
+        const paragraph = document.querySelector<HTMLElement>('#profile-switch')!;
+        const candidate = {element: paragraph, kind: 'content' as const, reason: 'paragraph'};
+        runtime.candidates = [candidate];
+        runtime.pointCandidate = candidate;
+
+        handleTranslation(20, 20, {
+            profileId: 'hover-a', service: 'freeTranslation', model: 'model-a',
+            targetLanguage: 'ja', displayMode: 'bilingual',
+        });
+        await finishScheduledWork();
+        handleTranslation(20, 20, {
+            profileId: 'hover-b', service: 'freeTranslation', model: 'model-b',
+            targetLanguage: 'fr', displayMode: 'single',
+        });
+        await finishScheduledWork();
+
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(runtime.requestOptions.at(-1)).toMatchObject({
+            serviceOverride: 'freeTranslation', modelOverride: 'model-b', targetLanguage: 'fr',
+        });
+        expect(getTranslationState(paragraph)).toMatchObject({phase: 'translated', mode: 'single'});
+        expect(paragraph.querySelector('.fluent-read-bilingual-content')).toBeNull();
+    });
+
+    it('加载中的快捷方案可被另一方案抢占，旧请求晚到也不会覆盖新结果', async () => {
+        document.body.innerHTML = '<p id="profile-race">Switch this request while it is still loading.</p>';
+        const paragraph = document.querySelector<HTMLElement>('#profile-race')!;
+        const candidate = {element: paragraph, kind: 'content' as const, reason: 'paragraph'};
+        const firstRequest = deferred<string[]>();
+        runtime.candidates = [candidate];
+        runtime.pointCandidate = candidate;
+        runtime.requests.mockImplementationOnce(() => firstRequest.promise);
+
+        handleTranslation(20, 20, {
+            profileId: 'hover-loading-a', service: 'freeTranslation', model: 'model-a',
+            targetLanguage: 'ja', displayMode: 'bilingual',
+        });
+        await vi.advanceTimersByTimeAsync(0);
+        await Promise.resolve();
+        const firstState = getTranslationState(paragraph)!;
+        expect(firstState.phase).toBe('loading');
+
+        handleTranslation(20, 20, {
+            profileId: 'hover-loading-b', service: 'freeTranslation', model: 'model-b',
+            targetLanguage: 'fr', displayMode: 'single',
+        });
+        await finishScheduledWork();
+
+        expect(firstState.controller.signal.aborted).toBe(true);
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(runtime.requestOptions.at(-1)).toMatchObject({modelOverride: 'model-b', targetLanguage: 'fr'});
+        expect(getTranslationState(paragraph)).toMatchObject({phase: 'translated', mode: 'single'});
+
+        firstRequest.resolve(['旧方案译文']);
+        await finishScheduledWork();
+        expect(paragraph.textContent).not.toContain('旧方案译文');
+        expect(getTranslationState(paragraph)).toMatchObject({phase: 'translated', mode: 'single'});
+    });
+
+    it('全文旧请求晚到不会注销快捷方案的新会话索引', async () => {
+        runtime.config.fullPageTranslationMode = 'all';
+        document.body.innerHTML = '<article id="ancestor"><p id="indexed-race">Keep the newest target indexed.</p></article>';
+        const ancestor = document.querySelector<HTMLElement>('#ancestor')!;
+        const paragraph = document.querySelector<HTMLElement>('#indexed-race')!;
+        const candidate = {element: paragraph, kind: 'content' as const, reason: 'paragraph'};
+        const firstRequest = deferred<string[]>();
+        setLayoutBox(paragraph, 620, 96);
+        runtime.candidates = [candidate];
+        runtime.pointCandidate = candidate;
+        runtime.requests.mockImplementationOnce(() => firstRequest.promise);
+
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(51);
+        await Promise.resolve();
+        const firstState = getTranslationState(paragraph)!;
+        expect(firstState.phase).toBe('loading');
+
+        handleTranslation(20, 20, {
+            profileId: 'hover-index-owner', service: 'freeTranslation', model: 'model-b',
+            targetLanguage: 'fr', displayMode: 'single',
+        });
+        await finishScheduledWork();
+        expect(firstState.controller.signal.aborted).toBe(true);
+        expect(getTranslationState(paragraph)).toMatchObject({phase: 'translated', mode: 'single'});
+
+        firstRequest.resolve(['过期全文译文']);
+        await finishScheduledWork();
+        expect(paragraph.textContent).not.toContain('过期全文译文');
+        expect(getTranslationState(paragraph)).toMatchObject({phase: 'translated', mode: 'single'});
+
+        ancestor.setAttribute('translate', 'no');
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: 'attributes',
+            target: ancestor,
+            attributeName: 'translate',
+            addedNodes: [] as unknown as NodeList,
+            removedNodes: [] as unknown as NodeList,
+        } as unknown as MutationRecord]);
+        await finishScheduledWork();
+
+        expect(getTranslationState(paragraph)).toBeUndefined();
+        expect(paragraph.textContent).toBe('Keep the newest target indexed.');
+    });
+
+    it('仅译文 slot 遮住 core 候选时，同方案仍可恢复且不同方案可直接切换', async () => {
+        document.body.innerHTML = '<p id="single-profile-switch">Restore or switch this translation.</p>';
+        const paragraph = document.querySelector<HTMLElement>('#single-profile-switch')!;
+        const candidate = {element: paragraph, kind: 'content' as const, reason: 'paragraph'};
+        const firstInvocation = {
+            profileId: 'hover-single-a', service: 'freeTranslation', model: 'model-a',
+            targetLanguage: 'ja', displayMode: 'single' as const,
+        };
+        runtime.candidates = [candidate];
+        runtime.pointCandidate = candidate;
+
+        handleTranslation(20, 20, firstInvocation);
+        await finishScheduledWork();
+        let slot = paragraph.querySelector<HTMLElement>('.fluent-read-single-slot')!;
+        Object.defineProperty(document, 'elementsFromPoint', {configurable: true, value: () => [slot, paragraph]});
+        runtime.pointCandidate = null;
+        handleTranslation(20, 20, firstInvocation);
+        await finishScheduledWork();
+
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(getTranslationState(paragraph)).toBeUndefined();
+        expect(paragraph.textContent).toBe('Restore or switch this translation.');
+
+        runtime.pointCandidate = candidate;
+        handleTranslation(20, 20, firstInvocation);
+        await finishScheduledWork();
+        slot = paragraph.querySelector<HTMLElement>('.fluent-read-single-slot')!;
+        runtime.pointCandidate = null;
+        handleTranslation(20, 20, {
+            ...firstInvocation, profileId: 'hover-bilingual-b', model: 'model-b',
+            targetLanguage: 'fr', displayMode: 'bilingual',
+        });
+        await finishScheduledWork();
+
+        expect(runtime.requests).toHaveBeenCalledTimes(3);
+        expect(runtime.requestOptions.at(-1)).toMatchObject({modelOverride: 'model-b', targetLanguage: 'fr'});
+        expect(getTranslationState(paragraph)).toMatchObject({phase: 'translated', mode: 'bilingual'});
     });
 
     it('文本槽请求覆盖空输入、非批量单槽、结构化解析和逐槽回退', async () => {
@@ -2405,6 +2588,32 @@ describe("全文翻译可见性锚点", () => {
         expect(runtime.requests).toHaveBeenCalledTimes(2);
         expect(getTranslationState(replacement)?.phase).toBe("translated");
         expect(replacement.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
+    });
+
+    it('快捷方案失败后的重试继续使用原方案快照', async () => {
+        document.body.innerHTML = '<p id="profile-retry">Retry with the original quick profile.</p>';
+        const paragraph = document.querySelector<HTMLElement>('#profile-retry')!;
+        const candidate = {element: paragraph, kind: 'content' as const, reason: 'paragraph'};
+        runtime.candidates = [candidate];
+        runtime.pointCandidate = candidate;
+        runtime.requests.mockRejectedValueOnce(new Error('profile unavailable'));
+
+        handleTranslation(20, 20, {
+            profileId: 'hover-retry', service: 'freeTranslation', model: 'profile-model',
+            targetLanguage: 'ja', displayMode: 'bilingual',
+        });
+        await finishScheduledWork();
+        runtime.config.service = 'microsoft';
+        runtime.config.display = 0;
+        runtime.config.to = 'zh';
+        runtime.retryCallbacks[0]!();
+        await finishScheduledWork();
+
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(runtime.requestOptions.at(-1)).toMatchObject({
+            serviceOverride: 'freeTranslation', modelOverride: 'profile-model', targetLanguage: 'ja',
+        });
+        expect(getTranslationState(paragraph)).toMatchObject({phase: 'translated', mode: 'bilingual'});
     });
 
     it("行内片段首次失败后会从原始候选恢复并完成手动重试", async () => {

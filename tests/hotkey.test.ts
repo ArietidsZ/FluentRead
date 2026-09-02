@@ -1,9 +1,11 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
 import {
+    canonicalizeHotkey,
     matchesConfiguredHotkey,
     matchesHotkey,
     matchesModifierOnlyHotkey,
+    normalizeHotkeyEventKey,
     parseHotkey,
     resolveConfiguredHotkey,
     shouldClaimConfiguredHotkey,
@@ -60,9 +62,53 @@ describe('hotkey parsing', () => {
         expect(parseHotkey('F4')).toMatchObject({isValid: true, key: 'f4'});
         expect(parseHotkey('/')).toMatchObject({isValid: true, key: '/'});
     });
+
+    it('以稳定格式保留多个 Ctrl 方案，并统一别名与修饰键顺序', () => {
+        expect(canonicalizeHotkey(' control + t ')).toBe('Ctrl+T');
+        expect(canonicalizeHotkey('CTRL+y')).toBe('Ctrl+Y');
+        expect(canonicalizeHotkey('Shift+Option+Ctrl+y')).toBe('Ctrl+Alt+Shift+Y');
+        expect(canonicalizeHotkey('Option+Alt+f4')).toBe('Alt+F4');
+        expect(canonicalizeHotkey('Ctrl+ArrowDown')).toBe('Ctrl+Arrowdown');
+    });
+
+    it('不为非法或已禁用的组合生成可持久化热键', () => {
+        expect(canonicalizeHotkey('')).toBe('');
+        expect(canonicalizeHotkey('Ctrl+Hyper+T')).toBe('');
+        expect(canonicalizeHotkey('Cmd+Y')).toBe('');
+        expect(canonicalizeHotkey('y')).toBe('');
+    });
 });
 
 describe('hotkey matching', () => {
+    it('优先解释可配置逻辑字符，并为未知键值或 Option 变形字形回退 code', () => {
+        expect(normalizeHotkeyEventKey(keyboardEvent({key: 'y', code: 'KeyT'}))).toBe('y');
+        expect(normalizeHotkeyEventKey(keyboardEvent({key: 'f', code: 'KeyY'}))).toBe('f');
+        expect(normalizeHotkeyEventKey(keyboardEvent({key: '†', code: 'KeyT', altKey: true}))).toBe('t');
+        expect(normalizeHotkeyEventKey(keyboardEvent({key: 'œ', code: 'KeyQ', altKey: true}))).toBe('q');
+        expect(normalizeHotkeyEventKey(keyboardEvent({key: '∂', code: 'KeyD', altKey: true}))).toBe('d');
+        expect(normalizeHotkeyEventKey(keyboardEvent({key: '÷', code: 'Slash', altKey: true}))).toBe('/');
+        expect(normalizeHotkeyEventKey(keyboardEvent({key: '≠', code: 'Equal', altKey: true}))).toBe('=');
+        expect(normalizeHotkeyEventKey(keyboardEvent({key: '§', code: ''}))).toBe('§');
+        expect(normalizeHotkeyEventKey(keyboardEvent({key: 'Unidentified', code: 'KeyY'}))).toBe('y');
+        expect(normalizeHotkeyEventKey(keyboardEvent({key: 'Dead', code: 'Digit2'}))).toBe('2');
+        expect(normalizeHotkeyEventKey(keyboardEvent({key: 'Unidentified', code: 'F9'}))).toBe('f9');
+        expect(normalizeHotkeyEventKey(keyboardEvent({key: 'Unidentified', code: 'ArrowDown'}))).toBe('arrowdown');
+        expect(normalizeHotkeyEventKey(keyboardEvent({key: 'Unidentified', code: ''}))).toBe('unidentified');
+        expect(normalizeHotkeyEventKey(keyboardEvent({key: ' ', code: 'Space'}))).toBe('space');
+        expect(matchesConfiguredHotkey(
+            keyboardEvent({key: 'y', code: 'KeyT', ctrlKey: true}), 'Ctrl+Y',
+        )).toBe(true);
+        expect(matchesConfiguredHotkey(
+            keyboardEvent({key: 'f', code: 'KeyY', ctrlKey: true}), 'Ctrl+Y',
+        )).toBe(false);
+        expect(matchesConfiguredHotkey(
+            keyboardEvent({key: '†', code: 'KeyT', altKey: true}), 'Alt+T',
+        )).toBe(true);
+        expect(matchesConfiguredHotkey(
+            keyboardEvent({key: '÷', code: 'Slash', altKey: true}), 'Alt+/',
+        )).toBe(true);
+    });
+
     it('无效解析结果和修饰键不完全匹配时不命中', () => {
         const parsed = parseHotkey('Ctrl+T');
         expect(matchesHotkey(keyboardEvent({ctrlKey: true}), {...parsed, isValid: false})).toBe(false);

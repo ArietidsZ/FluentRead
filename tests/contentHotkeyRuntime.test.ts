@@ -116,6 +116,34 @@ function visibleSelection(text: string): Selection {
 }
 
 describe('全文翻译快捷键状态联动', () => {
+    it('划词关闭、全局关闭或站点禁用时不向 quick 暴露残留划词快捷键和候选', async () => {
+        const {createContentHotkeyRuntime} = await import('@/src/app/content/hotkeyRuntime');
+        const getSelection = vi.fn(() => { throw new Error('disabled path must not inspect selection'); });
+        vi.stubGlobal('window', {getSelection, addEventListener: vi.fn()});
+        mocks.config.selectionTranslatorTrigger = 'Control';
+
+        mocks.config.selectionTranslatorMode = 'disabled';
+        let runtime = createContentHotkeyRuntime(() => false);
+        expect(runtime.getConfiguredSelectionHotkey()).toBe('none');
+        expect(runtime.hasActiveSelectionTranslationCandidate()).toBe(false);
+
+        mocks.config.selectionTranslatorMode = 'bilingual';
+        mocks.config.disableSelectionTranslator = true;
+        expect(runtime.getConfiguredSelectionHotkey()).toBe('none');
+        expect(runtime.hasActiveSelectionTranslationCandidate()).toBe(false);
+
+        mocks.config.disableSelectionTranslator = false;
+        mocks.config.on = false;
+        expect(runtime.getConfiguredSelectionHotkey()).toBe('none');
+        expect(runtime.hasActiveSelectionTranslationCandidate()).toBe(false);
+
+        mocks.config.on = true;
+        runtime = createContentHotkeyRuntime(() => true);
+        expect(runtime.getConfiguredSelectionHotkey()).toBe('none');
+        expect(runtime.hasActiveSelectionTranslationCandidate()).toBe(false);
+        expect(getSelection).not.toHaveBeenCalled();
+    });
+
     it('悬浮球存在时仍以全文会话真值切换，而不是驱动悬浮球局部状态', async () => {
         const {createContentHotkeyRuntime} = await import('@/src/app/content/hotkeyRuntime');
         const runtime = createContentHotkeyRuntime(() => false);

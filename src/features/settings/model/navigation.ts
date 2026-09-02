@@ -43,7 +43,7 @@ export const navigationGroups: NavigationGroup[] = [
         id: 'settings-translation', icon: '译', label: '翻译设置', description: '悬浮、划词、输入框与全文', group: '基础配置',
         heading: '翻译设置', summary: '按使用顺序管理鼠标悬浮、划词、输入框和全文翻译。',
         kicker: '基础配置', title: '翻译设置', detail: '设置鼠标悬浮、划词、输入框与全文翻译的触发方式。',
-        searchDescription: '鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、AI 多段翻译、自定义快捷键、右键菜单、悬浮球、翻译进度',
+        searchDescription: '鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、快捷方案、独立模型、AI 多段翻译、自定义快捷键、右键菜单、悬浮球、翻译进度',
       },
     ],
   },

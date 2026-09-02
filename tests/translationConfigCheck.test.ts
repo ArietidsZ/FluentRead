@@ -51,6 +51,9 @@ describe('translation configuration guard', () => {
         mocks.config.customModel['ai-demo'] = '';
 
         expect(checkConfig()).toBe(false);
+
+        mocks.config.customModel['ai-demo'] = 'saved-custom-model';
+        expect(checkConfig()).toBe(true);
     });
 
     it('谷歌翻译在仅译文模式下拒绝并说明原因', () => {
@@ -59,6 +62,20 @@ describe('translation configuration guard', () => {
 
         expect(checkConfig()).toBe(false);
         expect(mocks.sendErrorMessage).toHaveBeenCalledWith('「谷歌翻译」仅支持双语模式，请切换翻译服务');
+    });
+
+    it('快捷方案按本次服务、模型和显示方式校验，不被全局默认值误拦截', () => {
+        mocks.config.service = 'ai-default';
+        mocks.config.display = 0;
+
+        expect(checkConfig({service: 'plain', displayMode: 'bilingual'})).toBe(true);
+        expect(checkConfig({service: 'ai-profile', model: 'profile-model'})).toBe(true);
+        expect(checkConfig({service: 'ai-profile'})).toBe(false);
+
+        mocks.config.service = 'plain';
+        mocks.config.display = 1;
+        expect(checkConfig({service: 'google', displayMode: 'single'})).toBe(false);
+        expect(checkConfig({service: 'google', displayMode: 'bilingual'})).toBe(true);
     });
 
     it('有效配置通过，并复用纯思考标签清理器', () => {

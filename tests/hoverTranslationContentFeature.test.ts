@@ -76,9 +76,9 @@ function mountHarness(overrides: Partial<HoverTranslationContentDependencies> = 
     };
     const controller = new AbortController();
 
-    mountHoverTranslationContentFeature(deps, controller.signal);
+    const resetKeyboardGesture = mountHoverTranslationContentFeature(deps, controller.signal);
 
-    return {deps, documentTarget, windowTarget, controller};
+    return {deps, documentTarget, windowTarget, controller, resetKeyboardGesture};
 }
 
 afterEach(() => {
@@ -86,6 +86,17 @@ afterEach(() => {
 });
 
 describe('hover translation content feature', () => {
+    it('外部仲裁器可重置旧悬浮手势并取消其待执行翻译', () => {
+        const {deps, resetKeyboardGesture, windowTarget} = mountHarness();
+        windowTarget.emit('keydown', trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true}));
+
+        resetKeyboardGesture();
+        windowTarget.emit('keyup', trustedEvent({key: 'Control', code: 'ControlLeft'}));
+
+        expect(deps.cancelPendingHoverTranslation).toHaveBeenCalledOnce();
+        expect(deps.handleTranslation).not.toHaveBeenCalled();
+    });
+
     it('标准化组合键并要求按键集合精确匹配', () => {
         expect(normalizeHoverHotkeyParts(undefined)).toEqual([]);
         expect(normalizeHoverHotkeyParts('none')).toEqual([]);

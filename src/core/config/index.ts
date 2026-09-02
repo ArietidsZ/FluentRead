@@ -14,6 +14,7 @@ export * from './customOpenAI';
 export * from './deeplx';
 export * from './interfaceAppearance';
 export * from './model';
+export * from './quickTranslation';
 export * from './selectionTts';
 export * from './translationLoadingStyle';
 export * from './transfer';

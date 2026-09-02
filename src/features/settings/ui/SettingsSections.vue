@@ -16,7 +16,7 @@
       </SettingsItem>
     </SettingsGroup>
     <SettingsGroup title="选择翻译服务" description="设置网页翻译默认使用的服务；模型和凭据仍在“翻译服务”页配置。">
-      <SettingsItem label="默认网页翻译服务" description="全文、悬浮和划词翻译默认使用此服务。">
+      <SettingsItem label="默认网页翻译服务" :description="t('quickTranslation.defaultServiceDescription')">
         <div
           class="service-default-control"
           data-testid="default-translation-service-card"
@@ -132,9 +132,6 @@
         <p>打开 YouTube 原生字幕后，FluentRead 会在播放器中显示译文。机器翻译约提前 10 秒、AI 服务约提前 30 秒准备字幕；播放器菜单可分别下载原文或译文 SRT。</p>
       </details>
     </section>
-
-
-
     <!-- 鼠标悬浮快捷键 -->
     <section v-show="props.activeSection === 'settings-translation'" id="settings-translation" class="settings-section">
     <SettingsGroup title="鼠标悬浮翻译" description="按住快捷键并把鼠标移到文本上，等待设定时间后开始翻译。">
@@ -142,7 +139,7 @@
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="按住指定快捷键并悬停在文本上进行翻译" placement="top-start" :show-after="500">
         <span class="popup-text popup-vertical-left">
-          鼠标悬浮快捷键
+          {{ t('quickTranslation.commonHoverShortcut') }}
           <el-icon class="icon-margin">
             <InfoFilled />
           </el-icon>
@@ -152,7 +149,7 @@
       <el-col :span="10" class="settings-control-field flex-end">
         <div class="hotkey-config">
           <el-select 
-            v-model="config.hotkey" 
+            :model-value="config.hotkey"
             aria-label="鼠标悬浮快捷键"
             placeholder="请选择快捷键" 
             size="small" 
@@ -185,7 +182,6 @@
       </el-col>
     </el-row>
 
-    <!-- 鼠标悬浮翻译延迟 -->
     <el-row class="settings-control-row">
       <el-col :span="14" class="settings-control-label lightblue rounded-corner">
         <el-tooltip class="box-item" effect="dark" content="按住鼠标悬浮快捷键并移动鼠标后，等待指定时间再翻译；调高可以减少 Ctrl+C 等组合键带来的误触。松开快捷键触发的单次翻译不受影响。" placement="top-start" :show-after="500">
@@ -208,7 +204,8 @@
         <span class="input-suffix">ms</span>
       </el-col>
     </el-row>
-
+    <QuickTranslationProfiles :config="config" action="hover" :profiles="config.quickTranslationProfiles"
+      @update:profiles="config.quickTranslationProfiles = $event" />
     </SettingsGroup>
     </section>
 
@@ -241,7 +238,7 @@
       </el-col>
       <el-col :span="10" class="settings-control-field flex-end">
         <div class="hotkey-config">
-          <el-select v-model="config.selectionTranslatorTrigger" aria-label="划词翻译触发方式" placeholder="选择触发方式" size="small" style="width: 100%" @change="handleSelectionTriggerChange">
+          <el-select :model-value="config.selectionTranslatorTrigger" aria-label="划词翻译触发方式" placeholder="选择触发方式" size="small" style="width: 100%" @change="handleSelectionTriggerChange">
             <el-option v-for="item in options.selectionTranslatorTriggers" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
           <div v-if="config.selectionTranslatorTrigger === 'custom'" class="custom-hotkey-display">
@@ -434,7 +431,7 @@
             </el-tooltip>
           </el-col>
           <el-col :span="12" class="settings-control-field">
-            <el-select v-model="config.inputBoxTranslationTrigger" aria-label="输入框翻译触发方式" placeholder="请选择触发方式">
+            <el-select :model-value="config.inputBoxTranslationTrigger" aria-label="输入框翻译触发方式" placeholder="请选择触发方式" @change="handleInputBoxTranslationTriggerChange">
               <el-option class="select-left" v-for="item in options.inputBoxTranslationTrigger" :key="item.value" 
                          :label="item.label" :value="item.value" />
             </el-select>
@@ -462,12 +459,12 @@
         <el-row class="settings-control-row" :class="{ 'custom-hotkey-row': config.floatingBallHotkey === 'custom' }">
           <el-col :span="14" class="settings-control-label lightblue rounded-corner">
             <el-tooltip class="box-item" effect="dark" content="（测试版）设置快捷键以便快速切换全文翻译状态，无需鼠标点击悬浮球" placement="top-start" :show-after="500">
-              <span class="popup-text popup-vertical-left">全文翻译快捷键<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
+              <span class="popup-text popup-vertical-left">{{ t('quickTranslation.commonFullPageShortcut') }}<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
             </el-tooltip>
           </el-col>
           <el-col :span="10" class="settings-control-field flex-end">
             <div class="hotkey-config">
-              <el-select v-model="config.floatingBallHotkey" aria-label="全文翻译快捷键" placeholder="选择快捷键" size="small" style="width: 100%" @change="handleHotkeyChange">
+              <el-select :model-value="config.floatingBallHotkey" aria-label="全文翻译快捷键" placeholder="选择快捷键" size="small" style="width: 100%" @change="handleHotkeyChange">
                 <el-option v-for="item in options.floatingBallHotkeys" :key="item.value" :label="item.label" :value="item.value" />
               </el-select>
               <div v-if="config.floatingBallHotkey === 'custom'" class="custom-hotkey-display">
@@ -480,7 +477,6 @@
             </div>
           </el-col>
         </el-row>
-
         <el-row class="settings-control-row">
           <el-col :span="20" class="settings-control-label lightblue rounded-corner">
             <el-tooltip class="box-item" effect="dark" content="开启后，使用支持通用提示词的 AI 服务进行全文翻译时，会把相邻短段合并为一次请求；机器翻译、悬浮、划词和输入框翻译不受影响。" placement="top-start" :show-after="500">
@@ -513,6 +509,8 @@
             <el-switch v-model="config.contextMenuEnabled" class="settings-toggle" aria-label="右键全文翻译" />
           </el-col>
         </el-row>
+        <QuickTranslationProfiles :config="config" action="full-page" :profiles="config.quickTranslationProfiles"
+          @update:profiles="config.quickTranslationProfiles = $event" />
       </SettingsGroup>
     </section>
 
@@ -658,6 +656,7 @@
   <CustomHotkeyInput
     v-model="showCustomHotkeyDialog"
     :current-value="config.customFloatingBallHotkey"
+    :validate="validateCustomFullPageHotkey"
     @confirm="handleCustomHotkeyConfirm"
     @cancel="handleCustomHotkeyCancel"
   />
@@ -666,6 +665,7 @@
   <CustomHotkeyInput
     v-model="showCustomMouseHotkeyDialog"
     :current-value="config.customHotkey"
+    :validate="validateCustomMouseHotkey"
     @confirm="handleCustomMouseHotkeyConfirm"
     @cancel="handleCustomMouseHotkeyCancel"
   />
@@ -675,9 +675,6 @@
     @confirm="handleCustomSelectionHotkeyConfirm"
     @cancel="handleCustomSelectionHotkeyCancel"
   />
-
-
-
 </template>
 
 <script lang="ts" setup>
@@ -746,7 +743,6 @@ import ServiceConfiguration from './services/ServiceConfiguration.vue';
 import CustomOpenAIProviderDialog from './services/CustomOpenAIProviderDialog.vue';
 import {TranslationCenter} from '@/src/features/translation-center/public';
 import AlwaysTranslateSites from './AlwaysTranslateSites.vue';
-import { parseHotkey } from '@/src/core/hotkey';
 import {
   createApiKeyRequirementKey,
   getApiKeyRequirementKey,
@@ -763,6 +759,8 @@ import SettingsItem from './components/SettingsItem.vue';
 import SegmentedControl from './components/SegmentedControl.vue';
 import {localizeServiceOptions, useUiI18n} from '@/src/ui/i18n';
 import ConfigManagement from './ConfigManagement.vue';
+import QuickTranslationProfiles from './QuickTranslationProfiles.vue';
+import {useTranslationShortcutSettings} from './useTranslationShortcutSettings';
 import {
   config as runtimeConfig,
   configReady,
@@ -796,6 +794,30 @@ function updateTheme(theme: string) {
 }
 // 配置信息
 const config = ref(new Config());
+const {
+  getCustomHotkeyDisplayName,
+  getCustomMouseHotkeyDisplayName,
+  getCustomSelectionHotkeyDisplayName,
+  handleCustomHotkeyCancel,
+  handleCustomHotkeyConfirm,
+  handleCustomMouseHotkeyCancel,
+  handleCustomMouseHotkeyConfirm,
+  handleCustomSelectionHotkeyCancel,
+  handleCustomSelectionHotkeyConfirm,
+  handleHotkeyChange,
+  handleInputBoxTranslationTriggerChange,
+  handleMouseHotkeyChange,
+  handleSelectionTriggerChange,
+  openCustomHotkeyDialog,
+  openCustomMouseHotkeyDialog,
+  openCustomSelectionHotkeyDialog,
+  quickTranslationConflictMessage,
+  showCustomHotkeyDialog,
+  showCustomMouseHotkeyDialog,
+  showCustomSelectionHotkeyDialog,
+  validateCustomFullPageHotkey,
+  validateCustomMouseHotkey,
+} = useTranslationShortcutSettings(config);
 const translationLimit = (value: number) => value === 0 ? '∞' : value;
 const translationDuration = (value: number) => value >= 1000 && value % 1000 === 0 ? `${value / 1000} s` : `${value} ms`;
 const translationSchedulerEffect = computed(() => t('settings.advanced.schedulerSummary', {
@@ -1244,6 +1266,11 @@ const imageTranslationEnabled = computed({
 const selectionAreaTranslationEnabled = computed({
   get: () => config.value.selectionAreaEnabled,
   set: (value) => {
+    const conflictMessage = value ? quickTranslationConflictMessage('Shift+Z') : '';
+    if (conflictMessage) {
+      ElMessage.warning(conflictMessage);
+      return;
+    }
     config.value.selectionAreaEnabled = value;
     browser.tabs.query({}).then(tabs => {
       tabs.forEach(tab => {
@@ -1319,162 +1346,12 @@ const handlePluginStateChange = (val: boolean) => {
   });
 };
 
-// 自定义快捷键相关
-const showCustomHotkeyDialog = ref(false);
-const showCustomMouseHotkeyDialog = ref(false);
-const showCustomSelectionHotkeyDialog = ref(false);
-
-// 处理快捷键选择变化
-const handleHotkeyChange = (value: string) => {
-  if (value === 'custom') {
-    // 选择自定义后，如果没有设置过自定义快捷键，自动打开设置对话框
-    if (!config.value.customFloatingBallHotkey) {
-      // 延迟一下，让选择框先完成状态更新
-      setTimeout(() => {
-        openCustomHotkeyDialog();
-      }, 100);
-    }
-  }
-};
-
-// 打开自定义快捷键对话框
-const openCustomHotkeyDialog = () => {
-  showCustomHotkeyDialog.value = true;
-};
-
-// 确认自定义快捷键
-const handleCustomHotkeyConfirm = (hotkey: string) => {
-  config.value.customFloatingBallHotkey = hotkey;
-  config.value.floatingBallHotkey = 'custom';
-  
-  ElMessage({
-    message: hotkey === 'none' ? '已禁用快捷键' : `快捷键已设置为: ${getCustomHotkeyDisplayName()}`,
-    type: 'success',
-    duration: 2000
-  });
-};
-
-// 取消自定义快捷键
-const handleCustomHotkeyCancel = () => {
-  // 如果没有自定义快捷键，回退到默认选项
-  if (!config.value.customFloatingBallHotkey) {
-    config.value.floatingBallHotkey = 'Alt+T';
-  }
-};
-
-// 获取自定义快捷键显示名称
-const getCustomHotkeyDisplayName = () => {
-  if (!config.value.customFloatingBallHotkey) return '';
-  
-  if (config.value.customFloatingBallHotkey === 'none') {
-    return '已禁用';
-  }
-  
-  const parsed = parseHotkey(config.value.customFloatingBallHotkey);
-  return parsed.isValid ? parsed.displayName : config.value.customFloatingBallHotkey;
-};
-
-// 处理鼠标悬浮快捷键选择变化
-const handleMouseHotkeyChange = (value: string) => {
-  if (value === 'custom') {
-    // 选择自定义后，如果没有设置过自定义快捷键，自动打开设置对话框
-    if (!config.value.customHotkey) {
-      // 延迟一下，让选择框先完成状态更新
-      setTimeout(() => {
-        openCustomMouseHotkeyDialog();
-      }, 100);
-    }
-  }
-};
-
-// 处理划词翻译触发方式选择变化
-const handleSelectionTriggerChange = (value: string) => {
-  config.value.selectionTranslatorHotkey = ['Control', 'Alt', 'Shift', 'custom'].includes(value) ? value : 'none';
-  if (value === 'custom' && !config.value.customSelectionTranslatorHotkey) {
-    setTimeout(() => {
-      openCustomSelectionHotkeyDialog();
-    }, 100);
-  }
-};
-
-// 打开自定义划词翻译快捷键对话框
-const openCustomSelectionHotkeyDialog = () => {
-  showCustomSelectionHotkeyDialog.value = true;
-};
-
-// 确认自定义划词翻译快捷键
-const handleCustomSelectionHotkeyConfirm = (hotkey: string) => {
-  config.value.customSelectionTranslatorHotkey = hotkey;
-  config.value.selectionTranslatorTrigger = 'custom';
-  config.value.selectionTranslatorHotkey = 'custom';
-
-  ElMessage({
-    message: hotkey === 'none' ? '已禁用划词翻译快捷键' : `划词翻译快捷键已设置为: ${getCustomSelectionHotkeyDisplayName()}`,
-    type: 'success',
-    duration: 2000,
-  });
-};
-
-// 取消自定义划词翻译快捷键
-const handleCustomSelectionHotkeyCancel = () => {
-  if (!config.value.customSelectionTranslatorHotkey) {
-    config.value.selectionTranslatorTrigger = 'icon';
-    config.value.selectionTranslatorHotkey = 'none';
-  }
-};
-
-// 获取自定义划词翻译快捷键显示名称
-const getCustomSelectionHotkeyDisplayName = () => {
-  if (!config.value.customSelectionTranslatorHotkey) return '';
-  if (config.value.customSelectionTranslatorHotkey === 'none') return '已禁用';
-
-  const parsed = parseHotkey(config.value.customSelectionTranslatorHotkey);
-  return parsed.isValid ? parsed.displayName : config.value.customSelectionTranslatorHotkey;
-};
-
-// 打开自定义鼠标悬浮快捷键对话框
-const openCustomMouseHotkeyDialog = () => {
-  showCustomMouseHotkeyDialog.value = true;
-};
-
-// 确认自定义鼠标悬浮快捷键
-const handleCustomMouseHotkeyConfirm = (hotkey: string) => {
-  config.value.customHotkey = hotkey;
-  config.value.hotkey = 'custom';
-  
-  ElMessage({
-    message: hotkey === 'none' ? '已禁用快捷键' : `快捷键已设置为: ${getCustomMouseHotkeyDisplayName()}`,
-    type: 'success',
-    duration: 2000
-  });
-};
-
-// 取消自定义鼠标悬浮快捷键
-const handleCustomMouseHotkeyCancel = () => {
-  // 如果没有自定义快捷键，回退到默认选项
-  if (!config.value.customHotkey) {
-    config.value.hotkey = 'Control';
-  }
-};
-
 const handleMouseHoverTranslationDelayChange = (value: number | undefined) => {
   config.value.mouseHoverTranslationDelay = normalizeMouseHoverTranslationDelay(value);
 };
 
 const handleSelectionTranslatorDelayChange = (value: number | undefined) => {
   config.value.selectionTranslatorDelay = normalizeSelectionTranslatorDelay(value);
-};
-
-// 获取自定义鼠标悬浮快捷键显示名称
-const getCustomMouseHotkeyDisplayName = () => {
-  if (!config.value.customHotkey) return '';
-  
-  if (config.value.customHotkey === 'none') {
-    return '已禁用';
-  }
-  
-  const parsed = parseHotkey(config.value.customHotkey);
-  return parsed.isValid ? parsed.displayName : config.value.customHotkey;
 };
 
 // 处理并发数量变化

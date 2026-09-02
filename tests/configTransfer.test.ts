@@ -254,6 +254,40 @@ describe('configuration transfer helpers', () => {
     expect(imported.videoServiceDefaultMigrated).toBe(target.videoServiceDefaultMigrated)
   })
 
+  it('完整与公开导出都保留快捷翻译方案，并在导入时精确替换目标端方案', () => {
+    const source = normalizeConfig({
+      ...new Config(),
+      quickTranslationProfiles: [
+        {
+          id: 'hover-openai', enabled: true, action: 'hover', hotkey: 'Ctrl+T',
+          service: services.openai, model: 'quick-model', targetLanguage: 'ja',
+          displayMode: 'bilingual', fullPageMode: 'inherit',
+        },
+        {
+          id: 'page-default', enabled: true, action: 'full-page', hotkey: 'Ctrl+Y',
+          service: '', model: '', targetLanguage: '',
+          displayMode: 'translation-only', fullPageMode: 'all',
+        },
+      ],
+    })
+    const expected = source.quickTranslationProfiles
+    const fullExport = prepareConfigForExport(source)
+    const publicExport = sanitizeConfigForExport(source)
+    const current = normalizeConfig({
+      ...new Config(),
+      quickTranslationProfiles: [{
+        id: 'old', enabled: true, action: 'hover', hotkey: 'Alt+X',
+        service: services.microsoft, model: '', targetLanguage: 'en',
+        displayMode: 'inherit', fullPageMode: 'inherit',
+      }],
+    })
+
+    expect(fullExport.quickTranslationProfiles).toEqual(expected)
+    expect(publicExport.quickTranslationProfiles).toEqual(expected)
+    expect(isConfigImportValid(fullExport)).toBe(true)
+    expect(prepareConfigForImport(fullExport, current).quickTranslationProfiles).toEqual(expected)
+  })
+
   it('完整备份精确替换凭据快照，不保留目标端多余 token、extra 或标量密钥', () => {
     const exported = prepareConfigForExport(normalizeConfig({
       ...new Config(),

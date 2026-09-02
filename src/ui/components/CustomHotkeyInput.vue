@@ -22,6 +22,7 @@
         aria-describedby="custom-hotkey-description"
         tabindex="-1"
         @click.stop
+        @keydown.tab="trapFocus"
       >
         <header class="dialog-header">
           <div class="dialog-heading">
@@ -136,12 +137,19 @@
 import { ref, computed, nextTick, watch } from 'vue';
 import { ElIcon } from 'element-plus';
 import { Loading, WarningFilled, Warning, CircleCheckFilled } from '@element-plus/icons-vue';
-import { parseHotkey, validateHotkeyConflicts, type ParsedHotkey } from '@/src/core/hotkey';
+import {
+  normalizeHotkeyEventKey,
+  parseHotkey,
+  REGULAR_KEYS,
+  validateHotkeyConflicts,
+  type ParsedHotkey,
+} from '@/src/core/hotkey';
 
 // 组件输入
 interface Props {
   modelValue: boolean;
   currentValue?: string;
+  validate?: (hotkey: string) => string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -167,6 +175,7 @@ const errorMessage = ref('');
 const conflictWarning = ref('');
 const inputField = ref<HTMLElement>();
 const dialogRoot = ref<HTMLElement>();
+const previouslyFocusedElement = ref<HTMLElement | null>(null);
 
 // 解析当前快捷键
 const parsedHotkey = computed<ParsedHotkey | null>(() => {
@@ -205,9 +214,44 @@ watch(() => props.currentValue, (newValue) => {
 
 watch(dialogVisible, (visible) => {
   if (visible) {
+    currentHotkey.value = props.currentValue || '';
+    isRecording.value = false;
+    pressedKeys.value.clear();
+    errorMessage.value = '';
+    conflictWarning.value = '';
+    validateCurrentHotkey(currentHotkey.value);
+    previouslyFocusedElement.value = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
     nextTick(() => dialogRoot.value?.focus({ preventScroll: true }));
+  } else {
+    const previous = previouslyFocusedElement.value;
+    previouslyFocusedElement.value = null;
+    nextTick(() => previous?.isConnected && previous.focus({preventScroll: true}));
   }
 });
+
+function trapFocus(event: KeyboardEvent) {
+  const root = dialogRoot.value;
+  if (!root) return;
+  const focusable = [...root.querySelectorAll<HTMLElement>(
+    'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+  )].filter(element => element.getClientRects().length > 0);
+  const first = focusable[0];
+  const last = focusable.at(-1);
+  if (!first || !last) return;
+  const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  if (!activeElement || !focusable.includes(activeElement)) {
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus();
+  } else if (event.shiftKey && activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
 
 // 监听快捷键变化，进行验证
 watch(currentHotkey, (newValue) => {
@@ -225,6 +269,12 @@ function validateCurrentHotkey(hotkeyString: string) {
   
   if (!parsed.isValid) {
     errorMessage.value = parsed.errorMessage || '无效的快捷键';
+    return;
+  }
+
+  const contextualError = props.validate?.(hotkeyString) || '';
+  if (contextualError) {
+    errorMessage.value = contextualError;
     return;
   }
   
@@ -251,6 +301,12 @@ async function startRecording() {
 
 // 处理按键按下
 function handleKeyDown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    event.stopPropagation();
+    handleCancel();
+    return;
+  }
   if (!isRecording.value) return;
   
   event.preventDefault();
@@ -263,40 +319,15 @@ function handleKeyDown(event: KeyboardEvent) {
   if (event.metaKey) pressedKeys.value.add('meta');
   
   // 处理普通按键
-  const key = event.key.toLowerCase();
-  const code = event.code?.toLowerCase();
+  const key = normalizeHotkeyEventKey(event);
   
   // 忽略单独的修饰键
-  if (['control', 'alt', 'shift', 'meta'].includes(key)) {
+  if (['ctrl', 'alt', 'shift', 'meta'].includes(key)) {
     return;
   }
-  
-  // 记录普通按键
-  if (key.length === 1) {
-    pressedKeys.value.add(key);
-  } else if (code?.startsWith('key')) {
-    pressedKeys.value.add(code.slice(3));
-  } else if (/^f\d+$/.test(key)) {
-    pressedKeys.value.add(key);
-  } else {
-    // 特殊键处理
-    const specialKeys = {
-      'escape': 'escape',
-      'enter': 'enter',
-      'space': 'space',
-      'tab': 'tab',
-      'backspace': 'backspace',
-      'delete': 'delete',
-      'arrowup': 'arrowup',
-      'arrowdown': 'arrowdown',
-      'arrowleft': 'arrowleft',
-      'arrowright': 'arrowright'
-    };
-    
-    if (specialKeys[key as keyof typeof specialKeys]) {
-      pressedKeys.value.add(specialKeys[key as keyof typeof specialKeys]);
-    }
-  }
+
+  // 只记录规则引擎支持的逻辑键；录制与页面运行时必须采用同一种布局语义。
+  if (Object.prototype.hasOwnProperty.call(REGULAR_KEYS, key)) pressedKeys.value.add(key);
 }
 
 // 处理按键释放
@@ -349,7 +380,7 @@ function selectPreset(value: string) {
 
 // 清除快捷键
 function clearHotkey() {
-  currentHotkey.value = '';
+  currentHotkey.value = 'none';
   isRecording.value = false;
   pressedKeys.value.clear();
   errorMessage.value = '';
@@ -361,7 +392,6 @@ function handleConfirm() {
   if (!canConfirm.value) return;
   
   emit('confirm', currentHotkey.value);
-  emit('update:modelValue', false);
 }
 
 // 取消
@@ -854,6 +884,64 @@ function handleCancel() {
   background: #eef1f5;
   box-shadow: none;
   cursor: not-allowed;
+}
+
+:global(.dark) .custom-hotkey-overlay {
+  --hotkey-brand-soft: rgba(239, 71, 118, .16);
+  --hotkey-ink: #f4f6fb;
+  --hotkey-muted: #aeb6c5;
+  --hotkey-line: #353c49;
+  --hotkey-surface: #171b23;
+  --hotkey-surface-soft: #202630;
+  background: rgba(5, 7, 11, .62);
+}
+
+:global(.dark) .custom-hotkey-dialog {
+  border-color: #353c49;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .55);
+}
+
+:global(.dark) .dialog-header,
+:global(.dark) .recording-card {
+  border-color: #44313a;
+  background: linear-gradient(135deg, #261b22 0%, var(--hotkey-surface) 72%);
+}
+
+:global(.dark) .hotkey-input-field {
+  border-color: #4a5260;
+  background: #1d222b;
+}
+
+:global(.dark) .state-badge,
+:global(.dark) .primary-button:disabled {
+  color: #aeb6c5;
+  background: #2a303a;
+}
+
+:global(.dark) .hotkey-input-field.error,
+:global(.dark) .hotkey-status.error {
+  border-color: #8f4d55;
+  color: #ffb5bd;
+  background: #321d21;
+}
+
+:global(.dark) .hotkey-input-field.warning,
+:global(.dark) .hotkey-status.warning {
+  border-color: #87672f;
+  color: #f2cc83;
+  background: #302718;
+}
+
+:global(.dark) .hotkey-input-field.success,
+:global(.dark) .hotkey-status.success {
+  border-color: #46775b;
+  color: #9ee2b7;
+  background: #193025;
+}
+
+:global(.dark) .preset-button:hover,
+:global(.dark) .preset-button:focus-visible {
+  background: #291d23;
 }
 
 @media (max-width: 560px) {

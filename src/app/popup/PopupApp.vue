@@ -227,7 +227,11 @@
           <span v-if="translating" class="spinner" />
           <span v-else class="translate-glyph">A↔译</span>
           <span class="translate-label">{{ pageTranslated ? '恢复当前网页' : '翻译当前网页' }}</span>
-          <kbd class="translate-hotkey" :class="{ disabled: fullPageHotkey === '未设置' }">{{ fullPageHotkey }}</kbd>
+          <kbd
+            class="translate-hotkey"
+            :class="{ disabled: !defaultFullPageHotkeyEnabled }"
+            :title="fullPageHotkeyTitle"
+          ><span>{{ fullPageHotkey }}</span></kbd>
         </button>
         <button
           v-if="canUseAIContext"
@@ -335,10 +339,14 @@
         </header>
 
       <div v-if="activeDrawer === 'hover'" class="drawer-content">
-        <div class="interaction-preview"><span class="cursor">↖</span><span>＋</span><kbd>{{ hoverKey }}</kbd><span>＝</span><strong>即时翻译</strong></div>
+        <div class="interaction-preview"><span class="cursor">↖</span><span>＋</span><kbd>{{ hoverPreviewKey }}</kbd><span>＝</span><strong>即时翻译</strong></div>
         <div class="setting-row">
-          <span><strong>启用鼠标悬停翻译</strong><small>按住快捷键并悬停在文本上</small></span>
-          <button class="switch compact" type="button" role="switch" :aria-checked="config.hotkey !== 'none'" aria-label="启用或关闭鼠标悬停翻译" @click="toggleHover"><i /></button>
+          <span>
+            <strong>{{ t('popup.quickTranslation.defaultHoverShortcut') }}</strong>
+            <small v-if="quickHoverProfiles.length" class="independent-profile-note">{{ t('popup.quickTranslation.defaultOnly', {count: quickHoverProfiles.length}) }}</small>
+            <small v-else>{{ t('popup.quickTranslation.defaultOff') }}</small>
+          </span>
+          <button class="switch compact" type="button" role="switch" :aria-checked="defaultHoverEnabled" :aria-label="t('popup.quickTranslation.toggleDefaultHover')" @click="toggleHover"><i /></button>
         </div>
         <div class="choice-block">
           <label>触发快捷键</label>
@@ -346,8 +354,16 @@
             <button v-for="item in hoverChoices" :key="item.value" type="button" :class="{ selected: config.hotkey === item.value }" @click="setHoverHotkey(item.value)">{{ item.label }}</button>
           </div>
           <button v-if="config.hotkey === 'custom'" class="secondary-action" type="button" @click="showCustomMouseHotkeyDialog = true">
-            {{ config.customHotkey ? `当前：${config.customHotkey}` : '录制自定义快捷键' }}
+            {{ defaultHoverEnabled ? `当前：${config.customHotkey}` : '录制自定义快捷键' }}
           </button>
+        </div>
+        <div v-if="quickHoverProfiles.length" class="quick-profile-preview" data-testid="popup-quick-hover-profiles">
+          <label>{{ t('popup.quickTranslation.extraProfiles') }}</label>
+          <div v-for="profile in quickHoverProfiles.slice(0, 3)" :key="profile.id" class="quick-profile-preview-row">
+            <kbd>{{ profile.hotkey }}</kbd>
+            <span>{{ quickProfileSummary(profile) }}</span>
+          </div>
+          <small v-if="quickHoverProfiles.length > 3">{{ t('popup.quickTranslation.moreProfiles', {count: quickHoverProfiles.length - 3}) }}</small>
         </div>
       </div>
 
@@ -512,7 +528,7 @@
       </div>
     </el-drawer>
 
-    <CustomHotkeyInput v-model="showCustomMouseHotkeyDialog" :current-value="config.customHotkey" @confirm="confirmMouseHotkey" @cancel="cancelMouseHotkey" />
+    <CustomHotkeyInput v-model="showCustomMouseHotkeyDialog" :current-value="config.customHotkey" :validate="validateCustomMouseHotkey" @confirm="confirmMouseHotkey" @cancel="cancelMouseHotkey" />
     <CustomHotkeyInput v-model="showCustomSelectionHotkeyDialog" :current-value="config.customSelectionTranslatorHotkey" @confirm="confirmSelectionHotkey" @cancel="cancelSelectionHotkey" />
     </div>
   </main>
@@ -548,6 +564,12 @@ import {
   servicesType,
 } from '@/src/core/config/catalog';
 import {
+  enabledQuickTranslationProfiles,
+  findEnabledQuickTranslationHotkeyConflict,
+  type QuickTranslationProfile,
+} from '@/src/core/config/quickTranslation';
+import {resolveConfiguredHotkey} from '@/src/core/hotkey';
+import {
   getCustomOpenAIProvider,
   withCustomOpenAIServiceOptions,
 } from '@/src/core/config/customOpenAI';
@@ -570,6 +592,7 @@ import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import {
   filterAvailableTranslationServices,
   getTranslationServiceUnavailableMessage,
+  isTranslationServiceAvailable,
 } from '@/src/services/translation/capabilities';
 
 type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'video';
@@ -589,7 +612,7 @@ interface PopupQuickFeatureViewModel {
   open: () => void | Promise<void>;
 }
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'));
-const {language, translateLegacy} = useUiI18n();
+const {language, t, translateLegacy} = useUiI18n();
 const config = ref(new Config());
 const onboardingLanguage = ref<UiLanguage>('zh-CN');
 const drawerVisible = ref(false);
@@ -605,8 +628,12 @@ const notice = ref('');
 const noticeType = ref<'success' | 'error'>('success');
 const showCustomMouseHotkeyDialog = ref(false);
 const showCustomSelectionHotkeyDialog = ref(false);
-const servicePicker = ref<HTMLElement | null>(null);
-const serviceSearchInput = ref<HTMLInputElement | null>(null);
+const previousMouseHotkey = ref('');
+const previousSelectionTrigger = ref('');
+// This template ref lives inside the configurable module v-for, so Vue exposes
+// it as an array even though the translation module itself is unique.
+const servicePicker = ref<HTMLElement | HTMLElement[] | null>(null);
+const serviceSearchInput = ref<HTMLInputElement | HTMLInputElement[] | null>(null);
 const serviceSearchQuery = ref('');
 const servicePickerOpen = ref(false);
 const moreServicesOpen = ref(true);
@@ -766,14 +793,43 @@ const siteRuleModuleProps = computed(() => ({
 }));
 const videoServiceLabel = computed(() => videoServiceOptions.value.find((item: any) => item.value === config.value.videoService)?.label || config.value.videoService);
 const styleLabel = computed(() => styleOptions.value.find((item: any) => item.value === config.value.style)?.label || '默认样式');
-const hoverKey = computed(() => config.value.hotkey === 'custom' ? (config.value.customHotkey || '自定义') : config.value.hotkey);
-const hoverSummary = computed(() => config.value.hotkey === 'none' ? '已关闭' : `${hoverKey.value} + 鼠标悬停`);
-const fullPageHotkey = computed(() => {
-  const hotkey = config.value.floatingBallHotkey === 'custom'
-    ? config.value.customFloatingBallHotkey
-    : config.value.floatingBallHotkey;
-  return hotkey && hotkey !== 'none' ? hotkey : '未设置';
-});
+const defaultHoverHotkey = computed(() => resolveConfiguredHotkey(config.value.hotkey, config.value.customHotkey));
+const defaultHoverEnabled = computed(() => Boolean(defaultHoverHotkey.value && defaultHoverHotkey.value !== 'none'));
+const hoverKey = computed(() => defaultHoverEnabled.value ? defaultHoverHotkey.value : '未设置');
+const quickHoverProfiles = computed(() => enabledQuickTranslationProfiles(config.value.quickTranslationProfiles, 'hover')
+  .filter((profile) => isTranslationServiceAvailable(profile.service || config.value.service)));
+const quickFullPageProfiles = computed(() => enabledQuickTranslationProfiles(config.value.quickTranslationProfiles, 'full-page')
+  .filter((profile) => isTranslationServiceAvailable(profile.service || config.value.service)));
+const hoverProfileCount = computed(() => quickHoverProfiles.value.length + (defaultHoverEnabled.value ? 1 : 0));
+const hoverPreviewKey = computed(() => !defaultHoverEnabled.value
+  ? quickHoverProfiles.value[0]?.hotkey || t('common.notSet')
+  : hoverKey.value);
+const hoverSummary = computed(() => quickHoverProfiles.value.length
+  ? t('popup.quickTranslation.profileCount', {count: hoverProfileCount.value})
+  : defaultHoverEnabled.value ? `${hoverKey.value} + 鼠标悬停` : '已关闭');
+const defaultFullPageHotkey = computed(() => resolveConfiguredHotkey(
+  config.value.floatingBallHotkey,
+  config.value.customFloatingBallHotkey,
+));
+const defaultFullPageHotkeyEnabled = computed(() => Boolean(
+  defaultFullPageHotkey.value && defaultFullPageHotkey.value !== 'none',
+));
+const fullPageHotkey = computed(() => defaultFullPageHotkeyEnabled.value
+  ? defaultFullPageHotkey.value
+  : quickFullPageProfiles.value.length ? t('popup.quickTranslation.defaultNotSet') : t('common.notSet'));
+const fullPageHotkeyHint = computed(() => !defaultFullPageHotkeyEnabled.value && quickFullPageProfiles.value.length
+  ? t('popup.quickTranslation.fullPageHint', {count: quickFullPageProfiles.value.length})
+  : '');
+const fullPageHotkeyTitle = computed(() => fullPageHotkeyHint.value
+  ? `${fullPageHotkey.value} · ${fullPageHotkeyHint.value}`
+  : fullPageHotkey.value);
+function quickProfileSummary(profile: QuickTranslationProfile): string {
+  const service = profile.service || config.value.service;
+  const serviceName = allServiceOptions.value.find((item: any) => item.value === service)?.label || service;
+  if (!servicesType.isUseModel(service)) return serviceName;
+  const model = profile.model || resolveConfiguredModel(config.value.model[service], config.value.customModel[service]);
+  return model ? `${serviceName} · ${model}` : serviceName;
+}
 const selectionSummary = computed(() => {
   const textSummary = ({ disabled: '已关闭', bilingual: '双语显示', 'translation-only': '仅显示译文' }[config.value.selectionTranslatorMode] || '双语显示');
   const triggerSummary = selectionTriggers.find(item => item.value === config.value.selectionTranslatorTrigger)?.label || '显示图标';
@@ -795,7 +851,7 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
     icon: '↖',
     iconTone: 'rose',
     showStatus: true,
-    active: config.value.hotkey !== 'none',
+    active: hoverProfileCount.value > 0,
     open: () => openDrawer('hover'),
   },
   selection: {
@@ -944,7 +1000,11 @@ watch(popupUsesContentHeight, applyPopupHeightMode, {immediate: true});
 darkMode.onchange = () => { if (config.value.theme === 'auto') applyTheme('auto'); };
 
 function closeServicePicker(event?: Event) {
-  if (event && servicePicker.value?.contains(event.target as Node)) return;
+  const target = event?.target;
+  const pickers = Array.isArray(servicePicker.value)
+    ? servicePicker.value
+    : [servicePicker.value];
+  if (target instanceof Node && pickers.some(picker => picker?.contains(target))) return;
   servicePickerOpen.value = false;
   serviceSearchQuery.value = '';
 }
@@ -956,12 +1016,18 @@ function handleDonationKeydown(event: KeyboardEvent) {
 function handleServicePickerKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') closeServicePicker();
 }
+function focusServiceSearchInput() {
+  const inputs = Array.isArray(serviceSearchInput.value)
+    ? serviceSearchInput.value
+    : [serviceSearchInput.value];
+  inputs[0]?.focus();
+}
 function toggleServicePicker() {
   if (!config.value.on) return;
   servicePickerOpen.value = !servicePickerOpen.value;
   if (servicePickerOpen.value) {
     moreServicesOpen.value = true;
-    void nextTick(() => serviceSearchInput.value?.focus());
+    void nextTick(focusServiceSearchInput);
   } else {
     serviceSearchQuery.value = '';
   }
@@ -973,7 +1039,7 @@ function selectService(value: string) {
 }
 function clearServiceSearch() {
   serviceSearchQuery.value = '';
-  void nextTick(() => serviceSearchInput.value?.focus());
+  void nextTick(focusServiceSearchInput);
 }
 function matchingModelSummary(matchingModels: string[]) {
   const visibleModels = matchingModels.slice(0, 2);
@@ -1191,8 +1257,26 @@ async function clearCache() {
   } finally { clearingCache.value = false; }
 }
 
-function toggleHover() { config.value.hotkey = config.value.hotkey === 'none' ? 'Control' : 'none'; }
+function quickTranslationConflictMessage(hotkey: string): string {
+  const conflict = findEnabledQuickTranslationHotkeyConflict(config.value.quickTranslationProfiles, hotkey);
+  if (!conflict) return '';
+  const group = t(`quickTranslation.heading.${conflict.action === 'hover' ? 'hover' : 'fullPage'}`);
+  return t('quickTranslation.conflictProfilePopup', {group});
+}
+
+const validateCustomMouseHotkey = (hotkey: string) => quickTranslationConflictMessage(hotkey);
+
+function toggleHover() {
+  if (defaultHoverEnabled.value) config.value.hotkey = 'none';
+  else setHoverHotkey('Control');
+}
 function setHoverHotkey(value: string) {
+  const conflictMessage = quickTranslationConflictMessage(resolveConfiguredHotkey(value, config.value.customHotkey));
+  if (conflictMessage) {
+    showNotice(conflictMessage, 'error');
+    return;
+  }
+  if (value === 'custom' && !config.value.customHotkey) previousMouseHotkey.value = config.value.hotkey;
   config.value.hotkey = value;
   if (value === 'custom' && !config.value.customHotkey) showCustomMouseHotkeyDialog.value = true;
 }
@@ -1203,6 +1287,9 @@ function setSelectionMode(mode: string) {
 }
 const selectionShortcutTriggers = new Set(['Control', 'Alt', 'Shift', 'custom']);
 function setSelectionTrigger(trigger: string) {
+  if (trigger === 'custom' && !config.value.customSelectionTranslatorHotkey) {
+    previousSelectionTrigger.value = config.value.selectionTranslatorTrigger;
+  }
   config.value.selectionTranslatorTrigger = trigger;
   config.value.selectionTranslatorHotkey = selectionShortcutTriggers.has(trigger) ? trigger : 'none';
   if (trigger === 'custom' && !config.value.customSelectionTranslatorHotkey) showCustomSelectionHotkeyDialog.value = true;
@@ -1215,6 +1302,11 @@ function handleSelectionTranslatorDelayChange(value: number | undefined) {
 function setAreaEnabled(enabled: boolean) {
   if (!browserCapabilities.areaTranslation) {
     showNotice('当前浏览器暂不支持圈选翻译', 'error');
+    return;
+  }
+  const conflictMessage = enabled ? quickTranslationConflictMessage('Shift+Z') : '';
+  if (conflictMessage) {
+    showNotice(conflictMessage, 'error');
     return;
   }
   config.value.selectionAreaEnabled = enabled;
@@ -1231,20 +1323,44 @@ function setImageTranslatorEnabled(enabled: boolean) {
 function setVideoTranslationEnabled(enabled: boolean) {
   config.value.videoTranslationEnabled = enabled;
 }
-function confirmMouseHotkey(hotkey: string) { config.value.customHotkey = hotkey; config.value.hotkey = 'custom'; }
-function cancelMouseHotkey() { if (!config.value.customHotkey) config.value.hotkey = 'Control'; }
+function confirmMouseHotkey(hotkey: string) {
+  if (quickTranslationConflictMessage(hotkey)) return;
+  if (hotkey === 'none') {
+    config.value.customHotkey = '';
+    config.value.hotkey = 'none';
+  } else {
+    config.value.customHotkey = hotkey;
+    config.value.hotkey = 'custom';
+  }
+  showCustomMouseHotkeyDialog.value = false;
+  previousMouseHotkey.value = '';
+}
+function cancelMouseHotkey() {
+  if (!config.value.customHotkey) config.value.hotkey = previousMouseHotkey.value || 'Control';
+  previousMouseHotkey.value = '';
+}
 function confirmSelectionHotkey(hotkey: string) {
-  config.value.customSelectionTranslatorHotkey = hotkey;
-  config.value.selectionTranslatorTrigger = 'custom';
-  config.value.selectionTranslatorHotkey = 'custom';
+  if (hotkey === 'none') {
+    config.value.customSelectionTranslatorHotkey = '';
+    config.value.selectionTranslatorTrigger = 'icon';
+    config.value.selectionTranslatorHotkey = 'none';
+  } else {
+    config.value.customSelectionTranslatorHotkey = hotkey;
+    config.value.selectionTranslatorTrigger = 'custom';
+    config.value.selectionTranslatorHotkey = 'custom';
+  }
+  showCustomSelectionHotkeyDialog.value = false;
+  previousSelectionTrigger.value = '';
   broadcastSelectionTranslatorSettings();
 }
 function cancelSelectionHotkey() {
   if (!config.value.customSelectionTranslatorHotkey) {
-    config.value.selectionTranslatorTrigger = 'icon';
-    config.value.selectionTranslatorHotkey = 'none';
+    const trigger = previousSelectionTrigger.value || 'icon';
+    config.value.selectionTranslatorTrigger = trigger;
+    config.value.selectionTranslatorHotkey = selectionShortcutTriggers.has(trigger) ? trigger : 'none';
     broadcastSelectionTranslatorSettings();
   }
+  previousSelectionTrigger.value = '';
 }
 function broadcastSelectionTranslatorSettings() {
   void broadcast({

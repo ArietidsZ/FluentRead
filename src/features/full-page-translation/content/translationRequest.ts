@@ -38,6 +38,23 @@ export interface FullPageTranslationConfigSnapshot {
     enableAIMultiSegment: boolean;
     displayMode: 'bilingual' | 'single';
     style: number;
+    profileId?: string;
+    requestOverridesApplied?: true;
+}
+
+/** 单次快捷翻译可覆盖的公开请求维度；未提供的字段继续跟随全局网页设置。 */
+export interface PageTranslationConfigOverrides {
+    service?: string;
+    model?: string;
+    targetLanguage?: string;
+    displayMode?: 'bilingual' | 'single';
+    profileId?: string;
+}
+
+export function getTranslationInvocationIdentity(snapshot: FullPageTranslationConfigSnapshot): string {
+    return snapshot.profileId
+        ? JSON.stringify([snapshot.profileId, snapshot.service, snapshot.model, snapshot.targetLanguage, snapshot.displayMode])
+        : '';
 }
 
 export interface FullPageTranslationCacheEntry {
@@ -91,20 +108,28 @@ interface AIMultiSegmentQueue {
 
 const aiMultiSegmentQueues = new WeakMap<FullPageTranslationSessionCache, AIMultiSegmentQueue>();
 
-export function captureFullPageTranslationConfig(): FullPageTranslationConfigSnapshot {
-    const service = config.service;
-    const model = resolveConfiguredModel(config.model[service], config.customModel[service]);
+export function captureFullPageTranslationConfig(
+    overrides: PageTranslationConfigOverrides = {},
+): FullPageTranslationConfigSnapshot {
+    const service = overrides.service?.trim() || config.service;
+    const configuredModel = overrides.model?.trim();
+    const model = configuredModel || resolveConfiguredModel(config.model[service], config.customModel[service]);
+    const profileId = overrides.profileId?.trim();
+    const requestOverridesApplied = Object.keys(overrides).length > 0;
     return {
         service,
         model,
         thinking: isModelThinkingEnabled(config.modelThinking, service, model),
         sourceLanguage: config.from,
-        targetLanguage: config.to,
+        targetLanguage: overrides.targetLanguage?.trim() || config.to,
         useCache: config.useCache,
         enableAIContext: config.enableAIContext,
         enableAIMultiSegment: config.enableAIMultiSegment,
-        displayMode: config.display === styles.bilingualTranslation ? 'bilingual' : 'single',
+        displayMode: overrides.displayMode
+            ?? (config.display === styles.bilingualTranslation ? 'bilingual' : 'single'),
         style: config.style,
+        ...(profileId ? {profileId} : {}),
+        ...(requestOverridesApplied ? {requestOverridesApplied: true as const} : {}),
     };
 }
 

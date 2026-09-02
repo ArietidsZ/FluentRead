@@ -68,6 +68,51 @@ export interface ParsedHotkey {
   errorMessage?: string;
 }
 
+const REGULAR_CODE_KEYS: Readonly<Record<string, keyof typeof REGULAR_KEYS>> = {
+  backquote: '`',
+  minus: '-',
+  equal: '=',
+  bracketleft: '[',
+  bracketright: ']',
+  backslash: '\\',
+  intlbackslash: '\\',
+  semicolon: ';',
+  quote: "'",
+  comma: ',',
+  period: '.',
+  slash: '/',
+};
+
+function normalizeHotkeyEventCode(code: string | undefined): string {
+  const normalizedCode = code?.toLowerCase() ?? '';
+  if (normalizedCode.startsWith('key')) return normalizedCode.slice(3);
+  if (normalizedCode.startsWith('digit')) return normalizedCode.slice(5);
+  if (REGULAR_CODE_KEYS[normalizedCode]) return REGULAR_CODE_KEYS[normalizedCode];
+  if (Object.prototype.hasOwnProperty.call(REGULAR_KEYS, normalizedCode)) return normalizedCode;
+  return '';
+}
+
+/**
+ * 将键盘事件收敛为录制器与运行时共享的逻辑按键。支持的可打印字符优先使用
+ * `event.key`，因此非 QWERTY 布局会执行用户实际录下的字符；当 Option 等
+ * 修饰键把字符变成不可配置字形时，则回退到稳定的物理 `code`。
+ */
+export function normalizeHotkeyEventKey(event: Pick<KeyboardEvent, 'key' | 'code'>): string {
+  const key = event.key.toLowerCase();
+  if (key === 'control' || key === 'ctrl') return 'ctrl';
+  if (key === 'alt' || key === 'option') return 'alt';
+  if (key === 'shift') return 'shift';
+  if (key === 'meta' || key === 'command') return 'meta';
+  if (key === ' ' || key === 'spacebar') return 'space';
+  const codeKey = normalizeHotkeyEventCode(event.code);
+  if (key.length === 1) {
+    if (Object.prototype.hasOwnProperty.call(REGULAR_KEYS, key)) return key;
+    return codeKey || key;
+  }
+  if (key && key !== 'unidentified' && key !== 'dead') return key;
+  return codeKey || key;
+}
+
 /**
  * 解析快捷键字符串
  * @param hotkeyString 快捷键字符串，如 "Ctrl+Alt+T"
@@ -194,6 +239,31 @@ function generateDisplayName(modifiers: string[], key: string): string {
 }
 
 /**
+ * 把可用快捷键收敛为与平台无关的稳定字符串，便于持久化、去重和跨设备导入。
+ * Option 等别名统一保存为 Alt，修饰键顺序固定为 Ctrl → Alt → Shift。
+ */
+export function canonicalizeHotkey(hotkeyString: string): string {
+  const parsed = parseHotkey(hotkeyString);
+  if (!parsed.isValid) return '';
+
+  const modifierLabels: Record<string, string> = {
+    ctrl: 'Ctrl',
+    alt: 'Alt',
+    shift: 'Shift',
+    meta: 'Meta',
+  };
+  const orderedModifiers = ['ctrl', 'alt', 'shift', 'meta']
+    .filter((modifier) => parsed.modifiers.includes(modifier))
+    .map((modifier) => modifierLabels[modifier]);
+  const key = /^f\d+$/u.test(parsed.key)
+    ? parsed.key.toUpperCase()
+    : parsed.key.length === 1
+      ? parsed.key.toUpperCase()
+      : `${parsed.key.charAt(0).toUpperCase()}${parsed.key.slice(1)}`;
+  return [...orderedModifiers, key].join('+');
+}
+
+/**
  * 检查事件是否匹配指定的快捷键
  * @param event 键盘事件
  * @param parsedHotkey 解析后的快捷键
@@ -218,8 +288,7 @@ export function matchesHotkey(event: KeyboardEvent, parsedHotkey: ParsedHotkey):
   }
 
   // 检查普通按键
-  const eventKey = event.key.toLowerCase();
-  const eventCode = event.code?.toLowerCase();
+  const eventKey = normalizeHotkeyEventKey(event);
 
   // 处理特殊按键映射
   const keyMappings: Record<string, string[]> = {
@@ -236,18 +305,17 @@ export function matchesHotkey(event: KeyboardEvent, parsedHotkey: ParsedHotkey):
   };
 
   if (keyMappings[parsedHotkey.key]) {
-    return keyMappings[parsedHotkey.key].includes(eventKey) ||
-           keyMappings[parsedHotkey.key].some(k => eventCode?.includes(k));
+    return keyMappings[parsedHotkey.key].includes(eventKey);
   }
 
   // 普通字母数字键
   if (/^[a-z0-9]$/.test(parsedHotkey.key)) {
-    return eventKey === parsedHotkey.key || eventCode === `key${parsedHotkey.key}`;
+    return eventKey === parsedHotkey.key;
   }
 
   // 功能键
   if (/^f\d+$/.test(parsedHotkey.key)) {
-    return eventKey === parsedHotkey.key || eventCode === parsedHotkey.key;
+    return eventKey === parsedHotkey.key;
   }
 
   // 符号键直接比较

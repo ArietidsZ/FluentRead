@@ -51,7 +51,8 @@ import {
     beginTranslation,
     detachFailedTranslationUi,
     discardTranslation,
-    getTranslationState,
+    getOwnedTranslationCandidateAtPoint, getTranslationState,
+    resolveTranslationStateNode,
     getTranslationOwnersForRemovedNode,
     markTranslationComplete,
     markTranslationError,
@@ -68,9 +69,11 @@ import {
 } from "@/src/features/full-page-translation/content/state";
 import {
     captureFullPageTranslationConfig,
+    getTranslationInvocationIdentity,
     translateTextSlots,
     type FullPageTranslationCacheEntry,
     type FullPageTranslationConfigSnapshot,
+    type PageTranslationConfigOverrides,
 } from '@/src/features/full-page-translation/content/translationRequest';
 import {
     createFullPageScrollController,
@@ -183,6 +186,7 @@ const FULL_PAGE_LIFECYCLE_RETRY_LIMIT = 2;
 
 let hoverTimer: ReturnType<typeof setTimeout> | undefined;
 let fullPageSession: FullPageSession | null = null;
+export type PageTranslationInvocation = PageTranslationConfigOverrides & {fullPageMode?: FullPageTranslationMode};
 
 function scheduleFullPageProgressPublish(session: FullPageSession): void {
     if (!session.active || session.progressPublishScheduled) return;
@@ -469,7 +473,7 @@ function markFailedTranslation(
     attempt: NonNullable<ReturnType<typeof beginTranslation>>,
     spinner: HTMLElement | undefined,
     error: unknown,
-    owner?: FullPageSession,
+    owner?: FullPageSession, snapshot?: FullPageTranslationConfigSnapshot,
 ): TranslationTargetOutcome {
     withFullPageViewportAnchor(() => spinner?.remove(), [node]);
     if (!node.isConnected ||
@@ -486,12 +490,10 @@ function markFailedTranslation(
         error instanceof Error ? error.message : String(error || "翻译失败"),
         () => {
             const retryOwner = owner?.active ? owner : undefined;
-            void translateTarget(
-                candidate,
-                retryOwner?.translationConfig.displayMode ?? currentTranslationDisplayMode(),
-                false,
-                retryOwner, true,
-            );
+            const retrySnapshot = snapshot?.requestOverridesApplied ? snapshot : undefined;
+            void translateTarget(candidate,
+                retryOwner?.translationConfig.displayMode ?? retrySnapshot?.displayMode ?? currentTranslationDisplayMode(),
+                false, retryOwner, retrySnapshot, true);
         },
     ), [node]);
     setRetryWrapper(node, retryWrapper);
@@ -617,7 +619,7 @@ async function renderTranslation(
         setRenderedStyleAttribute(node);
         return {status: "committed"};
     } catch (error) {
-        return markFailedTranslation(node, candidate, attempt, spinner, error, owner);
+        return markFailedTranslation(node, candidate, attempt, spinner, error, owner, snapshot);
     }
 }
 
@@ -859,46 +861,35 @@ function forgetCandidate(session: FullPageSession | undefined, candidate: Transl
     scheduleFullPageProgressPublish(session);
 }
 
-async function translateTarget(
-    candidate: TranslationCandidate,
-    displayMode: "bilingual" | "single",
-    slide: boolean,
-    owner?: FullPageSession, forceFailedRequest = false,
+async function translateTarget(candidate: TranslationCandidate, displayMode: "bilingual" | "single", slide: boolean,
+    owner?: FullPageSession,
+    translationConfigOverride?: FullPageTranslationConfigSnapshot,
+    forceFailedRequest = false,
 ): Promise<TranslationTargetOutcome> {
-    if (!candidate.element.isConnected) {
-        return {status: "not-current"};
-    }
-
-    const statefulSession = owner?.active
-        ? owner
-        : fullPageSession?.active ? fullPageSession : undefined;
-    const translationConfig = owner?.active
-        ? owner.translationConfig
-        : captureFullPageTranslationConfig();
-    const existingNode = candidate.nodes?.length
-        ? (() => {
-            const firstSourceNode = candidate.nodes?.[0];
-            let current = firstSourceNode?.parentElement ?? null;
-            while (current) {
-                if (current.matches('[data-fr-translation-segment="true"]') &&
-                    getTranslationState(current)) return current;
-                current = current.parentElement;
-            }
-            return null;
-        })()
-        : candidate.element;
+    if (!candidate.element.isConnected) return {status: "not-current"};
+    const statefulSession = owner?.active ? owner : fullPageSession?.active ? fullPageSession : undefined;
+    const translationConfig = owner?.active ? owner.translationConfig
+        : translationConfigOverride ?? captureFullPageTranslationConfig();
+    const existingNode = resolveTranslationStateNode(candidate);
     const current = existingNode ? getTranslationState(existingNode) : undefined;
-    if (current?.phase === "loading") return {status: "owned"};
-    if (current?.phase === "translated") {
+    if (existingNode && (current?.phase === "loading" || current?.phase === "translated")) {
+        const nextIdentity = getTranslationInvocationIdentity(translationConfig);
+        const shouldSwitchProfile = Boolean(nextIdentity && current.translationInvocationIdentity !== nextIdentity);
+        if (current.phase === "loading" && !shouldSwitchProfile) return {status: "owned"};
         // 滑动触发只对当前鼠标下的新目标翻译，不在移动过程中反复恢复原文。
-        if (!slide && existingNode) {
-            if (statefulSession?.active && fullPageSession === statefulSession) {
-                rememberUserCancelledCandidate(statefulSession, candidate, existingNode, current);
-            }
-            unregisterSessionStatefulTarget(statefulSession, existingNode);
-            withFullPageViewportAnchor(() => restoreTranslation(existingNode), [existingNode]);
+        if (current.phase === "translated" && slide && !shouldSwitchProfile) return {status: "committed"};
+        const retryAnchor = candidate.nodes?.[0] ?? existingNode;
+        if (statefulSession?.active && fullPageSession === statefulSession) {
+            rememberUserCancelledCandidate(statefulSession, candidate, existingNode, current);
         }
-        return {status: "committed"};
+        unregisterSessionStatefulTarget(statefulSession, existingNode);
+        withFullPageViewportAnchor(() => restoreTranslation(existingNode), [existingNode]);
+        if (shouldSwitchProfile && retryAnchor.isConnected) {
+            const refreshedCandidate = getCurrentTranslationCore().resolve(retryAnchor);
+            if (refreshedCandidate) return translateTarget(
+                refreshedCandidate, displayMode, slide, owner, translationConfigOverride, forceFailedRequest);
+        }
+        return {status: current.phase === "loading" ? "owned" : "committed"};
     }
     if (current?.phase === "error" && existingNode) {
         if (current.syntheticSegment) {
@@ -914,7 +905,8 @@ async function translateTarget(
             if (!sourceAnchor?.isConnected) return {status: "not-current", retryRoot};
             const refreshedCandidate = getCurrentTranslationCore().resolve(sourceAnchor);
             if (!refreshedCandidate) return {status: "not-current", retryRoot};
-            return translateTarget(refreshedCandidate, displayMode, slide, owner, forceFailedRequest);
+            return translateTarget(
+                refreshedCandidate, displayMode, slide, owner, translationConfigOverride, forceFailedRequest);
         }
         unregisterSessionStatefulTarget(statefulSession, existingNode);
         withFullPageViewportAnchor(() => restoreTranslation(existingNode), [existingNode]);
@@ -983,6 +975,7 @@ async function translateTarget(
         sourceText,
         sourceTextNodes,
         candidate.allowTopLevelApplicationShell === true,
+        getTranslationInvocationIdentity(translationConfig),
     );
     if (!attempt) {
         if (synthetic) {
@@ -1020,8 +1013,8 @@ async function translateTarget(
         translationConfig,
         owner?.active ? owner : undefined,
     );
-    if (outcome.status === "stale" || outcome.status === "not-current" ||
-        outcome.status === "empty" || outcome.status === "unchanged") {
+    if ((outcome.status === "stale" || outcome.status === "not-current" || outcome.status === "empty" ||
+        outcome.status === "unchanged") && (!getTranslationState(node) || getTranslationState(node) === attempt.state)) {
         unregisterSessionStatefulTarget(statefulSession, node);
     }
     return outcome;
@@ -1942,7 +1935,10 @@ function createFullPageMutationObserver(
     });
 }
 
-function createFullPageSession(root: HTMLElement): FullPageSession {
+function createFullPageSession(
+    root: HTMLElement,
+    invocation: PageTranslationInvocation = {},
+): FullPageSession {
     let session!: FullPageSession;
     const observer = new IntersectionObserver((entries) => {
         if (!session.active || fullPageSession !== session) return;
@@ -1978,8 +1974,8 @@ function createFullPageSession(root: HTMLElement): FullPageSession {
 
     session = {
         active: true,
-        translationMode: config.fullPageTranslationMode,
-        translationConfig: captureFullPageTranslationConfig(),
+        translationMode: invocation.fullPageMode ?? config.fullPageTranslationMode,
+        translationConfig: captureFullPageTranslationConfig(invocation),
         progressSessionId: startFullPageTranslationProgress(),
         progressPublishScheduled: false,
         observer,
@@ -2099,12 +2095,12 @@ export function restoreOriginalContent(): void {
  * 限制，并持续观察新增 DOM/open ShadowRoot。这样 body 被 SPA 替换后仍能
  * 继续工作，也不会一次性给整页发出数百个请求。
  */
-export function autoTranslateEnglishPage(): void {
-    if (!checkConfig() || fullPageSession?.active) return;
+export function autoTranslateEnglishPage(invocation: PageTranslationInvocation = {}): void {
+    if (!checkConfig(invocation) || fullPageSession?.active) return;
     const root = document.documentElement;
     if (!root) return;
 
-    const session = createFullPageSession(root);
+    const session = createFullPageSession(root, invocation);
     fullPageSession = session;
     document.addEventListener('fluentread-open-shadow-root', (event) => {
         if (!session.active || fullPageSession !== session) return;
@@ -2142,16 +2138,23 @@ export function cancelPendingHoverTranslation(): void {
 export function handleTranslation(
     mouseX: number,
     mouseY: number,
-    invocation: {delayMs?: number; continuous?: boolean} = {},
+    invocation: PageTranslationConfigOverrides & {delayMs?: number; continuous?: boolean} = {},
 ): void {
-    if (!checkConfig()) return;
+    const {delayMs = 0, continuous = false, ...translationOverrides} = invocation;
+    const translationConfig = captureFullPageTranslationConfig(translationOverrides);
+    if (!checkConfig(translationConfig)) return;
     cancelPendingHoverTranslation();
-    const delayMs = invocation.delayMs ?? 0;
     hoverTimer = setTimeout(() => {
         hoverTimer = undefined;
-        const candidate = resolveTranslationCandidateAtPoint(mouseX, mouseY);
+        const candidate = getOwnedTranslationCandidateAtPoint(document, mouseX, mouseY) ?? resolveTranslationCandidateAtPoint(mouseX, mouseY);
         if (!candidate) return;
-        void translateTarget(candidate, currentTranslationDisplayMode(), invocation.continuous === true);
+        void translateTarget(
+            candidate,
+            translationConfig.displayMode,
+            continuous,
+            undefined,
+            translationConfig.requestOverridesApplied ? translationConfig : undefined,
+        );
     }, delayMs);
 }
 

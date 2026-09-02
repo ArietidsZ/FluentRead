@@ -9,8 +9,14 @@ import {stripTranslationReasoning} from '@/src/core/translation/prompts';
 import {config} from '@/src/services/config/store';
 import {sendErrorMessage} from '@/src/features/page-notice/public';
 
-// 翻译前检查配置。
-export function checkConfig(): boolean {
+export interface TranslationConfigCheckOptions {
+    service?: string;
+    model?: string;
+    displayMode?: 'bilingual' | 'single';
+}
+
+// 翻译前检查配置。快捷方案可在不改写全局默认值的情况下传入本次请求身份。
+export function checkConfig(options: TranslationConfigCheckOptions = {}): boolean {
     // 步骤 1：检查插件是否启用。
     if (!config.on) return false;
 
@@ -18,17 +24,22 @@ export function checkConfig(): boolean {
     // 后台会在调用 provider 前，于请求边界完成校验。
 
     // 检查要求模型的服务是否已完成选择。
-    if (servicesType.isUseModel(config.service)) {
-        const model = config.model[config.service];
-        const customModel = config.customModel[config.service];
-        if (!model || (model === customModelString && !customModel)) {
+    const service = options.service?.trim() || config.service;
+    const explicitModel = options.model?.trim();
+    if (servicesType.isUseModel(service)) {
+        const configuredModel = config.model[service];
+        const customModel = config.customModel[service];
+        const model = explicitModel || (configuredModel === customModelString ? customModel : configuredModel);
+        if (!model || (!explicitModel && configuredModel === customModelString && !customModel)) {
             sendErrorMessage("模型尚未配置，请前往设置页配置");
             return false;
         }
     }
 
     // 部分翻译服务要求启用“双语模式”。
-    if (config.display === 0 && config.service === services.google) {
+    const displayMode = options.displayMode
+        ?? (config.display === 0 ? 'single' : 'bilingual');
+    if (displayMode === 'single' && service === services.google) {
         sendErrorMessage("「谷歌翻译」仅支持双语模式，请切换翻译服务");
         return false;
     }

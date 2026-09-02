@@ -39,8 +39,14 @@ import {
     parseApiKeyRequirementKey,
 } from './validation';
 import {isSensitiveConfigKey} from './sensitiveKeys';
+import {resolveConfiguredHotkey} from '@/src/core/hotkey';
 import { normalizeSelectionTtsVoiceOrder } from "./selectionTts";
 import { normalizeUiLanguage, type UiLanguage } from '@/src/core/i18n/language';
+import {
+    inputBoxTranslationTriggerHotkey,
+    normalizeQuickTranslationProfiles,
+    type QuickTranslationProfile,
+} from './quickTranslation';
 import {
     DEFAULT_INTERFACE_VISIBILITY,
     DEFAULT_POPUP_MODULE_ORDER,
@@ -199,6 +205,7 @@ export class Config {
     floatingBallHotkey: string; // 悬浮球快捷键
     customFloatingBallHotkey: string; // 自定义悬浮球快捷键
     customHotkey: string; // 自定义鼠标悬浮快捷键
+    quickTranslationProfiles: QuickTranslationProfile[]; // 额外快捷翻译方案；悬浮与全文各最多 8 项
     mouseHoverTranslationDelay: number; // 鼠标悬浮翻译触发延迟（毫秒）
     disableSelectionTranslator: boolean; // 是否禁用划词翻译
     selectionAreaEnabled: boolean; // 是否启用圈选翻译
@@ -299,6 +306,7 @@ export class Config {
         this.floatingBallHotkey = 'Alt+T'; // 默认快捷键为 Alt+T
         this.customFloatingBallHotkey = ''; // 自定义快捷键为空
         this.customHotkey = ''; // 自定义鼠标悬浮快捷键为空
+        this.quickTranslationProfiles = []; // 默认仅保留旧快捷键，新方案由用户按需添加
         this.mouseHoverTranslationDelay = DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY;
         this.disableSelectionTranslator = true; // 默认关闭划词翻译
         this.selectionAreaEnabled = false; // 圈选翻译需要用户主动开启，避免意外截图
@@ -828,6 +836,23 @@ export function normalizeConfig(value: unknown): Config {
         .filter(service => isSupportedTranslationService(service, normalized.customOpenAIProviders));
     normalized.translationCenterSourceLanguage = normalizeConfigLanguage(source.translationCenterSourceLanguage);
     normalized.translationCenterTargetLanguage = normalizeConfigLanguage(source.translationCenterTargetLanguage);
+    normalized.quickTranslationProfiles = normalizeQuickTranslationProfiles(
+        source.quickTranslationProfiles,
+        {
+            isSupportedService: (service) => isSupportedTranslationService(
+                service,
+                normalized.customOpenAIProviders,
+            ),
+            serviceUsesModel: (service) => isCustomOpenAIProviderId(service)
+                || servicesType.isUseModel(service),
+            reservedHotkeys: [
+                resolveConfiguredHotkey(normalized.hotkey, normalized.customHotkey),
+                resolveConfiguredHotkey(normalized.floatingBallHotkey, normalized.customFloatingBallHotkey),
+                ...(normalized.selectionAreaEnabled ? ['Shift+Z'] : []),
+                inputBoxTranslationTriggerHotkey(normalized.inputBoxTranslationTrigger),
+            ],
+        },
+    );
     normalized.enableAIMultiSegment = source.enableAIMultiSegment === true;
     return normalized;
 }

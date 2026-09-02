@@ -334,6 +334,32 @@ function formatCustomOpenAIProviders(value: unknown): string {
     });
 }
 
+function formatQuickTranslationProfiles(value: unknown): string {
+    if (!Array.isArray(value) || value.length === 0) return '无';
+    return value.map((item) => {
+        if (!isRecord(item)) return formatValue(item);
+        const action = item.action === 'full-page' ? '全文' : '悬停';
+        const hotkey = typeof item.hotkey === 'string' && item.hotkey ? item.hotkey : '未设置';
+        const service = typeof item.service === 'string' && item.service
+            ? serviceName(item.service)
+            : '默认服务';
+        const model = typeof item.model === 'string' && item.model ? ` · ${item.model}` : '';
+        const language = typeof item.targetLanguage === 'string' && item.targetLanguage
+            ? formatEnum(item.targetLanguage, LANGUAGE_LABELS)
+            : '默认语言';
+        const display = item.displayMode === 'bilingual'
+            ? '双语'
+            : item.displayMode === 'translation-only' ? '仅译文' : '默认显示';
+        const range = item.action === 'full-page'
+            ? `，${item.fullPageMode === 'viewport'
+                ? '按阅读进度'
+                : item.fullPageMode === 'all' ? '立即翻译到网页底部' : '默认范围'}`
+            : '';
+        const disabled = item.enabled === false ? '（已停用）' : '';
+        return `${action} ${hotkey}${disabled}：${service}${model}，${language}，${display}${range}`;
+    }).join('；');
+}
+
 function serviceMapping(label: string, format: ValueFormatter = formatValue): MappingDefinition {
     return {
         itemLabel: (key) => `${serviceName(key)}${label}`,
@@ -410,6 +436,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     floatingBallPosition: {group: 'translation', label: '悬浮球位置', format: (value) => formatEnum(value, SIDE_LABELS)},
     floatingBallHotkey: {group: 'translation', label: '全文翻译快捷键', format: (value) => formatEnum(value, FLOATING_HOTKEY_LABELS)},
     customFloatingBallHotkey: {group: 'translation', label: '自定义全文快捷键'},
+    quickTranslationProfiles: {group: 'translation', label: '快捷翻译方案', format: formatQuickTranslationProfiles},
 
     autoTranslate: {group: 'siteRules', label: '所有网站自动翻译', format: formatBoolean},
     alwaysTranslateDomains: {group: 'siteRules', label: '始终翻译网站'},
