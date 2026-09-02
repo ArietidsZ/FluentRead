@@ -11,6 +11,7 @@
     :class="{ 'config-loading': !hydrated, 'language-onboarding-shell': showLanguageOnboarding }"
     :aria-busy="!hydrated"
     :data-config-ready="hydrated ? 'true' : 'false'"
+    :data-interface-skin="config.interfaceSkin"
     :inert="!hydrated"
   >
     <UiLanguageOnboarding
@@ -236,7 +237,7 @@
         </button>
       </div>
 
-      <div v-if="currentSiteSupported" class="site-rule-row">
+      <div v-if="config.interfaceVisibility.popupSiteRule && currentSiteSupported" class="site-rule-row">
         <div class="site-rule-copy">
           <span>当前网站</span>
           <strong :title="currentSiteDomain">{{ currentSiteDomain }}</strong>
@@ -280,7 +281,7 @@
       <p v-if="notice" class="notice" :class="noticeType">{{ notice }}</p>
     </section>
 
-    <section class="features">
+    <section v-if="config.interfaceVisibility.popupQuickFeatures" class="features">
       <span class="eyebrow features-eyebrow">快捷功能</span>
       <div class="feature-grid">
         <button class="feature-card" type="button" :disabled="!config.on" @click="openDrawer('hover')">
@@ -340,7 +341,7 @@
       </div>
     </section>
 
-    <footer>
+    <footer v-if="config.interfaceVisibility.popupFooter">
       <span>已完成 {{ config.count }} 次翻译</span>
       <a
         class="opensource-link"
@@ -595,6 +596,7 @@ import { getMissingCredentialMessage } from '@/src/core/config/validation';
 import { getSelectedModelLabel, searchServiceOptions } from '@/src/ui/view-model/serviceCatalog';
 import { SELECTION_TTS_VOICE_OPTIONS } from '@/src/core/config/selectionTts';
 import { getSiteBaseDomain } from '@/src/core/site-rules/domain';
+import {applyInterfaceSkin} from '@/src/ui/interfaceAppearance';
 import { requestTranslationCacheClear } from './cache';
 import {isBrowserTabId} from '@/src/platform/browser/ids';
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
@@ -739,6 +741,10 @@ const currentSiteAlwaysTranslated = computed(() => currentSiteSupported.value
   && (config.value.autoTranslate || currentSiteRuleEnabled.value));
 const currentSiteExtensionDisabled = computed(() => currentSiteSupported.value
   && (config.value.disabledExtensionDomains ?? []).includes(currentSiteDomain.value));
+const popupUsesContentHeight = computed(() => config.value.interfaceSkin === 'minimal'
+  || !config.value.interfaceVisibility.popupQuickFeatures
+  || !config.value.interfaceVisibility.popupSiteRule
+  || !config.value.interfaceVisibility.popupFooter);
 const currentSiteSwitchLabel = computed(() => currentSiteSupported.value
   ? currentSiteExtensionDisabled.value
     ? `${currentSiteDomain.value} 已禁用扩展，无法开启始终翻译`
@@ -801,6 +807,10 @@ function applyTheme(theme: string) {
   document.documentElement.classList.toggle('dark', theme === 'dark' || (theme === 'auto' && darkMode.matches));
 }
 
+function applyPopupHeightMode(usesContentHeight: boolean) {
+  document.documentElement.dataset.popupHeight = usesContentHeight ? 'content' : 'fixed';
+}
+
 async function hydrate() {
   await configReady;
   Object.assign(config.value, runtimeConfig);
@@ -811,6 +821,7 @@ async function hydrate() {
   lastSerialized = JSON.stringify(config.value);
   hydrated.value = true;
   applyTheme(config.value.theme || 'auto');
+  applyInterfaceSkin(config.value.interfaceSkin);
   if (!showLanguageOnboarding.value) await hydrateCurrentSite();
 }
 void hydrate();
@@ -847,6 +858,8 @@ watch(() => JSON.stringify(config.value), async serialized => {
   }
 }, { flush: 'post' });
 watch(() => config.value.theme, theme => applyTheme(theme || 'auto'));
+watch(() => config.value.interfaceSkin, skin => applyInterfaceSkin(skin));
+watch(popupUsesContentHeight, applyPopupHeightMode, {immediate: true});
 darkMode.onchange = () => { if (config.value.theme === 'auto') applyTheme('auto'); };
 
 function closeServicePicker(event?: Event) {
@@ -905,6 +918,7 @@ onUnmounted(() => {
   document.removeEventListener('keydown', handleServicePickerKeydown);
   document.removeEventListener('keydown', handleDonationKeydown);
   darkMode.onchange = null;
+  delete document.documentElement.dataset.popupHeight;
   if (noticeTimer) clearTimeout(noticeTimer);
 });
 

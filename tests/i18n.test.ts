@@ -150,6 +150,33 @@ describe('界面 i18n 契约', () => {
     expect(translateLegacyText('Complete backup', 'es-ES')).toBe('Copia de seguridad completa');
     expect(translateLegacyText('Settings and local records', 'es-ES')).toBe('Ajustes y registros locales');
     expect(translateLegacyText('已就绪', 'es-ES')).toBe('Listo');
+
+    const interfaceAppearanceCopy = [
+      '服务、界面、显示与网页辅助',
+      '选择默认翻译服务，并管理扩展界面、译文显示、网页辅助和基础偏好。',
+      '选择翻译服务、默认服务、界面设置、弹窗风格、默认风格、简约风格、弹窗栏目、快捷功能栏、当前网站栏目、底部信息栏、译文显示、双语逐句高亮、网页辅助、AI 智能上下文、默认目标语言、主题',
+      '界面与弹窗',
+      '保留熟悉的默认界面，或切换到更轻量的简约界面；也可以只留下常用栏目。',
+      '弹窗风格',
+      '风格只改变扩展界面的呈现，不影响网页翻译效果。',
+      '默认风格',
+      '保留当前 FluentRead 的界面布局与视觉效果。',
+      '简约风格',
+      '平面布局、轻边界和更紧凑的操作区域。',
+      '快捷功能栏',
+      '显示悬停、划词、图片、视频和文档等快捷入口。',
+      '当前网站栏目',
+      '显示当前网站的始终翻译和禁用扩展开关。',
+      '底部信息栏',
+      '显示翻译统计、开源项目入口和清除缓存操作。',
+    ];
+    for (const language of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
+      for (const source of interfaceAppearanceCopy) {
+        expect(translateLegacyText(source, language)).not.toBe(source);
+      }
+    }
+    expect(translateLegacyText('界面与弹窗', 'en-US')).toBe('Interface and popup');
+    expect(translateLegacyText('默认风格', 'es-ES')).toBe('Estilo predeterminado');
   });
 
   it('把界面语言作为普通可迁移配置保留，并不触碰凭据边界', () => {

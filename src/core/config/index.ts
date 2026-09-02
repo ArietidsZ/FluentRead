@@ -12,6 +12,7 @@ export * from './credentials';
 export * from './customBody';
 export * from './customOpenAI';
 export * from './deeplx';
+export * from './interfaceAppearance';
 export * from './model';
 export * from './selectionTts';
 export * from './transfer';

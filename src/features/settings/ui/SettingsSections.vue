@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/SettingsSections.vue
  * 文件职责：承载 FluentRead Options 页面各业务设置分区，连接运行时配置、服务选择、快捷键、站点规则、翻译中心、OCR、词书以及导入导出和历史恢复。
- * 主要内容：模板按 activeSection 展示常规、外观、服务、视频、隐私等控件；脚本协调配置快照保存、加密凭据保存、历史游标、能力过滤、连接测试、文件传输和页面离开 flush。
+ * 主要内容：模板按 activeSection 展示常规、服务、视频、隐私等控件，并把界面与 Popup 栏目偏好收拢在通用设置；脚本协调配置快照保存、加密凭据保存、历史游标、能力过滤、连接测试、文件传输和页面离开 flush。
  * 模块边界：该组件负责设置 UI 编排但不实现 provider 网络、配置仓库或 feature 运行时；校验与迁移来自 core/config，持久化经 services/config，复杂子界面保持在各自 feature/组件内。
  -->
 <template>
@@ -405,6 +405,8 @@
       </SettingsGroup>
     </section>
 
+    <section v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation"><InterfaceSettings :config="config" /></section>
+
     <section v-show="props.activeSection === 'settings-advanced'" class="settings-section settings-section-continuation">
       <SettingsGroup title="界面性能" description="低配置设备可以关闭动画以减少资源占用。">
         <!-- 禁用动画设置 -->
@@ -757,6 +759,7 @@ import {
 } from '@/src/core/config/validation';
 import {ImageOcrSettings} from '@/src/features/image-translation/public';
 import {ModelUsageDashboard} from '@/src/features/model-usage/public';
+import InterfaceSettings from './InterfaceSettings.vue';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
 import SegmentedControl from './components/SegmentedControl.vue';

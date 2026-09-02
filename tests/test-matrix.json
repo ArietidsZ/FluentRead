@@ -70,6 +70,7 @@
       "tests/imageTranslation.test.ts",
       "tests/remoteImage.test.ts",
       "tests/inputBox.test.ts",
+      "tests/interfaceAppearance.test.ts",
       "tests/legacyPageCache.test.ts",
       "tests/liveTextTranslation.test.ts",
       "tests/model.test.ts",

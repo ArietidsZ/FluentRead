@@ -43,6 +43,7 @@ import OptionsApp from './OptionsApp.vue'
 import 'element-plus/dist/index.css'
 import '@/src/features/settings/ui/settings-page.css'
 import {createUiI18nPlugin} from '@/src/ui/i18n'
+import '@/src/ui/styles/interface-skins.css'
 
 const ELEMENT_COMPONENTS: Component[] = [
   ElButton,
