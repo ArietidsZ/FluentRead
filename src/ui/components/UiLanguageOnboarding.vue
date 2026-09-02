@@ -18,21 +18,16 @@
       <Transition name="onboarding-content" mode="out-in">
         <div v-if="celebrating" key="success" class="onboarding-success">
           <div class="onboarding-success-mark" aria-hidden="true"><span>✓</span></div>
-          <span class="eyebrow">{{ bilingualMessage('language.onboardingSuccessEyebrow') }}</span>
           <h1 id="language-onboarding-title">
-            {{ messageZh('language.onboardingSuccessTitle') }}
-            <small class="onboarding-title-secondary">{{ messageEn('language.onboardingSuccessTitle') }}</small>
+            {{ messageZh('language.onboardingSuccessEyebrow') }}
+            <small class="onboarding-title-secondary">{{ messageEn('language.onboardingSuccessEyebrow') }}</small>
           </h1>
-          <p>
-            <span>{{ messageZh('language.onboardingSuccessDescription') }}</span>
-            <span class="onboarding-secondary-copy">{{ messageEn('language.onboardingSuccessDescription') }}</span>
-          </p>
         </div>
 
         <div v-else-if="step === 'welcome'" key="welcome" class="onboarding-welcome" data-testid="onboarding-welcome">
           <div class="onboarding-brand">
             <img src="/icon/128.png" alt="" />
-            <strong>流畅阅读 · FluentRead</strong>
+            <strong>FluentRead</strong>
           </div>
 
           <div class="welcome-art" aria-hidden="true">
@@ -44,15 +39,10 @@
           </div>
 
           <div class="onboarding-copy welcome-copy">
-            <span class="eyebrow">{{ bilingualMessage('language.onboardingWelcomeEyebrow') }}</span>
             <h1 id="language-onboarding-title">
-              {{ messageZh('language.onboardingWelcomeTitle') }}
-              <small class="onboarding-title-secondary">{{ messageEn('language.onboardingWelcomeTitle') }}</small>
+              {{ messageZh('language.onboardingWelcomeEyebrow') }}
+              <small class="onboarding-title-secondary">{{ messageEn('language.onboardingWelcomeEyebrow') }}</small>
             </h1>
-            <p>
-              <span>{{ messageZh('language.onboardingWelcomeDescription') }}</span>
-              <span class="onboarding-secondary-copy">{{ messageEn('language.onboardingWelcomeDescription') }}</span>
-            </p>
           </div>
 
           <button
@@ -85,14 +75,9 @@
               {{ messageZh('language.onboardingTitle') }}
               <small class="onboarding-title-secondary">{{ messageEn('language.onboardingTitle') }}</small>
             </h1>
-            <p>
-              <span>{{ messageZh('language.onboardingDescription') }}</span>
-              <span class="onboarding-secondary-copy">{{ messageEn('language.onboardingDescription') }}</span>
-            </p>
           </div>
 
           <div class="onboarding-language-field">
-            <span class="onboarding-field-label">{{ bilingualMessage('language.onboardingLabel') }}</span>
             <div
               class="onboarding-language-options"
               role="radiogroup"
@@ -116,13 +101,7 @@
             </div>
           </div>
 
-          <p class="onboarding-browser-hint">
-            <span>{{ messageZh('language.onboardingBrowserHint') }}</span>
-            <span class="onboarding-secondary-copy">{{ messageEn('language.onboardingBrowserHint') }}</span>
-          </p>
-
           <div class="onboarding-confirm-guide" aria-hidden="true">
-            <span>{{ bilingualMessage('language.onboardingConfirmHint') }}</span>
             <svg class="onboarding-guide-arrow" viewBox="0 0 16 22" focusable="false">
               <path d="M8 1v15M3 12l5 5 5-5" />
             </svg>
@@ -311,7 +290,7 @@ onMounted(focusCurrentStep);
 .welcome-art {
   position: relative;
   height: 142px;
-  margin: 0 -4px 20px;
+  margin: 0 -4px 18px;
   border: 1px solid rgba(239, 71, 118, .12);
   border-radius: 22px;
   background:
@@ -373,12 +352,8 @@ onMounted(focusCurrentStep);
 .welcome-word:nth-child(9) { right: 10px; bottom: 16px; color: #597fcc; animation-delay: -2.4s; transform: rotate(-6deg); }
 .welcome-word:nth-child(10) { bottom: 50px; left: 94px; color: #bb6f45; animation-delay: -.9s; transform: rotate(6deg); }
 
-.onboarding-copy .eyebrow {
-  margin-bottom: 7px;
-}
-
 .onboarding-copy h1 {
-  margin: 0 0 7px;
+  margin: 0;
   color: var(--ink);
   font-size: 24px;
   line-height: 1.2;
@@ -386,7 +361,7 @@ onMounted(focusCurrentStep);
 }
 
 .welcome-copy h1 {
-  font-size: 26px;
+  font-size: 25px;
 }
 
 .onboarding-title-secondary {
@@ -403,24 +378,11 @@ onMounted(focusCurrentStep);
   font-size: 13px;
 }
 
-.onboarding-copy p,
-.onboarding-browser-hint,
 .onboarding-error {
   margin: 0;
   color: var(--muted);
   font-size: 11px;
   line-height: 1.55;
-}
-
-.welcome-copy p {
-  max-width: 280px;
-}
-
-.onboarding-secondary-copy {
-  display: block;
-  margin-top: 2px;
-  font-size: 10px;
-  line-height: 1.4;
 }
 
 .onboarding-confirm {
@@ -472,7 +434,7 @@ onMounted(focusCurrentStep);
 
 .onboarding-next {
   justify-content: space-between;
-  margin-top: 20px;
+  margin-top: 16px;
   padding: 0 15px 0 17px;
   text-align: left;
 }
@@ -497,7 +459,7 @@ onMounted(focusCurrentStep);
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin: -2px 0 13px;
+  margin: -2px 0 12px;
   padding: 0;
   border: 0;
   color: var(--muted);
@@ -522,15 +484,7 @@ onMounted(focusCurrentStep);
 }
 
 .onboarding-language-field {
-  margin-top: 16px;
-}
-
-.onboarding-field-label {
-  display: block;
-  margin: 0 0 8px 3px;
-  color: var(--ink);
-  font-size: 11px;
-  font-weight: 750;
+  margin-top: 14px;
 }
 
 .onboarding-language-options {
@@ -565,12 +519,6 @@ onMounted(focusCurrentStep);
   box-shadow: 0 0 0 3px rgba(239, 71, 118, .1);
 }
 
-.onboarding-language-option:last-child:nth-child(odd) {
-  grid-column: 1 / -1;
-  width: calc(50% - 3.5px);
-  justify-self: center;
-}
-
 .onboarding-language-name {
   overflow: hidden;
   font-size: 11.5px;
@@ -603,25 +551,15 @@ onMounted(focusCurrentStep);
   background: var(--brand);
 }
 
-.onboarding-browser-hint {
-  margin-top: 8px;
-  font-size: 9.5px;
-}
-
 .onboarding-confirm-guide {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1px;
-  min-height: 39px;
+  min-height: 28px;
   margin-top: 7px;
   margin-bottom: 0;
   color: var(--brand-strong);
-  font-size: 9.5px;
-  font-weight: 760;
-  line-height: 1.2;
-  text-align: center;
 }
 
 .onboarding-guide-arrow {
@@ -643,8 +581,8 @@ onMounted(focusCurrentStep);
 
 .onboarding-success {
   position: relative;
-  min-height: 216px;
-  padding: 20px 0 7px;
+  min-height: 200px;
+  padding: 28px 0 7px;
   text-align: center;
   overflow: hidden;
 }
@@ -677,27 +615,13 @@ onMounted(focusCurrentStep);
   transform: rotate(24deg);
 }
 
-.onboarding-success .eyebrow {
-  position: relative;
-  z-index: 1;
-  margin-top: 20px;
-}
-
 .onboarding-success h1 {
   position: relative;
   z-index: 1;
-  margin: 0 0 8px;
+  margin: 24px 0 0;
   color: var(--ink);
   font-size: 24px;
   line-height: 1.2;
-}
-
-.onboarding-success p {
-  position: relative;
-  z-index: 1;
-  margin: 0;
-  color: var(--muted);
-  font-size: 11px;
 }
 
 .onboarding-success-mark {
@@ -785,7 +709,6 @@ onMounted(focusCurrentStep);
   .welcome-art { height: 132px; }
   .onboarding-language-options { gap: 5px; }
   .onboarding-language-option { padding-right: 24px; padding-left: 8px; }
-  .onboarding-language-option:last-child:nth-child(odd) { width: calc(50% - 2.5px); }
   .onboarding-language-name { font-size: 10.5px; }
 }
 
