@@ -314,8 +314,8 @@
     "fullPageHotkey": "Alt+T",
     "service": "freeTranslation"
   },
-  "reddit-chatgpt-thread": {
-    "url": "https://www.reddit.com/r/ChatGPT/comments/1m0fr3u",
+  "reddit-minimax-thread": {
+    "url": "https://www.reddit.com/r/MiniMax_AI/comments/1v73a0r/m31_has_strong_potential_to_be_the_most/",
     "hoverSelector": "shreddit-post [slot=title]",
     "requiredSelectors": [
       "shreddit-post [slot=title]",
@@ -325,12 +325,18 @@
       {"name": "post-title", "selector": "shreddit-post [slot=title]", "kind": "content", "minInitial": 1, "trackDynamic": true},
       {"name": "visible-comments", "selector": "shreddit-comment [id$='-comment-rtjson-content'] p", "kind": "content", "minInitial": 1, "minSeen": 2, "trackDynamic": true}
     ],
-    "forbiddenSelectors": ["faceplate-timeago"],
+    "forbiddenSelectors": [
+      "button",
+      "[role=button]",
+      "[role=menuitem]",
+      "faceplate-timeago",
+      "[data-testid=vote-arrows]"
+    ],
     "dynamicForbiddenSelectors": ["faceplate-timeago"],
     "interactionSelectors": ["shreddit-post a[href]"],
     "modes": ["hover", "full"],
     "tier": "quarantine",
-    "quarantineReason": "Reddit 在当前隔离自动化环境中返回 blocked by network security，保留为动态 Web Component 联网观察样本。",
+    "quarantineReason": "Reddit 在当前隔离自动化环境中返回 blocked by network security，保留为动态 Web Component 联网观察样本；按钮控件必须保持原文。",
     "hoverHotkey": "Control",
     "fullPageHotkey": "Alt+T",
     "service": "freeTranslation"

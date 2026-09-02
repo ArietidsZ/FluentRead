@@ -8,6 +8,9 @@
 
 export type TranslationCandidateKind = 'content' | 'control';
 
+/** 站点适配器是否允许没有显式 selector 命中的通用候选。 */
+export type TranslationGenericCandidatePolicy = 'allow' | 'targets-only';
+
 export type AdapterDecision =
     | {kind: 'pass'}
     | {kind: 'skip-self'; reason: string}
@@ -27,6 +30,8 @@ export interface AdapterContext {
 export interface TranslationSiteAdapter {
     id: string;
     priority?: number;
+    /** `targets-only` 仍允许 force-target，但禁止通用块和内联 run 回退。 */
+    genericCandidatePolicy?: TranslationGenericCandidatePolicy;
     matches(url: URL): boolean;
     decide(element: Element, context: AdapterContext): AdapterDecision;
     shouldStayOriginal?(element: Element, context: AdapterContext): boolean;
