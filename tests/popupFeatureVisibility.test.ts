@@ -1,6 +1,7 @@
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {describe, expect, it} from 'vitest';
+import {popupQuickFeatureOptions} from '@/src/core/config/interfaceAppearance';
 
 function source(path: string): string {
     return readFileSync(resolve(process.cwd(), path), 'utf8');
@@ -107,7 +108,9 @@ describe('popup feature visibility', () => {
         expect(popup).not.toContain("activeDrawer === 'floating'");
         expect(popup).not.toContain('全文悬浮球');
         expect(popup).not.toContain('启用或关闭全文翻译悬浮球');
-        expect(popup.match(/class="feature-card\b/gu)).toHaveLength(6);
+        expect(popupQuickFeatureOptions).toHaveLength(6);
+        expect(popup).toContain('v-for="feature in visiblePopupQuickFeatures"');
+        expect(popup).toContain(':data-popup-quick-feature="feature.id"');
     });
 
     it('keeps full-page floating-ball and hotkey controls in the options page', () => {
@@ -123,7 +126,8 @@ describe('popup feature visibility', () => {
         const popup = source('src/app/popup/PopupApp.vue');
         const styles = source('src/app/popup/popup.css');
 
-        expect(popup).toContain(":class=\"{ 'needs-enable': !config.videoTranslationEnabled }\"");
+        expect(popup).toContain("className: `video-feature-card${config.value.videoTranslationEnabled ? '' : ' needs-enable'}`");
+        expect(popup).toContain(':class="feature.className"');
         expect(popup).toContain("'点击开启 · YouTube'");
         expect(styles).not.toMatch(/\.video-feature-card\.needs-enable\s*\{/u);
         expect(styles).toContain('.video-feature-card.needs-enable small { color: var(--brand-strong); font-weight: 700; }');

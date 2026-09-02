@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/InterfaceSettings.vue
- * 文件职责：提供 FluentRead 的弹窗风格选择和 Popup 栏目可见性设置，作为“通用设置”中的紧凑偏好分组。
- * 主要内容：用随当前选择即时变化的真实 DOM Popup 范例辅助判断，再按效率和氛围两组渲染十套注册皮肤，并提供快捷功能栏、当前网站栏目和底部信息栏开关。
+ * 文件职责：提供 FluentRead 的弹窗风格选择和 Popup 模块布局设置，作为“通用设置”中的紧凑偏好分组。
+ * 主要内容：用真实 DOM Popup 范例辅助选择十套注册皮肤，并通过同一可复用编辑器分别编排 Popup 顶层区域和六张快捷功能卡片。
  * 模块边界：本组件只负责界面配置的展示与双向绑定，不直接读写浏览器存储、不负责主题模式，也不关闭翻译功能本身；界面皮肤由 Options composition root 统一应用。
 -->
 <template>
@@ -69,16 +69,32 @@
     </SettingsItem>
 
     <SettingsItem
-      v-for="item in interfaceVisibilityOptions"
-      :key="item.key"
-      :label="translateLegacy(item.label)"
-      :description="translateLegacy(item.description)"
+      :label="t('settings.interface.popupLayout.label')"
+      :description="t('settings.interface.popupLayout.description')"
     >
-      <el-switch
-        v-model="props.config.interfaceVisibility[item.key]"
-        class="settings-toggle"
-        :data-interface-visibility="item.key"
-        :aria-label="translateLegacy(item.label)"
+      <PopupLayoutEditor
+        :items="popupModuleEditorItems"
+        :order="props.config.popupModuleOrder"
+        :default-order="DEFAULT_POPUP_MODULE_ORDER"
+        scope="popupModule"
+        copy-prefix="settings.interface.popupLayout"
+        @update:order="setPopupModuleOrder"
+        @update:visibility="setPopupModuleVisibility"
+      />
+    </SettingsItem>
+
+    <SettingsItem
+      :label="t('settings.interface.popupQuickFeatures.label')"
+      :description="t('settings.interface.popupQuickFeatures.description')"
+    >
+      <PopupLayoutEditor
+        :items="popupQuickFeatureEditorItems"
+        :order="props.config.popupQuickFeatureOrder"
+        :default-order="DEFAULT_POPUP_QUICK_FEATURE_ORDER"
+        scope="quickFeature"
+        copy-prefix="settings.interface.popupLayout"
+        @update:order="setPopupQuickFeatureOrder"
+        @update:visibility="setPopupQuickFeatureVisibility"
       />
     </SettingsItem>
   </SettingsGroup>
@@ -88,26 +104,77 @@
 import {computed} from 'vue'
 import type {Config} from '@/src/core/config/model'
 import {
+  DEFAULT_POPUP_MODULE_ORDER,
+  DEFAULT_POPUP_QUICK_FEATURE_ORDER,
   getInterfaceSkinOption,
   interfaceSkinGroups,
   interfaceSkinOptions,
-  interfaceVisibilityOptions,
+  normalizePopupModuleOrder,
+  normalizePopupQuickFeatureOrder,
+  popupModuleOptions,
+  popupQuickFeatureOptions,
+  withInterfaceVisibility,
+  withPopupQuickFeatureVisibility,
 } from '@/src/core/config/interfaceAppearance'
 import {useUiI18n} from '@/src/ui/i18n'
 import InterfaceSkinPreview from './components/InterfaceSkinPreview.vue'
+import PopupLayoutEditor from './PopupLayoutEditor.vue'
 import SettingsGroup from './components/SettingsGroup.vue'
 import SettingsItem from './components/SettingsItem.vue'
 
 const props = defineProps<{
   config: Config
 }>()
-const {translateLegacy} = useUiI18n()
+const {t, translateLegacy} = useUiI18n()
 const selectedSkinOption = computed(() => getInterfaceSkinOption(props.config.interfaceSkin))
 
 const groupedSkinOptions = interfaceSkinGroups.map((group) => ({
   ...group,
   options: interfaceSkinOptions.filter((skin) => skin.group === group.value),
 }))
+
+const popupModuleEditorItems = computed(() => popupModuleOptions.map((module) => ({
+  id: module.id,
+  label: t(module.labelKey),
+  description: t(module.descriptionKey),
+  visible: module.visibilityKey ? props.config.interfaceVisibility[module.visibilityKey] : true,
+  required: module.required,
+})))
+
+const popupQuickFeatureEditorItems = computed(() => popupQuickFeatureOptions.map((feature) => ({
+  id: feature.id,
+  label: t(feature.labelKey),
+  description: t(feature.descriptionKey),
+  visible: props.config.popupQuickFeatureVisibility[feature.id],
+})))
+
+function setPopupModuleOrder(order: string[]) {
+  props.config.popupModuleOrder = normalizePopupModuleOrder(order)
+}
+
+function setPopupModuleVisibility(moduleId: string, visible: boolean) {
+  const module = popupModuleOptions.find((item) => item.id === moduleId)
+  if (!module?.visibilityKey) return
+  props.config.interfaceVisibility = withInterfaceVisibility(
+    props.config.interfaceVisibility,
+    module.visibilityKey,
+    visible,
+  )
+}
+
+function setPopupQuickFeatureOrder(order: string[]) {
+  props.config.popupQuickFeatureOrder = normalizePopupQuickFeatureOrder(order)
+}
+
+function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
+  const feature = popupQuickFeatureOptions.find((item) => item.id === featureId)
+  if (!feature) return
+  props.config.popupQuickFeatureVisibility = withPopupQuickFeatureVisibility(
+    props.config.popupQuickFeatureVisibility,
+    feature.id,
+    visible,
+  )
+}
 </script>
 
 <style scoped>

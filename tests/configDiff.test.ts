@@ -62,6 +62,16 @@ describe('配置差异预览', () => {
                 popupSiteRule: true,
                 popupFooter: true,
             },
+            popupModuleOrder: ['translation', 'siteRule', 'quickFeatures', 'footer'],
+            popupQuickFeatureVisibility: {
+                hover: true,
+                selection: true,
+                appearance: true,
+                image: true,
+                video: true,
+                document: true,
+            },
+            popupQuickFeatureOrder: ['hover', 'selection', 'appearance', 'image', 'video', 'document'],
         }, {
             interfaceSkin: 'minimal',
             interfaceVisibility: {
@@ -69,6 +79,16 @@ describe('配置差异预览', () => {
                 popupSiteRule: true,
                 popupFooter: false,
             },
+            popupModuleOrder: ['quickFeatures', 'translation', 'siteRule', 'footer'],
+            popupQuickFeatureVisibility: {
+                hover: true,
+                selection: true,
+                appearance: true,
+                image: false,
+                video: true,
+                document: true,
+            },
+            popupQuickFeatureOrder: ['document', 'hover', 'selection', 'appearance', 'image', 'video'],
         });
 
         expect(group(result, 'general')?.changes).toEqual(expect.arrayContaining([
@@ -78,6 +98,24 @@ describe('配置差异预览', () => {
                 label: '界面栏目',
                 before: '快捷功能栏开启、当前网站栏目开启、底部信息栏开启',
                 after: '快捷功能栏关闭、当前网站栏目开启、底部信息栏关闭',
+            },
+            {
+                key: 'popupModuleOrder',
+                label: 'Popup 布局顺序',
+                before: '翻译控制 → 当前网站栏目 → 快捷功能栏 → 底部信息栏',
+                after: '快捷功能栏 → 翻译控制 → 当前网站栏目 → 底部信息栏',
+            },
+            {
+                key: 'popupQuickFeatureVisibility',
+                label: '快捷功能卡片',
+                before: '鼠标悬停翻译：显示、划词翻译：显示、译文显示：显示、图片翻译：显示、视频字幕：显示、文档翻译：显示',
+                after: '鼠标悬停翻译：显示、划词翻译：显示、译文显示：显示、图片翻译：隐藏、视频字幕：显示、文档翻译：显示',
+            },
+            {
+                key: 'popupQuickFeatureOrder',
+                label: '快捷功能顺序',
+                before: '鼠标悬停翻译 → 划词翻译 → 译文显示 → 图片翻译 → 视频字幕 → 文档翻译',
+                after: '文档翻译 → 鼠标悬停翻译 → 划词翻译 → 译文显示 → 图片翻译 → 视频字幕',
             },
         ]));
 
@@ -100,6 +138,56 @@ describe('配置差异预览', () => {
             key: 'interfaceVisibility',
             before: '开启',
             after: '关闭',
+        });
+
+        const malformedOrder = buildConfigDiff(
+            {popupModuleOrder: false},
+            {popupModuleOrder: []},
+        );
+        expect(group(malformedOrder, 'general')?.changes[0]).toMatchObject({
+            key: 'popupModuleOrder',
+            before: '关闭',
+            after: '无',
+        });
+
+        const futureOrder = buildConfigDiff(
+            {popupModuleOrder: [42, 'futureModule']},
+            {popupModuleOrder: ['translation']},
+        );
+        expect(group(futureOrder, 'general')?.changes[0]).toMatchObject({
+            key: 'popupModuleOrder',
+            before: '42 → futureModule',
+            after: '翻译控制',
+        });
+
+        const malformedQuickFeatureVisibility = buildConfigDiff(
+            {popupQuickFeatureVisibility: true},
+            {popupQuickFeatureVisibility: false},
+        );
+        expect(group(malformedQuickFeatureVisibility, 'general')?.changes[0]).toMatchObject({
+            key: 'popupQuickFeatureVisibility',
+            before: '开启',
+            after: '关闭',
+        });
+
+        const malformedQuickFeatureOrder = buildConfigDiff(
+            {popupQuickFeatureOrder: false},
+            {popupQuickFeatureOrder: []},
+        );
+        expect(group(malformedQuickFeatureOrder, 'general')?.changes[0]).toMatchObject({
+            key: 'popupQuickFeatureOrder',
+            before: '关闭',
+            after: '无',
+        });
+
+        const futureQuickFeatureOrder = buildConfigDiff(
+            {popupQuickFeatureOrder: [42, 'futureFeature']},
+            {popupQuickFeatureOrder: ['hover']},
+        );
+        expect(group(futureQuickFeatureOrder, 'general')?.changes[0]).toMatchObject({
+            key: 'popupQuickFeatureOrder',
+            before: '42 → futureFeature',
+            after: '鼠标悬停翻译',
         });
     });
 

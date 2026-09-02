@@ -289,6 +289,7 @@ h2 { margin-bottom: 0; font-size: 15px; line-height: 1.35; letter-spacing: -.01e
 .notice.error { color: #d9345e; }
 
 .features { margin-top: 8px; }
+.popup-content > [data-popup-module] + .hero-card { margin-top: 12px; }
 .features-eyebrow { margin: 0 2px 6px; }
 footer button {
   padding: 0; border: 0; color: var(--brand-strong); background: none; font-size: 10px; font-weight: 700; cursor: pointer;
@@ -345,6 +346,7 @@ footer button {
 .feature-card > b { color: var(--muted); font-size: 18px; font-weight: 400; }
 .feature-card:disabled, .translate-button:disabled, select:disabled { cursor: not-allowed; opacity: .48; }
 footer { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 6px; margin-top: 8px; padding: 0 3px 1px; color: var(--muted); font-size: 9.5px; }
+footer[data-popup-module-last="false"] { padding: 6px 8px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-soft); }
 footer > span { min-width: 0; }
 footer > button { justify-self: end; }
 .opensource-link {

@@ -19,6 +19,7 @@ import {ruRULegacyText, ruRUMessages} from '@/src/core/i18n/messages/ru-RU';
 import {zhCNMessages} from '@/src/core/i18n/messages/zh-CN';
 import {Config, normalizeConfig} from '@/src/core/config/model';
 import {translationLoadingStyleOptions} from '@/src/core/config/translationLoadingStyle';
+import {popupModuleOptions, popupQuickFeatureOptions} from '@/src/core/config/interfaceAppearance';
 import {buildConfigDiff} from '@/src/core/config/diff';
 import {getMultilingualTargetLanguageLabel, options} from '@/src/core/config/catalog';
 import {prepareConfigForExport, prepareConfigForImport} from '@/src/core/config/transfer';
@@ -260,6 +261,52 @@ describe('界面 i18n 契约', () => {
         expect(translateLegacyText(source, language), `${language}: ${source}`)
           .not.toMatch(/[\u3400-\u9fff]/u);
       }
+    }
+  });
+
+  it('完整本地化 Popup 布局编辑器与布局差异顺序', () => {
+    const layoutKeys = [
+      'settings.interface.popupLayout.label',
+      'settings.interface.popupLayout.description',
+      'settings.interface.popupLayout.orderHint',
+      'settings.interface.popupLayout.restoreDefault',
+      'settings.interface.popupLayout.listAria',
+      'settings.interface.popupLayout.handleAria',
+      'settings.interface.popupLayout.showAria',
+      'settings.interface.popupLayout.required',
+      'settings.interface.popupLayout.moveUp',
+      'settings.interface.popupLayout.moveDown',
+      'settings.interface.popupLayout.help',
+      'settings.interface.popupLayout.shown',
+      'settings.interface.popupLayout.hidden',
+      'settings.interface.popupLayout.moved',
+      'settings.interface.popupLayout.restored',
+      ...popupModuleOptions.flatMap((module) => [module.labelKey, module.descriptionKey]),
+      'settings.interface.popupQuickFeatures.label',
+      'settings.interface.popupQuickFeatures.description',
+      ...popupQuickFeatureOptions.flatMap((feature) => [feature.labelKey, feature.descriptionKey]),
+    ];
+    const diff = buildConfigDiff(
+      {popupModuleOrder: ['translation', 'siteRule', 'quickFeatures', 'footer']},
+      {popupModuleOrder: ['quickFeatures', 'translation', 'siteRule', 'footer']},
+    );
+    const layoutChange = diff.groups
+      .flatMap((group) => group.changes)
+      .find((change) => change.key === 'popupModuleOrder');
+    expect(layoutChange).toBeDefined();
+
+    for (const language of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
+      for (const key of layoutKeys) {
+        expect(translate(key, language, {label: 'Module', position: 2}), `${language}: ${key}`)
+          .not.toBe(key);
+      }
+      expect(translateLegacyText(layoutChange!.label, language)).not.toBe(layoutChange!.label);
+      expect(translateLegacyText(layoutChange!.before, language)).not.toBe(layoutChange!.before);
+      expect(translateLegacyText(layoutChange!.after, language)).not.toBe(layoutChange!.after);
+    }
+    for (const language of ['en-US', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
+      expect(translateLegacyText(layoutChange!.before, language)).not.toMatch(/[\u3400-\u9fff]/u);
+      expect(translateLegacyText(layoutChange!.after, language)).not.toMatch(/[\u3400-\u9fff]/u);
     }
   });
 

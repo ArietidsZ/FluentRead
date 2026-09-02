@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_INTERFACE_VISIBILITY,
+  DEFAULT_POPUP_MODULE_ORDER,
+  DEFAULT_POPUP_QUICK_FEATURE_ORDER,
+  DEFAULT_POPUP_QUICK_FEATURE_VISIBILITY,
   getInterfaceSkinOption,
   interfaceSkinGroups,
   interfaceSkinOptions,
@@ -9,6 +12,13 @@ import {
   interfaceVisibilityOptions,
   normalizeInterfaceSkin,
   normalizeInterfaceVisibility,
+  normalizePopupModuleOrder,
+  normalizePopupQuickFeatureOrder,
+  normalizePopupQuickFeatureVisibility,
+  popupModuleOptions,
+  popupQuickFeatureOptions,
+  withInterfaceVisibility,
+  withPopupQuickFeatureVisibility,
 } from '@/src/core/config/interfaceAppearance'
 import { Config, normalizeConfig } from '@/src/core/config/model'
 
@@ -18,6 +28,9 @@ describe('界面皮肤与栏目配置', () => {
 
     expect(config.interfaceSkin).toBe('default')
     expect(config.interfaceVisibility).toEqual(DEFAULT_INTERFACE_VISIBILITY)
+    expect(config.popupModuleOrder).toEqual(DEFAULT_POPUP_MODULE_ORDER)
+    expect(config.popupQuickFeatureOrder).toEqual(DEFAULT_POPUP_QUICK_FEATURE_ORDER)
+    expect(config.popupQuickFeatureVisibility).toEqual(DEFAULT_POPUP_QUICK_FEATURE_VISIBILITY)
     const expectedSkins = [
       'default',
       'minimal',
@@ -55,6 +68,77 @@ describe('界面皮肤与栏目配置', () => {
       'popupSiteRule',
       'popupFooter',
     ])
+    expect(popupModuleOptions.map((item) => item.id)).toEqual([
+      'translation',
+      'siteRule',
+      'quickFeatures',
+      'footer',
+    ])
+    expect(popupQuickFeatureOptions.map((item) => item.id)).toEqual([
+      'hover',
+      'selection',
+      'appearance',
+      'image',
+      'video',
+      'document',
+    ])
+  })
+
+  it('保留用户模块顺序，去重未知项并为旧布局补齐后来注册的模块', () => {
+    expect(normalizePopupModuleOrder([
+      'footer',
+      'quickFeatures',
+      'footer',
+      'futureModule',
+      'translation',
+    ])).toEqual([
+      'footer',
+      'quickFeatures',
+      'translation',
+      'siteRule',
+    ])
+    expect(normalizePopupModuleOrder([])).toEqual(DEFAULT_POPUP_MODULE_ORDER)
+    expect(normalizePopupModuleOrder('translation')).toEqual(DEFAULT_POPUP_MODULE_ORDER)
+  })
+
+  it('以新对象更新栏目显隐，避免共享引用让保存层误判为没有变化', () => {
+    const sharedVisibility = {...DEFAULT_INTERFACE_VISIBILITY}
+    const updated = withInterfaceVisibility(sharedVisibility, 'popupQuickFeatures', false)
+
+    expect(updated).not.toBe(sharedVisibility)
+    expect(sharedVisibility.popupQuickFeatures).toBe(true)
+    expect(updated.popupQuickFeatures).toBe(false)
+  })
+
+  it('独立归一化快捷卡片的顺序和显隐，并以新对象更新单张卡片', () => {
+    expect(normalizePopupQuickFeatureOrder([
+      'document',
+      'hover',
+      'document',
+      'futureFeature',
+    ])).toEqual([
+      'document',
+      'hover',
+      'selection',
+      'appearance',
+      'image',
+      'video',
+    ])
+    expect(normalizePopupQuickFeatureOrder(null)).toEqual(DEFAULT_POPUP_QUICK_FEATURE_ORDER)
+
+    const sharedVisibility = {...DEFAULT_POPUP_QUICK_FEATURE_VISIBILITY}
+    const updated = withPopupQuickFeatureVisibility(sharedVisibility, 'image', false)
+    expect(updated).not.toBe(sharedVisibility)
+    expect(sharedVisibility.image).toBe(true)
+    expect(updated.image).toBe(false)
+    expect(normalizePopupQuickFeatureVisibility({hover: false, image: 'false'})).toEqual({
+      hover: false,
+      selection: true,
+      appearance: true,
+      image: true,
+      video: true,
+      document: true,
+    })
   })
 
   it('只接受注册皮肤，并为升级旧配置补齐栏目开关', () => {
@@ -97,6 +181,9 @@ describe('界面皮肤与栏目配置', () => {
     const normalized = normalizeConfig({
       interfaceSkin: 'cheese',
       interfaceVisibility: {popupQuickFeatures: false},
+      popupModuleOrder: ['quickFeatures', 'translation', 'unknown', 'quickFeatures'],
+      popupQuickFeatureOrder: ['document', 'hover', 'unknown', 'document'],
+      popupQuickFeatureVisibility: {image: false},
     })
 
     expect(normalized.interfaceSkin).toBe('cheese')
@@ -105,9 +192,40 @@ describe('界面皮肤与栏目配置', () => {
       popupSiteRule: true,
       popupFooter: true,
     })
-    expect(normalizeConfig({interfaceSkin: 'invalid', interfaceVisibility: []})).toMatchObject({
+    expect(normalized.popupModuleOrder).toEqual([
+      'quickFeatures',
+      'translation',
+      'siteRule',
+      'footer',
+    ])
+    expect(normalized.popupQuickFeatureOrder).toEqual([
+      'document',
+      'hover',
+      'selection',
+      'appearance',
+      'image',
+      'video',
+    ])
+    expect(normalized.popupQuickFeatureVisibility).toEqual({
+      hover: true,
+      selection: true,
+      appearance: true,
+      image: false,
+      video: true,
+      document: true,
+    })
+    expect(normalizeConfig({
+      interfaceSkin: 'invalid',
+      interfaceVisibility: [],
+      popupModuleOrder: null,
+      popupQuickFeatureOrder: null,
+      popupQuickFeatureVisibility: null,
+    })).toMatchObject({
       interfaceSkin: 'default',
       interfaceVisibility: DEFAULT_INTERFACE_VISIBILITY,
+      popupModuleOrder: DEFAULT_POPUP_MODULE_ORDER,
+      popupQuickFeatureOrder: DEFAULT_POPUP_QUICK_FEATURE_ORDER,
+      popupQuickFeatureVisibility: DEFAULT_POPUP_QUICK_FEATURE_VISIBILITY,
     })
   })
 })

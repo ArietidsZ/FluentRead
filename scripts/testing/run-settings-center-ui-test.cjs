@@ -617,6 +617,10 @@ async function main() {
     defaultServiceCard: {responsive: []},
     translationLoadingStyles: {},
     informationArchitecture: {},
+    persistenceCases: [],
+    quickClose: {},
+    crossPageSync: {},
+    latestWriteWins: {},
     assertions: {},
     consoleErrors: errors,
     screenshots: [],
@@ -830,7 +834,7 @@ async function main() {
     report.assertions.translationLoadingStyles = true;
 
     // 界面偏好必须收拢在通用设置；默认风格保持原布局，简约风格使用独立模块。
-    // Popup 重新打开时还要消费同一份栏目配置，并按实际内容自动改变高度。
+    // 设置页需要真实拖动并保存 Popup 模块顺序；Popup 重开后还要消费同一份布局与栏目配置。
     await page.locator('button[data-section="settings-general"]').click();
     const interfaceGeneralSection = page.locator('#settings-general');
     await interfaceGeneralSection.waitFor({state: 'visible', timeout});
@@ -868,14 +872,111 @@ async function main() {
       || await interfaceSettingsGroup.getByText('风格只改变扩展界面的呈现，不影响网页翻译效果。', {exact: true}).count() !== 0) {
       throw new Error('弹窗风格没有用唯一的实时 DOM 范例替换静态说明');
     }
-    const visibilitySwitches = interfaceSettingsGroup.locator('[data-interface-visibility]');
+    const popupLayoutEditor = interfaceSettingsGroup.locator('[data-popup-layout-editor]');
+    if (await popupLayoutEditor.count() !== 1) throw new Error('界面与弹窗中没有唯一的 Popup 布局编辑器');
+    const readLayoutOrder = () => popupLayoutEditor.locator('[data-popup-layout-module]').evaluateAll(
+      elements => elements.map(element => element.getAttribute('data-popup-layout-module')),
+    );
+    const defaultLayoutOrder = ['translation', 'siteRule', 'quickFeatures', 'footer'];
+    const customLayoutOrder = ['quickFeatures', 'translation', 'siteRule', 'footer'];
+    const initialLayoutOrder = await readLayoutOrder();
+    if (JSON.stringify(initialLayoutOrder) !== JSON.stringify(defaultLayoutOrder)) {
+      throw new Error(`Popup 默认模块顺序异常：${JSON.stringify(initialLayoutOrder)}`);
+    }
+    const visibilitySwitches = popupLayoutEditor.locator('input[aria-label^="显示"]');
     if (await visibilitySwitches.count() !== 3) throw new Error(`弹窗栏目开关数量异常：${await visibilitySwitches.count()}`);
+    const popupQuickFeatureEditor = interfaceSettingsGroup.locator('[data-popup-quick-feature-editor]');
+    if (await popupQuickFeatureEditor.count() !== 1) {
+      throw new Error('界面与弹窗中没有唯一的快捷功能布局编辑器');
+    }
+    const readQuickFeatureOrder = () => popupQuickFeatureEditor.locator('[data-popup-quick-feature-layout]').evaluateAll(
+      elements => elements.map(element => element.getAttribute('data-popup-quick-feature-layout')),
+    );
+    const defaultQuickFeatureOrder = ['hover', 'selection', 'appearance', 'image', 'video', 'document'];
+    const customQuickFeatureOrder = ['document', 'hover', 'selection', 'appearance', 'image', 'video'];
+    const visibleCustomQuickFeatureOrder = customQuickFeatureOrder.filter(feature => feature !== 'image');
+    if (JSON.stringify(await readQuickFeatureOrder()) !== JSON.stringify(defaultQuickFeatureOrder)) {
+      throw new Error(`快捷功能默认顺序异常：${JSON.stringify(await readQuickFeatureOrder())}`);
+    }
+    if (await popupQuickFeatureEditor.locator('.el-switch').count() !== defaultQuickFeatureOrder.length) {
+      throw new Error(`快捷功能独立开关数量异常：${await popupQuickFeatureEditor.locator('.el-switch').count()}`);
+    }
     if (await page.locator('html').getAttribute('data-interface-skin') !== 'default') {
       throw new Error('Options 初始弹窗风格不是默认风格');
     }
     report.screenshots.push(await screenshotElement(
       interfaceSettingsGroup.locator('.interface-skin-picker'),
       'settings-interface-skin-picker.png',
+    ));
+
+    await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="minimal"]').click();
+    await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'minimal', undefined, {timeout});
+    if (!await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="minimal"][aria-checked="true"]').isVisible()) {
+      throw new Error('简约风格切换后没有进入选中状态');
+    }
+
+    const quickFeaturesHandle = popupLayoutEditor
+      .locator('[data-popup-layout-module="quickFeatures"] .popup-layout-handle');
+    const translationCard = popupLayoutEditor.locator('[data-popup-layout-module="translation"]');
+    await quickFeaturesHandle.dragTo(translationCard, {targetPosition: {x: 40, y: 4}});
+    const draggedLayoutOrder = await readLayoutOrder();
+    if (JSON.stringify(draggedLayoutOrder) !== JSON.stringify(customLayoutOrder)) {
+      throw new Error(`Popup 模块拖动没有更新顺序：${JSON.stringify(draggedLayoutOrder)}`);
+    }
+
+    // 不额外等待就重载设置页，覆盖短生命周期页面中的最终布局保存。
+    await page.reload({waitUntil: 'domcontentloaded', timeout});
+    await interfaceGeneralSection.waitFor({state: 'visible', timeout});
+    await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'minimal', undefined, {timeout});
+    const persistedLayoutOrder = await readLayoutOrder();
+    if (JSON.stringify(persistedLayoutOrder) !== JSON.stringify(customLayoutOrder)) {
+      throw new Error(`Popup 模块顺序在设置页重载后丢失：${JSON.stringify(persistedLayoutOrder)}`);
+    }
+
+    const translationHandle = popupLayoutEditor
+      .locator('[data-popup-layout-module="translation"] .popup-layout-handle');
+    await translationHandle.focus();
+    await translationHandle.press('ArrowDown');
+    const keyboardMovedOrder = await readLayoutOrder();
+    const intermediateLayoutOrder = ['quickFeatures', 'siteRule', 'translation', 'footer'];
+    if (JSON.stringify(keyboardMovedOrder) !== JSON.stringify(intermediateLayoutOrder)) {
+      throw new Error(`Popup 模块键盘下移失败：${JSON.stringify(keyboardMovedOrder)}`);
+    }
+    await translationHandle.press('ArrowUp');
+    if (JSON.stringify(await readLayoutOrder()) !== JSON.stringify(customLayoutOrder)) {
+      throw new Error(`Popup 模块键盘上移失败：${JSON.stringify(await readLayoutOrder())}`);
+    }
+    // 连续两次修改后立即重载，最终顺序必须胜出，不能被较早快照覆盖。
+    await page.reload({waitUntil: 'domcontentloaded', timeout});
+    await interfaceGeneralSection.waitFor({state: 'visible', timeout});
+    await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'minimal', undefined, {timeout});
+    const latestWriteLayoutOrder = await readLayoutOrder();
+    if (JSON.stringify(latestWriteLayoutOrder) !== JSON.stringify(customLayoutOrder)) {
+      throw new Error(`Popup 模块连续排序后没有保留最终值：${JSON.stringify(latestWriteLayoutOrder)}`);
+    }
+    await popupLayoutEditor.scrollIntoViewIfNeeded();
+    report.screenshots.push(await screenshotElement(popupLayoutEditor, 'settings-popup-layout-editor-custom.png'));
+
+    const documentFeatureHandle = popupQuickFeatureEditor
+      .locator('[data-popup-quick-feature-layout="document"] .popup-layout-handle');
+    const hoverFeatureCard = popupQuickFeatureEditor.locator('[data-popup-quick-feature-layout="hover"]');
+    await documentFeatureHandle.dragTo(hoverFeatureCard, {targetPosition: {x: 40, y: 4}});
+    if (JSON.stringify(await readQuickFeatureOrder()) !== JSON.stringify(customQuickFeatureOrder)) {
+      throw new Error(`快捷功能卡片拖动没有更新顺序：${JSON.stringify(await readQuickFeatureOrder())}`);
+    }
+    await popupQuickFeatureEditor.locator('[data-popup-quick-feature-layout="image"] .el-switch').click({force: true});
+    await page.reload({waitUntil: 'domcontentloaded', timeout});
+    await interfaceGeneralSection.waitFor({state: 'visible', timeout});
+    await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'minimal', undefined, {timeout});
+    const persistedQuickFeatureOrder = await readQuickFeatureOrder();
+    if (JSON.stringify(persistedQuickFeatureOrder) !== JSON.stringify(customQuickFeatureOrder)
+      || await popupQuickFeatureEditor.locator('[aria-label="显示图片翻译"]').getAttribute('aria-checked') !== 'false') {
+      throw new Error(`快捷功能顺序或单项显隐在设置页重载后丢失：${JSON.stringify(persistedQuickFeatureOrder)}`);
+    }
+    await popupQuickFeatureEditor.scrollIntoViewIfNeeded();
+    report.screenshots.push(await screenshotElement(
+      popupQuickFeatureEditor,
+      'settings-popup-quick-feature-editor-custom.png',
     ));
 
     await context.route('http://fluentread-interface.test/**', route => route.fulfill({
@@ -899,7 +1000,85 @@ async function main() {
       throw new Error('已完成界面语言设置的迁移配置仍重复显示首次引导');
     }
     report.assertions.uiLanguageOnboardingCompletedBaseline = true;
+    if (await initializedPopup.locator('.site-rule-row').count() !== 1) {
+      throw new Error('简约风格没有在普通网页上下文显示当前网站栏目');
+    }
+    const popupModuleOrder = await initializedPopup.locator('[data-popup-module]').evaluateAll(
+      elements => elements.map(element => element.getAttribute('data-popup-module')),
+    );
+    if (JSON.stringify(popupModuleOrder) !== JSON.stringify(customLayoutOrder)) {
+      throw new Error(`Popup 没有按保存布局渲染模块：${JSON.stringify(popupModuleOrder)}`);
+    }
+    const popupQuickFeatureOrder = await initializedPopup.locator('[data-popup-quick-feature]').evaluateAll(
+      elements => elements.map(element => element.getAttribute('data-popup-quick-feature')),
+    );
+    if (JSON.stringify(popupQuickFeatureOrder) !== JSON.stringify(visibleCustomQuickFeatureOrder)
+      || await initializedPopup.locator('[data-popup-quick-feature="image"]').count() !== 0) {
+      throw new Error(`Popup 没有应用快捷功能卡片的顺序与显隐：${JSON.stringify(popupQuickFeatureOrder)}`);
+    }
+    const reorderedModuleSpacing = await initializedPopup.evaluate(() => {
+      const quickFeatures = document.querySelector('[data-popup-module="quickFeatures"]')?.getBoundingClientRect();
+      const translation = document.querySelector('[data-popup-module="translation"]')?.getBoundingClientRect();
+      const lastFeatureCard = document
+        .querySelector('[data-popup-module="quickFeatures"] .feature-card:last-child')
+        ?.getBoundingClientRect();
+      const mainSwitch = document
+        .querySelector('[data-popup-module="translation"] .hero-switches .switch')
+        ?.getBoundingClientRect();
+      return {
+        moduleGap: quickFeatures && translation ? translation.top - quickFeatures.bottom : -1,
+        controlGap: lastFeatureCard && mainSwitch ? mainSwitch.top - lastFeatureCard.bottom : -1,
+      };
+    });
+    if (reorderedModuleSpacing.moduleGap < 10 || reorderedModuleSpacing.controlGap < 10) {
+      throw new Error(`重排后快捷功能与网页翻译控件间距不足：${JSON.stringify(reorderedModuleSpacing)}`);
+    }
+    report.screenshots.push(await screenshotElement(
+      initializedPopup.locator('.popup-shell'),
+      'popup-interface-minimal-custom-layout.png',
+    ));
     await initializedPopup.close();
+
+    await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="default"]').click();
+    await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'default', undefined, {timeout});
+    await page.waitForTimeout(450);
+    const defaultSingleFeatureHiddenPopup = await newPageWithoutForeground(context, timeout);
+    attachPageDiagnostics(defaultSingleFeatureHiddenPopup);
+    await defaultSingleFeatureHiddenPopup.setViewportSize({width: 400, height: 600});
+    await defaultSingleFeatureHiddenPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
+    await defaultSingleFeatureHiddenPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
+    await defaultSingleFeatureHiddenPopup.waitForTimeout(300);
+    const defaultSingleFeatureHiddenMetrics = await defaultSingleFeatureHiddenPopup.locator('.popup-shell').evaluate(element => ({
+      shellHeight: element.getBoundingClientRect().height,
+      heightMode: document.documentElement.dataset.popupHeight,
+      htmlMinHeight: getComputedStyle(document.documentElement).minHeight,
+      bodyMinHeight: getComputedStyle(document.body).minHeight,
+      visibleQuickFeatures: document.querySelectorAll('[data-popup-quick-feature]').length,
+    }));
+    if (defaultSingleFeatureHiddenMetrics.heightMode !== 'content'
+      || defaultSingleFeatureHiddenMetrics.htmlMinHeight !== '0px'
+      || defaultSingleFeatureHiddenMetrics.bodyMinHeight !== '0px'
+      || defaultSingleFeatureHiddenMetrics.visibleQuickFeatures !== 5
+      || await defaultSingleFeatureHiddenPopup.locator('[data-popup-quick-feature="image"]').count() !== 0) {
+      throw new Error(`默认风格隐藏单张快捷卡片后没有随内容收缩：${JSON.stringify(defaultSingleFeatureHiddenMetrics)}`);
+    }
+    report.screenshots.push(await screenshotElement(
+      defaultSingleFeatureHiddenPopup.locator('.popup-shell'),
+      'popup-interface-default-single-feature-hidden.png',
+    ));
+    await defaultSingleFeatureHiddenPopup.close();
+
+    // 先证明单项配置跨页面生效，再恢复六张卡片，避免影响后续完整皮肤矩阵。
+    await popupQuickFeatureEditor.locator('[data-popup-quick-feature-layout="image"] .el-switch').click({force: true});
+    await popupQuickFeatureEditor.getByRole('button', {name: '恢复默认顺序'}).click();
+    await page.waitForFunction((expected) => (
+      JSON.stringify(
+        [...document.querySelectorAll('[data-popup-quick-feature-editor] [data-popup-quick-feature-layout]')]
+          .map(element => element.getAttribute('data-popup-quick-feature-layout')),
+      ) === JSON.stringify(expected)
+      && document.querySelector('[aria-label="显示图片翻译"]')?.getAttribute('aria-checked') === 'true'
+    ), defaultQuickFeatureOrder, {timeout});
+    await page.waitForTimeout(500);
 
     const skinCases = [];
     const visualSignatures = new Set();
@@ -1162,11 +1341,11 @@ async function main() {
     await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'minimal', undefined, {timeout});
     await page.waitForTimeout(400);
 
-    await interfaceSettingsGroup.locator('.settings-item').filter({hasText: '快捷功能栏'}).locator('.el-switch').click({force: true});
-    await interfaceSettingsGroup.locator('.settings-item').filter({hasText: '底部信息栏'}).locator('.el-switch').click({force: true});
+    await popupLayoutEditor.locator('[data-popup-layout-module="quickFeatures"] .el-switch').click({force: true});
+    await popupLayoutEditor.locator('[data-popup-layout-module="footer"] .el-switch').click({force: true});
     await page.waitForFunction(() => (
-      document.querySelector('[data-interface-visibility="popupQuickFeatures"] input')?.getAttribute('aria-checked') === 'false'
-      && document.querySelector('[data-interface-visibility="popupFooter"] input')?.getAttribute('aria-checked') === 'false'
+      document.querySelector('[aria-label="显示快捷功能栏"]')?.getAttribute('aria-checked') === 'false'
+      && document.querySelector('[aria-label="显示底部信息栏"]')?.getAttribute('aria-checked') === 'false'
     ), undefined, {timeout});
     await page.waitForTimeout(500);
 
@@ -1176,7 +1355,15 @@ async function main() {
     await interfacePopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
     await interfacePopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
     await interfacePopup.waitForTimeout(350);
-    if (await interfacePopup.locator('.features').count() !== 0) throw new Error('关闭快捷功能栏后 Popup 仍显示快捷功能');
+    if (await interfacePopup.locator('.features').count() !== 0) {
+      const visibilityDiagnostics = await interfacePopup.locator('.popup-shell').evaluate(element => ({
+        quickFeatures: element.getAttribute('data-popup-quick-features-visible'),
+        siteRule: element.getAttribute('data-popup-site-rule-visible'),
+        footer: element.getAttribute('data-popup-footer-visible'),
+        moduleOrder: element.getAttribute('data-popup-module-order'),
+      }));
+      throw new Error(`关闭快捷功能栏后 Popup 仍显示快捷功能：${JSON.stringify(visibilityDiagnostics)}`);
+    }
     if (await interfacePopup.locator('footer').count() !== 0) throw new Error('关闭底部信息栏后 Popup 仍显示底部信息');
     if (await interfacePopup.locator('main[data-interface-skin="minimal"]').count() !== 1) {
       throw new Error('Popup 重开后没有应用简约风格');
@@ -1226,12 +1413,17 @@ async function main() {
     report.screenshots.push(await screenshotElement(defaultHiddenPopup.locator('.popup-shell'), 'popup-interface-default-hidden-sections.png'));
     await defaultHiddenPopup.close();
 
-    await interfaceSettingsGroup.locator('.settings-item').filter({hasText: '快捷功能栏'}).locator('.el-switch').click({force: true});
-    await interfaceSettingsGroup.locator('.settings-item').filter({hasText: '底部信息栏'}).locator('.el-switch').click({force: true});
+    await popupLayoutEditor.locator('[data-popup-layout-module="quickFeatures"] .el-switch').click({force: true});
+    await popupLayoutEditor.locator('[data-popup-layout-module="footer"] .el-switch').click({force: true});
     await page.waitForFunction(() => (
-      document.querySelector('[data-interface-visibility="popupQuickFeatures"] input')?.getAttribute('aria-checked') === 'true'
-      && document.querySelector('[data-interface-visibility="popupFooter"] input')?.getAttribute('aria-checked') === 'true'
+      document.querySelector('[aria-label="显示快捷功能栏"]')?.getAttribute('aria-checked') === 'true'
+      && document.querySelector('[aria-label="显示底部信息栏"]')?.getAttribute('aria-checked') === 'true'
     ), undefined, {timeout});
+    await popupLayoutEditor.getByRole('button', {name: '恢复默认顺序'}).click();
+    await page.waitForFunction((expected) => JSON.stringify(
+      [...document.querySelectorAll('[data-popup-layout-editor] [data-popup-layout-module]')]
+        .map(element => element.getAttribute('data-popup-layout-module')),
+    ) === JSON.stringify(expected), defaultLayoutOrder, {timeout});
     await page.waitForTimeout(500);
     const defaultFullPopup = await newPageWithoutForeground(context, timeout);
     attachPageDiagnostics(defaultFullPopup);
@@ -1252,6 +1444,18 @@ async function main() {
       || defaultFullMetrics.bodyMinHeight !== '560px') {
       throw new Error(`默认风格完整栏目没有保持原有高度：${JSON.stringify(defaultFullMetrics)}`);
     }
+    const restoredPopupModuleOrder = await defaultFullPopup.locator('[data-popup-module]').evaluateAll(
+      elements => elements.map(element => element.getAttribute('data-popup-module')),
+    );
+    if (JSON.stringify(restoredPopupModuleOrder) !== JSON.stringify(defaultLayoutOrder)) {
+      throw new Error(`恢复默认后 Popup 模块顺序异常：${JSON.stringify(restoredPopupModuleOrder)}`);
+    }
+    const restoredPopupQuickFeatureOrder = await defaultFullPopup.locator('[data-popup-quick-feature]').evaluateAll(
+      elements => elements.map(element => element.getAttribute('data-popup-quick-feature')),
+    );
+    if (JSON.stringify(restoredPopupQuickFeatureOrder) !== JSON.stringify(defaultQuickFeatureOrder)) {
+      throw new Error(`恢复默认后快捷功能卡片顺序异常：${JSON.stringify(restoredPopupQuickFeatureOrder)}`);
+    }
     await defaultFullPopup.close();
     await interfaceHostPage.close();
 
@@ -1270,11 +1474,49 @@ async function main() {
       hiddenDefaultMetrics: defaultHiddenMetrics,
       fullDefaultMetrics: defaultFullMetrics,
       multilingualMetrics,
+      popupLayout: {
+        defaultOrder: defaultLayoutOrder,
+        draggedOrder: draggedLayoutOrder,
+        persistedOrder: persistedLayoutOrder,
+        latestWriteOrder: latestWriteLayoutOrder,
+        popupOrder: popupModuleOrder,
+        reorderedModuleSpacing,
+        restoredOrder: restoredPopupModuleOrder,
+        keyboardReorder: true,
+      },
+      popupQuickFeatures: {
+        defaultOrder: defaultQuickFeatureOrder,
+        customOrder: customQuickFeatureOrder,
+        persistedOrder: persistedQuickFeatureOrder,
+        popupOrder: popupQuickFeatureOrder,
+        hiddenFeature: 'image',
+        hiddenDefaultMetrics: defaultSingleFeatureHiddenMetrics,
+        restoredOrder: restoredPopupQuickFeatureOrder,
+      },
       popupRoundTrip: true,
     };
+    report.persistenceCases.push({
+      name: 'popupModuleOrder',
+      before: defaultLayoutOrder,
+      after: customLayoutOrder,
+      reopened: popupModuleOrder,
+    });
+    report.persistenceCases.push({
+      name: 'popupQuickFeatureOrderAndVisibility',
+      before: defaultQuickFeatureOrder,
+      after: {order: customQuickFeatureOrder, hidden: ['image']},
+      reopened: popupQuickFeatureOrder,
+    });
+    report.quickClose.popupModuleOrder = true;
+    report.quickClose.popupQuickFeatureOrderAndVisibility = true;
+    report.crossPageSync.popupModuleOrder = true;
+    report.crossPageSync.popupQuickFeatureOrderAndVisibility = true;
+    report.latestWriteWins.popupModuleOrder = true;
     report.assertions.interfaceSettings = true;
     report.assertions.interfaceSkinMatrix = true;
     report.assertions.interfaceVisibility = true;
+    report.assertions.popupLayoutPersistence = true;
+    report.assertions.popupQuickFeatureLayoutPersistence = true;
     report.assertions.multilingualInterfaceLayout = true;
 
     await page.locator('button[data-section="settings-model-usage"]').click();
