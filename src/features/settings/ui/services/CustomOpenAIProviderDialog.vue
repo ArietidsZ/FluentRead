@@ -193,7 +193,7 @@ watch(() => props.modelValue, (open) => {
 .custom-provider-form footer button { min-height: 38px; padding: 0 15px; border-radius: 10px; font-size: 12px; font-weight: 750; cursor: pointer; }
 .secondary-button { border: 1px solid #dfe3eb; color: #59657b; background: #fff; }
 .primary-button { border: 1px solid #ef4776; color: #fff; background: #ef4776; }
-:global(:root.dark) .custom-provider-form > label { color: var(--ink); }
-:global(:root.dark) .custom-provider-form input,
-:global(:root.dark) .secondary-button { border-color: var(--line); color: var(--ink); background: var(--surface-soft); }
+:global(:root.dark .custom-provider-form > label) { color: var(--ink); }
+:global(:root.dark .custom-provider-form input),
+:global(:root.dark .secondary-button) { border-color: var(--line); color: var(--ink); background: var(--surface-soft); }
 </style>

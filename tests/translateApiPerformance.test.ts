@@ -580,6 +580,7 @@ describe('translation API request lifecycle performance', () => {
       useCache: true,
       serviceOverride: 'mock-ai',
       modelOverride: 'mock-ai-model',
+      thinkingOverride: false,
       sourceLanguage: 'en',
       targetLanguage: 'zh-CN',
       requestTimeoutMs: 19_000,

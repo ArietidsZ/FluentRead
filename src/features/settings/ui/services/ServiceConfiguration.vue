@@ -228,11 +228,27 @@
 
     <details v-if="compute.showAI" class="custom-advanced-settings" data-testid="custom-service-advanced">
       <summary>
-        <span><strong>高级设置</strong><small>代理、提示词和自定义请求体</small></span>
+        <span><strong>高级设置</strong><small>Thinking、代理、提示词和自定义请求体</small></span>
         <b aria-hidden="true">⌄</b>
       </summary>
 
       <div class="custom-advanced-content">
+        <div v-if="compute.showModel" class="connection-field" data-testid="model-thinking-control">
+          <div class="connection-field-label">
+            <strong>Thinking</strong>
+            <small>{{ effectiveModelLabel || '当前模型' }}</small>
+          </div>
+          <div class="connection-field-control model-thinking-setting">
+            <small>默认关闭；仅在已适配接口生效，无法关闭时使用最低档</small>
+            <el-switch
+              :model-value="selectedModelThinking"
+              :disabled="!effectiveModelLabel"
+              aria-label="当前模型是否启用 Thinking"
+              @update:model-value="$emit('update:model-thinking', Boolean($event))"
+            />
+          </div>
+        </div>
+
         <el-row v-if="compute.showProxy" class="margin-bottom margin-left-2em">
           <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="可选的代理地址；填写后，当前 AI 服务请求会优先发送到这里。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">代理地址<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
           <el-col :span="12"><el-input v-model="config.proxy[service]" placeholder="默认直连自定义接口" /></el-col>
@@ -265,11 +281,6 @@
       <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="选择 DeepSeek 接口使用的 API 格式。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">API 格式<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
       <el-col :span="12"><el-select v-model="config.deepseekApiType" placeholder="请选择 API 格式"><el-option class="select-left" v-for="item in options.deepseekApiType" :key="item.value" :label="item.label" :value="item.value" /></el-select></el-col>
     </el-row>
-    <el-row v-if="compute.showDeepseekThinkingMode" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="控制 DeepSeek 是否启用思考过程。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">思考模式<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
-      <el-col :span="12"><el-select v-model="config.deepseekThinkingMode" placeholder="请选择思考模式"><el-option class="select-left" v-for="item in options.deepseekThinkingMode" :key="item.value" :label="item.label" :value="item.value" /></el-select></el-col>
-    </el-row>
-
     <el-row v-if="compute.showCustomBody && !compute.showCustomOpenAI" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="填写要合并到翻译请求中的 JSON 参数对象。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">自定义请求体<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
       <el-col :span="12">
@@ -300,6 +311,7 @@ import PromptTemplateEditor from './PromptTemplateEditor.vue'
 const props = defineProps<{
   config: Config
   service: string
+  selectedModelThinking: boolean
   compute: Record<string, any>
   options: typeof optionConfig
   isValidAzureEndpoint: (endpoint: string) => boolean
@@ -307,6 +319,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  'update:model-thinking': [value: boolean]
   'update:custom-provider': [patch: Partial<Pick<CustomOpenAIProvider, 'name' | 'endpoint'>>]
   'delete:custom-provider': []
 }>()
@@ -517,6 +530,9 @@ watch(service, resetConnectionTest)
 .connection-field-label strong { color: #263044; font-size: 12px; font-weight: 700; }
 .connection-field-label small { overflow: hidden; color: #9299a8; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .connection-field-control { min-width: 0; }
+.model-thinking-setting { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.model-thinking-setting > small { color: #9098a8; font-size: 10px; line-height: 1.5; }
+.model-thinking-setting :deep(.el-switch) { flex: 0 0 auto; --el-switch-on-color: #ef4776; --el-switch-off-color: #cfd5df; }
 .connection-field-control :deep(.el-input),
 .connection-field-control :deep(.el-select) { width: 100% !important; max-width: none !important; }
 .credential-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 12px; }
@@ -863,25 +879,30 @@ watch(service, resetConnectionTest)
   --el-switch-off-color: #cfd5df;
 }
 
-:global(:root.dark) .credential-warning { border-color: #735c31; color: #f2d28f; background: #392f1f; }
-:global(:root.dark) .custom-template-heading { border-color: var(--line); }
-:global(:root.dark) .custom-template-heading strong,
-:global(:root.dark) .api-key-policy-title,
-:global(:root.dark) .connection-field-label strong { color: var(--ink); }
-:global(:root.dark) .custom-template-heading small,
-:global(:root.dark) .connection-test-hint,
-:global(:root.dark) .api-key-policy-model,
-:global(:root.dark) .minimax-key-note,
-:global(:root.dark) .mimo-key-note,
-:global(:root.dark) .minimax-endpoint,
-:global(:root.dark) .mimo-endpoint { color: var(--muted); }
-:global(:root.dark) .connection-field,
-:global(:root.dark) .service-connection-section :deep(.el-row) { border-color: var(--line) !important; }
-:global(:root.dark) .connection-test-button { border-color: rgba(255, 138, 171, .52); color: var(--brand-strong); background: var(--brand-soft); }
-:global(:root.dark) .connection-test-result,
-:global(:root.dark) .api-key-policy { border-color: var(--line); color: var(--muted); background: var(--surface-soft); }
-:global(:root.dark) .api-key-policy:hover { border-color: rgba(255, 138, 171, .42); background: var(--surface); }
-:global(:root.dark) .connection-test-result.is-testing { border-color: #405477; color: #b9cff2; background: #202c40; }
-:global(:root.dark) .connection-test-result.is-success { border-color: #31594d; color: #9edcc8; background: #1c342d; }
-:global(:root.dark) .connection-test-result.is-error { border-color: #6f3949; color: #f1a7bc; background: #3c222b; }
+:global(:root.dark .credential-warning) { border-color: #735c31; color: #f2d28f; background: #392f1f; }
+:global(:root.dark .custom-advanced-settings) { border-color: var(--line); background: var(--surface-soft); }
+:global(:root.dark .custom-advanced-settings summary) { color: var(--ink); }
+:global(:root.dark .custom-advanced-content),
+:global(:root.dark .custom-template-heading) { border-color: var(--line); }
+:global(:root.dark .custom-template-heading strong),
+:global(:root.dark .api-key-policy-title),
+:global(:root.dark .connection-field-label strong) { color: var(--ink); }
+:global(:root.dark .custom-template-heading small),
+:global(:root.dark .custom-advanced-settings summary small),
+:global(:root.dark .connection-test-hint),
+:global(:root.dark .model-thinking-setting > small),
+:global(:root.dark .api-key-policy-model),
+:global(:root.dark .minimax-key-note),
+:global(:root.dark .mimo-key-note),
+:global(:root.dark .minimax-endpoint),
+:global(:root.dark .mimo-endpoint) { color: var(--muted); }
+:global(:root.dark .connection-field),
+:global(:root.dark .service-connection-section .el-row) { border-color: var(--line) !important; }
+:global(:root.dark .connection-test-button) { border-color: rgba(255, 138, 171, .52); color: var(--brand-strong); background: var(--brand-soft); }
+:global(:root.dark .connection-test-result),
+:global(:root.dark .api-key-policy) { border-color: var(--line); color: var(--muted); background: var(--surface-soft); }
+:global(:root.dark .api-key-policy:hover) { border-color: rgba(255, 138, 171, .42); background: var(--surface); }
+:global(:root.dark .connection-test-result.is-testing) { border-color: #405477; color: #b9cff2; background: #202c40; }
+:global(:root.dark .connection-test-result.is-success) { border-color: #31594d; color: #9edcc8; background: #1c342d; }
+:global(:root.dark .connection-test-result.is-error) { border-color: #6f3949; color: #f1a7bc; background: #3c222b; }
 </style>

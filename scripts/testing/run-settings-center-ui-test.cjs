@@ -271,10 +271,17 @@ async function selectElementPlusOption(page, ariaLabel, optionText) {
   const input = page.locator(`input[aria-label="${ariaLabel}"]`);
   await input.waitFor({state: 'visible', timeout});
   const wrapper = input.locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " el-select__wrapper ")][1]');
+  const previouslyOpenDropdown = page.locator('.el-select-dropdown:visible').first();
+  if (await previouslyOpenDropdown.isVisible()) {
+    await page.keyboard.press('Escape');
+    await previouslyOpenDropdown.waitFor({state: 'hidden', timeout});
+  }
   await wrapper.click();
-  const option = page.locator('.el-select-dropdown:visible .el-select-dropdown__item:not(.is-disabled)')
-    .filter({hasText: optionText})
-    .first();
+  const openDropdown = page.locator('.el-select-dropdown:visible').first();
+  await page.waitForTimeout(50);
+  if (!await openDropdown.isVisible()) await input.press('ArrowDown');
+  await openDropdown.waitFor({state: 'visible', timeout});
+  const option = openDropdown.getByRole('option', {name: optionText, exact: true});
   await option.waitFor({state: 'visible', timeout});
   await option.evaluate(element => element.click());
   try {
@@ -1191,7 +1198,30 @@ async function main() {
     if (!Object.values(darkColors).every(isDarkColor)) throw new Error(`暗色主题表面仍为亮色：${JSON.stringify(darkColors)}`);
     report.screenshots.push(await screenshot(page, 'settings-dark-general.png'));
     await page.locator('button[data-section="settings-services"]').click();
+    if (await page.getByTestId('model-thinking-control').count() === 0) {
+      await page.locator('.service-item[data-service-value="openai"]').click();
+    }
+    const darkAdvancedSettings = page.getByTestId('custom-service-advanced');
+    await darkAdvancedSettings.waitFor({state: 'visible', timeout});
+    const darkThinkingSwitch = darkAdvancedSettings.getByRole('switch', {
+      name: '当前模型是否启用 Thinking',
+      includeHidden: true,
+    });
+    const darkThinkingControl = darkThinkingSwitch.locator('..');
+    if (await darkThinkingControl.isVisible()) throw new Error('模型 Thinking 没有收纳到关闭的高级设置中');
+    await darkAdvancedSettings.locator('summary').click();
+    await darkThinkingControl.waitFor({state: 'visible', timeout});
+    const thinkingDarkSurface = await darkAdvancedSettings
+      .evaluate(element => getComputedStyle(element).backgroundColor);
+    if (!isDarkColor(thinkingDarkSurface)) {
+      throw new Error(`包含模型 Thinking 的高级设置仍为亮色：${thinkingDarkSurface}`);
+    }
+    report.informationArchitecture.modelThinkingDarkSurface = thinkingDarkSurface;
     report.screenshots.push(await screenshot(page, 'settings-dark-services.png'));
+    await darkAdvancedSettings.locator('summary').click();
+    if (await darkAdvancedSettings.getAttribute('open') !== null) {
+      throw new Error('暗色验证后没有恢复高级设置的默认折叠状态');
+    }
     await page.locator('button[data-section="settings-translation"]').click();
     report.screenshots.push(await screenshot(page, 'settings-dark-translation.png'));
     await page.locator('button[data-section="settings-model-usage"]').click();
@@ -1325,6 +1355,7 @@ async function main() {
       endpoint: 'https://custom-browser-fixture.invalid/v1/chat/completions',
       apiKey: 'browser-custom-key-sensitive-sentinel',
       model: 'fixture-model-v1',
+      secondModel: 'fixture-model-v2',
     };
     const customServiceGroup = serviceCatalog.locator('.custom-service-group');
     const customServiceCount = customServiceGroup.getByTestId('custom-service-count');
@@ -1510,6 +1541,61 @@ async function main() {
         !== customServiceFixture.apiKey) {
       throw new Error('新建自定义服务的名称、接口、模型或 API Key 没有进入详情配置');
     }
+    const advancedSettings = serviceCatalog.getByTestId('custom-service-advanced');
+    const currentThinkingSwitch = advancedSettings.getByRole('switch', {
+      name: '当前模型是否启用 Thinking',
+      includeHidden: true,
+    });
+    if (await advancedSettings.getAttribute('open') !== null) {
+      throw new Error('新建自定义服务时高级设置没有保持默认折叠');
+    }
+    if (await currentThinkingSwitch.getAttribute('aria-checked') !== 'false') {
+      throw new Error('新建模型的 Thinking 没有保持默认关闭');
+    }
+    const currentThinkingControl = currentThinkingSwitch.locator('..');
+    if (await currentThinkingControl.isVisible()) throw new Error('模型 Thinking 没有默认收纳在高级设置中');
+    await advancedSettings.locator('summary').click();
+    if (!await currentThinkingControl.isVisible()) throw new Error('当前模型 Thinking 开关没有可见的交互控件');
+    await currentThinkingControl.click();
+    await page.waitForFunction(() => document.querySelector('[aria-label="当前模型是否启用 Thinking"]')
+      ?.getAttribute('aria-checked') === 'true', undefined, {timeout});
+
+    await serviceCatalog.getByTestId('model-picker-trigger').click();
+    let modelPickerPanel = page.locator('.model-picker-popper:visible');
+    await modelPickerPanel.getByTestId('add-custom-model').click();
+    await modelPickerPanel.getByTestId('custom-model-input').fill(customServiceFixture.secondModel);
+    await modelPickerPanel.getByTestId('custom-model-submit').click();
+    await page.waitForFunction(model => document.querySelector('[data-testid="model-picker-trigger"]')
+      ?.getAttribute('aria-label')?.includes(model), customServiceFixture.secondModel, {timeout});
+    if (await currentThinkingSwitch.getAttribute('aria-checked') !== 'false') {
+      throw new Error('新增的第二个模型错误继承了第一个模型的 Thinking');
+    }
+
+    if (await page.locator('.model-picker-popper:visible').count() === 0) {
+      await serviceCatalog.getByTestId('model-picker-trigger').click();
+    }
+    modelPickerPanel = page.locator('.model-picker-popper:visible');
+    await modelPickerPanel.locator(`[data-model-id="${customServiceFixture.model}"] .model-picker-option`).click();
+    await page.waitForFunction(model => {
+      const trigger = document.querySelector('[data-testid="model-picker-trigger"]');
+      const toggle = document.querySelector('[aria-label="当前模型是否启用 Thinking"]');
+      return trigger?.getAttribute('aria-label')?.includes(model)
+        && toggle?.getAttribute('aria-checked') === 'true';
+    }, customServiceFixture.model, {timeout});
+    report.screenshots.push(await screenshot(page, 'settings-custom-service-thinking.png'));
+
+    await serviceCatalog.getByTestId('model-picker-trigger').click();
+    modelPickerPanel = page.locator('.model-picker-popper:visible');
+    await modelPickerPanel.locator(`[data-model-id="${customServiceFixture.secondModel}"] .model-picker-option`).click();
+    await page.waitForFunction(model => {
+      const trigger = document.querySelector('[data-testid="model-picker-trigger"]');
+      const toggle = document.querySelector('[aria-label="当前模型是否启用 Thinking"]');
+      return trigger?.getAttribute('aria-label')?.includes(model)
+        && toggle?.getAttribute('aria-checked') === 'false';
+    }, customServiceFixture.secondModel, {timeout});
+    await page.waitForTimeout(500);
+    report.assertions.modelThinkingPerModel = true;
+    report.assertions.modelThinkingInAdvancedSettings = true;
     await page.waitForTimeout(500);
     report.informationArchitecture.serviceCatalogHierarchy.customService = {
       dynamicId: true,
@@ -1548,8 +1634,11 @@ async function main() {
     if (exportedCustomProvider?.name !== customServiceFixture.name
       || exportedCustomProvider.endpoint !== customServiceFixture.endpoint
       || !exportedCustomProvider.models?.includes(customServiceFixture.model)
+      || !exportedCustomProvider.models?.includes(customServiceFixture.secondModel)
+      || exportedConfig.modelThinking?.[customServiceId]?.[customServiceFixture.model] !== true
+      || exportedConfig.modelThinking?.[customServiceId]?.[customServiceFixture.secondModel] !== false
       || exportedConfig.token?.[customServiceId] !== customServiceFixture.apiKey) {
-      throw new Error('首次完整备份没有包含动态自定义服务及其凭据');
+      throw new Error('首次完整备份没有包含动态自定义服务、模型 Thinking 及其凭据');
     }
     report.completeBackup = {
       contextChoice: 'exclude-private-context',
@@ -1691,8 +1780,11 @@ async function main() {
     if (reloadedCustomProvider?.name !== customServiceFixture.name
       || reloadedCustomProvider.endpoint !== customServiceFixture.endpoint
       || !reloadedCustomProvider.models?.includes(customServiceFixture.model)
+      || !reloadedCustomProvider.models?.includes(customServiceFixture.secondModel)
+      || reloadedExportConfig.modelThinking?.[customServiceId]?.[customServiceFixture.model] !== true
+      || reloadedExportConfig.modelThinking?.[customServiceId]?.[customServiceFixture.secondModel] !== false
       || reloadedExportConfig.token?.[customServiceId] !== customServiceFixture.apiKey) {
-      throw new Error('动态自定义服务没有完整经过备份精确恢复、加密存储和页面重载');
+      throw new Error('动态自定义服务及模型 Thinking 没有完整经过备份精确恢复、加密存储和页面重载');
     }
     report.reloadedCompleteBackup = {
       suggestedFilename: reloadedDownload.suggestedFilename,

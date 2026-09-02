@@ -84,6 +84,7 @@ const mocks = vi.hoisted(() => {
             mimo: 'mimo-model',
         } as Record<string, string>,
         customModel: {} as Record<string, string>,
+        modelThinking: {} as Record<string, Record<string, boolean>>,
         proxy: {} as Record<string, string>,
         custom: '',
         deeplx: '',
@@ -248,6 +249,7 @@ describe('translation broker', () => {
             user_role: {},
             deepseekApiType: 'auto',
             deepseekThinkingMode: 'disabled',
+            modelThinking: {},
         });
         mocks.config.model = {
             mock: 'mock-model',
@@ -1814,6 +1816,7 @@ describe('translation broker', () => {
             sourceText: 'Persisted context',
             service: 'ai',
             model: 'ai-model',
+            modelThinking: false,
             endpoint: '',
             customBody: '',
         });
@@ -2351,6 +2354,7 @@ describe('translation broker', () => {
             sourceText: 'Retry context',
             service: 'ai',
             model: 'ai-model',
+            modelThinking: false,
             endpoint: '',
             customBody: '',
         });
@@ -2619,7 +2623,7 @@ describe('translation broker', () => {
         mocks.config.system_role.aiSdk = 'system';
         mocks.config.user_role.aiSdk = 'user';
         mocks.config.deepseekApiType = 'reasoner';
-        mocks.config.deepseekThinkingMode = 'enabled';
+        mocks.config.modelThinking = {aiSdk: {'ai-sdk-model': true}};
 
         await translateWithCache({
             origin: 'Identity',
@@ -2635,6 +2639,7 @@ describe('translation broker', () => {
                 customBody: '{"temperature":0}',
                 endpoint: 'https://aiSdk.endpoint.test',
                 model: 'ai-sdk-model',
+                modelThinking: true,
                 sourceText: 'Identity context',
                 transportProfile: 'ai-sdk-profile',
             }),
@@ -2642,9 +2647,9 @@ describe('translation broker', () => {
                 requestMode: 'single',
                 customBody: '{"temperature":0}',
                 deepseekApiType: 'reasoner',
-                deepseekThinkingMode: 'enabled',
                 endpoint: 'https://aiSdk.endpoint.test',
                 model: 'ai-sdk-model',
+                modelThinking: true,
                 pageContext: expect.stringContaining('Identity context'),
                 sourceLanguage: 'en',
                 sourceText: 'Identity',
@@ -2656,6 +2661,34 @@ describe('translation broker', () => {
         ]));
 
         expect(cacheIdentityAt(0)).toMatchObject({requestMode: 'page-summary'});
+    });
+
+    it('按模型 Thinking 状态隔离缓存，并把冻结值传给 provider', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.modelThinking = {ai: {'ai-model': false}};
+        mocks.service.mockImplementation((message: {thinkingOverride?: boolean}) => (
+            Promise.resolve(message.thinkingOverride ? '思考译文' : '快速译文')
+        ));
+
+        await expect(translateWithCache({origin: 'same-thinking-source'})).resolves.toBe('快速译文');
+        mocks.config.modelThinking = {ai: {'ai-model': true}};
+        await expect(translateWithCache({origin: 'same-thinking-source'})).resolves.toBe('思考译文');
+        mocks.config.modelThinking = {ai: {'ai-model': false}};
+        await expect(translateWithCache({origin: 'same-thinking-source'})).resolves.toBe('快速译文');
+        await expect(translateWithCache({
+            origin: 'request-thinking-override',
+            thinkingOverride: true,
+        })).resolves.toBe('思考译文');
+
+        expect(mocks.service).toHaveBeenCalledTimes(3);
+        expect(mocks.service.mock.calls.map(([message]) => message.thinkingOverride)).toEqual([false, true, true]);
+        expect(translationCacheIdentities()
+            .filter((identity) => identity.sourceText === 'same-thinking-source')
+            .map((identity) => identity.modelThinking))
+            .toEqual([false, true, false]);
+        expect(translationCacheIdentities()
+            .find((identity) => identity.sourceText === 'request-thinking-override'))
+            .toMatchObject({modelThinking: true});
     });
 
     it('请求级语言覆盖同时进入 provider 与缓存身份，切换目标语言不会复用旧译文', async () => {

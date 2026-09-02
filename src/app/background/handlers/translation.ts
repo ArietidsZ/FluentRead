@@ -71,6 +71,9 @@ export function parseTranslationRequest(candidate: TranslationRequestCandidate):
     if (candidate.aiMultiSegment !== undefined && typeof candidate.aiMultiSegment !== 'boolean') {
         throw new TypeError('翻译请求字段 aiMultiSegment 必须是布尔值');
     }
+    if (candidate.thinkingOverride !== undefined && typeof candidate.thinkingOverride !== 'boolean') {
+        throw new TypeError('翻译请求字段 thinkingOverride 必须是布尔值');
+    }
     if (candidate.requestTimeoutMs !== undefined
         && (typeof candidate.requestTimeoutMs !== 'number' || !Number.isFinite(candidate.requestTimeoutMs))) {
         throw new TypeError('翻译请求字段 requestTimeoutMs 必须是有限数字');
@@ -85,6 +88,7 @@ export function parseTranslationRequest(candidate: TranslationRequestCandidate):
     if (typeof candidate.enableAIContext === 'boolean') base.enableAIContext = candidate.enableAIContext;
     if (typeof candidate.useCache === 'boolean') base.useCache = candidate.useCache;
     if (typeof candidate.aiMultiSegment === 'boolean') base.aiMultiSegment = candidate.aiMultiSegment;
+    if (typeof candidate.thinkingOverride === 'boolean') base.thinkingOverride = candidate.thinkingOverride;
     if (typeof candidate.requestTimeoutMs === 'number') base.requestTimeoutMs = candidate.requestTimeoutMs;
     return typeof origin === 'string' ? {...base, origin} : {...base, origin};
 }

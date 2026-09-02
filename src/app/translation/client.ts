@@ -12,6 +12,7 @@
 import browser from 'webextension-polyfill';
 import {detectlang} from '@/src/core/language/detect';
 import {resolveConfiguredModel, servicesType} from '@/src/core/config/catalog';
+import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
 import {isTrustedCredentialStorageContext} from '@/src/platform/storage/credentialContext';
 import {config, requestConfigCountIncrement} from '@/src/services/config/store';
@@ -243,6 +244,8 @@ export async function translateText(origin: string, context: string = document.t
     options.modelOverride || config.customModel[selectedService],
   );
   const selectedLanguages = getTranslationLanguages(options);
+  const selectedThinking = options.thinkingOverride
+    ?? isModelThinkingEnabled(config.modelThinking, selectedService, selectedModel);
   const {
     timeout = 45000,
     useCache = config.useCache,
@@ -293,6 +296,7 @@ export async function translateText(origin: string, context: string = document.t
             sourceLanguage: selectedLanguages.sourceLanguage,
             targetLanguage: selectedLanguages.targetLanguage,
             modelOverride: selectedModel,
+            thinkingOverride: selectedThinking,
             requestTimeoutMs: Math.max(1_000, timeout - 1_000),
           }),
           timeout,
@@ -349,6 +353,8 @@ export async function translateTextBatch(
     options.modelOverride || config.customModel[selectedService],
   );
   const selectedLanguages = getTranslationLanguages(options);
+  const selectedThinking = options.thinkingOverride
+    ?? isModelThinkingEnabled(config.modelThinking, selectedService, selectedModel);
   const {
     timeout = 45000,
     useCache = config.useCache,
@@ -383,6 +389,7 @@ export async function translateTextBatch(
             sourceLanguage: selectedLanguages.sourceLanguage,
             targetLanguage: selectedLanguages.targetLanguage,
             modelOverride: selectedModel,
+            thinkingOverride: selectedThinking,
             requestTimeoutMs: Math.max(1_000, timeout - 1_000),
           }),
           timeout,
@@ -426,6 +433,7 @@ export async function translateVideoText(origin: string): Promise<string> {
 
   const service = config.videoService;
   const model = resolveConfiguredModel(config.model[service], config.customModel[service]);
+  const thinking = isModelThinkingEnabled(config.modelThinking, service, model);
   const languages = getTranslationLanguages();
   const useCache = config.useCache;
   const pageContext = await resolvePageContext(undefined, service, model);
@@ -442,6 +450,7 @@ export async function translateVideoText(origin: string): Promise<string> {
           useCache,
           serviceOverride: service,
           modelOverride: model,
+          thinkingOverride: thinking,
           sourceLanguage: languages.sourceLanguage,
           targetLanguage: languages.targetLanguage,
           requestTimeoutMs: 19_000,
@@ -509,6 +518,8 @@ export interface TranslateOptions {
   queueSession?: TranslationQueueSession;
   /** 为文档等独立入口覆盖当前请求的实际模型，不改写网页翻译配置。 */
   modelOverride?: string;
+  /** 为会话冻结当前模型的 Thinking 状态，不改写持久配置。 */
+  thinkingOverride?: boolean;
 }
 
 function assertTranslationCredentials(service = config.service, modelOverride?: string): void {

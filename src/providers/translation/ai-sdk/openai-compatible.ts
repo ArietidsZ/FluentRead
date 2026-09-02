@@ -37,6 +37,7 @@ export interface AiSdkTranslationRequest extends TranslationProviderRequestConte
   summarySystemPrompt?: string;
   serviceOverride?: string;
   modelOverride?: string;
+  thinkingOverride?: boolean;
   targetLanguage?: string;
   requestTimeoutMs?: number;
   abortSignal?: AbortSignal;
@@ -268,6 +269,7 @@ async function translateSingle(
     request.targetLanguage,
     request.modelOverride,
     current,
+    request.thinkingOverride,
   ));
 
   // 协议的 stream 标记由 SDK 管理。自定义请求体仍可替换 model/messages，并添加任意

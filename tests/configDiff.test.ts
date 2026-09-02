@@ -205,6 +205,20 @@ describe('配置差异预览', () => {
         });
     });
 
+    it('按服务显示模型 Thinking 变化并保留具体模型', () => {
+        const result = buildConfigDiff(
+            {modelThinking: {openai: {'gpt-5.6-luna': false}}},
+            {modelThinking: {openai: {'gpt-5.6-luna': true}}},
+        );
+
+        expect(group(result, 'translationServices')?.changes[0]).toEqual({
+            key: 'modelThinking.openai',
+            label: 'OpenAI模型 Thinking',
+            before: 'gpt-5.6-luna：关闭',
+            after: 'gpt-5.6-luna：开启',
+        });
+    });
+
     it('让自定义服务端点和模型变化在导入预览中可辨认且不泄露地址凭据', () => {
         const result = buildConfigDiff({
             service: 'custom:team',

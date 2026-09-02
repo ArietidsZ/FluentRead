@@ -46,8 +46,8 @@ async function deepseek(message: TranslationProviderRequest<string>) {
     const configuredModel = getCurrentModel(service, message.modelOverride, current);
 
     const body = isResponses
-        ? deepseekResponsesMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current)
-        : deepseekMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current);
+        ? deepseekResponsesMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current, message.thinkingOverride)
+        : deepseekMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current, message.thinkingOverride);
     const startedAt = Date.now();
     let attemptReported = false;
     try {

@@ -7,6 +7,7 @@
  */
 
 import type {CustomOpenAIProvider} from '@/src/core/config/customOpenAI';
+import type {ModelThinkingMapping} from '@/src/core/config/modelThinking';
 
 export interface TranslationRequestMessageBase {
     context?: string;
@@ -20,6 +21,8 @@ export interface TranslationRequestMessageBase {
     serviceOverride?: string;
     /** 文档、翻译中心等独立入口指定的实际模型；普通网页请求不设置。 */
     modelOverride?: string;
+    /** 当前请求冻结的模型级 Thinking 状态；缺省时由后台配置快照解析。 */
+    thinkingOverride?: boolean;
     /** 翻译中心仅对当前请求使用的语言，不改变全局设置。 */
     sourceLanguage?: string;
     targetLanguage?: string;
@@ -89,6 +92,7 @@ export interface TranslationConfigSnapshot {
     enableAIContext: boolean;
     model: Record<string, string>;
     customModel: Record<string, string>;
+    modelThinking?: ModelThinkingMapping;
     customOpenAIProviders?: CustomOpenAIProvider[];
     proxy: Record<string, string>;
     custom: string;

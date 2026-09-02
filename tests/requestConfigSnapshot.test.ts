@@ -23,6 +23,7 @@ function configSource(overrides: Partial<TranslationConfigSource> = {}): Transla
         enableAIContext: true,
         model: {aiSdk: 'model-a'},
         customModel: {aiSdk: 'custom-model-a'},
+        modelThinking: {aiSdk: {'model-a': true}},
         customOpenAIProviders: [{
             id: 'custom:1',
             name: 'provider-a',
@@ -64,6 +65,7 @@ describe('translation provider request config snapshot', () => {
 
         source.model.aiSdk = 'model-b';
         source.customModel.aiSdk = 'custom-model-b';
+        source.modelThinking!.aiSdk['model-a'] = false;
         source.customOpenAIProviders![0].name = 'provider-b';
         source.customOpenAIProviders![0].endpoint = 'https://provider-b.example/v1/chat/completions';
         source.customOpenAIProviders![0].models[0] = 'provider-model-b';
@@ -78,6 +80,7 @@ describe('translation provider request config snapshot', () => {
         expect(snapshot).toMatchObject({
             model: {aiSdk: 'model-a'},
             customModel: {aiSdk: 'custom-model-a'},
+            modelThinking: {aiSdk: {'model-a': true}},
             customOpenAIProviders: [{
                 id: 'custom:1',
                 name: 'provider-a',
@@ -100,6 +103,8 @@ describe('translation provider request config snapshot', () => {
             snapshot,
             snapshot.model,
             snapshot.customModel,
+            snapshot.modelThinking,
+            snapshot.modelThinking?.aiSdk,
             snapshot.customOpenAIProviders,
             snapshot.customOpenAIProviders?.[0],
             snapshot.customOpenAIProviders?.[0].models,
