@@ -127,6 +127,10 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/core/i18n/language.ts',
     'src/core/i18n/messages/en-US.ts',
     'src/core/i18n/messages/es-ES.ts',
+    'src/core/i18n/messages/fr-FR.ts',
+    'src/core/i18n/messages/ja-JP.ts',
+    'src/core/i18n/messages/ko-KR.ts',
+    'src/core/i18n/messages/ru-RU.ts',
     'src/core/i18n/messages/zh-CN.ts',
     'src/ui/i18n.ts',
     // WXT ShadowRootUi/Vue 挂载适配器绑定真实 DOM 与组件生命周期；由 shadowUi 单测和双浏览器构建验证。

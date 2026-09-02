@@ -2,7 +2,7 @@
  * @file src/core/i18n/index.ts
  *
  * 文件职责：提供与 UI 框架无关的界面语言目录、归一化和翻译函数。
- * 主要内容：支持简体中文与 English，提供稳定的语言配置值、参数插值、中文旧文案迁移
+ * 主要内容：支持中文、English、日本語、한국어、Français、Русский 与 Español，提供稳定的语言配置值、参数插值、中文旧文案迁移
  * 适配和可扩展资源目录。旧文案适配仅用于扩展自己的 UI，不会翻译网页内容或用户输入。
  * 模块边界：本文件不读写 browser.storage，也不依赖 Vue；配置模型只调用这里的纯归一化
  * 规则，Vue 响应式与持久化由 src/ui/i18n.ts 负责。
@@ -10,6 +10,10 @@
 
 import {enUSLegacyText, enUSMessages} from './messages/en-US';
 import {esESLegacyText, esESMessages} from './messages/es-ES';
+import {frFRLegacyText, frFRMessages} from './messages/fr-FR';
+import {jaJPLegacyText, jaJPMessages} from './messages/ja-JP';
+import {koKRLegacyText, koKRMessages} from './messages/ko-KR';
+import {ruRULegacyText, ruRUMessages} from './messages/ru-RU';
 import {zhCNMessages} from './messages/zh-CN';
 import {
     DEFAULT_UI_LANGUAGE,
@@ -22,11 +26,20 @@ export * from './language';
 const catalogs: Record<UiLanguage, MessageCatalog> = {
     'zh-CN': zhCNMessages,
     'en-US': enUSMessages,
+    'ja-JP': jaJPMessages,
+    'ko-KR': koKRMessages,
+    'fr-FR': frFRMessages,
+    'ru-RU': ruRUMessages,
     'es-ES': esESMessages,
 };
 
-const legacyCatalogs: Partial<Record<UiLanguage, Readonly<Record<string, string>>>> = {
+const legacyCatalogs: Record<UiLanguage, Readonly<Record<string, string>>> = {
+    'zh-CN': {},
     'en-US': enUSLegacyText,
+    'ja-JP': jaJPLegacyText,
+    'ko-KR': koKRLegacyText,
+    'fr-FR': frFRLegacyText,
+    'ru-RU': ruRULegacyText,
     'es-ES': esESLegacyText,
 };
 
@@ -160,6 +173,91 @@ const esLegacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray)
     [/^(.+)（当前浏览器不可用）$/u, (match) => `${match[1]} (no disponible en este navegador)`],
 ];
 
+const jaLegacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => string]> = [
+    [/^没有找到“(.+)”相关设置$/u, (match) => `「${match[1]}」に一致する設定が見つかりません`],
+    [/^没有找到包含“(.+)”的服务或模型$/u, (match) => `「${match[1]}」を含むサービスやモデルはありません`],
+    [/^已完成 (\d+) 次翻译$/u, (match) => `${match[1]} 件の翻訳が完了しました`],
+    [/^(\d+) 项$/u, (match) => `${match[1]} 件`],
+    [/^当前：(.+)$/u, (match) => `現在：${match[1]}`],
+    [/^点击开启 · YouTube$/u, () => 'クリックして有効化 · YouTube'],
+    [/^(.+) · YouTube$/u, (match) => `${match[1]} · YouTube`],
+    [/^(.+) \+ 鼠标悬停$/u, (match) => `${match[1]} + ホバー`],
+    [/^翻译服务：(.+)，当前模型：(.+)$/u, (match) => `翻訳サービス：${match[1]}、現在のモデル：${match[2]}`],
+    [/^翻译服务：(.+)$/u, (match) => `翻訳サービス：${match[1]}`],
+    [/^已翻译 (\d+) 次$/u, (match) => `${match[1]} 回翻訳しました`],
+    [/^正在请求 (.+)…$/u, (match) => `${match[1]} をリクエスト中…`],
+    [/^第 (\d+) 条字幕译文$/u, (match) => `字幕 ${match[1]} の翻訳`],
+    [/^(\d+) 条网站规则$/u, (match) => `${match[1]} 件のサイトルール`],
+    [/^第 (\d+) \/ (\d+) 页$/u, (match) => `${match[1]} / ${match[2]} ページ`],
+    [/^(.+)（当前浏览器不可用）$/u, (match) => `${match[1]}（このブラウザーでは利用できません）`],
+];
+
+const koLegacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => string]> = [
+    [/^没有找到“(.+)”相关设置$/u, (match) => `“${match[1]}” 관련 설정이 없습니다`],
+    [/^没有找到包含“(.+)”的服务或模型$/u, (match) => `“${match[1]}”을(를) 포함하는 서비스 또는 모델이 없습니다`],
+    [/^已完成 (\d+) 次翻译$/u, (match) => `번역 ${match[1]}회 완료`],
+    [/^(\d+) 项$/u, (match) => `${match[1]}개 항목`],
+    [/^当前：(.+)$/u, (match) => `현재: ${match[1]}`],
+    [/^点击开启 · YouTube$/u, () => '클릭하여 사용 · YouTube'],
+    [/^(.+) · YouTube$/u, (match) => `${match[1]} · YouTube`],
+    [/^(.+) \+ 鼠标悬停$/u, (match) => `${match[1]} + 마우스 오버`],
+    [/^翻译服务：(.+)，当前模型：(.+)$/u, (match) => `번역 서비스: ${match[1]}, 현재 모델: ${match[2]}`],
+    [/^翻译服务：(.+)$/u, (match) => `번역 서비스: ${match[1]}`],
+    [/^已翻译 (\d+) 次$/u, (match) => `${match[1]}회 번역됨`],
+    [/^正在请求 (.+)…$/u, (match) => `${match[1]} 요청 중…`],
+    [/^第 (\d+) 条字幕译文$/u, (match) => `자막 ${match[1]}번 번역`],
+    [/^(\d+) 条网站规则$/u, (match) => `웹사이트 규칙 ${match[1]}개`],
+    [/^第 (\d+) \/ (\d+) 页$/u, (match) => `${match[1]} / ${match[2]}페이지`],
+    [/^(.+)（当前浏览器不可用）$/u, (match) => `${match[1]} (이 브라우저에서는 사용할 수 없음)`],
+];
+
+const frLegacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => string]> = [
+    [/^没有找到“(.+)”相关设置$/u, (match) => `Aucun réglage trouvé pour « ${match[1]} »`],
+    [/^没有找到包含“(.+)”的服务或模型$/u, (match) => `Aucun service ou modèle ne contient « ${match[1]} »`],
+    [/^已完成 (\d+) 次翻译$/u, (match) => `${match[1]} traductions terminées`],
+    [/^(\d+) 项$/u, (match) => `${match[1]} éléments`],
+    [/^当前：(.+)$/u, (match) => `Actuel : ${match[1]}`],
+    [/^点击开启 · YouTube$/u, () => 'Cliquer pour activer · YouTube'],
+    [/^(.+) · YouTube$/u, (match) => `${match[1]} · YouTube`],
+    [/^(.+) \+ 鼠标悬停$/u, (match) => `${match[1]} + survol`],
+    [/^翻译服务：(.+)，当前模型：(.+)$/u, (match) => `Service de traduction : ${match[1]}, modèle actuel : ${match[2]}`],
+    [/^翻译服务：(.+)$/u, (match) => `Service de traduction : ${match[1]}`],
+    [/^已翻译 (\d+) 次$/u, (match) => `${match[1]} traductions effectuées`],
+    [/^正在请求 (.+)…$/u, (match) => `Requête ${match[1]}…`],
+    [/^第 (\d+) 条字幕译文$/u, (match) => `Traduction du sous-titre ${match[1]}`],
+    [/^(\d+) 条网站规则$/u, (match) => `${match[1]} règles de sites`],
+    [/^第 (\d+) \/ (\d+) 页$/u, (match) => `Page ${match[1]} / ${match[2]}`],
+    [/^(.+)（当前浏览器不可用）$/u, (match) => `${match[1]} (indisponible dans ce navigateur)`],
+];
+
+const ruLegacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => string]> = [
+    [/^没有找到“(.+)”相关设置$/u, (match) => `Настройки для «${match[1]}» не найдены`],
+    [/^没有找到包含“(.+)”的服务或模型$/u, (match) => `Сервисов или моделей с «${match[1]}» не найдено`],
+    [/^已完成 (\d+) 次翻译$/u, (match) => `Переводов завершено: ${match[1]}`],
+    [/^(\d+) 项$/u, (match) => `${match[1]} элементов`],
+    [/^当前：(.+)$/u, (match) => `Текущее: ${match[1]}`],
+    [/^点击开启 · YouTube$/u, () => 'Нажмите, чтобы включить · YouTube'],
+    [/^(.+) · YouTube$/u, (match) => `${match[1]} · YouTube`],
+    [/^(.+) \+ 鼠标悬停$/u, (match) => `${match[1]} + наведение`],
+    [/^翻译服务：(.+)，当前模型：(.+)$/u, (match) => `Сервис перевода: ${match[1]}, текущая модель: ${match[2]}`],
+    [/^翻译服务：(.+)$/u, (match) => `Сервис перевода: ${match[1]}`],
+    [/^已翻译 (\d+) 次$/u, (match) => `Переведено раз: ${match[1]}`],
+    [/^正在请求 (.+)…$/u, (match) => `Запрос ${match[1]}…`],
+    [/^第 (\d+) 条字幕译文$/u, (match) => `Перевод субтитра ${match[1]}`],
+    [/^(\d+) 条网站规则$/u, (match) => `Правил сайтов: ${match[1]}`],
+    [/^第 (\d+) \/ (\d+) 页$/u, (match) => `Страница ${match[1]} / ${match[2]}`],
+    [/^(.+)（当前浏览器不可用）$/u, (match) => `${match[1]} (недоступно в этом браузере)`],
+];
+
+const legacyPatternCatalog: Partial<Record<UiLanguage, ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => string]>>> = {
+    'en-US': legacyPatterns,
+    'ja-JP': jaLegacyPatterns,
+    'ko-KR': koLegacyPatterns,
+    'fr-FR': frLegacyPatterns,
+    'ru-RU': ruLegacyPatterns,
+    'es-ES': esLegacyPatterns,
+};
+
 /**
  * 将尚未完成 key 化的扩展 UI 文案翻译成 English。
  *
@@ -185,7 +283,7 @@ export function translateLegacyText(value: string, language: UiLanguage): string
         if (translatedCompound !== trimmed) return preserveWhitespace(value, translatedCompound);
     }
 
-    const patterns = language === 'es-ES' ? esLegacyPatterns : legacyPatterns;
+    const patterns = legacyPatternCatalog[language] || legacyPatterns;
     for (const [pattern, resolver] of patterns) {
         const match = pattern.exec(trimmed);
         if (match) return preserveWhitespace(value, resolver(match));
@@ -193,4 +291,14 @@ export function translateLegacyText(value: string, language: UiLanguage): string
     return value;
 }
 
-export {enUSMessages, enUSLegacyText, esESMessages, esESLegacyText, zhCNMessages};
+export {
+    enUSMessages,
+    enUSLegacyText,
+    esESMessages,
+    esESLegacyText,
+    frFRMessages,
+    jaJPMessages,
+    koKRMessages,
+    ruRUMessages,
+    zhCNMessages,
+};

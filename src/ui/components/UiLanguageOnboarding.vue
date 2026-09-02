@@ -1,8 +1,8 @@
 <!--
  * @file src/ui/components/UiLanguageOnboarding.vue
- * 文件职责：承载 FluentRead Popup 首次打开时的一次性界面语言选择引导。
- * 主要内容：以浏览器语言作为初始选项，允许用户在进入真正的 Popup 前调整并确认；确认后由共享 i18n 上下文持久化语言和完成状态。
- * 模块边界：组件只负责首次语言选择的呈现与确认，不读取配置、不决定浏览器 locale 映射；配置保存由 src/ui/i18n.ts 负责，语言规则由 src/core/i18n 提供。
+ * 文件职责：承载 FluentRead Popup 首次打开时的欢迎与界面语言选择引导。
+ * 主要内容：先展示多语言欢迎画面，再进入符合 Popup 风格的语言卡片选择；确认后显示成功动效并把控制权交回真正 Popup。
+ * 模块边界：组件只负责首次引导的呈现与确认，不读取配置、不决定浏览器 locale 映射；配置保存由 src/ui/i18n.ts 负责，语言规则由 src/core/i18n 提供。
 -->
 <template>
   <section
@@ -23,11 +23,43 @@
           <p>{{ message('language.onboardingSuccessDescription') }}</p>
         </div>
 
-        <div v-else key="setup" class="onboarding-form">
+        <div v-else-if="step === 'welcome'" key="welcome" class="onboarding-welcome" data-testid="onboarding-welcome">
           <div class="onboarding-brand">
             <img src="/icon/128.png" alt="" />
             <strong>{{ message('common.brand') }}</strong>
           </div>
+
+          <div class="welcome-art" aria-hidden="true">
+            <span
+              v-for="greeting in WELCOME_GREETING_WORDS"
+              :key="greeting"
+              class="welcome-word"
+            >{{ greeting }}</span>
+          </div>
+
+          <div class="onboarding-copy welcome-copy">
+            <span class="eyebrow">{{ message('language.onboardingWelcomeEyebrow') }}</span>
+            <h1 id="language-onboarding-title">{{ message('language.onboardingWelcomeTitle') }}</h1>
+            <p>{{ message('language.onboardingWelcomeDescription') }}</p>
+          </div>
+
+          <button
+            ref="welcomeNextButton"
+            class="onboarding-confirm onboarding-next"
+            data-testid="onboarding-language-next"
+            type="button"
+            @click="goToLanguage"
+          >
+            <span>{{ message('language.onboardingWelcomeNext') }}</span>
+            <span class="onboarding-next-arrow" aria-hidden="true">→</span>
+          </button>
+        </div>
+
+        <div v-else key="setup" class="onboarding-form" data-testid="onboarding-language-step">
+          <button class="onboarding-back" type="button" @click="goToWelcome">
+            <span aria-hidden="true">←</span>
+            <span>{{ message('language.onboardingBack') }}</span>
+          </button>
 
           <div class="onboarding-copy">
             <span class="eyebrow">{{ message('language.onboardingEyebrow') }}</span>
@@ -35,26 +67,39 @@
             <p>{{ message('language.onboardingDescription') }}</p>
           </div>
 
-          <label class="onboarding-language-field">
-            <span>{{ message('language.onboardingLabel') }}</span>
-            <select
-              ref="languageSelect"
-              v-model="selectedLanguage"
-              data-testid="onboarding-language-select"
+          <div class="onboarding-language-field">
+            <span class="onboarding-field-label">{{ message('language.onboardingLabel') }}</span>
+            <div
+              class="onboarding-language-options"
+              role="radiogroup"
               :aria-label="message('language.onboardingLabel')"
             >
-              <option
-                v-for="option in UI_LANGUAGE_OPTIONS"
+              <button
+                v-for="(option, index) in UI_LANGUAGE_OPTIONS"
                 :key="option.value"
-                :value="option.value"
-                data-i18n-ignore
+                ref="languageOptionButtons"
+                class="onboarding-language-option"
+                :class="{ selected: selectedLanguage === option.value }"
+                type="button"
+                role="radio"
+                :aria-checked="selectedLanguage === option.value"
+                :data-language="option.value"
+                @click="selectedLanguage = option.value"
               >
-                {{ message(option.labelKey) }}
-              </option>
-            </select>
-          </label>
+                <span class="onboarding-language-name">{{ message(option.labelKey) }}</span>
+                <span class="onboarding-language-code">{{ option.value }}</span>
+                <span v-if="index === 0" class="onboarding-language-note">{{ message('language.onboardingRecommended') }}</span>
+                <span class="onboarding-language-check" aria-hidden="true">✓</span>
+              </button>
+            </div>
+          </div>
 
           <p class="onboarding-browser-hint">{{ message('language.onboardingBrowserHint') }}</p>
+
+          <div class="onboarding-confirm-guide" aria-hidden="true">
+            <span>{{ message('language.onboardingConfirmHint') }}</span>
+            <span class="onboarding-guide-arrow">↘</span>
+          </div>
 
           <button
             class="onboarding-confirm"
@@ -91,8 +136,23 @@ const emit = defineEmits<{
 }>();
 
 const {language, setLanguage} = useUiI18n();
+const WELCOME_GREETING_WORDS = [
+  '你好',
+  'Welcome',
+  'こんにちは',
+  '안녕하세요',
+  'Bonjour',
+  'Привет',
+  'Hola',
+  'Hallo',
+  'Olá',
+  'Ciao',
+] as const;
+type OnboardingStep = 'welcome' | 'language';
 const selectedLanguage = ref<UiLanguage>(props.initialLanguage);
-const languageSelect = ref<HTMLSelectElement | null>(null);
+const step = ref<OnboardingStep>('welcome');
+const welcomeNextButton = ref<HTMLButtonElement | null>(null);
+const languageOptionButtons = ref<HTMLButtonElement[]>([]);
 const confirming = ref(false);
 const celebrating = ref(false);
 const errorMessage = ref('');
@@ -110,6 +170,25 @@ function message(key: string, params?: TranslationParams): string {
   return translate(key, selectedLanguage.value, params);
 }
 
+function focusCurrentStep(): void {
+  void nextTick(() => {
+    if (step.value === 'welcome') welcomeNextButton.value?.focus();
+    else languageOptionButtons.value[0]?.focus();
+  });
+}
+
+function goToLanguage(): void {
+  if (confirming.value || celebrating.value) return;
+  step.value = 'language';
+  focusCurrentStep();
+}
+
+function goToWelcome(): void {
+  if (confirming.value || celebrating.value) return;
+  step.value = 'welcome';
+  focusCurrentStep();
+}
+
 async function confirm(): Promise<void> {
   if (confirming.value) return;
   confirming.value = true;
@@ -119,7 +198,7 @@ async function confirm(): Promise<void> {
     celebrating.value = true;
     transitionTimer = setTimeout(() => {
       emit('confirmed', selectedLanguage.value);
-    }, 760);
+    }, 1200);
   } catch {
     document.documentElement.lang = language.value;
     errorMessage.value = translate('language.saveFailed', selectedLanguage.value);
@@ -132,9 +211,8 @@ onBeforeUnmount(() => {
   if (transitionTimer) clearTimeout(transitionTimer);
 });
 
-onMounted(() => {
-  void nextTick(() => languageSelect.value?.focus());
-});
+watch(step, focusCurrentStep);
+onMounted(focusCurrentStep);
 </script>
 
 <style scoped>
@@ -163,7 +241,7 @@ onMounted(() => {
   position: relative;
   z-index: 1;
   width: 100%;
-  padding: 24px 20px 20px;
+  padding: 20px 18px 18px;
   border: 1px solid var(--line);
   border-radius: 24px;
   background: var(--surface);
@@ -171,39 +249,11 @@ onMounted(() => {
   animation: onboarding-card-in 360ms cubic-bezier(.2, .8, .2, 1) both;
 }
 
-.language-onboarding-card::before,
-.language-onboarding-card::after {
-  position: absolute;
-  z-index: -1;
-  width: 8px;
-  height: 18px;
-  border-radius: 4px;
-  content: '';
-  opacity: .8;
-  animation: onboarding-confetti 900ms ease-out 120ms both;
-}
-
-.language-onboarding-card::before {
-  top: 26px;
-  left: 12px;
-  background: #ef4776;
-  box-shadow: 30px -10px #f3bf45, 70px 4px #5f9bf3, 238px -8px #6ac7b9, 280px 18px #ef4776;
-  transform: rotate(-22deg);
-}
-
-.language-onboarding-card::after {
-  right: 18px;
-  bottom: 54px;
-  background: #6ac7b9;
-  box-shadow: -35px 14px #ef4776, -78px -8px #f3bf45, -125px 16px #5f9bf3;
-  transform: rotate(24deg);
-}
-
 .onboarding-brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 34px;
+  margin-bottom: 12px;
 }
 
 .onboarding-brand img {
@@ -219,6 +269,71 @@ onMounted(() => {
   font-weight: 760;
 }
 
+.welcome-art {
+  position: relative;
+  height: 142px;
+  margin: 0 -4px 20px;
+  border: 1px solid rgba(239, 71, 118, .12);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 18% 30%, rgba(239, 71, 118, .18), transparent 24%),
+    radial-gradient(circle at 82% 70%, rgba(95, 155, 243, .16), transparent 28%),
+    linear-gradient(135deg, var(--brand-soft), var(--surface-soft));
+  overflow: hidden;
+}
+
+.welcome-art::before,
+.welcome-art::after {
+  position: absolute;
+  border-radius: 50%;
+  content: '';
+  opacity: .5;
+}
+
+.welcome-art::before {
+  top: -32px;
+  right: 18px;
+  width: 88px;
+  height: 88px;
+  border: 1px solid rgba(243, 191, 69, .48);
+}
+
+.welcome-art::after {
+  bottom: -42px;
+  left: 42px;
+  width: 104px;
+  height: 104px;
+  border: 1px solid rgba(106, 199, 185, .42);
+}
+
+.welcome-word {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 255, 255, .7);
+  border-radius: 999px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, .7);
+  box-shadow: 0 7px 16px rgba(31, 40, 61, .08);
+  font-size: 11px;
+  font-weight: 760;
+  white-space: nowrap;
+  animation: onboarding-word-float 3.8s ease-in-out infinite;
+}
+
+.welcome-word:nth-child(1) { top: 16px; left: 12px; color: #db3865; transform: rotate(-9deg); }
+.welcome-word:nth-child(2) { top: 12px; left: 116px; animation-delay: -.7s; transform: rotate(5deg); }
+.welcome-word:nth-child(3) { top: 54px; left: 44px; animation-delay: -1.4s; transform: rotate(7deg); }
+.welcome-word:nth-child(4) { top: 48px; right: 20px; color: #567ed2; animation-delay: -2.1s; transform: rotate(-7deg); }
+.welcome-word:nth-child(5) { right: 98px; bottom: 14px; color: #a37b0e; animation-delay: -.3s; transform: rotate(5deg); }
+.welcome-word:nth-child(6) { bottom: 20px; left: 10px; color: #657080; animation-delay: -1.8s; transform: rotate(-5deg); }
+.welcome-word:nth-child(7) { top: 84px; left: 150px; color: #d63868; animation-delay: -2.7s; transform: rotate(-3deg); }
+.welcome-word:nth-child(8) { top: 80px; right: 90px; color: #4a9d91; animation-delay: -1.1s; transform: rotate(8deg); }
+.welcome-word:nth-child(9) { right: 10px; bottom: 16px; color: #597fcc; animation-delay: -2.4s; transform: rotate(-6deg); }
+.welcome-word:nth-child(10) { bottom: 50px; left: 94px; color: #bb6f45; animation-delay: -.9s; transform: rotate(6deg); }
+
 .onboarding-copy .eyebrow {
   margin-bottom: 7px;
 }
@@ -231,6 +346,10 @@ onMounted(() => {
   letter-spacing: -.025em;
 }
 
+.welcome-copy h1 {
+  font-size: 26px;
+}
+
 .onboarding-copy p,
 .onboarding-browser-hint,
 .onboarding-error {
@@ -240,38 +359,14 @@ onMounted(() => {
   line-height: 1.55;
 }
 
-.onboarding-language-field {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  margin-top: 27px;
-  color: var(--ink);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.onboarding-language-field select {
-  width: 100%;
-  height: 42px;
-  padding: 0 30px 0 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  color: var(--ink);
-  background: var(--surface-soft);
-  font-size: 12px;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.onboarding-browser-hint {
-  margin-top: 9px;
-  font-size: 10px;
+.welcome-copy p {
+  max-width: 280px;
 }
 
 .onboarding-confirm {
   width: 100%;
   min-height: 42px;
-  margin-top: 24px;
+  margin-top: 0;
   border: 0;
   border-radius: 12px;
   color: #fff;
@@ -292,22 +387,213 @@ onMounted(() => {
   opacity: .65;
 }
 
+.onboarding-next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding: 0 15px 0 17px;
+  text-align: left;
+}
+
+.onboarding-next-arrow {
+  font-size: 22px;
+  line-height: 1;
+  animation: onboarding-arrow-nudge 1.15s ease-in-out infinite;
+}
+
+.onboarding-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: -2px 0 18px;
+  padding: 0;
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.onboarding-back:hover {
+  color: var(--brand-strong);
+}
+
+.onboarding-language-field {
+  margin-top: 22px;
+}
+
+.onboarding-field-label {
+  display: block;
+  margin: 0 0 8px 3px;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.onboarding-language-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.onboarding-language-option {
+  position: relative;
+  display: grid;
+  min-height: 48px;
+  padding: 8px 27px 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  background: var(--surface-soft);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.onboarding-language-option:hover {
+  border-color: rgba(239, 71, 118, .42);
+  transform: translateY(-1px);
+}
+
+.onboarding-language-option.selected {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  box-shadow: 0 0 0 3px rgba(239, 71, 118, .1);
+}
+
+.onboarding-language-name {
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1.3;
+}
+
+.onboarding-language-code {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.onboarding-language-note {
+  position: absolute;
+  right: 26px;
+  bottom: 7px;
+  color: var(--brand-strong);
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.onboarding-language-check {
+  position: absolute;
+  top: 50%;
+  right: 9px;
+  display: grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: transparent;
+  background: var(--surface);
+  font-size: 10px;
+  font-weight: 800;
+  transform: translateY(-50%);
+}
+
+.onboarding-language-option.selected .onboarding-language-check {
+  border-color: var(--brand);
+  color: #fff;
+  background: var(--brand);
+}
+
+.onboarding-browser-hint {
+  margin-top: 9px;
+  font-size: 10px;
+}
+
+.onboarding-confirm-guide {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: 34px;
+  margin-top: 10px;
+  margin-bottom: 0;
+  color: var(--brand-strong);
+  font-size: 10px;
+  font-weight: 760;
+}
+
+.onboarding-guide-arrow {
+  font-size: 27px;
+  line-height: .8;
+  transform: rotate(8deg);
+  animation: onboarding-point 1.05s ease-in-out infinite;
+}
+
 .onboarding-error {
   margin-top: 10px;
   color: #c52f58;
 }
 
 .onboarding-success {
-  padding: 16px 0 7px;
+  position: relative;
+  min-height: 216px;
+  padding: 20px 0 7px;
   text-align: center;
+  overflow: hidden;
+}
+
+.onboarding-success::before,
+.onboarding-success::after {
+  position: absolute;
+  z-index: 0;
+  width: 8px;
+  height: 18px;
+  border-radius: 4px;
+  content: '';
+  opacity: .8;
+  animation: onboarding-confetti 900ms ease-out 120ms both;
+}
+
+.onboarding-success::before {
+  top: 26px;
+  left: 12px;
+  background: #ef4776;
+  box-shadow: 30px -10px #f3bf45, 70px 4px #5f9bf3, 238px -8px #6ac7b9, 280px 18px #ef4776;
+  transform: rotate(-22deg);
+}
+
+.onboarding-success::after {
+  right: 18px;
+  bottom: 54px;
+  background: #6ac7b9;
+  box-shadow: -35px 14px #ef4776, -78px -8px #f3bf45, -125px 16px #5f9bf3;
+  transform: rotate(24deg);
 }
 
 .onboarding-success .eyebrow {
+  position: relative;
+  z-index: 1;
   margin-top: 20px;
 }
 
 .onboarding-success h1 {
-  margin-bottom: 8px;
+  position: relative;
+  z-index: 1;
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.onboarding-success p {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .onboarding-success-mark {
@@ -324,10 +610,13 @@ onMounted(() => {
 }
 
 .onboarding-success-mark span {
+  position: relative;
+  z-index: 1;
+  display: block;
   font-size: 34px;
   font-weight: 800;
   line-height: 1;
-  animation: onboarding-check-in 420ms ease-out 140ms both;
+  animation: onboarding-check-in 420ms ease-out both;
 }
 
 .onboarding-content-enter-active,
@@ -355,6 +644,21 @@ onMounted(() => {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+@keyframes onboarding-word-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -4px; }
+}
+
+@keyframes onboarding-arrow-nudge {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 4px 0; }
+}
+
+@keyframes onboarding-point {
+  0%, 100% { translate: 0 0; rotate: 0deg; }
+  50% { translate: 4px 4px; rotate: 8deg; }
+}
+
 @keyframes onboarding-confetti {
   from { opacity: 0; transform: translateY(12px) rotate(0); }
   to { opacity: .8; transform: translateY(0) rotate(24deg); }
@@ -371,13 +675,25 @@ onMounted(() => {
   to { opacity: 1; transform: scale(1); }
 }
 
+@media (max-width: 360px) {
+  .language-onboarding { padding: 10px; }
+  .language-onboarding-card { padding-right: 14px; padding-left: 14px; }
+  .welcome-art { height: 132px; }
+  .onboarding-language-options { gap: 5px; }
+  .onboarding-language-option { padding-right: 24px; padding-left: 8px; }
+  .onboarding-language-code { font-size: 8px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .language-onboarding-backdrop,
   .language-onboarding-card,
-  .language-onboarding-card::before,
-  .language-onboarding-card::after,
+  .onboarding-success::before,
+  .onboarding-success::after,
   .onboarding-success-mark,
-  .onboarding-success-mark span {
+  .onboarding-success-mark span,
+  .welcome-word,
+  .onboarding-next-arrow,
+  .onboarding-guide-arrow {
     animation: none;
   }
 }

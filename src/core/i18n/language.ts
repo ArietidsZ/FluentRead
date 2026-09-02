@@ -16,11 +16,19 @@ export const DEFAULT_UI_LANGUAGE: UiLanguage = 'zh-CN';
 export const UI_LANGUAGE_OPTIONS = [
     {value: 'zh-CN', labelKey: 'language.zhCN'},
     {value: 'en-US', labelKey: 'language.enUS'},
+    {value: 'ja-JP', labelKey: 'language.jaJP'},
+    {value: 'ko-KR', labelKey: 'language.koKR'},
+    {value: 'fr-FR', labelKey: 'language.frFR'},
+    {value: 'ru-RU', labelKey: 'language.ruRU'},
     {value: 'es-ES', labelKey: 'language.esES'},
 ] as const satisfies ReadonlyArray<{value: UiLanguage; labelKey: string}>;
 
 export function normalizeUiLanguage(value: unknown): UiLanguage {
     if (value === 'en-US') return 'en-US';
+    if (value === 'ja-JP') return 'ja-JP';
+    if (value === 'ko-KR') return 'ko-KR';
+    if (value === 'fr-FR') return 'fr-FR';
+    if (value === 'ru-RU') return 'ru-RU';
     if (value === 'es-ES') return 'es-ES';
     return DEFAULT_UI_LANGUAGE;
 }
@@ -30,6 +38,10 @@ export function resolveUiLanguageFromLocale(value: unknown): UiLanguage {
     if (typeof value !== 'string') return DEFAULT_UI_LANGUAGE;
     const locale = value.trim().toLowerCase().replace(/_/gu, '-');
     if (locale === 'en' || locale.startsWith('en-')) return 'en-US';
+    if (locale === 'ja' || locale.startsWith('ja-')) return 'ja-JP';
+    if (locale === 'ko' || locale.startsWith('ko-')) return 'ko-KR';
+    if (locale === 'fr' || locale.startsWith('fr-')) return 'fr-FR';
+    if (locale === 'ru' || locale.startsWith('ru-')) return 'ru-RU';
     if (locale === 'es' || locale.startsWith('es-')) return 'es-ES';
     if (locale === 'zh' || locale.startsWith('zh-')) return 'zh-CN';
     return DEFAULT_UI_LANGUAGE;
@@ -37,6 +49,10 @@ export function resolveUiLanguageFromLocale(value: unknown): UiLanguage {
 
 export function getUiLanguageLabel(language: UiLanguage): string {
     if (language === 'en-US') return 'English';
+    if (language === 'ja-JP') return '日本語';
+    if (language === 'ko-KR') return '한국어';
+    if (language === 'fr-FR') return 'Français';
+    if (language === 'ru-RU') return 'Русский';
     if (language === 'es-ES') return 'Español';
     return '中文';
 }

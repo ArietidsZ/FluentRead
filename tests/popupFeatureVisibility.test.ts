@@ -11,15 +11,30 @@ describe('popup feature visibility', () => {
         const popup = source('src/app/popup/PopupApp.vue');
         const onboarding = source('src/ui/components/UiLanguageOnboarding.vue');
         const styles = source('src/app/popup/popup.css');
+        const i18n = source('src/ui/i18n.ts');
 
         expect(popup).toContain('uiLanguageSetupCompleted');
         expect(popup).toContain('<UiLanguageOnboarding');
         expect(popup).toContain('<div class="popup-content" :inert="showLanguageOnboarding">');
         expect(popup).toContain('@confirmed="handleLanguageOnboardingConfirmed"');
+        expect(popup).toContain('if (!showLanguageOnboarding.value) await hydrateCurrentSite();');
+        expect(popup).toContain('void hydrateCurrentSite();');
         expect(onboarding).toContain('class="language-onboarding-backdrop"');
+        expect(onboarding).toContain('data-testid="onboarding-welcome"');
+        expect(onboarding).toContain('data-testid="onboarding-language-step"');
+        expect(onboarding).toContain('WELCOME_GREETING_WORDS');
+        expect(onboarding).toContain('class="onboarding-confirm-guide"');
+        expect(onboarding).toContain('animation: onboarding-point 1.05s ease-in-out infinite');
+        expect(onboarding).toContain('data-testid="onboarding-language-next"');
+        expect(onboarding).not.toContain('<select');
+        expect(onboarding).toContain('.onboarding-success::before');
+        expect(onboarding).not.toContain('.language-onboarding-card::before');
         expect(onboarding).toContain('class="onboarding-success"');
         expect(onboarding).toContain('setTimeout(() =>');
         expect(styles).toContain('.popup-shell.language-onboarding-shell { overflow: hidden; }');
+        expect(i18n).toContain('function isRelevantUiMutation');
+        expect(i18n).toContain('setTimeout(() => {');
+        expect(i18n).toContain('state.observer.disconnect();');
     });
 
     it('places app language after extension status and target language first in translation display', () => {
@@ -41,6 +56,8 @@ describe('popup feature visibility', () => {
         expect(popup).toContain(':inert="!hydrated"');
         expect(popup).toContain(':aria-busy="!hydrated"');
         expect(popup).toContain('watch(() => JSON.stringify(config.value)');
+        expect(popup).toContain("}, { flush: 'post' });");
+        expect(popup).toContain('!config.value.uiLanguageSetupCompleted');
         expect(styles).toContain('.popup-shell.config-loading { pointer-events: none; }');
     });
 

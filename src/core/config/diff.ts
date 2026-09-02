@@ -154,6 +154,10 @@ const THEME_LABELS = labelsFor(options.theme);
 const UI_LANGUAGE_LABELS = new Map<unknown, string>([
     ['zh-CN', '中文'],
     ['en-US', 'English'],
+    ['ja-JP', '日本語'],
+    ['ko-KR', '한국어'],
+    ['fr-FR', 'Français'],
+    ['ru-RU', 'Русский'],
     ['es-ES', 'Español'],
 ]);
 const HOVER_TRIGGER_LABELS = labelsFor(options.keys);

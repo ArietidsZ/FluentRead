@@ -806,13 +806,14 @@ async function hydrate() {
   lastSerialized = JSON.stringify(config.value);
   hydrated.value = true;
   applyTheme(config.value.theme || 'auto');
-  await hydrateCurrentSite();
+  if (!showLanguageOnboarding.value) await hydrateCurrentSite();
 }
 void hydrate();
 
 function handleLanguageOnboardingConfirmed(language: UiLanguage): void {
   onboardingLanguage.value = language;
   showLanguageOnboarding.value = false;
+  void hydrateCurrentSite();
 }
 
 const unsubscribeConfig = subscribeConfig((value) => {
@@ -839,7 +840,7 @@ watch(() => JSON.stringify(config.value), async serialized => {
     if (lastSerialized === serialized) lastSerialized = '';
     console.warn('[FluentRead] 保存 popup 设置失败', error);
   }
-}, { flush: 'sync' });
+}, { flush: 'post' });
 watch(() => config.value.theme, theme => applyTheme(theme || 'auto'));
 darkMode.onchange = () => { if (config.value.theme === 'auto') applyTheme('auto'); };
 
@@ -911,7 +912,7 @@ window.addEventListener('pagehide', saveOnPageHide);
 // 这是一层 best-effort 兜底而非持久化 barrier；revision 边界会拒绝过期 replace，
 // 普通交互则始终使用字段 patch。
 function persistOnPageExit() {
-  if (!hydrated.value || pageExitSaveStarted) return;
+  if (!hydrated.value || !config.value.uiLanguageSetupCompleted || pageExitSaveStarted) return;
   pageExitSaveStarted = true;
   void persistConfigReplace(config.value).catch((error) => console.warn('[FluentRead] popup 关闭前后台保存设置失败', error));
 }

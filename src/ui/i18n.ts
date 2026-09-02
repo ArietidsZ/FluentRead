@@ -132,7 +132,11 @@ interface TrackedAttribute {
 
 interface UiI18nDirectiveState {
     observer: MutationObserver;
+    context: UiI18nContext;
     refreshQueued: boolean;
+    refreshTimer?: ReturnType<typeof setTimeout>;
+    refreshing: boolean;
+    refreshAgain: boolean;
     text: WeakMap<Text, TrackedText>;
     attributes: WeakMap<HTMLElement, Map<string, TrackedAttribute>>;
     stopLanguageWatch: () => void;
@@ -151,6 +155,59 @@ function isIgnoredElement(element: Element | null): boolean {
 function isIgnoredTextElement(element: Element | null): boolean {
     return Boolean(element?.closest('[data-i18n-ignore]'))
         || (element ? NON_UI_TEXT_TAGS.has(element.tagName) : true);
+}
+
+const UI_MUTATION_OBSERVER_OPTIONS: MutationObserverInit = {
+    subtree: true,
+    childList: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: [...TRANSLATABLE_ATTRIBUTES],
+};
+
+function isRelevantUiMutation(record: MutationRecord): boolean {
+    if (record.type === 'attributes') return !isIgnoredElement(record.target as Element);
+    if (record.type === 'characterData') {
+        return !isIgnoredTextElement((record.target as Text).parentElement);
+    }
+    const target = record.target.nodeType === Node.ELEMENT_NODE
+        ? record.target as Element
+        : record.target.parentElement;
+    if (!target || isIgnoredElement(target)) return false;
+    return record.addedNodes.length === 0
+        || Array.from(record.addedNodes).some((node) => (
+            node.nodeType !== Node.ELEMENT_NODE || !isIgnoredElement(node as Element)
+        ));
+}
+
+function observeUiRoot(root: HTMLElement, observer: MutationObserver): void {
+    observer.observe(root, UI_MUTATION_OBSERVER_OPTIONS);
+}
+
+function scheduleUiRefresh(root: HTMLElement, state: UiI18nDirectiveState): void {
+    if (state.refreshing) {
+        state.refreshAgain = true;
+        return;
+    }
+    if (state.refreshQueued) return;
+    state.refreshQueued = true;
+    state.refreshTimer = setTimeout(() => {
+        state.refreshTimer = undefined;
+        state.refreshQueued = false;
+        if (!root.isConnected) return;
+        state.refreshing = true;
+        state.observer.disconnect();
+        try {
+            scanUiRoot(root, state.context, state);
+        } finally {
+            state.refreshing = false;
+            if (root.isConnected) observeUiRoot(root, state.observer);
+            if (state.refreshAgain) {
+                state.refreshAgain = false;
+                scheduleUiRefresh(root, state);
+            }
+        }
+    }, 0);
 }
 
 function scanUiRoot(root: HTMLElement, context: UiI18nContext, state: UiI18nDirectiveState): void {
@@ -198,44 +255,35 @@ function scanUiRoot(root: HTMLElement, context: UiI18nContext, state: UiI18nDire
 function createUiI18nDirective(context: UiI18nContext): Directive<HTMLElement> {
     const states = new WeakMap<HTMLElement, UiI18nDirectiveState>();
 
-    const queueRefresh = (root: HTMLElement, state: UiI18nDirectiveState): void => {
-        if (state.refreshQueued) return;
-        state.refreshQueued = true;
-        queueMicrotask(() => {
-            state.refreshQueued = false;
-            if (root.isConnected) scanUiRoot(root, context, state);
-        });
-    };
-
     return {
         mounted(root) {
             const state = {} as UiI18nDirectiveState;
-            state.observer = new MutationObserver(() => queueRefresh(root, state));
-            state.refresh = () => scanUiRoot(root, context, state);
+            state.context = context;
+            state.observer = new MutationObserver((records) => {
+                if (records.some(isRelevantUiMutation)) scheduleUiRefresh(root, state);
+            });
+            state.refresh = () => scheduleUiRefresh(root, state);
             state.refreshQueued = false;
+            state.refreshing = false;
+            state.refreshAgain = false;
             state.text = new WeakMap();
             state.attributes = new WeakMap();
             state.stopLanguageWatch = watch(context.language, () => {
                 state.refresh();
             }, {flush: 'post'});
             states.set(root, state);
-            state.observer.observe(root, {
-                subtree: true,
-                childList: true,
-                characterData: true,
-                attributes: true,
-                attributeFilter: [...TRANSLATABLE_ATTRIBUTES],
-            });
+            observeUiRoot(root, state.observer);
             state.refresh();
         },
         updated(root) {
             const state = states.get(root);
-            if (state) queueRefresh(root, state);
+            if (state) scheduleUiRefresh(root, state);
         },
         beforeUnmount(root) {
             const state = states.get(root);
             if (!state) return;
             state.stopLanguageWatch();
+            if (state.refreshTimer) clearTimeout(state.refreshTimer);
             state.observer.disconnect();
             states.delete(root);
         },
@@ -245,32 +293,23 @@ function createUiI18nDirective(context: UiI18nContext): Directive<HTMLElement> {
 /** 为 options/popup/document 这类扩展专属页面观察 body，覆盖 Element Plus Teleport 内容。 */
 function observeUiDocument(root: HTMLElement, context: UiI18nContext): () => void {
     const state = {} as UiI18nDirectiveState;
-    let refreshQueued = false;
-    const refresh = (): void => scanUiRoot(root, context, state);
-    const queueRefresh = (): void => {
-        if (refreshQueued) return;
-        refreshQueued = true;
-        queueMicrotask(() => {
-            refreshQueued = false;
-            if (root.isConnected) refresh();
-        });
-    };
+    state.context = context;
+    const refresh = (): void => scheduleUiRefresh(root, state);
+    state.observer = new MutationObserver((records) => {
+        if (records.some(isRelevantUiMutation)) scheduleUiRefresh(root, state);
+    });
     state.refreshQueued = false;
+    state.refreshing = false;
+    state.refreshAgain = false;
     state.text = new WeakMap();
     state.attributes = new WeakMap();
     state.refresh = refresh;
     state.stopLanguageWatch = watch(context.language, refresh, {flush: 'post'});
-    state.observer = new MutationObserver(queueRefresh);
-    state.observer.observe(root, {
-        subtree: true,
-        childList: true,
-        characterData: true,
-        attributes: true,
-        attributeFilter: [...TRANSLATABLE_ATTRIBUTES],
-    });
+    observeUiRoot(root, state.observer);
     refresh();
     return () => {
         state.stopLanguageWatch();
+        if (state.refreshTimer) clearTimeout(state.refreshTimer);
         state.observer.disconnect();
     };
 }
