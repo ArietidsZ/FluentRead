@@ -154,6 +154,15 @@ export function appendBilingualTranslation(
     // 译文可能来自机器翻译的 HTML 或大模型的富文本响应。统一经过
     // DOMParser + 白名单迁移，既保留链接/强调等行内结构，也不把服务响应
     // 当作可信 HTML 直接写回网页。
+    // 宿主框架可能 clone/remount 一个已翻译 owner，复制轻 DOM wrapper 却丢失
+    // WeakMap 状态。提交时再做一层幂等保护，只替换直属 FluentRead wrapper；
+    // 更深层的 wrapper 可能属于独立候选，必须保留。
+    Array.from(node.children)
+        .filter((child) => child.matches(
+            '.fluent-read-bilingual-content[data-fr-translation-owned="true"]',
+        ))
+        .forEach((child) => child.remove());
+
     const fragment = createSafeTranslationFragment(text);
     content.appendChild(fragment);
     ensureTranslationTruncationLayout(node);

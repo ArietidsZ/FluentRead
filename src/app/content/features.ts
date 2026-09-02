@@ -8,6 +8,7 @@ export {
     cancelPendingHoverTranslation,
     handleTranslation,
     autoTranslateEnglishPage,
+    invalidateFullPageTranslationSessionCache,
     isFullPageTranslationActive,
     restoreOriginalContent,
 } from '@/src/features/full-page-translation/public';

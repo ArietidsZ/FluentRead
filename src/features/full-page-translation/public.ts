@@ -8,6 +8,7 @@ export {
     autoTranslateEnglishPage,
     cancelPendingHoverTranslation,
     handleTranslation,
+    invalidateFullPageTranslationSessionCache,
     isFullPageTranslationActive,
     restoreOriginalContent,
 } from './content/runtime';

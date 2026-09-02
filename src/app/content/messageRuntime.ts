@@ -9,6 +9,7 @@ import {normalizeSelectionTranslatorDelay} from '@/src/core/config/model';
 import {config} from '@/src/services/config/store';
 import {
     autoTranslateEnglishPage,
+    invalidateFullPageTranslationSessionCache,
     isFullPageTranslationActive,
     mountAreaTranslator,
     mountFloatingBall,
@@ -40,12 +41,16 @@ export function createContentRuntimeMessageHandler(ctx: ContentScriptContext, st
     return (message, _sender, sendResponse) => {
         if (!message || typeof message !== 'object') return false;
         const payload = message as Record<string, unknown>;
-
         if (payload.message === 'clearCache') {
             forwardLegacyCacheClear(
                 (request) => browser.runtime.sendMessage(request),
                 sendResponse,
             );
+            return true;
+        }
+        if (payload.type === 'translationCacheCleared') {
+            invalidateFullPageTranslationSessionCache();
+            sendResponse({status: 'success'});
             return true;
         }
         if (payload.type === 'updateSiteExtensionDisabled') {
@@ -67,11 +72,9 @@ export function createContentRuntimeMessageHandler(ctx: ContentScriptContext, st
             sendResponse();
             return true;
         }
-
         if (payload.type === 'updateSelectionTranslatorMode') {
             const mode = payload.mode;
             if (mode !== 'disabled' && mode !== 'bilingual' && mode !== 'translation-only') return false;
-
             config.selectionTranslatorMode = mode;
             config.disableSelectionTranslator = mode === 'disabled';
             if (mode === 'disabled' || config.on === false) unmountSelectionTranslator();
@@ -81,7 +84,6 @@ export function createContentRuntimeMessageHandler(ctx: ContentScriptContext, st
             sendResponse();
             return true;
         }
-
         if (payload.type === 'updateSelectionTranslatorSettings') {
             const {trigger, hotkey, customHotkey, delay} = payload;
             if (trigger !== 'direct' && trigger !== 'icon' && trigger !== 'dot'
@@ -102,7 +104,6 @@ export function createContentRuntimeMessageHandler(ctx: ContentScriptContext, st
             sendResponse();
             return true;
         }
-
         if (payload.type === 'toggleSelectionAreaTranslator') {
             if (rejectUnsupportedContentFeature(capabilities.areaTranslation, unmountAreaTranslator,
                 sendResponse, '当前浏览器暂不支持圈选翻译')) return true;
@@ -142,7 +143,6 @@ export function createContentRuntimeMessageHandler(ctx: ContentScriptContext, st
             });
             return true;
         }
-
         if (payload.type === 'contextMenuTranslate') {
             if (config.on === false || state.isSiteDisabled()) {
                 sendResponse({status: 'disabled'});

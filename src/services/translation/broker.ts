@@ -66,6 +66,11 @@ interface TranslationRequestExecution {
     readonly ownershipKey?: string;
 }
 
+interface PendingCacheValue {
+    readonly generation: number;
+    readonly value: string;
+}
+
 const PAGE_SUMMARY_CACHE_SIZE = 8;
 const PAGE_SUMMARY_LIMIT = 1200;
 const DEFAULT_PROVIDER_TIMEOUT_MS = 45_000;
@@ -105,7 +110,9 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
     const pageSummaryCache = new Map<string, string>();
     const pendingPageSummaries = new Map<string, Promise<string>>();
     const pendingCacheWrites = new Map<Promise<unknown>, number>();
+    const pendingCacheValues = new Map<string, PendingCacheValue>();
     let cacheGeneration = 0;
+    let cacheClearBarrier: Promise<void> | null = null;
     const now = deps.now ?? (() => Date.now());
     const logger = deps.logger ?? console;
     const requestScheduler = createTranslationRequestScheduler(
@@ -255,10 +262,11 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         return value.normalize('NFKC').replace(/\s+/gu, ' ').trim();
     }
 
-    function isCacheableResult(origin: string, result: unknown): result is string {
+    function isCacheableResult(_origin: string, result: unknown): result is string {
+        // provider 成功返回原文通常表示内容已经是目标语言；仍需缓存这个 no-op，
+        // 否则短纯 Han 等无法在请求前可靠识别的文本会在每轮全文翻译中重复请求。
         return typeof result === 'string'
-            && Boolean(result.trim())
-            && normalizeTranslationComparable(result) !== normalizeTranslationComparable(origin);
+            && Boolean(result.trim());
     }
 
     function requireSingleResult(result: unknown): string {
@@ -334,6 +342,15 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         }
     }
 
+    async function waitForCacheClearBarrier(requestDeadline: number, signal?: AbortSignal): Promise<void> {
+        // clear 可以在等待期间再次串联；只有观察到的 barrier 仍是最新值时，
+        // 才允许缓存请求继续，避免在两个连续 clear 之间读到或写入缓存。
+        while (cacheClearBarrier) {
+            const barrier = cacheClearBarrier;
+            await runWithinDeadline(() => barrier, requestDeadline, signal);
+        }
+    }
+
     function applyRemainingDeadline<T extends TranslationRequestMessage>(
         message: T,
         requestDeadline: number,
@@ -342,9 +359,13 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         return {...message, requestTimeoutMs: remaining};
     }
 
-    function buildPendingRequestKey(cacheKey: string, requestTimeoutMs: number): string {
+    function buildPendingRequestKey(
+        cacheKey: string,
+        requestTimeoutMs: number,
+        requestGeneration: number,
+    ): string {
         const normalizedTimeoutMs = normalizeDeadlineTimeoutMs(requestTimeoutMs);
-        return `${cacheKey}:timeout:${normalizedTimeoutMs}ms`;
+        return `${cacheKey}:generation:${requestGeneration}:timeout:${normalizedTimeoutMs}ms`;
     }
 
     function pendingOwnershipSuffix(execution: TranslationRequestExecution): string {
@@ -808,15 +829,28 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         pageSummaryCache.set(key, value);
     }
 
+    function readCacheWithPendingValue(generation: number, key: string): Promise<string | null> {
+        const pending = pendingCacheValues.get(key);
+        if (generation === cacheGeneration && pending?.generation === generation) {
+            return Promise.resolve(pending.value);
+        }
+        return deps.cache.get(key);
+    }
+
     async function writeCacheIfCurrent(generation: number, key: string, value: string): Promise<void> {
         if (generation !== cacheGeneration) return;
 
-        const write = Promise.resolve(deps.cache.set(key, value));
+        // 缓存写可能因 IndexedDB 事务排队超过响应宽限期。先公开本次已经验证过的值，
+        // 让同 key 的紧随请求复用；持久化失败、完成或 clear 换代后再精确撤销。
+        const pendingValue: PendingCacheValue = {generation, value};
+        const write = Promise.resolve().then(() => deps.cache.set(key, value));
+        pendingCacheValues.set(key, pendingValue);
         pendingCacheWrites.set(write, generation);
         try {
             await write;
         } finally {
             pendingCacheWrites.delete(write);
+            if (pendingCacheValues.get(key) === pendingValue) pendingCacheValues.delete(key);
         }
     }
 
@@ -851,7 +885,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         }
 
         const summaryTimeoutMs = normalizeDeadlineTimeoutMs(requestTimeoutMs as number);
-        const pendingKey = `${buildPendingRequestKey(key, summaryTimeoutMs)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}`;
+        const pendingKey = `${buildPendingRequestKey(key, summaryTimeoutMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}`;
         const existing = pendingPageSummaries.get(pendingKey);
         if (existing) return runWithinDeadline(() => existing, requestDeadline, execution.abortSignal);
 
@@ -860,7 +894,9 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 // 步骤 1：先读持久缓存，覆盖 MV3 service worker 重启后的重复摘要。
                 if (useCache) {
                     const persisted = await runWithinDeadline(
-                        () => deps.cache.get(key), requestDeadline, execution.abortSignal,
+                        () => readCacheWithPendingValue(requestGeneration, key),
+                        requestDeadline,
+                        execution.abortSignal,
                     );
                     if (persisted !== null) {
                         if (requestGeneration === cacheGeneration) cachePageSummary(key, persisted);
@@ -939,14 +975,16 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             message.modelOverride,
             message.sourceLanguageDetectionText,
         );
-        const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}`;
+        const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}`;
         const existing = pendingTranslations.get(pendingKey);
         if (existing) return existing;
 
         const request = useCache ? (async () => {
             // 步骤 1：先读持久缓存；未命中后只发起一次 provider 请求。
             const cached = await runWithinDeadline(
-                () => deps.cache.get(key), requestDeadline, execution.abortSignal,
+                () => readCacheWithPendingValue(requestGeneration, key),
+                requestDeadline,
+                execution.abortSignal,
             );
             if (cached !== null) {
                 getRemainingDeadlineMs(requestDeadline);
@@ -1033,15 +1071,15 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             cacheMode,
             message.modelOverride,
         );
-        const pendingKey = `${buildPendingRequestKey(batchKey, pendingBudgetMs)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}`;
+        const pendingKey = `${buildPendingRequestKey(batchKey, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}`;
         const existing = pendingBatches.get(pendingKey);
         if (existing) return existing;
 
         const request = useCache ? (async () => {
             // 步骤 1：分项读取缓存，只把缺失且去重后的原文交给 provider。
             const cached = await runWithinDeadline(
-                () => Promise.all(message.origin.map((origin, index) => deps.cache.get(
-                    buildBatchItemCacheKey(
+                () => Promise.all(message.origin.map((origin, index) => {
+                    const itemKey = buildBatchItemCacheKey(
                         execution,
                         origin,
                         index,
@@ -1050,8 +1088,9 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                         pageContext,
                         cacheMode,
                         message.modelOverride,
-                    ),
-                ))),
+                    );
+                    return readCacheWithPendingValue(requestGeneration, itemKey);
+                })),
                 requestDeadline,
                 execution.abortSignal,
             );
@@ -1215,8 +1254,6 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         await runWithinDeadline(() => deps.ready, providerDeadline, requestControl?.signal);
         throwIfRequestAborted(requestControl?.signal);
 
-        const requestGeneration = cacheGeneration;
-
         // 步骤 1：在任何 cache/provider await 前复制一次配置；后续 UI 原地修改不能改变本请求身份。
         const current = createTranslationProviderConfigSnapshot(config());
         const serviceOverride = message.serviceOverride;
@@ -1255,6 +1292,12 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         const context = typeof message.context === 'string' ? message.context : '';
         const rawPageContext = typeof message.pageContext === 'string' ? message.pageContext : '';
         const useCache = isCacheEnabled(current, message);
+        // clear 是缓存代次的线性化边界。清理期间进入的缓存请求必须等到所有
+        // 已串联 clear 完成后再取得新代次，等待时间仍计入原始 deadline 且可取消。
+        if (useCache) {
+            await waitForCacheClearBarrier(providerDeadline, requestControl?.signal);
+        }
+        const requestGeneration = cacheGeneration;
         // 步骤 2：摘要是 AI 上下文增强，只拿 provider deadline 的一小段预算。
         const summaryBudget = Math.min(10_000, Math.max(1_000, Math.floor(providerBudget / 4)));
         const pageContext = await addPageSummary(
@@ -1316,21 +1359,36 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         );
     }
 
-    async function clearTranslationCache(): Promise<void> {
+    function clearTranslationCache(): Promise<void> {
         // 步骤 1：先切换代次并断开旧请求去重；旧 provider 仍可返回给原调用者，但不能重新填充缓存。
         cacheGeneration += 1;
+        const clearGeneration = cacheGeneration;
         pendingTranslations.clear();
         pendingBatches.clear();
         pendingPageSummaries.clear();
+        pendingCacheValues.clear();
         pageSummaryCache.clear();
 
-        // 步骤 2：等待清理开始前已经进入存储适配器的写入，随后再清库，保证成功返回后没有旧写入复活。
-        const staleWrites = [...pendingCacheWrites]
-            .filter(([, generation]) => generation < cacheGeneration)
-            .map(([write]) => write);
-        await Promise.allSettled(staleWrites);
-        await deps.cache.clear();
-        pageSummaryCache.clear();
+        // 步骤 2：所有 clear 严格串行。每次都等待自己代次之前已经进入存储
+        // 适配器的写入，再执行最终清库；失败不会阻断后续 clear 的执行。
+        const previousBarrier = cacheClearBarrier ?? Promise.resolve();
+        const clearOperation = previousBarrier.then(async () => {
+            const staleWrites = [...pendingCacheWrites]
+                .filter(([, generation]) => generation < clearGeneration)
+                .map(([write]) => write);
+            await Promise.allSettled(staleWrites);
+            await deps.cache.clear();
+            pageSummaryCache.clear();
+        });
+        const settledBarrier = clearOperation.then(
+            () => undefined,
+            () => undefined,
+        );
+        cacheClearBarrier = settledBarrier;
+        void settledBarrier.then(() => {
+            if (cacheClearBarrier === settledBarrier) cacheClearBarrier = null;
+        });
+        return clearOperation;
     }
 
     async function cleanupTranslationCache(): Promise<void> {
