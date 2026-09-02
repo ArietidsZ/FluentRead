@@ -32,6 +32,7 @@ import {
     isLikelyPageContextLeak,
 } from '@/src/core/translation/prompts';
 import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
+import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
 import {waitForBoundedPersistence} from './persistenceBarrier';
 import {
     createTranslationRequestScheduler,
@@ -60,6 +61,7 @@ interface TranslationRequestExecution {
     readonly sourceLanguage: string;
     readonly targetLanguage: string;
     readonly enableAIContext: boolean;
+    readonly thinking: boolean;
     readonly abortSignal?: AbortSignal;
     readonly ownershipKey?: string;
 }
@@ -204,7 +206,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             systemRole: current.system_role[service] || '',
             userRole: current.user_role[service] || '',
             deepseekApiType: current.deepseekApiType,
-            deepseekThinkingMode: current.deepseekThinkingMode,
+            modelThinking: execution.thinking,
             transportProfile: deps.serviceTypes.isAiSdk(service)
                 ? deps.endpointResolver.aiSdkTransportProfile
                 : undefined,
@@ -783,6 +785,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             sourceText: pageContext,
             service,
             model: getSelectedModel(current, service, modelOverride),
+            modelThinking: execution.thinking,
             endpoint: getProviderEndpoint(current, service),
             customBody: current.customBody[service] || '',
             transportProfile: deps.serviceTypes.isAiSdk(service)
@@ -874,6 +877,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                         sourceLanguage: execution.sourceLanguage,
                         targetLanguage: execution.targetLanguage,
                         modelOverride,
+                        thinkingOverride: execution.thinking,
                         requestTimeoutMs: providerTimeoutMs,
                     }, execution.config),
                 );
@@ -1213,6 +1217,11 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             sourceLanguage,
             targetLanguage,
             enableAIContext: message.enableAIContext ?? current.enableAIContext,
+            thinking: message.thinkingOverride ?? isModelThinkingEnabled(
+                current.modelThinking,
+                selectedService,
+                getSelectedModel(current, selectedService, message.modelOverride),
+            ),
             abortSignal: requestControl?.signal,
             ownershipKey: requestControl?.ownershipKey,
         };
@@ -1251,6 +1260,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 ...message,
                 sourceLanguage,
                 targetLanguage,
+                thinkingOverride: execution.thinking,
                 requestTimeoutMs: remainingProviderBudget,
             } as TranslationRequestMessage,
             current,

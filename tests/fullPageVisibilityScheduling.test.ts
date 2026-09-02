@@ -28,6 +28,7 @@ const runtime = vi.hoisted(() => ({
         service: "microsoft",
         model: {microsoft: "microsoft-default", freeTranslation: "free-default"} as Record<string, string>,
         customModel: {} as Record<string, string>,
+        modelThinking: {} as Record<string, Record<string, boolean>>,
         from: "en",
         to: "zh",
         useCache: true,
@@ -292,6 +293,7 @@ function translationSnapshot(
     return {
         service: 'microsoft',
         model: 'microsoft-default',
+        thinking: false,
         sourceLanguage: 'en',
         targetLanguage: 'zh',
         useCache: true,
@@ -324,6 +326,7 @@ describe("全文翻译可见性锚点", () => {
         runtime.config.service = "microsoft";
         runtime.config.model = {microsoft: "microsoft-default", freeTranslation: "free-default"};
         runtime.config.customModel = {};
+        runtime.config.modelThinking = {};
         runtime.config.from = "en";
         runtime.config.to = "zh";
         runtime.config.useCache = true;
@@ -380,10 +383,12 @@ describe("全文翻译可见性锚点", () => {
     it('请求配置快照解析自定义模型并冻结单/双语展示模式', () => {
         runtime.config.model.microsoft = 'custom';
         runtime.config.customModel.microsoft = 'session-model';
+        runtime.config.modelThinking.microsoft = {'session-model': true};
         runtime.config.display = 1;
         expect(captureFullPageTranslationConfig()).toMatchObject({
             service: 'microsoft',
             model: 'session-model',
+            thinking: true,
             sourceLanguage: 'en',
             targetLanguage: 'zh',
             useCache: true,
@@ -1085,6 +1090,7 @@ describe("全文翻译可见性锚点", () => {
 
     it("全文会话冻结服务、模型、语言、缓存、AI 上下文、显示模式和样式，配置热更新不会混入后续候选", async () => {
         runtime.config.enableAIContext = true;
+        runtime.config.modelThinking.microsoft = {'microsoft-default': true};
         runtime.config.display = 1;
         runtime.config.style = 2;
         document.body.innerHTML = [
@@ -1113,6 +1119,7 @@ describe("全文翻译可见性锚点", () => {
         // 模拟 options 在首个请求尚未返回时同步了另一套翻译配置。
         runtime.config.service = 'freeTranslation';
         runtime.config.model.freeTranslation = 'new-model';
+        runtime.config.modelThinking.microsoft['microsoft-default'] = false;
         runtime.config.from = 'zh';
         runtime.config.to = 'ja';
         runtime.config.useCache = false;
@@ -1129,6 +1136,7 @@ describe("全文翻译可见性锚点", () => {
         runtime.requestOptions.forEach((options) => expect(options).toMatchObject({
             serviceOverride: 'microsoft',
             modelOverride: 'microsoft-default',
+            thinkingOverride: true,
             sourceLanguage: 'en',
             targetLanguage: 'zh',
             useCache: true,

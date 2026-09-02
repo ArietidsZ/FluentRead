@@ -8,10 +8,15 @@
 
 // 消息模板工具
 import {currentModelIds, customModelString, defaultOption, services} from '@/src/core/config/catalog';
-import {mergeCustomBody} from '@/src/core/config/customBody';
+import {mergeCustomBody, parseCustomBody} from '@/src/core/config/customBody';
 import {migrateModelIdentifier} from '@/src/core/config/model';
 import {config} from '@/src/services/config/store';
 import type {TranslationProviderConfigSnapshot} from './types';
+import {
+    hasModelThinkingPreference,
+    isModelThinkingEnabled,
+} from '@/src/core/config/modelThinking';
+import {applyModelThinkingPreference, type ModelThinkingProtocol} from './modelThinking';
 
 export {mergeCustomBody};
 export {buildPageSummaryPrompt, buildPageSummarySystemPrompt} from '@/src/core/translation/prompts';
@@ -79,6 +84,68 @@ function currentConfiguredModel(
     return migrateModelIdentifier(service, selectedModel || '');
 }
 
+function currentModelThinking(
+    current: TranslationProviderConfigSnapshot,
+    service: string,
+    model: string,
+    thinkingOverride?: boolean,
+): boolean {
+    if (typeof thinkingOverride === 'boolean') return thinkingOverride;
+    if (hasModelThinkingPreference(current.modelThinking, service, model)) {
+        return isModelThinkingEnabled(current.modelThinking, service, model);
+    }
+    // 只为尚未经过 normalizeConfig 的旧 DeepSeek 直调保留兼容兜底；新配置
+    // 会把旧服务级值迁移到 modelThinking，显式 false 也能覆盖旧 enabled。
+    return service === services.deepseek && current.deepseekThinkingMode === 'enabled';
+}
+
+function withThinkingPreference(
+    payload: Record<string, unknown>,
+    current: TranslationProviderConfigSnapshot,
+    service: string,
+    model: string,
+    protocol: ModelThinkingProtocol,
+    thinkingOverride?: boolean,
+    preferenceModel = model,
+): Record<string, unknown> {
+    return applyModelThinkingPreference(payload, {
+        protocol,
+        service,
+        model,
+        enabled: currentModelThinking(current, service, preferenceModel, thinkingOverride),
+    }).payload;
+}
+
+function finalizeThinkingPayload(
+    payload: Record<string, unknown>,
+    current: TranslationProviderConfigSnapshot,
+    service: string,
+    model: string,
+    protocol: ModelThinkingProtocol,
+    thinkingOverride?: boolean,
+    preferenceModel = model,
+): Record<string, unknown> {
+    const customBody = currentCustomBody(current, service);
+    const customFields = parseCustomBody(customBody);
+    const customized = mergeCustomBody(payload, customBody);
+    // 高级请求体显式替换模型时，其能力可能与设置页选中的模型完全不同。
+    // 此时不猜自动字段；用户在同一请求体中提供的 thinking/reasoning 仍会保留。
+    if (Object.prototype.hasOwnProperty.call(payload, 'model')
+        && customized.model !== payload.model) return customized;
+    return {
+        ...withThinkingPreference(
+            customized,
+            current,
+            service,
+            model,
+            protocol,
+            thinkingOverride,
+            preferenceModel,
+        ),
+        ...(customFields || {}),
+    };
+}
+
 // OpenAI 格式的消息模板（通用模板）。
 export function commonMsgTemplate(
     origin: string,
@@ -89,9 +156,11 @@ export function commonMsgTemplate(
     targetLanguage = config.to,
     modelOverride?: string,
     current: TranslationProviderConfigSnapshot = config,
+    thinkingOverride?: boolean,
 ) {
     const service = serviceOverride || current.service;
-    let model = currentConfiguredModel(current, service, modelOverride);
+    const preferenceModel = currentConfiguredModel(current, service, modelOverride);
+    let model = preferenceModel;
 
     // 删除模型名称中的中文括号及其内容，如"gpt-4（推荐）" -> "gpt-4"
     model = model.replace(/（.*）/g, "");
@@ -99,7 +168,7 @@ export function commonMsgTemplate(
     const system = systemPrompt?.trim() || current.system_role[service] || defaultOption.system_role;
     const user = buildUserPrompt(origin, context, prompt, service, targetLanguage, current);
 
-    const payload: any = {
+    const payload: Record<string, unknown> = {
         'model': model,
         'messages': [
             {'role': 'system', 'content': system},
@@ -107,7 +176,9 @@ export function commonMsgTemplate(
         ]
     };
 
-    return JSON.stringify(mergeCustomBody(payload, currentCustomBody(current, service)))
+    return JSON.stringify(finalizeThinkingPayload(
+        payload, current, service, model, 'openai-chat', thinkingOverride, preferenceModel,
+    ))
 }
 
 // DeepSeek 消息模板。
@@ -126,18 +197,6 @@ export function getCurrentModel(
     }
 
     return normalizedModel;
-}
-
-function getDeepSeekThinkingMode(
-    current: TranslationProviderConfigSnapshot,
-    serviceOverride?: string,
-    modelOverride?: string,
-): 'enabled' | 'disabled' {
-    const service = serviceOverride || current.service;
-    const selectedModel = modelOverride || current.model[service];
-    if (selectedModel === 'deepseek-reasoner') return 'enabled';
-    if (selectedModel === 'deepseek-chat') return 'disabled';
-    return current.deepseekThinkingMode === 'enabled' ? 'enabled' : 'disabled';
 }
 
 function deepseekPrompt(
@@ -166,16 +225,29 @@ export function deepseekResponsesMsgTemplate(
     targetLanguage = config.to,
     modelOverride?: string,
     current: TranslationProviderConfigSnapshot = config,
+    thinkingOverride?: boolean,
 ) {
     const model = getCurrentModel(serviceOverride, modelOverride, current);
+    const legacyThinkingOverride = thinkingOverride ?? (
+        modelOverride === 'deepseek-reasoner' ? true
+            : modelOverride === 'deepseek-chat' ? false
+                : undefined
+    );
     const {system, user} = deepseekPrompt(origin, context, prompt, systemPrompt, serviceOverride, targetLanguage, current);
-    const payload: any = {
+    const payload: Record<string, unknown> = {
         model,
         instructions: system,
         input: user,
     };
 
-    return JSON.stringify(payload);
+    return JSON.stringify(finalizeThinkingPayload(
+        payload,
+        current,
+        serviceOverride || current.service,
+        model,
+        'deepseek-responses',
+        legacyThinkingOverride,
+    ));
 }
 
 // DeepSeek 官方 V4 Chat Completion 格式。
@@ -188,20 +260,27 @@ export function deepseekMsgTemplate(
     targetLanguage = config.to,
     modelOverride?: string,
     current: TranslationProviderConfigSnapshot = config,
+    thinkingOverride?: boolean,
 ) {
     const model = getCurrentModel(serviceOverride, modelOverride, current);
+    const legacyThinkingOverride = thinkingOverride ?? (
+        modelOverride === 'deepseek-reasoner' ? true
+            : modelOverride === 'deepseek-chat' ? false
+                : undefined
+    );
     const {system, user} = deepseekPrompt(origin, context, prompt, systemPrompt, serviceOverride, targetLanguage, current);
-    const thinking = getDeepSeekThinkingMode(current, serviceOverride, modelOverride);
-    const payload: any = {
+    const service = serviceOverride || current.service;
+    const payload: Record<string, unknown> = {
         model,
         messages: [
             {role: 'system', content: system},
             {role: 'user', content: user},
         ],
-        thinking: {type: thinking},
     };
 
-    return JSON.stringify(mergeCustomBody(payload, currentCustomBody(current, serviceOverride || current.service)));
+    return JSON.stringify(finalizeThinkingPayload(
+        payload, current, service, model, 'deepseek-chat', legacyThinkingOverride,
+    ));
 }
 
 // Gemini 消息模板。
@@ -213,18 +292,23 @@ export function geminiMsgTemplate(
     serviceOverride?: string,
     targetLanguage = config.to,
     current: TranslationProviderConfigSnapshot = config,
+    modelOverride?: string,
+    thinkingOverride?: boolean,
 ) {
     const service = serviceOverride || current.service;
+    const model = currentConfiguredModel(current, service, modelOverride);
     const userPrompt = buildUserPrompt(origin, context, prompt, service, targetLanguage, current);
     const user = systemPrompt?.trim() ? `${systemPrompt.trim()}\n\n${userPrompt}` : userPrompt;
 
-    const payload: any = {
+    const payload: Record<string, unknown> = {
         "contents": [
             {"role": "user", "parts": [{"text": user}]},
         ]
     };
 
-    return JSON.stringify(mergeCustomBody(payload, currentCustomBody(current, service)))
+    return JSON.stringify(finalizeThinkingPayload(
+        payload, current, service, model, 'gemini-generate-content', thinkingOverride,
+    ))
 }
 
 // Claude 消息模板。
@@ -237,6 +321,7 @@ export function claudeMsgTemplate(
     targetLanguage = config.to,
     modelOverride?: string,
     current: TranslationProviderConfigSnapshot = config,
+    thinkingOverride?: boolean,
 ) {
     const service = serviceOverride || services.claude;
     const model = currentConfiguredModel(current, service, modelOverride);
@@ -244,7 +329,7 @@ export function claudeMsgTemplate(
     const system = systemPrompt?.trim() || current.system_role[service] || defaultOption.system_role;
     const user = buildUserPrompt(origin, context, prompt, service, targetLanguage, current);
 
-    const payload: any = {
+    const payload: Record<string, unknown> = {
         model: model,
         max_tokens: 4096,
         stream: false,
@@ -254,7 +339,9 @@ export function claudeMsgTemplate(
         ]
     };
 
-    return JSON.stringify(mergeCustomBody(payload, currentCustomBody(current, service)))
+    return JSON.stringify(finalizeThinkingPayload(
+        payload, current, service, model, 'claude-messages', thinkingOverride,
+    ))
 }
 
 // 通义千问
@@ -267,6 +354,7 @@ export function tongyiMsgTemplate(
     targetLanguage = config.to,
     modelOverride?: string,
     current: TranslationProviderConfigSnapshot = config,
+    thinkingOverride?: boolean,
 ) {
     const service = serviceOverride || current.service;
     const model = currentConfiguredModel(current, service, modelOverride);
@@ -274,15 +362,16 @@ export function tongyiMsgTemplate(
         const system = systemPrompt?.trim() || current.system_role[service] || defaultOption.system_role;
         const user = buildUserPrompt(origin, context, prompt, service, targetLanguage, current);
 
-        const payload: any = {
+        const payload: Record<string, unknown> = {
             "model": model,
-            "enable_thinking": false,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ]
         };
-        return JSON.stringify(mergeCustomBody(payload, currentCustomBody(current, service)))
+        return JSON.stringify(finalizeThinkingPayload(
+            payload, current, service, model, 'tongyi-chat', thinkingOverride,
+        ))
     }
     // 翻译模型qwen-mt-plus和qwen-mt-turbo的格式和通用的不同
     const mtModelTemplate = () => {

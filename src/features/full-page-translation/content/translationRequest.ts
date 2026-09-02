@@ -9,6 +9,7 @@ import {styles} from '@/src/core/config/constants';
 import {parseTranslationSlots, serializeTranslationSlots} from '@/src/core/translation/public';
 import {config} from '@/src/services/config/store';
 import {normalizeMaxConcurrentTranslations} from '@/src/core/config/scheduling';
+import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
 import {translateText, translateTextBatch, type TranslateOptions} from '@/src/app/translation/client';
 import {
     cancelTranslationQueueSession,
@@ -23,6 +24,7 @@ const AI_MULTI_SEGMENT_MAX_CHARACTERS = 2_000;
 export interface FullPageTranslationConfigSnapshot {
     service: string;
     model: string;
+    thinking: boolean;
     sourceLanguage: string;
     targetLanguage: string;
     useCache: boolean;
@@ -68,9 +70,11 @@ const aiMultiSegmentQueues = new WeakMap<FullPageTranslationSessionCache, AIMult
 
 export function captureFullPageTranslationConfig(): FullPageTranslationConfigSnapshot {
     const service = config.service;
+    const model = resolveConfiguredModel(config.model[service], config.customModel[service]);
     return {
         service,
-        model: resolveConfiguredModel(config.model[service], config.customModel[service]),
+        model,
+        thinking: isModelThinkingEnabled(config.modelThinking, service, model),
         sourceLanguage: config.from,
         targetLanguage: config.to,
         useCache: config.useCache,
@@ -89,6 +93,7 @@ function createSnapshotTranslateOptions(
         ...options,
         serviceOverride: snapshot.service,
         modelOverride: snapshot.model || undefined,
+        thinkingOverride: snapshot.thinking,
         sourceLanguage: snapshot.sourceLanguage,
         targetLanguage: snapshot.targetLanguage,
         enableAIContext: snapshot.enableAIContext,
@@ -171,6 +176,7 @@ function createCacheKey(origin: string, snapshot: FullPageTranslationConfigSnaps
     return JSON.stringify({
         service: snapshot.service,
         model: snapshot.model,
+        thinking: snapshot.thinking,
         from: snapshot.sourceLanguage,
         to: snapshot.targetLanguage,
         enableAIContext: snapshot.enableAIContext,
@@ -225,6 +231,7 @@ function createAIMultiSegmentSnapshotKey(snapshot: FullPageTranslationConfigSnap
     return JSON.stringify({
         service: snapshot.service,
         model: snapshot.model,
+        thinking: snapshot.thinking,
         from: snapshot.sourceLanguage,
         to: snapshot.targetLanguage,
         useCache: snapshot.useCache,

@@ -29,6 +29,10 @@ import {
 } from './customOpenAI';
 import { normalizeCustomBodyMapping } from "./customBody";
 import {
+    normalizeModelThinkingMapping,
+    type ModelThinkingMapping,
+} from './modelThinking';
+import {
     API_KEY_REQUIREMENT_KEY_PREFIX,
     createApiKeyRequirementKey,
     getLegacyApiKeyRequirementKey,
@@ -152,6 +156,7 @@ export class Config {
     model: IMapping;
     customModel: IMapping;  // 当前启用的自定义模型名称（兼容旧版运行时）
     customModels: Record<string, string[]>; // 按内置服务保存的自定义模型列表
+    modelThinking: ModelThinkingMapping; // 按服务和实际模型保存 Thinking 开关，缺省为关闭
     customOpenAIProviders: CustomOpenAIProvider[]; // 用户保存的 OpenAI-compatible 自定义服务（不含凭据）
     customBody: IMapping;  // 自定义请求体（JSON 字符串，按服务存储），会合并进请求体
     proxy: IMapping;  // 代理地址
@@ -245,6 +250,7 @@ export class Config {
         );
         this.customModel = {};
         this.customModels = {};
+        this.modelThinking = {};
         this.customOpenAIProviders = [];
         this.customBody = {};
         this.proxy = {};
@@ -632,6 +638,8 @@ export function normalizeConfig(value: unknown): Config {
     normalized.documentCustomModel = withoutRetiredServiceEntries(normalizeStringMapping(source.documentCustomModel));
     const hasSavedCustomModelSchema = hasOwn(source as object, 'customModels');
     normalized.customModels = normalizeCustomModelMapping(source.customModels);
+    const hasModelThinkingSchema = hasOwn(source as object, 'modelThinking');
+    normalized.modelThinking = normalizeModelThinkingMapping(source.modelThinking);
     normalized.proxy = withoutRetiredServiceEntries(normalizeStringMapping(source.proxy));
     normalized.system_role = {
         ...systemRoleFactory(),
@@ -701,6 +709,7 @@ export function normalizeConfig(value: unknown): Config {
         normalized.deepseekThinkingMode = selectedModel === 'deepseek-v4-pro' ? 'enabled' : 'disabled';
     }
     normalizeSavedCustomModelState(normalized, hasSavedCustomModelSchema);
+    normalizeModelThinkingState(normalized, hasModelThinkingSchema);
 
     if (!['auto', 'responses', 'chat'].includes(normalized.deepseekApiType)) {
         normalized.deepseekApiType = 'auto';
@@ -803,6 +812,67 @@ function migrateModelIdentifiers(configuredModels: IMapping): void {
         if (!selectedModel) continue;
         configuredModels[service] = migrateModelIdentifier(service, selectedModel);
     }
+}
+
+function migrateModelThinkingIdentifiers(normalized: Config): ModelThinkingMapping {
+    const migrated: ModelThinkingMapping = {};
+    for (const [service, modelStates] of Object.entries(normalized.modelThinking)) {
+        const customModels = new Set(normalized.customModels[service] || []);
+        const currentId = (model: string) => {
+            if (customModels.has(model)) return model;
+            if (service === services.deepseek
+                && (model === 'deepseek-chat' || model === 'deepseek-reasoner')) {
+                return currentModelIds.deepseek;
+            }
+            return migrateModelIdentifier(service, model);
+        };
+        const currentEntries = Object.entries(modelStates)
+            .filter(([model]) => currentId(model) === model);
+        const legacyEntries = Object.entries(modelStates)
+            .filter(([model]) => currentId(model) !== model);
+        for (const [model, enabled] of [...currentEntries, ...legacyEntries]) {
+            const currentModel = currentId(model);
+            if (Object.prototype.hasOwnProperty.call(migrated[service] || {}, currentModel)) continue;
+            (migrated[service] ||= {})[currentModel] = enabled;
+        }
+    }
+    return migrated;
+}
+
+function resolvedConfiguredModels(normalized: Config, service: string): string[] {
+    return [
+        resolveConfiguredModel(normalized.model[service], normalized.customModel[service]),
+        resolveConfiguredModel(normalized.documentModel[service], normalized.documentCustomModel[service]),
+    ].map((model) => model.trim()).filter(Boolean);
+}
+
+function validThinkingModels(normalized: Config, service: string): Set<string> {
+    const provider = getCustomOpenAIProvider(normalized.customOpenAIProviders, service);
+    if (provider) return new Set([...provider.models, ...resolvedConfiguredModels(normalized, service)]);
+    if (!isPersistableBuiltInModelService(service)) return new Set();
+    return new Set([
+        ...modelsForService(service),
+        ...(normalized.customModels[service] || []),
+        ...resolvedConfiguredModels(normalized, service),
+    ]);
+}
+
+function normalizeModelThinkingState(normalized: Config, hasSavedSchema: boolean): void {
+    let mapping = migrateModelThinkingIdentifiers(normalized);
+    if (!hasSavedSchema) {
+        const legacyEnabled = normalized.deepseekThinkingMode === 'enabled';
+        for (const model of resolvedConfiguredModels(normalized, services.deepseek)) {
+            (mapping[services.deepseek] ||= {})[model] = legacyEnabled;
+        }
+    }
+
+    const pruned: ModelThinkingMapping = {};
+    for (const [service, modelStates] of Object.entries(mapping)) {
+        const validModels = validThinkingModels(normalized, service);
+        const validEntries = Object.entries(modelStates).filter(([model]) => validModels.has(model));
+        if (validEntries.length > 0) pruned[service] = Object.fromEntries(validEntries);
+    }
+    normalized.modelThinking = pruned;
 }
 
 /**

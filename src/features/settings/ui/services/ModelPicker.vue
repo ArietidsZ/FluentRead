@@ -305,16 +305,16 @@ watch(pickerOpen, (open) => {
 .model-picker-empty { margin: 18px 0 8px; color: #9299a8; font-size: 11px; text-align: center; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 :global(:root.dark .model-picker-popper.el-popper),
-:global(:root.dark) .model-picker-panel { border-color: var(--line); color: var(--ink); background: var(--surface); }
+:global(:root.dark .model-picker-panel) { border-color: var(--line); color: var(--ink); background: var(--surface); }
 :global(:root.dark .model-picker-popper.el-popper) { background: var(--surface) !important; box-shadow: 0 20px 50px rgba(0, 0, 0, .48) !important; }
 :global(:root.dark .model-picker-popper.el-popper .el-popper__arrow::before) { border-color: var(--line) !important; background: var(--surface) !important; }
-:global(:root.dark) .model-picker-trigger,
-:global(:root.dark) .model-add-form,
-:global(:root.dark) .model-add-form input,
-:global(:root.dark) .model-picker-search input { border-color: var(--line); color: var(--ink); background: var(--surface-soft); }
-:global(:root.dark) .model-picker-option { color: var(--ink); }
-:global(:root.dark) .model-picker-chip { border-color: var(--line); background: var(--surface-soft); }
-:global(:root.dark) .model-picker-chip.active { border-color: rgba(255, 138, 171, .45); background: var(--brand-soft); }
+:global(:root.dark .model-picker-trigger),
+:global(:root.dark .model-add-form),
+:global(:root.dark .model-add-form input),
+:global(:root.dark .model-picker-search input) { border-color: var(--line); color: var(--ink); background: var(--surface-soft); }
+:global(:root.dark .model-picker-option) { color: var(--ink); }
+:global(:root.dark .model-picker-chip) { border-color: var(--line); background: var(--surface-soft); }
+:global(:root.dark .model-picker-chip.active) { border-color: rgba(255, 138, 171, .45); background: var(--brand-soft); }
 @media (max-width: 480px) {
   :global(.model-picker-popper.el-popper) { width: calc(100vw - 24px) !important; }
   .model-add-form > div { grid-template-columns: minmax(0, 1fr) auto; }

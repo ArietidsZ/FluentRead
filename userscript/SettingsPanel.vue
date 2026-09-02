@@ -92,6 +92,7 @@
 
         <details>
           <summary>高级 AI 请求设置</summary>
+          <label v-if="isAIService && usesModel" class="toggle"><span>当前模型 Thinking（仅在已适配接口生效，默认关闭）</span><input v-model="selectedModelThinking" type="checkbox" :disabled="!selectedServiceModel" aria-label="当前模型是否启用 Thinking" /></label>
           <label><span>自定义请求体（JSON）</span><textarea v-model="draft.customBody[draft.service]" rows="4" placeholder="可选：合并到请求体顶层" /></label>
           <label><span>System 提示词</span><textarea v-model="draft.system_role[draft.service]" rows="4" /></label>
           <label><span>User 提示词</span><textarea v-model="draft.user_role[draft.service]" rows="5" /></label>
@@ -134,6 +135,11 @@ import {
   isApiKeyRequired,
 } from '@/src/core/config/validation';
 import {isUserscriptServiceSupported, normalizeUserscriptConfig} from './initialize';
+import {
+  isModelThinkingEnabled,
+  withModelThinkingPreference,
+  withoutModelThinkingPreference,
+} from '@/src/core/config/modelThinking';
 
 const emit = defineEmits<{close: []}>();
 const versionLabel = `FluentRead V${process.env.VUE_APP_VERSION} · Userscript V${process.env.VUE_APP_USERSCRIPT_VERSION}`;
@@ -183,6 +189,21 @@ const selectedServiceModel = computed({
     }
     draft.value.customModel[service] = model;
     draft.value.model[service] = customModelString;
+  },
+});
+const selectedModelThinking = computed({
+  get: () => isModelThinkingEnabled(
+    draft.value.modelThinking,
+    draft.value.service,
+    selectedServiceModel.value,
+  ),
+  set: (enabled: boolean) => {
+    draft.value.modelThinking = withModelThinkingPreference(
+      draft.value.modelThinking,
+      draft.value.service,
+      selectedServiceModel.value,
+      enabled,
+    );
   },
 });
 const customModelLimitReached = computed(() => (
@@ -259,6 +280,12 @@ function submitCustomModel(): void {
     return;
   }
   const service = draft.value.service;
+  draft.value.modelThinking = withModelThinkingPreference(
+    draft.value.modelThinking,
+    service,
+    model,
+    false,
+  );
   if (selectedCustomOpenAIProvider.value) {
     draft.value.customOpenAIProviders = draft.value.customOpenAIProviders.map((provider) => (
       provider.id === service
@@ -296,6 +323,7 @@ function removeSelectedCustomModel(): void {
     }
     delete draft.value.requireApiKey[createApiKeyRequirementKey(service, model)];
     delete draft.value.requireApiKey[getLegacyApiKeyRequirementKey(service, model)];
+    draft.value.modelThinking = withoutModelThinkingPreference(draft.value.modelThinking, service, model);
     return;
   }
   const remaining = (draft.value.customModels[service] || []).filter((item) => item !== model);
@@ -322,6 +350,7 @@ function removeSelectedCustomModel(): void {
   }
   delete draft.value.requireApiKey[createApiKeyRequirementKey(service, model)];
   delete draft.value.requireApiKey[getLegacyApiKeyRequirementKey(service, model)];
+  draft.value.modelThinking = withoutModelThinkingPreference(draft.value.modelThinking, service, model);
 }
 
 watch(() => draft.value.service, cancelAddCustomModel);

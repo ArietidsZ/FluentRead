@@ -8,6 +8,7 @@ const { mockConfig } = vi.hoisted(() => ({
         to: 'zh-Hans',
         model: {} as Record<string, string>,
         customModel: {} as Record<string, string>,
+        modelThinking: {} as Record<string, Record<string, boolean>>,
         system_role: {} as Record<string, string>,
         user_role: {} as Record<string, string>,
         customBody: {} as Record<string, string>,
@@ -36,6 +37,12 @@ import {
 } from '@/src/core/config/customBody';
 import { buildHunyuanTranslationRequestBody } from '@/src/providers/translation/hunyuan-translation';
 import { customModelString, services, servicesType } from '@/src/core/config/catalog';
+import {Config} from '@/src/core/config/model';
+import {createTranslationProviderConfigSnapshot} from '@/src/services/translation/requestSnapshot';
+
+function currentConfigSnapshot() {
+    return createTranslationProviderConfigSnapshot(Object.assign(new Config(), mockConfig));
+}
 
 beforeEach(() => {
     // 每个用例前重置 mock 配置，避免相互污染
@@ -52,6 +59,7 @@ beforeEach(() => {
         minimax: 'MiniMax-M2.7',
     };
     mockConfig.customModel = {};
+    mockConfig.modelThinking = {};
     mockConfig.system_role = Object.fromEntries(
         Object.values(services).map(service => [service, 'You are a translator.'])
     );
@@ -182,6 +190,7 @@ describe('commonMsgTemplate（集成）', () => {
         const body = JSON.parse(commonMsgTemplate('hello'));
         expect(body).toEqual({
             model: 'gpt-5.6-luna',
+            reasoning_effort: 'none',
             messages: [
                 { role: 'system', content: 'You are a translator.' },
                 { role: 'user', content: 'Translate to zh-Hans: hello' },
@@ -259,6 +268,89 @@ describe('自定义请求体注入 thinking 字段（issue #213）', () => {
         };
         const body = JSON.parse(commonMsgTemplate('hi'));
         expect(body.thinking).toEqual({ type: 'disabled' });
+    });
+});
+
+describe('模型级 Thinking 请求集成', () => {
+    it('按服务和实际模型读取偏好，并允许请求级快照显式覆盖', () => {
+        mockConfig.modelThinking = {openai: {'gpt-5.6-luna': true}};
+        expect(JSON.parse(commonMsgTemplate('hello')).reasoning_effort).toBe('low');
+        expect(JSON.parse(commonMsgTemplate(
+            'hello',
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            currentConfigSnapshot(),
+            false,
+        )).reasoning_effort).toBe('none');
+    });
+
+    it('模型显示后缀被请求层清理时仍使用原始配置键读取偏好', () => {
+        mockConfig.model.openai = 'gpt-5.6-luna（推荐）';
+        mockConfig.modelThinking = {openai: {'gpt-5.6-luna（推荐）': true}};
+
+        const body = JSON.parse(commonMsgTemplate('hello'));
+        expect(body.model).toBe('gpt-5.6-luna');
+        expect(body.reasoning_effort).toBe('low');
+    });
+
+    it('DeepSeek 模型级显式 false 覆盖旧服务级 enabled', () => {
+        mockConfig.service = services.deepseek;
+        mockConfig.model.deepseek = 'deepseek-v4-flash';
+        mockConfig.deepseekThinkingMode = 'enabled';
+        mockConfig.modelThinking = {deepseek: {'deepseek-v4-flash': false}};
+
+        expect(JSON.parse(deepseekMsgTemplate('hello')).thinking).toEqual({type: 'disabled'});
+        expect(JSON.parse(deepseekResponsesMsgTemplate(
+            'hello', undefined, undefined, undefined, undefined, undefined, undefined, currentConfigSnapshot(), true,
+        )).reasoning).toEqual({effort: 'high'});
+        expect(JSON.parse(deepseekResponsesMsgTemplate(
+            'hello', undefined, undefined, undefined, undefined, undefined, 'deepseek-reasoner', currentConfigSnapshot(),
+        )).reasoning).toEqual({effort: 'high'});
+        expect(JSON.parse(deepseekResponsesMsgTemplate(
+            'hello', undefined, undefined, undefined, undefined, undefined, 'deepseek-chat', currentConfigSnapshot(),
+        )).reasoning).toEqual({effort: 'none'});
+    });
+
+    it('自定义请求体最后合并，可以覆盖自动生成的思考字段', () => {
+        mockConfig.modelThinking = {openai: {'gpt-5.6-luna': true}};
+        mockConfig.customBody = {openai: '{"reasoning_effort":"high"}'};
+        expect(JSON.parse(commonMsgTemplate('hello')).reasoning_effort).toBe('high');
+    });
+
+    it('自定义请求体替换模型时不遗留原模型的自动思考字段', () => {
+        mockConfig.modelThinking = {openai: {'gpt-5.6-luna': true}};
+        mockConfig.customBody = {openai: '{"model":"gpt-4.1"}'};
+
+        const body = JSON.parse(commonMsgTemplate('hello'));
+        expect(body.model).toBe('gpt-4.1');
+        expect(body).not.toHaveProperty('reasoning_effort');
+    });
+
+    it('Claude 4.5 自定义输出上限不足时不生成非法思考预算', () => {
+        mockConfig.service = services.claude;
+        mockConfig.model.claude = 'claude-haiku-4-5';
+        mockConfig.modelThinking = {claude: {'claude-haiku-4-5': true}};
+        mockConfig.customBody = {claude: '{"max_tokens":1024}'};
+
+        const body = JSON.parse(claudeMsgTemplate('hello'));
+        expect(body.max_tokens).toBe(1024);
+        expect(body).not.toHaveProperty('thinking');
+    });
+
+    it('未知 OpenAI-compatible 模型不猜字段', () => {
+        mockConfig.service = services.custom;
+        mockConfig.model = {[services.custom]: customModelString};
+        mockConfig.customModel = {[services.custom]: 'private-thinking-model'};
+        mockConfig.modelThinking = {[services.custom]: {'private-thinking-model': true}};
+
+        const body = JSON.parse(commonMsgTemplate('hello'));
+        expect(body).not.toHaveProperty('thinking');
+        expect(body).not.toHaveProperty('reasoning');
+        expect(body).not.toHaveProperty('reasoning_effort');
     });
 });
 
