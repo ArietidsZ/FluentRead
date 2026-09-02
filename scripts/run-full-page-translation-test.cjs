@@ -29,6 +29,7 @@ function parseArgs(argv) {
     configureService: null,
     focusSafeHelper: null,
     verifyFloatingUi: false,
+    verifyLoadingStyleIsolation: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -39,6 +40,10 @@ function parseArgs(argv) {
     }
     if (token === '--verify-floating-ui') {
       args.verifyFloatingUi = true;
+      continue;
+    }
+    if (token === '--verify-loading-style-isolation') {
+      args.verifyLoadingStyleIsolation = true;
       continue;
     }
     if (!token.startsWith('--')) throw new Error(`无法识别参数：${token}`);
@@ -211,6 +216,157 @@ function assertDeterministicFixtureTraffic(fixtureTranslationRequestCount, unexp
   }
   if (unexpectedNetworkRequests.length > 0) {
     throw new Error(`全文本地 fixture 尝试访问未授权网络：${JSON.stringify(unexpectedNetworkRequests)}`);
+  }
+}
+
+const HOSTILE_LOADING_INDICATOR_CSS = `
+@keyframes spin { to { transform: rotate(13deg) scale(8); } }
+@keyframes fluent-read-loading-sparkle { to { opacity: 0; transform: scale(8); } }
+span.fluent-read-loading,
+span.fluent-read-loading.static {
+  all: revert !important;
+  position: fixed !important;
+  inset: 24px !important;
+  display: block !important;
+  float: right !important;
+  width: 144px !important;
+  min-width: 144px !important;
+  max-width: 144px !important;
+  height: 96px !important;
+  min-height: 96px !important;
+  max-height: 96px !important;
+  margin: 48px !important;
+  padding: 28px !important;
+  border: 18px solid red !important;
+  opacity: .08 !important;
+  visibility: hidden !important;
+  color: red !important;
+  background: yellow !important;
+  transform: rotate(33deg) scale(6) !important;
+  animation: spin 10s linear infinite !important;
+}
+span.fluent-read-loading::before,
+span.fluent-read-loading::after {
+  content: "HOST PAGE" !important;
+  display: block !important;
+  position: fixed !important;
+  width: 240px !important;
+  height: 120px !important;
+  background: red !important;
+}
+`;
+
+const LATE_HOSTILE_LOADING_INDICATOR_CSS = `
+span.fluent-read-loading[data-fr-translation-owned="true"] {
+  all: unset !important;
+  display: grid !important;
+  width: 220px !important;
+  height: 180px !important;
+  margin: 72px !important;
+  padding: 36px !important;
+  border: 24px dotted blue !important;
+  opacity: 0 !important;
+  visibility: collapse !important;
+  transform: translate(500px, 500px) !important;
+  animation: fluent-read-loading-sparkle 20s infinite !important;
+}
+span.fluent-read-loading::before,
+span.fluent-read-loading::after {
+  content: "LATE PAGE OVERRIDE" !important;
+  display: flex !important;
+}
+`;
+
+async function addHostileLoadingIndicatorCss(page, id, css) {
+  await page.evaluate(({styleId, styleText}) => {
+    const targets = [document.head, document.querySelector('#shadow-host')?.shadowRoot].filter(Boolean);
+    for (const target of targets) {
+      const stylesheet = document.createElement('style');
+      stylesheet.id = styleId;
+      stylesheet.textContent = styleText;
+      target.appendChild(stylesheet);
+    }
+  }, {styleId: id, styleText: css});
+}
+
+async function readLoadingStyleIsolationState(page, selector = '.fluent-read-loading', shadowHostSelector = null) {
+  return page.evaluate(({targetSelector, targetShadowHostSelector}) => {
+    const root = targetShadowHostSelector
+      ? document.querySelector(targetShadowHostSelector)?.shadowRoot
+      : document;
+    const host = root?.querySelector(targetSelector);
+    if (!(host instanceof HTMLElement)) return null;
+    const rect = host.getBoundingClientRect();
+    const computed = getComputedStyle(host);
+    const before = getComputedStyle(host, '::before');
+    const after = getComputedStyle(host, '::after');
+    const importantProperties = [
+      'all', 'display', 'width', 'min-width', 'max-width', 'height', 'min-height', 'max-height',
+      'margin', 'padding', 'border', 'opacity', 'visibility', 'transform', 'animation',
+    ];
+    return {
+      loadingStyle: host.getAttribute('data-fr-loading-style'),
+      motion: host.getAttribute('data-fr-motion'),
+      owned: host.getAttribute('data-fr-translation-owned'),
+      translate: host.getAttribute('translate'),
+      className: host.className,
+      shadowRootClosed: host.shadowRoot === null,
+      lightChildCount: host.childElementCount,
+      rect: {width: rect.width, height: rect.height},
+      computed: {
+        display: computed.display,
+        width: computed.width,
+        height: computed.height,
+        marginLeft: computed.marginLeft,
+        padding: computed.padding,
+        borderWidth: computed.borderWidth,
+        opacity: computed.opacity,
+        visibility: computed.visibility,
+        transform: computed.transform,
+        animationName: computed.animationName,
+      },
+      pseudo: {
+        before: {content: before.content, display: before.display},
+        after: {content: after.content, display: after.display},
+      },
+      inlinePriorities: Object.fromEntries(importantProperties.map((property) => [
+        property,
+        host.style.getPropertyPriority(property),
+      ])),
+    };
+  }, {targetSelector: selector, targetShadowHostSelector: shadowHostSelector});
+}
+
+function assertLoadingStyleIsolation(state, phase, expectedMotion = 'animated') {
+  if (!state) throw new Error(`${phase} 没有找到翻译加载指示器`);
+  const issues = [];
+  if (state.loadingStyle !== 'sparkle') issues.push(`样式=${state.loadingStyle}`);
+  if (state.motion !== expectedMotion) issues.push(`动画状态=${state.motion}`);
+  if (state.owned !== 'true') issues.push(`owned=${state.owned}`);
+  if (state.translate !== 'no') issues.push(`translate=${state.translate}`);
+  if (state.className !== 'fluent-read-loading') issues.push(`class=${state.className}`);
+  if (!state.shadowRootClosed || state.lightChildCount !== 0) issues.push('内部视觉没有保持 closed ShadowRoot');
+  if (Math.abs(state.rect.width - 16) > .25 || Math.abs(state.rect.height - 16) > .25) {
+    issues.push(`几何=${state.rect.width}x${state.rect.height}`);
+  }
+  if (state.computed.display !== 'inline-flex' || state.computed.width !== '16px' || state.computed.height !== '16px') {
+    issues.push(`布局=${JSON.stringify(state.computed)}`);
+  }
+  if (state.computed.marginLeft !== '2px' || state.computed.padding !== '0px' || state.computed.borderWidth !== '0px') {
+    issues.push(`盒模型=${JSON.stringify(state.computed)}`);
+  }
+  if (state.computed.opacity !== '1' || state.computed.visibility !== 'visible' ||
+      state.computed.transform !== 'none' || state.computed.animationName !== 'none') {
+    issues.push(`宿主表现=${JSON.stringify(state.computed)}`);
+  }
+  if (!['none', 'normal'].includes(state.pseudo.before.content) || state.pseudo.before.display !== 'none' ||
+      !['none', 'normal'].includes(state.pseudo.after.content) || state.pseudo.after.display !== 'none') {
+    issues.push(`伪元素=${JSON.stringify(state.pseudo)}`);
+  }
+  const weakPriorities = Object.entries(state.inlinePriorities).filter(([, priority]) => priority !== 'important');
+  if (weakPriorities.length > 0) issues.push(`非 important 属性=${JSON.stringify(weakPriorities)}`);
+  if (issues.length > 0) {
+    throw new Error(`${phase} 页面样式影响了翻译加载指示器：${issues.join('；')}；${JSON.stringify(state)}`);
   }
 }
 
@@ -1176,7 +1332,7 @@ async function main() {
     }
     translationFixtureServer = await startTranslationFixtureServer(
       unexpectedNetworkRequests,
-      args.verifyFloatingUi ? 400 : 0,
+      args.verifyLoadingStyleIsolation ? 1000 : args.verifyFloatingUi ? 400 : 0,
     );
     const fixtureUrls = {
       translationUrl: translationFixtureServer.translationUrl,
@@ -1224,10 +1380,19 @@ async function main() {
         fullPageTranslationMode: 'viewport',
       });
     }
+    if (args.verifyLoadingStyleIsolation) {
+      Object.assign(configUpdates, {
+        animations: true,
+        translationLoadingStyle: 'sparkle',
+      });
+    }
     if (Object.keys(configUpdates).length > 0) {
       await readConfig(context, args.timeout, configUpdates, createIsolatedPage);
     }
     const page = await createIsolatedPage();
+    if (args.verifyLoadingStyleIsolation) {
+      await page.emulateMedia({reducedMotion: 'no-preference'});
+    }
     const networkEvents = [];
     const runtimeErrors = [];
     let omittedNetworkEvents = 0;
@@ -1267,7 +1432,22 @@ async function main() {
     const configResult = await readConfig(context, args.timeout, null, createIsolatedPage);
     if (configResult.config?.floatingBallHotkey !== 'Alt+T') throw new Error(`全文快捷键不是 Alt+T：${configResult.config?.floatingBallHotkey}`);
     if (configResult.config?.service !== args.service) throw new Error(`翻译服务不符：预期 ${args.service}，实际 ${configResult.config?.service}`);
+    if (args.verifyLoadingStyleIsolation &&
+        (configResult.config?.animations !== true || configResult.config?.translationLoadingStyle !== 'sparkle')) {
+      throw new Error(`加载样式隔离测试配置不正确：${JSON.stringify({
+        animations: configResult.config?.animations,
+        translationLoadingStyle: configResult.config?.translationLoadingStyle,
+      })}`);
+    }
     const floatingUiEvidence = args.verifyFloatingUi ? {} : null;
+    let loadingStyleIsolationEvidence = null;
+    if (args.verifyLoadingStyleIsolation) {
+      await addHostileLoadingIndicatorCss(
+        page,
+        'hostile-loading-indicator-before',
+        HOSTILE_LOADING_INDICATOR_CSS,
+      );
+    }
     if (args.verifyFloatingUi) {
       if (configResult.config?.disableFloatingBall !== false || configResult.config?.translationProgressPanelEnabled !== true ||
           configResult.config?.fullPageTranslationMode !== 'viewport') {
@@ -1397,6 +1577,50 @@ async function main() {
 
     await installShortcutDiagnostics(page);
     await toggleFullPage(page, activateTestPage);
+    if (args.verifyLoadingStyleIsolation) {
+      await page.waitForFunction(() => Boolean(
+        document.querySelector('.fluent-read-loading')
+        && document.querySelector('#shadow-host')?.shadowRoot?.querySelector('.fluent-read-loading'),
+      ), undefined, {
+        timeout: args.timeout,
+      });
+      const beforeLateCss = await readLoadingStyleIsolationState(page);
+      const shadowBeforeLateCss = await readLoadingStyleIsolationState(
+        page,
+        '.fluent-read-loading',
+        '#shadow-host',
+      );
+      assertLoadingStyleIsolation(beforeLateCss, '预先注入 hostile CSS 后');
+      assertLoadingStyleIsolation(shadowBeforeLateCss, '开放 ShadowRoot 预先注入 hostile CSS 后');
+      await addHostileLoadingIndicatorCss(
+        page,
+        'hostile-loading-indicator-late',
+        LATE_HOSTILE_LOADING_INDICATOR_CSS,
+      );
+      await page.waitForTimeout(120);
+      const afterLateCss = await readLoadingStyleIsolationState(page);
+      const shadowAfterLateCss = await readLoadingStyleIsolationState(
+        page,
+        '.fluent-read-loading',
+        '#shadow-host',
+      );
+      assertLoadingStyleIsolation(afterLateCss, '动态注入 hostile CSS 后');
+      assertLoadingStyleIsolation(shadowAfterLateCss, '开放 ShadowRoot 动态注入 hostile CSS 后');
+      const screenshot = artifactsDir
+        ? path.join(artifactsDir, 'full-page-loading-style-isolation.png')
+        : null;
+      if (screenshot) await page.screenshot({path: screenshot, fullPage: false});
+      loadingStyleIsolationEvidence = {
+        expectedStyle: 'sparkle',
+        hostileCssBeforeIndicator: true,
+        hostileCssAfterIndicator: true,
+        beforeLateCss,
+        afterLateCss,
+        shadowBeforeLateCss,
+        shadowAfterLateCss,
+        screenshot,
+      };
+    }
     if (args.verifyFloatingUi) {
       floatingUiEvidence.afterShortcutSamples = await assertNoAutomaticFloatingExpansion(page);
       floatingUiEvidence.progressDuringWork = await waitForFloatingUiState(
@@ -1613,7 +1837,25 @@ async function main() {
       );
     }
 
+    if (args.verifyLoadingStyleIsolation) {
+      await page.emulateMedia({reducedMotion: 'reduce'});
+      await page.evaluate(() => {
+        const paragraph = document.createElement('p');
+        paragraph.id = 'loading-reduced-motion-fixture';
+        paragraph.textContent = `A unique paragraph verifies reduced motion for the isolated loading style ${crypto.randomUUID()}.`;
+        document.querySelector('main')?.appendChild(paragraph);
+      });
+    }
     await toggleFullPage(page, activateTestPage);
+    if (args.verifyLoadingStyleIsolation) {
+      const reducedMotionSelector = '#loading-reduced-motion-fixture .fluent-read-loading';
+      await page.waitForFunction((selector) => Boolean(document.querySelector(selector)), reducedMotionSelector, {
+        timeout: args.timeout,
+      });
+      const reducedMotion = await readLoadingStyleIsolationState(page, reducedMotionSelector);
+      assertLoadingStyleIsolation(reducedMotion, '系统减少动态效果下', 'static');
+      loadingStyleIsolationEvidence.reducedMotion = reducedMotion;
+    }
     await waitFor(page, () => document.querySelector('#paragraph-one .fluent-read-bilingual-content') &&
       document.querySelector('#model-description .fluent-read-bilingual-content') &&
       document.querySelector('#dynamic-paragraph .fluent-read-bilingual-content') &&
@@ -1661,6 +1903,8 @@ async function main() {
         disableFloatingBall: configResult.config.disableFloatingBall,
         translationProgressPanelEnabled: configResult.config.translationProgressPanelEnabled,
         fullPageTranslationMode: configResult.config.fullPageTranslationMode,
+        animations: configResult.config.animations,
+        translationLoadingStyle: configResult.config.translationLoadingStyle,
       },
       fixtureTranslationRequestCount,
       fixtureTranslationItemCount,
@@ -1670,11 +1914,13 @@ async function main() {
       retranslated,
       failureActions,
       floatingUi: floatingUiEvidence,
+      loadingStyleIsolation: loadingStyleIsolationEvidence,
       consoleErrors: runtimeErrors,
       screenshots: artifactsDir ? [
         path.join(artifactsDir, 'full-page-translated.png'),
         path.join(artifactsDir, 'full-page-restored.png'),
         path.join(artifactsDir, 'full-page-retranslated.png'),
+        ...(loadingStyleIsolationEvidence?.screenshot ? [loadingStyleIsolationEvidence.screenshot] : []),
         ...failureActions.screenshots,
       ] : [],
     };

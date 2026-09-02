@@ -95,6 +95,7 @@ describe('browser regression focus safety', () => {
             '--focus-safe-helper', '/tmp/focus-safe-browser.cjs',
         ];
         expect(parseArgs(requiredArgs).service).toBe('freeTranslation');
+        expect(parseArgs([...requiredArgs, '--verify-loading-style-isolation']).verifyLoadingStyleIsolation).toBe(true);
         expect(() => parseArgs([...requiredArgs, '--service', 'google'])).toThrow('只允许 freeTranslation');
         expect(() => parseArgs([...requiredArgs, '--configure-service', 'google'])).toThrow('只允许 freeTranslation');
         expect(() => parseArgs([...requiredArgs, '--url', 'https://example.com/fixture'])).toThrow(
@@ -114,6 +115,16 @@ describe('browser regression focus safety', () => {
         const fullPageSource = readScript('scripts/run-full-page-translation-test.cjs');
         expect(fullPageSource).toContain("matches(':hover') === true");
         expect(fullPageSource).toContain('悬浮翻译可信手势未落到预期失败态');
+        expect(fullPageSource).toContain('HOST PAGE');
+        expect(fullPageSource).toContain('动态注入 hostile CSS 后');
+        expect(fullPageSource).toContain('开放 ShadowRoot 动态注入 hostile CSS 后');
+        expect(fullPageSource).toContain("emulateMedia({reducedMotion: 'no-preference'})");
+        expect(fullPageSource).toContain("emulateMedia({reducedMotion: 'reduce'})");
+        expect(fullPageSource).not.toContain(':is(span.fluent-read-loading, span[data-fr-translation-owned="true"])');
+        expect(fullPageSource).toContain('full-page-loading-style-isolation.png');
+        const userscriptSource = readScript('scripts/run-userscript-smoke-test.cjs');
+        expect(userscriptSource).toContain("emulateMedia({reducedMotion: 'no-preference'})");
+        expect(userscriptSource).toContain('}, 1000);');
         const videoSource = readScript('scripts/run-video-subtitle-fixture-test.cjs');
         expect(videoSource).toContain("const navigationMode = 'offline-youtube-fixture'");
         expect(videoSource).not.toContain('live-youtube');

@@ -110,6 +110,7 @@ describe('full regression runner', () => {
         const fullPageTranslation = browserSteps.find((step: {id: string}) => step.id === 'full-page-translation');
         expect(fullPageTranslation).toBeDefined();
         expect(fullPageTranslation!.args).toContain('--verify-floating-ui');
+        expect(fullPageTranslation!.args).toContain('--verify-loading-style-isolation');
         expect(userscriptSmoke).toBeDefined();
         expect(userscriptSmoke!.args).toContain('--artifact');
         expect(userscriptSmoke!.args).toContain(resolve(PROJECT_ROOT, '.output/userscript/fluent-read.user.js'));

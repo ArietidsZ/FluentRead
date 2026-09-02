@@ -100,7 +100,7 @@ export const navigationGroups: NavigationGroup[] = [
         id: 'settings-advanced', icon: '◇', label: '高级选项', description: '性能与模板', group: '系统与数据',
         heading: '高级选项', summary: '管理缓存、并发、限流、重试和动画等运行策略。',
         kicker: '系统与数据', title: '高级选项', detail: '调整缓存、并发、限流和重试；不确定时建议保留默认值。',
-        searchDescription: '缓存、动画、并发、限流、重试、性能、资源占用',
+        searchDescription: '缓存、动画、翻译动画、加载样式、简洁、柔和圆环、跳跃圆点、行星轨道、星光、并发、限流、重试、性能、资源占用',
       },
       {
         id: 'settings-data', icon: '⇅', label: '备份与恢复', description: '导出备份、恢复数据', group: '系统与数据',

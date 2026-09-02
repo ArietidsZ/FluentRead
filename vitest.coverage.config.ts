@@ -51,6 +51,7 @@ export default defineConfig({
             'tests/fullPageVisibilityScheduling.test.ts',
             'tests/liveTextTranslation.test.ts',
             'tests/translationStability.test.ts',
+            'tests/translationLoadingIndicator.test.ts',
             'tests/viewportStability.test.ts',
             'tests/contentFeatureRegistry.test.ts',
             'tests/credentialStorageContext.test.ts',
@@ -192,6 +193,7 @@ export default defineConfig({
                 'src/core/config/modelThinking.ts',
                 'src/core/config/scheduling.ts',
                 'src/core/config/selectionTts.ts',
+                'src/core/config/translationLoadingStyle.ts',
                 'src/core/config/sensitiveKeys.ts',
                 'src/core/config/transfer.ts',
                 'src/core/config/validation.ts',
@@ -313,6 +315,7 @@ export default defineConfig({
                 'src/shared/function/throttle.ts',
                 'src/shared/geometry/touch.ts',
                 'src/ui/view-model/serviceCatalog.ts',
+                'src/ui/translationLoadingIndicator.ts',
             ],
             exclude: ['**/*.d.ts'],
             thresholds: {

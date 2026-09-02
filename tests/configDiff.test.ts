@@ -27,6 +27,20 @@ describe('配置差异预览', () => {
         ]);
     });
 
+    it('用用户可见名称预览段落加载样式变化', () => {
+        const result = buildConfigDiff(
+            {translationLoadingStyle: 'minimal'},
+            {translationLoadingStyle: 'sparkle'},
+        );
+
+        expect(group(result, 'advanced')?.changes).toContainEqual({
+            key: 'translationLoadingStyle',
+            label: '段落加载样式',
+            before: '简洁',
+            after: '星光',
+        });
+    });
+
     it('预览双语逐句高亮开关', () => {
         const result = buildConfigDiff({bilingualSentenceHighlightEnabled: false}, {
             bilingualSentenceHighlightEnabled: true,

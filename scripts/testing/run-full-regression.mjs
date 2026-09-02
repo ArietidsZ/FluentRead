@@ -30,7 +30,7 @@ const LOCAL_BROWSER_FIXTURES = [
         id: 'full-page-translation',
         label: 'full-page translation browser regression',
         script: 'scripts/run-full-page-translation-test.cjs',
-        args: ['--verify-floating-ui'],
+        args: ['--verify-floating-ui', '--verify-loading-style-isolation'],
         backgroundArgs: ['--background'],
         supportsHeaded: true,
     },

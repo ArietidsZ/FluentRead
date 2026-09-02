@@ -77,6 +77,16 @@
           <label v-if="draft.inputBoxTranslationTrigger !== 'disabled'"><span>输入框目标语言</span><select v-model="draft.inputBoxTranslationTarget"><option v-for="item in options.inputBoxTranslationTarget" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
           <label><span>并发翻译数</span><input v-model.number="draft.maxConcurrentTranslations" type="number" min="1" max="20" /></label>
           <label class="toggle"><span>界面动画</span><input v-model="draft.animations" type="checkbox" /></label>
+          <label>
+            <span>段落加载样式</span>
+            <div class="translation-loading-style-control">
+              <select v-model="draft.translationLoadingStyle" :disabled="!draft.animations"><option v-for="item in translationLoadingStyleOptions" :key="item.value" :value="item.value">{{ item.label }}</option></select>
+              <span class="translation-loading-style-reference" aria-label="当前动画参考" :title="selectedTranslationLoadingStyle?.description">
+                <i aria-hidden="true" />
+                <TranslationLoadingPreview :loading-style="draft.translationLoadingStyle" :animated="draft.animations" />
+              </span>
+            </div>
+          </label>
           <label><span>主题</span><select v-model="draft.theme"><option v-for="item in options.theme" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
         </fieldset>
 
@@ -115,6 +125,8 @@
 import {computed, onMounted, ref, watch} from 'vue';
 import browser from 'webextension-polyfill';
 import {Config} from '@/src/core/config/model';
+import {translationLoadingStyleOptions} from '@/src/core/config/translationLoadingStyle';
+import TranslationLoadingPreview from '@/src/ui/components/TranslationLoadingPreview.vue';
 import {config as runtimeConfig, configReady, saveConfig} from '@/src/services/config/store';
 import {customModelString, models, options, resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
 import {
@@ -154,6 +166,9 @@ const customModelError = ref('');
 
 const styleOptions = options.styles.filter(item => !item.disabled && typeof item.value === 'number');
 const hoverOptions = options.keys.filter(item => !item.disabled);
+const selectedTranslationLoadingStyle = computed(() => translationLoadingStyleOptions.find(
+  item => item.value === draft.value.translationLoadingStyle,
+));
 const serviceOptions = computed(() => withCustomOpenAIServiceOptions(
   options.services,
   draft.value.customOpenAIProviders,
@@ -437,6 +452,9 @@ input, select, textarea { width: 100%; min-width: 0; padding: 9px 10px; border: 
 input:focus, select:focus, textarea:focus { border-color: #ef4776; box-shadow: 0 0 0 3px rgba(239, 71, 118, .1); background: #fff; }
 textarea { resize: vertical; line-height: 1.45; }
 .toggle input { justify-self: end; width: 38px; height: 20px; accent-color: #ef4776; }
+.translation-loading-style-control { display: grid; grid-template-columns: minmax(0, 1fr) 62px; align-items: stretch; gap: 6px; }
+.translation-loading-style-reference { display: inline-flex; min-height: 34px; align-items: center; justify-content: center; gap: 1px; border: 1px solid #dfe3eb; border-radius: 9px; background: #f8f9fb; }
+.translation-loading-style-reference > i { display: block; width: 22px; height: 2px; border-radius: 999px; background: #aeb5c1; opacity: .55; }
 .hint, .warning { margin: 8px 0 0; padding: 8px 10px; border-radius: 9px; font-size: 10px; line-height: 1.5; }
 .hint { background: #f3f5f9; color: #70798a; }
 .warning { background: #fff2e7; color: #8a4a1e; }
@@ -460,6 +478,7 @@ footer button { padding: 9px 13px; border-radius: 9px; font-size: 11px; font-wei
 .dark .notice { border-color: #6f4654; background: #3b2e35; color: #f0c0d0; }
 .dark label { color: #d2d5dc; }
 .dark input, .dark select, .dark textarea, .dark .close, .dark .secondary { border-color: #50535f; background: #3a3d47; color: #f1f2f5; }
+.dark .translation-loading-style-reference { border-color: #50535f; background: #3a3d47; }
 .dark .hint { background: #393c46; color: #bdc1cb; }
 @media (max-width: 720px) {
   .fr-userscript-settings-backdrop { padding: 0; place-items: stretch; }
