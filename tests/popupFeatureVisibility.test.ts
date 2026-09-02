@@ -81,6 +81,9 @@ describe('popup feature visibility', () => {
         const onboarding = source('src/ui/components/UiLanguageOnboarding.vue');
 
         expect(selector).toContain('getUiLanguageDisplayLabel(option.value, language)');
+        expect(selector).toContain('<ElSelect');
+        expect(selector).toContain('popper-class="ui-language-select-popper"');
+        expect(selector).not.toContain('<select');
         expect(onboarding).toContain('getUiLanguageBilingualLabel(option.value)');
     });
 

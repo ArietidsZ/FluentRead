@@ -144,6 +144,10 @@ h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.0
   min-height: 48px; padding: 0 15px; border: 1px solid #e2e6ef; border-radius: 14px; background: #f8f9fc;
   box-shadow: none; transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
+.settings-card .settings-item-control .ui-language-selector .el-select__wrapper {
+  min-height: 48px;
+  border-radius: 14px;
+}
 .settings-card .el-select__wrapper:hover,
 .settings-card .el-input__wrapper:hover,
 .settings-card .el-input-number .el-input__wrapper:hover { border-color: #ef9ab1; background: #fff; }
