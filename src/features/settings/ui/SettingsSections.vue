@@ -328,6 +328,9 @@
             </el-option-group>
           </el-select>
         </SettingsItem>
+        <SettingsItem v-show="config.display === 1" label="双语逐句高亮" description="开启后，鼠标悬停在原文或译文上会同步高亮对应的双语段落；仅双语模式生效。">
+          <el-switch v-model="config.bilingualSentenceHighlightEnabled" class="settings-toggle" aria-label="双语逐句高亮" />
+        </SettingsItem>
         <div v-show="config.display === 1" class="style-preview-card" aria-live="polite">
           <div class="style-preview-example">
             <p class="style-preview-source">Reading should feel calm and effortless.</p>

@@ -31,7 +31,7 @@ export const navigationGroups: NavigationGroup[] = [
         id: 'settings-general', icon: '⌂', label: '通用设置', description: '服务、显示与网页辅助', group: '基础配置',
         heading: '通用设置', summary: '选择默认翻译服务，并管理译文显示、网页辅助和基础偏好。',
         kicker: '基础配置', title: '通用设置', detail: '选择翻译服务，设置译文显示、网页辅助与界面偏好。',
-        searchDescription: '选择翻译服务、默认服务、译文显示、网页辅助、AI 智能上下文、默认目标语言、主题',
+        searchDescription: '选择翻译服务、默认服务、译文显示、双语逐句高亮、网页辅助、AI 智能上下文、默认目标语言、主题',
       },
       {
         id: 'settings-services', icon: '译', label: '翻译服务', description: '服务与模型', group: '基础配置',

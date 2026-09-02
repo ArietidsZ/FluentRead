@@ -50,6 +50,7 @@ import {
     shouldAutomaticallyTranslatePage,
     type ContentPageAvailabilityRuntime,
 } from './pageAvailability';
+import {syncBilingualSentenceHighlight} from './bilingualSentenceHighlight';
 function installPageStyles(ctx: ContentScriptContext): () => void {
     const existing = document.getElementById('fluent-read-page-styles');
     if (existing) return () => undefined;
@@ -99,10 +100,8 @@ export async function startContentApp(ctx: ContentScriptContext,
             isDisabled: currentPageSiteDisabled,
         }).catch(() => undefined);
     };
-
     const isPageRuntimeEnabled = (): boolean => !cleanedUp && !currentPageSiteDisabled && config.on !== false;
     let pageAvailability: ContentPageAvailabilityRuntime | null = null;
-
     const disposePageFeatures = (): void => {
         featureController?.abort();
         featureController = null;
@@ -114,12 +113,13 @@ export async function startContentApp(ctx: ContentScriptContext,
         inputTranslationFeature.invalidate();
         removePageStyles?.();
         removePageStyles = null;
+        syncBilingualSentenceHighlight(document, false);
     };
 
     const activatePageFeatures = async (): Promise<void> => {
         if (!isPageRuntimeEnabled() || featureController) return;
-
         removePageStyles = installPageStyles(ctx);
+        syncBilingualSentenceHighlight(document, config.bilingualSentenceHighlightEnabled === true);
         const activationController = new AbortController();
         featureController = activationController;
         const isActivationCurrent = () => !cleanedUp
@@ -240,8 +240,8 @@ export async function startContentApp(ctx: ContentScriptContext,
     }, capabilities);
     browser.runtime.onMessage.addListener(runtimeMessageListener);
     reportSiteDisabledState();
-
     unsubscribeContentConfig = subscribeConfig((nextConfig) => {
+        syncBilingualSentenceHighlight(document, nextConfig.bilingualSentenceHighlightEnabled === true);
         const nextInputBoxConfigKey = inputBoxTranslationConfigKey(nextConfig);
         if (nextInputBoxConfigKey !== previousInputBoxConfigKey) {
             previousInputBoxConfigKey = nextInputBoxConfigKey;
