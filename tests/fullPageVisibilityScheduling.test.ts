@@ -2300,6 +2300,148 @@ describe("全文翻译可见性锚点", () => {
         expect(runtime.requests).toHaveBeenLastCalledWith(["13 hours ago"]);
     });
 
+    it("X 虚拟列表在请求进行中重建相同原文时不应取消当前翻译请求", async () => {
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = "all";
+        const source = "The same X post survives a virtualized layout update.";
+        document.body.innerHTML = `<article data-testid="tweet"><div id="tweet-text" data-testid="tweetText">${source}</div></article>`;
+        const tweetText = document.querySelector<HTMLElement>("#tweet-text")!;
+        setLayoutBox(tweetText, 620, 96);
+        runtime.candidates = [{element: tweetText, kind: "content", reason: "x-post-text", adapterId: "x"}];
+
+        const request = deferred<string[]>();
+        runtime.requests.mockImplementationOnce(() => request.promise);
+
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+
+        const previousSource = tweetText.firstChild!;
+        const spinner = tweetText.querySelector<HTMLElement>("[data-fr-translation-owned=\"true\"]")!;
+        const replacementSource = document.createTextNode(source);
+        tweetText.replaceChildren(replacementSource);
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: "childList",
+            target: tweetText,
+            addedNodes: [replacementSource] as unknown as NodeList,
+            removedNodes: [previousSource, spinner] as unknown as NodeList,
+        } as unknown as MutationRecord]);
+
+        expect(runtime.cancelQueue).not.toHaveBeenCalled();
+        request.resolve([`译:${source}`]);
+        await finishScheduledWork();
+
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(tweetText.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
+    });
+
+    it("仅译文 X 文本在请求进行中重建相同原文时仍复用当前 generation", async () => {
+        runtime.config.display = 0;
+        runtime.config.fullPageTranslationMode = "all";
+        const source = "The same X post stays readable in translation-only mode.";
+        document.body.innerHTML = `<article data-testid="tweet"><div id="tweet-text" data-testid="tweetText">${source}</div></article>`;
+        const tweetText = document.querySelector<HTMLElement>("#tweet-text")!;
+        setLayoutBox(tweetText, 620, 96);
+        runtime.candidates = [{element: tweetText, kind: "content", reason: "x-post-text", adapterId: "x"}];
+
+        const request = deferred<string[]>();
+        runtime.requests.mockImplementationOnce(() => request.promise);
+
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+
+        const previousSource = tweetText.firstChild!;
+        const spinner = tweetText.querySelector<HTMLElement>("[data-fr-translation-owned=\"true\"]")!;
+        const replacementSource = document.createTextNode(source);
+        tweetText.replaceChildren(replacementSource);
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: "childList",
+            target: tweetText,
+            addedNodes: [replacementSource] as unknown as NodeList,
+            removedNodes: [previousSource, spinner] as unknown as NodeList,
+        } as unknown as MutationRecord]);
+
+        expect(runtime.cancelQueue).not.toHaveBeenCalled();
+        request.resolve([`译:${source}`]);
+        await finishScheduledWork();
+
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(singleTranslationText(tweetText)).toBe(`译:${source}`);
+    });
+
+    it("全文滚动期间暂停新翻译，停止滚动后再继续排队", async () => {
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = "all";
+        runtime.config.maxConcurrentTranslations = 1;
+        document.body.innerHTML = '<p id="first">First visible post.</p><p id="second">Second visible post.</p>';
+        const candidates = Array.from(document.querySelectorAll<HTMLElement>("p"));
+        candidates.forEach((candidate) => setLayoutBox(candidate, 620, 96));
+        runtime.candidates = candidates.map((element) => ({
+            element,
+            kind: "content" as const,
+            reason: "x-post-text",
+            adapterId: "x",
+        }));
+
+        const firstRequest = deferred<string[]>();
+        const secondRequest = deferred<string[]>();
+        runtime.requests
+            .mockImplementationOnce(() => firstRequest.promise)
+            .mockImplementationOnce(() => secondRequest.promise);
+
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(51);
+        await Promise.resolve();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+
+        document.dispatchEvent(new window.Event("scroll"));
+        firstRequest.resolve(["译:First visible post."]);
+        await vi.advanceTimersByTimeAsync(1);
+        await Promise.resolve();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+
+        await vi.advanceTimersByTimeAsync(220);
+        await Promise.resolve();
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        secondRequest.resolve(["译:Second visible post."]);
+        await finishScheduledWork();
+
+        expect(candidates.map((candidate) => candidate.querySelectorAll(".fluent-read-bilingual-content").length))
+            .toEqual([1, 1]);
+    });
+
+    it("插入全文译文时补偿视口锚点位移，避免页面跳动", async () => {
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = "all";
+        document.body.innerHTML = '<p id="target">A translated post changes layout.</p><p id="anchor">The reader anchor must stay still.</p>';
+        const target = document.querySelector<HTMLElement>("#target")!;
+        const anchor = document.querySelector<HTMLElement>("#anchor")!;
+        setLayoutBox(target, 620, 96);
+        let anchorRectReads = 0;
+        Object.defineProperty(anchor, "getBoundingClientRect", {
+            configurable: true,
+            value: () => {
+                anchorRectReads += 1;
+                const top = anchorRectReads % 2 === 1 ? 420 : 452;
+                return {width: 620, height: 96, top, right: 620, bottom: top + 96, left: 0, x: 0, y: top};
+            },
+        });
+        Object.defineProperty(document, "elementFromPoint", {
+            configurable: true,
+            value: () => anchor,
+        });
+        const scrollBy = vi.fn();
+        Object.defineProperty(window, "scrollBy", {configurable: true, value: scrollBy});
+        runtime.candidates = [{element: target, kind: "content", reason: "x-post-text", adapterId: "x"}];
+
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+
+        expect(target.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
+        expect(scrollBy).toHaveBeenCalledWith(0, 32);
+    });
+
     it("已译 prose 忽略 MathJax/code 等保护后代 churn，但外层 source mutation 会重启", async () => {
         runtime.config.display = 1;
         document.body.innerHTML = `
