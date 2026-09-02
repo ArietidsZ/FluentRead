@@ -32,9 +32,28 @@ describe('Chrome translator 请求级语言回归', () => {
         }));
     });
 
-    it('纯 payload builder 使用请求覆盖，空白覆盖才回退配置快照', () => {
+    it('纯 payload builder 保留标记正文与独立检测样本，并只在 auto 源语言下携带样本', () => {
+        const markedText = [
+            '___FLUENTREAD_test_0_BEGIN___',
+            'Bonjour le monde.',
+            '___FLUENTREAD_test_0_END___',
+        ].join('\n');
         expect(buildChromeOffscreenTranslationData({
-            origin: 'hello', sourceLanguage: ' en ', targetLanguage: ' ja ',
+            origin: markedText,
+            sourceLanguage: 'auto',
+            targetLanguage: 'zh-Hans',
+            sourceLanguageDetectionText: 'Bonjour le monde.',
+        }, {sourceLanguage: 'en', targetLanguage: 'ja'})).toEqual({
+            text: markedText,
+            from: 'auto',
+            to: 'zh-Hans',
+            sourceLanguageDetectionText: 'Bonjour le monde.',
+        });
+        expect(buildChromeOffscreenTranslationData({
+            origin: 'hello',
+            sourceLanguage: ' en ',
+            targetLanguage: ' ja ',
+            sourceLanguageDetectionText: 'Bonjour le monde.',
         }, {sourceLanguage: 'auto', targetLanguage: 'zh-Hans'})).toEqual({
             text: 'hello', from: 'en', to: 'ja',
         });
@@ -49,22 +68,33 @@ describe('Chrome translator 请求级语言回归', () => {
         expect(() => buildChromeOffscreenTranslationData({origin: '   '}, {
             sourceLanguage: 'auto', targetLanguage: 'zh-Hans',
         })).toThrow('翻译文本不能为空');
+        expect(() => buildChromeOffscreenTranslationData({
+            origin: 'hello',
+            sourceLanguageDetectionText: ['forged'],
+        }, {sourceLanguage: 'auto', targetLanguage: 'zh-Hans'})).toThrow('检测文本必须是字符串');
     });
 
-    it('真实 provider 发往 offscreen 的 data 与 broker 请求覆盖完全一致', async () => {
+    it('真实 provider 发往 offscreen 的标记正文和纯检测样本彼此独立，并为首次下载保留五分钟', async () => {
+        const markedText = '___FLUENTREAD_test_0_BEGIN___\nBonjour\n___FLUENTREAD_test_0_END___';
         await expect(chromeTranslator({
-            origin: 'hello',
-            sourceLanguage: 'en',
+            origin: markedText,
+            sourceLanguage: 'auto',
             targetLanguage: 'ja',
+            sourceLanguageDetectionText: 'Bonjour',
         })).resolves.toBe('翻译结果');
 
         expect(mocks.send).toHaveBeenCalledWith({
             type: 'CHROME_TRANSLATE_OFFSCREEN',
             requestId: 'chrome-request-1',
-            data: {text: 'hello', from: 'en', to: 'ja'},
+            data: {
+                text: markedText,
+                from: 'auto',
+                to: 'ja',
+                sourceLanguageDetectionText: 'Bonjour',
+            },
         }, {
             signal: undefined,
-            timeoutMs: 45_000,
+            timeoutMs: 300_000,
             cancelMessage: {
                 type: 'CANCEL_CHROME_TRANSLATE_OFFSCREEN',
                 requestId: 'chrome-request-1',

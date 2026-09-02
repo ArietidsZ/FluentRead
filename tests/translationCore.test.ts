@@ -1517,17 +1517,51 @@ describe('translation candidate core', () => {
         expect(ids).toEqual(['words']);
     });
 
-    it('only skips short text when the target script is clear', () => {
-        expect(isClearlyTargetLanguage('翻译设置', 'zh-CN')).toBe(true);
+    it('only skips short text when kana, Hangul, or Chinese-specific forms prove the target script', () => {
+        expect(isClearlyTargetLanguage('今日は良い天気です。', 'ja-JP')).toBe(true);
+        expect(isClearlyTargetLanguage('今日は良い天気です。', 'zh-Hans')).toBe(false);
+        expect(isClearlyTargetLanguage('今日は良い天気です。', 'ko')).toBe(false);
         expect(isClearlyTargetLanguage('設定を翻訳', 'ja-JP')).toBe(true);
+        expect(isClearlyTargetLanguage('設定を翻訳', 'zh-CN')).toBe(false);
         expect(isClearlyTargetLanguage('설정 번역', 'ko-KR')).toBe(true);
+        expect(isClearlyTargetLanguage('설정 번역', 'zh-CN')).toBe(false);
+        expect(isClearlyTargetLanguage('설정 번역', 'ja')).toBe(false);
+        expect(isClearlyTargetLanguage('あ안', 'ja')).toBe(false);
+        expect(isClearlyTargetLanguage('あ안', 'ko')).toBe(false);
+
+        expect(isClearlyTargetLanguage('翻译设置', 'zh-CN')).toBe(true);
+        expect(isClearlyTargetLanguage('翻译设置', 'zh-Hans')).toBe(true);
+        expect(isClearlyTargetLanguage('翻译设置', 'zh-SG')).toBe(true);
+        expect(isClearlyTargetLanguage('翻译设置', 'zh-Hant')).toBe(false);
+        expect(isClearlyTargetLanguage('翻译设置', 'zh-TW')).toBe(false);
+        expect(isClearlyTargetLanguage('翻译设置', 'zh')).toBe(false);
+        expect(isClearlyTargetLanguage('翻译设置', 'ja-JP')).toBe(false);
+        expect(isClearlyTargetLanguage('繁體中文測試', 'zh-Hant')).toBe(true);
+        expect(isClearlyTargetLanguage('繁體中文測試', 'zh-TW')).toBe(true);
+        expect(isClearlyTargetLanguage('繁體中文測試', 'zh-HK')).toBe(true);
+        expect(isClearlyTargetLanguage('繁體中文測試', 'zh-Hans')).toBe(false);
+        expect(isClearlyTargetLanguage('繁體中文測試', 'zh-CN')).toBe(false);
+        expect(isClearlyTargetLanguage('繁體中文測試', 'zh')).toBe(false);
+        expect(isClearlyTargetLanguage('繁體中文測試', 'ja-JP')).toBe(false);
+        expect(isClearlyTargetLanguage('这是繁體中文測試', 'zh-Hans')).toBe(false);
+        expect(isClearlyTargetLanguage('这是繁體中文測試', 'zh-Hant')).toBe(false);
+        expect(isClearlyTargetLanguage('日本語文章', 'zh-Hans')).toBe(false);
+        expect(isClearlyTargetLanguage('日本語文章', 'ja')).toBe(false);
+        expect(isClearlyTargetLanguage('時間', 'zh-Hant')).toBe(false);
+        expect(isClearlyTargetLanguage('云々', 'zh-Hans')).toBe(false);
+
+        expect(isClearlyTargetLanguage('Bonjour le monde.', 'en')).toBe(false);
+        expect(isClearlyTargetLanguage('Hallo Welt.', 'en')).toBe(false);
+        expect(isClearlyTargetLanguage('Settings', 'en')).toBe(false);
         expect(isClearlyTargetLanguage('Pull requests', 'zh-CN')).toBe(false);
         expect(isClearlyTargetLanguage('API', 'zh-CN')).toBe(false);
-        expect(isClearlyTargetLanguage('Settings', 'en')).toBe(true);
-        expect(isClearlyTargetLanguage('漢字', 'en')).toBe(false);
-        expect(isClearlyTargetLanguage('', 'zh-CN')).toBe(true);
         expect(isClearlyTargetLanguage('Paramètres', 'fr')).toBe(false);
+        expect(isClearlyTargetLanguage('漢字', 'en')).toBe(false);
+
+        expect(isClearlyTargetLanguage('', 'zh-CN')).toBe(true);
+        expect(isClearlyTargetLanguage('   ', 'ja')).toBe(true);
         expect(isClearlyTargetLanguage('2026-08-25', 'en')).toBe(true);
+        expect(isClearlyTargetLanguage('123 / 456', 'zh-Hans')).toBe(true);
         expect(isMeaningfulTranslationText('!!!')).toBe(false);
         expect(isMeaningfulTranslationText('https://example.test/docs')).toBe(false);
         expect(isMeaningfulTranslationText('dev@example.test')).toBe(false);

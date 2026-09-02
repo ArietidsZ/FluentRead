@@ -69,6 +69,16 @@ describe('划词、圈选和图片翻译纵向切片回归', () => {
         expect(userscriptConfig).not.toContain("find: '@/entrypoints/utils/imageTranslation'");
     });
 
+    it('后台取消 handler 与翻译 fallback 共享同一个请求注册表', () => {
+        const messageRuntime = source('src/app/background/messageRuntime.ts');
+        expect(messageRuntime.match(/const translationRequestRegistry = createTranslationRequestRegistry\(\);/gu))
+            .toHaveLength(1);
+        expect(messageRuntime).toContain('createTranslationCancelHandler(translationRequestRegistry)');
+        expect(messageRuntime).toContain('requestRegistry: translationRequestRegistry');
+        expect(messageRuntime.indexOf('const translationRequestRegistry = createTranslationRequestRegistry();'))
+            .toBeLessThan(messageRuntime.indexOf('createTranslationCancelHandler(translationRequestRegistry)'));
+    });
+
     it('OCR 下载把接收端初始化故障与真实资源下载失败分开提示', () => {
         const settings = source('src/features/image-translation/ui/ImageOcrSettings.vue');
         expect(settings).toContain('OCR 服务初始化失败，请重新打开设置页后重试。');

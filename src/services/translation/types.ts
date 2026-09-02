@@ -2,7 +2,7 @@
  * @file src/services/translation/types.ts
  *
  * 文件职责：定义翻译 broker、缓存和 provider 之间的端口与消息契约，约束单条、批量、语言和配置快照的数据形状。
- * 主要内容：包含 TranslationRequestMessage、ProviderRegistry、CachePort、ConfigSnapshot、ProviderConfigFields 及 BrokerDependencies/Broker 等接口，为依赖注入和测试替身提供稳定边界。 可核对的公开符号包括 TranslationRequestMessageBase、TranslationSingleRequestMessage、TranslationBatchRequestMessage、TranslationRequestMessage、TranslationProvider、TranslationProviderRegistry、TranslationLanguageOverride、TranslationLanguages。
+ * 主要内容：包含 TranslationRequestMessage、runtime 请求/取消协议、ProviderRegistry、CachePort、ConfigSnapshot、ProviderConfigFields 及 BrokerDependencies/Broker 等接口，并允许 Chrome 内置翻译携带不含结构哨兵的源语言检测样本，为依赖注入和测试替身提供稳定边界。 可核对的公开符号包括 TranslationRequestMessageBase、TranslationRuntimeRequestMessage、TranslationCancelMessage、TranslationProvider、TranslationProviderRegistry、TranslationLanguageOverride、TranslationLanguages。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
@@ -26,6 +26,8 @@ export interface TranslationRequestMessageBase {
     /** 翻译中心仅对当前请求使用的语言，不改变全局设置。 */
     sourceLanguage?: string;
     targetLanguage?: string;
+    /** 仅供 Chrome 内置翻译在 auto 模式检测语言；正文仍以 origin 为准。 */
+    sourceLanguageDetectionText?: string;
     /** provider deadline；用于避免可选摘要耗尽整次请求。 */
     requestTimeoutMs?: number;
 }
@@ -33,6 +35,20 @@ export interface TranslationRequestMessageBase {
 export type TranslationSingleRequestMessage = TranslationRequestMessageBase & {origin: string};
 export type TranslationBatchRequestMessage = TranslationRequestMessageBase & {origin: string[]};
 export type TranslationRequestMessage = TranslationSingleRequestMessage | TranslationBatchRequestMessage;
+
+/** content -> background 的传输层字段；后台解析后必须剥离，不得进入 broker/provider。 */
+export type TranslationRuntimeRequestMessage = TranslationRequestMessage & {clientRequestId: string};
+
+export const TRANSLATION_CANCEL_MESSAGE_TYPE = 'fluentReadTranslationCancel' as const;
+export interface TranslationCancelMessage {
+    readonly type: typeof TRANSLATION_CANCEL_MESSAGE_TYPE;
+    readonly clientRequestId?: unknown;
+}
+export interface TranslationCancelResponse {
+    readonly success: true;
+    readonly cancelled: boolean;
+    readonly clientRequestId: string;
+}
 
 export type TranslationProvider = (message: Record<string, unknown>) => Promise<unknown>;
 export type TranslationProviderRegistry = Record<string, TranslationProvider>;

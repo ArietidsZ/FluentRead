@@ -44,7 +44,11 @@ const runtime = vi.hoisted(() => ({
 
 vi.mock("@/src/app/translation/check", () => ({checkConfig: () => true}));
 vi.mock("@/src/core/config/catalog", () => ({
-    services: {microsoft: "microsoft", freeTranslation: "freeTranslation"},
+    services: {
+        microsoft: "microsoft",
+        freeTranslation: "freeTranslation",
+        chromeTranslator: "chromeTranslator",
+    },
     servicesType: {
         isUseAIContext: (service: string) => service === 'ai',
     },
@@ -58,7 +62,10 @@ vi.mock("@/src/core/config/constants", () => ({
 vi.mock("@/src/services/config/store", () => ({
     config: runtime.config,
 }));
-vi.mock("@/src/core/language/detect", () => ({detectlang: () => ""}));
+vi.mock("@/src/core/language/detect", () => ({
+    detectlang: () => "",
+    shouldSkipTranslationForTarget: () => false,
+}));
 vi.mock("@/src/app/translation/client", () => ({
     translateText: async (origin: string, _context: string, options: Record<string, unknown>) => {
         runtime.requestOptions.push(options);
@@ -198,7 +205,13 @@ vi.mock("@/src/core/translation/public", () => {
             existing: {element: HTMLElement; adapterId?: string},
             candidate: {element: HTMLElement; adapterId?: string},
         ) => candidate.adapterId ? candidate : existing,
-        serializeTranslationSlots: (origins: readonly string[]) => ({payload: origins.join("\n")}),
+        serializeTranslationSlots: (origins: readonly string[]) => ({
+            payload: origins.map((origin, index) => [
+                `___FLUENTREAD_test_${index}_BEGIN___`,
+                origin,
+                `___FLUENTREAD_test_${index}_END___`,
+            ].join("\n")).join("\n"),
+        }),
     };
 });
 
@@ -311,6 +324,25 @@ async function finishScheduledWork(): Promise<void> {
     await Promise.resolve();
 }
 
+async function waitForRequestCount(expected: number): Promise<void> {
+    for (let attempt = 0; attempt < 20 && runtime.requests.mock.calls.length < expected; attempt += 1) {
+        await Promise.resolve();
+        await vi.advanceTimersByTimeAsync(1);
+    }
+    expect(runtime.requests).toHaveBeenCalledTimes(expected);
+}
+
+async function waitForObservedCandidateCount(
+    observer: TestIntersectionObserver,
+    expected: number,
+): Promise<void> {
+    for (let attempt = 0; attempt < 20 && observer.observed.size < expected; attempt += 1) {
+        await Promise.resolve();
+        await vi.advanceTimersByTimeAsync(5);
+    }
+    expect(observer.observed.size).toBe(expected);
+}
+
 describe("全文翻译可见性锚点", () => {
     beforeEach(() => {
         vi.useFakeTimers();
@@ -420,6 +452,43 @@ describe("全文翻译可见性锚点", () => {
         expect(await translateTextSlots(['One', undefined as never], snapshot)).toEqual(['译:One', '译:']);
         expect(runtime.requests).toHaveBeenCalledTimes(3);
         expect(await translateTextSlots([undefined as never], snapshot)).toEqual(['译:']);
+    });
+
+    it('Chrome auto 用纯文本槽检测源语言，但仍把带标记正文交给翻译器', async () => {
+        const origins = ['Bonjour ', 'le monde.'];
+        runtime.parsedSlots = ['你好，', '世界。'];
+
+        await expect(translateTextSlots(origins, translationSnapshot({
+            service: 'chromeTranslator',
+            sourceLanguage: 'auto',
+        }))).resolves.toEqual(['你好，', '世界。']);
+
+        expect(runtime.requests).toHaveBeenCalledOnce();
+        const translatedPayload = runtime.requests.mock.calls[0]?.[0]?.[0] ?? '';
+        expect(translatedPayload).toContain('___FLUENTREAD_test_0_BEGIN___');
+        expect(translatedPayload).toContain('___FLUENTREAD_test_1_END___');
+        expect(runtime.requestOptions[0]).toMatchObject({
+            serviceOverride: 'chromeTranslator',
+            sourceLanguage: 'auto',
+            skipLanguageDetection: true,
+            sourceLanguageDetectionText: 'Bonjour \nle monde.',
+        });
+
+        runtime.requests.mockClear();
+        runtime.requestOptions = [];
+        await translateTextSlots(origins, translationSnapshot({
+            service: 'chromeTranslator',
+            sourceLanguage: 'fr',
+        }));
+        expect(runtime.requestOptions[0]).not.toHaveProperty('sourceLanguageDetectionText');
+
+        runtime.requests.mockClear();
+        runtime.requestOptions = [];
+        await translateTextSlots(origins, translationSnapshot({
+            service: 'custom-provider',
+            sourceLanguage: 'auto',
+        }));
+        expect(runtime.requestOptions[0]).not.toHaveProperty('sourceLanguageDetectionText');
     });
 
     it('AI 多段开关只在活跃全文会话中合并相邻候选，并遵守字符上限', async () => {
@@ -1014,14 +1083,10 @@ describe("全文翻译可见性锚点", () => {
 
         autoTranslateEnglishPage();
         await vi.advanceTimersByTimeAsync(51);
-        await Promise.resolve();
-        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        await waitForRequestCount(2);
 
         requests[0]!.resolve(["译:One"]);
-        await vi.advanceTimersByTimeAsync(1);
-        await Promise.resolve();
-        await Promise.resolve();
-        expect(runtime.requests).toHaveBeenCalledTimes(3);
+        await waitForRequestCount(3);
 
         requests[1]!.resolve(["译:Two"]);
         requests[2]!.resolve(["译:Three"]);
@@ -1383,6 +1448,8 @@ describe("全文翻译可见性锚点", () => {
             autoTranslateEnglishPage();
             await vi.advanceTimersByTimeAsync(50);
             await Promise.resolve();
+            const observer = TestIntersectionObserver.instances[0]!;
+            await waitForObservedCandidateCount(observer, candidates.length);
 
             expectCurrentProgress({
                 active: true,
@@ -1392,7 +1459,6 @@ describe("全文翻译可见性锚点", () => {
                 offscreen: 5,
             });
 
-            const observer = TestIntersectionObserver.instances[0]!;
             candidates.slice(0, 4).forEach((candidate) => observer.emit(candidate, true));
             await vi.advanceTimersByTimeAsync(1);
             await Promise.resolve();

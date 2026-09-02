@@ -95,6 +95,46 @@ describe('界面 i18n 契约', () => {
     expect(getMultilingualTargetLanguageLabel('unknown', '自定义语言')).toBe('自定义语言');
   });
 
+  it('完整本地化 Chrome 具体语言对准备流程及参数化状态', () => {
+    const actionByLanguage = {
+      'zh-CN': '准备 Chrome 本地翻译',
+      'en-US': 'Prepare Chrome local translation',
+      'ja-JP': 'Chrome ローカル翻訳を準備',
+      'ko-KR': 'Chrome 로컬 번역 준비',
+      'fr-FR': 'Préparer la traduction locale de Chrome',
+      'ru-RU': 'Подготовить локальный перевод Chrome',
+      'es-ES': 'Preparar la traducción local de Chrome',
+    } as const;
+    for (const [language, expectedAction] of Object.entries(actionByLanguage)) {
+      expect(translate('settings.services.chromePreparation.action', language as keyof typeof actionByLanguage))
+        .toBe(expectedAction);
+      const status = translate(
+        'settings.services.chromePreparation.statusDownloadingProgress',
+        language as keyof typeof actionByLanguage,
+        {model: 'MODEL', percentage: 42, sourceLanguage: 'fr', targetLanguage: 'en'},
+      );
+      expect(status).toContain('MODEL');
+      expect(status).toContain('42');
+      expect(status).toContain('fr');
+      expect(status).toContain('en');
+      expect(status).not.toMatch(/\{(?:model|percentage|sourceLanguage|targetLanguage)\}/u);
+
+      const activationError = translate(
+        'settings.services.chromePreparation.error.userActivationRequired',
+        language as keyof typeof actionByLanguage,
+        {sourceLanguage: 'fr', targetLanguage: 'en'},
+      );
+      expect(activationError).toContain('fr');
+      expect(activationError).toContain('en');
+    }
+
+    const englishChromeMessages = Object.entries(enUSMessages).filter(([key]) => (
+      key.startsWith('settings.services.chromePreparation.')
+    ));
+    expect(englishChromeMessages.length).toBeGreaterThan(20);
+    expect(englishChromeMessages.filter(([, value]) => /[\u3400-\u9fff]/u.test(value))).toEqual([]);
+  });
+
   it('提供可继续扩展的语言选择器和参数插值', () => {
     expect(UI_LANGUAGE_OPTIONS.map((item) => item.value)).toEqual([
       'zh-CN', 'en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES',

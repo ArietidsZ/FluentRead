@@ -357,20 +357,49 @@ describe('options UI composition architecture', () => {
     }
   })
 
-  it('persists the latest service configuration before testing its connection', () => {
+  it('persists before remote tests while starting Chrome model preparation inside click activation', () => {
     const serviceConfiguration = source('src/features/settings/ui/services/ServiceConfiguration.vue')
     const testConnectionStart = serviceConfiguration.indexOf('async function testConnection(): Promise<void>')
     const testConnectionEnd = serviceConfiguration.indexOf('function resetCustomTemplate(): void', testConnectionStart)
     const testConnection = serviceConfiguration.slice(testConnectionStart, testConnectionEnd)
+    const chromePreparationIndex = testConnection.indexOf('prepareChromeTranslationInPage({')
     const waitIndex = testConnection.indexOf('await waitForConfigPersistenceQueue()')
     const saveIndex = testConnection.indexOf('await requestConfigSave(config.value')
     const connectionTestIndex = testConnection.indexOf('type: CONNECTION_TEST_MESSAGE')
 
     expect(testConnectionStart).toBeGreaterThanOrEqual(0)
     expect(testConnectionEnd).toBeGreaterThan(testConnectionStart)
+    expect(chromePreparationIndex).toBeGreaterThanOrEqual(0)
+    expect(chromePreparationIndex).toBeLessThan(waitIndex)
     expect(waitIndex).toBeGreaterThanOrEqual(0)
     expect(saveIndex).toBeGreaterThan(waitIndex)
     expect(connectionTestIndex).toBeGreaterThan(saveIndex)
+    expect(testConnection).toContain('testedService === services.chromeTranslator')
+    expect(testConnection).toContain('if (chromePreparation)')
+    expect(testConnection).toContain('service: testedService')
+  })
+
+  it('labels Chrome connection action as preparation for only the displayed language pair', () => {
+    const serviceConfiguration = source('src/features/settings/ui/services/ServiceConfiguration.vue')
+    const chromePreparation = source('src/features/settings/model/chromeTranslationPreparation.ts')
+
+    expect(serviceConfiguration).toContain("t('settings.services.chromePreparation.action')")
+    expect(serviceConfiguration).toContain("t('settings.services.chromePreparation.titleReady')")
+    expect(serviceConfiguration).toContain("t('settings.services.chromePreparation.noKey')")
+    expect(serviceConfiguration).toContain('const { language, t } = useUiI18n()')
+    expect(serviceConfiguration).toContain('data-chrome-preparation-source')
+    expect(serviceConfiguration).toContain('data-i18n-ignore')
+    expect(serviceConfiguration).toContain('getChromeTranslationPreparationLanguageLabel(item.value, language)')
+    expect(serviceConfiguration).toContain('from: chromePreparationSourceLanguage.value')
+    expect(serviceConfiguration).toContain("t('settings.services.chromePreparation.sourceDescription')")
+    expect(serviceConfiguration).toContain('CHROME_PREPARATION_TIMEOUT_MS = 300_000')
+    expect(serviceConfiguration).toContain('activeChromePreparation?.abort()')
+    expect(serviceConfiguration).toContain("'settings.services.chromePreparation.success'")
+    expect(serviceConfiguration).toContain('ChromeTranslationPreparationError')
+    expect(serviceConfiguration).toContain('CHROME_PREPARATION_ERROR_KEYS[error.code]')
+    expect(serviceConfiguration).not.toContain('Chrome 本地翻译已全部准备')
+    expect(chromePreparation).toContain('再次点击“准备 Chrome 本地翻译”继续准备')
+    expect(chromePreparation).toContain("'user-activation-required'")
   })
 
   it('uses bounded model picking and atomic custom-service drafts in settings', () => {

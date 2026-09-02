@@ -16,11 +16,16 @@ const mocks = vi.hoisted(() => ({
     restoreOriginalContent: vi.fn(),
     toggleFloatingBallTranslation: vi.fn(),
     matchesConfiguredHotkey: vi.fn(() => false),
-    shouldClaimConfiguredHotkey: vi.fn(() => false),
+    shouldClaimConfiguredHotkey: vi.fn((
+        _event: KeyboardEvent,
+        _configured: string,
+        _custom: string,
+        hasCandidate?: () => boolean,
+    ) => hasCandidate?.() ?? false),
+    getSelection: vi.fn<() => Selection | null>(() => null),
 }));
 
 vi.mock('@/src/services/config/store', () => ({config: mocks.config}));
-vi.mock('@/src/core/language/detect', () => ({detectlang: vi.fn(() => 'en')}));
 vi.mock('@/src/core/hotkey', () => ({
     matchesConfiguredHotkey: mocks.matchesConfiguredHotkey,
     shouldClaimConfiguredHotkey: mocks.shouldClaimConfiguredHotkey,
@@ -83,17 +88,32 @@ beforeEach(() => {
     });
     mocks.isFullPageTranslationActive.mockReturnValue(false);
     mocks.toggleFloatingBallTranslation.mockReturnValue(true);
+    mocks.getSelection.mockReturnValue(null);
 
     const {document, listeners} = createDocumentStub();
     vi.stubGlobal('document', document);
     vi.stubGlobal('window', {
-        getSelection: vi.fn(() => null),
+        getSelection: mocks.getSelection,
         addEventListener: vi.fn(),
     });
     vi.stubGlobal('navigator', {platform: 'MacIntel'});
     vi.stubGlobal('process', {env: {NODE_ENV: 'test'}});
     Object.defineProperty(document, '__listeners', {value: listeners});
 });
+
+function visibleSelection(text: string): Selection {
+    const rect = {width: 160, height: 24};
+    const range = {
+        getClientRects: () => [rect],
+        getBoundingClientRect: () => rect,
+    };
+    return {
+        rangeCount: 1,
+        isCollapsed: false,
+        toString: () => text,
+        getRangeAt: () => range,
+    } as unknown as Selection;
+}
 
 describe('全文翻译快捷键状态联动', () => {
     it('悬浮球存在时仍以全文会话真值切换，而不是驱动悬浮球局部状态', async () => {
@@ -120,5 +140,34 @@ describe('全文翻译快捷键状态联动', () => {
         keydown!(keyboardEvent());
         expect(mocks.restoreOriginalContent).toHaveBeenCalledOnce();
         expect(mocks.toggleFloatingBallTranslation).not.toHaveBeenCalled();
+    });
+});
+
+describe('划词翻译快捷键语言预检', () => {
+    it.each([
+        'Hallo Welt.',
+        'Bonjour le monde.',
+    ])('短拉丁文本 %s 不会被猜成英语，仍保留划词快捷键', async (text) => {
+        mocks.config.selectionTranslatorTrigger = 'Control';
+        mocks.config.to = 'en';
+        mocks.getSelection.mockReturnValue(visibleSelection(text));
+        const {createContentHotkeyRuntime} = await import('@/src/app/content/hotkeyRuntime');
+        const runtime = createContentHotkeyRuntime(() => false);
+        const event = keyboardEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true, altKey: false});
+
+        expect(runtime.hasActiveSelectionTranslationCandidate()).toBe(true);
+        expect(runtime.shouldReserveSelectionShortcut(event as unknown as KeyboardEvent)).toBe(true);
+    });
+
+    it('明确日文与日语目标相同时不占用划词快捷键', async () => {
+        mocks.config.selectionTranslatorTrigger = 'Control';
+        mocks.config.to = 'ja';
+        mocks.getSelection.mockReturnValue(visibleSelection('今日は良い天気です。'));
+        const {createContentHotkeyRuntime} = await import('@/src/app/content/hotkeyRuntime');
+        const runtime = createContentHotkeyRuntime(() => false);
+        const event = keyboardEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true, altKey: false});
+
+        expect(runtime.hasActiveSelectionTranslationCandidate()).toBe(false);
+        expect(runtime.shouldReserveSelectionShortcut(event as unknown as KeyboardEvent)).toBe(false);
     });
 });

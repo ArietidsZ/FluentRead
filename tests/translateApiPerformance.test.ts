@@ -15,8 +15,12 @@ const mocks = vi.hoisted(() => ({
     translationMaxRetries: 3,
     translationBackoffBaseMs: 1000,
     translationBackoffMaxMs: 30000,
-    model: {mock: 'mock-model', 'mock-ai': 'mock-ai-model'} as Record<string, string>,
-    customModel: {mock: '', 'mock-ai': ''} as Record<string, string>,
+    model: {
+      mock: 'mock-model',
+      'mock-ai': 'mock-ai-model',
+      chromeTranslator: 'chrome-built-in',
+    } as Record<string, string>,
+    customModel: {mock: '', 'mock-ai': '', chromeTranslator: ''} as Record<string, string>,
     service: 'mock',
     from: 'en',
     to: 'zh-CN',
@@ -33,7 +37,10 @@ vi.mock('@/src/services/config/store', () => ({
   config: mocks.config,
   requestConfigCountIncrement: mocks.persistCountIncrement,
 }));
-vi.mock('@/src/core/language/detect', () => ({detectlang: () => 'eng'}));
+vi.mock('@/src/core/language/detect', () => ({
+  detectlang: () => 'eng',
+  shouldSkipTranslationForTarget: () => false,
+}));
 vi.mock('@/src/core/config/catalog', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/src/core/config/catalog')>();
   return {
@@ -50,7 +57,14 @@ vi.mock('@/src/services/translation/context', () => ({getPageTranslationContext:
 vi.mock('@/src/core/config/validation', () => ({getMissingCredentialMessage: mocks.getMissingCredentialMessage}));
 
 import {cancelAllTranslations, translateText, translateTextBatch, translateVideoText} from '@/src/app/translation/client';
+import {
+  createTranslationCancelHandler,
+  createTranslationRequestFallback,
+  createTranslationRequestRegistry,
+  type TranslationRequestContext,
+} from '@/src/app/background/handlers/translation';
 import {clearTranslationQueue} from '@/src/services/translation/queue';
+import {getTranslationRequestControl} from '@/src/services/translation/requestSnapshot';
 
 const originalDocument = globalThis.document;
 const originalLocation = globalThis.location;
@@ -89,6 +103,7 @@ describe('translation API request lifecycle performance', () => {
     mocks.config.useCache = true;
     mocks.config.model.mock = 'mock-model';
     mocks.config.model['mock-ai'] = 'mock-ai-model';
+    mocks.config.model.chromeTranslator = 'chrome-built-in';
     Object.defineProperty(globalThis, 'document', {
       value: {title: 'Fixture video title'},
       configurable: true,
@@ -224,6 +239,46 @@ describe('translation API request lifecycle performance', () => {
       requestTimeoutMs: 44_000,
     }));
     expect(mocks.config.model['mock-ai']).toBe('mock-ai-model');
+  });
+
+  it('仅为 Chrome auto 转发纯检测样本，并给首次模型下载保留五分钟预算', async () => {
+    mocks.sendMessage.mockResolvedValue('译文');
+    const markedText = '___FLUENTREAD_test_0_BEGIN___\nBonjour\n___FLUENTREAD_test_0_END___';
+
+    await expect(translateText(markedText, 'Context', {
+      serviceOverride: 'chromeTranslator',
+      sourceLanguage: 'auto',
+      targetLanguage: 'zh-Hans',
+      sourceLanguageDetectionText: 'Bonjour',
+      maxRetries: 0,
+    })).resolves.toBe('译文');
+    await expect(translateText(markedText, 'Context', {
+      serviceOverride: 'chromeTranslator',
+      sourceLanguage: 'fr',
+      targetLanguage: 'zh-Hans',
+      sourceLanguageDetectionText: 'Bonjour',
+      maxRetries: 0,
+    })).resolves.toBe('译文');
+    await expect(translateText(markedText, 'Context', {
+      serviceOverride: 'mock',
+      sourceLanguage: 'auto',
+      targetLanguage: 'zh-Hans',
+      sourceLanguageDetectionText: 'Bonjour',
+      maxRetries: 0,
+    })).resolves.toBe('译文');
+
+    const [chromeAuto, chromeExplicit, cloudAuto] = mocks.sendMessage.mock.calls.map(([message]) => message);
+    expect(chromeAuto).toMatchObject({
+      origin: markedText,
+      serviceOverride: 'chromeTranslator',
+      sourceLanguage: 'auto',
+      sourceLanguageDetectionText: 'Bonjour',
+      requestTimeoutMs: 299_000,
+    });
+    expect(chromeExplicit).not.toHaveProperty('sourceLanguageDetectionText');
+    expect(cloudAuto).not.toHaveProperty('sourceLanguageDetectionText');
+    expect(chromeExplicit).toMatchObject({requestTimeoutMs: 299_000});
+    expect(cloudAuto).toMatchObject({requestTimeoutMs: 44_000});
   });
 
   it('普通单条和批量请求在排队前冻结默认服务、模型与语言', async () => {
@@ -435,67 +490,103 @@ describe('translation API request lifecycle performance', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('aborts the DOM caller immediately but does not release the real transport concurrency slot', async () => {
+  it('abort 发送精确 cancel，中止后台 broker signal 并及时释放前台队列', async () => {
     mocks.config.maxConcurrentTranslations = 1;
-    const firstTransport = deferred<string>();
-    mocks.sendMessage
-      .mockImplementationOnce(() => firstTransport.promise)
-      .mockResolvedValueOnce('第二段译文');
+    const registry = createTranslationRequestRegistry();
+    const cancel = createTranslationCancelHandler(registry);
+    const context = {sender: {tab: {id: 8}, frameId: 0, documentId: 'document-8'}};
+    let brokerSignal!: AbortSignal;
+    const translate = vi.fn((message: {origin: string}) => {
+      if (message.origin === 'Second readable source') return Promise.resolve('第二段译文');
+      brokerSignal = getTranslationRequestControl(message)!.signal;
+      return new Promise<string>((_resolve, reject) => brokerSignal.addEventListener('abort', () => {
+        const error = new Error('background broker aborted');
+        error.name = 'AbortError';
+        reject(error);
+      }, {once: true}));
+    });
+    const fallback = createTranslationRequestFallback<TranslationRequestContext>({
+      translate,
+      serializeError: (error) => error,
+      requestRegistry: registry,
+    });
+    mocks.sendMessage.mockImplementation((message: {type?: string; origin?: string}) => (
+      message.type === 'fluentReadTranslationCancel'
+        ? cancel.handle(message as never, context)
+        : fallback.handle(message as never, context)
+    ));
     const controller = new AbortController();
+    const removeListener = vi.spyOn(controller.signal, 'removeEventListener');
     const first = translateText('First readable source', 'Context', {
       signal: controller.signal,
       maxRetries: 0,
+      serviceOverride: 'chromeTranslator',
     });
     const firstOutcome = first.catch((error) => error);
 
     await vi.waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(1));
+    const firstRequest = mocks.sendMessage.mock.calls[0]?.[0];
     controller.abort();
     await expect(firstOutcome).resolves.toMatchObject({name: 'AbortError'});
+    await vi.waitFor(() => expect(brokerSignal.aborted).toBe(true));
+    expect(removeListener).toHaveBeenCalledWith('abort', expect.any(Function));
+    expect(mocks.sendMessage.mock.calls[1]?.[0]).toEqual({
+      type: 'fluentReadTranslationCancel',
+      clientRequestId: firstRequest.clientRequestId,
+    });
 
     const second = translateText('Second readable source', 'Context', {maxRetries: 0});
-    await Promise.resolve();
-    expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
-
-    firstTransport.resolve('迟到的第一段译文');
-    await vi.waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(2));
     await expect(second).resolves.toBe('第二段译文');
+    expect(translate).toHaveBeenCalledTimes(2);
   });
 
-  it('releases an aborted caller lease only at transport timeout and removes its abort listener', async () => {
+  it('timeout 只发送一次 cancel，中止后台 broker signal 并让下一请求进队', async () => {
     mocks.config.maxConcurrentTranslations = 1;
-    const firstTransport = deferred<string>();
-    mocks.sendMessage
-      .mockImplementationOnce(() => firstTransport.promise)
-      .mockResolvedValueOnce('第二段译文');
-    const controller = new AbortController();
-    const addListener = vi.spyOn(controller.signal, 'addEventListener');
-    const removeListener = vi.spyOn(controller.signal, 'removeEventListener');
+    const registry = createTranslationRequestRegistry();
+    const cancel = createTranslationCancelHandler(registry);
+    const context = {sender: {tab: {id: 9}, frameId: 0}};
+    let brokerSignal!: AbortSignal;
+    const translate = vi.fn((message: {origin: string}) => {
+      if (message.origin === 'Second timeout source') return Promise.resolve('第二段译文');
+      brokerSignal = getTranslationRequestControl(message)!.signal;
+      return new Promise<string>((_resolve, reject) => brokerSignal.addEventListener('abort', () => {
+        const error = new Error('background broker aborted');
+        error.name = 'AbortError';
+        reject(error);
+      }, {once: true}));
+    });
+    const fallback = createTranslationRequestFallback<TranslationRequestContext>({
+      translate,
+      serializeError: (error) => error,
+      requestRegistry: registry,
+    });
+    mocks.sendMessage.mockImplementation((message: {type?: string; origin?: string}) => (
+      message.type === 'fluentReadTranslationCancel'
+        ? cancel.handle(message as never, context)
+        : fallback.handle(message as never, context)
+    ));
     const first = translateText('First timeout source', 'Context', {
-      signal: controller.signal,
       maxRetries: 0,
       timeout: 10_000,
+      serviceOverride: 'chromeTranslator',
     });
     const firstOutcome = first.catch((error) => error);
-
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
-    controller.abort();
-    await expect(firstOutcome).resolves.toMatchObject({name: 'AbortError'});
-    expect(addListener).toHaveBeenCalledWith('abort', expect.any(Function), {once: true});
-    expect(removeListener).toHaveBeenCalledWith('abort', expect.any(Function));
 
     const second = translateText('Second timeout source', 'Context', {maxRetries: 0});
     await vi.advanceTimersByTimeAsync(9_999);
     expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
 
     await vi.advanceTimersByTimeAsync(1);
-    expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
+    await expect(firstOutcome).resolves.toMatchObject({message: '翻译请求超时'});
+    await vi.waitFor(() => expect(brokerSignal.aborted).toBe(true));
+    const firstRequest = mocks.sendMessage.mock.calls[0]?.[0];
+    expect(mocks.sendMessage.mock.calls.filter(([message]) => (
+      message.type === 'fluentReadTranslationCancel'
+    ))).toEqual([[{
+      type: 'fluentReadTranslationCancel',
+      clientRequestId: firstRequest.clientRequestId,
+    }]]);
     await expect(second).resolves.toBe('第二段译文');
-
-    // waitForRequest 仍会观察到迟到的原始传输 rejection。
-    firstTransport.reject(new Error('late transport rejection'));
-    await Promise.resolve();
     // 第一条已取消请求不计数，第二条成功请求仍保留共享的延迟持久化任务。
     expect(vi.getTimerCount()).toBe(1);
     await vi.advanceTimersByTimeAsync(500);
@@ -573,7 +664,7 @@ describe('translation API request lifecycle performance', () => {
     await expect(translateVideoText('A subtitle source')).resolves.toBe('字幕译文');
 
     expect(mocks.getPageTranslationContext).toHaveBeenCalledTimes(1);
-    expect(mocks.sendMessage).toHaveBeenCalledWith({
+    expect(mocks.sendMessage).toHaveBeenCalledWith(expect.objectContaining({
       context: 'YouTube 视频字幕：Fixture video title',
       pageContext,
       origin: 'A subtitle source',
@@ -584,6 +675,7 @@ describe('translation API request lifecycle performance', () => {
       sourceLanguage: 'en',
       targetLanguage: 'zh-CN',
       requestTimeoutMs: 19_000,
-    });
+    }));
+    expect(mocks.sendMessage.mock.calls[0]?.[0]).not.toHaveProperty('clientRequestId');
   });
 });

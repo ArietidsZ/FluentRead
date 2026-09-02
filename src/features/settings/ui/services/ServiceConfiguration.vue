@@ -1,8 +1,8 @@
 <!--
  * @file src/features/settings/ui/services/ServiceConfiguration.vue
  * 文件职责：渲染当前翻译服务的详细连接配置，按服务能力显示模型、端点、区域、计费方式、密钥、代理、提示词和自定义请求体等字段。
- * 主要内容：组件派生字段可见性与 MiniMax/MiMo endpoint，校验 Azure 地址和 custom body，管理连接测试状态、模板重置与加密凭据保存提示，并通过配置 store 提交修改。
- * 模块边界：本组件不实际执行翻译或保存公开配置中的明文凭据；连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
+ * 主要内容：组件派生字段可见性与 MiniMax/MiMo endpoint，校验 Azure 地址和 custom body，管理连接测试状态、Chrome 具体语言对的点击准备/进度/超时、模板重置与加密凭据保存提示，并通过配置 store 提交修改。
+ * 模块边界：本组件不执行网页正文翻译或保存公开配置中的明文凭据；Chrome 内置翻译仅在当前点击页完成模型自检，其他连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
  -->
 <template>
   <section
@@ -22,7 +22,7 @@
         role="status"
         :aria-label="compute.credentialWarning"
       >待完成</span>
-      <span v-else class="setup-status">已就绪</span>
+      <span v-else class="setup-status">{{ isChromeConnectionTest ? t('settings.services.chromePreparation.noKey') : '已就绪' }}</span>
     </div>
 
     <Teleport defer to=".detail-hero">
@@ -43,7 +43,9 @@
           :disabled="connectionTestBusy"
           @click="testConnection"
         >
-          {{ connectionTestBusy ? '检查中…' : '检查连接' }}
+          {{ isChromeConnectionTest
+            ? (connectionTestBusy ? t('settings.services.chromePreparation.actionBusy') : t('settings.services.chromePreparation.action'))
+            : (connectionTestBusy ? '检查中…' : '检查连接') }}
         </button>
       </div>
     </Teleport>
@@ -56,8 +58,37 @@
       role="status"
       aria-live="polite"
     >
-      <strong>{{ connectionTestState === 'testing' ? '检查中' : connectionTestState === 'success' ? '连接正常' : '连接失败' }}</strong>
+      <strong>{{ connectionTestTitle }}</strong>
       <span>{{ connectionTestMessage }}</span>
+    </div>
+
+    <div
+      v-if="isChromeConnectionTest"
+      class="connection-field"
+      data-chrome-preparation-language-pair
+    >
+      <div class="connection-field-label">
+        <strong>{{ t('settings.services.chromePreparation.sourceLabel') }}</strong>
+        <small>{{ t('settings.services.chromePreparation.sourceDescription') }}</small>
+      </div>
+      <div class="connection-field-control">
+        <el-select
+          v-model="chromePreparationSourceLanguage"
+          :aria-label="t('settings.services.chromePreparation.sourceAria')"
+          data-chrome-preparation-source
+          :disabled="connectionTestBusy"
+          filterable
+          :placeholder="t('settings.services.chromePreparation.sourcePlaceholder')"
+        >
+          <el-option
+            v-for="item in availableChromePreparationLanguages"
+            :key="item.value"
+            data-i18n-ignore
+            :label="`${getChromeTranslationPreparationLanguageLabel(item.value, language)}（${item.value}）`"
+            :value="item.value"
+          />
+        </el-select>
+      </div>
     </div>
 
     <template v-if="compute.showCustomOpenAI && customProvider">
@@ -292,10 +323,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toRef, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue'
 import { InfoFilled } from '@element-plus/icons-vue'
 import type { Config } from '@/src/core/config/model'
-import { defaultOption, options as optionConfig, resolveConfiguredModel } from '@/src/core/config/catalog'
+import type { TranslationParams } from '@/src/core/i18n'
+import { defaultOption, options as optionConfig, resolveConfiguredModel, services } from '@/src/core/config/catalog'
 import {
   MAX_CUSTOM_OPENAI_PROVIDER_ENDPOINT_LENGTH,
   MAX_CUSTOM_OPENAI_PROVIDER_NAME_LENGTH,
@@ -306,6 +338,16 @@ import browser from 'webextension-polyfill'
 import { requestConfigSave, waitForConfigPersistenceQueue } from '@/src/services/config/store'
 import { CONNECTION_TEST_MESSAGE, getMimoEndpoint, MINIMAX_ENDPOINTS } from '@/src/core/config/constants'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+    CHROME_TRANSLATION_PREPARATION_LANGUAGES,
+    ChromeTranslationPreparationError,
+    getChromeTranslationPreparationLanguageLabel,
+    prepareChromeTranslationInPage,
+    resolveChromeTranslationPreparationPair,
+    type ChromeTranslationPreparationErrorCode,
+    type ChromeTranslationPreparationStatus,
+} from '@/src/features/settings/model/chromeTranslationPreparation'
+import { useUiI18n } from '@/src/ui/i18n'
 import PromptTemplateEditor from './PromptTemplateEditor.vue'
 
 const props = defineProps<{
@@ -330,6 +372,7 @@ const compute = toRef(props, 'compute')
 const options = toRef(props, 'options')
 const isValidAzureEndpoint = toRef(props, 'isValidAzureEndpoint')
 const customProvider = toRef(props, 'customProvider')
+const { language, t } = useUiI18n()
 const effectiveModelLabel = computed(() => resolveConfiguredModel(
   config.value.model[service.value],
   config.value.customModel[service.value],
@@ -391,42 +434,187 @@ const mimoEndpoint = computed(() => {
 })
 
 type ConnectionTestState = 'idle' | 'testing' | 'success' | 'error'
+type LocalizedConnectionTestMessage = {
+  readonly key: string
+  readonly params?: TranslationParams
+}
 
+const CHROME_PREPARATION_TIMEOUT_MS = 300_000
+const CHROME_PREPARATION_ERROR_KEYS: Readonly<Record<ChromeTranslationPreparationErrorCode, string>> = {
+  'invalid-language-code': 'settings.services.chromePreparation.error.invalidLanguageCode',
+  'sample-unavailable': 'settings.services.chromePreparation.error.sampleUnavailable',
+  aborted: 'settings.services.chromePreparation.error.aborted',
+  'invalid-detection': 'settings.services.chromePreparation.error.invalidDetection',
+  'api-unavailable': 'settings.services.chromePreparation.error.apiUnavailable',
+  'user-activation-required': 'settings.services.chromePreparation.error.userActivationRequired',
+  'unsupported-pair': 'settings.services.chromePreparation.error.unsupportedPair',
+  'detection-mismatch': 'settings.services.chromePreparation.error.detectionMismatch',
+  'invalid-translation': 'settings.services.chromePreparation.error.invalidTranslation',
+  'preparation-failed': 'settings.services.chromePreparation.error.failed',
+}
 const connectionTestBusy = ref(false)
 const connectionTestState = ref<ConnectionTestState>('idle')
-const connectionTestMessage = ref('')
+const connectionTestMessageState = ref<LocalizedConnectionTestMessage | string | null>(null)
+const connectionTestMessage = computed(() => {
+  const message = connectionTestMessageState.value
+  if (!message) return ''
+  return typeof message === 'string' ? message : t(message.key, message.params)
+})
+const isChromeConnectionTest = computed(() => service.value === services.chromeTranslator)
+const defaultChromePreparationSource = () => resolveChromeTranslationPreparationPair('auto', config.value.to).sourceLanguage
+const chromePreparationSourceLanguage = ref(defaultChromePreparationSource())
+const configuredChromeTargetLanguage = computed(() => resolveChromeTranslationPreparationPair('auto', config.value.to).targetLanguage)
+const availableChromePreparationLanguages = computed(() => CHROME_TRANSLATION_PREPARATION_LANGUAGES.filter((item) => (
+  resolveChromeTranslationPreparationPair(item.value, config.value.to).targetLanguage === configuredChromeTargetLanguage.value
+)))
+let connectionTestGeneration = 0
+let activeChromePreparation: AbortController | undefined
+const connectionTestTitle = computed(() => {
+  if (isChromeConnectionTest.value) {
+    return connectionTestState.value === 'testing'
+      ? t('settings.services.chromePreparation.titlePreparing')
+      : connectionTestState.value === 'success'
+        ? t('settings.services.chromePreparation.titleReady')
+        : t('settings.services.chromePreparation.titleIncomplete')
+  }
+  return connectionTestState.value === 'testing'
+    ? '检查中'
+    : connectionTestState.value === 'success' ? '连接正常' : '连接失败'
+})
 
 function resetConnectionTest(): void {
   connectionTestState.value = 'idle'
-  connectionTestMessage.value = ''
+  connectionTestMessageState.value = null
+}
+
+function invalidateConnectionTest(): void {
+  connectionTestGeneration += 1
+  activeChromePreparation?.abort()
+  activeChromePreparation = undefined
+  connectionTestBusy.value = false
+  resetConnectionTest()
+}
+
+function localizedConnectionTestMessage(
+  key: string,
+  params?: TranslationParams,
+): LocalizedConnectionTestMessage {
+  return {key, ...(params ? {params} : {})}
+}
+
+function formatChromePreparationStatus(status: ChromeTranslationPreparationStatus): LocalizedConnectionTestMessage {
+  const params = {
+    sourceLanguage: status.sourceLanguage,
+    targetLanguage: status.targetLanguage,
+  }
+  if (status.phase === 'downloading') {
+    const model = status.model === 'language-detector'
+      ? t('settings.services.chromePreparation.modelDetector')
+      : t('settings.services.chromePreparation.modelTranslator')
+    return localizedConnectionTestMessage(
+      typeof status.loaded === 'number'
+        ? 'settings.services.chromePreparation.statusDownloadingProgress'
+        : 'settings.services.chromePreparation.statusDownloading',
+      {
+        ...params,
+        model,
+        ...(typeof status.loaded === 'number' ? {percentage: Math.round(status.loaded * 100)} : {}),
+      },
+    )
+  }
+  if (status.phase === 'verifying') {
+    return localizedConnectionTestMessage('settings.services.chromePreparation.statusVerifying', params)
+  }
+  return localizedConnectionTestMessage('settings.services.chromePreparation.statusInitializing', params)
+}
+
+function formatChromePreparationError(error: unknown): LocalizedConnectionTestMessage | string {
+  if (error instanceof ChromeTranslationPreparationError) {
+    return localizedConnectionTestMessage(CHROME_PREPARATION_ERROR_KEYS[error.code], error.params)
+  }
+  return error instanceof Error ? error.message : String(error)
 }
 
 async function testConnection(): Promise<void> {
   if (connectionTestBusy.value) return
 
+  const testedService = service.value
+  const generation = ++connectionTestGeneration
+  const chromeController = testedService === services.chromeTranslator ? new AbortController() : undefined
+  if (chromeController) activeChromePreparation = chromeController
+  let chromePreparationTimedOut = false
+  const chromePreparationTimer = chromeController ? window.setTimeout(() => {
+    chromePreparationTimedOut = true
+    chromeController.abort()
+  }, CHROME_PREPARATION_TIMEOUT_MS) : undefined
+  const isCurrent = () => generation === connectionTestGeneration
+  let acceptChromePreparationStatus = true
   connectionTestBusy.value = true
   connectionTestState.value = 'testing'
-  connectionTestMessage.value = '正在保存当前配置并请求服务…'
+  connectionTestMessageState.value = testedService === services.chromeTranslator
+    ? localizedConnectionTestMessage('settings.services.chromePreparation.statusStarting')
+    : '正在保存当前配置并请求服务…'
+
+  // Chrome 的模型下载要求用户激活；必须在 click handler 的首个 await 前直接调用。
+  const chromePreparation = testedService === services.chromeTranslator
+    ? prepareChromeTranslationInPage({
+        from: chromePreparationSourceLanguage.value,
+        to: config.value.to,
+        signal: chromeController?.signal,
+        onStatus(status) {
+          if (acceptChromePreparationStatus && isCurrent()) {
+            connectionTestMessageState.value = formatChromePreparationStatus(status)
+          }
+        },
+      }).then(
+        (result) => ({ok: true as const, result}),
+        (error) => ({ok: false as const, error}),
+      )
+    : undefined
 
   try {
     await waitForConfigPersistenceQueue()
     await requestConfigSave(config.value, browser.runtime.sendMessage.bind(browser.runtime))
-    const response = await browser.runtime.sendMessage({
-      type: CONNECTION_TEST_MESSAGE,
-      service: service.value,
-    }) as {success?: boolean; durationMs?: number; error?: string} | undefined
+    if (!isCurrent()) return
+    if (chromePreparation) {
+      const outcome = await chromePreparation
+      if (!isCurrent()) return
+      if (!outcome.ok) throw outcome.error
+      connectionTestState.value = 'success'
+      connectionTestMessageState.value = localizedConnectionTestMessage(
+        'settings.services.chromePreparation.success',
+        {
+          sourceLanguage: outcome.result.sourceLanguage,
+          targetLanguage: outcome.result.targetLanguage,
+        },
+      )
+    } else {
+      const response = await browser.runtime.sendMessage({
+        type: CONNECTION_TEST_MESSAGE,
+        service: testedService,
+      }) as {success?: boolean; durationMs?: number; error?: string} | undefined
 
-    if (!response?.success) {
-      throw new Error(response?.error || '连接测试失败')
+      if (!response?.success) {
+        throw new Error(response?.error || '连接测试失败')
+      }
+
+      connectionTestState.value = 'success'
+      connectionTestMessageState.value = `已完成真实翻译请求${typeof response.durationMs === 'number' ? `（${response.durationMs} ms）` : ''}。`
     }
-
-    connectionTestState.value = 'success'
-    connectionTestMessage.value = `已完成真实翻译请求${typeof response.durationMs === 'number' ? `（${response.durationMs} ms）` : ''}。`
   } catch (error) {
+    if (!isCurrent()) return
     connectionTestState.value = 'error'
-    connectionTestMessage.value = error instanceof Error ? error.message : String(error)
+    connectionTestMessageState.value = chromePreparationTimedOut
+      ? localizedConnectionTestMessage('settings.services.chromePreparation.error.timeout')
+      : formatChromePreparationError(error)
   } finally {
-    connectionTestBusy.value = false
+    acceptChromePreparationStatus = false
+    if (chromePreparationTimer !== undefined) window.clearTimeout(chromePreparationTimer)
+    chromeController?.abort()
+    if (isCurrent()) {
+      if (activeChromePreparation === chromeController) activeChromePreparation = undefined
+      connectionTestBusy.value = false
+    }
   }
 }
 
@@ -464,7 +652,17 @@ function confirmDeleteProvider(): void {
   })
 }
 
-watch(service, resetConnectionTest)
+watch(service, invalidateConnectionTest)
+watch(() => config.value.to, () => {
+  chromePreparationSourceLanguage.value = defaultChromePreparationSource()
+  invalidateConnectionTest()
+})
+watch(chromePreparationSourceLanguage, resetConnectionTest)
+onBeforeUnmount(() => {
+  connectionTestGeneration += 1
+  activeChromePreparation?.abort()
+  activeChromePreparation = undefined
+})
 </script>
 
 <style scoped>

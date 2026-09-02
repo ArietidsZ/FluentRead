@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/runtime.ts
  * 文件职责：实现全文翻译的页面级会话引擎，负责候选发现、可见性调度、批量请求、动态 DOM 重扫、失败重试、缓存复用和恢复原文。
- * 主要内容：维护 FullPageSession、AbortController、Intersection/Mutation 观察器、候选所有权和生命周期重试，冻结翻译模式与语言配置，并导出自动翻译、悬浮翻译、状态查询及恢复入口。
+ * 主要内容：维护 FullPageSession、AbortController、Intersection/Mutation 观察器、候选所有权和生命周期重试，冻结翻译模式与语言配置，以保守同语言预检避免误跳过候选，并导出自动翻译、悬浮翻译、状态查询及恢复入口。
  * 模块边界：这是 content 侧编排层，不实现 provider 协议、纯候选算法或底层状态存储；翻译调用经 app client，发现规则来自 core/translation，渲染与状态分别交给 renderer 和 state。
  */
 import { checkConfig } from "@/src/app/translation/check";
@@ -18,7 +18,6 @@ import {
     getCurrentTranslationCore,
     getOpenShadowRoots,
     getTranslationCandidateKey,
-    isClearlyTargetLanguage,
     isProtectedDescendantElement,
     resolveTranslationCandidate,
     resolveTranslationCandidateAtPoint,
@@ -29,7 +28,7 @@ import type {
     TranslationDiscoveryStep,
     TranslationTextProtectionOptions,
 } from "@/src/core/translation/public";
-import { detectlang } from "@/src/core/language/detect";
+import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
 import { config } from "@/src/services/config/store";
 import type { FullPageTranslationMode } from "@/src/core/config/model";
 import {normalizeMaxConcurrentTranslations} from "@/src/core/config/scheduling";
@@ -948,18 +947,10 @@ async function translateTarget(
         };
     }
 
-    // 短 UI 文案只做确定性的 script 判断；统计检测至少需要一段可读文本，
-    // 否则 GitHub 的短标题/按钮很容易被 franc 误判后静默漏译。
-    if (isClearlyTargetLanguage(sourceText, translationConfig.targetLanguage)) {
+    // 同语言检测只是节流优化；不确定、短 Latin 与纯 Han 必须 fail-open，
+    // 否则日中混合标题或法德短文会在 provider 之前静默漏译。
+    if (shouldSkipTranslationForTarget(sourceText, translationConfig.targetLanguage)) {
         return {status: "unchanged", source: sourceText};
-    }
-    try {
-        const detected = sourceText.length >= 20 ? detectlang(normalizeComparableText(sourceText)) : '';
-        if (detected && detected === translationConfig.targetLanguage) {
-            return {status: "unchanged", source: sourceText};
-        }
-    } catch {
-        // 语言检测只是优化，不影响正常翻译流程。
     }
 
     const materialized = withFullPageViewportAnchor(() => materializeCandidate(candidate), [candidate.element]);

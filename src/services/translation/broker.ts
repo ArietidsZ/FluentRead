@@ -2,7 +2,7 @@
  * @file src/services/translation/broker.ts
  *
  * 文件职责：编排翻译请求的配置快照、语言解析、缓存、请求去重、超时与 provider 调用，是后台翻译用例的中心服务。
- * 主要内容：createTranslationBroker 同时支持单条、批量和页面摘要，验证 provider 返回数量和类型，以完整身份构建缓存键，并在清理代次与剩余 deadline 下管理 pending 请求。 可核对的公开符号包括 createTranslationBroker、聚合导出。
+ * 主要内容：createTranslationBroker 同时支持单条、批量和页面摘要，验证 provider 返回数量和类型，以包含 Chrome auto 检测样本的完整身份构建缓存键，并在清理代次与剩余 deadline 下管理 pending 请求。 可核对的公开符号包括 createTranslationBroker、聚合导出。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
@@ -190,6 +190,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         pageContext: string,
         mode: CacheRequestMode,
         modelOverride?: string,
+        sourceLanguageDetectionText?: string,
     ): string {
         const {config: current, service, sourceLanguage, targetLanguage} = execution;
 
@@ -213,6 +214,11 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             // 步骤 1：DeepL 把标题上下文直接发送给 provider；AI adapter 通过 prompt 注入页面上下文。
             context: service === 'deepL' ? context : undefined,
             pageContext: isAIContextEnabled(execution, modelOverride) ? pageContext : undefined,
+            ...(service === 'chromeTranslator'
+                && sourceLanguage === 'auto'
+                && sourceLanguageDetectionText?.trim()
+                ? {sourceLanguageDetectionText}
+                : {}),
         });
     }
 
@@ -924,7 +930,15 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         requestDeadline: number,
         pendingBudgetMs: number,
     ): Promise<string> {
-        const key = buildCacheKey(execution, message.origin, context, pageContext, 'single', message.modelOverride);
+        const key = buildCacheKey(
+            execution,
+            message.origin,
+            context,
+            pageContext,
+            'single',
+            message.modelOverride,
+            message.sourceLanguageDetectionText,
+        );
         const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}`;
         const existing = pendingTranslations.get(pendingKey);
         if (existing) return existing;
@@ -1254,10 +1268,22 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         );
         const remainingProviderBudget = getRemainingDeadlineMs(providerDeadline);
 
-        // 步骤 3：把摘要耗时从剩余 provider 请求中扣除，避免后台无限等待。
+        // 步骤 3：检测样本只属于 Chrome auto；即使其他扩展页面手工构造该字段，
+        // 也不能让重复正文扩散到任何云端 provider。
+        const shouldCarryDetectionText = selectedService === 'chromeTranslator'
+            && sourceLanguage === 'auto'
+            && Boolean(message.sourceLanguageDetectionText?.trim());
+        const providerInput = shouldCarryDetectionText
+            ? message
+            : (() => {
+                const {sourceLanguageDetectionText: _ignored, ...withoutDetectionText} = message;
+                return withoutDetectionText as TranslationRequestMessage;
+            })();
+
+        // 步骤 4：把摘要耗时从剩余 provider 请求中扣除，避免后台无限等待。
         const requestMessage = attachTranslationProviderConfig(
             {
-                ...message,
+                ...providerInput,
                 sourceLanguage,
                 targetLanguage,
                 thinkingOverride: execution.thinking,
@@ -1265,7 +1291,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             } as TranslationRequestMessage,
             current,
         );
-        // 步骤 4：根据 origin 类型进入单条或批量管线，两者共享缓存身份与 pending 去重。
+        // 步骤 5：根据 origin 类型进入单条或批量管线，两者共享缓存身份与 pending 去重。
         if (Array.isArray(requestMessage.origin)) {
             return translateBatchWithCache(
                 execution,

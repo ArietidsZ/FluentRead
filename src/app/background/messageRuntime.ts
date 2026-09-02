@@ -33,7 +33,11 @@ import {
 import {createInputBoxTranslationHandler} from './handlers/inputTranslation';
 import {createModelUsageHandler} from './handlers/modelUsage';
 import {createOpenOptionsPageHandler} from './handlers/openOptions';
-import {createTranslationRequestFallback} from './handlers/translation';
+import {
+    createTranslationCancelHandler,
+    createTranslationRequestFallback,
+    createTranslationRequestRegistry,
+} from './handlers/translation';
 import {createSelectionTtsBackgroundHandlers, type SelectionTtsContext} from './handlers/selectionTts';
 import {createSelectionWordLookupHandler} from './handlers/selectionWordLookup';
 import {isBrowserTabId, type TabTranslationStateStore} from './tabTranslationState';
@@ -64,9 +68,11 @@ export interface BackgroundMessageRuntimeOptions {
 /** 用静态 handler registry 组装唯一的 runtime.onMessage 入口。 */
 export function installBackgroundMessageRuntime(options: BackgroundMessageRuntimeOptions): void {
     const capabilities = options.capabilities ?? browserCapabilities;
+    const translationRequestRegistry = createTranslationRequestRegistry();
     const imageOcrLanguageRepository = createImageOcrLanguageRepository(createConfigImageOcrLanguageStorage());
     const selectionTtsTransport = createCapabilityGatedSelectionTtsTransport(capabilities, selectionTtsOffscreenAdapter);
     const handlers: Array<BackgroundMessageHandler<BackgroundRuntimeContext>> = [
+        createTranslationCancelHandler(translationRequestRegistry),
         createTranslationCacheHandler(clearTranslationCache),
         createModelUsageHandler(
             modelUsageRepository,
@@ -146,6 +152,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         createTranslationRequestFallback({
             translate: translateWithCache,
             serializeError: serializeTranslationError,
+            requestRegistry: translationRequestRegistry,
         }),
     );
     browser.runtime.onMessage.addListener(async (message: unknown, sender: any) => {
