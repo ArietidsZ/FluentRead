@@ -1,12 +1,13 @@
 /**
  * @file src/core/language/detect.ts
  *
- * 文件职责：对待翻译文本执行轻量语言识别，为不依赖外部检测服务的翻译流程提供源语言线索。
- * 主要内容：detectlang 调用 franc-min 得到 ISO 639-3 识别结果，再把 cmn、eng、fra、jpn、kor、rus 映射为 FluentRead 使用的语言代码；未登记结果保留 franc 原代码。 可核对的公开符号包括 detectlang。
+ * 文件职责：对待翻译文本执行轻量语言识别，并提供只在高置信度时跳过同语言翻译的保守判定。
+ * 主要内容：detectlang 调用 franc-min 得到 ISO 639-3 识别结果并映射产品语言码；shouldSkipTranslationForTarget 对短文本、纯 Han 和未知结果 fail-open，仅接受明确假名/谚文或足够长的统计结果；共享 Chrome 现代语言检测的最低置信度边界。 可核对的公开符号包括 detectlang、shouldSkipTranslationForTarget、MIN_CHROME_LANGUAGE_CONFIDENCE。
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
 import {franc} from 'franc-min';
+import {isClearlyTargetLanguage, normalizeTranslationText} from '@/src/core/translation/text';
 
 const FLUENTREAD_LANGUAGE_CODES: Readonly<Record<string, string>> = {
     cmn: 'zh-Hans',
@@ -17,8 +18,37 @@ const FLUENTREAD_LANGUAGE_CODES: Readonly<Record<string, string>> = {
     rus: 'ru',
 };
 
+const MIN_RELIABLE_STATISTICAL_LETTERS = 50;
+const CJK_SCRIPT_PATTERN = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+const UNKNOWN_LANGUAGE_CODES = new Set(['', 'auto', 'detect', 'unknown', 'und']);
+
+/** Chrome LanguageDetector 结果低于此边界时按未知语言处理。 */
+export const MIN_CHROME_LANGUAGE_CONFIDENCE = 0.4;
+
+function languageBase(value: string): string {
+    const normalized = value.trim().replace(/_/gu, '-').toLowerCase();
+    if (UNKNOWN_LANGUAGE_CODES.has(normalized)) return '';
+    return normalized.split('-')[0]!;
+}
+
 /** 将 franc 的 ISO 639-3 结果映射为 FluentRead 配置使用的语言代码。 */
 export function detectlang(origin: string): string {
     const detected = franc(origin, {minLength: 0});
     return FLUENTREAD_LANGUAGE_CODES[detected] ?? detected;
+}
+
+/**
+ * 同语言预检只能省请求，绝不能让不确定文本静默漏译。短 Latin、纯 Han 与任何
+ * 未知统计结果都返回 false；调用方继续交给实际 provider 处理。
+ */
+export function shouldSkipTranslationForTarget(origin: string, targetLanguage: string): boolean {
+    const text = normalizeTranslationText(origin);
+    if (isClearlyTargetLanguage(text, targetLanguage)) return true;
+    if (!text || CJK_SCRIPT_PATTERN.test(text)) return false;
+
+    const letters = text.match(/\p{L}/gu)!.length;
+    if (letters < MIN_RELIABLE_STATISTICAL_LETTERS) return false;
+    const detected = languageBase(detectlang(text));
+    const target = languageBase(targetLanguage);
+    return Boolean(detected && target && detected === target);
 }

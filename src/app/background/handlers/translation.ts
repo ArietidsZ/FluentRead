@@ -1,14 +1,19 @@
 /**
  * @file src/app/background/handlers/translation.ts
  * 文件职责：解析没有显式 type 的翻译请求，并把它作为后台消息路由的受控 fallback 接入共享翻译 broker。
- * 主要内容：校验 origin、AI 多段标记及 endpoint、model、prompt 等可选字段，构造 TranslationRequestMessage；fallback 仅识别合法候选并把结果或序列化错误返回调用方。
+ * 主要内容：校验 origin、clientRequestId、AI 多段标记、Chrome 源语言检测样本及其他可选字段，以发送者和随机 ID 管理 AbortController，并提供精确取消 handler。
  * 模块边界：本文件只承担协议验证与 fallback 适配，不选择 provider、不缓存结果、不读取配置或凭据；真正的翻译执行由注入的 translateWithCache 完成。
  */
 import type {BackgroundFallbackHandler} from '../messageRouter';
+import type {BackgroundMessageHandler} from '../messageRouter';
+import {attachTranslationRequestControl} from '@/src/services/translation/requestSnapshot';
 import type {
+    TranslationCancelMessage,
+    TranslationCancelResponse,
     TranslationRequestMessage,
     TranslationRequestMessageBase,
 } from '@/src/services/translation/types';
+import {TRANSLATION_CANCEL_MESSAGE_TYPE} from '@/src/services/translation/types';
 
 interface TranslationRequestCandidate extends Record<string, unknown> {
     origin: unknown;
@@ -19,6 +24,24 @@ export interface TranslationRequestHandlerDependencies {
     serializeError(error: unknown): unknown;
 }
 
+export interface TranslationRequestContext {
+    sender?: {
+        id?: string;
+        url?: string;
+        frameId?: number;
+        documentId?: string;
+        tab?: {id?: number};
+    };
+}
+
+export interface TranslationRequestRegistry {
+    run<T>(clientRequestId: string, context: TranslationRequestContext, operation: (
+        signal: AbortSignal,
+        ownershipKey: string,
+    ) => Promise<T>): Promise<T>;
+    cancel(clientRequestId: unknown, context: TranslationRequestContext): TranslationCancelResponse;
+}
+
 const STRING_FIELDS = [
     'context',
     'pageContext',
@@ -26,7 +49,10 @@ const STRING_FIELDS = [
     'modelOverride',
     'sourceLanguage',
     'targetLanguage',
+    'sourceLanguageDetectionText',
 ] as const satisfies readonly (keyof TranslationRequestMessageBase)[];
+const CLIENT_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/u;
+const REQUEST_HISTORY_LIMIT = 512;
 
 function hasOwn(value: object, key: PropertyKey): boolean {
     return Object.prototype.hasOwnProperty.call(value, key);
@@ -45,6 +71,77 @@ function assertOptionalString(candidate: TranslationRequestCandidate, field: typ
     }
 }
 
+function parseClientRequestId(value: unknown, optional = false): string | undefined {
+    if (value === undefined && optional) return undefined;
+    if (typeof value !== 'string' || !CLIENT_REQUEST_ID_PATTERN.test(value)) {
+        throw new TypeError('翻译请求 clientRequestId 格式无效');
+    }
+    return value;
+}
+
+function requestOwnerKey(context: TranslationRequestContext): string {
+    const sender = context?.sender;
+    const extensionId = typeof sender?.id === 'string' ? sender.id : '';
+    const tabId = Number.isSafeInteger(sender?.tab?.id) ? sender!.tab!.id : '-';
+    const frameId = Number.isSafeInteger(sender?.frameId) ? sender!.frameId : '-';
+    const documentId = typeof sender?.documentId === 'string' ? sender.documentId.slice(0, 128) : '';
+    if (tabId !== '-') return `extension:${extensionId}:tab:${tabId}:frame:${frameId}:document:${documentId}`;
+    const url = typeof sender?.url === 'string' ? sender.url.slice(0, 512) : '';
+    return `extension:${extensionId}:url:${url}:frame:${frameId}:document:${documentId}`;
+}
+
+function translationAbortError(): Error {
+    const error = new Error('翻译请求已取消');
+    error.name = 'AbortError';
+    return error;
+}
+
+/** 有界保存 cancel-before-start/已用 ID，同时用 sender scope 防止跨页面误取消。 */
+export function createTranslationRequestRegistry(): TranslationRequestRegistry {
+    const active = new Map<string, AbortController>();
+    const cancelledBeforeStart = new Set<string>();
+    const completed = new Set<string>();
+    const cancellationOrder: string[] = [];
+    const completionOrder: string[] = [];
+    const remember = (set: Set<string>, order: string[], key: string) => {
+        if (set.has(key)) return;
+        set.add(key);
+        order.push(key);
+        if (order.length > REQUEST_HISTORY_LIMIT) set.delete(order.shift()!);
+    };
+
+    return {
+        async run(clientRequestId, context, operation) {
+            const owner = requestOwnerKey(context);
+            const key = `${owner.length}:${owner}:${clientRequestId}`;
+            if (cancelledBeforeStart.delete(key)) {
+                remember(completed, completionOrder, key);
+                throw translationAbortError();
+            }
+            if (active.has(key) || completed.has(key)) {
+                throw new Error('翻译请求 clientRequestId 已在使用');
+            }
+            const controller = new AbortController();
+            active.set(key, controller);
+            try {
+                return await operation(controller.signal, key);
+            } finally {
+                if (active.get(key) === controller) active.delete(key);
+                remember(completed, completionOrder, key);
+            }
+        },
+        cancel(clientRequestIdValue, context) {
+            const clientRequestId = parseClientRequestId(clientRequestIdValue)!;
+            const owner = requestOwnerKey(context);
+            const key = `${owner.length}:${owner}:${clientRequestId}`;
+            const controller = active.get(key);
+            if (controller) controller.abort();
+            else if (!completed.has(key)) remember(cancelledBeforeStart, cancellationOrder, key);
+            return {success: true, cancelled: Boolean(controller), clientRequestId};
+        },
+    };
+}
+
 export function parseTranslationRequest(candidate: TranslationRequestCandidate): TranslationRequestMessage {
     // 步骤 1：origin 是无 type 翻译协议的判别字段；批量请求只能包含字符串。
     let origin: string | string[];
@@ -61,6 +158,7 @@ export function parseTranslationRequest(candidate: TranslationRequestCandidate):
     }
 
     // 步骤 2：逐个收窄可选协议字段，避免未知 payload 直接流入 provider。
+    parseClientRequestId(candidate.clientRequestId, true);
     for (const field of STRING_FIELDS) assertOptionalString(candidate, field);
     if (candidate.useCache !== undefined && typeof candidate.useCache !== 'boolean') {
         throw new TypeError('翻译请求字段 useCache 必须是布尔值');
@@ -98,17 +196,36 @@ export function parseTranslationRequest(candidate: TranslationRequestCandidate):
  * 所有带 `type` 的未知消息必须保持未处理，不能误送到翻译 provider。
  */
 export function createTranslationRequestFallback<TContext = undefined>(
-    dependencies: TranslationRequestHandlerDependencies,
+    dependencies: TranslationRequestHandlerDependencies & {requestRegistry?: TranslationRequestRegistry},
 ): BackgroundFallbackHandler<TContext, TranslationRequestCandidate> {
+    const requestRegistry = dependencies.requestRegistry ?? createTranslationRequestRegistry();
     return {
         canHandle: isTranslationRequestCandidate,
-        async handle(candidate) {
+        async handle(candidate, context) {
             try {
                 const message = parseTranslationRequest(candidate);
-                return await dependencies.translate(message);
+                const clientRequestId = parseClientRequestId(candidate.clientRequestId, true);
+                if (!clientRequestId) return await dependencies.translate(message);
+                return await requestRegistry.run(
+                    clientRequestId,
+                    (context ?? {}) as TranslationRequestContext,
+                    (signal, ownershipKey) => dependencies.translate(attachTranslationRequestControl(message, {
+                        signal,
+                        ownershipKey,
+                    })),
+                );
             } catch (error) {
                 return dependencies.serializeError(error);
             }
         },
+    };
+}
+
+export function createTranslationCancelHandler<TContext extends TranslationRequestContext>(
+    requestRegistry: TranslationRequestRegistry,
+): BackgroundMessageHandler<TContext, TranslationCancelMessage, TranslationCancelResponse> {
+    return {
+        type: TRANSLATION_CANCEL_MESSAGE_TYPE,
+        handle: (message, context) => requestRegistry.cancel(message.clientRequestId, context),
     };
 }

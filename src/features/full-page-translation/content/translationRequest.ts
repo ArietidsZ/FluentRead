@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/translationRequest.ts
  * 文件职责：为单次全文翻译会话冻结请求配置，并执行文本槽的批量、AI 跨候选合并、分包、回退与会话级结果复用。
- * 主要内容：捕获服务/模型/语言/缓存/展示快照，构造显式 client 参数，按服务选择批译策略，严格隔离 AI 批次快照并维护有界的会话槽缓存。
+ * 主要内容：捕获服务/模型/语言/缓存/展示快照，构造显式 client 参数，按服务选择批译策略，为 Chrome auto 富文本包保留无哨兵检测样本，并严格隔离 AI 批次快照与维护有界的会话槽缓存。
  * 模块边界：本文件不发现候选、不持有 DOM 翻译状态也不渲染译文；runtime 提供会话缓存和取消作用域，client 负责后台协议与队列执行。
  */
 import {resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
@@ -41,7 +41,8 @@ export interface FullPageTranslationCacheEntry {
 
 type SnapshotTranslateExecutionOptions = Pick<
     TranslateOptions,
-    'aiMultiSegment' | 'queueSession' | 'signal' | 'skipLanguageDetection' | 'useCache'
+    'aiMultiSegment' | 'queueSession' | 'signal' | 'skipLanguageDetection'
+    | 'sourceLanguageDetectionText' | 'useCache'
 >;
 
 interface FullPageTranslationSessionCache {
@@ -464,6 +465,9 @@ async function translateTextSlotsDirectly(
     const packet = serializeTranslationSlots(origins);
     const combined = await translateText(packet.payload, document.title, createSnapshotTranslateOptions(snapshot, {
         skipLanguageDetection: true,
+        ...(snapshot.service === services.chromeTranslator && snapshot.sourceLanguage === 'auto'
+            ? {sourceLanguageDetectionText: origins.join('\n')}
+            : {}),
         signal,
         queueSession,
     }));

@@ -29,7 +29,8 @@ interface ChromeTranslationOffscreenResponse {
     readonly requestId?: unknown;
 }
 
-const DEFAULT_CHROME_TRANSLATION_TIMEOUT_MS = 45_000;
+// 首次创建语言包可能包含下载；与 Offscreen client 的受控上限保持一致。
+const DEFAULT_CHROME_TRANSLATION_TIMEOUT_MS = 300_000;
 
 export interface ChromeTranslatorDependencies {
     readonly capabilities: Pick<BrowserCapabilities, 'chromeTranslation'>;

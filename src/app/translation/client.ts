@@ -1,7 +1,7 @@
 /**
  * @file src/app/translation/client.ts
  * 文件职责：作为页面与后台翻译 broker 之间的客户端代理，统一管理单条、批量和视频字幕翻译的队列、取消、重试、超时、上下文与统计。
- * 主要内容：冻结服务/模型与语言参数，验证可用凭据上下文，获取页面摘要上下文，使用 runtime.sendMessage 分派请求；维护 AbortSignal、queue lease、指数退避、计数延迟保存及 cancelAllTranslations。
+ * 主要内容：冻结服务/模型与语言参数，验证凭据与页面摘要上下文，使用 runtime 协议分派请求；仅为 Chrome 内置翻译携带随机 clientRequestId，auto 时转发纯检测样本，并在页面取消/超时时通知后台停止真实 provider。
  * 模块边界：客户端不实现供应商协议、不直接读写翻译缓存，也不修改全文 DOM；后台 runtime/broker 负责 provider 与缓存，调用它的各 feature 负责展示和会话状态。
  */
 /**
@@ -10,8 +10,8 @@
  */
 
 import browser from 'webextension-polyfill';
-import {detectlang} from '@/src/core/language/detect';
-import {resolveConfiguredModel, servicesType} from '@/src/core/config/catalog';
+import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
+import {resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
 import {isTrustedCredentialStorageContext} from '@/src/platform/storage/credentialContext';
@@ -35,6 +35,11 @@ import {
   TranslationRequestError,
   unwrapTranslationResponse,
 } from '@/src/services/translation/errors';
+import {
+  TRANSLATION_CANCEL_MESSAGE_TYPE,
+  type TranslationRequestMessage,
+  type TranslationRuntimeRequestMessage,
+} from '@/src/services/translation/types';
 
 // 调试相关
 const isDev = process.env.NODE_ENV === 'development';
@@ -42,6 +47,25 @@ const VIDEO_COUNT_SAVE_INTERVAL = 10_000;
 const TRANSLATION_COUNT_SAVE_INTERVAL = 500;
 const COUNT_SAVE_RETRY_INTERVAL = 1_000;
 const COUNT_SAVE_MAX_AUTOMATIC_RETRIES = 3;
+const DEFAULT_TRANSLATION_TIMEOUT_MS = 45_000;
+const DEFAULT_CHROME_TRANSLATION_TIMEOUT_MS = 300_000;
+let translationRequestSequence = 0;
+const translationRequestNonce = (() => {
+  try {
+    const random = new Uint32Array(4);
+    globalThis.crypto.getRandomValues(random);
+    return Array.from(random, value => value.toString(36)).join('-');
+  } catch {
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  }
+})();
+
+function createTranslationClientRequestId(): string {
+  const randomUuid = globalThis.crypto?.randomUUID?.();
+  if (randomUuid) return `translation-${randomUuid}`;
+  translationRequestSequence += 1;
+  return `translation-${translationRequestNonce}-${translationRequestSequence}`;
+}
 
 function persistCountIncrement(delta: number, operationId: string): Promise<number> {
   return requestConfigCountIncrement(
@@ -165,12 +189,31 @@ function getTranslationRetryDelay(
 }
 
 function waitForRequest<T>(
-  request: PromiseLike<T>,
+  message: TranslationRequestMessage,
   timeout: number,
   signal?: AbortSignal,
   lease?: TranslationQueueLease,
+  cancellable = false,
 ): Promise<T> {
   throwIfAborted(signal);
+  const clientRequestId = cancellable ? createTranslationClientRequestId() : undefined;
+  const requestMessage = clientRequestId
+    ? {...message, clientRequestId} satisfies TranslationRuntimeRequestMessage
+    : message;
+  const request: PromiseLike<T> = browser.runtime.sendMessage(requestMessage) as PromiseLike<T>;
+  let cancellationNotified = false;
+  const notifyCancellation = () => {
+    if (cancellationNotified || !clientRequestId) return;
+    cancellationNotified = true;
+    try {
+      void Promise.resolve(browser.runtime.sendMessage({
+        type: TRANSLATION_CANCEL_MESSAGE_TYPE,
+        clientRequestId,
+      })).catch(() => undefined);
+    } catch {
+      // 页面卸载时 runtime.sendMessage 可能同步抛错；取消通知仅尽力而为。
+    }
+  };
   const transportSettlement = new Promise<T>((resolve, reject) => {
     let settled = false;
     const finish = (callback: () => void) => {
@@ -179,15 +222,18 @@ function waitForRequest<T>(
       clearTimeout(timer);
       callback();
     };
-    const timer = setTimeout(() => finish(() => reject(new Error('翻译请求超时'))), timeout);
+    const timer = setTimeout(() => finish(() => {
+      notifyCancellation();
+      reject(new Error('翻译请求超时'));
+    }), timeout);
     Promise.resolve(request).then(
       (value) => finish(() => resolve(value)),
       (error) => finish(() => reject(error)),
     );
   });
 
-  // 中止一次 DOM 尝试无法撤回已经发出的扩展消息。队列槽位需要保持租用，直到
-  // 传输完成或触发超时；调用方仍可立即停止等待。
+  // 调用方可立即停止等待；队列槽位仍持有到原 runtime 传输回应。
+  // typed cancel 会让后台 broker 尽快中止并促使该传输收口。
   lease?.holdUntil(transportSettlement);
   if (!signal) return transportSettlement;
 
@@ -199,7 +245,10 @@ function waitForRequest<T>(
       signal.removeEventListener('abort', onAbort);
       callback();
     };
-    const onAbort = () => finishCaller(() => reject(createAbortError()));
+    const onAbort = () => finishCaller(() => {
+      notifyCancellation();
+      reject(createAbortError());
+    });
     signal.addEventListener('abort', onAbort, {once: true});
     if (signal.aborted) {
       onAbort();
@@ -246,8 +295,12 @@ export async function translateText(origin: string, context: string = document.t
   const selectedLanguages = getTranslationLanguages(options);
   const selectedThinking = options.thinkingOverride
     ?? isModelThinkingEnabled(config.modelThinking, selectedService, selectedModel);
+  const timeout = options.timeout ?? (
+    selectedService === services.chromeTranslator
+      ? DEFAULT_CHROME_TRANSLATION_TIMEOUT_MS
+      : DEFAULT_TRANSLATION_TIMEOUT_MS
+  );
   const {
-    timeout = 45000,
     useCache = config.useCache,
     skipLanguageDetection = false,
     signal,
@@ -266,7 +319,7 @@ export async function translateText(origin: string, context: string = document.t
 
   assertTranslationCredentials(selectedService, selectedModel);
   // 如果目标语言与当前文本语言相同，直接返回原文
-  if (!skipLanguageDetection && detectlang(origin.replace(/[\s\u3000]/g, '')) === selectedLanguages.targetLanguage) {
+  if (!skipLanguageDetection && shouldSkipTranslationForTarget(origin, selectedLanguages.targetLanguage)) {
     return origin;
   }
 
@@ -286,7 +339,7 @@ export async function translateText(origin: string, context: string = document.t
       try {
         // 发送翻译请求给background脚本处理
         const response = await waitForRequest(
-          browser.runtime.sendMessage({
+          {
             context,
             pageContext,
             ...(options.enableAIContext !== undefined ? {enableAIContext: options.enableAIContext} : {}),
@@ -295,13 +348,19 @@ export async function translateText(origin: string, context: string = document.t
             serviceOverride: selectedService,
             sourceLanguage: selectedLanguages.sourceLanguage,
             targetLanguage: selectedLanguages.targetLanguage,
+            ...(selectedService === services.chromeTranslator
+              && selectedLanguages.sourceLanguage === 'auto'
+              && options.sourceLanguageDetectionText?.trim()
+              ? {sourceLanguageDetectionText: options.sourceLanguageDetectionText}
+              : {}),
             modelOverride: selectedModel,
             thinkingOverride: selectedThinking,
             requestTimeoutMs: Math.max(1_000, timeout - 1_000),
-          }),
+          },
           timeout,
           signal,
           lease,
+          selectedService === services.chromeTranslator,
         );
         const result = unwrapTranslationResponse<string>(response);
 
@@ -378,7 +437,7 @@ export async function translateTextBatch(
       throwIfAborted(signal);
       try {
         const response = await waitForRequest(
-          browser.runtime.sendMessage({
+          {
             context,
             pageContext,
             ...(options.enableAIContext !== undefined ? {enableAIContext: options.enableAIContext} : {}),
@@ -391,10 +450,11 @@ export async function translateTextBatch(
             modelOverride: selectedModel,
             thinkingOverride: selectedThinking,
             requestTimeoutMs: Math.max(1_000, timeout - 1_000),
-          }),
+          },
           timeout,
           signal,
           lease,
+          selectedService === services.chromeTranslator,
         );
         const result = unwrapTranslationResponse<string[]>(response);
 
@@ -443,7 +503,7 @@ export async function translateVideoText(origin: string): Promise<string> {
   const result = await enqueueTranslation(async (lease) => {
     const translationTask = async (retryCount = 0): Promise<string> => {
       try {
-        const response = await waitForRequest(browser.runtime.sendMessage({
+        const response = await waitForRequest({
           context: `YouTube 视频字幕：${typeof document === 'undefined' ? '' : document.title}`,
           pageContext,
           origin,
@@ -454,7 +514,7 @@ export async function translateVideoText(origin: string): Promise<string> {
           sourceLanguage: languages.sourceLanguage,
           targetLanguage: languages.targetLanguage,
           requestTimeoutMs: 19_000,
-        }), 20_000, undefined, lease);
+        }, 20_000, undefined, lease, service === services.chromeTranslator);
         return unwrapTranslationResponse<string>(response);
       } catch (error) {
         if (retryCount < retryPolicy.maxRetries
@@ -510,6 +570,8 @@ export interface TranslateOptions {
   enableAIContext?: boolean;
   /** 内部结构化数据包含有 ASCII 哨兵标记，不应影响源语言检测。 */
   skipLanguageDetection?: boolean;
+  /** 仅 Chrome auto 模式使用：不含结构哨兵、但与 origin 语义相同的检测样本。 */
+  sourceLanguageDetectionText?: string;
   /** 仅全文翻译内部使用：要求 broker 将多个 AI 段落合并为一次上游请求。 */
   aiMultiSegment?: boolean;
   /** DOM 尝试恢复后，取消重试等待并忽略迟到的 runtime 响应。 */

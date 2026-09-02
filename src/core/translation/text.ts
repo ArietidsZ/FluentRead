@@ -2,7 +2,7 @@
  * @file src/core/translation/text.ts
  *
  * 文件职责：提取和校验候选中的可读文本，拒绝标识符、空白、扩展译文及脚本、表单或敏感区域的节点。
- * 主要内容：提供文本规范化、meaningful/identifier 判定、元素与文本节点保护检查、WeakMap 状态缓存和受预算约束的深度扫描，避免在大型 DOM 上无限遍历。 可核对的公开符号包括 normalizeTranslationText、isIdentifierLikeText、isMeaningfulTranslationText、isTranslationTextNodeProtected、TranslationTextProtectionCache、createTranslationTextProtectionCache、isTranslationTextElementProtected、hasMeaningfulTranslationTextInNodes。
+ * 主要内容：提供文本规范化、meaningful/identifier 判定、元素与文本节点保护检查、保守的目标语言字符集快判、WeakMap 状态缓存和受预算约束的深度扫描，避免在大型 DOM 上无限遍历。 可核对的公开符号包括 normalizeTranslationText、isIdentifierLikeText、isMeaningfulTranslationText、isClearlyTargetLanguage、isTranslationTextNodeProtected、TranslationTextProtectionCache、createTranslationTextProtectionCache、isTranslationTextElementProtected、hasMeaningfulTranslationTextInNodes。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
@@ -273,14 +273,29 @@ export function extractTranslationText(
     );
 }
 
-const hanPattern = /\p{Script=Han}/gu;
-const japanesePattern = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/gu;
-const hangulPattern = /\p{Script=Hangul}/gu;
-const latinPattern = /\p{Script=Latin}/gu;
+const hanPattern = /\p{Script=Han}/u;
+const kanaPattern = /[\p{Script=Hiragana}\p{Script=Katakana}]/u;
+const hangulPattern = /\p{Script=Hangul}/u;
+// 只收录与现代日文常用字形明显不同的简繁中文证据；普通共享 Han 仍保持未知。
+const simplifiedChineseSpecificHanPattern = /[这们语译设为说从对还样书门车东发见长电现间题让气实图网边变进选级应标经]/u;
+const traditionalChineseSpecificHanPattern = /[這們譯與說從對樣發氣點實圖邊變條應經體]/u;
+
+type ChineseScript = 'simplified' | 'traditional';
+
+function getChineseTargetScript(targetLanguage: string): ChineseScript | undefined {
+    const target = targetLanguage.trim().replace(/_/gu, '-').toLowerCase();
+    if (target === 'zh-hans' || target === 'zh-cn' || target === 'zh-sg') {
+        return 'simplified';
+    }
+    if (target === 'zh-hant' || target === 'zh-tw' || target === 'zh-hk' || target === 'zh-mo') {
+        return 'traditional';
+    }
+    return undefined;
+}
 
 /**
- * 统计式语言检测对短 UI 文本最不可靠。只有目标书写系统明显占优时才跳过，
- * 否则交给翻译服务处理；长文本检测仍作为 runtime 中的第二道检查。
+ * 统计式语言检测对短 UI 文本最不可靠。只接受假名、谚文或中文特有字形作为明确证据；
+ * 普通共享 Han 无法可靠区分中日文，拉丁字母也无法区分英法德等语言，均交给后续检测或翻译服务。
  */
 export function isClearlyTargetLanguage(value: string, targetLanguage: string): boolean {
     const text = normalizeTranslationText(value);
@@ -289,17 +304,20 @@ export function isClearlyTargetLanguage(value: string, targetLanguage: string): 
     const letters = text.match(/\p{L}/gu)?.length ?? 0;
     if (letters === 0) return true;
 
-    if (target.startsWith('zh') || target.startsWith('ja') || target.startsWith('ko')) {
-        const targetPattern = target.startsWith('zh')
-            ? hanPattern
-            : target.startsWith('ja') ? japanesePattern : hangulPattern;
-        const targetScript = text.match(targetPattern)?.length ?? 0;
-        const latin = text.match(latinPattern)?.length ?? 0;
-        return targetScript > 0 && targetScript >= latin * 2;
-    }
-    if (target.startsWith('en')) {
-        const latin = text.match(latinPattern)?.length ?? 0;
-        return latin >= 3 && latin / letters >= 0.85;
+    const hasKana = kanaPattern.test(text);
+    const hasHangul = hangulPattern.test(text);
+    if (hasKana && hasHangul) return false;
+    if (hasKana) return target.startsWith('ja');
+    if (hasHangul) return target.startsWith('ko');
+    if (hanPattern.test(text)) {
+        const hasSimplifiedChinese = simplifiedChineseSpecificHanPattern.test(text);
+        const hasTraditionalChinese = traditionalChineseSpecificHanPattern.test(text);
+        // 普通共享 Han、简繁混排和未指定书写体系的 zh 都无法证明已经是目标语言。
+        if (hasSimplifiedChinese === hasTraditionalChinese) return false;
+        const targetScript = getChineseTargetScript(targetLanguage);
+        return hasSimplifiedChinese
+            ? targetScript === 'simplified'
+            : targetScript === 'traditional';
     }
     return false;
 }

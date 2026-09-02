@@ -28,6 +28,7 @@ type CacheIdentity = {
     transportProfile?: string;
     context?: string;
     pageContext?: string;
+    sourceLanguageDetectionText?: string;
 };
 
 const mocks = vi.hoisted(() => {
@@ -40,6 +41,7 @@ const mocks = vi.hoisted(() => {
         'minimax',
         'mimo',
         'azureOpenai',
+        'chromeTranslator',
     ]);
     const aiServices = new Set(['ai', 'aiSdk', 'brokenAiSdk']);
     const aiSdkServices = new Set(['aiSdk', 'brokenAiSdk']);
@@ -53,6 +55,7 @@ const mocks = vi.hoisted(() => {
         ai: service,
         aiSdk: service,
         azureOpenai: service,
+        chromeTranslator: service,
         brokenAiSdk: service,
         custom: service,
         deeplx: service,
@@ -225,7 +228,8 @@ describe('translation broker', () => {
         mocks.aiServices.add('aiSdk');
         mocks.aiServices.add('brokenAiSdk');
         mocks.machineServices.clear();
-        ['mock', 'custom', 'deeplx', 'newapi', 'minimax', 'mimo', 'azureOpenai'].forEach(service => mocks.machineServices.add(service));
+        ['mock', 'custom', 'deeplx', 'newapi', 'minimax', 'mimo', 'azureOpenai', 'chromeTranslator']
+            .forEach(service => mocks.machineServices.add(service));
         Object.assign(mocks.config, {
             service: 'mock',
             from: 'auto',
@@ -256,6 +260,7 @@ describe('translation broker', () => {
             ai: 'ai-model',
             aiSdk: 'ai-sdk-model',
             azureOpenai: 'azure-openai-model',
+            chromeTranslator: '',
             brokenAiSdk: 'broken-ai-sdk-model',
             custom: 'custom-model',
             deeplx: 'deeplx-model',
@@ -2713,6 +2718,117 @@ describe('translation broker', () => {
         expect(translationCacheIdentities()).toEqual(expect.arrayContaining([
             expect.objectContaining({sourceLanguage: 'en', targetLanguage: 'ja'}),
             expect.objectContaining({sourceLanguage: 'en', targetLanguage: 'fr'}),
+        ]));
+    });
+
+    it('Chrome auto 检测样本进入缓存与 pending 身份，显式源语言则不分裂缓存', async () => {
+        mocks.config.service = 'chromeTranslator';
+        mocks.service.mockImplementation(async (message: {sourceLanguageDetectionText?: string}) =>
+            `译:${message.sourceLanguageDetectionText || 'explicit'}`);
+
+        await expect(translateWithCache({
+            origin: '___FLUENTREAD_packet___',
+            sourceLanguageDetectionText: 'Bonjour le monde.',
+        })).resolves.toBe('译:Bonjour le monde.');
+        await expect(translateWithCache({
+            origin: '___FLUENTREAD_packet___',
+            sourceLanguageDetectionText: 'これはテストです。',
+        })).resolves.toBe('译:これはテストです。');
+        await expect(translateWithCache({
+            origin: '___FLUENTREAD_packet___',
+            sourceLanguageDetectionText: 'Bonjour le monde.',
+        })).resolves.toBe('译:Bonjour le monde.');
+
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        expect(translationCacheIdentities()).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                sourceLanguage: 'auto',
+                sourceLanguageDetectionText: 'Bonjour le monde.',
+            }),
+            expect.objectContaining({
+                sourceLanguage: 'auto',
+                sourceLanguageDetectionText: 'これはテストです。',
+            }),
+        ]));
+
+        await clearTranslationCache();
+        mocks.service.mockClear();
+        mocks.buildTranslationCacheKey.mockClear();
+        await expect(translateWithCache({
+            origin: 'same explicit source',
+            sourceLanguage: 'fr',
+            sourceLanguageDetectionText: 'sample A',
+        })).resolves.toBe('译:explicit');
+        await expect(translateWithCache({
+            origin: 'same explicit source',
+            sourceLanguage: 'fr',
+            sourceLanguageDetectionText: 'sample B',
+        })).resolves.toBe('译:explicit');
+
+        expect(mocks.service).toHaveBeenCalledOnce();
+        expect(translationCacheIdentities()).not.toEqual(expect.arrayContaining([
+            expect.objectContaining({sourceLanguageDetectionText: expect.any(String)}),
+        ]));
+    });
+
+    it('Chrome auto 无缓存并发请求以检测样本区分 pending，并合并相同样本', async () => {
+        mocks.config.service = 'chromeTranslator';
+        const frenchProvider = deferred<string>();
+        const japaneseProvider = deferred<string>();
+        mocks.service.mockImplementation((message: {sourceLanguageDetectionText?: string}) => {
+            if (message.sourceLanguageDetectionText === 'Bonjour le monde.') {
+                return frenchProvider.promise;
+            }
+            return japaneseProvider.promise;
+        });
+
+        const french = translateWithCache({
+            origin: '___FLUENTREAD_packet___',
+            sourceLanguageDetectionText: 'Bonjour le monde.',
+            useCache: false,
+        });
+        const japanese = translateWithCache({
+            origin: '___FLUENTREAD_packet___',
+            sourceLanguageDetectionText: 'これはテストです。',
+            useCache: false,
+        });
+        await vi.waitFor(() => expect(mocks.service).toHaveBeenCalledTimes(2));
+        frenchProvider.resolve('フランス語訳');
+        japaneseProvider.resolve('日本語訳');
+        await expect(Promise.all([french, japanese]))
+            .resolves.toEqual(['フランス語訳', '日本語訳']);
+
+        mocks.service.mockClear();
+        const sharedProvider = deferred<string>();
+        mocks.service.mockImplementation(() => sharedProvider.promise);
+        const firstShared = translateWithCache({
+            origin: '___FLUENTREAD_packet___',
+            sourceLanguageDetectionText: 'Bonjour le monde.',
+            useCache: false,
+        });
+        const secondShared = translateWithCache({
+            origin: '___FLUENTREAD_packet___',
+            sourceLanguageDetectionText: 'Bonjour le monde.',
+            useCache: false,
+        });
+        await vi.waitFor(() => expect(mocks.service).toHaveBeenCalledOnce());
+        sharedProvider.resolve('共享译文');
+        await expect(Promise.all([firstShared, secondShared]))
+            .resolves.toEqual(['共享译文', '共享译文']);
+    });
+
+    it('非 Chrome provider 不会收到扩展页面伪造的重复检测正文', async () => {
+        await expect(translateWithCache({
+            origin: 'cloud source',
+            serviceOverride: 'mock',
+            sourceLanguageDetectionText: 'must stay local',
+        })).resolves.toBe('默认译文');
+
+        expect(mocks.service).toHaveBeenCalledWith(expect.not.objectContaining({
+            sourceLanguageDetectionText: expect.anything(),
+        }));
+        expect(translationCacheIdentities()).not.toEqual(expect.arrayContaining([
+            expect.objectContaining({sourceLanguageDetectionText: expect.anything()}),
         ]));
     });
 
