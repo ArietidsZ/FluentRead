@@ -714,7 +714,11 @@ async function main() {
     const interfaceSection = page.locator('#settings-interface');
     await interfaceSection.waitFor({state: 'visible', timeout});
     const skinCards = interfaceSection.locator('.interface-skin-card');
-    if (await skinCards.count() !== 2) throw new Error(`界面皮肤选项数量异常：${await skinCards.count()}`);
+    if (await skinCards.count() !== 5) throw new Error(`界面皮肤选项数量异常：${await skinCards.count()}`);
+    const skinLabels = (await skinCards.locator('.interface-skin-copy strong').allTextContents()).map(value => value.trim());
+    if (JSON.stringify(skinLabels) !== JSON.stringify(['默认风格', '简约风格', '朴素风格', '紧凑风格', '柔和风格'])) {
+      throw new Error(`界面皮肤名称或顺序异常：${JSON.stringify(skinLabels)}`);
+    }
     if (await interfaceSection.locator('.interface-skin-card[data-skin="default"][aria-checked="true"]').count() !== 1) {
       throw new Error('默认皮肤没有保持当前界面选中状态');
     }
@@ -723,12 +727,17 @@ async function main() {
     if (await page.locator('html').getAttribute('data-interface-skin') !== 'default') {
       throw new Error('Options 初始界面皮肤不是默认风格');
     }
-    await interfaceSection.locator('.interface-skin-card[data-skin="minimal"]').click();
-    await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'minimal', undefined, {timeout});
-    if (!await interfaceSection.locator('.interface-skin-card[data-skin="minimal"][aria-checked="true"]').isVisible()) {
-      throw new Error('简约皮肤切换后没有进入选中状态');
+    const skinValues = ['default', 'minimal', 'plain', 'compact', 'soft'];
+    for (const skin of skinValues) {
+      await interfaceSection.locator(`.interface-skin-card[data-skin="${skin}"]`).click();
+      await page.waitForFunction(expected => document.documentElement.dataset.interfaceSkin === expected, skin, {timeout});
+      if (!await interfaceSection.locator(`.interface-skin-card[data-skin="${skin}"][aria-checked="true"]`).isVisible()) {
+        throw new Error(`${skin} 皮肤切换后没有进入选中状态`);
+      }
+      report.screenshots.push(await screenshot(page, `settings-interface-${skin}.png`));
     }
-    report.screenshots.push(await screenshot(page, 'settings-interface-minimal.png'));
+    await interfaceSection.locator('.interface-skin-card[data-skin="plain"]').click();
+    await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'plain', undefined, {timeout});
     await interfaceSection.locator('.settings-item').filter({hasText: '快捷功能栏'}).locator('.el-switch').click({force: true});
     await interfaceSection.locator('.settings-item').filter({hasText: '底部信息栏'}).locator('.el-switch').click({force: true});
     await page.waitForFunction(() => (
@@ -745,14 +754,14 @@ async function main() {
     await interfacePopup.waitForTimeout(350);
     if (await interfacePopup.locator('.features').count() !== 0) throw new Error('关闭快捷功能栏后 Popup 仍显示快捷功能');
     if (await interfacePopup.locator('footer').count() !== 0) throw new Error('关闭底部信息栏后 Popup 仍显示底部信息');
-    if (await interfacePopup.locator('main[data-interface-skin="minimal"]').count() !== 1) {
-      throw new Error('Popup 重开后没有应用简约皮肤');
+    if (await interfacePopup.locator('main[data-interface-skin="plain"]').count() !== 1) {
+      throw new Error('Popup 重开后没有应用朴素皮肤');
     }
-    report.screenshots.push(await screenshot(interfacePopup, 'popup-interface-minimal-hidden-sections.png'));
+    report.screenshots.push(await screenshot(interfacePopup, 'popup-interface-plain-hidden-sections.png'));
     await interfacePopup.close();
     report.informationArchitecture.interfaceSettings = {
-      skinOptions: ['default', 'minimal'],
-      selectedSkin: 'minimal',
+      skinOptions: ['default', 'minimal', 'plain', 'compact', 'soft'],
+      selectedSkin: 'plain',
       hiddenSections: ['popupQuickFeatures', 'popupFooter'],
       popupRoundTrip: true,
     };

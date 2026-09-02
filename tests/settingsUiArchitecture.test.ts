@@ -57,6 +57,9 @@ describe('options UI composition architecture', () => {
     const optionsApp = source('src/app/options/OptionsApp.vue')
     const settingsSections = source('src/features/settings/ui/SettingsSections.vue')
     const interfaceSettings = source('src/features/settings/ui/InterfaceSettings.vue')
+    const popupEntry = source('src/app/popup/index.ts')
+    const optionsEntry = source('src/app/options/index.ts')
+    const skinStyles = source('src/ui/styles/interface-skins.css')
     const configManagement = source('src/features/settings/ui/ConfigManagement.vue')
     const localDataManagement = source('src/features/settings/ui/LocalDataManagement.vue')
     const serviceConfiguration = source('src/features/settings/ui/services/ServiceConfiguration.vue')
@@ -75,6 +78,11 @@ describe('options UI composition architecture', () => {
     expect(interfaceSettings).toContain('interfaceVisibilityOptions')
     expect(interfaceSettings).toContain('data-skin')
     expect(interfaceSettings).toContain('显示${item.label}')
+    expect(popupEntry).toContain("@/src/ui/styles/interface-skins.css")
+    expect(optionsEntry).toContain("@/src/ui/styles/interface-skins.css")
+    for (const skin of ['minimal', 'plain', 'compact', 'soft']) {
+      expect(skinStyles).toContain(`./interface-skins/${skin}.css`)
+    }
     expect(settingsSections).toContain('<ImageOcrSettings />')
     expect(settingsSections).toContain("import {ModelUsageDashboard} from '@/src/features/model-usage/public'")
     expect(settingsSections).toContain("v-show=\"props.activeSection === 'settings-model-usage'\"")

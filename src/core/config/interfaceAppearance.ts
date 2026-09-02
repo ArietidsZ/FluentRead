@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/interfaceAppearance.ts
  * 文件职责：定义 FluentRead 扩展界面的皮肤与栏目可见性配置契约，作为 Options、Popup 和配置持久化共同依赖的单一来源。
- * 主要内容：维护可扩展的界面皮肤注册表、Popup 栏目开关元数据、默认可见性以及安全归一化函数；新增皮肤时只需扩展这里的定义并补充对应 CSS。
+ * 主要内容：维护可扩展的界面皮肤注册表、Popup 栏目开关元数据、默认可见性以及安全归一化函数；新增皮肤时只需扩展这里的定义并接入对应的独立 CSS 模块。
  * 模块边界：本文件只描述纯配置规则和用户可见元数据，不读取浏览器存储、不操作 DOM，也不决定具体页面布局；DOM 皮肤应用由 src/ui/interfaceAppearance.ts 负责。
  */
 
@@ -15,6 +15,21 @@ export const interfaceSkinOptions = [
     value: 'minimal',
     label: '简约风格',
     description: '减少阴影和装饰，让翻译操作更突出。',
+  },
+  {
+    value: 'plain',
+    label: '朴素风格',
+    description: '采用平面白底和清晰分区，信息一目了然。',
+  },
+  {
+    value: 'compact',
+    label: '紧凑风格',
+    description: '压缩间距和控件高度，让 Popup 更高效。',
+  },
+  {
+    value: 'soft',
+    label: '柔和风格',
+    description: '使用轻柔色彩和圆润层次，适合长时间阅读。',
   },
 ] as const
 

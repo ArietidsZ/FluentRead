@@ -221,6 +221,90 @@ const props = defineProps<{
   background: #fafafa;
 }
 
+.preview-plain {
+  border-color: #e6e7ea;
+  border-radius: 17px;
+  background: #fff;
+}
+
+.preview-plain .preview-header i {
+  width: 34px;
+  background: #72767d;
+}
+
+.preview-plain .preview-hero {
+  border-color: #ededee;
+  border-radius: 14px;
+  background: #f5f5f6;
+}
+
+.preview-plain .preview-hero i:last-child {
+  width: 17%;
+  height: 15px;
+  border-radius: 6px;
+  background: #eb4784;
+}
+
+.preview-plain .preview-features i {
+  border-color: #ededee;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.preview-compact {
+  gap: 4px;
+  min-height: 88px;
+  padding: 8px;
+  border-radius: 9px;
+  background: #f7f8fb;
+}
+
+.preview-compact .preview-hero {
+  height: 29px;
+  padding: 5px;
+  border-radius: 6px;
+}
+
+.preview-compact .preview-hero i:first-child {
+  height: 6px;
+}
+
+.preview-compact .preview-hero i:last-child {
+  height: 13px;
+  border-radius: 4px;
+}
+
+.preview-compact .preview-features i {
+  height: 15px;
+  border-radius: 4px;
+}
+
+.preview-soft {
+  border-color: #f1dce6;
+  border-radius: 16px;
+  background: #fff7fa;
+}
+
+.preview-soft .preview-header i {
+  background: #ef6f9d;
+}
+
+.preview-soft .preview-hero {
+  border-color: #f1dce6;
+  border-radius: 12px;
+  background: #fffafd;
+}
+
+.preview-soft .preview-hero i:last-child {
+  background: #ef6f9d;
+}
+
+.preview-soft .preview-features i {
+  border-color: #f1dce6;
+  border-radius: 8px;
+  background: #fffafd;
+}
+
 .interface-skin-copy {
   display: flex;
   min-width: 0;

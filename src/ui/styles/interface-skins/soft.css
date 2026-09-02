@@ -1,0 +1,109 @@
+/**
+ * @file src/ui/styles/interface-skins/soft.css
+ * 文件职责：实现 FluentRead 柔和风格，为 Popup 和 Options 提供低对比度粉彩表面、圆润卡片和轻柔阴影。
+ * 主要内容：在保留现有信息层级的基础上，降低边框锐度并增加温和的品牌色背景，适合长时间阅读。
+ * 模块边界：本文件只服务 data-interface-skin="soft"，不改变业务功能、配置字段或其他皮肤的表现。
+ */
+
+:root[data-interface-skin="soft"] .popup-shell {
+  background:
+    radial-gradient(circle at 92% 0, rgba(244, 149, 181, .16), transparent 34%),
+    linear-gradient(180deg, #fffafd 0, #fff7fa 170px, #f8f7fb 100%);
+}
+
+:root[data-interface-skin="soft"] .popup-shell .brand img {
+  border-radius: 15px;
+  box-shadow: 0 9px 18px rgba(221, 112, 149, .16);
+}
+
+:root[data-interface-skin="soft"] .hero-card {
+  border-color: #f2dce5;
+  border-radius: 25px;
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 14px 34px rgba(170, 117, 143, .1);
+}
+
+:root[data-interface-skin="soft"] .service-field,
+:root[data-interface-skin="soft"] .site-rule-row {
+  border-color: #f1dde6;
+  background: #fff7fa;
+}
+
+:root[data-interface-skin="soft"] .translate-button {
+  background: linear-gradient(135deg, #f06a98, #e84c82);
+  box-shadow: 0 9px 20px rgba(232, 76, 130, .18);
+}
+
+:root[data-interface-skin="soft"] .translate-button:hover:not(:disabled) {
+  box-shadow: 0 12px 24px rgba(232, 76, 130, .22);
+}
+
+:root[data-interface-skin="soft"] .feature-card {
+  border-color: #f1e0e8;
+  border-radius: 18px;
+  background: #fffafd;
+}
+
+:root[data-interface-skin="soft"] .feature-card:hover:not(:disabled) {
+  border-color: #e9bfd0;
+  box-shadow: 0 8px 20px rgba(170, 117, 143, .09);
+}
+
+:root[data-interface-skin="soft"] .popup-shell > footer {
+  color: #8b7180;
+}
+
+:root[data-interface-skin="soft"] .sidebar {
+  border-color: #f0dde6;
+  background: rgba(255, 250, 252, .9);
+}
+
+:root[data-interface-skin="soft"] .nav-icon {
+  background: #fff7fa;
+}
+
+:root[data-interface-skin="soft"] .search-box,
+:root[data-interface-skin="soft"] .settings-group-body,
+:root[data-interface-skin="soft"] .settings-card .settings-control-row,
+:root[data-interface-skin="soft"] .settings-card .el-collapse {
+  border-color: #f0dde6;
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(170, 117, 143, .055);
+}
+
+:root[data-interface-skin="soft"] .settings-card .settings-control-row:hover {
+  border-color: #e9bfd0;
+  box-shadow: 0 8px 22px rgba(170, 117, 143, .08);
+}
+
+:root[data-interface-skin="soft"] .settings-card .el-select__wrapper,
+:root[data-interface-skin="soft"] .settings-card .el-input__wrapper,
+:root[data-interface-skin="soft"] .settings-card .el-input-number .el-input__wrapper {
+  border-color: #f0dde6;
+  border-radius: 14px;
+  background: #fffafd;
+}
+
+:root.dark[data-interface-skin="soft"] .popup-shell {
+  background:
+    radial-gradient(circle at 92% 0, rgba(239, 100, 145, .16), transparent 34%),
+    linear-gradient(180deg, #282129 0, #1c1e24 180px);
+}
+
+:root.dark[data-interface-skin="soft"] .hero-card,
+:root.dark[data-interface-skin="soft"] .feature-card,
+:root.dark[data-interface-skin="soft"] .sidebar,
+:root.dark[data-interface-skin="soft"] .settings-group-body,
+:root.dark[data-interface-skin="soft"] .settings-card .settings-control-row {
+  border-color: #4b3540;
+  background: #29252c;
+}
+
+:root.dark[data-interface-skin="soft"] .service-field,
+:root.dark[data-interface-skin="soft"] .site-rule-row,
+:root.dark[data-interface-skin="soft"] .settings-card .el-select__wrapper,
+:root.dark[data-interface-skin="soft"] .settings-card .el-input__wrapper,
+:root.dark[data-interface-skin="soft"] .settings-card .el-input-number .el-input__wrapper {
+  border-color: #4b3540;
+  background: #322b33;
+}

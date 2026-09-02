@@ -1,0 +1,106 @@
+/**
+ * @file src/ui/styles/interface-skins/minimal.css
+ * 文件职责：实现 FluentRead 简约风格对 Popup 和 Options 的视觉覆盖，减少阴影、渐变和装饰性圆角。
+ * 主要内容：保持现有布局与功能不变，只压低表面层次和悬停动效，适合希望界面更安静的用户。
+ * 模块边界：本文件只服务 data-interface-skin="minimal"，不改变配置值、翻译行为或其他皮肤。
+ */
+
+:root[data-interface-skin="minimal"] .popup-shell {
+  padding-right: 14px;
+  padding-left: 14px;
+  background: var(--surface-soft);
+}
+
+:root[data-interface-skin="minimal"] .popup-header {
+  margin-bottom: 6px;
+}
+
+:root[data-interface-skin="minimal"] .popup-shell .brand img {
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+:root[data-interface-skin="minimal"] .hero-card {
+  padding: 12px;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+:root[data-interface-skin="minimal"] .service-field,
+:root[data-interface-skin="minimal"] .site-rule-row {
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+:root[data-interface-skin="minimal"] .translate-button,
+:root[data-interface-skin="minimal"] .ai-context-toggle {
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+:root[data-interface-skin="minimal"] .features {
+  margin-top: 10px;
+}
+
+:root[data-interface-skin="minimal"] .feature-card {
+  border-radius: 10px;
+  background: var(--surface-soft);
+  box-shadow: none;
+}
+
+:root[data-interface-skin="minimal"] .feature-card:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+
+:root[data-interface-skin="minimal"] .feature-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+}
+
+:root[data-interface-skin="minimal"] .popup-shell > footer {
+  margin-top: 10px;
+}
+
+:root[data-interface-skin="minimal"] .sidebar {
+  background: var(--surface);
+  backdrop-filter: none;
+}
+
+:root[data-interface-skin="minimal"] .settings-app .brand img {
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+:root[data-interface-skin="minimal"] nav button {
+  border-radius: 8px;
+}
+
+:root[data-interface-skin="minimal"] nav button:hover {
+  transform: none;
+}
+
+:root[data-interface-skin="minimal"] .search-box,
+:root[data-interface-skin="minimal"] .settings-group-body,
+:root[data-interface-skin="minimal"] .settings-card .settings-control-row,
+:root[data-interface-skin="minimal"] .settings-card .el-collapse {
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+:root[data-interface-skin="minimal"] .settings-card .settings-control-row:hover {
+  box-shadow: none;
+}
+
+:root[data-interface-skin="minimal"] .settings-card .el-select__wrapper,
+:root[data-interface-skin="minimal"] .settings-card .el-input__wrapper,
+:root[data-interface-skin="minimal"] .settings-card .el-input-number .el-input__wrapper {
+  border-radius: 9px;
+}
+
+:root[data-interface-skin="minimal"] .settings-card .settings-control-row,
+:root[data-interface-skin="minimal"] .about-hero,
+:root[data-interface-skin="minimal"] .about-panel {
+  border-radius: 12px;
+}

@@ -1,0 +1,220 @@
+/**
+ * @file src/ui/styles/interface-skins/plain.css
+ * 文件职责：实现 FluentRead 朴素风格，参考沉浸式翻译类工具的平面信息层级，但保留 FluentRead 自己的品牌和功能入口。
+ * 主要内容：使用白底、浅灰控件、弱边框、较大的操作区和底部信息栏，降低渐变与装饰，突出语言、服务和翻译按钮。
+ * 模块边界：本文件只服务 data-interface-skin="plain"，不复制第三方产品的文案、图标或业务结构，也不改变翻译逻辑。
+ */
+
+:root[data-interface-skin="plain"] body,
+:root[data-interface-skin="plain"] #app {
+  background: #f0f1f3;
+}
+
+:root[data-interface-skin="plain"] .popup-shell {
+  padding: 10px 12px 0;
+  background: #fff;
+}
+
+:root[data-interface-skin="plain"] .popup-header {
+  margin: 0 6px 8px;
+}
+
+:root[data-interface-skin="plain"] .popup-shell .brand img {
+  border-radius: 50%;
+  box-shadow: none;
+}
+
+:root[data-interface-skin="plain"] .donation-button,
+:root[data-interface-skin="plain"] .settings-button {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-interface-skin="plain"] .hero-card {
+  padding: 8px 8px 14px;
+  border: 0;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: none;
+}
+
+:root[data-interface-skin="plain"] .language-pair {
+  gap: 8px;
+  margin-top: 14px;
+}
+
+:root[data-interface-skin="plain"] .language-pair select {
+  height: 56px;
+  padding-right: 30px;
+  border-color: transparent;
+  border-radius: 18px;
+  background: #f4f4f5;
+  font-size: 12px;
+}
+
+:root[data-interface-skin="plain"] .language-pair .arrow {
+  height: 56px;
+  color: #92959b;
+  font-size: 20px;
+}
+
+:root[data-interface-skin="plain"] .service-field {
+  min-height: 72px;
+  border-color: transparent;
+  border-radius: 18px;
+  background: #f4f4f5;
+  box-shadow: none;
+}
+
+:root[data-interface-skin="plain"] .service-field:hover:not(:disabled),
+:root[data-interface-skin="plain"] .service-field[aria-expanded="true"] {
+  border-color: #e7e7e9;
+  box-shadow: none;
+}
+
+:root[data-interface-skin="plain"] .translate-action {
+  margin-top: 14px;
+}
+
+:root[data-interface-skin="plain"] .translate-button {
+  height: 56px;
+  border-radius: 18px;
+  background: #eb4784;
+  box-shadow: none;
+  font-size: 14px;
+}
+
+:root[data-interface-skin="plain"] .translate-button:hover:not(:disabled) {
+  box-shadow: none;
+  transform: none;
+}
+
+:root[data-interface-skin="plain"] .ai-context-toggle {
+  height: 56px;
+  border-color: transparent;
+  border-radius: 16px;
+  color: #73767d;
+  background: #f4f4f5;
+  box-shadow: none;
+}
+
+:root[data-interface-skin="plain"] .site-rule-row {
+  border-color: transparent;
+  border-radius: 18px;
+  background: #f7f7f8;
+}
+
+:root[data-interface-skin="plain"] .features {
+  margin-top: 14px;
+}
+
+:root[data-interface-skin="plain"] .features-eyebrow {
+  margin-left: 4px;
+  color: #6e7279;
+}
+
+:root[data-interface-skin="plain"] .feature-grid {
+  gap: 8px;
+}
+
+:root[data-interface-skin="plain"] .feature-card {
+  min-height: 64px;
+  padding: 8px 11px;
+  border: 2px solid #eeeef0;
+  border-radius: 17px;
+  background: #fff;
+  box-shadow: none;
+}
+
+:root[data-interface-skin="plain"] .feature-card:hover:not(:disabled) {
+  border-color: #e6e6e9;
+  box-shadow: none;
+  transform: none;
+}
+
+:root[data-interface-skin="plain"] .feature-icon {
+  border-radius: 10px;
+  background: transparent;
+}
+
+:root[data-interface-skin="plain"] .popup-shell > footer {
+  min-height: 54px;
+  margin: 12px -12px 0;
+  padding: 10px 14px;
+  background: #e9eaec;
+}
+
+:root.dark[data-interface-skin="plain"] body,
+:root.dark[data-interface-skin="plain"] #app {
+  background: #17181c;
+}
+
+:root.dark[data-interface-skin="plain"] .popup-shell {
+  background: #17181c;
+}
+
+:root.dark[data-interface-skin="plain"] .hero-card,
+:root.dark[data-interface-skin="plain"] .feature-card {
+  border-color: #30323a;
+  background: #1f2127;
+}
+
+:root.dark[data-interface-skin="plain"] .language-pair select,
+:root.dark[data-interface-skin="plain"] .service-field,
+:root.dark[data-interface-skin="plain"] .ai-context-toggle,
+:root.dark[data-interface-skin="plain"] .site-rule-row {
+  border-color: #30323a;
+  color: var(--ink);
+  background: #272a31;
+}
+
+:root.dark[data-interface-skin="plain"] .popup-shell > footer {
+  background: #25272d;
+}
+
+:root[data-interface-skin="plain"] .sidebar {
+  background: #fff;
+  backdrop-filter: none;
+}
+
+:root[data-interface-skin="plain"] .workspace {
+  background: #f0f1f3;
+}
+
+:root[data-interface-skin="plain"] .settings-group-body,
+:root[data-interface-skin="plain"] .settings-card .settings-control-row,
+:root[data-interface-skin="plain"] .settings-card .el-collapse {
+  border-radius: 18px;
+  box-shadow: none;
+}
+
+:root[data-interface-skin="plain"] .settings-card .settings-control-row:hover {
+  box-shadow: none;
+}
+
+:root[data-interface-skin="plain"] .settings-card .el-select__wrapper,
+:root[data-interface-skin="plain"] .settings-card .el-input__wrapper,
+:root[data-interface-skin="plain"] .settings-card .el-input-number .el-input__wrapper {
+  border-color: transparent;
+  border-radius: 13px;
+  background: #f4f4f5;
+}
+
+:root.dark[data-interface-skin="plain"] .workspace,
+:root.dark[data-interface-skin="plain"] .sidebar {
+  background: #191b20;
+}
+
+:root.dark[data-interface-skin="plain"] .settings-group-body,
+:root.dark[data-interface-skin="plain"] .settings-card .settings-control-row {
+  border-color: #30323a;
+  background: #202229;
+}
+
+:root.dark[data-interface-skin="plain"] .settings-card .el-select__wrapper,
+:root.dark[data-interface-skin="plain"] .settings-card .el-input__wrapper,
+:root.dark[data-interface-skin="plain"] .settings-card .el-input-number .el-input__wrapper {
+  border-color: #30323a;
+  background: #292c33;
+}
