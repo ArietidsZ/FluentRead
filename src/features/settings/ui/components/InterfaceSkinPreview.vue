@@ -271,6 +271,25 @@ const previewStyle = computed(() => ({
   background: var(--preview-canvas);
 }
 
+.interface-skin-live-preview[data-preview-kind="minimal"] .preview-switch {
+  background: color-mix(in srgb, var(--preview-accent) 16%, var(--preview-canvas));
+}
+
+.interface-skin-live-preview[data-preview-kind="minimal"] .preview-switch b {
+  background: color-mix(in srgb, var(--preview-accent) 58%, var(--preview-surface));
+}
+
+.interface-skin-live-preview[data-preview-kind="minimal"] .preview-logo {
+  background: color-mix(in srgb, var(--preview-accent) 78%, var(--preview-surface));
+}
+
+.interface-skin-live-preview[data-preview-kind="minimal"] .preview-action {
+  border: 1px solid color-mix(in srgb, var(--preview-accent) 18%, transparent);
+  color: var(--preview-ink);
+  background: color-mix(in srgb, var(--preview-accent) 6%, var(--preview-canvas));
+  font-weight: 750;
+}
+
 .interface-skin-live-preview[data-preview-kind="compact"] .preview-popup {
   gap: 4px;
   padding: 7px;

@@ -61,7 +61,8 @@ describe('界面皮肤与栏目配置', () => {
     expect(interfaceSkinOptions.filter((item) => item.group === 'palette')).toHaveLength(6)
     expect(new Set(interfaceSkinOptions.map((item) => JSON.stringify(item.preview))).size).toBe(10)
     expect(interfaceSkinOptions.slice(1).every((item) => item.popupHeight === 'content')).toBe(true)
-    expect(interfaceSkinOptions.filter((item) => item.value !== 'compact').every((item) => item.popupWidth === 400)).toBe(true)
+    expect(interfaceSkinOptions.filter((item) => !['minimal', 'compact'].includes(item.value)).every((item) => item.popupWidth === 400)).toBe(true)
+    expect(getInterfaceSkinOption('minimal').popupWidth).toBe(380)
     expect(getInterfaceSkinOption('compact').popupWidth).toBe(360)
     expect(interfaceVisibilityOptions.map((item) => item.key)).toEqual([
       'popupQuickFeatures',
@@ -157,6 +158,7 @@ describe('界面皮肤与栏目配置', () => {
     expect(interfaceSkinUsesContentHeight('paper')).toBe(true)
     expect(interfaceSkinUsesContentHeight('unknown')).toBe(false)
     expect(interfaceSkinPopupWidth('default')).toBe(400)
+    expect(interfaceSkinPopupWidth('minimal')).toBe(380)
     expect(interfaceSkinPopupWidth('compact')).toBe(360)
     expect(interfaceSkinPopupWidth('unknown')).toBe(400)
 

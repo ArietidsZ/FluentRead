@@ -36,7 +36,7 @@ export const interfaceSkinOptions = [
     group: 'utility',
     kind: 'minimal',
     popupHeight: 'content',
-    popupWidth: 400,
+    popupWidth: 380,
     preview: {canvas: '#ffffff', surface: '#f3f4f6', accent: '#ef4776', ink: '#313743'},
   },
   {
