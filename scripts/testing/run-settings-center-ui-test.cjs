@@ -538,6 +538,8 @@ async function seedLegacyStorageAndReloadExtension(page, context, extensionOrigi
         display: 1,
         from: 'auto',
         to: 'zh-Hans',
+        uiLanguage: 'zh-CN',
+        uiLanguageSetupCompleted: true,
         persistCredentials: true,
         token: {openai: 'legacy-embedded-token-must-lose-precedence'},
         appid: 'legacy-embedded-appid-must-lose-precedence',
@@ -595,6 +597,7 @@ async function main() {
     navigation: [],
     responsive: [],
     defaultServiceCard: {responsive: []},
+    translationLoadingStyles: {},
     informationArchitecture: {},
     assertions: {},
     consoleErrors: errors,
@@ -721,6 +724,93 @@ async function main() {
     report.assertions.noLegacyIntros = await page.locator('.video-settings-hero, .image-ocr-kicker, .site-rules-kicker').count() === 0;
     if (!report.assertions.noLegacyIntros) throw new Error('仍存在旧的重复介绍元素');
 
+    // 高级设置中的段落加载样式必须用真实运行时指示器预览，并经统一配置链路持久化。
+    await page.locator('button[data-section="settings-advanced"]').click();
+    const loadingStyleGroup = page.locator('.settings-section:visible .settings-group').filter({hasText: '界面性能'});
+    await loadingStyleGroup.waitFor({state: 'visible', timeout});
+    const loadingStyleCards = loadingStyleGroup.locator('.loading-style-option');
+    const expectedLoadingStyles = [
+      ['minimal', '简洁'],
+      ['ring', '柔和圆环'],
+      ['dots', '跳跃圆点'],
+      ['orbit', '行星轨道'],
+      ['sparkle', '星光'],
+    ];
+    const loadingStyleContract = await loadingStyleCards.evaluateAll(cards => cards.map(card => ({
+      value: card.querySelector('input[type="radio"]')?.value,
+      label: card.querySelector('.loading-style-copy strong')?.textContent?.trim(),
+      description: card.querySelector('.loading-style-copy small')?.textContent?.trim(),
+      previewStyle: card.querySelector('.fluent-read-loading')?.getAttribute('data-fr-loading-style'),
+    })));
+    if (JSON.stringify(loadingStyleContract.map(item => [item.value, item.label])) !== JSON.stringify(expectedLoadingStyles)
+      || loadingStyleContract.some(item => item.previewStyle !== item.value || !item.description)) {
+      throw new Error(`段落加载样式或真实预览契约异常：${JSON.stringify(loadingStyleContract)}`);
+    }
+    const loadingPreviewMetrics = await loadingStyleGroup.locator('.fluent-read-loading').evaluateAll(indicators => indicators.map(indicator => {
+      const rect = indicator.getBoundingClientRect();
+      const style = indicator.style;
+      return {
+        loadingStyle: indicator.getAttribute('data-fr-loading-style'),
+        motion: indicator.getAttribute('data-fr-motion'),
+        width: rect.width,
+        height: rect.height,
+        closedShadowRoot: indicator.shadowRoot === null,
+        widthPriority: style.getPropertyPriority('width'),
+        animationPriority: style.getPropertyPriority('animation'),
+      };
+    }));
+    if (loadingPreviewMetrics.some(item => item.motion !== 'animated'
+      || item.width !== 16
+      || item.height !== 16
+      || !item.closedShadowRoot
+      || item.widthPriority !== 'important'
+      || item.animationPriority !== 'important')) {
+      throw new Error(`段落加载预览没有保持隔离尺寸或动画状态：${JSON.stringify(loadingPreviewMetrics)}`);
+    }
+    for (const [value] of expectedLoadingStyles) {
+      const optionCard = loadingStyleCards.filter({has: page.locator(`input[value="${value}"]`)});
+      await optionCard.click();
+      await page.waitForFunction(selected => (
+        document.querySelector(`.loading-style-option input[value="${selected}"]`)?.checked === true
+      ), value, {timeout});
+    }
+    await page.waitForTimeout(500);
+    const storedLoadingStyle = await page.evaluate(async () => {
+      const response = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
+      return response?.value?.translationLoadingStyle;
+    });
+    if (storedLoadingStyle !== 'sparkle') {
+      throw new Error(`段落加载样式没有持久化最终选择：${String(storedLoadingStyle)}`);
+    }
+    report.screenshots.push(await screenshot(page, 'settings-advanced-loading-styles-animated.png'));
+
+    const animationSwitch = loadingStyleGroup.locator('.settings-item').filter({hasText: '动画效果'}).locator('.el-switch');
+    await animationSwitch.click();
+    await page.waitForFunction(() => (
+      document.querySelector('.loading-style-picker')?.getAttribute('aria-disabled') === 'true'
+      && [...document.querySelectorAll('.loading-style-picker .fluent-read-loading')]
+        .every(indicator => indicator.getAttribute('data-fr-motion') === 'static')
+    ), undefined, {timeout});
+    report.screenshots.push(await screenshot(page, 'settings-advanced-loading-styles-static.png'));
+    await animationSwitch.click();
+    await loadingStyleCards.filter({has: page.locator('input[value="minimal"]')}).click();
+    await page.waitForTimeout(500);
+    const restoredLoadingStyle = await page.evaluate(async () => {
+      const response = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
+      return response?.value?.translationLoadingStyle;
+    });
+    if (restoredLoadingStyle !== 'minimal') {
+      throw new Error(`段落加载样式没有持久化恢复值：${String(restoredLoadingStyle)}`);
+    }
+    report.translationLoadingStyles = {
+      options: loadingStyleContract,
+      previewMetrics: loadingPreviewMetrics,
+      persistedSelection: storedLoadingStyle,
+      staticFallback: true,
+      restoredSelection: restoredLoadingStyle,
+    };
+    report.assertions.translationLoadingStyles = true;
+
     // 界面偏好必须收拢在通用设置；默认风格保持原布局，简约风格使用独立模块。
     // Popup 重新打开时还要消费同一份栏目配置，并按实际内容自动改变高度。
     await page.locator('button[data-section="settings-general"]').click();
@@ -740,7 +830,7 @@ async function main() {
     if (await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="default"][aria-checked="true"]').count() !== 1) {
       throw new Error('默认风格没有保持当前界面选中状态');
     }
-    const visibilitySwitches = interfaceSettingsGroup.locator('.settings-item input[aria-label^="显示"]');
+    const visibilitySwitches = interfaceSettingsGroup.locator('.settings-item .el-switch');
     if (await visibilitySwitches.count() !== 3) throw new Error(`弹窗栏目开关数量异常：${await visibilitySwitches.count()}`);
     if (await page.locator('html').getAttribute('data-interface-skin') !== 'default') {
       throw new Error('Options 初始弹窗风格不是默认风格');
@@ -833,8 +923,8 @@ async function main() {
     await interfaceSettingsGroup.locator('.settings-item').filter({hasText: '快捷功能栏'}).locator('.el-switch').click({force: true});
     await interfaceSettingsGroup.locator('.settings-item').filter({hasText: '底部信息栏'}).locator('.el-switch').click({force: true});
     await page.waitForFunction(() => (
-      document.querySelector('[aria-label="显示快捷功能栏"]')?.getAttribute('aria-checked') === 'false'
-      && document.querySelector('[aria-label="显示底部信息栏"]')?.getAttribute('aria-checked') === 'false'
+      document.querySelector('[aria-label="快捷功能栏"]')?.getAttribute('aria-checked') === 'false'
+      && document.querySelector('[aria-label="底部信息栏"]')?.getAttribute('aria-checked') === 'false'
     ), undefined, {timeout});
     await page.waitForTimeout(500);
 
@@ -897,8 +987,8 @@ async function main() {
     await interfaceSettingsGroup.locator('.settings-item').filter({hasText: '快捷功能栏'}).locator('.el-switch').click({force: true});
     await interfaceSettingsGroup.locator('.settings-item').filter({hasText: '底部信息栏'}).locator('.el-switch').click({force: true});
     await page.waitForFunction(() => (
-      document.querySelector('[aria-label="显示快捷功能栏"]')?.getAttribute('aria-checked') === 'true'
-      && document.querySelector('[aria-label="显示底部信息栏"]')?.getAttribute('aria-checked') === 'true'
+      document.querySelector('[aria-label="快捷功能栏"]')?.getAttribute('aria-checked') === 'true'
+      && document.querySelector('[aria-label="底部信息栏"]')?.getAttribute('aria-checked') === 'true'
     ), undefined, {timeout});
     await page.waitForTimeout(500);
     const defaultFullPopup = await newPageWithoutForeground(context, timeout);
@@ -1224,6 +1314,21 @@ async function main() {
     }
     await page.locator('button[data-section="settings-translation"]').click();
     report.screenshots.push(await screenshot(page, 'settings-dark-translation.png'));
+    await page.locator('button[data-section="settings-advanced"]').click();
+    const darkLoadingStyleSurfaces = await page.locator('.loading-style-option').evaluateAll(cards => (
+      cards.map(card => ({
+        selected: card.classList.contains('selected'),
+        backgroundColor: getComputedStyle(card).backgroundColor,
+      }))
+    ));
+    const selectedDarkLoadingStyle = darkLoadingStyleSurfaces.find(item => item.selected);
+    if (darkLoadingStyleSurfaces.length !== 5
+      || darkLoadingStyleSurfaces.filter(item => !item.selected).some(item => !isDarkColor(item.backgroundColor))
+      || !selectedDarkLoadingStyle
+      || !selectedDarkLoadingStyle.backgroundColor.startsWith('rgba(')) {
+      throw new Error(`段落加载样式暗色卡片仍为亮色：${JSON.stringify(darkLoadingStyleSurfaces)}`);
+    }
+    report.screenshots.push(await screenshot(page, 'settings-dark-loading-styles.png'));
     await page.locator('button[data-section="settings-model-usage"]').click();
     const usageDarkSurface = await page.locator('#settings-model-usage .usage-card').first().evaluate(card => getComputedStyle(card).backgroundColor);
     if (!isDarkColor(usageDarkSurface)) throw new Error(`模型用量暗色卡片仍为亮色：${usageDarkSurface}`);
@@ -1442,7 +1547,7 @@ async function main() {
     report.assertions.translationGroupOrder = true;
 
     await page.locator('button[data-section="settings-general"]').click();
-    const targetChange = await chooseDifferentSelectOption(page, '默认目标语言');
+    const targetChange = await chooseDifferentSelectOption(page, '语言');
     await page.waitForTimeout(500);
     await page.locator('button[data-section="settings-data"]').click();
     await page.getByRole('heading', {name: '最近修改', exact: true}).waitFor({state: 'visible', timeout});
@@ -1466,14 +1571,14 @@ async function main() {
     await previewDialog.waitFor({state: 'hidden', timeout});
 
     await page.locator('button[data-section="settings-general"]').click();
-    const targetInput = page.locator('input[aria-label="默认目标语言"]');
+    const targetInput = page.locator('input[aria-label="语言"]');
     await targetInput.waitFor({state: 'visible', timeout});
     await page.waitForFunction(
       ({selector, expected}) => document.querySelector(selector)
         ?.closest('.el-select__wrapper')
         ?.querySelector('.el-select__placeholder')
         ?.textContent?.trim() === expected,
-      {selector: 'input[aria-label="默认目标语言"]', expected: targetChange.before},
+      {selector: 'input[aria-label="语言"]', expected: targetChange.before},
       {timeout},
     );
 
@@ -1753,7 +1858,10 @@ async function main() {
         ?.closest('.el-select__wrapper')
         ?.querySelector('.el-select__placeholder')
         ?.textContent?.trim() === expected,
-      {selector: 'input[aria-label="默认目标语言"]', expected: importedConfig.to === 'en' ? '英语' : '日语'},
+      {
+        selector: 'input[aria-label="语言"]',
+        expected: importedConfig.to === 'en' ? 'English / 英语' : '日本語 / Japanese / 日语',
+      },
       {timeout},
     );
     await page.locator('button[data-section="settings-data"]').click();
@@ -1907,6 +2015,46 @@ async function main() {
       const translationFile = `settings-translation-${viewport.width}.png`;
       report.screenshots.push(await screenshot(page, translationFile));
       report.responsive.push({page: 'settings-translation', ...viewport, ...translationMetrics});
+
+      await page.locator('button[data-section="settings-advanced"]').click();
+      await page.waitForTimeout(150);
+      const loadingStyleMetrics = await page.evaluate(() => {
+        const picker = document.querySelector('.loading-style-picker');
+        const pickerRect = picker?.getBoundingClientRect();
+        const cards = [...(picker?.querySelectorAll('.loading-style-option') || [])];
+        const cardRects = cards.map(card => card.getBoundingClientRect());
+        return {
+          horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+          pickerWithinViewport: Boolean(pickerRect
+            && pickerRect.left >= -1
+            && pickerRect.right <= window.innerWidth + 1),
+          cardsWithinPicker: Boolean(pickerRect && cardRects.every(rect => (
+            rect.left >= pickerRect.left - 1 && rect.right <= pickerRect.right + 1
+          ))),
+          optionCount: cards.length,
+          columnCount: new Set(cardRects.map(rect => Math.round(rect.left))).size,
+          activeNavigationVisible: (() => {
+            const active = document.querySelector('nav[aria-label="设置分类"] button[aria-current="page"]');
+            if (!active) return false;
+            const rect = active.getBoundingClientRect();
+            return rect.left >= -1
+              && rect.right <= window.innerWidth + 1
+              && rect.top >= -1
+              && rect.bottom <= window.innerHeight + 1;
+          })(),
+        };
+      });
+      if (loadingStyleMetrics.horizontalOverflow
+        || !loadingStyleMetrics.pickerWithinViewport
+        || !loadingStyleMetrics.cardsWithinPicker
+        || !loadingStyleMetrics.activeNavigationVisible
+        || loadingStyleMetrics.optionCount !== 5
+        || (viewport.width <= 480 && loadingStyleMetrics.columnCount > 2)) {
+        throw new Error(`${viewport.width}px 段落加载样式响应式异常：${JSON.stringify(loadingStyleMetrics)}`);
+      }
+      const loadingStyleFile = `settings-advanced-loading-styles-${viewport.width}.png`;
+      report.screenshots.push(await screenshot(page, loadingStyleFile));
+      report.responsive.push({page: 'settings-advanced-loading-styles', ...viewport, ...loadingStyleMetrics});
 
       await page.locator('button[data-section="settings-model-usage"]').click();
       await page.waitForTimeout(150);

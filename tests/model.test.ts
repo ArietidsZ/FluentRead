@@ -600,6 +600,22 @@ describe('翻译进度面板配置', () => {
     });
 });
 
+describe('段落翻译加载样式配置', () => {
+    it('默认使用低干扰简洁样式，并保留所有已注册选择', () => {
+        expect(new Config().translationLoadingStyle).toBe('minimal');
+        expect(normalizeConfig({}).translationLoadingStyle).toBe('minimal');
+        for (const style of ['minimal', 'ring', 'dots', 'orbit', 'sparkle'] as const) {
+            expect(normalizeConfig({translationLoadingStyle: style}).translationLoadingStyle).toBe(style);
+        }
+    });
+
+    it('未知、缺失或非字符串样式安全回到简洁模式', () => {
+        for (const value of ['classic', '', null, false, 1, {}]) {
+            expect(normalizeConfig({translationLoadingStyle: value}).translationLoadingStyle).toBe('minimal');
+        }
+    });
+});
+
 describe('双语逐句高亮配置', () => {
     it('默认关闭，并只接受显式布尔值开启', () => {
         expect(new Config().bilingualSentenceHighlightEnabled).toBe(false);

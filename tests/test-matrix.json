@@ -109,6 +109,7 @@
       "tests/translationCore.test.ts",
       "tests/translationError.test.ts",
       "tests/translationLanguage.test.ts",
+      "tests/translationLoadingIndicator.test.ts",
       "tests/translationPrompts.test.ts",
       "tests/translationState.test.ts",
       "tests/translationStability.test.ts",

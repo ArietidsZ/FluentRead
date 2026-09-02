@@ -11,6 +11,10 @@ import {getCustomOpenAIProviderLabel} from '@/src/core/config/customOpenAI';
 import {config} from '@/src/services/config/store';
 import {getTranslationErrorMessage} from '@/src/features/full-page-translation/core/errorMessage';
 import {normalizeUiLanguage, translate} from '@/src/core/i18n';
+import {
+  createTranslationLoadingIndicator,
+  shouldAnimateTranslationLoading,
+} from '@/src/ui/translationLoadingIndicator';
 
 const icon = {
   retry: `<svg fill="none" viewBox="0 0 40 40" height="40" width="40" style="display: inline; align-items: center; justify-content: center; width: 1em; height: 1em; margin-left: 1em; pointer-events: none;">
@@ -183,15 +187,15 @@ export function insertLoadingSpinner(
   node: HTMLElement,
   isCache: boolean = false
 ): HTMLElement {
-  const spinner = document.createElement("span");
-  spinner.className = "fluent-read-loading";
-  spinner.setAttribute("data-fr-translation-owned", "true");
-  if (isCache) spinner.style.borderTop = "3px solid green"; // 存在缓存时改为绿色
-  
-  void Promise.resolve().then(() => {
-    if (!config.animations) spinner.classList.add('static');
+  const spinner = createTranslationLoadingIndicator(node.ownerDocument, {
+    style: config.translationLoadingStyle,
+    animated: shouldAnimateTranslationLoading(
+      config.animations !== false,
+      node.ownerDocument.defaultView,
+    ),
+    cacheHit: isCache,
   });
-  
+  spinner.setAttribute("data-fr-translation-owned", "true");
   node.appendChild(spinner);
   return spinner;
 }

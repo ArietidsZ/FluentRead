@@ -216,6 +216,9 @@ async function main() {
     from: 'auto',
     to: 'zh-Hans',
     service: 'freeTranslation',
+    useCache: false,
+    animations: true,
+    translationLoadingStyle: 'orbit',
     disableFloatingBall: false,
     selectionAreaEnabled: true,
     disableImageTranslator: false,
@@ -297,12 +300,13 @@ async function main() {
           } catch (error) {
             details.onerror?.({status: 500, statusText: String(error), responseText: ''});
           }
-        }, 12);
+        }, 1000);
         return {abort() { aborted = true; clearTimeout(timer); details.onabort?.({status: 0, statusText: 'aborted'}); }};
       };
     });
 
     const page = await selectUserscriptTestPage(args.background, context, createIsolatedPage);
+    await page.emulateMedia({reducedMotion: 'no-preference'});
     const consoleErrors = [];
     page.on('pageerror', (error) => consoleErrors.push(`pageerror: ${error.message}`));
     page.on('console', (message) => {
@@ -318,6 +322,26 @@ async function main() {
     try {
       await page.addScriptTag({path: artifact});
       await page.waitForSelector('#fluent-read-page-styles', {state: 'attached', timeout: args.timeout});
+      await page.addStyleTag({content: `
+        span.fluent-read-loading {
+          all: revert !important;
+          display: block !important;
+          width: 180px !important;
+          height: 120px !important;
+          padding: 30px !important;
+          border: 20px solid red !important;
+          opacity: 0 !important;
+          visibility: hidden !important;
+          transform: scale(7) !important;
+          animation: spin 30s infinite !important;
+        }
+        span.fluent-read-loading::before,
+        span.fluent-read-loading::after {
+          content: "HOST PAGE" !important;
+          display: block !important;
+        }
+        @keyframes spin { to { transform: rotate(10deg) scale(9); } }
+      `});
     } catch (error) {
       const bootstrapState = page.isClosed()
         ? {pageClosed: true}
@@ -393,7 +417,60 @@ async function main() {
     await hoverToggle(page, 0, args.timeout);
 
     const fullPageCounts = [];
-    await fullPageToggle(page, 1, 1, args.timeout); fullPageCounts.push([1, 1]);
+    await page.keyboard.down('Alt');
+    await page.keyboard.press('t');
+    await page.keyboard.up('Alt');
+    await page.waitForFunction(() => Boolean(document.querySelector('#adjacent .fluent-read-loading')), undefined, {
+      timeout: args.timeout,
+    });
+    const userscriptLoadingStyle = await page.evaluate(() => {
+      const host = document.querySelector('#adjacent .fluent-read-loading');
+      if (!(host instanceof HTMLElement)) return null;
+      const rect = host.getBoundingClientRect();
+      const computed = getComputedStyle(host);
+      const before = getComputedStyle(host, '::before');
+      const after = getComputedStyle(host, '::after');
+      return {
+        style: host.getAttribute('data-fr-loading-style'),
+        motion: host.getAttribute('data-fr-motion'),
+        closedShadowRoot: host.shadowRoot === null,
+        width: rect.width,
+        height: rect.height,
+        display: computed.display,
+        opacity: computed.opacity,
+        visibility: computed.visibility,
+        transform: computed.transform,
+        animationName: computed.animationName,
+        before: {content: before.content, display: before.display},
+        after: {content: after.content, display: after.display},
+        widthPriority: host.style.getPropertyPriority('width'),
+        animationPriority: host.style.getPropertyPriority('animation'),
+      };
+    });
+    if (!userscriptLoadingStyle
+      || userscriptLoadingStyle.style !== 'orbit'
+      || userscriptLoadingStyle.motion !== 'animated'
+      || !userscriptLoadingStyle.closedShadowRoot
+      || userscriptLoadingStyle.width !== 16
+      || userscriptLoadingStyle.height !== 16
+      || userscriptLoadingStyle.display !== 'inline-flex'
+      || userscriptLoadingStyle.opacity !== '1'
+      || userscriptLoadingStyle.visibility !== 'visible'
+      || userscriptLoadingStyle.transform !== 'none'
+      || userscriptLoadingStyle.animationName !== 'none'
+      || userscriptLoadingStyle.before.content !== 'none'
+      || userscriptLoadingStyle.before.display !== 'none'
+      || userscriptLoadingStyle.after.content !== 'none'
+      || userscriptLoadingStyle.after.display !== 'none'
+      || userscriptLoadingStyle.widthPriority !== 'important'
+      || userscriptLoadingStyle.animationPriority !== 'important') {
+      throw new Error(`userscript 段落加载样式未隔离宿主页：${JSON.stringify(userscriptLoadingStyle)}`);
+    }
+    await Promise.all([
+      waitForCount(page, '#target', 1, args.timeout),
+      waitForCount(page, '#adjacent', 1, args.timeout),
+    ]);
+    fullPageCounts.push([1, 1]);
     await page.evaluate(() => {
       const paragraph = document.createElement('p');
       paragraph.id = 'dynamic-paragraph';
@@ -597,6 +674,7 @@ async function main() {
       pageGlobalsPreserved,
       reinjectionState: {...reinjectionState, gmStoreUnchanged: true},
       settingsSecurity,
+      userscriptLoadingStyle,
       unsupportedHosts,
       bridgeEvents,
       crossTabCount,

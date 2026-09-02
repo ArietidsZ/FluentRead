@@ -8,6 +8,7 @@ import {CONFIG_CREDENTIAL_FIELDS, isSensitiveConfigKey} from './credentials';
 import {options} from './catalog';
 import {isCustomOpenAIProviderId} from './customOpenAI';
 import {interfaceSkinOptions, interfaceVisibilityOptions} from './interfaceAppearance';
+import {translationLoadingStyleOptions} from './translationLoadingStyle';
 import {parseApiKeyRequirementKey} from './validation';
 
 export const CONFIG_DIFF_GROUPS = [
@@ -162,6 +163,7 @@ const UI_LANGUAGE_LABELS = new Map<unknown, string>([
     ['es-ES', 'Español'],
 ]);
 const INTERFACE_SKIN_LABELS = labelsFor(interfaceSkinOptions);
+const TRANSLATION_LOADING_STYLE_LABELS = labelsFor(translationLoadingStyleOptions);
 const HOVER_TRIGGER_LABELS = labelsFor(options.keys);
 const SELECTION_TRIGGER_LABELS = labelsFor(options.selectionTranslatorTriggers);
 const FLOATING_HOTKEY_LABELS = labelsFor(options.floatingBallHotkeys);
@@ -397,6 +399,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     translationBackoffBaseMs: {group: 'advanced', label: '退避初始间隔', format: (value) => formatNumber(value, ' ms')},
     translationBackoffMaxMs: {group: 'advanced', label: '退避最大间隔', format: (value) => formatNumber(value, ' ms')},
     animations: {group: 'advanced', label: '动画效果', format: formatBoolean},
+    translationLoadingStyle: {group: 'advanced', label: '段落加载样式', format: (value) => formatEnum(value, TRANSLATION_LOADING_STYLE_LABELS)},
 
     documentService: {group: 'tools', label: '文档翻译服务', format: formatService},
     documentModel: {group: 'tools', label: '文档翻译模型', mapping: serviceMapping('文档模型')},

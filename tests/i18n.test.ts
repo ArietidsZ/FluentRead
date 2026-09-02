@@ -18,10 +18,13 @@ import {koKRLegacyText, koKRMessages} from '@/src/core/i18n/messages/ko-KR';
 import {ruRULegacyText, ruRUMessages} from '@/src/core/i18n/messages/ru-RU';
 import {zhCNMessages} from '@/src/core/i18n/messages/zh-CN';
 import {Config, normalizeConfig} from '@/src/core/config/model';
+import {translationLoadingStyleOptions} from '@/src/core/config/translationLoadingStyle';
+import {buildConfigDiff} from '@/src/core/config/diff';
 import {getMultilingualTargetLanguageLabel, options} from '@/src/core/config/catalog';
 import {prepareConfigForExport, prepareConfigForImport} from '@/src/core/config/transfer';
 import {toRestorableConfig} from '@/src/services/config/history';
 import {getContextMenuTitle} from '@/src/app/background/contextMenuUi';
+import {navigationItems} from '@/src/features/settings/model/navigation';
 
 describe('界面 i18n 契约', () => {
   const translatedCatalogs: ReadonlyArray<Readonly<Record<string, string>>> = [
@@ -191,6 +194,71 @@ describe('界面 i18n 契约', () => {
       expect(Object.keys(catalog).sort()).toEqual(Object.keys(chineseCatalog).sort());
       for (const key of Object.keys(chineseCatalog)) {
         expect(placeholders(catalog[key]), key).toEqual(placeholders(chineseCatalog[key]));
+      }
+    }
+  });
+
+  it('用稳定 key 为七种语言提供完整的翻译加载动画文案', () => {
+    const expectedStyleLabels = {
+      'zh-CN': ['简洁', '柔和圆环', '跳跃圆点', '行星轨道', '星光'],
+      'en-US': ['Minimal', 'Soft ring', 'Bouncing dots', 'Planet orbit', 'Sparkle'],
+      'ja-JP': ['シンプル', 'やわらかなリング', '跳ねるドット', '惑星の軌道', 'きらめき'],
+      'ko-KR': ['간결', '부드러운 원형', '통통 튀는 점', '행성 궤도', '별빛'],
+      'fr-FR': ['Minimal', 'Anneau discret', 'Points bondissants', 'Orbite planétaire', 'Étincelles'],
+      'ru-RU': ['Минимальный', 'Мягкое кольцо', 'Прыгающие точки', 'Планетарная орбита', 'Искры'],
+      'es-ES': ['Minimalista', 'Anillo suave', 'Puntos saltarines', 'Órbita planetaria', 'Destellos'],
+    } as const;
+
+    for (const language of Object.keys(expectedStyleLabels) as Array<keyof typeof expectedStyleLabels>) {
+      expect(translationLoadingStyleOptions.map((option) => translate(option.labelKey, language)))
+        .toEqual(expectedStyleLabels[language]);
+      for (const option of translationLoadingStyleOptions) {
+        expect(translate(option.descriptionKey, language)).not.toBe(option.descriptionKey);
+      }
+      expect(translate('settings.advanced.performanceDescription', language))
+        .not.toBe('settings.advanced.performanceDescription');
+      expect(translate('settings.advanced.animationsAria', language))
+        .not.toBe('settings.advanced.animationsAria');
+      expect(translate('settings.advanced.translationLoadingStyleAria', language))
+        .not.toBe('settings.advanced.translationLoadingStyleAria');
+      expect(translate('settings.advanced.translationLoadingStyleOptionAria', language, {
+        label: 'Style', description: 'Description',
+      })).not.toMatch(/\{(?:label|description)\}/u);
+    }
+
+    for (const option of translationLoadingStyleOptions) {
+      expect(translate(option.labelKey, 'zh-CN')).toBe(option.label);
+      expect(translate(option.descriptionKey, 'zh-CN')).toBe(option.description);
+    }
+  });
+
+  it('翻译动画导航关键词和配置差异文案在非中文 legacy 界面中不回显中文源文案', () => {
+    const advancedNavigation = navigationItems.find((item) => item.id === 'settings-advanced');
+    const diff = buildConfigDiff(
+      {translationLoadingStyle: 'minimal'},
+      {translationLoadingStyle: 'sparkle'},
+    );
+    const loadingStyleChange = diff.groups
+      .flatMap((group) => group.changes)
+      .find((change) => change.key === 'translationLoadingStyle');
+    expect(advancedNavigation).toBeDefined();
+    expect(loadingStyleChange).toBeDefined();
+
+    const sourceCopy = [
+      advancedNavigation!.summary,
+      advancedNavigation!.searchDescription,
+      loadingStyleChange!.label,
+      ...translationLoadingStyleOptions.map((option) => option.label),
+    ];
+    for (const language of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
+      for (const source of sourceCopy) {
+        expect(translateLegacyText(source, language), `${language}: ${source}`).not.toBe(source);
+      }
+    }
+    for (const language of ['en-US', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
+      for (const source of sourceCopy) {
+        expect(translateLegacyText(source, language), `${language}: ${source}`)
+          .not.toMatch(/[\u3400-\u9fff]/u);
       }
     }
   });

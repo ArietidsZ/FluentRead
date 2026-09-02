@@ -43,12 +43,15 @@ function modelUsage(): ModelUsageTransferDocument {
 
 describe('统一本机数据备份信封', () => {
     it('组合并识别配置、单词本与模型用量完整备份', () => {
+        const config = new Config();
+        config.translationLoadingStyle = 'orbit';
         const backup = createFluentReadDataBackup({
-            config: prepareConfigForExport(new Config()),
+            config: prepareConfigForExport(config),
             vocabulary: vocabulary(),
             modelUsage: modelUsage(),
             exportedAt: 200,
         });
+        expect(backup.config.translationLoadingStyle).toBe('orbit');
 
         expect(backup).toMatchObject({
             format: FLUENTREAD_DATA_BACKUP_FORMAT,
@@ -61,6 +64,7 @@ describe('统一本机数据备份信封', () => {
         if (parsed.kind === 'complete') {
             expect(usesExactCredentialReplacement(parsed.backup)).toBe(true);
             expect(resolveBackupConfigCredentialMode(parsed.backup)).toBe('replace');
+            expect(parsed.backup.config.translationLoadingStyle).toBe('orbit');
         }
         expect(summarizeLocalDataImport(parsed)).toEqual({
             kind: 'complete',

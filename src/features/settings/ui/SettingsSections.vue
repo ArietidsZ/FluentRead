@@ -410,24 +410,7 @@
     <section v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation"><InterfaceSettings :config="config" /></section>
 
     <section v-show="props.activeSection === 'settings-advanced'" class="settings-section settings-section-continuation">
-      <SettingsGroup title="界面性能" description="低配置设备可以关闭动画以减少资源占用。">
-        <!-- 禁用动画设置 -->
-        <el-row class="settings-control-row">
-          <el-col :span="20" class="settings-control-label lightblue rounded-corner">
-            <el-tooltip class="box-item" effect="dark"
-                        content="动画效果（默认开）：禁用后将关闭加载/悬浮等动画，以节省GPU资源和电量。适合低配置设备或希望节省资源的用户。"
-                        placement="top-start" :show-after="500">
-              <span class="popup-text popup-vertical-left">动画效果<el-icon class="icon-margin">
-                  <InfoFilled />
-                </el-icon></span>
-            </el-tooltip>
-          </el-col>
-          <el-col :span="4" class="settings-control-field flex-end">
-            <el-switch v-model="config.animations" class="settings-toggle" aria-label="动画效果" />
-          </el-col>
-        </el-row>
-
-      </SettingsGroup>
+      <TranslationLoadingStyleSettings :config="config" />
     </section>
 
     <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
@@ -767,6 +750,7 @@ import {
 import {ImageOcrSettings} from '@/src/features/image-translation/public';
 import {ModelUsageDashboard} from '@/src/features/model-usage/public';
 import InterfaceSettings from './InterfaceSettings.vue';
+import TranslationLoadingStyleSettings from './TranslationLoadingStyleSettings.vue';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
 import SegmentedControl from './components/SegmentedControl.vue';

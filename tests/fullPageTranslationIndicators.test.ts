@@ -2,7 +2,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {parseHTML} from 'linkedom';
 
 const mocks = vi.hoisted(() => ({
-  config: {animations: true, service: 'deepseek', customOpenAIProviders: [] as Array<{
+  config: {animations: true, translationLoadingStyle: 'minimal', service: 'deepseek', customOpenAIProviders: [] as Array<{
     id: string;
     name: string;
     endpoint: string;
@@ -45,6 +45,7 @@ beforeEach(() => {
   Object.defineProperty(globalThis, 'document', {value: document, configurable: true});
   Object.defineProperty(globalThis, 'window', {value: window, configurable: true});
   mocks.config.animations = true;
+  mocks.config.translationLoadingStyle = 'minimal';
   mocks.config.service = 'deepseek';
   mocks.config.customOpenAIProviders = [];
   mocks.showPageNotice.mockReset();
@@ -180,19 +181,26 @@ describe('全文翻译节点状态指示', () => {
     );
   });
 
-  it('加载指示区分缓存命中，并尊重动画配置', async () => {
+  it('加载指示在 Shadow Root 内渲染所选样式，并区分缓存命中', () => {
     const target = document.getElementById('target')!;
     const cached = insertLoadingSpinner(target, true);
-    await Promise.resolve();
 
     expect(cached.getAttribute('data-fr-translation-owned')).toBe('true');
-    expect(cached.style.getPropertyValue('border-top')).toBe('3px solid green');
+    expect(cached.getAttribute('data-fr-loading-style')).toBe('minimal');
+    expect(cached.getAttribute('data-fr-cache')).toBe('true');
+    expect(cached.getAttribute('data-fr-motion')).toBe('animated');
     expect(cached.classList.contains('static')).toBe(false);
+    expect(cached.shadowRoot).toBeNull();
+  });
+
+  it('总动画开关关闭时保留静态状态，并继续使用所选样式', () => {
+    const target = document.getElementById('target')!;
 
     mocks.config.animations = false;
+    mocks.config.translationLoadingStyle = 'sparkle';
     const staticSpinner = insertLoadingSpinner(target);
-    await Promise.resolve();
-    expect(staticSpinner.style.getPropertyValue('border-top')).not.toBe('3px solid green');
-    expect(staticSpinner.classList.contains('static')).toBe(true);
+    expect(staticSpinner.getAttribute('data-fr-loading-style')).toBe('sparkle');
+    expect(staticSpinner.getAttribute('data-fr-motion')).toBe('static');
+    expect(staticSpinner.classList.contains('static')).toBe(false);
   });
 });
