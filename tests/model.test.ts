@@ -600,6 +600,16 @@ describe('翻译进度面板配置', () => {
     });
 });
 
+describe('双语逐句高亮配置', () => {
+    it('默认关闭，并只接受显式布尔值开启', () => {
+        expect(new Config().bilingualSentenceHighlightEnabled).toBe(false);
+        expect(normalizeConfig({}).bilingualSentenceHighlightEnabled).toBe(false);
+        expect(normalizeConfig({bilingualSentenceHighlightEnabled: true}).bilingualSentenceHighlightEnabled).toBe(true);
+        expect(normalizeConfig({bilingualSentenceHighlightEnabled: false}).bilingualSentenceHighlightEnabled).toBe(false);
+        expect(normalizeConfig({bilingualSentenceHighlightEnabled: 'true'}).bilingualSentenceHighlightEnabled).toBe(false);
+    });
+});
+
 describe('鼠标悬浮翻译延迟配置', () => {
     it('默认保留现有 50ms 行为，并归一化用户设置', () => {
         expect(new Config().mouseHoverTranslationDelay).toBe(DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY);
