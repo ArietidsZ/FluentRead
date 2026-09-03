@@ -69,39 +69,98 @@
     </SettingsItem>
 
     <SettingsItem
+      stacked
       :label="t('settings.interface.popupLayout.label')"
       :description="t('settings.interface.popupLayout.description')"
     >
-      <PopupLayoutEditor
-        :items="popupModuleEditorItems"
-        :order="props.config.popupModuleOrder"
-        :default-order="DEFAULT_POPUP_MODULE_ORDER"
-        scope="popupModule"
-        copy-prefix="settings.interface.popupLayout"
-        @update:order="setPopupModuleOrder"
-        @update:visibility="setPopupModuleVisibility"
-      />
-    </SettingsItem>
+      <div class="popup-layout-workbench" data-popup-layout-workbench>
+        <section class="popup-layout-preview-panel">
+          <header class="popup-layout-panel-heading">
+            <span>
+              <strong>{{ t('settings.interface.popupLayout.previewTitle') }}</strong>
+              <small>{{ t('settings.interface.popupLayout.previewDescription') }}</small>
+            </span>
+            <em>{{ translateLegacy(selectedSkinOption.label) }}</em>
+          </header>
+          <PopupLayoutPreview
+            :skin="selectedSkinOption"
+            :skin-label="translateLegacy(selectedSkinOption.label)"
+            :module-items="popupModuleEditorItems"
+            :module-order="props.config.popupModuleOrder"
+            :quick-feature-items="popupQuickFeatureEditorItems"
+            :quick-feature-order="props.config.popupQuickFeatureOrder"
+          />
+        </section>
 
-    <SettingsItem
-      :label="t('settings.interface.popupQuickFeatures.label')"
-      :description="t('settings.interface.popupQuickFeatures.description')"
-    >
-      <PopupLayoutEditor
-        :items="popupQuickFeatureEditorItems"
-        :order="props.config.popupQuickFeatureOrder"
-        :default-order="DEFAULT_POPUP_QUICK_FEATURE_ORDER"
-        scope="quickFeature"
-        copy-prefix="settings.interface.popupLayout"
-        @update:order="setPopupQuickFeatureOrder"
-        @update:visibility="setPopupQuickFeatureVisibility"
-      />
+        <section class="popup-layout-control-panel">
+          <div class="popup-layout-tabs" role="tablist">
+            <button
+              id="popup-layout-modules-tab"
+              type="button"
+              role="tab"
+              data-popup-layout-tab="popupModule"
+              :aria-selected="activeLayoutPanel === 'popupModule'"
+              aria-controls="popup-layout-modules-panel"
+              @click="activeLayoutPanel = 'popupModule'"
+            >
+              {{ t('settings.interface.popupLayout.label') }}
+            </button>
+            <button
+              id="popup-layout-features-tab"
+              type="button"
+              role="tab"
+              data-popup-layout-tab="quickFeature"
+              :aria-selected="activeLayoutPanel === 'quickFeature'"
+              aria-controls="popup-layout-features-panel"
+              @click="activeLayoutPanel = 'quickFeature'"
+            >
+              {{ t('settings.interface.popupQuickFeatures.label') }}
+            </button>
+          </div>
+
+          <div
+            v-show="activeLayoutPanel === 'popupModule'"
+            id="popup-layout-modules-panel"
+            class="popup-layout-tab-panel"
+            role="tabpanel"
+            aria-labelledby="popup-layout-modules-tab"
+          >
+            <PopupLayoutEditor
+              :items="popupModuleEditorItems"
+              :order="props.config.popupModuleOrder"
+              :default-order="DEFAULT_POPUP_MODULE_ORDER"
+              scope="popupModule"
+              copy-prefix="settings.interface.popupLayout"
+              @update:order="setPopupModuleOrder"
+              @update:visibility="setPopupModuleVisibility"
+            />
+          </div>
+
+          <div
+            v-show="activeLayoutPanel === 'quickFeature'"
+            id="popup-layout-features-panel"
+            class="popup-layout-tab-panel"
+            role="tabpanel"
+            aria-labelledby="popup-layout-features-tab"
+          >
+            <PopupLayoutEditor
+              :items="popupQuickFeatureEditorItems"
+              :order="props.config.popupQuickFeatureOrder"
+              :default-order="DEFAULT_POPUP_QUICK_FEATURE_ORDER"
+              scope="quickFeature"
+              copy-prefix="settings.interface.popupLayout"
+              @update:order="setPopupQuickFeatureOrder"
+              @update:visibility="setPopupQuickFeatureVisibility"
+            />
+          </div>
+        </section>
+      </div>
     </SettingsItem>
   </SettingsGroup>
 </template>
 
 <script lang="ts" setup>
-import {computed} from 'vue'
+import {computed, ref} from 'vue'
 import type {Config} from '@/src/core/config/model'
 import {
   DEFAULT_POPUP_MODULE_ORDER,
@@ -118,6 +177,7 @@ import {
 } from '@/src/core/config/interfaceAppearance'
 import {useUiI18n} from '@/src/ui/i18n'
 import InterfaceSkinPreview from './components/InterfaceSkinPreview.vue'
+import PopupLayoutPreview from './components/PopupLayoutPreview.vue'
 import PopupLayoutEditor from './PopupLayoutEditor.vue'
 import SettingsGroup from './components/SettingsGroup.vue'
 import SettingsItem from './components/SettingsItem.vue'
@@ -126,6 +186,7 @@ const props = defineProps<{
   config: Config
 }>()
 const {t, translateLegacy} = useUiI18n()
+const activeLayoutPanel = ref<'popupModule' | 'quickFeature'>('popupModule')
 const selectedSkinOption = computed(() => getInterfaceSkinOption(props.config.interfaceSkin))
 
 const groupedSkinOptions = interfaceSkinGroups.map((group) => ({
@@ -182,6 +243,111 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
   display: grid;
   width: 100%;
   gap: 12px;
+}
+
+.popup-layout-workbench {
+  display: grid;
+  grid-template-columns: minmax(250px, .82fr) minmax(390px, 1.18fr);
+  align-items: start;
+  gap: 14px;
+}
+
+.popup-layout-preview-panel,
+.popup-layout-control-panel {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.popup-layout-preview-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.popup-layout-panel-heading {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.popup-layout-panel-heading > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.popup-layout-panel-heading strong {
+  color: var(--ink);
+  font-size: 11.5px;
+}
+
+.popup-layout-panel-heading small {
+  color: var(--muted);
+  font-size: 8.5px;
+  line-height: 1.4;
+}
+
+.popup-layout-panel-heading em {
+  flex: none;
+  padding: 3px 7px;
+  border-radius: 999px;
+  color: var(--brand-strong);
+  background: var(--brand-soft);
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.popup-layout-control-panel {
+  background: var(--surface);
+}
+
+.popup-layout-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--surface-soft);
+}
+
+.popup-layout-tabs button {
+  min-width: 0;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.popup-layout-tabs button:hover {
+  color: var(--ink);
+}
+
+.popup-layout-tabs button[aria-selected="true"] {
+  color: var(--brand-strong);
+  background: var(--surface);
+  box-shadow: 0 3px 10px rgba(31, 40, 61, .07);
+}
+
+.popup-layout-tabs button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--brand) 40%, transparent);
+  outline-offset: 1px;
+}
+
+.popup-layout-tab-panel {
+  margin-top: 10px;
 }
 
 .interface-skin-group {
@@ -331,6 +497,10 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 }
 
 @media (max-width: 520px) {
+  .popup-layout-workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .interface-skin-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -345,6 +515,16 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
     overflow: visible;
     text-overflow: clip;
     white-space: normal;
+  }
+}
+
+@media (min-width: 521px) and (max-width: 900px) {
+  .popup-layout-workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .popup-layout-live-preview {
+    max-width: 360px;
   }
 }
 </style>

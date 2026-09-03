@@ -991,6 +991,22 @@ async function main() {
       || await interfaceSettingsGroup.getByText('风格只改变扩展界面的呈现，不影响网页翻译效果。', {exact: true}).count() !== 0) {
       throw new Error('弹窗风格没有用唯一的实时 DOM 范例替换静态说明');
     }
+    const popupLayoutWorkbench = interfaceSettingsGroup.locator('[data-popup-layout-workbench]');
+    const popupLayoutPreview = popupLayoutWorkbench.locator('.popup-layout-live-preview');
+    const popupModuleTab = popupLayoutWorkbench.locator('[data-popup-layout-tab="popupModule"]');
+    const popupQuickFeatureTab = popupLayoutWorkbench.locator('[data-popup-layout-tab="quickFeature"]');
+    if (await popupLayoutWorkbench.count() !== 1
+      || await popupLayoutPreview.count() !== 1
+      || await popupModuleTab.getAttribute('aria-selected') !== 'true'
+      || await popupQuickFeatureTab.getAttribute('aria-selected') !== 'false') {
+      throw new Error('Popup 布局工作台没有呈现唯一实时范例或正确的默认标签页');
+    }
+    const readPreviewLayoutOrder = () => popupLayoutPreview.locator('[data-preview-popup-module]').evaluateAll(
+      elements => elements.map(element => element.getAttribute('data-preview-popup-module')),
+    );
+    const readPreviewQuickFeatureOrder = () => popupLayoutPreview.locator('[data-preview-quick-feature]').evaluateAll(
+      elements => elements.map(element => element.getAttribute('data-preview-quick-feature')),
+    );
     const popupLayoutEditor = interfaceSettingsGroup.locator('[data-popup-layout-editor]');
     if (await popupLayoutEditor.count() !== 1) throw new Error('界面与弹窗中没有唯一的 Popup 布局编辑器');
     const readLayoutOrder = () => popupLayoutEditor.locator('[data-popup-layout-module]').evaluateAll(
@@ -1001,6 +1017,9 @@ async function main() {
     const initialLayoutOrder = await readLayoutOrder();
     if (JSON.stringify(initialLayoutOrder) !== JSON.stringify(defaultLayoutOrder)) {
       throw new Error(`Popup 默认模块顺序异常：${JSON.stringify(initialLayoutOrder)}`);
+    }
+    if (JSON.stringify(await readPreviewLayoutOrder()) !== JSON.stringify(defaultLayoutOrder)) {
+      throw new Error(`Popup 范例没有呈现默认模块顺序：${JSON.stringify(await readPreviewLayoutOrder())}`);
     }
     const visibilitySwitches = popupLayoutEditor.locator('input[aria-label^="显示"]');
     if (await visibilitySwitches.count() !== 3) throw new Error(`弹窗栏目开关数量异常：${await visibilitySwitches.count()}`);
@@ -1016,6 +1035,9 @@ async function main() {
     const visibleCustomQuickFeatureOrder = customQuickFeatureOrder.filter(feature => feature !== 'image');
     if (JSON.stringify(await readQuickFeatureOrder()) !== JSON.stringify(defaultQuickFeatureOrder)) {
       throw new Error(`快捷功能默认顺序异常：${JSON.stringify(await readQuickFeatureOrder())}`);
+    }
+    if (JSON.stringify(await readPreviewQuickFeatureOrder()) !== JSON.stringify(defaultQuickFeatureOrder)) {
+      throw new Error(`Popup 范例没有呈现默认快捷功能顺序：${JSON.stringify(await readPreviewQuickFeatureOrder())}`);
     }
     if (await popupQuickFeatureEditor.locator('.el-switch').count() !== defaultQuickFeatureOrder.length) {
       throw new Error(`快捷功能独立开关数量异常：${await popupQuickFeatureEditor.locator('.el-switch').count()}`);
@@ -1041,6 +1063,9 @@ async function main() {
     const draggedLayoutOrder = await readLayoutOrder();
     if (JSON.stringify(draggedLayoutOrder) !== JSON.stringify(customLayoutOrder)) {
       throw new Error(`Popup 模块拖动没有更新顺序：${JSON.stringify(draggedLayoutOrder)}`);
+    }
+    if (JSON.stringify(await readPreviewLayoutOrder()) !== JSON.stringify(customLayoutOrder)) {
+      throw new Error(`Popup 范例没有即时同步模块顺序：${JSON.stringify(await readPreviewLayoutOrder())}`);
     }
 
     // 不额外等待就重载设置页，覆盖短生命周期页面中的最终布局保存。
@@ -1073,9 +1098,14 @@ async function main() {
     if (JSON.stringify(latestWriteLayoutOrder) !== JSON.stringify(customLayoutOrder)) {
       throw new Error(`Popup 模块连续排序后没有保留最终值：${JSON.stringify(latestWriteLayoutOrder)}`);
     }
-    await popupLayoutEditor.scrollIntoViewIfNeeded();
-    report.screenshots.push(await screenshotElement(popupLayoutEditor, 'settings-popup-layout-editor-custom.png'));
+    await popupLayoutWorkbench.scrollIntoViewIfNeeded();
+    report.screenshots.push(await screenshotElement(popupLayoutWorkbench, 'settings-popup-layout-workbench-custom.png'));
 
+    await popupQuickFeatureTab.click();
+    await popupQuickFeatureTab.waitFor({state: 'visible', timeout});
+    if (await popupQuickFeatureTab.getAttribute('aria-selected') !== 'true') {
+      throw new Error('快捷功能布局标签页没有进入选中状态');
+    }
     const documentFeatureHandle = popupQuickFeatureEditor
       .locator('[data-popup-quick-feature-layout="document"] .popup-layout-handle');
     const hoverFeatureCard = popupQuickFeatureEditor.locator('[data-popup-quick-feature-layout="hover"]');
@@ -1083,19 +1113,26 @@ async function main() {
     if (JSON.stringify(await readQuickFeatureOrder()) !== JSON.stringify(customQuickFeatureOrder)) {
       throw new Error(`快捷功能卡片拖动没有更新顺序：${JSON.stringify(await readQuickFeatureOrder())}`);
     }
+    if (JSON.stringify(await readPreviewQuickFeatureOrder()) !== JSON.stringify(customQuickFeatureOrder)) {
+      throw new Error(`Popup 范例没有即时同步快捷功能顺序：${JSON.stringify(await readPreviewQuickFeatureOrder())}`);
+    }
     await popupQuickFeatureEditor.locator('[data-popup-quick-feature-layout="image"] .el-switch').click({force: true});
+    await page.waitForFunction(() => (
+      document.querySelector('[data-popup-layout-workbench] [data-preview-quick-feature="image"]') === null
+    ), undefined, {timeout});
     await page.reload({waitUntil: 'domcontentloaded', timeout});
     await interfaceGeneralSection.waitFor({state: 'visible', timeout});
     await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'minimal', undefined, {timeout});
+    await popupQuickFeatureTab.click();
     const persistedQuickFeatureOrder = await readQuickFeatureOrder();
     if (JSON.stringify(persistedQuickFeatureOrder) !== JSON.stringify(customQuickFeatureOrder)
       || await popupQuickFeatureEditor.locator('[aria-label="显示图片翻译"]').getAttribute('aria-checked') !== 'false') {
       throw new Error(`快捷功能顺序或单项显隐在设置页重载后丢失：${JSON.stringify(persistedQuickFeatureOrder)}`);
     }
-    await popupQuickFeatureEditor.scrollIntoViewIfNeeded();
+    await popupLayoutWorkbench.scrollIntoViewIfNeeded();
     report.screenshots.push(await screenshotElement(
-      popupQuickFeatureEditor,
-      'settings-popup-quick-feature-editor-custom.png',
+      popupLayoutWorkbench,
+      'settings-popup-layout-workbench-quick-features.png',
     ));
 
     await context.route('http://fluentread-interface.test/**', route => route.fulfill({
@@ -1414,7 +1451,7 @@ async function main() {
       {section: 'settings-vocabulary', ready: '.vocabulary-book'},
     ];
     const auditLargeWhiteSurfaces = () => page.evaluate(() => {
-      const excluded = '.style-preview-example, .interface-skin-live-preview';
+      const excluded = '.style-preview-example, .interface-skin-live-preview, .popup-layout-live-preview';
       return [...document.querySelectorAll('.settings-card *')]
         .filter(element => {
           if (!(element instanceof HTMLElement) || element.closest(excluded)) return false;
@@ -1480,6 +1517,7 @@ async function main() {
     await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'minimal', undefined, {timeout});
     await page.waitForTimeout(400);
 
+    await popupModuleTab.click();
     await popupLayoutEditor.locator('[data-popup-layout-module="quickFeatures"] .el-switch').click({force: true});
     await popupLayoutEditor.locator('[data-popup-layout-module="footer"] .el-switch').click({force: true});
     await page.waitForFunction(() => (
@@ -1622,6 +1660,7 @@ async function main() {
         reorderedModuleSpacing,
         restoredOrder: restoredPopupModuleOrder,
         keyboardReorder: true,
+        livePreview: true,
       },
       popupQuickFeatures: {
         defaultOrder: defaultQuickFeatureOrder,
@@ -2006,7 +2045,7 @@ async function main() {
     });
     if (!defaultServiceMetrics.defaultService
       || defaultServiceMetrics.label !== '默认网页翻译服务'
-      || defaultServiceMetrics.description !== '全文、悬浮和划词翻译默认使用此服务。'
+      || defaultServiceMetrics.description !== '未单独指定方案时，全文、悬浮和划词翻译使用此服务。'
       || !defaultServiceMetrics.selectedService
       || defaultServiceMetrics.backgroundImage !== 'none'
       || defaultServiceMetrics.controlShadow !== 'none'

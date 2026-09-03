@@ -189,6 +189,8 @@ export const koKRMessages = {
     'settings.general.bilingualSentenceHighlightDescription': '원문이나 번역문에 마우스를 올리면 해당 이중 언어 문단을 함께 강조합니다. 이중 언어 모드에서만 작동합니다.',
     'settings.interface.popupLayout.label': '팝업 레이아웃',
     'settings.interface.popupLayout.description': '모듈을 드래그해 순서를 바꾸고 사용하지 않는 영역을 숨길 수 있습니다. 레이아웃은 자동으로 저장됩니다.',
+    'settings.interface.popupLayout.previewTitle': '팝업 미리보기',
+    'settings.interface.popupLayout.previewDescription': '순서와 표시 여부 변경 사항이 여기에 바로 반영됩니다.',
     'settings.interface.popupLayout.orderHint': '위에서 아래 순서로 팝업에 표시됩니다',
     'settings.interface.popupLayout.restoreDefault': '기본 순서 복원',
     'settings.interface.popupLayout.listAria': '팝업 모듈 레이아웃',

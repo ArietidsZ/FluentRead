@@ -212,7 +212,9 @@ function finishDrag() {
 
 <style scoped>
 .popup-layout-editor {
+  display: grid;
   width: 100%;
+  gap: 8px;
 }
 
 .popup-layout-toolbar {
@@ -220,16 +222,15 @@ function finishDrag() {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .popup-layout-toolbar button {
   flex: none;
-  padding: 4px 7px;
+  padding: 4px 8px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 8px;
   color: var(--brand-strong);
   background: var(--brand-soft);
   font: inherit;
@@ -246,7 +247,7 @@ function finishDrag() {
 
 .popup-layout-list {
   display: grid;
-  gap: 6px;
+  gap: 5px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -255,19 +256,21 @@ function finishDrag() {
 .popup-layout-item {
   position: relative;
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 9px;
-  min-height: 58px;
-  padding: 7px 8px;
+  gap: 8px;
+  min-height: 52px;
+  padding: 6px 7px;
   border: 1px solid var(--line);
-  border-radius: 11px;
+  border-radius: 10px;
   background: var(--surface);
-  transition: border-color 140ms ease, background 140ms ease, opacity 140ms ease;
+  box-shadow: 0 2px 8px rgba(31, 40, 61, .025);
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
 }
 
 .popup-layout-item:hover {
   border-color: rgba(239, 71, 118, .3);
+  box-shadow: 0 5px 14px rgba(31, 40, 61, .055);
 }
 
 .popup-layout-item.dragging {
@@ -276,6 +279,12 @@ function finishDrag() {
 
 .popup-layout-item.hidden .popup-layout-copy {
   opacity: .58;
+}
+
+.popup-layout-item.hidden {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--surface-soft) 72%, var(--surface));
+  box-shadow: none;
 }
 
 .popup-layout-item.drop-before::before,
@@ -300,11 +309,11 @@ function finishDrag() {
 .popup-layout-handle {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 38px;
+  width: 28px;
+  height: 34px;
   padding: 0;
   border: 0;
-  border-radius: 9px;
+  border-radius: 8px;
   color: var(--muted);
   background: var(--surface-soft);
   cursor: grab;
@@ -322,7 +331,7 @@ function finishDrag() {
 }
 
 .popup-layout-handle span {
-  font-size: 19px;
+  font-size: 17px;
   line-height: 1;
   transform: rotate(90deg);
 }
@@ -336,14 +345,14 @@ function finishDrag() {
 
 .popup-layout-copy strong {
   color: var(--ink);
-  font-size: 11px;
+  font-size: 10.5px;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
 .popup-layout-copy small {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 8.5px;
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
@@ -352,11 +361,11 @@ function finishDrag() {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 6px;
 }
 
 .popup-layout-required {
-  padding: 3px 6px;
+  padding: 3px 7px;
   border-radius: 999px;
   color: var(--muted);
   background: var(--surface-soft);
@@ -396,7 +405,7 @@ function finishDrag() {
 }
 
 .popup-layout-help {
-  margin: 7px 1px 0;
+  margin: 0 1px;
   color: var(--muted);
   font-size: 9px;
   line-height: 1.45;
@@ -419,7 +428,7 @@ function finishDrag() {
   }
 
   .popup-layout-item {
-    grid-template-columns: 32px minmax(0, 1fr);
+    grid-template-columns: 28px minmax(0, 1fr);
   }
 
   .popup-layout-actions {

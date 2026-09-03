@@ -188,6 +188,8 @@ export const enUSMessages = {
     'settings.general.bilingualSentenceHighlightDescription': 'Hover over the source or translation to highlight the matching bilingual passage. Available in bilingual mode only.',
     'settings.interface.popupLayout.label': 'Popup layout',
     'settings.interface.popupLayout.description': 'Drag modules to reorder them and hide areas you do not use. The layout is saved automatically.',
+    'settings.interface.popupLayout.previewTitle': 'Popup preview',
+    'settings.interface.popupLayout.previewDescription': 'Order and visibility changes appear here immediately.',
     'settings.interface.popupLayout.orderHint': 'Top-to-bottom order in the popup',
     'settings.interface.popupLayout.restoreDefault': 'Restore default order',
     'settings.interface.popupLayout.listAria': 'Popup module layout',
