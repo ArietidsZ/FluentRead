@@ -11,6 +11,7 @@ vi.mock('@/src/core/config/catalog', () => ({
 import {
     findTranslationTruncationAncestors,
     hasActiveTranslationLineClamp,
+    hasActiveTranslationTruncation,
     translationTruncationStyleOverrides,
 } from '@/src/core/translation/public';
 import {config} from '@/src/services/config/store';
@@ -21,11 +22,15 @@ import {
     getTranslationState,
     hasTranslationLayoutOverride,
     isTranslationLayoutOverrideMutation,
+    markTranslationComplete,
     reconcileTranslationLayoutOverrides,
     restoreTranslation,
     setBilingualContent,
+    setBilingualOwnerRemountHandler,
     setSingleTextSlotHosts,
 } from '@/src/features/full-page-translation/content/state';
+import {transferEquivalentBilingualOwners} from
+    '@/src/features/full-page-translation/content/bilingualRemount';
 import {ensureTranslationTruncationLayout} from '@/src/features/full-page-translation/content/layout';
 import {
     appendBilingualTranslation,
@@ -267,6 +272,11 @@ describe('translation truncation layout', () => {
         source.appendChild(artifact);
         clone.appendChild(artifact.cloneNode(true));
         expect(isTextEquivalentHostReplacement(record('childList', [clone], [source]))).toBe(true);
+        expect(isTextEquivalentHostReplacement(record(
+            'childList',
+            [clone, document.createComment('new framework marker')],
+            [source, document.createComment('old framework marker')],
+        ))).toBe(true);
         clone.textContent = 'Changed source';
         expect(isTextEquivalentHostReplacement(record('childList', [clone], [source]))).toBe(false);
         expect(isTextEquivalentHostReplacement(record('childList', [], [source]))).toBe(false);
@@ -279,6 +289,44 @@ describe('translation truncation layout', () => {
         expect(hasActiveTranslationLineClamp(clamp)).toBe(true);
         expect(hasActiveTranslationLineClamp(ordinary)).toBe(false);
         expect(findTranslationTruncationAncestors(first)).toEqual([clamp]);
+    });
+
+    it('只把真实溢出的 max-height 容器识别为截断，不改写未溢出的普通 owner', () => {
+        const {document} = parseHTML('<html><body><div id="owner"></div></body></html>');
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        let overflowY = 'hidden';
+        let overflow = 'hidden';
+        let clientHeight = 40;
+        Object.defineProperties(owner, {
+            scrollHeight: {configurable: true, get: () => 120},
+            clientHeight: {configurable: true, get: () => clientHeight},
+        });
+        Object.defineProperty(document.defaultView, 'getComputedStyle', {
+            configurable: true,
+            value: () => ({
+                webkitLineClamp: 'none', maxHeight: '40px', overflowY, overflow,
+                getPropertyValue: () => '',
+            } as unknown as CSSStyleDeclaration),
+        });
+
+        expect(hasActiveTranslationTruncation(owner)).toBe(true);
+        clientHeight = 120;
+        expect(hasActiveTranslationTruncation(owner)).toBe(false);
+        clientHeight = 40;
+        overflowY = 'visible';
+        expect(hasActiveTranslationTruncation(owner)).toBe(false);
+        overflowY = 'auto';
+        expect(hasActiveTranslationTruncation(owner)).toBe(false);
+        overflowY = 'scroll';
+        expect(hasActiveTranslationTruncation(owner)).toBe(false);
+        overflowY = '';
+        overflow = 'hidden';
+        expect(hasActiveTranslationTruncation(owner)).toBe(true);
+        Object.defineProperty(document.defaultView, 'getComputedStyle', {
+            configurable: true,
+            value: () => undefined,
+        });
+        expect(hasActiveTranslationTruncation(owner)).toBe(false);
     });
 
     it('includes a shared ancestor whose first lease has already removed its computed clamp', () => {
@@ -309,7 +357,9 @@ describe('translation truncation layout', () => {
             expect(wrapper.parentElement).toBe(first);
             expect(wrapper.textContent).toBe('模型介绍已翻译。');
             expect(wrapper.getAttribute('translate')).toBe('no');
-            expect(hasTranslationLayoutOverride(first)).toBe(true);
+            expect(first.classList.contains('fluent-read-bilingual')).toBe(false);
+            expect(hasTranslationLayoutOverride(first)).toBe(false);
+            expect(first.getAttribute('style')).toBeNull();
             expect(hasTranslationLayoutOverride(clamp)).toBe(true);
             expect(clamp.style.getPropertyValue('-webkit-line-clamp')).toBe('unset');
             expect(priorityTracking.calls).toContainEqual({
@@ -624,7 +674,7 @@ describe('translation truncation layout', () => {
         });
     });
 
-    it('automatically clears a connected hover owner when the host removes its bilingual wrapper', async () => {
+    it('keeps a connected hover owner when the host removes its bilingual wrapper', async () => {
         const {document, clamp, first} = openRouterFixture();
         await withDocumentRealm(document, async () => {
             clamp.style.setProperty('-webkit-line-clamp', '2');
@@ -635,10 +685,436 @@ describe('translation truncation layout', () => {
             await flushMutationObservers();
 
             try {
-                expect(getTranslationState(first)).toBeUndefined();
-                expect(clamp.style.getPropertyValue('-webkit-line-clamp')).toBe('2');
+                expect(getTranslationState(first)?.phase).toBe('translated');
+                expect(first.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+                expect(first.querySelector('.fluent-read-bilingual-content')).toBe(wrapper);
+                expect(wrapper.isConnected).toBe(true);
+                expect(clamp.style.getPropertyValue('-webkit-line-clamp')).toBe('unset');
             } finally {
                 if (getTranslationState(first)) restoreTranslation(first);
+            }
+        });
+    });
+
+    it('hover-only observer 收养等价 owned wrapper clone，保持同一 generation 与译文', async () => {
+        const {document, first} = openRouterFixture();
+        await withDocumentRealm(document, async () => {
+            const wrapper = commitBilingualTranslation(first);
+            await flushMutationObservers();
+            const initialState = getTranslationState(first)!;
+            const clonedWrapper = wrapper.cloneNode(true) as HTMLElement;
+
+            wrapper.replaceWith(clonedWrapper);
+            await flushMutationObservers();
+
+            try {
+                expect(getTranslationState(first)).toBe(initialState);
+                expect(initialState.phase).toBe('translated');
+                expect(initialState.bilingualContent).toBe(clonedWrapper);
+                expect(first.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+                expect(first.textContent).toContain('Translated text.');
+                expect(wrapper.isConnected).toBe(false);
+                expect(clonedWrapper.isConnected).toBe(true);
+            } finally {
+                if (getTranslationState(first)) restoreTranslation(first);
+            }
+        });
+    });
+
+    it('hover-only observer 接受宿主仅给 owned wrapper 添加 class，不闪回原文', async () => {
+        const {document, first} = openRouterFixture();
+        await withDocumentRealm(document, async () => {
+            const wrapper = commitBilingualTranslation(first);
+            await flushMutationObservers();
+            const initialState = getTranslationState(first)!;
+
+            wrapper.classList.add('host-layout-class');
+            await flushMutationObservers();
+
+            try {
+                expect(getTranslationState(first)).toBe(initialState);
+                expect(initialState.phase).toBe('translated');
+                expect(initialState.bilingualContent).toBe(wrapper);
+                expect(wrapper.classList.contains('host-layout-class')).toBe(true);
+                expect(first.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+                expect(first.textContent).toContain('Translated text.');
+            } finally {
+                if (getTranslationState(first)) restoreTranslation(first);
+            }
+        });
+    });
+
+    it('hover-only observer 不收养内容被宿主篡改的 owned wrapper clone', async () => {
+        const {document, first} = openRouterFixture();
+        await withDocumentRealm(document, async () => {
+            const wrapper = commitBilingualTranslation(first);
+            await flushMutationObservers();
+            const tamperedWrapper = wrapper.cloneNode(true) as HTMLElement;
+            tamperedWrapper.textContent = 'Host-forged translation.';
+
+            wrapper.replaceWith(tamperedWrapper);
+            await flushMutationObservers();
+
+            try {
+                const nextState = getTranslationState(first);
+                expect(nextState?.bilingualContent).not.toBe(tamperedWrapper);
+                expect(tamperedWrapper.isConnected).toBe(false);
+                expect(first.textContent).not.toContain('Host-forged translation.');
+                if (nextState) {
+                    expect(nextState.phase).toBe('translated');
+                    expect(nextState.bilingualContent?.textContent).toBe('Translated text.');
+                }
+            } finally {
+                if (getTranslationState(first)) restoreTranslation(first);
+            }
+        });
+    });
+
+    it('hover-only observer 在原位 href 变化时丢弃旧输出骨架并保留宿主链接', async () => {
+        const {document} = parseHTML(
+            '<html><body><p id="owner"><a href="/before">Readable link.</a></p></body></html>',
+        );
+        await withDocumentRealm(document, async () => {
+            const owner = document.querySelector<HTMLElement>('#owner')!;
+            const link = owner.querySelector<HTMLAnchorElement>('a')!;
+            const wrapper = commitBilingualTranslation(owner);
+            await flushMutationObservers();
+
+            link.setAttribute('href', '/after');
+            await flushMutationObservers();
+
+            expect(getTranslationState(owner)).toBeUndefined();
+            expect(wrapper.isConnected).toBe(false);
+            expect(link.getAttribute('href')).toBe('/after');
+            expect(owner.textContent).toBe('Readable link.');
+        });
+    });
+
+    it('hover-only 已译 owner 的祖先变为 contenteditable 时立即恢复原文并清理状态', async () => {
+        const {document} = parseHTML(
+            '<html><body><section id="editor-shell"><p id="owner">Editable source.</p></section></body></html>',
+        );
+        await withDocumentRealm(document, async () => {
+            const ancestor = document.querySelector<HTMLElement>('#editor-shell')!;
+            const owner = document.querySelector<HTMLElement>('#owner')!;
+            const wrapper = commitBilingualTranslation(owner);
+            await flushMutationObservers();
+
+            ancestor.setAttribute('contenteditable', 'true');
+            await flushMutationObservers();
+
+            try {
+                expect(getTranslationState(owner)).toBeUndefined();
+                expect(wrapper.isConnected).toBe(false);
+                expect(owner.querySelector('.fluent-read-bilingual-content')).toBeNull();
+                expect(owner.textContent).toBe('Editable source.');
+            } finally {
+                if (getTranslationState(owner)) restoreTranslation(owner);
+            }
+        });
+    });
+
+    it('hover-only owner 的祖先仅变更普通 class/style 时不触发资格清理', async () => {
+        const {document} = parseHTML(
+            '<html><body><section id="shell"><p id="owner">Stable source.</p></section></body></html>',
+        );
+        await withDocumentRealm(document, async () => {
+            const ancestor = document.querySelector<HTMLElement>('#shell')!;
+            const owner = document.querySelector<HTMLElement>('#owner')!;
+            const wrapper = commitBilingualTranslation(owner);
+            await flushMutationObservers();
+            const initialState = getTranslationState(owner);
+
+            ancestor.classList.add('host-hover');
+            ancestor.style.color = 'red';
+            await flushMutationObservers();
+
+            try {
+                expect(getTranslationState(owner)).toBe(initialState);
+                expect(wrapper.isConnected).toBe(true);
+                expect(owner.querySelector('.fluent-read-bilingual-content')).toBe(wrapper);
+            } finally {
+                if (getTranslationState(owner)) restoreTranslation(owner);
+            }
+        });
+    });
+
+    it.each(['semantic class', 'semantic style'] as const)(
+        'hover-only owner 的祖先出现 %s 保护时恢复原文',
+        async (guard) => {
+            const {document} = parseHTML(
+                '<html><body><section id="shell"><p id="owner">Protected source.</p></section></body></html>',
+            );
+            Object.defineProperty(document.defaultView, 'getComputedStyle', {
+                configurable: true,
+                value: (element: Element) => ({
+                    display: (element as HTMLElement).style.display || 'block',
+                    visibility: (element as HTMLElement).style.visibility || 'visible',
+                    webkitLineClamp: 'none',
+                    getPropertyValue: (property: string) => property === 'display'
+                        ? (element as HTMLElement).style.display || 'block'
+                        : property === 'visibility'
+                            ? (element as HTMLElement).style.visibility || 'visible'
+                            : '',
+                }) as unknown as CSSStyleDeclaration,
+            });
+            await withDocumentRealm(document, async () => {
+                const ancestor = document.querySelector<HTMLElement>('#shell')!;
+                const owner = document.querySelector<HTMLElement>('#owner')!;
+                const wrapper = commitBilingualTranslation(owner);
+                await flushMutationObservers();
+
+                if (guard === 'semantic class') ancestor.classList.add('notranslate');
+                else ancestor.style.display = 'none';
+                await flushMutationObservers();
+
+                expect(getTranslationState(owner)).toBeUndefined();
+                expect(wrapper.isConnected).toBe(false);
+                expect(owner.textContent).toBe('Protected source.');
+            });
+        },
+    );
+
+    it('hover 显式放行的顶层 translate=no 应用壳不会被语义复验误清理', async () => {
+        const {document} = parseHTML(
+            '<html><body><section id="app" translate="no"><p id="owner">Explicit source.</p></section></body></html>',
+        );
+        await withDocumentRealm(document, async () => {
+            const app = document.querySelector<HTMLElement>('#app')!;
+            const owner = document.querySelector<HTMLElement>('#owner')!;
+            const source = owner.firstChild as Text;
+            const attempt = beginTranslation(
+                owner, 'bilingual', 'content', false, source.data, [source], true,
+            )!;
+            attempt.state.phase = 'translated';
+            expect(ensureTranslationTruncationLayout(owner)).toBe(true);
+            const wrapper = document.createElement('span');
+            wrapper.className = 'fluent-read-bilingual-content';
+            wrapper.setAttribute('data-fr-translation-owned', 'true');
+            wrapper.textContent = '显式译文。';
+            owner.appendChild(wrapper);
+            setBilingualContent(owner, wrapper);
+            await flushMutationObservers();
+
+            app.setAttribute('lang', 'en');
+            await flushMutationObservers();
+
+            try {
+                expect(getTranslationState(owner)).toBe(attempt.state);
+                expect(wrapper.isConnected).toBe(true);
+                expect(owner.textContent).toContain('显式译文。');
+            } finally {
+                if (getTranslationState(owner)) restoreTranslation(owner);
+            }
+        });
+    });
+
+    it('keeps an overflow owner through ordinary hover class changes, then restores on real source mutation', async () => {
+        const {document} = parseHTML('<html><body><div id="owner"></div></body></html>');
+        await withDocumentRealm(document, async () => {
+            const owner = document.querySelector<HTMLElement>('#owner')!;
+            let deepest = owner;
+            for (let depth = 0; depth < 140; depth += 1) {
+                const child = document.createElement('span');
+                deepest.appendChild(child);
+                deepest = child;
+            }
+            deepest.textContent = 'Deep source.';
+            const wrapper = commitBilingualTranslation(owner);
+            await flushMutationObservers();
+            expect(getTranslationState(owner)?.sourceStructureSignature).toBe('overflow');
+
+            owner.className = 'host-hovered';
+            await flushMutationObservers();
+            expect(getTranslationState(owner)?.phase).toBe('translated');
+            expect(wrapper.isConnected).toBe(true);
+
+            owner.style.color = 'red';
+            await flushMutationObservers();
+            expect(getTranslationState(owner)?.phase).toBe('translated');
+            expect(wrapper.isConnected).toBe(true);
+
+            owner.setAttribute('lang', 'fr');
+            await flushMutationObservers();
+            expect(getTranslationState(owner)).toBeUndefined();
+            expect(wrapper.isConnected).toBe(false);
+            expect(owner.textContent).toBe('Deep source.');
+            expect(owner.getAttribute('lang')).toBe('fr');
+        });
+    });
+
+    it.each([
+        ['MathJax class', (target: HTMLElement): void => { target.classList.add('MathJax'); }],
+        ['inline display', (target: HTMLElement): void => { target.style.display = 'none'; }],
+    ] as const)('overflow owner 在 %s 语义变化后恢复而不保留旧骨架', async (_name, mutate) => {
+        const {document} = parseHTML('<html><body><div id="owner">Readable source.</div></body></html>');
+        await withDocumentRealm(document, async () => {
+            const owner = document.querySelector<HTMLElement>('#owner')!;
+            let deepest = owner;
+            for (let depth = 0; depth < 140; depth += 1) {
+                const child = document.createElement('span');
+                deepest.appendChild(child);
+                deepest = child;
+            }
+            const target = document.createElement('span');
+            target.textContent = 'Deep source.';
+            deepest.appendChild(target);
+            const wrapper = commitBilingualTranslation(owner);
+            await flushMutationObservers();
+            expect(getTranslationState(owner)?.sourceStructureSignature).toBe('overflow');
+
+            mutate(target);
+            await flushMutationObservers();
+
+            expect(getTranslationState(owner)).toBeUndefined();
+            expect(wrapper.isConnected).toBe(false);
+            expect(owner.textContent).not.toContain('Translated text.');
+        });
+    });
+
+    it('overflow mutation 的祖先查找在异常深 DOM 上保持有界', async () => {
+        const {document} = parseHTML('<html><body><div id="owner">Readable source.</div></body></html>');
+        await withDocumentRealm(document, async () => {
+            const owner = document.querySelector<HTMLElement>('#owner')!;
+            let deepest = owner;
+            for (let depth = 0; depth < 540; depth += 1) {
+                const child = document.createElement('span');
+                deepest.appendChild(child);
+                deepest = child;
+            }
+            deepest.textContent = 'Protected extreme-depth source.';
+            const wrapper = commitBilingualTranslation(owner);
+            await flushMutationObservers();
+            expect(getTranslationState(owner)?.sourceStructureSignature).toBe('overflow');
+
+            deepest.classList.add('MathJax');
+            await flushMutationObservers();
+
+            expect(getTranslationState(owner)).toBeUndefined();
+            expect(wrapper.isConnected).toBe(false);
+        });
+    });
+
+    it('overflow owner 同位重建完全相同的 source DOM 时重绑 Text 并保留译文', async () => {
+        const {document} = parseHTML('<html><body><div id="owner"></div></body></html>');
+        await withDocumentRealm(document, async () => {
+            const owner = document.querySelector<HTMLElement>('#owner')!;
+            let deepest = owner;
+            for (let depth = 0; depth < 140; depth += 1) {
+                const child = document.createElement('span');
+                deepest.appendChild(child);
+                deepest = child;
+            }
+            deepest.textContent = 'Exact overflow source.';
+            commitBilingualTranslation(owner);
+            await flushMutationObservers();
+            const originalState = getTranslationState(owner)!;
+            const originalTextNode = originalState.sourceTextNodes?.at(-1);
+            const sourceHTML = originalState.sourceHTML;
+
+            owner.innerHTML = sourceHTML;
+            await flushMutationObservers();
+
+            const reboundState = getTranslationState(owner)!;
+            expect(reboundState).toBe(originalState);
+            expect(reboundState.phase).toBe('translated');
+            expect(reboundState.sourceStructureDirty).toBe(false);
+            expect(reboundState.sourceTextNodes?.at(-1)).not.toBe(originalTextNode);
+            expect(reboundState.sourceTextNodes?.every((node) => node.isConnected)).toBe(true);
+            expect(owner.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+        });
+    });
+
+    it('atomically hands a hover-only translation to an equivalent remounted owner', async () => {
+        const {document} = parseHTML(
+            '<html><body><article id="row"><p id="owner">Hover-only remount stays translated.</p></article></body></html>',
+        );
+        await withDocumentRealm(document, async () => {
+            const row = document.querySelector<HTMLElement>('#row')!;
+            const owner = document.querySelector<HTMLElement>('#owner')!;
+            const source = owner.firstChild as Text;
+            const attempt = beginTranslation(
+                owner, 'bilingual', 'content', false, source.data, [source],
+            )!;
+            expect(markTranslationComplete(owner, attempt.state, attempt.generation)).toBe(true);
+            expect(ensureTranslationTruncationLayout(owner)).toBe(true);
+            const wrapper = document.createElement('span');
+            wrapper.className = 'fluent-read-bilingual-content';
+            wrapper.setAttribute('data-fr-translation-owned', 'true');
+            wrapper.textContent = '仅悬停重挂仍保留译文。';
+            owner.appendChild(wrapper);
+            setBilingualContent(owner, wrapper);
+            await flushMutationObservers();
+
+            setBilingualOwnerRemountHandler((mutations) => {
+                transferEquivalentBilingualOwners(mutations, (_old, replacement) => ({
+                    sourceTextNodes: [replacement.firstChild as Text],
+                    reconcileLayout: ensureTranslationTruncationLayout,
+                }));
+            });
+            const replacement = document.createElement('p');
+            replacement.id = 'owner';
+            replacement.textContent = source.data;
+            owner.replaceWith(replacement);
+            await flushMutationObservers();
+
+            try {
+                expect(getTranslationState(owner)).toBeUndefined();
+                expect(getTranslationState(replacement)?.phase).toBe('translated');
+                expect(replacement.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+                expect(replacement.textContent).toContain('仅悬停重挂仍保留译文。');
+            } finally {
+                setBilingualOwnerRemountHandler(undefined);
+                if (getTranslationState(replacement)) restoreTranslation(replacement);
+                row.replaceChildren();
+            }
+        });
+    });
+
+    it('restores and reacquires a cloned ancestor clamp during whole-subtree remount', async () => {
+        const {document} = parseHTML(
+            '<html><body><article id="row" style="-webkit-line-clamp: 2"><p id="owner">Cloned clamp stays reversible.</p></article></body></html>',
+        );
+        Object.defineProperty(document.defaultView, 'getComputedStyle', {
+            configurable: true,
+            value: (element: Element) => {
+                const inlineClamp = (element as HTMLElement).style?.getPropertyValue('-webkit-line-clamp') ?? '';
+                const lineClamp = inlineClamp === 'unset' ? 'none' : inlineClamp || 'none';
+                return {
+                    webkitLineClamp: lineClamp,
+                    getPropertyValue: (property: string) =>
+                        property === '-webkit-line-clamp' || property === 'line-clamp' ? lineClamp : '',
+                } as unknown as CSSStyleDeclaration;
+            },
+        });
+        await withDocumentRealm(document, async () => {
+            const row = document.querySelector<HTMLElement>('#row')!;
+            const owner = document.querySelector<HTMLElement>('#owner')!;
+            commitBilingualTranslation(owner);
+            await flushMutationObservers();
+            expect(row.style.getPropertyValue('-webkit-line-clamp')).toBe('unset');
+
+            setBilingualOwnerRemountHandler((mutations) => {
+                transferEquivalentBilingualOwners(mutations, (_old, replacement) => ({
+                    sourceTextNodes: [replacement.firstChild as Text],
+                    reconcileLayout: ensureTranslationTruncationLayout,
+                }));
+            });
+            const replacementRow = row.cloneNode(true) as HTMLElement;
+            const replacementOwner = replacementRow.querySelector<HTMLElement>('#owner')!;
+            row.replaceWith(replacementRow);
+            await flushMutationObservers();
+
+            try {
+                expect(getTranslationState(owner)).toBeUndefined();
+                expect(getTranslationState(replacementOwner)?.phase).toBe('translated');
+                expect(replacementRow.style.getPropertyValue('-webkit-line-clamp')).toBe('unset');
+                expect(hasTranslationLayoutOverride(replacementRow)).toBe(true);
+                expect(restoreTranslation(replacementOwner)).toBe(true);
+                expect(replacementRow.style.getPropertyValue('-webkit-line-clamp')).toBe('2');
+            } finally {
+                setBilingualOwnerRemountHandler(undefined);
+                if (getTranslationState(replacementOwner)) restoreTranslation(replacementOwner);
             }
         });
     });
@@ -719,6 +1195,18 @@ describe('translation truncation layout', () => {
     it('reapplies a hover owner override after the host rewrites its inline clamp', async () => {
         const {document, first} = openRouterFixture();
         await withDocumentRealm(document, async () => {
+            Object.defineProperty(document.defaultView, 'getComputedStyle', {
+                configurable: true,
+                value: (element: Element) => {
+                    const lineClamp = (element as HTMLElement).style
+                        ?.getPropertyValue('-webkit-line-clamp') || 'none';
+                    return {
+                        webkitLineClamp: lineClamp, maxHeight: 'none', overflowY: 'visible', overflow: 'visible',
+                        getPropertyValue: (property: string) =>
+                            property === '-webkit-line-clamp' || property === 'line-clamp' ? lineClamp : '',
+                    } as unknown as CSSStyleDeclaration;
+                },
+            });
             commitBilingualTranslation(first);
             await flushMutationObservers();
 
@@ -726,6 +1214,7 @@ describe('translation truncation layout', () => {
             await flushMutationObservers();
 
             try {
+                expect(hasTranslationLayoutOverride(first)).toBe(true);
                 expect(first.style.getPropertyValue('-webkit-line-clamp')).toBe('unset');
                 expect(first.style.getPropertyValue('color')).toBe('blue');
             } finally {
@@ -733,6 +1222,39 @@ describe('translation truncation layout', () => {
             }
             expect(first.style.getPropertyValue('-webkit-line-clamp')).toBe('2');
             expect(first.style.getPropertyValue('color')).toBe('blue');
+        });
+    });
+
+    it('真实 max-height 溢出 owner 仍会展开，并在恢复时保留宿主原样式', async () => {
+        const {document} = parseHTML(
+            '<html><body><p id="owner" style="max-height:40px;overflow:hidden;color:blue">Long source.</p></body></html>',
+        );
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        Object.defineProperties(owner, {
+            scrollHeight: {configurable: true, value: 120},
+            clientHeight: {configurable: true, value: 40},
+        });
+        Object.defineProperty(document.defaultView, 'getComputedStyle', {
+            configurable: true,
+            value: (element: HTMLElement) => ({
+                webkitLineClamp: 'none',
+                maxHeight: element.style.getPropertyValue('max-height') || 'none',
+                overflowY: element.style.getPropertyValue('overflow-y') || element.style.overflow || 'visible',
+                overflow: element.style.overflow || 'visible',
+                getPropertyValue: () => '',
+            } as unknown as CSSStyleDeclaration),
+        });
+
+        await withDocumentRealm(document, async () => {
+            commitBilingualTranslation(owner);
+            expect(owner.style.getPropertyValue('max-height')).toBe('unset');
+            expect(owner.style.getPropertyValue('color')).toBe('blue');
+            expect(hasTranslationLayoutOverride(owner)).toBe(true);
+
+            expect(restoreTranslation(owner)).toBe(true);
+            expect(owner.style.getPropertyValue('max-height')).toBe('40px');
+            expect(owner.style.overflow).toBe('hidden');
+            expect(owner.style.getPropertyValue('color')).toBe('blue');
         });
     });
 

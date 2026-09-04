@@ -313,30 +313,34 @@
 }
 
 /* 双语逐句高亮：只绘制不会改变几何尺寸的单层强调，避免动态页面在 hover 时发生布局抖动。 */
-html[data-fr-bilingual-sentence-highlight="true"] .fluent-read-bilingual:hover,
-html[data-fr-bilingual-sentence-highlight="true"] .fluent-read-bilingual:focus-within {
+html[data-fr-bilingual-sentence-highlight="true"] :has(> .fluent-read-bilingual-content[data-fr-translation-owned="true"]):hover,
+html[data-fr-bilingual-sentence-highlight="true"] :has(> .fluent-read-bilingual-content[data-fr-translation-owned="true"]):focus-within {
     background-color: rgba(239, 71, 118, 0.065) !important;
     border-radius: 0.45em;
     box-shadow: inset 0 0 0 1px rgba(239, 71, 118, 0.18) !important;
 }
 
-/* 译文用细色标与原文形成轻微层级差，不覆盖用户选择的译文背景、阴影或文字样式。 */
-html[data-fr-bilingual-sentence-highlight="true"] .fluent-read-bilingual:hover > .fluent-read-bilingual-content,
-html[data-fr-bilingual-sentence-highlight="true"] .fluent-read-bilingual:focus-within > .fluent-read-bilingual-content {
+/* containing block 常态固定；hover 只绘制，不切换定位语义，避免绝对定位后代跳动。 */
+html[data-fr-bilingual-sentence-highlight="true"] .fluent-read-bilingual-content[data-fr-translation-owned="true"] {
     position: relative;
 }
 
-html[data-fr-bilingual-sentence-highlight="true"] .fluent-read-bilingual:hover > .fluent-read-bilingual-content::before,
-html[data-fr-bilingual-sentence-highlight="true"] .fluent-read-bilingual:focus-within > .fluent-read-bilingual-content::before {
+/* 译文常态保留很淡的细色标，与原文形成层级；hover/focus 只增强纯绘制颜色。 */
+html[data-fr-bilingual-sentence-highlight="true"] .fluent-read-bilingual-content[data-fr-translation-owned="true"]::before {
     position: absolute;
     top: 0.2em;
     bottom: 0.2em;
     inset-inline-start: -0.32em;
     width: 2px;
     border-radius: 999px;
-    background-color: rgba(239, 71, 118, 0.58);
+    background-color: rgba(239, 71, 118, 0.24);
     content: "";
     pointer-events: none;
+}
+
+html[data-fr-bilingual-sentence-highlight="true"] :has(> .fluent-read-bilingual-content[data-fr-translation-owned="true"]):hover > .fluent-read-bilingual-content::before,
+html[data-fr-bilingual-sentence-highlight="true"] :has(> .fluent-read-bilingual-content[data-fr-translation-owned="true"]):focus-within > .fluent-read-bilingual-content::before {
+    background-color: rgba(239, 71, 118, 0.58);
 }
 
 /* 马克笔 */

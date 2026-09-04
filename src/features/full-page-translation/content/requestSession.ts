@@ -14,6 +14,7 @@ import {
     type FullPageTranslationCacheEntry,
     type FullPageTranslationConfigSnapshot,
     type FullPageTranslationRequestCacheEntry,
+    type FullPageTranslationSessionCache,
 } from '@/src/features/full-page-translation/content/translationRequest';
 
 export interface FullPageRequestSessionState {
@@ -23,6 +24,7 @@ export interface FullPageRequestSessionState {
     requestQueueSessions: Set<TranslationQueueSession>;
     requestControllers: Set<AbortController>;
     pageContextGeneration: number;
+    renderCommitGeneration: number;
 }
 
 interface FullPageRequestCacheState extends FullPageRequestSessionState {
@@ -38,7 +40,27 @@ export function createFullPageRequestSessionState(): FullPageRequestSessionState
         requestQueueSessions: new Set(),
         requestControllers: new Set(),
         pageContextGeneration: 0,
+        renderCommitGeneration: 0,
     };
+}
+
+type HoverTranslationRequestSession = FullPageRequestSessionState & FullPageTranslationSessionCache;
+function createHoverTranslationRequestSession(): HoverTranslationRequestSession {
+    return {active: true, translationSlotCache: new Map(), retainSettledResults: false,
+        allowAIMultiSegment: false, ...createFullPageRequestSessionState()};
+}
+let hoverTranslationRequestSession = createHoverTranslationRequestSession();
+export function getHoverTranslationRequestSession(): HoverTranslationRequestSession {
+    return hoverTranslationRequestSession;
+}
+export function invalidateHoverTranslationRequestSession(): void {
+    invalidateFullPageRequestSessionForRoute(hoverTranslationRequestSession);
+}
+export function resetHoverTranslationRequestSession(reason: Error): void {
+    hoverTranslationRequestSession.active = false;
+    disposeFullPageRequestSession(hoverTranslationRequestSession, reason);
+    hoverTranslationRequestSession.translationSlotCache.clear();
+    hoverTranslationRequestSession = createHoverTranslationRequestSession();
 }
 
 /** 使当前页面已结算结果失效；仍有消费者的在途请求可结束，但不能再次被重挂复用。 */
@@ -46,6 +68,11 @@ export function invalidateFullPageRequestSessionCache(session: FullPageRequestCa
     session.pageContextGeneration += 1;
     clearFullPageTranslationRequestCache(session);
     session.translationSlotCache.clear();
+}
+
+export function invalidateFullPageRequestSessionForRoute(session: FullPageRequestCacheState): void {
+    session.renderCommitGeneration += 1;
+    invalidateFullPageRequestSessionCache(session);
 }
 
 export function invalidateContextSensitiveRequestCache(

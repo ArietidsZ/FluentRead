@@ -10,9 +10,11 @@ export {
     handleTranslation,
     invalidateFullPageTranslationSessionCache,
     isFullPageTranslationActive,
+    resetFullPageTranslationRouteState,
     restoreOriginalContent,
     type PageTranslationInvocation,
 } from './content/runtime';
+export {beginBilingualArtifactHostWriteGesture as noteBilingualHostGesture} from './content/state';
 export type {PageTranslationConfigOverrides} from './content/translationRequest';
 export {
     mountTranslationProgressPanel,

@@ -127,6 +127,8 @@ async function verifyBilingualHighlightPreview(page) {
     const translation = element.querySelector('[data-testid="bilingual-highlight-preview-translation"]');
     const sourceMarker = source ? getComputedStyle(source, '::before') : null;
     const translationMarker = translation ? getComputedStyle(translation, '::before') : null;
+    const sourceStyle = source ? getComputedStyle(source) : null;
+    const translationStyle = translation ? getComputedStyle(translation) : null;
     return {
       enabled: element.getAttribute('data-bilingual-highlight-enabled'),
       backgroundColor: style.backgroundColor,
@@ -141,6 +143,11 @@ async function verifyBilingualHighlightPreview(page) {
         width: translationMarker.width,
         backgroundColor: translationMarker.backgroundColor,
       } : null,
+      sourceTextStyle: sourceStyle ? {color: sourceStyle.color, fontSize: sourceStyle.fontSize} : null,
+      translationTextStyle: translationStyle ? {
+        color: translationStyle.color,
+        fontSize: translationStyle.fontSize,
+      } : null,
       rect: {x: rect.x, y: rect.y, width: rect.width, height: rect.height},
     };
   });
@@ -150,6 +157,11 @@ async function verifyBilingualHighlightPreview(page) {
   });
   await page.waitForTimeout(220);
   const before = await readState();
+  if (!before.sourceTextStyle || !before.translationTextStyle ||
+      before.sourceTextStyle.fontSize === before.translationTextStyle.fontSize ||
+      before.sourceTextStyle.color === before.translationTextStyle.color) {
+    throw new Error(`双语预览未清楚区分原文与译文层级：${JSON.stringify(before)}`);
+  }
   await source.hover();
   await page.waitForTimeout(180);
   const disabledHover = await readState();
@@ -176,12 +188,12 @@ async function verifyBilingualHighlightPreview(page) {
     document.activeElement?.getAttribute('data-testid') === 'bilingual-highlight-preview', undefined, {timeout});
   await page.waitForTimeout(180);
   const keyboardFocus = await readState();
-  const geometryDelta = Math.max(
-    Math.abs(keyboardFocus.rect.x - before.rect.x),
-    Math.abs(keyboardFocus.rect.y - before.rect.y),
-    Math.abs(keyboardFocus.rect.width - before.rect.width),
-    Math.abs(keyboardFocus.rect.height - before.rect.height),
-  );
+  const geometryDelta = Math.max(...[sourceHover, translationHover, keyboardFocus].flatMap((state) => [
+    Math.abs(state.rect.x - before.rect.x),
+    Math.abs(state.rect.y - before.rect.y),
+    Math.abs(state.rect.width - before.rect.width),
+    Math.abs(state.rect.height - before.rect.height),
+  ]));
   const transparent = new Set(['rgba(0, 0, 0, 0)', 'transparent']);
   if (transparent.has(sourceHover.backgroundColor) ||
       sourceHover.backgroundColor === before.backgroundColor ||

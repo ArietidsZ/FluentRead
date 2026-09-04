@@ -1,11 +1,23 @@
 /**
  * @file src/features/full-page-translation/content/translationStability.ts
  * 文件职责：提供动态页面翻译的语义稳定性判断和实时文本槽重绑定，隔离 React/虚拟列表重建造成的生命周期噪声。
- * 主要内容：判断原文是否仍相同、决定是否保留当前翻译 generation，并把异步结果映射到重建后的 Text 节点。
+ * 主要内容：判断原文与译文工件是否仍完整、决定是否保留当前翻译 generation，并把异步结果映射到重建后的 Text 节点。
  * 模块边界：本文件不读取配置、不监听 DOM、不执行 provider 请求；runtime 通过回调提供当前来源与槽位快照。
  */
-import type {TranslationTextSlot} from '@/src/core/translation/public';
-import type {TranslationState} from './state';
+import {
+    collectLiveTranslationTextSlots,
+    extractTranslationText,
+    getCurrentTranslationCore,
+    type TranslationCandidate,
+    type TranslationTextProtectionOptions,
+    type TranslationTextSlot,
+} from '@/src/core/translation/public';
+import {
+    getTranslationOverflowGenerationIdentity,
+    getTranslationSourceStructureSignature,
+    isTranslationSourceStructureOverflow,
+    type TranslationState,
+} from './state';
 
 export interface LiveTextResultSnapshot {
     sources: readonly string[];
@@ -19,6 +31,191 @@ export interface ReboundLiveTextResult {
     slots: readonly {node: Text; text: string}[];
 }
 
+const TRANSLATION_ARTIFACT_SELECTOR = [
+    '[data-fr-translation-segment="true"]',
+    '[data-fr-translation-owned="true"]',
+].join(',');
+
+export function normalizeComparableText(text: string): string {
+    return text.replace(/[\s\u3000]+/g, ' ').trim();
+}
+
+export function getTranslationTextProtectionOptions(
+    allowTopLevelApplicationShell: boolean | undefined,
+    protectedElement: Element,
+): TranslationTextProtectionOptions | undefined {
+    return allowTopLevelApplicationShell === true
+        ? {allowTopLevelApplicationShell: true, protectedElement}
+        : undefined;
+}
+
+export function getTranslationStateProtectionBoundary(
+    node: HTMLElement,
+    state: TranslationState,
+): HTMLElement | undefined {
+    return state.syntheticSegment ? node : undefined;
+}
+
+export function getCandidateTranslationTextProtectionOptions(
+    candidate: TranslationCandidate,
+): TranslationTextProtectionOptions | undefined {
+    return getTranslationTextProtectionOptions(
+        candidate.allowTopLevelApplicationShell,
+        candidate.element,
+    );
+}
+
+export function getCurrentTranslationStateSourceText(node: HTMLElement, state: TranslationState): string {
+    return extractTranslationText(
+        node,
+        getCurrentTranslationCore().shouldStayOriginal,
+        getTranslationStateProtectionBoundary(node, state),
+        getTranslationTextProtectionOptions(state.allowTopLevelApplicationShell, node),
+    );
+}
+
+export function getCurrentTranslationStateTextNodes(node: HTMLElement, state: TranslationState): Text[] {
+    return collectLiveTranslationTextSlots(
+        node,
+        getCurrentTranslationCore().shouldStayOriginal,
+        getTranslationStateProtectionBoundary(node, state),
+        getTranslationTextProtectionOptions(state.allowTopLevelApplicationShell, node),
+    ).map((slot) => slot.node);
+}
+
+function sourceHTMLWithoutDirectBilingualArtifacts(node: HTMLElement): string {
+    const clone = node.cloneNode(true) as HTMLElement;
+    Array.from(clone.children)
+        .filter((child) => child.matches(
+            '.fluent-read-bilingual-content[data-fr-translation-owned="true"]',
+        ))
+        .forEach((child) => child.remove());
+    return clone.innerHTML;
+}
+
+export function statefulSourceAndTextSlotsAreCurrent(
+    node: HTMLElement,
+    state: TranslationState,
+): boolean {
+    // 双语模式不改写宿主 Text；保护区后代换代时保留已捕获来源，
+    // 来源 Text 换代则只接受精确同构 HTML，避免误用旧链接或标签的译文。
+    if (state.phase === 'translated' && state.mode === 'bilingual' && state.kind === 'content') {
+        const previousNodes = state.sourceTextNodes ?? [];
+        if (isTranslationSourceStructureOverflow(state.sourceStructureSignature) &&
+            !state.sourceStructureDirty && previousNodes.length > 0 &&
+            previousNodes.every((text) => text.isConnected && node.contains(text)) &&
+            normalizeComparableText(previousNodes.map((text) => text.data).join(' ')) ===
+                normalizeComparableText(state.sourceText)) return true;
+        if (normalizeComparableText(getCurrentTranslationStateSourceText(node, state)) !==
+            normalizeComparableText(state.sourceText)) return false;
+        const currentNodes = getCurrentTranslationStateTextNodes(node, state);
+        if (isTranslationSourceStructureOverflow(state.sourceStructureSignature)) {
+            if (state.sourceStructureDirty || getTranslationOverflowGenerationIdentity(
+                node,
+            ) !== state.sourceOverflowGenerationIdentity) return false;
+        } else {
+            const structureSignature = getTranslationSourceStructureSignature(
+                node,
+                state.allowTopLevelApplicationShell === true,
+                currentNodes,
+            );
+            if (state.sourceStructureSignature === undefined
+                ? sourceHTMLWithoutDirectBilingualArtifacts(node) !== state.sourceHTML
+                : structureSignature !== state.sourceStructureSignature) return false;
+        }
+        state.sourceTextNodes = currentNodes;
+        return true;
+    }
+
+    if (state.singleTextSlotHosts) {
+        const previousNodes = state.sourceTextNodes ?? [];
+        if (state.singleTextSlotHosts.length !== previousNodes.length) return false;
+        return state.singleTextSlotHosts.every(({host, source, sourceValue}, index) =>
+            previousNodes[index] === source && host.parentNode !== null && node.contains(host) &&
+            host.contains(source) && source.data === sourceValue);
+    }
+
+    const currentNodes = getCurrentTranslationStateTextNodes(node, state);
+    const previousNodes = state.translatedTextNodes ?? state.sourceTextNodes ?? [];
+    if (currentNodes.length !== previousNodes.length ||
+        currentNodes.some((textNode, index) => textNode !== previousNodes[index])) return false;
+    if ((state.kind === 'control' || state.mode === 'single') && state.textSlotsApplied) {
+        return currentNodes.every((textNode) =>
+            state.translatedTextValues?.get(textNode) === textNode.data);
+    }
+    return normalizeComparableText(getCurrentTranslationStateSourceText(node, state)) ===
+        normalizeComparableText(state.sourceText);
+}
+
+export function mutationTouchesCurrentTranslationArtifact(
+    mutation: MutationRecord,
+    state: TranslationState,
+): boolean {
+    const artifacts = [state.spinner, state.bilingualContent, state.retryWrapper]
+        .filter((node): node is HTMLElement => Boolean(node));
+    if (artifacts.length === 0) return false;
+    if (artifacts.some((artifact) =>
+        mutation.target === artifact || artifact.contains(mutation.target))) return true;
+    return [...Array.from(mutation.addedNodes), ...Array.from(mutation.removedNodes)]
+        .some((node) => artifacts.some((artifact) =>
+            node === artifact || artifact.contains(node) ||
+            (node.nodeType === 1 && (node as Element).contains(artifact))));
+}
+
+export function isOwnSingleTextSlotMove(
+    mutation: MutationRecord,
+    target: HTMLElement,
+    state: TranslationState,
+): boolean {
+    if (mutation.type !== 'childList' || !state.singleTextSlotHosts?.length ||
+        mutation.target.nodeType !== 1) return false;
+    const changedNodes = [...Array.from(mutation.addedNodes), ...Array.from(mutation.removedNodes)];
+    if (changedNodes.length === 0) return false;
+    const slot = state.singleTextSlotHosts.find(({host}) => host === mutation.target);
+    return Boolean(slot && changedNodes.every((node) => node === slot.source) &&
+        statefulSourceAndTextSlotsAreCurrent(target, state));
+}
+
+export function isOwnCurrentArtifactAddition(
+    mutation: MutationRecord,
+    state: TranslationState,
+): boolean {
+    return mutation.addedNodes.length > 0 && Array.from(mutation.addedNodes).every((node) =>
+        node === state.spinner || node === state.retryWrapper ||
+        state.singleTextSlotHosts?.some(({host}) => node === host) === true ||
+        node === state.bilingualContent && state.bilingualContent.outerHTML === state.bilingualOuterHTML);
+}
+
+/** 精确识别所有目标的 spinner 事务，以及控件原位回写的最终 Text。 */
+export function isOwnStateArtifactMutation(
+    mutation: MutationRecord,
+    target: HTMLElement,
+    state: TranslationState,
+): boolean {
+    if (state.phase === 'translated' && mutation.type === 'childList' && mutation.target === target &&
+        state.settledSpinner) {
+        const changed = [...Array.from(mutation.addedNodes), ...Array.from(mutation.removedNodes)];
+        if (changed.length > 0 && changed.every((node) => node === state.settledSpinner)) return true;
+    }
+    if (state.phase === 'loading') return mutation.type === 'childList' && mutation.target === target &&
+        state.spinner?.parentNode === target && mutation.removedNodes.length === 0 &&
+        mutation.addedNodes.length > 0 && Array.from(mutation.addedNodes).every((node) => node === state.spinner) &&
+        statefulSourceAndTextSlotsAreCurrent(target, state);
+    if (state.kind !== 'control') return false;
+    if (state.phase !== 'translated' || state.textSlotsApplied !== true) return false;
+    if (mutation.type === 'characterData') {
+        return state.translatedTextValues?.get(mutation.target as Text) === mutation.target.nodeValue;
+    }
+    return false;
+}
+
+export function isTranslationArtifact(node: Node): boolean {
+    const element = node.nodeType === 1 ? node as Element : node.parentElement;
+    return Boolean(element &&
+        (element.matches(TRANSLATION_ARTIFACT_SELECTOR) ||
+            element.closest(TRANSLATION_ARTIFACT_SELECTOR)));
+}
+
 export function hasCurrentTranslationSource(
     node: HTMLElement,
     state: TranslationState,
@@ -26,6 +223,50 @@ export function hasCurrentTranslationSource(
 ): boolean {
     if (state.syntheticSegment || state.kind !== 'content' || !node.isConnected) return false;
     return readSource(node, state);
+}
+
+/**
+ * `phase=translated` 只是请求状态，不能代表页面上的译文仍然存在。
+ * 动态页面可以保留 owner 却删除/移动 wrapper，也可以改写 wrapper 内容；
+ * 连续悬浮只有在“当前 generation 的精确工件”仍完整时才能安全 no-op。
+ */
+export function isTranslationArtifactCurrent(
+    node: HTMLElement,
+    state: TranslationState,
+): boolean {
+    if (state.phase !== 'translated') return false;
+    // 控件在双语页面模式下仍采用原位 Text 回写，不会创建 bilingual wrapper。
+    // 必须先按目标类型判断，否则延迟复验会把已提交控件误当成工件缺失并恢复原文。
+    if (state.kind === 'control') return state.textSlotsApplied === true;
+
+    if (state.mode === 'bilingual') {
+        const wrapper = state.bilingualContent;
+        const directWrappers = Array.from(node.children).filter((child) =>
+            child.matches('.fluent-read-bilingual-content[data-fr-translation-owned="true"]'));
+        return Boolean(
+            wrapper &&
+            wrapper.parentNode === node &&
+            wrapper.isConnected &&
+            wrapper.matches('.fluent-read-bilingual-content[data-fr-translation-owned="true"]') &&
+            state.bilingualHTML !== undefined &&
+            wrapper.innerHTML === state.bilingualHTML &&
+            state.bilingualOuterHTML !== undefined &&
+            wrapper.outerHTML === state.bilingualOuterHTML &&
+            directWrappers.length === 1 &&
+            directWrappers[0] === wrapper,
+        );
+    }
+
+    const hosts = state.singleTextSlotHosts;
+    return Boolean(
+        hosts &&
+        hosts.length === state.sourceTextNodes?.length &&
+        hosts.every(({host, source}) =>
+            host.parentNode !== null &&
+            host.isConnected &&
+            node.contains(host) &&
+            host.contains(source)),
+    );
 }
 
 export function canKeepTranslationAttempt(
@@ -38,9 +279,7 @@ export function canKeepTranslationAttempt(
     if (!hasCurrentTranslationSource(node, state, readSource)) return false;
     if (state.phase === 'loading') return true;
     return state.phase === 'translated' && artifactIntact &&
-        (state.mode === 'bilingual'
-            ? state.bilingualContent?.isConnected === true
-            : state.singleTextSlotHosts?.length === state.sourceTextNodes?.length) &&
+        isTranslationArtifactCurrent(node, state) &&
         readSlots(node, state);
 }
 

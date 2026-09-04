@@ -10,6 +10,8 @@ export {
     autoTranslateEnglishPage,
     invalidateFullPageTranslationSessionCache,
     isFullPageTranslationActive,
+    noteBilingualHostGesture,
+    resetFullPageTranslationRouteState,
     restoreOriginalContent,
 } from '@/src/features/full-page-translation/public';
 export {

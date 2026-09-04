@@ -269,6 +269,21 @@ export function hasActiveTranslationLineClamp(element: HTMLElement): boolean {
     }
 }
 
+export function hasActiveTranslationTruncation(element: HTMLElement): boolean {
+    if (hasActiveTranslationLineClamp(element)) return true;
+    try {
+        const style = element.ownerDocument?.defaultView?.getComputedStyle(element);
+        if (!style) return false;
+        const maxHeight = style.maxHeight.trim().toLowerCase();
+        if (!maxHeight || ['none', 'auto', 'unset', 'initial', 'max-content'].includes(maxHeight)) return false;
+        const overflow = (style.overflowY || style.overflow).trim().toLowerCase();
+        return ['hidden', 'clip'].includes(overflow) &&
+            element.scrollHeight > element.clientHeight + 1;
+    } catch {
+        return false;
+    }
+}
+
 /**
  * 译文段落可能位于独立的 line-clamp wrapper 内。沿短且有界的祖先链查找，使渲染
  * 能临时租用每个生效的裁剪容器，同时不让候选发现产生样式写入。首个译文解除裁剪后，
@@ -283,7 +298,7 @@ export function findTranslationTruncationAncestors(
     let depth = 0;
     while (current && current !== node.ownerDocument?.body && depth < maxTranslationTruncationAncestorDepth) {
         depth += 1;
-        if (hasExistingOverride(current) || hasActiveTranslationLineClamp(current)) result.push(current);
+        if (hasExistingOverride(current) || hasActiveTranslationTruncation(current)) result.push(current);
         current = current.parentElement;
     }
     return result;

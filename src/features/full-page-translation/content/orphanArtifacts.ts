@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/orphanArtifacts.ts
  * 文件职责：清理宿主 clone/remount 后失去状态所有权的 FluentRead 轻 DOM 产物，并保住仅译文模式中的宿主原文。
- * 主要内容：移除直属双语/loading/retry 孤儿，解包 single-slot 的 light DOM 文本，并跳过仍由活动 WeakMap 状态管理的真实产物。
+ * 主要内容：移除直属双语/loading/retry 孤儿，解包 single-slot 的 light DOM 文本，排除译文产物判定同源重挂，并跳过仍由活动 WeakMap 状态管理的真实产物。
  * 模块边界：本文件只规范化明确带 FluentRead owned 标记的孤儿 DOM，不发现候选、不发请求，也不删除仅凭同名 class 无法证明所有权的宿主节点。
  */
 import {
@@ -17,6 +17,7 @@ const REMOVABLE_ORPHAN_ARTIFACT_SELECTOR = [
 const OWNED_SINGLE_SLOT_SELECTOR =
     '.fluent-read-single-slot[data-fr-translation-owned="true"]';
 const normalizedOwnerClassMutations = new WeakSet<HTMLElement>();
+const OWNED_ARTIFACT_SELECTOR = '[data-fr-translation-owned="true"]';
 
 function asHTMLElement(node: Element | null): HTMLElement | null {
     if (!node) return null;
@@ -34,6 +35,16 @@ function queryElements(root: Node, selector: string): Element[] {
         elements.push(...Array.from(queryRoot.querySelectorAll(selector)));
     }
     return elements;
+}
+
+function normalizedNodeText(node: Node): string {
+    if (node.nodeType === 3) return (node as Text).data;
+    if (node.nodeType !== 1) return '';
+    const element = node as Element;
+    if (element.matches(OWNED_ARTIFACT_SELECTOR)) return '';
+    const clone = element.cloneNode(true) as Element;
+    queryElements(clone, OWNED_ARTIFACT_SELECTOR).forEach((artifact) => artifact.remove());
+    return clone.textContent!;
 }
 
 /** 清理一个没有活动状态、但仍携带直属扩展产物的克隆 owner。 */
@@ -61,7 +72,7 @@ export function consumeOrphanedOwnerClassMutation(node: HTMLElement): boolean {
     return true;
 }
 
-/** 同父级、同文本的替换属于框架重挂，不改变 AI 页面上下文。 */
+/** 同父级、同原文的替换属于框架重挂，不改变 AI 页面上下文。 */
 export function isTextEquivalentHostReplacement(mutation: MutationRecord): boolean {
     if (mutation.type !== 'childList' || mutation.addedNodes.length === 0 || mutation.removedNodes.length === 0) {
         return false;
@@ -72,7 +83,7 @@ export function isTextEquivalentHostReplacement(mutation: MutationRecord): boole
         queryElements(node, '[data-fr-translation-owned="true"]').length > 0);
     if (!isTranslationRemount) return false;
     const text = (nodes: NodeList) => Array.from(nodes)
-        .map((node) => node.textContent)
+        .map(normalizedNodeText)
         .join('')
         .replace(/\s+/g, ' ')
         .trim();

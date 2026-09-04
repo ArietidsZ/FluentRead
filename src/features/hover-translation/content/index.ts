@@ -41,6 +41,7 @@ export interface HoverTranslationContentDependencies {
         invocation?: HoverTranslationInvocation,
     ) => void;
     cancelPendingHoverTranslation: () => void;
+    noteBilingualHostGesture: () => void;
     hasActiveSelectionTranslationCandidate: () => boolean;
     getConfiguredSelectionHotkey: () => string;
     getCustomSelectionHotkey: () => string | undefined;
@@ -150,6 +151,11 @@ export function mountHoverTranslationContentFeature(
     };
     const mouseHotkeysPressed = new Set<string>();
     const isMac = /Mac|iPod|iPhone|iPad/.test(runtimeNavigator.platform);
+    const noteExternalHostGesture = (event: Event) => {
+        if (event.isTrusted) deps.noteBilingualHostGesture();
+    };
+    rootDocument.addEventListener('mousemove', noteExternalHostGesture, {signal, capture: true, passive: true});
+    rootDocument.addEventListener('scroll', noteExternalHostGesture, {signal, capture: true, passive: true});
 
     const getConfiguredMouseHotkeyParts = () => normalizeHoverHotkeyParts(
         deps.config.hotkey === 'custom' ? deps.config.customHotkey : deps.config.hotkey,
