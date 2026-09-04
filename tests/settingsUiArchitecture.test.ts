@@ -747,9 +747,9 @@ describe('options UI composition architecture', () => {
   it('keeps bilingual sentence highlighting opt-in and scoped to bilingual wrappers', () => {
     const page = source('src/app/content/page.css')
 
-    expect(page).toContain('html[data-fr-bilingual-sentence-highlight="true"] .fluent-read-bilingual:hover')
+    expect(page).toContain('html[data-fr-bilingual-sentence-highlight="true"] :has(> .fluent-read-bilingual-content[data-fr-translation-owned="true"]):hover')
     expect(page).toContain('box-shadow: inset 0 0 0 1px rgba(239, 71, 118, 0.18) !important;')
-    expect(page).toContain('.fluent-read-bilingual:hover > .fluent-read-bilingual-content::before')
+    expect(page).toContain(':hover > .fluent-read-bilingual-content::before')
     expect(page).toContain('background-color: rgba(239, 71, 118, 0.58);')
     expect(page).not.toContain('.fluent-read-bilingual-content {\n    background-color: rgba(239, 71, 118')
   })

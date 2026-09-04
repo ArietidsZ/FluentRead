@@ -4,9 +4,12 @@ import {
     beginTranslation,
     detachFailedTranslationUi,
     discardTranslation,
+    ensureTranslationTruncationLayout,
     getOwnedTranslationCandidateAtPoint,
     getTranslationOwnersForRemovedNode,
+    getTranslationSourceStructureSignature,
     getTranslationState,
+    isTranslationSourceStructureOverflow,
     isCurrentTranslation,
     markTranslationComplete,
     markTranslationError,
@@ -18,6 +21,7 @@ import {
     setSingleTextSlotHosts,
     setSpinner,
     setTextSlotsApplied,
+    tryRepairBilingualTranslationArtifact,
     type TranslationState,
 } from "@/src/features/full-page-translation/content/state";
 
@@ -115,6 +119,81 @@ describe("指定节点翻译状态机", () => {
         expect(attempt?.state.syntheticSourceNodes).not.toContain(spinner);
     });
 
+    it("原文结构签名忽略展示抖动，但跟踪会复制到译文骨架的公式与链接语义", () => {
+        const {document} = parseHTML(`
+            <html><body><p id="owner"><a href="/before">Readable link</a><span class="MathJax">v1</span></p></body></html>
+        `);
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        const signature = getTranslationSourceStructureSignature(owner);
+
+        owner.className = 'hover-state';
+        owner.style.color = 'red';
+        expect(getTranslationSourceStructureSignature(owner)).toBe(signature);
+
+        owner.querySelector<HTMLElement>('.MathJax')!.textContent = 'v2';
+        const formulaSignature = getTranslationSourceStructureSignature(owner);
+        expect(formulaSignature).not.toBe(signature);
+
+        owner.querySelector('a')!.setAttribute('href', '/after');
+        expect(getTranslationSourceStructureSignature(owner)).not.toBe(formulaSignature);
+
+        const attempt = beginTranslation(owner, 'bilingual')!;
+        expect(attempt.state.sourceStructureSignature).toBe(
+            getTranslationSourceStructureSignature(owner),
+        );
+    });
+
+    it("结构签名跟踪 code/no-translate 内容与 pre 空白，并以有界迭代处理深树", () => {
+        const {document} = parseHTML(`
+            <html><body><div id="owner"><code>foo()</code><span translate="no">literal</span><pre>a  b</pre></div></body></html>
+        `);
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        let signature = getTranslationSourceStructureSignature(owner);
+
+        owner.querySelector('code')!.textContent = 'bar()';
+        expect(getTranslationSourceStructureSignature(owner)).not.toBe(signature);
+        signature = getTranslationSourceStructureSignature(owner);
+        owner.querySelector('[translate="no"]')!.textContent = 'changed literal';
+        expect(getTranslationSourceStructureSignature(owner)).not.toBe(signature);
+        signature = getTranslationSourceStructureSignature(owner);
+        owner.querySelector('pre')!.textContent = 'a b';
+        expect(getTranslationSourceStructureSignature(owner)).not.toBe(signature);
+
+        let deepest: HTMLElement = owner;
+        for (let depth = 0; depth < 140; depth += 1) {
+            const child = document.createElement('span');
+            deepest.appendChild(child);
+            deepest = child;
+        }
+        deepest.textContent = 'deep value';
+        const deepSignature = getTranslationSourceStructureSignature(owner);
+        expect(isTranslationSourceStructureOverflow(deepSignature)).toBe(true);
+        expect(getTranslationSourceStructureSignature(owner)).toBe(deepSignature);
+        deepest.textContent = 'different deep value';
+        expect(getTranslationSourceStructureSignature(owner)).toBe(deepSignature);
+
+        const longOwner = document.createElement('div');
+        longOwner.textContent = 'x'.repeat(140_000);
+        const longSignature = getTranslationSourceStructureSignature(longOwner);
+        expect(isTranslationSourceStructureOverflow(longSignature)).toBe(true);
+        expect(getTranslationSourceStructureSignature(longOwner)).toBe(longSignature);
+    });
+
+    it("结构签名区分相同文本槽的保护位置，而不纳入普通 hover class", () => {
+        const {document} = parseHTML(`
+            <html><body><p id="owner"><span class="notranslate">same</span><span>same</span></p></body></html>
+        `);
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        const spans = owner.querySelectorAll<HTMLElement>('span');
+        const signature = getTranslationSourceStructureSignature(owner);
+
+        owner.className = 'hovered';
+        expect(getTranslationSourceStructureSignature(owner)).toBe(signature);
+        spans[0]!.className = '';
+        spans[1]!.className = 'notranslate';
+        expect(getTranslationSourceStructureSignature(owner)).not.toBe(signature);
+    });
+
     it("旧一代请求在重新开始后不再被视为当前请求", () => {
         const first = beginTranslation(node as unknown as HTMLElement, "bilingual");
         expect(first).not.toBeNull();
@@ -162,6 +241,38 @@ describe("指定节点翻译状态机", () => {
         expect(restoreTranslation(node as unknown as HTMLElement)).toBe(true);
         expect(node.childNodes).toEqual([hostChild]);
         expect(getTranslationState(node as unknown as HTMLElement)).toBeUndefined();
+    });
+
+    it('恢复父 owner 只移除自身精确工件，不破坏嵌套 child owner 的状态和译文', () => {
+        const {document} = parseHTML(
+            '<html><body><section id="parent">Parent text.<p id="child">Child text.</p></section></body></html>',
+        );
+        const parent = document.querySelector<HTMLElement>('#parent')!;
+        const child = document.querySelector<HTMLElement>('#child')!;
+        const childAttempt = beginTranslation(child, 'bilingual')!;
+        expect(markTranslationComplete(child, childAttempt.state, childAttempt.generation)).toBe(true);
+        const childWrapper = document.createElement('span');
+        childWrapper.className = 'fluent-read-bilingual-content';
+        childWrapper.setAttribute('data-fr-translation-owned', 'true');
+        childWrapper.textContent = '子级译文。';
+        child.appendChild(childWrapper);
+        setBilingualContent(child, childWrapper);
+
+        const parentAttempt = beginTranslation(parent, 'bilingual')!;
+        expect(markTranslationComplete(parent, parentAttempt.state, parentAttempt.generation)).toBe(true);
+        const parentWrapper = document.createElement('span');
+        parentWrapper.className = 'fluent-read-bilingual-content';
+        parentWrapper.setAttribute('data-fr-translation-owned', 'true');
+        parentWrapper.textContent = '父级译文。';
+        parent.appendChild(parentWrapper);
+        setBilingualContent(parent, parentWrapper);
+
+        expect(restoreTranslation(parent)).toBe(true);
+        expect(getTranslationState(parent)).toBeUndefined();
+        expect(parentWrapper.isConnected).toBe(false);
+        expect(getTranslationState(child)).toBe(childAttempt.state);
+        expect(childWrapper.isConnected).toBe(true);
+        expect(child.querySelector('.fluent-read-bilingual-content')).toBe(childWrapper);
     });
 
     it("站点在请求期间重渲染时，不把失败状态写入新内容", () => {
@@ -215,6 +326,22 @@ describe("指定节点翻译状态机", () => {
 
         expect(restoreTranslation(node as unknown as HTMLElement)).toBe(true);
         expect(node.getAttribute("style")).toBe("max-height: none;");
+    });
+
+    it('provider 在途期间新增的宿主 hover class 在提交与恢复后仍保留', () => {
+        const {document} = parseHTML('<html><body><p class="base">Source</p></body></html>');
+        const target = document.querySelector<HTMLElement>('p')!;
+        const attempt = beginTranslation(target, 'bilingual')!;
+
+        target.classList.add('host-hover');
+        expect(markTranslationComplete(target, attempt.state, attempt.generation, false)).toBe(true);
+        setRenderedStyleAttribute(target);
+        expect(restoreTranslation(target)).toBe(true);
+
+        expect(target.classList.contains('base')).toBe(true);
+        expect(target.classList.contains('host-hover')).toBe(true);
+        expect(target.classList.contains('fluent-read-bilingual')).toBe(false);
+        expect(target.classList.contains('fluent-read-failure')).toBe(false);
     });
 
     it("原节点没有 style 属性时，恢复会移除插件临时创建的 style", () => {
@@ -306,6 +433,92 @@ describe("指定节点翻译状态机", () => {
         expect(getTranslationOwnersForRemovedNode(wrapper)).toEqual([target]);
         expect(restoreTranslation(target)).toBe(true);
         expect(getTranslationOwnersForRemovedNode(wrapper)).toEqual([]);
+    });
+
+    it("短时窗口内宿主持续删除双语 wrapper 时最多重挂三次，耗尽后本代持续熔断", async () => {
+        vi.useFakeTimers();
+        const {document} = parseHTML('<html><body><p id="target">Readable paragraph.</p></body></html>');
+        const target = document.querySelector<HTMLElement>('#target')!;
+        const attempt = beginTranslation(target, 'bilingual')!;
+        expect(markTranslationComplete(target, attempt.state, attempt.generation)).toBe(true);
+        const wrapper = document.createElement('span');
+        wrapper.className = 'fluent-read-bilingual-content';
+        wrapper.setAttribute('data-fr-translation-owned', 'true');
+        wrapper.textContent = '可读段落。';
+        target.appendChild(wrapper);
+        setBilingualContent(target, wrapper);
+
+        try {
+            for (let repair = 0; repair < 3; repair += 1) {
+                wrapper.remove();
+                expect(tryRepairBilingualTranslationArtifact(target, attempt.state)).toBe('repaired');
+                expect(wrapper.parentNode).toBe(target);
+            }
+
+            wrapper.remove();
+            expect(tryRepairBilingualTranslationArtifact(target, attempt.state)).toBe('capitulated');
+            expect(wrapper.parentNode).toBeNull();
+
+            await vi.advanceTimersByTimeAsync(1_000);
+            expect(tryRepairBilingualTranslationArtifact(target, attempt.state)).toBe('capitulated');
+            expect(wrapper.parentNode).toBeNull();
+        } finally {
+            if (getTranslationState(target)) restoreTranslation(target);
+            vi.useRealTimers();
+        }
+    });
+
+    it("宿主保留同一 Text 身份但改变链接结构时不重挂旧译文", () => {
+        const {document} = parseHTML(`
+            <html><body><p id="target"><a id="before" href="/before">Readable link.</a></p></body></html>
+        `);
+        const target = document.querySelector<HTMLElement>('#target')!;
+        const before = document.querySelector<HTMLAnchorElement>('#before')!;
+        const source = before.firstChild as Text;
+        const attempt = beginTranslation(
+            target,
+            'bilingual',
+            'content',
+            false,
+            'Readable link.',
+            [source],
+        )!;
+        expect(markTranslationComplete(target, attempt.state, attempt.generation)).toBe(true);
+        const wrapper = document.createElement('span');
+        wrapper.className = 'fluent-read-bilingual-content';
+        wrapper.setAttribute('data-fr-translation-owned', 'true');
+        wrapper.textContent = '可读链接。';
+        target.appendChild(wrapper);
+        setBilingualContent(target, wrapper);
+
+        wrapper.remove();
+        const after = document.createElement('a');
+        after.setAttribute('href', '/after');
+        after.appendChild(source);
+        before.replaceWith(after);
+
+        expect(tryRepairBilingualTranslationArtifact(target, attempt.state)).toBe('not-repairable');
+        expect(wrapper.parentNode).toBeNull();
+        expect(restoreTranslation(target)).toBe(true);
+    });
+
+    it("布局拒绝已计费的重挂返回独立结果，避免同一事件重复消费", () => {
+        const {document} = parseHTML('<html><body><p id="target">Readable paragraph.</p></body></html>');
+        const target = document.querySelector<HTMLElement>('#target')!;
+        const attempt = beginTranslation(target, 'bilingual')!;
+        expect(markTranslationComplete(target, attempt.state, attempt.generation)).toBe(true);
+        const wrapper = document.createElement('span');
+        wrapper.className = 'fluent-read-bilingual-content';
+        wrapper.setAttribute('data-fr-translation-owned', 'true');
+        wrapper.textContent = '译文';
+        target.appendChild(wrapper);
+        setBilingualContent(target, wrapper);
+        wrapper.remove();
+
+        expect(tryRepairBilingualTranslationArtifact(target, attempt.state, () => false))
+            .toBe('rejected-after-write');
+        expect(wrapper.parentNode).toBeNull();
+        expect(restoreTranslation(target)).toBe(true);
     });
 
     it("失败重试 wrapper 被宿主移除后仍能通过 ownership 索引找到 owner", () => {
@@ -567,5 +780,64 @@ describe("指定节点翻译状态机", () => {
 
         expect(restoreTranslation(target as unknown as HTMLElement)).toBe(true);
         expect(target.getAttribute("class")).toBeNull();
+    });
+});
+
+describe("synthetic 双语工件的真实 observer 生命周期", () => {
+    function committedSyntheticSegment() {
+        const {document} = parseHTML(`
+            <html><body><div id="host"><span id="segment" data-fr-translation-segment="true">Inline source.</span></div></body></html>
+        `);
+        const segment = document.querySelector<HTMLElement>("#segment")!;
+        const source = segment.firstChild as Text;
+        const attempt = beginTranslation(
+            segment,
+            "bilingual",
+            "content",
+            true,
+            "Inline source.",
+            [source],
+        )!;
+        expect(markTranslationComplete(segment, attempt.state, attempt.generation)).toBe(true);
+        const wrapper = document.createElement("span");
+        wrapper.className = "fluent-read-bilingual-content";
+        wrapper.setAttribute("data-fr-translation-owned", "true");
+        wrapper.setAttribute("translate", "no");
+        wrapper.textContent = "行内译文。";
+        segment.appendChild(wrapper);
+        setBilingualContent(segment, wrapper);
+        expect(ensureTranslationTruncationLayout(segment)).toBe(true);
+        return {document, segment, attempt, wrapper};
+    }
+
+    it("首次提交后的宿主 class mutation 不会让当前 synthetic generation 在 observer flush 中自清", async () => {
+        const {segment, attempt, wrapper} = committedSyntheticSegment();
+
+        segment.classList.add("host-hover-state");
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(getTranslationState(segment)).toBe(attempt.state);
+        expect(attempt.state.controller.signal.aborted).toBe(false);
+        expect(segment.isConnected).toBe(true);
+        expect(segment.querySelector(".fluent-read-bilingual-content")).toBe(wrapper);
+        restoreTranslation(segment);
+    });
+
+    it("同一 synthetic owner 等价 replaceChildren 后在 observer 检查点重挂可信译文", async () => {
+        const {document, segment, attempt, wrapper} = committedSyntheticSegment();
+        const replacementSource = document.createTextNode("Inline source.");
+
+        segment.replaceChildren(replacementSource);
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(getTranslationState(segment)).toBe(attempt.state);
+        expect(attempt.state.controller.signal.aborted).toBe(false);
+        expect(wrapper.parentNode).toBe(segment);
+        expect(segment.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
+        restoreTranslation(segment);
     });
 });

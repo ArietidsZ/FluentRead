@@ -23,7 +23,7 @@ import {
     handleTranslation,
     inputBoxTranslationConfigKey,
     isAreaTranslatorMounted,
-    isFullPageTranslationActive,
+    isFullPageTranslationActive, noteBilingualHostGesture,
     mountAreaTranslator,
     mountFloatingBall,
     mountHoverTranslationContentFeature,
@@ -32,7 +32,7 @@ import {
     mountTranslationProgressPanel,
     mountVideoSubtitleTranslation,
     isYouTubeVideoPage,
-    restoreOriginalContent,
+    restoreOriginalContent, resetFullPageTranslationRouteState,
     unmountAreaTranslator,
     unmountFloatingBall,
     unmountImageTranslator,
@@ -134,7 +134,7 @@ export async function startContentApp(ctx: ContentScriptContext,
             navigator,
             isSiteDisabled: () => currentPageSiteDisabled,
             getCenterPoint,
-            handleTranslation,
+            handleTranslation, noteBilingualHostGesture,
             cancelPendingHoverTranslation,
             hasActiveSelectionTranslationCandidate: hotkeys.hasActiveSelectionTranslationCandidate,
             getConfiguredSelectionHotkey: hotkeys.getConfiguredSelectionHotkey,
@@ -218,7 +218,7 @@ export async function startContentApp(ctx: ContentScriptContext,
     };
 
     document.addEventListener('fluentread-route-change', () => {
-        resetPageTranslationContextCache();
+        resetPageTranslationContextCache(); resetFullPageTranslationRouteState();
         pageAvailability!.syncVideoSubtitlePage();
     }, {signal: pageEventController.signal});
 

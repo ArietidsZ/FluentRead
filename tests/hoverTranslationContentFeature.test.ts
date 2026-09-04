@@ -66,6 +66,7 @@ function mountHarness(overrides: Partial<HoverTranslationContentDependencies> = 
         isSiteDisabled: () => false,
         getCenterPoint: vi.fn(() => ({x: 7, y: 9})),
         handleTranslation: vi.fn(),
+        noteBilingualHostGesture: vi.fn(),
         cancelPendingHoverTranslation: vi.fn(),
         hasActiveSelectionTranslationCandidate: vi.fn(() => false),
         getConfiguredSelectionHotkey: () => 'Control',
@@ -86,6 +87,17 @@ afterEach(() => {
 });
 
 describe('hover translation content feature', () => {
+    it('可信 mousemove 与 scroll 即使未按热键也推进宿主手势代次', () => {
+        const {deps, documentTarget} = mountHarness();
+
+        documentTarget.emit('mousemove', trustedEvent());
+        documentTarget.emit('scroll', trustedEvent());
+        documentTarget.emit('mousemove', trustedEvent({isTrusted: false}));
+
+        expect(deps.noteBilingualHostGesture).toHaveBeenCalledTimes(2);
+        expect(deps.handleTranslation).not.toHaveBeenCalled();
+    });
+
     it('外部仲裁器可重置旧悬浮手势并取消其待执行翻译', () => {
         const {deps, resetKeyboardGesture, windowTarget} = mountHarness();
         windowTarget.emit('keydown', trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true}));

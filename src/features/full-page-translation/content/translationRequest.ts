@@ -52,9 +52,11 @@ export interface PageTranslationConfigOverrides {
 }
 
 export function getTranslationInvocationIdentity(snapshot: FullPageTranslationConfigSnapshot): string {
-    return snapshot.profileId
-        ? JSON.stringify([snapshot.profileId, snapshot.service, snapshot.model, snapshot.targetLanguage, snapshot.displayMode])
-        : '';
+    return JSON.stringify([
+        snapshot.profileId ?? '', snapshot.service, snapshot.model, snapshot.thinking,
+        snapshot.sourceLanguage, snapshot.targetLanguage, snapshot.displayMode, snapshot.style,
+        snapshot.enableAIContext, snapshot.enableAIMultiSegment,
+    ]);
 }
 
 export interface FullPageTranslationCacheEntry {
@@ -69,6 +71,7 @@ export interface FullPageTranslationRequestCacheEntry {
     cancelled: boolean;
     waiters: number;
     cancelTimer: ReturnType<typeof setTimeout> | null;
+    settledExpiryTimer: ReturnType<typeof setTimeout> | null;
     controller: AbortController;
     queueSession: TranslationQueueSession;
 }
@@ -87,6 +90,12 @@ export interface FullPageTranslationSessionCache {
     requestQueueSessions?: Set<TranslationQueueSession>;
     requestControllers?: Set<AbortController>;
     pageContextGeneration?: number;
+    /** 只有页面路由/生命周期边界递增；普通上下文 mutation 不得使在途结果失效。 */
+    renderCommitGeneration?: number;
+    /** 悬停请求只复用仍在途的同一工作，不长期保留已结算结果。 */
+    retainSettledResults?: boolean;
+    /** 全文会话可跨候选合批；悬停瞬时会话保持既有逐候选语义。 */
+    allowAIMultiSegment?: boolean;
 }
 
 interface AIMultiSegmentTask {
@@ -298,6 +307,7 @@ function rememberTranslationRequest(
     expectedLength: number,
     controller: AbortController,
     queueSession: TranslationQueueSession,
+    retainSettledResult: boolean,
 ): FullPageTranslationRequestCacheEntry {
     const cache = session.translationRequestCache ??= new Map();
     const entry: FullPageTranslationRequestCacheEntry = {
@@ -307,6 +317,7 @@ function rememberTranslationRequest(
         cancelled: false,
         waiters: 0,
         cancelTimer: null,
+        settledExpiryTimer: null,
         controller,
         queueSession,
     };
@@ -324,6 +335,11 @@ function rememberTranslationRequest(
             if (translations.length !== expectedLength
                 || translations.some((translation) => typeof translation !== 'string')) {
                 cache.delete(key);
+            } else if (!retainSettledResult) {
+                entry.settledExpiryTimer = globalThis.setTimeout(() => {
+                    entry.settledExpiryTimer = null;
+                    if (cache.get(key) === entry) cache.delete(key);
+                }, FULL_PAGE_TRANSLATION_REMOUNT_GRACE_MS);
             }
         },
         (error) => {
@@ -331,6 +347,7 @@ function rememberTranslationRequest(
             clearTranslationRequestCancelTimer(entry);
             if (cache.get(key) !== entry) return;
             if (entry.cancelled || isAbortError(error)) cache.delete(key);
+            else if (!retainSettledResult) cache.delete(key);
             else {
                 entry.failed = true;
                 cache.delete(key);
@@ -348,6 +365,12 @@ function clearTranslationRequestCancelTimer(entry: FullPageTranslationRequestCac
     entry.cancelTimer = null;
 }
 
+function clearTranslationRequestSettledExpiryTimer(entry: FullPageTranslationRequestCacheEntry): void {
+    if (entry.settledExpiryTimer === null) return;
+    globalThis.clearTimeout(entry.settledExpiryTimer);
+    entry.settledExpiryTimer = null;
+}
+
 function cancelTranslationRequest(entry: FullPageTranslationRequestCacheEntry): void {
     if (entry.settled || entry.cancelled) return;
     entry.cancelled = true;
@@ -362,6 +385,7 @@ function retireTranslationRequest(
 ): void {
     if (cache.get(key) === entry) cache.delete(key);
     clearTranslationRequestCancelTimer(entry);
+    clearTranslationRequestSettledExpiryTimer(entry);
     if (entry.waiters === 0) cancelTranslationRequest(entry);
 }
 
@@ -623,7 +647,7 @@ async function translateTextSlotsDirectly(
     const batchFriendly = snapshot.service === services.microsoft
         || snapshot.service === services.freeTranslation;
     if (batchFriendly) {
-        if (!fullPageSession?.active) {
+        if (!fullPageSession?.active || fullPageSession.retainSettledResults === false) {
             return translateTextBatch([...origins], document.title,
                 createSnapshotTranslateOptions(snapshot, {useCache: false, signal, queueSession}));
         }
@@ -717,7 +741,8 @@ export async function translateTextSlots(
     ) => {
         const canCombineAIParagraphs = snapshot.enableAIMultiSegment
             && servicesType.isUseAIContext(snapshot.service, snapshot.model)
-            && fullPageSession?.active;
+            && fullPageSession?.active
+            && fullPageSession.allowAIMultiSegment !== false;
         const request = canCombineAIParagraphs
             ? enqueueAIMultiSegmentTask(
                 requestOrigins,
@@ -773,6 +798,7 @@ export async function translateTextSlots(
             origins.length,
             requestController,
             requestQueueSession,
+            fullPageSession.retainSettledResults !== false,
         );
         return waitForTranslationRequest(requestCache, key, entry, signal);
     }

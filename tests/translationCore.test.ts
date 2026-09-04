@@ -2198,6 +2198,37 @@ describe('translation candidate core', () => {
     });
 });
 
+describe('X 动态正文候选形态回归', () => {
+    it('含 emoji 与链接的 tweetText 仍由 X 适配器作为原子 owner，不 materialize synthetic run', () => {
+        const {document, core} = page(`
+            <article data-testid="tweet">
+                <div id="tweet-text" data-testid="tweetText">
+                    <span id="tweet-copy">Astra released itself from containment </span>
+                    <img alt="😭" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" />
+                    <a id="tweet-link" href="https://example.com"><span>more than OpenAI</span></a>
+                </div>
+            </article>
+        `, 'https://x.com/TokenGremlin/status/2094882239763071372');
+        const tweetText = document.querySelector<HTMLElement>('#tweet-text')!;
+        const hit = document.querySelector<HTMLElement>('#tweet-copy')!.firstChild!;
+        const discovered = core.discover(document).find((candidate) => candidate.element === tweetText);
+        const hovered = core.resolve(hit);
+
+        expect(discovered).toMatchObject({
+            element: tweetText,
+            adapterId: 'x',
+            reason: 'x-post-text',
+        });
+        expect(discovered?.nodes).toBeUndefined();
+        expect(hovered).toMatchObject({
+            element: tweetText,
+            adapterId: 'x',
+            reason: 'x-post-text',
+        });
+        expect(hovered?.nodes).toBeUndefined();
+    });
+});
+
 describe('embedded semantic chrome classification', () => {
     it('discovers and hover-resolves both Swift DocC note paragraphs without admitting a top-level aside', () => {
         const {document, core} = page(`

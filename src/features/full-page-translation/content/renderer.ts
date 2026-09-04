@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/renderer.ts
  * 文件职责：把翻译返回的受限 HTML 或纯文本安全插入原页面，构造 FluentRead 双语与仅译文节点，同时保护链接属性并触发布局截断修复。
- * 主要内容：包含 URL 协议白名单、可复制属性集合、递归节点净化、DocumentFragment 创建、双语 wrapper，以及通过 Shadow DOM 保留宿主原文的仅译文文本槽。
+ * 主要内容：包含 URL 协议白名单、可复制属性集合、递归节点净化、DocumentFragment 创建、不改写宿主 class 的双语 wrapper，以及通过 Shadow DOM 保留宿主原文的仅译文文本槽。
  * 模块边界：本文件只负责安全渲染，不发起翻译或管理请求状态；服务调用归 runtime，节点所有权归 state，配置仅用于展示选项，任意脚本、事件属性和危险链接都不得穿过净化边界。
  */
 import { options } from "@/src/core/config/catalog";
@@ -133,14 +133,12 @@ export function appendSingleTranslationSlots(
     return hosts;
 }
 
-export function appendBilingualTranslation(
+function createBilingualTranslationContent(
     node: HTMLElement,
     text: string,
     renderOptions: BilingualTranslationRenderOptions = {},
 ): HTMLElement {
-    node.classList.add("fluent-read-bilingual");
-
-    const content = document.createElement("span");
+    const content = node.ownerDocument.createElement("span");
     content.classList.add("fluent-read-bilingual-content");
     content.setAttribute("data-fr-translation-owned", "true");
     content.setAttribute("translate", "no");
@@ -154,18 +152,39 @@ export function appendBilingualTranslation(
     // 译文可能来自机器翻译的 HTML 或大模型的富文本响应。统一经过
     // DOMParser + 白名单迁移，既保留链接/强调等行内结构，也不把服务响应
     // 当作可信 HTML 直接写回网页。
-    // 宿主框架可能 clone/remount 一个已翻译 owner，复制轻 DOM wrapper 却丢失
-    // WeakMap 状态。提交时再做一层幂等保护，只替换直属 FluentRead wrapper；
-    // 更深层的 wrapper 可能属于独立候选，必须保留。
+    const fragment = createSafeTranslationFragment(text);
+    content.appendChild(fragment);
+    return content;
+}
+
+export function appendBilingualTranslation(
+    node: HTMLElement,
+    text: string,
+    renderOptions: BilingualTranslationRenderOptions = {},
+): HTMLElement {
+    const content = createBilingualTranslationContent(node, text, renderOptions);
+    // clone/remount 可能复制轻 DOM wrapper 却丢失 WeakMap；只替换直属工件。
     Array.from(node.children)
         .filter((child) => child.matches(
             '.fluent-read-bilingual-content[data-fr-translation-owned="true"]',
         ))
         .forEach((child) => child.remove());
-
-    const fragment = createSafeTranslationFragment(text);
-    content.appendChild(fragment);
     ensureTranslationTruncationLayout(node);
     node.appendChild(content);
+    return content;
+}
+
+/** 来源骨架变化但 provider 槽未变时，就地更新 wrapper，避免原文帧和重复请求。 */
+export function refreshBilingualTranslation(
+    node: HTMLElement,
+    content: HTMLElement,
+    text: string,
+    renderOptions: BilingualTranslationRenderOptions = {},
+): HTMLElement {
+    const replacement = createBilingualTranslationContent(node, text, renderOptions);
+    Array.from(content.attributes).forEach(({name}) => content.removeAttribute(name));
+    Array.from(replacement.attributes).forEach(({name, value}) => content.setAttribute(name, value));
+    content.replaceChildren(...Array.from(replacement.childNodes));
+    ensureTranslationTruncationLayout(node);
     return content;
 }

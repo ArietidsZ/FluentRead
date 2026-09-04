@@ -32,17 +32,21 @@ export {
 } from './dom';
 export type {TranslationTextProtectionOptions} from './dom';
 export {
+    createTranslationTextProtectionCache,
     extractTranslationText,
     extractTranslationTextFromNodes,
     isClearlyTargetLanguage,
     isMeaningfulTranslationText,
+    isTranslationTextElementProtected,
 } from './text';
+export type {TranslationTextProtectionCache} from './text';
 export {
     applyTranslationsToSnapshot,
     collectLiveTranslationTextSlots,
     createTranslationSourceSnapshot,
     findTranslationTruncationAncestors,
     hasActiveTranslationLineClamp,
+    hasActiveTranslationTruncation,
     parseTranslationSlots,
     removeTranslationTruncation,
     serializeTranslationSlots,

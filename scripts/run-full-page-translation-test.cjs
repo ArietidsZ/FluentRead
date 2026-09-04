@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 // 这个脚本只使用临时 Edge profile 和真实 Alt+T / Control 键盘手势，回归全文翻译的
-// 识别、按钮特殊处理、富文本结构、动态节点、Shadow DOM、0ms 连续悬浮稳定性以及恢复流程。
+// 识别、按钮特殊处理、富文本结构、动态节点、Shadow DOM、0ms 连续悬浮、
+// 普通 hover 触发的同源 DOM 换代稳定性以及恢复流程。
 // 传入 --verify-floating-ui 时，还会从 closed Shadow DOM 读取悬浮球透明度、
 // 展开/收起、中间 Logo 点击稳定性、勾选标记几何与离屏任务下的进度面板显隐。
 // 它不会连接用户正在使用的浏览器 profile，也不会通过 JS 合成键盘事件。
@@ -105,6 +106,7 @@ async function readRequestBody(request) {
 async function startTranslationFixtureServer(unexpectedNetworkRequests = [], responseDelayMs = 0) {
   let requestCount = 0;
   let translatedItemCount = 0;
+  const requestPayloads = [];
   let failureActionAttempts = 0;
   const server = http.createServer(async (request, response) => {
     const requestUrl = new URL(request.url || '/', 'http://127.0.0.1');
@@ -117,6 +119,7 @@ async function startTranslationFixtureServer(unexpectedNetworkRequests = [], res
       }
       requestCount += 1;
       translatedItemCount += Array.isArray(payload) ? payload.length : 0;
+      requestPayloads.push(Array.isArray(payload) ? [...payload] : []);
       if (responseDelayMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, responseDelayMs));
       }
@@ -174,6 +177,7 @@ async function startTranslationFixtureServer(unexpectedNetworkRequests = [], res
     blockedUrl: `${baseUrl}/blocked`,
     requestCount: () => requestCount,
     translatedItemCount: () => translatedItemCount,
+    requestPayloads: () => requestPayloads.map((payload) => [...payload]),
     failureActionAttempts: () => failureActionAttempts,
     close: () => new Promise((resolve) => server.close(resolve)),
   };
@@ -738,6 +742,163 @@ async function verifyZeroDelayHoverStability(page, selector, activatePage, scree
     translationHighlight,
     screenshot: screenshotPath,
   };
+}
+
+async function verifyPassiveHoverRemountStability(page, selector, activatePage, screenshotPath = null) {
+  await activatePage(page);
+  await page.waitForFunction((targetSelector) => (
+    document.querySelector(targetSelector)
+      ?.querySelectorAll(':scope > .fluent-read-bilingual-content[data-fr-translation-owned="true"]')
+      .length === 1
+  ), selector, {timeout: 10000});
+
+  const initial = await page.evaluate((targetSelector) => {
+    const owner = document.querySelector(targetSelector);
+    const wrapper = owner?.querySelector(
+      ':scope > .fluent-read-bilingual-content[data-fr-translation-owned="true"]',
+    );
+    const stats = window.__fluentReadHoverRemount;
+    if (!(owner instanceof HTMLElement) || !(wrapper instanceof HTMLElement) || !stats) return null;
+    stats.armed = true;
+    stats.commits = 0;
+    stats.sameOwnerCommits = 0;
+    stats.wholeOwnerCommits = 0;
+    stats.wrapperCloneCommits = 0;
+    stats.wrapperClassCommits = 0;
+    stats.wrapperTamperCommits = 0;
+    stats.wrapperTamperCommitted = false;
+    stats.paintFrames = 0;
+    stats.sourceOnlyPaintFrames = 0;
+    stats.invalidTranslationPaintFrames = 0;
+    stats.maxDirectWrappers = 0;
+    stats.minTranslationOpacity = 1;
+    stats.translationText = wrapper.textContent ?? '';
+    const samplePaint = () => {
+      if (!stats.armed) return;
+      const current = document.querySelector(targetSelector);
+      const wrappers = current?.querySelectorAll(
+        ':scope > .fluent-read-bilingual-content[data-fr-translation-owned="true"]',
+      );
+      const directWrappers = wrappers?.length ?? 0;
+      const wrapper = wrappers?.[0];
+      const style = wrapper ? getComputedStyle(wrapper) : null;
+      const opacity = Number.parseFloat(style?.opacity ?? '0');
+      const rect = wrapper?.getBoundingClientRect();
+      const translationVisible = directWrappers === 1 &&
+        wrapper?.textContent === stats.translationText &&
+        style?.display !== 'none' && style?.visibility !== 'hidden' &&
+        Number.isFinite(opacity) && opacity > 0 && Boolean(rect && rect.width > 0 && rect.height > 0);
+      stats.paintFrames += 1;
+      stats.maxDirectWrappers = Math.max(stats.maxDirectWrappers, directWrappers);
+      if (Number.isFinite(opacity)) stats.minTranslationOpacity = Math.min(stats.minTranslationOpacity, opacity);
+      if (directWrappers === 0) stats.sourceOnlyPaintFrames += 1;
+      if (!translationVisible) stats.invalidTranslationPaintFrames += 1;
+      stats.animationFrame = requestAnimationFrame(samplePaint);
+    };
+    stats.animationFrame = requestAnimationFrame(samplePaint);
+    const rect = owner.getBoundingClientRect();
+    return {
+      translationText: stats.translationText,
+      hostInlineStyle: owner.getAttribute('style'),
+      point: {
+        x: rect.x + Math.min(36, rect.width / 2),
+        y: rect.y + Math.min(18, rect.height / 3),
+      },
+    };
+  }, selector);
+  if (!initial) throw new Error(`普通 hover DOM 重挂目标或译文不存在：${selector}`);
+
+  await page.mouse.move(0, 0);
+  await page.mouse.move(initial.point.x, initial.point.y, {steps: 1});
+  await page.waitForTimeout(24);
+  for (let index = 0; index < 12; index += 1) {
+    await page.mouse.move(
+      initial.point.x + (index % 2 === 0 ? 12 : -12),
+      initial.point.y + (index % 3 === 0 ? 5 : -5),
+      {steps: 2},
+    );
+    await page.waitForTimeout(4);
+  }
+  const highFrequency = await page.evaluate(() => {
+    const stats = window.__fluentReadHoverRemount;
+    return stats ? {
+      commits: stats.commits,
+      sameOwnerCommits: stats.sameOwnerCommits,
+      wholeOwnerCommits: stats.wholeOwnerCommits,
+      wrapperCloneCommits: stats.wrapperCloneCommits,
+      wrapperClassCommits: stats.wrapperClassCommits,
+      wrapperTamperCommits: stats.wrapperTamperCommits,
+      paintFrames: stats.paintFrames,
+      sourceOnlyPaintFrames: stats.sourceOnlyPaintFrames,
+      invalidTranslationPaintFrames: stats.invalidTranslationPaintFrames,
+    } : null;
+  });
+  for (let index = 0; index < 12; index += 1) {
+    await page.mouse.move(
+      initial.point.x + (index % 2 === 0 ? -10 : 10),
+      initial.point.y + (index % 3 === 0 ? -4 : 4),
+      {steps: 2},
+    );
+    await page.waitForTimeout(24);
+  }
+  await page.waitForTimeout(250);
+  if (screenshotPath) await page.screenshot({path: screenshotPath, fullPage: false});
+
+  const final = await page.evaluate((targetSelector) => {
+    const stats = window.__fluentReadHoverRemount;
+    const owner = document.querySelector(targetSelector);
+    if (!stats || !(owner instanceof HTMLElement)) return null;
+    stats.armed = false;
+    if (stats.animationFrame) cancelAnimationFrame(stats.animationFrame);
+    const wrappers = owner.querySelectorAll(
+      ':scope > .fluent-read-bilingual-content[data-fr-translation-owned="true"]',
+    );
+    return {
+      commits: stats.commits,
+      sameOwnerCommits: stats.sameOwnerCommits,
+      wholeOwnerCommits: stats.wholeOwnerCommits,
+      wrapperCloneCommits: stats.wrapperCloneCommits,
+      wrapperClassCommits: stats.wrapperClassCommits,
+      wrapperTamperCommits: stats.wrapperTamperCommits,
+      paintFrames: stats.paintFrames,
+      sourceOnlyPaintFrames: stats.sourceOnlyPaintFrames,
+      invalidTranslationPaintFrames: stats.invalidTranslationPaintFrames,
+      maxDirectWrappers: stats.maxDirectWrappers,
+      minTranslationOpacity: stats.minTranslationOpacity,
+      wrapperCount: wrappers.length,
+      translationText: wrappers[0]?.textContent ?? '',
+      loadingCount: owner.querySelectorAll(':scope > .fluent-read-loading').length,
+      retryCount: owner.querySelectorAll(':scope > .fluent-read-retry-wrapper').length,
+      hostClassOwned: owner.classList.contains('fluent-read-bilingual'),
+      hostInlineStyle: owner.getAttribute('style'),
+    };
+  }, selector);
+  await page.mouse.move(0, 0);
+  if (!final) throw new Error(`普通 hover DOM 重挂结束状态不可读：${selector}`);
+  if (
+    final.commits < 30 ||
+    final.sameOwnerCommits < 5 ||
+    final.wholeOwnerCommits < 5 ||
+    final.wrapperCloneCommits < 5 ||
+    final.wrapperClassCommits < 5 ||
+    final.wrapperTamperCommits !== 1 ||
+    final.paintFrames < 1 ||
+    final.sourceOnlyPaintFrames !== 0 ||
+    final.invalidTranslationPaintFrames !== 0 ||
+    final.maxDirectWrappers !== 1 ||
+    final.wrapperCount !== 1 ||
+    final.translationText !== initial.translationText ||
+    final.loadingCount !== 0 ||
+    final.retryCount !== 0 ||
+    final.hostClassOwned ||
+    final.hostInlineStyle !== initial.hostInlineStyle ||
+    !highFrequency || highFrequency.commits < 12 ||
+    highFrequency.sourceOnlyPaintFrames !== 0 ||
+    highFrequency.invalidTranslationPaintFrames !== 0
+  ) {
+    throw new Error(`普通 hover 的同源 DOM 重挂未保持唯一译文：${JSON.stringify(final)}`);
+  }
+  return {...final, highFrequency, screenshot: screenshotPath};
 }
 
 async function installShortcutDiagnostics(page) {
@@ -1816,7 +1977,7 @@ async function main() {
         /[\u3400-\u9fff]/u.test(document.querySelector('#cancel-button')?.textContent || ''), args.timeout);
     } catch (error) {
       const diagnostics = await readShortcutDiagnostics(page);
-      throw new Error(`${error.message}\n全文快捷键诊断：${JSON.stringify(diagnostics)}\n翻译请求诊断：${JSON.stringify({ events: networkEvents, omitted: omittedNetworkEvents })}`);
+      throw new Error(`${error.message}\n全文快捷键诊断：${JSON.stringify(diagnostics)}\n翻译请求诊断：${JSON.stringify({ requests: translationFixtureServer.requestCount(), items: translationFixtureServer.translatedItemCount(), payloads: translationFixtureServer.requestPayloads(), events: networkEvents, omitted: omittedNetworkEvents })}`);
     }
 
     // 在会话已经启动后再插入节点，确认 MutationObserver 能把新内容纳入全文队列。
@@ -1860,6 +2021,21 @@ async function main() {
     };
     if (zeroDelayHoverRequestCountAfter !== zeroDelayHoverRequestCountBefore) {
       throw new Error(`0ms 连续悬浮不应新增翻译请求：${JSON.stringify(zeroDelayHover.translationRequests)}`);
+    }
+    const passiveHoverRemountRequestCountBefore = translationFixtureServer.requestCount();
+    const passiveHoverRemount = await verifyPassiveHoverRemountStability(
+      page,
+      '#hover-remount-target',
+      activateTestPage,
+      artifactsDir ? path.join(artifactsDir, 'full-page-passive-hover-remount-stable.png') : null,
+    );
+    const passiveHoverRemountRequestCountAfter = translationFixtureServer.requestCount();
+    passiveHoverRemount.translationRequests = {
+      before: passiveHoverRemountRequestCountBefore,
+      after: passiveHoverRemountRequestCountAfter,
+    };
+    if (passiveHoverRemountRequestCountAfter !== passiveHoverRemountRequestCountBefore) {
+      throw new Error(`普通 hover DOM 重挂不应新增翻译请求：${JSON.stringify(passiveHoverRemount.translationRequests)}`);
     }
     if (args.verifyFloatingUi) {
       await page.waitForFunction(() => !document.querySelector('.fluent-read-loading'), undefined, {timeout: args.timeout});
@@ -2107,6 +2283,7 @@ async function main() {
       restored,
       retranslated,
       zeroDelayHover,
+      passiveHoverRemount,
       failureActions,
       floatingUi: floatingUiEvidence,
       loadingStyleIsolation: loadingStyleIsolationEvidence,
@@ -2116,6 +2293,7 @@ async function main() {
         path.join(artifactsDir, 'full-page-restored.png'),
         path.join(artifactsDir, 'full-page-retranslated.png'),
         ...(zeroDelayHover.screenshot ? [zeroDelayHover.screenshot] : []),
+        ...(passiveHoverRemount.screenshot ? [passiveHoverRemount.screenshot] : []),
         ...(loadingStyleIsolationEvidence?.screenshot ? [loadingStyleIsolationEvidence.screenshot] : []),
         ...failureActions.screenshots,
       ] : [],
