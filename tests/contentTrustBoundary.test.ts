@@ -55,4 +55,12 @@ describe('host-page trust boundary', () => {
     expect(source('src/features/area-translation/content/runtime.ts')).toContain("mode: 'closed'");
     expect(source('src/features/image-translation/content/runtime.ts')).toContain("attachShadow({ mode: 'closed' })");
   });
+
+  it('keeps selection UI wheel handling out of the host document', () => {
+    const selection = source('src/features/selection-translation/ui/SelectionTranslator.vue');
+
+    expect(selection).toContain('@wheel.stop.passive="handleUiWheel"');
+    expect(selection).not.toContain("document.addEventListener('wheel'");
+    expect(selection).not.toContain("document.removeEventListener('wheel'");
+  });
 });

@@ -1,11 +1,11 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/快捷键/直接弹出、翻译与词卡展示、朗读、收藏词书、重试和关闭。
- * 主要内容：组件管理可信手势与选择丢失宽限、请求 token、弹窗定位和主题，以保守同语言预检避免误隐藏入口，调用翻译客户端与词典消息，协调 TTS 控制器及页面语音回退，并响应词书变更同步收藏状态。
+ * 主要内容：组件管理可信手势与选择丢失宽限、请求 token、弹窗定位和主题，以保守同语言预检避免误隐藏入口，调用翻译客户端与词典消息，协调 TTS 控制器及页面语音回退，并把滚轮交互限制在自身 Shadow UI 内以免干扰宿主播放器。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，挂载所有权在 content/runtime，词书协议独立维护。
  -->
 <template>
-  <div v-ui-i18n v-show="showIndicator || showTooltip || noticeMessage || copySuccess" class="fr-selection-translator-root" :data-display-delay="selectionSettings.delay" @pointerdown.stop>
+  <div v-ui-i18n v-show="showIndicator || showTooltip || noticeMessage || copySuccess" class="fr-selection-translator-root" :data-display-delay="selectionSettings.delay" @pointerdown.stop @wheel.stop.passive="handleUiWheel">
     <button v-if="showIndicator && !showTooltip" class="fr-selection-indicator" :class="`fr-selection-indicator--${triggerMode}`" :style="indicatorStyle" type="button" aria-label="打开划词翻译" title="打开划词翻译" @pointerdown.prevent.stop @click="openTooltip">
       <span class="fr-selection-indicator-glyph" aria-hidden="true">↗</span>
     </button>
@@ -1099,7 +1099,8 @@ function handleSelectionChange(event: Event): void {
   if (!event.isTrusted || Date.now() - lastTrustedSelectionInteractionAt > TRUSTED_SELECTION_INTERACTION_GRACE_MS) return;
   if (!isSelectionReadSuppressed()) scheduleSelectionRead(selectionShortcutHeld);
 }
-function handleWheel(event: WheelEvent): void { if (isInsideUi(event.target)) suppressSelectionRead(); }
+// 仅在扩展 UI 内拦住滚轮冒泡；document 级 wheel 会抑制 Chromium 对同节点派发 legacy mousewheel，导致旧播放器收不到音量手势。
+function handleUiWheel(): void { suppressSelectionRead(); }
 function handleScroll(event: Event): void {
   if (isInsideUi(event.target)) {
     suppressSelectionRead();
@@ -1175,7 +1176,6 @@ onMounted(() => {
   document.addEventListener('keyup', handleKeyup, true);
   window.addEventListener('blur', handleWindowBlur);
   browser.runtime.onMessage.addListener(handleSelectionTtsState);
-  document.addEventListener('wheel', handleWheel, true);
   window.addEventListener('scroll', handleScroll, true);
   window.addEventListener('resize', schedulePositionUpdate);
   watch(tooltipRef, (tooltip) => {
@@ -1260,7 +1260,6 @@ onBeforeUnmount(() => {
   document.removeEventListener('keyup', handleKeyup, true);
   window.removeEventListener('blur', handleWindowBlur);
   browser.runtime.onMessage.removeListener(handleSelectionTtsState);
-  document.removeEventListener('wheel', handleWheel, true);
   window.removeEventListener('scroll', handleScroll, true);
   window.removeEventListener('resize', schedulePositionUpdate);
   resetSelectionContentState(true);
