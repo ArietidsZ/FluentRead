@@ -39,6 +39,8 @@ export default defineConfig({
       { text: '首页', link: '/' },
       { text: '快速开始', link: '/guide/getting-started' },
       { text: '功能', link: '/guide/' },
+      { text: '自定义', link: '/guide/custom-site-rules' },
+      { text: '参与贡献', link: '/contributing/site-adaptation' },
       { text: '帮助', link: '/guide/faq' },
       { text: '下载', link: '/guide/getting-started#安装' },
     ],
@@ -61,6 +63,7 @@ export default defineConfig({
             { text: '单词本 Beta', link: '/guide/vocabulary-book' },
             { text: '阅读理解与 DeepSeek Harness', link: '/guide/deepseek-harness' },
             { text: '自定义快捷键', link: '/guide/custom-hotkey' },
+            { text: '自定义网站适配', link: '/guide/custom-site-rules' },
             { text: 'Chrome 本地翻译', link: '/guide/chrome-translator' },
           ],
         },
@@ -78,6 +81,18 @@ export default defineConfig({
           items: [
             { text: '设置总览', link: '/config/' },
             { text: '翻译服务', link: '/config/translation-engines' },
+            { text: '网站适配 JSON', link: '/config/site-adaptation' },
+            { text: '自定义网站适配教程', link: '/guide/custom-site-rules' },
+          ],
+        },
+      ],
+      '/contributing/': [
+        {
+          text: '参与贡献',
+          items: [
+            { text: '贡献网站适配规则', link: '/contributing/site-adaptation' },
+            { text: '自定义网站适配教程', link: '/guide/custom-site-rules' },
+            { text: '网站适配 JSON 参考', link: '/config/site-adaptation' },
           ],
         },
       ],

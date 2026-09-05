@@ -154,7 +154,11 @@
       "tests/readingAssistantClient.test.ts",
       "tests/imageOcrNormalization.test.ts",
       "tests/imageTranslationRendering.test.ts",
-      "tests/imageTranslationInpainting.test.ts"
+      "tests/imageTranslationInpainting.test.ts",
+      "tests/siteAdaptationCore.test.ts",
+      "tests/siteAdaptationSession.test.ts",
+      "tests/siteAdaptationSettings.test.ts",
+      "tests/siteAdaptationCatalog.test.ts"
     ],
     "functional": [
       "tests/aiSdkOpenAICompatible.test.ts",
@@ -197,7 +201,8 @@
       "tests/imageTranslationFlow.test.ts",
       "tests/imageTranslationRuntime.test.ts",
       "tests/imageTranslationPageRead.test.ts",
-      "tests/imageTranslationOffscreenRuntime.test.ts"
+      "tests/imageTranslationOffscreenRuntime.test.ts",
+      "tests/siteAdaptationRuntime.test.ts"
     ],
     "regression": [
       "tests/documentTranslationExamplesApi.test.ts",

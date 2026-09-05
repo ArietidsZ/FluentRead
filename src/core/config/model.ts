@@ -77,6 +77,8 @@ import {
     normalizeAlwaysTranslateDomains,
     normalizeDisabledExtensionDomains,
 } from "@/src/core/site-rules/domain";
+import {normalizeSiteAdaptationSettings} from '@/src/core/site-adaptation/schema';
+import type {SiteAdaptationSettings} from '@/src/core/site-adaptation/types';
 import {
     DEFAULT_MAX_CONCURRENT_TRANSLATIONS,
     DEFAULT_TRANSLATION_BACKOFF_BASE_MS,
@@ -157,6 +159,7 @@ export class Config {
     autoTranslate: boolean; // 是否即时翻译
     alwaysTranslateDomains: string[]; // 始终自动翻译的可注册域名（eTLD+1）
     disabledExtensionDomains: string[]; // 禁用扩展的可注册域名（eTLD+1）
+    siteAdaptation: SiteAdaptationSettings; // 网站内容范围、保护区域及本地 JSON 适配规则
     from: string;
     to: string;
     hotkey: string;
@@ -257,6 +260,7 @@ export class Config {
         this.autoTranslate = false;
         this.alwaysTranslateDomains = [];
         this.disabledExtensionDomains = [];
+        this.siteAdaptation = normalizeSiteAdaptationSettings(undefined);
         this.from = defaultOption.from;
         this.to = defaultOption.to;
         this.style = defaultOption.style;
@@ -795,6 +799,7 @@ export function normalizeConfig(value: unknown): Config {
     );
     normalized.alwaysTranslateDomains = normalizeAlwaysTranslateDomains(source.alwaysTranslateDomains);
     normalized.disabledExtensionDomains = normalizeDisabledExtensionDomains(source.disabledExtensionDomains);
+    normalized.siteAdaptation = normalizeSiteAdaptationSettings(source.siteAdaptation);
     normalized.interfaceSkin = normalizeInterfaceSkin(source.interfaceSkin);
     normalized.interfaceVisibility = normalizeInterfaceVisibility(source.interfaceVisibility);
     normalized.popupModuleOrder = normalizePopupModuleOrder(source.popupModuleOrder);

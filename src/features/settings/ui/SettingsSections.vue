@@ -43,6 +43,7 @@
     </SettingsGroup>
     <AlwaysTranslateSites v-model="config.alwaysTranslateDomains" />
     <AlwaysTranslateSites v-model="config.disabledExtensionDomains" variant="disable-extension" />
+    <SiteAdaptationSettings :model-value="config.siteAdaptation" :save-settings="saveSiteAdaptationSettings" />
   </section>
   <section v-show="props.activeSection === 'settings-translation-center'" id="settings-translation-center" class="settings-section translation-center-section">
     <TranslationCenter />
@@ -731,6 +732,8 @@ import CustomOpenAIProviderDialog from './services/CustomOpenAIProviderDialog.vu
 import {TranslationCenter} from '@/src/features/translation-center/public';
 import HarnessSettings from './HarnessSettings.vue';
 import AlwaysTranslateSites from './AlwaysTranslateSites.vue';
+import SiteAdaptationSettings from './SiteAdaptationSettings.vue';
+import type {SiteAdaptationSettings as SiteAdaptationConfig} from '@/src/core/site-adaptation/types';
 import {
   createApiKeyRequirementKey,
   getApiKeyRequirementKey,
@@ -817,6 +820,9 @@ const customProviderDialogOpen = ref(false);
 const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
 const persistConfigPatch = (value: unknown) => requestConfigPatch(value, sendConfigMessage);
 const persistConfigReplace = (value: unknown) => requestConfigSave(value, sendConfigMessage);
+// 适配器有显式 JSON 保存动作，等待后台提交后才确认；订阅会同步权威状态，避免触发另一份全量快照保存。
+const saveSiteAdaptationSettings = (value: SiteAdaptationConfig): Promise<void> =>
+  persistConfigPatch({siteAdaptation: value});
 let lastSerialized = '';
 let hydrated = false;
 let applyingExternalConfig = false;

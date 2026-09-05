@@ -73,6 +73,8 @@ FluentRead does not run an account system or a first-party translation server. W
 
 ## Help
 
+To adjust a website's reading area, follow the [custom website rules tutorial](https://fluent.thinkstu.com/guide/custom-site-rules). To add or improve built-in rules, see the [website adaptation contribution guide](./docs/contributing/site-adaptation.md), including examples, fixtures, and validation steps.
+
 - [Common questions](https://fluent.thinkstu.com/guide/faq)
 - [GitHub Issues](https://github.com/FluentRead/FluentRead/issues)
 - [Bilibili introduction](https://www.bilibili.com/video/BV1ux4y1e73x/)
