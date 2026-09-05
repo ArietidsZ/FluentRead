@@ -304,6 +304,7 @@
                 <option value="translation">翻译</option>
                 <option value="page-summary">页面摘要</option>
                 <option value="connection-test">连接测试</option>
+                <option value="reading">阅读理解</option>
               </select>
             </label>
             <label>
@@ -688,7 +689,7 @@ function formatDuration(durationMs: number): string {
 }
 
 function purposeLabel(purpose: ModelUsagePurpose): string {
-  return purpose === 'page-summary' ? '页面摘要' : purpose === 'connection-test' ? '连接测试' : '翻译'
+  return purpose === 'page-summary' ? '页面摘要' : purpose === 'connection-test' ? '连接测试' : purpose === 'reading' ? '阅读理解' : '翻译'
 }
 
 function outcomeLabel(outcome: ModelUsageOutcome): string {
