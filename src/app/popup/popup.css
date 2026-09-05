@@ -465,6 +465,7 @@ footer > button { justify-self: end; }
 .setting-row strong, .select-row strong { font-size: 12px; }
 .setting-row small, .select-row small { margin-top: 3px; color: var(--muted); font-size: 9.5px; line-height: 1.4; }
 .setting-row small.independent-profile-note { color: var(--brand-strong); font-weight: 650; }
+.video-model-settings-link { margin: 8px 3px 0; padding: 0; border: 0; color: var(--brand-strong); background: transparent; font-size: 10px; font-weight: 750; text-align: left; cursor: pointer; }
 .choice-block { margin-top: 16px; }
 .quick-profile-preview { display: grid; gap: 7px; margin-top: 16px; }
 .quick-profile-preview > label { margin-left: 3px; color: var(--muted); font-size: 10px; font-weight: 650; }

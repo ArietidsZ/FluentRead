@@ -18,7 +18,12 @@ import {
     getVideoSubtitleDownloadErrorMessage,
     getVideoServiceLabel,
     getVideoPretranslationWindowMs,
+    getVisibleVideoAiCue,
+    mergeVideoAiSubtitleCues,
     isYouTubeVideoPage,
+    isXHostPage,
+    isXVideoPage,
+    isSupportedVideoPage,
     isIncrementalVideoCaption,
     normalizeVideoSubtitleDisplayMode,
     normalizeVideoCaptionText,
@@ -38,6 +43,16 @@ describe('YouTube 视频字幕识别', () => {
         expect(isYouTubeVideoPage({ hostname: 'www.youtube.com', pathname: '/shorts' })).toBe(false);
         expect(isYouTubeVideoPage({ hostname: 'www.youtube.com', pathname: '/results' })).toBe(false);
         expect(isYouTubeVideoPage({ hostname: 'example.com', pathname: '/watch' })).toBe(false);
+    });
+
+    it('识别 X/Twitter status 视频页，同时拒绝普通时间线', () => {
+        expect(isXVideoPage({ hostname: 'x.com', pathname: '/cerebras/status/2089870131291943228' })).toBe(true);
+        expect(isXVideoPage({ hostname: 'twitter.com', pathname: '/cerebras/status/2089870131291943228/' })).toBe(true);
+        expect(isXVideoPage({ hostname: 'x.com', pathname: '/home' })).toBe(false);
+        expect(isXHostPage({ hostname: 'x.com' })).toBe(true);
+        expect(isXHostPage({ hostname: 'twitter.com' })).toBe(true);
+        expect(isXHostPage({ hostname: 'example.com' })).toBe(false);
+        expect(isSupportedVideoPage({ hostname: 'x.com', pathname: '/cerebras/status/2089870131291943228' })).toBe(true);
     });
 
     it('按播放器中的字幕片段合并文本，并忽略空片段', () => {
@@ -258,5 +273,32 @@ describe('YouTube timedtext MAIN bridge 消息边界', () => {
             'https://www.youtube.com/watch?v=current-video',
             limits,
         )).toBeNull();
+    });
+
+    it('合并 Whisper 分片边界的重复 cue，并在真实时间轴外及时清除', () => {
+        const cues = mergeVideoAiSubtitleCues([
+            { startMs: 0, durationMs: 1800, text: 'Hello world' },
+            { startMs: 1700, durationMs: 800, text: 'Hello world' },
+            { startMs: 2400, durationMs: 1000, text: 'Next sentence' },
+        ]);
+
+        expect(cues).toHaveLength(2);
+        expect(cues[0]).toMatchObject({ startMs: 0, text: 'Hello world' });
+        expect(cues[0].durationMs).toBe(2400);
+        expect(getVisibleVideoAiCue(cues, 2450)?.text).toBe('Next sentence');
+        expect(getVisibleVideoAiCue(cues, 8_000)).toBeNull();
+    });
+
+    it('填补短时间戳空隙，并让后一句在重叠处稳定接管', () => {
+        const cues = mergeVideoAiSubtitleCues([
+            { startMs: 0, durationMs: 900, text: 'First sentence' },
+            { startMs: 1_300, durationMs: 900, text: 'Second sentence' },
+            { startMs: 1_600, durationMs: 700, text: 'Third sentence' },
+        ]);
+
+        expect(cues[0]).toMatchObject({ startMs: 0, durationMs: 1_300, text: 'First sentence' });
+        expect(cues[1]).toMatchObject({ startMs: 1_300, durationMs: 500, text: 'Second sentence' });
+        expect(getVisibleVideoAiCue(cues, 1_200)?.text).toBe('First sentence');
+        expect(getVisibleVideoAiCue(cues, 1_650)?.text).toBe('Third sentence');
     });
 });

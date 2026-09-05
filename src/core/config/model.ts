@@ -92,6 +92,7 @@ export * from './scheduling';
 export type DeepSeekApiType = 'auto' | 'responses' | 'chat';
 export type DeepSeekThinkingMode = 'enabled' | 'disabled';
 export type VideoSubtitleDisplayMode = 'bilingual' | 'translation-only' | 'original-only';
+export type VideoLocalTranscriptionModel = 'tiny' | 'base';
 export type FullPageTranslationMode = 'viewport' | 'all';
 export const DEFAULT_VIDEO_SUBTITLE_FONT_SIZE = 100;
 export const DEFAULT_NEW_API_URL = 'http://localhost:3000';
@@ -162,6 +163,7 @@ export class Config {
     documentCustomModel: IMapping; // 文档翻译按服务保存的独立自定义模型
     videoTranslationEnabled: boolean; // 是否启用视频字幕翻译 Beta
     videoService: string; // 视频字幕独立翻译服务
+    videoLocalModel: VideoLocalTranscriptionModel; // X 无原生字幕时使用的本地 Whisper 模型
     videoServiceDefaultMigrated: boolean; // 是否已迁移视频字幕默认服务
     videoSubtitleVisible: boolean; // 是否显示 FluentRead 视频字幕
     videoSubtitleDisplayMode: VideoSubtitleDisplayMode; // 视频字幕显示模式
@@ -261,6 +263,7 @@ export class Config {
         this.documentCustomModel = {};
         this.videoTranslationEnabled = false; // Beta 功能默认关闭
         this.videoService = services.microsoft; // 视频字幕默认使用微软翻译
+        this.videoLocalModel = 'tiny';
         this.videoServiceDefaultMigrated = true;
         this.videoSubtitleVisible = true; // 默认显示视频译文
         this.videoSubtitleDisplayMode = 'bilingual'; // 默认双语显示
@@ -705,6 +708,9 @@ export function normalizeConfig(value: unknown): Config {
 
     if (typeof normalized.videoTranslationEnabled !== 'boolean') {
         normalized.videoTranslationEnabled = false;
+    }
+    if (normalized.videoLocalModel !== 'tiny' && normalized.videoLocalModel !== 'base') {
+        normalized.videoLocalModel = 'tiny';
     }
     // 早期 Beta 版本曾把 DeepLX 写成默认值。只对没有迁移标记的旧配置
     // 执行一次迁移，避免覆盖用户在新版本中主动选择的 DeepLX。

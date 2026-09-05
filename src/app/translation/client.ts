@@ -1,7 +1,7 @@
 /**
  * @file src/app/translation/client.ts
  * 文件职责：作为页面与后台翻译 broker 之间的客户端代理，统一管理单条、批量和视频字幕翻译的队列、取消、重试、超时、上下文与统计。
- * 主要内容：冻结服务/模型与语言参数，验证凭据与页面摘要上下文，使用 runtime 协议分派请求；仅为 Chrome 内置翻译携带随机 clientRequestId，auto 时转发纯检测样本，并在页面取消/超时时通知后台停止真实 provider。
+ * 主要内容：冻结服务/模型与语言参数，验证凭据与页面摘要上下文，使用 runtime 协议分派请求；为可取消的视频及 Chrome 内置翻译携带随机 clientRequestId，auto 时转发纯检测样本，并在页面取消/超时时通知后台停止真实 provider。
  * 模块边界：客户端不实现供应商协议、不直接读写翻译缓存，也不修改全文 DOM；后台 runtime/broker 负责 provider 与缓存，调用它的各 feature 负责展示和会话状态。
  */
 /**
@@ -487,7 +487,8 @@ export async function translateTextBatch(
  * 翻译视频字幕。视频字幕使用独立的服务配置，但仍通过 background
  * 统一请求、缓存和错误边界；只发送 YouTube 已提供的纯文本字幕内容。
  */
-export async function translateVideoText(origin: string): Promise<string> {
+export async function translateVideoText(origin: string, signal?: AbortSignal): Promise<string> {
+  if (signal?.aborted) throw createAbortError();
   const cleanedOrigin = origin?.replace(/[\s\u3000]/g, '') || '';
   if (!cleanedOrigin) return origin || '';
 
@@ -504,7 +505,7 @@ export async function translateVideoText(origin: string): Promise<string> {
     const translationTask = async (retryCount = 0): Promise<string> => {
       try {
         const response = await waitForRequest({
-          context: `YouTube 视频字幕：${typeof document === 'undefined' ? '' : document.title}`,
+          context: `视频字幕：${typeof document === 'undefined' ? '' : document.title}`,
           pageContext,
           origin,
           useCache,
@@ -514,12 +515,13 @@ export async function translateVideoText(origin: string): Promise<string> {
           sourceLanguage: languages.sourceLanguage,
           targetLanguage: languages.targetLanguage,
           requestTimeoutMs: 19_000,
-        }, 20_000, undefined, lease, service === services.chromeTranslator);
+        }, 20_000, signal, lease, true);
         return unwrapTranslationResponse<string>(response);
       } catch (error) {
+        if (isAbortError(error)) throw error;
         if (retryCount < retryPolicy.maxRetries
           && shouldRetryTranslationRequest(error, aiSdkService, retryPolicy.explicitRetryPolicy)) {
-          await waitForDelay(getTranslationRetryDelay(error, retryCount, retryPolicy));
+          await waitForDelay(getTranslationRetryDelay(error, retryCount, retryPolicy), signal);
           return translationTask(retryCount + 1);
         }
         throw error;

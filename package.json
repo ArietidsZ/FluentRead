@@ -31,6 +31,7 @@
     "test:selection-triggers": "node scripts/run-selection-trigger-test.cjs",
     "test:translation-sites": "node scripts/run-site-translation-matrix.cjs",
     "test:video:fixture": "node scripts/run-video-subtitle-fixture-test.cjs",
+    "test:video:x-fixture": "node scripts/run-x-subtitle-sync-test.cjs",
     "test:watch": "vitest",
     "test:userscript": "pnpm build:userscript && node scripts/verify-userscript-build.mjs",
     "postinstall": "wxt prepare",
@@ -41,6 +42,7 @@
   "dependencies": {
     "@ai-sdk/openai-compatible": "2.0.70",
     "@element-plus/icons-vue": "^2.3.1",
+    "@huggingface/transformers": "3.8.1",
     "@wxt-dev/storage": "^1.0.1",
     "ai": "6.0.264",
     "crypto-js": "^4.2.0",

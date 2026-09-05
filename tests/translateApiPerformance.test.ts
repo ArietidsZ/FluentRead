@@ -490,7 +490,7 @@ describe('translation API request lifecycle performance', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('abort 发送精确 cancel，中止后台 broker signal 并及时释放前台队列', async () => {
+  it.each(['chrome-text', 'video'])('%s abort 发送精确 cancel，中止后台 broker signal 并及时释放前台队列', async (client) => {
     mocks.config.maxConcurrentTranslations = 1;
     const registry = createTranslationRequestRegistry();
     const cancel = createTranslationCancelHandler(registry);
@@ -517,7 +517,7 @@ describe('translation API request lifecycle performance', () => {
     ));
     const controller = new AbortController();
     const removeListener = vi.spyOn(controller.signal, 'removeEventListener');
-    const first = translateText('First readable source', 'Context', {
+    const first = client === 'video' ? translateVideoText('First readable source', controller.signal) : translateText('First readable source', 'Context', {
       signal: controller.signal,
       maxRetries: 0,
       serviceOverride: 'chromeTranslator',
@@ -535,7 +535,7 @@ describe('translation API request lifecycle performance', () => {
       clientRequestId: firstRequest.clientRequestId,
     });
 
-    const second = translateText('Second readable source', 'Context', {maxRetries: 0});
+    const second = client === 'video' ? translateVideoText('Second readable source') : translateText('Second readable source', 'Context', {maxRetries: 0});
     await expect(second).resolves.toBe('第二段译文');
     expect(translate).toHaveBeenCalledTimes(2);
   });
@@ -665,7 +665,7 @@ describe('translation API request lifecycle performance', () => {
 
     expect(mocks.getPageTranslationContext).toHaveBeenCalledTimes(1);
     expect(mocks.sendMessage).toHaveBeenCalledWith(expect.objectContaining({
-      context: 'YouTube 视频字幕：Fixture video title',
+      context: '视频字幕：Fixture video title',
       pageContext,
       origin: 'A subtitle source',
       useCache: true,
@@ -676,6 +676,6 @@ describe('translation API request lifecycle performance', () => {
       targetLanguage: 'zh-CN',
       requestTimeoutMs: 19_000,
     }));
-    expect(mocks.sendMessage.mock.calls[0]?.[0]).not.toHaveProperty('clientRequestId');
+    expect(mocks.sendMessage.mock.calls[0]?.[0].clientRequestId).toEqual(expect.any(String));
   });
 });

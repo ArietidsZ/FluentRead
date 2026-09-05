@@ -12,20 +12,14 @@ import {vocabularyBook} from '@/src/features/vocabulary/repository';
 import {clearTranslationCache, translateWithCache} from '@/src/app/translation/runtime';
 import {serializeTranslationError} from '@/src/services/translation/errors';
 import {createBackgroundMessageRouter, type BackgroundMessageHandler} from './messageRouter';
-import {
-    createAreaTranslationBackgroundHandlers,
-    type AreaTranslationBackgroundContext,
-} from './handlers/areaTranslation';
+import {createAreaTranslationBackgroundHandlers, type AreaTranslationBackgroundContext} from './handlers/areaTranslation';
 import {
     createTranslationCacheHandler,
     createTranslationCacheInvalidationBroadcaster,
 } from './handlers/translationCache';
 import {type ConfigPersistenceContext} from './handlers/configPersistence';
 import {createConnectionTestHandler} from './handlers/connectionTest';
-import {
-    createFullPageTranslationStateHandlers,
-    type FullPageBackgroundContext,
-} from './handlers/fullPageTranslationState';
+import {createFullPageTranslationStateHandlers, type FullPageBackgroundContext} from './handlers/fullPageTranslationState';
 import {
     createImageOcrLanguageRepository,
     createImageTranslationBackgroundHandlers,
@@ -33,19 +27,11 @@ import {
 import {createInputBoxTranslationHandler} from './handlers/inputTranslation';
 import {createModelUsageHandler} from './handlers/modelUsage';
 import {createOpenOptionsPageHandler} from './handlers/openOptions';
-import {
-    createTranslationCancelHandler,
-    createTranslationRequestFallback,
-    createTranslationRequestRegistry,
-} from './handlers/translation';
+import {createTranslationCancelHandler, createTranslationRequestFallback, createTranslationRequestRegistry} from './handlers/translation';
 import {createSelectionTtsBackgroundHandlers, type SelectionTtsContext} from './handlers/selectionTts';
 import {createSelectionWordLookupHandler} from './handlers/selectionWordLookup';
 import {isBrowserTabId, type TabTranslationStateStore} from './tabTranslationState';
-import {
-    createBrowserVocabularyBookChangedBroadcaster,
-    createVocabularyBackgroundHandlers,
-    type VocabularyBackgroundContext,
-} from './handlers/vocabulary';
+import {createBrowserVocabularyBookChangedBroadcaster, createVocabularyBackgroundHandlers, type VocabularyBackgroundContext} from './handlers/vocabulary';
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
 import {supportsTranslationBatch} from '@/src/services/translation/capabilities';
 import {areaTranslationOffscreenAdapter} from '@/src/features/area-translation/background/offscreenAdapter';
@@ -55,6 +41,8 @@ import {createCapabilityGatedBackgroundHandlers, createCapabilityGatedSelectionT
 import {createConfigBackgroundHandlers} from './configMessageHandlers';
 import {createConfigImageOcrLanguageStorage, installBrowserConfigStorageBroadcast} from './configStorageRuntime';
 import {modelUsageRepository} from '@/src/platform/storage/modelUsageRepository';
+import {releaseVideoSubtitleOwnerForTab} from '@/src/features/video-subtitle/background/handlers';
+import {createVideoSubtitleBackgroundRuntime} from '@/src/features/video-subtitle/background/runtime';
 type BackgroundRuntimeContext = ConfigPersistenceContext & VocabularyBackgroundContext & SelectionTtsContext
     & FullPageBackgroundContext & AreaTranslationBackgroundContext;
 export interface BackgroundMessageRuntimeOptions {
@@ -147,6 +135,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             }),
             logOperationFailure: (error) => console.error('[FluentRead] vocabulary book operation failed:', error),
         }),
+        ...createVideoSubtitleBackgroundRuntime(),
     ];
     const router = createBackgroundMessageRouter(
         handlers,
@@ -166,5 +155,6 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             return {success: false, error: error instanceof Error ? error.message : String(error)};
         }
     });
+    browser.tabs.onRemoved.addListener((tabId: number) => releaseVideoSubtitleOwnerForTab(Number(tabId)));
     installBrowserConfigStorageBroadcast();
 }

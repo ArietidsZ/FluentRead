@@ -494,6 +494,13 @@
             <option v-for="item in videoServiceOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
           </select>
         </label>
+        <label class="select-row">
+          <span><strong>本地 AI 字幕模型</strong><small>X 没有原生字幕时使用；首次请求前下载并缓存</small></span>
+          <select v-model="config.videoLocalModel" :disabled="!config.videoTranslationEnabled">
+            <option v-for="item in videoLocalModelOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+          </select>
+        </label>
+        <button class="video-model-settings-link" type="button" @click="openOptions('settings-video')">下载或管理 Tiny / Base 模型 →</button>
         <small v-if="selectedVideoServiceUnavailableMessage" class="drawer-hint capability-warning">{{ selectedVideoServiceUnavailableMessage }}</small>
         <label class="select-row">
           <span><strong>字幕字号</strong><small>只调整 FluentRead 显示的原文和译文</small></span>
@@ -588,6 +595,7 @@ import UiLanguageOnboarding from '@/src/ui/components/UiLanguageOnboarding.vue';
 import {useUiI18n} from '@/src/ui/i18n';
 import PopupSiteRule from './PopupSiteRule.vue';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
+import {VIDEO_LOCAL_TRANSCRIPTION_MODELS} from '@/src/features/video-subtitle/transcription';
 import {
   filterAvailableTranslationServices,
   getTranslationServiceUnavailableMessage,
@@ -698,6 +706,7 @@ const serviceSearchResults = computed(() => searchServiceOptions(
 ));
 const videoServiceOptions = computed(() => filterAvailableTranslationServices(allServiceOptions.value));
 const videoSubtitleFontSizeOptions = VIDEO_SUBTITLE_FONT_SIZE_OPTIONS;
+const videoLocalModelOptions = VIDEO_LOCAL_TRANSCRIPTION_MODELS;
 const popularServiceValues = ['freeTranslation', 'microsoft', 'google', 'deepL', 'deeplx', 'deepseek', 'openai', 'gemini', 'claude'];
 const popularServiceOptions = computed(() => popularServiceValues
   .map(value => serviceSearchResults.value.find((item: any) => item.value === value))

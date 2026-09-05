@@ -16,6 +16,7 @@ import {
 import {
     YOUTUBE_BRIDGE_DISPOSE_EVENT,
     YOUTUBE_BRIDGE_ENABLE_EVENT,
+    YOUTUBE_BRIDGE_REPLAY_EVENT,
     YOUTUBE_BRIDGE_LIFECYCLE_STATE_KEY,
     YOUTUBE_BRIDGE_STATE_KEY,
     createYoutubeTimedTextPayload,
@@ -127,11 +128,12 @@ class FakeXhr implements YoutubeXhrPort {
 }
 
 function youtubeFixture() {
-    const stateHost: Record<string, unknown> = {};
+  const stateHost: Record<string, unknown> = {};
     const pageEvents = new FakeEvents();
     const documentEvents = new FakeEvents();
     const posts: unknown[] = [];
-    let failPost = false;
+  let failPost = false;
+  let href = 'https://www.youtube.com/watch?v=fixture';
     const response: YoutubeFetchResponsePort = {
         clone: () => ({text: async () => '<timedtext />'}),
     };
@@ -148,7 +150,7 @@ function youtubeFixture() {
         xhrSend: xhrSend.port,
         pageEvents,
         documentEvents,
-        getHref: () => 'https://www.youtube.com/watch?v=fixture',
+        getHref: () => href,
         getOrigin: () => 'https://www.youtube.com',
         postMessage: (payload, targetOrigin) => {
             if (failPost) throw new Error('post failed');
@@ -169,12 +171,23 @@ function youtubeFixture() {
         stateHost,
         xhrOpen,
         xhrSend,
+        setHref: (value: string) => { href = value; },
     };
 }
 
 async function flush(): Promise<void> {
     await Promise.resolve();
     await Promise.resolve();
+}
+
+function xReplayPolicy(includePageHref = true) {
+    return {
+        matches: (url: string, href: string) => url.includes('video.twimg.com/captions/') && href.includes('/status/'),
+        payload: (url: string, text: unknown, href: string) => typeof text === 'string'
+            ? {source: 'fluent-read' as const, type: 'x-resource', url, responseText: text, ...(includePageHref ? {pageHref: href} : {})}
+            : null,
+        replayLatest: true,
+    };
 }
 
 describe('ShadowRoot 与路由 MAIN world bridge core', () => {
@@ -302,6 +315,8 @@ describe('YouTube timedtext MAIN world bridge core', () => {
             payload: expect.objectContaining({url: '/api/timedtext?lang=en', responseText: '<timedtext />'}),
             targetOrigin: 'https://www.youtube.com',
         }]);
+        fixture.documentEvents.dispatchEvent({type: YOUTUBE_BRIDGE_REPLAY_EVENT});
+        expect(fixture.posts).toHaveLength(1);
         dispose();
         expect(fixture.fetch.value).toBe(fixture.originalFetch);
     });
@@ -424,6 +439,113 @@ describe('YouTube timedtext MAIN world bridge core', () => {
         disposeLifecycle();
         expect(fixture.fetch.value).toBe(fixture.originalFetch);
         expect(fixture.stateHost[YOUTUBE_BRIDGE_LIFECYCLE_STATE_KEY]).toBeUndefined();
+    });
+
+    it('复用 resourcePolicy，并丢弃导航后的迟到 fetch/XHR 响应', async () => {
+        const fixture = youtubeFixture();
+        let resolveText: (value: string) => void = () => undefined;
+        const delayed = {clone: () => ({text: () => new Promise<string>((resolve) => { resolveText = resolve; })})};
+        (fixture.originalFetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(delayed);
+        const policy = {
+            matches: (url: string, href: string) => url.includes('/captions/') && href.includes('/status/'),
+            payload: (url: string, text: unknown, href: string) => typeof text === 'string'
+                ? {source: 'fluent-read' as const, type: 'x-resource', url, responseText: text, pageHref: href}
+                : null,
+        };
+        const dispose = installYoutubeTimedTextBridgeCore({...fixture.environment, resourcePolicy: policy});
+        await fixture.fetch.value.call({}, 'https://video.twimg.com/captions/en.vtt');
+        fixture.setHref('https://www.youtube.com/watch?v=next');
+        resolveText('WEBVTT');
+        await flush();
+        expect(fixture.posts).toHaveLength(0);
+        fixture.setHref('https://x.com/status/2');
+        const xhr = new FakeXhr();
+        xhr.responseText = 'WEBVTT';
+        fixture.xhrOpen.value.call(xhr, 'GET', 'https://video.twimg.com/captions/en.vtt');
+        fixture.xhrSend.value.call(xhr);
+        fixture.setHref('https://x.com/status/3');
+        xhr.emit('load');
+        expect(fixture.posts).toHaveLength(0);
+        dispose();
+    });
+
+    it('X 资源早于消费方到达时可按当前页面回放，导航后不回放且 dispose 清空缓存', async () => {
+        const fixture = youtubeFixture();
+        fixture.setHref('https://x.com/status/1');
+        const dispose = installYoutubeTimedTextBridgeCore({...fixture.environment, resourcePolicy: xReplayPolicy()});
+
+        await fixture.fetch.value.call({}, 'https://video.twimg.com/captions/en.vtt');
+        await flush();
+        expect(fixture.posts).toHaveLength(1);
+
+        fixture.posts.length = 0;
+        fixture.documentEvents.dispatchEvent({type: YOUTUBE_BRIDGE_REPLAY_EVENT});
+        expect(fixture.posts).toEqual([{
+            payload: expect.objectContaining({url: 'https://video.twimg.com/captions/en.vtt', pageHref: 'https://x.com/status/1'}),
+            targetOrigin: 'https://www.youtube.com',
+        }]);
+
+        fixture.posts.length = 0;
+        fixture.setHref('https://x.com/status/2');
+        fixture.documentEvents.dispatchEvent({type: YOUTUBE_BRIDGE_REPLAY_EVENT});
+        expect(fixture.posts).toHaveLength(0);
+
+        fixture.setHref('https://x.com/status/1');
+        fixture.setPostFailure(true);
+        expect(() => fixture.documentEvents.dispatchEvent({type: YOUTUBE_BRIDGE_REPLAY_EVENT})).not.toThrow();
+        fixture.setPostFailure(false);
+
+        dispose();
+        fixture.documentEvents.dispatchEvent({type: YOUTUBE_BRIDGE_REPLAY_EVENT});
+        expect(fixture.posts).toHaveLength(0);
+    });
+
+    it('X 回放缓存按 URL 替换并限制 16 条资源与 2M 字符', () => {
+        const fixture = youtubeFixture();
+        fixture.setHref('https://x.com/status/3');
+        const dispose = installYoutubeTimedTextBridgeCore({...fixture.environment, resourcePolicy: xReplayPolicy()});
+
+        for (let index = 0; index < 17; index += 1) {
+            const xhr = new FakeXhr();
+            xhr.responseText = `WEBVTT-${index}`;
+            fixture.xhrOpen.value.call(xhr, 'GET', `https://video.twimg.com/captions/${index}.vtt`);
+            fixture.xhrSend.value.call(xhr);
+            xhr.emit('load');
+        }
+        const replacement = new FakeXhr();
+        replacement.responseText = 'WEBVTT-replacement';
+        fixture.xhrOpen.value.call(replacement, 'GET', 'https://video.twimg.com/captions/16.vtt');
+        fixture.xhrSend.value.call(replacement);
+        replacement.emit('load');
+        fixture.posts.length = 0;
+        fixture.documentEvents.dispatchEvent({type: YOUTUBE_BRIDGE_REPLAY_EVENT});
+        expect(fixture.posts).toHaveLength(16);
+        expect(fixture.posts.some((entry) => JSON.stringify(entry).includes('/captions/0.vtt'))).toBe(false);
+        expect(fixture.posts.some((entry) => JSON.stringify(entry).includes('/captions/16.vtt'))).toBe(true);
+
+        dispose();
+
+        const largeFixture = youtubeFixture();
+        largeFixture.setHref('https://x.com/status/4');
+        const largeDispose = installYoutubeTimedTextBridgeCore({...largeFixture.environment, resourcePolicy: xReplayPolicy(false)});
+        const largeText = 'x'.repeat(1_000_001);
+        for (const suffix of ['large-a', 'large-b']) {
+            const xhr = new FakeXhr();
+            xhr.responseText = largeText;
+            largeFixture.xhrOpen.value.call(xhr, 'GET', `https://video.twimg.com/captions/${suffix}.vtt`);
+            largeFixture.xhrSend.value.call(xhr);
+            xhr.emit('load');
+        }
+        const oversized = new FakeXhr();
+        oversized.responseText = 'x'.repeat(2_000_001);
+        largeFixture.xhrOpen.value.call(oversized, 'GET', 'https://video.twimg.com/captions/oversized.vtt');
+        largeFixture.xhrSend.value.call(oversized);
+        oversized.emit('load');
+        largeFixture.posts.length = 0;
+        largeFixture.documentEvents.dispatchEvent({type: YOUTUBE_BRIDGE_REPLAY_EVENT});
+        expect(largeFixture.posts).toHaveLength(1);
+        expect(JSON.stringify(largeFixture.posts[0])).toContain('/captions/large-b.vtt');
+        largeDispose();
     });
 
     it('只读、后来锁定或被宿主替换的方法安全降级', () => {

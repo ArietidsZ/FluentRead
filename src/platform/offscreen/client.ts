@@ -266,8 +266,8 @@ export function createOffscreenClient(dependencies: OffscreenClientDependencies)
         if (createdDocument) {
             await offscreen.createDocument({
                 url: dependencies.documentUrl || 'offscreen.html',
-                reasons: ['DOM_SCRAPING', 'AUDIO_PLAYBACK'],
-                justification: 'FluentRead needs an extension-owned DOM for Translation API, OCR, and CSP-independent TTS playback',
+                reasons: ['DOM_SCRAPING', 'AUDIO_PLAYBACK', 'WORKERS'],
+                justification: 'FluentRead needs an extension-owned DOM for Translation API, OCR, local video transcription workers, and CSP-independent TTS playback',
             });
             throwIfAborted(signal);
         }

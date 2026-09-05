@@ -27,14 +27,14 @@ const listener = createOffscreenMessageListener({
     downloadOcrLanguages: mocks.downloadOcrLanguages,
 });
 
-async function dispatch(message: unknown): Promise<{handled: boolean; response?: unknown}> {
+async function dispatch(message: unknown, handler = listener): Promise<{handled: boolean; response?: unknown}> {
     let resolveResponse!: (response: unknown) => void;
     const response = new Promise<unknown>((resolve) => { resolveResponse = resolve; });
     const routedMessage = message && typeof message === 'object' && !Array.isArray(message)
         && !Object.hasOwn(message, 'target')
         ? {...message, target: 'offscreen'}
         : message;
-    const handled = listener(routedMessage, {}, resolveResponse);
+    const handled = handler(routedMessage, {}, resolveResponse);
     return handled ? {handled, response: await response} : {handled};
 }
 
@@ -86,6 +86,27 @@ describe('Offscreen 消息静态路由', () => {
         mocks.stop.mockImplementationOnce(() => { throw 'bad id'; });
         await expect(dispatch({type: 'STOP_SELECTION_TTS', target: 'offscreen', tabId: 0, clientRequestId: 'bad'}))
             .resolves.toEqual({handled: true, response: {success: false, error: 'bad id'}});
+    });
+
+    it('视频 AI 接收端复用消息通道，并隔离未启用、失败与非法结果', async () => {
+        for (const type of ['VIDEO_AI_TRANSCRIBE', 'VIDEO_AI_PREPARE']) {
+            expect((await dispatch({type})).response).toMatchObject({success: false});
+        }
+        expect((await dispatch({type: 'VIDEO_AI_CANCEL'})).response).toEqual({success: true});
+        const videoAi = {transcribe: vi.fn().mockResolvedValue({text: 'spoken'}), prepare: vi.fn().mockResolvedValue({model: 'tiny'}), cancel: vi.fn().mockResolvedValue(undefined)};
+        const handler = createOffscreenMessageListener({...mocks, ttsPlayer: {play: mocks.play, stop: mocks.stop}, videoAi});
+        expect((await dispatch({type: 'VIDEO_AI_TRANSCRIBE', streamId: 'video-1'}, handler)).response).toEqual({success: true, text: 'spoken'});
+        expect(videoAi.transcribe).toHaveBeenCalledWith({type: 'VIDEO_AI_TRANSCRIBE', target: 'offscreen', streamId: 'video-1'});
+        expect((await dispatch({type: 'VIDEO_AI_PREPARE'}, handler)).response).toEqual({success: true, model: 'tiny'});
+    expect((await dispatch({type: 'VIDEO_AI_CANCEL', streamId: 'video-1'}, handler)).response).toEqual({success: true});
+    expect(videoAi.cancel).toHaveBeenCalledWith('video-1', 'cancel');
+    expect((await dispatch({type: 'VIDEO_AI_CANCEL', streamId: 'video-1', reason: 'complete'}, handler)).response).toEqual({success: true});
+    expect(videoAi.cancel).toHaveBeenCalledWith('video-1', 'complete');
+        expect((await dispatch({type: 'VIDEO_AI_CANCEL'}, handler)).response).toMatchObject({success: false});
+        videoAi.transcribe.mockResolvedValueOnce(null);
+        expect((await dispatch({type: 'VIDEO_AI_TRANSCRIBE'}, handler)).response).toMatchObject({success: false});
+        videoAi.prepare.mockRejectedValueOnce(new Error('model offline'));
+        expect((await dispatch({type: 'VIDEO_AI_PREPARE'}, handler)).response).toEqual({success: false, error: 'model offline'});
     });
 
     it('Chrome translate 只接受合法 requestId，并把内部 AbortSignal 传给执行器', async () => {

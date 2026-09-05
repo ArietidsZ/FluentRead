@@ -110,6 +110,7 @@
           </el-select>
           <p v-if="selectedVideoServiceUnavailableMessage" class="capability-warning">{{ selectedVideoServiceUnavailableMessage }}</p>
         </SettingsItem>
+        <VideoLocalModelSettings :config="config" />
         <SettingsItem label="显示 FluentRead 字幕" description="临时隐藏扩展字幕时保留当前翻译设置。" :disabled="!config.videoTranslationEnabled">
           <el-switch v-model="config.videoSubtitleVisible" class="settings-toggle" aria-label="显示 FluentRead 视频字幕" :disabled="!config.videoTranslationEnabled" />
         </SettingsItem>
@@ -753,6 +754,7 @@ import {
   isApiKeyRequired,
 } from '@/src/core/config/validation';
 import {ImageOcrSettings} from '@/src/features/image-translation/public';
+import VideoLocalModelSettings from './VideoLocalModelSettings.vue';
 import {ModelUsageDashboard} from '@/src/features/model-usage/public';
 import InterfaceSettings from './InterfaceSettings.vue';
 import TranslationLoadingStyleSettings from './TranslationLoadingStyleSettings.vue';
@@ -831,6 +833,7 @@ const customProviderDialogOpen = ref(false);
 const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
 const persistConfigPatch = (value: unknown) => requestConfigPatch(value, sendConfigMessage);
 const persistConfigReplace = (value: unknown) => requestConfigSave(value, sendConfigMessage);
+
 let lastSerialized = '';
 let hydrated = false;
 let applyingExternalConfig = false;
