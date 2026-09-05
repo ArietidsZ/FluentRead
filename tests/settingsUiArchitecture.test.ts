@@ -43,6 +43,33 @@ function settingsGroupTitles(content: string): string[] {
 }
 
 describe('options UI composition architecture', () => {
+  it('keeps cache management inside advanced settings without another navigation or popup surface', () => {
+    const sections = source('src/features/settings/ui/SettingsSections.vue')
+    const cache = source('src/features/settings/ui/TranslationCacheSettings.vue')
+    const navigation = source('src/features/settings/model/navigation.ts')
+    const popup = source('src/app/popup/PopupApp.vue')
+
+    expect(activeSectionSource(sections, 'settings-advanced')).toContain('<TranslationCacheSettings')
+    expect(sections).toContain('<TranslationCacheSettings v-if="props.activeSection === \'settings-advanced\'" :config="config" />')
+    expect(navigation).toContain('缓存容量、存储大小、缓存条数、缓存上限、缓存阈值、清空缓存、清除缓存、LRU')
+    expect(navigation).not.toContain("id: 'settings-cache'")
+    expect(popup).not.toContain('TranslationCacheSettings')
+    expect(cache).toContain('data-cache-bytes')
+    expect(cache).toContain('data-cache-entries')
+    expect(cache).toContain('<details class="translation-cache-limits" data-cache-limits>')
+    expect(cache).toContain('aria-live="polite"')
+    expect(cache).toContain('role="alert"')
+    expect(cache).toContain('@submit.prevent="saveLimits"')
+    expect(cache).toContain('requestConfigPatch(patch, browser.runtime.sendMessage.bind(browser.runtime))')
+    expect(cache).toContain('getTranslationCacheStats()')
+    expect(cache).toContain('clearManagedTranslationCache()')
+    expect(cache).not.toContain('indexedDB')
+    expect(cache).not.toContain('v-model="props.config.')
+    expect(cache).not.toContain(':disabled="!props.config.useCache"')
+    expect(cache).toContain("onUnmounted(() => { disposed = true; });")
+    expect(cache).toContain('@media (max-width: 480px)')
+  })
+
   it('keeps the WXT options entrypoint as a thin app composition shell', () => {
     const entrypoint = sourceBody('entrypoints/options/main.ts')
     expect(entrypoint).toBe("import { mountOptionsApp } from '@/src/app/options'\n\nmountOptionsApp('#app')\n")

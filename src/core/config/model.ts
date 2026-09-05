@@ -39,6 +39,11 @@ import {
     parseApiKeyRequirementKey,
 } from './validation';
 import {isSensitiveConfigKey} from './sensitiveKeys';
+import {
+    DEFAULT_TRANSLATION_CACHE_MAX_BYTES,
+    DEFAULT_TRANSLATION_CACHE_MAX_ENTRIES,
+    normalizeTranslationCacheLimits,
+} from './translationCache';
 import {resolveConfiguredHotkey} from '@/src/core/hotkey';
 import { normalizeSelectionTtsVoiceOrder } from "./selectionTts";
 import { normalizeUiLanguage, type UiLanguage } from '@/src/core/i18n/language';
@@ -195,6 +200,8 @@ export class Config {
     popupQuickFeatureOrder: PopupQuickFeatureId[]; // 快捷功能卡片的显示顺序
     popupQuickFeatureVisibility: PopupQuickFeatureVisibility; // 单张快捷功能卡片的可见性
     useCache: boolean; // 是否使用缓存
+    translationCacheMaxBytes: number; // 翻译缓存内容容量上限（字节）
+    translationCacheMaxEntries: number; // 翻译缓存条数上限
     enableAIContext: boolean; // 是否为 AI 翻译附加网页上下文
     enableAIMultiSegment: boolean; // 是否把相邻全文段落合并为一次 AI 翻译请求
     bilingualSentenceHighlightEnabled: boolean; // 是否在双语翻译中同步高亮原文与译文
@@ -296,6 +303,8 @@ export class Config {
         this.popupQuickFeatureOrder = [...DEFAULT_POPUP_QUICK_FEATURE_ORDER];
         this.popupQuickFeatureVisibility = {...DEFAULT_POPUP_QUICK_FEATURE_VISIBILITY};
         this.useCache = true; // 默认开启缓存
+        this.translationCacheMaxBytes = DEFAULT_TRANSLATION_CACHE_MAX_BYTES;
+        this.translationCacheMaxEntries = DEFAULT_TRANSLATION_CACHE_MAX_ENTRIES;
         this.enableAIContext = false; // 默认关闭 AI 智能上下文，避免意外增加请求体和费用
         this.enableAIMultiSegment = false; // 默认逐段请求，由用户按需开启 AI 多段翻译
         this.bilingualSentenceHighlightEnabled = false; // 默认关闭双语逐句高亮，避免改变现有网页视觉
@@ -646,6 +655,12 @@ export function normalizeConfig(value: unknown): Config {
         ? source.count
         : 0;
     normalized.uiLanguage = normalizeUiLanguage(source.uiLanguage);
+    const cacheLimits = normalizeTranslationCacheLimits({
+        maxBytes: source.translationCacheMaxBytes,
+        maxEntries: source.translationCacheMaxEntries,
+    });
+    normalized.translationCacheMaxBytes = cacheLimits.maxBytes;
+    normalized.translationCacheMaxEntries = cacheLimits.maxEntries;
     normalized.uiLanguageSetupCompleted = source.uiLanguageSetupCompleted === true;
     normalized.maxConcurrentTranslations = normalizeMaxConcurrentTranslations(
         source.maxConcurrentTranslations,

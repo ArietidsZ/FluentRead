@@ -1,12 +1,12 @@
 /**
  * @file src/app/translation/runtime.ts
  * 文件职责：在 app 层创建扩展与 userscript 共用的翻译 broker 单例，把配置、provider registry、缓存、端点和提示词依赖完整注入。
- * 主要内容：连接 configReady 与配置快照、服务类型和模型解析、Minimax/MiMo/OpenAI 兼容端点、页面摘要 prompt、语言推导、凭据错误、缓存 key 与扩展侧模型用量仓库，导出 translateWithCache、clear 与 cleanup。
+ * 主要内容：连接配置水合与缓存阈值订阅、服务类型和模型解析、Minimax/MiMo/OpenAI 兼容端点、页面摘要 prompt、语言推导、凭据错误、缓存 key 与扩展侧模型用量仓库，导出 translateWithCache、clear、cleanup 与用量查询。
  * 模块边界：本文件只做 broker composition，不解析 browser 消息、不实现 provider HTTP，也不管理页面队列；模型用量仅在扩展协议下落库，userscript 不会把统计分散写进网页 origin。
  */
 import {translationProviderRegistry} from '@/src/providers/translation/registry';
 import {AI_SDK_TRANSPORT_PROFILE, resolveOpenAICompatibleEndpoint} from '@/src/providers/translation/ai-sdk/endpoints';
-import {config, configReady} from '@/src/services/config/store';
+import {config, configReady, subscribeConfig} from '@/src/services/config/store';
 import {getMimoEndpoint, MINIMAX_ENDPOINTS} from '@/src/core/config/constants';
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
 import {resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
@@ -14,6 +14,7 @@ import {buildPageSummaryPrompt, buildPageSummarySystemPrompt} from '@/src/core/t
 import {getTranslationLanguages} from '@/src/services/translation/languages';
 import {createTranslationBroker} from '@/src/services/translation/broker';
 import {buildTranslationCacheKey, translationCache} from '@/src/services/translation/cache';
+import {createTranslationCachePolicyBinding} from '@/src/services/translation/cachePolicyBinding';
 import {modelUsageRepository} from '@/src/platform/storage/modelUsageRepository';
 
 function isExtensionModelUsageRuntime(): boolean {
@@ -34,8 +35,16 @@ export type {
     TranslationSingleRequestMessage,
 } from '@/src/services/translation/broker';
 
-const broker = createTranslationBroker({
+const cachePolicy = createTranslationCachePolicyBinding({
     ready: configReady,
+    getConfig: () => config,
+    subscribe: subscribeConfig,
+    setLimits: (limits) => translationCache.setLimits(limits),
+    warn: (error) => console.warn('[FluentRead] translation cache policy failed:', error),
+});
+
+const broker = createTranslationBroker({
+    ready: cachePolicy.ready,
     getConfig: () => config,
     providers: translationProviderRegistry,
     cache: translationCache,
@@ -70,4 +79,13 @@ const broker = createTranslationBroker({
 /** 扩展与 userscript 共用的翻译 broker singleton。 */
 export const translateWithCache = broker.translateWithCache;
 export const clearTranslationCache = broker.clearTranslationCache;
-export const cleanupTranslationCache = broker.cleanupTranslationCache;
+export async function cleanupTranslationCache(): Promise<void> {
+    await cachePolicy.ready;
+    await broker.cleanupTranslationCache();
+}
+
+/** 管理请求等待当前阈值落地，再返回仅包含数量和容量的统计。 */
+export async function getTranslationCacheStats() {
+    await cachePolicy.applyLatest();
+    return translationCache.getStats();
+}
