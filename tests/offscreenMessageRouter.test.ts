@@ -1,5 +1,6 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {createOffscreenMessageListener} from '@/src/app/offscreen/messageRouter';
+import {createChromePreparationRequiredError} from '@/src/app/offscreen/translation';
 import {
     OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
     OFFSCREEN_READY_MESSAGE_TYPE,
@@ -128,6 +129,24 @@ describe('Offscreen 消息静态路由', () => {
             expect((await dispatch({type: 'CHROME_TRANSLATE_OFFSCREEN', requestId, data})).response)
                 .toMatchObject({success: false});
         }
+    });
+
+    it('结构化返回待准备语言对和环境不可用错误', async () => {
+        const preparation = createChromePreparationRequiredError('en', 'zh');
+        mocks.translate.mockRejectedValueOnce(preparation);
+        await expect(dispatch({type: 'CHROME_TRANSLATE_OFFSCREEN', requestId: 'prep-1', data: {}}))
+            .resolves.toMatchObject({response: {
+                success: false,
+                errorCode: 'preparation-required',
+                errorName: 'ChromePreparationRequiredError',
+                sourceLanguage: 'en',
+                targetLanguage: 'zh',
+            }});
+        const unavailable = new Error('device policy');
+        unavailable.name = 'ChromeModelUnavailableError';
+        mocks.translate.mockRejectedValueOnce(unavailable);
+        await expect(dispatch({type: 'CHROME_TRANSLATE_OFFSCREEN', requestId: 'model-1', data: {}}))
+            .resolves.toMatchObject({response: {success: false, errorCode: 'model-unavailable', errorName: 'ChromeModelUnavailableError'}});
     });
 
     it('取消 active Chrome 翻译会立即响应一次，迟到结果不会再次提交', async () => {

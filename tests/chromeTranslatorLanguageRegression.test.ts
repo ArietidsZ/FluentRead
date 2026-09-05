@@ -6,6 +6,11 @@ const mocks = vi.hoisted(() => ({
     send: vi.fn(),
 }));
 
+vi.mock('webextension-polyfill', () => ({default: {storage: {
+    session: {get: vi.fn(async () => ({})), set: vi.fn(async () => undefined), remove: vi.fn(async () => undefined)},
+    onChanged: {addListener: vi.fn(), removeListener: vi.fn()},
+}}}));
+
 vi.mock('@/src/services/config/store', () => ({config: mocks.config}));
 
 import defaultChromeTranslator, {
@@ -160,6 +165,40 @@ describe('Chrome translator 请求级语言回归', () => {
 
         mocks.send.mockRejectedValueOnce('string failure');
         await expect(chromeTranslator({origin: 'hello'})).rejects.toThrow('未知错误');
+    });
+
+    it('收到待准备 pair 时写入 session 状态，取消请求不写入', async () => {
+        const set = vi.fn(async () => undefined);
+        const provider = createChromeTranslator({
+            capabilities: {chromeTranslation: true},
+            offscreenClient: {send: mocks.send},
+            createRequestId: mocks.createRequestId,
+            preparationStore: {set},
+        });
+        mocks.send.mockResolvedValueOnce({
+            success: false,
+            requestId: 'chrome-request-1',
+            errorCode: 'preparation-required',
+            errorName: 'ChromePreparationRequiredError',
+            sourceLanguage: 'en',
+            targetLanguage: 'zh',
+            error: 'prepare',
+        });
+        await expect(provider({origin: 'hello'})).rejects.toThrow('prepare');
+        expect(set).toHaveBeenCalledWith({sourceLanguage: 'en', targetLanguage: 'zh'});
+
+        set.mockClear();
+        const controller = new AbortController();
+        controller.abort();
+        mocks.send.mockResolvedValueOnce({
+            success: false,
+            requestId: 'chrome-request-1',
+            errorCode: 'preparation-required',
+            sourceLanguage: 'en',
+            targetLanguage: 'zh',
+        });
+        await expect(provider({origin: 'hello', abortSignal: controller.signal})).rejects.toThrow();
+        expect(set).not.toHaveBeenCalled();
     });
 
     it('生产 requestId 使用浏览器安全随机 UUID', () => {

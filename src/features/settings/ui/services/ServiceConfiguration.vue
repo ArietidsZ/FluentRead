@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/ServiceConfiguration.vue
  * 文件职责：渲染当前翻译服务的详细连接配置，按服务能力显示模型、端点、区域、计费方式、密钥、代理、提示词和自定义请求体等字段。
- * 主要内容：组件派生字段可见性与 MiniMax/MiMo endpoint，校验 Azure 地址和 custom body，管理连接测试状态、Chrome 具体语言对的点击准备/进度/超时、模板重置与加密凭据保存提示，并通过配置 store 提交修改。
+ * 主要内容：组件派生字段可见性与 MiniMax/MiMo endpoint，校验 Azure 地址和 custom body，管理连接测试状态、Chrome 当前语言对的点击准备/进度/超时、官方帮助、模板重置与加密凭据保存提示，并通过配置 store 提交修改。
  * 模块边界：本组件不执行网页正文翻译或保存公开配置中的明文凭据；Chrome 内置翻译仅在当前点击页完成模型自检，其他连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
  -->
 <template>
@@ -60,35 +60,30 @@
     >
       <strong>{{ connectionTestTitle }}</strong>
       <span>{{ connectionTestMessage }}</span>
+      <details v-if="connectionTestDetails" class="connection-test-details">
+        <summary>{{ t('settings.services.chromePreparation.errorDetailsSummary') }}</summary>
+        <code>{{ connectionTestDetails }}</code>
+      </details>
     </div>
 
-    <div
-      v-if="isChromeConnectionTest"
-      class="connection-field"
-      data-chrome-preparation-language-pair
-    >
-      <div class="connection-field-label">
+    <div v-if="isChromeConnectionTest" class="chrome-preparation-help" data-chrome-preparation-help>
+      <p class="chrome-preparation-pair" data-chrome-preparation-language-pair>
         <strong>{{ t('settings.services.chromePreparation.sourceLabel') }}</strong>
-        <small>{{ t('settings.services.chromePreparation.sourceDescription') }}</small>
-      </div>
-      <div class="connection-field-control">
-        <el-select
-          v-model="chromePreparationSourceLanguage"
-          :aria-label="t('settings.services.chromePreparation.sourceAria')"
-          data-chrome-preparation-source
-          :disabled="connectionTestBusy"
-          filterable
-          :placeholder="t('settings.services.chromePreparation.sourcePlaceholder')"
-        >
-          <el-option
-            v-for="item in availableChromePreparationLanguages"
-            :key="item.value"
-            data-i18n-ignore
-            :label="`${getChromeTranslationPreparationLanguageLabel(item.value, language)}（${item.value}）`"
-            :value="item.value"
-          />
-        </el-select>
-      </div>
+        <span>{{ currentChromePreparationPairLabel || t('settings.services.chromePreparation.invalidPair') }}</span>
+      </p>
+      <p>{{ t('settings.services.chromePreparation.sourceDescription') }}</p>
+      <details>
+        <summary>{{ t('settings.services.chromePreparation.helpSummary') }}</summary>
+        <p>{{ t('settings.services.chromePreparation.helpBody') }}</p>
+        <p>{{ t('settings.services.chromePreparation.helpLimitations') }}</p>
+        <p><code>chrome://on-device-internals</code></p>
+        <p class="chrome-preparation-help-links">
+          <a href="https://developer.chrome.com/docs/ai/translator-api" target="_blank" rel="noreferrer">{{ t('settings.services.chromePreparation.helpApi') }}</a>
+          <a href="https://developer.chrome.com/docs/ai/language-detection" target="_blank" rel="noreferrer">{{ t('settings.services.chromePreparation.helpDetector') }}</a>
+          <a href="https://developer.chrome.com/docs/ai/debug-built-in-model" target="_blank" rel="noreferrer">{{ t('settings.services.chromePreparation.helpDebug') }}</a>
+          <a href="https://chrome.dev/web-ai-demos/translation-language-detection-api-playground/" target="_blank" rel="noreferrer">{{ t('settings.services.chromePreparation.helpDemo') }}</a>
+        </p>
+      </details>
     </div>
 
     <template v-if="compute.showCustomOpenAI && customProvider">
@@ -337,14 +332,15 @@ import { isValidCustomBody } from '@/src/core/config/customBody'
 import browser from 'webextension-polyfill'
 import { requestConfigSave, waitForConfigPersistenceQueue } from '@/src/services/config/store'
 import { CONNECTION_TEST_MESSAGE, getMimoEndpoint, MINIMAX_ENDPOINTS } from '@/src/core/config/constants'
+import { chromeTranslationPreparationStore } from '@/src/platform/browser/chromeTranslationPreparationRequest'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-    CHROME_TRANSLATION_PREPARATION_LANGUAGES,
     ChromeTranslationPreparationError,
     getChromeTranslationPreparationLanguageLabel,
     prepareChromeTranslationInPage,
     resolveChromeTranslationPreparationPair,
     type ChromeTranslationPreparationErrorCode,
+    type ChromeTranslationPreparationPair,
     type ChromeTranslationPreparationStatus,
 } from '@/src/features/settings/model/chromeTranslationPreparation'
 import { useUiI18n } from '@/src/ui/i18n'
@@ -373,6 +369,16 @@ const options = toRef(props, 'options')
 const isValidAzureEndpoint = toRef(props, 'isValidAzureEndpoint')
 const customProvider = toRef(props, 'customProvider')
 const { language, t } = useUiI18n()
+const pendingChromePreparation = ref<Awaited<ReturnType<typeof chromeTranslationPreparationStore.get>>>(null)
+let pendingChromePreparationRevision = 0
+let chromePreparationMounted = true
+void chromeTranslationPreparationStore.get().then((request) => {
+  if (chromePreparationMounted && pendingChromePreparationRevision === 0) pendingChromePreparation.value = request
+})
+const stopChromePreparationPendingWatch = chromeTranslationPreparationStore.subscribe((request) => {
+  pendingChromePreparationRevision += 1
+  pendingChromePreparation.value = request
+})
 const effectiveModelLabel = computed(() => resolveConfiguredModel(
   config.value.model[service.value],
   config.value.customModel[service.value],
@@ -451,6 +457,7 @@ const CHROME_PREPARATION_ERROR_KEYS: Readonly<Record<ChromeTranslationPreparatio
   'detection-mismatch': 'settings.services.chromePreparation.error.detectionMismatch',
   'invalid-translation': 'settings.services.chromePreparation.error.invalidTranslation',
   'preparation-failed': 'settings.services.chromePreparation.error.failed',
+  'model-unavailable': 'settings.services.chromePreparation.error.modelUnavailable',
 }
 const connectionTestBusy = ref(false)
 const connectionTestState = ref<ConnectionTestState>('idle')
@@ -460,13 +467,31 @@ const connectionTestMessage = computed(() => {
   if (!message) return ''
   return typeof message === 'string' ? message : t(message.key, message.params)
 })
+const connectionTestDetails = computed(() => {
+  const message = connectionTestMessageState.value
+  if (!message || typeof message === 'string' || !message.params?.detail) return ''
+  return String(message.params.detail)
+})
 const isChromeConnectionTest = computed(() => service.value === services.chromeTranslator)
-const defaultChromePreparationSource = () => resolveChromeTranslationPreparationPair('auto', config.value.to).sourceLanguage
-const chromePreparationSourceLanguage = ref(defaultChromePreparationSource())
-const configuredChromeTargetLanguage = computed(() => resolveChromeTranslationPreparationPair('auto', config.value.to).targetLanguage)
-const availableChromePreparationLanguages = computed(() => CHROME_TRANSLATION_PREPARATION_LANGUAGES.filter((item) => (
-  resolveChromeTranslationPreparationPair(item.value, config.value.to).targetLanguage === configuredChromeTargetLanguage.value
-)))
+const displayedChromePreparationPair = ref<ChromeTranslationPreparationPair | null>(null)
+const currentChromePreparationPair = computed(() => {
+  try {
+    const fallbackPair = resolveChromeTranslationPreparationPair('auto', config.value.to)
+    const configuredFrom = config.value.from.trim().toLowerCase()
+    const pendingSource = configuredFrom === 'auto'
+      && pendingChromePreparation.value?.targetLanguage === fallbackPair.targetLanguage
+      ? pendingChromePreparation.value.sourceLanguage
+      : undefined
+    return resolveChromeTranslationPreparationPair(pendingSource || config.value.from, config.value.to)
+  } catch {
+    return null
+  }
+})
+const currentChromePreparationPairLabel = computed(() => {
+  const pair = displayedChromePreparationPair.value || currentChromePreparationPair.value
+  if (!pair) return ''
+  return `${getChromeTranslationPreparationLanguageLabel(pair.sourceLanguage, language.value)}（${pair.sourceLanguage}） → ${getChromeTranslationPreparationLanguageLabel(pair.targetLanguage, language.value)}（${pair.targetLanguage}）`
+})
 let connectionTestGeneration = 0
 let activeChromePreparation: AbortController | undefined
 const connectionTestTitle = computed(() => {
@@ -483,6 +508,7 @@ const connectionTestTitle = computed(() => {
 })
 
 function resetConnectionTest(): void {
+  displayedChromePreparationPair.value = null
   connectionTestState.value = 'idle'
   connectionTestMessageState.value = null
 }
@@ -555,11 +581,16 @@ async function testConnection(): Promise<void> {
     ? localizedConnectionTestMessage('settings.services.chromePreparation.statusStarting')
     : '正在保存当前配置并请求服务…'
 
-  // Chrome 的模型下载要求用户激活；必须在 click handler 的首个 await 前直接调用。
-  const chromePreparation = testedService === services.chromeTranslator
-    ? prepareChromeTranslationInPage({
-        from: chromePreparationSourceLanguage.value,
-        to: config.value.to,
+  let chromePreparation: Promise<{ok: true; result: Awaited<ReturnType<typeof prepareChromeTranslationInPage>>} | {ok: false; error: unknown}> | undefined
+  try {
+    // Chrome 的模型下载要求用户激活；必须在 click handler 的首个 await 前直接调用。
+    if (testedService === services.chromeTranslator) {
+      const pair = currentChromePreparationPair.value
+      if (!pair) throw new ChromeTranslationPreparationError('invalid-language-code', 'Chrome 本地翻译语言代码无效', {field: 'from/to'})
+      displayedChromePreparationPair.value = pair
+      chromePreparation = prepareChromeTranslationInPage({
+        from: pair.sourceLanguage,
+        to: pair.targetLanguage,
         signal: chromeController?.signal,
         onStatus(status) {
           if (acceptChromePreparationStatus && isCurrent()) {
@@ -570,9 +601,7 @@ async function testConnection(): Promise<void> {
         (result) => ({ok: true as const, result}),
         (error) => ({ok: false as const, error}),
       )
-    : undefined
-
-  try {
+    }
     await waitForConfigPersistenceQueue()
     await requestConfigSave(config.value, browser.runtime.sendMessage.bind(browser.runtime))
     if (!isCurrent()) return
@@ -580,6 +609,11 @@ async function testConnection(): Promise<void> {
       const outcome = await chromePreparation
       if (!isCurrent()) return
       if (!outcome.ok) throw outcome.error
+      await chromeTranslationPreparationStore.clear({
+        sourceLanguage: outcome.result.sourceLanguage,
+        targetLanguage: outcome.result.targetLanguage,
+      })
+      if (!isCurrent()) return
       connectionTestState.value = 'success'
       connectionTestMessageState.value = localizedConnectionTestMessage(
         'settings.services.chromePreparation.success',
@@ -653,19 +687,63 @@ function confirmDeleteProvider(): void {
 }
 
 watch(service, invalidateConnectionTest)
-watch(() => config.value.to, () => {
-  chromePreparationSourceLanguage.value = defaultChromePreparationSource()
-  invalidateConnectionTest()
-})
-watch(chromePreparationSourceLanguage, resetConnectionTest)
+watch(() => [config.value.from, config.value.to], invalidateConnectionTest)
 onBeforeUnmount(() => {
+  chromePreparationMounted = false
   connectionTestGeneration += 1
   activeChromePreparation?.abort()
   activeChromePreparation = undefined
+  stopChromePreparationPendingWatch()
 })
 </script>
 
 <style scoped>
+.chrome-preparation-help {
+  margin: 8px 0 16px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.chrome-preparation-help p {
+  margin: 0 0 8px;
+}
+
+.chrome-preparation-help summary {
+  cursor: pointer;
+  color: var(--el-text-color-primary);
+}
+
+.chrome-preparation-help-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.chrome-preparation-help-links a {
+  color: var(--el-color-primary);
+}
+
+.chrome-preparation-pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--el-text-color-primary);
+}
+
+.connection-test-details {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin-top: 6px;
+}
+
+.connection-test-details code {
+  display: block;
+  margin-top: 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .credential-warning {
   display: flex;
   align-items: flex-start;
@@ -865,7 +943,8 @@ onBeforeUnmount(() => {
 }
 
 .connection-test-result {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: flex-start;
   gap: 8px;
   margin: 0 0 14px;
@@ -876,6 +955,14 @@ onBeforeUnmount(() => {
   background: #f7f8fa;
   font-size: 12px;
   line-height: 1.5;
+}
+
+.connection-test-result > strong {
+  white-space: nowrap;
+}
+
+.connection-test-result > span {
+  overflow-wrap: anywhere;
 }
 
 .connection-test-result.is-testing {

@@ -53,6 +53,7 @@
       "tests/commonUtilities.test.ts",
       "tests/browserCapabilities.test.ts",
       "tests/chromeTranslationPreparation.test.ts",
+      "tests/chromeTranslationPreparationRequest.test.ts",
       "tests/credentialBinding.test.ts",
       "tests/edgeTtsPolicy.test.ts",
       "tests/contentFeatureMounting.test.ts",
@@ -75,6 +76,7 @@
       "tests/remoteImage.test.ts",
       "tests/inputBox.test.ts",
       "tests/interfaceAppearance.test.ts",
+      "tests/usePopupLayoutReorder.test.ts",
       "tests/legacyPageCache.test.ts",
       "tests/liveTextTranslation.test.ts",
       "tests/model.test.ts",
@@ -149,7 +151,10 @@
       "tests/videoTranscription.test.ts",
       "tests/videoSpeechAlignment.test.ts",
       "tests/videoAiAlgorithmsCoverage.test.ts",
-      "tests/videoAiBackendCoverage.test.ts"
+      "tests/videoAiBackendCoverage.test.ts",
+      "tests/qqMailFrameHandlers.test.ts",
+      "tests/qqMailFrameSession.test.ts",
+      "tests/fullPageStateNotification.test.ts"
     ],
     "functional": [
       "tests/aiSdkOpenAICompatible.test.ts",
@@ -183,7 +188,8 @@
       "tests/videoSubtitle.test.ts",
       "tests/vocabularyBook.test.ts",
       "tests/vocabularyBookComponent.test.ts",
-      "tests/zhipuCredentials.test.ts"
+      "tests/zhipuCredentials.test.ts",
+      "tests/qqMailFrameRuntime.test.ts"
     ],
     "regression": [
       "tests/documentTranslationExamplesApi.test.ts",

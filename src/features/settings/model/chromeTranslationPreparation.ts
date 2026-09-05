@@ -1,7 +1,7 @@
 /**
  * @file src/features/settings/model/chromeTranslationPreparation.ts
  * 文件职责：在扩展设置页的用户点击上下文中直接准备 Chrome 语言检测与本地翻译模型，并执行一轮确定性的语言识别和翻译自检。
- * 主要内容：列出 Chrome 官方语言、解析实际准备语言对、选择源语言校验文本、同步启动两个现代 API 的 create、转发 downloadprogress，并用共享置信度和 AbortSignal 校验及释放资源。
+ * 主要内容：根据配置或待准备请求自动解析保持目标语言不变的自检语言对，同步启动两个现代 API 的 create、转发 downloadprogress，并区分浏览器模型不可用与语言错误，使用置信度和 AbortSignal 校验及释放资源。
  * 模块边界：本模块只服务设置页的主动连接检查，不读写配置、不发送 runtime 消息、不兼容 legacy translation API，也不参与网页正文的正式翻译链路。
  */
 
@@ -83,6 +83,7 @@ export type ChromeTranslationPreparationErrorCode =
     | 'api-unavailable'
     | 'user-activation-required'
     | 'unsupported-pair'
+    | 'model-unavailable'
     | 'detection-mismatch'
     | 'invalid-translation'
     | 'preparation-failed';
@@ -99,7 +100,7 @@ export class ChromeTranslationPreparationError extends Error {
     }
 }
 
-/** Chrome 官方当前列出的 Translator API 语言；设置页据此准备一个具体语言对。 */
+/** Chrome 官方语言与自检样本目录，不作为运行时可用性的替代。https://developer.chrome.com/docs/ai/translator-api */
 export const CHROME_TRANSLATION_PREPARATION_LANGUAGES: readonly ChromeTranslationPreparationLanguage[] = Object.freeze([
     {value: 'ar', label: '阿拉伯语'}, {value: 'bg', label: '保加利亚语'},
     {value: 'bn', label: '孟加拉语'}, {value: 'cs', label: '捷克语'},
@@ -123,7 +124,7 @@ export const CHROME_TRANSLATION_PREPARATION_LANGUAGES: readonly ChromeTranslatio
     {value: 'zh-Hant', label: '繁体中文'},
 ]);
 
-/** 语言选项必须在传给 Element Plus 前本地化，才能同时支持正确显示与筛选。 */
+/** 自动选择的检查语言使用当前界面的语言名称呈现。 */
 export function getChromeTranslationPreparationLanguageLabel(
     value: string,
     uiLanguage: string,
@@ -223,12 +224,10 @@ export function resolveChromeTranslationPreparationPair(
     const configuredTarget = normalizeLanguageCode(to, 'to', false);
     const configuredSource = normalizeLanguageCode(from, 'from', true);
     const sourceLanguage = configuredSource === 'auto'
+        || languageComparisonKey(configuredSource) === languageComparisonKey(configuredTarget)
         ? languageComparisonKey(configuredTarget) === 'en' ? 'fr' : 'en'
         : configuredSource;
-    const targetLanguage = configuredSource !== 'auto'
-        && languageComparisonKey(sourceLanguage) === languageComparisonKey(configuredTarget)
-        ? languageComparisonKey(sourceLanguage) === 'en' ? 'fr' : 'en'
-        : configuredTarget;
+    const targetLanguage = configuredTarget;
     const sampleText = TEST_SAMPLES[languageSampleKey(sourceLanguage)];
     if (!sampleText) {
         throw new ChromeTranslationPreparationError(
@@ -358,10 +357,12 @@ function friendlyPreparationError(
         );
     }
     if (error instanceof Error && error.name === 'NotSupportedError') {
+        // 两个 create 都可能拒绝，NotSupportedError 并不能证明语言组合不受支持；
+        // Chrome 的模型组件、下载与浏览器策略同样会影响当前环境的可用性。
         return new ChromeTranslationPreparationError(
-            'unsupported-pair',
-            `Chrome 不支持本地翻译语言对：${pair.sourceLanguage} → ${pair.targetLanguage}。`,
-            {sourceLanguage: pair.sourceLanguage, targetLanguage: pair.targetLanguage},
+            'model-unavailable',
+            `当前 Chrome 无法创建本地翻译模型（${pair.sourceLanguage} → ${pair.targetLanguage}）。请检查模型下载和浏览器策略，查看下方官方帮助。`,
+            {sourceLanguage: pair.sourceLanguage, targetLanguage: pair.targetLanguage, detail: error.message},
         );
     }
     return error instanceof Error
@@ -404,7 +405,13 @@ export async function prepareChromeTranslationInPage(
         createMonitorOptions('language-detector', pair, options.onStatus, options.signal),
     )).then((resource) => {
         if (cleanupRequested) safelyDestroy(resource);
-        else detector = resource;
+        else {
+            detector = resource;
+            if (!translator) reportStatus(options.onStatus, {
+                phase: 'initializing', model: 'translator',
+                sourceLanguage: pair.sourceLanguage, targetLanguage: pair.targetLanguage,
+            });
+        }
         return resource;
     });
     const translatorPromise = invokeCreate(() => translatorApi.create({
@@ -413,7 +420,13 @@ export async function prepareChromeTranslationInPage(
         ...createMonitorOptions('translator', pair, options.onStatus, options.signal),
     })).then((resource) => {
         if (cleanupRequested) safelyDestroy(resource);
-        else translator = resource;
+        else {
+            translator = resource;
+            if (!detector) reportStatus(options.onStatus, {
+                phase: 'initializing', model: 'language-detector',
+                sourceLanguage: pair.sourceLanguage, targetLanguage: pair.targetLanguage,
+            });
+        }
         return resource;
     });
     const cleanupResources = () => {

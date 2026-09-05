@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/ServiceCatalog.vue
  * 文件职责：实现翻译服务目录与筛选选择界面，把机器翻译、模型服务商、聚合平台和动态自定义服务按分层目录呈现为可切换的卡片列表。
- * 主要内容：组件接收当前服务和配置，支持目录分组与折叠、关键词搜索、动态 OpenAI 兼容服务、分组计数和紧凑模型选择。
+ * 主要内容：组件接收当前服务、网站入口和配置，支持目录分组与折叠、关键词搜索、动态 OpenAI 兼容服务、分组计数、官网新标签页跳转和紧凑模型选择。
  * 模块边界：目录只决定“选择哪个服务”，不编辑凭据、不测试连接也不保存配置；详细表单归 ServiceConfiguration.vue，服务定义来自 core/config，外层 SettingsSections 处理持久化。
  -->
 <template>
@@ -135,10 +135,25 @@
       <section class="service-detail" aria-label="当前翻译服务详情">
         <div class="detail-hero">
           <ServiceIcon :service="isCustomOpenAIProviderId(service) ? 'custom' : service" :label="selectedService?.label" size="large" />
-          <div>
+          <div class="detail-heading">
             <div class="detail-title-row">
               <h4>{{ selectedService?.label || '尚未配置服务' }}</h4>
               <span class="active-badge">{{ service === defaultService ? '当前默认' : '正在配置' }}</span>
+              <a
+                v-if="website"
+                class="service-website-link"
+                data-testid="service-website-link"
+                :href="website.url"
+                target="_blank"
+                rel="noopener noreferrer"
+                :title="website.url"
+                :aria-label="t('settings.services.openExternal', { service: selectedService?.label || service, action: t(`settings.services.${website.kind}`) })"
+              >
+                {{ t(`settings.services.${website.kind}`) }}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M14 3h7v7M21 3 10 14M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5" />
+                </svg>
+              </a>
             </div>
             <p v-if="selectedService?.description">{{ selectedService.description }}</p>
           </div>
@@ -178,12 +193,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
+import { useUiI18n } from '@/src/ui/i18n'
 import { isCustomOpenAIProviderId } from '@/src/core/config/customOpenAI'
 import {
   buildServiceSections,
   filterServiceSections,
   type ServiceOption,
   type ServiceSection,
+  type ServiceWebsite,
 } from '@/src/ui/view-model/serviceCatalog'
 import ModelPicker from './ModelPicker.vue'
 
@@ -196,6 +213,7 @@ interface ModelPickerOption {
 const props = defineProps<{
   service: string
   defaultService: string
+  website?: ServiceWebsite
   selectedModel?: string
   services: ServiceOption[]
   modelOptions: ModelPickerOption[]
@@ -214,6 +232,7 @@ defineEmits<{
   'remove:model': [value: string]
 }>()
 
+const { t } = useUiI18n()
 const serviceQuery = ref('')
 const customServices = computed(() => props.services.filter((item) => isCustomOpenAIProviderId(item.value)))
 const builtInServices = computed(() => props.services.filter((item) => !isCustomOpenAIProviderId(item.value)))
@@ -346,11 +365,15 @@ watch(() => props.service, () => {
 .service-detail > .model-section,
 .service-detail > .no-model-panel,
 .service-detail > .service-configuration-slot { width: min(100%, 1080px); }
-.detail-hero { display: flex; align-items: flex-start; gap: 13px; padding-bottom: 20px; border-bottom: 1px solid #eceef3; }
-.detail-hero > div:last-child { min-width: 0; }
-.detail-title-row { display: flex; align-items: center; gap: 9px; }
-.detail-title-row h4 { margin: 1px 0 5px; color: #172033; font-size: 22px; }
-.active-badge { padding: 4px 8px; border-radius: 999px; color: #bd2853; background: #ffe9ef; font-size: 10px; font-weight: 800; }
+.detail-hero { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 13px; padding-bottom: 20px; border-bottom: 1px solid #eceef3; }
+.detail-heading { flex: 1 1 180px; min-width: 0; }
+.detail-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+.detail-title-row h4 { min-width: 0; margin: 1px 0 5px; color: #172033; font-size: 22px; overflow-wrap: anywhere; }
+.service-website-link { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; padding: 2px 4px; border-radius: 5px; color: var(--brand-strong, #bd2853); font-size: 12px; font-weight: 600; line-height: 1.5; text-decoration: none; }
+.service-website-link svg { flex-shrink: 0; }
+.service-website-link:hover { background: var(--brand-soft, #fff0f4); text-decoration: underline; text-underline-offset: 3px; }
+.service-website-link:focus-visible { outline: 2px solid var(--brand-strong, #bd2853); outline-offset: 2px; }
+.active-badge { flex-shrink: 0; white-space: nowrap; padding: 4px 8px; border-radius: 999px; color: #bd2853; background: #ffe9ef; font-size: 10px; font-weight: 800; }
 .detail-hero p { margin: 0; color: #737c8f; font-size: 13px; line-height: 1.6; }
 .model-section {
   display: grid;

@@ -42,9 +42,10 @@ export interface ContentHotkeyRuntime {
 }
 
 /** 为单个 document 创建隔离的键盘状态，避免页面失效后残留按键组合。 */
-export function createContentHotkeyRuntime(isSiteDisabled: () => boolean): ContentHotkeyRuntime {
+export function createContentHotkeyRuntime(isSiteDisabled: () => boolean,
+    options: {toggleFullPage?: () => void; selectionAvailable?: boolean} = {}): ContentHotkeyRuntime {
     const activeSelectionCandidateByEvent = new WeakMap<KeyboardEvent, boolean>();
-    const isSelectionTranslatorEnabled = (): boolean => !isSiteDisabled() && config.on && config.selectionTranslatorMode !== 'disabled' && config.disableSelectionTranslator !== true;
+    const isSelectionTranslatorEnabled = (): boolean => options.selectionAvailable !== false && !isSiteDisabled() && config.on && config.selectionTranslatorMode !== 'disabled' && config.disableSelectionTranslator !== true;
 
     const getConfiguredSelectionHotkey = (): string => {
         if (!isSelectionTranslatorEnabled()) return 'none';
@@ -94,12 +95,12 @@ export function createContentHotkeyRuntime(isSiteDisabled: () => boolean): Conte
         );
     };
 
-    const toggleFullPageTranslation = (): void => {
+    const toggleFullPageTranslation = options.toggleFullPage ?? (() => {
         // 快捷键必须读取全文会话真值，不能把悬浮球组件的局部状态当成另一份真源。
         // 否则快捷键触发后，右键菜单和 Popup 仍可能认为页面未翻译并再次启动会话。
         if (isFullPageTranslationActive()) restoreOriginalContent();
         else autoTranslateEnglishPage();
-    };
+    });
 
     const installFloatingBallHotkey = (signal: AbortSignal): (() => void) => {
         const hotkeysPressed = new Set<string>();

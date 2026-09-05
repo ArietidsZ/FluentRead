@@ -34,10 +34,10 @@ export const navigationGroups: NavigationGroup[] = [
         searchDescription: '选择翻译服务、默认服务、译文显示、双语逐句高亮、网页辅助、AI 智能上下文、默认目标语言、主题',
       },
       {
-        id: 'settings-interface', icon: '▦', label: '界面布局', description: '界面与弹窗、菜单栏布局', group: '基础配置',
-        heading: '界面布局', summary: '选择喜欢的界面风格，编排菜单栏中的模块和快捷功能。',
-        kicker: '基础配置', title: '界面布局', detail: '选择喜欢的界面风格，编排菜单栏中的模块和快捷功能。',
-        searchDescription: '界面设置、界面与弹窗、弹窗风格、默认风格、简约风格、紧凑风格、高对比、奶酪、海盐、抹茶、樱花、夜幕、纸张护眼、Emoji、菜单栏布局、弹窗栏目、快捷功能栏、当前网站栏目、底部信息栏',
+        id: 'settings-interface', icon: '▦', label: '界面布局', description: '界面与弹窗、动画与加载、菜单栏布局', group: '基础配置',
+        heading: '界面布局', summary: '选择喜欢的界面风格，调整动画加载效果，并编排菜单栏中的模块和快捷功能。',
+        kicker: '基础配置', title: '界面布局', detail: '选择喜欢的界面风格，调整动画加载效果，并编排菜单栏中的模块和快捷功能。',
+        searchDescription: '界面设置、界面与弹窗、动画与加载效果、界面动画、翻译加载样式、简洁、柔和圆环、跳跃圆点、行星轨道、星光、涟漪扩散、起伏波形、光线扫过、流沙沙漏、小彗星、翻转方块、弹跳小球、打字光标、扫描线、信号柱、弹窗风格、默认风格、简约风格、紧凑风格、高对比、奶酪、海盐、抹茶、樱花、夜幕、纸张护眼、Emoji、菜单栏布局、弹窗栏目、快捷功能栏、当前网站栏目、底部信息栏',
       },
       {
         id: 'settings-services', icon: '译', label: '翻译服务', description: '服务与模型', group: '基础配置',
@@ -104,9 +104,9 @@ export const navigationGroups: NavigationGroup[] = [
     items: [
       {
         id: 'settings-advanced', icon: '◇', label: '高级选项', description: '性能与模板', group: '系统与数据',
-        heading: '高级选项', summary: '管理缓存、并发、限流、重试和动画等运行策略。',
+        heading: '高级选项', summary: '管理缓存、并发、限流和重试等运行策略。',
         kicker: '系统与数据', title: '高级选项', detail: '调整缓存、并发、限流和重试；不确定时建议保留默认值。',
-        searchDescription: '缓存、动画、翻译动画、加载样式、简洁、柔和圆环、跳跃圆点、行星轨道、星光、并发、限流、重试、性能、资源占用',
+        searchDescription: '缓存、并发、限流、重试、性能、资源占用',
       },
       {
         id: 'settings-data', icon: '⇅', label: '备份与恢复', description: '导出备份、恢复数据', group: '系统与数据',

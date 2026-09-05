@@ -19,7 +19,10 @@ import {
 } from './handlers/translationCache';
 import {type ConfigPersistenceContext} from './handlers/configPersistence';
 import {createConnectionTestHandler} from './handlers/connectionTest';
-import {createFullPageTranslationStateHandlers, type FullPageBackgroundContext} from './handlers/fullPageTranslationState';
+import {
+    createFullPageTranslationStateHandlers, createQqMailFrameBackgroundHandlers,
+    type FullPageBackgroundContext, type QQMailFrameBackgroundContext,
+} from './handlers/fullPageTranslationState';
 import {
     createImageOcrLanguageRepository,
     createImageTranslationBackgroundHandlers,
@@ -43,7 +46,7 @@ import {createConfigImageOcrLanguageStorage, installBrowserConfigStorageBroadcas
 import {modelUsageRepository} from '@/src/platform/storage/modelUsageRepository';
 import {releaseVideoSubtitleOwnerForTab} from '@/src/features/video-subtitle/background/handlers';
 import {createVideoSubtitleBackgroundRuntime} from '@/src/features/video-subtitle/background/runtime';
-type BackgroundRuntimeContext = ConfigPersistenceContext & VocabularyBackgroundContext & SelectionTtsContext
+type BackgroundRuntimeContext = QQMailFrameBackgroundContext & ConfigPersistenceContext & VocabularyBackgroundContext & SelectionTtsContext
     & FullPageBackgroundContext & AreaTranslationBackgroundContext;
 export interface BackgroundMessageRuntimeOptions {
     tabTranslationStates: TabTranslationStateStore;
@@ -58,6 +61,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     const selectionTtsTransport = createCapabilityGatedSelectionTtsTransport(capabilities, selectionTtsOffscreenAdapter);
     const handlers: Array<BackgroundMessageHandler<BackgroundRuntimeContext>> = [
         createTranslationCancelHandler(translationRequestRegistry),
+        ...createQqMailFrameBackgroundHandlers({sendTabMessage: (tabId, message, options) => browser.tabs.sendMessage(tabId, message, options)}),
         createTranslationCacheHandler(clearTranslationCache, createTranslationCacheInvalidationBroadcaster({
             queryTabs: () => browser.tabs.query({}) as Promise<Array<{id?: number}>>,
             sendTabMessage: (tabId, message) => browser.tabs.sendMessage(tabId, message),

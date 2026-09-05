@@ -151,7 +151,7 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/app/options/index.ts',
     // 界面皮肤应用只设置扩展页面根节点 data 属性；纯归一化由 strict coverage 验证，真实跨页面效果由隔离 UI 回归验证。
     'src/ui/interfaceAppearance.ts',
-    // popup composition root 只注册 Vue/Element Plus 并挂载页面；由 popup 契约测试、隔离 UI 回归和双浏览器构建验证。
+    // popup composition root 等待配置就绪再注册 Vue/Element Plus 并挂载；由 popup 契约、逐帧启动回归和双浏览器构建验证。
     'src/app/popup/index.ts',
     // Offscreen composition root 只注入真实 Audio/Blob/Chrome runtime 与 OCR 能力；协议、翻译和播放状态机均已严格覆盖。
     'src/app/offscreen/runtime.ts',
@@ -171,6 +171,9 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/app/background/configMessageHandlers.ts',
     // content composition root 绑定 WXT context、页面生命周期和静态 feature registry；由内容功能测试与隔离浏览器回归验证。
     'src/app/content/runtime.ts',
+    // 邮件 frame 组合根与共享样式绑定真实 WXT/DOM；纯同步器严格覆盖，注入和恢复由隔离浏览器验证。
+    'src/app/content/qqMailFrameRuntime.ts',
+    'src/app/content/pageStyles.ts',
     // 快捷翻译 composition 只把实时配置、旧手势仲裁与两类页面执行器接线；行为由 feature/runtime 单测和隔离浏览器回归验证。
     'src/app/content/quickTranslationRuntime.ts',
     // 双语高亮只同步 page.css 使用的 Document 根属性；由设置契约、构建和隔离浏览器回归验证。

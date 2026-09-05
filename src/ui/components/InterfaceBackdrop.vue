@@ -38,6 +38,24 @@
         <path d="m116 18 39 6 36-7-4 63-35 9-40-9Z" fill="currentColor" fill-opacity=".08" />
         <path d="m155 24-3 65m-27-54 19 3m-20 8 19 3m-20 8 19 3m24-23 14-3m-15 14 14-3m-15 14 14-3" />
       </g>
+      <g v-else-if="motif === 'aurora'" stroke="currentColor" stroke-linecap="round">
+        <path d="M84 93c11-39 31-65 60-78 11 25 31 42 60 49" stroke-width="2" opacity=".7" />
+        <path d="M104 94c9-28 24-47 45-59 10 17 25 29 45 36" stroke-width="6" opacity=".16" />
+        <path d="M130 91c7-16 15-27 25-34" stroke-width="2" opacity=".9" />
+        <circle cx="181" cy="22" r="10" fill="currentColor" fill-opacity=".12" stroke="none" />
+        <path d="m45 28 4 7 8 2-8 3-4 8-3-8-8-3 8-2Z" fill="currentColor" fill-opacity=".45" stroke="none" />
+      </g>
+      <g v-else-if="motif === 'arcade'" stroke="currentColor" stroke-linecap="square">
+        <path d="M115 20h48v12h12v31h-12v12h-48V63h-12V32h12Z" fill="currentColor" fill-opacity=".12" stroke-width="2" />
+        <path d="M127 38v18m-9-9h18m30-9h1m-1 18h1" stroke-width="3" />
+        <path d="M46 86h8m8 0h8m8 0h8M184 92h8m8 0h8" stroke-width="3" opacity=".7" />
+      </g>
+      <g v-else-if="motif === 'sunset'" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="169" cy="51" r="22" fill="currentColor" fill-opacity=".18" stroke="none" />
+        <path d="M111 73h116M128 84h82M145 95h48" stroke-width="2" opacity=".6" />
+        <path d="M169 74V95m0-21-24 21m24-21 24 21" stroke-width="2" opacity=".75" />
+        <path d="M48 41h34m-17-7v14" stroke-width="2" opacity=".55" />
+      </g>
     </svg>
     <div v-else class="emoji-stickers"><span>🌈</span><span>✨</span><span>😊</span></div>
   </div>

@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/InterfaceSettings.vue
- * 文件职责：在独立的“界面布局”页面组织 FluentRead 的界面风格和菜单栏布局两个偏好分组。
- * 主要内容：用真实 DOM 范例辅助选择注册皮肤，并通过同一可复用编辑器分别编排菜单栏顶层区域和六张快捷功能卡片。
+ * 文件职责：在独立的“界面布局”页面组织 FluentRead 的界面风格、动画加载效果和菜单栏布局三个偏好分组。
+ * 主要内容：用真实 DOM 范例辅助选择注册皮肤，提供动画与加载效果预览，并通过预览直接拖动和显隐列表共同编排菜单栏区域与快捷入口，两个操作面共享持久化配置。
  * 模块边界：本组件只负责界面配置的展示与双向绑定，不直接读写浏览器存储、不负责主题模式，也不关闭翻译功能本身；界面皮肤由 Options composition root 统一应用。
 -->
 <template>
@@ -72,12 +72,40 @@
 
   </SettingsGroup>
 
+  <TranslationLoadingStyleSettings :config="props.config" />
+
   <SettingsGroup
     :title="t('settings.interface.popupLayout.label')"
     :description="t('settings.interface.popupLayout.description')"
   >
     <div class="interface-layout-settings">
       <div class="popup-layout-workbench" data-popup-layout-workbench>
+        <div class="popup-layout-tabs" role="tablist" :aria-label="t('settings.interface.popupLayout.label')" @keydown="handleLayoutTabKeydown">
+          <button
+            id="popup-layout-modules-tab"
+            type="button"
+            role="tab"
+            data-popup-layout-tab="popupModule"
+            :aria-selected="activeLayoutPanel === 'popupModule'"
+            :tabindex="activeLayoutPanel === 'popupModule' ? 0 : -1"
+            aria-controls="popup-layout-modules-panel"
+            @click="activeLayoutPanel = 'popupModule'"
+          >
+            {{ t('settings.interface.popupLayout.moduleTab') }}
+          </button>
+          <button
+            id="popup-layout-features-tab"
+            type="button"
+            role="tab"
+            data-popup-layout-tab="quickFeature"
+            :aria-selected="activeLayoutPanel === 'quickFeature'"
+            :tabindex="activeLayoutPanel === 'quickFeature' ? 0 : -1"
+            aria-controls="popup-layout-features-panel"
+            @click="activeLayoutPanel = 'quickFeature'"
+          >
+            {{ t('settings.interface.popupLayout.featureTab') }}
+          </button>
+        </div>
         <section class="popup-layout-preview-panel">
           <header class="popup-layout-panel-heading">
             <span>
@@ -93,35 +121,14 @@
             :module-order="props.config.popupModuleOrder"
             :quick-feature-items="popupQuickFeatureEditorItems"
             :quick-feature-order="props.config.popupQuickFeatureOrder"
+            :edit-scope="activeLayoutPanel"
+            @update:module-order="setPopupModuleOrder"
+            @update:quick-feature-order="setPopupQuickFeatureOrder"
+            @edit:scope="activeLayoutPanel = $event"
           />
         </section>
 
         <section class="popup-layout-control-panel">
-          <div class="popup-layout-tabs" role="tablist">
-            <button
-              id="popup-layout-modules-tab"
-              type="button"
-              role="tab"
-              data-popup-layout-tab="popupModule"
-              :aria-selected="activeLayoutPanel === 'popupModule'"
-              aria-controls="popup-layout-modules-panel"
-              @click="activeLayoutPanel = 'popupModule'"
-            >
-              {{ t('settings.interface.popupLayout.label') }}
-            </button>
-            <button
-              id="popup-layout-features-tab"
-              type="button"
-              role="tab"
-              data-popup-layout-tab="quickFeature"
-              :aria-selected="activeLayoutPanel === 'quickFeature'"
-              aria-controls="popup-layout-features-panel"
-              @click="activeLayoutPanel = 'quickFeature'"
-            >
-              {{ t('settings.interface.popupQuickFeatures.label') }}
-            </button>
-          </div>
-
           <div
             v-show="activeLayoutPanel === 'popupModule'"
             id="popup-layout-modules-panel"
@@ -147,6 +154,10 @@
             role="tabpanel"
             aria-labelledby="popup-layout-features-tab"
           >
+            <div v-if="!props.config.interfaceVisibility.popupQuickFeatures" class="popup-layout-section-hidden" role="status">
+              <span>{{ t('settings.interface.popupLayout.featureSectionHidden') }}</span>
+              <button type="button" @click="setPopupModuleVisibility('quickFeatures', true)">{{ t('settings.interface.popupLayout.addFeatureSection') }}</button>
+            </div>
             <PopupLayoutEditor
               :items="popupQuickFeatureEditorItems"
               :order="props.config.popupQuickFeatureOrder"
@@ -184,6 +195,7 @@ import {useUiI18n} from '@/src/ui/i18n'
 import InterfaceSkinPreview from './components/InterfaceSkinPreview.vue'
 import PopupLayoutPreview from './components/PopupLayoutPreview.vue'
 import PopupLayoutEditor from './PopupLayoutEditor.vue'
+import TranslationLoadingStyleSettings from './TranslationLoadingStyleSettings.vue'
 import SettingsGroup from './components/SettingsGroup.vue'
 import SettingsItem from './components/SettingsItem.vue'
 
@@ -192,6 +204,15 @@ const props = defineProps<{
 }>()
 const {t, translateLegacy} = useUiI18n()
 const activeLayoutPanel = ref<'popupModule' | 'quickFeature'>('popupModule')
+function handleLayoutTabKeydown(event: KeyboardEvent) {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+  event.preventDefault()
+  activeLayoutPanel.value = event.key === 'Home' ? 'popupModule'
+    : event.key === 'End' ? 'quickFeature'
+      : activeLayoutPanel.value === 'popupModule' ? 'quickFeature' : 'popupModule'
+  const tabs = (event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="tab"]')
+  tabs[activeLayoutPanel.value === 'popupModule' ? 0 : 1]?.focus()
+}
 const selectedSkinOption = computed(() => getInterfaceSkinOption(props.config.interfaceSkin))
 
 const groupedSkinOptions = interfaceSkinGroups.map((group) => ({
@@ -265,7 +286,7 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 
 .popup-layout-workbench {
   display: grid;
-  grid-template-columns: minmax(250px, .82fr) minmax(390px, 1.18fr);
+  grid-template-columns: minmax(260px, 1fr) minmax(290px, 1fr);
   align-items: start;
   gap: 14px;
 }
@@ -327,6 +348,8 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 }
 
 .popup-layout-tabs {
+  grid-column: 1 / -1;
+  width: min(100%, 420px);
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
@@ -365,7 +388,7 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 }
 
 .popup-layout-tab-panel {
-  margin-top: 10px;
+  margin-top: 0;
 }
 
 .interface-skin-group {
@@ -563,5 +586,11 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
   .popup-layout-live-preview {
     max-width: 360px;
   }
+}
+.popup-layout-section-hidden { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; padding: 10px; border-radius: 10px; color: var(--muted); background: var(--surface-soft); font-size: 11px; line-height: 1.5; }
+.popup-layout-section-hidden button { flex: none; border: 0; border-radius: 6px; padding: 4px 6px; color: var(--brand-strong); background: var(--brand-soft); font: inherit; cursor: pointer; }
+@media (max-width: 520px) {
+  .interface-layout-settings { padding: 10px; }
+  .popup-layout-section-hidden { flex-direction: column; }
 }
 </style>

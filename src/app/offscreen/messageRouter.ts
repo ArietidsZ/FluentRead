@@ -1,7 +1,7 @@
 /**
  * @file src/app/offscreen/messageRouter.ts
  * 文件职责：解析并分派发送到 Offscreen Document 的可信运行时消息，为 Chrome 翻译、TTS、远程图片读取、OCR、整图和区域翻译提供统一响应纪律。
- * 主要内容：提供接收端 ready 握手，严格校验文本、语言码、图片 URL/data URL、圈选坐标与 OCR 语言包，按 operation 调用注入依赖；对 Promise 成功结果验证对象形状，对异常统一返回 success/error 并保持异步 listener 语义。
+ * 主要内容：提供 ready 握手，校验文本、语言码、图片与 OCR 请求并分派依赖；验证响应形状，保留 Chrome 待准备语言对和模型不可用错误码，并保持取消及异步 listener 语义。
  * 模块边界：路由器不创建 Audio/Worker、不调用 browser.offscreen，也不实现翻译算法；资源实例由 offscreen runtime 构造，具体能力来自 translation、ttsPlayback 和 feature services。
  */
 import type {AreaTranslationSelection} from '@/src/features/area-translation/protocol';
@@ -11,7 +11,7 @@ import {
     type ImageOcrLanguageCode,
 } from '@/src/features/image-translation/ocrLanguages';
 import type {SelectionTtsPlayer} from './ttsPlayback';
-import {parseLanguageCode} from './translation';
+import {isChromePreparationRequiredError, parseLanguageCode} from './translation';
 import {
     OFFSCREEN_CANCEL_CHROME_TRANSLATION_MESSAGE_TYPE,
     OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
@@ -125,6 +125,20 @@ function resultRecord(value: unknown, operation: string): Record<string, unknown
 
 function errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
+}
+
+function chromeTranslationErrorResponse(error: unknown): Record<string, unknown> {
+    const response: Record<string, unknown> = {success: false, error: errorMessage(error)};
+    if (isChromePreparationRequiredError(error)) {
+        response.errorCode = error.code;
+        response.errorName = error.name;
+        response.sourceLanguage = error.sourceLanguage;
+        response.targetLanguage = error.targetLanguage;
+    } else if (error instanceof Error && error.name === 'ChromeModelUnavailableError') {
+        response.errorCode = 'model-unavailable';
+        response.errorName = error.name;
+    }
+    return response;
 }
 
 function respondWith(
@@ -267,9 +281,9 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
                             if (typeof result !== 'string') throw new Error('Chrome 翻译结果无效');
                             finish({success: true, result, requestId});
                         },
-                        (error) => finish({success: false, requestId, error: errorMessage(error)}),
+                        (error) => finish({...chromeTranslationErrorResponse(error), requestId}),
                     )
-                    .catch((error) => finish({success: false, requestId, error: errorMessage(error)}));
+                    .catch((error) => finish({...chromeTranslationErrorResponse(error), requestId}));
                 return true;
             }
             case OFFSCREEN_CANCEL_CHROME_TRANSLATION_MESSAGE_TYPE: {

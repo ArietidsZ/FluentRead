@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/SettingsSections.vue
  * 文件职责：承载 FluentRead Options 页面各业务设置分区，连接运行时配置、服务选择、快捷键、站点规则、翻译中心、OCR、词书以及导入导出和历史恢复。
- * 主要内容：模板按 activeSection 展示常规、服务、视频、隐私等控件，并在独立的界面布局页面组织界面风格与菜单栏布局；脚本协调配置快照保存、加密凭据保存、历史游标、能力过滤、连接测试、文件传输和页面离开 flush。
+ * 主要内容：模板按 activeSection 展示常规、服务、视频、隐私等控件，并在独立的界面布局页面组织界面风格与菜单栏布局；脚本派生当前服务的网站入口，协调配置快照保存、加密凭据保存、历史游标、能力过滤、连接测试、文件传输和页面离开 flush。
  * 模块边界：该组件负责设置 UI 编排但不实现 provider 网络、配置仓库或 feature 运行时；校验与迁移来自 core/config，持久化经 services/config，复杂子界面保持在各自 feature/组件内。
  -->
 <template>
@@ -53,6 +53,7 @@
       <ServiceCatalog
         :service="selectedConfigurationService"
         :default-service="config.service"
+        :website="selectedConfigurationWebsite"
         :selected-model="selectedConfigurationModel"
         :services="configurationCompute.filteredServices"
         :model-options="configurationModelOptions"
@@ -416,10 +417,6 @@
       <InterfaceSettings :config="config" />
     </section>
 
-    <section v-show="props.activeSection === 'settings-advanced'" class="settings-section settings-section-continuation">
-      <TranslationLoadingStyleSettings :config="config" />
-    </section>
-
     <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
       <SettingsGroup title="输入框翻译" description="仅支持普通文本 input、textarea 与 plaintext-only 编辑区；密码框和富文本编辑器不参与。">
         <!-- 输入框翻译功能 -->
@@ -742,6 +739,7 @@ const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
 import UiLanguageSelector from '@/src/ui/components/UiLanguageSelector.vue';
 import ServiceCatalog from './services/ServiceCatalog.vue';
+import {getServiceWebsite} from '@/src/ui/view-model/serviceCatalog';
 import ServiceConfiguration from './services/ServiceConfiguration.vue';
 import CustomOpenAIProviderDialog from './services/CustomOpenAIProviderDialog.vue';
 import {TranslationCenter} from '@/src/features/translation-center/public';
@@ -757,7 +755,6 @@ import {ImageOcrSettings} from '@/src/features/image-translation/public';
 import VideoLocalModelSettings from './VideoLocalModelSettings.vue';
 import {ModelUsageDashboard} from '@/src/features/model-usage/public';
 import InterfaceSettings from './InterfaceSettings.vue';
-import TranslationLoadingStyleSettings from './TranslationLoadingStyleSettings.vue';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
 import SegmentedControl from './components/SegmentedControl.vue';
@@ -894,6 +891,13 @@ const configurationService = ref<string | null>(null);
 const selectedConfigurationService = computed(
   () => configurationService.value ?? config.value.service,
 );
+const selectedConfigurationWebsite = computed(() => {
+  const service = selectedConfigurationService.value;
+  const endpoint = isCustomOpenAIProviderId(service)
+    ? getCustomOpenAIProvider(config.value.customOpenAIProviders, service)?.endpoint
+    : service === services.newapi ? config.value.newApiUrl : config.value.custom;
+  return getServiceWebsite(service, {endpoint, minimaxRegion: config.value.minimaxRegion});
+});
 
 // 导入、撤销或恢复可能在当前页面仍打开时删除正在编辑的 profile。
 // 失效的 custom:* 选择应立即回退到新的默认服务，避免渲染孤儿配置字段。

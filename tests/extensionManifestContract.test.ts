@@ -18,6 +18,15 @@ function permissionsFor(browser: string, manifestVersion: 2 | 3): string[] {
 }
 
 describe('extension manifest capability contract', () => {
+    it('仅旧 QQ 阅读入口启用子 frame 注入，通用网页仍保持顶层注入', () => {
+        const entry = sourceBody('entrypoints/qqMailFrame.content.ts');
+        expect(entry).toContain("matches: ['https://mail.qq.com/cgi-bin/readmail*']");
+        expect(entry).toContain('allFrames: true');
+        expect(entry).not.toContain('matchAboutBlank');
+        expect(entry).not.toContain('matchOriginAsFallback');
+        expect(sourceBody('entrypoints/content.ts')).not.toContain('allFrames');
+    });
+
     it('declares the literal all-URLs host permission required by captureVisibleTab', () => {
         for (const [browser, manifestVersion] of [
             ['chrome', 3],

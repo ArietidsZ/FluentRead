@@ -11,6 +11,8 @@ const FOCUS_SAFE_SCRIPTS = [
     'scripts/run-video-subtitle-fixture-test.cjs',
     'scripts/run-document-translation-test.cjs',
     'scripts/testing/run-settings-center-ui-test.cjs',
+    'scripts/testing/run-popup-startup-ui-test.cjs',
+    'scripts/testing/run-loading-motion-ui-test.cjs',
     'scripts/run-privacy-boundary-test.cjs',
     'scripts/run-site-translation-test.cjs',
     'scripts/run-userscript-smoke-test.cjs',
@@ -23,6 +25,8 @@ const ACTIVATED_EXTENSION_TAB_SCRIPTS = FOCUS_SAFE_SCRIPTS.filter(
     (path) => ![
         'scripts/run-document-translation-test.cjs',
         'scripts/testing/run-settings-center-ui-test.cjs',
+        'scripts/testing/run-popup-startup-ui-test.cjs',
+        'scripts/testing/run-loading-motion-ui-test.cjs',
         'scripts/run-userscript-smoke-test.cjs',
     ].includes(path),
 );
