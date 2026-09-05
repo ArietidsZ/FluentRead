@@ -271,13 +271,25 @@ describe('Offscreen 图片完整操作生命周期', () => {
 });
 
 describe('Offscreen 圈选裁剪生命周期', () => {
-    it('裁剪后释放全图，再处理裁剪图并保持完整结果', async () => {
+    it('圈选只裁剪和本地OCR，保留原图原文且从不重绘或调用图片翻译RPC', async () => {
         imageOptions.push({width: 40, height: 20, naturalWidth: 0, naturalHeight: 0}, {width: 20, height: 10});
         await expect(translateAreaInOffscreen('screenshot', 'en', '', selection)).resolves.toHaveProperty('image');
-        expect(images).toHaveLength(2);
+        expect(images).toHaveLength(1);
+        expect(mocks.recognize).toHaveBeenCalledWith('data:image/png;base64,translated', 'en', undefined, {profile: 'area'});
+        expect(mocks.inpaint).not.toHaveBeenCalled();
+        expect(mocks.draw).not.toHaveBeenCalled();
+        expect(sendMessage).not.toHaveBeenCalled();
         expect(canvases[0].context.drawImage).toHaveBeenCalledWith(images[0], 0, 0, 20, 10, 0, 0, 20, 10);
         expect(images.every(image => image.src === '')).toBe(true);
         expect(canvases.every(canvas => canvas.width === 0 && canvas.height === 0)).toBe(true);
+    });
+
+    it('无OCR结果与识别中取消均不返回迟到文本', async () => {
+        mocks.recognize.mockResolvedValueOnce([]);
+        await expect(translateAreaInOffscreen('image', 'en', '', selection)).rejects.toThrow('没有识别到圈选区域文字');
+        const controller = new AbortController();
+        mocks.recognize.mockImplementationOnce(async () => {controller.abort(); return lines;});
+        await expect(translateAreaInOffscreen('image', 'en', '', selection, controller.signal)).rejects.toMatchObject({name: 'AbortError'});
     });
 
     it('裁剪 Canvas 不可用时释放截图且不开始 OCR', async () => {

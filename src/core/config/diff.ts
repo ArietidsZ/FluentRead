@@ -21,7 +21,8 @@ export const CONFIG_DIFF_GROUPS = [
     {id: 'translationServices', label: '翻译服务'},
     {id: 'translation', label: '翻译设置'},
     {id: 'siteRules', label: '网站规则'},
-    {id: 'imageAndArea', label: '图片与圈选翻译'},
+    {id: 'imageTranslation', label: '图片翻译'},
+    {id: 'areaTranslation', label: '圈选翻译'},
     {id: 'videoSubtitles', label: '视频字幕翻译'},
     {id: 'advanced', label: '高级'},
     {id: 'tools', label: '工具'},
@@ -464,8 +465,10 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     alwaysTranslateDomains: {group: 'siteRules', label: '始终翻译网站'},
     disabledExtensionDomains: {group: 'siteRules', label: '禁用扩展网站'},
 
-    disableImageTranslator: {group: 'imageAndArea', label: '图片翻译', format: (value) => formatBoolean(value, true)},
-    selectionAreaEnabled: {group: 'imageAndArea', label: '圈选翻译', format: formatBoolean},
+    disableImageTranslator: {group: 'imageTranslation', label: '图片翻译', format: (value) => formatBoolean(value, true)},
+    selectionAreaEnabled: {group: 'areaTranslation', label: '圈选翻译', format: formatBoolean},
+    areaTranslationMode: {group: 'areaTranslation', label: '圈选翻译方式', format: value => value === 'ai' ? 'AI 上下文增强' : '标准翻译'},
+    areaTranslationService: {group: 'areaTranslation', label: '圈选翻译服务', format: value => value ? formatService(value) : '跟随当前服务'},
 
     videoTranslationEnabled: {group: 'videoSubtitles', label: '视频字幕翻译', format: formatBoolean},
     videoService: {group: 'videoSubtitles', label: '视频翻译服务', format: formatService},

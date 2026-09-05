@@ -59,6 +59,7 @@ export default defineConfig({
           text: '更多功能',
           items: [
             { text: '图片翻译', link: '/guide/image-translation' },
+            { text: '圈选翻译', link: '/guide/area-translation' },
             { text: '术语库', link: '/guide/glossary' },
             { text: '油猴脚本', link: '/guide/userscript' },
             { text: '单词本 Beta', link: '/guide/vocabulary-book' },

@@ -500,6 +500,21 @@ describe('界面 i18n 契约', () => {
     }
   });
 
+  it('圈选设置和结果说明提供明确的 English 文案与其他语言回退', () => {
+    const areaKeys = Object.keys(zhCNMessages).filter(key => key.startsWith('area.settings.'));
+    for (const language of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
+      for (const key of areaKeys) expect(translate(key, language)).not.toBe(key);
+    }
+    expect(translate('area.settings.standardDescription', 'en-US')).toContain('OCR text only');
+    expect(translate('area.settings.aiDescription', 'en-US')).toContain('does not see the screenshot');
+    expect(translate('area.settings.privacy', 'en-US')).toContain('screenshots are not uploaded');
+    for (const copy of [
+      'AI 仅处理识别文字，无法找回图片中的漏字；请核对名称和数字。',
+      '当前服务或模型不支持 AI 文字增强，请选择通用 AI 模型或使用标准翻译',
+      '无法打开设置，请从扩展菜单打开圈选设置',
+    ]) expect(translateLegacyText(copy, 'en-US')).not.toMatch(/[\u3400-\u9fff]/u);
+  });
+
   it('独立界面布局导航、皮肤风格和通用设置文案覆盖每种界面语言', () => {
     const navigationCopy = navigationItems
       .filter((item) => ['settings-general', 'settings-interface'].includes(item.id))

@@ -36,6 +36,7 @@
       "tests/aiSdkEndpoints.test.ts",
       "tests/aiSdkErrors.test.ts",
       "tests/areaTranslationCore.test.ts",
+      "tests/areaTextTranslation.test.ts",
       "tests/auth.test.ts",
       "tests/bilingualRemount.test.ts",
       "tests/bilingualReplay.test.ts",

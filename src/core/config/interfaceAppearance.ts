@@ -197,6 +197,7 @@ export const POPUP_QUICK_FEATURE_IDS = [
   'selection',
   'appearance',
   'image',
+  'area',
   'video',
   'document',
 ] as const
@@ -279,7 +280,7 @@ export const popupQuickFeatureOptions: readonly PopupQuickFeatureOption[] = [
   {
     id: 'selection',
     label: '划词翻译',
-    description: '选中文字或圈选区域后翻译。',
+    description: '选中网页文字后翻译。',
     labelKey: 'settings.interface.popupQuickFeatures.modules.selection.label',
     descriptionKey: 'settings.interface.popupQuickFeatures.modules.selection.description',
   },
@@ -296,6 +297,13 @@ export const popupQuickFeatureOptions: readonly PopupQuickFeatureOption[] = [
     description: '识别并翻译图片中的文字。',
     labelKey: 'settings.interface.popupQuickFeatures.modules.image.label',
     descriptionKey: 'settings.interface.popupQuickFeatures.modules.image.description',
+  },
+  {
+    id: 'area',
+    label: '圈选翻译',
+    description: '截取页面区域，识别文字后翻译。',
+    labelKey: 'settings.interface.popupQuickFeatures.modules.area.label',
+    descriptionKey: 'settings.interface.popupQuickFeatures.modules.area.description',
   },
   {
     id: 'video',

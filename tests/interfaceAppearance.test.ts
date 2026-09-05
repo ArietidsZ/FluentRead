@@ -91,6 +91,7 @@ describe('界面皮肤与栏目配置', () => {
       'selection',
       'appearance',
       'image',
+      'area',
       'video',
       'document',
     ])
@@ -134,6 +135,7 @@ describe('界面皮肤与栏目配置', () => {
       'selection',
       'appearance',
       'image',
+      'area',
       'video',
     ])
     expect(normalizePopupQuickFeatureOrder(null)).toEqual(DEFAULT_POPUP_QUICK_FEATURE_ORDER)
@@ -148,6 +150,7 @@ describe('界面皮肤与栏目配置', () => {
       selection: true,
       appearance: true,
       image: true,
+      area: true,
       video: true,
       document: true,
     })
@@ -220,6 +223,7 @@ describe('界面皮肤与栏目配置', () => {
       'selection',
       'appearance',
       'image',
+      'area',
       'video',
     ])
     expect(normalized.popupQuickFeatureVisibility).toEqual({
@@ -227,6 +231,7 @@ describe('界面皮肤与栏目配置', () => {
       selection: true,
       appearance: true,
       image: false,
+      area: true,
       video: true,
       document: true,
     })

@@ -211,8 +211,6 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/features/document-translation/ui/pdfPreview.ts',
     // 图片悬停 runtime 绑定页面 Image/Canvas/Shadow DOM；协议、OCR 与修复规则由 strict coverage 验证，跨域读取边界由安全契约验证。
     'src/features/image-translation/content/runtime.ts',
-    // Tesseract worker、Canvas 测量/绘制与 Chrome runtime 消息属于 offscreen 浏览器 glue；纯 OCR、修复和颜色采样规则已纳入 strict coverage。
-    'src/features/image-translation/services/ocrRuntime.ts',
     // MAIN world adapter 只把 Element/History/Navigation 注入严格覆盖的 ShadowRoute bridge core。
     'src/platform/shadow-ui/pageBridge.ts',
     // Edge TTS 运行时绑定 Web Crypto、第三方网络协议与 AbortSignal；纯音色、SSML、分段和 token 时效策略已严格覆盖。

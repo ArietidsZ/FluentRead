@@ -209,12 +209,13 @@ const previewStyle = computed(() => {
 const previewAriaLabel = computed(() => `${t('settings.interface.popupLayout.previewTitle')}: ${props.skinLabel}`)
 
 function featureGlyph(id: string): string {
-  if (props.skin.value === 'emoji') return ({hover: '🖱️', selection: '✍️', appearance: '🎨', image: '🖼️', video: '🎬', document: '📖'} as Record<string, string>)[id] || '✨'
+  if (props.skin.value === 'emoji') return ({hover: '🖱️', selection: '✍️', appearance: '🎨', image: '🖼️', area: '✂️', video: '🎬', document: '📖'} as Record<string, string>)[id] || '✨'
   return ({
     hover: '↖',
     selection: 'I',
     appearance: 'Aa',
     image: '▧',
+    area: '▣',
     video: 'CC',
     document: '文',
   } as Record<string, string>)[id] ?? '·'

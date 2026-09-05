@@ -19,6 +19,7 @@ export default defineConfig({
         include: [
             'tests/chineseLanguage.test.ts',
             'tests/chineseTranslationProviders.test.ts',
+            'tests/areaTextTranslation.test.ts',
             'tests/aiContextPresentation.test.ts',
             'tests/siteAdaptationCore.test.ts',
             'tests/siteAdaptationRuntime.test.ts',
@@ -300,6 +301,7 @@ export default defineConfig({
                 'src/features/area-translation/background/handlers.ts',
                 'src/features/area-translation/background/offscreenAdapter.ts',
                 'src/features/area-translation/core.ts',
+                'src/features/area-translation/services/textTranslation.ts',
                 'src/features/area-translation/content/runtime.ts',
                 'src/features/area-translation/services/client.ts',
                 'src/features/document-translation/core/document.ts',
@@ -320,6 +322,7 @@ export default defineConfig({
                 'src/features/image-translation/services/client.ts',
                 'src/features/image-translation/services/inpainting.ts',
                 'src/features/image-translation/services/ocrWorkerRuntime.ts',
+                'src/features/image-translation/services/ocrRuntime.ts',
                 'src/features/image-translation/services/offscreenRuntime.ts',
                 'src/features/image-translation/services/rendering.ts',
                 'src/features/image-translation/services/remoteImage.ts',

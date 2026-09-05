@@ -63,10 +63,16 @@ export const navigationGroups = [
     label: '专项翻译',
     items: [
       {
-        id: 'settings-image-translation', icon: '图', label: '图片与圈选翻译', description: '图片、圈选与 OCR', group: '专项翻译',
-        heading: '图片与圈选翻译', summary: '管理网页图片、圈选区域和本地 OCR 语言包。',
-        kicker: '专项翻译', title: '图片与圈选翻译', detail: '控制图片与圈选翻译，并按需准备本地 OCR 语言包。',
-        searchDescription: '图片翻译、圈选翻译、区域翻译、OCR、语言包、中文、英文、日文、下载',
+        id: 'settings-image-translation', icon: '图', label: '图片翻译', description: '网页图片与 OCR', group: '专项翻译',
+        heading: '图片翻译', summary: '管理网页图片翻译和本地 OCR 语言包。',
+        kicker: '专项翻译', title: '图片翻译', detail: '悬停网页图片，从图片入口识别和翻译文字。',
+        searchDescription: '图片翻译、OCR、语言包、中文、英文、日文、下载',
+      },
+      {
+        id: 'settings-area-translation', icon: '▣', label: '圈选翻译', description: '截取区域与文字识别', group: '专项翻译',
+        heading: '圈选翻译', summary: '圈选屏幕中的文字，选择标准翻译或 AI 上下文增强。',
+        kicker: '专项翻译', title: '圈选翻译', detail: '独立配置圈选翻译的开关、识别语言和翻译服务。',
+        searchDescription: '圈选翻译、区域翻译、截图、Shift+Z、OCR、微软、免费翻译、AI、纠错、语言包',
       },
       {
         id: 'settings-video', icon: 'CC', label: '视频字幕翻译', description: 'YouTube 边看边译', group: '专项翻译',

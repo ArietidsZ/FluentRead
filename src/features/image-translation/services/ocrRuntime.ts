@@ -1,11 +1,12 @@
 /**
  * @file src/features/image-translation/services/ocrRuntime.ts
  * 文件职责：将 Tesseract.js Worker 适配为图片翻译可调用的 OCR 服务，配置扩展内 worker/core 资源并按源语言串行执行识别或语言包预下载。
- * 主要内容：创建具体 OcrWorkerPort，设置 PSM 和语言资源路径，在识别前按像素预算降采样，映回原图坐标；有界缓存已完成结果，重复翻译复用 OCR，取消与失败不写缓存。
+ * 主要内容：配置扩展语言资源与图片/圈选识别策略；对图片解码设置超时并释放像素，圈选小图有界放大加边且仅空结果重试单块分割；坐标映回原图并按策略隔离有界缓存。
  * 模块边界：该文件是 Tesseract 基础设施边界，不保存下载状态、不翻译识别文本也不绘制图片；并发所有权由 ocrWorkerRuntime 管理，持久化由后台 repository 负责。
  */
 import { createWorker, PSM, type Worker } from 'tesseract.js';
 import {
+    getAreaOcrImageSize,
     getOcrImageSize,
     getOcrLanguages,
     normalizeOcrLines,
@@ -37,6 +38,8 @@ const ocrWorkerRuntime = createOcrWorkerRuntime<TesseractRecognitionResult>({
 
 const MAX_CACHED_OCR_IMAGES = 3;
 const MAX_CACHED_OCR_BYTES = 12 * 1024 * 1024;
+const OCR_IMAGE_DECODE_TIMEOUT_MS = 15_000;
+export type OcrRecognitionOptions = {profile?: 'image' | 'area'};
 const completedRecognitionCache = new Map<string, {lines: OcrLine[]; bytes: number}>();
 let cachedRecognitionBytes = 0;
 
@@ -69,23 +72,23 @@ function loadOcrImage(image: string, signal?: AbortSignal): Promise<HTMLImageEle
     return new Promise((resolve, reject) => {
         const source = new Image();
         const cleanup = () => {
+            clearTimeout(timeout);
             source.onload = null;
             source.onerror = null;
             signal?.removeEventListener('abort', handleAbort);
         };
-        const handleAbort = () => {
+        const fail = (error: Error) => {
             cleanup();
             source.src = '';
-            reject(abortRecognition());
+            reject(error);
         };
+        const handleAbort = () => fail(abortRecognition());
+        const timeout = setTimeout(() => fail(new Error('图片解码超时，请重新圈选或重试')), OCR_IMAGE_DECODE_TIMEOUT_MS);
         source.onload = () => {
             cleanup();
             resolve(source);
         };
-        source.onerror = () => {
-            cleanup();
-            reject(new Error('图片数据无法解码'));
-        };
+        source.onerror = () => fail(new Error('图片数据无法解码'));
         if (signal?.aborted) {
             handleAbort();
             return;
@@ -95,14 +98,54 @@ function loadOcrImage(image: string, signal?: AbortSignal): Promise<HTMLImageEle
     });
 }
 
+async function prepareOcrImage(image: string, profile: 'image' | 'area', signal?: AbortSignal) {
+    const source = await loadOcrImage(image, signal);
+    try {
+        if (signal?.aborted) throw abortRecognition();
+        const sourceWidth = source.naturalWidth || source.width;
+        const sourceHeight = source.naturalHeight || source.height;
+        const size = profile === 'area'
+            ? getAreaOcrImageSize(sourceWidth, sourceHeight)
+            : {...getOcrImageSize(sourceWidth, sourceHeight), padding: 0};
+        let recognitionImage = image;
+        if (size.padding || size.width !== sourceWidth || size.height !== sourceHeight) {
+            const canvas = document.createElement('canvas');
+            try {
+                canvas.width = size.width + size.padding * 2;
+                canvas.height = size.height + size.padding * 2;
+                const context = canvas.getContext('2d');
+                if (!context) throw new Error('浏览器不支持图片处理');
+                if (size.padding) {
+                    context.fillStyle = '#ffffff';
+                    context.fillRect(0, 0, canvas.width, canvas.height);
+                }
+                context.imageSmoothingEnabled = true;
+                context.imageSmoothingQuality = 'high';
+                context.drawImage(source, size.padding, size.padding, size.width, size.height);
+                recognitionImage = canvas.toDataURL('image/png');
+            } finally {
+                // 绘制或编码失败也释放像素；不与 OCR WebAssembly 长期并存。
+                canvas.width = 0;
+                canvas.height = 0;
+            }
+        }
+        return {recognitionImage, sourceWidth, sourceHeight, size};
+    } finally {
+        // drawImage 和编码完成后即可释放解码源，不等远端/Worker 识别结束。
+        source.src = '';
+    }
+}
+
 export async function recognizeImage(
     image: string,
     sourceLanguage: string,
     signal?: AbortSignal,
+    options: OcrRecognitionOptions = {},
 ): Promise<OcrLine[]> {
     if (signal?.aborted) throw abortRecognition();
     const languages = getOcrLanguages(sourceLanguage).join('+');
-    const cacheKey = `${languages}\0${image}`;
+    const profile = options.profile ?? 'image';
+    const cacheKey = `${profile}\0${languages}\0${image}`;
     const cached = completedRecognitionCache.get(cacheKey);
     if (cached) {
         completedRecognitionCache.delete(cacheKey);
@@ -110,31 +153,20 @@ export async function recognizeImage(
         return copyOcrLines(cached.lines);
     }
 
-    const source = await loadOcrImage(image, signal);
+    const {recognitionImage, sourceWidth, sourceHeight, size} = await prepareOcrImage(image, profile, signal);
     if (signal?.aborted) throw abortRecognition();
-    const sourceWidth = source.naturalWidth || source.width;
-    const sourceHeight = source.naturalHeight || source.height;
-    const size = getOcrImageSize(sourceWidth, sourceHeight);
-    let recognitionImage = image;
-    if (size.width !== sourceWidth || size.height !== sourceHeight) {
-        const canvas = document.createElement('canvas');
-        canvas.width = size.width;
-        canvas.height = size.height;
-        const context = canvas.getContext('2d');
-        if (!context) throw new Error('浏览器不支持图片处理');
-        context.imageSmoothingEnabled = true;
-        context.imageSmoothingQuality = 'high';
-        context.drawImage(source, 0, 0, size.width, size.height);
-        recognitionImage = canvas.toDataURL('image/png');
-        // 编码后立即释放临时画布像素，避免 OCR WebAssembly 与降采样画布同时长期占用内存。
-        canvas.width = 0;
-        canvas.height = 0;
-    }
     const result = await ocrWorkerRuntime.recognize(recognitionImage, languages, signal);
     if (signal?.aborted) throw abortRecognition();
-    const lines = restoreOcrLineCoordinates(
-        normalizeOcrLines(result.data.blocks), sourceWidth, sourceHeight, size.width, size.height,
+    const readLines = (recognition: TesseractRecognitionResult) => restoreOcrLineCoordinates(
+        normalizeOcrLines(recognition.data.blocks), sourceWidth, sourceHeight, size.width, size.height, size.padding,
     );
+    let lines = readLines(result);
+    if (profile === 'area' && lines.length === 0) {
+        // 空结果才尝试另一种布局假设，不为每次圈选翻倍耗时，也不降低噪声阈值。
+        const fallback = await ocrWorkerRuntime.recognize(recognitionImage, languages, signal, PSM.SINGLE_BLOCK);
+        if (signal?.aborted) throw abortRecognition();
+        lines = readLines(fallback);
+    }
     cacheRecognition(cacheKey, lines);
     return lines;
 }
