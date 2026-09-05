@@ -48,6 +48,19 @@ function history(overrides: Partial<ConfigHistoryState> = {}): ConfigHistoryStat
 }
 
 describe('配置 schema 与历史纯状态机', () => {
+    it('DeepL 套餐经过配置历史序列化和恢复保持一致', () => {
+        const current = {...baseConfig, deeplApiPlan: 'free', token: {deepL: 'free-key'}};
+        const baseline = createBaselineConfigHistory(current, 1, 'free-time');
+        const updated = appendConfigHistorySnapshot(baseline, {...current, deeplApiPlan: 'pro'}, 'pro-time')!;
+        const parsed = parseConfigHistory(JSON.parse(serializeConfigHistory(updated)))!;
+
+        expect(parsed.entries.map(item => item.config.deeplApiPlan)).toEqual(['free', 'pro']);
+        const restored = restoreRestorableConfig(parsed.entries[1]!.config, current);
+        expect(restored.deeplApiPlan).toBe('pro');
+        expect(restored.token).not.toHaveProperty('deepL');
+        expect(restoreRestorableConfig(parsed.entries[0]!.config, current).token.deepL).toBe('free-key');
+    });
+
     it('存储 schema 只接受完整对象或合法旧 JSON，并规范化 revision', () => {
         expect(isConfigRecord({})).toBe(true);
         expect(isConfigRecord(null)).toBe(false);

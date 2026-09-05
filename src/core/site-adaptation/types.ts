@@ -18,6 +18,12 @@ export interface SiteRecipe {
     protect?: string[];
     exclude?: string[];
     watchIgnore?: string[];
+    /** 省略受控元数据；同时排除候选和请求，译文副本也不保留。 */
+    omit?: string[];
+    /** 仅当所选节点是以 b/i 字面量开头、其余文字仅在平衡括号内的标签时保护。 */
+    literalLabels?: string[];
+    /** 仅当所选字面标记的文本符合命令式标识符形态时保留原文。 */
+    literalTokens?: string[];
 }
 
 export interface SiteRule extends SiteRecipe {

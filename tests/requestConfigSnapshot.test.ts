@@ -62,6 +62,16 @@ describe('translation provider request config snapshot', () => {
         expect(Object.isFrozen(snapshot.freeTranslationOrder)).toBe(true);
         expect(snapshot.myMemoryEmail).toBe('contact@example.test');
     });
+    it('freezes the selected DeepL API plan and normalizes missing legacy values', () => {
+        const source = configSource({deeplApiPlan: 'free'});
+        const snapshot = createTranslationProviderConfigSnapshot(source);
+        source.deeplApiPlan = 'pro';
+
+        expect(snapshot.deeplApiPlan).toBe('free');
+        expect(createTranslationProviderConfigSnapshot(source).deeplApiPlan).toBe('pro');
+        expect(createTranslationProviderConfigSnapshot(configSource()).deeplApiPlan).toBe('free');
+    });
+
     it('matches pure source slots without protocol boundaries and leaves malformed or literal markers intact', () => {
         const packet = serializeTranslationSlots(['agent', 'An agent works.'], 'Case_1-x');
         expect(getTranslationGlossarySourceText(packet.payload)).toEqual(['agent', 'An agent works.']);

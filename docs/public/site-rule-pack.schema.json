@@ -70,7 +70,10 @@
         "content": {"$ref": "#/$defs/content"},
         "protect": {"$ref": "#/$defs/selectors"},
         "exclude": {"$ref": "#/$defs/selectors"},
-        "watchIgnore": {"$ref": "#/$defs/selectors"}
+        "watchIgnore": {"$ref": "#/$defs/selectors"},
+        "omit": {"$ref": "#/$defs/selectors"},
+        "literalLabels": {"$ref": "#/$defs/selectors"},
+        "literalTokens": {"$ref": "#/$defs/selectors"}
       }
     },
     "rule": {
@@ -87,6 +90,9 @@
         "protect": {"$ref": "#/$defs/selectors"},
         "exclude": {"$ref": "#/$defs/selectors"},
         "watchIgnore": {"$ref": "#/$defs/selectors"},
+        "omit": {"$ref": "#/$defs/selectors"},
+        "literalLabels": {"$ref": "#/$defs/selectors"},
+        "literalTokens": {"$ref": "#/$defs/selectors"},
         "match": {
           "type": "object",
           "additionalProperties": false,

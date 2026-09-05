@@ -132,6 +132,134 @@ function assertCardStable(trace, label) {
 }
 async function selectText(page, selector, end = 42) { return page.evaluate(({ selector, end }) => { const node = document.querySelector(selector)?.firstChild; if (!node)
     throw new Error(`找不到文本: ${selector}`); const range = document.createRange(); range.setStart(node, 0); range.setEnd(node, Math.min(end, node.textContent.length)); const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range); return selection.toString(); }, { selector, end }); }
+// 只冻结页面收到的首条保存回执；真实 runtime 请求、后台校验与落盘全部照常执行。
+// 后续 UI 修改因此确定停留在页面队列，不依赖机器负载碰巧制造竞态。
+function harnessSaveProbeScript() {
+    const state = {installed: false, requests: [], responses: [], heldResponses: 0, releasedResponses: 0, batches: [], beforeUnloads: 0, pageHides: 0};
+    const release = [];
+    globalThis.__fluentReadHarnessSaveProbe = state;
+    globalThis.__fluentReadHarnessReleaseSave = () => { for (const deliver of release.splice(0)) { state.releasedResponses += 1; deliver(); } };
+    const original = globalThis.chrome.runtime.sendMessage.bind(globalThis.chrome.runtime);
+    const emit = (kind, details) => console.info(`FR_HARNESS_SAVE_PROBE ${JSON.stringify({kind, at: Date.now(), ...details})}`);
+    globalThis.chrome.runtime.sendMessage = function (...args) {
+        const message = args.find(value => value && typeof value === 'object' && typeof value.type === 'string');
+        if (message?.type === 'persistConfigBatch') {
+            const batch = {clientId: message.clientId, sequences: (message.patches || []).map(patch => patch.sequence), harness: (message.patches || []).map(patch => patch.config?.harness || null)};
+            state.batches.push(batch); emit('batch', batch);
+            return original(...args);
+        }
+        if (message?.type !== 'persistConfig' || !message.config?.harness) return original(...args);
+        const request = {clientId: message.clientId, sequence: message.sequence, mode: message.mode || 'replace', harness: JSON.parse(JSON.stringify(message.config.harness))};
+        state.requests.push(request); emit('request', request);
+        const hold = state.requests.length === 1;
+        const recordResponse = response => {
+            const value = {sequence: message.sequence, success: response?.success === true, revision: response?.revision};
+            state.responses.push(value); emit('response', value);
+        };
+        const callbackIndex = args.findLastIndex(value => typeof value === 'function');
+        if (callbackIndex >= 0) {
+            const callback = args[callbackIndex];
+            args[callbackIndex] = response => {
+                recordResponse(response);
+                if (!hold) return callback(response);
+                state.heldResponses += 1;
+                release.push(() => callback(response));
+            };
+            return original(...args);
+        }
+        return Promise.resolve(original(...args)).then(response => {
+            recordResponse(response);
+            if (!hold) return response;
+            state.heldResponses += 1;
+            return new Promise(resolve => release.push(() => resolve(response)));
+        });
+    };
+    state.installed = true;
+    addEventListener('beforeunload', () => { state.beforeUnloads += 1; emit('beforeunload', {beforeUnloads: state.beforeUnloads}); });
+    addEventListener('pagehide', () => { state.pageHides += 1; emit('pagehide', {pageHides: state.pageHides}); });
+}
+async function waitForHarnessSaved(configPage, expected, timeout = 10000) {
+    const deadline = Date.now() + timeout;
+    let actual;
+    do {
+        actual = (await readConfig(configPage)).harness;
+        if (Object.entries(expected).every(([key, value]) => actual[key] === value)) return actual;
+        await new Promise(resolve => setTimeout(resolve, 50));
+    } while (Date.now() < deadline);
+    throw new Error(`Harness 设置未持久化: ${JSON.stringify({expected, actual})}`);
+}
+async function verifyHarnessSaveRace({newPage, configPage, extensionId, args, result, record, quickClose}) {
+    const id = quickClose ? 'settings-ui-quick-close-pending-save' : 'settings-ui-continuous-latest-write-wins';
+    const details = {executed: true, heldResponseControl: true, events: []};
+    let editedPage;
+    let reopenedPage;
+    try {
+        const baseline = {...(await readConfig(configPage)).harness, enabled: false, contextMode: 'paragraph', explanationDepth: 'concise'};
+        await persistConfig(configPage, {harness: baseline});
+        editedPage = await newPage();
+        editedPage.on('console', message => {
+            const prefix = 'FR_HARNESS_SAVE_PROBE ';
+            if (message.text().startsWith(prefix)) details.events.push(JSON.parse(message.text().slice(prefix.length)));
+        });
+        await editedPage.addInitScript(harnessSaveProbeScript);
+        await editedPage.goto(`chrome-extension://${extensionId}/options.html#settings-harness`, {waitUntil: 'domcontentloaded'});
+        const enabled = editedPage.getByRole('switch', {name: '启用 Harness'});
+        await editedPage.waitForFunction(() => document.querySelector('[role="switch"][aria-label="启用 Harness"]')?.getAttribute('aria-checked') === 'false');
+        assert(await editedPage.evaluate(() => globalThis.__fluentReadHarnessSaveProbe.installed && globalThis.__fluentReadHarnessSaveProbe.requests.length === 0), '保存观察器未在首次 UI 修改前就绪');
+        await editedPage.locator('.harness-more > summary').click();
+        await enabled.locator('xpath=ancestor::*[contains(@class, "el-switch")][1]').locator('.el-switch__core').click();
+        await editedPage.waitForFunction(() => globalThis.__fluentReadHarnessSaveProbe.heldResponses === 1);
+        assert((await readConfig(configPage)).harness.enabled === true, '首个 UI 请求没有真实落盘，无法验证回执在途竞态');
+        await editedPage.getByRole('radio', {name: '仅选中文字', exact: true}).click();
+        const expected = {enabled: true, contextMode: 'selection', explanationDepth: 'concise'};
+        if (!quickClose) {
+            await editedPage.getByRole('radio', {name: '可参考本段', exact: true}).click();
+            await editedPage.getByRole('radio', {name: '仅选中文字', exact: true}).click();
+        }
+        details.beforeRelease = await editedPage.evaluate(() => ({
+            probe: structuredClone(globalThis.__fluentReadHarnessSaveProbe),
+            selected: document.querySelector('[role="radio"][aria-label="仅选中文字"]')?.getAttribute('aria-checked')
+                || Array.from(document.querySelectorAll('[role="radio"]')).find(node => node.textContent.trim() === '仅选中文字')?.getAttribute('aria-checked'),
+        }));
+        assert(details.beforeRelease.probe.requests.length === 1 && details.beforeRelease.probe.heldResponses === 1, '后续 UI 修改未形成首回执阻塞的页面待发队列');
+        assert(details.beforeRelease.selected === 'true', '最终上下文选项没有通过真实 UI 生效');
+        if (quickClose) {
+            // Page.close 走浏览器真实 beforeunload/pagehide 路径，不合成 pagehide，不释放被阻塞的回执。
+            const closed = editedPage.waitForEvent('close');
+            await editedPage.close({runBeforeUnload: true});
+            await closed;
+            editedPage = null;
+        } else {
+            await editedPage.evaluate(() => globalThis.__fluentReadHarnessReleaseSave());
+            await editedPage.waitForFunction(() => globalThis.__fluentReadHarnessSaveProbe.responses.length >= 4);
+            details.afterRelease = await editedPage.evaluate(() => structuredClone(globalThis.__fluentReadHarnessSaveProbe));
+            assert(details.afterRelease.requests.length === 4 && details.afterRelease.responses.every(response => response.success), '连续 UI 写入没有依次提交成功');
+        }
+        details.expected = expected;
+        details.persisted = await waitForHarnessSaved(configPage, expected);
+        if (editedPage) { await editedPage.close(); editedPage = null; }
+        reopenedPage = await newPage();
+        await reopenedPage.goto(`chrome-extension://${extensionId}/options.html#settings-harness`, {waitUntil: 'domcontentloaded'});
+        await reopenedPage.waitForFunction(() => document.querySelector('[role="switch"][aria-label="启用 Harness"]')?.getAttribute('aria-checked') === 'true');
+        await reopenedPage.locator('.harness-more > summary').click();
+        assert(await reopenedPage.getByRole('radio', {name: '仅选中文字', exact: true}).getAttribute('aria-checked') === 'true', '重开后最终上下文选择回滚');
+        details.reopened = (await readConfig(reopenedPage)).harness;
+        const screenshot = path.join(args.artifactsDir, `${id}.png`);
+        await reopenedPage.screenshot({path: screenshot}); result.screenshots.push(screenshot);
+        record(id, 'passed', details);
+    } catch (error) {
+        details.error = error.stack || error.message;
+        details.persistedAfterFailure = (await readConfig(configPage)).harness;
+        record(id, 'failed', details);
+    } finally {
+        if (editedPage && !editedPage.isClosed()) {
+            await editedPage.evaluate(() => globalThis.__fluentReadHarnessReleaseSave?.()).catch(() => {});
+            await editedPage.close().catch(() => {});
+        }
+        if (reopenedPage && !reopenedPage.isClosed()) await reopenedPage.close().catch(() => {});
+    }
+    result[quickClose ? 'quickClose' : 'latestWriteWins'] = details;
+}
 async function main() {
     const args = parseArgs(process.argv.slice(2));
     fs.mkdirSync(args.artifactsDir, { recursive: true });
@@ -220,6 +348,16 @@ async function main() {
         context.on('page', target => { target.on('console', message => { if (message.type() === 'error')
             result.consoleErrors.push(`context: ${message.text()} @ ${message.location().url}`); }); });
         const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker', { timeout: 30000 });
+        await worker.evaluate(() => {
+            globalThis.__fluentReadHarnessSaveReceipts = [];
+            chrome.runtime.onMessage.addListener((message, sender) => {
+                if (message?.type === 'persistConfigBatch' || (message?.type === 'persistConfig' && message.config?.harness)) {
+                    globalThis.__fluentReadHarnessSaveReceipts.push({receivedAt: Date.now(), type: message.type, clientId: message.clientId,
+                        sequence: message.sequence, mode: message.mode, harness: message.config?.harness,
+                        patches: message.patches, senderUrl: sender.url});
+                }
+            });
+        });
         const extensionId = worker.url().match(/^chrome-extension:\/\/([^/]+)/)[1];
         result.extensionId = extensionId;
         const configPage = await newPage();
@@ -638,9 +776,10 @@ async function main() {
         const resumedConfig = await readConfig(configPage);
         assert(resumedConfig.harness.enabled === false, '关闭重开后其他设置页没有同步');
         result.crossPageSync = {passed: true};
-        result.quickClose = {executed: false};
-        result.latestWriteWins = {executed: false};
         await reopened.close();
+        await verifyHarnessSaveRace({newPage, configPage, extensionId, args, result, record, quickClose: false});
+        await verifyHarnessSaveRace({newPage, configPage, extensionId, args, result, record, quickClose: true});
+        result.backgroundSaveReceipts = await worker.evaluate(() => globalThis.__fluentReadHarnessSaveReceipts);
         result.apiRequests = requests;
         result.ok = result.cases.every(item => item.status === 'passed') && result.consoleErrors.length === 0 && result.httpErrors.length === 0;
         fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), `${JSON.stringify(result, null, 2)}\n`);

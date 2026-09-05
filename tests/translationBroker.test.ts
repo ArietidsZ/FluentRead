@@ -93,6 +93,7 @@ const mocks = vi.hoisted(() => {
         modelThinking: {} as Record<string, Record<string, boolean>>,
         proxy: {} as Record<string, string>,
         custom: '',
+        deeplApiPlan: 'free' as 'free' | 'pro',
         deeplx: '',
         newApiUrl: '',
         minimaxBillingPlan: 'payg',
@@ -244,6 +245,7 @@ describe('translation broker', () => {
             translationRequestsPerMinute: 0,
             proxy: {},
             custom: '',
+            deeplApiPlan: 'free',
             deeplx: '',
             newApiUrl: '',
             minimaxBillingPlan: 'payg',
@@ -1078,6 +1080,57 @@ describe('translation broker', () => {
         resolveBatch(['P-译文', 'Q-译文']);
         await expect(first).resolves.toEqual(['P-译文', 'Q-译文']);
         await expect(second).resolves.toEqual(['P-译文', 'Q-译文']);
+    });
+
+    it('DeepL Free 与 Pro 缓存隔离，固定代理以实际地址为缓存身份', async () => {
+        mocks.machineServices.add('deepL');
+        mocks.config.service = 'deepL';
+        mocks.service.mockImplementation(async message => (
+            `${getTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(mocks.config)).deeplApiPlan} 译文`
+        ));
+
+        await expect(translateWithCache({origin: 'DeepL source'})).resolves.toBe('free 译文');
+        mocks.config.deeplApiPlan = 'pro';
+        await expect(translateWithCache({origin: 'DeepL source'})).resolves.toBe('pro 译文');
+        mocks.config.deeplApiPlan = 'free';
+        mocks.config.proxy.deepL = '  ';
+        await expect(translateWithCache({origin: 'DeepL source'})).resolves.toBe('free 译文');
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        expect(translationCacheIdentities().map(identity => identity.endpoint)).toEqual([
+            'https://api-free.deepl.com/v2/translate',
+            'https://api.deepl.com/v2/translate',
+            'https://api-free.deepl.com/v2/translate',
+        ]);
+
+        mocks.config.proxy.deepL = '  https://deepl-proxy.example/translate  ';
+        await translateWithCache({origin: 'DeepL proxied source'});
+        mocks.config.deeplApiPlan = 'pro';
+        await translateWithCache({origin: 'DeepL proxied source'});
+        expect(mocks.service).toHaveBeenCalledTimes(3);
+        expect(translationCacheIdentities().slice(-2).map(identity => identity.endpoint)).toEqual([
+            'https://deepl-proxy.example/translate', 'https://deepl-proxy.example/translate',
+        ]);
+    });
+
+    it('缓存读取期间切换 DeepL 套餐不会修改在途请求或合并新旧套餐请求', async () => {
+        mocks.machineServices.add('deepL');
+        mocks.config.service = 'deepL';
+        const cacheRead = deferred<string | null>();
+        mocks.cacheGet.mockImplementationOnce(() => cacheRead.promise);
+        mocks.service.mockImplementation(async message => (
+            `${getTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(mocks.config)).deeplApiPlan} 译文`
+        ));
+        const freeRequest = translateWithCache({origin: 'DeepL in flight'});
+        await vi.waitFor(() => expect(mocks.cacheGet).toHaveBeenCalledOnce());
+
+        mocks.config.deeplApiPlan = 'pro';
+        await expect(translateWithCache({origin: 'DeepL in flight'})).resolves.toBe('pro 译文');
+        cacheRead.resolve(null);
+        await expect(freeRequest).resolves.toBe('free 译文');
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        expect(translationCacheIdentities().map(identity => identity.endpoint)).toEqual([
+            'https://api-free.deepl.com/v2/translate', 'https://api.deepl.com/v2/translate',
+        ]);
     });
 
     it('builds provider cache identities for proxy, custom endpoints, Minimax, Mimo, and AI SDK services', async () => {

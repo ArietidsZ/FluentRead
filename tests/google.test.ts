@@ -308,6 +308,20 @@ describe('谷歌翻译适配器', () => {
             .resolves.toBe('如果 x < 3 && y > 1\n下一行');
     });
 
+    it('多行请求沿用实际 batchexecute RPC 并原样携带换行', async () => {
+        fetchMock.mockResolvedValue(mockResponse(createBatchResponse(['第一行\n第二行'])));
+
+        await expect(translateGoogleText('First line\nSecond line', 'en', 'zh-Hans'))
+            .resolves.toBe('第一行\n第二行');
+
+        const [url, init] = fetchMock.mock.calls[0]!;
+        expect(url).toBe('https://translate.google.com/_/TranslateWebserverUi/data/batchexecute?rpcids=MkEWBc');
+        const requestBody = new URLSearchParams(String(init?.body)).get('f.req');
+        const batchRequest = JSON.parse(requestBody!);
+        const translationRequest = JSON.parse(batchRequest[0][0][1]);
+        expect(translationRequest[0][0]).toBe('First line\nSecond line');
+    });
+
     it('忽略网页 RPC 的防劫持前缀、长度行和无关记录', () => {
         const response = createBatchResponse(['测试成功']).replace('\n\n', '\n\n1234\nnot-json\n');
         expect(parseGoogleBatchResponse(response)).toBe('测试成功');

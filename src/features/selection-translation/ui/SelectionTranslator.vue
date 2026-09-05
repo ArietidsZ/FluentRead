@@ -1,8 +1,8 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/快捷键/直接弹出、翻译与词卡展示、朗读、收藏词书、重试和关闭。
- * 主要内容：组件管理可信手势与选择丢失宽限、请求 token、弹窗定位和主题，复用同一选区入口按需打开 Harness 阅读卡，调用翻译客户端与词典消息，协调 TTS 控制器及页面语音回退，并把滚轮交互限制在自身 Shadow UI 内以免干扰宿主播放器。
- * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，挂载所有权在 content/runtime，词书协议独立维护。
+ * 主要内容：组件管理可信手势与选择丢失宽限、请求 token、弹窗定位和主题，以保守同语言预检避免误隐藏翻译入口，复用选区入口打开 Harness 阅读卡，协调翻译、词典与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
+ * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
 <template>
   <div v-ui-i18n v-show="showIndicator || showTooltip || noticeMessage || copySuccess" class="fr-selection-translator-root" :data-display-delay="selectionSettings.delay" @pointerdown.stop @wheel.stop.passive="handleUiWheel">
@@ -176,6 +176,10 @@ import { VOCABULARY_BOOK_CHANGED_MESSAGE, VOCABULARY_BOOK_MESSAGE, type Vocabula
 import {ReadingPanel, captureReadingSelection, type ReadingSelection} from '@/src/features/reading-assistant/public';
 import {HARNESS_ACTIONS, normalizeHarnessPreferences, type HarnessActionId} from '@/src/core/config/harness';
 
+const props = defineProps<{
+  onSelectionRangeChange?: (range: Range | null) => void;
+}>();
+
 type SelectionTrigger = 'direct' | 'icon' | 'dot' | 'shortcut';
 type AudioKind = 'source' | 'translation' | 'word';
 type CopyKind = 'source' | 'translation';
@@ -261,6 +265,10 @@ const readingPreferences = computed(() => {
 const readingEnabled = computed(() => readingPreferences.value.enabled);
 const readingActions = computed(() => HARNESS_ACTIONS.filter(action => readingPreferences.value.actions.includes(action.id)));
 const readingDefaultActionLabel = computed(() => HARNESS_ACTIONS.find(action => action.id === readingPreferences.value.defaultAction)!.label);
+
+watch(() => snapshot.value?.range ?? null, (range) => {
+  props.onSelectionRangeChange?.(range);
+}, { flush: 'post' });
 
 const selectionShortcutTriggers = new Set(['Control', 'Alt', 'Shift', 'custom']);
 const selectionSettings = computed(() => {

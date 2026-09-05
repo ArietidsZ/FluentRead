@@ -6,6 +6,8 @@ import {compileSiteRulePack, composeSiteAdapters, getSiteAdapterAttributeFilter,
 import {normalizeSiteAdaptationSettings, parseSiteRulePack, SITE_RULE_LIMITS, validateSelectors} from '@/src/core/site-adaptation/schema';
 import type {SiteRule, SiteRulePack} from '@/src/core/site-adaptation/types';
 import {createTranslationMutationObserverOptions} from '@/src/features/full-page-translation/content/mutationObservation';
+import {createTranslationSourceSnapshot} from '@/src/core/translation/serialization';
+import {builtinSiteRulePack} from '@/src/core/site-adaptation/catalog';
 
 const rule = (extra: Partial<SiteRule> = {}): SiteRule => ({
     id: 'example', name: 'Example', match: {hosts: ['example.test']}, ...extra,
@@ -26,13 +28,15 @@ describe('site adaptation JSON boundary', () => {
             match: {hosts: ['EXAMPLE.TEST.', 'example.test', '*.example.test'], paths: ['/docs/*'], excludePaths: ['/docs/private/*']},
             mode: 'focus', content: [{css: [' p ', 'p'], resolve: 'closest', atomic: false, key: 'prose'}],
             protect: ['code', 'code'], exclude: ['.private'], watchIgnore: ['time'],
+            omit: ['.receipt', '.receipt'], literalLabels: ['.command', '.command'], literalTokens: ['b', 'b'],
         })]);
         const parsed = parseSiteRulePack(input);
         expect(parsed.ok).toBe(true);
         if (!parsed.ok) throw new Error('Expected valid rule pack');
         expect(parsed.pack.rules[0]).toEqual({...input.rules[0], name: 'Example',
             match: {hosts: ['example.test', '*.example.test'], paths: ['/docs/*'], excludePaths: ['/docs/private/*']},
-            content: [{css: ['p'], resolve: 'closest', atomic: false, key: 'prose'}], protect: ['code']});
+            content: [{css: ['p'], resolve: 'closest', atomic: false, key: 'prose'}], protect: ['code'],
+            omit: ['.receipt'], literalLabels: ['.command'], literalTokens: ['b']});
         input.rules[0]!.content![0]!.css.push('aside');
         expect(parsed.pack.rules[0]!.content![0]!.css).toEqual(['p']);
         expect(parseSiteRulePack({version: 1, profiles: {}, rules: []})).toEqual({ok: true, pack: {version: 1, profiles: {}, rules: []}});
@@ -103,6 +107,10 @@ describe('site adaptation JSON boundary', () => {
         reject(pack([rule({content: [{css: []}]})]), '$.rules[0].content[0].css');
         reject(pack([rule({protect: ['x'.repeat(1025)]})]), '$.rules[0].protect[0]');
         reject(pack([rule({protect: ['p\n']})]), '$.rules[0].protect[0]');
+        for (const field of ['omit', 'literalLabels', 'literalTokens'] as const) {
+            reject(pack([rule({[field]: []})]), `$.rules[0].${field}`);
+            reject(pack([rule({[field]: ['x'.repeat(1025)]})]), `$.rules[0].${field}[0]`);
+        }
         expect(parseSiteRulePack({...pack([rule({profile: 'prose'})]), profiles: {prose: {content: [{css: ['p'], resolve: 'self', atomic: true}]}}}).ok).toBe(true);
     });
 
@@ -141,10 +149,90 @@ describe('site adaptation JSON boundary', () => {
             '$.profiles.prose.content[0].css[0]', '$.rules[0].protect[0]', '$.rules[0].content[0].css[1]',
         ]);
         expect(compileSiteRulePack(rules)[0]!.decide(document.createElement('p'), {url: new URL('https://example.test')})).toMatchObject({kind: 'force-target'});
+        expect(validateSelectors(pack([rule({omit: ['[bad='], literalLabels: ['[bad='], literalTokens: ['[bad=']})]), document).map(issue => issue.path))
+            .toEqual(['$.rules[0].omit[0]', '$.rules[0].literalLabels[0]', '$.rules[0].literalTokens[0]']);
     });
 });
 
 describe('site adaptation compilation', () => {
+    it('compiles metadata omission into candidate, request and bilingual boundaries and observes dynamic selectors', () => {
+        const {document} = parseHTML('<html><body><p id="body">Readable sentence <code id="literal">CODE_TOKEN</code><span id="metadata" data-receipt="no">Delivery metadata</span></p></body></html>');
+        const adapters = compileSiteRulePack(pack([rule({protect: ['code'], omit: ['[data-receipt="yes"]']})]));
+        expect(adapters[0]!.observedAttributes).toContain('data-receipt');
+        const core = new TranslationCandidateCore({url: new URL('https://example.test'), adapters});
+        const body = document.querySelector<HTMLElement>('#body')!;
+        const metadata = document.querySelector('#metadata')!;
+        const snapshot = () => createTranslationSourceSnapshot(body, core.shouldStayOriginal, undefined, undefined, core.shouldOmitFromTranslation);
+        expect(snapshot().slots.map(slot => slot.source)).toContain('Delivery metadata');
+        metadata.setAttribute('data-receipt', 'yes');
+        const protectedSnapshot = snapshot();
+        expect(core.resolve(metadata.firstChild)).toBeNull();
+        expect(protectedSnapshot.slots.map(slot => slot.source)).toEqual(['Readable sentence']);
+        expect(protectedSnapshot.clone.querySelector('#metadata')).toBeNull();
+        expect(protectedSnapshot.clone.querySelector('#literal')?.textContent).toBe('CODE_TOKEN');
+        expect(document.querySelector('#metadata')).toBe(metadata);
+        expect(metadata.textContent).toBe('Delivery metadata');
+        expect(core.shouldIgnoreMutation(metadata)).toBe(false);
+        metadata.setAttribute('data-receipt', 'no');
+        expect(snapshot().slots.map(slot => slot.source)).toContain('Delivery metadata');
+    });
+
+    it('retains metadata and literal boundaries through profiles, standalone export and custom replacement', () => {
+        const input: SiteRulePack = {version: 1, profiles: {labels: {
+            omit: ['.receipt'], literalLabels: ['.command'], literalTokens: ['b'],
+        }}, rules: [rule({profile: 'labels', omit: ['.receipt', '.status'], literalLabels: ['.command', '.option'], literalTokens: ['b', 'i']})]};
+        const resolved = resolveSiteRule(input, input.rules[0]!);
+        expect(resolved.omit).toEqual(['.receipt', '.status']);
+        expect(resolved.literalLabels).toEqual(['.command', '.option']);
+        expect(resolved.literalTokens).toEqual(['b', 'i']);
+        const reparsed = parseSiteRulePack(JSON.parse(JSON.stringify(pack([resolved]))));
+        if (!reparsed.ok) throw new Error(JSON.stringify(reparsed.issues));
+        expect(reparsed.pack.rules[0]).toEqual(resolved);
+        const {document} = parseHTML('<html><body><p class="command" data-label="yes"><b>unknown-command</b> (manual)</p><p class="receipt">Delivered receipt</p><p class="command" id="prose"><b>unknown-command</b> explains ordinary prose.</p></body></html>');
+        const label = document.querySelector('.command')!;
+        const receipt = document.querySelector('.receipt')!;
+        const prose = document.querySelector('#prose')!;
+        const makeCore = (custom: SiteRulePack, disabledRuleIds: string[] = []) => new TranslationCandidateCore({url: new URL('https://example.test'),
+            adapters: composeSiteAdapters(input, {enabled: true, disabledRuleIds, custom})});
+        const original = makeCore(pack([]));
+        for (const element of [label, receipt]) {
+            expect(original.shouldStayOriginal(element)).toBe(true);
+            expect(original.shouldOmitFromTranslation(element)).toBe(true);
+            expect(original.resolve(element.firstChild)).toBeNull();
+        }
+        expect(original.shouldIgnoreMutation(label)).toBe(true);
+        expect(original.shouldStayOriginal(prose)).toBe(false);
+        expect(original.shouldStayOriginal(prose.querySelector('b')!)).toBe(true);
+        for (const customCore of [makeCore(pack([rule()])), makeCore(pack([]), ['example'])]) {
+            expect(customCore.shouldStayOriginal(label)).toBe(false);
+            expect(customCore.shouldOmitFromTranslation(receipt)).toBe(false);
+            expect(customCore.shouldIgnoreMutation(label)).toBe(false);
+            expect(customCore.shouldStayOriginal(prose.querySelector('b')!)).toBe(false);
+        }
+        expect(getSiteRuleObservedAttributes({literalLabels: ['[data-label="yes"]']}))
+            .toEqual(['id', 'class', 'data-fr-translation-owned', 'data-label']);
+        expect(getSiteRuleObservedAttributes({literalLabels: ['p:has(+ .description)']})).toBeNull();
+        expect(getSiteRuleObservedAttributes({literalTokens: ['[data-literal]']})).toContain('data-literal');
+    });
+
+    it('keeps built-in GitHub, chat, Discord and manual boundaries fully replaceable through their JSON IDs', () => {
+        expect(parseSiteRulePack(builtinSiteRulePack)).toMatchObject({ok: true});
+        for (const [id, url, html, selector] of [
+            ['github', 'https://github.com/orgs/example/repositories', '<div class="ReposListItem-module__TopicsList"><span>unknown-language</span></div>', 'span'],
+            ['x-chat', 'https://chat.x.com/conversation', '<div class="flex items-center ml-auto shrink-0 gap-1">Delivered receipt</div>', 'div'],
+            ['discord-messages', 'https://discord.com/channels/1/2', '<div id="message-content-1"><span class="timestamp_test">Edited receipt</span></div>', 'span'],
+            ['ubuntu-manpage', 'https://manpages.ubuntu.com/manpages/noble/man8/apt.8.html', '<div id="manpage-content"><h2 id="description"></h2><section class="Sh"><p class="Pp"><b>unknown-operation</b></p><div class="Bd-indent">Explanation remains readable.</div></section></div>', 'p'],
+        ]) {
+            const builtin = builtinSiteRulePack.rules.find(item => item.id === id)!;
+            const {document} = parseHTML(`<html><body>${html}</body></html>`);
+            const element = document.querySelector(selector!)!;
+            const core = (custom: SiteRulePack) => new TranslationCandidateCore({url: new URL(url!), adapters:
+                composeSiteAdapters(builtinSiteRulePack, {enabled: true, disabledRuleIds: [], custom})});
+            expect(core(pack([])).shouldOmitFromTranslation(element), id).toBe(true);
+            expect(core(pack([{id: builtin.id, name: builtin.name, match: builtin.match}])).shouldOmitFromTranslation(element), id).toBe(false);
+        }
+    });
+
     it('observes selector dependencies in targets, protection, exclusions and mutation exclusions', () => {
         expect(getSiteRuleObservedAttributes({})).toEqual(['id', 'class']);
         expect(getSiteRuleObservedAttributes({

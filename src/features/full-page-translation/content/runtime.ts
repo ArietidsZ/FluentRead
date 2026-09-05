@@ -118,7 +118,7 @@ import {consumeOrphanedOwnerClassMutation, isTextEquivalentHostReplacement, norm
     from '@/src/features/full-page-translation/content/orphanArtifacts';
 import {createFullPageRequestSessionState, disposeFullPageRequestSession, getHoverTranslationRequestSession, invalidateContextSensitiveRequestCache, invalidateFullPageRequestSessionCache, invalidateFullPageRequestSessionForRoute, invalidateHoverTranslationRequestSession, resetHoverTranslationRequestSession, type FullPageRequestSessionState} from '@/src/features/full-page-translation/content/requestSession';
 import {getSiteAdapterAttributeFilter} from '@/src/core/site-adaptation/compiler';
-import {createTranslationMutationObserverOptions, mutationRootContains as nodeContains, collapseMutationRescanRoot as broadRescanRoot} from './mutationObservation';
+import {createTranslationMutationObserverOptions, isOwnSyntheticSegmentMarkerMutation, mutationRootContains as nodeContains, collapseMutationRescanRoot as broadRescanRoot} from './mutationObservation';
 const TRANSLATION_ARTIFACT_SELECTOR = [
     '[data-fr-translation-segment="true"]',
     '[data-fr-translation-owned="true"]',
@@ -518,10 +518,10 @@ async function renderTranslation(
         // 变为 /b）来自当前 DOM；provider 译文仍绑定请求创建时捕获的精确有序原文。
         const core = getCurrentTranslationCore();
         const freshSnapshot = createTranslationSourceSnapshot(
-            node,
-            core.shouldStayOriginal,
+            node, core.shouldStayOriginal,
             getTranslationStateProtectionBoundary(node, state),
             getTranslationTextProtectionOptions(state.allowTopLevelApplicationShell, node),
+            core.shouldOmitFromTranslation,
         );
         const freshSources = freshSnapshot.slots.map((slot) => slot.source);
         if (freshSources.length !== result.sources.length ||
@@ -1458,6 +1458,8 @@ function isOwnMutation(
     const target = mutationElement ? resolveStatefulMutationTarget(mutationElement) : false;
     const state = target ? getTranslationState(target as HTMLElement) : undefined;
     if (!target || !state) return false;
+    if (isOwnSyntheticSegmentMarkerMutation(mutation, target, state,
+        () => statefulSourceAndTextSlotsAreCurrent(target, state))) return true;
     if (isOwnStateArtifactMutation(mutation, target, state)) return true;
     if (state.phase === "error") {
         // 失败 UI 是扩展拥有的状态，不是宿主编辑；若缺少此分支，其 class mutation
@@ -1898,6 +1900,9 @@ function createFullPageMutationObserver(
                     ? siteAttributes === null ? document.documentElement : getComposedParent(mutationElement) ?? mutationElement
                     : mutationElement;
                 const targets = resolveStatefulMutationTargets(session, affectedRoot);
+                const directTargets = siteAttributeMutation
+                    ? new Set(resolveStatefulMutationTargets(session, mutationElement))
+                    : null;
                 if (targets.length > 0) {
                     for (const target of targets) {
                         if (siteAttributeMutation && restoreStatefulTargetOutsideScope(session, target)) continue;
@@ -1905,6 +1910,12 @@ function createFullPageMutationObserver(
                             scheduleStatefulAttributeReevaluation(session, target);
                         } else {
                             const state = getTranslationState(target);
+                            // 关系选择器需要广域复验，但不相关节点的属性写入不应取消有效请求。
+                            // 普通 owner 已在上面通过候选边界复验；focus 的合成段保持保守重扫，
+                            // 因其来源已物化，不能只用原文相同推断仍命中显式正文 selector。
+                            if (state && directTargets && !directTargets.has(target) &&
+                                (!state.syntheticSegment || !core.adapters.some(adapter => adapter.genericCandidatePolicy === 'targets-only')) &&
+                                statefulSourceAndTextSlotsAreCurrent(target, state)) continue;
                             if (state && !isTranslationArtifact(mutation.target) &&
                                 !statefulSourceAndTextSlotsAreCurrent(target, state) &&
                                 withFullPageViewportAnchor(() =>

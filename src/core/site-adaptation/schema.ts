@@ -16,7 +16,7 @@ export const SITE_RULE_LIMITS = Object.freeze({
 });
 
 const dangerousKeys = new Set(['__proto__', 'prototype', 'constructor']);
-const recipeKeys = ['mode', 'content', 'protect', 'exclude', 'watchIgnore'];
+const recipeKeys = ['mode', 'content', 'protect', 'exclude', 'watchIgnore', 'omit', 'literalLabels', 'literalTokens'];
 const idPattern = /^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,95}$/u;
 const emptyPack = (): SiteRulePack => ({version: 1, rules: []});
 
@@ -73,7 +73,7 @@ export function parseSiteRulePack(value: unknown): SiteRulePackParseResult {
             if (source.mode === 'augment' || source.mode === 'focus') result.mode = source.mode;
             else issue(`${path}.mode`, '应为 augment 或 focus');
         }
-        for (const key of ['protect', 'exclude', 'watchIgnore'] as const) {
+        for (const key of ['protect', 'exclude', 'watchIgnore', 'omit', 'literalLabels', 'literalTokens'] as const) {
             if (source[key] !== undefined) result[key] = list(source[key], `${path}.${key}`, SITE_RULE_LIMITS.selectors, SITE_RULE_LIMITS.selectorLength);
         }
         if (source.content !== undefined) {
@@ -187,7 +187,7 @@ export function validateSelectors(pack: SiteRulePack, document: Document): SiteR
             try { probe.matches(selector); }
             catch { issues.push({path: selectorPath, message: '当前浏览器不支持此 CSS 选择器'}); }
         };
-        for (const key of ['protect', 'exclude', 'watchIgnore'] as const) {
+        for (const key of ['protect', 'exclude', 'watchIgnore', 'omit', 'literalLabels', 'literalTokens'] as const) {
             recipe[key]?.forEach((selector, index) => check(selector, `${path}.${key}[${index}]`));
         }
         recipe.content?.forEach((content, index) => content.css.forEach((selector, cssIndex) =>

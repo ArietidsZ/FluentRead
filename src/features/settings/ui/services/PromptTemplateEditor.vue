@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/PromptTemplateEditor.vue
  * 文件职责：为 AI 翻译服务提供统一的 system/user 提示词编辑器，并把可用模板变量变成可点击插入的快捷操作。
- * 主要内容：渲染带角色说明的大文本编辑框，保留光标或选区位置，在用户点击 {{to}}、{{origin}} 变量按钮后插入对应占位符。
+ * 主要内容：渲染角色提示词编辑器，保留光标和选区；输入法组合结束后才提交最终值，并支持点击 {{to}}、{{origin}} 按钮插入变量。
  * 模块边界：组件只管理编辑器展示、光标位置和 update:modelValue 事件，不解释翻译协议、不保存配置；父级 ServiceConfiguration 负责服务映射与持久化。
  -->
 <template>
@@ -37,6 +37,8 @@
       @click="rememberSelection"
       @focus="rememberSelection"
       @input="handleInput"
+      @compositionstart="handleCompositionStart"
+      @compositionend="handleCompositionEnd"
       @keyup="rememberSelection"
       @mouseup="rememberSelection"
       @select="rememberSelection"
@@ -64,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, useId } from 'vue'
+import { computed, nextTick, ref, useId, watch } from 'vue'
 
 type PromptRole = 'system' | 'user'
 
@@ -82,7 +84,13 @@ const emit = defineEmits<{
 
 const textarea = ref<HTMLTextAreaElement | null>(null)
 const selection = ref({start: props.modelValue.length, end: props.modelValue.length})
+const isComposing = ref(false)
+const lastEmittedValue = ref(props.modelValue)
 const headingId = `fluentread-${props.role}-prompt-${useId()}`
+
+watch(() => props.modelValue, (value) => {
+  if (!isComposing.value) lastEmittedValue.value = value
+}, {flush: 'sync'})
 
 const promptTokens = computed(() => props.role === 'user'
   ? [
@@ -115,8 +123,31 @@ function rememberSelection(): void {
 function handleInput(event: Event): void {
   const input = event.currentTarget
   if (!(input instanceof HTMLTextAreaElement)) return
+  if ((event as InputEvent).isComposing === true) {
+    isComposing.value = true
+    rememberSelection()
+    return
+  }
+  if (isComposing.value) {
+    rememberSelection()
+    return
+  }
+  if (input.value === props.modelValue || input.value === lastEmittedValue.value) {
+    rememberSelection()
+    return
+  }
+  lastEmittedValue.value = input.value
   emit('update:modelValue', input.value)
   rememberSelection()
+}
+
+function handleCompositionStart(): void {
+  isComposing.value = true
+}
+
+function handleCompositionEnd(event: CompositionEvent): void {
+  isComposing.value = false
+  handleInput(event)
 }
 
 function insertToken(token: string): void {
@@ -125,6 +156,7 @@ function insertToken(token: string): void {
   const start = Math.max(0, Math.min(selection.value.start, value.length))
   const end = Math.max(start, Math.min(selection.value.end, value.length))
   const nextValue = `${value.slice(0, start)}${token}${value.slice(end)}`
+  lastEmittedValue.value = nextValue
   emit('update:modelValue', nextValue)
 
   void nextTick(() => {

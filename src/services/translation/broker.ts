@@ -44,6 +44,7 @@ import {
     normalizeFreeTranslationCooldownMs,
 } from '@/src/core/config/freeTranslation';
 import sha256 from 'crypto-js/sha256';
+import {getDeepLEndpoint} from '@/src/core/config/deepl';
 import {waitForBoundedPersistence} from './persistenceBarrier';
 import {
     createTranslationRequestScheduler,
@@ -199,6 +200,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 return '';
             }
         }
+        if (service === 'deepL') return getDeepLEndpoint(current.deeplApiPlan, current.proxy[service]);
         if (current.proxy[service]) return current.proxy[service];
         if (service === 'custom') return current.custom;
         if (service === 'deeplx') return current.deeplx;

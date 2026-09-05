@@ -24,6 +24,16 @@ import {
 import {createApiKeyRequirementKey} from '@/src/core/config/validation';
 
 describe('AI 模型编号列表', () => {
+    it('DeepL API 旧配置保持 Free 端点，并持久保留明确选择的 Pro 套餐', () => {
+        expect(new Config().deeplApiPlan).toBe('free');
+        expect(normalizeConfig({}).deeplApiPlan).toBe('free');
+        expect(normalizeConfig({deeplApiPlan: 'free'}).deeplApiPlan).toBe('free');
+        expect(normalizeConfig({deeplApiPlan: 'pro'}).deeplApiPlan).toBe('pro');
+        for (const deeplApiPlan of ['paid', 'PRO', '', null, 1, {}, []]) {
+            expect(normalizeConfig({deeplApiPlan}).deeplApiPlan).toBe('free');
+        }
+    });
+
     it('翻译计数只保留非负安全整数，并清理畸形旧值', () => {
         expect(normalizeConfig({count: 12}).count).toBe(12);
         expect(normalizeConfig({count: 0}).count).toBe(0);

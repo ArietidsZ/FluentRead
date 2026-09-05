@@ -4862,6 +4862,10 @@
         ],
         "atomic": false
       }
+    ],
+    "omit": [
+      "div[id^=\"message-content-\"] > span[class*=\"timestamp_\"]",
+      "div[id^=\"message-content-\"] > span[class*=\"-timestamp\"]"
     ]
   },
   {

@@ -8,10 +8,14 @@ const mocks = vi.hoisted(() => ({
         selectionAreaEnabled: true,
     },
     createVueShadowUi: vi.fn(),
+    createModalDialogHostController: vi.fn(),
 }));
 
 vi.mock('@/src/services/config/store', () => ({config: mocks.config}));
 vi.mock('@/src/platform/shadow-ui', () => ({createVueShadowUi: mocks.createVueShadowUi}));
+vi.mock('@/src/features/selection-translation/content/modalDialogHost', () => ({
+    createModalDialogHostController: mocks.createModalDialogHostController,
+}));
 vi.mock('@/src/features/selection-translation/ui/SelectionTranslator.vue', () => ({default: {name: 'SelectionTranslator'}}));
 vi.mock('@/src/features/area-translation/ui/AreaTranslator.vue', () => ({default: {name: 'AreaTranslator'}}));
 
@@ -43,6 +47,7 @@ function pendingUi(): {
 beforeEach(() => {
     vi.resetModules();
     mocks.createVueShadowUi.mockReset();
+    mocks.createModalDialogHostController.mockReset();
     mocks.config.harness = undefined;
     mocks.config.disableSelectionTranslator = false;
     mocks.config.selectionTranslatorMode = 'bilingual';
@@ -51,6 +56,45 @@ beforeEach(() => {
 });
 
 describe('划词翻译挂载生命周期', () => {
+    it('选区仅转发给当前 host，卸载先恢复 modal 所有权再移除界面', async () => {
+        const pending = pendingUi();
+        const shadowHost = {style: {setProperty: vi.fn()}};
+        const controller = {placeForRange: vi.fn(), dispose: vi.fn()};
+        const mountedUi = {...ui(), shadowHost};
+        mocks.createModalDialogHostController.mockReturnValue(controller);
+        mocks.createVueShadowUi.mockReturnValue(pending.promise);
+        const runtime = await import('@/src/features/selection-translation/content/runtime');
+        const request = runtime.mountSelectionTranslator({} as never);
+        const reportRange = mocks.createVueShadowUi.mock.calls[0][1].props.onSelectionRangeChange;
+        const range = {startContainer: {nodeType: 3}};
+
+        reportRange(range);
+        expect(controller.placeForRange).not.toHaveBeenCalled();
+        pending.resolve(mountedUi);
+        await request;
+        expect(shadowHost.style.setProperty).toHaveBeenCalledWith('position', 'static', 'important');
+        expect(mocks.createModalDialogHostController).toHaveBeenCalledWith(shadowHost);
+        reportRange(range);
+        reportRange(null);
+        expect(controller.placeForRange.mock.calls).toEqual([[range], [null]]);
+
+        runtime.unmountSelectionTranslator();
+        expect(controller.dispose).toHaveBeenCalledOnce();
+        expect(controller.dispose.mock.invocationCallOrder[0]).toBeLessThan(mountedUi.remove.mock.invocationCallOrder[0]);
+        reportRange(range);
+        expect(controller.placeForRange).toHaveBeenCalledTimes(2);
+    });
+
+    it('不完整挂载句柄缺少 host 样式时仍可安全卸载', async () => {
+        const mountedUi = {...ui(), shadowHost: {}};
+        mocks.createVueShadowUi.mockResolvedValue(mountedUi);
+        const runtime = await import('@/src/features/selection-translation/content/runtime');
+        await runtime.mountSelectionTranslator({} as never);
+        expect(mocks.createModalDialogHostController).not.toHaveBeenCalled();
+        runtime.unmountSelectionTranslator();
+        expect(mountedUi.remove).toHaveBeenCalledOnce();
+    });
+
     it('Harness 独立启用时保留共享挂载，并在两个入口都停用后丢弃待挂载 UI', async () => {
         mocks.config.harness = {enabled: true};
         mocks.config.disableSelectionTranslator = true;
@@ -68,6 +112,40 @@ describe('划词翻译挂载生命周期', () => {
         pending.resolve(late);
         await expect(request).resolves.toBeNull();
         expect(late.remove).toHaveBeenCalledOnce();
+    });
+
+    it('Harness 共享实例重挂载后，旧组件 Range 回调不得移动新 modal host', async () => {
+        mocks.config.harness = {enabled: true};
+        mocks.config.disableSelectionTranslator = true;
+        mocks.config.selectionTranslatorMode = 'disabled';
+        const firstHost = {style: {setProperty: vi.fn()}};
+        const secondHost = {style: {setProperty: vi.fn()}};
+        const firstController = {placeForRange: vi.fn(), dispose: vi.fn()};
+        const secondController = {placeForRange: vi.fn(), dispose: vi.fn()};
+        const firstUi = {...ui(), shadowHost: firstHost};
+        const secondUi = {...ui(), shadowHost: secondHost};
+        mocks.createVueShadowUi.mockResolvedValueOnce(firstUi).mockResolvedValueOnce(secondUi);
+        mocks.createModalDialogHostController.mockReturnValueOnce(firstController).mockReturnValueOnce(secondController);
+        const runtime = await import('@/src/features/selection-translation/content/runtime');
+
+        await runtime.mountSelectionTranslator({} as never);
+        const firstReport = mocks.createVueShadowUi.mock.calls[0][1].props.onSelectionRangeChange;
+        const range = {startContainer: {nodeType: 3}};
+        firstReport(range);
+        expect(firstController.placeForRange).toHaveBeenCalledWith(range);
+        runtime.unmountSelectionTranslator();
+        expect(firstController.dispose.mock.invocationCallOrder[0]).toBeLessThan(firstUi.remove.mock.invocationCallOrder[0]);
+
+        await runtime.mountSelectionTranslator();
+        const secondReport = mocks.createVueShadowUi.mock.calls[1][1].props.onSelectionRangeChange;
+        firstReport(range);
+        firstReport(null);
+        expect(secondController.placeForRange).not.toHaveBeenCalled();
+        secondReport(range);
+        secondReport(null);
+        expect(secondController.placeForRange.mock.calls).toEqual([[range], [null]]);
+        runtime.unmountSelectionTranslator();
+        expect(secondController.dispose.mock.invocationCallOrder[0]).toBeLessThan(secondUi.remove.mock.invocationCallOrder[0]);
     });
 
     it('没有内容脚本上下文或功能关闭时不挂载', async () => {

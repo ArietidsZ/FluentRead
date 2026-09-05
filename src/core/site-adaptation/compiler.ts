@@ -5,6 +5,7 @@
  * 模块边界：仅匹配 URL 与声明内容边界，不注入脚本或样式，不监听页面生命周期。
  */
 
+import {isLiteralLabel, isLiteralToken} from './literalLabel';
 import {createDeclarativeAdapter} from '@/src/core/translation/adapters/declarative';
 import type {TranslationSiteAdapter} from '@/src/core/translation/types';
 import type {SiteAdaptationSettings, SiteContentRule, SiteRecipe, SiteRule, SiteRulePack} from './types';
@@ -12,9 +13,11 @@ import type {SiteAdaptationSettings, SiteContentRule, SiteRecipe, SiteRule, Site
 /** 只提取 CSS 的属性依赖；无法准确读取的语法使用全属性观察，不猜测其含义。 */
 export function getSiteRuleObservedAttributes(recipe: SiteRecipe): string[] | null {
     const attributes = new Set(['id', 'class']);
+    if (recipe.literalLabels?.length) attributes.add('data-fr-translation-owned');
     const selectors = [
         ...(recipe.content ?? []).flatMap((content) => content.css),
         ...(recipe.protect ?? []), ...(recipe.exclude ?? []), ...(recipe.watchIgnore ?? []),
+        ...(recipe.omit ?? []), ...(recipe.literalLabels ?? []), ...(recipe.literalTokens ?? []),
     ];
     const structuralPseudos = new Set(['is', 'where', 'not', 'nth-child', 'nth-last-child',
         'nth-of-type', 'nth-last-of-type', 'first-child', 'last-child', 'only-child',
@@ -71,7 +74,7 @@ function resolveRecipe(pack: SiteRulePack, rule: SiteRule): SiteRecipe {
     const content = unique([...(profile?.content ?? []), ...(rule.content ?? [])],
         (item: SiteContentRule) => JSON.stringify([item.css, item.resolve ?? 'self', item.atomic ?? true, item.key ?? '']));
     const result: SiteRecipe = {mode: rule.mode ?? profile?.mode ?? 'augment', content};
-    for (const key of ['protect', 'exclude', 'watchIgnore'] as const) {
+    for (const key of ['protect', 'exclude', 'watchIgnore', 'omit', 'literalLabels', 'literalTokens'] as const) {
         result[key] = [...new Set([...(profile?.[key] ?? []), ...(rule[key] ?? [])])];
     }
     return result;
@@ -83,7 +86,7 @@ export function resolveSiteRule(pack: SiteRulePack, rule: SiteRule): SiteRule {
     const recipe = resolveRecipe(pack, rule);
     const resolved: SiteRule = {...standalone, mode: recipe.mode};
     // JSON 的可选列表应省略空值，展开后的规则也能通过相同解析边界。
-    for (const key of ['content', 'protect', 'exclude', 'watchIgnore'] as const) {
+    for (const key of ['content', 'protect', 'exclude', 'watchIgnore', 'omit', 'literalLabels', 'literalTokens'] as const) {
         if (recipe[key]!.length) Object.assign(resolved, {[key]: recipe[key]});
         else delete resolved[key];
     }
@@ -117,14 +120,30 @@ function compileRule(pack: SiteRulePack, rule: SiteRule): TranslationSiteAdapter
             selector: content.css, match: content.resolve, atomic: content.atomic,
             reason: content.key ?? `${rule.id}:content`,
         })),
-        prune: [{selector: recipe.exclude!, reason: `${rule.id}:exclude`}],
+        prune: [{selector: [...recipe.exclude!, ...recipe.omit!], reason: `${rule.id}:exclude`}],
         // 排除区域也必须进入文本保护，避免祖先候选的快照包含被裁剪子树。
-        keepOriginal: [{selector: [...recipe.protect!, ...recipe.exclude!], reason: `${rule.id}:protect`}],
+        keepOriginal: [{selector: [...recipe.protect!, ...recipe.exclude!, ...recipe.omit!], reason: `${rule.id}:protect`}],
+        omitFromTranslation: [{selector: recipe.omit!, reason: `${rule.id}:omit`}],
         mutationExclude: [{selector: recipe.watchIgnore!, reason: `${rule.id}:watch-ignore`}],
     });
     return {
         ...adapter,
         observedAttributes: getSiteRuleObservedAttributes(recipe),
+        decide(element, context) {
+            return isLiteralLabel(element, recipe.literalLabels!)
+                ? {kind: 'prune-subtree', reason: `${rule.id}:literal-label`}
+                : adapter.decide(element, context);
+        },
+        shouldStayOriginal(element, context) {
+            return isLiteralLabel(element, recipe.literalLabels!) || isLiteralToken(element, recipe.literalTokens!)
+                || adapter.shouldStayOriginal!(element, context);
+        },
+        shouldOmitFromTranslation(element, context) {
+            return isLiteralLabel(element, recipe.literalLabels!) || adapter.shouldOmitFromTranslation!(element, context);
+        },
+        shouldIgnoreMutation(element, context) {
+            return isLiteralLabel(element, recipe.literalLabels!) || adapter.shouldIgnoreMutation!(element, context);
+        },
         matches(url: URL): boolean {
             return (url.protocol === 'https:' || url.protocol === 'http:') && adapter.matches(url)
                 && (!rule.match.paths?.length || rule.match.paths.some((path) => matchesPath(url.pathname, path)))

@@ -15,6 +15,7 @@ import type {
 } from './types';
 import {normalizeFreeTranslationOrder} from '@/src/core/config/freeTranslation';
 import type {CustomOpenAIProvider} from '@/src/core/config/customOpenAI';
+import {normalizeDeepLApiPlan} from '@/src/core/config/deepl';
 import {resolveGlossary} from '@/src/core/glossary';
 import {parseTranslationSlots} from '@/src/core/translation/public';
 
@@ -220,6 +221,7 @@ export function createTranslationProviderConfigSnapshot(
     return Object.freeze({
         ...providerSource,
         freeTranslationOrder: Object.freeze(normalizeFreeTranslationOrder(source.freeTranslationOrder)),
+        deeplApiPlan: normalizeDeepLApiPlan(source.deeplApiPlan),
         glossaryLibraries: Object.freeze((source.glossaryLibraries ?? []).map((library) => Object.freeze({
             ...library,
             domains: Object.freeze([...library.domains]),

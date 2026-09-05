@@ -36,7 +36,13 @@ export function refreshBilingualTranslationSkeleton(
     const core = getCurrentTranslationCore();
     const boundary = state.syntheticSegment ? node : undefined;
     const options = protectionOptions(node, state);
-    const snapshot = createTranslationSourceSnapshot(node, core.shouldStayOriginal, boundary, options);
+    const snapshot = createTranslationSourceSnapshot(
+        node,
+        core.shouldStayOriginal,
+        boundary,
+        options,
+        core.shouldOmitFromTranslation,
+    );
     const sources = snapshot.slots.map((slot) => slot.source);
     if (sources.length !== replay.sources.length ||
         sources.some((source, index) => source !== replay.sources[index])) return false;

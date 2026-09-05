@@ -23,7 +23,7 @@ export const services = {
     chromeTranslator: "chromeTranslator", // Chrome 内置翻译 API
     // 大模型翻译
     openai: "openai",
-    azureOpenai: "azureOpenai", // Azure OpenAI 服务
+    azureOpenai: "azureOpenai", // Azure 服务；保留旧 ID 以兼容已保存的配置和凭据
     gemini: "gemini",
     yiyan: "yiyan",
     tongyi: "tongyi",
@@ -458,7 +458,7 @@ export const options = {
         {value: services.infini, label: "无问芯穹", catalogKind: "platform"},
         {value: services.openrouter, label: "OpenRouter", catalogKind: "platform"},
         {value: services.groq, label: "Groq", catalogKind: "platform"},
-        {value: services.azureOpenai, label: "Azure OpenAI", catalogKind: "platform"},
+        {value: services.azureOpenai, label: "Azure", catalogKind: "platform"},
         {value: services.custom, label: "自定义接口", catalogKind: "platform"},
     ],
     display: [

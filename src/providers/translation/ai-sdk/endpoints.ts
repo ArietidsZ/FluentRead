@@ -9,6 +9,7 @@
 import {getMimoEndpoint, MINIMAX_ENDPOINTS, urls} from '@/src/core/config/constants';
 import {config as runtimeConfig} from '@/src/services/config/store';
 import {services} from '@/src/core/config/catalog';
+import {normalizeAzureEndpoint} from '@/src/core/config/azure';
 import {
     getCustomOpenAIProvider,
     isCustomOpenAIProviderId,
@@ -206,7 +207,7 @@ export function resolveOpenAICompatibleEndpoint(
             endpoint = normalizeNewApiEndpoint(config.newApiUrl || '');
             break;
         case 'azure':
-            endpoint = config.azureOpenaiEndpoint || '';
+            endpoint = normalizeAzureEndpoint(config.azureOpenaiEndpoint || '');
             break;
     }
 

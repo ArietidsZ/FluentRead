@@ -1782,7 +1782,7 @@ async function main() {
     };
     const visualSignatures = new Set();
     // 皮肤矩阵复用同一真实扩展页，每次完整导航重新读取持久化配置。
-    // 短生命周期关闭/重开由前后的独立case覆盖；避免反复创建Target使macOS激活Edge。
+    // 短生命周期关闭/重开由前面的独立 case 覆盖；避免反复创建 Target 使 macOS 激活 Edge。
     const skinPopup = await newPageWithoutForeground(context, timeout);
     attachPageDiagnostics(skinPopup);
     await skinPopup.setViewportSize({width: 400, height: 600});
@@ -2004,7 +2004,16 @@ async function main() {
         multilingualMetrics,
       });
     }
-    report.skinPopupLifecycle = {isolatedPages: 1, fullNavigations: expectedInterfaceSkins.length};
+    // Edge 的 CDP 附加在长皮肤矩阵后新建 Target 可能激活原生窗口。
+    // 保留同一隔离页，每项先完整离开 Popup 再重新加载，销毁旧文档及组件状态。
+    await assertTestBrowserRemainsBackground(context, '皮肤矩阵后重建 Popup 文档前');
+    await skinPopup.goto('about:blank', {waitUntil: 'domcontentloaded', timeout});
+    report.skinPopupLifecycle = {
+      isolatedPages: 1,
+      fullNavigations: expectedInterfaceSkins.length,
+      appearanceReopenNavigations: 0,
+      appearanceReopenMode: 'blank-then-popup',
+    };
     if (visualSignatures.size !== expectedInterfaceSkins.length) {
       throw new Error(`所有皮肤没有形成独立视觉签名：${visualSignatures.size}`);
     }
@@ -2100,6 +2109,7 @@ async function main() {
     await assertTestBrowserRemainsBackground(context, '复用 skinPopup 前');
     await skinPopup.setViewportSize({width: 400, height: 600});
     await skinPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
+    report.skinPopupLifecycle.appearanceReopenNavigations += 1;
     await skinPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
     await skinPopup.waitForTimeout(350);
     if (await skinPopup.locator('.features').count() !== 0) {
@@ -2121,6 +2131,7 @@ async function main() {
     }
     report.screenshots.push(await screenshotElement(skinPopup.locator('.popup-shell'), 'popup-interface-minimal-hidden-sections.png'));
     await assertTestBrowserRemainsBackground(context, '复用 skinPopup 完成简约隐藏栏目检查后');
+    await skinPopup.goto('about:blank', {waitUntil: 'domcontentloaded', timeout});
 
     // 默认风格的完整布局与隐藏栏目均按内容高度排版，不保留固定空白。
     await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="default"]').click();
@@ -2128,6 +2139,7 @@ async function main() {
     await page.waitForTimeout(500);
     await assertTestBrowserRemainsBackground(context, '复用 skinPopup 进行默认隐藏栏目检查前');
     await skinPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
+    report.skinPopupLifecycle.appearanceReopenNavigations += 1;
     await skinPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
     await skinPopup.waitForTimeout(350);
     const defaultHiddenMetrics = await inspectPopupContentHeight(skinPopup, '默认风格隐藏栏目');
@@ -2137,6 +2149,7 @@ async function main() {
     }
     report.screenshots.push(await screenshotElement(skinPopup.locator('.popup-shell'), 'popup-interface-default-hidden-sections.png'));
     await assertTestBrowserRemainsBackground(context, '复用 skinPopup 完成默认隐藏栏目检查后');
+    await skinPopup.goto('about:blank', {waitUntil: 'domcontentloaded', timeout});
 
     await popupLayoutEditor.locator('.popup-layout-hidden-chip').filter({hasText: '快捷功能栏'}).getByRole('button', {name: '添加快捷功能栏', exact: true}).click();
     await popupLayoutEditor.locator('.popup-layout-hidden-chip').filter({hasText: '底部信息栏'}).getByRole('button', {name: '添加底部信息栏', exact: true}).click();
@@ -2152,6 +2165,7 @@ async function main() {
     await page.waitForTimeout(500);
     await assertTestBrowserRemainsBackground(context, '复用 skinPopup 进行默认完整栏目检查前');
     await skinPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
+    report.skinPopupLifecycle.appearanceReopenNavigations += 1;
     await skinPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
     await skinPopup.waitForTimeout(350);
     const defaultFullMetrics = await inspectPopupContentHeight(skinPopup, '恢复默认完整栏目');

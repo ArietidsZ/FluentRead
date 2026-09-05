@@ -98,7 +98,10 @@
       "[data-turbo-temporary]",
       "relative-time",
       "time-ago",
-      "local-time"
+      "local-time",
+      "[class*=\"ReposListItem-module__TopicsList\"]",
+      "[class*=\"ReposListItem-module__LabelsContainer\"]",
+      "[data-listview-item-visibility-label=\"true\"]"
     ],
     "exclude": [
       "dialog",
@@ -118,7 +121,10 @@
       "[class*=\"IssueItem-module__defaultNumberDescription\"]",
       "[class*=\"PinnedIssue-module__metadataContainer\"]",
       "[class*=\"PinnedIssue-module__issueMetadata\"]",
-      "[class*=\"IssueBodyHeader-module__IssueBodyHeaderContainer\"]"
+      "[class*=\"IssueBodyHeader-module__IssueBodyHeaderContainer\"]",
+      "[class*=\"ReposListItem-module__TopicsList\"]",
+      "[class*=\"ReposListItem-module__LabelsContainer\"]",
+      "[data-listview-item-visibility-label=\"true\"]"
     ],
     "watchIgnore": [
       "[data-testid=\"issue-labels\"]",
@@ -139,7 +145,15 @@
       "[data-turbo-temporary]",
       "relative-time",
       "time-ago",
-      "local-time"
+      "local-time",
+      "[class*=\"ReposListItem-module__TopicsList\"]",
+      "[class*=\"ReposListItem-module__LabelsContainer\"]",
+      "[data-listview-item-visibility-label=\"true\"]"
+    ],
+    "omit": [
+      "[class*=\"ReposListItem-module__TopicsList\"]",
+      "[class*=\"ReposListItem-module__LabelsContainer\"]",
+      "[data-listview-item-visibility-label=\"true\"]"
     ]
   },
   {
@@ -410,6 +424,58 @@
     "mode": "augment",
     "exclude": [
       "#nav"
+    ]
+  },
+  {
+    "id": "x-chat",
+    "name": "X Chat 消息页脚",
+    "match": {
+      "hosts": [
+        "chat.x.com"
+      ]
+    },
+    "priority": 410,
+    "mode": "augment",
+    "omit": [
+      "div.flex.items-center.ml-auto.shrink-0.gap-1"
+    ]
+  },
+  {
+    "id": "ubuntu-manpage",
+    "name": "Ubuntu 命令手册",
+    "match": {
+      "hosts": [
+        "manpages.ubuntu.com"
+      ],
+      "paths": [
+        "/manpages/*/man0*/*.html",
+        "/manpages/*/man1*/*.html",
+        "/manpages/*/man2*/*.html",
+        "/manpages/*/man3*/*.html",
+        "/manpages/*/man4*/*.html",
+        "/manpages/*/man5*/*.html",
+        "/manpages/*/man6*/*.html",
+        "/manpages/*/man7*/*.html",
+        "/manpages/*/man8*/*.html",
+        "/manpages/*/man9*/*.html"
+      ]
+    },
+    "priority": 360,
+    "mode": "augment",
+    "literalTokens": [
+      "#manpage-content section.Sh b",
+      "#manpage-content section.Sh i"
+    ],
+    "omit": [
+      "#main-content h1",
+      "#manpage-content > #synopsis + section.Sh"
+    ],
+    "watchIgnore": [
+      "#main-content h1",
+      "#manpage-content > #synopsis + section.Sh"
+    ],
+    "literalLabels": [
+      "#manpage-content > #description + section.Sh > p.Pp:has(+ .Bd-indent)"
     ]
   }
 ]

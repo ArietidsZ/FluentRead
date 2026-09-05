@@ -9,6 +9,14 @@ function group(result: ReturnType<typeof buildConfigDiff>, id: string) {
 }
 
 describe('配置差异预览', () => {
+    it('用完整 API 套餐名称预览 DeepL Free 与 Pro 的切换', () => {
+        const result = buildConfigDiff({deeplApiPlan: 'free'}, {deeplApiPlan: 'pro'});
+
+        expect(group(result, 'translationServices')?.changes).toEqual([
+            {key: 'deeplApiPlan', label: 'DeepL API 套餐', before: 'API Free（免费）', after: 'API Pro（付费）'},
+        ]);
+    });
+
     it('为新增目标语言选项提供跨语言可识别的标签，并保留未知值回退', () => {
         expect(getMultilingualTargetLanguageLabel('de', 'Deutsch')).toBe('Deutsch / German / 德语');
         expect(getMultilingualTargetLanguageLabel('pt', 'Português')).toBe('Português / Portuguese / 葡萄牙语');

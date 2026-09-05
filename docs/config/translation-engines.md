@@ -41,6 +41,26 @@ Azure Translator、DeepL API Free 等服务虽然有免费额度，但仍需 API
 每路默认最多等待 5 秒；超时、网络故障、限流或配额错误后切换下一路，并暂时跳过失败服务 60 秒。高级设置可调整等待和休息时间。冷却结束后会重新尝试；所有后备均不可用时显示失败，不无限重试。网页翻译、批量文本和其他使用“免费翻译服务”的入口共用此策略；用户取消会中止整条链。冷却状态仅存在当前后台运行期，后台重启后重新探测，不代表额度已经恢复。
 
 修改后备顺序后，新请求使用对应的新缓存身份；新的等待策略只影响后续请求。已显示的译文可恢复原文后重新翻译。查阅 [免密钥接口核验与接入限制](/free-translation-apis) 获取官方来源与更多候选比较。
+## Azure
+
+选择“Azure”，填写 Azure API Key，并在“Azure 端点”中填入资源地址，例如 `https://YOUR-RESOURCE-NAME.openai.azure.com`。也支持 `https://YOUR-RESOURCE-NAME.services.ai.azure.com`。
+
+FluentRead 使用 Chat Completions 接口。填写资源地址或 `/openai/v1/` 基础地址时，会自动补齐为 `/openai/v1/chat/completions`；也可直接填写完整接口地址。v1 无需日期型 `api-version` 参数。已有的 `/openai/deployments/部署名称/chat/completions?api-version=版本` 完整地址可以继续使用，原有部署路径和版本参数会保留。
+
+“模型”应填写 Azure 中的**实际部署名称**，不一定等于模型的通用名称；可通过“自定义模型”输入。配置会自动保存，填写后点击“检查连接”。Azure 的 v1 地址格式及部署名称要求见 [Microsoft 官方文档](https://learn.microsoft.com/en-us/azure/foundry/openai/api-version-lifecycle)。
+
+## DeepL
+
+选择“DeepL”，先在“DeepL API 套餐”中选择套餐，再填写对应的 API Key：
+
+| 套餐 | 翻译接口 |
+| --- | --- |
+| API Free（免费，默认） | `https://api-free.deepl.com/v2/translate` |
+| API Pro（付费） | `https://api.deepl.com/v2/translate` |
+
+套餐选择会自动保存，“当前 API 地址”会显示实际使用的地址。已有配置默认沿用 API Free；切换官方套餐后，需要重新填写对应的 API Key。如果设置了自定义接口地址，会优先使用该地址，切换套餐不会覆盖它。
+
+DeepL 翻译器订阅与 DeepL API 套餐独立，请使用 API 套餐提供的密钥。配置完成后点击“检查连接”。申请方式和免费、付费接口的区别见 [DeepL 官方入门文档](https://developers.deepl.com/docs/getting-started/quickstart)。
 
 ## AI 上下文与多段翻译
 

@@ -27,6 +27,7 @@ import {
     evaluateHardGuard,
     findElementsAtPoint,
     findNodeAtPoint,
+    hasHiddenMarker,
     isExtensionElement,
     maxComposedAncestorDepth,
     safeClosest,
@@ -66,6 +67,75 @@ function candidateIds(document: Document, url?: string): string[] {
 }
 
 describe('translation candidate core', () => {
+    it('只放行 text/plain 文档的顶层 pre，HTML 页面中的 pre 仍保持保护', () => {
+        const htmlPage = page('<pre id="html-pre">const value = 1;</pre>');
+        expect(htmlPage.core.discover(htmlPage.document).map((candidate) => candidate.element.id))
+            .not.toContain('html-pre');
+
+        const plainPage = page('<pre id="plain-pre">First line\nSecond line</pre>');
+        Object.defineProperty(plainPage.document, 'contentType', {
+            configurable: true,
+            value: 'text/plain',
+        });
+        const plainPre = plainPage.document.querySelector('#plain-pre')!;
+
+        expect(plainPage.core.discover(plainPage.document)).toEqual([
+            expect.objectContaining({
+                element: plainPre,
+                kind: 'content',
+                reason: 'generic-readable-block',
+            }),
+        ]);
+        expect(extractTranslationText(plainPre)).toBe('First line Second line');
+    });
+
+    it('图标字体连字不会混入全文、悬浮和富文本请求，恢复时保留原始图标', () => {
+        const {document, core} = page('<p id="prose">Open <span id="icon">settings</span> to continue.</p><p id="standalone">keyboard_return</p>');
+        const view = document.defaultView!;
+        const descriptor = Object.getOwnPropertyDescriptor(view, 'getComputedStyle');
+        let iconFamily = '';
+        Object.defineProperty(view, 'getComputedStyle', {
+            configurable: true,
+            value: (element: Element) => ({
+                display: element.tagName === 'P' ? 'block' : 'inline',
+                fontFamily: ['icon', 'standalone'].includes(element.id) ? iconFamily : 'Arial',
+            }),
+        });
+        try {
+            const prose = document.querySelector('#prose') as HTMLElement;
+                const icon = document.querySelector('#icon') as HTMLElement;
+            for (const family of [
+                'Google Symbols', '"Material Icons"', "'Material Icons Outlined'",
+                'Material Symbols Rounded, sans-serif', 'FontAwesome', 'Font Awesome 6 Free',
+            ]) {
+                iconFamily = family;
+                expect(core.discover(document).map((candidate) => candidate.element.id)).toEqual(['prose']);
+                expect(core.resolve(icon)?.element).toBe(prose);
+                expect(core.resolve(document.querySelector('#standalone'))).toBeNull();
+                expect(hasHiddenMarker(icon)).toBe(false);
+                expect(extractTranslationText(prose)).toBe('Open to continue.');
+                const snapshot = createTranslationSourceSnapshot(prose);
+                expect(snapshot.slots.map((slot) => slot.source)).toEqual(['Open', 'to continue.']);
+                const translated = applyTranslationsToSnapshot(snapshot, ['打开', '以继续。']);
+                expect(translated).not.toContain('settings');
+                expect(translated).toContain('打开');
+                expect(icon.textContent).toBe('settings');
+            }
+            for (const family of ['Arial, "Material Symbols Rounded"', 'Arial']) {
+                iconFamily = family;
+                expect(extractTranslationText(prose)).toBe('Open settings to continue.');
+                expect(core.resolve(icon)?.element).toBe(prose);
+            }
+            iconFamily = 'Material IconsCustom';
+            expect(extractTranslationText(prose)).toBe('Open settings to continue.');
+            icon.hidden = true;
+            expect(hasHiddenMarker(icon)).toBe(true);
+        } finally {
+            if (descriptor) Object.defineProperty(view, 'getComputedStyle', descriptor);
+            else Reflect.deleteProperty(view, 'getComputedStyle');
+        }
+    });
+
     it('保留 engine 自身的祖先深度防线，并缓存实际检查过的祖先', () => {
         const ancestors = ['parent', 'grandparent', 'too-deep'];
 
@@ -636,6 +706,168 @@ describe('translation candidate core', () => {
         expect(core.resolve(document.querySelector('code'))?.element).toBe(paragraph);
     });
 
+    it('保护 Scribble 的 Racket 代码表格并保留相邻正文和普通表格', () => {
+        const {document, core} = page(`
+            <main><p id="before">These definitions describe the program.</p>
+                <table id="code" class="RktBlk"><tbody><tr><td id="code-line">
+                    <span class="RktPn">(</span><span class="RktSym">define-type</span>
+                    <span class="RktSym">MisspelledAnimal</span><span class="RktPn">)</span>
+                </td></tr></tbody></table>
+                <table id="ordinary"><tbody><tr><td id="ordinary-cell">Animal description in ordinary prose.</td></tr></tbody></table>
+                <div id="similar" class="RktBlk">This ordinary block shares a class name.</div>
+                <p id="after">The explanation continues after the example.</p>
+            </main>
+        `, 'https://cs.brown.edu/courses/cs173/2012/book/Introduction.html');
+        const code = document.querySelector<HTMLElement>('#code')!;
+        const source = code.outerHTML;
+        const originalNodes = [...code.querySelectorAll('*')];
+        for (let pass = 0; pass < 2; pass += 1) {
+            const candidates = core.discover(document);
+            expect(candidates.some((candidate) => candidate.element === code || code.contains(candidate.element)))
+                .toBe(false);
+            expect(core.resolve(document.querySelector('#code-line .RktSym')!.firstChild)).toBeNull();
+            expect(createTranslationSourceSnapshot(code, core.shouldStayOriginal).slots).toHaveLength(0);
+            const ids = candidates.map((candidate) => candidate.element.id);
+            expect(ids).toEqual(expect.arrayContaining(['before', 'ordinary-cell', 'similar', 'after']));
+            expect(code.outerHTML).toBe(source);
+            expect([...code.querySelectorAll('*')]).toEqual(originalNodes);
+        }
+        code.querySelector('td')!.append(' New code token');
+        expect(core.discover(code)).toEqual([]);
+        expect(createTranslationSourceSnapshot(code, core.shouldStayOriginal).slots).toHaveLength(0);
+    });
+
+    it('保护 Ubuntu manpage 命令语法和任意命令名称，同时翻译解释正文', () => {
+        const {document, core} = page(`
+            <div id="main-content"><h1 id="command-title">apt</h1></div>
+            <main><div id="manpage-content">
+                <h2 id="synopsis" class="Sh">SYNOPSIS</h2>
+                <section id="syntax" class="Sh mp-section"><p class="Pp HP"><b>apt</b> [<b>--help</b>] [<i>future_option</i>]</p></section>
+                <h2 id="description" class="Sh">DESCRIPTION</h2>
+                <section id="body" class="Sh mp-section">
+                    <p id="intro" class="Pp"><b>apt</b> provides a package management interface.</p>
+                    <p id="command-label" class="Pp"><b>future-command-2027</b> (<a href="tool.8.html"><b>tool</b>(8)</a>)</p>
+                    <div id="explanation" class="Bd-indent">Download package information with <b>future-command-2027</b> for <i>package_name</i>.</div>
+                    <p id="ordinary" class="Pp">An ordinary paragraph uses the word update naturally.</p>
+                </section>
+            </div></main>
+            <p id="outside">Ordinary <b>bold emphasis</b> remains natural prose.</p>
+        `, 'https://manpages.ubuntu.com/manpages/noble/man8/apt.8.html');
+        const regions = ['command-title', 'syntax', 'command-label'].map((id) => document.getElementById(id)!);
+        const originalHTML = regions.map((node) => node.outerHTML);
+        const originalNodes = regions.map((node) => [...node.childNodes]);
+        const candidates = core.discover(document);
+        expect(candidates.map(({element}) => element.id)).toEqual(expect.arrayContaining(['intro', 'explanation', 'ordinary', 'outside']));
+        for (const region of regions) {
+            expect(candidates.some(({element}) => element === region || region.contains(element))).toBe(false);
+            expect(core.resolve(region.firstChild)).toBeNull();
+            expect(core.shouldIgnoreMutation(region)).toBe(true);
+            expect(createTranslationSourceSnapshot(region, core.shouldStayOriginal).slots).toEqual([]);
+        }
+        const intro = document.getElementById('intro')!;
+        expect(core.resolve(intro.querySelector('b')!.firstChild)?.element).toBe(intro);
+        const introSnapshot = createTranslationSourceSnapshot(intro, core.shouldStayOriginal);
+        expect(introSnapshot.slots.map(({source}) => source)).toEqual(['provides a package management interface.']);
+        expect(applyTranslationsToSnapshot(introSnapshot, ['提供软件包管理界面。'])).toContain('<b>apt</b>');
+        const explanationSnapshot = createTranslationSourceSnapshot(document.getElementById('explanation')!, core.shouldStayOriginal);
+        expect(explanationSnapshot.slots.map(({source}) => source).join(' ')).not.toContain('package_name');
+        expect(applyTranslationsToSnapshot(explanationSnapshot, explanationSnapshot.slots.map(() => '说明')))
+            .toContain('<i>package_name</i>');
+        expect(createTranslationSourceSnapshot(document.getElementById('outside')!, core.shouldStayOriginal).slots
+            .map(({source}) => source)).toContain('bold emphasis');
+        const bodySnapshot = createTranslationSourceSnapshot(document.getElementById('manpage-content')!,
+            core.shouldStayOriginal, undefined, undefined, core.shouldOmitFromTranslation);
+        expect(bodySnapshot.slots.map(({source}) => source).join(' ')).not.toMatch(/future-command-2027|future_option|--help/u);
+        expect(bodySnapshot.clone.querySelector('#syntax')).toBeNull();
+        expect(bodySnapshot.clone.querySelector('#command-label')).toBeNull();
+        expect(regions.map((node) => node.outerHTML)).toEqual(originalHTML);
+        expect(regions.map((node) => [...node.childNodes])).toEqual(originalNodes);
+        document.getElementById('body')!.insertAdjacentHTML('beforeend',
+            '<p id="late-command" class="Pp"><b>unknown-operation</b></p><div id="late-explanation" class="Bd-indent">This operation explains a future capability.</div>');
+        expect(core.discover(document).map(({element}) => element.id)).toContain('late-explanation');
+        expect(core.resolve(document.getElementById('late-command')!.firstChild)).toBeNull();
+    });
+
+    it.each(['dpkg-query\n  --list', 'future-tool --unknown-option -q'])('按字面标记保留命令选项组合 %s 的 DOM 和译文，不发送给服务', (literal) => {
+        const {document, core} = page(`<div id="manpage-content"><section class="Sh"><p id="body">Inspect packages with <b id="literal">${literal}</b> before continuing.</p></section></div>`,
+            'https://manpages.ubuntu.com/manpages/noble/man8/apt.8.html');
+        const body = document.getElementById('body')!;
+        const command = document.getElementById('literal')!;
+        const original = command.outerHTML;
+        const snapshot = createTranslationSourceSnapshot(body, core.shouldStayOriginal);
+        expect(snapshot.slots.map(({source}) => source)).toEqual(['Inspect packages with', 'before continuing.']);
+        expect(core.shouldStayOriginal(command)).toBe(true);
+        expect(core.shouldOmitFromTranslation(command)).toBe(false);
+        const translated = applyTranslationsToSnapshot(snapshot, ['检查软件包，使用', '再继续。']);
+        expect(translated).toContain(original);
+        expect(command.outerHTML).toBe(original);
+        expect(command.textContent).toBe(literal);
+        expect(core.resolve(command.firstChild)?.element).toBe(body);
+    });
+
+    it('不因紧邻缩进块而剪掉普通说明、前置原文或带命令名的完整句子', () => {
+        const introductions = [
+            'The following example shows how to configure this command.',
+            'Run <b>future-command</b> to continue.',
+            '<b>apt</b> provides a package management interface.',
+            '<b>apt</b> <a href="guide.html">provides a package management interface</a>.',
+            '<span>Ordinary introduction</span>',
+            '<b>This is an ordinary quoted explanation.</b>',
+            '<i>这些内容是正常的中文说明。</i>',
+            '<b>apt</b> <b>provides a package management interface.</b>',
+            '<b>apt</b> <i>这是命令的说明文字。</i>',
+            '<b>Run the command with --help for additional details.</b>',
+            '<b>dpkg-query lists the installed packages.</b>',
+        ];
+        for (const introduction of introductions) {
+            const {document, core} = page(`<div id="manpage-content"><h2 id="description">DESCRIPTION</h2><section class="Sh"><p id="intro" class="Pp">${introduction}</p><div class="Bd-indent"><b>future-command</b> --dry-run</div></section></div>`,
+                'https://manpages.ubuntu.com/manpages/noble/man1/future-command.1.html');
+            const intro = document.getElementById('intro')!;
+            expect(core.shouldStayOriginal(intro)).toBe(false);
+            expect(core.shouldOmitFromTranslation(intro)).toBe(false);
+            expect(core.shouldIgnoreMutation(intro)).toBe(false);
+            expect(core.discover(document).some(({element}) => element === intro), introduction).toBe(true);
+            expect(createTranslationSourceSnapshot(intro, core.shouldStayOriginal).slots.length).toBeGreaterThan(0);
+        }
+    });
+
+    it('仅把平衡括号的命令附注当作标签，并忽略已有扩展副本', () => {
+        const labels: Array<[string, boolean]> = [
+            ['<b>edit-sources</b> (work-in-progress)', true],
+            ['<b>showsrc, depends</b> (summarised in <a href="apt-cache.8.html"><b>apt-cache</b>(8)</a>)', true],
+            ['<b>showsrc, depends</b> (summarised in <i>the relevant manual</i>)', true],
+            ['<b>future-command</b> (支持中文附注)', true],
+            ['<!-- a host comment --> <i>future_option</i>', true],
+            ['<b>unknown-operation</b><span data-fr-translation-owned="true">旧译文</span>', true],
+            ['<b>unknown-operation</b> (unfinished note', false],
+            ['<b>unknown-operation</b> )', false],
+            ['<!-- empty placeholder --> ', false],
+            ['<b></b>', false],
+        ];
+        for (const [labelHTML, protectedLabel] of labels) {
+            const {document, core} = page(`<div id="manpage-content"><h2 id="description">DESCRIPTION</h2><section class="Sh"><p id="label" class="Pp">${labelHTML}</p><div class="Bd-indent">An explanation of the operation.</div></section></div>`,
+                'https://manpages.ubuntu.com/manpages/noble/man8/apt.8.html');
+            const label = document.getElementById('label')!;
+            expect(core.shouldStayOriginal(label), labelHTML).toBe(protectedLabel);
+            expect(core.shouldOmitFromTranslation(label), labelHTML).toBe(protectedLabel);
+            expect(core.shouldIgnoreMutation(label), labelHTML).toBe(protectedLabel);
+        }
+    });
+
+    it('不把 Ubuntu manpage 的命令规则扩散到其他站点或非手册路径', () => {
+        const html = '<div id="manpage-content"><h2 id="description">Description</h2><section class="Sh"><p id="label" class="Pp"><b>unknown-command</b></p><div class="Bd-indent">A regular explanation.</div></section></div>';
+        for (const url of ['https://example.test/manpages/noble/man8/apt.8.html',
+            'https://manpages.ubuntu.com.example.test/manpages/noble/man8/apt.8.html',
+            'https://example.manpages.ubuntu.com/manpages/noble/man8/apt.8.html',
+            'https://manpages.ubuntu.com/help']) {
+            const {document, core} = page(html, url);
+            expect(core.shouldStayOriginal(document.getElementById('label')!)).toBe(false);
+            expect(core.discover(document).map(({element}) => element.id)).toContain('label');
+        }
+        const {document, core} = page(html, 'https://manpages.ubuntu.com/manpages/noble/en/man8/apt.8.html');
+        expect(core.shouldStayOriginal(document.getElementById('label')!)).toBe(true);
+    });
+
     it('keeps MathJax and KaTeX render trees atomic while translating surrounding prose', () => {
         const {document, core} = page(`
             <main><p id="prose">
@@ -1038,6 +1270,62 @@ describe('translation candidate core', () => {
         expect(core.resolve(title)?.element).toBe(title);
     });
 
+    it('保护 GitHub 仓库列表的任意技术标签和受控元数据，正文相同词仍可翻译', () => {
+        const {document, core} = page(`
+            <main><ul><li id="repository">
+                <div data-listview-item-title-container="true"><h3><a href="/example/compiler">Compiler</a></h3>
+                    <span id="visibility" data-listview-item-visibility-label="true">Public</span></div>
+                <div id="description" class="repos-list-description">Java and Python support the new QuasarLang2027 compiler. Public APIs remain useful.</div>
+                <div id="topics" class="ReposListItem-module__TopicsList__fixture">
+                    <a href="/search?q=topic%3Ajava"><span>Java</span></a>
+                    <a href="/search?q=topic%3Apython"><span>Python</span></a>
+                    <a href="/topics/quasarlang2027"><span>QuasarLang2027</span></a>
+                </div>
+                <div id="metadata" class="ReposListItem-module__LabelsContainer__fixture">
+                    <div class="ReposListItem-module__LanguageLabelContainer__fixture"><span class="ReposListItem-module__PrimaryLanguageName__fixture">Go</span></div>
+                    <span>Apache License 2.0</span><a href="/example/compiler/forks">14k forks</a>
+                </div>
+            </li></ul>
+            <article class="markdown-body"><p id="prose">Learn <a href="/topics/java">Java</a> and <a href="/topics/python">Python</a> through public examples.</p></article>
+            <div id="generic-topic-class" class="TopicsList">Java and Python are discussed here.</div>
+            </main>
+        `, 'https://github.com/orgs/example/repositories');
+        const protectedRegions = ['visibility', 'topics', 'metadata'].map((id) => document.getElementById(id)!);
+        const originals = protectedRegions.map((region) => region.outerHTML);
+        const originalNodes = protectedRegions.map((region) => [...region.childNodes]);
+        const candidates = core.discover(document);
+        const snapshot = createTranslationSourceSnapshot(document.getElementById('repository')!,
+            core.shouldStayOriginal, undefined, undefined, core.shouldOmitFromTranslation);
+        expect(snapshot.slots.map(({source}) => source))
+            .toEqual(['Compiler', 'Java and Python support the new QuasarLang2027 compiler. Public APIs remain useful.']);
+        for (const region of protectedRegions) {
+            expect(candidates.some(({element}) => element === region || region.contains(element))).toBe(false);
+            expect(core.shouldStayOriginal(region)).toBe(true);
+            expect(core.shouldIgnoreMutation(region)).toBe(true);
+            expect(core.resolve(region.querySelector('span')?.firstChild ?? region.firstChild)).toBeNull();
+            expect(createTranslationSourceSnapshot(region, core.shouldStayOriginal).slots).toEqual([]);
+        }
+        const description = document.getElementById('description')!;
+        expect(candidates.find(({element}) => element === description))
+            .toMatchObject({adapterId: 'github', reason: 'github-repository-description'});
+        const prose = document.getElementById('prose')!;
+        expect(core.resolve(prose.querySelector('a')!.firstChild)?.element).toBe(prose);
+        expect(createTranslationSourceSnapshot(prose, core.shouldStayOriginal).slots.map(({source}) => source))
+            .toEqual(['Learn', 'Java', 'and', 'Python', 'through public examples.']);
+        expect(candidates.some(({element}) => element.id === 'generic-topic-class')).toBe(true);
+        const translatedHTML = applyTranslationsToSnapshot(snapshot, snapshot.slots.map(() => '正文译文'));
+        for (const region of protectedRegions) {
+            expect(snapshot.clone.querySelector(`#${region.id}`)).toBeNull();
+            expect(translatedHTML).not.toContain(`id="${region.id}"`);
+        }
+        expect(translatedHTML).toContain('正文译文');
+        expect(protectedRegions.map((region) => region.outerHTML)).toEqual(originals);
+        expect(protectedRegions.map((region) => [...region.childNodes])).toEqual(originalNodes);
+        document.getElementById('topics')!.insertAdjacentHTML('beforeend', '<a href="/topics/future-runtime"><span>Future Runtime</span></a>');
+        expect(core.discover(document.getElementById('topics')!)).toEqual([]);
+        expect(createTranslationSourceSnapshot(document.getElementById('topics')!, core.shouldStayOriginal).slots).toEqual([]);
+    });
+
     it('keeps GitHub issue-list labels and metadata original while translating titles', () => {
         const {document, core} = page(`
             <main>
@@ -1404,6 +1692,7 @@ describe('translation candidate core', () => {
             matches: () => true,
             decide: () => { throw new Error('adapter failure'); },
             shouldStayOriginal: () => { throw new Error('adapter failure'); },
+            shouldOmitFromTranslation: () => { throw new Error('adapter failure'); },
         };
         const first = createDeclarativeAdapter({
             id: 'z-first-registered',
@@ -1422,6 +1711,7 @@ describe('translation candidate core', () => {
             adapters: [faulty, first, second],
         });
 
+        expect(core.shouldOmitFromTranslation(document.querySelector('#safe')!)).toBe(false);
         expect(core.discover(document)[0]).toMatchObject({
             adapterId: 'z-first-registered',
             reason: 'first-wins',

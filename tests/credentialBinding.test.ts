@@ -42,6 +42,19 @@ function rebound(
 }
 
 describe('凭据与真实请求目的地绑定', () => {
+    it('DeepL 套餐切换按真实端点解绑旧凭据，并保留显式重绑与稳定代理', () => {
+        const free = configured(services.deepL, {deeplApiPlan: 'free'});
+        const pro = transition(free, {deeplApiPlan: 'pro'});
+
+        expect(rebound(free, pro).token).not.toHaveProperty(services.deepL);
+        expect(rebound(pro, free).token).not.toHaveProperty(services.deepL);
+        expect(rebound(free, pro, new Set([services.deepL])).token[services.deepL]).toBe('deepL-secret');
+        const proxy = {[services.deepL]: 'https://deepl-proxy.example/translate'};
+        const proxiedFree = transition(free, {proxy});
+        const proxiedPro = transition(pro, {proxy});
+        expect(rebound(proxiedFree, proxiedPro).token[services.deepL]).toBe('deepL-secret');
+    });
+
     it('Gemini 的官方 Key 不随无凭据 proxy 切换而误清', () => {
         const current = configured(services.gemini);
         const proxyA = transition(current, {proxy: {[services.gemini]: 'https://proxy-a.example/gemini'}});
@@ -129,6 +142,44 @@ describe('凭据与真实请求目的地绑定', () => {
         });
         expect(rebound(azure, irrelevantProxy).token[services.azureOpenai]).toBe('azureOpenai-secret');
         expect(rebound(azure, changedEndpoint).token).not.toHaveProperty(services.azureOpenai);
+    });
+
+    it('Azure 根地址、v1 前缀与完整请求地址共享凭据身份', () => {
+        const current = configured(services.azureOpenai, {
+            azureOpenaiEndpoint: 'https://reader.services.ai.azure.com?tenant=a&region=cn',
+        });
+        for (const endpoint of [
+            'https://reader.services.ai.azure.com/openai/v1?region=cn&tenant=a',
+            'https://reader.services.ai.azure.com/openai/v1/chat/completions/?tenant=a&region=cn#ignored',
+        ]) {
+            const next = transition(current, {azureOpenaiEndpoint: endpoint});
+            expect(rebound(current, next).token[services.azureOpenai]).toBe('azureOpenai-secret');
+            expect(rebound(next, current).token[services.azureOpenai]).toBe('azureOpenai-secret');
+        }
+        for (const endpoint of [
+            'https://other.services.ai.azure.com?tenant=a&region=cn',
+            'https://reader.services.ai.azure.com?tenant=b&region=cn',
+        ]) {
+            expect(rebound(current, transition(current, {azureOpenaiEndpoint: endpoint})).token)
+                .not.toHaveProperty(services.azureOpenai);
+        }
+    });
+
+    it('Azure 旧部署与未完成配置在加载或无关编辑后保留既有凭据', () => {
+        for (const endpoint of [
+            'https://reader.openai.azure.com/openai/deployments/reader/chat/completions?api-version=2024-10-21',
+            'https://reader.openai.azure.com/openai/deployments/reader',
+            '',
+            'not-yet-an-endpoint',
+        ]) {
+            const current = configured(services.azureOpenai, {azureOpenaiEndpoint: endpoint});
+            const next = transition(current, {to: 'en'});
+            expect(rebound(current, next).token[services.azureOpenai]).toBe('azureOpenai-secret');
+        }
+        const current = configured(services.azureOpenai, {azureOpenaiEndpoint: 'not-yet-an-endpoint'});
+        expect(rebound(current, transition(current, {
+            azureOpenaiEndpoint: 'https://reader.openai.azure.com',
+        })).token).not.toHaveProperty(services.azureOpenai);
     });
 
     it('动态 OpenAI 完整 Chat Completions URL 的尾斜杠与 fragment 不造成误解绑', () => {
