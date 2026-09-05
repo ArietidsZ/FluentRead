@@ -9,7 +9,7 @@ import {
 } from '@/src/features/settings/model/navigation'
 
 describe('options navigation view-model', () => {
-  it('keeps the thirteen sections unique, grouped exactly once and in the product IA order', () => {
+    it('keeps the fourteen sections unique, grouped exactly once and in the product IA order', () => {
     const groupedItems = navigationGroups.flatMap((group) => group.items)
     expect(groupedItems).toEqual(navigationItems)
     expect(new Set(navigationItems.map((item) => item.id)).size).toBe(navigationItems.length)
@@ -31,7 +31,7 @@ describe('options navigation view-model', () => {
       },
       {
         label: '工具与学习',
-        items: ['settings-translation-center', 'settings-model-usage', 'settings-vocabulary'],
+        items: ['settings-translation-center', 'settings-model-usage', 'settings-vocabulary', 'settings-harness'],
       },
       {
         label: '系统与数据',
@@ -49,6 +49,7 @@ describe('options navigation view-model', () => {
       '翻译中心',
       '模型用量',
       '单词本',
+      'DeepSeek Harness',
       '高级选项',
       '备份与恢复',
       '关于流畅阅读',
@@ -66,6 +67,7 @@ describe('options navigation view-model', () => {
     expect(resolveNavigationItem('settings-interface').title).toBe('界面布局')
     expect(resolveNavigationItem('settings-model-usage').detail)
       .toBe('查看发起的大模型调用、Token 消耗与使用趋势。')
+    expect(resolveRequestedSection('#settings-harness')).toBe('settings-harness')
     expect(resolveNavigationItem('missing').id).toBe(DEFAULT_NAVIGATION_SECTION)
     expect(resolveRequestedSection('#settings-video')).toBe('settings-video')
     expect(resolveRequestedSection('settings-sites')).toBe('settings-sites')
@@ -124,5 +126,8 @@ describe('options navigation view-model', () => {
     ])
     expect(filterNavigationItems('')).toEqual([])
     expect(filterNavigationItems('不存在的设置项')).toEqual([])
+    expect(filterNavigationItems('Harness')).toEqual([
+      expect.objectContaining({ id: 'settings-harness' }),
+    ])
   })
 })

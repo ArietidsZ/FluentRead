@@ -404,6 +404,10 @@ pnpm test:regression:all -- --browser  # 追加屏幕外隔离浏览器 fixtures
 
 ## 变更规则
 
+## 阅读助手 Harness 核心
+
+阅读助手采用浏览器内的有界 ledger 和独立工具循环，参考 DeepSeek Harness `dsh-v0.1.3-alpha.1`（commit `d347e703908d0406b7a7ef80e3a0e594d86b2215`）的 `packages/core/session/src/surface.ts` 消息投影思想。FluentRead 只保留选区、已授权段落、追问历史和只读 `read_context` 工具，不引入上游桌面 host、bridge、Cordis、插件、文件系统、进程、沙箱或动态执行能力；模型仍由现有 AI SDK gateway 选择。兼容模型与原生 Anthropic/Google 模型均通过各自协议接入，不能假设任意模型都支持工具调用或流式输出。
+
 每个迁移批次必须：
 
 1. 保持旧公开行为，或在同一批次更新产品文档。

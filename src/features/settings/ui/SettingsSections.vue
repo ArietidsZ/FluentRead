@@ -47,6 +47,9 @@
   <section v-show="props.activeSection === 'settings-translation-center'" id="settings-translation-center" class="settings-section translation-center-section">
     <TranslationCenter />
   </section>
+  <section v-show="props.activeSection === 'settings-harness'" id="settings-harness" class="settings-section">
+    <HarnessSettings :config="config" />
+  </section>
   <div class="settings-main-sections">
     <!-- 翻译服务 -->
     <section v-show="props.activeSection === 'settings-services'" id="settings-services" class="settings-section">
@@ -726,6 +729,7 @@ import {getServiceWebsite} from '@/src/ui/view-model/serviceCatalog';
 import ServiceConfiguration from './services/ServiceConfiguration.vue';
 import CustomOpenAIProviderDialog from './services/CustomOpenAIProviderDialog.vue';
 import {TranslationCenter} from '@/src/features/translation-center/public';
+import HarnessSettings from './HarnessSettings.vue';
 import AlwaysTranslateSites from './AlwaysTranslateSites.vue';
 import {
   createApiKeyRequirementKey,
@@ -830,7 +834,8 @@ const unsubscribeConfig = subscribeConfig((nextConfig) => {
 });
 void configReady
   .then(() => {
-    Object.assign(config.value, runtimeConfig);
+    // 编辑副本不能共享嵌套对象，否则修改 Harness 等字段会先污染 patch 的比较基线。
+    Object.assign(config.value, normalizeConfig(runtimeConfig));
     lastSerialized = JSON.stringify(config.value);
     hydrated = true;
     updateTheme(config.value.theme || 'auto');

@@ -97,6 +97,12 @@ export const navigationGroups: NavigationGroup[] = [
         kicker: '本地学习', title: '单词本', detail: '词条、上下文与复习记录只保存在当前浏览器；可在这里复习或导出到 Anki。',
         searchDescription: '单词本、收藏、复习、掌握程度、学习记录、Anki、导入导出',
       },
+      {
+        id: 'settings-harness', icon: '文', label: 'DeepSeek Harness', description: '选区学习辅助', group: '工具与学习',
+        heading: 'DeepSeek Harness', summary: '选中文本后按需调用 AI，帮助理解、拆句、掌握用法和练习。',
+        kicker: '学习辅助', title: 'DeepSeek Harness', detail: '配置选区学习辅助的服务、上下文范围和回答偏好。',
+        searchDescription: 'Harness、DeepSeek、读懂、拆句、用法、练习、选区、段落、学习辅助、解释深度、学习程度',
+      },
     ],
   },
   {

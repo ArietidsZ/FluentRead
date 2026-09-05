@@ -55,6 +55,7 @@ import {createCapabilityGatedBackgroundHandlers, createCapabilityGatedSelectionT
 import {createConfigBackgroundHandlers} from './configMessageHandlers';
 import {createConfigImageOcrLanguageStorage, installBrowserConfigStorageBroadcast} from './configStorageRuntime';
 import {modelUsageRepository} from '@/src/platform/storage/modelUsageRepository';
+import {installHarnessBackgroundRuntime} from './harnessRuntime';
 type BackgroundRuntimeContext = QQMailFrameBackgroundContext & ConfigPersistenceContext & VocabularyBackgroundContext & SelectionTtsContext
     & FullPageBackgroundContext & AreaTranslationBackgroundContext;
 export interface BackgroundMessageRuntimeOptions {
@@ -70,6 +71,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     const selectionTtsTransport = createCapabilityGatedSelectionTtsTransport(capabilities, selectionTtsOffscreenAdapter);
     const handlers: Array<BackgroundMessageHandler<BackgroundRuntimeContext>> = [
         createTranslationCancelHandler(translationRequestRegistry),
+        installHarnessBackgroundRuntime(),
         ...createQqMailFrameBackgroundHandlers({sendTabMessage: (tabId, message, options) => browser.tabs.sendMessage(tabId, message, options)}),
         ...createTranslationCacheHandlers(clearTranslationCache, getTranslationCacheStats, createTranslationCacheInvalidationBroadcaster({
             queryTabs: () => browser.tabs.query({}) as Promise<Array<{id?: number}>>,

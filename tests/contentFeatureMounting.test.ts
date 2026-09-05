@@ -2,6 +2,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mocks = vi.hoisted(() => ({
     config: {
+        harness: undefined as {enabled: boolean} | undefined,
         disableSelectionTranslator: false,
         selectionTranslatorMode: 'bilingual',
         selectionAreaEnabled: true,
@@ -42,6 +43,7 @@ function pendingUi(): {
 beforeEach(() => {
     vi.resetModules();
     mocks.createVueShadowUi.mockReset();
+    mocks.config.harness = undefined;
     mocks.config.disableSelectionTranslator = false;
     mocks.config.selectionTranslatorMode = 'bilingual';
     mocks.config.selectionAreaEnabled = true;
@@ -49,6 +51,25 @@ beforeEach(() => {
 });
 
 describe('划词翻译挂载生命周期', () => {
+    it('Harness 独立启用时保留共享挂载，并在两个入口都停用后丢弃待挂载 UI', async () => {
+        mocks.config.harness = {enabled: true};
+        mocks.config.disableSelectionTranslator = true;
+        mocks.config.selectionTranslatorMode = 'disabled';
+        const runtime = await import('@/src/features/selection-translation/content/runtime');
+        const mounted = ui();
+        mocks.createVueShadowUi.mockResolvedValueOnce(mounted);
+        await expect(runtime.mountSelectionTranslator({} as never)).resolves.toEqual({feature: 'mounted'});
+        runtime.unmountSelectionTranslator();
+        const pending = pendingUi();
+        const late = ui();
+        mocks.createVueShadowUi.mockReturnValueOnce(pending.promise);
+        const request = runtime.mountSelectionTranslator({} as never);
+        mocks.config.harness.enabled = false;
+        pending.resolve(late);
+        await expect(request).resolves.toBeNull();
+        expect(late.remove).toHaveBeenCalledOnce();
+    });
+
     it('没有内容脚本上下文或功能关闭时不挂载', async () => {
         const runtime = await import('@/src/features/selection-translation/content/runtime');
 
