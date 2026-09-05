@@ -789,13 +789,13 @@ describe('后台 feature handlers', () => {
             .rejects.toThrow('texts 只能包含非空字符串');
         dependencies.translateTexts.mockResolvedValueOnce('single');
         await expect(texts.handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, texts: ['a']}))
-            .rejects.toThrow('图片文字批量翻译失败：provider 未返回等长字符串数组');
+            .rejects.toThrow('图片文字批量翻译失败：provider 未返回等长非空字符串数组');
         dependencies.translateTexts.mockResolvedValueOnce([]);
         await expect(texts.handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, texts: ['a']}))
-            .rejects.toThrow('图片文字批量翻译失败：provider 未返回等长字符串数组');
+            .rejects.toThrow('图片文字批量翻译失败：provider 未返回等长非空字符串数组');
         dependencies.translateTexts.mockResolvedValueOnce([1] as unknown as string[]);
         await expect(texts.handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, texts: ['a']}))
-            .rejects.toThrow('图片文字批量翻译失败：provider 未返回等长字符串数组');
+            .rejects.toThrow('图片文字批量翻译失败：provider 未返回等长非空字符串数组');
 
         await expect(download.handle({type: IMAGE_OCR_DOWNLOAD_MESSAGE_TYPE, languages: null}))
             .rejects.toThrow('OCR 语言包列表不能为空');
@@ -808,7 +808,7 @@ describe('后台 feature handlers', () => {
 
     });
 
-    it('图片文字对不支持 batch 的 provider 逐条保序，并标明失败段号', async () => {
+    it('图片文字对不支持 batch 的 provider 并发保序，并标明失败段号', async () => {
         const translateTexts = vi.fn(async (request: {origin: string | string[]}) => {
             if (Array.isArray(request.origin)) throw new Error('legacy provider 不接受数组');
             return `译:${request.origin}`;
@@ -849,7 +849,7 @@ describe('后台 feature handlers', () => {
             type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE,
             texts: ['first', 'second', 'third'],
         })).rejects.toThrow('图片第 2 段文字翻译失败：provider down');
-        expect(translateTexts).toHaveBeenCalledTimes(2);
+        expect(translateTexts).toHaveBeenCalledTimes(3);
 
         translateTexts.mockReset()
             .mockRejectedValueOnce('字符串错误');
@@ -866,7 +866,7 @@ describe('后台 feature handlers', () => {
         })).rejects.toThrow('图片第 1 段文字翻译失败：provider 未返回字符串译文');
     });
 
-    it('图片 legacy 多段共享 120 秒绝对预算，当前段超时后不再启动后续段', async () => {
+    it('图片 legacy 并发窗口共享绝对预算，超时后不再启动后续段', async () => {
         vi.useFakeTimers();
         vi.setSystemTime(0);
         try {
@@ -898,18 +898,18 @@ describe('后台 feature handlers', () => {
                 .find((candidate) => candidate.type === IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE)!;
             const request = handler.handle({
                 type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE,
-                texts: ['first', 'second', 'third'],
+                texts: ['first', 'second', 'third', 'fourth', 'fifth'],
             });
             const rejection = expect(request).rejects.toThrow('图片第 2 段文字翻译失败：翻译请求超时');
 
             await vi.advanceTimersByTimeAsync(70_000);
-            expect(translateTexts).toHaveBeenCalledTimes(2);
+            expect(translateTexts).toHaveBeenCalledTimes(4);
             expect(translateTexts.mock.calls.map(([entry]) => entry.requestTimeoutMs))
-                .toEqual([120_000, 50_000]);
+                .toEqual([120_000, 120_000, 120_000, 50_000]);
 
             await vi.advanceTimersByTimeAsync(50_000);
             await rejection;
-            expect(translateTexts).toHaveBeenCalledTimes(2);
+            expect(translateTexts).toHaveBeenCalledTimes(4);
         } finally {
             vi.useRealTimers();
         }

@@ -1,164 +1,135 @@
 /**
  * @file src/features/image-translation/services/inpainting.ts
- * 文件职责：在像素缓冲区上构造 OCR 文本区域蒙版并用邻域颜色迭代填补文字背景，为后续绘制译文提供尽量连续的底图。
- * 主要内容：包含矩形掩码扩张、像素偏移计算、四邻域遍历和 inpaintTextRegions 主算法，依据 OcrLine 边界限制处理范围并原地更新 ImageData。
- * 模块边界：这是纯像素运算层，不执行 OCR、不选择翻译文本也不创建 Canvas；输入图像与文本框由 offscreenRuntime 提供，颜色采样和译文绘制由 rendering 相关逻辑负责。
+ * 文件职责：依据有效 OCR 文本框在像素缓冲区中修复原文字，保留修复区域以外的图像内容。
+ * 主要内容：约束文字边缘扩张、构造去重蒙版，并使用分层边界队列和预乘透明度插值完成局部背景扩散；每个蒙版像素只入队一次，避免重复扫描和分配整图缓冲区。
+ * 模块边界：本模块是无 DOM、无网络的轻量像素算法，不进行 OCR 或译文绘制，也不宣称能够重建复杂纹理；输入和输出保持原图尺寸，无法取得已知边界时保留原像素。
  */
-import type { OcrLine } from '@/src/features/image-translation/core';
+import type { OcrLine } from '@/src/shared/image/types';
 
-interface PixelPoint {
-    x: number;
-    y: number;
+interface MaskRectangle {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
 }
 
-function clamp(value: number, min: number, max: number): number {
-    return Math.max(min, Math.min(max, value));
+function getMaskRectangle(line: OcrLine, width: number, height: number): MaskRectangle | undefined {
+    const { x0, y0, x1, y1 } = line.bbox;
+    if (![x0, y0, x1, y1].every(Number.isFinite)
+        || x1 <= x0 || y1 <= y0 || x1 <= 0 || y1 <= 0 || x0 >= width || y0 >= height) return;
+
+    // 扩张仅用于清除字形的抗锯齿边缘，避免大字号把邻近图案和其他行一并抹掉。
+    const padding = Math.max(1, Math.min(4, Math.round((y1 - y0) * 0.1)));
+    return {
+        left: Math.max(0, Math.floor(x0 - padding)),
+        top: Math.max(0, Math.floor(y0 - padding)),
+        right: Math.min(width, Math.ceil(x1 + padding)),
+        bottom: Math.min(height, Math.ceil(y1 + padding)),
+    };
 }
 
-function pixelOffset(x: number, y: number, width: number): number {
-    return (y * width + x) * 4;
-}
-
-function addMaskRectangle(
-    mask: Uint8Array,
-    width: number,
-    height: number,
-    line: OcrLine,
-): void {
-    const lineWidth = Math.max(1, line.bbox.x1 - line.bbox.x0);
-    const lineHeight = Math.max(1, line.bbox.y1 - line.bbox.y0);
-    // OCR 的框通常只包住字形，额外留出少量边缘可以避免原文字的抗锯齿残影。
-    const paddingX = Math.max(2, Math.round(lineHeight * 0.18));
-    const paddingY = Math.max(2, Math.round(lineHeight * 0.24));
-    const left = clamp(Math.floor(line.bbox.x0 - paddingX), 0, width - 1);
-    const top = clamp(Math.floor(line.bbox.y0 - paddingY), 0, height - 1);
-    const right = clamp(Math.ceil(line.bbox.x1 + paddingX), left + 1, width);
-    const bottom = clamp(Math.ceil(line.bbox.y1 + paddingY), top + 1, height);
-
-    // 极窄的 OCR 框容易只覆盖到字符中间，按最小尺寸扩大一点，但不越过图片边界。
-    const minimumWidth = Math.min(width, Math.max(right - left, Math.ceil(lineWidth * 1.08)));
-    const minimumHeight = Math.min(height, Math.max(bottom - top, Math.ceil(lineHeight * 1.12)));
-    const expandedLeft = clamp(Math.floor((left + right - minimumWidth) / 2), 0, width - minimumWidth);
-    const expandedTop = clamp(Math.floor((top + bottom - minimumHeight) / 2), 0, height - minimumHeight);
-    for (let y = expandedTop; y < expandedTop + minimumHeight; y += 1) {
-        const row = y * width;
-        for (let x = expandedLeft; x < expandedLeft + minimumWidth; x += 1) {
-            mask[row + x] = 1;
-        }
-    }
-}
-
-function getNeighbours(x: number, y: number, width: number, height: number): PixelPoint[] {
-    const points: PixelPoint[] = [];
-    for (let dy = -1; dy <= 1; dy += 1) {
-        for (let dx = -1; dx <= 1; dx += 1) {
-            if (dx === 0 && dy === 0) continue;
-            const neighbourX = x + dx;
-            const neighbourY = y + dy;
-            if (neighbourX >= 0 && neighbourX < width && neighbourY >= 0 && neighbourY < height) {
-                points.push({ x: neighbourX, y: neighbourY });
-            }
-        }
-    }
-    return points;
-}
-
-/**
- * 使用局部边界扩散修复 OCR 区域。
- *
- * 这不是 AI inpainting，而是一个无依赖、可在 MV3 CSP 下运行的轻量兜底：
- * 每一层未知像素从周围已知像素插值，能保留纯色和渐变背景，避免整块纯色
- * 矩形直接盖在原图上。复杂纹理仍应交给可选的 ONNX/服务端修复器。
- */
+/** 使用八邻域边界扩散修复文字区域；复杂背景仍会产生模糊，原始像素不会被修改。 */
 export function inpaintTextRegions(
     source: Uint8ClampedArray,
     width: number,
     height: number,
     lines: OcrLine[],
 ): Uint8ClampedArray {
-    if (width <= 0 || height <= 0 || source.length < width * height * 4 || lines.length === 0) {
-        return new Uint8ClampedArray(source);
-    }
-
     const result = new Uint8ClampedArray(source);
+    if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height)
+        || width <= 0 || height <= 0 || source.length < width * height * 4 || lines.length === 0) return result;
+
+    const rectangles = lines.map(line => getMaskRectangle(line, width, height))
+        .filter((rectangle): rectangle is MaskRectangle => rectangle !== undefined);
+    if (rectangles.length === 0) return result;
+
+    // 0 = 已知背景，1 = 待修复，2 = 已进入队列但本层尚未完成。
     const mask = new Uint8Array(width * height);
-    lines.forEach(line => addMaskRectangle(mask, width, height, line));
-
-    let minX = width;
-    let minY = height;
-    let maxX = -1;
-    let maxY = -1;
-    for (let y = 0; y < height; y += 1) {
-        for (let x = 0; x < width; x += 1) {
-            if (mask[y * width + x] === 1) {
-                minX = Math.min(minX, x);
-                minY = Math.min(minY, y);
-                maxX = Math.max(maxX, x);
-                maxY = Math.max(maxY, y);
-            }
-        }
-    }
-    const filled = new Uint8Array(width * height);
-    const maxPasses = Math.min(96, Math.max(maxX - minX + 1, maxY - minY + 1));
-    for (let pass = 0; pass < maxPasses; pass += 1) {
-        const next = new Uint8Array(width * height);
-        let filledThisPass = 0;
-        for (let y = minY; y <= maxY; y += 1) {
-            for (let x = minX; x <= maxX; x += 1) {
+    let maskedCount = 0;
+    for (const rectangle of rectangles) {
+        for (let y = rectangle.top; y < rectangle.bottom; y += 1) {
+            for (let x = rectangle.left; x < rectangle.right; x += 1) {
                 const index = y * width + x;
-                if (mask[index] === 0 || filled[index] === 1) continue;
-
-                let red = 0;
-                let green = 0;
-                let blue = 0;
-                let weightTotal = 0;
-                getNeighbours(x, y, width, height).forEach(neighbour => {
-                    const neighbourIndex = neighbour.y * width + neighbour.x;
-                    if (mask[neighbourIndex] === 1 && filled[neighbourIndex] === 0) return;
-                    const distance = Math.abs(neighbour.x - x) + Math.abs(neighbour.y - y);
-                    const weight = distance === 1 ? 2 : 1;
-                    const offset = pixelOffset(neighbour.x, neighbour.y, width);
-                    red += result[offset] * weight;
-                    green += result[offset + 1] * weight;
-                    blue += result[offset + 2] * weight;
-                    weightTotal += weight;
-                });
-                if (weightTotal === 0) continue;
-
-                const offset = pixelOffset(x, y, width);
-                result[offset] = Math.round(red / weightTotal);
-                result[offset + 1] = Math.round(green / weightTotal);
-                result[offset + 2] = Math.round(blue / weightTotal);
-                result[offset + 3] = source[offset + 3];
-                next[index] = 1;
-                filledThisPass += 1;
-            }
-        }
-        for (let index = 0; index < filled.length; index += 1) {
-            if (next[index] === 1) filled[index] = 1;
-        }
-        if (filledThisPass === 0) break;
-        let remaining = false;
-        for (let y = minY; y <= maxY && !remaining; y += 1) {
-            for (let x = minX; x <= maxX; x += 1) {
-                const index = y * width + x;
-                if (mask[index] === 1 && filled[index] === 0) {
-                    remaining = true;
-                    break;
+                if (mask[index] === 0) {
+                    mask[index] = 1;
+                    maskedCount += 1;
                 }
             }
         }
-        if (!remaining) break;
     }
 
-    // 对极端情况下仍未填满的像素使用原图，避免输出透明/黑色洞。
-    for (let index = 0; index < mask.length; index += 1) {
-        if (mask[index] === 1 && filled[index] === 0) {
+    const queue = new Uint32Array(maskedCount);
+    let tail = 0;
+    for (const rectangle of rectangles) {
+        for (let y = rectangle.top; y < rectangle.bottom; y += 1) {
+            for (let x = rectangle.left; x < rectangle.right; x += 1) {
+                const index = y * width + x;
+                if (mask[index] !== 1) continue;
+                let hasBoundary = false;
+                for (let ny = Math.max(0, y - 1); ny <= Math.min(height - 1, y + 1) && !hasBoundary; ny += 1) {
+                    for (let nx = Math.max(0, x - 1); nx <= Math.min(width - 1, x + 1); nx += 1) {
+                        if (mask[ny * width + nx] === 0) {
+                            hasBoundary = true;
+                            break;
+                        }
+                    }
+                }
+                if (hasBoundary) {
+                    mask[index] = 2;
+                    queue[tail++] = index;
+                }
+            }
+        }
+    }
+
+    let head = 0;
+    while (head < tail) {
+        const layerEnd = tail;
+        for (let position = head; position < layerEnd; position += 1) {
+            const index = queue[position];
+            const x = index % width;
+            const y = Math.floor(index / width);
+            let red = 0;
+            let green = 0;
+            let blue = 0;
+            let alpha = 0;
+            let weightTotal = 0;
+            for (let ny = Math.max(0, y - 1); ny <= Math.min(height - 1, y + 1); ny += 1) {
+                for (let nx = Math.max(0, x - 1); nx <= Math.min(width - 1, x + 1); nx += 1) {
+                    const neighbour = ny * width + nx;
+                    if (mask[neighbour] !== 0) continue;
+                    const offset = neighbour * 4;
+                    const weight = nx === x || ny === y ? 2 : 1;
+                    const alphaWeight = result[offset + 3] * weight;
+                    red += result[offset] * alphaWeight;
+                    green += result[offset + 1] * alphaWeight;
+                    blue += result[offset + 2] * alphaWeight;
+                    alpha += alphaWeight;
+                    weightTotal += weight;
+                }
+            }
             const offset = index * 4;
-            result[offset] = source[offset];
-            result[offset + 1] = source[offset + 1];
-            result[offset + 2] = source[offset + 2];
-            result[offset + 3] = source[offset + 3];
+            // 队列中的像素一定接壤上一层已知背景；透明边界也能清除原字形的不透明度。
+            result[offset] = alpha ? Math.round(red / alpha) : 0;
+            result[offset + 1] = alpha ? Math.round(green / alpha) : 0;
+            result[offset + 2] = alpha ? Math.round(blue / alpha) : 0;
+            result[offset + 3] = Math.round(alpha / weightTotal);
+        }
+
+        // 完成本层后才公开像素，防止从左到右的处理顺序造成颜色偏斜。
+        for (let position = head; position < layerEnd; position += 1) mask[queue[position]] = 0;
+        for (; head < layerEnd; head += 1) {
+            const index = queue[head];
+            const x = index % width;
+            const y = Math.floor(index / width);
+            for (let ny = Math.max(0, y - 1); ny <= Math.min(height - 1, y + 1); ny += 1) {
+                for (let nx = Math.max(0, x - 1); nx <= Math.min(width - 1, x + 1); nx += 1) {
+                    const neighbour = ny * width + nx;
+                    if (mask[neighbour] !== 1) continue;
+                    mask[neighbour] = 2;
+                    queue[tail++] = neighbour;
+                }
+            }
         }
     }
     return result;

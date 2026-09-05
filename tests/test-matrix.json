@@ -151,7 +151,10 @@
       "tests/harnessConversation.test.ts",
       "tests/harnessStreamPort.test.ts",
       "tests/harnessSessionHandler.test.ts",
-      "tests/readingAssistantClient.test.ts"
+      "tests/readingAssistantClient.test.ts",
+      "tests/imageOcrNormalization.test.ts",
+      "tests/imageTranslationRendering.test.ts",
+      "tests/imageTranslationInpainting.test.ts"
     ],
     "functional": [
       "tests/aiSdkOpenAICompatible.test.ts",
@@ -189,7 +192,12 @@
       "tests/qqMailFrameRuntime.test.ts",
       "tests/translationCachePolicyBinding.test.ts",
       "tests/harnessSessionRepository.test.ts",
-      "tests/harnessConversationPersistence.test.ts"
+      "tests/harnessConversationPersistence.test.ts",
+      "tests/imageOcrRuntime.test.ts",
+      "tests/imageTranslationFlow.test.ts",
+      "tests/imageTranslationRuntime.test.ts",
+      "tests/imageTranslationPageRead.test.ts",
+      "tests/imageTranslationOffscreenRuntime.test.ts"
     ],
     "regression": [
       "tests/documentTranslationExamplesApi.test.ts",

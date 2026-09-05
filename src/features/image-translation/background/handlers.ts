@@ -1,9 +1,10 @@
 /**
  * @file src/features/image-translation/background/handlers.ts
- * 文件职责：定义跨域图片读取、图片 OCR、整图翻译、文本批译、取消和语言包下载后台消息，并对来自页面或扩展 UI 的未知输入执行严格校验。
- * 主要内容：包含消息常量与联合类型、data:image/URL 和字符串数组解析、OCR 语言白名单、对象结果断言，以及通过依赖注入创建各操作 handler 的 createImageTranslationBackgroundHandlers。
+ * 文件职责：定义跨域图片读取、图片 OCR、整图翻译、文本批译、阶段进度、取消和语言包下载后台消息，并对来自页面或扩展 UI 的未知输入执行严格校验。
+ * 主要内容：包含消息常量与联合类型、data:image/URL 和字符串数组解析、OCR 语言白名单、对象结果断言，阶段通知所属页面路由，以及通过依赖注入创建各操作 handler 的 createImageTranslationBackgroundHandlers。
  * 模块边界：本文件只负责协议入口与用例编排，不直接运行 Tesseract、Canvas、网络 fetch 或 Offscreen；图像读取和运算能力均由 Offscreen adapter 与 services 实现并由 app 注入。
  */
+import {IMAGE_PROGRESS_MESSAGE_TYPE, isImageTranslationStage, type ImageTranslationStage} from '../progress';
 import {
     IMAGE_OCR_LANGUAGE_PACKS,
     normalizeImageOcrLanguageCodes,
@@ -64,7 +65,11 @@ export interface ImageFetchMessage {
     timeoutMs?: unknown;
 }
 
+export interface ImageProgressContext {readonly sender?: {readonly tab?: {readonly id?: number}; readonly frameId?: number; readonly url?: string}}
+export interface ImageProgressMessage {type: typeof IMAGE_PROGRESS_MESSAGE_TYPE; requestId?: unknown; stage?: unknown}
+
 export type ImageTranslationBackgroundMessage =
+    | ImageProgressMessage
     | ImageOcrMessage
     | ImageTranslateMessage
     | ImageTranslateTextsMessage
@@ -105,6 +110,8 @@ export interface ImageTranslationBackgroundDependencies {
     readonly downloadLanguages: (languages: ImageOcrLanguageCode[]) => Promise<void>;
     readonly markLanguagesDownloaded: (languages: ImageOcrLanguageCode[]) => Promise<ImageOcrLanguageCode[]>;
     readonly now?: () => number;
+    readonly sendProgress?: (context: ImageProgressContext, message: {type: typeof IMAGE_PROGRESS_MESSAGE_TYPE; requestId: string; stage: ImageTranslationStage}) => Promise<void>;
+    readonly isOffscreenSender?: (context: ImageProgressContext) => boolean;
 }
 
 export interface ImageOperationOptions {
@@ -125,7 +132,7 @@ export interface ImageOperationRegistry {
 
 export interface ImageTranslationBackgroundHandler<TMessage extends ImageTranslationBackgroundMessage> {
     readonly type: TMessage['type'];
-    handle(message: TMessage): Promise<unknown>;
+    handle(message: TMessage, context?: ImageProgressContext): Promise<unknown>;
 }
 
 const SUPPORTED_OCR_LANGUAGES = new Set(IMAGE_OCR_LANGUAGE_PACKS.map((pack) => pack.code));
@@ -278,61 +285,70 @@ async function translateImageTexts(
     dependencies: ImageTranslationBackgroundDependencies,
     options: ImageOperationOptions,
 ): Promise<string[]> {
-    // 步骤 1：冻结本次 OCR 事务使用的 provider，避免逐条回退期间设置变化混入另一服务。
+    const uniqueTexts = [...new Set(texts)];
     const service = dependencies.getTranslationService();
     const now = dependencies.now ?? (() => Date.now());
-    const deadline = now() + IMAGE_TEXT_TRANSLATION_TIMEOUT_MS;
-    const baseRequest = {
-        context: title,
-        pageContext: '' as const,
-        useCache: true as const,
-        serviceOverride: service,
-    };
+    const deadline = now() + Math.min(options.timeoutMs, IMAGE_TEXT_TRANSLATION_TIMEOUT_MS);
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    if (options.signal.aborted) abort();
+    options.signal.addEventListener('abort', abort, {once: true});
+    const baseRequest = {context: title, pageContext: '' as const, useCache: true as const, serviceOverride: service};
     const remainingBudget = () => {
+        if (controller.signal.aborted) throw imageAbortError(false);
         const remaining = Math.floor(deadline - now());
         if (remaining <= 0) throw new Error('图片文字翻译总时间已耗尽');
         return remaining;
     };
     const controlledRequest = <T extends ImageTextTranslationRequest>(request: T) =>
         attachTranslationRequestControl(markTranslationRemainingBudget(request), {
-            signal: options.signal,
-            ownershipKey: `image:${options.requestId}`,
+            signal: controller.signal, ownershipKey: `image:${options.requestId}`,
         });
-
-    if (dependencies.supportsBatchTranslation(service)) {
-        try {
-            const translations = await dependencies.translateTexts(controlledRequest({
-                ...baseRequest,
-                origin: texts,
-                requestTimeoutMs: remainingBudget(),
-            }));
-            if (!Array.isArray(translations)
-                || translations.length !== texts.length
-                || !translations.every((translation) => typeof translation === 'string')) {
-                throw new Error('provider 未返回等长字符串数组');
+    try {
+        let translations: string[];
+        if (dependencies.supportsBatchTranslation(service)) {
+            try {
+                const result = await dependencies.translateTexts(controlledRequest({
+                    ...baseRequest, origin: uniqueTexts, requestTimeoutMs: remainingBudget(),
+                }));
+                if (!Array.isArray(result) || result.length !== uniqueTexts.length
+                    || !result.every(value => typeof value === 'string' && value.trim())) {
+                    throw new Error('provider 未返回等长非空字符串数组');
+                }
+                translations = result;
+            } catch (error) {
+                throw new Error(`图片文字批量翻译失败：${getErrorMessage(error)}`);
             }
-            return translations;
-        } catch (error) {
-            throw new Error(`图片文字批量翻译失败：${getErrorMessage(error)}`);
+        } else {
+            translations = new Array<string>(uniqueTexts.length);
+            let cursor = 0;
+            let failed = false;
+            // 窗口最多三条，实际供应商并发仍由共享 broker 限流；保序且重复文案只翻译一次。
+            const worker = async () => {
+                while (cursor < uniqueTexts.length && !failed) {
+                    const index = cursor++;
+                    try {
+                        const translation = await dependencies.translateTexts(controlledRequest({
+                            ...baseRequest, origin: uniqueTexts[index], requestTimeoutMs: remainingBudget(),
+                        }));
+                        if (typeof translation !== 'string') throw new Error('provider 未返回字符串译文');
+                        if (!translation.trim()) throw new Error('provider 返回空白译文');
+                        translations[index] = translation;
+                    } catch (error) {
+                        failed = true;
+                        controller.abort();
+                        throw new Error(`图片第 ${texts.indexOf(uniqueTexts[index]) + 1} 段文字翻译失败：${getErrorMessage(error)}`);
+                    }
+                }
+            };
+            await Promise.all(Array.from({length: Math.min(3, uniqueTexts.length)}, worker));
         }
+        if (controller.signal.aborted) throw imageAbortError(false);
+        const byText = new Map(uniqueTexts.map((text, index) => [text, translations[index]]));
+        return texts.map(text => byText.get(text)!);
+    } finally {
+        options.signal.removeEventListener('abort', abort);
     }
-
-    // 步骤 2：旧式单条 provider 按原 OCR 顺序串行调用，既保序也不会绕过共享并发上限。
-    const translations: string[] = [];
-    for (const [index, origin] of texts.entries()) {
-        try {
-            const translation = await dependencies.translateTexts(controlledRequest({
-                ...baseRequest,
-                origin,
-                requestTimeoutMs: remainingBudget(),
-            }));
-            if (typeof translation !== 'string') throw new Error('provider 未返回字符串译文');
-            translations.push(translation);
-        } catch (error) {
-            throw new Error(`图片第 ${index + 1} 段文字翻译失败：${getErrorMessage(error)}`);
-        }
-    }
-    return translations;
 }
 
 /** 创建图片 OCR/翻译/取消/语言包下载 handlers。 */
@@ -341,8 +357,19 @@ export function createImageTranslationBackgroundHandlers(
 ): ImageTranslationBackgroundHandler<ImageTranslationBackgroundMessage>[] {
     const operationRegistry = createImageOperationRegistry('image');
     const textOperationRegistry = createImageOperationRegistry('image-text');
+    const progressOwners = new Map<string, {context: ImageProgressContext}>();
 
     return [
+        {
+            type: IMAGE_PROGRESS_MESSAGE_TYPE,
+            async handle(message: ImageProgressMessage, context: ImageProgressContext = {}) {
+                if (!dependencies.isOffscreenSender?.(context) || !isImageTranslationStage(message.stage)) return {success: false};
+                const requestId = parseRequestId(message.requestId);
+                const owner = progressOwners.get(requestId);
+                if (owner) await dependencies.sendProgress?.(owner.context, {type: IMAGE_PROGRESS_MESSAGE_TYPE, requestId, stage: message.stage});
+                return {success: true};
+            },
+        },
         {
             type: IMAGE_OCR_MESSAGE_TYPE,
             async handle(message: ImageOcrMessage) {
@@ -359,7 +386,7 @@ export function createImageTranslationBackgroundHandlers(
         },
         {
             type: IMAGE_TRANSLATE_MESSAGE_TYPE,
-            async handle(message: ImageTranslateMessage) {
+            async handle(message: ImageTranslateMessage, context: ImageProgressContext = {}) {
                 const image = parseDataImage(message.image);
                 const sourceLanguage = parseRequiredString(message.sourceLanguage, 'sourceLanguage');
                 const title = parseOptionalTitle(message.title);
@@ -367,7 +394,18 @@ export function createImageTranslationBackgroundHandlers(
                     await operationRegistry.run(message, async (options) => {
                         await dependencies.assertLanguagesDownloaded(sourceLanguage);
                         if (options.signal.aborted) throw imageAbortError(false);
-                        return dependencies.translateImage(image, sourceLanguage, title, options);
+                        const progressOwner = {context};
+                        progressOwners.set(options.requestId, progressOwner);
+                        const clearProgressOwner = () => {
+                            if (progressOwners.get(options.requestId) === progressOwner) progressOwners.delete(options.requestId);
+                        };
+                        options.signal.addEventListener('abort', clearProgressOwner, {once: true});
+                        try {
+                            return await dependencies.translateImage(image, sourceLanguage, title, options);
+                        } finally {
+                            clearProgressOwner();
+                            options.signal.removeEventListener('abort', clearProgressOwner);
+                        }
                     }),
                     '图片翻译',
                 );

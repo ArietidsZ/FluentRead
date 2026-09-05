@@ -506,7 +506,7 @@
           </div>
         </div>
         <div v-if="browserCapabilities.imageTranslation" class="setting-row">
-          <span><strong>启用图片翻译</strong><small>在网页图片左下角显示“文”按钮</small></span>
+          <span><strong>启用图片翻译</strong><small>在网页图片左下角显示“翻译”按钮</small></span>
           <button class="switch compact" type="button" role="switch" :aria-checked="!config.disableImageTranslator" aria-label="启用或关闭图片翻译" @click="setImageTranslatorEnabled(config.disableImageTranslator)"><i /></button>
         </div>
       </div>
