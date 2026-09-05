@@ -96,6 +96,7 @@ import {
 import {
     canKeepTranslationAttempt,
     getCandidateTranslationTextProtectionOptions,
+    isTranslationCandidateCurrent as candidateIsCurrent,
     getCurrentTranslationStateSourceText,
     getCurrentTranslationStateTextNodes,
     getTranslationStateProtectionBoundary,
@@ -554,26 +555,6 @@ async function renderTranslation(
     }
 }
 
-function candidateIsCurrent(candidate: TranslationCandidate): boolean {
-    const core = getCurrentTranslationCore();
-    if (!candidate.element.isConnected) return false;
-    if (candidate.nodes?.length) {
-        if (candidate.nodes.some((node) => node.parentNode !== candidate.element)) return false;
-        const fresh = core.resolve(getTranslationCandidateKey(candidate));
-        return Boolean(fresh && fresh.element === candidate.element &&
-            fresh.kind === candidate.kind &&
-            fresh.allowTopLevelApplicationShell === candidate.allowTopLevelApplicationShell &&
-            getTranslationCandidateKey(fresh) === getTranslationCandidateKey(candidate));
-    }
-    const fresh = candidate.allowTopLevelApplicationShell === true
-        ? core.resolve(candidate.element)
-        : core.inspect(candidate.element).candidate;
-    return Boolean(
-        fresh?.element === candidate.element &&
-        fresh.kind === candidate.kind &&
-        fresh.allowTopLevelApplicationShell === candidate.allowTopLevelApplicationShell,
-    );
-}
 
 function materializeCandidate(candidate: TranslationCandidate): {node: HTMLElement; synthetic: boolean} | null {
     if (!candidate.nodes?.length) return {node: candidate.element, synthetic: false};

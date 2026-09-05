@@ -27,6 +27,7 @@ import {
     type TranslationState,
 } from '@/src/features/full-page-translation/content/state';
 import {translationTruncationStyleOverrides} from '@/src/core/translation/public';
+import {isTranslationArtifactCurrent} from '@/src/features/full-page-translation/content/translationStability';
 
 const BILINGUAL_SELECTOR =
     '.fluent-read-bilingual-content[data-fr-translation-owned="true"]';
@@ -90,6 +91,35 @@ afterEach(() => {
 });
 
 describe('双语 owner 同源重挂交接', () => {
+    it('PR447 提交列表给译文链接反复设置 tabIndex 时保留同一译文，恢复后仍可再次翻译', () => {
+        const {document} = parseHTML('<html><body><h4><a href="/commit/abc">Fix translation stability.</a></h4></body></html>');
+        const owner = document.querySelector<HTMLElement>('h4')!;
+        const source = owner.innerHTML;
+        for (let turn = 0; turn < 2; turn += 1) {
+            const attempt = beginTranslation(owner, 'bilingual', 'content', false, 'Fix translation stability.', [])!;
+            expect(markTranslationComplete(owner, attempt.state, attempt.generation)).toBe(true);
+            const wrapper = document.createElement('span');
+            wrapper.className = 'fluent-read-bilingual-content';
+            wrapper.setAttribute('data-fr-translation-owned', 'true');
+            wrapper.innerHTML = '<a href="/commit/abc">修复翻译稳定性。</a>';
+            owner.appendChild(wrapper);
+            setBilingualContent(owner, wrapper);
+            const link = wrapper.querySelector('a')!;
+            for (let frame = 0; frame < 12; frame += 1) {
+                if (frame % 3 === 0) link.removeAttribute('tabindex');
+                else link.setAttribute('tabindex', frame % 3 === 1 ? '-1' : '0');
+                expect(isTranslationArtifactCurrent(owner, attempt.state), `turn ${turn} frame ${frame}`).toBe(true);
+                expect(tryRepairBilingualTranslationArtifact(owner, attempt.state)).toBe('repaired');
+                expect(attempt.state.bilingualContent).toBe(wrapper);
+                expect(wrapper.querySelector('a')).toBe(link);
+                expect(isBilingualArtifactHostWriteBudgetCapitulated(owner, attempt.state.sourceText,
+                    attempt.state.sourceStructureSignature!, attempt.state.translationInvocationIdentity)).toBe(false);
+            }
+            restoreAllTranslations();
+            expect(owner.innerHTML).toBe(source);
+        }
+    });
+
     it('同一 observer 批次缓存 removed subtree 的 owner 集合', () => {
         const scenario = createCommittedScenario();
         const resolve = createRemovedTranslationOwnerResolver();

@@ -35,6 +35,13 @@ const LOCAL_BROWSER_FIXTURES = [
         supportsHeaded: true,
     },
     {
+        id: 'translation-mutation',
+        label: 'translation mutation and control ownership browser regression',
+        script: 'scripts/testing/run-translation-mutation-test.cjs',
+        backgroundArgs: ['--background'],
+        supportsHeaded: false,
+    },
+    {
         id: 'video-subtitle-fixture',
         label: 'video subtitle fixture browser regression',
         script: 'scripts/run-video-subtitle-fixture-test.cjs',

@@ -254,6 +254,7 @@
       "tests/myMemoryProvider.test.ts"
     ],
     "regression": [
+      "tests/translationControlOwnership.test.ts",
       "tests/upstreamTranslationBoundaries.test.ts",
       "tests/documentTranslationExamplesApi.test.ts",
       "tests/documentTranslationRegression.test.ts",

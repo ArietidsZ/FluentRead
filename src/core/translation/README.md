@@ -59,9 +59,23 @@ Every accepted candidate includes a reason and optional adapter id. This keeps
 hover/full equality and adapter precedence directly testable without starting a
 browser. Open Shadow DOM is traversed through the same policy.
 
+Buttons and elements with `role=button` or `role=menuitem` own their internal
+labels, including labels styled as flex or grid boxes. They use the control text
+slot path in both display modes, keeping a single visible label within the
+original button height and preserving icons, click handlers and restoration.
+Internal layout wrappers must not become bilingual paragraphs. Ordinary buttons
+remain one control; clickable cards containing separate nested controls split
+only their own labels into control targets or text runs, leaving nested buttons
+with independent ownership.
+A mutation scan starting at an internal label resolves back to the control;
+protected subtrees still retain their original exclusion boundaries.
+
 ## Verification contract
 
-`tests/translationCore.test.ts` covers generic and adapter decisions. The real
+`tests/translationCore.test.ts` covers generic and adapter decisions;
+`tests/translationControlOwnership.test.ts` covers nested control labels and
+the reusable `tests/fixtures/translation-pages/button-controls.html` fixture.
+The real
 site contract lives in `tests/browser-translation-cases.json` and is executed by
 `scripts/run-site-translation-test.cjs` or
 `scripts/run-site-translation-matrix.cjs`. A required case must pass both hover
