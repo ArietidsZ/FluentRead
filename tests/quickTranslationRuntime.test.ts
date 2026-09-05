@@ -87,6 +87,18 @@ describe('快捷翻译 content composition', () => {
             .toBe(mocks.cancelPendingHoverTranslation);
     });
 
+    it('邮件 frame 转发解析后的全文方案，并保留本地悬停执行器', () => {
+        const forward = vi.fn();
+        mountConfiguredQuickTranslation(config(), {} as any, () => false, new AbortController().signal, vi.fn(), forward);
+        const selected = profile({action: 'full-page', fullPageMode: 'all'});
+        mocks.mountedDependencies!.runFullPage(selected);
+        expect(forward).toHaveBeenCalledWith({profileId: 'quick-1', service: services.openai,
+            model: 'quick-model', targetLanguage: 'ja', displayMode: 'single', fullPageMode: 'all'});
+        expect(mocks.cancelPendingHoverTranslation).toHaveBeenCalledOnce();
+        expect(mocks.autoTranslateEnglishPage).not.toHaveBeenCalled();
+        expect(mocks.restoreOriginalContent).not.toHaveBeenCalled();
+    });
+
     it('全文方案按独立范围启动、切换另一方案，并用同一方案恢复原文', () => {
         let active = false;
         mocks.isFullPageTranslationActive.mockImplementation(() => active);

@@ -144,6 +144,21 @@ describe('全文翻译快捷键状态联动', () => {
         expect(getSelection).not.toHaveBeenCalled();
     });
 
+    it('受支持邮件 frame 把全文动作交给顶层且不预留未挂载的划词手势', async () => {
+        const {createContentHotkeyRuntime} = await import('@/src/app/content/hotkeyRuntime');
+        const toggleFullPage = vi.fn();
+        const runtime = createContentHotkeyRuntime(() => false, {toggleFullPage, selectionAvailable: false});
+        expect(runtime.getConfiguredSelectionHotkey()).toBe('none');
+        expect(runtime.hasActiveSelectionTranslationCandidate()).toBe(false);
+        runtime.installFloatingBallHotkey(new AbortController().signal);
+        const listeners = (document as typeof document & {__listeners: Map<string, Listener[]>}).__listeners;
+        listeners.get('keydown')![0](keyboardEvent({key: 'Alt', code: 'AltLeft'}));
+        listeners.get('keydown')![0](keyboardEvent());
+        expect(toggleFullPage).toHaveBeenCalledOnce();
+        expect(mocks.autoTranslateEnglishPage).not.toHaveBeenCalled();
+        expect(mocks.restoreOriginalContent).not.toHaveBeenCalled();
+    });
+
     it('悬浮球存在时仍以全文会话真值切换，而不是驱动悬浮球局部状态', async () => {
         const {createContentHotkeyRuntime} = await import('@/src/app/content/hotkeyRuntime');
         const runtime = createContentHotkeyRuntime(() => false);

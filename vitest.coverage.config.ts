@@ -17,6 +17,9 @@ export default defineConfig({
     test: {
         environment: 'node',
         include: [
+            'tests/qqMailFrameHandlers.test.ts',
+            'tests/qqMailFrameSession.test.ts',
+            'tests/fullPageStateNotification.test.ts',
             'tests/backgroundCoreHandlers.test.ts',
             'tests/backgroundConfigAutoBackup.test.ts',
             'tests/backgroundCapabilityRegistry.test.ts',
@@ -155,6 +158,10 @@ export default defineConfig({
             reportsDirectory: 'coverage/core',
             reporter: ['text', 'json-summary', 'html'],
             include: [
+                'src/features/full-page-translation/qqMailFrames.ts',
+                'src/features/full-page-translation/background/qqMailFrameHandlers.ts',
+                'src/features/full-page-translation/content/frameSession.ts',
+                'src/features/full-page-translation/content/stateNotification.ts',
                 'src/app/background/handlers/configHistory.ts',
                 'src/app/background/configAutoBackupRuntime.ts',
                 'src/app/background/handlers/configAutoBackup.ts',

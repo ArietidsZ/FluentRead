@@ -41,6 +41,7 @@ export function createContentRuntimeMessageHandler(ctx: ContentScriptContext, st
     return (message, _sender, sendResponse) => {
         if (!message || typeof message !== 'object') return false;
         const payload = message as Record<string, unknown>;
+        if (payload.type === 'qqMailFrameCommand' || payload.type === 'qqMailFrameRefresh') return false;
         if (payload.message === 'clearCache') {
             forwardLegacyCacheClear(
                 (request) => browser.runtime.sendMessage(request),
@@ -92,7 +93,6 @@ export function createContentRuntimeMessageHandler(ctx: ContentScriptContext, st
                 && hotkey !== 'Alt' && hotkey !== 'Shift' && hotkey !== 'custom') return false;
             if (customHotkey !== undefined && typeof customHotkey !== 'string') return false;
             if (delay !== undefined && typeof delay !== 'number' && typeof delay !== 'string') return false;
-
             // trigger 是唯一运行时真源；hotkey 仅兼容旧消息结构。
             config.selectionTranslatorTrigger = trigger;
             config.selectionTranslatorHotkey = trigger === 'Control' || trigger === 'Alt'
