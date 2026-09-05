@@ -1,6 +1,6 @@
 # 学习中心、阅读缓存与可选记忆
 
-本次将网页旁的学习动作、长期收藏和阅读记录串成一个学习流程。初始开发基线是 `origin/main@262d2a1`，交付前已依次整合 PR #447、#449 和 #452，最终基线为 `origin/main@f0d8c34`，分支为 `codex/harness-actions-audio-20260905`。已有 Harness 内核来源见[内嵌代码地图](./harness-embedding-map-20260905.md)；本次没有替换其模型网关或升级依赖。
+本次将网页旁的学习动作、长期收藏和阅读记录串成一个学习流程。初始开发基线是 `origin/main@262d2a1`，交付前已依次整合 PR #447、#449、#452、#451 和 #453，最终基线为 `origin/main@ebd3aef`，分支为 `codex/harness-actions-audio-20260905`。已有 Harness 内核来源见[内嵌代码地图](./harness-embedding-map-20260905.md)；本次没有替换其模型网关或升级依赖。
 
 ## 用户反馈与实现
 
@@ -96,17 +96,19 @@ flowchart LR
 
 ## 验证
 
-- 最新 main 整合后测试审计：234 个文件、2938 个声明用例通过。
-- 最新 main 整合后全量测试：234 个文件、4349 项通过。
-- 最新 main 整合后严格覆盖率：185 个测试文件、3493 项通过；纳入覆盖率的业务模块 statements / branches / functions / lines 均为 100%。
+- 最新 main 整合后测试审计：235 个文件、2973 个声明用例通过。
+- 最新 main 整合后全量测试：235 个文件、4410 项通过。
+- 最新 main 整合后严格覆盖率：186 个测试文件、3550 项通过；纳入覆盖率的业务模块 statements / branches / functions / lines 均为 100%。
 - TypeScript/Vue 类型检查、Chrome MV3 和 Firefox MV2 构建、清单验证、userscript 构建与 verifier、文档站点构建通过。
 - 真实 IndexedDB 回归覆盖：练习出题后切换其他动作 5 轮，恢复缓存练习后追问仍由后台验证的 `anchorTurnId` 指向该题；未知或异动作标识在创建问答或调用模型前拒绝。
+
+最终 `main@ebd3aef` 基线上再次完成 **4/4 浏览器补验**：[最终浏览器报告](./harness-learning-center-20260905/delivery-browser/report.json)。关闭重开、连续四次修改、真实退出时未完成保存交接，以及 HTML 弹窗内选句阅读和原文播放/停止均通过；控制台与 HTTP 错误为 0，`browserFrontmost=false`。四张截图已人工检查，确认 Harness 位于基础配置，图片与圈选入口独立，阅读卡完整处于弹窗内。侧栏末项和首屏下方的更多设置不在这些截图的完整视野内，其顺序与常驻行为由对应导航/组件回归和此前完整轮验证。使用相同的集成 wrapper，未修改业务断言。449 个来源文件逐一验证摘要一致，见[最终浏览器来源](./harness-learning-center-20260905/delivery-browser/build-provenance.json)。
 
 整合 PR #447（`166253c`）后重新构建并完成 **4/4 浏览器补验**：[集成报告](./harness-learning-center-20260905/integrated/report.json)。原有关闭后重开、连续四次修改最终值胜出、真实 beforeunload/pagehide 后批量交接保存全部通过；另外在 HTML `showModal()` 弹窗内真实选句，验证阅读卡迁入弹窗、一次模型回答及原文 TTS 播放/停止。该轮控制台与 HTTP 错误为 0，`browserFrontmost=false`；四张截图均已人工检查。
 
 该轮源码与产物逐文件摘要见[集成轮构建来源](./harness-learning-center-20260905/integrated/build-provenance.json)。本轮以正式 runner 的 `--persistence-only` 三项为基础，通过[诊断 wrapper](./harness-learning-center-20260905/integrated-diagnostic-wrapper.original.txt)追加 HTML 弹窗验证；wrapper 未修改原有断言。复现时将其入口路径改为当前 checkout 的正式 runner。它不使用操作系统确认框，也不属于 Firefox UI 验证。
 
-随后并行合入的 #449 增加机器翻译回退，#452 增加简繁中文区分；独立审查确认免费翻译链不会接管 Harness。#452 会让字形不确定的中文返回 `cmn`，本次补齐仅用于语音的 `cmn/zho/chi → zh-CN` 映射，明确繁体仍用 `zh-TW`，不据此跳过简繁翻译。真实语言检测到有效音色的回归通过；最终基线重新执行全量测试、严格覆盖率、类型及各构建。没有在这两次追加整合后再重复完整浏览器矩阵，前述浏览器证据对应其明确记录的早期基线。最终来源提交与 Chrome/Firefox/userscript 文件摘要见[交付构建记录](./harness-learning-center-20260905/delivery-build.json)。最终测试使用 2 个 worker 和 15 秒通用调度超时，业务断言与性能阈值不变；此前冷编译及大型 ZIP 测试夹具出现的 5 秒超时已重跑通过。
+随后并行合入的 #449 增加机器翻译回退，#452 增加简繁中文区分；独立审查确认免费翻译链不会接管 Harness。#452 会让字形不确定的中文返回 `cmn`，本次补齐仅用于语音的 `cmn/zho/chi → zh-CN` 映射，明确繁体仍用 `zh-TW`，不据此跳过简繁翻译。真实语言检测到有效音色的回归通过；最终基线重新执行全量测试、严格覆盖率、类型及各构建。随后还整合了 #451 的视频设置和 #453 的圈选翻译，保留新增的圈选入口及独立图片翻译入口。本次未重复完整浏览器矩阵，早期浏览器证据对应其明确记录的基线。最终来源提交与 Chrome/Firefox/userscript 文件摘要见[交付构建记录](./harness-learning-center-20260905/delivery-build.json)。最终测试使用 2 个 worker 和 15 秒通用调度超时，业务断言与性能阈值不变；此前冷编译及大型 ZIP 测试夹具出现的 5 秒超时已重跑通过。
 
 整合新 main 前的生产 Chrome 包累计通过 **49 个不同场景**，见[逐项汇总](./harness-learning-center-20260905/combined-functional-coverage.json)：完整轮通过 48 项后，在最后新建设置页时被前台焦点保护中止；记忆专项 10 项全部通过，覆盖该轮未完成的关闭后重开步骤。两轮源码和 Chrome 产物摘要完全相同，不能将此结果表述为“单轮 49 项全部通过”。[完整轮原始报告](./harness-learning-center-20260905/full/report.json)与[记忆专项原始报告](./harness-learning-center-20260905/memory/report.json)均保留。
 
@@ -122,7 +124,9 @@ flowchart LR
 
 ## 界面证据
 
-![配置分组与导航顺序](./harness-learning-center-20260905/full/harness-settings-1280.png)
+![最终基线的配置分组与新专项入口](./harness-learning-center-20260905/delivery-browser/harness-settings-reopened.png)
+
+![完整配置与更多设置布局（早期基线）](./harness-learning-center-20260905/full/harness-settings-1280.png)
 
 ![学习中心支持整句收藏与朗读，隐藏重复原文](./harness-learning-center-20260905/full/harness-learning-center-sentence.png)
 
