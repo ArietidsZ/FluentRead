@@ -40,7 +40,8 @@ import {
     unmountTranslationProgressPanel,
 } from './features';
 import {mountConfiguredQuickTranslation} from './quickTranslationRuntime';
-import pageStyles from './page.css?inline';
+import {installPageStyles} from './pageStyles';
+import {installQqMailTopFrameBridge} from './qqMailFrameRuntime';
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
 import {setMainWorldBridgesEnabled} from './mainWorldBridgeLifecycle';
 import {
@@ -49,17 +50,8 @@ import {
     type ContentPageAvailabilityRuntime,
 } from './pageAvailability';
 import {syncBilingualSentenceHighlight} from './bilingualSentenceHighlight';
-function installPageStyles(ctx: ContentScriptContext): () => void {
-    const existing = document.getElementById('fluent-read-page-styles');
-    if (existing) return () => undefined;
-    const style = document.createElement('style');
-    style.id = 'fluent-read-page-styles';
-    style.textContent = pageStyles;
-    (document.head ?? document.documentElement).appendChild(style);
-    const remove = () => style.remove();
-    ctx.onInvalidated(remove);
-    return remove;
-}
+import {createContentSiteAdaptationRuntime} from './siteAdaptationRuntime';
+
 /**
  * 启动当前 document 对应的内容应用。
  * WXT 只负责创建 context；所有功能组装和清理都在这一 composition root 内完成。
@@ -67,6 +59,7 @@ function installPageStyles(ctx: ContentScriptContext): () => void {
 export async function startContentApp(ctx: ContentScriptContext,
     capabilities: BrowserCapabilities = browserCapabilities): Promise<void> {
     await configReady;
+    const siteAdaptation = createContentSiteAdaptationRuntime(config.siteAdaptation, new URL(window.location.href));
     clearLegacyPageTranslationCache();
     let currentPageSiteDisabled = isExtensionDisabledOnSite(
         window.location.href,
@@ -99,6 +92,8 @@ export async function startContentApp(ctx: ContentScriptContext,
         }).catch(() => undefined);
     };
     const isPageRuntimeEnabled = (): boolean => !cleanedUp && !currentPageSiteDisabled && config.on !== false;
+    const qqMailFullPageToggle = capabilities.browser !== 'userscript'
+        ? installQqMailTopFrameBridge(isPageRuntimeEnabled, pageEventController.signal) : undefined;
     let pageAvailability: ContentPageAvailabilityRuntime | null = null;
     const disposePageFeatures = (): void => {
         featureController?.abort();
@@ -144,7 +139,7 @@ export async function startContentApp(ctx: ContentScriptContext,
         }, activationController.signal);
         const resetFullPageKeyboardGesture = hotkeys.installFloatingBallHotkey(activationController.signal);
         mountConfiguredQuickTranslation(config, hotkeys, () => currentPageSiteDisabled, activationController.signal,
-            () => { resetHoverKeyboardGesture(); resetFullPageKeyboardGesture(); });
+            () => { resetHoverKeyboardGesture(); resetFullPageKeyboardGesture(); }, qqMailFullPageToggle);
 
         const pageFeatureRegistry = createContentFeatureRegistry([
             {
@@ -156,7 +151,7 @@ export async function startContentApp(ctx: ContentScriptContext,
             },
             {
                 id: 'selection-translator',
-                isEnabled: () => config.on && config.disableSelectionTranslator !== true,
+                isEnabled: () => config.on && (config.disableSelectionTranslator !== true || config.harness?.enabled === true),
                 mount: () => mountSelectionTranslator(ctx),
                 unmount: unmountSelectionTranslator,
                 isMounted: () => Boolean(document.getElementById('fluent-read-selection-translator-container')),
@@ -218,6 +213,7 @@ export async function startContentApp(ctx: ContentScriptContext,
     };
 
     document.addEventListener('fluentread-route-change', () => {
+        siteAdaptation.routeChanged(new URL(window.location.href));
         resetPageTranslationContextCache(); resetFullPageTranslationRouteState();
         pageAvailability!.syncVideoSubtitlePage();
     }, {signal: pageEventController.signal});
@@ -241,6 +237,7 @@ export async function startContentApp(ctx: ContentScriptContext,
     browser.runtime.onMessage.addListener(runtimeMessageListener);
     reportSiteDisabledState();
     unsubscribeContentConfig = subscribeConfig((nextConfig) => {
+        siteAdaptation.update(nextConfig.siteAdaptation, new URL(window.location.href));
         syncBilingualSentenceHighlight(document, nextConfig.bilingualSentenceHighlightEnabled === true);
         const nextInputBoxConfigKey = inputBoxTranslationConfigKey(nextConfig);
         if (nextInputBoxConfigKey !== previousInputBoxConfigKey) {

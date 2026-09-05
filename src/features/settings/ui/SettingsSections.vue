@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/SettingsSections.vue
  * 文件职责：承载 FluentRead Options 页面各业务设置分区，连接运行时配置、服务选择、快捷键、站点规则、翻译中心、OCR、词书以及导入导出和历史恢复。
- * 主要内容：模板按 activeSection 展示各设置分区；脚本以独立配置副本隔离编辑与全局差分基线，协调快照保存、凭据保存、历史游标、能力过滤、连接测试、文件传输和页面离开 flush。
+ * 主要内容：模板按 activeSection 展示业务分区，在界面布局页组织风格与菜单栏布局，仅在高级选项激活时挂载缓存管理；脚本以独立配置副本隔离编辑与全局差分基线，协调网站入口、配置及凭据保存、历史恢复、能力过滤和离页 flush。
  * 模块边界：该组件负责设置 UI 编排但不实现 provider 网络、配置仓库或 feature 运行时；校验与迁移来自 core/config，持久化经 services/config，复杂子界面保持在各自 feature/组件内。
  -->
 <template>
@@ -43,9 +43,13 @@
     </SettingsGroup>
     <AlwaysTranslateSites v-model="config.alwaysTranslateDomains" />
     <AlwaysTranslateSites v-model="config.disabledExtensionDomains" variant="disable-extension" />
+    <SiteAdaptationSettings :model-value="config.siteAdaptation" :save-settings="saveSiteAdaptationSettings" />
   </section>
   <section v-show="props.activeSection === 'settings-translation-center'" id="settings-translation-center" class="settings-section translation-center-section">
     <TranslationCenter />
+  </section>
+  <section v-show="props.activeSection === 'settings-harness'" id="settings-harness" class="settings-section">
+    <HarnessSettings :config="config" />
   </section>
   <div class="settings-main-sections">
     <!-- 翻译服务 -->
@@ -53,6 +57,7 @@
       <ServiceCatalog
         :service="selectedConfigurationService"
         :default-service="config.service"
+        :website="selectedConfigurationWebsite"
         :selected-model="selectedConfigurationModel"
         :services="configurationCompute.filteredServices"
         :model-options="configurationModelOptions"
@@ -289,23 +294,7 @@
 
     <!-- 高级选项 -->
     <section v-show="props.activeSection === 'settings-advanced'" id="settings-advanced" class="settings-section">
-      <SettingsGroup title="缓存策略" description="减少重复请求；需要最新结果时可临时关闭。">
-        <!-- 缓存开关 -->
-        <el-row class="settings-control-row">
-          <el-col :span="20" class="settings-control-label lightblue rounded-corner">
-            <el-tooltip class="box-item" effect="dark" content="开启缓存可以提高翻译速度，减少重复请求，但可能导致翻译结果不是最新的" placement="top-start" :show-after="500">
-        <span class="popup-text popup-vertical-left">缓存翻译结果<el-icon class="icon-margin">
-            <InfoFilled />
-          </el-icon></span>
-            </el-tooltip>
-          </el-col>
-
-          <el-col :span="4" class="settings-control-field flex-end">
-            <el-switch v-model="config.useCache" class="settings-toggle" aria-label="缓存翻译结果" />
-          </el-col>
-        </el-row>
-
-      </SettingsGroup>
+      <TranslationCacheSettings v-if="props.activeSection === 'settings-advanced'" :config="config" />
     </section>
 
     <section v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation">
@@ -350,9 +339,9 @@
         <el-row class="settings-control-row">
           <el-col :span="20" class="settings-control-label ai-context-label lightblue rounded-corner">
             <el-tooltip class="box-item" effect="dark"
-                        content="开启后，AI 翻译会参考当前网页的标题、描述和相关正文片段；仅对大模型翻译服务生效。"
+                        :content="t('popup.aiContext.how')"
                         placement="top-start" :show-after="500">
-              <span class="popup-text popup-vertical-left">AI 智能上下文<el-icon class="icon-margin">
+              <span class="popup-text popup-vertical-left">{{ t('popup.aiContext.settingsTitle') }}<el-icon class="icon-margin">
                   <InfoFilled />
                 </el-icon></span>
             </el-tooltip>
@@ -360,7 +349,7 @@
           </el-col>
 
           <el-col :span="4" class="settings-control-field flex-end">
-            <el-switch v-model="config.enableAIContext" class="settings-toggle" aria-label="AI 智能上下文" />
+            <el-switch v-model="config.enableAIContext" class="settings-toggle" :aria-label="t('popup.aiContext.settingsTitle')" />
           </el-col>
         </el-row>
 
@@ -413,10 +402,6 @@
 
     <section v-show="props.activeSection === 'settings-interface'" id="settings-interface" class="settings-section">
       <InterfaceSettings :config="config" />
-    </section>
-
-    <section v-show="props.activeSection === 'settings-advanced'" class="settings-section settings-section-continuation">
-      <TranslationLoadingStyleSettings :config="config" />
     </section>
 
     <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
@@ -741,10 +726,14 @@ const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
 import UiLanguageSelector from '@/src/ui/components/UiLanguageSelector.vue';
 import ServiceCatalog from './services/ServiceCatalog.vue';
+import {getServiceWebsite} from '@/src/ui/view-model/serviceCatalog';
 import ServiceConfiguration from './services/ServiceConfiguration.vue';
 import CustomOpenAIProviderDialog from './services/CustomOpenAIProviderDialog.vue';
 import {TranslationCenter} from '@/src/features/translation-center/public';
+import HarnessSettings from './HarnessSettings.vue';
 import AlwaysTranslateSites from './AlwaysTranslateSites.vue';
+import SiteAdaptationSettings from './SiteAdaptationSettings.vue';
+import type {SiteAdaptationSettings as SiteAdaptationConfig} from '@/src/core/site-adaptation/types';
 import {
   createApiKeyRequirementKey,
   getApiKeyRequirementKey,
@@ -755,7 +744,7 @@ import {
 import {ImageOcrSettings} from '@/src/features/image-translation/public';
 import {ModelUsageDashboard} from '@/src/features/model-usage/public';
 import InterfaceSettings from './InterfaceSettings.vue';
-import TranslationLoadingStyleSettings from './TranslationLoadingStyleSettings.vue';
+import TranslationCacheSettings from './TranslationCacheSettings.vue';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
 import SegmentedControl from './components/SegmentedControl.vue';
@@ -831,6 +820,9 @@ const customProviderDialogOpen = ref(false);
 const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
 const persistConfigPatch = (value: unknown) => requestConfigPatch(value, sendConfigMessage);
 const persistConfigReplace = (value: unknown) => requestConfigSave(value, sendConfigMessage);
+// 适配器有显式 JSON 保存动作，等待后台提交后才确认；订阅会同步权威状态，避免触发另一份全量快照保存。
+const saveSiteAdaptationSettings = (value: SiteAdaptationConfig): Promise<void> =>
+  persistConfigPatch({siteAdaptation: value});
 let lastSerialized = '';
 let hydrated = false;
 let applyingExternalConfig = false;
@@ -848,6 +840,7 @@ const unsubscribeConfig = subscribeConfig((nextConfig) => {
 });
 void configReady
   .then(() => {
+    // 编辑副本不能共享嵌套对象，否则修改 Harness 等字段会先污染 patch 的比较基线。
     Object.assign(config.value, normalizeConfig(runtimeConfig));
     lastSerialized = JSON.stringify(config.value);
     hydrated = true;
@@ -891,6 +884,13 @@ const configurationService = ref<string | null>(null);
 const selectedConfigurationService = computed(
   () => configurationService.value ?? config.value.service,
 );
+const selectedConfigurationWebsite = computed(() => {
+  const service = selectedConfigurationService.value;
+  const endpoint = isCustomOpenAIProviderId(service)
+    ? getCustomOpenAIProvider(config.value.customOpenAIProviders, service)?.endpoint
+    : service === services.newapi ? config.value.newApiUrl : config.value.custom;
+  return getServiceWebsite(service, {endpoint, minimaxRegion: config.value.minimaxRegion});
+});
 
 // 导入、撤销或恢复可能在当前页面仍打开时删除正在编辑的 profile。
 // 失效的 custom:* 选择应立即回退到新的默认服务，避免渲染孤儿配置字段。

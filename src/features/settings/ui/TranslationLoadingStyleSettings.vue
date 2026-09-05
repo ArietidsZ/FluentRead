@@ -1,13 +1,13 @@
 <!--
  * @file src/features/settings/ui/TranslationLoadingStyleSettings.vue
- * 文件职责：提供翻译加载动画的总开关与样式选择，让用户在统一的设置卡片中即时比较低干扰和趣味预设。
- * 主要内容：使用原生单选控件构建可访问的样式卡片，并为简洁、圆环、圆点、轨道和星光五种方案呈现轻量预览。
+ * 文件职责：提供界面动画总开关与翻译加载样式选择，让用户在“界面布局”页面即时比较低干扰和趣味预设。
+ * 主要内容：使用原生单选控件构建可访问的样式卡片，并为 15 种不同运动方案呈现轻量预览。
  * 模块边界：本组件只修改父级传入的 Config 字段，不持久化配置、不创建网页内加载指示器，也不决定运行时动画调度策略。
 -->
 <template>
   <SettingsGroup
-    :title="t('settings.advanced.performance')"
-    :description="t('settings.advanced.performanceDescription')"
+    :title="t('settings.interface.animationLoading.label')"
+    :description="t('settings.interface.animationLoading.description')"
   >
     <SettingsItem
       :label="t('settings.advanced.animations')"

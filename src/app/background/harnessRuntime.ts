@@ -1,0 +1,65 @@
+/**
+ * @file src/app/background/harnessRuntime.ts
+ * 文件职责：把阅读卡后台处理器组装到扩展配置、Harness 服务和浏览器标签页生命周期。
+ * 主要内容：绑定流式端口、本机三十天会话与清理闹钟，配置停用、网站禁用及标签导航时取消请求，向主消息路由返回静态 handler。
+ * 模块边界：这是应用组合根，不实现选区、消息校验、会话或模型协议；对应规则和异步所有权由 reading-assistant/background 及 services/harness 验证。
+ */
+import browser from 'webextension-polyfill';
+import {config, configReady, subscribeConfig} from '@/src/services/config/store';
+import {createReadingAssistantHandler} from '@/src/features/reading-assistant/background';
+import {createHarnessRuntime} from '@/src/services/harness/runtime';
+import {createHarnessConversationRuntime} from '@/src/services/harness/conversation';
+import {harnessSessionRepository} from '@/src/platform/storage/harnessSessionRepository';
+import {attachReadingStreamPort} from '@/src/features/reading-assistant/streamPort';
+import {createReadingSessionHandler} from '@/src/features/reading-assistant/sessionHandler';
+import {modelUsageRepository} from '@/src/platform/storage/modelUsageRepository';
+import {isExtensionDisabledOnSite} from '@/src/core/site-rules/domain';
+import type {BackgroundMessageHandler} from './messageRouter';
+import type {ReadingSender} from '@/src/features/reading-assistant/background';
+
+export function installHarnessBackgroundRuntime(): BackgroundMessageHandler<{sender?: ReadingSender}> {
+    const runtime = createHarnessRuntime(() => config, () => {
+        const generation = modelUsageRepository.captureGeneration();
+        return event => { void modelUsageRepository.recordMany([event], generation).catch(() => undefined); };
+    });
+    const eligibility = (sender: ReadingSender) => {
+            if (!config.on || !config.harness.enabled) return '阅读理解已停用';
+            if (isExtensionDisabledOnSite(sender.url || '', config.disabledExtensionDomains)
+                || isExtensionDisabledOnSite(sender.tab?.url || '', config.disabledExtensionDomains)) return '当前网站已禁用扩展';
+            return undefined;
+    };
+    const conversation = createHarnessConversationRuntime({runtime, store: harnessSessionRepository, preferences: () => config.harness});
+    const ready = Promise.all([configReady, browser.extension.inIncognitoContext ? undefined : harnessSessionRepository.recoverInterrupted().catch(() => undefined)]);
+    const handler = createReadingAssistantHandler({
+        extensionId: browser.runtime.id,
+        ready,
+        eligibility,
+        run: (request, signal, progress, sender) => conversation.run(request, signal, progress, Boolean(sender?.tab?.incognito || browser.extension.inIncognitoContext)),
+    });
+    const sessions = createReadingSessionHandler({
+        extensionId: browser.runtime.id, optionsUrl: browser.runtime.getURL('options.html'),
+        ready, eligibility, store: harnessSessionRepository,
+        privateContext: () => Boolean(browser.extension.inIncognitoContext),
+    });
+    browser.runtime.onConnect.addListener(port => attachReadingStreamPort(port, handler));
+    const prune = () => { if (!browser.extension.inIncognitoContext) void harnessSessionRepository.prune().catch(() => undefined); };
+    prune();
+    browser.alarms.onAlarm.addListener(alarm => { if (alarm.name === 'fluentReadHarnessSessionCleanup') prune(); });
+    void Promise.resolve(browser.alarms.create('fluentReadHarnessSessionCleanup', {periodInMinutes: 60})).catch(() => undefined);
+    let preferencesKey = JSON.stringify(config.harness);
+    subscribeConfig(next => {
+        const nextKey = JSON.stringify(next.harness);
+        if (nextKey !== preferencesKey) handler.cancelAll();
+        preferencesKey = nextKey;
+        handler.cancelDisallowed();
+    });
+    browser.tabs.onRemoved.addListener(tabId => handler.cancelTab(tabId));
+    browser.tabs.onUpdated.addListener((tabId, change) => {
+        if (change.status === 'loading' || change.url) handler.cancelTab(tabId);
+    });
+    return {type: 'fluentReadHarness', handle: (message, context) => {
+        const sender = context.sender ?? {};
+        if (message && typeof message === 'object' && 'action' in message && typeof message.action === 'string' && message.action.startsWith('sessions-')) return sessions(message, sender);
+        return handler.handle(message, sender);
+    }};
+}

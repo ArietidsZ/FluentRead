@@ -4,6 +4,8 @@
  * 主要内容：维护 FullPageSession、AbortController、Intersection/Mutation 观察器、精确属性写入过滤、候选所有权和生命周期重试，冻结翻译配置并在提交时重绑可恢复文本槽，导出自动翻译、悬浮翻译、状态查询及恢复入口。
  * 模块边界：这是 content 侧编排层，不实现 provider 协议、纯候选算法或底层状态存储；翻译调用经 app client，发现规则来自 core/translation，渲染与状态分别交给 renderer 和 state。
  */
+import {getFullPageTranslationStateRevision, notifyFullPageTranslationState} from './stateNotification';
+import type {FrameTranslationState} from './frameSession';
 import { checkConfig } from "@/src/app/translation/check";
 import {insertFailedTip, insertLoadingSpinner} from '@/src/features/full-page-translation/ui/translationIndicators';
 import { styles } from "@/src/core/config/constants";
@@ -115,6 +117,8 @@ import {
 import {consumeOrphanedOwnerClassMutation, isTextEquivalentHostReplacement, normalizeOrphanedSingleSlots, normalizeOrphanedTranslationArtifacts, normalizeOrphanedTranslationOwner}
     from '@/src/features/full-page-translation/content/orphanArtifacts';
 import {createFullPageRequestSessionState, disposeFullPageRequestSession, getHoverTranslationRequestSession, invalidateContextSensitiveRequestCache, invalidateFullPageRequestSessionCache, invalidateFullPageRequestSessionForRoute, invalidateHoverTranslationRequestSession, resetHoverTranslationRequestSession, type FullPageRequestSessionState} from '@/src/features/full-page-translation/content/requestSession';
+import {getSiteAdapterAttributeFilter} from '@/src/core/site-adaptation/compiler';
+import {createTranslationMutationObserverOptions, mutationRootContains as nodeContains, collapseMutationRescanRoot as broadRescanRoot} from './mutationObservation';
 const TRANSLATION_ARTIFACT_SELECTOR = [
     '[data-fr-translation-segment="true"]',
     '[data-fr-translation-owned="true"]',
@@ -247,28 +251,7 @@ function isElementNode(node: Node | null | undefined): node is Element {
     return Boolean(node && node.nodeType === 1 && typeof (node as Element).matches === "function");
 }
 
-function notifyFullPageTranslationState(isTranslated: boolean): void {
-    if (typeof document !== "undefined" && typeof document.dispatchEvent === "function") {
-        const CustomEventConstructor = document.defaultView?.CustomEvent ??
-            (typeof CustomEvent !== "undefined" ? CustomEvent : null);
-        if (CustomEventConstructor) {
-            document.dispatchEvent(new CustomEventConstructor(
-                isTranslated ? "fluentread-translation-started" : "fluentread-translation-ended",
-            ));
-        }
-    }
-    try {
-        if (typeof browser === "undefined" || !browser.runtime?.sendMessage) return;
-        void Promise.resolve(browser.runtime.sendMessage({
-            type: "fullPageTranslationState",
-            isTranslated,
-        })).catch(() => {
-            // 后台可能正在重载；页面内的翻译状态不应因此失败。
-        });
-    } catch {
-        // runtime API 在扩展上下文失效时可能同步抛错；页面清理仍须继续。
-    }
-}
+
 
 function asHTMLElement(node: unknown): HTMLElement | null {
     if (!node || typeof node !== "object" || (node as Node).nodeType !== 1) return null;
@@ -1289,22 +1272,6 @@ function scheduleDiscoveredCandidate(session: FullPageSession, candidate: Transl
     scheduleFullPageProgressPublish(session);
 }
 
-function nodeContains(ancestor: Node, descendant: Node): boolean {
-    if (ancestor === descendant) return true;
-    try {
-        return typeof ancestor.contains === "function" && ancestor.contains(descendant);
-    } catch {
-        return false;
-    }
-}
-
-function broadRescanRoot(node: Node): Node {
-    const rootNode = node.getRootNode();
-    return rootNode.nodeType === 9
-        ? (rootNode as Document).documentElement
-        : rootNode;
-}
-
 /**
  * React/Vue 页面每个滚动帧可能产生数百个 style/class mutation。observer 回调
  * 保持 O(records)，合并重叠脏子树后以短任务发现，使宿主输入/滚动回调持续运行。
@@ -1417,18 +1384,7 @@ function flushMutationRescans(session: FullPageSession): void {
 function observeFullPageRoot(session: FullPageSession, root: Node): void {
     if (session.roots.has(root)) return;
     session.roots.add(root);
-    session.mutationObserver.observe(root, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-        characterDataOldValue: true,
-        attributes: true,
-        attributeOldValue: true,
-        attributeFilter: [
-            "style", "class", "role", "hidden", "inert", "contenteditable",
-            "aria-hidden", "translate", "lang", "dir", "href", "title", "data-notranslate", "data-fr-translation-owned",
-        ],
-    });
+    session.mutationObserver.observe(root, createTranslationMutationObserverOptions(getCurrentTranslationCore().adapters));
 }
 
 function resolveStatefulMutationTarget(element: Element): HTMLElement | false {
@@ -1825,6 +1781,17 @@ function resolveStatefulMutationTargets(
     return [...targets];
 }
 
+/** 结构或属性关系变化后，先取消已不在正文范围内的旧候选，再扫描新候选。 */
+function restoreStatefulTargetOutsideScope(session: FullPageSession, target: HTMLElement): boolean {
+    const state = getTranslationState(target);
+    if (!state || state.syntheticSegment || candidateIsCurrent({element: target, kind: state.kind,
+        reason: 'site-boundary-change', ...(state.allowTopLevelApplicationShell ? {allowTopLevelApplicationShell: true} : {})})) return false;
+    unregisterSessionStatefulTarget(session, target);
+    removeScheduledForStateTarget(session, target);
+    withFullPageViewportAnchor(() => restoreTranslation(target), [target]);
+    return true;
+}
+
 function createFullPageMutationObserver(
     getSession: () => FullPageSession,
 ): MutationObserver {
@@ -1833,6 +1800,7 @@ function createFullPageMutationObserver(
         if (!session.active || fullPageSession !== session) return;
         scheduleDisconnectedCandidatePrune(session);
         const core = getCurrentTranslationCore();
+        const siteAttributes = getSiteAdapterAttributeFilter(core.adapters);
         // materialize 较宽行内段时，每个被移动来源节点都可能排入一条 childList 记录。
         // 精确快照在本次回调内稳定，因此每个 loading generation 只校验一次，
         // 避免进行 O(records) 次克隆。
@@ -1845,15 +1813,21 @@ function createFullPageMutationObserver(
         for (const mutation of mutations) {
             if (isOwnMutation(mutation, loadingSyntheticChecks)) continue;
             const mutationElement = mutationTargetElement(mutation.target);
+            const siteAttributeMutation = mutation.type === 'attributes' && mutation.attributeName !== null &&
+                (siteAttributes === null || siteAttributes.includes(mutation.attributeName));
             const preservesContext = isTextEquivalentHostReplacement(mutation);
             const removedOwners = mutation.type === "childList"
                 ? discardOwnersRemovedByHost(session, Array.from(mutation.removedNodes), resolveRemovedOwners)
                 : {removedAny: false, shouldRescan: false};
             if (removedOwners.shouldRescan && mutationElement) enqueueFullPageRescan(session, mutationElement);
             if (mutationElement && core.shouldIgnoreMutation(mutationElement) &&
-                !resolveStatefulMutationTarget(mutationElement)) continue;
+                !siteAttributeMutation && !resolveStatefulMutationTarget(mutationElement)) continue;
             if (!preservesContext) invalidateContextSensitiveRequestCache(session);
             if (mutation.type === "childList") {
+                if (core.adapters.length && mutationElement) {
+                    const affectedRoot = siteAttributes === null ? document.documentElement : getComposedParent(mutationElement) ?? mutationElement;
+                    for (const target of resolveStatefulMutationTargets(session, affectedRoot)) restoreStatefulTargetOutsideScope(session, target);
+                }
                 const changedTarget = mutationElement ? resolveStatefulMutationTarget(mutationElement) : false;
                 const changedState = changedTarget ? getTranslationState(changedTarget) : undefined;
 
@@ -1918,9 +1892,15 @@ function createFullPageMutationObserver(
             } else if (mutation.type === "attributes") {
                 if (!mutationElement) continue;
 
-                const targets = resolveStatefulMutationTargets(session, mutationElement);
+                // 相邻选择器可能影响兄弟正文；不能穷举的关系选择器保守重扫文档，
+                // 后续发现仍受既有帧预算、去重与广域重扫冷却约束。
+                const affectedRoot = siteAttributeMutation
+                    ? siteAttributes === null ? document.documentElement : getComposedParent(mutationElement) ?? mutationElement
+                    : mutationElement;
+                const targets = resolveStatefulMutationTargets(session, affectedRoot);
                 if (targets.length > 0) {
                     for (const target of targets) {
+                        if (siteAttributeMutation && restoreStatefulTargetOutsideScope(session, target)) continue;
                         if (mutation.attributeName === "class" || mutation.attributeName === "style") {
                             scheduleStatefulAttributeReevaluation(session, target);
                         } else {
@@ -1936,6 +1916,7 @@ function createFullPageMutationObserver(
                     // hidden/aria-hidden/style/class 变化可能让原先被屏蔽的子树重新可见。
                     enqueueFullPageRescan(session, mutationElement);
                 }
+                if (siteAttributeMutation) enqueueFullPageRescan(session, affectedRoot);
             }
         }
     });
@@ -1944,6 +1925,7 @@ function createFullPageMutationObserver(
 function createFullPageSession(
     root: HTMLElement,
     invocation: PageTranslationInvocation = {},
+    inheritedConfig?: FullPageTranslationConfigSnapshot,
 ): FullPageSession {
     let session!: FullPageSession;
     const observer = new IntersectionObserver((entries) => {
@@ -1981,7 +1963,7 @@ function createFullPageSession(
     session = {
         active: true,
         translationMode: invocation.fullPageMode ?? config.fullPageTranslationMode,
-        translationConfig: captureFullPageTranslationConfig(invocation),
+        translationConfig: inheritedConfig ? {...inheritedConfig} : captureFullPageTranslationConfig(invocation),
         progressSessionId: startFullPageTranslationProgress(),
         progressPublishScheduled: false,
         observer,
@@ -2105,12 +2087,12 @@ export function restoreOriginalContent(): void {
  * 限制，并持续观察新增 DOM/open ShadowRoot。这样 body 被 SPA 替换后仍能
  * 继续工作，也不会一次性给整页发出数百个请求。
  */
-export function autoTranslateEnglishPage(invocation: PageTranslationInvocation = {}): void {
+export function autoTranslateEnglishPage(invocation: PageTranslationInvocation = {}, inheritedConfig?: FullPageTranslationConfigSnapshot): void {
     if (!checkConfig(invocation) || fullPageSession?.active) return;
     const root = document.documentElement;
     if (!root) return;
 
-    const session = createFullPageSession(root, invocation);
+    const session = createFullPageSession(root, invocation, inheritedConfig);
     fullPageSession = session;
     document.addEventListener('fluentread-open-shadow-root', (event) => {
         if (!session.active || fullPageSession !== session) return;
@@ -2129,6 +2111,12 @@ export function autoTranslateEnglishPage(invocation: PageTranslationInvocation =
     enqueueFullPageRescan(session, root);
     for (const shadowRoot of getOpenShadowRoots(root)) observeFullPageRoot(session, shadowRoot);
     notifyFullPageTranslationState(true);
+}
+/** 仅共享无凭据的会话快照；旧 QQ 邮件 frame 使用同一目标语言、服务和展示设置。 */
+export function getFullPageTranslationFrameState(): Omit<FrameTranslationState, 'enabled'> {
+    const session = fullPageSession?.active ? fullPageSession : null;
+    const revision = getFullPageTranslationStateRevision();
+    return session ? {revision, sessionId: session.progressSessionId, translationConfig: {...session.translationConfig}, fullPageMode: session.translationMode} : {revision, sessionId: null};
 }
 export function isFullPageTranslationActive(): boolean {
     return fullPageSession?.active === true;

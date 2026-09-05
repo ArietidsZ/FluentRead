@@ -452,6 +452,8 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     videoSubtitleFontSize: {group: 'videoSubtitles', label: '视频字幕字号', format: (value) => formatNumber(value, '%')},
 
     useCache: {group: 'advanced', label: '缓存翻译结果', format: formatBoolean},
+    translationCacheMaxBytes: {group: 'advanced', label: '翻译缓存容量上限', format: (value) => formatNumber(value, ' B')},
+    translationCacheMaxEntries: {group: 'advanced', label: '翻译缓存条数上限', format: (value) => formatNumber(value, ' 条')},
     enableAIContext: {group: 'general', label: 'AI 智能上下文', format: formatBoolean},
     enableAIMultiSegment: {group: 'translation', label: 'AI 多段翻译', format: formatBoolean},
     maxConcurrentTranslations: {group: 'advanced', label: '翻译并发数'},

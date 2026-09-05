@@ -16,8 +16,11 @@
 @import './interface-skins/midnight.css';
 @import './interface-skins/paper.css';
 @import './interface-skins/emoji.css';
+@import './interface-skins/aurora.css';
+@import './interface-skins/arcade.css';
+@import './interface-skins/sunset.css';
 
-/* 注册为内容高度的皮肤或隐藏任一栏目后按实际内容决定 Popup 高度；默认风格的完整布局仍保留原尺寸。 */
+/* 所有内置皮肤（含完整默认布局）均使用内容高度，栏目显隐或文字换行后自然收缩与伸展。 */
 :root[data-popup-height="content"] {
   min-height: 0;
   height: auto;

@@ -1,19 +1,25 @@
 /**
  * @file src/services/translation/cache.ts
  *
- * 文件职责：实现扩展自有的翻译结果缓存，统一键规范化、TTL、容量限制、内存热层和 Dexie 持久层。
- * 主要内容：定义缓存 identity/record、canonicalize 与 buildTranslationCacheKey，维护 FluentReadCacheDatabase，并通过 translationCache 提供读取、写入、LRU 逐出、过期清理和 IndexedDB 失败时降级为未命中的 API。 可核对的公开符号包括 TRANSLATION_CACHE_VERSION、TRANSLATION_CACHE_TTL_MS、TRANSLATION_CACHE_MAX_ENTRIES、TRANSLATION_CACHE_MAX_BYTES、TRANSLATION_CACHE_MAX_ENTRY_BYTES、TRANSLATION_CACHE_MEMORY_ENTRIES、TranslationCacheIdentity、TranslationCacheRecord。
+ * 文件职责：实现扩展自有的翻译结果缓存，统一键规范化、TTL、可配置双容量限制、内存热层和 Dexie 持久层。
+ * 主要内容：定义缓存 identity/record、canonicalize 与 buildTranslationCacheKey，维护 FluentReadCacheDatabase 与事务内增量用量汇总，并通过 translationCache 提供读取、写入、持久化 LRU、过期清理、阈值设置和用量统计；缓存读写故障降级，管理故障向 UI 如实报告。 可核对的公开符号包括 TRANSLATION_CACHE_VERSION、TRANSLATION_CACHE_TTL_MS、TRANSLATION_CACHE_MAX_ENTRIES、TRANSLATION_CACHE_MAX_BYTES、TRANSLATION_CACHE_MAX_ENTRY_BYTES、TRANSLATION_CACHE_MEMORY_ENTRIES、TranslationCacheIdentity、TranslationCacheRecord。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
 import CryptoJS from 'crypto-js';
 import Dexie, { type Table } from 'dexie';
+import {
+  DEFAULT_TRANSLATION_CACHE_MAX_BYTES,
+  DEFAULT_TRANSLATION_CACHE_MAX_ENTRIES,
+  normalizeTranslationCacheLimits,
+  type TranslationCacheLimits,
+} from '@/src/core/config/translationCache';
 
 // v2 放弃旧版可能已持久化的 AI 上下文回显；新值在入库前均经过强/弱泄漏门禁。
 export const TRANSLATION_CACHE_VERSION = 2;
 export const TRANSLATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-export const TRANSLATION_CACHE_MAX_ENTRIES = 2_000;
-export const TRANSLATION_CACHE_MAX_BYTES = 5 * 1024 * 1024;
+export const TRANSLATION_CACHE_MAX_ENTRIES = DEFAULT_TRANSLATION_CACHE_MAX_ENTRIES;
+export const TRANSLATION_CACHE_MAX_BYTES = DEFAULT_TRANSLATION_CACHE_MAX_BYTES;
 export const TRANSLATION_CACHE_MAX_ENTRY_BYTES = 256 * 1024;
 export const TRANSLATION_CACHE_MEMORY_ENTRIES = 128;
 
@@ -78,8 +84,20 @@ function getByteSize(value: string): number {
   return value.length * 2;
 }
 
+interface TranslationCacheTotals {
+  id: 'totals';
+  bytes: number;
+  entries: number;
+}
+
+export interface TranslationCacheStats extends TranslationCacheLimits {
+  bytes: number;
+  entries: number;
+}
+
 class FluentReadCacheDatabase extends Dexie {
   entries!: Table<TranslationCacheRecord, string>;
+  totals!: Table<TranslationCacheTotals, string>;
 
   constructor() {
     super('FluentReadTranslationCache');
@@ -88,6 +106,10 @@ class FluentReadCacheDatabase extends Dexie {
     });
     this.version(2).stores({
       entries: '&key, createdAt, expiresAt, lastAccessedAt',
+    });
+    this.version(3).stores({
+      entries: '&key, createdAt, expiresAt, lastAccessedAt',
+      totals: '&id',
     });
   }
 }
@@ -104,115 +126,159 @@ function isExpired(record: TranslationCacheRecord, now: number): boolean {
  */
 class TranslationCache {
   private readonly memory = new Map<string, TranslationCacheRecord>();
+  private limits = normalizeTranslationCacheLimits(undefined);
   private clearEpoch = 0;
+  private contentRevision = 0;
 
   private remember(record: TranslationCacheRecord): void {
-    // 步骤 1：重新插入记录，把它移动到内存 LRU 的最新位置。
     this.memory.delete(record.key);
     this.memory.set(record.key, record);
-
-    // 步骤 2：超过热数据上限时，从最旧记录开始逐个淘汰。
     while (this.memory.size > TRANSLATION_CACHE_MEMORY_ENTRIES) {
-      // Map.size 已确认大于上限，因此迭代器必然返回一个 key。
       const oldestKey = this.memory.keys().next().value as string;
       this.memory.delete(oldestKey);
     }
   }
 
-  private forget(key: string): void {
-    this.memory.delete(key);
+  /** 元数据只在旧数据库首次使用时遍历重建，正常读写始终在同一事务内增量维护。 */
+  private async readTotals(): Promise<TranslationCacheTotals> {
+    const existing = await translationCacheDb.totals.get('totals');
+    if (existing) return existing;
+    const totals: TranslationCacheTotals = { id: 'totals', bytes: 0, entries: 0 };
+    await translationCacheDb.entries.each((record) => {
+      totals.bytes += record.byteSize;
+      totals.entries += 1;
+    });
+    return totals;
+  }
+
+  private async deleteRecords(keys: string[], totals: TranslationCacheTotals): Promise<void> {
+    if (keys.length === 0) return;
+    await translationCacheDb.entries.bulkDelete(keys);
+    this.contentRevision += 1;
+    keys.forEach((key) => this.memory.delete(key));
+    totals.entries -= keys.length;
+  }
+
+  /** 过期索引先回收无效条目，再沿访问时间索引只读取需要淘汰的记录。 */
+  private async prune(totals: TranslationCacheTotals, now: number): Promise<Set<string>> {
+    const expiredKeys: string[] = [];
+    await translationCacheDb.entries.where('expiresAt').belowOrEqual(now)
+      .or('createdAt').belowOrEqual(now - TRANSLATION_CACHE_TTL_MS)
+      .each((record) => {
+        expiredKeys.push(record.key);
+        totals.bytes -= record.byteSize;
+      });
+    await this.deleteRecords(expiredKeys, totals);
+
+    if (totals.entries > this.limits.maxEntries || totals.bytes > this.limits.maxBytes) {
+      const evictedKeys: string[] = [];
+      await translationCacheDb.entries.orderBy('lastAccessedAt')
+        .until(() => totals.entries - evictedKeys.length <= this.limits.maxEntries
+          && totals.bytes <= this.limits.maxBytes)
+        .each((record) => {
+          evictedKeys.push(record.key);
+          totals.bytes -= record.byteSize;
+        });
+      await this.deleteRecords(evictedKeys, totals);
+      expiredKeys.push(...evictedKeys);
+    }
+    return new Set(expiredKeys);
+  }
+
+  private async maintain(now: number): Promise<TranslationCacheStats> {
+    return translationCacheDb.transaction('rw', translationCacheDb.entries, translationCacheDb.totals, async () => {
+      const totals = await this.readTotals();
+      await this.prune(totals, now);
+      await translationCacheDb.totals.put(totals);
+      return { bytes: totals.bytes, entries: totals.entries, ...this.limits };
+    });
+  }
+
+  private touch(record: TranslationCacheRecord, now: number): void {
+    const epoch = this.clearEpoch;
+    record.lastAccessedAt = Math.max(record.lastAccessedAt, now);
+    this.remember(record);
+    // 原子更新避免乱序 touch 回拨访问时间；旧代际或被替换的记录不能污染新值。
+    void translationCacheDb.entries.update(record.key, (current) => {
+      if (epoch !== this.clearEpoch || current.createdAt !== record.createdAt) return;
+      current.lastAccessedAt = Math.max(current.lastAccessedAt, now);
+    }).catch((error) => {
+      console.warn('[FluentRead] translation cache read failed:', error);
+    });
+  }
+
+  private async removeExpired(key: string, now: number, epoch: number): Promise<void> {
+    await translationCacheDb.transaction('rw', translationCacheDb.entries, translationCacheDb.totals, async () => {
+      if (epoch !== this.clearEpoch) return;
+      const record = await translationCacheDb.entries.get(key);
+      // 读取和删除之间可能写入了同 key 新值，不能用旧内存记录删除新译文。
+      if (!record || !isExpired(record, now)) return;
+      const totals = await this.readTotals();
+      totals.bytes -= record.byteSize;
+      await this.deleteRecords([key], totals);
+      await translationCacheDb.totals.put(totals);
+    });
   }
 
   async get(key: string, now = Date.now()): Promise<string | null> {
-    // 步骤 1：优先读取热数据；过期记录同时从内存和持久层移除。
+    const epoch = this.clearEpoch;
+    const revision = this.contentRevision;
     const memoryRecord = this.memory.get(key);
     if (memoryRecord) {
       if (isExpired(memoryRecord, now)) {
-        this.forget(key);
-        void translationCacheDb.entries.delete(key).catch(() => undefined);
+        this.memory.delete(key);
+        void this.removeExpired(key, now, epoch).catch((error) => {
+          console.warn('[FluentRead] translation cache read failed:', error);
+        });
         return null;
       }
-
-      memoryRecord.lastAccessedAt = now;
-      this.remember(memoryRecord);
+      this.touch(memoryRecord, now);
       return memoryRecord.translation;
     }
 
-    const epoch = this.clearEpoch;
     try {
-      // 步骤 2：冷数据从 IndexedDB 读取；clear 期间完成的旧读取不能重新填充缓存。
       const record = await translationCacheDb.entries.get(key);
-      if (epoch !== this.clearEpoch) return null;
-      if (!record) return null;
-
+      if (epoch !== this.clearEpoch || revision !== this.contentRevision || !record) return null;
       if (isExpired(record, now)) {
-        await translationCacheDb.entries.delete(key);
+        await this.removeExpired(key, now, epoch);
         return null;
       }
-
-      record.lastAccessedAt = now;
-      this.remember(record);
-      // update 不会在 clear 已删除记录后将旧冷读重新插回持久层；LRU touch 也不阻塞命中返回。
-      void translationCacheDb.entries.update(key, { lastAccessedAt: now }).catch((error) => {
-        console.warn('[FluentRead] translation cache read failed:', error);
-      });
+      this.touch(record, now);
       return record.translation;
     } catch (error) {
-      // 步骤 3：缓存不可用时只按未命中处理，不能阻断真实翻译。
       console.warn('[FluentRead] translation cache read failed:', error);
       return null;
     }
   }
 
   async set(key: string, translation: string, now = Date.now()): Promise<boolean> {
-    // 步骤 1：空译文和过大单项不进入缓存，避免无效数据或配额攻击。
     const byteSize = getByteSize(key) + getByteSize(translation);
-    if (!translation || byteSize > TRANSLATION_CACHE_MAX_ENTRY_BYTES) {
-      return false;
-    }
-
+    if (!translation || byteSize > TRANSLATION_CACHE_MAX_ENTRY_BYTES) return false;
     const record: TranslationCacheRecord = {
-      key,
-      translation,
-      createdAt: now,
-      lastAccessedAt: now,
-      expiresAt: now + TRANSLATION_CACHE_TTL_MS,
-      byteSize,
+      key, translation, createdAt: now, lastAccessedAt: now,
+      expiresAt: now + TRANSLATION_CACHE_TTL_MS, byteSize,
     };
     const epoch = this.clearEpoch;
     let persisted = false;
-
+    let writeRevision = this.contentRevision;
     try {
-      // 步骤 2：在同一事务中写入新记录，并按条目数与总字节数执行持久层 LRU。
-      await translationCacheDb.transaction('rw', translationCacheDb.entries, async () => {
-        // clear 已经开始时，调用开始于旧代际的写入必须失效。
+      await translationCacheDb.transaction('rw', translationCacheDb.entries, translationCacheDb.totals, async () => {
         if (epoch !== this.clearEpoch) return;
+        const totals = await this.readTotals();
+        const previous = await translationCacheDb.entries.get(key);
+        totals.bytes += byteSize - (previous?.byteSize ?? 0);
+        if (!previous) totals.entries += 1;
         await translationCacheDb.entries.put(record);
-
-        const entries = await translationCacheDb.entries.orderBy('lastAccessedAt').toArray();
-        let totalBytes = entries.reduce((total, item) => total + item.byteSize, 0);
-        const keysToDelete: string[] = [];
-
-        while (
-          entries.length - keysToDelete.length > TRANSLATION_CACHE_MAX_ENTRIES ||
-          totalBytes > TRANSLATION_CACHE_MAX_BYTES
-        ) {
-          // 循环条件保证仍有待淘汰记录；每轮固定消费最旧的一项。
-          const candidate = entries[keysToDelete.length];
-          keysToDelete.push(candidate.key);
-          totalBytes -= candidate.byteSize;
-        }
-
-        if (keysToDelete.length > 0) {
-          await translationCacheDb.entries.bulkDelete(keysToDelete);
-          keysToDelete.forEach((entryKey) => this.forget(entryKey));
-        }
-
-        persisted = true;
+        this.contentRevision += 1;
+        // 新值提交后若被其他写入推进修订号而跳过晋升，也不能留下同 key 的旧热值。
+        this.memory.delete(key);
+        const removed = await this.prune(totals, now);
+        await translationCacheDb.totals.put(totals);
+        // 调用方时钟回退时新值也可能成为 LRU 候选；被逐出的写入不能重新进入热层。
+        persisted = !removed.has(key);
+        writeRevision = this.contentRevision;
       });
-
-      // 步骤 3：持久化成功后再进入热数据层，防止内存和 IndexedDB 状态分叉。
-      if (!persisted || epoch !== this.clearEpoch) return false;
+      if (!persisted || epoch !== this.clearEpoch || writeRevision !== this.contentRevision) return false;
       this.remember(record);
       return true;
     } catch (error) {
@@ -221,30 +287,34 @@ class TranslationCache {
     }
   }
 
+  async setLimits(value: TranslationCacheLimits, now = Date.now()): Promise<void> {
+    this.limits = normalizeTranslationCacheLimits(value);
+    await this.maintain(now);
+  }
+
+  async getStats(now = Date.now()): Promise<TranslationCacheStats> {
+    // 统计同时清理过期项与超限项，使设置页面显示当前有效用量；存储故障交由 UI 如实提示。
+    return this.maintain(now);
+  }
+
   async cleanup(now = Date.now()): Promise<void> {
     try {
-      // 步骤 1：同时按 expiresAt 和当前 TTL 清理持久层，兼容历史 TTL 策略。
-      await translationCacheDb.entries.where('expiresAt').belowOrEqual(now).delete();
-      await translationCacheDb.entries
-        .where('createdAt')
-        .belowOrEqual(now - TRANSLATION_CACHE_TTL_MS)
-        .delete();
-      // 步骤 2：再清理热数据，保证同一时间点下两层过期判断一致。
-      for (const [key, record] of this.memory) {
-        if (isExpired(record, now)) this.memory.delete(key);
-      }
+      await this.maintain(now);
     } catch (error) {
       console.warn('[FluentRead] translation cache cleanup failed:', error);
     }
   }
 
   async clear(): Promise<void> {
-    // 步骤 1：先切换代际，使尚未完成的冷读和写入不能在 clear 后重新填充缓存。
     this.clearEpoch += 1;
+    this.contentRevision += 1;
     this.memory.clear();
     try {
-      // 步骤 2：再清空 IndexedDB；失败时向调用方报告，避免 UI 误报已清除。
-      await translationCacheDb.entries.clear();
+      await translationCacheDb.transaction('rw', translationCacheDb.entries, translationCacheDb.totals, async () => {
+        await translationCacheDb.entries.clear();
+        // 删除汇总使首次使用旧库和清空后的重新初始化沿用同一路径。
+        await translationCacheDb.totals.clear();
+      });
     } catch (error) {
       console.warn('[FluentRead] translation cache clear failed:', error);
       throw error;

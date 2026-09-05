@@ -464,7 +464,11 @@ export class TranslationCandidateCore {
         candidateChildBarriers?: ReadonlySet<Element>,
         evaluationContext?: ResolutionEvaluationContext,
     ): TranslationCandidate[] {
-        if (!this.allowsGenericCandidates()) return [];
+        if (!this.allowsGenericCandidates()) {
+            const decision = this.adapterDecision(element, evaluationContext).decision;
+            if (decision.kind !== 'force-target' || decision.atomic !== false ||
+                (decision.target ?? element) !== element) return [];
+        }
         const candidates: TranslationCandidate[] = [];
         const atomicTargetCache = new WeakMap<Element, boolean>();
         const protectionOptions = evaluationContext?.textProtectionOptions;
@@ -538,10 +542,13 @@ export class TranslationCandidateCore {
         start: Node,
         evaluationContext: ResolutionEvaluationContext,
     ): TranslationCandidate | null {
-        if (isDocumentSurface(element) ||
+        const decision = this.adapterDecision(element, evaluationContext).decision;
+        const explicitContainer = decision.kind === 'force-target' && decision.atomic === false &&
+            (decision.target ?? element) === element;
+        if (isDocumentSurface(element) || (!explicitContainer && (
             this.isStructuralContainerForResolution(element, evaluationContext) ||
             this.hasStructuralAncestorForResolution(element, evaluationContext) ||
-            !isBlockBoundary(element) ||
+            !isBlockBoundary(element))) ||
             element.children.length === 0) {
             return null;
         }

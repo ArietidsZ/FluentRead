@@ -32,6 +32,8 @@ export interface TranslationSiteAdapter {
     priority?: number;
     /** `targets-only` 仍允许 force-target，但禁止通用块和内联 run 回退。 */
     genericCandidatePolicy?: TranslationGenericCandidatePolicy;
+    /** 规则依赖的属性名；null 表示不能安全穷举，必须观察全部属性。 */
+    observedAttributes?: readonly string[] | null;
     matches(url: URL): boolean;
     decide(element: Element, context: AdapterContext): AdapterDecision;
     shouldStayOriginal?(element: Element, context: AdapterContext): boolean;

@@ -2,7 +2,7 @@
  * @file src/providers/translation/chrome-translator.ts
  *
  * 文件职责：适配 Chrome 内置 Translation API，通过受能力约束的 Offscreen document 执行浏览器本地翻译。
- * 主要内容：createChromeTranslator 注入 BrowserCapabilities 与 OffscreenClient，校验平台可用性和响应结果，默认实例使用 chromeOffscreenClient 与请求级语言 payload。 可核对的公开符号包括 ChromeTranslatorDependencies、createChromeTranslator、default:chromeTranslator。
+ * 主要内容：createChromeTranslator 注入能力、OffscreenClient 与待准备语言存储，校验响应身份和实际缺包语言对，在未取消时保存待准备记录，默认实例使用请求级语言 payload。
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
@@ -18,6 +18,10 @@ import {
     type OffscreenClient,
 } from '@/src/platform/offscreen/client';
 import {
+    chromeTranslationPreparationStore,
+    isChromeTranslationPreparationRequest,
+} from '@/src/platform/browser/chromeTranslationPreparationRequest';
+import {
     buildChromeOffscreenTranslationData,
     type ChromeTranslatorMessage,
 } from './chromeTranslatorRequest';
@@ -26,6 +30,10 @@ interface ChromeTranslationOffscreenResponse {
     readonly success?: boolean;
     readonly result?: unknown;
     readonly error?: string;
+    readonly errorCode?: string;
+    readonly errorName?: string;
+    readonly sourceLanguage?: string;
+    readonly targetLanguage?: string;
     readonly requestId?: unknown;
 }
 
@@ -36,6 +44,7 @@ export interface ChromeTranslatorDependencies {
     readonly capabilities: Pick<BrowserCapabilities, 'chromeTranslation'>;
     readonly offscreenClient: Pick<OffscreenClient, 'send'>;
     readonly createRequestId: () => string;
+    readonly preparationStore?: Pick<typeof chromeTranslationPreparationStore, 'set'>;
 }
 
 export function createChromeTranslationRequestId(): string {
@@ -74,7 +83,23 @@ export function createChromeTranslator(dependencies: ChromeTranslatorDependencie
             });
             if (response?.requestId !== requestId) throw new Error('Offscreen 翻译响应 requestId 不匹配');
             if (!response.success || typeof response.result !== 'string') {
-                throw new Error(response?.error || '无效的翻译响应');
+                if (response.errorCode === 'preparation-required'
+                    && typeof response.sourceLanguage === 'string'
+                    && typeof response.targetLanguage === 'string') {
+                    const preparation = {
+                        sourceLanguage: response.sourceLanguage,
+                        targetLanguage: response.targetLanguage,
+                    };
+                    if (!message.abortSignal?.aborted && isChromeTranslationPreparationRequest(preparation)) {
+                        await (dependencies.preparationStore || chromeTranslationPreparationStore).set(preparation);
+                    }
+                    throw new Error(response.error || 'Chrome 本地翻译模型需要用户激活');
+                }
+                const unavailable = new Error(response?.error || '无效的翻译响应');
+                if (response.errorCode === 'model-unavailable') {
+                    unavailable.name = response.errorName || 'ChromeModelUnavailableError';
+                }
+                throw unavailable;
             }
             return response.result;
         } catch (error) {
@@ -88,6 +113,7 @@ const chromeTranslator = createChromeTranslator({
     capabilities: browserCapabilities,
     offscreenClient: chromeOffscreenClient,
     createRequestId: createChromeTranslationRequestId,
+    preparationStore: chromeTranslationPreparationStore,
 });
 
 export default chromeTranslator;

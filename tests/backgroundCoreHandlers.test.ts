@@ -9,10 +9,21 @@ import {
     TRANSLATION_CACHE_CLEARED_MESSAGE,
     createTranslationCacheHandler,
     createTranslationCacheInvalidationBroadcaster,
+    createTranslationCacheHandlers,
+    GET_TRANSLATION_CACHE_STATS_MESSAGE,
 } from '@/src/app/background/handlers/translationCache';
 import {createBackgroundMessageRouter} from '@/src/app/background/messageRouter';
 
 describe('background core message handlers', () => {
+    it('返回后台真实缓存用量，统计失败由 router 边界报告', async () => {
+        const stats = {bytes: 1024, entries: 2, maxBytes: 5242880, maxEntries: 2000};
+        const read = vi.fn().mockResolvedValueOnce(stats).mockRejectedValueOnce(new Error('stats unavailable'));
+        const router = createBackgroundMessageRouter(createTranslationCacheHandlers(async () => undefined, read, async () => undefined));
+        await expect(router.dispatch({type: GET_TRANSLATION_CACHE_STATS_MESSAGE}, undefined)).resolves.toEqual({
+            handled: true, response: {success: true, stats},
+        });
+        await expect(router.dispatch({type: GET_TRANSLATION_CACHE_STATS_MESSAGE}, undefined)).rejects.toThrow('stats unavailable');
+    });
     it('清理 broker 缓存成功后返回明确响应', async () => {
         const clear = vi.fn(async () => undefined);
         const broadcast = vi.fn(async () => undefined);

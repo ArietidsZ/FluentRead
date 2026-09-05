@@ -51,8 +51,9 @@ import {
     partitionInlineRunAtBarriers,
     readCachedFlagOr,
 } from '@/src/core/translation/internal';
-import {bilibiliAdapter} from '@/src/core/translation/adapters/bilibili';
-import {redditAdapter} from '@/src/core/translation/adapters/reddit';
+import {defaultTranslationAdapters} from '@/src/core/translation/registry';
+const bilibiliAdapter = defaultTranslationAdapters.find(adapter => adapter.id === 'bilibili')!;
+const redditAdapter = defaultTranslationAdapters.find(adapter => adapter.id === 'reddit')!;
 
 function page(html: string, url = 'https://example.test/article') {
     const {document} = parseHTML(`<html><head></head><body>${html}</body></html>`);
@@ -794,6 +795,10 @@ describe('translation candidate core', () => {
             '<b>apt</b> provides a package management interface.',
             '<b>apt</b> <a href="guide.html">provides a package management interface</a>.',
             '<span>Ordinary introduction</span>',
+            '<b>This is an ordinary quoted explanation.</b>',
+            '<i>这些内容是正常的中文说明。</i>',
+            '<b>apt</b> <b>provides a package management interface.</b>',
+            '<b>apt</b> <i>这是命令的说明文字。</i>',
         ];
         for (const introduction of introductions) {
             const {document, core} = page(`<div id="manpage-content"><h2 id="description">DESCRIPTION</h2><section class="Sh"><p id="intro" class="Pp">${introduction}</p><div class="Bd-indent"><b>future-command</b> --dry-run</div></section></div>`,
@@ -802,7 +807,7 @@ describe('translation candidate core', () => {
             expect(core.shouldStayOriginal(intro)).toBe(false);
             expect(core.shouldOmitFromTranslation(intro)).toBe(false);
             expect(core.shouldIgnoreMutation(intro)).toBe(false);
-            expect(core.discover(document).some(({element}) => element === intro)).toBe(true);
+            expect(core.discover(document).some(({element}) => element === intro), introduction).toBe(true);
             expect(createTranslationSourceSnapshot(intro, core.shouldStayOriginal).slots.length).toBeGreaterThan(0);
         }
     });
@@ -811,6 +816,8 @@ describe('translation candidate core', () => {
         const labels: Array<[string, boolean]> = [
             ['<b>edit-sources</b> (work-in-progress)', true],
             ['<b>showsrc, depends</b> (summarised in <a href="apt-cache.8.html"><b>apt-cache</b>(8)</a>)', true],
+            ['<b>showsrc, depends</b> (summarised in <i>the relevant manual</i>)', true],
+            ['<b>future-command</b> (支持中文附注)', true],
             ['<!-- a host comment --> <i>future_option</i>', true],
             ['<b>unknown-operation</b><span data-fr-translation-owned="true">旧译文</span>', true],
             ['<b>unknown-operation</b> (unfinished note', false],
@@ -829,7 +836,7 @@ describe('translation candidate core', () => {
     });
 
     it('不把 Ubuntu manpage 的命令规则扩散到其他站点或非手册路径', () => {
-        const html = '<div id="manpage-content"><h2 id="description">Description</h2><section class="Sh"><p id="label" class="Pp"><b>Ordinary text</b></p><div class="Bd-indent">A regular explanation.</div></section></div>';
+        const html = '<div id="manpage-content"><h2 id="description">Description</h2><section class="Sh"><p id="label" class="Pp"><b>unknown-command</b></p><div class="Bd-indent">A regular explanation.</div></section></div>';
         for (const url of ['https://example.test/manpages/noble/man8/apt.8.html',
             'https://manpages.ubuntu.com.example.test/manpages/noble/man8/apt.8.html',
             'https://example.manpages.ubuntu.com/manpages/noble/man8/apt.8.html',
@@ -2524,11 +2531,11 @@ describe('embedded semantic chrome classification', () => {
         ).toEqual(['note-label', 'note-copy']);
         expect(core.resolve(noteLabel.firstChild), 'Hover must resolve the Swift note label').toMatchObject({
             element: noteLabel,
-            reason: 'generic-readable-block',
+            adapterId: 'swift-docs',
         });
         expect(core.resolve(noteCopy.firstChild), 'Hover must resolve the Swift note prose').toMatchObject({
             element: noteCopy,
-            reason: 'generic-readable-block',
+            adapterId: 'swift-docs',
         });
         expect(
             core.resolve(globalCopy.firstChild),

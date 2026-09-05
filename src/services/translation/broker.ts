@@ -2,7 +2,7 @@
  * @file src/services/translation/broker.ts
  *
  * 文件职责：编排翻译请求的配置快照、语言解析、缓存、请求去重、超时与 provider 调用，是后台翻译用例的中心服务。
- * 主要内容：createTranslationBroker 同时支持单条、批量和页面摘要，验证 provider 返回数量和类型，以包含 Chrome auto 检测样本的完整身份构建缓存键，并在清理代次与剩余 deadline 下管理 pending 请求。 可核对的公开符号包括 createTranslationBroker、聚合导出。
+ * 主要内容：createTranslationBroker 同时支持单条、批量和页面摘要，验证 provider 返回数量和类型，对完整多段协议逐槽修复上下文回显，以包含 Chrome auto 检测样本的完整身份构建缓存键，并在清理代次与剩余 deadline 下管理 pending 请求。 可核对的公开符号包括 createTranslationBroker、聚合导出。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
@@ -662,7 +662,10 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
 
         let usedContextFreeRequest = startWithoutPageContext;
         let rawResult = await requestBatch(requestContext, requestPageContext);
-        if (shouldRecoverPageContextLeak(
+        // 协议完整时可以精确定位异常槽。先解析，再决定是否需要整包重译，
+        // 避免某一段的明确上下文标记导致已正确的其他段落也被重新发送。
+        let parsed = parseTranslationSlots(packet, rawResult);
+        if (!parsed && shouldRecoverPageContextLeak(
             execution,
             packet.payload,
             rawResult,
@@ -674,6 +677,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 new Error('AI_PAGE_CONTEXT_LEAK'),
             );
             rawResult = await requestBatch('', '');
+            parsed = parseTranslationSlots(packet, rawResult);
             usedContextFreeRequest = true;
             if (isDefiniteRecoveryPageContextLeak(
                 execution,
@@ -688,7 +692,6 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             throw new AIMultiSegmentResponseError();
         }
 
-        const parsed = parseTranslationSlots(packet, rawResult);
         if (!parsed || parsed.length !== message.origin.length
             || parsed.some((value, index) => !value.trim() && Boolean(message.origin[index]?.trim()))) {
             throw new AIMultiSegmentResponseError();

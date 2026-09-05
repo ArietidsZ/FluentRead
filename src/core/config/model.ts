@@ -39,6 +39,11 @@ import {
     parseApiKeyRequirementKey,
 } from './validation';
 import {isSensitiveConfigKey} from './sensitiveKeys';
+import {
+    DEFAULT_TRANSLATION_CACHE_MAX_BYTES,
+    DEFAULT_TRANSLATION_CACHE_MAX_ENTRIES,
+    normalizeTranslationCacheLimits,
+} from './translationCache';
 import {resolveConfiguredHotkey} from '@/src/core/hotkey';
 import { normalizeSelectionTtsVoiceOrder } from "./selectionTts";
 import { normalizeUiLanguage, type UiLanguage } from '@/src/core/i18n/language';
@@ -72,6 +77,8 @@ import {
     normalizeAlwaysTranslateDomains,
     normalizeDisabledExtensionDomains,
 } from "@/src/core/site-rules/domain";
+import {normalizeSiteAdaptationSettings} from '@/src/core/site-adaptation/schema';
+import type {SiteAdaptationSettings} from '@/src/core/site-adaptation/types';
 import {
     DEFAULT_MAX_CONCURRENT_TRANSLATIONS,
     DEFAULT_TRANSLATION_BACKOFF_BASE_MS,
@@ -86,6 +93,7 @@ import {
     normalizeTranslationRequestsPerMinute,
     normalizeTranslationRequestsPerSecond,
 } from './scheduling';
+import {DEFAULT_HARNESS_PREFERENCES, normalizeHarnessPreferences, type HarnessPreferences} from './harness';
 
 export * from './scheduling';
 
@@ -151,6 +159,7 @@ export class Config {
     autoTranslate: boolean; // 是否即时翻译
     alwaysTranslateDomains: string[]; // 始终自动翻译的可注册域名（eTLD+1）
     disabledExtensionDomains: string[]; // 禁用扩展的可注册域名（eTLD+1）
+    siteAdaptation: SiteAdaptationSettings; // 网站内容范围、保护区域及本地 JSON 适配规则
     from: string;
     to: string;
     hotkey: string;
@@ -195,6 +204,8 @@ export class Config {
     popupQuickFeatureOrder: PopupQuickFeatureId[]; // 快捷功能卡片的显示顺序
     popupQuickFeatureVisibility: PopupQuickFeatureVisibility; // 单张快捷功能卡片的可见性
     useCache: boolean; // 是否使用缓存
+    translationCacheMaxBytes: number; // 翻译缓存内容容量上限（字节）
+    translationCacheMaxEntries: number; // 翻译缓存条数上限
     enableAIContext: boolean; // 是否为 AI 翻译附加网页上下文
     enableAIMultiSegment: boolean; // 是否把相邻全文段落合并为一次 AI 翻译请求
     bilingualSentenceHighlightEnabled: boolean; // 是否在双语翻译中同步高亮原文与译文
@@ -240,6 +251,7 @@ export class Config {
     translationCenterServices: string[]; // 翻译中心已选服务及其展示顺序
     translationCenterSourceLanguage: string; // 翻译中心源语言
     translationCenterTargetLanguage: string; // 翻译中心目标语言
+    harness: HarnessPreferences; // Harness 学习辅助偏好
 
     constructor() {
         this.on = true;
@@ -248,6 +260,7 @@ export class Config {
         this.autoTranslate = false;
         this.alwaysTranslateDomains = [];
         this.disabledExtensionDomains = [];
+        this.siteAdaptation = normalizeSiteAdaptationSettings(undefined);
         this.from = defaultOption.from;
         this.to = defaultOption.to;
         this.style = defaultOption.style;
@@ -296,6 +309,8 @@ export class Config {
         this.popupQuickFeatureOrder = [...DEFAULT_POPUP_QUICK_FEATURE_ORDER];
         this.popupQuickFeatureVisibility = {...DEFAULT_POPUP_QUICK_FEATURE_VISIBILITY};
         this.useCache = true; // 默认开启缓存
+        this.translationCacheMaxBytes = DEFAULT_TRANSLATION_CACHE_MAX_BYTES;
+        this.translationCacheMaxEntries = DEFAULT_TRANSLATION_CACHE_MAX_ENTRIES;
         this.enableAIContext = false; // 默认关闭 AI 智能上下文，避免意外增加请求体和费用
         this.enableAIMultiSegment = false; // 默认逐段请求，由用户按需开启 AI 多段翻译
         this.bilingualSentenceHighlightEnabled = false; // 默认关闭双语逐句高亮，避免改变现有网页视觉
@@ -332,7 +347,7 @@ export class Config {
         this.tencentSecretKey = ''; // 腾讯云 Secret Key
         this.azureOpenaiEndpoint = ''; // Azure OpenAI 端点地址
         this.animations = true; // 默认启用动画
-        this.translationLoadingStyle = DEFAULT_TRANSLATION_LOADING_STYLE; // 默认使用低存在感的简洁加载样式
+        this.translationLoadingStyle = DEFAULT_TRANSLATION_LOADING_STYLE; // 默认使用柔和圆环，缺失配置也回到该样式
         this.translationProgressPanelEnabled = false; // 默认关闭全文翻译进度面板
         this.inputBoxTranslationTrigger = 'disabled'; // 默认关闭输入框翻译
         this.inputBoxTranslationTarget = 'en'; // 默认翻译成英文
@@ -341,6 +356,7 @@ export class Config {
         this.translationCenterServices = [];
         this.translationCenterSourceLanguage = '';
         this.translationCenterTargetLanguage = '';
+        this.harness = normalizeHarnessPreferences(DEFAULT_HARNESS_PREFERENCES);
     }
 }
 
@@ -646,6 +662,12 @@ export function normalizeConfig(value: unknown): Config {
         ? source.count
         : 0;
     normalized.uiLanguage = normalizeUiLanguage(source.uiLanguage);
+    const cacheLimits = normalizeTranslationCacheLimits({
+        maxBytes: source.translationCacheMaxBytes,
+        maxEntries: source.translationCacheMaxEntries,
+    });
+    normalized.translationCacheMaxBytes = cacheLimits.maxBytes;
+    normalized.translationCacheMaxEntries = cacheLimits.maxEntries;
     normalized.uiLanguageSetupCompleted = source.uiLanguageSetupCompleted === true;
     normalized.maxConcurrentTranslations = normalizeMaxConcurrentTranslations(
         source.maxConcurrentTranslations,
@@ -694,6 +716,7 @@ export function normalizeConfig(value: unknown): Config {
     if (typeof normalized.custom !== 'string') normalized.custom = defaultOption.custom;
     if (typeof normalized.newApiUrl !== 'string') normalized.newApiUrl = DEFAULT_NEW_API_URL;
     normalizeCustomOpenAIProviderState(normalized, source);
+    normalized.harness = normalizeHarnessPreferences(source.harness, normalized.customOpenAIProviders);
 
     if (!isSupportedTranslationService(normalized.service, normalized.customOpenAIProviders)) {
         normalized.service = defaultOption.service;
@@ -776,6 +799,7 @@ export function normalizeConfig(value: unknown): Config {
     );
     normalized.alwaysTranslateDomains = normalizeAlwaysTranslateDomains(source.alwaysTranslateDomains);
     normalized.disabledExtensionDomains = normalizeDisabledExtensionDomains(source.disabledExtensionDomains);
+    normalized.siteAdaptation = normalizeSiteAdaptationSettings(source.siteAdaptation);
     normalized.interfaceSkin = normalizeInterfaceSkin(source.interfaceSkin);
     normalized.interfaceVisibility = normalizeInterfaceVisibility(source.interfaceVisibility);
     normalized.popupModuleOrder = normalizePopupModuleOrder(source.popupModuleOrder);

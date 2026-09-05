@@ -6,11 +6,14 @@ import {describe, expect, it, vi} from 'vitest';
 const PROJECT_ROOT = resolve(__dirname, '..');
 const require = createRequire(import.meta.url);
 const FOCUS_SAFE_SCRIPTS = [
+    'scripts/run-cache-settings-test.cjs',
     'scripts/run-selection-trigger-test.cjs',
     'scripts/run-full-page-translation-test.cjs',
     'scripts/run-video-subtitle-fixture-test.cjs',
     'scripts/run-document-translation-test.cjs',
     'scripts/testing/run-settings-center-ui-test.cjs',
+    'scripts/testing/run-popup-startup-ui-test.cjs',
+    'scripts/testing/run-loading-motion-ui-test.cjs',
     'scripts/run-privacy-boundary-test.cjs',
     'scripts/run-site-translation-test.cjs',
     'scripts/run-userscript-smoke-test.cjs',
@@ -22,6 +25,8 @@ const ACTIVATED_EXTENSION_TAB_SCRIPTS = FOCUS_SAFE_SCRIPTS.filter(
     (path) => ![
         'scripts/run-document-translation-test.cjs',
         'scripts/testing/run-settings-center-ui-test.cjs',
+        'scripts/testing/run-popup-startup-ui-test.cjs',
+        'scripts/testing/run-loading-motion-ui-test.cjs',
         'scripts/run-userscript-smoke-test.cjs',
     ].includes(path),
 );

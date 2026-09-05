@@ -1,0 +1,107 @@
+[
+  {
+    "id": "github",
+    "url": "https://github.com/example/project/issues/1",
+    "html": "<nav id=\"navigation\">Navigation controls remain unchanged</nav><main><article class=\"markdown-body\"><p id=\"body1\">This readable paragraph describes a useful feature with enough context for translation.<code id=\"protected\">ORIGINAL_CODE</code></p><p id=\"body2\">A second independent paragraph explains how this page keeps its source content stable.</p></article><span data-testid=\"created-at\" id=\"metadata\">Created yesterday</span></main>",
+    "required": [
+      "#body1",
+      "#body2"
+    ],
+    "forbidden": [
+      "#navigation",
+      "#protected",
+      "#metadata"
+    ]
+  },
+  {
+    "id": "x",
+    "url": "https://x.com/example/status/123",
+    "html": "<nav id=\"navigation\">Navigation controls remain unchanged</nav><main><article><div data-testid=\"User-Name\" id=\"protected\">Original author identity</div><div data-testid=\"tweetText\" id=\"body1\">This readable paragraph describes a useful feature with enough context for translation.</div><div data-testid=\"UserDescription\" id=\"body2\">A second independent paragraph explains how this page keeps its source content stable.</div></article></main>",
+    "required": [
+      "#body1",
+      "#body2"
+    ],
+    "forbidden": [
+      "#navigation",
+      "#protected"
+    ]
+  },
+  {
+    "id": "reddit",
+    "url": "https://www.reddit.com/r/example/comments/123/topic/",
+    "html": "<nav id=\"navigation\">Navigation controls remain unchanged</nav><main><shreddit-post><div slot=\"title\" id=\"body1\">This readable paragraph describes a useful feature with enough context for translation.</div><div slot=\"text-body\"><p id=\"body2\">A second independent paragraph explains how this page keeps its source content stable.</p></div><faceplate-timeago id=\"protected\">Three hours ago</faceplate-timeago></shreddit-post></main>",
+    "required": [
+      "#body1",
+      "#body2"
+    ],
+    "forbidden": [
+      "#navigation",
+      "#protected"
+    ]
+  },
+  {
+    "id": "hacker-news",
+    "url": "https://news.ycombinator.com/item?id=123",
+    "html": "<nav id=\"navigation\">Navigation controls remain unchanged</nav><main><div><span class=\"commtext\" id=\"body1\">This readable paragraph describes a useful feature with enough context for translation.</span></div><div class=\"toptext\" id=\"body2\">A second independent paragraph explains how this page keeps its source content stable.</div><span class=\"score\" id=\"protected\">One hundred points</span></main>",
+    "required": [
+      "#body1",
+      "#body2"
+    ],
+    "forbidden": [
+      "#navigation",
+      "#protected"
+    ]
+  },
+  {
+    "id": "youtube",
+    "url": "https://www.youtube.com/watch?v=example123",
+    "html": "<nav id=\"navigation\">Navigation controls remain unchanged</nav><main><ytd-watch-metadata><h1><yt-formatted-string id=\"body1\">This readable paragraph describes a useful feature with enough context for translation.</yt-formatted-string></h1></ytd-watch-metadata><ytd-comment-renderer><div id=\"content-text\">A second independent paragraph explains how this page keeps its source content stable.</div></ytd-comment-renderer><div id=\"movie_player\">Player controls remain unchanged</div></main>",
+    "required": [
+      "#body1",
+      "#content-text"
+    ],
+    "forbidden": [
+      "#navigation",
+      "#movie_player"
+    ]
+  },
+  {
+    "id": "gnu-manual",
+    "url": "https://www.gnu.org/software/bash/manual/html_node/Introduction.html",
+    "html": "<nav id=\"navigation\">Navigation controls remain unchanged</nav><main><div class=\"section-level-extent\"><p id=\"body1\">This readable paragraph describes a useful feature with enough context for translation.</p><p id=\"body2\">A second independent paragraph explains how this page keeps its source content stable.</p></div><div class=\"nav-panel\" id=\"protected\">Next previous contents</div></main>",
+    "required": [
+      "#body1",
+      "#body2"
+    ],
+    "forbidden": [
+      "#navigation",
+      "#protected"
+    ]
+  },
+  {
+    "id": "learnopengl",
+    "url": "https://learnopengl.com/Getting-started/OpenGL",
+    "html": "<nav id=\"navigation\">Navigation controls remain unchanged</nav><div id=\"nav\">Chapter navigation stays in place</div><main id=\"content\"><p id=\"body1\">This readable paragraph describes a useful feature with enough context for translation.</p><p id=\"body2\">A second independent paragraph explains how this page keeps its source content stable.</p></main>",
+    "required": [
+      "#body1",
+      "#body2"
+    ],
+    "forbidden": [
+      "#navigation",
+      "#nav"
+    ]
+  },
+  {
+    "id": "bilibili",
+    "url": "https://www.bilibili.com/video/BVtest/",
+    "html": "<nav id=\"navigation\">Navigation controls remain unchanged</nav><main><p id=\"body1\">This readable paragraph describes a useful feature with enough context for translation.</p><p id=\"body2\">A second independent paragraph explains how this page keeps its source content stable.</p><div id=\"commentapp\"><p>Comments remain owned by their host component</p></div></main>",
+    "required": [
+      "#body1",
+      "#body2"
+    ],
+    "forbidden": [
+      "#navigation",
+      "#commentapp"
+    ]
+  }
+]

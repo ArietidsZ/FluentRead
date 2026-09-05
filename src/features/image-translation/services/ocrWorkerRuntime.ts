@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/ocrWorkerRuntime.ts
  * 文件职责：实现与具体 OCR 引擎无关的 Worker 生命周期和串行任务队列，保证识别、参数设置、语言切换及销毁不会在并发请求间交叉污染。
- * 主要内容：定义 OcrWorkerPort、依赖与 runtime 契约，由 createOcrWorkerRuntime 复用同语言 worker、在切换时安全终止旧实例，并提供 recognize、downloadLanguages 与 dispose。
+ * 主要内容：定义 OcrWorkerPort、依赖与 runtime 契约，复用同语言 worker 与初始化参数，提供识别和语言预加载；排队取消立即结束调用方等待，执行中取消才释放当前 worker。
  * 模块边界：此层不依赖 Tesseract.js 类型、浏览器 storage 或图片翻译 UI；具体 worker 工厂由 ocrRuntime 注入，语言状态记录和 Offscreen 消息编排位于其他模块。
  */
 /**
@@ -40,6 +40,7 @@ export function createOcrWorkerRuntime<TResult>(
 ): OcrWorkerRuntime<TResult> {
     let workerPromise: Promise<OcrWorkerPort<TResult>> | null = null;
     let workerLanguages = '';
+    let configuredWorker: OcrWorkerPort<TResult> | null = null;
     let workerOwnershipGeneration = 0;
     let operationTail: Promise<void> = Promise.resolve();
 
@@ -47,12 +48,13 @@ export function createOcrWorkerRuntime<TResult>(
         const current = workerPromise;
         workerPromise = null;
         workerLanguages = '';
+        configuredWorker = null;
         workerOwnershipGeneration += 1;
         // terminate 本身也可能等待底层 Worker；取消请求不能继续阻塞串行尾链。
         void current?.then(worker => worker.terminate()).catch(() => undefined);
     }
 
-    function runAbortable<T>(operation: Promise<T>, signal?: AbortSignal): Promise<T> {
+    function runAbortable<T>(operation: Promise<T>, signal?: AbortSignal, ownsWorker = true): Promise<T> {
         if (!signal) return operation;
         return new Promise<T>((resolve, reject) => {
             let settled = false;
@@ -64,28 +66,31 @@ export function createOcrWorkerRuntime<TResult>(
                 callback();
             };
             const handleAbort = () => finish(() => {
-                terminateCurrentWorker();
+                if (ownsWorker) terminateCurrentWorker();
                 reject(createOcrAbortError());
             });
 
+            // 即使 signal 已取消，也接住底层迟到的拒绝，避免遗留未处理 Promise。
+            void operation.then(
+                value => finish(() => resolve(value)),
+                error => finish(() => reject(error)),
+            );
             if (signal.aborted) {
                 handleAbort();
                 return;
             }
             signal.addEventListener('abort', handleAbort, {once: true});
-            void operation.then(
-                value => finish(() => resolve(value)),
-                error => finish(() => reject(error)),
-            );
         });
     }
 
-    function runExclusive<T>(operation: () => Promise<T>): Promise<T> {
+    function runExclusive<T>(operation: () => Promise<T>, signal?: AbortSignal): Promise<T> {
         // 步骤 1：无论上一项成功还是失败，后续 OCR 操作都必须继续执行。
         const result = operationTail.then(operation, operation);
         // 步骤 2：尾链只保存完成信号，调用方仍收到原始结果或异常。
         operationTail = result.then(() => undefined, () => undefined);
-        return result;
+        // 排队请求尚未持有 worker，取消只能结束自己的等待；尾链仍等待
+        // 前一任务完成，避免后来的请求越过正在进行的 OCR。
+        return runAbortable(result, signal, false);
     }
 
     async function getWorker(languages: string): Promise<OcrWorkerPort<TResult>> {
@@ -108,6 +113,7 @@ export function createOcrWorkerRuntime<TResult>(
             assertTransitionOwnership();
             workerPromise = null;
             workerLanguages = '';
+            configuredWorker = null;
         }
 
         const nextWorkerPromise = dependencies.createWorker(languages);
@@ -130,19 +136,22 @@ export function createOcrWorkerRuntime<TResult>(
             return runExclusive(async () => {
                 if (signal?.aborted) throw createOcrAbortError();
                 const worker = await runAbortable(getWorker(languages), signal);
-                await runAbortable(worker.setParameters({
-                    tessedit_pageseg_mode: dependencies.sparseTextMode,
-                    preserve_interword_spaces: '1',
-                }), signal);
+                if (configuredWorker !== worker) {
+                    await runAbortable(worker.setParameters({
+                        tessedit_pageseg_mode: dependencies.sparseTextMode,
+                        preserve_interword_spaces: '1',
+                    }), signal);
+                    configuredWorker = worker;
+                }
                 return runAbortable(worker.recognize(image, {}, {blocks: true}), signal);
-            });
+            }, signal);
         },
         ensureLanguages(languages, signal) {
             if (languages.length === 0) return Promise.resolve();
             return runExclusive(async () => {
                 if (signal?.aborted) throw createOcrAbortError();
                 await runAbortable(getWorker(languages.join('+')), signal);
-            });
+            }, signal);
         },
     };
 }

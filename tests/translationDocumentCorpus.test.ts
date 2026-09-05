@@ -337,6 +337,67 @@ describe('offline whole-document translation corpus', () => {
             'Standalone OpenGL code remains a hard translation boundary',
         ).toBeNull();
     });
+
+    it('covers the QQ Mail reading surface across presentation tables and dynamic mail replacement', () => {
+        const {document, core} = loadFixture(
+            'qqmail-reading.html',
+            'https://wx.mail.qq.com/home/index#/list/6',
+        );
+        installInlineDisplayStyles(document);
+        const expected = [
+            'mail-greeting',
+            'mail-body',
+            'mail-table-cell',
+            'mail-nested-cell',
+            'mail-protected-around',
+        ];
+        const candidates = [...core.discoverSteps(document)]
+            .flatMap((step) => step.candidate ? [step.candidate] : []);
+        expectExactCandidateOwners(candidates, expected, 'QQ Mail presentation-table reading surface');
+        expect(
+            candidates.some((candidate) => fixtureId(candidate.element) === 'mail-table-cell-two'),
+            'A presentation cell containing a paragraph must defer ownership to its readable paragraph leaf',
+        ).toBe(false);
+
+        for (const id of expected) {
+            const element = document.querySelector(`[data-testid="${id}"]`)!;
+            const discovered = candidates.find((candidate) => candidate.element === element);
+            expect(discovered, `${id}: full discovery must produce a candidate`).toBeDefined();
+            expect(
+                core.resolve(element.firstChild)?.element,
+                `${id}: hover resolution must select the same readable leaf`,
+            ).toBe(element);
+        }
+
+        const protectedAround = document.querySelector('[data-testid="mail-protected-around"]')!;
+        const providerText = extractTranslationText(protectedAround, core.shouldStayOriginal);
+        expect(providerText).toContain('Readable text around');
+        expect(providerText).toContain('and');
+        expect(providerText).not.toContain('SECRET_CODE_DO_NOT_TRANSLATE');
+        expect(providerText).not.toContain('PROTECTED_TOKEN');
+        for (const id of ['mail-editable', 'mail-hidden']) {
+            expect(
+                candidates.some((candidate) => fixtureId(candidate.element) === id),
+                `${id}: page-controlled or hidden content must not become a full-page candidate`,
+            ).toBe(false);
+            expect(core.resolve(document.querySelector(`[data-testid="${id}"]`)!)).toBeNull();
+        }
+
+        const replacement = document.createElement('div');
+        replacement.className = 'mail-detail-content';
+        replacement.innerHTML = '<div class="qmbox"><table role="presentation"><tbody><tr><td><p data-testid="replacement-mail-body">The newly opened message has fresh readable content.</p></td></tr></tbody></table></div>';
+        document.querySelector('[data-testid="mail-detail-content"]')!.replaceWith(replacement);
+        const replacementCandidates = core.discover(replacement);
+        expectExactCandidateOwners(
+            replacementCandidates,
+            ['replacement-mail-body'],
+            'QQ Mail dynamic message replacement',
+        );
+        expect(
+            replacementCandidates.some((candidate) => fixtureId(candidate.element)?.startsWith('mail-')),
+            'A replaced message must not retain candidates from the previous message',
+        ).toBe(false);
+    });
 });
 
 describe('minimal candidate-boundary constructions', () => {

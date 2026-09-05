@@ -1,9 +1,11 @@
 /**
  * @file src/features/image-translation/services/client.ts
  * 文件职责：封装网页与扩展页面调用图片翻译后台的 runtime 消息，统一支持跨域图片读取、OCR 识别与整图翻译三种可取消客户端操作。
- * 主要内容：提供 fetchImageInExtension、recognizeImageInExtension 与 translateImageInExtension，生成跨页面安全请求标识，传播取消和超时信号，并校验后台响应。
+ * 主要内容：提供 fetchImageInExtension、recognizeImageInExtension 与 translateImageInExtension，生成跨页面安全请求标识，传播取消和超时信号，订阅当前任务的真实阶段、清理监听，并校验后台响应。
  * 模块边界：客户端不读取图片像素、不直接访问网络或 Offscreen；跨域 URL 只作为受控消息交给 background，再由 Offscreen 校验和读取，页面 UI 由 content/runtime 决定。
  */
+import {getRequiredImageOcrLanguages} from '../ocrLanguages';
+import {IMAGE_PROGRESS_MESSAGE_TYPE, isImageTranslationStage, type ImageTranslationStage} from '../progress';
 import type { OcrLine } from '@/src/features/image-translation/core';
 
 interface ImageTranslationLine extends OcrLine {
@@ -33,6 +35,7 @@ export interface ImageExtensionOperationOptions {
     readonly requestId?: string;
     readonly signal?: AbortSignal;
     readonly timeoutMs?: number;
+    readonly onProgress?: (stage: ImageTranslationStage) => void;
 }
 
 const DEFAULT_IMAGE_OPERATION_TIMEOUT_MS = 180_000;
@@ -79,6 +82,7 @@ export async function sendCancellableImageOperation<TResponse>(
         const cleanup = () => {
             if (timer !== undefined) clearTimeout(timer);
             options.signal?.removeEventListener('abort', handleAbort);
+            if (options.onProgress) browser.runtime.onMessage.removeListener(handleProgress);
         };
         const finish = (callback: () => void) => {
             if (settled) return;
@@ -87,11 +91,21 @@ export async function sendCancellableImageOperation<TResponse>(
             callback();
         };
         const notifyCancellation = () => {
-            void Promise.resolve(browser.runtime.sendMessage({
-                type: cancelMessageType,
-                requestId,
-            })).catch(() => undefined);
+            try {
+                void Promise.resolve(browser.runtime.sendMessage({type: cancelMessageType, requestId})).catch(() => undefined);
+            } catch {
+                // 扩展销毁时消息可能同步失败，本地取消仍必须结束等待。
+            }
         };
+        const handleProgress = (value: unknown) => {
+            if (settled || !value || typeof value !== 'object') return;
+            const progress = value as Record<string, unknown>;
+            if (progress.type === IMAGE_PROGRESS_MESSAGE_TYPE && progress.requestId === requestId
+                && isImageTranslationStage(progress.stage)) {
+                try { options.onProgress?.(progress.stage); } catch { /* 展示旁路不能中断请求清理。 */ }
+            }
+        };
+        if (options.onProgress) browser.runtime.onMessage.addListener(handleProgress);
         const handleAbort = () => finish(() => {
             notifyCancellation();
             reject(createImageClientError('图片 OCR 请求已取消', 'AbortError'));
@@ -102,10 +116,14 @@ export async function sendCancellableImageOperation<TResponse>(
             notifyCancellation();
             reject(createImageClientError(timeoutMessage, 'TimeoutError'));
         }), timeoutMs);
-        void browser.runtime.sendMessage({...message, requestId, timeoutMs}).then(
-            (response: unknown) => finish(() => resolve(response as TResponse | undefined)),
-            (error: unknown) => finish(() => reject(error)),
-        );
+        try {
+            void browser.runtime.sendMessage({...message, requestId, timeoutMs}).then(
+                (response: unknown) => finish(() => resolve(response as TResponse | undefined)),
+                (error: unknown) => finish(() => reject(error)),
+            );
+        } catch (error) {
+            finish(() => reject(error));
+        }
     });
 }
 
@@ -160,4 +178,12 @@ export async function translateImageInExtension(
     }
 
     return { image: response.image, lines: response.lines };
+}
+
+/** 用户主动准备语言后继续原图片任务，复用设置页的下载与持久化路径。 */
+export async function prepareImageOcrLanguages(sourceLanguage: string, signal?: AbortSignal): Promise<void> {
+    const response = await sendCancellableImageOperation<{success?: boolean; error?: string}>({
+        type: 'fluentReadImageOcrDownload', languages: getRequiredImageOcrLanguages(sourceLanguage),
+    }, {signal, timeoutMs: 300_000}, '语言包准备超时，请检查网络后重试');
+    if (!response?.success) throw new Error(response?.error || '语言包准备失败');
 }

@@ -9,22 +9,19 @@ import {config, configReady} from '@/src/services/config/store';
 import {synthesizeEdgeTts} from '@/src/features/selection-translation/services/edgeTts';
 import {lookupWord} from '@/src/features/selection-translation/services/wordDictionary';
 import {vocabularyBook} from '@/src/features/vocabulary/repository';
-import {clearTranslationCache, translateWithCache} from '@/src/app/translation/runtime';
+import {clearTranslationCache, getTranslationCacheStats, translateWithCache} from '@/src/app/translation/runtime';
 import {serializeTranslationError} from '@/src/services/translation/errors';
 import {createBackgroundMessageRouter, type BackgroundMessageHandler} from './messageRouter';
 import {
     createAreaTranslationBackgroundHandlers,
     type AreaTranslationBackgroundContext,
 } from './handlers/areaTranslation';
-import {
-    createTranslationCacheHandler,
-    createTranslationCacheInvalidationBroadcaster,
-} from './handlers/translationCache';
+import {createTranslationCacheHandlers, createTranslationCacheInvalidationBroadcaster} from './handlers/translationCache';
 import {type ConfigPersistenceContext} from './handlers/configPersistence';
 import {createConnectionTestHandler} from './handlers/connectionTest';
 import {
-    createFullPageTranslationStateHandlers,
-    type FullPageBackgroundContext,
+    createFullPageTranslationStateHandlers, createQqMailFrameBackgroundHandlers,
+    type FullPageBackgroundContext, type QQMailFrameBackgroundContext,
 } from './handlers/fullPageTranslationState';
 import {
     createImageOcrLanguageRepository,
@@ -49,13 +46,14 @@ import {
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
 import {supportsTranslationBatch} from '@/src/services/translation/capabilities';
 import {areaTranslationOffscreenAdapter} from '@/src/features/area-translation/background/offscreenAdapter';
-import {imageTranslationOffscreenAdapter} from '@/src/features/image-translation/background/offscreenAdapter';
+import {imageTranslationOffscreenAdapter, imageTranslationProgressTransport} from '@/src/features/image-translation/background/offscreenAdapter';
 import {selectionTtsOffscreenAdapter} from '@/src/features/selection-translation/background/offscreenAdapter';
 import {createCapabilityGatedBackgroundHandlers, createCapabilityGatedSelectionTtsTransport} from './capabilityRegistry';
 import {createConfigBackgroundHandlers} from './configMessageHandlers';
 import {createConfigImageOcrLanguageStorage, installBrowserConfigStorageBroadcast} from './configStorageRuntime';
 import {modelUsageRepository} from '@/src/platform/storage/modelUsageRepository';
-type BackgroundRuntimeContext = ConfigPersistenceContext & VocabularyBackgroundContext & SelectionTtsContext
+import {installHarnessBackgroundRuntime} from './harnessRuntime';
+type BackgroundRuntimeContext = QQMailFrameBackgroundContext & ConfigPersistenceContext & VocabularyBackgroundContext & SelectionTtsContext
     & FullPageBackgroundContext & AreaTranslationBackgroundContext;
 export interface BackgroundMessageRuntimeOptions {
     tabTranslationStates: TabTranslationStateStore;
@@ -70,7 +68,9 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     const selectionTtsTransport = createCapabilityGatedSelectionTtsTransport(capabilities, selectionTtsOffscreenAdapter);
     const handlers: Array<BackgroundMessageHandler<BackgroundRuntimeContext>> = [
         createTranslationCancelHandler(translationRequestRegistry),
-        createTranslationCacheHandler(clearTranslationCache, createTranslationCacheInvalidationBroadcaster({
+        installHarnessBackgroundRuntime(),
+        ...createQqMailFrameBackgroundHandlers({sendTabMessage: (tabId, message, options) => browser.tabs.sendMessage(tabId, message, options)}),
+        ...createTranslationCacheHandlers(clearTranslationCache, getTranslationCacheStats, createTranslationCacheInvalidationBroadcaster({
             queryTabs: () => browser.tabs.query({}) as Promise<Array<{id?: number}>>,
             sendTabMessage: (tabId, message) => browser.tabs.sendMessage(tabId, message),
             warn: (message, error) => console.warn(message, error),
@@ -108,7 +108,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             translate: translateWithCache,
             warn: (message, error) => console.warn(message, error),
         }),
-        ...createCapabilityGatedBackgroundHandlers(capabilities, {
+        ...createCapabilityGatedBackgroundHandlers<BackgroundRuntimeContext>(capabilities, {
             areaTranslation: () => createAreaTranslationBackgroundHandlers({
                 captureVisibleTab: (windowId) => browser.tabs.captureVisibleTab(windowId, {format: 'png'}),
                 getDefaultSourceLanguage: () => config.from,
@@ -117,14 +117,12 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             }),
             imageTranslation: () => createImageTranslationBackgroundHandlers({
                 assertLanguagesDownloaded: imageOcrLanguageRepository.assertDownloaded,
-                recognizeImage: imageTranslationOffscreenAdapter.recognizeImage,
-                translateImage: imageTranslationOffscreenAdapter.translateImage,
-                fetchImage: imageTranslationOffscreenAdapter.fetchImage,
+                ...imageTranslationOffscreenAdapter,
                 translateTexts: translateWithCache,
                 getTranslationService: () => config.service,
                 supportsBatchTranslation: supportsTranslationBatch,
-                downloadLanguages: imageTranslationOffscreenAdapter.downloadLanguages,
                 markLanguagesDownloaded: imageOcrLanguageRepository.markDownloaded,
+                ...imageTranslationProgressTransport,
             }),
         }),
         ...createSelectionTtsBackgroundHandlers({

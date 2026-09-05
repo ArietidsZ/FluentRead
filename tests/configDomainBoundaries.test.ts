@@ -40,6 +40,15 @@ import {
 } from '@/src/core/config/validation';
 
 describe('配置领域边界与防御分支', () => {
+    it('旧配置获得缓存默认双上限，保存与导入统一归一化范围', () => {
+        expect(normalizeConfig({})).toMatchObject({translationCacheMaxBytes: 5 * 1024 * 1024, translationCacheMaxEntries: 2000});
+        expect(normalizeConfig({translationCacheMaxBytes: 20 * 1024 * 1024, translationCacheMaxEntries: 5000}))
+            .toMatchObject({translationCacheMaxBytes: 20 * 1024 * 1024, translationCacheMaxEntries: 5000});
+        expect(normalizeConfig({translationCacheMaxBytes: 'unlimited', translationCacheMaxEntries: Number.NaN}))
+            .toMatchObject({translationCacheMaxBytes: 5 * 1024 * 1024, translationCacheMaxEntries: 2000});
+        expect(normalizeConfig({translationCacheMaxBytes: 500 * 1024 * 1024, translationCacheMaxEntries: 1_000_000}))
+            .toMatchObject({translationCacheMaxBytes: 100 * 1024 * 1024, translationCacheMaxEntries: 50_000});
+    });
     it('服务能力查询覆盖正反例与复合供应商判断', () => {
         expect(servicesType.isAiSdk(services.openai)).toBe(true);
         expect(servicesType.isAiSdk(services.gemini)).toBe(false);

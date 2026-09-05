@@ -31,13 +31,13 @@ export const navigationGroups: NavigationGroup[] = [
         id: 'settings-general', icon: '⌂', label: '通用设置', description: '服务、显示与网页辅助', group: '基础配置',
         heading: '通用设置', summary: '选择默认翻译服务，并管理译文显示、网页辅助和基础偏好。',
         kicker: '基础配置', title: '通用设置', detail: '选择默认翻译服务，并管理译文显示、网页辅助和基础偏好。',
-        searchDescription: '选择翻译服务、默认服务、译文显示、双语逐句高亮、网页辅助、AI 智能上下文、默认目标语言、主题',
+        searchDescription: '选择翻译服务、默认服务、译文显示、双语逐句高亮、网页辅助、AI 精翻、AI 智能上下文、默认目标语言、主题',
       },
       {
-        id: 'settings-interface', icon: '▦', label: '界面布局', description: '界面与弹窗、菜单栏布局', group: '基础配置',
-        heading: '界面布局', summary: '选择喜欢的界面风格，编排菜单栏中的模块和快捷功能。',
-        kicker: '基础配置', title: '界面布局', detail: '选择喜欢的界面风格，编排菜单栏中的模块和快捷功能。',
-        searchDescription: '界面设置、界面与弹窗、弹窗风格、默认风格、简约风格、紧凑风格、高对比、奶酪、海盐、抹茶、樱花、夜幕、纸张护眼、Emoji、菜单栏布局、弹窗栏目、快捷功能栏、当前网站栏目、底部信息栏',
+        id: 'settings-interface', icon: '▦', label: '界面布局', description: '界面与弹窗、动画与加载、菜单栏布局', group: '基础配置',
+        heading: '界面布局', summary: '选择喜欢的界面风格，调整动画加载效果，并编排菜单栏中的模块和快捷功能。',
+        kicker: '基础配置', title: '界面布局', detail: '选择喜欢的界面风格，调整动画加载效果，并编排菜单栏中的模块和快捷功能。',
+        searchDescription: '界面设置、界面与弹窗、动画与加载效果、界面动画、翻译加载样式、简洁、柔和圆环、跳跃圆点、行星轨道、星光、涟漪扩散、起伏波形、光线扫过、流沙沙漏、小彗星、翻转方块、弹跳小球、打字光标、扫描线、信号柱、弹窗风格、默认风格、简约风格、紧凑风格、高对比、奶酪、海盐、抹茶、樱花、夜幕、纸张护眼、Emoji、菜单栏布局、弹窗栏目、快捷功能栏、当前网站栏目、底部信息栏',
       },
       {
         id: 'settings-services', icon: '译', label: '翻译服务', description: '服务与模型', group: '基础配置',
@@ -69,10 +69,10 @@ export const navigationGroups: NavigationGroup[] = [
         searchDescription: 'YouTube、视频字幕、视频翻译服务、显示模式、字幕字号、DeepLX、微软翻译',
       },
       {
-        id: 'settings-sites', icon: '站', label: '网站规则', description: '自动翻译与禁用名单', group: '专项翻译',
-        heading: '网站规则', summary: '按网站主域名设置自动翻译或禁用扩展。',
-        kicker: '专项翻译', title: '网站规则', detail: '规则按主域名保存，并自动应用到同一网站的所有子域。',
-        searchDescription: '网站、域名、网址、主域名、自动翻译、始终翻译、禁用扩展与子域',
+        id: 'settings-sites', icon: '站', label: '网站规则', description: '自动翻译、禁用与网站适配', group: '专项翻译',
+        heading: '网站规则', summary: '管理网站翻译偏好，以及正文和界面的翻译范围。',
+        kicker: '专项翻译', title: '网站规则', detail: '自动翻译与禁用名单按主域名生效；网站适配可进一步指定路径和内容区域。',
+        searchDescription: '网站、域名、网址、主域名、自动翻译、始终翻译、禁用扩展、子域、网站适配、兼容、JSON、自定义规则、正文、保护区域',
       },
     ],
   },
@@ -97,6 +97,12 @@ export const navigationGroups: NavigationGroup[] = [
         kicker: '本地学习', title: '单词本', detail: '词条、上下文与复习记录只保存在当前浏览器；可在这里复习或导出到 Anki。',
         searchDescription: '单词本、收藏、复习、掌握程度、学习记录、Anki、导入导出',
       },
+      {
+        id: 'settings-harness', icon: '文', label: 'DeepSeek Harness', description: '选区学习辅助', group: '工具与学习',
+        heading: 'DeepSeek Harness', summary: '选中文本后按需调用 AI，帮助理解、拆句、掌握用法和练习。',
+        kicker: '学习辅助', title: 'DeepSeek Harness', detail: '配置选区学习辅助的服务、上下文范围和回答偏好。',
+        searchDescription: 'Harness、DeepSeek、读懂、拆句、用法、练习、选区、段落、学习辅助、解释深度、学习程度',
+      },
     ],
   },
   {
@@ -104,9 +110,9 @@ export const navigationGroups: NavigationGroup[] = [
     items: [
       {
         id: 'settings-advanced', icon: '◇', label: '高级选项', description: '性能与模板', group: '系统与数据',
-        heading: '高级选项', summary: '管理缓存、并发、限流、重试和动画等运行策略。',
+        heading: '高级选项', summary: '管理缓存、并发、限流和重试等运行策略。',
         kicker: '系统与数据', title: '高级选项', detail: '调整缓存、并发、限流和重试；不确定时建议保留默认值。',
-        searchDescription: '缓存、动画、翻译动画、加载样式、简洁、柔和圆环、跳跃圆点、行星轨道、星光、并发、限流、重试、性能、资源占用',
+        searchDescription: '缓存、缓存容量、存储大小、缓存条数、缓存上限、缓存阈值、清空缓存、清除缓存、LRU、并发、限流、重试、性能、资源占用',
       },
       {
         id: 'settings-data', icon: '⇅', label: '备份与恢复', description: '导出备份、恢复数据', group: '系统与数据',

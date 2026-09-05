@@ -43,6 +43,33 @@ function settingsGroupTitles(content: string): string[] {
 }
 
 describe('options UI composition architecture', () => {
+  it('keeps cache management inside advanced settings without another navigation or popup surface', () => {
+    const sections = source('src/features/settings/ui/SettingsSections.vue')
+    const cache = source('src/features/settings/ui/TranslationCacheSettings.vue')
+    const navigation = source('src/features/settings/model/navigation.ts')
+    const popup = source('src/app/popup/PopupApp.vue')
+
+    expect(activeSectionSource(sections, 'settings-advanced')).toContain('<TranslationCacheSettings')
+    expect(sections).toContain('<TranslationCacheSettings v-if="props.activeSection === \'settings-advanced\'" :config="config" />')
+    expect(navigation).toContain('缓存容量、存储大小、缓存条数、缓存上限、缓存阈值、清空缓存、清除缓存、LRU')
+    expect(navigation).not.toContain("id: 'settings-cache'")
+    expect(popup).not.toContain('TranslationCacheSettings')
+    expect(cache).toContain('data-cache-bytes')
+    expect(cache).toContain('data-cache-entries')
+    expect(cache).toContain('<details class="translation-cache-limits" data-cache-limits>')
+    expect(cache).toContain('aria-live="polite"')
+    expect(cache).toContain('role="alert"')
+    expect(cache).toContain('@submit.prevent="saveLimits"')
+    expect(cache).toContain('requestConfigPatch(patch, browser.runtime.sendMessage.bind(browser.runtime))')
+    expect(cache).toContain('getTranslationCacheStats()')
+    expect(cache).toContain('clearManagedTranslationCache()')
+    expect(cache).not.toContain('indexedDB')
+    expect(cache).not.toContain('v-model="props.config.')
+    expect(cache).not.toContain(':disabled="!props.config.useCache"')
+    expect(cache).toContain("onUnmounted(() => { disposed = true; });")
+    expect(cache).toContain('@media (max-width: 480px)')
+  })
+
   it('keeps the WXT options entrypoint as a thin app composition shell', () => {
     const entrypoint = sourceBody('entrypoints/options/main.ts')
     expect(entrypoint).toBe("import { mountOptionsApp } from '@/src/app/options'\n\nmountOptionsApp('#app')\n")
@@ -59,8 +86,10 @@ describe('options UI composition architecture', () => {
     const interfaceSettings = source('src/features/settings/ui/InterfaceSettings.vue')
     const interfaceSkinPreview = source('src/features/settings/ui/components/InterfaceSkinPreview.vue')
     const popupLayoutPreview = source('src/features/settings/ui/components/PopupLayoutPreview.vue')
+    const popupLayoutPreviewItem = source('src/features/settings/ui/components/PopupLayoutPreviewItem.vue')
     const settingsItem = source('src/features/settings/ui/components/SettingsItem.vue')
     const popupLayoutEditor = source('src/features/settings/ui/PopupLayoutEditor.vue')
+    const popupLayoutReorder = source('src/features/settings/ui/usePopupLayoutReorder.ts')
     const popupSiteRule = source('src/app/popup/PopupSiteRule.vue')
     const popupEntry = source('src/app/popup/index.ts')
     const optionsEntry = source('src/app/options/index.ts')
@@ -95,6 +124,9 @@ describe('options UI composition architecture', () => {
       "translateLegacy('界面与弹窗')",
       "t('settings.interface.popupLayout.label')",
     ])
+    expect(interfaceSettings).toContain('<TranslationLoadingStyleSettings :config="props.config" />')
+    expect(interfaceSettings.indexOf('<TranslationLoadingStyleSettings')).toBeLessThan(interfaceSettings.indexOf('t(\'settings.interface.popupLayout.label\')'))
+    expect(source('src/features/settings/ui/TranslationLoadingStyleSettings.vue')).toContain("t('settings.interface.animationLoading.label')")
     expect(interfaceSettings).toContain('interfaceSkinOptions')
     expect(interfaceSettings).toContain('interfaceSkinGroups')
     expect(interfaceSettings).toContain('groupedSkinOptions')
@@ -125,9 +157,14 @@ describe('options UI composition architecture', () => {
     expect(popupLayoutPreview).toContain('data-preview-popup-module="translation"')
     expect(popupLayoutPreview).toContain(':data-preview-quick-feature="feature.id"')
     expect(popupLayoutPreview).toContain('siteModuleNestedInTranslation')
+    expect(popupLayoutPreview).toContain('editScope')
     expect(popupLayoutPreview).not.toContain('<img')
     expect(interfaceSettings).toContain("t('settings.interface.popupLayout.label')")
-    expect(interfaceSettings).toContain("t('settings.interface.popupQuickFeatures.label')")
+    expect(interfaceSettings).toContain("t('settings.interface.popupLayout.moduleTab')")
+    expect(interfaceSettings).toContain("t('settings.interface.popupLayout.featureTab')")
+    expect(interfaceSettings).toContain("t('settings.interface.popupLayout.addFeatureSection')")
+    expect(interfaceSettings).toContain('@update:module-order="setPopupModuleOrder"')
+    expect(interfaceSettings).toContain('@update:quick-feature-order="setPopupQuickFeatureOrder"')
     expect(popupLayoutEditor).toContain('data-popup-layout-editor')
     expect(popupLayoutEditor).toContain('data-popup-quick-feature-editor')
     expect(popupLayoutEditor).toContain('data-popup-quick-feature-layout')
@@ -136,6 +173,16 @@ describe('options UI composition architecture', () => {
     expect(popupLayoutEditor).toContain('@keydown.down.prevent')
     expect(popupLayoutEditor).toContain("import {useUiI18n} from '@/src/ui/i18n'")
     expect(popupLayoutEditor).toContain('`${props.copyPrefix}.${suffix}`')
+    expect(popupLayoutEditor).toContain('popup-layout-hidden-section')
+    expect(popupLayoutEditor).toContain("copy('hideAria'")
+    expect(popupLayoutEditor).toContain("copy('addAria'")
+    expect(popupLayoutEditor).not.toContain('<el-switch')
+    expect(popupLayoutPreviewItem).toContain('layout-preview-drag-handle')
+    expect(popupLayoutPreviewItem).toContain('data-preview-action')
+    expect(popupLayoutPreviewItem).toContain('controller.move')
+    expect(popupLayoutReorder).toContain('reorderVisibleSlots')
+    expect(popupLayoutReorder).toContain('visibleIds')
+    expect(popupLayoutReorder).toContain('event.dataTransfer')
     expect(popupSiteRule).toContain('data-popup-module="siteRule"')
     expect(popupEntry).toContain("@/src/ui/styles/interface-skins.css")
     expect(optionsEntry).toContain("@/src/ui/styles/interface-skins.css")
@@ -143,7 +190,7 @@ describe('options UI composition architecture', () => {
     expect(skinStyles).toContain('body.popup-page')
     expect(skinStyles).toContain('data-popup-height="content"')
     expect(skinStyles).toContain('min-height: 0')
-    const nonDefaultSkins = ['minimal', 'compact', 'contrast', 'cheese', 'ocean', 'matcha', 'sakura', 'emoji', 'midnight', 'paper']
+    const nonDefaultSkins = ['minimal', 'compact', 'contrast', 'cheese', 'ocean', 'matcha', 'sakura', 'emoji', 'midnight', 'paper', 'aurora', 'arcade', 'sunset']
     for (const skin of nonDefaultSkins) {
       expect(skinStyles).toContain(`./interface-skins/${skin}.css`)
       expect(source(`src/ui/styles/interface-skins/${skin}.css`)).toContain(`data-interface-skin="${skin}"`)
@@ -204,7 +251,17 @@ describe('options UI composition architecture', () => {
     expect(modelUsageDashboard).not.toContain('<span>模型缓存</span>')
     expect(modelUsageDashboard).not.toContain('缓存明细覆盖')
     expect(modelUsageDashboard).toContain('次{{ selectedTotals.cacheReportedRequests < selectedTotals.reportedTokenRequests ? \'可计算\' : \'\' }}请求命中')
-    expect(modelUsageDashboard).toContain('逐请求可观测记录')
+    expect(modelUsageDashboard).toContain('usage-composition-card')
+    expect(modelUsageDashboard).toContain(':data-segment="segment.key"')
+    expect(modelUsageDashboard).toContain('<details class="usage-average-card">')
+    expect(modelUsageDashboard).toContain('<details v-if="hasSelectedUsage" class="usage-card usage-request-log-card"')
+    expect(modelUsageDashboard).toContain('<strong>请求记录</strong>')
+    expect(modelUsageDashboard).toContain('class="usage-refresh-button"')
+    expect(modelUsageDashboard).toContain('aria-label="趋势指标"')
+    expect(modelUsageDashboard).toContain(':aria-pressed="trendMetric === \'tokens\'"')
+    expect(modelUsageDashboard).toContain(':aria-pressed="trendMetric === \'requests\'"')
+    expect(modelUsageDashboard).toContain('class="usage-trend-inspector" aria-live="polite"')
+    expect(modelUsageDashboard).toContain('@keydown="handleTrendKeydown($event, index)"')
     expect(modelUsageDashboard).toContain('输入命中率 ${formatUsageRate(requestCacheRate(item))}')
     expect(modelUsageDashboard).toContain('缓存创建（服务商上报）')
     expect(modelUsageDashboard).toContain('requestPageSizeOptions')
@@ -324,7 +381,6 @@ describe('options UI composition architecture', () => {
     expect(popup).toContain('@/src/ui/components/ServiceIcon.vue')
     expect(popup).toContain('@/src/platform/browser/ids')
     expect(popup).toContain('requestConfigPatch')
-    expect(popup).toContain('requestConfigSave')
     expect(popup).toContain('config.interfaceVisibility.popupQuickFeatures')
     expect(popup).toContain('config.value.interfaceVisibility.popupSiteRule')
     expect(popup).toContain('config.interfaceVisibility.popupFooter')
@@ -440,6 +496,7 @@ describe('options UI composition architecture', () => {
 
   it('offers selectable paragraph loading animations with true runtime previews', () => {
     const settings = source('src/features/settings/ui/SettingsSections.vue')
+    const interfaceSettings = source('src/features/settings/ui/InterfaceSettings.vue')
     const picker = source('src/features/settings/ui/TranslationLoadingStyleSettings.vue')
     const preview = source('src/ui/components/TranslationLoadingPreview.vue')
     const indicator = source('src/ui/translationLoadingIndicator.ts')
@@ -447,7 +504,8 @@ describe('options UI composition architecture', () => {
     const userscriptSettings = source('userscript/SettingsPanel.vue')
     const userscriptSmoke = source('scripts/run-userscript-smoke-test.cjs')
 
-    expect(settings).toContain('<TranslationLoadingStyleSettings :config="config" />')
+    expect(settings).not.toContain('<TranslationLoadingStyleSettings :config="config" />')
+    expect(interfaceSettings).toContain('<TranslationLoadingStyleSettings :config="props.config" />')
     expect(picker).toContain('v-for="option in translationLoadingStyleOptions"')
     expect(picker).toContain('role="radiogroup"')
     expect(picker).toContain('<TranslationLoadingPreview')
@@ -456,6 +514,7 @@ describe('options UI composition architecture', () => {
     expect(picker).toContain('const { t } = useUiI18n()')
     expect(picker).toContain('t(option.labelKey)')
     expect(picker).toContain('t(option.descriptionKey)')
+    expect(picker).toContain("settings.interface.animationLoading.label")
     expect(picker).not.toContain('{{ option.label }}')
     expect(picker).not.toContain('{{ option.description }}')
     expect(preview).toContain('createTranslationLoadingIndicator(document')
@@ -500,19 +559,22 @@ describe('options UI composition architecture', () => {
     expect(translationCenter).toContain('if (Object.keys(patch).length === 0) return')
   })
 
-  it('uses patches for ordinary autosaves while retaining a best-effort page-exit snapshot', () => {
+  it('uses patches for ordinary autosaves and hands the pending popup chain to the config service on exit', () => {
     const popup = source('src/app/popup/PopupApp.vue')
     const settings = source('src/features/settings/ui/SettingsSections.vue')
 
     for (const content of [popup, settings]) {
       expect(content).toContain('requestConfigPatch')
-      expect(content).toContain('requestConfigSave')
       expect(content).toContain('persistConfigPatch(snapshot)')
-      expect(content).toContain('persistConfigReplace(config.value)')
-      expect(content).toContain('best-effort')
-      expect(content).toContain('revision 边界会拒绝过期 replace')
       expect(content).not.toContain('replace 作为队列 flush/barrier')
     }
+    expect(settings).toContain('requestConfigSave')
+    expect(settings).toContain('best-effort')
+    expect(settings).toContain('persistConfigReplace(config.value)')
+    expect(settings).toContain('revision 边界会拒绝过期 replace')
+    expect(popup).not.toContain('requestConfigSave')
+    expect(popup).toContain('persistConfigPatch(config.value)')
+    expect(popup).toContain('handoffPendingConfigPatches(sendConfigMessage, sendConfigMessage)')
   })
 
   it('hydrates settings drafts through normalizeConfig so nested edits cannot mutate the runtime baseline', () => {
@@ -546,18 +608,20 @@ describe('options UI composition architecture', () => {
     expect(testConnection).toContain('service: testedService')
   })
 
-  it('labels Chrome connection action as preparation for only the displayed language pair', () => {
+  it('uses the configured language pair and exposes official Chrome help', () => {
     const serviceConfiguration = source('src/features/settings/ui/services/ServiceConfiguration.vue')
     const chromePreparation = source('src/features/settings/model/chromeTranslationPreparation.ts')
 
     expect(serviceConfiguration).toContain("t('settings.services.chromePreparation.action')")
     expect(serviceConfiguration).toContain("t('settings.services.chromePreparation.titleReady')")
     expect(serviceConfiguration).toContain("t('settings.services.chromePreparation.noKey')")
-    expect(serviceConfiguration).toContain('const { language, t } = useUiI18n()')
-    expect(serviceConfiguration).toContain('data-chrome-preparation-source')
-    expect(serviceConfiguration).toContain('data-i18n-ignore')
-    expect(serviceConfiguration).toContain('getChromeTranslationPreparationLanguageLabel(item.value, language)')
-    expect(serviceConfiguration).toContain('from: chromePreparationSourceLanguage.value')
+    expect(serviceConfiguration).toContain("const { language, t } = useUiI18n()")
+    expect(serviceConfiguration).not.toContain('data-chrome-preparation-source')
+    expect(serviceConfiguration).not.toContain('chromePreparationSourceLanguage')
+    expect(serviceConfiguration).toContain('from: pair.sourceLanguage')
+    expect(serviceConfiguration).toContain('chromeTranslationPreparationStore')
+    expect(serviceConfiguration).toContain('data-chrome-preparation-help')
+    expect(serviceConfiguration).toContain('helpSummary')
     expect(serviceConfiguration).toContain("t('settings.services.chromePreparation.sourceDescription')")
     expect(serviceConfiguration).toContain('CHROME_PREPARATION_TIMEOUT_MS = 300_000')
     expect(serviceConfiguration).toContain('activeChromePreparation?.abort()')
@@ -664,8 +728,8 @@ describe('options UI composition architecture', () => {
     expect(general).toContain('<ServiceIcon :service="config.service" :label="defaultTextServiceLabel" size="medium"')
     expect(general).toContain('aria-label="默认网页翻译服务"')
     expect(general).toContain('defaultTextServiceLabel')
-    expect(general).toContain('aria-label="AI 智能上下文"')
-    const aiContextSwitch = general.match(/<el-switch\b[^>]*aria-label="AI 智能上下文"[^>]*\/>/u)?.[0]
+    expect(general).toContain(":aria-label=\"t('popup.aiContext.settingsTitle')\"")
+    const aiContextSwitch = general.match(/<el-switch\b[^>]*v-model="config.enableAIContext"[^>]*\/>/u)?.[0]
     expect(aiContextSwitch).toBeDefined()
     expect(aiContextSwitch).not.toContain(':disabled')
     expect(general).toContain('label="翻译模式"')
