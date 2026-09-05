@@ -22,7 +22,6 @@ import {
   VIDEO_NORMALIZED_CAPTION_CLASS,
   VIDEO_NORMALIZED_CAPTION_ACTIVE_CLASS,
   X_SUBTITLE_RESOURCE_MESSAGE,
-  VIDEO_DISPLAY_MODE_LABELS,
   VIDEO_CAPTION_EMPTY_GRACE_MS,
   VIDEO_SUBTITLE_DOWNLOAD_CONCURRENCY,
   VIDEO_CAPTION_STABILITY_MS,
@@ -41,7 +40,6 @@ import {
   findXNativeControls,
   getVideoPageKey,
   markVideoUi,
-  createTextElement,
   videoUi,
   getOrCreateTranslationOverlay,
   getOrCreateNormalizedCaptionOverlay,
@@ -59,10 +57,9 @@ import {createVideoSubtitleAbortError, translateVideoSubtitleCues, getVideoTrans
 export {translateVideoSubtitleCues, getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, isIncrementalVideoCaption, revealVideoSubtitleTranslation} from './subtitleLogic';
 export {getVideoSubtitleDownloadErrorMessage} from './ui';
 import { config, requestConfigPatch, subscribeConfig } from '@/src/services/config/store';
-import {createVideoUiTextElement, getVideoUiLanguage, localizeVideoUiText, refreshVideoUiAccessibility, refreshVideoUiText, getVideoSubtitleDownloadErrorMessage} from './ui';
+import {getVideoUiLanguage, localizeVideoUiText, refreshVideoUiAccessibility, refreshVideoUiText, getVideoSubtitleDownloadErrorMessage} from './ui';
 import {
   type Config,
-  type VideoSubtitleDisplayMode,
 } from '@/src/core/config/model';
 import { translateVideoText } from '@/src/app/translation/client';
 import {
@@ -85,9 +82,7 @@ import {
   isXSubtitleResourceUrl,
 } from './xVideoSubtitleData';
 import {
-  normalizeVideoLocalTranscriptionModels,
   normalizeVideoLocalTranscriptionModel,
-  VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY,
 } from '@/src/features/video-subtitle/transcription';
 import {
   upsertVideoAiSubtitleCue,
@@ -106,6 +101,8 @@ import {
 import { encodeVideoAiPcm16Base64 } from './video-ai/audioWindow';
 import type { VideoAiStabilizedCue } from './video-ai/streamingTranscript';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
+import {createVideoPlayerMenu, renderVideoAiMenu} from './playerMenu';
+import {requestLocalVideoModelReadiness} from './localModelReadiness';
 
 // 兼容既有测试与外部调用方；AI 时间轴的实现位于 video-ai 目录。
 export {
@@ -168,6 +165,7 @@ export function mountVideoSubtitleTranslation(): () => void {
   let aiCapture: VideoAiCaptureController | null = null;
   let aiFullCapture: VideoAiFullCaptureController | null = null;
   let aiFullPhase: VideoAiFullCapturePhase = 'idle';
+  let aiModelChecking = false;
   let aiFullProgress: VideoAiFullCaptureProgress = {
     phase: 'idle',
     captureMode: undefined,
@@ -1019,36 +1017,12 @@ export function mountVideoSubtitleTranslation(): () => void {
     const language = getVideoUiLanguage(config.uiLanguage);
     refreshVideoUiText(menu, language);
     refreshVideoUiAccessibility(menu, button, document, language, status);
-    const aiToggle = menu.querySelector<HTMLButtonElement>('[data-action="toggle-ai-subtitle"]');
-    if (aiToggle) {
-      const available = isXVideoPage() && browserCapabilities.offscreenDocument;
-      const aiCaptureActive = isAiCaptureActive();
-      aiToggle.disabled = !available;
-      aiToggle.querySelector<HTMLElement>('[data-check]')!.textContent = aiCaptureActive ? '✓' : '';
-      aiToggle.querySelector<HTMLElement>('[data-state]')!.textContent = !isXVideoPage()
-        ? '仅 X 视频'
-        : !browserCapabilities.offscreenDocument
-          ? '当前浏览器不可用'
-          : isAiFullActive()
-            ? aiFullPhase === 'capturing'
-              ? aiFullProgress.captureMode === 'fast-decode' ? '快速读取音频中' : '扫描视频中'
-            : aiFullPhase === 'transcribing'
-              ? `识别字幕 ${Math.round(aiFullProgress.progress * 100)}%`
-              : aiFullPhase === 'translating'
-                ? `翻译字幕 ${Math.round(aiFullProgress.progress * 100)}%`
-                : aiFullPhase === 'ready'
-                  ? '已就绪'
-                  : '完整生成中'
-        : isAiCaptureRunning()
-          ? '生成中，点击停止'
-          : isAiCaptureRequested()
-            ? '暂停后继续'
-            : aiCaptureError
-              ? aiCaptureError.includes('下载') ? '请先下载模型' : aiCaptureError.slice(0, 24)
-              : '点击完整生成';
-      aiToggle.setAttribute('aria-checked', String(aiCaptureActive));
-      aiToggle.title = aiCaptureError;
-    }
+    renderVideoAiMenu(menu, {
+      available: isXVideoPage() && browserCapabilities.offscreenDocument,
+      checking: aiModelChecking,
+      active: isAiCaptureActive(), running: isAiCaptureRunning(), requested: isAiCaptureRequested(),
+      fullActive: isAiFullActive(), phase: aiFullPhase, progress: aiFullProgress, error: aiCaptureError,
+    }, language);
     menu.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((item) => {
       const selected = item.dataset.mode === mode;
       item.setAttribute('aria-checked', String(selected));
@@ -1127,26 +1101,37 @@ export function mountVideoSubtitleTranslation(): () => void {
   };
 
   const ensureLocalVideoModelReady = async (): Promise<boolean> => {
+    if (aiModelChecking) return false;
     if (!browserCapabilities.offscreenDocument) {
       aiCaptureError = '当前浏览器不支持本地 AI 字幕'; updatePlayerUiState(); return false;
     }
     const model = normalizeVideoLocalTranscriptionModel(config.videoLocalModel);
-    try {
-      const stored = await browser.storage.local.get(VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY);
-      const downloaded = normalizeVideoLocalTranscriptionModels(stored[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]);
-      if (downloaded.includes(model)) {
-        aiCaptureError = '';
-        updatePlayerUiState();
-        return true;
-      }
-    } catch {
-      // 读取状态失败时仍按未下载处理，给用户一个可执行的设置入口。
-    }
-
-    aiCaptureError = '请先打开视频字幕设置下载本地模型';
+    const pageKey = getVideoPageKey();
+    const translationEnabled = config.videoTranslationEnabled;
+    const video = findVideoPlayer()?.querySelector('video');
+    const source = video?.currentSrc;
+    const stillCurrent = () => !destroyed && pageKey === getVideoPageKey()
+      && model === normalizeVideoLocalTranscriptionModel(config.videoLocalModel)
+      && video === findVideoPlayer()?.querySelector('video') && source === video?.currentSrc
+      && config.on && translationEnabled === config.videoTranslationEnabled;
+    aiModelChecking = true;
+    aiCaptureError = '';
     updatePlayerUiState();
-    void browser.runtime.sendMessage({ type: 'openOptionsPage', section: 'settings-video' }).catch(() => undefined);
-    return false;
+    try {
+      const state = await requestLocalVideoModelReadiness(model, browser.runtime.sendMessage.bind(browser.runtime));
+      // 查询期间可能换视频、切换模型或关闭翻译，旧结果不能启动新一轮识别。
+      if (!stillCurrent()) return false;
+      if (state === 'ready') return true;
+      aiCaptureError = `Whisper ${model === 'base' ? 'Base' : 'Tiny'} 尚未下载，请在设置中下载`;
+      void browser.runtime.sendMessage({ type: 'openOptionsPage', section: 'settings-video' }).catch(() => undefined);
+      return false;
+    } catch {
+      if (stillCurrent()) aiCaptureError = '无法读取模型状态，请重试';
+      return false;
+    } finally {
+      aiModelChecking = false;
+      if (!destroyed) updatePlayerUiState();
+    }
   };
 
   const handleMenuClick = async (event: MouseEvent) => {
@@ -1274,85 +1259,8 @@ export function mountVideoSubtitleTranslation(): () => void {
     }
   };
 
-  const createMenuItem = (action: string, label: string): HTMLButtonElement => {
-    const item = document.createElement('button');
-    item.type = 'button';
-    item.className = `fluent-read-video-menu-item${action === 'toggle-translation' ? ' fluent-read-video-menu-primary-action' : ''}`;
-    item.dataset.action = action;
-    item.setAttribute('role', action === 'toggle-translation' || action === 'toggle-visible' || action === 'toggle-ai-subtitle' ? 'menuitemcheckbox' : 'menuitem');
-    if (action === 'download-subtitles' || action === 'download-translated-subtitles') {
-      item.setAttribute('aria-live', 'polite');
-      item.setAttribute('aria-atomic', 'true');
-    }
-    const check = createTextElement('span', 'fluent-read-video-menu-check', '');
-    check.dataset.check = 'true';
-    const labelElement = createVideoUiTextElement('span', 'fluent-read-video-menu-label', label, getVideoUiLanguage(config.uiLanguage));
-    const state = createTextElement('span', 'fluent-read-video-menu-value', '');
-    state.dataset.state = 'true';
-    item.append(check, labelElement, state);
-    return item;
-  };
-
   const createPlayerMenu = (player: HTMLElement): HTMLElement => {
-    const menu = document.createElement('div');
-    menu.id = VIDEO_TRANSLATION_MENU_ID;
-    menu.className = 'fluent-read-video-subtitle-menu fluent-read-video-ui notranslate';
-    menu.hidden = true;
-    menu.setAttribute('role', 'menu');
-    menu.setAttribute('aria-label', videoUi('video.menuAriaLabel'));
-    markVideoUi(menu);
-
-    const title = document.createElement('div');
-    title.className = 'fluent-read-video-menu-title';
-    const heading = document.createElement('span');
-    heading.className = 'fluent-read-video-menu-heading';
-    heading.append(
-      createVideoUiTextElement('span', 'fluent-read-video-menu-brand', '流畅阅读', getVideoUiLanguage(config.uiLanguage)),
-      createVideoUiTextElement('span', 'fluent-read-video-menu-title-text', '视频字幕翻译', getVideoUiLanguage(config.uiLanguage)),
-    );
-    title.append(heading);
-    menu.appendChild(title);
-
-    menu.appendChild(createMenuItem('toggle-translation', '字幕翻译'));
-    const serviceCaption = document.createElement('span');
-    serviceCaption.className = 'fluent-read-video-menu-caption';
-    const serviceCaptionLabel = createVideoUiTextElement('span', 'fluent-read-video-menu-caption-label', '翻译服务', getVideoUiLanguage(config.uiLanguage));
-    const serviceValue = createTextElement('span', 'fluent-read-video-menu-value', '');
-    serviceValue.dataset.serviceLabel = 'true';
-    serviceCaption.append(serviceCaptionLabel, '：', serviceValue);
-    menu.appendChild(serviceCaption);
-    if (isXVideoPage()) menu.appendChild(createMenuItem('toggle-ai-subtitle', '完整生成 AI 字幕'));
-
-    const divider = createTextElement('div', 'fluent-read-video-menu-divider', '');
-    divider.setAttribute('aria-hidden', 'true');
-    menu.appendChild(divider);
-
-    const modeCaption = createVideoUiTextElement('span', 'fluent-read-video-menu-caption', '字幕显示模式', getVideoUiLanguage(config.uiLanguage));
-    menu.appendChild(modeCaption);
-    const modeGroup = document.createElement('div');
-    modeGroup.className = 'fluent-read-video-menu-mode-group';
-    modeGroup.setAttribute('role', 'radiogroup');
-    modeGroup.setAttribute('aria-label', videoUi('video.displayMode'));
-    (Object.keys(VIDEO_DISPLAY_MODE_LABELS) as VideoSubtitleDisplayMode[]).forEach((mode) => {
-      const item = createVideoUiTextElement('button', 'fluent-read-video-menu-mode', VIDEO_DISPLAY_MODE_LABELS[mode], getVideoUiLanguage(config.uiLanguage));
-      item.type = 'button';
-      item.dataset.mode = mode;
-      item.setAttribute('role', 'menuitemradio');
-      modeGroup.appendChild(item);
-    });
-    menu.appendChild(modeGroup);
-
-    menu.appendChild(createMenuItem('toggle-visible', '显示字幕'));
-    const originalDownload = createMenuItem('download-subtitles', '下载原文字幕');
-    originalDownload.querySelector('[data-check]')?.remove();
-    menu.appendChild(originalDownload);
-    const translatedDownload = createMenuItem('download-translated-subtitles', '下载译文字幕');
-    translatedDownload.querySelector('[data-check]')?.remove();
-    menu.appendChild(translatedDownload);
-    const settings = createMenuItem('open-settings', '打开视频翻译设置');
-    settings.querySelector('[data-check]')?.remove();
-    settings.querySelector('[data-state]')?.remove();
-    menu.appendChild(settings);
+    const menu = createVideoPlayerMenu(getVideoUiLanguage(config.uiLanguage), isXVideoPage());
     player.appendChild(menu);
     bindMenuClick(menu);
     return menu;

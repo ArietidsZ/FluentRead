@@ -14,6 +14,8 @@ const helperPath = arg('focus-safe-helper');
 if (!runtime || !helperPath) throw new Error('Explicit Playwright runtime and focus-safe helper are required');
 const {chromium} = createRequire(path.join(runtime, 'x-proof.cjs'))('playwright');
 const helper = require(path.resolve(helperPath));
+const browserPath = arg('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge');
+const extensionInstall = arg('extension-install', 'flags');
 const model = arg('model', 'tiny');
 const mediaMode = arg('media-source', 'hls');
 const displayMode = arg('display-mode', 'original-only');
@@ -22,6 +24,8 @@ const startPlaying = arg('start-playing', 'false') === 'true';
 const earlyHls = arg('early-hls','false') === 'true';
 const hostOverlay = arg('host-overlay','false') === 'true';
 const backgroundMusic = arg('background-music', 'false') === 'true';
+const prepareAfterLoad = arg('prepare-after-load', 'false') === 'true';
+const trustedStorageRequired = arg('trusted-storage', 'false') === 'true';
 fs.mkdirSync(artifacts, {recursive: true});
 const media = path.join(artifacts, 'media');
 fs.mkdirSync(media, {recursive: true});
@@ -98,10 +102,66 @@ const videoMarkup='<video style="width:100%;height:100%" controls></video>';
 const playerMarkup=hostOverlay?`<div style="position:relative;width:960px;height:540px"><div style="position:relative;isolation:isolate;z-index:0;width:100%;height:100%;background:#10283f">${videoMarkup}</div><a id="fixture-media-link" aria-label="View media" href="/cerebras/status/2089870131291943228/video/1" style="position:absolute;inset:0;z-index:10" onclick="event.preventDefault();window.proofHostLinkClicks=(window.proofHostLinkClicks||0)+1"></a></div>`:`<div data-testid="videoPlayer" style="position:relative;width:960px;height:540px;background:#10283f">${videoMarkup}</div>`;
 const profile = fs.mkdtempSync(path.join(os.tmpdir(),'fluentread-x-sync-profile-'));
 let browser, control, page;
-const report = {mediaMode,model,lines,displayMode,startPlaying,earlyHls,hostOverlay,backgroundMusic,backgroundMusicMetric,errors:[],console:[],requests:[],samples:[],diagnostics:[]};
+const report = {mediaMode,model,lines,displayMode,startPlaying,earlyHls,hostOverlay,backgroundMusic,backgroundMusicMetric,prepareAfterLoad,trustedStorageRequired,errors:[],console:[],requests:[],samples:[],diagnostics:[],menuSnapshots:[]};
+
+async function captureVideoMenuSnapshot(page, artifacts, report, phase) {
+ const snapshot = await page.evaluate((phaseName) => {
+   const menu = document.querySelector('#fluent-read-video-subtitle-menu');
+   const rect = menu?.getBoundingClientRect();
+   const buttons = [...(menu?.querySelectorAll('[data-action="download-subtitles"], [data-action="download-translated-subtitles"]') || [])]
+     .map(element => { const buttonRect = element.getBoundingClientRect(); return {top: buttonRect.top, left: buttonRect.left, right: buttonRect.right, width: buttonRect.width}; });
+   const aiGroup = menu?.querySelector('.fluent-read-video-menu-ai-group');
+   const aiGroupStyle = aiGroup ? getComputedStyle(aiGroup) : null;
+   const aiGroupRect = aiGroup?.getBoundingClientRect();
+   const modeGroupRect = menu?.querySelector('.fluent-read-video-menu-mode-group')?.getBoundingClientRect();
+   const contentOverflow = Boolean(menu && menu.scrollHeight > menu.clientHeight + 1);
+   return {
+     phase: phaseName,
+     visible: Boolean(menu && !menu.hidden && rect?.width && rect.height),
+     rect: rect ? {top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height} : null,
+     contentOverflow,
+     scrollHeight: menu?.scrollHeight || 0,
+     clientHeight: menu?.clientHeight || 0,
+     downloadButtons: buttons,
+     downloadButtonsSameRow: buttons.length === 2 && Math.max(...buttons.map(button => button.top)) - Math.min(...buttons.map(button => button.top)) <= 2,
+     aiGroup: aiGroupStyle && aiGroupRect ? {
+       marginTop: aiGroupStyle.marginTop,
+       paddingTop: aiGroupStyle.paddingTop,
+       borderTopWidth: aiGroupStyle.borderTopWidth,
+       gap: modeGroupRect ? aiGroupRect.top - modeGroupRect.bottom : null,
+     } : null,
+     text: menu?.textContent?.trim() || '',
+   };
+ }, phase);
+ assert.equal(snapshot.visible, true, `${phase} video menu is not visible`);
+ assert.equal(snapshot.contentOverflow, false, `${phase} video menu overflows its content box`);
+ assert.equal(snapshot.downloadButtonsSameRow, true, `${phase} download buttons are not on one row`);
+ assert.ok(snapshot.aiGroup && Number.parseFloat(snapshot.aiGroup.marginTop) >= 8
+   && Number.parseFloat(snapshot.aiGroup.paddingTop) >= 8
+   && Number.parseFloat(snapshot.aiGroup.borderTopWidth) >= 1
+   && snapshot.aiGroup.gap >= 8, `${phase} AI menu group spacing is insufficient: ${JSON.stringify(snapshot.aiGroup)}`);
+ report.menuSnapshots.push(snapshot);
+ await page.screenshot({path: path.join(artifacts, `video-menu-${phase}.png`)});
+}
+
+async function readLocalVideoModelState(control, model) {
+ const state = await control.evaluate(() => chrome.runtime.sendMessage({type: 'fluentReadGetLocalVideoModelState'}));
+ assert.equal(state?.success, true, `background model state query failed: ${JSON.stringify(state)}`);
+ assert.equal(state?.available?.[model], true, `background model state is not ready: ${JSON.stringify(state)}`);
+ return state;
+}
 async function main() {
- browser = await helper.launchFocusSafePersistentContext({chromium,profileDir:profile,browserPath:'/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',headless:false,background:true,displayTarget:'secondary',browserArgs:[`--disable-extensions-except=${extensionDir}`,`--load-extension=${extensionDir}`,'--autoplay-policy=no-user-gesture-required','--no-first-run','--no-default-browser-check'],viewport:{width:1280,height:900}});
+ browser = await helper.launchFocusSafePersistentContext({chromium,profileDir:profile,browserPath,headless:false,background:true,displayTarget:'secondary',browserArgs:[...(extensionInstall === 'cdp' ? ['--enable-unsafe-extension-debugging'] : [`--disable-extensions-except=${extensionDir}`,`--load-extension=${extensionDir}`]),'--autoplay-policy=no-user-gesture-required','--no-first-run','--no-default-browser-check'],viewport:{width:1280,height:900}});
  const context = browser.context;
+ report.browserVersion = context.browser().version();
+ report.browserPath = browserPath;
+ let loadedExtensionId;
+ if (extensionInstall === 'cdp') {
+   const extensionSession = await context.browser().newBrowserCDPSession();
+   loadedExtensionId = (await extensionSession.send('Extensions.loadUnpacked', {path: extensionDir})).id;
+   await extensionSession.detach();
+ }
+ report.extensionInstall = extensionInstall;
  context.on('page', p => {p.on('pageerror', e => report.errors.push(e.message)); p.on('console',m => { if(m.type()==='error'||m.type()==='warning'||m.text().includes('[FluentRead] X audio fast decode unavailable')) report.console.push(m.text()); });});
  await context.route('https://video.twimg.com/**', async route => {
    const name = new URL(route.request().url()).pathname.split('/').at(-1);
@@ -119,8 +179,11 @@ async function main() {
  });
  await context.route('https://x.com/fluentread-fixture-ready.js',async route=>{await new Promise(resolve=>setTimeout(resolve,800));await route.fulfill({status:200,contentType:'text/javascript',body:''});});
  await context.route('https://x.com/cerebras/status/2089870131291943228', route => route.fulfill({status:200,contentType:'text/html',body:`<!doctype html><html><head><title>X subtitle synchronization fixture</title>${earlyHls?`<script>fetch('${base}master.m3u8')</script><script src="/fluentread-fixture-ready.js"></script>`:''}</head><body style="margin:24px;background:#f3f5f9"><h1>X subtitle synchronization fixture</h1><article>${playerMarkup}</article></body></html>`}));
- const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker',{timeout:30000});
+ const isFeatureWorker = candidate => loadedExtensionId ? new URL(candidate.url()).host === loadedExtensionId : candidate.url().endsWith('/background.js');
+ const worker = context.serviceWorkers().find(isFeatureWorker) || await context.waitForEvent('serviceworker',{predicate:isFeatureWorker,timeout:30000});
  const id = new URL(worker.url()).host;
+ // Chrome may also own component-extension workers; activate tabs through FluentRead only.
+ const activatePage = target => helper.activateExtensionTabWithoutForeground({serviceWorkers: () => [worker]}, target);
  report.extensionId = id;
  await worker.evaluate(() => {
    const originalFetch = globalThis.fetch;
@@ -148,14 +211,24 @@ async function main() {
    return chrome.runtime.sendMessage({type:'persistConfig',clientId:'x-sync-browser-proof',sequence:1,config:{...current,on:true,from:'en',to:'zh-Hans',videoTranslationEnabled:true,videoService:'microsoft',videoServiceDefaultMigrated:true,videoLocalModel:model,videoSubtitleVisible:true,videoSubtitleDisplayMode:displayMode,useCache:false},...(Number.isSafeInteger(current.__fluentConfigRevision)?{baseRevision:current.__fluentConfigRevision}:{})});
  },{model,displayMode});
  assert.equal(configResult?.success,true,'configuration persisted through real background');
- const prepareAt = Date.now();
- const prepared = await control.evaluate(model=>chrome.runtime.sendMessage({type:'fluentReadPrepareLocalVideoModel',model}),model);
- report.prepareMs=Date.now()-prepareAt;report.prepared=prepared;
- assert.equal(prepared?.success,true,JSON.stringify(prepared));
+ const controlOnboarding = control.locator('[data-testid="ui-language-onboarding"]');
+ if (await controlOnboarding.count()) {
+   await controlOnboarding.locator('[data-testid="onboarding-language-next"]').click();
+   await controlOnboarding.locator('[data-language="zh-CN"]').click();
+   await controlOnboarding.locator('.onboarding-confirm').click();
+   await controlOnboarding.waitFor({state:'hidden',timeout:30000});
+ }
+ const prepareModel = async () => {
+   const prepareAt = Date.now();
+   const prepared = await control.evaluate(model=>chrome.runtime.sendMessage({type:'fluentReadPrepareLocalVideoModel',model}),model);
+   report.prepareMs=Date.now()-prepareAt;report.prepared=prepared;
+   assert.equal(prepared?.success,true,JSON.stringify(prepared));
+ };
+ if(!prepareAfterLoad) await prepareModel();
  page=await helper.newPageWithoutForeground(context);
  page.on('console',m=>report.console.push(`${m.type()}: ${m.text()}`));
  await page.goto('https://x.com/cerebras/status/2089870131291943228');
- await helper.activateExtensionTabWithoutForeground(context,page);
+ await activatePage(page);
  await page.evaluate(async ({base,mode,nativeTrack,earlyHls})=>{
    const video=document.querySelector('video');
    if(mode==='hls'){
@@ -179,25 +252,103 @@ async function main() {
  await page.waitForFunction(()=>document.querySelector('video').readyState>=2);
  await page.waitForSelector('#fluent-read-video-subtitle-button',{timeout:15000});
  await page.locator('#fluent-read-video-subtitle-button').click();
+ await captureVideoMenuSnapshot(page, artifacts, report, 'before');
+ if(prepareAfterLoad) await prepareModel();
+ report.storageAccessLevel = await control.evaluate(async () => {
+   if (typeof chrome.storage?.local?.setAccessLevel !== 'function') return {apiAvailable: false};
+   await chrome.storage.local.setAccessLevel({accessLevel: 'TRUSTED_CONTEXTS'});
+   return {apiAvailable: true, accessLevel: 'TRUSTED_CONTEXTS'};
+ });
+ const isolatedProbeSession = await context.newCDPSession(page);
+ const executionContexts = [];
+ isolatedProbeSession.on('Runtime.executionContextCreated', event => executionContexts.push(event.context));
+ await isolatedProbeSession.send('Runtime.enable');
+ const isolatedCandidates = executionContexts.filter(contextInfo => contextInfo.auxData?.isDefault === false
+   && (contextInfo.origin === `chrome-extension://${id}` || String(contextInfo.name || '').includes(id)));
+ let untrustedStorageProbe = {apiAvailable: false, verified: false, error: 'No extension isolated execution context found'};
+ for (const executionContext of isolatedCandidates) {
+   try {
+     const result = await isolatedProbeSession.send('Runtime.evaluate', {
+       contextId: executionContext.id,
+       awaitPromise: true,
+       returnByValue: true,
+       expression: "(async()=>{try{const value=await globalThis.chrome?.storage?.local?.get('fluentReadVideoLocalTranscriptionModels');return {ok:true,value:value?.fluentReadVideoLocalTranscriptionModels??null}}catch(error){return {ok:false,error:error instanceof Error?error.message:String(error)}}})()",
+     });
+     const value = result.result?.value;
+     if (value?.ok === false) {
+       untrustedStorageProbe = {apiAvailable: true, verified: true, contextName: executionContext.name || '', result: value};
+       break;
+     }
+     if (value?.ok === true) {
+       untrustedStorageProbe = {apiAvailable: true, verified: false, contextName: executionContext.name || '', result: value, error: 'Storage read unexpectedly succeeded in isolated context'};
+       break;
+     }
+   } catch (error) {
+     untrustedStorageProbe = {apiAvailable: true, verified: false, contextName: executionContext.name || '', error: error instanceof Error ? error.message : String(error)};
+   }
+ }
+ report.untrustedStorageProbe = untrustedStorageProbe;
+ if(trustedStorageRequired) {
+   assert.equal(report.storageAccessLevel.apiAvailable, true, 'Use --browser-path with current Chrome for Testing to verify trusted storage');
+   assert.equal(report.untrustedStorageProbe.verified, true, `isolated content storage rejection was not verified: ${JSON.stringify(report.untrustedStorageProbe)}`);
+ }
+ if(arg('model-query-failure','false') === 'true') {
+   const probeContext = isolatedCandidates.find(candidate => candidate.name === untrustedStorageProbe.contextName);
+   assert.ok(probeContext, 'verified isolated context is available for a single model-query fault');
+   const injection = await isolatedProbeSession.send('Runtime.evaluate', {
+     contextId: probeContext.id, returnByValue: true,
+     expression: `(() => {
+       const runtime = chrome.runtime;
+       const send = runtime.sendMessage;
+       runtime.sendMessage = function(...args) {
+         if (args[0]?.type !== 'fluentReadGetLocalVideoModelState') return send.apply(runtime, args);
+         runtime.sendMessage = send;
+         const response = {success:false,error:'fixture model state temporarily unavailable'};
+         const callback = args[args.length - 1];
+         if (typeof callback === 'function') { queueMicrotask(() => callback(response)); return; }
+         return Promise.resolve(response);
+       };
+       return true;
+     })()`,
+   });
+   assert.equal(injection.result?.value, true, 'single model-state fault injected; ASR is unchanged');
+   const optionsBeforeFailure = context.pages().filter(candidate => candidate.url().includes('/options.html')).length;
+   await page.locator('[data-action="toggle-ai-subtitle"]').click();
+   await page.waitForFunction(() => document.querySelector('[data-action="toggle-ai-subtitle"] [data-state]')?.textContent === '无法读取模型状态，请重试', null, {timeout:10000});
+   assert.equal(await page.locator('[data-action="toggle-ai-subtitle"]').isEnabled(), true, 'query failure leaves a retryable button');
+   const optionsAfterFailure = context.pages().filter(candidate => candidate.url().includes('/options.html')).length;
+   assert.equal(optionsAfterFailure, optionsBeforeFailure, 'query failure must never redirect to model download settings');
+   report.modelQueryFailure = {injected: 'one background status failure; no ASR mock', optionsBeforeFailure, optionsAfterFailure, retryEnabled:true};
+   await captureVideoMenuSnapshot(page, artifacts, report, 'query-failure');
+ }
+ await isolatedProbeSession.detach().catch(() => {});
+ report.modelState = await readLocalVideoModelState(control, model);
  const before=await page.evaluate(()=>{const v=document.querySelector('video');v.currentTime=2;return {time:v.currentTime,paused:v.paused,rate:v.playbackRate,volume:v.volume,muted:v.muted};});
  await page.waitForTimeout(150);
  if(startPlaying) await page.evaluate(()=>document.querySelector('video').play());
  const began=Date.now();
+ const optionsPagesBeforeReady = context.pages().filter(candidate => candidate.url().includes('/options.html')).length;
  await page.locator('[data-action="toggle-ai-subtitle"]').click();
+ await page.waitForTimeout(250);
+ await captureVideoMenuSnapshot(page, artifacts, report, 'generating');
  if(arg('background-generation','false')==='true'){
    await control.evaluate(async()=>{
      const controlTab=await chrome.tabs.getCurrent();
      const [videoTab]=await chrome.tabs.query({url:'https://x.com/cerebras/status/2089870131291943228'});
      if(controlTab.windowId!==videoTab.windowId) await chrome.tabs.move(controlTab.id,{windowId:videoTab.windowId,index:-1});
    });
-   await helper.activateExtensionTabWithoutForeground(context,control);
+   await activatePage(control);
    report.generatedWhileHidden=await page.evaluate(()=>document.visibilityState==='hidden');
    report.generatedInInactiveTab=await control.evaluate(async()=>!(await chrome.tabs.query({url:'https://x.com/cerebras/status/2089870131291943228'}))[0].active);
    assert.equal(report.generatedInInactiveTab,true);
  }
  await page.waitForFunction(()=>{const action=document.querySelector('[data-action="toggle-ai-subtitle"]');const text=action?.querySelector('[data-state]')?.textContent||'';if(action?.title)throw new Error(action.title);return text.includes('已就绪');},{},{timeout:120000});
  report.generationMs=Date.now()-began;
- await helper.activateExtensionTabWithoutForeground(context,page);
+ report.optionsPagesBeforeReady = optionsPagesBeforeReady;
+ report.optionsPagesAfterReady = context.pages().filter(candidate => candidate.url().includes('/options.html')).length;
+ assert.equal(report.optionsPagesAfterReady, optionsPagesBeforeReady, 'AI readiness unexpectedly opened a new options page');
+ await captureVideoMenuSnapshot(page, artifacts, report, 'ready');
+ await activatePage(page);
  if(nativeTrack) assert.equal(await page.evaluate(()=>window.proofTrack.mode),'hidden','native rendering is hidden during AI takeover');
  report.before=before;report.after=await page.evaluate(()=>{const v=document.querySelector('video');return {time:v.currentTime,paused:v.paused,rate:v.playbackRate,volume:v.volume,muted:v.muted};});
  if(startPlaying){assert.equal(report.after.paused,false);assert.ok(report.after.time>before.time);assert.equal(report.after.rate,before.rate);assert.equal(report.after.volume,before.volume);assert.equal(report.after.muted,before.muted);}
@@ -219,7 +370,7 @@ async function main() {
  if(arg('owner-handoff','false')==='true'){
    const secondPage=await helper.newPageWithoutForeground(context);
    await secondPage.goto('https://x.com/cerebras/status/2089870131291943228');
-   await helper.activateExtensionTabWithoutForeground(context,secondPage);
+   await activatePage(secondPage);
    await secondPage.evaluate(base=>{
      const video=document.querySelector('video');
      video.src=base+'video-direct.mp4';

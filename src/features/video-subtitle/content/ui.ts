@@ -635,118 +635,88 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       right: 8px !important;
       bottom: 40px !important;
       z-index: 2147483646 !important;
-      width: min(208px, calc(100vw - 16px)) !important;
+      width: min(248px, calc(100vw - 24px)) !important;
       min-width: 0 !important;
-      max-width: calc(100vw - 16px) !important;
-      max-height: min(224px, calc(100% - 44px)) !important;
+      max-width: calc(100% - 16px) !important;
+      max-height: calc(100% - 48px) !important;
       box-sizing: border-box !important;
-      padding: 4px !important;
+      padding: 10px !important;
       border: 1px solid rgba(255, 255, 255, .12) !important;
-      border-radius: 9px !important;
-      background: rgba(30, 30, 30, .97) !important;
-      box-shadow: 0 8px 28px rgba(0, 0, 0, .42) !important;
-      color: #fff !important;
-      font: 10px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+      border-radius: 14px !important;
+      background: rgba(28, 28, 32, .97) !important;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, .32) !important;
+      color: #f7f7f8 !important;
+      font: 12px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif !important;
       writing-mode: horizontal-tb !important;
       text-orientation: mixed !important;
       word-break: normal !important;
       white-space: normal !important;
-      overflow-y: auto !important;
+      overflow: auto !important;
       overscroll-behavior: contain !important;
+      scrollbar-width: thin !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID}[hidden] { display: none !important; }
+    #${VIDEO_TRANSLATION_MENU_ID} * {
+      box-sizing: border-box !important;
+      font-family: inherit !important;
+      text-transform: none !important;
+      letter-spacing: normal !important;
+      text-shadow: none !important;
+    }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-title {
       display: flex !important;
       align-items: center !important;
       justify-content: space-between !important;
-      padding: 2px 4px 3px !important;
-      color: rgba(255, 255, 255, .92) !important;
-      font-weight: 700 !important;
-    }
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-heading {
-      display: inline-flex !important;
-      align-items: baseline !important;
-      gap: 4px !important;
+      gap: 8px !important;
+      min-height: 24px !important;
+      padding: 0 4px 6px !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-brand {
+      flex: 0 0 auto !important;
       color: #ff8fbd !important;
-      font-size: 8px !important;
-      letter-spacing: .02em !important;
-      font-weight: 800 !important;
-    }
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-title-text {
-      color: rgba(255, 255, 255, .92) !important;
+      font-size: 12px !important;
+      font-weight: 600 !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-item,
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-mode {
+      all: unset !important;
       display: flex !important;
       align-items: center !important;
       width: 100% !important;
-      min-height: 23px !important;
+      min-height: 32px !important;
       box-sizing: border-box !important;
-      margin: 1px 0 !important;
-      padding: 2px 4px !important;
-      border: 0 !important;
-      border-radius: 7px !important;
+      padding: 6px !important;
+      border-radius: 8px !important;
       background: transparent !important;
-      color: rgba(255, 255, 255, .9) !important;
+      color: #f7f7f8 !important;
       cursor: pointer !important;
       font: inherit !important;
       text-align: left !important;
       min-width: 0 !important;
+      gap: 6px !important;
       writing-mode: horizontal-tb !important;
-      word-break: keep-all !important;
-    }
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-item[data-action="toggle-ai-subtitle"] {
-      margin-top: 6px !important;
-      padding-top: 7px !important;
-      border-top: 1px solid rgba(255, 255, 255, .12) !important;
-      border-top-left-radius: 0 !important;
-      border-top-right-radius: 0 !important;
+      word-break: normal !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-item:hover,
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-mode:hover,
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-mode:hover {
+      background: rgba(255, 255, 255, .07) !important;
+    }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-item:focus-visible,
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-mode:focus-visible {
-      background: rgba(255, 255, 255, .12) !important;
-      outline: none !important;
+      outline: 2px solid #ff8fbd !important;
+      outline-offset: -2px !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-item:disabled {
-      cursor: not-allowed !important;
+      cursor: default !important;
       opacity: .55 !important;
-    }
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-primary-action {
-      min-height: 28px !important;
-      margin: 2px 0 3px !important;
-      border: 1px solid rgba(236, 72, 153, .42) !important;
-      background: linear-gradient(135deg, rgba(236, 72, 153, .26), rgba(236, 72, 153, .12)) !important;
-      color: #fff !important;
-      font-weight: 800 !important;
-      box-shadow: 0 4px 12px rgba(236, 72, 153, .16) !important;
-    }
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-primary-action[aria-checked="true"] {
-      border-color: rgba(92, 211, 163, .42) !important;
-      background: rgba(36, 180, 126, .16) !important;
-      box-shadow: none !important;
-    }
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-primary-action:not([aria-checked="true"]) .fluent-read-video-menu-check {
-      color: #ff8fbd !important;
-    }
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-check {
-      display: inline-block !important;
-      width: 13px !important;
-      color: #ff8fbd !important;
-      font-weight: 800 !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-label {
       display: block !important;
       min-width: 0 !important;
       flex: 1 1 auto !important;
-      overflow: hidden !important;
-      text-overflow: ellipsis !important;
-      white-space: nowrap !important;
-      writing-mode: horizontal-tb !important;
-      word-break: keep-all !important;
+      font: inherit !important;
+      white-space: normal !important;
+      overflow-wrap: anywhere !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-value {
       display: inline-flex !important;
@@ -754,7 +724,110 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       gap: 5px !important;
       color: rgba(255, 255, 255, .58) !important;
       font-size: 11px !important;
+      font-weight: 400 !important;
+      white-space: normal !important;
+      overflow-wrap: anywhere !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-value:empty { display: none !important; }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-switch .fluent-read-video-menu-value,
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-settings .fluent-read-video-menu-label {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      overflow: hidden !important;
+      clip-path: inset(50%) !important;
       white-space: nowrap !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-check {
+      display: none !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-switch .fluent-read-video-menu-check {
+      display: block !important;
+      position: relative !important;
+      width: 28px !important;
+      height: 16px !important;
+      flex: 0 0 28px !important;
+      border-radius: 10px !important;
+      background: rgba(255, 255, 255, .23) !important;
+      color: transparent !important;
+      font-size: 0 !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-switch .fluent-read-video-menu-check::after {
+      content: "" !important;
+      position: absolute !important;
+      left: 2px !important;
+      top: 2px !important;
+      width: 12px !important;
+      height: 12px !important;
+      border-radius: 50% !important;
+      background: #fff !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-switch[aria-checked="true"] .fluent-read-video-menu-check { background: #ec4899 !important; }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-switch[aria-checked="true"] .fluent-read-video-menu-check::after { left: 14px !important; }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-settings {
+      width: auto !important;
+      min-height: 24px !important;
+      padding: 3px 0 3px 6px !important;
+      color: rgba(255, 255, 255, .52) !important;
+      font-size: 10px !important;
+      justify-content: flex-end !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-service {
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      white-space: nowrap !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-gear { font-size: 15px !important; }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-mode-group {
+      display: flex !important;
+      gap: 2px !important;
+      padding: 3px !important;
+      border-radius: 9px !important;
+      background: rgba(255, 255, 255, .05) !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-mode {
+      width: auto !important;
+      flex: 1 !important;
+      min-height: 28px !important;
+      justify-content: center !important;
+      text-align: center !important;
+      padding: 4px 2px !important;
+      color: rgba(255, 255, 255, .62) !important;
+      font-size: 11px !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-mode[aria-checked="true"] {
+      background: rgba(236, 72, 153, .18) !important;
+      color: #ffacd0 !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-ai-group,
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-downloads {
+      margin-top: 10px !important;
+      padding-top: 10px !important;
+      border-top: 1px solid rgba(255, 255, 255, .09) !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} [data-action="toggle-ai-subtitle"] {
+      padding: 8px 10px !important;
+      border: 1px solid rgba(236, 72, 153, .2) !important;
+      background: rgba(236, 72, 153, .12) !important;
+      color: #ffacd0 !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} [data-action="toggle-ai-subtitle"]:hover { background: rgba(236, 72, 153, .2) !important; }
+    #${VIDEO_TRANSLATION_MENU_ID} [data-action="toggle-ai-subtitle"][data-error="true"] {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-downloads {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+      gap: 4px !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-downloads .fluent-read-video-menu-item {
+      flex-direction: column !important;
+      justify-content: center !important;
+      text-align: center !important;
+      font-size: 11px !important;
+      color: rgba(255, 255, 255, .66) !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-item[aria-busy="true"] .fluent-read-video-menu-value::before {
       content: "" !important;
@@ -762,46 +835,14 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       flex: 0 0 auto !important;
       width: 9px !important;
       height: 9px !important;
-      box-sizing: border-box !important;
       border: 1.5px solid rgba(255, 255, 255, .28) !important;
       border-top-color: #ff8fbd !important;
       border-radius: 50% !important;
       animation: fluent-read-video-download-spin .72s linear infinite !important;
     }
-    @keyframes fluent-read-video-download-spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes fluent-read-video-download-spin { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) {
-      #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-item[aria-busy="true"] .fluent-read-video-menu-value::before {
-        animation: none !important;
-      }
-    }
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-divider {
-      height: 1px !important;
-      margin: 3px 4px !important;
-      background: rgba(255, 255, 255, .12) !important;
-    }
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-caption {
-      display: block !important;
-      padding: 2px 4px 1px !important;
-      color: rgba(255, 255, 255, .52) !important;
-      font-size: 8px !important;
-    }
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-mode {
-      width: auto !important;
-      flex: 1 !important;
-      justify-content: center !important;
-      padding: 4px 6px !important;
-      color: rgba(255, 255, 255, .65) !important;
-    }
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-mode[aria-checked="true"] {
-      background: rgba(236, 72, 153, .24) !important;
-      color: #fff !important;
-    }
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-mode-group {
-      display: flex !important;
-      gap: 3px !important;
-      padding: 1px 3px 3px !important;
+      #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-item[aria-busy="true"] .fluent-read-video-menu-value::before { animation: none !important; }
     }
     #ytp-caption-window-container.${VIDEO_DISPLAY_TRANSLATION_ONLY_CLASS} .ytp-caption-segment,
     #ytp-caption-window-container.${VIDEO_DISPLAY_TRANSLATION_ONLY_CLASS} .captions-text,

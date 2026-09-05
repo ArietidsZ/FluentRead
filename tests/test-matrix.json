@@ -149,6 +149,8 @@
       "tests/videoTranslationScheduler.test.ts",
       "tests/videoTranslationCache.test.ts",
       "tests/videoSubtitleLogic.test.ts",
+      "tests/localModelReadiness.test.ts",
+      "tests/videoUiI18n.test.ts",
       "tests/videoAiBackground.test.ts",
       "tests/videoAiCapture.test.ts",
       "tests/videoAiFullCapture.test.ts",

@@ -23,6 +23,32 @@ describe('video subtitle background ownership', () => {
         expect(result.success).toBe(true);
         expect(storage.set).toHaveBeenCalledTimes(1);
     });
+    it('returns normalized downloaded model state through a background-only query', async () => {
+        const {handlers} = setup();
+        const result = await find(handlers, 'fluentReadGetLocalVideoModelState').handle({type: 'fluentReadGetLocalVideoModelState'}, context(1));
+        expect(result).toEqual({success: true, models: [], available: {tiny: false, base: false}});
+    });
+
+    it('serializes concurrent cache writes so Tiny and Base state are merged', async () => {
+        const stored: Record<string, unknown> = {fluentReadVideoLocalTranscriptionModels: []};
+        const offscreen = {
+            send: vi.fn(async () => ({success: true})),
+            sendIfPresent: vi.fn(async () => ({success: true})),
+        } as any;
+        const storage = {
+            get: vi.fn(async () => ({...stored})),
+            set: vi.fn(async (value: Record<string, unknown>) => { Object.assign(stored, value); }),
+        };
+        const handlers = createVideoSubtitleBackgroundHandlers({offscreen, storage});
+        const prepare = find(handlers, 'fluentReadPrepareLocalVideoModel');
+        const [tiny, base] = await Promise.all([
+            prepare.handle({model: 'tiny'}, context(1)),
+            prepare.handle({model: 'base'}, context(1)),
+        ]);
+        expect(tiny.models).toEqual(['tiny']);
+        expect(base.models).toEqual(['tiny', 'base']);
+        expect(stored.fluentReadVideoLocalTranscriptionModels).toEqual(['tiny', 'base']);
+    });
     it('does not mark failed prepare as downloaded', async () => {
         const {handlers, storage} = setup({success: false, error: 'failed'});
         const result = await find(handlers, 'fluentReadPrepareLocalVideoModel').handle({type: 'fluentReadPrepareLocalVideoModel', model: 'tiny'}, context(1));

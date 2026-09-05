@@ -5,7 +5,7 @@
  * 模块边界：只编排视频字幕与平台 Offscreen client，不实现 Whisper 推理，也不关闭共享 Offscreen 文档。
  */
 import type {OffscreenClient} from '@/src/platform/offscreen/client';
-import {VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY, normalizeVideoLocalTranscriptionModels, normalizeVideoLocalTranscriptionModel} from '@/src/features/video-subtitle/transcription';
+import {VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY, VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE, normalizeVideoLocalTranscriptionModels, normalizeVideoLocalTranscriptionModel} from '@/src/features/video-subtitle/transcription';
 import {VideoAiCanceledGenerationRegistry} from '@/src/features/video-subtitle/content/video-ai/generationRegistry';
 import type {BackgroundMessageHandler} from '@/src/app/background/messageRouter';
 
@@ -43,6 +43,21 @@ export function createVideoSubtitleBackgroundHandlers(dependencies: VideoSubtitl
         void offscreen.sendIfPresent({type: 'VIDEO_AI_CANCEL', streamId: workerStream(previous)}, {timeoutMs: 5_000}).catch(() => undefined);
     };
     const readStore = dependencies.storage;
+    let stateWriteQueue: Promise<void> = Promise.resolve();
+    const rememberDownloadedModel = async (model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>): Promise<ReturnType<typeof normalizeVideoLocalTranscriptionModels>> => {
+        let models: ReturnType<typeof normalizeVideoLocalTranscriptionModels> = [];
+        const write = stateWriteQueue.then(async () => {
+            const stored = await readStore.get(VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY);
+            models = normalizeVideoLocalTranscriptionModels([
+                ...normalizeVideoLocalTranscriptionModels(stored[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]),
+                model,
+            ]);
+            await readStore.set({[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]: models});
+        });
+        stateWriteQueue = write.then(() => undefined, () => undefined);
+        await write;
+        return models;
+    };
 
     const assertOwner = (next: Owner) => {
         if (cancelled.has(next)) throw new Error('本地视频 AI 字幕 generation 已取消');
@@ -80,9 +95,7 @@ export function createVideoSubtitleBackgroundHandlers(dependencies: VideoSubtitl
                 const model = normalizeVideoLocalTranscriptionModel(message.model);
                 const response = await offscreen.send<any>({type: 'VIDEO_AI_PREPARE', model, keepWarm: false}, {timeoutMs: 120_000});
                 if (response?.success !== true) return response;
-                const stored = await readStore.get(VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY);
-                const models = normalizeVideoLocalTranscriptionModels([...(normalizeVideoLocalTranscriptionModels(stored[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY])), model]);
-                await readStore.set({[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]: models});
+                const models = await rememberDownloadedModel(model);
                 return {...response, model, models};
             }
             const next = ownerFrom(message, context);
@@ -98,10 +111,7 @@ export function createVideoSubtitleBackgroundHandlers(dependencies: VideoSubtitl
                     return response;
                 }
                 if (cancelled.has(next) || owner !== requestOwner) throw new Error('本地视频 AI 字幕 generation 已取消');
-                const stored = await readStore.get(VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY);
-                if (cancelled.has(next) || owner !== requestOwner) throw new Error('本地视频 AI 字幕 generation 已取消');
-                const models = normalizeVideoLocalTranscriptionModels([...(normalizeVideoLocalTranscriptionModels(stored[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY])), model]);
-                await readStore.set({[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]: models});
+                const models = await rememberDownloadedModel(model);
                 if (cancelled.has(next) || owner !== requestOwner) throw new Error('本地视频 AI 字幕 generation 已取消');
                 return {success: true, ...response, model, models};
             } catch (error) {
@@ -126,7 +136,20 @@ export function createVideoSubtitleBackgroundHandlers(dependencies: VideoSubtitl
             return {success: true};
         },
     };
-    return [transcribe, prepare, cancel];
+    const modelState: BackgroundMessageHandler<Context> = {
+        type: VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE,
+        async handle() {
+            await stateWriteQueue;
+            const stored = await readStore.get(VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY);
+            const models = normalizeVideoLocalTranscriptionModels(stored[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]);
+            return {
+                success: true,
+                models,
+                available: Object.fromEntries(['tiny', 'base'].map((model) => [model, models.includes(model as 'tiny' | 'base')])),
+            };
+        },
+    };
+    return [transcribe, prepare, cancel, modelState];
 }
 
 export function releaseVideoSubtitleOwnerForTab(tabId: number): void {

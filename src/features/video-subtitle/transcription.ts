@@ -30,6 +30,7 @@ export type VideoLocalTranscriptionModel = typeof VIDEO_LOCAL_TRANSCRIPTION_MODE
  * 数百 MB 到 GB 内存。状态用于在 X 播放器里给出清晰的操作引导。
  */
 export const VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY = 'fluentReadVideoLocalTranscriptionModels';
+export const VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE = 'fluentReadGetLocalVideoModelState' as const;
 
 export function normalizeVideoLocalTranscriptionModels(value: unknown): VideoLocalTranscriptionModel[] {
   if (!Array.isArray(value)) return [];

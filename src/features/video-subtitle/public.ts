@@ -7,6 +7,6 @@
 export {isYouTubeVideoPage, isSupportedVideoPage, mountVideoSubtitleTranslation} from './content/runtime';
 export {installYoutubeTimedTextBridge} from './content/youtubeTimedTextBridge';
 
-export {VIDEO_LOCAL_TRANSCRIPTION_MODELS, VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY, normalizeVideoLocalTranscriptionModel, normalizeVideoLocalTranscriptionModels} from './transcription';
+export {VIDEO_LOCAL_TRANSCRIPTION_MODELS, VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY, VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE, normalizeVideoLocalTranscriptionModel, normalizeVideoLocalTranscriptionModels} from './transcription';
 
 export type {VideoLocalTranscriptionModel} from './transcription';
