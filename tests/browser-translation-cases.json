@@ -573,24 +573,6 @@
     "fullPageHotkey": "Alt+T",
     "service": "freeTranslation"
   },
-  "steam-workshop-discussion-3246316298": {
-    "url": "https://steamcommunity.com/workshop/filedetails/discussion/3246316298/4334231305373971730/",
-    "hoverSelector": ".forum_op .content",
-    "requiredSelectors": [".forum_op .content", ".commentthread_comment_text"],
-    "coverageRules": [
-      {"name": "original-post", "selector": ".forum_op .content", "kind": "content", "minInitial": 1},
-      {"name": "discussion-replies", "selector": ".commentthread_comment_text", "kind": "content", "minInitial": 1, "trackDynamic": true}
-    ],
-    "forbiddenSelectors": ["head meta[name=viewport]"],
-    "interactionSelectors": ["a[href]"],
-    "modes": ["hover", "full"],
-    "tier": "quarantine",
-    "quarantineReason": "FluentRead Issue #49 的原始 Steam 讨论已被删除，站点只返回 item does not exist，保留为历史来源回归。",
-    "notes": "FluentRead Issue #49 的真实英文论坛样本，覆盖原帖、动态回复和长论坛 DOM。",
-    "hoverHotkey": "Control",
-    "fullPageHotkey": "Alt+T",
-    "service": "freeTranslation"
-  },
   "swift-basic-operators": {
     "url": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/basicoperators/",
     "hoverSelector": "main p",

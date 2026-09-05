@@ -1709,12 +1709,11 @@ describe('real-site translation matrix gates', () => {
     }
   });
 
-  it('restores recovered pages to required while keeping deleted or challenged pages quarantined', () => {
+  it('restores recovered pages to required while keeping challenged pages quarantined', () => {
     expect(cases['hacker-news-8863'].tier).toBe('required');
     expect(cases['ubuntu-apt-manpage'].tier).toBe('required');
     expect(cases['pubdev-provider'].tier).toBe('required');
     expect(cases['reddit-minimax-thread'].tier).toBe('quarantine');
-    expect(cases['steam-workshop-discussion-3246316298'].tier).toBe('quarantine');
     expect(cases['w3c-accessibility-introduction'].tier).toBe('quarantine');
     expect(cases['nginx-beginners-guide'].tier).toBe('required');
     expect(cases['curl-http-scripting'].tier).toBe('required');
