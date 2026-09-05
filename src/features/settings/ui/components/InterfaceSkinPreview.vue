@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/components/InterfaceSkinPreview.vue
 文件职责：以真实 DOM 绘制当前所选界面皮肤的迷你 Popup 范例，让用户不依赖截图即可预判配色、层次和密度。
-主要内容：使用皮肤注册表的预览色渲染品牌栏、语言选择、翻译服务、主操作和快捷入口，并按布局类型与皮肤 ID 呈现简约、紧凑、高对比及配色差异。
+主要内容：以注册表色值展示布局型皮肤，以当前语义色展示氛围配色及其深浅模式，渲染品牌栏、语言选择、翻译服务、主操作和快捷入口。
 模块边界：本组件只展示装饰性范例，不提供可交互控件、不读取或保存配置，也不模拟网页翻译结果；皮肤选择仍由 InterfaceSettings 拥有。
 -->
 <template>
@@ -57,12 +57,23 @@ const props = defineProps<{
 }>()
 const {translateLegacy} = useUiI18n()
 
-const previewStyle = computed(() => ({
-  '--preview-canvas': props.skin.preview.canvas,
-  '--preview-surface': props.skin.preview.surface,
-  '--preview-accent': props.skin.preview.accent,
-  '--preview-ink': props.skin.preview.ink,
-}))
+const previewStyle = computed(() => {
+  const preview = props.skin.preview
+  if (props.skin.kind === 'palette') {
+    return {
+      '--preview-canvas': `var(--skin-page, ${preview.canvas})`,
+      '--preview-surface': `var(--surface, ${preview.surface})`,
+      '--preview-accent': `var(--brand, ${preview.accent})`,
+      '--preview-ink': `var(--ink, ${preview.ink})`,
+    }
+  }
+  return {
+    '--preview-canvas': preview.canvas,
+    '--preview-surface': preview.surface,
+    '--preview-accent': preview.accent,
+    '--preview-ink': preview.ink,
+  }
+})
 </script>
 
 <style scoped>
@@ -318,18 +329,48 @@ const previewStyle = computed(() => ({
   background: var(--preview-ink);
 }
 
-.interface-skin-live-preview[data-preview-skin="paper"] .preview-popup {
-  border-radius: 10px;
-  background:
-    linear-gradient(color-mix(in srgb, var(--preview-ink) 3%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--preview-ink) 2%, transparent) 1px, transparent 1px),
-    var(--preview-canvas);
-  background-size: 12px 12px, 12px 12px, auto;
-  box-shadow: 0 5px 14px color-mix(in srgb, var(--preview-ink) 8%, transparent);
+.interface-skin-live-preview[data-preview-kind="palette"] .preview-popup {
+  border-color: var(--line);
+  border-radius: 14px;
+  background: var(--preview-canvas);
+  box-shadow: none;
 }
 
-.interface-skin-live-preview[data-preview-skin="sakura"] .preview-popup {
-  border-radius: 20px;
+.interface-skin-live-preview[data-preview-kind="palette"] :is(.preview-language-pair span, .preview-service, .preview-features span) {
+  border-color: var(--line);
+  border-radius: 10px;
+  background: var(--preview-surface);
+}
+
+.interface-skin-live-preview[data-preview-kind="palette"] :is(.preview-language-pair span, .preview-service) {
+  background: var(--surface-soft);
+}
+
+.interface-skin-live-preview[data-preview-kind="palette"] :is(.preview-brand small, .preview-language-pair > b, .preview-service small, .preview-service > b) {
+  color: var(--muted);
+}
+
+.interface-skin-live-preview[data-preview-kind="palette"] .preview-logo,
+.interface-skin-live-preview[data-preview-kind="palette"] .preview-action {
+  color: var(--skin-action-text);
+  background: var(--preview-accent);
+}
+
+.interface-skin-live-preview[data-preview-kind="palette"] .preview-action {
+  border-radius: 10px;
+}
+
+.interface-skin-live-preview[data-preview-kind="palette"] .preview-switch b {
+  background: #fff;
+}
+
+.interface-skin-live-preview[data-preview-kind="palette"] .preview-service > i {
+  color: var(--brand-strong);
+  background: var(--brand-soft);
+}
+
+.interface-skin-live-preview[data-preview-kind="palette"] .preview-features i {
+  color: var(--brand-strong);
 }
 
 @media (max-width: 480px) {

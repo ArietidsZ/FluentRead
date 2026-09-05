@@ -1,69 +1,39 @@
 /**
  * @file src/ui/styles/interface-skins/ocean.css
- * 文件职责：声明 FluentRead 海盐皮肤的清爽蓝青配色与水面层次。
- * 主要内容：提供海盐蓝、深海文字、微透明蓝白表面和柔和波纹渐变，并为暗色主题切换到低眩光深海色。
- * 模块边界：本文件只服务 data-interface-skin="ocean" 并向 palette.css 提供变量，不修改翻译状态或页面结构。
+ * 文件职责：声明 FluentRead 海盐氛围配色的语义变量。
+ * 主要内容：蓝白表面与灰调海蓝强调，以低饱和表面区分层次，提供清晰的正文与辅助文字。
+ * 模块边界：只声明配色；组件布局、圆角与交互状态统一由 palette.css 管理。
  */
 
 :root[data-interface-skin="ocean"] {
-  --brand: #1689a9;
-  --brand-strong: #075f78;
-  --brand-soft: #d9f1f6;
-  --ink: #173844;
-  --muted: #607985;
-  --line: #c5dfe5;
-  --surface: #fbfeff;
-  --surface-soft: #eaf6f8;
-  --skin-page: #e2f1f4;
-  --skin-page-alt: #f8fdff;
-  --skin-sidebar: #f2fafb;
-  --skin-glow: rgba(31, 158, 188, .18);
-  --skin-shadow: rgba(22, 106, 132, .12);
-  --skin-action-start: #117b9a;
-  --skin-action-end: #08647f;
-  --skin-action-shadow: rgba(8, 100, 127, .22);
-  --skin-action-text: #f8fdff;
-  --skin-focus: rgba(22, 137, 169, .28);
-  --skin-radius: 18px;
+  --brand: #476f82;
+  --brand-strong: #355b6e;
+  --brand-soft: #e3ecf0;
+  --ink: #2e3940;
+  --muted: #5c6a72;
+  --line: #d9e1e5;
+  --surface: #fcfefe;
+  --surface-soft: #edf2f4;
+  --skin-page: #f1f5f6;
+  --skin-sidebar: #f7fafb;
+  --skin-action-text: #ffffff;
+  --skin-focus: color-mix(in srgb, var(--brand) 32%, transparent);
+  --skin-shadow: rgba(0, 0, 0, .08);
+  --skin-radius: 14px;
 }
 
 :root.dark[data-interface-skin="ocean"] {
-  --brand: #37c3df;
-  --brand-strong: #86e2f2;
-  --brand-soft: rgba(55, 195, 223, .15);
-  --ink: #ecfbff;
-  --muted: #a6c6cf;
-  --line: #2f5765;
-  --surface: #142b35;
-  --surface-soft: #193844;
-  --skin-page: #0b1c24;
-  --skin-page-alt: #102732;
-  --skin-sidebar: #102630;
-  --skin-glow: rgba(42, 190, 221, .14);
-  --skin-shadow: rgba(0, 0, 0, .3);
-  --skin-action-start: #42c1de;
-  --skin-action-end: #2398b7;
-  --skin-action-text: #071c24;
-  --skin-focus: rgba(80, 208, 233, .35);
-}
-
-:root[data-interface-skin="ocean"] .popup-shell {
-  background:
-    radial-gradient(ellipse at 90% 0, var(--skin-glow), transparent 38%),
-    radial-gradient(ellipse at 8% 100%, rgba(79, 181, 199, .12), transparent 44%),
-    linear-gradient(180deg, var(--skin-page-alt), var(--skin-page));
-}
-
-:root[data-interface-skin="ocean"] .service-field,
-:root[data-interface-skin="ocean"] .site-rule-row {
-  border-color: #bfdee6;
-}
-
-:root.dark[data-interface-skin="ocean"] .service-field,
-:root.dark[data-interface-skin="ocean"] .site-rule-row {
-  border-color: var(--line);
-}
-
-:root[data-interface-skin="ocean"] .feature-card:hover:not(:disabled) {
-  transform: translateY(-1px);
+  --brand: #91b2c2;
+  --brand-strong: #b9d1dd;
+  --brand-soft: #30424c;
+  --ink: #e3ebef;
+  --muted: #a7b6be;
+  --line: #3e4b53;
+  --surface: #222b31;
+  --surface-soft: #2a343c;
+  --skin-page: #191f23;
+  --skin-sidebar: #1e272d;
+  --skin-action-text: #191f23;
+  --skin-focus: color-mix(in srgb, var(--brand) 32%, transparent);
+  --skin-shadow: rgba(0, 0, 0, .22);
 }
