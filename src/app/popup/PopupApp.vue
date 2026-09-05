@@ -286,11 +286,7 @@
         >
           <span class="feature-icon" :class="feature.iconTone">{{ feature.icon }}</span>
           <span class="feature-copy">
-            <span v-if="feature.badge" class="feature-title">
-              <strong>{{ feature.label }}</strong>
-              <em class="beta-badge">{{ feature.badge }}</em>
-            </span>
-            <strong v-else>{{ feature.label }}</strong>
+            <strong>{{ feature.label }}</strong>
             <small>{{ feature.summary }}</small>
           </span>
           <i v-if="feature.showStatus" :class="{active: feature.active}" />
@@ -441,7 +437,7 @@
             <small class="drawer-hint">留空时按当前语言自动尝试多个免费 Edge 音色；选中多个后按此顺序回退，不需要 API Key。</small>
           <button class="wordbook-shortcut" type="button" @click="openOptions('settings-vocabulary')">
             <span class="wordbook-shortcut-icon" aria-hidden="true">★</span>
-            <span><strong>单词本 <em>Beta</em></strong><small>{{ config.vocabularyBookEnabled ? '查看收藏、今日复习与掌握程度' : '开启后可从单词学习卡收藏并复习' }}</small></span>
+            <span><strong>单词本</strong><small>{{ config.vocabularyBookEnabled ? '查看收藏、今日复习与掌握程度' : '开启后可从单词学习卡收藏并复习' }}</small></span>
             <b aria-hidden="true">›</b>
           </button>
           </div>
@@ -474,7 +470,7 @@
         <div v-else class="image-translation-preview">
           <div class="image-translation-preview-art"><span>文字</span><b>文</b></div>
           <div>
-            <span class="feature-title"><strong>悬停图片显示翻译入口</strong><em class="beta-badge">Beta 测试</em></span>
+            <strong>悬停图片显示翻译入口</strong>
             <small>点击图片左下角的小图标即可识别并翻译图片文字</small>
           </div>
         </div>
@@ -485,7 +481,7 @@
       </div>
 
       <div v-else-if="activeDrawer === 'video'" class="drawer-content">
-        <div class="video-beta-banner"><span class="feature-icon teal">CC</span><span><strong>FluentRead · YouTube 字幕翻译</strong><small>Beta 测试 · 只处理播放器已经提供的字幕文本</small></span></div>
+        <div class="video-info-banner"><span class="feature-icon teal">CC</span><span><strong>FluentRead · YouTube 字幕翻译</strong><small>只处理播放器已经提供的字幕文本</small></span></div>
         <div class="setting-row video-enable-row" :class="{ 'needs-enable': !config.videoTranslationEnabled }">
           <span><strong>{{ config.videoTranslationEnabled ? '视频字幕翻译已开启' : '开启字幕翻译' }}</strong><small>{{ config.videoTranslationEnabled ? '正在 YouTube 原生字幕下方显示中文译文' : '点击右侧开关，在 YouTube 播放器中显示中文译文' }}</small></span>
           <button class="switch compact" type="button" role="switch" :aria-checked="config.videoTranslationEnabled" aria-label="启用或关闭视频字幕翻译" @click="setVideoTranslationEnabled(!config.videoTranslationEnabled)"><i /></button>
@@ -605,7 +601,6 @@ interface PopupQuickFeatureViewModel {
   iconTone: 'rose' | 'violet' | 'amber' | 'teal' | 'blue';
   showStatus: boolean;
   active?: boolean;
-  badge?: string;
   className?: string;
   dataFeature?: string;
   ariaLabel?: string;
@@ -882,7 +877,6 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
     iconTone: 'teal',
     showStatus: true,
     active: browserCapabilities.imageTranslation && !config.value.disableImageTranslator,
-    badge: 'Beta 测试',
     open: () => openDrawer('image'),
   },
   video: {
@@ -893,7 +887,6 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
     iconTone: 'teal',
     showStatus: true,
     active: config.value.videoTranslationEnabled,
-    badge: 'Beta 测试',
     className: `video-feature-card${config.value.videoTranslationEnabled ? '' : ' needs-enable'}`,
     dataFeature: 'video-subtitle',
     ariaLabel: config.value.videoTranslationEnabled
@@ -908,10 +901,9 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
     icon: '文',
     iconTone: 'blue',
     showStatus: false,
-    badge: 'Beta 测试',
     className: 'document-feature-card',
     dataFeature: 'document-translation',
-    ariaLabel: '打开文档翻译，Beta 测试',
+    ariaLabel: '打开文档翻译',
     open: openDocumentTranslation,
   },
 }));

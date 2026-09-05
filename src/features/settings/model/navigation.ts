@@ -59,7 +59,7 @@ export const navigationGroups: NavigationGroup[] = [
       {
         id: 'settings-video', icon: 'CC', label: '视频字幕翻译', description: 'YouTube 边看边译', group: '专项翻译',
         heading: '视频字幕翻译', summary: '在 YouTube 原生字幕下方显示译文，并独立选择视频翻译服务。',
-        kicker: '专项翻译 Beta', title: '视频字幕翻译', detail: '设置 YouTube 字幕翻译服务、显示方式和字号。',
+        kicker: '专项翻译', title: '视频字幕翻译', detail: '设置 YouTube 字幕翻译服务、显示方式和字号。',
         searchDescription: 'YouTube、视频字幕、视频翻译服务、显示模式、字幕字号、DeepLX、微软翻译',
       },
       {
@@ -88,7 +88,7 @@ export const navigationGroups: NavigationGroup[] = [
       {
         id: 'settings-vocabulary', icon: '★', label: '单词本', description: '收藏与复习', group: '工具与学习',
         heading: '把阅读中遇到的词真正学会', summary: '收藏划词卡中的英文单词，用轻量复习跟踪从新词到掌握的过程。',
-        kicker: '本地学习 Beta', title: '单词本', detail: '词条、上下文与复习记录只保存在当前浏览器；可在这里复习或导出到 Anki。',
+        kicker: '本地学习', title: '单词本', detail: '词条、上下文与复习记录只保存在当前浏览器；可在这里复习或导出到 Anki。',
         searchDescription: '单词本、收藏、复习、掌握程度、学习记录、Anki、导入导出',
       },
     ],

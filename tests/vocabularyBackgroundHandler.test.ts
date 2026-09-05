@@ -151,7 +151,7 @@ describe('vocabulary background message handlers', () => {
         expect(dependencies.broadcastChanged).toHaveBeenCalledTimes(2);
     });
 
-    it('Beta 未启用、无痕窗口和非法 entryId 都返回词书业务错误', async () => {
+    it('功能未启用、无痕窗口和非法 entryId 都返回词书业务错误', async () => {
         const disabled = createDependencies({isVocabularyBookEnabled: () => false});
         await expect(createVocabularyBookHandler(disabled.dependencies).handle({
             type: VOCABULARY_BOOK_MESSAGE,
@@ -159,7 +159,7 @@ describe('vocabulary background message handlers', () => {
             input: {sourceLanguage: 'en', targetLanguage: 'zh-CN', term: 'common', translation: '常见'},
         }, {})).resolves.toMatchObject({
             success: false,
-            error: {code: 'invalid-input', message: '请先在单词本页面开启 Beta'},
+            error: {code: 'invalid-input', message: '请先在单词本页面开启功能'},
         });
         expect(disabled.repository.upsert).not.toHaveBeenCalled();
 

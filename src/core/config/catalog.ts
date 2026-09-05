@@ -404,7 +404,7 @@ export const options = {
         {value: "DoubleClickScree", label: "双击翻译"},
         {value: "TripleClickScree", label: "三击翻译"},
 
-        {value: "custom", label: "自定义快捷键（测试版）"},
+        {value: "custom", label: "自定义快捷键"},
     ],
     // 划词翻译互斥触发方式。快捷键选择后，不再显示选区旁的图标或小点。
     selectionTranslatorTriggers: [
@@ -527,7 +527,7 @@ export const options = {
         {value: "F10", label: "F10"},
         {value: "F11", label: "F11"},
         {value: "F12", label: "F12"},
-        {value: "custom", label: "自定义快捷键（测试版）"},
+        {value: "custom", label: "自定义快捷键"},
     ],
     theme: [
         {value: "auto", label: "跟随操作系统"},

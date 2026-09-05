@@ -8,7 +8,6 @@
   <div id="settings-vocabulary" class="vocabulary-book">
     <section class="beta-panel" :class="{ enabled: betaEnabled }">
       <div class="beta-copy">
-        <span class="beta-mark">Beta</span>
         <div>
           <h3>{{ betaEnabled ? '单词本收藏入口已开启' : '先开启本地单词本' }}</h3>
           <p>只在你主动点击星标时保存；关闭功能不会删除已经积累的词条和复习记录。</p>
@@ -18,7 +17,7 @@
         class="beta-switch"
         type="button"
         role="switch"
-        aria-label="启用或关闭本地单词本 Beta"
+        aria-label="启用或关闭本地单词本"
         :aria-checked="betaEnabled"
         :disabled="configBusy"
         @click="setBetaEnabled(!betaEnabled)"
@@ -121,7 +120,7 @@
 
         <section v-if="loading && entries.length === 0" class="empty-state"><span class="loading-ring" /><p>正在读取本地单词本…</p></section>
         <section v-else-if="entries.length === 0" class="empty-state">
-          <span aria-hidden="true">☆</span><h3>还没有收藏单词</h3><p>开启 Beta 后，在网页中划选一个英文单词，再点击学习卡标题栏的星标。</p>
+          <span aria-hidden="true">☆</span><h3>还没有收藏单词</h3><p>开启后，在网页中划选一个英文单词，再点击学习卡标题栏的星标。</p>
           <button type="button" @click="emit('navigate', 'settings-data')">从备份恢复</button>
         </section>
         <section v-else-if="filteredEntries.length === 0" class="empty-state"><span aria-hidden="true">⌕</span><h3>没有匹配的词条</h3><p>试试清空搜索内容或切换掌握状态。</p></section>
@@ -368,7 +367,7 @@ async function setBetaEnabled(enabled: boolean): Promise<void> {
   betaEnabled.value = enabled;
   try {
     await requestConfigPatch({vocabularyBookEnabled: enabled}, browser.runtime.sendMessage.bind(browser.runtime));
-    showToast(enabled ? '单词本 Beta 已开启' : '收藏入口已关闭，学习数据仍保留');
+    showToast(enabled ? '单词本已开启' : '收藏入口已关闭，学习数据仍保留');
   } catch (cause) {
     betaEnabled.value = runtimeConfig.vocabularyBookEnabled === true;
     showToast(cause instanceof Error ? cause.message : '设置保存失败');
@@ -698,7 +697,6 @@ onBeforeUnmount(() => {
 .beta-copy { display: flex; min-width: 0; align-items: flex-start; gap: 12px; }
 .beta-copy h3 { margin: 0; font-size: 15px; }
 .beta-copy p { margin: 5px 0 0; color: #737c8f; font-size: 11px; line-height: 1.55; }
-.beta-mark { flex: none; padding: 4px 7px; border-radius: 7px; color: #d72f61; background: #ffe8ef; font-size: 9px; font-weight: 800; letter-spacing: .06em; }
 .beta-switch { position: relative; flex: none; width: 48px; height: 28px; padding: 3px; border: 0; border-radius: 999px; background: #cfd3dc; cursor: pointer; }
 .beta-switch i { display: block; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,.16); transition: transform 180ms ease; }
 .beta-switch[aria-checked="true"] { background: #ef4776; }

@@ -213,7 +213,7 @@ export function createVocabularyBookHandler(
                     }
                     case 'upsert': {
                         await dependencies.configReady;
-                        if (!dependencies.isVocabularyBookEnabled()) throw new VocabularyBookHandlerError('invalid-input', '请先在单词本页面开启 Beta');
+                        if (!dependencies.isVocabularyBookEnabled()) throw new VocabularyBookHandlerError('invalid-input', '请先在单词本页面开启功能');
                         if (context.sender?.tab?.incognito === true) throw new VocabularyBookHandlerError('invalid-input', '无痕窗口不保存单词本数据');
                         const entry = await dependencies.vocabularyBook.upsert(validateUpsertInput(message.input));
                         notifyVocabularyBookChanged(dependencies, 'upsert', entry.id);

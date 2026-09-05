@@ -633,11 +633,6 @@ function installVideoSubtitleStyle(): HTMLStyleElement {
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-title-text {
       color: rgba(255, 255, 255, .92) !important;
     }
-    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-beta {
-      color: #ff8fbd !important;
-      font-size: 10px !important;
-      font-weight: 700 !important;
-    }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-item,
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-mode {
       display: flex !important;
@@ -1496,10 +1491,7 @@ export function mountVideoSubtitleTranslation(): () => void {
       createVideoUiTextElement('span', 'fluent-read-video-menu-brand', '流畅阅读', getVideoUiLanguage(config.uiLanguage)),
       createVideoUiTextElement('span', 'fluent-read-video-menu-title-text', '视频字幕翻译', getVideoUiLanguage(config.uiLanguage)),
     );
-    title.append(
-      heading,
-      createVideoUiTextElement('span', 'fluent-read-video-menu-beta', 'Beta 测试', getVideoUiLanguage(config.uiLanguage)),
-    );
+    title.append(heading);
     menu.appendChild(title);
 
     menu.appendChild(createMenuItem('toggle-translation', '字幕翻译'));

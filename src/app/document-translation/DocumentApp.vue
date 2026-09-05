@@ -12,12 +12,12 @@
         <img src="/icon/128.png" alt="" />
         <span>
           <strong>流畅阅读</strong>
-          <small>FluentRead · 文档翻译 Beta</small>
+          <small>FluentRead · 文档翻译</small>
         </span>
       </a>
       <span v-if="parsedDocument" class="document-status" :class="{ complete: hasTranslation }">
         <strong>{{ hasTranslation ? '已完成翻译' : '等待翻译' }}</strong>
-        <span>{{ hasTranslation ? '✅' : 'Beta' }}</span>
+        <span>{{ hasTranslation ? '✅' : '…' }}</span>
       </span>
       <div class="header-actions">
         <span class="privacy-note"><i /> 文件只在当前浏览器中处理</span>
@@ -29,7 +29,7 @@
     <main class="document-main">
       <section v-if="!parsedDocument" class="landing-section">
         <div class="landing-copy">
-          <span class="eyebrow">流畅阅读 · 文档翻译 Beta</span>
+          <span class="eyebrow">流畅阅读 · 文档翻译</span>
           <h1>把本地文件变成双语阅读体验</h1>
           <p>保留原有结构、时间轴和格式标记，在浏览器中完成翻译并下载结果。</p>
         </div>
@@ -383,7 +383,7 @@
     </main>
 
     <footer class="document-footer">
-      <span>流畅阅读文档翻译 Beta · PDF / ePub / HTML / JSON / TXT / DOCX / Markdown / 字幕</span>
+      <span>流畅阅读文档翻译 · PDF / ePub / HTML / JSON / TXT / DOCX / Markdown / 字幕</span>
       <a href="https://github.com/Bistutu/FluentRead" target="_blank" rel="noreferrer">开源项目 ↗</a>
     </footer>
   </div>

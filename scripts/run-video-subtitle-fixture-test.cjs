@@ -386,6 +386,14 @@ async function main() {
     if (initialPopupVideoState.enabled) {
       throw new Error(`新配置的视频字幕翻译应默认关闭：${JSON.stringify(initialPopupVideoState)}`);
     }
+    await persistExtensionConfig(control, {uiLanguageSetupCompleted: true});
+    await control.reload({waitUntil: 'domcontentloaded'});
+    await control.locator('.popup-shell').waitFor({state: 'visible', timeout: 10000});
+    await control.waitForFunction(
+      () => !document.querySelector('[data-testid="ui-language-onboarding"]'),
+      null,
+      {timeout: 10000},
+    );
 
     // 文档页过去只在启动时复制一次整份配置；它保持打开时，随后保存任一文档
     // 选项会把旧的字幕开关连同最新 revision 一起回灌。先以关闭状态打开文档页，
@@ -424,16 +432,17 @@ async function main() {
     await documentConfigPage.close();
     const popupFeature = await control.evaluate(() => ({
       cardPresent: Boolean(document.querySelector('[data-feature="video-subtitle"]')),
-      beta: document.querySelector('[data-feature="video-subtitle"] .beta-badge')?.textContent?.trim() || '',
+      betaMarkers: [...document.querySelectorAll('[data-feature="video-subtitle"] *')]
+        .filter((node) => /beta|测试版/iu.test(node.textContent || '')).length,
     }));
-    if (!popupFeature.cardPresent || popupFeature.beta !== 'Beta 测试') {
-      throw new Error(`Popup 视频字幕 Beta 徽标校验失败：${JSON.stringify(popupFeature)}`);
+    if (!popupFeature.cardPresent || popupFeature.betaMarkers !== 0) {
+      throw new Error(`Popup 视频字幕去 Beta 标识校验失败：${JSON.stringify(popupFeature)}`);
     }
     await control.locator('[data-feature="video-subtitle"]').click();
     await control.waitForFunction(() => Boolean([...document.querySelectorAll('.drawer-content')].find((node) => node.textContent?.includes('视频翻译服务'))), null, { timeout: 10000 });
-    const popupDrawerBeta = await control.locator('.video-beta-banner small').textContent();
-    if (!popupDrawerBeta?.startsWith('Beta 测试')) {
-      throw new Error(`Popup 视频字幕抽屉 Beta 徽标校验失败：${popupDrawerBeta}`);
+    const popupDrawerDescription = await control.locator('.video-info-banner small').textContent();
+    if (popupDrawerDescription?.trim() !== '只处理播放器已经提供的字幕文本' || /beta|测试版/iu.test(popupDrawerDescription)) {
+      throw new Error(`Popup 视频字幕抽屉去 Beta 标识校验失败：${popupDrawerDescription}`);
     }
     const popupVideoServiceOptions = await control.locator('.drawer-content .select-row select option').allTextContents();
     if (!popupVideoServiceOptions.includes('OpenAI') || !popupVideoServiceOptions.includes('微软翻译')) {
@@ -570,7 +579,8 @@ async function main() {
     await page.waitForFunction(() => document.querySelector('#fluent-read-video-subtitle-menu')?.hidden === false, null, { timeout: 10000 });
     const menu = await page.evaluate(() => ({
       brand: document.querySelector('#fluent-read-video-subtitle-menu .fluent-read-video-menu-brand')?.textContent || '',
-      beta: document.querySelector('#fluent-read-video-subtitle-menu .fluent-read-video-menu-beta')?.textContent || '',
+      betaMarkers: [...document.querySelectorAll('#fluent-read-video-subtitle-menu *')]
+        .filter((node) => /beta|测试版/iu.test(node.textContent || '')).length,
       service: document.querySelector('#fluent-read-video-subtitle-menu [data-service-label]')?.textContent || '',
       bilingual: document.querySelector('#fluent-read-video-subtitle-menu [data-mode="bilingual"]')?.getAttribute('aria-checked') === 'true',
       enableAction: document.querySelector('#fluent-read-video-subtitle-menu [data-action="toggle-translation"]')?.className || '',
@@ -595,7 +605,7 @@ async function main() {
       translatedDownloadStatusAtomic: document.querySelector('#fluent-read-video-subtitle-menu [data-action="download-translated-subtitles"]')?.getAttribute('aria-atomic') || '',
       rect: document.querySelector('#fluent-read-video-subtitle-menu')?.getBoundingClientRect().toJSON() || null,
     }));
-    if (menu.brand !== '流畅阅读' || menu.beta !== 'Beta 测试' || menu.service !== '微软翻译' || !menu.bilingual
+    if (menu.brand !== '流畅阅读' || menu.betaMarkers !== 0 || menu.service !== '微软翻译' || !menu.bilingual
       || !menu.enableAction.includes('fluent-read-video-menu-primary-action') || menu.enableActionState !== '已开启'
       || menu.enableActionMinHeight !== '42px' || menu.enableActionBorder === 'rgba(0, 0, 0, 0)'
       || menu.originalDownloadLabel !== '下载原文字幕' || menu.translatedDownloadLabel !== '下载译文字幕'
@@ -1254,7 +1264,7 @@ async function main() {
       disabledMenu,
       popupFeature,
       initialPopupVideoState,
-      popupDrawerBeta,
+      popupDrawerDescription,
       popupVideoServiceOptions,
       popupVideoFontSizeOptions,
       popupVideoFontSizePersisted,

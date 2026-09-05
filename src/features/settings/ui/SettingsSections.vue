@@ -367,7 +367,7 @@
         <!-- 悬浮球开关 -->
       <el-row class="settings-control-row">
         <el-col :span="20" class="settings-control-label lightblue rounded-corner">
-          <el-tooltip class="box-item" effect="dark" content="（测试版）控制是否显示屏幕边缘的即时翻译悬浮球，用于对整个网页进行翻译" placement="top-start" :show-after="500">
+          <el-tooltip class="box-item" effect="dark" content="控制是否显示屏幕边缘的即时翻译悬浮球，用于对整个网页进行翻译" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">
             全文翻译悬浮球
             <el-icon class="icon-margin">
@@ -458,7 +458,7 @@
       <SettingsGroup title="全文翻译" description="设置启动全文翻译的方式、处理范围和网页内入口。">
         <el-row class="settings-control-row" :class="{ 'custom-hotkey-row': config.floatingBallHotkey === 'custom' }">
           <el-col :span="14" class="settings-control-label lightblue rounded-corner">
-            <el-tooltip class="box-item" effect="dark" content="（测试版）设置快捷键以便快速切换全文翻译状态，无需鼠标点击悬浮球" placement="top-start" :show-after="500">
+            <el-tooltip class="box-item" effect="dark" content="设置快捷键以便快速切换全文翻译状态，无需鼠标点击悬浮球" placement="top-start" :show-after="500">
               <span class="popup-text popup-vertical-left">{{ t('quickTranslation.commonFullPageShortcut') }}<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
             </el-tooltip>
           </el-col>

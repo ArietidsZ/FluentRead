@@ -180,14 +180,6 @@
   background: var(--surface-soft);
 }
 
-:root[data-interface-skin-kind="palette"][data-interface-skin] .popup-shell .beta-badge {
-  border-color: var(--line);
-  border-radius: 4px;
-  color: var(--muted);
-  background: var(--surface-soft);
-  font-weight: 600;
-}
-
 :root[data-interface-skin-kind="palette"][data-interface-skin] .popup-shell > footer {
   color: var(--muted);
 }

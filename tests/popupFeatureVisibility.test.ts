@@ -122,6 +122,36 @@ describe('popup feature visibility', () => {
         expect(options).toContain('aria-label="全文翻译快捷键"');
     });
 
+    it('keeps beta labels out of every user-facing feature surface', () => {
+        const userFacingSources = [
+            'src/app/popup/PopupApp.vue',
+            'src/app/document-translation/DocumentApp.vue',
+            'src/features/settings/model/navigation.ts',
+            'src/features/settings/ui/SettingsSections.vue',
+            'src/core/config/catalog.ts',
+            'src/features/video-subtitle/content/runtime.ts',
+        ].map(source);
+        const localizedCatalogs = [
+            'src/core/i18n/messages/zh-CN.ts',
+            'src/core/i18n/messages/en-US.ts',
+            'src/core/i18n/messages/ja-JP.ts',
+            'src/core/i18n/messages/ko-KR.ts',
+            'src/core/i18n/messages/fr-FR.ts',
+            'src/core/i18n/messages/ru-RU.ts',
+            'src/core/i18n/messages/es-ES.ts',
+            'src/core/i18n/messages/legacy-overrides.ts',
+        ].map(source);
+        const vocabulary = source('src/features/vocabulary/ui/VocabularyBook.vue');
+
+        for (const content of userFacingSources) {
+            expect(content).not.toMatch(/\bBeta\b|测试版/u);
+        }
+        for (const content of localizedCatalogs) {
+            expect(content).not.toMatch(/\bBeta\b|Bêta|ベータ|베타|Бета/u);
+        }
+        expect(vocabulary).not.toMatch(/>\s*Beta\s*<|开启 Beta|Beta 已开启|单词本 Beta/u);
+    });
+
     it('keeps the default-disabled video subtitle card visually neutral', () => {
         const popup = source('src/app/popup/PopupApp.vue');
         const styles = source('src/app/popup/popup.css');
