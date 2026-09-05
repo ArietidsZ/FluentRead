@@ -1,0 +1,53 @@
+{
+  "base": "262d2a18dc2d5b25f2a22f2fd26531c130101c79",
+  "testAudit": {
+    "files": 224,
+    "declaredCases": 2757,
+    "passed": true
+  },
+  "fullVitest": {
+    "files": 224,
+    "tests": 3963,
+    "passed": true
+  },
+  "lastUiOnlyPatch": {
+    "files": 3,
+    "tests": 55,
+    "passed": true
+  },
+  "coverage": {
+    "testFiles": 177,
+    "tests": 3162,
+    "percent": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    }
+  },
+  "passedChecks": [
+    "pnpm compile",
+    "pnpm build",
+    "pnpm build:firefox",
+    "pnpm verify:extension-manifests",
+    "pnpm test:userscript",
+    "pnpm docs:build",
+    "git diff --check"
+  ],
+  "browser": {
+    "uniquePassed": 49,
+    "singleFullRunPassed": false,
+    "fullPassed": 48,
+    "memorySubsetPassed": 10,
+    "sameSourceAndChromeDigests": true,
+    "consoleErrors": 0,
+    "httpErrors": 0,
+    "allFinalPngsReviewed": true,
+    "audioListeningVerified": false,
+    "firefoxUiVerified": false
+  },
+  "legacyFullUi": {
+    "passed": false,
+    "reason": "External legacy skill expects accessible combobox 默认目标语言, but unchanged origin/main locale labels it 语言."
+  }
+}

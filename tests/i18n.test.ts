@@ -455,6 +455,21 @@ describe('界面 i18n 契约', () => {
     }
   });
 
+  it('学习中心的新导航、栏目和保存期限覆盖全部界面语言', () => {
+    const item = navigationItems.find(value => value.id === 'settings-vocabulary')!;
+    for (const language of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
+      for (const source of [item.label, item.description, item.summary, item.detail, item.searchDescription]) {
+        expect(translateLegacyText(source, language), `${language}: ${source}`).not.toBe(source);
+      }
+      for (const key of ['learning.saved', 'learning.history', 'learning.content', 'learning.retention', 'learning.memory', 'learning.memoryAdd', 'learning.memoryDisabled', 'learning.memoryClearConfirm', 'settings.memoryEnabled', 'settings.memoryDescription']) {
+        expect(translate(key, language)).not.toBe(translate(key, 'zh-CN'));
+        expect(translate(key, language)).not.toBe(key);
+      }
+    }
+    expect(translate('learning.saved', 'zh-CN')).toBe('收藏');
+    expect(translate('learning.history', 'en-US')).toBe('Reading history');
+  });
+
   it('完整本地化菜单栏布局编辑器与布局差异顺序', () => {
     const layoutKeys = [
       'settings.interface.popupLayout.label',

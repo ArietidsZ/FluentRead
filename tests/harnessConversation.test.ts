@@ -21,13 +21,13 @@ describe('Harness persistent conversation coordination', () => {
     it('saves a streaming turn then final response and reports its session', async () => {
         const {conversation, store, runtime} = setup();
         const progress = vi.fn();
-        expect(await conversation.run(request(), new AbortController().signal, progress)).toEqual({...success, sessionId: 'id-1'});
+        expect(await conversation.run(request(), new AbortController().signal, progress)).toEqual({...success, sessionId: 'id-1', turnId: 'id-2'});
         expect(store.upsertTurn).toHaveBeenCalledTimes(2);
         expect(store.upsertTurn.mock.calls[0][0]).toEqual({id: 'id-1', text: 'A sentence', context: 'A paragraph', createdAt: 100, updatedAt: 100, intent: 'meaning'});
         expect(store.upsertTurn.mock.calls[0][1]).toMatchObject({status: 'streaming', question: '读懂', answer: ''});
         expect(store.upsertTurn.mock.calls[1][1]).toMatchObject({status: 'completed', answer: 'Final answer', service: 'openai', model: 'm'});
         expect(runtime.run.mock.calls[0][0].selection.sentence).toBe('');
-        expect(progress.mock.calls[0][0]).toMatchObject({kind: 'session', persistent: true, sessionId: 'id-1'});
+        expect(progress.mock.calls[0][0]).toMatchObject({kind: 'session', persistent: true, sessionId: 'id-1', turnId: 'id-2'});
     });
     it('restores authoritative selection and recent turns, clearly marking interrupted answers', async () => {
         const {conversation, store, runtime} = setup(undefined, {contextMode: 'selection', maxContextChars: 1500});
@@ -44,6 +44,27 @@ describe('Harness persistent conversation coordination', () => {
         expect(runtime.run.mock.calls[0][0]).toMatchObject({question: '', intent: 'grammar', selection: {text: previous.text, context: previous.context}, history: []});
         expect(store.upsertTurn.mock.calls[1][0]).toMatchObject({id: 'saved', intent: 'grammar'});
         expect(store.upsertTurn.mock.calls[1][1]).toMatchObject({question: '拆句', intent: 'grammar'});
+    });
+    it('anchors follow-ups to the visible action and excludes later, empty, foreign-action and forged history', async () => {
+        const {conversation, store, runtime} = setup();
+        const practices = Array.from({length: 6}, (_, index) => ({...previous.turns[0], id: `practice-${index}`, intent: 'practice' as const, question: `Exercise ${index}`, answer: `Feedback ${index}`, status: index === 4 ? 'stopped' as const : 'completed' as const}));
+        store.get.mockResolvedValue({...previous, turns: [
+            ...practices.slice(0, 2), ...previous.turns, ...practices.slice(2, 4),
+            {...practices[0], id: 'empty', answer: ' '}, ...practices.slice(4),
+        ]});
+        await conversation.run(request({sessionId: 'saved', intent: 'practice', question: 'My answer', anchorTurnId: 'practice-4', history: [{question: 'forged', answer: 'forged'}]}), new AbortController().signal);
+        expect(runtime.run.mock.calls[0][0].history).toEqual(practices.slice(1, 5).map(turn => ({question: turn.question, answer: turn.status === 'completed' ? turn.answer : `[上次回答未完成，以下为已生成部分]\n${turn.answer}`})));
+        expect(store.upsertTurn.mock.calls[0][1].question).toBe('My answer');
+    });
+    it('rejects unowned, missing and action-mismatched anchors before saving or invoking the model', async () => {
+        const {conversation, store, runtime} = setup();
+        expect(await conversation.run(request({question: 'Why?', anchorTurnId: 'turn-0'}), new AbortController().signal)).toMatchObject({success: false, error: expect.stringContaining('当前回答')});
+        expect(store.captureGeneration).not.toHaveBeenCalled(); expect(store.get).not.toHaveBeenCalled();
+        store.get.mockResolvedValue(previous);
+        for (const changes of [{anchorTurnId: 'foreign-turn'}, {anchorTurnId: 'turn-0', intent: 'practice' as const}]) {
+            expect(await conversation.run(request({sessionId: 'saved', question: 'Why?', ...changes}), new AbortController().signal)).toMatchObject({success: false, error: expect.stringContaining('当前回答')});
+        }
+        expect(store.upsertTurn).not.toHaveBeenCalled(); expect(runtime.run).not.toHaveBeenCalled();
     });
     it('retains real unsaved follow-up history but discards it when starting a new action', async () => {
         const {conversation, runtime} = setup();
@@ -71,6 +92,7 @@ describe('Harness persistent conversation coordination', () => {
         expect(store.captureGeneration).not.toHaveBeenCalled();
         expect(store.upsertTurn).not.toHaveBeenCalled();
         expect(progress.mock.calls[0][0]).toMatchObject({persistent: false});
+        expect(progress.mock.calls[0][0]).not.toHaveProperty('turnId');
         expect(await conversation.run(request({sessionId: 'saved'}), new AbortController().signal, undefined, true)).toMatchObject({success: false, error: expect.stringContaining('隐私')});
         expect(store.get).not.toHaveBeenCalled();
         expect(runtime.run).toHaveBeenCalledOnce();
@@ -91,6 +113,8 @@ describe('Harness persistent conversation coordination', () => {
             const response = await conversation.run(request(), new AbortController().signal, progress);
             expect(response).toMatchObject({...success, persistenceWarning: expect.stringContaining('未能保存')});
             expect(response).not.toHaveProperty('sessionId');
+            expect(response).not.toHaveProperty('turnId');
+            expect(progress.mock.calls.every(([event]) => event.kind !== 'session' || !('turnId' in event))).toBe(true);
             expect(store.upsertTurn).toHaveBeenCalledOnce();
             expect(progress.mock.calls.some(([event]) => event.kind === 'session' && event.persistent === false)).toBe(true);
         }

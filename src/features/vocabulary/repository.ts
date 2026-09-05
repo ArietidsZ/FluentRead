@@ -1,6 +1,6 @@
 /**
  * @file src/features/vocabulary/repository.ts
- * 文件职责：实现 FluentRead 本地单词本的 Dexie 持久化仓库，负责记录清洗、唯一身份、上下文合并、复习调度、删除撤销以及安全导入导出。
+ * 文件职责：实现 FluentRead 本地单词与句子收藏的 Dexie 持久化仓库，负责多语种记录清洗、兼容旧词条的唯一身份、上下文合并、复习调度、删除撤销以及安全导入导出。
  * 主要内容：定义数据库 schema、VocabularyBookError、语言和 URL 规范化、掌握状态/间隔算法，提供 VocabularyBookRepository 的增删查改、review、JSON merge、review log 和 clear 操作。
  * 模块边界：仓库只拥有本地 IndexedDB 数据与领域不变量，不处理 runtime 消息或渲染界面；后台 handler 负责权限和广播，learningModel 提供纯会话模型，敏感上下文默认不导出。
  */
@@ -12,6 +12,8 @@ import {
   VOCABULARY_ENTRY_MAX_CONTEXTS,
   VOCABULARY_ENTRY_SCHEMA_VERSION,
   VOCABULARY_REVIEW_LOG_MAX_PER_ENTRY,
+  VOCABULARY_SOURCE_TEXT_MAX,
+  normalizeLearningSourceText,
   type VocabularyBookErrorCode,
   type VocabularyBookExport,
   type VocabularyContext,
@@ -182,9 +184,16 @@ export function normalizeEnglishWord(value: unknown): string {
 
 export function buildVocabularyIdentityKey(sourceLanguage: unknown, term: unknown): string {
   const language = normalizeVocabularyLanguage(sourceLanguage);
-  const normalizedTerm = normalizeEnglishWord(term);
+  const normalizedTerm = normalizeVocabularyTerm(term);
   if (!language || !normalizedTerm) return '';
   return `${language}\u0000${normalizedTerm}`;
+}
+
+/** 词与句子共用旧 identity 规则，保留旧英文词条 ID，不另建数据库或批量改写历史。 */
+export function normalizeVocabularyTerm(value: unknown): string {
+  const text = normalizeLearningSourceText(value);
+  const normalized = normalizeComparableText(text, VOCABULARY_SOURCE_TEXT_MAX + 1);
+  return normalized.length <= VOCABULARY_SOURCE_TEXT_MAX ? normalized : '';
 }
 
 export function sanitizeVocabularySourceUrl(value: unknown): string | undefined {
@@ -314,14 +323,14 @@ function prepareUpsert(input: VocabularyUpsertInput, now: number) {
 
   const sourceLanguage = normalizeVocabularyLanguage(input.sourceLanguage);
   const targetLanguage = normalizeVocabularyLanguage(input.targetLanguage);
-  const term = sanitizeText(input.term, MAX_TERM_LENGTH + 1);
-  const normalizedTerm = normalizeEnglishWord(term);
+  const term = normalizeLearningSourceText(input.term);
+  const normalizedTerm = normalizeVocabularyTerm(term);
   const translation = sanitizeText(input.translation, MAX_TRANSLATION_LENGTH);
   const identityKey = buildVocabularyIdentityKey(sourceLanguage, normalizedTerm);
-  if (!sourceLanguage || !targetLanguage || !term || !normalizedTerm || !translation || !identityKey) {
+  if (!sourceLanguage || !targetLanguage || !term || !normalizedTerm || typeof input.translation !== 'string' || !identityKey) {
     throw new VocabularyBookError(
       'invalid-input',
-      'Source language, target language, term and translation are required.',
+      'Source language, target language, valid source text and a translation string are required.',
     );
   }
 
@@ -453,9 +462,9 @@ export class VocabularyBookRepository {
           sourceLanguage: prepared.sourceLanguage,
           term: prepared.term,
           normalizedTerm: prepared.normalizedTerm,
-          translations: {
+          translations: prepared.translation ? {
             [prepared.targetLanguage]: { text: prepared.translation, updatedAt: now },
-          },
+          } : {},
           phonetic: prepared.phonetic,
           partOfSpeech: prepared.partOfSpeech,
           contexts: mergeVocabularyContexts([], prepared.contexts),
@@ -480,9 +489,9 @@ export class VocabularyBookRepository {
         ...existing,
         term: prepared.term,
         normalizedTerm: prepared.normalizedTerm,
-        translations: mergeTranslations(existing.translations, {
+        translations: mergeTranslations(existing.translations, prepared.translation ? {
           [prepared.targetLanguage]: { text: prepared.translation, updatedAt },
-        }),
+        } : {}),
         phonetic: prepared.phonetic || existing.phonetic,
         partOfSpeech: prepared.partOfSpeech || existing.partOfSpeech,
         contexts: mergeVocabularyContexts(existing.contexts, prepared.contexts),
@@ -812,15 +821,15 @@ function sanitizeImportTranslations(
 function sanitizeImportEntry(value: unknown, now: number): SanitizedImportEntry | null {
   if (!isPlainRecord(value)) return null;
   const sourceLanguage = normalizeVocabularyLanguage(value.sourceLanguage);
-  const term = sanitizeText(value.term, MAX_TERM_LENGTH + 1);
-  const normalizedTerm = normalizeEnglishWord(term);
+  const term = normalizeLearningSourceText(value.term);
+  const normalizedTerm = normalizeVocabularyTerm(term);
   const identityKey = buildVocabularyIdentityKey(sourceLanguage, normalizedTerm);
   if (!sourceLanguage || !term || !normalizedTerm || !identityKey) return null;
 
   const initialCreatedAt = sanitizeTimestamp(value.createdAt, now);
   const initialUpdatedAt = sanitizeTimestamp(value.updatedAt, initialCreatedAt);
   const translations = sanitizeImportTranslations(value.translations, initialUpdatedAt);
-  if (Object.keys(translations).length === 0) return null;
+  if (Object.keys(translations).length === 0 && (!isPlainRecord(value.translations) || Object.keys(value.translations).length > 0)) return null;
   const contexts = Array.isArray(value.contexts)
     ? value.contexts
         .map((context) => sanitizeVocabularyContext(context, initialUpdatedAt))

@@ -163,7 +163,10 @@
       "tests/siteAdaptationCore.test.ts",
       "tests/siteAdaptationSession.test.ts",
       "tests/siteAdaptationSettings.test.ts",
-      "tests/siteAdaptationCatalog.test.ts"
+      "tests/siteAdaptationCatalog.test.ts",
+      "tests/harnessMemoryRecall.test.ts",
+      "tests/harnessMemorySearch.test.ts",
+      "tests/learningMemoryHandler.test.ts"
     ],
     "functional": [
       "tests/settingsCompositionAutosave.test.ts",
@@ -212,7 +215,10 @@
       "tests/imageTranslationRuntime.test.ts",
       "tests/imageTranslationPageRead.test.ts",
       "tests/imageTranslationOffscreenRuntime.test.ts",
-      "tests/siteAdaptationRuntime.test.ts"
+      "tests/siteAdaptationRuntime.test.ts",
+      "tests/readingPanelLifecycle.test.ts",
+      "tests/learningMemoryRepository.test.ts",
+      "tests/optionsAppNavigationLifecycle.test.ts"
     ],
     "regression": [
       "tests/upstreamTranslationBoundaries.test.ts",

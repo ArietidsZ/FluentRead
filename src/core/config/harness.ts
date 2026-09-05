@@ -28,6 +28,7 @@ export interface HarnessPreferences {
     maxContextChars: number;
     explanationDepth: HarnessExplanationDepth;
     learningLevel: 'beginner' | 'intermediate' | 'advanced';
+    memoryEnabled: boolean;
 }
 
 export const DEFAULT_HARNESS_PREFERENCES: HarnessPreferences = {
@@ -40,6 +41,7 @@ export const DEFAULT_HARNESS_PREFERENCES: HarnessPreferences = {
     maxContextChars: 1500,
     explanationDepth: 'concise',
     learningLevel: 'intermediate',
+    memoryEnabled: false,
 };
 
 const HARNESS_UNSUPPORTED_SERVICES = new Set([services.huanYuanTranslation]);
@@ -78,5 +80,6 @@ export function normalizeHarnessPreferences(value: unknown, customProviders: rea
         learningLevel: source.learningLevel === 'beginner' || source.learningLevel === 'advanced'
             ? source.learningLevel
             : 'intermediate',
+        memoryEnabled: source.memoryEnabled === true,
     };
 }

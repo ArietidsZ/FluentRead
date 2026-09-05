@@ -1,7 +1,7 @@
 /**
  * @file src/app/background/harnessRuntime.ts
  * 文件职责：把阅读卡后台处理器组装到扩展配置、Harness 服务和浏览器标签页生命周期。
- * 主要内容：绑定流式端口、本机三十天会话与清理闹钟，配置停用、网站禁用及标签导航时取消请求，向主消息路由返回静态 handler。
+ * 主要内容：绑定流式端口、本机三十天会话、长期记忆管理与清理闹钟；配置停用、记忆变更、网站禁用及标签导航时取消请求。
  * 模块边界：这是应用组合根，不实现选区、消息校验、会话或模型协议；对应规则和异步所有权由 reading-assistant/background 及 services/harness 验证。
  */
 import browser from 'webextension-polyfill';
@@ -12,6 +12,9 @@ import {createHarnessConversationRuntime} from '@/src/services/harness/conversat
 import {harnessSessionRepository} from '@/src/platform/storage/harnessSessionRepository';
 import {attachReadingStreamPort} from '@/src/features/reading-assistant/streamPort';
 import {createReadingSessionHandler} from '@/src/features/reading-assistant/sessionHandler';
+import {createLearningMemoryHandler} from '@/src/features/reading-assistant/memoryHandler';
+import {learningMemoryRepository} from '@/src/platform/storage/learningMemoryRepository';
+import {createLearningMemoryRecall} from '@/src/services/harness/memoryRecall';
 import {modelUsageRepository} from '@/src/platform/storage/modelUsageRepository';
 import {isExtensionDisabledOnSite} from '@/src/core/site-rules/domain';
 import type {BackgroundMessageHandler} from './messageRouter';
@@ -21,7 +24,7 @@ export function installHarnessBackgroundRuntime(): BackgroundMessageHandler<{sen
     const runtime = createHarnessRuntime(() => config, () => {
         const generation = modelUsageRepository.captureGeneration();
         return event => { void modelUsageRepository.recordMany([event], generation).catch(() => undefined); };
-    });
+    }, {recall: createLearningMemoryRecall(learningMemoryRepository)});
     const eligibility = (sender: ReadingSender) => {
             if (!config.on || !config.harness.enabled) return '阅读理解已停用';
             if (isExtensionDisabledOnSite(sender.url || '', config.disabledExtensionDomains)
@@ -40,6 +43,14 @@ export function installHarnessBackgroundRuntime(): BackgroundMessageHandler<{sen
         extensionId: browser.runtime.id, optionsUrl: browser.runtime.getURL('options.html'),
         ready, eligibility, store: harnessSessionRepository,
         privateContext: () => Boolean(browser.extension.inIncognitoContext),
+    });
+    const memories = createLearningMemoryHandler({
+        extensionId: browser.runtime.id, optionsUrl: browser.runtime.getURL('options.html'),
+        ready: configReady, store: learningMemoryRepository,
+        privateContext: () => Boolean(browser.extension.inIncognitoContext),
+        eligibility: sender => isExtensionDisabledOnSite(sender.url || '', config.disabledExtensionDomains)
+            || isExtensionDisabledOnSite(sender.tab?.url || '', config.disabledExtensionDomains) ? '当前网站已禁用扩展' : undefined,
+        cancelActive: () => handler.cancelAll(),
     });
     browser.runtime.onConnect.addListener(port => attachReadingStreamPort(port, handler));
     const prune = () => { if (!browser.extension.inIncognitoContext) void harnessSessionRepository.prune().catch(() => undefined); };
@@ -60,6 +71,7 @@ export function installHarnessBackgroundRuntime(): BackgroundMessageHandler<{sen
     return {type: 'fluentReadHarness', handle: (message, context) => {
         const sender = context.sender ?? {};
         if (message && typeof message === 'object' && 'action' in message && typeof message.action === 'string' && message.action.startsWith('sessions-')) return sessions(message, sender);
+        if (message && typeof message === 'object' && 'action' in message && typeof message.action === 'string' && message.action.startsWith('memory-')) return memories(message, sender);
         return handler.handle(message, sender);
     }};
 }

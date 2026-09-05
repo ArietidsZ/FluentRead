@@ -36,7 +36,9 @@ import {
 import {
     createOpenOptionsPageHandler,
     OPEN_OPTIONS_PAGE_MESSAGE_TYPE,
+    OPTIONS_SECTION_IDS,
 } from '@/src/features/settings/background/openOptionsHandler';
+import {navigationItems, NAVIGATION_SECTION_ALIASES} from '@/src/features/settings/model/navigation';
 import {isBrowserTabId, TabTranslationStateStore} from '@/src/app/background/tabTranslationState';
 import {getTranslationRequestControl} from '@/src/services/translation/requestSnapshot';
 
@@ -103,6 +105,27 @@ describe('后台 feature handlers', () => {
             .rejects.toThrow('无效的设置页面');
         await expect(handler.handle({type: OPEN_OPTIONS_PAGE_MESSAGE_TYPE, section: 1}))
             .rejects.toThrow('无效的设置页面');
+    });
+
+    it('所有真实导航分区与兼容别名均能从页面打开，未知目标没有导航副作用', async () => {
+        const openDefaultPage = vi.fn(async () => undefined);
+        const openSection = vi.fn(async () => undefined);
+        const handler = createOpenOptionsPageHandler({openDefaultPage, openSection});
+        expect(OPTIONS_SECTION_IDS).toEqual(navigationItems.map(item => item.id));
+        for (const item of navigationItems) {
+            await expect(handler.handle({type: OPEN_OPTIONS_PAGE_MESSAGE_TYPE, section: item.id})).resolves.toEqual({success: true});
+            expect(openSection).toHaveBeenLastCalledWith(item.id);
+        }
+        for (const [alias, canonical] of NAVIGATION_SECTION_ALIASES) {
+            await expect(handler.handle({type: OPEN_OPTIONS_PAGE_MESSAGE_TYPE, section: alias})).resolves.toEqual({success: true});
+            expect(openSection).toHaveBeenLastCalledWith(canonical);
+        }
+        const expectedCalls = navigationItems.length + NAVIGATION_SECTION_ALIASES.size;
+        for (const section of [null, {}, [], '', 'settings-missing', '#settings-harness', 'https://example.com']) {
+            await expect(handler.handle({type: OPEN_OPTIONS_PAGE_MESSAGE_TYPE, section})).rejects.toThrow('无效的设置页面');
+        }
+        expect(openSection).toHaveBeenCalledTimes(expectedCalls);
+        expect(openDefaultPage).not.toHaveBeenCalled();
     });
 
     it('全文状态 handler 复用状态仓库且不丢失 tabId=0', () => {

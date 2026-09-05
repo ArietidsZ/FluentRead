@@ -158,7 +158,7 @@ describe('vocabulary repository validation and list branches', () => {
     await expect(repository.upsert(baseInput({targetLanguage: 'bad!'}), NOW)).rejects.toMatchObject({
       code: 'invalid-input',
     });
-    await expect(repository.upsert(baseInput({translation: '   '}), NOW)).rejects.toMatchObject({
+    await expect(repository.upsert(baseInput({translation: null}), NOW)).rejects.toMatchObject({
       code: 'invalid-input',
     });
     await expect(repository.getByTerm('bad!', 'common')).resolves.toBeNull();

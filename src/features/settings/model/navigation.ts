@@ -1,7 +1,7 @@
 /**
  * @file src/features/settings/model/navigation.ts
  * 文件职责：定义设置中心侧边栏的导航信息模型，并提供默认分区、哈希解析与搜索过滤等不依赖 Vue 或浏览器 API 的纯规则。
- * 主要内容：包含按功能分组的标题、副标题、图标、关键词和 section ID，派生扁平 navigationItems，导出 resolveNavigationItem、resolveRequestedSection 与 filterNavigationItems。
+ * 主要内容：包含按功能分组的标题、副标题、图标、关键词和 section ID，从同一注册表派生导航列表与后台合法分区 ID，导出 resolveNavigationItem、resolveRequestedSection 与 filterNavigationItems。
  * 模块边界：该模块只描述导航元数据，不切换 DOM、不写 location.hash 也不保存配置；Options 页面负责路由同步，SettingsSections.vue 负责各分区实际内容。
  */
 export type NavigationItem = {
@@ -20,10 +20,10 @@ export type NavigationItem = {
 
 export type NavigationGroup = {
   label: string
-  items: NavigationItem[]
+  items: readonly NavigationItem[]
 }
 
-export const navigationGroups: NavigationGroup[] = [
+export const navigationGroups = [
   {
     label: '基础配置',
     items: [
@@ -50,6 +50,12 @@ export const navigationGroups: NavigationGroup[] = [
         heading: '翻译设置', summary: '按使用顺序管理鼠标悬浮、划词、输入框和全文翻译。',
         kicker: '基础配置', title: '翻译设置', detail: '设置鼠标悬浮、划词、输入框与全文翻译的触发方式。',
         searchDescription: '鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、快捷方案、独立模型、AI 多段翻译、自定义快捷键、右键菜单、悬浮球、翻译进度',
+      },
+      {
+        id: 'settings-harness', icon: '文', label: 'DeepSeek Harness', description: '选区学习辅助', group: '基础配置',
+        heading: 'DeepSeek Harness', summary: '选中文本后按需调用 AI，帮助理解、拆句、掌握用法和练习。',
+        kicker: '基础配置', title: 'DeepSeek Harness', detail: '配置选区学习辅助的服务、上下文范围和回答偏好。',
+        searchDescription: 'Harness、DeepSeek、读懂、拆句、用法、练习、选区、段落、学习辅助、解释深度、学习程度、学习记忆、记忆开关',
       },
     ],
   },
@@ -80,34 +86,28 @@ export const navigationGroups: NavigationGroup[] = [
     label: '工具与学习',
     items: [
       {
-        id: 'settings-glossary', icon: 'Aa', label: '术语库', description: '固定译名与保留原文', group: '工具与学习',
-        heading: '术语库', summary: '为专业术语指定译法，按语言和网站选择适用范围。',
-        kicker: '翻译工具', title: '术语库', detail: '管理词库、导入术语，并预览当前文本会使用的译法。',
-        searchDescription: '术语库、专业术语、固定译名、专有名词、保留原文、glossary、CSV、TSV、导入导出',
-      },
-      {
         id: 'settings-translation-center', icon: '译', label: '翻译中心', description: '多服务对比', group: '工具与学习',
         heading: '比较不同翻译服务', summary: '输入一句话，同时查看多个翻译服务的结果，并支持重复翻译。',
         kicker: '翻译工具', title: '翻译中心', detail: '用同一句话比较不同服务的译文表现。',
         searchDescription: '多服务翻译、翻译对比、重复翻译、句子翻译',
       },
       {
+        id: 'settings-vocabulary', icon: '★', label: '学习中心', description: '收藏、复习与阅读记录', group: '工具与学习',
+        heading: '学习中心', summary: '统一管理主动收藏的内容，回看最近 30 天的阅读问答。',
+        kicker: '本地学习', title: '学习中心', detail: '收藏内容长期保留，阅读问答保留 30 天；所有学习数据只保存在当前浏览器。',
+        searchDescription: '学习中心、单词本、收藏、词汇、句子、复习、阅读记录、问答、30 天、Anki、导入导出',
+      },
+      {
+        id: 'settings-glossary', icon: 'Aa', label: '术语库', description: '固定译名与保留原文', group: '工具与学习',
+        heading: '术语库', summary: '为专业术语指定译法，按语言和网站选择适用范围。',
+        kicker: '翻译工具', title: '术语库', detail: '管理词库、导入术语，并预览当前文本会使用的译法。',
+        searchDescription: '术语库、专业术语、固定译名、专有名词、保留原文、glossary、CSV、TSV、导入导出',
+      },
+      {
         id: 'settings-model-usage', icon: '▥', label: '模型用量', description: 'Token、缓存与请求记录', group: '工具与学习',
         heading: '查看大模型调用用量', summary: '按服务、模型和时间范围查看本机 FluentRead 的请求与 Token。',
         kicker: '本地工具', title: '模型用量', detail: '查看发起的大模型调用、Token 消耗与使用趋势。',
         searchDescription: '模型用量、调用统计、Token、请求记录、耗时、输入 Token、输出 Token、缓存输入、缓存写入、缓存命中率、导入、导出、Kimi、月之暗面、OpenAI、DeepSeek',
-      },
-      {
-        id: 'settings-vocabulary', icon: '★', label: '单词本', description: '收藏与复习', group: '工具与学习',
-        heading: '把阅读中遇到的词真正学会', summary: '收藏划词卡中的英文单词，用轻量复习跟踪从新词到掌握的过程。',
-        kicker: '本地学习', title: '单词本', detail: '词条、上下文与复习记录只保存在当前浏览器；可在这里复习或导出到 Anki。',
-        searchDescription: '单词本、收藏、复习、掌握程度、学习记录、Anki、导入导出',
-      },
-      {
-        id: 'settings-harness', icon: '文', label: 'DeepSeek Harness', description: '选区学习辅助', group: '工具与学习',
-        heading: 'DeepSeek Harness', summary: '选中文本后按需调用 AI，帮助理解、拆句、掌握用法和练习。',
-        kicker: '学习辅助', title: 'DeepSeek Harness', detail: '配置选区学习辅助的服务、上下文范围和回答偏好。',
-        searchDescription: 'Harness、DeepSeek、读懂、拆句、用法、练习、选区、段落、学习辅助、解释深度、学习程度',
       },
     ],
   },
@@ -134,14 +134,17 @@ export const navigationGroups: NavigationGroup[] = [
       },
     ],
   },
-]
+] as const satisfies readonly NavigationGroup[]
 
-export const navigationItems = navigationGroups.flatMap((group) => group.items)
+export type NavigationSectionId = (typeof navigationGroups)[number]['items'][number]['id']
+export const navigationItems = navigationGroups.flatMap<NavigationItem>((group) => group.items)
+export const NAVIGATION_SECTION_IDS = navigationGroups.flatMap<NavigationSectionId>((group) => group.items.map(item => item.id))
 
-/** 旧链接仍定位到合并后的“翻译设置”，但不再作为独立导航项展示。 */
+/** 旧设置入口与学习中心的新语义别名统一解析，不增加重复导航项目。 */
 export const NAVIGATION_SECTION_ALIASES: ReadonlyMap<string, string> = new Map([
   ['settings-webpage', 'settings-translation'],
   ['settings-shortcuts', 'settings-translation'],
+  ['settings-learning-center', 'settings-vocabulary'],
 ])
 
 export const DEFAULT_NAVIGATION_SECTION = navigationItems[0].id

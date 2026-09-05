@@ -69,22 +69,22 @@ const expectedNavigation = [
   ['settings-interface', '界面布局'],
   ['settings-services', '翻译服务'],
   ['settings-translation', '翻译设置'],
+  ['settings-harness', 'DeepSeek Harness'],
   ['settings-image-translation', '图片与圈选翻译'],
   ['settings-video', '视频字幕翻译'],
   ['settings-sites', '网站规则'],
-  ['settings-glossary', '术语库'],
   ['settings-translation-center', '翻译中心'],
+  ['settings-vocabulary', '学习中心'],
+  ['settings-glossary', '术语库'],
   ['settings-model-usage', '模型用量'],
-  ['settings-vocabulary', '单词本'],
-  ['settings-harness', 'DeepSeek Harness'],
   ['settings-advanced', '高级选项'],
   ['settings-data', '备份与恢复'],
   ['settings-about', '关于流畅阅读'],
 ];
 const expectedNavigationGroups = [
-  ['基础配置', ['settings-general', 'settings-interface', 'settings-services', 'settings-translation']],
+  ['基础配置', ['settings-general', 'settings-interface', 'settings-services', 'settings-translation', 'settings-harness']],
   ['专项翻译', ['settings-image-translation', 'settings-video', 'settings-sites']],
-  ['工具与学习', ['settings-glossary', 'settings-translation-center', 'settings-model-usage', 'settings-vocabulary', 'settings-harness']],
+  ['工具与学习', ['settings-translation-center', 'settings-vocabulary', 'settings-glossary', 'settings-model-usage']],
   ['系统与数据', ['settings-advanced', 'settings-data', 'settings-about']],
 ];
 const expectedGeneralGroups = ['选择翻译服务', '译文显示', '网页辅助'];
