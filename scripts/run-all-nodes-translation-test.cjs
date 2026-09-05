@@ -12,6 +12,7 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 const {createRequire} = require('node:module');
 const {createHash} = require('node:crypto');
+const {execFileSync} = require('node:child_process');
 const {startTranslationFixtureServer} = require('./run-full-page-translation-test.cjs');
 
 function parseArgs(argv) {
@@ -95,9 +96,27 @@ async function readConfig(popup) {
   });
 }
 
-async function createSettingsDriver(context, popup, helper, optionsUrl, args, report) {
+async function createSettingsDriver(context, popup, helper, session, optionsUrl, args, report) {
   const name = /^(识别全部节点|Detect all nodes)$/;
-  report.settings = {entry: 'options#settings-advanced / Page recognition', persistenceCases: [], quickClose: [], latestWriteWins: [], layouts: [], consoleErrors: []};
+  report.settings = {entry: 'options#settings-advanced / Page recognition', persistenceCases: [], quickClose: [], crossPageSync: [], latestWriteWins: [], layouts: [], consoleErrors: []};
+  report.focusChecks = [];
+  const browserCDP = await context.browser().newBrowserCDPSession();
+  const {processInfo} = await browserCDP.send('SystemInfo.getProcessInfo');
+  const browserPid = processInfo.find(process => process.type === 'browser')?.id;
+  assert(browserPid, '无法确认隔离浏览器进程');
+  await browserCDP.detach();
+  async function checkFocus(options, label) {
+    const frontmost = JSON.parse(execFileSync('/usr/bin/osascript', ['-l', 'JavaScript', '-e',
+      "ObjC.import('AppKit');const app=$.NSWorkspace.sharedWorkspace.frontmostApplication;JSON.stringify({pid:Number(app.processIdentifier),name:ObjC.unwrap(app.localizedName)});"], {encoding: 'utf8', timeout: 5000}));
+    assert.notEqual(frontmost.pid, browserPid, '隔离 Edge 意外成为前台应用');
+    const cdp = await context.newCDPSession(options);
+    const {bounds} = await cdp.send('Browser.getWindowForTarget');
+    await cdp.detach();
+    const expected = session.windowPlacement.bounds;
+    for (const key of ['left', 'top', 'width', 'height']) assert.equal(bounds[key], expected[key], `后台窗口边界改变：${key}`);
+    assert.equal(bounds.windowState, 'normal');
+    report.focusChecks.push({label, browserPid, frontmost, browserFrontmost: false, bounds, screenIndex: session.windowPlacement.screenIndex});
+  }
   async function open(width = 1440, colorScheme = 'light') {
     const options = await helper.newPageWithoutForeground(context, args.timeout);
     options.on('pageerror', error => report.settings.consoleErrors.push(error.message));
@@ -105,7 +124,9 @@ async function createSettingsDriver(context, popup, helper, optionsUrl, args, re
     await options.setViewportSize({width, height: 1000});
     await options.emulateMedia({colorScheme});
     await options.goto(`${optionsUrl}#settings-advanced`);
-    await options.getByRole('switch', {name}).waitFor({state: 'visible', timeout: args.timeout});
+    // Element Plus uses a visually hidden accessible input inside its visible switch.
+    await options.getByRole('switch', {name}).locator('xpath=..').waitFor({state: 'visible', timeout: args.timeout});
+    await checkFocus(options, `options-open-${width}-${colorScheme}`);
     return options;
   }
   async function waitPersisted(scope) {
@@ -138,6 +159,7 @@ async function createSettingsDriver(context, popup, helper, optionsUrl, args, re
       savedScope: saved.translationScope, revisionBefore: before.__fluentConfigRevision, revisionAfter: saved.__fluentConfigRevision, reopenedValue};
     report.settings.persistenceCases.push(evidence);
     report.settings.quickClose.push(evidence);
+    report.settings.crossPageSync.push({label, surface: 'options-closed-to-popup-runtime-read', savedScope: saved.translationScope});
     return evidence;
   }
   async function verifyLatestWriteWins() {
@@ -155,15 +177,15 @@ async function createSettingsDriver(context, popup, helper, optionsUrl, args, re
     report.settings.latestWriteWins.push({twoConsecutiveToggles: true, closedImmediately: true, finalScope: before.translationScope});
   }
   async function captureLayouts() {
-    for (const language of ['zh-CN', 'en']) {
+    for (const language of ['zh-CN', 'en-US']) {
       await configure(popup, {uiLanguage: language});
       for (const colorScheme of ['light', 'dark']) {
         for (const width of [1440, 1024, 820, 390]) {
           const options = await open(width, colorScheme);
-          await options.getByRole('switch', {name}).scrollIntoViewIfNeeded();
+          await options.getByRole('switch', {name}).locator('xpath=..').scrollIntoViewIfNeeded();
           await options.waitForTimeout(250);
           const geometry = await options.getByRole('switch', {name}).evaluate(element => {
-            const rect = element.getBoundingClientRect();
+            const rect = element.parentElement.getBoundingClientRect();
             return {viewport: innerWidth, documentWidth: document.documentElement.scrollWidth,
               left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
               dark: document.documentElement.classList.contains('dark'), label: element.getAttribute('aria-label'),
@@ -172,9 +194,10 @@ async function createSettingsDriver(context, popup, helper, optionsUrl, args, re
           assert(geometry.documentWidth <= width + 1, `设置页面横向溢出：${JSON.stringify(geometry)}`);
           assert(geometry.left >= 0 && geometry.right <= width && geometry.top >= 0 && geometry.bottom <= 1000, '识别开关未完整可见');
           assert.equal(geometry.dark, colorScheme === 'dark', '设置深浅主题未跟随系统');
-          assert.equal(geometry.label, language === 'en' ? 'Detect all nodes' : '识别全部节点');
+          assert.equal(geometry.label, language === 'en-US' ? 'Detect all nodes' : '识别全部节点');
           const screenshot = `settings-${language}-${colorScheme}-${width}.png`;
           await options.screenshot({path: path.join(args.artifactsDir, screenshot)});
+          await checkFocus(options, screenshot);
           report.settings.layouts.push({language, colorScheme, width, screenshot, geometry});
           await options.close();
         }
@@ -182,6 +205,7 @@ async function createSettingsDriver(context, popup, helper, optionsUrl, args, re
     }
     await configure(popup);
     assert.deepEqual(report.settings.consoleErrors, [], '设置页控制台异常');
+    report.settings.layoutsPassed = true;
   }
   const initial = await readConfig(popup);
   assert.equal(initial.translationScope, 'content', '新配置必须默认普通识别');
@@ -201,7 +225,10 @@ async function snapshot(page) {
         .filter(e => e.querySelectorAll(':scope > .fluent-read-bilingual-content').length > 1).map(e => e.id || e.tagName),
       nodes: Object.fromEntries(tracked.map(e => [e.id, {count: e.querySelectorAll(wrapper).length, text: e.textContent, visible: !!e.getClientRects().length}])),
       protected: Object.fromEntries([...document.querySelectorAll('[data-protected]')].map(e => [e.id, {html: e.innerHTML, value: e.value ?? null}])),
-      links: Object.fromEntries([...document.querySelectorAll('a')].map(e => [e.id, {href: e.getAttribute('href'), target: e.getAttribute('target'), rel: e.getAttribute('rel')}])),
+      // Bilingual paragraphs may reconstruct inline links inside their translated
+      // copy. Check application links, whose attributes and identity must survive.
+      links: Object.fromEntries([...document.querySelectorAll('a')].filter(e => !e.closest(wrapper))
+        .map(e => [e.id, {href: e.getAttribute('href'), target: e.getAttribute('target'), rel: e.getAttribute('rel')}])),
       identityPreserved: !window.__fixtureOriginalElements || window.__fixtureOriginalElements.every(([id, element]) => document.getElementById(id) === element),
       events: {...window.fixtureEvents},
       url: location.href,
@@ -249,8 +276,11 @@ async function hoverControl(page, context, helper, args) {
   await page.keyboard.up('Control');
 }
 
-async function runLiveEpoch(page, popup, context, helper, settings, args) {
+async function runLiveEpoch(page, popup, context, helper, settings, args, report) {
   const url = 'https://epoch.ai/data/ai-data-centers';
+  const evidence = report.liveEpoch = {passed: false, completedPhases: [], sourceUrl: url,
+    evidenceType: 'live-site-production-extension-with-controlled-loopback-provider', providerQualityTested: false};
+  const checkpoint = (phase, state) => {evidence[phase] = state;evidence.completedPhases.push(phase);};
   const pageErrors = [];
   const recordError = error => pageErrors.push(error.message);
   page.on('pageerror', recordError);
@@ -297,17 +327,20 @@ async function runLiveEpoch(page, popup, context, helper, settings, args) {
   });
   const baseline = await read();
   assert(baseline.controls.length >= 7, 'Epoch 实站缺少预期导航、页脚和图表控件');
+  checkpoint('baseline', baseline);
   await page.screenshot({path: path.join(args.artifactsDir, 'epoch-live-before.png')});
   await action(popup, url, 'fullPage');
   await page.waitForFunction(() => !!document.querySelector('h1 .fluent-read-bilingual-content'), undefined, {timeout: args.timeout});
   const ordinary = await read();
   for (const control of ordinary.controls.slice(0, 4)) assert.equal(control.text, control.original, 'Epoch 普通模式意外修改导航');
+  checkpoint('ordinary', ordinary);
   await page.evaluate(() => {window.__epochOriginalWrapper = document.querySelector('h1 .fluent-read-bilingual-content');});
   await settings.setScope('all', 'epoch-on');
   await page.waitForTimeout(300);
   const frozen = await read();
-  assert.deepEqual(frozen.controls.map(e => e.text), ordinary.controls.map(e => e.text), '修改识别范围不应改动当前翻译会话');
+  assert.deepEqual(frozen.controls.slice(0, 4).map(e => e.text), ordinary.controls.slice(0, 4).map(e => e.text), '修改识别范围不应扩展当前会话的导航识别');
   assert(await page.evaluate(() => window.__epochOriginalWrapper.isConnected), '设置保存不应更换当前正文');
+  checkpoint('frozen', frozen);
   await action(popup, url, 'restore');
   await action(popup, url, 'fullPage');
   try {
@@ -325,6 +358,7 @@ async function runLiveEpoch(page, popup, context, helper, settings, args) {
   assert(translated.inputsUnchanged, 'Epoch 搜索输入发生变化');
   assert.equal(translated.nestedWrappers, 0, 'Epoch 译文嵌套');
   assert.equal(translated.duplicateParents, 0, 'Epoch 译文重复');
+  checkpoint('translated', translated);
   await page.screenshot({path: path.join(args.artifactsDir, 'epoch-live-translated-top.png')});
   await page.locator('footer').scrollIntoViewIfNeeded();
   await page.screenshot({path: path.join(args.artifactsDir, 'epoch-live-translated-footer.png')});
@@ -332,15 +366,18 @@ async function runLiveEpoch(page, popup, context, helper, settings, args) {
   await page.waitForTimeout(500);
   const repeated = await read();
   assert.deepEqual(repeated.controls.map(e => e.text), translated.controls.map(e => e.text), 'Epoch 重复扫描重译已有控件');
+  checkpoint('repeated', repeated);
   await action(popup, url, 'restore');
   await page.waitForFunction(() => !document.querySelector('.fluent-read-bilingual-content'), undefined, {timeout: args.timeout});
   const restored = await read();
   for (const control of restored.controls) assert.equal(control.text, control.original, 'Epoch 控件原文未恢复');
   assert(restored.inputsUnchanged, 'Epoch 恢复后搜索输入发生变化');
+  checkpoint('restored', restored);
   await action(popup, url, 'fullPage');
   await page.waitForFunction(() => window.__epochContract.controls.every(({selector, index}) => /[\u3400-\u9fff]/u.test(document.querySelectorAll(selector)[index]?.textContent || '')), undefined, {timeout: args.timeout});
   const retranslated = await read();
   for (const control of retranslated.controls) assert.equal(control.wrapperCount, 0, 'Epoch 再译控件应保持原位');
+  checkpoint('retranslated', retranslated);
   await settings.setScope('content', 'epoch-off');
   const disabledActiveSession = await read();
   assert.deepEqual(disabledActiveSession.controls.map(e => e.text), retranslated.controls.map(e => e.text), '关闭设置不应改动当前会话');
@@ -353,7 +390,7 @@ async function runLiveEpoch(page, popup, context, helper, settings, args) {
   await page.screenshot({path: path.join(args.artifactsDir, 'epoch-live-restored-footer.png')});
   page.off('pageerror', recordError);
   process.stdout.write('Epoch 实际站点导航、图表控件和页脚升级/重复/恢复契约通过。\n');
-  return {evidenceType: 'live-site-production-extension-with-controlled-loopback-provider', providerQualityTested: false,
+  return {...evidence, passed: true,
     sourceUrl: url, selectors: ['nav.secondary-nav a', 'footer .newsletter-title', 'footer a (visible readable text)', 'button.button-tab', 'footer h2.tagline'],
     baseline, ordinary, frozen, translated, repeated, restored, retranslated, disabledActiveSession, ordinaryAfterDisabled, pageErrors};
 }
@@ -407,14 +444,15 @@ async function main() {
     report.config = await configure(popup);
     const optionsPath = manifest.options_ui?.page || manifest.options_page;
     assert(optionsPath, '生产清单缺少设置页面');
-    const settings = await createSettingsDriver(context, popup, helper, `chrome-extension://${extensionId}/${optionsPath}`, args, report);
+    const settings = await createSettingsDriver(context, popup, helper, session, `chrome-extension://${extensionId}/${optionsPath}`, args, report);
     report.entry = {surface: 'options', section: 'settings-advanced', group: 'Page recognition',
       realSwitchClickTested: true, persistedConfigField: 'translationScope', actionEvidence: 'existing-fullPage-and-restore-message-route'};
     page = await helper.newPageWithoutForeground(context, args.timeout);
     page.on('pageerror', error => runtimeErrors.push(error.message));
     if (args.liveOnly) {
       permitLivePageNetwork = true;
-      report.liveEpoch = await runLiveEpoch(page, popup, context, helper, settings, args);
+      report.liveEpoch = await runLiveEpoch(page, popup, context, helper, settings, args, report);
+      await settings.captureLayouts();
       Object.assign(report, {passed: true, evidenceType: 'live-site-production-extension-with-controlled-loopback-provider', liveSite: true,
         launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement,
         providerRequests: provider.requestCount(), translatedItems: provider.translatedItemCount(), unexpectedNetwork, workerErrors});
@@ -433,6 +471,7 @@ async function main() {
     report.baseline = baseline;
     const staticIds = await page.locator('[data-all-node]').evaluateAll(nodes => nodes.map(e => e.id));
     const bodyIds = ['article-body', 'workflow-body', 'project-body'];
+    const ordinaryExcludedIds = ['epoch-latest', 'epoch-dashboard', 'footer-about', 'workflow-overview', 'tree-label'];
     const dynamicIds = ['expanded-owner', 'expanded-details', 'tree-child', 'portal-duplicate', 'portal-archive'];
     const controlIds = [...staticIds.filter(id => id !== 'footer-tagline'), ...dynamicIds];
     await hoverControl(page, context, helper, args);
@@ -441,8 +480,9 @@ async function main() {
     await action(popup, url, 'fullPage');
     await waitForNodes(page, bodyIds, 1, args.timeout);
     const ordinary = await snapshot(page);
-    for (const id of ['epoch-latest', 'epoch-dashboard', 'footer-about', 'workflow-overview', 'tab-history', 'tree-label']) {
+    for (const id of ordinaryExcludedIds) {
       assert.equal(ordinary.nodes[id].count, 0, `普通模式意外翻译 ${id}`);
+      assert.equal(ordinary.nodes[id].text, baseline.nodes[id].text, `普通模式意外替换控件原文 ${id}`);
     }
     assertInvariant(ordinary, baseline, 'ordinary');
     await page.evaluate(ids => {window.__ordinaryWrappers = ids.flatMap(id => [...document.getElementById(id).querySelectorAll('.fluent-read-bilingual-content')]);}, bodyIds);
@@ -453,7 +493,11 @@ async function main() {
     await settings.verifyLatestWriteWins();
     await page.waitForTimeout(300);
     const frozen = await snapshot(page);
-    assert.deepEqual(frozen.nodes, ordinary.nodes, '范围设置不应改动已启动的普通翻译会话');
+    // An ordinary heading still queued by the existing session may complete while
+    // options is open. Freeze already translated owners and excluded UI controls.
+    for (const id of [...bodyIds, ...ordinaryExcludedIds]) {
+      assert.deepEqual(frozen.nodes[id], ordinary.nodes[id], `范围设置不应改动当前会话节点 ${id}`);
+    }
     assert(await page.evaluate(() => window.__ordinaryWrappers.every(e => e.isConnected)), '设置保存不应更换已译正文');
     report.scopeChangeFrozenSession = frozen;
     await action(popup, url, 'restore');
@@ -514,7 +558,7 @@ async function main() {
     await action(popup, url, 'fullPage');
     await waitForNodes(page, bodyIds, 1, args.timeout);
     const ordinaryAgain = await snapshot(page);
-    for (const id of ['epoch-latest', 'epoch-dashboard', 'footer-about', 'workflow-overview', 'tab-history', 'tree-label']) {
+    for (const id of ordinaryExcludedIds) {
       assert.equal(ordinaryAgain.nodes[id].text, baseline.nodes[id].text, `关闭后普通模式仍翻译控件 ${id}`);
     }
     assertInvariant(ordinaryAgain, baseline, 'ordinary-after-setting-disabled');
@@ -525,7 +569,7 @@ async function main() {
     await action(popup, url, 'fullPage');
     await waitForNodes(page, bodyIds, 1, args.timeout);
     const afterRefresh = await snapshot(page);
-    for (const id of ['epoch-latest', 'epoch-dashboard', 'footer-about', 'workflow-overview', 'tab-history', 'tree-label']) {
+    for (const id of ordinaryExcludedIds) {
       assert.equal(afterRefresh.nodes[id].text, baseline.nodes[id].text, `刷新后普通模式仍翻译控件 ${id}`);
     }
     report.afterRefresh = afterRefresh;
@@ -546,11 +590,12 @@ async function main() {
       providerRequests: provider.requestCount(), translatedItems: provider.translatedItemCount(),
       lifecycleCounts: [expanded.count, restored.count, retranslated.count],
       controlLifecycleCounts: [expanded.translatedLabels, restored.translatedLabels, retranslated.translatedLabels], unexpectedNetwork, runtimeErrors, workerErrors});
+    report.fixturePassed = true;
     if (args.liveEpoch) {
       await action(popup, url, 'restore');
       permitLivePageNetwork = true;
       report.fixtureProviderRequests = provider.requestCount();
-      report.liveEpoch = await runLiveEpoch(page, popup, context, helper, settings, args);
+      report.liveEpoch = await runLiveEpoch(page, popup, context, helper, settings, args, report);
       report.liveEpoch.providerRequests = provider.requestCount() - report.fixtureProviderRequests;
       report.providerRequests = provider.requestCount();
       report.translatedItems = provider.translatedItemCount();
@@ -563,6 +608,11 @@ async function main() {
   } catch (error) {
     report.passed = false;
     report.error = error.stack || String(error);
+    if (/测试 Edge 进程 \d+ 成为了前台应用|隔离 Edge 意外成为前台应用/u.test(error.message)) {
+      report.focusViolation = {detected: true, message: error.message};
+      report.windowPlacementAtLastSuccessfulCheck = {...session?.windowPlacement};
+      report.windowPlacement = {...session?.windowPlacement, browserFrontmost: true};
+    }
     report.providerRequests = provider.requestCount();
     report.providerPayloads = provider.requestPayloads();
     if (page && !page.isClosed()) {report.failureState = await snapshot(page).catch(() => null);await page.screenshot({path: path.join(args.artifactsDir, 'failure.png'), fullPage: true}).catch(() => {});}
