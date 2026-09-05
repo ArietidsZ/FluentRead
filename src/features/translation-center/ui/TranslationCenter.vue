@@ -301,10 +301,7 @@ const hiddenUnavailableServices = computed(() => Array.isArray(config.translatio
 const selectedServiceValues = computed(() => new Set(cards.value.map(card => card.service)))
 const availableServiceOptions = computed(() => serviceOptions.value.filter(item => !selectedServiceValues.value.has(item.value)))
 const successfulCards = computed(() => cards.value.filter(card => card.status === 'success' && card.result))
-const sourceLanguageOptions = computed(() => [
-  { value: 'auto', label: '自动检测' },
-  ...options.to,
-])
+const sourceLanguageOptions = computed(() => options.from)
 const targetLanguageOptions = computed(() => options.to)
 const filteredServiceGroups = computed(() => {
   const keyword = serviceSearchQuery.value.toLocaleLowerCase()

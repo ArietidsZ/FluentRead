@@ -9,6 +9,16 @@ function group(result: ReturnType<typeof buildConfigDiff>, id: string) {
 }
 
 describe('配置差异预览', () => {
+    it('语言配置差异明确标出简体与繁体名称', () => {
+        const result = buildConfigDiff({from: 'zh-Hans', to: 'zh-Hans', inputBoxTranslationTarget: 'zh-Hans',
+            translationCenterSourceLanguage: 'zh-Hans', translationCenterTargetLanguage: 'zh-Hans'},
+        {from: 'zh-Hant', to: 'zh-Hant', inputBoxTranslationTarget: 'zh-Hant',
+            translationCenterSourceLanguage: 'zh-Hant', translationCenterTargetLanguage: 'zh-Hant'});
+        const languageChanges = result.groups.flatMap(item => item.changes);
+        expect(languageChanges).toHaveLength(5);
+        expect(languageChanges.every(item => item.before === '简体中文' && item.after === '繁體中文')).toBe(true);
+    });
+
     it('用完整 API 套餐名称预览 DeepL Free 与 Pro 的切换', () => {
         const result = buildConfigDiff({deeplApiPlan: 'free'}, {deeplApiPlan: 'pro'});
 

@@ -6,6 +6,7 @@
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
+import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import {getTranslationLanguages} from '@/src/services/translation/languages';
 import {createHttpStatusError} from '@/src/platform/http/errors';
 import {
@@ -232,6 +233,13 @@ export async function translateGoogleText(
     toLang: string,
     abortSignal?: AbortSignal,
 ): Promise<string> {
+    // Web RPC 与 gtx 使用区域码区分中文书写系统。
+    const googleLanguage = (code: string): string => {
+        const normalized = normalizeChineseLanguageCode(code);
+        return ({'zh-Hans': 'zh-CN', 'zh-Hant': 'zh-TW'} as Record<string, string>)[normalized] ?? normalized;
+    };
+    fromLang = googleLanguage(fromLang);
+    toLang = googleLanguage(toLang);
     const providers: GoogleProvider[] = [
         ...GOOGLE_TRANSLATE_BATCH_URLS.map((endpoint, index) => ({
             name: index === 0 ? '主网页 RPC' : '备用网页 RPC',

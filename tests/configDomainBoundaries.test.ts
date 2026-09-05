@@ -40,6 +40,32 @@ import {
 } from '@/src/core/config/validation';
 
 describe('配置领域边界与防御分支', () => {
+    it('全局和工具语言按书写体系迁移历史别名并保留自定义非中文语言', () => {
+        for (const [language, canonical] of [
+            [' zh ', 'zh-Hans'], ['zh_CN', 'zh-Hans'], ['zh-SG', 'zh-Hans'],
+            ['zh-CHS', 'zh-Hans'], ['zh-Hans-TW', 'zh-Hans'],
+            ['zh-TW', 'zh-Hant'], ['zh-HK', 'zh-Hant'], ['zh-MO', 'zh-Hant'],
+            ['zh-CHT', 'zh-Hant'], ['zh-Hant-CN', 'zh-Hant'],
+            [' en-US ', 'en-US'], [' Custom language ', 'Custom language'],
+        ]) {
+            const config = normalizeConfig({
+                from: language, to: language, inputBoxTranslationTarget: language,
+                translationCenterSourceLanguage: language, translationCenterTargetLanguage: language,
+            });
+            expect(config).toMatchObject({
+                from: canonical, to: canonical, inputBoxTranslationTarget: canonical,
+                translationCenterSourceLanguage: canonical, translationCenterTargetLanguage: canonical,
+            });
+            expect(normalizeConfig(config)).toEqual(config);
+        }
+        for (const invalid of [undefined, null, '', '  ', 42]) {
+            expect(normalizeConfig({from: invalid, to: invalid, inputBoxTranslationTarget: invalid,
+                translationCenterSourceLanguage: invalid, translationCenterTargetLanguage: invalid}))
+                .toMatchObject({from: 'auto', to: 'zh-Hans', inputBoxTranslationTarget: 'en',
+                    translationCenterSourceLanguage: '', translationCenterTargetLanguage: ''});
+        }
+    });
+
     it('旧配置获得缓存默认双上限，保存与导入统一归一化范围', () => {
         expect(normalizeConfig({})).toMatchObject({translationCacheMaxBytes: 5 * 1024 * 1024, translationCacheMaxEntries: 2000});
         expect(normalizeConfig({translationCacheMaxBytes: 20 * 1024 * 1024, translationCacheMaxEntries: 5000}))

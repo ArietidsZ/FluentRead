@@ -6,6 +6,7 @@
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
+import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import {method, urls} from "@/src/core/config/constants";
 import {services} from "@/src/core/config/catalog";
 import {config} from "@/src/services/config/store";
@@ -20,9 +21,13 @@ import {
 async function xiaoniu(message: TranslationProviderRequest<string>) {
     const current = getTranslationProviderConfig(message, config);
     const service = message.serviceOverride || current.service;
-    // 根据需要调整目标语言
-    const {targetLanguage} = getTranslationLanguages(message);
-    let targetLang = targetLanguage === 'zh-Hans' ? 'zh' : targetLanguage;
+    const {sourceLanguage, targetLanguage} = getTranslationLanguages(message);
+    const niutransLanguage = (code: string): string => {
+        const normalized = normalizeChineseLanguageCode(code);
+        return ({'zh-Hans': 'zh', 'zh-Hant': 'cht'} as Record<string, string>)[normalized] ?? normalized;
+    };
+    const sourceLang = niutransLanguage(sourceLanguage);
+    const targetLang = niutransLanguage(targetLanguage);
 
     // 判断是否使用代理
     let url: string = current.proxy[service] ? current.proxy[service] : urls[services.xiaoniu]
@@ -30,7 +35,9 @@ async function xiaoniu(message: TranslationProviderRequest<string>) {
     const resp = await runtimeFetch(url, {
         method: method.POST,
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: `from=auto&to=${targetLang}&apikey=${current.token[service]}&src_text=${encodeURIComponent(message.origin)}`,
+        body: new URLSearchParams({
+            from: sourceLang, to: targetLang, apikey: current.token[service], src_text: message.origin,
+        }).toString(),
         signal: message.abortSignal,
     });
 

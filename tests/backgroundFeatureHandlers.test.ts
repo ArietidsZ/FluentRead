@@ -42,7 +42,7 @@ import {navigationItems, NAVIGATION_SECTION_ALIASES} from '@/src/features/settin
 import {isBrowserTabId, TabTranslationStateStore} from '@/src/app/background/tabTranslationState';
 import {getTranslationRequestControl} from '@/src/services/translation/requestSnapshot';
 
-function wordCard(definitions: Array<{definition: string; example?: string}> = [
+function wordCard(definitions: Array<{definition: string; example?: string; translatedDefinition?: string; translatedExample?: string}> = [
     {definition: 'to move quickly', example: 'Run home.'},
 ]): WordCardData {
     return {
@@ -959,5 +959,67 @@ describe('后台 feature handlers', () => {
         await expect(handler.handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, texts: ['first']}))
             .rejects.toThrow('图片文字批量翻译失败：图片文字翻译总时间已耗尽');
         expect(translateTexts).not.toHaveBeenCalled();
+    });
+});
+
+
+describe('繁体词典辅助内容只采用本次成功翻译', () => {
+    const originalCard = () => wordCard([
+        {definition: 'to move quickly', example: 'Run home.', translatedDefinition: '快速移动', translatedExample: '跑回家。'},
+    ]);
+    const assertOriginalPreserved = (card: WordCardData) => {
+        expect(card.meanings[0].definitions[0]).toEqual({definition: 'to move quickly', example: 'Run home.', translatedDefinition: '快速移动', translatedExample: '跑回家。'});
+    };
+    it.each(['single', ['only-one'], null])('繁体目标无效批量结果 %j 清除旧辅助内容且不改词典缓存', async (response) => {
+        const card = originalCard();
+        const result = await translateVisibleWordCardFields(card, 'zh-HK', async () => response as string | string[], vi.fn());
+        expect(result).not.toBe(card);
+        expect(result.meanings[0].definitions[0]).toEqual({definition: 'to move quickly', example: 'Run home.'});
+        assertOriginalPreserved(card);
+    });
+    it('繁体目标翻译异常仍保留词典原文，但不能回退旧简体辅助内容', async () => {
+        const card = originalCard();
+        const warn = vi.fn();
+        const result = await translateVisibleWordCardFields(card, 'zh-Hant', async () => { throw new Error('offline'); }, warn);
+        expect(result.meanings[0].definitions[0]).toEqual({definition: 'to move quickly', example: 'Run home.'});
+        expect(warn).toHaveBeenCalledOnce();
+        assertOriginalPreserved(card);
+    });
+    it('零可翻译槽位也清除旧辅助字段，不触发请求且不修改原卡', async () => {
+        const card = wordCard([{definition: '', translatedDefinition: '旧释义', translatedExample: '旧例句'}]);
+        const translate = vi.fn();
+        const result = await translateVisibleWordCardFields(card, 'zh-Hant-TW', translate, vi.fn());
+        expect(result.meanings[0].definitions[0]).toEqual({definition: ''});
+        expect(card.meanings[0].definitions[0].translatedDefinition).toBe('旧释义');
+        expect(translate).not.toHaveBeenCalled();
+    });
+    it('空值、非字符串、原样返回都不能保留简体旧辅助，只填成功槽位', async () => {
+        const card = wordCard([
+            {definition: 'first', example: 'second', translatedDefinition: '旧释义一', translatedExample: '旧例句一'},
+            {definition: 'third', example: 'fourth', translatedDefinition: '旧释义二', translatedExample: '旧例句二'},
+            {definition: 'fifth', translatedDefinition: '旧释义三'},
+        ]);
+        const result = await translateVisibleWordCardFields(card, 'zh-Hant', async () => [' ', 7, 'third', ' 第四句 ', '第五義'] as unknown as string[], vi.fn());
+        expect(result.meanings[0].definitions).toEqual([
+            {definition: 'first', example: 'second'},
+            {definition: 'third', example: 'fourth', translatedExample: '第四句'},
+            {definition: 'fifth', translatedDefinition: '第五義'},
+        ]);
+        expect(card.meanings[0].definitions[0].translatedDefinition).toBe('旧释义一');
+    });
+    it('规范化繁体别名，成功翻译回填目标译文并保持所有原始卡片字段独立', async () => {
+        const card = originalCard();
+        const translate = vi.fn(async () => ['快速移動', '跑回家。']);
+        const handler = createSelectionWordLookupHandler({lookupWord: async () => card, getDefaultTargetLanguage: () => 'zh-TW', translate, warn: vi.fn()});
+        const {data} = await handler.handle({type: SELECTION_WORD_LOOKUP_MESSAGE_TYPE, word: 'run'});
+        expect(translate).toHaveBeenCalledWith(expect.objectContaining({targetLanguage: 'zh-Hant'}));
+        expect(data?.meanings[0].definitions[0]).toMatchObject({translatedDefinition: '快速移動', translatedExample: '跑回家。'});
+        expect(data?.sources[0]).not.toBe(card.sources[0]);
+        assertOriginalPreserved(card);
+    });
+    it('简体目标继续保留原卡中的可用简体失败回退', async () => {
+        const card = originalCard();
+        await expect(translateVisibleWordCardFields(card, 'zh-CN', async () => { throw new Error('offline'); }, vi.fn())).resolves.toBe(card);
+        assertOriginalPreserved(card);
     });
 });

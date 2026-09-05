@@ -24,6 +24,8 @@ describe('Edge TTS pure policy', () => {
         expect(normalizeEdgeTtsLanguage('detect')).toBe('en-US');
         expect(normalizeEdgeTtsLanguage('ZH-HANS')).toBe('zh-CN');
         expect(normalizeEdgeTtsLanguage('zh_hant')).toBe('zh-TW');
+        expect(normalizeEdgeTtsLanguage('zh-HK')).toBe('zh-TW');
+        expect(normalizeEdgeTtsLanguage('zh-Hant-CN')).toBe('zh-TW');
         expect(normalizeEdgeTtsLanguage('EN')).toBe('en-US');
         expect(normalizeEdgeTtsLanguage(' fr_CA ')).toBe('fr-CA');
         expect(normalizeEdgeTtsLanguage('xx-ZZ')).toBe('xx-ZZ');
@@ -43,6 +45,7 @@ describe('Edge TTS pure policy', () => {
         expect(edgeTtsVoiceCandidatesForLanguage('fr-CA')).toEqual(['fr-FR-RemyMultilingualNeural']);
         expect(edgeTtsVoiceCandidatesForLanguage('xx-ZZ', 'not-an-array')).toEqual([]);
         expect(edgeTtsVoiceForLanguage('zh-Hans')).toBe('zh-CN-XiaoxiaoMultilingualNeural');
+        expect(edgeTtsVoiceForLanguage('zh-Hant')).toBe('zh-TW-YunJheMultilingualNeural');
         expect(edgeTtsVoiceForLanguage('xx-ZZ')).toBeNull();
     });
 

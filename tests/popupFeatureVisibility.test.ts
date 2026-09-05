@@ -77,6 +77,18 @@ describe('popup feature visibility', () => {
         expect(documentApp).toContain('getMultilingualTargetLanguageLabel(item.value, item.label, language)');
     });
 
+    it('shares source-language choices across Popup, document, translation center and userscript', () => {
+        const popup = source('src/app/popup/PopupApp.vue');
+        const center = source('src/features/translation-center/ui/TranslationCenter.vue');
+        const documentApp = source('src/app/document-translation/DocumentApp.vue');
+        const userscript = source('userscript/SettingsPanel.vue');
+        for (const entry of [popup, center, documentApp, userscript]) {
+            expect(entry).toContain('options.from');
+            expect(entry).not.toContain('options.form');
+        }
+        expect(popup).toContain("item.value === 'auto' ? translateLegacy(item.label) : getMultilingualTargetLanguageLabel");
+    });
+
     it('uses the same multilingual display policy for interface-language selectors', () => {
         const selector = source('src/ui/components/UiLanguageSelector.vue');
         const onboarding = source('src/ui/components/UiLanguageOnboarding.vue');

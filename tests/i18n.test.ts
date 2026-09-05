@@ -28,6 +28,7 @@ import {toRestorableConfig} from '@/src/services/config/history';
 import {getContextMenuTitle} from '@/src/app/background/contextMenuUi';
 import {navigationItems} from '@/src/features/settings/model/navigation';
 import {parseHotkey} from '@/src/core/hotkey';
+import {IMAGE_OCR_LANGUAGE_PACKS} from '@/src/features/image-translation/ocrLanguages';
 
 describe('界面 i18n 契约', () => {
   const translatedCatalogs: ReadonlyArray<Readonly<Record<string, string>>> = [
@@ -79,7 +80,7 @@ describe('界面 i18n 契约', () => {
     expect(resolveUiLanguageFromLocale('es-ES')).toBe('es-ES');
     expect(resolveUiLanguageFromLocale(null)).toBe('zh-CN');
     expect(options.to.map(item => item.label)).toEqual([
-      '中文', 'English', '日本語', '한국어', 'Français', 'Русский', 'Español',
+      '简体中文', '繁體中文', 'English', '日本語', '한국어', 'Français', 'Русский', 'Español',
     ]);
     expect(translate('settings.general.defaultTargetLanguage', 'zh-CN')).toBe('语言');
     expect(translate('settings.general.defaultTargetLanguage', 'en-US')).toBe('language');
@@ -87,7 +88,8 @@ describe('界面 i18n 契约', () => {
 
   it('为目标语言选择器提供中文、英文和原生名称的组合标签', () => {
     expect(options.to.map(item => getMultilingualTargetLanguageLabel(item.value, item.label))).toEqual([
-      '中文 / Chinese',
+      '简体中文 / Simplified Chinese',
+      '繁體中文 / Traditional Chinese',
       'English / 英语',
       '日本語 / Japanese / 日语',
       '한국어 / Korean / 韩语',
@@ -99,6 +101,35 @@ describe('界面 i18n 契约', () => {
     expect(getMultilingualTargetLanguageLabel('ja', '日本語', 'en-US')).toBe('Japanese');
     expect(getMultilingualTargetLanguageLabel('unknown', 'Custom language', 'en-US')).toBe('Custom language');
     expect(getMultilingualTargetLanguageLabel('unknown', '自定义语言')).toBe('自定义语言');
+  });
+
+  it('所有界面语言均独立显示中文简繁译文名称，并识别历史别名', () => {
+    const expectedChineseLabels = {
+      'zh-CN': ['简体中文 / Simplified Chinese', '繁體中文 / Traditional Chinese'],
+      'en-US': ['Simplified Chinese', 'Traditional Chinese'],
+      'ja-JP': ['中国語（簡体字） / Simplified Chinese / 简体中文', '中国語（繁体字） / Traditional Chinese / 繁體中文'],
+      'ko-KR': ['중국어 간체 / Simplified Chinese / 简体中文', '중국어 번체 / Traditional Chinese / 繁體中文'],
+      'fr-FR': ['chinois simplifié / Simplified Chinese / 简体中文', 'chinois traditionnel / Traditional Chinese / 繁體中文'],
+      'ru-RU': ['китайский (упрощённый) / Simplified Chinese / 简体中文', 'китайский (традиционный) / Traditional Chinese / 繁體中文'],
+      'es-ES': ['Chino simplificado / Simplified Chinese / 简体中文', 'Chino tradicional / Traditional Chinese / 繁體中文'],
+    } as const;
+    for (const {value: uiLanguage} of UI_LANGUAGE_OPTIONS) {
+      const [simplified, traditional] = expectedChineseLabels[uiLanguage];
+      for (const alias of ['zh', 'zh-CN', 'zh_SG', 'zh-Hans', 'ZH-hans-TW']) {
+        expect(getMultilingualTargetLanguageLabel(alias, alias, uiLanguage)).toBe(simplified);
+      }
+      for (const alias of ['zh-Hant', 'zh-TW', 'zh_HK', 'zh-MO', 'ZH-hant-CN']) {
+        expect(getMultilingualTargetLanguageLabel(alias, alias, uiLanguage)).toBe(traditional);
+      }
+    }
+    for (const choices of [options.from, options.to, options.inputBoxTranslationTarget]) {
+      expect(choices.filter(item => item.value.startsWith('zh-'))).toEqual([
+        {value: 'zh-Hans', label: '简体中文'},
+        {value: 'zh-Hant', label: '繁體中文'},
+      ]);
+    }
+    expect(options.from).toEqual([{value: 'auto', label: '自动检测'}, ...options.to]);
+    expect(getMultilingualTargetLanguageLabel('unknown')).toBe('unknown');
   });
 
   it('完整本地化 Chrome 具体语言对准备流程及参数化状态', () => {
@@ -139,6 +170,35 @@ describe('界面 i18n 契约', () => {
     ));
     expect(englishChromeMessages.length).toBeGreaterThan(20);
     expect(englishChromeMessages.filter(([, value]) => /[\u3400-\u9fff]/u.test(value))).toEqual([]);
+  });
+
+  it.each([
+    ['en-US', 'Traditional Chinese', 'three language packs'],
+    ['ja-JP', '中国語（繁体字）', '3 つの言語パック'],
+    ['ko-KR', '중국어 번체', '세 언어 팩'],
+    ['fr-FR', 'Chinois traditionnel', 'trois packs de langue'],
+    ['ru-RU', 'Китайский (традиционный)', 'три языковых пакета'],
+    ['es-ES', 'Chino tradicional', 'tres paquetes de idiomas'],
+  ] as const)('OCR 简繁语言包在 %s 界面中具有独立名称、说明和三包下载提示', (language, traditionalLabel, packCount) => {
+    const simplified = IMAGE_OCR_LANGUAGE_PACKS.find(pack => pack.code === 'chi_sim')!;
+    const traditional = IMAGE_OCR_LANGUAGE_PACKS.find(pack => pack.code === 'chi_tra')!;
+    expect(translateLegacyText(traditional.label, language)).toBe(traditionalLabel);
+    const simplifiedDescription = translateLegacyText(simplified.description, language);
+    const traditionalDescription = translateLegacyText(traditional.description, language);
+    expect(simplifiedDescription).not.toBe(traditionalDescription);
+    const sourceCopy = [
+      simplified.label,
+      simplified.description,
+      traditional.description,
+      '推荐先下载简体中文、繁體中文和 English',
+      '自动检测默认使用这三种语言包。识别日文图片前，再下载日本語语言包即可。',
+    ];
+    for (const source of sourceCopy) {
+      const translated = translateLegacyText(source, language);
+      expect(translated).not.toBe(source);
+      if (language !== 'ja-JP') expect(translated).not.toMatch(/[\u3400-\u9fff]/u);
+    }
+    expect(translateLegacyText(sourceCopy[4]!, language)).toContain(packCount);
   });
 
   it('提供可继续扩展的语言选择器和参数插值', () => {
