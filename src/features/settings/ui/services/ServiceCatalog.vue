@@ -365,15 +365,15 @@ watch(() => props.service, () => {
 .service-detail > .model-section,
 .service-detail > .no-model-panel,
 .service-detail > .service-configuration-slot { width: min(100%, 1080px); }
-.detail-hero { display: flex; align-items: flex-start; gap: 13px; padding-bottom: 20px; border-bottom: 1px solid #eceef3; }
-.detail-heading { flex: 1; min-width: 0; }
+.detail-hero { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 13px; padding-bottom: 20px; border-bottom: 1px solid #eceef3; }
+.detail-heading { flex: 1 1 180px; min-width: 0; }
 .detail-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
-.detail-title-row h4 { margin: 1px 0 5px; color: #172033; font-size: 22px; overflow-wrap: anywhere; }
+.detail-title-row h4 { min-width: 0; margin: 1px 0 5px; color: #172033; font-size: 22px; overflow-wrap: anywhere; }
 .service-website-link { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; padding: 2px 4px; border-radius: 5px; color: var(--brand-strong, #bd2853); font-size: 12px; font-weight: 600; line-height: 1.5; text-decoration: none; }
 .service-website-link svg { flex-shrink: 0; }
 .service-website-link:hover { background: var(--brand-soft, #fff0f4); text-decoration: underline; text-underline-offset: 3px; }
 .service-website-link:focus-visible { outline: 2px solid var(--brand-strong, #bd2853); outline-offset: 2px; }
-.active-badge { padding: 4px 8px; border-radius: 999px; color: #bd2853; background: #ffe9ef; font-size: 10px; font-weight: 800; }
+.active-badge { flex-shrink: 0; white-space: nowrap; padding: 4px 8px; border-radius: 999px; color: #bd2853; background: #ffe9ef; font-size: 10px; font-weight: 800; }
 .detail-hero p { margin: 0; color: #737c8f; font-size: 13px; line-height: 1.6; }
 .model-section {
   display: grid;

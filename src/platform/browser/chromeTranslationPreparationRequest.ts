@@ -1,8 +1,8 @@
 /**
  * @file src/platform/browser/chromeTranslationPreparationRequest.ts
  * 文件职责：保存 Chrome 本地翻译模型的短期待准备语言对，并为设置页提供读取、匹配清除和跨上下文变更订阅。
- * 主要内容：校验具体语言代码，通过会话存储保存一条缺包记录，串行处理本上下文的写入与清除，并监听全局 session 变更。
- * 模块边界：只存语言代码到 browser.storage.session；不保存正文、不启动模型、不负责 UI 文案或翻译请求生命周期。
+ * 主要内容：为每个标准化语言对使用独立会话键，按更新时间选出最近请求，定向清除已准备语言对，并过滤订阅读回的迟到结果。
+ * 模块边界：只存语言代码和更新时间到 browser.storage.session；不保存正文、不启动模型、不负责 UI 文案或翻译请求生命周期。
  */
 import browser from 'webextension-polyfill';
 
@@ -12,6 +12,7 @@ import browser from 'webextension-polyfill';
  */
 
 export const CHROME_TRANSLATION_PREPARATION_STORAGE_KEY = 'fluentread.chromeTranslationPreparation';
+export const CHROME_TRANSLATION_PREPARATION_STORAGE_PREFIX = `${CHROME_TRANSLATION_PREPARATION_STORAGE_KEY}.`;
 
 export interface ChromeTranslationPreparationRequest {
     readonly sourceLanguage: string;
@@ -33,7 +34,7 @@ function isValidLanguageCode(value: unknown): value is string {
 function canonicalLanguage(value: string): string {
     const normalized = value.trim().toLowerCase();
     if (['zh-cn', 'zh-hans', 'zh-sg'].includes(normalized)) return 'zh';
-    if (['zh-tw', 'zh-hant', 'zh-hk', 'zh-mo'].includes(normalized)) return 'zh-hant';
+    if (['zh-tw', 'zh-hant', 'zh-hk', 'zh-mo'].includes(normalized)) return 'zh-Hant';
     return normalized;
 }
 
@@ -41,10 +42,34 @@ function parseRequest(value: unknown): ChromeTranslationPreparationRequest | nul
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
     const record = value as Record<string, unknown>;
     if (!isValidLanguageCode(record.sourceLanguage) || !isValidLanguageCode(record.targetLanguage)) return null;
-    const sourceLanguage = record.sourceLanguage.trim();
-    const targetLanguage = record.targetLanguage.trim();
-    if (sourceLanguage.toLowerCase() === 'auto' || canonicalLanguage(sourceLanguage) === canonicalLanguage(targetLanguage)) return null;
+    const sourceLanguage = canonicalLanguage(record.sourceLanguage);
+    const targetLanguage = canonicalLanguage(record.targetLanguage);
+    if (sourceLanguage === 'auto' || targetLanguage === 'auto' || sourceLanguage === targetLanguage) return null;
     return {sourceLanguage, targetLanguage};
+}
+
+function requestStorageKey(request: ChromeTranslationPreparationRequest): string {
+    return `${CHROME_TRANSLATION_PREPARATION_STORAGE_PREFIX}${request.sourceLanguage}:${request.targetLanguage}`;
+}
+
+function isPreparationStorageKey(key: string): boolean {
+    return key.startsWith(CHROME_TRANSLATION_PREPARATION_STORAGE_PREFIX);
+}
+
+function latestRequest(values: Record<string, unknown>): ChromeTranslationPreparationRequest | null {
+    let latest: {request: ChromeTranslationPreparationRequest; updatedAt: number; key: string} | undefined;
+    for (const [key, value] of Object.entries(values)) {
+        if (!isPreparationStorageKey(key)) continue;
+        const request = parseRequest(value);
+        if (!request || key !== requestStorageKey(request)) continue;
+        const updatedAt = (value as Record<string, unknown>).updatedAt;
+        if (typeof updatedAt !== 'number' || !Number.isFinite(updatedAt) || updatedAt < 0) continue;
+        // 相同毫秒内的请求具有相同优先级；键排序保证跨上下文读回结果一致。
+        if (!latest || updatedAt > latest.updatedAt || (updatedAt === latest.updatedAt && key > latest.key)) {
+            latest = {request, updatedAt, key};
+        }
+    }
+    return latest?.request ?? null;
 }
 
 function getStorageArea(area?: ChromeTranslationPreparationStorageArea): ChromeTranslationPreparationStorageArea | undefined {
@@ -58,59 +83,72 @@ function getStorageArea(area?: ChromeTranslationPreparationStorageArea): ChromeT
 
 export function createChromeTranslationPreparationStore(area?: ChromeTranslationPreparationStorageArea) {
     const storage = getStorageArea(area);
-    let mutation = Promise.resolve();
+    const get = async (): Promise<ChromeTranslationPreparationRequest | null> => {
+        if (!storage?.get) return null;
+        try {
+            return latestRequest(await storage.get());
+        } catch {
+            return null;
+        }
+    };
 
     return {
-        async get(): Promise<ChromeTranslationPreparationRequest | null> {
-            if (!storage?.get) return null;
-            try {
-                const result = await storage.get(CHROME_TRANSLATION_PREPARATION_STORAGE_KEY);
-                return parseRequest(result?.[CHROME_TRANSLATION_PREPARATION_STORAGE_KEY]);
-            } catch {
-                return null;
-            }
-        },
+        get,
         async set(request: ChromeTranslationPreparationRequest): Promise<void> {
             const parsed = parseRequest(request);
             if (!parsed || !storage?.set) return;
-            mutation = mutation.then(async () => {
-                try {
-                    await storage.set({[CHROME_TRANSLATION_PREPARATION_STORAGE_KEY]: parsed});
-                } catch {
-                    // 状态提示失败不能影响翻译主链路。
-                }
-            });
-            await mutation;
+            try {
+                await storage.set({[requestStorageKey(parsed)]: {...parsed, updatedAt: Date.now()}});
+            } catch {
+                // 状态提示失败不能影响翻译主链路。
+            }
         },
         async clear(request?: ChromeTranslationPreparationRequest): Promise<void> {
-            if (!storage) return;
-            mutation = mutation.then(async () => {
-                try {
-                    if (!request) {
-                        await storage.remove(CHROME_TRANSLATION_PREPARATION_STORAGE_KEY);
-                        return;
-                    }
-                    const result = await storage.get(CHROME_TRANSLATION_PREPARATION_STORAGE_KEY);
-                    const current = parseRequest(result?.[CHROME_TRANSLATION_PREPARATION_STORAGE_KEY]);
-                    if (current?.sourceLanguage === request.sourceLanguage
-                        && current.targetLanguage === request.targetLanguage) {
-                        await storage.remove(CHROME_TRANSLATION_PREPARATION_STORAGE_KEY);
-                    }
-                } catch {
-                    // 状态提示失败不能影响翻译主链路。
+            if (!storage?.remove) return;
+            try {
+                if (request) {
+                    const parsed = parseRequest(request);
+                    // 不做 get→remove：另一上下文的新语言对拥有独立键，不能被本次清除覆盖。
+                    if (parsed) await storage.remove(requestStorageKey(parsed));
+                } else {
+                    const keys = Object.keys(await storage.get()).filter(isPreparationStorageKey);
+                    if (keys.length) await storage.remove(keys);
                 }
-            });
-            await mutation;
+            } catch {
+                // 状态提示失败不能影响翻译主链路。
+            }
         },
         subscribe(listener: (request: ChromeTranslationPreparationRequest | null) => void): () => void {
-            const onChanged = browser.storage?.onChanged;
-            if (!onChanged?.addListener) return () => undefined;
-            const handleChange = (changes: Record<string, {newValue?: unknown}>, areaName: string) => {
-                if (areaName !== 'session' || !Object.hasOwn(changes, CHROME_TRANSLATION_PREPARATION_STORAGE_KEY)) return;
-                listener(parseRequest(changes[CHROME_TRANSLATION_PREPARATION_STORAGE_KEY]?.newValue));
-            };
-            onChanged.addListener(handleChange);
-            return () => onChanged.removeListener?.(handleChange);
+            try {
+                const onChanged = browser.storage?.onChanged;
+                if (!onChanged?.addListener) return () => undefined;
+                let active = true;
+                let revision = 0;
+                const handleChange = (changes: Record<string, unknown>, areaName: string) => {
+                    if (!active || areaName !== 'session' || !Object.keys(changes).some(isPreparationStorageKey)) return;
+                    const requestedRevision = ++revision;
+                    void get().then((request) => {
+                        if (active && revision === requestedRevision) {
+                            try {
+                                listener(request);
+                            } catch {
+                                // 展示侧订阅异常不应产生未处理的异步拒绝。
+                            }
+                        }
+                    });
+                };
+                onChanged.addListener(handleChange);
+                return () => {
+                    active = false;
+                    try {
+                        onChanged.removeListener?.(handleChange);
+                    } catch {
+                        // 退订后仍由 active 阻止迟到的读回或事件回调。
+                    }
+                };
+            } catch {
+                return () => undefined;
+            }
         },
     };
 }
