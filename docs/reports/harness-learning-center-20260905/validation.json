@@ -1,13 +1,16 @@
 {
   "testAudit": {
-    "files": 228,
-    "declaredCases": 2826,
+    "files": 234,
+    "declaredCases": 2938,
     "passed": true
   },
   "fullVitest": {
-    "files": 228,
-    "tests": 4046,
-    "passed": true
+    "files": 234,
+    "tests": 4349,
+    "passed": true,
+    "maxWorkers": 2,
+    "minWorkers": 1,
+    "testTimeoutMs": 15000
   },
   "lastUiOnlyPatch": {
     "files": 3,
@@ -16,8 +19,8 @@
     "beforeMainIntegration": true
   },
   "coverage": {
-    "testFiles": 180,
-    "tests": 3216,
+    "testFiles": 185,
+    "tests": 3493,
     "percent": {
       "statements": 100,
       "branches": 100,
@@ -39,7 +42,7 @@
     "reason": "External legacy skill expects accessible combobox 默认目标语言, but unchanged origin/main locale labels it 语言."
   },
   "initialBase": "262d2a18dc2d5b25f2a22f2fd26531c130101c79",
-  "base": "166253cef1ee51f7daf6203384ded641761c7991",
+  "base": "f0d8c3424b062b1c7822b974e104e53fe833ee44",
   "browserBeforeMainIntegration": {
     "uniquePassed": 49,
     "singleFullRunPassed": false,
@@ -63,6 +66,15 @@
     "httpErrors": 0,
     "browserFrontmost": false,
     "allPngsReviewed": true,
-    "audioListeningVerified": false
-  }
+    "audioListeningVerified": false,
+    "base": "166253cef1ee51f7daf6203384ded641761c7991"
+  },
+  "sourceCommit": "ae495924f78f38b764de7d37d7f7399fd649a867",
+  "lastMandarinSpeechPatch": {
+    "focusedFiles": 4,
+    "focusedTests": 171,
+    "changedProductionFilesCoveragePercent": 100,
+    "compilePassed": true
+  },
+  "executionNote": "Final bounded worker count and 15-second scheduling timeout; business assertions and performance thresholds unchanged. Earlier 5-second cold-compilation/large ZIP fixture timeouts were retried."
 }
