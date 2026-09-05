@@ -19,7 +19,7 @@ import {ruRULegacyText, ruRUMessages} from '@/src/core/i18n/messages/ru-RU';
 import {zhCNMessages} from '@/src/core/i18n/messages/zh-CN';
 import {Config, normalizeConfig} from '@/src/core/config/model';
 import {translationLoadingStyleOptions} from '@/src/core/config/translationLoadingStyle';
-import {popupModuleOptions, popupQuickFeatureOptions} from '@/src/core/config/interfaceAppearance';
+import {interfaceSkinGroups, interfaceSkinOptions, popupModuleOptions, popupQuickFeatureOptions} from '@/src/core/config/interfaceAppearance';
 import {buildConfigDiff} from '@/src/core/config/diff';
 import {getMultilingualTargetLanguageLabel, options, services} from '@/src/core/config/catalog';
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
@@ -436,7 +436,22 @@ describe('界面 i18n 契约', () => {
     }
   });
 
-  it('完整本地化 Popup 布局编辑器与布局差异顺序', () => {
+  it('独立界面布局导航、皮肤风格和通用设置文案覆盖每种界面语言', () => {
+    const navigationCopy = navigationItems
+      .filter((item) => ['settings-general', 'settings-interface'].includes(item.id))
+      .flatMap(({id, icon, ...copy}) => Object.values(copy));
+    const skinCopy = [...interfaceSkinGroups, ...interfaceSkinOptions]
+      .flatMap(({label, description}) => [label, description]);
+    for (const language of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
+      for (const source of [...navigationCopy, ...skinCopy]) {
+        const localized = translateLegacyText(source, language);
+        expect(localized, `${language}: ${source}`).not.toBe(source);
+        if (language !== 'ja-JP') expect(localized).not.toMatch(/[\u3400-\u9fff]/u);
+      }
+    }
+  });
+
+  it('完整本地化菜单栏布局编辑器与布局差异顺序', () => {
     const layoutKeys = [
       'settings.interface.popupLayout.label',
       'settings.interface.popupLayout.description',
@@ -468,6 +483,9 @@ describe('界面 i18n 契约', () => {
       .flatMap((group) => group.changes)
       .find((change) => change.key === 'popupModuleOrder');
     expect(layoutChange).toBeDefined();
+    expect(layoutChange!.label).toBe('菜单栏布局顺序');
+    expect(translate('settings.interface.popupLayout.label', 'zh-CN')).toBe('菜单栏布局');
+    expect(translate('settings.interface.popupLayout.label', 'en-US')).toBe('Menu bar layout');
 
     for (const language of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
       for (const key of layoutKeys) {
@@ -597,40 +615,10 @@ describe('界面 i18n 契约', () => {
     expect(translateLegacyText('已就绪', 'es-ES')).toBe('Listo');
 
     const interfaceAppearanceCopy = [
-      '服务、界面、显示与网页辅助',
-      '选择默认翻译服务，并管理扩展界面、译文显示、网页辅助和基础偏好。',
-      '选择翻译服务、默认服务、界面设置、弹窗风格、默认风格、简约风格、弹窗栏目、快捷功能栏、当前网站栏目、底部信息栏、译文显示、双语逐句高亮、网页辅助、AI 智能上下文、默认目标语言、主题',
-      '选择翻译服务、默认服务、界面设置、弹窗风格、默认风格、简约风格、紧凑风格、高对比、奶酪、海盐、抹茶、樱花、夜幕、纸张护眼、弹窗栏目、快捷功能栏、当前网站栏目、底部信息栏、译文显示、双语逐句高亮、网页辅助、AI 智能上下文、默认目标语言、主题',
       '界面与弹窗',
-      '保留熟悉的默认界面，或切换到更轻量的简约界面；也可以只留下常用栏目。',
       '从效率布局、趣味配色到夜间和护眼方案，选择适合自己的界面；也可以只留下常用栏目。',
       '弹窗风格',
       '风格只改变扩展界面的呈现，不影响网页翻译效果。',
-      '默认风格',
-      '保留当前 FluentRead 的界面布局与视觉效果。',
-      '简约风格',
-      '平面布局、轻边界和更紧凑的操作区域。',
-      '平面留白与轻边界，让主要操作更突出。',
-      '效率与可读性',
-      '从熟悉、简洁、紧凑到高对比，按使用场景选择。',
-      '氛围配色',
-      '用不同色彩营造轻松、沉静或护眼的阅读氛围。',
-      '紧凑风格',
-      '压缩间距与控件高度，适合高频快速操作。',
-      '高对比 ⚡',
-      '强化文字、边框与焦点状态，提升辨识度。',
-      '奶酪 🧀',
-      '奶油白与柔和焦糖色，温暖而清爽。',
-      '海盐 🌊',
-      '雾白底色与灰海蓝，清透安静。',
-      '抹茶 🍵',
-      '淡灰绿与鼠尾草色，自然舒展。',
-      '樱花 🌸',
-      '柔白底色与灰樱粉，轻盈含蓄。',
-      '夜幕 🌙',
-      '墨蓝底色与柔和雾蓝，适合夜间使用。',
-      '纸张护眼 📖',
-      '暖纸白与灰褐墨色，朴素耐看。',
       '快捷功能栏',
       '显示悬停、划词、图片、视频和文档等快捷入口。',
       '当前网站栏目',

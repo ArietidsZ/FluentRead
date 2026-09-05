@@ -1,0 +1,116 @@
+/**
+ * @file src/ui/styles/interface-skins/emoji.css
+ * 文件职责：定义 Emoji 风格的暖纸背景、紫色主操作、彩色贴纸图标和轻巧纸卡层次。
+ * 主要内容：亮暗主题共享静态彩点纹理、不对称圆角与两种预览中的同源贴纸底色，正文与交互状态遵循语义变量。
+ * 模块边界：通过 palette.css 复用组件适配；本文件的专属选择器只改变表面，不替换按钮内容、语义或交互。
+ */
+
+:root[data-interface-skin="emoji"] {
+  --brand: #7143ca;
+  --brand-strong: #5930a7;
+  --brand-soft: #f0e8ff;
+  --ink: #352447;
+  --muted: #715f7b;
+  --line: #e3d5ef;
+  --surface: #fffefd;
+  --surface-soft: #faf5ff;
+  --skin-page: #fffaf0;
+  --skin-sidebar: #fffdf7;
+  --skin-action-text: #ffffff;
+  --skin-focus: color-mix(in srgb, var(--brand) 22%, transparent);
+  --skin-shadow: rgba(88, 50, 136, .12);
+  --skin-radius: 20px;
+  --skin-panel-radius: 20px 20px 20px 8px;
+  --skin-feature-radius: 13px 13px 13px 5px;
+  --skin-control-radius: 11px;
+  --skin-icon-background: #f0e8ff;
+  --skin-canvas-background:
+    radial-gradient(circle at calc(100% - 24px) 14px, #e9b44c 0 2px, transparent 2.6px),
+    radial-gradient(circle at calc(100% - 54px) 37px, #d59bd9 0 2px, transparent 2.6px),
+    radial-gradient(circle at calc(100% - 12px) 60px, #9dcdbd 0 2px, transparent 2.6px),
+    radial-gradient(circle at calc(100% - 85px) 12px, #a8c9ed 0 2px, transparent 2.6px),
+    radial-gradient(circle at calc(100% - 116px) 39px, #e7c769 0 1.5px, transparent 2.1px),
+    linear-gradient(145deg, #fff8e9 0%, #fffdf7 58%, #faf3ff 100%);
+  --skin-panel-background: linear-gradient(155deg, #fffefd 72%, #fcf6ff 100%);
+  --skin-panel-shadow: 0 3px 0 #e9ddf3, 0 8px 20px rgba(88, 50, 136, .045);
+  --skin-feature-shadow: 0 2px 0 #e9ddf3;
+  --skin-sticker-rose: #ffe7ee;
+  --skin-sticker-violet: #eee6ff;
+  --skin-sticker-blue: #e0f2ff;
+  --skin-sticker-amber: #fff0c5;
+  --skin-sticker-teal: #e0f5e7;
+}
+
+:root.dark[data-interface-skin="emoji"] {
+  --brand: #c7a6ff;
+  --brand-strong: #e0c9ff;
+  --brand-soft: #49315f;
+  --ink: #f8eeff;
+  --muted: #ccbadb;
+  --line: #614775;
+  --surface: #382744;
+  --surface-soft: #432e51;
+  --skin-page: #291f30;
+  --skin-sidebar: #302437;
+  --skin-action-text: #2d1746;
+  --skin-shadow: rgba(20, 7, 32, .25);
+  --skin-icon-background: #513465;
+  --skin-canvas-background:
+    radial-gradient(circle at calc(100% - 24px) 14px, #aa8341 0 2px, transparent 2.6px),
+    radial-gradient(circle at calc(100% - 54px) 37px, #9d71a1 0 2px, transparent 2.6px),
+    radial-gradient(circle at calc(100% - 12px) 60px, #609d89 0 2px, transparent 2.6px),
+    radial-gradient(circle at calc(100% - 85px) 12px, #678fb8 0 2px, transparent 2.6px),
+    radial-gradient(circle at calc(100% - 116px) 39px, #a58b43 0 1.5px, transparent 2.1px),
+    linear-gradient(145deg, #30242d 0%, #291f30 58%, #30203c 100%);
+  --skin-panel-background: linear-gradient(155deg, #3e2b4b 0%, #382744 100%);
+  --skin-panel-shadow: 0 3px 0 #4b325d, 0 8px 20px rgba(20, 7, 32, .16);
+  --skin-feature-shadow: 0 2px 0 #4b325d;
+  --skin-sticker-rose: #65354e;
+  --skin-sticker-violet: #503972;
+  --skin-sticker-blue: #2a526b;
+  --skin-sticker-amber: #61502b;
+  --skin-sticker-teal: #2e5545;
+}
+
+/* 小面积贴纸底承接真实 Emoji 图标，按钮的可访问名称和点击区域不受装饰影响。 */
+:root[data-interface-skin="emoji"][data-interface-skin-kind="palette"] .feature-card .feature-icon {
+  border-radius: 9px 9px 9px 4px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 10%, transparent);
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+}
+
+:root[data-interface-skin="emoji"][data-interface-skin-kind="palette"] .feature-card .feature-icon.rose { background: var(--skin-sticker-rose); }
+:root[data-interface-skin="emoji"][data-interface-skin-kind="palette"] .feature-card .feature-icon.violet { background: var(--skin-sticker-violet); }
+:root[data-interface-skin="emoji"][data-interface-skin-kind="palette"] .feature-card .feature-icon.blue { background: var(--skin-sticker-blue); }
+:root[data-interface-skin="emoji"][data-interface-skin-kind="palette"] .feature-card .feature-icon.amber { background: var(--skin-sticker-amber); }
+:root[data-interface-skin="emoji"][data-interface-skin-kind="palette"] .feature-card .feature-icon.teal { background: var(--skin-sticker-teal); }
+
+:root[data-interface-skin="emoji"][data-interface-skin-kind="palette"] .popup-shell .brand img {
+  box-shadow: 0 0 0 2px var(--surface), 2px 3px 0 2px var(--line);
+  border-radius: 11px 11px 11px 5px;
+}
+
+/* 两种 DOM 预览按缩放尺寸呈现与实际菜单栏一致的表情贴纸，避免小字形和普通灰底误导选择。 */
+:root[data-interface-skin="emoji"][data-interface-skin-kind="palette"] :is(.interface-skin-live-preview .preview-features i, .popup-layout-live-preview .layout-preview-feature-grid i) {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  place-items: center;
+  border-radius: 6px 6px 6px 3px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 10%, transparent);
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
+}
+
+:root[data-interface-skin="emoji"][data-interface-skin-kind="palette"] .popup-layout-live-preview [data-preview-quick-feature="hover"] > i { background: var(--skin-sticker-rose); }
+:root[data-interface-skin="emoji"][data-interface-skin-kind="palette"] .popup-layout-live-preview [data-preview-quick-feature="selection"] > i,
+:root[data-interface-skin="emoji"][data-interface-skin-kind="palette"] .interface-skin-live-preview .preview-features > span:nth-child(2) > i { background: var(--skin-sticker-violet); }
+:root[data-interface-skin="emoji"][data-interface-skin-kind="palette"] .popup-layout-live-preview [data-preview-quick-feature="appearance"] > i { background: var(--skin-sticker-amber); }
+:root[data-interface-skin="emoji"][data-interface-skin-kind="palette"] .popup-layout-live-preview :is([data-preview-quick-feature="image"], [data-preview-quick-feature="video"]) > i { background: var(--skin-sticker-teal); }
+:root[data-interface-skin="emoji"][data-interface-skin-kind="palette"] .popup-layout-live-preview [data-preview-quick-feature="document"] > i,
+:root[data-interface-skin="emoji"][data-interface-skin-kind="palette"] .interface-skin-live-preview .preview-features > span:first-child > i { background: var(--skin-sticker-blue); }

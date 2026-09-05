@@ -1,8 +1,8 @@
 /**
  * @file src/ui/styles/interface-skins/cheese.css
- * 文件职责：声明 FluentRead 奶酪氛围配色的语义变量。
- * 主要内容：暖白表面与低饱和琥珀强调，以低饱和表面区分层次，提供清晰的正文与辅助文字。
- * 模块边界：只声明配色；组件布局、圆角与交互状态统一由 palette.css 管理。
+ * 文件职责：声明奶酪风格的暖金配色、奶油画布和柔圆纸卡层次。
+ * 主要内容：保留琥珀操作色，以奶油黄边角、圆形孔洞纹理和浅阴影增加温暖感，分别适配亮暗主题。
+ * 模块边界：只声明主题变量；组件表面由 palette.css 消费，不改变布局或交互。
  */
 
 :root[data-interface-skin="cheese"] {
@@ -13,13 +13,24 @@
   --muted: #6e6659;
   --line: #e2ded3;
   --surface: #fffefa;
-  --surface-soft: #f4f1e8;
-  --skin-page: #f6f4ee;
-  --skin-sidebar: #faf8f2;
+  --surface-soft: #fff7e1;
+  --skin-page: #fff9e9;
+  --skin-sidebar: #fffdf4;
   --skin-action-text: #ffffff;
   --skin-focus: color-mix(in srgb, var(--brand) 32%, transparent);
   --skin-shadow: rgba(0, 0, 0, .08);
-  --skin-radius: 14px;
+  --skin-radius: 20px;
+  --skin-panel-radius: 20px;
+  --skin-feature-radius: 13px;
+  --skin-control-radius: 11px;
+  --skin-icon-background: #fff0c8;
+  --skin-canvas-background:
+    radial-gradient(circle at calc(100% - 16px) 0, #ffebaf 0 32px, transparent 33px),
+    radial-gradient(circle at calc(100% - 81px) 8px, #fff0c5 0 15px, transparent 16px),
+    linear-gradient(145deg, #fff5d9 0%, #fffdf4 57%, #fff8e8 100%);
+  --skin-panel-background: linear-gradient(155deg, #fffefa 66%, #fffae8 100%);
+  --skin-panel-shadow: 0 7px 22px rgba(143, 104, 34, .065), 0 1px 2px rgba(143, 104, 34, .04);
+  --skin-feature-shadow: 0 2px 6px rgba(143, 104, 34, .045);
 }
 
 :root.dark[data-interface-skin="cheese"] {
@@ -36,4 +47,12 @@
   --skin-action-text: #201e19;
   --skin-focus: color-mix(in srgb, var(--brand) 32%, transparent);
   --skin-shadow: rgba(0, 0, 0, .22);
+  --skin-icon-background: #453921;
+  --skin-canvas-background:
+    radial-gradient(circle at calc(100% - 16px) 0, #443820 0 32px, transparent 33px),
+    radial-gradient(circle at calc(100% - 81px) 8px, #362f20 0 15px, transparent 16px),
+    linear-gradient(145deg, #2a261c 0%, #201e19 57%, #27231b 100%);
+  --skin-panel-background: linear-gradient(155deg, #2d2920 0%, #28261f 100%);
+  --skin-panel-shadow: 0 7px 22px rgba(0, 0, 0, .16), inset 0 1px 0 rgba(255, 235, 175, .035);
+  --skin-feature-shadow: 0 2px 6px rgba(0, 0, 0, .12);
 }

@@ -20,6 +20,7 @@
     :data-popup-footer-visible="String(config.interfaceVisibility.popupFooter)"
     :inert="!hydrated"
   >
+    <InterfaceBackdrop :motif="getInterfaceSkinOption(config.interfaceSkin).motif" />
     <UiLanguageOnboarding
       v-if="showLanguageOnboarding"
       :initial-language="onboardingLanguage"
@@ -284,7 +285,7 @@
           :aria-label="feature.ariaLabel"
           @click="feature.open()"
         >
-          <span class="feature-icon" :class="feature.iconTone">{{ feature.icon }}</span>
+          <span class="feature-icon" :class="feature.iconTone" aria-hidden="true">{{ config.interfaceSkin === 'emoji' ? emojiFeatureIcons[feature.id] : feature.icon }}</span>
           <span class="feature-copy">
             <strong>{{ feature.label }}</strong>
             <small>{{ feature.summary }}</small>
@@ -571,6 +572,7 @@ import {
 } from '@/src/core/config/customOpenAI';
 import { getMissingCredentialMessage } from '@/src/core/config/validation';
 import {
+  getInterfaceSkinOption,
   interfaceSkinUsesContentHeight,
   type PopupQuickFeatureId,
 } from '@/src/core/config/interfaceAppearance';
@@ -580,6 +582,7 @@ import { getSiteBaseDomain } from '@/src/core/site-rules/domain';
 import {applyInterfaceSkin} from '@/src/ui/interfaceAppearance';
 import { requestTranslationCacheClear } from './cache';
 import {isBrowserTabId} from '@/src/platform/browser/ids';
+import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue';
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
 import UiLanguageOnboarding from '@/src/ui/components/UiLanguageOnboarding.vue';
 import {useUiI18n} from '@/src/ui/i18n';
@@ -760,6 +763,7 @@ const siteModuleNestedInTranslation = computed(() => {
   return translationIndex >= 0 && visiblePopupModuleOrder.value[translationIndex + 1] === 'siteRule';
 });
 const lastVisiblePopupModule = computed(() => visiblePopupModuleOrder.value.at(-1));
+const emojiFeatureIcons: Record<PopupQuickFeatureId, string> = {hover: '🖱️', selection: '✍️', appearance: '🎨', image: '🖼️', video: '🎬', document: '📖'};
 const popupUsesContentHeight = computed(() => interfaceSkinUsesContentHeight(config.value.interfaceSkin)
   || !config.value.interfaceVisibility.popupQuickFeatures
   || !config.value.interfaceVisibility.popupSiteRule

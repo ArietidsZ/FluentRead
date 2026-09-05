@@ -1,8 +1,8 @@
 /**
  * @file src/ui/styles/interface-skins/paper.css
- * 文件职责：声明 FluentRead 纸张护眼氛围配色的语义变量。
- * 主要内容：暖纸白表面与灰褐强调，以低饱和表面区分层次，提供清晰的正文与辅助文字。
- * 模块边界：只声明配色；组件布局、圆角与交互状态统一由 palette.css 管理。
+ * 文件职责：声明纸张风格的暖纸配色、细线纹理与书页式卡片层次。
+ * 主要内容：保留灰褐操作色，用轻柔横线画布、短圆角和纸页投影呈现阅读感，兼顾亮暗主题文字辨识度。
+ * 模块边界：只声明主题变量；组件表面由 palette.css 消费，不改变布局或交互。
  */
 
 :root[data-interface-skin="paper"] {
@@ -19,7 +19,17 @@
   --skin-action-text: #ffffff;
   --skin-focus: color-mix(in srgb, var(--brand) 32%, transparent);
   --skin-shadow: rgba(0, 0, 0, .08);
-  --skin-radius: 14px;
+  --skin-radius: 9px;
+  --skin-panel-radius: 9px;
+  --skin-feature-radius: 7px;
+  --skin-control-radius: 7px;
+  --skin-icon-background: #eee7d7;
+  --skin-canvas-background:
+    repeating-linear-gradient(180deg, transparent 0 27px, rgba(149, 131, 99, .075) 27px 28px),
+    linear-gradient(135deg, #f7f3e9 0%, #fcfaf3 60%, #f3eee1 100%);
+  --skin-panel-background: linear-gradient(155deg, #fdfbf6 0%, #fbf9f3 100%);
+  --skin-panel-shadow: 0 2px 0 #e7e0d1, 0 6px 16px rgba(93, 77, 52, .045);
+  --skin-feature-shadow: 0 1px 2px rgba(93, 77, 52, .055);
 }
 
 :root.dark[data-interface-skin="paper"] {
@@ -36,4 +46,11 @@
   --skin-action-text: #201e1a;
   --skin-focus: color-mix(in srgb, var(--brand) 32%, transparent);
   --skin-shadow: rgba(0, 0, 0, .22);
+  --skin-icon-background: #423a2c;
+  --skin-canvas-background:
+    repeating-linear-gradient(180deg, transparent 0 27px, rgba(211, 190, 151, .035) 27px 28px),
+    linear-gradient(135deg, #27231c 0%, #201e1a 60%, #272219 100%);
+  --skin-panel-background: linear-gradient(155deg, #2e2a22 0%, #292620 100%);
+  --skin-panel-shadow: 0 2px 0 #3c362a, 0 6px 16px rgba(0, 0, 0, .13);
+  --skin-feature-shadow: 0 1px 2px rgba(0, 0, 0, .14);
 }

@@ -1,39 +1,57 @@
 /**
  * @file src/ui/styles/interface-skins/matcha.css
- * 文件职责：声明 FluentRead 抹茶氛围配色的语义变量。
- * 主要内容：淡灰绿表面与鼠尾草绿强调，以低饱和表面区分层次，提供清晰的正文与辅助文字。
- * 模块边界：只声明配色；组件布局、圆角与交互状态统一由 palette.css 管理。
+ * 文件职责：定义抹茶风格的鲜叶绿、奶油白底与柔和叶形背景。
+ * 主要内容：用清新的绿色强调和暖白卡片建立层次，暗色保留叶绿辨识度；装饰只落在画布边角。
+ * 模块边界：本模块仅声明主题语义变量，由 palette.css 适配 Popup 与 Options，不修改组件布局或状态。
  */
 
 :root[data-interface-skin="matcha"] {
-  --brand: #5b745c;
-  --brand-strong: #466049;
-  --brand-soft: #e4ebde;
-  --ink: #313b32;
-  --muted: #606b5b;
-  --line: #dce2d5;
-  --surface: #fdfefa;
-  --surface-soft: #edf1e8;
-  --skin-page: #f3f5f0;
-  --skin-sidebar: #f8faf5;
+  --brand: #327b28;
+  --brand-strong: #25621d;
+  --brand-soft: #e6f6d8;
+  --ink: #274025;
+  --muted: #546f48;
+  --line: #d4e8bf;
+  --surface: #fffffc;
+  --surface-soft: #f4fbe9;
+  --skin-page: #f7fbed;
+  --skin-sidebar: #fcfff5;
   --skin-action-text: #ffffff;
-  --skin-focus: color-mix(in srgb, var(--brand) 32%, transparent);
-  --skin-shadow: rgba(0, 0, 0, .08);
-  --skin-radius: 14px;
+  --skin-focus: color-mix(in srgb, var(--brand) 22%, transparent);
+  --skin-shadow: rgba(72, 116, 27, .12);
+  --skin-radius: 18px;
+  --skin-panel-radius: 18px;
+  --skin-feature-radius: 14px;
+  --skin-control-radius: 11px;
+  --skin-icon-background: #e9f6d4;
+  --skin-canvas-background:
+    radial-gradient(ellipse at 100% 0%, #e2f3b7 0 43%, transparent 44%) right -12px top -24px / 180px 120px no-repeat,
+    radial-gradient(ellipse at 100% 0%, #edf9d9 0 50%, transparent 51%) right 48px top -44px / 200px 148px no-repeat,
+    linear-gradient(145deg, #f8fdeb 0%, #fffef8 54%, #f1fae8 100%);
+  --skin-panel-background: linear-gradient(155deg, #fffffc 64%, #f8ffed 100%);
+  --skin-panel-shadow: 0 7px 22px rgba(75, 115, 34, .065), 0 1px 2px rgba(75, 115, 34, .035);
+  --skin-feature-shadow: 0 2px 6px rgba(75, 115, 34, .045);
 }
 
 :root.dark[data-interface-skin="matcha"] {
-  --brand: #a1b79b;
-  --brand-strong: #c2d4bb;
-  --brand-soft: #354333;
-  --ink: #e5ebe1;
-  --muted: #acb7a6;
-  --line: #424d3f;
-  --surface: #242b24;
-  --surface-soft: #2d352c;
-  --skin-page: #1b201b;
-  --skin-sidebar: #202720;
-  --skin-action-text: #1b201b;
-  --skin-focus: color-mix(in srgb, var(--brand) 32%, transparent);
-  --skin-shadow: rgba(0, 0, 0, .22);
+  --brand: #a5df77;
+  --brand-strong: #c6f39f;
+  --brand-soft: #304724;
+  --ink: #edf8e3;
+  --muted: #b5cba5;
+  --line: #425c32;
+  --surface: #22351d;
+  --surface-soft: #2b3e22;
+  --skin-page: #172713;
+  --skin-sidebar: #1d2e17;
+  --skin-action-text: #1c3012;
+  --skin-shadow: rgba(4, 20, 2, .26);
+  --skin-icon-background: #36522a;
+  --skin-canvas-background:
+    radial-gradient(ellipse at 100% 0%, #344d21 0 43%, transparent 44%) right -12px top -24px / 180px 120px no-repeat,
+    radial-gradient(ellipse at 100% 0%, #263e1c 0 50%, transparent 51%) right 48px top -44px / 200px 148px no-repeat,
+    linear-gradient(145deg, #1e3017 0%, #172713 54%, #1c2d17 100%);
+  --skin-panel-background: linear-gradient(155deg, #273a20 0%, #22351d 100%);
+  --skin-panel-shadow: 0 7px 22px rgba(4, 20, 2, .17), inset 0 1px 0 rgba(216, 251, 179, .04);
+  --skin-feature-shadow: 0 2px 6px rgba(4, 20, 2, .13);
 }

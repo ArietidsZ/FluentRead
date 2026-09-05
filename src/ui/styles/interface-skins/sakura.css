@@ -1,39 +1,57 @@
 /**
  * @file src/ui/styles/interface-skins/sakura.css
- * 文件职责：声明 FluentRead 樱花氛围配色的语义变量。
- * 主要内容：柔白表面与灰调玫瑰强调，以低饱和表面区分层次，提供清晰的正文与辅助文字。
- * 模块边界：只声明配色；组件布局、圆角与交互状态统一由 palette.css 管理。
+ * 文件职责：定义樱花风格的明亮花瓣粉、桃白画布与柔润圆角卡片。
+ * 主要内容：以静态花瓣圆弧和轻柔粉色阴影建立亲和层次，暗色使用深莓果底保证文字辨识度。
+ * 模块边界：本模块仅声明主题变量，由 palette.css 统一应用表面与控件，不添加业务 DOM 或动画。
  */
 
 :root[data-interface-skin="sakura"] {
-  --brand: #976577;
-  --brand-strong: #7f4f61;
-  --brand-soft: #f0e3e8;
-  --ink: #403339;
-  --muted: #6f6168;
-  --line: #e8dade;
-  --surface: #fffdfd;
-  --surface-soft: #f5edef;
-  --skin-page: #f8f3f4;
-  --skin-sidebar: #fcf8f9;
+  --brand: #c83474;
+  --brand-strong: #a6225b;
+  --brand-soft: #ffe5ef;
+  --ink: #52263c;
+  --muted: #82566b;
+  --line: #f4d0df;
+  --surface: #fffefe;
+  --surface-soft: #fff2f6;
+  --skin-page: #fff5f7;
+  --skin-sidebar: #fffafd;
   --skin-action-text: #ffffff;
-  --skin-focus: color-mix(in srgb, var(--brand) 32%, transparent);
-  --skin-shadow: rgba(0, 0, 0, .08);
-  --skin-radius: 14px;
+  --skin-focus: color-mix(in srgb, var(--brand) 22%, transparent);
+  --skin-shadow: rgba(178, 55, 104, .12);
+  --skin-radius: 22px;
+  --skin-panel-radius: 22px;
+  --skin-feature-radius: 15px;
+  --skin-control-radius: 12px;
+  --skin-icon-background: #ffe7f0;
+  --skin-canvas-background:
+    radial-gradient(ellipse at center, #ffe0eb 0 46%, transparent 47%) right -26px top -68px / 160px 170px no-repeat,
+    radial-gradient(ellipse at center, #ffe9df 0 46%, transparent 47%) right 48px top -82px / 136px 160px no-repeat,
+    linear-gradient(145deg, #fff1f6 0%, #fffdfb 55%, #fff1f5 100%);
+  --skin-panel-background: linear-gradient(155deg, #fffefe 65%, #fff5f9 100%);
+  --skin-panel-shadow: 0 8px 24px rgba(181, 63, 108, .07), 0 1px 2px rgba(181, 63, 108, .035);
+  --skin-feature-shadow: 0 2px 6px rgba(181, 63, 108, .045);
 }
 
 :root.dark[data-interface-skin="sakura"] {
-  --brand: #c8a0ae;
-  --brand-strong: #e0bfcb;
-  --brand-soft: #46343e;
-  --ink: #efe5e9;
-  --muted: #bfadb5;
-  --line: #504149;
-  --surface: #2d252a;
-  --surface-soft: #372d33;
-  --skin-page: #231c20;
-  --skin-sidebar: #292126;
-  --skin-action-text: #231c20;
-  --skin-focus: color-mix(in srgb, var(--brand) 32%, transparent);
-  --skin-shadow: rgba(0, 0, 0, .22);
+  --brand: #ff9fca;
+  --brand-strong: #ffc2de;
+  --brand-soft: #56233f;
+  --ink: #fff0f7;
+  --muted: #dcb1c6;
+  --line: #67384f;
+  --surface: #402335;
+  --surface-soft: #4a2b3e;
+  --skin-page: #2e1726;
+  --skin-sidebar: #361e2d;
+  --skin-action-text: #3c1330;
+  --skin-shadow: rgba(29, 4, 21, .26);
+  --skin-icon-background: #592c46;
+  --skin-canvas-background:
+    radial-gradient(ellipse at center, #582740 0 46%, transparent 47%) right -26px top -68px / 160px 170px no-repeat,
+    radial-gradient(ellipse at center, #4e2b34 0 46%, transparent 47%) right 48px top -82px / 136px 160px no-repeat,
+    linear-gradient(145deg, #391d2f 0%, #2e1726 55%, #381d2b 100%);
+  --skin-panel-background: linear-gradient(155deg, #49263b 0%, #402335 100%);
+  --skin-panel-shadow: 0 8px 24px rgba(29, 4, 21, .17), inset 0 1px 0 rgba(255, 206, 229, .04);
+  --skin-feature-shadow: 0 2px 6px rgba(29, 4, 21, .13);
 }

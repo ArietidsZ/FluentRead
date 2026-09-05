@@ -88,10 +88,13 @@ describe('options UI composition architecture', () => {
     expect(settingsSections).toContain('<style scoped src="./settings-sections.css"></style>')
     expect(settingsSections).toContain('<InterfaceSettings :config="config" />')
     expect(settingsSections).toContain('data-config-field="to"')
-    expect(activeSectionSource(settingsSections, 'settings-general')).toContain('<InterfaceSettings :config="config" />')
-    expect(settingsSections).not.toContain("props.activeSection === 'settings-interface'")
-    expect(settingsSections.indexOf('<InterfaceSettings :config="config" />'))
-      .toBeGreaterThan(settingsSections.indexOf('title="网页辅助"'))
+    expect(activeSectionSource(settingsSections, 'settings-general')).not.toContain('<InterfaceSettings :config="config" />')
+    expect(activeSectionSource(settingsSections, 'settings-interface')).toContain('<InterfaceSettings :config="config" />')
+    expect(activeSectionSource(settingsSections, 'settings-interface')).toContain('id="settings-interface"')
+    expect(settingsGroupTitles(interfaceSettings)).toEqual([
+      "translateLegacy('界面与弹窗')",
+      "t('settings.interface.popupLayout.label')",
+    ])
     expect(interfaceSettings).toContain('interfaceSkinOptions')
     expect(interfaceSettings).toContain('interfaceSkinGroups')
     expect(interfaceSettings).toContain('groupedSkinOptions')
@@ -140,7 +143,7 @@ describe('options UI composition architecture', () => {
     expect(skinStyles).toContain('body.popup-page')
     expect(skinStyles).toContain('data-popup-height="content"')
     expect(skinStyles).toContain('min-height: 0')
-    const nonDefaultSkins = ['minimal', 'compact', 'contrast', 'cheese', 'ocean', 'matcha', 'sakura', 'midnight', 'paper']
+    const nonDefaultSkins = ['minimal', 'compact', 'contrast', 'cheese', 'ocean', 'matcha', 'sakura', 'emoji', 'midnight', 'paper']
     for (const skin of nonDefaultSkins) {
       expect(skinStyles).toContain(`./interface-skins/${skin}.css`)
       expect(source(`src/ui/styles/interface-skins/${skin}.css`)).toContain(`data-interface-skin="${skin}"`)

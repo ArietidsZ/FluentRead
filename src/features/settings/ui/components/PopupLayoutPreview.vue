@@ -14,6 +14,7 @@
     :aria-label="previewAriaLabel"
   >
     <div class="layout-preview-popup" aria-hidden="true">
+      <InterfaceBackdrop :motif="skin.motif" />
       <header class="layout-preview-header">
         <span class="layout-preview-logo">A中</span>
         <strong>{{ translateLegacy('流畅阅读') }}</strong>
@@ -96,6 +97,7 @@
 
 <script setup lang="ts">
 import {computed} from 'vue'
+import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue'
 import type {InterfaceSkinOption} from '@/src/core/config/interfaceAppearance'
 import {useUiI18n} from '@/src/ui/i18n'
 
@@ -151,6 +153,7 @@ const previewStyle = computed(() => {
 const previewAriaLabel = computed(() => `${t('settings.interface.popupLayout.previewTitle')}: ${props.skinLabel}`)
 
 function featureGlyph(id: string): string {
+  if (props.skin.value === 'emoji') return ({hover: '🖱️', selection: '✍️', appearance: '🎨', image: '🖼️', video: '🎬', document: '📖'} as Record<string, string>)[id] || '✨'
   return ({
     hover: '↖',
     selection: 'I',
@@ -170,6 +173,8 @@ function featureGlyph(id: string): string {
 }
 
 .layout-preview-popup {
+  position: relative;
+  isolation: isolate;
   display: grid;
   gap: 8px;
   padding: 12px;
@@ -531,8 +536,8 @@ function featureGlyph(id: string): string {
 .popup-layout-live-preview[data-preview-kind="palette"] .layout-preview-popup {
   border-color: var(--line);
   border-radius: 14px;
-  background: var(--layout-preview-canvas);
-  box-shadow: none;
+  background: var(--skin-canvas-background, var(--layout-preview-canvas));
+  box-shadow: var(--skin-panel-shadow, none);
 }
 
 .popup-layout-live-preview[data-preview-kind="palette"] .preview-translation {
@@ -586,5 +591,18 @@ function featureGlyph(id: string): string {
   .popup-layout-live-preview {
     width: 100%;
   }
+}
+
+.popup-layout-live-preview[data-preview-kind="palette"] .preview-translation {
+  border-radius: var(--skin-panel-radius, 14px);
+  background: var(--skin-panel-background, var(--surface));
+  box-shadow: var(--skin-panel-shadow, none);
+}
+.popup-layout-live-preview[data-preview-kind="palette"] .layout-preview-feature-grid > span {
+  border-radius: var(--skin-feature-radius, 10px);
+  box-shadow: var(--skin-feature-shadow, none);
+}
+.popup-layout-live-preview[data-preview-kind="palette"] :is(.layout-preview-languages span, .layout-preview-service, .layout-preview-action) {
+  border-radius: var(--skin-control-radius, 10px);
 }
 </style>

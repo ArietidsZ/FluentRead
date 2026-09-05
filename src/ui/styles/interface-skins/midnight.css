@@ -1,8 +1,8 @@
 /**
  * @file src/ui/styles/interface-skins/midnight.css
- * 文件职责：声明 FluentRead 夜幕氛围配色的语义变量。
- * 主要内容：墨蓝表面与柔和雾蓝强调，以低饱和表面区分层次，提供清晰的正文与辅助文字。
- * 模块边界：只声明配色；组件布局、圆角与交互状态统一由 palette.css 管理。
+ * 文件职责：声明夜幕风格的墨蓝配色、微光星点背景与安静浮层。
+ * 主要内容：保留雾蓝操作色，在蓝黑画布边角加入静态星点，卡片用轻描边和柔和阴影建立层次。
+ * 模块边界：只声明主题变量；组件表面由 palette.css 消费，不改变布局或交互。
  */
 
 :root[data-interface-skin="midnight"],
@@ -20,6 +20,18 @@
   --skin-action-text: #151c26;
   --skin-focus: color-mix(in srgb, var(--brand) 32%, transparent);
   --skin-shadow: rgba(0, 0, 0, .22);
-  --skin-radius: 14px;
+  --skin-radius: 16px;
+  --skin-panel-radius: 16px;
+  --skin-feature-radius: 11px;
+  --skin-control-radius: 10px;
+  --skin-icon-background: #293b52;
+  --skin-canvas-background:
+    radial-gradient(circle at calc(100% - 27px) 16px, #93aaca 0 1px, transparent 1.6px),
+    radial-gradient(circle at calc(100% - 88px) 8px, #6f89ae 0 1px, transparent 1.6px),
+    radial-gradient(circle at calc(100% - 65px) 62px, #566e91 0 1px, transparent 1.6px),
+    linear-gradient(150deg, #1e2c41 0%, #151c26 52%, #172234 100%);
+  --skin-panel-background: linear-gradient(155deg, #222e3f 0%, #1d2632 100%);
+  --skin-panel-shadow: 0 8px 24px rgba(0, 8, 24, .2), inset 0 1px 0 rgba(184, 211, 244, .035);
+  --skin-feature-shadow: 0 2px 6px rgba(0, 8, 24, .12);
   color-scheme: dark;
 }

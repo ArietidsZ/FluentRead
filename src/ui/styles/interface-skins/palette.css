@@ -1,7 +1,7 @@
 /**
  * @file src/ui/styles/interface-skins/palette.css
  * 文件职责：为所有配色型界面皮肤提供共享的 Popup 与 Options 组件适配层，避免每套配色重复维护完整选择器集合。
- * 主要内容：以中性表面、轻边界和局部强调色统一翻译卡片、功能入口、设置导航与表单控件，并保留可辨识的操作状态与键盘焦点。
+ * 主要内容：通过可选画布纹理、卡片圆角与阴影变量适配各主题的空间层次，统一翻译卡片、设置导航与控件，并保留可辨识的状态与键盘焦点。
  * 层叠约定：同时限定皮肤类型与 ID，使亮暗色基础样式不能因打包顺序覆盖配色语义。
  * 模块边界：本文件只匹配 data-interface-skin-kind="palette"，不声明任何具体皮肤色值；新增或删除单套配色只需调整注册表、入口 import 和对应色值模块。
  */
@@ -25,7 +25,7 @@
   --el-text-color-primary: var(--ink);
   --el-text-color-regular: color-mix(in srgb, var(--ink) 88%, var(--surface));
   --el-text-color-secondary: var(--muted);
-  --el-text-color-placeholder: color-mix(in srgb, var(--muted) 72%, var(--surface));
+  --el-text-color-placeholder: var(--muted);
   color: var(--ink);
   background: var(--skin-page);
 }
@@ -37,8 +37,10 @@
 }
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] .popup-shell {
+  position: relative;
+  isolation: isolate;
   color: var(--ink);
-  background: var(--skin-page);
+  background: var(--skin-canvas-background, var(--skin-page));
 }
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] .popup-shell .brand img {
@@ -62,8 +64,9 @@
 }
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] .hero-card {
-  border-radius: var(--skin-radius, 14px);
-  box-shadow: none;
+  border-radius: var(--skin-panel-radius, var(--skin-radius, 14px));
+  background: var(--skin-panel-background, var(--surface));
+  box-shadow: var(--skin-panel-shadow, none);
 }
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] .language-pair select,
@@ -77,7 +80,13 @@
 :root[data-interface-skin-kind="palette"][data-interface-skin] .service-field,
 :root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card,
 :root[data-interface-skin-kind="palette"][data-interface-skin] .site-rule-row {
-  border-radius: 10px;
+  border-radius: var(--skin-control-radius, 10px);
+}
+
+/* 可选主题为纸卡建立层次；尺寸、排列与点击范围仍由 Popup 布局决定。 */
+:root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card {
+  border-radius: var(--skin-feature-radius, 10px);
+  box-shadow: var(--skin-feature-shadow, none);
 }
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] .service-field:hover:not(:disabled),
@@ -93,7 +102,7 @@
 :root[data-interface-skin-kind="palette"][data-interface-skin] .ai-context-toggle,
 :root[data-interface-skin-kind="palette"][data-interface-skin] .ai-context-toggle[aria-pressed="true"] {
   color: var(--skin-action-text, #fff);
-  border-radius: 10px;
+  border-radius: var(--skin-control-radius, 10px);
   background: var(--brand);
   box-shadow: none;
   transition: background 160ms ease, color 160ms ease, opacity 160ms ease;
@@ -177,7 +186,7 @@
 :root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card .feature-icon.teal {
   color: var(--brand-strong);
   border-radius: 7px;
-  background: var(--surface-soft);
+  background: var(--skin-icon-background, var(--surface-soft));
 }
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] .popup-shell > footer {
@@ -235,6 +244,13 @@
   background: var(--skin-page);
 }
 
+/* 画布只绘制一次，内部滚动内容与背景纹理各自保持稳定。 */
+:root[data-interface-skin-kind="palette"][data-interface-skin] .workspace {
+  position: relative;
+  isolation: isolate;
+  background: var(--skin-canvas-background, var(--skin-page));
+}
+
 :root[data-interface-skin-kind="palette"][data-interface-skin] .sidebar {
   border-color: var(--line);
   background: var(--skin-sidebar, var(--surface));
@@ -251,6 +267,13 @@
   border-color: var(--line);
   background: var(--surface);
   box-shadow: none;
+}
+
+/* 分组纸面承接主题圆角和浅阴影，行内表单仍使用安静的实色底保证阅读。 */
+:root[data-interface-skin-kind="palette"][data-interface-skin] .settings-group-body {
+  border-radius: var(--skin-panel-radius, 16px);
+  background: var(--skin-panel-background, var(--surface));
+  box-shadow: var(--skin-panel-shadow, none);
 }
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] .settings-card .settings-control-row,
@@ -298,6 +321,20 @@
   border-color: var(--brand);
   background: var(--surface);
   box-shadow: inset 0 0 0 1px var(--brand);
+}
+
+/* 小字号提示使用完整辅助文字色，避免基础样式再次降低对比度。 */
+:root[data-interface-skin-kind="palette"][data-interface-skin] .sidebar .nav-group-label,
+:root[data-interface-skin-kind="palette"][data-interface-skin] .settings-card .el-select__placeholder,
+:root[data-interface-skin-kind="palette"][data-interface-skin] .settings-card .el-select__caret {
+  color: var(--muted);
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .search-box input::placeholder,
+:root[data-interface-skin-kind="palette"][data-interface-skin] .service-search input::placeholder,
+:root[data-interface-skin-kind="palette"][data-interface-skin] .settings-card .el-input__inner::placeholder {
+  color: var(--muted);
+  opacity: 1;
 }
 
 /*

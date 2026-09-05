@@ -28,10 +28,16 @@ export const navigationGroups: NavigationGroup[] = [
     label: '基础配置',
     items: [
       {
-        id: 'settings-general', icon: '⌂', label: '通用设置', description: '服务、界面、显示与网页辅助', group: '基础配置',
-        heading: '通用设置', summary: '选择默认翻译服务，并管理扩展界面、译文显示、网页辅助和基础偏好。',
-        kicker: '基础配置', title: '通用设置', detail: '选择翻译服务，设置译文显示、网页辅助与界面偏好。',
-        searchDescription: '选择翻译服务、默认服务、界面设置、弹窗风格、默认风格、简约风格、紧凑风格、高对比、奶酪、海盐、抹茶、樱花、夜幕、纸张护眼、弹窗栏目、快捷功能栏、当前网站栏目、底部信息栏、译文显示、双语逐句高亮、网页辅助、AI 智能上下文、默认目标语言、主题',
+        id: 'settings-general', icon: '⌂', label: '通用设置', description: '服务、显示与网页辅助', group: '基础配置',
+        heading: '通用设置', summary: '选择默认翻译服务，并管理译文显示、网页辅助和基础偏好。',
+        kicker: '基础配置', title: '通用设置', detail: '选择默认翻译服务，并管理译文显示、网页辅助和基础偏好。',
+        searchDescription: '选择翻译服务、默认服务、译文显示、双语逐句高亮、网页辅助、AI 智能上下文、默认目标语言、主题',
+      },
+      {
+        id: 'settings-interface', icon: '▦', label: '界面布局', description: '界面与弹窗、菜单栏布局', group: '基础配置',
+        heading: '界面布局', summary: '选择喜欢的界面风格，编排菜单栏中的模块和快捷功能。',
+        kicker: '基础配置', title: '界面布局', detail: '选择喜欢的界面风格，编排菜单栏中的模块和快捷功能。',
+        searchDescription: '界面设置、界面与弹窗、弹窗风格、默认风格、简约风格、紧凑风格、高对比、奶酪、海盐、抹茶、樱花、夜幕、纸张护眼、Emoji、菜单栏布局、弹窗栏目、快捷功能栏、当前网站栏目、底部信息栏',
       },
       {
         id: 'settings-services', icon: '译', label: '翻译服务', description: '服务与模型', group: '基础配置',
@@ -122,7 +128,6 @@ export const navigationItems = navigationGroups.flatMap((group) => group.items)
 
 /** 旧链接仍定位到合并后的“翻译设置”，但不再作为独立导航项展示。 */
 export const NAVIGATION_SECTION_ALIASES: ReadonlyMap<string, string> = new Map([
-  ['settings-interface', 'settings-general'],
   ['settings-webpage', 'settings-translation'],
   ['settings-shortcuts', 'settings-translation'],
 ])

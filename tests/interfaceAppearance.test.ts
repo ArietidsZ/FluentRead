@@ -40,6 +40,7 @@ describe('界面皮肤与栏目配置', () => {
       'ocean',
       'matcha',
       'sakura',
+      'emoji',
       'midnight',
       'paper',
     ]
@@ -53,13 +54,17 @@ describe('界面皮肤与栏目配置', () => {
       '海盐 🌊',
       '抹茶 🍵',
       '樱花 🌸',
+      'Emoji 乐园 ✨',
       '夜幕 🌙',
       '纸张护眼 📖',
     ])
     expect(interfaceSkinGroups.map((item) => item.value)).toEqual(['utility', 'palette'])
     expect(interfaceSkinOptions.filter((item) => item.group === 'utility')).toHaveLength(4)
-    expect(interfaceSkinOptions.filter((item) => item.group === 'palette')).toHaveLength(6)
-    expect(new Set(interfaceSkinOptions.map((item) => JSON.stringify(item.preview))).size).toBe(10)
+    expect(interfaceSkinOptions.filter((item) => item.group === 'palette')).toHaveLength(7)
+    expect(new Set(interfaceSkinOptions.map((item) => JSON.stringify(item.preview))).size).toBe(11)
+    expect(interfaceSkinOptions.filter(item => item.group === 'palette').every(item => item.motif === item.value)).toBe(true)
+    expect(interfaceSkinOptions.filter(item => item.group === 'utility').every(item => item.motif === 'none')).toBe(true)
+    expect(normalizeConfig({interfaceSkin: 'emoji'}).interfaceSkin).toBe('emoji')
     expect(interfaceSkinOptions.slice(1).every((item) => item.popupHeight === 'content')).toBe(true)
     expect(interfaceSkinOptions.filter((item) => !['minimal', 'compact'].includes(item.value)).every((item) => item.popupWidth === 400)).toBe(true)
     expect(getInterfaceSkinOption('minimal').popupWidth).toBe(380)
