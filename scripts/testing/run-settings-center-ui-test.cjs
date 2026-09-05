@@ -3,6 +3,16 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const {execFile} = require('node:child_process');
+const {promisify} = require('node:util');
+
+const execFileAsync = promisify(execFile);
+
+const macFrontmostApplicationScript = [
+  "ObjC.import('AppKit');",
+  'const app = $.NSWorkspace.sharedWorkspace.frontmostApplication;',
+  "JSON.stringify({ pid: Number(app.processIdentifier), name: ObjC.unwrap(app.localizedName) || '' });",
+].join('\n');
 
 function argument(name, fallback) {
   const index = process.argv.indexOf(`--${name}`);
@@ -111,6 +121,43 @@ const {
   launchFocusSafePersistentContext,
   newPageWithoutForeground,
 } = require(focusHelper);
+
+async function readMacFrontmostApplication() {
+  if (process.platform !== 'darwin') return null;
+  const {stdout} = await execFileAsync('/usr/bin/osascript', [
+    '-l',
+    'JavaScript',
+    '-e',
+    macFrontmostApplicationScript,
+  ], {timeout: 5000});
+  const application = JSON.parse(stdout.trim());
+  return Number.isInteger(application?.pid) && application.pid > 0 ? application : null;
+}
+
+async function readTestBrowserPid(context) {
+  const browser = context.browser();
+  if (!browser) throw new Error('无法获取隔离浏览器实例；无法执行复用页签的焦点校验');
+  const session = await browser.newBrowserCDPSession();
+  try {
+    const {processInfo} = await session.send('SystemInfo.getProcessInfo');
+    const pid = processInfo.find(process => process.type === 'browser')?.id;
+    if (!Number.isInteger(pid) || pid <= 0) throw new Error('无法确认测试 Edge 的精确进程 ID；焦点校验已停止');
+    return pid;
+  } finally {
+    await session.detach().catch(() => {});
+  }
+}
+
+async function assertTestBrowserRemainsBackground(context, label) {
+  const [browserPid, frontmost] = await Promise.all([
+    readTestBrowserPid(context),
+    readMacFrontmostApplication(),
+  ]);
+  if (!frontmost) throw new Error(`无法读取 macOS 前台应用（${label}）；焦点校验已停止`);
+  if (frontmost.pid === browserPid) {
+    throw new Error(`测试 Edge 进程 ${browserPid} 成为了前台应用（${label}）；测试已停止`);
+  }
+}
 
 async function screenshot(page, file) {
   const target = path.join(artifactsDir, file);
@@ -1783,7 +1830,6 @@ async function main() {
         multilingualMetrics,
       });
     }
-    await skinPopup.close();
     report.skinPopupLifecycle = {isolatedPages: 1, fullNavigations: expectedInterfaceSkins.length};
     if (visualSignatures.size !== expectedInterfaceSkins.length) {
       throw new Error(`所有皮肤没有形成独立视觉签名：${visualSignatures.size}`);
@@ -1877,14 +1923,13 @@ async function main() {
     ), undefined, {timeout});
     await page.waitForTimeout(500);
 
-    const interfacePopup = await newPageWithoutForeground(context, timeout);
-    attachPageDiagnostics(interfacePopup);
-    await interfacePopup.setViewportSize({width: 400, height: 600});
-    await interfacePopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
-    await interfacePopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
-    await interfacePopup.waitForTimeout(350);
-    if (await interfacePopup.locator('.features').count() !== 0) {
-      const visibilityDiagnostics = await interfacePopup.locator('.popup-shell').evaluate(element => ({
+    await assertTestBrowserRemainsBackground(context, '复用 skinPopup 前');
+    await skinPopup.setViewportSize({width: 400, height: 600});
+    await skinPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
+    await skinPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
+    await skinPopup.waitForTimeout(350);
+    if (await skinPopup.locator('.features').count() !== 0) {
+      const visibilityDiagnostics = await skinPopup.locator('.popup-shell').evaluate(element => ({
         quickFeatures: element.getAttribute('data-popup-quick-features-visible'),
         siteRule: element.getAttribute('data-popup-site-rule-visible'),
         footer: element.getAttribute('data-popup-footer-visible'),
@@ -1892,11 +1937,11 @@ async function main() {
       }));
       throw new Error(`关闭快捷功能栏后 Popup 仍显示快捷功能：${JSON.stringify(visibilityDiagnostics)}`);
     }
-    if (await interfacePopup.locator('footer').count() !== 0) throw new Error('关闭底部信息栏后 Popup 仍显示底部信息');
-    if (await interfacePopup.locator('main[data-interface-skin="minimal"]').count() !== 1) {
+    if (await skinPopup.locator('footer').count() !== 0) throw new Error('关闭底部信息栏后 Popup 仍显示底部信息');
+    if (await skinPopup.locator('main[data-interface-skin="minimal"]').count() !== 1) {
       throw new Error('Popup 重开后没有应用简约风格');
     }
-    const popupMetrics = await interfacePopup.locator('.popup-shell').evaluate(element => {
+    const popupMetrics = await skinPopup.locator('.popup-shell').evaluate(element => {
       const rect = element.getBoundingClientRect();
       return {
         shellHeight: rect.height,
@@ -1913,20 +1958,18 @@ async function main() {
       || popupMetrics.shellHeight >= minimalPopupMetrics.shellHeight - 40) {
       throw new Error(`隐藏 Popup 栏目后空白区域没有随内容收缩：${JSON.stringify(popupMetrics)}`);
     }
-    report.screenshots.push(await screenshotElement(interfacePopup.locator('.popup-shell'), 'popup-interface-minimal-hidden-sections.png'));
-    await interfacePopup.close();
+    report.screenshots.push(await screenshotElement(skinPopup.locator('.popup-shell'), 'popup-interface-minimal-hidden-sections.png'));
+    await assertTestBrowserRemainsBackground(context, '复用 skinPopup 完成简约隐藏栏目检查后');
 
     // 默认风格在栏目齐全时保持原高度；隐藏栏目时同样不能留下固定空白。
     await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="default"]').click();
     await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'default', undefined, {timeout});
     await page.waitForTimeout(500);
-    const defaultHiddenPopup = await newPageWithoutForeground(context, timeout);
-    attachPageDiagnostics(defaultHiddenPopup);
-    await defaultHiddenPopup.setViewportSize({width: 400, height: 600});
-    await defaultHiddenPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
-    await defaultHiddenPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
-    await defaultHiddenPopup.waitForTimeout(350);
-    const defaultHiddenMetrics = await defaultHiddenPopup.locator('.popup-shell').evaluate(element => ({
+    await assertTestBrowserRemainsBackground(context, '复用 skinPopup 进行默认隐藏栏目检查前');
+    await skinPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
+    await skinPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
+    await skinPopup.waitForTimeout(350);
+    const defaultHiddenMetrics = await skinPopup.locator('.popup-shell').evaluate(element => ({
       shellHeight: element.getBoundingClientRect().height,
       heightMode: document.documentElement.dataset.popupHeight,
       htmlMinHeight: getComputedStyle(document.documentElement).minHeight,
@@ -1938,8 +1981,8 @@ async function main() {
       || defaultHiddenMetrics.shellHeight >= 560) {
       throw new Error(`默认风格隐藏栏目后没有按内容收缩：${JSON.stringify(defaultHiddenMetrics)}`);
     }
-    report.screenshots.push(await screenshotElement(defaultHiddenPopup.locator('.popup-shell'), 'popup-interface-default-hidden-sections.png'));
-    await defaultHiddenPopup.close();
+    report.screenshots.push(await screenshotElement(skinPopup.locator('.popup-shell'), 'popup-interface-default-hidden-sections.png'));
+    await assertTestBrowserRemainsBackground(context, '复用 skinPopup 完成默认隐藏栏目检查后');
 
     await popupLayoutEditor.locator('.popup-layout-hidden-chip').filter({hasText: '快捷功能栏'}).getByRole('button', {name: '添加快捷功能栏', exact: true}).click();
     await popupLayoutEditor.locator('.popup-layout-hidden-chip').filter({hasText: '底部信息栏'}).getByRole('button', {name: '添加底部信息栏', exact: true}).click();
@@ -1953,13 +1996,11 @@ async function main() {
         .map(element => element.getAttribute('data-popup-layout-module')),
     ) === JSON.stringify(expected), defaultLayoutOrder, {timeout});
     await page.waitForTimeout(500);
-    const defaultFullPopup = await newPageWithoutForeground(context, timeout);
-    attachPageDiagnostics(defaultFullPopup);
-    await defaultFullPopup.setViewportSize({width: 400, height: 600});
-    await defaultFullPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
-    await defaultFullPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
-    await defaultFullPopup.waitForTimeout(350);
-    const defaultFullMetrics = await defaultFullPopup.locator('.popup-shell').evaluate(element => ({
+    await assertTestBrowserRemainsBackground(context, '复用 skinPopup 进行默认完整栏目检查前');
+    await skinPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
+    await skinPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
+    await skinPopup.waitForTimeout(350);
+    const defaultFullMetrics = await skinPopup.locator('.popup-shell').evaluate(element => ({
       shellHeight: element.getBoundingClientRect().height,
       heightMode: document.documentElement.dataset.popupHeight,
       htmlMinHeight: getComputedStyle(document.documentElement).minHeight,
@@ -1972,13 +2013,13 @@ async function main() {
       || defaultFullMetrics.bodyMinHeight !== '560px') {
       throw new Error(`默认风格完整栏目没有保持原有高度：${JSON.stringify(defaultFullMetrics)}`);
     }
-    const restoredPopupModuleOrder = await defaultFullPopup.locator('[data-popup-module]').evaluateAll(
+    const restoredPopupModuleOrder = await skinPopup.locator('[data-popup-module]').evaluateAll(
       elements => elements.map(element => element.getAttribute('data-popup-module')),
     );
     if (JSON.stringify(restoredPopupModuleOrder) !== JSON.stringify(defaultLayoutOrder)) {
       throw new Error(`恢复默认后 Popup 模块顺序异常：${JSON.stringify(restoredPopupModuleOrder)}`);
     }
-    const restoredPopupQuickFeatureOrder = await defaultFullPopup.locator('[data-popup-quick-feature]').evaluateAll(
+    const restoredPopupQuickFeatureOrder = await skinPopup.locator('[data-popup-quick-feature]').evaluateAll(
       elements => elements.map(element => element.getAttribute('data-popup-quick-feature')),
     );
     if (JSON.stringify(restoredPopupQuickFeatureOrder) !== JSON.stringify(defaultQuickFeatureOrder)) {
@@ -1989,15 +2030,15 @@ async function main() {
       await interfaceSettingsGroup.locator(`.interface-skin-option[data-skin="${skin}"]`).click();
       await page.waitForFunction(value => document.documentElement.dataset.interfaceSkin === value, skin, {timeout});
       await page.waitForTimeout(450);
-      await defaultFullPopup.reload({waitUntil: 'domcontentloaded', timeout});
-      await defaultFullPopup.waitForFunction(value => document.documentElement.dataset.interfaceSkin === value, skin, {timeout});
-      await defaultFullPopup.evaluate(() => document.documentElement.classList.remove('dark'));
-      await defaultFullPopup.waitForTimeout(220);
-      const visibleOrder = await defaultFullPopup.locator('[data-popup-module]').evaluateAll(elements => elements.map(element => element.getAttribute('data-popup-module')));
+      await skinPopup.reload({waitUntil: 'domcontentloaded', timeout});
+      await skinPopup.waitForFunction(value => document.documentElement.dataset.interfaceSkin === value, skin, {timeout});
+      await skinPopup.evaluate(() => document.documentElement.classList.remove('dark'));
+      await skinPopup.waitForTimeout(220);
+      const visibleOrder = await skinPopup.locator('[data-popup-module]').evaluateAll(elements => elements.map(element => element.getAttribute('data-popup-module')));
       if (JSON.stringify(visibleOrder) !== JSON.stringify(defaultLayoutOrder)) {
         throw new Error(`交付用 ${skin} 菜单栏没有恢复默认栏目顺序：${JSON.stringify(visibleOrder)}`);
       }
-      const file = await screenshotElement(defaultFullPopup.locator('.popup-shell'), `deliverable-popup-${skin}.png`);
+      const file = await screenshotElement(skinPopup.locator('.popup-shell'), `deliverable-popup-${skin}.png`);
       report.screenshots.push(file);
       deliverablePopupSkins.push({skin, moduleOrder: visibleOrder, file});
     }
@@ -2008,7 +2049,8 @@ async function main() {
     report.deliverablePopupSkins = deliverablePopupSkins;
     await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="default"]').click();
     await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'default', undefined, {timeout});
-    await defaultFullPopup.close();
+    await assertTestBrowserRemainsBackground(context, '复用 skinPopup 完成默认完整栏目与交付皮肤检查后');
+    await skinPopup.close();
     await interfaceHostPage.close();
 
     report.informationArchitecture.interfaceSettings = {
@@ -3167,6 +3209,8 @@ async function main() {
     report.assertions.modelUsageReset = true;
     report.screenshots.push(await screenshot(page, 'settings-model-usage-empty-after-reset.png'));
     report.assertions.responsive = true;
+    await assertTestBrowserRemainsBackground(context, '设置中心测试完成');
+    report.assertions.reusedPopupStayedBackground = true;
     if (errors.length) throw new Error(`浏览器控制台存在错误：${errors.join(' | ')}`);
     report.ok = true;
   } catch (error) {
