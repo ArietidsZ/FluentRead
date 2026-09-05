@@ -1,6 +1,6 @@
 /**
  * @file src/app/popup/popup.css
- * 文件职责：定义固定尺寸浏览器 Popup 的视觉系统与交互状态，包括亮暗主题、服务选择、功能卡、设置抽屉、通知和响应式细节。
+ * 文件职责：定义宽度随皮肤、高度随内容自适应的浏览器 Popup 视觉系统与交互状态，包括亮暗主题、服务选择、功能卡、设置抽屉、通知和响应式细节。
  * 主要内容：声明页面变量、品牌头部、加载 inert 状态、英雄操作区、可按服务或模型筛选的服务菜单、站点控制、功能网格、开关与滑块、drawer/dialog、捐赠区和状态反馈，并适配 Element Plus 内部结构。
  * 模块边界：样式只对应 PopupApp 的 DOM 和受控第三方组件，不决定配置值、能力可用性或消息行为；跨页面 token 在 src/ui/styles，Options/文档页各自维护页面样式。
  */
@@ -35,7 +35,7 @@
 }
 
 * { box-sizing: border-box; }
-html, body, #app { width: var(--interface-popup-width, 400px); min-width: var(--interface-popup-width, 400px); min-height: 560px; margin: 0; overflow-x: hidden; background: #f6f7fb; }
+html, body, #app { width: var(--interface-popup-width, 400px); min-width: var(--interface-popup-width, 400px); margin: 0; overflow-x: hidden; background: #f6f7fb; }
 :root.dark body, :root.dark #app { background: #14161b; }
 button, select, input { font: inherit; }
 button { color: inherit; }
@@ -43,7 +43,6 @@ button:focus-visible, select:focus-visible { outline: 3px solid rgba(239, 71, 11
 
 .popup-shell {
   position: relative;
-  min-height: 560px;
   padding: 12px 16px 3px;
   background:
     radial-gradient(circle at 92% 0, rgba(239, 71, 118, .12), transparent 30%),

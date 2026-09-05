@@ -197,6 +197,51 @@ async function dragWholeElement(page, source, target, axis = 'y', position = 'be
   await page.mouse.up();
 }
 
+// 扩展页在固定测试 viewport 中也必须按内容排版；documentElement.scrollHeight 至少等于
+// viewport 高度，不能据此推断 Popup 的自然高度。使用实际元素边界检查整条高度链。
+async function inspectPopupContentHeight(page, label) {
+  const metrics = await page.locator('.popup-shell').evaluate(element => {
+    const rect = element.getBoundingClientRect();
+    const shellStyle = getComputedStyle(element);
+    const app = document.querySelector('#app');
+    const lastModule = [...element.querySelectorAll('.popup-content > [data-popup-module]')].at(-1);
+    const lastRect = lastModule?.getBoundingClientRect();
+    const lastStyle = lastModule ? getComputedStyle(lastModule) : null;
+    return {
+      shellHeight: rect.height,
+      shellBottom: rect.bottom,
+      htmlHeight: document.documentElement.getBoundingClientRect().height,
+      bodyHeight: document.body.getBoundingClientRect().height,
+      appHeight: app?.getBoundingClientRect().height || 0,
+      heightMode: document.documentElement.dataset.popupHeight,
+      htmlMinHeight: getComputedStyle(document.documentElement).minHeight,
+      bodyMinHeight: getComputedStyle(document.body).minHeight,
+      appMinHeight: app ? getComputedStyle(app).minHeight : null,
+      shellMinHeight: shellStyle.minHeight,
+      lastModule: lastModule?.getAttribute('data-popup-module') || null,
+      lastModuleBottomGap: lastRect ? rect.bottom - lastRect.bottom : null,
+      expectedBottomGap: lastStyle
+        ? Number.parseFloat(shellStyle.paddingBottom) + Number.parseFloat(shellStyle.borderBottomWidth)
+          + Number.parseFloat(lastStyle.marginBottom)
+        : null,
+      visibleQuickFeatures: element.querySelectorAll('[data-popup-quick-feature]').length,
+    };
+  });
+  if (metrics.heightMode !== 'content'
+    || [metrics.htmlMinHeight, metrics.bodyMinHeight, metrics.appMinHeight, metrics.shellMinHeight]
+      .some(value => value !== '0px')
+    || !Number.isFinite(metrics.shellHeight) || metrics.shellHeight <= 0
+    || [metrics.htmlHeight, metrics.bodyHeight, metrics.appHeight]
+      .some(height => Math.abs(height - metrics.shellHeight) > 1)
+    || !metrics.lastModule
+    || !Number.isFinite(metrics.lastModuleBottomGap)
+    || !Number.isFinite(metrics.expectedBottomGap)
+    || Math.abs(metrics.lastModuleBottomGap - metrics.expectedBottomGap) > 1) {
+    throw new Error(`${label}没有按内容确定高度或底部留下额外空白：${JSON.stringify(metrics)}`);
+  }
+  return metrics;
+}
+
 async function inspectInterfaceMotif(locator, skin) {
   const metrics = await locator.evaluate(element => {
     const motifs = [...element.querySelectorAll(':scope > [data-interface-motif]')];
@@ -1221,7 +1266,7 @@ async function main() {
       throw new Error('界面布局仍向用户显示 Popup 布局旧名称');
     }
     const expectedInterfaceSkins = [
-      {value: 'default', label: '默认风格', kind: 'default', contentHeight: false, popupWidth: 400, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
+      {value: 'default', label: '默认风格', kind: 'default', contentHeight: true, popupWidth: 400, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
       {value: 'minimal', label: '简约风格', kind: 'minimal', contentHeight: true, popupWidth: 380, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
       {value: 'compact', label: '紧凑风格', kind: 'compact', contentHeight: true, popupWidth: 360, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
       {value: 'contrast', label: '高对比 ⚡', kind: 'contrast', contentHeight: true, popupWidth: 400, brand: '#111', surface: '#fff', darkSurface: '#050505'},
@@ -1560,19 +1605,12 @@ async function main() {
     await defaultSingleFeatureHiddenPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
     await defaultSingleFeatureHiddenPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
     await defaultSingleFeatureHiddenPopup.waitForTimeout(300);
-    const defaultSingleFeatureHiddenMetrics = await defaultSingleFeatureHiddenPopup.locator('.popup-shell').evaluate(element => ({
-      shellHeight: element.getBoundingClientRect().height,
-      heightMode: document.documentElement.dataset.popupHeight,
-      htmlMinHeight: getComputedStyle(document.documentElement).minHeight,
-      bodyMinHeight: getComputedStyle(document.body).minHeight,
-      visibleQuickFeatures: document.querySelectorAll('[data-popup-quick-feature]').length,
-    }));
-    if (defaultSingleFeatureHiddenMetrics.heightMode !== 'content'
-      || defaultSingleFeatureHiddenMetrics.htmlMinHeight !== '0px'
-      || defaultSingleFeatureHiddenMetrics.bodyMinHeight !== '0px'
-      || defaultSingleFeatureHiddenMetrics.visibleQuickFeatures !== 5
+    const defaultSingleFeatureHiddenMetrics = await inspectPopupContentHeight(
+      defaultSingleFeatureHiddenPopup, '默认风格隐藏单张快捷卡片',
+    );
+    if (defaultSingleFeatureHiddenMetrics.visibleQuickFeatures !== 5
       || await defaultSingleFeatureHiddenPopup.locator('[data-popup-quick-feature="image"]').count() !== 0) {
-      throw new Error(`默认风格隐藏单张快捷卡片后没有随内容收缩：${JSON.stringify(defaultSingleFeatureHiddenMetrics)}`);
+      throw new Error(`默认风格没有应用单张快捷卡片显隐：${JSON.stringify(defaultSingleFeatureHiddenMetrics)}`);
     }
     report.screenshots.push(await screenshotElement(
       defaultSingleFeatureHiddenPopup.locator('.popup-shell'),
@@ -1689,14 +1727,8 @@ async function main() {
       metrics.actionContrast = skin.kind === 'palette'
         ? contrastRatio(metrics.actionText, metrics.translateButtonBackground)
         : null;
-      const expectedHeightMode = skin.contentHeight ? 'content' : 'fixed';
-      const expectedMinHeight = skin.contentHeight ? '0px' : '560px';
-      if (metrics.heightMode !== expectedHeightMode
-        || metrics.htmlMinHeight !== expectedMinHeight
-        || metrics.bodyMinHeight !== expectedMinHeight
-        || metrics.appMinHeight !== expectedMinHeight
-        || metrics.shellMinHeight !== expectedMinHeight
-        || Math.abs(metrics.shellWidth - skin.popupWidth) > 1
+      Object.assign(metrics, await inspectPopupContentHeight(skinPopup, `${skin.label}完整栏目`));
+      if (Math.abs(metrics.shellWidth - skin.popupWidth) > 1
         || metrics.popupWidthVariable !== `${skin.popupWidth}px`
         || metrics.shellHeight > 600
         || metrics.horizontalOverflow
@@ -1816,6 +1848,7 @@ async function main() {
           }),
         };
       });
+      multilingualMetrics.contentHeight = await inspectPopupContentHeight(skinPopup, `${skin.label}长文案`);
       if (multilingualMetrics.horizontalOverflow
         || multilingualMetrics.items.some(item => item.scrollWidth > item.clientWidth + 1)) {
         throw new Error(`${skin.label}无法容纳长文案：${JSON.stringify(multilingualMetrics)}`);
@@ -1941,27 +1974,14 @@ async function main() {
     if (await skinPopup.locator('main[data-interface-skin="minimal"]').count() !== 1) {
       throw new Error('Popup 重开后没有应用简约风格');
     }
-    const popupMetrics = await skinPopup.locator('.popup-shell').evaluate(element => {
-      const rect = element.getBoundingClientRect();
-      return {
-        shellHeight: rect.height,
-        shellBottom: rect.bottom,
-        heightMode: document.documentElement.dataset.popupHeight,
-        htmlMinHeight: getComputedStyle(document.documentElement).minHeight,
-        bodyMinHeight: getComputedStyle(document.body).minHeight,
-        appMinHeight: getComputedStyle(document.querySelector('#app')).minHeight,
-      };
-    });
-    if (popupMetrics.heightMode !== 'content'
-      || popupMetrics.htmlMinHeight !== '0px'
-      || popupMetrics.shellHeight >= 560
-      || popupMetrics.shellHeight >= minimalPopupMetrics.shellHeight - 40) {
+    const popupMetrics = await inspectPopupContentHeight(skinPopup, '简约风格隐藏栏目');
+    if (popupMetrics.shellHeight >= minimalPopupMetrics.shellHeight - 40) {
       throw new Error(`隐藏 Popup 栏目后空白区域没有随内容收缩：${JSON.stringify(popupMetrics)}`);
     }
     report.screenshots.push(await screenshotElement(skinPopup.locator('.popup-shell'), 'popup-interface-minimal-hidden-sections.png'));
     await assertTestBrowserRemainsBackground(context, '复用 skinPopup 完成简约隐藏栏目检查后');
 
-    // 默认风格在栏目齐全时保持原高度；隐藏栏目时同样不能留下固定空白。
+    // 默认风格的完整布局与隐藏栏目均按内容高度排版，不保留固定空白。
     await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="default"]').click();
     await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'default', undefined, {timeout});
     await page.waitForTimeout(500);
@@ -1969,16 +1989,9 @@ async function main() {
     await skinPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
     await skinPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
     await skinPopup.waitForTimeout(350);
-    const defaultHiddenMetrics = await skinPopup.locator('.popup-shell').evaluate(element => ({
-      shellHeight: element.getBoundingClientRect().height,
-      heightMode: document.documentElement.dataset.popupHeight,
-      htmlMinHeight: getComputedStyle(document.documentElement).minHeight,
-      bodyMinHeight: getComputedStyle(document.body).minHeight,
-    }));
-    if (defaultHiddenMetrics.heightMode !== 'content'
-      || defaultHiddenMetrics.htmlMinHeight !== '0px'
-      || defaultHiddenMetrics.bodyMinHeight !== '0px'
-      || defaultHiddenMetrics.shellHeight >= 560) {
+    const defaultHiddenMetrics = await inspectPopupContentHeight(skinPopup, '默认风格隐藏栏目');
+    const defaultSkinCase = skinCases.find(item => item.value === 'default');
+    if (!defaultSkinCase || defaultHiddenMetrics.shellHeight >= defaultSkinCase.metrics.shellHeight - 40) {
       throw new Error(`默认风格隐藏栏目后没有按内容收缩：${JSON.stringify(defaultHiddenMetrics)}`);
     }
     report.screenshots.push(await screenshotElement(skinPopup.locator('.popup-shell'), 'popup-interface-default-hidden-sections.png'));
@@ -2000,18 +2013,11 @@ async function main() {
     await skinPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
     await skinPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
     await skinPopup.waitForTimeout(350);
-    const defaultFullMetrics = await skinPopup.locator('.popup-shell').evaluate(element => ({
-      shellHeight: element.getBoundingClientRect().height,
-      heightMode: document.documentElement.dataset.popupHeight,
-      htmlMinHeight: getComputedStyle(document.documentElement).minHeight,
-      bodyMinHeight: getComputedStyle(document.body).minHeight,
-    }));
-    if (defaultFullMetrics.heightMode !== 'fixed'
-      || defaultFullMetrics.shellHeight < 560
-      || defaultFullMetrics.shellHeight > 600
-      || defaultFullMetrics.htmlMinHeight !== '560px'
-      || defaultFullMetrics.bodyMinHeight !== '560px') {
-      throw new Error(`默认风格完整栏目没有保持原有高度：${JSON.stringify(defaultFullMetrics)}`);
+    const defaultFullMetrics = await inspectPopupContentHeight(skinPopup, '恢复默认完整栏目');
+    if (defaultFullMetrics.lastModule !== 'footer'
+      || Math.abs(defaultFullMetrics.lastModuleBottomGap - 3) > 1
+      || defaultFullMetrics.shellHeight <= defaultHiddenMetrics.shellHeight + 40) {
+      throw new Error(`默认完整布局的页脚边距或内容伸展异常：${JSON.stringify(defaultFullMetrics)}`);
     }
     const restoredPopupModuleOrder = await skinPopup.locator('[data-popup-module]').evaluateAll(
       elements => elements.map(element => element.getAttribute('data-popup-module')),
