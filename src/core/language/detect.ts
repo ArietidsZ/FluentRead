@@ -2,15 +2,15 @@
  * @file src/core/language/detect.ts
  *
  * 文件职责：对待翻译文本执行轻量语言识别，并提供只在高置信度时跳过同语言翻译的保守判定。
- * 主要内容：detectlang 调用 franc-min 得到 ISO 639-3 识别结果并映射产品语言码；shouldSkipTranslationForTarget 对短文本、纯 Han 和未知结果 fail-open，仅接受明确假名/谚文或足够长的统计结果；共享 Chrome 现代语言检测的最低置信度边界。 可核对的公开符号包括 detectlang、shouldSkipTranslationForTarget、MIN_CHROME_LANGUAGE_CONFIDENCE。
+ * 主要内容：detectlang 调用 franc-min 得到 ISO 639-3 识别结果，普通话仅凭明确字形映射简体或繁体，不明确时保留 cmn；shouldSkipTranslationForTarget 对短文本、共享 Han、简繁混排和未知结果 fail-open，仅接受明确书写体系或足够长的统计结果；共享 Chrome 现代语言检测的最低置信度边界。 可核对的公开符号包括 detectlang、shouldSkipTranslationForTarget、MIN_CHROME_LANGUAGE_CONFIDENCE。
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
 import {franc} from 'franc-min';
 import {isClearlyTargetLanguage, normalizeTranslationText} from '@/src/core/translation/text';
+import {detectChineseScript} from './chinese';
 
 const FLUENTREAD_LANGUAGE_CODES: Readonly<Record<string, string>> = {
-    cmn: 'zh-Hans',
     eng: 'en',
     fra: 'fr',
     jpn: 'ja',
@@ -34,6 +34,10 @@ function languageBase(value: string): string {
 /** 将 franc 的 ISO 639-3 结果映射为 FluentRead 配置使用的语言代码。 */
 export function detectlang(origin: string): string {
     const detected = franc(origin, {minLength: 0});
+    if (detected === 'cmn') {
+        const script = detectChineseScript(origin);
+        return script ? `zh-${script}` : 'cmn';
+    }
     return FLUENTREAD_LANGUAGE_CODES[detected] ?? detected;
 }
 

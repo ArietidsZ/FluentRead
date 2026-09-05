@@ -17,6 +17,21 @@ const validConfig = {
 }
 
 describe('configuration transfer helpers', () => {
+  it('简繁配置经导入、导出和再次导入后仍按独立语言保存', () => {
+    const imported = prepareConfigForImport({
+      ...validConfig, from: 'zh-CN', to: 'zh-TW', inputBoxTranslationTarget: 'zh-HK',
+      translationCenterSourceLanguage: 'zh-Hans-TW', translationCenterTargetLanguage: 'zh-Hant-CN',
+      quickTranslationProfiles: [{id: 'traditional', action: 'hover', hotkey: 'Alt+T', targetLanguage: 'zh-MO'}],
+    }, validConfig)
+    expect(imported).toMatchObject({
+      from: 'zh-Hans', to: 'zh-Hant', inputBoxTranslationTarget: 'zh-Hant',
+      translationCenterSourceLanguage: 'zh-Hans', translationCenterTargetLanguage: 'zh-Hant',
+      quickTranslationProfiles: [expect.objectContaining({targetLanguage: 'zh-Hant'})],
+    })
+    const exported = prepareConfigForExport(imported)
+    expect(prepareConfigForImport(exported, validConfig)).toEqual(imported)
+  })
+
   it('往返保留 DeepL API Pro 套餐，旧备份与无效套餐回到原有 Free 端点', () => {
     const current = normalizeConfig({...new Config(), ...validConfig, deeplApiPlan: 'pro'})
     const exported = prepareConfigForExport(current)

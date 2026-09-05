@@ -27,6 +27,23 @@ function profile(overrides: Partial<QuickTranslationProfile> = {}): QuickTransla
 }
 
 describe('快捷翻译调用解析', () => {
+    it('快捷方案保留简繁目标差异，历史别名与非中文目标均可继续使用', () => {
+        const normalized = normalizeQuickTranslationProfiles([
+            profile({id: 'simplified', hotkey: 'Alt+S', targetLanguage: ' zh-CN '}),
+            profile({id: 'traditional', hotkey: 'Alt+T', targetLanguage: 'zh-HK'}),
+            profile({id: 'explicit-script', hotkey: 'Alt+X', targetLanguage: 'zh-Hans-TW'}),
+            profile({id: 'custom', hotkey: 'Alt+C', targetLanguage: ' en-US '}),
+            profile({id: 'inherit', hotkey: 'Alt+I', targetLanguage: ''}),
+        ], {isSupportedService: () => true, serviceUsesModel: () => false});
+        expect(normalized.map(item => item.targetLanguage)).toEqual([
+            'zh-Hans', 'zh-Hant', 'zh-Hans', 'en-US', '',
+        ]);
+        const config = {service: services.openai, model: {}, customModel: {}, to: 'zh-Hans', display: 1,
+            fullPageTranslationMode: 'viewport' as const};
+        expect(resolveQuickTranslationInvocation(normalized[1]!, config).targetLanguage).toBe('zh-Hant');
+        expect(resolveQuickTranslationInvocation(normalized[4]!, {...config, to: 'zh-Hant'}).targetLanguage).toBe('zh-Hant');
+    });
+
     it('快捷方案冻结术语选择并区分跟随默认和显式关闭', () => {
         const config = {service: services.openai, model: {}, customModel: {}, to: 'zh-Hans', display: 1,
             fullPageTranslationMode: 'viewport' as const};

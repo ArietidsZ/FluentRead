@@ -91,7 +91,7 @@ describe('谷歌翻译适配器', () => {
         expect(batchRequest[0][0][2]).toBeNull();
         expect(batchRequest[0][0][3]).toBe('generic');
         expect(JSON.parse(batchRequest[0][0][1])).toEqual([
-            ['This domain is for use in documents.', 'auto', 'zh-Hans', true],
+            ['This domain is for use in documents.', 'auto', 'zh-CN', true],
             [null],
         ]);
     });
@@ -348,5 +348,25 @@ describe('谷歌翻译适配器', () => {
         await expect(google({origin: ['hello']} as unknown as {origin: string}))
             .rejects.toThrow('谷歌翻译仅支持单条文本');
         expect(fetchMock).not.toHaveBeenCalled();
+    });
+});
+
+describe('Google 中文脚本协议', () => {
+    it.each([
+        ['zh-Hans', 'zh-Hant', 'zh-CN', 'zh-TW'],
+        ['zh-Hant', 'zh-Hans', 'zh-TW', 'zh-CN'],
+        ['zh-HK', 'en', 'zh-TW', 'en'],
+    ])('%s → %s 的 RPC 与 legacy 回退使用相同脚本', async (source, target, sl, tl) => {
+        fetchMock.mockResolvedValueOnce(mockResponse('unavailable', {ok: false, status: 503}))
+            .mockResolvedValueOnce(mockResponse('unavailable', {ok: false, status: 503}))
+            .mockResolvedValueOnce(mockResponse(JSON.stringify([[['translated']]])));
+        await expect(translateGoogleText('test', source, target)).resolves.toBe('translated');
+        for (const call of fetchMock.mock.calls.slice(0, 2)) {
+            const batch = JSON.parse(new URLSearchParams(String(call[1]?.body)).get('f.req')!);
+            expect(JSON.parse(batch[0][0][1])[0]).toEqual(['test', sl, tl, true]);
+        }
+        const url = new URL(String(fetchMock.mock.calls[2]?.[0]));
+        expect(url.searchParams.get('sl')).toBe(sl);
+        expect(url.searchParams.get('tl')).toBe(tl);
     });
 });

@@ -204,3 +204,8 @@ describe("DeepLX adapter", () => {
         });
     });
 });
+
+it('DeepLX 脚本及地区别名归一后保持繁体目标', () => {
+    expect(getDeepLXRequestLanguages('zh-Hans-CN', 'zh-Hant-HK')).toEqual({sourceLang: 'ZH', targetLang: 'ZH-HANT'});
+    expect(getDeepLXRequestLanguages('zh-Hant', 'zh-SG')).toEqual({sourceLang: 'ZH-HANT', targetLang: 'ZH'});
+});

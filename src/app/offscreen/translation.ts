@@ -4,6 +4,7 @@
  * 主要内容：定义最小环境与请求契约，验证 from/to 语言码并映射 Chrome 151 中文别名，优先使用不含结构哨兵的检测样本和现代 API；处理 availability、下载进度、低置信度、取消、资源清理及友好错误，仅在脚本明确时执行保守兜底。
  * 模块边界：这里不读取扩展配置、不选择第三方 provider，也不监听 runtime 消息；调用协议由 offscreen/messageRouter 管理，宿主能力是否开放由 browser capability 层决定。
  */
+import {detectChineseScript, normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import {MIN_CHROME_LANGUAGE_CONFIDENCE} from '@/src/core/language/detect';
 
 // 保留既有导出，同时让设置页与 offscreen 共用单一阈值。
@@ -77,32 +78,6 @@ export interface ChromeTranslationRequest {
     sourceLanguageDetectionText?: string;
 }
 
-const LANGUAGE_MAP: Readonly<Record<string, string>> = {
-    'zh-hans': 'zh',
-    'zh-cn': 'zh',
-    'zh-sg': 'zh',
-    'zh-hant': 'zh-Hant',
-    'zh-tw': 'zh-Hant',
-    'zh-hk': 'zh-Hant',
-    'zh-mo': 'zh-Hant',
-    en: 'en',
-    ja: 'ja',
-    ko: 'ko',
-    fr: 'fr',
-    de: 'de',
-    es: 'es',
-    ru: 'ru',
-    it: 'it',
-    pt: 'pt',
-    ar: 'ar',
-    hi: 'hi',
-    th: 'th',
-    vi: 'vi',
-    nl: 'nl',
-    pl: 'pl',
-    tr: 'tr',
-};
-
 const LANGUAGE_CODE_PATTERN = /^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/iu;
 const CHROME_MODEL_AVAILABILITIES = new Set<ChromeModelAvailability>([
     'unavailable',
@@ -147,8 +122,8 @@ export function parseLanguageCode(value: unknown, field: string, allowAuto: bool
 }
 
 export function mapChromeLanguageCode(language: string): string {
-    const normalized = language.trim();
-    return LANGUAGE_MAP[normalized.toLowerCase()] ?? normalized;
+    const normalized = normalizeChineseLanguageCode(language);
+    return normalized === 'zh-Hans' ? 'zh' : normalized;
 }
 
 export function isChromeTranslationSupported(environment: ChromeTranslationEnvironment): boolean {
@@ -376,6 +351,13 @@ function closeStream(iterator: AsyncIterator<unknown>): void {
     }
 }
 
+/** 检测器确认中文后才用字形精化；通用 zh 和共用汉字不能自行推定为简体。 */
+function refineDetectedChineseLanguage(language: string, text: string): string {
+    if (language.toLowerCase() !== 'zh') return normalizeChineseLanguageCode(language);
+    const script = detectChineseScript(text);
+    return script ? `zh-${script}` : 'zh';
+}
+
 export async function detectChromeLanguage(
     text: string,
     environment: ChromeTranslationEnvironment,
@@ -415,14 +397,14 @@ export async function detectChromeLanguage(
                 detector.detect(text, signal ? {signal} : undefined),
                 signal,
             ));
-            if (detected) return detected;
+            if (detected) return refineDetectedChineseLanguage(detected, text);
         } else if (typeof environment.translation?.createDetector === 'function') {
             detector = await acquireAbortableResource(environment.translation.createDetector(), signal);
             const detected = detectedLanguageFrom(
                 await awaitWithAbort(detector.detect(text), signal),
                 false,
             );
-            if (detected) return detected;
+            if (detected) return refineDetectedChineseLanguage(detected, text);
         }
     } catch (error) {
         if (isAbortError(error)) throw error;
@@ -608,6 +590,7 @@ export async function translateWithChromeApi(
 
     let sourceLanguage = request.from;
     let targetLanguage = request.to;
+    let detectedGenericChinese = false;
     try {
         // 步骤 1：auto 只在源语言有效；检测文本与带哨兵的翻译正文严格分离。
         if (sourceLanguage === 'auto') {
@@ -617,12 +600,13 @@ export async function translateWithChromeApi(
                 signal,
                 reporter,
             );
+            detectedGenericChinese = sourceLanguage === 'zh';
         }
         sourceLanguage = mapChromeLanguageCode(sourceLanguage);
         targetLanguage = mapChromeLanguageCode(targetLanguage);
 
         // 步骤 2：同语言直接返回原文，不创建昂贵的语言模型。
-        if (sourceLanguage === targetLanguage) return request.text;
+        if (!detectedGenericChinese && sourceLanguage === targetLanguage) return request.text;
         return await performChromeTranslation(
             request.text,
             sourceLanguage,

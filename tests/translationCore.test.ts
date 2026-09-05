@@ -1825,7 +1825,7 @@ describe('translation candidate core', () => {
         expect(isClearlyTargetLanguage('翻译设置', 'zh-SG')).toBe(true);
         expect(isClearlyTargetLanguage('翻译设置', 'zh-Hant')).toBe(false);
         expect(isClearlyTargetLanguage('翻译设置', 'zh-TW')).toBe(false);
-        expect(isClearlyTargetLanguage('翻译设置', 'zh')).toBe(false);
+        expect(isClearlyTargetLanguage('翻译设置', 'zh')).toBe(true);
         expect(isClearlyTargetLanguage('翻译设置', 'ja-JP')).toBe(false);
         expect(isClearlyTargetLanguage('繁體中文測試', 'zh-Hant')).toBe(true);
         expect(isClearlyTargetLanguage('繁體中文測試', 'zh-TW')).toBe(true);
@@ -1836,6 +1836,11 @@ describe('translation candidate core', () => {
         expect(isClearlyTargetLanguage('繁體中文測試', 'ja-JP')).toBe(false);
         expect(isClearlyTargetLanguage('这是繁體中文測試', 'zh-Hans')).toBe(false);
         expect(isClearlyTargetLanguage('这是繁體中文測試', 'zh-Hant')).toBe(false);
+        expect(isClearlyTargetLanguage('这是简体中文測試', 'zh-Hans')).toBe(false);
+        expect(isClearlyTargetLanguage('這是繁體中文测试', 'zh-Hant')).toBe(false);
+        expect(isClearlyTargetLanguage('繁體中文 English', 'zh-Hant')).toBe(false);
+        expect(isClearlyTargetLanguage('呢個係繁體嘅廣東話。', 'zh-Hant')).toBe(false);
+        expect(isClearlyTargetLanguage('繁體中文測試', 'yue-Hant')).toBe(false);
         expect(isClearlyTargetLanguage('日本語文章', 'zh-Hans')).toBe(false);
         expect(isClearlyTargetLanguage('日本語文章', 'ja')).toBe(false);
         expect(isClearlyTargetLanguage('時間', 'zh-Hant')).toBe(false);

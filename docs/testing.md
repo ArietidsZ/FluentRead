@@ -111,6 +111,22 @@ node scripts/testing/run-model-usage-ui-test.cjs \
 
 该专项不替代完整设置中心与其他翻译功能的浏览器回归。
 
+## 简体与繁体中文回归
+
+`tests/chineseLanguage.test.ts` 覆盖语言别名、显式脚本优先、共享字和简繁混排；未收录汉字不作为同语言跳过的证据。供应商协议矩阵、旧配置迁移、术语隔离和并发缓存分别由 `chineseTranslationProviders`、配置测试、`glossary`、`translationBroker` 与 `translationCache` 测试覆盖。缓存版本更新会隔离旧版以繁体身份存储的简体或粤语译文。
+
+生产扩展可重复运行以下浏览器专项：
+
+```bash
+node scripts/testing/run-chinese-translation-test.cjs \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root <path> \
+  --focus-safe-helper <path> \
+  --artifacts-dir /private/tmp/fluentread-chinese-browser
+```
+
+该脚本在临时 Edge profile 中以不抢焦点方式启动正常尺寸窗口，验证 Popup 原生源语言和目标语言选择、保存与重载、英文分别译成简繁、简繁互译，以及 Control 悬浮和 Alt+T 全文的 `[1,0,1]` 切换、恢复原文和缓存隔离。默认本机 OpenAI 兼容服务只证明请求与交互链路；追加 `--live-google` 后另行验证实际 Google 服务，报告分开记录服务失败与确定性结果。此专项不替代其他站点、真实 OCR 或付费服务验证。
+
 ## 一键回归
 
 本地确定性回归负责测试审计、WXT prepare、类型检查、严格覆盖率、四组 Vitest、Chrome/Firefox/userscript 构建及文档构建：

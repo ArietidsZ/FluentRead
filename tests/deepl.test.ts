@@ -82,7 +82,7 @@ describe('DeepL adapter', () => {
             Authorization: 'DeepL-Auth-Key test-key',
         });
         expect(JSON.parse(String(init?.body))).toEqual({
-            text: ['Hello'], target_lang: 'zh', tag_handling: 'html',
+            text: ['Hello'], target_lang: 'ZH-HANS', tag_handling: 'html',
             context: 'Article title', preserve_formatting: true,
         });
     });
@@ -120,7 +120,7 @@ describe('DeepL adapter', () => {
         expect(fetchMock.mock.calls[0]?.[1]?.headers).toMatchObject({
             Authorization: 'DeepL-Auth-Key frozen-key',
         });
-        expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).target_lang).toBe('de');
+        expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).target_lang).toBe('DE');
     });
 
     it('付费 API 的 HTTP 错误沿用既有错误处理', async () => {
@@ -128,5 +128,18 @@ describe('DeepL adapter', () => {
         fetchMock.mockResolvedValue(new Response('Forbidden', {status: 403}));
 
         await expect(deepl({origin: 'Hello'})).rejects.toThrow('403');
+    });
+});
+
+describe('DeepL 中文源和目标的协议边界', () => {
+    it.each([
+        ['en', 'zh-Hans', 'EN', 'ZH-HANS'],
+        ['en', 'zh-TW', 'EN', 'ZH-HANT'],
+        ['zh-Hant', 'zh-Hans', 'ZH', 'ZH-HANS'],
+        ['zh-Hans', 'zh-Hant', 'ZH', 'ZH-HANT'],
+        ['zh-Hant', 'en', 'ZH', 'EN'],
+    ])('%s → %s 将目标脚本传给 DeepL 并保留有效源参数', async (sourceLanguage, targetLanguage, source, target) => {
+        await deepl({origin: '測試 test', sourceLanguage, targetLanguage});
+        expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({source_lang: source, target_lang: target});
     });
 });

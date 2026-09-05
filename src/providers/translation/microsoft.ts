@@ -6,6 +6,7 @@
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
+import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import {getTranslationLanguages} from '@/src/services/translation/languages';
 import type {TranslationLanguageOverride} from '@/src/services/translation/languages';
 import {createHttpStatusError, readJsonResponse} from '@/src/platform/http/errors';
@@ -44,6 +45,8 @@ export async function translateMicrosoftTexts(
 ): Promise<string[]> {
     if (texts.length === 0) return [];
 
+    fromLang = normalizeChineseLanguageCode(fromLang);
+    toLang = normalizeChineseLanguageCode(toLang);
     const url = new URL(MICROSOFT_TRANSLATE_URL);
     url.searchParams.set('from', fromLang === 'auto' ? '' : fromLang);
     url.searchParams.set('to', toLang);

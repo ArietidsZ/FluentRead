@@ -232,7 +232,7 @@ async function saveMetadata(field: MetadataTextField, patch: Partial<GlossaryLib
   if (metadataDrafts.value[field] === draft) delete metadataDrafts.value[field];
 }
 function languageOptions(current: string): {value: string; label: string}[] {
-  const values = [...new Map([...options.to, {value: 'zh-Hant', label: '繁體中文'}, {value: 'de', label: 'Deutsch'}, {value: 'pt', label: 'Português'}, {value: 'it', label: 'Italiano'}].map(item => [item.value.toLowerCase(), {value: item.value.toLowerCase(), label: getMultilingualTargetLanguageLabel(item.value, item.label, language.value)}])).values()];
+  const values = [...new Map([...options.to, {value: 'de', label: 'Deutsch'}, {value: 'pt', label: 'Português'}, {value: 'it', label: 'Italiano'}].map(item => [item.value.toLowerCase(), {value: item.value.toLowerCase(), label: getMultilingualTargetLanguageLabel(item.value, item.label, language.value)}])).values()];
   if (current && !values.some(item => item.value === current)) values.push({value: current, label: current});
   return values;
 }

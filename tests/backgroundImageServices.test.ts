@@ -91,6 +91,10 @@ describe('图片后台服务', () => {
             '图片文字识别需要先下载简体中文语言包，请前往设置 > 图片翻译下载',
         );
         storage.get.mockResolvedValueOnce({});
-        await expect(repository.assertDownloaded('auto')).rejects.toThrow('简体中文、English');
+        await expect(repository.assertDownloaded('auto')).rejects.toThrow('简体中文、繁體中文、English');
+        storage.get.mockResolvedValueOnce({[IMAGE_OCR_LANGUAGE_STATE_KEY]: ['eng', 'chi_sim']});
+        await expect(repository.assertDownloaded('zh-TW')).rejects.toThrow('繁體中文语言包');
+        storage.get.mockResolvedValueOnce({[IMAGE_OCR_LANGUAGE_STATE_KEY]: ['eng', 'chi_tra']});
+        await expect(repository.assertDownloaded('zh-Hant')).resolves.toBeUndefined();
     });
 });
