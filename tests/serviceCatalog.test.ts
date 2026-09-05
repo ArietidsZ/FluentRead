@@ -7,6 +7,7 @@ import {
   filterServiceGroups,
   filterServiceSections,
   getSelectedModelLabel,
+  getServiceWebsite,
   searchServiceOptions,
   splitModelOptions,
 } from '@/src/ui/view-model/serviceCatalog'
@@ -24,6 +25,61 @@ const options = [
 ]
 
 describe('service catalog helpers', () => {
+  it('provides a public website or guide for every built-in service', () => {
+    for (const service of Object.values(services)) {
+      const website = getServiceWebsite(service)
+      expect(website, service).toBeDefined()
+      const url = new URL(website!.url)
+      expect(url.protocol).toBe('https:')
+      expect(`${url.username}${url.password}${url.search}${url.hash}`).toBe('')
+    }
+    expect(getServiceWebsite(services.huanYuanTranslation)).toEqual({
+      url: 'https://console.cloud.tencent.com/hunyuan', kind: 'website',
+    })
+    expect(getServiceWebsite(services.chromeTranslator)?.kind).toBe('documentation')
+    expect(getServiceWebsite(services.freeTranslation)?.kind).toBe('documentation')
+  })
+
+  it('keeps MiniMax websites aligned with the selected account region', () => {
+    expect(getServiceWebsite(services.minimax)?.url).toBe('https://platform.minimaxi.com/')
+    expect(getServiceWebsite(services.minimax, {minimaxRegion: 'global'})?.url)
+      .toBe('https://platform.minimax.io/login')
+    expect(getServiceWebsite(services.minimax, {minimaxRegion: 'unknown'})?.url)
+      .toBe('https://platform.minimaxi.com/')
+  })
+
+  it('opens configured service origins without leaking credentials or API parameters', () => {
+    for (const service of ['custom:personal', services.custom, services.newapi]) {
+      expect(getServiceWebsite(service, {endpoint: 'https://user:secret@example.com:8443/v1/private/chat?key=secret#token'}))
+        .toEqual({url: 'https://example.com:8443/', kind: 'website'})
+      expect(getServiceWebsite(service, {endpoint: ' http://localhost:11434/v1/chat/completions '}))
+        .toEqual({url: 'http://localhost:11434/', kind: 'website'})
+      expect(getServiceWebsite(service, {endpoint: 'http://[::1]:3000/v1'}))
+        .toEqual({url: 'http://[::1]:3000/', kind: 'website'})
+    }
+    expect(getServiceWebsite(services.openai, {endpoint: 'https://proxy.example.com/v1'})?.url)
+      .toBe('https://platform.openai.com/')
+  })
+
+  it('falls back to a setup guide for incomplete or non-web service addresses', () => {
+    for (const endpoint of ['', 'not a url', '/relative', '//example.com', 'javascript:alert(1)',
+      'data:text/html,hello', 'file:///tmp/config', 'ftp://example.com', 'blob:https://example.com/id']) {
+      for (const service of ['custom:personal', services.custom, services.newapi]) {
+        const link = getServiceWebsite(service, {endpoint})!
+        expect(link.kind).toBe('documentation')
+        expect(link.url).toBe(service === services.newapi
+          ? 'https://docs.newapi.pro/'
+          : 'https://fluent.thinkstu.com/config/translation-engines')
+      }
+    }
+  })
+
+  it('omits unknown services and group headings instead of manufacturing a destination', () => {
+    for (const service of ['unknown', 'machine', 'ai', '__proto__', 'constructor', '']) {
+      expect(getServiceWebsite(service)).toBeUndefined()
+    }
+  })
+
   it('preserves divider-based service grouping', () => {
     expect(buildServiceGroups(options)).toEqual([
       {

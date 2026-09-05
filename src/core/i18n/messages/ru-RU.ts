@@ -12,6 +12,9 @@ import {legacyTextOverrides} from './legacy-overrides';
 export const ruRUMessages = {
     ...enUSMessages,
     'language.selectorLabel': 'Язык приложения',
+    'settings.services.website': 'Открыть сайт',
+    'settings.services.documentation': 'Руководство по настройке',
+    'settings.services.openExternal': '{service} · {action} (откроется в новой вкладке)',
     'language.zhCN': '中文',
     'language.enUS': 'English',
     'language.jaJP': '日本語',

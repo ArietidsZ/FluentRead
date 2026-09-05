@@ -12,6 +12,9 @@ import {legacyTextOverrides} from './legacy-overrides';
 export const esESMessages = {
     ...enUSMessages,
     'language.selectorLabel': 'Idioma de la aplicación',
+    'settings.services.website': 'Visitar sitio web',
+    'settings.services.documentation': 'Guía de configuración',
+    'settings.services.openExternal': '{service} · {action} (se abre en una pestaña nueva)',
     'language.zhCN': '中文',
     'language.enUS': 'English',
     'language.jaJP': '日本語',

@@ -10,6 +10,9 @@ import type {MessageCatalog} from '../types';
 
 export const zhCNMessages = {
     'language.selectorLabel': '软件语言',
+    'settings.services.website': '访问网站',
+    'settings.services.documentation': '使用说明',
+    'settings.services.openExternal': '{service} · {action}（在新标签页中打开）',
     'language.zhCN': '中文',
     'language.enUS': 'English',
     'language.jaJP': '日本語',
