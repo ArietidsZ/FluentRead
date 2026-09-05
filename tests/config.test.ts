@@ -2240,6 +2240,193 @@ describe('统一配置存储', () => {
         expect(baseRevisions).toEqual([1, 2]);
     });
 
+    it('关闭页面前在首个 ACK 被阻塞时同步交接完整 patch 链，后台完成最后一次修改', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4});
+        await configStore.configReady;
+        const {createConfigPersistenceHandler, createConfigPersistenceBatchHandler} = await import(
+            '@/src/app/background/handlers/configPersistence'
+        );
+        let backgroundConfig = normalizeConfig(canonical);
+        let revision = 4;
+        let writes = 0;
+        const handler = createConfigPersistenceHandler({
+            ready: Promise.resolve(),
+            getCurrentConfig: () => backgroundConfig,
+            getCurrentRevision: () => revision,
+            prepareConfigSaveRequest: configStore.prepareConfigSaveRequest,
+            prepareConfigPatchRequest: configStore.prepareConfigPatchRequest,
+            isExtensionUrl: () => true,
+            saveConfig: async next => {
+                backgroundConfig = next;
+                writes += 1;
+                revision += 1;
+                storageState.set('local:config', {...sanitizeConfigCredentials(next), __fluentConfigRevision: revision});
+            },
+        });
+        const batchHandler = createConfigPersistenceBatchHandler(handler);
+        let releaseFirstAck!: () => void;
+        const firstAck = new Promise<void>(resolve => { releaseFirstAck = resolve; });
+        const sendMessage = vi.fn(async (message: Parameters<typeof handler.handle>[0]) => {
+            const response = await handler.handle(message, {});
+            if (message.sequence === 1) await firstAck;
+            return response;
+        });
+        const batchSender = vi.fn(async (message: Parameters<typeof batchHandler.handle>[0]) => batchHandler.handle(message, {}));
+        await configStore.handoffPendingConfigPatches(sendMessage, batchSender);
+        expect(batchSender).not.toHaveBeenCalled();
+
+        const first = configStore.requestConfigPatch({to: 'en'}, sendMessage);
+        await vi.waitFor(() => expect(backgroundConfig.to).toBe('en'));
+        const second = configStore.requestConfigPatch({to: 'ja'}, sendMessage);
+        const third = configStore.requestConfigPatch({theme: 'dark'}, sendMessage);
+        const settled = Promise.allSettled([first, second, third]);
+        expect(configStore.config).toMatchObject({to: 'ja', theme: 'dark'});
+        expect(sendMessage).toHaveBeenCalledOnce();
+
+        const handoff = configStore.handoffPendingConfigPatches(sendMessage, batchSender);
+        // 这里没有等待 microtask；信封必须已经跨过即将关闭的页面边界。
+        expect(batchSender).toHaveBeenCalledOnce();
+        expect(batchSender.mock.calls[0][0]).toMatchObject({
+            type: 'persistConfigBatch',
+            clientId: sendMessage.mock.calls[0][0].clientId,
+            patches: [
+                {sequence: 1, config: {to: 'en'}, expected: {to: 'zh-Hans'}},
+                {sequence: 2, config: {to: 'ja'}, expected: {to: 'en'}},
+                {sequence: 3, config: {theme: 'dark'}, expected: {theme: 'auto'}},
+            ],
+        });
+        await handoff;
+        expect(backgroundConfig).toMatchObject({to: 'ja', theme: 'dark'});
+        expect(writes).toBe(3);
+        // 页面在 pagehide 后仍短暂存活时，重复交接与原队列恢复均沿用同序号去重。
+        await configStore.handoffPendingConfigPatches(sendMessage, batchSender);
+        expect(writes).toBe(3);
+        releaseFirstAck();
+        await settled;
+        expect(writes).toBe(3);
+        expect(configStore.config).toMatchObject({to: 'ja', theme: 'dark'});
+        batchSender.mockClear();
+        await configStore.handoffPendingConfigPatches(sendMessage, batchSender);
+        expect(batchSender).not.toHaveBeenCalled();
+    });
+
+    it('交接只包含同一 sender 的不可变 patch 信封', async () => {
+        const configStore = await loadConfigModule(storedConfig);
+        await configStore.configReady;
+        let release!: () => void;
+        const gate = new Promise<void>(resolve => { release = resolve; });
+        const sender = vi.fn(async () => { await gate; return {success: true, revision: 2}; });
+        const otherSender = vi.fn(async () => ({success: true, revision: 3}));
+        const batchSender = vi.fn(async (_message: {patches: unknown[]}) => ({success: true, revision: 2}));
+        const first = configStore.requestConfigPatch({to: 'en'}, sender);
+        const other = configStore.requestConfigPatch({theme: 'dark'}, otherSender);
+        const settled = Promise.allSettled([first, other]);
+        configStore.config.to = 'ja';
+        await configStore.handoffPendingConfigPatches(sender, batchSender);
+        expect(batchSender.mock.calls).toHaveLength(1);
+        expect(batchSender.mock.calls[0]).toEqual([expect.objectContaining({
+            patches: [{sequence: 1, config: {to: 'en'}, expected: {to: 'zh-Hans'}}],
+        })]);
+        release();
+        await settled;
+    });
+
+    it('整份替换尚未确认时拒绝把后继 patch 单独交接', async () => {
+        const configStore = await loadConfigModule(storedConfig);
+        await configStore.configReady;
+        let release!: () => void;
+        const gate = new Promise<void>(resolve => { release = resolve; });
+        const sender = vi.fn(async () => { await gate; return {success: true, revision: 2}; });
+        const batchSender = vi.fn();
+        const replace = configStore.requestConfigSave({...configStore.config, to: 'en'}, sender);
+        const patch = configStore.requestConfigPatch({theme: 'dark'}, sender);
+        const settled = Promise.allSettled([replace, patch]);
+        await expect(configStore.handoffPendingConfigPatches(sender, batchSender)).rejects.toThrow('整份替换');
+        expect(batchSender).not.toHaveBeenCalled();
+        release();
+        await settled;
+    });
+
+    it('交接不得跨过其他 sender 的前驱而让全局序号吞掉其修改', async () => {
+        const configStore = await loadConfigModule(storedConfig);
+        await configStore.configReady;
+        let release!: () => void;
+        const gate = new Promise<void>(resolve => { release = resolve; });
+        const firstSender = vi.fn(async () => { await gate; return {success: true, revision: 2}; });
+        const secondSender = vi.fn(async () => ({success: true, revision: 3}));
+        const batchSender = vi.fn();
+        const first = configStore.requestConfigPatch({theme: 'dark'}, firstSender);
+        const second = configStore.requestConfigPatch({to: 'ja'}, secondSender);
+        const settled = Promise.allSettled([first, second]);
+        await expect(configStore.handoffPendingConfigPatches(secondSender, batchSender)).rejects.toThrow('其他发送方的前驱');
+        expect(batchSender).not.toHaveBeenCalled();
+        release();
+        await settled;
+    });
+
+    it.each([
+        [undefined, '后台接管配置补丁失败'],
+        [{success: false, error: '字段 CAS 冲突'}, '字段 CAS 冲突'],
+        [{success: true}, '有效 revision'],
+        [{success: true, revision: -1}, '有效 revision'],
+        [{success: true, revision: 1.5}, '有效 revision'],
+    ] as const)('拒绝不成功的后台交接响应 %j', async (response, expected) => {
+        const configStore = await loadConfigModule(storedConfig);
+        await configStore.configReady;
+        let release!: () => void;
+        const gate = new Promise<void>(resolve => { release = resolve; });
+        const sender = vi.fn(async () => { await gate; return {success: true, revision: 2}; });
+        const request = configStore.requestConfigPatch({to: 'en'}, sender);
+        const settled = Promise.allSettled([request]);
+        await expect(configStore.handoffPendingConfigPatches(sender, async () => response)).rejects.toThrow(expected);
+        release();
+        await settled;
+    });
+
+    it('水合尚未完成时不交接排队的请求', async () => {
+        let releaseHydration!: () => void;
+        const configReadBarrier = new Promise<void>(resolve => { releaseHydration = resolve; });
+        const configStore = await loadConfigModule(storedConfig, {configReadBarrier});
+        const sender = vi.fn(async () => ({success: true, revision: 2}));
+        const batchSender = vi.fn();
+        const request = configStore.requestConfigSave({...configStore.config, to: 'en'}, sender);
+        const settled = Promise.allSettled([request]);
+        await expect(configStore.handoffPendingConfigPatches(sender, batchSender)).rejects.toThrow('安全水合');
+        expect(batchSender).not.toHaveBeenCalled();
+        releaseHydration();
+        await settled;
+    });
+
+    it('凭据安全水合失败时不交接乐观补丁', async () => {
+        const configStore = await loadConfigModule(storedConfig, {failLocalCredentialRead: true});
+        await configStore.configReady;
+        const sender = vi.fn(async () => ({success: true, revision: 2}));
+        const batchSender = vi.fn();
+        const request = configStore.requestConfigPatch({to: 'en'}, sender);
+        const settled = Promise.allSettled([request]);
+        await expect(configStore.handoffPendingConfigPatches(sender, batchSender)).rejects.toThrow('安全水合');
+        expect(batchSender).not.toHaveBeenCalled();
+        await settled;
+    });
+
+    it('补丁链超过后台批次上限时不发出部分链', async () => {
+        const configStore = await loadConfigModule(storedConfig);
+        await configStore.configReady;
+        let release!: () => void;
+        const gate = new Promise<void>(resolve => { release = resolve; });
+        const sender = vi.fn(async () => { await gate; return {success: true, revision: 2}; });
+        const batchSender = vi.fn();
+        const requests = Array.from({length: 257}, (_, index) => configStore.requestConfigPatch({
+            to: index % 2 ? 'ja' : 'en',
+        }, sender));
+        const settled = Promise.allSettled(requests);
+        await expect(configStore.handoffPendingConfigPatches(sender, batchSender)).rejects.toThrow('256');
+        expect(batchSender).not.toHaveBeenCalled();
+        release();
+        await settled;
+    });
+
     it('配置持久化 barrier 等待已排队及等待期间追加的请求', async () => {
         const canonical = sanitizeConfigCredentials(normalizeConfig(storedConfig));
         const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4});

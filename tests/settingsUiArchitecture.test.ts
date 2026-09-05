@@ -522,22 +522,22 @@ describe('options UI composition architecture', () => {
     expect(translationCenter).toContain('if (Object.keys(patch).length === 0) return')
   })
 
-  it('uses patches for ordinary autosaves while retaining a best-effort page-exit snapshot', () => {
+  it('uses patches for ordinary autosaves and hands the pending popup chain to the config service on exit', () => {
     const popup = source('src/app/popup/PopupApp.vue')
     const settings = source('src/features/settings/ui/SettingsSections.vue')
 
     for (const content of [popup, settings]) {
       expect(content).toContain('requestConfigPatch')
       expect(content).toContain('persistConfigPatch(snapshot)')
-      expect(content).toContain('best-effort')
       expect(content).not.toContain('replace 作为队列 flush/barrier')
     }
     expect(settings).toContain('requestConfigSave')
+    expect(settings).toContain('best-effort')
     expect(settings).toContain('persistConfigReplace(config.value)')
     expect(settings).toContain('revision 边界会拒绝过期 replace')
     expect(popup).not.toContain('requestConfigSave')
-    expect(popup).toContain('JSON.stringify(config.value) === JSON.stringify(runtimeConfig)')
     expect(popup).toContain('persistConfigPatch(config.value)')
+    expect(popup).toContain('handoffPendingConfigPatches(sendConfigMessage, sendConfigMessage)')
   })
 
   it('persists before remote tests while starting Chrome model preparation inside click activation', () => {

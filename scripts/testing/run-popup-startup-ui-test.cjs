@@ -100,7 +100,7 @@ async function extensionWorker(context, timeoutMs) {
 }
 
 function startupProbeScript() {
-  return ({delayMs, failFirstRead}) => {
+  return ({delayMs, failFirstRead, holdFirstPersistResponse}) => {
     const state = {
       startedAt: performance.now(),
       configReadRequests: 0,
@@ -111,6 +111,9 @@ function startupProbeScript() {
       persistConfigModes: [],
       persistConfigResponses: 0,
       persistConfigSuccesses: 0,
+      persistConfigResponseHolds: 0,
+      persistConfigBatchRequests: 0,
+      persistConfigBatchSizes: [],
       renderMutations: 0,
       mountCount: 0,
       frameCount: 0,
@@ -130,6 +133,7 @@ function startupProbeScript() {
         if (message?.type === 'persistConfig') {
           state.persistConfigRequests += 1;
           state.persistConfigModes.push(message.mode || 'replace');
+          const shouldHoldResponse = holdFirstPersistResponse && state.persistConfigRequests === 1;
           const recordResponse = response => {
             state.persistConfigResponses += 1;
             if (response?.success === true) state.persistConfigSuccesses += 1;
@@ -137,11 +141,29 @@ function startupProbeScript() {
           const callbackIndex = args.findLastIndex(argument => typeof argument === 'function');
           if (callbackIndex >= 0) {
             const callback = args[callbackIndex];
-            args[callbackIndex] = response => { recordResponse(response); callback(response); };
+            args[callbackIndex] = response => {
+              recordResponse(response);
+              if (shouldHoldResponse) state.persistConfigResponseHolds += 1;
+              else callback(response);
+            };
           }
           const result = original(...args);
-          if (callbackIndex < 0) Promise.resolve(result).then(recordResponse, () => undefined);
+          if (callbackIndex < 0) {
+            return Promise.resolve(result).then(response => {
+              recordResponse(response);
+              if (shouldHoldResponse) {
+                state.persistConfigResponseHolds += 1;
+                return new Promise(() => {});
+              }
+              return response;
+            });
+          }
           return result;
+        }
+        if (message?.type === 'persistConfigBatch') {
+          state.persistConfigBatchRequests += 1;
+          state.persistConfigBatchSizes.push(message.patches?.length || 0);
+          return original(...args);
         }
         if (message?.type !== 'configStorageRead' || message.key !== 'local:config') return original(...args);
         state.configReadRequests += 1;
@@ -245,6 +267,7 @@ async function installStartupProbe(page, options = {}) {
   await page.addInitScript(startupProbeScript(), {
     delayMs: options.delayMs ?? configDelayMs,
     failFirstRead: options.failFirstRead === true,
+    holdFirstPersistResponse: options.holdFirstPersistResponse === true,
   });
 }
 
@@ -476,10 +499,10 @@ async function runPersistenceRegression({context, extensionOrigin, popupPath, pa
     noOpPagehide: null,
     latestWriteWins: null,
   };
-  const openReadyPopup = async caseName => {
+  const openReadyPopup = async (caseName, probeOptions = {}) => {
     const page = await newPageWithoutForeground(context, timeout);
     attachDiagnostics(page, report.consoleErrors);
-    await installStartupProbe(page, {delayMs: 0});
+    await installStartupProbe(page, {delayMs: 0, ...probeOptions});
     await page.setViewportSize({width: 400, height: 600});
     const popupUrl = new URL(popupPath, `${extensionOrigin}/`);
     popupUrl.searchParams.set('startupCase', caseName);
@@ -497,13 +520,17 @@ async function runPersistenceRegression({context, extensionOrigin, popupPath, pa
     persistConfigModes: noOpState?.persistConfigModes || [],
     responses: noOpState?.persistConfigResponses || 0,
     successes: noOpState?.persistConfigSuccesses || 0,
+    persistConfigBatchRequests: noOpState?.persistConfigBatchRequests || 0,
   };
-  if (persistence.noOpPagehide.persistConfigRequests !== 0) {
+  if (persistence.noOpPagehide.persistConfigRequests !== 0
+    || persistence.noOpPagehide.persistConfigBatchRequests !== 0) {
     throw new Error(`无修改 Popup pagehide 产生了配置保存：${JSON.stringify(persistence.noOpPagehide)}`);
   }
   await noOpPage.close();
 
-  const modifiedPage = await openReadyPopup('persistence-latest-write-wins');
+  // 冻结首请求给 Popup 的回执，让第二次修改确定停留在页面本地队列。
+  // 后台真实处理照常执行；关闭后的成功必须来自补丁链交接，不能依赖机器快慢。
+  const modifiedPage = await openReadyPopup('persistence-latest-write-wins', {holdFirstPersistResponse: true});
   const targetSelect = modifiedPage.locator('.language-pair select').nth(1);
   const languageValues = await targetSelect.locator('option').evaluateAll(options => options
     .filter(option => !option.disabled)
@@ -515,13 +542,20 @@ async function runPersistenceRegression({context, extensionOrigin, popupPath, pa
   const firstTarget = candidates[0];
   const finalTarget = candidates[1];
   await targetSelect.selectOption(firstTarget);
+  await modifiedPage.waitForFunction(() => globalThis.__fluentReadPopupStartup?.persistConfigResponseHolds === 1,
+    undefined, {timeout});
   await targetSelect.selectOption(finalTarget);
   // 直接触发短生命周期关闭，不额外等待保存完成。
   await modifiedPage.evaluate(() => window.dispatchEvent(new Event('pagehide')));
   const modifiedState = await readStartupState(modifiedPage);
   await modifiedPage.close();
-  await delay(350);
-  const savedConfig = await readConfig(pageForConfig, timeout);
+  const persistenceDeadline = Date.now() + timeout;
+  let savedConfig;
+  do {
+    savedConfig = await readConfig(pageForConfig, timeout);
+    if (savedConfig.to === finalTarget) break;
+    await delay(60);
+  } while (Date.now() < persistenceDeadline);
   persistence.latestWriteWins = {
     initialValue,
     firstTarget,
@@ -531,7 +565,16 @@ async function runPersistenceRegression({context, extensionOrigin, popupPath, pa
     persistConfigModes: modifiedState?.persistConfigModes || [],
     responses: modifiedState?.persistConfigResponses ?? null,
     successes: modifiedState?.persistConfigSuccesses ?? null,
+    heldResponses: modifiedState?.persistConfigResponseHolds ?? null,
+    persistConfigBatchRequests: modifiedState?.persistConfigBatchRequests ?? null,
+    persistConfigBatchSizes: modifiedState?.persistConfigBatchSizes || [],
   };
+  if (modifiedState?.persistConfigResponseHolds !== 1
+    || modifiedState?.persistConfigRequests !== 1
+    || modifiedState?.persistConfigBatchRequests !== 1
+    || modifiedState?.persistConfigBatchSizes?.[0] !== 2) {
+    throw new Error(`快速关闭没有交接包含未确认前驱的补丁链：${JSON.stringify(persistence.latestWriteWins)}`);
+  }
   if (savedConfig.to !== finalTarget) {
     throw new Error(`连续修改后最终目标语言没有胜出：${JSON.stringify(persistence.latestWriteWins)}`);
   }

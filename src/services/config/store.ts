@@ -2,7 +2,7 @@
  * @file src/services/config/store.ts
  *
  * 文件职责：协调 FluentRead 配置、凭据与历史记录在后台加密配置仓库中的读取、订阅、保存和并发持久化。
- * 主要内容：维护 config 响应式状态和监听器，区分公开配置与加密持久凭据，串行发送整份替换或字段级 patch，处理乐观更新回滚、revision 冲突、旧会话凭据迁移、历史 debounce 及 undo/redo 请求。
+ * 主要内容：维护 config 响应式状态和监听器，区分公开配置与加密持久凭据，串行发送整份替换或字段级 patch，在页面关闭前把尚未确认的补丁链交给后台，并处理乐观更新回滚、revision 冲突、旧会话凭据迁移、历史 debounce 及 undo/redo 请求。
  * 模块边界：本文件位于配置 application service 层，可协调 core 规则与浏览器存储端口；不包含设置页面组件，也不实现具体翻译供应商协议，调用方应通过公开服务 API 订阅或提交配置。
  */
 
@@ -60,6 +60,7 @@ export type {ConfigHistoryAction, ConfigHistoryEntry, ConfigHistoryState} from '
 export const CONFIG_STORAGE_KEY = 'local:config' as const;
 export const CONFIG_HISTORY_STORAGE_KEY = 'local:configHistory' as const;
 export const CONFIG_PERSIST_MESSAGE = 'persistConfig' as const;
+export const CONFIG_PERSIST_BATCH_MESSAGE = 'persistConfigBatch' as const;
 export const CONFIG_HISTORY_MESSAGE = 'configHistoryAction' as const;
 const CONFIG_HISTORY_DEBOUNCE_MS = 350;
 
@@ -1085,6 +1086,59 @@ type ConfigMessageSender = (message: {
     baseRevision: number;
 }) => Promise<ConfigMessageResponse>;
 
+export interface ConfigPatchBatchMessage {
+    type: typeof CONFIG_PERSIST_BATCH_MESSAGE;
+    clientId: string;
+    patches: Array<{
+        sequence: number;
+        config: Record<string, unknown>;
+        expected: Record<string, unknown>;
+    }>;
+}
+
+interface PendingRemoteConfigMutation {
+    sender: ConfigMessageSender;
+    mode: ConfigPersistenceMode;
+    patch?: ConfigPatchBatchMessage['patches'][number];
+}
+
+// 乐观 config 与已发送消息不是同一个边界。保留尚未确认的完整 patch 链，
+// 包括在途前驱，供短生命周期页面把后续执行所有权交给后台。
+const pendingRemoteConfigMutations = new Map<number, PendingRemoteConfigMutation>();
+
+/** 关闭前同步发出待确认 patch 链；后台沿用同 client/sequence 去重及字段 CAS。 */
+export async function handoffPendingConfigPatches(
+    originalSender: ConfigMessageSender,
+    batchSender: (message: ConfigPatchBatchMessage) => Promise<ConfigMessageResponse>,
+): Promise<void> {
+    const entries = [...pendingRemoteConfigMutations.entries()];
+    const matching = entries.filter(([, request]) => request.sender === originalSender);
+    const pending = matching.map(([, request]) => request);
+    if (pending.length === 0) return;
+    if (!initialized || configStorageWritesBlocked) {
+        throw new Error('配置安全水合未完成，暂不交接待保存设置');
+    }
+    if (entries.some(([sequence, request]) => (
+        sequence < matching[matching.length - 1][0] && request.sender !== originalSender
+    ))) {
+        throw new Error('待保存队列包含其他发送方的前驱，不能跳过前驱交接');
+    }
+    if (pending.some(request => request.mode !== 'patch')) {
+        throw new Error('待保存队列包含整份替换，不能作为字段补丁交接');
+    }
+    if (pending.length > 256) throw new Error('待交接配置补丁超过 256 条');
+    // sender 必须在首次 await 前调用，不能再依赖即将销毁页面的 requestQueue。
+    const response = await batchSender({
+        type: CONFIG_PERSIST_BATCH_MESSAGE,
+        clientId: requestClientId,
+        patches: pending.map(request => JSON.parse(JSON.stringify(request.patch!))),
+    });
+    if (response?.success !== true) throw new Error(response?.error || '后台接管配置补丁失败');
+    if (!Number.isSafeInteger(response.revision) || Number(response.revision) < 0) {
+        throw new Error('后台接管配置补丁没有返回有效 revision');
+    }
+}
+
 async function reconcileFailedConfigRequest(fallbackConfig?: Config): Promise<void> {
     let deferred = takeDeferredStoredConfigChange();
     let storedValue: unknown;
@@ -1237,6 +1291,15 @@ async function requestConfigMutation(
         return;
     }
 
+    pendingRemoteConfigMutations.set(sequence, {
+        sender: sendMessage,
+        mode,
+        ...(mode === 'patch' ? {patch: {
+            sequence,
+            config: JSON.parse(JSON.stringify(messageConfig)),
+            expected: JSON.parse(JSON.stringify(messageExpected)),
+        }} : {}),
+    });
     const generation = requestGeneration;
     const request = requestQueue
         .catch(() => undefined)
@@ -1522,6 +1585,7 @@ async function requestConfigMutation(
         }
         throw error;
     } finally {
+        pendingRemoteConfigMutations.delete(sequence);
         if (latestRequestedSequence === sequence) {
             latestRequestedSerialized = '';
             latestRequestedMode = null;

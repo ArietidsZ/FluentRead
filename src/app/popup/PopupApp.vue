@@ -536,6 +536,7 @@ import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, 
 import browser from 'webextension-polyfill';
 import {
   config as runtimeConfig,
+  handoffPendingConfigPatches,
   requestConfigPatch,
   subscribeConfig,
 } from '@/src/services/config/store';
@@ -1066,14 +1067,16 @@ function saveOnPageHide() {
 }
 window.addEventListener('pagehide', saveOnPageHide);
 
-// Firefox 可能同时触发 pagehide 和 unmounted；只补交一次尚未同步的字段。
-// 没有修改或已进入配置服务队列时无需再次发送，避免每次打开查看后都整份写回。
-// 这是一层 best-effort 兜底而非持久化 barrier；与普通交互共用字段 patch 和请求队列。
+// Firefox 可能同时触发 pagehide 和 unmounted；只执行一次关闭交接。
+// 乐观配置相等不代表补丁已交给后台：先捕获尚未触发 watcher 的修改，
+// 再把未确认补丁链同步交给后台接续，避免页面销毁后本地排队的下一次修改丢失。
+// 空补丁链不发送消息，普通查看后关闭仍不重复保存。
 function persistOnPageExit() {
   if (!hydrated.value || !config.value.uiLanguageSetupCompleted || pageExitSaveStarted) return;
-  if (JSON.stringify(config.value) === JSON.stringify(runtimeConfig)) return;
   pageExitSaveStarted = true;
   void persistConfigPatch(config.value).catch((error) => console.warn('[FluentRead] popup 关闭前后台保存设置失败', error));
+  void handoffPendingConfigPatches(sendConfigMessage, sendConfigMessage)
+    .catch((error) => console.warn('[FluentRead] popup 关闭前交接设置失败', error));
 }
 
 function showNotice(message: string, type: 'success' | 'error' = 'success') {
