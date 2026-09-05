@@ -2645,16 +2645,16 @@ async function main() {
     report.screenshots.push(await screenshot(page, 'settings-default-service-light.png'));
     report.assertions.defaultServiceHarmonious = true;
 
-    const aiContextSwitch = page.getByRole('switch', {name: 'AI 智能上下文', exact: true});
-    if (await aiContextSwitch.count() !== 1) throw new Error('通用设置没有唯一的 AI 智能上下文开关');
-    if (await aiContextSwitch.isDisabled()) throw new Error('机器翻译作为默认服务时，AI 智能上下文开关不可操作');
+    const aiContextSwitch = page.getByRole('switch', {name: 'AI 精翻（智能上下文）', exact: true});
+    if (await aiContextSwitch.count() !== 1) throw new Error('通用设置没有唯一的 AI 精翻（智能上下文）开关');
+    if (await aiContextSwitch.isDisabled()) throw new Error('机器翻译作为默认服务时，AI 精翻（智能上下文）开关不可操作');
     const aiContextControl = aiContextSwitch.locator('..');
     if (!await aiContextControl.isVisible()) throw new Error('AI 智能上下文开关没有可见的交互控件');
     const aiContextBefore = await aiContextSwitch.getAttribute('aria-checked');
     if (!['true', 'false'].includes(aiContextBefore)) throw new Error(`AI 智能上下文开关状态异常：${aiContextBefore}`);
     await aiContextControl.click();
     await page.waitForFunction(
-      previous => document.querySelector('[aria-label="AI 智能上下文"]')
+      previous => document.querySelector('[aria-label="AI 精翻（智能上下文）"]')
         ?.getAttribute('aria-checked') !== previous,
       aiContextBefore,
       {timeout},
@@ -2662,7 +2662,7 @@ async function main() {
     const aiContextAfter = await aiContextSwitch.getAttribute('aria-checked');
     await aiContextControl.click();
     await page.waitForFunction(
-      expected => document.querySelector('[aria-label="AI 智能上下文"]')
+      expected => document.querySelector('[aria-label="AI 精翻（智能上下文）"]')
         ?.getAttribute('aria-checked') === expected,
       aiContextBefore,
       {timeout},
