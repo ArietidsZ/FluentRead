@@ -1,0 +1,64 @@
+/**
+ * @file src/ui/styles/interface-skins/aurora.css
+ * 文件职责：定义极光舷窗风格的青绿光带、深色舷窗和安静的阅读层次。
+ * 主要内容：亮色使用薄荷白与青绿色，暗色保留深海舷窗和柔和极光，背景纹理只占用画布角落。
+ * 模块边界：只声明主题变量与少量表面细节；组件布局和交互由 palette.css 与现有 Popup/Options 组件负责。
+ */
+
+:root[data-interface-skin="aurora"] {
+  --brand: #5147a8;
+  --brand-strong: #393283;
+  --brand-soft: #e6e2ff;
+  --ink: #28264a;
+  --muted: #68648d;
+  --line: #d8d4ee;
+  --surface: #fcfbff;
+  --surface-soft: #f3f1ff;
+  --skin-page: #f4f1ff;
+  --skin-sidebar: #faf9ff;
+  --skin-action-text: #ffffff;
+  --skin-focus: color-mix(in srgb, var(--brand) 24%, transparent);
+  --skin-shadow: rgba(66, 52, 143, .13);
+  --skin-radius: 18px;
+  --skin-panel-radius: 18px;
+  --skin-feature-radius: 12px;
+  --skin-control-radius: 10px;
+  --skin-icon-background: #e7e2ff;
+  --skin-canvas-background:
+    radial-gradient(ellipse at 84% 12%, rgba(89, 226, 183, .4) 0 15%, transparent 16%),
+    linear-gradient(118deg, transparent 0 54%, rgba(79, 196, 177, .16) 55% 57%, transparent 58% 65%, rgba(124, 219, 183, .15) 66% 68%, transparent 69%),
+    radial-gradient(circle at 90% 72%, rgba(126, 103, 218, .13) 0 2px, transparent 3px),
+    linear-gradient(145deg, #ece9ff 0%, #fcfbff 55%, #f0f1ff 100%);
+  --skin-panel-background: linear-gradient(155deg, #fcfbff 62%, #f2f0ff 100%);
+  --skin-panel-shadow: 0 8px 24px rgba(66, 52, 143, .07), 0 1px 2px rgba(66, 52, 143, .04);
+  --skin-feature-shadow: 0 2px 7px rgba(66, 52, 143, .055);
+}
+
+:root.dark[data-interface-skin="aurora"] {
+  --brand: #b8b0ff;
+  --brand-strong: #d4ceff;
+  --brand-soft: #403b70;
+  --ink: #f1efff;
+  --muted: #b6b1d6;
+  --line: #504b78;
+  --surface: #272544;
+  --surface-soft: #322e55;
+  --skin-page: #17162d;
+  --skin-sidebar: #201e3a;
+  --skin-action-text: #17162d;
+  --skin-focus: color-mix(in srgb, var(--brand) 28%, transparent);
+  --skin-shadow: rgba(4, 2, 18, .3);
+  --skin-icon-background: #403b70;
+  --skin-canvas-background:
+    radial-gradient(ellipse at 84% 12%, rgba(73, 191, 160, .38) 0 15%, transparent 16%),
+    linear-gradient(118deg, transparent 0 54%, rgba(70, 191, 165, .18) 55% 57%, transparent 58% 65%, rgba(90, 189, 145, .16) 66% 68%, transparent 69%),
+    radial-gradient(circle at 90% 72%, rgba(133, 112, 232, .22) 0 2px, transparent 3px),
+    linear-gradient(145deg, #29264e 0%, #17162d 55%, #202042 100%);
+  --skin-panel-background: linear-gradient(155deg, #2e2a4f 0%, #272544 100%);
+  --skin-panel-shadow: 0 8px 24px rgba(4, 2, 18, .22), inset 0 1px 0 rgba(190, 180, 255, .04);
+  --skin-feature-shadow: 0 2px 7px rgba(4, 2, 18, .16);
+}
+
+:root[data-interface-skin="aurora"] .popup-shell .brand img {
+  box-shadow: 0 0 0 2px var(--surface), 0 3px 0 color-mix(in srgb, var(--brand) 28%, var(--line));
+}

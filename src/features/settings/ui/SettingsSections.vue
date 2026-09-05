@@ -416,10 +416,6 @@
       <InterfaceSettings :config="config" />
     </section>
 
-    <section v-show="props.activeSection === 'settings-advanced'" class="settings-section settings-section-continuation">
-      <TranslationLoadingStyleSettings :config="config" />
-    </section>
-
     <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
       <SettingsGroup title="输入框翻译" description="仅支持普通文本 input、textarea 与 plaintext-only 编辑区；密码框和富文本编辑器不参与。">
         <!-- 输入框翻译功能 -->
@@ -757,7 +753,6 @@ import {
 import {ImageOcrSettings} from '@/src/features/image-translation/public';
 import {ModelUsageDashboard} from '@/src/features/model-usage/public';
 import InterfaceSettings from './InterfaceSettings.vue';
-import TranslationLoadingStyleSettings from './TranslationLoadingStyleSettings.vue';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
 import SegmentedControl from './components/SegmentedControl.vue';

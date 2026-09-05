@@ -43,6 +43,9 @@ describe('界面皮肤与栏目配置', () => {
       'emoji',
       'midnight',
       'paper',
+      'aurora',
+      'arcade',
+      'sunset',
     ]
     expect(interfaceSkinOptions.map((item) => item.value)).toEqual(expectedSkins)
     expect(interfaceSkinOptions.map((item) => item.label)).toEqual([
@@ -57,11 +60,14 @@ describe('界面皮肤与栏目配置', () => {
       'Emoji 乐园 ✨',
       '夜幕 🌙',
       '纸张护眼 📖',
+      '极光舷窗 🛰️',
+      '像素街机 🎮',
+      '落日公路 🛣️',
     ])
     expect(interfaceSkinGroups.map((item) => item.value)).toEqual(['utility', 'palette'])
     expect(interfaceSkinOptions.filter((item) => item.group === 'utility')).toHaveLength(4)
-    expect(interfaceSkinOptions.filter((item) => item.group === 'palette')).toHaveLength(7)
-    expect(new Set(interfaceSkinOptions.map((item) => JSON.stringify(item.preview))).size).toBe(11)
+    expect(interfaceSkinOptions.filter((item) => item.group === 'palette')).toHaveLength(10)
+    expect(new Set(interfaceSkinOptions.map((item) => JSON.stringify(item.preview))).size).toBe(14)
     expect(interfaceSkinOptions.filter(item => item.group === 'palette').every(item => item.motif === item.value)).toBe(true)
     expect(interfaceSkinOptions.filter(item => item.group === 'utility').every(item => item.motif === 'none')).toBe(true)
     expect(normalizeConfig({interfaceSkin: 'emoji'}).interfaceSkin).toBe('emoji')
@@ -156,6 +162,9 @@ describe('界面皮肤与栏目配置', () => {
     expect(normalizeInterfaceSkin('unknown')).toBe('default')
     expect(normalizeInterfaceSkin(null)).toBe('default')
     expect(getInterfaceSkinOption('cheese').label).toBe('奶酪 🧀')
+    expect(getInterfaceSkinOption('aurora').description).toContain('极光')
+    expect(getInterfaceSkinOption('arcade').motif).toBe('arcade')
+    expect(getInterfaceSkinOption('sunset').preview.accent).toBe('#b64f3b')
     expect(getInterfaceSkinOption('unknown').value).toBe('default')
     expect(getInterfaceSkinOption(null).value).toBe('default')
     expect(interfaceSkinUsesContentHeight('default')).toBe(true)

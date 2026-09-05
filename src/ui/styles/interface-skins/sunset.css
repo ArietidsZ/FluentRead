@@ -1,0 +1,62 @@
+/**
+ * @file src/ui/styles/interface-skins/sunset.css
+ * 文件职责：定义落日公路风格的夕阳橘、莓果红与暮蓝阅读画布。
+ * 主要内容：亮色像一页被晚霞照亮的纸，暗色保留暖橘操作色和紫蓝夜路，边角纹理静止且不妨碍内容阅读。
+ * 模块边界：只声明主题变量与表面细节；Popup/Options 的布局和交互沿用共享组件与 palette.css。
+ */
+
+:root[data-interface-skin="sunset"] {
+  --brand: #b64f3b;
+  --brand-strong: #8f382d;
+  --brand-soft: #ffe1d9;
+  --ink: #422b35;
+  --muted: #7a5a5d;
+  --line: #edd0ca;
+  --surface: #fffdfa;
+  --surface-soft: #fff1ed;
+  --skin-page: #fff4ee;
+  --skin-sidebar: #fffaf7;
+  --skin-action-text: #ffffff;
+  --skin-focus: color-mix(in srgb, var(--brand) 24%, transparent);
+  --skin-shadow: rgba(145, 63, 51, .12);
+  --skin-radius: 18px;
+  --skin-panel-radius: 18px 18px 11px 18px;
+  --skin-feature-radius: 12px 12px 7px 12px;
+  --skin-control-radius: 10px 10px 6px 10px;
+  --skin-icon-background: #ffe7df;
+  --skin-canvas-background:
+    radial-gradient(circle at 86% 18%, #ffbd73 0 23px, transparent 24px),
+    linear-gradient(172deg, transparent 0 68%, rgba(171, 76, 86, .13) 69% 70%, transparent 71% 76%, rgba(69, 71, 127, .1) 77% 78%, transparent 79%),
+    linear-gradient(145deg, #fff0e7 0%, #fffdfa 53%, #f6eff8 100%);
+  --skin-panel-background: linear-gradient(155deg, #fffdfa 60%, #fff0eb 100%);
+  --skin-panel-shadow: 0 8px 22px rgba(145, 63, 51, .07), 0 1px 2px rgba(145, 63, 51, .04);
+  --skin-feature-shadow: 0 3px 7px rgba(145, 63, 51, .05);
+}
+
+:root.dark[data-interface-skin="sunset"] {
+  --brand: #ff9d80;
+  --brand-strong: #ffc0a7;
+  --brand-soft: #57333d;
+  --ink: #fff0ea;
+  --muted: #d2adb0;
+  --line: #68424d;
+  --surface: #382b37;
+  --surface-soft: #47313c;
+  --skin-page: #241f2a;
+  --skin-sidebar: #2c2430;
+  --skin-action-text: #281d25;
+  --skin-focus: color-mix(in srgb, var(--brand) 30%, transparent);
+  --skin-shadow: rgba(12, 5, 15, .28);
+  --skin-icon-background: #5a3541;
+  --skin-canvas-background:
+    radial-gradient(circle at 86% 18%, #c26e55 0 23px, transparent 24px),
+    linear-gradient(172deg, transparent 0 68%, rgba(210, 98, 107, .18) 69% 70%, transparent 71% 76%, rgba(103, 112, 191, .17) 77% 78%, transparent 79%),
+    linear-gradient(145deg, #3b2934 0%, #241f2a 53%, #2c2540 100%);
+  --skin-panel-background: linear-gradient(155deg, #3e2d39 0%, #382b37 100%);
+  --skin-panel-shadow: 0 8px 22px rgba(12, 5, 15, .2), inset 0 1px 0 rgba(255, 190, 163, .04);
+  --skin-feature-shadow: 0 3px 7px rgba(12, 5, 15, .15);
+}
+
+:root[data-interface-skin="sunset"] .popup-shell .brand img {
+  box-shadow: 0 0 0 2px var(--surface), 2px 3px 0 color-mix(in srgb, var(--brand) 22%, var(--line));
+}

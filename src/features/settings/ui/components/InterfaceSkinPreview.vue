@@ -391,4 +391,8 @@ const previewStyle = computed(() => {
   border-radius: var(--skin-feature-radius, 10px);
   box-shadow: var(--skin-feature-shadow, none);
 }
+
+.interface-skin-live-preview[data-preview-skin="arcade"] .preview-popup {
+  background-size: var(--skin-canvas-background-size, auto);
+}
 </style>

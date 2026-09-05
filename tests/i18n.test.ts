@@ -203,13 +203,13 @@ describe('界面 i18n 契约', () => {
 
   it('用稳定 key 为七种语言提供完整的翻译加载动画文案', () => {
     const expectedStyleLabels = {
-      'zh-CN': ['简洁', '柔和圆环', '跳跃圆点', '行星轨道', '星光'],
-      'en-US': ['Minimal', 'Soft ring', 'Bouncing dots', 'Planet orbit', 'Sparkle'],
-      'ja-JP': ['シンプル', 'やわらかなリング', '跳ねるドット', '惑星の軌道', 'きらめき'],
-      'ko-KR': ['간결', '부드러운 원형', '통통 튀는 점', '행성 궤도', '별빛'],
-      'fr-FR': ['Minimal', 'Anneau discret', 'Points bondissants', 'Orbite planétaire', 'Étincelles'],
-      'ru-RU': ['Минимальный', 'Мягкое кольцо', 'Прыгающие точки', 'Планетарная орбита', 'Искры'],
-      'es-ES': ['Minimalista', 'Anillo suave', 'Puntos saltarines', 'Órbita planetaria', 'Destellos'],
+      'zh-CN': ['简洁', '柔和圆环', '跳跃圆点', '行星轨道', '星光', '涟漪扩散', '起伏波形', '光线扫过', '流沙沙漏', '小彗星', '翻转方块', '弹跳小球', '打字光标', '扫描线', '信号柱'],
+      'en-US': ['Minimal', 'Soft ring', 'Bouncing dots', 'Planet orbit', 'Sparkle', 'Ripple pulse', 'Waveform', 'Light sweep', 'Hourglass', 'Little comet', 'Flip square', 'Bouncing ball', 'Typing cursor', 'Scan line', 'Signal bars'],
+      'ja-JP': ['シンプル', 'やわらかなリング', '跳ねるドット', '惑星の軌道', 'きらめき', '波紋パルス', '波形', '光のスイープ', '砂時計', '小さな彗星', '反転スクエア', '跳ねるボール', '入力カーソル', 'スキャンライン', '信号バー'],
+      'ko-KR': ['간결', '부드러운 원형', '통통 튀는 점', '행성 궤도', '별빛', '물결 펄스', '파형', '빛 쓸기', '모래시계', '작은 혜성', '뒤집는 사각형', '통통 튀는 공', '입력 커서', '스캔 라인', '신호 막대'],
+      'fr-FR': ['Minimal', 'Anneau discret', 'Points bondissants', 'Orbite planétaire', 'Étincelles', 'Ondulation', 'Forme d’onde', 'Balayage lumineux', 'Sablier', 'Petite comète', 'Carré retournant', 'Balle rebondissante', 'Curseur de saisie', 'Ligne de balayage', 'Barres de signal'],
+      'ru-RU': ['Минимальный', 'Мягкое кольцо', 'Прыгающие точки', 'Планетарная орбита', 'Искры', 'Пульсация волн', 'Волна', 'Световой проход', 'Песочные часы', 'Маленькая комета', 'Переворачивающийся квадрат', 'Прыгающий шарик', 'Курсор набора', 'Линия сканирования', 'Сигнальные полосы'],
+      'es-ES': ['Minimalista', 'Anillo suave', 'Puntos saltarines', 'Órbita planetaria', 'Destellos', 'Pulso de ondas', 'Forma de onda', 'Barrido de luz', 'Reloj de arena', 'Cometa pequeño', 'Cuadrado que gira', 'Pelota saltarina', 'Cursor de escritura', 'Línea de escaneo', 'Barras de señal'],
     } as const;
 
     for (const language of Object.keys(expectedStyleLabels) as Array<keyof typeof expectedStyleLabels>) {
@@ -220,6 +220,10 @@ describe('界面 i18n 契约', () => {
       }
       expect(translate('settings.advanced.performanceDescription', language))
         .not.toBe('settings.advanced.performanceDescription');
+      expect(translate('settings.interface.animationLoading.label', language))
+        .not.toBe('settings.interface.animationLoading.label');
+      expect(translate('settings.interface.animationLoading.description', language))
+        .not.toBe('settings.interface.animationLoading.description');
       expect(translate('settings.advanced.animationsAria', language))
         .not.toBe('settings.advanced.animationsAria');
       expect(translate('settings.advanced.translationLoadingStyleAria', language))

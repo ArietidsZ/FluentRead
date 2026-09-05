@@ -16,6 +16,9 @@
 @import './interface-skins/midnight.css';
 @import './interface-skins/paper.css';
 @import './interface-skins/emoji.css';
+@import './interface-skins/aurora.css';
+@import './interface-skins/arcade.css';
+@import './interface-skins/sunset.css';
 
 /* 所有内置皮肤（含完整默认布局）均使用内容高度，栏目显隐或文字换行后自然收缩与伸展。 */
 :root[data-popup-height="content"] {

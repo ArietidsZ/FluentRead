@@ -536,14 +536,11 @@ import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, 
 import browser from 'webextension-polyfill';
 import {
   config as runtimeConfig,
-  configReady,
   requestConfigPatch,
-  requestConfigSave,
   subscribeConfig,
 } from '@/src/services/config/store';
 import { Search, Setting } from '@element-plus/icons-vue';
 import {
-  Config,
   SELECTION_TRANSLATOR_DELAY_MAX,
   SELECTION_TRANSLATOR_DELAY_MIN,
   SELECTION_TRANSLATOR_DELAY_STEP,
@@ -611,7 +608,8 @@ interface PopupQuickFeatureViewModel {
 }
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'));
 const {language, t, translateLegacy} = useUiI18n();
-const config = ref(new Config());
+// composition root 已等待配置服务；首次渲染直接使用完整快照，不能先暴露默认布局。
+const config = ref(normalizeConfig(runtimeConfig));
 const onboardingLanguage = ref<UiLanguage>('zh-CN');
 const drawerVisible = ref(false);
 const activeDrawer = ref<DrawerName>('hover');
@@ -651,7 +649,6 @@ const drawerSettingsSection: Record<DrawerName, SettingsSection> = {
 };
 const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
 const persistConfigPatch = (value: unknown) => requestConfigPatch(value, sendConfigMessage);
-const persistConfigReplace = (value: unknown) => requestConfigSave(value, sendConfigMessage);
 
 function readBrowserUiLocale(): unknown {
   const browserI18n = (browser as unknown as {i18n?: {getUILanguage?: () => unknown}}).i18n;
@@ -945,16 +942,15 @@ function applyPopupHeightMode(usesContentHeight: boolean) {
 }
 
 async function hydrate() {
-  await configReady;
-  Object.assign(config.value, runtimeConfig);
   if (!config.value.uiLanguageSetupCompleted) {
     onboardingLanguage.value = resolveUiLanguageFromLocale(readBrowserUiLocale());
   }
   showLanguageOnboarding.value = !config.value.uiLanguageSetupCompleted;
   lastSerialized = JSON.stringify(config.value);
-  hydrated.value = true;
   applyTheme(config.value.theme || 'auto');
   applyInterfaceSkin(config.value.interfaceSkin);
+  applyPopupHeightMode(popupUsesContentHeight.value);
+  hydrated.value = true;
   if (!showLanguageOnboarding.value) await hydrateCurrentSite();
 }
 void hydrate();
@@ -1070,13 +1066,14 @@ function saveOnPageHide() {
 }
 window.addEventListener('pagehide', saveOnPageHide);
 
-// Firefox 可能同时触发 pagehide 和 unmounted；只补交一次最终快照。
-// 这是一层 best-effort 兜底而非持久化 barrier；revision 边界会拒绝过期 replace，
-// 普通交互则始终使用字段 patch。
+// Firefox 可能同时触发 pagehide 和 unmounted；只补交一次尚未同步的字段。
+// 没有修改或已进入配置服务队列时无需再次发送，避免每次打开查看后都整份写回。
+// 这是一层 best-effort 兜底而非持久化 barrier；与普通交互共用字段 patch 和请求队列。
 function persistOnPageExit() {
   if (!hydrated.value || !config.value.uiLanguageSetupCompleted || pageExitSaveStarted) return;
+  if (JSON.stringify(config.value) === JSON.stringify(runtimeConfig)) return;
   pageExitSaveStarted = true;
-  void persistConfigReplace(config.value).catch((error) => console.warn('[FluentRead] popup 关闭前后台保存设置失败', error));
+  void persistConfigPatch(config.value).catch((error) => console.warn('[FluentRead] popup 关闭前后台保存设置失败', error));
 }
 
 function showNotice(message: string, type: 'success' | 'error' = 'success') {

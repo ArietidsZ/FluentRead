@@ -625,6 +625,10 @@ function featureGlyph(id: string): string {
   border-radius: 10px;
 }
 
+.popup-layout-live-preview[data-preview-skin="arcade"] .layout-preview-popup {
+  background-size: var(--skin-canvas-background-size, auto);
+}
+
 .popup-layout-live-preview[data-preview-kind="palette"] .layout-preview-hero > i b,
 .popup-layout-live-preview[data-preview-kind="palette"] .layout-preview-site > i::after {
   background: #fff;

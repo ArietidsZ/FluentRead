@@ -97,6 +97,9 @@ describe('options UI composition architecture', () => {
       "translateLegacy('界面与弹窗')",
       "t('settings.interface.popupLayout.label')",
     ])
+    expect(interfaceSettings).toContain('<TranslationLoadingStyleSettings :config="props.config" />')
+    expect(interfaceSettings.indexOf('<TranslationLoadingStyleSettings')).toBeLessThan(interfaceSettings.indexOf('t(\'settings.interface.popupLayout.label\')'))
+    expect(source('src/features/settings/ui/TranslationLoadingStyleSettings.vue')).toContain("t('settings.interface.animationLoading.label')")
     expect(interfaceSettings).toContain('interfaceSkinOptions')
     expect(interfaceSettings).toContain('interfaceSkinGroups')
     expect(interfaceSettings).toContain('groupedSkinOptions')
@@ -160,7 +163,7 @@ describe('options UI composition architecture', () => {
     expect(skinStyles).toContain('body.popup-page')
     expect(skinStyles).toContain('data-popup-height="content"')
     expect(skinStyles).toContain('min-height: 0')
-    const nonDefaultSkins = ['minimal', 'compact', 'contrast', 'cheese', 'ocean', 'matcha', 'sakura', 'emoji', 'midnight', 'paper']
+    const nonDefaultSkins = ['minimal', 'compact', 'contrast', 'cheese', 'ocean', 'matcha', 'sakura', 'emoji', 'midnight', 'paper', 'aurora', 'arcade', 'sunset']
     for (const skin of nonDefaultSkins) {
       expect(skinStyles).toContain(`./interface-skins/${skin}.css`)
       expect(source(`src/ui/styles/interface-skins/${skin}.css`)).toContain(`data-interface-skin="${skin}"`)
@@ -341,7 +344,6 @@ describe('options UI composition architecture', () => {
     expect(popup).toContain('@/src/ui/components/ServiceIcon.vue')
     expect(popup).toContain('@/src/platform/browser/ids')
     expect(popup).toContain('requestConfigPatch')
-    expect(popup).toContain('requestConfigSave')
     expect(popup).toContain('config.interfaceVisibility.popupQuickFeatures')
     expect(popup).toContain('config.value.interfaceVisibility.popupSiteRule')
     expect(popup).toContain('config.interfaceVisibility.popupFooter')
@@ -457,6 +459,7 @@ describe('options UI composition architecture', () => {
 
   it('offers selectable paragraph loading animations with true runtime previews', () => {
     const settings = source('src/features/settings/ui/SettingsSections.vue')
+    const interfaceSettings = source('src/features/settings/ui/InterfaceSettings.vue')
     const picker = source('src/features/settings/ui/TranslationLoadingStyleSettings.vue')
     const preview = source('src/ui/components/TranslationLoadingPreview.vue')
     const indicator = source('src/ui/translationLoadingIndicator.ts')
@@ -464,7 +467,8 @@ describe('options UI composition architecture', () => {
     const userscriptSettings = source('userscript/SettingsPanel.vue')
     const userscriptSmoke = source('scripts/run-userscript-smoke-test.cjs')
 
-    expect(settings).toContain('<TranslationLoadingStyleSettings :config="config" />')
+    expect(settings).not.toContain('<TranslationLoadingStyleSettings :config="config" />')
+    expect(interfaceSettings).toContain('<TranslationLoadingStyleSettings :config="props.config" />')
     expect(picker).toContain('v-for="option in translationLoadingStyleOptions"')
     expect(picker).toContain('role="radiogroup"')
     expect(picker).toContain('<TranslationLoadingPreview')
@@ -473,6 +477,7 @@ describe('options UI composition architecture', () => {
     expect(picker).toContain('const { t } = useUiI18n()')
     expect(picker).toContain('t(option.labelKey)')
     expect(picker).toContain('t(option.descriptionKey)')
+    expect(picker).toContain("settings.interface.animationLoading.label")
     expect(picker).not.toContain('{{ option.label }}')
     expect(picker).not.toContain('{{ option.description }}')
     expect(preview).toContain('createTranslationLoadingIndicator(document')
@@ -523,13 +528,16 @@ describe('options UI composition architecture', () => {
 
     for (const content of [popup, settings]) {
       expect(content).toContain('requestConfigPatch')
-      expect(content).toContain('requestConfigSave')
       expect(content).toContain('persistConfigPatch(snapshot)')
-      expect(content).toContain('persistConfigReplace(config.value)')
       expect(content).toContain('best-effort')
-      expect(content).toContain('revision 边界会拒绝过期 replace')
       expect(content).not.toContain('replace 作为队列 flush/barrier')
     }
+    expect(settings).toContain('requestConfigSave')
+    expect(settings).toContain('persistConfigReplace(config.value)')
+    expect(settings).toContain('revision 边界会拒绝过期 replace')
+    expect(popup).not.toContain('requestConfigSave')
+    expect(popup).toContain('JSON.stringify(config.value) === JSON.stringify(runtimeConfig)')
+    expect(popup).toContain('persistConfigPatch(config.value)')
   })
 
   it('persists before remote tests while starting Chrome model preparation inside click activation', () => {

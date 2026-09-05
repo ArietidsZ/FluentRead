@@ -1,7 +1,7 @@
 /**
  * @file src/ui/translationLoadingIndicator.ts
  * 文件职责：创建不受宿主网页 CSS 与同名关键帧影响的段落翻译加载指示器。
- * 主要内容：以固定尺寸的 light-DOM 宿主保留翻译状态标记，在独立 Shadow Root 内渲染简洁、圆环、圆点、轨道和星光五种反馈，并统一处理缓存色与减少动态效果。
+ * 主要内容：以固定尺寸的 light-DOM 宿主保留翻译状态标记，在独立 Shadow Root 内渲染 15 种反馈；同一 Document 共享解析后的样式表，不支持时安全回退，并统一处理缓存色与减少动态效果。
  * 模块边界：本文件只负责指示器 DOM 与视觉隔离，不读取配置仓库、不插入目标段落，也不管理翻译请求生命周期。
  */
 
@@ -226,6 +226,275 @@ const LOADING_INDICATOR_STYLES = `
   animation-delay: .42s;
 }
 
+:host([data-fr-loading-style="pulse"]) .fr-loading-visual {
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(123, 132, 147, .22);
+  border-radius: 50%;
+}
+
+:host([data-fr-loading-style="pulse"]) .fr-loading-visual > i:first-child {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  animation: fluent-read-loading-pulse 1.35s ease-out infinite;
+}
+
+:host([data-fr-loading-style="pulse"]) .fr-loading-visual > i:nth-child(2) {
+  position: absolute;
+  display: block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  opacity: .75;
+}
+
+:host([data-fr-loading-style="wave"]) .fr-loading-visual {
+  display: flex;
+  width: 15px;
+  height: 13px;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+:host([data-fr-loading-style="wave"]) .fr-loading-visual > i {
+  display: block;
+  width: 2px;
+  height: 8px;
+  border-radius: 2px;
+  opacity: .62;
+  animation: fluent-read-loading-wave 1.05s ease-in-out infinite;
+}
+
+:host([data-fr-loading-style="wave"]) .fr-loading-visual > i:nth-child(2) { animation-delay: .13s; }
+:host([data-fr-loading-style="wave"]) .fr-loading-visual > i:nth-child(3) { animation-delay: .26s; }
+
+:host([data-fr-loading-style="sweep"]) .fr-loading-visual {
+  width: 15px;
+  height: 10px;
+  border-bottom: 1px solid rgba(123, 132, 147, .28);
+}
+
+:host([data-fr-loading-style="sweep"]) .fr-loading-visual > i:first-child {
+  position: absolute;
+  left: 1px;
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  animation: fluent-read-loading-sweep 1.25s ease-in-out infinite;
+}
+
+:host([data-fr-loading-style="sweep"]) .fr-loading-visual > i:nth-child(2) {
+  position: absolute;
+  left: 1px;
+  bottom: 1px;
+  display: block;
+  width: 5px;
+  height: 1px;
+  opacity: .38;
+  animation: fluent-read-loading-sweep-tail 1.25s ease-in-out infinite;
+}
+
+:host([data-fr-loading-style="hourglass"]) .fr-loading-visual {
+  width: 12px;
+  height: 14px;
+  animation: fluent-read-loading-hourglass 1.55s ease-in-out infinite;
+}
+
+:host([data-fr-loading-style="hourglass"]) .fr-loading-visual > i:first-child,
+:host([data-fr-loading-style="hourglass"]) .fr-loading-visual > i:nth-child(2) {
+  position: absolute;
+  left: 2px;
+  display: block;
+  width: 8px;
+  height: 6px;
+  border: 1px solid currentColor;
+  opacity: .65;
+}
+
+:host([data-fr-loading-style="hourglass"]) .fr-loading-visual > i:first-child {
+  top: 0;
+  clip-path: polygon(0 0, 100% 0, 62% 100%, 38% 100%);
+}
+
+:host([data-fr-loading-style="hourglass"]) .fr-loading-visual > i:nth-child(2) {
+  bottom: 0;
+  clip-path: polygon(38% 0, 62% 0, 100% 100%, 0 100%);
+}
+
+:host([data-fr-loading-style="hourglass"]) .fr-loading-visual > i:nth-child(3) {
+  display: block;
+  width: 2px;
+  height: 4px;
+  border-radius: 1px;
+  opacity: .7;
+}
+
+:host([data-fr-loading-style="comet"]) .fr-loading-visual {
+  width: 16px;
+  height: 12px;
+}
+
+:host([data-fr-loading-style="comet"]) .fr-loading-visual > i:first-child {
+  position: absolute;
+  left: 2px;
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  animation: fluent-read-loading-comet 1.2s ease-in-out infinite;
+}
+
+:host([data-fr-loading-style="comet"]) .fr-loading-visual > i:nth-child(2),
+:host([data-fr-loading-style="comet"]) .fr-loading-visual > i:nth-child(3) {
+  position: absolute;
+  left: 1px;
+  display: block;
+  height: 1px;
+  border-radius: 1px;
+  opacity: .42;
+  transform-origin: left center;
+  animation: fluent-read-loading-comet-tail 1.2s ease-in-out infinite;
+}
+
+:host([data-fr-loading-style="comet"]) .fr-loading-visual > i:nth-child(2) {
+  top: 4px;
+  width: 7px;
+}
+
+:host([data-fr-loading-style="comet"]) .fr-loading-visual > i:nth-child(3) {
+  top: 7px;
+  width: 4px;
+  animation-delay: .08s;
+}
+
+:host([data-fr-loading-style="flip"]) .fr-loading-visual {
+  width: 12px;
+  height: 12px;
+  perspective: 24px;
+}
+
+:host([data-fr-loading-style="flip"]) .fr-loading-visual > i:first-child {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  animation: fluent-read-loading-flip 1.2s ease-in-out infinite;
+}
+
+:host([data-fr-loading-style="bounce"]) .fr-loading-visual {
+  width: 15px;
+  height: 14px;
+  align-items: end;
+}
+
+:host([data-fr-loading-style="bounce"]) .fr-loading-visual > i:first-child {
+  position: absolute;
+  bottom: 3px;
+  display: block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  animation: fluent-read-loading-bounce 1s ease-in-out infinite;
+}
+
+:host([data-fr-loading-style="bounce"]) .fr-loading-visual > i:nth-child(2) {
+  position: absolute;
+  bottom: 1px;
+  display: block;
+  width: 10px;
+  height: 1px;
+  border-radius: 1px;
+  opacity: .3;
+}
+
+:host([data-fr-loading-style="typing"]) .fr-loading-visual {
+  width: 14px;
+  height: 13px;
+  align-items: center;
+  justify-content: center;
+}
+
+:host([data-fr-loading-style="typing"]) .fr-loading-visual > i:first-child {
+  display: block;
+  width: 2px;
+  height: 11px;
+  border-radius: 1px;
+  animation: fluent-read-loading-caret 1s step-end infinite;
+}
+
+:host([data-fr-loading-style="typing"]) .fr-loading-visual > i:nth-child(2),
+:host([data-fr-loading-style="typing"]) .fr-loading-visual > i:nth-child(3) {
+  position: absolute;
+  display: block;
+  height: 1px;
+  border-radius: 1px;
+  opacity: .28;
+}
+
+:host([data-fr-loading-style="typing"]) .fr-loading-visual > i:nth-child(2) { top: 2px; left: 1px; width: 4px; }
+:host([data-fr-loading-style="typing"]) .fr-loading-visual > i:nth-child(3) { bottom: 2px; right: 1px; width: 5px; }
+
+:host([data-fr-loading-style="scan"]) .fr-loading-visual {
+  width: 15px;
+  height: 12px;
+  border: 1px solid rgba(123, 132, 147, .25);
+  border-radius: 2px;
+}
+
+:host([data-fr-loading-style="scan"]) .fr-loading-visual > i:first-child {
+  position: absolute;
+  left: 1px;
+  display: block;
+  width: 1px;
+  height: 10px;
+  opacity: .78;
+  animation: fluent-read-loading-scan 1.25s ease-in-out infinite;
+}
+
+:host([data-fr-loading-style="scan"]) .fr-loading-visual > i:nth-child(2) {
+  display: block;
+  width: 5px;
+  height: 1px;
+  opacity: .28;
+}
+
+:host([data-fr-loading-style="scan"]) .fr-loading-visual > i:nth-child(3) {
+  position: absolute;
+  right: 2px;
+  display: block;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  opacity: .48;
+}
+
+:host([data-fr-loading-style="signal"]) .fr-loading-visual {
+  display: flex;
+  width: 15px;
+  height: 13px;
+  align-items: end;
+  justify-content: center;
+  gap: 2px;
+}
+
+:host([data-fr-loading-style="signal"]) .fr-loading-visual > i {
+  display: block;
+  width: 2px;
+  border-radius: 1px;
+  opacity: .62;
+  animation: fluent-read-loading-signal 1.1s ease-in-out infinite;
+}
+
+:host([data-fr-loading-style="signal"]) .fr-loading-visual > i:first-child { height: 4px; }
+:host([data-fr-loading-style="signal"]) .fr-loading-visual > i:nth-child(2) { height: 8px; animation-delay: .14s; }
+:host([data-fr-loading-style="signal"]) .fr-loading-visual > i:nth-child(3) { height: 12px; animation-delay: .28s; }
+
 :host([data-fr-cache="true"]) .fr-loading-visual {
   color: #679276;
 }
@@ -275,6 +544,67 @@ const LOADING_INDICATOR_STYLES = `
   48% { opacity: .72; transform: scale(1) rotate(20deg); }
 }
 
+@keyframes fluent-read-loading-pulse {
+  0% { opacity: .72; transform: scale(.5); }
+  70%, 100% { opacity: 0; transform: scale(2.1); }
+}
+
+@keyframes fluent-read-loading-wave {
+  0%, 100% { opacity: .35; transform: scaleY(.5); }
+  50% { opacity: .82; transform: scaleY(1.15); }
+}
+
+@keyframes fluent-read-loading-sweep {
+  0%, 100% { opacity: .3; transform: translateX(0); }
+  50% { opacity: .9; transform: translateX(9px); }
+}
+
+@keyframes fluent-read-loading-sweep-tail {
+  0%, 100% { opacity: .15; transform: translateX(0) scaleX(.6); }
+  50% { opacity: .48; transform: translateX(9px) scaleX(1); }
+}
+
+@keyframes fluent-read-loading-hourglass {
+  0%, 38% { transform: rotate(0deg); }
+  50%, 88%, 100% { transform: rotate(180deg); }
+}
+
+@keyframes fluent-read-loading-comet {
+  0%, 100% { opacity: .28; transform: translateX(0); }
+  50% { opacity: .9; transform: translateX(9px); }
+}
+
+@keyframes fluent-read-loading-comet-tail {
+  0%, 100% { opacity: .18; transform: scaleX(.5); }
+  50% { opacity: .5; transform: scaleX(1); }
+}
+
+@keyframes fluent-read-loading-flip {
+  0%, 25% { transform: rotateY(0deg); }
+  65%, 100% { transform: rotateY(180deg); }
+}
+
+@keyframes fluent-read-loading-bounce {
+  0%, 100% { opacity: .45; transform: translateY(0) scaleX(1); }
+  45% { opacity: .9; transform: translateY(-6px) scaleX(.88); }
+  60% { transform: translateY(0) scaleX(1.12); }
+}
+
+@keyframes fluent-read-loading-caret {
+  0%, 48% { opacity: .85; }
+  49%, 100% { opacity: .14; }
+}
+
+@keyframes fluent-read-loading-scan {
+  0%, 100% { opacity: .25; transform: translateX(0); }
+  50% { opacity: .9; transform: translateX(12px); }
+}
+
+@keyframes fluent-read-loading-signal {
+  0%, 100% { opacity: .28; transform: scaleY(.62); }
+  50% { opacity: .9; transform: scaleY(1); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fr-loading-visual,
   .fr-loading-visual > i {
@@ -282,6 +612,48 @@ const LOADING_INDICATOR_STYLES = `
   }
 }
 `
+
+type SharedLoadingStylesheet = CSSStyleSheet & {
+  replaceSync?: (text: string) => void
+}
+
+const sharedLoadingStylesheets = new WeakMap<Document, SharedLoadingStylesheet>()
+
+/** 在当前 Document 的 CSS realm 中只构造一次样式表；任一能力缺失都交给 style 回退。 */
+function getSharedLoadingStylesheet(document: Document): SharedLoadingStylesheet | null {
+  const existing = sharedLoadingStylesheets.get(document)
+  if (existing) return existing
+
+  const CSSStyleSheetConstructor = document.defaultView?.CSSStyleSheet as
+    | (new () => SharedLoadingStylesheet)
+    | undefined
+  if (typeof CSSStyleSheetConstructor !== 'function') return null
+
+  try {
+    const stylesheet = new CSSStyleSheetConstructor()
+    if (typeof stylesheet.replaceSync !== 'function') return null
+    stylesheet.replaceSync(LOADING_INDICATOR_STYLES)
+    sharedLoadingStylesheets.set(document, stylesheet)
+    return stylesheet
+  } catch {
+    return null
+  }
+}
+
+/** 将共享表应用到 closed ShadowRoot；Shadow DOM 不支持或被宿主拒绝时保持原有 style 注入。 */
+function adoptSharedLoadingStylesheet(shadow: ShadowRoot, document: Document): boolean {
+  const stylesheet = getSharedLoadingStylesheet(document)
+  if (!stylesheet) return false
+
+  try {
+    const adopted = shadow.adoptedStyleSheets
+    if (!Array.isArray(adopted)) return false
+    shadow.adoptedStyleSheets = [...adopted, stylesheet]
+    return true
+  } catch {
+    return false
+  }
+}
 
 /** 创建固定外部布局、完全隔离内部视觉的加载指示器。 */
 export function createTranslationLoadingIndicator(
@@ -303,8 +675,6 @@ export function createTranslationLoadingIndicator(
   // closed root 也不会被全文扫描当作待翻译页面内容，并阻止宿主页脚本
   // 直接改写内部样式；外层 host 仍保留状态机需要的可观察标记。
   const shadow = host.attachShadow({mode: 'closed'})
-  const stylesheet = document.createElement('style')
-  stylesheet.textContent = LOADING_INDICATOR_STYLES
   const visual = document.createElement('span')
   visual.className = 'fr-loading-visual'
   visual.setAttribute('aria-hidden', 'true')
@@ -313,7 +683,12 @@ export function createTranslationLoadingIndicator(
     document.createElement('i'),
     document.createElement('i'),
   )
-  shadow.append(stylesheet, visual)
+  if (!adoptSharedLoadingStylesheet(shadow, document)) {
+    const stylesheet = document.createElement('style')
+    stylesheet.textContent = LOADING_INDICATOR_STYLES
+    shadow.append(stylesheet)
+  }
+  shadow.append(visual)
   return host
 }
 
