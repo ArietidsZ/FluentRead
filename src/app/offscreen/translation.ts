@@ -188,6 +188,35 @@ function createNamedError(name: string, message: string): Error {
     return error;
 }
 
+export interface ChromePreparationRequiredError extends Error {
+    readonly code: 'preparation-required';
+    readonly sourceLanguage: string;
+    readonly targetLanguage: string;
+}
+
+export function createChromePreparationRequiredError(
+    sourceLanguage: string,
+    targetLanguage: string,
+    cause?: unknown,
+): ChromePreparationRequiredError {
+    const detail = cause instanceof Error && cause.message ? `: ${cause.message}` : '';
+    const error = createNamedError(
+        'ChromePreparationRequiredError',
+        `Chrome 本地翻译模型需要用户激活，已记录 ${sourceLanguage} → ${targetLanguage} 待准备请求。`
+            + `请在设置中点击“准备 Chrome 本地翻译”${detail}`,
+    ) as ChromePreparationRequiredError;
+    Object.assign(error, {code: 'preparation-required', sourceLanguage, targetLanguage});
+    return error;
+}
+
+export function isChromePreparationRequiredError(error: unknown): error is ChromePreparationRequiredError {
+    return error instanceof Error
+        && error.name === 'ChromePreparationRequiredError'
+        && (error as Partial<ChromePreparationRequiredError>).code === 'preparation-required'
+        && typeof (error as Partial<ChromePreparationRequiredError>).sourceLanguage === 'string'
+        && typeof (error as Partial<ChromePreparationRequiredError>).targetLanguage === 'string';
+}
+
 function reportModelStatus(
     reporter: ChromeModelStatusReporter | undefined,
     status: ChromeModelStatus,
@@ -515,6 +544,7 @@ export function friendlyChromeTranslationError(
     targetLanguage: string,
 ): Error {
     if (isAbortError(error)) return error;
+    if (isChromePreparationRequiredError(error)) return error;
     const message = error instanceof Error ? error.message : String(error || '未知错误');
     const lowerMessage = message.toLowerCase();
     const errorName = error instanceof Error ? error.name : '';
@@ -524,20 +554,19 @@ export function friendlyChromeTranslationError(
     if (errorName === 'NotAllowedError') {
         if (sourceLanguage === 'auto') {
             return new Error(
-                `首次自动识别并翻译到 ${targetLanguage} 需要用户准备 Chrome 本地模型。`
-                + '请在设置的“Chrome内置AI翻译”中按网页实际语言选择“准备源语言”，点击“准备 Chrome 本地翻译”后重试。',
+                `Chrome 无法在自动识别源语言时激活本地模型（目标语言 ${targetLanguage}）。`
+                + '请在设置中选择网页实际源语言并点击“准备 Chrome 本地翻译”后重试。',
             );
         }
-        return new Error(
-            `首次使用 ${sourceLanguage} → ${targetLanguage} 需要用户准备 Chrome 本地模型。`
-            + `请在设置的“Chrome内置AI翻译”中将“准备源语言”选为 ${sourceLanguage}，点击“准备 Chrome 本地翻译”后重试。`,
-        );
+        return createChromePreparationRequiredError(sourceLanguage, targetLanguage, error);
+    }
+    if (errorName === 'NotSupportedError') {
+        return Object.assign(new Error(
+            `Chrome 本地翻译当前不可用（${sourceLanguage} -> ${targetLanguage}）。这可能由设备、浏览器策略或模型下载环境导致，请检查 Chrome 更新、网络和管理策略。`,
+        ), {name: 'ChromeModelUnavailableError', code: 'model-unavailable'});
     }
     if (errorName === 'QuotaExceededError') {
         return new Error('待翻译文本超过 Chrome Translation API 的单次长度限制，请缩短文本后重试。');
-    }
-    if (errorName === 'NotSupportedError') {
-        return new Error(`不支持的语言组合：${sourceLanguage} -> ${targetLanguage}。请尝试其他语言对或检查浏览器版本。`);
     }
     if (errorName === 'OperationError'
         || errorName === 'UnknownError'
@@ -548,10 +577,15 @@ export function friendlyChromeTranslationError(
     if (errorName === 'ChromeModelUnavailableError'
         || lowerMessage.includes('not available')
         || lowerMessage.includes('not ready')) {
-        return new Error('Chrome Translation API 暂时不可用。可能需要下载语言模型，请稍后重试。');
+        return Object.assign(new Error('Chrome Translation API 暂时不可用。可能是设备、浏览器策略或模型下载环境问题，请检查 Chrome 更新、网络和管理策略后重试。'), {
+            name: 'ChromeModelUnavailableError',
+            code: 'model-unavailable',
+        });
     }
     if (lowerMessage.includes('language') || lowerMessage.includes('not supported')) {
-        return new Error(`不支持的语言组合：${sourceLanguage} -> ${targetLanguage}。请尝试其他语言对或检查浏览器版本。`);
+        return Object.assign(new Error(
+            `Chrome 本地翻译当前不可用（${sourceLanguage} -> ${targetLanguage}）。这可能由设备、浏览器策略或模型下载环境导致，请检查 Chrome 更新、网络和管理策略。`,
+        ), {name: 'ChromeModelUnavailableError', code: 'model-unavailable'});
     }
     if (lowerMessage.includes('model')) {
         return new Error('翻译模型未就绪，请稍后重试或检查网络连接。');

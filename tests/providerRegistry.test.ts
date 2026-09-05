@@ -1,5 +1,10 @@
 import {describe, expect, it, vi} from 'vitest';
 
+vi.mock('webextension-polyfill', () => ({default: {storage: {
+    session: {get: vi.fn(async () => ({})), set: vi.fn(async () => undefined), remove: vi.fn(async () => undefined)},
+    onChanged: {addListener: vi.fn(), removeListener: vi.fn()},
+}}}));
+
 // 注册表测试只需核对适配器身份，避免在 Node 环境启动 WXT 存储监听。
 vi.mock('@/src/services/config/store', () => ({config: {}}));
 import {services} from '@/src/core/config/catalog';

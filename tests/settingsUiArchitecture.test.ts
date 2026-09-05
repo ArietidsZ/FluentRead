@@ -537,18 +537,20 @@ describe('options UI composition architecture', () => {
     expect(testConnection).toContain('service: testedService')
   })
 
-  it('labels Chrome connection action as preparation for only the displayed language pair', () => {
+  it('uses the configured language pair and exposes official Chrome help', () => {
     const serviceConfiguration = source('src/features/settings/ui/services/ServiceConfiguration.vue')
     const chromePreparation = source('src/features/settings/model/chromeTranslationPreparation.ts')
 
     expect(serviceConfiguration).toContain("t('settings.services.chromePreparation.action')")
     expect(serviceConfiguration).toContain("t('settings.services.chromePreparation.titleReady')")
     expect(serviceConfiguration).toContain("t('settings.services.chromePreparation.noKey')")
-    expect(serviceConfiguration).toContain('const { language, t } = useUiI18n()')
-    expect(serviceConfiguration).toContain('data-chrome-preparation-source')
-    expect(serviceConfiguration).toContain('data-i18n-ignore')
-    expect(serviceConfiguration).toContain('getChromeTranslationPreparationLanguageLabel(item.value, language)')
-    expect(serviceConfiguration).toContain('from: chromePreparationSourceLanguage.value')
+    expect(serviceConfiguration).toContain("const { language, t } = useUiI18n()")
+    expect(serviceConfiguration).not.toContain('data-chrome-preparation-source')
+    expect(serviceConfiguration).not.toContain('chromePreparationSourceLanguage')
+    expect(serviceConfiguration).toContain('from: pair.sourceLanguage')
+    expect(serviceConfiguration).toContain('chromeTranslationPreparationStore')
+    expect(serviceConfiguration).toContain('data-chrome-preparation-help')
+    expect(serviceConfiguration).toContain('helpSummary')
     expect(serviceConfiguration).toContain("t('settings.services.chromePreparation.sourceDescription')")
     expect(serviceConfiguration).toContain('CHROME_PREPARATION_TIMEOUT_MS = 300_000')
     expect(serviceConfiguration).toContain('activeChromePreparation?.abort()')

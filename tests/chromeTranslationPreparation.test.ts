@@ -83,22 +83,22 @@ describe('Chrome 设置页本地模型准备', () => {
         }
     });
 
-    it('显式源语言与目标相同时保留源语言并改用可创建的校验目标', () => {
+    it('显式源语言与目标相同时替换校验源语言并始终保留用户目标', () => {
         expect(resolveChromeTranslationPreparationPair('en', 'en')).toMatchObject({
+            sourceLanguage: 'fr',
+            targetLanguage: 'en',
+        });
+        expect(resolveChromeTranslationPreparationPair('fr-FR', 'fr')).toMatchObject({
             sourceLanguage: 'en',
             targetLanguage: 'fr',
         });
-        expect(resolveChromeTranslationPreparationPair('fr-FR', 'fr')).toMatchObject({
-            sourceLanguage: 'fr-fr',
-            targetLanguage: 'en',
-        });
         expect(resolveChromeTranslationPreparationPair('zh-Hans', 'zh-CN')).toMatchObject({
-            sourceLanguage: 'zh',
-            targetLanguage: 'en',
+            sourceLanguage: 'en',
+            targetLanguage: 'zh',
         });
         expect(resolveChromeTranslationPreparationPair('zh-Hant', 'zh-TW')).toMatchObject({
-            sourceLanguage: 'zh-Hant',
-            targetLanguage: 'en',
+            sourceLanguage: 'en',
+            targetLanguage: 'zh-Hant',
         });
     });
 
@@ -106,14 +106,14 @@ describe('Chrome 设置页本地模型准备', () => {
         expect(CHROME_TRANSLATION_PREPARATION_LANGUAGES).toHaveLength(39);
         expect(new Set(CHROME_TRANSLATION_PREPARATION_LANGUAGES.map(item => item.value)).size).toBe(39);
         for (const {value: source, label} of CHROME_TRANSLATION_PREPARATION_LANGUAGES) {
-            const pair = resolveChromeTranslationPreparationPair(source, 'zh-Hans');
+            const pair = resolveChromeTranslationPreparationPair(source, source === 'en' ? 'zh-Hans' : 'en');
             expect(pair.sourceLanguage).toBe(source);
             expect(pair.sampleText.length).toBeGreaterThan(20);
             expect(label.trim()).not.toBe('');
         }
     });
 
-    it('在传给筛选下拉框前为 39 种源语言生成当前界面语言的名称', () => {
+    it('为自动选择的检查语言生成当前界面语言的名称', () => {
         const uiLanguages = ['zh-CN', 'en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const;
         for (const uiLanguage of uiLanguages) {
             const labels = CHROME_TRANSLATION_PREPARATION_LANGUAGES.map(({value}) => (
@@ -207,7 +207,8 @@ describe('Chrome 设置页本地模型准备', () => {
         expect(translate).toHaveBeenCalledWith(sampleText);
         expect(destroyDetector).toHaveBeenCalledOnce();
         expect(destroyTranslator).toHaveBeenCalledOnce();
-        expect(statuses.map((status) => status.phase)).toEqual(['initializing', 'verifying']);
+        expect(statuses.map((status) => status.phase)).toEqual(['initializing', 'initializing', 'verifying']);
+        expect(statuses[1].model).toBe('translator');
     });
 
     it('从两个模型转发合法 downloadprogress 并忽略畸形进度', async () => {
@@ -440,18 +441,19 @@ describe('Chrome 设置页本地模型准备', () => {
         expect(destroyDetector).toHaveBeenCalledOnce();
     });
 
-    it('把 NotSupportedError 转为包含实际语言对的明确提示', async () => {
+    it('中文自检的 NotSupportedError 不误报不支持中文，并保留浏览器原始原因', async () => {
         const destroyDetector = vi.fn();
-        await expect(prepareChromeTranslationInPage({from: 'ja', to: 'fr'}, {
+        await expect(prepareChromeTranslationInPage({from: 'en', to: 'zh-Hans'}, {
             LanguageDetector: {
                 create: vi.fn(async () => ({detect: vi.fn(), destroy: destroyDetector})),
             },
             Translator: {
-                create: vi.fn(async () => { throw namedError('NotSupportedError'); }),
+                create: vi.fn(async () => { throw namedError('NotSupportedError', 'Unable to create translator for the given source and target language.'); }),
             },
         })).rejects.toMatchObject({
-            code: 'unsupported-pair',
-            params: {sourceLanguage: 'ja', targetLanguage: 'fr'},
+            code: 'model-unavailable',
+            params: {sourceLanguage: 'en', targetLanguage: 'zh', detail: 'Unable to create translator for the given source and target language.'},
+            message: expect.stringContaining('当前 Chrome 无法创建本地翻译模型'),
         });
         expect(destroyDetector).toHaveBeenCalledOnce();
     });
