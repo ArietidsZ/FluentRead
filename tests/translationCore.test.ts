@@ -705,6 +705,37 @@ describe('translation candidate core', () => {
         expect(core.resolve(document.querySelector('code'))?.element).toBe(paragraph);
     });
 
+    it('保护 Scribble 的 Racket 代码表格并保留相邻正文和普通表格', () => {
+        const {document, core} = page(`
+            <main><p id="before">These definitions describe the program.</p>
+                <table id="code" class="RktBlk"><tbody><tr><td id="code-line">
+                    <span class="RktPn">(</span><span class="RktSym">define-type</span>
+                    <span class="RktSym">MisspelledAnimal</span><span class="RktPn">)</span>
+                </td></tr></tbody></table>
+                <table id="ordinary"><tbody><tr><td id="ordinary-cell">Animal description in ordinary prose.</td></tr></tbody></table>
+                <div id="similar" class="RktBlk">This ordinary block shares a class name.</div>
+                <p id="after">The explanation continues after the example.</p>
+            </main>
+        `, 'https://cs.brown.edu/courses/cs173/2012/book/Introduction.html');
+        const code = document.querySelector<HTMLElement>('#code')!;
+        const source = code.outerHTML;
+        const originalNodes = [...code.querySelectorAll('*')];
+        for (let pass = 0; pass < 2; pass += 1) {
+            const candidates = core.discover(document);
+            expect(candidates.some((candidate) => candidate.element === code || code.contains(candidate.element)))
+                .toBe(false);
+            expect(core.resolve(document.querySelector('#code-line .RktSym')!.firstChild)).toBeNull();
+            expect(createTranslationSourceSnapshot(code, core.shouldStayOriginal).slots).toHaveLength(0);
+            const ids = candidates.map((candidate) => candidate.element.id);
+            expect(ids).toEqual(expect.arrayContaining(['before', 'ordinary-cell', 'similar', 'after']));
+            expect(code.outerHTML).toBe(source);
+            expect([...code.querySelectorAll('*')]).toEqual(originalNodes);
+        }
+        code.querySelector('td')!.append(' New code token');
+        expect(core.discover(code)).toEqual([]);
+        expect(createTranslationSourceSnapshot(code, core.shouldStayOriginal).slots).toHaveLength(0);
+    });
+
     it('keeps MathJax and KaTeX render trees atomic while translating surrounding prose', () => {
         const {document, core} = page(`
             <main><p id="prose">
@@ -1105,6 +1136,62 @@ describe('translation candidate core', () => {
 
         expect(candidate).toMatchObject({adapterId: 'github', reason: 'github-markdown-title'});
         expect(core.resolve(title)?.element).toBe(title);
+    });
+
+    it('保护 GitHub 仓库列表的任意技术标签和受控元数据，正文相同词仍可翻译', () => {
+        const {document, core} = page(`
+            <main><ul><li id="repository">
+                <div data-listview-item-title-container="true"><h3><a href="/example/compiler">Compiler</a></h3>
+                    <span id="visibility" data-listview-item-visibility-label="true">Public</span></div>
+                <div id="description" class="repos-list-description">Java and Python support the new QuasarLang2027 compiler. Public APIs remain useful.</div>
+                <div id="topics" class="ReposListItem-module__TopicsList__fixture">
+                    <a href="/search?q=topic%3Ajava"><span>Java</span></a>
+                    <a href="/search?q=topic%3Apython"><span>Python</span></a>
+                    <a href="/topics/quasarlang2027"><span>QuasarLang2027</span></a>
+                </div>
+                <div id="metadata" class="ReposListItem-module__LabelsContainer__fixture">
+                    <div class="ReposListItem-module__LanguageLabelContainer__fixture"><span class="ReposListItem-module__PrimaryLanguageName__fixture">Go</span></div>
+                    <span>Apache License 2.0</span><a href="/example/compiler/forks">14k forks</a>
+                </div>
+            </li></ul>
+            <article class="markdown-body"><p id="prose">Learn <a href="/topics/java">Java</a> and <a href="/topics/python">Python</a> through public examples.</p></article>
+            <div id="generic-topic-class" class="TopicsList">Java and Python are discussed here.</div>
+            </main>
+        `, 'https://github.com/orgs/example/repositories');
+        const protectedRegions = ['visibility', 'topics', 'metadata'].map((id) => document.getElementById(id)!);
+        const originals = protectedRegions.map((region) => region.outerHTML);
+        const originalNodes = protectedRegions.map((region) => [...region.childNodes]);
+        const candidates = core.discover(document);
+        const snapshot = createTranslationSourceSnapshot(document.getElementById('repository')!,
+            core.shouldStayOriginal, undefined, undefined, core.shouldOmitFromTranslation);
+        expect(snapshot.slots.map(({source}) => source))
+            .toEqual(['Compiler', 'Java and Python support the new QuasarLang2027 compiler. Public APIs remain useful.']);
+        for (const region of protectedRegions) {
+            expect(candidates.some(({element}) => element === region || region.contains(element))).toBe(false);
+            expect(core.shouldStayOriginal(region)).toBe(true);
+            expect(core.shouldIgnoreMutation(region)).toBe(true);
+            expect(core.resolve(region.querySelector('span')?.firstChild ?? region.firstChild)).toBeNull();
+            expect(createTranslationSourceSnapshot(region, core.shouldStayOriginal).slots).toEqual([]);
+        }
+        const description = document.getElementById('description')!;
+        expect(candidates.find(({element}) => element === description))
+            .toMatchObject({adapterId: 'github', reason: 'github-repository-description'});
+        const prose = document.getElementById('prose')!;
+        expect(core.resolve(prose.querySelector('a')!.firstChild)?.element).toBe(prose);
+        expect(createTranslationSourceSnapshot(prose, core.shouldStayOriginal).slots.map(({source}) => source))
+            .toEqual(['Learn', 'Java', 'and', 'Python', 'through public examples.']);
+        expect(candidates.some(({element}) => element.id === 'generic-topic-class')).toBe(true);
+        const translatedHTML = applyTranslationsToSnapshot(snapshot, snapshot.slots.map(() => '正文译文'));
+        for (const region of protectedRegions) {
+            expect(snapshot.clone.querySelector(`#${region.id}`)).toBeNull();
+            expect(translatedHTML).not.toContain(`id="${region.id}"`);
+        }
+        expect(translatedHTML).toContain('正文译文');
+        expect(protectedRegions.map((region) => region.outerHTML)).toEqual(originals);
+        expect(protectedRegions.map((region) => [...region.childNodes])).toEqual(originalNodes);
+        document.getElementById('topics')!.insertAdjacentHTML('beforeend', '<a href="/topics/future-runtime"><span>Future Runtime</span></a>');
+        expect(core.discover(document.getElementById('topics')!)).toEqual([]);
+        expect(createTranslationSourceSnapshot(document.getElementById('topics')!, core.shouldStayOriginal).slots).toEqual([]);
     });
 
     it('keeps GitHub issue-list labels and metadata original while translating titles', () => {

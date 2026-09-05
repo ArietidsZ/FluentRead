@@ -1,4 +1,7 @@
 import {EventEmitter} from 'node:events';
+import {mkdtempSync, mkdirSync, writeFileSync, utimesSync, rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {createRequire} from 'node:module';
 import {parseHTML} from 'linkedom';
 import {describe, expect, it, vi} from 'vitest';
@@ -10,6 +13,7 @@ const {
   COVERAGE_PROTECTED_DESCENDANTS,
   COVERAGE_TRACKER_KEY,
   assertPageContract,
+  assertFreshProductionExtension,
   assertCoverageReport,
   assertCoverageRestoration,
   capturePageContract,
@@ -28,6 +32,8 @@ const {
   validateCoverageRules,
   validateMutableForbiddenSelectors,
   waitForCoverageReady,
+  waitForHostMathRendering,
+  waitForStableTarget,
   withMandatoryHeadingCoverage,
 } = {
   ...require('../scripts/run-site-translation-test.cjs'),
@@ -36,6 +42,9 @@ const {
   COVERAGE_EXCLUDED_ANCESTORS: string;
   COVERAGE_PROTECTED_DESCENDANTS: string;
   COVERAGE_TRACKER_KEY: string;
+  assertFreshProductionExtension: (extensionDir: string, projectRoot: string) => unknown;
+  waitForHostMathRendering: (page: unknown, timeout: number) => Promise<unknown>;
+  waitForStableTarget: (page: unknown, selector: string, timeout: number) => Promise<void>;
   assertPageContract: (
     page: {
       evaluate: (fn: (argument: unknown) => unknown, argument: unknown) => Promise<unknown>;
@@ -981,6 +990,139 @@ describe('site translation coverage contract', () => {
     })).toMatchObject({ok: true, production: false});
   });
 
+  it('includes migrated src files in the actual production freshness scan', () => {
+    const projectRoot = mkdtempSync(join(tmpdir(), 'fluentread-freshness-test-'));
+    const extensionDir = join(projectRoot, '.output', 'chrome-mv3');
+    const sourceDir = join(projectRoot, 'src', 'features');
+    try {
+      mkdirSync(extensionDir, {recursive: true});
+      mkdirSync(sourceDir, {recursive: true});
+      const manifest = join(extensionDir, 'manifest.json');
+      const source = join(sourceDir, 'runtime.ts');
+      writeFileSync(manifest, '{}');
+      writeFileSync(source, '// changed runtime');
+      utimesSync(manifest, 100, 100);
+      utimesSync(source, 200, 200);
+      expect(() => assertFreshProductionExtension(extensionDir, projectRoot)).toThrow('拒绝测试旧 production extension');
+      utimesSync(manifest, 300, 300);
+      expect(() => assertFreshProductionExtension(extensionDir, projectRoot)).not.toThrow();
+    } finally {
+      rmSync(projectRoot, {recursive: true, force: true});
+    }
+  });
+
+  it('reveals layout-preserving hidden entrance content before waiting for visibility', async () => {
+    const {document} = parseHTML('<html><body><li hidden><p>Entrance content remains translatable.</p></li></body></html>');
+    const paragraph = document.querySelector('p')!;
+    Object.defineProperty(paragraph, 'getBoundingClientRect', {value: () => ({width: 400, height: 40})});
+    vi.stubGlobal('document', document);
+    vi.stubGlobal('getComputedStyle', () => ({display: 'block', visibility: 'visible'}));
+    let revealed = false;
+    const scroll = vi.fn(async () => {
+      revealed = true;
+      paragraph.parentElement!.removeAttribute('hidden');
+    });
+    const page = {
+      waitForSelector: vi.fn(async () => undefined),
+      evaluate: async (fn: (arg: string) => unknown, arg: string) => fn(arg),
+      waitForFunction: async (fn: (arg: string) => boolean, arg: string) => {
+        expect(revealed).toBe(true);
+        expect(fn(arg)).toBe(true);
+      },
+      locator: () => ({nth: () => ({scrollIntoViewIfNeeded: scroll})}),
+      waitForTimeout: vi.fn(async () => undefined),
+    };
+    try {
+      await waitForStableTarget(page, 'p', 100);
+      expect(scroll).toHaveBeenCalled();
+      expect(document.querySelector('[hidden]')).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('tracks newly revealed descendants when their ancestor loses its hidden attribute', async () => {
+    const {document, window} = parseHTML('<html><body><section hidden><p>Newly revealed prose must be translated during the first pass.</p></section></body></html>');
+    Object.defineProperty(window.HTMLElement.prototype, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({width: 400, height: 40, top: 0, left: 0, right: 400, bottom: 40}),
+    });
+    for (const [key, value] of Object.entries({
+      window, document, Node: window.Node, HTMLElement: window.HTMLElement,
+      HTMLAnchorElement: window.HTMLAnchorElement, MutationObserver: window.MutationObserver,
+      getComputedStyle: () => ({display: 'block', visibility: 'visible'}),
+    })) vi.stubGlobal(key, value);
+    let tracker: {report: () => unknown[]; stop: () => void} | undefined;
+    try {
+      const rules = normalizeCoverageRules([{name: 'prose', selector: 'section p', minInitial: 1, trackDynamic: true}]);
+      await installCoverageTracker({evaluate: async (fn, argument) => fn(argument)}, rules);
+      tracker = (window as unknown as Record<string, typeof tracker>)[COVERAGE_TRACKER_KEY]!;
+      expect(tracker.report()).toContainEqual(expect.objectContaining({seenCount: 0}));
+      document.querySelector('section')!.removeAttribute('hidden');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(tracker.report()).toContainEqual(expect.objectContaining({seenCount: 1, translatedCount: 0}));
+      expect(() => assertCoverageReport(rules, tracker!.report(), 'revealed')).toThrow('仅翻译 0/1');
+      const wrapper = document.createElement('span');
+      wrapper.className = 'fluent-read-bilingual-content';
+      wrapper.textContent = '新揭示正文的译文';
+      document.querySelector('p')!.append(wrapper);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(() => assertCoverageReport(rules, tracker!.report(), 'revealed')).not.toThrow();
+    } finally {
+      tracker?.stop();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('keeps SQLite prose selection stable when bilingual wrappers move syntax labels', () => {
+    const {document} = parseHTML(`<html><body><div class="fancy">
+      <p id="syntax"><b><a href="syntax/select-stmt.html">select-stmt</a>:</b></p>
+      <p id="prose">The SELECT statement is used to query the database.</p>
+      <p id="reference">The <a href="syntax/select-stmt.html">select-stmt</a> diagram explains the grammar.</p>
+    </div></body></html>`);
+    const selector = cases['sqlite-select-language'].hoverSelector;
+    expect([...document.querySelectorAll(selector)].map((node) => node.id)).toEqual(['prose', 'reference']);
+    document.querySelector('#syntax')!.innerHTML = '<span class="fluent-read-original-text"><b><span><a href="syntax/select-stmt.html">select-stmt</a>:</span></b></span><span class="fluent-read-bilingual-content">select-stmt：</span>';
+    expect([...document.querySelectorAll(selector)].map((node) => node.id)).toEqual(['prose', 'reference']);
+  });
+
+  it('captures host MathJax errors only after its existing startup queue completes', async () => {
+    const {document} = parseHTML('<html><body><p id="formula">Raw formula source</p></body></html>');
+    let complete: (() => void) | undefined;
+    const Queue = vi.fn((callback: () => void) => { complete = callback; });
+    vi.stubGlobal('window', {MathJax: {version: '2.7', Hub: {Queue}}});
+    vi.stubGlobal('document', document);
+    const page = {evaluate: (fn: (timeout: number) => unknown, timeout: number) => fn(timeout)};
+    try {
+      const pending = waitForHostMathRendering(page, 1000);
+      expect(Queue).toHaveBeenCalledTimes(1);
+      document.querySelector('#formula')!.innerHTML = '<span class="MathJax_Error" id="math-error">[Math Processing Error]</span>';
+      complete!();
+      await expect(pending).resolves.toEqual({detected: true, version: '2.7', errors: [{id: 'math-error', text: '[Math Processing Error]'}]});
+      expect(Queue.mock.calls[0]).toHaveLength(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('fails boundedly when host MathJax never finishes and skips pages without its queue', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('window', {MathJax: {Hub: {Queue: () => undefined}}});
+    const page = {evaluate: (fn: (timeout: number) => unknown, timeout: number) => fn(timeout)};
+    try {
+      const pending = waitForHostMathRendering(page, 50);
+      const failure = expect(pending).rejects.toThrow('宿主 MathJax 初始排版等待超时');
+      await vi.advanceTimersByTimeAsync(50);
+      await failure;
+      vi.stubGlobal('window', {});
+      await expect(waitForHostMathRendering(page, 50)).resolves.toEqual({detected: false, errors: []});
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('requires every non-optional forbidden selector to exist for required cases', () => {
     const forbidden = ['pre, code', 'svg'];
     expect(resolveForbiddenMustExistSelectors('required', forbidden, ['svg'])).toEqual(forbidden);
@@ -1388,9 +1530,9 @@ describe('real-site translation matrix gates', () => {
 
   it('gives each browser child a bounded multi-stage budget and terminates a hung process', async () => {
     expect(computeJobTimeoutMs(60_000, 'hover')).toBe(5 * 60_000);
-    expect(computeJobTimeoutMs(60_000, 'full')).toBe(12 * 60_000);
+    expect(computeJobTimeoutMs(60_000, 'full')).toBe(30 * 60_000);
     expect(computeJobTimeoutMs(240_000, 'hover')).toBe(8 * 60_000);
-    expect(computeJobTimeoutMs(240_000, 'full')).toBe(17 * 60_000);
+    expect(computeJobTimeoutMs(240_000, 'full')).toBe(37 * 60_000);
     expect(computeJobTimeoutMs(60_000, 'full', 1234)).toBe(1234);
 
     const result = await runChildWithWatchdog(process.execPath, [
@@ -1499,11 +1641,11 @@ describe('real-site translation matrix gates', () => {
     ]);
     expect(cases['brown-pl-introduction'].forbiddenSelectors).toEqual(['table.RktBlk']);
     expect(cases['sqlite-select-language'].hoverSelector).toBe(
-      ".fancy > p:not(:has(> b:first-child > a[href^='syntax/']))",
+      ".fancy > p:not(:has(b a[href^='syntax/']))",
     );
     expect(cases['sqlite-select-language'].coverageRules).toContainEqual(expect.objectContaining({
       name: 'reference-paragraphs',
-      selector: ".fancy > p:not(:has(> b:first-child > a[href^='syntax/']))",
+      selector: ".fancy > p:not(:has(b a[href^='syntax/']))",
       sourceIncludes: ['The SELECT statement is used to query the database.'],
     }));
     expect(cases['learnopengl-coordinate-systems'].forbiddenSelectors).toEqual([

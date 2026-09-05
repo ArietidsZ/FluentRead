@@ -33,12 +33,17 @@
   },
   "github-microsoft-repositories": {
     "url": "https://github.com/orgs/microsoft/repositories?q=TypeScript&type=all&language=&sort=",
-    "hoverSelector": "li:has(a[href='/microsoft/TypeScript']) [itemprop='description']",
-    "requiredSelectors": ["li:has(a[href='/microsoft/TypeScript']) [itemprop='description']"],
+    "hoverSelector": "li:has(a[href='/microsoft/TypeScript']) .repos-list-description",
+    "requiredSelectors": ["li:has(a[href='/microsoft/TypeScript']) .repos-list-description"],
     "coverageRules": [
-      {"name": "typescript-description", "selector": "li:has(a[href='/microsoft/TypeScript']) [itemprop='description']", "kind": "content", "minInitial": 1, "trackDynamic": true, "sourceIncludes": ["TypeScript"]}
+      {"name": "typescript-description", "selector": "li:has(a[href='/microsoft/TypeScript']) .repos-list-description", "kind": "content", "minInitial": 1, "trackDynamic": true, "sourceIncludes": ["TypeScript"]}
     ],
-    "forbiddenSelectors": ["main svg.octicon"],
+    "forbiddenSelectors": [
+      "main svg.octicon",
+      "main [class*='ReposListItem-module__TopicsList']",
+      "main [class*='ReposListItem-module__LabelsContainer']",
+      "main [data-listview-item-visibility-label='true']"
+    ],
     "interactionSelectors": ["main a[href]"],
     "modes": ["hover", "full"],
     "tier": "required",
@@ -252,11 +257,13 @@
     "hoverSelector": ".md-content__inner p",
     "requiredSelectors": [".md-content__inner h1", ".md-content__inner h2", ".md-content__inner p"],
     "coverageRules": [
-      {"name": "page-title", "selector": ".md-content__inner h1", "kind": "heading", "minInitial": 1},
-      {"name": "section-headings", "selector": ".md-content__inner h2", "kind": "heading", "minInitial": 2},
-      {"name": "page-paragraphs", "selector": ".md-content__inner p", "kind": "content", "minInitial": 3}
+      {"name": "page-title", "selector": ".md-content__inner h1", "kind": "heading", "minInitial": 1, "trackDynamic": true},
+      {"name": "section-headings", "selector": ".md-content__inner h2", "kind": "heading", "minInitial": 2, "trackDynamic": true},
+      {"name": "page-paragraphs", "selector": ".md-content__inner p", "kind": "content", "minInitial": 3, "trackDynamic": true}
     ],
-    "forbiddenSelectors": [".md-content__inner pre, .md-content__inner code"],
+    "forbiddenSelectors": [".md-content__inner svg", ".md-content__inner pre, .md-content__inner code"],
+    "optionalForbiddenSelectors": [".md-content__inner pre, .md-content__inner code"],
+    "notes": "首页为带入场动画的嵌套滚动营销页，保护实际存在的 SVG 图标；当前没有代码块，仍保留代码保护作为出现时必须验证的可选区域。",
     "interactionSelectors": [".md-content__inner a[href]"],
     "scrollContainer": ".mdx-parallax",
     "modes": ["hover", "full"],
@@ -291,7 +298,7 @@
       {"name": "section-headings", "selector": "main h2", "kind": "heading", "minInitial": 1, "trackDynamic": true},
       {"name": "roadmap-paragraphs", "selector": "main p", "kind": "content", "minInitial": 3, "trackDynamic": true}
     ],
-    "forbiddenSelectors": ["header svg"],
+    "forbiddenSelectors": ["a[aria-label='Roadmap Logo'] svg"],
     "interactionSelectors": ["main a[href]"],
     "modes": ["hover", "full"],
     "tier": "required",
@@ -463,8 +470,8 @@
     "selector": "p",
     "requiredSelectors": ["p"],
     "coverageRules": [
-      {"name": "example-title", "selector": "main h1", "kind": "heading", "minInitial": 1, "sourceIncludes": ["Example Domain"]},
-      {"name": "example-paragraphs", "selector": "main p", "kind": "content", "minInitial": 2}
+      {"name": "example-title", "selector": "body h1", "kind": "heading", "minInitial": 1, "sourceIncludes": ["Example Domain"]},
+      {"name": "example-paragraphs", "selector": "body p", "kind": "content", "minInitial": 2}
     ],
     "forbiddenSelectors": ["head meta[name=viewport]"],
     "interactionSelectors": ["main a[href], body a[href]"],
@@ -673,12 +680,12 @@
   },
   "sqlite-select-language": {
     "url": "https://www.sqlite.org/lang_select.html",
-    "hoverSelector": ".fancy > p:not(:has(> b:first-child > a[href^='syntax/']))",
-    "requiredSelectors": [".fancy > h1", ".fancy > h2", ".fancy > p:not(:has(> b:first-child > a[href^='syntax/']))"],
+    "hoverSelector": ".fancy > p:not(:has(b a[href^='syntax/']))",
+    "requiredSelectors": [".fancy > h1", ".fancy > h2", ".fancy > p:not(:has(b a[href^='syntax/']))"],
     "coverageRules": [
       {"name": "major-sections", "selector": ".fancy > h1", "kind": "heading", "minInitial": 8, "sourceIncludes": ["Overview"]},
       {"name": "subsections", "selector": ".fancy > h2", "kind": "heading", "minInitial": 8},
-      {"name": "reference-paragraphs", "selector": ".fancy > p:not(:has(> b:first-child > a[href^='syntax/']))", "kind": "content", "minInitial": 30, "sourceIncludes": ["The SELECT statement is used to query the database."]}
+      {"name": "reference-paragraphs", "selector": ".fancy > p:not(:has(b a[href^='syntax/']))", "kind": "content", "minInitial": 30, "sourceIncludes": ["The SELECT statement is used to query the database."]}
     ],
     "forbiddenSelectors": [".fancy svg, .fancy pre"],
     "interactionSelectors": [".fancy a[href]"],
@@ -690,11 +697,11 @@
     "service": "freeTranslation"
   },
   "git-book-version-control": {
-    "url": "https://git-scm.com/book/en/v2/Getting-Started-About-Version-Control",
+    "url": "https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository",
     "hoverSelector": "#main p",
     "requiredSelectors": ["#main h1", "#main h2", "#main h3", "#main p"],
     "coverageRules": [
-      {"name": "chapter-title", "selector": "#main h1", "kind": "heading", "minInitial": 1, "sourceIncludes": ["About Version Control"]},
+      {"name": "chapter-title", "selector": "#main h1", "kind": "heading", "minInitial": 1, "sourceIncludes": ["Recording Changes to the Repository"]},
       {"name": "section-heading", "selector": "#main h2", "kind": "heading", "minInitial": 1},
       {"name": "subsection-headings", "selector": "#main h3", "kind": "heading", "minInitial": 3},
       {"name": "chapter-paragraphs", "selector": "#main p", "kind": "content", "minInitial": 8}
@@ -703,7 +710,7 @@
     "interactionSelectors": ["#main a[href]"],
     "modes": ["hover", "full"],
     "tier": "required",
-    "notes": "Pro Git 官方静态章节；覆盖层级标题、长段落和图片说明周围的正文。",
+    "notes": "Pro Git 官方静态章节；原 About Version Control 章节没有代码，改用 Recording Changes to the Repository，保留多级标题、长段落与真实代码块保护的完整要求。",
     "hoverHotkey": "Control",
     "fullPageHotkey": "Alt+T",
     "service": "freeTranslation"

@@ -180,6 +180,7 @@
       "tests/mainWorldBridgeCore.test.ts",
       "tests/serializationPerformance.test.ts",
       "tests/siteTranslationHarness.test.ts",
+      "tests/siteTranslationIdle.test.ts",
       "tests/translationDocumentCorpus.test.ts",
       "tests/translationTruncation.test.ts",
       "tests/userscriptCredentialPersistence.test.ts",

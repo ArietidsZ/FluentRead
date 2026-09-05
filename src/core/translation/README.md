@@ -43,8 +43,10 @@ and `omitFromTranslation` for metadata that must also be absent from the bilingu
 copy. The original page node remains untouched in both cases. Icon-font glyphs
 are excluded from provider input and bilingual copies based on their live primary
 font family; ordinary prose with an icon font only in its fallback list is kept.
-Code blocks remain protected, except for the browser's direct body `pre` in a
-`text/plain` document, where that element is the readable document itself.
+Scribble/Racket code tables marked `table.RktBlk` are protected as code, while
+ordinary tables and prose remain eligible. Code blocks remain protected, except
+for the browser's direct body `pre` in a `text/plain` document, where that element
+is the readable document itself.
 
 Every accepted candidate includes a reason and optional adapter id. This keeps
 hover/full equality and adapter precedence directly testable without starting a
