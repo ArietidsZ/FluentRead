@@ -211,7 +211,7 @@ describe('本地 AI 完整生成控制器的安全边界', () => {
 
     expect(controller.getPhase()).toBe('ready');
     expect(fetch).toHaveBeenCalledWith('data:video/webm;base64,fixture', expect.objectContaining({
-      credentials: 'include',
+      credentials: 'same-origin',
     }));
     expect(transcribe).toHaveBeenCalledTimes(1);
     expect(onTranscriptionComplete).toHaveBeenCalledTimes(1);

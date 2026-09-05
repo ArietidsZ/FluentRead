@@ -482,9 +482,9 @@
       </div>
 
       <div v-else-if="activeDrawer === 'video'" class="drawer-content">
-        <div class="video-info-banner"><span class="feature-icon teal">CC</span><span><strong>FluentRead · YouTube 字幕翻译</strong><small>只处理播放器已经提供的字幕文本</small></span></div>
+        <div class="video-info-banner"><span class="feature-icon teal">CC</span><span><strong>FluentRead · 视频字幕翻译</strong><small>支持 YouTube/X 原生字幕；X 无字幕时可用本地 AI 生成</small></span></div>
         <div class="setting-row video-enable-row" :class="{ 'needs-enable': !config.videoTranslationEnabled }">
-          <span><strong>{{ config.videoTranslationEnabled ? '视频字幕翻译已开启' : '开启字幕翻译' }}</strong><small>{{ config.videoTranslationEnabled ? '正在 YouTube 原生字幕下方显示中文译文' : '点击右侧开关，在 YouTube 播放器中显示中文译文' }}</small></span>
+          <span><strong>{{ config.videoTranslationEnabled ? '视频字幕翻译已开启' : '开启字幕翻译' }}</strong><small>{{ config.videoTranslationEnabled ? '正在播放器中显示 FluentRead 中文译文' : '点击右侧开关，在 YouTube/X 播放器中显示中文译文' }}</small></span>
           <button class="switch compact" type="button" role="switch" :aria-checked="config.videoTranslationEnabled" aria-label="启用或关闭视频字幕翻译" @click="setVideoTranslationEnabled(!config.videoTranslationEnabled)"><i /></button>
         </div>
         <label class="select-row">
@@ -494,13 +494,16 @@
             <option v-for="item in videoServiceOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
           </select>
         </label>
-        <label class="select-row">
-          <span><strong>本地 AI 字幕模型</strong><small>X 没有原生字幕时使用；首次请求前下载并缓存</small></span>
-          <select v-model="config.videoLocalModel" :disabled="!config.videoTranslationEnabled">
-            <option v-for="item in videoLocalModelOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-          </select>
-        </label>
-        <button class="video-model-settings-link" type="button" @click="openOptions('settings-video')">下载或管理 Tiny / Base 模型 →</button>
+        <template v-if="browserCapabilities.offscreenDocument">
+          <label class="select-row">
+            <span><strong>本地 AI 字幕模型</strong><small>X 没有原生字幕时使用；首次请求前下载并缓存</small></span>
+            <select v-model="config.videoLocalModel" :disabled="!config.videoTranslationEnabled">
+              <option v-for="item in videoLocalModelOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
+          </label>
+          <button class="video-model-settings-link" type="button" @click="openOptions('settings-video')">下载或管理 Tiny / Base 模型 →</button>
+        </template>
+        <small v-else class="drawer-hint capability-warning">当前浏览器不支持 X 本地 AI 字幕，视频原生字幕翻译仍可使用。</small>
         <small v-if="selectedVideoServiceUnavailableMessage" class="drawer-hint capability-warning">{{ selectedVideoServiceUnavailableMessage }}</small>
         <label class="select-row">
           <span><strong>字幕字号</strong><small>只调整 FluentRead 显示的原文和译文</small></span>
@@ -508,7 +511,7 @@
             <option v-for="size in videoSubtitleFontSizeOptions" :key="size" :value="size">{{ size === 100 ? '默认' : `${size}%` }}</option>
           </select>
         </label>
-        <small class="drawer-hint">目前支持 YouTube；播放器内会显示 FluentRead 图标，可切换字幕模式、显示状态，并分别下载原文或译文 SRT。视频默认使用微软翻译；AI 服务会提前预取字幕，如切换 DeepLX，可在完整设置中配置服务地址。</small>
+        <small class="drawer-hint">支持 YouTube/X；可切换字幕模式、显示状态，并分别下载原文或译文 SRT。YouTube 使用原生字幕，X 可读取原生字幕或请求本地 AI 生成。</small>
       </div>
 
       <div v-else class="drawer-content">

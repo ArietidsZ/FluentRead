@@ -56,7 +56,7 @@ const report = {mediaMode,model,lines,displayMode,startPlaying,earlyHls,errors:[
 async function main() {
  browser = await helper.launchFocusSafePersistentContext({chromium,profileDir:profile,browserPath:'/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',headless:false,background:true,displayTarget:'secondary',browserArgs:[`--disable-extensions-except=${extensionDir}`,`--load-extension=${extensionDir}`,'--autoplay-policy=no-user-gesture-required','--no-first-run','--no-default-browser-check'],viewport:{width:1280,height:900}});
  const context = browser.context;
- context.on('page', p => {p.on('pageerror', e => report.errors.push(e.message)); p.on('console',m => { if(m.type()==='error'||m.type()==='warning') report.console.push(m.text()); });});
+ context.on('page', p => {p.on('pageerror', e => report.errors.push(e.message)); p.on('console',m => { if(m.type()==='error'||m.type()==='warning'||m.text().includes('[FluentRead] X audio fast decode unavailable')) report.console.push(m.text()); });});
  await context.route('https://video.twimg.com/**', async route => {
    const name = new URL(route.request().url()).pathname.split('/').at(-1);
    report.requests.push({name,at:Date.now()});
@@ -141,7 +141,7 @@ async function main() {
    report.generatedInInactiveTab=await control.evaluate(async()=>!(await chrome.tabs.query({url:'https://x.com/cerebras/status/2089870131291943228'}))[0].active);
    assert.equal(report.generatedInInactiveTab,true);
  }
- await page.waitForFunction(()=>{const text=document.querySelector('[data-action="toggle-ai-subtitle"] [data-state]')?.textContent||'';if(/失败|超时|格式暂不支持|无法|不支持|Model|Error/.test(text))throw new Error(text);return text.includes('已就绪');},{},{timeout:120000});
+ await page.waitForFunction(()=>{const action=document.querySelector('[data-action="toggle-ai-subtitle"]');const text=action?.querySelector('[data-state]')?.textContent||'';if(action?.title)throw new Error(action.title);return text.includes('已就绪');},{},{timeout:120000});
  report.generationMs=Date.now()-began;
  await helper.activateExtensionTabWithoutForeground(context,page);
  if(nativeTrack) assert.equal(await page.evaluate(()=>window.proofTrack.mode),'hidden','native rendering is hidden during AI takeover');
@@ -175,7 +175,7 @@ async function main() {
    await secondPage.waitForSelector('#fluent-read-video-subtitle-button',{timeout:15000});
    await secondPage.locator('#fluent-read-video-subtitle-button').click({force:true});
    await secondPage.locator('[data-action="toggle-ai-subtitle"]').click({force:true});
-   await secondPage.waitForFunction(()=>{const text=document.querySelector('[data-action="toggle-ai-subtitle"] [data-state]')?.textContent||'';if(/失败|超时|格式暂不支持|无法|不支持|Model|Error/.test(text))throw new Error(text);return text.includes('已就绪');},{},{timeout:120000});
+   await secondPage.waitForFunction(()=>{const action=document.querySelector('[data-action="toggle-ai-subtitle"]');const text=action?.querySelector('[data-state]')?.textContent||'';if(action?.title)throw new Error(action.title);return text.includes('已就绪');},{},{timeout:120000});
    const secondReady=await secondPage.evaluate(()=>({
      state:document.querySelector('[data-action="toggle-ai-subtitle"] [data-state]')?.textContent||'',
      text:document.getElementById('fluent-read-video-subtitle-original')?.textContent||'',

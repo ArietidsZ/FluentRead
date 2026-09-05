@@ -207,6 +207,7 @@ async function main() {
     browserPath,
     headless: false,
     background: true,
+    displayTarget: 'secondary',
     browserArgs: [
       `--disable-extensions-except=${extensionDir}`,
       `--load-extension=${extensionDir}`,
@@ -441,7 +442,7 @@ async function main() {
     await control.locator('[data-feature="video-subtitle"]').click();
     await control.waitForFunction(() => Boolean([...document.querySelectorAll('.drawer-content')].find((node) => node.textContent?.includes('视频翻译服务'))), null, { timeout: 10000 });
     const popupDrawerDescription = await control.locator('.video-info-banner small').textContent();
-    if (popupDrawerDescription?.trim() !== '只处理播放器已经提供的字幕文本' || /beta|测试版/iu.test(popupDrawerDescription)) {
+    if (popupDrawerDescription?.trim() !== '支持 YouTube/X 原生字幕；X 无字幕时可用本地 AI 生成' || /beta|测试版/iu.test(popupDrawerDescription)) {
       throw new Error(`Popup 视频字幕抽屉去 Beta 标识校验失败：${popupDrawerDescription}`);
     }
     const popupVideoServiceOptions = await control.locator('.drawer-content .select-row select option').allTextContents();

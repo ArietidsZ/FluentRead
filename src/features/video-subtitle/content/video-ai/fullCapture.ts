@@ -311,7 +311,8 @@ export class VideoAiFullCaptureController {
     this.requested = true;
     this.error = '';
     this.phase = 'capturing';
-    this.audioAbortController = new AbortController();
+    const audioAbortController = new AbortController();
+    this.audioAbortController = audioAbortController;
     this.resetAudio();
     this.expectedDurationMs = Number.isFinite(video.duration) && video.duration > 0
       ? Math.min(FULL_MAX_DURATION_MS, video.duration * 1_000)
@@ -327,7 +328,7 @@ export class VideoAiFullCaptureController {
       windowCount: 0,
     });
 
-    void this.startAudioGraph(video, captureStream || legacyCaptureStream, AudioContextClass, session, this.audioAbortController.signal)
+    void this.startAudioGraph(video, captureStream || legacyCaptureStream, AudioContextClass, session, audioAbortController.signal)
       .catch((error) => {
         if (session === this.session) this.fail(toError(error, '本地视频完整 AI 字幕启动失败'));
       });
@@ -396,10 +397,12 @@ export class VideoAiFullCaptureController {
     let createdContext: AudioContext | null = null;
     let scanVideo: HTMLVideoElement | null = null;
     try {
+      if (!this.isCurrentSession(session)) return;
       // 模型预热与媒体解码/扫描并行。对于可直接读取的 data/blob 媒体，
       // 后面的 fast path 会跳过 1x 播放；对 X MediaSource 仍自动回退到
       // captureStream，不改变它原本的时间轴和兼容性。
       this.options.onSessionStart?.(session);
+      if (!this.isCurrentSession(session) || signal.aborted) return;
       const customAudio = this.options.getAudio
         ? await this.options.getAudio(video, signal)
         : null;
@@ -407,6 +410,7 @@ export class VideoAiFullCaptureController {
       const fastAudio = (customAudio && customAudio.length > 0)
         ? customAudio
         : await this.tryFastDecodeAudio(video, session, signal);
+      if (!this.isCurrentSession(session)) return;
       if (fastAudio) {
         this.audioBlocks = [fastAudio];
         this.audioBlocksStartSample = 0;
@@ -434,6 +438,7 @@ export class VideoAiFullCaptureController {
           ? await this.options.getIsolatedVideo(video, session) || await this.createScanVideo(video, session)
           : await this.createScanVideo(video, session);
         scanVideo = audioVideo;
+        if (!this.isCurrentSession(session) || signal.aborted) throw new Error(FULL_CANCELLED_ERROR);
         this.scanVideo = audioVideo;
       } catch (scanError) {
         // 完整模式不能接管可见 video，否则会改写用户的暂停、seek、倍速
@@ -566,12 +571,15 @@ export class VideoAiFullCaptureController {
       if (createdContext && createdContext.state !== 'closed') {
         void createdContext.close().catch(() => undefined);
       }
-      if (scanVideo) {
+      const scanVideoWasReusedByNewerSession = scanVideo
+        && this.scanVideo === scanVideo
+        && session !== this.session;
+      if (scanVideo && !scanVideoWasReusedByNewerSession) {
         try { scanVideo.pause(); } catch { /* 副本可能尚未完成加载。 */ }
         try { scanVideo.srcObject = null; } catch { /* 只读包装播放器忽略。 */ }
         scanVideo.remove();
       }
-      if (this.scanVideo === scanVideo) this.scanVideo = null;
+      if (this.scanVideo === scanVideo && session === this.session) this.scanVideo = null;
       throw error;
     }
   }
@@ -600,7 +608,8 @@ export class VideoAiFullCaptureController {
         FULL_FAST_DECODE_FETCH_TIMEOUT_MS,
       );
       const response = await fetch(source, {
-        credentials: 'include',
+        // X 媒体 CDN 使用匿名 CORS；跨域强带凭证会让可解码的 MP4 被浏览器拒绝。
+        credentials: 'same-origin',
         signal: fetchController.signal,
       });
       if (!response.ok) return null;
@@ -707,7 +716,7 @@ export class VideoAiFullCaptureController {
   }
 
   private async finishCapture(session: number): Promise<void> {
-    // 两个调用方都在同一同步任务中校验采集代际；异步结果在 await 后再次校验。
+    if (!this.isCurrentSession(session) || this.phase !== 'capturing') return;
     this.clearFinalizeTimer();
     this.stopAudioGraph();
     const capturedSamples = this.audioBlocksStartSample + this.bufferedSamples;
@@ -731,6 +740,7 @@ export class VideoAiFullCaptureController {
       windowIndex: 0,
       windowCount: this.fullWindowCount,
     });
+    if (!this.isCurrentSession(session) || this.phase !== 'transcribing') return;
 
     try {
       await transcriptionChain!;
@@ -756,6 +766,7 @@ export class VideoAiFullCaptureController {
         windowCount: this.fullWindowCount,
         transcribedMs: capturedDurationMs,
       });
+      if (!this.isCurrentSession(session) || this.phase !== 'translating') return;
       await this.options.onTranscriptionComplete(cues, session);
       if (!this.isCurrentSession(session)) throw new Error(FULL_CANCELLED_ERROR);
 
@@ -767,13 +778,14 @@ export class VideoAiFullCaptureController {
         windowCount: this.fullWindowCount,
         transcribedMs: capturedDurationMs,
       });
+      if (!this.isCurrentSession(session) || this.phase !== 'ready') return;
       this.releaseAudioBuffers();
       this.options.onStateChange();
     } catch (error) {
       if (!this.isCurrentSession(session)) return;
       this.fail(toError(error, '本地视频完整 AI 字幕失败'));
     } finally {
-      this.releaseAudioBuffers();
+      if (session === this.session) this.releaseAudioBuffers();
     }
   }
 
@@ -864,6 +876,7 @@ export class VideoAiFullCaptureController {
    * 链。这样识别时间和后续扫描重叠，但不会创建第二个 Whisper session。
    */
   private queueAvailableFullTranscriptionWindows(session: number, forceTail = false): void {
+    if (!this.isCurrentSession(session) || this.phase !== 'capturing') return;
     if (this.fullWindowLengthMs <= 0) {
       this.fullWindowLengthMs = getWindowLengthMs(this.options.getModel());
       this.fullWindowStepMs = Math.max(
@@ -885,9 +898,10 @@ export class VideoAiFullCaptureController {
       this.fullTranscriptionChain = previous
         .then(() => this.transcribeFullAudioWindow(window, sequence, session))
         .catch((error) => {
+          if (!this.isCurrentSession(session)) return;
           const normalized = toError(error, '本地视频完整 AI 字幕失败');
           this.fullTranscriptionError ||= normalized;
-          if (this.isCurrentSession(session)) this.fail(normalized);
+          this.fail(normalized);
         });
     };
 

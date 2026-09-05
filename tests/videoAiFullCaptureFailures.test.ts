@@ -1,5 +1,5 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {VideoAiFullCaptureController} from '@/src/features/video-subtitle/content/video-ai/fullCapture';
+import {VideoAiFullCaptureController, type VideoAiFullCaptureProgress} from '@/src/features/video-subtitle/content/video-ai/fullCapture';
 import type {VideoAiAudioChunk} from '@/src/features/video-subtitle/content/video-ai/capture';
 
 class FakeNode {
@@ -32,6 +32,7 @@ class FakeAudioContext {
   static instances: FakeAudioContext[] = [];
   static throwDisconnect = false;
   static throwDecode = false;
+  static decodeResults: Array<AudioBuffer | Promise<AudioBuffer>> = [];
   static throwMediaElement = false;
   static decodeResult: {numberOfChannels: number; sampleRate: number; getChannelData: (index: number) => Float32Array} = {
     numberOfChannels: 1,
@@ -54,6 +55,8 @@ class FakeAudioContext {
   createGain(): GainNode { return this.gain as unknown as GainNode; }
   async decodeAudioData(): Promise<AudioBuffer> {
     if (FakeAudioContext.throwDecode) throw new Error('decode failed');
+    const next = FakeAudioContext.decodeResults.shift();
+    if (next) return await next;
     return FakeAudioContext.decodeResult as unknown as AudioBuffer;
   }
   async resume(): Promise<void> {}
@@ -173,8 +176,9 @@ function makeInjectedController(options: {
   transcribe?: (chunk: VideoAiAudioChunk) => Promise<Record<string, unknown>>;
   onComplete?: (cues: unknown[], session: number) => Promise<void>;
   onError?: (error: Error) => void;
-  onProgress?: (progress: {phase: string; transcribedMs: number}) => void;
+  onProgress?: (progress: VideoAiFullCaptureProgress) => void;
   onInvalidate?: (reason: 'cancel' | 'error' | 'destroy', session: number) => void;
+  onSessionStart?: (session: number) => void;
 } = {}): VideoAiFullCaptureController {
   const video = new FakeVideo();
   return new VideoAiFullCaptureController({
@@ -191,14 +195,17 @@ function makeInjectedController(options: {
     onStateChange: vi.fn(),
     onProgress: options.onProgress,
     onInvalidate: options.onInvalidate,
+    onSessionStart: options.onSessionStart,
   });
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   FakeAudioContext.instances = [];
   FakeAudioContext.throwDisconnect = false;
   FakeAudioContext.throwDecode = false;
   FakeAudioContext.throwMediaElement = false;
+  FakeAudioContext.decodeResults = [];
   FakeAudioContext.decodeResult = {
     numberOfChannels: 1,
     sampleRate: 16_000,
@@ -316,6 +323,40 @@ describe('完整 AI 字幕失败与取消边界', () => {
     expect(scanVideo.removed).toBe(true);
   });
 
+  it('旧 session 返回被新 session 复用的 scan element 时不移除新图', async () => {
+    const sourceVideo = new FakeVideo();
+    const scanVideo = new FakeVideo();
+    installScanDom(scanVideo);
+    let resolveFirst!: (value: HTMLVideoElement) => void;
+    const firstIsolated = new Promise<HTMLVideoElement>(resolve => { resolveFirst = resolve; });
+    let isolatedCalls = 0;
+    const controller = new VideoAiFullCaptureController({
+      getVideo: () => sourceVideo as unknown as HTMLVideoElement,
+      getIsolatedVideo: async () => {
+        isolatedCalls += 1;
+        return isolatedCalls === 1 ? firstIsolated : scanVideo as unknown as HTMLVideoElement;
+      },
+      getModel: () => 'tiny',
+      isSupported: () => true,
+      transcribe: async () => ({text: 'unused'}),
+      onTranscriptionComplete: async () => undefined,
+      onError: vi.fn(),
+      onStateChange: vi.fn(),
+    });
+
+    expect(controller.start()).toBe(true);
+    await tick(20);
+    controller.cancel();
+    expect(controller.start()).toBe(true);
+    await tick(30);
+    expect(controller.getPhase()).toBe('capturing');
+    resolveFirst(scanVideo as unknown as HTMLVideoElement);
+    await tick(30);
+    expect(scanVideo.removed).toBe(false);
+    expect(controller.getPhase()).toBe('capturing');
+    controller.cancel();
+  });
+
   it('快速解码返回空 PCM 或抛出异常时回退到隐藏扫描路径', async () => {
     for (const decodeResult of [
       {numberOfChannels: 0, sampleRate: 16_000, getChannelData: () => new Float32Array()},
@@ -380,6 +421,90 @@ describe('完整 AI 字幕失败与取消边界', () => {
     expect(controller.isRequested()).toBe(false);
   });
 
+  it('旧 session 的延迟快速解码返回不会覆盖 cancel + restart 后的新状态', async () => {
+    installCustomAudioWindow();
+    const sourceVideo = new FakeVideo();
+    sourceVideo.duration = 1;
+    const speech = {
+      numberOfChannels: 1,
+      sampleRate: 16_000,
+      getChannelData: () => speechAudio(1_000),
+    } as unknown as AudioBuffer;
+    let resolveFirst!: (value: AudioBuffer) => void;
+    const firstDecode = new Promise<AudioBuffer>(resolve => { resolveFirst = resolve; });
+    FakeAudioContext.decodeResults = [firstDecode, speech];
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      headers: {get: () => null},
+      arrayBuffer: async () => new ArrayBuffer(8),
+    })));
+    const transcribe = vi.fn(async () => ({
+      text: 'The restarted decode state survives.',
+      segments: [{startMs: 0, endMs: 900, text: 'The restarted decode state survives.'}],
+    }));
+    const controller = new VideoAiFullCaptureController({
+      getVideo: () => sourceVideo as unknown as HTMLVideoElement,
+      getModel: () => 'tiny',
+      isSupported: () => true,
+      transcribe,
+      onTranscriptionComplete: async () => undefined,
+      onError: (error) => { throw error; },
+      onStateChange: vi.fn(),
+    });
+
+    expect(controller.start()).toBe(true);
+    await tick(20);
+    controller.cancel();
+    expect(controller.start()).toBe(true);
+    await tick(40);
+    expect(controller.getPhase()).toBe('ready');
+    const progressBeforeLateDecode = controller.getProgress();
+    resolveFirst(speech);
+    await tick(40);
+    expect(controller.getPhase()).toBe('ready');
+    expect(controller.getProgress().phase).toBe(progressBeforeLateDecode.phase);
+    expect(transcribe).toHaveBeenCalledTimes(1);
+    controller.destroy();
+  });
+
+  it('fast decode capturing 进度同步取消时不会进入旧 finishCapture', async () => {
+    installCustomAudioWindow();
+    let now = 0;
+    vi.spyOn(globalThis.performance, 'now').mockImplementation(() => { now += 300; return now; });
+    const sourceVideo = new FakeVideo();
+    sourceVideo.duration = 1;
+    const speech = {
+      numberOfChannels: 1,
+      sampleRate: 16_000,
+      getChannelData: () => speechAudio(1_000),
+    } as unknown as AudioBuffer;
+    FakeAudioContext.decodeResults = [speech];
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      headers: {get: () => null},
+      arrayBuffer: async () => new ArrayBuffer(8),
+    })));
+    let controller!: VideoAiFullCaptureController;
+    const transcribe = vi.fn(async () => ({text: 'must not run'}));
+    controller = new VideoAiFullCaptureController({
+      getVideo: () => sourceVideo as unknown as HTMLVideoElement,
+      getModel: () => 'tiny',
+      isSupported: () => true,
+      transcribe,
+      onTranscriptionComplete: async () => undefined,
+      onProgress: (progress) => {
+        if (progress.phase === 'capturing' && progress.captureMode === 'fast-decode') controller.cancel();
+      },
+      onError: vi.fn(),
+      onStateChange: vi.fn(),
+    });
+    expect(() => controller.start()).not.toThrow();
+    await tick(40);
+    expect(controller.getPhase()).toBe('idle');
+    expect(controller.isRequested()).toBe(false);
+    expect(transcribe).not.toHaveBeenCalled();
+  });
+
   it('识别完成但没有可读 cue 时进入错误态', async () => {
     installCustomAudioWindow();
     const onError = vi.fn();
@@ -437,6 +562,176 @@ describe('完整 AI 字幕失败与取消边界', () => {
     await tick(50);
     expect(controller.getPhase()).toBe('idle');
     expect(controller.isRequested()).toBe(false);
+  });
+
+  it('translating 进度回调同步取消时不会调用完成回调', async () => {
+    installCustomAudioWindow();
+    let controller!: VideoAiFullCaptureController;
+    const onComplete = vi.fn(async () => undefined);
+    controller = makeInjectedController({
+      onProgress: (progress) => {
+        if (progress.phase === 'translating') controller.cancel();
+      },
+      onComplete,
+    });
+    expect(controller.start()).toBe(true);
+    await tick(50);
+    expect(controller.getPhase()).toBe('idle');
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it('ready 进度回调同步取消时不会释放或通知旧 session 状态', async () => {
+    installCustomAudioWindow();
+    let controller!: VideoAiFullCaptureController;
+    const onStateChange = vi.fn();
+    const sourceVideo = new FakeVideo();
+    const controllerInstance = new VideoAiFullCaptureController({
+      getVideo: () => sourceVideo as unknown as HTMLVideoElement,
+      getAudio: async () => speechAudio(),
+      getModel: () => 'tiny',
+      isSupported: () => true,
+      transcribe: async () => ({
+        text: 'Ready callback sentence.',
+        segments: [{startMs: 0, endMs: 900, text: 'Ready callback sentence.'}],
+      }),
+      onTranscriptionComplete: async () => undefined,
+      onProgress: (progress) => {
+        if (progress.phase === 'ready') controller.cancel();
+      },
+      onError: (error) => { throw error; },
+      onStateChange,
+    });
+    controller = controllerInstance;
+    expect(controller.start()).toBe(true);
+    await tick(50);
+    expect(controller.getPhase()).toBe('idle');
+    expect(controller.isRequested()).toBe(false);
+  });
+
+  it('初始进度回调同步取消时不会访问已清空的 abort controller', async () => {
+    installCustomAudioWindow();
+    let controller!: VideoAiFullCaptureController;
+    let firstProgress = true;
+    controller = makeInjectedController({
+      onProgress: () => {
+        if (!firstProgress) return;
+        firstProgress = false;
+        controller.cancel();
+      },
+    });
+    expect(() => controller.start()).not.toThrow();
+    await tick(30);
+    expect(controller.getPhase()).toBe('idle');
+    expect(controller.isRequested()).toBe(false);
+  });
+
+  it('onSessionStart 同步取消时不会继续调用音频读取器', async () => {
+    installCustomAudioWindow();
+    let controller!: VideoAiFullCaptureController;
+    const getAudio = vi.fn(async () => speechAudio());
+    controller = makeInjectedController({
+      onSessionStart: () => controller.cancel(),
+    });
+    // Replace the injected reader through a direct controller to observe that
+    // cancellation is checked before the optional audio source is awaited.
+    controller = new VideoAiFullCaptureController({
+      getVideo: () => new FakeVideo() as unknown as HTMLVideoElement,
+      getAudio,
+      getModel: () => 'tiny',
+      isSupported: () => true,
+      transcribe: async () => ({text: 'unused'}),
+      onTranscriptionComplete: async () => undefined,
+      onSessionStart: () => controller.cancel(),
+      onError: vi.fn(),
+      onStateChange: vi.fn(),
+    });
+    expect(() => controller.start()).not.toThrow();
+    await tick(30);
+    expect(getAudio).not.toHaveBeenCalled();
+    expect(controller.getPhase()).toBe('idle');
+  });
+
+  it('旧 session 的 finish finally 不会清空重启后的扫描 PCM', async () => {
+    vi.useFakeTimers();
+    const sourceVideo = new FakeVideo();
+    const scanVideo = new FakeVideo();
+    installScanDom(scanVideo);
+    let audioCalls = 0;
+    let transcribeCalls = 0;
+    let resolveFirst!: (value: Record<string, unknown>) => void;
+    const firstResult = new Promise<Record<string, unknown>>(resolve => { resolveFirst = resolve; });
+    const chunks: VideoAiAudioChunk[] = [];
+    const controller = new VideoAiFullCaptureController({
+      getVideo: () => sourceVideo as unknown as HTMLVideoElement,
+      getAudio: async () => {
+        audioCalls += 1;
+        return audioCalls === 1 ? speechAudio() : null;
+      },
+      getModel: () => 'tiny',
+      isSupported: () => true,
+      transcribe: async (chunk) => {
+        transcribeCalls += 1;
+        chunks.push(chunk);
+        if (transcribeCalls === 1) return firstResult;
+        return {text: 'The restarted scan survives.', segments: [{startMs: 0, endMs: 900, text: 'The restarted scan survives.'}]};
+      },
+      onTranscriptionComplete: async () => undefined,
+      onError: (error) => { throw error; },
+      onStateChange: vi.fn(),
+    });
+
+    expect(controller.start()).toBe(true);
+    await tick(30);
+    expect(transcribeCalls).toBe(1);
+    controller.cancel();
+    expect(controller.start()).toBe(true);
+    await tick(30);
+    const processor = FakeAudioContext.instances.at(-1)!.processor;
+    scanVideo.currentTime = 9;
+    processor.emit(speechAudio(9_000));
+    resolveFirst({text: 'The old scan result.', segments: [{startMs: 0, endMs: 900, text: 'The old scan result.'}]});
+    await tick(30);
+    scanVideo.currentTime = 11;
+    processor.emit(speechAudio(2_000));
+    scanVideo.ended = true;
+    scanVideo.emit('ended');
+    vi.advanceTimersByTime(420);
+    await tick(80);
+
+    expect(controller.getPhase()).toBe('ready');
+    const restartedChunk = chunks.find(chunk => chunk.sessionId === controller.getSessionId());
+    expect(restartedChunk).toBeTruthy();
+    expect(restartedChunk!.durationMs).toBeGreaterThanOrEqual(10_000);
+    controller.destroy();
+  });
+
+  it('旧 session 的 queue 错误不会污染重启后的 fullTranscriptionError', async () => {
+    installCustomAudioWindow();
+    let transcribeCalls = 0;
+    let rejectFirst!: (error: Error) => void;
+    let resolveSecond!: (value: Record<string, unknown>) => void;
+    const firstResult = new Promise<Record<string, unknown>>((_resolve, reject) => { rejectFirst = reject; });
+    const secondResult = new Promise<Record<string, unknown>>(resolve => { resolveSecond = resolve; });
+    const controller = makeInjectedController({
+      transcribe: async () => {
+        transcribeCalls += 1;
+        return transcribeCalls === 1 ? firstResult : secondResult;
+      },
+      onError: (error) => { throw error; },
+    });
+
+    expect(controller.start()).toBe(true);
+    await tick(30);
+    controller.cancel();
+    expect(controller.start()).toBe(true);
+    await tick(30);
+    expect(transcribeCalls).toBe(2);
+    rejectFirst(new Error('old session failed'));
+    await tick(30);
+    resolveSecond({text: 'The new session succeeds.', segments: [{startMs: 0, endMs: 900, text: 'The new session succeeds.'}]});
+    await tick(60);
+    expect(controller.getPhase()).toBe('ready');
+    controller.destroy();
   });
 
   it('窗口识别失败时进入错误态并释放扫描资源', async () => {
@@ -575,6 +870,37 @@ describe('完整 AI 字幕扫描窗口的暂停边界', () => {
     expect(controller.getPhase()).toBe('ready');
     expect(chunks.map((chunk) => Math.round(chunk.startMs))).toEqual(expect.arrayContaining([0, 8_800, 17_600]));
     controller.destroy();
+  });
+
+  it('扫描进度回调同步取消时，后续 queue 入口会拒绝旧 session', async () => {
+    vi.useFakeTimers();
+    let now = 0;
+    vi.spyOn(globalThis.performance, 'now').mockImplementation(() => { now += 300; return now; });
+    const scanVideo = new FakeVideo();
+    scanVideo.duration = 10;
+    installScanDom(scanVideo);
+    let controller!: VideoAiFullCaptureController;
+    const transcribe = vi.fn(async () => ({text: 'must not run'}));
+    controller = new VideoAiFullCaptureController({
+      getVideo: () => new FakeVideo() as unknown as HTMLVideoElement,
+      getIsolatedVideo: async () => scanVideo as unknown as HTMLVideoElement,
+      getModel: () => 'tiny',
+      isSupported: () => true,
+      transcribe,
+      onTranscriptionComplete: async () => undefined,
+      onProgress: (progress) => {
+        if (progress.phase === 'capturing' && progress.capturedMs > 0) controller.cancel();
+      },
+      onError: vi.fn(),
+      onStateChange: vi.fn(),
+    });
+    expect(controller.start()).toBe(true);
+    await tick(20);
+    scanVideo.currentTime = 10;
+    FakeAudioContext.instances.at(-1)!.processor.emit(speechAudio(10_000));
+    await tick(30);
+    expect(controller.getPhase()).toBe('idle');
+    expect(transcribe).not.toHaveBeenCalled();
   });
 
   it('多个音频块拼接时忽略窗口结束后的块，并继续完成尾窗', async () => {
