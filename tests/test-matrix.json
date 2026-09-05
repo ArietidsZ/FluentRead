@@ -167,6 +167,9 @@
       "tests/siteAdaptationSession.test.ts",
       "tests/siteAdaptationSettings.test.ts",
       "tests/siteAdaptationCatalog.test.ts",
+      "tests/harnessMemoryRecall.test.ts",
+      "tests/harnessMemorySearch.test.ts",
+      "tests/learningMemoryHandler.test.ts",
       "tests/freeTranslationConfig.test.ts",
       "tests/freeFallback.test.ts"
     ],
@@ -219,6 +222,9 @@
       "tests/imageTranslationPageRead.test.ts",
       "tests/imageTranslationOffscreenRuntime.test.ts",
       "tests/siteAdaptationRuntime.test.ts",
+      "tests/readingPanelLifecycle.test.ts",
+      "tests/learningMemoryRepository.test.ts",
+      "tests/optionsAppNavigationLifecycle.test.ts",
       "tests/myMemoryProvider.test.ts"
     ],
     "regression": [

@@ -1,7 +1,7 @@
 /**
  * @file src/features/selection-translation/services/edgeTtsPolicy.ts
  * 文件职责：提供 Edge TTS 不依赖网络的语言、声音、SSML、文本分段、音频拼接和 token 过期计算策略。
- * 主要内容：定义字符与分段上限、语言到候选 voice 的映射，导出语言规范化、声音选择、XML 转义 SSML 构建、智能断句、ArrayBuffer 拼接及 JWT expiry 解析。
+ * 主要内容：定义字符与分段上限、语言到候选 voice 的映射，兼容普通话统计语言码，导出声音选择、XML 转义 SSML 构建、智能断句、ArrayBuffer 拼接及 JWT expiry 解析。
  * 模块边界：该模块保持纯策略，不请求 endpoint、不缓存 token 也不播放音频；edgeTts.ts 消费这些规则完成网络合成，调用方决定超时、路由和用户反馈。
  */
 import {
@@ -35,6 +35,8 @@ export function normalizeEdgeTtsLanguage(language: string): string {
     if (!normalized || normalized === 'auto' || normalized === 'detect') return 'en-US';
     const script = getChineseScript(normalized);
     if (script) return script === 'Hans' ? 'zh-CN' : 'zh-TW';
+    // 未确定字形的普通话仍能朗读；这一别名不参与翻译语言检测。
+    if (['cmn', 'zho', 'chi'].includes(normalized.toLowerCase())) return 'zh-CN';
     if (normalized.toLowerCase() === 'en') return 'en-US';
     return normalized;
 }

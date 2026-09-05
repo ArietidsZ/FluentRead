@@ -25,6 +25,7 @@ import {
 } from '@/src/features/selection-translation/services/edgeTts';
 import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey, shouldClaimConfiguredHotkey } from '@/src/core/hotkey';
 import { normalizeSelectionTtsVoiceOrder, selectionTtsVoiceLocale, selectionTtsVoiceOption } from '@/src/features/selection-translation/ttsConfig';
+import {detectlang} from '@/src/core/language/detect';
 
 interface MockElementOptions {
     nodeType?: number;
@@ -570,6 +571,19 @@ describe('selection translator text and speech language normalization', () => {
         expect(normalizeSpeechLanguage('auto', 'zh-CN')).toBe('zh-CN');
         expect(normalizeSpeechLanguage('en-GB')).toBe('en-GB');
         expect(normalizeSpeechLanguage('invalid value')).toBe('en-US');
+    });
+
+    it('keeps uncertain Chinese script detectable while providing Mandarin speech for collected sentences', () => {
+        const detected = detectlang('这是繁體中文測試，这是另一段简体中文。');
+        expect(detected).toBe('cmn');
+        expect(isSameLanguage(detected, 'zh-Hans')).toBe(false);
+        expect(isSameLanguage(detected, 'zh-Hant')).toBe(false);
+        for (const code of [detected, ' ZHO ', 'chi']) {
+            const speechLanguage = normalizeSpeechLanguage(code);
+            expect(speechLanguage).toBe('zh-CN');
+            expect(edgeTtsVoiceCandidatesForLanguage(speechLanguage)).toContain('zh-CN-XiaoxiaoMultilingualNeural');
+        }
+        expect(edgeTtsVoiceForLanguage(normalizeSpeechLanguage('zh-Hant'))).toBe('zh-TW-YunJheMultilingualNeural');
     });
 
     it('uses stable Edge TTS voices instead of the first system voice', () => {

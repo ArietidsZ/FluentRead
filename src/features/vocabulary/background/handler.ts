@@ -105,7 +105,7 @@ function validateUpsertInput(value: unknown): VocabularyUpsertInput {
         sourceLanguage: requiredText(value.sourceLanguage, '缺少有效的源语言'),
         targetLanguage: requiredText(value.targetLanguage, '缺少有效的目标语言'),
         term: requiredText(value.term, '缺少有效的单词'),
-        translation: requiredText(value.translation, '缺少有效的译文'),
+        translation: typeof value.translation === 'string' ? value.translation.trim() : requiredText(value.translation, '缺少有效的译文'),
     };
 }
 
