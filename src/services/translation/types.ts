@@ -141,6 +141,10 @@ export interface TranslationConfigSnapshot {
     custom: string;
     deeplApiPlan?: DeepLApiPlan;
     deeplx: string;
+    freeTranslationOrder?: readonly string[];
+    freeTranslationTimeoutMs?: number;
+    freeTranslationCooldownMs?: number;
+    myMemoryEmail?: string;
     newApiUrl: string;
     minimaxBillingPlan: string;
     minimaxRegion: string;

@@ -26,7 +26,8 @@
       "tests/settingsUiArchitecture.test.ts",
       "tests/userscriptMetadata.test.ts",
       "tests/userscriptPrivacy.test.ts",
-      "tests/userscriptViteConfig.test.ts"
+      "tests/userscriptViteConfig.test.ts",
+      "tests/freeTranslationSettings.test.ts"
     ],
     "unit": [
       "tests/modalDialogHost.test.ts",
@@ -163,7 +164,9 @@
       "tests/siteAdaptationCore.test.ts",
       "tests/siteAdaptationSession.test.ts",
       "tests/siteAdaptationSettings.test.ts",
-      "tests/siteAdaptationCatalog.test.ts"
+      "tests/siteAdaptationCatalog.test.ts",
+      "tests/freeTranslationConfig.test.ts",
+      "tests/freeFallback.test.ts"
     ],
     "functional": [
       "tests/settingsCompositionAutosave.test.ts",
@@ -212,7 +215,8 @@
       "tests/imageTranslationRuntime.test.ts",
       "tests/imageTranslationPageRead.test.ts",
       "tests/imageTranslationOffscreenRuntime.test.ts",
-      "tests/siteAdaptationRuntime.test.ts"
+      "tests/siteAdaptationRuntime.test.ts",
+      "tests/myMemoryProvider.test.ts"
     ],
     "regression": [
       "tests/upstreamTranslationBoundaries.test.ts",

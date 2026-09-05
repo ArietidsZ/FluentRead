@@ -2,7 +2,7 @@
  * @file src/services/translation/broker.ts
  *
  * 文件职责：编排翻译请求的配置快照、语言解析、缓存、请求去重、超时与 provider 调用，是后台翻译用例的中心服务。
- * 主要内容：createTranslationBroker 同时支持单条、批量和页面摘要，验证 provider 返回数量和类型，对完整多段协议逐槽修复上下文回显，以包含 Chrome auto 检测样本的完整身份构建缓存键，并在清理代次与剩余 deadline 下管理 pending 请求。 可核对的公开符号包括 createTranslationBroker、聚合导出。
+ * 主要内容：createTranslationBroker 同时支持单条、批量和页面摘要，验证 provider 返回数量和类型，对完整多段协议逐槽修复上下文回显，以包含 Chrome auto 检测样本的完整身份构建缓存键，并按匿名额度身份、等待策略、清理代次与剩余 deadline 隔离 pending 请求。 可核对的公开符号包括 createTranslationBroker、聚合导出。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
@@ -38,6 +38,12 @@ import {
 } from '@/src/core/translation/prompts';
 import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
+import {
+    normalizeFreeTranslationOrder,
+    normalizeFreeTranslationTimeoutMs,
+    normalizeFreeTranslationCooldownMs,
+} from '@/src/core/config/freeTranslation';
+import sha256 from 'crypto-js/sha256';
 import {getDeepLEndpoint} from '@/src/core/config/deepl';
 import {waitForBoundedPersistence} from './persistenceBarrier';
 import {
@@ -184,6 +190,8 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
     }
 
     function getProviderEndpoint(current: TranslationProviderConfigSnapshot, service: string): string {
+        // 这两条路径固定使用匿名端点，残留代理不能分裂缓存或在途去重。
+        if (service === 'freeTranslation' || service === 'myMemory') return '';
         if (deps.serviceTypes.isAiSdk(service)) {
             try {
                 return deps.endpointResolver.resolveOpenAICompatibleEndpoint(service, current).endpoint;
@@ -229,6 +237,11 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             model: getSelectedModel(current, service, modelOverride),
             endpoint: getProviderEndpoint(current, service),
             azureOpenaiEndpoint: service === 'azureOpenai' ? current.azureOpenaiEndpoint : undefined,
+            ...(service === 'freeTranslation' ? {freeTranslationPolicy: {
+                // v2 仅使用免密钥端点，旧链的私有地址和凭据不再影响此缓存。
+                version: 2,
+                order: current.freeTranslationOrder,
+            }} : {}),
             customBody: current.customBody[service] || '',
             systemRole: current.system_role[service] || '',
             userRole: current.user_role[service] || '',
@@ -391,6 +404,23 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
     function pendingOwnershipSuffix(execution: TranslationRequestExecution): string {
         const ownershipKey = execution.ownershipKey;
         return ownershipKey ? `:owner:${ownershipKey.length}:${ownershipKey}` : '';
+    }
+
+    function pendingAnonymousConfigSuffix(execution: TranslationRequestExecution): string {
+        const {service, config: current} = execution;
+        if (service !== 'freeTranslation' && service !== 'myMemory') return '';
+        const usesMyMemory = service === 'myMemory'
+            || normalizeFreeTranslationOrder(current.freeTranslationOrder).includes('myMemory');
+        // 成功译文可跨额度身份复用；正在执行的旧邮箱/等待策略却不能替新配置决定失败。
+        // 只保留实际消费的匿名配置，摘要不暴露邮箱，Key 和私有地址从不参与此身份。
+        const identity = {
+            ...(service === 'freeTranslation' ? {
+                timeoutMs: normalizeFreeTranslationTimeoutMs(current.freeTranslationTimeoutMs),
+                cooldownMs: normalizeFreeTranslationCooldownMs(current.freeTranslationCooldownMs),
+            } : {}),
+            ...(usesMyMemory ? {email: (current.myMemoryEmail ?? '').trim()} : {}),
+        };
+        return `:anonymous:${sha256(JSON.stringify(identity)).toString()}`;
     }
 
     function requestAbortError(): Error {
@@ -998,7 +1028,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             message.modelOverride,
             message.sourceLanguageDetectionText,
         );
-        const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}`;
+        const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}${pendingAnonymousConfigSuffix(execution)}`;
         const existing = pendingTranslations.get(pendingKey);
         // 共享的是 provider 工作；每个等待者仍需保留自己的取消和截止边界。
         if (existing) return runWithinDeadline(() => existing, requestDeadline, execution.abortSignal);
@@ -1095,7 +1125,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             cacheMode,
             message.modelOverride,
         );
-        const pendingKey = `${buildPendingRequestKey(batchKey, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}`;
+        const pendingKey = `${buildPendingRequestKey(batchKey, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}${pendingAnonymousConfigSuffix(execution)}`;
         const existing = pendingBatches.get(pendingKey);
         if (existing) return runWithinDeadline(() => existing, requestDeadline, execution.abortSignal);
 
