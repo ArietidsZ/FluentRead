@@ -28,6 +28,7 @@ import {
     type CustomOpenAIProvider,
 } from './customOpenAI';
 import { normalizeCustomBodyMapping } from "./customBody";
+import {DEFAULT_DEEPL_API_PLAN, normalizeDeepLApiPlan, type DeepLApiPlan} from './deepl';
 import {
     normalizeModelThinkingMapping,
     type ModelThinkingMapping,
@@ -226,6 +227,7 @@ export class Config {
     disableSelectionTranslator: boolean; // 是否禁用划词翻译
     selectionAreaEnabled: boolean; // 是否启用圈选翻译
     disableImageTranslator: boolean; // 是否禁用图片翻译
+    deeplApiPlan: DeepLApiPlan; // DeepL API Free / Pro 套餐
     deeplx: string; // DeepLX 服务地址
     selectionTranslatorMode: string; // 划词翻译显示模式: 'disabled' | 'bilingual' | 'translation-only'
     selectionTranslatorTrigger: string; // 划词翻译互斥触发方式: 'direct' | 'icon' | 'dot' | 'Control' | 'Alt' | 'Shift' | 'custom'
@@ -245,7 +247,7 @@ export class Config {
     youdaoAppSecret: string; // 有道翻译 App Secret
     tencentSecretId: string; // 腾讯云 Secret ID
     tencentSecretKey: string; // 腾讯云 Secret Key
-    azureOpenaiEndpoint: string; // Azure OpenAI 端点地址
+    azureOpenaiEndpoint: string; // Azure 端点地址
     animations: boolean; // 是否启用动画效果
     translationLoadingStyle: TranslationLoadingStyle; // 网页段落翻译加载指示器样式
     translationProgressPanelEnabled: boolean; // 是否显示全文翻译进度面板
@@ -335,6 +337,7 @@ export class Config {
         this.disableSelectionTranslator = true; // 默认关闭划词翻译
         this.selectionAreaEnabled = false; // 圈选翻译需要用户主动开启，避免意外截图
         this.disableImageTranslator = true; // 默认关闭图片翻译，避免首次安装后扫描网页图片
+        this.deeplApiPlan = DEFAULT_DEEPL_API_PLAN; // 兼容既有 DeepL API Free 默认端点
         this.deeplx = defaultOption.deeplx; // DeepLX 默认服务地址
         this.selectionTranslatorMode = 'disabled'; // 默认关闭划词翻译
         this.selectionTranslatorTrigger = 'icon'; // 默认显示可发现的操作图标
@@ -354,7 +357,7 @@ export class Config {
         this.youdaoAppSecret = ''; // 有道翻译 App Secret
         this.tencentSecretId = ''; // 腾讯云 Secret ID
         this.tencentSecretKey = ''; // 腾讯云 Secret Key
-        this.azureOpenaiEndpoint = ''; // Azure OpenAI 端点地址
+        this.azureOpenaiEndpoint = ''; // Azure 端点地址
         this.animations = true; // 默认启用动画
         this.translationLoadingStyle = DEFAULT_TRANSLATION_LOADING_STYLE; // 默认使用柔和圆环，缺失配置也回到该样式
         this.translationProgressPanelEnabled = false; // 默认关闭全文翻译进度面板
@@ -723,6 +726,7 @@ export function normalizeConfig(value: unknown): Config {
     normalized.customBody = withoutRetiredServiceEntries(normalizeCustomBodyMapping(source.customBody));
 
     if (typeof normalized.custom !== 'string') normalized.custom = defaultOption.custom;
+    normalized.deeplApiPlan = normalizeDeepLApiPlan(source.deeplApiPlan);
     if (typeof normalized.newApiUrl !== 'string') normalized.newApiUrl = DEFAULT_NEW_API_URL;
     normalizeCustomOpenAIProviderState(normalized, source);
     normalized.harness = normalizeHarnessPreferences(source.harness, normalized.customOpenAIProviders);

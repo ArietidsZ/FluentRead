@@ -14,6 +14,7 @@ import {
 } from '@/src/providers/translation/ai-sdk/endpoints';
 import {services} from '@/src/core/config/catalog';
 import {urls} from '@/src/core/config/constants';
+import {isValidAzureEndpoint, normalizeAzureEndpoint} from '@/src/core/config/azure';
 
 function endpointConfig(overrides: Partial<AiSdkEndpointConfig> = {}): AiSdkEndpointConfig {
     return {
@@ -241,6 +242,54 @@ describe('Chat Completions URL 拆分', () => {
         expect(result.baseURL).toBe('https://local.example.com/api/generate');
         expect(result.queryParams).toEqual({mode: 'translate'});
         expect(result.exactEndpoint).toBe('https://local.example.com/api/generate?mode=translate');
+    });
+});
+
+describe('Azure URL 规范化', () => {
+    it.each([
+        ['https://reader.openai.azure.com', 'https://reader.openai.azure.com/openai/v1/chat/completions'],
+        [' https://reader.services.ai.azure.com/ ', 'https://reader.services.ai.azure.com/openai/v1/chat/completions'],
+        ['https://reader.openai.azure.com/openai/v1', 'https://reader.openai.azure.com/openai/v1/chat/completions'],
+        ['https://reader.services.ai.azure.com/openai/v1/', 'https://reader.services.ai.azure.com/openai/v1/chat/completions'],
+        ['http://localhost:3000/v1/', 'http://localhost:3000/v1/chat/completions'],
+        ['https://gateway.example/api/chat/completions/', 'https://gateway.example/api/chat/completions'],
+        ['https://reader.services.ai.azure.com/openai/v1/chat/completions', 'https://reader.services.ai.azure.com/openai/v1/chat/completions'],
+        ['https://reader.openai.azure.com/openai/deployments/reader/chat/completions?api-version=2024-10-21', 'https://reader.openai.azure.com/openai/deployments/reader/chat/completions?api-version=2024-10-21'],
+        ['https://reader.openai.azure.cn/?tenant=reader#ignored', 'https://reader.openai.azure.cn/openai/v1/chat/completions?tenant=reader'],
+    ])('%s -> %s，UI 与请求端遵循同一规则', (input, expected) => {
+        expect(normalizeAzureEndpoint(input)).toBe(expected);
+        expect(isValidAzureEndpoint(input)).toBe(true);
+        expect(resolveOpenAICompatibleEndpoint(services.azureOpenai, {azureOpenaiEndpoint: input}).endpoint)
+            .toBe(expected);
+    });
+
+    it('v1 默认不注入日期版本，重复查询值保留 exactEndpoint', () => {
+        const base = 'https://reader.services.ai.azure.com/openai/v1';
+        const resolved = resolveOpenAICompatibleEndpoint(services.azureOpenai, {azureOpenaiEndpoint: base});
+        expect(resolved.baseURL).toBe(base);
+        expect(resolved.queryParams).toBeUndefined();
+        expect(resolved.endpoint).not.toContain('api-version');
+
+        const duplicated = resolveOpenAICompatibleEndpoint(services.azureOpenai, {
+            azureOpenaiEndpoint: `${base}?tenant=a&tenant=b#ignored`,
+        });
+        expect(duplicated.exactEndpoint).toBe(`${base}/chat/completions?tenant=a&tenant=b`);
+        expect(duplicated.queryParams).toBeUndefined();
+    });
+
+    it.each([
+        ['', 'Azure 接口地址未配置'],
+        ['   ', 'Azure 接口地址未配置'],
+        ['not a url', 'Azure 端点地址格式不正确'],
+        ['ftp://reader.openai.azure.com', '仅支持 HTTP 或 HTTPS'],
+        ['https://user@reader.openai.azure.com', '不能包含用户名或密码'],
+        ['https://:secret@reader.openai.azure.com', '不能包含用户名或密码'],
+        ['https://reader.openai.azure.com/openai/deployments/reader', '完整的 Chat Completions'],
+        ['https://reader.openai.azure.com/openai/v1/responses', '完整的 Chat Completions'],
+        ['https://reader.openai.azure.com/unexpected', '完整的 Chat Completions'],
+    ])('拒绝不可请求的地址 %s', (input, message) => {
+        expect(() => normalizeAzureEndpoint(input)).toThrow(message);
+        expect(isValidAzureEndpoint(input)).toBe(false);
     });
 });
 

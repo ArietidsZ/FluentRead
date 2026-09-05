@@ -6,8 +6,8 @@
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
-import {method, urls} from "@/src/core/config/constants";
-import {services} from "@/src/core/config/catalog";
+import {method} from "@/src/core/config/constants";
+import {getDeepLEndpoint} from '@/src/core/config/deepl';
 import {config} from "@/src/services/config/store";
 import {getTranslationLanguages} from '@/src/services/translation/languages';
 import {createHttpStatusError, readJsonResponse} from '@/src/platform/http/errors';
@@ -25,7 +25,7 @@ async function deepl(message: TranslationProviderRequest<string>) {
     let targetLang = targetLanguage === 'zh-Hans' ? 'zh' : targetLanguage;
 
     // 判断是否使用代理
-    let url: string = current.proxy[service] ? current.proxy[service] : urls[services.deepL]
+    const url = getDeepLEndpoint(current.deeplApiPlan, current.proxy[service]);
 
     const resp = await runtimeFetch(url, {
         method: method.POST,

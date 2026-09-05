@@ -178,6 +178,10 @@ const SELECTION_TRIGGER_LABELS = labelsFor(options.selectionTranslatorTriggers);
 const FLOATING_HOTKEY_LABELS = labelsFor(options.floatingBallHotkeys);
 const INPUT_TRIGGER_LABELS = labelsFor(options.inputBoxTranslationTrigger);
 const BILLING_PLAN_LABELS = labelsFor(options.minimaxBillingPlan, options.mimoBillingPlan);
+const DEEPL_API_PLAN_LABELS = new Map<unknown, string>([
+    ['free', 'API Free（免费）'],
+    ['pro', 'API Pro（付费）'],
+]);
 const REGION_LABELS = labelsFor(options.minimaxRegion, options.mimoRegion);
 const DEEPSEEK_API_LABELS = labelsFor(options.deepseekApiType);
 const DEEPSEEK_THINKING_LABELS = labelsFor(options.deepseekThinkingMode);
@@ -426,9 +430,10 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     customBody: {group: 'translationServices', label: '自定义请求体', mapping: serviceMapping('自定义请求体', formatCustomBody)},
     proxy: {group: 'translationServices', label: '代理地址', mapping: serviceMapping('代理地址', formatEndpoint)},
     custom: {group: 'translationServices', label: '自定义服务地址', format: formatEndpoint},
+    deeplApiPlan: {group: 'translationServices', label: 'DeepL API 套餐', format: (value) => formatEnum(value, DEEPL_API_PLAN_LABELS)},
     deeplx: {group: 'translationServices', label: 'DeepLX 服务地址', format: formatEndpoint},
     newApiUrl: {group: 'translationServices', label: 'New API 地址', format: formatEndpoint},
-    azureOpenaiEndpoint: {group: 'translationServices', label: 'Azure OpenAI 端点', format: formatEndpoint},
+    azureOpenaiEndpoint: {group: 'translationServices', label: 'Azure 端点', format: formatEndpoint},
     system_role: {group: 'translationServices', label: 'System 提示词', mapping: serviceMapping(' System 提示词', formatPrompt)},
     user_role: {group: 'translationServices', label: 'User 提示词', mapping: serviceMapping(' User 提示词', formatPrompt)},
     deepseekApiType: {group: 'translationServices', label: 'DeepSeek API 格式', format: (value) => formatEnum(value, DEEPSEEK_API_LABELS)},

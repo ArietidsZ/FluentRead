@@ -38,6 +38,7 @@ import {
 } from '@/src/core/translation/prompts';
 import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
+import {getDeepLEndpoint} from '@/src/core/config/deepl';
 import {waitForBoundedPersistence} from './persistenceBarrier';
 import {
     createTranslationRequestScheduler,
@@ -191,6 +192,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 return '';
             }
         }
+        if (service === 'deepL') return getDeepLEndpoint(current.deeplApiPlan, current.proxy[service]);
         if (current.proxy[service]) return current.proxy[service];
         if (service === 'custom') return current.custom;
         if (service === 'deeplx') return current.deeplx;

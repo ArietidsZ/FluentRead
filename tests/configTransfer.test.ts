@@ -17,6 +17,17 @@ const validConfig = {
 }
 
 describe('configuration transfer helpers', () => {
+  it('往返保留 DeepL API Pro 套餐，旧备份与无效套餐回到原有 Free 端点', () => {
+    const current = normalizeConfig({...new Config(), ...validConfig, deeplApiPlan: 'pro'})
+    const exported = prepareConfigForExport(current)
+
+    expect(exported.deeplApiPlan).toBe('pro')
+    expect(prepareConfigForImport(exported, current).deeplApiPlan).toBe('pro')
+    const {deeplApiPlan: _legacyMissingPlan, ...legacy} = exported
+    expect(prepareConfigForImport(legacy, current).deeplApiPlan).toBe('free')
+    expect(prepareConfigForImport({...exported, deeplApiPlan: 'paid'}, current).deeplApiPlan).toBe('free')
+  })
+
   it('往返保留非默认段落加载样式，并把旧文件与非法值迁移到柔和圆环默认值', () => {
     const current = normalizeConfig({...new Config(), ...validConfig, translationLoadingStyle: 'sparkle'})
     const orbitExport = prepareConfigForExport({...current, translationLoadingStyle: 'orbit'})

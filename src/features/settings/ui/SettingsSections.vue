@@ -679,6 +679,7 @@
 
 // Main 处理配置信息
 import { computed, ref, watch, onUnmounted } from 'vue'
+import {isValidAzureEndpoint} from '@/src/core/config/azure';
 import { customModelString, defaultOption, getMultilingualTargetLanguageLabel, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
 import GlossaryLibrarySelect from '@/src/ui/components/GlossaryLibrarySelect.vue';
 import {
@@ -1417,20 +1418,6 @@ const handleTranslationBackoffMaxChange = (currentValue: number | undefined) => 
     config.value.translationBackoffBaseMs,
     normalized,
   );
-};
-
-// Azure OpenAI 端点地址验证函数
-const isValidAzureEndpoint = (endpoint: string) => {
-  if (!endpoint || endpoint.trim() === '') {
-    return false;
-  }
-
-  // 检查是否包含必要的组件
-  const hasAzureDomain = endpoint.includes('openai.azure.com');
-  const hasChatCompletions = endpoint.includes('/chat/completions');
-  const hasHttps = endpoint.startsWith('https://');
-
-  return hasHttps && hasAzureDomain && hasChatCompletions;
 };
 
 </script>

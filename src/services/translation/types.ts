@@ -7,6 +7,7 @@
  */
 
 import type {CustomOpenAIProvider} from '@/src/core/config/customOpenAI';
+import type {DeepLApiPlan} from '@/src/core/config/deepl';
 import type {ModelThinkingMapping} from '@/src/core/config/modelThinking';
 import type {GlossaryLibrary} from '@/src/core/glossary';
 
@@ -138,6 +139,7 @@ export interface TranslationConfigSnapshot {
     customOpenAIProviders?: CustomOpenAIProvider[];
     proxy: Record<string, string>;
     custom: string;
+    deeplApiPlan?: DeepLApiPlan;
     deeplx: string;
     newApiUrl: string;
     minimaxBillingPlan: string;

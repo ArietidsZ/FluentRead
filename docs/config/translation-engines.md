@@ -29,6 +29,27 @@ FluentRead 不绑定单一服务。你可以先用免费翻译，也可以选择
 
 连接测试会发送一条很短的请求，可能会产生少量服务用量。确认成功后，再翻译长页面。
 
+## Azure
+
+选择“Azure”，填写 Azure API Key，并在“Azure 端点”中填入资源地址，例如 `https://YOUR-RESOURCE-NAME.openai.azure.com`。也支持 `https://YOUR-RESOURCE-NAME.services.ai.azure.com`。
+
+FluentRead 使用 Chat Completions 接口。填写资源地址或 `/openai/v1/` 基础地址时，会自动补齐为 `/openai/v1/chat/completions`；也可直接填写完整接口地址。v1 无需日期型 `api-version` 参数。已有的 `/openai/deployments/部署名称/chat/completions?api-version=版本` 完整地址可以继续使用，原有部署路径和版本参数会保留。
+
+“模型”应填写 Azure 中的**实际部署名称**，不一定等于模型的通用名称；可通过“自定义模型”输入。配置会自动保存，填写后点击“检查连接”。Azure 的 v1 地址格式及部署名称要求见 [Microsoft 官方文档](https://learn.microsoft.com/en-us/azure/foundry/openai/api-version-lifecycle)。
+
+## DeepL
+
+选择“DeepL”，先在“DeepL API 套餐”中选择套餐，再填写对应的 API Key：
+
+| 套餐 | 翻译接口 |
+| --- | --- |
+| API Free（免费，默认） | `https://api-free.deepl.com/v2/translate` |
+| API Pro（付费） | `https://api.deepl.com/v2/translate` |
+
+套餐选择会自动保存，“当前 API 地址”会显示实际使用的地址。已有配置默认沿用 API Free；切换官方套餐后，需要重新填写对应的 API Key。如果设置了自定义接口地址，会优先使用该地址，切换套餐不会覆盖它。
+
+DeepL 翻译器订阅与 DeepL API 套餐独立，请使用 API 套餐提供的密钥。配置完成后点击“检查连接”。申请方式和免费、付费接口的区别见 [DeepL 官方入门文档](https://developers.deepl.com/docs/getting-started/quickstart)。
+
 ## AI 上下文与多段翻译
 
 这两个选项独立生效，默认都关闭：
