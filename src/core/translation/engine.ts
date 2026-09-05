@@ -22,6 +22,7 @@ import type {HardGuardResult} from './dom';
 import type {TranslationTextProtectionOptions} from './dom';
 import {
     classifyGenericCandidate,
+    findTranslationControlOwner,
     getDirectInlineRuns,
     hasStructuralAncestor,
     isBlockBoundary,
@@ -380,8 +381,8 @@ export class TranslationCandidateCore {
         );
     }
 
-    inspect(element: Element): TranslationCoreInspection {
-        const evaluationContext = createResolutionEvaluationContext();
+    inspect(element: Element, textProtectionOptions?: TranslationTextProtectionOptions): TranslationCoreInspection {
+        const evaluationContext = createResolutionEvaluationContext(textProtectionOptions);
         return this.inspectWithTextProtectionCache(
             element,
             evaluationContext.textProtectionCache,
@@ -421,7 +422,7 @@ export class TranslationCandidateCore {
             }
             const candidate: TranslationCandidate = {
                 element: target,
-                kind: decision.candidateKind ?? (isTranslationControlElement(target) ? 'control' : 'content'),
+                kind: decision.candidateKind ?? (findTranslationControlOwner(target) ? 'control' : 'content'),
                 reason: decision.reason,
                 adapterId,
                 ...this.candidateResolutionMetadata(evaluationContext),
@@ -506,7 +507,7 @@ export class TranslationCandidateCore {
                     candidates.push({
                         element: element as HTMLElement,
                         nodes,
-                        kind: 'content',
+                        kind: findTranslationControlOwner(element) ? 'control' : 'content',
                         reason: 'generic-inline-run',
                         ...this.candidateResolutionMetadata(evaluationContext),
                     });
@@ -632,7 +633,7 @@ export class TranslationCandidateCore {
             if (current.matches('[data-fr-translation-segment="true"]')) {
                 return {
                     element: current as HTMLElement,
-                    kind: 'content',
+                    kind: findTranslationControlOwner(current) ? 'control' : 'content',
                     reason: 'owned-inline-run',
                     ...this.candidateResolutionMetadata(evaluationContext),
                 };
@@ -692,8 +693,14 @@ export class TranslationCandidateCore {
         const visited = new Set<Element>();
         const textProtectionCache = createTranslationTextProtectionCache();
         const roots: Element[] = [];
-        if (isElementNode(root)) roots.push(root);
-        else if ('children' in root) {
+        if (isElementNode(root)) {
+            // 动态控件可能先只有图标，再把文字写入内层 flex 标签。该标签本身不再是
+            // 正文候选，因此局部重扫应回到同一控件边界；被明确保护的脏子树不能提升。
+            const controlOwner = findTranslationControlOwner(root);
+            roots.push(controlOwner && controlOwner !== root &&
+                !evaluateHardGuard(root).prune && !this.hasAdapterPrunedAncestor(root)
+                ? controlOwner : root);
+        } else if ('children' in root) {
             const children = (root as Document | ShadowRoot).children;
             for (let index = 0; index < children.length; index += 1) {
                 const child = children.item(index);

@@ -111,6 +111,7 @@ vi.mock("@/src/features/full-page-translation/content/renderer", () => ({
         const host = node.ownerDocument.createElement("span");
         host.className = "fluent-read-single-slot";
         host.setAttribute("data-fr-translation-owned", "true");
+        host.setAttribute("translate", "no");
         host.setAttribute("aria-label", slot.text);
         host.lang = typeof options.targetLanguage === "string" ? options.targetLanguage : "";
         const shadow = host.attachShadow({mode: "open"});
@@ -688,6 +689,94 @@ describe("全文翻译可见性锚点", () => {
         await finishScheduledWork();
         expect(paragraph.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
     });
+
+    it.each([
+        ['augment', 'childList'], ['augment', 'attributes'],
+        ['focus', 'childList'], ['focus', 'attributes'],
+    ] as const)('真实 core 在 %s 规则的无关 %s 后保留已提交仅译文来源槽', async (mode, mutationType) => {
+        runtime.config.fullPageTranslationMode = 'all';
+        runtime.config.display = 0;
+        document.body.innerHTML = '<main id="main"><div id="flag" data-ready="yes"></div><p id="prose">Readable commit message <strong>with emphasized English words.</strong></p></main>';
+        const main = document.querySelector<HTMLElement>('#main')!;
+        const flag = document.querySelector<HTMLElement>('#flag')!;
+        const paragraph = document.querySelector<HTMLElement>('#prose')!;
+        setLayoutBox(paragraph, 420, 60);
+        runtime.realCore = new TranslationCandidateCore({url: new URL('https://example.com'), adapters: compileSiteRulePack({
+            version: 1, rules: [{id: 'source-slots', name: 'Source slots', match: {hosts: ['example.com']}, mode,
+                ...(mode === 'focus' ? {content: [{css: ['[data-ready="yes"] + p']}]} : {})}],
+        })});
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        const state = getTranslationState(paragraph)!;
+        expect(state.phase).toBe('translated');
+        expect(state.singleTextSlotHosts).toHaveLength(2);
+        // 普通发现必须继续跳过已有译文；只有状态复验可以使用真实来源 host。
+        expect(runtime.realCore.inspect(paragraph).candidate).toBeNull();
+        const observer = TestMutationObserver.instances.at(-1)!;
+        for (let index = 0; index < 3; index += 1) {
+            if (mutationType === 'childList') {
+                const unrelated = document.createElement('i');
+                main.appendChild(unrelated);
+                observer.emit([{type: 'childList', target: main, addedNodes: [unrelated], removedNodes: []} as unknown as MutationRecord]);
+            } else {
+                const oldValue = flag.getAttribute('class');
+                flag.className = `unrelated-${index}`;
+                observer.emit([{type: 'attributes', target: flag, attributeName: 'class', oldValue,
+                    addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+            }
+            expect(getTranslationState(paragraph)).toBe(state);
+            await finishScheduledWork();
+            expect(getTranslationState(paragraph)).toBe(state);
+            expect(state.controller.signal.aborted).toBe(false);
+            expect(paragraph.querySelectorAll('.fluent-read-single-slot')).toHaveLength(2);
+        }
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+
+        // 关系选择器和通用保护仍以当前宿主为准，不能靠原文相同绕过新的边界。
+        const mutationTarget = mode === 'focus' ? flag : main;
+        const attributeName = mode === 'focus' ? 'data-ready' : 'translate';
+        const oldValue = mutationTarget.getAttribute(attributeName);
+        mutationTarget.setAttribute(attributeName, 'no');
+        observer.emit([{type: 'attributes', target: mutationTarget, attributeName, oldValue,
+            addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+        expect(getTranslationState(paragraph)).toBeUndefined();
+        await finishScheduledWork();
+        expect(paragraph.querySelectorAll('.fluent-read-single-slot')).toHaveLength(0);
+        expect(paragraph.textContent).toBe('Readable commit message with emphasized English words.');
+    });
+
+    it.each(['hidden', 'notranslate', 'data-notranslate', 'source-edited', 'source-moved', 'extra-source'] as const)(
+        '真实 core 的仅译文范围复验不信任 %s 来源槽', async (change) => {
+            runtime.config.fullPageTranslationMode = 'all';
+            runtime.config.display = 0;
+            document.body.innerHTML = '<main><p>Readable commit message with enough English words.</p></main>';
+            const main = document.querySelector<HTMLElement>('main')!;
+            const paragraph = document.querySelector<HTMLElement>('p')!;
+            setLayoutBox(paragraph, 420, 60);
+            runtime.realCore = new TranslationCandidateCore({url: new URL('https://example.com'), adapters: compileSiteRulePack({
+                version: 1, rules: [{id: 'source-slots', name: 'Source slots', match: {hosts: ['example.com']}, mode: 'augment'}],
+            })});
+            autoTranslateEnglishPage();
+            await finishScheduledWork();
+            const state = getTranslationState(paragraph)!;
+            const {host, source} = state.singleTextSlotHosts![0]!;
+            if (change === 'hidden') host.hidden = true;
+            else if (change === 'notranslate') host.classList.add('notranslate');
+            else if (change === 'data-notranslate') host.setAttribute('data-notranslate', 'true');
+            else if (change === 'source-edited') source.data = 'A newly edited commit message.';
+            else if (change === 'source-moved') {
+                const replacement = host.cloneNode(false);
+                host.replaceWith(replacement);
+                replacement.appendChild(source);
+            } else host.appendChild(document.createTextNode('Uncaptured additional source.'));
+            const unrelated = document.createElement('i');
+            main.appendChild(unrelated);
+            TestMutationObserver.instances.at(-1)!.emit([{type: 'childList', target: main,
+                addedNodes: [unrelated], removedNodes: []} as unknown as MutationRecord]);
+            expect(state.controller.signal.aborted).toBe(true);
+            expect(getTranslationState(paragraph)).toBeUndefined();
+        },
+    );
 
     it.each([[1, 'translated'], [1, 'loading'], [0, 'translated'], [0, 'loading']] as const)(
         'ShadowRoot 顶层兄弟属性变化会发现正文，并取消失去匹配的 display=%s %s 状态', async (display, phase) => {

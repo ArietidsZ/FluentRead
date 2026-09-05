@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/translationStability.ts
  * 文件职责：提供动态页面翻译的语义稳定性判断和实时文本槽重绑定，隔离 React/虚拟列表重建造成的生命周期噪声。
- * 主要内容：判断原文与译文工件是否仍完整、决定是否保留当前翻译 generation，并在逐槽核对当前来源后把异步结果映射到实时 Text 节点与空白边界。
+ * 主要内容：判断原文与译文工件是否仍完整，在保留宿主链接焦点管理的前提下决定是否保留当前翻译 generation，并在逐槽核对当前来源后把异步结果映射到实时 Text 节点与空白边界。
  * 模块边界：本文件不读取配置、不监听 DOM、不执行 provider 请求；runtime 通过回调提供当前来源与槽位快照。
  */
 import {
@@ -20,6 +20,7 @@ import {
     getTranslationOverflowGenerationIdentity,
     getTranslationSourceStructureSignature,
     isTranslationSourceStructureOverflow,
+    isTrustedBilingualArtifactWithHostClass,
     type TranslationState,
 } from './state';
 
@@ -275,9 +276,9 @@ export function isTranslationArtifactCurrent(
             wrapper.isConnected &&
             wrapper.matches('.fluent-read-bilingual-content[data-fr-translation-owned="true"]') &&
             state.bilingualHTML !== undefined &&
-            wrapper.innerHTML === state.bilingualHTML &&
             state.bilingualOuterHTML !== undefined &&
-            wrapper.outerHTML === state.bilingualOuterHTML &&
+            (wrapper.innerHTML === state.bilingualHTML && wrapper.outerHTML === state.bilingualOuterHTML ||
+                isTrustedBilingualArtifactWithHostClass(wrapper, state)) &&
             directWrappers.length === 1 &&
             directWrappers[0] === wrapper,
         );

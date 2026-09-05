@@ -565,9 +565,23 @@ function candidateIsCurrent(candidate: TranslationCandidate): boolean {
             fresh.allowTopLevelApplicationShell === candidate.allowTopLevelApplicationShell &&
             getTranslationCandidateKey(fresh) === getTranslationCandidateKey(candidate));
     }
-    const fresh = candidate.allowTopLevelApplicationShell === true
-        ? core.resolve(candidate.element)
-        : core.inspect(candidate.element).candidate;
+    const state = getTranslationState(candidate.element);
+    // 仅译文把原 Text 保存在自有槽内。普通发现会正确跳过这些槽，但已有 owner
+    // 的范围复验必须读取其精确来源；仍由真实 core 核对站点选择器和全部保护边界。
+    const sourceTextSlotHosts = state?.singleTextSlotHosts?.length &&
+        statefulSourceAndTextSlotsAreCurrent(candidate.element, state) &&
+        state.singleTextSlotHosts.every(({host, source}) => host.childNodes.length === 1 &&
+            host.firstChild === source && host.matches('.fluent-read-single-slot[data-fr-translation-owned="true"][translate="no"]'))
+        ? new Set(state.singleTextSlotHosts.map(({host}) => host))
+        : undefined;
+    const fresh = sourceTextSlotHosts
+        ? core.inspect(candidate.element, {
+            sourceTextSlotHosts,
+            ...getTranslationTextProtectionOptions(candidate.allowTopLevelApplicationShell, candidate.element),
+        }).candidate
+        : candidate.allowTopLevelApplicationShell === true
+            ? core.resolve(candidate.element)
+            : core.inspect(candidate.element).candidate;
     return Boolean(
         fresh?.element === candidate.element &&
         fresh.kind === candidate.kind &&

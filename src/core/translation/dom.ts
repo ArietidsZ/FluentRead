@@ -102,6 +102,8 @@ export function isTopLevelApplicationShell(element: Element): boolean {
 }
 
 export interface TranslationTextProtectionOptions {
+    /** 已有翻译的精确来源槽；只穿过真实 host 的扩展标记和自有 translate=no，其他保护仍生效。 */
+    sourceTextSlotHosts?: ReadonlySet<Element>;
     /** 仅显式选中/悬浮翻译允许穿过 body 直接子级的应用外壳。 */
     allowTopLevelApplicationShell?: boolean;
     /** 显式命中的元素自身仍是保护边界，不能因为它的 marker 被放行。 */
@@ -170,10 +172,14 @@ export function isProtectedDescendantElement(
     ignoreExtensionSelf = false,
     options?: TranslationTextProtectionOptions,
 ): boolean {
-    return (!ignoreExtensionSelf && isExtensionElementSelf(element)) ||
+    const ownSourceSlot = options?.sourceTextSlotHosts?.has(element) === true;
+    const ownNoTranslateMarker = ownSourceSlot &&
+        element.getAttribute('translate')?.toLowerCase() === 'no' &&
+        !element.classList.contains('notranslate') && element.getAttribute('data-notranslate') !== 'true';
+    return (!ignoreExtensionSelf && !ownSourceSlot && isExtensionElementSelf(element)) ||
         isProtectedTextElement(element) ||
         isMathRendererElement(element) ||
-        (hasNoTranslateMarker(element) &&
+        (hasNoTranslateMarker(element) && !ownNoTranslateMarker &&
             !(options?.allowTopLevelApplicationShell === true &&
                 element !== options.protectedElement &&
                 isTopLevelApplicationShell(element))) ||
