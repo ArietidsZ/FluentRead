@@ -90,6 +90,18 @@ function minimalPopupSpacing(viewportWidth: number, skin: string, dark: boolean,
 }
 
 describe('options UI composition architecture', () => {
+  it('keeps persistent all-node recognition in advanced settings using the shared config and localized switch', () => {
+    const sections = source('src/features/settings/ui/SettingsSections.vue')
+    const advanced = activeSectionSource(sections, 'settings-advanced')
+    expect(advanced).toContain('<SettingsGroup :title="t(\'settings.pageRecognition.title\')">')
+    expect(advanced).toContain(':label="t(\'settings.pageRecognition.allNodes\')"')
+    expect(advanced).toContain(':description="t(\'settings.pageRecognition.description\')"')
+    expect(advanced).toContain('v-model="config.translationScope" active-value="all" inactive-value="content"')
+    expect(advanced).toContain(':aria-label="t(\'settings.pageRecognition.allNodes\')"')
+    expect(sections.match(/v-model="config\.translationScope"/gu)).toHaveLength(1)
+    expect(source('src/app/popup/PopupApp.vue')).not.toContain('translationScope')
+  })
+
   it.each([380, 400, 420, 421, 900])('keeps the minimal last footer inside its shell at a %ipx viewport', viewportWidth => {
     for (const dark of [false, true]) {
       const { shell, footer } = minimalPopupSpacing(viewportWidth, 'minimal', dark, true)

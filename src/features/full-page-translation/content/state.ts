@@ -14,6 +14,7 @@ import {
     isTranslationTextElementProtected,
     translationTruncationStyleOverrides,
     type TranslationCandidate,
+    type TranslationScope,
 } from "@/src/core/translation/public";
 
 /**
@@ -87,6 +88,8 @@ export interface TranslationState {
     syntheticSegment: boolean;
     /** 显式翻译候选可穿过 body 直接子级的应用级 no-translate 外壳。 */
     allowTopLevelApplicationShell?: boolean;
+    /** 创建候选时的识别范围，恢复和宿主重挂沿用同一文本保护规则。 */
+    scope?: TranslationScope;
     /** 添加加载指示器之前捕获的精确直接子节点。 */
     syntheticSourceNodes?: readonly ChildNode[];
     /** materialize 前的候选宿主；synthetic 解包后的熔断身份继续绑定到这里。 */
@@ -201,6 +204,7 @@ export function getTranslationSourceStructureSignature(
     node: HTMLElement,
     allowTopLevelApplicationShell = false,
     sourceTextNodes?: readonly Text[],
+    scope?: TranslationScope,
 ): string {
     if ((node as Node).nodeType !== 1 || !node.childNodes) return node.innerHTML;
     const tokens: Array<string | readonly [string, string]> = [];
@@ -216,7 +220,7 @@ export function getTranslationSourceStructureSignature(
         : {protectedElement: node};
     const translatableTextNodes = sourceTextNodes ? new WeakSet(sourceTextNodes) : undefined;
     const protectionCache = createTranslationTextProtectionCache();
-    const shouldStayOriginal = getCurrentTranslationCore().shouldStayOriginal;
+    const shouldStayOriginal = getCurrentTranslationCore(scope).shouldStayOriginal;
     const preservesWhitespace = (text: Text): boolean => {
         const parent = text.parentElement;
         if (!parent) return false;
@@ -410,6 +414,7 @@ export function beginTranslation(
     sourceTextNodes?: readonly Text[],
     allowTopLevelApplicationShell = false,
     translationInvocationIdentity?: string,
+    scope?: TranslationScope,
 ): TranslationAttempt | null {
     const previous = states.get(node);
     if (previous?.phase === "loading") return null;
@@ -431,6 +436,7 @@ export function beginTranslation(
         node,
         allowTopLevelApplicationShell,
         sourceTextNodes?.length ? sourceTextNodes : undefined,
+        scope,
     );
     const state: TranslationState = {
         mode,
@@ -444,6 +450,7 @@ export function beginTranslation(
         sourceOverflowGenerationIdentity: isTranslationSourceStructureOverflow(sourceStructureSignature)
             ? getTranslationOverflowGenerationIdentity(node) : undefined,
         translationInvocationIdentity,
+        scope,
         syntheticSegment,
         allowTopLevelApplicationShell: allowTopLevelApplicationShell || undefined,
         syntheticSourceNodes: syntheticSegment ? Array.from(node.childNodes) : undefined,
@@ -560,6 +567,7 @@ export function setBilingualContent(
             node,
             state.allowTopLevelApplicationShell === true,
             state.sourceTextNodes?.length ? state.sourceTextNodes : undefined,
+            state.scope,
         );
         state.sourceOverflowGenerationIdentity = isTranslationSourceStructureOverflow(
             state.sourceStructureSignature,
@@ -638,11 +646,13 @@ function bilingualArtifactRejectionIdentity(
     sourceText: string,
     sourceStructureSignature: string | undefined,
     translationInvocationIdentity: string | undefined,
+    scope?: TranslationScope,
 ): string {
     return JSON.stringify([
         sourceText.replace(/[\s\u3000]+/gu, ' ').trim(),
         sourceStructureSignature ?? '',
         translationInvocationIdentity ?? '',
+        scope ?? 'content',
     ]);
 }
 
@@ -651,12 +661,14 @@ export function isBilingualArtifactHostWriteBudgetCapitulated(
     sourceText: string,
     sourceStructureSignature: string,
     translationInvocationIdentity: string | undefined,
+    scope?: TranslationScope,
 ): boolean {
     const budget = bilingualArtifactRejectionBudgets.get(owner);
     return Boolean(budget?.capitulated && budget.identity === bilingualArtifactRejectionIdentity(
         sourceText,
         sourceStructureSignature,
         translationInvocationIdentity,
+        scope,
     ) && (!isTranslationSourceStructureOverflow(sourceStructureSignature) ||
         budget.overflowGenerationIdentity === getTranslationOverflowGenerationIdentity(owner)));
 }
@@ -677,7 +689,7 @@ export function consumeBilingualArtifactHostWriteBudget(
     persistentTamper = false,
 ): boolean {
     const identity = bilingualArtifactRejectionIdentity(
-        state.sourceText, state.sourceStructureSignature, state.translationInvocationIdentity);
+        state.sourceText, state.sourceStructureSignature, state.translationInvocationIdentity, state.scope);
     const overflowGenerationIdentity = state.sourceOverflowGenerationIdentity;
     let budget = bilingualArtifactRejectionBudgets.get(owner);
     if (!budget || budget.identity !== identity ||
@@ -727,6 +739,7 @@ export function inheritBilingualArtifactRepairBudget(
         previousState.sourceText,
         previousState.sourceStructureSignature,
         previousState.translationInvocationIdentity,
+        previousState.scope,
     );
     const overflowGenerationIdentity = previousState.sourceOverflowGenerationIdentity;
     const existing = bilingualArtifactRejectionBudgets.get(previousOwner);
@@ -761,7 +774,7 @@ function currentBilingualSourceStructureMatches(
     if (state.syntheticSegment) {
         currentSourceNodes = collectLiveTranslationTextSlots(
             node,
-            getCurrentTranslationCore().shouldStayOriginal,
+            getCurrentTranslationCore(state.scope).shouldStayOriginal,
             node,
             state.allowTopLevelApplicationShell === true
                 ? {allowTopLevelApplicationShell: true, protectedElement: node}
@@ -772,6 +785,7 @@ function currentBilingualSourceStructureMatches(
         node,
         state.allowTopLevelApplicationShell === true,
         currentSourceNodes,
+        state.scope,
     ) === state.sourceStructureSignature;
     if (matches && currentSourceNodes) {
         state.sourceTextNodes = currentSourceNodes;
@@ -927,7 +941,7 @@ function rebindOverflowSourceTextNodes(owner: HTMLElement, state: TranslationSta
         : {protectedElement: owner};
     state.sourceTextNodes = collectLiveTranslationTextSlots(
         owner,
-        getCurrentTranslationCore().shouldStayOriginal,
+        getCurrentTranslationCore(state.scope).shouldStayOriginal,
         state.syntheticSegment ? owner : undefined,
         protectionOptions,
     ).map((slot) => slot.node);
@@ -1657,6 +1671,7 @@ export function getOwnedTranslationCandidateAtPoint(
             element: owner,
             kind: state.kind,
             reason: "existing-translation-at-point",
+            ...(state.scope ? {scope: state.scope} : {}),
             ...(state.syntheticSegment && state.sourceTextNodes?.length
                 ? {nodes: state.sourceTextNodes} : {}),
             ...(state.allowTopLevelApplicationShell ? {allowTopLevelApplicationShell: true} : {}),

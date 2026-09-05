@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/SettingsSections.vue
  * 文件职责：承载 FluentRead Options 页面各业务设置分区，连接运行时配置、服务选择、快捷键、站点规则、翻译中心、OCR、词书以及导入导出和历史恢复。
- * 主要内容：模板按 activeSection 展示业务分区，图片与圈选分别复用仅在当前分区挂载的 OCR 管理组件，在界面布局页组织风格与菜单栏布局，仅在高级选项激活时挂载缓存管理；脚本以独立配置副本隔离编辑与全局差分基线，协调网站入口、配置及凭据保存、历史恢复、能力过滤和离页补丁交接。
+ * 主要内容：包含正文/全部节点识别范围；模板按 activeSection 展示业务分区，图片与圈选分别复用仅在当前分区挂载的 OCR 管理组件，在界面布局页组织风格与菜单栏布局，仅在高级选项激活时挂载缓存管理；脚本以独立配置副本隔离编辑与全局差分基线，协调网站入口、配置及凭据保存、历史恢复、能力过滤和离页补丁交接。
  * 模块边界：该组件负责设置 UI 编排但不实现 provider 网络、配置仓库或 feature 运行时；校验与迁移来自 core/config，持久化经 services/config，复杂子界面保持在各自 feature/组件内。
  -->
 <template>
@@ -329,6 +329,11 @@
 
     <!-- 高级选项 -->
     <section v-show="props.activeSection === 'settings-advanced'" id="settings-advanced" class="settings-section">
+      <SettingsGroup :title="t('settings.pageRecognition.title')">
+        <SettingsItem :label="t('settings.pageRecognition.allNodes')" :description="t('settings.pageRecognition.description')">
+          <el-switch v-model="config.translationScope" active-value="all" inactive-value="content" class="settings-toggle" :aria-label="t('settings.pageRecognition.allNodes')" />
+        </SettingsItem>
+      </SettingsGroup>
       <TranslationCacheSettings v-if="props.activeSection === 'settings-advanced'" :config="config" />
     </section>
 

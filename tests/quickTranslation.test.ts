@@ -39,14 +39,14 @@ describe('快捷翻译调用解析', () => {
             'zh-Hans', 'zh-Hant', 'zh-Hans', 'en-US', '',
         ]);
         const config = {service: services.openai, model: {}, customModel: {}, to: 'zh-Hans', display: 1,
-            fullPageTranslationMode: 'viewport' as const};
+            fullPageTranslationMode: 'viewport' as const, translationScope: 'content' as const};
         expect(resolveQuickTranslationInvocation(normalized[1]!, config).targetLanguage).toBe('zh-Hant');
         expect(resolveQuickTranslationInvocation(normalized[4]!, {...config, to: 'zh-Hant'}).targetLanguage).toBe('zh-Hant');
     });
 
     it('快捷方案冻结术语选择并区分跟随默认和显式关闭', () => {
         const config = {service: services.openai, model: {}, customModel: {}, to: 'zh-Hans', display: 1,
-            fullPageTranslationMode: 'viewport' as const};
+            fullPageTranslationMode: 'viewport' as const, translationScope: 'content' as const};
         const ids = ['technical'];
         const invocation = resolveQuickTranslationInvocation(profile({glossaryIds: ids}), config);
         ids.push('later');
@@ -126,10 +126,12 @@ describe('快捷翻译调用解析', () => {
             to: 'zh-Hans',
             display: 1,
             fullPageTranslationMode: 'viewport',
+            translationScope: 'content',
         });
 
         expect(invocation).toEqual({
             profileId: 'quick-1',
+            scope: 'content',
             service: services.openai,
             model: 'private-default-model',
             targetLanguage: 'zh-Hans',
@@ -153,10 +155,12 @@ describe('快捷翻译调用解析', () => {
             to: 'zh-Hans',
             display: 1,
             fullPageTranslationMode: 'viewport',
+            translationScope: 'content',
         });
 
         expect(invocation).toEqual({
             profileId: 'quick-1',
+            scope: 'content',
             service: services.deepseek,
             model: 'quick-deepseek-model',
             targetLanguage: 'ja',
@@ -180,10 +184,12 @@ describe('快捷翻译调用解析', () => {
             to: 'en',
             display: 0,
             fullPageTranslationMode: 'all',
+            translationScope: 'content',
         });
 
         expect(invocation).toEqual({
             profileId: 'quick-1',
+            scope: 'content',
             service: services.deepseek,
             model: 'hover-deepseek-model',
             targetLanguage: 'fr',
@@ -200,13 +206,29 @@ describe('快捷翻译调用解析', () => {
             to: 'de',
             display: 0,
             fullPageTranslationMode: 'all',
+            translationScope: 'content',
         })).toEqual({
             profileId: 'quick-1',
+            scope: 'content',
             service: services.microsoft,
             targetLanguage: 'de',
             displayMode: 'single',
             fullPageMode: 'all',
         });
+    });
+
+    it('悬浮与全文方案均冻结保存的全部节点设置，并独立保留视口范围', () => {
+        const config = {
+            service: services.microsoft, model: {}, customModel: {}, to: 'zh', display: 1,
+            fullPageTranslationMode: 'viewport' as const, translationScope: 'all' as 'content' | 'all',
+        };
+        const hover = resolveQuickTranslationInvocation(profile({action: 'hover'}), config);
+        const fullPage = resolveQuickTranslationInvocation(profile(), config);
+        config.translationScope = 'content';
+        expect(hover.scope).toBe('all');
+        expect(hover).not.toHaveProperty('fullPageMode');
+        expect(fullPage).toMatchObject({scope: 'all', fullPageMode: 'viewport'});
+        expect(resolveQuickTranslationInvocation(profile(), config).scope).toBe('content');
     });
 
     it('Google 只在当次执行时限制为双语，不覆盖方案保存的显示偏好', () => {
@@ -221,6 +243,7 @@ describe('快捷翻译调用解析', () => {
             to: 'de',
             display: 0,
             fullPageTranslationMode: 'viewport',
+            translationScope: 'content',
         })).toMatchObject({
             service: services.google,
             displayMode: 'bilingual',

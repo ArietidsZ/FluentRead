@@ -269,7 +269,8 @@
       "tests/translationDocumentCorpus.test.ts",
       "tests/translationTruncation.test.ts",
       "tests/userscriptCredentialPersistence.test.ts",
-      "tests/vocabularyBookComponentLifecycle.test.ts"
+      "tests/vocabularyBookComponentLifecycle.test.ts",
+      "tests/allNodesTranslationCore.test.ts"
     ]
   }
 }

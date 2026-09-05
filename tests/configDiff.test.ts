@@ -9,6 +9,15 @@ function group(result: ReturnType<typeof buildConfigDiff>, id: string) {
 }
 
 describe('配置差异预览', () => {
+    it('高级设置识别范围以开启关闭预览，撤销时方向可读', () => {
+        expect(group(buildConfigDiff({translationScope: 'content'}, {translationScope: 'all'}), 'advanced')?.changes).toEqual([
+            {key: 'translationScope', label: '识别全部节点', before: '关闭', after: '开启'},
+        ]);
+        expect(group(buildConfigDiff({translationScope: 'all'}, {translationScope: 'content'}), 'advanced')?.changes).toEqual([
+            {key: 'translationScope', label: '识别全部节点', before: '开启', after: '关闭'},
+        ]);
+    });
+
     it('语言配置差异明确标出简体与繁体名称', () => {
         const result = buildConfigDiff({from: 'zh-Hans', to: 'zh-Hans', inputBoxTranslationTarget: 'zh-Hans',
             translationCenterSourceLanguage: 'zh-Hans', translationCenterTargetLanguage: 'zh-Hans'},

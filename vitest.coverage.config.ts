@@ -166,6 +166,7 @@ export default defineConfig({
             'tests/translationCachePolicyBinding.test.ts',
             'tests/translationCacheManagement.test.ts',
             'tests/translationCore.test.ts',
+            'tests/allNodesTranslationCore.test.ts',
             'tests/translationControlOwnership.test.ts',
             'tests/upstreamTranslationBoundaries.test.ts',
             'tests/settingsCompositionAutosave.test.ts',

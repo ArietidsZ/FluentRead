@@ -17,6 +17,16 @@ const validConfig = {
 }
 
 describe('configuration transfer helpers', () => {
+  it('导出导入保留全部节点设置，旧备份与损坏值回到正文识别', () => {
+    const current = normalizeConfig({...validConfig, translationScope: 'all'})
+    const exported = prepareConfigForExport(current)
+    expect(exported.translationScope).toBe('all')
+    expect(prepareConfigForImport(exported, new Config()).translationScope).toBe('all')
+    const {translationScope: _removed, ...legacyExport} = exported
+    expect(prepareConfigForImport(legacyExport, current).translationScope).toBe('content')
+    expect(prepareConfigForImport({...exported, translationScope: 'unsafe'}, current).translationScope).toBe('content')
+  })
+
   it('简繁配置经导入、导出和再次导入后仍按独立语言保存', () => {
     const imported = prepareConfigForImport({
       ...validConfig, from: 'zh-CN', to: 'zh-TW', inputBoxTranslationTarget: 'zh-HK',

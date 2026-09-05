@@ -66,6 +66,19 @@ describe('QQ legacy frame relay', () => {
         expect(parseQQMailFrameChanged(null)).toBeNull();
     });
 
+    it('accepts both frozen recognition scopes, keeps legacy requests, and rejects invalid scope values', () => {
+        const request = {type: QQ_MAIL_FRAME_REQUEST_MESSAGE_TYPE, action: 'toggle'};
+        for (const scope of ['content', 'all']) {
+            expect(parseQQMailFrameRequest({...request, invocation: {scope, fullPageMode: 'viewport'}}))
+                .toEqual({...request, invocation: {scope, fullPageMode: 'viewport'}});
+        }
+        expect(parseQQMailFrameRequest({...request, invocation: {fullPageMode: 'all'}}))
+            .toEqual({...request, invocation: {fullPageMode: 'all'}});
+        for (const scope of ['future', '', 'ALL', true, 1, null, undefined, {}, ['all']]) {
+            expect(parseQQMailFrameRequest({...request, invocation: {scope}})).toBeNull();
+        }
+    });
+
     it('relays valid child requests and rejects spoofed sender metadata', async () => {
         const sendTabMessage = vi.fn(async () => ({success: true, enabled: false}));
         const [request] = createQqMailFrameBackgroundHandlers({sendTabMessage});
@@ -76,10 +89,10 @@ describe('QQ legacy frame relay', () => {
         await expect(request.handle({
             type: QQ_MAIL_FRAME_REQUEST_MESSAGE_TYPE,
             action: 'toggle',
-            invocation: {targetLanguage: 'zh-CN'},
+            invocation: {targetLanguage: 'zh-CN', scope: 'all'},
         }, context)).resolves.toEqual({success: true, enabled: false});
         expect(sendTabMessage).toHaveBeenLastCalledWith(42, {
-            type: 'qqMailFrameCommand', action: 'toggle', invocation: {targetLanguage: 'zh-CN'},
+            type: 'qqMailFrameCommand', action: 'toggle', invocation: {targetLanguage: 'zh-CN', scope: 'all'},
         }, {frameId: 0});
 
         for (const sender of [

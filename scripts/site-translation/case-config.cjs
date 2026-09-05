@@ -185,6 +185,9 @@ function normalizeCaseConfig(caseName, caseConfig) {
 
   return {
     selector: caseConfig.hoverSelector || caseConfig.selector || requiredSelectors[0],
+    ...(typeof caseConfig.prepareScrollSelector === 'string' && caseConfig.prepareScrollSelector.trim()
+      ? {prepareScrollSelector: caseConfig.prepareScrollSelector.trim()} : {}),
+    ...(caseConfig.hoverSettleMs !== undefined ? {hoverSettleMs: caseConfig.hoverSettleMs} : {}),
     requiredSelectors,
     forbiddenSelectors,
     optionalForbiddenSelectors,
@@ -203,6 +206,14 @@ function normalizeCaseConfig(caseName, caseConfig) {
 
 function collectBaseCaseConfigErrors(caseName, caseConfig, normalized = normalizeCaseConfig(caseName, caseConfig)) {
   const errors = [];
+  if (caseConfig.prepareScrollSelector !== undefined &&
+      (typeof caseConfig.prepareScrollSelector !== 'string' || !caseConfig.prepareScrollSelector.trim())) {
+    errors.push(`${caseName} 的 prepareScrollSelector 必须是非空 selector`);
+  }
+  if (caseConfig.hoverSettleMs !== undefined && (!Number.isInteger(caseConfig.hoverSettleMs) ||
+      caseConfig.hoverSettleMs < 0 || caseConfig.hoverSettleMs > 5000)) {
+    errors.push(`${caseName} 的 hoverSettleMs 必须是 0-5000 的整数`);
+  }
   const configuredRequiredSelectors = caseConfig.requiredSelectors ||
     (caseConfig.selector ? [caseConfig.selector] : []);
   const rawRequiredSelectors = Array.isArray(configuredRequiredSelectors)

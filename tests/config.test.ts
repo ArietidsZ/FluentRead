@@ -357,6 +357,24 @@ describe('统一配置存储', () => {
         expect(localConfigWrites[0][1]).toEqual(expect.objectContaining({disabledExtensionDomains: []}));
     });
 
+    it('识别范围通过统一配置保存、水合与外部变更持久同步', async () => {
+        const store = await loadConfigModule(storedConfig);
+        await store.configReady;
+        expect(store.config.translationScope).toBe('content');
+        await store.saveConfig({...store.config, translationScope: 'all'});
+        const reopened = await loadConfigModule(storageState.get('local:config'));
+        await reopened.configReady;
+        expect(reopened.config.translationScope).toBe('all');
+        const listener = vi.fn();
+        reopened.subscribeConfig(listener);
+        const external = {...reopened.config, translationScope: 'content', __fluentConfigRevision: 100};
+        storageState.set('local:config', external);
+        storageWatchers.get('local:config')!(external);
+        await vi.waitFor(() => expect(reopened.config.translationScope).toBe('content'));
+        expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({translationScope: 'content'}));
+        expect(storageState.get('local:config')).toMatchObject({translationScope: 'content'});
+    });
+
     it('缓存双上限随配置保存、重新加载和外部通知同步', async () => {
         const store = await loadConfigModule(storedConfig);
         await store.configReady;

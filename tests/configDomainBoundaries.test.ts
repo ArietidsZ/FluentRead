@@ -40,6 +40,14 @@ import {
 } from '@/src/core/config/validation';
 
 describe('配置领域边界与防御分支', () => {
+    it('页面识别范围仅接受全部节点枚举，旧配置和非法值保持默认正文模式', () => {
+        expect(normalizeConfig({}).translationScope).toBe('content');
+        expect(normalizeConfig({translationScope: 'all'}).translationScope).toBe('all');
+        for (const translationScope of ['content', undefined, null, '', 'ALL', 'future', true, 1, {}, ['all']]) {
+            expect(normalizeConfig({translationScope}).translationScope).toBe('content');
+        }
+    });
+
     it('全局和工具语言按书写体系迁移历史别名并保留自定义非中文语言', () => {
         for (const [language, canonical] of [
             [' zh ', 'zh-Hans'], ['zh_CN', 'zh-Hans'], ['zh-SG', 'zh-Hans'],

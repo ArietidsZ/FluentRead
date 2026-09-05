@@ -254,6 +254,7 @@
   "mkdocs-material-home": {
     "url": "https://squidfunk.github.io/mkdocs-material/",
     "hoverSelector": ".md-content__inner p",
+    "prepareScrollSelector": ".md-content__inner p",
     "requiredSelectors": [".md-content__inner h1", ".md-content__inner h2", ".md-content__inner p"],
     "coverageRules": [
       {"name": "page-title", "selector": ".md-content__inner h1", "kind": "heading", "minInitial": 1, "trackDynamic": true},
@@ -692,7 +693,7 @@
       {"name": "subsection-headings", "selector": "#main h3", "kind": "heading", "minInitial": 3},
       {"name": "chapter-paragraphs", "selector": "#main p", "kind": "content", "minInitial": 8}
     ],
-    "forbiddenSelectors": ["#main pre, #main code"],
+    "forbiddenSelectors": ["#main pre, #main code, #main .imageblock img"],
     "interactionSelectors": ["#main a[href]"],
     "modes": ["hover", "full"],
     "tier": "required",

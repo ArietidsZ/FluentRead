@@ -2261,6 +2261,12 @@ async function main() {
     // 当前 main 默认关闭悬浮球，但 Control/Alt+T 快捷键仍独立工作；
     // 这里等待 content script 初始化，而不是要求 UI 浮球必须存在。
     await page.waitForTimeout(1000);
+    if (args.prepareScrollSelector) {
+      // Some landing pages reveal existing DOM only after it enters the viewport.
+      // Use normal browser scrolling; never remove the site's hidden markers.
+      await page.locator(args.prepareScrollSelector).first().scrollIntoViewIfNeeded({timeout: args.timeout});
+      reportProgress(`页面预滚动已完成：${args.prepareScrollSelector}`);
+    }
     const hostMathRendering = await waitForHostMathRendering(page, args.timeout);
     await waitForStableTarget(page, args.selector, args.timeout);
     await waitForPageContract(

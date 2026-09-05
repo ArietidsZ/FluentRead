@@ -1,6 +1,6 @@
 /**
  * @file src/features/full-page-translation/qqMailFrames.ts
- * 文件职责：定义旧版 QQ 邮箱 frame relay 使用的 URL 守卫、消息协议和调用参数白名单。
+ * 文件职责：定义旧版 QQ 邮箱 frame relay 使用的 URL 守卫、消息协议和包含页面识别范围的调用参数白名单。
  * 主要内容：严格区分 mail.qq.com 的 legacy frame_html 顶层与 readmail 子 frame，拒绝凭证、未知字段和伪造 frame 来源。
  * 模块边界：本文件只执行纯值校验，不访问浏览器 API、不读取 sid、不发送消息；后台转发由 background/qqMailFrameHandlers 负责。
  */
@@ -37,7 +37,7 @@ export type QQMailFrameRequestOrChangedMessage = QQMailFrameRequestMessage | QQM
 
 const LEGACY_TOP_PATH = '/cgi-bin/frame_html';
 const LEGACY_READ_PATH = '/cgi-bin/readmail';
-const invocationKeys = new Set(['service', 'model', 'targetLanguage', 'displayMode', 'profileId', 'fullPageMode', 'glossaryIds']);
+const invocationKeys = new Set(['service', 'model', 'targetLanguage', 'displayMode', 'profileId', 'fullPageMode', 'glossaryIds', 'scope']);
 const requestKeys = new Set(['type', 'action', 'invocation']);
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -83,6 +83,9 @@ function parseInvocation(value: unknown): PageTranslationInvocation | undefined 
     }
     if (value.fullPageMode !== undefined && value.fullPageMode !== 'viewport' && value.fullPageMode !== 'all') {
         throw new TypeError('QQ 邮箱 frame fullPageMode 无效');
+    }
+    if (value.scope !== undefined && value.scope !== 'content' && value.scope !== 'all') {
+        throw new TypeError('QQ 邮箱 frame scope 无效');
     }
     return value as PageTranslationInvocation;
 }

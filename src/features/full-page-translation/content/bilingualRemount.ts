@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/bilingualRemount.ts
  * 文件职责：在 React/Vue 等宿主框架等价重挂双语 owner 时，于同一 MutationObserver 检查点原子接管已提交译文。
- * 主要内容：按 childList 相对路径配对新旧 owner，校验原文/译文快照与直属工件，重建 WeakMap 状态并安全转移布局租约。
+ * 主要内容：按 childList 相对路径配对新旧 owner，按正文/全部节点范围隔离熔断身份并校验原文/译文快照与直属工件，重建 WeakMap 状态并安全转移布局租约。
  * 模块边界：本文件不发起翻译请求、不发现候选也不持有页面会话；runtime 提供候选/语义验证与会话索引收尾。
  */
 import {
@@ -31,6 +31,7 @@ import {
 import {
     collectLiveTranslationTextSlots,
     getCurrentTranslationCore,
+    type TranslationScope,
 } from '@/src/core/translation/public';
 
 const BILINGUAL_ARTIFACT_SELECTOR =
@@ -76,12 +77,14 @@ export interface BilingualRemountCapitulationRegistry {
         sourceText: string,
         sourceStructureSignature: string,
         translationInvocationIdentity: string | undefined,
+        scope?: TranslationScope,
     ) => boolean;
     forget: (
         owner: HTMLElement,
         sourceText: string,
         sourceStructureSignature: string,
         translationInvocationIdentity: string | undefined,
+        scope?: TranslationScope,
     ) => void;
 }
 
@@ -104,6 +107,7 @@ function syntheticCandidateStructureSignature(
     owner: HTMLElement,
     nodes: readonly Node[],
     allowTopLevelApplicationShell: boolean,
+    scope?: TranslationScope,
 ): string | null {
     const indexes = syntheticRunIndexes(owner, nodes);
     if (!indexes) return null;
@@ -114,7 +118,7 @@ function syntheticCandidateStructureSignature(
         : {protectedElement: segment};
     const textNodes = collectLiveTranslationTextSlots(
         segment,
-        getCurrentTranslationCore().shouldStayOriginal,
+        getCurrentTranslationCore(scope).shouldStayOriginal,
         segment,
         protectionOptions,
     ).map((slot) => slot.node);
@@ -122,6 +126,7 @@ function syntheticCandidateStructureSignature(
         segment,
         allowTopLevelApplicationShell,
         textNodes,
+        scope,
     )]);
 }
 
@@ -132,6 +137,7 @@ function capitulationKey(
     sourceStructureSignature: string,
     translationInvocationIdentity: string | undefined,
     overflowGenerationIdentity?: string,
+    scope?: TranslationScope,
 ): string {
     return JSON.stringify([
         owner.namespaceURI,
@@ -142,6 +148,7 @@ function capitulationKey(
             ? [sourceStructureSignature, overflowGenerationIdentity]
             : sourceStructureSignature,
         translationInvocationIdentity ?? '',
+        scope ?? 'content',
     ]);
 }
 
@@ -154,6 +161,7 @@ export function createBilingualRemountCapitulationRegistry(): BilingualRemountCa
         sourceText: string,
         sourceStructureSignature: string,
         translationInvocationIdentity: string | undefined,
+        scope: TranslationScope | undefined,
         visit: (boundary: Node, key: string) => boolean,
     ): boolean => {
         const path: number[] = [];
@@ -173,6 +181,7 @@ export function createBilingualRemountCapitulationRegistry(): BilingualRemountCa
                 sourceStructureSignature,
                 translationInvocationIdentity,
                 overflowGenerationIdentity,
+                scope,
             );
             if (visit(boundary, key)) return true;
             current = boundary;
@@ -213,29 +222,32 @@ export function createBilingualRemountCapitulationRegistry(): BilingualRemountCa
                 sourceStructureSignature,
                 state.translationInvocationIdentity,
                 state.sourceOverflowGenerationIdentity,
+                state.scope,
             );
             if (!blocked.has(key)) {
                 blocked.add(key);
                 blockedEntries += 1;
             }
         },
-        blocks(owner, sourceText, sourceStructureSignature, translationInvocationIdentity) {
+        blocks(owner, sourceText, sourceStructureSignature, translationInvocationIdentity, scope) {
             if (blockedEntries === 0) return false;
             return visitBoundaryKeys(
                 owner,
                 sourceText,
                 sourceStructureSignature,
                 translationInvocationIdentity,
+                scope,
                 (boundary, key) => blockedByBoundary.get(boundary)?.has(key) === true,
             );
         },
-        forget(owner, sourceText, sourceStructureSignature, translationInvocationIdentity) {
+        forget(owner, sourceText, sourceStructureSignature, translationInvocationIdentity, scope) {
             if (blockedEntries === 0) return;
             visitBoundaryKeys(
                 owner,
                 sourceText,
                 sourceStructureSignature,
                 translationInvocationIdentity,
+                scope,
                 (boundary, key) => {
                     const blocked = blockedByBoundary.get(boundary);
                     if (!blocked?.delete(key)) return false;
@@ -255,23 +267,26 @@ export function blocksBilingualRemountCandidate(
     allowTopLevelApplicationShell: boolean,
     translationInvocationIdentity: string | undefined,
     sourceNodes?: readonly Node[],
+    scope?: TranslationScope,
 ): boolean {
     const registryHasEntries = registry.hasEntries();
     if (!registryHasEntries && !hasBilingualArtifactHostWriteBudget(owner)) return false;
     const sourceStructureSignature = sourceNodes?.length
-        ? syntheticCandidateStructureSignature(owner, sourceNodes, allowTopLevelApplicationShell)
-        : getTranslationSourceStructureSignature(owner, allowTopLevelApplicationShell);
+        ? syntheticCandidateStructureSignature(owner, sourceNodes, allowTopLevelApplicationShell, scope)
+        : getTranslationSourceStructureSignature(owner, allowTopLevelApplicationShell, undefined, scope);
     if (!sourceStructureSignature) return false;
     return isBilingualArtifactHostWriteBudgetCapitulated(
         owner,
         sourceText,
         sourceStructureSignature,
         translationInvocationIdentity,
+        scope,
     ) || registryHasEntries && registry.blocks(
         owner,
         sourceText,
         sourceStructureSignature,
         translationInvocationIdentity,
+        scope,
     );
 }
 
@@ -282,15 +297,17 @@ export function forgetBilingualRemountCandidate(
     allowTopLevelApplicationShell: boolean,
     translationInvocationIdentity: string | undefined,
     sourceNodes?: readonly Node[],
+    scope?: TranslationScope,
 ): void {
     if (!registry.hasEntries()) return;
     registry.forget(
         owner,
         sourceText,
         sourceNodes?.length
-            ? syntheticCandidateStructureSignature(owner, sourceNodes, allowTopLevelApplicationShell) ?? ''
-            : getTranslationSourceStructureSignature(owner, allowTopLevelApplicationShell),
+            ? syntheticCandidateStructureSignature(owner, sourceNodes, allowTopLevelApplicationShell, scope) ?? ''
+            : getTranslationSourceStructureSignature(owner, allowTopLevelApplicationShell, undefined, scope),
         translationInvocationIdentity,
+        scope,
     );
 }
 
@@ -397,12 +414,12 @@ function cachedSourceStructureSignature(
         signatures = new Map<string, string>();
         cache.set(owner, signatures);
     }
-    const cacheKey = `${allowTopLevelApplicationShell ? 1 : 0}:${state?.syntheticSegment ? 1 : 0}`;
+    const cacheKey = `${allowTopLevelApplicationShell ? 1 : 0}:${state?.syntheticSegment ? 1 : 0}:${state?.scope ?? 'content'}`;
     const cached = signatures.get(cacheKey);
     if (cached !== undefined) return cached;
     const sourceTextNodes = state?.syntheticSegment ? collectLiveTranslationTextSlots(
         owner,
-        getCurrentTranslationCore().shouldStayOriginal,
+        getCurrentTranslationCore(state.scope).shouldStayOriginal,
         owner,
         state.allowTopLevelApplicationShell === true
             ? {allowTopLevelApplicationShell: true, protectedElement: owner}
@@ -412,6 +429,7 @@ function cachedSourceStructureSignature(
         owner,
         allowTopLevelApplicationShell,
         sourceTextNodes,
+        state?.scope,
     );
     signatures.set(cacheKey, signature);
     return signature;
@@ -466,6 +484,7 @@ function tryTransferBilingualOwner(
         preparation.sourceTextNodes,
         previousState.allowTopLevelApplicationShell === true,
         previousState.translationInvocationIdentity,
+        previousState.scope,
     );
     if (!attempt) return 'rejected';
     if (!markTranslationComplete(replacementOwner, attempt.state, attempt.generation)) {

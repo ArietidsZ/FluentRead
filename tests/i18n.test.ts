@@ -68,6 +68,32 @@ describe('界面 i18n 契约', () => {
     expect(normalizeConfig({uiLanguageSetupCompleted: 'true'}).uiLanguageSetupCompleted).toBe(false);
   });
 
+  it('在七种界面语言的高级设置提供全部节点选项，并删除旧操作入口文案', () => {
+    const labels = {
+      'zh-CN': '识别全部节点',
+      'en-US': 'Detect all nodes',
+      'ja-JP': 'すべてのノードを検出',
+      'ko-KR': '모든 노드 인식',
+      'fr-FR': 'Détecter tous les nœuds',
+      'ru-RU': 'Найти все узлы',
+      'es-ES': 'Detectar todos los nodos',
+    } as const;
+    expect(translate('settings.pageRecognition.title', 'zh-CN')).toBe('页面识别');
+    for (const language of Object.keys(labels) as Array<keyof typeof labels>) {
+      expect(translate('settings.pageRecognition.allNodes', language)).toBe(labels[language]);
+      expect(translateLegacyText('识别全部节点', language)).toBe(labels[language]);
+      for (const key of ['settings.pageRecognition.title', 'settings.pageRecognition.description']) {
+        expect(translate(key, language)).not.toBe(key);
+        expect(translate(key, language).trim()).not.toBe('');
+      }
+    }
+    for (const catalog of [zhCNMessages, ...translatedCatalogs]) {
+      expect(Object.keys(catalog).filter((key) => key.startsWith('popup.allNodes.'))).toEqual([]);
+      expect(Object.keys(catalog).filter((key) => key.startsWith('settings.contextMenu.'))).toEqual([]);
+      expect(Object.keys(catalog)).not.toContain('contextMenu.allNodes');
+    }
+  });
+
   it('按浏览器 locale 选择首次界面语言，并为目标语言保留原生名称', () => {
     expect(resolveUiLanguageFromLocale('en-US')).toBe('en-US');
     expect(resolveUiLanguageFromLocale('en-GB')).toBe('en-US');

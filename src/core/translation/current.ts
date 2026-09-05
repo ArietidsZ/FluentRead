@@ -1,24 +1,24 @@
 /**
  * @file src/core/translation/current.ts
  *
- * 文件职责：提供当前文档默认 TranslationCandidateCore 的便捷访问与候选解析入口，统一悬浮和按坐标发现行为。
- * 主要内容：由应用层注入适配器后按 URL 缓存共享核心，配置改变时重建实例，并导出 getCurrentTranslationCore、resolveTranslationCandidate 与 resolveTranslationCandidateAtPoint，把节点或视口坐标交给同一套候选政策。 可核对的公开符号包括 getCurrentTranslationCore、resolveTranslationCandidate、resolveTranslationCandidateAtPoint。
+ * 文件职责：提供当前文档按翻译范围隔离的 TranslationCandidateCore 便捷访问与候选解析入口，统一悬浮和按坐标发现行为。
+ * 主要内容：按当前 URL 和正文/全部节点范围懒加载共享核心实例，由应用层注入适配器并在变更后清空全部范围缓存，并导出 getCurrentTranslationCore、resolveTranslationCandidate 与 resolveTranslationCandidateAtPoint，把节点或视口坐标交给同一套候选政策。 可核对的公开符号包括 getCurrentTranslationCore、resolveTranslationCandidate、resolveTranslationCandidateAtPoint。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
 import {TranslationCandidateCore} from './engine';
 import {defaultTranslationAdapters} from './registry';
-import type {TranslationCandidate, TranslationSiteAdapter} from './types';
+import type {TranslationCandidate, TranslationScope, TranslationSiteAdapter} from './types';
 
 let cachedHref = '';
-let cachedCore: TranslationCandidateCore | null = null;
+const cachedCores = new Map<TranslationScope, TranslationCandidateCore>();
 let currentAdapters: readonly TranslationSiteAdapter[] = defaultTranslationAdapters;
 
 /** 配置由应用层注入；引用未变时保留核心，更新时同时清除 URL 相同的缓存。 */
 export function setCurrentTranslationAdapters(adapters: readonly TranslationSiteAdapter[]): void {
     if (currentAdapters === adapters) return;
     currentAdapters = adapters;
-    cachedCore = null;
+    cachedCores.clear();
 }
 
 function currentHref(): string {
@@ -30,21 +30,26 @@ function currentHref(): string {
     }
 }
 
-/** 返回所有内容脚本入口共享、按 URL 隔离的候选核心。 */
-export function getCurrentTranslationCore(): TranslationCandidateCore {
+/** 返回所有内容脚本入口共享、按 URL 和翻译范围隔离的候选核心。 */
+export function getCurrentTranslationCore(scope: TranslationScope = 'content'): TranslationCandidateCore {
     const href = currentHref();
-    if (!cachedCore || cachedHref !== href) {
+    if (cachedHref !== href) {
         cachedHref = href;
-        cachedCore = new TranslationCandidateCore({url: new URL(href), adapters: currentAdapters});
+        cachedCores.clear();
     }
-    return cachedCore;
+    let core = cachedCores.get(scope);
+    if (!core) {
+        core = new TranslationCandidateCore({url: new URL(href), adapters: currentAdapters, scope});
+        cachedCores.set(scope, core);
+    }
+    return core;
 }
 
 export function resolveTranslationCandidate(node: Node | null | undefined): TranslationCandidate | null {
     return getCurrentTranslationCore().resolve(node);
 }
 
-export function resolveTranslationCandidateAtPoint(x: number, y: number): TranslationCandidate | null {
+export function resolveTranslationCandidateAtPoint(x: number, y: number, scope?: TranslationScope): TranslationCandidate | null {
     if (typeof document === 'undefined') return null;
-    return getCurrentTranslationCore().resolveAtPoint(document, x, y);
+    return getCurrentTranslationCore(scope).resolveAtPoint(document, x, y);
 }

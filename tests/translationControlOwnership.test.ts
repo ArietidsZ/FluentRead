@@ -22,9 +22,9 @@ import {
 
 const fixtureHTML = readFileSync(new URL('./fixtures/translation-pages/button-controls.html', import.meta.url), 'utf8');
 
-function fixture(url = 'https://example.test/controls') {
+function fixture(url = 'https://example.test/controls', scope: 'content' | 'all' = 'content') {
     const {document, window} = parseHTML(fixtureHTML);
-    const core = createTranslationCore({url: new URL(url)});
+    const core = createTranslationCore({url: new URL(url), scope});
     Object.defineProperty(window, 'getComputedStyle', {
         configurable: true,
         value: (element: Element) => ({
@@ -37,9 +37,10 @@ function fixture(url = 'https://example.test/controls') {
 }
 
 describe('交互控件翻译所有权回归', () => {
-    it.each(['https://example.test/controls', 'https://github.com/FluentRead/FluentRead/pull/451'])(
-        '%s 的嵌套 flex/grid 标签属于同一个单行控件候选', (url) => {
-            const {document, core} = fixture(url);
+    it.each((['content', 'all'] as const).flatMap(scope =>
+        ['https://example.test/controls', 'https://github.com/FluentRead/FluentRead/pull/451'].map(url => ({scope, url}))))(
+        '$scope 范围 $url 的嵌套 flex/grid 标签属于同一个单行控件候选', ({scope, url}) => {
+            const {document, core} = fixture(url, scope);
             const candidates = core.discover(document);
             for (const id of ['merge-button', 'save-button', 'menu-action', 'split-button']) {
                 const owner = document.getElementById(id)!;
