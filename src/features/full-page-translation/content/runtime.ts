@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/runtime.ts
  * 文件职责：实现全文翻译的页面级会话引擎，负责候选发现、可见性调度、批量请求、动态 DOM 重扫、失败重试、缓存复用和恢复原文。
- * 主要内容：维护 FullPageSession、AbortController、Intersection/Mutation 观察器、精确属性写入过滤、候选所有权和生命周期重试，冻结翻译配置与识别范围并在提交时重绑可恢复文本槽，支持手动补扫全部界面节点，导出自动翻译、悬浮翻译、状态查询及恢复入口。
+ * 主要内容：维护 FullPageSession、AbortController、Intersection/Mutation 观察器、精确属性写入过滤、候选所有权和生命周期重试，冻结翻译配置与识别范围并在提交时重绑可恢复文本槽，按保存设置识别正文或全部界面文字，导出自动翻译、悬浮翻译、状态查询及恢复入口。
  * 模块边界：这是 content 侧编排层，不实现 provider 协议、纯候选算法或底层状态存储；翻译调用经 app client，发现规则来自 core/translation，渲染与状态分别交给 renderer 和 state。
  */
 import {getFullPageTranslationStateRevision, notifyFullPageTranslationState} from './stateNotification';
@@ -256,7 +256,7 @@ function translateNode(
 ): void {
     const target = asHTMLElement(node);
     if (!target) return;
-    const candidate = getCurrentTranslationCore(owner?.scope).resolve(target);
+    const candidate = getCurrentTranslationCore(owner?.scope ?? config.translationScope).resolve(target);
     if (candidate) void translateTarget(candidate, displayMode, slide, owner);
 }
 
@@ -1937,7 +1937,7 @@ function createFullPageSession(
     session = {
         active: true,
         translationMode: invocation.fullPageMode ?? config.fullPageTranslationMode,
-        scope: invocation.scope ?? 'content',
+        scope: invocation.scope ?? config.translationScope,
         translationConfig: inheritedConfig ? {...inheritedConfig} : captureFullPageTranslationConfig(invocation),
         progressSessionId: startFullPageTranslationProgress(),
         progressPublishScheduled: false,
@@ -2087,31 +2087,6 @@ export function autoTranslateEnglishPage(invocation: PageTranslationInvocation =
     for (const shadowRoot of getOpenShadowRoots(root)) observeFullPageRoot(session, shadowRoot);
     notifyFullPageTranslationState(true);
 }
-/** 用户主动补扫菜单和应用界面；升级当前会话，保留正文译文、在途请求与配置快照。 */
-export function translateAllPageNodes(): void {
-    const session = fullPageSession;
-    if (!session?.active) {
-        autoTranslateEnglishPage({scope: 'all', fullPageMode: 'all'});
-        return;
-    }
-    const upgraded = session.scope !== 'all';
-    session.scope = 'all';
-    session.translationMode = 'all';
-    // 旧生成器冻结了原候选政策；重新从根发现，避免升级前的剩余候选漏扫。
-    session.activeDiscovery = null;
-    session.broadRescanCooldowns = new WeakMap();
-    session.unchangedCandidates = new WeakMap();
-    session.lifecycleRetries = new WeakMap();
-    session.userCancelledCandidates.clear();
-    for (const [key, candidate] of session.scheduled) session.pending.set(key, candidate);
-    enqueueFullPageRescan(session, document.documentElement);
-    for (const shadowRoot of getOpenShadowRoots(document.documentElement)) {
-        observeFullPageRoot(session, shadowRoot);
-        enqueueFullPageRescan(session, shadowRoot);
-    }
-    scheduleFullPageDrain(session);
-    if (upgraded) notifyFullPageTranslationState(true);
-}
 /** 仅共享无凭据的会话快照；旧 QQ 邮件 frame 使用同一目标语言、服务和展示设置。 */
 export function getFullPageTranslationFrameState(): Omit<FrameTranslationState, 'enabled'> {
     const session = fullPageSession?.active ? fullPageSession : null;
@@ -2133,15 +2108,15 @@ export function cancelPendingHoverTranslation(): void {
 export function handleTranslation(
     mouseX: number,
     mouseY: number,
-    invocation: PageTranslationConfigOverrides & {delayMs?: number; continuous?: boolean} = {},
+    invocation: PageTranslationConfigOverrides & {scope?: TranslationScope; delayMs?: number; continuous?: boolean} = {},
 ): void {
-    const {delayMs = 0, continuous = false, ...translationOverrides} = invocation;
+    const {delayMs = 0, continuous = false, scope = config.translationScope, ...translationOverrides} = invocation;
     if (continuous) beginBilingualArtifactHostWriteGesture();
     const translationConfig = captureFullPageTranslationConfig(translationOverrides); if (!checkConfig(translationConfig)) return;
     cancelPendingHoverTranslation();
     hoverTimer = setTimeout(() => {
         hoverTimer = undefined;
-        const candidate = getOwnedTranslationCandidateAtPoint(document, mouseX, mouseY) ?? resolveTranslationCandidateAtPoint(mouseX, mouseY);
+        const candidate = getOwnedTranslationCandidateAtPoint(document, mouseX, mouseY) ?? resolveTranslationCandidateAtPoint(mouseX, mouseY, scope);
         if (!candidate) return;
         void translateTarget(
             candidate,

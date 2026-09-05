@@ -17,6 +17,16 @@ const validConfig = {
 }
 
 describe('configuration transfer helpers', () => {
+  it('导出导入保留全部节点设置，旧备份与损坏值回到正文识别', () => {
+    const current = normalizeConfig({...validConfig, translationScope: 'all'})
+    const exported = prepareConfigForExport(current)
+    expect(exported.translationScope).toBe('all')
+    expect(prepareConfigForImport(exported, new Config()).translationScope).toBe('all')
+    const {translationScope: _removed, ...legacyExport} = exported
+    expect(prepareConfigForImport(legacyExport, current).translationScope).toBe('content')
+    expect(prepareConfigForImport({...exported, translationScope: 'unsafe'}, current).translationScope).toBe('content')
+  })
+
   it('往返保留非默认段落加载样式，并把旧文件与非法值迁移到柔和圆环默认值', () => {
     const current = normalizeConfig({...new Config(), ...validConfig, translationLoadingStyle: 'sparkle'})
     const orbitExport = prepareConfigForExport({...current, translationLoadingStyle: 'orbit'})

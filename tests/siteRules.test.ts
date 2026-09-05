@@ -104,17 +104,6 @@ describe('始终翻译网站规则', () => {
         });
     });
 
-    it('全部节点菜单沿用站点禁用边界，并在已翻译时保持补扫标题', () => {
-        for (const isTranslated of [false, true]) {
-            expect(getFullPageContextMenuPresentation(isTranslated, false, true)).toEqual({
-                enabled: true, title: '识别全部节点',
-            });
-            expect(getFullPageContextMenuPresentation(isTranslated, true, true)).toEqual({
-                enabled: false, title: '识别全部节点',
-            });
-        }
-    });
-
     it('同时保留旧全局自动翻译开关，并只对网站名单限制网页协议', () => {
         expect(shouldAutoTranslatePage('https://unlisted.example/', {
             on: true,

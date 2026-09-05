@@ -1,12 +1,13 @@
 /**
  * @file src/app/background/contextMenuRuntime.ts
  * 文件职责：管理后台右键菜单的安装、展示状态同步和点击路由，让页面翻译菜单随配置及标签页翻译状态保持一致。
- * 主要内容：等待配置就绪后创建或更新菜单，订阅配置变化，读取 TabTranslationStateStore 决定“翻译/恢复”状态，保留可重复的“识别全部节点”入口，并把合法标签页上的点击转成对应运行时消息。
+ * 主要内容：等待配置就绪后创建或更新菜单，订阅配置变化，读取 TabTranslationStateStore 决定“翻译/恢复”文案，并把合法标签页上的菜单点击转成对应运行时消息。
  * 模块边界：这里只编排 browser.contextMenus、tabs 与 app 层状态，不执行正文翻译、不解析站点规则细节；菜单展示决策和翻译动作分别交给 feature domain 与 content runtime。
  */
 import {CONTEXT_MENU_IDS} from '@/src/core/config/constants';
+import {getFullPageContextMenuPresentation} from '@/src/features/site-rules/domain';
 import {config, configReady, subscribeConfig} from '@/src/services/config/store';
-import {getContextMenuItems, resolveContextMenuLanguage} from './contextMenuUi';
+import {getContextMenuTitle, resolveContextMenuLanguage} from './contextMenuUi';
 import {isBrowserTabId, type TabTranslationState, TabTranslationStateStore} from './tabTranslationState';
 
 interface BrowserTabSummary {
@@ -38,7 +39,9 @@ export function installBackgroundContextMenus(
     let contextMenuLanguage = resolveContextMenuLanguage(config.uiLanguage);
     let contextMenuSyncQueue: Promise<void> = Promise.resolve();
 
-    const readTabTranslationState = async (tabId: number): Promise<TabTranslationState> => {
+    const readTabTranslationState = async (tabId: number, force = false): Promise<TabTranslationState> => {
+        if (!force && tabTranslationStates.hasCompleteState(tabId)) return tabTranslationStates.get(tabId);
+
         try {
             const response = await browser.tabs.sendMessage(tabId, {
                 type: 'getFullPageTranslationState',
@@ -62,11 +65,11 @@ export function installBackgroundContextMenus(
         const activeTabs = await browser.tabs.query({active: true, lastFocusedWindow: true}) as BrowserTabSummary[];
         if (!activeTabs.some((tab) => tab.id === tabId)) return;
 
-        const state = await readTabTranslationState(tabId);
+        const state = await readTabTranslationState(tabId, true);
+        const presentation = getFullPageContextMenuPresentation(state.isTranslated, state.isSiteDisabled);
+        const localizedPresentation = {...presentation, title: getContextMenuTitle(state.isTranslated, state.isSiteDisabled, contextMenuLanguage)};
         try {
-            for (const {id, ...presentation} of getContextMenuItems(state.isTranslated, state.isSiteDisabled, contextMenuLanguage)) {
-                await browser.contextMenus.update(id, presentation);
-            }
+            await browser.contextMenus.update(CONTEXT_MENU_IDS.TRANSLATE_FULL_PAGE, localizedPresentation);
         } catch (error) {
             console.error('Failed to update context menu:', error);
         }
@@ -82,9 +85,11 @@ export function installBackgroundContextMenus(
                 await browser.contextMenus.removeAll();
                 if (!requestedEnabled || requestedEnabled !== contextMenuEnabled) return;
 
-                for (const item of getContextMenuItems(false, false, contextMenuLanguage)) {
-                    await browser.contextMenus.create({...item, contexts: ['page', 'selection']});
-                }
+                await browser.contextMenus.create({
+                    id: CONTEXT_MENU_IDS.TRANSLATE_FULL_PAGE,
+                    title: getContextMenuTitle(false, false, contextMenuLanguage),
+                    contexts: ['page', 'selection'],
+                });
                 if (requestedEnabled !== contextMenuEnabled) {
                     await browser.contextMenus.removeAll();
                     return;
@@ -121,27 +126,26 @@ export function installBackgroundContextMenus(
 
         browser.contextMenus.onClicked.addListener((info: any, tab: any) => {
             if (!contextMenuEnabled
-                || !Object.values(CONTEXT_MENU_IDS).includes(info.menuItemId)
+                || info.menuItemId !== CONTEXT_MENU_IDS.TRANSLATE_FULL_PAGE
                 || !isBrowserTabId(tab?.id)) return;
 
             void (async () => {
                 try {
-                    const state = await readTabTranslationState(tab.id);
+                    const state = await readTabTranslationState(tab.id, true);
                     if (state.isSiteDisabled) {
                         await update(tab.id);
                         return;
                     }
-                    const action = info.menuItemId === CONTEXT_MENU_IDS.TRANSLATE_ALL_NODES
-                        ? 'allNodes' : state.isTranslated ? 'restore' : 'fullPage';
                     const response = await browser.tabs.sendMessage(tab.id, {
-                        type: 'contextMenuTranslate', action,
+                        type: 'contextMenuTranslate',
+                        action: state.isTranslated ? 'restore' : 'fullPage',
                     }) as FullPageStateResponse | undefined;
                     if (response?.status !== 'success') return;
                     tabTranslationStates.setTranslated(
                         tab.id,
                         typeof response.isTranslated === 'boolean'
                             ? response.isTranslated
-                            : action !== 'restore',
+                            : !state.isTranslated,
                     );
                     await update(tab.id);
                 } catch (error) {

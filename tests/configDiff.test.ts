@@ -9,6 +9,15 @@ function group(result: ReturnType<typeof buildConfigDiff>, id: string) {
 }
 
 describe('配置差异预览', () => {
+    it('高级设置识别范围以开启关闭预览，撤销时方向可读', () => {
+        expect(group(buildConfigDiff({translationScope: 'content'}, {translationScope: 'all'}), 'advanced')?.changes).toEqual([
+            {key: 'translationScope', label: '识别全部节点', before: '关闭', after: '开启'},
+        ]);
+        expect(group(buildConfigDiff({translationScope: 'all'}, {translationScope: 'content'}), 'advanced')?.changes).toEqual([
+            {key: 'translationScope', label: '识别全部节点', before: '开启', after: '关闭'},
+        ]);
+    });
+
     it('为新增目标语言选项提供跨语言可识别的标签，并保留未知值回退', () => {
         expect(getMultilingualTargetLanguageLabel('de', 'Deutsch')).toBe('Deutsch / German / 德语');
         expect(getMultilingualTargetLanguageLabel('pt', 'Português')).toBe('Português / Portuguese / 葡萄牙语');

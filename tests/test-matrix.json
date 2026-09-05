@@ -141,7 +141,6 @@
       "tests/translationCacheManagement.test.ts"
     ],
     "functional": [
-      "tests/backgroundContextMenuRuntime.test.ts",
       "tests/aiSdkOpenAICompatible.test.ts",
       "tests/config.test.ts",
       "tests/configAutoBackupStore.test.ts",

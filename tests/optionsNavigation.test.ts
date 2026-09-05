@@ -122,6 +122,11 @@ describe('options navigation view-model', () => {
     expect(filterNavigationItems('备份与恢复')).toEqual([
       expect.objectContaining({ id: 'settings-data' }),
     ])
+    for (const keyword of ['全部节点', '菜单', '按钮', '识别']) {
+      expect(filterNavigationItems(keyword)).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: 'settings-advanced' }),
+      ]))
+    }
     expect(filterNavigationItems('')).toEqual([])
     expect(filterNavigationItems('不存在的设置项')).toEqual([])
   })

@@ -8,7 +8,6 @@ export {
     cancelPendingHoverTranslation,
     handleTranslation,
     autoTranslateEnglishPage,
-    translateAllPageNodes,
     invalidateFullPageTranslationSessionCache,
     isFullPageTranslationActive,
     noteBilingualHostGesture,

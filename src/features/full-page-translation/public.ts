@@ -6,7 +6,6 @@
  */
 export {
     autoTranslateEnglishPage,
-    translateAllPageNodes,
     cancelPendingHoverTranslation,
     handleTranslation,
     invalidateFullPageTranslationSessionCache,

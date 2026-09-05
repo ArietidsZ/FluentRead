@@ -9,6 +9,7 @@ import {
     extractTranslationText,
     extractTranslationTextFromNodes,
     getCurrentTranslationCore,
+    resolveTranslationCandidateAtPoint,
     getTranslationCandidateKey,
 } from '@/src/core/translation/public';
 import type {TranslationCandidate, TranslationScope} from '@/src/core/translation/public';
@@ -273,6 +274,19 @@ describe('explicit all-nodes translation scope', () => {
             expect(resolved?.kind, `${id} kind`).toBe(candidate!.kind);
             expect(getTranslationCandidateKey(resolved!), `${id} key`).toBe(getTranslationCandidateKey(candidate!));
         }
+    });
+
+    it('按坐标悬浮入口只在显式全部节点范围识别菜单，并继续保护输入内容', () => {
+        const {document} = page('<nav><button id="menu">Execute workflow</button></nav><textarea>Private draft</textarea>');
+        vi.stubGlobal('document', document);
+        vi.stubGlobal('location', {href: 'https://example.test/application'});
+        const button = document.querySelector<HTMLElement>('button')!;
+        const textarea = document.querySelector('textarea')!;
+        Object.defineProperty(document, 'elementsFromPoint', {configurable: true, value: () => [button]});
+        expect(resolveTranslationCandidateAtPoint(20, 20)).toBeNull();
+        expect(resolveTranslationCandidateAtPoint(20, 20, 'all')).toMatchObject({element: button, kind: 'control', scope: 'all'});
+        Object.defineProperty(document, 'elementsFromPoint', {configurable: true, value: () => [textarea]});
+        expect(resolveTranslationCandidateAtPoint(20, 20, 'all')).toBeNull();
     });
 
     it('URL 与范围分别隔离共享核心，并在导航后同时重新创建', () => {

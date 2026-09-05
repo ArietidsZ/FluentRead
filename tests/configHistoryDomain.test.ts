@@ -48,6 +48,19 @@ function history(overrides: Partial<ConfigHistoryState> = {}): ConfigHistoryStat
 }
 
 describe('配置 schema 与历史纯状态机', () => {
+    it('识别全部节点设置进入普通历史，撤销重做与旧快照恢复采用规范化范围', () => {
+        const baseline = createBaselineConfigHistory({...baseConfig, translationScope: 'content'}, 1);
+        const changed = appendConfigHistorySnapshot(baseline, {...baseConfig, translationScope: 'all'})!;
+        expect(changed.entries).toHaveLength(2);
+        expect(changed.entries[1].config.translationScope).toBe('all');
+        const undoIndex = resolveConfigHistoryTargetIndex(changed, 'undo')!;
+        expect(restoreRestorableConfig(changed.entries[undoIndex].config, baseConfig).translationScope).toBe('content');
+        const redoIndex = resolveConfigHistoryTargetIndex({...changed, cursor: undoIndex}, 'redo')!;
+        expect(restoreRestorableConfig(changed.entries[redoIndex].config, baseConfig).translationScope).toBe('all');
+        expect(restoreRestorableConfig(baseConfig, {...baseConfig, translationScope: 'all'}).translationScope).toBe('content');
+        expect(parseConfigHistory(JSON.parse(serializeConfigHistory(changed)))?.entries[1].config.translationScope).toBe('all');
+    });
+
     it('存储 schema 只接受完整对象或合法旧 JSON，并规范化 revision', () => {
         expect(isConfigRecord({})).toBe(true);
         expect(isConfigRecord(null)).toBe(false);

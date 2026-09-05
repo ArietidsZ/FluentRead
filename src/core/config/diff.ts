@@ -169,6 +169,7 @@ const UI_LANGUAGE_LABELS = new Map<unknown, string>([
 ]);
 const INTERFACE_SKIN_LABELS = labelsFor(interfaceSkinOptions);
 const TRANSLATION_LOADING_STYLE_LABELS = labelsFor(translationLoadingStyleOptions);
+const TRANSLATION_SCOPE_LABELS = new Map<unknown, string>([['content', '关闭'], ['all', '开启']]);
 const POPUP_MODULE_LABELS = new Map<string, string>(popupModuleOptions.map((item) => [item.id, item.label]));
 const POPUP_QUICK_FEATURE_LABELS = new Map<string, string>(
     popupQuickFeatureOptions.map((item) => [item.id, item.label]),
@@ -463,6 +464,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     translationBackoffBaseMs: {group: 'advanced', label: '退避初始间隔', format: (value) => formatNumber(value, ' ms')},
     translationBackoffMaxMs: {group: 'advanced', label: '退避最大间隔', format: (value) => formatNumber(value, ' ms')},
     animations: {group: 'advanced', label: '动画效果', format: formatBoolean},
+    translationScope: {group: 'advanced', label: '识别全部节点', format: (value) => formatEnum(value, TRANSLATION_SCOPE_LABELS)},
     translationLoadingStyle: {group: 'advanced', label: '段落加载样式', format: (value) => formatEnum(value, TRANSLATION_LOADING_STYLE_LABELS)},
 
     documentService: {group: 'tools', label: '文档翻译服务', format: formatService},

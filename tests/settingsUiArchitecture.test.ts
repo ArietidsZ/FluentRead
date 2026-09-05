@@ -43,6 +43,18 @@ function settingsGroupTitles(content: string): string[] {
 }
 
 describe('options UI composition architecture', () => {
+  it('keeps persistent all-node recognition in advanced settings using the shared config and localized switch', () => {
+    const sections = source('src/features/settings/ui/SettingsSections.vue')
+    const advanced = activeSectionSource(sections, 'settings-advanced')
+    expect(advanced).toContain('<SettingsGroup :title="t(\'settings.pageRecognition.title\')">')
+    expect(advanced).toContain(':label="t(\'settings.pageRecognition.allNodes\')"')
+    expect(advanced).toContain(':description="t(\'settings.pageRecognition.description\')"')
+    expect(advanced).toContain('v-model="config.translationScope" active-value="all" inactive-value="content"')
+    expect(advanced).toContain(':aria-label="t(\'settings.pageRecognition.allNodes\')"')
+    expect(sections.match(/v-model="config\.translationScope"/gu)).toHaveLength(1)
+    expect(source('src/app/popup/PopupApp.vue')).not.toContain('translationScope')
+  })
+
   it('keeps cache management inside advanced settings without another navigation or popup surface', () => {
     const sections = source('src/features/settings/ui/SettingsSections.vue')
     const cache = source('src/features/settings/ui/TranslationCacheSettings.vue')
@@ -790,11 +802,7 @@ describe('options UI composition architecture', () => {
     expect(hoverProfiles).toBeGreaterThan(translation.indexOf('aria-label="悬浮翻译延迟"'))
     expect(hoverProfiles).toBeLessThan(translation.indexOf('title="划词翻译"'))
     expect(fullPageProfiles).toBeGreaterThan(translation.indexOf('label="全文翻译范围"'))
-    expect(translation).toContain('v-model="config.contextMenuEnabled"')
-    expect(translation).toContain(':aria-label="t(\'settings.contextMenu.label\')"')
-    expect(translation).toContain("{{ t('settings.contextMenu.label') }}")
-    expect(translation).toContain(':content="t(\'settings.contextMenu.description\')"')
-    expect(fullPageProfiles).toBeGreaterThan(translation.indexOf('v-model="config.contextMenuEnabled"'))
+    expect(fullPageProfiles).toBeGreaterThan(translation.indexOf('aria-label="右键全文翻译"'))
   })
 
   it('loads shared tokens before the unchanged settings page rules', () => {

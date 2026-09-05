@@ -50,6 +50,7 @@ function config(): Config {
         to: 'zh-Hans',
         display: 1,
         fullPageTranslationMode: 'viewport',
+        translationScope: 'content',
         customSelectionTranslatorHotkey: '',
     } as Config;
 }
@@ -76,6 +77,7 @@ describe('快捷翻译 content composition', () => {
 
         expect(mocks.handleTranslation).toHaveBeenCalledWith(12, 34, {
             profileId: 'quick-1',
+            scope: 'content',
             service: services.openai,
             model: 'quick-model',
             targetLanguage: 'ja',
@@ -92,7 +94,7 @@ describe('快捷翻译 content composition', () => {
         mountConfiguredQuickTranslation(config(), {} as any, () => false, new AbortController().signal, vi.fn(), forward);
         const selected = profile({action: 'full-page', fullPageMode: 'all'});
         mocks.mountedDependencies!.runFullPage(selected);
-        expect(forward).toHaveBeenCalledWith({profileId: 'quick-1', service: services.openai,
+        expect(forward).toHaveBeenCalledWith({profileId: 'quick-1', scope: 'content', service: services.openai,
             model: 'quick-model', targetLanguage: 'ja', displayMode: 'single', fullPageMode: 'all'});
         expect(mocks.cancelPendingHoverTranslation).toHaveBeenCalledOnce();
         expect(mocks.autoTranslateEnglishPage).not.toHaveBeenCalled();
@@ -117,6 +119,7 @@ describe('快捷翻译 content composition', () => {
         mocks.mountedDependencies!.runFullPage(selected);
         expect(mocks.autoTranslateEnglishPage).toHaveBeenCalledWith({
             profileId: 'quick-1',
+            scope: 'content',
             service: services.openai,
             model: 'quick-model',
             targetLanguage: 'ja',

@@ -41,7 +41,7 @@ export function resolveTranslationCandidate(node: Node | null | undefined): Tran
     return getCurrentTranslationCore().resolve(node);
 }
 
-export function resolveTranslationCandidateAtPoint(x: number, y: number): TranslationCandidate | null {
+export function resolveTranslationCandidateAtPoint(x: number, y: number, scope?: TranslationScope): TranslationCandidate | null {
     if (typeof document === 'undefined') return null;
-    return getCurrentTranslationCore().resolveAtPoint(document, x, y);
+    return getCurrentTranslationCore(scope).resolveAtPoint(document, x, y);
 }

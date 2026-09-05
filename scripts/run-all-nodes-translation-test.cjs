@@ -55,8 +55,10 @@ async function installProvider(worker, translationUrl, blockedUrl) {
   }, {translationUrl, blockedUrl});
 }
 
-async function configure(popup) {
-  return popup.evaluate(async () => {
+let configSequence = 0;
+async function configure(popup, updates = {}) {
+  assert(!Object.hasOwn(updates, 'translationScope'), '识别范围只能通过真实设置开关修改');
+  return popup.evaluate(async ({updates, sequence}) => {
     const send = message => new Promise((resolve, reject) => chrome.runtime.sendMessage(message, response => {
       if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message)); else resolve(response);
     }));
@@ -66,14 +68,15 @@ async function configure(popup) {
     const revision = config.__fluentConfigRevision;
     for (const key of Object.keys(config)) if (key.startsWith('__fluentConfig')) delete config[key];
     Object.assign(config, {on: true, display: 1, service: 'freeTranslation', uiLanguage: 'zh-CN',
-      uiLanguageSetupCompleted: true, contextMenuEnabled: true, fullPageTranslationMode: 'all', mouseHoverTranslationDelay: 0});
-    const result = await send({type: 'persistConfig', config, clientId: 'all-nodes-browser-fixture', sequence: 1, baseRevision: revision});
+      uiLanguageSetupCompleted: true, theme: 'auto', fullPageTranslationMode: 'all', mouseHoverTranslationDelay: 0}, updates);
+    const result = await send({type: 'persistConfig', config, clientId: 'all-nodes-browser-fixture', sequence, baseRevision: revision});
     if (!result.success) throw new Error(result.error || '配置未保存');
-    return {service: config.service, display: config.display, fullPageTranslationMode: config.fullPageTranslationMode, uiLanguage: config.uiLanguage};
-  });
+    return {service: config.service, display: config.display, fullPageTranslationMode: config.fullPageTranslationMode, uiLanguage: config.uiLanguage, translationScope: config.translationScope};
+  }, {updates, sequence: ++configSequence});
 }
 
 async function action(popup, url, actionName) {
+  assert(['fullPage', 'restore'].includes(actionName), '只允许现有全文翻译和恢复动作');
   return popup.evaluate(async ({url, actionName}) => {
     const tabs = await chrome.tabs.query({});
     const tab = tabs.find(tab => tab.url === url);
@@ -82,6 +85,108 @@ async function action(popup, url, actionName) {
     if (response?.status !== 'success') throw new Error(`翻译动作 ${actionName} 失败: ${JSON.stringify(response)}`);
     return response;
   }, {url, actionName});
+}
+
+async function readConfig(popup) {
+  return popup.evaluate(async () => {
+    const response = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
+    if (!response.success) throw new Error(response.error || '读取配置失败');
+    return typeof response.value === 'string' ? JSON.parse(response.value) : response.value;
+  });
+}
+
+async function createSettingsDriver(context, popup, helper, optionsUrl, args, report) {
+  const name = /^(识别全部节点|Detect all nodes)$/;
+  report.settings = {entry: 'options#settings-advanced / Page recognition', persistenceCases: [], quickClose: [], latestWriteWins: [], layouts: [], consoleErrors: []};
+  async function open(width = 1440, colorScheme = 'light') {
+    const options = await helper.newPageWithoutForeground(context, args.timeout);
+    options.on('pageerror', error => report.settings.consoleErrors.push(error.message));
+    options.on('console', message => {if (message.type() === 'error') report.settings.consoleErrors.push(message.text());});
+    await options.setViewportSize({width, height: 1000});
+    await options.emulateMedia({colorScheme});
+    await options.goto(`${optionsUrl}#settings-advanced`);
+    await options.getByRole('switch', {name}).waitFor({state: 'visible', timeout: args.timeout});
+    return options;
+  }
+  async function waitPersisted(scope) {
+    const deadline = Date.now() + args.timeout;
+    let config;
+    do {
+      config = await readConfig(popup);
+      if (config.translationScope === scope) return config;
+      await popup.waitForTimeout(100);
+    } while (Date.now() < deadline);
+    throw new Error(`设置未保存：expected=${scope}, actual=${config?.translationScope}`);
+  }
+  async function setScope(scope, label) {
+    const before = await readConfig(popup);
+    const options = await open();
+    const toggle = options.getByRole('switch', {name});
+    assert.equal(await toggle.getAttribute('aria-checked'), String(before.translationScope === 'all'), '设置初始值与已保存配置不一致');
+    if (before.translationScope !== scope) await toggle.locator('xpath=..').click();
+    const afterClick = await toggle.getAttribute('aria-checked');
+    assert.equal(afterClick, String(scope === 'all'));
+    // No persistence wait before closing: exercise the short-lived options page.
+    await options.close();
+    const saved = await waitPersisted(scope);
+    const reopened = await open();
+    const reopenedValue = await reopened.getByRole('switch', {name}).getAttribute('aria-checked');
+    assert.equal(reopenedValue, String(scope === 'all'), '关闭重开设置后开关值丢失');
+    await reopened.screenshot({path: path.join(args.artifactsDir, `settings-${label}-reopened.png`)});
+    await reopened.close();
+    const evidence = {label, before: before.translationScope, afterClick, closedBeforePersistenceWait: true,
+      savedScope: saved.translationScope, revisionBefore: before.__fluentConfigRevision, revisionAfter: saved.__fluentConfigRevision, reopenedValue};
+    report.settings.persistenceCases.push(evidence);
+    report.settings.quickClose.push(evidence);
+    return evidence;
+  }
+  async function verifyLatestWriteWins() {
+    const before = await readConfig(popup);
+    const options = await open();
+    const toggle = options.getByRole('switch', {name});
+    await toggle.locator('xpath=..').click();
+    await toggle.locator('xpath=..').click();
+    await options.close();
+    await popup.waitForTimeout(350);
+    await waitPersisted(before.translationScope);
+    const reopened = await open();
+    assert.equal(await reopened.getByRole('switch', {name}).getAttribute('aria-checked'), String(before.translationScope === 'all'));
+    await reopened.close();
+    report.settings.latestWriteWins.push({twoConsecutiveToggles: true, closedImmediately: true, finalScope: before.translationScope});
+  }
+  async function captureLayouts() {
+    for (const language of ['zh-CN', 'en']) {
+      await configure(popup, {uiLanguage: language});
+      for (const colorScheme of ['light', 'dark']) {
+        for (const width of [1440, 1024, 820, 390]) {
+          const options = await open(width, colorScheme);
+          await options.getByRole('switch', {name}).scrollIntoViewIfNeeded();
+          await options.waitForTimeout(250);
+          const geometry = await options.getByRole('switch', {name}).evaluate(element => {
+            const rect = element.getBoundingClientRect();
+            return {viewport: innerWidth, documentWidth: document.documentElement.scrollWidth,
+              left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
+              dark: document.documentElement.classList.contains('dark'), label: element.getAttribute('aria-label'),
+              checked: element.getAttribute('aria-checked')};
+          });
+          assert(geometry.documentWidth <= width + 1, `设置页面横向溢出：${JSON.stringify(geometry)}`);
+          assert(geometry.left >= 0 && geometry.right <= width && geometry.top >= 0 && geometry.bottom <= 1000, '识别开关未完整可见');
+          assert.equal(geometry.dark, colorScheme === 'dark', '设置深浅主题未跟随系统');
+          assert.equal(geometry.label, language === 'en' ? 'Detect all nodes' : '识别全部节点');
+          const screenshot = `settings-${language}-${colorScheme}-${width}.png`;
+          await options.screenshot({path: path.join(args.artifactsDir, screenshot)});
+          report.settings.layouts.push({language, colorScheme, width, screenshot, geometry});
+          await options.close();
+        }
+      }
+    }
+    await configure(popup);
+    assert.deepEqual(report.settings.consoleErrors, [], '设置页控制台异常');
+  }
+  const initial = await readConfig(popup);
+  assert.equal(initial.translationScope, 'content', '新配置必须默认普通识别');
+  await setScope('content', 'default-off');
+  return {setScope, verifyLatestWriteWins, captureLayouts};
 }
 
 async function snapshot(page) {
@@ -132,7 +237,19 @@ async function clickInteractions(page) {
   for (const id of ['workflow-save', 'epoch-contact', 'epoch-graph', 'tab-history']) await page.locator(`#${id}`).click();
 }
 
-async function runLiveEpoch(page, popup, context, helper, args) {
+async function hoverControl(page, context, helper, args) {
+  await helper.activateExtensionTabWithoutForeground(context, page, args.timeout);
+  const target = page.locator('#epoch-dashboard');
+  await target.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(250);
+  const box = await target.boundingBox();
+  assert(box, '真实悬浮目标不可见');
+  await page.mouse.move(box.x + box.width * 0.35, box.y + Math.min(12, box.height * 0.2));
+  await page.keyboard.down('Control');
+  await page.keyboard.up('Control');
+}
+
+async function runLiveEpoch(page, popup, context, helper, settings, args) {
   const url = 'https://epoch.ai/data/ai-data-centers';
   const pageErrors = [];
   const recordError = error => pageErrors.push(error.message);
@@ -186,7 +303,13 @@ async function runLiveEpoch(page, popup, context, helper, args) {
   const ordinary = await read();
   for (const control of ordinary.controls.slice(0, 4)) assert.equal(control.text, control.original, 'Epoch 普通模式意外修改导航');
   await page.evaluate(() => {window.__epochOriginalWrapper = document.querySelector('h1 .fluent-read-bilingual-content');});
-  await action(popup, url, 'allNodes');
+  await settings.setScope('all', 'epoch-on');
+  await page.waitForTimeout(300);
+  const frozen = await read();
+  assert.deepEqual(frozen.controls.map(e => e.text), ordinary.controls.map(e => e.text), '修改识别范围不应改动当前翻译会话');
+  assert(await page.evaluate(() => window.__epochOriginalWrapper.isConnected), '设置保存不应更换当前正文');
+  await action(popup, url, 'restore');
+  await action(popup, url, 'fullPage');
   try {
     await page.waitForFunction(() => window.__epochContract.controls.every(({selector, index}) => /[\u3400-\u9fff]/u.test(document.querySelectorAll(selector)[index]?.textContent || '')) &&
       !!window.__epochContract.footerHeading?.querySelector('.fluent-read-bilingual-content'), undefined, {timeout: args.timeout});
@@ -194,7 +317,6 @@ async function runLiveEpoch(page, popup, context, helper, args) {
     throw new Error(`${error.message}\nEpoch 控件状态：${JSON.stringify(await read())}`);
   }
   const translated = await read();
-  assert(await page.evaluate(() => window.__epochOriginalWrapper.isConnected), 'Epoch 升级翻译丢失已有正文 wrapper');
   for (const control of translated.controls) {
     assert.equal(control.wrapperCount, 0, 'Epoch 控件应原位翻译');
     assert(control.connected && control.hrefUnchanged, 'Epoch 控件身份或链接发生变化');
@@ -206,7 +328,7 @@ async function runLiveEpoch(page, popup, context, helper, args) {
   await page.screenshot({path: path.join(args.artifactsDir, 'epoch-live-translated-top.png')});
   await page.locator('footer').scrollIntoViewIfNeeded();
   await page.screenshot({path: path.join(args.artifactsDir, 'epoch-live-translated-footer.png')});
-  await action(popup, url, 'allNodes');
+  await action(popup, url, 'fullPage');
   await page.waitForTimeout(500);
   const repeated = await read();
   assert.deepEqual(repeated.controls.map(e => e.text), translated.controls.map(e => e.text), 'Epoch 重复扫描重译已有控件');
@@ -215,12 +337,25 @@ async function runLiveEpoch(page, popup, context, helper, args) {
   const restored = await read();
   for (const control of restored.controls) assert.equal(control.text, control.original, 'Epoch 控件原文未恢复');
   assert(restored.inputsUnchanged, 'Epoch 恢复后搜索输入发生变化');
+  await action(popup, url, 'fullPage');
+  await page.waitForFunction(() => window.__epochContract.controls.every(({selector, index}) => /[\u3400-\u9fff]/u.test(document.querySelectorAll(selector)[index]?.textContent || '')), undefined, {timeout: args.timeout});
+  const retranslated = await read();
+  for (const control of retranslated.controls) assert.equal(control.wrapperCount, 0, 'Epoch 再译控件应保持原位');
+  await settings.setScope('content', 'epoch-off');
+  const disabledActiveSession = await read();
+  assert.deepEqual(disabledActiveSession.controls.map(e => e.text), retranslated.controls.map(e => e.text), '关闭设置不应改动当前会话');
+  await action(popup, url, 'restore');
+  await action(popup, url, 'fullPage');
+  await page.waitForFunction(() => !!document.querySelector('h1 .fluent-read-bilingual-content'), undefined, {timeout: args.timeout});
+  const ordinaryAfterDisabled = await read();
+  for (const control of ordinaryAfterDisabled.controls.slice(0, 4)) assert.equal(control.text, control.original, 'Epoch 关闭全部节点设置后仍翻译导航');
+  await action(popup, url, 'restore');
   await page.screenshot({path: path.join(args.artifactsDir, 'epoch-live-restored-footer.png')});
   page.off('pageerror', recordError);
   process.stdout.write('Epoch 实际站点导航、图表控件和页脚升级/重复/恢复契约通过。\n');
   return {evidenceType: 'live-site-production-extension-with-controlled-loopback-provider', providerQualityTested: false,
     sourceUrl: url, selectors: ['nav.secondary-nav a', 'footer .newsletter-title', 'footer a (visible readable text)', 'button.button-tab', 'footer h2.tagline'],
-    baseline, ordinary, translated, repeated, restored, pageErrors};
+    baseline, ordinary, frozen, translated, repeated, restored, retranslated, disabledActiveSession, ordinaryAfterDisabled, pageErrors};
 }
 
 async function main() {
@@ -244,8 +379,8 @@ async function main() {
   let session;
   let page;
   const manifest = JSON.parse(fs.readFileSync(path.join(args.extensionDir, 'manifest.json'), 'utf8'));
-  const bundleFiles = [...new Set(['manifest.json', manifest.background?.service_worker,
-    ...(manifest.content_scripts || []).flatMap(entry => entry.js || [])].filter(Boolean))].sort();
+  const bundleFiles = fs.readdirSync(args.extensionDir, {recursive: true, withFileTypes: true})
+    .filter(entry => entry.isFile()).map(entry => path.relative(args.extensionDir, path.join(entry.parentPath || entry.path, entry.name))).sort();
   const bundleHash = createHash('sha256');
   for (const filename of bundleFiles) {bundleHash.update(filename);bundleHash.update(fs.readFileSync(path.join(args.extensionDir, filename)));}
   const report = {evidenceType: 'production-extension-equivalent-fixtures', liveSite: false,
@@ -270,26 +405,16 @@ async function main() {
     const extensionId = new URL(worker.url()).hostname;
     await popup.goto(`chrome-extension://${extensionId}/popup.html`);
     report.config = await configure(popup);
-    // Updating no properties checks existence without changing the registered menu.
-    // Browser startup/config sync can recreate menus, so retry only this read probe.
-    let menuRegistered = false;
-    for (let attempt = 0; attempt < 40 && !menuRegistered; attempt += 1) {
-      menuRegistered = await worker.evaluate(async () => {
-        try {
-          await chrome.contextMenus.update('fluent-read-translate-all-nodes', {});
-          return true;
-        } catch {return false;}
-      });
-      if (!menuRegistered) await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    assert(menuRegistered, '网页右键菜单未注册识别全部节点');
-    report.entry = {surface: 'page-context-menu', menuId: 'fluent-read-translate-all-nodes',
-      registrationVerified: true, nativeMenuClickTested: false, actionEvidence: 'public-content-message-route'};
+    const optionsPath = manifest.options_ui?.page || manifest.options_page;
+    assert(optionsPath, '生产清单缺少设置页面');
+    const settings = await createSettingsDriver(context, popup, helper, `chrome-extension://${extensionId}/${optionsPath}`, args, report);
+    report.entry = {surface: 'options', section: 'settings-advanced', group: 'Page recognition',
+      realSwitchClickTested: true, persistedConfigField: 'translationScope', actionEvidence: 'existing-fullPage-and-restore-message-route'};
     page = await helper.newPageWithoutForeground(context, args.timeout);
     page.on('pageerror', error => runtimeErrors.push(error.message));
     if (args.liveOnly) {
       permitLivePageNetwork = true;
-      report.liveEpoch = await runLiveEpoch(page, popup, context, helper, args);
+      report.liveEpoch = await runLiveEpoch(page, popup, context, helper, settings, args);
       Object.assign(report, {passed: true, evidenceType: 'live-site-production-extension-with-controlled-loopback-provider', liveSite: true,
         launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement,
         providerRequests: provider.requestCount(), translatedItems: provider.translatedItemCount(), unexpectedNetwork, workerErrors});
@@ -310,6 +435,9 @@ async function main() {
     const bodyIds = ['article-body', 'workflow-body', 'project-body'];
     const dynamicIds = ['expanded-owner', 'expanded-details', 'tree-child', 'portal-duplicate', 'portal-archive'];
     const controlIds = [...staticIds.filter(id => id !== 'footer-tagline'), ...dynamicIds];
+    await hoverControl(page, context, helper, args);
+    await page.waitForTimeout(500);
+    assert.equal((await snapshot(page)).nodes['epoch-dashboard'].text, baseline.nodes['epoch-dashboard'].text, '默认悬浮不应翻译导航链接');
     await action(popup, url, 'fullPage');
     await waitForNodes(page, bodyIds, 1, args.timeout);
     const ordinary = await snapshot(page);
@@ -321,19 +449,28 @@ async function main() {
     report.ordinary = ordinary;
     process.stdout.write('普通模式正文与排除区域契约通过。\n');
 
-    // The entry belongs to the native page context menu, not the popup. Native
-    // OS menu selection would require foreground focus, so registration is checked
-    // separately and this browser layer exercises its public content-message route.
-    await popup.reload();
-    assert.equal(await popup.getByRole('button', {name: '识别全部节点', exact: true}).count(), 0, 'Popup 不应包含识别全部节点入口');
-    await action(popup, url, 'allNodes');
+    await settings.setScope('all', 'fixture-on');
+    await settings.verifyLatestWriteWins();
+    await page.waitForTimeout(300);
+    const frozen = await snapshot(page);
+    assert.deepEqual(frozen.nodes, ordinary.nodes, '范围设置不应改动已启动的普通翻译会话');
+    assert(await page.evaluate(() => window.__ordinaryWrappers.every(e => e.isConnected)), '设置保存不应更换已译正文');
+    report.scopeChangeFrozenSession = frozen;
+    await action(popup, url, 'restore');
+    await hoverControl(page, context, helper, args);
+    await waitForNodes(page, ['epoch-dashboard'], 1, args.timeout, controlIds);
+    const hovered = await snapshot(page);
+    assert.equal(hovered.nodes['epoch-dashboard'].count, 0, '全部节点悬浮控件应原位翻译');
+    await hoverControl(page, context, helper, args);
+    await page.waitForFunction(original => document.getElementById('epoch-dashboard').textContent === original, baseline.nodes['epoch-dashboard'].text, {timeout: args.timeout});
+    report.hover = {trigger: 'trusted-CDP-Control-key-down-up-with-pointer-on-navigation', defaultExcluded: true, translated: hovered.nodes['epoch-dashboard'], restored: (await snapshot(page)).nodes['epoch-dashboard']};
+    await action(popup, url, 'fullPage');
     await waitForNodes(page, [...staticIds, ...bodyIds], 1, args.timeout, controlIds);
-    assert(await page.evaluate(() => window.__ordinaryWrappers.every(e => e.isConnected)), '升级范围丢失已译正文 wrapper');
     const expanded = await snapshot(page);
     assertInvariant(expanded, baseline, 'all-nodes');
     report.allNodes = expanded;
     await page.screenshot({path: path.join(args.artifactsDir, 'all-nodes-translated.png'), fullPage: true});
-    await action(popup, url, 'allNodes');
+    await action(popup, url, 'fullPage');
     await page.waitForTimeout(500);
     const repeated = await snapshot(page);
     assert.equal(repeated.count, expanded.count, '重复扫描不得改变译文数量');
@@ -363,13 +500,37 @@ async function main() {
     assert.equal(restored.nodes['portal-archive'].text, 'Archive workflow');
     await clickInteractions(page);
     report.restored = restored;
-    await action(popup, url, 'allNodes');
+    await action(popup, url, 'fullPage');
     await waitForNodes(page, [...staticIds, ...bodyIds, ...dynamicIds], 1, args.timeout, controlIds);
     const retranslated = await snapshot(page);
     assertInvariant(retranslated, baseline, 'retranslated');
     assert.deepEqual(retranslated.events, {save: 2, contact: 2, graph: 2, history: 2, portal: 1, expansion: 1});
     report.retranslated = retranslated;
     await page.screenshot({path: path.join(args.artifactsDir, 'all-nodes-retranslated.png'), fullPage: true});
+    await settings.setScope('content', 'fixture-off');
+    const disabledActiveSession = await snapshot(page);
+    assert.deepEqual(disabledActiveSession.nodes, retranslated.nodes, '关闭设置不应改动已有全部节点翻译');
+    await action(popup, url, 'restore');
+    await action(popup, url, 'fullPage');
+    await waitForNodes(page, bodyIds, 1, args.timeout);
+    const ordinaryAgain = await snapshot(page);
+    for (const id of ['epoch-latest', 'epoch-dashboard', 'footer-about', 'workflow-overview', 'tab-history', 'tree-label']) {
+      assert.equal(ordinaryAgain.nodes[id].text, baseline.nodes[id].text, `关闭后普通模式仍翻译控件 ${id}`);
+    }
+    assertInvariant(ordinaryAgain, baseline, 'ordinary-after-setting-disabled');
+    report.ordinaryAfterDisabled = ordinaryAgain;
+    await action(popup, url, 'restore');
+    await page.reload();
+    await page.waitForSelector('#fluent-read-page-styles', {state: 'attached', timeout: args.timeout});
+    await action(popup, url, 'fullPage');
+    await waitForNodes(page, bodyIds, 1, args.timeout);
+    const afterRefresh = await snapshot(page);
+    for (const id of ['epoch-latest', 'epoch-dashboard', 'footer-about', 'workflow-overview', 'tab-history', 'tree-label']) {
+      assert.equal(afterRefresh.nodes[id].text, baseline.nodes[id].text, `刷新后普通模式仍翻译控件 ${id}`);
+    }
+    report.afterRefresh = afterRefresh;
+    await action(popup, url, 'restore');
+    await settings.captureLayouts();
     assert(provider.requestCount() > 0, '确定性翻译 provider 未收到请求');
     const providerSource = provider.requestPayloads().flat().join('\n');
     for (const protectedText of [
@@ -389,7 +550,7 @@ async function main() {
       await action(popup, url, 'restore');
       permitLivePageNetwork = true;
       report.fixtureProviderRequests = provider.requestCount();
-      report.liveEpoch = await runLiveEpoch(page, popup, context, helper, args);
+      report.liveEpoch = await runLiveEpoch(page, popup, context, helper, settings, args);
       report.liveEpoch.providerRequests = provider.requestCount() - report.fixtureProviderRequests;
       report.providerRequests = provider.requestCount();
       report.translatedItems = provider.translatedItemCount();

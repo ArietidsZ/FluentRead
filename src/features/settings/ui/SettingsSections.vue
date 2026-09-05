@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/SettingsSections.vue
  * 文件职责：承载 FluentRead Options 页面各业务设置分区，连接运行时配置、服务选择、快捷键、站点规则、翻译中心、OCR、词书以及导入导出和历史恢复。
- * 主要内容：模板按 activeSection 展示常规、服务、视频、隐私等控件，在独立的界面布局页面组织界面风格与菜单栏布局，并仅在高级选项激活时挂载缓存管理；脚本派生当前服务的网站入口，协调配置快照保存、加密凭据保存、历史游标、能力过滤、连接测试、文件传输和页面离开 flush。
+ * 主要内容：模板按 activeSection 展示常规、服务、视频、隐私等控件，在界面布局页面组织界面风格与菜单栏布局，在高级选项提供页面识别开关并按需挂载缓存管理；脚本派生当前服务的网站入口，协调配置快照保存、加密凭据保存、历史游标、能力过滤、连接测试、文件传输和页面离开 flush。
  * 模块边界：该组件负责设置 UI 编排但不实现 provider 网络、配置仓库或 feature 运行时；校验与迁移来自 core/config，持久化经 services/config，复杂子界面保持在各自 feature/组件内。
  -->
 <template>
@@ -290,6 +290,11 @@
 
     <!-- 高级选项 -->
     <section v-show="props.activeSection === 'settings-advanced'" id="settings-advanced" class="settings-section">
+      <SettingsGroup :title="t('settings.pageRecognition.title')">
+        <SettingsItem :label="t('settings.pageRecognition.allNodes')" :description="t('settings.pageRecognition.description')">
+          <el-switch v-model="config.translationScope" active-value="all" inactive-value="content" class="settings-toggle" :aria-label="t('settings.pageRecognition.allNodes')" />
+        </SettingsItem>
+      </SettingsGroup>
       <TranslationCacheSettings v-if="props.activeSection === 'settings-advanced'" :config="config" />
     </section>
 
@@ -484,12 +489,12 @@
 
         <el-row class="settings-control-row">
           <el-col :span="20" class="settings-control-label lightblue rounded-corner">
-            <el-tooltip class="box-item" effect="dark" :content="t('settings.contextMenu.description')" placement="top-start" :show-after="500">
-              <span class="popup-text popup-vertical-left">{{ t('settings.contextMenu.label') }}<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
+            <el-tooltip class="box-item" effect="dark" content="在网页右键菜单中显示“流畅阅读翻译”或“流畅阅读取消翻译”入口；关闭后不会影响全文翻译快捷键和悬浮球" placement="top-start" :show-after="500">
+              <span class="popup-text popup-vertical-left">右键全文翻译<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
             </el-tooltip>
           </el-col>
           <el-col :span="4" class="settings-control-field flex-end">
-            <el-switch v-model="config.contextMenuEnabled" class="settings-toggle" :aria-label="t('settings.contextMenu.label')" />
+            <el-switch v-model="config.contextMenuEnabled" class="settings-toggle" aria-label="右键全文翻译" />
           </el-col>
         </el-row>
         <QuickTranslationProfiles :config="config" action="full-page" :profiles="config.quickTranslationProfiles"
