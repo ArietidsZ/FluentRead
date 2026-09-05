@@ -156,7 +156,7 @@ function getFullCueEndMs(cue: VideoAiStabilizedCue): number {
 }
 
 function fullCueTextScore(cue: VideoAiStabilizedCue): number {
-  const words = cue.text.match(/[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu)?.length || 0;
+  const words = [...cue.text.matchAll(/[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu)].length;
   const visibleUnits = cue.text.replace(/[\s\p{P}\p{S}]/gu, '').length;
   const hasSentenceStop = /[.!?。！？][”’"']?$/u.test(cue.text.trim());
   return words * 10 + visibleUnits + (hasSentenceStop ? 16 : 0) + (cue.partial ? 0 : 12);

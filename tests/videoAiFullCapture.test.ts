@@ -84,6 +84,46 @@ describe('本地 AI 完整视频音频窗口', () => {
     ]);
     expect(corrected).toHaveLength(1);
     expect(corrected[0].text).toContain('compared both models');
+
+    const shorterCorrection = consolidateVideoAiFullCues([
+      {
+        startMs: 20_000,
+        durationMs: 3_800,
+        spokenEndMs: 23_800,
+        availableAtMs: 0,
+        text: 'At Sunrise, the research team opened the lab and checked the new system.',
+      },
+      {
+        startMs: 20_300,
+        durationMs: 1_200,
+        spokenEndMs: 21_500,
+        availableAtMs: 0,
+        partial: true,
+        text: 'At Sunrise, the research team opened 11.',
+      },
+    ]);
+    expect(shorterCorrection).toHaveLength(1);
+    expect(shorterCorrection[0].text).toContain('checked the new system');
+
+    const longerCorrection = consolidateVideoAiFullCues([
+      {
+        startMs: 25_000,
+        durationMs: 1_200,
+        spokenEndMs: 26_200,
+        availableAtMs: 0,
+        partial: true,
+        text: 'The team compared both models.',
+      },
+      {
+        startMs: 25_300,
+        durationMs: 3_800,
+        spokenEndMs: 29_100,
+        availableAtMs: 0,
+        text: 'The team compared both models carefully and recorded every observation.',
+      },
+    ]);
+    expect(longerCorrection).toHaveLength(1);
+    expect(longerCorrection[0].text).toContain('carefully and recorded');
   });
 
   it('does not merge common-first-word sentences or semantic numeric/negation changes', () => {
