@@ -67,6 +67,14 @@ export function createVideoPlayerMenu(language: UiLanguage, withLocalGeneration:
 
     if (withLocalGeneration) {
         const group = createTextElement('div', 'fluent-read-video-menu-ai-group', '');
+        const guide = document.createElement('details');
+        guide.className = 'fluent-read-video-local-guide';
+        guide.append(createVideoUiTextElement('summary', '', 'X 本地 AI 字幕', language), createVideoUiTextElement('p', '', '无原生字幕时，在本机识别；速度取决于 CPU 和内存。', language));
+        const regenerate = createItem('regenerate-ai-subtitle', '重新识别字幕', language);
+        regenerate.hidden = true;
+        regenerate.querySelector('[data-check]')!.remove();
+        guide.appendChild(regenerate);
+        group.appendChild(guide);
         const generate = createItem('toggle-ai-subtitle', '生成 AI 字幕', language);
         generate.querySelector('[data-check]')!.remove();
         generate.setAttribute('aria-live', 'polite');
@@ -102,6 +110,8 @@ export function renderVideoAiMenu(menu: HTMLElement, state: VideoAiMenuState, la
     const button = menu.querySelector<HTMLButtonElement>('[data-action="toggle-ai-subtitle"]');
     if (!button) return;
     const ready = state.fullActive && state.phase === 'ready';
+    const regenerate = menu.querySelector<HTMLButtonElement>('[data-action="regenerate-ai-subtitle"]');
+    if (regenerate) { regenerate.hidden = !ready; regenerate.disabled = state.checking || !state.available; }
     const processing = state.active && !ready;
     const label = !state.available
         ? translateVideoUi('video.aiUnavailable', language)

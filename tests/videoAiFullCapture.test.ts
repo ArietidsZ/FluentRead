@@ -1360,3 +1360,67 @@ describe('本地 AI 完整模式入口与隐藏副本边界', () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe('完整识别缓存恢复', () => {
+  const cues = [{startMs: 400, durationMs: 1600, text: '오늘은 좋은 날입니다.'}];
+  function fixture(complete = vi.fn().mockResolvedValue(undefined)) {
+    const options = {
+      getVideo: vi.fn(() => null), getModel: () => 'tiny', isSupported: vi.fn(() => true),
+      getAudio: vi.fn(), transcribe: vi.fn(), onTranscriptionComplete: complete,
+      onError: vi.fn(), onStateChange: vi.fn(), onProgress: vi.fn(), onSessionStart: vi.fn(), onInvalidate: vi.fn(),
+    };
+    return {controller: new VideoAiFullCaptureController(options), options};
+  }
+  it('只恢复原语言文本和时间轴，翻译完成后 ready，重复触发不读取音频或预热模型', async () => {
+    const {controller, options} = fixture();
+    expect(controller.restore(cues)).toBe(true);
+    expect(controller.restore(cues)).toBe(true);
+    expect(controller.getPhase()).toBe('translating');
+    await vi.waitFor(() => expect(controller.getPhase()).toBe('ready'));
+    expect(options.onTranscriptionComplete).toHaveBeenCalledOnce();
+    expect(options.onTranscriptionComplete).toHaveBeenCalledWith([
+      {startMs: 400, durationMs: 1600, text: cues[0].text, availableAtMs: 0, spokenEndMs: 2000},
+    ], controller.getSessionId());
+    expect(controller.getProgress()).toMatchObject({progress: 1, durationMs: 2000});
+    expect(options.getVideo).not.toHaveBeenCalled();
+    expect(options.getAudio).not.toHaveBeenCalled();
+    expect(options.transcribe).not.toHaveBeenCalled();
+    expect(options.onSessionStart).not.toHaveBeenCalled();
+    controller.destroy();
+  });
+  it('空字幕和不支持的页面不能制造 ready 状态', () => {
+    const {controller, options} = fixture();
+    expect(controller.restore([])).toBe(false);
+    options.isSupported.mockReturnValue(false);
+    expect(controller.restore(cues)).toBe(false);
+    expect(options.onTranscriptionComplete).not.toHaveBeenCalled();
+    expect(controller.getPhase()).toBe('idle');
+  });
+  it('恢复期间取消后，迟到翻译成功和失败均不能回写', async () => {
+    for (const reject of [false, true]) {
+      let resolve!: () => void;
+      let fail!: (error: Error) => void;
+      const complete = vi.fn(() => new Promise<void>((yes, no) => {resolve = yes; fail = no;}));
+      const {controller, options} = fixture(complete);
+      controller.restore(cues);
+      controller.cancel();
+      if (reject) fail(new Error('late'));
+      else resolve();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(controller.getPhase()).toBe('idle');
+      expect(options.onError).not.toHaveBeenCalled();
+    }
+  });
+  it('缓存翻译失败进入可重试错误状态，不重复识别音频', async () => {
+    const {controller, options} = fixture(vi.fn().mockRejectedValue(new Error('Translation unavailable')));
+    controller.restore(cues);
+    await vi.waitFor(() => expect(controller.getPhase()).toBe('error'));
+    expect(controller.isRequested()).toBe(false);
+    expect(controller.getError()).toBe('Translation unavailable');
+    expect(options.transcribe).not.toHaveBeenCalled();
+    options.onTranscriptionComplete.mockResolvedValue(undefined);
+    expect(controller.restore(cues)).toBe(true);
+    await vi.waitFor(() => expect(controller.getPhase()).toBe('ready'));
+    controller.destroy();
+  });
+});

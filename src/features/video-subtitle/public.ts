@@ -10,3 +10,16 @@ export {installYoutubeTimedTextBridge} from './content/youtubeTimedTextBridge';
 export {VIDEO_LOCAL_TRANSCRIPTION_MODELS, VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY, VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE, normalizeVideoLocalTranscriptionModel, normalizeVideoLocalTranscriptionModels} from './transcription';
 
 export type {VideoLocalTranscriptionModel} from './transcription';
+export {
+  buildVideoAiSubtitleCacheIdentity,
+  buildVideoAiSubtitleCacheKey,
+  buildVideoAiSubtitleVideoKey,
+  normalizeCompletedVideoAiSubtitleCues,
+  VIDEO_AI_SUBTITLE_CACHE_CLEAR_MESSAGE,
+  VIDEO_AI_SUBTITLE_CACHE_GET_MESSAGE,
+  VIDEO_AI_SUBTITLE_CACHE_SET_MESSAGE,
+  VIDEO_AI_SUBTITLE_CACHE_SCHEMA_FINGERPRINT,
+  VIDEO_AI_SUBTITLE_CACHE_STATS_MESSAGE,
+  type VideoAiSubtitleCacheRequest,
+  type VideoAiSubtitleCacheSource,
+} from './transcriptionCache';

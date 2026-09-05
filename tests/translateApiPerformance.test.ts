@@ -654,6 +654,15 @@ describe('translation API request lifecycle performance', () => {
     }));
   });
 
+  it('uses independent video source language without changing webpage language', async () => {
+    mocks.sendMessage.mockResolvedValue('今天是个好日子。');
+    await expect(translateVideoText('오늘은 좋은 날입니다.', undefined, 'auto')).resolves.toBe('今天是个好日子。');
+    expect(mocks.sendMessage).toHaveBeenLastCalledWith(expect.objectContaining({sourceLanguage: 'auto', origin: '오늘은 좋은 날입니다.'}));
+    await translateVideoText('안녕하세요.', undefined, 'ko');
+    expect(mocks.sendMessage).toHaveBeenLastCalledWith(expect.objectContaining({sourceLanguage: 'ko'}));
+    expect(mocks.config.from).toBe('en');
+  });
+
   it('uses the video AI service when resolving and sending page context', async () => {
     mocks.config.enableAIContext = true;
     mocks.config.videoService = 'mock-ai';

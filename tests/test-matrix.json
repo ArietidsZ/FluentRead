@@ -151,6 +151,7 @@
       "tests/videoSubtitleLogic.test.ts",
       "tests/localModelReadiness.test.ts",
       "tests/videoUiI18n.test.ts",
+      "tests/videoSubtitleAppearance.test.ts",
       "tests/videoAiBackground.test.ts",
       "tests/videoAiCapture.test.ts",
       "tests/videoAiFullCapture.test.ts",
@@ -163,6 +164,9 @@
       "tests/videoSpeechAlignment.test.ts",
       "tests/videoAiAlgorithmsCoverage.test.ts",
       "tests/videoAiBackendCoverage.test.ts",
+      "tests/videoAiSubtitleCache.test.ts",
+      "tests/videoPlayerLocator.test.ts",
+      "tests/videoPlayerBinding.test.ts",
       "tests/qqMailFrameHandlers.test.ts",
       "tests/qqMailFrameSession.test.ts",
       "tests/fullPageStateNotification.test.ts",
@@ -174,7 +178,9 @@
       "tests/readingAssistantClient.test.ts",
       "tests/imageOcrNormalization.test.ts",
       "tests/imageTranslationRendering.test.ts",
-      "tests/imageTranslationInpainting.test.ts"
+      "tests/imageTranslationInpainting.test.ts",
+      "tests/videoTranscriptionCacheClient.test.ts",
+      "tests/xCaptionSource.test.ts"
     ],
     "functional": [
       "tests/aiSdkOpenAICompatible.test.ts",

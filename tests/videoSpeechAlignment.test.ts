@@ -49,6 +49,24 @@ describe('音频停顿与完整字幕对齐', () => {
     expect(alignVideoAiSegmentsToSpeech(audio,[{startMs:0,endMs:2400}])[0].endMs).toBe(2440);
   });
 
+  it('下一句已在静音后起声但模型句尾越界时，收紧到长停顿前', () => {
+    const audio = pcm(9000, [[0, 1340], [2750, 5020], [6420, 8650]]);
+    const aligned = alignVideoAiSegmentsToSpeech(audio, [
+      {startMs: 0, endMs: 1400, text: '첫 문장.'},
+      {startMs: 2740, endMs: 6460, text: '둘째 문장.'},
+      {startMs: 6460, endMs: 8800, text: '셋째 문장.'},
+    ]);
+    expect(aligned[1].endMs).toBe(5060);
+    expect(alignVideoAiSegmentsToSpeech(audio, [
+      {startMs: 2740, endMs: 6800, text: '모델 경계가 이미 정지 구간을 넘음.'},
+      {startMs: 6460, endMs: 8800, text: '다음 문장.'},
+    ])[0].endMs).toBe(6800);
+    expect(alignVideoAiSegmentsToSpeech(audio, [
+      {startMs: 2740, endMs: 6460, text: '下一句起点过早.'},
+      {startMs: 6300, endMs: 8800, text: '实际起声稍晚.'},
+    ])[0].endMs).toBe(5060);
+  });
+
   it('稳定背景底噪上方仍能找到语音停顿，连续音量变化不猜测停顿', () => {
     const noisy = new Float32Array(6000 * 16).fill(0.008);
     noisy.fill(0.1, 0, 1800 * 16);

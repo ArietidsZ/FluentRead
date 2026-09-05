@@ -19,6 +19,9 @@ const extensionInstall = arg('extension-install', 'flags');
 const model = arg('model', 'tiny');
 const mediaMode = arg('media-source', 'hls');
 const displayMode = arg('display-mode', 'original-only');
+const lifecycle = arg('lifecycle', 'false') === 'true';
+const speechLanguage = arg('speech-language', 'en');
+const fixtureUrl = lifecycle || arg('profile', 'false') === 'true' ? 'https://x.com/cerebras' : 'https://x.com/cerebras/status/2089870131291943228';
 const nativeTrack = arg('native-track','false') === 'true';
 const startPlaying = arg('start-playing', 'false') === 'true';
 const earlyHls = arg('early-hls','false') === 'true';
@@ -43,8 +46,9 @@ if(arg('long', 'false') === 'true') lines.push(
   'Several engineers compared the results with their earlier measurements.',
   'Before leaving, the team saved its notes and closed the laboratory.',
 );
+if (speechLanguage === 'ko') lines.splice(0, lines.length, '오늘은 좋은 날입니다.', '커피를 마시고 친구를 만났습니다.', '내일은 함께 공원에 가려고 합니다.');
 const speech = lines.join(' [[slnc 1200]] ');
-command('/usr/bin/say', ['-v','Samantha','-r','175','-o',path.join(media,'speech.aiff'),speech]);
+command('/usr/bin/say', ['-v',speechLanguage === 'ko' ? 'Yuna' : 'Samantha','-r','175','-o',path.join(media,'speech.aiff'),speech]);
 const durationProbe=spawnSync('/opt/homebrew/bin/ffprobe',['-v','quiet','-show_entries','format=duration','-of','json',path.join(media,'speech.aiff')],{encoding:'utf8'});
 assert.equal(durationProbe.status,0,durationProbe.stderr);
 const speechDuration=Number(JSON.parse(durationProbe.stdout).format.duration);
@@ -99,10 +103,11 @@ const silenceEnds=[...silenceScan.stderr.matchAll(/silence_end: ([\d.]+)/g)].map
 const master = '#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",DEFAULT=YES,URI="audio.m3u8"\n#EXT-X-STREAM-INF:BANDWIDTH=300000,AUDIO="audio"\nvideo.m3u8\n';
 const base = 'https://video.twimg.com/ext_tw_video/424242/pu/';
 const videoMarkup='<video style="width:100%;height:100%" controls></video>';
-const playerMarkup=hostOverlay?`<div style="position:relative;width:960px;height:540px"><div style="position:relative;isolation:isolate;z-index:0;width:100%;height:100%;background:#10283f">${videoMarkup}</div><a id="fixture-media-link" aria-label="View media" href="/cerebras/status/2089870131291943228/video/1" style="position:absolute;inset:0;z-index:10" onclick="event.preventDefault();window.proofHostLinkClicks=(window.proofHostLinkClicks||0)+1"></a></div>`:`<div data-testid="videoPlayer" style="position:relative;width:960px;height:540px;background:#10283f">${videoMarkup}</div>`;
+const lifecycleControls = lifecycle ? `<div class="fixture-controls" style="position:absolute;bottom:0;left:0;right:0;display:flex;gap:12px;align-items:center;height:44px;background:#111"><button aria-label="Play" onclick="this.closest('[data-testid=videoPlayer]').querySelector('video').play()">Play</button><button aria-label="Settings">Settings</button><button id="fixture-fullscreen" onclick="this.closest('[data-testid=videoPlayer]').requestFullscreen()">Fullscreen</button></div>` : '';
+const playerMarkup=hostOverlay?`<div style="position:relative;width:960px;height:540px"><div style="position:relative;isolation:isolate;z-index:0;width:100%;height:100%;background:#10283f">${videoMarkup}</div><a id="fixture-media-link" aria-label="View media" href="/cerebras/status/2089870131291943228/video/1" style="position:absolute;inset:0;z-index:10" onclick="event.preventDefault();window.proofHostLinkClicks=(window.proofHostLinkClicks||0)+1"></a></div>`:`<div data-testid="videoPlayer" style="position:relative;width:960px;height:540px;background:#10283f">${videoMarkup}${lifecycleControls}</div>`;
 const profile = fs.mkdtempSync(path.join(os.tmpdir(),'fluentread-x-sync-profile-'));
 let browser, control, page;
-const report = {mediaMode,model,lines,displayMode,startPlaying,earlyHls,hostOverlay,backgroundMusic,backgroundMusicMetric,prepareAfterLoad,trustedStorageRequired,errors:[],console:[],requests:[],samples:[],diagnostics:[],menuSnapshots:[]};
+const report = {lifecycle,speechLanguage,fixtureUrl,mediaMode,model,lines,displayMode,startPlaying,earlyHls,hostOverlay,backgroundMusic,backgroundMusicMetric,prepareAfterLoad,trustedStorageRequired,errors:[],console:[],requests:[],samples:[],diagnostics:[],menuSnapshots:[]};
 
 async function captureVideoMenuSnapshot(page, artifacts, report, phase) {
  const snapshot = await page.evaluate((phaseName) => {
@@ -163,6 +168,7 @@ async function main() {
  }
  report.extensionInstall = extensionInstall;
  context.on('page', p => {p.on('pageerror', e => report.errors.push(e.message)); p.on('console',m => { if(m.type()==='error'||m.type()==='warning'||m.text().includes('[FluentRead] X audio fast decode unavailable')) report.console.push(m.text()); });});
+ await context.route('https://pbs.twimg.com/ext_tw_video_thumb/424242/pu/img/fixture.jpg', route => route.fulfill({status:200,contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540"><rect width="960" height="540" fill="#10283f"/></svg>'}));
  await context.route('https://video.twimg.com/**', async route => {
    const name = new URL(route.request().url()).pathname.split('/').at(-1);
    report.requests.push({name,at:Date.now()});
@@ -178,7 +184,7 @@ async function main() {
    await route.fulfill({status,headers,contentType:name.endsWith('m3u8')?'application/vnd.apple.mpegurl':'video/mp4',body});
  });
  await context.route('https://x.com/fluentread-fixture-ready.js',async route=>{await new Promise(resolve=>setTimeout(resolve,800));await route.fulfill({status:200,contentType:'text/javascript',body:''});});
- await context.route('https://x.com/cerebras/status/2089870131291943228', route => route.fulfill({status:200,contentType:'text/html',body:`<!doctype html><html><head><title>X subtitle synchronization fixture</title>${earlyHls?`<script>fetch('${base}master.m3u8')</script><script src="/fluentread-fixture-ready.js"></script>`:''}</head><body style="margin:24px;background:#f3f5f9"><h1>X subtitle synchronization fixture</h1><article>${playerMarkup}</article></body></html>`}));
+ await context.route(fixtureUrl, route => route.fulfill({status:200,contentType:'text/html',body:`<!doctype html><html><head><style>[data-testid=videoPlayer]:not(:hover):not(:focus-within) .fixture-controls {opacity:0;pointer-events:none}</style><title>X subtitle synchronization fixture</title>${earlyHls?`<script>fetch('${base}master.m3u8')</script><script src="/fluentread-fixture-ready.js"></script>`:''}</head><body style="margin:24px;background:#f3f5f9"><h1>X subtitle synchronization fixture</h1><article>${playerMarkup}</article></body></html>`}));
  const isFeatureWorker = candidate => loadedExtensionId ? new URL(candidate.url()).host === loadedExtensionId : candidate.url().endsWith('/background.js');
  const worker = context.serviceWorkers().find(isFeatureWorker) || await context.waitForEvent('serviceworker',{predicate:isFeatureWorker,timeout:30000});
  const id = new URL(worker.url()).host;
@@ -188,6 +194,8 @@ async function main() {
  await worker.evaluate(() => {
    const originalFetch = globalThis.fetch;
    globalThis.videoProofTranslations = [];
+   globalThis.videoProofAsrCalls = 0;
+   chrome.runtime.onMessage.addListener(message => { if(message?.type === 'fluentReadTranscribeLocalVideoAudio') globalThis.videoProofAsrCalls += 1; });
    globalThis.fetch = async (input, init) => {
      const url = String(input?.url || input);
      if (!url.startsWith('https://edge.microsoft.com/translate/translatetext')) return originalFetch(input, init);
@@ -208,7 +216,7 @@ async function main() {
    const r = await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});
    if(!r?.success) throw new Error('configStorageRead failed');
    const current = typeof r.value==='string'?JSON.parse(r.value):r.value||{};
-   return chrome.runtime.sendMessage({type:'persistConfig',clientId:'x-sync-browser-proof',sequence:1,config:{...current,on:true,from:'en',to:'zh-Hans',videoTranslationEnabled:true,videoService:'microsoft',videoServiceDefaultMigrated:true,videoLocalModel:model,videoSubtitleVisible:true,videoSubtitleDisplayMode:displayMode,useCache:false},...(Number.isSafeInteger(current.__fluentConfigRevision)?{baseRevision:current.__fluentConfigRevision}:{})});
+   return chrome.runtime.sendMessage({type:'persistConfig',clientId:'x-sync-browser-proof',sequence:1,config:{...current,on:true,from:'en',videoSourceLanguage:'auto',to:'zh-Hans',videoTranslationEnabled:true,videoService:'microsoft',videoServiceDefaultMigrated:true,videoLocalModel:model,videoSubtitleVisible:true,videoSubtitleDisplayMode:displayMode,useCache:false},...(Number.isSafeInteger(current.__fluentConfigRevision)?{baseRevision:current.__fluentConfigRevision}:{})});
  },{model,displayMode});
  assert.equal(configResult?.success,true,'configuration persisted through real background');
  const controlOnboarding = control.locator('[data-testid="ui-language-onboarding"]');
@@ -227,10 +235,11 @@ async function main() {
  if(!prepareAfterLoad) await prepareModel();
  page=await helper.newPageWithoutForeground(context);
  page.on('console',m=>report.console.push(`${m.type()}: ${m.text()}`));
- await page.goto('https://x.com/cerebras/status/2089870131291943228');
+ await page.goto(fixtureUrl);
  await activatePage(page);
- await page.evaluate(async ({base,mode,nativeTrack,earlyHls})=>{
+ const initializeVideo = () => page.evaluate(async ({base,mode,nativeTrack,earlyHls})=>{
    const video=document.querySelector('video');
+   video.poster = 'https://pbs.twimg.com/ext_tw_video_thumb/424242/pu/img/fixture.jpg';
    if(mode==='hls'){
      const mediaSource=new MediaSource();video.src=URL.createObjectURL(mediaSource);
      await new Promise(resolve=>mediaSource.addEventListener('sourceopen',resolve,{once:true}));
@@ -244,11 +253,15 @@ async function main() {
      const alternative=video.addTextTrack('captions','French','fr');alternative.addCue(new VTTCue(0,120,'French native fixture'));alternative.mode='disabled';window.proofAlternativeTrack=alternative;
      const track=video.addTextTrack('captions','English','en');track.addCue(new VTTCue(0,120,'Native source fixture'));track.mode='showing';window.proofTrack=track;
    }
-   window.proofSamples=[];window.proofDiagnostics=[];
+   window.proofSamples=[];window.proofDiagnostics=[];window.proofVideoEvents=[];
+   for(const name of ['play','pause','ended','waiting','stalled','error','seeking','seeked','emptied']) video.addEventListener(name,()=>window.proofVideoEvents.push({name,time:video.currentTime,paused:video.paused,visibility:document.visibilityState,at:performance.now()}));
+   document.addEventListener('visibilitychange',()=>window.proofVideoEvents.push({name:'visibility',time:video.currentTime,paused:video.paused,visibility:document.visibilityState,at:performance.now()}));
    const read=()=>{const panel=document.getElementById('fluent-read-video-subtitle-original');window.proofSamples.push({at:performance.now(),time:video.currentTime,paused:video.paused,text:panel?.textContent||'',translation:document.getElementById('fluent-read-video-subtitle')?.textContent||'',source:document.getElementById('fluent-read-video-ai-caption-container')?.dataset.fluentReadCaptionSource||''});};
    window.proofTimer=setInterval(read,50);
    window.addEventListener('fluent-read-video-ai-diagnostic',e=>window.proofDiagnostics.push(e.detail));
  },{base,mode:mediaMode,nativeTrack,earlyHls});
+ await initializeVideo();
+ await page.locator(hostOverlay ? '#fixture-media-link' : 'video').hover();
  await page.waitForFunction(()=>document.querySelector('video').readyState>=2);
  await page.waitForSelector('#fluent-read-video-subtitle-button',{timeout:15000});
  await page.locator('#fluent-read-video-subtitle-button').click();
@@ -331,6 +344,14 @@ async function main() {
  await page.locator('[data-action="toggle-ai-subtitle"]').click();
  await page.waitForTimeout(250);
  await captureVideoMenuSnapshot(page, artifacts, report, 'generating');
+ report.inlineProgress = await page.locator('#fluent-read-video-subtitle-button').getAttribute('data-fluent-read-video-progress');
+ assert.match(report.inlineProgress || '', /^\d+%$/, 'generation percentage is visible beside the icon without opening the menu');
+ report.progressLayout = await page.locator('#fluent-read-video-subtitle-button').evaluate(button => {
+   const bounds = button.getBoundingClientRect();
+   const icon = button.querySelector('img').getBoundingClientRect();
+   return {width:bounds.width,iconInside:icon.left >= bounds.left - .5 && icon.right <= bounds.right + .5};
+ });
+ assert.equal(report.progressLayout.iconInside,true,'the percentage must not push the icon outside the button');
  if(arg('background-generation','false')==='true'){
    await control.evaluate(async()=>{
      const controlTab=await chrome.tabs.getCurrent();
@@ -409,22 +430,26 @@ async function main() {
  report.diagnostics=await page.evaluate(()=>window.proofDiagnostics);
  report.texts=[...new Set(report.samples.filter(s=>!s.paused&&s.text).map(s=>s.text))];
  // Whisper variants may omit terminal punctuation; every spoken word and sentence boundary remains exact.
- const spokenText=text=>text.replace(/[.!?]+$/, '').toLocaleLowerCase();
+ const spokenText=text=>text.replace(/[.!?]+$/, '').toLocaleLowerCase().replace(speechLanguage === 'ko' ? /\s+/g : /$^/g, '');
  assert.deepEqual(report.texts.map(spokenText),lines.map(spokenText),'all spoken sentences are recognized once without boundary fragments');
  report.transitions=[];
  let previousText;
  for(const sample of report.samples.filter(sample=>!sample.paused)){ if(sample.text!==previousText){report.transitions.push({time:sample.time,text:sample.text});previousText=sample.text;} }
  const checks=[];
- for(const time of [1,4.7,8,9.8,12,13.74,0.2]){
-   await page.evaluate(time=>{const v=document.querySelector('video');v.currentTime=time;},time);
-   await page.waitForFunction(time=>Math.abs(document.querySelector('video').currentTime-time)<0.1,time,{timeout:5000});
+ const seekTargets = report.referenceSpeech.flatMap((cue, index) => [
+   {time: (cue.start + cue.end) / 2, text: lines[index]},
+   ...(index < lines.length - 1 ? [{time: (cue.end + report.referenceSpeech[index+1].start) / 2, text: ''}] : []),
+ ]);
+ for(const expected of seekTargets){
+   await page.evaluate(time=>{const v=document.querySelector('video');v.currentTime=time;},expected.time);
+   await page.waitForFunction(time=>Math.abs(document.querySelector('video').currentTime-time)<0.1,expected.time,{timeout:5000});
    await page.waitForTimeout(200);
-   checks.push(await page.evaluate(()=>({time:document.querySelector('video').currentTime,text:document.getElementById('fluent-read-video-subtitle-original')?.textContent||''})));
+   const actual = await page.evaluate(()=>({time:document.querySelector('video').currentTime,text:document.getElementById('fluent-read-video-subtitle-original')?.textContent||''}));
+   checks.push({...actual, expected: expected.text});
+   assert.equal(spokenText(actual.text), spokenText(expected.text), 'seek uses the existing complete timeline including silent pauses');
  }
  report.seekChecks=checks;
- assert.equal(checks[1].text,'','the first long pause clears subtitles');
- assert.equal(checks[3].text,'','the second long pause clears subtitles');
- assert.equal(spokenText(checks[0].text),spokenText(lines[0]));assert.equal(spokenText(checks[2].text),spokenText(lines[1]));assert.equal(spokenText(checks[4].text),spokenText(lines[2]));
+ if (speechLanguage === 'ko') assert.ok(report.texts.every(text => /[가-힣]/u.test(text) && !/[a-z]{3}/iu.test(text)), 'Korean source stays Korean with webpage source set to English');
  await page.screenshot({path:path.join(artifacts,'seek.png')});
  await page.locator('#fluent-read-video-subtitle-button').click();
  await page.locator('[data-action="toggle-ai-subtitle"]').click();
@@ -444,11 +469,74 @@ async function main() {
    report.hostLinkClicks=await page.evaluate(()=>window.proofHostLinkClicks);
    assert.equal(report.hostLinkClicks,1,'ordinary media link clicks still reach the host');
  }
+ if (lifecycle) {
+   const asrBefore = await worker.evaluate(() => globalThis.videoProofAsrCalls);
+   assert.ok(asrBefore > 0, 'initial run uses real Whisper');
+   await page.locator('[data-action="toggle-ai-subtitle"]').click();
+   await page.waitForFunction(() => document.querySelector('[data-action="toggle-ai-subtitle"] [data-state]')?.textContent.includes('已就绪'));
+   assert.equal(await worker.evaluate(() => globalThis.videoProofAsrCalls), asrBefore, 'reclick restores cached ASR');
+   await page.locator('#fluent-read-video-subtitle-button').click();
+   await page.evaluate(async () => {
+     const previous = document.querySelector('video');
+     const parent = previous.parentElement;
+     const next = previous.cloneNode(false);
+     next.removeAttribute('src');
+     previous.remove();
+     clearInterval(window.proofTimer);
+     await new Promise(resolve => setTimeout(resolve, 200));
+     parent.prepend(next);
+   });
+   await initializeVideo();
+   await page.locator('video').hover();
+   await page.waitForFunction(() => document.querySelector('[data-action="toggle-ai-subtitle"] [data-state]')?.textContent.includes('已就绪'));
+   assert.equal(await worker.evaluate(() => globalThis.videoProofAsrCalls), asrBefore, 'same-media DOM replacement preserves completed recognition');
+   assert.equal(await page.locator('#fluent-read-video-subtitle-button').count(), 1, 'replacement leaves exactly one icon');
+   await page.locator('#fixture-fullscreen').click();
+   await page.waitForFunction(() => Boolean(document.fullscreenElement));
+   await page.evaluate(time => {document.querySelector('video').currentTime = time;}, report.referenceSpeech[0].start + .6);
+   await page.waitForFunction(() => document.fullscreenElement?.contains(document.querySelector('#fluent-read-video-subtitle-original')) && document.querySelector('#fluent-read-video-subtitle-original')?.textContent);
+   await page.screenshot({path:path.join(artifacts,'fullscreen.png')});
+   await page.evaluate(() => document.exitFullscreen());
+   await page.reload();
+   await initializeVideo();
+   await page.locator('video').hover();
+   await page.waitForFunction(() => document.querySelector('[data-action="toggle-ai-subtitle"] [data-state]')?.textContent.includes('已就绪'), null, {timeout:30000});
+   assert.equal(await worker.evaluate(() => globalThis.videoProofAsrCalls), asrBefore, 'refresh restores same media despite a new blob URL');
+   await page.locator('#fluent-read-video-subtitle-button').click();
+   await page.locator('.fluent-read-video-local-guide summary').click();
+   await page.locator('[data-action="regenerate-ai-subtitle"]').click();
+   await page.waitForFunction(() => /%/.test(document.querySelector('#fluent-read-video-subtitle-button')?.getAttribute('data-fluent-read-video-progress') || ''));
+   await page.waitForFunction(() => document.querySelector('[data-action="toggle-ai-subtitle"] [data-state]')?.textContent.includes('已就绪'), null, {timeout:120000});
+   const asrAfterRegeneration = await worker.evaluate(() => globalThis.videoProofAsrCalls);
+   assert.ok(asrAfterRegeneration > asrBefore, 'explicit regeneration bypasses the cached transcript');
+   report.regeneration = {cacheAsrCalls:asrBefore,asrAfterRegeneration};
+   await page.locator('#fluent-read-video-subtitle-button').click();
+   await page.locator('h1').click();
+   await page.mouse.move(1200,850);
+   await page.waitForTimeout(1200);
+   report.hiddenEntry = await page.locator('#fluent-read-video-subtitle-button').evaluate(button => ({
+     fallback: button.closest('.fluent-read-video-fallback-controls') !== null,
+     host: button.parentElement.className,
+     controlsOpacity: getComputedStyle(button.parentElement).opacity,
+   }));
+   assert.equal(report.hiddenEntry.fallback, false, 'losing hover does not move the entry to a floating fallback');
+   assert.equal(report.hiddenEntry.controlsOpacity, '0', 'inactive entry hides with native controls');
+   // Use the established configuration protocol, preserving all other fields.
+   const disable = await control.evaluate(async () => {
+     const read = await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});
+     const current = typeof read.value === 'string' ? JSON.parse(read.value) : read.value;
+     return chrome.runtime.sendMessage({type:'persistConfig',clientId:'x-lifecycle-proof',sequence:1,config:{...current,on:false},baseRevision:current.__fluentConfigRevision});
+   });
+   assert.equal(disable.success,true);
+   await page.waitForFunction(() => !document.querySelector('#fluent-read-video-subtitle-button'));
+   report.lifecycleChecks = {profileEntry:true,reclickCache:true,domReplacement:true,fullscreen:true,refreshCache:true,inactiveNativeControls:true,globalDisabled:true,asrBefore,asrAfter:await worker.evaluate(() => globalThis.videoProofAsrCalls)};
+ }
  report.launchMode=browser.launchMode;report.focusPolicy=browser.focusPolicy;report.windowPlacement=browser.windowPlacement;
  assert.equal(report.windowPlacement.browserFrontmost,false);
+ assert.deepEqual(report.errors, [], 'the player lifecycle must not produce unhandled page errors');
  report.success=true;
 }
-main().catch(async e=>{report.failure=e.stack;process.exitCode=1;if(page)await page.screenshot({path:path.join(artifacts,'failure.png')}).catch(()=>{});}).finally(async()=>{
+main().catch(async e=>{report.failure=e.stack;process.exitCode=1;if(page)report.failureState=await page.evaluate(()=>({events:window.proofVideoEvents,samples:window.proofSamples?.slice(-20),video:[...document.querySelectorAll('video')].map(video=>({time:video.currentTime,duration:video.duration,paused:video.paused,ended:video.ended,ready:video.readyState,network:video.networkState,visibility:document.visibilityState,error:video.error?.message}))})).catch(()=>null);if(page)await page.screenshot({path:path.join(artifacts,'failure.png')}).catch(()=>{});}).finally(async()=>{
  fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringify(report,null,2));
  console.log(JSON.stringify({success:report.success,generationMs:report.generationMs,prepareMs:report.prepareMs,texts:report.texts,failure:report.failure,artifacts},null,2));
  if(browser)await browser.close();fs.rmSync(profile,{recursive:true,force:true});

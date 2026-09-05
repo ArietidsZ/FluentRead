@@ -47,6 +47,7 @@ interface WorkerRequest {
   type: 'prepare' | 'transcribe';
   model?: unknown;
   sourceLanguage?: string;
+  languageSessionKey?: string;
   audio?: Float32Array;
 }
 
@@ -298,6 +299,7 @@ async function transcribeLocalVideoAudioNow(request: LocalVideoTranscriptionRequ
     type: 'transcribe',
     model: normalizeVideoLocalTranscriptionModel(request.model),
     sourceLanguage: request.sourceLanguage,
+    languageSessionKey: request.streamId,
     audio: workerAudio,
   }, [workerAudio.buffer], TRANSCRIPTION_TIMEOUT_MS);
   return {

@@ -6,13 +6,18 @@
  */
 import {createVideoSubtitleBackgroundHandlers} from './handlers';
 import {chromeOffscreenClient} from '@/src/platform/offscreen/client';
+import {createVideoAiSubtitleCacheHandlers} from './cacheHandlers';
+import {videoAiSubtitleCacheRepository} from './transcriptionCache';
 
 export function createVideoSubtitleBackgroundRuntime() {
-    return createVideoSubtitleBackgroundHandlers({
-        offscreen: chromeOffscreenClient,
-        storage: {
-            get: async (key) => browser.storage.local.get(key),
-            set: async (value) => { await browser.storage.local.set(value); },
-        },
-    });
+    return [
+        ...createVideoSubtitleBackgroundHandlers({
+            offscreen: chromeOffscreenClient,
+            storage: {
+                get: async (key) => browser.storage.local.get(key),
+                set: async (value) => { await browser.storage.local.set(value); },
+            },
+        }),
+        ...createVideoAiSubtitleCacheHandlers(videoAiSubtitleCacheRepository),
+    ];
 }

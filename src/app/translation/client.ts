@@ -485,9 +485,9 @@ export async function translateTextBatch(
 
 /**
  * 翻译视频字幕。视频字幕使用独立的服务配置，但仍通过 background
- * 统一请求、缓存和错误边界；只发送 YouTube 已提供的纯文本字幕内容。
+ * 统一请求、缓存和错误边界；只发送字幕纯文本，允许 X 原语言独立于网页设置。
  */
-export async function translateVideoText(origin: string, signal?: AbortSignal): Promise<string> {
+export async function translateVideoText(origin: string, signal?: AbortSignal, sourceLanguage?: string): Promise<string> {
   if (signal?.aborted) throw createAbortError();
   const cleanedOrigin = origin?.replace(/[\s\u3000]/g, '') || '';
   if (!cleanedOrigin) return origin || '';
@@ -495,7 +495,7 @@ export async function translateVideoText(origin: string, signal?: AbortSignal): 
   const service = config.videoService;
   const model = resolveConfiguredModel(config.model[service], config.customModel[service]);
   const thinking = isModelThinkingEnabled(config.modelThinking, service, model);
-  const languages = getTranslationLanguages();
+  const languages = getTranslationLanguages({sourceLanguage});
   const useCache = config.useCache;
   const pageContext = await resolvePageContext(undefined, service, model);
   const aiSdkService = servicesType.isAiSdk(service);

@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/video-ai/fullCapture.ts
  * 文件职责：执行完整视频 AI 字幕的独立音频读取、分窗识别和最终 cue 整理。
- * 主要内容：支持 HLS PCM 注入、direct media 快速解码、隐藏扫描副本、串行 Whisper 窗口和取消清理。
+ * 主要内容：支持 HLS PCM 注入、direct media 快速解码、隐藏扫描副本、串行 Whisper 窗口、完整缓存字幕恢复和取消清理。
  * 模块边界：不得接管用户可见 video 的播放状态；页面源隔离由调用方通过选项注入。
  */
 import {
@@ -23,6 +23,7 @@ import {
   type VideoAiStabilizedCue,
 } from './streamingTranscript';
 import {alignVideoAiSegmentsToSpeech, findVideoAiPauseBoundary} from './speechAlignment';
+import type {VideoSubtitleCue} from '../youtubeSubtitleData';
 import type {
   VideoAiAudioChunk,
   VideoAiTranscriptionResult,
@@ -335,6 +336,31 @@ export class VideoAiFullCaptureController {
       .catch((error) => {
         if (session === this.session) this.fail(toError(error, '本地视频完整 AI 字幕启动失败'));
       });
+    return true;
+  }
+
+  /** 复用完整识别结果，只重建当前翻译会话，不启动音频读取或模型预热。 */
+  restore(cues: readonly VideoSubtitleCue[]): boolean {
+    if (this.isActive()) return true;
+    const normalized = normalizeVideoAiSubtitleTimeline([...cues]);
+    if (!this.options.isSupported() || normalized.length === 0) return false;
+    const session = ++this.session;
+    this.requested = true;
+    this.error = '';
+    this.phase = 'translating';
+    const complete = normalized.map(cue => ({
+      ...cue, availableAtMs: 0, spokenEndMs: cue.startMs + cue.durationMs,
+    }));
+    const durationMs = Math.max(...complete.map(cue => cue.spokenEndMs));
+    this.setProgress({phase: 'translating', captureMode: undefined, progress: .85,
+      capturedMs: durationMs, durationMs, transcribedMs: durationMs, windowIndex: 0, windowCount: complete.length});
+    void this.options.onTranscriptionComplete(complete, session).then(() => {
+      if (!this.isCurrentSession(session)) return;
+      this.phase = 'ready';
+      this.setProgress({phase: 'ready', progress: 1, windowIndex: complete.length});
+    }).catch(error => {
+      if (this.isCurrentSession(session)) this.fail(toError(error, '缓存字幕翻译失败，请重试'));
+    });
     return true;
   }
 

@@ -114,7 +114,6 @@
           </el-select>
           <p v-if="selectedVideoServiceUnavailableMessage" class="capability-warning">{{ selectedVideoServiceUnavailableMessage }}</p>
         </SettingsItem>
-        <VideoLocalModelSettings :config="config" />
         <SettingsItem label="显示 FluentRead 字幕" description="临时隐藏扩展字幕时保留当前翻译设置。" :disabled="!config.videoTranslationEnabled">
           <el-switch v-model="config.videoSubtitleVisible" class="settings-toggle" aria-label="显示 FluentRead 视频字幕" :disabled="!config.videoTranslationEnabled" />
         </SettingsItem>
@@ -126,12 +125,11 @@
             :disabled="!config.videoTranslationEnabled || !config.videoSubtitleVisible"
           />
         </SettingsItem>
-        <SettingsItem label="字幕字号" description="只调整 FluentRead 字幕，不改变 YouTube 原生字幕。" :disabled="!config.videoTranslationEnabled || !config.videoSubtitleVisible">
-          <el-select v-model="config.videoSubtitleFontSize" aria-label="视频字幕字号" :disabled="!config.videoTranslationEnabled" placeholder="请选择字号">
-            <el-option v-for="size in videoSubtitleFontSizeOptions" :key="size" class="select-left" :label="size === 100 ? '默认' : `${size}%`" :value="size" />
-          </el-select>
-        </SettingsItem>
       </SettingsGroup>
+      <SettingsGroup title="X 本地 AI 字幕" description="仅 X 无原生字幕时使用；模型和音频留在当前浏览器，下载后可离线识别。">
+        <VideoLocalModelSettings :config="config" />
+      </SettingsGroup>
+      <VideoSubtitleAppearanceSettings :config="config" />
       <details class="feature-help">
         <summary>使用说明</summary>
         <p>打开 YouTube 原生字幕后，FluentRead 会在播放器中显示译文。机器翻译约提前 10 秒、AI 服务约提前 30 秒准备字幕；播放器菜单可分别下载原文或译文 SRT。</p>
@@ -707,7 +705,6 @@ import {
   SELECTION_TRANSLATOR_DELAY_MAX,
   SELECTION_TRANSLATOR_DELAY_MIN,
   SELECTION_TRANSLATOR_DELAY_STEP,
-  VIDEO_SUBTITLE_FONT_SIZE_OPTIONS,
   normalizeConfig,
   normalizeMouseHoverTranslationDelay,
   normalizeSelectionTranslatorDelay,
@@ -741,6 +738,7 @@ import {
 } from '@/src/core/config/validation';
 import {ImageOcrSettings} from '@/src/features/image-translation/public';
 import VideoLocalModelSettings from './VideoLocalModelSettings.vue';
+import VideoSubtitleAppearanceSettings from './VideoSubtitleAppearanceSettings.vue';
 import {ModelUsageDashboard} from '@/src/features/model-usage/public';
 import InterfaceSettings from './InterfaceSettings.vue';
 import TranslationCacheSettings from './TranslationCacheSettings.vue';
@@ -920,7 +918,6 @@ const defaultTextServiceLabel = computed(() => (
 const videoServiceOptions = computed(() => availableServiceOptions.value.filter((item: any) => !item.disabled));
 const selectedTextServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.service));
 const selectedVideoServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.videoService));
-const videoSubtitleFontSizeOptions = VIDEO_SUBTITLE_FONT_SIZE_OPTIONS;
 const fullPageTranslationModeOptions = [
   {value: 'viewport', label: '按阅读进度'},
   {value: 'all', label: '翻译到页底'},

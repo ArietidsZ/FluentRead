@@ -51,10 +51,10 @@ describe('YouTube 视频字幕识别', () => {
         expect(isYouTubeVideoPage({ hostname: 'example.com', pathname: '/watch' })).toBe(false);
     });
 
-    it('识别 X/Twitter status 视频页，同时拒绝普通时间线', () => {
+    it('识别 X/Twitter 帖子、个人主页和时间线，播放器由当前交互选择', () => {
         expect(isXVideoPage({ hostname: 'x.com', pathname: '/cerebras/status/2089870131291943228' })).toBe(true);
         expect(isXVideoPage({ hostname: 'twitter.com', pathname: '/cerebras/status/2089870131291943228/' })).toBe(true);
-        expect(isXVideoPage({ hostname: 'x.com', pathname: '/home' })).toBe(false);
+        expect(isXVideoPage({ hostname: 'x.com', pathname: '/home' })).toBe(true);
         expect(isXHostPage({ hostname: 'x.com' })).toBe(true);
         expect(isXHostPage({ hostname: 'twitter.com' })).toBe(true);
         expect(isXHostPage({ hostname: 'example.com' })).toBe(false);

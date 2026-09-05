@@ -535,13 +535,20 @@
               <option v-for="item in videoLocalModelOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
             </select>
           </label>
+          <label class="select-row">
+            <span><strong>视频原语言</strong><small>独立于网页翻译语言；自动检测适合大多数视频</small></span>
+            <select v-model="config.videoSourceLanguage" :disabled="!config.videoTranslationEnabled" aria-label="视频原语言">
+              <option v-for="item in videoSourceLanguageOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
+          </label>
           <button class="video-model-settings-link" type="button" @click="openOptions('settings-video')">下载或管理 Tiny / Base 模型 →</button>
+          <button class="video-model-settings-link" type="button" @click="openOptions('settings-video')">调整字幕皮肤与位置 →</button>
         </div>
         <small v-else class="drawer-hint capability-warning">当前浏览器不支持 X 本地 AI 字幕，视频原生字幕翻译仍可使用。</small>
         <small v-if="selectedVideoServiceUnavailableMessage" class="drawer-hint capability-warning">{{ selectedVideoServiceUnavailableMessage }}</small>
         <label class="select-row">
           <span><strong>字幕字号</strong><small>只调整 FluentRead 显示的原文和译文</small></span>
-          <select v-model.number="config.videoSubtitleFontSize" aria-label="视频字幕字号" :disabled="!config.videoTranslationEnabled">
+          <select v-model.number="config.videoSubtitleAppearance.fontScale" aria-label="视频字幕字号" :disabled="!config.videoTranslationEnabled">
             <option v-for="size in videoSubtitleFontSizeOptions" :key="size" :value="size">{{ size === 100 ? '默认' : `${size}%` }}</option>
           </select>
         </label>
@@ -589,7 +596,6 @@ import {
   SELECTION_TRANSLATOR_DELAY_MAX,
   SELECTION_TRANSLATOR_DELAY_MIN,
   SELECTION_TRANSLATOR_DELAY_STEP,
-  VIDEO_SUBTITLE_FONT_SIZE_OPTIONS,
   normalizeConfig,
   normalizeSelectionTranslatorDelay,
 } from '@/src/core/config/model';
@@ -632,6 +638,8 @@ import {useUiI18n} from '@/src/ui/i18n';
 import PopupSiteRule from './PopupSiteRule.vue';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import {VIDEO_LOCAL_TRANSCRIPTION_MODELS} from '@/src/features/video-subtitle/transcription';
+import {VIDEO_SOURCE_LANGUAGE_OPTIONS} from '@/src/core/config/model';
+import {VIDEO_SUBTITLE_FONT_SCALE_OPTIONS} from '@/src/core/config/videoSubtitleAppearance';
 import {
   filterAvailableTranslationServices,
   getTranslationServiceUnavailableMessage,
@@ -742,8 +750,9 @@ const serviceSearchResults = computed(() => searchServiceOptions(
   config.value.customModel,
 ));
 const videoServiceOptions = computed(() => filterAvailableTranslationServices(allServiceOptions.value));
-const videoSubtitleFontSizeOptions = VIDEO_SUBTITLE_FONT_SIZE_OPTIONS;
+const videoSubtitleFontSizeOptions = VIDEO_SUBTITLE_FONT_SCALE_OPTIONS;
 const videoLocalModelOptions = VIDEO_LOCAL_TRANSCRIPTION_MODELS;
+const videoSourceLanguageOptions = VIDEO_SOURCE_LANGUAGE_OPTIONS;
 const popularServiceValues = ['freeTranslation', 'microsoft', 'google', 'deepL', 'deeplx', 'deepseek', 'openai', 'gemini', 'claude'];
 const popularServiceOptions = computed(() => popularServiceValues
   .map(value => serviceSearchResults.value.find((item: any) => item.value === value))

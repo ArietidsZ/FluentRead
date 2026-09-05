@@ -32,6 +32,7 @@ describe('video AI offscreen queue', () => {
         await tick();
         expect(FakeWorker.instances).toHaveLength(1);
         const worker = FakeWorker.instances[0];
+        expect((worker as any).lastMessage.languageSessionKey).toBe('s');
         const requestId = (worker as any).lastMessage.requestId;
         worker.reply({requestId, success: true, text: 'hello', segments: [{startMs: 0, endMs: 500, text: 'hello'}], model: 'tiny', inferenceMs: 10});
         await expect(pending).resolves.toMatchObject({text: 'hello', model: 'tiny'});

@@ -10,6 +10,7 @@ import {
   normalizeVideoLocalTranscriptionModels,
   resampleToWhisperAudio,
   supportsVideoTranscription,
+  VIDEO_LOCAL_TRANSCRIPTION_MODELS,
 } from '@/src/features/video-subtitle/transcription';
 import {
   getVideoAiModelFileUrl,
@@ -44,8 +45,8 @@ describe('视频 AI 字幕转写配置', () => {
     expect(normalizeVideoLocalTranscriptionModel('base')).toBe('base');
     expect(normalizeVideoLocalTranscriptionModel('unknown')).toBe('tiny');
     expect(getVideoLocalTranscriptionModelId('base')).toBe('onnx-community/whisper-base');
-    expect(getVideoLocalTranscriptionModelLabel('tiny')).toContain('本地');
-    expect(getVideoLocalTranscriptionModelDescription('base')).toContain('识别更细致');
+    expect(getVideoLocalTranscriptionModelLabel('tiny')).toBe(VIDEO_LOCAL_TRANSCRIPTION_MODELS[0].label);
+    expect(getVideoLocalTranscriptionModelDescription('base')).toBe(VIDEO_LOCAL_TRANSCRIPTION_MODELS[1].description);
     expect(normalizeVideoLocalTranscriptionModels(['tiny', 'base', 'unknown', 'tiny'])).toEqual(['tiny', 'base']);
   });
 

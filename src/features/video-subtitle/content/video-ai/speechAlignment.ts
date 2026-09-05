@@ -8,6 +8,8 @@ import type {VideoAiTranscriptSegment} from './streamingTranscript';
 
 const FRAME_SAMPLES = 320;
 const FRAME_MS = 20;
+const TRAILING_SILENCE_MIN_MS = 160;
+const TRAILING_SILENCE_EDGE_TOLERANCE_MS = 200;
 function activeFrames(audio: Float32Array, maximumNoiseVariation = 1.5): boolean[] {
   const energies: number[] = [];
   for (let start = 0; start < audio.length; start += FRAME_SAMPLES) {
@@ -45,6 +47,37 @@ export function alignVideoAiSegmentsToSpeech(audio: Float32Array, segments: read
     // 句级模型有时在最后一个词尚未说完时提前结束。仅当这个边界仍位于
     // 活动语音内、且 800 ms 内出现明确停顿时，补齐到停顿前；连续背景声不扩展。
     const endFrame = Math.floor(end / FRAME_MS);
+    const nextStart = segments[segmentIndex + 1]?.startMs;
+    if (Number.isFinite(nextStart)) {
+      // Whisper can end a sentence just after the next sentence starts. In
+      // that shape, the current end frame is active, so the old forward scan
+      // treated the following sentence as the tail of the current one. When a
+      // long silent run immediately precedes that active tail, snap to the
+      // first sentence's side of the pause. The edge tolerance keeps short
+      // intra-sentence hesitations and model jitter untouched.
+      const nextFrameStart = Math.min(frames.length - 1, Math.max(0, Math.floor(nextStart! / FRAME_MS)));
+      let nextFrame = nextFrameStart;
+      // Whisper may announce the next sentence slightly before its first
+      // active frame. Look through that short lead-in so the preceding long
+      // silence is still recognized without treating a distant pause as a
+      // sentence boundary.
+      while (nextFrame < frames.length && nextFrame - nextFrameStart <= TRAILING_SILENCE_EDGE_TOLERANCE_MS / FRAME_MS && !frames[nextFrame]) {
+        nextFrame += 1;
+      }
+      if (nextFrame < frames.length && frames[nextFrame]) {
+        let activeTailStart = nextFrame;
+        while (activeTailStart > 0 && frames[activeTailStart - 1]) activeTailStart -= 1;
+        let silenceStart = activeTailStart;
+        while (silenceStart > 0 && !frames[silenceStart - 1]) silenceStart -= 1;
+        const silenceStartMs = silenceStart * FRAME_MS;
+        const silenceEndMs = activeTailStart * FRAME_MS;
+        if (silenceEndMs - silenceStartMs >= TRAILING_SILENCE_MIN_MS
+          && end - silenceEndMs <= TRAILING_SILENCE_EDGE_TOLERANCE_MS
+          && nextStart! - silenceEndMs <= TRAILING_SILENCE_EDGE_TOLERANCE_MS) {
+          end = Math.min(end, silenceStartMs + 40);
+        }
+      }
+    }
     if (frames[endFrame] || frames[endFrame - 1]) {
       const nextStart = segments[segmentIndex + 1]?.startMs;
       const limit = Math.floor(Math.min(durationMs, end + 800,

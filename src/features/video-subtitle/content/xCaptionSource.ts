@@ -11,7 +11,7 @@ import {selectXSubtitleLanguageResources} from './xVideoSubtitleData';
 
 export class XCaptionSource {
   private readonly changedTracks = new Map<TextTrack, TextTrackMode>();
-  constructor(private readonly read: () => {video: HTMLVideoElement | null; enabled: boolean; aiActive: boolean; aiCues: VideoSubtitleCue[]; sidecarCues: VideoSubtitleCue[]; language: string}) {}
+  constructor(private readonly read: () => {video: HTMLVideoElement | null; player?: HTMLElement; enabled: boolean; aiActive: boolean; aiCues: VideoSubtitleCue[]; sidecarCues: VideoSubtitleCue[]; language: string}) {}
   restoreTracks(): void {
     for (const [track, mode] of this.changedTracks) {
       // 若宿主已主动改变模式，尊重宿主的新选择。
@@ -21,7 +21,7 @@ export class XCaptionSource {
   }
   private getOrCreateContainer(): HTMLElement | null {
     const video = this.read().video;
-    const player = video?.closest<HTMLElement>(VIDEO_PLAYER_SELECTOR) || video?.parentElement || findVideoPlayer();
+    const player = this.read().player || video?.closest<HTMLElement>(VIDEO_PLAYER_SELECTOR) || video?.parentElement || findVideoPlayer();
     if (!player) return null;
     let container = document.getElementById(VIDEO_AI_CAPTION_CONTAINER_ID);
     if (!(container instanceof HTMLElement)) {
@@ -48,6 +48,27 @@ export class XCaptionSource {
     }
     return active;
   };
+
+  private selectedNativeTracks(): TextTrack[] {
+    const tracks = Array.from(this.read().video?.textTracks || [])
+      .filter(track => track.kind === 'captions' || track.kind === 'subtitles');
+    tracks.sort((left, right) => Number((this.changedTracks.get(right) || right.mode) === 'showing')
+      - Number((this.changedTracks.get(left) || left.mode) === 'showing'));
+    return selectXSubtitleLanguageResources(tracks.map(track => ({track, languageCode: track.language})), this.read().language)
+      .map(({track}) => track);
+  }
+
+  /** 可直接导出原生完整轨道，避免把正在播放的一句误当成完整字幕。 */
+  readNativeTrack(): {languageCode: string; cues: VideoSubtitleCue[]} | null {
+    for (const track of this.selectedNativeTracks()) {
+      const cues = Array.from(track.cues || []).map(cue => ({
+        startMs: cue.startTime * 1000, durationMs: (cue.endTime - cue.startTime) * 1000,
+        text: String((cue as TextTrackCue & {text?: string}).text || '').trim(),
+      })).filter(cue => cue.text && Number.isFinite(cue.startMs) && cue.durationMs > 0);
+      if (cues.length) return {languageCode: track.language || 'original', cues};
+    }
+    return null;
+  }
 
   /** 将 X 的 TextTrack / sidecar / AI cue 统一映射到既有字幕翻译观察器。 */
   sync(): HTMLElement | null {
@@ -87,10 +108,7 @@ export class XCaptionSource {
       }
     } else if (video) {
       // auto 尊重宿主选中的轨道；显式语言使用标签匹配，不能把 French 中的 en 当成英语。
-      tracks.sort((left, right) => Number((this.changedTracks.get(right) || right.mode) === 'showing')
-        - Number((this.changedTracks.get(left) || left.mode) === 'showing'));
-      const selected = selectXSubtitleLanguageResources(tracks.map(track => ({track, languageCode: track.language})), this.read().language);
-      for (const {track} of selected) {
+      for (const track of this.selectedNativeTracks()) {
         const activeText = Array.from(track.activeCues || [])
           .map((cue) => String((cue as TextTrackCue & { text?: string }).text || '').trim())
           .filter(Boolean)

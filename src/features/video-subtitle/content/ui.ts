@@ -6,8 +6,9 @@
  * 模块边界：只读取界面配置并操作视频 feature 拥有的节点、样式和下载链接，不发起翻译或识别请求；任务生命周期由 runtime 管理。
  */
 
+import {getVideoSubtitleAppearanceCssVars, normalizeVideoSubtitleAppearance} from '@/src/core/config/videoSubtitleAppearance';
 import {config} from '@/src/services/config/store';
-import {normalizeVideoSubtitleFontSize, type VideoSubtitleDisplayMode} from '@/src/core/config/model';
+import {type VideoSubtitleDisplayMode} from '@/src/core/config/model';
 import {cuesToSrt, sanitizeSubtitleFilename, type VideoSubtitleCue} from './youtubeSubtitleData';
 
 import {
@@ -86,6 +87,9 @@ export const VIDEO_TRANSLATION_MENU_ID = 'fluent-read-video-subtitle-menu';
 export const VIDEO_PLAYER_SELECTOR = '#movie_player, .html5-video-player, [data-testid="videoPlayer"]';
 export const VIDEO_RIGHT_CONTROLS_SELECTOR = '.ytp-right-controls';
 export const VIDEO_FALLBACK_CONTROLS_CLASS = 'fluent-read-video-controls';
+export const VIDEO_PLAYER_HOST_CLASS = 'fluent-read-video-player-host';
+export const VIDEO_PLAYER_ACTIVE_ATTRIBUTE = 'data-fluent-read-video-active';
+export const VIDEO_PLAYER_PROGRESS_ATTRIBUTE = 'data-fluent-read-video-progress';
 export const VIDEO_X_SETTINGS_CONTROL_SELECTOR = [
   '[data-testid="videoPlayer"] button[aria-label*="Settings" i]',
   '[data-testid="videoPlayer"] button[aria-label*="设置"]',
@@ -172,7 +176,7 @@ export function isYouTubeVideoPage(locationLike: Pick<Location, 'hostname' | 'pa
 }
 
 export function isXVideoPage(locationLike: Pick<Location, 'hostname' | 'pathname'> = window.location): boolean {
-  return isXHostPage(locationLike) && /\/status\/\d+(?:\/|$)/i.test(locationLike.pathname);
+  return isXHostPage(locationLike);
 }
 
 export function isXHostPage(locationLike: Pick<Location, 'hostname'> = window.location): boolean {
@@ -242,6 +246,8 @@ function findXVideoOverlayContainer(video: HTMLVideoElement): HTMLElement | null
 }
 
 export function findVideoPlayer(): HTMLElement | null {
+  const activeHost = document.querySelector<HTMLElement>(`.${VIDEO_PLAYER_HOST_CLASS}`);
+  if (activeHost?.isConnected) return activeHost;
   const players = Array.from(document.querySelectorAll<HTMLElement>(VIDEO_PLAYER_SELECTOR));
   if (isXVideoPage()) {
     const videos = Array.from(document.querySelectorAll<HTMLVideoElement>('video'));
@@ -312,15 +318,15 @@ export function videoUi(key: string, params?: Record<string, string | number | b
 }
 
 export function getOrCreateVideoSubtitleLayer(player: HTMLElement): HTMLElement {
-  let layer = player.querySelector<HTMLElement>(`#${VIDEO_TRANSLATION_LAYER_ID}`);
+  let layer = document.getElementById(VIDEO_TRANSLATION_LAYER_ID);
   if (!layer) {
     layer = document.createElement('div');
     layer.id = VIDEO_TRANSLATION_LAYER_ID;
     layer.className = 'fluent-read-video-subtitle-layer fluent-read-video-ui notranslate';
     layer.setAttribute('data-fluent-read-ui', 'video-subtitle');
     layer.setAttribute('translate', 'no');
-    player.appendChild(layer);
   }
+  if (layer.parentElement !== player) player.appendChild(layer);
   return layer;
 }
 
@@ -404,9 +410,12 @@ export function syncTranslationOverlayPosition(container: HTMLElement | null): v
   const menuReserve = menu instanceof HTMLElement && !menu.hidden && playerWidth >= 640
     ? Math.min(menu.getBoundingClientRect().width + 20, playerWidth * .34)
     : 0;
-  const availableWidth = Math.max(playerWidth - 24 - menuReserve, 160);
+  const appearance = normalizeVideoSubtitleAppearance(config.videoSubtitleAppearance);
+  Object.entries(getVideoSubtitleAppearanceCssVars(appearance)).forEach(([name, value]) => panel.style.setProperty(name, value));
+  panel.dataset.fluentReadSubtitleSkin = appearance.skin;
+  const availableWidth = Math.max(Math.min(playerWidth - 24 - menuReserve, playerWidth * appearance.maxWidth / 100), 160);
   const baseFontSize = Math.min(Math.max(playerWidth * .022, 16), 30);
-  const fontScale = normalizeVideoSubtitleFontSize(config.videoSubtitleFontSize) / 100;
+  const fontScale = appearance.fontScale / 100;
   panel.style.setProperty('--fluent-read-video-subtitle-font-size', `${baseFontSize * fontScale}px`);
 
   // 双语面板固定在播放器底部安全区上方；字幕内容变化只会改变面板向上的高度，
@@ -415,7 +424,12 @@ export function syncTranslationOverlayPosition(container: HTMLElement | null): v
   panel.classList.toggle(VIDEO_SUBTITLE_PANEL_ACTIVE_CLASS, active);
   panel.style.width = 'max-content';
   panel.style.setProperty('max-width', `${availableWidth}px`, 'important');
-  panel.style.removeProperty('--fluent-read-video-subtitle-bottom');
+  const playerHeight = playerRect.height || 540;
+  const offset = appearance.bottomOffset === 10 ? Math.min(Math.max(playerHeight * .1, 52), 96) : Math.max(12, playerHeight * appearance.bottomOffset / 100);
+  panel.style.setProperty('--fluent-read-video-subtitle-bottom', `${offset}px`);
+  panel.style.setProperty('top', appearance.position === 'top' ? `${offset}px` : appearance.position === 'center' ? '50%' : 'auto', 'important');
+  panel.style.setProperty('bottom', appearance.position === 'bottom' ? 'var(--fluent-read-video-subtitle-bottom)' : 'auto', 'important');
+  panel.style.transform = appearance.position === 'center' ? 'translateY(-50%)' : 'none';
   if (!active) return;
 
   // 背景只包住双语文本，并以播放器中心为锚点。长字幕仍受播放器宽度限制，
@@ -433,7 +447,7 @@ export function syncTranslationOverlayPosition(container: HTMLElement | null): v
   const layer = document.getElementById(VIDEO_TRANSLATION_LAYER_ID);
   const displayMode = normalizeVideoSubtitleDisplayMode(config.videoSubtitleDisplayMode);
   const normalizedCaptionActive = layer?.classList.contains(VIDEO_NORMALIZED_CAPTION_ACTIVE_CLASS) === true;
-  if (displayMode === 'bilingual' && !normalizedCaptionActive && visibleCaptionSegments.length > 0) {
+  if (appearance.position === 'bottom' && displayMode === 'bilingual' && !normalizedCaptionActive && visibleCaptionSegments.length > 0) {
     const playerHeight = playerRect.height || 540;
     const nativeCaptionTop = Math.min(...visibleCaptionSegments.map((rect) => rect.top - playerRect.top));
     const panelHeight = panel.getBoundingClientRect().height;
@@ -464,6 +478,11 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
   const style = document.createElement('style');
   style.id = 'fluent-read-video-subtitle-style';
   style.textContent = `
+    .fluent-read-video-menu-item[hidden] { display: none !important; }
+    .fluent-read-video-local-guide { margin: 0 0 4px !important; font-size: 11px !important; color: #bbb !important; }
+    .fluent-read-video-local-guide summary { cursor: pointer !important; padding: 2px 4px !important; }
+    .fluent-read-video-local-guide p { margin: 6px 4px !important; line-height: 1.45 !important; font-size: 11px !important; color: #bbb !important; }
+
     #${VIDEO_AI_CAPTION_CONTAINER_ID} {
       position: absolute !important;
       inset: auto 0 0 !important;
@@ -495,11 +514,11 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       bottom: var(--fluent-read-video-subtitle-bottom, clamp(52px, 10%, 96px)) !important;
       margin: 0 !important;
       padding: 5px 8px 6px !important;
-      border: 1px solid rgba(255, 255, 255, .1) !important;
+      border: 1px solid var(--fluent-read-video-subtitle-border, rgba(255, 255, 255, .1)) !important;
       border-radius: 6px !important;
-      background: rgba(12, 15, 22, .56) !important;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, .24), 0 0 0 1px rgba(0, 0, 0, .08) !important;
-      backdrop-filter: blur(2px) !important;
+      background: var(--fluent-read-video-subtitle-background, rgba(12, 15, 22, .56)) !important;
+      box-shadow: var(--fluent-read-video-subtitle-shadow, 0 2px 6px rgba(0, 0, 0, .24)) !important;
+      backdrop-filter: var(--fluent-read-video-subtitle-backdrop-filter, blur(2px)) !important;
       flex-direction: column !important;
       align-items: center !important;
       gap: 6px !important;
@@ -520,15 +539,15 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       max-width: 100% !important;
       margin: 0 !important;
       padding: 0 !important;
-      color: #ffe45c !important;
-      font-family: Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif !important;
+      color: var(--fluent-read-video-subtitle-translation-color, #ffe45c) !important;
+      font-family: var(--fluent-read-video-subtitle-font-family, Arial), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif !important;
       font-size: var(--fluent-read-video-subtitle-font-size, clamp(16px, 2.2vw, 30px)) !important;
       font-weight: 700 !important;
-      line-height: 1.28 !important;
+      line-height: var(--fluent-read-video-subtitle-line-spacing, 1.28) !important;
       text-align: center !important;
-      -webkit-text-stroke: 1px #000 !important;
+      -webkit-text-stroke: var(--fluent-read-video-subtitle-text-stroke, 1px #000) !important;
       paint-order: stroke fill !important;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, .72) !important;
+      text-shadow: var(--fluent-read-video-subtitle-text-shadow, 0 1px 2px rgba(0, 0, 0, .72)) !important;
       white-space: pre-wrap !important;
       pointer-events: none !important;
       user-select: none !important;
@@ -544,13 +563,15 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       max-width: 100% !important;
       margin: 0 !important;
       padding: 0 !important;
-      color: #fff !important;
-      font-family: Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif !important;
+      color: var(--fluent-read-video-subtitle-text-color, #fff) !important;
+      font-family: var(--fluent-read-video-subtitle-font-family, Arial), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif !important;
       font-size: var(--fluent-read-video-subtitle-font-size, clamp(16px, 2.2vw, 30px)) !important;
       font-weight: 600 !important;
-      line-height: 1.28 !important;
+      line-height: var(--fluent-read-video-subtitle-line-spacing, 1.28) !important;
       text-align: center !important;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, .9), 0 0 4px rgba(0, 0, 0, .8) !important;
+      -webkit-text-stroke: var(--fluent-read-video-subtitle-text-stroke, 0) !important;
+      paint-order: stroke fill !important;
+      text-shadow: var(--fluent-read-video-subtitle-text-shadow, 0 1px 2px rgba(0, 0, 0, .9)) !important;
       white-space: pre-wrap !important;
       pointer-events: none !important;
       user-select: none !important;
@@ -582,6 +603,7 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       align-items: center !important;
       justify-content: center !important;
       align-self: center !important;
+      flex: 0 0 auto !important;
       width: 32px !important;
       height: 32px !important;
       margin: 0 !important;
@@ -594,6 +616,21 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       line-height: 1 !important;
       vertical-align: middle !important;
       opacity: .9 !important;
+    }
+    #${VIDEO_TRANSLATION_BUTTON_ID}[${VIDEO_PLAYER_PROGRESS_ATTRIBUTE}] {
+      width: auto !important;
+      min-width: 32px !important;
+      gap: 4px !important;
+      white-space: nowrap !important;
+    }
+    #${VIDEO_TRANSLATION_BUTTON_ID}[${VIDEO_PLAYER_PROGRESS_ATTRIBUTE}]::after {
+      content: attr(${VIDEO_PLAYER_PROGRESS_ATTRIBUTE}) !important;
+      display: inline-block !important;
+      color: rgba(255, 255, 255, .82) !important;
+      font-size: 10px !important;
+      font-weight: 600 !important;
+      line-height: 1 !important;
+      white-space: nowrap !important;
     }
     #${VIDEO_TRANSLATION_BUTTON_ID}:hover,
     #${VIDEO_TRANSLATION_BUTTON_ID}:focus-visible { opacity: 1 !important; }
@@ -611,6 +648,9 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       width: 28px !important;
       height: 28px !important;
     }
+    #${VIDEO_TRANSLATION_BUTTON_ID}.fluent-read-video-subtitle-x-button[${VIDEO_PLAYER_PROGRESS_ATTRIBUTE}] {
+      width: auto !important;
+    }
     #${VIDEO_TRANSLATION_BUTTON_ID}.${VIDEO_TRANSLATION_ACTIVE_CLASS} .fluent-read-video-subtitle-button-icon {
       background: #ec4899 !important;
       box-shadow: 0 0 0 1px rgba(255, 255, 255, .16), 0 2px 8px rgba(236, 72, 153, .42) !important;
@@ -624,11 +664,16 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       right: 8px !important;
       bottom: 8px !important;
       z-index: 2147483646 !important;
-      display: flex !important;
+      display: none !important;
       align-items: center !important;
       min-height: 32px !important;
       border-radius: 6px !important;
       background: rgba(0, 0, 0, .22) !important;
+    }
+    .${VIDEO_PLAYER_HOST_CLASS}[${VIDEO_PLAYER_ACTIVE_ATTRIBUTE}="true"] .${VIDEO_FALLBACK_CONTROLS_CLASS},
+    .${VIDEO_PLAYER_HOST_CLASS}:fullscreen .${VIDEO_FALLBACK_CONTROLS_CLASS},
+    .${VIDEO_PLAYER_HOST_CLASS}[data-fluent-read-video-fullscreen="true"] .${VIDEO_FALLBACK_CONTROLS_CLASS} {
+      display: flex !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} {
       position: absolute !important;

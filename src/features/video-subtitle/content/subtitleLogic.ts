@@ -101,6 +101,7 @@ export function getVideoTranslationConfigFingerprint(value: Config): string {
   return JSON.stringify({
     service,
     from: value.from,
+    videoSourceLanguage: value.videoSourceLanguage,
     to: value.to,
     model: resolveConfiguredModel(value.model[service], value.customModel[service]),
     endpoint,

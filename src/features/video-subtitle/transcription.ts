@@ -10,15 +10,15 @@ import { services } from '@/src/core/config/catalog';
 export const VIDEO_LOCAL_TRANSCRIPTION_MODELS = [
   {
     value: 'tiny',
-    label: 'Whisper Tiny（本地，快速）',
+    label: 'Whisper Tiny（轻量模型）',
     modelId: 'onnx-community/whisper-tiny',
-    description: '识别更快，资源占用较低，推荐使用',
+    description: '识别速度较快、内存占用较低，适合快速生成字幕。',
   },
   {
     value: 'base',
-    label: 'Whisper Base（本地）',
+    label: 'Whisper Base（标准模型）',
     modelId: 'onnx-community/whisper-base',
-    description: '识别更细致，耗时和内存占用较高',
+    description: '侧重识别质量，所需内存更多、处理时间更长。',
   },
 ] as const;
 

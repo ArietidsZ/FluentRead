@@ -4,7 +4,7 @@
  * 主要内容：配置 WASM/WebGPU 后端、串行处理 prepare/transcribe/dispose、解析 chunk 时间戳并回传诊断信息。
  * 模块边界：只运行模型与 Worker 消息循环，不访问页面 DOM、后台消息或共享 Offscreen 业务状态。
  */
-import { env, InterruptableStoppingCriteria, pipeline } from '@huggingface/transformers';
+import { env, InterruptableStoppingCriteria, pipeline, Tensor } from '@huggingface/transformers';
 import {
   getVideoLocalTranscriptionModelId,
   normalizeVideoLocalTranscriptionModel,
@@ -15,12 +15,18 @@ import {
   cacheVideoAiQ8ModelFiles,
 } from './modelCache';
 import {parseWhisperChunkTimestamps} from './timestampParser';
+import {buildWhisperTranscriptionGenerationOptions, chooseWhisperSourceLanguage, normalizeWhisperSourceLanguage} from './transcriptionOptions';
 
 type LocalTranscriber = ((
   audio: Float32Array,
   options: Record<string, unknown>,
 ) => Promise<unknown>) & {
   dispose?: () => Promise<void>;
+  processor?: (audio: Float32Array) => Promise<Record<string, unknown>>;
+  model?: ((inputs: Record<string, unknown>) => Promise<{logits?: {data: ArrayLike<number>; dims?: readonly number[]}}>) & {
+    config?: {is_multilingual?: unknown; decoder_start_token_id?: unknown};
+    generation_config?: {is_multilingual?: unknown; decoder_start_token_id?: unknown; lang_to_id?: unknown};
+  };
 };
 
 type LocalTranscriptionBackend = 'webgpu' | 'wasm';
@@ -48,6 +54,7 @@ interface WorkerRequest {
   type: 'prepare' | 'transcribe';
   model?: unknown;
   sourceLanguage?: string;
+  languageSessionKey?: string;
   audio?: Float32Array;
 }
 
@@ -61,6 +68,8 @@ let wasmRuntimeThreads: number | null = null;
 let webGpuProbePromise: Promise<boolean> | null = null;
 let webGpuProbeInfo = '';
 let workerTaskQueue: Promise<void> = Promise.resolve();
+const detectedLanguages = new Map<string, string>();
+const MAX_DETECTED_LANGUAGE_SESSIONS = 16;
 
 const MAX_WHISPER_AUDIO_SECONDS = 30;
 const MAX_REALTIME_INFERENCE_MS = 15_000;
@@ -217,6 +226,7 @@ async function getLocalTranscriber(model: unknown): Promise<LocalTranscriber> {
   if (transcriberPromise && transcriberModelId === modelId) return transcriberPromise;
 
   if (transcriberPromise && transcriberModelId !== modelId) {
+    detectedLanguages.clear();
     const previousPromise = transcriberPromise;
     transcriberPromise = null;
     transcriberModelId = '';
@@ -230,6 +240,7 @@ async function getLocalTranscriber(model: unknown): Promise<LocalTranscriber> {
 
   transcriberModelId = modelId;
   transcriberPromise = createLocalTranscriber(modelId, normalizedModel).catch((error) => {
+    detectedLanguages.clear();
     transcriberPromise = null;
     transcriberModelId = '';
     transcriberBackend = '';
@@ -238,6 +249,71 @@ async function getLocalTranscriber(model: unknown): Promise<LocalTranscriber> {
     throw error;
   });
   return transcriberPromise;
+}
+
+async function detectWhisperSourceLanguage(
+  transcriber: LocalTranscriber,
+  audio: Float32Array,
+): Promise<string | null> {
+  const processor = transcriber.processor;
+  const model = transcriber.model;
+  const generationConfig = model?.generation_config;
+  const modelConfig = model?.config;
+  const isMultilingual = generationConfig?.is_multilingual ?? modelConfig?.is_multilingual;
+  const langToId = generationConfig?.lang_to_id;
+  const decoderStartTokenId = generationConfig?.decoder_start_token_id ?? modelConfig?.decoder_start_token_id;
+  if (isMultilingual === false || !processor || !model || typeof decoderStartTokenId !== 'number'
+    || !Number.isSafeInteger(decoderStartTokenId)) return null;
+  if (!langToId || typeof langToId !== 'object') throw new Error('Whisper 模型缺少语言 token 配置');
+
+  const processed = await processor(audio);
+  const decoderInputIds = new Tensor(
+    'int64', BigInt64Array.from([BigInt(decoderStartTokenId)]), [1, 1],
+  );
+  const disposeTensorTree = (value: unknown, seen = new Set<object>()): void => {
+    if (!value || typeof value !== 'object' || seen.has(value)) return;
+    seen.add(value);
+    const disposable = value as {dispose?: unknown};
+    if (typeof disposable.dispose === 'function') {
+      disposable.dispose();
+      return;
+    }
+    Object.values(value).forEach((child) => disposeTensorTree(child, seen));
+  };
+  let output: {logits?: {data: ArrayLike<number>; dims?: readonly number[]}} | undefined;
+  try {
+    output = await model({...processed, decoder_input_ids: decoderInputIds});
+    const detected = chooseWhisperSourceLanguage(output.logits, {isMultilingual, langToId});
+    if (!detected) throw new Error('Whisper 首步没有可用的语言 token logits');
+    return detected.language;
+  } finally {
+    // A direct model forward bypasses pipeline's normal generation cleanup;
+    // release logits, KV tensors and processed features immediately after the
+    // single language-token step to avoid retaining a full encoder window.
+    disposeTensorTree(output);
+    disposeTensorTree(processed);
+    decoderInputIds.dispose?.();
+  }
+}
+
+async function resolveWhisperSourceLanguage(
+  transcriber: LocalTranscriber,
+  request: WorkerRequest,
+  audio: Float32Array,
+): Promise<string> {
+  const sessionKey = typeof request.languageSessionKey === 'string' ? request.languageSessionKey.trim() : '';
+  const cacheKey = sessionKey ? `${transcriberModelId}:${sessionKey}` : '';
+  if (cacheKey && detectedLanguages.has(cacheKey)) return detectedLanguages.get(cacheKey)!;
+  const language = await detectWhisperSourceLanguage(transcriber, audio);
+  if (!language) throw new Error('无法自动检测本地视频音频语言，请在视频字幕设置中选择源语言后重试');
+  if (cacheKey) {
+    if (detectedLanguages.size >= MAX_DETECTED_LANGUAGE_SESSIONS) {
+      const oldest = detectedLanguages.keys().next().value;
+      if (typeof oldest === 'string') detectedLanguages.delete(oldest);
+    }
+    detectedLanguages.set(cacheKey, language);
+  }
+  return language;
 }
 
 function cleanTranscriptText(value: unknown): string {
@@ -262,36 +338,22 @@ async function transcribeAudio(request: WorkerRequest): Promise<WorkerTranscript
   const maxSamples = MAX_WHISPER_AUDIO_SECONDS * 16_000;
   const boundedAudio = audio.length > maxSamples ? audio.subarray(0, maxSamples) : audio;
   const transcriber = await getLocalTranscriber(model);
-  const sourceLanguage = typeof request.sourceLanguage === 'string'
-    ? request.sourceLanguage.trim().toLowerCase().split(/[-_]/, 1)[0]
-    : '';
-  const audioSeconds = boundedAudio.length / 16_000;
+  const explicitSourceLanguage = normalizeWhisperSourceLanguage(request.sourceLanguage);
+  const effectiveSourceLanguage = explicitSourceLanguage
+    || await resolveWhisperSourceLanguage(transcriber, request, boundedAudio);
   // Sentence timestamps consume decoder tokens too. Full-generation windows
   // are bounded (Tiny ~10s / Base ~14s); the old 96/128 cap made Whisper
   // spend too long decoding silence/repetition after the useful sentence had
   // already ended. Keep enough room for timestamps, but stop earlier.
-  const tokenBudget = model === 'base'
-    ? { minimum: 32, maximum: 96, perSecond: 7 }
-    : { minimum: 24, maximum: 64, perSecond: 6 };
-  const maxNewTokens = Math.min(
-    tokenBudget.maximum,
-    Math.max(tokenBudget.minimum, Math.ceil(audioSeconds * tokenBudget.perSecond)),
-  );
   const stoppingCriteria = new InterruptableStoppingCriteria();
   const inferenceStartedAt = performance.now();
   const timeout = self.setTimeout(() => stoppingCriteria.interrupt(), MAX_REALTIME_INFERENCE_MS);
   let output: { text?: unknown; chunks?: unknown };
   try {
-    output = await transcriber(boundedAudio, {
-      return_timestamps: true,
-      force_full_sequences: false,
-      max_new_tokens: maxNewTokens,
-      do_sample: false,
-      num_beams: 1,
-      stopping_criteria: stoppingCriteria,
-      ...(sourceLanguage && sourceLanguage !== 'auto' ? { language: sourceLanguage } : {}),
-      task: 'transcribe',
-    }) as { text?: unknown; chunks?: unknown };
+    output = await transcriber(
+      boundedAudio,
+      buildWhisperTranscriptionGenerationOptions(model, effectiveSourceLanguage, boundedAudio.length / 16_000, stoppingCriteria),
+    ) as { text?: unknown; chunks?: unknown };
   } finally {
     self.clearTimeout(timeout);
   }
@@ -324,6 +386,7 @@ async function disposeTranscriber(): Promise<void> {
   const current = transcriberPromise;
   transcriberPromise = null;
   transcriberModelId = '';
+  detectedLanguages.clear();
   transcriberBackend = '';
   transcriberGpuInfo = '';
   transcriberDtype = '';

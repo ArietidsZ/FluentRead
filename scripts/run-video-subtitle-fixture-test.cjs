@@ -455,7 +455,7 @@ async function main() {
     }
     await control.locator('.drawer-content select[aria-label="视频字幕字号"]').selectOption('140');
     await control.waitForTimeout(350);
-    const popupVideoFontSizePersisted = (await readExtensionConfig(control)).videoSubtitleFontSize;
+    const popupVideoFontSizePersisted = (await readExtensionConfig(control)).videoSubtitleAppearance?.fontScale;
     if (popupVideoFontSizePersisted !== 140) {
       throw new Error(`Popup 视频字幕字号没有持久化：${JSON.stringify({ popupVideoFontSizePersisted })}`);
     }
