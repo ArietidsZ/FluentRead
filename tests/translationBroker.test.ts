@@ -1296,6 +1296,28 @@ describe('translation broker', () => {
         warning.mockRestore();
     });
 
+    it('未膨胀的长上下文片段只触发一次无上下文重译并稳定复用复验缓存', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.enableAIContext = true;
+        const origin = 'The author describes the effects of winter weather on regional transport, including railway maintenance and the preparation of temporary services for small towns.';
+        const reference = 'The article compares coastal restoration methods and explains why native wetlands can reduce storm damage for nearby communities.';
+        const pageContext = `Page title: Coastal research. ${reference} The appendix contains details of the monitoring schedule.`;
+        const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        mocks.service.mockImplementation((message: {summaryPrompt?: string}) => Promise.resolve(
+            message.summaryPrompt ? 'A brief article summary.' : reference,
+        ));
+
+        expect(reference.length).toBeLessThan(origin.length);
+        await expect(translateWithCache({origin, pageContext})).resolves.toBe(reference);
+        const bodyCalls = mocks.service.mock.calls.filter(([message]) => !message.summaryPrompt);
+        expect(bodyCalls).toHaveLength(2);
+        expect(bodyCalls[1]?.[0]).toMatchObject({origin, context: '', pageContext: ''});
+        await flushMicrotasks();
+        await expect(translateWithCache({origin, pageContext})).resolves.toBe(reference);
+        expect(mocks.service.mock.calls.filter(([message]) => !message.summaryPrompt)).toHaveLength(2);
+        warning.mockRestore();
+    });
+
     it('AI 多段中已经无上下文复验的软重合译文可以稳定命中缓存', async () => {
         mocks.config.service = 'ai';
         mocks.config.enableAIContext = true;
@@ -1519,6 +1541,55 @@ describe('translation broker', () => {
             context: '',
             pageContext: '',
         }));
+    });
+
+    it('AI 多段协议完整且只有一个槽回显明确上下文标记时保留其余译文', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.enableAIContext = true;
+        mocks.service.mockImplementation((message: {summaryPrompt?: string; origin: string; pageContext?: string}) => {
+            if (message.summaryPrompt) return Promise.resolve('页面主题摘要');
+            if (!message.pageContext) return Promise.resolve('安全的甲');
+            return Promise.resolve(message.origin
+                .replace('Alpha', '甲 <webpage_context>错误引用的页面内容</webpage_context>')
+                .replace('Beta', '已正确翻译的乙'));
+        });
+
+        await expect(translateWithCache({
+            origin: ['Alpha', 'Beta'],
+            pageContext: 'Page title: example article.',
+            aiMultiSegment: true,
+        })).resolves.toEqual(['安全的甲', '已正确翻译的乙']);
+        const bodyCalls = mocks.service.mock.calls.filter(([message]) => !message.summaryPrompt);
+        expect(bodyCalls).toHaveLength(2);
+        expect(bodyCalls[1]?.[0]).toMatchObject({origin: 'Alpha', context: '', pageContext: ''});
+        await flushMicrotasks();
+        expect(mocks.cacheSet.mock.calls.map(([, value]) => value)).toEqual(expect.arrayContaining([
+            '安全的甲', '已正确翻译的乙',
+        ]));
+        expect(mocks.cacheSet.mock.calls.some(([, value]) => String(value).includes('<webpage_context>'))).toBe(false);
+    });
+
+    it('完整多段协议内的泄漏槽无上下文恢复后仍明确泄漏时拒绝整批缓存', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.enableAIContext = true;
+        mocks.service.mockImplementation((message: {summaryPrompt?: string; origin: string; pageContext?: string}) => {
+            if (message.summaryPrompt) return Promise.resolve('页面主题摘要');
+            if (!message.pageContext) return Promise.resolve('甲 <webpage_context>恢复后仍泄漏</webpage_context>');
+            return Promise.resolve(message.origin
+                .replace('Alpha', '甲 <webpage_context>错误引用的页面内容</webpage_context>')
+                .replace('Beta', '已正确翻译的乙'));
+        });
+
+        await expect(translateWithCache({
+            origin: ['Alpha', 'Beta'],
+            pageContext: 'Page title: example article.',
+            aiMultiSegment: true,
+        })).rejects.toMatchObject({code: 'AI_CONTEXT_LEAK_AFTER_RECOVERY'});
+        expect(mocks.service.mock.calls.filter(([message]) => !message.summaryPrompt)).toHaveLength(2);
+        expect(mocks.service).toHaveBeenLastCalledWith(expect.objectContaining({origin: 'Alpha', pageContext: ''}));
+        const cachedValues = mocks.cacheSet.mock.calls.map(([, value]) => value);
+        expect(cachedValues).not.toContain('已正确翻译的乙');
+        expect(cachedValues.some((value) => String(value).includes('<webpage_context>'))).toBe(false);
     });
 
     it('AI 多段整包泄漏时只重试一次无上下文请求并解析安全结果', async () => {
