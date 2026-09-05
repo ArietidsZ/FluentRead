@@ -3,7 +3,7 @@ import {parseHTML} from "linkedom";
 import type {TranslationSiteAdapter} from '@/src/core/translation/types';
 import {TranslationCandidateCore} from '@/src/core/translation/engine';
 import {compileSiteRulePack} from '@/src/core/site-adaptation/compiler';
-import {collapseMutationRescanRoot, mutationRootContains} from '@/src/features/full-page-translation/content/mutationObservation';
+import {collapseMutationRescanRoot, isOwnSyntheticSegmentMarkerMutation, mutationRootContains} from '@/src/features/full-page-translation/content/mutationObservation';
 
 const runtime = vi.hoisted(() => ({
     realCore: null as TranslationCandidateCore | null,
@@ -580,6 +580,33 @@ describe("全文翻译可见性锚点", () => {
             if (change !== 'forged-owner') expect(target.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(0);
         },
     );
+
+    it('合成段标记判定先校验精确所有权，再延迟读取来源槽', () => {
+        document.body.innerHTML = '<div id="host"><span id="segment" data-fr-translation-segment="true">Readable source.</span></div><div id="other"></div>';
+        const host = document.querySelector<HTMLElement>('#host')!;
+        const segment = document.querySelector<HTMLElement>('#segment')!;
+        const other = document.querySelector<HTMLElement>('#other')!;
+        const state = {syntheticSegment: true, syntheticHost: host};
+        const mutation = {type: 'attributes', target: segment, attributeName: 'data-fr-translation-segment',
+            oldValue: null} as unknown as MutationRecord;
+        const sourceIsCurrent = vi.fn(() => true);
+        for (const invalid of [
+            {...mutation, type: 'childList'},
+            {...mutation, attributeName: 'data-marker'},
+            {...mutation, target: other},
+            {...mutation, oldValue: 'false'},
+        ]) expect(isOwnSyntheticSegmentMarkerMutation(invalid as MutationRecord, segment, state, sourceIsCurrent)).toBe(false);
+        expect(isOwnSyntheticSegmentMarkerMutation(mutation, segment, {...state, syntheticSegment: false}, sourceIsCurrent)).toBe(false);
+        expect(isOwnSyntheticSegmentMarkerMutation(mutation, segment, {...state, syntheticHost: other}, sourceIsCurrent)).toBe(false);
+        segment.removeAttribute('data-fr-translation-segment');
+        expect(isOwnSyntheticSegmentMarkerMutation(mutation, segment, state, sourceIsCurrent)).toBe(false);
+        expect(sourceIsCurrent).not.toHaveBeenCalled();
+        segment.setAttribute('data-fr-translation-segment', 'true');
+        sourceIsCurrent.mockReturnValueOnce(false);
+        expect(isOwnSyntheticSegmentMarkerMutation(mutation, segment, state, sourceIsCurrent)).toBe(false);
+        expect(isOwnSyntheticSegmentMarkerMutation(mutation, segment, state, sourceIsCurrent)).toBe(true);
+        expect(sourceIsCurrent).toHaveBeenCalledTimes(2);
+    });
 
     it("全文会话集中发布启动和结束状态事件", () => {
         const states: string[] = [];

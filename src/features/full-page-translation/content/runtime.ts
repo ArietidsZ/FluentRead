@@ -118,7 +118,7 @@ import {consumeOrphanedOwnerClassMutation, isTextEquivalentHostReplacement, norm
     from '@/src/features/full-page-translation/content/orphanArtifacts';
 import {createFullPageRequestSessionState, disposeFullPageRequestSession, getHoverTranslationRequestSession, invalidateContextSensitiveRequestCache, invalidateFullPageRequestSessionCache, invalidateFullPageRequestSessionForRoute, invalidateHoverTranslationRequestSession, resetHoverTranslationRequestSession, type FullPageRequestSessionState} from '@/src/features/full-page-translation/content/requestSession';
 import {getSiteAdapterAttributeFilter} from '@/src/core/site-adaptation/compiler';
-import {createTranslationMutationObserverOptions, mutationRootContains as nodeContains, collapseMutationRescanRoot as broadRescanRoot} from './mutationObservation';
+import {createTranslationMutationObserverOptions, isOwnSyntheticSegmentMarkerMutation, mutationRootContains as nodeContains, collapseMutationRescanRoot as broadRescanRoot} from './mutationObservation';
 const TRANSLATION_ARTIFACT_SELECTOR = [
     '[data-fr-translation-segment="true"]',
     '[data-fr-translation-owned="true"]',
@@ -1458,12 +1458,8 @@ function isOwnMutation(
     const target = mutationElement ? resolveStatefulMutationTarget(mutationElement) : false;
     const state = target ? getTranslationState(target as HTMLElement) : undefined;
     if (!target || !state) return false;
-    // 全属性站点也会观察到本代合成段的身份标记。只承认真实 owner 的首次写入，
-    // 并复验宿主与来源槽；普通页面节点伪造同名属性仍进入宿主 mutation 路径。
-    if (mutation.type === "attributes" && mutation.attributeName === "data-fr-translation-segment" &&
-        mutation.target === target && mutation.oldValue === null && state.syntheticSegment &&
-        state.syntheticHost === target.parentElement && target.getAttribute("data-fr-translation-segment") === "true" &&
-        statefulSourceAndTextSlotsAreCurrent(target, state)) return true;
+    if (isOwnSyntheticSegmentMarkerMutation(mutation, target, state,
+        () => statefulSourceAndTextSlotsAreCurrent(target, state))) return true;
     if (isOwnStateArtifactMutation(mutation, target, state)) return true;
     if (state.phase === "error") {
         // 失败 UI 是扩展拥有的状态，不是宿主编辑；若缺少此分支，其 class mutation
