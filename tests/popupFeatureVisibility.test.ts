@@ -125,7 +125,7 @@ describe('popup feature visibility', () => {
         expect(popup).not.toContain("activeDrawer === 'floating'");
         expect(popup).not.toContain('全文悬浮球');
         expect(popup).not.toContain('启用或关闭全文翻译悬浮球');
-        expect(popupQuickFeatureOptions).toHaveLength(6);
+        expect(popupQuickFeatureOptions).toHaveLength(7);
         expect(popup).toContain('v-for="feature in visiblePopupQuickFeatures"');
         expect(popup).toContain(':data-popup-quick-feature="feature.id"');
     });
@@ -190,6 +190,28 @@ describe('popup feature visibility', () => {
         expect(popup).toContain("image: 'settings-image-translation'");
         expect(popup).not.toContain(':disabled="!config.on || !browserCapabilities.imageTranslation"');
         expect(popup).not.toContain(':disabled="!browserCapabilities.areaTranslation"');
+    });
+
+    it('separates area translation from text selection and image translation', () => {
+        const popup = source('src/app/popup/PopupApp.vue');
+        const settings = source('src/features/settings/ui/SettingsSections.vue');
+        const areaSettings = source('src/features/settings/ui/AreaTranslationSettings.vue');
+        const ocrSettings = source('src/features/image-translation/ui/ImageOcrSettings.vue');
+
+        expect(popupQuickFeatureOptions.map(feature => feature.id)).toContain('area');
+        expect(popup).toContain("area: 'settings-area-translation'");
+        expect(popup).toContain("activeDrawer === 'area'");
+        expect(popup).not.toContain('selectionDrawerTab');
+        const selectionCard = popup.slice(popup.indexOf("  selection: {"), popup.indexOf("  appearance: {"));
+        expect(selectionCard).not.toContain('selectionAreaEnabled');
+        const imageSection = settings.slice(settings.indexOf('id="settings-image-translation"'), settings.indexOf('id="settings-area-translation"'));
+        expect(imageSection).not.toContain('selectionAreaTranslationEnabled');
+        expect(areaSettings).toContain('props.config.areaTranslationService');
+        expect(areaSettings).toContain('props.config.areaTranslationMode');
+        expect(areaSettings).toContain(':placeholder="t(\'area.settings.followService\')"');
+        expect(areaSettings).toContain('servicesType.isUseAIContext');
+        expect(areaSettings).toContain('<ImageOcrSettings id-prefix="area" />');
+        expect(ocrSettings).toContain('`${props.idPrefix}-ocr-pack-title`');
     });
 
     it('routes hover and selection drawers to the merged translation settings section', () => {

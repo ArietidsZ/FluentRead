@@ -9,7 +9,7 @@ import {
 } from '@/src/features/settings/model/navigation'
 
 describe('options navigation view-model', () => {
-  it('keeps the fifteen sections unique, grouped exactly once and in the product IA order', () => {
+  it('keeps the sections unique, grouped exactly once and in the product IA order', () => {
     const groupedItems = navigationGroups.flatMap((group) => group.items)
     expect(groupedItems).toEqual(navigationItems)
     expect(new Set(navigationItems.map((item) => item.id)).size).toBe(navigationItems.length)
@@ -25,6 +25,7 @@ describe('options navigation view-model', () => {
         label: '专项翻译',
         items: [
           'settings-image-translation',
+          'settings-area-translation',
           'settings-video',
           'settings-sites',
         ],
@@ -43,7 +44,8 @@ describe('options navigation view-model', () => {
       '界面布局',
       '翻译服务',
       '翻译设置',
-      '图片与圈选翻译',
+      '图片翻译',
+      '圈选翻译',
       '视频字幕翻译',
       '网站规则',
       '术语库',
@@ -72,6 +74,8 @@ describe('options navigation view-model', () => {
       .toBe('查看发起的大模型调用、Token 消耗与使用趋势。')
     expect(resolveRequestedSection('#settings-harness')).toBe('settings-harness')
     expect(resolveNavigationItem('missing').id).toBe(DEFAULT_NAVIGATION_SECTION)
+    expect(resolveRequestedSection('#settings-area-translation')).toBe('settings-area-translation')
+    expect(filterNavigationItems('圈选')).toEqual([expect.objectContaining({id: 'settings-area-translation'})])
     expect(resolveRequestedSection('#settings-video')).toBe('settings-video')
     expect(resolveRequestedSection('settings-sites')).toBe('settings-sites')
     expect(resolveRequestedSection('#settings-webpage')).toBe('settings-translation')

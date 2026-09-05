@@ -72,6 +72,16 @@ describe('配置差异预览', () => {
         })]));
     });
 
+    it('显示圈选的独立翻译方式和服务变更', () => {
+        const result = buildConfigDiff({areaTranslationMode: 'standard', areaTranslationService: ''}, {
+            areaTranslationMode: 'ai', areaTranslationService: 'microsoft',
+        });
+        expect(group(result, 'areaTranslation')?.changes).toEqual(expect.arrayContaining([
+            {key: 'areaTranslationMode', label: '圈选翻译方式', before: '标准翻译', after: 'AI 上下文增强'},
+            {key: 'areaTranslationService', label: '圈选翻译服务', before: '跟随当前服务', after: '微软翻译'},
+        ]));
+    });
+
     it('显示界面皮肤和 Popup 栏目可见性，并安全处理异常栏目值', () => {
         const result = buildConfigDiff({
             interfaceSkin: 'default',
@@ -126,8 +136,8 @@ describe('配置差异预览', () => {
             {
                 key: 'popupQuickFeatureVisibility',
                 label: '快捷功能卡片',
-                before: '鼠标悬停翻译：显示、划词翻译：显示、译文显示：显示、图片翻译：显示、视频字幕：显示、文档翻译：显示',
-                after: '鼠标悬停翻译：显示、划词翻译：显示、译文显示：显示、图片翻译：隐藏、视频字幕：显示、文档翻译：显示',
+                before: '鼠标悬停翻译：显示、划词翻译：显示、译文显示：显示、图片翻译：显示、圈选翻译：显示、视频字幕：显示、文档翻译：显示',
+                after: '鼠标悬停翻译：显示、划词翻译：显示、译文显示：显示、图片翻译：隐藏、圈选翻译：显示、视频字幕：显示、文档翻译：显示',
             },
             {
                 key: 'popupQuickFeatureOrder',
@@ -251,7 +261,7 @@ describe('配置差异预览', () => {
             'general',
             'translation',
             'siteRules',
-            'imageAndArea',
+            'imageTranslation',
             'videoSubtitles',
             'advanced',
             'tools',
@@ -271,7 +281,7 @@ describe('配置差异预览', () => {
         expect(group(result, 'siteRules')?.changes[0]).toMatchObject({
             before: 'example.com', after: 'example.com、openai.com',
         });
-        expect(group(result, 'imageAndArea')?.changes[0]).toMatchObject({before: '关闭', after: '开启'});
+        expect(group(result, 'imageTranslation')?.changes[0]).toMatchObject({before: '关闭', after: '开启'});
         expect(group(result, 'videoSubtitles')?.changes[0]).toMatchObject({before: '100%', after: '140%'});
         expect(group(result, 'advanced')?.changes[0]).toMatchObject({before: '开启', after: '关闭'});
         expect(group(result, 'tools')?.changes[0]).toMatchObject({

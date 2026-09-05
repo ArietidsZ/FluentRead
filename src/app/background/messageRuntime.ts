@@ -12,7 +12,7 @@ import {vocabularyBook} from '@/src/features/vocabulary/repository';
 import {clearTranslationCache, getTranslationCacheStats, translateWithCache} from '@/src/app/translation/runtime';
 import {serializeTranslationError} from '@/src/services/translation/errors';
 import {createBackgroundMessageRouter, type BackgroundMessageHandler} from './messageRouter';
-import {createAreaTranslationBackgroundHandlers, type AreaTranslationBackgroundContext} from './handlers/areaTranslation';
+import {createAreaTranslationBackgroundHandlers, createAreaCaptureOwnershipVerifier, type AreaTranslationBackgroundContext} from './handlers/areaTranslation';
 import {createTranslationCacheHandlers, createTranslationCacheInvalidationBroadcaster} from './handlers/translationCache';
 import {type ConfigPersistenceContext} from './handlers/configPersistence';
 import {createConnectionTestHandler} from './handlers/connectionTest';
@@ -39,6 +39,7 @@ import {
 } from './handlers/vocabulary';
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
 import {supportsTranslationBatch} from '@/src/services/translation/capabilities';
+import {prepareAreaTextTranslation} from '@/src/features/area-translation/services/textTranslation';
 import {areaTranslationOffscreenAdapter} from '@/src/features/area-translation/background/offscreenAdapter';
 import {imageTranslationOffscreenAdapter, imageTranslationProgressTransport} from '@/src/features/image-translation/background/offscreenAdapter';
 import {selectionTtsOffscreenAdapter} from '@/src/features/selection-translation/background/offscreenAdapter';
@@ -77,10 +78,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             sendTabMessage: (tabId, message) => browser.tabs.sendMessage(tabId, message),
             warn: (message, error) => console.warn(message, error),
         })),
-        createModelUsageHandler(
-            modelUsageRepository,
-            (url) => url.startsWith(browser.runtime.getURL('/options.html')),
-        ),
+        createModelUsageHandler(modelUsageRepository, (url) => url.startsWith(browser.runtime.getURL('/options.html'))),
         ...createConfigBackgroundHandlers<BackgroundRuntimeContext>(),
         createConnectionTestHandler({
             ready: configReady,
@@ -113,9 +111,13 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         ...imageGlossaryContext.wrap(createCapabilityGatedBackgroundHandlers<BackgroundRuntimeContext>(capabilities, {
             areaTranslation: () => createAreaTranslationBackgroundHandlers({
                 captureVisibleTab: (windowId) => browser.tabs.captureVisibleTab(windowId, {format: 'png'}),
+                assertCaptureOwner: createAreaCaptureOwnershipVerifier(tabId => browser.tabs.get(tabId)),
                 getDefaultSourceLanguage: () => config.from,
                 assertLanguagesDownloaded: imageOcrLanguageRepository.assertDownloaded,
                 translateArea: areaTranslationOffscreenAdapter.translateArea,
+                prepareTextTranslation: (language, title, context) => prepareAreaTextTranslation(config, language, title,
+                    {pageUrl: context.sender?.url, context: 'page'}, translateWithCache),
+                sendProgress: imageTranslationProgressTransport.sendProgress,
             }),
             imageTranslation: () => createImageTranslationBackgroundHandlers({
                 assertLanguagesDownloaded: imageOcrLanguageRepository.assertDownloaded,
@@ -159,8 +161,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     browser.runtime.onMessage.addListener(async (message: unknown, sender: any) => {
         try {
             const dispatch = await router.dispatch(message, {sender});
-            return dispatch.handled
-                ? dispatch.response
+            return dispatch.handled ? dispatch.response
                 : {success: false, error: '不支持的后台消息'};
         } catch (error) {
             return {success: false, error: error instanceof Error ? error.message : String(error)};

@@ -232,6 +232,8 @@ export class Config {
     mouseHoverTranslationDelay: number; // 鼠标悬浮翻译触发延迟（毫秒）
     disableSelectionTranslator: boolean; // 是否禁用划词翻译
     selectionAreaEnabled: boolean; // 是否启用圈选翻译
+    areaTranslationMode: 'standard' | 'ai'; // 圈选文字的标准翻译或 AI 上下文增强
+    areaTranslationService: string; // 圈选独立翻译服务；空字符串跟随当前服务
     disableImageTranslator: boolean; // 是否禁用图片翻译
     freeTranslationOrder: string[]; // 免费服务的启用列表与回退顺序
     freeTranslationTimeoutMs: number; // 每路服务最长等待
@@ -346,6 +348,8 @@ export class Config {
         this.mouseHoverTranslationDelay = DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY;
         this.disableSelectionTranslator = true; // 默认关闭划词翻译
         this.selectionAreaEnabled = false; // 圈选翻译需要用户主动开启，避免意外截图
+        this.areaTranslationMode = 'standard';
+        this.areaTranslationService = '';
         this.disableImageTranslator = true; // 默认关闭图片翻译，避免首次安装后扫描网页图片
         this.freeTranslationOrder = [...DEFAULT_FREE_TRANSLATION_ORDER];
         this.freeTranslationTimeoutMs = DEFAULT_FREE_TRANSLATION_TIMEOUT_MS;
@@ -480,6 +484,7 @@ function hasSubstantialLegacyCustomConfiguration(source: Partial<Config>): boole
     const referenced = source.service === LEGACY_CUSTOM_OPENAI_PROVIDER_ID
         || source.documentService === LEGACY_CUSTOM_OPENAI_PROVIDER_ID
         || source.videoService === LEGACY_CUSTOM_OPENAI_PROVIDER_ID
+        || source.areaTranslationService === LEGACY_CUSTOM_OPENAI_PROVIDER_ID
         || (Array.isArray(source.translationCenterServices)
             && source.translationCenterServices.includes(LEGACY_CUSTOM_OPENAI_PROVIDER_ID));
     if (referenced) return true;
@@ -760,6 +765,10 @@ export function normalizeConfig(value: unknown): Config {
     if (!isSupportedTranslationService(normalized.documentService, normalized.customOpenAIProviders)) {
         normalized.documentService = defaultOption.service;
     }
+
+    normalized.areaTranslationMode = source.areaTranslationMode === 'ai' ? 'ai' : 'standard';
+    normalized.areaTranslationService = isSupportedTranslationService(source.areaTranslationService, normalized.customOpenAIProviders)
+        ? source.areaTranslationService : '';
 
     if (typeof normalized.videoTranslationEnabled !== 'boolean') {
         normalized.videoTranslationEnabled = false;

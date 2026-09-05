@@ -65,6 +65,38 @@ describe('OCR worker runtime', () => {
         expect(factory).toHaveBeenLastCalledWith('jpn');
     });
 
+    it('圈选单块重试和普通图片参数串行切换，同模式连续任务复用参数', async () => {
+        const active = deferred<RecognitionResult>();
+        const worker = createWorker('eng');
+        vi.mocked(worker.recognize).mockReturnValueOnce(active.promise);
+        const runtime = createOcrWorkerRuntime({createWorker: async () => worker, sparseTextMode: 11});
+        const first = runtime.recognize('image', 'eng');
+        await vi.waitFor(() => expect(worker.recognize).toHaveBeenCalledOnce());
+        const area = runtime.recognize('area-retry', 'eng', undefined, 6);
+        expect(worker.setParameters).toHaveBeenCalledTimes(1);
+        active.resolve({worker: 'eng', image: 'image'});
+        await first;
+        await area;
+        await runtime.recognize('area-next', 'eng', undefined, 6);
+        expect(worker.setParameters).toHaveBeenCalledTimes(2);
+        await runtime.recognize('normal-image', 'eng');
+        expect(vi.mocked(worker.setParameters).mock.calls.map(([parameters]) => parameters.tessedit_pageseg_mode))
+            .toEqual([11, 6, 11]);
+        expect(worker.terminate).not.toHaveBeenCalled();
+    });
+
+    it('模式切换失败后重新应用原模式，避免部分设置污染后续图片识别', async () => {
+        const worker = createWorker('eng');
+        const runtime = createOcrWorkerRuntime({createWorker: async () => worker, sparseTextMode: 11});
+        await runtime.recognize('image', 'eng');
+        vi.mocked(worker.setParameters).mockRejectedValueOnce(new Error('mode failed'));
+        await expect(runtime.recognize('area', 'eng', undefined, 6)).rejects.toThrow('mode failed');
+        await runtime.recognize('image-again', 'eng');
+        expect(worker.setParameters).toHaveBeenCalledTimes(3);
+        expect(worker.setParameters).toHaveBeenLastCalledWith({tessedit_pageseg_mode: 11, preserve_interword_spaces: '1'});
+        expect(worker.recognize).toHaveBeenCalledTimes(2);
+    });
+
     it('串行化同 Worker 的并发识别，防止参数与识别调用交叉', async () => {
         const firstRecognition = deferred<RecognitionResult>();
         const worker = createWorker('eng');
