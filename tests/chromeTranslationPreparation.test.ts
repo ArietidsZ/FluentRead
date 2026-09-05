@@ -556,3 +556,14 @@ describe('Chrome 设置页本地模型准备', () => {
         })).rejects.toThrow('translator failed');
     });
 });
+
+describe('Chrome 简繁体准备对', () => {
+    it.each([
+        ['zh-Hans-HK', 'zh-Hant-CN', 'zh', 'zh-Hant', 'zh-Hans'],
+        ['zh-Hant-CN', 'zh-Hans-HK', 'zh-Hant', 'zh', 'zh-Hant'],
+    ])('%s → %s 保持真实语言对且泛中文自检按样本精化', async (from, to, sourceLanguage, targetLanguage, detectedLanguage) => {
+        const environment = readyEnvironment('zh');
+        await expect(prepareChromeTranslationInPage({from, to}, environment)).resolves.toMatchObject({sourceLanguage, targetLanguage, detectedLanguage});
+        expect(environment.Translator!.create).toHaveBeenCalledWith(expect.objectContaining({sourceLanguage, targetLanguage}));
+    });
+});

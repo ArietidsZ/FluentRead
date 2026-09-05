@@ -71,3 +71,15 @@ describe('通义实际模型与 endpoint 路由', () => {
         );
     });
 });
+
+it('Qwen-MT 的真实 provider 传递繁体源与简体目标，不受全局目标语言影响', async () => {
+    fetchMock.mockReset().mockResolvedValue(successResponse());
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+        await tongyi({origin: '繁體中文', serviceOverride: services.tongyi, modelOverride: 'qwen-mt-plus', sourceLanguage: 'zh-Hant', targetLanguage: 'zh-Hans'});
+        const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+        expect(body.translation_options).toEqual({source_lang: 'zh_tw', target_lang: 'zh'});
+    } finally {
+        vi.unstubAllGlobals();
+    }
+});

@@ -31,6 +31,7 @@
     ],
     "unit": [
       "tests/modalDialogHost.test.ts",
+      "tests/chineseLanguage.test.ts",
       "tests/aiContextPresentation.test.ts",
       "tests/aiSdkEndpoints.test.ts",
       "tests/aiSdkErrors.test.ts",
@@ -170,6 +171,7 @@
     ],
     "functional": [
       "tests/settingsCompositionAutosave.test.ts",
+      "tests/chineseTranslationProviders.test.ts",
       "tests/aiSdkOpenAICompatible.test.ts",
       "tests/config.test.ts",
       "tests/configAutoBackupStore.test.ts",

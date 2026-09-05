@@ -17,7 +17,7 @@
         <fieldset>
           <legend>基础设置</legend>
           <label class="toggle"><span>启用 FluentRead</span><input v-model="draft.on" type="checkbox" /></label>
-          <label><span>源语言</span><select v-model="draft.from"><option v-for="item in options.form" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
+          <label><span>源语言</span><select v-model="draft.from"><option v-for="item in options.from" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
           <label><span>目标语言</span><select v-model="draft.to"><option v-for="item in options.to" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
           <label><span>译文显示</span><select v-model.number="draft.display"><option v-for="item in options.display" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
           <label><span>双语样式</span><select v-model.number="draft.style"><option v-for="item in styleOptions" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>

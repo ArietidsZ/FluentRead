@@ -511,7 +511,7 @@ let pdfPreviewRequest = 0;
 
 const accept = getDocumentAcceptAttribute();
 const maxFileSizeLabel = `${Math.round(DOCUMENT_MAX_BYTES / 1024 / 1024)} MB`;
-const sourceLanguageOptions = [{value: 'auto', label: '自动检测'}, ...options.to];
+const sourceLanguageOptions = options.from;
 const formatCards = [
   {code: 'PDF', label: 'pdf 文件', tone: 'coral'},
   {code: 'EPUB', label: 'ePub 电子书', tone: 'teal'},

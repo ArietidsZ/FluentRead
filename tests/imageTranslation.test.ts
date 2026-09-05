@@ -8,12 +8,16 @@ describe('图片翻译 OCR 工具', () => {
     it('按源语言选择最小 OCR 语言集', () => {
         expect(getOcrLanguages('en')).toEqual(['eng']);
         expect(getOcrLanguages('zh-Hans')).toEqual(['chi_sim', 'eng']);
+        expect(getOcrLanguages('zh-Hant')).toEqual(['chi_tra', 'eng']);
+        expect(getOcrLanguages('zh-TW')).toEqual(['chi_tra', 'eng']);
+        expect(getOcrLanguages('zh-Hans-TW')).toEqual(['chi_sim', 'eng']);
         expect(getOcrLanguages('ja')).toEqual(['jpn', 'eng']);
-        expect(getOcrLanguages('auto')).toEqual(['chi_sim', 'eng']);
+        expect(getOcrLanguages('auto')).toEqual(['chi_sim', 'chi_tra', 'eng']);
     });
 
     it('只接受支持的语言包并去重，保证下载状态可持久化', () => {
         expect(normalizeImageOcrLanguageCodes(['eng', 'jpn', 'eng', 'unsupported', null])).toEqual(['eng', 'jpn']);
+        expect(normalizeImageOcrLanguageCodes(['chi_tra', 'eng', 'chi_tra'])).toEqual(['chi_tra', 'eng']);
         expect(normalizeImageOcrLanguageCodes('eng')).toEqual([]);
     });
 

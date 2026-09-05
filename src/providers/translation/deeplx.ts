@@ -6,6 +6,7 @@
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
+import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import {services} from "@/src/core/config/catalog";
 import {config} from "@/src/services/config/store";
 import {getDeepLXEndpoints} from "@/src/core/config/deeplx";
@@ -26,7 +27,7 @@ const DEEPLX_TOTAL_TIMEOUT_MS = 20_000;
 const DEEPLX_ATTEMPT_TIMEOUT_MS = 8_000;
 
 function normalizeLanguage(language: string): string {
-    const normalized = language.toLowerCase();
+    const normalized = normalizeChineseLanguageCode(language).toLowerCase();
     if (normalized === "auto") {
         return "AUTO";
     }

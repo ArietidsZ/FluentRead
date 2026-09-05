@@ -5,6 +5,7 @@
  * 模块边界：只处理传入数据并计算同步 SHA-256，不读取浏览器状态、不发网络请求，也不承担提示词或界面渲染。
  */
 import sha256 from 'crypto-js/sha256';
+import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 
 export interface GlossaryEntry {
     id: string;
@@ -37,10 +38,6 @@ export const GLOSSARY_LIMITS = {
 
 const INVALID_DOMAIN = '!invalid-domain';
 const ID_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/u;
-const CHINESE_LANGUAGE_ALIASES = new Map([
-    ['zh-cn', 'zh-hans'], ['zh-sg', 'zh-hans'],
-    ['zh-tw', 'zh-hant'], ['zh-hk', 'zh-hant'], ['zh-mo', 'zh-hant'],
-]);
 
 export function glossaryRecord(value: unknown): Record<string, unknown> | null {
     return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -64,8 +61,8 @@ function boundedText(value: unknown, length: number): string {
 export function normalizeGlossaryLanguage(value: unknown): string {
     const language = cleanGlossaryText(value).toLowerCase().replaceAll('_', '-');
     if (language.length > 40 || language === 'auto' || !/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/u.test(language)) return '';
-    // 只合并翻译工具中通用的中文简繁别名；en-US/GB、pt-BR/PT、yue 及显式脚本地区标签仍各自保留。
-    return CHINESE_LANGUAGE_ALIASES.get(language) ?? language;
+    // 术语语言沿用请求的简繁身份，旧 zh 归入简体，不能让简体译名命中繁体请求。
+    return normalizeChineseLanguageCode(language).toLowerCase();
 }
 
 /** 裸域名包含本域与子域；以 *. 开头时仅包含子域。URL、路径、端口和任意通配符不是规则。 */

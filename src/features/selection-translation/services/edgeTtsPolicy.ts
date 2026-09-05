@@ -8,6 +8,7 @@ import {
     normalizeSelectionTtsVoiceOrder,
     selectionTtsVoiceLocale,
 } from '@/src/features/selection-translation/ttsConfig';
+import {getChineseScript} from '@/src/core/language/chinese';
 
 export const edgeTtsLimits = Object.freeze({
     chunkBytes: 1_800,
@@ -32,8 +33,8 @@ const VOICE_CANDIDATES_BY_LANGUAGE: Readonly<Record<string, readonly string[]>> 
 export function normalizeEdgeTtsLanguage(language: string): string {
     const normalized = String(language || '').replace(/_/gu, '-').trim();
     if (!normalized || normalized === 'auto' || normalized === 'detect') return 'en-US';
-    if (normalized.toLowerCase() === 'zh-hans') return 'zh-CN';
-    if (normalized.toLowerCase() === 'zh-hant') return 'zh-TW';
+    const script = getChineseScript(normalized);
+    if (script) return script === 'Hans' ? 'zh-CN' : 'zh-TW';
     if (normalized.toLowerCase() === 'en') return 'en-US';
     return normalized;
 }

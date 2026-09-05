@@ -1,9 +1,10 @@
 /**
  * @file src/core/config/quickTranslation.ts
  * 文件职责：定义多快捷翻译方案的持久化结构、数量边界与纯归一化规则。
- * 主要内容：约束悬停/全文动作、独立服务模型、目标语言、显示方式和全文范围，并为 UI 生成稳定方案 ID。
+ * 主要内容：约束悬停/全文动作、独立服务模型、目标语言及中文简繁别名、显示方式和全文范围，并为 UI 生成稳定方案 ID。
  * 模块边界：本文件不监听键盘鼠标、不读取浏览器存储、不执行翻译；运行时路由和设置界面分别由 feature 与 settings 层负责。
  */
+import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import {canonicalizeHotkey} from '@/src/core/hotkey';
 import {MAX_CUSTOM_OPENAI_MODEL_LENGTH} from '@/src/core/config/customOpenAI';
 import {normalizeGlossaryIds, type GlossaryLibrary} from '@/src/core/glossary';
@@ -150,7 +151,7 @@ export function normalizeQuickTranslationProfiles(
             hotkey,
             service,
             model,
-            targetLanguage: normalizedString(candidate.targetLanguage, 32),
+            targetLanguage: normalizeChineseLanguageCode(normalizedString(candidate.targetLanguage, 32)),
             displayMode,
             fullPageMode,
             ...(candidate.glossaryIds !== undefined

@@ -49,4 +49,21 @@ describe('翻译请求语言隔离', () => {
             targetLanguage: 'ja',
         })).toEqual({sourceLanguage: 'en', targetLanguage: 'ja'});
     });
+
+    it('请求语言与默认快照均按书写体系归一，保留简繁互译方向', () => {
+        expect(resolveTranslationLanguages({
+            sourceLanguage: 'zh-TW',
+            targetLanguage: 'zh-CN',
+        }, {sourceLanguage: 'auto', targetLanguage: 'en'}))
+            .toEqual({sourceLanguage: 'zh-Hant', targetLanguage: 'zh-Hans'});
+        expect(resolveTranslationLanguages(undefined, {
+            sourceLanguage: ' zh-CHS ',
+            targetLanguage: ' zh-Hant-CN ',
+        })).toEqual({sourceLanguage: 'zh-Hans', targetLanguage: 'zh-Hant'});
+        expect(resolveTranslationLanguages({
+            sourceLanguage: 'auto',
+            targetLanguage: 'yue',
+        }, {sourceLanguage: 'zh-Hant', targetLanguage: 'zh-Hans'}))
+            .toEqual({sourceLanguage: 'auto', targetLanguage: 'yue'});
+    });
 });
