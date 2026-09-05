@@ -2155,8 +2155,11 @@ async function main() {
     await skinPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
     await skinPopup.waitForTimeout(350);
     const defaultFullMetrics = await inspectPopupContentHeight(skinPopup, '恢复默认完整栏目');
+    const defaultFooterBottomGap = defaultFullMetrics.scrolling.longContent
+      ? defaultFullMetrics.scrolling.end.lastModuleBottomGap
+      : defaultFullMetrics.lastModuleBottomGap;
     if (defaultFullMetrics.lastModule !== 'footer'
-      || Math.abs(defaultFullMetrics.lastModuleBottomGap - 3) > 1
+      || Math.abs(defaultFooterBottomGap - 3) > 1
       || defaultFullMetrics.shellHeight <= defaultHiddenMetrics.shellHeight + 40) {
       throw new Error(`默认完整布局的页脚边距或内容伸展异常：${JSON.stringify(defaultFullMetrics)}`);
     }
