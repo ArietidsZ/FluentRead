@@ -216,6 +216,73 @@ async function dragWholeElement(page, source, target, axis = 'y', position = 'be
   await page.mouse.up();
 }
 
+// 横向失败保留即时和过渡结束后的真实 DOM；只补诊断，不依据延迟读数放过失败。
+async function capturePopupOverflowFailure(page, label) {
+  const inspect = () => page.locator('.popup-shell').evaluate(element => {
+    const describe = node => {
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      return {
+        tag: node.tagName,
+        className: node.className,
+        text: node.textContent?.trim().slice(0, 100),
+        rect: {left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height},
+        clientWidth: node.clientWidth,
+        scrollWidth: node.scrollWidth,
+        overflowX: style.overflowX,
+        overflowY: style.overflowY,
+        transform: style.transform,
+        animationName: style.animationName,
+        animationDuration: style.animationDuration,
+        transitionProperty: style.transitionProperty,
+        transitionDuration: style.transitionDuration,
+        width: style.width,
+        minWidth: style.minWidth,
+        paddingLeft: style.paddingLeft,
+        paddingRight: style.paddingRight,
+        marginLeft: style.marginLeft,
+        marginRight: style.marginRight,
+      };
+    };
+    const shell = describe(element);
+    const initialScrollTop = element.scrollTop;
+    const initialScrollLeft = element.scrollLeft;
+    let reachableScrollLeft;
+    try {
+      element.scrollTo({top: initialScrollTop, left: element.scrollWidth, behavior: 'instant'});
+      reachableScrollLeft = element.scrollLeft;
+    } finally {
+      element.scrollTo({top: initialScrollTop, left: initialScrollLeft, behavior: 'instant'});
+    }
+    return {
+      shell,
+      initialScrollLeft,
+      reachableScrollLeft,
+      restoredScrollLeft: element.scrollLeft,
+      elements: [...element.querySelectorAll('*')].map(describe)
+        .filter(node => node.rect.width > 0 && node.rect.height > 0 && (
+          node.scrollWidth > node.clientWidth + 1
+          || node.rect.right > shell.rect.right + 1
+          || node.rect.left < shell.rect.left - 1
+        )),
+      animations: element.getAnimations({subtree: true}).map(animation => ({
+        playState: animation.playState,
+        currentTime: animation.currentTime,
+        target: animation.effect?.target?.className,
+        timing: animation.effect?.getComputedTiming(),
+      })),
+    };
+  });
+  const before = await inspect();
+  const beforeScreenshot = await screenshot(page, 'failure-popup-overflow-before.png');
+  await page.waitForTimeout(800);
+  const after = await inspect();
+  const afterScreenshot = await screenshot(page, 'failure-popup-overflow-after.png');
+  const file = path.join(artifactsDir, 'failure-popup-overflow-diagnostics.json');
+  fs.writeFileSync(file, JSON.stringify({label, before, after, waitedMs: 800, beforeScreenshot, afterScreenshot}, null, 2));
+  return {file, beforeScreenshot, afterScreenshot};
+}
+
 // 扩展页在固定测试 viewport 中也必须按内容排版；documentElement.scrollHeight 至少等于
 // viewport 高度，不能据此推断 Popup 的自然高度。短内容检查整条高度链及底部留白；
 // 长内容按生产的 600px 内部滚动契约检查末尾可达性，不能把初始位置的底栏越界当作裁切。
@@ -311,6 +378,7 @@ async function inspectPopupContentHeight(page, label) {
     || Math.abs(scrolling.end.lastModuleBottomGap - metrics.expectedBottomGap) > 1
     || Math.abs(scrolling.restoredScrollTop - scrolling.initialScrollTop) > 1
   )) {
+    if (scrolling.horizontalOverflow) metrics.failureDiagnostics = await capturePopupOverflowFailure(page, label);
     throw new Error(`${label}没有满足600px内部滚动、末尾完整可见及位置恢复：${JSON.stringify(metrics)}`);
   }
   return metrics;
