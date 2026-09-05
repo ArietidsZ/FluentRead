@@ -112,23 +112,23 @@ describe('extension manifest capability contract', () => {
             ): string[];
         };
         const expected = [
-            'fluent-read-0.0.31-firefox.zip',
-            'fluent-read-0.0.31-sources.zip',
+            'fluent-read-0.0.32-firefox.zip',
+            'fluent-read-0.0.32-sources.zip',
         ];
 
         expect(verifier.findUnexpectedCurrentVersionArchives([
             ...expected,
             '-0.0.30-firefox.zip',
-            'legacy-10.0.31-sources.zip',
-        ], '0.0.31', expected)).toEqual([]);
+            'legacy-10.0.32-sources.zip',
+        ], '0.0.32', expected)).toEqual([]);
         expect(verifier.findUnexpectedCurrentVersionArchives([
             ...expected,
-            '-0.0.31-firefox.zip',
-            'legacy-v0.0.31-sources.zip',
+            '-0.0.32-firefox.zip',
+            'legacy-v0.0.32-sources.zip',
             'fluent-read-0.0.30-firefox.zip',
-        ], '0.0.31', expected)).toEqual([
-            '-0.0.31-firefox.zip',
-            'legacy-v0.0.31-sources.zip',
+        ], '0.0.32', expected)).toEqual([
+            '-0.0.32-firefox.zip',
+            'legacy-v0.0.32-sources.zip',
         ]);
     });
 

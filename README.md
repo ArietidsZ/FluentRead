@@ -8,7 +8,7 @@
 
 An open-source browser extension that helps you understand foreign-language webpages without leaving the page.
 
-[![Latest version](https://img.shields.io/badge/version-0.0.31-6d5dfc?style=flat-square)](https://github.com/FluentRead/FluentRead/releases)
+[![Latest version](https://img.shields.io/badge/version-0.0.32-6d5dfc?style=flat-square)](https://github.com/FluentRead/FluentRead/releases)
 [![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0-22a06b?style=flat-square)](./LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/FluentRead/FluentRead?style=flat-square)](https://github.com/FluentRead/FluentRead)
 
