@@ -36,6 +36,10 @@ FluentRead 是一款把翻译放回阅读现场的浏览器扩展。它保留原
     <strong>选择翻译服务</strong>
     <span>按速度、质量、成本或隐私选择服务。</span>
   </a>
+  <a class="link-card" href="/guide/custom-site-rules">
+    <strong>自定义网站适配</strong>
+    <span>调整正文范围、保留元信息，把好用的规则分享给社区。</span>
+  </a>
 </div>
 
 ## 关于数据

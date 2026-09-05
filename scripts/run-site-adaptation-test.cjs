@@ -131,6 +131,11 @@ async function runCase(page, item) {
   await page.locator('#fluent-read-page-styles').waitFor({state: 'attached', timeout});
   await page.waitForTimeout(200);
   if (isLive) {
+    // Docusaurus 的客户端接管可能替换服务端节点；完成后再添加断言标记。
+    const generator = await page.evaluate(() => document.querySelector('meta[name="generator"]')?.getAttribute('content'));
+    if (generator?.startsWith('Docusaurus')) {
+      await page.locator('html[data-has-hydrated="true"]').waitFor({state: 'attached', timeout});
+    }
     await page.evaluate(() => document.addEventListener('mousemove', event => {
       globalThis.__lastReadingMouse = {x: event.clientX, y: event.clientY, trusted: event.isTrusted,
         target: event.target?.outerHTML?.slice(0, 250)};

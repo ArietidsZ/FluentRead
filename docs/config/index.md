@@ -42,4 +42,4 @@
 
 ## 网站适配
 
-在网站规则中管理正文范围、保护区域和自定义 JSON，参见 [网站适配 JSON](./site-adaptation)。
+在网站规则中管理正文范围、保护区域和自定义 JSON。第一次调整网站时，跟随[自定义网站适配教程](/guide/custom-site-rules)操作；需要查询字段和合并规则时，参见[网站适配 JSON 参考](./site-adaptation)。

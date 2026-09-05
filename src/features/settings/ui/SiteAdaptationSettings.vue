@@ -68,6 +68,7 @@
         </div>
         <details class="adaptation-guide">
           <summary>{{ tr('如何编写规则') }}</summary>
+          <p><a href="https://fluent.thinkstu.com/guide/custom-site-rules" target="_blank" rel="noopener noreferrer">{{ tr('查看完整自定义教程') }}</a></p>
           <dl>
             <dt><code>match</code></dt><dd>{{ tr('hosts 指定域名；*.example.com 包含主域名与子域。paths 和 excludePaths 按网址路径匹配，* 表示任意字符。') }}</dd>
             <dt><code>mode</code></dt><dd>{{ tr('augment 在通用识别上补充正文；focus 只翻译 content 选中的区域。') }}</dd>

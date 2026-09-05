@@ -66,3 +66,21 @@ FluentRead 现在使用统一 JSON 描述网址范围、正文目标、保护区
 - `/private/tmp/fluentread-fastapi-diagnostic/evidence-routes/diagnostics-summary.json`：同网址历史更新误取消在途译文的根因证据。
 
 运行浏览器脚本需提供 `--extension-dir`、`--playwright-root`、`--focus-safe-helper` 与 `--artifacts-dir`。默认执行自建夹具；添加 `--live` 才访问公开实站，`--cases` 可用逗号指定站点 ID。所有记录均区分合成网页、实际网页和本地供应商响应。
+
+## 文档与合并前整合复验（2026-09-05）
+
+在主线 `5704bb8` 上整合本功能后，新增[用户自定义教程](../guide/custom-site-rules)和[贡献指南](../contributing/site-adaptation)。官网首页、导航、设置页和中英文 README 均接入文档入口。指南中的规则包与夹具通过实际 schema、编译器及候选引擎验证，检查正文、保护、URL 排除、悬浮一致性与等价重挂载。
+
+| 复验 | 结果 |
+| --- | --- |
+| 全量 Vitest | 210 个文件、3,659 项通过 |
+| 严格覆盖率 | 165 个文件、2,911 项通过，四维均 100% |
+| 测试审计、类型检查 | 通过 |
+| Chrome / Firefox / userscript | 构建、manifest 与 userscript verifier 通过 |
+| 官网构建与浏览器 | 5 个页面分别检查 1280 与 390 像素宽度，共 10 项；26 个内部链接及手机导航通过，无页面溢出或脚本异常 |
+| 生产扩展夹具与设置 | 56 项通过；保存失败重试、持久化、导入导出、内置复制及移动布局通过 |
+| 重点实站 | FastAPI、Wikipedia、pnpm 的悬浮及全文翻译、恢复、再翻译和保护区检查均通过 |
+
+首次并行执行测试与构建时，覆盖率运行中的一项压缩包测试达到 5 秒超时；取消并行构建负载后完整覆盖率门禁通过。首次三站复验中，pnpm 客户端接管替换了带测试标记的节点，保护断言因定位丢失超时；单站复验通过。浏览器脚本现等待 Docusaurus 的 `data-has-hydrated` 状态后再标记正文与保护区，最终三站同轮通过。本次没有据此修改产品翻译逻辑。
+
+证据：`/private/tmp/fluentread-site-adaptation-pr-browser/`、`/private/tmp/fluentread-site-adaptation-pr-docs-browser/`、`/private/tmp/fluentread-site-adaptation-pr-live/`、`/private/tmp/fluentread-site-adaptation-pr-pnpm/`、`/private/tmp/fluentread-site-adaptation-pr-live-ready/`，以及 `/private/tmp/fluentread-site-adaptation-doc-example-review.json`。浏览器继续使用临时 Edge、`macos-background-cdp`、`launchservices-no-foreground`，窗口正常显示在第二屏且 `browserFrontmost=false`。
