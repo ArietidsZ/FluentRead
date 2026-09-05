@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/components/PopupLayoutPreview.vue
 文件职责：在界面设置中用真实 DOM 呈现当前 Popup 模块与快捷功能布局，帮助用户在保存前直接理解排序和显隐结果。
-主要内容：按皮肤预览色、顶层模块顺序、相邻站点栏目规则及快捷功能顺序绘制缩放后的 Popup，并即时移除被隐藏的区域。
+主要内容：按皮肤预览色或当前氛围语义色、顶层模块顺序、相邻站点栏目规则及快捷功能顺序绘制缩放后的 Popup，并即时移除被隐藏的区域。
 模块边界：本组件只消费外部投影后的布局数据，不提供编辑交互、不读写配置或浏览器状态，也不复刻 Popup 的业务行为。
 -->
 <template>
@@ -131,12 +131,23 @@ const siteModuleNestedInTranslation = computed(() => {
   const translationIndex = visibleModules.value.findIndex((item) => item.id === 'translation')
   return translationIndex >= 0 && visibleModules.value[translationIndex + 1]?.id === 'siteRule'
 })
-const previewStyle = computed(() => ({
-  '--layout-preview-canvas': props.skin.preview.canvas,
-  '--layout-preview-surface': props.skin.preview.surface,
-  '--layout-preview-accent': props.skin.preview.accent,
-  '--layout-preview-ink': props.skin.preview.ink,
-}))
+const previewStyle = computed(() => {
+  const preview = props.skin.preview
+  if (props.skin.kind === 'palette') {
+    return {
+      '--layout-preview-canvas': `var(--skin-page, ${preview.canvas})`,
+      '--layout-preview-surface': `var(--surface, ${preview.surface})`,
+      '--layout-preview-accent': `var(--brand, ${preview.accent})`,
+      '--layout-preview-ink': `var(--ink, ${preview.ink})`,
+    }
+  }
+  return {
+    '--layout-preview-canvas': preview.canvas,
+    '--layout-preview-surface': preview.surface,
+    '--layout-preview-accent': preview.accent,
+    '--layout-preview-ink': preview.ink,
+  }
+})
 const previewAriaLabel = computed(() => `${t('settings.interface.popupLayout.previewTitle')}: ${props.skinLabel}`)
 
 function featureGlyph(id: string): string {
@@ -517,17 +528,58 @@ function featureGlyph(id: string): string {
   background: var(--layout-preview-ink);
 }
 
-.popup-layout-live-preview[data-preview-skin="paper"] .layout-preview-popup {
-  border-radius: 11px;
-  background:
-    linear-gradient(color-mix(in srgb, var(--layout-preview-ink) 3%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--layout-preview-ink) 2%, transparent) 1px, transparent 1px),
-    var(--layout-preview-canvas);
-  background-size: 12px 12px, 12px 12px, auto;
+.popup-layout-live-preview[data-preview-kind="palette"] .layout-preview-popup {
+  border-color: var(--line);
+  border-radius: 14px;
+  background: var(--layout-preview-canvas);
+  box-shadow: none;
 }
 
-.popup-layout-live-preview[data-preview-skin="sakura"] .layout-preview-popup {
-  border-radius: 22px;
+.popup-layout-live-preview[data-preview-kind="palette"] .preview-translation {
+  border-color: var(--line);
+  border-radius: 14px;
+}
+
+.popup-layout-live-preview[data-preview-kind="palette"] :is(.layout-preview-header-actions i, .layout-preview-feature-grid > span, .layout-preview-site) {
+  border-color: var(--line);
+  border-radius: 10px;
+}
+
+.popup-layout-live-preview[data-preview-kind="palette"] :is(.layout-preview-languages span, .layout-preview-service, .layout-preview-site.nested) {
+  border-radius: 10px;
+  background: var(--surface-soft);
+}
+
+.popup-layout-live-preview[data-preview-kind="palette"] :is(.layout-preview-header-actions i, .layout-preview-hero small, .layout-preview-languages small, .layout-preview-service small, .layout-preview-site small, .layout-preview-languages em, .layout-preview-service em, .layout-preview-section-title, .layout-preview-footer, .layout-preview-footer b) {
+  color: var(--muted);
+}
+
+.popup-layout-live-preview[data-preview-kind="palette"] .layout-preview-logo,
+.popup-layout-live-preview[data-preview-kind="palette"] .layout-preview-action {
+  color: var(--skin-action-text);
+  background: var(--layout-preview-accent);
+}
+
+.popup-layout-live-preview[data-preview-kind="palette"] .layout-preview-action {
+  border-radius: 10px;
+}
+
+.popup-layout-live-preview[data-preview-kind="palette"] .layout-preview-hero > i b,
+.popup-layout-live-preview[data-preview-kind="palette"] .layout-preview-site > i::after {
+  background: #fff;
+}
+
+.popup-layout-live-preview[data-preview-kind="palette"] :is(.layout-preview-service > i, .layout-preview-feature-grid i) {
+  color: var(--brand-strong);
+  background: var(--brand-soft);
+}
+
+.popup-layout-live-preview[data-preview-kind="palette"] .layout-preview-feature-grid i {
+  background: var(--surface-soft);
+}
+
+.popup-layout-live-preview[data-preview-kind="palette"] .layout-preview-footer strong {
+  color: var(--brand-strong);
 }
 
 @media (max-width: 480px) {

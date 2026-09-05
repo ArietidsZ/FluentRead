@@ -24,8 +24,28 @@ function parseHexColor(value) {
   return [0, 2, 4].map(offset => Number.parseInt(normalized.slice(offset, offset + 2), 16));
 }
 
+function parseCssColor(value) {
+  const hex = parseHexColor(value);
+  if (hex) return hex;
+  const match = /^rgba?\(([^)]+)\)$/iu.exec(String(value || '').trim());
+  if (!match) return null;
+  const parts = match[1].trim().split(/[\s,/]+/u);
+  if (parts.length !== 3 && parts.length !== 4) return null;
+  const channel = part => /^\d*\.?\d+%?$/u.test(part)
+    ? Number.parseFloat(part) * (part.endsWith('%') ? 2.55 : 1)
+    : NaN;
+  const channels = parts.slice(0, 3).map(channel);
+  if (channels.some(item => !Number.isFinite(item) || item < 0 || item > 255)) return null;
+  if (parts.length === 4) {
+    const alpha = channel(parts[3]) / (parts[3].endsWith('%') ? 255 : 1);
+    // 透明色必须先与实际底色合成；本检查只接受不透明的真实按钮颜色，避免误报通过。
+    if (!Number.isFinite(alpha) || Math.abs(alpha - 1) > .00001) return null;
+  }
+  return channels;
+}
+
 function contrastRatio(foreground, background) {
-  const colors = [foreground, background].map(parseHexColor);
+  const colors = [foreground, background].map(parseCssColor);
   if (colors.some(color => color === null)) return 0;
   const luminance = color => color
     .map(channel => channel / 255)
@@ -979,12 +999,12 @@ async function main() {
       {value: 'minimal', label: '简约风格', kind: 'minimal', contentHeight: true, popupWidth: 380, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
       {value: 'compact', label: '紧凑风格', kind: 'compact', contentHeight: true, popupWidth: 360, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
       {value: 'contrast', label: '高对比 ⚡', kind: 'contrast', contentHeight: true, popupWidth: 400, brand: '#111', surface: '#fff', darkSurface: '#050505'},
-      {value: 'cheese', label: '奶酪 🧀', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#d99a16', surface: '#fffdf6', darkSurface: '#2f291b'},
-      {value: 'ocean', label: '海盐 🌊', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#1689a9', surface: '#fbfeff', darkSurface: '#142b35'},
-      {value: 'matcha', label: '抹茶 🍵', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#648b4e', surface: '#fcfdf8', darkSurface: '#252f21'},
-      {value: 'sakura', label: '樱花 🌸', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#d95784', surface: '#fffafd', darkSurface: '#33242b'},
-      {value: 'midnight', label: '夜幕 🌙', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#64c9e7', surface: '#172337', darkSurface: '#172337'},
-      {value: 'paper', label: '纸张护眼 📖', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#93623a', surface: '#fffaf1', darkSurface: '#2b241d'},
+      {value: 'cheese', label: '奶酪 🧀', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#946d2f', surface: '#fffefa', darkSurface: '#28261f'},
+      {value: 'ocean', label: '海盐 🌊', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#476f82', surface: '#fcfefe', darkSurface: '#222b31'},
+      {value: 'matcha', label: '抹茶 🍵', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#5b745c', surface: '#fdfefa', darkSurface: '#242b24'},
+      {value: 'sakura', label: '樱花 🌸', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#976577', surface: '#fffdfd', darkSurface: '#2d252a'},
+      {value: 'midnight', label: '夜幕 🌙', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#9eb5d0', surface: '#1d2632', darkSurface: '#1d2632'},
+      {value: 'paper', label: '纸张护眼 📖', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#806b51', surface: '#fbf9f3', darkSurface: '#292620'},
     ];
     const skinCards = interfaceSettingsGroup.locator('.interface-skin-option');
     if (await skinCards.count() !== expectedInterfaceSkins.length) {
@@ -1314,10 +1334,8 @@ async function main() {
           brand: rootStyle.getPropertyValue('--brand').trim(),
           surface: rootStyle.getPropertyValue('--surface').trim(),
           ink: rootStyle.getPropertyValue('--ink').trim(),
-          actionStart: rootStyle.getPropertyValue('--skin-action-start').trim(),
-          actionEnd: rootStyle.getPropertyValue('--skin-action-end').trim(),
-          actionText: rootStyle.getPropertyValue('--skin-action-text').trim(),
-          shellBackground: getComputedStyle(element).backgroundImage,
+          actionText: getComputedStyle(document.querySelector('.translate-button')).color,
+          shellBackgroundImage: getComputedStyle(element).backgroundImage,
           heroRadius: getComputedStyle(document.querySelector('.hero-card')).borderRadius,
           visibleBetaBadges: [...document.querySelectorAll('.beta-badge')]
             .filter(badge => getComputedStyle(badge).display !== 'none').length,
@@ -1332,10 +1350,7 @@ async function main() {
       });
       metrics.textContrast = contrastRatio(metrics.ink, metrics.surface);
       metrics.actionContrast = skin.kind === 'palette'
-        ? Math.min(
-          contrastRatio(metrics.actionText, metrics.actionStart),
-          contrastRatio(metrics.actionText, metrics.actionEnd),
-        )
+        ? contrastRatio(metrics.actionText, metrics.translateButtonBackground)
         : null;
       const expectedHeightMode = skin.contentHeight ? 'content' : 'fixed';
       const expectedMinHeight = skin.contentHeight ? '0px' : '560px';
@@ -1352,7 +1367,11 @@ async function main() {
         || metrics.surface !== skin.surface
         || !metrics.ink
         || metrics.textContrast < 4.5
-        || (skin.kind === 'palette' && metrics.actionContrast < 4.5)) {
+        || (skin.kind === 'palette' && (
+          metrics.actionContrast < 4.5
+          || metrics.translateButtonBackgroundImage !== 'none'
+          || metrics.shellBackgroundImage !== 'none'
+        ))) {
         throw new Error(`${skin.label}基础布局异常：${JSON.stringify(metrics)}`);
       }
       if (skin.value === 'minimal' && (
@@ -1370,39 +1389,43 @@ async function main() {
         skin.kind,
         metrics.brand,
         metrics.surface,
-        metrics.shellBackground,
+        metrics.shellBackgroundImage,
         metrics.heroRadius,
       ]));
       report.screenshots.push(await screenshotElement(skinPopup.locator('.popup-shell'), `popup-interface-${skin.value}.png`));
 
       await skinPopup.evaluate(() => document.documentElement.classList.add('dark'));
-      await skinPopup.waitForTimeout(80);
+      await skinPopup.waitForTimeout(skin.kind === 'palette' ? 200 : 80);
       const darkMetrics = await skinPopup.evaluate(() => {
         const rootStyle = getComputedStyle(document.documentElement);
         return {
           horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
           brand: rootStyle.getPropertyValue('--brand').trim(),
+          elementPrimary: rootStyle.getPropertyValue('--el-color-primary').trim(),
           surface: rootStyle.getPropertyValue('--surface').trim(),
           ink: rootStyle.getPropertyValue('--ink').trim(),
-          actionStart: rootStyle.getPropertyValue('--skin-action-start').trim(),
-          actionEnd: rootStyle.getPropertyValue('--skin-action-end').trim(),
-          actionText: rootStyle.getPropertyValue('--skin-action-text').trim(),
+          actionText: getComputedStyle(document.querySelector('.translate-button')).color,
+          translateButtonBackground: getComputedStyle(document.querySelector('.translate-button')).backgroundColor,
+          translateButtonBackgroundImage: getComputedStyle(document.querySelector('.translate-button')).backgroundImage,
+          shellBackgroundImage: getComputedStyle(document.querySelector('.popup-shell')).backgroundImage,
           bodyBackground: getComputedStyle(document.body).backgroundColor,
         };
       });
       darkMetrics.textContrast = contrastRatio(darkMetrics.ink, darkMetrics.surface);
       darkMetrics.actionContrast = skin.kind === 'palette'
-        ? Math.min(
-          contrastRatio(darkMetrics.actionText, darkMetrics.actionStart),
-          contrastRatio(darkMetrics.actionText, darkMetrics.actionEnd),
-        )
+        ? contrastRatio(darkMetrics.actionText, darkMetrics.translateButtonBackground)
         : null;
       if (darkMetrics.horizontalOverflow
         || darkMetrics.surface !== skin.darkSurface
         || !darkMetrics.brand
         || !darkMetrics.ink
         || darkMetrics.textContrast < 4.5
-        || (skin.kind === 'palette' && darkMetrics.actionContrast < 4.5)) {
+        || (skin.kind === 'palette' && (
+          darkMetrics.actionContrast < 4.5
+          || darkMetrics.translateButtonBackgroundImage !== 'none'
+          || darkMetrics.shellBackgroundImage !== 'none'
+          || darkMetrics.elementPrimary !== darkMetrics.brand
+        ))) {
         throw new Error(`${skin.label}暗色布局异常：${JSON.stringify(darkMetrics)}`);
       }
       report.screenshots.push(await screenshotElement(skinPopup.locator('.popup-shell'), `popup-interface-${skin.value}-dark.png`));
