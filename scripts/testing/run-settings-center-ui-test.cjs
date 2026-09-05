@@ -217,7 +217,8 @@ async function dragWholeElement(page, source, target, axis = 'y', position = 'be
 }
 
 // 扩展页在固定测试 viewport 中也必须按内容排版；documentElement.scrollHeight 至少等于
-// viewport 高度，不能据此推断 Popup 的自然高度。使用实际元素边界检查整条高度链。
+// viewport 高度，不能据此推断 Popup 的自然高度。短内容检查整条高度链及底部留白；
+// 长内容按生产的 600px 内部滚动契约检查末尾可达性，不能把初始位置的底栏越界当作裁切。
 async function inspectPopupContentHeight(page, label) {
   const metrics = await page.locator('.popup-shell').evaluate(element => {
     const rect = element.getBoundingClientRect();
@@ -226,6 +227,40 @@ async function inspectPopupContentHeight(page, label) {
     const lastModule = [...element.querySelectorAll('.popup-content > [data-popup-module]')].at(-1);
     const lastRect = lastModule?.getBoundingClientRect();
     const lastStyle = lastModule ? getComputedStyle(lastModule) : null;
+    const initialScrollTop = element.scrollTop;
+    const initialScrollLeft = element.scrollLeft;
+    const scrolling = {
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      maxHeight: Number.parseFloat(shellStyle.maxHeight),
+      overflowY: shellStyle.overflowY,
+      initialScrollTop,
+      longContent: element.scrollHeight > element.clientHeight + 1,
+      horizontalOverflow: [document.documentElement, document.body, app, element]
+        .filter(Boolean).some(node => node.scrollWidth > node.clientWidth + 1),
+      end: null,
+      restoredScrollTop: initialScrollTop,
+    };
+    if (scrolling.longContent) {
+      try {
+        element.scrollTo({top: element.scrollHeight, left: initialScrollLeft, behavior: 'instant'});
+        const endRect = lastModule?.getBoundingClientRect();
+        scrolling.end = {
+          scrollTop: element.scrollTop,
+          maxScrollTop: element.scrollHeight - element.clientHeight,
+          lastModuleTop: endRect?.top ?? null,
+          lastModuleBottom: endRect?.bottom ?? null,
+          viewportTop: rect.top + element.clientTop,
+          viewportBottom: rect.top + element.clientTop + element.clientHeight,
+          lastModuleBottomGap: endRect ? rect.bottom - endRect.bottom : null,
+        };
+      } finally {
+        element.scrollTo({top: initialScrollTop, left: initialScrollLeft, behavior: 'instant'});
+        scrolling.restoredScrollTop = element.scrollTop;
+      }
+    }
     return {
       shellHeight: rect.height,
       shellBottom: rect.bottom,
@@ -244,6 +279,7 @@ async function inspectPopupContentHeight(page, label) {
           + Number.parseFloat(lastStyle.marginBottom)
         : null,
       visibleQuickFeatures: element.querySelectorAll('[data-popup-quick-feature]').length,
+      scrolling,
     };
   });
   if (metrics.heightMode !== 'content'
@@ -255,8 +291,27 @@ async function inspectPopupContentHeight(page, label) {
     || !metrics.lastModule
     || !Number.isFinite(metrics.lastModuleBottomGap)
     || !Number.isFinite(metrics.expectedBottomGap)
-    || Math.abs(metrics.lastModuleBottomGap - metrics.expectedBottomGap) > 1) {
+    || (!metrics.scrolling.longContent
+      && Math.abs(metrics.lastModuleBottomGap - metrics.expectedBottomGap) > 1)) {
     throw new Error(`${label}没有按内容确定高度或底部留下额外空白：${JSON.stringify(metrics)}`);
+  }
+  const {scrolling} = metrics;
+  if (scrolling.longContent && (
+    metrics.shellHeight > 601
+    || scrolling.maxHeight !== 600
+    || !['auto', 'scroll'].includes(scrolling.overflowY)
+    || scrolling.horizontalOverflow
+    || !scrolling.end
+    || scrolling.end.scrollTop <= 0
+    || Math.abs(scrolling.end.scrollTop - scrolling.end.maxScrollTop) > 1
+    || !Number.isFinite(scrolling.end.lastModuleTop)
+    || !Number.isFinite(scrolling.end.lastModuleBottom)
+    || scrolling.end.lastModuleTop < scrolling.end.viewportTop - 1
+    || scrolling.end.lastModuleBottom > scrolling.end.viewportBottom + 1
+    || Math.abs(scrolling.end.lastModuleBottomGap - metrics.expectedBottomGap) > 1
+    || Math.abs(scrolling.restoredScrollTop - scrolling.initialScrollTop) > 1
+  )) {
+    throw new Error(`${label}没有满足600px内部滚动、末尾完整可见及位置恢复：${JSON.stringify(metrics)}`);
   }
   return metrics;
 }
