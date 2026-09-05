@@ -29,6 +29,16 @@ export function supportsTranslationBatch(service: string): boolean {
     return NATIVE_BATCH_TRANSLATION_SERVICES.has(service) || servicesType.isAiSdk(service);
 }
 
+/** 通用提示词 AI 使用术语约束；通义 Qwen-MT 使用原生 terms，其余协议不替换译文。 */
+export function supportsTranslationGlossary(
+    service: string,
+    model = '',
+    serviceTypes: Pick<typeof servicesType, 'isUseAIContext'> = servicesType,
+): boolean {
+    return serviceTypes.isUseAIContext(service, model)
+        || (service === services.tongyi && model.startsWith('qwen-mt'));
+}
+
 export function isTranslationServiceAvailable(
     service: string,
     capabilities: BrowserCapabilities = browserCapabilities,

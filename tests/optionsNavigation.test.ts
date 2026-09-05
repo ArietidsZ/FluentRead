@@ -9,7 +9,7 @@ import {
 } from '@/src/features/settings/model/navigation'
 
 describe('options navigation view-model', () => {
-    it('keeps the fourteen sections unique, grouped exactly once and in the product IA order', () => {
+  it('keeps the fifteen sections unique, grouped exactly once and in the product IA order', () => {
     const groupedItems = navigationGroups.flatMap((group) => group.items)
     expect(groupedItems).toEqual(navigationItems)
     expect(new Set(navigationItems.map((item) => item.id)).size).toBe(navigationItems.length)
@@ -31,7 +31,7 @@ describe('options navigation view-model', () => {
       },
       {
         label: '工具与学习',
-        items: ['settings-translation-center', 'settings-model-usage', 'settings-vocabulary', 'settings-harness'],
+        items: ['settings-glossary', 'settings-translation-center', 'settings-model-usage', 'settings-vocabulary', 'settings-harness'],
       },
       {
         label: '系统与数据',
@@ -46,6 +46,7 @@ describe('options navigation view-model', () => {
       '图片与圈选翻译',
       '视频字幕翻译',
       '网站规则',
+      '术语库',
       '翻译中心',
       '模型用量',
       '单词本',
@@ -65,6 +66,8 @@ describe('options navigation view-model', () => {
     expect(resolveNavigationItem('settings-services').title).toBe('翻译服务')
     expect(resolveNavigationItem('settings-translation').title).toBe('翻译设置')
     expect(resolveNavigationItem('settings-interface').title).toBe('界面布局')
+    expect(resolveRequestedSection('#settings-glossary')).toBe('settings-glossary')
+    expect(resolveNavigationItem('settings-glossary').group).toBe('工具与学习')
     expect(resolveNavigationItem('settings-model-usage').detail)
       .toBe('查看发起的大模型调用、Token 消耗与使用趋势。')
     expect(resolveRequestedSection('#settings-harness')).toBe('settings-harness')
@@ -78,6 +81,7 @@ describe('options navigation view-model', () => {
   })
 
   it('searches all user-facing metadata case-insensitively and trims input', () => {
+    expect(filterNavigationItems(' glossary ')).toEqual([expect.objectContaining({id: 'settings-glossary'})])
     expect(filterNavigationItems(' OPENAI ')).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'settings-services' }),
       expect.objectContaining({ id: 'settings-model-usage' }),

@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { parseHTML } from 'linkedom'
 import { describe, expect, it } from 'vitest'
 
 function source(path: string): string {
@@ -42,7 +43,79 @@ function settingsGroupTitles(content: string): string[] {
     .map((match) => match[1])
 }
 
+function minimalPopupSpacing(viewportWidth: number, skin: string, dark: boolean, footerLast: boolean) {
+  const { document } = parseHTML(`<html data-interface-skin="${skin}" class="${dark ? 'dark' : ''}">
+    <head><style>${source('src/ui/styles/interface-skins/minimal.css')}</style></head>
+    <body><main class="popup-shell"><div class="popup-content">
+      <footer data-popup-module-last="${footerLast}"></footer>
+    </div></main></body></html>`)
+  const rules = document.querySelector('style')!.sheet!.cssRules
+
+  // 解析真实 CSS 的像素间距与媒体覆盖，不模拟浏览器布局；渲染后的边界另由生产 UI 套件验证。
+  function spacingFor(selector: string) {
+    const element = document.querySelector(selector)!
+    const spacing = { 'padding-left': 0, 'padding-right': 0, 'margin-left': 0, 'margin-right': 0 }
+    function applyRules(cssRules: CSSRuleList) {
+      for (const rule of Array.from(cssRules)) {
+        if (rule.type === 4) {
+          const media = rule as CSSMediaRule
+          const maxWidth = media.conditionText.match(/^\(max-width:\s*(\d+)px\)$/u)
+          if (!maxWidth) throw new Error(`Unsupported spacing media query: ${media.conditionText}`)
+          if (viewportWidth <= Number(maxWidth[1])) applyRules(media.cssRules)
+          continue
+        }
+        if (rule.type !== 1) continue
+        const styleRule = rule as CSSStyleRule
+        if (!element.matches(styleRule.selectorText)) continue
+        for (let index = 0; index < styleRule.style.length; index += 1) {
+          const property = styleRule.style[index]
+          if (!(property in spacing) && property !== 'padding' && property !== 'margin') continue
+          const values = styleRule.style.getPropertyValue(property).trim().split(/\s+/u).map(value => {
+            if (!/^(?:-?\d+(?:\.\d+)?px|0)$/u.test(value)) throw new Error(`Unsupported spacing: ${value}`)
+            return Number.parseFloat(value)
+          })
+          if (property === 'padding' || property === 'margin') {
+            spacing[`${property}-left`] = values[3] ?? values[1] ?? values[0]
+            spacing[`${property}-right`] = values[1] ?? values[0]
+          } else {
+            spacing[property as keyof typeof spacing] = values[0]
+          }
+        }
+      }
+    }
+    applyRules(rules)
+    return spacing
+  }
+  return { shell: spacingFor('.popup-shell'), footer: spacingFor('footer') }
+}
+
 describe('options UI composition architecture', () => {
+  it.each([380, 400, 420, 421, 900])('keeps the minimal last footer inside its shell at a %ipx viewport', viewportWidth => {
+    for (const dark of [false, true]) {
+      const { shell, footer } = minimalPopupSpacing(viewportWidth, 'minimal', dark, true)
+      const shellWidth = 380
+      const left = shell['padding-left'] + footer['margin-left']
+      const right = shellWidth - shell['padding-right'] - footer['margin-right']
+
+      expect(left).toBe(0)
+      expect(right).toBe(shellWidth)
+      expect(shell['padding-left']).toBe(viewportWidth <= 420 ? 12 : 16)
+      expect(shell['padding-right']).toBe(viewportWidth <= 420 ? 12 : 16)
+    }
+  })
+
+  it.each([400, 900])('preserves inset footers and does not apply minimal spacing to the default skin at %ipx', viewportWidth => {
+    const { shell, footer } = minimalPopupSpacing(viewportWidth, 'minimal', false, false)
+    expect(footer['margin-left']).toBe(0)
+    expect(footer['margin-right']).toBe(0)
+    expect(shell['padding-left']).toBe(viewportWidth <= 420 ? 12 : 16)
+    for (const dark of [false, true]) {
+      const defaultSpacing = minimalPopupSpacing(viewportWidth, 'default', dark, true)
+      expect(Object.values(defaultSpacing.shell)).toEqual([0, 0, 0, 0])
+      expect(Object.values(defaultSpacing.footer)).toEqual([0, 0, 0, 0])
+    }
+  })
+
   it('keeps cache management inside advanced settings without another navigation or popup surface', () => {
     const sections = source('src/features/settings/ui/SettingsSections.vue')
     const cache = source('src/features/settings/ui/TranslationCacheSettings.vue')

@@ -1,7 +1,7 @@
 /**
  * @file src/app/background/messageRuntime.ts
  * 文件职责：构建并安装后台消息总运行时，把配置、翻译、OCR、TTS、生词本和标签页状态等公开 handler 连接到 browser.runtime。
- * 主要内容：创建图片 OCR 语言仓库和能力门控传输，注入配置历史/持久化、连接测试、翻译 broker、模型用量、词典与词汇仓库依赖，注册类型化 router 并为异步 sendResponse 管理响应与错误。
+ * 主要内容：创建图片 OCR 语言仓库和能力门控传输，绑定图片与圈选事务的真实页面及术语版本；注入配置、翻译、模型用量和词典依赖，注册类型化 router 并管理响应与错误。
  * 模块边界：本文件是 composition root，只决定依赖装配和监听生命周期，不实现各 feature 的业务算法、provider 协议或存储事务；具体实现均来自 features、services、providers 与 platform。
  */
 import {formatConnectionTestError, runTranslationServiceConnectionTestWithUsage, translateMicrosoftTexts} from './providerRuntime';
@@ -12,10 +12,7 @@ import {vocabularyBook} from '@/src/features/vocabulary/repository';
 import {clearTranslationCache, getTranslationCacheStats, translateWithCache} from '@/src/app/translation/runtime';
 import {serializeTranslationError} from '@/src/services/translation/errors';
 import {createBackgroundMessageRouter, type BackgroundMessageHandler} from './messageRouter';
-import {
-    createAreaTranslationBackgroundHandlers,
-    type AreaTranslationBackgroundContext,
-} from './handlers/areaTranslation';
+import {createAreaTranslationBackgroundHandlers, type AreaTranslationBackgroundContext} from './handlers/areaTranslation';
 import {createTranslationCacheHandlers, createTranslationCacheInvalidationBroadcaster} from './handlers/translationCache';
 import {type ConfigPersistenceContext} from './handlers/configPersistence';
 import {createConnectionTestHandler} from './handlers/connectionTest';
@@ -23,10 +20,7 @@ import {
     createFullPageTranslationStateHandlers, createQqMailFrameBackgroundHandlers,
     type FullPageBackgroundContext, type QQMailFrameBackgroundContext,
 } from './handlers/fullPageTranslationState';
-import {
-    createImageOcrLanguageRepository,
-    createImageTranslationBackgroundHandlers,
-} from './handlers/imageTranslation';
+import {createImageOcrLanguageRepository, createImageTranslationBackgroundHandlers} from './handlers/imageTranslation';
 import {createInputBoxTranslationHandler} from './handlers/inputTranslation';
 import {createModelUsageHandler} from './handlers/modelUsage';
 import {createOpenOptionsPageHandler} from './handlers/openOptions';
@@ -53,6 +47,8 @@ import {createConfigBackgroundHandlers} from './configMessageHandlers';
 import {createConfigImageOcrLanguageStorage, installBrowserConfigStorageBroadcast} from './configStorageRuntime';
 import {modelUsageRepository} from '@/src/platform/storage/modelUsageRepository';
 import {installHarnessBackgroundRuntime} from './harnessRuntime';
+import {createImageGlossaryContext} from './imageGlossaryContext';
+import {buildGlossaryRevision} from '@/src/core/glossary';
 type BackgroundRuntimeContext = QQMailFrameBackgroundContext & ConfigPersistenceContext & VocabularyBackgroundContext & SelectionTtsContext
     & FullPageBackgroundContext & AreaTranslationBackgroundContext;
 export interface BackgroundMessageRuntimeOptions {
@@ -66,6 +62,12 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     const translationRequestRegistry = createTranslationRequestRegistry();
     const imageOcrLanguageRepository = createImageOcrLanguageRepository(createConfigImageOcrLanguageStorage());
     const selectionTtsTransport = createCapabilityGatedSelectionTtsTransport(capabilities, selectionTtsOffscreenAdapter);
+    const imageGlossaryContext = createImageGlossaryContext<BackgroundRuntimeContext>({
+        ready: configReady,
+        offscreenUrl: browser.runtime.getURL('/offscreen.html'),
+        getSourceLanguage: () => config.from,
+        getGlossaryRevision: () => buildGlossaryRevision(config.glossaryLibraries, config.glossaryEnabled),
+    });
     const handlers: Array<BackgroundMessageHandler<BackgroundRuntimeContext>> = [
         createTranslationCancelHandler(translationRequestRegistry),
         installHarnessBackgroundRuntime(),
@@ -108,7 +110,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             translate: translateWithCache,
             warn: (message, error) => console.warn(message, error),
         }),
-        ...createCapabilityGatedBackgroundHandlers<BackgroundRuntimeContext>(capabilities, {
+        ...imageGlossaryContext.wrap(createCapabilityGatedBackgroundHandlers<BackgroundRuntimeContext>(capabilities, {
             areaTranslation: () => createAreaTranslationBackgroundHandlers({
                 captureVisibleTab: (windowId) => browser.tabs.captureVisibleTab(windowId, {format: 'png'}),
                 getDefaultSourceLanguage: () => config.from,
@@ -124,7 +126,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
                 markLanguagesDownloaded: imageOcrLanguageRepository.markDownloaded,
                 ...imageTranslationProgressTransport,
             }),
-        }),
+        })),
         ...createSelectionTtsBackgroundHandlers({
             getPreferredVoices: () => config.selectionTtsVoices,
             synthesize: synthesizeEdgeTts,

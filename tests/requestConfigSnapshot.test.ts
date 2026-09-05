@@ -11,7 +11,10 @@ import {
     getTranslationRequestControl,
     reportTranslationModelUsage,
     reportTranslationModelUsageFailure,
+    getTranslationGlossaryTerms,
+    getTranslationGlossarySourceText,
 } from '@/src/services/translation/requestSnapshot';
+import {serializeTranslationSlots} from '@/src/core/translation/public';
 import type {TranslationConfigSource} from '@/src/services/translation/types';
 
 function configSource(overrides: Partial<TranslationConfigSource> = {}): TranslationConfigSource {
@@ -49,6 +52,41 @@ function configSource(overrides: Partial<TranslationConfigSource> = {}): Transla
 }
 
 describe('translation provider request config snapshot', () => {
+    it('matches pure source slots without protocol boundaries and leaves malformed or literal markers intact', () => {
+        const packet = serializeTranslationSlots(['agent', 'An agent works.'], 'Case_1-x');
+        expect(getTranslationGlossarySourceText(packet.payload)).toEqual(['agent', 'An agent works.']);
+        expect(getTranslationGlossarySourceText(['plain', packet.payload])).toEqual(['plain', 'agent', 'An agent works.']);
+        for (const text of [packet.payload.replace(packet.ends[0], ''), `${packet.payload} outside`,
+            `literal ${packet.payload}`, '___FLUENTREAD_partial_0_BEGIN___agent']) {
+            expect(getTranslationGlossarySourceText(text)).toBe(text);
+        }
+    });
+    it('deep-freezes glossary rules, per-entry selections and resolved terms without sharing mutable arrays', () => {
+        const libraries = [{id: 'one', name: 'One', enabled: true, sourceLanguage: '', targetLanguage: '', domains: [],
+            entries: [{id: 'term', source: 'agent', target: '智能体', caseSensitive: false}]}];
+        const ids = ['one'];
+        const terms = [{source: 'agent', target: '智能体'}];
+        const snapshot = createTranslationProviderConfigSnapshot(configSource({glossaryLibraries: libraries,
+            glossaryTerms: terms, documentGlossaryIds: ids, videoGlossaryIds: [],
+            glossaryMatchContext: {sourceLanguage: 'en', targetLanguage: 'zh-Hans', glossaryIds: ids}}));
+        libraries[0].entries[0].target = 'changed'; ids.push('two'); terms[0].target = 'changed';
+        expect(getTranslationGlossaryTerms(snapshot, 'agent')).toEqual([{source: 'agent', target: '智能体'}]);
+        expect(getTranslationGlossaryTerms(snapshot, 'another word')).toEqual([]);
+        expect(snapshot.documentGlossaryIds).toEqual(['one']);
+        expect(snapshot.videoGlossaryIds).toEqual([]);
+        expect(snapshot.glossaryTerms).toEqual([{source: 'agent', target: '智能体'}]);
+        expect([snapshot.glossaryLibraries, snapshot.glossaryLibraries?.[0], snapshot.glossaryLibraries?.[0].domains,
+            snapshot.glossaryLibraries?.[0].entries, snapshot.glossaryLibraries?.[0].entries[0],
+            snapshot.glossaryMatchContext, snapshot.glossaryMatchContext?.glossaryIds,
+            snapshot.glossaryTerms, snapshot.glossaryTerms?.[0]].every(Object.isFrozen)).toBe(true);
+        const withoutSelection = createTranslationProviderConfigSnapshot(configSource({glossaryMatchContext: {sourceLanguage: 'en', targetLanguage: 'zh-Hans'}}));
+        expect(withoutSelection.glossaryMatchContext?.glossaryIds).toBeNull();
+        expect(getTranslationGlossaryTerms(withoutSelection, 'agent')).toEqual([]);
+        expect(getTranslationGlossaryTerms({...snapshot, glossaryLibraries: undefined}, 'agent')).toEqual([]);
+        expect(getTranslationGlossaryTerms({...snapshot, glossaryTerms: undefined}, 'agent')).toEqual([]);
+        expect(getTranslationGlossaryTerms({...snapshot, glossaryMatchContext: undefined, glossaryTerms: undefined}, 'agent')).toEqual([]);
+        expect(getTranslationGlossaryTerms({...snapshot, glossaryMatchContext: {...snapshot.glossaryMatchContext!, glossaryIds: null}}, 'agent')).toEqual([{source: 'agent', target: '智能体'}]);
+    });
     it('clones and freezes every provider-visible nested map and credential', () => {
         const source = {
             ...configSource({

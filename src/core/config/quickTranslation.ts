@@ -6,6 +6,7 @@
  */
 import {canonicalizeHotkey} from '@/src/core/hotkey';
 import {MAX_CUSTOM_OPENAI_MODEL_LENGTH} from '@/src/core/config/customOpenAI';
+import {normalizeGlossaryIds, type GlossaryLibrary} from '@/src/core/glossary';
 
 /** 每种动作可保存的快捷翻译方案上限；悬浮与全文分别计数。 */
 export const MAX_QUICK_TRANSLATION_PROFILES = 8;
@@ -36,12 +37,15 @@ export interface QuickTranslationProfile {
     displayMode: QuickTranslationDisplayMode;
     /** 只对全文方案生效。 */
     fullPageMode: QuickTranslationFullPageMode;
+    /** null / 缺省跟随全局；空数组停用本方案术语；显式 ID 仍遵守词库范围。 */
+    glossaryIds?: string[] | null;
 }
 
 export interface QuickTranslationNormalizationContext {
     isSupportedService: (service: string) => boolean;
     serviceUsesModel: (service: string) => boolean;
     reservedHotkeys?: readonly string[];
+    glossaryLibraries?: readonly Pick<GlossaryLibrary, 'id'>[];
 }
 
 /** 返回会被输入框翻译消费的首个按键，用于配置和设置 UI 的双向冲突保护。 */
@@ -149,6 +153,9 @@ export function normalizeQuickTranslationProfiles(
             targetLanguage: normalizedString(candidate.targetLanguage, 32),
             displayMode,
             fullPageMode,
+            ...(candidate.glossaryIds !== undefined
+                ? {glossaryIds: normalizeGlossaryIds(candidate.glossaryIds, context.glossaryLibraries)}
+                : {}),
         });
     }
     return result;

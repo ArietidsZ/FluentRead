@@ -818,6 +818,27 @@ describe("全文翻译可见性锚点", () => {
         });
     });
 
+    it('全文术语快照复制选库数组，版本或选择不同不能复用会话结果', async () => {
+        const ids = ['technical'];
+        const first = captureFullPageTranslationConfig({glossaryIds: ids});
+        ids.push('later');
+        expect(first.glossaryIds).toEqual(['technical']);
+        expect(Object.isFrozen(first.glossaryIds)).toBe(true);
+        const second = {...first, glossaryRevision: `glossary-v1:${'a'.repeat(64)}`};
+        const disabled = {...second, glossaryIds: []};
+        expect(getTranslationInvocationIdentity(first)).not.toBe(getTranslationInvocationIdentity(second));
+        expect(getTranslationInvocationIdentity(second)).not.toBe(getTranslationInvocationIdentity(disabled));
+        const session = {active: true, translationSlotCache: new Map(), translationRequestCache: new Map()};
+        await translateTextSlots(['agent'], first, undefined, undefined, session);
+        await translateTextSlots(['agent'], first, undefined, undefined, session);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        await translateTextSlots(['agent'], second, undefined, undefined, session);
+        await translateTextSlots(['agent'], disabled, undefined, undefined, session);
+        expect(runtime.requests).toHaveBeenCalledTimes(3);
+        expect(runtime.requestOptions.map(options => options.glossaryIds)).toEqual([['technical'], ['technical'], []]);
+        clearFullPageTranslationRequestCache(session);
+    });
+
     it('悬停快捷方案把独立服务、模型、语言和显示方式冻结到请求', async () => {
         document.body.innerHTML = '<p id="profile-target">Translate this with the selected profile.</p>';
         const paragraph = document.querySelector<HTMLElement>('#profile-target')!;

@@ -27,6 +27,16 @@ function profile(overrides: Partial<QuickTranslationProfile> = {}): QuickTransla
 }
 
 describe('快捷翻译调用解析', () => {
+    it('快捷方案冻结术语选择并区分跟随默认和显式关闭', () => {
+        const config = {service: services.openai, model: {}, customModel: {}, to: 'zh-Hans', display: 1,
+            fullPageTranslationMode: 'viewport' as const};
+        const ids = ['technical'];
+        const invocation = resolveQuickTranslationInvocation(profile({glossaryIds: ids}), config);
+        ids.push('later');
+        expect(invocation.glossaryIds).toEqual(['technical']);
+        expect(resolveQuickTranslationInvocation(profile({glossaryIds: []}), config).glossaryIds).toEqual([]);
+        expect(resolveQuickTranslationInvocation(profile({glossaryIds: null}), config).glossaryIds).toBeNull();
+    });
     it('创建方案时生成无碰撞 ID，运行时只暴露已启用且已设置热键的匹配动作', () => {
         const created = createQuickTranslationProfile('hover', [
             {id: 'quick-1'},

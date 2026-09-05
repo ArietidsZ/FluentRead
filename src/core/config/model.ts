@@ -47,6 +47,7 @@ import {
 import {resolveConfiguredHotkey} from '@/src/core/hotkey';
 import { normalizeSelectionTtsVoiceOrder } from "./selectionTts";
 import { normalizeUiLanguage, type UiLanguage } from '@/src/core/i18n/language';
+import {normalizeGlossaryIds, normalizeGlossaryLibraries, type GlossaryLibrary} from '@/src/core/glossary';
 import {
     inputBoxTranslationTriggerHotkey,
     normalizeQuickTranslationProfiles,
@@ -207,6 +208,10 @@ export class Config {
     translationCacheMaxBytes: number; // 翻译缓存内容容量上限（字节）
     translationCacheMaxEntries: number; // 翻译缓存条数上限
     enableAIContext: boolean; // 是否为 AI 翻译附加网页上下文
+    glossaryEnabled: boolean; // 是否在支持的翻译服务中使用本地术语库
+    glossaryLibraries: GlossaryLibrary[]; // 有序术语库；首个匹配译名优先
+    documentGlossaryIds: string[] | null; // 文档术语选择；null 跟随全局，空数组停用
+    videoGlossaryIds: string[] | null; // 字幕术语选择；null 跟随全局，空数组停用
     enableAIMultiSegment: boolean; // 是否把相邻全文段落合并为一次 AI 翻译请求
     bilingualSentenceHighlightEnabled: boolean; // 是否在双语翻译中同步高亮原文与译文
     contextMenuEnabled: boolean; // 是否显示右键全文翻译菜单
@@ -312,6 +317,10 @@ export class Config {
         this.translationCacheMaxBytes = DEFAULT_TRANSLATION_CACHE_MAX_BYTES;
         this.translationCacheMaxEntries = DEFAULT_TRANSLATION_CACHE_MAX_ENTRIES;
         this.enableAIContext = false; // 默认关闭 AI 智能上下文，避免意外增加请求体和费用
+        this.glossaryEnabled = false;
+        this.glossaryLibraries = [];
+        this.documentGlossaryIds = null;
+        this.videoGlossaryIds = null;
         this.enableAIMultiSegment = false; // 默认逐段请求，由用户按需开启 AI 多段翻译
         this.bilingualSentenceHighlightEnabled = false; // 默认关闭双语逐句高亮，避免改变现有网页视觉
         this.contextMenuEnabled = true; // 默认显示右键全文翻译入口
@@ -860,6 +869,10 @@ export function normalizeConfig(value: unknown): Config {
         .filter(service => isSupportedTranslationService(service, normalized.customOpenAIProviders));
     normalized.translationCenterSourceLanguage = normalizeConfigLanguage(source.translationCenterSourceLanguage);
     normalized.translationCenterTargetLanguage = normalizeConfigLanguage(source.translationCenterTargetLanguage);
+    normalized.glossaryEnabled = source.glossaryEnabled === true;
+    normalized.glossaryLibraries = normalizeGlossaryLibraries(source.glossaryLibraries);
+    normalized.documentGlossaryIds = normalizeGlossaryIds(source.documentGlossaryIds, normalized.glossaryLibraries);
+    normalized.videoGlossaryIds = normalizeGlossaryIds(source.videoGlossaryIds, normalized.glossaryLibraries);
     normalized.quickTranslationProfiles = normalizeQuickTranslationProfiles(
         source.quickTranslationProfiles,
         {
@@ -869,6 +882,7 @@ export function normalizeConfig(value: unknown): Config {
             ),
             serviceUsesModel: (service) => isCustomOpenAIProviderId(service)
                 || servicesType.isUseModel(service),
+            glossaryLibraries: normalized.glossaryLibraries,
             reservedHotkeys: [
                 resolveConfiguredHotkey(normalized.hotkey, normalized.customHotkey),
                 resolveConfiguredHotkey(normalized.floatingBallHotkey, normalized.customFloatingBallHotkey),

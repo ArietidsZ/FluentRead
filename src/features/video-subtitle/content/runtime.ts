@@ -13,6 +13,7 @@ import {
   type VideoSubtitleDisplayMode,
 } from '@/src/core/config/model';
 import { translateVideoText } from '@/src/app/translation/client';
+import {buildGlossaryRevision} from '@/src/core/glossary';
 import {
   buildYoutubeTimedTextUrl,
   chooseYoutubeCaptionTrackForLocation,
@@ -798,7 +799,11 @@ export function mountVideoSubtitleTranslation(): () => void {
   let pretranslationTrackKey = '';
   let pretranslationCues: VideoSubtitleCue[] = [];
   let pretranslationCacheVersion = 0;
-  let pretranslationConfigKey = `${config.videoService}|${config.from}|${config.to}`;
+  const videoTranslationConfigKey = () => JSON.stringify([
+    config.videoService, config.from, config.to,
+    buildGlossaryRevision(config.glossaryLibraries, config.glossaryEnabled), config.videoGlossaryIds,
+  ]);
+  let pretranslationConfigKey = videoTranslationConfigKey();
   let progressiveCueKey = '';
   let progressiveCue: VideoSubtitleCue | null = null;
   let progressiveTranslation = '';
@@ -1793,7 +1798,7 @@ export function mountVideoSubtitleTranslation(): () => void {
   };
 
   const syncPretranslationConfig = () => {
-    const nextPretranslationConfigKey = `${config.videoService}|${config.from}|${config.to}`;
+    const nextPretranslationConfigKey = videoTranslationConfigKey();
     if (nextPretranslationConfigKey === pretranslationConfigKey) return;
     pretranslationConfigKey = nextPretranslationConfigKey;
     subtitleDownloadAbortController?.abort();
