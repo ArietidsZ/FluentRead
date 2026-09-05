@@ -1,6 +1,6 @@
 # Harness 阅读学习实现报告（Mermaid 版）
 
-本次从同步后的 `main` 提交 `4d1d9e5` 开发，初版功能提交为 `a275a05`，工作分支为 `codex/harness-reading-core-20260905`。后续在同一分支补充真实流式回答和最近 30 天会话。功能已在本地实现并验证，尚未推送或合并。
+本次最初从 `main` 提交 `4d1d9e5` 开发，合并前已同步到 `73f4c6d`，工作分支为 `codex/harness-reading-core-20260905`。在同一分支完成阅读学习入口、真实流式回答和最近 30 天会话。本文记录实现范围与验证证据，发布状态以 GitHub PR 为准。
 
 当前完成的是“选区阅读学习”与 Harness 的连接。原有全文翻译、悬浮翻译尚未统一迁入 Harness，因此它目前承担阅读学习的内核，而不是全插件所有功能的统一调度内核。
 
@@ -152,7 +152,19 @@ sequenceDiagram
     Note over S: 启动、读取与定时清理超过30天的问答
 ```
 
-## 流式与会话扩展验证记录
+## 合并前验证（同步 main 后）
+
+以 `main` 的 `73f4c6d` 为基线重新整合，保留主线的 QQ 邮件阅读 frame、翻译缓存管理和设置更新。合并前还补充了两处修复：恢复读取期间删除或清空会话不能使旧快照重新落盘；设置页删除历史后继续分页不会漏掉下一条记录。历史按钮统一使用设置页现有的字体、颜色与焦点样式。
+
+- 测试审计：196 个文件、2,382 个声明用例通过。
+- 全量测试：196 个文件、3,226 个测试通过。
+- 严格覆盖率：151 个文件、2,480 个测试通过，statements / branches / functions / lines 均为 100%。
+- 类型检查、Chrome / Firefox / userscript 构建、扩展清单、userscript verifier 与文档构建通过。
+- 同步后的 Chrome 生产包在隔离 Edge 中通过 22 个 Harness 场景，新增实际点击删除后加载下一页的验证；控制台和 HTTP 错误均为 0，浏览器未抢占前台。
+
+最终证据见 [integration-browser-report.json](harness-reading-20260905/integration-browser-report.json)，截图包括[生成中的正文](harness-reading-20260905/integration-reading-partial.png)、[阅读卡](harness-reading-20260905/integration-reading-panel.png)、[设置页](harness-reading-20260905/integration-settings-1280.png)和[删除后继续分页](harness-reading-20260905/integration-settings-history.png)。模型响应使用本地 SSE fixture，Firefox 交互未执行；下方旧版完整 UI 脚本的不适配断言仍不计为通过。
+
+## 流式与会话扩展验证记录（同步 main 前）
 
 - 最终源码全量测试：187 个文件、2,973 个测试通过。
 - 严格覆盖率：143 个文件、2,260 个测试通过，statements / branches / functions / lines 均为 100%。

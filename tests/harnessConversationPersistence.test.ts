@@ -57,6 +57,35 @@ describe('Harness streaming with real IndexedDB persistence', () => {
         expect(await running).toMatchObject({success: true, persistenceWarning: expect.any(String)});
         expect((await store.list()).sessions).toEqual([]);
     });
+    it.each(['delete', 'clear'] as const)('%s while a saved session is loading prevents its stale snapshot from being saved again', async operation => {
+        const store = repository();
+        const current = conversation(store, {run: async () => success});
+        const initial = await current.run(request(), new AbortController().signal);
+        if (!initial.success || !initial.sessionId) throw new Error('Expected a saved session');
+        const sessionId = initial.sessionId;
+        const readSession = store.get.bind(store);
+        let announceSnapshot!: () => void;
+        let releaseSnapshot!: () => void;
+        const snapshotReady = new Promise<void>(resolve => {announceSnapshot = resolve;});
+        const snapshotReleased = new Promise<void>(resolve => {releaseSnapshot = resolve;});
+        vi.spyOn(store, 'get').mockImplementationOnce(async id => {
+            const snapshot = await readSession(id);
+            announceSnapshot();
+            await snapshotReleased;
+            return snapshot;
+        });
+        const restoring = current.run(request({sessionId, question: 'Continue?'}), new AbortController().signal);
+        await snapshotReady;
+        if (operation === 'delete') await store.delete(sessionId);
+        else await store.clear();
+        expect(await readSession(sessionId)).toBeNull();
+        releaseSnapshot();
+        const result = await restoring;
+        expect(result).toMatchObject({success: true, persistenceWarning: expect.any(String)});
+        expect(result).not.toHaveProperty('sessionId');
+        expect(await readSession(sessionId)).toBeNull();
+        expect((await store.list()).sessions).toEqual([]);
+    });
     it('recovers an interrupted checkpoint after a new repository instance starts', async () => {
         const name = `Harness-restart-${++sequence}`;
         const first = repository(name);

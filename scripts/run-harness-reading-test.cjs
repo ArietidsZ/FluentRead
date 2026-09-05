@@ -374,6 +374,35 @@ async function main() {
         const afterExpiry = await send(settingsPage, {type: 'fluentReadHarness', action: 'sessions-list', offset: 0});
         assert(afterExpiry?.success === true && !afterExpiry.sessions.some(item => item.id === 'stale-fixture'), '超过 30 天的会话没有在读取时清理');
         record('session-expiry-over-30-days', 'passed');
+        await settingsPage.evaluate(() => new Promise((resolve, reject) => {
+            const request = indexedDB.open('FluentReadHarnessSessions');
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+                const db = request.result;
+                const transaction = db.transaction('sessions', 'readwrite');
+                const now = Date.now();
+                for (let index = 0; index < 32; index += 1) {
+                    const createdAt = now - index * 1000;
+                    transaction.objectStore('sessions').put({id: `pagination-${index}`, text: `Pagination session ${index}`, context: '', createdAt, updatedAt: createdAt, oldestTurnAt: createdAt, intent: 'meaning', turns: [{id: `pagination-turn-${index}`, question: '读懂', answer: '分页回归回答', intent: 'meaning', status: 'completed', createdAt, service: 'fixture', model: 'fixture'}]});
+                }
+                transaction.oncomplete = () => {db.close(); resolve(true);};
+                transaction.onerror = () => reject(transaction.error);
+            };
+        }));
+        await settingsPage.reload({waitUntil: 'domcontentloaded'});
+        await settingsPage.waitForTimeout(1000);
+        await settingsPage.getByText('最近会话（30天）', {exact: true}).click();
+        assert(await historyRows.count() === 30, '最近会话第一页应只加载 30 条');
+        await historyRows.first().getByRole('button', {name: '删除', exact: true}).click();
+        await settingsPage.waitForFunction(() => document.querySelectorAll('.harness-history-row').length === 29);
+        await settingsPage.getByRole('button', {name: '加载更多', exact: true}).click();
+        await settingsPage.waitForFunction(() => document.querySelectorAll('.harness-history-row').length >= 30);
+        const pageTexts = await historyRows.locator('button span').allTextContents();
+        assert(pageTexts.length === 31 && new Set(pageTexts).size === 31 && pageTexts.some(value => value.startsWith('Pagination session 30')) && pageTexts.some(value => value.startsWith('Pagination session 31')), '删除后继续分页跳过或重复了会话');
+        record('settings-session-delete-then-pagination', 'passed', {visibleSessions: pageTexts.length});
+        const historyScreenshot = path.join(args.artifactsDir, 'harness-settings-history.png');
+        await settingsPage.screenshot({path: historyScreenshot});
+        result.screenshots.push(historyScreenshot);
         await settingsPage.close();
         await persistConfig(configPage, { harness: { ...(await readConfig(configPage)).harness, contextMode: 'paragraph' } });
         await page.reload({ waitUntil: 'domcontentloaded' });

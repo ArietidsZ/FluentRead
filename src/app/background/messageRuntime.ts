@@ -16,10 +16,7 @@ import {
     createAreaTranslationBackgroundHandlers,
     type AreaTranslationBackgroundContext,
 } from './handlers/areaTranslation';
-import {
-    createTranslationCacheHandlers,
-    createTranslationCacheInvalidationBroadcaster,
-} from './handlers/translationCache';
+import {createTranslationCacheHandlers, createTranslationCacheInvalidationBroadcaster} from './handlers/translationCache';
 import {type ConfigPersistenceContext} from './handlers/configPersistence';
 import {createConnectionTestHandler} from './handlers/connectionTest';
 import {

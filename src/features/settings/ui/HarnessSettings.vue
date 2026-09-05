@@ -100,7 +100,7 @@ const statusLabel = (value: string) => ({streaming: '进行中', completed: '已
 const formatDate = (value: number) => new Intl.DateTimeFormat(undefined, {month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit'}).format(value)
 async function loadMoreHistory() { historyLoading.value = true; historyError.value = ''; try { const result = await listHarnessSessions(historyOffset.value); historySessions.value = [...historySessions.value, ...result.sessions]; historyOffset.value += result.sessions.length; historyHasMore.value = result.hasMore } catch { historyError.value = '读取会话失败，请重试。' } finally { historyLoading.value = false } }
 void loadMoreHistory()
-async function removeHistory(id: string) { try { await deleteHarnessSession(id); historySessions.value = historySessions.value.filter(item => item.id !== id); if (expandedHistory.value?.id === id) expandedHistory.value = null } catch { historyError.value = '删除会话失败，请重试。' } }
+async function removeHistory(id: string) { try { await deleteHarnessSession(id); historySessions.value = historySessions.value.filter(item => item.id !== id); historyOffset.value = historySessions.value.length; if (expandedHistory.value?.id === id) expandedHistory.value = null } catch { historyError.value = '删除会话失败，请重试。' } }
 async function clearHistory() { if (!window.confirm('清空最近会话？')) return; try { await clearHarnessSessions(); historySessions.value = []; expandedHistory.value = null; historyOffset.value = 0; historyHasMore.value = false } catch { historyError.value = '清空会话失败，请重试。' } }
 async function toggleHistory(id: string) { if (expandedHistory.value?.id === id) { expandedHistory.value = null; return } try { expandedHistory.value = await getHarnessSession(id) } catch { historyError.value = '读取会话详情失败，请重试。' } }
 function toggleAction(id: HarnessActionId) {
@@ -124,10 +124,15 @@ function toggleAction(id: HarnessActionId) {
 .service-hint { color:var(--warning, #b26a00); font-size:10px; line-height:1.4; }
 .harness-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
 .harness-history-list { display:grid; gap:7px; max-height:320px; overflow:auto; }
-.harness-history-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px; align-items:start; }
+.harness-history-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px; align-items:start; padding-bottom:6px; border-bottom:1px solid var(--line); }
+.harness-history-list button { border:0; border-radius:8px; padding:8px 10px; background:var(--surface); color:var(--ink); font:inherit; font-size:12px; line-height:1.5; cursor:pointer; }
+.harness-history-row > button:last-of-type, .harness-history-list > .harness-clear { color:var(--muted); background:transparent; }
+.harness-history-list > .harness-clear { justify-self:start; }
+.harness-history-list button:hover { color:var(--accent); }
+.harness-history-list button:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
 .harness-history-row > button:first-child { min-width:0; padding:8px; text-align:left; overflow-wrap:anywhere; }
 .harness-history-row > button:first-child span { display:flex; justify-content:space-between; gap:8px; }
-.harness-history-row small { color:var(--muted); font-size:10px; }
+.harness-history-row small { color:var(--muted); font-size:10px; white-space:nowrap; flex-shrink:0; }
 .harness-history-detail { grid-column:1 / -1; max-height:220px; overflow:auto; padding:8px 10px; border:1px solid var(--line); border-radius:8px; overflow-wrap:anywhere; }
 .harness-history-detail p { margin:0 0 9px; font-size:11px; line-height:1.55; }
 .harness-action { display:flex; gap:8px; align-items:flex-start; padding:10px; border:1px solid var(--line); border-radius:8px; }

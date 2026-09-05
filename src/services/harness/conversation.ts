@@ -30,6 +30,8 @@ export function createHarnessConversationRuntime(deps: ConversationDependencies)
             const notify = (progress: ReadingProgress) => {
                 try { onProgress?.(progress); } catch { /* 页面断开不影响最后一份回答落盘。 */ }
             };
+            // 读取快照期间也可能发生删除，恢复请求必须沿用读取开始前的代次。
+            const restoredGeneration = request.sessionId ? deps.store.captureGeneration(request.sessionId) : undefined;
             let previous: HarnessSession | null = null;
             if (request.sessionId) {
                 try { previous = await deps.store.get(request.sessionId); }
@@ -52,7 +54,7 @@ export function createHarnessConversationRuntime(deps: ConversationDependencies)
             };
             let persistent = !privateContext;
             let warning: string | undefined;
-            const generation = privateContext ? undefined : deps.store.captureGeneration(session.id);
+            const generation = privateContext ? undefined : restoredGeneration ?? deps.store.captureGeneration(session.id);
             let pending = Promise.resolve();
             let timer: ReturnType<typeof setTimeout> | undefined;
             const persistenceFailed = () => {
