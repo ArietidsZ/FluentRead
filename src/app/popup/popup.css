@@ -1,7 +1,7 @@
 /**
  * @file src/app/popup/popup.css
  * 文件职责：定义宽度随皮肤、高度随内容自适应的浏览器 Popup 视觉系统与交互状态，包括亮暗主题、服务选择、功能卡、设置抽屉、通知和响应式细节。
- * 主要内容：声明服务菜单、AI 精翻偏好及状态说明、站点控制、三列两行默认快捷入口与抽屉等视觉样式；在 600px 内滚动较长内容并允许站点操作换行，兼容皮肤、多语言和 Element Plus 内部结构。
+ * 主要内容：声明服务菜单、AI 精翻偏好及状态说明、站点控制、两列三行默认快捷入口与抽屉等视觉样式；在 600px 内滚动较长内容并允许站点操作换行，兼容皮肤、多语言和 Element Plus 内部结构。
  * 模块边界：样式只对应 PopupApp 的 DOM 和受控第三方组件，不决定配置值、能力可用性或消息行为；跨页面 token 在 src/ui/styles，Options/文档页各自维护页面样式。
  */
 /* Popup 页面样式跟随 app 页面边界，避免 WXT 入口目录继续承载实现。 */
@@ -298,14 +298,15 @@ h2 { margin-bottom: 0; font-size: 15px; line-height: 1.35; letter-spacing: -.01e
 footer button {
   padding: 0; border: 0; color: var(--brand-strong); background: none; font-size: 10px; font-weight: 700; cursor: pointer;
 }
-.feature-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 5px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+.feature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
 .feature-card {
-  position: relative; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: start; align-items: center; gap: 5px; min-width: 0; min-height: 78px; padding: 9px 5px 7px;
-  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); text-align: center; cursor: pointer;
+  position: relative; display: grid; grid-template-columns: 30px minmax(0, 1fr) 6px; align-items: center; gap: 9px; min-width: 0; min-height: 55px; padding: 10px;
+  border: 1px solid var(--line); border-radius: 11px; background: var(--surface); text-align: left; cursor: pointer;
   transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
 }
-.feature-card:hover:not(:disabled) { background: var(--surface-soft); border-color: rgba(239, 71, 118, .32); transform: translateY(-1px); box-shadow: 0 8px 20px rgba(25, 32, 50, .07); }
+.feature-card:hover:not(:disabled) { background: var(--surface-soft); border-color: rgba(239, 71, 118, .32); box-shadow: 0 2px 8px rgba(25, 32, 50, .04); }
 .feature-icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; font-size: 11px; font-weight: 750; }
+.feature-line-icon { display: block; width: 19px; height: 19px; }
 .feature-icon.rose { color: #e73a6c; background: #fff0f4; font-size: 22px; }
 .feature-icon.violet { color: #6f55d9; background: #f1edff; font-family: Georgia, serif; font-size: 19px; }
 .feature-icon.blue { color: #2678c9; background: #eaf4ff; font-size: 18px; }
@@ -317,7 +318,7 @@ footer button {
 :root.dark .feature-icon.amber { background: rgba(177, 104, 29, .17); }
 :root.dark .feature-icon.teal { background: rgba(8, 127, 130, .18); }
 .feature-card > span:nth-child(2) { display: flex; flex-direction: column; min-width: 0; max-width: 100%; }
-.feature-card strong { font-size: 10.5px; line-height: 1.4; overflow-wrap: anywhere; }
+.feature-card strong { font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
 .feature-card small { margin-top: 2px; overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .image-translation-preview > div > strong { font-size: 11px; }
 .video-info-banner { display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-soft); }
@@ -326,8 +327,8 @@ footer button {
 .video-feature-card .feature-icon.teal { font-size: 12px; letter-spacing: -.04em; }
 .document-feature-card .feature-icon.blue { font-size: 14px; }
 .video-feature-card.needs-enable small { color: var(--muted); font-weight: 400; }
-.feature-card > i { position: absolute; top: 10px; right: 10px; width: 5px; height: 5px; }
-.feature-card > b { position: absolute; top: 6px; right: 9px; color: var(--muted); font-size: 12px; font-weight: 400; }
+.feature-card > i { width: 5px; height: 5px; justify-self: center; }
+.feature-card > b { justify-self: center; color: var(--muted); font-size: 12px; font-weight: 400; }
 .feature-card:disabled, .translate-button:disabled, select:disabled { cursor: not-allowed; opacity: .48; }
 footer { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 6px; margin-top: 8px; padding: 0 3px 1px; color: var(--muted); font-size: 9.5px; }
 footer[data-popup-module-last="false"] { padding: 6px 8px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-soft); }

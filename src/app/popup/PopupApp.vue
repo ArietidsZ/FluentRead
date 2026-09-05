@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupApp.vue
  文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、可插拔皮肤、功能抽屉和高频操作，提供轻量但完整的控制中心。
- 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排翻译、AI 语境偏好与可用状态、站点规则及三列快捷功能，图片、圈选和划词拥有独立状态、抽屉与设置入口；提供 AI 精翻说明抽屉，监听配置并持久化，按皮肤及栏目显隐自动计算高度。
+ 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排翻译、AI 语境偏好与可用状态、站点规则及两列快捷功能，图片、圈选和划词拥有独立状态、抽屉与设置入口；提供 AI 精翻说明抽屉，监听配置并持久化，按皮肤及栏目显隐自动计算高度。
  模块边界：组件编排用户交互与运行时消息，不实现翻译 provider、缓存存储或 content 挂载细节；公共配置由 services/store 管理，页面行为由 content feature 接收消息完成。
 -->
 <!-- Popup 页面归 app 层所有；WXT 入口只负责调用挂载函数。 -->
@@ -289,7 +289,12 @@
           :title="`${translateLegacy(feature.label)} · ${translateLegacy(feature.summary)}`"
           @click="feature.open()"
         >
-          <span class="feature-icon" :class="feature.iconTone" aria-hidden="true">{{ config.interfaceSkin === 'emoji' ? emojiFeatureIcons[feature.id] : feature.icon }}</span>
+          <span class="feature-icon" :class="feature.iconTone" aria-hidden="true">
+            <template v-if="config.interfaceSkin === 'emoji'">{{ emojiFeatureIcons[feature.id] }}</template>
+            <svg v-else class="feature-line-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path :d="featureIconPaths[feature.id]" />
+            </svg>
+          </span>
           <span class="feature-copy">
             <strong>{{ feature.label }}</strong>
             <small>{{ feature.summary }}</small>
@@ -828,6 +833,16 @@ const siteModuleNestedInTranslation = computed(() => {
 });
 const lastVisiblePopupModule = computed(() => visiblePopupModuleOrder.value.at(-1));
 const emojiFeatureIcons: Record<PopupQuickFeatureId, string> = {hover: '🖱️', selection: '✍️', appearance: '🎨', image: '🖼️', area: '✂️', video: '🎬', document: '📖'};
+// 快捷入口采用一致的线宽与画布；主题配色和 Emoji 风格仍由既有皮肤控制。
+const featureIconPaths: Record<PopupQuickFeatureId, string> = {
+  hover: 'M5 3l14 10-7 1-3 7-4-18z M12 14l5 6',
+  selection: 'M8 4h8 M12 4v16 M8 20h8 M5 8H3v8h2 M19 8h2v8h-2',
+  appearance: 'M3 19L9 5l6 14 M5 15h8 M16 12c5-3 6 1 5 7 M21 15c-7-2-6 6 0 3',
+  image: 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z M4 16l5-5 4 4 3-3 4 4 M16 8h.01',
+  area: 'M8 3H3v5 M16 3h5v5 M21 16v5h-5 M8 21H3v-5 M8 8h8v8H8z',
+  video: 'M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z M10 9l5 3-5 3z',
+  document: 'M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8l-5-5z M14 3v5h5 M9 12h6 M9 16h6',
+};
 const popupUsesContentHeight = computed(() => interfaceSkinUsesContentHeight(config.value.interfaceSkin)
   || !config.value.interfaceVisibility.popupQuickFeatures
   || !config.value.interfaceVisibility.popupSiteRule
