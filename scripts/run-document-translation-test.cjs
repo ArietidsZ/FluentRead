@@ -372,11 +372,11 @@ async function main() {
       fail('Popup 不应保留全文翻译悬浮球设置抽屉');
     }
     if (videoIndex < 0 || documentIndex !== videoIndex + 1) fail('文档翻译卡片必须紧跟在视频字幕卡片下面');
-    if (!featureOrder[documentIndex].text.includes('Beta 测试')) fail('文档翻译卡片必须标注 Beta 测试');
+    if (featureOrder.some((item) => /beta|测试版/iu.test(item.text))) fail('Popup 快捷功能卡不应显示 Beta 标识');
     result.assertions.popupFeatures = {
       count: featureOrder.length,
       floatingBallSettingsHidden: true,
-      documentBetaAfterVideo: true,
+      documentAfterVideoWithoutBetaBadge: true,
     };
 
     const optionsPage = await newPageWithoutForeground(context, args.timeout);

@@ -357,14 +357,8 @@
 }
 
 :root[data-interface-skin="minimal"] .feature-card > span:nth-child(2),
-:root[data-interface-skin="minimal"] .feature-copy,
-:root[data-interface-skin="minimal"] .feature-title {
+:root[data-interface-skin="minimal"] .feature-copy {
   min-width: 0;
-}
-
-:root[data-interface-skin="minimal"] .feature-title {
-  flex-wrap: wrap;
-  gap: 2px 4px;
 }
 
 :root[data-interface-skin="minimal"] .feature-card strong {
@@ -374,10 +368,6 @@
 }
 
 :root[data-interface-skin="minimal"] .feature-card small {
-  display: none;
-}
-
-:root[data-interface-skin="minimal"] .beta-badge {
   display: none;
 }
 

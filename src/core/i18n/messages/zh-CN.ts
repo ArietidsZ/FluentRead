@@ -89,7 +89,6 @@ export const zhCNMessages = {
     'video.downloadOriginal': '下载原文字幕',
     'video.downloadTranslated': '下载译文字幕',
     'video.openSettings': '打开视频翻译设置',
-    'video.beta': 'Beta 测试',
     'options.searchPlaceholder': '搜索设置，例如：快捷键、缓存、OpenAI',
     'metadata.optionsTitle': '流畅阅读设置',
     'metadata.popupTitle': '流畅阅读',
