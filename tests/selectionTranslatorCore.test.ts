@@ -567,6 +567,9 @@ describe('selection translator text and speech language normalization', () => {
         expect(normalizeSpeechLanguage('zh-Hant-CN')).toBe('zh-TW');
         expect(normalizeSpeechLanguage('zh-HK')).toBe('zh-TW');
         expect(normalizeSpeechLanguage('en')).toBe('en-US');
+        const spanish = detectlang('Este programa permite traducir documentos y páginas de internet del español a otros idiomas.');
+        expect(normalizeSpeechLanguage(spanish)).toBe('es-ES');
+        expect(edgeTtsVoiceCandidatesForLanguage(normalizeSpeechLanguage(spanish))).toContain('es-ES-TristanMultilingualNeural');
         expect(normalizeSpeechLanguage(undefined, 'fr-FR')).toBe('fr-FR');
         expect(normalizeSpeechLanguage('auto', 'zh-CN')).toBe('zh-CN');
         expect(normalizeSpeechLanguage('en-GB')).toBe('en-GB');
