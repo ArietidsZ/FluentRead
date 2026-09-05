@@ -349,6 +349,11 @@ async function inspectPopupContentHeight(page, label) {
       scrolling,
     };
   });
+  // 短内容也检查内部横向范围，不能依赖外层 overflow-x:hidden 掩盖底栏越界。
+  if (metrics.scrolling.horizontalOverflow) {
+    metrics.failureDiagnostics = await capturePopupOverflowFailure(page, label);
+    throw new Error(`${label}存在内部横向溢出：${JSON.stringify(metrics)}`);
+  }
   if (metrics.heightMode !== 'content'
     || [metrics.htmlMinHeight, metrics.bodyMinHeight, metrics.appMinHeight, metrics.shellMinHeight]
       .some(value => value !== '0px')
@@ -367,7 +372,6 @@ async function inspectPopupContentHeight(page, label) {
     metrics.shellHeight > 601
     || scrolling.maxHeight !== 600
     || !['auto', 'scroll'].includes(scrolling.overflowY)
-    || scrolling.horizontalOverflow
     || !scrolling.end
     || scrolling.end.scrollTop <= 0
     || Math.abs(scrolling.end.scrollTop - scrolling.end.maxScrollTop) > 1
@@ -378,7 +382,6 @@ async function inspectPopupContentHeight(page, label) {
     || Math.abs(scrolling.end.lastModuleBottomGap - metrics.expectedBottomGap) > 1
     || Math.abs(scrolling.restoredScrollTop - scrolling.initialScrollTop) > 1
   )) {
-    if (scrolling.horizontalOverflow) metrics.failureDiagnostics = await capturePopupOverflowFailure(page, label);
     throw new Error(`${label}没有满足600px内部滚动、末尾完整可见及位置恢复：${JSON.stringify(metrics)}`);
   }
   return metrics;
