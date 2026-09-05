@@ -47,6 +47,9 @@
   <section v-show="props.activeSection === 'settings-translation-center'" id="settings-translation-center" class="settings-section translation-center-section">
     <TranslationCenter />
   </section>
+  <section v-show="props.activeSection === 'settings-harness'" id="settings-harness" class="settings-section">
+    <HarnessSettings :config="config" />
+  </section>
   <div class="settings-main-sections">
     <!-- 翻译服务 -->
     <section v-show="props.activeSection === 'settings-services'" id="settings-services" class="settings-section">
@@ -340,9 +343,9 @@
         <el-row class="settings-control-row">
           <el-col :span="20" class="settings-control-label ai-context-label lightblue rounded-corner">
             <el-tooltip class="box-item" effect="dark"
-                        content="开启后，AI 翻译会参考当前网页的标题、描述和相关正文片段；仅对大模型翻译服务生效。"
+                        :content="t('popup.aiContext.how')"
                         placement="top-start" :show-after="500">
-              <span class="popup-text popup-vertical-left">AI 智能上下文<el-icon class="icon-margin">
+              <span class="popup-text popup-vertical-left">{{ t('popup.aiContext.settingsTitle') }}<el-icon class="icon-margin">
                   <InfoFilled />
                 </el-icon></span>
             </el-tooltip>
@@ -350,7 +353,7 @@
           </el-col>
 
           <el-col :span="4" class="settings-control-field flex-end">
-            <el-switch v-model="config.enableAIContext" class="settings-toggle" aria-label="AI 智能上下文" />
+            <el-switch v-model="config.enableAIContext" class="settings-toggle" :aria-label="t('popup.aiContext.settingsTitle')" />
           </el-col>
         </el-row>
 
@@ -731,6 +734,7 @@ import {getServiceWebsite} from '@/src/ui/view-model/serviceCatalog';
 import ServiceConfiguration from './services/ServiceConfiguration.vue';
 import CustomOpenAIProviderDialog from './services/CustomOpenAIProviderDialog.vue';
 import {TranslationCenter} from '@/src/features/translation-center/public';
+import HarnessSettings from './HarnessSettings.vue';
 import AlwaysTranslateSites from './AlwaysTranslateSites.vue';
 import {
   createApiKeyRequirementKey,
@@ -835,7 +839,8 @@ const unsubscribeConfig = subscribeConfig((nextConfig) => {
 });
 void configReady
   .then(() => {
-    Object.assign(config.value, runtimeConfig);
+    // 编辑副本不能共享嵌套对象，否则修改 Harness 等字段会先污染 patch 的比较基线。
+    Object.assign(config.value, normalizeConfig(runtimeConfig));
     lastSerialized = JSON.stringify(config.value);
     hydrated = true;
     updateTheme(config.value.theme || 'auto');

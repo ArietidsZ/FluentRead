@@ -92,6 +92,7 @@ import {
     normalizeTranslationRequestsPerMinute,
     normalizeTranslationRequestsPerSecond,
 } from './scheduling';
+import {DEFAULT_HARNESS_PREFERENCES, normalizeHarnessPreferences, type HarnessPreferences} from './harness';
 
 export * from './scheduling';
 
@@ -249,6 +250,7 @@ export class Config {
     translationCenterServices: string[]; // 翻译中心已选服务及其展示顺序
     translationCenterSourceLanguage: string; // 翻译中心源语言
     translationCenterTargetLanguage: string; // 翻译中心目标语言
+    harness: HarnessPreferences; // Harness 学习辅助偏好
 
     constructor() {
         this.on = true;
@@ -353,6 +355,7 @@ export class Config {
         this.translationCenterServices = [];
         this.translationCenterSourceLanguage = '';
         this.translationCenterTargetLanguage = '';
+        this.harness = normalizeHarnessPreferences(DEFAULT_HARNESS_PREFERENCES);
     }
 }
 
@@ -713,6 +716,7 @@ export function normalizeConfig(value: unknown): Config {
     if (typeof normalized.custom !== 'string') normalized.custom = defaultOption.custom;
     if (typeof normalized.newApiUrl !== 'string') normalized.newApiUrl = DEFAULT_NEW_API_URL;
     normalizeCustomOpenAIProviderState(normalized, source);
+    normalized.harness = normalizeHarnessPreferences(source.harness, normalized.customOpenAIProviders);
 
     if (!isSupportedTranslationService(normalized.service, normalized.customOpenAIProviders)) {
         normalized.service = defaultOption.service;

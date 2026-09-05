@@ -16,6 +16,8 @@
       "tests/backgroundTranslationHandler.test.ts",
       "tests/selectionTtsBackgroundHandler.test.ts",
       "tests/browserFocusSafety.test.ts",
+      "tests/harnessBackground.test.ts",
+      "tests/harnessAppRuntime.test.ts",
       "tests/contentTrustBoundary.test.ts",
       "tests/extensionManifestContract.test.ts",
       "tests/fullRegressionRunner.test.ts",
@@ -27,6 +29,7 @@
       "tests/userscriptViteConfig.test.ts"
     ],
     "unit": [
+      "tests/aiContextPresentation.test.ts",
       "tests/aiSdkEndpoints.test.ts",
       "tests/aiSdkErrors.test.ts",
       "tests/areaTranslationCore.test.ts",
@@ -40,6 +43,7 @@
       "tests/backgroundFeatureHandlers.test.ts",
       "tests/backgroundImageServices.test.ts",
       "tests/configDomainBoundaries.test.ts",
+      "tests/configHarness.test.ts",
       "tests/configAutoBackupDomain.test.ts",
       "tests/configCount.test.ts",
       "tests/configDiff.test.ts",
@@ -72,6 +76,10 @@
       "tests/customOpenAI.test.ts",
       "tests/http.test.ts",
       "tests/httpError.test.ts",
+      "tests/harnessCore.test.ts",
+      "tests/harnessModelGateway.test.ts",
+      "tests/harnessRuntime.test.ts",
+      "tests/harnessUsage.test.ts",
       "tests/imageTranslation.test.ts",
       "tests/remoteImage.test.ts",
       "tests/inputBox.test.ts",
@@ -117,6 +125,7 @@
       "tests/translationCore.test.ts",
       "tests/translationError.test.ts",
       "tests/translationLanguage.test.ts",
+      "tests/readingAssistantPresentation.test.ts",
       "tests/translationLoadingIndicator.test.ts",
       "tests/translationPrompts.test.ts",
       "tests/translationState.test.ts",
@@ -138,7 +147,14 @@
       "tests/qqMailFrameSession.test.ts",
       "tests/fullPageStateNotification.test.ts",
       "tests/translationCachePolicy.test.ts",
-      "tests/translationCacheManagement.test.ts"
+      "tests/translationCacheManagement.test.ts",
+      "tests/harnessConversation.test.ts",
+      "tests/harnessStreamPort.test.ts",
+      "tests/harnessSessionHandler.test.ts",
+      "tests/readingAssistantClient.test.ts",
+      "tests/imageOcrNormalization.test.ts",
+      "tests/imageTranslationRendering.test.ts",
+      "tests/imageTranslationInpainting.test.ts"
     ],
     "functional": [
       "tests/aiSdkOpenAICompatible.test.ts",
@@ -174,7 +190,14 @@
       "tests/vocabularyBookComponent.test.ts",
       "tests/zhipuCredentials.test.ts",
       "tests/qqMailFrameRuntime.test.ts",
-      "tests/translationCachePolicyBinding.test.ts"
+      "tests/translationCachePolicyBinding.test.ts",
+      "tests/harnessSessionRepository.test.ts",
+      "tests/harnessConversationPersistence.test.ts",
+      "tests/imageOcrRuntime.test.ts",
+      "tests/imageTranslationFlow.test.ts",
+      "tests/imageTranslationRuntime.test.ts",
+      "tests/imageTranslationPageRead.test.ts",
+      "tests/imageTranslationOffscreenRuntime.test.ts"
     ],
     "regression": [
       "tests/documentTranslationExamplesApi.test.ts",

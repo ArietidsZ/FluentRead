@@ -97,20 +97,14 @@
   box-shadow: none;
   transform: none;
 }
-
-:root[data-interface-skin-kind="palette"][data-interface-skin] .translate-button,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .ai-context-toggle,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .ai-context-toggle[aria-pressed="true"] {
+:root[data-interface-skin-kind="palette"][data-interface-skin] .translate-button {
   color: var(--skin-action-text, #fff);
   border-radius: var(--skin-control-radius, 10px);
   background: var(--brand);
   box-shadow: none;
   transition: background 160ms ease, color 160ms ease, opacity 160ms ease;
 }
-
-:root[data-interface-skin-kind="palette"][data-interface-skin] .translate-button:hover:not(:disabled),
-:root[data-interface-skin-kind="palette"][data-interface-skin] .ai-context-toggle:hover:not(:disabled),
-:root[data-interface-skin-kind="palette"][data-interface-skin] .ai-context-toggle[aria-pressed="true"]:hover:not(:disabled) {
+:root[data-interface-skin-kind="palette"][data-interface-skin] .translate-button:hover:not(:disabled) {
   background: color-mix(in srgb, var(--brand) 90%, var(--ink));
   box-shadow: none;
   transform: none;
@@ -139,23 +133,6 @@
 :root[data-interface-skin-kind="palette"][data-interface-skin] .translate-button .spinner {
   border-color: color-mix(in srgb, currentColor 30%, transparent);
   border-top-color: currentColor;
-}
-
-:root[data-interface-skin-kind="palette"][data-interface-skin] .ai-context-toggle::before {
-  display: none;
-}
-
-:root[data-interface-skin-kind="palette"][data-interface-skin] .ai-context-toggle[aria-pressed="false"] {
-  border-color: var(--line);
-  color: var(--brand-strong);
-  background: var(--brand-soft);
-  box-shadow: none;
-}
-
-:root[data-interface-skin-kind="palette"][data-interface-skin] .ai-context-toggle[aria-pressed="false"]:hover:not(:disabled) {
-  color: var(--brand-strong);
-  background: color-mix(in srgb, var(--brand) 12%, var(--surface));
-  border-color: var(--brand);
 }
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] .popup-shell :is(.settings-button, .donation-button) {

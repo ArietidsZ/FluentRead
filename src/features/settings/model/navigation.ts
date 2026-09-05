@@ -31,7 +31,7 @@ export const navigationGroups: NavigationGroup[] = [
         id: 'settings-general', icon: '⌂', label: '通用设置', description: '服务、显示与网页辅助', group: '基础配置',
         heading: '通用设置', summary: '选择默认翻译服务，并管理译文显示、网页辅助和基础偏好。',
         kicker: '基础配置', title: '通用设置', detail: '选择默认翻译服务，并管理译文显示、网页辅助和基础偏好。',
-        searchDescription: '选择翻译服务、默认服务、译文显示、双语逐句高亮、网页辅助、AI 智能上下文、默认目标语言、主题',
+        searchDescription: '选择翻译服务、默认服务、译文显示、双语逐句高亮、网页辅助、AI 精翻、AI 智能上下文、默认目标语言、主题',
       },
       {
         id: 'settings-interface', icon: '▦', label: '界面布局', description: '界面与弹窗、动画与加载、菜单栏布局', group: '基础配置',
@@ -96,6 +96,12 @@ export const navigationGroups: NavigationGroup[] = [
         heading: '把阅读中遇到的词真正学会', summary: '收藏划词卡中的英文单词，用轻量复习跟踪从新词到掌握的过程。',
         kicker: '本地学习', title: '单词本', detail: '词条、上下文与复习记录只保存在当前浏览器；可在这里复习或导出到 Anki。',
         searchDescription: '单词本、收藏、复习、掌握程度、学习记录、Anki、导入导出',
+      },
+      {
+        id: 'settings-harness', icon: '文', label: 'DeepSeek Harness', description: '选区学习辅助', group: '工具与学习',
+        heading: 'DeepSeek Harness', summary: '选中文本后按需调用 AI，帮助理解、拆句、掌握用法和练习。',
+        kicker: '学习辅助', title: 'DeepSeek Harness', detail: '配置选区学习辅助的服务、上下文范围和回答偏好。',
+        searchDescription: 'Harness、DeepSeek、读懂、拆句、用法、练习、选区、段落、学习辅助、解释深度、学习程度',
       },
     ],
   },

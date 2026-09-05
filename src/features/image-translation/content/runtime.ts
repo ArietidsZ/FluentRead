@@ -1,41 +1,63 @@
 /**
  * @file src/features/image-translation/content/runtime.ts
- * 文件职责：实现网页图片翻译的悬浮按钮与译图覆盖层生命周期，针对可见且尺寸足够的图片读取源数据、请求翻译、定位结果并支持恢复。
- * 主要内容：维护每张 HTMLImageElement 的请求阶段和 Abort/timeout 所有权，处理 pointerover/out、滚动缩放和 DOM 移除，解析 object-fit 后的实际图像区域并绘制返回位图。
- * 模块边界：本运行时优先读取页面允许 Canvas 访问的图片像素；跨域污染时只把图片 URL 交给 Offscreen 读取，OCR、译图运算及语言包管理位于对应 background/services 模块。
+ * 文件职责：实现网页图片翻译的悬浮入口、异步请求所有权和原图/译图切换，保持宿主图片与响应式图片资源不变。
+ * 主要内容：在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新，限制像素读取和结果缓存，换图、取消与卸载时停止旧请求并释放资源。
+ * 模块边界：本运行时只读取页面允许访问的 Canvas 像素并调用既有图片客户端；识别、文本翻译、图像修复与语言包管理位于 background/services，控件交互由 controls 模块提供。
  */
 import { config } from '@/src/services/config/store';
+import {watchEffect} from 'vue';
 import {
     fetchImageInExtension,
+    prepareImageOcrLanguages,
     translateImageInExtension,
 } from '@/src/features/image-translation/services/client';
 import type { OcrLine } from '@/src/features/image-translation/core';
+import {imageBufferToDataUrl, MAX_REMOTE_IMAGE_BYTES, normalizeRemoteImageMimeType} from '@/src/features/image-translation/services/remoteImage';
+import {createImageControls, IMAGE_CONTROLS_CSS, type ImageControlPhase} from './controls';
 
 const IMAGE_TRANSLATION_OVERLAY = 'fluent-read-image-translation-overlay';
 const IMAGE_TRANSLATION_ROOT = 'fluent-read-image-translation-root';
-const IMAGE_TRANSLATION_BUTTON = 'fluent-read-image-translation-button';
 const MIN_IMAGE_WIDTH = 80;
 const MIN_IMAGE_HEIGHT = 40;
 const IMAGE_READ_TIMEOUT_MS = 15_000;
-const IMAGE_OCR_TIMEOUT_MS = 90_000;
-const IMAGE_TRANSLATION_TIMEOUT_MS = 90_000;
+const IMAGE_TRANSLATION_TIMEOUT_MS = 180_000;
+const MAX_IMAGE_READ_PIXELS = 16_000_000;
+const MAX_IMAGE_READ_EDGE = 8192;
+const MAX_CACHED_IMAGES = 6;
+const MAX_CACHED_PIXELS = 8_000_000;
 
-type ImageTranslationPhase = 'idle' | 'loading' | 'translated' | 'error';
+type ImageTranslationLine = OcrLine & {backgroundColor: string};
+type ImageControls = ReturnType<typeof createImageControls>;
 
 interface ImageTranslationState {
     image: HTMLImageElement;
     overlay: HTMLDivElement;
-    canvas: HTMLCanvasElement;
-    button: HTMLButtonElement;
-    phase: ImageTranslationPhase;
+    controls: ImageControls;
+    phase: ImageControlPhase;
     abortController: AbortController | null;
     hovered: boolean;
     hoverTimer: number | null;
-    errorResetTimer: number | null;
     resizeObserver: ResizeObserver | null;
     imageLoadHandler: (() => void) | null;
-    lines: Array<OcrLine & { backgroundColor: string }>;
+    sourceIdentity: string;
+    waitingForImage: boolean;
+    lines: ImageTranslationLine[];
     translatedImage: HTMLImageElement | null;
+    sourceStyleLease: {
+        opacity: {value: string; priority: string};
+        transition: Array<{property: string; value: string; priority: string}>;
+        computedOpacity: string;
+        hadStyleAttribute: boolean;
+    } | null;
+}
+
+interface CachedImageTranslation {
+    sourceIdentity: string;
+    configurationIdentity: string;
+    translatedImage: HTMLImageElement;
+    lines: ImageTranslationLine[];
+    pixels: number;
+    invalidate: () => void;
 }
 
 let mounted = false;
@@ -44,45 +66,116 @@ let imageOverlayHost: HTMLDivElement | null = null;
 let imageOverlayContainer: HTMLDivElement | null = null;
 let layoutObserver: MutationObserver | null = null;
 let positionFrame: number | null = null;
+let configurationRevision = 0;
+let stopConfigurationWatch: (() => void) | null = null;
 const states = new WeakMap<HTMLImageElement, ImageTranslationState>();
 const activeStates = new Set<ImageTranslationState>();
+// Map 有明确数量/像素上限；缓存监听原图 load，悬浮状态卸载期间同 URL 重载也不能复用旧位图。
+const resultCache = new Map<HTMLImageElement, CachedImageTranslation>();
+
+function sourceIdentity(image: HTMLImageElement): string {
+    return JSON.stringify([
+        image.currentSrc || image.src,
+        image.getAttribute('src'), image.getAttribute('srcset'), image.getAttribute('sizes'),
+        Array.from(image.closest('picture')?.querySelectorAll('source') || []).map(source => [
+            source.getAttribute('srcset'), source.getAttribute('sizes'),
+            source.getAttribute('media'), source.getAttribute('type'),
+        ]),
+    ]);
+}
+
+function configurationIdentity(): string {
+    const service = config.service;
+    // 只保留公开翻译语义；端点、请求体、凭据与完整 provider 对象不进入位图缓存键。
+    return JSON.stringify([
+        configurationRevision,
+        config.from, config.to, service, config.model?.[service], config.customModel?.[service],
+        config.modelThinking?.[service], config.system_role?.[service], config.user_role?.[service],
+        config.enableAIContext,
+        config.minimaxBillingPlan, config.minimaxRegion, config.mimoBillingPlan, config.mimoRegion,
+        document.title,
+    ]);
+}
+
+function watchTranslationConfiguration(): () => void {
+    return watchEffect(() => {
+        const service = config.service;
+        const selectedModel = config.model?.[service];
+        const customModel = config.customModel?.[service];
+        // 只建立响应式依赖，不序列化、不保留原始参数副本；结果仅保存单调递增修订号。
+        void config.from;
+        void config.to;
+        void config.useCache;
+        void config.system_role?.[service];
+        void config.user_role?.[service];
+        void config.modelThinking?.[service]?.[selectedModel];
+        void config.modelThinking?.[service]?.[customModel];
+        void config.customBody?.[service];
+        void config.proxy?.[service];
+        void config.customOpenAIProviders?.find(provider => provider.id === service)?.endpoint;
+        void config.enableAIContext;
+        void config.custom;
+        void config.newApiUrl;
+        void config.deeplx;
+        void config.azureOpenaiEndpoint;
+        void config.deepseekApiType;
+        void config.deepseekThinkingMode;
+        void config.minimaxBillingPlan;
+        void config.minimaxRegion;
+        void config.mimoBillingPlan;
+        void config.mimoRegion;
+        configurationRevision += 1;
+        Array.from(resultCache.keys()).forEach(deleteCachedResult);
+    }, {flush: 'sync'});
+}
+
+function deleteCachedResult(image: HTMLImageElement): void {
+    const cached = resultCache.get(image);
+    if (!cached) return;
+    image.removeEventListener('load', cached.invalidate);
+    resultCache.delete(image);
+}
+
+function cacheResult(state: ImageTranslationState, identity: string): void {
+    deleteCachedResult(state.image);
+    const translatedImage = state.translatedImage!;
+    const pixels = translatedImage.naturalWidth * translatedImage.naturalHeight;
+    if (!config.useCache || pixels > MAX_CACHED_PIXELS) return;
+    const invalidate = () => deleteCachedResult(state.image);
+    resultCache.set(state.image, {
+        sourceIdentity: state.sourceIdentity,
+        configurationIdentity: identity,
+        translatedImage,
+        lines: state.lines,
+        pixels,
+        invalidate,
+    });
+    state.image.addEventListener('load', invalidate, {once: true});
+    let totalPixels = Array.from(resultCache.values()).reduce((sum, cached) => sum + cached.pixels, 0);
+    while (resultCache.size > MAX_CACHED_IMAGES || totalPixels > MAX_CACHED_PIXELS) {
+        const oldestImage = resultCache.keys().next().value!;
+        totalPixels -= resultCache.get(oldestImage)!.pixels;
+        deleteCachedResult(oldestImage);
+    }
+}
 
 function ensureImageOverlayRoot(): HTMLDivElement {
     if (imageOverlayContainer) return imageOverlayContainer;
-
     const host = document.createElement('div');
     host.id = IMAGE_TRANSLATION_ROOT;
     host.setAttribute('data-fluent-read-ui', 'image-translation');
     host.style.cssText = [
-        'all: initial !important',
-        'position: fixed !important',
-        'inset: 0 !important',
-        'width: 100vw !important',
-        'height: 100vh !important',
-        'pointer-events: none !important',
-        'z-index: 2147483646 !important',
+        'all: initial !important', 'position: fixed !important', 'inset: 0 !important',
+        'width: 100vw !important', 'height: 100vh !important',
+        'pointer-events: none !important', 'z-index: 2147483646 !important',
     ].join(';');
-    // Canvas 可能包含页面允许读取的图片像素，不向页面脚本暴露控件或译图。
     const shadow = host.attachShadow({ mode: 'closed' });
     const style = document.createElement('style');
     style.textContent = `
       :host { all: initial; position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 2147483646; }
       .${IMAGE_TRANSLATION_OVERLAY} { position: fixed !important; overflow: hidden !important; pointer-events: none !important; box-sizing: border-box !important; }
-      .${IMAGE_TRANSLATION_OVERLAY} canvas { position: absolute !important; inset: 0 !important; display: none; width: 100%; height: 100%; pointer-events: none; }
-      .${IMAGE_TRANSLATION_BUTTON} {
-        position: absolute !important; left: 8px !important; bottom: 8px !important; z-index: 1 !important;
-        width: 26px !important; height: 26px !important; padding: 0 !important;
-        border: 1px solid rgba(255,255,255,.7) !important; border-radius: 999px !important;
-        background: rgba(20,20,20,.68) !important; color: rgba(255,255,255,.95) !important;
-        box-shadow: 0 1px 5px rgba(0,0,0,.28) !important; cursor: pointer !important;
-        font: 14px/24px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif !important;
-        opacity: .78 !important; pointer-events: auto !important;
-        transition: opacity .15s ease, transform .15s ease, background .15s ease !important;
-      }
-      .${IMAGE_TRANSLATION_BUTTON}:hover, .${IMAGE_TRANSLATION_BUTTON}:focus-visible { background: rgba(20,20,20,.9) !important; opacity: 1 !important; outline: none !important; transform: scale(1.06); }
-      .${IMAGE_TRANSLATION_BUTTON}[data-phase="loading"] { animation: fluent-read-image-translation-pulse 1.1s ease-in-out infinite; }
-      .${IMAGE_TRANSLATION_BUTTON}[data-phase="error"] { background: rgba(185,28,28,.88) !important; }
-      @keyframes fluent-read-image-translation-pulse { 0%,100% { opacity:.52; } 50% { opacity:1; } }
+      .fluent-read-image-translation-bitmap { position: absolute !important; inset: 0 !important; display: block !important; box-sizing: border-box !important; width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important; pointer-events: none !important; }
+      ${IMAGE_CONTROLS_CSS}
     `;
     const container = document.createElement('div');
     shadow.append(style, container);
@@ -104,12 +197,7 @@ function createImageAbortError(): Error {
     return error;
 }
 
-function withTimeout<T>(
-    promise: Promise<T>,
-    timeoutMs: number,
-    message: string,
-    signal?: AbortSignal,
-): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string, signal?: AbortSignal): Promise<T> {
     return new Promise<T>((resolve, reject) => {
         let settled = false;
         const cleanup = () => {
@@ -124,16 +212,10 @@ function withTimeout<T>(
         };
         const handleAbort = () => finish(() => reject(createImageAbortError()));
         const timer = window.setTimeout(() => finish(() => reject(new Error(message))), timeoutMs);
-
-        if (signal?.aborted) {
-            handleAbort();
-            return;
-        }
-        signal?.addEventListener('abort', handleAbort, {once: true});
-        void promise.then(
-            value => finish(() => resolve(value)),
-            error => finish(() => reject(error)),
-        );
+        // 无论信号是否已经取消，都消费传入 promise 的拒绝，避免并行取消产生 unhandled rejection。
+        void promise.then(value => finish(() => resolve(value)), error => finish(() => reject(error)));
+        if (signal?.aborted) handleAbort();
+        else signal?.addEventListener('abort', handleAbort, {once: true});
     });
 }
 
@@ -144,19 +226,12 @@ function clearHoverTimer(state: ImageTranslationState): void {
     }
 }
 
-function clearErrorResetTimer(state: ImageTranslationState): void {
-    if (state.errorResetTimer !== null) {
-        window.clearTimeout(state.errorResetTimer);
-        state.errorResetTimer = null;
-    }
-}
-
 function scheduleIdleStateRemoval(state: ImageTranslationState): void {
     clearHoverTimer(state);
-    if (state.phase !== 'idle' || state.hovered) return;
+    if ((state.phase !== 'idle' && state.phase !== 'error') || state.hovered) return;
     state.hoverTimer = window.setTimeout(() => {
         state.hoverTimer = null;
-        if (state.phase === 'idle' && !state.hovered) removeState(state);
+        if ((state.phase === 'idle' || state.phase === 'error') && !state.hovered) removeState(state);
     }, 180);
 }
 
@@ -167,15 +242,32 @@ function setStateHovered(state: ImageTranslationState, hovered: boolean): void {
 }
 
 function removeState(state: ImageTranslationState): void {
-    // 先中止请求并断开所有观察器/监听器，再删除 DOM 与索引，避免失效回调复活状态。
     clearHoverTimer(state);
-    clearErrorResetTimer(state);
     state.abortController?.abort();
+    state.abortController = null;
+    restoreOriginalImage(state);
     state.resizeObserver?.disconnect();
     if (state.imageLoadHandler) state.image.removeEventListener('load', state.imageLoadHandler);
+    state.controls.dispose();
     state.overlay.remove();
     activeStates.delete(state);
     if (states.get(state.image) === state) states.delete(state.image);
+    if (!state.image.isConnected) deleteCachedResult(state.image);
+}
+
+function invalidateSource(state: ImageTranslationState): void {
+    deleteCachedResult(state.image);
+    state.sourceIdentity = sourceIdentity(state.image);
+    state.abortController?.abort();
+    state.abortController = null;
+    state.waitingForImage = false;
+    restoreOriginalImage(state);
+    state.translatedImage?.remove();
+    state.translatedImage = null;
+    state.lines = [];
+    state.controls.setLines([]);
+    setButtonState(state, 'idle', '翻译图片');
+    scheduleIdleStateRemoval(state);
 }
 
 function updateOverlayPosition(state: ImageTranslationState): void {
@@ -183,99 +275,126 @@ function updateOverlayPosition(state: ImageTranslationState): void {
         removeState(state);
         return;
     }
-
+    if (sourceIdentity(state.image) !== state.sourceIdentity) invalidateSource(state);
+    if (state.sourceStyleLease && !ownsHiddenImage(state)) {
+        // 宿主重新设置 opacity 后不继续覆盖它；恢复显示权，并保留宿主刚写入的样式。
+        restoreImageTranslation(state);
+        return;
+    }
     const rect = state.image.getBoundingClientRect();
-    const visible = rect.width >= MIN_IMAGE_WIDTH && rect.height >= MIN_IMAGE_HEIGHT;
+    const style = getComputedStyle(state.image);
+    let left = Math.max(0, rect.left);
+    let top = Math.max(0, rect.top);
+    let right = Math.min(window.innerWidth, rect.right);
+    let bottom = Math.min(window.innerHeight, rect.bottom);
+    let opacity = Number.parseFloat(state.sourceStyleLease?.computedOpacity || style.opacity || '1');
+    for (let ancestor = state.image.parentElement; ancestor; ancestor = ancestor.parentElement) {
+        const ancestorStyle = getComputedStyle(ancestor);
+        opacity *= Number.parseFloat(ancestorStyle.opacity || '1');
+        const clipsX = /^(hidden|clip|auto|scroll)$/.test(ancestorStyle.overflowX);
+        const clipsY = /^(hidden|clip|auto|scroll)$/.test(ancestorStyle.overflowY);
+        if (!clipsX && !clipsY) continue;
+        const clip = ancestor.getBoundingClientRect();
+        const scaleX = ancestor.offsetWidth ? clip.width / ancestor.offsetWidth : 1;
+        const scaleY = ancestor.offsetHeight ? clip.height / ancestor.offsetHeight : 1;
+        if (clipsX) {
+            const clipLeft = clip.left + ancestor.clientLeft * scaleX;
+            left = Math.max(left, clipLeft);
+            right = Math.min(right, clipLeft + ancestor.clientWidth * scaleX);
+        }
+        if (clipsY) {
+            const clipTop = clip.top + ancestor.clientTop * scaleY;
+            top = Math.max(top, clipTop);
+            bottom = Math.min(bottom, clipTop + ancestor.clientHeight * scaleY);
+        }
+    }
+    const visible = config.on && !config.disableImageTranslator
+        && rect.width >= MIN_IMAGE_WIDTH && rect.height >= MIN_IMAGE_HEIGHT
+        && right > left && bottom > top && style.visibility !== 'hidden'
+        && style.visibility !== 'collapse' && style.display !== 'none' && opacity > 0;
     state.overlay.style.display = visible ? 'block' : 'none';
     if (!visible) return;
-
     state.overlay.style.left = `${rect.left}px`;
     state.overlay.style.top = `${rect.top}px`;
     state.overlay.style.width = `${rect.width}px`;
     state.overlay.style.height = `${rect.height}px`;
-    if (state.phase === 'translated') renderTranslatedBitmap(state, rect.width, rect.height);
+    state.overlay.style.clipPath = `inset(${top - rect.top}px ${rect.right - right}px ${rect.bottom - bottom}px ${left - rect.left}px)`;
+    state.controls.element.style.setProperty('left', `${left - rect.left + 8}px`, 'important');
+    state.controls.element.style.setProperty('bottom', `${rect.bottom - bottom + 8}px`, 'important');
+    if (!state.translatedImage || state.phase !== 'translated') return;
+    const bitmap = state.translatedImage;
+    const scaleX = state.image.offsetWidth ? rect.width / state.image.offsetWidth : 1;
+    const scaleY = state.image.offsetHeight ? rect.height / state.image.offsetHeight : 1;
+    // 原生 replaced element 负责 object-fit 与完整 object-position 语法；滚动仅移动层，不重复解码或绘制整幅 Canvas。
+    bitmap.style.objectFit = style.objectFit || 'fill';
+    bitmap.style.objectPosition = style.objectPosition || '50% 50%';
+    bitmap.style.borderRadius = style.borderRadius;
+    bitmap.style.backgroundColor = style.backgroundColor;
+    bitmap.style.opacity = String(opacity);
+    bitmap.style.filter = style.filter;
+    for (const side of ['Top', 'Right', 'Bottom', 'Left'] as const) {
+        const scale = side === 'Left' || side === 'Right' ? scaleX : scaleY;
+        bitmap.style[`padding${side}`] = `${(Number.parseFloat(style[`padding${side}`]) || 0) * scale}px`;
+        bitmap.style[`border${side}Width`] = `${(Number.parseFloat(style[`border${side}Width`]) || 0) * scale}px`;
+        bitmap.style[`border${side}Style`] = style[`border${side}Style`];
+        bitmap.style[`border${side}Color`] = style[`border${side}Color`];
+    }
 }
 
 function createState(image: HTMLImageElement): ImageTranslationState {
-    const overlayContainer = ensureImageOverlayRoot();
     const overlay = document.createElement('div');
     overlay.className = IMAGE_TRANSLATION_OVERLAY;
     overlay.dataset.fluentReadImageTranslation = 'true';
-
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = IMAGE_TRANSLATION_BUTTON;
-    button.textContent = '文';
-    button.title = '翻译图片';
-    button.setAttribute('aria-label', '翻译图片');
-    button.addEventListener('pointerenter', event => event.stopPropagation());
-    button.addEventListener('pointerdown', event => {
-        if (!event.isTrusted) return;
-        event.preventDefault();
-        event.stopPropagation();
+    const controls = createImageControls({
+        onAction: () => {
+            const state = states.get(image);
+            if (!state || !config.on || config.disableImageTranslator) return;
+            if (state.phase === 'translated' || state.phase === 'loading') restoreImageTranslation(state);
+            else void translateImage(state);
+        },
+        onPrepare: () => {
+            const state = states.get(image);
+            if (state) void translateImage(state, true);
+        },
     });
-    button.addEventListener('click', event => {
-        // 只有可信用户手势能触发翻译或恢复，宿主页派发的合成事件直接忽略。
-        if (!event.isTrusted) return;
-        event.preventDefault();
-        event.stopPropagation();
-        const state = states.get(image);
-        if (!state) return;
-        if (state.phase === 'translated' || state.phase === 'loading') {
-            restoreImageTranslation(state);
-        } else {
-            void translateImage(state);
-        }
-    });
-
-    const canvas = document.createElement('canvas');
-    canvas.className = 'fluent-read-image-translation-canvas';
-    canvas.setAttribute('aria-hidden', 'true');
-    overlay.append(canvas, button);
-    overlayContainer.appendChild(overlay);
-
+    overlay.append(controls.element);
+    ensureImageOverlayRoot().appendChild(overlay);
     const state: ImageTranslationState = {
-        image,
-        overlay,
-        canvas,
-        button,
-        phase: 'idle',
-        abortController: null,
-        hovered: true,
-        hoverTimer: null,
-        errorResetTimer: null,
-        resizeObserver: null,
-        imageLoadHandler: null,
-        lines: [],
-        translatedImage: null,
+        image, overlay, controls, phase: 'idle', abortController: null, hovered: true,
+        hoverTimer: null, resizeObserver: null, imageLoadHandler: null,
+        sourceIdentity: sourceIdentity(image), waitingForImage: false,
+        lines: [], translatedImage: null, sourceStyleLease: null,
     };
-    state.imageLoadHandler = () => updateOverlayPosition(state);
+    state.imageLoadHandler = () => {
+        // 第一次等待图片加载属于本次请求；其余 load（含同 URL 重载）一律视作新像素版本。
+        if (state.waitingForImage) state.sourceIdentity = sourceIdentity(image);
+        else invalidateSource(state);
+        scheduleViewportChange();
+    };
     state.resizeObserver = typeof ResizeObserver === 'undefined'
-        ? null
-        : new ResizeObserver(() => updateOverlayPosition(state));
+        ? null : new ResizeObserver(scheduleViewportChange);
     state.resizeObserver?.observe(image);
     image.addEventListener('load', state.imageLoadHandler);
     states.set(image, state);
     activeStates.add(state);
-    overlay.addEventListener('pointerenter', () => {
-        const current = states.get(image);
-        if (current) setStateHovered(current, true);
+    overlay.addEventListener('pointerenter', () => setStateHovered(state, true));
+    overlay.addEventListener('pointerleave', () => setStateHovered(state, false));
+    overlay.addEventListener('focusin', () => setStateHovered(state, true));
+    overlay.addEventListener('focusout', event => {
+        if (!(event.relatedTarget instanceof Node) || !overlay.contains(event.relatedTarget)) {
+            setStateHovered(state, false);
+        }
     });
-    overlay.addEventListener('pointerleave', () => {
-        const current = states.get(image);
-        if (current) setStateHovered(current, false);
-    });
+    setButtonState(state, 'idle', '翻译图片');
     updateOverlayPosition(state);
     return state;
 }
 
-function getState(image: HTMLImageElement): ImageTranslationState {
-    return states.get(image) || createState(image);
-}
-
 function showImageButton(image: HTMLImageElement): void {
-    if (!mounted || !config.on || image.closest(`[${IMAGE_TRANSLATION_OVERLAY}]`) || image.closest('video')) return;
-    const state = getState(image);
+    if (!mounted || !config.on || config.disableImageTranslator || image.closest('[data-fluent-read-ui]') || image.closest('video')) return;
+    const rect = image.getBoundingClientRect();
+    if (rect.width < MIN_IMAGE_WIDTH || rect.height < MIN_IMAGE_HEIGHT) return;
+    const state = states.get(image) || createState(image);
     setStateHovered(state, true);
     updateOverlayPosition(state);
 }
@@ -286,217 +405,290 @@ function hideImageButton(image: HTMLImageElement): void {
     setStateHovered(state, false);
 }
 
+/** 以网页自己的 CORS 权限重读未设置 crossOrigin 的图片，不赋予任意站点扩展网络权限。 */
+export async function readPageImageInCors(source: string, signal?: AbortSignal): Promise<string> {
+    if (signal?.aborted) throw createImageAbortError();
+    const response = await fetch(source, {mode: 'cors', credentials: 'omit', signal});
+    const discard = () => { void response.body?.cancel().catch(() => undefined); };
+    if (!response.ok) { discard(); throw new Error(`图片服务器返回 ${response.status}`); }
+    const contentType = response.headers.get('content-type') || '';
+    try {
+        normalizeRemoteImageMimeType(contentType);
+        if (Number(response.headers.get('content-length')) > MAX_REMOTE_IMAGE_BYTES) throw new Error('图片文件过大');
+    } catch (error) {
+        discard();
+        throw error;
+    }
+    if (!response.body) return imageBufferToDataUrl(await response.arrayBuffer(), contentType);
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let length = 0;
+    try {
+        while (true) {
+            if (signal?.aborted) throw createImageAbortError();
+            const {done, value} = await reader.read();
+            if (done) break;
+            length += value.byteLength;
+            if (length > MAX_REMOTE_IMAGE_BYTES) throw new Error('图片文件过大');
+            chunks.push(value);
+        }
+    } catch (error) {
+        void reader.cancel(error).catch(() => undefined);
+        throw error;
+    } finally {
+        reader.releaseLock();
+    }
+    const buffer = new Uint8Array(length);
+    let offset = 0;
+    for (const chunk of chunks) { buffer.set(chunk, offset); offset += chunk.byteLength; }
+    return imageBufferToDataUrl(buffer.buffer, contentType);
+}
+
 export async function getImageData(
     image: HTMLImageElement,
     options: {readonly signal?: AbortSignal; readonly timeoutMs?: number} = {},
 ): Promise<string> {
-    const width = image.naturalWidth;
-    const height = image.naturalHeight;
-    if (!width || !height) throw new Error('图片尚未加载完成');
-
+    if (options.signal?.aborted) throw createImageAbortError();
+    const originalWidth = image.naturalWidth;
+    const originalHeight = image.naturalHeight;
+    if (!originalWidth || !originalHeight) throw new Error('图片尚未加载完成');
+    const scale = Math.min(1, MAX_IMAGE_READ_EDGE / Math.max(originalWidth, originalHeight),
+        Math.sqrt(MAX_IMAGE_READ_PIXELS / (originalWidth * originalHeight)));
+    const width = Math.max(1, Math.floor(originalWidth * scale));
+    const height = Math.max(1, Math.floor(originalHeight * scale));
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
     const context = canvas.getContext('2d');
-    if (!context) throw new Error('浏览器不支持图片读取');
-
+    if (!context) {
+        canvas.width = 0;
+        canvas.height = 0;
+        throw new Error('浏览器不支持图片读取');
+    }
     try {
         context.drawImage(image, 0, 0, width, height);
-        // drawImage 本身不会暴露跨域污染，读取像素才能确定 canvas 是否可交给 OCR。
         context.getImageData(0, 0, 1, 1);
         return canvas.toDataURL('image/png');
     } catch {
+        canvas.width = 0;
+        canvas.height = 0;
         const source = image.currentSrc || image.src;
         if (!source) throw new Error('图片地址不可用');
-        // 页面 Canvas 被 CORS 污染时，改由 Offscreen 在扩展权限边界内读取；
-        // Offscreen 只接受受控的 X/Twitter 媒体域，不把任意网页 URL 交给特权网络层。
-        return fetchImageInExtension(source, options);
+        try {
+            return await readPageImageInCors(source, options.signal);
+        } catch {
+            if (options.signal?.aborted) throw createImageAbortError();
+            // 网页 CORS 不允许读取时，继续只交给现有 Offscreen 白名单。
+            return fetchImageInExtension(source, options);
+        }
+    } finally {
+        canvas.width = 0;
+        canvas.height = 0;
     }
 }
 
-async function waitForImageReady(image: HTMLImageElement, signal?: AbortSignal): Promise<void> {
-    if (image.naturalWidth > 0 && image.naturalHeight > 0) return;
+async function waitForImageReady(image: HTMLImageElement, signal: AbortSignal): Promise<void> {
+    if (signal.aborted) throw createImageAbortError();
+    if (image.complete && image.naturalWidth > 0 && image.naturalHeight > 0) return;
     if (image.complete) throw new Error('图片尚未加载完成');
-
     await new Promise<void>((resolve, reject) => {
+        const cleanup = () => {
+            image.removeEventListener('load', onLoad);
+            image.removeEventListener('error', onError);
+            signal.removeEventListener('abort', onAbort);
+        };
         const onLoad = () => {
             cleanup();
             if (image.naturalWidth > 0 && image.naturalHeight > 0) resolve();
             else reject(new Error('图片尚未加载完成'));
         };
-        const onError = () => {
-            cleanup();
-            reject(new Error('图片加载失败'));
+        const onError = () => { cleanup(); reject(new Error('图片加载失败')); };
+        const onAbort = () => { cleanup(); reject(createImageAbortError()); };
+        image.addEventListener('load', onLoad, {once: true});
+        image.addEventListener('error', onError, {once: true});
+        signal.addEventListener('abort', onAbort, {once: true});
+    });
+}
+
+function loadImage(dataUrl: string, signal: AbortSignal): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        const cleanup = () => {
+            image.onload = null;
+            image.onerror = null;
+            signal.removeEventListener('abort', onAbort);
         };
         const onAbort = () => {
             cleanup();
+            image.src = '';
             reject(createImageAbortError());
         };
-        const cleanup = () => {
-            image.removeEventListener('load', onLoad);
-            image.removeEventListener('error', onError);
-            signal?.removeEventListener('abort', onAbort);
-        };
-        if (signal?.aborted) {
-            onAbort();
-            return;
-        }
-        image.addEventListener('load', onLoad, { once: true });
-        image.addEventListener('error', onError, { once: true });
-        signal?.addEventListener('abort', onAbort, {once: true});
+        if (signal.aborted) { onAbort(); return; }
+        image.onload = () => { cleanup(); resolve(image); };
+        image.onerror = () => { cleanup(); reject(new Error('图片数据无法解码')); };
+        signal.addEventListener('abort', onAbort, {once: true});
+        image.src = dataUrl;
     });
 }
 
-function loadImage(dataUrl: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-        const source = new Image();
-        source.onload = () => resolve(source);
-        source.onerror = () => reject(new Error('图片数据无法解码'));
-        source.src = dataUrl;
-    });
-}
-
-interface RenderedImageRect {
-    left: number;
-    top: number;
-    width: number;
-    height: number;
-}
-
-function getRenderedImageRect(image: HTMLImageElement, renderedWidth: number, renderedHeight: number): RenderedImageRect {
-    const imageWidth = image.naturalWidth;
-    const imageHeight = image.naturalHeight;
-    const style = getComputedStyle(image);
-    const objectFit = style.objectFit || 'fill';
-    let width = renderedWidth;
-    let height = renderedHeight;
-
-    if (objectFit === 'contain' || objectFit === 'scale-down') {
-        const scale = Math.min(renderedWidth / imageWidth, renderedHeight / imageHeight);
-        const downScale = objectFit === 'scale-down' ? Math.min(1, scale) : scale;
-        width = imageWidth * downScale;
-        height = imageHeight * downScale;
-    } else if (objectFit === 'cover') {
-        const scale = Math.max(renderedWidth / imageWidth, renderedHeight / imageHeight);
-        width = imageWidth * scale;
-        height = imageHeight * scale;
-    }
-
-    const [positionX = '50%', positionY = '50%'] = style.objectPosition.split(/\s+/);
-    const resolvePosition = (value: string, available: number): number => {
-        if (value.endsWith('%')) return available * Number.parseFloat(value) / 100;
-        if (value.endsWith('px')) return Number.parseFloat(value);
-        if (value === 'left' || value === 'top') return 0;
-        if (value === 'right' || value === 'bottom') return available;
-        return available / 2;
-    };
-    return {
-        left: resolvePosition(positionX, renderedWidth - width),
-        top: resolvePosition(positionY, renderedHeight - height),
-        width,
-        height,
-    };
-}
-
-function renderTranslatedBitmap(state: ImageTranslationState, renderedWidth: number, renderedHeight: number): void {
-    if (!state.image.naturalWidth || !state.image.naturalHeight || !state.translatedImage) return;
-
-    const pixelRatio = Math.min(2, window.devicePixelRatio || 1);
-    state.canvas.style.display = 'block';
-    state.canvas.width = Math.max(1, Math.round(renderedWidth * pixelRatio));
-    state.canvas.height = Math.max(1, Math.round(renderedHeight * pixelRatio));
-    state.canvas.style.width = `${renderedWidth}px`;
-    state.canvas.style.height = `${renderedHeight}px`;
-    const context = state.canvas.getContext('2d');
-    if (!context) return;
-    const imageRect = getRenderedImageRect(state.image, renderedWidth, renderedHeight);
-    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-    context.clearRect(0, 0, renderedWidth, renderedHeight);
-    context.drawImage(state.translatedImage, imageRect.left, imageRect.top, imageRect.width, imageRect.height);
-}
-
-function setButtonState(state: ImageTranslationState, phase: ImageTranslationPhase, message: string): void {
-    const userMessage = message;
+function setButtonState(state: ImageTranslationState, phase: ImageControlPhase, message: string): void {
     state.phase = phase;
-    state.button.textContent = phase === 'translated' ? '↶' : phase === 'error' ? '!' : '文';
-    state.button.title = userMessage;
-    state.button.setAttribute('aria-label', userMessage);
-    state.button.dataset.phase = phase;
+    state.controls.update(phase, message, {
+        prepare: phase === 'error' && message.includes('语言包'), animations: config.animations,
+    });
+}
+
+function ownsHiddenImage(state: ImageTranslationState): boolean {
+    return state.image.style.getPropertyValue('opacity') === '0'
+        && state.image.style.getPropertyPriority('opacity') === 'important';
+}
+
+function hideOriginalImage(state: ImageTranslationState): void {
+    if (state.sourceStyleLease) return;
+    const style = state.image.style;
+    state.sourceStyleLease = {
+        opacity: {value: style.getPropertyValue('opacity'), priority: style.getPropertyPriority('opacity')},
+        transition: ['transition', 'transition-property', 'transition-duration', 'transition-timing-function', 'transition-delay', 'transition-behavior']
+            .map(property => ({property, value: style.getPropertyValue(property), priority: style.getPropertyPriority(property)}))
+            .filter(property => Boolean(property.value)),
+        computedOpacity: getComputedStyle(state.image).opacity || '1',
+        hadStyleAttribute: state.image.hasAttribute('style'),
+    };
+    // 在同一帧关闭过渡并隐藏原图，透明译图的擦除区域不会透出下层原文字。
+    style.setProperty('transition', 'none', 'important');
+    style.setProperty('opacity', '0', 'important');
+}
+
+function restoreOriginalImage(state: ImageTranslationState): void {
+    const lease = state.sourceStyleLease;
+    if (!lease) return;
+    const style = state.image.style;
+    const ownsOpacity = ownsHiddenImage(state);
+    const ownsTransition = style.getPropertyValue('transition') === 'none'
+        && style.getPropertyPriority('transition') === 'important';
+    if (ownsOpacity) {
+        if (lease.opacity.value) style.setProperty('opacity', lease.opacity.value, lease.opacity.priority);
+        else style.removeProperty('opacity');
+        // 先在过渡关闭时结算原透明度，再归还 transition，避免恢复原图时发生意外淡入。
+        if (ownsTransition) void getComputedStyle(state.image).opacity;
+    }
+    if (ownsTransition) {
+        style.removeProperty('transition');
+        lease.transition.forEach(property => style.setProperty(property.property, property.value, property.priority));
+    }
+    if (ownsOpacity && ownsTransition && !lease.hadStyleAttribute && style.length === 0) state.image.removeAttribute('style');
+    state.sourceStyleLease = null;
+}
+
+function showTranslatedImage(state: ImageTranslationState): void {
+    const image = state.translatedImage!;
+    image.className = 'fluent-read-image-translation-bitmap';
+    image.alt = '';
+    image.setAttribute('aria-hidden', 'true');
+    hideOriginalImage(state);
+    state.overlay.prepend(image);
+    state.controls.setLines(state.lines);
+    setButtonState(state, 'translated', '已翻译 · 点击恢复原图');
+    updateOverlayPosition(state);
 }
 
 function restoreImageTranslation(state: ImageTranslationState): void {
-    clearErrorResetTimer(state);
     state.abortController?.abort();
     state.abortController = null;
-    state.lines = [];
+    state.waitingForImage = false;
+    restoreOriginalImage(state);
+    state.translatedImage?.remove();
     state.translatedImage = null;
-    state.canvas.width = 0;
-    state.canvas.height = 0;
-    state.canvas.style.display = 'none';
-    setButtonState(state, 'idle', '翻译图片');
+    state.lines = [];
+    state.controls.setLines([]);
+    setButtonState(state, 'idle', resultCache.has(state.image) ? '查看译图' : '翻译图片');
     updateOverlayPosition(state);
     scheduleIdleStateRemoval(state);
 }
 
-async function translateImage(state: ImageTranslationState): Promise<void> {
-    if (state.phase === 'loading') return;
-    if (!state.image.isConnected) return;
+function requestIsCurrent(state: ImageTranslationState, controller: AbortController): boolean {
+    if (controller.signal.aborted || state.abortController !== controller || states.get(state.image) !== state) return false;
+    if (!state.image.isConnected) { removeState(state); return false; }
+    if (sourceIdentity(state.image) !== state.sourceIdentity) { invalidateSource(state); return false; }
+    return true;
+}
 
-    clearErrorResetTimer(state);
+async function translateImage(state: ImageTranslationState, prepareLanguages = false): Promise<void> {
+    if (state.phase === 'loading' || !state.image.isConnected || !config.on || config.disableImageTranslator) return;
+    if (sourceIdentity(state.image) !== state.sourceIdentity) invalidateSource(state);
+    clearHoverTimer(state);
+    const identity = configurationIdentity();
+    const cached = resultCache.get(state.image);
+    if (!prepareLanguages && config.useCache && cached?.sourceIdentity === state.sourceIdentity && cached.configurationIdentity === identity) {
+        resultCache.delete(state.image);
+        resultCache.set(state.image, cached);
+        state.translatedImage = cached.translatedImage;
+        state.lines = cached.lines;
+        showTranslatedImage(state);
+        return;
+    }
+    deleteCachedResult(state.image);
     const controller = new AbortController();
+    const sourceLanguage = config.from;
     state.abortController = controller;
-    setButtonState(state, 'loading', '正在识别图片文字');
+    setButtonState(state, 'loading', prepareLanguages ? '正在准备识别语言包…' : '正在读取图片…');
     try {
-        await withTimeout(
-            waitForImageReady(state.image, controller.signal),
-            IMAGE_READ_TIMEOUT_MS,
-            '图片加载超时',
-            controller.signal,
-        );
+        if (prepareLanguages) {
+            await prepareImageOcrLanguages(sourceLanguage, controller.signal);
+            if (!requestIsCurrent(state, controller)) return;
+            setButtonState(state, 'loading', '正在读取图片…');
+        }
+        state.waitingForImage = !state.image.complete;
+        await withTimeout(waitForImageReady(state.image, controller.signal), IMAGE_READ_TIMEOUT_MS, '图片加载超时', controller.signal);
+        state.waitingForImage = false;
+        if (!requestIsCurrent(state, controller)) return;
         const imageData = await withTimeout(
             getImageData(state.image, {signal: controller.signal, timeoutMs: IMAGE_READ_TIMEOUT_MS}),
-            IMAGE_READ_TIMEOUT_MS,
-            '图片读取超时',
-            controller.signal,
+            IMAGE_READ_TIMEOUT_MS, '图片读取超时', controller.signal,
         );
-        if (controller.signal.aborted) return;
-        const result = await translateImageInExtension(imageData, config.from, document.title, {
+        if (!requestIsCurrent(state, controller)) return;
+        setButtonState(state, 'loading', '正在识别并翻译…');
+        const result = await translateImageInExtension(imageData, sourceLanguage, document.title, {
             signal: controller.signal,
-            timeoutMs: IMAGE_OCR_TIMEOUT_MS + IMAGE_TRANSLATION_TIMEOUT_MS,
+            timeoutMs: IMAGE_TRANSLATION_TIMEOUT_MS,
+            onProgress: stage => {
+                if (!requestIsCurrent(state, controller)) return;
+                setButtonState(state, 'loading', stage === 'recognizing' ? '正在识别图片文字…'
+                    : stage === 'translating' ? '正在翻译文字…' : '正在生成译图…');
+            },
         });
-        if (controller.signal.aborted) return;
-        const translatedImage = await loadImage(result.image);
-        if (controller.signal.aborted || state.abortController !== controller) return;
+        if (!requestIsCurrent(state, controller)) return;
+        setButtonState(state, 'loading', '正在生成译图…');
+        const translatedImage = await withTimeout(loadImage(result.image, controller.signal), IMAGE_READ_TIMEOUT_MS, '译图加载超时', controller.signal);
+        if (!requestIsCurrent(state, controller)) return;
+        // 设置在途中变化时不能将旧请求当成新配置的结果；保留原图并让用户直接重试。
+        if (configurationIdentity() !== identity) {
+            throw new Error('翻译设置已更改，请重试');
+        }
         state.translatedImage = translatedImage;
         state.lines = result.lines;
-        setButtonState(state, 'translated', '恢复原图');
-        updateOverlayPosition(state);
+        cacheResult(state, identity);
+        showTranslatedImage(state);
     } catch (error) {
-        if (controller.signal.aborted) return;
+        if (!requestIsCurrent(state, controller)) return;
         controller.abort();
         const message = error instanceof Error ? error.message : String(error);
-        setButtonState(state, 'error', `图片翻译失败：${message}`);
-        clearErrorResetTimer(state);
-        const errorResetTimer = window.setTimeout(() => {
-            if (state.errorResetTimer !== errorResetTimer) return;
-            state.errorResetTimer = null;
-            if (state.phase === 'error' && states.get(state.image) === state) {
-                setButtonState(state, 'idle', '翻译图片');
-                scheduleIdleStateRemoval(state);
-            }
-        }, 3000);
-        state.errorResetTimer = errorResetTimer;
-        console.warn('[FluentRead] 图片翻译失败:', error);
+        const missingLanguages = /^图片文字识别需要先下载.+语言包/u.test(message) || message === '请先下载语言包';
+        setButtonState(state, 'error', missingLanguages
+            ? '首次使用需准备识别语言包，下载后自动继续'
+            : `图片翻译失败：${message}`);
+        scheduleIdleStateRemoval(state);
     } finally {
-        if (state.abortController === controller) state.abortController = null;
+        if (state.abortController === controller) {
+            state.waitingForImage = false;
+            state.abortController = null;
+        }
     }
 }
 
 function handlePointerOver(event: PointerEvent): void {
-    if (!event.isTrusted) return;
-    if (event.pointerType === 'touch') return;
-    const image = event.target instanceof HTMLImageElement ? event.target : null;
-    if (image) showImageButton(image);
+    if (!event.isTrusted || event.pointerType === 'touch') return;
+    if (event.target instanceof HTMLImageElement) showImageButton(event.target);
 }
 
 function handlePointerOut(event: PointerEvent): void {
@@ -507,28 +699,46 @@ function handlePointerOut(event: PointerEvent): void {
 }
 
 function scheduleViewportChange(): void {
-    if (positionFrame !== null) return;
+    if (!mounted || activeStates.size === 0 || positionFrame !== null) return;
     positionFrame = window.requestAnimationFrame(() => {
         positionFrame = null;
         activeStates.forEach(updateOverlayPosition);
     });
 }
 
+function handleLayoutMutations(records: MutationRecord[]): void {
+    // 资源替换必须在下一次绘制之前撤下旧译图；一般布局变化合并到一帧。
+    const sourceChanged = records.some(record => record.type === 'childList'
+        || ['src', 'srcset', 'sizes', 'media', 'type'].includes(record.attributeName || ''));
+    if (sourceChanged) {
+        activeStates.forEach(state => {
+            if (!state.image.isConnected) removeState(state);
+            else if (sourceIdentity(state.image) !== state.sourceIdentity) invalidateSource(state);
+        });
+        resultCache.forEach((_cached, image) => {
+            if (!image.isConnected) deleteCachedResult(image);
+        });
+    }
+    scheduleViewportChange();
+}
+
 export function mountImageTranslator(): void {
     if (mounted) return;
     mounted = true;
+    stopConfigurationWatch = watchTranslationConfiguration();
     document.addEventListener('pointerover', handlePointerOver, true);
     document.addEventListener('pointerout', handlePointerOut, true);
     window.addEventListener('scroll', scheduleViewportChange, true);
     window.addEventListener('resize', scheduleViewportChange);
-    layoutObserver = new MutationObserver(scheduleViewportChange);
+    layoutObserver = new MutationObserver(handleLayoutMutations);
     layoutObserver.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ['class', 'style'],
-        childList: true,
-        subtree: true,
+        attributeFilter: ['class', 'style', 'src', 'srcset', 'sizes', 'media', 'type', 'width', 'height', 'hidden'],
+        childList: true, subtree: true,
     });
     removeListeners = () => {
+        stopConfigurationWatch?.();
+        stopConfigurationWatch = null;
         document.removeEventListener('pointerover', handlePointerOver, true);
         document.removeEventListener('pointerout', handlePointerOut, true);
         window.removeEventListener('scroll', scheduleViewportChange, true);
@@ -548,5 +758,6 @@ export function unmountImageTranslator(): void {
     removeListeners?.();
     removeListeners = null;
     Array.from(activeStates).forEach(removeState);
+    Array.from(resultCache.keys()).forEach(deleteCachedResult);
     removeImageOverlayRoot();
 }
