@@ -94,10 +94,11 @@ describe('full regression runner', () => {
         const plan = dryRun(['--browser', ...BROWSER_ARGS]);
         const browserSteps = plan.steps.filter((step: {phase: string}) => step.phase === 'browser');
 
-        expect(browserSteps).toHaveLength(8);
+        expect(browserSteps).toHaveLength(9);
         expect(browserSteps.map((step: {id: string}) => step.id)).toEqual([
             'selection-trigger',
             'full-page-translation',
+            'translation-mutation',
             'video-subtitle-fixture',
             'document-translation',
             'settings-center-ui',
@@ -193,6 +194,7 @@ describe('full regression runner', () => {
         ]);
         expect(headedSteps.every((step: {focusPolicy: string}) => step.focusPolicy === 'foreground-authorized')).toBe(true);
         expect(backgroundSteps.map((step: {id: string}) => step.id)).toEqual([
+            'translation-mutation',
             'video-subtitle-fixture',
             'document-translation',
             'settings-center-ui',

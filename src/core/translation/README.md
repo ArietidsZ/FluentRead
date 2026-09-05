@@ -63,7 +63,10 @@ Buttons and elements with `role=button` or `role=menuitem` own their internal
 labels, including labels styled as flex or grid boxes. They use the control text
 slot path in both display modes, keeping a single visible label within the
 original button height and preserving icons, click handlers and restoration.
-Internal layout wrappers must not become bilingual paragraphs or synthetic runs.
+Internal layout wrappers must not become bilingual paragraphs. Ordinary buttons
+remain one control; clickable cards containing separate nested controls split
+only their own labels into control targets or text runs, leaving nested buttons
+with independent ownership.
 A mutation scan starting at an internal label resolves back to the control;
 protected subtrees still retain their original exclusion boundaries.
 

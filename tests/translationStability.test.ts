@@ -8,6 +8,7 @@ import {
     isOwnSingleTextSlotMove,
     isTranslationArtifact,
     isTranslationArtifactCurrent,
+    isTranslationCandidateCurrent,
     mutationTouchesCurrentTranslationArtifact,
     reboundLiveTextResult,
     statefulSourceAndTextSlotsAreCurrent,
@@ -49,6 +50,20 @@ function childListRecord(
 }
 
 describe('动态翻译稳定性判定', () => {
+    it('来源候选移出文档后失效，显式应用外壳例外仍不能穿过新增的局部禁译边界', () => {
+        const {document} = parseHTML('<html><body><div translate="no"><p>Readable application source.</p></div></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const candidate = {element: owner, kind: 'content' as const, reason: 'explicit-source',
+            allowTopLevelApplicationShell: true};
+        expect(isTranslationCandidateCurrent(candidate)).toBe(true);
+        owner.setAttribute('translate', 'no');
+        expect(isTranslationCandidateCurrent(candidate)).toBe(false);
+        owner.removeAttribute('translate');
+        expect(isTranslationCandidateCurrent(candidate)).toBe(true);
+        owner.remove();
+        expect(isTranslationCandidateCurrent(candidate)).toBe(false);
+    });
+
     it('只在连接、内容候选且原文仍匹配时认为来源稳定', () => {
         const {document} = parseHTML('<html><body><p>source</p></body></html>');
         const node = document.querySelector('p') as HTMLElement;

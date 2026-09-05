@@ -10,6 +10,7 @@ import {
     extractTranslationText,
     getComposedParent,
     getCurrentTranslationCore,
+    getTranslationCandidateKey,
     isProtectedDescendantElement,
     isTranslationTextElementProtected,
     type TranslationCandidate,
@@ -18,6 +19,7 @@ import {
 } from '@/src/core/translation/public';
 import {
     getTranslationOverflowGenerationIdentity,
+    getTranslationState,
     getTranslationSourceStructureSignature,
     isTranslationSourceStructureOverflow,
     isTrustedBilingualArtifactWithHostClass,
@@ -69,6 +71,49 @@ export function getCandidateTranslationTextProtectionOptions(
         candidate.element,
     );
 }
+
+/** 已渲染 owner 的范围复验读取精确来源槽，其他站点与 DOM 保护边界保持有效。 */
+function getStatefulCandidateTextProtectionOptions(
+    candidate: TranslationCandidate,
+    state: TranslationState | undefined,
+): TranslationTextProtectionOptions | undefined {
+    if (!state?.singleTextSlotHosts?.length ||
+        !statefulSourceAndTextSlotsAreCurrent(candidate.element, state) ||
+        !state.singleTextSlotHosts.every(({host, source}) => host.childNodes.length === 1 &&
+            host.firstChild === source && host.matches('.fluent-read-single-slot[data-fr-translation-owned="true"][translate="no"]'))) {
+        return undefined;
+    }
+    return {
+        sourceTextSlotHosts: new Set(state.singleTextSlotHosts.map(({host}) => host)),
+        ...getCandidateTranslationTextProtectionOptions(candidate),
+    };
+}
+
+/** 复验已有候选的身份与站点边界，读取原文槽而不把译文布局误当作来源。 */
+export function isTranslationCandidateCurrent(candidate: TranslationCandidate): boolean {
+    const core = getCurrentTranslationCore();
+    if (!candidate.element.isConnected) return false;
+    if (candidate.nodes?.length) {
+        if (candidate.nodes.some((node) => node.parentNode !== candidate.element)) return false;
+        const fresh = core.resolve(getTranslationCandidateKey(candidate));
+        return Boolean(fresh && fresh.element === candidate.element &&
+            fresh.kind === candidate.kind &&
+            fresh.allowTopLevelApplicationShell === candidate.allowTopLevelApplicationShell &&
+            getTranslationCandidateKey(fresh) === getTranslationCandidateKey(candidate));
+    }
+    const textProtectionOptions = getStatefulCandidateTextProtectionOptions(candidate, getTranslationState(candidate.element));
+    const fresh = textProtectionOptions
+        ? core.inspect(candidate.element, textProtectionOptions).candidate
+        : candidate.allowTopLevelApplicationShell === true
+            ? core.resolve(candidate.element)
+            : core.inspect(candidate.element).candidate;
+    return Boolean(
+        fresh?.element === candidate.element &&
+        fresh.kind === candidate.kind &&
+        fresh.allowTopLevelApplicationShell === candidate.allowTopLevelApplicationShell,
+    );
+}
+
 
 export function getCurrentTranslationStateSourceText(node: HTMLElement, state: TranslationState): string {
     return extractTranslationText(
