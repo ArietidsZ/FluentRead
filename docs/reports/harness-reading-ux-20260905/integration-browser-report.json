@@ -60,13 +60,13 @@
       "id": "stream-card-position-stable",
       "status": "passed",
       "sampleCount": 285,
-      "animationFrames": 229,
+      "animationFrames": 228,
       "deltaX": 0,
       "deltaY": 0,
       "minHeight": 520,
       "maxHeight": 520,
       "first": {
-        "t": 31,
+        "t": 27,
         "x": 266.671875,
         "y": 284,
         "width": 388,
@@ -81,7 +81,7 @@
         "formBottom": 763
       },
       "last": {
-        "t": 1901,
+        "t": 1902,
         "x": 266.671875,
         "y": 284,
         "width": 388,
@@ -136,8 +136,8 @@
     {
       "id": "followup-card-position-stable",
       "status": "passed",
-      "sampleCount": 245,
-      "animationFrames": 193,
+      "sampleCount": 244,
+      "animationFrames": 192,
       "deltaX": 0,
       "deltaY": 0,
       "minHeight": 520,
@@ -158,7 +158,7 @@
         "formBottom": 763
       },
       "last": {
-        "t": 1601,
+        "t": 1602,
         "x": 266.671875,
         "y": 284,
         "width": 388,
@@ -251,8 +251,8 @@
     {
       "id": "reading-card-narrow-viewport-bounded",
       "status": "passed",
-      "sampleCount": 101,
-      "animationFrames": 79,
+      "sampleCount": 100,
+      "animationFrames": 78,
       "deltaX": 0,
       "deltaY": 0,
       "minHeight": 520,
@@ -273,7 +273,7 @@
         "formBottom": 567
       },
       "last": {
-        "t": 652,
+        "t": 651,
         "x": 12,
         "y": 88,
         "width": 366,
@@ -333,13 +333,13 @@
       "id": "stream-card-position-stable",
       "status": "passed",
       "sampleCount": 285,
-      "animationFrames": 229,
+      "animationFrames": 228,
       "deltaX": 0,
       "deltaY": 0,
       "minHeight": 520,
       "maxHeight": 520,
       "first": {
-        "t": 31,
+        "t": 27,
         "x": 266.671875,
         "y": 284,
         "width": 388,
@@ -354,7 +354,7 @@
         "formBottom": 763
       },
       "last": {
-        "t": 1901,
+        "t": 1902,
         "x": 266.671875,
         "y": 284,
         "width": 388,
@@ -409,8 +409,8 @@
     "followup-card-position-stable": {
       "id": "followup-card-position-stable",
       "status": "passed",
-      "sampleCount": 245,
-      "animationFrames": 193,
+      "sampleCount": 244,
+      "animationFrames": 192,
       "deltaX": 0,
       "deltaY": 0,
       "minHeight": 520,
@@ -431,7 +431,7 @@
         "formBottom": 763
       },
       "last": {
-        "t": 1601,
+        "t": 1602,
         "x": 266.671875,
         "y": 284,
         "width": 388,
@@ -524,8 +524,8 @@
     "reading-card-narrow-viewport-bounded": {
       "id": "reading-card-narrow-viewport-bounded",
       "status": "passed",
-      "sampleCount": 101,
-      "animationFrames": 79,
+      "sampleCount": 100,
+      "animationFrames": 78,
       "deltaX": 0,
       "deltaY": 0,
       "minHeight": 520,
@@ -546,7 +546,7 @@
         "formBottom": 567
       },
       "last": {
-        "t": 652,
+        "t": 651,
         "x": 12,
         "y": 88,
         "width": 366,
@@ -576,14 +576,14 @@
     }
   },
   "screenshots": [
-    "/private/tmp/fluentread-harness-pr-browser-20260905/harness-reading-partial.png",
-    "/private/tmp/fluentread-harness-pr-browser-20260905/harness-settings-1280.png",
-    "/private/tmp/fluentread-harness-pr-browser-20260905/harness-settings-390.png",
-    "/private/tmp/fluentread-harness-pr-browser-20260905/harness-settings-dark.png",
-    "/private/tmp/fluentread-harness-pr-browser-20260905/harness-settings-history-detail.png",
-    "/private/tmp/fluentread-harness-pr-browser-20260905/harness-settings-history.png",
-    "/private/tmp/fluentread-harness-pr-browser-20260905/harness-reading-390.png",
-    "/private/tmp/fluentread-harness-pr-browser-20260905/harness-reading-panel.png"
+    "/private/tmp/fluentread-harness-pr-final-browser-20260905/harness-reading-partial.png",
+    "/private/tmp/fluentread-harness-pr-final-browser-20260905/harness-settings-1280.png",
+    "/private/tmp/fluentread-harness-pr-final-browser-20260905/harness-settings-390.png",
+    "/private/tmp/fluentread-harness-pr-final-browser-20260905/harness-settings-dark.png",
+    "/private/tmp/fluentread-harness-pr-final-browser-20260905/harness-settings-history-detail.png",
+    "/private/tmp/fluentread-harness-pr-final-browser-20260905/harness-settings-history.png",
+    "/private/tmp/fluentread-harness-pr-final-browser-20260905/harness-reading-390.png",
+    "/private/tmp/fluentread-harness-pr-final-browser-20260905/harness-reading-panel.png"
   ],
   "consoleErrors": [],
   "httpErrors": [],

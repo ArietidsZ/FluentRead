@@ -1,13 +1,13 @@
 # Harness 阅读交互修复与验证
 
-开发基线为 `origin/main@5704bb848347c2dcd2791c1bf702c59f3b8dc5ca`，工作分支 `codex/harness-reading-ux-20260905`。本次针对实际试用反馈修复阅读流程；内嵌来源、模块取舍和代码位置另见[内嵌方式与代码地图](./harness-embedding-map-20260905.md)。本报告记录本地实现与验证，不表示已上传新 PR 或合并。
+开发基线为 `origin/main@5704bb848347c2dcd2791c1bf702c59f3b8dc5ca`，工作分支 `codex/harness-reading-ux-20260905`。本次针对实际试用反馈修复阅读流程；内嵌来源、模块取舍和代码位置另见[内嵌方式与代码地图](./harness-embedding-map-20260905.md)。发布状态以 [PR #446](https://github.com/FluentRead/FluentRead/pull/446) 为准。
 
 ## 同步最新 main 后的合并前验证
 
-合并前已无冲突同步到 `main@82edbe3bb0b16a5a95ac11ac89eaf9b6ebffcf78`，保留主线新增的网站适配规则与设置入口；以下是同步后重新运行的结果，后文保留初次实现的验证记录。
+合并前已无冲突同步到 `main@a70f27e1f3256c2988619147f5f996a0397d4bab`，保留主线新增的网站适配规则、设置入口与模型用量页面；以下是同步后重新运行的结果，后文保留初次实现的验证记录。
 
-- 全量测试：210 个文件、3,672 个测试通过；测试审计：210 个文件、2,556 个声明用例通过。
-- 严格覆盖率：165 个测试文件、2,923 个测试，statements / branches / functions / lines 均为 100%。
+- 全量测试：211 个文件、3,683 个测试通过；测试审计：211 个文件、2,566 个声明用例通过。
+- 严格覆盖率：166 个测试文件、2,933 个测试，statements / branches / functions / lines 均为 100%。
 - 类型检查、Chrome / Firefox 构建、扩展清单、userscript 构建与 verifier、文档站点构建通过。
 - 同步后的 Chrome 生产包在独立 Edge 中通过全部 30 个 Harness 场景，控制台和 HTTP 错误均为 0，首次生成与追问的卡片 x/y 位移均为 0。
 - 独立审查未发现阻断问题，已核对新站点规则配置与 Harness 设置兼容、动作/追问隔离、异步记录恢复、取消与 Markdown 呈现边界。
