@@ -384,7 +384,7 @@ async function main() {
       windowPlacement: session.windowPlacement, provider: 'freeTranslation / Microsoft loopback deterministic fixture',
       providerRequests: provider.requestCount(), translatedItems: provider.translatedItemCount(),
       lifecycleCounts: [expanded.count, restored.count, retranslated.count],
-      controlLifecycleCounts: [expanded.translatedLabels, restored.translatedLabels, retranslated.translatedLabels], unexpectedNetwork, runtimeErrors});
+      controlLifecycleCounts: [expanded.translatedLabels, restored.translatedLabels, retranslated.translatedLabels], unexpectedNetwork, runtimeErrors, workerErrors});
     if (args.liveEpoch) {
       await action(popup, url, 'restore');
       permitLivePageNetwork = true;
@@ -393,6 +393,9 @@ async function main() {
       report.liveEpoch.providerRequests = provider.requestCount() - report.fixtureProviderRequests;
       report.providerRequests = provider.requestCount();
       report.translatedItems = provider.translatedItemCount();
+      assert.deepEqual(report.liveEpoch.pageErrors, [], 'Epoch 页面运行异常');
+      assert.deepEqual(unexpectedNetwork, [], 'Epoch 翻译请求意外访问真实 provider');
+      assert.deepEqual(workerErrors, [], 'Epoch service worker fixture 安装失败');
     }
     fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
     process.stdout.write(`${JSON.stringify({passed: true, artifactsDir: args.artifactsDir, lifecycleCounts: report.lifecycleCounts, launchMode: report.launchMode, windowPlacement: report.windowPlacement}, null, 2)}\n`);

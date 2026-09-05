@@ -83,6 +83,8 @@ export const zhCNMessages = {
     'notice.translationNotice': '翻译提醒',
     'notice.openSettings': '去设置',
     'notice.close': '关闭通知',
+    'settings.contextMenu.label': '右键翻译菜单',
+    'settings.contextMenu.description': '在网页右键菜单中显示全文翻译、恢复原文和识别全部节点入口。',
     'contextMenu.allNodes': '识别全部节点',
     'contextMenu.translate': '流畅阅读翻译',
     'contextMenu.restore': '流畅阅读取消翻译',

@@ -790,7 +790,11 @@ describe('options UI composition architecture', () => {
     expect(hoverProfiles).toBeGreaterThan(translation.indexOf('aria-label="悬浮翻译延迟"'))
     expect(hoverProfiles).toBeLessThan(translation.indexOf('title="划词翻译"'))
     expect(fullPageProfiles).toBeGreaterThan(translation.indexOf('label="全文翻译范围"'))
-    expect(fullPageProfiles).toBeGreaterThan(translation.indexOf('aria-label="右键全文翻译"'))
+    expect(translation).toContain('v-model="config.contextMenuEnabled"')
+    expect(translation).toContain(':aria-label="t(\'settings.contextMenu.label\')"')
+    expect(translation).toContain("{{ t('settings.contextMenu.label') }}")
+    expect(translation).toContain(':content="t(\'settings.contextMenu.description\')"')
+    expect(fullPageProfiles).toBeGreaterThan(translation.indexOf('v-model="config.contextMenuEnabled"'))
   })
 
   it('loads shared tokens before the unchanged settings page rules', () => {

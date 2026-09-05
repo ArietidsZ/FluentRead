@@ -63,6 +63,8 @@ export const frFRMessages = {
     'notice.translationNotice': 'Notification de traduction',
     'notice.openSettings': 'Ouvrir les réglages',
     'notice.close': 'Fermer la notification',
+    'settings.contextMenu.label': 'Menu contextuel de traduction',
+    'settings.contextMenu.description': 'Afficher la traduction de la page, le retour au texte original et « Détecter tous les nœuds » dans le menu contextuel.',
     'contextMenu.allNodes': 'Détecter tous les nœuds',
     'contextMenu.translate': 'Traduire avec FluentRead',
     'contextMenu.restore': 'Restaurer avec FluentRead',

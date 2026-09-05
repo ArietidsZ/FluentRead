@@ -63,6 +63,8 @@ export const esESMessages = {
     'notice.translationNotice': 'Aviso de traducción',
     'notice.openSettings': 'Abrir ajustes',
     'notice.close': 'Cerrar aviso',
+    'settings.contextMenu.label': 'Menú contextual de traducción',
+    'settings.contextMenu.description': 'Mostrar la traducción de la página, la restauración del original y «Detectar todos los nodos» en el menú contextual.',
     'contextMenu.allNodes': 'Detectar todos los nodos',
     'contextMenu.translate': 'Traducir con FluentRead',
     'contextMenu.restore': 'Restaurar con FluentRead',

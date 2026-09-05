@@ -84,6 +84,8 @@ export const enUSMessages = {
     'notice.translationNotice': 'Translation notice',
     'notice.openSettings': 'Open settings',
     'notice.close': 'Close notification',
+    'settings.contextMenu.label': 'Translation context menu',
+    'settings.contextMenu.description': 'Show page translation, restore original, and “Detect all nodes” in the webpage context menu.',
     'contextMenu.allNodes': 'Detect all nodes',
     'contextMenu.translate': 'Translate with FluentRead',
     'contextMenu.restore': 'Restore with FluentRead',

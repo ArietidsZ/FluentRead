@@ -63,6 +63,8 @@ export const koKRMessages = {
     'notice.translationNotice': '번역 알림',
     'notice.openSettings': '설정 열기',
     'notice.close': '알림 닫기',
+    'settings.contextMenu.label': '우클릭 번역 메뉴',
+    'settings.contextMenu.description': '웹페이지 우클릭 메뉴에 전체 페이지 번역, 원문 복원, ‘모든 노드 인식’을 표시합니다.',
     'contextMenu.allNodes': '모든 노드 인식',
     'contextMenu.translate': 'FluentRead로 번역',
     'contextMenu.restore': 'FluentRead 번역 되돌리기',

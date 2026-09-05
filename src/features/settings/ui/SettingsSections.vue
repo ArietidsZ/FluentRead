@@ -484,12 +484,12 @@
 
         <el-row class="settings-control-row">
           <el-col :span="20" class="settings-control-label lightblue rounded-corner">
-            <el-tooltip class="box-item" effect="dark" content="在网页右键菜单中显示“流畅阅读翻译”或“流畅阅读取消翻译”入口；关闭后不会影响全文翻译快捷键和悬浮球" placement="top-start" :show-after="500">
-              <span class="popup-text popup-vertical-left">右键全文翻译<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
+            <el-tooltip class="box-item" effect="dark" :content="t('settings.contextMenu.description')" placement="top-start" :show-after="500">
+              <span class="popup-text popup-vertical-left">{{ t('settings.contextMenu.label') }}<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
             </el-tooltip>
           </el-col>
           <el-col :span="4" class="settings-control-field flex-end">
-            <el-switch v-model="config.contextMenuEnabled" class="settings-toggle" aria-label="右键全文翻译" />
+            <el-switch v-model="config.contextMenuEnabled" class="settings-toggle" :aria-label="t('settings.contextMenu.label')" />
           </el-col>
         </el-row>
         <QuickTranslationProfiles :config="config" action="full-page" :profiles="config.quickTranslationProfiles"

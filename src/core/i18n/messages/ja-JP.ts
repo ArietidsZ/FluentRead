@@ -63,6 +63,8 @@ export const jaJPMessages = {
     'notice.translationNotice': '翻訳のお知らせ',
     'notice.openSettings': '設定を開く',
     'notice.close': '通知を閉じる',
+    'settings.contextMenu.label': '右クリック翻訳メニュー',
+    'settings.contextMenu.description': 'ページの右クリックメニューに、ページ全体の翻訳、原文への復元、「すべてのノードを検出」を表示します。',
     'contextMenu.allNodes': 'すべてのノードを検出',
     'contextMenu.translate': 'FluentRead で翻訳',
     'contextMenu.restore': 'FluentRead の翻訳を元に戻す',

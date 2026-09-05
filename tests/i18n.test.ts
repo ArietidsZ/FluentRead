@@ -78,9 +78,11 @@ describe('界面 i18n 契约', () => {
       'es-ES': 'Detectar todos los nodos',
     } as const;
     expect(resolveContextMenuLanguage('unknown')).toBe('zh-CN');
+    expect(translate('settings.contextMenu.label', 'zh-CN')).toBe('右键翻译菜单');
     for (const [locale, label] of Object.entries(labels)) {
       const language = resolveContextMenuLanguage(locale);
       expect(translate('contextMenu.allNodes', language)).toBe(label);
+      expect(translate('settings.contextMenu.description', language)).toContain(label);
       for (const isTranslated of [false, true]) {
         const items = getContextMenuItems(isTranslated, false, language);
         expect(items.map(({id}) => id)).toEqual([
