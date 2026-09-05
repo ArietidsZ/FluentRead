@@ -364,6 +364,13 @@ export function calculateSelectionPopupPosition(
     };
 }
 
+/** 阅读卡先预留固定视窗，再选择位置；正文增长不能改变定位尺寸或上下方位。 */
+export function calculateReadingPopupLayout(anchor: SelectionRect, viewport: ViewportSize): PopupPosition & PopupSize {
+    const width = Math.max(0, Math.min(388, viewport.width - 2 * DEFAULT_PADDING));
+    const height = Math.max(0, Math.min(520, viewport.height - 2 * DEFAULT_PADDING));
+    return {...calculateSelectionPopupPosition(anchor, {width, height}, viewport), width, height};
+}
+
 export function normalizeSpeechLanguage(language: string | undefined, fallback = 'en-US'): string {
     const normalized = String(language ?? '').trim().replace(/_/g, '-');
     const lower = normalized.toLowerCase();

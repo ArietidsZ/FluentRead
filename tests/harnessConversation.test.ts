@@ -37,6 +37,22 @@ describe('Harness persistent conversation coordination', () => {
         expect(store.upsertTurn.mock.calls[1][0]).toMatchObject({id: 'saved', createdAt: 1});
         expect(store.upsertTurn.mock.calls[1][1].question).toBe('Why?');
     });
+    it('keeps a switched action in the same saved reading record but excludes previous answers from analysis', async () => {
+        const {conversation, store, runtime} = setup();
+        store.get.mockResolvedValue(previous);
+        await conversation.run(request({sessionId: 'saved', intent: 'grammar', question: '  ', history: [{question: 'old', answer: 'unrelated'}]}), new AbortController().signal);
+        expect(runtime.run.mock.calls[0][0]).toMatchObject({question: '', intent: 'grammar', selection: {text: previous.text, context: previous.context}, history: []});
+        expect(store.upsertTurn.mock.calls[1][0]).toMatchObject({id: 'saved', intent: 'grammar'});
+        expect(store.upsertTurn.mock.calls[1][1]).toMatchObject({question: '拆句', intent: 'grammar'});
+    });
+    it('retains real unsaved follow-up history but discards it when starting a new action', async () => {
+        const {conversation, runtime} = setup();
+        const history = [{question: 'Why?', answer: 'The verb is passive.'}];
+        await conversation.run(request({question: '  How do I use it? ', history}), new AbortController().signal, undefined, true);
+        expect(runtime.run.mock.calls[0][0]).toMatchObject({question: 'How do I use it?', history});
+        await conversation.run(request({intent: 'usage', history}), new AbortController().signal, undefined, true);
+        expect(runtime.run.mock.calls[1][0].history).toEqual([]);
+    });
     it('supports selection-only new sessions, trims input and defaults clock and IDs', async () => {
         const {store, runtime} = setup();
         const conversation = createHarnessConversationRuntime({store, runtime, preferences: () => ({contextMode: 'selection', maxContextChars: 500})});

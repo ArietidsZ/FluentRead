@@ -1,20 +1,35 @@
 <!--
  * @file src/features/reading-assistant/ui/ReadingPanel.vue
  * 文件职责：在原有划词卡内提供读懂、拆句、用法、练习和连续追问，保持阅读上下文与原生选区体验。
- * 主要内容：只在明确点击后发送 Harness 请求，以代次和取消消息保护回答归属；展示简短结果、错误重试、停止和复制，并把显式收藏交给现有单词本。
- * 模块边界：不持有模型密钥、不扫描页面、不直接请求供应商，也不另建持久会话；父划词组件负责选区与 Shadow UI 生命周期。
+ * 主要内容：在固定卡片内分开阅读与记录列表，统一渲染 Markdown 问答；以代次和取消保护回答归属，保留追问、停止、复制与主动收藏。
+ * 模块边界：不持有模型密钥、不扫描页面、不直接请求供应商；记录由后台会话仓库保存，父划词组件负责选区、位置和 Shadow UI 生命周期。
  -->
 <template>
   <div class="fr-reading" data-reading-panel>
-    <details v-if="!privateContext" class="fr-reading-sessions" :open="historyOnly">
-      <summary>最近会话</summary>
+    <div class="fr-reading-navigation">
+      <template v-if="showRecords">
+        <button type="button" aria-label="返回当前阅读" @click="closeRecords">‹ 返回当前阅读</button>
+        <span>阅读记录</span>
+      </template>
+      <template v-else>
+        <span>{{ historicalText ? '继续上次阅读' : '理解选中的文字' }}</span>
+        <button v-if="!privateContext" type="button" @click="openRecords">阅读记录</button>
+      </template>
+    </div>
+    <section v-if="showRecords" class="fr-reading-records fr-reading-scroll" aria-label="阅读记录">
+      <p class="fr-reading-hint">选择一条，继续上次的问答。记录仅保存在本机 30 天。</p>
       <div class="fr-reading-session-list">
-        <button v-for="item in sessions" :key="item.id" type="button" class="fr-reading-session" @click="restoreSession(item.id)">{{ item.text }}<small>{{ item.turnCount }} 轮</small></button>
-        <small v-if="!sessions.length" class="fr-reading-empty">暂无最近会话</small>
-        <button v-if="hasMoreSessions" type="button" class="fr-reading-more" @click="loadMoreSessions">加载更多</button>
+        <button v-for="item in sessions" :key="item.id" type="button" class="fr-reading-session" @click="restoreSession(item.id)">
+          <span>{{ item.text }}</span>
+          <small>{{ actionLabelFor(item.intent) }} · {{ formatDate(item.updatedAt) }} · {{ item.turnCount }} 轮<span>继续阅读 ›</span></small>
+        </button>
+        <p v-if="!sessions.length && !recordsLoading && !recordsError" class="fr-reading-empty">还没有阅读记录。选中一段文字，点击读懂或拆句，问答会自动保存在这里。</p>
+        <p v-if="recordsLoading" class="fr-reading-hint" role="status">正在读取…</p>
+        <p v-if="recordsError" class="fr-reading-error" role="alert">{{ recordsError }}<button type="button" @click="loadMoreSessions">重试</button></p>
+        <button v-if="hasMoreSessions" :disabled="recordsLoading" type="button" class="fr-reading-more" @click="loadMoreSessions">加载更多</button>
       </div>
-    </details>
-    <details v-if="selectedSession" class="fr-reading-session-detail"><summary>查看完整问答（{{ selectedSession.turns.length }} 轮）</summary><div v-for="turn in selectedSession.turns" :key="turn.id" class="fr-reading-turn"><small>{{ actionLabelFor(turn.intent) }} · {{ statusLabel(turn.status) }} · {{ formatDate(turn.createdAt) }}</small><p v-if="turn.question">{{ turn.question }}</p><p>{{ turn.answer }}</p></div></details>
+    </section>
+    <template v-else>
     <div class="fr-reading-source">
       <p>{{ activeText }}</p>
       <button v-if="!historicalText && selection.sentence !== selection.text && !wholeSentence" type="button" @click="expandSentence">理解整句</button>
@@ -23,44 +38,50 @@
     <div class="fr-reading-actions" role="group" aria-label="学习方式">
       <button v-for="action in actions" :key="action.id" type="button" :aria-pressed="intent === action.id" @click="startAction(action.id)">{{ action.label }}</button>
     </div>
-    <div class="fr-reading-result" aria-live="polite" aria-atomic="false">
+    <div ref="answerScroll" class="fr-reading-scroll fr-reading-result" aria-live="polite" aria-atomic="false">
+      <details v-if="previousAnswers.length" class="fr-reading-session-detail">
+        <summary>前面的问答（{{ previousAnswers.length }} 轮）</summary>
+        <article v-for="(turn, index) in previousAnswers" :key="index" class="fr-reading-turn">
+          <p class="fr-reading-question">{{ turn.question || actionLabelFor(turn.intent) }}<small>{{ statusLabel(turn.status) }}</small></p>
+          <ReadingAnswer :text="turn.answer" />
+        </article>
+      </details>
+      <p v-if="currentQuestion" class="fr-reading-question">{{ currentQuestion }}</p>
       <p v-if="busy" class="fr-reading-status" role="status"><span class="fr-reading-pulse" :class="{'fr-reading-static': !animations}" aria-hidden="true" />正在{{ actionLabel }}…<button type="button" @click="stop">停止</button></p>
       <div v-if="error" class="fr-reading-error" role="alert">
         <p>{{ error }}</p>
         <div><button type="button" @click="retry">重试</button><button type="button" @click="openSettings">设置模型</button></div>
       </div>
       <p v-if="stopped && !busy" class="fr-reading-status" role="status">已停止<button type="button" @click="retry">重新生成</button></p>
-      <p v-if="currentQuestion && answer" class="fr-reading-question">{{ currentQuestion }}</p>
       <div v-if="answer" class="fr-reading-answer" :aria-busy="busy">
-        <p v-for="(block, index) in blocks" :key="index" :class="`fr-reading-${block.kind}`">
-          <template v-for="(span, spanIndex) in readingAnswerSpans(block.text)" :key="spanIndex"><strong v-if="span.strong">{{ span.text }}</strong><span v-else>{{ span.text }}</span></template>
-        </p>
+        <ReadingAnswer :text="answer" />
       </div>
       <p v-if="!busy && !answer && !error && !stopped" class="fr-reading-hint">选一种方式，理解这段表达。</p>
-    </div>
     <footer v-if="answer && !busy" class="fr-reading-footer">
       <span :title="model">{{ model }}</span>
       <button type="button" @click="copyAnswer">{{ copied ? '已复制' : '复制' }}</button>
       <button v-if="canSaveWord" type="button" :disabled="saving || saved" @click="saveWord">{{ saved ? '已加入单词本' : '加入单词本' }}</button>
     </footer>
+    </div>
     <form class="fr-reading-followup" @submit.prevent="ask">
-      <input v-model="question" :disabled="busy" maxlength="1000" aria-label="继续追问" placeholder="哪里还不明白？也可以写下你的练习答案" @keydown.stop @keyup.stop @input="feedback = ''" />
+      <input v-model="question" :disabled="busy" maxlength="1000" aria-label="继续追问" :placeholder="intent === 'practice' ? '写下你的练习答案…' : '继续问这句话…'" @keydown.stop @keyup.stop @input="feedback = ''" />
       <button type="submit" :disabled="busy || !question.trim()" aria-label="发送追问" title="发送追问">↑</button>
     </form>
     <p v-if="feedback" class="fr-reading-feedback" role="status">{{ feedback }}</p>
     <p v-if="sessionWarning" class="fr-reading-feedback" role="status">{{ sessionWarning }}</p>
-    <div class="fr-reading-context"><span>{{ privateContext ? '隐私模式：不保存会话' : '会话保存在本机 30 天' }}</span><button type="button" aria-label="打开 DeepSeek Harness 设置" @click="openSettings">设置</button></div>
+    </template>
+    <div class="fr-reading-context"><span>{{ privateContext ? '隐私模式：不保存记录' : '阅读记录保存在本机 30 天' }}</span><button type="button" aria-label="打开 DeepSeek Harness 设置" @click="openSettings">设置</button></div>
   </div>
 </template>
 
 <script setup lang="ts">
-import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue';
+import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue';
 import browser from 'webextension-polyfill';
 import {HARNESS_ACTIONS, type HarnessActionId, type HarnessPreferences} from '@/src/core/config/harness';
-import {readingAnswerBlocks, readingAnswerSpans} from '../answerFormat';
+import ReadingAnswer from './ReadingAnswer.vue';
 import type {ReadingSelection, ReadingTurn} from '../types';
 import {getHarnessSession, listHarnessSessions, streamReading} from '../client';
-import type {HarnessSession, HarnessSessionSummary} from '@/src/services/harness/sessionTypes';
+import type {HarnessSession, HarnessSessionSummary, HarnessStoredTurnStatus} from '@/src/services/harness/sessionTypes';
 import {normalizeEnglishWord} from '@/src/features/selection-translation/core/public';
 import {VOCABULARY_BOOK_MESSAGE, type VocabularyBookResponse} from '@/src/features/vocabulary/protocol';
 
@@ -68,6 +89,7 @@ const props = defineProps<{
   selection: ReadingSelection;
   preferences: HarnessPreferences;
   active: boolean;
+  initialAction?: HarnessActionId;
   historyOnly?: boolean;
   targetLanguage: string;
   vocabularyEnabled: boolean;
@@ -75,7 +97,7 @@ const props = defineProps<{
   animations: boolean;
 }>();
 const emit = defineEmits<{resize: []}>();
-const intent = ref<HarnessActionId>(props.preferences.defaultAction);
+const intent = ref<HarnessActionId>(props.initialAction || props.preferences.defaultAction);
 const wholeSentence = ref(false);
 const historicalText = ref('');
 const historicalContext = ref('');
@@ -95,7 +117,11 @@ const saved = ref(false);
 const saving = ref(false);
 const feedback = ref('');
 const sessions = ref<HarnessSessionSummary[]>([]);
-const selectedSession = ref<HarnessSession | null>(null);
+const showRecords = ref(false);
+const recordsLoading = ref(false);
+const recordsError = ref('');
+const answerScroll = ref<HTMLElement>();
+const previousAnswers = ref<Array<ReadingTurn & {intent: HarnessActionId; status: HarnessStoredTurnStatus}>>([]);
 const sessionOffset = ref(0);
 const hasMoreSessions = ref(false);
 const actionLabels: Record<string, string> = {meaning: '读懂', grammar: '拆句', usage: '用法', practice: '练习'};
@@ -104,7 +130,6 @@ const actionLabelFor = (value: string) => actionLabels[value] || '学习';
 const statusLabel = (value: string) => statusLabels[value] || '未知状态';
 const formatDate = (value: number) => new Intl.DateTimeFormat(undefined, {month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit'}).format(value);
 const history: ReadingTurn[] = [];
-const blocks = computed(() => readingAnswerBlocks(answer.value));
 const canSaveWord = computed(() => props.vocabularyEnabled && !props.privateContext && Boolean(normalizeEnglishWord(activeText.value)));
 let pendingId = '';
 let generation = 0;
@@ -113,6 +138,8 @@ let lastHistory: ReadingTurn[] = [];
 let copyTimer: ReturnType<typeof setTimeout> | undefined;
 let streamHandle: {cancel: () => void} | undefined;
 let sessionId = '';
+let recordsGeneration = 0;
+let restoreEpoch = 0;
 
 function cancelRequest(): void {
   generation += 1;
@@ -123,13 +150,18 @@ function cancelRequest(): void {
   busy.value = false;
 }
 function stop(): void { cancelRequest(); stopped.value = true; }
-async function run(prompt: string, turns: ReadingTurn[]): Promise<void> {
+async function run(prompt: string, turns: ReadingTurn[], retrying = false): Promise<void> {
+  if (!retrying && answer.value) previousAnswers.value.push({question: currentQuestion.value, answer: answer.value, intent: intent.value, status: busy.value || stopped.value ? 'stopped' : error.value ? 'error' : 'completed'});
   cancelRequest();
   const token = generation;
   const requestId = `reading-${crypto.randomUUID()}`;
   pendingId = requestId;
   lastQuestion = prompt;
   lastHistory = turns.map(turn => ({...turn}));
+  answer.value = '';
+  currentQuestion.value = prompt;
+  showRecords.value = false;
+  void nextTick(() => { if (answerScroll.value) answerScroll.value.scrollTop = 0; });
   busy.value = true;
   error.value = '';
   stopped.value = false;
@@ -138,7 +170,7 @@ async function run(prompt: string, turns: ReadingTurn[]): Promise<void> {
   try {
     streamHandle = streamReading({
       type: 'fluentReadHarness', action: 'run', requestId,
-      selection: {text: activeText.value, context: props.preferences.contextMode === 'paragraph' ? props.selection.context : '', sentence: ''},
+      selection: {text: activeText.value, context: props.preferences.contextMode === 'paragraph' ? historicalContext.value || props.selection.context : '', sentence: ''},
       intent: intent.value, question: prompt, history: turns, ...(sessionId ? {sessionId} : {}),
     }, {
       progress: progress => {
@@ -174,34 +206,44 @@ async function run(prompt: string, turns: ReadingTurn[]): Promise<void> {
   }
 }
 function startAction(action: HarnessActionId, preserveHistory = true): void {
+  if (!props.preferences.actions.includes(action)) return;
+  // 先记住当前动作的答案，再改变标签；重做分析的模型历史由后台独立控制。
+  if (preserveHistory && answer.value) previousAnswers.value.push({question: currentQuestion.value, answer: answer.value, intent: intent.value, status: busy.value || stopped.value ? 'stopped' : error.value ? 'error' : 'completed'});
   intent.value = action;
   answer.value = '';
   currentQuestion.value = '';
-  if (!preserveHistory) history.splice(0);
+  if (!preserveHistory) { history.splice(0); previousAnswers.value = []; }
   saved.value = false;
   void run('', []);
 }
 async function restoreSession(id: string): Promise<void> {
+  const restoreToken = ++restoreEpoch;
   const restoreGeneration = generation + 1;
   cancelRequest();
   let session: HarnessSession | null;
-  try { session = await getHarnessSession(id); } catch { feedback.value = '读取会话失败，请重试。'; return; }
-  if (restoreGeneration !== generation) return;
-  if (!session) return;
-  selectedSession.value = session;
+  try { session = await getHarnessSession(id); } catch { if (restoreToken === restoreEpoch && restoreGeneration === generation) recordsError.value = '读取记录失败，请重试。'; return; }
+  if (restoreToken !== restoreEpoch || restoreGeneration !== generation || !showRecords.value || !props.active) return;
+  if (!session) { recordsError.value = '这条记录已过期或已被删除。'; return; }
+  previousAnswers.value = session.turns.slice(0, -1).map(turn => ({question: turn.question, answer: turn.answer, intent: turn.intent, status: turn.status}));
   historicalText.value = session.text;
   historicalContext.value = session.context;
   sessionId = session.id;
   wholeSentence.value = false;
-  currentQuestion.value = session.turns.at(-1)?.question || '';
-  answer.value = session.turns.at(-1)?.answer || '';
-  intent.value = session.turns.at(-1)?.intent || session.intent;
-  model.value = session.turns.at(-1)?.model || '';
-  history.splice(0, history.length, ...session.turns.filter(turn => turn.status === 'completed').map(turn => ({question: turn.question, answer: turn.answer})));
+  const latest = session.turns.at(-1);
+  // 仓库存的动作名称用于记录展示，不能在重试时变成用户的追问。
+  currentQuestion.value = latest?.question === actionLabelFor(latest?.intent || session.intent) ? '' : latest?.question || '';
+  answer.value = latest?.answer || '';
+  const restoredIntent = latest?.intent || session.intent;
+  intent.value = props.preferences.actions.includes(restoredIntent) ? restoredIntent : props.preferences.defaultAction;
+  model.value = latest?.model || '';
+  history.splice(0, history.length, ...session.turns.filter(turn => turn.answer.trim()).slice(-4).map(turn => ({question: turn.question || actionLabelFor(turn.intent), answer: turn.answer})));
   lastQuestion = currentQuestion.value;
   lastHistory = history.map(turn => ({...turn}));
-  error.value = ''; stopped.value = false; saved.value = false;
-  feedback.value = '已恢复会话，可继续提问。';
+  error.value = latest?.status === 'error' ? '上次生成失败，已保留收到的内容，可以重试。' : '';
+  stopped.value = latest?.status === 'stopped' || latest?.status === 'streaming'; saved.value = false;
+  feedback.value = '已打开上次的问答，可以继续追问。';
+  recordsError.value = ''; showRecords.value = false;
+  void nextTick(() => { if (answerScroll.value) answerScroll.value.scrollTop = 0; });
 }
 function expandSentence(): void { wholeSentence.value = true; sessionId = ''; historicalText.value = ''; startAction(intent.value, false); }
 function ask(): void {
@@ -210,7 +252,7 @@ function ask(): void {
   question.value = '';
   void run(prompt, history.map(turn => ({...turn})));
 }
-function retry(): void { void run(lastQuestion, lastHistory); }
+function retry(): void { void run(lastQuestion, lastHistory, true); }
 function openSettings(): void { void browser.runtime.sendMessage({type: 'openOptionsPage', section: 'settings-harness'}).catch(() => { feedback.value = '请从扩展菜单打开 DeepSeek Harness 设置。'; }); }
 async function copyAnswer(): Promise<void> {
   try {
@@ -234,73 +276,97 @@ async function saveWord(): Promise<void> {
   finally { saving.value = false; }
 }
 watch(() => JSON.stringify(props.preferences), () => { cancelRequest(); stopped.value = true; });
-watch(() => props.selection.text, () => { historicalText.value = ''; historicalContext.value = ''; selectedSession.value = null; sessionId = ''; });
-watch(() => props.active, active => { if (!active && busy.value) stop(); });
+watch(() => props.selection.text, () => { cancelRequest(); historicalText.value = ''; historicalContext.value = ''; previousAnswers.value = []; history.splice(0); sessionId = ''; question.value = ''; answer.value = ''; wholeSentence.value = false; });
+watch(() => [props.initialAction, props.historyOnly, props.active] as const, ([action, only, active], [oldAction, oldOnly, oldActive]) => {
+  restoreEpoch += 1;
+  if (!active) { if (busy.value) stop(); return; }
+  if (only) openRecords();
+  else if (action !== oldAction || oldOnly || !oldActive) startAction(action || props.preferences.defaultAction);
+});
 watch([busy, error, answer, stopped, feedback, wholeSentence], () => emit('resize'), {flush: 'post'});
 async function loadMoreSessions(): Promise<void> {
-  if (props.privateContext) return;
-  const result = await listHarnessSessions(sessionOffset.value);
-  sessions.value = [...sessions.value, ...result.sessions];
-  sessionOffset.value += result.sessions.length;
-  hasMoreSessions.value = result.hasMore;
+  if (props.privateContext || recordsLoading.value) return;
+  const token = recordsGeneration;
+  recordsLoading.value = true; recordsError.value = '';
+  try {
+    const result = await listHarnessSessions(sessionOffset.value);
+    if (token !== recordsGeneration) return;
+    const known = new Set(sessions.value.map(session => session.id));
+    sessions.value = [...sessions.value, ...result.sessions.filter(session => !known.has(session.id))];
+    sessionOffset.value += result.sessions.length;
+    hasMoreSessions.value = result.hasMore;
+  } catch { if (token === recordsGeneration) recordsError.value = '读取记录失败，请重试。'; }
+  finally { if (token === recordsGeneration) recordsLoading.value = false; }
 }
+function openRecords(): void {
+  restoreEpoch += 1;
+  showRecords.value = true;
+  recordsGeneration += 1;
+  recordsLoading.value = false;
+  sessions.value = []; sessionOffset.value = 0; hasMoreSessions.value = false;
+  void loadMoreSessions();
+}
+function closeRecords(): void { restoreEpoch += 1; showRecords.value = false; recordsError.value = ''; }
 onMounted(() => {
-  if (!props.privateContext) void loadMoreSessions().catch(() => undefined);
-  if (!props.historyOnly) startAction(intent.value);
+  if (props.historyOnly) openRecords();
+  else startAction(intent.value);
 });
-onBeforeUnmount(() => { cancelRequest(); clearTimeout(copyTimer); history.splice(0); });
+onBeforeUnmount(() => { recordsGeneration += 1; restoreEpoch += 1; cancelRequest(); clearTimeout(copyTimer); history.splice(0); });
 </script>
 
 <style scoped>
-.fr-reading { color: #35333c; font: 13px/1.7 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-.fr-reading-sessions { margin: 0 0 10px; border-bottom: 1px solid #eee8ec; }
-.fr-reading-sessions summary { padding: 3px 0 7px; color: #8b7981; cursor: pointer; font-size: 11px; }
+.fr-reading { --fr-reading-line: #eee8ec; --fr-reading-muted: #857a84; --fr-reading-soft: #faf7f9; display: flex; flex-direction: column; height: 100%; min-height: 0; box-sizing: border-box; padding: 10px 14px; overflow: hidden; color: #35333c; font: 13px/1.7 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.fr-reading-navigation { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 8px; color: var(--fr-reading-muted); font-size: 11px; }
+.fr-reading-navigation button { color: #a64b6e; }
+.fr-reading-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 2px 5px 4px 0; }
+.fr-reading-records .fr-reading-hint { margin-top: 0; }
 .fr-reading-session-list { display: grid; gap: 4px; padding-bottom: 8px; }
-.fr-reading-session { display: flex; justify-content: space-between; gap: 8px; width: 100%; overflow: hidden; text-align: left; color: #766672; background: #faf7f9; font-size: 11px; }
-.fr-reading-session small, .fr-reading-empty { color: #a0959d; font-size: 10px; }
-.fr-reading-session-detail { max-height: 180px; margin: 0 0 10px; overflow: auto; border-bottom: 1px solid #eee8ec; }
-.fr-reading-session-detail summary { padding: 4px 0 7px; color: #8b7981; cursor: pointer; font-size: 11px; }
-.fr-reading-turn { padding: 7px 0; border-top: 1px solid #f0eaee; overflow-wrap: anywhere; }
-.fr-reading-turn small { color: #a0959d; font-size: 10px; }
+.fr-reading .fr-reading-session { display: grid; gap: 6px; width: 100%; padding: 10px; text-align: left; color: inherit; background: var(--fr-reading-soft); border: 1px solid var(--fr-reading-line); font-size: 12px; }
+.fr-reading-session > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.fr-reading-session small { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px; color: var(--fr-reading-muted); font-size: 10px; }
+.fr-reading-session small span { color: #a64b6e; }
+.fr-reading-empty { padding: 16px 6px; color: var(--fr-reading-muted); font-size: 12px; }
+.fr-reading-session-detail { margin: 0 0 12px; border-bottom: 1px solid var(--fr-reading-line); }
+.fr-reading-session-detail summary { padding: 4px 0 7px; color: var(--fr-reading-muted); cursor: pointer; font-size: 11px; }
+.fr-reading-turn { padding: 10px 0; border-top: 1px solid var(--fr-reading-line); overflow-wrap: anywhere; }
+.fr-reading-turn small { margin-left: 8px; color: var(--fr-reading-muted); font-size: 10px; }
 .fr-reading-turn p { margin: 3px 0; }
 .fr-reading button, .fr-reading input { font: inherit; }
 .fr-reading button { cursor: pointer; border: 0; background: none; color: #826573; padding: 3px 6px; border-radius: 6px; }
 .fr-reading button:focus-visible, .fr-reading input:focus-visible { outline: 2px solid #cd527f; outline-offset: 2px; }
 .fr-reading button:disabled { opacity: .5; cursor: default; }
-.fr-reading-source { border-left: 2px solid #e6c3d0; padding: 0 0 0 10px; margin: 2px 0 14px; }
-.fr-reading-source p { margin: 0; max-height: 90px; overflow: auto; font-size: 13px; color: #69616b; user-select: text; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fr-reading-source { flex-shrink: 0; border-left: 2px solid #e6c3d0; padding: 0 0 0 10px; margin: 2px 0 10px; }
+.fr-reading-source p { margin: 0; max-height: 58px; overflow: auto; font-size: 12px; color: #69616b; user-select: text; white-space: pre-wrap; overflow-wrap: anywhere; }
 .fr-reading-source button, .fr-reading-source > span { font-size: 11px; padding: 4px 0 0; color: #a64b6e; }
-.fr-reading-actions { display: flex; gap: 4px; padding-bottom: 12px; }
+.fr-reading-actions { flex-shrink: 0; display: flex; gap: 4px; padding-bottom: 10px; }
 .fr-reading-actions button { flex: 1; color: #77707a; background: #f5f3f5; padding: 5px 2px; }
 .fr-reading-actions button[aria-pressed='true'] { background: #f9e7ee; color: #9d3e61; font-weight: 600; }
-.fr-reading-result { min-height: 50px; }
 .fr-reading-status { display: flex; align-items: center; gap: 8px; color: #8b7981; font-size: 12px; }
 .fr-reading-status button { margin-left: auto; }
 .fr-reading-pulse { width: 6px; height: 6px; border-radius: 50%; background: #c76688; animation: fr-reading-breathe 1.4s ease-in-out infinite; }
 .fr-reading-static { animation: none; }
-.fr-reading-hint, .fr-reading-feedback { font-size: 12px; color: #8b7981; }
+.fr-reading-hint, .fr-reading-feedback { font-size: 12px; color: var(--fr-reading-muted); }
+.fr-reading-feedback { flex-shrink: 0; margin: 5px 0 0; max-height: 40px; overflow: auto; }
 .fr-reading-error { font-size: 12px; color: #b44753; background: #fff4f4; padding: 8px 10px; border-radius: 9px; }
 .fr-reading-error p { margin: 0 0 4px; }
-.fr-reading-question { border-bottom: 1px solid #eee8ec; padding-bottom: 8px; color: #986077; user-select: text; overflow-wrap: anywhere; }
+.fr-reading-question { margin: 0 0 10px; border-bottom: 1px solid var(--fr-reading-line); padding-bottom: 8px; color: #986077; user-select: text; overflow-wrap: anywhere; }
 .fr-reading-answer { user-select: text; overflow-wrap: anywhere; }
-.fr-reading-answer p { margin: 0 0 9px; }
-.fr-reading-answer .fr-reading-heading { margin-top: 15px; font-weight: 650; }
-.fr-reading-answer .fr-reading-item { padding-left: 12px; position: relative; }
-.fr-reading-item::before { content: '·'; position: absolute; left: 0; color: #b2748b; }
 .fr-reading-footer { display: flex; gap: 5px; align-items: center; margin: 8px 0; font-size: 11px; }
 .fr-reading-footer > span { color: #9b9199; margin-right: auto; max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fr-reading-followup { display: flex; gap: 6px; margin-top: 12px; padding: 5px 5px 5px 10px; border: 1px solid #eae2e7; border-radius: 11px; }
+.fr-reading-followup { flex-shrink: 0; display: flex; gap: 6px; margin-top: 8px; padding: 5px 5px 5px 10px; border: 1px solid #eae2e7; border-radius: 11px; }
 .fr-reading-followup input { min-width: 0; flex: 1; width: 100%; border: 0; outline: none; color: inherit; background: transparent; font-size: 12px; user-select: text; }
 .fr-reading-followup input::placeholder { color: #a79ba4; font-size: 11px; }
 .fr-reading-followup button { background: #b85579; color: white; width: 27px; height: 27px; line-height: 20px; }
-.fr-reading-context { display: flex; align-items: center; gap: 8px; margin-top: 7px; font-size: 10px; color: #a0959d; }
+.fr-reading-context { flex-shrink: 0; display: flex; align-items: center; gap: 8px; margin-top: 7px; font-size: 10px; color: var(--fr-reading-muted); }
 .fr-reading-context button { margin-left: auto; font-size: 10px; }
-:global(.fr-dark-theme) .fr-reading { color: #e6e0e8; }
+:global(.fr-dark-theme) .fr-reading { --fr-reading-line: #514651; --fr-reading-muted: #b6a9b5; --fr-reading-soft: #352f38; color: #e6e0e8; }
 :global(.fr-dark-theme) .fr-reading-source p { color: #b5aab6; }
 :global(.fr-dark-theme) .fr-reading-actions button { background: #38313c; color: #bdb0c1; }
 :global(.fr-dark-theme) .fr-reading-actions button[aria-pressed='true'] { background: #50313f; color: #f1b6ce; }
 :global(.fr-dark-theme) .fr-reading-followup { border-color: #554651; }
 :global(.fr-dark-theme) .fr-reading-error { background: #482e35; color: #f5acb6; }
+:global(.fr-dark-theme) .fr-reading-navigation button, :global(.fr-dark-theme) .fr-reading-source button, :global(.fr-dark-theme) .fr-reading-session small span, :global(.fr-dark-theme) .fr-reading-question { color: #e4a0bc; }
+@media (max-height: 420px) { .fr-reading-source p { max-height: 30px; } .fr-reading-navigation { margin-bottom: 3px; } .fr-reading-source { margin-bottom: 6px; } .fr-reading-context { margin-top: 2px; } }
 @keyframes fr-reading-breathe { 50% { opacity: .3; } }
 @media (prefers-reduced-motion: reduce) { .fr-reading-pulse { animation: none; } }
 </style>
