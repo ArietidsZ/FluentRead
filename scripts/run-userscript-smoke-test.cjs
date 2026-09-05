@@ -141,6 +141,10 @@ async function fullPageToggle(page, targetCount, adjacentCount, timeout) {
   await Promise.all([
     waitForCount(page, '#target', targetCount, timeout),
     waitForCount(page, '#adjacent', adjacentCount, timeout),
+    waitForCount(page, '#heading', targetCount, timeout),
+    waitForShadowCount(page, '#shadow-host', '#shadow-paragraph', targetCount, timeout),
+    waitForCount(page, '#dynamic-paragraph', targetCount, timeout),
+    waitForShadowCount(page, '#dynamic-shadow-host', '#dynamic-shadow-paragraph', targetCount, timeout),
   ]);
 }
 
@@ -469,6 +473,8 @@ async function main() {
     await Promise.all([
       waitForCount(page, '#target', 1, args.timeout),
       waitForCount(page, '#adjacent', 1, args.timeout),
+      waitForCount(page, '#heading', 1, args.timeout),
+      waitForShadowCount(page, '#shadow-host', '#shadow-paragraph', 1, args.timeout),
     ]);
     fullPageCounts.push([1, 1]);
     await page.evaluate(() => {
@@ -487,6 +493,10 @@ async function main() {
       history.replaceState({fixture: true}, '', location.pathname);
     });
     await Promise.all([
+      waitForCount(page, '#target', 1, args.timeout),
+      waitForCount(page, '#adjacent', 1, args.timeout),
+      waitForCount(page, '#heading', 1, args.timeout),
+      waitForShadowCount(page, '#shadow-host', '#shadow-paragraph', 1, args.timeout),
       waitForCount(page, '#dynamic-paragraph', 1, args.timeout),
       waitForShadowCount(page, '#dynamic-shadow-host', '#dynamic-shadow-paragraph', 1, args.timeout),
     ]);

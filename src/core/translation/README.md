@@ -47,6 +47,9 @@ Scribble/Racket code tables marked `table.RktBlk` are protected as code, while
 ordinary tables and prose remain eligible. Code blocks remain protected, except
 for the browser's direct body `pre` in a `text/plain` document, where that element
 is the readable document itself.
+Ubuntu HTML manpages preserve command signatures and command labels using the
+manual's section structure. Literal command and argument markup stays original
+inside translated explanations; these rules apply only to Ubuntu's manpage URLs.
 
 Every accepted candidate includes a reason and optional adapter id. This keeps
 hover/full equality and adapter precedence directly testable without starting a

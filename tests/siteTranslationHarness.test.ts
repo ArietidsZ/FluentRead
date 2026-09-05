@@ -24,6 +24,8 @@ const {
   normalizeHoverTargets,
   normalizeInteractionScenarios,
   reconcileForbiddenContractState,
+  findHoverTextPointInPage,
+  toggleHover,
   resolveHoverTarget,
   resolveForbiddenMustExistSelectors,
   closeInteractionDialog,
@@ -45,6 +47,8 @@ const {
   assertFreshProductionExtension: (extensionDir: string, projectRoot: string) => unknown;
   waitForHostMathRendering: (page: unknown, timeout: number) => Promise<unknown>;
   waitForStableTarget: (page: unknown, selector: string, timeout: number) => Promise<void>;
+  findHoverTextPointInPage: (target: {selector: string; index: number}) => {x: number; y: number; text: string} | null;
+  toggleHover: (page: unknown, target: unknown, config: {selector: string; index: number}, count: number, timeout: number) => Promise<void>;
   assertPageContract: (
     page: {
       evaluate: (fn: (argument: unknown) => unknown, argument: unknown) => Promise<unknown>;
@@ -1041,6 +1045,84 @@ describe('site translation coverage contract', () => {
     }
   });
 
+  it('aims at original text instead of heading padding, permalink text, or appended translations', () => {
+    const {document} = parseHTML('<html><body><h1><a href="#heading">¶</a><span>Everything you would expect</span><span data-fr-translation-owned="true">所有译文</span></h1></body></html>');
+    const original = document.querySelector('h1 > span')!;
+    const permalink = document.querySelector('a')!;
+    let covered = false;
+    Object.defineProperty(document, 'createRange', {value: () => {
+      let parent: Node | null;
+      return {
+        selectNodeContents(node: Node) { parent = node.parentNode; },
+        getClientRects: () => [{left: parent === permalink ? 500 : 20, right: parent === permalink ? 700 : 220,
+          top: 140, bottom: 160, width: 200, height: 20}],
+      };
+    }});
+    Object.defineProperty(document, 'elementFromPoint', {
+      value: (x: number) => covered ? document.body : x > 400 ? permalink : original,
+    });
+    vi.stubGlobal('document', document);
+    vi.stubGlobal('window', {innerWidth: 1280, innerHeight: 900});
+    vi.stubGlobal('getComputedStyle', () => ({display: 'inline', visibility: 'visible'}));
+    try {
+      expect(findHoverTextPointInPage({selector: 'h1', index: 0})).toMatchObject({
+        x: 90, y: 150, text: 'Everything you would expect',
+      });
+      covered = true;
+      expect(findHoverTextPointInPage({selector: 'h1', index: 0})).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('waits through post-restore movement and temporary occlusion before sending one trusted hotkey', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const point = (y: number) => ({
+      x: 90, y, textIndex: 0, text: 'Everything you would expect',
+      rect: {left: 20, top: y - 10, width: 200, height: 20},
+    });
+    const down = vi.fn(async () => { expect(Date.now()).toBeGreaterThanOrEqual(350); });
+    const up = vi.fn(async () => undefined);
+    const move = vi.fn(async () => undefined);
+    const page = {
+      evaluate: async () => Date.now() < 50 ? point(100) : Date.now() < 100 ? point(130) : Date.now() < 150 ? null : point(180),
+      mouse: {move},
+      keyboard: {down, up},
+      waitForTimeout: async (ms: number) => { vi.advanceTimersByTime(ms); },
+      waitForFunction: vi.fn(async () => undefined),
+    };
+    try {
+      await toggleHover(page, {scrollIntoViewIfNeeded: async () => undefined}, {selector: 'h1', index: 0}, 1, 1000);
+      expect(move.mock.calls).toEqual([[90, 100], [90, 130], [90, 180]]);
+      expect(down.mock.calls).toEqual([['Control']]);
+      expect(up.mock.calls).toEqual([['Control']]);
+      expect(page.waitForFunction).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('fails without issuing a translation hotkey when original text never becomes hittable', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const down = vi.fn();
+    const page = {
+      evaluate: async () => null,
+      mouse: {move: vi.fn()},
+      keyboard: {down, up: vi.fn()},
+      waitForTimeout: async (ms: number) => { vi.advanceTimersByTime(ms); },
+    };
+    try {
+      await expect(toggleHover(page, {scrollIntoViewIfNeeded: async () => undefined}, {selector: 'h1', index: 0}, 1, 200))
+        .rejects.toThrow('悬浮原文没有稳定且可命中的位置');
+      expect(down).not.toHaveBeenCalled();
+      expect(page.mouse.move).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('tracks newly revealed descendants when their ancestor loses its hidden attribute', async () => {
     const {document, window} = parseHTML('<html><body><section hidden><p>Newly revealed prose must be translated during the first pass.</p></section></body></html>');
     Object.defineProperty(window.HTMLElement.prototype, 'getBoundingClientRect', {
@@ -1627,8 +1709,10 @@ describe('real-site translation matrix gates', () => {
     }
   });
 
-  it('keeps deleted or challenged pages quarantined and replaces them with stable docs', () => {
-    expect(cases['hacker-news-8863'].tier).toBe('quarantine');
+  it('restores recovered pages to required while keeping deleted or challenged pages quarantined', () => {
+    expect(cases['hacker-news-8863'].tier).toBe('required');
+    expect(cases['ubuntu-apt-manpage'].tier).toBe('required');
+    expect(cases['pubdev-provider'].tier).toBe('required');
     expect(cases['reddit-minimax-thread'].tier).toBe('quarantine');
     expect(cases['steam-workshop-discussion-3246316298'].tier).toBe('quarantine');
     expect(cases['w3c-accessibility-introduction'].tier).toBe('quarantine');
@@ -1672,6 +1756,30 @@ describe('real-site translation matrix gates', () => {
     expect(cases['learnopengl-coordinate-systems'].interactionSelectors).toEqual([
       '#content a[href], #nav a[href]',
     ]);
+  });
+
+  it('keeps modern manpage prose separate from mandatory command syntax and command labels', () => {
+    const {document} = parseHTML('<main><div id="manpage-content"><h2 id="synopsis" class="Sh">SYNOPSIS</h2><section><p class="Pp HP"><b>apt</b> [<b>--help</b>]</p></section><h2 id="description" class="Sh">DESCRIPTION</h2><section><p class="Pp">The command provides a package management interface.</p><p class="Pp">Its manual explains the most common options.</p><p class="Pp"><b>update</b></p><div class="Bd-indent">Download package information from configured sources.</div></section></div></main>');
+    const config = cases['ubuntu-apt-manpage'];
+    expect([...document.querySelectorAll(config.hoverSelector)].map((node) => node.textContent)).toEqual([
+      'The command provides a package management interface.',
+      'Its manual explains the most common options.',
+    ]);
+    const protectedNodes = config.forbiddenMustExistSelectors.flatMap((selector) => [...document.querySelectorAll(selector)]);
+    expect(protectedNodes.map((node) => node.textContent)).toEqual(['apt [--help]', 'update']);
+    expect(config.forbiddenMustExistSelectors.every((selector) => config.forbiddenSelectors.includes(selector))).toBe(true);
+  });
+
+  it('targets visible package readme content while requiring both fenced and inline code protection', () => {
+    const {document} = parseHTML('<main><div hidden><p class="detail-lead-text">A hidden responsive summary.</p></div><section class="detail-tab-readme-content"><p>Language navigation</p><p>A wrapper around <a href="https://api.flutter.dev/flutter/widgets/InheritedWidget-class.html">InheritedWidget</a> for reuse.</p><h2>Usage</h2><p>Read the <code>provider</code> state.</p><pre><code>final value = context.watch&lt;int&gt;();</code></pre></section></main>');
+    const config = cases['pubdev-provider'];
+    const targets = [...document.querySelectorAll(config.hoverSelector)];
+    expect(targets).toHaveLength(1);
+    expect(targets[0].textContent).toBe('A wrapper around InheritedWidget for reuse.');
+    expect(targets[0].closest('[hidden]')).toBeNull();
+    const protectedNodes = config.forbiddenMustExistSelectors.flatMap((selector) => [...document.querySelectorAll(selector)]);
+    expect(protectedNodes.some((node) => node.tagName === 'PRE')).toBe(true);
+    expect(protectedNodes.some((node) => node.tagName === 'CODE' && node.parentElement?.tagName === 'P')).toBe(true);
   });
 
   it('keeps PR 4038 title, body headings, paragraphs and lists as separate requirements', () => {

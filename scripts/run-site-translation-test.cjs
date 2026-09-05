@@ -1650,17 +1650,74 @@ async function readFullPageState(page, selector, requiredSelectors, fullCoverage
   });
 }
 
+function findHoverTextPointInPage({selector, index}) {
+  const target = document.querySelectorAll(selector)[index];
+  if (!target?.isConnected) return null;
+  const excluded = '[data-fr-translation-owned="true"], .fluent-read-bilingual-content, ' +
+    '.fluent-read-loading, .fluent-read-retry-wrapper, [hidden], [aria-hidden="true"], [inert]';
+  const walker = document.createTreeWalker(target, 4);
+  const candidates = [];
+  let textNode;
+  let textIndex = 0;
+  while ((textNode = walker.nextNode())) {
+    const currentIndex = textIndex++;
+    const parent = textNode.parentElement;
+    if (!parent || parent.closest(excluded) || !textNode.textContent?.trim()) continue;
+    const style = getComputedStyle(parent);
+    if (style.display === 'none' || style.visibility === 'hidden') continue;
+    const range = document.createRange();
+    range.selectNodeContents(textNode);
+    for (const rect of range.getClientRects()) {
+      const left = Math.max(0, rect.left);
+      const right = Math.min(window.innerWidth, rect.right);
+      const top = Math.max(0, rect.top);
+      const bottom = Math.min(window.innerHeight, rect.bottom);
+      if (right - left < 2 || bottom - top < 2) continue;
+      const x = left + (right - left) * 0.35;
+      const y = top + (bottom - top) / 2;
+      const hit = document.elementFromPoint(x, y);
+      if (!hit || !target.contains(hit) || hit.closest(excluded) || (hit !== parent && !hit.contains(parent))) continue;
+      // 优先原文普通文本，避免把标题末尾的永久链接或双语副本当作手势入口。
+      const link = parent.closest('a');
+      candidates.push({
+        x, y, textIndex: currentIndex,
+        text: textNode.textContent,
+        rect: {left: rect.left, top: rect.top, width: rect.width, height: rect.height},
+        priority: link && link !== target ? 1 : 0,
+      });
+    }
+  }
+  candidates.sort((left, right) => left.priority - right.priority);
+  return candidates[0] || null;
+}
+
+async function waitForHoverPointer(page, targetConfig, timeout) {
+  const started = Date.now();
+  let previous;
+  let stableSince = started;
+  while (Date.now() - started < timeout) {
+    const point = await page.evaluate(findHoverTextPointInPage, targetConfig);
+    const stable = point && previous && point.textIndex === previous.textIndex && point.text === previous.text &&
+      ['left', 'top', 'width', 'height'].every((key) => Math.abs(point.rect[key] - previous.rect[key]) < 0.5) &&
+      Math.abs(point.x - previous.x) < 0.5 && Math.abs(point.y - previous.y) < 0.5;
+    if (!stable) {
+      stableSince = Date.now();
+      if (point) await page.mouse.move(point.x, point.y);
+    } else if (Date.now() - stableSince >= 200) {
+      return point;
+    }
+    previous = point;
+    await page.waitForTimeout(50);
+  }
+  throw new Error(`悬浮原文没有稳定且可命中的位置：${JSON.stringify({targetConfig, lastPoint: previous})}`);
+}
+
 async function toggleHover(page, target, targetConfig, expectedCount, timeout) {
   const {selector, index} = targetConfig;
   await target.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(250);
-  const box = await target.boundingBox();
-  if (!box) throw new Error('悬浮翻译目标不可见');
-  const x = box.x + Math.min(Math.max(box.width * 0.35, 8), Math.max(box.width - 8, 8));
-  // 指针保持在原文首行。双语模式会追加第二行；若使用翻译后的垂直中心，
-  // 在 GitHub Pulls 等密集列表中可能漂移到相邻行。
-  const y = box.y + Math.min(Math.max(box.height * 0.2, 4), 12);
-  await page.mouse.move(x, y);
+  // 还原译文会改变布局，宿主也可能继续滚动或播放入场动画。固定等待后取外框
+  // 坐标会落到空白容器；按键前等待真实原文行稳定并保持命中，按键只发送一次。
+  const {x, y} = await waitForHoverPointer(page, targetConfig, timeout);
   await page.keyboard.down('Control');
   await page.keyboard.up('Control');
   try {
@@ -2316,6 +2373,9 @@ module.exports = {
   isNaturalLanguageText,
   newestFile,
   reconcileForbiddenContractState,
+  findHoverTextPointInPage,
+  waitForHoverPointer,
+  toggleHover,
   resolveHoverTarget,
   settleCoverageByReveal,
   closeInteractionDialog,

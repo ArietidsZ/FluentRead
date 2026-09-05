@@ -1432,7 +1432,7 @@ async function main() {
     };
     const visualSignatures = new Set();
     // 皮肤矩阵复用同一真实扩展页，每次完整导航重新读取持久化配置。
-    // 短生命周期关闭/重开由前后的独立case覆盖；避免反复创建Target使macOS激活Edge。
+    // 短生命周期关闭/重开由前面的独立 case 覆盖；避免反复创建 Target 使 macOS 激活 Edge。
     const skinPopup = await newPageWithoutForeground(context, timeout);
     attachPageDiagnostics(skinPopup);
     await skinPopup.setViewportSize({width: 400, height: 600});
@@ -1659,8 +1659,15 @@ async function main() {
         multilingualMetrics,
       });
     }
-    await skinPopup.close();
-    report.skinPopupLifecycle = {isolatedPages: 1, fullNavigations: expectedInterfaceSkins.length};
+    // Edge 的 CDP 附加在长皮肤矩阵后新建 Target 可能激活原生窗口。
+    // 保留同一隔离页，每项先完整离开 Popup 再重新加载，销毁旧文档及组件状态。
+    await skinPopup.goto('about:blank', {waitUntil: 'domcontentloaded', timeout});
+    report.skinPopupLifecycle = {
+      isolatedPages: 1,
+      fullNavigations: expectedInterfaceSkins.length,
+      appearanceReopenNavigations: 0,
+      appearanceReopenMode: 'blank-then-popup',
+    };
     if (visualSignatures.size !== expectedInterfaceSkins.length) {
       throw new Error(`所有皮肤没有形成独立视觉签名：${visualSignatures.size}`);
     }
@@ -1752,10 +1759,10 @@ async function main() {
     ), undefined, {timeout});
     await page.waitForTimeout(500);
 
-    const interfacePopup = await newPageWithoutForeground(context, timeout);
-    attachPageDiagnostics(interfacePopup);
+    const interfacePopup = skinPopup;
     await interfacePopup.setViewportSize({width: 400, height: 600});
     await interfacePopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
+    report.skinPopupLifecycle.appearanceReopenNavigations += 1;
     await interfacePopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
     await interfacePopup.waitForTimeout(350);
     if (await interfacePopup.locator('.features').count() !== 0) {
@@ -1789,16 +1796,16 @@ async function main() {
       throw new Error(`隐藏 Popup 栏目后空白区域没有随内容收缩：${JSON.stringify(popupMetrics)}`);
     }
     report.screenshots.push(await screenshotElement(interfacePopup.locator('.popup-shell'), 'popup-interface-minimal-hidden-sections.png'));
-    await interfacePopup.close();
+    await interfacePopup.goto('about:blank', {waitUntil: 'domcontentloaded', timeout});
 
     // 默认风格在栏目齐全时保持原高度；隐藏栏目时同样不能留下固定空白。
     await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="default"]').click();
     await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'default', undefined, {timeout});
     await page.waitForTimeout(500);
-    const defaultHiddenPopup = await newPageWithoutForeground(context, timeout);
-    attachPageDiagnostics(defaultHiddenPopup);
+    const defaultHiddenPopup = skinPopup;
     await defaultHiddenPopup.setViewportSize({width: 400, height: 600});
     await defaultHiddenPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
+    report.skinPopupLifecycle.appearanceReopenNavigations += 1;
     await defaultHiddenPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
     await defaultHiddenPopup.waitForTimeout(350);
     const defaultHiddenMetrics = await defaultHiddenPopup.locator('.popup-shell').evaluate(element => ({
@@ -1814,7 +1821,7 @@ async function main() {
       throw new Error(`默认风格隐藏栏目后没有按内容收缩：${JSON.stringify(defaultHiddenMetrics)}`);
     }
     report.screenshots.push(await screenshotElement(defaultHiddenPopup.locator('.popup-shell'), 'popup-interface-default-hidden-sections.png'));
-    await defaultHiddenPopup.close();
+    await defaultHiddenPopup.goto('about:blank', {waitUntil: 'domcontentloaded', timeout});
 
     await popupLayoutEditor.locator('[data-popup-layout-module="quickFeatures"] .el-switch').click({force: true});
     await popupLayoutEditor.locator('[data-popup-layout-module="footer"] .el-switch').click({force: true});
@@ -1828,10 +1835,10 @@ async function main() {
         .map(element => element.getAttribute('data-popup-layout-module')),
     ) === JSON.stringify(expected), defaultLayoutOrder, {timeout});
     await page.waitForTimeout(500);
-    const defaultFullPopup = await newPageWithoutForeground(context, timeout);
-    attachPageDiagnostics(defaultFullPopup);
+    const defaultFullPopup = skinPopup;
     await defaultFullPopup.setViewportSize({width: 400, height: 600});
     await defaultFullPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
+    report.skinPopupLifecycle.appearanceReopenNavigations += 1;
     await defaultFullPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
     await defaultFullPopup.waitForTimeout(350);
     const defaultFullMetrics = await defaultFullPopup.locator('.popup-shell').evaluate(element => ({

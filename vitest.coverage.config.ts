@@ -276,6 +276,7 @@ export default defineConfig({
                 'src/core/translation/adapters/hackernews.ts',
                 'src/core/translation/adapters/learnopengl.ts',
                 'src/core/translation/adapters/reddit.ts',
+                'src/core/translation/adapters/ubuntu.ts',
                 'src/core/translation/adapters/x.ts',
                 'src/core/translation/adapters/youtube.ts',
                 'src/core/translation/current.ts',

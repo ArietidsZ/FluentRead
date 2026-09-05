@@ -736,6 +736,112 @@ describe('translation candidate core', () => {
         expect(createTranslationSourceSnapshot(code, core.shouldStayOriginal).slots).toHaveLength(0);
     });
 
+    it('保护 Ubuntu manpage 命令语法和任意命令名称，同时翻译解释正文', () => {
+        const {document, core} = page(`
+            <div id="main-content"><h1 id="command-title">apt</h1></div>
+            <main><div id="manpage-content">
+                <h2 id="synopsis" class="Sh">SYNOPSIS</h2>
+                <section id="syntax" class="Sh mp-section"><p class="Pp HP"><b>apt</b> [<b>--help</b>] [<i>future_option</i>]</p></section>
+                <h2 id="description" class="Sh">DESCRIPTION</h2>
+                <section id="body" class="Sh mp-section">
+                    <p id="intro" class="Pp"><b>apt</b> provides a package management interface.</p>
+                    <p id="command-label" class="Pp"><b>future-command-2027</b> (<a href="tool.8.html"><b>tool</b>(8)</a>)</p>
+                    <div id="explanation" class="Bd-indent">Download package information with <b>future-command-2027</b> for <i>package_name</i>.</div>
+                    <p id="ordinary" class="Pp">An ordinary paragraph uses the word update naturally.</p>
+                </section>
+            </div></main>
+            <p id="outside">Ordinary <b>bold emphasis</b> remains natural prose.</p>
+        `, 'https://manpages.ubuntu.com/manpages/noble/man8/apt.8.html');
+        const regions = ['command-title', 'syntax', 'command-label'].map((id) => document.getElementById(id)!);
+        const originalHTML = regions.map((node) => node.outerHTML);
+        const originalNodes = regions.map((node) => [...node.childNodes]);
+        const candidates = core.discover(document);
+        expect(candidates.map(({element}) => element.id)).toEqual(expect.arrayContaining(['intro', 'explanation', 'ordinary', 'outside']));
+        for (const region of regions) {
+            expect(candidates.some(({element}) => element === region || region.contains(element))).toBe(false);
+            expect(core.resolve(region.firstChild)).toBeNull();
+            expect(core.shouldIgnoreMutation(region)).toBe(true);
+            expect(createTranslationSourceSnapshot(region, core.shouldStayOriginal).slots).toEqual([]);
+        }
+        const intro = document.getElementById('intro')!;
+        expect(core.resolve(intro.querySelector('b')!.firstChild)?.element).toBe(intro);
+        const introSnapshot = createTranslationSourceSnapshot(intro, core.shouldStayOriginal);
+        expect(introSnapshot.slots.map(({source}) => source)).toEqual(['provides a package management interface.']);
+        expect(applyTranslationsToSnapshot(introSnapshot, ['提供软件包管理界面。'])).toContain('<b>apt</b>');
+        const explanationSnapshot = createTranslationSourceSnapshot(document.getElementById('explanation')!, core.shouldStayOriginal);
+        expect(explanationSnapshot.slots.map(({source}) => source).join(' ')).not.toContain('package_name');
+        expect(applyTranslationsToSnapshot(explanationSnapshot, explanationSnapshot.slots.map(() => '说明')))
+            .toContain('<i>package_name</i>');
+        expect(createTranslationSourceSnapshot(document.getElementById('outside')!, core.shouldStayOriginal).slots
+            .map(({source}) => source)).toContain('bold emphasis');
+        const bodySnapshot = createTranslationSourceSnapshot(document.getElementById('manpage-content')!,
+            core.shouldStayOriginal, undefined, undefined, core.shouldOmitFromTranslation);
+        expect(bodySnapshot.slots.map(({source}) => source).join(' ')).not.toMatch(/future-command-2027|future_option|--help/u);
+        expect(bodySnapshot.clone.querySelector('#syntax')).toBeNull();
+        expect(bodySnapshot.clone.querySelector('#command-label')).toBeNull();
+        expect(regions.map((node) => node.outerHTML)).toEqual(originalHTML);
+        expect(regions.map((node) => [...node.childNodes])).toEqual(originalNodes);
+        document.getElementById('body')!.insertAdjacentHTML('beforeend',
+            '<p id="late-command" class="Pp"><b>unknown-operation</b></p><div id="late-explanation" class="Bd-indent">This operation explains a future capability.</div>');
+        expect(core.discover(document).map(({element}) => element.id)).toContain('late-explanation');
+        expect(core.resolve(document.getElementById('late-command')!.firstChild)).toBeNull();
+    });
+
+    it('不因紧邻缩进块而剪掉普通说明、前置原文或带命令名的完整句子', () => {
+        const introductions = [
+            'The following example shows how to configure this command.',
+            'Run <b>future-command</b> to continue.',
+            '<b>apt</b> provides a package management interface.',
+            '<b>apt</b> <a href="guide.html">provides a package management interface</a>.',
+            '<span>Ordinary introduction</span>',
+        ];
+        for (const introduction of introductions) {
+            const {document, core} = page(`<div id="manpage-content"><h2 id="description">DESCRIPTION</h2><section class="Sh"><p id="intro" class="Pp">${introduction}</p><div class="Bd-indent"><b>future-command</b> --dry-run</div></section></div>`,
+                'https://manpages.ubuntu.com/manpages/noble/man1/future-command.1.html');
+            const intro = document.getElementById('intro')!;
+            expect(core.shouldStayOriginal(intro)).toBe(false);
+            expect(core.shouldOmitFromTranslation(intro)).toBe(false);
+            expect(core.shouldIgnoreMutation(intro)).toBe(false);
+            expect(core.discover(document).some(({element}) => element === intro)).toBe(true);
+            expect(createTranslationSourceSnapshot(intro, core.shouldStayOriginal).slots.length).toBeGreaterThan(0);
+        }
+    });
+
+    it('仅把平衡括号的命令附注当作标签，并忽略已有扩展副本', () => {
+        const labels: Array<[string, boolean]> = [
+            ['<b>edit-sources</b> (work-in-progress)', true],
+            ['<b>showsrc, depends</b> (summarised in <a href="apt-cache.8.html"><b>apt-cache</b>(8)</a>)', true],
+            ['<!-- a host comment --> <i>future_option</i>', true],
+            ['<b>unknown-operation</b><span data-fr-translation-owned="true">旧译文</span>', true],
+            ['<b>unknown-operation</b> (unfinished note', false],
+            ['<b>unknown-operation</b> )', false],
+            ['<!-- empty placeholder --> ', false],
+            ['<b></b>', false],
+        ];
+        for (const [labelHTML, protectedLabel] of labels) {
+            const {document, core} = page(`<div id="manpage-content"><h2 id="description">DESCRIPTION</h2><section class="Sh"><p id="label" class="Pp">${labelHTML}</p><div class="Bd-indent">An explanation of the operation.</div></section></div>`,
+                'https://manpages.ubuntu.com/manpages/noble/man8/apt.8.html');
+            const label = document.getElementById('label')!;
+            expect(core.shouldStayOriginal(label), labelHTML).toBe(protectedLabel);
+            expect(core.shouldOmitFromTranslation(label), labelHTML).toBe(protectedLabel);
+            expect(core.shouldIgnoreMutation(label), labelHTML).toBe(protectedLabel);
+        }
+    });
+
+    it('不把 Ubuntu manpage 的命令规则扩散到其他站点或非手册路径', () => {
+        const html = '<div id="manpage-content"><h2 id="description">Description</h2><section class="Sh"><p id="label" class="Pp"><b>Ordinary text</b></p><div class="Bd-indent">A regular explanation.</div></section></div>';
+        for (const url of ['https://example.test/manpages/noble/man8/apt.8.html',
+            'https://manpages.ubuntu.com.example.test/manpages/noble/man8/apt.8.html',
+            'https://example.manpages.ubuntu.com/manpages/noble/man8/apt.8.html',
+            'https://manpages.ubuntu.com/help']) {
+            const {document, core} = page(html, url);
+            expect(core.shouldStayOriginal(document.getElementById('label')!)).toBe(false);
+            expect(core.discover(document).map(({element}) => element.id)).toContain('label');
+        }
+        const {document, core} = page(html, 'https://manpages.ubuntu.com/manpages/noble/en/man8/apt.8.html');
+        expect(core.shouldStayOriginal(document.getElementById('label')!)).toBe(true);
+    });
+
     it('keeps MathJax and KaTeX render trees atomic while translating surrounding prose', () => {
         const {document, core} = page(`
             <main><p id="prose">
