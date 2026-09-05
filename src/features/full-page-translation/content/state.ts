@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/state.ts
  * 文件职责：维护每个被翻译 DOM 节点的可恢复状态、请求代次、译文工件和共享布局覆盖所有权，确保重复翻译、宿主变更和移除节点都能安全收敛。
- * 主要内容：包含 WeakMap 状态索引、begin/complete/error/discard 状态机、spinner/译文/retry/仅译文槽节点登记、同源译文工件有界重挂、截断祖先样式快照与观察器引用计数、文本槽回写以及全量恢复。
+ * 主要内容：包含 WeakMap 状态索引、begin/complete/error/discard 状态机、spinner/译文/retry/仅译文槽节点登记、无主槽原文解包、同源译文工件有界重挂、截断祖先样式快照与观察器引用计数、文本槽回写以及全量恢复。
  * 模块边界：该模块不发现候选、不请求翻译也不生成译文 HTML；runtime 负责会话编排，renderer 负责内容创建，本文件仅拥有 DOM 状态与可逆样式资源，避免跨 session 误删新结果。
  */
 import {
@@ -153,6 +153,7 @@ let bilingualLifecycleExternallyManaged: (() => boolean) | undefined;
 const maxTranslationLayoutAncestorDepth = 16;
 const BILINGUAL_ARTIFACT_SELECTOR =
     '.fluent-read-bilingual-content[data-fr-translation-owned="true"]';
+const SINGLE_TEXT_SLOT_SELECTOR = '.fluent-read-single-slot[data-fr-translation-owned="true"]';
 const MAX_BILINGUAL_ARTIFACT_REPAIRS_PER_WINDOW = 3;
 const SOURCE_STRUCTURE_ATTRIBUTES = [
     'href', 'title', 'role', 'translate', 'lang', 'dir', 'contenteditable',
@@ -1460,6 +1461,28 @@ export function discardTranslation(
     return true;
 }
 
+/**
+ * 宿主 innerHTML/cloneNode 只会复制 single-slot 的轻 DOM 原文，无法复制 closed
+ * ShadowRoot。清理前解包这些无主槽，同时保留精确注册给活跃 owner 的真实槽。
+ * 只查询当前 root；身份检查不因槽内包含其他活跃 owner 就把外层克隆误认为自有。
+ */
+export function unwrapUnownedSingleTextSlots(root: Node): void {
+    const slots: Element[] = [];
+    if (root.nodeType === 1 && (root as Element).matches(SINGLE_TEXT_SLOT_SELECTOR)) slots.push(root as Element);
+    const queryRoot = root as Node & ParentNode;
+    if (typeof queryRoot.querySelectorAll === 'function') {
+        slots.push(...Array.from(queryRoot.querySelectorAll(SINGLE_TEXT_SLOT_SELECTOR)));
+    }
+    slots.forEach((slot) => {
+        if (!slot.parentNode || states.has(slot as HTMLElement) ||
+            getTranslationOwnersForIndexedNode(slot).some((owner) =>
+                states.get(owner)?.singleTextSlotHosts?.some(({host}) => host === slot))) return;
+        const parent = slot.parentNode;
+        while (slot.firstChild) parent.insertBefore(slot.firstChild, slot);
+        parent.removeChild(slot);
+    });
+}
+
 function teardownAttempt(
     node: HTMLElement,
     state: TranslationState,
@@ -1476,13 +1499,17 @@ function teardownAttempt(
         while (host.firstChild) parent.insertBefore(host.firstChild, host);
         parent.removeChild(host);
     });
+    // 同一 owner 可能还活着，但所有旧槽已被宿主克隆替换。必须在通用 owned
+    // 删除前抢先解包克隆原文；恢复原文入口也不能依赖稍后才执行的 discovery。
+    unwrapUnownedSingleTextSlots(node);
 
     removeExtensionNode(state.spinner);
     removeExtensionNode(state.settledSpinner);
     removeExtensionNode(state.bilingualContent);
     removeExtensionNode(state.retryWrapper);
     Array.from(node.children ?? [])
-        .filter((child) => child.matches('[data-fr-translation-owned="true"]'))
+        .filter((child) => child.matches('[data-fr-translation-owned="true"]') &&
+            !child.matches(SINGLE_TEXT_SLOT_SELECTOR))
         .forEach((artifact) => artifact.remove());
     releaseTranslationLayoutOverrides(node, state);
 
@@ -1500,6 +1527,17 @@ function teardownAttempt(
     restoreOriginalClass(node, state);
     clearState(node);
     unwrapSyntheticSegment(node, state);
+}
+
+/** 提交实时文本前，把恢复快照原子绑定到已校验的当前来源节点。 */
+export function setLiveTranslationSourceSnapshot(node: HTMLElement, textNodes: readonly Text[]): void {
+    const state = states.get(node);
+    if (!state) return;
+    state.sourceTextNodes = [...textNodes];
+    state.sourceHTML = node.innerHTML;
+    // 等价重挂可能已经替换请求创建时的 Text；原值必须在本次写译文前捕获，
+    // 才能恢复实际提交节点并保留宿主最新的前后空白。
+    state.originalTextValues = textNodes.map((textNode) => ({node: textNode, value: textNode.nodeValue ?? ""}));
 }
 
 export function setTextSlotsApplied(

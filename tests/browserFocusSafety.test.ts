@@ -50,6 +50,106 @@ function readScript(path: string): string {
 }
 
 describe('browser regression focus safety', () => {
+    it('全文配置读取复用隔离页并只在该页已关闭时重新创建', async () => {
+        const {getConfigurationPage} = require(resolve(
+            PROJECT_ROOT, 'scripts/run-full-page-translation-test.cjs',
+        ));
+        const context = {};
+        const firstPage = {isClosed: vi.fn(() => false), close: vi.fn()};
+        const replacement = {isClosed: vi.fn(() => false), close: vi.fn()};
+        const createPage = vi.fn().mockResolvedValueOnce(firstPage).mockResolvedValueOnce(replacement);
+
+        await expect(getConfigurationPage(context, createPage)).resolves.toBe(firstPage);
+        await expect(getConfigurationPage(context, createPage)).resolves.toBe(firstPage);
+        expect(createPage).toHaveBeenCalledOnce();
+        expect(firstPage.close).not.toHaveBeenCalled();
+        firstPage.isClosed.mockReturnValue(true);
+        await expect(getConfigurationPage(context, createPage)).resolves.toBe(replacement);
+        expect(createPage).toHaveBeenCalledTimes(2);
+        const otherCreatePage = vi.fn(async () => ({isClosed: () => false}));
+        await getConfigurationPage({}, otherCreatePage);
+        expect(otherCreatePage).toHaveBeenCalledOnce();
+    });
+
+    it('悬浮取消证据拒绝取消期间的新请求、短暂译文和无法恢复的新手势', () => {
+        const {assertCancelledHoverGesture} = require(resolve(
+            PROJECT_ROOT, 'scripts/run-full-page-translation-test.cjs',
+        ));
+        const evidence = {
+            initialRequests: 0,
+            stages: Array.from({length: 3}, () => ({requests: 0, wrapperCount: 0, htmlStable: true})),
+            freshGesture: {wrapperCount: 1, neighborCount: 0},
+            restored: {wrapperCount: 0, htmlStable: true},
+            urlBefore: 'http://127.0.0.1/fixture',
+            urlAfter: 'http://127.0.0.1/fixture',
+        };
+        expect(() => assertCancelledHoverGesture(evidence)).not.toThrow();
+        for (const stage of [
+            {requests: 1, wrapperCount: 0, htmlStable: true},
+            {requests: 0, wrapperCount: 1, htmlStable: true},
+            {requests: 0, wrapperCount: 0, htmlStable: false},
+        ]) {
+            expect(() => assertCancelledHoverGesture({...evidence, stages: [stage, ...evidence.stages.slice(1)]}))
+                .toThrow('已取消的悬浮组合键重新触发翻译');
+        }
+        expect(() => assertCancelledHoverGesture({
+            ...evidence, freshGesture: {wrapperCount: 0, neighborCount: 0},
+        })).toThrow('新悬浮手势没有正常恢复');
+        expect(() => assertCancelledHoverGesture({...evidence, urlAfter: 'http://127.0.0.1/unexpected'}))
+            .toThrow('新悬浮手势没有正常恢复');
+    });
+
+    it('同值属性证据同时拒绝短暂原文、缓存掩盖的 DOM 重建和几何跳动', () => {
+        const {assertUnchangedAttributeStability} = require(resolve(
+            PROJECT_ROOT, 'scripts/run-full-page-translation-test.cjs',
+        ));
+        const target = {sameOwner: true, sameSlots: true, htmlStable: true, domMutations: 0,
+            invalidPaintFrames: 0, maxGeometryDelta: 0};
+        const evidence = {beforeRequests: 5, afterRequests: 5, paintFrames: 24, targets: [target, target]};
+        expect(() => assertUnchangedAttributeStability(evidence)).not.toThrow();
+        for (const failure of [
+            {sameOwner: false}, {sameSlots: false}, {htmlStable: false}, {domMutations: 2},
+            {invalidPaintFrames: 1}, {maxGeometryDelta: 1},
+        ]) {
+            expect(() => assertUnchangedAttributeStability({...evidence, targets: [{...target, ...failure}, target]}))
+                .toThrow('同值属性写入重建了已完成的单译文或控件');
+        }
+        expect(() => assertUnchangedAttributeStability({...evidence, afterRequests: 6}))
+            .toThrow('同值属性写入重建了已完成的单译文或控件');
+        expect(() => assertUnchangedAttributeStability({...evidence, paintFrames: 0}))
+            .toThrow('同值属性写入重建了已完成的单译文或控件');
+    });
+
+    it('仅译文保护区证据要求原 Text 保留且只有剩余来源仍有译文', () => {
+        const {assertSingleSourceProtection} = require(resolve(
+            PROJECT_ROOT, 'scripts/run-full-page-translation-test.cjs',
+        ));
+        const evidence = {beforeSlots: 2, afterSlots: 1, protectedSlots: 0,
+            protectedSourcePreserved: true, sameProtectedSource: true, remainingTranslated: true,
+            loadingCount: 0, retryCount: 0};
+        expect(() => assertSingleSourceProtection(evidence)).not.toThrow();
+        for (const failure of [{afterSlots: 2}, {afterSlots: 0}, {protectedSlots: 1},
+            {protectedSourcePreserved: false}, {sameProtectedSource: false}, {remainingTranslated: false}]) {
+            expect(() => assertSingleSourceProtection({...evidence, ...failure}))
+                .toThrow('仅译文的后代保护边界变化没有重建正确来源');
+        }
+    });
+
+    it('仅译文克隆证据拒绝丢失原文、沿用无 ShadowRoot 的克隆槽与错误恢复节点', () => {
+        const {assertSingleCloneRestoration} = require(resolve(
+            PROJECT_ROOT, 'scripts/run-full-page-translation-test.cjs',
+        ));
+        const evidence = {sameOwner: true, sourceTextPreserved: true, sameClonedSource: true,
+            rebuiltSlot: true, translated: true, slotCount: 1, restoredTextPreserved: true,
+            restoredClonedSource: true, restoredSlotCount: 0};
+        expect(() => assertSingleCloneRestoration(evidence)).not.toThrow();
+        for (const failure of [{sourceTextPreserved: false}, {sameClonedSource: false}, {rebuiltSlot: false},
+            {slotCount: 2}, {restoredTextPreserved: false}, {restoredClonedSource: false}]) {
+            expect(() => assertSingleCloneRestoration({...evidence, ...failure}))
+                .toThrow('仅译文宿主克隆丢失原文或无法恢复');
+        }
+    });
+
     it('全文回归内建 fixture handler 只提供预期页面并禁用缓存', () => {
         const {
             assertDeterministicFixtureTraffic,

@@ -2,7 +2,7 @@
 
 // 这个脚本只使用临时 Edge profile 和真实 Alt+T / Control 键盘手势，回归全文翻译的
 // 识别、按钮特殊处理、富文本结构、动态节点、Shadow DOM、0ms 连续悬浮、
-// 普通 hover 触发的同源 DOM 换代稳定性以及恢复流程。
+// 普通 hover 触发的同源 DOM 换代、取消后的组合键隔离、同值属性写入稳定性以及恢复流程。
 // 传入 --verify-floating-ui 时，还会从 closed Shadow DOM 读取悬浮球透明度、
 // 展开/收起、中间 Logo 点击稳定性、勾选标记几何与离屏任务下的进度面板显隐。
 // 它不会连接用户正在使用的浏览器 profile，也不会通过 JS 合成键盘事件。
@@ -15,6 +15,7 @@ const { createRequire } = require('node:module');
 
 const FAILURE_ACTION_LINK_SELECTOR = '#translation-error-link';
 const FAILURE_ACTION_TEXT_MARKER = 'This block link fails once';
+const configurationPages = new WeakMap();
 
 function parseArgs(argv) {
   const args = {
@@ -440,12 +441,22 @@ async function waitFor(page, predicate, timeout, description) {
   if (description) return description;
 }
 
+async function getConfigurationPage(context, createPage) {
+  const existing = configurationPages.get(context);
+  if (existing && !existing.isClosed()) return existing;
+  const page = await createPage();
+  configurationPages.set(context, page);
+  return page;
+}
+
 async function readConfig(context, timeout, updates = null, createPage = () => context.newPage()) {
   const workers = context.serviceWorkers();
   const worker = workers[0] || await context.waitForEvent('serviceworker', { timeout: Math.min(timeout, 30000) });
   const match = worker.url().match(/^chrome-extension:\/\/([^/]+)/);
   if (!match) throw new Error('没有找到扩展 service worker');
-  const popup = await createPage();
+  // 反复关闭配置页可能让 macOS Edge 提升剩余窗口；同一隔离上下文复用一页，
+  // 由浏览器 finally 一并清理，全部创建/激活仍经过 focus-safe helper。
+  const popup = await getConfigurationPage(context, createPage);
   try {
     await popup.goto(`chrome-extension://${match[1]}/popup.html`, { waitUntil: 'domcontentloaded', timeout: 30000 });
     const config = await popup.evaluate(async ({configUpdates, timeoutMs}) => {
@@ -539,8 +550,9 @@ async function readConfig(context, timeout, updates = null, createPage = () => c
       throw new Error('全文测试配置没有通过后台协议持久化');
     }, {configUpdates: updates, timeoutMs: timeout});
     return { extensionId: match[1], config };
-  } finally {
-    await popup.close();
+  } catch (error) {
+    configurationPages.delete(context);
+    throw error;
   }
 }
 
@@ -577,8 +589,263 @@ async function toggleHoverTranslation(page, selector, activatePage) {
   await page.keyboard.up('Control');
 }
 
+function assertCancelledHoverStages(evidence) {
+  if (evidence.stages.length !== 3 || evidence.stages.some((stage) =>
+    stage.requests !== evidence.initialRequests || stage.wrapperCount !== 0 || !stage.htmlStable)) {
+    throw new Error(`已取消的悬浮组合键重新触发翻译：${JSON.stringify(evidence)}`);
+  }
+}
+
+function assertCancelledHoverGesture(evidence) {
+  assertCancelledHoverStages(evidence);
+  if (evidence.freshGesture.wrapperCount !== 1 || evidence.freshGesture.neighborCount !== 0 ||
+      evidence.restored.wrapperCount !== 0 || !evidence.restored.htmlStable ||
+      evidence.urlBefore !== evidence.urlAfter) {
+    throw new Error(`释放全部按键后的新悬浮手势没有正常恢复：${JSON.stringify(evidence)}`);
+  }
+}
+
+async function verifyCancelledHoverGesture(page, activatePage, translationFixtureServer, timeout) {
+  await activatePage(page);
+  const selectors = ['#paragraph-one', '#paragraph-two'];
+  const originalHtml = await page.evaluate((targets) => targets.map((selector) =>
+    document.querySelector(selector)?.innerHTML), selectors);
+  const urlBefore = page.url();
+  const initialRequests = translationFixtureServer.requestCount();
+  const readStage = async (phase) => ({
+    phase,
+    requests: translationFixtureServer.requestCount(),
+    ...await page.evaluate(({targets, html}) => ({
+      wrapperCount: targets.reduce((count, selector) => count +
+        (document.querySelector(selector)?.querySelectorAll('.fluent-read-bilingual-content').length || 0), 0),
+      htmlStable: targets.every((selector, index) => document.querySelector(selector)?.innerHTML === html[index]),
+    }), {targets: selectors, html: originalHtml}),
+  });
+  const moveAcrossTargets = async () => {
+    for (const selector of selectors) {
+      const box = await page.locator(selector).boundingBox();
+      if (!box) throw new Error(`已取消悬浮手势的目标不可见：${selector}`);
+      await page.mouse.move(box.x + 20, box.y + 12, {steps: 3});
+      await page.waitForTimeout(100);
+    }
+  };
+  const stages = [];
+  await page.mouse.move(0, 0);
+  await page.keyboard.down('Control');
+  try {
+    await page.keyboard.down('c');
+    try {
+      await moveAcrossTargets();
+      stages.push(await readStage('Control+C held'));
+    } finally {
+      await page.keyboard.up('c');
+    }
+    await moveAcrossTargets();
+    stages.push(await readStage('C released, Control held'));
+  } finally {
+    await page.keyboard.up('Control');
+  }
+  await page.waitForTimeout(200);
+  stages.push(await readStage('all keys released'));
+  assertCancelledHoverStages({initialRequests, stages});
+
+  // 下一轮新的可信手势必须恢复正常，避免以永久关闭悬浮来掩盖取消缺陷。
+  await toggleHoverTranslation(page, '#paragraph-two', activatePage);
+  await page.waitForFunction(() => document.querySelectorAll(
+    '#paragraph-two > .fluent-read-bilingual-content').length === 1, undefined, {timeout});
+  const freshGesture = await page.evaluate(() => ({
+    wrapperCount: document.querySelectorAll('#paragraph-two > .fluent-read-bilingual-content').length,
+    neighborCount: document.querySelectorAll('#paragraph-one .fluent-read-bilingual-content').length,
+  }));
+  await toggleHoverTranslation(page, '#paragraph-two', activatePage);
+  await page.waitForFunction(() => !document.querySelector('#paragraph-two .fluent-read-bilingual-content'),
+    undefined, {timeout});
+  const restored = await readStage('restored after fresh gesture');
+  const evidence = {initialRequests, stages, freshGesture, restored, urlBefore, urlAfter: page.url()};
+  assertCancelledHoverGesture(evidence);
+  return evidence;
+}
+
+function assertUnchangedAttributeStability(evidence) {
+  if (evidence.beforeRequests !== evidence.afterRequests || evidence.paintFrames < 18 ||
+      evidence.targets.length !== 2 || evidence.targets.some((target) =>
+        !target.sameOwner || !target.sameSlots || !target.htmlStable || target.domMutations !== 0 ||
+        target.invalidPaintFrames !== 0 || target.maxGeometryDelta > 0.5)) {
+    throw new Error(`同值属性写入重建了已完成的单译文或控件：${JSON.stringify(evidence)}`);
+  }
+}
+
+function assertSingleSourceProtection(evidence) {
+  if (evidence.beforeSlots !== 2 || evidence.afterSlots !== 1 || evidence.protectedSlots !== 0 ||
+      !evidence.protectedSourcePreserved || !evidence.sameProtectedSource || !evidence.remainingTranslated ||
+      evidence.loadingCount !== 0 || evidence.retryCount !== 0) {
+    throw new Error(`仅译文的后代保护边界变化没有重建正确来源：${JSON.stringify(evidence)}`);
+  }
+}
+
+function assertSingleCloneRestoration(evidence) {
+  if (!evidence.sameOwner || !evidence.sourceTextPreserved || !evidence.sameClonedSource ||
+      !evidence.rebuiltSlot || !evidence.translated || evidence.slotCount !== 1 ||
+      !evidence.restoredTextPreserved || !evidence.restoredClonedSource || evidence.restoredSlotCount !== 0) {
+    throw new Error(`仅译文宿主克隆丢失原文或无法恢复：${JSON.stringify(evidence)}`);
+  }
+}
+
+async function verifyUnchangedAttributeStability({
+  page, context, args, createIsolatedPage, activateTestPage, translationFixtureServer, artifactsDir,
+}) {
+  const selectors = ['#paragraph-two', '#save-button'];
+  await page.evaluate(() => {
+    const owner = document.createElement('p');
+    owner.id = 'single-source-protection-target';
+    owner.innerHTML = '<span id="single-protected-source">This named source region will become protected.</span> The remaining source must keep its translation.';
+    document.querySelector('main').prepend(owner);
+    window.__fluentReadSourceProtection = {
+      source: owner.querySelector('span').firstChild,
+      text: owner.querySelector('span').textContent,
+    };
+    const cloneOwner = document.createElement('p');
+    cloneOwner.id = 'single-clone-target';
+    cloneOwner.textContent = 'Host clones of translated markup must preserve every source word.';
+    owner.after(cloneOwner);
+  });
+  await page.evaluate((targets) => targets.forEach((selector) => {
+    const owner = document.querySelector(selector);
+    owner.setAttribute('title', 'Stable host tooltip');
+    owner.setAttribute('lang', 'en');
+  }), selectors);
+  await readConfig(context, args.timeout, {display: 0}, createIsolatedPage);
+  try {
+    await toggleFullPage(page, activateTestPage);
+    await page.waitForFunction(() => document.querySelector('#paragraph-two .fluent-read-single-slot') &&
+      /[\u3400-\u9fff]/u.test(document.querySelector('#save-button')?.textContent || ''),
+    undefined, {timeout: args.timeout});
+    await page.waitForFunction(() => !document.querySelector('.fluent-read-loading'), undefined, {timeout: args.timeout});
+    const beforeRequests = translationFixtureServer.requestCount();
+    const sample = await page.evaluate(async (targets) => {
+      const records = targets.map((selector) => {
+        const owner = document.querySelector(selector);
+        const slots = Array.from(owner.querySelectorAll('.fluent-read-single-slot'));
+        const record = {selector, owner, slots, html: owner.innerHTML, rect: owner.getBoundingClientRect(),
+          domMutations: 0, invalidPaintFrames: 0, maxGeometryDelta: 0};
+        record.observer = new MutationObserver((mutations) => { record.domMutations += mutations.length; });
+        record.observer.observe(owner, {childList: true, subtree: true, characterData: true});
+        return record;
+      });
+      let paintFrames = 0;
+      for (let index = 0; index < 24; index += 1) {
+        for (const record of records) {
+          record.owner.setAttribute('title', 'Stable host tooltip');
+          record.owner.setAttribute('lang', 'en');
+        }
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        paintFrames += 1;
+        for (const record of records) {
+          const current = document.querySelector(record.selector);
+          const rect = current.getBoundingClientRect();
+          record.maxGeometryDelta = Math.max(record.maxGeometryDelta, ...['x', 'y', 'width', 'height']
+            .map((key) => Math.abs(rect[key] - record.rect[key])));
+          const visible = record.slots.length > 0
+            ? record.slots.every((slot) => slot.isConnected && /[\u3400-\u9fff]/u.test(slot.getAttribute('aria-label') || '') &&
+              slot.getBoundingClientRect().width > 0 && slot.getBoundingClientRect().height > 0)
+            : /[\u3400-\u9fff]/u.test(current.textContent || '');
+          if (!visible || current.querySelector('.fluent-read-loading, .fluent-read-retry-wrapper')) {
+            record.invalidPaintFrames += 1;
+          }
+        }
+      }
+      return {paintFrames, targets: records.map((record) => {
+        record.observer.disconnect();
+        const current = document.querySelector(record.selector);
+        const slots = Array.from(current.querySelectorAll('.fluent-read-single-slot'));
+        return {selector: record.selector, sameOwner: current === record.owner,
+          sameSlots: slots.length === record.slots.length && slots.every((slot, index) => slot === record.slots[index]),
+          htmlStable: current.innerHTML === record.html, domMutations: record.domMutations,
+          invalidPaintFrames: record.invalidPaintFrames, maxGeometryDelta: record.maxGeometryDelta,
+          singleSlotCount: slots.length};
+      })};
+    }, selectors);
+    const screenshot = artifactsDir ? path.join(artifactsDir, 'full-page-unchanged-attributes-stable.png') : null;
+    if (screenshot) await page.screenshot({path: screenshot, fullPage: false});
+    const evidence = {beforeRequests, afterRequests: translationFixtureServer.requestCount(), ...sample, screenshot};
+    assertUnchangedAttributeStability(evidence);
+    await page.waitForFunction(() => document.querySelectorAll(
+      '#single-source-protection-target .fluent-read-single-slot').length === 2,
+    undefined, {timeout: args.timeout});
+    const beforeSlots = await page.locator('#single-source-protection-target .fluent-read-single-slot').count();
+    await page.locator('#single-protected-source').evaluate((element) => element.classList.add('notranslate'));
+    await page.waitForFunction(() => !document.querySelector('#single-protected-source .fluent-read-single-slot') &&
+      document.querySelectorAll('#single-source-protection-target .fluent-read-single-slot').length === 1,
+    undefined, {timeout: args.timeout});
+    const sourceProtection = {beforeSlots, ...await page.evaluate(() => {
+      const owner = document.querySelector('#single-source-protection-target');
+      const protectedSource = owner.querySelector('#single-protected-source');
+      const slots = owner.querySelectorAll('.fluent-read-single-slot');
+      const probe = window.__fluentReadSourceProtection;
+      const report = {
+        afterSlots: slots.length,
+        protectedSlots: protectedSource.querySelectorAll('.fluent-read-single-slot').length,
+        protectedSourcePreserved: protectedSource.textContent === probe.text,
+        sameProtectedSource: protectedSource.firstChild === probe.source,
+        remainingTranslated: /[\u3400-\u9fff]/u.test(slots[0]?.getAttribute('aria-label') || ''),
+        loadingCount: owner.querySelectorAll('.fluent-read-loading').length,
+        retryCount: owner.querySelectorAll('.fluent-read-retry-wrapper').length,
+      };
+      delete window.__fluentReadSourceProtection;
+      return report;
+    })};
+    assertSingleSourceProtection(sourceProtection);
+    evidence.sourceProtection = sourceProtection;
+    await page.waitForFunction(() => document.querySelectorAll(
+      '#single-clone-target .fluent-read-single-slot').length === 1, undefined, {timeout: args.timeout});
+    await page.evaluate(() => {
+      const owner = document.querySelector('#single-clone-target');
+      const sourceText = owner.textContent;
+      // 模拟框架把已有轻 DOM 序列化回同一个 owner；closed ShadowRoot 不会被复制。
+      owner.innerHTML = owner.innerHTML;
+      const clonedSlot = owner.querySelector('.fluent-read-single-slot');
+      window.__fluentReadSingleClone = {owner, sourceText, clonedSlot, clonedSource: clonedSlot.firstChild};
+    });
+    await page.waitForFunction(() => {
+      const probe = window.__fluentReadSingleClone;
+      const slots = probe.owner.querySelectorAll('.fluent-read-single-slot');
+      return slots.length === 1 && slots[0] !== probe.clonedSlot &&
+        /[\u3400-\u9fff]/u.test(slots[0].getAttribute('aria-label') || '');
+    }, undefined, {timeout: args.timeout});
+    const singleClone = await page.evaluate(() => {
+      const probe = window.__fluentReadSingleClone;
+      const owner = document.querySelector('#single-clone-target');
+      const slot = owner.querySelector('.fluent-read-single-slot');
+      return {sameOwner: owner === probe.owner, sourceTextPreserved: owner.textContent === probe.sourceText,
+        sameClonedSource: slot.firstChild === probe.clonedSource, rebuiltSlot: slot !== probe.clonedSlot,
+        translated: /[\u3400-\u9fff]/u.test(slot.getAttribute('aria-label') || ''),
+        slotCount: owner.querySelectorAll('.fluent-read-single-slot').length};
+    });
+    await toggleFullPage(page, activateTestPage);
+    await page.waitForFunction(() => !document.querySelector('.fluent-read-single-slot, .fluent-read-bilingual-content'),
+      undefined, {timeout: args.timeout});
+    Object.assign(singleClone, await page.evaluate(() => {
+      const probe = window.__fluentReadSingleClone;
+      const owner = document.querySelector('#single-clone-target');
+      const result = {restoredTextPreserved: owner.textContent === probe.sourceText,
+        restoredClonedSource: owner.firstChild === probe.clonedSource,
+        restoredSlotCount: owner.querySelectorAll('.fluent-read-single-slot').length};
+      delete window.__fluentReadSingleClone;
+      return result;
+    }));
+    assertSingleCloneRestoration(singleClone);
+    evidence.singleClone = singleClone;
+    return evidence;
+  } finally {
+    await readConfig(context, args.timeout, {display: 1}, createIsolatedPage);
+  }
+}
+
 async function verifyZeroDelayHoverStability(page, selector, activatePage, screenshotPath = null) {
   await activatePage(page);
+  // 之前的段落手势和 viewport 锚点可能把此段原文留在视口上方，先确保真实命中，
+  // 再冻结几何基线；不能把移到负 y 坐标得到的透明背景当成高亮回归。
+  await page.locator(selector).scrollIntoViewIfNeeded();
   const initial = await page.evaluate((targetSelector) => {
     const owner = document.querySelector(targetSelector);
     const wrapper = owner?.querySelector(':scope > .fluent-read-bilingual-content');
@@ -1899,6 +2166,10 @@ async function main() {
       }
     }
 
+    const cancelledHoverGesture = await verifyCancelledHoverGesture(
+      page, activateTestPage, translationFixtureServer, args.timeout,
+    );
+
     const initialClamp = await page.evaluate(() => {
       const clamp = document.querySelector('#model-description-clamp');
       return clamp ? {
@@ -2139,6 +2410,10 @@ async function main() {
       fullPage: !args.verifyFloatingUi,
     });
 
+    const unchangedAttributeStability = await verifyUnchangedAttributeStability({
+      page, context, args, createIsolatedPage, activateTestPage, translationFixtureServer, artifactsDir,
+    });
+
     // 在全文会话已恢复的干净状态下验证失败操作。专用临时配置只在这一小段切到
     // Microsoft loopback，避免 freeTranslation 的 DeepLX/Google 回退吞掉预期失败。
     const failureActions = await runFailureActionScenario({
@@ -2257,7 +2532,7 @@ async function main() {
 
     const evidence = {
       ok: true,
-      windowMode: args.background ? 'background-screen-off' : 'headed-isolated',
+      windowMode: args.background ? windowPlacement?.mode : 'headed-isolated',
       launchMode,
       focusPolicy,
       windowPlacement,
@@ -2284,6 +2559,8 @@ async function main() {
       retranslated,
       zeroDelayHover,
       passiveHoverRemount,
+      cancelledHoverGesture,
+      unchangedAttributeStability,
       failureActions,
       floatingUi: floatingUiEvidence,
       loadingStyleIsolation: loadingStyleIsolationEvidence,
@@ -2294,6 +2571,7 @@ async function main() {
         path.join(artifactsDir, 'full-page-retranslated.png'),
         ...(zeroDelayHover.screenshot ? [zeroDelayHover.screenshot] : []),
         ...(passiveHoverRemount.screenshot ? [passiveHoverRemount.screenshot] : []),
+        ...(unchangedAttributeStability.screenshot ? [unchangedAttributeStability.screenshot] : []),
         ...(loadingStyleIsolationEvidence?.screenshot ? [loadingStyleIsolationEvidence.screenshot] : []),
         ...failureActions.screenshots,
       ] : [],
@@ -2318,10 +2596,15 @@ if (require.main === module) {
 }
 
 module.exports = {
+  assertCancelledHoverGesture,
   assertDeterministicFixtureTraffic,
   assertNoRuntimeErrors,
+  assertSingleSourceProtection,
+  assertSingleCloneRestoration,
+  assertUnchangedAttributeStability,
   buildFixtureMicrosoftResponseBody,
   createFixtureRequestHandler,
+  getConfigurationPage,
   parseArgs,
   startFixtureServer,
   startTranslationFixtureServer,

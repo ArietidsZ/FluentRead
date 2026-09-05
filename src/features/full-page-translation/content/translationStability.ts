@@ -1,13 +1,17 @@
 /**
  * @file src/features/full-page-translation/content/translationStability.ts
  * 文件职责：提供动态页面翻译的语义稳定性判断和实时文本槽重绑定，隔离 React/虚拟列表重建造成的生命周期噪声。
- * 主要内容：判断原文与译文工件是否仍完整、决定是否保留当前翻译 generation，并把异步结果映射到重建后的 Text 节点。
+ * 主要内容：判断原文与译文工件是否仍完整、决定是否保留当前翻译 generation，并在逐槽核对当前来源后把异步结果映射到实时 Text 节点与空白边界。
  * 模块边界：本文件不读取配置、不监听 DOM、不执行 provider 请求；runtime 通过回调提供当前来源与槽位快照。
  */
 import {
     collectLiveTranslationTextSlots,
+    createTranslationTextProtectionCache,
     extractTranslationText,
+    getComposedParent,
     getCurrentTranslationCore,
+    isProtectedDescendantElement,
+    isTranslationTextElementProtected,
     type TranslationCandidate,
     type TranslationTextProtectionOptions,
     type TranslationTextSlot,
@@ -130,9 +134,31 @@ export function statefulSourceAndTextSlotsAreCurrent(
     if (state.singleTextSlotHosts) {
         const previousNodes = state.sourceTextNodes ?? [];
         if (state.singleTextSlotHosts.length !== previousNodes.length) return false;
-        return state.singleTextSlotHosts.every(({host, source, sourceValue}, index) =>
+        const core = getCurrentTranslationCore();
+        const options = getTranslationTextProtectionOptions(state.allowTopLevelApplicationShell, node);
+        const protectionCache = createTranslationTextProtectionCache();
+        // 合成段仅忽略自己的扩展身份，其宿主和自身真实的 hidden/notranslate
+        // 仍保持权威；共享祖先缓存避免逐个槽反复遍历完整祖先链。
+        if (state.syntheticSegment) {
+            const parent = getComposedParent(node);
+            const protectedParent = parent ? isTranslationTextElementProtected(
+                parent, core.shouldStayOriginal, protectionCache, options) : false;
+            protectionCache.set(node, {
+                depth: (parent ? protectionCache.get(parent)!.depth : 0) + 1,
+                protected: protectedParent || isProtectedDescendantElement(node, true, options) ||
+                    core.shouldStayOriginal(node),
+            });
+        }
+        if (!state.singleTextSlotHosts.every(({host, source, sourceValue}, index) =>
             previousNodes[index] === source && host.parentNode !== null && node.contains(host) &&
-            host.contains(source) && source.data === sourceValue);
+            host.contains(source) && source.data === sourceValue && host.parentElement !== null &&
+            !isTranslationTextElementProtected(host.parentElement, core.shouldStayOriginal, protectionCache, options))) {
+            return false;
+        }
+        // 已有槽保留原 Text，但新的正文可能通过 childList 或可见性变化加入。
+        // collector 跳过已渲染槽，只需拒绝任何不属于本代的新增可译 Text。
+        const originalNodes = new Set(previousNodes);
+        return getCurrentTranslationStateTextNodes(node, state).every((text) => originalNodes.has(text));
     }
 
     const currentNodes = getCurrentTranslationStateTextNodes(node, state);
@@ -288,12 +314,12 @@ export function reboundLiveTextResult(
     result: LiveTextResultSnapshot,
     currentParts: readonly TranslationTextSlot[],
 ): ReboundLiveTextResult | null {
-    if (currentNodes.length === result.nodes.length &&
-        currentNodes.every((node, index) => node === result.nodes[index])) {
-        return {nodes: currentNodes, slots: result.slots};
-    }
-    if (currentParts.length !== result.sources.length ||
-        currentParts.some((part, index) => part.source !== result.sources[index])) return null;
+    // Text 身份不变不代表内容未变；宿主可在同一批更新中重新分配行内文本，
+    // 使整段原文保持一致但每个 provider 槽已经不同。提交必须逐槽核对，
+    // 并始终从当前前后缀构建展示值，避免把请求开始时的空白写回页面。
+    if (currentNodes.length !== currentParts.length || currentParts.length !== result.sources.length ||
+        currentParts.some((part, index) =>
+            part.node !== currentNodes[index] || part.source !== result.sources[index])) return null;
     return {
         nodes: currentParts.map((part) => part.node),
         slots: currentParts.map((part, index) => ({

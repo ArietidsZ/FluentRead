@@ -441,6 +441,49 @@ describe('translation broker', () => {
         await flushMicrotasks();
     });
 
+    it.each([
+        {label: '单条', origin: 'Shared pending body', result: '共享译文'},
+        {label: '批量', origin: ['Shared first body', 'Shared second body'], result: ['第一条译文', '第二条译文']},
+    ])('共享$label等待者取消只结束自己的等待，迟到成功不能覆盖取消', async ({origin, result}) => {
+        const provider = deferred<string | string[]>();
+        let providerSignal: AbortSignal | undefined;
+        mocks.service.mockImplementation((message: {abortSignal?: AbortSignal}) => {
+            providerSignal = message.abortSignal;
+            return provider.promise;
+        });
+        const ownerController = new AbortController();
+        const waiterController = new AbortController();
+        const request = () => typeof origin === 'string'
+            ? {origin, useCache: false, requestTimeoutMs: 5_000}
+            : {origin, useCache: false, requestTimeoutMs: 5_000};
+        const owner = translateWithCache(attachTranslationRequestControl(request(), {
+            signal: ownerController.signal,
+            ownershipKey: 'shared-body',
+        }));
+        await vi.waitFor(() => expect(mocks.service).toHaveBeenCalledOnce());
+        const waiter = translateWithCache(attachTranslationRequestControl(request(), {
+            signal: waiterController.signal,
+            ownershipKey: 'shared-body',
+        }));
+        const success = vi.fn();
+        const failure = vi.fn();
+        const settledWaiter = waiter.then(success, failure);
+        await flushMicrotasks();
+
+        waiterController.abort();
+        await flushMicrotasks();
+        const cancelledBeforeProviderSettled = failure.mock.calls.length === 1;
+        expect(providerSignal?.aborted).toBe(false);
+        provider.resolve(result);
+        await expect(owner).resolves.toEqual(result);
+        await settledWaiter;
+
+        expect(cancelledBeforeProviderSettled).toBe(true);
+        expect(failure).toHaveBeenCalledWith(expect.objectContaining({name: 'AbortError'}));
+        expect(success).not.toHaveBeenCalled();
+        expect(mocks.service).toHaveBeenCalledOnce();
+    });
+
     it('同步缓存操作触发取消时也已取得监听所有权', async () => {
         const controller = new AbortController();
         mocks.cacheGet.mockImplementationOnce(() => {
