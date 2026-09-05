@@ -1,15 +1,15 @@
 <!--
  * @file src/features/settings/ui/HarnessSettings.vue
- * 文件职责：让用户通过阅读卡示例理解 Harness，并配置网页动作、模型和阅读偏好。
- * 主要内容：提供无需联网的交互示例、服务与模型选择，以及常驻独立分组的学习记忆、网页动作、回答和原文范围设置。
+ * 文件职责：让用户通过翻译卡示例理解功能，并配置网页动作、模型和阅读偏好。
+ * 主要内容：提供无需联网的交互示例、服务与模型选择，以及常驻独立分组的学习记忆、网页动作、回答和原文范围设置，末尾注明内核来源和开源链接。
  * 模块边界：只编辑传入 Config 的 harness 字段；阅读记录由学习中心统一呈现，不发起模型请求，不拥有网页选区或提示词。
  -->
 <template>
   <SettingsGroup description="选中网页文字，直接点“读懂”或“拆句”。回答留在原文旁边，读完就继续浏览。">
-    <SettingsItem label="启用 Harness" description="选中文字后显示学习动作，点击才会调用模型。">
-      <el-switch v-model="config.harness.enabled" aria-label="启用 Harness" />
+    <SettingsItem label="启用翻译卡" description="选中文字后显示学习动作，点击才会调用模型。">
+      <el-switch v-model="config.harness.enabled" aria-label="启用翻译卡" />
     </SettingsItem>
-    <SettingsItem label="试试阅读卡" description="选中文字 → 点一个动作 → 读懂后继续浏览。" stacked>
+    <SettingsItem label="试试翻译卡" description="选中文字 → 点一个动作 → 读懂后继续浏览。" stacked>
       <div class="harness-preview-wrap"><div class="harness-preview">
         <div class="harness-preview-caption"><span>网页中的效果</span><small>演示内容，不调用模型</small></div>
         <p class="harness-sentence"><mark>Although the task was difficult, she finished it on time.</mark></p>
@@ -21,19 +21,19 @@
           </button>
         </div>
         <div class="harness-preview-answer" aria-live="polite"><ReadingAnswer :text="previewResults[previewAction]" /></div>
-        <p class="harness-preview-footer">还想问一句？在阅读卡下方输入问题，继续围绕这段原文学习。</p>
+        <p class="harness-preview-footer">还想问一句？在翻译卡下方输入问题，继续围绕这段原文学习。</p>
       </div></div>
     </SettingsItem>
     <SettingsItem label="服务" description="使用你已配置的 AI 服务和密钥，也可单独选择。">
       <div class="service-control">
-        <el-select v-model="config.harness.service" class="harness-select" @change="config.harness.model = ''" clearable aria-label="Harness 服务" placeholder="跟随当前默认服务">
+        <el-select v-model="config.harness.service" class="harness-select" @change="config.harness.model = ''" clearable aria-label="翻译卡服务" placeholder="跟随当前默认服务">
           <el-option v-for="item in serviceOptions" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
         <small v-if="!effectiveServiceSupportsHarness" class="service-hint" role="status">当前默认服务不能回答学习问题，请在这里选择一个 AI 服务。</small>
       </div>
     </SettingsItem>
     <SettingsItem label="模型" description="默认沿用服务的模型，也可以选择或输入模型名称。">
-      <el-select v-model="config.harness.model" class="harness-select" clearable filterable allow-create default-first-option aria-label="Harness 模型" placeholder="跟随服务模型">
+      <el-select v-model="config.harness.model" class="harness-select" clearable filterable allow-create default-first-option aria-label="翻译卡模型" placeholder="跟随服务模型">
         <el-option v-for="model in modelOptions" :key="model" :label="model" :value="model" />
       </el-select>
     </SettingsItem>
@@ -74,6 +74,10 @@
       <div class="harness-context-limit"><el-input-number v-model="config.harness.maxContextChars" :min="500" :max="4000" :step="100" controls-position="right" aria-label="上下文上限" /><span>字符</span></div>
     </SettingsItem>
   </SettingsGroup></section>
+  <footer class="harness-attribution">
+    <span>翻译卡基于 DeepSeek Harness 内核开发。</span>
+    <a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank" rel="noopener noreferrer">DeepSeek Harness 开源项目 ↗</a>
+  </footer>
 </template>
 
 <script setup lang="ts">
@@ -124,16 +128,19 @@ function toggleAction(id: HarnessActionId) {
 </script>
 
 <style scoped>
+.harness-attribution { display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; padding:4px 4px 12px; color:var(--muted); font-size:12px; line-height:1.7; }
+.harness-attribution a { color:var(--brand); text-decoration:underline; text-underline-offset:3px; overflow-wrap:anywhere; }
+.harness-attribution a:focus-visible { outline:2px solid var(--brand); outline-offset:4px; border-radius:3px; }
 .harness-preview-wrap { display:flex; justify-content:center; }
 .harness-preview { width:100%; max-width:640px; margin-inline:auto; padding:16px; border:1px solid var(--line); border-radius:12px; background:var(--surface-soft); color:var(--ink); }
 .harness-preview-caption { display:flex; flex-wrap:wrap; justify-content:space-between; gap:5px 12px; margin-bottom:12px; color:var(--muted); font-size:11px; }
 .harness-preview-caption small { font-size:10px; }
 .harness-sentence { margin:0 0 12px; color:var(--ink); font-size:13px; line-height:1.8; overflow-wrap:anywhere; }
-.harness-sentence mark { color:inherit; background:color-mix(in srgb, var(--accent) 12%, transparent); border-radius:3px; padding:2px 1px; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
+.harness-sentence mark { color:inherit; background:color-mix(in srgb, var(--brand) 12%, transparent); border-radius:3px; padding:2px 1px; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
 .harness-preview-actions { display:flex; flex-wrap:wrap; gap:6px; padding-bottom:13px; }
 .harness-preview-actions button { border:1px solid var(--line); border-radius:7px; padding:6px 12px; background:var(--surface); color:var(--ink); cursor:pointer; font:inherit; font-size:12px; }
-.harness-preview-actions button.is-default { border-color:color-mix(in srgb, var(--accent) 40%, var(--line)); color:var(--accent); }
-.harness-preview-actions button.active { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, var(--surface)); color:var(--accent); }
+.harness-preview-actions button.is-default { border-color:color-mix(in srgb, var(--brand) 40%, var(--line)); color:var(--brand); }
+.harness-preview-actions button.active { border-color:var(--brand); background:color-mix(in srgb, var(--brand) 9%, var(--surface)); color:var(--brand); }
 .harness-preview-answer { min-height:150px; padding:14px; border:1px solid var(--line); border-radius:10px; background:var(--surface); }
 .harness-preview-footer { margin:12px 0 0; color:var(--muted); font-size:10.5px; line-height:1.6; }
 .harness-more { width:min(100%,1080px); margin:0 auto 22px; }
@@ -151,7 +158,7 @@ function toggleAction(id: HarnessActionId) {
 .harness-context-limit span { flex-shrink:0; }
 .harness-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
 .harness-action { display:flex; gap:8px; align-items:flex-start; padding:10px; border:1px solid var(--line); border-radius:8px; cursor:pointer; }
-.harness-action input { accent-color:var(--accent); margin:3px 0 0; }
+.harness-action input { accent-color:var(--brand); margin:3px 0 0; }
 .harness-action span { display:flex; flex-direction:column; gap:3px; color:var(--ink); font-size:12px; }
 .harness-action small { color:var(--muted); font-size:10.5px; line-height:1.5; }
 @media (max-width:700px) { .harness-actions { grid-template-columns:1fr; } }

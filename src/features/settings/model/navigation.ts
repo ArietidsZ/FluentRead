@@ -51,17 +51,17 @@ export const navigationGroups = [
         kicker: '基础配置', title: '翻译设置', detail: '设置鼠标悬浮、划词、输入框与全文翻译的触发方式。',
         searchDescription: '鼠标悬浮翻译、划词翻译、输入框翻译、全文翻译、快捷方案、独立模型、AI 多段翻译、自定义快捷键、右键菜单、悬浮球、翻译进度',
       },
-      {
-        id: 'settings-harness', icon: '文', label: 'DeepSeek Harness', description: '选区学习辅助', group: '基础配置',
-        heading: 'DeepSeek Harness', summary: '选中文本后按需调用 AI，帮助理解、拆句、掌握用法和练习。',
-        kicker: '基础配置', title: 'DeepSeek Harness', detail: '配置选区学习辅助的服务、上下文范围和回答偏好。',
-        searchDescription: 'Harness、DeepSeek、读懂、拆句、用法、练习、选区、段落、学习辅助、解释深度、学习程度、学习记忆、记忆开关',
-      },
     ],
   },
   {
     label: '专项翻译',
     items: [
+      {
+        id: 'settings-harness', icon: '文', label: '翻译卡', description: '选区学习辅助', group: '专项翻译',
+        heading: '翻译卡', summary: '选中文本后按需调用 AI，帮助理解、拆句、掌握用法和练习。',
+        kicker: '专项翻译', title: '翻译卡', detail: '配置选区学习辅助的服务、上下文范围和回答偏好。',
+        searchDescription: '翻译卡、阅读卡、Harness、DeepSeek、读懂、拆句、用法、练习、选区、段落、学习辅助、解释深度、学习程度、学习记忆、记忆开关',
+      },
       {
         id: 'settings-image-translation', icon: '图', label: '图片翻译', description: '网页图片与 OCR', group: '专项翻译',
         heading: '图片翻译', summary: '管理网页图片翻译和本地 OCR 语言包。',
@@ -99,9 +99,9 @@ export const navigationGroups = [
       },
       {
         id: 'settings-vocabulary', icon: '★', label: '学习中心', description: '收藏、复习与阅读记录', group: '工具与学习',
-        heading: '学习中心', summary: '统一管理主动收藏的内容，回看最近 30 天的阅读问答。',
+        heading: '学习中心', summary: '从收藏原句理解表达，练习自己的用法，再通过复习巩固。',
         kicker: '本地学习', title: '学习中心', detail: '收藏内容长期保留，阅读问答保留 30 天；所有学习数据只保存在当前浏览器。',
-        searchDescription: '学习中心、单词本、收藏、词汇、句子、复习、阅读记录、问答、30 天、Anki、导入导出',
+        searchDescription: '学习中心、单词本、收藏、词汇、句子、学习用法、造句、原句、复习、阅读记录、问答、30 天、Anki、导入导出',
       },
       {
         id: 'settings-glossary', icon: 'Aa', label: '术语库', description: '固定译名与保留原文', group: '工具与学习',

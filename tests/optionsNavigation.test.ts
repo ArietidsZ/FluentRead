@@ -19,11 +19,12 @@ describe('options navigation view-model', () => {
     }))).toEqual([
       {
         label: '基础配置',
-        items: ['settings-general', 'settings-interface', 'settings-services', 'settings-translation', 'settings-harness'],
+        items: ['settings-general', 'settings-interface', 'settings-services', 'settings-translation'],
       },
       {
         label: '专项翻译',
         items: [
+          'settings-harness',
           'settings-image-translation',
           'settings-area-translation',
           'settings-video',
@@ -44,7 +45,7 @@ describe('options navigation view-model', () => {
       '界面布局',
       '翻译服务',
       '翻译设置',
-      'DeepSeek Harness',
+      '翻译卡',
       '图片翻译',
       '圈选翻译',
       '视频字幕翻译',
@@ -73,7 +74,7 @@ describe('options navigation view-model', () => {
     expect(resolveNavigationItem('settings-model-usage').detail)
       .toBe('查看发起的大模型调用、Token 消耗与使用趋势。')
     expect(resolveRequestedSection('#settings-harness')).toBe('settings-harness')
-    expect(resolveNavigationItem('settings-harness').group).toBe('基础配置')
+    expect(resolveNavigationItem('settings-harness').group).toBe('专项翻译')
     expect(resolveNavigationItem('settings-vocabulary').title).toBe('学习中心')
     expect(resolveRequestedSection('#settings-vocabulary')).toBe('settings-vocabulary')
     expect(resolveRequestedSection('#settings-learning-center')).toBe('settings-vocabulary')

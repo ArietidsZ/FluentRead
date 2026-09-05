@@ -36,6 +36,7 @@ describe('reading assistant background ownership', () => {
         const {handler} = setup();
         expect(await handler.handle(request('r'), {...sender(), id: 'other'})).toEqual({success: false, error: '无效的阅读请求'});
         expect(await handler.handle({...request('bad id'), requestId: 'bad id'}, sender())).toEqual({success: false, error: '无效的阅读请求'});
+        expect(await handler.handle({...request('r'), studyMode: 'random'}, sender())).toEqual({success: false, error: '无效的阅读请求'});
         expect(await handler.handle({...request('r'), selection: undefined}, sender())).toEqual({success: false, error: '无效的阅读请求'});
         expect(await handler.handle({...request('r'), sessionId: 'bad id'}, sender())).toEqual({success: false, error: '无效的阅读请求'});
         expect(await handler.handle({...request('r'), sessionId: 4}, sender())).toEqual({success: false, error: '无效的阅读请求'});

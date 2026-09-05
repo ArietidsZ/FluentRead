@@ -16,6 +16,7 @@ import {runHarnessLoop, type HarnessGenerate, type HarnessGenerateResult, type H
 import type {HarnessMessage} from '@/src/core/harness/surface';
 import type {ModelUsageEvent} from '@/src/services/model-usage/types';
 import {createHarnessUsageEvent} from './usage';
+import {vocabularyStudyPrompt} from '@/src/features/vocabulary/public';
 import type {LearningMemory} from './learningMemory';
 
 const MAX_TEXT = 4096;
@@ -88,10 +89,10 @@ function makeGenerate(model: LanguageModel, toolSet: ToolSet, service: string, m
     };
 }
 
-function actionSystem(config: Config, intent: HarnessActionId, followUp: boolean): string {
+function actionSystem(config: Config, intent: HarnessActionId, followUp: boolean, studyMode?: ReadingRequest['studyMode']): string {
     return [
         '你是 FluentRead 阅读学习助手。',
-        `任务：${ACTION_PROMPTS[intent]}`,
+        `任务：${studyMode ? vocabularyStudyPrompt(studyMode) : ACTION_PROMPTS[intent]}`,
         `学习者水平：${config.harness.learningLevel}。回答深度：${config.harness.explanationDepth}。`,
         `使用语言代码 ${config.to} 对应的语言解释，标题也译成该语言，保留必要的原文片段与例句。不要固定使用中文。`,
         followUp ? '本轮回答用户当前问题，可参考前面的真实问答；直接解决这一个问题，不必重做整份分析。若是练习作答，给出判断与反馈。' : '本轮是对选中文本的一次独立分析，直接完成所选学习动作；不要假设存在先前讨论、用户提问或额外任务。',
@@ -117,7 +118,7 @@ export function createHarnessRuntime(getConfig: () => Config, createUsageSink?: 
             if (!text) return {success: false, error: '没有可理解的选中文本'};
             const service = prefs.service || current.service;
             const modelId = prefs.model || resolveConfiguredModel(current.model[service], current.customModel[service]);
-            if (!isHarnessService(service, current.customOpenAIProviders)) return {success: false, error: '当前默认服务不支持阅读理解，请在 DeepSeek Harness 设置中选择 AI 服务。'};
+            if (!isHarnessService(service, current.customOpenAIProviders)) return {success: false, error: '当前默认服务不支持阅读理解，请在专项翻译的“翻译卡”设置中选择 AI 服务。'};
             if (!modelId.trim()) return {success: false, error: '请先在设置中选择阅读理解模型。'};
             if (isApiKeyRequired(service, {...current, model: {...current.model, [service]: modelId}}) && !current.token[service]?.trim()) return {success: false, error: '这个模型服务尚未配置 API Key，请在翻译服务中完成配置。'};
             const history = question && Array.isArray(request.history) ? request.history.slice(-MAX_HISTORY).flatMap(turn => {
@@ -153,7 +154,7 @@ export function createHarnessRuntime(getConfig: () => Config, createUsageSink?: 
                 const model = createHarnessLanguageModel(current, service, modelId);
                 const generate = makeGenerate(model, toolSet, service, modelId, createUsageSink?.());
                 const result = await runHarnessLoop({
-                    generate, executeTool, system: actionSystem(current, request.intent, Boolean(question)),
+                    generate, executeTool, system: actionSystem(current, request.intent, Boolean(question), request.studyMode),
                     user: initialUser, history, tools: toolDefinitions, signal,
                     onText: text => onProgress?.({kind: 'text', text}),
                 });

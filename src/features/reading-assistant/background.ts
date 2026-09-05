@@ -75,6 +75,7 @@ export function createReadingAssistantHandler(deps: ReadingHandlerDependencies) 
             }
             if (message.action !== 'run' || !isRecord(message.selection) || typeof message.selection.text !== 'string'
                 || !HARNESS_ACTIONS.some(action => action.id === message.intent)
+                || (message.studyMode !== undefined && message.studyMode !== 'understand' && message.studyMode !== 'use')
                 || (message.sessionId !== undefined && (typeof message.sessionId !== 'string' || !/^[\w.:-]{1,128}$/u.test(message.sessionId)))
                 || (message.anchorTurnId !== undefined && (typeof message.anchorTurnId !== 'string' || !/^[\w.:-]{1,128}$/u.test(message.anchorTurnId)))) return INVALID;
             if (seen.has(key)) return CANCELLED;
