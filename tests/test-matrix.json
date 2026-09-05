@@ -53,6 +53,7 @@
       "tests/commonUtilities.test.ts",
       "tests/browserCapabilities.test.ts",
       "tests/chromeTranslationPreparation.test.ts",
+      "tests/chromeTranslationPreparationRequest.test.ts",
       "tests/credentialBinding.test.ts",
       "tests/edgeTtsPolicy.test.ts",
       "tests/contentFeatureMounting.test.ts",

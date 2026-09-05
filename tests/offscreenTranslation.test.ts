@@ -4,6 +4,8 @@ import {
     detectLanguageByScript,
     detectedLanguageFrom,
     friendlyChromeTranslationError,
+    createChromePreparationRequiredError,
+    isChromePreparationRequiredError,
     isChromeTranslationSupported,
     mapChromeLanguageCode,
     parseChromeTranslationRequest,
@@ -34,6 +36,11 @@ function deferred<T>() {
 }
 
 describe('Offscreen Chrome 翻译域', () => {
+    it('结构化准备错误重复经过友好映射时保留实际语言对与对象身份', () => {
+        const error = createChromePreparationRequiredError('fr', 'zh');
+        expect(friendlyChromeTranslationError(error, 'auto', 'en')).toBe(error);
+        expect(error).toMatchObject({sourceLanguage: 'fr', targetLanguage: 'zh', code: 'preparation-required'});
+    });
     it('严格解析文本与语言对，并拒绝 null、数组和非法语言', () => {
         expect(parseChromeTranslationRequest({text: ' hello ', from: ' auto ', to: ' zh-Hans '}))
             .toEqual({text: ' hello ', from: 'auto', to: 'zh-Hans'});
@@ -560,12 +567,12 @@ describe('Offscreen Chrome 翻译域', () => {
         const notAllowed = new Error('gesture required');
         notAllowed.name = 'NotAllowedError';
         expect(friendlyChromeTranslationError(notAllowed, 'en', 'ja').message)
-            .toBe('首次使用 en → ja 需要用户准备 Chrome 本地模型。请在设置的“Chrome内置AI翻译”中将“准备源语言”选为 en，点击“准备 Chrome 本地翻译”后重试。');
+            .toContain('已记录 en → ja 待准备请求');
         expect(friendlyChromeTranslationError(notAllowed, 'auto', 'ja').message)
-            .toBe('首次自动识别并翻译到 ja 需要用户准备 Chrome 本地模型。请在设置的“Chrome内置AI翻译”中按网页实际语言选择“准备源语言”，点击“准备 Chrome 本地翻译”后重试。');
+            .toContain('无法在自动识别源语言时激活');
         const notSupported = new Error('pair rejected');
         notSupported.name = 'NotSupportedError';
-        expect(friendlyChromeTranslationError(notSupported, 'en', 'xx').message).toContain('en -> xx');
+        expect(friendlyChromeTranslationError(notSupported, 'en', 'xx').message).toContain('Chrome 本地翻译当前不可用');
         const quota = new Error('too much text');
         quota.name = 'QuotaExceededError';
         expect(friendlyChromeTranslationError(quota, 'en', 'ja').message).toContain('长度限制');
@@ -584,12 +591,20 @@ describe('Offscreen Chrome 翻译域', () => {
         expect(friendlyChromeTranslationError(abort, 'en', 'ja')).toBe(abort);
     });
 
+    it('识别结构化待准备错误的完整和不完整形状', () => {
+        const complete = createChromePreparationRequiredError('en', 'zh');
+        expect(isChromePreparationRequiredError(complete)).toBe(true);
+        expect(isChromePreparationRequiredError({...complete, code: 'other'})).toBe(false);
+        expect(isChromePreparationRequiredError({...complete, sourceLanguage: 1})).toBe(false);
+        expect(isChromePreparationRequiredError(null)).toBe(false);
+    });
+
     it.each([
         ['QuotaExceededError', '长度限制'],
         ['OperationError', '模型未就绪'],
         ['NetworkError', '网络连接'],
         ['InvalidStateError', '模型未就绪'],
-        ['NotSupportedError', '不支持的语言组合'],
+        ['NotSupportedError', 'Chrome 本地翻译当前不可用'],
     ] as const)('auto 检测的 %s 经 translateWithChromeApi 链路保留并友好映射', async (name, expected) => {
         const detectionError = new Error('detector operation failed');
         detectionError.name = name;
@@ -628,7 +643,7 @@ describe('Offscreen Chrome 翻译域', () => {
             () => { throw new Error('expected auto detection preparation to fail'); },
             (reason) => reason instanceof Error ? reason : new Error(String(reason)),
         );
-        expect(error.message).toContain('按网页实际语言选择“准备源语言”');
+        expect(error.message).toContain('选择网页实际源语言');
         expect(error.message).not.toContain('选为 auto');
         expect(translatorCreate).not.toHaveBeenCalled();
     });
