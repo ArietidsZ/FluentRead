@@ -21,6 +21,8 @@ export interface GlossaryLibrary {
     targetLanguage: string;
     domains: string[];
     entries: GlossaryEntry[];
+    /** 仅记录初始模板来源；词条始终是用户可编辑的独立副本，不用于翻译或自动覆盖。 */
+    preset?: {id: string; version: number};
 }
 
 export const GLOSSARY_LIMITS = {
@@ -121,6 +123,10 @@ export function normalizeGlossaryLibraries(value: unknown): GlossaryLibrary[] {
     return candidates.flatMap((raw) => {
         const library = glossaryRecord(raw);
         if (!library) return [];
+        const preset = glossaryRecord(library.preset);
+        const origin = preset && typeof preset.id === 'string' && ID_PATTERN.test(preset.id)
+            && typeof preset.version === 'number' && Number.isSafeInteger(preset.version) && preset.version > 0
+            ? {id: preset.id, version: preset.version} : null;
         const entryIds = new Set<string>();
         const rawEntries = (Array.isArray(library.entries) ? library.entries : [])
             .slice(0, Math.min(GLOSSARY_LIMITS.entriesPerLibrary, remaining));
@@ -144,6 +150,7 @@ export function normalizeGlossaryLibraries(value: unknown): GlossaryLibrary[] {
             sourceLanguage: normalizeGlossaryLanguage(library.sourceLanguage),
             targetLanguage: normalizeGlossaryLanguage(library.targetLanguage),
             domains, entries,
+            ...(origin ? {preset: origin} : {}),
         }];
     });
 }

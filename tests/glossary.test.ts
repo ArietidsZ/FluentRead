@@ -410,6 +410,29 @@ describe('术语文件预览与导出', () => {
         expect(parseGlossaryImport(source, 'csv')).toMatchObject({errors: [], acceptedEntries: 500, totalEntries: 500});
     });
 
+    it.each(['csv', 'tsv'] as const)('%s导出回导保留源目标语言范围，不能扩大到其他语言', (format) => {
+        for (const [sourceLanguage, targetLanguage, wrongSource, wrongTarget] of [
+            ['en', 'zh-Hans', 'fr', 'zh-Hant'],
+            ['en-US', 'pt-BR', 'en-GB', 'pt-PT'],
+        ]) {
+            const lib = normalizeGlossaryLibraries([library({sourceLanguage, targetLanguage, entries: [
+                entry('API', '接口'), entry('FluentRead', '', true), entry('=SUM(1,2)', '+1', true),
+            ]})])[0];
+            const exported = exportGlossary(lib, format);
+            const preview = parseGlossaryImport(exported, format);
+            expect(preview.errors).toEqual([]);
+            expect(preview.warnings).toEqual([]);
+            expect(preview.libraries).toHaveLength(1);
+            expect(preview.libraries[0]).toMatchObject({sourceLanguage: lib.sourceLanguage, targetLanguage: lib.targetLanguage});
+            expect(pairs(preview.libraries)).toEqual(pairs([lib]));
+            const matching = context({text: 'API FluentRead =SUM(1,2)', sourceLanguage, targetLanguage});
+            expect(resolveGlossary(preview.libraries, matching).terms).toEqual(resolveGlossary([lib], matching).terms);
+            expect(resolveGlossary(preview.libraries, {...matching, sourceLanguage: wrongSource}).terms).toEqual([]);
+            expect(resolveGlossary(preview.libraries, {...matching, targetLanguage: wrongTarget}).terms).toEqual([]);
+            expect(exported.split('\r\n')[0]).toContain(`src_lng${format === 'csv' ? ',' : '\t'}tgt_lng`);
+        }
+    });
+
     it('CSV和TSV公式安全导出可精确回导，普通单引号与替换符不变', () => {
         const lib = library({entries: [entry('=SUM(1,2)', '+1', true), entry('@name', '-2'), entry("'=1", '$&'),
             entry('<tag>', '"有,逗号\n换行"'), entry('X', ''), entry('tabs', 'a\tb') ]});
@@ -420,6 +443,7 @@ describe('术语文件预览与导出', () => {
             expect(exported).toContain('source|target');
             const preview = parseGlossaryImport(exported, format);
             expect(preview.errors).toEqual([]);
+            expect(preview.libraries[0]).toMatchObject({sourceLanguage: '', targetLanguage: ''});
             expect(pairs(preview.libraries)).toEqual(pairs([lib]));
         }
         const ordinary = parseGlossaryImport("source,target\n'=1,'+2", 'csv');

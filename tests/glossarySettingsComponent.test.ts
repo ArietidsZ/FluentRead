@@ -5,11 +5,13 @@ import vue from '@vitejs/plugin-vue';
 import {createServer, type Plugin, type ViteDevServer} from 'vite';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {translate} from '@/src/core/i18n';
-import {normalizeGlossaryLibraries, type GlossaryLibrary} from '@/src/core/glossary';
+import {GLOSSARY_LIMITS, normalizeGlossaryLibraries, type GlossaryLibrary} from '@/src/core/glossary';
 import {Config} from '@/src/core/config/model';
 import {createQuickTranslationProfile} from '@/src/core/config/quickTranslation';
+import {compileScript, compileTemplate, parse} from 'vue/compiler-sfc';
+import ts from 'typescript';
 
-// 编译实际 SFC 的 setup，而不把界面逻辑复制成测试模型；DOM 与焦点由隔离浏览器回归覆盖。
+// 编译实际 SFC；文本字段回归同时执行模板绑定，原生焦点与 DOM 指令由隔离浏览器覆盖。
 const stateKey = '__fluentReadGlossarySettingsTest';
 const require = createRequire(import.meta.url);
 const runtime = require('vue') as typeof import('vue');
@@ -21,6 +23,50 @@ let listeners: Set<(value: unknown) => void>;
 let config: {glossaryEnabled: boolean; glossaryLibraries: GlossaryLibrary[]; to: string};
 let requestConfigPatch: ReturnType<typeof vi.fn>;
 let confirm: ReturnType<typeof vi.fn>;
+
+type RenderElement = Record<string, any> & {tag: string; props: Record<string, any>; value?: string};
+async function mountMetadataRender(): Promise<RenderElement[]> {
+  const filename = resolve(process.cwd(), 'src/features/glossary/ui/GlossarySettings.vue');
+  const {descriptor} = parse(readFileSync(filename, 'utf8'), {filename});
+  const bindings = compileScript(descriptor, {id: 'glossary-render-test'}).bindings;
+  const template = compileTemplate({source: descriptor.template!.content, filename, id: 'glossary-render-test',
+    compilerOptions: {mode: 'function', bindingMetadata: bindings, expressionPlugins: ['typescript']}});
+  expect(template.errors).toEqual([]);
+  const renderCode = ts.transpileModule(template.code, {compilerOptions: {target: ts.ScriptTarget.ES2022}}).outputText;
+  const loaded = await server.ssrLoadModule('/src/features/glossary/ui/GlossarySettings.vue');
+  const component = loaded.default;
+  // 保留真实模板的值绑定和事件；无关 v-model 的原生 DOM 指令交给浏览器回归。
+  component.render = new Function('Vue', renderCode)({...runtime, vModelText: {}, vModelSelect: {}, vModelCheckbox: {}});
+  app.unmount();
+  const elements: RenderElement[] = [];
+  const host = runtime.createRenderer<RenderElement, RenderElement>({
+    patchProp: (node, key, _previous, value) => {node.props[key] = value; if (key === 'value') node.value = String(value ?? '');},
+    insert: () => undefined, remove: () => undefined,
+    createElement: tag => {const node = {tag, props: {}}; elements.push(node); return node;},
+    createText: () => ({tag: '#text', props: {}}), createComment: () => ({tag: '#comment', props: {}}),
+    setText: () => undefined, setElementText: (node, value) => {node.text = value;}, parentNode: () => null, nextSibling: () => null,
+    querySelector: () => null, setScopeId: () => undefined, cloneNode: node => ({...node}),
+    insertStaticContent: () => [{tag: '#static', props: {}}, {tag: '#static', props: {}}],
+  });
+  app = host.createApp(component); app.provide(runtime.ssrContextKey, {modules: new Set<string>()});
+  app.config.warnHandler = () => undefined;
+  const vm = app.mount({tag: '#root', props: {}});
+  state = (vm.$ as unknown as {setupState: Record<string, any>}).setupState;
+  await settle();
+  return elements;
+}
+
+function typeMetadataInput(input: RenderElement, value: string): void {
+  input.value = value;
+  input.props.onInput?.({target: input});
+}
+function metadataElement(elements: RenderElement[], field: 'name' | 'domains'): RenderElement {
+  const input = [...elements].reverse().find(node => field === 'name'
+    ? node.tag === 'input' && node.props.maxlength === GLOSSARY_LIMITS.nameLength
+    : node.tag === 'textarea' && node.props['aria-label'] === translate('glossary.domains', 'zh-CN'));
+  expect(input).toBeDefined();
+  return input!;
+}
 
 function fixture(name = '技术'): GlossaryLibrary {
   return {id: name, name, enabled: true, sourceLanguage: '', targetLanguage: 'zh-hans', domains: [],
@@ -105,6 +151,41 @@ describe('GlossarySettings compiled component', () => {
     expect(requestConfigPatch.mock.calls.every(([patch]) => Object.keys(patch).every(key => ['glossaryLibraries', 'glossaryEnabled'].includes(key)))).toBe(true);
   });
 
+  it('adds a real bundled word list, persists it without enabling the master switch, and opens rather than overwrites an edited copy', async () => {
+    await state.addBuiltin('ai-en-zh-hans');
+    expect(config.glossaryEnabled).toBe(false);
+    expect(config.glossaryLibraries).toHaveLength(1);
+    expect(state.selected).toMatchObject({name: 'AI 与机器学习', preset: {id: 'ai-en-zh-hans', version: 1}});
+    expect(state.selected.entries).toHaveLength(60);
+    await state.patchLibrary({name: '我的 AI 译名', enabled: false});
+    state.editEntry(state.selected.entries[0]); state.entryDraft.target = '我的译法'; await state.saveEntry();
+    const editedId = state.selectedId;
+    await state.addLibrary();
+    const callCount = requestConfigPatch.mock.calls.length;
+    await state.addBuiltin('ai-en-zh-hans');
+    expect(requestConfigPatch).toHaveBeenCalledTimes(callCount);
+    expect(state.selectedId).toBe(editedId);
+    expect(state.selected).toMatchObject({name: '我的 AI 译名', enabled: false, entries: [{target: '我的译法'}, ...state.selected.entries.slice(1)]});
+    state.hydrate();
+    expect(state.selected.preset).toEqual({id: 'ai-en-zh-hans', version: 1});
+    await state.deleteLibrary();
+    await state.addBuiltin('ai-en-zh-hans');
+    expect(state.selected.name).toBe('AI 与机器学习'); expect(state.selected.entries[0].target).toBe('人工智能');
+  });
+
+  it('does not add builtins before readiness or while saving, and reports capacity and storage failures without losing existing libraries', async () => {
+    state.ready = false; await state.addBuiltin('ai-en-zh-hans'); state.ready = true;
+    state.busy = true; await state.addBuiltin('ai-en-zh-hans'); state.busy = false;
+    await state.addBuiltin('missing'); expect(requestConfigPatch).not.toHaveBeenCalled();
+    requestConfigPatch.mockRejectedValueOnce(new Error('disk unavailable'));
+    await state.addBuiltin('ai-en-zh-hans');
+    expect(state.libraries).toEqual([]); expect(state.error).toContain('保存失败');
+    const full = Array.from({length: 20}, (_, index) => fixture(`lib-${index}`));
+    await state.persist({glossaryLibraries: full});
+    await state.addBuiltin('ai-en-zh-hans');
+    expect(state.error).toContain('超出容量'); expect(config.glossaryLibraries).toEqual(full);
+  });
+
   it('retains saved state and displays failure instead of claiming a failed change was saved', async () => {
     await state.addLibrary(); const original = structuredClone(config.glossaryLibraries);
     requestConfigPatch.mockRejectedValueOnce(new Error('storage failure'));
@@ -113,6 +194,19 @@ describe('GlossarySettings compiled component', () => {
     expect(state.error).toContain('保存失败'); expect(state.saved).toBe(false);
     await state.patchLibrary({name: '重试成功'});
     expect(config.glossaryLibraries[0].name).toBe('重试成功'); expect(state.error).toBe('');
+  });
+
+  it('clears an older success indicator when the later queued save fails', async () => {
+    await state.addLibrary();
+    let release!: () => void;
+    requestConfigPatch.mockImplementationOnce(async patch => {await new Promise<void>(resolve => {release = resolve;}); Object.assign(config, patch); listeners.forEach(listener => listener(config));});
+    requestConfigPatch.mockRejectedValueOnce(new Error('second save failed'));
+    const first = state.patchLibrary({name: '第一次成功'}); await settle();
+    const second = state.patchLibrary({name: '第二次失败'});
+    release(); await Promise.all([first, second]);
+    expect(config.glossaryLibraries[0].name).toBe('第一次成功');
+    expect(state.saved).toBe(false); expect(state.busy).toBe(false);
+    expect(state.error).toContain('保存失败');
   });
 
   it('persists master and library enablement and updates an entry without creating a duplicate', async () => {
@@ -139,6 +233,102 @@ describe('GlossarySettings compiled component', () => {
     expect(config.glossaryLibraries[1].sourceLanguage).toBe('');
   });
 
+  it.each([
+    ['name', '技术词库第一次', '技术词库最终'],
+    ['domains', 'first.example', 'final.example'],
+  ] as const)('keeps uncommitted %s input through an older receipt in the actual template', async (field, first, final) => {
+    config.glossaryLibraries = [fixture()];
+    const elements = await mountMetadataRender();
+    const input = metadataElement(elements, field);
+    let release!: () => void;
+    requestConfigPatch.mockImplementationOnce(async patch => {await new Promise<void>(resolve => {release = resolve;}); Object.assign(config, patch); listeners.forEach(listener => listener(config));});
+    typeMetadataInput(input, first); input.props.onChange({target: input}); await settle();
+    typeMetadataInput(input, final); await settle();
+    expect(requestConfigPatch).toHaveBeenCalledTimes(1);
+    release(); await settle();
+    expect(input.value).toBe(final);
+    expect(elements.find(node => node.props.class === 'glossary-save-state')?.text).toBe('');
+    input.props.onChange({target: input}); await settle();
+    expect(config.glossaryLibraries[0][field]).toEqual(field === 'domains' ? [final] : final);
+    expect(input.value).toBe(final);
+    expect(elements.find(node => node.props.class === 'glossary-save-state')?.text).toBe(translate('glossary.saved', 'zh-CN'));
+  });
+
+  it.each(['name', 'domains'] as const)('syncs external metadata without overwriting an edited %s field', async field => {
+    config.glossaryLibraries = [fixture()];
+    const elements = await mountMetadataRender();
+    const input = metadataElement(elements, field);
+    const draft = field === 'name' ? '本地未提交' : 'local.example';
+    typeMetadataInput(input, draft);
+    Object.assign(config.glossaryLibraries[0], {name: '外部名称', domains: ['external.example'], sourceLanguage: 'en'});
+    listeners.forEach(listener => listener(config)); await settle();
+    expect(metadataElement(elements, field).value).toBe(draft);
+    expect(metadataElement(elements, field === 'name' ? 'domains' : 'name').value).toBe(field === 'name' ? 'external.example' : '外部名称');
+    expect(state.selected.sourceLanguage).toBe('en');
+    expect(requestConfigPatch).not.toHaveBeenCalled();
+    input.props.onChange({target: input}); await settle();
+    Object.assign(config.glossaryLibraries[0], {name: '后续名称', domains: ['later.example']});
+    listeners.forEach(listener => listener(config)); await settle();
+    expect(metadataElement(elements, field).value).toBe(field === 'name' ? '后续名称' : 'later.example');
+  });
+
+  it.each([
+    {field: 'name' as const, laterEdit: false}, {field: 'name' as const, laterEdit: true},
+    {field: 'domains' as const, laterEdit: false}, {field: 'domains' as const, laterEdit: true},
+  ])('reconciles failed $field saves without losing a later edit: $laterEdit', async ({field, laterEdit}) => {
+    config.glossaryLibraries = [{...fixture(), domains: ['saved.example']}];
+    const elements = await mountMetadataRender();
+    const input = metadataElement(elements, field);
+    const savedValue = input.value;
+    let release!: () => void;
+    requestConfigPatch.mockImplementationOnce(async () => {await new Promise<void>(resolve => {release = resolve;}); throw new Error('storage unavailable');});
+    typeMetadataInput(input, field === 'name' ? '提交值' : 'submitted.example');
+    input.props.onChange({target: input}); await settle();
+    const laterValue = field === 'name' ? '之后继续输入' : 'later.example';
+    if (laterEdit) typeMetadataInput(input, laterValue);
+    release(); await settle();
+    expect(metadataElement(elements, field).value).toBe(laterEdit ? laterValue : savedValue);
+    expect(state.error).toContain('保存失败');
+    expect(config.glossaryLibraries[0][field]).toEqual(field === 'name' ? savedValue : [savedValue]);
+    expect(requestConfigPatch).toHaveBeenCalledTimes(1);
+    if (laterEdit) {
+      const preserved = metadataElement(elements, field);
+      preserved.props.onChange({target: preserved}); await settle();
+      expect(config.glossaryLibraries[0][field]).toEqual(field === 'name' ? laterValue : [laterValue]);
+    }
+  });
+
+  it.each([
+    {field: 'name' as const, deletion: false}, {field: 'name' as const, deletion: true},
+    {field: 'domains' as const, deletion: false}, {field: 'domains' as const, deletion: true},
+  ])('isolates $field drafts after switching or deleting the old library: $deletion', async ({field, deletion}) => {
+    config.glossaryLibraries = [fixture('first'), fixture('second')];
+    const elements = await mountMetadataRender();
+    const input = metadataElement(elements, field);
+    let release!: () => void;
+    requestConfigPatch.mockImplementationOnce(async patch => {
+      await new Promise<void>(resolve => {release = resolve;});
+      if (deletion) throw new Error('library removed by another page');
+      Object.assign(config, patch); listeners.forEach(listener => listener(config));
+    });
+    typeMetadataInput(input, field === 'name' ? 'first submitted' : 'first.example');
+    input.props.onChange({target: input}); await settle();
+    if (deletion) {
+      config.glossaryLibraries = config.glossaryLibraries.filter(library => library.id !== 'first');
+      listeners.forEach(listener => listener(config));
+    } else state.selectLibrary('second');
+    await settle();
+    const second = metadataElement(elements, field);
+    expect(second.value).toBe(field === 'name' ? 'second' : '');
+    const secondDraft = field === 'name' ? 'second draft' : 'second.example';
+    typeMetadataInput(second, secondDraft);
+    release(); await settle();
+    expect(state.selectedId).toBe('second');
+    expect(metadataElement(elements, field).value).toBe(secondDraft);
+    expect(config.glossaryLibraries.find(library => library.id === 'second')?.[field]).toEqual(field === 'name' ? 'second' : []);
+    expect(requestConfigPatch).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps a new draft when an older entry save finishes after switching libraries', async () => {
     await state.addLibrary(); const firstId = state.selectedId; await state.addLibrary(); const secondId = state.selectedId;
     state.selectLibrary(firstId); state.editEntry(); state.entryDraft.source = 'first';
@@ -149,6 +339,28 @@ describe('GlossarySettings compiled component', () => {
     release(); await saving;
     expect(config.glossaryLibraries.find(item => item.id === firstId)?.entries[0].source).toBe('first');
     expect(state.entryDraft.source).toBe('second draft'); expect(state.selectedId).toBe(secondId);
+  });
+
+  it.each([
+    ['source', ' tokenized '],
+    ['target', ' 令牌 '],
+    ['caseSensitive', true],
+  ] as const)('preserves same-draft %s edits during a save and updates the saved entry on retry', async (field, value) => {
+    await state.addLibrary(); state.editEntry();
+    Object.assign(state.entryDraft, {source: ' token ', target: ' 词元 ', caseSensitive: false});
+    const draft = state.entryDraft;
+    let release!: () => void;
+    requestConfigPatch.mockImplementationOnce(async patch => {await new Promise<void>(resolve => {release = resolve;}); Object.assign(config, patch); listeners.forEach(listener => listener(config));});
+    const saving = state.saveEntry(); await settle();
+    expect(state.busy).toBe(true);
+    draft[field] = value;
+    release(); await saving;
+    expect(state.entryDraft).toBe(draft);
+    expect(state.entryDraft[field]).toBe(value);
+    expect(config.glossaryLibraries[0].entries).toEqual([{id: draft.id, source: 'token', target: '词元', caseSensitive: false}]);
+    await state.saveEntry();
+    expect(config.glossaryLibraries[0].entries).toEqual([{...draft, source: draft.source.trim(), target: draft.target.trim()}]);
+    expect(state.entryDraft).toBeNull();
   });
 
   it('deletes the originally selected entry when selection changes during confirmation', async () => {
