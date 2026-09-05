@@ -46,10 +46,13 @@
           </div>
           <label v-if="isAIService && usesToken" class="toggle"><span>当前模型需要 API Key</span><input v-model="requiresApiKey" type="checkbox" /></label>
           <label v-if="usesToken"><span>API Key / Token</span><input v-model.trim="draft.token[draft.service]" type="password" autocomplete="off" /></label>
+          <label v-if="draft.service === services.deepL"><span>DeepL API 套餐</span><select v-model="draft.deeplApiPlan"><option value="free">API Free（免费）</option><option value="pro">API Pro（付费）</option></select></label>
+          <p v-if="draft.service === services.deepL" class="hint">选择与 API Key 对应的套餐；代理地址优先于套餐默认接口。</p>
           <label v-if="isCustomOpenAIService"><span>自定义接口地址</span><input v-model.trim="customOpenAIEndpoint" inputmode="url" :maxlength="MAX_CUSTOM_OPENAI_PROVIDER_ENDPOINT_LENGTH" /></label>
           <label v-if="draft.service === services.deeplx"><span>DeepLX 地址</span><input v-model.trim="draft.deeplx" inputmode="url" /></label>
           <label v-if="draft.service === services.newapi"><span>New API 地址</span><input v-model.trim="draft.newApiUrl" inputmode="url" /></label>
-          <label v-if="draft.service === services.azureOpenai"><span>Azure OpenAI 地址</span><input v-model.trim="draft.azureOpenaiEndpoint" inputmode="url" /></label>
+          <label v-if="draft.service === services.azureOpenai"><span>Azure 地址</span><input v-model.trim="draft.azureOpenaiEndpoint" inputmode="url" placeholder="https://your-resource.services.ai.azure.com/openai/v1/" /></label>
+          <p v-if="draft.service === services.azureOpenai" class="hint">支持资源地址、v1 基础地址与完整 Chat Completions 地址；模型请填写 Azure 中的实际部署名称。</p>
           <label v-if="usesProxy"><span>代理地址（可选）</span><input v-model.trim="draft.proxy[draft.service]" inputmode="url" placeholder="留空使用默认接口" /></label>
           <template v-if="draft.service === services.youdao">
             <label><span>有道 App Key</span><input v-model.trim="draft.youdaoAppKey" autocomplete="off" /></label>

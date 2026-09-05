@@ -178,6 +178,7 @@
       "tests/translationGlossaryIntegration.test.ts",
       "tests/imageGlossaryContext.test.ts",
       "tests/glossarySettingsComponent.test.ts",
+      "tests/deepl.test.ts",
       "tests/deeplx.test.ts",
       "tests/documentTranslationBinaryEdge.test.ts",
       "tests/documentTranslation.test.ts",

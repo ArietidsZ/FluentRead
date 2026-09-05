@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/ServiceConfiguration.vue
  * 文件职责：渲染当前翻译服务的详细连接配置，按服务能力显示模型、端点、区域、计费方式、密钥、代理、提示词和自定义请求体等字段。
- * 主要内容：组件派生字段可见性与 MiniMax/MiMo endpoint，校验 Azure 地址和 custom body，管理连接测试状态、Chrome 当前语言对的点击准备/进度/超时、官方帮助、模板重置与加密凭据保存提示，并通过配置 store 提交修改。
+ * 主要内容：组件派生字段可见性与 DeepL/MiniMax/MiMo endpoint，选择 DeepL API 套餐，共用 Azure 地址校验，校验 custom body，管理连接测试状态、Chrome 当前语言对的点击准备/进度/超时、官方帮助、模板重置与加密凭据保存提示，并通过配置 store 提交修改。
  * 模块边界：本组件不执行网页正文翻译或保存公开配置中的明文凭据；Chrome 内置翻译仅在当前点击页完成模型自检，其他连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
  -->
 <template>
@@ -115,6 +115,25 @@
       </div>
     </template>
 
+    <div v-if="service === services.deepL" class="connection-field" data-deepl-api-plan>
+      <div class="connection-field-label">
+        <strong>{{ t('settings.services.deepl.plan') }}</strong>
+      </div>
+      <div class="connection-field-control">
+        <el-select v-model="config.deeplApiPlan" :aria-label="t('settings.services.deepl.plan')">
+          <el-option value="free" :label="t('settings.services.deepl.free')" />
+          <el-option value="pro" :label="t('settings.services.deepl.pro')" />
+        </el-select>
+        <p class="provider-field-help">{{ t('settings.services.deepl.planHelp') }}</p>
+        <p class="provider-field-help" data-deepl-endpoint>
+          {{ t('settings.services.deepl.endpoint') }}<br /><code>{{ deeplEndpoint }}</code>
+        </p>
+        <p v-if="config.proxy[service]?.trim()" class="provider-field-help" data-deepl-proxy-override>
+          {{ t('settings.services.deepl.proxyOverride') }}
+        </p>
+      </div>
+    </div>
+
     <div v-if="compute.showToken" class="connection-field credential-field">
       <div class="connection-field-label">
         <strong>API Key</strong>
@@ -201,17 +220,17 @@
       <code>{{ mimoEndpoint }}</code>
     </div>
 
-    <el-row v-if="compute.showAzureOpenaiEndpoint" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="Azure OpenAI 服务端点地址，必须包含完整的部署信息。" placement="top-start" :show-after="500">
-          <span class="popup-text popup-vertical-left">Azure 端点<el-icon class="icon-margin"><InfoFilled /></el-icon></span>
-        </el-tooltip>
-      </el-col>
-      <el-col :span="12">
-        <el-input v-model="config.azureOpenaiEndpoint" placeholder="https://your-resource.openai.azure.com/openai/deployments/your-model/chat/completions?api-version=2024-02-15-preview" :class="{ 'input-error': config.azureOpenaiEndpoint && !isValidAzureEndpoint(config.azureOpenaiEndpoint) }" />
-        <div v-if="config.azureOpenaiEndpoint && !isValidAzureEndpoint(config.azureOpenaiEndpoint)" class="error-text">端点地址格式不正确，请确保包含 openai.azure.com 域名和 /chat/completions 路径</div>
-      </el-col>
-    </el-row>
+    <div v-if="compute.showAzureOpenaiEndpoint" class="connection-field" data-azure-endpoint>
+      <div class="connection-field-label">
+        <strong>{{ t('settings.services.azure.endpoint') }}</strong>
+      </div>
+      <div class="connection-field-control">
+        <el-input v-model="config.azureOpenaiEndpoint" :aria-label="t('settings.services.azure.endpoint')" placeholder="https://your-resource.services.ai.azure.com/openai/v1/" :class="{ 'input-error': config.azureOpenaiEndpoint && !isValidAzureEndpoint(config.azureOpenaiEndpoint) }" />
+        <div v-if="config.azureOpenaiEndpoint && !isValidAzureEndpoint(config.azureOpenaiEndpoint)" class="error-text" role="alert">{{ t('settings.services.azure.endpointError') }}</div>
+        <p class="provider-field-help">{{ t('settings.services.azure.endpointHelp') }}</p>
+        <p class="provider-field-help">{{ t('settings.services.azure.deploymentHelp') }}</p>
+      </div>
+    </div>
 
     <el-row v-if="compute.showDeepLX" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner">
@@ -329,6 +348,7 @@ import {
   type CustomOpenAIProvider,
 } from '@/src/core/config/customOpenAI'
 import { isValidCustomBody } from '@/src/core/config/customBody'
+import { getDeepLEndpoint } from '@/src/core/config/deepl'
 import browser from 'webextension-polyfill'
 import { requestConfigSave, waitForConfigPersistenceQueue } from '@/src/services/config/store'
 import { CONNECTION_TEST_MESSAGE, getMimoEndpoint, MINIMAX_ENDPOINTS } from '@/src/core/config/constants'
@@ -369,6 +389,7 @@ const options = toRef(props, 'options')
 const isValidAzureEndpoint = toRef(props, 'isValidAzureEndpoint')
 const customProvider = toRef(props, 'customProvider')
 const { language, t } = useUiI18n()
+const deeplEndpoint = computed(() => config.value.proxy[service.value]?.trim() || getDeepLEndpoint(config.value.deeplApiPlan))
 const pendingChromePreparation = ref<Awaited<ReturnType<typeof chromeTranslationPreparationStore.get>>>(null)
 let pendingChromePreparationRevision = 0
 let chromePreparationMounted = true
@@ -806,6 +827,14 @@ onBeforeUnmount(() => {
 .connection-field-label strong { color: #263044; font-size: 12px; font-weight: 700; }
 .connection-field-label small { overflow: hidden; color: #9299a8; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .connection-field-control { min-width: 0; }
+.provider-field-help {
+  margin: 6px 0 0;
+  color: var(--muted, #6d7890);
+  font-size: 11px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.provider-field-help code { font-size: inherit; }
 .model-thinking-setting { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .model-thinking-setting > small { color: #9098a8; font-size: 10px; line-height: 1.5; }
 .model-thinking-setting :deep(.el-switch) { flex: 0 0 auto; --el-switch-on-color: #ef4776; --el-switch-off-color: #cfd5df; }
