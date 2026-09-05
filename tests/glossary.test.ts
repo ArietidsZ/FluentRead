@@ -318,8 +318,8 @@ describe('术语文件预览与导出', () => {
         expect(resolveGlossary(sourceScoped, context({text: '接口', sourceLanguage: 'zh-Hant', targetLanguage: 'en'})).terms).toEqual([]);
         const traditionalSource = [library({sourceLanguage: 'zh-TW', entries: [entry('接口', 'API')]})];
         expect(resolveGlossary(traditionalSource, context({text: '接口', sourceLanguage: 'zh-Hant'})).terms).toHaveLength(1);
-        expect(resolveGlossary([library({targetLanguage: 'zh'})], context({targetLanguage: 'zh-Hant'})).terms).toHaveLength(1);
-        expect(resolveGlossary([library({targetLanguage: 'zh-CN'})], context({targetLanguage: 'zh'})).terms).toEqual([]);
+        expect(resolveGlossary([library({targetLanguage: 'zh'})], context({targetLanguage: 'zh-Hant'})).terms).toEqual([]);
+        expect(resolveGlossary([library({targetLanguage: 'zh-CN'})], context({targetLanguage: 'zh'})).terms).toHaveLength(1);
     });
 
     it('别名规范化和revision语义一致，不合并其他地区语言或推翻显式脚本', () => {
@@ -328,9 +328,11 @@ describe('术语文件预览与导出', () => {
         const traditional = buildGlossaryRevision([library({sourceLanguage: 'zh-TW', targetLanguage: 'zh-HK'})], true);
         expect(buildGlossaryRevision([library({sourceLanguage: 'zh-Hant', targetLanguage: 'zh-MO'})], true)).toBe(traditional);
         expect(traditional).not.toBe(simplified);
-        const retained = ['en-US', 'en-GB', 'pt-BR', 'pt-PT', 'yue-HK', 'zh-Hant-CN', 'zh-Hans-TW'];
+        const retained = ['en-US', 'en-GB', 'pt-BR', 'pt-PT', 'yue-HK'];
         const normalized = normalizeGlossaryLibraries(retained.map((language, index) => library({id: `g-${index}`, targetLanguage: language})));
         expect(normalized.map(({targetLanguage}) => targetLanguage)).toEqual(retained.map((language) => language.toLowerCase()));
+        expect(buildGlossaryRevision([library({sourceLanguage: 'zh-Hant-CN', targetLanguage: 'zh-Hant'})], true)).toBe(traditional);
+        expect(buildGlossaryRevision([library({sourceLanguage: 'zh-Hans-TW', targetLanguage: 'zh'})], true)).toBe(simplified);
         for (const [rule, actual] of [['en-US', 'en-GB'], ['pt-BR', 'pt-PT'], ['zh-HK', 'yue-HK'], ['zh-Hant-CN', 'zh-Hans'], ['zh-Hans-TW', 'zh-Hant']]) {
             expect(resolveGlossary([library({targetLanguage: rule})], context({targetLanguage: actual})).terms).toEqual([]);
             expect(buildGlossaryRevision([library({targetLanguage: rule})], true))

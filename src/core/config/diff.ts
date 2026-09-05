@@ -154,7 +154,7 @@ function labelsFor(...optionLists: ReadonlyArray<ReadonlyArray<Option>>): Map<un
     return new Map(optionLists.flatMap((items) => items.map((item) => [item.value, item.label] as const)));
 }
 
-const LANGUAGE_LABELS = labelsFor(options.to, options.inputBoxTranslationTarget, options.form);
+const LANGUAGE_LABELS = labelsFor(options.to, options.inputBoxTranslationTarget, options.from);
 const SERVICE_LABELS = labelsFor(options.services);
 const STYLE_LABELS = labelsFor(options.styles);
 const THEME_LABELS = labelsFor(options.theme);

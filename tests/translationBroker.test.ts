@@ -5,6 +5,7 @@ import {
     type TranslationRequestMessage,
 } from '@/src/services/translation/broker';
 import type {TranslationModelUsageRecord} from '@/src/services/translation/types';
+import {resolveTranslationLanguages} from '@/src/core/translation/languages';
 import {
     DEFAULT_TRANSLATION_PERSISTENCE_GRACE_MS,
     waitForBoundedPersistence,
@@ -174,10 +175,9 @@ function installBroker(
             buildPageSummarySystemPrompt: () => 'summary-system',
         },
         getMissingCredentialMessage: mocks.getMissingCredentialMessage,
-        getTranslationLanguages: (override?: {sourceLanguage?: string; targetLanguage?: string}) => ({
-            sourceLanguage: override?.sourceLanguage || mocks.config.from,
-            targetLanguage: override?.targetLanguage || mocks.config.to,
-        }),
+        getTranslationLanguages: (override?: {sourceLanguage?: string; targetLanguage?: string}) => resolveTranslationLanguages(
+            override, {sourceLanguage: mocks.config.from, targetLanguage: mocks.config.to},
+        ),
         resolveConfiguredModel: (selected?: string, custom?: string) => custom || selected || '',
         buildTranslationCacheKey: mocks.buildTranslationCacheKey,
         captureModelUsageGeneration: includeModelUsageGeneration ? () => 7 : undefined,
@@ -221,6 +221,25 @@ function deferred<T>() {
 }
 
 describe('translation broker', () => {
+    it('keeps simultaneous simplified and traditional requests separate and reuses only matching script aliases', async () => {
+        const simplified = deferred<string>();
+        const traditional = deferred<string>();
+        mocks.service.mockImplementation((message) => message.targetLanguage === 'zh-Hans' ? simplified.promise : traditional.promise);
+        const hans = translateWithCache({origin: 'The network settings', sourceLanguage: 'en', targetLanguage: 'zh-CN'});
+        const hant = translateWithCache({origin: 'The network settings', sourceLanguage: 'en', targetLanguage: 'zh-TW'});
+        await vi.waitFor(() => expect(mocks.service).toHaveBeenCalledTimes(2));
+        expect(mocks.service.mock.calls.map(([message]) => message.targetLanguage)).toEqual(['zh-Hans', 'zh-Hant']);
+        simplified.resolve('网络设置');
+        traditional.resolve('網路設定');
+        await expect(hans).resolves.toBe('网络设置');
+        await expect(hant).resolves.toBe('網路設定');
+        await expect(translateWithCache({origin: 'The network settings', sourceLanguage: 'en', targetLanguage: 'zh-HK'})).resolves.toBe('網路設定');
+        await expect(translateWithCache({origin: 'The network settings', sourceLanguage: 'en', targetLanguage: 'zh-SG'})).resolves.toBe('网络设置');
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        await expect(translateWithCache({origin: 'The network settings', sourceLanguage: 'zh-Hans', targetLanguage: 'zh-Hant'})).resolves.toBe('網路設定');
+        await expect(translateWithCache({origin: 'The network settings', sourceLanguage: 'zh-Hant', targetLanguage: 'zh-Hans'})).resolves.toBe('网络设置');
+        expect(mocks.service).toHaveBeenCalledTimes(4);
+    });
     beforeEach(async () => {
         vi.clearAllMocks();
         mocks.cacheStore.clear();

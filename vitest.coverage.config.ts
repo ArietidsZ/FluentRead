@@ -17,6 +17,8 @@ export default defineConfig({
     test: {
         environment: 'node',
         include: [
+            'tests/chineseLanguage.test.ts',
+            'tests/chineseTranslationProviders.test.ts',
             'tests/aiContextPresentation.test.ts',
             'tests/siteAdaptationCore.test.ts',
             'tests/siteAdaptationRuntime.test.ts',
@@ -258,6 +260,7 @@ export default defineConfig({
                 'src/app/translation/check.ts',
                 'src/core/hotkey/index.ts',
                 'src/core/language/detect.ts',
+                'src/core/language/chinese.ts',
                 'src/core/i18n/messages/legacy-overrides.ts',
                 'src/core/config/catalog.ts',
                 'src/core/glossary/model.ts',

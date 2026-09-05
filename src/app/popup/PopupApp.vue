@@ -85,7 +85,7 @@
         <label>
           <span>源语言</span>
           <select v-model="config.from" :disabled="!config.on">
-            <option v-for="item in options.form" :key="item.value" :value="item.value">{{ item.label }}</option>
+            <option v-for="item in options.from" :key="item.value" :value="item.value" data-i18n-ignore>{{ item.value === 'auto' ? translateLegacy(item.label) : getMultilingualTargetLanguageLabel(item.value, item.label, language) }}</option>
           </select>
         </label>
         <span class="arrow">→</span>

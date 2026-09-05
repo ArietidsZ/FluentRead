@@ -231,7 +231,14 @@ describe('selection translator async request generations', () => {
 
 describe('selection translator text and speech language normalization', () => {
     it('matches detected languages with configured language families', () => {
-        expect(isSameLanguage('zh-Hans', 'zh-Hant')).toBe(true);
+        expect(isSameLanguage('zh-Hans', 'zh-Hant')).toBe(false);
+        expect(isSameLanguage('zh-Hant', 'zh-Hans')).toBe(false);
+        expect(isSameLanguage('zh_Hant_CN', 'zh-TW')).toBe(true);
+        expect(isSameLanguage('zh-Hans-TW', 'zh-CN')).toBe(true);
+        expect(isSameLanguage('zh', 'zh-Hans')).toBe(false);
+        expect(isSameLanguage('cmn', 'zh-Hant')).toBe(false);
+        expect(isSameLanguage('zh-Hant', 'cmn')).toBe(false);
+        expect(isSameLanguage('yue', 'zh-Hant')).toBe(false);
         expect(isSameLanguage('eng', 'en')).toBe(true);
         expect(isSameLanguage('ja', 'en')).toBe(false);
         expect(isSameLanguage(undefined, 'en')).toBe(false);
@@ -556,6 +563,8 @@ describe('selection translator text and speech language normalization', () => {
 
     it('maps translation language codes to browser speech language codes', () => {
         expect(normalizeSpeechLanguage('zh-Hans')).toBe('zh-CN');
+        expect(normalizeSpeechLanguage('zh-Hant-CN')).toBe('zh-TW');
+        expect(normalizeSpeechLanguage('zh-HK')).toBe('zh-TW');
         expect(normalizeSpeechLanguage('en')).toBe('en-US');
         expect(normalizeSpeechLanguage(undefined, 'fr-FR')).toBe('fr-FR');
         expect(normalizeSpeechLanguage('auto', 'zh-CN')).toBe('zh-CN');

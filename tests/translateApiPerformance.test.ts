@@ -355,14 +355,14 @@ describe('translation API request lifecycle performance', () => {
         serviceOverride: 'mock',
         modelOverride: 'mock-model',
         sourceLanguage: 'en',
-        targetLanguage: 'zh-CN',
+        targetLanguage: 'zh-Hans',
       }),
       expect.objectContaining({
         origin: ['Queued batch source'],
         serviceOverride: 'mock',
         modelOverride: 'mock-model',
         sourceLanguage: 'en',
-        targetLanguage: 'zh-CN',
+        targetLanguage: 'zh-Hans',
       }),
     ]);
   });
@@ -718,7 +718,7 @@ describe('translation API request lifecycle performance', () => {
       modelOverride: 'mock-ai-model',
       thinkingOverride: false,
       sourceLanguage: 'en',
-      targetLanguage: 'zh-CN',
+      targetLanguage: 'zh-Hans',
       requestTimeoutMs: 19_000,
     }));
     expect(mocks.sendMessage.mock.calls[0]?.[0]).not.toHaveProperty('clientRequestId');

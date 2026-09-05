@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
+import CryptoJS from 'crypto-js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   TRANSLATION_CACHE_MAX_BYTES,
@@ -65,10 +66,21 @@ describe('translation cache identity', () => {
     const base = { sourceText: 'a_b', targetLanguage: 'zh-Hans', service: 'microsoft' };
     const key = buildTranslationCacheKey(base);
 
-    expect(key).toMatch(/^v2:[0-9a-f]{64}$/);
+    expect(key).toMatch(/^v3:[0-9a-f]{64}$/);
     expect(buildTranslationCacheKey({ ...base, sourceText: 'a' })).not.toBe(key);
     expect(buildTranslationCacheKey({ ...base, targetLanguage: 'en' })).not.toBe(key);
     expect(buildTranslationCacheKey({ ...base, service: 'google' })).not.toBe(key);
+  });
+
+  it('does not reuse pre-migration traditional identities that may contain simplified or Cantonese output', async () => {
+    const identity = {sourceText: 'The network settings', sourceLanguage: 'en', targetLanguage: 'zh-Hant', service: 'tongyi', model: 'qwen-mt-plus'};
+    const legacyKey = `v2:${CryptoJS.SHA256(canonicalize({version: 2, ...identity})).toString(CryptoJS.enc.Hex)}`;
+    await translationCacheDb.entries.put(record(legacyKey, {translation: '网络设置'}));
+    const currentKey = buildTranslationCacheKey(identity);
+    expect(currentKey).not.toBe(legacyKey);
+    await expect(translationCache.get(currentKey, 2_000)).resolves.toBeNull();
+    await expect(translationCache.set(currentKey, '網路設定', 2_000)).resolves.toBe(true);
+    await expect(translationCache.get(currentKey, 3_000)).resolves.toBe('網路設定');
   });
 
   it('falls back to UTF-16 byte estimation when TextEncoder is unavailable', async () => {

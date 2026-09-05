@@ -122,6 +122,20 @@ beforeEach(async () => {
 afterEach(async () => {app?.unmount(); await server?.close(); delete (globalThis as any)[stateKey]; vi.unstubAllGlobals();});
 
 describe('GlossarySettings compiled component', () => {
+  it('renders separate script choices from the shared translation catalog and persists traditional scope', async () => {
+    expect(state.languageOptions('zh-hant').filter((item: {value: string}) => item.value.startsWith('zh-'))).toEqual([
+      {value: 'zh-hans', label: '简体中文 / Simplified Chinese'},
+      {value: 'zh-hant', label: '繁體中文 / Traditional Chinese'},
+    ]);
+    await state.addLibrary();
+    await state.patchLibrary({sourceLanguage: 'zh-hans', targetLanguage: 'zh-hant'});
+    expect(config.glossaryLibraries[0]).toMatchObject({sourceLanguage: 'zh-hans', targetLanguage: 'zh-hant'});
+    const elements = await mountMetadataRender();
+    for (const [value, text] of [['zh-hans', '简体中文 / Simplified Chinese'], ['zh-hant', '繁體中文 / Traditional Chinese']]) {
+      expect(elements.some(node => node.tag === 'option' && node.props.value === value && node.text === text)).toBe(true);
+    }
+  });
+
   it('starts empty and disabled without saving defaults, and explains service support and local preview', () => {
     expect(state.ready).toBe(true); expect(state.enabled).toBe(false); expect(state.libraries).toEqual([]);
     expect(state.selected).toBeUndefined(); expect(state.preview.terms).toEqual([]);
