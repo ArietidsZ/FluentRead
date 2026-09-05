@@ -297,10 +297,6 @@ async function translateImageTexts(
     const service = dependencies.getTranslationService();
     const now = dependencies.now ?? (() => Date.now());
     const deadline = now() + Math.min(options.timeoutMs, IMAGE_TEXT_TRANSLATION_TIMEOUT_MS);
-    const controller = new AbortController();
-    const abort = () => controller.abort();
-    if (options.signal.aborted) abort();
-    options.signal.addEventListener('abort', abort, {once: true});
     const glossaryContext = getTranslationGlossaryContext(message);
     const baseRequest = {
         context: title,
@@ -312,6 +308,10 @@ async function translateImageTexts(
             sourceLanguage: parseRequiredString(message.sourceLanguage, 'sourceLanguage'),
         } : {}),
     };
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    if (options.signal.aborted) abort();
+    options.signal.addEventListener('abort', abort, {once: true});
     const remainingBudget = () => {
         if (controller.signal.aborted) throw imageAbortError(false);
         const remaining = Math.floor(deadline - now());

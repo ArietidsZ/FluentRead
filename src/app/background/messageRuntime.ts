@@ -12,10 +12,7 @@ import {vocabularyBook} from '@/src/features/vocabulary/repository';
 import {clearTranslationCache, getTranslationCacheStats, translateWithCache} from '@/src/app/translation/runtime';
 import {serializeTranslationError} from '@/src/services/translation/errors';
 import {createBackgroundMessageRouter, type BackgroundMessageHandler} from './messageRouter';
-import {
-    createAreaTranslationBackgroundHandlers,
-    type AreaTranslationBackgroundContext,
-} from './handlers/areaTranslation';
+import {createAreaTranslationBackgroundHandlers, type AreaTranslationBackgroundContext} from './handlers/areaTranslation';
 import {createTranslationCacheHandlers, createTranslationCacheInvalidationBroadcaster} from './handlers/translationCache';
 import {type ConfigPersistenceContext} from './handlers/configPersistence';
 import {createConnectionTestHandler} from './handlers/connectionTest';
