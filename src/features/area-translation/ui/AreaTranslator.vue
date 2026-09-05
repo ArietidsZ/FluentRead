@@ -1,7 +1,7 @@
 <!--
  * @file src/features/area-translation/ui/AreaTranslator.vue
  * 文件职责：提供独立圈选阅读工具，按 Shift+Z 进入选区模式，松开鼠标后展示可核对、可复制的原文与译文卡片。
- * 主要内容：管理选择、截图、识别、翻译、结果和失败状态；重试复用同一截图，取消或新选区使旧请求失效，卡片支持原图核对、AI 校对文和清晰的质量说明。
+ * 主要内容：管理选择、截图、识别、翻译、结果和失败状态；重试复用同一截图，取消或新选区使旧请求失效，卡片显示本次服务与模型，支持原图核对、AI 校对文和清晰的质量说明。
  * 模块边界：组件只调用圈选客户端，不执行 OCR 或网络请求；截图权限归后台，像素只在封闭 Shadow UI 展示，所有页面监听、异步状态与临时截图在关闭或卸载时清理。
  -->
 <template>
@@ -12,8 +12,16 @@
     </div>
     <section v-else-if="activeRect && !capturePending" class="fr-area-panel" :style="panelStyle(activeRect)" :class="{'fr-area-error': phase === 'error'}" role="dialog" :aria-label="translateLegacy('圈选翻译结果')">
       <header class="fr-area-toolbar">
-        <strong>圈选翻译</strong>
-        <span v-if="result" class="fr-area-mode">{{ result.mode === 'ai' ? 'AI 文本增强' : '本地识别翻译' }}</span>
+        <div class="fr-area-heading">
+          <div class="fr-area-title-row">
+            <strong>圈选翻译</strong>
+            <span v-if="result" class="fr-area-mode">{{ result.mode === 'ai' ? 'AI 文本增强' : '本地识别翻译' }}</span>
+          </div>
+          <div v-if="result" class="fr-area-provider" data-i18n-ignore>
+            <span>{{ isCustomOpenAIProviderId(result.service) ? result.serviceName : translateLegacy(result.serviceName) }}</span>
+            <span v-if="result.model" class="fr-area-model"> · {{ result.model }}</span>
+          </div>
+        </div>
         <button type="button" aria-label="关闭圈选翻译结果" title="关闭" @click="clearResult">×</button>
       </header>
       <div v-if="phase === 'loading'" class="fr-area-loading" role="status" aria-live="polite">
@@ -64,6 +72,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import browser from 'webextension-polyfill';
 import { config, subscribeConfig } from '@/src/services/config/store';
+import { isCustomOpenAIProviderId } from '@/src/core/config/customOpenAI';
 import { useUiI18n } from '@/src/ui/i18n';
 import { captureVisibleAreaInExtension, translateCapturedAreaInExtension, type AreaTranslationResult } from '@/src/features/area-translation/services/client';
 import { isAreaHotkey, isUsableAreaRect, normalizeAreaRect, type AreaPoint, type AreaRect, type AreaTranslationSelection } from '@/src/features/area-translation/core';
@@ -200,6 +209,7 @@ async function requestTranslation(rect: AreaRect): Promise<void> {
   const requestId = ++translationRequestId;
   errorMessage.value = '';
   progressStage.value = 'recognizing';
+  result.value = null;
   // ref 会代理选区对象，不能将原始对象与代理比较；代次和取消信号才是请求所有权。
   const stale = () => controller.signal.aborted || requestId !== translationRequestId || document.visibilityState === 'hidden';
   try {
@@ -322,12 +332,15 @@ onBeforeUnmount(() => {
 .fr-area-selection { position: fixed; box-sizing: border-box; border: 2px solid #ef4b86; border-radius: 5px; background: rgba(239, 75, 134, .08); box-shadow: 0 0 0 1px #fff9; pointer-events: none; }
 .fr-area-panel { position: fixed; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; border: 1px solid #e4dfe7; border-radius: 14px; background: #fff; box-shadow: 0 12px 40px #241c3833; pointer-events: auto; }
 .fr-area-toolbar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; padding: 12px 14px; border-bottom: 1px solid #ece8ef; }
+.fr-area-heading { flex: 1; min-width: 0; }
+.fr-area-title-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+.fr-area-provider { margin-top: 3px; color: #777080; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; user-select: text; }
 .fr-area-toolbar strong { font-size: 14px; }
 .fr-area-mode { color: #777080; font-size: 11px; }
 .fr-area-translator-root button { font: inherit; padding: 5px 9px; border: 1px solid #e5dce8; border-radius: 7px; background: transparent; color: inherit; cursor: pointer; }
 .fr-area-translator-root button:hover { background: #f7f0f5; }
 .fr-area-translator-root button:focus-visible, .fr-area-translator-root summary:focus-visible { outline: 2px solid #db4781; outline-offset: 2px; }
-.fr-area-toolbar button { margin-left: auto; border: 0; font-size: 22px; line-height: 22px; padding: 2px 6px; }
+.fr-area-toolbar button { margin-left: auto; flex-shrink: 0; align-self: flex-start; border: 0; font-size: 22px; line-height: 22px; padding: 2px 6px; }
 .fr-area-loading { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 22px 16px; }
 .fr-area-loading button { margin-left: auto; }
 .fr-area-spinner { width: 16px; height: 16px; flex-shrink: 0; border: 2px solid #e4dbe3; border-top-color: #ef4b86; border-radius: 50%; animation: fr-area-spin .7s linear infinite; }
@@ -352,7 +365,7 @@ onBeforeUnmount(() => {
 .fr-area-dark .fr-area-toolbar, .fr-area-dark .fr-area-source, .fr-area-dark .fr-area-actions { border-color: #49404c; }
 .fr-area-dark button { border-color: #65556a; }
 .fr-area-dark button:hover { background: #413548; }
-.fr-area-dark .fr-area-mode, .fr-area-dark .fr-area-note, .fr-area-dark .fr-area-text-heading, .fr-area-dark summary { color: #c1b1c5; }
+.fr-area-dark .fr-area-provider, .fr-area-dark .fr-area-mode, .fr-area-dark .fr-area-note, .fr-area-dark .fr-area-text-heading, .fr-area-dark summary { color: #c1b1c5; }
 .fr-area-dark .fr-area-feedback, .fr-area-dark .fr-area-error-body > strong { color: #ffa7ca; }
 @media (prefers-reduced-motion: reduce) { .fr-area-spinner { animation: none; } }
 </style>

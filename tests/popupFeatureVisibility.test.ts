@@ -175,9 +175,9 @@ describe('popup feature visibility', () => {
 
         expect(popup).toContain("className: `video-feature-card${config.value.videoTranslationEnabled ? '' : ' needs-enable'}`");
         expect(popup).toContain(':class="feature.className"');
-        expect(popup).toContain("'点击开启 · YouTube/X'");
+        expect(popup).toContain("'YouTube / X' : '已关闭'");
         expect(styles).not.toMatch(/\.video-feature-card\.needs-enable\s*\{/u);
-        expect(styles).toContain('.video-feature-card.needs-enable small { color: var(--brand-strong); font-weight: 700; }');
+        expect(styles).toContain('.video-feature-card.needs-enable small { color: var(--muted); font-weight: 400; }');
     });
 
     it('keeps unsupported capability explanations reachable while disabling only their actions', () => {

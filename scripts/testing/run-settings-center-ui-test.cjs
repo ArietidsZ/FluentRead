@@ -1184,7 +1184,7 @@ async function verifyIndependentAreaSettings(page, context, extensionOrigin, rep
   await popup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
   await popup.locator('.popup-shell[data-config-ready="true"]').waitFor({state: 'visible', timeout});
   const ids = await popup.locator('[data-popup-quick-feature]').evaluateAll(elements => elements.map(element => element.getAttribute('data-popup-quick-feature')));
-  if (ids.length !== 7 || new Set(ids).size !== 7 || !ids.includes('area')) throw new Error(`Popup 独立圈选卡异常：${JSON.stringify(ids)}`);
+  if (ids.length !== 6 || new Set(ids).size !== 6 || !ids.includes('area') || ids.includes('appearance')) throw new Error(`Popup 独立圈选卡异常：${JSON.stringify(ids)}`);
   await popup.locator('[data-popup-quick-feature="area"]').click();
   const areaDrawer = popup.locator('.drawer-surface');
   await areaDrawer.getByRole('heading', {name: '圈选翻译设置', exact: true}).waitFor({state: 'visible', timeout});
@@ -1635,6 +1635,15 @@ async function main() {
     const readQuickFeatureOrder = () => popupQuickFeatureEditor.locator('[data-popup-quick-feature-layout]').evaluateAll(
       elements => elements.map(element => element.getAttribute('data-popup-quick-feature-layout')),
     );
+    const defaultSix = ['hover', 'selection', 'image', 'area', 'video', 'document'];
+    if (JSON.stringify(await readQuickFeatureOrder()) !== JSON.stringify(defaultSix)) {
+      throw new Error('快捷功能默认应显示六项并隐藏译文显示');
+    }
+    await popupQuickFeatureTab.click();
+    await popupQuickFeatureEditor.getByRole('button', {name: '添加译文显示', exact: true}).click();
+    await page.waitForFunction(() => !!document.querySelector('[data-popup-quick-feature-layout="appearance"]'));
+    await popupModuleTab.click();
+    // 后续继续覆盖用户显式添加七项后的排序、隐藏、主题与持久化。
     const defaultQuickFeatureOrder = ['hover', 'selection', 'appearance', 'image', 'area', 'video', 'document'];
     const customQuickFeatureOrder = ['document', 'hover', 'selection', 'appearance', 'image', 'area', 'video'];
     const visibleCustomQuickFeatureOrder = customQuickFeatureOrder.filter(feature => feature !== 'image');

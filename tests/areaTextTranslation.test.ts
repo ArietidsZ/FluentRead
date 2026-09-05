@@ -25,7 +25,7 @@ describe('圈选整块文字翻译事务', () => {
         source.service = 'openai'; source.to = 'ja'; source.token.openai = 'changed'; context.pageUrl = 'https://elsewhere.org'; now = 4_000;
         const operation = options();
         const result = await run(recognized, operation);
-        expect(result).toEqual({...recognized, sourceText: 'He11o world.\nA second line.', translatedText: '你好世界。\n第二行。', mode: 'standard', warnings: ['standard-quality']});
+        expect(result).toEqual({...recognized, sourceText: 'He11o world.\nA second line.', translatedText: '你好世界。\n第二行。', mode: 'standard', service: 'freeTranslation', serviceName: '免费翻译服务', model: '', warnings: ['standard-quality']});
         expect(translate).toHaveBeenCalledOnce();
         const request = translate.mock.calls[0][0] as TranslationRequestMessage;
         expect(request).toMatchObject({origin: result.sourceText, serviceOverride: 'freeTranslation', targetLanguage: 'zh-Hans', requestTimeoutMs: 6_000, useCache: true, enableAIContext: false});
@@ -41,6 +41,7 @@ describe('圈选整块文字翻译事务', () => {
         const oldPrompt = source.system_role.openai;
         const translate = vi.fn(async (_request: TranslationRequestMessage) => JSON.stringify({correctedText: 'Hello world.\nA second line.', translatedText: '你好世界。\n第二行。'}));
         const result = await prepareAreaTextTranslation(source, 'en', '', {}, translate)(recognized, options());
+        expect(result).toMatchObject({service: 'openai', serviceName: 'OpenAI', model: 'gpt-4o'});
         expect(result.sourceText).toBe('He11o world.\nA second line.');
         expect(result.correctedText).toBe('Hello world.\nA second line.');
         expect(result.lines).toBe(recognized.lines);
@@ -52,6 +53,28 @@ describe('圈选整块文字翻译事务', () => {
         expect(snapshot.system_role.openai).toContain('cannot inspect the screenshot');
         expect(snapshot.user_role.openai).toContain('{{origin}}');
         expect(source.system_role.openai).toBe(oldPrompt);
+    });
+
+    it.each(['custom:area', 'custom'])('自定义服务 %s 名称与实际模型随请求冻结，后续重试采用新配置', async service => {
+        const source = config();
+        source.areaTranslationService = service;
+        source.customOpenAIProviders = [{id: service, name: '我的翻译服务', endpoint: 'https://example.org/v1', models: ['model-old']}];
+        source.model[service] = '自定义模型';
+        source.customModel[service] = 'model-old';
+        const translate = vi.fn(async (_request: TranslationRequestMessage) => '你好');
+        const run = prepareAreaTextTranslation(source, 'en', '', {}, translate);
+        source.customOpenAIProviders[0].name = '新名称';
+        source.customModel[service] = 'model-new';
+        expect(await run(recognized, options())).toMatchObject({service: service, serviceName: '我的翻译服务', model: 'model-old'});
+        expect(translate.mock.calls[0][0]).toMatchObject({serviceOverride: service, modelOverride: 'model-old'});
+        expect(await prepareAreaTextTranslation(source, 'en', '', {}, translate)(recognized, options()))
+            .toMatchObject({serviceName: '新名称', model: 'model-new'});
+    });
+
+    it('未知服务只显示原始标识，不推断名称或模型', async () => {
+        const source = config(); source.areaTranslationService = 'future-service';
+        const result = await prepareAreaTextTranslation(source, 'en', '', {}, async () => '你好')(recognized, options());
+        expect(result).toMatchObject({service: 'future-service', serviceName: 'future-service', model: ''});
     });
 
     it('AI能力按照服务与实际模型判断，不把微软、免费或Qwen-MT当通用AI', () => {

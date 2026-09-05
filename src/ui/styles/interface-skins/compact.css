@@ -145,7 +145,7 @@
 }
 
 :root[data-interface-skin="compact"] .feature-card {
-  grid-template-columns: 24px minmax(0, 1fr) auto;
+  grid-template-columns: 24px minmax(0, 1fr) 6px;
   gap: 5px;
   min-height: 39px;
   padding: 4px 6px;

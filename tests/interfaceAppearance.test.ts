@@ -148,12 +148,20 @@ describe('界面皮肤与栏目配置', () => {
     expect(normalizePopupQuickFeatureVisibility({hover: false, image: 'false'})).toEqual({
       hover: false,
       selection: true,
-      appearance: true,
+      appearance: false,
       image: true,
       area: true,
       video: true,
       document: true,
     })
+  })
+
+  it('默认保留六个入口，显式添加译文显示后仍持久保留', () => {
+    const initial = normalizeConfig({})
+    expect(initial.popupQuickFeatureOrder.filter(id => initial.popupQuickFeatureVisibility[id]))
+      .toEqual(['hover', 'selection', 'image', 'area', 'video', 'document'])
+    const visible = withPopupQuickFeatureVisibility(initial.popupQuickFeatureVisibility, 'appearance', true)
+    expect(normalizeConfig({...initial, popupQuickFeatureVisibility: visible}).popupQuickFeatureVisibility.appearance).toBe(true)
   })
 
   it('只接受注册皮肤，并为升级旧配置补齐栏目开关', () => {
@@ -229,7 +237,7 @@ describe('界面皮肤与栏目配置', () => {
     expect(normalized.popupQuickFeatureVisibility).toEqual({
       hover: true,
       selection: true,
-      appearance: true,
+      appearance: false,
       image: false,
       area: true,
       video: true,

@@ -517,8 +517,7 @@ function featureGlyph(id: string): string {
   min-width: 0;
   overflow: hidden;
   font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .layout-preview-footer {

@@ -307,7 +307,7 @@ export const popupQuickFeatureOptions: readonly PopupQuickFeatureOption[] = [
   },
   {
     id: 'video',
-    label: '视频字幕',
+    label: '视频翻译',
     description: '打开视频字幕翻译设置。',
     labelKey: 'settings.interface.popupQuickFeatures.modules.video.label',
     descriptionKey: 'settings.interface.popupQuickFeatures.modules.video.description',
@@ -334,7 +334,7 @@ export const DEFAULT_INTERFACE_VISIBILITY = Object.fromEntries(
 ) as InterfaceVisibility
 
 export const DEFAULT_POPUP_QUICK_FEATURE_VISIBILITY = Object.fromEntries(
-  POPUP_QUICK_FEATURE_IDS.map((id) => [id, true]),
+  POPUP_QUICK_FEATURE_IDS.map((id) => [id, id !== 'appearance']),
 ) as PopupQuickFeatureVisibility
 
 function isRecord(value: unknown): value is Record<string, unknown> {
