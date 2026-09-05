@@ -1,7 +1,7 @@
 /**
  * @file src/providers/translation/free-translation.ts
  * 文件职责：按冻结的用户设置编排免费翻译，并接入有界请求、取消和跨段冷却。
- * 主要内容：装配按序服务、过滤未配置的免费凭据、冻结批量配置并生成匿名连接身份。
+ * 主要内容：装配免密钥服务、冻结匿名请求配置与批量预算，并生成匿名连接身份。
  * 模块边界：只装配已有 provider；健康状态与并发调度由 freeFallback 服务持有。
  */
 import sha256 from 'crypto-js/sha256';
@@ -9,11 +9,9 @@ import {translateMicrosoftTexts} from './microsoft';
 import {translateDeepLXText} from './deeplx';
 import {translateGoogleText} from './google';
 import myMemory from './mymemory';
-import azureTranslator from './azure-translator';
-import deepL from './deepl';
 import {services} from '@/src/core/config/catalog';
 import {urls} from '@/src/core/config/constants';
-import {getDeepLXEndpoints} from '@/src/core/config/deeplx';
+import {DEFAULT_DEEPLX_ENDPOINT} from '@/src/core/config/deeplx';
 import {
     DEFAULT_FREE_TRANSLATION_ORDER,
     FREE_TRANSLATION_PROVIDERS,
@@ -50,13 +48,23 @@ const providerTranslators: Record<FreeProviderId, (request: TranslationProviderR
     deeplx: request => translateDeepLXText(request.origin, services.deeplx, request),
     google: request => translateGoogleText(request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
     myMemory,
-    azureTranslator,
-    deepL,
 };
 
 function prepareRequest(message: FreeTranslationRequest): PreparedRequest {
     // provider 直调也在第一次 await 之前冻结；批量中的所有文本共享该副本与截止时间。
-    const current = createTranslationProviderConfigSnapshot(getTranslationProviderConfig(message, config));
+    const current = createTranslationProviderConfigSnapshot({
+        ...getTranslationProviderConfig(message, config),
+        // 免费链仅使用匿名公共服务，不能沿用独立 provider 已保存的 Key 或代理。
+        // 局部脱敏快照继续传给 DeepLX；用户的独立 DeepLX 配置保持原样。
+        token: {},
+        proxy: {},
+        requireApiKey: {},
+        youdaoAppKey: '',
+        youdaoAppSecret: '',
+        tencentSecretId: '',
+        tencentSecretKey: '',
+        deeplx: DEFAULT_DEEPLX_ENDPOINT,
+    });
     const budget = message.requestTimeoutMs;
     return attachTranslationProviderConfig({
         ...message,
@@ -67,41 +75,26 @@ function prepareRequest(message: FreeTranslationRequest): PreparedRequest {
     }, current);
 }
 
-function canUseProvider(id: string, current: TranslationProviderConfigSnapshot): boolean {
-    if (id === services.azureTranslator) return Boolean(current.token[id]?.trim());
-    if (id !== services.deepL) return true;
-    const endpoint = current.proxy[id]?.trim();
-    // 明确的 Free 密钥和官方免费端点才进入免费链，避免误用付费方案/自定义代理。
-    return Boolean(current.token[id]?.trim().endsWith(':fx'))
-        && (!endpoint || endpoint === 'https://api-free.deepl.com/v2/translate');
-}
-
 function providerIdentity(id: string, current: TranslationProviderConfigSnapshot): string {
-    // 只哈希该 provider 实际读取的连接配置；更换其他服务不应解除已知配额冷却。
+    // 微软/谷歌 ID 唯一对应固定匿名接口；只哈希公共端点及 MyMemory 可选邮箱。
+    // 已保存的 Key、代理和独立 DeepLX 地址均不能改变免费链的连接或冷却身份。
     const connection = id === services.deeplx
-        ? [getDeepLXEndpoints(current.deeplx, current.proxy[id], current.token[id]?.trim()), current.token[id]]
-        : id === services.azureTranslator
-            ? [urls[id], current.token[id], current.azureTranslatorRegion]
-            : id === services.myMemory
-                ? [urls[id], current.myMemoryEmail]
-                : id === services.deepL
-                    ? [current.proxy[id] || urls[id], current.token[id]]
-                    : [id];
+        ? [DEFAULT_DEEPLX_ENDPOINT]
+        : id === services.myMemory ? [urls[id], current.myMemoryEmail] : [id];
     return `${id}:${sha256(JSON.stringify(connection)).toString()}`;
 }
 
 function candidatesFor(text: string, message: PreparedRequest): FreeFallbackCandidate[] {
     const current = getTranslationProviderConfig(message, config);
-    return normalizeFreeTranslationOrder(current.freeTranslationOrder).flatMap(id => {
-        const provider = FREE_TRANSLATION_PROVIDERS.find(item => item.id === id);
-        if (!provider || !canUseProvider(id, current)) return [];
-        return [{
+    return normalizeFreeTranslationOrder(current.freeTranslationOrder).map(id => {
+        const provider = FREE_TRANSLATION_PROVIDERS.find(item => item.id === id)!;
+        return {
             identity: providerIdentity(id, current),
             label: provider.label,
             translate: (signal: AbortSignal) => providerTranslators[provider.id]({
                 ...message, origin: text, serviceOverride: id, abortSignal: signal,
             }),
-        }];
+        };
     });
 }
 

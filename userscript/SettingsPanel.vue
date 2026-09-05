@@ -52,13 +52,9 @@
             <label><span>MyMemory 邮箱（可选）</span><input v-model.trim="draft.myMemoryEmail" type="email" /></label>
             <p class="hint">官方 API：匿名每天 5,000 字符，有效邮箱每天 50,000 字符。</p>
           </template>
-          <template v-if="draft.service === services.azureTranslator">
-            <label><span>Azure Translator 地区</span><input v-model.trim="draft.azureTranslatorRegion" placeholder="留空表示 global；例如 eastasia" /></label>
-            <p class="hint">请在 Azure 控制台选择 F0（每月免费 200 万字符）；付费套餐可能收费。</p>
-          </template>
           <details v-if="draft.service === services.freeTranslation">
             <summary>自动降级顺序与连接设置</summary>
-            <p class="hint">按顺序切换；至少保留一路。Azure 请自行申请 F0，DeepL 需官方 Free 密钥。已有微软、DeepLX 和谷歌网页接口不是官方公开 API。</p>
+            <p class="hint">所有后备均无需密钥，按顺序切换并至少保留一路。MyMemory 邮箱可留空；微软、DeepLX 和谷歌网页接口不是官方公开 API。</p>
             <div v-for="(id, index) in draft.freeTranslationOrder" :key="id" class="fallback-order-row">
               <span>{{ fallbackLabel(id) }}</span>
               <button type="button" :disabled="index === 0" :aria-label="`上移 ${fallbackLabel(id)}`" @click="moveFallback(index, -1)">↑</button>
@@ -67,9 +63,6 @@
             </div>
             <label v-for="item in availableFallbacks" :key="item.id"><span>{{ item.label }}</span><button type="button" @click="draft.freeTranslationOrder.push(item.id)">加入后备</button></label>
             <label><span>MyMemory 邮箱（可选）</span><input v-model.trim="draft.myMemoryEmail" type="email" /></label>
-            <label><span>Azure Translator Key</span><input v-model.trim="draft.token.azureTranslator" type="password" autocomplete="off" /></label>
-            <label><span>Azure Translator 地区</span><input v-model.trim="draft.azureTranslatorRegion" placeholder="留空表示 global" /></label>
-            <label><span>DeepL API Free Key</span><input v-model.trim="draft.token.deepL" type="password" autocomplete="off" placeholder="官方 :fx 密钥；链中不使用自定义代理" /></label>
             <label><span>每路超时（ms）</span><input v-model.number="draft.freeTranslationTimeoutMs" type="number" min="1000" max="15000" step="1000" /></label>
             <label><span>失败后休息（ms）</span><input v-model.number="draft.freeTranslationCooldownMs" type="number" min="1000" max="300000" step="1000" /></label>
           </details>

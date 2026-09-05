@@ -83,17 +83,6 @@
       </div>
     </template>
 
-    <template v-if="service === services.azureTranslator">
-      <div class="connection-field" data-azure-translator-region>
-        <div class="connection-field-label"><strong>资源地区</strong><small>与 Azure 资源的地区一致</small></div>
-        <div class="connection-field-control"><el-input v-model="config.azureTranslatorRegion" aria-label="Azure Translator 资源地区" placeholder="Global 资源留空，例如 eastasia" /></div>
-      </div>
-      <div class="official-translation-help" data-azure-translator-help>
-        <p>请在 Azure 控制台选择 F0 免费套餐，每月 200 万字符；付费套餐可能收费，插件无法判断 Key 所属套餐。</p>
-        <a href="https://learn.microsoft.com/en-us/azure/ai-services/translator/how-to/create-translator-resource" target="_blank" rel="noreferrer">官方申请指南</a>
-      </div>
-    </template>
-
     <div v-if="isChromeConnectionTest" class="chrome-preparation-help" data-chrome-preparation-help>
       <p class="chrome-preparation-pair" data-chrome-preparation-language-pair>
         <strong>{{ t('settings.services.chromePreparation.sourceLabel') }}</strong>

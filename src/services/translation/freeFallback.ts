@@ -98,7 +98,7 @@ async function runAttempt(
     }
 }
 
-/** 每个后台实例最多保留 128 个配置身份；密钥/端点只由调用方生成摘要。 */
+/** 每个后台实例最多保留 128 个匿名服务身份；调用方仅传入连接摘要。 */
 export function createFreeFallbackRunner(maxConcurrency = 3) {
     const health = new Map<string, Health>();
     const queue: Array<() => void> = [];
@@ -145,7 +145,7 @@ export function createFreeFallbackRunner(maxConcurrency = 3) {
 
     return async (candidates: readonly FreeFallbackCandidate[], options: FreeFallbackOptions): Promise<string> => {
         if (options.signal?.aborted) throw abortErrorFromSignal(options.signal);
-        if (!candidates.length) throw new Error('免费翻译服务均不可用：所选服务尚未配置免费凭据');
+        if (!candidates.length) throw new Error('免费翻译服务均不可用：未选择可用的免密钥服务');
         const deadline = options.deadline ?? Date.now() + options.timeoutMs * candidates.length;
         const release = await acquire(deadline, options.signal);
         const failures: string[] = [];

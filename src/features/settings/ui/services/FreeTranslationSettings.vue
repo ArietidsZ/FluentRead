@@ -1,8 +1,8 @@
 <!--
  * @file src/features/settings/ui/services/FreeTranslationSettings.vue
  * 文件职责：编辑免费翻译的启用服务、尝试顺序与等待时间，并提供官方免费额度的连接设置。
- * 主要内容：呈现已启用与候选服务、排序和最少一路约束，按密钥资格启用官方接口，折叠连接与超时设置。
- * 模块边界：只修改传入的配置，由设置页统一持久化；不选择默认服务，不请求翻译、不推断账号实际计费套餐。
+ * 主要内容：呈现已启用与候选服务、排序和最少一路约束，仅显示无需密钥的接口，折叠可选邮箱与超时设置。
+ * 模块边界：只修改传入的配置，由设置页统一持久化；不选择默认服务，不请求翻译、不读取服务密钥或代理地址。
  -->
 <template>
   <div class="free-translation-settings" data-free-translation-settings>
@@ -23,7 +23,6 @@
           </div>
         </div>
         <p class="provider-description">{{ translateLegacy(provider.description) }}</p>
-        <p v-if="unavailableReason(provider.id)" class="provider-note" role="status">{{ translateLegacy(unavailableReason(provider.id)) }}</p>
 
         <details v-if="provider.id === services.myMemory" class="provider-configuration">
           <summary>连接设置</summary>
@@ -32,21 +31,6 @@
           <p>匿名每天 5,000 字符；提供有效邮箱后每天 50,000 字符。邮箱会随请求发送给 MyMemory。</p>
           <p>自动识别来源语言时使用本地检测；无法可靠识别时，请手动选择来源语言。</p>
           <a href="https://mymemory.translated.net/doc/usagelimits.php" target="_blank" rel="noreferrer">官方额度说明</a>
-        </details>
-        <details v-if="provider.id === services.azureTranslator" class="provider-configuration">
-          <summary>连接设置</summary>
-          <label class="compact-field"><span>API Key</span><el-input v-model="config.token.azureTranslator" type="password" show-password aria-label="Azure Translator API Key" placeholder="输入 API Key；留空表示尚未配置" /></label>
-          <label class="compact-field"><span>资源地区</span><el-input v-model="config.azureTranslatorRegion" aria-label="Azure Translator 资源地区" placeholder="Global 资源留空，例如 eastasia" /></label>
-          <p>请在 Azure 控制台选择 F0 免费套餐，每月 200 万字符；付费套餐可能收费，插件无法判断 Key 所属套餐。</p>
-          <p>填写密钥后仍需手动启用，才会加入自动降级。</p>
-          <a href="https://learn.microsoft.com/en-us/azure/ai-services/translator/how-to/create-translator-resource" target="_blank" rel="noreferrer">官方申请指南</a>
-        </details>
-        <details v-if="provider.id === services.deepL" class="provider-configuration">
-          <summary>连接设置</summary>
-          <label class="compact-field"><span>DeepL API Free Key</span><el-input v-model="config.token.deepL" type="password" show-password aria-label="DeepL API Free Key" placeholder="以 :fx 结尾的免费 API Key" /></label>
-          <p>仅可加入以 :fx 结尾的 DeepL API Free Key，并直连官方免费接口；付费 Key 和第三方代理不会用于免费降级。</p>
-          <p>填写密钥后仍需手动启用，才会加入自动降级。</p>
-          <a href="https://developers.deepl.com/docs/getting-started/auth" target="_blank" rel="noreferrer">官方申请指南</a>
         </details>
       </li>
     </ol>
@@ -87,18 +71,8 @@ const providers = computed(() => [
 
 function isEnabled(id: string): boolean { return order.value.includes(id) }
 
-function unavailableReason(id: string): string {
-  if (id === services.azureTranslator && !config.value.token.azureTranslator?.trim()) return '填写 API Key 后可以启用。'
-  if (id === services.deepL) {
-    if (!config.value.token.deepL?.trim().endsWith(':fx')) return '需要以 :fx 结尾的 DeepL API Free Key。'
-    const endpoint = config.value.proxy.deepL?.trim()
-    if (endpoint && endpoint !== 'https://api-free.deepl.com/v2/translate') return '请先在 DeepL 服务设置中清空代理地址，或改为官方免费接口。'
-  }
-  return ''
-}
-
 function toggleDisabled(id: string): boolean {
-  return isEnabled(id) ? order.value.length === 1 : Boolean(unavailableReason(id))
+  return isEnabled(id) && order.value.length === 1
 }
 
 function toggle(id: string, enabled: boolean): void {

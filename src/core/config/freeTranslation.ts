@@ -1,17 +1,15 @@
 /**
  * @file src/core/config/freeTranslation.ts
  * 文件职责：定义免费翻译后备服务目录、默认顺序及等待策略的合法范围。
- * 主要内容：区分官方公开 API 与既有网页接口，清理未知和重复服务，保留用户停用与排序选择，并规范超时、冷却、邮箱和地区。
+ * 主要内容：区分官方公开 API 与既有网页接口，清理未知和重复服务，保留用户停用与排序选择，并规范超时、冷却和可选邮箱。
  * 模块边界：本文件只包含纯配置规则，不读取存储、调用供应商或持有请求健康状态；运行时降级由翻译服务编排。
  */
 
 export const FREE_TRANSLATION_PROVIDERS = [
     {id: 'microsoft', label: '微软翻译', description: 'Edge 网页接口，非官方公开 API', official: false},
-    {id: 'deeplx', label: 'DeepLX', description: '非官方服务，使用已配置地址', official: false},
+    {id: 'deeplx', label: 'DeepLX', description: '非官方公共接口，无需密钥', official: false},
     {id: 'google', label: '谷歌翻译', description: '网页接口，非官方公开 API', official: false},
     {id: 'myMemory', label: 'MyMemory', description: '官方 API，匿名每天 5,000 字符', official: true},
-    {id: 'azureTranslator', label: 'Azure Translator', description: '官方 API，F0 每月 200 万字符，需自行申请', official: true},
-    {id: 'deepL', label: 'DeepL API Free', description: '官方免费 API，需配置 Free 密钥', official: true},
 ] as const;
 
 export const DEFAULT_FREE_TRANSLATION_ORDER = ['microsoft', 'deeplx', 'google', 'myMemory'] as const;
@@ -44,10 +42,4 @@ export function normalizeMyMemoryEmail(value: unknown): string {
     if (typeof value !== 'string') return '';
     const email = value.trim();
     return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email) ? email : '';
-}
-
-export function normalizeAzureTranslatorRegion(value: unknown): string {
-    if (typeof value !== 'string') return '';
-    const region = value.trim().toLowerCase();
-    return region !== 'global' && /^[a-z0-9-]{1,64}$/u.test(region) ? region : '';
 }

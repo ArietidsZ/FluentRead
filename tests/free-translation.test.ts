@@ -1,23 +1,20 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-const {mockConfig, microsoftMock, deeplxMock, googleMock, myMemoryMock, azureMock, deepLMock} = vi.hoisted(() => ({
+const {mockConfig, microsoftMock, deeplxMock, googleMock, myMemoryMock} = vi.hoisted(() => ({
     mockConfig: {} as Record<string, any>,
     microsoftMock: vi.fn(),
     deeplxMock: vi.fn(),
     googleMock: vi.fn(),
     myMemoryMock: vi.fn(),
-    azureMock: vi.fn(),
-    deepLMock: vi.fn(),
 }));
 vi.mock('@/src/services/config/store', () => ({config: mockConfig}));
 vi.mock('@/src/providers/translation/microsoft', () => ({translateMicrosoftTexts: microsoftMock}));
 vi.mock('@/src/providers/translation/deeplx', () => ({translateDeepLXText: deeplxMock}));
 vi.mock('@/src/providers/translation/google', () => ({translateGoogleText: googleMock}));
 vi.mock('@/src/providers/translation/mymemory', () => ({default: myMemoryMock}));
-vi.mock('@/src/providers/translation/azure-translator', () => ({default: azureMock}));
-vi.mock('@/src/providers/translation/deepl', () => ({default: deepLMock}));
 
 import type {TranslationConfigSource} from '@/src/services/translation/types';
+import {DEFAULT_DEEPLX_ENDPOINT} from '@/src/core/config/deeplx';
 
 let freeTranslation: typeof import('@/src/providers/translation/free-translation').default;
 let translateFreeText: typeof import('@/src/providers/translation/free-translation').translateFreeText;
@@ -40,9 +37,9 @@ beforeEach(async () => {
         service: 'freeTranslation', from: 'auto', to: 'zh-Hans',
         token: {}, proxy: {}, model: {}, customModel: {},
         freeTranslationTimeoutMs: 1_000, freeTranslationCooldownMs: 1_000,
-        myMemoryEmail: '', azureTranslatorRegion: '', deeplx: 'https://deeplx.example/translate',
+        myMemoryEmail: '', deeplx: 'https://deeplx.example/translate',
     });
-    for (const mock of [microsoftMock, deeplxMock, googleMock, myMemoryMock, azureMock, deepLMock]) {
+    for (const mock of [microsoftMock, deeplxMock, googleMock, myMemoryMock]) {
         mock.mockRejectedValue(httpFailure());
     }
     ({default: freeTranslation, translateFreeText, FREE_TRANSLATION_BATCH_CONCURRENCY, FREE_TRANSLATION_ORDER}
@@ -50,7 +47,7 @@ beforeEach(async () => {
     ({attachTranslationProviderConfig, createTranslationProviderConfigSnapshot, getTranslationProviderConfig}
         = await import('@/src/services/translation/requestSnapshot'));
 });
-afterEach(() => { vi.useRealTimers(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('免费翻译服务', () => {
     it('保留微软、DeepLX、谷歌优先顺序并新增 MyMemory 官方后备', async () => {
@@ -75,55 +72,23 @@ describe('免费翻译服务', () => {
         expect(myMemoryMock).not.toHaveBeenCalled();
     });
 
-    it('未配置 Free key 的官方服务跳过，顺序和禁用选择生效', async () => {
-        mockConfig.freeTranslationOrder = ['azureTranslator', 'deepL', 'myMemory', 'microsoft'];
+    it('保存顺序里的有 Key 服务全部剔除，仅按所选免密钥服务翻译', async () => {
+        mockConfig.freeTranslationOrder = ['azureTranslator', 'deepL', 'openai', 'custom:key-provider', 'myMemory', 'microsoft'];
+        mockConfig.token = {azureTranslator: 'configured-key', deepL: 'free-key:fx', openai: 'secret-key'};
         myMemoryMock.mockResolvedValue('MyMemory');
         await expect(translateFreeText('Hello')).resolves.toBe('MyMemory');
-        expect(azureMock).not.toHaveBeenCalled();
-        expect(deepLMock).not.toHaveBeenCalled();
         expect(microsoftMock).not.toHaveBeenCalled();
         expect(deeplxMock).not.toHaveBeenCalled();
+        expect(readSnapshot(myMemoryMock.mock.calls[0][0]).freeTranslationOrder).toEqual(['myMemory', 'microsoft']);
+        expect(readSnapshot(myMemoryMock.mock.calls[0][0]).token).toEqual({});
     });
 
-    it('已配置但未选入免费链的 Azure/DeepL 不被调用', async () => {
+    it('旧设置只保存有 Key 服务时回到匿名默认链，历史 Key 不影响选择', async () => {
+        mockConfig.freeTranslationOrder = ['azureTranslator', 'deepL'];
         mockConfig.token = {azureTranslator: 'configured-key', deepL: 'free-key:fx'};
         myMemoryMock.mockResolvedValue('备用');
         await expect(translateFreeText('Hello')).resolves.toBe('备用');
-        expect(azureMock).not.toHaveBeenCalled();
-        expect(deepLMock).not.toHaveBeenCalled();
-    });
-
-    it('显式选择的 Azure 使用冻结凭据与服务覆盖', async () => {
-        mockConfig.freeTranslationOrder = ['azureTranslator'];
-        mockConfig.token.azureTranslator = 'azure-free-key';
-        mockConfig.azureTranslatorRegion = 'eastasia';
-        azureMock.mockResolvedValue('Azure译文');
-        await expect(translateFreeText('Hello')).resolves.toBe('Azure译文');
-        const request = azureMock.mock.calls[0][0];
-        expect(request.serviceOverride).toBe('azureTranslator');
-        expect(readSnapshot(request)).toMatchObject({token: {azureTranslator: 'azure-free-key'}, azureTranslatorRegion: 'eastasia'});
-    });
-
-    it.each(['', 'https://api-free.deepl.com/v2/translate'])('DeepL 仅接受 Free key 配合官方免费端点 %s', async endpoint => {
-        mockConfig.freeTranslationOrder = ['deepL'];
-        mockConfig.token.deepL = 'free-key:fx';
-        mockConfig.proxy.deepL = endpoint;
-        deepLMock.mockResolvedValue('DeepL译文');
-        await expect(translateFreeText('Hello')).resolves.toBe('DeepL译文');
-        expect(deepLMock).toHaveBeenCalledWith(expect.objectContaining({serviceOverride: 'deepL'}));
-    });
-
-    it.each([
-        ['paid-key', ''],
-        ['free-key:fx', 'https://api.deepl.com/v2/translate'],
-        ['free-key:fx', 'https://custom.example/translate'],
-        ['free-key:fx', 'https://api-free.deepl.com/v2/translate?redirect=secret'],
-    ])('DeepL 的付费key或非官方endpoint跳过 %#', async (key, endpoint) => {
-        mockConfig.freeTranslationOrder = ['deepL'];
-        mockConfig.token.deepL = key;
-        mockConfig.proxy.deepL = endpoint;
-        await expect(translateFreeText('Hello')).rejects.toThrow('尚未配置免费凭据');
-        expect(deepLMock).not.toHaveBeenCalled();
+        expect(readSnapshot(myMemoryMock.mock.calls[0][0]).freeTranslationOrder).toEqual(['microsoft', 'deeplx', 'google', 'myMemory']);
     });
 
     it('上游挂起时局部超时继续降级，下一段跳过正在冷却的上游', async () => {
@@ -163,7 +128,7 @@ describe('免费翻译服务', () => {
         const fallbackRequest = deeplxMock.mock.calls[0][2];
         expect(fallbackRequest).toMatchObject({sourceLanguage: 'auto', targetLanguage: 'zh-Hans'});
         expect(readSnapshot(fallbackRequest)).toMatchObject({
-            token: {deeplx: 'original-key'}, deeplx: 'https://deeplx.example/translate',
+            token: {}, proxy: {}, deeplx: DEFAULT_DEEPLX_ENDPOINT,
             freeTranslationOrder: ['microsoft', 'deeplx'],
         });
         expect(Object.isFrozen(readSnapshot(fallbackRequest).freeTranslationOrder)).toBe(true);
@@ -184,32 +149,13 @@ describe('免费翻译服务', () => {
         expect(googleMock).not.toHaveBeenCalled();
     });
 
-    it.each(['token', 'region'])('Azure 修改%s 后拥有独立的配额健康状态', async changed => {
-        mockConfig.freeTranslationOrder = ['azureTranslator', 'myMemory'];
-        mockConfig.token.azureTranslator = 'old-key';
-        mockConfig.azureTranslatorRegion = 'eastasia';
-        myMemoryMock.mockResolvedValue('备用');
-        azureMock.mockRejectedValueOnce(httpFailure(429)).mockResolvedValue('恢复');
-        await expect(translateFreeText('one')).resolves.toBe('备用');
-        await expect(translateFreeText('two')).resolves.toBe('备用');
-        expect(azureMock).toHaveBeenCalledOnce();
-        if (changed === 'token') mockConfig.token.azureTranslator = 'new-key';
-        if (changed === 'region') mockConfig.azureTranslatorRegion = 'westus';
-        await expect(translateFreeText('three')).resolves.toBe('恢复');
-        expect(azureMock).toHaveBeenCalledTimes(2);
-    });
-
     it('被官方接口忽略的残留 proxy 不影响配额冷却身份', async () => {
-        mockConfig.freeTranslationOrder = ['azureTranslator', 'myMemory', 'google'];
-        mockConfig.token.azureTranslator = 'old-key';
+        mockConfig.freeTranslationOrder = ['myMemory', 'google'];
         googleMock.mockResolvedValue('备用');
-        azureMock.mockRejectedValue(httpFailure(429));
         myMemoryMock.mockRejectedValue(httpFailure(429));
         await expect(translateFreeText('one')).resolves.toBe('备用');
-        mockConfig.proxy.azureTranslator = 'https://other.example/translate';
         mockConfig.proxy.myMemory = 'https://other.example/memory';
         await expect(translateFreeText('two')).resolves.toBe('备用');
-        expect(azureMock).toHaveBeenCalledOnce();
         expect(myMemoryMock).toHaveBeenCalledOnce();
     });
 
@@ -223,20 +169,21 @@ describe('免费翻译服务', () => {
         expect(myMemoryMock).toHaveBeenCalledTimes(2);
     });
 
-    it.each(['token', 'endpoint'])('更换 DeepLX 的%s 后重新探测，旧连接冷却不会串用', async changed => {
+    it.each(['token', 'endpoint', 'proxy'])('更换独立 DeepLX 的%s 不改变免费链的匿名连接或冷却状态', async changed => {
         mockConfig.freeTranslationOrder = ['deeplx', 'google'];
         mockConfig.token.deeplx = 'old-key';
-        deeplxMock.mockRejectedValueOnce(httpFailure(429)).mockResolvedValue('新连接译文');
+        deeplxMock.mockRejectedValue(httpFailure(429));
         googleMock.mockResolvedValue('备用');
         await expect(translateFreeText('one')).resolves.toBe('备用');
         await expect(translateFreeText('two')).resolves.toBe('备用');
         if (changed === 'token') mockConfig.token.deeplx = 'new-key';
-        else mockConfig.deeplx = 'https://new.example/translate';
-        await expect(translateFreeText('three')).resolves.toBe('新连接译文');
-        expect(deeplxMock).toHaveBeenCalledTimes(2);
+        else if (changed === 'endpoint') mockConfig.deeplx = 'https://new.example/translate';
+        else mockConfig.proxy.deeplx = 'https://proxy.example/translate';
+        await expect(translateFreeText('three')).resolves.toBe('备用');
+        expect(deeplxMock).toHaveBeenCalledOnce();
     });
 
-    it('DeepLX 使用代理时，修改未使用的默认地址不会绕过代理的冷却', async () => {
+    it('已保存的 DeepLX 代理及默认地址都不会绕过匿名公共接口的冷却', async () => {
         mockConfig.freeTranslationOrder = ['deeplx', 'google'];
         mockConfig.proxy.deeplx = 'https://active.example/translate';
         deeplxMock.mockRejectedValue(httpFailure(429));
@@ -245,6 +192,58 @@ describe('免费翻译服务', () => {
         mockConfig.deeplx = 'https://unused.example/translate';
         await expect(translateFreeText('two')).resolves.toBe('备用');
         expect(deeplxMock).toHaveBeenCalledOnce();
+    });
+
+    it.each([
+        ['direct', 'single'], ['direct', 'batch'], ['broker', 'single'], ['broker', 'batch'],
+    ])('%s入口的%s翻译真实请求只访问匿名 DeepLX，历史凭据与代理完全隔离', async (entrypoint, mode) => {
+        const actual = await vi.importActual<typeof import('@/src/providers/translation/deeplx')>('@/src/providers/translation/deeplx');
+        deeplxMock.mockImplementation(actual.translateDeepLXText);
+        mockConfig.freeTranslationOrder = ['deeplx'];
+        mockConfig.deeplx = 'https://private.example/{{apiKey}}/translate';
+        mockConfig.proxy = {deeplx: 'https://proxy.example/translate?token=proxy-secret'};
+        mockConfig.token = {deeplx: 'deeplx-secret', deepL: 'deepl-secret:fx', azureTranslator: 'azure-secret'};
+        mockConfig.youdaoAppSecret = 'youdao-secret';
+        mockConfig.tencentSecretKey = 'tencent-secret';
+        const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => ({
+            ok: true,
+            status: 200,
+            text: async () => JSON.stringify({code: 200, data: `译:${JSON.parse(String(init?.body)).text}`}),
+        } as Response));
+        vi.stubGlobal('fetch', fetchMock);
+        const origin = mode === 'batch' ? ['Hello', 'World'] : 'Hello';
+        const message = {origin, sourceLanguage: 'en', targetLanguage: 'zh-Hans'};
+        const request = entrypoint === 'broker'
+            ? attachTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(mockConfig as TranslationConfigSource))
+            : message;
+        await expect(freeTranslation(request)).resolves.toEqual(mode === 'batch' ? ['译:Hello', '译:World'] : '译:Hello');
+        expect(fetchMock).toHaveBeenCalledTimes(mode === 'batch' ? 2 : 1);
+        for (const [url, init] of fetchMock.mock.calls) {
+            expect(url).toBe(DEFAULT_DEEPLX_ENDPOINT);
+            expect(init?.headers).toEqual({'Content-Type': 'application/json'});
+            expect(JSON.stringify([url, init?.headers, init?.body])).not.toMatch(/secret|private\.example|proxy\.example/u);
+            expect(init?.signal).toBeInstanceOf(AbortSignal);
+        }
+        const local = readSnapshot(deeplxMock.mock.calls[0][2]);
+        expect(local).toMatchObject({token: {}, proxy: {}, deeplx: DEFAULT_DEEPLX_ENDPOINT, youdaoAppSecret: '', tencentSecretKey: ''});
+        expect(Object.isFrozen(local.token)).toBe(true);
+        expect(mockConfig.token.deeplx).toBe('deeplx-secret');
+        expect(mockConfig.proxy.deeplx).toBe('https://proxy.example/translate?token=proxy-secret');
+        expect(mockConfig.deeplx).toBe('https://private.example/{{apiKey}}/translate');
+    });
+
+    it('匿名网络失败的错误仍不泄漏历史凭据、代理地址或原文', async () => {
+        const actual = await vi.importActual<typeof import('@/src/providers/translation/deeplx')>('@/src/providers/translation/deeplx');
+        deeplxMock.mockImplementation(actual.translateDeepLXText);
+        mockConfig.freeTranslationOrder = ['deeplx'];
+        mockConfig.token.deeplx = 'stored-secret';
+        mockConfig.proxy.deeplx = 'https://private.example/stored-secret';
+        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('private original https://private.example/stored-secret')));
+        const request = translateFreeText('private original');
+        await expect(request).rejects.toThrow('DeepLX: 请求失败');
+        await expect(request).rejects.not.toThrow('stored-secret');
+        await expect(request).rejects.not.toThrow('private.example');
+        await expect(request).rejects.not.toThrow('private original');
     });
 
     it('批量并发最多三条且乱序完成后保留输入顺序', async () => {

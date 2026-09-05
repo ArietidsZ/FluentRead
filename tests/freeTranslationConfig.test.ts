@@ -3,13 +3,13 @@ import {Config, normalizeConfig} from '@/src/core/config/model';
 import {
     DEFAULT_FREE_TRANSLATION_ORDER, FREE_TRANSLATION_PROVIDERS,
     normalizeFreeTranslationOrder, normalizeFreeTranslationTimeoutMs, normalizeFreeTranslationCooldownMs,
-    normalizeMyMemoryEmail, normalizeAzureTranslatorRegion,
+    normalizeMyMemoryEmail,
 } from '@/src/core/config/freeTranslation';
 import {sanitizeConfigForExport, prepareConfigForImport} from '@/src/core/config/transfer';
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
 import {buildConfigDiff} from '@/src/core/config/diff';
 
-describe('official free translation configuration', () => {
+describe('keyless free translation configuration', () => {
     it('migrates old settings while keeping explicit opt-outs and never automatically adding paid-capable accounts', () => {
         expect(new Config().freeTranslationOrder).toEqual(DEFAULT_FREE_TRANSLATION_ORDER);
         for (const value of [undefined, null, 'myMemory', [], ['untrusted', 42]]) {
@@ -19,9 +19,12 @@ describe('official free translation configuration', () => {
             .toEqual(['myMemory', 'google']);
         expect(normalizeConfig({freeTranslationOrder: ['myMemory']}).freeTranslationOrder).toEqual(['myMemory']);
         expect(FREE_TRANSLATION_PROVIDERS.find(item => item.id === 'myMemory')?.official).toBe(true);
+        expect(FREE_TRANSLATION_PROVIDERS.map(item => item.id)).toEqual(['microsoft', 'deeplx', 'google', 'myMemory']);
+        expect(normalizeFreeTranslationOrder(['azureTranslator', 'myMemory', 'deepL', 'openai'])).toEqual(['myMemory']);
+        expect(normalizeFreeTranslationOrder(['azureTranslator', 'deepL'])).toEqual(DEFAULT_FREE_TRANSLATION_ORDER);
     });
 
-    it('bounds timing, validates contact fields and canonicalizes global versus regional Azure resources', () => {
+    it('bounds timing and validates optional contact fields', () => {
         for (const value of [undefined, null, NaN, Infinity, '2000']) {
             expect(normalizeFreeTranslationTimeoutMs(value)).toBe(5000);
             expect(normalizeFreeTranslationCooldownMs(value)).toBe(60000);
@@ -35,37 +38,32 @@ describe('official free translation configuration', () => {
         for (const value of [null, '', 'invalid', 'a\n@b.test', `${'a'.repeat(250)}@b.test`]) {
             expect(normalizeMyMemoryEmail(value)).toBe('');
         }
-        expect(normalizeAzureTranslatorRegion(' EastAsia ')).toBe('eastasia');
-        for (const value of [undefined, 'global', ' GLOBAL ', '', 'bad\nheader', 'a'.repeat(65)]) {
-            expect(normalizeAzureTranslatorRegion(value)).toBe('');
-        }
     });
 
-    it('round-trips policy and nonsecret options while excluding Azure keys from public exports', () => {
-        const config = normalizeConfig({...new Config(), service: 'azureTranslator',
-            freeTranslationOrder: ['myMemory', 'azureTranslator'], freeTranslationTimeoutMs: 3000,
-            freeTranslationCooldownMs: 120000, myMemoryEmail: 'contact@example.test', azureTranslatorRegion: 'eastasia',
-            token: {azureTranslator: 'private-test-key'}});
+    it('round-trips anonymous policy and optional email while excluding existing service keys from exports', () => {
+        const config = normalizeConfig({...new Config(), service: 'freeTranslation',
+            freeTranslationOrder: ['myMemory', 'google'], freeTranslationTimeoutMs: 3000,
+            freeTranslationCooldownMs: 120000, myMemoryEmail: 'contact@example.test',
+            token: {deepL: 'private-test-key'}});
         const exported = sanitizeConfigForExport(config);
         expect(JSON.stringify(exported)).not.toContain('private-test-key');
         expect(prepareConfigForImport(exported, new Config())).toMatchObject({
-            service: 'azureTranslator', freeTranslationOrder: ['myMemory', 'azureTranslator'],
+            service: 'freeTranslation', freeTranslationOrder: ['myMemory', 'google'],
             freeTranslationTimeoutMs: 3000, freeTranslationCooldownMs: 120000,
-            myMemoryEmail: 'contact@example.test', azureTranslatorRegion: 'eastasia',
+            myMemoryEmail: 'contact@example.test',
         });
-        expect(getMissingCredentialMessage('azureTranslator', new Config())).toContain('API Key');
-        expect(getMissingCredentialMessage('azureTranslator', config)).toBeNull();
+        expect(getMissingCredentialMessage('freeTranslation', new Config())).toBeNull();
         expect(getMissingCredentialMessage('myMemory', new Config())).toBeNull();
     });
 
     it('shows readable ordered providers and timing in configuration history', () => {
         const result = buildConfigDiff({freeTranslationOrder: ['microsoft'], freeTranslationTimeoutMs: 5000,
-            freeTranslationCooldownMs: 60000, myMemoryEmail: '', azureTranslatorRegion: ''}, {
-            freeTranslationOrder: ['myMemory', 'azureTranslator'], freeTranslationTimeoutMs: 3000,
-            freeTranslationCooldownMs: 120000, myMemoryEmail: 'contact@example.test', azureTranslatorRegion: 'eastasia',
+            freeTranslationCooldownMs: 60000, myMemoryEmail: ''}, {
+            freeTranslationOrder: ['myMemory', 'google'], freeTranslationTimeoutMs: 3000,
+            freeTranslationCooldownMs: 120000, myMemoryEmail: 'contact@example.test',
         });
         const changes = result.groups.find(item => item.id === 'translationServices')!.changes;
-        expect(changes).toHaveLength(5);
+        expect(changes).toHaveLength(4);
         expect(changes.find(item => item.key === 'freeTranslationOrder')?.after).toContain('MyMemory');
         expect(changes.find(item => item.key === 'freeTranslationTimeoutMs')?.after).toContain('3000');
         expect(buildConfigDiff({freeTranslationOrder: null}, {freeTranslationOrder: 'invalid'}).changeCount).toBe(1);

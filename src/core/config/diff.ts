@@ -481,7 +481,6 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     freeTranslationTimeoutMs: {group: 'translationServices', label: '每路免费翻译超时', format: (value) => formatNumber(value, ' ms')},
     freeTranslationCooldownMs: {group: 'translationServices', label: '免费翻译失败后休息', format: (value) => formatNumber(value, ' ms')},
     myMemoryEmail: {group: 'translationServices', label: 'MyMemory 邮箱', format: formatValue},
-    azureTranslatorRegion: {group: 'translationServices', label: 'Azure Translator 地区', format: formatValue},
     translationMaxRetries: {group: 'advanced', label: '失败后最多重试', format: (value) => formatNumber(value, ' 次')},
     translationBackoffBaseMs: {group: 'advanced', label: '退避初始间隔', format: (value) => formatNumber(value, ' ms')},
     translationBackoffMaxMs: {group: 'advanced', label: '退避最大间隔', format: (value) => formatNumber(value, ' ms')},

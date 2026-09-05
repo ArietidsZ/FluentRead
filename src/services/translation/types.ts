@@ -143,7 +143,6 @@ export interface TranslationConfigSnapshot {
     freeTranslationTimeoutMs?: number;
     freeTranslationCooldownMs?: number;
     myMemoryEmail?: string;
-    azureTranslatorRegion?: string;
     newApiUrl: string;
     minimaxBillingPlan: string;
     minimaxRegion: string;

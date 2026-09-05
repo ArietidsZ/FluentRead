@@ -213,9 +213,7 @@
       "tests/imageTranslationPageRead.test.ts",
       "tests/imageTranslationOffscreenRuntime.test.ts",
       "tests/siteAdaptationRuntime.test.ts",
-      "tests/myMemoryProvider.test.ts",
-      "tests/azureTranslatorProvider.test.ts",
-      "tests/freeTranslationOfficialIntegration.test.ts"
+      "tests/myMemoryProvider.test.ts"
     ],
     "regression": [
       "tests/documentTranslationExamplesApi.test.ts",

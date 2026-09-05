@@ -98,26 +98,21 @@ describe('free translation settings compiled component', () => {
     expect(config.freeTranslationOrder).toEqual(['microsoft', 'myMemory']);
   });
 
-  it('requires an explicit enable action after configuring Azure and excludes paid or proxied DeepL keys', async () => {
-    expect(control('启用 Azure Translator').props.disabled).toBe(true);
-    expect(control('启用 DeepL API Free').props.disabled).toBe(true);
+  it('shows only four keyless services and cannot add a credential-based service', () => {
+    expect(state.providers.map((provider: {id: string}) => provider.id)).toEqual(['microsoft', 'deeplx', 'google', 'myMemory']);
+    expect(elements.filter(element => element.props.type === 'password')).toEqual([]);
+    const originalTokens = {...config.token};
+    config.token.deepL = 'existing-account-key:fx';
     state.toggle('azureTranslator', true); state.toggle('deepL', true);
     expect(config.freeTranslationOrder).toEqual([...DEFAULT_FREE_TRANSLATION_ORDER]);
-    config.token.azureTranslator = 'configured-key'; config.token.deepL = 'paid-key';
-    await runtime.nextTick();
-    expect(control('启用 Azure Translator').props.disabled).toBe(false);
-    expect(control('启用 DeepL API Free').props.disabled).toBe(true);
-    expect(config.freeTranslationOrder).toEqual([...DEFAULT_FREE_TRANSLATION_ORDER]);
-    control('启用 Azure Translator').props['onUpdate:modelValue'](true);
-    expect(config.freeTranslationOrder.at(-1)).toBe('azureTranslator');
-    config.token.deepL = 'free-key:fx'; config.proxy.deepL = 'https://proxy.example/translate';
-    await runtime.nextTick();
-    expect(control('启用 DeepL API Free').props.disabled).toBe(true);
-    config.proxy.deepL = 'https://api-free.deepl.com/v2/translate';
-    await runtime.nextTick();
-    expect(control('启用 DeepL API Free').props.disabled).toBe(false);
-    control('启用 DeepL API Free').props['onUpdate:modelValue'](true);
-    expect(config.freeTranslationOrder.at(-1)).toBe('deepL');
+    state.toggle('google', false); state.toggle('google', true);
+    expect(config.token).toEqual({...originalTokens, deepL: 'existing-account-key:fx'});
+    const source = readFileSync(resolve(process.cwd(), componentPath), 'utf8');
+    expect(source).not.toMatch(/config\.token|config\.proxy|type="password"/u);
+    const userscript = readFileSync(resolve(process.cwd(), 'userscript/SettingsPanel.vue'), 'utf8');
+    const fallbackSection = userscript.match(/<details v-if="draft.service === services.freeTranslation">[\s\S]*?<\/details>/u)?.[0];
+    expect(fallbackSection).toBeTruthy();
+    expect(fallbackSection).not.toMatch(/draft\.token|type="password"|Azure|DeepL API Free/u);
   });
 
   it('stores bounded durations from the advanced controls and ignores blank inputs', () => {
@@ -155,7 +150,7 @@ describe('free translation settings compiled component', () => {
   it('exposes official quota guidance, honest web endpoint labels, and English fallback descriptions', () => {
     const source = readFileSync(resolve(process.cwd(), componentPath), 'utf8');
     expect(source).toContain('https://mymemory.translated.net/doc/usagelimits.php');
-    expect(source).toContain('付费套餐可能收费');
+    expect(source).toContain('不填写也可以使用');
     expect(source).toContain('不是官方公开翻译 API');
     expect(source).toContain('邮箱会随请求发送给 MyMemory');
     expect(source).toContain('手动选择来源语言');
@@ -165,6 +160,6 @@ describe('free translation settings compiled component', () => {
     const connection = readFileSync(resolve(process.cwd(), 'src/features/settings/ui/services/ServiceConfiguration.vue'), 'utf8');
     expect(connection).toContain('v-if="service === services.freeTranslation"');
     expect(connection).toContain('v-if="service === services.myMemory"');
-    expect(connection).toContain('v-if="service === services.azureTranslator"');
+    expect(connection).not.toContain('services.azureTranslator');
   });
 });

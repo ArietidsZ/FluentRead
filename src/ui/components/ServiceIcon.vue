@@ -60,7 +60,7 @@
       <path d="M12 4.2a3.4 3.4 0 0 1 5.8 2.4 3.4 3.4 0 0 1 1.9 5.8 3.4 3.4 0 0 1-3.4 5.2 3.4 3.4 0 0 1-5.8 2.2 3.4 3.4 0 0 1-5.8-2.4 3.4 3.4 0 0 1-1.9-5.8A3.4 3.4 0 0 1 6.2 6.4 3.4 3.4 0 0 1 12 4.2Z" />
       <path d="m8.2 8.5 7.5 4.3M15.8 8.5l-7.5 4.3M12 6v8.7M12 18v-2.2" />
     </svg>
-    <svg v-else-if="service === 'azureOpenai' || service === 'azureTranslator'" viewBox="0 0 24 24" role="img">
+    <svg v-else-if="service === 'azureOpenai'" viewBox="0 0 24 24" role="img">
       <path d="m13.8 3.5 6.1 5.1-6.3 11.9-3.1-6.1 3.8-4.5-6.2 1.1 4.6-7.5 1.1 4.2Z" />
       <path d="m10.5 14.4 3.1-4.5" />
     </svg>
@@ -165,7 +165,7 @@ const isCustomOpenAIService = computed(() => isCustomOpenAIProviderId(props.serv
 const tone = computed(() => {
   if (isCustomOpenAIService.value) return 'violet'
   if (['openai', 'azureOpenai', 'newapi'].includes(props.service)) return 'violet'
-  if (['deepseek', 'deepL', 'deeplx', 'microsoft', 'freeTranslation', 'myMemory', 'azureTranslator'].includes(props.service)) return 'blue'
+  if (['deepseek', 'deepL', 'deeplx', 'microsoft', 'freeTranslation', 'myMemory'].includes(props.service)) return 'blue'
   if (['gemini', 'google', 'chromeTranslator'].includes(props.service)) return 'green'
   return 'rose'
 })
@@ -175,7 +175,6 @@ const fallbackGlyph = computed(() => {
     microsoft: 'M',
     freeTranslation: '译',
     myMemory: 'MM',
-    azureTranslator: 'A',
     google: 'G',
     deepL: 'D',
     deeplx: 'DX',

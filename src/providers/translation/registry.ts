@@ -10,7 +10,6 @@ import {services} from "@/src/core/config/catalog";
 import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
 import {AI_SDK_SERVICE_IDS} from './ai-sdk/endpoints';
 import myMemory from "./mymemory";
-import azureTranslator from "./azure-translator";
 import microsoft from "./microsoft";
 import freeTranslation from "./free-translation";
 import deepl from "./deepl";
@@ -35,7 +34,6 @@ export type TranslationProviderRegistry = Record<string, TranslationProvider>;
 const legacyServices: TranslationProviderRegistry = {
     // 机器翻译
     [services.myMemory]: myMemory,
-    [services.azureTranslator]: azureTranslator,
     [services.microsoft]: microsoft,
     [services.freeTranslation]: freeTranslation,
     [services.deepL]: deepl,

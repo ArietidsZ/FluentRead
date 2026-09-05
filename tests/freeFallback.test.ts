@@ -161,7 +161,7 @@ describe('free provider fallback coordinator', () => {
         controller.abort();
         await expect(run([first], {...options, signal: controller.signal})).rejects.toMatchObject({name: 'AbortError'});
         await expect(run([first], {...options, deadline: Date.now()})).rejects.toThrow('请求超时');
-        await expect(run([], options)).rejects.toThrow('尚未配置免费凭据');
+        await expect(run([], options)).rejects.toThrow('未选择可用的免密钥服务');
         expect(first.translate).not.toHaveBeenCalled();
     });
 

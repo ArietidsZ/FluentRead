@@ -2,6 +2,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {
     createTranslationBroker,
     type TranslationBroker,
+    type TranslationRequestMessage,
 } from '@/src/services/translation/broker';
 import type {TranslationModelUsageRecord} from '@/src/services/translation/types';
 import {
@@ -53,7 +54,7 @@ const mocks = vi.hoisted(() => {
     const providers = {
         '': service,
         freeTranslation: service,
-        azureTranslator: service,
+        myMemory: service,
         ai: service,
         aiSdk: service,
         azureOpenai: service,
@@ -230,7 +231,7 @@ describe('translation broker', () => {
         mocks.aiServices.add('aiSdk');
         mocks.aiServices.add('brokenAiSdk');
         mocks.machineServices.clear();
-        ['mock', 'freeTranslation', 'azureTranslator', 'custom', 'deeplx', 'newapi', 'minimax', 'mimo', 'azureOpenai', 'chromeTranslator']
+        ['mock', 'freeTranslation', 'myMemory', 'custom', 'deeplx', 'newapi', 'minimax', 'mimo', 'azureOpenai', 'chromeTranslator']
             .forEach(service => mocks.machineServices.add(service));
         Object.assign(mocks.config, {
             service: 'mock',
@@ -256,6 +257,10 @@ describe('translation broker', () => {
             deepseekApiType: 'auto',
             deepseekThinkingMode: 'disabled',
             modelThinking: {},
+            freeTranslationOrder: undefined,
+            freeTranslationTimeoutMs: undefined,
+            freeTranslationCooldownMs: undefined,
+            myMemoryEmail: undefined,
         });
         mocks.config.model = {
             mock: 'mock-model',
@@ -290,24 +295,9 @@ describe('translation broker', () => {
         vi.restoreAllMocks();
     });
 
-    it('keeps DeepL fallback context in cache and pending identities for the same ambiguous source', async () => {
+    it('isolates ordered anonymous routes while ignoring credentials and private endpoints', async () => {
         mocks.config.service = 'freeTranslation';
-        const policy = mocks.config as typeof mocks.config & {freeTranslationOrder?: string[]};
-        policy.freeTranslationOrder = ['deepL', 'myMemory'];
-        mocks.service.mockResolvedValueOnce('financial bank').mockResolvedValueOnce('river bank');
-        const financial = translateWithCache({origin: 'bank', context: 'Financial news'});
-        const river = translateWithCache({origin: 'bank', context: 'River geography'});
-        await expect(Promise.all([financial, river])).resolves.toEqual(['financial bank', 'river bank']);
-        expect(mocks.service).toHaveBeenCalledTimes(2);
-        await expect(translateWithCache({origin: 'bank', context: 'Financial news'})).resolves.toBe('financial bank');
-        expect(mocks.service).toHaveBeenCalledTimes(2);
-        expect(translationCacheIdentities().slice(-2).map(identity => identity.context)).toEqual(['River geography', 'Financial news']);
-        delete policy.freeTranslationOrder;
-    });
-
-    it('invalidates cached free-chain results after ordered providers or downstream endpoints change', async () => {
-        mocks.config.service = 'freeTranslation';
-        const policy = mocks.config as typeof mocks.config & {freeTranslationOrder: string[]; azureTranslatorRegion: string};
+        const policy = mocks.config as typeof mocks.config & {freeTranslationOrder: string[]};
         policy.freeTranslationOrder = ['myMemory', 'microsoft'];
         mocks.service.mockResolvedValue('first provider translation');
         await translateWithCache({origin: 'same source'});
@@ -316,20 +306,94 @@ describe('translation broker', () => {
         policy.freeTranslationOrder = ['microsoft', 'myMemory'];
         await translateWithCache({origin: 'same source'});
         expect(mocks.service).toHaveBeenCalledTimes(2);
-        mocks.config.deeplx = 'https://new.example/translate';
-        await translateWithCache({origin: 'same source'});
-        expect(mocks.service).toHaveBeenCalledTimes(3);
-        policy.azureTranslatorRegion = 'eastasia';
-        await translateWithCache({origin: 'same source'});
-        expect(mocks.service).toHaveBeenCalledTimes(4);
+        mocks.config.deeplx = 'https://private.example/translate';
+        mocks.config.proxy = {deeplx: 'https://private.example/proxy'};
+        await translateWithCache({origin: 'same source', context: 'not used by anonymous APIs'});
+        expect(mocks.service).toHaveBeenCalledTimes(2);
         expect(translationCacheIdentities().at(-1)).toMatchObject({freeTranslationPolicy: {
-            order: ['microsoft', 'myMemory'], azureRegion: 'eastasia', deeplx: 'https://new.example/translate',
+            version: 2, order: ['microsoft', 'myMemory'],
         }});
-        mocks.config.service = 'azureTranslator';
-        await translateWithCache({origin: 'region source'});
-        expect(translationCacheIdentities().at(-1)).toMatchObject({azureTranslatorRegion: 'eastasia'});
         delete (policy as Partial<typeof policy>).freeTranslationOrder;
-        delete (policy as Partial<typeof policy>).azureTranslatorRegion;
+    });
+
+    it.each([
+        ['freeTranslation', false], ['freeTranslation', true],
+        ['myMemory', false], ['myMemory', true],
+    ] as const)('%s 的 MyMemory 邮箱变更隔离在途执行并复用成功缓存，批量=%s', async (service, batch) => {
+        const policy = mocks.config as typeof mocks.config & {myMemoryEmail?: string; freeTranslationOrder?: string[]};
+        Object.assign(policy, {service, myMemoryEmail: '', freeTranslationOrder: ['myMemory']});
+        const request: TranslationRequestMessage = batch ? {origin: ['same source']} : {origin: 'same source'};
+        const translated = batch ? ['新邮箱译文'] : '新邮箱译文';
+        const previous = deferred<string | string[]>();
+        mocks.service.mockImplementation(message => {
+            const current = getTranslationProviderConfig(message, mocks.config as never);
+            return current.myMemoryEmail === 'reader@example.com' ? Promise.resolve(translated) : previous.promise;
+        });
+        const oldRequest = translateWithCache(request).catch(error => error);
+        await flushMicrotasks();
+        policy.myMemoryEmail = 'reader@example.com';
+        const newRequest = translateWithCache(request).catch(error => error);
+        await flushMicrotasks();
+        previous.reject(new Error('旧匿名额度已用尽'));
+        expect(await oldRequest).toBeInstanceOf(Error);
+        expect(await newRequest).toEqual(translated);
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        policy.myMemoryEmail = 'another@example.com';
+        await expect(translateWithCache(request)).resolves.toEqual(translated);
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+    });
+
+    it.each(['freeTranslationTimeoutMs', 'freeTranslationCooldownMs'] as const)('免费链 %s 变更不共享旧等待策略的在途失败', async field => {
+        Object.assign(mocks.config, {service: 'freeTranslation', useCache: false, [field]: 1_000});
+        const previous = deferred<string>();
+        mocks.service.mockImplementation(message => {
+            const current = getTranslationProviderConfig(message, mocks.config as never);
+            return current[field] === 5_000 ? Promise.resolve('新策略译文') : previous.promise;
+        });
+        const oldRequest = translateWithCache({origin: 'same source'}).catch(error => error);
+        await flushMicrotasks();
+        Object.assign(mocks.config, {[field]: 5_000});
+        const newRequest = translateWithCache({origin: 'same source'}).catch(error => error);
+        await flushMicrotasks();
+        previous.reject(new Error('旧策略执行失败'));
+        expect(await oldRequest).toBeInstanceOf(Error);
+        expect(await newRequest).toBe('新策略译文');
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+    });
+
+    it.each(['freeTranslation', 'myMemory'])('%s 在途去重归一默认值且忽略实际不用的 Key 与代理', async service => {
+        Object.assign(mocks.config, {service, useCache: false});
+        const pending = deferred<string>();
+        mocks.service.mockReturnValue(pending.promise);
+        const first = translateWithCache({origin: 'same source'});
+        await flushMicrotasks();
+        Object.assign(mocks.config, {
+            freeTranslationTimeoutMs: 5_000,
+            freeTranslationCooldownMs: 60_000,
+            myMemoryEmail: '  ',
+            token: {[service]: 'saved-key'},
+            proxy: {[service]: 'https://private.example/proxy', deeplx: 'https://private.example/deeplx'},
+            deeplx: 'https://private.example/translate',
+        });
+        const second = translateWithCache({origin: 'same source'});
+        await flushMicrotasks();
+        pending.resolve('共享译文');
+        await expect(Promise.all([first, second])).resolves.toEqual(['共享译文', '共享译文']);
+        expect(mocks.service).toHaveBeenCalledTimes(1);
+    });
+
+    it('未启用 MyMemory 的免费链不因邮箱变化拆分在途请求', async () => {
+        Object.assign(mocks.config, {service: 'freeTranslation', freeTranslationOrder: ['microsoft']});
+        const pending = deferred<string>();
+        mocks.service.mockReturnValue(pending.promise);
+        const first = translateWithCache({origin: 'same source'});
+        await flushMicrotasks();
+        Object.assign(mocks.config, {myMemoryEmail: 'reader@example.com'});
+        const second = translateWithCache({origin: 'same source'});
+        await flushMicrotasks();
+        pending.resolve('共享译文');
+        await expect(Promise.all([first, second])).resolves.toEqual(['共享译文', '共享译文']);
+        expect(mocks.service).toHaveBeenCalledTimes(1);
     });
 
     it('reuses persisted single cache entries, including successful unchanged results', async () => {
