@@ -118,14 +118,33 @@
           </el-select>
           <p v-if="selectedVideoServiceUnavailableMessage" class="capability-warning">{{ selectedVideoServiceUnavailableMessage }}</p>
         </SettingsItem>
-        <GlossaryLibrarySelect
+        <SettingsItem
           v-if="config.glossaryLibraries.length || config.glossaryEnabled"
-          v-model="config.videoGlossaryIds"
-          :libraries="config.glossaryLibraries"
-          :enabled="config.glossaryEnabled"
-          :unsupported="!supportsTranslationGlossary(config.videoService, resolveConfiguredModel(config.model[config.videoService], config.customModel[config.videoService]))"
+          :label="t('glossary.title')"
+          :description="videoGlossaryDescription"
           :disabled="!config.videoTranslationEnabled"
-        />
+        >
+          <GlossaryLibrarySelect
+            v-model="config.videoGlossaryIds"
+            :libraries="config.glossaryLibraries"
+            :enabled="config.glossaryEnabled"
+            :disabled="!config.videoTranslationEnabled"
+            :show-copy="false"
+          >
+            <template #mode-control="{mode, changeMode}">
+              <el-select
+                :model-value="mode"
+                :aria-label="t('glossary.mode')"
+                :disabled="!config.videoTranslationEnabled"
+                @update:model-value="changeMode"
+              >
+                <el-option value="inherit" :label="t('glossary.inherit')" />
+                <el-option value="none" :label="t('glossary.none')" />
+                <el-option value="selected" :label="t('glossary.choose')" :disabled="!config.glossaryLibraries.length" />
+              </el-select>
+            </template>
+          </GlossaryLibrarySelect>
+        </SettingsItem>
         <SettingsItem label="显示 FluentRead 字幕" description="临时隐藏扩展字幕时保留当前翻译设置。" :disabled="!config.videoTranslationEnabled">
           <el-switch v-model="config.videoSubtitleVisible" class="settings-toggle" aria-label="显示 FluentRead 视频字幕" :disabled="!config.videoTranslationEnabled" />
         </SettingsItem>
@@ -942,6 +961,12 @@ const defaultTextServiceLabel = computed(() => (
   serviceOptionsWithCustomProviders.value.find((item: any) => item.value === config.value.service)?.label || config.value.service
 ));
 const videoServiceOptions = computed(() => availableServiceOptions.value.filter((item: any) => !item.disabled));
+const videoGlossaryDescription = computed(() => {
+  if (!config.value.glossaryEnabled) return t('glossary.disabledHint');
+  const service = config.value.videoService;
+  const model = resolveConfiguredModel(config.value.model[service], config.value.customModel[service]);
+  return t(supportsTranslationGlossary(service, model) ? 'glossary.scopeHint' : 'glossary.unsupportedHint');
+});
 const selectedTextServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.service));
 const selectedVideoServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.videoService));
 const videoSubtitleFontSizeOptions = VIDEO_SUBTITLE_FONT_SIZE_OPTIONS;
