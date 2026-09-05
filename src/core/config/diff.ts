@@ -387,7 +387,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     theme: {group: 'general', label: '主题', format: (value) => formatEnum(value, THEME_LABELS)},
     interfaceSkin: {group: 'general', label: '界面皮肤', format: (value) => formatEnum(value, INTERFACE_SKIN_LABELS)},
     interfaceVisibility: {group: 'general', label: '界面栏目', format: formatInterfaceVisibility},
-    popupModuleOrder: {group: 'general', label: 'Popup 布局顺序', format: formatPopupModuleOrder},
+    popupModuleOrder: {group: 'general', label: '菜单栏布局顺序', format: formatPopupModuleOrder},
     popupQuickFeatureVisibility: {group: 'general', label: '快捷功能卡片', format: formatPopupQuickFeatureVisibility},
     popupQuickFeatureOrder: {group: 'general', label: '快捷功能顺序', format: formatPopupQuickFeatureOrder},
 

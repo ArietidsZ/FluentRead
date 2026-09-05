@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/interfaceAppearance.ts
  * 文件职责：定义 FluentRead 扩展的可插拔皮肤、Popup 模块布局与栏目可见性配置契约，作为 Options、Popup 和配置持久化共同依赖的单一来源。
- * 主要内容：维护十套界面皮肤的分组、预览与尺寸策略，以及 Popup 区域和快捷功能卡片的两级注册表、默认顺序、可见性和安全归一化函数。
+ * 主要内容：维护界面皮肤的分组、背景图案、预览与尺寸策略，以及 Popup 区域和快捷功能卡片的两级注册表、默认顺序、可见性和安全归一化函数。
  * 模块边界：本文件只描述纯配置规则和用户可见元数据，不读取浏览器存储、不操作 DOM，也不决定具体页面布局；DOM 皮肤应用由 src/ui/interfaceAppearance.ts 负责。
  */
 
@@ -13,14 +13,15 @@ export const interfaceSkinGroups = [
   },
   {
     value: 'palette',
-    label: '氛围配色',
-    description: '用不同色彩营造轻松、沉静或护眼的阅读氛围。',
+    label: '氛围风格',
+    description: '让色彩、背景与小小的图案，陪你自在阅读。',
   },
 ] as const
 
 export const interfaceSkinOptions = [
   {
     value: 'default',
+    motif: 'none',
     label: '默认风格',
     description: '保留当前 FluentRead 的界面布局与视觉效果。',
     group: 'utility',
@@ -31,6 +32,7 @@ export const interfaceSkinOptions = [
   },
   {
     value: 'minimal',
+    motif: 'none',
     label: '简约风格',
     description: '平面留白与轻边界，让主要操作更突出。',
     group: 'utility',
@@ -41,6 +43,7 @@ export const interfaceSkinOptions = [
   },
   {
     value: 'compact',
+    motif: 'none',
     label: '紧凑风格',
     description: '压缩间距与控件高度，适合高频快速操作。',
     group: 'utility',
@@ -51,6 +54,7 @@ export const interfaceSkinOptions = [
   },
   {
     value: 'contrast',
+    motif: 'none',
     label: '高对比 ⚡',
     description: '强化文字、边框与焦点状态，提升辨识度。',
     group: 'utility',
@@ -61,46 +65,62 @@ export const interfaceSkinOptions = [
   },
   {
     value: 'cheese',
+    motif: 'cheese',
     label: '奶酪 🧀',
     description: '奶油白与柔和焦糖色，温暖而清爽。',
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
     popupWidth: 400,
-    preview: {canvas: '#f6f4ee', surface: '#fffefa', accent: '#946d2f', ink: '#35322b'},
+    preview: {canvas: '#fff9e9', surface: '#fffefa', accent: '#946d2f', ink: '#35322b'},
   },
   {
     value: 'ocean',
+    motif: 'ocean',
     label: '海盐 🌊',
-    description: '雾白底色与灰海蓝，清透安静。',
+    description: '晴空蓝与轻盈水波，像海风一样清爽。',
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
     popupWidth: 400,
-    preview: {canvas: '#f1f5f6', surface: '#fcfefe', accent: '#476f82', ink: '#2e3940'},
+    preview: {canvas: '#f1fbff', surface: '#ffffff', accent: '#0676b7', ink: '#123c52'},
   },
   {
     value: 'matcha',
+    motif: 'matcha',
     label: '抹茶 🍵',
-    description: '淡灰绿与鼠尾草色，自然舒展。',
+    description: '鲜绿叶片与奶油白，收下一点春日生机。',
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
     popupWidth: 400,
-    preview: {canvas: '#f3f5f0', surface: '#fdfefa', accent: '#5b745c', ink: '#313b32'},
+    preview: {canvas: '#f7fbed', surface: '#fffffc', accent: '#327b28', ink: '#274025'},
   },
   {
     value: 'sakura',
+    motif: 'sakura',
     label: '樱花 🌸',
-    description: '柔白底色与灰樱粉，轻盈含蓄。',
+    description: '明亮花粉与轻柔花瓣，温柔也有好气色。',
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
     popupWidth: 400,
-    preview: {canvas: '#f8f3f4', surface: '#fffdfd', accent: '#976577', ink: '#403339'},
+    preview: {canvas: '#fff5f7', surface: '#fffefe', accent: '#c83474', ink: '#52263c'},
+  },
+  {
+    value: 'emoji',
+    motif: 'emoji',
+    label: 'Emoji 乐园 ✨',
+    description: '奶油纸、彩色贴纸和小表情，让日常多一点快乐。',
+    group: 'palette',
+    kind: 'palette',
+    popupHeight: 'content',
+    popupWidth: 400,
+    preview: {canvas: '#fffaf0', surface: '#fffefd', accent: '#7143ca', ink: '#352447'},
   },
   {
     value: 'midnight',
+    motif: 'midnight',
     label: '夜幕 🌙',
     description: '墨蓝底色与柔和雾蓝，适合夜间使用。',
     group: 'palette',
@@ -111,6 +131,7 @@ export const interfaceSkinOptions = [
   },
   {
     value: 'paper',
+    motif: 'paper',
     label: '纸张护眼 📖',
     description: '暖纸白与灰褐墨色，朴素耐看。',
     group: 'palette',
@@ -123,6 +144,7 @@ export const interfaceSkinOptions = [
 
 export type InterfaceSkin = typeof interfaceSkinOptions[number]['value']
 export type InterfaceSkinOption = typeof interfaceSkinOptions[number]
+export type InterfaceMotif = InterfaceSkinOption['motif']
 
 const interfaceSkinByValue = new Map<string, InterfaceSkinOption>(
   interfaceSkinOptions.map((item) => [item.value, item]),

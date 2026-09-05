@@ -14,6 +14,7 @@
     :aria-label="previewLabel"
   >
     <div class="preview-popup" aria-hidden="true">
+      <InterfaceBackdrop :motif="skin.motif" />
       <header class="preview-header">
         <span class="preview-logo">A中</span>
         <span class="preview-brand">
@@ -38,8 +39,8 @@
       <div class="preview-action">{{ translateLegacy('翻译当前网页') }}</div>
 
       <div class="preview-features">
-        <span><i>文</i>{{ translateLegacy('文档翻译') }}</span>
-        <span><i>T</i>{{ translateLegacy('划词翻译') }}</span>
+        <span><i>{{ skin.value === 'emoji' ? '📖' : '文' }}</i>{{ translateLegacy('文档翻译') }}</span>
+        <span><i>{{ skin.value === 'emoji' ? '✍️' : 'T' }}</i>{{ translateLegacy('划词翻译') }}</span>
       </div>
     </div>
   </section>
@@ -47,6 +48,7 @@
 
 <script setup lang="ts">
 import {computed} from 'vue'
+import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue'
 import type {InterfaceSkinOption} from '@/src/core/config/interfaceAppearance'
 import {useUiI18n} from '@/src/ui/i18n'
 
@@ -83,6 +85,8 @@ const previewStyle = computed(() => {
 }
 
 .preview-popup {
+  position: relative;
+  isolation: isolate;
   display: grid;
   gap: 7px;
   padding: 10px;
@@ -332,8 +336,8 @@ const previewStyle = computed(() => {
 .interface-skin-live-preview[data-preview-kind="palette"] .preview-popup {
   border-color: var(--line);
   border-radius: 14px;
-  background: var(--preview-canvas);
-  box-shadow: none;
+  background: var(--skin-canvas-background, var(--preview-canvas));
+  box-shadow: var(--skin-panel-shadow, none);
 }
 
 .interface-skin-live-preview[data-preview-kind="palette"] :is(.preview-language-pair span, .preview-service, .preview-features span) {
@@ -375,5 +379,16 @@ const previewStyle = computed(() => {
 
 @media (max-width: 480px) {
   .interface-skin-live-preview { width: 100%; }
+}
+
+.interface-skin-live-preview[data-preview-kind="palette"] .preview-popup {
+  border-radius: var(--skin-panel-radius, 14px);
+}
+.interface-skin-live-preview[data-preview-kind="palette"] :is(.preview-language-pair span, .preview-service, .preview-action) {
+  border-radius: var(--skin-control-radius, 10px);
+}
+.interface-skin-live-preview[data-preview-kind="palette"] .preview-features span {
+  border-radius: var(--skin-feature-radius, 10px);
+  box-shadow: var(--skin-feature-shadow, none);
 }
 </style>

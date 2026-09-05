@@ -1,39 +1,55 @@
 /**
  * @file src/ui/styles/interface-skins/ocean.css
- * 文件职责：声明 FluentRead 海盐氛围配色的语义变量。
- * 主要内容：蓝白表面与灰调海蓝强调，以低饱和表面区分层次，提供清晰的正文与辅助文字。
- * 模块边界：只声明配色；组件布局、圆角与交互状态统一由 palette.css 管理。
+ * 文件职责：定义海盐风格的清透蓝色、浅青水面背景与轻盈卡片层次。
+ * 主要内容：亮色使用蓝白纸面和水波弧纹，暗色使用清晰的海蓝表面；所有装饰静止且仅位于背景。
+ * 模块边界：本模块声明主题语义变量，背景、圆角与阴影由 palette.css 消费，不改变组件结构或交互。
  */
 
 :root[data-interface-skin="ocean"] {
-  --brand: #476f82;
-  --brand-strong: #355b6e;
-  --brand-soft: #e3ecf0;
-  --ink: #2e3940;
-  --muted: #5c6a72;
-  --line: #d9e1e5;
-  --surface: #fcfefe;
-  --surface-soft: #edf2f4;
-  --skin-page: #f1f5f6;
-  --skin-sidebar: #f7fafb;
+  --brand: #0676b7;
+  --brand-strong: #005c93;
+  --brand-soft: #dff4ff;
+  --ink: #123c52;
+  --muted: #476b7c;
+  --line: #c7e6f0;
+  --surface: #ffffff;
+  --surface-soft: #eefaff;
+  --skin-page: #f1fbff;
+  --skin-sidebar: #f6fdff;
   --skin-action-text: #ffffff;
-  --skin-focus: color-mix(in srgb, var(--brand) 32%, transparent);
-  --skin-shadow: rgba(0, 0, 0, .08);
-  --skin-radius: 14px;
+  --skin-focus: color-mix(in srgb, var(--brand) 22%, transparent);
+  --skin-shadow: rgba(12, 106, 145, .12);
+  --skin-radius: 20px;
+  --skin-panel-radius: 20px;
+  --skin-feature-radius: 13px;
+  --skin-control-radius: 11px;
+  --skin-icon-background: #ddf4ff;
+  --skin-canvas-background:
+    radial-gradient(ellipse at center, transparent 44%, #c5eff9 45% 47%, transparent 48% 60%, #d7f5fc 61% 63%, transparent 64%) right -68px top -76px / 320px 220px no-repeat,
+    linear-gradient(135deg, #eafaff 0%, #fbfeff 52%, #eef8ff 100%);
+  --skin-panel-background: linear-gradient(155deg, #ffffff 64%, #f1fcff 100%);
+  --skin-panel-shadow: 0 8px 24px rgba(19, 113, 153, .07), 0 1px 2px rgba(19, 113, 153, .04);
+  --skin-feature-shadow: 0 2px 6px rgba(19, 113, 153, .045);
 }
 
 :root.dark[data-interface-skin="ocean"] {
-  --brand: #91b2c2;
-  --brand-strong: #b9d1dd;
-  --brand-soft: #30424c;
-  --ink: #e3ebef;
-  --muted: #a7b6be;
-  --line: #3e4b53;
-  --surface: #222b31;
-  --surface-soft: #2a343c;
-  --skin-page: #191f23;
-  --skin-sidebar: #1e272d;
-  --skin-action-text: #191f23;
-  --skin-focus: color-mix(in srgb, var(--brand) 32%, transparent);
-  --skin-shadow: rgba(0, 0, 0, .22);
+  --brand: #70d3fa;
+  --brand-strong: #a5e6ff;
+  --brand-soft: #163f55;
+  --ink: #e7f8ff;
+  --muted: #aacddb;
+  --line: #2d5367;
+  --surface: #102e40;
+  --surface-soft: #17384a;
+  --skin-page: #0b2230;
+  --skin-sidebar: #0e2939;
+  --skin-action-text: #072537;
+  --skin-shadow: rgba(0, 12, 24, .26);
+  --skin-icon-background: #19495f;
+  --skin-canvas-background:
+    radial-gradient(ellipse at center, transparent 44%, #17475c 45% 47%, transparent 48% 60%, #123b50 61% 63%, transparent 64%) right -68px top -76px / 320px 220px no-repeat,
+    linear-gradient(135deg, #0e2b3d 0%, #0b2230 60%, #102b3b 100%);
+  --skin-panel-background: linear-gradient(155deg, #123347 0%, #102e40 100%);
+  --skin-panel-shadow: 0 8px 24px rgba(0, 12, 24, .18), inset 0 1px 0 rgba(166, 224, 250, .04);
+  --skin-feature-shadow: 0 2px 6px rgba(0, 12, 24, .13);
 }

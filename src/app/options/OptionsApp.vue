@@ -32,6 +32,7 @@
     </aside>
 
     <main class="workspace">
+      <InterfaceBackdrop :motif="interfaceSkin.motif" />
       <header class="topbar">
         <div>
           <h1>{{ activeItem.title }}</h1>
@@ -98,6 +99,8 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue'
+import {getInterfaceSkinOption} from '@/src/core/config/interfaceAppearance'
 import SettingsSections from '@/src/features/settings/ui/SettingsSections.vue'
 import VocabularyBook from '@/src/features/vocabulary/ui/VocabularyBook.vue'
 import {useUiI18n} from '@/src/ui/i18n'
@@ -117,6 +120,7 @@ import {applyInterfaceSkin} from '@/src/ui/interfaceAppearance'
 const version = process.env.VUE_APP_VERSION
 const {t, translateLegacy} = useUiI18n()
 const query = ref('')
+const interfaceSkin = ref(getInterfaceSkinOption(runtimeConfig.interfaceSkin))
 const activeSection = ref('settings-general')
 const navigationElement = ref<HTMLElement | null>(null)
 const mobileNavigationMedia = window.matchMedia('(max-width: 700px)')
@@ -141,11 +145,15 @@ const localizedNavigationItems = computed(() => localizedNavigationGroups.value.
 const activeItem = computed(() => localizedNavigationItems.value.find((item) => item.id === resolveNavigationItem(activeSection.value).id)
   || localizedNavigationItems.value[0])
 const unsubscribeInterfaceConfig = subscribeConfig((nextConfig) => {
+  interfaceSkin.value = getInterfaceSkinOption(nextConfig.interfaceSkin)
   applyInterfaceSkin(nextConfig.interfaceSkin)
 })
 
 void configReady
-  .then(() => applyInterfaceSkin(runtimeConfig.interfaceSkin))
+  .then(() => {
+    interfaceSkin.value = getInterfaceSkinOption(runtimeConfig.interfaceSkin)
+    applyInterfaceSkin(runtimeConfig.interfaceSkin)
+  })
   .catch(() => applyInterfaceSkin('default'))
 
 const filteredResults = computed(() => {

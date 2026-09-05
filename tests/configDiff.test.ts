@@ -101,7 +101,7 @@ describe('配置差异预览', () => {
             },
             {
                 key: 'popupModuleOrder',
-                label: 'Popup 布局顺序',
+                label: '菜单栏布局顺序',
                 before: '翻译控制 → 当前网站栏目 → 快捷功能栏 → 底部信息栏',
                 after: '快捷功能栏 → 翻译控制 → 当前网站栏目 → 底部信息栏',
             },

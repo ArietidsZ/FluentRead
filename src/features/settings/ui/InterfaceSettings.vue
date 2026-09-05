@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/InterfaceSettings.vue
- * 文件职责：提供 FluentRead 的弹窗风格选择和 Popup 模块布局设置，作为“通用设置”中的紧凑偏好分组。
- * 主要内容：用真实 DOM Popup 范例辅助选择十套注册皮肤，并通过同一可复用编辑器分别编排 Popup 顶层区域和六张快捷功能卡片。
+ * 文件职责：在独立的“界面布局”页面组织 FluentRead 的界面风格和菜单栏布局两个偏好分组。
+ * 主要内容：用真实 DOM 范例辅助选择注册皮肤，并通过同一可复用编辑器分别编排菜单栏顶层区域和六张快捷功能卡片。
  * 模块边界：本组件只负责界面配置的展示与双向绑定，不直接读写浏览器存储、不负责主题模式，也不关闭翻译功能本身；界面皮肤由 Options composition root 统一应用。
 -->
 <template>
@@ -10,6 +10,7 @@
     :description="translateLegacy('从效率布局、趣味配色到夜间和护眼方案，选择适合自己的界面；也可以只留下常用栏目。')"
   >
     <SettingsItem
+      class="interface-appearance-settings"
       :label="translateLegacy('弹窗风格')"
       :description="translateLegacy('风格只改变扩展界面的呈现，不影响网页翻译效果。')"
     >
@@ -55,6 +56,7 @@
                 }"
                 aria-hidden="true"
               >
+                <InterfaceBackdrop :motif="skin.motif" />
                 <i /><i /><i />
               </span>
               <span class="interface-skin-copy">
@@ -68,11 +70,13 @@
       </div>
     </SettingsItem>
 
-    <SettingsItem
-      stacked
-      :label="t('settings.interface.popupLayout.label')"
-      :description="t('settings.interface.popupLayout.description')"
-    >
+  </SettingsGroup>
+
+  <SettingsGroup
+    :title="t('settings.interface.popupLayout.label')"
+    :description="t('settings.interface.popupLayout.description')"
+  >
+    <div class="interface-layout-settings">
       <div class="popup-layout-workbench" data-popup-layout-workbench>
         <section class="popup-layout-preview-panel">
           <header class="popup-layout-panel-heading">
@@ -155,11 +159,12 @@
           </div>
         </section>
       </div>
-    </SettingsItem>
+    </div>
   </SettingsGroup>
 </template>
 
 <script lang="ts" setup>
+import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue'
 import {computed, ref} from 'vue'
 import type {Config} from '@/src/core/config/model'
 import {
@@ -239,6 +244,19 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 </script>
 
 <style scoped>
+.interface-layout-settings {
+  padding: 12px 16px;
+}
+
+.interface-appearance-settings {
+  grid-template-columns: minmax(190px, .65fr) minmax(0, 1.5fr);
+  align-items: start;
+  gap: 24px;
+}
+
+.interface-appearance-settings:hover { background: transparent; }
+.interface-appearance-settings :deep(.settings-item-copy) { position: sticky; top: 0; }
+
 .interface-skin-picker {
   display: grid;
   width: 100%;
@@ -367,16 +385,16 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 .interface-skin-group-heading strong {
   flex: none;
   color: var(--ink);
-  font-size: 9.5px;
+  font-size: 12px;
 }
 
 .interface-skin-group-heading small {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   color: var(--muted);
-  font-size: 8px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 10px;
+  line-height: 1.5;
+  white-space: normal;
 }
 
 .interface-skin-grid {
@@ -388,12 +406,12 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 .interface-skin-option {
   position: relative;
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) 14px;
+  grid-template-columns: 56px minmax(0, 1fr) 14px;
   align-items: center;
   gap: 8px;
   min-width: 0;
-  min-height: 62px;
-  padding: 8px;
+  min-height: 82px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: 11px;
   color: var(--ink);
@@ -415,18 +433,31 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 }
 
 .interface-skin-preview {
+  position: relative;
+  isolation: isolate;
   display: flex;
-  width: 36px;
-  height: 38px;
+  width: 56px;
+  height: 60px;
   flex-direction: column;
   gap: 4px;
   justify-content: center;
-  padding: 6px;
+  padding: 10px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--skin-preview-ink) 18%, transparent);
   border-radius: 9px;
-  background: var(--skin-preview-canvas);
+  background: radial-gradient(ellipse at 100% 0, color-mix(in srgb, var(--skin-preview-accent) 20%, transparent), transparent 80%), var(--skin-preview-canvas);
 }
+
+.interface-skin-preview :deep(.interface-backdrop) {
+  width: 100%;
+  height: 42px;
+  color: var(--skin-preview-accent);
+  opacity: .8;
+}
+.interface-skin-preview :deep(.emoji-stickers) { width: 100%; height: 100%; }
+.interface-skin-preview :deep(.emoji-stickers span:nth-child(1)) { top: 2px; right: 6px; font-size: 17px; }
+.interface-skin-preview :deep(.emoji-stickers span:nth-child(2)) { top: 24px; right: 3px; font-size: 11px; }
+.interface-skin-preview :deep(.emoji-stickers span:nth-child(3)) { top: 4px; right: 35px; font-size: 11px; }
 
 .interface-skin-preview > i {
   display: block;
@@ -436,7 +467,7 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
   background: var(--skin-preview-surface);
 }
 
-.interface-skin-preview > i:first-child {
+.interface-skin-preview > i:first-of-type {
   width: 48%;
   height: 3px;
   background: var(--skin-preview-ink);
@@ -457,15 +488,15 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 }
 
 .interface-skin-copy strong {
-  font-size: 11.5px;
-  line-height: 1.35;
+  font-size: 13px;
+  line-height: 1.4;
   overflow-wrap: anywhere;
 }
 
 .interface-skin-copy small {
   color: var(--muted);
-  font-size: 8.5px;
-  line-height: 1.35;
+  font-size: 10.5px;
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
@@ -494,6 +525,12 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 
 .interface-skin-option.selected .interface-skin-radio > i {
   opacity: 1;
+}
+
+@media (max-width: 1100px) {
+  .interface-appearance-settings { grid-template-columns: minmax(0, 1fr); }
+  .interface-appearance-settings :deep(.settings-item-copy) { position: static; }
+  .interface-appearance-settings :deep(.settings-item-control) { justify-content: stretch; }
 }
 
 @media (max-width: 520px) {
