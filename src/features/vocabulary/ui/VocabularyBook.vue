@@ -1,11 +1,13 @@
 <!--
  * @file src/features/vocabulary/ui/VocabularyBook.vue
- * 文件职责：实现学习中心本地单词与句子收藏及主动复习界面，覆盖收藏开关、原文朗读、筛选分页、记忆卡、删除撤销和数据操作。
- * 主要内容：组件通过 runtime 消息读取和修改词条，使用字段级配置补丁保存 Beta 开关，协调稳定复习队列、页面生命周期、键盘评分、主题、时间刷新与跨页面变更通知，并在轻量“更多”菜单中提供隐私安全的 Anki 导出和清空操作。
+ * 文件职责：实现学习中心本地单词与句子收藏及主动复习界面，覆盖原句学习、自主造句反馈、收藏开关、原文朗读、筛选分页、记忆卡、删除撤销和数据操作。
+ * 主要内容：组件通过 runtime 消息读取和修改词条，使用字段级配置补丁保存收藏开关，协调稳定复习队列、页面生命周期、键盘评分、主题、时间刷新与跨页面变更通知，并在轻量“更多”菜单中提供隐私安全的 Anki 导出和清空操作。
  * 模块边界：UI 不直接访问 Dexie 或上传学习数据；完整备份与旧文件导入统一进入备份与恢复页，数据库操作集中在后台 repository/handler，导出的上下文和来源只有用户明确选择时才包含。
  -->
 <template>
   <div class="vocabulary-book">
+    <VocabularyStudy v-if="studyEntry" :key="studyEntry.id" :entry="studyEntry" :reference="entryTranslation(studyEntry)" @close="selectedEntryId = ''" @speak="toggleEntrySpeech(studyEntry)" @navigate="emit('navigate', $event)" />
+    <template v-else>
     <section class="beta-panel" :class="{ enabled: betaEnabled }">
       <div class="beta-copy">
         <div>
@@ -58,14 +60,19 @@
           <div class="review-prompt">
             <p v-if="currentClozeContext" class="cloze-context">{{ currentClozeContext }}</p>
             <h3 v-else>{{ currentReview.term }}</h3>
-            <small>{{ currentClozeContext ? '回忆空缺处的表达和含义' : '先在心里回忆它的含义' }}</small>
+            <small>{{ currentClozeContext ? '回忆空缺处的表达和含义' : '回忆它的含义，并想想可以怎样使用' }}</small>
           </div>
 
+          <textarea v-if="!reviewAnswerVisible" v-model="recallDraft" class="recall-draft" rows="2" maxlength="400" aria-label="我的回忆" placeholder="试着写下答案或一个用法，再核对…" @keydown.stop />
           <button v-if="!reviewAnswerVisible" class="reveal-button" type="button" @click="reviewAnswerVisible = true">显示答案 <kbd>Space</kbd></button>
 
           <div v-else class="review-answer">
             <div class="answer-heading"><h3>{{ currentReview.term }}</h3><button class="vocabulary-speak" type="button" :aria-label="playingEntryId === currentReview.id ? '停止朗读' : '朗读原文'" :title="playingEntryId === currentReview.id ? '停止朗读' : '朗读原文'" @click="toggleEntrySpeech(currentReview)"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7h4l4-3v12l-4-3H3z" /><path :d="playingEntryId === currentReview.id ? 'M14 7v6m3-6v6' : 'M14 7a4 4 0 0 1 0 6m2-9a8 8 0 0 1 0 12'" /></svg></button><span v-if="currentReview.phonetic">{{ currentReview.phonetic }}</span></div>
-            <p class="answer-translation">{{ entryTranslation(currentReview) || '暂无释义' }}</p>
+            <p v-if="recallDraft" class="recall-attempt">你的回忆：{{ recallDraft }}</p>
+            <span class="answer-reference-label">收藏时的参考内容</span>
+            <ReadingAnswer v-if="entryTranslation(currentReview)" :text="entryTranslation(currentReview)" />
+            <p v-else class="answer-translation">尚未保存参考内容。可以先进入学习页理解这个表达，再回来复习。</p>
+            <button type="button" class="study-entry-button" @click="openStudy(currentReview)">结合原句学用法</button>
             <p v-if="latestContext(currentReview)?.text" class="answer-context">{{ latestContext(currentReview)?.text }}</p>
             <a v-if="latestContext(currentReview)?.sourceUrl" :href="latestContext(currentReview)?.sourceUrl" target="_blank" rel="noreferrer">查看收藏来源 ↗</a>
             <div class="review-actions">
@@ -85,9 +92,12 @@
 
       <template v-else>
         <section class="primary-actions">
+          <button class="start-learning" type="button" :disabled="loading || !latestSavedEntry" @click="latestSavedEntry && openStudy(latestSavedEntry)">
+            <strong>学习最近收藏</strong><small>从原句理解含义，再试着自己表达</small>
+          </button>
           <button class="start-review" type="button" :disabled="loading || actionBusy || reviewPlan.length === 0" @click="startReview">
             <span aria-hidden="true">▶</span>
-            <span><strong>{{ reviewPlan.length ? `开始复习 ${reviewPlan.length} 个` : '今天没有到期单词' }}</strong><small>先回忆，再用“忘了 / 记得”更新掌握程度</small></span>
+            <span><strong>{{ reviewPlan.length ? `开始复习 ${reviewPlan.length} 个` : '今天没有到期单词' }}</strong><small>复习你收藏的表达；先理解用法，再检验能否回忆</small></span>
           </button>
           <div class="secondary-actions">
             <button type="button" class="refresh-button" :disabled="loading" @click="loadEntries">{{ loading ? '读取中…' : '刷新' }}</button>
@@ -129,7 +139,7 @@
           <article v-for="entry in pagedEntries" :key="entry.id" class="word-row">
             <div class="word-main">
               <div class="word-heading"><h3>{{ entry.term }}</h3><button class="vocabulary-speak" type="button" :aria-label="playingEntryId === entry.id ? '停止朗读' : '朗读原文'" :title="playingEntryId === entry.id ? '停止朗读' : '朗读原文'" @click="toggleEntrySpeech(entry)"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7h4l4-3v12l-4-3H3z" /><path :d="playingEntryId === entry.id ? 'M14 7v6m3-6v6' : 'M14 7a4 4 0 0 1 0 6m2-9a8 8 0 0 1 0 12'" /></svg></button><span v-if="entry.phonetic">{{ entry.phonetic }}</span></div>
-              <p>{{ entryTranslation(entry) || '暂无释义' }}</p>
+              <p>{{ vocabularyReferencePreview(entryTranslation(entry)) || '从原句开始，理解这个表达的含义与用法' }}</p>
               <small v-if="contextPreview(entry)" class="context-preview">{{ contextPreview(entry) }}</small>
               <div class="word-meta">
                 <span v-if="entry.partOfSpeech">{{ entry.partOfSpeech }}</span>
@@ -141,6 +151,7 @@
               <span class="status-pill" :class="`status-${entry.status}`">{{ statusLabel(entry.status) }}</span>
               <small>{{ nextReviewLabel(entry) }}</small>
               <div class="row-actions">
+                <button type="button" class="study-entry-button" @click="openStudy(entry)">学习用法</button>
                 <button v-if="entry.status !== 'mastered'" type="button" :disabled="actionBusy" @click="setMastered(entry)">标记掌握</button>
                 <button v-else type="button" :disabled="actionBusy" @click="relearn(entry)">重新学习</button>
                 <button type="button" class="danger" :disabled="actionBusy" @click="removeEntry(entry)">删除</button>
@@ -158,6 +169,8 @@
       </template>
     </template>
 
+    </template>
+
     <div v-if="toastMessage" class="book-toast" role="status">
       <span>{{ toastMessage }}</span><button v-if="undoExport" type="button" @click="undoRemove">撤销</button>
     </div>
@@ -166,6 +179,8 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import VocabularyStudy from './VocabularyStudy.vue';
+import {ReadingAnswer} from '@/src/features/reading-assistant/public';
 import {ElMessageBox} from 'element-plus';
 import browser from 'webextension-polyfill';
 import {normalizeUiLanguage, translateLegacyText} from '@/src/core/i18n';
@@ -177,7 +192,8 @@ import {
   subscribeConfig,
 } from '@/src/services/config/store';
 import {
-  buildVocabularyCloze,
+  vocabularyReviewCloze,
+  vocabularyReferencePreview,
   buildAnkiTsv,
   normalizeLearningSourceText,
   advanceVocabularyReviewSession,
@@ -209,6 +225,10 @@ const selectionTranslatorEnabled = ref(false);
 const targetLanguageKey = ref('');
 const configBusy = ref(false);
 const entries = ref<VocabularyEntry[]>([]);
+const selectedEntryId = ref('');
+const studyEntry = computed(() => entries.value.find(entry => entry.id === selectedEntryId.value));
+const latestSavedEntry = computed(() => [...entries.value].sort((a, b) => b.lastSeenAt - a.lastSeenAt || a.id.localeCompare(b.id))[0]);
+const recallDraft = ref('');
 const loading = ref(false);
 const actionBusy = ref(false);
 const loadError = ref('');
@@ -286,12 +306,14 @@ const filteredEntries = computed(() => {
 });
 const pageCount = computed(() => Math.max(1, Math.ceil(filteredEntries.value.length / pageSize)));
 const pagedEntries = computed(() => filteredEntries.value.slice((page.value - 1) * pageSize, page.value * pageSize));
-const currentClozeContext = computed(() => {
-  const entry = currentReview.value;
-  const context = entry ? latestContext(entry)?.text : '';
-  if (!entry || !context) return '';
-  return buildVocabularyCloze(context, entry.term);
-});
+const currentClozeContext = computed(() => currentReview.value ? vocabularyReviewCloze(currentReview.value) : '');
+watch(() => [currentReview.value?.id, currentReview.value?.updatedAt], () => { recallDraft.value = ''; });
+watch(selectedEntryId, () => stopEntrySpeech());
+function openStudy(entry: VocabularyEntry): void {
+  finishReview();
+  selectedEntryId.value = entry.id;
+}
+
 
 watch([query, statusFilter, sortOrder], () => { page.value = 1; });
 watch(pageCount, count => { if (page.value > count) page.value = count; });
@@ -501,7 +523,7 @@ function finishReview(): void {
 
 async function rateReview(rating: VocabularyScheduledReviewRating): Promise<void> {
   const entry = currentReview.value;
-  if (!entry || actionBusy.value) return;
+  if (!entry || actionBusy.value || !reviewAnswerVisible.value) return;
   actionBusy.value = true;
   try {
     const result = await requestVocabulary<VocabularyReviewResult>({
@@ -779,6 +801,11 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.recall-draft { display:block; width:100%; box-sizing:border-box; padding:12px; margin:16px 0; border:1px solid var(--line); border-radius:10px; color:var(--ink); background:var(--surface-soft); font:inherit; resize:vertical; }
+.recall-attempt { border-left:2px solid var(--brand); padding-left:12px; white-space:pre-wrap; }
+.answer-reference-label { color:var(--muted); font-size:12px; }
+.row-actions .study-entry-button { color:var(--brand); border-color:var(--brand); font-weight:600; }
+
 .vocabulary-book { position: relative; display: grid; gap: 18px; color: #172033; }
 .beta-panel, .privacy-note, .selection-reminder, .primary-actions, .toolbar, .review-shell { border: 1px solid #e6e8ef; border-radius: 18px; background: #fff; }
 .beta-panel { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 17px 18px; background: linear-gradient(135deg, #fff, #fff7f9); }
@@ -803,6 +830,10 @@ onBeforeUnmount(() => {
 .summary-grid span { color: #737c8f; font-size: 10px; font-weight: 700; }
 .summary-grid strong { margin: 7px 0 5px; color: #172033; font-size: 26px; line-height: 1; }
 .summary-grid small { color: #9aa1af; font-size: 9px; line-height: 1.35; }
+.start-learning { display:flex; flex:1; flex-direction:column; justify-content:center; gap:6px; padding:12px 16px; border:1px solid var(--brand); border-radius:13px; color:var(--brand); background:var(--surface); text-align:left; cursor:pointer; }
+.start-learning strong { font-size:13px; }
+.start-learning small { font-size:10px; color:var(--muted); }
+.start-learning:disabled { opacity:.5; cursor:not-allowed; }
 .primary-actions { display: flex; align-items: stretch; gap: 10px; padding: 10px; background: #f8f9fc; }
 .start-review { display: flex; min-height: 58px; padding: 10px 15px; border: 0; border-radius: 13px; color: #fff; background: linear-gradient(135deg, #f35482, #e93267); flex: 1; align-items: center; gap: 12px; text-align: left; cursor: pointer; }
 .start-review:disabled { color: #8c94a3; background: #e8eaf0; cursor: not-allowed; }

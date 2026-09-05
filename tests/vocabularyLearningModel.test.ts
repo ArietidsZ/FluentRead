@@ -3,6 +3,10 @@ import {
   advanceVocabularyReviewSession,
   buildAnkiTsv,
   buildVocabularyCloze,
+  vocabularyStudyContext,
+  vocabularyReviewCloze,
+  vocabularyStudyPrompt,
+  vocabularyReferencePreview,
   createVocabularyLifecycleGuard,
   createVocabularyReviewSession,
   reconcileVocabularyReviewQueue,
@@ -105,3 +109,47 @@ describe('vocabulary learning model edge cases', () => {
     })).resolves.toBe(false)
   })
 })
+
+
+describe('context-grounded vocabulary study', () => {
+  it('selects the newest relevant sentence without inventing clues or mutating saved contexts', () => {
+    const contexts = [
+      {text: 'We arrived on time.', capturedAt: 3},
+      {text: 'on time', capturedAt: 5},
+      {text: 'Nothing relevant here.', capturedAt: 6},
+      {text: 'The train left on time.', capturedAt: 2},
+    ];
+    const before = structuredClone(contexts);
+    const saved = entry('on time', {term: 'on time', contexts});
+    expect(vocabularyStudyContext(saved)).toBe(contexts[0]);
+    expect(vocabularyReviewCloze(saved)).toBe('We arrived ____.');
+    expect(saved.contexts).toEqual(before);
+    expect(vocabularyReviewCloze(entry('word', {contexts: [{text: 'word!', capturedAt: 1}]}))).toBe('');
+    expect(vocabularyReviewCloze(entry('word', {contexts: [{text: 'sword fish', capturedAt: 1}]}))).toBe('');
+    expect(vocabularyStudyContext(entry('word'))).toBeUndefined();
+  });
+
+  it('asks for one expression with evidence and distinguishes original context from generated examples', () => {
+    const question = vocabularyStudyPrompt('understand');
+    expect(question).toContain('不另选词');
+    expect(question).toContain('缺少语境');
+    expect(question).toContain('read_context');
+    expect(question).toContain('自拟例句');
+    expect(question).toContain('不出随机填空题');
+    expect(question.length).toBeLessThanOrEqual(1000);
+  });
+
+  it('asks for minimal usage corrections without scoring mastery or embedding learner data', () => {
+    const prompt = vocabularyStudyPrompt('use');
+    expect(prompt).toContain('最小修改');
+    expect(prompt).toContain('区分错误和可选润色');
+    expect(prompt).toContain('不得编造用户成绩或更新复习状态');
+    expect(prompt).toContain('用户当前问题中的文字就是需要反馈的造句');
+  });
+
+  it('keeps long collected AI explanations as a short list preview without losing the original', () => {
+    expect(vocabularyReferencePreview('### 用法\n**on time** > `按时`')).toBe('用法 on time 按时');
+    expect(vocabularyReferencePreview('字'.repeat(500))).toHaveLength(120);
+    expect(vocabularyReferencePreview('')).toBe('');
+  });
+});

@@ -69,7 +69,7 @@ const expectedNavigation = [
   ['settings-interface', '界面布局'],
   ['settings-services', '翻译服务'],
   ['settings-translation', '翻译设置'],
-  ['settings-harness', 'DeepSeek Harness'],
+  ['settings-harness', '翻译卡'],
   ['settings-image-translation', '图片翻译'],
   ['settings-area-translation', '圈选翻译'],
   ['settings-video', '视频字幕翻译'],
@@ -83,8 +83,8 @@ const expectedNavigation = [
   ['settings-about', '关于流畅阅读'],
 ];
 const expectedNavigationGroups = [
-  ['基础配置', ['settings-general', 'settings-interface', 'settings-services', 'settings-translation', 'settings-harness']],
-  ['专项翻译', ['settings-image-translation', 'settings-area-translation', 'settings-video', 'settings-sites']],
+  ['基础配置', ['settings-general', 'settings-interface', 'settings-services', 'settings-translation']],
+  ['专项翻译', ['settings-harness', 'settings-image-translation', 'settings-area-translation', 'settings-video', 'settings-sites']],
   ['工具与学习', ['settings-translation-center', 'settings-vocabulary', 'settings-glossary', 'settings-model-usage']],
   ['系统与数据', ['settings-advanced', 'settings-data', 'settings-about']],
 ];

@@ -6,6 +6,7 @@
  */
 export {
     buildAnkiTsv,
+    vocabularyStudyPrompt,
     normalizeLearningSourceText,
     VOCABULARY_SOURCE_TEXT_MAX,
     VOCABULARY_BOOK_EXPORT_FORMAT,

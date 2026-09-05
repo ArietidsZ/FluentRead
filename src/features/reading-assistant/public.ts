@@ -9,6 +9,7 @@ export {default as ReadingAnswer} from './ui/ReadingAnswer.vue';
 export {default as HarnessReadingHistory} from './ui/HarnessReadingHistory.vue';
 export {captureReadingSelection} from './selectionContext';
 export type {ReadingSelection} from './types';
+export {streamReading} from './client';
 export {clearHarnessSessions, deleteHarnessSession, getHarnessSession, listHarnessSessions} from './client';
 export {clearLearningMemories, deleteLearningMemory, listLearningMemories, saveLearningMemory} from './client';
 export type {LearningMemory, LearningMemoryInput, LearningMemoryKind} from '@/src/services/harness/learningMemory';

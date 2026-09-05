@@ -64,7 +64,7 @@ export default defineConfig({
             { text: '油猴脚本', link: '/guide/userscript' },
             { text: '单词本 Beta', link: '/guide/vocabulary-book' },
             { text: '模型用量', link: '/guide/model-usage' },
-            { text: '阅读理解与 DeepSeek Harness', link: '/guide/deepseek-harness' },
+            { text: '翻译卡', link: '/guide/deepseek-harness' },
             { text: '自定义快捷键', link: '/guide/custom-hotkey' },
             { text: '自定义网站适配', link: '/guide/custom-site-rules' },
             { text: 'Chrome 本地翻译', link: '/guide/chrome-translator' },
