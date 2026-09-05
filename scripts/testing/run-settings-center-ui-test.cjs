@@ -124,6 +124,32 @@ async function screenshotElement(locator, file) {
   return target;
 }
 
+async function dragWholeElement(page, source, target, axis = 'y', position = 'before') {
+  await source.scrollIntoViewIfNeeded();
+  await target.scrollIntoViewIfNeeded();
+  const sourceBounds = await source.boundingBox();
+  const targetBounds = await target.boundingBox();
+  if (!sourceBounds || !targetBounds) throw new Error('原生鼠标拖放目标不可见');
+  const sourcePoint = {
+    x: sourceBounds.x + sourceBounds.width / 2,
+    y: sourceBounds.y + sourceBounds.height / 2,
+  };
+  const targetPoint = axis === 'x'
+    ? {
+        x: targetBounds.x + (position === 'after' ? targetBounds.width - 4 : 4),
+        y: targetBounds.y + targetBounds.height / 2,
+      }
+    : {
+        x: targetBounds.x + targetBounds.width / 2,
+        y: targetBounds.y + (position === 'after' ? targetBounds.height - 4 : 4),
+      };
+  await page.mouse.move(sourcePoint.x, sourcePoint.y);
+  await page.mouse.down();
+  await page.mouse.move(sourcePoint.x + (axis === 'x' ? 8 : 0), sourcePoint.y + (axis === 'y' ? 8 : 0), {steps: 8});
+  await page.mouse.move(targetPoint.x, targetPoint.y, {steps: 16});
+  await page.mouse.up();
+}
+
 async function inspectInterfaceMotif(locator, skin) {
   const metrics = await locator.evaluate(element => {
     const motifs = [...element.querySelectorAll(':scope > [data-interface-motif]')];
@@ -1187,6 +1213,15 @@ async function main() {
       || await popupQuickFeatureTab.getAttribute('aria-selected') !== 'false') {
       throw new Error('Popup 布局工作台没有呈现唯一实时范例或正确的默认标签页');
     }
+    await popupModuleTab.focus();
+    await popupModuleTab.press('ArrowRight');
+    if (await popupQuickFeatureTab.getAttribute('aria-selected') !== 'true') {
+      throw new Error('Popup 布局标签页方向键没有切换到快捷入口');
+    }
+    await popupQuickFeatureTab.press('ArrowLeft');
+    if (await popupModuleTab.getAttribute('aria-selected') !== 'true') {
+      throw new Error('Popup 布局标签页方向键没有切回整体区域');
+    }
     const readPreviewLayoutOrder = () => popupLayoutPreview.locator('[data-preview-popup-module]').evaluateAll(
       elements => elements.map(element => element.getAttribute('data-preview-popup-module')),
     );
@@ -1207,8 +1242,11 @@ async function main() {
     if (JSON.stringify(await readPreviewLayoutOrder()) !== JSON.stringify(defaultLayoutOrder)) {
       throw new Error(`Popup 范例没有呈现默认模块顺序：${JSON.stringify(await readPreviewLayoutOrder())}`);
     }
-    const visibilitySwitches = popupLayoutEditor.locator('input[aria-label^="显示"]');
-    if (await visibilitySwitches.count() !== 3) throw new Error(`弹窗栏目开关数量异常：${await visibilitySwitches.count()}`);
+    const hideButtons = popupLayoutEditor.locator('.popup-layout-hide');
+    if (await hideButtons.count() !== 3) throw new Error(`弹窗栏目隐藏按钮数量异常：${await hideButtons.count()}`);
+    if (await popupLayoutEditor.locator('.popup-layout-hidden-chip').count() !== 0) {
+      throw new Error('默认弹窗栏目不应出现隐藏项目');
+    }
     const popupQuickFeatureEditor = menuLayoutSettingsGroup.locator('[data-popup-quick-feature-editor]');
     if (await popupQuickFeatureEditor.count() !== 1) {
       throw new Error('菜单栏布局中没有唯一的快捷功能布局编辑器');
@@ -1225,8 +1263,8 @@ async function main() {
     if (JSON.stringify(await readPreviewQuickFeatureOrder()) !== JSON.stringify(defaultQuickFeatureOrder)) {
       throw new Error(`Popup 范例没有呈现默认快捷功能顺序：${JSON.stringify(await readPreviewQuickFeatureOrder())}`);
     }
-    if (await popupQuickFeatureEditor.locator('.el-switch').count() !== defaultQuickFeatureOrder.length) {
-      throw new Error(`快捷功能独立开关数量异常：${await popupQuickFeatureEditor.locator('.el-switch').count()}`);
+    if (await popupQuickFeatureEditor.locator('.popup-layout-hide').count() !== defaultQuickFeatureOrder.length) {
+      throw new Error(`快捷功能隐藏按钮数量异常：${await popupQuickFeatureEditor.locator('.popup-layout-hide').count()}`);
     }
     if (await page.locator('html').getAttribute('data-interface-skin') !== 'default') {
       throw new Error('Options 初始弹窗风格不是默认风格');
@@ -1245,6 +1283,7 @@ async function main() {
     const quickFeaturesHandle = popupLayoutEditor
       .locator('[data-popup-layout-module="quickFeatures"] .popup-layout-handle');
     const translationCard = popupLayoutEditor.locator('[data-popup-layout-module="translation"]');
+    const siteRuleCard = popupLayoutEditor.locator('[data-popup-layout-module="siteRule"]');
     await quickFeaturesHandle.dragTo(translationCard, {targetPosition: {x: 40, y: 4}});
     const draggedLayoutOrder = await readLayoutOrder();
     if (JSON.stringify(draggedLayoutOrder) !== JSON.stringify(customLayoutOrder)) {
@@ -1252,6 +1291,65 @@ async function main() {
     }
     if (JSON.stringify(await readPreviewLayoutOrder()) !== JSON.stringify(customLayoutOrder)) {
       throw new Error(`Popup 范例没有即时同步模块顺序：${JSON.stringify(await readPreviewLayoutOrder())}`);
+    }
+
+    // 真实鼠标拖动预览中的整块模块，确认预览本身就是可编辑入口。
+    await dragWholeElement(
+      page,
+      popupLayoutPreview.locator('[data-preview-popup-module="quickFeatures"]'),
+      popupLayoutPreview.locator('[data-preview-popup-module="siteRule"]'),
+      'y',
+      'after',
+    );
+    if (JSON.stringify(await readLayoutOrder()) !== JSON.stringify(defaultLayoutOrder)) {
+      throw new Error(`预览整块模块拖动没有更新回默认顺序：${JSON.stringify(await readLayoutOrder())}`);
+    }
+    if (JSON.stringify(await readPreviewLayoutOrder()) !== JSON.stringify(defaultLayoutOrder)) {
+      throw new Error(`预览整块模块拖动后的范例顺序异常：${JSON.stringify(await readPreviewLayoutOrder())}`);
+    }
+    await dragWholeElement(
+      page,
+      popupLayoutPreview.locator('[data-preview-popup-module="quickFeatures"]'),
+      popupLayoutPreview.locator('[data-preview-popup-module="translation"]'),
+      'y',
+      'before',
+    );
+    if (JSON.stringify(await readLayoutOrder()) !== JSON.stringify(customLayoutOrder)) {
+      throw new Error(`预览整块模块拖动没有再次更新顺序：${JSON.stringify(await readLayoutOrder())}`);
+    }
+
+    // 右侧编辑器允许拖动整张可见卡片，确保按钮区域不会成为唯一拖动入口。
+    await dragWholeElement(
+      page,
+      popupLayoutEditor.locator('[data-popup-layout-module="quickFeatures"]'),
+      siteRuleCard,
+      'y',
+      'after',
+    );
+    if (JSON.stringify(await readLayoutOrder()) !== JSON.stringify(defaultLayoutOrder)) {
+      throw new Error(`右侧整卡拖动没有更新回默认顺序：${JSON.stringify(await readLayoutOrder())}`);
+    }
+    await dragWholeElement(
+      page,
+      popupLayoutEditor.locator('[data-popup-layout-module="quickFeatures"]'),
+      translationCard,
+      'y',
+      'before',
+    );
+    if (JSON.stringify(await readLayoutOrder()) !== JSON.stringify(customLayoutOrder)) {
+      throw new Error(`右侧整卡拖动没有再次更新顺序：${JSON.stringify(await readLayoutOrder())}`);
+    }
+
+    const previewTranslationHandle = popupLayoutPreview
+      .locator('[data-preview-popup-module="translation"] > .layout-preview-drag-handle');
+    await previewTranslationHandle.focus();
+    await previewTranslationHandle.press('ArrowDown');
+    if (JSON.stringify(await readPreviewLayoutOrder()) !== JSON.stringify(['quickFeatures', 'siteRule', 'translation', 'footer'])) {
+      throw new Error(`预览模块键盘下移失败：${JSON.stringify(await readPreviewLayoutOrder())}`);
+    }
+    await previewTranslationHandle.press('ArrowUp');
+    if (JSON.stringify(await readPreviewLayoutOrder()) !== JSON.stringify(customLayoutOrder)) {
+      throw new Error(`预览模块键盘上移失败：${JSON.stringify(await readPreviewLayoutOrder())}`);
     }
 
     // 不额外等待就重载设置页，覆盖短生命周期页面中的最终布局保存。
@@ -1302,7 +1400,31 @@ async function main() {
     if (JSON.stringify(await readPreviewQuickFeatureOrder()) !== JSON.stringify(customQuickFeatureOrder)) {
       throw new Error(`Popup 范例没有即时同步快捷功能顺序：${JSON.stringify(await readPreviewQuickFeatureOrder())}`);
     }
-    await popupQuickFeatureEditor.locator('[data-popup-quick-feature-layout="image"] .el-switch').click({force: true});
+    // 快捷入口在预览中横向排列，使用真实鼠标拖动一整张卡片覆盖 before/after 的水平几何判断。
+    await dragWholeElement(
+      page,
+      popupLayoutPreview.locator('[data-preview-quick-feature="document"]'),
+      popupLayoutPreview.locator('[data-preview-quick-feature="video"]'),
+      'x',
+      'after',
+    );
+    if (JSON.stringify(await readQuickFeatureOrder()) !== JSON.stringify(defaultQuickFeatureOrder)) {
+      throw new Error(`预览整块快捷入口拖动没有更新回默认顺序：${JSON.stringify(await readQuickFeatureOrder())}`);
+    }
+    await dragWholeElement(
+      page,
+      popupLayoutPreview.locator('[data-preview-quick-feature="document"]'),
+      popupLayoutPreview.locator('[data-preview-quick-feature="hover"]'),
+      'x',
+      'before',
+    );
+    if (JSON.stringify(await readQuickFeatureOrder()) !== JSON.stringify(customQuickFeatureOrder)) {
+      throw new Error(`预览整块快捷入口拖动没有再次更新顺序：${JSON.stringify(await readQuickFeatureOrder())}`);
+    }
+    await popupQuickFeatureEditor.locator('[data-popup-quick-feature-layout="image"] .popup-layout-hide').click();
+    if (await page.evaluate(() => document.activeElement?.classList.contains('popup-layout-handle'))) {
+      throw new Error('鼠标隐藏入口不应强制移动焦点到其他卡片的手柄');
+    }
     await page.waitForFunction(() => (
       document.querySelector('[data-popup-layout-workbench] [data-preview-quick-feature="image"]') === null
     ), undefined, {timeout});
@@ -1311,8 +1433,9 @@ async function main() {
     await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'minimal', undefined, {timeout});
     await popupQuickFeatureTab.click();
     const persistedQuickFeatureOrder = await readQuickFeatureOrder();
-    if (JSON.stringify(persistedQuickFeatureOrder) !== JSON.stringify(customQuickFeatureOrder)
-      || await popupQuickFeatureEditor.locator('[aria-label="显示图片翻译"]').getAttribute('aria-checked') !== 'false') {
+    if (JSON.stringify(persistedQuickFeatureOrder) !== JSON.stringify(visibleCustomQuickFeatureOrder)
+      || await popupQuickFeatureEditor.locator('[data-popup-quick-feature-layout="image"]').count() !== 0
+      || await popupQuickFeatureEditor.locator('.popup-layout-hidden-chip').filter({hasText: '图片翻译'}).count() !== 1) {
       throw new Error(`快捷功能顺序或单项显隐在设置页重载后丢失：${JSON.stringify(persistedQuickFeatureOrder)}`);
     }
     await popupLayoutWorkbench.scrollIntoViewIfNeeded();
@@ -1411,14 +1534,15 @@ async function main() {
     await defaultSingleFeatureHiddenPopup.close();
 
     // 先证明单项配置跨页面生效，再恢复六张卡片，避免影响后续完整皮肤矩阵。
-    await popupQuickFeatureEditor.locator('[data-popup-quick-feature-layout="image"] .el-switch').click({force: true});
+    await popupQuickFeatureEditor.locator('.popup-layout-hidden-chip').filter({hasText: '图片翻译'}).getByRole('button', {name: '添加图片翻译', exact: true}).click();
     await popupQuickFeatureEditor.getByRole('button', {name: '恢复默认顺序'}).click();
     await page.waitForFunction((expected) => (
       JSON.stringify(
         [...document.querySelectorAll('[data-popup-quick-feature-editor] [data-popup-quick-feature-layout]')]
           .map(element => element.getAttribute('data-popup-quick-feature-layout')),
       ) === JSON.stringify(expected)
-      && document.querySelector('[aria-label="显示图片翻译"]')?.getAttribute('aria-checked') === 'true'
+      && document.querySelector('[data-popup-quick-feature-editor] [data-popup-quick-feature-layout="image"]') !== null
+      && document.querySelector('[data-popup-quick-feature-editor] .popup-layout-hidden-chip') === null
     ), defaultQuickFeatureOrder, {timeout});
     await page.waitForTimeout(500);
 
@@ -1744,11 +1868,12 @@ async function main() {
     await page.waitForTimeout(400);
 
     await popupModuleTab.click();
-    await popupLayoutEditor.locator('[data-popup-layout-module="quickFeatures"] .el-switch').click({force: true});
-    await popupLayoutEditor.locator('[data-popup-layout-module="footer"] .el-switch').click({force: true});
+    await popupLayoutEditor.locator('[data-popup-layout-module="quickFeatures"] .popup-layout-hide').click();
+    await popupLayoutEditor.locator('[data-popup-layout-module="footer"] .popup-layout-hide').click();
     await page.waitForFunction(() => (
-      document.querySelector('[aria-label="显示快捷功能栏"]')?.getAttribute('aria-checked') === 'false'
-      && document.querySelector('[aria-label="显示底部信息栏"]')?.getAttribute('aria-checked') === 'false'
+      document.querySelector('[data-popup-layout-module="quickFeatures"]') === null
+      && document.querySelector('[data-popup-layout-module="footer"]') === null
+      && document.querySelector('.popup-layout-hidden-chip') !== null
     ), undefined, {timeout});
     await page.waitForTimeout(500);
 
@@ -1816,11 +1941,11 @@ async function main() {
     report.screenshots.push(await screenshotElement(defaultHiddenPopup.locator('.popup-shell'), 'popup-interface-default-hidden-sections.png'));
     await defaultHiddenPopup.close();
 
-    await popupLayoutEditor.locator('[data-popup-layout-module="quickFeatures"] .el-switch').click({force: true});
-    await popupLayoutEditor.locator('[data-popup-layout-module="footer"] .el-switch').click({force: true});
+    await popupLayoutEditor.locator('.popup-layout-hidden-chip').filter({hasText: '快捷功能栏'}).getByRole('button', {name: '添加快捷功能栏', exact: true}).click();
+    await popupLayoutEditor.locator('.popup-layout-hidden-chip').filter({hasText: '底部信息栏'}).getByRole('button', {name: '添加底部信息栏', exact: true}).click();
     await page.waitForFunction(() => (
-      document.querySelector('[aria-label="显示快捷功能栏"]')?.getAttribute('aria-checked') === 'true'
-      && document.querySelector('[aria-label="显示底部信息栏"]')?.getAttribute('aria-checked') === 'true'
+      document.querySelector('[data-popup-layout-module="quickFeatures"]') !== null
+      && document.querySelector('[data-popup-layout-module="footer"]') !== null
     ), undefined, {timeout});
     await popupLayoutEditor.getByRole('button', {name: '恢复默认顺序'}).click();
     await page.waitForFunction((expected) => JSON.stringify(
