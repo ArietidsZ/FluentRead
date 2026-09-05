@@ -125,6 +125,7 @@ describe('图片翻译跨域读取安全契约', () => {
                     return 'data:image/png;base64,unused';
                 }),
             };
+            vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
             vi.stubGlobal('browser', {runtime: {sendMessage}});
             vi.stubGlobal('document', {createElement: vi.fn(() => canvas)});
             sendMessage.mockResolvedValue({success: true, image: 'data:image/png;base64,remote'});

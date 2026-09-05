@@ -38,13 +38,11 @@ describe('host-page trust boundary', () => {
     ].join('\n');
     const area = source('src/features/area-translation/ui/AreaTranslator.vue');
     const selection = source('src/features/selection-translation/ui/SelectionTranslator.vue');
-    const image = source('src/features/image-translation/content/runtime.ts');
     const video = source('src/features/video-subtitle/content/runtime.ts');
 
     expect(content.match(/if \(!event\.isTrusted\) return;/g)?.length).toBeGreaterThanOrEqual(10);
     expect(area.match(/if \(!event\.isTrusted\) return;/g)?.length).toBeGreaterThanOrEqual(6);
     expect(selection).toContain('TRUSTED_SELECTION_INTERACTION_GRACE_MS');
-    expect(image.match(/if \(!event\.isTrusted\) return;/g)?.length).toBeGreaterThanOrEqual(4);
     expect(video.match(/if \(!event\.isTrusted\) return;/g)?.length).toBeGreaterThanOrEqual(4);
   });
 

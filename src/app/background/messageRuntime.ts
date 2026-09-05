@@ -46,7 +46,7 @@ import {
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
 import {supportsTranslationBatch} from '@/src/services/translation/capabilities';
 import {areaTranslationOffscreenAdapter} from '@/src/features/area-translation/background/offscreenAdapter';
-import {imageTranslationOffscreenAdapter} from '@/src/features/image-translation/background/offscreenAdapter';
+import {imageTranslationOffscreenAdapter, imageTranslationProgressTransport} from '@/src/features/image-translation/background/offscreenAdapter';
 import {selectionTtsOffscreenAdapter} from '@/src/features/selection-translation/background/offscreenAdapter';
 import {createCapabilityGatedBackgroundHandlers, createCapabilityGatedSelectionTtsTransport} from './capabilityRegistry';
 import {createConfigBackgroundHandlers} from './configMessageHandlers';
@@ -108,7 +108,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             translate: translateWithCache,
             warn: (message, error) => console.warn(message, error),
         }),
-        ...createCapabilityGatedBackgroundHandlers(capabilities, {
+        ...createCapabilityGatedBackgroundHandlers<BackgroundRuntimeContext>(capabilities, {
             areaTranslation: () => createAreaTranslationBackgroundHandlers({
                 captureVisibleTab: (windowId) => browser.tabs.captureVisibleTab(windowId, {format: 'png'}),
                 getDefaultSourceLanguage: () => config.from,
@@ -117,14 +117,12 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             }),
             imageTranslation: () => createImageTranslationBackgroundHandlers({
                 assertLanguagesDownloaded: imageOcrLanguageRepository.assertDownloaded,
-                recognizeImage: imageTranslationOffscreenAdapter.recognizeImage,
-                translateImage: imageTranslationOffscreenAdapter.translateImage,
-                fetchImage: imageTranslationOffscreenAdapter.fetchImage,
+                ...imageTranslationOffscreenAdapter,
                 translateTexts: translateWithCache,
                 getTranslationService: () => config.service,
                 supportsBatchTranslation: supportsTranslationBatch,
-                downloadLanguages: imageTranslationOffscreenAdapter.downloadLanguages,
                 markLanguagesDownloaded: imageOcrLanguageRepository.markDownloaded,
+                ...imageTranslationProgressTransport,
             }),
         }),
         ...createSelectionTtsBackgroundHandlers({
