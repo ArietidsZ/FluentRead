@@ -1,23 +1,23 @@
 {
-  "base": "262d2a18dc2d5b25f2a22f2fd26531c130101c79",
   "testAudit": {
-    "files": 224,
-    "declaredCases": 2757,
+    "files": 228,
+    "declaredCases": 2826,
     "passed": true
   },
   "fullVitest": {
-    "files": 224,
-    "tests": 3963,
+    "files": 228,
+    "tests": 4046,
     "passed": true
   },
   "lastUiOnlyPatch": {
     "files": 3,
     "tests": 55,
-    "passed": true
+    "passed": true,
+    "beforeMainIntegration": true
   },
   "coverage": {
-    "testFiles": 177,
-    "tests": 3162,
+    "testFiles": 180,
+    "tests": 3216,
     "percent": {
       "statements": 100,
       "branches": 100,
@@ -34,7 +34,13 @@
     "pnpm docs:build",
     "git diff --check"
   ],
-  "browser": {
+  "legacyFullUi": {
+    "passed": false,
+    "reason": "External legacy skill expects accessible combobox 默认目标语言, but unchanged origin/main locale labels it 语言."
+  },
+  "initialBase": "262d2a18dc2d5b25f2a22f2fd26531c130101c79",
+  "base": "166253cef1ee51f7daf6203384ded641761c7991",
+  "browserBeforeMainIntegration": {
     "uniquePassed": 49,
     "singleFullRunPassed": false,
     "fullPassed": 48,
@@ -44,10 +50,19 @@
     "httpErrors": 0,
     "allFinalPngsReviewed": true,
     "audioListeningVerified": false,
-    "firefoxUiVerified": false
+    "firefoxUiVerified": false,
+    "base": "262d2a18dc2d5b25f2a22f2fd26531c130101c79"
   },
-  "legacyFullUi": {
-    "passed": false,
-    "reason": "External legacy skill expects accessible combobox 默认目标语言, but unchanged origin/main locale labels it 语言."
+  "integratedBrowser": {
+    "passed": true,
+    "cases": 4,
+    "sourceDigest": "191fe35922cd9e4fbf585c1d457c481d4094b169719fb8b47d873e684a1713d8",
+    "extensionDigest": "6cec3e1273f997841be26e75e8af7e095af0911ca51b3b4716678fe897349cc9",
+    "sourceFilesVerified": 441,
+    "consoleErrors": 0,
+    "httpErrors": 0,
+    "browserFrontmost": false,
+    "allPngsReviewed": true,
+    "audioListeningVerified": false
   }
 }

@@ -298,7 +298,6 @@ async function verifyHarnessSaveRace({newPage, configPage, extensionId, args, re
         const enabled = editedPage.getByRole('switch', {name: '启用 Harness'});
         await editedPage.waitForFunction(() => document.querySelector('[role="switch"][aria-label="启用 Harness"]')?.getAttribute('aria-checked') === 'false');
         assert(await editedPage.evaluate(() => globalThis.__fluentReadHarnessSaveProbe.installed && globalThis.__fluentReadHarnessSaveProbe.requests.length === 0), '保存观察器未在首次 UI 修改前就绪');
-        await editedPage.locator('.harness-more > summary').click();
         await enabled.locator('xpath=ancestor::*[contains(@class, "el-switch")][1]').locator('.el-switch__core').click();
         await editedPage.waitForFunction(() => globalThis.__fluentReadHarnessSaveProbe.heldResponses === 1);
         assert((await readConfig(configPage)).harness.enabled === true, '首个 UI 请求没有真实落盘，无法验证回执在途竞态');
@@ -333,7 +332,6 @@ async function verifyHarnessSaveRace({newPage, configPage, extensionId, args, re
         reopenedPage = await newPage();
         await reopenedPage.goto(`chrome-extension://${extensionId}/options.html#settings-harness`, {waitUntil: 'domcontentloaded'});
         await reopenedPage.waitForFunction(() => document.querySelector('[role="switch"][aria-label="启用 Harness"]')?.getAttribute('aria-checked') === 'true');
-        await reopenedPage.locator('.harness-more > summary').click();
         assert(await reopenedPage.getByRole('radio', {name: '仅选中文字', exact: true}).getAttribute('aria-checked') === 'true', '重开后最终上下文选择回滚');
         details.reopened = (await readConfig(reopenedPage)).harness;
         const screenshot = path.join(args.artifactsDir, `${id}.png`);

@@ -1,6 +1,6 @@
 # 学习中心、阅读缓存与可选记忆
 
-本次将网页旁的学习动作、长期收藏和阅读记录串成一个学习流程。开发基线是 `origin/main@262d2a1`，分支为 `codex/harness-actions-audio-20260905`。已有 Harness 内核来源见[内嵌代码地图](./harness-embedding-map-20260905.md)；本次没有替换其模型网关或升级依赖。
+本次将网页旁的学习动作、长期收藏和阅读记录串成一个学习流程。初始开发基线是 `origin/main@262d2a1`，交付前已整合最新 `origin/main@166253c`（PR #447），分支为 `codex/harness-actions-audio-20260905`。已有 Harness 内核来源见[内嵌代码地图](./harness-embedding-map-20260905.md)；本次没有替换其模型网关或升级依赖。
 
 ## 用户反馈与实现
 
@@ -96,13 +96,17 @@ flowchart LR
 
 ## 验证
 
-- 测试审计：224 个文件、2757 个声明用例通过。
-- 全量测试：224 个文件、3963 项通过。
-- 严格覆盖率：177 个测试文件、3162 项通过；纳入覆盖率的业务模块 statements / branches / functions / lines 均为 100%。
+- 最新 main 整合后测试审计：228 个文件、2826 个声明用例通过。
+- 最新 main 整合后全量测试：228 个文件、4046 项通过。
+- 最新 main 整合后严格覆盖率：180 个测试文件、3216 项通过；纳入覆盖率的业务模块 statements / branches / functions / lines 均为 100%。
 - TypeScript/Vue 类型检查、Chrome MV3 和 Firefox MV2 构建、清单验证、userscript 构建与 verifier、文档站点构建通过。
 - 真实 IndexedDB 回归覆盖：练习出题后切换其他动作 5 轮，恢复缓存练习后追问仍由后台验证的 `anchorTurnId` 指向该题；未知或异动作标识在创建问答或调用模型前拒绝。
 
-生产 Chrome 包累计通过 **49 个不同场景**，见[逐项汇总](./harness-learning-center-20260905/combined-functional-coverage.json)：完整轮通过 48 项后，在最后新建设置页时被前台焦点保护中止；记忆专项 10 项全部通过，覆盖该轮未完成的关闭后重开步骤。两轮源码和 Chrome 产物摘要完全相同，不能将此结果表述为“单轮 49 项全部通过”。[完整轮原始报告](./harness-learning-center-20260905/full/report.json)与[记忆专项原始报告](./harness-learning-center-20260905/memory/report.json)均保留。
+整合最新 main 后重新构建并完成 **4/4 浏览器补验**：[集成报告](./harness-learning-center-20260905/integrated/report.json)。原有关闭后重开、连续四次修改最终值胜出、真实 beforeunload/pagehide 后批量交接保存全部通过；另外在 HTML `showModal()` 弹窗内真实选句，验证阅读卡迁入弹窗、一次模型回答及原文 TTS 播放/停止。该轮控制台与 HTTP 错误为 0，`browserFrontmost=false`；四张截图均已人工检查。
+
+集成源码与产物逐文件摘要见[最新构建来源](./harness-learning-center-20260905/integrated/build-provenance.json)。本轮以正式 runner 的 `--persistence-only` 三项为基础，通过[诊断 wrapper](./harness-learning-center-20260905/integrated-diagnostic-wrapper.original.txt)追加 HTML 弹窗验证；wrapper 未修改原有断言。复现时将其入口路径改为当前 checkout 的正式 runner。它不使用操作系统确认框，也不属于 Firefox UI 验证。
+
+整合新 main 前的生产 Chrome 包累计通过 **49 个不同场景**，见[逐项汇总](./harness-learning-center-20260905/combined-functional-coverage.json)：完整轮通过 48 项后，在最后新建设置页时被前台焦点保护中止；记忆专项 10 项全部通过，覆盖该轮未完成的关闭后重开步骤。两轮源码和 Chrome 产物摘要完全相同，不能将此结果表述为“单轮 49 项全部通过”。[完整轮原始报告](./harness-learning-center-20260905/full/report.json)与[记忆专项原始报告](./harness-learning-center-20260905/memory/report.json)均保留。
 
 浏览器为独立临时 Edge，`launchMode=macos-background-cdp`、`focusPolicy=launchservices-no-foreground`、窗口正常显示于第二显示器。记忆专项全程完成且记录 `browserFrontmost=false`；完整轮启动状态同样为 false，但后续检测到测试进程处于前台并停止，不能仅引用启动值声称全程未抢焦点。所有测试窗口与临时 profile 已关闭。最终两轮控制台和 HTTP 错误均为 0；最终完整轮 17 张截图及专项补充图已人工查看。
 
@@ -110,7 +114,7 @@ flowchart LR
 
 旧版技能脚本的 production `--suite full` 也已执行，但在寻找“默认目标语言”控件时超时：[原始日志](./harness-learning-center-20260905/legacy-full-ui.log)。该外部脚本的定位名称已过时；开发基线 `origin/main@262d2a1` 与当前代码都将此控件标记为“语言”。这项未通过，未计入通过数。全部确定性结果见[验证摘要](./harness-learning-center-20260905/validation.json)。
 
-源码摘要：`738d85772c4e74b78442c3140a64d18503fff1b43028c00d81f9b6f1e7abc1d9`；Chrome 产物摘要：`a054b5da6c94eca9d872f17d85e541b8e650466d779b0296ddcf9a859db6bec2`。439 个来源文件逐一复核与当前工作树相同，详见[构建来源](./harness-learning-center-20260905/full/build-provenance.json)。证据中的临时目录保留为当时运行位置；本报告目录同时归档对应 JSON 和 PNG。
+上述整合前轮次的源码摘要：`738d85772c4e74b78442c3140a64d18503fff1b43028c00d81f9b6f1e7abc1d9`；Chrome 产物摘要：`a054b5da6c94eca9d872f17d85e541b8e650466d779b0296ddcf9a859db6bec2`。439 个来源文件在该轮完成时逐一复核相同，详见[构建来源](./harness-learning-center-20260905/full/build-provenance.json)。这些摘要不代表整合后的新 main 产物。证据中的临时目录保留为当时运行位置；本报告目录同时归档对应 JSON 和 PNG。
 
 专项通过[原始诊断 wrapper](./harness-learning-center-20260905/memory-diagnostic-wrapper.original.txt)运行正式 `scripts/run-harness-reading-test.cjs` 的记忆段。复现时将 wrapper 的 `script` 改为当前 checkout 中该文件的绝对路径，并使用与正式 runner 相同的扩展、Playwright、隔离 helper 和证据目录参数。wrapper 从 `memoryPage` 起至文件末尾原样保留，仅移除无关前置测试并将上下文配置设为 selection。其诊断文字“排除 43 项”不准确：实际保留 10 项、排除 39 个不同场景；断言未修改。
 
