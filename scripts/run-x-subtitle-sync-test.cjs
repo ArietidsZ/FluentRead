@@ -20,6 +20,8 @@ const displayMode = arg('display-mode', 'original-only');
 const nativeTrack = arg('native-track','false') === 'true';
 const startPlaying = arg('start-playing', 'false') === 'true';
 const earlyHls = arg('early-hls','false') === 'true';
+const hostOverlay = arg('host-overlay','false') === 'true';
+const backgroundMusic = arg('background-music', 'false') === 'true';
 fs.mkdirSync(artifacts, {recursive: true});
 const media = path.join(artifacts, 'media');
 fs.mkdirSync(media, {recursive: true});
@@ -42,17 +44,61 @@ command('/usr/bin/say', ['-v','Samantha','-r','175','-o',path.join(media,'speech
 const durationProbe=spawnSync('/opt/homebrew/bin/ffprobe',['-v','quiet','-show_entries','format=duration','-of','json',path.join(media,'speech.aiff')],{encoding:'utf8'});
 assert.equal(durationProbe.status,0,durationProbe.stderr);
 const speechDuration=Number(JSON.parse(durationProbe.stdout).format.duration);
-command('/opt/homebrew/bin/ffmpeg',['-y','-i',path.join(media,'speech.aiff'),'-c:a','aac','-b:a','64k','-ar','48000','-f','hls','-hls_time','4','-hls_playlist_type','vod','-hls_segment_type','fmp4','-hls_segment_filename',path.join(media,'a%02d.m4s'),path.join(media,'audio.m3u8')]);
-command('/opt/homebrew/bin/ffmpeg',['-y','-f','lavfi','-i','color=c=0x10283f:s=960x540:r=24','-i',path.join(media,'speech.aiff'),'-t',String(speechDuration),'-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p','-c:a','aac','-b:a','64k','-movflags','frag_keyframe+empty_moov+default_base_moof',path.join(media,'video.mp4')]);
+const mediaAudio = backgroundMusic ? path.join(media, 'speech-background-music.wav') : path.join(media, 'speech.aiff');
+let backgroundMusicMetric = null;
+if (backgroundMusic) {
+  // Keep two deterministic, low-level tones under the clean speech. The tones
+  // stay present across spoken pauses so pause-based chunking is exercised
+  // without changing the independent speech boundary groundtruth.
+  command('/opt/homebrew/bin/ffmpeg', [
+    '-y', '-i', path.join(media, 'speech.aiff'),
+    '-f', 'lavfi', '-t', String(speechDuration), '-i', 'sine=frequency=173:sample_rate=48000',
+    '-f', 'lavfi', '-t', String(speechDuration), '-i', 'sine=frequency=271:sample_rate=48000',
+    '-filter_complex', '[1:a]volume=0.08[tone1];[2:a]volume=0.048[tone2];[tone1][tone2]amix=inputs=2:duration=longest:normalize=0[tone];[0:a][tone]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[mix]',
+    '-map', '[mix]', '-t', String(speechDuration), '-ar', '48000', '-ac', '1', '-c:a', 'pcm_s16le', mediaAudio,
+  ]);
+  const floorScan = spawnSync('/opt/homebrew/bin/ffmpeg', [
+    '-v', 'error', '-i', mediaAudio, '-ac', '1', '-ar', '16000', '-f', 'f32le', '-',
+  ], {encoding: null});
+  assert.equal(floorScan.status, 0, floorScan.stderr);
+  const waveform = floorScan.stdout;
+  const sampleCount = Math.floor(waveform.length / 4);
+  const samples = new Float32Array(sampleCount);
+  for (let index = 0; index < sampleCount; index += 1) samples[index] = waveform.readFloatLE(index * 4);
+  const frameSize = 320;
+  const frameRms = [];
+  for (let offset = 0; offset < samples.length; offset += frameSize) {
+    const end = Math.min(samples.length, offset + frameSize);
+    let sumSquares = 0;
+    for (let index = offset; index < end; index += 1) sumSquares += samples[index] ** 2;
+    frameRms.push(Math.sqrt(sumSquares / Math.max(1, end - offset)));
+  }
+  const minFrameRms = Math.min(...frameRms);
+  backgroundMusicMetric = {
+    thresholdAmplitude: 0.0025,
+    sampleRate: 16000,
+    frameMs: 20,
+    frameCount: frameRms.length,
+    minFrameRms,
+    maxFrameRms: Math.max(...frameRms),
+  };
+  assert.ok(minFrameRms > backgroundMusicMetric.thresholdAmplitude, `background music fell below the 0.0025 RMS waveform floor: ${JSON.stringify(backgroundMusicMetric)}`);
+}
+command('/opt/homebrew/bin/ffmpeg',['-y','-i',mediaAudio,'-c:a','aac','-b:a','64k','-ar','48000','-f','hls','-hls_time','4','-hls_playlist_type','vod','-hls_segment_type','fmp4','-hls_segment_filename',path.join(media,'a%02d.m4s'),path.join(media,'audio.m3u8')]);
+command('/opt/homebrew/bin/ffmpeg',['-y','-f','lavfi','-i','color=c=0x10283f:s=960x540:r=24','-i',mediaAudio,'-t',String(speechDuration),'-c:v','libx264','-preset','ultrafast','-pix_fmt','yuv420p','-c:a','aac','-b:a','64k','-movflags','frag_keyframe+empty_moov+default_base_moof',path.join(media,'video.mp4')]);
+// Use a seekable progressive MP4 for direct URLs; the fragmented file above is for MSE.
+command('/opt/homebrew/bin/ffmpeg',['-y','-i',path.join(media,'video.mp4'),'-c','copy','-movflags','+faststart',path.join(media,'video-direct.mp4')]);
 const silenceScan = spawnSync('/opt/homebrew/bin/ffmpeg',['-i',path.join(media,'speech.aiff'),'-af','silencedetect=n=-40dB:d=0.7','-f','null','-'],{encoding:'utf8'});
 assert.equal(silenceScan.status,0,silenceScan.stderr);
 const silenceStarts=[...silenceScan.stderr.matchAll(/silence_start: ([\d.]+)/g)].map(match=>Number(match[1]));
 const silenceEnds=[...silenceScan.stderr.matchAll(/silence_end: ([\d.]+)/g)].map(match=>Number(match[1]));
 const master = '#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",DEFAULT=YES,URI="audio.m3u8"\n#EXT-X-STREAM-INF:BANDWIDTH=300000,AUDIO="audio"\nvideo.m3u8\n';
 const base = 'https://video.twimg.com/ext_tw_video/424242/pu/';
+const videoMarkup='<video style="width:100%;height:100%" controls></video>';
+const playerMarkup=hostOverlay?`<div style="position:relative;width:960px;height:540px"><div style="position:relative;isolation:isolate;z-index:0;width:100%;height:100%;background:#10283f">${videoMarkup}</div><a id="fixture-media-link" aria-label="View media" href="/cerebras/status/2089870131291943228/video/1" style="position:absolute;inset:0;z-index:10" onclick="event.preventDefault();window.proofHostLinkClicks=(window.proofHostLinkClicks||0)+1"></a></div>`:`<div data-testid="videoPlayer" style="position:relative;width:960px;height:540px;background:#10283f">${videoMarkup}</div>`;
 const profile = fs.mkdtempSync(path.join(os.tmpdir(),'fluentread-x-sync-profile-'));
 let browser, control, page;
-const report = {mediaMode,model,lines,displayMode,startPlaying,earlyHls,errors:[],console:[],requests:[],samples:[],diagnostics:[]};
+const report = {mediaMode,model,lines,displayMode,startPlaying,earlyHls,hostOverlay,backgroundMusic,backgroundMusicMetric,errors:[],console:[],requests:[],samples:[],diagnostics:[]};
 async function main() {
  browser = await helper.launchFocusSafePersistentContext({chromium,profileDir:profile,browserPath:'/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',headless:false,background:true,displayTarget:'secondary',browserArgs:[`--disable-extensions-except=${extensionDir}`,`--load-extension=${extensionDir}`,'--autoplay-policy=no-user-gesture-required','--no-first-run','--no-default-browser-check'],viewport:{width:1280,height:900}});
  const context = browser.context;
@@ -60,11 +106,19 @@ async function main() {
  await context.route('https://video.twimg.com/**', async route => {
    const name = new URL(route.request().url()).pathname.split('/').at(-1);
    report.requests.push({name,at:Date.now()});
-   const body = name==='master.m3u8' ? master : fs.readFileSync(path.join(media,name));
-   await route.fulfill({status:200,headers:{'access-control-allow-origin':'*'},contentType:name.endsWith('m3u8')?'application/vnd.apple.mpegurl':'video/mp4',body});
+   let body = name==='master.m3u8' ? master : fs.readFileSync(path.join(media,name));
+   const headers={'access-control-allow-origin':'*','accept-ranges':'bytes'};
+   let status=200;
+   const range=route.request().headers().range?.match(/^bytes=(\d+)-(\d*)$/);
+   if(range&&Buffer.isBuffer(body)){
+     const total=body.length,start=Number(range[1]),end=Math.min(total-1,range[2]?Number(range[2]):total-1);
+     if(start> end){status=416;headers['content-range']=`bytes */${total}`;body=Buffer.alloc(0);}
+     else{status=206;headers['content-range']=`bytes ${start}-${end}/${total}`;body=body.subarray(start,end+1);}
+   }
+   await route.fulfill({status,headers,contentType:name.endsWith('m3u8')?'application/vnd.apple.mpegurl':'video/mp4',body});
  });
  await context.route('https://x.com/fluentread-fixture-ready.js',async route=>{await new Promise(resolve=>setTimeout(resolve,800));await route.fulfill({status:200,contentType:'text/javascript',body:''});});
- await context.route('https://x.com/cerebras/status/2089870131291943228', route => route.fulfill({status:200,contentType:'text/html',body:`<!doctype html><html><head><title>X subtitle synchronization fixture</title>${earlyHls?`<script>fetch('${base}master.m3u8')</script><script src="/fluentread-fixture-ready.js"></script>`:''}</head><body style="margin:24px;background:#f3f5f9"><h1>X subtitle synchronization fixture</h1><div data-testid="videoPlayer" style="position:relative;width:960px;height:540px;background:#10283f"><video style="width:100%;height:100%" controls></video></div></body></html>`}));
+ await context.route('https://x.com/cerebras/status/2089870131291943228', route => route.fulfill({status:200,contentType:'text/html',body:`<!doctype html><html><head><title>X subtitle synchronization fixture</title>${earlyHls?`<script>fetch('${base}master.m3u8')</script><script src="/fluentread-fixture-ready.js"></script>`:''}</head><body style="margin:24px;background:#f3f5f9"><h1>X subtitle synchronization fixture</h1><article>${playerMarkup}</article></body></html>`}));
  const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker',{timeout:30000});
  const id = new URL(worker.url()).host;
  report.extensionId = id;
@@ -112,7 +166,7 @@ async function main() {
      buffer.appendBuffer(data);await new Promise(resolve=>buffer.addEventListener('updateend',resolve,{once:true}));mediaSource.endOfStream();
      // Real MAIN-world fetch bridge discovers this audio rendition.
      if(!earlyHls) await fetch(base+'master.m3u8');
-   }else video.src=base+'video.mp4';
+   }else video.src=base+'video-direct.mp4';
    if(nativeTrack){
      const alternative=video.addTextTrack('captions','French','fr');alternative.addCue(new VTTCue(0,120,'French native fixture'));alternative.mode='disabled';window.proofAlternativeTrack=alternative;
      const track=video.addTextTrack('captions','English','en');track.addCue(new VTTCue(0,120,'Native source fixture'));track.mode='showing';window.proofTrack=track;
@@ -124,12 +178,12 @@ async function main() {
  },{base,mode:mediaMode,nativeTrack,earlyHls});
  await page.waitForFunction(()=>document.querySelector('video').readyState>=2);
  await page.waitForSelector('#fluent-read-video-subtitle-button',{timeout:15000});
- await page.locator('#fluent-read-video-subtitle-button').click({force:true});
+ await page.locator('#fluent-read-video-subtitle-button').click();
  const before=await page.evaluate(()=>{const v=document.querySelector('video');v.currentTime=2;return {time:v.currentTime,paused:v.paused,rate:v.playbackRate,volume:v.volume,muted:v.muted};});
  await page.waitForTimeout(150);
  if(startPlaying) await page.evaluate(()=>document.querySelector('video').play());
  const began=Date.now();
- await page.locator('[data-action="toggle-ai-subtitle"]').click({force:true});
+ await page.locator('[data-action="toggle-ai-subtitle"]').click();
  if(arg('background-generation','false')==='true'){
    await control.evaluate(async()=>{
      const controlTab=await chrome.tabs.getCurrent();
@@ -150,7 +204,7 @@ async function main() {
  else assert.deepEqual(report.after,before,'generation preserves user playback state');
  await page.screenshot({path:path.join(artifacts,'ready.png')});
  const downloadPromise=page.waitForEvent('download');
- await page.locator('[data-action="download-subtitles"]').click({force:true});
+ await page.locator('[data-action="download-subtitles"]').click();
  const download=await downloadPromise;
  await download.saveAs(path.join(artifacts,'original.srt'));
  report.srt=fs.readFileSync(path.join(artifacts,'original.srt'),'utf8');
@@ -168,20 +222,20 @@ async function main() {
    await helper.activateExtensionTabWithoutForeground(context,secondPage);
    await secondPage.evaluate(base=>{
      const video=document.querySelector('video');
-     video.src=base+'video.mp4';
+     video.src=base+'video-direct.mp4';
      video.load();
    },base);
    await secondPage.waitForFunction(()=>document.querySelector('video').readyState>=2,{},{timeout:15000});
    await secondPage.waitForSelector('#fluent-read-video-subtitle-button',{timeout:15000});
-   await secondPage.locator('#fluent-read-video-subtitle-button').click({force:true});
-   await secondPage.locator('[data-action="toggle-ai-subtitle"]').click({force:true});
+   await secondPage.locator('#fluent-read-video-subtitle-button').click();
+   await secondPage.locator('[data-action="toggle-ai-subtitle"]').click();
    await secondPage.waitForFunction(()=>{const action=document.querySelector('[data-action="toggle-ai-subtitle"]');const text=action?.querySelector('[data-state]')?.textContent||'';if(action?.title)throw new Error(action.title);return text.includes('已就绪');},{},{timeout:120000});
    const secondReady=await secondPage.evaluate(()=>({
      state:document.querySelector('[data-action="toggle-ai-subtitle"] [data-state]')?.textContent||'',
      text:document.getElementById('fluent-read-video-subtitle-original')?.textContent||'',
    }));
    assert.match(secondReady.state,/已就绪/,'another tab can prepare through the real extension UI after completed subtitles');
-   await secondPage.locator('[data-action="toggle-ai-subtitle"]').click({force:true});
+   await secondPage.locator('[data-action="toggle-ai-subtitle"]').click();
    await secondPage.waitForTimeout(400);
    const secondStopped=await secondPage.evaluate(()=>({
      state:document.querySelector('[data-action="toggle-ai-subtitle"] [data-state]')?.textContent||'',
@@ -194,7 +248,7 @@ async function main() {
    };
    await secondPage.close();
  }
- await page.locator('#fluent-read-video-subtitle-button').click({force:true});
+ await page.locator('#fluent-read-video-subtitle-button').click();
  report.generationSamples=await page.evaluate(()=>window.proofSamples);
  await page.evaluate(()=>{window.proofSamples=[];const v=document.querySelector('video');v.currentTime=0;return v.play();});
  await page.waitForFunction(()=>document.querySelector('video').ended,{},{timeout:90000});
@@ -203,33 +257,42 @@ async function main() {
  if(displayMode==='bilingual'){assert.ok(report.translationRequests.length>=3);assert.ok(report.samples.some(sample=>sample.translation.includes('译文：')),'bilingual translations appear');}
  report.diagnostics=await page.evaluate(()=>window.proofDiagnostics);
  report.texts=[...new Set(report.samples.filter(s=>!s.paused&&s.text).map(s=>s.text))];
- assert.deepEqual(report.texts,lines,'all spoken sentences are recognized once without boundary fragments');
+ // Whisper variants may omit terminal punctuation; every spoken word and sentence boundary remains exact.
+ const spokenText=text=>text.replace(/[.!?]+$/, '').toLocaleLowerCase();
+ assert.deepEqual(report.texts.map(spokenText),lines.map(spokenText),'all spoken sentences are recognized once without boundary fragments');
  report.transitions=[];
  let previousText;
  for(const sample of report.samples.filter(sample=>!sample.paused)){ if(sample.text!==previousText){report.transitions.push({time:sample.time,text:sample.text});previousText=sample.text;} }
  const checks=[];
  for(const time of [1,4.7,8,9.8,12,13.74,0.2]){
    await page.evaluate(time=>{const v=document.querySelector('video');v.currentTime=time;},time);
+   await page.waitForFunction(time=>Math.abs(document.querySelector('video').currentTime-time)<0.1,time,{timeout:5000});
    await page.waitForTimeout(200);
    checks.push(await page.evaluate(()=>({time:document.querySelector('video').currentTime,text:document.getElementById('fluent-read-video-subtitle-original')?.textContent||''})));
  }
  report.seekChecks=checks;
  assert.equal(checks[1].text,'','the first long pause clears subtitles');
  assert.equal(checks[3].text,'','the second long pause clears subtitles');
- assert.equal(checks[0].text,lines[0]);assert.equal(checks[2].text,lines[1]);assert.equal(checks[4].text,lines[2]);
+ assert.equal(spokenText(checks[0].text),spokenText(lines[0]));assert.equal(spokenText(checks[2].text),spokenText(lines[1]));assert.equal(spokenText(checks[4].text),spokenText(lines[2]));
  await page.screenshot({path:path.join(artifacts,'seek.png')});
- await page.locator('#fluent-read-video-subtitle-button').click({force:true});
- await page.locator('[data-action="toggle-ai-subtitle"]').click({force:true});
+ await page.locator('#fluent-read-video-subtitle-button').click();
+ await page.locator('[data-action="toggle-ai-subtitle"]').click();
  await page.waitForTimeout(400);
  report.afterStop=await page.evaluate(()=>({text:document.getElementById('fluent-read-video-subtitle-original')?.textContent||'',videos:document.querySelectorAll('video').length}));
  if(nativeTrack){
    assert.equal(report.afterStop.text,'Native source fixture');
-   await page.locator('[data-action="toggle-translation"]').click({force:true});
+   await page.locator('[data-action="toggle-translation"]').click();
    await page.waitForFunction(()=>window.proofTrack.mode==='showing');
    report.nativeTrackRestored=await page.evaluate(()=>window.proofTrack.mode);
    assert.equal(await page.evaluate(()=>window.proofAlternativeTrack.mode),'disabled','the unselected language remains disabled after restoration');
  }else assert.equal(report.afterStop.text,'');
  assert.equal(report.afterStop.videos,1);
+ if(hostOverlay){
+   assert.equal(await page.evaluate(()=>window.proofHostLinkClicks||0),0,'extension controls receive clicks above the host media link');
+   await page.locator('#fixture-media-link').click({position:{x:100,y:100}});
+   report.hostLinkClicks=await page.evaluate(()=>window.proofHostLinkClicks);
+   assert.equal(report.hostLinkClicks,1,'ordinary media link clicks still reach the host');
+ }
  report.launchMode=browser.launchMode;report.focusPolicy=browser.focusPolicy;report.windowPlacement=browser.windowPlacement;
  assert.equal(report.windowPlacement.browserFrontmost,false);
  report.success=true;

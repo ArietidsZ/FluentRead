@@ -1,15 +1,15 @@
 /**
  * @file src/features/video-subtitle/content/video-ai/speechAlignment.ts
  * 文件职责：使用已经采集的 PCM 声音边界校准 Whisper 句级时间戳，避免将明显停顿显示为下一句。
- * 主要内容：计算二十毫秒音频活动帧，保守收紧句子外侧静音，并移除已被上一完整窗口识别的孤立尾音。
- * 模块边界：只读音频和相对时间戳，不改变文本或全局播放头，不进行推理；背景音乐或连续语音不提供明确静音时保留模型边界。
+ * 主要内容：计算二十毫秒音频活动帧、估计稳定底噪，保守收紧句子外侧停顿并选择完整识别窗口边界。
+ * 模块边界：只读音频和相对时间戳，不改变文本或全局播放头，不进行推理；仅在稳定低噪声平台与语音能量有明显差距时估计底噪；无法区分的连续声音保留模型边界。
  */
 import type {VideoAiTranscriptSegment} from './streamingTranscript';
 
 const FRAME_SAMPLES = 320;
 const FRAME_MS = 20;
-function activeFrames(audio: Float32Array): boolean[] {
-  const result: boolean[] = [];
+function activeFrames(audio: Float32Array, maximumNoiseVariation = 1.5): boolean[] {
+  const energies: number[] = [];
   for (let start = 0; start < audio.length; start += FRAME_SAMPLES) {
     const end = Math.min(audio.length, start + FRAME_SAMPLES);
     let energy = 0;
@@ -17,9 +17,22 @@ function activeFrames(audio: Float32Array): boolean[] {
       const value = Number.isFinite(audio[index]) ? audio[index] : 0;
       energy += value * value;
     }
-    result.push(energy / (end - start) >= 0.0025 ** 2);
+    energies.push(Math.sqrt(energy / (end - start)));
   }
-  return result;
+  // 固定绝对阈值会把持续风声/低背景音当成语音。只有至少一秒音频中
+  // 较低能量帧形成稳定平台，且高能量语音明显高于它时才提高门槛。
+  // 不对纯音乐、匀速变化的声音或不足以估计底噪的短片段猜测停顿。
+  let threshold = 0.0025;
+  if (energies.length >= 50) {
+    const ordered = [...energies].sort((left, right) => left - right);
+    const floor = ordered[Math.floor(ordered.length * 0.1)];
+    const plateau = ordered[Math.floor(ordered.length * 0.2)];
+    const speech = ordered[Math.floor(ordered.length * 0.8)];
+    if (floor > threshold && plateau <= floor * maximumNoiseVariation && speech >= floor * 4) {
+      threshold = floor * 1.8;
+    }
+  }
+  return energies.map((energy) => energy >= threshold);
 }
 
 /** 仅修剪模型边界内的外侧静音；保留一小段余量，避免吞掉轻声辅音。 */
@@ -66,7 +79,9 @@ export function alignVideoAiSegmentsToSpeech(audio: Float32Array, segments: read
 
 /** 在窗口后半段选择足够长的自然停顿，避免把半句话切进相邻识别窗口。 */
 export function findVideoAiPauseBoundary(audio: Float32Array): number {
-  const frames = activeFrames(audio);
+  // 切割模型输入比微调输出边界更敏感：只有几乎恒定的背景噪声才允许
+  // 自适应切窗，动态音乐继续保留重叠上下文，避免切断轻声词尾。
+  const frames = activeFrames(audio, 1.08);
   const minimumBoundary = audio.length / 16 * 0.55;
   let silenceStart = 0;
   let boundary = 0;

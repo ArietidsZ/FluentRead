@@ -83,3 +83,39 @@ onMounted(() => {
 });
 onUnmounted(() => browser.storage.onChanged.removeListener(handleStorageChange));
 </script>
+
+<style scoped>
+.video-model-download-panel {
+  display: grid;
+  gap: 12px;
+  margin: 4px 0 14px;
+  padding: 14px;
+  border: 1px solid #d7ecea;
+  border-radius: 12px;
+  background: #f8fcfc;
+}
+
+.video-model-download-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.video-model-download-heading strong { color: var(--ink); font-size: 14px; }
+.video-model-download-heading p { margin: 4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.video-model-local-badge { flex: none; padding: 6px 9px; border: 1px solid #bfe5de; border-radius: 999px; color: var(--brand-strong); background: #effbf8; font-size: 10px; font-weight: 750; }
+.video-model-list { display: grid; gap: 8px; }
+.video-model-card { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 9px 10px; border: 1px solid #e6ebf0; border-radius: 10px; background: #fff; }
+.video-model-card.selected { border-color: #58b8ad; background: #f0fbf9; }
+.video-model-icon { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 8px; color: #087f80; background: #e5f7f3; font-size: 13px; font-weight: 850; }
+.video-model-card:nth-child(2) .video-model-icon { color: #8b55c7; background: #f3ebff; }
+.video-model-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
+.video-model-copy strong { color: var(--ink); font-size: 13px; }
+.video-model-copy small { color: var(--muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.video-model-download-button { flex: none; min-height: 34px; padding: 7px 11px; border: 1px solid #bfe5de; border-radius: 7px; color: var(--brand-strong); background: #effbf8; font-size: 12px; font-weight: 700; cursor: pointer; }
+.video-model-download-button:disabled { color: #97a2ad; border-color: #dfe5e8; background: #f4f6f7; cursor: default; }
+.video-model-error { margin: 0; color: var(--el-color-danger); font-size: 10px; line-height: 1.4; }
+
+:global(:root.dark) .video-model-download-panel { border-color: #363a44; background: rgba(37, 40, 48, .9); }
+:global(:root.dark) .video-model-download-heading strong,
+:global(:root.dark) .video-model-copy strong { color: #f4f5f8; }
+:global(:root.dark) .video-model-download-heading p,
+:global(:root.dark) .video-model-copy small { color: #a7adba; }
+:global(:root.dark) .video-model-card { border-color: #363a44; background: rgba(30, 33, 41, .9); }
+:global(:root.dark) .video-model-card.selected { border-color: #4ba89d; background: rgba(14, 80, 78, .28); }
+</style>

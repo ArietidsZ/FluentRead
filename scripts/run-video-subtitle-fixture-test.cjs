@@ -608,7 +608,7 @@ async function main() {
     }));
     if (menu.brand !== '流畅阅读' || menu.betaMarkers !== 0 || menu.service !== '微软翻译' || !menu.bilingual
       || !menu.enableAction.includes('fluent-read-video-menu-primary-action') || menu.enableActionState !== '已开启'
-      || menu.enableActionMinHeight !== '42px' || menu.enableActionBorder === 'rgba(0, 0, 0, 0)'
+      || menu.enableActionMinHeight !== '28px' || menu.enableActionBorder === 'rgba(0, 0, 0, 0)'
       || menu.originalDownloadLabel !== '下载原文字幕' || menu.translatedDownloadLabel !== '下载译文字幕'
       || menu.originalDownloadStatusLive !== 'polite' || menu.originalDownloadStatusAtomic !== 'true'
       || menu.translatedDownloadStatusLive !== 'polite' || menu.translatedDownloadStatusAtomic !== 'true'
@@ -662,7 +662,7 @@ async function main() {
       };
     });
     if (!disabledMenu.className.includes('fluent-read-video-menu-primary-action') || disabledMenu.state !== '立即开启'
-      || disabledMenu.minHeight !== '42px' || disabledMenu.border === 'rgba(0, 0, 0, 0)') {
+      || disabledMenu.minHeight !== '28px' || disabledMenu.border === 'rgba(0, 0, 0, 0)') {
       throw new Error(`关闭状态的字幕翻译入口不够醒目：${JSON.stringify(disabledMenu)}`);
     }
     const disabledStabilitySamples = await sampleStableVideoToggleState(page, control, false);

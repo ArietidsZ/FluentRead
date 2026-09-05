@@ -180,6 +180,19 @@ describe('popup feature visibility', () => {
         expect(popup).not.toContain(':disabled="!browserCapabilities.areaTranslation"');
     });
 
+    it('groups X local AI controls away from general video subtitle settings', () => {
+        const popup = source('src/app/popup/PopupApp.vue');
+        const styles = source('src/app/popup/popup.css');
+
+        expect(popup).toContain('class="x-video-ai-group"');
+        expect(popup).toContain('X 视频 · 本地 AI');
+        expect(popup).toContain('class="video-model-settings-link"');
+        expect(styles).toContain('.x-video-ai-group {');
+        expect(styles).toContain('padding: 16px 0;');
+        expect(styles).toContain('border-top: 1px solid var(--line);');
+        expect(styles).toContain('.x-video-ai-group + .select-row { margin-top: 16px; }');
+    });
+
     it('routes hover and selection drawers to the merged translation settings section', () => {
         const popup = source('src/app/popup/PopupApp.vue');
 

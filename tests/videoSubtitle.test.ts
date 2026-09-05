@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { parseHTML } from 'linkedom';
 
 const configStorageMock = vi.hoisted(() => ({
     getItem: vi.fn().mockResolvedValue(null),
@@ -32,8 +33,13 @@ import {
     translateVideoSubtitleCues,
     VIDEO_CAPTION_SEGMENT_SELECTOR,
 } from '@/src/features/video-subtitle/content/runtime';
+import {findVideoPlayer, findXSettingsControl} from '@/src/features/video-subtitle/content/ui';
 import {validateYoutubeTimedTextMessage} from '@/src/features/video-subtitle/content/youtubeTimedTextMessage';
 import { normalizeVideoSubtitleFontSize } from '@/src/core/config/model';
+
+afterEach(() => {
+    vi.unstubAllGlobals();
+});
 
 describe('YouTube 视频字幕识别', () => {
     it('只把 YouTube 视频页识别为视频字幕目标', () => {
@@ -53,6 +59,53 @@ describe('YouTube 视频字幕识别', () => {
         expect(isXHostPage({ hostname: 'twitter.com' })).toBe(true);
         expect(isXHostPage({ hostname: 'example.com' })).toBe(false);
         expect(isSupportedVideoPage({ hostname: 'x.com', pathname: '/cerebras/status/2089870131291943228' })).toBe(true);
+    });
+
+    it('X 覆盖链接在 isolate 播放器外时提升到当前 post 的最近共同祖先', () => {
+        const {document} = parseHTML(`<!doctype html><article><div class="relative h-full w-full"><div inert><div class="group relative isolate z-0"><video src="blob:https://x.com/mse"></video></div></div><a aria-label="View media" href="/cerebras/status/2089870131291943228/video/1"></a></div></article>`);
+        vi.stubGlobal('document', document);
+        vi.stubGlobal('window', {location: {origin: 'https://x.com', hostname: 'x.com', href: 'https://x.com/cerebras/status/2089870131291943228', pathname: '/cerebras/status/2089870131291943228'}});
+
+        const player = findVideoPlayer();
+        expect(player?.querySelector('a[href*="/status/2089870131291943228/video/1"]')).toBeTruthy();
+        expect(player?.className).toBe('relative h-full w-full');
+    });
+
+    it('X 多视频或无当前媒体覆盖链接时不跨 post 提升容器', () => {
+        const {document} = parseHTML(`<!doctype html><main><article><div class="outer"><div class="group relative isolate"><video src="blob:https://x.com/one"></video><a href="/cerebras/status/2089870131291943228/video/1"></a></div><div class="group relative isolate"><video src="blob:https://x.com/two"></video><a href="/cerebras/status/2089870131291943228/video/2"></a></div></div></article><article><div class="other"><video src="blob:https://x.com/other"></video><a href="/someone/status/999/video/1"></a></div></article></main>`);
+        vi.stubGlobal('document', document);
+        vi.stubGlobal('window', {location: {origin: 'https://x.com', hostname: 'x.com', href: 'https://x.com/cerebras/status/2089870131291943228', pathname: '/cerebras/status/2089870131291943228'}});
+
+        const player = findVideoPlayer();
+        expect(player).toBe(document.querySelector('video')?.parentElement);
+    });
+
+    it('提升后的 X 媒体覆盖容器不重新选取内层 settings 控件', () => {
+        const {document} = parseHTML(`<!doctype html><article><div class="relative h-full w-full"><div class="group relative isolate"><video></video><button aria-label="Settings"></button></div><a aria-label="View media" href="/cerebras/status/2089870131291943228/video/1"></a></div></article>`);
+        vi.stubGlobal('document', document);
+        vi.stubGlobal('window', {location: {origin: 'https://x.com', hostname: 'x.com', href: 'https://x.com/cerebras/status/2089870131291943228', pathname: '/cerebras/status/2089870131291943228'}});
+
+        const player = findVideoPlayer();
+        expect(player?.className).toBe('relative h-full w-full');
+        expect(findXSettingsControl(player!)).toBeNull();
+    });
+
+    it('X 只提升当前 post，忽略更早视频、错误 status、外部链接和无 article 页面', () => {
+        const {document} = parseHTML(`<!doctype html><main>
+          <article><div class="earlier-player"><video src="blob:https://x.com/earlier"></video><a href="/someone/status/999/video/1"></a></div></article>
+          <article><div class="current-player"><video src="blob:https://x.com/current"></video><a href="/cerebras/status/2089870131291943228/video/1"></a></div></article>
+        </main>`);
+        vi.stubGlobal('document', document);
+        vi.stubGlobal('window', {location: {origin: 'https://x.com', hostname: 'x.com', href: 'https://x.com/cerebras/status/2089870131291943228', pathname: '/cerebras/status/2089870131291943228'}});
+        expect(findVideoPlayer()?.className).toBe('current-player');
+
+        const wrong = parseHTML(`<!doctype html><article><div class="wrong-outer"><div class="wrong-player"><video></video></div><a href="/cerebras/status/111/video/1"></a><a href="https://example.com/cerebras/status/2089870131291943228/video/1"></a></div></article>`).document;
+        vi.stubGlobal('document', wrong);
+        expect(findVideoPlayer()?.className).toBe('wrong-player');
+
+        const noArticle = parseHTML(`<!doctype html><main><div class="lone-player"><video></video></div><a href="/cerebras/status/2089870131291943228/video/1"></a></main>`).document;
+        vi.stubGlobal('document', noArticle);
+        expect(findVideoPlayer()?.className).toBe('lone-player');
     });
 
     it('按播放器中的字幕片段合并文本，并忽略空片段', () => {

@@ -101,7 +101,7 @@
     </section>
     <section v-show="props.activeSection === 'settings-video'" id="settings-video" class="settings-section">
       <SettingsGroup>
-        <SettingsItem label="视频字幕翻译" description="翻译 YouTube 已提供的字幕文本，不上传音频或视频内容。">
+        <SettingsItem label="视频字幕翻译" description="翻译 YouTube 或 X 播放器中的字幕，不上传音频或视频内容。">
           <el-switch v-model="config.videoTranslationEnabled" class="settings-switch" aria-label="视频字幕翻译" />
         </SettingsItem>
         <SettingsItem label="视频翻译服务" description="与网页翻译服务相互独立；AI 服务会提前预取字幕。" :disabled="!config.videoTranslationEnabled">

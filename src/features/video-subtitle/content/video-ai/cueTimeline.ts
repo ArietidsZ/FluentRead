@@ -56,6 +56,72 @@ function getAiCueSpokenEndMs(cue: VideoSubtitleCue): number {
     : getAiCueEndMs(cue);
 }
 
+function normalizeVideoAiCueEnd(cue: VideoAiTimelineCue): VideoAiTimelineCue {
+  const spokenEndMs = getAiCueSpokenEndMs(cue);
+  return {
+    ...cue,
+    durationMs: Math.max(1, spokenEndMs - cue.startMs),
+    spokenEndMs,
+  };
+}
+
+/**
+ * 将 AI cue 的可见时长收敛到 spoken 时间轴。该操作必须在完整窗口的
+ * correction/consolidation 之后执行，否则会让 correction 失去用于判定
+ * spoken overlap 的原始 span。native 字幕不调用此 helper，因此保留原生
+ * 字幕允许同时出现的合法重叠语义。
+ */
+export function normalizeVideoAiSubtitleTimeline(cues: VideoSubtitleCue[]): VideoSubtitleCue[] {
+  const ordered = [...cues]
+    .filter((cue) => Number.isFinite(cue.startMs) && typeof cue.text === 'string' && cue.text.trim())
+    .map((cue) => ({
+      ...cue,
+      startMs: Math.max(0, cue.startMs),
+      durationMs: Number.isFinite(cue.durationMs)
+        ? Math.max(VIDEO_AI_CUE_MIN_DURATION_MS, cue.durationMs)
+        : VIDEO_AI_CUE_MIN_DURATION_MS,
+      text: cue.text.replace(/[\s\u3000]+/g, ' ').trim(),
+    }))
+    .sort((left, right) => left.startMs - right.startMs);
+
+  const result: VideoAiTimelineCue[] = [];
+  for (const sourceCue of ordered) {
+    const cue = {...sourceCue} as VideoAiTimelineCue;
+    const previous = result[result.length - 1];
+    if (!previous) {
+      result.push(cue);
+      continue;
+    }
+
+    if (cue.startMs === previous.startMs) {
+      // 同一 spoken 起点的独立 AI 结果不可能在时间轴上并列显示；后到结果
+      // 是当前窗口对该起点的最新判断，保留它并继续处理后续边界。
+      result[result.length - 1] = cue;
+      continue;
+    }
+
+    const previousSpokenEndMs = getAiCueSpokenEndMs(previous);
+    if (cue.startMs < previousSpokenEndMs) {
+      const boundedEndMs = Math.max(previous.startMs, cue.startMs);
+      result[result.length - 1] = {
+        ...previous,
+        durationMs: Math.max(1, boundedEndMs - previous.startMs),
+        spokenEndMs: boundedEndMs,
+      };
+    } else if (typeof previous.spokenEndMs === 'number' && Number.isFinite(previous.spokenEndMs)) {
+      // 保留 spoken gap：展示时长不能把静音区间重新填回上一句。
+      result[result.length - 1] = {
+        ...previous,
+        durationMs: Math.max(1, previousSpokenEndMs - previous.startMs),
+      };
+    }
+
+    result.push(cue);
+  }
+
+  return result.map(normalizeVideoAiCueEnd).slice(-VIDEO_AI_MAX_CUE_COUNT);
+}
+
 /**
  * 合并相邻分片的结果，消除 Whisper 在分片边界重复输出同一句造成的闪烁。
  * 不会把不相关的句子强行合并；重叠时由后一个真实 start 接管时间轴。
@@ -137,10 +203,10 @@ export function upsertVideoAiSubtitleCue(
     if (getAiCueSpokenEndMs(existing) < mutableAfterMs) stablePrefix.push(existing);
     else mutableTail.push(existing);
   }
-  return [
-    ...stablePrefix,
-    ...mergeVideoAiSubtitleCues([...mutableTail, cue]),
-  ].slice(-VIDEO_AI_MAX_CUE_COUNT);
+  const normalizedTail = normalizeVideoAiSubtitleTimeline(
+    mergeVideoAiSubtitleCues([...mutableTail, cue]),
+  );
+  return [...stablePrefix, ...normalizedTail].slice(-VIDEO_AI_MAX_CUE_COUNT);
 }
 
 /** 找到当前播放头应显示的最新 cue，而不是让重叠 cue 来回抢占字幕层。 */

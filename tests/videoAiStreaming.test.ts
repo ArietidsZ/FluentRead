@@ -21,6 +21,7 @@ import {
   VIDEO_AI_MAX_CUE_COUNT,
   getVisibleVideoAiCue,
   mergeVideoAiSubtitleCues,
+  normalizeVideoAiSubtitleTimeline,
   upsertVideoAiSubtitleCue,
 } from '@/src/features/video-subtitle/content/video-ai/cueTimeline';
 import { VideoAiCanceledGenerationRegistry } from '@/src/features/video-subtitle/content/video-ai/generationRegistry';
@@ -932,6 +933,87 @@ describe('本地 AI 字幕滑窗文本合并', () => {
     expect(stabilizer.flush(3_000)).toEqual([]);
   });
 
+  it('完整采集 flush 可提交有明确句末的短句，但实时 flush 默认仍保持严格门槛', () => {
+    const realtime = new VideoAiTranscriptStabilizer();
+    realtime.ingest({
+      startMs: 0,
+      durationMs: 1_500,
+      availableAtMs: 1_600,
+      text: 'This is CS4.',
+    });
+    expect(realtime.flush(2_000)).toEqual([]);
+
+    const complete = new VideoAiTranscriptStabilizer();
+    complete.ingest({
+      startMs: 0,
+      durationMs: 1_500,
+      availableAtMs: 1_600,
+      text: 'This is CS4.',
+    });
+    expect(complete.flush(2_000, true)).toMatchObject([{
+      text: 'This is CS4.',
+      partial: false,
+      spokenEndMs: 1_500,
+    }]);
+
+    const thankYou = new VideoAiTranscriptStabilizer();
+    thankYou.ingest({
+      startMs: 2_000,
+      durationMs: 1_200,
+      availableAtMs: 3_300,
+      text: 'Thank you.',
+    });
+    expect(thankYou.flush(4_000, true)).toMatchObject([{ text: 'Thank you.' }]);
+  });
+
+  it('完整采集 flush 不强行提交噪声/单词片段，重复 flush 安全返回空数组', () => {
+    const stabilizer = new VideoAiTranscriptStabilizer();
+    stabilizer.ingest({
+      startMs: 0,
+      durationMs: 1_500,
+      availableAtMs: 1_600,
+      text: 'uh.',
+    });
+    expect(stabilizer.flush(2_000, true)).toEqual([]);
+    expect(stabilizer.flush(2_100, true)).toEqual([]);
+
+    const duplicate = new VideoAiTranscriptStabilizer();
+    duplicate.ingest({
+      startMs: 0,
+      durationMs: 1_500,
+      availableAtMs: 1_600,
+      text: 'This is CS4.',
+    });
+    expect(duplicate.flush(2_000, true)).toHaveLength(1);
+    expect(duplicate.flush(2_100, true)).toEqual([]);
+  });
+
+  it('flush 遇到已被完整前文覆盖的 held 短句时安全丢弃，不触发空值崩溃', () => {
+    const stabilizer = new VideoAiTranscriptStabilizer();
+    stabilizer.ingest({
+      startMs: 5_000,
+      durationMs: 1_500,
+      availableAtMs: 6_600,
+      text: 'This is CS4.',
+    });
+    stabilizer.ingest({
+      startMs: 0,
+      durationMs: 4_000,
+      availableAtMs: 6_700,
+      text: 'This is CS4. More details follow clearly.',
+    });
+    expect(stabilizer.flush(7_000, true)).toEqual([]);
+
+    const tooBrief = new VideoAiTranscriptStabilizer();
+    tooBrief.ingest({
+      startMs: 0,
+      durationMs: 200,
+      availableAtMs: 300,
+      text: 'Thank you.',
+    });
+    expect(tooBrief.flush(500, true)).toEqual([]);
+  });
+
   it('等待后提交的无标点短语也进入 committed 集合且不会再次输出', () => {
     const stabilizer = new VideoAiTranscriptStabilizer();
     const preview = stabilizer.ingest({
@@ -975,12 +1057,28 @@ describe('本地 AI 字幕时间轴稳定性', () => {
       { startMs: 1_000, durationMs: 800, text: 'totally different words' },
     ]);
     expect(overlap[0].durationMs).toBe(1_000);
+    expect((overlap[0] as VideoAiStabilizedCue).spokenEndMs).toBeUndefined();
+
+    const normalized = normalizeVideoAiSubtitleTimeline(overlap);
+    expect(normalized[0]).toMatchObject({ durationMs: 1_000, spokenEndMs: 1_000 });
+
+    const invalid = normalizeVideoAiSubtitleTimeline([
+      { startMs: 2_000, durationMs: Number.NaN, text: 'Invalid duration falls back safely.' },
+    ]);
+    expect(invalid[0]).toMatchObject({ durationMs: 500, spokenEndMs: 2_500 });
   });
 
   it('没有 spokenEnd 时按 cue 时长 fallback', () => {
     const cue = { startMs: 1_000, durationMs: Number.NaN, text: 'fallback duration' };
     expect(getVisibleVideoAiCue([cue], 1_000)?.text).toBe(cue.text);
     expect(getVisibleVideoAiCue([cue], 1_499)?.text).toBe(cue.text);
+    expect(getVisibleVideoAiCue([cue], Number.NaN)).toBeNull();
+
+    const sameStart = getVisibleVideoAiCue([
+      { startMs: 1_000, durationMs: 1_000, availableAtMs: 500, text: 'early result' },
+      { startMs: 1_000, durationMs: 1_000, availableAtMs: 700, text: 'later result' },
+    ] as VideoAiStabilizedCue[], 1_000);
+    expect(sameStart?.text).toBe('later result');
   });
   it('时间轴入口也保证至少 1800ms 的实际可见时长', () => {
     const sourceCue = {
@@ -1099,5 +1197,86 @@ describe('本地 AI 字幕时间轴稳定性', () => {
       durationMs: 2_100,
       text: 'Keep this complete sentence.',
     });
+  });
+
+  it('合并 cue 时保留有效翻译到达时间，并忽略无效值', () => {
+    const merged = mergeVideoAiSubtitleCues([
+      {
+        startMs: 0,
+        durationMs: 2_000,
+        text: 'The same sentence arrives first.',
+        translationAvailableAtMs: Number.NaN,
+      },
+      {
+        startMs: 900,
+        durationMs: 2_000,
+        text: 'same sentence arrives first and continues.',
+        translationAvailableAtMs: 2_500,
+      },
+    ] as Array<VideoAiStabilizedCue & { translationAvailableAtMs: number }>);
+    expect(merged).toHaveLength(1);
+    expect((merged[0] as VideoAiStabilizedCue & { translationAvailableAtMs?: number })
+      .translationAvailableAtMs).toBe(2_500);
+  });
+
+  it('最终 AI 时间轴按 spokenEnd 截断 overlap，同时保留静音 gap', () => {
+    const cues = normalizeVideoAiSubtitleTimeline([
+      {
+        startMs: 0,
+        durationMs: 10_000,
+        spokenEndMs: 10_000,
+        text: 'First sentence ends before the next window.',
+      } as VideoAiStabilizedCue,
+      {
+        startMs: 9_780,
+        durationMs: 4_000,
+        spokenEndMs: 13_800,
+        text: 'A distinct next sentence.',
+      } as VideoAiStabilizedCue,
+      {
+        startMs: 15_000,
+        durationMs: 4_000,
+        spokenEndMs: 15_900,
+        text: 'A later sentence after silence.',
+      } as VideoAiStabilizedCue,
+    ]);
+
+    expect(cues.map((cue) => [cue.startMs, cue.durationMs, (cue as VideoAiStabilizedCue).spokenEndMs])).toEqual([
+      [0, 9_780, 9_780],
+      [9_780, 4_020, 13_800],
+      [15_000, 900, 15_900],
+    ]);
+    expect(cues[1].startMs).toBeGreaterThanOrEqual((cues[0] as VideoAiStabilizedCue).spokenEndMs!);
+    expect(cues[2].startMs).toBeGreaterThan((cues[1] as VideoAiStabilizedCue).spokenEndMs!);
+  });
+
+  it('同一 spoken 起点的独立 AI 结果保留后到结果，避免并列 overlap', () => {
+    const cues = normalizeVideoAiSubtitleTimeline([
+      { startMs: 2_000, durationMs: 3_000, spokenEndMs: 5_000, text: 'Earlier candidate.' },
+      { startMs: 2_000, durationMs: 4_000, spokenEndMs: 6_000, text: 'Later candidate.' },
+    ] as VideoAiStabilizedCue[]);
+    expect(cues).toHaveLength(1);
+    expect(cues[0]).toMatchObject({ startMs: 2_000, text: 'Later candidate.', spokenEndMs: 6_000 });
+  });
+
+  it('校正版先在 merge 阶段保留 spoken overlap，最终归一化后只有一条 cue', () => {
+    const merged = mergeVideoAiSubtitleCues([
+      {
+        startMs: 15_000,
+        durationMs: 3_800,
+        spokenEndMs: 18_200,
+        text: 'Back inside, the team compared both models and recorded every observation.',
+      } as VideoAiStabilizedCue,
+      {
+        startMs: 15_300,
+        durationMs: 2_000,
+        spokenEndMs: 17_000,
+        partial: true,
+        text: 'Back inside, the team compared both models and recorded every observation.',
+      } as VideoAiStabilizedCue,
+    ]);
+    expect(merged).toHaveLength(1);
+    expect((merged[0] as VideoAiStabilizedCue).spokenEndMs).toBe(18_200);
+    expect(normalizeVideoAiSubtitleTimeline(merged)).toHaveLength(1);
   });
 });

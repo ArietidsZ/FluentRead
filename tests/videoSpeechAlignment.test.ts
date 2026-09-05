@@ -49,4 +49,32 @@ describe('音频停顿与完整字幕对齐', () => {
     expect(alignVideoAiSegmentsToSpeech(audio,[{startMs:0,endMs:2400}])[0].endMs).toBe(2440);
   });
 
+  it('稳定背景底噪上方仍能找到语音停顿，连续音量变化不猜测停顿', () => {
+    const noisy = new Float32Array(6000 * 16).fill(0.008);
+    noisy.fill(0.1, 0, 1800 * 16);
+    noisy.fill(0.1, 3200 * 16, 5000 * 16);
+    expect(alignVideoAiSegmentsToSpeech(noisy, [
+      {startMs: 0, endMs: 2400, text: 'First.'},
+      {startMs: 2400, endMs: 6000, text: 'Second.'},
+    ])).toEqual([
+      {startMs: 0, endMs: 1840, text: 'First.'},
+      {startMs: 3160, endMs: 5040, text: 'Second.'},
+    ]);
+    expect(findVideoAiPauseBoundary(noisy)).toBe(5500);
+    const continuous = new Float32Array(6000 * 16);
+    // 能量在多个等级持续变化，没有稳定底噪平台，不能据此裁剪语音。
+    for (let i = 0; i < continuous.length; i += 1) continuous[i] = 0.005 * (1 + Math.floor(i / (600 * 16))) ** 2;
+    expect(alignVideoAiSegmentsToSpeech(continuous, [{startMs: 0, endMs: 6000}]))
+      .toEqual([{startMs: 0, endMs: 6000}]);
+    expect(findVideoAiPauseBoundary(new Float32Array(6000 * 16).fill(0.008))).toBe(0);
+  });
+
+  it('变化的背景声不会触发自适应切窗而切断模型上下文', () => {
+    const audio = new Float32Array(10000 * 16).fill(0.1);
+    for (let i = 5000 * 16; i < 7500 * 16; i += 1) {
+      audio[i] = 0.008 + 0.004 * (i - 5000 * 16) / (2500 * 16);
+    }
+    expect(findVideoAiPauseBoundary(audio)).toBe(0);
+  });
+
 });

@@ -1424,8 +1424,8 @@ export function mountVideoSubtitleTranslation(): () => void {
         controls = document.createElement('div');
         controls.className = VIDEO_FALLBACK_CONTROLS_CLASS;
         markVideoUi(controls);
-        player.appendChild(controls);
       }
+      if (controls.parentElement !== player) player.appendChild(controls);
     }
     if (!player || !controls) return;
 

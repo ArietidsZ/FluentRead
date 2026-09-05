@@ -40,7 +40,7 @@ describe('本地 AI 完整视频音频窗口', () => {
     expect(createVideoAiFullAudioWindows(new Float32Array(), 'tiny')).toEqual([]);
   });
 
-  it('完整模式会在重叠 spoken 时间内保留信息量更高的句子', () => {
+  it('完整模式只合并有校正证据的重叠句子', () => {
     const cues = consolidateVideoAiFullCues([
       {
         startMs: 15_000,
@@ -59,8 +59,46 @@ describe('本地 AI 完整视频音频窗口', () => {
       },
     ]);
 
-    expect(cues).toHaveLength(1);
-    expect(cues[0].text).toContain('compared both models');
+    expect(cues).toHaveLength(2);
+    expect(cues.map((cue) => cue.text)).toEqual([
+      'Back inside, the team compared both models and recorded every observation.',
+      'Back in some parts of the window,',
+    ]);
+
+    const corrected = consolidateVideoAiFullCues([
+      {
+        startMs: 15_000,
+        durationMs: 3_800,
+        spokenEndMs: 18_200,
+        availableAtMs: 0,
+        text: 'Back inside, the team compared both models and recorded every observation.',
+      },
+      {
+        startMs: 15_300,
+        durationMs: 2_000,
+        spokenEndMs: 17_000,
+        availableAtMs: 0,
+        partial: true,
+        text: 'Back inside, the team compared both models and recorded every observation',
+      },
+    ]);
+    expect(corrected).toHaveLength(1);
+    expect(corrected[0].text).toContain('compared both models');
+  });
+
+  it('does not merge common-first-word sentences or semantic numeric/negation changes', () => {
+    const cases = [
+      ['The system is ready for the next experiment.', 'The results are available on the screen.'],
+      ['Opened 11 windows today for review.', 'Opened 12 windows today for review.'],
+      ['We can release the local model today.', 'We cannot release the local model today.'],
+    ];
+    for (const [first, second] of cases) {
+      const cues = consolidateVideoAiFullCues([
+        {startMs: 1_000, durationMs: 2_000, spokenEndMs: 3_000, availableAtMs: 0, text: first},
+        {startMs: 1_400, durationMs: 2_000, spokenEndMs: 3_400, availableAtMs: 0, text: second},
+      ]);
+      expect(cues.map((cue) => cue.text)).toEqual([first, second]);
+    }
   });
 
   it('完整窗口处理无效采样率、短尾和缺少 spokenEnd 的 cue', () => {
@@ -81,10 +119,12 @@ describe('本地 AI 完整视频音频窗口', () => {
       { startMs: 6_100, durationMs: 1_000, spokenEndMs: 7_100, text: '!!! more', availableAtMs: 0 },
     ]);
     expect(cues.map((cue) => cue.text)).toEqual([
+      'A distinct sentence.',
       'A much longer distinct sentence with more words.',
       'Another sentence.',
       'Fallback spoken end sentence.',
       '!!!',
+      '!!! more',
     ]);
   });
 });

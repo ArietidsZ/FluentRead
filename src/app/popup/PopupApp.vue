@@ -494,7 +494,11 @@
             <option v-for="item in videoServiceOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
           </select>
         </label>
-        <template v-if="browserCapabilities.offscreenDocument">
+        <div v-if="browserCapabilities.offscreenDocument" class="x-video-ai-group">
+          <div class="x-video-ai-group-heading">
+            <strong>X 视频 · 本地 AI</strong>
+            <small>无原生字幕时使用浏览器本地识别</small>
+          </div>
           <label class="select-row">
             <span><strong>本地 AI 字幕模型</strong><small>X 没有原生字幕时使用；首次请求前下载并缓存</small></span>
             <select v-model="config.videoLocalModel" :disabled="!config.videoTranslationEnabled">
@@ -502,7 +506,7 @@
             </select>
           </label>
           <button class="video-model-settings-link" type="button" @click="openOptions('settings-video')">下载或管理 Tiny / Base 模型 →</button>
-        </template>
+        </div>
         <small v-else class="drawer-hint capability-warning">当前浏览器不支持 X 本地 AI 字幕，视频原生字幕翻译仍可使用。</small>
         <small v-if="selectedVideoServiceUnavailableMessage" class="drawer-hint capability-warning">{{ selectedVideoServiceUnavailableMessage }}</small>
         <label class="select-row">
@@ -929,7 +933,7 @@ const drawerDescription = computed(() => ({
   selection: '选中文字或圈选页面区域，按你的偏好获取译文。',
   appearance: '调整双语布局、译文样式与界面主题。',
   image: '把鼠标移到图片上，从图片左下角打开翻译入口。',
-  video: '在 YouTube 播放器中显示实时字幕译文。',
+  video: '翻译 YouTube/X 字幕，或在 X 本地生成字幕。',
 }[activeDrawer.value]));
 const hoverChoices = [
   { value: 'Control', label: 'Ctrl' },

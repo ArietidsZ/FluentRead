@@ -211,9 +211,44 @@ export function findCaptionContainer(): HTMLElement | null {
     || null;
 }
 
+/** X 播放器的覆盖链接可能位于 video 外的同一 post 容器；只在单视频且链接明确指向当前 status 时提升容器。 */
+function hasCurrentXVideoOverlayLink(container: HTMLElement): boolean {
+  const status = window.location.pathname.match(/\/status\/(\d+)/i)?.[1];
+  if (!status) return false;
+  const origin = window.location.origin;
+  const videoLinkPattern = new RegExp(`/status/${status}/video/\\d+/?$`, 'i');
+  return Array.from(container.querySelectorAll<HTMLAnchorElement>('a[href]')).some((anchor) => {
+    try {
+      const href = new URL(anchor.getAttribute('href') || '', window.location.href);
+      return href.origin === origin && videoLinkPattern.test(href.pathname);
+    } catch {
+      return false;
+    }
+  });
+}
+
+function findXVideoOverlayContainer(video: HTMLVideoElement): HTMLElement | null {
+  const post = video.closest('article');
+  if (!post || post.querySelectorAll<HTMLVideoElement>('video').length !== 1) return null;
+  let current = video.parentElement;
+  for (let depth = 0; current && depth < 8; depth += 1, current = current.parentElement) {
+    if (!post.contains(current)) break;
+    const videos = Array.from(current.querySelectorAll<HTMLVideoElement>('video'));
+    if (videos.length !== 1 || videos[0] !== video) continue;
+    if (hasCurrentXVideoOverlayLink(current)) return current;
+    if (current === post) break;
+  }
+  return null;
+}
+
 export function findVideoPlayer(): HTMLElement | null {
   const players = Array.from(document.querySelectorAll<HTMLElement>(VIDEO_PLAYER_SELECTOR));
   if (isXVideoPage()) {
+    const videos = Array.from(document.querySelectorAll<HTMLVideoElement>('video'));
+    const overlayContainer = videos
+      .map((video) => findXVideoOverlayContainer(video))
+      .find((container): container is HTMLElement => container !== null);
+    if (overlayContainer) return overlayContainer;
     const status = window.location.pathname.match(/\/status\/(\d+)/)?.[1];
     const currentPost = players.find(player => player.closest('article')?.querySelector(`a[href*="/status/${status}"]`));
     if (currentPost) return currentPost;
@@ -231,6 +266,7 @@ export function findVideoPlayer(): HTMLElement | null {
 
 export function findXSettingsControl(player: HTMLElement): HTMLElement | null {
   if (!isXVideoPage()) return null;
+  if (hasCurrentXVideoOverlayLink(player)) return null;
   return player.querySelector<HTMLElement>(VIDEO_X_SETTINGS_CONTROL_SELECTOR);
 }
 
@@ -660,6 +696,13 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       min-width: 0 !important;
       writing-mode: horizontal-tb !important;
       word-break: keep-all !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-item[data-action="toggle-ai-subtitle"] {
+      margin-top: 6px !important;
+      padding-top: 7px !important;
+      border-top: 1px solid rgba(255, 255, 255, .12) !important;
+      border-top-left-radius: 0 !important;
+      border-top-right-radius: 0 !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-item:hover,
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-menu-mode:hover,

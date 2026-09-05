@@ -15,8 +15,10 @@ import {
 } from './audioWindow';
 import {
   mergeVideoAiSubtitleCues,
+  normalizeVideoAiSubtitleTimeline,
 } from './cueTimeline';
 import {
+  areVideoAiTranscriptCorrectionVariants,
   VideoAiTranscriptStabilizer,
   type VideoAiStabilizedCue,
 } from './streamingTranscript';
@@ -183,7 +185,8 @@ export function consolidateVideoAiFullCues(cues: VideoAiStabilizedCue[]): VideoA
     const startsNear = Math.abs(previous.startMs - cue.startMs) <= 900;
     const firstPreviousWord = previous.text.trim().split(/\s+/u, 1)[0].toLocaleLowerCase();
     const firstCueWord = cue.text.trim().split(/\s+/u, 1)[0].toLocaleLowerCase();
-    if (overlapMs >= 450 && startsNear && firstPreviousWord === firstCueWord) {
+    const correctionVariant = areVideoAiTranscriptCorrectionVariants(previous.text, cue.text);
+    if (overlapMs >= 450 && startsNear && firstPreviousWord === firstCueWord && correctionVariant) {
       const winner = fullCueTextScore(cue) > fullCueTextScore(previous) ? cue : previous;
       result[result.length - 1] = {
         ...winner,
@@ -747,16 +750,16 @@ export class VideoAiFullCaptureController {
       if (this.fullTranscriptionError) throw this.fullTranscriptionError;
       if (!this.isCurrentSession(session)) throw new Error(FULL_CANCELLED_ERROR);
 
-      const flushed = this.fullTranscriptionStabilizer.flush(0);
+      const flushed = this.fullTranscriptionStabilizer.flush(0, true);
       this.fullFallbackCues = this.absorbCues(flushed, this.fullCuesById, this.fullFallbackCues);
-      const cues = consolidateVideoAiFullCues(mergeVideoAiSubtitleCues([
+      const cues = normalizeVideoAiSubtitleTimeline(consolidateVideoAiFullCues(mergeVideoAiSubtitleCues([
         ...this.fullCuesById.values(),
         ...this.fullFallbackCues,
       ]).map((cue) => ({
         ...cue,
         availableAtMs: 0,
         translationAvailableAtMs: 0,
-      })) as unknown as VideoAiStabilizedCue[]);
+      })) as unknown as VideoAiStabilizedCue[])) as unknown as VideoAiStabilizedCue[];
       if (cues.length === 0) throw new Error('本地 AI 没有识别出可读字幕，请换用 Base 模型重试');
       this.phase = 'translating';
       this.setProgress({
@@ -935,7 +938,7 @@ export class VideoAiFullCaptureController {
     try {
       if (!this.isCurrentSession(session)) throw new Error(FULL_CANCELLED_ERROR);
       if (window.overlapMs === 0) {
-        this.fullFallbackCues = this.absorbCues(this.fullTranscriptionStabilizer.flush(0), this.fullCuesById, this.fullFallbackCues);
+        this.fullFallbackCues = this.absorbCues(this.fullTranscriptionStabilizer.flush(0, true), this.fullCuesById, this.fullFallbackCues);
         this.fullTranscriptionStabilizer.reset(true);
       }
       const chunk: VideoAiAudioChunk = {

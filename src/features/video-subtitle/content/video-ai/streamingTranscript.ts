@@ -766,11 +766,16 @@ export class VideoAiTranscriptStabilizer {
     return output;
   }
 
-  flush(availableAtMs: number): VideoAiStabilizedCue[] {
+  flush(availableAtMs: number, allowShortSentence = false): VideoAiStabilizedCue[] {
     const phrase = this.heldPhrase;
     this.heldPhrase = null;
-    if (!phrase || !isReadablePhrase(phrase)) return [];
-    const novelPhrase = this.prepareNovelPhrase(phrase)!;
-    return [this.commit(novelPhrase, availableAtMs)];
+    if (!phrase || (!isReadablePhrase(phrase)
+      && !(allowShortSentence
+        && isConfirmedShortSentence(phrase)
+        && phrase.endMs - phrase.startMs >= 300))) return [];
+    const novelPhrase = this.prepareNovelPhrase(phrase);
+    return [novelPhrase]
+      .filter((candidate): candidate is TranscriptPhrase => candidate !== null)
+      .map((candidate) => this.commit(candidate, availableAtMs));
   }
 }
