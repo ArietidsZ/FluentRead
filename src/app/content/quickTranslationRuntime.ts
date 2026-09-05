@@ -4,6 +4,7 @@
  * 主要内容：解析方案的请求级覆盖，协调旧单例监听器与多方案路由，并保持全文切换与悬停取消语义。
  * 模块边界：本文件只做 content composition；手势判定属于 quick-translation feature，翻译请求与 DOM 状态属于 full-page feature。
  */
+import type {PageTranslationInvocation} from '@/src/features/full-page-translation/public';
 import type {Config} from '@/src/core/config/model';
 import {resolveQuickTranslationInvocation} from '@/src/features/quick-translation/core';
 import {mountQuickTranslationContentFeature} from '@/src/features/quick-translation/public';
@@ -24,6 +25,7 @@ export function mountConfiguredQuickTranslation(
     isSiteDisabled: () => boolean,
     signal: AbortSignal,
     resetLegacyKeyboardGestures: () => void = () => undefined,
+    runFullPage?: (invocation: PageTranslationInvocation) => void,
 ): void {
     let activeFullPageInvocation = '';
     const clearActiveInvocation = () => { activeFullPageInvocation = ''; };
@@ -47,6 +49,7 @@ export function mountConfiguredQuickTranslation(
         }),
         runFullPage: (profile) => {
             const invocation = resolveQuickTranslationInvocation(profile, config);
+            if (runFullPage) { cancelPendingHoverTranslation(); runFullPage(invocation); return; }
             const invocationIdentity = JSON.stringify(invocation);
             cancelPendingHoverTranslation();
             if (isFullPageTranslationActive()) {

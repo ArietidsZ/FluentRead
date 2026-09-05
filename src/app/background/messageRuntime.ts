@@ -23,8 +23,8 @@ import {
 import {type ConfigPersistenceContext} from './handlers/configPersistence';
 import {createConnectionTestHandler} from './handlers/connectionTest';
 import {
-    createFullPageTranslationStateHandlers,
-    type FullPageBackgroundContext,
+    createFullPageTranslationStateHandlers, createQqMailFrameBackgroundHandlers,
+    type FullPageBackgroundContext, type QQMailFrameBackgroundContext,
 } from './handlers/fullPageTranslationState';
 import {
     createImageOcrLanguageRepository,
@@ -55,7 +55,7 @@ import {createCapabilityGatedBackgroundHandlers, createCapabilityGatedSelectionT
 import {createConfigBackgroundHandlers} from './configMessageHandlers';
 import {createConfigImageOcrLanguageStorage, installBrowserConfigStorageBroadcast} from './configStorageRuntime';
 import {modelUsageRepository} from '@/src/platform/storage/modelUsageRepository';
-type BackgroundRuntimeContext = ConfigPersistenceContext & VocabularyBackgroundContext & SelectionTtsContext
+type BackgroundRuntimeContext = QQMailFrameBackgroundContext & ConfigPersistenceContext & VocabularyBackgroundContext & SelectionTtsContext
     & FullPageBackgroundContext & AreaTranslationBackgroundContext;
 export interface BackgroundMessageRuntimeOptions {
     tabTranslationStates: TabTranslationStateStore;
@@ -70,6 +70,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     const selectionTtsTransport = createCapabilityGatedSelectionTtsTransport(capabilities, selectionTtsOffscreenAdapter);
     const handlers: Array<BackgroundMessageHandler<BackgroundRuntimeContext>> = [
         createTranslationCancelHandler(translationRequestRegistry),
+        ...createQqMailFrameBackgroundHandlers({sendTabMessage: (tabId, message, options) => browser.tabs.sendMessage(tabId, message, options)}),
         createTranslationCacheHandler(clearTranslationCache, createTranslationCacheInvalidationBroadcaster({
             queryTabs: () => browser.tabs.query({}) as Promise<Array<{id?: number}>>,
             sendTabMessage: (tabId, message) => browser.tabs.sendMessage(tabId, message),

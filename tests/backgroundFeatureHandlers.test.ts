@@ -160,6 +160,25 @@ describe('后台 feature handlers', () => {
         expect(onStateChanged).not.toHaveBeenCalled();
     });
 
+    it('全文状态 handler 忽略 legacy QQ 子 frame，避免覆盖 top frame 状态', () => {
+        const stateStore = new TabTranslationStateStore();
+        const onStateChanged = vi.fn();
+        const [translationHandler, disabledHandler] = createFullPageTranslationStateHandlers({
+            stateStore,
+            isTabId: isBrowserTabId,
+            onStateChanged,
+        });
+        const context = {sender: {frameId: 3, tab: {id: 42}}};
+        expect(translationHandler.handle(
+            {type: FULL_PAGE_TRANSLATION_STATE_MESSAGE_TYPE, isTranslated: true}, context,
+        )).toEqual({success: true});
+        expect(disabledHandler.handle(
+            {type: SITE_EXTENSION_DISABLED_STATE_MESSAGE_TYPE, isDisabled: true}, context,
+        )).toEqual({success: true});
+        expect(stateStore.get(42)).toEqual({isTranslated: false, isSiteDisabled: false});
+        expect(onStateChanged).not.toHaveBeenCalled();
+    });
+
     it('区域选区守卫覆盖尺寸、视口和数值边界', () => {
         const valid = {left: 0, top: 0, width: 12, height: 12, viewportWidth: 100, viewportHeight: 80};
         expect(isAreaTranslationSelection(valid)).toBe(true);

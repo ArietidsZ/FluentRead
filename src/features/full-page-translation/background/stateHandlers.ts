@@ -9,6 +9,7 @@ export const SITE_EXTENSION_DISABLED_STATE_MESSAGE_TYPE = 'siteExtensionDisabled
 
 export interface FullPageBackgroundContext {
     sender?: {
+        frameId?: number;
         tab?: {
             id?: number;
         };
@@ -55,6 +56,7 @@ function senderTabId(
     isTabId: (value: unknown) => value is number,
 ): number | null {
     const tabId = context.sender?.tab?.id;
+    if (typeof context.sender?.frameId === 'number' && context.sender.frameId > 0) return null;
     return isTabId(tabId) ? tabId : null;
 }
 

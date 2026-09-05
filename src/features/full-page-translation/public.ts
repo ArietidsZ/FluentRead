@@ -10,6 +10,7 @@ export {
     handleTranslation,
     invalidateFullPageTranslationSessionCache,
     isFullPageTranslationActive,
+    getFullPageTranslationFrameState,
     resetFullPageTranslationRouteState,
     restoreOriginalContent,
     type PageTranslationInvocation,

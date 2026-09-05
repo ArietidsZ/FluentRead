@@ -4,6 +4,8 @@
  * 主要内容：维护 FullPageSession、AbortController、Intersection/Mutation 观察器、精确属性写入过滤、候选所有权和生命周期重试，冻结翻译配置并在提交时重绑可恢复文本槽，导出自动翻译、悬浮翻译、状态查询及恢复入口。
  * 模块边界：这是 content 侧编排层，不实现 provider 协议、纯候选算法或底层状态存储；翻译调用经 app client，发现规则来自 core/translation，渲染与状态分别交给 renderer 和 state。
  */
+import {getFullPageTranslationStateRevision, notifyFullPageTranslationState} from './stateNotification';
+import type {FrameTranslationState} from './frameSession';
 import { checkConfig } from "@/src/app/translation/check";
 import {insertFailedTip, insertLoadingSpinner} from '@/src/features/full-page-translation/ui/translationIndicators';
 import { styles } from "@/src/core/config/constants";
@@ -247,28 +249,7 @@ function isElementNode(node: Node | null | undefined): node is Element {
     return Boolean(node && node.nodeType === 1 && typeof (node as Element).matches === "function");
 }
 
-function notifyFullPageTranslationState(isTranslated: boolean): void {
-    if (typeof document !== "undefined" && typeof document.dispatchEvent === "function") {
-        const CustomEventConstructor = document.defaultView?.CustomEvent ??
-            (typeof CustomEvent !== "undefined" ? CustomEvent : null);
-        if (CustomEventConstructor) {
-            document.dispatchEvent(new CustomEventConstructor(
-                isTranslated ? "fluentread-translation-started" : "fluentread-translation-ended",
-            ));
-        }
-    }
-    try {
-        if (typeof browser === "undefined" || !browser.runtime?.sendMessage) return;
-        void Promise.resolve(browser.runtime.sendMessage({
-            type: "fullPageTranslationState",
-            isTranslated,
-        })).catch(() => {
-            // 后台可能正在重载；页面内的翻译状态不应因此失败。
-        });
-    } catch {
-        // runtime API 在扩展上下文失效时可能同步抛错；页面清理仍须继续。
-    }
-}
+
 
 function asHTMLElement(node: unknown): HTMLElement | null {
     if (!node || typeof node !== "object" || (node as Node).nodeType !== 1) return null;
@@ -1944,6 +1925,7 @@ function createFullPageMutationObserver(
 function createFullPageSession(
     root: HTMLElement,
     invocation: PageTranslationInvocation = {},
+    inheritedConfig?: FullPageTranslationConfigSnapshot,
 ): FullPageSession {
     let session!: FullPageSession;
     const observer = new IntersectionObserver((entries) => {
@@ -1981,7 +1963,7 @@ function createFullPageSession(
     session = {
         active: true,
         translationMode: invocation.fullPageMode ?? config.fullPageTranslationMode,
-        translationConfig: captureFullPageTranslationConfig(invocation),
+        translationConfig: inheritedConfig ? {...inheritedConfig} : captureFullPageTranslationConfig(invocation),
         progressSessionId: startFullPageTranslationProgress(),
         progressPublishScheduled: false,
         observer,
@@ -2105,12 +2087,12 @@ export function restoreOriginalContent(): void {
  * 限制，并持续观察新增 DOM/open ShadowRoot。这样 body 被 SPA 替换后仍能
  * 继续工作，也不会一次性给整页发出数百个请求。
  */
-export function autoTranslateEnglishPage(invocation: PageTranslationInvocation = {}): void {
+export function autoTranslateEnglishPage(invocation: PageTranslationInvocation = {}, inheritedConfig?: FullPageTranslationConfigSnapshot): void {
     if (!checkConfig(invocation) || fullPageSession?.active) return;
     const root = document.documentElement;
     if (!root) return;
 
-    const session = createFullPageSession(root, invocation);
+    const session = createFullPageSession(root, invocation, inheritedConfig);
     fullPageSession = session;
     document.addEventListener('fluentread-open-shadow-root', (event) => {
         if (!session.active || fullPageSession !== session) return;
@@ -2129,6 +2111,12 @@ export function autoTranslateEnglishPage(invocation: PageTranslationInvocation =
     enqueueFullPageRescan(session, root);
     for (const shadowRoot of getOpenShadowRoots(root)) observeFullPageRoot(session, shadowRoot);
     notifyFullPageTranslationState(true);
+}
+/** 仅共享无凭据的会话快照；旧 QQ 邮件 frame 使用同一目标语言、服务和展示设置。 */
+export function getFullPageTranslationFrameState(): Omit<FrameTranslationState, 'enabled'> {
+    const session = fullPageSession?.active ? fullPageSession : null;
+    const revision = getFullPageTranslationStateRevision();
+    return session ? {revision, sessionId: session.progressSessionId, translationConfig: {...session.translationConfig}, fullPageMode: session.translationMode} : {revision, sessionId: null};
 }
 export function isFullPageTranslationActive(): boolean {
     return fullPageSession?.active === true;
