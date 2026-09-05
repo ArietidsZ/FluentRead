@@ -12,6 +12,9 @@ import {legacyTextOverrides} from './legacy-overrides';
 export const frFRMessages = {
     ...enUSMessages,
     'language.selectorLabel': 'Langue de l’application',
+    'settings.services.website': 'Visiter le site',
+    'settings.services.documentation': 'Guide de configuration',
+    'settings.services.openExternal': '{service} · {action} (ouvre un nouvel onglet)',
     'language.zhCN': '中文',
     'language.enUS': 'English',
     'language.jaJP': '日本語',

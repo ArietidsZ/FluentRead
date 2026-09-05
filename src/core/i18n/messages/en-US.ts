@@ -11,6 +11,9 @@ import {legacyTextOverrides} from './legacy-overrides';
 
 export const enUSMessages = {
     'language.selectorLabel': 'App language',
+    'settings.services.website': 'Visit website',
+    'settings.services.documentation': 'Setup guide',
+    'settings.services.openExternal': '{service} · {action} (opens in a new tab)',
     'language.zhCN': '中文',
     'language.enUS': 'English',
     'language.jaJP': '日本語',

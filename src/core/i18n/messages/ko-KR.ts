@@ -12,6 +12,9 @@ import {legacyTextOverrides} from './legacy-overrides';
 export const koKRMessages = {
     ...enUSMessages,
     'language.selectorLabel': '앱 언어',
+    'settings.services.website': '웹사이트 방문',
+    'settings.services.documentation': '설정 안내',
+    'settings.services.openExternal': '{service} · {action} (새 탭에서 열림)',
     'language.zhCN': '中文',
     'language.enUS': 'English',
     'language.jaJP': '日本語',

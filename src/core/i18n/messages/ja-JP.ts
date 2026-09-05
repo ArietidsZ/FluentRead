@@ -12,6 +12,9 @@ import {legacyTextOverrides} from './legacy-overrides';
 export const jaJPMessages = {
     ...enUSMessages,
     'language.selectorLabel': 'アプリの言語',
+    'settings.services.website': 'サイトを開く',
+    'settings.services.documentation': '設定ガイド',
+    'settings.services.openExternal': '{service} · {action}（新しいタブで開きます）',
     'language.zhCN': '中文',
     'language.enUS': 'English',
     'language.jaJP': '日本語',
