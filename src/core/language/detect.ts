@@ -16,6 +16,7 @@ const FLUENTREAD_LANGUAGE_CODES: Readonly<Record<string, string>> = {
     jpn: 'ja',
     kor: 'ko',
     rus: 'ru',
+    spa: 'es',
 };
 
 const MIN_RELIABLE_STATISTICAL_LETTERS = 50;

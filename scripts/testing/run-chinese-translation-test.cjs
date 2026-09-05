@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// 中文简繁生产浏览器回归：临时 Edge、无前台焦点启动、真实配置选择和真实快捷键。
+// 中文简繁及 --spanish 西班牙语生产浏览器回归：临时 Edge、无前台焦点启动、真实配置选择和真实快捷键。
 // loopback AI fixture 只验证请求与 UI 链路；--live-google 独立报告无需凭据的外部服务实译。
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -23,7 +23,17 @@ const paragraphs = {
     '第二個段落說明電腦網路的設定。',
   ],
 };
-const pairs = [
+paragraphs.es = [
+  'Este programa lee el documento y traduce el idioma de esta página.',
+  'El segundo párrafo explica la configuración de la red informática.',
+];
+const spanishMode = process.argv.includes('--spanish');
+const pairs = spanishMode ? [
+  {from: 'es', to: 'zh-Hans'},
+  {from: 'es', to: 'zh-Hant'},
+  {from: 'zh-Hans', to: 'es'},
+  {from: 'zh-Hant', to: 'es'},
+] : [
   {from: 'en', to: 'zh-Hans'},
   {from: 'en', to: 'zh-Hant'},
   {from: 'zh-Hans', to: 'zh-Hant'},
@@ -58,7 +68,10 @@ function fixtureTranslation(source, target) {
 function assertScript(text, target) {
   assert(text.trim(), '译文不能为空');
   // 样例包含多个稳定区分字，不把所有汉字直接判作简体或繁体。
-  if (target === 'zh-Hans') {
+  if (target === 'es') {
+    assert(!/\p{Script=Han}/u.test(text), `西班牙语译文保留了中文：${text}`);
+    assert(/(?:programa|software|documento|párrafo|configuración|red)/iu.test(text), `缺少西班牙语证据：${text}`);
+  } else if (target === 'zh-Hans') {
     assert(/[这读译页语个说计机网设]/u.test(text), `缺少简体证据：${text}`);
     assert(!/[這讀譯頁語個說計機網設]/u.test(text), `简体译文混入繁体：${text}`);
   } else {
@@ -81,9 +94,9 @@ async function startFixture() {
         const targetName = /TARGET_BEGIN([\s\S]*?)TARGET_END/u.exec(prompt)?.[1];
         const source = /SOURCE_BEGIN([\s\S]*?)SOURCE_END/u.exec(prompt)?.[1];
         assert.equal(typeof source, 'string', '实际模板必须包含原文');
-        const target = /\bzh-(Hans|Hant)\b/u.exec(targetName || '')?.[0];
-        assert(target, `{{to}} 未传入明确的简繁目标：${targetName}`);
-        assert(targetName.includes(target === 'zh-Hans' ? 'Simplified Chinese' : 'Traditional Chinese'),
+        const target = targetName === 'es' ? 'es' : /\bzh-(Hans|Hant)\b/u.exec(targetName || '')?.[0];
+        assert(target, `{{to}} 未传入受测目标语言：${targetName}`);
+        assert(target === 'es' || targetName.includes(target === 'zh-Hans' ? 'Simplified Chinese' : 'Traditional Chinese'),
           '{{to}} 必须包含模型可理解的中文书写体系名称');
         const translated = fixtureTranslation(source, target);
         requests.push({source, target, targetName, prompt, translated});
@@ -121,7 +134,7 @@ async function main() {
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-chinese-edge-'));
   const fixture = await startFixture();
   const report = {ok: false, extensionDir, artifactsDir, profileDir,
-    scope: 'production Popup native language selection, persistence, real Control hover and Alt+T full-page [1,0,1], Chinese script discrimination and target cache isolation',
+    scope: 'production Popup native language selection, persistence, real Control hover and Alt+T full-page [1,0,1], Chinese script / Spanish output discrimination and target cache isolation',
     evidenceBoundary: 'The local HTML and loopback OpenAI-compatible server are deterministic fixtures. Their success does not prove any external service translation quality or availability.',
     fixture: {ok: false, cases: []}, liveGoogle: {requested: process.argv.includes('--live-google'), cases: []},
     screenshots: [], consoleErrors: [], ui: {}};
@@ -200,6 +213,7 @@ async function main() {
     report.ui.sourceChoices = await sourceSelect.locator('option').evaluateAll(nodes => nodes.map(node => ({value: node.value, label: node.textContent})));
     report.ui.targetChoices = await targetSelect.locator('option').evaluateAll(nodes => nodes.map(node => ({value: node.value, label: node.textContent})));
     for (const choices of [report.ui.sourceChoices, report.ui.targetChoices]) {
+      assert(choices.some(item => item.value === 'es'));
       assert(choices.some(item => item.value === 'zh-Hans' && item.label.includes('简体中文')));
       assert(choices.some(item => item.value === 'zh-Hant' && item.label.includes('繁體中文')));
     }
@@ -284,9 +298,9 @@ async function main() {
     for (const mode of ['hover', 'full']) {
       for (const pair of pairs) report.fixture.cases.push(await runCase(pair, mode));
     }
-    // 首次同英文原文的两个目标必须分别请求，随后回到简体应复用已保存的简体结果。
+    // 首次同一原文的两个目标必须分别请求，随后回到简体应复用已保存的简体结果。
     for (const target of ['zh-Hans', 'zh-Hant']) {
-      assert(fixture.requests.some(request => request.target === target && request.source.includes(paragraphs.en[0])), `缺少英文到 ${target} 的独立请求`);
+      assert(fixture.requests.some(request => request.target === target && request.source.includes(paragraphs[spanishMode ? 'es' : 'en'][0])), `缺少 ${spanishMode ? "es" : "en"} 到 ${target} 的独立请求`);
     }
     const beforeRevisit = fixture.requests.length;
     report.fixture.cacheRevisit = await runCase(pairs[0], 'hover');
