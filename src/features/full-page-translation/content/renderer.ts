@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/renderer.ts
  * 文件职责：把翻译返回的受限 HTML 或纯文本安全插入原页面，构造 FluentRead 双语与仅译文节点，同时保护链接属性并触发布局截断修复。
- * 主要内容：包含 URL 协议白名单、可复制属性集合、递归节点净化、DocumentFragment 创建、不改写宿主 class 的双语 wrapper，以及通过 Shadow DOM 保留宿主原文的仅译文文本槽。
+ * 主要内容：包含 URL 协议白名单、可复制属性集合、递归节点净化、本地公式骨架的受限克隆、DocumentFragment 创建、不改写宿主 class 的双语 wrapper，以及通过 Shadow DOM 保留宿主原文的仅译文文本槽。
  * 模块边界：本文件只负责安全渲染，不发起翻译或管理请求状态；服务调用归 runtime，节点所有权归 state，配置仅用于展示选项，任意脚本、事件属性和危险链接都不得穿过净化边界。
  */
 import { options } from "@/src/core/config/catalog";
@@ -41,7 +41,76 @@ function copySafeAttributes(source: Element, target: HTMLElement): void {
     }
 }
 
-function sanitizeNode(node: Node): Node[] {
+// 公式只能来自本地快照，不能根据 provider 返回的 HTML 升级信任。
+const formulaSelector = 'math, mjx-container, .MathJax, .MathJax_Display, .MathJax_SVG, .MathJax_CHTML, .katex, .mwe-math-element, .ltx_Math';
+const formulaTags = new Set((
+    'span div img math semantics annotation mi mn mo mrow mfrac msqrt mroot mstyle merror ' +
+    'mpadded mphantom mfenced menclose msub msup msubsup munder mover munderover mmultiscripts ' +
+    'mprescripts none mtable mtr mtd mlabeledtr mtext mspace svg g defs path use rect line polyline ' +
+    'polygon circle ellipse'
+).split(' '));
+const formulaAttributes = new Set((
+    'class title role aria-hidden alt width height viewbox preserveaspectratio jax size s texclass d transform x y x1 y1 ' +
+    'x2 y2 cx cy r rx ry points fill stroke stroke-width opacity focusable display mathvariant ' +
+    'mathsize mathcolor mathbackground displaystyle scriptlevel stretchy symmetric largeop movablelimits ' +
+    'accent accentunder fence separator form lspace rspace minsize maxsize linethickness bevelled ' +
+    'rowalign columnalign rowspacing columnspacing columnspan rowspan depth voffset encoding '
+).trim().split(' '));
+let formulaCloneSequence = 0;
+
+/** 保留公式排版所需的惰性节点，丢弃脚本、外部 SVG 引用、事件和可聚焦控件。 */
+function cloneSourceFormula(source: Element): Element | null {
+    const ids = new Map<string, string>();
+    const prefix = `fr-formula-${++formulaCloneSequence}-`;
+    for (const element of [source, ...Array.from(source.querySelectorAll('[id]'))]) {
+        const id = element.getAttribute('id');
+        if (id) ids.set(id, `${prefix}${ids.size}`);
+    }
+    const clone = (element: Element): Element | null => {
+        const tag = element.localName.toLowerCase();
+        // MathJax CHTML 使用无脚本语义的 mjx-* 自定义排版元素。
+        if (!formulaTags.has(tag) && !allowedTags.has(tag) && !/^mjx-[a-z0-9-]+$/u.test(tag)) return null;
+        const target = document.createElementNS(element.namespaceURI, element.localName);
+        for (const {name, value} of Array.from(element.attributes)) {
+            const lower = name.toLowerCase();
+            if (lower === 'id') {
+                target.setAttribute('id', ids.get(value)!);
+            } else if (lower === 'href' || lower === 'xlink:href') {
+                if (tag === 'use' && /^#[\w.:-]+$/u.test(value)) {
+                    target.setAttributeNS(lower === 'xlink:href' ? 'http://www.w3.org/1999/xlink' : null,
+                        name, `#${ids.get(value.slice(1)) ?? value.slice(1)}`);
+                }
+            } else if (lower === 'src' && tag === 'img') {
+                try {
+                    const url = new URL(value, document.baseURI || undefined);
+                    if (['http:', 'https:'].includes(url.protocol)) target.setAttribute('src', url.href);
+                } catch { /* 非法图片地址不能进入克隆。 */ }
+            } else if (lower === 'style') {
+                // 公式布局需要 renderer 的字体、尺寸与相对定位；不接受 URL、转义或执行语法。
+                const safe = value.split(';').filter((declaration) => {
+                    const [property, ...parts] = declaration.split(':');
+                    return /^(?:--[a-z0-9-]+|[a-z-]+)$/iu.test(property.trim()) && parts.length > 0 &&
+                        !/(?:url|expression|behavior|binding|import|javascript|[\\<>@])/iu.test(parts.join(':')) &&
+                        !/^(?:position)\s*:\s*(?:fixed|sticky)/iu.test(declaration.trim());
+                }).join(';');
+                if (safe) target.setAttribute('style', safe);
+            } else if (formulaAttributes.has(lower) || /^data-(?:mjx|mml|c)(?:-|$)/u.test(lower)) {
+                if (!/(?:url\s*\(|javascript:)/iu.test(value)) target.setAttribute(name, value);
+            }
+        }
+        for (const child of Array.from(element.childNodes)) {
+            if (child.nodeType === Node.TEXT_NODE) target.appendChild(document.createTextNode((child as Text).data));
+            else if (child.nodeType === Node.ELEMENT_NODE) {
+                const safe = clone(child as Element);
+                if (safe) target.appendChild(safe);
+            }
+        }
+        return target;
+    };
+    return clone(source);
+}
+
+function sanitizeNode(node: Node, sourceSkeleton = false): Node[] {
     if (node.nodeType === Node.TEXT_NODE) {
         return [document.createTextNode(node.nodeValue ?? "")];
     }
@@ -52,7 +121,11 @@ function sanitizeNode(node: Node): Node[] {
     const tag = source.tagName.toLowerCase();
     if (blockedTags.has(tag)) return [];
 
-    const children = Array.from(source.childNodes).flatMap(sanitizeNode);
+    if (sourceSkeleton && source.matches(formulaSelector)) {
+        const formula = cloneSourceFormula(source);
+        return formula ? [formula] : [];
+    }
+    const children = Array.from(source.childNodes).flatMap((child) => sanitizeNode(child, sourceSkeleton));
 
     // 不在白名单中的结构只展开其安全文本/内联子节点，避免丢失译文内容。
     if (!allowedTags.has(tag)) return children;
@@ -71,7 +144,7 @@ function createSafeTranslationFragment(text: string): DocumentFragment {
     const parsed = new DOMParser().parseFromString(text || "", "text/html");
     const fragment = document.createDocumentFragment();
     Array.from(parsed.body.childNodes)
-        .flatMap(sanitizeNode)
+        .flatMap((node) => sanitizeNode(node))
         .forEach((node) => fragment.appendChild(node));
     return fragment;
 }
@@ -83,6 +156,8 @@ function createSafeTranslationFragment(text: string): DocumentFragment {
 export interface BilingualTranslationRenderOptions {
     /** 全文会话启动时冻结的目标语言；普通悬浮翻译缺省仍读取当前配置。 */
     targetLanguage?: string;
+    /** 仅接受本地 createTranslationSourceSnapshot 的克隆，文本槽已经安全写入。 */
+    sourceSkeleton?: HTMLElement;
     /** 全文会话启动时冻结的译文样式。 */
     style?: number;
 }
@@ -149,10 +224,16 @@ function createBilingualTranslationContent(
     const style = options.styles.find((item) => item.value === styleValue && !item.disabled);
     if (style?.class) content.classList.add(style.class);
 
-    // 译文可能来自机器翻译的 HTML 或大模型的富文本响应。统一经过
-    // DOMParser + 白名单迁移，既保留链接/强调等行内结构，也不把服务响应
-    // 当作可信 HTML 直接写回网页。
-    const fragment = createSafeTranslationFragment(text);
+    // 本地骨架已把 provider 输出写为文本节点，直接做白名单迁移以保留公式命名空间。
+    // 其他调用方传入的 HTML 仍经过 DOMParser，并使用更严格的普通内联白名单。
+    const fragment = renderOptions.sourceSkeleton
+        ? document.createDocumentFragment()
+        : createSafeTranslationFragment(text);
+    if (renderOptions.sourceSkeleton) {
+        Array.from(renderOptions.sourceSkeleton.childNodes)
+            .flatMap((child) => sanitizeNode(child, true))
+            .forEach((child) => fragment.appendChild(child));
+    }
     content.appendChild(fragment);
     return content;
 }

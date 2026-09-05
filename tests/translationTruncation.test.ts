@@ -9,6 +9,8 @@ vi.mock('@/src/core/config/catalog', () => ({
 }));
 
 import {
+    applyTranslationsToSnapshot,
+    createTranslationSourceSnapshot,
     findTranslationTruncationAncestors,
     hasActiveTranslationLineClamp,
     hasActiveTranslationTruncation,
@@ -424,6 +426,64 @@ describe('translation truncation layout', () => {
                 Object.assign(config, previousConfig);
                 options.styles = previousStyles;
             }
+        });
+    });
+
+    it('preserves source MathML, KaTeX, MathJax SVG and image formulas through the actual renderer', async () => {
+        const {document} = parseHTML(`<html><body><p id="owner">The velocity
+            <math xmlns="http://www.w3.org/1998/Math/MathML"><msub><mi>v</mi><mi>t</mi></msub></math>
+            and <span class="katex"><span class="katex-html" aria-hidden="true" style="height:1em"><span class="mord">x</span></span></span>
+            with <mjx-container class="MathJax" jax="CHTML"><mjx-msub><mjx-mi>x</mjx-mi><mjx-script><mjx-mn size="s">1</mjx-mn></mjx-script></mjx-msub><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><defs><path id="glyph" d="M0 0L10 10"/></defs><use href="#glyph"/></svg></mjx-container>
+            and <span class="mwe-math-element"><img src="https://example.org/math.svg" alt="y"></span> remains stable.
+        </p></body></html>`);
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        const originalHTML = owner.innerHTML;
+        const originalMath = owner.querySelector('math');
+        await withDocumentRealm(document, async () => {
+            for (let cycle = 0; cycle < 2; cycle += 1) {
+                const snapshot = createTranslationSourceSnapshot(owner);
+                const html = applyTranslationsToSnapshot(snapshot, snapshot.slots.map(() => '译文'));
+                const wrapper = appendBilingualTranslation(owner, html, {sourceSkeleton: snapshot.clone});
+                expect(wrapper.querySelectorAll('math')).toHaveLength(1);
+                expect(wrapper.querySelector('msub')?.textContent).toBe('vt');
+                expect(wrapper.querySelector('.katex .mord')?.textContent).toBe('x');
+                expect(wrapper.querySelector('.katex-html')?.getAttribute('style')).toContain('height');
+                expect(wrapper.querySelector('mjx-container')?.getAttribute('jax')).toBe('CHTML');
+                expect(wrapper.querySelector('mjx-mn')?.getAttribute('size')).toBe('s');
+                expect(wrapper.querySelector('svg use')?.getAttribute('href')).toBe(`#${wrapper.querySelector('svg path')?.id}`);
+                expect(wrapper.querySelector('svg path')?.id).not.toBe('glyph');
+                expect(wrapper.querySelector('.mwe-math-element img')?.getAttribute('src')).toContain('math.svg');
+                wrapper.remove();
+                expect(owner.innerHTML).toBe(originalHTML);
+                expect(owner.querySelector('math')).toBe(originalMath);
+            }
+        });
+    });
+
+    it('rejects active formula content and keeps formula privileges out of provider HTML', async () => {
+        const {document} = parseHTML(`<html><head><base href="https://example.org/paper"></head><body><p id="owner">Prose</p></body></html>`);
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        await withDocumentRealm(document, async () => {
+            const skeleton = document.createElement('p');
+            skeleton.innerHTML = `<span class="katex" onclick="alert(1)" tabindex="0">
+                <span id="safe" style="height:1em;position:relative;left:0;bad;1bad:value;background:url(https://bad);position:fixed" data-mjx-test="yes">x</span>
+                <span style="background:url(https://bad)" fill="url(https://bad)">y</span>
+                <script>alert(1)</script><iframe src="https://bad"></iframe><button>bad control</button>
+                <a href="javascript:alert(1)">link</a><img src="javascript:alert(1)"><img src="http://[">
+                <svg><use xlink:href="#external-glyph"/><use href="https://bad/glyph"/><foreignObject>bad</foreignObject></svg>
+                <!-- comment -->
+            </span><section class="MathJax">unsupported wrapper</section>`;
+            const wrapper = appendBilingualTranslation(owner, '', {sourceSkeleton: skeleton});
+            expect(wrapper.querySelectorAll('script, iframe, button, foreignObject, section')).toHaveLength(0);
+            expect(wrapper.querySelector('[onclick], [tabindex], [href]')).toBeNull();
+            expect(wrapper.querySelector('use')?.getAttribute('xlink:href')).toBe('#external-glyph');
+            expect([...wrapper.querySelectorAll('img')].every(img => !img.hasAttribute('src'))).toBe(true);
+            expect(wrapper.querySelector('[data-mjx-test]')?.getAttribute('style')).toBe('height:1em;position:relative;left:0');
+            expect(wrapper.querySelector('[fill]')).toBeNull();
+            wrapper.remove();
+            const provider = appendBilingualTranslation(owner, '<span class="katex" style="height:100vh"><math><mi>x</mi></math><img src="https://bad"></span>');
+            expect(provider.querySelector('math, img, .katex, [style]')).toBeNull();
+            expect(provider.textContent).toBe('x');
         });
     });
 

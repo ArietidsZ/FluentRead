@@ -43,6 +43,7 @@ export function refreshBilingualTranslationSkeleton(
 
     const translatedHTML = applyTranslationsToSnapshot(snapshot, replay.translations);
     refreshBilingualTranslation(node, content, translatedHTML, {
+        sourceSkeleton: snapshot.clone,
         targetLanguage: replay.targetLanguage,
         style: replay.style,
     });

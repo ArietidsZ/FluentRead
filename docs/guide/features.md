@@ -6,6 +6,8 @@ FluentRead 的功能都围绕一个目标：让你在当前页面完成理解，
 
 点击“翻译页面”，译文会放在原文附近，形成可以对照阅读的双语页面。原文不会被覆盖，随时可以恢复。
 
+阅读论文时，双语译文会保留原文中的行内公式，包括原生 MathML、KaTeX、MathJax 和 Wikipedia 公式图片。公式沿用网页的渲染结构，周围文字正常翻译；恢复原文和再次翻译不会改写原始公式。
+
 <figure class="doc-figure">
   <img class="doc-screenshot" src="/screenshots/translation.webp" alt="英文网页中原文和中文译文按段落显示" />
   <figcaption>适合新闻、博客、在线文档和长篇资料。</figcaption>
