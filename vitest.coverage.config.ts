@@ -17,6 +17,7 @@ export default defineConfig({
     test: {
         environment: 'node',
         include: [
+            'tests/aiContextPresentation.test.ts',
             'tests/qqMailFrameHandlers.test.ts',
             'tests/qqMailFrameSession.test.ts',
             'tests/fullPageStateNotification.test.ts',
@@ -376,6 +377,7 @@ export default defineConfig({
                 'src/shared/function/throttle.ts',
                 'src/shared/geometry/touch.ts',
                 'src/ui/view-model/serviceCatalog.ts',
+                'src/ui/view-model/aiContext.ts',
                 'src/ui/translationLoadingIndicator.ts',
             ],
             exclude: ['**/*.d.ts'],

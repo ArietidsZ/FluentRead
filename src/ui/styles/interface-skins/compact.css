@@ -103,9 +103,7 @@
 :root[data-interface-skin="compact"] .translate-action {
   margin-top: 7px;
 }
-
-:root[data-interface-skin="compact"] .translate-button,
-:root[data-interface-skin="compact"] .ai-context-toggle {
+:root[data-interface-skin="compact"] .translate-button {
   min-height: 36px;
   height: auto;
   border-radius: 9px;
@@ -119,10 +117,6 @@
   line-height: 1.2;
   text-align: center;
   white-space: normal;
-}
-
-:root[data-interface-skin="compact"] .ai-context-toggle {
-  flex-basis: 54px;
 }
 
 :root[data-interface-skin="compact"] .site-rule-row {
