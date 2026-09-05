@@ -51,6 +51,9 @@
   <section v-show="props.activeSection === 'settings-harness'" id="settings-harness" class="settings-section">
     <HarnessSettings :config="config" />
   </section>
+  <section v-if="props.activeSection === 'settings-glossary'" id="settings-glossary" class="settings-section">
+    <GlossarySettings />
+  </section>
   <div class="settings-main-sections">
     <!-- 翻译服务 -->
     <section v-show="props.activeSection === 'settings-services'" id="settings-services" class="settings-section">
@@ -115,6 +118,14 @@
           </el-select>
           <p v-if="selectedVideoServiceUnavailableMessage" class="capability-warning">{{ selectedVideoServiceUnavailableMessage }}</p>
         </SettingsItem>
+        <GlossaryLibrarySelect
+          v-if="config.glossaryLibraries.length || config.glossaryEnabled"
+          v-model="config.videoGlossaryIds"
+          :libraries="config.glossaryLibraries"
+          :enabled="config.glossaryEnabled"
+          :unsupported="!supportsTranslationGlossary(config.videoService, resolveConfiguredModel(config.model[config.videoService], config.customModel[config.videoService]))"
+          :disabled="!config.videoTranslationEnabled"
+        />
         <SettingsItem label="显示 FluentRead 字幕" description="临时隐藏扩展字幕时保留当前翻译设置。" :disabled="!config.videoTranslationEnabled">
           <el-switch v-model="config.videoSubtitleVisible" class="settings-toggle" aria-label="显示 FluentRead 视频字幕" :disabled="!config.videoTranslationEnabled" />
         </SettingsItem>
@@ -668,7 +679,8 @@
 
 // Main 处理配置信息
 import { computed, ref, watch, onUnmounted } from 'vue'
-import { customModelString, defaultOption, getMultilingualTargetLanguageLabel, models, options, services, servicesType } from '@/src/core/config/catalog';
+import { customModelString, defaultOption, getMultilingualTargetLanguageLabel, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
+import GlossaryLibrarySelect from '@/src/ui/components/GlossaryLibrarySelect.vue';
 import {
   createNextCustomOpenAIProviderId,
   getCustomOpenAIProvider,
@@ -731,6 +743,7 @@ import ServiceConfiguration from './services/ServiceConfiguration.vue';
 import CustomOpenAIProviderDialog from './services/CustomOpenAIProviderDialog.vue';
 import {TranslationCenter} from '@/src/features/translation-center/public';
 import HarnessSettings from './HarnessSettings.vue';
+import {GlossarySettings} from '@/src/features/glossary/public';
 import AlwaysTranslateSites from './AlwaysTranslateSites.vue';
 import SiteAdaptationSettings from './SiteAdaptationSettings.vue';
 import type {SiteAdaptationSettings as SiteAdaptationConfig} from '@/src/core/site-adaptation/types';
@@ -762,6 +775,7 @@ import {
 import {
   filterAvailableTranslationServices,
   getTranslationServiceUnavailableMessage,
+  supportsTranslationGlossary,
 } from '@/src/services/translation/capabilities';
 
 const props = withDefaults(defineProps<{

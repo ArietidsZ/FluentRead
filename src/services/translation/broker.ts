@@ -22,11 +22,16 @@ import {
     attachTranslationModelUsageObserver,
     attachTranslationProviderConfig,
     createTranslationProviderConfigSnapshot,
+    getTranslationGlossaryContext,
+    getTranslationGlossarySourceText,
+    getTranslationGlossaryTerms,
     getTranslationRequestControl,
     TRANSLATION_REMAINING_BUDGET,
     type TranslationRemainingBudgetContext,
 } from './requestSnapshot';
 import {parseTranslationSlots, serializeTranslationSlots} from '@/src/core/translation/public';
+import {buildGlossaryRevision, resolveGlossary} from '@/src/core/glossary';
+import {supportsTranslationGlossary} from './capabilities';
 import {
     isDefinitePageContextLeak,
     isLikelyPageContextLeak,
@@ -101,6 +106,17 @@ class AIContextRecoveryResponseError extends Error {
     constructor() {
         super('AI 翻译在无上下文重试后仍返回了网页参考内容，已停止展示并跳过缓存');
         this.name = 'AIContextRecoveryResponseError';
+    }
+}
+
+class GlossaryRevisionChangedError extends Error {
+    readonly kind = 'bad-request';
+    readonly retryable = false;
+    readonly code = 'GLOSSARY_REVISION_CHANGED';
+
+    constructor() {
+        super('术语库已更新，请重新翻译');
+        this.name = 'GlossaryRevisionChangedError';
     }
 }
 
@@ -200,6 +216,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         sourceLanguageDetectionText?: string,
     ): string {
         const {config: current, service, sourceLanguage, targetLanguage} = execution;
+        const glossaryTerms = getTranslationGlossaryTerms(current, origin);
 
         return deps.buildTranslationCacheKey({
             requestMode: mode,
@@ -213,6 +230,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             customBody: current.customBody[service] || '',
             systemRole: current.system_role[service] || '',
             userRole: current.user_role[service] || '',
+            ...(glossaryTerms.length ? {glossaryTerms} : {}),
             deepseekApiType: current.deepseekApiType,
             modelThinking: execution.thinking,
             transportProfile: deps.serviceTypes.isAiSdk(service)
@@ -1246,6 +1264,8 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
 
         const requestControl = getTranslationRequestControl(message);
         throwIfRequestAborted(requestControl?.signal);
+        // 入口选择也必须在水合/队列之前复制，防止上层原地编辑数组改变在途请求。
+        const glossaryIds = message.glossaryIds ? Object.freeze([...message.glossaryIds]) : message.glossaryIds;
 
         // deadline 从公开入口开始计时，配置水合不能让上层剩余预算重新获得完整时长。
         const providerStartedAt = now();
@@ -1259,12 +1279,38 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         throwIfRequestAborted(requestControl?.signal);
 
         // 步骤 1：在任何 cache/provider await 前复制一次配置；后续 UI 原地修改不能改变本请求身份。
-        const current = createTranslationProviderConfigSnapshot(config());
+        let current = createTranslationProviderConfigSnapshot(config());
         const serviceOverride = message.serviceOverride;
         const selectedService = serviceOverride || current.service;
         const {sourceLanguage, targetLanguage} = deps.getTranslationLanguages({
             sourceLanguage: message.sourceLanguage?.trim() || current.from,
             targetLanguage: message.targetLanguage?.trim() || current.to,
+        });
+        const supportsGlossary = supportsTranslationGlossary(
+            selectedService, getSelectedModel(current, selectedService, message.modelOverride), deps.serviceTypes,
+        );
+        if (supportsGlossary && message.glossaryRevision !== undefined
+            && message.glossaryRevision !== buildGlossaryRevision(current.glossaryLibraries, current.glossaryEnabled)) {
+            throw new GlossaryRevisionChangedError();
+        }
+        const glossarySource = getTranslationGlossaryContext(message);
+        const glossaryContext = glossarySource?.context ?? message.glossaryContext ?? 'page';
+        const selectedGlossaryIds = glossaryIds ?? (glossaryContext === 'document' ? current.documentGlossaryIds
+            : glossaryContext === 'video' ? current.videoGlossaryIds : null);
+        const glossaryTerms = supportsGlossary && current.glossaryEnabled
+            ? resolveGlossary(current.glossaryLibraries!, {
+                text: getTranslationGlossarySourceText(message.origin),
+                sourceLanguage,
+                targetLanguage,
+                pageUrl: glossarySource?.pageUrl,
+                glossaryIds: selectedGlossaryIds ? [...selectedGlossaryIds] : null,
+            }).terms
+            : [];
+        // Provider 只读取命中当前原文的词对；配置原文与域规则不会进入请求 JSON。
+        current = Object.freeze({...current,
+            glossaryTerms: Object.freeze(glossaryTerms.map(term => Object.freeze({...term}))),
+            glossaryMatchContext: Object.freeze({sourceLanguage, targetLanguage, pageUrl: glossarySource?.pageUrl,
+                glossaryIds: selectedGlossaryIds ? Object.freeze([...selectedGlossaryIds]) : null}),
         });
         const execution: TranslationRequestExecution = {
             config: current,
@@ -1331,6 +1377,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         const requestMessage = attachTranslationProviderConfig(
             {
                 ...providerInput,
+                glossaryIds,
                 sourceLanguage,
                 targetLanguage,
                 thinkingOverride: execution.thinking,

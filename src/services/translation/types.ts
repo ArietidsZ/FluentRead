@@ -8,8 +8,21 @@
 
 import type {CustomOpenAIProvider} from '@/src/core/config/customOpenAI';
 import type {ModelThinkingMapping} from '@/src/core/config/modelThinking';
+import type {GlossaryLibrary} from '@/src/core/glossary';
+
+export type TranslationGlossaryContext = 'page' | 'document' | 'video';
+export interface TranslationGlossaryTerm {
+    readonly source: string;
+    readonly target: string;
+}
 
 export interface TranslationRequestMessageBase {
+    /** null/缺省跟随入口默认；空数组显式关闭此次术语干预。 */
+    glossaryIds?: readonly string[] | null;
+    /** 由客户端在任务开始时冻结；配置更新后旧任务必须重新开始。 */
+    glossaryRevision?: string;
+    /** 只选择入口默认词库；网站范围始终由受信发送者上下文决定。 */
+    glossaryContext?: TranslationGlossaryContext;
     context?: string;
     pageContext?: string;
     /** 当前请求是否允许 AI 网页上下文；全文翻译会显式携带会话启动时的冻结值。 */
@@ -101,6 +114,19 @@ export interface TranslationCachePort {
 }
 
 export interface TranslationConfigSnapshot {
+    glossaryEnabled?: boolean;
+    glossaryLibraries?: readonly GlossaryLibrary[];
+    documentGlossaryIds?: readonly string[] | null;
+    videoGlossaryIds?: readonly string[] | null;
+    /** 仅后台从原文命中后派生，绝不直接采纳公开消息传入的术语。 */
+    glossaryTerms?: readonly TranslationGlossaryTerm[];
+    /** 与冻结词库配合，为批量 provider 的每次实际上游调用重新筛选命中词。 */
+    glossaryMatchContext?: Readonly<{
+        sourceLanguage: string;
+        targetLanguage: string;
+        pageUrl?: string;
+        glossaryIds?: readonly string[] | null;
+    }>;
     service: string;
     from: string;
     to: string;

@@ -12,6 +12,8 @@ export interface DocumentTranslationProgress {
 }
 
 export interface DocumentTranslationOptions {
+    glossaryIds?: readonly string[] | null;
+    glossaryRevision?: string;
     fileName: string;
     pageContext?: string;
     serviceOverride?: string;
@@ -24,6 +26,9 @@ export interface DocumentTranslationOptions {
 }
 
 export interface DocumentTranslationRequestOptions {
+    glossaryIds?: readonly string[] | null;
+    glossaryRevision?: string;
+    glossaryContext?: 'document';
     signal?: AbortSignal;
     pageContext: string;
     serviceOverride?: string;
@@ -38,6 +43,7 @@ export interface DocumentTranslationRequestOptions {
  * 入口层负责把当前配置、批量能力和翻译客户端注入进来。
  */
 export interface DocumentTranslationGateway {
+    getGlossaryOptions?(): {glossaryIds?: readonly string[] | null; glossaryRevision?: string};
     waitUntilReady(): PromiseLike<unknown> | unknown;
     getDefaultService(): string;
     supportsBatch(service: string): boolean;
@@ -136,6 +142,13 @@ export function createDocumentSegmentTranslator(
     return async (segments, options) => {
         await gateway.waitUntilReady();
         throwIfAborted(options.signal);
+        const glossary = gateway.getGlossaryOptions?.();
+        const selectedGlossaryIds = options.glossaryIds ?? glossary?.glossaryIds;
+        const glossaryOptions = {
+            glossaryContext: 'document' as const,
+            glossaryIds: selectedGlossaryIds ? [...selectedGlossaryIds] : selectedGlossaryIds,
+            glossaryRevision: options.glossaryRevision ?? glossary?.glossaryRevision,
+        };
 
         if (segments.length === 0) return [];
         const translations = new Array<string>(segments.length);
@@ -157,6 +170,7 @@ export function createDocumentSegmentTranslator(
                         batch.map((segment) => segment.source),
                         context,
                         {
+                            ...glossaryOptions,
                             signal: options.signal,
                             pageContext,
                             serviceOverride: options.serviceOverride,
@@ -190,6 +204,7 @@ export function createDocumentSegmentTranslator(
 
                 try {
                     const translation = await gateway.translateText(segments[index].source, context, {
+                        ...glossaryOptions,
                         signal: options.signal,
                         pageContext,
                         serviceOverride: options.serviceOverride,

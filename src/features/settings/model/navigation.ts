@@ -80,6 +80,12 @@ export const navigationGroups: NavigationGroup[] = [
     label: '工具与学习',
     items: [
       {
+        id: 'settings-glossary', icon: 'Aa', label: '术语库', description: '固定译名与保留原文', group: '工具与学习',
+        heading: '术语库', summary: '为专业术语指定译法，按语言和网站选择适用范围。',
+        kicker: '翻译工具', title: '术语库', detail: '管理词库、导入术语，并预览当前文本会使用的译法。',
+        searchDescription: '术语库、专业术语、固定译名、专有名词、保留原文、glossary、CSV、TSV、导入导出',
+      },
+      {
         id: 'settings-translation-center', icon: '译', label: '翻译中心', description: '多服务对比', group: '工具与学习',
         heading: '比较不同翻译服务', summary: '输入一句话，同时查看多个翻译服务的结果，并支持重复翻译。',
         kicker: '翻译工具', title: '翻译中心', detail: '用同一句话比较不同服务的译文表现。',

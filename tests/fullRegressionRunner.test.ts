@@ -94,7 +94,17 @@ describe('full regression runner', () => {
         const plan = dryRun(['--browser', ...BROWSER_ARGS]);
         const browserSteps = plan.steps.filter((step: {phase: string}) => step.phase === 'browser');
 
-        expect(browserSteps).toHaveLength(7);
+        expect(browserSteps).toHaveLength(8);
+        expect(browserSteps.map((step: {id: string}) => step.id)).toEqual([
+            'selection-trigger',
+            'full-page-translation',
+            'video-subtitle-fixture',
+            'document-translation',
+            'settings-center-ui',
+            'glossary',
+            'privacy-boundary',
+            'userscript-smoke',
+        ]);
         for (const step of browserSteps) {
             expect(step.gates).toEqual(['--browser']);
             expect(step.args).toContain('--focus-safe-helper');
@@ -120,6 +130,37 @@ describe('full regression runner', () => {
         expect(stepIds.indexOf('userscript-verifier')).toBeLessThan(stepIds.indexOf('userscript-smoke'));
 
         expect(plan.steps.some((step: {phase: string}) => step.phase === 'network')).toBe(false);
+    });
+
+    it('keeps glossary background-only with supported arguments and its own artifact directory', () => {
+        const plan = dryRun(['--browser', '--headed', '--timeout', '45000', ...BROWSER_ARGS]);
+        const glossary = plan.steps.find((step: {id: string}) => step.id === 'glossary');
+
+        expect(glossary).toMatchObject({
+            phase: 'browser',
+            command: 'node',
+            gates: ['--browser'],
+            artifactsDir: '/tmp/fluentread-regression-artifacts/glossary',
+            launchMode: 'macos-hidden-cdp',
+            focusPolicy: 'launchservices-no-foreground',
+            windowPlacement: {state: 'normal', placement: 'screen-off'},
+            args: [
+                'scripts/run-glossary-test.cjs',
+                '--playwright-root', '/tmp/fluentread-playwright-runtime',
+                '--browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+                '--artifacts-dir', '/tmp/fluentread-regression-artifacts/glossary',
+                '--extension-dir', resolve(PROJECT_ROOT, '.output/chrome-mv3'),
+                '--background',
+                '--focus-safe-helper', resolve(PROJECT_ROOT, 'scripts/focus-safe-browser.cjs'),
+            ],
+        });
+        expect(glossary.args).not.toContain('--timeout');
+        expect(glossary.args).not.toContain('--headed');
+        const fullPage = plan.steps.find((step: {id: string}) => step.id === 'full-page-translation');
+        expect(fullPage.args).toContain('--timeout');
+        expect(fullPage.args).toContain('45000');
+        expect(plan.steps.findIndex((step: {id: string}) => step.id === 'chrome-build'))
+            .toBeLessThan(plan.steps.findIndex((step: {id: string}) => step.id === 'glossary'));
     });
 
     it('runs the site matrix only behind network plus allow-network gates', () => {
@@ -155,6 +196,7 @@ describe('full regression runner', () => {
             'video-subtitle-fixture',
             'document-translation',
             'settings-center-ui',
+            'glossary',
         ]);
         expect(backgroundSteps.every((step: {args: string[]}) => step.args.includes('--focus-safe-helper'))).toBe(true);
     });

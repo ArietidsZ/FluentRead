@@ -72,6 +72,7 @@ const expectedNavigation = [
   ['settings-image-translation', '图片与圈选翻译'],
   ['settings-video', '视频字幕翻译'],
   ['settings-sites', '网站规则'],
+  ['settings-glossary', '术语库'],
   ['settings-translation-center', '翻译中心'],
   ['settings-model-usage', '模型用量'],
   ['settings-vocabulary', '单词本'],
@@ -83,7 +84,7 @@ const expectedNavigation = [
 const expectedNavigationGroups = [
   ['基础配置', ['settings-general', 'settings-interface', 'settings-services', 'settings-translation']],
   ['专项翻译', ['settings-image-translation', 'settings-video', 'settings-sites']],
-  ['工具与学习', ['settings-translation-center', 'settings-model-usage', 'settings-vocabulary', 'settings-harness']],
+  ['工具与学习', ['settings-glossary', 'settings-translation-center', 'settings-model-usage', 'settings-vocabulary', 'settings-harness']],
   ['系统与数据', ['settings-advanced', 'settings-data', 'settings-about']],
 ];
 const expectedGeneralGroups = ['选择翻译服务', '译文显示', '网页辅助'];
@@ -215,8 +216,76 @@ async function dragWholeElement(page, source, target, axis = 'y', position = 'be
   await page.mouse.up();
 }
 
+// 横向失败保留即时和过渡结束后的真实 DOM；只补诊断，不依据延迟读数放过失败。
+async function capturePopupOverflowFailure(page, label) {
+  const inspect = () => page.locator('.popup-shell').evaluate(element => {
+    const describe = node => {
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      return {
+        tag: node.tagName,
+        className: node.className,
+        text: node.textContent?.trim().slice(0, 100),
+        rect: {left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height},
+        clientWidth: node.clientWidth,
+        scrollWidth: node.scrollWidth,
+        overflowX: style.overflowX,
+        overflowY: style.overflowY,
+        transform: style.transform,
+        animationName: style.animationName,
+        animationDuration: style.animationDuration,
+        transitionProperty: style.transitionProperty,
+        transitionDuration: style.transitionDuration,
+        width: style.width,
+        minWidth: style.minWidth,
+        paddingLeft: style.paddingLeft,
+        paddingRight: style.paddingRight,
+        marginLeft: style.marginLeft,
+        marginRight: style.marginRight,
+      };
+    };
+    const shell = describe(element);
+    const initialScrollTop = element.scrollTop;
+    const initialScrollLeft = element.scrollLeft;
+    let reachableScrollLeft;
+    try {
+      element.scrollTo({top: initialScrollTop, left: element.scrollWidth, behavior: 'instant'});
+      reachableScrollLeft = element.scrollLeft;
+    } finally {
+      element.scrollTo({top: initialScrollTop, left: initialScrollLeft, behavior: 'instant'});
+    }
+    return {
+      shell,
+      initialScrollLeft,
+      reachableScrollLeft,
+      restoredScrollLeft: element.scrollLeft,
+      elements: [...element.querySelectorAll('*')].map(describe)
+        .filter(node => node.rect.width > 0 && node.rect.height > 0 && (
+          node.scrollWidth > node.clientWidth + 1
+          || node.rect.right > shell.rect.right + 1
+          || node.rect.left < shell.rect.left - 1
+        )),
+      animations: element.getAnimations({subtree: true}).map(animation => ({
+        playState: animation.playState,
+        currentTime: animation.currentTime,
+        target: animation.effect?.target?.className,
+        timing: animation.effect?.getComputedTiming(),
+      })),
+    };
+  });
+  const before = await inspect();
+  const beforeScreenshot = await screenshot(page, 'failure-popup-overflow-before.png');
+  await page.waitForTimeout(800);
+  const after = await inspect();
+  const afterScreenshot = await screenshot(page, 'failure-popup-overflow-after.png');
+  const file = path.join(artifactsDir, 'failure-popup-overflow-diagnostics.json');
+  fs.writeFileSync(file, JSON.stringify({label, before, after, waitedMs: 800, beforeScreenshot, afterScreenshot}, null, 2));
+  return {file, beforeScreenshot, afterScreenshot};
+}
+
 // 扩展页在固定测试 viewport 中也必须按内容排版；documentElement.scrollHeight 至少等于
-// viewport 高度，不能据此推断 Popup 的自然高度。使用实际元素边界检查整条高度链。
+// viewport 高度，不能据此推断 Popup 的自然高度。短内容检查整条高度链及底部留白；
+// 长内容按生产的 600px 内部滚动契约检查末尾可达性，不能把初始位置的底栏越界当作裁切。
 async function inspectPopupContentHeight(page, label) {
   const metrics = await page.locator('.popup-shell').evaluate(element => {
     const rect = element.getBoundingClientRect();
@@ -225,6 +294,40 @@ async function inspectPopupContentHeight(page, label) {
     const lastModule = [...element.querySelectorAll('.popup-content > [data-popup-module]')].at(-1);
     const lastRect = lastModule?.getBoundingClientRect();
     const lastStyle = lastModule ? getComputedStyle(lastModule) : null;
+    const initialScrollTop = element.scrollTop;
+    const initialScrollLeft = element.scrollLeft;
+    const scrolling = {
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      maxHeight: Number.parseFloat(shellStyle.maxHeight),
+      overflowY: shellStyle.overflowY,
+      initialScrollTop,
+      longContent: element.scrollHeight > element.clientHeight + 1,
+      horizontalOverflow: [document.documentElement, document.body, app, element]
+        .filter(Boolean).some(node => node.scrollWidth > node.clientWidth + 1),
+      end: null,
+      restoredScrollTop: initialScrollTop,
+    };
+    if (scrolling.longContent) {
+      try {
+        element.scrollTo({top: element.scrollHeight, left: initialScrollLeft, behavior: 'instant'});
+        const endRect = lastModule?.getBoundingClientRect();
+        scrolling.end = {
+          scrollTop: element.scrollTop,
+          maxScrollTop: element.scrollHeight - element.clientHeight,
+          lastModuleTop: endRect?.top ?? null,
+          lastModuleBottom: endRect?.bottom ?? null,
+          viewportTop: rect.top + element.clientTop,
+          viewportBottom: rect.top + element.clientTop + element.clientHeight,
+          lastModuleBottomGap: endRect ? rect.bottom - endRect.bottom : null,
+        };
+      } finally {
+        element.scrollTo({top: initialScrollTop, left: initialScrollLeft, behavior: 'instant'});
+        scrolling.restoredScrollTop = element.scrollTop;
+      }
+    }
     return {
       shellHeight: rect.height,
       shellBottom: rect.bottom,
@@ -243,8 +346,14 @@ async function inspectPopupContentHeight(page, label) {
           + Number.parseFloat(lastStyle.marginBottom)
         : null,
       visibleQuickFeatures: element.querySelectorAll('[data-popup-quick-feature]').length,
+      scrolling,
     };
   });
+  // 短内容也检查内部横向范围，不能依赖外层 overflow-x:hidden 掩盖底栏越界。
+  if (metrics.scrolling.horizontalOverflow) {
+    metrics.failureDiagnostics = await capturePopupOverflowFailure(page, label);
+    throw new Error(`${label}存在内部横向溢出：${JSON.stringify(metrics)}`);
+  }
   if (metrics.heightMode !== 'content'
     || [metrics.htmlMinHeight, metrics.bodyMinHeight, metrics.appMinHeight, metrics.shellMinHeight]
       .some(value => value !== '0px')
@@ -254,8 +363,26 @@ async function inspectPopupContentHeight(page, label) {
     || !metrics.lastModule
     || !Number.isFinite(metrics.lastModuleBottomGap)
     || !Number.isFinite(metrics.expectedBottomGap)
-    || Math.abs(metrics.lastModuleBottomGap - metrics.expectedBottomGap) > 1) {
+    || (!metrics.scrolling.longContent
+      && Math.abs(metrics.lastModuleBottomGap - metrics.expectedBottomGap) > 1)) {
     throw new Error(`${label}没有按内容确定高度或底部留下额外空白：${JSON.stringify(metrics)}`);
+  }
+  const {scrolling} = metrics;
+  if (scrolling.longContent && (
+    metrics.shellHeight > 601
+    || scrolling.maxHeight !== 600
+    || !['auto', 'scroll'].includes(scrolling.overflowY)
+    || !scrolling.end
+    || scrolling.end.scrollTop <= 0
+    || Math.abs(scrolling.end.scrollTop - scrolling.end.maxScrollTop) > 1
+    || !Number.isFinite(scrolling.end.lastModuleTop)
+    || !Number.isFinite(scrolling.end.lastModuleBottom)
+    || scrolling.end.lastModuleTop < scrolling.end.viewportTop - 1
+    || scrolling.end.lastModuleBottom > scrolling.end.viewportBottom + 1
+    || Math.abs(scrolling.end.lastModuleBottomGap - metrics.expectedBottomGap) > 1
+    || Math.abs(scrolling.restoredScrollTop - scrolling.initialScrollTop) > 1
+  )) {
+    throw new Error(`${label}没有满足600px内部滚动、末尾完整可见及位置恢复：${JSON.stringify(metrics)}`);
   }
   return metrics;
 }
@@ -2028,8 +2155,11 @@ async function main() {
     await skinPopup.locator('.popup-shell').waitFor({state: 'visible', timeout});
     await skinPopup.waitForTimeout(350);
     const defaultFullMetrics = await inspectPopupContentHeight(skinPopup, '恢复默认完整栏目');
+    const defaultFooterBottomGap = defaultFullMetrics.scrolling.longContent
+      ? defaultFullMetrics.scrolling.end.lastModuleBottomGap
+      : defaultFullMetrics.lastModuleBottomGap;
     if (defaultFullMetrics.lastModule !== 'footer'
-      || Math.abs(defaultFullMetrics.lastModuleBottomGap - 3) > 1
+      || Math.abs(defaultFooterBottomGap - 3) > 1
       || defaultFullMetrics.shellHeight <= defaultHiddenMetrics.shellHeight + 40) {
       throw new Error(`默认完整布局的页脚边距或内容伸展异常：${JSON.stringify(defaultFullMetrics)}`);
     }
@@ -2515,16 +2645,16 @@ async function main() {
     report.screenshots.push(await screenshot(page, 'settings-default-service-light.png'));
     report.assertions.defaultServiceHarmonious = true;
 
-    const aiContextSwitch = page.getByRole('switch', {name: 'AI 智能上下文', exact: true});
-    if (await aiContextSwitch.count() !== 1) throw new Error('通用设置没有唯一的 AI 智能上下文开关');
-    if (await aiContextSwitch.isDisabled()) throw new Error('机器翻译作为默认服务时，AI 智能上下文开关不可操作');
+    const aiContextSwitch = page.getByRole('switch', {name: 'AI 精翻（智能上下文）', exact: true});
+    if (await aiContextSwitch.count() !== 1) throw new Error('通用设置没有唯一的 AI 精翻（智能上下文）开关');
+    if (await aiContextSwitch.isDisabled()) throw new Error('机器翻译作为默认服务时，AI 精翻（智能上下文）开关不可操作');
     const aiContextControl = aiContextSwitch.locator('..');
     if (!await aiContextControl.isVisible()) throw new Error('AI 智能上下文开关没有可见的交互控件');
     const aiContextBefore = await aiContextSwitch.getAttribute('aria-checked');
     if (!['true', 'false'].includes(aiContextBefore)) throw new Error(`AI 智能上下文开关状态异常：${aiContextBefore}`);
     await aiContextControl.click();
     await page.waitForFunction(
-      previous => document.querySelector('[aria-label="AI 智能上下文"]')
+      previous => document.querySelector('[aria-label="AI 精翻（智能上下文）"]')
         ?.getAttribute('aria-checked') !== previous,
       aiContextBefore,
       {timeout},
@@ -2532,7 +2662,7 @@ async function main() {
     const aiContextAfter = await aiContextSwitch.getAttribute('aria-checked');
     await aiContextControl.click();
     await page.waitForFunction(
-      expected => document.querySelector('[aria-label="AI 智能上下文"]')
+      expected => document.querySelector('[aria-label="AI 精翻（智能上下文）"]')
         ?.getAttribute('aria-checked') === expected,
       aiContextBefore,
       {timeout},

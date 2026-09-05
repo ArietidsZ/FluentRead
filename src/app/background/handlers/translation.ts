@@ -6,7 +6,7 @@
  */
 import type {BackgroundFallbackHandler} from '../messageRouter';
 import type {BackgroundMessageHandler} from '../messageRouter';
-import {attachTranslationRequestControl} from '@/src/services/translation/requestSnapshot';
+import {attachTranslationGlossaryContext, attachTranslationRequestControl} from '@/src/services/translation/requestSnapshot';
 import type {
     TranslationCancelMessage,
     TranslationCancelResponse,
@@ -50,6 +50,7 @@ const STRING_FIELDS = [
     'sourceLanguage',
     'targetLanguage',
     'sourceLanguageDetectionText',
+    'glossaryRevision',
 ] as const satisfies readonly (keyof TranslationRequestMessageBase)[];
 const CLIENT_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/u;
 const REQUEST_HISTORY_LIMIT = 512;
@@ -172,6 +173,19 @@ export function parseTranslationRequest(candidate: TranslationRequestCandidate):
     if (candidate.thinkingOverride !== undefined && typeof candidate.thinkingOverride !== 'boolean') {
         throw new TypeError('翻译请求字段 thinkingOverride 必须是布尔值');
     }
+    if (candidate.glossaryRevision !== undefined
+        && !/^glossary-v1:(?:disabled|[a-f0-9]{64})$/u.test(candidate.glossaryRevision as string)) {
+        throw new TypeError('翻译请求 glossaryRevision 格式无效');
+    }
+    if (candidate.glossaryContext !== undefined
+        && !['page', 'document', 'video'].includes(candidate.glossaryContext as string)) {
+        throw new TypeError('翻译请求 glossaryContext 无效');
+    }
+    if (candidate.glossaryIds !== undefined && candidate.glossaryIds !== null
+        && (!Array.isArray(candidate.glossaryIds) || candidate.glossaryIds.length > 100
+            || !Array.from(candidate.glossaryIds).every(id => typeof id === 'string' && id.length <= 128))) {
+        throw new TypeError('翻译请求 glossaryIds 必须是有限字符串数组或 null');
+    }
     if (candidate.requestTimeoutMs !== undefined
         && (typeof candidate.requestTimeoutMs !== 'number' || !Number.isFinite(candidate.requestTimeoutMs))) {
         throw new TypeError('翻译请求字段 requestTimeoutMs 必须是有限数字');
@@ -188,6 +202,9 @@ export function parseTranslationRequest(candidate: TranslationRequestCandidate):
     if (typeof candidate.aiMultiSegment === 'boolean') base.aiMultiSegment = candidate.aiMultiSegment;
     if (typeof candidate.thinkingOverride === 'boolean') base.thinkingOverride = candidate.thinkingOverride;
     if (typeof candidate.requestTimeoutMs === 'number') base.requestTimeoutMs = candidate.requestTimeoutMs;
+    if (candidate.glossaryIds === null) base.glossaryIds = null;
+    else if (Array.isArray(candidate.glossaryIds)) base.glossaryIds = Object.freeze([...candidate.glossaryIds]);
+    if (candidate.glossaryContext !== undefined) base.glossaryContext = candidate.glossaryContext as TranslationRequestMessageBase['glossaryContext'];
     return typeof origin === 'string' ? {...base, origin} : {...base, origin};
 }
 
@@ -204,6 +221,14 @@ export function createTranslationRequestFallback<TContext = undefined>(
         async handle(candidate, context) {
             try {
                 const message = parseTranslationRequest(candidate);
+                const senderUrl = (context as TranslationRequestContext | undefined)?.sender?.url;
+                const isDocument = typeof senderUrl === 'string'
+                    && /^(?:chrome|moz|safari-web)-extension:\/\/[^/]+\/document\.html(?:[?#]|$)/u.test(senderUrl);
+                attachTranslationGlossaryContext(message, {
+                    pageUrl: typeof senderUrl === 'string' && /^https?:\/\//u.test(senderUrl) ? senderUrl : undefined,
+                    context: message.glossaryContext === 'document' && isDocument ? 'document'
+                        : message.glossaryContext === 'video' ? 'video' : 'page',
+                });
                 const clientRequestId = parseClientRequestId(candidate.clientRequestId, true);
                 if (!clientRequestId) return await dependencies.translate(message);
                 return await requestRegistry.run(

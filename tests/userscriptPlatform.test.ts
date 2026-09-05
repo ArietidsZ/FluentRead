@@ -50,8 +50,20 @@ vi.mock('@/src/features/selection-translation/services/wordDictionary', () => ({
 }));
 
 import {createPlatformMessageHandler} from '@/userscript/platform';
+import {getTranslationGlossaryContext} from '@/src/services/translation/requestSnapshot';
 
 describe('userscript 平台消息适配', () => {
+    it('术语网站范围取当前页面而不是公开payload，视频仍使用独立入口', async () => {
+        vi.stubGlobal('location', {href: 'https://docs.example.com/article'});
+        mocks.translateWithCache.mockResolvedValue('译文');
+        const handler = createPlatformMessageHandler(vi.fn());
+        try {
+            await handler({origin: 'agent', pageUrl: 'https://forged.example', glossaryContext: 'document'});
+            expect(getTranslationGlossaryContext(mocks.translateWithCache.mock.calls[0][0])).toEqual({pageUrl: 'https://docs.example.com/article', context: 'page'});
+            await handler({origin: 'agent', glossaryContext: 'video'});
+            expect(getTranslationGlossaryContext(mocks.translateWithCache.mock.calls[1][0])).toEqual({pageUrl: 'https://docs.example.com/article', context: 'video'});
+        } finally { vi.unstubAllGlobals(); }
+    });
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.config.count = 0;
