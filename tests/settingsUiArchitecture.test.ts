@@ -515,6 +515,15 @@ describe('options UI composition architecture', () => {
     }
   })
 
+  it('hydrates settings drafts through normalizeConfig so nested edits cannot mutate the runtime baseline', () => {
+    const settings = source('src/features/settings/ui/SettingsSections.vue')
+
+    expect(settings).toContain('Object.assign(config.value, normalizeConfig(nextConfig));')
+    expect(settings).toContain('Object.assign(config.value, normalizeConfig(runtimeConfig));')
+    expect(settings).not.toContain('Object.assign(config.value, nextConfig);')
+    expect(settings).not.toContain('Object.assign(config.value, runtimeConfig);')
+  })
+
   it('persists before remote tests while starting Chrome model preparation inside click activation', () => {
     const serviceConfiguration = source('src/features/settings/ui/services/ServiceConfiguration.vue')
     const testConnectionStart = serviceConfiguration.indexOf('async function testConnection(): Promise<void>')

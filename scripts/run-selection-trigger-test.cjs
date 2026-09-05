@@ -896,6 +896,9 @@ async function main() {
     await popup.locator('.popup-shell').waitFor({ state: 'visible', timeout: 60000 });
     await popup.locator('.popup-shell[data-config-ready="true"]').waitFor({ state: 'visible', timeout: 60000 });
     await assertBackgroundRoundTrip(popup);
+    await patchStoredConfig(popup, {uiLanguageSetupCompleted: true});
+    await popup.reload({waitUntil: 'domcontentloaded'});
+    await popup.locator('.popup-shell[data-config-ready="true"]').waitFor({state: 'visible'});
 
     const page = await createIsolatedPage(context);
     page.on('pageerror', (error) => result.consoleErrors.push(`pageerror: ${error.message}`));

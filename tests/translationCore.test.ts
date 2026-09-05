@@ -27,6 +27,7 @@ import {
     evaluateHardGuard,
     findElementsAtPoint,
     findNodeAtPoint,
+    hasHiddenMarker,
     isExtensionElement,
     maxComposedAncestorDepth,
     safeClosest,
@@ -65,6 +66,75 @@ function candidateIds(document: Document, url?: string): string[] {
 }
 
 describe('translation candidate core', () => {
+    it('只放行 text/plain 文档的顶层 pre，HTML 页面中的 pre 仍保持保护', () => {
+        const htmlPage = page('<pre id="html-pre">const value = 1;</pre>');
+        expect(htmlPage.core.discover(htmlPage.document).map((candidate) => candidate.element.id))
+            .not.toContain('html-pre');
+
+        const plainPage = page('<pre id="plain-pre">First line\nSecond line</pre>');
+        Object.defineProperty(plainPage.document, 'contentType', {
+            configurable: true,
+            value: 'text/plain',
+        });
+        const plainPre = plainPage.document.querySelector('#plain-pre')!;
+
+        expect(plainPage.core.discover(plainPage.document)).toEqual([
+            expect.objectContaining({
+                element: plainPre,
+                kind: 'content',
+                reason: 'generic-readable-block',
+            }),
+        ]);
+        expect(extractTranslationText(plainPre)).toBe('First line Second line');
+    });
+
+    it('图标字体连字不会混入全文、悬浮和富文本请求，恢复时保留原始图标', () => {
+        const {document, core} = page('<p id="prose">Open <span id="icon">settings</span> to continue.</p><p id="standalone">keyboard_return</p>');
+        const view = document.defaultView!;
+        const descriptor = Object.getOwnPropertyDescriptor(view, 'getComputedStyle');
+        let iconFamily = '';
+        Object.defineProperty(view, 'getComputedStyle', {
+            configurable: true,
+            value: (element: Element) => ({
+                display: element.tagName === 'P' ? 'block' : 'inline',
+                fontFamily: ['icon', 'standalone'].includes(element.id) ? iconFamily : 'Arial',
+            }),
+        });
+        try {
+            const prose = document.querySelector('#prose') as HTMLElement;
+                const icon = document.querySelector('#icon') as HTMLElement;
+            for (const family of [
+                'Google Symbols', '"Material Icons"', "'Material Icons Outlined'",
+                'Material Symbols Rounded, sans-serif', 'FontAwesome', 'Font Awesome 6 Free',
+            ]) {
+                iconFamily = family;
+                expect(core.discover(document).map((candidate) => candidate.element.id)).toEqual(['prose']);
+                expect(core.resolve(icon)?.element).toBe(prose);
+                expect(core.resolve(document.querySelector('#standalone'))).toBeNull();
+                expect(hasHiddenMarker(icon)).toBe(false);
+                expect(extractTranslationText(prose)).toBe('Open to continue.');
+                const snapshot = createTranslationSourceSnapshot(prose);
+                expect(snapshot.slots.map((slot) => slot.source)).toEqual(['Open', 'to continue.']);
+                const translated = applyTranslationsToSnapshot(snapshot, ['打开', '以继续。']);
+                expect(translated).not.toContain('settings');
+                expect(translated).toContain('打开');
+                expect(icon.textContent).toBe('settings');
+            }
+            for (const family of ['Arial, "Material Symbols Rounded"', 'Arial']) {
+                iconFamily = family;
+                expect(extractTranslationText(prose)).toBe('Open settings to continue.');
+                expect(core.resolve(icon)?.element).toBe(prose);
+            }
+            iconFamily = 'Material IconsCustom';
+            expect(extractTranslationText(prose)).toBe('Open settings to continue.');
+            icon.hidden = true;
+            expect(hasHiddenMarker(icon)).toBe(true);
+        } finally {
+            if (descriptor) Object.defineProperty(view, 'getComputedStyle', descriptor);
+            else Reflect.deleteProperty(view, 'getComputedStyle');
+        }
+    });
+
     it('保留 engine 自身的祖先深度防线，并缓存实际检查过的祖先', () => {
         const ancestors = ['parent', 'grandparent', 'too-deep'];
 
@@ -1403,6 +1473,7 @@ describe('translation candidate core', () => {
             matches: () => true,
             decide: () => { throw new Error('adapter failure'); },
             shouldStayOriginal: () => { throw new Error('adapter failure'); },
+            shouldOmitFromTranslation: () => { throw new Error('adapter failure'); },
         };
         const first = createDeclarativeAdapter({
             id: 'z-first-registered',
@@ -1421,6 +1492,7 @@ describe('translation candidate core', () => {
             adapters: [faulty, first, second],
         });
 
+        expect(core.shouldOmitFromTranslation(document.querySelector('#safe')!)).toBe(false);
         expect(core.discover(document)[0]).toMatchObject({
             adapterId: 'z-first-registered',
             reason: 'first-wins',

@@ -38,6 +38,14 @@ large application shell and a stable content allowlist. This disables generic
 block and inline-run fallbacks for that matched site while preserving explicit
 `force-target` decisions for both hover and full-page translation.
 
+Use `keepOriginal` for protected content that must survive rich-text handling,
+and `omitFromTranslation` for metadata that must also be absent from the bilingual
+copy. The original page node remains untouched in both cases. Icon-font glyphs
+are excluded from provider input and bilingual copies based on their live primary
+font family; ordinary prose with an icon font only in its fallback list is kept.
+Code blocks remain protected, except for the browser's direct body `pre` in a
+`text/plain` document, where that element is the readable document itself.
+
 Every accepted candidate includes a reason and optional adapter id. This keeps
 hover/full equality and adapter precedence directly testable without starting a
 browser. Open Shadow DOM is traversed through the same policy.

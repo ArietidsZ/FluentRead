@@ -2,11 +2,12 @@
  * @file src/core/translation/serialization.ts
  *
  * 文件职责：把候选 DOM 安全序列化为可翻译文本槽，并在异步请求后依据源快照恢复到仍然匹配的真实节点。
- * 主要内容：定义 TranslationTextSlot、TranslationSourceSnapshot 与样式覆盖规则，负责槽位编码解析、活节点收集、译文写入克隆、译文产物过滤，以及查找 line-clamp 祖先并应用临时解除截断的样式。 可核对的公开符号包括 TranslationTextSlot、TranslationSourceSnapshot、SerializedTranslationSlots、TranslationStyleOverride、translationTruncationStyleOverrides、serializeTranslationSlots、parseTranslationSlots、createTranslationSourceSnapshot。
+ * 主要内容：定义 TranslationTextSlot、TranslationSourceSnapshot 与样式覆盖规则，负责槽位编码解析、活节点收集、译文写入克隆、宿主 metadata 省略、译文产物过滤，以及查找 line-clamp 祖先并应用临时解除截断的样式。 可核对的公开符号包括 TranslationTextSlot、TranslationSourceSnapshot、SerializedTranslationSlots、TranslationStyleOverride、translationTruncationStyleOverrides、serializeTranslationSlots、parseTranslationSlots、createTranslationSourceSnapshot。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
 import {isTranslationTextNodeProtected} from './text';
+import {isIconFontElement} from './dom';
 import type {TranslationTextProtectionOptions} from './dom';
 
 const translationArtifactSelector = [
@@ -207,6 +208,7 @@ export function createTranslationSourceSnapshot(
     shouldStayOriginal?: (element: Element) => boolean,
     ignoredExtensionElement?: Element,
     protectionOptions?: TranslationTextProtectionOptions,
+    shouldOmitFromTranslation?: (element: Element) => boolean,
 ): TranslationSourceSnapshot {
     const clone = node.cloneNode(true) as HTMLElement;
     // 每个槽都依据实时 composed tree 判断。脱离文档的克隆已失去站点选择器、继承
@@ -218,6 +220,15 @@ export function createTranslationSourceSnapshot(
         ignoredExtensionElement,
         protectionOptions,
     );
+    // 先完成文本槽映射，再依据实时状态移除图标和显式 metadata。译文 sanitizer 不继承
+    // 宿主 CSS，保留图标连字会显示 account_circle 等实现文本；原 DOM 和事件完全不动。
+    const liveElements = node.querySelectorAll('*');
+    const clonedElements = clone.querySelectorAll('*');
+    liveElements.forEach((element, index) => {
+        if (isIconFontElement(element) || shouldOmitFromTranslation?.(element)) {
+            clonedElements[index]!.remove();
+        }
+    });
     clone.querySelectorAll(translationArtifactSelector).forEach((child) => child.remove());
     return {clone, slots};
 }

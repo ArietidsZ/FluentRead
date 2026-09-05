@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/SettingsSections.vue
  * 文件职责：承载 FluentRead Options 页面各业务设置分区，连接运行时配置、服务选择、快捷键、站点规则、翻译中心、OCR、词书以及导入导出和历史恢复。
- * 主要内容：模板按 activeSection 展示常规、服务、视频、隐私等控件，并在独立的界面布局页面组织界面风格与菜单栏布局；脚本协调配置快照保存、加密凭据保存、历史游标、能力过滤、连接测试、文件传输和页面离开 flush。
+ * 主要内容：模板按 activeSection 展示各设置分区；脚本以独立配置副本隔离编辑与全局差分基线，协调快照保存、凭据保存、历史游标、能力过滤、连接测试、文件传输和页面离开 flush。
  * 模块边界：该组件负责设置 UI 编排但不实现 provider 网络、配置仓库或 feature 运行时；校验与迁移来自 core/config，持久化经 services/config，复杂子界面保持在各自 feature/组件内。
  -->
 <template>
@@ -841,14 +841,14 @@ const unsubscribeConfig = subscribeConfig((nextConfig) => {
   lastSerialized = serialized;
   applyingExternalConfig = true;
   try {
-    Object.assign(config.value, nextConfig);
+    Object.assign(config.value, normalizeConfig(nextConfig));
   } finally {
     applyingExternalConfig = false;
   }
 });
 void configReady
   .then(() => {
-    Object.assign(config.value, runtimeConfig);
+    Object.assign(config.value, normalizeConfig(runtimeConfig));
     lastSerialized = JSON.stringify(config.value);
     hydrated = true;
     updateTheme(config.value.theme || 'auto');

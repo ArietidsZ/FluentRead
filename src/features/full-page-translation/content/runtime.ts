@@ -535,10 +535,10 @@ async function renderTranslation(
         // 变为 /b）来自当前 DOM；provider 译文仍绑定请求创建时捕获的精确有序原文。
         const core = getCurrentTranslationCore();
         const freshSnapshot = createTranslationSourceSnapshot(
-            node,
-            core.shouldStayOriginal,
+            node, core.shouldStayOriginal,
             getTranslationStateProtectionBoundary(node, state),
             getTranslationTextProtectionOptions(state.allowTopLevelApplicationShell, node),
+            core.shouldOmitFromTranslation,
         );
         const freshSources = freshSnapshot.slots.map((slot) => slot.source);
         if (freshSources.length !== result.sources.length ||

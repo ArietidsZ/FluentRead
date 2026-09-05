@@ -27,6 +27,7 @@
       "tests/userscriptViteConfig.test.ts"
     ],
     "unit": [
+      "tests/modalDialogHost.test.ts",
       "tests/aiSdkEndpoints.test.ts",
       "tests/aiSdkErrors.test.ts",
       "tests/areaTranslationCore.test.ts",
@@ -134,6 +135,7 @@
       "tests/youtubeSubtitleData.test.ts"
     ],
     "functional": [
+      "tests/settingsCompositionAutosave.test.ts",
       "tests/aiSdkOpenAICompatible.test.ts",
       "tests/config.test.ts",
       "tests/configAutoBackupStore.test.ts",
@@ -168,6 +170,7 @@
       "tests/zhipuCredentials.test.ts"
     ],
     "regression": [
+      "tests/upstreamTranslationBoundaries.test.ts",
       "tests/documentTranslationExamplesApi.test.ts",
       "tests/documentTranslationRegression.test.ts",
       "tests/documentTranslationEdge.test.ts",

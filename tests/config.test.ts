@@ -536,6 +536,40 @@ describe('统一配置存储', () => {
         expect(storageMock.setItem).not.toHaveBeenCalled();
     });
 
+    it('设置页嵌套草稿与运行时基线隔离，编辑 user_role 后产生非空 patch 并落盘', async () => {
+        const userRole = 'base user prompt {{to}} {{origin}}';
+        const canonicalConfig = {
+            ...sanitizeConfigCredentials(normalizeConfig({
+                ...storedConfig,
+                service: 'openai',
+                user_role: {openai: userRole},
+                system_role: {openai: 'base system prompt'},
+            })),
+            __fluentConfigRevision: 7,
+        };
+        const configStore = await loadConfigModule(canonicalConfig);
+        await configStore.configReady;
+        storageMock.setItem.mockClear();
+        storageOperations.length = 0;
+
+        // This is the settings-page hydration boundary after the fix. normalizeConfig
+        // must clone nested mappings before the editor mutates its local draft.
+        const draft = normalizeConfig(configStore.config);
+        expect(draft.user_role).not.toBe(configStore.config.user_role);
+        const editedUserRole = 'edited user prompt {{to}} {{origin}}';
+        draft.user_role.openai = editedUserRole;
+        expect(configStore.config.user_role.openai).toBe(userRole);
+
+        await configStore.requestConfigPatch(draft);
+
+        expect(storageMock.setItem).toHaveBeenCalledWith(
+            'local:config',
+            expect.objectContaining({user_role: expect.objectContaining({openai: editedUserRole})}),
+        );
+        expect(configStore.config.user_role.openai).toBe(editedUserRole);
+        expect(storageOperations).toContain('set:local:config');
+    });
+
     it.each([
         ['轮换', {openai: 'remote-imported-secret'}],
         ['清除', {}],
