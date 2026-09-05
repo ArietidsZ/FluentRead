@@ -29,6 +29,7 @@
       "tests/userscriptViteConfig.test.ts"
     ],
     "unit": [
+      "tests/aiContextPresentation.test.ts",
       "tests/aiSdkEndpoints.test.ts",
       "tests/aiSdkErrors.test.ts",
       "tests/areaTranslationCore.test.ts",

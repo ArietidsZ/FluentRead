@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupApp.vue
  文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、可插拔皮肤、功能抽屉和高频操作，提供轻量但完整的控制中心。
- 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，按保存布局编排翻译、站点规则、快捷功能与底栏模块；监听配置并持久化，按皮肤注册元数据及栏目显隐自动计算高度。
+ 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排翻译、AI 语境偏好与可用状态、站点规则及快捷功能；提供 AI 精翻说明抽屉，监听配置并持久化，按皮肤及栏目显隐自动计算高度。
  模块边界：组件编排用户交互与运行时消息，不实现翻译 provider、缓存存储或 content 挂载细节；公共配置由 services/store 管理，页面行为由 content feature 接收消息完成。
 -->
 <!-- Popup 页面归 app 层所有；WXT 入口只负责调用挂载函数。 -->
@@ -98,6 +98,7 @@
       </div>
 
       <div ref="servicePicker" class="service-picker">
+        <div class="service-selection">
         <button
           class="service-field"
           type="button"
@@ -118,6 +119,21 @@
           </span>
           <span class="chevron" :class="{ open: servicePickerOpen }">⌄</span>
         </button>
+        <button
+          class="ai-context-control"
+          data-testid="ai-context-help"
+          type="button"
+          :data-ai-context-state="aiContextPresentation.state"
+          :aria-label="`${t('popup.aiContext.help')} · ${t(`popup.aiContext.status.${aiContextPresentation.state}`)}`"
+          :title="t(aiContextPresentation.descriptionKey)"
+          aria-haspopup="dialog"
+          :aria-expanded="drawerVisible && activeDrawer === 'aiContext'"
+          @click="openAIContextSettings"
+        >
+          <span class="ai-context-name">{{ t('popup.aiContext.title') }} <span aria-hidden="true">›</span></span>
+          <span class="ai-context-status" role="status">{{ t(`popup.aiContext.status.${aiContextPresentation.state}`) }}</span>
+        </button>
+        </div>
 
         <div v-if="servicePickerOpen" class="service-picker-panel" role="dialog" aria-label="选择翻译服务">
           <div class="service-picker-heading">
@@ -234,19 +250,6 @@
             :title="fullPageHotkeyTitle"
           ><span>{{ fullPageHotkey }}</span></kbd>
         </button>
-        <button
-          v-if="canUseAIContext"
-          class="ai-context-toggle"
-          type="button"
-          :aria-pressed="config.enableAIContext"
-          :aria-label="config.enableAIContext ? '关闭 AI精翻' : '开启 AI精翻'"
-          :title="config.enableAIContext ? '关闭 AI精翻' : '开启 AI精翻'"
-          :disabled="!config.on || translating"
-          @click="toggleAIContext"
-        >
-          <span class="ai-context-copy">AI精翻</span>
-          <span class="ai-context-indicator" aria-hidden="true" />
-        </button>
       </div>
 
       <PopupSiteRule
@@ -321,6 +324,7 @@
 
     <el-drawer
       v-model="drawerVisible"
+      :title="drawerTitle"
       direction="btt"
       size="auto"
       :with-header="false"
@@ -335,7 +339,33 @@
         <button type="button" aria-label="关闭" @click="drawerVisible = false">×</button>
         </header>
 
-      <div v-if="activeDrawer === 'hover'" class="drawer-content">
+      <div v-if="activeDrawer === 'aiContext'" class="drawer-content ai-context-details" data-i18n-ignore>
+        <div class="ai-context-detail-state" :data-ai-context-state="aiContextPresentation.state">
+          <span class="ai-context-status" role="status">{{ t(`popup.aiContext.status.${aiContextPresentation.state}`) }}</span>
+          <p data-testid="ai-context-description">{{ t(aiContextPresentation.descriptionKey) }}</p>
+        </div>
+        <p v-if="credentialWarning" class="ai-context-setup-details" role="alert">{{ translateLegacy(credentialWarning) }}</p>
+        <div class="setting-row">
+          <span><strong>{{ t('popup.aiContext.preference') }}</strong><small>{{ t('popup.aiContext.preferenceHint') }}</small></span>
+          <button
+            class="switch compact ai-context-detail-switch"
+            type="button"
+            role="switch"
+            :aria-label="t('popup.aiContext.preference')"
+            :aria-checked="config.enableAIContext"
+            :disabled="aiContextPresentation.toggleDisabled"
+            @click="toggleAIContext"
+          ><i /></button>
+        </div>
+        <dl class="ai-context-explanation">
+          <div><dt>{{ t('popup.aiContext.howTitle') }}</dt><dd>{{ t('popup.aiContext.how') }}</dd></div>
+          <div><dt>{{ t('popup.aiContext.costTitle') }}</dt><dd>{{ t('popup.aiContext.cost') }}</dd></div>
+          <div><dt>{{ t('popup.aiContext.applyTitle') }}</dt><dd>{{ t('popup.aiContext.apply') }}</dd></div>
+        </dl>
+        <button class="secondary-action" type="button" data-testid="ai-context-settings" @click="openOptions('settings-services')">{{ t('popup.aiContext.configure') }} ↗</button>
+      </div>
+
+      <div v-else-if="activeDrawer === 'hover'" class="drawer-content">
         <div class="interaction-preview"><span class="cursor">↖</span><span>＋</span><kbd>{{ hoverPreviewKey }}</kbd><span>＝</span><strong>即时翻译</strong></div>
         <div class="setting-row">
           <span>
@@ -521,7 +551,7 @@
         </label>
       </div>
 
-        <button class="drawer-settings-link" type="button" @click="openOptions(drawerSettingsSection[activeDrawer])">在完整设置中查看全部选项 ↗</button>
+        <button v-if="activeDrawer !== 'aiContext'" class="drawer-settings-link" type="button" @click="openOptions(drawerSettingsSection[activeDrawer])">在完整设置中查看全部选项 ↗</button>
       </div>
     </el-drawer>
 
@@ -575,6 +605,7 @@ import {
   type PopupQuickFeatureId,
 } from '@/src/core/config/interfaceAppearance';
 import { getSelectedModelLabel, searchServiceOptions } from '@/src/ui/view-model/serviceCatalog';
+import { resolveAIContextPresentation } from '@/src/ui/view-model/aiContext';
 import { SELECTION_TTS_VOICE_OPTIONS } from '@/src/core/config/selectionTts';
 import { getSiteBaseDomain } from '@/src/core/site-rules/domain';
 import {applyInterfaceSkin} from '@/src/ui/interfaceAppearance';
@@ -592,7 +623,7 @@ import {
   isTranslationServiceAvailable,
 } from '@/src/services/translation/capabilities';
 
-type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'video';
+type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'video' | 'aiContext';
 type SettingsSection = 'settings-general' | 'settings-image-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
 interface PopupQuickFeatureViewModel {
   id: PopupQuickFeatureId;
@@ -642,6 +673,7 @@ let pageExitSaveStarted = false;
 let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 const darkMode = window.matchMedia('(prefers-color-scheme: dark)');
 const drawerSettingsSection: Record<DrawerName, SettingsSection> = {
+  aiContext: 'settings-general',
   hover: 'settings-translation',
   selection: 'settings-translation',
   appearance: 'settings-general',
@@ -742,6 +774,15 @@ const currentSiteAlwaysTranslated = computed(() => currentSiteSupported.value
   && (config.value.autoTranslate || currentSiteRuleEnabled.value));
 const currentSiteExtensionDisabled = computed(() => currentSiteSupported.value
   && (config.value.disabledExtensionDomains ?? []).includes(currentSiteDomain.value));
+const aiContextPresentation = computed(() => resolveAIContextPresentation({
+  enabled: config.value.enableAIContext,
+  supported: canUseAIContext.value,
+  pluginEnabled: config.value.on,
+  siteDisabled: currentSiteExtensionDisabled.value,
+  unavailable: Boolean(selectedServiceUnavailableMessage.value),
+  missingCredentials: Boolean(getMissingCredentialMessage(config.value.service, config.value)),
+  translating: translating.value,
+}));
 const isSiteModuleVisible = computed(() => config.value.interfaceVisibility.popupSiteRule
   && currentSiteSupported.value);
 const visiblePopupQuickFeatureIds = computed(() => config.value.popupQuickFeatureOrder.filter(
@@ -911,8 +952,9 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
 }));
 const visiblePopupQuickFeatures = computed(() => visiblePopupQuickFeatureIds.value
   .map((featureId) => popupQuickFeatureViewModels.value[featureId]));
-const drawerTitle = computed(() => ({ hover: '鼠标悬停翻译设置', selection: '划词翻译设置', appearance: '译文显示设置', image: '图片翻译设置', video: '视频字幕设置' }[activeDrawer.value]));
+const drawerTitle = computed(() => ({ aiContext: t('popup.aiContext.title'), hover: '鼠标悬停翻译设置', selection: '划词翻译设置', appearance: '译文显示设置', image: '图片翻译设置', video: '视频字幕设置' }[activeDrawer.value]));
 const drawerDescription = computed(() => ({
+  aiContext: t('popup.aiContext.intro'),
   hover: '把鼠标停在文本上，用轻量快捷键获取即时译文。',
   selection: '选中文字或圈选页面区域，按你的偏好获取译文。',
   appearance: '调整双语布局、译文样式与界面主题。',
@@ -1042,8 +1084,13 @@ function matchingModelSummary(matchingModels: string[]) {
     : visibleModels.join(' · ');
 }
 function toggleAIContext() {
-  if (!canUseAIContext.value || !config.value.on || translating.value) return;
+  if (aiContextPresentation.value.toggleDisabled) return;
   config.value.enableAIContext = !config.value.enableAIContext;
+}
+function openAIContextSettings() {
+  servicePickerOpen.value = false;
+  serviceSearchQuery.value = '';
+  openDrawer('aiContext');
 }
 onMounted(() => {
   document.addEventListener('pointerdown', closeServicePicker);

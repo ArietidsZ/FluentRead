@@ -709,8 +709,8 @@ describe('options UI composition architecture', () => {
     expect(general).toContain('<ServiceIcon :service="config.service" :label="defaultTextServiceLabel" size="medium"')
     expect(general).toContain('aria-label="默认网页翻译服务"')
     expect(general).toContain('defaultTextServiceLabel')
-    expect(general).toContain('aria-label="AI 智能上下文"')
-    const aiContextSwitch = general.match(/<el-switch\b[^>]*aria-label="AI 智能上下文"[^>]*\/>/u)?.[0]
+    expect(general).toContain(":aria-label=\"t('popup.aiContext.settingsTitle')\"")
+    const aiContextSwitch = general.match(/<el-switch\b[^>]*v-model="config.enableAIContext"[^>]*\/>/u)?.[0]
     expect(aiContextSwitch).toBeDefined()
     expect(aiContextSwitch).not.toContain(':disabled')
     expect(general).toContain('label="翻译模式"')
