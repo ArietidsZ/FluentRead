@@ -62,14 +62,57 @@ describe('reading context respects the selected prose boundary', () => {
 });
 
 describe('reading answer presentation', () => {
-    it('preserves HTML as inert text while formatting only simple headings, lists and emphasis', () => {
+    it('preserves HTML as inert text while keeping semantic headings, list ordering and emphasis', () => {
         expect(readingAnswerBlocks('# Structure\r\n\n- A **noun**\n1. A verb\n---\n<script>alert(1)</script>')).toEqual([
-            {kind: 'heading', text: 'Structure'}, {kind: 'item', text: 'A **noun**'},
-            {kind: 'item', text: 'A verb'}, {kind: 'paragraph', text: '<script>alert(1)</script>'},
+            {kind: 'heading', text: 'Structure', level: 1}, {kind: 'list', ordered: false, start: 1, items: ['A **noun**']},
+            {kind: 'list', ordered: true, start: 1, items: ['A verb']}, {kind: 'paragraph', text: '<script>alert(1)</script>'},
         ]);
-        expect(readingAnswerSpans('The **noun** here.')).toEqual([{text: 'The ', strong: false}, {text: 'noun', strong: true}, {text: ' here.', strong: false}]);
-        expect(readingAnswerSpans('**unfinished')).toEqual([{text: '**unfinished', strong: false}]);
+        expect(readingAnswerSpans('The **noun** here.')).toEqual([{text: 'The ', kind: 'text'}, {text: 'noun', kind: 'strong'}, {text: ' here.', kind: 'text'}]);
+        expect(readingAnswerSpans('**unfinished')).toEqual([{text: '**unfinished', kind: 'text'}]);
         expect(readingAnswerBlocks('')).toEqual([]);
+    });
+    it('separates meaning sections while retaining soft breaks and grouped list numbering', () => {
+        expect(readingAnswerBlocks('### 主干 ###\nA sentence\ncontinues here.\n\n### 成分\n3. Subject\n4) Verb\n- Modifier\n+ Clause\n\n### 关键点\nLast explanation.')).toEqual([
+            {kind: 'heading', level: 3, text: '主干'},
+            {kind: 'paragraph', text: 'A sentence\ncontinues here.'},
+            {kind: 'heading', level: 3, text: '成分'},
+            {kind: 'list', ordered: true, start: 3, items: ['Subject', 'Verb']},
+            {kind: 'list', ordered: false, start: 1, items: ['Modifier', 'Clause']},
+            {kind: 'heading', level: 3, text: '关键点'},
+            {kind: 'paragraph', text: 'Last explanation.'},
+        ]);
+        expect(readingAnswerBlocks('Plain sentence\n- first\n- second')).toEqual([{kind: 'paragraph', text: 'Plain sentence'}, {kind: 'list', ordered: false, start: 1, items: ['first', 'second']}]);
+        expect(readingAnswerBlocks('First\n___\nSecond\n***\nThird')).toEqual(['First', 'Second', 'Third'].map(text => ({kind: 'paragraph', text})));
+    });
+    it('preserves quoted evidence and complete or streaming code without interpreting HTML inside it', () => {
+        expect(readingAnswerBlocks('Intro\n> First line\n> **Second**\n\n```html\n  <img src="https://example.test/private">\n# Not a heading\n```\nAfter')).toEqual([
+            {kind: 'paragraph', text: 'Intro'}, {kind: 'quote', text: 'First line\n**Second**'},
+            {kind: 'code', text: '  <img src="https://example.test/private">\n# Not a heading'}, {kind: 'paragraph', text: 'After'},
+        ]);
+        expect(readingAnswerBlocks('Intro\n~~~text\nunfinished\n  code')).toEqual([{kind: 'paragraph', text: 'Intro'}, {kind: 'code', text: 'unfinished\n  code'}]);
+        expect(readingAnswerBlocks('> quoted')).toEqual([{kind: 'quote', text: 'quoted'}]);
+        expect(readingAnswerBlocks('```\n```')).toEqual([{kind: 'code', text: ''}]);
+    });
+    it('renders old tabular answers as cells, preserving escaped pipes and partial rows during streaming', () => {
+        expect(readingAnswerBlocks('Intro\n| 片段 | 作用 |\n| :--- | ---: |\n| `a\\|b` | 主语 |\n| Verb |\n\nNext')).toEqual([
+            {kind: 'paragraph', text: 'Intro'},
+            {kind: 'table', headers: ['片段', '作用'], rows: [['`a|b`', '主语'], ['Verb']]},
+            {kind: 'paragraph', text: 'Next'},
+        ]);
+        expect(readingAnswerBlocks('Term | Meaning\n--- | ---')).toEqual([{kind: 'table', headers: ['Term', 'Meaning'], rows: []}]);
+        expect(readingAnswerBlocks('A | B\nnot | a divider\nFinal | text')).toEqual([{kind: 'paragraph', text: 'A | B\nnot | a divider\nFinal | text'}]);
+        expect(readingAnswerBlocks('a | b\n---')).toEqual([{kind: 'paragraph', text: 'a | b'}]);
+    });
+    it('keeps raw tags and resource syntax inert and formats only complete inline delimiters', () => {
+        expect(readingAnswerSpans('**bold** __also__ *em* _italics_ `**code**`')).toEqual([
+            {kind: 'strong', text: 'bold'}, {kind: 'text', text: ' '}, {kind: 'strong', text: 'also'}, {kind: 'text', text: ' '},
+            {kind: 'emphasis', text: 'em'}, {kind: 'text', text: ' '}, {kind: 'emphasis', text: 'italics'}, {kind: 'text', text: ' '}, {kind: 'code', text: '**code**'},
+        ]);
+        const unsafe = '<script>alert(1)</script> ![remote](https://example.test/pixel) [run](javascript:alert(1))';
+        expect(readingAnswerSpans(unsafe)).toEqual([{kind: 'text', text: unsafe}]);
+        for (const partial of ['**', '*', '_', '__', '`', '**unfinished*', 'snake_case_value']) expect(readingAnswerSpans(partial)).toEqual([{kind: 'text', text: partial}]);
+        expect(readingAnswerSpans('')).toEqual([]);
+        expect(readingAnswerSpans('**ready**')).toEqual([{kind: 'strong', text: 'ready'}]);
     });
     it('does not guess a different sentence for missing or punctuation-only selections', () => {
         expect(sentenceAroundSelection('First sentence. 第二句话！', '第二句', 16)).toBe('第二句话！');

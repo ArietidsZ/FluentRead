@@ -896,6 +896,9 @@ async function main() {
     await popup.locator('.popup-shell').waitFor({ state: 'visible', timeout: 60000 });
     await popup.locator('.popup-shell[data-config-ready="true"]').waitFor({ state: 'visible', timeout: 60000 });
     await assertBackgroundRoundTrip(popup);
+    await patchStoredConfig(popup, {uiLanguageSetupCompleted: true});
+    await popup.reload({waitUntil: 'domcontentloaded'});
+    await popup.locator('.popup-shell[data-config-ready="true"]').waitFor({state: 'visible'});
 
     const page = await createIsolatedPage(context);
     page.on('pageerror', (error) => result.consoleErrors.push(`pageerror: ${error.message}`));
@@ -1327,6 +1330,9 @@ async function main() {
     assert(!hoverFallback.selectionTooltip && hoverFallback.count === 1, `无选区时没有回退到鼠标悬浮翻译：${JSON.stringify(hoverFallback)}`);
     assert(await page.locator('#neighbor .fluent-read-bilingual-content').count() === 0, '无选区悬浮回退时同时触发了全文翻译');
     result.cases.push({ id: 'conflict.hover-fallback-without-selection', status: 'passed', ui: hoverFallback });
+    await triggerShortcut(page, 'Ctrl');
+    await page.waitForFunction(() => document.querySelectorAll('#selection-test-fixture .fluent-read-bilingual-content').length === 0, undefined, { timeout: 10000 });
+    result.cases.push({ id: 'conflict.Control.hover-restore', status: 'passed', translatedCounts: [1, 0] });
 
     // 划词与全文共享快捷键、但悬浮不共享时：没有选区应在 keyup 回退全文翻译。
     await closeSelectionUi(page);
@@ -1398,13 +1404,19 @@ async function main() {
       await patchStoredConfig(popup, { hotkey: conflictCase.hoverHotkey, customHotkey: conflictCase.customHotkey });
       await page.waitForTimeout(700);
       await resetFixture(page);
+      // DOM 重建会触发译文重挂载恢复；先证明上一用例已恢复，避免把旧译文误报为本次快捷键冲突。
+      const beforeSelectionHoverCount = await page.locator('#target .fluent-read-bilingual-content').count();
+      assert(beforeSelectionHoverCount === 0, `${conflictCase.label} 冲突测试开始前已存在上一用例译文：${beforeSelectionHoverCount}`);
       await selectTarget(page);
+      const beforeShortcutHoverCount = await page.locator('#target .fluent-read-bilingual-content').count();
+      assert(beforeShortcutHoverCount === 0, `${conflictCase.label} 按快捷键前已出现悬浮译文：${beforeShortcutHoverCount}`);
+      const requestsBeforeShortcut = translationRequestCount;
       await triggerShortcut(page, conflictCase.label);
       await waitForSelectionUi(page, { tooltip: true, indicator: false, translation: true }, `${conflictCase.label} 冲突时优先划词翻译`);
       const priorityUi = await readSelectionUi(page);
       const hoverCount = await page.locator('#target .fluent-read-bilingual-content').count();
       assert(hoverCount === 0, `${conflictCase.label} 冲突时同时触发悬浮翻译：${hoverCount}`);
-      result.cases.push({ id: `conflict.${conflictCase.label}.selection-priority`, status: 'passed', popupState, ui: priorityUi });
+      result.cases.push({ id: `conflict.${conflictCase.label}.selection-priority`, status: 'passed', popupState, beforeSelectionHoverCount, beforeShortcutHoverCount, hoverCount, requestsBeforeShortcut, requestsAfterShortcut: translationRequestCount, ui: priorityUi });
 
       await closeSelectionUi(page);
       await resetFixture(page);
@@ -1417,6 +1429,13 @@ async function main() {
       const hoverUi = await waitForHoverTranslation(page);
       assert(!hoverUi.selectionTooltip && hoverUi.count === 1, `${conflictCase.label} 无选区时未回退悬浮翻译：${JSON.stringify(hoverUi)}`);
       result.cases.push({ id: `conflict.${conflictCase.label}.hover-fallback`, status: 'passed', ui: hoverUi });
+
+      // 用产品的真实恢复手势清理翻译会话，不能仅 remove() DOM 后假定状态已清空。
+      await triggerShortcut(page, conflictCase.label);
+      await page.waitForFunction(() => document.querySelectorAll('#selection-test-fixture .fluent-read-bilingual-content').length === 0, undefined, { timeout: 10000 });
+      const restoredText = await page.locator('#target').textContent();
+      assert(restoredText === TARGET_TEXT, `${conflictCase.label} 悬浮恢复后正文发生变化：${restoredText}`);
+      result.cases.push({ id: `conflict.${conflictCase.label}.hover-restore`, status: 'passed', translatedCounts: [1, 0], restoredText });
     }
 
     result.finalConfig = await readStoredConfig(popup);

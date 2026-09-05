@@ -27,6 +27,32 @@ describe('configuration transfer helpers', () => {
     expect(prepareConfigForImport({...exported, translationScope: 'unsafe'}, current).translationScope).toBe('content')
   })
 
+  it('简繁配置经导入、导出和再次导入后仍按独立语言保存', () => {
+    const imported = prepareConfigForImport({
+      ...validConfig, from: 'zh-CN', to: 'zh-TW', inputBoxTranslationTarget: 'zh-HK',
+      translationCenterSourceLanguage: 'zh-Hans-TW', translationCenterTargetLanguage: 'zh-Hant-CN',
+      quickTranslationProfiles: [{id: 'traditional', action: 'hover', hotkey: 'Alt+T', targetLanguage: 'zh-MO'}],
+    }, validConfig)
+    expect(imported).toMatchObject({
+      from: 'zh-Hans', to: 'zh-Hant', inputBoxTranslationTarget: 'zh-Hant',
+      translationCenterSourceLanguage: 'zh-Hans', translationCenterTargetLanguage: 'zh-Hant',
+      quickTranslationProfiles: [expect.objectContaining({targetLanguage: 'zh-Hant'})],
+    })
+    const exported = prepareConfigForExport(imported)
+    expect(prepareConfigForImport(exported, validConfig)).toEqual(imported)
+  })
+
+  it('往返保留 DeepL API Pro 套餐，旧备份与无效套餐回到原有 Free 端点', () => {
+    const current = normalizeConfig({...new Config(), ...validConfig, deeplApiPlan: 'pro'})
+    const exported = prepareConfigForExport(current)
+
+    expect(exported.deeplApiPlan).toBe('pro')
+    expect(prepareConfigForImport(exported, current).deeplApiPlan).toBe('pro')
+    const {deeplApiPlan: _legacyMissingPlan, ...legacy} = exported
+    expect(prepareConfigForImport(legacy, current).deeplApiPlan).toBe('free')
+    expect(prepareConfigForImport({...exported, deeplApiPlan: 'paid'}, current).deeplApiPlan).toBe('free')
+  })
+
   it('往返保留非默认段落加载样式，并把旧文件与非法值迁移到柔和圆环默认值', () => {
     const current = normalizeConfig({...new Config(), ...validConfig, translationLoadingStyle: 'sparkle'})
     const orbitExport = prepareConfigForExport({...current, translationLoadingStyle: 'orbit'})

@@ -145,6 +145,9 @@ export default defineConfig({
     },
     hooks: {
         'build:publicAssets': (wxt, files) => {
+            for (const name of ['ort-wasm-simd-threaded.jsep.mjs', 'ort-wasm-simd-threaded.jsep.wasm']) {
+                files.push({absoluteSrc: resolve(__dirname, `node_modules/@huggingface/transformers/dist/${name}`), relativeDest: `fluent-read-ai/${name}`});
+            }
             if (wxt.config.browser !== 'firefox') return;
             for (let index = files.length - 1; index >= 0; index -= 1) {
                 const destination = files[index]?.relativeDest.replaceAll('\\', '/');

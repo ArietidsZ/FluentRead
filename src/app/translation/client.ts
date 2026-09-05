@@ -1,7 +1,7 @@
 /**
  * @file src/app/translation/client.ts
  * 文件职责：作为页面与后台翻译 broker 之间的客户端代理，统一管理单条、批量和视频字幕翻译的队列、取消、重试、超时、上下文与统计。
- * 主要内容：冻结服务/模型与语言参数，验证凭据与页面摘要上下文，使用 runtime 协议分派请求；仅为 Chrome 内置翻译携带随机 clientRequestId，auto 时转发纯检测样本，并在页面取消/超时时通知后台停止真实 provider。
+ * 主要内容：冻结服务/模型与语言参数，验证凭据与页面摘要上下文，使用 runtime 协议分派请求；为可取消的视频及 Chrome 内置翻译携带随机 clientRequestId，auto 时转发纯检测样本，并在页面取消/超时时通知后台停止真实 provider。
  * 模块边界：客户端不实现供应商协议、不直接读写翻译缓存，也不修改全文 DOM；后台 runtime/broker 负责 provider 与缓存，调用它的各 feature 负责展示和会话状态。
  */
 /**
@@ -13,6 +13,7 @@ import browser from 'webextension-polyfill';
 import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
 import {resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
+import {buildGlossaryRevision} from '@/src/core/glossary';
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
 import {isTrustedCredentialStorageContext} from '@/src/platform/storage/credentialContext';
 import {config, requestConfigCountIncrement} from '@/src/services/config/store';
@@ -39,6 +40,7 @@ import {
   TRANSLATION_CANCEL_MESSAGE_TYPE,
   type TranslationRequestMessage,
   type TranslationRuntimeRequestMessage,
+  type TranslationGlossaryContext,
 } from '@/src/services/translation/types';
 
 // 调试相关
@@ -287,6 +289,7 @@ function flushVideoCountSave(): void {
  * @returns 翻译结果的Promise
  */
 export async function translateText(origin: string, context: string = document.title, options: TranslateOptions = {}): Promise<string> {
+  const glossary = captureTranslationGlossaryOptions(options);
   const selectedService = options.serviceOverride || config.service;
   const selectedModel = resolveConfiguredModel(
     options.modelOverride || config.model[selectedService],
@@ -340,6 +343,7 @@ export async function translateText(origin: string, context: string = document.t
         // 发送翻译请求给background脚本处理
         const response = await waitForRequest(
           {
+            ...glossary,
             context,
             pageContext,
             ...(options.enableAIContext !== undefined ? {enableAIContext: options.enableAIContext} : {}),
@@ -405,6 +409,7 @@ export async function translateTextBatch(
   options: TranslateOptions = {},
 ): Promise<string[]> {
   if (origins.length === 0) return [];
+  const glossary = captureTranslationGlossaryOptions(options);
 
   const selectedService = options.serviceOverride || config.service;
   const selectedModel = resolveConfiguredModel(
@@ -438,6 +443,7 @@ export async function translateTextBatch(
       try {
         const response = await waitForRequest(
           {
+            ...glossary,
             context,
             pageContext,
             ...(options.enableAIContext !== undefined ? {enableAIContext: options.enableAIContext} : {}),
@@ -485,16 +491,21 @@ export async function translateTextBatch(
 
 /**
  * 翻译视频字幕。视频字幕使用独立的服务配置，但仍通过 background
- * 统一请求、缓存和错误边界；只发送 YouTube 已提供的纯文本字幕内容。
+ * 统一请求、缓存和错误边界；只发送字幕纯文本，允许 X 原语言独立于网页设置。
  */
-export async function translateVideoText(origin: string): Promise<string> {
+export async function translateVideoText(origin: string, signal?: AbortSignal, sourceLanguage?: string): Promise<string> {
+  if (signal?.aborted) throw createAbortError();
   const cleanedOrigin = origin?.replace(/[\s\u3000]/g, '') || '';
   if (!cleanedOrigin) return origin || '';
+  const glossary = captureTranslationGlossaryOptions({
+    glossaryContext: 'video',
+    glossaryIds: config.videoGlossaryIds,
+  });
 
   const service = config.videoService;
   const model = resolveConfiguredModel(config.model[service], config.customModel[service]);
   const thinking = isModelThinkingEnabled(config.modelThinking, service, model);
-  const languages = getTranslationLanguages();
+  const languages = getTranslationLanguages({sourceLanguage});
   const useCache = config.useCache;
   const pageContext = await resolvePageContext(undefined, service, model);
   const aiSdkService = servicesType.isAiSdk(service);
@@ -504,7 +515,8 @@ export async function translateVideoText(origin: string): Promise<string> {
     const translationTask = async (retryCount = 0): Promise<string> => {
       try {
         const response = await waitForRequest({
-          context: `YouTube 视频字幕：${typeof document === 'undefined' ? '' : document.title}`,
+          ...glossary,
+          context: `视频字幕：${typeof document === 'undefined' ? '' : document.title}`,
           pageContext,
           origin,
           useCache,
@@ -514,12 +526,13 @@ export async function translateVideoText(origin: string): Promise<string> {
           sourceLanguage: languages.sourceLanguage,
           targetLanguage: languages.targetLanguage,
           requestTimeoutMs: 19_000,
-        }, 20_000, undefined, lease, service === services.chromeTranslator);
+        }, 20_000, signal, lease, true);
         return unwrapTranslationResponse<string>(response);
       } catch (error) {
+        if (isAbortError(error)) throw error;
         if (retryCount < retryPolicy.maxRetries
           && shouldRetryTranslationRequest(error, aiSdkService, retryPolicy.explicitRetryPolicy)) {
-          await waitForDelay(getTranslationRetryDelay(error, retryCount, retryPolicy));
+          await waitForDelay(getTranslationRetryDelay(error, retryCount, retryPolicy), signal);
           return translationTask(retryCount + 1);
         }
         throw error;
@@ -548,6 +561,9 @@ export function cancelAllTranslations() {
  * 翻译参数接口
  */
 export interface TranslateOptions {
+  glossaryIds?: readonly string[] | null;
+  glossaryRevision?: string;
+  glossaryContext?: TranslationGlossaryContext;
   /** 最大重试次数 */
   maxRetries?: number;
   /** 重试退避初始间隔(毫秒) */
@@ -582,6 +598,15 @@ export interface TranslateOptions {
   modelOverride?: string;
   /** 为会话冻结当前模型的 Thinking 状态，不改写持久配置。 */
   thinkingOverride?: boolean;
+}
+
+/** 在任何上下文提取、队列等待和重试前固定术语版本与入口选择。 */
+function captureTranslationGlossaryOptions(options: TranslateOptions) {
+  return {
+    glossaryRevision: options.glossaryRevision ?? buildGlossaryRevision(config.glossaryLibraries, config.glossaryEnabled),
+    glossaryIds: options.glossaryIds ? Object.freeze([...options.glossaryIds]) : options.glossaryIds,
+    ...(options.glossaryContext ? {glossaryContext: options.glossaryContext} : {}),
+  };
 }
 
 function assertTranslationCredentials(service = config.service, modelOverride?: string): void {

@@ -5,6 +5,7 @@
  * 模块边界：本模块只服务设置页的主动连接检查，不读写配置、不发送 runtime 消息、不兼容 legacy translation API，也不参与网页正文的正式翻译链路。
  */
 
+import {detectChineseScript, normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import {MIN_CHROME_LANGUAGE_CONFIDENCE} from '@/src/core/language/detect';
 
 export type ChromePreparationModel = 'language-detector' | 'translator';
@@ -140,21 +141,11 @@ export function getChromeTranslationPreparationLanguageLabel(
 
 const LANGUAGE_CODE_PATTERN = /^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/iu;
 
-const LANGUAGE_ALIASES: Readonly<Record<string, string>> = {
-    'zh-hans': 'zh',
-    'zh-cn': 'zh',
-    'zh-sg': 'zh',
-    'zh-hant': 'zh-Hant',
-    'zh-tw': 'zh-Hant',
-    'zh-hk': 'zh-Hant',
-    'zh-mo': 'zh-Hant',
-};
-
 const TEST_SAMPLES: Readonly<Record<string, string>> = {
     en: 'The local translation model should understand this complete English sentence.',
     fr: 'Le modèle de traduction locale doit comprendre cette phrase française complète.',
-    zh: '这是一段用于检查本地翻译模型的简体中文完整句子。',
-    'zh-Hant': '這是一段用於檢查本地翻譯模型的繁體中文完整句子。',
+    zh: '这是简体中文，请把这段完整文字翻译成其他语言。',
+    'zh-Hant': '這是繁體中文，請把這段完整文字翻譯成其他語言。',
     ja: 'ローカル翻訳モデルがこの日本語の文章を理解できるか確認します。',
     ko: '로컬 번역 모델이 이 한국어 문장을 이해하는지 확인합니다.',
     de: 'Das lokale Übersetzungsmodell soll diesen vollständigen deutschen Satz verstehen.',
@@ -202,8 +193,8 @@ function normalizeLanguageCode(value: string, field: 'from' | 'to', allowAuto: b
             {field},
         );
     }
-    const lowerLanguage = language.toLowerCase();
-    return LANGUAGE_ALIASES[lowerLanguage] ?? lowerLanguage;
+    const normalized = normalizeChineseLanguageCode(language.toLowerCase());
+    return normalized === 'zh-Hans' ? 'zh' : normalized;
 }
 
 function languageSampleKey(language: string): string {
@@ -456,7 +447,9 @@ export async function prepareChromeTranslationInPage(
                 ? translator.translate(pair.sampleText, {signal: options.signal})
                 : translator.translate(pair.sampleText),
         ]), options.signal);
-        const detectedLanguage = detectedLanguageFrom(detectedValue);
+        const detectedCode = detectedLanguageFrom(detectedValue);
+        const script = detectedCode.toLowerCase() === 'zh' ? detectChineseScript(pair.sampleText) : undefined;
+        const detectedLanguage = script ? `zh-${script}` : detectedCode;
         if (languageComparisonKey(detectedLanguage) !== languageComparisonKey(pair.sourceLanguage)) {
             throw new ChromeTranslationPreparationError(
                 'detection-mismatch',

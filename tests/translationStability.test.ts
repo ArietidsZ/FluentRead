@@ -8,6 +8,7 @@ import {
     isOwnSingleTextSlotMove,
     isTranslationArtifact,
     isTranslationArtifactCurrent,
+    isTranslationCandidateCurrent,
     mutationTouchesCurrentTranslationArtifact,
     reboundLiveTextResult,
     statefulSourceAndTextSlotsAreCurrent,
@@ -49,6 +50,20 @@ function childListRecord(
 }
 
 describe('动态翻译稳定性判定', () => {
+    it('来源候选移出文档后失效，显式应用外壳例外仍不能穿过新增的局部禁译边界', () => {
+        const {document} = parseHTML('<html><body><div translate="no"><p>Readable application source.</p></div></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const candidate = {element: owner, kind: 'content' as const, reason: 'explicit-source',
+            allowTopLevelApplicationShell: true};
+        expect(isTranslationCandidateCurrent(candidate)).toBe(true);
+        owner.setAttribute('translate', 'no');
+        expect(isTranslationCandidateCurrent(candidate)).toBe(false);
+        owner.removeAttribute('translate');
+        expect(isTranslationCandidateCurrent(candidate)).toBe(true);
+        owner.remove();
+        expect(isTranslationCandidateCurrent(candidate)).toBe(false);
+    });
+
     it('只在连接、内容候选且原文仍匹配时认为来源稳定', () => {
         const {document} = parseHTML('<html><body><p>source</p></body></html>');
         const node = document.querySelector('p') as HTMLElement;
@@ -170,6 +185,52 @@ describe('动态翻译稳定性判定', () => {
             expect(isTranslationArtifactCurrent(node, bilingualState), `${name} 恢复`).toBe(true);
         });
     });
+
+    it.each([
+        ['href', '/other'], ['title', 'Changed meaning'], ['role', 'button'],
+        ['aria-hidden', 'true'], ['style', 'display:none'], ['class', 'hidden'],
+        ['onclick', 'run()'], ['lang', 'fr'], ['tabindex', '2'], ['tabindex', 'invalid'],
+    ])('接受焦点管理前仍拒绝译文链接的 %s=%s 篡改', (attribute, value) => {
+        const {document} = parseHTML('<html><body><p>source</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const wrapper = document.createElement('span');
+        wrapper.className = 'fluent-read-bilingual-content';
+        wrapper.setAttribute('data-fr-translation-owned', 'true');
+        wrapper.innerHTML = '<a href="/original">译文链接</a>';
+        owner.appendChild(wrapper);
+        const snapshot = state({phase: 'translated', bilingualContent: wrapper,
+            bilingualHTML: wrapper.innerHTML, bilingualOuterHTML: wrapper.outerHTML,
+            bilingualContentTemplate: wrapper.cloneNode(true) as HTMLElement});
+        const link = wrapper.querySelector('a')!;
+        link.setAttribute('tabindex', '-1');
+        expect(isTranslationArtifactCurrent(owner, snapshot)).toBe(true);
+        link.setAttribute(attribute, value);
+        expect(isTranslationArtifactCurrent(owner, snapshot)).toBe(false);
+    });
+
+    it.each(['text', 'extra-node', 'missing-node', 'non-link-tabindex', 'root-tabindex', 'missing-template', 'stale-template']) (
+        '焦点属性例外不接受 %s', (mutation) => {
+            const {document} = parseHTML('<html><body><p>source</p></body></html>');
+            const owner = document.querySelector<HTMLElement>('p')!;
+            const wrapper = document.createElement('span');
+            wrapper.className = 'fluent-read-bilingual-content';
+            wrapper.setAttribute('data-fr-translation-owned', 'true');
+            wrapper.innerHTML = '<a href="/original">译文链接</a><span>译文内容</span>';
+            owner.appendChild(wrapper);
+            const snapshot = state({phase: 'translated', bilingualContent: wrapper,
+                bilingualHTML: wrapper.innerHTML, bilingualOuterHTML: wrapper.outerHTML,
+                bilingualContentTemplate: wrapper.cloneNode(true) as HTMLElement});
+            wrapper.querySelector('a')!.setAttribute('tabindex', '-1');
+            if (mutation === 'text') wrapper.querySelector('a')!.textContent = 'Changed';
+            if (mutation === 'extra-node') wrapper.appendChild(document.createElement('span'));
+            if (mutation === 'missing-node') wrapper.querySelector('span')!.remove();
+            if (mutation === 'non-link-tabindex') wrapper.querySelector('span')!.setAttribute('tabindex', '-1');
+            if (mutation === 'root-tabindex') wrapper.setAttribute('tabindex', '-1');
+            if (mutation === 'missing-template') snapshot.bilingualContentTemplate = undefined;
+            if (mutation === 'stale-template') snapshot.bilingualContentTemplate!.textContent = 'Changed template';
+            expect(isTranslationArtifactCurrent(owner, snapshot)).toBe(false);
+        },
+    );
 
     it('双语仅在语义与精确原文结构一致时重绑文本节点', () => {
         const {document} = parseHTML('<html><body><p><span>source</span></p></body></html>');

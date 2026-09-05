@@ -348,7 +348,13 @@ async function main() {
     captureErrors(popup, 'popup', errors);
     await popup.setViewportSize({width: 400, height: 600});
     await popup.goto(popupUrl, {waitUntil: 'domcontentloaded', timeout: args.timeout});
-    await popup.locator('.popup-shell').waitFor({state: 'visible', timeout: args.timeout});
+    await popup.locator('.popup-shell[data-config-ready="true"]').waitFor({state: 'visible', timeout: args.timeout});
+    // 临时配置首次打开 Popup 必须先完成语言引导，才能点击被遮罩保护的文档入口。
+    await popup.getByTestId('onboarding-language-next').click();
+    await popup.locator('[data-testid="onboarding-language-step"] [data-language="zh-CN"]').click();
+    await popup.getByTestId('onboarding-language-step').locator('button.onboarding-confirm').click();
+    await popup.getByTestId('ui-language-onboarding').waitFor({state: 'hidden', timeout: args.timeout});
+    result.assertions.popupLanguageSetup = 'completed-via-ui';
     const popupMetrics = await popup.evaluate(() => ({
       width: document.documentElement.scrollWidth,
       height: document.documentElement.scrollHeight,
@@ -393,9 +399,10 @@ async function main() {
     result.screenshots.push(path.join(artifactsDir, 'options-floating-ball-switch.png'));
     // 全文翻译快捷键位于翻译设置；按稳定的分区标识导航，避免依赖历史标题。
     await optionsPage.locator('button[data-section="settings-translation"]').click();
-    const fullPageHotkeyRow = optionsPage.locator('.settings-control-row').filter({hasText: '全文翻译快捷键'});
-    await fullPageHotkeyRow.waitFor({state: 'visible', timeout: args.timeout});
-    const fullPageHotkeyControlCount = await fullPageHotkeyRow.getByRole('combobox').count();
+    // 显示标题已改为“常用全文快捷键”，使用控件稳定的可访问名称定位。
+    const fullPageHotkeyControl = optionsPage.getByRole('combobox', {name: '全文翻译快捷键', exact: true});
+    await fullPageHotkeyControl.waitFor({state: 'visible', timeout: args.timeout});
+    const fullPageHotkeyControlCount = await fullPageHotkeyControl.count();
     if (fullPageHotkeyControlCount < 1) {
       fail('完整设置页缺少全文翻译快捷键控件');
     }
@@ -406,9 +413,10 @@ async function main() {
     await optionsPage.screenshot({path: path.join(artifactsDir, 'options-floating-ball-hotkey.png'), fullPage: true});
     result.screenshots.push(path.join(artifactsDir, 'options-floating-ball-hotkey.png'));
     await optionsPage.close();
-    const openedPagePromise = context.waitForEvent('page', {timeout: args.timeout});
-    await popup.getByRole('button', {name: '打开文档翻译'}).click();
-    const openedPage = await openedPagePromise;
+    const [openedPage] = await Promise.all([
+      context.waitForEvent('page', {timeout: args.timeout}),
+      popup.getByRole('button', {name: '打开文档翻译'}).click(),
+    ]);
     captureErrors(openedPage, 'document-from-popup', errors);
     await openedPage.waitForURL(documentUrl, {timeout: args.timeout});
     await openedPage.locator('.file-drop-zone').waitFor({state: 'visible', timeout: args.timeout});

@@ -110,6 +110,25 @@ describe("DeepLX adapter", () => {
         expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
+    it.each([[400], [429], [503], [400, 400], [400, 422]])('preserves safe HTTP classification across failed endpoints %j', async (...statuses) => {
+        mockConfig.deeplx = statuses.map((_, index) => `https://endpoint-${index}.example/translate`).join(',');
+        for (const status of statuses) {
+            fetchMock.mockResolvedValueOnce(mockResponse({}, {ok: false, status}));
+        }
+        await expect(deeplx({origin: 'private original'})).rejects.toMatchObject({statusCode: statuses[0]});
+    });
+
+    it.each([429, 503, undefined])('does not mask a mixed availability failure with a parameter error %s', async status => {
+        mockConfig.deeplx = 'https://primary.example/translate,https://backup.example/translate';
+        fetchMock.mockResolvedValueOnce(mockResponse({}, {ok: false, status: 400}));
+        if (status === undefined) fetchMock.mockRejectedValueOnce(new Error('network secret'));
+        else fetchMock.mockResolvedValueOnce(mockResponse({}, {ok: false, status}));
+        const request = deeplx({origin: 'private original'});
+        await expect(request).rejects.not.toHaveProperty('statusCode');
+        await expect(request).rejects.toThrow('备用站点 1: 请求失败: 400；备用站点 2:');
+        await expect(request).rejects.not.toThrow('secret');
+    });
+
     it("adds an optional bearer token without exposing it in the URL", async () => {
         mockConfig.token = {deeplx: "test-token"};
         fetchMock.mockResolvedValue(mockResponse({code: 200, data: "你好"}));
@@ -184,4 +203,9 @@ describe("DeepLX adapter", () => {
             targetLang: "ZH",
         });
     });
+});
+
+it('DeepLX 脚本及地区别名归一后保持繁体目标', () => {
+    expect(getDeepLXRequestLanguages('zh-Hans-CN', 'zh-Hant-HK')).toEqual({sourceLang: 'ZH', targetLang: 'ZH-HANT'});
+    expect(getDeepLXRequestLanguages('zh-Hant', 'zh-SG')).toEqual({sourceLang: 'ZH-HANT', targetLang: 'ZH'});
 });

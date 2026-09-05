@@ -35,6 +35,13 @@ const LOCAL_BROWSER_FIXTURES = [
         supportsHeaded: true,
     },
     {
+        id: 'translation-mutation',
+        label: 'translation mutation and control ownership browser regression',
+        script: 'scripts/testing/run-translation-mutation-test.cjs',
+        backgroundArgs: ['--background'],
+        supportsHeaded: false,
+    },
+    {
         id: 'video-subtitle-fixture',
         label: 'video subtitle fixture browser regression',
         script: 'scripts/run-video-subtitle-fixture-test.cjs',
@@ -54,6 +61,14 @@ const LOCAL_BROWSER_FIXTURES = [
         script: 'scripts/testing/run-settings-center-ui-test.cjs',
         backgroundArgs: ['--background'],
         supportsHeaded: false,
+    },
+    {
+        id: 'glossary',
+        label: 'glossary browser regression',
+        script: 'scripts/run-glossary-test.cjs',
+        backgroundArgs: ['--background'],
+        supportsHeaded: false,
+        supportsTimeout: false,
     },
     {
         id: 'privacy-boundary',
@@ -318,7 +333,7 @@ function browserFixtureArgs(fixture, options) {
     } else {
         args.push('--extension-dir', options.extensionDir);
     }
-    if (options.timeout) args.push('--timeout', options.timeout);
+    if (options.timeout && fixture.supportsTimeout !== false) args.push('--timeout', options.timeout);
     if (fixture.args) args.push(...fixture.args);
 
     if (options.headed && fixture.supportsHeaded) {

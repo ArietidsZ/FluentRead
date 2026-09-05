@@ -33,6 +33,7 @@ describe('语义化公共工具', () => {
 
     it.each([
         ['这是一个用于中文语言识别的完整句子。', 'zh-Hans'],
+        ['這是一個用於中文語言識別的完整句子。', 'zh-Hant'],
         ['This is a complete English sentence for language detection.', 'en'],
         ['これは言語判定のための十分に長い日本語の文章です。', 'ja'],
         ['이 문장은 언어 감지를 위한 충분히 긴 한국어 문장입니다.', 'ko'],
@@ -44,6 +45,8 @@ describe('语义化公共工具', () => {
 
     it('未知或不确定语言保持 franc 原始代码', () => {
         expect(detectlang('12345')).toBe('und');
+        expect(detectlang('这是繁體中文測試，这是另一段简体中文。')).toBe('cmn');
+        expect(detectlang('呢個係繁體嘅廣東話，佢哋話冇問題。')).not.toBe('zh-Hant');
     });
 
     it.each([
@@ -59,7 +62,18 @@ describe('语义化公共工具', () => {
         ['繁體中文測試。', 'zh-CN', false],
         ['这是繁體中文測試。', 'zh-Hans', false],
         ['这是繁體中文測試。', 'zh-Hant', false],
-        ['这是中文测试。', 'zh', false],
+        ['这是中文测试。', 'zh', true],
+        ['这是中文测试。', 'zh-Hant-CN', false],
+        ['繁體中文測試。', 'zh-Hans-TW', false],
+        ['这是简体中文測試。', 'zh-Hans', false],
+        ['這是繁體中文测试。', 'zh-Hant', false],
+        ['这里有兩隻貓', 'zh-Hans', false],
+        ['這裡有两只猫', 'zh-Hant', false],
+        ['這是繁體中文𫫇', 'zh-Hant', false],
+        ['这是简体中文𪚥', 'zh-Hans', false],
+        ['繁體中文 English', 'zh-Hant', false],
+        ['呢個係繁體嘅廣東話。', 'zh-Hant', false],
+        ['繁體中文測試。', 'yue', false],
         ['这是中文测试。', 'ja', false],
         ['日本語文章', 'zh-Hans', false],
         ['日本語文章', 'ja', false],

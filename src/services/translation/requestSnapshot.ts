@@ -2,7 +2,7 @@
  * @file src/services/translation/requestSnapshot.ts
  *
  * 文件职责：在翻译消息上附加只读 provider 配置快照，消除异步缓存读取期间全局配置变化造成的请求身份错配。
- * 主要内容：定义配置快照、剩余预算及内部请求取消 symbol，精确复制 provider 配置，并提供 attach/get 函数供后台 broker 安全传递进程内状态。
+ * 主要内容：定义配置快照、剩余预算、内部取消与可信术语来源 symbol，冻结术语规则并从完整文本槽协议恢复纯匹配原文，供后台 broker 安全传递进程内状态。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
@@ -11,14 +11,61 @@ import type {
     TranslationModelUsageObservation,
     TranslationProviderConfigSnapshot,
     TranslationRequestMessageBase,
+    TranslationGlossaryContext,
 } from './types';
+import {normalizeFreeTranslationOrder} from '@/src/core/config/freeTranslation';
 import type {CustomOpenAIProvider} from '@/src/core/config/customOpenAI';
+import {normalizeDeepLApiPlan} from '@/src/core/config/deepl';
+import {resolveGlossary} from '@/src/core/glossary';
+import {parseTranslationSlots} from '@/src/core/translation/public';
 
 /** 内部 symbol 无法由 content runtime 消息伪造，也不会进入网络 JSON。 */
 export const TRANSLATION_PROVIDER_CONFIG = Symbol('fluentread.translation-provider-config');
 export const TRANSLATION_REMAINING_BUDGET = Symbol('fluentread.translation-remaining-budget');
 export const TRANSLATION_MODEL_USAGE_OBSERVER = Symbol('fluentread.translation-model-usage-observer');
 export const TRANSLATION_REQUEST_CONTROL = Symbol('fluentread.translation-request-control');
+export const TRANSLATION_GLOSSARY_CONTEXT = Symbol('fluentread.translation-glossary-context');
+
+export interface TrustedTranslationGlossaryContext {
+    readonly pageUrl?: string;
+    readonly context?: TranslationGlossaryContext;
+}
+
+/** 真实 sender 或应用组合根才能绑定网页来源；字符串 payload 无法伪造此 symbol。 */
+export function attachTranslationGlossaryContext<T extends object>(
+    message: T,
+    context: TrustedTranslationGlossaryContext,
+): T {
+    return Object.assign(message, {[TRANSLATION_GLOSSARY_CONTEXT]: Object.freeze({...context})});
+}
+
+export function getTranslationGlossaryContext(message: object): TrustedTranslationGlossaryContext | undefined {
+    return (message as {[TRANSLATION_GLOSSARY_CONTEXT]?: TrustedTranslationGlossaryContext})[TRANSLATION_GLOSSARY_CONTEXT];
+}
+
+/** 仅解析完整的内部槽协议，避免哨兵下划线破坏词边界或被当成用户术语；其他文本原样匹配。 */
+export function getTranslationGlossarySourceText(origin: string | string[]): string | string[] {
+    if (Array.isArray(origin)) return origin.flatMap(getTranslationGlossarySourceText);
+    const firstMarker = origin.match(/^___FLUENTREAD_([a-z0-9_-]+)_0_BEGIN___/iu);
+    if (!firstMarker) return origin;
+    // nonce 的白名单只允许字母、数字、下划线和连字符，可直接组成字面正则片段。
+    const starts = [...origin.matchAll(new RegExp(`___FLUENTREAD_${firstMarker[1]}_\\d+_BEGIN___`, 'gu'))]
+        .map(([marker]) => marker);
+    const ends = starts.map(marker => marker.replace(/_BEGIN___$/u, '_END___'));
+    return parseTranslationSlots({payload: origin, starts, ends}, origin) ?? origin;
+}
+
+/** 同一批次逐条发送时仍只外发该条原文真正命中的术语，摘要由模板显式跳过。 */
+export function getTranslationGlossaryTerms(current: TranslationProviderConfigSnapshot, origin: string | string[]) {
+    const context = current.glossaryMatchContext;
+    if (!context) return current.glossaryTerms ?? [];
+    if (!current.glossaryTerms?.length) return [];
+    return resolveGlossary(current.glossaryLibraries ?? [], {
+        ...context,
+        glossaryIds: context.glossaryIds ? [...context.glossaryIds] : null,
+        text: getTranslationGlossarySourceText(origin),
+    }).terms;
+}
 
 export type TranslationModelUsageObserver = (observation: TranslationModelUsageObservation) => void;
 
@@ -173,6 +220,21 @@ export function createTranslationProviderConfigSnapshot(
     };
     return Object.freeze({
         ...providerSource,
+        freeTranslationOrder: Object.freeze(normalizeFreeTranslationOrder(source.freeTranslationOrder)),
+        deeplApiPlan: normalizeDeepLApiPlan(source.deeplApiPlan),
+        glossaryLibraries: Object.freeze((source.glossaryLibraries ?? []).map((library) => Object.freeze({
+            ...library,
+            domains: Object.freeze([...library.domains]),
+            entries: Object.freeze(library.entries.map((entry) => Object.freeze({...entry}))),
+        }))),
+        documentGlossaryIds: source.documentGlossaryIds ? Object.freeze([...source.documentGlossaryIds]) : null,
+        videoGlossaryIds: source.videoGlossaryIds ? Object.freeze([...source.videoGlossaryIds]) : null,
+        glossaryTerms: Object.freeze((source.glossaryTerms ?? []).map((term) => Object.freeze({...term}))),
+        ...(source.glossaryMatchContext ? {glossaryMatchContext: Object.freeze({
+            ...source.glossaryMatchContext,
+            glossaryIds: source.glossaryMatchContext.glossaryIds
+                ? Object.freeze([...source.glossaryMatchContext.glossaryIds]) : null,
+        })} : {}),
         model: frozenStringMap(source.model),
         customModel: frozenStringMap(source.customModel),
         modelThinking: frozenNestedBooleanMap(source.modelThinking),

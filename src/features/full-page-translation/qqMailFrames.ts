@@ -37,7 +37,7 @@ export type QQMailFrameRequestOrChangedMessage = QQMailFrameRequestMessage | QQM
 
 const LEGACY_TOP_PATH = '/cgi-bin/frame_html';
 const LEGACY_READ_PATH = '/cgi-bin/readmail';
-const invocationKeys = new Set(['service', 'model', 'targetLanguage', 'displayMode', 'profileId', 'fullPageMode', 'scope']);
+const invocationKeys = new Set(['service', 'model', 'targetLanguage', 'displayMode', 'profileId', 'fullPageMode', 'glossaryIds', 'scope']);
 const requestKeys = new Set(['type', 'action', 'invocation']);
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -69,6 +69,13 @@ function parseInvocation(value: unknown): PageTranslationInvocation | undefined 
     if (!isObject(value)) throw new TypeError('QQ 邮箱 frame invocation 无效');
     for (const key of Object.keys(value)) {
         if (!invocationKeys.has(key)) throw new TypeError('QQ 邮箱 frame invocation 字段无效');
+        if (key === 'glossaryIds') {
+            if (value[key] !== null && (!Array.isArray(value[key]) || value[key].length > 100
+                || !Array.from(value[key]).every(id => typeof id === 'string' && id.length <= 128))) {
+                throw new TypeError('QQ 邮箱 frame glossaryIds 无效');
+            }
+            continue;
+        }
         if (typeof value[key] !== 'string') throw new TypeError('QQ 邮箱 frame invocation 字段必须是字符串');
     }
     if (value.displayMode !== undefined && value.displayMode !== 'bilingual' && value.displayMode !== 'single') {

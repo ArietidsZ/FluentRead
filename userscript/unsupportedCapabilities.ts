@@ -21,7 +21,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     return () => undefined;
 }
 
-/** Userscript 不注入 YouTube MAIN-world bridge，因此始终关闭扩展专属字幕 runtime。 */
-export function isYouTubeVideoPage(): boolean {
+/** Userscript 不注入 YouTube/X MAIN-world bridge，因此始终关闭扩展专属字幕 runtime。 */
+export function isSupportedVideoPage(): boolean {
     return false;
 }

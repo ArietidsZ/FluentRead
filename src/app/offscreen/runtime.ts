@@ -14,6 +14,7 @@ import {
 import {createOffscreenMessageListener} from './messageRouter';
 import {createSelectionTtsPlayer} from './ttsPlayback';
 import {translateWithChromeApi, type ChromeTranslationEnvironment} from './translation';
+import {cancelLocalVideoTranscription, prepareLocalVideoTranscriptionModel, transcribeLocalVideoAudio} from '@/src/features/video-subtitle/offscreen/transcription';
 
 function decodeAudioBase64(audioBase64: string): Uint8Array {
     const binary = atob(audioBase64);
@@ -47,6 +48,11 @@ export function startOffscreenApp(): void {
         translateArea: translateAreaInOffscreen,
         fetchImage: fetchImageInOffscreen,
         downloadOcrLanguages: downloadImageOcrLanguages,
+        videoAi: {
+            transcribe: (request) => transcribeLocalVideoAudio(request as any),
+            prepare: (request) => prepareLocalVideoTranscriptionModel(request.model, {keepWarm: request.keepWarm === true, streamId: request.streamId}),
+            cancel: cancelLocalVideoTranscription,
+        },
     });
 
     chrome.runtime.onMessage.addListener(listener);

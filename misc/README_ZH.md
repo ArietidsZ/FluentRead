@@ -8,7 +8,7 @@
 
 一款帮助你在当前页面读懂外语内容的开源浏览器翻译插件。
 
-[![版本](https://img.shields.io/badge/version-0.0.31-6d5dfc?style=flat-square)](https://github.com/FluentRead/FluentRead/releases)
+[![版本](https://img.shields.io/badge/version-0.0.32-6d5dfc?style=flat-square)](https://github.com/FluentRead/FluentRead/releases)
 [![许可证：GPL v3](https://img.shields.io/badge/license-GPL--3.0-22a06b?style=flat-square)](../LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/FluentRead/FluentRead?style=flat-square)](https://github.com/FluentRead/FluentRead)
 
@@ -74,6 +74,8 @@
 流畅阅读没有账号体系，也没有自己的翻译服务器。使用云端服务时，你要求翻译的文字会发送给对应服务；你也可以选择本地 Ollama，让更多内容留在电脑上。详情请查看[数据与隐私](https://fluent.thinkstu.com/guide/privacy)。
 
 ## 帮助
+
+想调整某个网站的正文范围，可以跟随[自定义网站适配教程](https://fluent.thinkstu.com/guide/custom-site-rules)操作。欢迎向内置目录新增或改进规则，[网站适配贡献指南](../docs/contributing/site-adaptation.md)提供示例、测试夹具和验证步骤。
 
 - [常见问题](https://fluent.thinkstu.com/guide/faq)
 - [GitHub Issues](https://github.com/FluentRead/FluentRead/issues)

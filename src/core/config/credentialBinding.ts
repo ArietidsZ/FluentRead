@@ -18,6 +18,8 @@ import {
 } from './constants';
 import {getCustomOpenAIProvider, isCustomOpenAIProviderId} from './customOpenAI';
 import {DEFAULT_DEEPLX_ENDPOINT, parseDeepLXEndpoints} from './deeplx';
+import {getDeepLEndpoint} from './deepl';
+import {normalizeAzureEndpoint} from './azure';
 import type {ConfigCredentialField, ConfigCredentials} from './credentials';
 import type {Config} from './model';
 
@@ -66,6 +68,15 @@ function canonicalNewApiEndpoint(value: string): string {
     }
 }
 
+function canonicalAzureEndpoint(value: string): string {
+    try {
+        return canonicalOpenAICompatibleEndpoint(normalizeAzureEndpoint(value));
+    } catch {
+        // 未补全的旧配置保留原始身份，配置加载和无关编辑不应使既有凭据丢失。
+        return canonicalOpenAICompatibleEndpoint(value);
+    }
+}
+
 function configuredTongyiDestinations(config: Config): string {
     const service = services.tongyi;
     const configuredModels = [
@@ -106,7 +117,7 @@ function tokenCredentialDestination(config: Config, service: string): string {
     }
     // AI SDK 的 NewAPI/Azure 路由不读取通用 proxy，必须按真实直连字段绑定。
     if (service === services.newapi) return `urls:${canonicalNewApiEndpoint(config.newApiUrl)}`;
-    if (service === services.azureOpenai) return urlDestination(service, config.azureOpenaiEndpoint);
+    if (service === services.azureOpenai) return `urls:${canonicalAzureEndpoint(config.azureOpenaiEndpoint)}`;
     // Gemini 代理请求按协议不携带 x-goog-api-key；Key 始终只信任 Google 官方端点，
     // 因此代理开关或代理地址变化不能误删仍安全保存的官方凭据。
     if (service === services.gemini) return urlDestination(service,
@@ -115,6 +126,7 @@ function tokenCredentialDestination(config: Config, service: string): string {
     if (service === services.deeplx) return `urls:${configuredDeepLXDestinations(config)}`;
     const proxy = config.proxy[service]?.trim();
     if (proxy) return urlDestination(service, proxy);
+    if (service === services.deepL) return urlDestination(service, getDeepLEndpoint(config.deeplApiPlan));
     if (service === services.minimax) {
         const plan = config.minimaxBillingPlan === 'token-plan' ? 'token-plan' : 'payg';
         const region = config.minimaxRegion === 'global' ? 'global' : 'cn';

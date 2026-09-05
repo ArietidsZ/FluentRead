@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { reactive } from 'vue';
+import {readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import * as ts from 'typescript';
 import { normalizeConfig, type Config } from '@/src/core/config/model';
 import { sanitizeConfigCredentials } from '@/src/core/config/credentials';
 import { customModelString, services } from '@/src/core/config/catalog';
@@ -403,6 +406,38 @@ describe('统一配置存储', () => {
         expect((history.entries[1].config as unknown as Record<string, unknown>).__fluentConfigRevision).toBeUndefined();
     });
 
+    it('旧配置保持图片和圈选开关，并为圈选补齐标准翻译和跟随服务', async () => {
+        const configStore = await loadConfigModule({...storedConfig, selectionAreaEnabled: true, disableImageTranslator: true});
+        await configStore.configReady;
+        expect(configStore.config).toMatchObject({
+            selectionAreaEnabled: true, disableImageTranslator: true,
+            areaTranslationMode: 'standard', areaTranslationService: '',
+        });
+        expect(configStore.config.popupQuickFeatureOrder.filter(id => id === 'area')).toHaveLength(1);
+        expect(configStore.config.popupQuickFeatureVisibility.area).toBe(true);
+        await configStore.saveConfig({...configStore.config, areaTranslationMode: 'ai', areaTranslationService: 'openai'});
+        expect(storageState.get('local:config')).toMatchObject({areaTranslationMode: 'ai', areaTranslationService: 'openai'});
+    });
+
+    it('独立圈选服务接受机器翻译和已配置AI，拒绝畸形模式或孤立服务', () => {
+        for (const service of ['microsoft', 'openai', 'deeplx', '']) {
+            expect(normalizeConfig({areaTranslationService: service}).areaTranslationService).toBe(service);
+        }
+        for (const areaTranslationMode of [undefined, null, false, 'unknown', 'standard']) {
+            expect(normalizeConfig({areaTranslationMode}).areaTranslationMode).toBe('standard');
+        }
+        expect(normalizeConfig({areaTranslationMode: 'ai'}).areaTranslationMode).toBe('ai');
+        for (const areaTranslationService of [null, false, 12, 'unknown', 'custom:removed']) {
+            expect(normalizeConfig({areaTranslationService}).areaTranslationService).toBe('');
+        }
+        const customOpenAIProviders = [{id: 'custom:area', name: 'Area AI', endpoint: 'https://example.com/v1/chat/completions', models: ['vision-or-text-model']}];
+        expect(normalizeConfig({areaTranslationService: 'custom:area', customOpenAIProviders}).areaTranslationService).toBe('custom:area');
+        expect(normalizeConfig({areaTranslationService: 'custom'}).customOpenAIProviders.some(provider => provider.id === 'custom')).toBe(true);
+        const layout = normalizeConfig({popupQuickFeatureOrder: ['image', 'selection', 'area', 'area', 'unknown'], popupQuickFeatureVisibility: {image: false, area: false}});
+        expect(layout.popupQuickFeatureOrder.filter(id => id === 'area')).toHaveLength(1);
+        expect(layout.popupQuickFeatureVisibility).toMatchObject({image: false, area: false});
+    });
+
     it('为旧配置补齐默认关闭的视频字幕 Beta、独立微软翻译服务和默认字号', async () => {
         const configStore = await loadConfigModule(storedConfig);
 
@@ -410,6 +445,7 @@ describe('统一配置存储', () => {
 
         expect(configStore.config.videoTranslationEnabled).toBe(false);
         expect(configStore.config.videoService).toBe('microsoft');
+        expect(configStore.config.videoLocalModel).toBe('tiny');
         expect(configStore.config.videoSubtitleVisible).toBe(true);
         expect(configStore.config.videoSubtitleDisplayMode).toBe('bilingual');
         expect(configStore.config.videoSubtitleFontSize).toBe(100);
@@ -486,6 +522,14 @@ describe('统一配置存储', () => {
         expect(configStore.config.videoSubtitleVisible).toBe(true);
         expect(configStore.config.videoSubtitleDisplayMode).toBe('bilingual');
         expect(configStore.config.videoSubtitleFontSize).toBe(100);
+    });
+
+    it('非法的本地视频 Whisper 模型回退到 Tiny', async () => {
+        const configStore = await loadConfigModule({ ...storedConfig, videoLocalModel: 'large' });
+
+        await configStore.configReady;
+
+        expect(configStore.config.videoLocalModel).toBe('tiny');
     });
 
     it('存储内容损坏时回退到默认配置，并保持初始化 Promise 可用', async () => {
@@ -570,6 +614,40 @@ describe('统一配置存储', () => {
         }));
         expect(configStore.getConfigRevision()).toBe(2);
         expect(storageMock.setItem).not.toHaveBeenCalled();
+    });
+
+    it('设置页嵌套草稿与运行时基线隔离，编辑 user_role 后产生非空 patch 并落盘', async () => {
+        const userRole = 'base user prompt {{to}} {{origin}}';
+        const canonicalConfig = {
+            ...sanitizeConfigCredentials(normalizeConfig({
+                ...storedConfig,
+                service: 'openai',
+                user_role: {openai: userRole},
+                system_role: {openai: 'base system prompt'},
+            })),
+            __fluentConfigRevision: 7,
+        };
+        const configStore = await loadConfigModule(canonicalConfig);
+        await configStore.configReady;
+        storageMock.setItem.mockClear();
+        storageOperations.length = 0;
+
+        // This is the settings-page hydration boundary after the fix. normalizeConfig
+        // must clone nested mappings before the editor mutates its local draft.
+        const draft = normalizeConfig(configStore.config);
+        expect(draft.user_role).not.toBe(configStore.config.user_role);
+        const editedUserRole = 'edited user prompt {{to}} {{origin}}';
+        draft.user_role.openai = editedUserRole;
+        expect(configStore.config.user_role.openai).toBe(userRole);
+
+        await configStore.requestConfigPatch(draft);
+
+        expect(storageMock.setItem).toHaveBeenCalledWith(
+            'local:config',
+            expect.objectContaining({user_role: expect.objectContaining({openai: editedUserRole})}),
+        );
+        expect(configStore.config.user_role.openai).toBe(editedUserRole);
+        expect(storageOperations).toContain('set:local:config');
     });
 
     it.each([
@@ -2345,6 +2423,104 @@ describe('统一配置存储', () => {
         batchSender.mockClear();
         await configStore.handoffPendingConfigPatches(sendMessage, batchSender);
         expect(batchSender).not.toHaveBeenCalled();
+    });
+
+    it('设置页真实退出函数同步交接首 ACK 在途的 Harness 最后编辑，重复退出不重写', async () => {
+        const canonical = sanitizeConfigCredentials(normalizeConfig({...storedConfig, harness: {enabled: false, contextMode: 'paragraph'}}));
+        const configStore = await loadConfigModule({...canonical, __fluentConfigRevision: 4});
+        await configStore.configReady;
+        const {createConfigPersistenceHandler, createConfigPersistenceBatchHandler} = await import(
+            '@/src/app/background/handlers/configPersistence'
+        );
+        let backgroundConfig = normalizeConfig(canonical);
+        let revision = 4;
+        let writes = 0;
+        const handler = createConfigPersistenceHandler({
+            ready: Promise.resolve(), getCurrentConfig: () => backgroundConfig, getCurrentRevision: () => revision,
+            prepareConfigSaveRequest: configStore.prepareConfigSaveRequest,
+            prepareConfigPatchRequest: configStore.prepareConfigPatchRequest,
+            isExtensionUrl: () => true,
+            saveConfig: async next => {
+                backgroundConfig = next; writes += 1; revision += 1;
+                storageState.set('local:config', {...sanitizeConfigCredentials(next), __fluentConfigRevision: revision});
+            },
+        });
+        const batchHandler = createConfigPersistenceBatchHandler(handler);
+        let releaseFirstAck!: () => void;
+        const firstAck = new Promise<void>(resolve => { releaseFirstAck = resolve; });
+        const batches: unknown[] = [];
+        const sender = vi.fn(async (message: any) => {
+            if (message.type === 'persistConfigBatch') {
+                batches.push(message);
+                return batchHandler.handle(message, {});
+            }
+            const response = await handler.handle(message, {});
+            if (message.sequence === 1) await firstAck;
+            return response;
+        });
+        const draft = {value: normalizeConfig(configStore.config)};
+        // 执行生产 SFC 中的函数体，而不是复制关闭算法；后台与配置队列仍使用真实实现。
+        const source = readFileSync(resolve(process.cwd(), 'src/features/settings/ui/SettingsSections.vue'), 'utf8');
+        const script = source.match(/<script\b[^>]*>([\s\S]*?)<\/script>/u)![1];
+        const parsed = ts.createSourceFile('SettingsSections.ts', script, ts.ScriptTarget.ES2022, true);
+        const exit = parsed.statements.find(statement => ts.isFunctionDeclaration(statement) && statement.name?.text === 'persistOnPageExit');
+        expect(exit).toBeDefined();
+        const exitBody = ts.transpileModule(exit!.getText(parsed), {compilerOptions: {target: ts.ScriptTarget.ES2022}}).outputText;
+        const autosave = parsed.statements.find(statement => ts.isExpressionStatement(statement)
+            && ts.isCallExpression(statement.expression) && statement.expression.expression.getText(parsed) === 'watch'
+            && statement.expression.arguments[0].getText(parsed).includes('JSON.stringify(config.value)')) as ts.ExpressionStatement;
+        const callback = (autosave.expression as ts.CallExpression).arguments[1].getText(parsed);
+        const autosaveBody = ts.transpileModule(`const onDraftChange = ${callback};`, {compilerOptions: {target: ts.ScriptTarget.ES2022}}).outputText;
+        const warnings = {warn: vi.fn()};
+        const createExit = (hydrated: boolean) => new Function(
+            'handoffPendingConfigPatches', 'sendConfigMessage', 'persistConfigPatch', 'persistConfigReplace', 'config', 'console', 'normalizeConfig',
+            `let hydrated = ${hydrated}; let pageExitSaveStarted = false; let applyingExternalConfig = false; let lastSerialized = JSON.stringify(config.value); ${exitBody}; ${autosaveBody}; return Object.assign(persistOnPageExit, {onDraftChange});`,
+        )(
+            configStore.handoffPendingConfigPatches, sender,
+            (value: unknown) => configStore.requestConfigPatch(value, sender),
+            (value: unknown) => configStore.requestConfigSave(value, sender), draft, warnings, normalizeConfig,
+        ) as (() => void) & {onDraftChange(serialized: string): void};
+        createExit(false)();
+        expect(sender).not.toHaveBeenCalled();
+
+        draft.value.harness.enabled = true;
+        const first = configStore.requestConfigPatch(draft.value, sender);
+        await vi.waitFor(() => expect(backgroundConfig.harness.enabled).toBe(true));
+        draft.value.harness.contextMode = 'selection';
+        const last = configStore.requestConfigPatch(draft.value, sender);
+        const settled = Promise.allSettled([first, last]);
+        expect(sender).toHaveBeenCalledOnce();
+        const close = createExit(true);
+        try {
+            close();
+            // 关闭函数返回前已经交接，不能依赖尚未释放的页面 ACK 或之后的 microtask。
+            expect(batches).toHaveLength(1);
+            expect(batches[0]).toMatchObject({type: 'persistConfigBatch', patches: [
+                {sequence: 1, config: {harness: {enabled: true, contextMode: 'paragraph'}}},
+                {sequence: 2, config: {harness: {enabled: true, contextMode: 'selection'}}},
+            ]});
+            close();
+            expect(batches).toHaveLength(1);
+            await vi.waitFor(() => expect(backgroundConfig.harness.contextMode).toBe('selection'));
+            expect(writes).toBe(2);
+            expect(warnings.warn).not.toHaveBeenCalled();
+        } finally {
+            releaseFirstAck();
+            await settled;
+        }
+        expect(writes).toBe(2);
+        // 同一页面若并未真正离开，后续新草稿必须允许下一轮退出交接。
+        draft.value.harness.contextMode = 'paragraph';
+        close.onDraftChange(JSON.stringify(draft.value));
+        close();
+        expect(batches).toHaveLength(2);
+        await configStore.waitForConfigPersistenceQueue();
+        expect(backgroundConfig.harness.contextMode).toBe('paragraph');
+        expect(writes).toBe(3);
+        sender.mockClear();
+        createExit(true)();
+        await configStore.waitForConfigPersistenceQueue();
+        expect(sender).not.toHaveBeenCalled();
     });
 
     it('交接只包含同一 sender 的不可变 patch 信封', async () => {

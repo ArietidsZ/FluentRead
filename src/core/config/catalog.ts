@@ -1,11 +1,12 @@
 /**
  * @file src/core/config/catalog.ts
  *
- * 文件职责：维护 FluentRead 翻译服务与模型的领域目录，让设置、校验和运行时能够引用同一组稳定的服务标识与模型元数据。
- * 主要内容：定义 services、servicesType、服务目录展示分类与排序、模型候选、MiniMax 与 MiMo 的计费和地域选项，并提供 resolveConfiguredModel 等解析函数，把“自定义模型”选择归一为可请求的模型编号。 可核对的公开符号包括 services、servicesType、customModelString、minimaxBillingPlans、MiniMaxBillingPlan、minimaxRegions、MiniMaxRegion、mimoBillingPlans。
+ * 文件职责：维护 FluentRead 翻译语言、服务与模型的领域目录，让设置、校验和运行时能够引用同一组稳定的服务标识与模型元数据。
+ * 主要内容：明确区分简体中文和繁体中文，统一源语言、目标语言和输入框语言选项，并定义 services、servicesType、服务目录展示分类与排序、模型候选、MiniMax 与 MiMo 的计费和地域选项，并提供 resolveConfiguredModel 等解析函数，把“自定义模型”选择归一为可请求的模型编号。 可核对的公开符号包括 services、servicesType、customModelString、minimaxBillingPlans、MiniMaxBillingPlan、minimaxRegions、MiniMaxRegion、mimoBillingPlans。
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
+import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import {DEFAULT_DEEPLX_ENDPOINT} from "./deeplx";
 import {CUSTOM_OPENAI_RESERVED_MODEL_ID, isCustomOpenAIProviderId} from './customOpenAI';
 
@@ -13,6 +14,7 @@ export const services = {
     // 机器翻译
     microsoft: "microsoft",
     freeTranslation: "freeTranslation",
+    myMemory: "myMemory",
     deepL: "deepL",
     deeplx: "deeplx",
     google: "google",
@@ -22,7 +24,7 @@ export const services = {
     chromeTranslator: "chromeTranslator", // Chrome 内置翻译 API
     // 大模型翻译
     openai: "openai",
-    azureOpenai: "azureOpenai", // Azure OpenAI 服务
+    azureOpenai: "azureOpenai", // Azure 服务；保留旧 ID 以兼容已保存的配置和凭据
     gemini: "gemini",
     yiyan: "yiyan",
     tongyi: "tongyi",
@@ -49,7 +51,7 @@ export const services = {
 
 export const servicesType = {
     // 阵营划分
-    machine: new Set([services.microsoft, services.freeTranslation, services.deepL, services.deeplx, services.google, services.xiaoniu, services.youdao, services.tencent, services.chromeTranslator,]),
+    machine: new Set([services.myMemory, services.microsoft, services.freeTranslation, services.deepL, services.deeplx, services.google, services.xiaoniu, services.youdao, services.tencent, services.chromeTranslator,]),
     AI: new Set([
         services.openai,
         services.azureOpenai,
@@ -343,6 +345,17 @@ export const defaultModels = new Map<string, string>(
         .filter(([, model]) => Boolean(model)),
 );
 
+const translationLanguageOptions = [
+    {value: "zh-Hans", label: "简体中文"},
+    {value: "zh-Hant", label: "繁體中文"},
+    {value: "en", label: "English"},
+    {value: "ja", label: "日本語"},
+    {value: "ko", label: "한국어"},
+    {value: "fr", label: "Français"},
+    {value: "ru", label: "Русский"},
+    {value: "es", label: "Español"},
+];
+
 export const options = {
     minimaxBillingPlan: minimaxBillingPlans,
     minimaxRegion: minimaxRegions,
@@ -362,7 +375,7 @@ export const options = {
         {value: true, label: "开启"},
         {value: false, label: "已关闭"},
     ],
-    form: [{value: "auto", label: "自动检测"}],
+    from: [{value: "auto", label: "自动检测"}, ...translationLanguageOptions],
     // DeepSeek API 格式（仅 DeepSeek 服务显示）
     deepseekApiType: [
         {value: "auto", label: "自动（Chat Completion）"},
@@ -373,15 +386,7 @@ export const options = {
         {value: "disabled", label: "关闭（推荐）"},
         {value: "enabled", label: "开启"},
     ],
-    to: [
-        {value: "zh-Hans", label: "中文"},
-        {value: "en", label: "English"},
-        {value: "ja", label: "日本語"},
-        {value: "ko", label: "한국어"},
-        {value: "fr", label: "Français"},
-        {value: "ru", label: "Русский"},
-        {value: "es", label: "Español"},
-    ],
+    to: translationLanguageOptions,
     keys: [
         {value: "none", label: "禁用快捷键"},
 
@@ -422,8 +427,9 @@ export const options = {
         {
             value: services.freeTranslation,
             label: "免费翻译服务",
-            description: "免费提供，按微软翻译、DeepLX、谷歌翻译依次尝试；翻译质量和可用性不作保证。",
+            description: "按设置顺序自动切换可用服务；支持每路超时和失败冷却。",
         },
+        {value: services.myMemory, label: "MyMemory", description: "官方免费 API，匿名每天 5,000 字符；可选邮箱提升额度。"},
         {value: services.microsoft, label: "微软翻译"},
         {value: services.google, label: "谷歌翻译"},
         {value: services.deepL, label: "DeepL"},
@@ -456,7 +462,7 @@ export const options = {
         {value: services.infini, label: "无问芯穹", catalogKind: "platform"},
         {value: services.openrouter, label: "OpenRouter", catalogKind: "platform"},
         {value: services.groq, label: "Groq", catalogKind: "platform"},
-        {value: services.azureOpenai, label: "Azure OpenAI", catalogKind: "platform"},
+        {value: services.azureOpenai, label: "Azure", catalogKind: "platform"},
         {value: services.custom, label: "自定义接口", catalogKind: "platform"},
     ],
     display: [
@@ -536,13 +542,7 @@ export const options = {
     ],
     // 输入框翻译目标语言选项
     inputBoxTranslationTarget: [
-        {value: "zh-Hans", label: "中文"},
-        {value: "en", label: "English"},
-        {value: "ja", label: "日本語"},
-        {value: "ko", label: "한국어"},
-        {value: "fr", label: "Français"},
-        {value: "ru", label: "Русский"},
-        {value: "es", label: "Español"},
+        ...translationLanguageOptions,
         {value: "de", label: "Deutsch"},
         {value: "pt", label: "Português"},
         {value: "it", label: "Italiano"},
@@ -562,7 +562,8 @@ export const options = {
  * language has been configured.
  */
 export const multilingualTargetLanguageLabels: Readonly<Record<string, string>> = {
-    "zh-Hans": "中文 / Chinese",
+    "zh-Hans": "简体中文 / Simplified Chinese",
+    "zh-Hant": "繁體中文 / Traditional Chinese",
     en: "English / 英语",
     ja: "日本語 / Japanese / 日语",
     ko: "한국어 / Korean / 韩语",
@@ -575,7 +576,8 @@ export const multilingualTargetLanguageLabels: Readonly<Record<string, string>> 
 };
 
 export const englishTargetLanguageLabels: Readonly<Record<string, string>> = {
-    "zh-Hans": "Chinese",
+    "zh-Hans": "Simplified Chinese",
+    "zh-Hant": "Traditional Chinese",
     en: "English",
     ja: "Japanese",
     ko: "Korean",
@@ -589,7 +591,8 @@ export const englishTargetLanguageLabels: Readonly<Record<string, string>> = {
 
 const localizedTargetLanguageLabels: Readonly<Record<string, Readonly<Record<string, string>>>> = {
     "ja-JP": {
-        "zh-Hans": "中国語 / Chinese / 中文",
+        "zh-Hans": "中国語（簡体字） / Simplified Chinese / 简体中文",
+        "zh-Hant": "中国語（繁体字） / Traditional Chinese / 繁體中文",
         en: "英語 / English",
         ja: "日本語 / Japanese",
         ko: "韓国語 / Korean / 한국어",
@@ -601,7 +604,8 @@ const localizedTargetLanguageLabels: Readonly<Record<string, Readonly<Record<str
         it: "イタリア語 / Italian / Italiano",
     },
     "ko-KR": {
-        "zh-Hans": "중국어 / Chinese / 中文",
+        "zh-Hans": "중국어 간체 / Simplified Chinese / 简体中文",
+        "zh-Hant": "중국어 번체 / Traditional Chinese / 繁體中文",
         en: "영어 / English",
         ja: "일본어 / Japanese / 日本語",
         ko: "한국어 / Korean",
@@ -613,7 +617,8 @@ const localizedTargetLanguageLabels: Readonly<Record<string, Readonly<Record<str
         it: "이탈리아어 / Italian / Italiano",
     },
     "fr-FR": {
-        "zh-Hans": "chinois / Chinese / 中文",
+        "zh-Hans": "chinois simplifié / Simplified Chinese / 简体中文",
+        "zh-Hant": "chinois traditionnel / Traditional Chinese / 繁體中文",
         en: "anglais / English",
         ja: "japonais / Japanese / 日本語",
         ko: "coréen / Korean / 한국어",
@@ -625,7 +630,8 @@ const localizedTargetLanguageLabels: Readonly<Record<string, Readonly<Record<str
         it: "italien / Italian / Italiano",
     },
     "ru-RU": {
-        "zh-Hans": "китайский / Chinese / 中文",
+        "zh-Hans": "китайский (упрощённый) / Simplified Chinese / 简体中文",
+        "zh-Hant": "китайский (традиционный) / Traditional Chinese / 繁體中文",
         en: "английский / English",
         ja: "японский / Japanese / 日本語",
         ko: "корейский / Korean / 한국어",
@@ -637,7 +643,8 @@ const localizedTargetLanguageLabels: Readonly<Record<string, Readonly<Record<str
         it: "итальянский / Italian / Italiano",
     },
     "es-ES": {
-        "zh-Hans": "Chino / Chinese / 中文",
+        "zh-Hans": "Chino simplificado / Simplified Chinese / 简体中文",
+        "zh-Hant": "Chino tradicional / Traditional Chinese / 繁體中文",
         en: "Inglés / English",
         ja: "Japonés / Japanese / 日本語",
         ko: "Coreano / Korean / 한국어",
@@ -658,7 +665,7 @@ const targetLanguageLabelsByUiLanguage: Readonly<Record<string, Readonly<Record<
 
 export function getMultilingualTargetLanguageLabel(value: string, fallback = value, uiLanguage = "zh-CN"): string {
     const labels = targetLanguageLabelsByUiLanguage[uiLanguage] || multilingualTargetLanguageLabels;
-    return labels[value] || fallback;
+    return labels[normalizeChineseLanguageCode(value)] || fallback;
 }
 
 export const defaultOption = {

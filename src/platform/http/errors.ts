@@ -16,7 +16,7 @@ const MAX_PROVIDER_CODE_LENGTH = 16;
  * 正文可能包含原文、译文、provider 诊断或代理回显的凭据，因此只暴露协议状态码。
  */
 export function createHttpStatusError(response: HttpStatus, label = '请求失败'): Error {
-    return new Error(`${label}: ${response.status}`);
+    return Object.assign(new Error(`${label}: ${response.status}`), {statusCode: response.status});
 }
 
 /** 只有短小且确实形似数字错误码的 provider 字段可以回显。 */

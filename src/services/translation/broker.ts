@@ -2,7 +2,7 @@
  * @file src/services/translation/broker.ts
  *
  * 文件职责：编排翻译请求的配置快照、语言解析、缓存、请求去重、超时与 provider 调用，是后台翻译用例的中心服务。
- * 主要内容：createTranslationBroker 同时支持单条、批量和页面摘要，验证 provider 返回数量和类型，对完整多段协议逐槽修复上下文回显，以包含 Chrome auto 检测样本的完整身份构建缓存键，并在清理代次与剩余 deadline 下管理 pending 请求。 可核对的公开符号包括 createTranslationBroker、聚合导出。
+ * 主要内容：createTranslationBroker 同时支持单条、批量和页面摘要，验证 provider 返回数量和类型，对完整多段协议逐槽修复上下文回显，以包含 Chrome auto 检测样本的完整身份构建缓存键，并按匿名额度身份、等待策略、清理代次与剩余 deadline 隔离 pending 请求。 可核对的公开符号包括 createTranslationBroker、聚合导出。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
@@ -22,17 +22,30 @@ import {
     attachTranslationModelUsageObserver,
     attachTranslationProviderConfig,
     createTranslationProviderConfigSnapshot,
+    getTranslationGlossaryContext,
+    getTranslationProviderConfig,
+    getTranslationGlossarySourceText,
+    getTranslationGlossaryTerms,
     getTranslationRequestControl,
     TRANSLATION_REMAINING_BUDGET,
     type TranslationRemainingBudgetContext,
 } from './requestSnapshot';
 import {parseTranslationSlots, serializeTranslationSlots} from '@/src/core/translation/public';
+import {buildGlossaryRevision, resolveGlossary} from '@/src/core/glossary';
+import {supportsTranslationGlossary} from './capabilities';
 import {
     isDefinitePageContextLeak,
     isLikelyPageContextLeak,
 } from '@/src/core/translation/prompts';
 import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
+import {
+    normalizeFreeTranslationOrder,
+    normalizeFreeTranslationTimeoutMs,
+    normalizeFreeTranslationCooldownMs,
+} from '@/src/core/config/freeTranslation';
+import sha256 from 'crypto-js/sha256';
+import {getDeepLEndpoint} from '@/src/core/config/deepl';
 import {waitForBoundedPersistence} from './persistenceBarrier';
 import {
     createTranslationRequestScheduler,
@@ -104,6 +117,17 @@ class AIContextRecoveryResponseError extends Error {
     }
 }
 
+class GlossaryRevisionChangedError extends Error {
+    readonly kind = 'bad-request';
+    readonly retryable = false;
+    readonly code = 'GLOSSARY_REVISION_CHANGED';
+
+    constructor() {
+        super('术语库已更新，请重新翻译');
+        this.name = 'GlossaryRevisionChangedError';
+    }
+}
+
 export function createTranslationBroker(deps: TranslationBrokerDependencies): TranslationBroker {
     const pendingTranslations = new Map<string, Promise<string>>();
     const pendingBatches = new Map<string, Promise<string[]>>();
@@ -167,6 +191,8 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
     }
 
     function getProviderEndpoint(current: TranslationProviderConfigSnapshot, service: string): string {
+        // 这两条路径固定使用匿名端点，残留代理不能分裂缓存或在途去重。
+        if (service === 'freeTranslation' || service === 'myMemory') return '';
         if (deps.serviceTypes.isAiSdk(service)) {
             try {
                 return deps.endpointResolver.resolveOpenAICompatibleEndpoint(service, current).endpoint;
@@ -175,6 +201,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 return '';
             }
         }
+        if (service === 'deepL') return getDeepLEndpoint(current.deeplApiPlan, current.proxy[service]);
         if (current.proxy[service]) return current.proxy[service];
         if (service === 'custom') return current.custom;
         if (service === 'deeplx') return current.deeplx;
@@ -200,6 +227,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         sourceLanguageDetectionText?: string,
     ): string {
         const {config: current, service, sourceLanguage, targetLanguage} = execution;
+        const glossaryTerms = getTranslationGlossaryTerms(current, origin);
 
         return deps.buildTranslationCacheKey({
             requestMode: mode,
@@ -210,9 +238,15 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             model: getSelectedModel(current, service, modelOverride),
             endpoint: getProviderEndpoint(current, service),
             azureOpenaiEndpoint: service === 'azureOpenai' ? current.azureOpenaiEndpoint : undefined,
+            ...(service === 'freeTranslation' ? {freeTranslationPolicy: {
+                // v2 仅使用免密钥端点，旧链的私有地址和凭据不再影响此缓存。
+                version: 2,
+                order: current.freeTranslationOrder,
+            }} : {}),
             customBody: current.customBody[service] || '',
             systemRole: current.system_role[service] || '',
             userRole: current.user_role[service] || '',
+            ...(glossaryTerms.length ? {glossaryTerms} : {}),
             deepseekApiType: current.deepseekApiType,
             modelThinking: execution.thinking,
             transportProfile: deps.serviceTypes.isAiSdk(service)
@@ -371,6 +405,23 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
     function pendingOwnershipSuffix(execution: TranslationRequestExecution): string {
         const ownershipKey = execution.ownershipKey;
         return ownershipKey ? `:owner:${ownershipKey.length}:${ownershipKey}` : '';
+    }
+
+    function pendingAnonymousConfigSuffix(execution: TranslationRequestExecution): string {
+        const {service, config: current} = execution;
+        if (service !== 'freeTranslation' && service !== 'myMemory') return '';
+        const usesMyMemory = service === 'myMemory'
+            || normalizeFreeTranslationOrder(current.freeTranslationOrder).includes('myMemory');
+        // 成功译文可跨额度身份复用；正在执行的旧邮箱/等待策略却不能替新配置决定失败。
+        // 只保留实际消费的匿名配置，摘要不暴露邮箱，Key 和私有地址从不参与此身份。
+        const identity = {
+            ...(service === 'freeTranslation' ? {
+                timeoutMs: normalizeFreeTranslationTimeoutMs(current.freeTranslationTimeoutMs),
+                cooldownMs: normalizeFreeTranslationCooldownMs(current.freeTranslationCooldownMs),
+            } : {}),
+            ...(usesMyMemory ? {email: (current.myMemoryEmail ?? '').trim()} : {}),
+        };
+        return `:anonymous:${sha256(JSON.stringify(identity)).toString()}`;
     }
 
     function requestAbortError(): Error {
@@ -978,7 +1029,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             message.modelOverride,
             message.sourceLanguageDetectionText,
         );
-        const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}`;
+        const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}${pendingAnonymousConfigSuffix(execution)}`;
         const existing = pendingTranslations.get(pendingKey);
         // 共享的是 provider 工作；每个等待者仍需保留自己的取消和截止边界。
         if (existing) return runWithinDeadline(() => existing, requestDeadline, execution.abortSignal);
@@ -1075,7 +1126,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             cacheMode,
             message.modelOverride,
         );
-        const pendingKey = `${buildPendingRequestKey(batchKey, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}`;
+        const pendingKey = `${buildPendingRequestKey(batchKey, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}${pendingAnonymousConfigSuffix(execution)}`;
         const existing = pendingBatches.get(pendingKey);
         if (existing) return runWithinDeadline(() => existing, requestDeadline, execution.abortSignal);
 
@@ -1246,6 +1297,8 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
 
         const requestControl = getTranslationRequestControl(message);
         throwIfRequestAborted(requestControl?.signal);
+        // 入口选择也必须在水合/队列之前复制，防止上层原地编辑数组改变在途请求。
+        const glossaryIds = message.glossaryIds ? Object.freeze([...message.glossaryIds]) : message.glossaryIds;
 
         // deadline 从公开入口开始计时，配置水合不能让上层剩余预算重新获得完整时长。
         const providerStartedAt = now();
@@ -1258,13 +1311,39 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         await runWithinDeadline(() => deps.ready, providerDeadline, requestControl?.signal);
         throwIfRequestAborted(requestControl?.signal);
 
-        // 步骤 1：在任何 cache/provider await 前复制一次配置；后续 UI 原地修改不能改变本请求身份。
-        const current = createTranslationProviderConfigSnapshot(config());
+        // 步骤 1：圈选等受信后台事务沿用开始时的 symbol 快照；公开请求在 cache/provider await 前复制配置。
+        let current = getTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(config()));
         const serviceOverride = message.serviceOverride;
         const selectedService = serviceOverride || current.service;
         const {sourceLanguage, targetLanguage} = deps.getTranslationLanguages({
             sourceLanguage: message.sourceLanguage?.trim() || current.from,
             targetLanguage: message.targetLanguage?.trim() || current.to,
+        });
+        const supportsGlossary = supportsTranslationGlossary(
+            selectedService, getSelectedModel(current, selectedService, message.modelOverride), deps.serviceTypes,
+        );
+        if (supportsGlossary && message.glossaryRevision !== undefined
+            && message.glossaryRevision !== buildGlossaryRevision(current.glossaryLibraries, current.glossaryEnabled)) {
+            throw new GlossaryRevisionChangedError();
+        }
+        const glossarySource = getTranslationGlossaryContext(message);
+        const glossaryContext = glossarySource?.context ?? message.glossaryContext ?? 'page';
+        const selectedGlossaryIds = glossaryIds ?? (glossaryContext === 'document' ? current.documentGlossaryIds
+            : glossaryContext === 'video' ? current.videoGlossaryIds : null);
+        const glossaryTerms = supportsGlossary && current.glossaryEnabled
+            ? resolveGlossary(current.glossaryLibraries!, {
+                text: getTranslationGlossarySourceText(message.origin),
+                sourceLanguage,
+                targetLanguage,
+                pageUrl: glossarySource?.pageUrl,
+                glossaryIds: selectedGlossaryIds ? [...selectedGlossaryIds] : null,
+            }).terms
+            : [];
+        // Provider 只读取命中当前原文的词对；配置原文与域规则不会进入请求 JSON。
+        current = Object.freeze({...current,
+            glossaryTerms: Object.freeze(glossaryTerms.map(term => Object.freeze({...term}))),
+            glossaryMatchContext: Object.freeze({sourceLanguage, targetLanguage, pageUrl: glossarySource?.pageUrl,
+                glossaryIds: selectedGlossaryIds ? Object.freeze([...selectedGlossaryIds]) : null}),
         });
         const execution: TranslationRequestExecution = {
             config: current,
@@ -1331,6 +1410,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         const requestMessage = attachTranslationProviderConfig(
             {
                 ...providerInput,
+                glossaryIds,
                 sourceLanguage,
                 targetLanguage,
                 thinkingOverride: execution.thinking,

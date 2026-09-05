@@ -31,6 +31,11 @@ export function isFrameTranslationState(value: unknown): value is FrameTranslati
         && ['thinking', 'useCache', 'enableAIContext', 'enableAIMultiSegment'].every(key => typeof config[key as keyof typeof config] === 'boolean')
         && (config.displayMode === 'bilingual' || config.displayMode === 'single') && Number.isFinite(config.style)
         && (config.profileId === undefined || typeof config.profileId === 'string')
+        && (config.glossaryRevision === undefined || (typeof config.glossaryRevision === 'string'
+            && /^glossary-v1:(?:disabled|[a-f0-9]{64})$/u.test(config.glossaryRevision)))
+        && (config.glossaryIds === undefined || config.glossaryIds === null
+            || (Array.isArray(config.glossaryIds) && config.glossaryIds.length <= 100
+                && Array.from(config.glossaryIds).every(id => typeof id === 'string' && id.length <= 128)))
         && (config.requestOverridesApplied === undefined || config.requestOverridesApplied === true);
 }
 

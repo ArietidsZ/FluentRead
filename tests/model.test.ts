@@ -24,6 +24,16 @@ import {
 import {createApiKeyRequirementKey} from '@/src/core/config/validation';
 
 describe('AI 模型编号列表', () => {
+    it('DeepL API 旧配置保持 Free 端点，并持久保留明确选择的 Pro 套餐', () => {
+        expect(new Config().deeplApiPlan).toBe('free');
+        expect(normalizeConfig({}).deeplApiPlan).toBe('free');
+        expect(normalizeConfig({deeplApiPlan: 'free'}).deeplApiPlan).toBe('free');
+        expect(normalizeConfig({deeplApiPlan: 'pro'}).deeplApiPlan).toBe('pro');
+        for (const deeplApiPlan of ['paid', 'PRO', '', null, 1, {}, []]) {
+            expect(normalizeConfig({deeplApiPlan}).deeplApiPlan).toBe('free');
+        }
+    });
+
     it('翻译计数只保留非负安全整数，并清理畸形旧值', () => {
         expect(normalizeConfig({count: 12}).count).toBe(12);
         expect(normalizeConfig({count: 0}).count).toBe(0);
@@ -99,7 +109,7 @@ describe('AI 模型编号列表', () => {
         expect(options.services.find(option => option.value === services.freeTranslation)?.label).toBe('免费翻译服务');
         expect(options.services[1]?.value).toBe(services.freeTranslation);
         expect(options.services.find(option => option.value === services.freeTranslation)?.description)
-            .toContain('微软翻译、DeepLX、谷歌翻译依次尝试');
+            .toContain('按设置顺序自动切换可用服务');
         expect(options.services.find(option => option.value === services.mimo)?.label).toBe('小米 MiMo');
         expect(options.services.some(option => option.value === services.baichuan)).toBe(false);
         expect(options.services.some(option => option.value === services.lingyi)).toBe(false);

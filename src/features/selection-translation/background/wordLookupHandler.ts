@@ -1,9 +1,10 @@
 /**
  * @file src/features/selection-translation/background/wordLookupHandler.ts
- * 文件职责：处理划词词典查询消息，并在基础词卡可用时仅翻译当前目标语言需要展示的释义字段，失败时保留原始词卡数据。
- * 主要内容：定义 selectionWordLookup 协议和依赖，校验单词与目标语言，深拷贝词卡、收集可见释义槽位、批量翻译后按原位置回填，并由工厂返回类型化 handler。
+ * 文件职责：处理划词词典查询消息，翻译当前目标语言需要展示的释义字段，繁体目标只展示本次成功翻译的辅助释义，失败时保留词典原文。
+ * 主要内容：定义 selectionWordLookup 协议和依赖，校验单词并归一中文目标语言，隔离既有简体辅助内容，深拷贝词卡、收集可见释义槽位、批量翻译后按原位置回填，并由工厂返回类型化 handler。
  * 模块边界：该文件不直接请求任何词典站点或翻译 provider；词典 lookup 和 translateTexts 由后台注入，数据解析/缓存归 services/wordDictionary，组件只消费返回词卡。
  */
+import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import type {WordCardData} from '../services/wordDictionary';
 
 export type {
@@ -83,6 +84,18 @@ export async function translateVisibleWordCardFields(
     translate: SelectionWordLookupDependencies['translate'],
     warn: SelectionWordLookupDependencies['warn'],
 ): Promise<WordCardData> {
+    const normalizedTargetLanguage = normalizeChineseLanguageCode(targetLanguage);
+    // 公共词典的既有辅助字段没有目标语言元数据，通常为简体；不能将它们
+    // 当作繁体翻译失败后的译文。仅清除克隆上的辅助字段，原词典内容保持可读。
+    const fallbackCard = normalizedTargetLanguage === 'zh-Hant' ? cloneWordCard(card) : card;
+    if (fallbackCard !== card) {
+        for (const meaning of fallbackCard.meanings) {
+            for (const definition of meaning.definitions) {
+                delete definition.translatedDefinition;
+                delete definition.translatedExample;
+            }
+        }
+    }
     const slots: WordDefinitionTranslationSlot[] = [];
     for (const [meaningIndex, meaning] of card.meanings.slice(0, 4).entries()) {
         for (const [definitionIndex, definition] of meaning.definitions.slice(0, 4).entries()) {
@@ -94,7 +107,7 @@ export async function translateVisibleWordCardFields(
             }
         }
     }
-    if (slots.length === 0) return card;
+    if (slots.length === 0) return fallbackCard;
 
     const uniqueOrigins = [...new Set(slots.map((slot) => slot.original))];
     try {
@@ -103,13 +116,13 @@ export async function translateVisibleWordCardFields(
             context: '',
             pageContext: '',
             useCache: true,
-            targetLanguage,
+            targetLanguage: normalizedTargetLanguage,
         });
-        if (!Array.isArray(translated) || translated.length !== uniqueOrigins.length) return card;
+        if (!Array.isArray(translated) || translated.length !== uniqueOrigins.length) return fallbackCard;
 
         // 步骤 1：只有 provider 返回与请求一一对应的批量结果时才克隆并写入卡片。
         const translatedByOrigin = new Map(uniqueOrigins.map((origin, index) => [origin, translated[index]]));
-        const result = cloneWordCard(card);
+        const result = fallbackCard === card ? cloneWordCard(card) : fallbackCard;
         for (const slot of slots) {
             const value = translatedByOrigin.get(slot.original);
             if (typeof value !== 'string' || !value.trim() || value.trim() === slot.original) continue;
@@ -119,7 +132,7 @@ export async function translateVisibleWordCardFields(
         return result;
     } catch (error) {
         warn('[FluentRead] word definition translation unavailable; keeping dictionary text', error);
-        return card;
+        return fallbackCard;
     }
 }
 

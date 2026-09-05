@@ -24,7 +24,7 @@ export {
     unmountFloatingBall,
 } from '@/src/features/floating-ball/public';
 export {
-    isYouTubeVideoPage,
+    isSupportedVideoPage,
     mountVideoSubtitleTranslation,
 } from '@/src/features/video-subtitle/public';
 export {

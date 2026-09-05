@@ -14,6 +14,7 @@ import google, {
     parseGoogleLegacyResponse,
     translateGoogleText,
 } from '@/src/providers/translation/google';
+import {createFreeFallbackRunner} from '@/src/services/translation/freeFallback';
 
 const fetchMock = vi.fn<typeof fetch>();
 
@@ -90,7 +91,7 @@ describe('谷歌翻译适配器', () => {
         expect(batchRequest[0][0][2]).toBeNull();
         expect(batchRequest[0][0][3]).toBe('generic');
         expect(JSON.parse(batchRequest[0][0][1])).toEqual([
-            ['This domain is for use in documents.', 'auto', 'zh-Hans', true],
+            ['This domain is for use in documents.', 'auto', 'zh-CN', true],
             [null],
         ]);
     });
@@ -158,6 +159,62 @@ describe('谷歌翻译适配器', () => {
         expect((error as Error).message).not.toContain('captcha details');
         expect((error as Error).message).not.toContain('unexpected');
         expect((error as Error).message).not.toContain('not-json');
+    });
+
+    it.each([
+        [400, 400, 400],
+        [429, 429, 429],
+        [400, 413, 422],
+        [503, 503, 503],
+    ])('HTML/CAPTCHA 包装与最终汇总保留安全 HTTP 分类 %j/%j/%j', async (...statuses) => {
+        for (const status of statuses) {
+            fetchMock.mockResolvedValueOnce(mockResponse('<html>private original https://secret.example/key</html>', {ok: false, status}));
+        }
+        const request = translateGoogleText('private original', 'en', 'zh-Hans');
+        await expect(request).rejects.toMatchObject({statusCode: statuses[0]});
+        await expect(request).rejects.toThrow('可能触发了 CAPTCHA');
+        await expect(request).rejects.not.toThrow('private original');
+        await expect(request).rejects.not.toThrow('secret.example');
+    });
+
+    it.each([429, 503, undefined])('汇总参数错误与可用性故障时不让 400 掩盖 %s', async status => {
+        fetchMock.mockResolvedValueOnce(mockResponse('', {ok: false, status: 400}));
+        if (status === undefined) fetchMock.mockRejectedValueOnce(new Error('private transport URL'));
+        else fetchMock.mockResolvedValueOnce(mockResponse('', {ok: false, status}));
+        fetchMock.mockResolvedValueOnce(mockResponse('', {ok: false, status: 400}));
+        const request = translateGoogleText('hello', 'en', 'zh-Hans');
+        await expect(request).rejects.not.toHaveProperty('statusCode');
+        await expect(request).rejects.toThrow('主网页 RPC: 请求失败: 400；备用网页 RPC:');
+        await expect(request).rejects.not.toThrow('private transport URL');
+    });
+
+    it.each([400, 413, 422])('真实 Google 适配器的 HTTP %i 不会让免费链熔断后续文本', async status => {
+        const run = createFreeFallbackRunner();
+        for (let index = 0; index < 3; index += 1) {
+            fetchMock.mockResolvedValueOnce(mockResponse('<html>request rejected</html>', {ok: false, status}));
+        }
+        fetchMock.mockResolvedValue(mockResponse(createBatchResponse(['下一段正常'])));
+        const candidates = [
+            {identity: 'google', label: '谷歌翻译', translate: (signal: AbortSignal) => translateGoogleText('sample', 'en', 'zh-Hans', signal)},
+            {identity: 'backup', label: '备用服务', translate: async () => '备用译文'},
+        ];
+        const options = {timeoutMs: 1_000, cooldownMs: 60_000};
+        await expect(run(candidates, options)).resolves.toBe('备用译文');
+        await expect(run(candidates, options)).resolves.toBe('下一段正常');
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+    });
+
+    it('真实 Google 适配器的 CAPTCHA 429 会使免费链跳过下一段重复请求', async () => {
+        const run = createFreeFallbackRunner();
+        fetchMock.mockResolvedValue(mockResponse('<html>rate limit</html>', {ok: false, status: 429}));
+        const candidates = [
+            {identity: 'google', label: '谷歌翻译', translate: (signal: AbortSignal) => translateGoogleText('sample', 'en', 'zh-Hans', signal)},
+            {identity: 'backup', label: '备用服务', translate: async () => '备用译文'},
+        ];
+        const options = {timeoutMs: 1_000, cooldownMs: 60_000};
+        await expect(run(candidates, options)).resolves.toBe('备用译文');
+        await expect(run(candidates, options)).resolves.toBe('备用译文');
+        expect(fetchMock).toHaveBeenCalledTimes(3);
     });
 
     it('读取响应体失败时继续故障转移并汇总错误', async () => {
@@ -251,6 +308,20 @@ describe('谷歌翻译适配器', () => {
             .resolves.toBe('如果 x < 3 && y > 1\n下一行');
     });
 
+    it('多行请求沿用实际 batchexecute RPC 并原样携带换行', async () => {
+        fetchMock.mockResolvedValue(mockResponse(createBatchResponse(['第一行\n第二行'])));
+
+        await expect(translateGoogleText('First line\nSecond line', 'en', 'zh-Hans'))
+            .resolves.toBe('第一行\n第二行');
+
+        const [url, init] = fetchMock.mock.calls[0]!;
+        expect(url).toBe('https://translate.google.com/_/TranslateWebserverUi/data/batchexecute?rpcids=MkEWBc');
+        const requestBody = new URLSearchParams(String(init?.body)).get('f.req');
+        const batchRequest = JSON.parse(requestBody!);
+        const translationRequest = JSON.parse(batchRequest[0][0][1]);
+        expect(translationRequest[0][0]).toBe('First line\nSecond line');
+    });
+
     it('忽略网页 RPC 的防劫持前缀、长度行和无关记录', () => {
         const response = createBatchResponse(['测试成功']).replace('\n\n', '\n\n1234\nnot-json\n');
         expect(parseGoogleBatchResponse(response)).toBe('测试成功');
@@ -277,5 +348,25 @@ describe('谷歌翻译适配器', () => {
         await expect(google({origin: ['hello']} as unknown as {origin: string}))
             .rejects.toThrow('谷歌翻译仅支持单条文本');
         expect(fetchMock).not.toHaveBeenCalled();
+    });
+});
+
+describe('Google 中文脚本协议', () => {
+    it.each([
+        ['zh-Hans', 'zh-Hant', 'zh-CN', 'zh-TW'],
+        ['zh-Hant', 'zh-Hans', 'zh-TW', 'zh-CN'],
+        ['zh-HK', 'en', 'zh-TW', 'en'],
+    ])('%s → %s 的 RPC 与 legacy 回退使用相同脚本', async (source, target, sl, tl) => {
+        fetchMock.mockResolvedValueOnce(mockResponse('unavailable', {ok: false, status: 503}))
+            .mockResolvedValueOnce(mockResponse('unavailable', {ok: false, status: 503}))
+            .mockResolvedValueOnce(mockResponse(JSON.stringify([[['translated']]])));
+        await expect(translateGoogleText('test', source, target)).resolves.toBe('translated');
+        for (const call of fetchMock.mock.calls.slice(0, 2)) {
+            const batch = JSON.parse(new URLSearchParams(String(call[1]?.body)).get('f.req')!);
+            expect(JSON.parse(batch[0][0][1])[0]).toEqual(['test', sl, tl, true]);
+        }
+        const url = new URL(String(fetchMock.mock.calls[2]?.[0]));
+        expect(url.searchParams.get('sl')).toBe(sl);
+        expect(url.searchParams.get('tl')).toBe(tl);
     });
 });

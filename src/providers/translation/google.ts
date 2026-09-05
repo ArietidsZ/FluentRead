@@ -6,6 +6,7 @@
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
+import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import {getTranslationLanguages} from '@/src/services/translation/languages';
 import {createHttpStatusError} from '@/src/platform/http/errors';
 import {
@@ -167,7 +168,8 @@ async function fetchGoogleResponse(
         if (!response.ok) {
             const statusError = createHttpStatusError(response);
             if (response.status === 429 || isHtmlResponse(responseBody)) {
-                throw new Error(`${statusError.message}（${GOOGLE_CAPTCHA_HINT}）`);
+                // CAPTCHA 提示只扩展安全文案，保留标准 HTTP 状态供外层判断冷却。
+                statusError.message = `${statusError.message}（${GOOGLE_CAPTCHA_HINT}）`;
             }
             throw statusError;
         }
@@ -231,6 +233,13 @@ export async function translateGoogleText(
     toLang: string,
     abortSignal?: AbortSignal,
 ): Promise<string> {
+    // Web RPC 与 gtx 使用区域码区分中文书写系统。
+    const googleLanguage = (code: string): string => {
+        const normalized = normalizeChineseLanguageCode(code);
+        return ({'zh-Hans': 'zh-CN', 'zh-Hant': 'zh-TW'} as Record<string, string>)[normalized] ?? normalized;
+    };
+    fromLang = googleLanguage(fromLang);
+    toLang = googleLanguage(toLang);
     const providers: GoogleProvider[] = [
         ...GOOGLE_TRANSLATE_BATCH_URLS.map((endpoint, index) => ({
             name: index === 0 ? '主网页 RPC' : '备用网页 RPC',
@@ -256,6 +265,7 @@ export async function translateGoogleText(
     ];
     const deadline = Date.now() + GOOGLE_TRANSLATE_TOTAL_TIMEOUT_MS;
     const failures: string[] = [];
+    const failureStatuses: Array<number | undefined> = [];
 
     for (const provider of providers) {
         if (abortSignal?.aborted) throw abortErrorFromSignal(abortSignal);
@@ -269,11 +279,20 @@ export async function translateGoogleText(
         } catch (error) {
             if (abortSignal?.aborted) throw abortErrorFromSignal(abortSignal);
             failures.push(`${provider.name}: ${getErrorMessage(error)}`);
+            failureStatuses.push((error as {statusCode?: number}).statusCode);
         }
     }
 
     const failureSummary = failures.length > 0 ? failures.join('；') : '总请求时间已耗尽';
-    throw new Error(`谷歌翻译所有匿名接口均失败：${failureSummary}`);
+    const aggregate = new Error(`谷歌翻译所有匿名接口均失败：${failureSummary}`);
+    const firstStatus = failureStatuses[0];
+    const requestErrors = new Set([400, 404, 413, 415, 422]);
+    // 只保留一致状态或全部参数/语言错误，不能让单个 400 掩盖混合的服务故障。
+    if (firstStatus !== undefined && failureStatuses.every(status => status === firstStatus
+        || (requestErrors.has(firstStatus) && status !== undefined && requestErrors.has(status)))) {
+        Object.assign(aggregate, {statusCode: firstStatus});
+    }
+    throw aggregate;
 }
 
 async function google(message: TranslationProviderRequest<string>) {

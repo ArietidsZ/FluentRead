@@ -25,6 +25,7 @@ export function resolveQuickTranslationInvocation(
         config.customModel[service],
     );
     return {
+        ...(profile.glossaryIds !== undefined ? {glossaryIds: profile.glossaryIds ? [...profile.glossaryIds] : null} : {}),
         profileId: profile.id,
         scope: config.translationScope,
         service,

@@ -46,10 +46,11 @@ export function getMimoEndpoint(billingPlan: string, region: string): string {
 
 // 常量工具类
 export const urls: any = {
+    [services.myMemory]: "https://api.mymemory.translated.net/get",
     [services.deepL]: "https://api-free.deepl.com/v2/translate",
     [services.deeplx]: DEFAULT_DEEPLX_ENDPOINT,
     [services.openai]: "https://api.openai.com/v1/chat/completions",
-    [services.azureOpenai]: "https://your-resource-name.openai.azure.com/openai/deployments/your-deployment-name/chat/completions?api-version=2024-02-15-preview",
+    [services.azureOpenai]: "https://your-resource-name.openai.azure.com/openai/v1/chat/completions",
     [services.moonshot]: "https://api.moonshot.cn/v1/chat/completions",
     [services.custom]: "https://localhost:11434/v1/chat/completions",
     [services.tongyi]: "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",

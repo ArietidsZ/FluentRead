@@ -22,6 +22,7 @@ import {
 } from '@/src/app/translation/runtime';
 import {lookupWord} from '@/src/features/selection-translation/services/wordDictionary';
 import {UNHANDLED_RUNTIME_MESSAGE} from './browser';
+import {attachTranslationGlossaryContext} from '@/src/services/translation/requestSnapshot';
 
 const UNSUPPORTED_CAPABILITY_MESSAGE = '该功能依赖浏览器扩展权限，userscript 版本暂不支持';
 
@@ -120,7 +121,10 @@ export function createPlatformMessageHandler(openSettings: () => void) {
         }
 
         if (typeof message.origin === 'string' || Array.isArray(message.origin)) {
-            return translateWithCache(message);
+            return translateWithCache(attachTranslationGlossaryContext({...message}, {
+                pageUrl: globalThis.location?.href,
+                context: message.glossaryContext === 'video' ? 'video' : 'page',
+            }));
         }
 
         return UNHANDLED_RUNTIME_MESSAGE;

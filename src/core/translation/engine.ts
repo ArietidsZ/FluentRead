@@ -2,7 +2,7 @@
  * @file src/core/translation/engine.ts
  *
  * 文件职责：实现 DOM 节点到 TranslationCandidate 的核心解析引擎，协调安全守卫、站点适配器、布局边界和文本有效性。
- * 主要内容：定义 TranslationCandidateCore、候选优选与键值函数，记录发现步骤和原因，按正文/全部节点范围协调语义所有权、hover 屏障、适配优先级、缓存及坐标命中，保证同范围的全文与悬浮共享决策。 可核对的公开符号包括 TranslationCoreInspection、TranslationDiscoveryStep、getTranslationCandidateKey、selectPreferredTranslationCandidate、TranslationCandidateCore。
+ * 主要内容：按正文/全部节点范围协调候选；定义 TranslationCandidateCore、候选优选与键值函数，记录发现步骤和原因，处理 hover 屏障、适配优先级、快照省略、缓存及坐标命中，保证全文与悬浮共享决策。 可核对的公开符号包括 TranslationCoreInspection、TranslationDiscoveryStep、getTranslationCandidateKey、selectPreferredTranslationCandidate、TranslationCandidateCore。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
@@ -22,6 +22,7 @@ import type {HardGuardResult} from './dom';
 import type {TranslationTextProtectionOptions} from './dom';
 import {
     classifyGenericCandidate,
+    findTranslationControlOwner,
     getDirectInlineRuns,
     getAllScopeCandidateKind,
     hasStructuralAncestor,
@@ -238,6 +239,15 @@ export class TranslationCandidateCore {
         }
     });
 
+    /** 双语快照省略宿主元数据；原文保护仍由 shouldStayOriginal 独立负责。 */
+    shouldOmitFromTranslation = (element: Element): boolean => this.adapters.some((adapter) => {
+        try {
+            return adapter.shouldOmitFromTranslation?.(element, this.context) === true;
+        } catch {
+            return false;
+        }
+    });
+
     shouldIgnoreMutation = (element: Element): boolean => this.adapters.some((adapter) => {
         try {
             return adapter.shouldIgnoreMutation?.(element, this.context) === true;
@@ -381,8 +391,8 @@ export class TranslationCandidateCore {
         );
     }
 
-    inspect(element: Element): TranslationCoreInspection {
-        const evaluationContext = createResolutionEvaluationContext();
+    inspect(element: Element, textProtectionOptions?: TranslationTextProtectionOptions): TranslationCoreInspection {
+        const evaluationContext = createResolutionEvaluationContext(textProtectionOptions);
         return this.inspectWithTextProtectionCache(
             element,
             evaluationContext.textProtectionCache,
@@ -422,7 +432,7 @@ export class TranslationCandidateCore {
             }
             const candidate: TranslationCandidate = {
                 element: target,
-                kind: decision.candidateKind ?? (isTranslationControlElement(target) ? 'control' : 'content'),
+                kind: decision.candidateKind ?? (findTranslationControlOwner(target) ? 'control' : 'content'),
                 reason: decision.reason,
                 adapterId,
                 ...this.candidateResolutionMetadata(evaluationContext),
@@ -466,7 +476,11 @@ export class TranslationCandidateCore {
         candidateChildBarriers?: ReadonlySet<Element>,
         evaluationContext?: ResolutionEvaluationContext,
     ): TranslationCandidate[] {
-        if (!this.allowsGenericCandidates()) return [];
+        if (!this.allowsGenericCandidates()) {
+            const decision = this.adapterDecision(element, evaluationContext).decision;
+            if (decision.kind !== 'force-target' || decision.atomic !== false ||
+                (decision.target ?? element) !== element) return [];
+        }
         const candidates: TranslationCandidate[] = [];
         const atomicTargetCache = new WeakMap<Element, boolean>();
         const protectionOptions = evaluationContext?.textProtectionOptions;
@@ -508,7 +522,8 @@ export class TranslationCandidateCore {
                     candidates.push({
                         element: element as HTMLElement,
                         nodes,
-                        kind: this.scope === 'all' ? getAllScopeCandidateKind(element) : 'content',
+                        kind: this.scope === 'all' ? getAllScopeCandidateKind(element)
+                            : findTranslationControlOwner(element) ? 'control' : 'content',
                         reason: 'generic-inline-run',
                         ...this.candidateResolutionMetadata(evaluationContext),
                     });
@@ -547,10 +562,13 @@ export class TranslationCandidateCore {
         start: Node,
         evaluationContext: ResolutionEvaluationContext,
     ): TranslationCandidate | null {
-        if (this.scope === 'content' && (isDocumentSurface(element) ||
+        const decision = this.adapterDecision(element, evaluationContext).decision;
+        const explicitContainer = decision.kind === 'force-target' && decision.atomic === false &&
+            (decision.target ?? element) === element;
+        if (this.scope === 'content' && (isDocumentSurface(element) || (!explicitContainer && (
             this.isStructuralContainerForResolution(element, evaluationContext) ||
             this.hasStructuralAncestorForResolution(element, evaluationContext) ||
-            !isBlockBoundary(element) ||
+            !isBlockBoundary(element))) ||
             element.children.length === 0)) {
             return null;
         }
@@ -636,7 +654,7 @@ export class TranslationCandidateCore {
                     element: current as HTMLElement,
                     kind: this.scope === 'all'
                         ? getAllScopeCandidateKind(getComposedParent(current) ?? current)
-                        : 'content',
+                        : findTranslationControlOwner(current) ? 'control' : 'content',
                     reason: 'owned-inline-run',
                     ...this.candidateResolutionMetadata(evaluationContext),
                 };
@@ -696,8 +714,14 @@ export class TranslationCandidateCore {
         const visited = new Set<Element>();
         const textProtectionCache = createTranslationTextProtectionCache();
         const roots: Element[] = [];
-        if (isElementNode(root)) roots.push(root);
-        else if ('children' in root) {
+        if (isElementNode(root)) {
+            // 动态控件可能先只有图标，再把文字写入内层 flex 标签。该标签本身不再是
+            // 正文候选，因此局部重扫应回到同一控件边界；被明确保护的脏子树不能提升。
+            const controlOwner = findTranslationControlOwner(root);
+            roots.push(controlOwner && controlOwner !== root &&
+                !evaluateHardGuard(root).prune && !this.hasAdapterPrunedAncestor(root)
+                ? controlOwner : root);
+        } else if ('children' in root) {
             const children = (root as Document | ShadowRoot).children;
             for (let index = 0; index < children.length; index += 1) {
                 const child = children.item(index);

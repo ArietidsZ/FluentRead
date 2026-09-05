@@ -75,6 +75,10 @@ FluentRead 不把你带到另一个页面，也不让译文取代原文。它把
   </figure>
 </div>
 
+## 按网站调整阅读范围
+
+遇到正文漏译，或想让作者信息、导航保持原文，可以在设置中复制内置规则，再用 JSON 调整。[自定义网站适配教程](/guide/custom-site-rules)会带你完成选择正文、保存、验证和恢复；也欢迎按[贡献指南](/contributing/site-adaptation)把验证过的规则提交给社区。
+
 ## 选择适合你的服务
 
 你可以先使用免费翻译服务，也可以连接 Microsoft、Google、DeepL、AI 服务或本地 Ollama。服务由你选择，FluentRead 不要求你注册账号或购买指定服务。

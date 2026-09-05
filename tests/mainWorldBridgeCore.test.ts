@@ -16,6 +16,7 @@ import {
 import {
     YOUTUBE_BRIDGE_DISPOSE_EVENT,
     YOUTUBE_BRIDGE_ENABLE_EVENT,
+    YOUTUBE_BRIDGE_REPLAY_EVENT,
     YOUTUBE_BRIDGE_LIFECYCLE_STATE_KEY,
     YOUTUBE_BRIDGE_STATE_KEY,
     createYoutubeTimedTextPayload,
@@ -87,11 +88,15 @@ function shadowFixture(withNavigation = true) {
         return {host: this, init};
     }) as unknown as AttachShadowPort;
     const originalPush = vi.fn(function originalPush(this: unknown, _data: unknown, _unused: string, url?: string | URL | null) {
+        if (withNavigation) navigationEvents.emit('navigate');
         if (url) href = new URL(String(url), href).href;
+        if (withNavigation) navigationEvents.emit('currententrychange');
         return this;
     }) as unknown as HistoryMutationPort;
     const originalReplace = vi.fn(function originalReplace(this: unknown, _data: unknown, _unused: string, url?: string | URL | null) {
+        if (withNavigation) navigationEvents.emit('navigate');
         if (url) href = new URL(String(url), href).href;
+        if (withNavigation) navigationEvents.emit('currententrychange');
         return this;
     }) as unknown as HistoryMutationPort;
     const attach = slot(originalAttach);
@@ -108,7 +113,8 @@ function shadowFixture(withNavigation = true) {
         getHref: () => href,
         createEvent: (type: string, init?: Record<string, unknown>) => ({type, ...init}),
     };
-    return {attach, documentEvents, environment, navigationEvents, originalAttach, originalPush, originalReplace, push, replace, stateHost, windowEvents};
+    return {attach, documentEvents, environment, navigationEvents, originalAttach, originalPush, originalReplace,
+        push, replace, stateHost, windowEvents, setHref: (value: string) => { href = value; }};
 }
 
 class FakeXhr implements YoutubeXhrPort {
@@ -127,11 +133,12 @@ class FakeXhr implements YoutubeXhrPort {
 }
 
 function youtubeFixture() {
-    const stateHost: Record<string, unknown> = {};
+  const stateHost: Record<string, unknown> = {};
     const pageEvents = new FakeEvents();
     const documentEvents = new FakeEvents();
     const posts: unknown[] = [];
-    let failPost = false;
+  let failPost = false;
+  let href = 'https://www.youtube.com/watch?v=fixture';
     const response: YoutubeFetchResponsePort = {
         clone: () => ({text: async () => '<timedtext />'}),
     };
@@ -148,7 +155,7 @@ function youtubeFixture() {
         xhrSend: xhrSend.port,
         pageEvents,
         documentEvents,
-        getHref: () => 'https://www.youtube.com/watch?v=fixture',
+        getHref: () => href,
         getOrigin: () => 'https://www.youtube.com',
         postMessage: (payload, targetOrigin) => {
             if (failPost) throw new Error('post failed');
@@ -169,12 +176,23 @@ function youtubeFixture() {
         stateHost,
         xhrOpen,
         xhrSend,
+        setHref: (value: string) => { href = value; },
     };
 }
 
 async function flush(): Promise<void> {
     await Promise.resolve();
     await Promise.resolve();
+}
+
+function xReplayPolicy(includePageHref = true) {
+    return {
+        matches: (url: string, href: string) => url.includes('video.twimg.com/captions/') && href.includes('/status/'),
+        payload: (url: string, text: unknown, href: string) => typeof text === 'string'
+            ? {source: 'fluent-read' as const, type: 'x-resource', url, responseText: text, ...(includePageHref ? {pageHref: href} : {})}
+            : null,
+        replayLatest: true,
+    };
 }
 
 describe('ShadowRoot 与路由 MAIN world bridge core', () => {
@@ -195,9 +213,13 @@ describe('ShadowRoot 与路由 MAIN world bridge core', () => {
         expect(fixture.documentEvents.dispatched).toHaveLength(0);
         expect(fixture.push.value.call(historyHost, {}, '', '/next')).toBe(historyHost);
         fixture.replace.value.call(historyHost, {}, '', '/final');
+        fixture.setHref('https://example.test/next');
         fixture.windowEvents.emit('popstate');
+        fixture.setHref('https://example.test/next#section');
         fixture.windowEvents.emit('hashchange');
+        fixture.setHref('https://example.test/navigation-api');
         fixture.navigationEvents.emit('navigate');
+        fixture.navigationEvents.emit('currententrychange');
         expect(fixture.documentEvents.dispatched.filter((event) => (event as {type: string}).type === ROUTE_CHANGE_EVENT))
             .toHaveLength(5);
 
@@ -207,6 +229,48 @@ describe('ShadowRoot 与路由 MAIN world bridge core', () => {
         expect(fixture.replace.value).toBe(fixture.originalReplace);
         expect(fixture.stateHost[SHADOW_BRIDGE_STATE_KEY]).toBeUndefined();
         expect(fixture.windowEvents.listeners.get('popstate')?.size).toBe(0);
+        expect(fixture.navigationEvents.listeners.get('currententrychange')?.size).toBe(0);
+    });
+
+    it('同页滚动状态和被取消的 navigate 不发布路由变化，真实提交只发布一次最新 URL', () => {
+        const fixture = shadowFixture();
+        installShadowRouteBridgeCore(fixture.environment);
+        const urls: string[] = [];
+        fixture.documentEvents.addEventListener(ROUTE_CHANGE_EVENT, () => urls.push(fixture.environment.getHref()));
+        const historyHost = {};
+        const scrollState = {scroll: 250};
+        expect(fixture.replace.value.call(historyHost, scrollState, '')).toBe(historyHost);
+        fixture.replace.value.call(historyHost, scrollState, '', 'https://example.test/start');
+        fixture.push.value.call(historyHost, scrollState, '', '/start');
+        fixture.navigationEvents.emit('navigate');
+        fixture.navigationEvents.emit('currententrychange');
+        fixture.windowEvents.emit('popstate');
+        fixture.windowEvents.emit('hashchange');
+        expect(urls).toEqual([]);
+        expect(fixture.originalReplace).toHaveBeenCalledWith(scrollState, '', undefined);
+
+        fixture.push.value.call(historyHost, {}, '', '/article?lang=en#intro');
+        fixture.navigationEvents.emit('currententrychange');
+        fixture.windowEvents.emit('popstate');
+        fixture.windowEvents.emit('hashchange');
+        expect(urls).toEqual(['https://example.test/article?lang=en#intro']);
+        fixture.replace.value.call(historyHost, {}, '', '#details');
+        expect(urls).toEqual(['https://example.test/article?lang=en#intro', 'https://example.test/article?lang=en#details']);
+    });
+
+    it('缺少 Navigation API 时 history 与遍历继续生效，卸载后不再发布', () => {
+        const fixture = shadowFixture(false);
+        const dispose = installShadowRouteBridgeCore(fixture.environment);
+        fixture.push.value.call({}, {}, '', '/next');
+        fixture.replace.value.call({}, {}, '', '/final');
+        fixture.setHref('https://example.test/start');
+        fixture.windowEvents.emit('popstate');
+        expect(fixture.documentEvents.dispatched).toHaveLength(3);
+        dispose();
+        fixture.push.value.call({}, {}, '', '/disposed');
+        fixture.windowEvents.emit('popstate');
+        fixture.navigationEvents.emit('currententrychange');
+        expect(fixture.documentEvents.dispatched).toHaveLength(3);
     });
 
     it('重复安装先卸载旧 owner，旧 disposer 不会破坏新桥', () => {
@@ -302,6 +366,8 @@ describe('YouTube timedtext MAIN world bridge core', () => {
             payload: expect.objectContaining({url: '/api/timedtext?lang=en', responseText: '<timedtext />'}),
             targetOrigin: 'https://www.youtube.com',
         }]);
+        fixture.documentEvents.dispatchEvent({type: YOUTUBE_BRIDGE_REPLAY_EVENT});
+        expect(fixture.posts).toHaveLength(1);
         dispose();
         expect(fixture.fetch.value).toBe(fixture.originalFetch);
     });
@@ -424,6 +490,113 @@ describe('YouTube timedtext MAIN world bridge core', () => {
         disposeLifecycle();
         expect(fixture.fetch.value).toBe(fixture.originalFetch);
         expect(fixture.stateHost[YOUTUBE_BRIDGE_LIFECYCLE_STATE_KEY]).toBeUndefined();
+    });
+
+    it('复用 resourcePolicy，并丢弃导航后的迟到 fetch/XHR 响应', async () => {
+        const fixture = youtubeFixture();
+        let resolveText: (value: string) => void = () => undefined;
+        const delayed = {clone: () => ({text: () => new Promise<string>((resolve) => { resolveText = resolve; })})};
+        (fixture.originalFetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce(delayed);
+        const policy = {
+            matches: (url: string, href: string) => url.includes('/captions/') && href.includes('/status/'),
+            payload: (url: string, text: unknown, href: string) => typeof text === 'string'
+                ? {source: 'fluent-read' as const, type: 'x-resource', url, responseText: text, pageHref: href}
+                : null,
+        };
+        const dispose = installYoutubeTimedTextBridgeCore({...fixture.environment, resourcePolicy: policy});
+        await fixture.fetch.value.call({}, 'https://video.twimg.com/captions/en.vtt');
+        fixture.setHref('https://www.youtube.com/watch?v=next');
+        resolveText('WEBVTT');
+        await flush();
+        expect(fixture.posts).toHaveLength(0);
+        fixture.setHref('https://x.com/status/2');
+        const xhr = new FakeXhr();
+        xhr.responseText = 'WEBVTT';
+        fixture.xhrOpen.value.call(xhr, 'GET', 'https://video.twimg.com/captions/en.vtt');
+        fixture.xhrSend.value.call(xhr);
+        fixture.setHref('https://x.com/status/3');
+        xhr.emit('load');
+        expect(fixture.posts).toHaveLength(0);
+        dispose();
+    });
+
+    it('X 资源早于消费方到达时可按当前页面回放，导航后不回放且 dispose 清空缓存', async () => {
+        const fixture = youtubeFixture();
+        fixture.setHref('https://x.com/status/1');
+        const dispose = installYoutubeTimedTextBridgeCore({...fixture.environment, resourcePolicy: xReplayPolicy()});
+
+        await fixture.fetch.value.call({}, 'https://video.twimg.com/captions/en.vtt');
+        await flush();
+        expect(fixture.posts).toHaveLength(1);
+
+        fixture.posts.length = 0;
+        fixture.documentEvents.dispatchEvent({type: YOUTUBE_BRIDGE_REPLAY_EVENT});
+        expect(fixture.posts).toEqual([{
+            payload: expect.objectContaining({url: 'https://video.twimg.com/captions/en.vtt', pageHref: 'https://x.com/status/1'}),
+            targetOrigin: 'https://www.youtube.com',
+        }]);
+
+        fixture.posts.length = 0;
+        fixture.setHref('https://x.com/status/2');
+        fixture.documentEvents.dispatchEvent({type: YOUTUBE_BRIDGE_REPLAY_EVENT});
+        expect(fixture.posts).toHaveLength(0);
+
+        fixture.setHref('https://x.com/status/1');
+        fixture.setPostFailure(true);
+        expect(() => fixture.documentEvents.dispatchEvent({type: YOUTUBE_BRIDGE_REPLAY_EVENT})).not.toThrow();
+        fixture.setPostFailure(false);
+
+        dispose();
+        fixture.documentEvents.dispatchEvent({type: YOUTUBE_BRIDGE_REPLAY_EVENT});
+        expect(fixture.posts).toHaveLength(0);
+    });
+
+    it('X 回放缓存按 URL 替换并限制 16 条资源与 2M 字符', () => {
+        const fixture = youtubeFixture();
+        fixture.setHref('https://x.com/status/3');
+        const dispose = installYoutubeTimedTextBridgeCore({...fixture.environment, resourcePolicy: xReplayPolicy()});
+
+        for (let index = 0; index < 17; index += 1) {
+            const xhr = new FakeXhr();
+            xhr.responseText = `WEBVTT-${index}`;
+            fixture.xhrOpen.value.call(xhr, 'GET', `https://video.twimg.com/captions/${index}.vtt`);
+            fixture.xhrSend.value.call(xhr);
+            xhr.emit('load');
+        }
+        const replacement = new FakeXhr();
+        replacement.responseText = 'WEBVTT-replacement';
+        fixture.xhrOpen.value.call(replacement, 'GET', 'https://video.twimg.com/captions/16.vtt');
+        fixture.xhrSend.value.call(replacement);
+        replacement.emit('load');
+        fixture.posts.length = 0;
+        fixture.documentEvents.dispatchEvent({type: YOUTUBE_BRIDGE_REPLAY_EVENT});
+        expect(fixture.posts).toHaveLength(16);
+        expect(fixture.posts.some((entry) => JSON.stringify(entry).includes('/captions/0.vtt'))).toBe(false);
+        expect(fixture.posts.some((entry) => JSON.stringify(entry).includes('/captions/16.vtt'))).toBe(true);
+
+        dispose();
+
+        const largeFixture = youtubeFixture();
+        largeFixture.setHref('https://x.com/status/4');
+        const largeDispose = installYoutubeTimedTextBridgeCore({...largeFixture.environment, resourcePolicy: xReplayPolicy(false)});
+        const largeText = 'x'.repeat(1_000_001);
+        for (const suffix of ['large-a', 'large-b']) {
+            const xhr = new FakeXhr();
+            xhr.responseText = largeText;
+            largeFixture.xhrOpen.value.call(xhr, 'GET', `https://video.twimg.com/captions/${suffix}.vtt`);
+            largeFixture.xhrSend.value.call(xhr);
+            xhr.emit('load');
+        }
+        const oversized = new FakeXhr();
+        oversized.responseText = 'x'.repeat(2_000_001);
+        largeFixture.xhrOpen.value.call(oversized, 'GET', 'https://video.twimg.com/captions/oversized.vtt');
+        largeFixture.xhrSend.value.call(oversized);
+        oversized.emit('load');
+        largeFixture.posts.length = 0;
+        largeFixture.documentEvents.dispatchEvent({type: YOUTUBE_BRIDGE_REPLAY_EVENT});
+        expect(largeFixture.posts).toHaveLength(1);
+        expect(JSON.stringify(largeFixture.posts[0])).toContain('/captions/large-b.vtt');
+        largeDispose();
     });
 
     it('只读、后来锁定或被宿主替换的方法安全降级', () => {

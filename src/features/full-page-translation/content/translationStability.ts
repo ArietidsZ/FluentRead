@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/translationStability.ts
  * 文件职责：提供动态页面翻译的语义稳定性判断和实时文本槽重绑定，隔离 React/虚拟列表重建造成的生命周期噪声。
- * 主要内容：判断原文与译文工件是否仍完整、决定是否保留当前翻译 generation，并在逐槽核对当前来源后把异步结果映射到实时 Text 节点与空白边界。
+ * 主要内容：判断原文与译文工件是否仍完整，在保留宿主链接焦点管理的前提下决定是否保留当前翻译 generation，并在逐槽核对当前来源后把异步结果映射到实时 Text 节点与空白边界。
  * 模块边界：本文件不读取配置、不监听 DOM、不执行 provider 请求；runtime 通过回调提供当前来源与槽位快照。
  */
 import {
@@ -10,6 +10,7 @@ import {
     extractTranslationText,
     getComposedParent,
     getCurrentTranslationCore,
+    getTranslationCandidateKey,
     isProtectedDescendantElement,
     isTranslationTextElementProtected,
     type TranslationCandidate,
@@ -18,8 +19,10 @@ import {
 } from '@/src/core/translation/public';
 import {
     getTranslationOverflowGenerationIdentity,
+    getTranslationState,
     getTranslationSourceStructureSignature,
     isTranslationSourceStructureOverflow,
+    isTrustedBilingualArtifactWithHostClass,
     type TranslationState,
 } from './state';
 
@@ -68,6 +71,49 @@ export function getCandidateTranslationTextProtectionOptions(
         candidate.element,
     );
 }
+
+/** 已渲染 owner 的范围复验读取精确来源槽，其他站点与 DOM 保护边界保持有效。 */
+function getStatefulCandidateTextProtectionOptions(
+    candidate: TranslationCandidate,
+    state: TranslationState | undefined,
+): TranslationTextProtectionOptions | undefined {
+    if (!state?.singleTextSlotHosts?.length ||
+        !statefulSourceAndTextSlotsAreCurrent(candidate.element, state) ||
+        !state.singleTextSlotHosts.every(({host, source}) => host.childNodes.length === 1 &&
+            host.firstChild === source && host.matches('.fluent-read-single-slot[data-fr-translation-owned="true"][translate="no"]'))) {
+        return undefined;
+    }
+    return {
+        sourceTextSlotHosts: new Set(state.singleTextSlotHosts.map(({host}) => host)),
+        ...getCandidateTranslationTextProtectionOptions(candidate),
+    };
+}
+
+/** 复验已有候选的身份与站点边界，读取原文槽而不把译文布局误当作来源。 */
+export function isTranslationCandidateCurrent(candidate: TranslationCandidate): boolean {
+    const core = getCurrentTranslationCore(candidate.scope);
+    if (!candidate.element.isConnected) return false;
+    if (candidate.nodes?.length) {
+        if (candidate.nodes.some((node) => node.parentNode !== candidate.element)) return false;
+        const fresh = core.resolve(getTranslationCandidateKey(candidate));
+        return Boolean(fresh && fresh.element === candidate.element &&
+            fresh.kind === candidate.kind &&
+            fresh.allowTopLevelApplicationShell === candidate.allowTopLevelApplicationShell &&
+            getTranslationCandidateKey(fresh) === getTranslationCandidateKey(candidate));
+    }
+    const textProtectionOptions = getStatefulCandidateTextProtectionOptions(candidate, getTranslationState(candidate.element));
+    const fresh = textProtectionOptions
+        ? core.inspect(candidate.element, textProtectionOptions).candidate
+        : candidate.allowTopLevelApplicationShell === true
+            ? core.resolve(candidate.element)
+            : core.inspect(candidate.element).candidate;
+    return Boolean(
+        fresh?.element === candidate.element &&
+        fresh.kind === candidate.kind &&
+        fresh.allowTopLevelApplicationShell === candidate.allowTopLevelApplicationShell,
+    );
+}
+
 
 export function getCurrentTranslationStateSourceText(node: HTMLElement, state: TranslationState): string {
     return extractTranslationText(
@@ -276,9 +322,9 @@ export function isTranslationArtifactCurrent(
             wrapper.isConnected &&
             wrapper.matches('.fluent-read-bilingual-content[data-fr-translation-owned="true"]') &&
             state.bilingualHTML !== undefined &&
-            wrapper.innerHTML === state.bilingualHTML &&
             state.bilingualOuterHTML !== undefined &&
-            wrapper.outerHTML === state.bilingualOuterHTML &&
+            (wrapper.innerHTML === state.bilingualHTML && wrapper.outerHTML === state.bilingualOuterHTML ||
+                isTrustedBilingualArtifactWithHostClass(wrapper, state)) &&
             directWrappers.length === 1 &&
             directWrappers[0] === wrapper,
         );

@@ -88,9 +88,13 @@ export function installShadowRouteBridgeCore(environment: ShadowRouteBridgeEnvir
     const originalAttachShadow = environment.attachShadow.get();
     const originalPushState = environment.pushState.get();
     const originalReplaceState = environment.replaceState.get();
-    const dispatchRouteChange = () => environment.documentEvents.dispatchEvent(
-        environment.createEvent(ROUTE_CHANGE_EVENT),
-    );
+    let previousHref = environment.getHref();
+    const dispatchRouteChange = () => {
+        const href = environment.getHref();
+        if (href === previousHref) return;
+        previousHref = href;
+        environment.documentEvents.dispatchEvent(environment.createEvent(ROUTE_CHANGE_EVENT));
+    };
     const attachShadowWrapper: AttachShadowPort = function attachShadow(init) {
         const root = Reflect.apply(originalAttachShadow, this, [init]);
         if (init.mode === 'open') {
@@ -102,15 +106,13 @@ export function installShadowRouteBridgeCore(environment: ShadowRouteBridgeEnvir
         return root;
     };
     const pushStateWrapper: HistoryMutationPort = function pushState(data, unused, url) {
-        const previousUrl = environment.getHref();
         const result = Reflect.apply(originalPushState, this, [data, unused, url]);
-        if (environment.getHref() !== previousUrl) dispatchRouteChange();
+        dispatchRouteChange();
         return result;
     };
     const replaceStateWrapper: HistoryMutationPort = function replaceState(data, unused, url) {
-        const previousUrl = environment.getHref();
         const result = Reflect.apply(originalReplaceState, this, [data, unused, url]);
-        if (environment.getHref() !== previousUrl) dispatchRouteChange();
+        dispatchRouteChange();
         return result;
     };
     const dispose = () => {
@@ -121,7 +123,7 @@ export function installShadowRouteBridgeCore(environment: ShadowRouteBridgeEnvir
         restoreMethod(environment.replaceState, replaceStateWrapper, originalReplaceState);
         environment.windowEvents.removeEventListener('popstate', dispatchRouteChange);
         environment.windowEvents.removeEventListener('hashchange', dispatchRouteChange);
-        environment.navigationEvents?.removeEventListener('navigate', dispatchRouteChange);
+        environment.navigationEvents?.removeEventListener('currententrychange', dispatchRouteChange);
         environment.documentEvents.removeEventListener(SHADOW_BRIDGE_DISPOSE_EVENT, dispose);
         delete environment.stateHost[SHADOW_BRIDGE_STATE_KEY];
     };
@@ -132,7 +134,9 @@ export function installShadowRouteBridgeCore(environment: ShadowRouteBridgeEnvir
     installMethod(environment.replaceState, replaceStateWrapper);
     environment.windowEvents.addEventListener('popstate', dispatchRouteChange);
     environment.windowEvents.addEventListener('hashchange', dispatchRouteChange);
-    environment.navigationEvents?.addEventListener('navigate', dispatchRouteChange);
+    // navigate 在提交前触发，保存同页滚动状态也会触发；只读取提交后的 URL，
+    // 并与 history/hash/popstate 共用去重，避免误废弃仍属于当前页面的请求。
+    environment.navigationEvents?.addEventListener('currententrychange', dispatchRouteChange);
     environment.stateHost[SHADOW_BRIDGE_STATE_KEY] = {owner, dispose};
     environment.documentEvents.addEventListener(SHADOW_BRIDGE_DISPOSE_EVENT, dispose);
     return dispose;

@@ -9,6 +9,8 @@ import {
 import {
     attachTranslationRequestControl,
     getTranslationRequestControl,
+    attachTranslationGlossaryContext,
+    getTranslationGlossaryContext,
 } from '@/src/services/translation/requestSnapshot';
 
 describe('background translation fallback handler', () => {
@@ -49,7 +51,8 @@ describe('background translation fallback handler', () => {
         };
 
         await expect(fallback.handle(candidate, undefined)).resolves.toBe('你好');
-        expect(translate).toHaveBeenCalledWith({
+        expect(translate).toHaveBeenCalledOnce();
+        expect(Object.fromEntries(Object.entries(translate.mock.calls[0][0]))).toEqual({
             origin: 'hello',
             context: 'title',
             pageContext: 'article',
@@ -65,6 +68,7 @@ describe('background translation fallback handler', () => {
             requestTimeoutMs: 12_000,
         });
         const brokerMessage = translate.mock.calls[0]?.[0];
+        expect(getTranslationGlossaryContext(brokerMessage)).toEqual({context: 'page', pageUrl: undefined});
         expect(brokerMessage).not.toHaveProperty('clientRequestId');
         expect(getTranslationRequestControl(brokerMessage)).toMatchObject({
             signal: expect.any(AbortSignal),
@@ -93,6 +97,37 @@ describe('background translation fallback handler', () => {
     it('保留字符串数组并忽略未提供的可选字段', () => {
         expect(parseTranslationRequest({origin: ['a', 'b']})).toEqual({origin: ['a', 'b']});
         expect(parseTranslationRequest({origin: '', context: undefined})).toEqual({origin: ''});
+    });
+
+    it('术语协议保留显式空选择和revision，复制数组但剥离伪造词表及来源', () => {
+        const ids = ['technical'];
+        const revision = `glossary-v1:${'a'.repeat(64)}`;
+        const candidate = attachTranslationGlossaryContext({origin: 'agent', glossaryIds: ids,
+            glossaryRevision: revision, glossaryContext: 'video', glossaryTerms: [{source: 'agent', target: 'forged'}],
+            pageUrl: 'https://private.example'}, {pageUrl: 'https://private.example'});
+        const parsed = parseTranslationRequest(candidate);
+        ids.push('changed');
+        expect(parsed).toEqual({origin: 'agent', glossaryIds: ['technical'], glossaryRevision: revision, glossaryContext: 'video'});
+        expect(getTranslationGlossaryContext(parsed)).toBeUndefined();
+        expect(Object.isFrozen(parsed.glossaryIds)).toBe(true);
+        expect(parseTranslationRequest({origin: 'agent', glossaryIds: []}).glossaryIds).toEqual([]);
+        expect(parseTranslationRequest({origin: 'agent', glossaryIds: null}).glossaryIds).toBeNull();
+        expect(parseTranslationRequest({origin: 'agent', glossaryRevision: 'glossary-v1:disabled'}).glossaryRevision).toBe('glossary-v1:disabled');
+    });
+
+    it.each([
+        ['https://docs.example.com/a', 'document', {context: 'page', pageUrl: 'https://docs.example.com/a'}],
+        ['https://youtube.com/watch?v=x', 'video', {context: 'video', pageUrl: 'https://youtube.com/watch?v=x'}],
+        ['chrome-extension://id/document.html#file', 'document', {context: 'document', pageUrl: undefined}],
+        ['moz-extension://id/document.html?file=1', 'document', {context: 'document', pageUrl: undefined}],
+        ['chrome-extension://id/options.html', 'document', {context: 'page', pageUrl: undefined}],
+        ['https://fake.example/document.html', 'document', {context: 'page', pageUrl: 'https://fake.example/document.html'}],
+    ])('术语范围绑定浏览器发送者 %s / %s', async (url, glossaryContext, expected) => {
+        const translate = vi.fn().mockResolvedValue('译文');
+        const fallback = createTranslationRequestFallback<TranslationRequestContext>({translate, serializeError: vi.fn()});
+        await fallback.handle({origin: 'agent', glossaryContext, pageUrl: 'https://forged.example'}, {sender: {url}});
+        expect(getTranslationGlossaryContext(translate.mock.calls[0][0])).toEqual(expected);
+        expect(JSON.stringify(translate.mock.calls[0][0])).not.toContain('forged');
     });
 
     it('无 clientRequestId 的兼容请求不附加取消所有权，保留 broker pending 去重', async () => {
@@ -131,6 +166,15 @@ describe('background translation fallback handler', () => {
         [{origin: 'ok', clientRequestId: 'x'.repeat(129)}, 'clientRequestId'],
         [{origin: 'ok', clientRequestId: 'contains whitespace'}, 'clientRequestId'],
         [{origin: 'ok', clientRequestId: 1}, 'clientRequestId'],
+        [{origin: 'ok', glossaryRevision: 1}, 'glossaryRevision'],
+        [{origin: 'ok', glossaryRevision: 'not-a-version'}, 'glossaryRevision'],
+        [{origin: 'ok', glossaryContext: null}, 'glossaryContext'],
+        [{origin: 'ok', glossaryContext: 'image'}, 'glossaryContext'],
+        [{origin: 'ok', glossaryIds: 'all'}, 'glossaryIds'],
+        [{origin: 'ok', glossaryIds: new Array(1)}, 'glossaryIds'],
+        [{origin: 'ok', glossaryIds: [1]}, 'glossaryIds'],
+        [{origin: 'ok', glossaryIds: ['a'.repeat(129)]}, 'glossaryIds'],
+        [{origin: 'ok', glossaryIds: Array(101).fill('a')}, 'glossaryIds'],
     ])('拒绝非法协议字段 %#', (candidate, field) => {
         expect(() => parseTranslationRequest(candidate as never)).toThrow(field);
     });

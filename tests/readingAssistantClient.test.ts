@@ -1,5 +1,5 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {clearHarnessSessions, deleteHarnessSession, getHarnessSession, listHarnessSessions, streamReading} from '@/src/features/reading-assistant/client';
+import {clearHarnessSessions, deleteHarnessSession, getHarnessSession, listHarnessSessions, streamReading, clearLearningMemories, deleteLearningMemory, listLearningMemories, saveLearningMemory} from '@/src/features/reading-assistant/client';
 
 const state = vi.hoisted(() => ({
   message: vi.fn(), connect: vi.fn(), port: null as any,
@@ -53,5 +53,22 @@ describe('reading assistant client', () => {
     expect(state.message).toHaveBeenNthCalledWith(1, {type: 'fluentReadHarness', action: 'sessions-list', offset: 20});
     state.message.mockResolvedValueOnce({success: false, error: 'denied'}); await expect(listHarnessSessions()).rejects.toThrow('denied');
     state.message.mockResolvedValueOnce({success: false}); await expect(listHarnessSessions()).rejects.toThrow('会话操作失败');
+  });
+  it('wraps learning memory CRUD and snapshots only whitelisted fields from reactive input', async () => {
+    const memory = {id: 'a0000000-0000-4000-8000-000000000001', content: '先解释主干', kind: 'preference' as const, createdAt: 1, updatedAt: 1};
+    state.message.mockResolvedValueOnce({success: true, memories: [memory]}).mockResolvedValueOnce({success: true, memory}).mockResolvedValueOnce({success: true, memory}).mockResolvedValueOnce({success: true}).mockResolvedValueOnce({success: true});
+    expect(await listLearningMemories()).toEqual([memory]);
+    expect(await saveLearningMemory({content: memory.content, kind: memory.kind})).toEqual(memory);
+    expect(await saveLearningMemory({...memory, token: 'never send'} as any)).toEqual(memory);
+    await deleteLearningMemory(memory.id); await clearLearningMemories();
+    expect(state.message.mock.calls.map(call => call[0])).toEqual([
+      {type: 'fluentReadHarness', action: 'memory-list'},
+      {type: 'fluentReadHarness', action: 'memory-save', input: {content: memory.content, kind: memory.kind}},
+      {type: 'fluentReadHarness', action: 'memory-save', input: {content: memory.content, kind: memory.kind, id: memory.id}},
+      {type: 'fluentReadHarness', action: 'memory-delete', id: memory.id},
+      {type: 'fluentReadHarness', action: 'memory-clear'},
+    ]);
+    state.message.mockResolvedValueOnce({success: false, error: '学习记忆不能超过 2000 个字符'});
+    await expect(saveLearningMemory({content: 'x'.repeat(2001), kind: 'note'})).rejects.toThrow('2000');
   });
 });

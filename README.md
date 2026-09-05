@@ -8,7 +8,7 @@
 
 An open-source browser extension that helps you understand foreign-language webpages without leaving the page.
 
-[![Latest version](https://img.shields.io/badge/version-0.0.31-6d5dfc?style=flat-square)](https://github.com/FluentRead/FluentRead/releases)
+[![Latest version](https://img.shields.io/badge/version-0.0.32-6d5dfc?style=flat-square)](https://github.com/FluentRead/FluentRead/releases)
 [![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0-22a06b?style=flat-square)](./LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/FluentRead/FluentRead?style=flat-square)](https://github.com/FluentRead/FluentRead)
 
@@ -74,6 +74,8 @@ The [official documentation](https://fluent.thinkstu.com/) explains the main fea
 FluentRead does not run an account system or a first-party translation server. When you use a cloud service, the text you ask to translate is sent to that service. You can choose a local Ollama model to keep more content on your computer. See the [data and privacy guide](https://fluent.thinkstu.com/guide/privacy) for the details.
 
 ## Help
+
+To adjust a website's reading area, follow the [custom website rules tutorial](https://fluent.thinkstu.com/guide/custom-site-rules). To add or improve built-in rules, see the [website adaptation contribution guide](./docs/contributing/site-adaptation.md), including examples, fixtures, and validation steps.
 
 - [Common questions](https://fluent.thinkstu.com/guide/faq)
 - [GitHub Issues](https://github.com/FluentRead/FluentRead/issues)

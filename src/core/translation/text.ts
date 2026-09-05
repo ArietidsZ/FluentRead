@@ -13,6 +13,7 @@ import {
     maxComposedAncestorDepth,
 } from './dom';
 import type {TranslationTextProtectionOptions} from './dom';
+import {detectChineseScript, getChineseScript} from '@/src/core/language/chinese';
 
 const identifierPatterns = [
     /^https?:\/\/\S+$/iu,
@@ -276,22 +277,6 @@ export function extractTranslationText(
 const hanPattern = /\p{Script=Han}/u;
 const kanaPattern = /[\p{Script=Hiragana}\p{Script=Katakana}]/u;
 const hangulPattern = /\p{Script=Hangul}/u;
-// 只收录与现代日文常用字形明显不同的简繁中文证据；普通共享 Han 仍保持未知。
-const simplifiedChineseSpecificHanPattern = /[这们语译设为说从对还样书门车东发见长电现间题让气实图网边变进选级应标经]/u;
-const traditionalChineseSpecificHanPattern = /[這們譯與說從對樣發氣點實圖邊變條應經體]/u;
-
-type ChineseScript = 'simplified' | 'traditional';
-
-function getChineseTargetScript(targetLanguage: string): ChineseScript | undefined {
-    const target = targetLanguage.trim().replace(/_/gu, '-').toLowerCase();
-    if (target === 'zh-hans' || target === 'zh-cn' || target === 'zh-sg') {
-        return 'simplified';
-    }
-    if (target === 'zh-hant' || target === 'zh-tw' || target === 'zh-hk' || target === 'zh-mo') {
-        return 'traditional';
-    }
-    return undefined;
-}
 
 /**
  * 统计式语言检测对短 UI 文本最不可靠。只接受假名、谚文或中文特有字形作为明确证据；
@@ -310,14 +295,8 @@ export function isClearlyTargetLanguage(value: string, targetLanguage: string): 
     if (hasKana) return target.startsWith('ja');
     if (hasHangul) return target.startsWith('ko');
     if (hanPattern.test(text)) {
-        const hasSimplifiedChinese = simplifiedChineseSpecificHanPattern.test(text);
-        const hasTraditionalChinese = traditionalChineseSpecificHanPattern.test(text);
-        // 普通共享 Han、简繁混排和未指定书写体系的 zh 都无法证明已经是目标语言。
-        if (hasSimplifiedChinese === hasTraditionalChinese) return false;
-        const targetScript = getChineseTargetScript(targetLanguage);
-        return hasSimplifiedChinese
-            ? targetScript === 'simplified'
-            : targetScript === 'traditional';
+        const script = detectChineseScript(text);
+        return script !== undefined && script === getChineseScript(targetLanguage);
     }
     return false;
 }

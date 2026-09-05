@@ -1,10 +1,12 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-const {recognize, ensureLanguages} = vi.hoisted(() => ({recognize: vi.fn(), ensureLanguages: vi.fn()}));
-vi.mock('@/src/features/image-translation/services/ocrWorkerRuntime', () => ({
-    createOcrWorkerRuntime: () => ({recognize, ensureLanguages}),
+const {recognize, ensureLanguages, createRuntime, tesseractCreateWorker} = vi.hoisted(() => ({
+    recognize: vi.fn(), ensureLanguages: vi.fn(), createRuntime: vi.fn(), tesseractCreateWorker: vi.fn(),
 }));
-vi.mock('tesseract.js', () => ({createWorker: vi.fn(), PSM: {SPARSE_TEXT: 11}}));
+vi.mock('@/src/features/image-translation/services/ocrWorkerRuntime', () => ({
+    createOcrWorkerRuntime: createRuntime,
+}));
+vi.mock('tesseract.js', () => ({createWorker: tesseractCreateWorker, PSM: {SPARSE_TEXT: 11, SINGLE_BLOCK: 6}}));
 
 const blockResult = () => ({data: {blocks: [{paragraphs: [{lines: [{
     text: 'hello', bbox: {x0: 10, y0: 10, x1: 50, y1: 30},
@@ -15,15 +17,19 @@ describe('图片 OCR 处理与结果缓存', () => {
     let dimensions: {width: number; height: number};
     let sources: Array<{src: string; onload: (() => void) | null; onerror: (() => void) | null}>;
     let canvas: {width: number; height: number; getContext: ReturnType<typeof vi.fn>; toDataURL: ReturnType<typeof vi.fn>};
-    let context: {drawImage: ReturnType<typeof vi.fn>; imageSmoothingEnabled: boolean; imageSmoothingQuality: string};
+    let context: {drawImage: ReturnType<typeof vi.fn>; fillRect: ReturnType<typeof vi.fn>; fillStyle: string; imageSmoothingEnabled: boolean; imageSmoothingQuality: string};
+    let onImageCreated: (() => void) | undefined;
 
     beforeEach(async () => {
         vi.resetModules();
         recognize.mockReset().mockResolvedValue(blockResult());
         ensureLanguages.mockReset().mockResolvedValue(undefined);
+        createRuntime.mockReset().mockReturnValue({recognize, ensureLanguages});
+        tesseractCreateWorker.mockReset().mockResolvedValue({});
+        onImageCreated = undefined;
         dimensions = {width: 100, height: 100};
         sources = [];
-        context = {drawImage: vi.fn(), imageSmoothingEnabled: false, imageSmoothingQuality: 'low'};
+        context = {drawImage: vi.fn(), fillRect: vi.fn(), fillStyle: '', imageSmoothingEnabled: false, imageSmoothingQuality: 'low'};
         canvas = {width: 0, height: 0, getContext: vi.fn(() => context), toDataURL: vi.fn(() => 'scaled-image')};
         vi.stubGlobal('document', {createElement: vi.fn(() => canvas)});
         vi.stubGlobal('Image', class {
@@ -34,7 +40,7 @@ describe('图片 OCR 处理与结果缓存', () => {
             onload: (() => void) | null = null;
             onerror: (() => void) | null = null;
             currentSrc = '';
-            constructor() { sources.push(this); }
+            constructor() { sources.push(this); onImageCreated?.(); }
             get src() { return this.currentSrc; }
             set src(value: string) {
                 this.currentSrc = value;
@@ -46,7 +52,10 @@ describe('图片 OCR 处理与结果缓存', () => {
         ({recognizeImage} = await import('@/src/features/image-translation/services/ocrRuntime'));
     });
 
-    afterEach(() => vi.unstubAllGlobals());
+    afterEach(() => {
+        vi.useRealTimers();
+        vi.unstubAllGlobals();
+    });
 
     it('同图同语言复用完成的 OCR，并隔离调用方修改', async () => {
         const first = await recognizeImage('same', 'en');
@@ -59,6 +68,31 @@ describe('图片 OCR 处理与结果缓存', () => {
         expect(recognize).toHaveBeenCalledOnce();
         expect(sources).toHaveLength(1);
         expect(document.createElement).not.toHaveBeenCalled();
+        expect(sources[0]).toMatchObject({src: '', onload: null, onerror: null});
+    });
+
+    it('扩展 Worker 使用本地资源目录并复用语言下载边界及取消信号', async () => {
+        vi.stubGlobal('chrome', {runtime: {getURL: (path: string) => `chrome-extension://test${path}`}});
+        await createRuntime.mock.calls[0][0].createWorker('jpn+eng');
+        expect(tesseractCreateWorker).toHaveBeenCalledWith('jpn+eng', 1, {
+            workerPath: 'chrome-extension://test/fluent-read-ocr/worker/worker.min.js',
+            corePath: 'chrome-extension://test/fluent-read-ocr/core',
+            cachePath: 'fluent-read-image-ocr', workerBlobURL: false,
+        });
+        const {downloadImageOcrLanguages} = await import('@/src/features/image-translation/services/ocrRuntime');
+        const controller = new AbortController();
+        await downloadImageOcrLanguages(['jpn', 'eng'], controller.signal);
+        expect(ensureLanguages).toHaveBeenCalledWith(['jpn', 'eng'], controller.signal);
+        ensureLanguages.mockRejectedValueOnce(new Error('download failed'));
+        await expect(downloadImageOcrLanguages(['eng'])).rejects.toThrow('download failed');
+    });
+
+    it('同图并发完成覆盖缓存时回收旧字节计数，后续缓存不被重复计费误淘汰', async () => {
+        const shared = 'a'.repeat(3 * 1024 * 1024);
+        await Promise.all([recognizeImage(shared, 'en'), recognizeImage(shared, 'en')]);
+        await recognizeImage('b'.repeat(2 * 1024 * 1024), 'en');
+        await recognizeImage(shared, 'en');
+        expect(recognize).toHaveBeenCalledTimes(3);
     });
 
     it('不同 OCR 语言分别缓存，第四张图片淘汰最近最少使用的结果', async () => {
@@ -98,6 +132,104 @@ describe('图片 OCR 处理与结果缓存', () => {
         expect(lines).toEqual([{text: 'hello', bbox: {x0: 19, y0: 19, x1: 98, y1: 59}}]);
         expect(canvas.width).toBe(0);
         expect(canvas.height).toBe(0);
+        expect(sources[0].src).toBe('');
+        expect(context.fillRect).not.toHaveBeenCalled();
+    });
+
+    it('圈选小图放大加边后映回坐标，与普通图片分开缓存且不重复识别', async () => {
+        await recognizeImage('same', 'en');
+        const lines = await recognizeImage('same', 'en', undefined, {profile: 'area'});
+        expect(context.drawImage).toHaveBeenCalledWith(sources[1], 10, 10, 200, 200);
+        expect(context.fillRect).toHaveBeenCalledWith(0, 0, 220, 220);
+        expect(context.fillStyle).toBe('#ffffff');
+        expect(lines).toEqual([{text: 'hello', bbox: {x0: 0, y0: 0, x1: 20, y1: 10}}]);
+        await expect(recognizeImage('same', 'en', undefined, {profile: 'area'})).resolves.toEqual(lines);
+        await expect(recognizeImage('same', 'en', undefined, {profile: 'image'})).resolves.toEqual([
+            {text: 'hello', bbox: {x0: 10, y0: 10, x1: 50, y1: 30}},
+        ]);
+        expect(recognize).toHaveBeenCalledTimes(2);
+        expect(canvas).toMatchObject({width: 0, height: 0});
+        expect(sources.every(source => source.src === '')).toBe(true);
+    });
+
+    it('圈选稀疏模式空结果才以单块模式重试一次，普通图片保留单次识别', async () => {
+        recognize.mockResolvedValueOnce({data: {blocks: []}});
+        await expect(recognizeImage('area', 'en', undefined, {profile: 'area'})).resolves.toHaveLength(1);
+        expect(recognize).toHaveBeenNthCalledWith(1, 'scaled-image', 'eng', undefined);
+        expect(recognize).toHaveBeenNthCalledWith(2, 'scaled-image', 'eng', undefined, 6);
+        recognize.mockResolvedValue({data: {blocks: []}});
+        await expect(recognizeImage('blank', 'en', undefined, {profile: 'area'})).resolves.toEqual([]);
+        expect(recognize).toHaveBeenCalledTimes(4);
+        await recognizeImage('blank', 'en', undefined, {profile: 'area'});
+        expect(recognize).toHaveBeenCalledTimes(4);
+        await expect(recognizeImage('normal', 'en')).resolves.toEqual([]);
+        expect(recognize).toHaveBeenCalledTimes(5);
+    });
+
+    it('圈选第二次识别取消或失败不写缓存，重试重新识别', async () => {
+        const controller = new AbortController();
+        recognize.mockResolvedValueOnce({data: {blocks: []}}).mockImplementationOnce(async () => {
+            controller.abort();
+            return blockResult();
+        });
+        await expect(recognizeImage('retry-area', 'en', controller.signal, {profile: 'area'}))
+            .rejects.toMatchObject({name: 'AbortError'});
+        recognize.mockResolvedValueOnce({data: {blocks: []}}).mockRejectedValueOnce(new Error('retry failed'));
+        await expect(recognizeImage('retry-area', 'en', undefined, {profile: 'area'})).rejects.toThrow('retry failed');
+        await expect(recognizeImage('retry-area', 'en', undefined, {profile: 'area'})).resolves.toHaveLength(1);
+        expect(recognize).toHaveBeenCalledTimes(5);
+    });
+
+    it('解码无事件时按时失败并清理来源、监听器和计时器，可以随后重试', async () => {
+        vi.useFakeTimers();
+        const pending = recognizeImage('pending', 'en');
+        const rejection = expect(pending).rejects.toThrow('图片解码超时');
+        await vi.advanceTimersByTimeAsync(15_000);
+        await rejection;
+        expect(sources[0]).toMatchObject({src: '', onload: null, onerror: null});
+        expect(vi.getTimerCount()).toBe(0);
+        expect(recognize).not.toHaveBeenCalled();
+        vi.useRealTimers();
+        const retry = recognizeImage('pending', 'en');
+        sources[1].onload?.();
+        await expect(retry).resolves.toHaveLength(1);
+    });
+
+    it('解码完成与准备继续之间取消，释放解码源并不启动 OCR', async () => {
+        const controller = new AbortController();
+        const pending = recognizeImage('pending', 'en', controller.signal);
+        sources[0].onload?.();
+        controller.abort();
+        await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+        expect(sources[0].src).toBe('');
+        expect(recognize).not.toHaveBeenCalled();
+    });
+
+    it('创建解码对象期间或编码完成时取消，不赋予来源或启动后续 OCR', async () => {
+        const constructing = new AbortController();
+        onImageCreated = () => constructing.abort();
+        await expect(recognizeImage('never-started', 'en', constructing.signal)).rejects.toMatchObject({name: 'AbortError'});
+        expect(sources[0]).toMatchObject({src: '', onload: null, onerror: null});
+        onImageCreated = undefined;
+        const encoding = new AbortController();
+        canvas.toDataURL.mockImplementationOnce(() => { encoding.abort(); return 'encoded'; });
+        await expect(recognizeImage('encoded-abort', 'en', encoding.signal, {profile: 'area'}))
+            .rejects.toMatchObject({name: 'AbortError'});
+        expect(sources[1].src).toBe('');
+        expect(canvas).toMatchObject({width: 0, height: 0});
+        expect(recognize).not.toHaveBeenCalled();
+    });
+
+    it.each(['context', 'drawing', 'encoding'])('画布%s失败也释放画布像素与解码源', async stage => {
+        dimensions = {width: 8000, height: 1000};
+        if (stage === 'context') canvas.getContext.mockReturnValueOnce(null);
+        if (stage === 'drawing') context.drawImage.mockImplementationOnce(() => { throw new Error('draw failed'); });
+        if (stage === 'encoding') canvas.toDataURL.mockImplementationOnce(() => { throw new Error('encode failed'); });
+        await expect(recognizeImage('canvas-failure', 'en')).rejects.toThrow();
+        expect(canvas).toMatchObject({width: 0, height: 0});
+        expect(sources[0].src).toBe('');
+        expect(recognize).not.toHaveBeenCalled();
+        await expect(recognizeImage('canvas-failure', 'en')).resolves.toHaveLength(1);
     });
 
     it('预取消请求不读取缓存或解码，取消解码会移除图片监听器', async () => {
@@ -127,6 +259,7 @@ describe('图片 OCR 处理与结果缓存', () => {
 
     it('解码失败、非法尺寸、Canvas 不可用和识别失败均可明确失败后重试', async () => {
         await expect(recognizeImage('broken', 'en')).rejects.toThrow('图片数据无法解码');
+        expect(sources[0]).toMatchObject({src: '', onload: null, onerror: null});
         dimensions = {width: 0, height: 0};
         await expect(recognizeImage('invalid', 'en')).rejects.toThrow('图片尺寸无效');
         dimensions = {width: 8000, height: 1000};

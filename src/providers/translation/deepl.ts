@@ -6,8 +6,9 @@
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
-import {method, urls} from "@/src/core/config/constants";
-import {services} from "@/src/core/config/catalog";
+import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
+import {method} from "@/src/core/config/constants";
+import {getDeepLEndpoint} from '@/src/core/config/deepl';
 import {config} from "@/src/services/config/store";
 import {getTranslationLanguages} from '@/src/services/translation/languages';
 import {createHttpStatusError, readJsonResponse} from '@/src/platform/http/errors';
@@ -20,12 +21,14 @@ import {
 async function deepl(message: TranslationProviderRequest<string>) {
     const current = getTranslationProviderConfig(message, config);
     const service = message.serviceOverride || current.service;
-    // deepl 不支持 zh-Hans，需要转换为 zh
-    const {targetLanguage} = getTranslationLanguages(message);
-    let targetLang = targetLanguage === 'zh-Hans' ? 'zh' : targetLanguage;
+    // DeepL 的目标语言区分书写系统，源语言参数仅接受基础 ZH。
+    const {sourceLanguage, targetLanguage} = getTranslationLanguages(message);
+    const targetLang = normalizeChineseLanguageCode(targetLanguage).toUpperCase();
+    const normalizedSource = normalizeChineseLanguageCode(sourceLanguage);
+    const sourceLang = normalizedSource.startsWith('zh-') ? 'ZH' : normalizedSource.toUpperCase();
 
     // 判断是否使用代理
-    let url: string = current.proxy[service] ? current.proxy[service] : urls[services.deepL]
+    const url = getDeepLEndpoint(current.deeplApiPlan, current.proxy[service]);
 
     const resp = await runtimeFetch(url, {
         method: method.POST,
@@ -36,6 +39,7 @@ async function deepl(message: TranslationProviderRequest<string>) {
         body: JSON.stringify({
             text: [message.origin],
             target_lang: targetLang,
+            ...(sourceLanguage === 'auto' ? {} : {source_lang: sourceLang}),
             tag_handling: 'html',
             context: message.context,  // 添加上下文辅助信息
             preserve_formatting: true

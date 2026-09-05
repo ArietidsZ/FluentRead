@@ -9,9 +9,12 @@ import {
     extractTranslationText,
     extractTranslationTextFromNodes,
     getCurrentTranslationCore,
+    setCurrentTranslationAdapters,
     resolveTranslationCandidateAtPoint,
     getTranslationCandidateKey,
 } from '@/src/core/translation/public';
+import {defaultTranslationAdapters} from '@/src/core/translation/registry';
+import {isTranslationCandidateCurrent} from '@/src/features/full-page-translation/content/translationStability';
 import type {TranslationCandidate, TranslationScope} from '@/src/core/translation/public';
 
 function page(html: string, url = 'https://example.test/application') {
@@ -28,7 +31,10 @@ function source(candidate: TranslationCandidate): string {
         : extractTranslationText(candidate.element);
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+    setCurrentTranslationAdapters(defaultTranslationAdapters);
+    vi.unstubAllGlobals();
+});
 
 describe('explicit all-nodes translation scope', () => {
     it('Epoch 导航与页脚链接进入全部节点范围，并保持整段正文及内联链接为一个候选', () => {
@@ -287,6 +293,25 @@ describe('explicit all-nodes translation scope', () => {
         expect(resolveTranslationCandidateAtPoint(20, 20, 'all')).toMatchObject({element: button, kind: 'control', scope: 'all'});
         Object.defineProperty(document, 'elementsFromPoint', {configurable: true, value: () => [textarea]});
         expect(resolveTranslationCandidateAtPoint(20, 20, 'all')).toBeNull();
+    });
+
+    it('站点适配器更新同时清空两个范围，已有全部节点候选按自身范围复验', () => {
+        const {document} = page('<nav><a id="menu" href="/projects">Project navigation</a></nav>');
+        vi.stubGlobal('location', {href: 'https://example.test/application'});
+        const content = getCurrentTranslationCore();
+        const all = getCurrentTranslationCore('all');
+        const link = document.querySelector<HTMLElement>('a')!;
+        const candidate = all.resolve(link)!;
+        expect(isTranslationCandidateCurrent(candidate)).toBe(true);
+        expect(isTranslationCandidateCurrent({...candidate, scope: 'content'})).toBe(false);
+        const adapters = [...defaultTranslationAdapters];
+        setCurrentTranslationAdapters(adapters);
+        expect(getCurrentTranslationCore()).not.toBe(content);
+        expect(getCurrentTranslationCore('all')).not.toBe(all);
+        expect(isTranslationCandidateCurrent(candidate)).toBe(true);
+        const rebuilt = getCurrentTranslationCore('all');
+        setCurrentTranslationAdapters(adapters);
+        expect(getCurrentTranslationCore('all')).toBe(rebuilt);
     });
 
     it('URL 与范围分别隔离共享核心，并在导航后同时重新创建', () => {

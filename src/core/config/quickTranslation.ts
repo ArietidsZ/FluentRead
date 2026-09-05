@@ -1,11 +1,13 @@
 /**
  * @file src/core/config/quickTranslation.ts
  * 文件职责：定义多快捷翻译方案的持久化结构、数量边界与纯归一化规则。
- * 主要内容：约束悬停/全文动作、独立服务模型、目标语言、显示方式和全文范围，并为 UI 生成稳定方案 ID。
+ * 主要内容：约束悬停/全文动作、独立服务模型、目标语言及中文简繁别名、显示方式和全文范围，并为 UI 生成稳定方案 ID。
  * 模块边界：本文件不监听键盘鼠标、不读取浏览器存储、不执行翻译；运行时路由和设置界面分别由 feature 与 settings 层负责。
  */
+import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import {canonicalizeHotkey} from '@/src/core/hotkey';
 import {MAX_CUSTOM_OPENAI_MODEL_LENGTH} from '@/src/core/config/customOpenAI';
+import {normalizeGlossaryIds, type GlossaryLibrary} from '@/src/core/glossary';
 
 /** 每种动作可保存的快捷翻译方案上限；悬浮与全文分别计数。 */
 export const MAX_QUICK_TRANSLATION_PROFILES = 8;
@@ -36,12 +38,15 @@ export interface QuickTranslationProfile {
     displayMode: QuickTranslationDisplayMode;
     /** 只对全文方案生效。 */
     fullPageMode: QuickTranslationFullPageMode;
+    /** null / 缺省跟随全局；空数组停用本方案术语；显式 ID 仍遵守词库范围。 */
+    glossaryIds?: string[] | null;
 }
 
 export interface QuickTranslationNormalizationContext {
     isSupportedService: (service: string) => boolean;
     serviceUsesModel: (service: string) => boolean;
     reservedHotkeys?: readonly string[];
+    glossaryLibraries?: readonly Pick<GlossaryLibrary, 'id'>[];
 }
 
 /** 返回会被输入框翻译消费的首个按键，用于配置和设置 UI 的双向冲突保护。 */
@@ -146,9 +151,12 @@ export function normalizeQuickTranslationProfiles(
             hotkey,
             service,
             model,
-            targetLanguage: normalizedString(candidate.targetLanguage, 32),
+            targetLanguage: normalizeChineseLanguageCode(normalizedString(candidate.targetLanguage, 32)),
             displayMode,
             fullPageMode,
+            ...(candidate.glossaryIds !== undefined
+                ? {glossaryIds: normalizeGlossaryIds(candidate.glossaryIds, context.glossaryLibraries)}
+                : {}),
         });
     }
     return result;
