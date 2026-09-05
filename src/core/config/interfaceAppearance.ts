@@ -26,7 +26,7 @@ export const interfaceSkinOptions = [
     description: '保留当前 FluentRead 的界面布局与视觉效果。',
     group: 'utility',
     kind: 'default',
-    popupHeight: 'fixed',
+    popupHeight: 'content',
     popupWidth: 400,
     preview: {canvas: '#f6f7fb', surface: '#ffffff', accent: '#ef4776', ink: '#172033'},
   },
