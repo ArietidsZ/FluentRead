@@ -146,7 +146,11 @@
       "tests/qqMailFrameSession.test.ts",
       "tests/fullPageStateNotification.test.ts",
       "tests/translationCachePolicy.test.ts",
-      "tests/translationCacheManagement.test.ts"
+      "tests/translationCacheManagement.test.ts",
+      "tests/harnessConversation.test.ts",
+      "tests/harnessStreamPort.test.ts",
+      "tests/harnessSessionHandler.test.ts",
+      "tests/readingAssistantClient.test.ts"
     ],
     "functional": [
       "tests/aiSdkOpenAICompatible.test.ts",
@@ -182,7 +186,9 @@
       "tests/vocabularyBookComponent.test.ts",
       "tests/zhipuCredentials.test.ts",
       "tests/qqMailFrameRuntime.test.ts",
-      "tests/translationCachePolicyBinding.test.ts"
+      "tests/translationCachePolicyBinding.test.ts",
+      "tests/harnessSessionRepository.test.ts",
+      "tests/harnessConversationPersistence.test.ts"
     ],
     "regression": [
       "tests/documentTranslationExamplesApi.test.ts",

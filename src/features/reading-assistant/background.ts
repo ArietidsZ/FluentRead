@@ -5,12 +5,12 @@
  * 模块边界：不读取浏览器或密钥，不选择模型也不执行工具；配置就绪、站点资格和实际 Harness 调用均由应用组合根注入。
  */
 import {HARNESS_ACTIONS} from '@/src/core/config/harness';
-import type {ReadingRequest, ReadingResponse} from './types';
+import type {ReadingProgress, ReadingRequest, ReadingResponse} from './types';
 
 export interface ReadingSender {
     id?: string;
     url?: string;
-    tab?: {id?: number; url?: string};
+    tab?: {id?: number; url?: string; incognito?: boolean};
     frameId?: number;
     documentId?: string;
 }
@@ -18,7 +18,7 @@ export interface ReadingHandlerDependencies {
     extensionId: string;
     ready: Promise<unknown>;
     eligibility(sender: ReadingSender): string | undefined;
-    run(request: ReadingRequest, signal: AbortSignal): Promise<ReadingResponse>;
+    run(request: ReadingRequest, signal: AbortSignal, onProgress?: (progress: ReadingProgress) => void, sender?: ReadingSender): Promise<ReadingResponse>;
 }
 interface ActiveReading {requestId: string; sender: ReadingSender; controller: AbortController}
 const CANCELLED: ReadingResponse = {success: false, error: '已停止理解', cancelled: true};
@@ -61,7 +61,7 @@ export function createReadingAssistantHandler(deps: ReadingHandlerDependencies) 
         cancelTab(tabId: number) { cancelWhere(sender => sender.tab!.id === tabId); },
         cancelDisallowed() { cancelWhere(sender => Boolean(deps.eligibility(sender))); },
         dispose() { disposed = true; cancelWhere(() => true); active.clear(); seen.clear(); },
-        async handle(message: unknown, sender: ReadingSender): Promise<ReadingResponse> {
+        async handle(message: unknown, sender: ReadingSender, onProgress?: (progress: ReadingProgress) => void): Promise<ReadingResponse> {
             if (disposed || sender.id !== deps.extensionId || !Number.isSafeInteger(sender.tab?.id)
                 || sender.tab!.id! < 0 || !isRecord(message) || message.type !== 'fluentReadHarness'
                 || typeof message.requestId !== 'string' || !/^[\w.:-]{1,128}$/u.test(message.requestId)) return INVALID;
@@ -74,7 +74,8 @@ export function createReadingAssistantHandler(deps: ReadingHandlerDependencies) 
                 return CANCELLED;
             }
             if (message.action !== 'run' || !isRecord(message.selection) || typeof message.selection.text !== 'string'
-                || !HARNESS_ACTIONS.some(action => action.id === message.intent)) return INVALID;
+                || !HARNESS_ACTIONS.some(action => action.id === message.intent)
+                || (message.sessionId !== undefined && (typeof message.sessionId !== 'string' || !/^[\w.:-]{1,128}$/u.test(message.sessionId)))) return INVALID;
             if (seen.has(key)) return CANCELLED;
             const previous = active.get(owner);
             if (previous?.requestId === message.requestId) return {success: false, error: '这个请求正在处理中'};
@@ -93,7 +94,12 @@ export function createReadingAssistantHandler(deps: ReadingHandlerDependencies) 
                 if (controller.signal.aborted) { cleanup(); return CANCELLED; }
                 const blocked = deps.eligibility(sender);
                 if (blocked) { cleanup(); return {success: false, error: blocked}; }
-                const response = await abortable(deps.run(message as unknown as ReadingRequest, controller.signal), controller.signal);
+                const publish = onProgress ? (progress: ReadingProgress) => {
+                    if (controller.signal.aborted || active.get(owner)?.controller !== controller) return;
+                    if (deps.eligibility(sender)) { controller.abort(); return; }
+                    onProgress(progress);
+                } : undefined;
+                const response = await abortable(deps.run(message as unknown as ReadingRequest, controller.signal, publish, sender), controller.signal);
                 if (controller.signal.aborted || active.get(owner)?.controller !== controller) { cleanup(); return CANCELLED; }
                 const nowBlocked = deps.eligibility(sender);
                 const result: ReadingResponse = nowBlocked ? {success: false, error: nowBlocked} : response;

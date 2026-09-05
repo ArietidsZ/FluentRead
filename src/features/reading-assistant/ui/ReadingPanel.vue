@@ -6,9 +6,18 @@
  -->
 <template>
   <div class="fr-reading" data-reading-panel>
+    <details v-if="!privateContext" class="fr-reading-sessions" :open="historyOnly">
+      <summary>最近会话</summary>
+      <div class="fr-reading-session-list">
+        <button v-for="item in sessions" :key="item.id" type="button" class="fr-reading-session" @click="restoreSession(item.id)">{{ item.text }}<small>{{ item.turnCount }} 轮</small></button>
+        <small v-if="!sessions.length" class="fr-reading-empty">暂无最近会话</small>
+        <button v-if="hasMoreSessions" type="button" class="fr-reading-more" @click="loadMoreSessions">加载更多</button>
+      </div>
+    </details>
+    <details v-if="selectedSession" class="fr-reading-session-detail"><summary>查看完整问答（{{ selectedSession.turns.length }} 轮）</summary><div v-for="turn in selectedSession.turns" :key="turn.id" class="fr-reading-turn"><small>{{ actionLabelFor(turn.intent) }} · {{ statusLabel(turn.status) }} · {{ formatDate(turn.createdAt) }}</small><p v-if="turn.question">{{ turn.question }}</p><p>{{ turn.answer }}</p></div></details>
     <div class="fr-reading-source">
       <p>{{ activeText }}</p>
-      <button v-if="selection.sentence !== selection.text && !wholeSentence" type="button" @click="expandSentence">理解整句</button>
+      <button v-if="!historicalText && selection.sentence !== selection.text && !wholeSentence" type="button" @click="expandSentence">理解整句</button>
       <span v-else-if="wholeSentence">已展开到整句</span>
     </div>
     <div class="fr-reading-actions" role="group" aria-label="学习方式">
@@ -39,7 +48,8 @@
       <button type="submit" :disabled="busy || !question.trim()" aria-label="发送追问" title="发送追问">↑</button>
     </form>
     <p v-if="feedback" class="fr-reading-feedback" role="status">{{ feedback }}</p>
-    <div class="fr-reading-context"><span>{{ preferences.contextMode === 'paragraph' && selection.context ? '可结合本段理解' : '仅使用选中文本' }} · 关闭后清除本次对话</span><button type="button" aria-label="打开 DeepSeek Harness 设置" @click="openSettings">设置</button></div>
+    <p v-if="sessionWarning" class="fr-reading-feedback" role="status">{{ sessionWarning }}</p>
+    <div class="fr-reading-context"><span>{{ privateContext ? '隐私模式：不保存会话' : '会话保存在本机 30 天' }}</span><button type="button" aria-label="打开 DeepSeek Harness 设置" @click="openSettings">设置</button></div>
   </div>
 </template>
 
@@ -48,7 +58,9 @@ import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue';
 import browser from 'webextension-polyfill';
 import {HARNESS_ACTIONS, type HarnessActionId, type HarnessPreferences} from '@/src/core/config/harness';
 import {readingAnswerBlocks, readingAnswerSpans} from '../answerFormat';
-import type {ReadingResponse, ReadingSelection, ReadingTurn} from '../types';
+import type {ReadingSelection, ReadingTurn} from '../types';
+import {getHarnessSession, listHarnessSessions, streamReading} from '../client';
+import type {HarnessSession, HarnessSessionSummary} from '@/src/services/harness/sessionTypes';
 import {normalizeEnglishWord} from '@/src/features/selection-translation/core/public';
 import {VOCABULARY_BOOK_MESSAGE, type VocabularyBookResponse} from '@/src/features/vocabulary/protocol';
 
@@ -56,6 +68,7 @@ const props = defineProps<{
   selection: ReadingSelection;
   preferences: HarnessPreferences;
   active: boolean;
+  historyOnly?: boolean;
   targetLanguage: string;
   vocabularyEnabled: boolean;
   privateContext: boolean;
@@ -64,7 +77,10 @@ const props = defineProps<{
 const emit = defineEmits<{resize: []}>();
 const intent = ref<HarnessActionId>(props.preferences.defaultAction);
 const wholeSentence = ref(false);
-const activeText = computed(() => wholeSentence.value ? props.selection.sentence : props.selection.text);
+const historicalText = ref('');
+const historicalContext = ref('');
+const sessionWarning = ref('');
+const activeText = computed(() => historicalText.value || (wholeSentence.value ? props.selection.sentence : props.selection.text));
 const actions = computed(() => HARNESS_ACTIONS.filter(action => props.preferences.actions.includes(action.id)));
 const actionLabel = computed(() => HARNESS_ACTIONS.find(action => action.id === intent.value)?.label ?? '理解');
 const question = ref('');
@@ -78,17 +94,30 @@ const copied = ref(false);
 const saved = ref(false);
 const saving = ref(false);
 const feedback = ref('');
+const sessions = ref<HarnessSessionSummary[]>([]);
+const selectedSession = ref<HarnessSession | null>(null);
+const sessionOffset = ref(0);
+const hasMoreSessions = ref(false);
+const actionLabels: Record<string, string> = {meaning: '读懂', grammar: '拆句', usage: '用法', practice: '练习'};
+const statusLabels: Record<string, string> = {streaming: '进行中', completed: '已完成', stopped: '已停止', error: '失败'};
+const actionLabelFor = (value: string) => actionLabels[value] || '学习';
+const statusLabel = (value: string) => statusLabels[value] || '未知状态';
+const formatDate = (value: number) => new Intl.DateTimeFormat(undefined, {month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit'}).format(value);
 const history: ReadingTurn[] = [];
 const blocks = computed(() => readingAnswerBlocks(answer.value));
-const canSaveWord = computed(() => props.vocabularyEnabled && !props.privateContext && Boolean(normalizeEnglishWord(props.selection.text)));
+const canSaveWord = computed(() => props.vocabularyEnabled && !props.privateContext && Boolean(normalizeEnglishWord(activeText.value)));
 let pendingId = '';
 let generation = 0;
 let lastQuestion = '';
 let lastHistory: ReadingTurn[] = [];
 let copyTimer: ReturnType<typeof setTimeout> | undefined;
+let streamHandle: {cancel: () => void} | undefined;
+let sessionId = '';
 
 function cancelRequest(): void {
   generation += 1;
+  streamHandle?.cancel();
+  streamHandle = undefined;
   if (pendingId) void browser.runtime.sendMessage({type: 'fluentReadHarness', action: 'cancel', requestId: pendingId}).catch(() => undefined);
   pendingId = '';
   busy.value = false;
@@ -107,36 +136,74 @@ async function run(prompt: string, turns: ReadingTurn[]): Promise<void> {
   copied.value = false;
   feedback.value = '';
   try {
-    const response = await browser.runtime.sendMessage({
+    streamHandle = streamReading({
       type: 'fluentReadHarness', action: 'run', requestId,
       selection: {text: activeText.value, context: props.preferences.contextMode === 'paragraph' ? props.selection.context : '', sentence: ''},
-      intent: intent.value, question: prompt, history: turns,
-    }) as ReadingResponse;
-    if (token !== generation) return;
-    if (!response?.success) {
-      if (response?.cancelled) { stopped.value = true; return; }
-      throw new Error(response?.error || '理解请求未完成，请重试。');
-    }
-    currentQuestion.value = prompt;
-    answer.value = response.text;
-    model.value = response.model;
-    history.splice(0, history.length, ...turns, {question: prompt || actionLabel.value, answer: response.text});
-    if (history.length > 4) history.splice(0, history.length - 4);
+      intent: intent.value, question: prompt, history: turns, ...(sessionId ? {sessionId} : {}),
+    }, {
+      progress: progress => {
+        if (token !== generation) return;
+        if (progress.kind === 'model') model.value = progress.model;
+        if (progress.kind === 'text') answer.value = progress.text;
+        if (progress.kind === 'session') { sessionId = progress.persistent ? (progress.sessionId || '') : ''; if (progress.warning) sessionWarning.value = progress.warning; }
+      },
+      result: response => {
+        if (token !== generation) return;
+        busy.value = false;
+        pendingId = '';
+        streamHandle = undefined;
+        if (!response.success) { if (response.cancelled) stopped.value = true; else error.value = response.error; return; }
+        currentQuestion.value = prompt;
+        answer.value = response.text;
+        model.value = response.model;
+        if (response.sessionId) sessionId = response.sessionId;
+        if (response.persistenceWarning) sessionWarning.value = response.persistenceWarning;
+        history.splice(0, history.length, ...turns, {question: prompt || actionLabel.value, answer: response.text});
+        if (history.length > 4) history.splice(0, history.length - 4);
+      },
+      error: failure => {
+        if (token !== generation) return;
+        busy.value = false;
+        pendingId = '';
+        streamHandle = undefined;
+        if (!stopped.value) error.value = failure.message;
+      },
+    });
   } catch (failure) {
-    if (token === generation) error.value = failure instanceof Error ? failure.message : '请求失败，请重试。';
-  } finally {
-    if (token === generation) { busy.value = false; pendingId = ''; }
+    if (token === generation) { busy.value = false; pendingId = ''; error.value = failure instanceof Error ? failure.message : '请求失败，请重试。'; }
   }
 }
-function startAction(action: HarnessActionId): void {
+function startAction(action: HarnessActionId, preserveHistory = true): void {
   intent.value = action;
   answer.value = '';
   currentQuestion.value = '';
-  history.splice(0);
+  if (!preserveHistory) history.splice(0);
   saved.value = false;
   void run('', []);
 }
-function expandSentence(): void { wholeSentence.value = true; startAction(intent.value); }
+async function restoreSession(id: string): Promise<void> {
+  const restoreGeneration = generation + 1;
+  cancelRequest();
+  let session: HarnessSession | null;
+  try { session = await getHarnessSession(id); } catch { feedback.value = '读取会话失败，请重试。'; return; }
+  if (restoreGeneration !== generation) return;
+  if (!session) return;
+  selectedSession.value = session;
+  historicalText.value = session.text;
+  historicalContext.value = session.context;
+  sessionId = session.id;
+  wholeSentence.value = false;
+  currentQuestion.value = session.turns.at(-1)?.question || '';
+  answer.value = session.turns.at(-1)?.answer || '';
+  intent.value = session.turns.at(-1)?.intent || session.intent;
+  model.value = session.turns.at(-1)?.model || '';
+  history.splice(0, history.length, ...session.turns.filter(turn => turn.status === 'completed').map(turn => ({question: turn.question, answer: turn.answer})));
+  lastQuestion = currentQuestion.value;
+  lastHistory = history.map(turn => ({...turn}));
+  error.value = ''; stopped.value = false; saved.value = false;
+  feedback.value = '已恢复会话，可继续提问。';
+}
+function expandSentence(): void { wholeSentence.value = true; sessionId = ''; historicalText.value = ''; startAction(intent.value, false); }
 function ask(): void {
   const prompt = question.value.trim();
   if (!prompt || busy.value) return;
@@ -158,8 +225,8 @@ async function saveWord(): Promise<void> {
   saving.value = true;
   try {
     const response = await browser.runtime.sendMessage({type: VOCABULARY_BOOK_MESSAGE, action: 'upsert', input: {
-      sourceLanguage: 'en', targetLanguage: props.targetLanguage, term: props.selection.text,
-      translation: answer.value, context: {text: props.selection.context || props.selection.text},
+      sourceLanguage: 'en', targetLanguage: props.targetLanguage, term: activeText.value,
+      translation: answer.value, context: {text: historicalContext.value || props.selection.context || activeText.value},
     }}) as VocabularyBookResponse;
     if (!response.success) throw new Error(response.error.message);
     saved.value = true;
@@ -167,14 +234,35 @@ async function saveWord(): Promise<void> {
   finally { saving.value = false; }
 }
 watch(() => JSON.stringify(props.preferences), () => { cancelRequest(); stopped.value = true; });
+watch(() => props.selection.text, () => { historicalText.value = ''; historicalContext.value = ''; selectedSession.value = null; sessionId = ''; });
 watch(() => props.active, active => { if (!active && busy.value) stop(); });
 watch([busy, error, answer, stopped, feedback, wholeSentence], () => emit('resize'), {flush: 'post'});
-onMounted(() => startAction(intent.value));
+async function loadMoreSessions(): Promise<void> {
+  if (props.privateContext) return;
+  const result = await listHarnessSessions(sessionOffset.value);
+  sessions.value = [...sessions.value, ...result.sessions];
+  sessionOffset.value += result.sessions.length;
+  hasMoreSessions.value = result.hasMore;
+}
+onMounted(() => {
+  if (!props.privateContext) void loadMoreSessions().catch(() => undefined);
+  if (!props.historyOnly) startAction(intent.value);
+});
 onBeforeUnmount(() => { cancelRequest(); clearTimeout(copyTimer); history.splice(0); });
 </script>
 
 <style scoped>
 .fr-reading { color: #35333c; font: 13px/1.7 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.fr-reading-sessions { margin: 0 0 10px; border-bottom: 1px solid #eee8ec; }
+.fr-reading-sessions summary { padding: 3px 0 7px; color: #8b7981; cursor: pointer; font-size: 11px; }
+.fr-reading-session-list { display: grid; gap: 4px; padding-bottom: 8px; }
+.fr-reading-session { display: flex; justify-content: space-between; gap: 8px; width: 100%; overflow: hidden; text-align: left; color: #766672; background: #faf7f9; font-size: 11px; }
+.fr-reading-session small, .fr-reading-empty { color: #a0959d; font-size: 10px; }
+.fr-reading-session-detail { max-height: 180px; margin: 0 0 10px; overflow: auto; border-bottom: 1px solid #eee8ec; }
+.fr-reading-session-detail summary { padding: 4px 0 7px; color: #8b7981; cursor: pointer; font-size: 11px; }
+.fr-reading-turn { padding: 7px 0; border-top: 1px solid #f0eaee; overflow-wrap: anywhere; }
+.fr-reading-turn small { color: #a0959d; font-size: 10px; }
+.fr-reading-turn p { margin: 3px 0; }
 .fr-reading button, .fr-reading input { font: inherit; }
 .fr-reading button { cursor: pointer; border: 0; background: none; color: #826573; padding: 3px 6px; border-radius: 6px; }
 .fr-reading button:focus-visible, .fr-reading input:focus-visible { outline: 2px solid #cd527f; outline-offset: 2px; }

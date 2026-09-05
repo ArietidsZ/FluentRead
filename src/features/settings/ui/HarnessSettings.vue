@@ -55,6 +55,7 @@
       </el-select>
     </SettingsItem>
   </SettingsGroup></details>
+  <details class="harness-more harness-history"><summary>最近会话（30天）</summary><div class="harness-history-list"><p v-if="historyLoading">正在读取会话…</p><p v-else-if="historyError" role="alert">{{ historyError }}</p><p v-else-if="!historySessions.length">暂无本机会话。</p><div v-for="item in historySessions" :key="item.id" class="harness-history-row"><button type="button" @click="toggleHistory(item.id)"><span>{{ item.text }}<small>{{ item.turnCount }} 轮</small></span></button><button type="button" @click="removeHistory(item.id)">删除</button><div v-if="expandedHistory?.id === item.id" class="harness-history-detail"><p v-for="turn in expandedHistory.turns" :key="turn.id"><small>{{ actionLabelFor(turn.intent) }} · {{ statusLabel(turn.status) }} · {{ formatDate(turn.createdAt) }}</small><br />{{ turn.question }}<br />{{ turn.answer }}</p></div></div><button v-if="historyHasMore" type="button" class="harness-clear" @click="loadMoreHistory">加载更多</button><button v-if="historySessions.length" type="button" class="harness-clear" @click="clearHistory">清空历史</button></div></details>
 </template>
 
 <script setup lang="ts">
@@ -66,6 +67,8 @@ import type {Config} from '@/src/core/config/model'
 import SettingsGroup from './components/SettingsGroup.vue'
 import SettingsItem from './components/SettingsItem.vue'
 import SegmentedControl from './components/SegmentedControl.vue'
+import {clearHarnessSessions, deleteHarnessSession, getHarnessSession, listHarnessSessions} from '@/src/features/reading-assistant/public'
+import type {HarnessSession, HarnessSessionSummary} from '@/src/services/harness/sessionTypes'
 
 const props = defineProps<{config: Config}>()
 const config = toRef(props, 'config')
@@ -86,6 +89,20 @@ const previewAction = ref<HarnessActionId>(config.value.harness.defaultAction)
 const previewResults: Record<HarnessActionId, string> = {meaning: '她按时完成了任务，尽管任务很难。', grammar: 'Although 引导让步从句；主句是 she finished it on time。', usage: 'finish a task on time = 按时完成任务。', practice: '用 on time 写一句自己的经历。提示：想想最近一次按时完成的事。'}
 const contextModeOptions = [{value: 'paragraph', label: '当前段落'}, {value: 'selection', label: '当前选区'}]
 const explanationDepthOptions = [{value: 'concise', label: '简洁'}, {value: 'detailed', label: '详细'}]
+const historySessions = ref<HarnessSessionSummary[]>([])
+const historyOffset = ref(0)
+const historyHasMore = ref(false)
+const expandedHistory = ref<HarnessSession | null>(null)
+const historyLoading = ref(false)
+const historyError = ref('')
+const actionLabelFor = (value: string) => ({meaning: '读懂', grammar: '拆句', usage: '用法', practice: '练习'}[value] || '学习')
+const statusLabel = (value: string) => ({streaming: '进行中', completed: '已完成', stopped: '已停止', error: '失败'}[value] || '未知状态')
+const formatDate = (value: number) => new Intl.DateTimeFormat(undefined, {month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit'}).format(value)
+async function loadMoreHistory() { historyLoading.value = true; historyError.value = ''; try { const result = await listHarnessSessions(historyOffset.value); historySessions.value = [...historySessions.value, ...result.sessions]; historyOffset.value += result.sessions.length; historyHasMore.value = result.hasMore } catch { historyError.value = '读取会话失败，请重试。' } finally { historyLoading.value = false } }
+void loadMoreHistory()
+async function removeHistory(id: string) { try { await deleteHarnessSession(id); historySessions.value = historySessions.value.filter(item => item.id !== id); if (expandedHistory.value?.id === id) expandedHistory.value = null } catch { historyError.value = '删除会话失败，请重试。' } }
+async function clearHistory() { if (!window.confirm('清空最近会话？')) return; try { await clearHarnessSessions(); historySessions.value = []; expandedHistory.value = null; historyOffset.value = 0; historyHasMore.value = false } catch { historyError.value = '清空会话失败，请重试。' } }
+async function toggleHistory(id: string) { if (expandedHistory.value?.id === id) { expandedHistory.value = null; return } try { expandedHistory.value = await getHarnessSession(id) } catch { historyError.value = '读取会话详情失败，请重试。' } }
 function toggleAction(id: HarnessActionId) {
   if (id === 'meaning') return
   const actions = config.value.harness.actions.includes(id) ? config.value.harness.actions.filter((item) => item !== id) : [...config.value.harness.actions, id]
@@ -106,6 +123,13 @@ function toggleAction(id: HarnessActionId) {
 .service-control { display:flex; width:100%; max-width:360px; flex-direction:column; gap:5px; }
 .service-hint { color:var(--warning, #b26a00); font-size:10px; line-height:1.4; }
 .harness-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.harness-history-list { display:grid; gap:7px; max-height:320px; overflow:auto; }
+.harness-history-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px; align-items:start; }
+.harness-history-row > button:first-child { min-width:0; padding:8px; text-align:left; overflow-wrap:anywhere; }
+.harness-history-row > button:first-child span { display:flex; justify-content:space-between; gap:8px; }
+.harness-history-row small { color:var(--muted); font-size:10px; }
+.harness-history-detail { grid-column:1 / -1; max-height:220px; overflow:auto; padding:8px 10px; border:1px solid var(--line); border-radius:8px; overflow-wrap:anywhere; }
+.harness-history-detail p { margin:0 0 9px; font-size:11px; line-height:1.55; }
 .harness-action { display:flex; gap:8px; align-items:flex-start; padding:10px; border:1px solid var(--line); border-radius:8px; }
 .harness-action span { display:flex; flex-direction:column; gap:2px; }
 .harness-action small { color:var(--muted); font-size:10px; }

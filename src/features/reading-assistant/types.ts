@@ -1,7 +1,7 @@
 /**
  * @file src/features/reading-assistant/types.ts
  * 文件职责：声明划词阅读卡与后台 Harness 之间的可序列化请求和回答契约。
- * 主要内容：限定选区快照、短会话问答、用户主动动作及取消消息；传输内容不包含密钥、DOM 节点或页面 URL。
+ * 主要内容：限定选区快照、近期问答、流式增量、持久会话标识和取消消息；传输内容不包含密钥、DOM 节点或页面 URL。
  * 模块边界：这里只定义类型，页面负责捕获用户选中的正文，后台负责校验、模型请求和内核运行。
  */
 import type {HarnessActionId} from '@/src/core/config/harness';
@@ -25,6 +25,7 @@ export interface ReadingRequest {
     intent: HarnessActionId;
     question: string;
     history?: ReadingTurn[];
+    sessionId?: string;
 }
 
 export interface ReadingCancelRequest {
@@ -34,5 +35,14 @@ export interface ReadingCancelRequest {
 }
 
 export type ReadingResponse =
-    | {success: true; text: string; service: string; model: string}
+    | {success: true; text: string; service: string; model: string; sessionId?: string; persistenceWarning?: string}
     | {success: false; error: string; cancelled?: boolean};
+
+export type ReadingProgress =
+    | {kind: 'model'; service: string; model: string}
+    | {kind: 'text'; text: string}
+    | {kind: 'session'; sessionId?: string; persistent: boolean; warning?: string};
+
+export type ReadingStreamMessage =
+    | {type: 'progress'; requestId: string; progress: ReadingProgress}
+    | {type: 'result'; requestId: string; response: ReadingResponse};

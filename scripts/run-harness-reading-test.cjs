@@ -65,6 +65,8 @@ async function clickShadowButton(page, label) { const { host, session } = await 
     buttons.push({ aria: attr(node, 'aria-label'), text: text(node).trim(), nodeId: node.nodeId }); for (const child of cdpChildren(node))
     collect(child); }; collect(host); const button = find(host, n => n.nodeName?.toLowerCase() === 'button' && (attr(n, 'aria-label') === label || text(n).trim() === label)); assert(button?.nodeId, `找不到闭合 Shadow 按钮: ${label}; buttons=${JSON.stringify(buttons)}`); const box = await session.send('DOM.getBoxModel', { nodeId: button.nodeId }); const quad = box.model?.content || box.model?.border; assert(quad?.length >= 8, `按钮没有可点击几何位置: ${label}; box=${JSON.stringify(box)}`); const x = (quad[0] + quad[2] + quad[4] + quad[6]) / 4; const y = (quad[1] + quad[3] + quad[5] + quad[7]) / 4; await session.send('DOM.focus', { nodeId: button.nodeId }).catch(() => { }); await session.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'none' }); await session.send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 }); await session.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 }); return { buttons, x, y }; }
 async function fillShadowInput(page, label, value) { const { host, session } = await shadowSnapshot(page); const input = find(host, n => n.nodeName?.toLowerCase() === 'input' && attr(n, 'aria-label') === label); assert(input?.nodeId, `找不到闭合 Shadow 输入框: ${label}`); const resolved = await session.send('DOM.resolveNode', { nodeId: input.nodeId }); await session.send('Runtime.callFunctionOn', { objectId: resolved.object.objectId, functionDeclaration: `function(value) { this.focus(); const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; setter.call(this, value); this.dispatchEvent(new Event('input', {bubbles: true})); }`, arguments: [{ value }] }); await session.send('Runtime.releaseObject', { objectId: resolved.object.objectId }).catch(() => { }); }
+async function clickShadowFirstSession(page) { const { host, session } = await shadowSnapshot(page); const node = find(host, n => n.nodeName?.toLowerCase() === 'button' && attr(n, 'class').split(' ').includes('fr-reading-session')); assert(node?.nodeId, '最近会话列表没有可恢复的历史按钮'); const box = await session.send('DOM.getBoxModel', { nodeId: node.nodeId }); const quad = box.model?.content || box.model?.border; assert(quad?.length >= 8, '最近会话按钮没有可点击几何位置'); const x = (quad[0] + quad[2] + quad[4] + quad[6]) / 4; const y = (quad[1] + quad[3] + quad[5] + quad[7]) / 4; await session.send('Input.dispatchMouseEvent', {type: 'mousePressed', x, y, button: 'left', clickCount: 1}); await session.send('Input.dispatchMouseEvent', {type: 'mouseReleased', x, y, button: 'left', clickCount: 1}); }
+async function clickShadowSummary(page, label) { const {host, session} = await shadowSnapshot(page); const node = find(host, n => n.nodeName?.toLowerCase() === 'summary' && text(n).trim() === label); assert(node?.nodeId, `找不到闭合 Shadow summary: ${label}`); const box = await session.send('DOM.getBoxModel', {nodeId: node.nodeId}); const quad = box.model?.content || box.model?.border; assert(quad?.length >= 8, `summary 没有可点击几何位置: ${label}`); const x = (quad[0] + quad[2] + quad[4] + quad[6]) / 4; const y = (quad[1] + quad[3] + quad[5] + quad[7]) / 4; await session.send('Input.dispatchMouseEvent', {type: 'mousePressed', x, y, button: 'left', clickCount: 1}); await session.send('Input.dispatchMouseEvent', {type: 'mouseReleased', x, y, button: 'left', clickCount: 1}); }
 async function selectText(page, selector, end = 42) { return page.evaluate(({ selector, end }) => { const node = document.querySelector(selector)?.firstChild; if (!node)
     throw new Error(`找不到文本: ${selector}`); const range = document.createRange(); range.setStart(node, 0); range.setEnd(node, Math.min(end, node.textContent.length)); const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range); return selection.toString(); }, { selector, end }); }
 async function main() {
@@ -100,13 +102,26 @@ async function main() {
         }
         catch { }
         requests.push(body);
-        const delay = responseDelayMs;
-        if (delay) await new Promise(resolve => setTimeout(resolve, delay));
         const hasTools = Array.isArray(body.tools) && body.tools.length > 0;
-        const toolRound = hasTools && requests.filter(item => Array.isArray(item.tools) && item.tools.length > 0).length === 1;
-        const message = toolRound ? { role: 'assistant', tool_calls: [{ id: 'fixture-read-context', type: 'function', function: { name: 'read_context', arguments: '{}' } }] } : { role: 'assistant', content: delay ? '迟到的旧回答' : '这句话表示：虽然任务很难，她仍然按时完成了。' };
-        res.writeHead(200, { 'content-type': 'application/json', 'access-control-allow-origin': '*' });
-        res.end(JSON.stringify({ id: 'harness-fixture', choices: [{ index: 0, message, finish_reason: 'stop' }], usage: { prompt_tokens: 12, completion_tokens: 9, total_tokens: 21 } }));
+        const toolRound = hasTools && !body.messages?.some(item => item.role === 'tool');
+        const send = data => res.write(`data: ${JSON.stringify(data)}\n\n`);
+        const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+        res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache', 'access-control-allow-origin': '*' });
+        if (toolRound) {
+            send({id: 'harness-fixture', choices: [{index: 0, delta: {role: 'assistant', tool_calls: [{index: 0, id: 'fixture-read-context', type: 'function', function: {name: 'read_context', arguments: '{}'}}]}, finish_reason: null}]});
+            await wait(responseDelayMs || 120);
+            send({id: 'harness-fixture', choices: [{index: 0, delta: {}, finish_reason: 'tool_calls'}]});
+        } else {
+            const answer = responseDelayMs ? '迟到的旧回答不应覆盖当前卡片内容。' : '这句话表示：虽然任务很难，她仍然按时完成了。';
+            const chunks = answer.match(/.{1,8}/gu) || [answer];
+            for (const [index, chunk] of chunks.entries()) {
+                if (index > 0) await wait(responseDelayMs ? Math.max(180, Math.floor(responseDelayMs / 3)) : 180);
+                send({id: 'harness-fixture', choices: [{index: 0, delta: {content: chunk}, finish_reason: null}]});
+            }
+            send({id: 'harness-fixture', choices: [{index: 0, delta: {}, finish_reason: 'stop'}], usage: {prompt_tokens: 12, completion_tokens: 9, total_tokens: 21}});
+        }
+        res.write('data: [DONE]\n\n');
+        res.end();
     });
     await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
     const port = server.address().port;
@@ -171,10 +186,43 @@ async function main() {
         record('selection-entry-visible-no-request', 'passed', { selectedText: actualSelection });
         const before = requests.length;
         const clickInfo = await clickShadowButton(page, '理解选中文本');
-        await page.waitForTimeout(1200);
+        await page.waitForTimeout(350);
+        const partial = await shadowSnapshot(page);
+        assert(partial.text.includes('正在') && partial.text.includes('这句话表示'), `流式首段未在网络结束前显示或 busy 已消失: ${partial.text.slice(-300)}`);
+        const partialScreenshot = path.join(args.artifactsDir, 'harness-reading-partial.png');
+        await page.screenshot({path: partialScreenshot});
+        result.screenshots.push(partialScreenshot);
+        record('stream-partial-visible-while-busy', 'passed', { partialText: partial.text.slice(-180), requestCount: requests.length });
+        await page.waitForTimeout(1800);
         assert(requests.length > before, `点击理解没有经过真实 gateway 发请求: ${JSON.stringify({ clickInfo, after: (await shadowSnapshot(page)).text.slice(-400) })}`);
         record('click-sends-request', 'passed', { requestCount: requests.length });
         assert(requests.some(item => item.messages?.some(message => message.role === 'tool')), '段落工具没有完成配对回合');
+        await page.evaluate(() => getSelection()?.removeAllRanges());
+        await page.mouse.click(1000, 700);
+        await page.waitForTimeout(350);
+        const restoreTarget = await page.locator('#target').boundingBox();
+        assert(restoreTarget, '重新打开历史前目标段落没有几何位置');
+        await page.mouse.move(restoreTarget.x + 8, restoreTarget.y + restoreTarget.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(restoreTarget.x + 260, restoreTarget.y + restoreTarget.height / 2, {steps: 8});
+        await page.mouse.up();
+        await page.waitForTimeout(500);
+        const beforeRestore = requests.length;
+        await clickShadowButton(page, '打开最近会话');
+        await page.waitForTimeout(250);
+        await clickShadowFirstSession(page);
+        await page.waitForTimeout(450);
+        const restored = await shadowSnapshot(page);
+        await clickShadowSummary(page, '查看完整问答（1 轮）');
+        await page.waitForTimeout(200);
+        const restoredExpanded = await shadowSnapshot(page);
+        assert(requests.length === beforeRestore && restoredExpanded.text.includes('虽然任务很难') && restoredExpanded.text.includes('已恢复会话'), '恢复最近会话改变了 HTTP 或没有显示完整历史回答');
+        await fillShadowInput(page, '继续追问', '恢复后为什么仍然按时完成？');
+        await clickShadowButton(page, '发送追问');
+        await page.waitForTimeout(1400);
+        const restoredFollowup = requests.slice(beforeRestore).at(-1);
+        assert(restoredFollowup && JSON.stringify(restoredFollowup).includes('恢复后为什么仍然按时完成？') && JSON.stringify(restoredFollowup).includes('虽然任务很难，她仍然按时完成了'), '恢复历史后的追问没有携带完整已保存问答');
+        record('close-reselect-restore-followup-history', 'passed', {requestCount: requests.length});
         for (const action of ['拆句', '用法', '练习']) {
             const beforeAction = requests.length;
             await clickShadowButton(page, action);
@@ -195,11 +243,17 @@ async function main() {
         responseDelayMs = 1800;
         const beforeCancel = requests.length;
         await clickShadowButton(page, '练习');
-        await page.waitForTimeout(150);
+        let beforeStop;
+        for (let attempt = 0; attempt < 60; attempt++) {
+            beforeStop = await shadowSnapshot(page);
+            if (beforeStop.text.includes('迟到') && beforeStop.text.includes('正在')) break;
+            await page.waitForTimeout(100);
+        }
+        assert(beforeStop.text.includes('迟到') && beforeStop.text.includes('正在'), '停止前没有看到真实流式 partial 或 busy 状态');
         await clickShadowButton(page, '停止');
         await page.waitForTimeout(2200);
         const cancelled = await shadowSnapshot(page);
-        assert(requests.length > beforeCancel && !cancelled.text.includes('迟到的旧回答') && cancelled.text.includes('已停止'), '取消后迟到结果仍覆盖阅读卡');
+        assert(requests.length > beforeCancel && cancelled.text.includes('迟到的旧回答') && cancelled.text.includes('已停止') && !cancelled.text.includes('不应覆盖当前卡片内容'), '取消后迟到结果覆盖了已保留的 partial');
         responseDelayMs = 0;
         record('cancel-delayed-result-does-not-overwrite', 'passed', { requestCount: requests.length });
         await page.evaluate(() => getSelection()?.removeAllRanges());
@@ -268,6 +322,58 @@ async function main() {
         await settingsPage.screenshot({ path: path.join(args.artifactsDir, 'harness-settings-dark.png') });
         result.screenshots.push(path.join(args.artifactsDir, 'harness-settings-dark.png'));
         record('settings-dark', 'passed');
+        const sessionCountBefore = requests.length;
+        await settingsPage.getByText('最近会话（30天）', {exact: true}).click();
+        await settingsPage.waitForTimeout(350);
+        const historyRows = settingsPage.locator('.harness-history-row');
+        const beforeRows = await historyRows.count();
+        assert(beforeRows > 0, '设置页折叠区展开后没有最近会话');
+        const firstRow = historyRows.first();
+        const firstText = await firstRow.innerText();
+        await firstRow.locator('button').first().click();
+        await settingsPage.waitForTimeout(250);
+        assert((await firstRow.locator('.harness-history-detail').count()) === 1 && (await firstRow.innerText()).length > firstText.length, '设置页点击会话后没有显示完整问答详情');
+        await firstRow.getByRole('button', {name: '删除'}).click();
+        await settingsPage.waitForTimeout(250);
+        assert(await historyRows.count() === beforeRows - 1, '设置页删除按钮没有移除会话');
+        record('settings-session-view-delete', 'passed', {rowsBefore: beforeRows, rowsAfterDelete: await historyRows.count()});
+        responseDelayMs = 1800;
+        await page.setViewportSize({width: 1280, height: 900});
+        await page.reload({waitUntil: 'domcontentloaded'});
+        await page.waitForTimeout(700);
+        const streamingTarget = await page.locator('#target').boundingBox();
+        assert(streamingTarget, '清空会话 streaming fixture 没有目标几何位置');
+        await page.mouse.move(streamingTarget.x + 8, streamingTarget.y + streamingTarget.height / 2);
+        await page.mouse.down();
+        await page.mouse.move(streamingTarget.x + 220, streamingTarget.y + streamingTarget.height / 2, {steps: 8});
+        await page.mouse.up();
+        await page.waitForTimeout(450);
+        await clickShadowButton(page, '理解选中文本');
+        await page.waitForTimeout(150);
+        const clearDialog = settingsPage.waitForEvent('dialog').then(dialog => dialog.accept());
+        await settingsPage.getByRole('button', {name: '清空历史'}).click();
+        await clearDialog;
+        await page.waitForTimeout(2200);
+        const afterClear = await send(settingsPage, {type: 'fluentReadHarness', action: 'sessions-list', offset: 0});
+        assert(afterClear?.success === true && afterClear.sessions.length === 0 && requests.length > sessionCountBefore, '确认清空后会话未清空或 streaming 没有真实发起 provider 请求');
+        record('settings-session-clear-streaming-no-resurrection', 'passed', {requestCount: requests.length});
+        responseDelayMs = 0;
+        const staleInserted = await settingsPage.evaluate(() => new Promise((resolve, reject) => {
+            const request = indexedDB.open('FluentReadHarnessSessions');
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+                const db = request.result;
+                const transaction = db.transaction('sessions', 'readwrite');
+                const now = Date.now();
+                transaction.objectStore('sessions').put({id: 'stale-fixture', text: 'stale', context: '', createdAt: now - 31 * 24 * 60 * 60 * 1000, updatedAt: now, oldestTurnAt: now - 30 * 24 * 60 * 60 * 1000 - 1, intent: 'meaning', turns: [{id: 'stale-turn', question: 'old', answer: 'old', intent: 'meaning', status: 'completed', createdAt: now - 30 * 24 * 60 * 60 * 1000 - 1, service: 'fixture', model: 'fixture'}]});
+                transaction.oncomplete = () => { db.close(); resolve(true); };
+                transaction.onerror = () => reject(transaction.error);
+            };
+        }));
+        assert(staleInserted === true, '无法向 Harness 会话 IndexedDB 写入过期 fixture');
+        const afterExpiry = await send(settingsPage, {type: 'fluentReadHarness', action: 'sessions-list', offset: 0});
+        assert(afterExpiry?.success === true && !afterExpiry.sessions.some(item => item.id === 'stale-fixture'), '超过 30 天的会话没有在读取时清理');
+        record('session-expiry-over-30-days', 'passed');
         await settingsPage.close();
         await persistConfig(configPage, { harness: { ...(await readConfig(configPage)).harness, contextMode: 'paragraph' } });
         await page.reload({ waitUntil: 'domcontentloaded' });

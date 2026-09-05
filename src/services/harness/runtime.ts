@@ -4,14 +4,14 @@
  * 主要内容：解析继承模型、限制选区与历史、构建学习指令和只读段落工具，将原生模型消息转换为内核事件，并统一处理取消及供应商错误。
  * 模块边界：只在后台执行，不读取网页 DOM、不使用翻译缓存，不接受页面指定密钥或服务；显示与长期收藏分别归阅读卡和单词本。
  */
-import {generateText, tool, type LanguageModel, type ModelMessage, type ToolSet} from 'ai';
+import {streamText, tool, type LanguageModel, type ModelMessage, type ToolSet} from 'ai';
 import {z} from 'zod';
 import type {Config} from '@/src/core/config/model';
 import {isHarnessService, type HarnessActionId} from '@/src/core/config/harness';
 import {resolveConfiguredModel} from '@/src/core/config/catalog';
 import {isApiKeyRequired} from '@/src/core/config/validation';
 import {createHarnessLanguageModel, normalizeHarnessModelError} from './modelGateway';
-import type {ReadingRequest, ReadingResponse} from '@/src/features/reading-assistant/types';
+import type {ReadingProgress, ReadingRequest, ReadingResponse} from '@/src/features/reading-assistant/types';
 import {runHarnessLoop, type HarnessGenerate, type HarnessGenerateResult, type HarnessToolCall, type HarnessToolDefinition} from '@/src/core/harness/loop';
 import type {HarnessMessage} from '@/src/core/harness/surface';
 import type {ModelUsageEvent} from '@/src/services/model-usage/types';
@@ -28,7 +28,7 @@ const ACTION_PROMPTS: Record<HarnessActionId, string> = {
 };
 const READ_CONTEXT_INPUT = z.object({reason: z.string().max(200).optional()}).strict();
 
-export interface HarnessRuntime {run(request: ReadingRequest, signal: AbortSignal): Promise<ReadingResponse>}
+export interface HarnessRuntime {run(request: ReadingRequest, signal: AbortSignal, onProgress?: (progress: ReadingProgress) => void): Promise<ReadingResponse>}
 
 function bounded(value: unknown, max: number): string { return typeof value === 'string' ? value.trim().slice(0, max) : ''; }
 
@@ -48,16 +48,29 @@ function makeGenerate(model: LanguageModel, toolSet: ToolSet, service: string, m
         const record = (event: ModelUsageEvent) => {
             try { recordUsage?.(event); } catch { /* 本地统计故障不能影响阅读。 */ }
         };
-        const result = await generateText({model, system: input.system, messages: toModelMessages(input.messages), tools: toolSet, maxRetries: 0, maxOutputTokens: 1200, abortSignal: input.signal}).then(result => {
-            record(createHarnessUsageEvent({service, model: modelId, actualModel: result.response.modelId, startedAt, durationMs: Date.now() - startedAt, usage: result.usage, outcome: 'success'}));
-            return result;
-        }, error => {
+        let text = '';
+        const toolCalls: HarnessToolCall[] = [];
+        try {
+            const result = await streamText({model, system: input.system, messages: toModelMessages(input.messages), tools: toolSet, maxRetries: 0, maxOutputTokens: 1200, abortSignal: input.signal});
+            for await (const part of result.fullStream) {
+                if (part.type === 'text-delta') {
+                    text += part.text;
+                    input.onText?.(text);
+                } else if (part.type === 'tool-call') {
+                    toolCalls.push({id: part.toolCallId, name: part.toolName, input: part.input});
+                } else if (part.type === 'error') {
+                    throw part.error;
+                }
+            }
+            const response = await result.response;
+            const usage = await result.usage;
+            record(createHarnessUsageEvent({service, model: modelId, actualModel: response.modelId, startedAt, durationMs: Date.now() - startedAt, usage, outcome: 'success'}));
+            const assistant = response.messages.find(message => message.role === 'assistant');
+            return {assistant: {role: 'assistant', content: assistant?.content ?? [{type: 'text', text}]}, text, toolCalls} satisfies HarnessGenerateResult;
+        } catch (error) {
             record(createHarnessUsageEvent({service, model: modelId, startedAt, durationMs: Date.now() - startedAt, outcome: input.signal.aborted ? (input.signal.reason instanceof Error && /超时/u.test(input.signal.reason.message) ? 'timeout' : 'cancelled') : 'error'}));
             throw error;
-        });
-        const assistant = result.response.messages.find(message => message.role === 'assistant');
-        const toolCalls: HarnessToolCall[] = result.toolCalls.map(call => ({id: call.toolCallId, name: call.toolName, input: call.input}));
-        return {assistant: {role: 'assistant', content: assistant?.content ?? [{type: 'text', text: result.text}]}, text: result.text, toolCalls} satisfies HarnessGenerateResult;
+        }
     };
 }
 
@@ -76,7 +89,7 @@ function actionSystem(config: Config, intent: HarnessActionId): string {
 
 export function createHarnessRuntime(getConfig: () => Config, createUsageSink?: () => UsageSink): HarnessRuntime {
     return {
-        async run(request, signal) {
+        async run(request, signal, onProgress) {
             if (signal.aborted) return {success: false, error: '阅读助手请求已取消', cancelled: true};
             const current = cloneConfig(getConfig());
             const prefs = current.harness;
@@ -108,11 +121,13 @@ export function createHarnessRuntime(getConfig: () => Config, createUsageSink?: 
                 return context;
             };
             try {
+                onProgress?.({kind: 'model', service, model: modelId});
                 const model = createHarnessLanguageModel(current, service, modelId);
                 const generate = makeGenerate(model, toolSet, service, modelId, createUsageSink?.());
                 const result = await runHarnessLoop({
                     generate, executeTool, system: actionSystem(current, request.intent),
                     user: initialUser, history, tools: toolDefinitions, signal,
+                    onText: text => onProgress?.({kind: 'text', text}),
                 });
                 return {success: true, text: result.text, service, model: modelId};
             } catch (error) {

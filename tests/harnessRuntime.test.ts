@@ -1,9 +1,17 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
-const {generateText, createModel, normalizeError} = vi.hoisted(() => ({
-    generateText: vi.fn(), createModel: vi.fn(() => ({})), normalizeError: vi.fn((error: unknown) => error instanceof Error ? error : new Error(String(error))),
-}));
-vi.mock('ai', () => ({generateText, tool: (definition: unknown) => definition}));
+const {generateText, streamResult, createModel, normalizeError} = vi.hoisted(() => {
+    const generateText = vi.fn();
+    const streamResult = async (input: {model: unknown; messages: unknown; tools: unknown; abortSignal: AbortSignal}) => {
+        const value = await generateText(input);
+        const parts: unknown[] = value.text ? [{type: 'text-delta', id: 'text', text: value.text}] : [];
+        for (const call of value.toolCalls ?? []) parts.push({type: 'tool-call', toolCallId: call.toolCallId, toolName: call.toolName, input: call.input});
+        if (value.error) parts.push({type: 'error', error: value.error});
+        return {fullStream: (async function* () { for (const part of parts) yield part; })(), response: Promise.resolve(value.response ?? {messages: []}), usage: Promise.resolve(value.usage)};
+    };
+    return {generateText, streamResult, createModel: vi.fn(() => ({})), normalizeError: vi.fn((error: unknown) => error instanceof Error ? error : new Error(String(error)))};
+});
+vi.mock('ai', () => ({streamText: streamResult, tool: (definition: unknown) => definition}));
 vi.mock('@/src/services/harness/modelGateway', () => ({createHarnessLanguageModel: createModel, normalizeHarnessModelError: normalizeError}));
 
 import {Config} from '@/src/core/config/model';
@@ -213,6 +221,37 @@ describe('Harness runtime', () => {
         generateText.mockRejectedValueOnce(new Error('local service unavailable'));
         await createHarnessRuntime(() => current).run({type: 'fluentReadHarness', action: 'run', requestId: 'local-failed', intent: 'meaning', question: '', selection: {text: 'x', context: '', sentence: ''}}, new AbortController().signal);
         expect(normalizeError).toHaveBeenCalledWith(expect.any(Error), 'custom:local', '');
+    });
+
+    it('reports model metadata and cumulative text snapshots from the real stream', async () => {
+        generateText.mockResolvedValueOnce({text: 'streamed answer', toolCalls: [], response: {messages: [{role: 'assistant', content: [{type: 'text', text: 'streamed answer'}]}]}});
+        const progress: Array<{kind: string; text?: string}> = [];
+        const result = await createHarnessRuntime(config).run({type: 'fluentReadHarness', action: 'run', requestId: 'stream', intent: 'meaning', question: '', selection: {text: 'x', context: '', sentence: ''}}, new AbortController().signal, value => progress.push(value));
+        expect(result).toMatchObject({success: true, text: 'streamed answer'});
+        expect(progress).toEqual([{kind: 'model', service: 'openai', model: 'reader'}, {kind: 'text', text: 'streamed answer'}]);
+    });
+
+    it('clears the previous text snapshot when a tool starts the next model step', async () => {
+        generateText.mockResolvedValueOnce({text: 'preface', toolCalls: [{toolCallId: 'tool-1', toolName: 'read_context', input: {}}], response: {messages: [{role: 'assistant', content: [{type: 'text', text: 'preface'}, {type: 'tool-call', toolCallId: 'tool-1', toolName: 'read_context'}]}]}})
+            .mockResolvedValueOnce({text: 'final', toolCalls: [], response: {messages: [{role: 'assistant', content: [{type: 'text', text: 'final'}]}]}});
+        const textProgress: string[] = [];
+        await createHarnessRuntime(config).run({type: 'fluentReadHarness', action: 'run', requestId: 'tool-stream', intent: 'meaning', question: '', selection: {text: 'x', context: 'paragraph', sentence: ''}}, new AbortController().signal, value => { if (value.kind === 'text') textProgress.push(value.text); });
+        expect(textProgress).toEqual(['preface', '', 'final']);
+    });
+
+    it('does not emit text after cancellation and reports partial stream errors', async () => {
+        const controller = new AbortController();
+        generateText.mockImplementationOnce((input: {abortSignal: AbortSignal}) => new Promise((_, reject) => input.abortSignal.addEventListener('abort', () => reject(new Error('aborted')), {once: true})));
+        const progress: Array<{kind: string; text?: string}> = [];
+        const pending = createHarnessRuntime(config).run({type: 'fluentReadHarness', action: 'run', requestId: 'cancel-stream', intent: 'meaning', question: '', selection: {text: 'x', context: '', sentence: ''}}, controller.signal, value => progress.push(value));
+        controller.abort();
+        expect(await pending).toMatchObject({cancelled: true});
+        expect(progress.filter(value => value.kind === 'text')).toEqual([]);
+        generateText.mockResolvedValueOnce({text: 'partial', error: new Error('stream failed'), toolCalls: [], response: {messages: []}});
+        const failedProgress: string[] = [];
+        const failed = await createHarnessRuntime(config).run({type: 'fluentReadHarness', action: 'run', requestId: 'error-stream', intent: 'meaning', question: '', selection: {text: 'x', context: '', sentence: ''}}, new AbortController().signal, value => { if (value.kind === 'text') failedProgress.push(value.text); });
+        expect(failed).toMatchObject({success: false, error: 'stream failed'});
+        expect(failedProgress).toEqual(['partial']);
     });
 
 });

@@ -8,7 +8,7 @@ import {HarnessLedger, type HarnessEvent, type HarnessMessage} from './surface';
 
 export interface HarnessToolCall {id: string; name: string; input: unknown}
 export interface HarnessToolDefinition {name: string; description: string; input: unknown}
-export interface HarnessGenerateInput {system: string; messages: readonly HarnessMessage[]; tools: readonly HarnessToolDefinition[]; signal: AbortSignal}
+export interface HarnessGenerateInput {system: string; messages: readonly HarnessMessage[]; tools: readonly HarnessToolDefinition[]; signal: AbortSignal; onText?: (text: string) => void}
 export interface HarnessGenerateResult {assistant: HarnessMessage; text: string; toolCalls: readonly HarnessToolCall[]}
 export type HarnessGenerate = (input: HarnessGenerateInput) => Promise<HarnessGenerateResult>;
 export type HarnessToolExecutor = (call: HarnessToolCall, signal: AbortSignal) => Promise<string>;
@@ -23,6 +23,7 @@ export interface HarnessLoopInput {
     maxModelCalls?: number;
     maxTools?: number;
     timeoutMs?: number;
+    onText?: (text: string) => void;
 }
 export interface HarnessLoopResult {text: string; ledger: HarnessEvent[]}
 
@@ -62,8 +63,9 @@ export async function runHarnessLoop(input: HarnessLoopInput): Promise<HarnessLo
         const callIds = new Set<string>();
         for (let step = 0; step < maxModelCalls; step += 1) {
             ensureActive();
+            if (step > 0) input.onText?.('');
             ledger.append('step/start', {step});
-            const result = await wait(input.generate({system: input.system, messages: ledger.messagesSnapshot(), tools: input.tools, signal}));
+            const result = await wait(input.generate({system: input.system, messages: ledger.messagesSnapshot(), tools: input.tools, signal, onText: input.onText}));
             ensureActive();
             if (result.assistant.role !== 'assistant') throw new Error('模型返回了无效的助手消息');
             if (toolCount + result.toolCalls.length > maxTools) throw new Error('阅读助手工具调用次数已达上限');

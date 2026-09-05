@@ -9,6 +9,7 @@
     <div v-if="showIndicator && !showTooltip && readingEnabled" class="fr-reading-indicator" :class="{'fr-dark-theme': isDarkTheme}" :style="readingIndicatorStyle" role="group" aria-label="选区操作" @pointerdown.prevent.stop>
       <button v-if="selectionSettings.mode !== 'disabled'" type="button" aria-label="打开划词翻译" @click="openTooltip">翻译</button>
       <button type="button" aria-label="理解选中文本" @click="openReading">理解</button>
+      <button v-if="!isPrivateContext" type="button" aria-label="打开最近会话" @click="openReadingHistory">最近</button>
     </div>
     <button v-else-if="showIndicator && !showTooltip" class="fr-selection-indicator" :class="`fr-selection-indicator--${triggerMode}`" :style="indicatorStyle" type="button" aria-label="打开划词翻译" title="打开划词翻译" @pointerdown.prevent.stop @click="openTooltip">
       <span class="fr-selection-indicator-glyph" aria-hidden="true">↗</span>
@@ -39,7 +40,7 @@
       </header>
 
       <div v-if="readingSelection" v-show="readingMode" class="fr-tooltip-content">
-        <ReadingPanel :selection="readingSelection" :preferences="readingPreferences" :active="readingMode" :target-language="selectionSettings.to" :vocabulary-enabled="config.vocabularyBookEnabled" :private-context="isPrivateContext" :animations="config.animations" @resize="schedulePositionUpdate" />
+        <ReadingPanel :selection="readingSelection" :preferences="readingPreferences" :active="readingMode" :history-only="readingHistoryOnly" :target-language="selectionSettings.to" :vocabulary-enabled="config.vocabularyBookEnabled" :private-context="isPrivateContext" :animations="config.animations" @resize="schedulePositionUpdate" />
       </div>
       <div v-show="!readingMode" class="fr-tooltip-content" aria-live="polite">
         <div v-if="isLoading && !translationResult && !wordCard && !wordCardError" class="fr-loading-state"><span :class="['fr-loading-spinner', { 'fr-static': !config.animations }]" aria-hidden="true" /><span>正在查询…</span></div>
@@ -192,6 +193,7 @@ const error = ref('');
 const showIndicator = ref(false);
 const showTooltip = ref(false);
 const readingMode = ref(false);
+const readingHistoryOnly = ref(false);
 const readingSelection = ref<ReadingSelection | null>(null);
 const copySuccess = ref(false);
 const copiedTextKind = ref<CopyKind | null>(null);
@@ -556,6 +558,16 @@ function openTooltip(): void {
 }
 
 function openReading(): void {
+  readingHistoryOnly.value = false;
+  openReadingCard();
+}
+
+function openReadingHistory(): void {
+  readingHistoryOnly.value = true;
+  openReadingCard();
+}
+
+function openReadingCard(): void {
   if (!snapshot.value || !readingEnabled.value) return;
   cancelSelectionPresentation();
   cancelSelectionLoss();
