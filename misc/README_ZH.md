@@ -8,7 +8,7 @@
 
 一款帮助你在当前页面读懂外语内容的开源浏览器翻译插件。
 
-[![版本](https://img.shields.io/badge/version-0.0.31-6d5dfc?style=flat-square)](https://github.com/FluentRead/FluentRead/releases)
+[![版本](https://img.shields.io/badge/version-0.0.32-6d5dfc?style=flat-square)](https://github.com/FluentRead/FluentRead/releases)
 [![许可证：GPL v3](https://img.shields.io/badge/license-GPL--3.0-22a06b?style=flat-square)](../LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/FluentRead/FluentRead?style=flat-square)](https://github.com/FluentRead/FluentRead)
 
