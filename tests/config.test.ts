@@ -354,6 +354,24 @@ describe('统一配置存储', () => {
         expect(localConfigWrites[0][1]).toEqual(expect.objectContaining({disabledExtensionDomains: []}));
     });
 
+    it('缓存双上限随配置保存、重新加载和外部通知同步', async () => {
+        const store = await loadConfigModule(storedConfig);
+        await store.configReady;
+        expect(store.config).toMatchObject({translationCacheMaxBytes: 5242880, translationCacheMaxEntries: 2000});
+        await store.saveConfig({...store.config, translationCacheMaxBytes: 1048576, translationCacheMaxEntries: 100});
+        const persisted = storageState.get('local:config');
+        const reopened = await loadConfigModule(persisted);
+        await reopened.configReady;
+        expect(reopened.config).toMatchObject({translationCacheMaxBytes: 1048576, translationCacheMaxEntries: 100});
+        const listener = vi.fn();
+        reopened.subscribeConfig(listener);
+        const external = {...reopened.config, translationCacheMaxEntries: 300, __fluentConfigRevision: 100};
+        storageState.set('local:config', external);
+        storageWatchers.get('local:config')!(external);
+        await vi.waitFor(() => expect(reopened.config.translationCacheMaxEntries).toBe(300));
+        expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({translationCacheMaxEntries: 300}));
+    });
+
     it('内部 storage revision 不进入运行时配置或历史快照', async () => {
         const configStore = await loadConfigModule({...storedConfig, __fluentConfigRevision: 5});
         await Promise.all([configStore.configReady, configStore.configHistoryReady]);

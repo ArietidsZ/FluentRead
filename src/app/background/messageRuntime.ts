@@ -9,7 +9,7 @@ import {config, configReady} from '@/src/services/config/store';
 import {synthesizeEdgeTts} from '@/src/features/selection-translation/services/edgeTts';
 import {lookupWord} from '@/src/features/selection-translation/services/wordDictionary';
 import {vocabularyBook} from '@/src/features/vocabulary/repository';
-import {clearTranslationCache, translateWithCache} from '@/src/app/translation/runtime';
+import {clearTranslationCache, getTranslationCacheStats, translateWithCache} from '@/src/app/translation/runtime';
 import {serializeTranslationError} from '@/src/services/translation/errors';
 import {createBackgroundMessageRouter, type BackgroundMessageHandler} from './messageRouter';
 import {
@@ -17,7 +17,7 @@ import {
     type AreaTranslationBackgroundContext,
 } from './handlers/areaTranslation';
 import {
-    createTranslationCacheHandler,
+    createTranslationCacheHandlers,
     createTranslationCacheInvalidationBroadcaster,
 } from './handlers/translationCache';
 import {type ConfigPersistenceContext} from './handlers/configPersistence';
@@ -71,7 +71,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     const handlers: Array<BackgroundMessageHandler<BackgroundRuntimeContext>> = [
         createTranslationCancelHandler(translationRequestRegistry),
         ...createQqMailFrameBackgroundHandlers({sendTabMessage: (tabId, message, options) => browser.tabs.sendMessage(tabId, message, options)}),
-        createTranslationCacheHandler(clearTranslationCache, createTranslationCacheInvalidationBroadcaster({
+        ...createTranslationCacheHandlers(clearTranslationCache, getTranslationCacheStats, createTranslationCacheInvalidationBroadcaster({
             queryTabs: () => browser.tabs.query({}) as Promise<Array<{id?: number}>>,
             sendTabMessage: (tabId, message) => browser.tabs.sendMessage(tabId, message),
             warn: (message, error) => console.warn(message, error),

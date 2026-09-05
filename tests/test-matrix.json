@@ -136,7 +136,9 @@
       "tests/youtubeSubtitleData.test.ts",
       "tests/qqMailFrameHandlers.test.ts",
       "tests/qqMailFrameSession.test.ts",
-      "tests/fullPageStateNotification.test.ts"
+      "tests/fullPageStateNotification.test.ts",
+      "tests/translationCachePolicy.test.ts",
+      "tests/translationCacheManagement.test.ts"
     ],
     "functional": [
       "tests/aiSdkOpenAICompatible.test.ts",
@@ -171,7 +173,8 @@
       "tests/vocabularyBook.test.ts",
       "tests/vocabularyBookComponent.test.ts",
       "tests/zhipuCredentials.test.ts",
-      "tests/qqMailFrameRuntime.test.ts"
+      "tests/qqMailFrameRuntime.test.ts",
+      "tests/translationCachePolicyBinding.test.ts"
     ],
     "regression": [
       "tests/documentTranslationExamplesApi.test.ts",

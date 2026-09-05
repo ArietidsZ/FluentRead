@@ -62,7 +62,7 @@ describe('standalone userscript privacy boundaries', () => {
     it('uses per-entry hard TTL for the shared IndexedDB translation cache', () => {
         expect(translationCache).toContain('createdAt + TRANSLATION_CACHE_TTL_MS <= now');
         expect(translationCache).toContain('expiresAt: now + TRANSLATION_CACHE_TTL_MS');
-        expect(translationCache).toContain(".where('createdAt')");
+        expect(translationCache).toContain(".or('createdAt')");
         expect(translationCache).toContain('belowOrEqual(now - TRANSLATION_CACHE_TTL_MS)');
         expect(translationCache).not.toContain('lastAccessedAt + TRANSLATION_CACHE_TTL_MS');
     });
