@@ -1,8 +1,8 @@
 <!--
 @file src/features/settings/ui/components/PopupLayoutPreview.vue
 文件职责：在界面设置中用真实 DOM 呈现当前 Popup 模块与快捷功能布局，帮助用户在保存前直接理解排序和显隐结果。
-主要内容：按皮肤预览色或当前氛围语义色、顶层模块顺序、相邻站点栏目规则及快捷功能顺序绘制缩放后的 Popup，并即时移除被隐藏的区域。
-模块边界：本组件只消费外部投影后的布局数据，不提供编辑交互、不读写配置或浏览器状态，也不复刻 Popup 的业务行为。
+主要内容：按皮肤预览色或当前氛围语义色、顶层模块顺序、相邻站点栏目规则及快捷功能顺序绘制缩放后的 Popup，提供整块拖动、键盘排序与当前编辑层级反馈，并即时移除被隐藏的区域。
+模块边界：本组件只消费外部投影后的布局数据，通过排序事件编辑布局，不读写配置或浏览器状态，也不执行 Popup 的业务行为。
 -->
 <template>
   <section
@@ -10,12 +10,12 @@
     :data-preview-skin="skin.value"
     :data-preview-kind="skin.kind"
     :style="previewStyle"
-    role="img"
+    role="group"
     :aria-label="previewAriaLabel"
   >
-    <div class="layout-preview-popup" aria-hidden="true">
+    <div class="layout-preview-popup">
       <InterfaceBackdrop :motif="skin.motif" />
-      <header class="layout-preview-header">
+      <header class="layout-preview-header" aria-hidden="true">
         <span class="layout-preview-logo">A中</span>
         <strong>{{ translateLegacy('流畅阅读') }}</strong>
         <span class="layout-preview-header-actions"><i>♡</i><i>⚙</i></span>
@@ -23,80 +23,113 @@
 
       <div class="layout-preview-flow">
         <template v-for="module in visibleModules" :key="module.id">
-          <section
+          <PopupLayoutPreviewItem
+            as="section"
+            :item="module"
+            :editable="editScope === 'popupModule'"
+            :controller="moduleDrag"
             v-if="module.id === 'translation'"
             class="layout-preview-module preview-translation"
             data-preview-popup-module="translation"
           >
-            <div class="layout-preview-hero">
+            <div class="layout-preview-hero" aria-hidden="true">
               <span><small>{{ t('popup.webTranslation') }}</small><strong>{{ t('popup.heroEnabled') }}</strong></span>
               <i><b /></i>
             </div>
-            <div class="layout-preview-languages">
+            <div class="layout-preview-languages" aria-hidden="true">
               <span><small>{{ t('popup.sourceLanguage') }}</small><b>{{ translateLegacy('自动检测') }}</b></span>
               <em>→</em>
               <span><small>{{ t('popup.targetLanguage') }}</small><b>{{ translateLegacy('简体中文') }}</b></span>
             </div>
-            <div class="layout-preview-service">
+            <div class="layout-preview-service" aria-hidden="true">
               <i>译</i>
               <span><small>{{ t('popup.translationService') }}</small><b>{{ translateLegacy('免费翻译服务') }}</b></span>
               <em>⌄</em>
             </div>
-            <div class="layout-preview-action">{{ t('popup.translateCurrentPage') }}</div>
-            <div
-              v-if="siteModuleNestedInTranslation"
+            <div class="layout-preview-action" aria-hidden="true">{{ t('popup.translateCurrentPage') }}</div>
+            <PopupLayoutPreviewItem
+              v-if="siteModuleNestedInTranslation && siteModule"
+              :item="siteModule"
+              :editable="editScope === 'popupModule'"
+              :controller="moduleDrag"
               class="layout-preview-site nested"
               data-preview-popup-module="siteRule"
             >
-              <span><small>{{ siteModule?.label }}</small><b>fluentread.app</b></span>
-              <i /><i />
-            </div>
-          </section>
+              <span aria-hidden="true"><small>{{ siteModule?.label }}</small><b>fluentread.app</b></span>
+              <i aria-hidden="true" /><i aria-hidden="true" />
+            </PopupLayoutPreviewItem>
+          </PopupLayoutPreviewItem>
 
-          <div
+          <PopupLayoutPreviewItem
+            :item="module"
+            :editable="editScope === 'popupModule'"
+            :controller="moduleDrag"
             v-else-if="module.id === 'siteRule' && !siteModuleNestedInTranslation"
             class="layout-preview-module layout-preview-site"
             data-preview-popup-module="siteRule"
           >
-            <span><small>{{ module.label }}</small><b>fluentread.app</b></span>
-            <i /><i />
-          </div>
+            <span aria-hidden="true"><small>{{ module.label }}</small><b>fluentread.app</b></span>
+            <i aria-hidden="true" /><i aria-hidden="true" />
+          </PopupLayoutPreviewItem>
 
-          <section
+          <PopupLayoutPreviewItem
+            as="section"
+            :item="module"
+            :editable="editScope === 'popupModule'"
+            :controller="moduleDrag"
             v-else-if="module.id === 'quickFeatures'"
             class="layout-preview-module preview-quick-features"
             data-preview-popup-module="quickFeatures"
           >
-            <strong class="layout-preview-section-title">{{ module.label }}</strong>
+            <div class="layout-preview-section-heading">
+              <strong class="layout-preview-section-title" aria-hidden="true">{{ module.label }}</strong>
+              <button
+                v-if="editScope === 'popupModule'"
+                type="button"
+                data-preview-action
+                @click="emit('edit:scope', 'quickFeature')"
+              >{{ t('settings.interface.popupLayout.editFeatures') }} →</button>
+            </div>
             <div class="layout-preview-feature-grid">
-              <span
+              <PopupLayoutPreviewItem
+                :item="feature"
+                :editable="editScope === 'quickFeature'"
+                :controller="featureDrag"
+                axis="x"
                 v-for="feature in visibleQuickFeatures"
                 :key="feature.id"
                 :data-preview-quick-feature="feature.id"
               >
-                <i>{{ featureGlyph(feature.id) }}</i>
-                <b>{{ feature.label }}</b>
-              </span>
+                <i aria-hidden="true">{{ featureGlyph(feature.id) }}</i>
+                <b aria-hidden="true">{{ feature.label }}</b>
+              </PopupLayoutPreviewItem>
             </div>
-          </section>
+          </PopupLayoutPreviewItem>
 
-          <footer
+          <PopupLayoutPreviewItem
+            as="footer"
+            :item="module"
+            :editable="editScope === 'popupModule'"
+            :controller="moduleDrag"
             v-else-if="module.id === 'footer'"
             class="layout-preview-module layout-preview-footer"
             data-preview-popup-module="footer"
           >
-            <span>0</span>
-            <b>{{ t('popup.openSourceProject') }}</b>
-            <strong>{{ t('popup.clearCache') }}</strong>
-          </footer>
+            <span aria-hidden="true">0</span>
+            <b aria-hidden="true">{{ t('popup.openSourceProject') }}</b>
+            <strong aria-hidden="true">{{ t('popup.clearCache') }}</strong>
+          </PopupLayoutPreviewItem>
         </template>
       </div>
     </div>
+    <p class="layout-preview-announcement" aria-live="polite">{{ announcement }}</p>
   </section>
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue'
+import {computed, ref, watch} from 'vue'
+import PopupLayoutPreviewItem from './PopupLayoutPreviewItem.vue'
+import {usePopupLayoutReorder} from '../usePopupLayoutReorder'
 import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue'
 import type {InterfaceSkinOption} from '@/src/core/config/interfaceAppearance'
 import {useUiI18n} from '@/src/ui/i18n'
@@ -114,8 +147,15 @@ const props = defineProps<{
   moduleOrder: readonly string[]
   quickFeatureItems: readonly PreviewLayoutItem[]
   quickFeatureOrder: readonly string[]
+  editScope: 'popupModule' | 'quickFeature'
 }>()
 const {t, translateLegacy} = useUiI18n()
+const emit = defineEmits<{
+  'update:moduleOrder': [order: string[]]
+  'update:quickFeatureOrder': [order: string[]]
+  'edit:scope': [scope: 'popupModule' | 'quickFeature']
+}>()
+const announcement = ref('')
 
 function orderItems(items: readonly PreviewLayoutItem[], order: readonly string[]): PreviewLayoutItem[] {
   const byId = new Map(items.map((item) => [item.id, item]))
@@ -133,6 +173,22 @@ const siteModuleNestedInTranslation = computed(() => {
   const translationIndex = visibleModules.value.findIndex((item) => item.id === 'translation')
   return translationIndex >= 0 && visibleModules.value[translationIndex + 1]?.id === 'siteRule'
 })
+function announceMove(order: string[], id: string, items: readonly PreviewLayoutItem[]) {
+  const item = items.find((entry) => entry.id === id)
+  const visibleOrder = order.filter((entry) => items.some((candidate) => candidate.id === entry && candidate.visible))
+  announcement.value = t('settings.interface.popupLayout.moved', {label: item?.label ?? id, position: visibleOrder.indexOf(id) + 1})
+}
+const moduleDrag = usePopupLayoutReorder({
+  order: () => props.moduleOrder,
+  visibleIds: () => visibleModules.value.map((item) => item.id),
+  onUpdate: (order, id) => { emit('update:moduleOrder', order); announceMove(order, id, visibleModules.value) },
+})
+const featureDrag = usePopupLayoutReorder({
+  order: () => props.quickFeatureOrder,
+  visibleIds: () => visibleQuickFeatures.value.map((item) => item.id),
+  onUpdate: (order, id) => { emit('update:quickFeatureOrder', order); announceMove(order, id, visibleQuickFeatures.value) },
+})
+watch(() => props.editScope, () => { moduleDrag.finish(); featureDrag.finish() })
 const previewStyle = computed(() => {
   const preview = props.skin.preview
   if (props.skin.kind === 'palette') {
@@ -167,7 +223,7 @@ function featureGlyph(id: string): string {
 
 <style scoped>
 .popup-layout-live-preview {
-  width: min(100%, 318px);
+  width: min(100%, 360px);
   margin: 0 auto;
   color: var(--layout-preview-ink);
 }
@@ -177,7 +233,7 @@ function featureGlyph(id: string): string {
   isolation: isolate;
   display: grid;
   gap: 8px;
-  padding: 12px;
+  padding: 16px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--layout-preview-ink) 14%, transparent);
   border-radius: 18px;
@@ -192,7 +248,7 @@ function featureGlyph(id: string): string {
   display: grid;
   grid-template-columns: 30px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 7px;
+  gap: 10px;
 }
 
 .layout-preview-logo {
@@ -203,13 +259,13 @@ function featureGlyph(id: string): string {
   border-radius: 10px;
   color: var(--layout-preview-surface);
   background: var(--layout-preview-accent);
-  font-size: 7px;
+  font-size: 10px;
   font-weight: 850;
 }
 
 .layout-preview-header > strong {
   overflow: hidden;
-  font-size: 9px;
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -234,7 +290,7 @@ function featureGlyph(id: string): string {
 
 .layout-preview-flow {
   display: grid;
-  gap: 7px;
+  gap: 10px;
 }
 
 .layout-preview-module {
@@ -272,13 +328,13 @@ function featureGlyph(id: string): string {
 .layout-preview-service small,
 .layout-preview-site small {
   color: color-mix(in srgb, var(--layout-preview-ink) 57%, transparent);
-  font-size: 5.8px;
+  font-size: 8px;
   line-height: 1.2;
 }
 
 .layout-preview-hero strong {
   overflow: hidden;
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -320,7 +376,7 @@ function featureGlyph(id: string): string {
 .layout-preview-service b,
 .layout-preview-site b {
   overflow: hidden;
-  font-size: 7px;
+  font-size: 10px;
   line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -329,7 +385,7 @@ function featureGlyph(id: string): string {
 .layout-preview-languages em,
 .layout-preview-service em {
   color: color-mix(in srgb, var(--layout-preview-ink) 58%, transparent);
-  font-size: 7px;
+  font-size: 10px;
   font-style: normal;
   text-align: center;
 }
@@ -352,19 +408,19 @@ function featureGlyph(id: string): string {
   border-radius: 7px;
   color: var(--layout-preview-accent);
   background: color-mix(in srgb, var(--layout-preview-accent) 12%, var(--layout-preview-surface));
-  font-size: 7px;
+  font-size: 10px;
   font-style: normal;
   font-weight: 850;
 }
 
 .layout-preview-action {
   display: grid;
-  min-height: 27px;
+  min-height: 34px;
   place-items: center;
   border-radius: 8px;
   color: var(--layout-preview-surface);
   background: var(--layout-preview-accent);
-  font-size: 7px;
+  font-size: 10px;
   font-weight: 800;
 }
 
@@ -421,7 +477,7 @@ function featureGlyph(id: string): string {
 
 .layout-preview-section-title {
   color: color-mix(in srgb, var(--layout-preview-ink) 62%, transparent);
-  font-size: 6.5px;
+  font-size: 10px;
 }
 
 .layout-preview-feature-grid {
@@ -430,10 +486,10 @@ function featureGlyph(id: string): string {
   gap: 5px;
 }
 
-.layout-preview-feature-grid > span {
+.layout-preview-feature-grid > .layout-preview-editable-item {
   display: flex;
   min-width: 0;
-  min-height: 27px;
+  min-height: 34px;
   align-items: center;
   gap: 5px;
   padding: 4px 6px;
@@ -451,7 +507,7 @@ function featureGlyph(id: string): string {
   border-radius: 6px;
   color: var(--layout-preview-accent);
   background: color-mix(in srgb, var(--layout-preview-accent) 9%, var(--layout-preview-surface));
-  font-size: 6px;
+  font-size: 8px;
   font-style: normal;
   font-weight: 850;
 }
@@ -459,7 +515,7 @@ function featureGlyph(id: string): string {
 .layout-preview-feature-grid b {
   min-width: 0;
   overflow: hidden;
-  font-size: 6.5px;
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -470,7 +526,7 @@ function featureGlyph(id: string): string {
   align-items: center;
   gap: 6px;
   color: color-mix(in srgb, var(--layout-preview-ink) 58%, transparent);
-  font-size: 6px;
+  font-size: 8px;
 }
 
 .layout-preview-footer b {
@@ -489,7 +545,7 @@ function featureGlyph(id: string): string {
   box-shadow: none;
 }
 
-.popup-layout-live-preview[data-preview-kind="minimal"] :is(.preview-translation, .layout-preview-feature-grid > span, .layout-preview-site) {
+.popup-layout-live-preview[data-preview-kind="minimal"] :is(.preview-translation, .layout-preview-feature-grid > .layout-preview-editable-item, .layout-preview-site) {
   border-color: color-mix(in srgb, var(--layout-preview-ink) 8%, transparent);
 }
 
@@ -520,7 +576,7 @@ function featureGlyph(id: string): string {
   border-radius: 8px;
 }
 
-.popup-layout-live-preview[data-preview-kind="contrast"] :is(.layout-preview-popup, .preview-translation, .layout-preview-site, .layout-preview-feature-grid > span) {
+.popup-layout-live-preview[data-preview-kind="contrast"] :is(.layout-preview-popup, .preview-translation, .layout-preview-site, .layout-preview-feature-grid > .layout-preview-editable-item) {
   border: 2px solid var(--layout-preview-ink);
   border-radius: 4px;
   box-shadow: none;
@@ -545,7 +601,7 @@ function featureGlyph(id: string): string {
   border-radius: 14px;
 }
 
-.popup-layout-live-preview[data-preview-kind="palette"] :is(.layout-preview-header-actions i, .layout-preview-feature-grid > span, .layout-preview-site) {
+.popup-layout-live-preview[data-preview-kind="palette"] :is(.layout-preview-header-actions i, .layout-preview-feature-grid > .layout-preview-editable-item, .layout-preview-site) {
   border-color: var(--line);
   border-radius: 10px;
 }
@@ -598,11 +654,17 @@ function featureGlyph(id: string): string {
   background: var(--skin-panel-background, var(--surface));
   box-shadow: var(--skin-panel-shadow, none);
 }
-.popup-layout-live-preview[data-preview-kind="palette"] .layout-preview-feature-grid > span {
+.popup-layout-live-preview[data-preview-kind="palette"] .layout-preview-feature-grid > .layout-preview-editable-item {
   border-radius: var(--skin-feature-radius, 10px);
   box-shadow: var(--skin-feature-shadow, none);
 }
 .popup-layout-live-preview[data-preview-kind="palette"] :is(.layout-preview-languages span, .layout-preview-service, .layout-preview-action) {
   border-radius: var(--skin-control-radius, 10px);
 }
+.layout-preview-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.preview-quick-features.editable .layout-preview-section-heading { padding-left: 8px; }
+.layout-preview-footer.editable > span { padding-left: 8px; }
+.layout-preview-section-heading button { border: 0; padding: 3px; color: var(--layout-preview-accent); background: transparent; font: inherit; font-size: 9px; cursor: pointer; }
+.layout-preview-section-heading button:focus-visible { outline: 2px solid var(--layout-preview-accent); }
+.layout-preview-announcement { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 </style>
