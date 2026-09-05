@@ -175,7 +175,7 @@ describe('popup feature visibility', () => {
 
         expect(popup).toContain("className: `video-feature-card${config.value.videoTranslationEnabled ? '' : ' needs-enable'}`");
         expect(popup).toContain(':class="feature.className"');
-        expect(popup).toContain("'点击开启 · YouTube'");
+        expect(popup).toContain("'点击开启 · YouTube/X'");
         expect(styles).not.toMatch(/\.video-feature-card\.needs-enable\s*\{/u);
         expect(styles).toContain('.video-feature-card.needs-enable small { color: var(--brand-strong); font-weight: 700; }');
     });
@@ -190,6 +190,19 @@ describe('popup feature visibility', () => {
         expect(popup).toContain("image: 'settings-image-translation'");
         expect(popup).not.toContain(':disabled="!config.on || !browserCapabilities.imageTranslation"');
         expect(popup).not.toContain(':disabled="!browserCapabilities.areaTranslation"');
+    });
+
+    it('groups X local AI controls away from general video subtitle settings', () => {
+        const popup = source('src/app/popup/PopupApp.vue');
+        const styles = source('src/app/popup/popup.css');
+
+        expect(popup).toContain('class="x-video-ai-group"');
+        expect(popup).toContain('X 视频 · 本地 AI');
+        expect(popup).toContain('class="video-model-settings-link"');
+        expect(styles).toContain('.x-video-ai-group {');
+        expect(styles).toContain('padding: 16px 0;');
+        expect(styles).toContain('border-top: 1px solid var(--line);');
+        expect(styles).toContain('.x-video-ai-group + .select-row { margin-top: 16px; }');
     });
 
     it('separates area translation from text selection and image translation', () => {

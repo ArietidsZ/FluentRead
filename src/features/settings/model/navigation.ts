@@ -75,10 +75,10 @@ export const navigationGroups = [
         searchDescription: '圈选翻译、区域翻译、截图、Shift+Z、OCR、微软、免费翻译、AI、纠错、语言包',
       },
       {
-        id: 'settings-video', icon: 'CC', label: '视频字幕翻译', description: 'YouTube 边看边译', group: '专项翻译',
-        heading: '视频字幕翻译', summary: '在 YouTube 原生字幕下方显示译文，并独立选择视频翻译服务。',
-        kicker: '专项翻译', title: '视频字幕翻译', detail: '设置 YouTube 字幕翻译服务、显示方式和字号。',
-        searchDescription: 'YouTube、视频字幕、视频翻译服务、显示模式、字幕字号、DeepLX、微软翻译',
+        id: 'settings-video', icon: 'CC', label: '视频字幕翻译', description: 'YouTube/X 边看边译', group: '专项翻译',
+        heading: '视频字幕翻译', summary: '在 YouTube/X 原生字幕下方显示译文，X 无字幕时可用本地 AI 生成，并独立选择视频翻译服务。',
+        kicker: '专项翻译', title: '视频字幕翻译', detail: '设置 YouTube/X 字幕翻译服务、显示方式和字号。',
+        searchDescription: 'YouTube、X、Twitter、视频字幕、本地 AI、Whisper、视频翻译服务、显示模式、字幕字号、DeepLX、微软翻译',
       },
       {
         id: 'settings-sites', icon: '站', label: '网站规则', description: '自动翻译、禁用与网站适配', group: '专项翻译',

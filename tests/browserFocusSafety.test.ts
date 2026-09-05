@@ -19,6 +19,7 @@ const FOCUS_SAFE_SCRIPTS = [
     'scripts/run-userscript-smoke-test.cjs',
     'scripts/run-video-subtitle-test.cjs',
     'scripts/run-video-performance-test.cjs',
+    'scripts/run-x-subtitle-sync-test.cjs',
 ];
 
 const ACTIVATED_EXTENSION_TAB_SCRIPTS = FOCUS_SAFE_SCRIPTS.filter(

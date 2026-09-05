@@ -41,6 +41,11 @@ export interface OffscreenMessageDependencies {
         requestId: string,
     ) => Promise<unknown>;
     readonly downloadOcrLanguages: (languages: ImageOcrLanguageCode[]) => Promise<void>;
+    readonly videoAi?: {
+        transcribe(request: Record<string, unknown>): Promise<unknown>;
+        prepare(request: Record<string, unknown>): Promise<unknown>;
+        cancel(streamId: string, reason?: 'cancel' | 'complete'): Promise<void>;
+    };
 }
 
 type OffscreenMessageListener = (
@@ -225,6 +230,18 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
                 return true;
             case 'STOP_SELECTION_TTS':
                 respondWith(async () => dependencies.ttsPlayer.stop(message), sendResponse, () => ({success: true}));
+                return true;
+            case 'VIDEO_AI_TRANSCRIBE':
+                if (!dependencies.videoAi) { sendResponse({success: false, error: '视频 AI 未启用'}); return true; }
+                respondWith(() => dependencies.videoAi!.transcribe(message), sendResponse, (result) => ({success: true, ...resultRecord(result, '视频 AI 转写')}));
+                return true;
+            case 'VIDEO_AI_PREPARE':
+                if (!dependencies.videoAi) { sendResponse({success: false, error: '视频 AI 未启用'}); return true; }
+                respondWith(() => dependencies.videoAi!.prepare(message), sendResponse, (result) => ({success: true, ...resultRecord(result, '视频 AI 模型')}));
+                return true;
+            case 'VIDEO_AI_CANCEL':
+                if (!dependencies.videoAi) { sendResponse({success: true}); return true; }
+                respondWith(() => dependencies.videoAi!.cancel(requiredString(message.streamId, 'streamId'), message.reason === 'complete' ? 'complete' : 'cancel'), sendResponse, () => ({success: true}));
                 return true;
             case 'CHROME_TRANSLATE_OFFSCREEN': {
                 let requestId: string;

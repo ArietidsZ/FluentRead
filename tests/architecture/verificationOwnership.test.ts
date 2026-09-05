@@ -207,6 +207,15 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/features/video-subtitle/content/runtime.ts',
     // MAIN world adapter 只把 window Fetch/XHR 注入严格覆盖的 timedtext bridge core。
     'src/features/video-subtitle/content/youtubeTimedTextBridge.ts',
+    // X 浏览器适配器接入 Fetch/AudioContext；URL、读取预算、取消策略和字幕解析由严格覆盖模块负责。
+    'src/app/content/xVideoBridge.ts',
+    'src/features/video-subtitle/content/hlsAudioRuntime.ts',
+    // X 原生 TextTrack 与视频帧时钟的 DOM 映射由生产扩展同步夹具验证。
+    'src/features/video-subtitle/content/xCaptionSource.ts',
+    // 独立 Worker 绑定 Transformers/ONNX WASM 与可终止推理；真实模型由隔离生产浏览器验证，时间戳解析严格覆盖。
+    'src/features/video-subtitle/offscreen/transcription.worker.ts',
+    // 后台组合根只把共享 Offscreen client 和 storage 注入严格覆盖的 owner/message handlers。
+    'src/features/video-subtitle/background/runtime.ts',
     // PDF Canvas 预览绑定 PDF.js worker、真实 Canvas 像素采样与对象 URL；由隔离文档浏览器回归和双浏览器构建验证。
     'src/features/document-translation/ui/pdfPreview.ts',
     // 图片悬停 runtime 绑定页面 Image/Canvas/Shadow DOM；协议、OCR 与修复规则由 strict coverage 验证，跨域读取边界由安全契约验证。

@@ -535,7 +535,7 @@ describe('translation API request lifecycle performance', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('abort 发送精确 cancel，中止后台 broker signal 并及时释放前台队列', async () => {
+  it.each(['chrome-text', 'video'])('%s abort 发送精确 cancel，中止后台 broker signal 并及时释放前台队列', async (client) => {
     mocks.config.maxConcurrentTranslations = 1;
     const registry = createTranslationRequestRegistry();
     const cancel = createTranslationCancelHandler(registry);
@@ -562,7 +562,7 @@ describe('translation API request lifecycle performance', () => {
     ));
     const controller = new AbortController();
     const removeListener = vi.spyOn(controller.signal, 'removeEventListener');
-    const first = translateText('First readable source', 'Context', {
+    const first = client === 'video' ? translateVideoText('First readable source', controller.signal) : translateText('First readable source', 'Context', {
       signal: controller.signal,
       maxRetries: 0,
       serviceOverride: 'chromeTranslator',
@@ -580,7 +580,7 @@ describe('translation API request lifecycle performance', () => {
       clientRequestId: firstRequest.clientRequestId,
     });
 
-    const second = translateText('Second readable source', 'Context', {maxRetries: 0});
+    const second = client === 'video' ? translateVideoText('Second readable source') : translateText('Second readable source', 'Context', {maxRetries: 0});
     await expect(second).resolves.toBe('第二段译文');
     expect(translate).toHaveBeenCalledTimes(2);
   });
@@ -699,6 +699,15 @@ describe('translation API request lifecycle performance', () => {
     }));
   });
 
+  it('uses independent video source language without changing webpage language', async () => {
+    mocks.sendMessage.mockResolvedValue('今天是个好日子。');
+    await expect(translateVideoText('오늘은 좋은 날입니다.', undefined, 'auto')).resolves.toBe('今天是个好日子。');
+    expect(mocks.sendMessage).toHaveBeenLastCalledWith(expect.objectContaining({sourceLanguage: 'auto', origin: '오늘은 좋은 날입니다.'}));
+    await translateVideoText('안녕하세요.', undefined, 'ko');
+    expect(mocks.sendMessage).toHaveBeenLastCalledWith(expect.objectContaining({sourceLanguage: 'ko'}));
+    expect(mocks.config.from).toBe('en');
+  });
+
   it('uses the video AI service when resolving and sending page context', async () => {
     mocks.config.enableAIContext = true;
     mocks.config.videoService = 'mock-ai';
@@ -710,7 +719,7 @@ describe('translation API request lifecycle performance', () => {
 
     expect(mocks.getPageTranslationContext).toHaveBeenCalledTimes(1);
     expect(mocks.sendMessage).toHaveBeenCalledWith(expect.objectContaining({
-      context: 'YouTube 视频字幕：Fixture video title',
+      context: '视频字幕：Fixture video title',
       pageContext,
       origin: 'A subtitle source',
       useCache: true,
@@ -721,6 +730,6 @@ describe('translation API request lifecycle performance', () => {
       targetLanguage: 'zh-Hans',
       requestTimeoutMs: 19_000,
     }));
-    expect(mocks.sendMessage.mock.calls[0]?.[0]).not.toHaveProperty('clientRequestId');
+    expect(mocks.sendMessage.mock.calls[0]?.[0].clientRequestId).toEqual(expect.any(String));
   });
 });

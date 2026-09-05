@@ -472,10 +472,12 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
 
     videoTranslationEnabled: {group: 'videoSubtitles', label: '视频字幕翻译', format: formatBoolean},
     videoService: {group: 'videoSubtitles', label: '视频翻译服务', format: formatService},
+    videoSourceLanguage: {group: 'videoSubtitles', label: '视频原语言'},
     videoGlossaryIds: {group: 'videoSubtitles', label: '字幕术语库', format: formatGlossarySelection},
     videoSubtitleVisible: {group: 'videoSubtitles', label: '显示视频字幕', format: formatBoolean},
     videoSubtitleDisplayMode: {group: 'videoSubtitles', label: '视频字幕显示模式', format: (value) => formatEnum(value, VIDEO_DISPLAY_MODE_LABELS)},
     videoSubtitleFontSize: {group: 'videoSubtitles', label: '视频字幕字号', format: (value) => formatNumber(value, '%')},
+    videoSubtitleAppearance: {group: 'videoSubtitles', label: '视频字幕外观'},
 
     useCache: {group: 'advanced', label: '缓存翻译结果', format: formatBoolean},
     translationCacheMaxBytes: {group: 'advanced', label: '翻译缓存容量上限', format: (value) => formatNumber(value, ' B')},

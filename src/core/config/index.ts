@@ -19,3 +19,4 @@ export * from './selectionTts';
 export * from './translationLoadingStyle';
 export * from './transfer';
 export * from './validation';
+export * from './videoSubtitleAppearance';

@@ -24,19 +24,11 @@ import {createImageOcrLanguageRepository, createImageTranslationBackgroundHandle
 import {createInputBoxTranslationHandler} from './handlers/inputTranslation';
 import {createModelUsageHandler} from './handlers/modelUsage';
 import {createOpenOptionsPageHandler} from './handlers/openOptions';
-import {
-    createTranslationCancelHandler,
-    createTranslationRequestFallback,
-    createTranslationRequestRegistry,
-} from './handlers/translation';
+import {createTranslationCancelHandler, createTranslationRequestFallback, createTranslationRequestRegistry} from './handlers/translation';
 import {createSelectionTtsBackgroundHandlers, type SelectionTtsContext} from './handlers/selectionTts';
 import {createSelectionWordLookupHandler} from './handlers/selectionWordLookup';
 import {isBrowserTabId, type TabTranslationStateStore} from './tabTranslationState';
-import {
-    createBrowserVocabularyBookChangedBroadcaster,
-    createVocabularyBackgroundHandlers,
-    type VocabularyBackgroundContext,
-} from './handlers/vocabulary';
+import {createBrowserVocabularyBookChangedBroadcaster, createVocabularyBackgroundHandlers, type VocabularyBackgroundContext} from './handlers/vocabulary';
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
 import {supportsTranslationBatch} from '@/src/services/translation/capabilities';
 import {prepareAreaTextTranslation} from '@/src/features/area-translation/services/textTranslation';
@@ -47,6 +39,8 @@ import {createCapabilityGatedBackgroundHandlers, createCapabilityGatedSelectionT
 import {createConfigBackgroundHandlers} from './configMessageHandlers';
 import {createConfigImageOcrLanguageStorage, installBrowserConfigStorageBroadcast} from './configStorageRuntime';
 import {modelUsageRepository} from '@/src/platform/storage/modelUsageRepository';
+import {releaseVideoSubtitleOwnerForTab} from '@/src/features/video-subtitle/background/handlers';
+import {createVideoSubtitleBackgroundRuntime} from '@/src/features/video-subtitle/background/runtime';
 import {installHarnessBackgroundRuntime} from './harnessRuntime';
 import {createImageGlossaryContext} from './imageGlossaryContext';
 import {buildGlossaryRevision} from '@/src/core/glossary';
@@ -149,6 +143,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             }),
             logOperationFailure: (error) => console.error('[FluentRead] vocabulary book operation failed:', error),
         }),
+        ...createVideoSubtitleBackgroundRuntime(),
     ];
     const router = createBackgroundMessageRouter(
         handlers,
@@ -167,5 +162,6 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             return {success: false, error: error instanceof Error ? error.message : String(error)};
         }
     });
+    browser.tabs.onRemoved.addListener((tabId: number) => releaseVideoSubtitleOwnerForTab(Number(tabId)));
     installBrowserConfigStorageBroadcast();
 }
