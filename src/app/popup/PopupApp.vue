@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupApp.vue
  文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、可插拔皮肤、功能抽屉和高频操作，提供轻量但完整的控制中心。
- 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排翻译、AI 语境偏好与可用状态、站点规则及快捷功能，图片、圈选和划词拥有独立状态、抽屉与设置入口；提供 AI 精翻说明抽屉，监听配置并持久化，按皮肤及栏目显隐自动计算高度。
+ 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排翻译、AI 语境偏好与可用状态、站点规则及三列快捷功能，图片、圈选和划词拥有独立状态、抽屉与设置入口；提供 AI 精翻说明抽屉，监听配置并持久化，按皮肤及栏目显隐自动计算高度。
  模块边界：组件编排用户交互与运行时消息，不实现翻译 provider、缓存存储或 content 挂载细节；公共配置由 services/store 管理，页面行为由 content feature 接收消息完成。
 -->
 <!-- Popup 页面归 app 层所有；WXT 入口只负责调用挂载函数。 -->
@@ -285,7 +285,8 @@
           :data-popup-quick-feature="feature.id"
           type="button"
           :disabled="!config.on"
-          :aria-label="feature.ariaLabel"
+          :aria-label="feature.ariaLabel || `${translateLegacy(feature.label)} · ${translateLegacy(feature.summary)}`"
+          :title="`${translateLegacy(feature.label)} · ${translateLegacy(feature.summary)}`"
           @click="feature.open()"
         >
           <span class="feature-icon" :class="feature.iconTone" aria-hidden="true">{{ config.interfaceSkin === 'emoji' ? emojiFeatureIcons[feature.id] : feature.icon }}</span>
@@ -294,7 +295,7 @@
             <small>{{ feature.summary }}</small>
           </span>
           <i v-if="feature.showStatus" :class="{active: feature.active}" />
-          <b v-else>›</b>
+          <b v-else aria-hidden="true">↗</b>
         </button>
       </div>
     </section>
@@ -853,7 +854,6 @@ const siteRuleModuleProps = computed(() => ({
   switchLabel: currentSiteSwitchLabel.value,
   extensionSwitchLabel: currentSiteExtensionSwitchLabel.value,
 }));
-const videoServiceLabel = computed(() => videoServiceOptions.value.find((item: any) => item.value === config.value.videoService)?.label || config.value.videoService);
 const styleLabel = computed(() => styleOptions.value.find((item: any) => item.value === config.value.style)?.label || '默认样式');
 const defaultHoverHotkey = computed(() => resolveConfiguredHotkey(config.value.hotkey, config.value.customHotkey));
 const defaultHoverEnabled = computed(() => Boolean(defaultHoverHotkey.value && defaultHoverHotkey.value !== 'none'));
@@ -868,7 +868,7 @@ const hoverPreviewKey = computed(() => !defaultHoverEnabled.value
   : hoverKey.value);
 const hoverSummary = computed(() => quickHoverProfiles.value.length
   ? t('popup.quickTranslation.profileCount', {count: hoverProfileCount.value})
-  : defaultHoverEnabled.value ? `${hoverKey.value} + 鼠标悬停` : '已关闭');
+  : defaultHoverEnabled.value ? hoverKey.value.replace('Control', 'Ctrl') : '已关闭');
 const defaultFullPageHotkey = computed(() => resolveConfiguredHotkey(
   config.value.floatingBallHotkey,
   config.value.customFloatingBallHotkey,
@@ -892,16 +892,13 @@ function quickProfileSummary(profile: QuickTranslationProfile): string {
   const model = profile.model || resolveConfiguredModel(config.value.model[service], config.value.customModel[service]);
   return model ? `${serviceName} · ${model}` : serviceName;
 }
-const selectionSummary = computed(() => {
-  const textSummary = ({ disabled: '已关闭', bilingual: '双语显示', 'translation-only': '仅显示译文' }[config.value.selectionTranslatorMode] || '双语显示');
-  const triggerSummary = selectionTriggers.find(item => item.value === config.value.selectionTranslatorTrigger)?.label || '显示图标';
-  return `${textSummary} · ${triggerSummary}`;
-});
+const selectionSummary = computed(() => config.value.selectionTranslatorMode === 'disabled'
+  ? '已关闭' : selectionTriggers.find(item => item.value === config.value.selectionTranslatorTrigger)?.label || '显示图标');
 const displaySummary = computed(() => config.value.display === 1 ? `双语 · ${styleLabel.value}` : '仅显示译文');
 const imageTranslationSummary = computed(() => !browserCapabilities.imageTranslation
   ? '当前浏览器不可用'
   : config.value.disableImageTranslator ? '已关闭' : '悬停图片');
-const videoSummary = computed(() => config.value.videoTranslationEnabled ? `${videoServiceLabel.value} · YouTube/X` : '点击开启 · YouTube/X');
+const videoSummary = computed(() => config.value.videoTranslationEnabled ? 'YouTube / X' : '已关闭');
 const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQuickFeatureViewModel>>(() => ({
   hover: {
     id: 'hover',
@@ -954,7 +951,7 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
   },
   video: {
     id: 'video',
-    label: '视频字幕',
+    label: t('popup.videoSubtitles'),
     summary: videoSummary.value,
     icon: 'CC',
     iconTone: 'teal',
@@ -970,7 +967,7 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
   document: {
     id: 'document',
     label: '文档翻译',
-    summary: 'HTML / TXT / Markdown / 字幕 / JSON',
+    summary: 'PDF / Word / …',
     icon: '文',
     iconTone: 'blue',
     showStatus: false,

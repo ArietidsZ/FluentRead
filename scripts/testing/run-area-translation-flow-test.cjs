@@ -60,7 +60,7 @@ let sequence = 0;
 async function patch(values) {
   await popup.evaluate(async ({values, sequence}) => {
     const {value: current} = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
-    for (const field of ['token', 'proxy', 'model']) if (values[field]) values[field] = {...current[field], ...values[field]};
+    for (const field of ['token', 'proxy', 'model', 'customModel']) if (values[field]) values[field] = {...current[field], ...values[field]};
     // 公开配置不包含凭据，不能将其当作 token 的 CAS 旧值；仅在本次临时 profile 初始化合成密钥时用 revision replace。
     const initialCredentials = Object.hasOwn(values, 'token');
     const response = await chrome.runtime.sendMessage({type: 'persistConfig', mode: initialCredentials ? 'replace' : 'patch', config: initialCredentials ? {...current, ...values} : values,
@@ -179,6 +179,9 @@ function cer(actual, expected) {
   const source = await sourceText(); assert.match(source, /Welcome to FluentRead/); assert.match(source, /123/); assert.ok(!source.includes('OUTSIDE'));
   assert.equal(await ui("return this.querySelector('.fr-area-translation').textContent"), translation);
   assert.equal(await worker.evaluate(() => globalThis.__areaFixture.requests.length), 1, 'one complete text request');
+  assert.equal((await ui("return this.querySelector('.fr-area-provider').textContent")).trim(), '谷歌翻译');
+  assert.equal(await ui("return !!this.querySelector('.fr-area-model')"), false);
+  report.cases.push('machine service name without model');
   report.ocrSamples = [{name: 'clear English 26px', source, cer: cer(source, expectedSource)}];
   assert.ok(report.ocrSamples[0].cer <= 0.03); report.cases.push(currentCase); await shot('01-standard-result');
   currentCase = 'same capture retry'; await page.evaluate(()=>{const c=document.querySelector('#sample'); const x=c.getContext('2d');x.fillStyle='white';x.fillRect(0,0,c.width,c.height);x.fillStyle='black';x.font='32px Arial';x.fillText('THIS IS A DIFFERENT SCREENSHOT',20,80);}); const retryStart = Date.now(); await clickText('重新翻译'); await waitResult(); report.retryMs = Date.now() - retryStart;
@@ -197,8 +200,15 @@ function cer(actual, expected) {
   await page.keyboard.press('Escape'); await page.evaluate(()=>paint()); await select(); await waitResult();
   assert.equal(report.aiRequests.length,1); assert.ok(JSON.stringify(report.aiRequests[0]).includes('Welcome to FluentRead'));
   assert.ok(JSON.stringify(report.aiRequests[0]).includes('correctedText')); assert.equal(await ui("return this.querySelector('.fr-area-mode').textContent"),'AI 文本增强'); report.cases.push(currentCase); await shot('03-ai-result');
+  assert.match(await ui("return this.querySelector('.fr-area-provider').textContent"), /OpenAI.*gpt-4\.1-mini/s);
+  currentCase = 'result metadata stays frozen until retry';
+  await patch({model:{openai:'gpt-4.1-nano'}});
+  assert.match(await ui("return this.querySelector('.fr-area-provider').textContent"), /gpt-4\.1-mini/);
+  await clickText('重新翻译'); await waitResult();
+  assert.match(await ui("return this.querySelector('.fr-area-provider').textContent"), /gpt-4\.1-nano/);
+  assert.equal(report.aiRequests.at(-1).model,'gpt-4.1-nano'); report.cases.push(currentCase);
   currentCase = 'invalid AI response exposes retry, no silent fallback'; aiMalformed=true; await clickText('重新翻译');
-  await wait(()=>ui("return !!this.querySelector('.fr-area-error-body')")); assert.equal(await ui("return !!this.querySelector('.fr-area-translation')"),false); await shot('04-ai-retry-error');
+  await wait(()=>ui("return !!this.querySelector('.fr-area-error-body')")); assert.equal(await ui("return !!this.querySelector('.fr-area-provider')"),false); assert.equal(await ui("return !!this.querySelector('.fr-area-translation')"),false); await shot('04-ai-retry-error');
   aiMalformed=false; await clickText('重试'); await waitResult(); report.cases.push(currentCase);
   currentCase = 'close cancels pending and no late result'; await worker.evaluate(()=>{globalThis.__areaFixture.delay=1500;});
   await patch({areaTranslationMode:'standard',areaTranslationService:'google',to:'ja'}); const beforeCancel=await worker.evaluate(()=>globalThis.__areaFixture.requests.length); await clickText('重新翻译'); await wait(async()=>await worker.evaluate(()=>globalThis.__areaFixture.requests.length)>beforeCancel); await clickText('取消'); await page.waitForTimeout(1800); assert.ok(await worker.evaluate(()=>globalThis.__areaFixture.aborted)>0);
@@ -219,7 +229,16 @@ function cer(actual, expected) {
   currentCase='narrow dark result geometry'; await patch({theme:'dark'}); await wait(()=>ui("return this.querySelector('.fr-area-translator-root')?.classList.contains('fr-area-dark')")); await page.setViewportSize({width:390,height:780}); await page.evaluate(()=>{document.body.style.margin='16px';const c=document.querySelector('#sample');c.width=350;c.style.width='350px';paint(18,true);}); await select(); await waitResult();
   report.darkColors=await ui("const p=this.querySelector('.fr-area-panel');return {background:getComputedStyle(p).backgroundColor,text:getComputedStyle(p).color,overlay:getComputedStyle(this.querySelector('.fr-area-translator-root')).backgroundColor};"); assert.equal(report.darkColors.background,'rgb(43, 38, 48)'); assert.equal(report.darkColors.overlay,'rgba(0, 0, 0, 0)');
   const narrow=await ui("const p=this.querySelector('.fr-area-panel'),r=p.getBoundingClientRect();return {left:r.left,right:r.right,bottom:r.bottom,width:innerWidth,height:innerHeight,overflow:p.scrollWidth>p.clientWidth};"); assert.ok(narrow.left>=0&&narrow.right<=narrow.width&&narrow.bottom<=narrow.height&&!narrow.overflow); report.narrowGeometry=narrow; await shot('05-dark-narrow'); report.cases.push(currentCase);
+  currentCase='long model wraps in narrow dark panel';
+  const longModel='organization/'+ 'translation-model-'.repeat(8);
+  await patch({areaTranslationService:'openai',model:{openai:'自定义模型'},customModel:{openai:longModel}}); await clickText('重新翻译'); await waitResult();
+  assert.ok((await ui("return this.querySelector('.fr-area-provider').textContent")).includes(longModel));
+  assert.equal(await ui("const p=this.querySelector('.fr-area-provider'); return p.scrollWidth>p.clientWidth;"),false);
+  assert.ok(await ui("const p=this.querySelector('.fr-area-panel').getBoundingClientRect(),b=this.querySelector('.fr-area-toolbar button').getBoundingClientRect(); return b.right<=p.right&&b.left>=p.left;"));
+  await shot('06-long-model-dark'); report.cases.push(currentCase);
+  await patch({areaTranslationService:'google'});
   currentCase='live motion settings retain static progress'; await patch({to:'fr'}); await worker.evaluate(()=>{globalThis.__areaFixture.delay=20000;}); await clickText('重新翻译'); await wait(()=>ui("return !!this.querySelector('.fr-area-loading')"));
+  assert.equal(await ui("return !!this.querySelector('.fr-area-provider')"),false);
   await patch({animations:false}); await wait(()=>ui("return !!this.querySelector('.fr-area-spinner.fr-area-static')")); assert.equal(await ui("return getComputedStyle(this.querySelector('.fr-area-spinner')).animationName"),'none'); assert.ok(await ui("return this.querySelector('.fr-area-loading').textContent.includes('正在')"));
   await patch({animations:true}); await wait(()=>ui("return this.querySelector('.fr-area-spinner')&&!this.querySelector('.fr-area-spinner.fr-area-static')")); await clickText('取消'); report.cases.push(currentCase);
   currentCase='disabled cleanup'; await patch({selectionAreaEnabled:false}); await wait(async()=>!(await page.locator('#fluent-read-area-translator-container').count())); report.cases.push(currentCase);

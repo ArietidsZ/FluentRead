@@ -1,10 +1,11 @@
 /**
  * @file src/features/area-translation/services/textTranslation.ts
  * 文件职责：在后台把圈选 OCR 作为完整文本处理，以冻结配置调用共享翻译 broker，独立返回原文、译文和可核对的 AI 校正文。
- * 主要内容：实现标准整块翻译、通用 AI 能力门控、专属结构化提示与严格 JSON 校验，携带可信页面术语来源、同一取消信号和剩余总预算。
+ * 主要内容：实现标准整块翻译、通用 AI 能力门控、专属结构化提示与严格 JSON 校验，随结果返回本次服务名称与模型，携带可信页面术语来源、同一取消信号和剩余总预算。
  * 模块边界：只接收裁剪后的本地 OCR 数据，不向 provider 发送截图，不调用浏览器或改写全局设置；供应商、限流、缓存身份和凭据由既有翻译服务管理。
  */
-import {resolveConfiguredModel, servicesType} from '@/src/core/config/catalog';
+import {options as catalogOptions, resolveConfiguredModel, servicesType} from '@/src/core/config/catalog';
+import {withCustomOpenAIServiceOptions} from '@/src/core/config/customOpenAI';
 import {buildGlossaryRevision} from '@/src/core/glossary';
 import {
     attachTranslationGlossaryContext,
@@ -68,6 +69,9 @@ export function prepareAreaTextTranslation(
     const service = source.areaTranslationService || source.service;
     const frozen = createTranslationProviderConfigSnapshot(source);
     const model = resolveConfiguredModel(frozen.model[service], frozen.customModel[service]);
+    const serviceName = withCustomOpenAIServiceOptions(catalogOptions.services, frozen.customOpenAIProviders)
+        .find(option => option.value === service)?.label ?? service;
+    const displayModel = servicesType.isUseModel(service) ? model : '';
     if (mode === 'ai' && !supportsAreaTranslationAI(service, model)) {
         throw new Error('当前服务或模型不支持 AI 文字增强，请选择通用 AI 模型或使用标准翻译');
     }
@@ -95,7 +99,7 @@ export function prepareAreaTextTranslation(
         checkAbort(options.signal);
         if (typeof value !== 'string' || !value.trim()) throw new Error('圈选翻译未返回有效译文');
         const text = mode === 'ai' ? parseAiResult(value, sourceText.length) : {translatedText: value.trim()};
-        return {image: recognized.image, lines: recognized.lines, sourceText, ...text, mode,
+        return {image: recognized.image, lines: recognized.lines, sourceText, ...text, mode, service, serviceName, model: displayModel,
             warnings: [mode === 'ai' ? 'ai-text-only' : 'standard-quality']};
     };
 }

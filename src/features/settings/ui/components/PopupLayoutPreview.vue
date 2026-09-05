@@ -483,14 +483,17 @@ function featureGlyph(id: string): string {
 
 .layout-preview-feature-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 5px;
 }
 
 .layout-preview-feature-grid > .layout-preview-editable-item {
   display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
   min-width: 0;
-  min-height: 34px;
+  min-height: 48px;
   align-items: center;
   gap: 5px;
   padding: 4px 6px;
@@ -517,8 +520,7 @@ function featureGlyph(id: string): string {
   min-width: 0;
   overflow: hidden;
   font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .layout-preview-footer {
