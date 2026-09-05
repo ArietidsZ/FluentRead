@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/core.ts
  * 文件职责：提供图片翻译可复用的纯数据算法，用于选择真正发生变化的译文、确定 OCR 语言组合、缩放文本框并清理 OCR 行数据。
- * 主要内容：从 shared/image 复用 OcrLine 类型，筛选有效译文、规划有界 OCR 尺寸并映回原图坐标，规范化词组、标点和置信度，避免噪声进入翻译与绘制。
+ * 主要内容：从 shared/image 复用 OcrLine 类型，筛选有效译文、规划图片与圈选各自的有界 OCR 尺寸及边框，映回原图坐标，规范化词组、标点和置信度，避免噪声进入翻译与绘制。
  * 模块边界：该模块不接触 Canvas、Tesseract、网络或浏览器消息；OCR 执行归 ocrRuntime，像素修补与文本绘制归 services，页面展示归 content/runtime。
  */
 import { getRequiredImageOcrLanguages, type ImageOcrLanguageCode } from './ocrLanguages';
@@ -38,6 +38,22 @@ export function getOcrImageSize(width: number, height: number): {width: number; 
     return {width: Math.max(1, Math.floor(width * ratio)), height: Math.max(1, Math.floor(height * ratio))};
 }
 
+/**
+ * 圈选的紧贴文字小图最多放大两倍，并预留 10px 白边供分割识别。
+ * 白边计入最长边和像素预算；普通图片继续使用既有的只降采样策略。
+ * 这些是有界输入策略，不代表任何语言或图片的准确率保证。
+ */
+export function getAreaOcrImageSize(width: number, height: number): {width: number; height: number; padding: number} {
+    getOcrImageSize(width, height);
+    const scale = width <= 1000 && height <= 500 ? 2 : 1;
+    const ratio = Math.min(scale, 4076 / Math.max(width, height), Math.sqrt(5_800_000 / width / height));
+    return {
+        width: Math.max(1, Math.floor(width * ratio)),
+        height: Math.max(1, Math.floor(height * ratio)),
+        padding: 10,
+    };
+}
+
 /** 将降采样后的识别框映回原始像素，夹紧边界，避免擦除与文字替换偏移。 */
 export function restoreOcrLineCoordinates(
     lines: OcrLine[],
@@ -45,13 +61,14 @@ export function restoreOcrLineCoordinates(
     sourceHeight: number,
     ocrWidth: number,
     ocrHeight: number,
+    padding = 0,
 ): OcrLine[] {
     return lines.flatMap(line => {
         const bbox = {
-            x0: Math.max(0, Math.floor(line.bbox.x0 * sourceWidth / ocrWidth)),
-            y0: Math.max(0, Math.floor(line.bbox.y0 * sourceHeight / ocrHeight)),
-            x1: Math.min(sourceWidth, Math.ceil(line.bbox.x1 * sourceWidth / ocrWidth)),
-            y1: Math.min(sourceHeight, Math.ceil(line.bbox.y1 * sourceHeight / ocrHeight)),
+            x0: Math.max(0, Math.floor((line.bbox.x0 - padding) * sourceWidth / ocrWidth)),
+            y0: Math.max(0, Math.floor((line.bbox.y0 - padding) * sourceHeight / ocrHeight)),
+            x1: Math.min(sourceWidth, Math.ceil((line.bbox.x1 - padding) * sourceWidth / ocrWidth)),
+            y1: Math.min(sourceHeight, Math.ceil((line.bbox.y1 - padding) * sourceHeight / ocrHeight)),
         };
         return isValidOcrBox(bbox) ? [{...line, bbox}] : [];
     });

@@ -5,6 +5,7 @@ import {
     AREA_CANCEL_MESSAGE_TYPE,
     AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE,
     createAreaTranslationBackgroundHandlers,
+    createAreaCaptureOwnershipVerifier,
     isAreaTranslationSelection,
 } from '@/src/features/area-translation/background/handlers';
 import {
@@ -94,10 +95,13 @@ describe('后台 feature handlers', () => {
             .resolves.toEqual({success: true});
         await expect(handler.handle({type: OPEN_OPTIONS_PAGE_MESSAGE_TYPE, section: 'settings-shortcuts'}))
             .resolves.toEqual({success: true});
+        await expect(handler.handle({type: OPEN_OPTIONS_PAGE_MESSAGE_TYPE, section: 'settings-area-translation'}))
+            .resolves.toEqual({success: true});
         expect(openDefaultPage).toHaveBeenCalledOnce();
         expect(openSection).toHaveBeenNthCalledWith(1, 'settings-video');
         expect(openSection).toHaveBeenNthCalledWith(2, 'settings-translation');
         expect(openSection).toHaveBeenNthCalledWith(3, 'settings-translation');
+        expect(openSection).toHaveBeenNthCalledWith(4, 'settings-area-translation');
 
         await expect(handler.handle({type: OPEN_OPTIONS_PAGE_MESSAGE_TYPE, section: 'settings-secret'}))
             .rejects.toThrow('无效的设置页面');
@@ -225,6 +229,101 @@ describe('后台 feature handlers', () => {
         )).rejects.toThrow('当前页面截图为空');
     });
 
+    it('圈选截图必须属于sender的当前活动标签页，并在捕获完成后再次核对', async () => {
+        let active = false;
+        const getTab = vi.fn(async (id: number) => ({id, windowId: 0, active}));
+        const captureVisibleTab = vi.fn(async () => 'data:image/png,original-page');
+        const assertCaptureOwner = createAreaCaptureOwnershipVerifier(getTab);
+        const [handler] = createAreaTranslationBackgroundHandlers({
+            captureVisibleTab, assertCaptureOwner, getDefaultSourceLanguage: () => 'en',
+            assertLanguagesDownloaded: vi.fn(), translateArea: vi.fn(),
+        });
+        const context = {sender: {tab: {windowId: 0, id: 7}}};
+        await expect(handler.handle({type: AREA_CAPTURE_MESSAGE_TYPE}, context)).rejects.toThrow('页面已切换');
+        expect(captureVisibleTab).not.toHaveBeenCalled();
+        active = true;
+        await expect(handler.handle({type: AREA_CAPTURE_MESSAGE_TYPE}, context)).resolves.toEqual({success: true, image: 'data:image/png,original-page'});
+        expect(getTab).toHaveBeenCalledTimes(3);
+        captureVisibleTab.mockImplementationOnce(async () => {active = false; return 'data:image/png,other-page';});
+        await expect(handler.handle({type: AREA_CAPTURE_MESSAGE_TYPE}, context)).rejects.toThrow('页面已切换');
+    });
+
+    it('连续圈选截图跨窗口共享600ms启动间隔，首次立即且空闲后不补偿突发额度', async () => {
+        let now = 0;
+        const starts: Array<{time: number; windowId: number}> = [];
+        const waitForCapture = vi.fn(async (milliseconds: number) => {now += milliseconds;});
+        const [handler] = createAreaTranslationBackgroundHandlers({
+            captureNow: () => now, waitForCapture,
+            captureVisibleTab: async (windowId) => {starts.push({time: now, windowId}); return 'data:image/png,crop';},
+            getDefaultSourceLanguage: () => 'en', assertLanguagesDownloaded: vi.fn(), translateArea: vi.fn(),
+        });
+        const capture = (windowId: number) => handler.handle({type: AREA_CAPTURE_MESSAGE_TYPE}, {sender: {tab: {windowId}}});
+        await Promise.all([capture(1), capture(2), capture(1)]);
+        expect(starts).toEqual([{time: 0, windowId: 1}, {time: 600, windowId: 2}, {time: 1200, windowId: 1}]);
+        expect(waitForCapture.mock.calls).toEqual([[600], [600]]);
+        now = 3000;
+        await Promise.all([capture(2), capture(1)]);
+        expect(starts.slice(-2)).toEqual([{time: 3000, windowId: 2}, {time: 3600, windowId: 1}]);
+    });
+
+    it('截图本身严格串行，失败也保持启动间隔且释放后续队列', async () => {
+        let now = 0;
+        let failFirst!: (reason: Error) => void;
+        const starts: number[] = [];
+        const captureVisibleTab = vi.fn(() => {
+            starts.push(now);
+            return starts.length === 1 ? new Promise<string>((_resolve, reject) => {failFirst = reject;}) : Promise.resolve('data:image/png,retry');
+        });
+        const [handler] = createAreaTranslationBackgroundHandlers({
+            captureNow: () => now, waitForCapture: async (milliseconds) => {now += milliseconds;}, captureVisibleTab,
+            getDefaultSourceLanguage: () => 'en', assertLanguagesDownloaded: vi.fn(), translateArea: vi.fn(),
+        });
+        const context = {sender: {tab: {windowId: 1}}};
+        const first = handler.handle({type: AREA_CAPTURE_MESSAGE_TYPE}, context);
+        const rejection = expect(first).rejects.toThrow('capture failed');
+        const second = handler.handle({type: AREA_CAPTURE_MESSAGE_TYPE}, context);
+        for (let index = 0; index < 5; index += 1) await Promise.resolve();
+        expect(captureVisibleTab).toHaveBeenCalledOnce();
+        now = 200;
+        failFirst(new Error('capture failed'));
+        await rejection;
+        await expect(second).resolves.toEqual({success: true, image: 'data:image/png,retry'});
+        expect(starts).toEqual([0, 600]);
+    });
+
+    it('截图节流等待结束后重新核验标签页，已切换则不截图且不消耗下一次额度', async () => {
+        let now = 0;
+        let active = true;
+        const captureVisibleTab = vi.fn(async () => 'data:image/png,crop');
+        const waitForCapture = vi.fn(async (milliseconds: number) => {now += milliseconds; active = false;});
+        const [handler] = createAreaTranslationBackgroundHandlers({
+            captureNow: () => now, waitForCapture, captureVisibleTab,
+            assertCaptureOwner: createAreaCaptureOwnershipVerifier(async () => ({id: 3, windowId: 1, active})),
+            getDefaultSourceLanguage: () => 'en', assertLanguagesDownloaded: vi.fn(), translateArea: vi.fn(),
+        });
+        const context = {sender: {tab: {windowId: 1, id: 3}}};
+        await handler.handle({type: AREA_CAPTURE_MESSAGE_TYPE}, context);
+        await expect(handler.handle({type: AREA_CAPTURE_MESSAGE_TYPE}, context)).rejects.toThrow('页面已切换');
+        expect(captureVisibleTab).toHaveBeenCalledOnce();
+        active = true;
+        await expect(handler.handle({type: AREA_CAPTURE_MESSAGE_TYPE}, context)).resolves.toHaveProperty('success', true);
+        expect(captureVisibleTab).toHaveBeenCalledTimes(2);
+        expect(waitForCapture).toHaveBeenCalledOnce();
+    });
+
+    it('圈选截图所有权拒绝伪造或失效tabId、错误窗口及已关闭标签页', async () => {
+        const getTab = vi.fn(async () => ({id: 2, windowId: 3, active: true}));
+        const verify = createAreaCaptureOwnershipVerifier(getTab);
+        for (const id of [undefined, '2', -1, 1.2, Number.MAX_SAFE_INTEGER + 1]) {
+            await expect(verify(3, id)).rejects.toThrow('无法确定');
+        }
+        expect(getTab).not.toHaveBeenCalled();
+        await expect(verify(3, 1)).rejects.toThrow('页面已切换');
+        await expect(verify(4, 2)).rejects.toThrow('页面已切换');
+        getTab.mockRejectedValueOnce(new Error('tab closed'));
+        await expect(verify(3, 2)).rejects.toThrow('tab closed');
+    });
+
     it('区域翻译 handler 校验协议、默认语言并依序调用语言包与 offscreen', async () => {
         const events: string[] = [];
         const assertLanguagesDownloaded = vi.fn(async (language: string) => {
@@ -295,6 +394,30 @@ describe('后台 feature handlers', () => {
             selection,
             title: false,
         }, {})).rejects.toThrow('title 必须是字符串');
+    });
+
+    it('圈选开始前冻结文本事务，OCR结束后发送独立翻译阶段并返回文字结果', async () => {
+        const events: string[] = [];
+        const recognized = {image: 'data:image/png,crop', lines: []};
+        const translateText = vi.fn(async () => ({...recognized, sourceText: 'Hello', translatedText: '你好'}));
+        const context = {sender: {url: 'https://example.org', tab: {id: 1, windowId: 0}}};
+        const prepareTextTranslation = vi.fn(() => {events.push('snapshot'); return translateText;});
+        const sendProgress = vi.fn(async (_context, message) => {events.push(message.stage);});
+        const [, handler] = createAreaTranslationBackgroundHandlers({
+            captureVisibleTab: vi.fn(), getDefaultSourceLanguage: () => 'en',
+            assertLanguagesDownloaded: async () => {events.push('languages');},
+            translateArea: async () => {events.push('ocr'); return recognized;},
+            prepareTextTranslation, sendProgress,
+        });
+        const result = await handler.handle({type: AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE, image: 'data:image/png,full',
+            selection: {left: 0, top: 0, width: 20, height: 20, viewportWidth: 100, viewportHeight: 100},
+            requestId: 'area-separate', timeoutMs: 5_000, title: 'Page',
+        }, context);
+        expect(events).toEqual(['snapshot', 'languages', 'recognizing', 'ocr', 'translating']);
+        expect(prepareTextTranslation).toHaveBeenCalledWith('en', 'Page', context);
+        expect(translateText).toHaveBeenCalledWith(recognized, expect.objectContaining({requestId: 'area-separate'}));
+        expect(result).toEqual({success: true, ...recognized, sourceText: 'Hello', translatedText: '你好'});
+        expect(sendProgress).toHaveBeenCalledTimes(2);
     });
 
     it('区域翻译取消会把 signal 传播给 Offscreen adapter', async () => {

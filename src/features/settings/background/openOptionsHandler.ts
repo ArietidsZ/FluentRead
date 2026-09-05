@@ -13,6 +13,7 @@ export const OPTIONS_SECTION_IDS = [
     'settings-services',
     'settings-translation',
     'settings-image-translation',
+    'settings-area-translation',
     'settings-video',
     'settings-sites',
     'settings-translation-center',

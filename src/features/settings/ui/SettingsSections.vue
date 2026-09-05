@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/SettingsSections.vue
  * 文件职责：承载 FluentRead Options 页面各业务设置分区，连接运行时配置、服务选择、快捷键、站点规则、翻译中心、OCR、词书以及导入导出和历史恢复。
- * 主要内容：模板按 activeSection 展示业务分区，在界面布局页组织风格与菜单栏布局，仅在高级选项激活时挂载缓存管理；脚本以独立配置副本隔离编辑与全局差分基线，协调网站入口、配置及凭据保存、历史恢复、能力过滤和离页补丁交接。
+ * 主要内容：模板按 activeSection 展示业务分区，图片与圈选分别复用仅在当前分区挂载的 OCR 管理组件，在界面布局页组织风格与菜单栏布局，仅在高级选项激活时挂载缓存管理；脚本以独立配置副本隔离编辑与全局差分基线，协调网站入口、配置及凭据保存、历史恢复、能力过滤和离页补丁交接。
  * 模块边界：该组件负责设置 UI 编排但不实现 provider 网络、配置仓库或 feature 运行时；校验与迁移来自 core/config，持久化经 services/config，复杂子界面保持在各自 feature/组件内。
  -->
 <template>
@@ -96,15 +96,21 @@
       />
     </section>
     <section v-show="props.activeSection === 'settings-image-translation'" id="settings-image-translation" class="settings-section image-translation-settings">
-      <SettingsGroup title="功能状态" description="图片翻译与圈选翻译共用本地 OCR 语言包，但可以分别开启。">
+      <SettingsGroup title="功能状态" description="悬停网页图片，从图片上的翻译入口识别文字。">
         <SettingsItem label="网页图片翻译" description="悬停网页图片时显示翻译入口，默认关闭。">
-          <el-switch v-model="imageTranslationEnabled" class="settings-toggle" aria-label="网页图片翻译" />
-        </SettingsItem>
-        <SettingsItem label="圈选区域翻译" description="截取你主动圈选的屏幕区域进行 OCR 和翻译。">
-          <el-switch v-model="selectionAreaTranslationEnabled" class="settings-toggle" aria-label="圈选区域翻译" />
+          <el-switch v-model="imageTranslationEnabled" class="settings-toggle" aria-label="网页图片翻译" :disabled="!browserCapabilities.imageTranslation" />
         </SettingsItem>
       </SettingsGroup>
-      <ImageOcrSettings />
+      <ImageOcrSettings v-if="props.activeSection === 'settings-image-translation'" />
+    </section>
+    <section v-show="props.activeSection === 'settings-area-translation'" id="settings-area-translation" class="settings-section">
+      <AreaTranslationSettings
+        v-if="props.activeSection === 'settings-area-translation'"
+        :config="config"
+        :service-options="availableServiceOptions"
+        :enabled="selectionAreaTranslationEnabled"
+        @update:enabled="selectionAreaTranslationEnabled = $event"
+      />
     </section>
     <section v-show="props.activeSection === 'settings-video'" id="settings-video" class="settings-section">
       <SettingsGroup>
@@ -777,6 +783,8 @@ import {
 import {ImageOcrSettings} from '@/src/features/image-translation/public';
 import {ModelUsageDashboard} from '@/src/features/model-usage/public';
 import InterfaceSettings from './InterfaceSettings.vue';
+import AreaTranslationSettings from './AreaTranslationSettings.vue';
+import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import TranslationCacheSettings from './TranslationCacheSettings.vue';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
