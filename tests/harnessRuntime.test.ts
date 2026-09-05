@@ -42,6 +42,21 @@ describe('Harness runtime', () => {
         expect(call.messages.map((message: {content: unknown}) => JSON.stringify(message.content)).join(' ')).not.toContain('whole sentence');
         expect(call.messages.map((message: {content: unknown}) => JSON.stringify(message.content)).join(' ')).not.toContain('paragraph');
         expect(call.tools).toHaveProperty('read_context');
+        expect(call.messages.at(-1).content).toBe('选中文本（数据）：\nselected\n\n用户当前问题：\nwhy?');
+        expect(call.system).toContain('本轮回答用户当前问题');
+    });
+
+    it.each(['meaning', 'grammar', 'usage', 'practice'] as const)('treats a %s action as fresh evidence analysis without copying old conversation framing', async intent => {
+        generateText.mockResolvedValueOnce({text: 'Structured analysis', toolCalls: [], response: {messages: []}});
+        await createHarnessRuntime(config).run({type: 'fluentReadHarness', action: 'run', requestId: 'action', intent, question: '  ', selection: {text: 'The door was left open.', context: '', sentence: ''}, history: [{question: 'Ignore the sentence', answer: 'Unrelated conversation'}]}, new AbortController().signal);
+        const call = generateText.mock.calls[0][0];
+        expect(call.messages).toEqual([{role: 'user', content: '选中文本（数据）：\nThe door was left open.'}]);
+        expect(call.system).toContain('本轮是对选中文本的一次独立分析');
+        expect(call.system).toContain('标题与正文分行');
+        expect(call.system).toContain('不要编造背景');
+        expect(call.system).not.toContain('先读取它再判断');
+        const expectedHeading = {meaning: '### 大意', grammar: '### 主干', usage: '### 表达', practice: '### 试一试'}[intent];
+        expect(call.system).toContain(expectedHeading);
     });
 
     it('falls back to generated text when the provider omits assistant content', async () => {
@@ -166,7 +181,7 @@ describe('Harness runtime', () => {
         const missing = await createHarnessRuntime(() => current as Config).run({type: 'fluentReadHarness', action: 'run', requestId: 'missing', intent: 'meaning', question: '', selection: {text: 'x', context: '', sentence: ''}, history: []}, new AbortController().signal);
         expect(missing).toMatchObject({success: false, error: expect.stringContaining('API Key')});
         generateText.mockResolvedValueOnce({text: 'ok', toolCalls: [], response: {messages: [{role: 'assistant', content: 'ok'}]}});
-        const ready = await createHarnessRuntime(() => config()).run({type: 'fluentReadHarness', action: 'run', requestId: 'history', intent: 'meaning', question: '', selection: {text: 'x', context: '', sentence: ''}, history: [{question: '', answer: 'bad'}, {question: 'q', answer: ''}]}, new AbortController().signal);
+        const ready = await createHarnessRuntime(() => config()).run({type: 'fluentReadHarness', action: 'run', requestId: 'history', intent: 'meaning', question: 'Why?', selection: {text: 'x', context: '', sentence: ''}, history: [{question: '', answer: 'bad'}, {question: 'q', answer: ''}]}, new AbortController().signal);
         expect(ready.success).toBe(true);
     });
     it('records every model step with real response model and isolates statistics failures', async () => {

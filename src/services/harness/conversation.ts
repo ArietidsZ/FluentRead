@@ -1,7 +1,7 @@
 /**
  * @file src/services/harness/conversation.ts
  * 文件职责：协调阅读请求、流式正文与最近三十天会话的持久化，恢复时以后台保存的问答为准。
- * 主要内容：生成会话和问答标识、恢复近期模型上下文、节流保存部分回答，并隔离隐私窗口、删除代次和存储失败。
+ * 主要内容：生成会话和问答标识，仅为真实追问恢复近期模型上下文，独立分析动作共享阅读记录但不携带旧回答；节流保存部分回答并隔离隐私窗口、删除代次和存储失败。
  * 模块边界：只依赖注入的模型运行器及会话仓库接口，不访问浏览器、网页、密钥或具体 IndexedDB。
  */
 import {HARNESS_ACTIONS, type HarnessPreferences} from '@/src/core/config/harness';
@@ -43,13 +43,14 @@ export function createHarnessConversationRuntime(deps: ConversationDependencies)
             const timestamp = now();
             const text = previous?.text ?? clip(request.selection.text, 4096);
             const context = previous?.context ?? (preferences.contextMode === 'paragraph' ? clip(request.selection.context, preferences.maxContextChars) : '');
+            const question = clip(request.question, 1000);
             if (!text) return {success: false, error: '没有可理解的选中文本'};
             const session: Omit<HarnessSession, 'turns'> = {
                 id: previous?.id ?? id(), text, context,
                 createdAt: previous?.createdAt ?? timestamp, updatedAt: timestamp, intent: request.intent,
             };
             const turn: HarnessStoredTurn = {
-                id: id(), question: clip(request.question, 1000) || HARNESS_ACTIONS.find(action => action.id === request.intent)!.label,
+                id: id(), question: question || HARNESS_ACTIONS.find(action => action.id === request.intent)!.label,
                 answer: '', intent: request.intent, status: 'streaming', createdAt: timestamp, service: '', model: '',
             };
             let persistent = !privateContext;
@@ -79,12 +80,13 @@ export function createHarnessConversationRuntime(deps: ConversationDependencies)
                 await save();
                 return CANCELLED;
             }
-            const history = previous ? previous.turns.filter(entry => entry.answer.trim()).slice(-4).map(entry => ({
+            // 切换学习动作仍保存到同一条阅读记录，但不能把旧回答混入新的原文分析。
+            const history = !question ? [] : previous ? previous.turns.filter(entry => entry.answer.trim()).slice(-4).map(entry => ({
                 question: entry.question,
                 answer: entry.status === 'completed' ? entry.answer : `[上次回答未完成，以下为已生成部分]\n${entry.answer}`,
             })) : request.history;
             const restoredRequest: ReadingRequest = {
-                ...request, selection: {text, context: preferences.contextMode === 'paragraph' ? context : '', sentence: ''}, history,
+                ...request, question, selection: {text, context: preferences.contextMode === 'paragraph' ? context : '', sentence: ''}, history,
             };
             const publish = (progress: ReadingProgress) => {
                 if (signal.aborted) return;

@@ -6,23 +6,23 @@
  -->
 <template>
   <div v-ui-i18n v-show="showIndicator || showTooltip || noticeMessage || copySuccess" class="fr-selection-translator-root" :data-display-delay="selectionSettings.delay" @pointerdown.stop @wheel.stop.passive="handleUiWheel">
-    <div v-if="showIndicator && !showTooltip && readingEnabled" class="fr-reading-indicator" :class="{'fr-dark-theme': isDarkTheme}" :style="readingIndicatorStyle" role="group" aria-label="选区操作" @pointerdown.prevent.stop>
+    <div v-if="showIndicator && !showTooltip && readingEnabled" ref="reading-indicator-ref" class="fr-reading-indicator" :class="{'fr-dark-theme': isDarkTheme}" :style="readingIndicatorStyle" role="group" aria-label="选区操作" @pointerdown.prevent.stop>
       <button v-if="selectionSettings.mode !== 'disabled'" type="button" aria-label="打开划词翻译" @click="openTooltip">翻译</button>
-      <button type="button" aria-label="理解选中文本" @click="openReading">理解</button>
-      <button v-if="!isPrivateContext" type="button" aria-label="打开最近会话" @click="openReadingHistory">最近</button>
+      <button v-for="action in readingActions" :key="action.id" type="button" :class="{'is-default': action.id === readingPreferences.defaultAction}" :data-default-action="action.id === readingPreferences.defaultAction ? 'true' : undefined" :aria-label="`${action.label}选中文本`" @click="openReading(action.id)">{{ action.label }}</button>
+      <button v-if="!isPrivateContext" class="fr-reading-history-entry" type="button" aria-label="阅读记录" title="阅读记录" @click="openReadingHistory"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7" /><path d="M10 5.8V10l2.7 1.8" /></svg><span>记录</span></button>
     </div>
     <button v-else-if="showIndicator && !showTooltip" class="fr-selection-indicator" :class="`fr-selection-indicator--${triggerMode}`" :style="indicatorStyle" type="button" aria-label="打开划词翻译" title="打开划词翻译" @pointerdown.prevent.stop @click="openTooltip">
       <span class="fr-selection-indicator-glyph" aria-hidden="true">↗</span>
     </button>
 
-    <section v-if="showTooltip" ref="tooltip-ref" class="fr-translation-tooltip" :class="{ 'fr-dark-theme': isDarkTheme }" :data-placement="popupPlacement" :style="tooltipStyle" role="dialog" :aria-label="readingMode ? '阅读理解' : '划词翻译结果'" @pointerdown.stop>
+    <section v-if="showTooltip" ref="tooltip-ref" class="fr-translation-tooltip" :class="{ 'fr-dark-theme': isDarkTheme, 'fr-reading-tooltip': readingMode }" :data-placement="popupPlacement" :style="tooltipStyle" role="dialog" :aria-label="readingMode ? '阅读理解' : '划词翻译结果'" @pointerdown.stop>
       <header class="fr-tooltip-header">
         <div class="fr-tooltip-title">
           <img class="fr-tooltip-brand-icon" :src="selectionTranslatorIconUrl" alt="" aria-hidden="true" />
           <span>{{ readingMode ? '阅读理解' : isWordSelection ? '单词学习卡' : '翻译结果' }}</span>
         </div>
         <div class="fr-tooltip-actions">
-          <button v-if="readingEnabled && !readingMode" class="fr-mode-btn" type="button" @click="openReading">理解</button>
+          <button v-if="readingEnabled && !readingMode" class="fr-mode-btn" type="button" @click="openReading()">{{ readingDefaultActionLabel }}</button>
           <button v-if="readingMode && selectionSettings.mode !== 'disabled'" class="fr-mode-btn" type="button" @click="openTooltip">翻译</button>
           <button
             v-if="!readingMode && config.vocabularyBookEnabled && isWordSelection && !isPrivateContext"
@@ -39,8 +39,8 @@
         </div>
       </header>
 
-      <div v-if="readingSelection" v-show="readingMode" class="fr-tooltip-content">
-        <ReadingPanel :selection="readingSelection" :preferences="readingPreferences" :active="readingMode" :history-only="readingHistoryOnly" :target-language="selectionSettings.to" :vocabulary-enabled="config.vocabularyBookEnabled" :private-context="isPrivateContext" :animations="config.animations" @resize="schedulePositionUpdate" />
+      <div v-if="readingSelection" v-show="readingMode" class="fr-tooltip-content fr-reading-content">
+        <ReadingPanel :selection="readingSelection" :preferences="readingPreferences" :active="readingMode" :initial-action="readingInitialAction" :history-only="readingHistoryOnly" :target-language="selectionSettings.to" :vocabulary-enabled="config.vocabularyBookEnabled" :private-context="isPrivateContext" :animations="config.animations" @resize="schedulePositionUpdate" />
       </div>
       <div v-show="!readingMode" class="fr-tooltip-content" aria-live="polite">
         <div v-if="isLoading && !translationResult && !wordCard && !wordCardError" class="fr-loading-state"><span :class="['fr-loading-spinner', { 'fr-static': !config.animations }]" aria-hidden="true" /><span>正在查询…</span></div>
@@ -167,14 +167,14 @@ import { translateText } from '@/src/app/translation/client';
 import {detectlang, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
 import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey } from '@/src/core/hotkey';
 import { isSingleEnglishWord, normalizeEnglishWord, type WordCardData, type WordPronunciation } from '@/src/features/selection-translation/services/wordDictionary';
-import { calculateSelectionPopupPosition, chooseSelectionRect, getSelectionPresentationDelayRemaining, normalizeSelectionText, normalizeSpeechLanguage, reconcileSelectionPresentation, resolveSelectionDictionaryFallback, resolveSelectionVocabularyAnswer, SelectionRequestTokenGate, shouldIgnoreSelection, summarizeSelectionContext, type SelectionAnswerCandidate, type SelectionContentRequest, type SelectionRect } from '@/src/features/selection-translation/core';
+import { calculateReadingPopupLayout, calculateSelectionPopupPosition, chooseSelectionRect, getSelectionPresentationDelayRemaining, normalizeSelectionText, normalizeSpeechLanguage, reconcileSelectionPresentation, resolveSelectionDictionaryFallback, resolveSelectionVocabularyAnswer, SelectionRequestTokenGate, shouldIgnoreSelection, summarizeSelectionContext, type SelectionAnswerCandidate, type SelectionContentRequest, type SelectionRect } from '@/src/features/selection-translation/core';
 import {
   createSelectionTtsClientRequestId,
 } from '@/src/features/selection-translation/protocol';
 import { createSelectionTtsContentController } from '@/src/features/selection-translation/content/selectionTtsContentController';
 import { VOCABULARY_BOOK_CHANGED_MESSAGE, VOCABULARY_BOOK_MESSAGE, type VocabularyBookResponse } from '@/src/features/vocabulary/protocol';
 import {ReadingPanel, captureReadingSelection, type ReadingSelection} from '@/src/features/reading-assistant/public';
-import {normalizeHarnessPreferences} from '@/src/core/config/harness';
+import {HARNESS_ACTIONS, normalizeHarnessPreferences, type HarnessActionId} from '@/src/core/config/harness';
 
 type SelectionTrigger = 'direct' | 'icon' | 'dot' | 'shortcut';
 type AudioKind = 'source' | 'translation' | 'word';
@@ -182,6 +182,7 @@ type CopyKind = 'source' | 'translation';
 interface SelectionSnapshot { text: string; range: Range; anchor: SelectionRect; isForward: boolean; }
 
 const tooltipRef = useTemplateRef<HTMLElement>('tooltip-ref');
+const readingIndicatorRef = useTemplateRef<HTMLElement>('reading-indicator-ref');
 const selectionTranslatorIconUrl = browser.runtime.getURL('/icon/128.png');
 const selectedText = ref('');
 const activeContentRequest = ref<SelectionContentRequest | null>(null);
@@ -193,12 +194,14 @@ const error = ref('');
 const showIndicator = ref(false);
 const showTooltip = ref(false);
 const readingMode = ref(false);
+const readingInitialAction = ref<HarnessActionId>('meaning');
 const readingHistoryOnly = ref(false);
 const readingSelection = ref<ReadingSelection | null>(null);
 const copySuccess = ref(false);
 const copiedTextKind = ref<CopyKind | null>(null);
 const isDarkTheme = ref(false);
 const indicatorStyle = ref<Record<string, string>>({});
+const readingIndicatorStyle = ref<Record<string, string>>({visibility: 'hidden'});
 const tooltipStyle = ref<Record<string, string>>({});
 const popupPlacement = ref<'top' | 'bottom'>('top');
 const snapshot = ref<SelectionSnapshot | null>(null);
@@ -256,10 +259,8 @@ const readingPreferences = computed(() => {
   return normalizeHarnessPreferences(config.harness, config.customOpenAIProviders);
 });
 const readingEnabled = computed(() => readingPreferences.value.enabled);
-const readingIndicatorStyle = computed(() => ({
-  left: `${Math.max(8, Math.min(window.innerWidth - 106, Number.parseFloat(indicatorStyle.value.left) || 8))}px`,
-  top: `${Math.max(8, Math.min(window.innerHeight - 38, (Number.parseFloat(indicatorStyle.value.top) || 8) + 8))}px`,
-}));
+const readingActions = computed(() => HARNESS_ACTIONS.filter(action => readingPreferences.value.actions.includes(action.id)));
+const readingDefaultActionLabel = computed(() => HARNESS_ACTIONS.find(action => action.id === readingPreferences.value.defaultAction)!.label);
 
 const selectionShortcutTriggers = new Set(['Control', 'Alt', 'Shift', 'custom']);
 const selectionSettings = computed(() => {
@@ -506,6 +507,7 @@ function applySelection(next: SelectionSnapshot | null, shortcutTriggered = fals
   resetSelectionContentState();
   readingMode.value = false;
   readingSelection.value = null;
+  readingIndicatorStyle.value = {visibility: 'hidden'};
   snapshot.value = next;
   selectedText.value = next.text;
   const waitingForShortcut = triggerMode.value === 'shortcut' && Boolean(selectionShortcut.value) && !shortcutTriggered;
@@ -528,9 +530,22 @@ function updatePosition(refreshSelection = true): void {
   if (!anchor) return;
   current.anchor = anchor;
   indicatorStyle.value = { left: `${anchor.right}px`, top: `${anchor.bottom}px` };
+  if (showIndicator.value && !showTooltip.value && readingEnabled.value) void nextTick(() => {
+    const indicator = readingIndicatorRef.value;
+    if (!indicator || !snapshot.value) return;
+    const rect = indicator.getBoundingClientRect();
+    const position = calculateSelectionPopupPosition(snapshot.value.anchor, {width: rect.width, height: rect.height}, {width: window.innerWidth, height: window.innerHeight});
+    readingIndicatorStyle.value = {left: `${position.left}px`, top: `${position.top}px`, visibility: 'visible'};
+  });
   if (showTooltip.value) void nextTick(() => {
     const tooltip = tooltipRef.value;
     if (!tooltip || !snapshot.value) return;
+    if (readingMode.value) {
+      const layout = calculateReadingPopupLayout(snapshot.value.anchor, {width: window.innerWidth, height: window.innerHeight});
+      tooltipStyle.value = {left: `${layout.left}px`, top: `${layout.top}px`, width: `${layout.width}px`, height: `${layout.height}px`, visibility: 'visible'};
+      popupPlacement.value = layout.placement;
+      return;
+    }
     const rect = tooltip.getBoundingClientRect();
     const position = calculateSelectionPopupPosition(snapshot.value.anchor, { width: rect.width, height: rect.height }, { width: window.innerWidth, height: window.innerHeight });
     tooltipStyle.value = { left: `${position.left}px`, top: `${position.top}px`, visibility: 'visible' };
@@ -552,13 +567,15 @@ function openTooltip(): void {
   showIndicator.value = true;
   showTooltip.value = true;
   readingMode.value = false;
-  if (!wasVisible) tooltipStyle.value = { visibility: 'hidden' };
+  tooltipStyle.value = {left: tooltipStyle.value.left, top: tooltipStyle.value.top, visibility: wasVisible ? 'visible' : 'hidden'};
   if (!wasVisible || error.value || !activeContentRequest.value) void requestSelectionContent(snapshot.value.text);
   schedulePositionUpdate();
 }
 
-function openReading(): void {
+function openReading(action: HarnessActionId = readingPreferences.value.defaultAction): void {
+  if (!readingPreferences.value.actions.includes(action)) return;
   readingHistoryOnly.value = false;
+  readingInitialAction.value = action;
   openReadingCard();
 }
 
@@ -1248,6 +1265,7 @@ onMounted(() => {
   }, { flush: 'post' });
   watch(() => JSON.stringify(readingPreferences.value), () => {
     if (!readingEnabled.value || readingSelection.value) hideAll();
+    else schedulePositionUpdate();
   });
   watch(() => [
     selectionSettings.value.theme,
@@ -1334,12 +1352,17 @@ onBeforeUnmount(() => {
 <style scoped>
 .fr-selection-translator-root { position: fixed; inset: 0; z-index: 2147483647; width: 100vw; height: 100vh; pointer-events: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #25252a; }
 .fr-selection-indicator, .fr-translation-tooltip, .fr-copy-success-toast, .fr-action-toast { pointer-events: auto; }
-.fr-reading-indicator { position: fixed; display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 10px; border: 1px solid #eadfe5; background: #fff; box-shadow: 0 4px 16px #35242d1a; pointer-events: auto; }
+.fr-reading-indicator { position: fixed; display: flex; align-items: center; gap: 2px; max-width: calc(100vw - 24px); overflow-x: auto; box-sizing: border-box; padding: 3px; border-radius: 10px; border: 1px solid #eadfe5; background: #fff; box-shadow: 0 4px 16px #35242d1a; pointer-events: auto; }
+.fr-reading-indicator button { flex: none; white-space: nowrap; }
+.fr-reading-indicator .fr-reading-history-entry { display: flex; align-items: center; gap: 3px; padding-inline: 7px; color: #8d858b; border-left: 1px solid #eadfe5; border-radius: 0 7px 7px 0; }
+.fr-reading-history-entry svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
 .fr-reading-indicator button, .fr-mode-btn { padding: 4px 9px; border: 0; border-radius: 7px; color: #985674; background: transparent; font: 12px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; cursor: pointer; }
 .fr-reading-indicator button:hover, .fr-mode-btn:hover { background: #f9eaf0; }
+.fr-reading-indicator button.is-default { background: #f8e4ed; color: #923758; font-weight: 650; }
 .fr-reading-indicator button:focus-visible, .fr-mode-btn:focus-visible { outline: 2px solid #bd5d85; outline-offset: 1px; }
 .fr-reading-indicator.fr-dark-theme { background: #2c2730; border-color: #544351; }
 .fr-dark-theme .fr-mode-btn, .fr-reading-indicator.fr-dark-theme button { color: #e5a8c0; }
+.fr-reading-indicator.fr-dark-theme button.is-default { background: #583344; color: #ffd6e6; }
 .fr-selection-indicator { position: fixed; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; transform: translate(-50%, -50%); background: #ef4b86; color: #fff; box-shadow: 0 2px 7px rgba(204, 40, 104, .28), 0 0 0 2px rgba(255, 255, 255, .94); cursor: pointer; transition: transform .14s ease, box-shadow .14s ease; }
 .fr-selection-indicator--dot { width: 8px; height: 8px; }
 .fr-selection-indicator--dot .fr-selection-indicator-glyph { display: none; }
@@ -1347,6 +1370,9 @@ onBeforeUnmount(() => {
 .fr-selection-indicator-glyph { font-size: 10px; font-weight: 700; line-height: 1; }
 .fr-translation-tooltip, .fr-translation-tooltip * { box-sizing: border-box; }
 .fr-translation-tooltip { position: fixed; width: min(388px, calc(100vw - 24px)); max-height: min(520px, calc(100vh - 20px)); overflow: hidden; border: 1px solid rgba(35, 35, 43, .1); border-radius: 20px; background: rgba(255, 255, 255, .98); box-shadow: 0 24px 62px rgba(35, 33, 43, .16), 0 4px 14px rgba(35, 33, 43, .07); backdrop-filter: blur(18px); -webkit-user-select: none; user-select: none; }
+.fr-reading-tooltip { display: flex; flex-direction: column; height: min(520px, calc(100vh - 24px)); }
+.fr-reading-tooltip > .fr-tooltip-header { flex: none; }
+.fr-reading-tooltip > .fr-reading-content { flex: 1; min-height: 0; max-height: none; overflow: hidden; padding: 0; }
 .fr-tooltip-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px 7px; border-bottom: 1px solid rgba(44, 43, 53, .08); font-size: 15px; font-weight: 750; }
 .fr-tooltip-title { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .fr-tooltip-brand-icon { display: block; flex: none; width: 18px; height: 18px; border-radius: 5px; object-fit: contain; opacity: .78; }

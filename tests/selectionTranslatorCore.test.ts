@@ -2,6 +2,7 @@ import {parseHTML} from 'linkedom';
 import { describe, expect, it, vi } from 'vitest';
 import {
     canUseBundledDictionaryFallback,
+    calculateReadingPopupLayout,
     calculateSelectionPopupPosition,
     chooseSelectionRect,
     getSelectionPresentationDelayRemaining,
@@ -156,6 +157,25 @@ describe('selection translator core geometry', () => {
             top: 52,
             placement: 'bottom',
         });
+    });
+
+    it('reserves the reading viewport before a streamed answer grows and keeps its anchor side', () => {
+        const anchor = {top: 720, right: 970, bottom: 744, left: 940, width: 30, height: 24};
+        const layout = calculateReadingPopupLayout(anchor, {width: 1200, height: 900});
+        expect(layout).toEqual({left: 800, top: 190, placement: 'top', width: 388, height: 520});
+        // 初始空回答、长流式回答和追问均使用预留高度；恢复 legacy 翻译时仍按实际内容定位。
+        expect(calculateSelectionPopupPosition(anchor, {width: layout.width, height: layout.height}, {width: 1200, height: 900})).toEqual({left: layout.left, top: layout.top, placement: layout.placement});
+        expect(calculateSelectionPopupPosition(anchor, {width: 388, height: 160}, {width: 1200, height: 900}).top).toBe(550);
+    });
+
+    it('fits the reading viewport after zoom or narrow-window resize without exceeding its padding', () => {
+        const topEdge = {top: 20, right: 372, bottom: 42, left: 342, width: 30, height: 22};
+        expect(calculateReadingPopupLayout(topEdge, {width: 390, height: 300})).toEqual({left: 12, top: 12, placement: 'bottom', width: 366, height: 276});
+        const bottomEdge = {...topEdge, top: 580, bottom: 602};
+        const layout = calculateReadingPopupLayout(bottomEdge, {width: 390, height: 640});
+        expect(layout).toEqual({left: 12, top: 50, placement: 'top', width: 366, height: 520});
+        expect(layout.left + layout.width).toBeLessThanOrEqual(390 - 12);
+        expect(layout.top + layout.height).toBeLessThanOrEqual(640 - 12);
     });
 });
 
