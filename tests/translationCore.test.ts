@@ -50,8 +50,9 @@ import {
     partitionInlineRunAtBarriers,
     readCachedFlagOr,
 } from '@/src/core/translation/internal';
-import {bilibiliAdapter} from '@/src/core/translation/adapters/bilibili';
-import {redditAdapter} from '@/src/core/translation/adapters/reddit';
+import {defaultTranslationAdapters} from '@/src/core/translation/registry';
+const bilibiliAdapter = defaultTranslationAdapters.find(adapter => adapter.id === 'bilibili')!;
+const redditAdapter = defaultTranslationAdapters.find(adapter => adapter.id === 'reddit')!;
 
 function page(html: string, url = 'https://example.test/article') {
     const {document} = parseHTML(`<html><head></head><body>${html}</body></html>`);
@@ -2259,11 +2260,11 @@ describe('embedded semantic chrome classification', () => {
         ).toEqual(['note-label', 'note-copy']);
         expect(core.resolve(noteLabel.firstChild), 'Hover must resolve the Swift note label').toMatchObject({
             element: noteLabel,
-            reason: 'generic-readable-block',
+            adapterId: 'swift-docs',
         });
         expect(core.resolve(noteCopy.firstChild), 'Hover must resolve the Swift note prose').toMatchObject({
             element: noteCopy,
-            reason: 'generic-readable-block',
+            adapterId: 'swift-docs',
         });
         expect(
             core.resolve(globalCopy.firstChild),

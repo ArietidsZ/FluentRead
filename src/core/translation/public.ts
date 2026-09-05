@@ -61,6 +61,7 @@ export type {
 export {createDeclarativeAdapter} from './adapters/declarative';
 export {
     getCurrentTranslationCore,
+    setCurrentTranslationAdapters,
     resolveTranslationCandidate,
     resolveTranslationCandidateAtPoint,
 } from './current';

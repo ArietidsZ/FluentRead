@@ -50,6 +50,7 @@ import {
     type ContentPageAvailabilityRuntime,
 } from './pageAvailability';
 import {syncBilingualSentenceHighlight} from './bilingualSentenceHighlight';
+import {createContentSiteAdaptationRuntime} from './siteAdaptationRuntime';
 
 /**
  * 启动当前 document 对应的内容应用。
@@ -58,6 +59,7 @@ import {syncBilingualSentenceHighlight} from './bilingualSentenceHighlight';
 export async function startContentApp(ctx: ContentScriptContext,
     capabilities: BrowserCapabilities = browserCapabilities): Promise<void> {
     await configReady;
+    const siteAdaptation = createContentSiteAdaptationRuntime(config.siteAdaptation, new URL(window.location.href));
     clearLegacyPageTranslationCache();
     let currentPageSiteDisabled = isExtensionDisabledOnSite(
         window.location.href,
@@ -211,6 +213,7 @@ export async function startContentApp(ctx: ContentScriptContext,
     };
 
     document.addEventListener('fluentread-route-change', () => {
+        siteAdaptation.routeChanged(new URL(window.location.href));
         resetPageTranslationContextCache(); resetFullPageTranslationRouteState();
         pageAvailability!.syncVideoSubtitlePage();
     }, {signal: pageEventController.signal});
@@ -234,6 +237,7 @@ export async function startContentApp(ctx: ContentScriptContext,
     browser.runtime.onMessage.addListener(runtimeMessageListener);
     reportSiteDisabledState();
     unsubscribeContentConfig = subscribeConfig((nextConfig) => {
+        siteAdaptation.update(nextConfig.siteAdaptation, new URL(window.location.href));
         syncBilingualSentenceHighlight(document, nextConfig.bilingualSentenceHighlightEnabled === true);
         const nextInputBoxConfigKey = inputBoxTranslationConfigKey(nextConfig);
         if (nextInputBoxConfigKey !== previousInputBoxConfigKey) {

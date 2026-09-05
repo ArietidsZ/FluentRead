@@ -96,6 +96,7 @@ function verificationOwners(path: string, strictCoverage: Set<string>): Verifica
     }
     if (path.startsWith('scripts/testing/')
         || path === 'scripts/verify-userscript-build.mjs'
+        || path === 'scripts/export-site-rule-pack.mjs'
         || path.startsWith('vitest.')) {
         owners.add('test-infrastructure-contract');
     }

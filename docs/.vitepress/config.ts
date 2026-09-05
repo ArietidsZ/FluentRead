@@ -78,6 +78,7 @@ export default defineConfig({
           items: [
             { text: '设置总览', link: '/config/' },
             { text: '翻译服务', link: '/config/translation-engines' },
+            { text: '网站适配 JSON', link: '/config/site-adaptation' },
           ],
         },
       ],
