@@ -1,7 +1,7 @@
 <!--
  * @file src/features/image-translation/ui/ImageOcrSettings.vue
  * 文件职责：实现图片和圈选设置共用的本地 OCR 语言包管理界面，展示浏览器能力、推荐语言组合、单包下载状态、缓存说明和失败重试反馈。
- * 主要内容：组件读取本地语言状态，按 chi_sim、chi_tra、eng、jpn 渲染卡片，发送 fluentReadImageOcrDownload 消息，维护并发下载列表，并在不支持 imageOcr 的浏览器保留配置但显示不可用提示。
+ * 主要内容：组件读取本地语言状态，按 chi_sim、chi_tra、eng、jpn、spa 渲染卡片，发送 fluentReadImageOcrDownload 消息，维护并发下载列表，并在不支持 imageOcr 的浏览器保留配置但显示不可用提示。
  * 模块边界：UI 不直接创建 Tesseract Worker 或写存储；下载和持久化由后台 handlers/repository 完成，能力判断来自 platform/browser，语言元数据只依赖 ocrLanguages 公共契约。
  -->
 <template>
@@ -21,7 +21,7 @@
       <div class="image-ocr-recommendation">
         <div>
           <strong>推荐先下载简体中文、繁體中文和 English</strong>
-          <p>自动检测默认使用这三种语言包。识别日文图片前，再下载日本語语言包即可。</p>
+          <p>自动检测默认使用这三种语言包。识别其他语言图片前，请选择源语言并下载对应语言包。</p>
         </div>
         <button type="button" class="image-ocr-primary-action"
           :disabled="recommendedReady || recommendedDownloading"
@@ -31,7 +31,7 @@
       </div>
       <div class="image-ocr-pack-list">
         <article v-for="pack in languagePacks" :key="pack.code" class="image-ocr-pack-card">
-          <div class="image-ocr-pack-icon" data-i18n-ignore>{{ pack.code === 'chi_sim' ? '简' : pack.code === 'chi_tra' ? '繁' : pack.code === 'eng' ? 'A' : '日' }}</div>
+          <div class="image-ocr-pack-icon" data-i18n-ignore>{{ pack.code === 'chi_sim' ? '简' : pack.code === 'chi_tra' ? '繁' : pack.code === 'eng' ? 'A' : pack.code === 'spa' ? 'ES' : '日' }}</div>
           <div class="image-ocr-pack-copy">
             <div class="image-ocr-pack-title">
               <strong>{{ pack.label }}</strong>

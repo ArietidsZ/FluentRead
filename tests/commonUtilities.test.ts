@@ -38,6 +38,7 @@ describe('语义化公共工具', () => {
         ['これは言語判定のための十分に長い日本語の文章です。', 'ja'],
         ['이 문장은 언어 감지를 위한 충분히 긴 한국어 문장입니다.', 'ko'],
         ['Cette phrase française est suffisamment longue pour identifier la langue.', 'fr'],
+        ['Este programa permite traducir documentos y páginas de internet del español a otros idiomas.', 'es'],
         ['Это достаточно длинное русское предложение для определения языка.', 'ru'],
     ])('把常用 franc 结果映射到产品语言代码 %#', (value, expected) => {
         expect(detectlang(value)).toBe(expected);
@@ -107,6 +108,13 @@ describe('语义化公共工具', () => {
         expect(shouldSkipTranslationForTarget(longEnglish, 'fr')).toBe(false);
         expect(shouldSkipTranslationForTarget(longFrench, 'fr')).toBe(true);
         expect(shouldSkipTranslationForTarget(longFrench, 'en')).toBe(false);
+    });
+
+    it('西班牙语识别支持地区目标并保留短句和跨语言翻译', () => {
+        const text = 'Este programa permite traducir documentos y páginas de internet del español a otros idiomas.';
+        for (const target of ['es', 'es-ES', 'es-MX']) expect(shouldSkipTranslationForTarget(text, target)).toBe(true);
+        for (const target of ['zh-Hans', 'zh-Hant', 'en']) expect(shouldSkipTranslationForTarget(text, target)).toBe(false);
+        expect(shouldSkipTranslationForTarget('¿Cómo estás?', 'es')).toBe(false);
     });
 
     it('只为精确数量的非空触摸点计算中心', () => {
