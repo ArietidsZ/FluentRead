@@ -35,7 +35,7 @@ export function installQqMailTopFrameBridge(isEnabled: () => boolean, signal: Ab
         const current = getFullPageTranslationFrameState();
         const snapshot = current.translationConfig;
         const sameProfile = invocation && snapshot && Object.entries(invocation).every(([key, value]) =>
-            value === (key === 'fullPageMode' ? current.fullPageMode : snapshot[key as keyof typeof snapshot]));
+            value === (key === 'fullPageMode' ? current.fullPageMode : key === 'scope' ? current.scope : snapshot[key as keyof typeof snapshot]));
         const stop = current.sessionId !== null && (!invocation || sameProfile);
         restoreOriginalContent();
         if (!stop) autoTranslateEnglishPage(invocation);
@@ -110,7 +110,7 @@ export async function startQqMailFrameApp(ctx: ContentScriptContext): Promise<vo
         start: (state) => autoTranslateEnglishPage({
             service: state.translationConfig!.service, model: state.translationConfig!.model,
             targetLanguage: state.translationConfig!.targetLanguage, displayMode: state.translationConfig!.displayMode,
-            profileId: state.translationConfig!.profileId, fullPageMode: state.fullPageMode,
+            profileId: state.translationConfig!.profileId, fullPageMode: state.fullPageMode, scope: state.scope,
         }, state.translationConfig),
     });
     const listener = (message: any, sender: any): false => {

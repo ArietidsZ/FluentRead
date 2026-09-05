@@ -33,10 +33,10 @@
   },
   "github-microsoft-repositories": {
     "url": "https://github.com/orgs/microsoft/repositories?q=TypeScript&type=all&language=&sort=",
-    "hoverSelector": "li:has(a[href='/microsoft/TypeScript']) [itemprop='description']",
-    "requiredSelectors": ["li:has(a[href='/microsoft/TypeScript']) [itemprop='description']"],
+    "hoverSelector": "li:has(a[href='/microsoft/TypeScript']) .repos-list-description",
+    "requiredSelectors": ["li:has(a[href='/microsoft/TypeScript']) .repos-list-description"],
     "coverageRules": [
-      {"name": "typescript-description", "selector": "li:has(a[href='/microsoft/TypeScript']) [itemprop='description']", "kind": "content", "minInitial": 1, "trackDynamic": true, "sourceIncludes": ["TypeScript"]}
+      {"name": "typescript-description", "selector": "li:has(a[href='/microsoft/TypeScript']) .repos-list-description", "kind": "content", "minInitial": 1, "trackDynamic": true, "sourceIncludes": ["TypeScript"]}
     ],
     "forbiddenSelectors": ["main svg.octicon"],
     "interactionSelectors": ["main a[href]"],
@@ -250,13 +250,16 @@
   "mkdocs-material-home": {
     "url": "https://squidfunk.github.io/mkdocs-material/",
     "hoverSelector": ".md-content__inner p",
+    "prepareScrollSelector": ".md-content__inner p",
+    "hoverSettleMs": 1200,
     "requiredSelectors": [".md-content__inner h1", ".md-content__inner h2", ".md-content__inner p"],
     "coverageRules": [
       {"name": "page-title", "selector": ".md-content__inner h1", "kind": "heading", "minInitial": 1},
       {"name": "section-headings", "selector": ".md-content__inner h2", "kind": "heading", "minInitial": 2},
       {"name": "page-paragraphs", "selector": ".md-content__inner p", "kind": "content", "minInitial": 3}
     ],
-    "forbiddenSelectors": [".md-content__inner pre, .md-content__inner code"],
+    "forbiddenSelectors": [".md-search__input", ".md-content__inner pre, .md-content__inner code"],
+    "optionalForbiddenSelectors": [".md-content__inner pre, .md-content__inner code"],
     "interactionSelectors": [".md-content__inner a[href]"],
     "scrollContainer": ".mdx-parallax",
     "modes": ["hover", "full"],
@@ -463,8 +466,8 @@
     "selector": "p",
     "requiredSelectors": ["p"],
     "coverageRules": [
-      {"name": "example-title", "selector": "main h1", "kind": "heading", "minInitial": 1, "sourceIncludes": ["Example Domain"]},
-      {"name": "example-paragraphs", "selector": "main p", "kind": "content", "minInitial": 2}
+      {"name": "example-title", "selector": "body > div > h1", "kind": "heading", "minInitial": 1, "sourceIncludes": ["Example Domain"]},
+      {"name": "example-paragraphs", "selector": "body > div > p", "kind": "content", "minInitial": 2}
     ],
     "forbiddenSelectors": ["head meta[name=viewport]"],
     "interactionSelectors": ["main a[href], body a[href]"],
@@ -699,11 +702,11 @@
       {"name": "subsection-headings", "selector": "#main h3", "kind": "heading", "minInitial": 3},
       {"name": "chapter-paragraphs", "selector": "#main p", "kind": "content", "minInitial": 8}
     ],
-    "forbiddenSelectors": ["#main pre, #main code"],
+    "forbiddenSelectors": ["#main pre, #main code, #main .imageblock img"],
     "interactionSelectors": ["#main a[href]"],
     "modes": ["hover", "full"],
     "tier": "required",
-    "notes": "Pro Git 官方静态章节；覆盖层级标题、长段落和图片说明周围的正文。",
+    "notes": "Pro Git 官方静态概念章节；覆盖层级标题、长段落和图片说明周围的正文，保持实际存在的三张版本控制图示以及任何代码原样。",
     "hoverHotkey": "Control",
     "fullPageHotkey": "Alt+T",
     "service": "freeTranslation"

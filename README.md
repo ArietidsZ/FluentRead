@@ -65,6 +65,8 @@ FluentRead puts translation back into the reading flow. Keep the original beside
 2. Open a normal webpage and choose a target language.
 3. Click “Translate page”, or select a sentence for a quick translation.
 
+For menus, buttons, or dynamic panels missed by normal page translation, right-click the webpage and choose FluentRead’s **“Detect all nodes”** action. It also works before page translation and keeps existing translations when used afterward. Try it on the [Epoch AI data center page](https://epoch.ai/data/ai-data-centers), n8n node panels, or expanded navigation trees. Newly opened menus are translated while this mode is active; use the existing restore action to return to the original page. This scans mounted, visible DOM text, so text drawn on Canvas or contained in images needs image or area translation. See the [feature guide](https://fluent.thinkstu.com/guide/features#补充翻译菜单和动态界面) for details.
+
 The [official documentation](https://fluent.thinkstu.com/) explains the main features, service choices, website rules, and privacy boundaries in plain language.
 
 ## Privacy

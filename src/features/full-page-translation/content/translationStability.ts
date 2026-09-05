@@ -72,7 +72,7 @@ export function getCandidateTranslationTextProtectionOptions(
 export function getCurrentTranslationStateSourceText(node: HTMLElement, state: TranslationState): string {
     return extractTranslationText(
         node,
-        getCurrentTranslationCore().shouldStayOriginal,
+        getCurrentTranslationCore(state.scope).shouldStayOriginal,
         getTranslationStateProtectionBoundary(node, state),
         getTranslationTextProtectionOptions(state.allowTopLevelApplicationShell, node),
     );
@@ -81,7 +81,7 @@ export function getCurrentTranslationStateSourceText(node: HTMLElement, state: T
 export function getCurrentTranslationStateTextNodes(node: HTMLElement, state: TranslationState): Text[] {
     return collectLiveTranslationTextSlots(
         node,
-        getCurrentTranslationCore().shouldStayOriginal,
+        getCurrentTranslationCore(state.scope).shouldStayOriginal,
         getTranslationStateProtectionBoundary(node, state),
         getTranslationTextProtectionOptions(state.allowTopLevelApplicationShell, node),
     ).map((slot) => slot.node);
@@ -122,6 +122,7 @@ export function statefulSourceAndTextSlotsAreCurrent(
                 node,
                 state.allowTopLevelApplicationShell === true,
                 currentNodes,
+                state.scope,
             );
             if (state.sourceStructureSignature === undefined
                 ? sourceHTMLWithoutDirectBilingualArtifacts(node) !== state.sourceHTML
@@ -134,7 +135,7 @@ export function statefulSourceAndTextSlotsAreCurrent(
     if (state.singleTextSlotHosts) {
         const previousNodes = state.sourceTextNodes ?? [];
         if (state.singleTextSlotHosts.length !== previousNodes.length) return false;
-        const core = getCurrentTranslationCore();
+        const core = getCurrentTranslationCore(state.scope);
         const options = getTranslationTextProtectionOptions(state.allowTopLevelApplicationShell, node);
         const protectionCache = createTranslationTextProtectionCache();
         // 合成段仅忽略自己的扩展身份，其宿主和自身真实的 hidden/notranslate

@@ -63,6 +63,7 @@ export const jaJPMessages = {
     'notice.translationNotice': '翻訳のお知らせ',
     'notice.openSettings': '設定を開く',
     'notice.close': '通知を閉じる',
+    'contextMenu.allNodes': 'すべてのノードを検出',
     'contextMenu.translate': 'FluentRead で翻訳',
     'contextMenu.restore': 'FluentRead の翻訳を元に戻す',
     'contextMenu.disabled': 'FluentRead（このサイトでは無効）',

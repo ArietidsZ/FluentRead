@@ -63,6 +63,7 @@ export const koKRMessages = {
     'notice.translationNotice': '번역 알림',
     'notice.openSettings': '설정 열기',
     'notice.close': '알림 닫기',
+    'contextMenu.allNodes': '모든 노드 인식',
     'contextMenu.translate': 'FluentRead로 번역',
     'contextMenu.restore': 'FluentRead 번역 되돌리기',
     'contextMenu.disabled': 'FluentRead (이 사이트에서 사용 중지됨)',

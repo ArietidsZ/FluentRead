@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/runtime.ts
  * 文件职责：实现全文翻译的页面级会话引擎，负责候选发现、可见性调度、批量请求、动态 DOM 重扫、失败重试、缓存复用和恢复原文。
- * 主要内容：维护 FullPageSession、AbortController、Intersection/Mutation 观察器、精确属性写入过滤、候选所有权和生命周期重试，冻结翻译配置并在提交时重绑可恢复文本槽，导出自动翻译、悬浮翻译、状态查询及恢复入口。
+ * 主要内容：维护 FullPageSession、AbortController、Intersection/Mutation 观察器、精确属性写入过滤、候选所有权和生命周期重试，冻结翻译配置与识别范围并在提交时重绑可恢复文本槽，支持手动补扫全部界面节点，导出自动翻译、悬浮翻译、状态查询及恢复入口。
  * 模块边界：这是 content 侧编排层，不实现 provider 协议、纯候选算法或底层状态存储；翻译调用经 app client，发现规则来自 core/translation，渲染与状态分别交给 renderer 和 state。
  */
 import {getFullPageTranslationStateRevision, notifyFullPageTranslationState} from './stateNotification';
@@ -19,14 +19,13 @@ import {
     getCurrentTranslationCore,
     getOpenShadowRoots,
     getTranslationCandidateKey,
-    resolveTranslationCandidate,
     resolveTranslationCandidateAtPoint,
     selectPreferredTranslationCandidate,
 } from "@/src/core/translation/public";
 import type {
     TranslationCandidate,
+    TranslationScope,
     TranslationDiscoveryStep,
-    TranslationTextProtectionOptions,
 } from "@/src/core/translation/public";
 import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
 import { config } from "@/src/services/config/store";
@@ -35,7 +34,6 @@ import {normalizeMaxConcurrentTranslations} from "@/src/core/config/scheduling";
 import {
     cancelTranslationQueueSession,
     createTranslationQueueSession,
-    type TranslationQueueSession,
 } from "@/src/services/translation/queue";
 import {
     finishFullPageTranslationProgress,
@@ -83,7 +81,6 @@ import {
 import {
     captureFullPageTranslationConfig,
     getTranslationInvocationIdentity,
-    translateTextSlots,
     type FullPageTranslationCacheEntry,
     type FullPageTranslationConfigSnapshot, type FullPageTranslationSessionCache,
     type PageTranslationConfigOverrides,
@@ -111,8 +108,8 @@ import {
     statefulSourceAndTextSlotsAreCurrent,
 } from '@/src/features/full-page-translation/content/translationStability';
 import {
-    translateLiveText,
-    type LiveTextTranslationResult,
+    createTranslationRequest,
+    type TranslationResult,
 } from '@/src/features/full-page-translation/content/liveTextTranslation';
 import {consumeOrphanedOwnerClassMutation, isTextEquivalentHostReplacement, normalizeOrphanedSingleSlots, normalizeOrphanedTranslationArtifacts, normalizeOrphanedTranslationOwner}
     from '@/src/features/full-page-translation/content/orphanArtifacts';
@@ -121,7 +118,6 @@ const TRANSLATION_ARTIFACT_SELECTOR = [
     '[data-fr-translation-segment="true"]',
     '[data-fr-translation-owned="true"]',
 ].join(",");
-type TranslationResult = SnapshotTranslationResult | LiveTextTranslationResult;
 type TranslationTargetOutcome =
     | {status: "committed" | "failed" | "owned"}
     | {status: "unchanged"; source: string; attemptNode?: HTMLElement}
@@ -138,14 +134,10 @@ interface FullPageLifecycleRetry {
     reason: string;
     attempts: number;
 }
-interface SnapshotTranslationResult {
-    kind: "snapshot";
-    sources: readonly string[];
-    translations: readonly string[];
-}
 interface FullPageSession extends FullPageRequestSessionState {
     active: boolean;
     translationMode: FullPageTranslationMode;
+    scope: TranslationScope;
     /** 会话启动时冻结所有会改变译文或 DOM 表达的配置，防止设置热更新混入当前页面。 */
     translationConfig: FullPageTranslationConfigSnapshot;
     progressSessionId: number;
@@ -219,7 +211,7 @@ setBilingualArtifactCapitulationHandler((owner, state) => {
     const boundary = identityOwner?.parentNode;
     if (boundary) registry.remember(boundary, owner, state);
 });
-export type PageTranslationInvocation = PageTranslationConfigOverrides & {fullPageMode?: FullPageTranslationMode};
+export type PageTranslationInvocation = PageTranslationConfigOverrides & {fullPageMode?: FullPageTranslationMode; scope?: TranslationScope};
 
 function scheduleFullPageProgressPublish(session: FullPageSession): void {
     if (!session.active || session.progressPublishScheduled) return;
@@ -264,7 +256,7 @@ function translateNode(
 ): void {
     const target = asHTMLElement(node);
     if (!target) return;
-    const candidate = resolveTranslationCandidate(target);
+    const candidate = getCurrentTranslationCore(owner?.scope).resolve(target);
     if (candidate) void translateTarget(candidate, displayMode, slide, owner);
 }
 
@@ -294,7 +286,7 @@ function transferEquivalentBilingualOwners(session: FullPageSession | undefined,
             .remember(boundary, owner, state);
     });
     const result = adoptEquivalentBilingualOwners(mutations, (_previousOwner, replacementOwner, state) => {
-        const candidate = getCurrentTranslationCore().resolve(replacementOwner);
+        const candidate = getCurrentTranslationCore(state.scope).resolve(replacementOwner);
         if (!candidate || candidate.element !== replacementOwner || candidate.kind !== state.kind ||
             Boolean(candidate.allowTopLevelApplicationShell) !== Boolean(state.allowTopLevelApplicationShell) ||
             normalizeComparableText(getCurrentTranslationStateSourceText(replacementOwner, state)) !==
@@ -326,58 +318,6 @@ function createAbortError(): Error {
     }
 }
 
-/**
- * 对机器翻译的 HTML 克隆逐个替换文本节点。标签、链接、图标和原文 DOM
- * 都不直接交给服务端，避免响应把网页结构打碎；微软/免费翻译的数组接口
- * 还可以把同一段中的多个文本节点合并成一次请求。
- */
-async function translateElementHTML(
-    node: HTMLElement,
-    snapshot: FullPageTranslationConfigSnapshot,
-    signal?: AbortSignal,
-    queueSession?: TranslationQueueSession,
-    fullPageSession?: FullPageSession | ReturnType<typeof getHoverTranslationRequestSession>,
-    protectionOptions?: TranslationTextProtectionOptions, forceFailedRequest = false,
-): Promise<SnapshotTranslationResult> {
-    const core = getCurrentTranslationCore();
-    const slots = collectLiveTranslationTextSlots(node, core.shouldStayOriginal, undefined, protectionOptions);
-    if (slots.length === 0) return {kind: "snapshot", sources: [], translations: []};
-
-    const origins = slots.map((part) => part.source);
-    const translations = await translateTextSlots(origins, snapshot, signal, queueSession, fullPageSession, forceFailedRequest);
-    return {kind: "snapshot", sources: origins, translations};
-}
-async function createTranslationRequest(
-    node: HTMLElement,
-    kind: "content" | "control",
-    mode: "bilingual" | "single",
-    snapshot: FullPageTranslationConfigSnapshot,
-    signal?: AbortSignal,
-    queueSession?: TranslationQueueSession,
-    fullPageSession?: FullPageSession | ReturnType<typeof getHoverTranslationRequestSession>,
-    protectionOptions?: TranslationTextProtectionOptions, forceFailedRequest = false,
-): Promise<TranslationResult> {
-    if (kind === "control" || mode === "single") {
-        return translateLiveText(
-            node,
-            snapshot,
-            signal,
-            queueSession,
-            fullPageSession,
-            protectionOptions,
-            forceFailedRequest,
-        );
-    }
-    return translateElementHTML(
-        node,
-        snapshot,
-        signal,
-        queueSession,
-        fullPageSession,
-        protectionOptions,
-        forceFailedRequest,
-    );
-}
 function attemptSourceIsCurrent(node: HTMLElement, state: TranslationState): boolean {
     return normalizeComparableText(getCurrentTranslationStateSourceText(node, state)) ===
         normalizeComparableText(state.sourceText);
@@ -472,7 +412,7 @@ async function renderTranslation(
             const currentNodes = getCurrentTranslationStateTextNodes(node, state);
             const currentParts = collectLiveTranslationTextSlots(
                 node,
-                getCurrentTranslationCore().shouldStayOriginal,
+                getCurrentTranslationCore(candidate.scope).shouldStayOriginal,
                 getTranslationStateProtectionBoundary(node, state),
                 getTranslationTextProtectionOptions(state.allowTopLevelApplicationShell, node),
             );
@@ -514,7 +454,7 @@ async function renderTranslation(
 
         // 在提交时才构建输出骨架，因此宿主属性和安全结构（例如链接 href 从 /a
         // 变为 /b）来自当前 DOM；provider 译文仍绑定请求创建时捕获的精确有序原文。
-        const core = getCurrentTranslationCore();
+        const core = getCurrentTranslationCore(candidate.scope);
         const freshSnapshot = createTranslationSourceSnapshot(
             node,
             core.shouldStayOriginal,
@@ -553,7 +493,7 @@ async function renderTranslation(
 }
 
 function candidateIsCurrent(candidate: TranslationCandidate): boolean {
-    const core = getCurrentTranslationCore();
+    const core = getCurrentTranslationCore(candidate.scope);
     if (!candidate.element.isConnected) return false;
     if (candidate.nodes?.length) {
         if (candidate.nodes.some((node) => node.parentNode !== candidate.element)) return false;
@@ -824,7 +764,7 @@ async function translateTarget(candidate: TranslationCandidate, displayMode: "bi
             if (!retryAnchor.isConnected) {
                 return {status: "not-current", retryRoot: candidate.element.isConnected ? candidate.element : undefined};
             }
-            const refreshedCandidate = getCurrentTranslationCore().resolve(retryAnchor);
+            const refreshedCandidate = getCurrentTranslationCore(candidate.scope).resolve(retryAnchor);
             return refreshedCandidate
                 ? translateTarget(
                     refreshedCandidate,
@@ -843,7 +783,7 @@ async function translateTarget(candidate: TranslationCandidate, displayMode: "bi
         unregisterSessionStatefulTarget(statefulSession, existingNode);
         withFullPageViewportAnchor(() => restoreTranslation(existingNode), [existingNode]);
         if (shouldSwitchProfile && retryAnchor.isConnected) {
-            const refreshedCandidate = getCurrentTranslationCore().resolve(retryAnchor);
+            const refreshedCandidate = getCurrentTranslationCore(candidate.scope).resolve(retryAnchor);
             if (refreshedCandidate) return translateTarget(
                 refreshedCandidate, displayMode, slide, owner, translationConfigOverride, forceFailedRequest);
         }
@@ -862,7 +802,7 @@ async function translateTarget(candidate: TranslationCandidate, displayMode: "bi
             unregisterSessionStatefulTarget(statefulSession, existingNode);
             withFullPageViewportAnchor(() => restoreTranslation(existingNode), [existingNode]);
             if (!sourceAnchor?.isConnected) return {status: "not-current", retryRoot};
-            const refreshedCandidate = getCurrentTranslationCore().resolve(sourceAnchor);
+            const refreshedCandidate = getCurrentTranslationCore(candidate.scope).resolve(sourceAnchor);
             if (!refreshedCandidate) return {status: "not-current", retryRoot};
             return translateTarget(
                 refreshedCandidate, displayMode, slide, owner, translationConfigOverride, forceFailedRequest);
@@ -878,7 +818,7 @@ async function translateTarget(candidate: TranslationCandidate, displayMode: "bi
         };
     }
 
-    const core = getCurrentTranslationCore();
+    const core = getCurrentTranslationCore(candidate.scope);
     const candidateProtectionOptions = getCandidateTranslationTextProtectionOptions(candidate);
     const sourceText = candidate.nodes?.length
         ? extractTranslationTextFromNodes(
@@ -901,12 +841,12 @@ async function translateTarget(candidate: TranslationCandidate, displayMode: "bi
     }
     if (slide && displayMode === 'bilingual' && blocksBilingualRemountCandidate(remountCapitulations, candidate.element, sourceText,
         candidate.allowTopLevelApplicationShell === true,
-        getTranslationInvocationIdentity(translationConfig), candidate.nodes)) return {status: 'owned'};
+        getTranslationInvocationIdentity(translationConfig), candidate.nodes, candidate.scope)) return {status: 'owned'};
     if (!slide) {
         resetBilingualArtifactHostWriteBudget(candidate.element);
         forgetBilingualRemountCandidate(remountCapitulations, candidate.element, sourceText,
             candidate.allowTopLevelApplicationShell === true, getTranslationInvocationIdentity(translationConfig),
-            candidate.nodes);
+            candidate.nodes, candidate.scope);
     }
 
     // 同语言检测只是节流优化；不确定、短 Latin 与纯 Han 必须 fail-open，
@@ -944,6 +884,7 @@ async function translateTarget(candidate: TranslationCandidate, displayMode: "bi
         sourceTextNodes,
         candidate.allowTopLevelApplicationShell === true,
         getTranslationInvocationIdentity(translationConfig),
+        candidate.scope,
     );
     if (!attempt) {
         if (synthetic) {
@@ -967,6 +908,7 @@ async function translateTarget(candidate: TranslationCandidate, displayMode: "bi
         requestSession,
         getTranslationTextProtectionOptions(candidate.allowTopLevelApplicationShell, node),
         forceFailedRequest,
+        candidate.scope,
     )
         .finally(() => signal.removeEventListener('abort', cancelQueuedRequest));
     if (synthetic) node.setAttribute('data-fr-translation-segment', 'true');
@@ -992,7 +934,7 @@ async function translateTarget(candidate: TranslationCandidate, displayMode: "bi
 
 function candidateLifecycleSource(candidate: TranslationCandidate): string {
     try {
-        const core = getCurrentTranslationCore();
+        const core = getCurrentTranslationCore(candidate.scope);
         const protectionOptions = getCandidateTranslationTextProtectionOptions(candidate);
         return normalizeComparableText(candidate.nodes?.length
             ? extractTranslationTextFromNodes(
@@ -1042,7 +984,7 @@ function resolveFullPageRetryCandidate(
     candidate: TranslationCandidate,
     retryRoot?: Node,
 ): TranslationCandidate | null {
-    const core = getCurrentTranslationCore();
+    const core = getCurrentTranslationCore(candidate.scope);
     const key = getTranslationCandidateKey(candidate);
     const starts = [retryRoot, key, candidate.element];
     const visited = new Set<Node>();
@@ -1203,6 +1145,7 @@ function scheduleDiscoveredCandidate(session: FullPageSession, candidate: Transl
         candidate.allowTopLevelApplicationShell === true,
         getTranslationInvocationIdentity(session.translationConfig),
         candidate.nodes,
+        candidate.scope,
     )) return;
     const key = getTranslationCandidateKey(candidate);
     if (isUserCancelledCandidate(session, candidate)) {
@@ -1217,6 +1160,17 @@ function scheduleDiscoveredCandidate(session: FullPageSession, candidate: Transl
             scheduleFullPageProgressPublish(session);
         }
         return;
+    }
+    if (session.scope === 'all') {
+        let ancestor = getComposedParent(target);
+        while (ancestor) {
+            const ancestorState = getTranslationState(ancestor as HTMLElement);
+            if (ancestorState) {
+                registerSessionStatefulTarget(session, ancestor as HTMLElement, ancestor as HTMLElement);
+                return;
+            }
+            ancestor = getComposedParent(ancestor);
+        }
     }
     const targetState = getTranslationState(target);
     if (targetState) {
@@ -1327,6 +1281,25 @@ function enqueueFullPageRescan(session: FullPageSession, changedNode: Node): voi
     session.mutationFlushTimer = window.setTimeout(() => flushMutationRescans(session), 50);
 }
 
+/** 扩大范围仅重建展示类型变化或新增可译 Text 槽的 owner，其余正文和在途请求保持不变。 */
+function upgradeFullPageTargetScope(session: FullPageSession, target: HTMLElement, state: TranslationState): boolean {
+    if (session.scope !== 'all' || state.scope === 'all') return false;
+    const core = getCurrentTranslationCore('all');
+    const changesKind = state.kind === 'content' && core.resolve(target)?.kind === 'control';
+    const previousNodes = new Set(state.sourceTextNodes);
+    const expandsText = collectLiveTranslationTextSlots(target, core.shouldStayOriginal,
+        getTranslationStateProtectionBoundary(target, state),
+        getTranslationTextProtectionOptions(state.allowTopLevelApplicationShell, target),
+    ).some((slot) => !previousNodes.has(slot.node));
+    if (!changesKind && !expandsText) return false;
+    const root = state.syntheticSegment ? target.parentElement : target;
+    unregisterSessionStatefulTarget(session, target);
+    removeScheduledForStateTarget(session, target);
+    withFullPageViewportAnchor(() => restoreTranslation(target), [target]);
+    if (root?.isConnected) enqueueFullPageRescan(session, root);
+    return true;
+}
+
 function flushMutationRescans(session: FullPageSession): void {
     session.mutationFlushTimer = null;
     if (!session.active) return;
@@ -1351,7 +1324,7 @@ function flushMutationRescans(session: FullPageSession): void {
             if (isElementNode(root) && !root.isConnected) continue;
             session.activeDiscovery = {
                 root,
-                steps: getCurrentTranslationCore().discoverSteps(root),
+                steps: getCurrentTranslationCore(session.scope).discoverSteps(root),
             };
         }
 
@@ -1371,6 +1344,7 @@ function flushMutationRescans(session: FullPageSession): void {
                 ? getTranslationState(statefulStepTarget)
                 : undefined;
             if (statefulStepTarget && statefulStepState) {
+                if (upgradeFullPageTargetScope(session, statefulStepTarget, statefulStepState)) continue;
                 const candidateOwner = statefulStepState.syntheticSegment
                     ? asHTMLElement(statefulStepTarget.parentElement) ?? statefulStepTarget
                     : statefulStepTarget;
@@ -1813,7 +1787,7 @@ function createFullPageMutationObserver(
         const session = getSession();
         if (!session.active || fullPageSession !== session) return;
         scheduleDisconnectedCandidatePrune(session);
-        const core = getCurrentTranslationCore();
+        const core = getCurrentTranslationCore(session.scope);
         // materialize 较宽行内段时，每个被移动来源节点都可能排入一条 childList 记录。
         // 精确快照在本次回调内稳定，因此每个 loading generation 只校验一次，
         // 避免进行 O(records) 次克隆。
@@ -1963,6 +1937,7 @@ function createFullPageSession(
     session = {
         active: true,
         translationMode: invocation.fullPageMode ?? config.fullPageTranslationMode,
+        scope: invocation.scope ?? 'content',
         translationConfig: inheritedConfig ? {...inheritedConfig} : captureFullPageTranslationConfig(invocation),
         progressSessionId: startFullPageTranslationProgress(),
         progressPublishScheduled: false,
@@ -2112,11 +2087,36 @@ export function autoTranslateEnglishPage(invocation: PageTranslationInvocation =
     for (const shadowRoot of getOpenShadowRoots(root)) observeFullPageRoot(session, shadowRoot);
     notifyFullPageTranslationState(true);
 }
+/** 用户主动补扫菜单和应用界面；升级当前会话，保留正文译文、在途请求与配置快照。 */
+export function translateAllPageNodes(): void {
+    const session = fullPageSession;
+    if (!session?.active) {
+        autoTranslateEnglishPage({scope: 'all', fullPageMode: 'all'});
+        return;
+    }
+    const upgraded = session.scope !== 'all';
+    session.scope = 'all';
+    session.translationMode = 'all';
+    // 旧生成器冻结了原候选政策；重新从根发现，避免升级前的剩余候选漏扫。
+    session.activeDiscovery = null;
+    session.broadRescanCooldowns = new WeakMap();
+    session.unchangedCandidates = new WeakMap();
+    session.lifecycleRetries = new WeakMap();
+    session.userCancelledCandidates.clear();
+    for (const [key, candidate] of session.scheduled) session.pending.set(key, candidate);
+    enqueueFullPageRescan(session, document.documentElement);
+    for (const shadowRoot of getOpenShadowRoots(document.documentElement)) {
+        observeFullPageRoot(session, shadowRoot);
+        enqueueFullPageRescan(session, shadowRoot);
+    }
+    scheduleFullPageDrain(session);
+    if (upgraded) notifyFullPageTranslationState(true);
+}
 /** 仅共享无凭据的会话快照；旧 QQ 邮件 frame 使用同一目标语言、服务和展示设置。 */
 export function getFullPageTranslationFrameState(): Omit<FrameTranslationState, 'enabled'> {
     const session = fullPageSession?.active ? fullPageSession : null;
     const revision = getFullPageTranslationStateRevision();
-    return session ? {revision, sessionId: session.progressSessionId, translationConfig: {...session.translationConfig}, fullPageMode: session.translationMode} : {revision, sessionId: null};
+    return session ? {revision, sessionId: session.progressSessionId, translationConfig: {...session.translationConfig}, fullPageMode: session.translationMode, scope: session.scope} : {revision, sessionId: null};
 }
 export function isFullPageTranslationActive(): boolean {
     return fullPageSession?.active === true;

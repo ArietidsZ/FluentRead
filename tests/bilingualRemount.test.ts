@@ -26,7 +26,7 @@ import {
     tryRepairBilingualTranslationArtifact,
     type TranslationState,
 } from '@/src/features/full-page-translation/content/state';
-import {translationTruncationStyleOverrides} from '@/src/core/translation/public';
+import {collectLiveTranslationTextSlots, getCurrentTranslationCore, translationTruncationStyleOverrides} from '@/src/core/translation/public';
 
 const BILINGUAL_SELECTOR =
     '.fluent-read-bilingual-content[data-fr-translation-owned="true"]';
@@ -90,6 +90,103 @@ afterEach(() => {
 });
 
 describe('双语 owner 同源重挂交接', () => {
+    it('全部节点中的 GitHub 动态文字熔断后保持范围签名，显式重试可清除记录', () => {
+        vi.stubGlobal('location', {href: 'https://github.com/org/repo/issues/1'});
+        try {
+            const {document} = parseHTML('<html><body><p id="owner">Research result <span aria-live="polite">Analysis completed</span>.</p></body></html>');
+            const owner = document.querySelector<HTMLElement>('#owner')!;
+            const slots = collectLiveTranslationTextSlots(owner, getCurrentTranslationCore('all').shouldStayOriginal);
+            const source = slots.map((slot) => slot.source).join(' ');
+            const attempt = beginTranslation(owner, 'bilingual', 'content', false, source,
+                slots.map((slot) => slot.node), false, 'profile', 'all')!;
+            const registry = createBilingualRemountCapitulationRegistry();
+            expect(markTranslationComplete(owner, attempt.state, attempt.generation)).toBe(true);
+            const wrapper = document.createElement('span');
+            wrapper.className = 'fluent-read-bilingual-content';
+            wrapper.setAttribute('data-fr-translation-owned', 'true');
+            wrapper.textContent = '研究结果：分析完成。';
+            owner.append(wrapper);
+            setBilingualContent(owner, wrapper);
+            expect(stabilizeBilingualArtifact(owner, attempt.state, registry)).toBe('current');
+            registry.remember(document.body, owner, attempt.state);
+            restoreAllTranslations();
+
+            expect(blocksBilingualRemountCandidate(registry, owner, source, false, 'profile', undefined, 'all')).toBe(true);
+            expect(blocksBilingualRemountCandidate(registry, owner, source, false, 'profile')).toBe(false);
+            forgetBilingualRemountCandidate(registry, owner, source, false, 'profile');
+            expect(registry.hasEntries()).toBe(true);
+            forgetBilingualRemountCandidate(registry, owner, source, false, 'profile', undefined, 'all');
+            expect(registry.hasEntries()).toBe(false);
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it('正文与全部节点的相同原文和结构独立熔断，重试只清除对应范围', () => {
+        const {document} = parseHTML('<html><body><p id="owner">Same source.</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        const attempt = beginTranslation(owner, 'bilingual', 'content', false, 'Same source.')!;
+        const registry = createBilingualRemountCapitulationRegistry();
+        registry.remember(document.body, owner, attempt.state);
+        expect(blocksBilingualRemountCandidate(registry, owner, 'Same source.', false, undefined)).toBe(true);
+        expect(blocksBilingualRemountCandidate(registry, owner, 'Same source.', false, undefined, undefined, 'content')).toBe(true);
+        expect(blocksBilingualRemountCandidate(registry, owner, 'Same source.', false, undefined, undefined, 'all')).toBe(false);
+        registry.remember(document.body, owner, {...attempt.state, scope: 'all'});
+        forgetBilingualRemountCandidate(registry, owner, 'Same source.', false, undefined);
+        expect(blocksBilingualRemountCandidate(registry, owner, 'Same source.', false, undefined)).toBe(false);
+        expect(blocksBilingualRemountCandidate(registry, owner, 'Same source.', false, undefined, undefined, 'all')).toBe(true);
+        forgetBilingualRemountCandidate(registry, owner, 'Same source.', false, undefined, undefined, 'all');
+        expect(registry.hasEntries()).toBe(false);
+    });
+
+    it.each([
+        ['content', 'all'], ['all', 'content'],
+    ] as const)('%s 范围宿主拒绝预算不会阻断 %s，当前范围的熔断仍有效', (previousScope, nextScope) => {
+        const {document} = parseHTML('<html><body><p id="owner">Same source.</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        const attempt = beginTranslation(owner, 'bilingual', 'content', false, 'Same source.',
+            undefined, false, 'profile', previousScope)!;
+        const registry = createBilingualRemountCapitulationRegistry();
+        for (let repair = 0; repair < 3; repair += 1) {
+            expect(consumeBilingualArtifactHostWriteBudget(owner, attempt.state)).toBe(true);
+        }
+        expect(consumeBilingualArtifactHostWriteBudget(owner, attempt.state)).toBe(false);
+        expect(blocksBilingualRemountCandidate(registry, owner, 'Same source.', false, 'profile', undefined, previousScope)).toBe(true);
+        expect(blocksBilingualRemountCandidate(registry, owner, 'Same source.', false, 'profile', undefined, nextScope)).toBe(false);
+        const nextState = {...attempt.state, scope: nextScope};
+        for (let repair = 0; repair < 3; repair += 1) {
+            expect(consumeBilingualArtifactHostWriteBudget(owner, nextState)).toBe(true);
+        }
+        expect(consumeBilingualArtifactHostWriteBudget(owner, nextState)).toBe(false);
+        expect(blocksBilingualRemountCandidate(registry, owner, 'Same source.', false, 'profile', undefined, nextScope)).toBe(true);
+        expect(blocksBilingualRemountCandidate(registry, owner, 'Same source.', false, 'profile', undefined, previousScope)).toBe(false);
+    });
+
+    it('全部节点合成段恢复解包后仍以原范围匹配动态子节点的结构签名', () => {
+        vi.stubGlobal('location', {href: 'https://github.com/org/repo/issues/1'});
+        try {
+            const {document} = parseHTML('<html><body><p id="host"><span id="segment" data-fr-translation-segment="true">Research result <span aria-live="polite">Analysis completed</span>.</span></p></body></html>');
+            const host = document.querySelector<HTMLElement>('#host')!;
+            const segment = document.querySelector<HTMLElement>('#segment')!;
+            const nodes = Array.from(segment.childNodes);
+            const slots = collectLiveTranslationTextSlots(segment, getCurrentTranslationCore('all').shouldStayOriginal, segment);
+            const source = slots.map((slot) => slot.source).join(' ');
+            const attempt = beginTranslation(segment, 'bilingual', 'content', true, source,
+                slots.map((slot) => slot.node), false, 'profile', 'all')!;
+            const registry = createBilingualRemountCapitulationRegistry();
+            registry.remember(host, segment, attempt.state);
+            restoreAllTranslations();
+
+            expect(nodes.every((node) => node.parentNode === host)).toBe(true);
+            expect(blocksBilingualRemountCandidate(registry, host, source, false, 'profile', nodes, 'all')).toBe(true);
+            expect(blocksBilingualRemountCandidate(registry, host, source, false, 'profile', nodes)).toBe(false);
+            forgetBilingualRemountCandidate(registry, host, source, false, 'profile', nodes, 'all');
+            expect(registry.hasEntries()).toBe(false);
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
     it('同一 observer 批次缓存 removed subtree 的 owner 集合', () => {
         const scenario = createCommittedScenario();
         const resolve = createRemovedTranslationOwnerResolver();

@@ -83,6 +83,7 @@ export const zhCNMessages = {
     'notice.translationNotice': '翻译提醒',
     'notice.openSettings': '去设置',
     'notice.close': '关闭通知',
+    'contextMenu.allNodes': '识别全部节点',
     'contextMenu.translate': '流畅阅读翻译',
     'contextMenu.restore': '流畅阅读取消翻译',
     'contextMenu.disabled': '流畅阅读（当前网站已禁用）',

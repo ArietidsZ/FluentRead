@@ -63,6 +63,7 @@ export const ruRUMessages = {
     'notice.translationNotice': 'Уведомление о переводе',
     'notice.openSettings': 'Открыть настройки',
     'notice.close': 'Закрыть уведомление',
+    'contextMenu.allNodes': 'Найти все узлы',
     'contextMenu.translate': 'Перевести с FluentRead',
     'contextMenu.restore': 'Вернуть перевод FluentRead',
     'contextMenu.disabled': 'FluentRead (отключён на этом сайте)',

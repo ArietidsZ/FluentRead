@@ -25,7 +25,7 @@ import {getMultilingualTargetLanguageLabel, options, services} from '@/src/core/
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
 import {prepareConfigForExport, prepareConfigForImport} from '@/src/core/config/transfer';
 import {toRestorableConfig} from '@/src/services/config/history';
-import {getContextMenuTitle} from '@/src/app/background/contextMenuUi';
+import {getContextMenuItems, getContextMenuTitle, resolveContextMenuLanguage} from '@/src/app/background/contextMenuUi';
 import {navigationItems} from '@/src/features/settings/model/navigation';
 import {parseHotkey} from '@/src/core/hotkey';
 
@@ -65,6 +65,37 @@ describe('界面 i18n 契约', () => {
     expect(new Config().uiLanguageSetupCompleted).toBe(false);
     expect(normalizeConfig({uiLanguageSetupCompleted: true}).uiLanguageSetupCompleted).toBe(true);
     expect(normalizeConfig({uiLanguageSetupCompleted: 'true'}).uiLanguageSetupCompleted).toBe(false);
+  });
+
+  it('在七种界面语言的网页右键菜单提供固定的全部节点入口，并删除旧 Popup 文案', () => {
+    const labels = {
+      'zh-CN': '识别全部节点',
+      'en-US': 'Detect all nodes',
+      'ja-JP': 'すべてのノードを検出',
+      'ko-KR': '모든 노드 인식',
+      'fr-FR': 'Détecter tous les nœuds',
+      'ru-RU': 'Найти все узлы',
+      'es-ES': 'Detectar todos los nodos',
+    } as const;
+    expect(resolveContextMenuLanguage('unknown')).toBe('zh-CN');
+    for (const [locale, label] of Object.entries(labels)) {
+      const language = resolveContextMenuLanguage(locale);
+      expect(translate('contextMenu.allNodes', language)).toBe(label);
+      for (const isTranslated of [false, true]) {
+        const items = getContextMenuItems(isTranslated, false, language);
+        expect(items.map(({id}) => id)).toEqual([
+          'fluent-read-translate-full-page', 'fluent-read-translate-all-nodes',
+        ]);
+        expect(items[0]).toMatchObject({enabled: true, title: getContextMenuTitle(isTranslated, false, language)});
+        expect(items[1]).toMatchObject({enabled: true, title: label});
+        const disabledItems = getContextMenuItems(isTranslated, true, language);
+        expect(disabledItems[0]).toMatchObject({enabled: false, title: translate('contextMenu.disabled', language)});
+        expect(disabledItems[1]).toMatchObject({enabled: false, title: label});
+      }
+    }
+    for (const catalog of [zhCNMessages, ...translatedCatalogs]) {
+      expect(Object.keys(catalog).filter((key) => key.startsWith('popup.allNodes.'))).toEqual([]);
+    }
   });
 
   it('按浏览器 locale 选择首次界面语言，并为目标语言保留原生名称', () => {

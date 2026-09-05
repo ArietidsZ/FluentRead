@@ -9,13 +9,15 @@ const deferred = <T>() => {let resolve!: (value: T) => void; let reject!: (reaso
 describe('QQ mail frame session snapshots', () => {
     it('accepts valid single/bilingual snapshots and optional fields', () => {
         expect(isFrameTranslationState(state())).toBe(true);
+        expect(isFrameTranslationState(state({scope: 'content'}))).toBe(true);
+        expect(isFrameTranslationState(state({scope: 'all'}))).toBe(true);
         expect(isFrameTranslationState(state({translationConfig: {...config, displayMode: 'single', profileId: undefined, requestOverridesApplied: undefined}, fullPageMode: 'viewport'}))).toBe(true);
     });
 
     it.each([
         null, {}, {enabled: 'yes', revision: 1, sessionId: null}, {enabled: true, revision: -1, sessionId: null},
         {enabled: true, revision: 1.2, sessionId: null}, {enabled: true, revision: 1, sessionId: 0}, {enabled: true, revision: 1, sessionId: '1'},
-        {...state(), fullPageMode: 'bad'}, {...state(), translationConfig: undefined}, {...state(), translationConfig: {...config, service: 1}},
+        {...state(), scope: 'invalid'}, {...state(), fullPageMode: 'bad'}, {...state(), translationConfig: undefined}, {...state(), translationConfig: {...config, service: 1}},
         {...state(), translationConfig: {...config, thinking: 'false'}}, {...state(), translationConfig: {...config, displayMode: 'bad'}},
         {...state(), translationConfig: {...config, style: Infinity}}, {...state(), translationConfig: {...config, profileId: 4}},
         {...state(), translationConfig: {...config, requestOverridesApplied: false}},

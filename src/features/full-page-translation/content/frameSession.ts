@@ -4,6 +4,7 @@
  * 主要内容：定义不含凭据的会话快照，校验响应，按会话标识与恢复版本决定启动、保留或清理子页面翻译。
  * 模块边界：不访问 browser、DOM 或配置存储；可信消息传输和功能挂载由 content composition root 注入。
  */
+import type {TranslationScope} from '@/src/core/translation/public';
 import type {FullPageTranslationMode} from '@/src/core/config/model';
 import type {FullPageTranslationConfigSnapshot} from './translationRequest';
 
@@ -13,12 +14,14 @@ export interface FrameTranslationState {
     sessionId: number | null;
     translationConfig?: FullPageTranslationConfigSnapshot;
     fullPageMode?: FullPageTranslationMode;
+    scope?: TranslationScope;
 }
 
 export function isFrameTranslationState(value: unknown): value is FrameTranslationState {
     if (!value || typeof value !== 'object') return false;
     const state = value as FrameTranslationState;
     if (typeof state.enabled !== 'boolean' || !Number.isSafeInteger(state.revision) || state.revision < 0) return false;
+    if (state.scope !== undefined && state.scope !== 'content' && state.scope !== 'all') return false;
     if (state.sessionId === null) return true;
     if (!Number.isSafeInteger(state.sessionId) || state.sessionId < 1) return false;
     if (state.fullPageMode !== 'all' && state.fullPageMode !== 'viewport') return false;

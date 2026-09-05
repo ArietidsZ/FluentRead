@@ -84,6 +84,7 @@ export const enUSMessages = {
     'notice.translationNotice': 'Translation notice',
     'notice.openSettings': 'Open settings',
     'notice.close': 'Close notification',
+    'contextMenu.allNodes': 'Detect all nodes',
     'contextMenu.translate': 'Translate with FluentRead',
     'contextMenu.restore': 'Restore with FluentRead',
     'contextMenu.disabled': 'FluentRead (disabled on this website)',

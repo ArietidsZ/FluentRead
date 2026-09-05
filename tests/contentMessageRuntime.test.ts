@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
     },
     normalizeDelay: vi.fn((value: number | string) => Number(value)),
     autoTranslateEnglishPage: vi.fn(),
+    translateAllPageNodes: vi.fn(),
     invalidateFullPageTranslationSessionCache: vi.fn(),
     isFullPageTranslationActive: vi.fn(),
     mountAreaTranslator: vi.fn(),
@@ -38,6 +39,7 @@ vi.mock('@/src/core/config/model', () => ({
 vi.mock('@/src/services/config/store', () => ({config: mocks.config}));
 vi.mock('@/src/app/content/features', () => ({
     autoTranslateEnglishPage: mocks.autoTranslateEnglishPage,
+    translateAllPageNodes: mocks.translateAllPageNodes,
     invalidateFullPageTranslationSessionCache: mocks.invalidateFullPageTranslationSessionCache,
     isFullPageTranslationActive: mocks.isFullPageTranslationActive,
     mountAreaTranslator: mocks.mountAreaTranslator,
@@ -266,5 +268,75 @@ describe('内容脚本 runtime 消息协议', () => {
             disableImageTranslator: false,
             translationProgressPanelEnabled: true,
         });
+    });
+
+    it('全部节点命令独立触发，已翻译页面可以重复补充并沿用恢复原文状态', async () => {
+        const {createContentRuntimeMessageHandler} = await import('@/src/app/content/messageRuntime');
+        const respond = vi.fn();
+        const handler = createContentRuntimeMessageHandler({} as never, {
+            isSiteDisabled: () => false,
+            updateSiteDisabled: vi.fn(async () => undefined),
+        });
+        mocks.translateAllPageNodes.mockImplementation(() => {
+            mocks.isFullPageTranslationActive.mockReturnValue(true);
+        });
+
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+            expect(handler({type: 'contextMenuTranslate', action: 'allNodes'}, {}, respond)).toBe(true);
+            expect(respond).toHaveBeenLastCalledWith({
+                status: 'success', action: 'translated', isTranslated: true,
+            });
+        }
+        expect(mocks.translateAllPageNodes).toHaveBeenCalledTimes(2);
+        expect(mocks.autoTranslateEnglishPage).not.toHaveBeenCalled();
+        expect(mocks.restoreOriginalContent).not.toHaveBeenCalled();
+
+        expect(handler({type: 'getFullPageTranslationState'}, {}, respond)).toBe(true);
+        expect(respond).toHaveBeenLastCalledWith({
+            status: 'success', isTranslated: true, isSiteDisabled: false,
+        });
+        mocks.restoreOriginalContent.mockImplementation(() => {
+            mocks.isFullPageTranslationActive.mockReturnValue(false);
+        });
+        expect(handler({type: 'contextMenuTranslate', action: 'restore'}, {}, respond)).toBe(true);
+        expect(respond).toHaveBeenLastCalledWith({
+            status: 'success', action: 'restored', isTranslated: false,
+        });
+    });
+
+    it('全部节点未能启动时回传失败，允许下一次手动重试', async () => {
+        const {createContentRuntimeMessageHandler} = await import('@/src/app/content/messageRuntime');
+        const respond = vi.fn();
+        const handler = createContentRuntimeMessageHandler({} as never, {
+            isSiteDisabled: () => false,
+            updateSiteDisabled: vi.fn(async () => undefined),
+        });
+
+        expect(handler({type: 'contextMenuTranslate', action: 'allNodes'}, {}, respond)).toBe(true);
+        expect(respond).toHaveBeenLastCalledWith({
+            status: 'failed', action: 'unchanged', isTranslated: false,
+        });
+        mocks.isFullPageTranslationActive.mockReturnValue(true);
+        expect(handler({type: 'contextMenuTranslate', action: 'allNodes'}, {}, respond)).toBe(true);
+        expect(respond).toHaveBeenLastCalledWith({
+            status: 'success', action: 'translated', isTranslated: true,
+        });
+    });
+
+    it.each([
+        {on: false, siteDisabled: false},
+        {on: true, siteDisabled: true},
+    ])('禁用状态拦截全部节点命令：%j', async ({on, siteDisabled}) => {
+        mocks.config.on = on;
+        const {createContentRuntimeMessageHandler} = await import('@/src/app/content/messageRuntime');
+        const respond = vi.fn();
+        const handler = createContentRuntimeMessageHandler({} as never, {
+            isSiteDisabled: () => siteDisabled,
+            updateSiteDisabled: vi.fn(async () => undefined),
+        });
+
+        expect(handler({type: 'contextMenuTranslate', action: 'allNodes'}, {}, respond)).toBe(true);
+        expect(respond).toHaveBeenLastCalledWith({status: 'disabled'});
+        expect(mocks.translateAllPageNodes).not.toHaveBeenCalled();
     });
 });

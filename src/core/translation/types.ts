@@ -2,11 +2,14 @@
  * @file src/core/translation/types.ts
  *
  * 文件职责：定义翻译候选核心的基础类型契约，使引擎、布局、序列化和站点适配器能够以一致结构协作。
- * 主要内容：包含候选 kind、AdapterDecision、AdapterContext、TranslationSiteAdapter、TranslationCandidate 与 TranslationCoreOptions，明确适配器输入、候选来源和可注入依赖。 可核对的公开符号包括 TranslationCandidateKind、AdapterDecision、AdapterContext、TranslationSiteAdapter、TranslationCandidate、TranslationCoreOptions。
+ * 主要内容：包含正文/全部节点 TranslationScope、候选 kind、AdapterDecision、AdapterContext、TranslationSiteAdapter、TranslationCandidate 与 TranslationCoreOptions，明确适配器输入、候选来源和可注入依赖。 可核对的公开符号包括 TranslationCandidateKind、AdapterDecision、AdapterContext、TranslationSiteAdapter、TranslationCandidate、TranslationCoreOptions。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
 export type TranslationCandidateKind = 'content' | 'control';
+
+/** 正文范围保留站点阅读边界；全部节点范围额外覆盖可见界面文字。 */
+export type TranslationScope = 'content' | 'all';
 
 /** 站点适配器是否允许没有显式 selector 命中的通用候选。 */
 export type TranslationGenericCandidatePolicy = 'allow' | 'targets-only';
@@ -46,11 +49,14 @@ export interface TranslationCandidate {
     kind: TranslationCandidateKind;
     reason: string;
     adapterId?: string;
+    /** 显式全部节点候选在重校验、请求和重试时继续使用相同发现政策。 */
+    scope?: TranslationScope;
     /** 显式选中/悬浮解析允许穿过 body 直接子级的应用级 no-translate 外壳。 */
     allowTopLevelApplicationShell?: boolean;
 }
 
 export interface TranslationCoreOptions {
+    scope?: TranslationScope;
     url?: URL;
     adapters?: readonly TranslationSiteAdapter[];
 }

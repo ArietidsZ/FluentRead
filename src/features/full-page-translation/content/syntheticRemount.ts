@@ -61,7 +61,7 @@ function candidateStructureSignature(
     const options = protectionOptions(segment, state.allowTopLevelApplicationShell === true);
     const textNodes = collectLiveTranslationTextSlots(
         segment,
-        getCurrentTranslationCore().shouldStayOriginal,
+        getCurrentTranslationCore(state.scope).shouldStayOriginal,
         segment,
         options,
     ).map((slot) => slot.node);
@@ -69,12 +69,13 @@ function candidateStructureSignature(
         segment,
         state.allowTopLevelApplicationShell === true,
         textNodes,
+        state.scope,
     );
 }
 
 function equivalentInlineCandidate(host: HTMLElement, state: TranslationState): SyntheticTranslationCandidate | null {
     if (host.childNodes.length > SYNTHETIC_REMOUNT_MAX_HOST_CHILDREN) return null;
-    const core = getCurrentTranslationCore();
+    const core = getCurrentTranslationCore(state.scope);
     const candidates = new Map<Node, SyntheticTranslationCandidate>();
     Array.from(host.childNodes).forEach((node) => {
         const candidate = core.resolve(node);
@@ -206,7 +207,7 @@ export function transferEquivalentSyntheticBilingualSegments(
                 state.syntheticHost = host;
                 state.sourceTextNodes = collectLiveTranslationTextSlots(
                     owner,
-                    getCurrentTranslationCore().shouldStayOriginal,
+                    getCurrentTranslationCore(state.scope).shouldStayOriginal,
                     owner,
                     protectionOptions(owner, state.allowTopLevelApplicationShell === true),
                 ).map((slot) => slot.node);

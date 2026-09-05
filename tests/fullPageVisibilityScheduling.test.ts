@@ -6,6 +6,7 @@ const runtime = vi.hoisted(() => ({
         element: HTMLElement;
         kind: "content" | "control";
         reason: string;
+        scope?: "content" | "all";
         nodes?: readonly Node[];
         adapterId?: string;
     }>,
@@ -13,6 +14,7 @@ const runtime = vi.hoisted(() => ({
         element: HTMLElement;
         kind: "content" | "control";
         reason: string;
+        scope?: "content" | "all";
         nodes?: readonly Node[];
         adapterId?: string;
     } | null,
@@ -147,14 +149,14 @@ vi.mock("@/src/core/translation/public", () => {
         "[inert]", "[aria-hidden='true']",
     ].join(",");
     const isProtected = (element: Element) => Boolean(element.closest(protectedSelector));
-    const textSlots = (element: HTMLElement) => {
+    const textSlots = (element: HTMLElement, shouldStayOriginal?: (node: Element) => boolean) => {
         const slots: Array<{node: Text; prefix: string; source: string; suffix: string}> = [];
         const walker = element.ownerDocument.createTreeWalker(element, 4);
         let current = walker.nextNode();
         while (current) {
             const node = current as Text;
             const source = node.nodeValue ?? "";
-            if (source.trim() && node.parentElement && !isProtected(node.parentElement) &&
+            if (source.trim() && node.parentElement && !isProtected(node.parentElement) && !shouldStayOriginal?.(node.parentElement) &&
                 !node.parentElement.closest('[data-fr-translation-owned="true"]')) {
                 slots.push({node, prefix: "", source, suffix: ""});
             }
@@ -164,7 +166,7 @@ vi.mock("@/src/core/translation/public", () => {
     };
 
     return {
-        extractTranslationText: (element: HTMLElement) => textSlots(element).map(({source}) => source).join(""),
+        extractTranslationText: (element: HTMLElement, shouldStayOriginal?: (node: Element) => boolean) => textSlots(element, shouldStayOriginal).map(({source}) => source).join(""),
         extractTranslationTextFromNodes: (nodes: readonly Node[]) =>
             nodes.map((node) => node.textContent ?? "").join(""),
         applyTranslationsToSnapshot: (_snapshot: unknown, translations: readonly string[]) => translations.join(""),
@@ -173,23 +175,23 @@ vi.mock("@/src/core/translation/public", () => {
             depth: number;
             protected: boolean;
         }>(),
-        createTranslationSourceSnapshot: (element: HTMLElement) => ({
-            slots: textSlots(element).map(({source}) => ({source})),
+        createTranslationSourceSnapshot: (element: HTMLElement, shouldStayOriginal?: (node: Element) => boolean) => ({
+            slots: textSlots(element, shouldStayOriginal).map(({source}) => ({source})),
         }),
         evaluateHardGuard: (element: Element) => ({prune: isProtected(element)}),
         getComposedParent: (element: Element) => element.parentElement ??
             ((element.getRootNode?.() as {host?: Element})?.host ?? null),
         isProtectedDescendantElement: (element: Element) => element.matches(protectedSelector),
         isTranslationTextElementProtected: (element: Element) => isProtected(element),
-        getCurrentTranslationCore: () => ({
-            shouldStayOriginal: () => false,
+        getCurrentTranslationCore: (scope = "content") => ({
+            shouldStayOriginal: (element: Element) => scope !== "all" && Boolean(element.closest("[data-content-excluded]")),
             shouldIgnoreMutation: () => false,
             inspect: (element: HTMLElement) => ({
                 candidate: [...runtime.candidates].reverse().find((candidate) =>
-                    candidate.element === element && !isProtected(candidate.element)),
+                    (candidate.scope !== "all" || scope === "all") && candidate.element === element && !isProtected(candidate.element)),
             }),
             resolve: (start: Node | null | undefined) => [...runtime.candidates].reverse().find((candidate) => {
-                if (!start || isProtected(candidate.element)) return false;
+                if (!start || isProtected(candidate.element) || (candidate.scope === "all" && scope !== "all")) return false;
                 const key = candidate.nodes?.[0] ?? candidate.element;
                 return key === start || candidate.element === start || candidate.element.contains(start);
             }),
@@ -200,6 +202,8 @@ vi.mock("@/src/core/translation/public", () => {
                     yield {phase: "enter", element: segment};
                 }
                 for (const candidate of runtime.candidates) {
+                    if (scope === "all") yield {phase: "enter", element: candidate.element};
+                    if (candidate.scope === "all" && scope !== "all") continue;
                     if (isProtected(candidate.element)) continue;
                     if (candidate.element.matches('[data-fr-translation-segment="true"]') ||
                         candidate.element.querySelector('[data-fr-translation-segment="true"]')) continue;
@@ -236,6 +240,8 @@ vi.mock("@/src/core/translation/public", () => {
 
 import {
     autoTranslateEnglishPage,
+    translateAllPageNodes,
+    getFullPageTranslationFrameState,
     cancelPendingHoverTranslation,
     handleBilingualTranslation,
     handleTranslation,
@@ -429,6 +435,145 @@ describe("全文翻译可见性锚点", () => {
             else Reflect.deleteProperty(globalThis, name);
         }
         replacedGlobals.clear();
+    });
+
+    it("Issue 422 补扫未进入视口的菜单并保留已有正文译文和会话配置", async () => {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<p>Research paragraph.</p><nav><a href="/workflows">Workflows</a></nav>';
+        const paragraph = document.querySelector<HTMLElement>('p')!;
+        const link = document.querySelector<HTMLElement>('a')!;
+        setLayoutBox(paragraph, 600, 90); setLayoutBox(link, 120, 30);
+        runtime.candidates = [
+            {element: paragraph, kind: 'content', reason: 'paragraph'},
+            {element: link, kind: 'control', reason: 'menu', scope: 'all'},
+        ];
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(50);
+        TestIntersectionObserver.instances[0]!.emit(paragraph, true);
+        await finishScheduledWork();
+        const wrapper = paragraph.querySelector('.fluent-read-bilingual-content');
+        const originalSession = getFullPageTranslationFrameState();
+        expect(link.textContent).toBe('Workflows');
+        runtime.config.to = 'ja';
+        translateAllPageNodes();
+        await finishScheduledWork();
+        expect(link.textContent).toBe('译:Workflows');
+        expect(getTranslationState(link)?.scope).toBe('all');
+        expect(paragraph.querySelector('.fluent-read-bilingual-content')).toBe(wrapper);
+        expect(getFullPageTranslationFrameState()).toMatchObject({
+            scope: 'all', fullPageMode: 'all', sessionId: originalSession.sessionId,
+            translationConfig: {targetLanguage: 'zh'},
+        });
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(link.getAttribute('href')).toBe('/workflows');
+        translateAllPageNodes();
+        await finishScheduledWork();
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        restoreOriginalContent();
+        expect(paragraph.textContent).toBe('Research paragraph.');
+        expect(link.textContent).toBe('Workflows');
+        autoTranslateEnglishPage();
+        expect(getFullPageTranslationFrameState().scope).toBe('content');
+    });
+
+    it("Issue 422 从未翻译页面主动扫描，并持续翻译后来插入的菜单", async () => {
+        document.body.innerHTML = '<nav><button>Open menu</button></nav>';
+        const button = document.querySelector<HTMLElement>('button')!;
+        const originalText = button.firstChild;
+        setLayoutBox(button, 100, 30);
+        runtime.candidates = [{element: button, kind: 'control', reason: 'menu', scope: 'all'}];
+        translateAllPageNodes();
+        await finishScheduledWork();
+        expect(button.textContent).toBe('译:Open menu');
+        expect(button.firstChild).toBe(originalText);
+        const item = document.createElement('div'); item.setAttribute('role', 'menuitem'); item.textContent = 'Execute workflow';
+        document.body.append(item); setLayoutBox(item, 200, 30);
+        runtime.candidates.push({element: item, kind: 'control', reason: 'dynamic-menu', scope: 'all'});
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: 'childList', target: document.body, addedNodes: [item], removedNodes: [],
+        } as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(item.textContent).toBe('译:Execute workflow');
+        restoreOriginalContent();
+        expect(button.textContent).toBe('Open menu'); expect(item.textContent).toBe('Execute workflow');
+        translateAllPageNodes(); await finishScheduledWork();
+        expect(button.textContent).toBe('译:Open menu'); expect(item.textContent).toBe('译:Execute workflow');
+    });
+
+    it("Issue 422 补扫时保留在途正文请求，恢复后拒绝迟到的菜单译文", async () => {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<p>Pending paragraph.</p><button>Credentials</button>';
+        const paragraph = document.querySelector<HTMLElement>('p')!;
+        const button = document.querySelector<HTMLElement>('button')!;
+        setLayoutBox(paragraph, 600, 90); setLayoutBox(button, 100, 30);
+        runtime.candidates = [{element: paragraph, kind: 'content', reason: 'paragraph'}, {element: button, kind: 'control', reason: 'menu', scope: 'all'}];
+        const pendingParagraph = deferred<string[]>(); const pendingButton = deferred<string[]>();
+        runtime.requests.mockReturnValueOnce(pendingParagraph.promise).mockReturnValueOnce(pendingButton.promise);
+        autoTranslateEnglishPage(); await vi.advanceTimersByTimeAsync(50);
+        TestIntersectionObserver.instances[0]!.emit(paragraph, true); await waitForRequestCount(1);
+        const controller = getTranslationState(paragraph)!.controller;
+        translateAllPageNodes(); await vi.advanceTimersByTimeAsync(100); await waitForRequestCount(2);
+        expect(controller.signal.aborted).toBe(false);
+        pendingParagraph.resolve(['正文译文']); await vi.advanceTimersByTimeAsync(100);
+        expect(paragraph.querySelector('.fluent-read-bilingual-content')?.textContent).toBe('正文译文');
+        restoreOriginalContent(); pendingButton.resolve(['凭据']); await finishScheduledWork();
+        expect(button.textContent).toBe('Credentials'); expect(paragraph.textContent).toBe('Pending paragraph.');
+        expect(isFullPageTranslationActive()).toBe(false);
+    });
+
+    it("Issue 422 补扫将普通模式误作正文的应用标签改为原位控件，并保留 Text 身份", async () => {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<div id="label">Research documents</div>';
+        const label = document.querySelector<HTMLElement>('#label')!;
+        const text = label.firstChild;
+        setLayoutBox(label, 200, 30);
+        runtime.candidates = [{element: label, kind: 'content', reason: 'generic-block'}];
+        autoTranslateEnglishPage(); await vi.advanceTimersByTimeAsync(50);
+        TestIntersectionObserver.instances[0]!.emit(label, true); await finishScheduledWork();
+        expect(label.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+        runtime.candidates = [{element: label, kind: 'control', reason: 'application-label', scope: 'all'}];
+        translateAllPageNodes(); await finishScheduledWork();
+        expect(label.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(0);
+        expect(label.textContent).toBe('译:Research documents');
+        expect(label.firstChild).toBe(text);
+        expect(getTranslationState(label)).toMatchObject({scope: 'all', kind: 'control'});
+        restoreOriginalContent();
+        expect(label.textContent).toBe('Research documents'); expect(label.firstChild).toBe(text);
+    });
+
+    it.each(['content', 'control'] as const)("Issue 422 补扫扩大已有 %s 的可译槽，并仅重译该 owner", async (kind) => {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<div id="target">Search <span data-content-excluded>Analysis completed</span></div><p id="prose">Stable paragraph.</p>';
+        const target = document.querySelector<HTMLElement>('#target')!;
+        const prose = document.querySelector<HTMLElement>('#prose')!;
+        const label = target.querySelector('span')!;
+        setLayoutBox(target, 250, 40); setLayoutBox(prose, 600, 90);
+        runtime.candidates = [{element: target, kind, reason: 'adapter'}, {element: prose, kind: 'content', reason: 'paragraph'}];
+        runtime.config.fullPageTranslationMode = 'all';
+        autoTranslateEnglishPage(); await finishScheduledWork();
+        expect(runtime.requests.mock.calls.flatMap(([sources]) => sources)).not.toContain('Analysis completed');
+        const proseWrapper = prose.querySelector('.fluent-read-bilingual-content');
+        runtime.candidates = [{element: target, kind, reason: 'expanded', scope: 'all'}, {element: prose, kind: 'content', reason: 'paragraph', scope: 'all'}];
+        translateAllPageNodes(); await finishScheduledWork();
+        expect(runtime.requests.mock.calls.flatMap(([sources]) => sources)).toContain('Analysis completed');
+        expect(getTranslationState(target)?.scope).toBe('all');
+        expect(prose.querySelector('.fluent-read-bilingual-content')).toBe(proseWrapper);
+        if (kind === 'control') expect(label.textContent).toBe('译:Analysis completed');
+        restoreOriginalContent();
+        expect(target.textContent).toBe('Search Analysis completed'); expect(target.querySelector('span')).toBe(label);
+    });
+
+    it("Issue 422 菜单内部正文已有译文时不创建嵌套候选", async () => {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<p>Read <a href="/guide">the guide</a>.</p>';
+        const paragraph = document.querySelector<HTMLElement>('p')!; const link = document.querySelector<HTMLElement>('a')!;
+        setLayoutBox(paragraph, 600, 90); setLayoutBox(link, 100, 30);
+        runtime.candidates = [{element: paragraph, kind: 'content', reason: 'paragraph'}, {element: link, kind: 'control', reason: 'inline link', scope: 'all'}];
+        autoTranslateEnglishPage(); await vi.advanceTimersByTimeAsync(50); TestIntersectionObserver.instances[0]!.emit(paragraph, true); await finishScheduledWork();
+        translateAllPageNodes(); await finishScheduledWork();
+        expect(paragraph.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+        expect(link.textContent).toBe('the guide'); expect(getTranslationState(link)).toBeUndefined();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
     });
 
     it("全文会话集中发布启动和结束状态事件", () => {

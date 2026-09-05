@@ -105,4 +105,5 @@ export const styles = {
 // 右键菜单ID常量
 export const CONTEXT_MENU_IDS = {
     TRANSLATE_FULL_PAGE: 'fluent-read-translate-full-page',
+    TRANSLATE_ALL_NODES: 'fluent-read-translate-all-nodes',
 }

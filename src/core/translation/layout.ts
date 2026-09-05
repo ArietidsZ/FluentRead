@@ -2,7 +2,7 @@
  * @file src/core/translation/layout.ts
  *
  * 文件职责：判定页面元素的语义块、内联关系和可重组边界，为候选引擎选择合理翻译粒度并保护页面布局。
- * 主要内容：识别 heading、block、inline、结构标签、嵌入式 aside 和 reparent 边界，限制直接子节点探测数量，并提供候选目标及内联 run 相关的布局函数。 可核对的公开符号包括 isSemanticHeadingElement、getElementDisplay、isBlockBoundary、isStructuralContainer、hasStructuralAncestor、isTranslationControlElement、hasDirectReadableText、hasReadableBlockChild。
+ * 主要内容：识别 heading、block、inline、结构标签、嵌入式 aside 和 reparent 边界，并在全部节点范围区分正文所有权与应用控件标签，限制直接子节点探测数量，并提供候选目标及内联 run 相关的布局函数。 可核对的公开符号包括 isSemanticHeadingElement、getElementDisplay、isBlockBoundary、isStructuralContainer、hasStructuralAncestor、isTranslationControlElement、hasDirectReadableText、hasReadableBlockChild。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
@@ -17,6 +17,7 @@ import {
 } from './text';
 import type {TranslationTextProtectionCache} from './text';
 import type {TranslationTextProtectionOptions} from './dom';
+import type {TranslationCandidateKind, TranslationScope} from './types';
 
 // 这些上限把同步布局分类限制为有界工作；超限时按保守边界处理，避免大型页面阻塞主线程。
 const maxDirectRunNodes = 2048;
@@ -156,6 +157,53 @@ export function isTranslationControlElement(element: Element): boolean {
     return role === 'button' || role === 'menuitem';
 }
 
+const allScopeControlRoles = new Set([
+    'button', 'link', 'menuitem', 'menuitemcheckbox', 'menuitemradio',
+    'tab', 'treeitem', 'option', 'checkbox', 'radio', 'switch',
+]);
+const allScopeControlTags = new Set(['a', 'button', 'label', 'summary', 'legend']);
+const allScopeProseTags = new Set([
+    'article', 'p', 'blockquote', 'address', 'figcaption', 'li', 'dt', 'dd', 'td', 'th',
+]);
+const allScopeUIRoles = new Set([
+    'navigation', 'menu', 'menubar', 'tablist', 'tree', 'toolbar', 'listbox',
+]);
+
+function isAllScopeControl(element: Element): boolean {
+    return allScopeControlTags.has(element.tagName.toLowerCase()) ||
+        allScopeControlRoles.has(element.getAttribute('role')?.trim().toLowerCase() ?? '');
+}
+
+/** 全部节点仍把完整段落/标题交给正文渲染；导航列表和应用标签使用原位文本槽。 */
+export function getAllScopeCandidateKind(element: Element): TranslationCandidateKind {
+    if (isSemanticHeadingElement(element)) return 'content';
+    if (isStructuralContainer(element) ||
+        allScopeUIRoles.has(element.getAttribute('role')?.trim().toLowerCase() ?? '')) return 'control';
+    if (!allScopeProseTags.has(element.tagName.toLowerCase()) &&
+        element.getAttribute('role')?.trim().toLowerCase() !== 'article' &&
+        !hasArticleAncestor(element)) return 'control';
+    return hasComposedAncestor(element, (ancestor) =>
+        isStructuralContainer(ancestor) ||
+        isAllScopeControl(ancestor) ||
+        allScopeUIRoles.has(ancestor.getAttribute('role')?.trim().toLowerCase() ?? ''))
+        ? 'control'
+        : 'content';
+}
+
+/**
+ * 内联强调和链接沿用最近正文/控件的文本所有权，避免扩大范围后把现有段落细分成嵌套
+ * 译文。普通应用 div/span 不形成该语义边界，因此独立标签仍可作为原位控件发现。
+ */
+function hasAllScopeSemanticOwner(element: Element): boolean {
+    let crossedUIBoundary = false;
+    return hasComposedAncestor(element, (ancestor) => {
+        crossedUIBoundary = crossedUIBoundary || isStructuralContainer(ancestor) ||
+            allScopeUIRoles.has(ancestor.getAttribute('role')?.trim().toLowerCase() ?? '');
+        return !crossedUIBoundary &&
+            (isAllScopeControl(ancestor) || getAllScopeCandidateKind(ancestor) === 'content');
+    });
+}
+
 export function hasDirectReadableText(
     element: Element,
     shouldStayOriginal?: (element: Element) => boolean,
@@ -202,16 +250,19 @@ export function getDirectInlineRuns(
     isAdditionalBarrier?: (element: Element) => boolean,
     protectionCache?: TranslationTextProtectionCache,
     protectionOptions?: TranslationTextProtectionOptions,
+    scope: TranslationScope = 'content',
 ): ChildNode[][] {
-    if (isDocumentSurface(element) || isStructuralContainer(element) ||
-        (!skipStructuralAncestorCheck && hasStructuralAncestor(element))) return [];
-    if (shouldStayOriginal?.(element) || isProtectedTextElement(element) || !isBlockBoundary(element)) return [];
+    if (scope === 'content' && (isDocumentSurface(element) || isStructuralContainer(element) ||
+        (!skipStructuralAncestorCheck && hasStructuralAncestor(element)))) return [];
+    if (shouldStayOriginal?.(element) || isProtectedTextElement(element) ||
+        (scope === 'content' && !isBlockBoundary(element))) return [];
     if (element.childNodes.length > maxDirectRunNodes) return [];
     if (!hasDirectReadableText(element, shouldStayOriginal, protectionCache, protectionOptions)) return [];
     const hasBlockBarrier = hasReadableBlockChild(element, shouldStayOriginal, protectionCache, protectionOptions);
     const hasAdditionalBarrier = !hasBlockBarrier && isAdditionalBarrier &&
         Array.from(element.children).some((child) => isAdditionalBarrier(child));
-    if (!hasBlockBarrier && !hasAdditionalBarrier) return [];
+    if (!hasBlockBarrier && !hasAdditionalBarrier &&
+        !(scope === 'all' && isDocumentSurface(element))) return [];
 
     const runs: ChildNode[][] = [];
     let current: ChildNode[] = [];
@@ -254,15 +305,17 @@ export function classifyGenericCandidate(
     skipStructuralAncestorCheck = false,
     protectionCache?: TranslationTextProtectionCache,
     protectionOptions?: TranslationTextProtectionOptions,
+    scope: TranslationScope = 'content',
 ): GenericClassification | null {
     const semanticHeading = isSemanticHeadingElement(element);
-    if (isDocumentSurface(element) || isStructuralContainer(element) ||
-        (!skipStructuralAncestorCheck && hasStructuralAncestor(element) && !semanticHeading)) {
+    if (isDocumentSurface(element) || (scope === 'content' && (isStructuralContainer(element) ||
+        (!skipStructuralAncestorCheck && hasStructuralAncestor(element) && !semanticHeading)))) {
         return null;
     }
     if (shouldStayOriginal?.(element) || isProtectedTextElement(element)) return null;
 
-    if (isTranslationControlElement(element)) {
+    if (isTranslationControlElement(element) ||
+        (scope === 'all' && isAllScopeControl(element) && !hasAllScopeSemanticOwner(element))) {
         if (!hasMeaningfulTranslationTextInNodes(
             [element],
             shouldStayOriginal,
@@ -272,7 +325,8 @@ export function classifyGenericCandidate(
         return {kind: 'control', reason: 'generic-control'};
     }
 
-    if (!isBlockBoundary(element)) return null;
+    const block = isBlockBoundary(element);
+    if (!block && (scope === 'content' || hasAllScopeSemanticOwner(element))) return null;
     if (!hasMeaningfulTranslationTextInNodes(
         [element],
         shouldStayOriginal,
@@ -282,5 +336,8 @@ export function classifyGenericCandidate(
     // 含可读块级子节点的容器是结构边界，不是回退目标。若悬浮时选中它，实际命中位于
     // header/aside 子节点时可能误翻译整个应用外壳。
     if (hasReadableBlockChild(element, shouldStayOriginal, protectionCache, protectionOptions)) return null;
-    return {kind: 'content', reason: 'generic-readable-block'};
+    return {
+        kind: scope === 'all' ? getAllScopeCandidateKind(element) : 'content',
+        reason: block ? 'generic-readable-block' : 'generic-readable-label',
+    };
 }

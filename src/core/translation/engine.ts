@@ -2,7 +2,7 @@
  * @file src/core/translation/engine.ts
  *
  * 文件职责：实现 DOM 节点到 TranslationCandidate 的核心解析引擎，协调安全守卫、站点适配器、布局边界和文本有效性。
- * 主要内容：定义 TranslationCandidateCore、候选优选与键值函数，记录发现步骤和原因，处理 hover 屏障、适配优先级、缓存及坐标命中，保证全文与悬浮共享决策。 可核对的公开符号包括 TranslationCoreInspection、TranslationDiscoveryStep、getTranslationCandidateKey、selectPreferredTranslationCandidate、TranslationCandidateCore。
+ * 主要内容：定义 TranslationCandidateCore、候选优选与键值函数，记录发现步骤和原因，按正文/全部节点范围协调语义所有权、hover 屏障、适配优先级、缓存及坐标命中，保证同范围的全文与悬浮共享决策。 可核对的公开符号包括 TranslationCoreInspection、TranslationDiscoveryStep、getTranslationCandidateKey、selectPreferredTranslationCandidate、TranslationCandidateCore。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
@@ -23,6 +23,7 @@ import type {TranslationTextProtectionOptions} from './dom';
 import {
     classifyGenericCandidate,
     getDirectInlineRuns,
+    getAllScopeCandidateKind,
     hasStructuralAncestor,
     isBlockBoundary,
     isSemanticHeadingElement,
@@ -41,6 +42,7 @@ import type {
     TranslationCandidate,
     TranslationCoreOptions,
     TranslationSiteAdapter,
+    TranslationScope,
 } from './types';
 import {
     findAdapterPrunedAncestor,
@@ -160,13 +162,17 @@ export function selectPreferredTranslationCandidate(
 /** 候选发现门面；翻译调度与渲染仍留在 runtime 端口。 */
 export class TranslationCandidateCore {
     readonly url: URL;
+    readonly scope: TranslationScope;
     readonly adapters: readonly TranslationSiteAdapter[];
     private readonly context: AdapterContext;
     private readonly discoveredCandidateChildBarriers = new WeakMap<Element, ReadonlySet<Element>>();
 
     constructor(options: TranslationCoreOptions = {}) {
         this.url = options.url ?? currentURL();
-        this.adapters = (options.adapters ?? [])
+        this.scope = options.scope ?? 'content';
+        // 全部节点是用户显式选择的通用界面范围，不继承站点的正文白名单、控件裁剪与
+        // 元数据排除。脚本、表单输入、代码、隐藏区域等保护仍由统一 DOM 硬守卫负责。
+        this.adapters = (this.scope === 'all' ? [] : options.adapters ?? [])
             .map((adapter, index) => ({adapter, index}))
             .filter(({adapter}) => {
                 try {
@@ -183,10 +189,13 @@ export class TranslationCandidateCore {
 
     private candidateResolutionMetadata(
         evaluationContext?: ResolutionEvaluationContext,
-    ): Pick<TranslationCandidate, 'allowTopLevelApplicationShell'> {
-        return evaluationContext?.topLevelApplicationShellBypassed === true
-            ? {allowTopLevelApplicationShell: true}
-            : {};
+    ): Pick<TranslationCandidate, 'allowTopLevelApplicationShell' | 'scope'> {
+        return {
+            ...(this.scope === 'all' ? {scope: this.scope} : {}),
+            ...(evaluationContext?.topLevelApplicationShellBypassed === true
+                ? {allowTopLevelApplicationShell: true}
+                : {}),
+        };
     }
 
     private adapterDecision(
@@ -352,6 +361,7 @@ export class TranslationCandidateCore {
         element: Element,
         evaluationContext: ResolutionEvaluationContext,
     ): boolean {
+        if (this.scope === 'all') return false;
         const cached = evaluationContext.structuralContainers.get(element);
         if (cached !== undefined) return cached;
         const result = isStructuralContainer(element);
@@ -424,7 +434,7 @@ export class TranslationCandidateCore {
             return {candidate: null};
         }
 
-        if (evaluationContext &&
+        if (this.scope === 'content' && evaluationContext &&
             this.hasStructuralAncestorForResolution(element, evaluationContext) &&
             !isSemanticHeadingElement(element)) {
             return {candidate: null};
@@ -435,6 +445,7 @@ export class TranslationCandidateCore {
             evaluationContext !== undefined,
             textProtectionCache,
             evaluationContext?.textProtectionOptions,
+            this.scope,
         );
         if (!classification) {
             return {candidate: null};
@@ -470,7 +481,10 @@ export class TranslationCandidateCore {
         };
         const isDirectRunBarrier = (candidate: Element): boolean =>
             candidateChildBarriers?.has(candidate) === true ||
-            isAtomicAdapterTarget(candidate) || isTranslationControlElement(candidate);
+            isAtomicAdapterTarget(candidate) || isTranslationControlElement(candidate) ||
+            (this.scope === 'all' && isTranslationTextElementProtected(
+                candidate, this.shouldStayOriginal, textProtectionCache, protectionOptions,
+            ));
         for (const run of getDirectInlineRuns(
             element,
             this.shouldStayOriginal,
@@ -478,6 +492,7 @@ export class TranslationCandidateCore {
             isDirectRunBarrier,
             textProtectionCache,
             protectionOptions,
+            this.scope,
         )) {
             const partitions = partitionInlineRunAtBarriers(
                 run,
@@ -493,7 +508,7 @@ export class TranslationCandidateCore {
                     candidates.push({
                         element: element as HTMLElement,
                         nodes,
-                        kind: 'content',
+                        kind: this.scope === 'all' ? getAllScopeCandidateKind(element) : 'content',
                         reason: 'generic-inline-run',
                         ...this.candidateResolutionMetadata(evaluationContext),
                     });
@@ -509,18 +524,21 @@ export class TranslationCandidateCore {
         textProtectionCache: TranslationTextProtectionCache,
     ): TranslationCandidate | null {
         if (!this.allowsGenericCandidates()) return null;
-        if (insideStructural && !isSemanticHeadingElement(element)) return null;
+        if (this.scope === 'content' && insideStructural && !isSemanticHeadingElement(element)) return null;
         const classification = classifyGenericCandidate(
             element,
             this.shouldStayOriginal,
             true,
             textProtectionCache,
+            undefined,
+            this.scope,
         );
         if (!classification) return null;
         return {
             element: element as HTMLElement,
             kind: classification.kind,
             reason: classification.reason,
+            ...this.candidateResolutionMetadata(),
         };
     }
 
@@ -529,11 +547,11 @@ export class TranslationCandidateCore {
         start: Node,
         evaluationContext: ResolutionEvaluationContext,
     ): TranslationCandidate | null {
-        if (isDocumentSurface(element) ||
+        if (this.scope === 'content' && (isDocumentSurface(element) ||
             this.isStructuralContainerForResolution(element, evaluationContext) ||
             this.hasStructuralAncestorForResolution(element, evaluationContext) ||
             !isBlockBoundary(element) ||
-            element.children.length === 0) {
+            element.children.length === 0)) {
             return null;
         }
         // 优先探测全文后序发现记录的所有权屏障，再在统一严格预算内复核每个内联子节点；
@@ -606,17 +624,19 @@ export class TranslationCandidateCore {
             ? (start as Text).parentElement
             : isElementNode(start) ? start : null;
         if (!current) return null;
-        const evaluationContext = createResolutionEvaluationContext({
+        const evaluationContext = createResolutionEvaluationContext(this.scope === 'content' ? {
             allowTopLevelApplicationShell: true,
             protectedElement: current,
-        });
+        } : undefined);
         const textProtectionCache = evaluationContext.textProtectionCache;
 
-        while (current && !isDocumentSurface(current)) {
+        while (current && (this.scope === 'all' || !isDocumentSurface(current))) {
             if (current.matches('[data-fr-translation-segment="true"]')) {
                 return {
                     element: current as HTMLElement,
-                    kind: 'content',
+                    kind: this.scope === 'all'
+                        ? getAllScopeCandidateKind(getComposedParent(current) ?? current)
+                        : 'content',
                     reason: 'owned-inline-run',
                     ...this.candidateResolutionMetadata(evaluationContext),
                 };
@@ -695,7 +715,7 @@ export class TranslationCandidateCore {
                 candidateChildBarriers: new Set(),
                 exitIndex: 0,
                 checkAncestors: true,
-                insideStructural: hasStructuralAncestor(rootElement),
+                insideStructural: this.scope === 'content' && hasStructuralAncestor(rootElement),
                 pruned: false,
             }];
 
@@ -750,7 +770,8 @@ export class TranslationCandidateCore {
                             candidateChildBarriers: new Set(),
                             exitIndex: 0,
                             checkAncestors: false,
-                            insideStructural: frame.insideStructural || isStructuralContainer(frame.element),
+                            insideStructural: this.scope === 'content' &&
+                                (frame.insideStructural || isStructuralContainer(frame.element)),
                             pruned: false,
                         });
                         continue;
@@ -770,7 +791,8 @@ export class TranslationCandidateCore {
                             candidateChildBarriers: new Set(),
                             exitIndex: 0,
                             checkAncestors: false,
-                            insideStructural: frame.insideStructural || isStructuralContainer(frame.element),
+                            insideStructural: this.scope === 'content' &&
+                                (frame.insideStructural || isStructuralContainer(frame.element)),
                             pruned: false,
                         });
                         continue;
@@ -807,7 +829,11 @@ export class TranslationCandidateCore {
                             frame.insideStructural,
                             textProtectionCache,
                         );
-                        frame.exitCandidates = candidate ? [candidate] : [];
+                        frame.exitCandidates = candidate ? [candidate] : this.scope === 'all'
+                            ? this.inlineRunCandidates(
+                                frame.element, true, textProtectionCache, frame.candidateChildBarriers,
+                            )
+                            : [];
                     }
                     this.discoveredCandidateChildBarriers.set(
                         frame.element,

@@ -33,7 +33,7 @@ export function refreshBilingualTranslationSkeleton(
     if (state.phase !== 'translated' || state.mode !== 'bilingual' || state.kind !== 'content' ||
         !replay || !content || !isTranslationArtifactCurrent(node, state)) return false;
 
-    const core = getCurrentTranslationCore();
+    const core = getCurrentTranslationCore(state.scope);
     const boundary = state.syntheticSegment ? node : undefined;
     const options = protectionOptions(node, state);
     const snapshot = createTranslationSourceSnapshot(node, core.shouldStayOriginal, boundary, options);

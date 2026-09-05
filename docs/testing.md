@@ -51,6 +51,20 @@ pnpm exec vitest run tests/hoverTranslationContentFeature.test.ts tests/fullPage
 
 生产 Chrome 产物另由 `scripts/run-full-page-translation-test.cjs` 验证真实键鼠事件、DOM 工件身份、请求数及连续帧可见性。使用浏览器技能提供的 focus-safe helper 与临时 profile，窗口在第二块屏幕可见但不抢前台。报告必须区分本地确定性服务夹具和真实网站、真实翻译服务的结果。
 
+“识别全部节点”的专项由 `scripts/run-all-nodes-translation-test.cjs` 负责。网页右键菜单的注册、禁用状态和点击路由由后台单元测试覆盖；生产浏览器使用同一内容消息验证菜单动作，另检查菜单已注册且 Popup 中没有该入口。后台测试不抢前台，因此不把消息调用记为原生菜单点击验证。
+
+本地夹具覆盖导航与页脚、工作流工具栏、项目树与标签页、展开内容与动态菜单，以及输入框、编辑器、代码和显式排除区域。断言包含普通翻译后补译、重复扫描、动态新增节点、恢复和再次翻译，并检查元素身份、原有点击事件和保护区域。追加 `--live-epoch --allow-network` 会在真实 Epoch 页面验证导航、图表控件和页脚；两者都使用本地确定性翻译服务，结果用于验证翻译行为，不代表真实供应商的译文质量。
+
+```bash
+node scripts/run-all-nodes-translation-test.cjs \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root <bundled-node-packages> \
+  --focus-safe-helper <browser-translation-test-skill>/scripts/focus-safe-browser.cjs \
+  --background \
+  --artifacts-dir /private/tmp/fluentread-all-nodes \
+  --live-epoch --allow-network
+```
+
 ## 菜单栏首帧与快速关闭
 
 Popup 必须等待配置服务完成读取或安全降级后再挂载。首个可见界面就应使用保存的皮肤、深浅主题和栏目布局；只有最终截图正确不足以证明没有闪烁。

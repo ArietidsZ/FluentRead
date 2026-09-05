@@ -141,6 +141,7 @@
       "tests/translationCacheManagement.test.ts"
     ],
     "functional": [
+      "tests/backgroundContextMenuRuntime.test.ts",
       "tests/aiSdkOpenAICompatible.test.ts",
       "tests/config.test.ts",
       "tests/configAutoBackupStore.test.ts",
@@ -189,7 +190,8 @@
       "tests/translationDocumentCorpus.test.ts",
       "tests/translationTruncation.test.ts",
       "tests/userscriptCredentialPersistence.test.ts",
-      "tests/vocabularyBookComponentLifecycle.test.ts"
+      "tests/vocabularyBookComponentLifecycle.test.ts",
+      "tests/allNodesTranslationCore.test.ts"
     ]
   }
 }
