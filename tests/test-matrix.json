@@ -29,6 +29,7 @@
       "tests/userscriptViteConfig.test.ts"
     ],
     "unit": [
+      "tests/modalDialogHost.test.ts",
       "tests/aiContextPresentation.test.ts",
       "tests/aiSdkEndpoints.test.ts",
       "tests/aiSdkErrors.test.ts",
@@ -165,6 +166,7 @@
       "tests/siteAdaptationCatalog.test.ts"
     ],
     "functional": [
+      "tests/settingsCompositionAutosave.test.ts",
       "tests/aiSdkOpenAICompatible.test.ts",
       "tests/config.test.ts",
       "tests/configAutoBackupStore.test.ts",
@@ -213,6 +215,7 @@
       "tests/siteAdaptationRuntime.test.ts"
     ],
     "regression": [
+      "tests/upstreamTranslationBoundaries.test.ts",
       "tests/documentTranslationExamplesApi.test.ts",
       "tests/documentTranslationRegression.test.ts",
       "tests/documentTranslationEdge.test.ts",
@@ -222,6 +225,7 @@
       "tests/mainWorldBridgeCore.test.ts",
       "tests/serializationPerformance.test.ts",
       "tests/siteTranslationHarness.test.ts",
+      "tests/siteTranslationIdle.test.ts",
       "tests/translationDocumentCorpus.test.ts",
       "tests/translationTruncation.test.ts",
       "tests/userscriptCredentialPersistence.test.ts",

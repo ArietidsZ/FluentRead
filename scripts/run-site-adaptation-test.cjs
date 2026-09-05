@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const assert = require('node:assert/strict');
+const {inspectFixtureTranslationParts} = require('./site-translation/fixture-translation-parts.cjs');
 const argument = (key, fallback) => {
   const index = process.argv.indexOf(`--${key}`);
   return index < 0 ? fallback : process.argv[index + 1];
@@ -162,6 +163,7 @@ async function runCase(page, item) {
   }
   const original = await Promise.all(item.forbidden.map(selector => page.locator(selector).textContent()));
   const source = await Promise.all(item.required.map(selector => page.locator(selector).textContent()));
+  const restoredHTML = await Promise.all((item.restoreSelectors ?? []).map(selector => page.locator(selector).innerHTML()));
   const evidence = {id: item.id, url: item.url, kind: isLive ? 'live-page-local-provider' : 'synthetic-domain-fixture', hover: [], full: [], protected: item.forbidden.length};
   for (const count of process.argv.includes('--full-only') ? [] : [1, 0, 1, 0]) {
     item.stage = `hover-${evidence.hover.length}-${count}`;
@@ -176,13 +178,31 @@ async function runCase(page, item) {
     item.stage = `full-${evidence.full.length}-${count}`;
     await fullToggle(page);
     for (const selector of item.required) await waitCount(page, selector, count);
+    if (item.translationParts) {
+      if (count === 1) {
+        await page.waitForFunction(inspectFixtureTranslationParts, {parts: item.translationParts, requireAll: true}, {timeout});
+        (evidence.translationParts ??= []).push(await page.evaluate(inspectFixtureTranslationParts, {parts: item.translationParts}));
+      } else {
+        await page.waitForFunction(() => !document.querySelector(
+          '.fluent-read-bilingual-content, [data-fr-translation-segment="true"]'), null, {timeout});
+      }
+    }
     await verifyProtected(page, item, original);
     if (count === 0) for (let index = 0; index < item.required.length; index++) assert.equal(await page.locator(item.required[index]).textContent(), source[index]);
+    if (count === 0) for (let index = 0; index < restoredHTML.length; index++) {
+      assert.equal(await page.locator(item.restoreSelectors[index]).innerHTML(), restoredHTML[index], `${item.id}: mixed source structure not restored`);
+    }
     evidence.full.push(count);
   }
   if (!isLive) {
     const payload = await worker.evaluate(() => globalThis.__adaptationRequests.flat().join('\n'));
     for (const protectedText of original) assert.ok(!payload.includes(protectedText.trim()), `${item.id}: protected text reached provider`);
+    for (const part of item.translationParts ?? []) {
+      assert.ok(payload.replace(/\s+/gu, ' ').includes(part.sourceIncludes), `${item.id}: source part did not reach provider`);
+      for (const literal of [...(part.preservedText ?? []), ...(part.omittedText ?? [])]) {
+        assert.ok(!payload.replace(/\s+/gu, ' ').includes(literal.replace(/\s+/gu, ' ')), `${item.id}: protected part reached provider`);
+      }
+    }
     evidence.providerProtection = true;
   }
   if (item.id === 'custom-rule') {

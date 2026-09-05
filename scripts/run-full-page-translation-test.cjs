@@ -1555,6 +1555,10 @@ async function pageState(page) {
       buttonIconPresent: Boolean(button?.querySelector('[aria-hidden="true"]')),
       codePreserved: Boolean(get('#paragraph-one .fluent-read-bilingual-content code')?.textContent.includes('const value = 42')),
       linkPreserved: get('#paragraph-one .fluent-read-bilingual-content a')?.getAttribute('href') || null,
+      iconLigatures: Array.from(document.querySelectorAll('[data-icon-ligature]')).map((element) => element.textContent),
+      standaloneIcon: get('#standalone-icon-ligature')?.innerHTML,
+      translationContainsIconLigature: /account_circle|keyboard_return/.test(
+        get('#paragraph-one .fluent-read-bilingual-content')?.textContent || ''),
     };
   });
 }
@@ -2278,6 +2282,8 @@ async function main() {
     }, args.timeout);
     const translated = await pageState(page);
     assertTranslated(translated, '第一次全文翻译');
+    if (JSON.stringify(translated.iconLigatures) !== JSON.stringify(['account_circle']) ||
+        translated.standaloneIcon !== 'keyboard_return' || translated.translationContainsIconLigature) throw new Error(`图标字体结构被翻译：${JSON.stringify(translated)}`);
     const zeroDelayHoverRequestCountBefore = translationFixtureServer.requestCount();
     const zeroDelayHover = await verifyZeroDelayHoverStability(
       page,
@@ -2396,6 +2402,8 @@ async function main() {
     await waitFor(page, () => !document.querySelector('.fluent-read-bilingual-content'), args.timeout);
     const restored = await pageState(page);
     assertRestored(restored);
+    if (JSON.stringify(restored.iconLigatures) !== JSON.stringify(['account_circle']) ||
+        restored.standaloneIcon !== 'keyboard_return') throw new Error(`图标字体恢复失败：${JSON.stringify(restored)}`);
     if (args.verifyFloatingUi) {
       floatingUiEvidence.restored = await waitForFloatingUiState(
         page,
@@ -2507,6 +2515,8 @@ async function main() {
       /[\u3400-\u9fff]/u.test(document.querySelector('#cancel-button')?.textContent || ''), args.timeout);
     const retranslated = await pageState(page);
     assertTranslated(retranslated, '再次全文翻译');
+    if (JSON.stringify(retranslated.iconLigatures) !== JSON.stringify(['account_circle']) ||
+        retranslated.standaloneIcon !== 'keyboard_return' || retranslated.translationContainsIconLigature) throw new Error(`再次翻译破坏图标：${JSON.stringify(retranslated)}`);
     if (args.verifyFloatingUi) {
       await page.waitForFunction(() => !document.querySelector('.fluent-read-loading'), undefined, {timeout: args.timeout});
       floatingUiEvidence.retranslated = await waitForFloatingUiState(
@@ -2529,6 +2539,9 @@ async function main() {
     const fixtureTranslationRequestCount = translationFixtureServer.requestCount();
     const fixtureTranslationItemCount = translationFixtureServer.translatedItemCount();
     assertDeterministicFixtureTraffic(fixtureTranslationRequestCount, unexpectedNetworkRequests);
+    if (translationFixtureServer.requestPayloads().flat().some((text) => /account_circle|keyboard_return/.test(text))) {
+      throw new Error('图标字体连字进入了翻译服务请求');
+    }
 
     const evidence = {
       ok: true,

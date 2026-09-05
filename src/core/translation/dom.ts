@@ -1,8 +1,8 @@
 /**
  * @file src/core/translation/dom.ts
  *
- * 文件职责：封装翻译候选发现使用的 composed tree 遍历与不可覆盖安全守卫，识别扩展 DOM、脚本、表单及禁止翻译区域。
- * 主要内容：提供 Shadow DOM 父级与祖先遍历、硬裁剪标签、受保护文本元素、隐藏/可编辑/no-translate 判断，并限制祖先深度以避免异常页面结构拖垮扫描。 可核对的公开符号包括 maxComposedAncestorDepth、getComposedParent、isDocumentSurface、isExtensionElement、isExtensionElementSelf、isHardPruneTag、isProtectedTextElement、hasNoTranslateMarker、isTopLevelApplicationShell。
+ * 文件职责：封装翻译候选发现使用的 composed tree 遍历与不可覆盖安全守卫，识别扩展 DOM、脚本、表单、图标字体、Scribble 代码表格、纯文本正文及禁止翻译区域。
+ * 主要内容：提供 Shadow DOM 父级与祖先遍历、硬裁剪标签、受保护文本元素、text/plain 顶层 pre、隐藏/可编辑/no-translate 判断，并限制祖先深度以避免异常页面结构拖垮扫描。 可核对的公开符号包括 maxComposedAncestorDepth、getComposedParent、isDocumentSurface、isExtensionElement、isExtensionElementSelf、isHardPruneTag、isProtectedTextElement、isPlainTextDocumentPre、hasNoTranslateMarker、isTopLevelApplicationShell。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
@@ -67,8 +67,19 @@ export function isHardPruneTag(element: Element): boolean {
     return hardPruneTags.has(element.tagName.toLowerCase());
 }
 
+/** 纯文本文档由浏览器包装为顶层 pre；其内容是正文，不是 HTML 页面中的代码块。 */
+export function isPlainTextDocumentPre(element: Element): boolean {
+    if (element.tagName.toLowerCase() !== 'pre') return false;
+    const document = element.ownerDocument;
+    const contentType = document?.contentType?.split(';', 1)[0]?.trim().toLowerCase();
+    return contentType === 'text/plain' && element.parentElement === document?.body;
+}
+
 export function isProtectedTextElement(element: Element): boolean {
-    return protectedTextTags.has(element.tagName.toLowerCase());
+    // Scribble/Racket 文档使用 table.RktBlk 展示代码，而不是 pre/code。只保护
+    // 明确的代码表格；普通表格或正文上同名的 class 不能扩大成不翻译区域。
+    return (element.tagName.toLowerCase() === 'table' && element.classList.contains('RktBlk')) ||
+        (protectedTextTags.has(element.tagName.toLowerCase()) && !isPlainTextDocumentPre(element));
 }
 
 export function hasNoTranslateMarker(element: Element): boolean {
@@ -97,19 +108,37 @@ export interface TranslationTextProtectionOptions {
     protectedElement?: Element;
 }
 
-export function hasHiddenMarker(element: Element): boolean {
+/** 同一次样式读取同时识别不可见节点和以连字作为字形索引的图标，避免候选热路径重复查询样式。 */
+function getPresentationProtection(element: Element): 'hidden' | 'icon-font' | undefined {
     const htmlElement = element as HTMLElement;
-    if (htmlElement.hidden || htmlElement.inert || element.hasAttribute('inert')) return true;
-    if (element.getAttribute('aria-hidden') === 'true') return true;
-    if (element.classList.contains('sr-only') || element.classList.contains('visually-hidden')) return true;
+    if (htmlElement.hidden || htmlElement.inert || element.hasAttribute('inert')) return 'hidden';
+    if (element.getAttribute('aria-hidden') === 'true') return 'hidden';
+    if (element.classList.contains('sr-only') || element.classList.contains('visually-hidden')) return 'hidden';
 
     try {
         const style = element.ownerDocument?.defaultView?.getComputedStyle(element);
-        if (!style) return false;
-        return style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse';
+        if (!style) return undefined;
+        if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return 'hidden';
+        // 只检查首选字体；正文把图标字体列为 fallback 时仍需翻译。字体家族而非文本内容
+        // 决定 settings 等词是字形索引，不能按单词或宽泛的 class 名裁剪正文。
+        const primaryFamily = (style.fontFamily || '').split(',')[0]!.trim()
+            .replace(/^(['"])(.*)\1$/, '$2').toLowerCase();
+        if (/^(?:google symbols|fontawesome|(?:material (?:icons|symbols)|font awesome)(?: .+)?)$/.test(primaryFamily)) {
+            return 'icon-font';
+        }
+        return undefined;
     } catch {
-        return false;
+        return undefined;
     }
+}
+
+export function hasHiddenMarker(element: Element): boolean {
+    return getPresentationProtection(element) === 'hidden';
+}
+
+/** 图标连字属于宿主展示结构；译文骨架不能在丢失字体样式后将其当作普通文字显示。 */
+export function isIconFontElement(element: Element): boolean {
+    return getPresentationProtection(element) === 'icon-font';
 }
 
 function hasContentEditableMarker(element: Element): boolean {
@@ -149,7 +178,7 @@ export function isProtectedDescendantElement(
                 element !== options.protectedElement &&
                 isTopLevelApplicationShell(element))) ||
         hasContentEditableMarker(element) ||
-        hasHiddenMarker(element);
+        getPresentationProtection(element) !== undefined;
 }
 
 export interface HardGuardResult {
@@ -163,7 +192,8 @@ export function evaluateElementHardGuard(element: Element): HardGuardResult {
     if (isMathRendererElement(element)) return {prune: true, reason: 'math-renderer'};
     if (hasNoTranslateMarker(element)) return {prune: true, reason: 'inherited-no-translate'};
     if (hasContentEditableMarker(element)) return {prune: true, reason: 'contenteditable'};
-    if (hasHiddenMarker(element)) return {prune: true, reason: 'hidden'};
+    const presentationProtection = getPresentationProtection(element);
+    if (presentationProtection) return {prune: true, reason: presentationProtection};
     return {prune: false};
 }
 
