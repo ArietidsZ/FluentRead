@@ -75,6 +75,7 @@ const expectedNavigation = [
   ['settings-translation-center', '翻译中心'],
   ['settings-model-usage', '模型用量'],
   ['settings-vocabulary', '单词本'],
+  ['settings-harness', 'DeepSeek Harness'],
   ['settings-advanced', '高级选项'],
   ['settings-data', '备份与恢复'],
   ['settings-about', '关于流畅阅读'],
@@ -82,7 +83,7 @@ const expectedNavigation = [
 const expectedNavigationGroups = [
   ['基础配置', ['settings-general', 'settings-interface', 'settings-services', 'settings-translation']],
   ['专项翻译', ['settings-image-translation', 'settings-video', 'settings-sites']],
-  ['工具与学习', ['settings-translation-center', 'settings-model-usage', 'settings-vocabulary']],
+  ['工具与学习', ['settings-translation-center', 'settings-model-usage', 'settings-vocabulary', 'settings-harness']],
   ['系统与数据', ['settings-advanced', 'settings-data', 'settings-about']],
 ];
 const expectedGeneralGroups = ['选择翻译服务', '译文显示', '网页辅助'];
@@ -2188,6 +2189,20 @@ async function main() {
     report.screenshots.push(await screenshot(page, 'settings-model-usage-filter-open.png'));
     await page.keyboard.press('Escape');
     await openFilterDropdown.waitFor({state: 'hidden', timeout});
+    const averageDisclosure = page.locator('#settings-model-usage details.usage-average-card');
+    if (await averageDisclosure.getAttribute('open') !== null) {
+      throw new Error('模型用量平均构成没有默认收起');
+    }
+    const requestDisclosure = page.locator('#settings-model-usage details.usage-request-log-card');
+    if (await requestDisclosure.getAttribute('open') !== null
+      || !(await requestDisclosure.locator('summary').textContent())?.includes('请求记录')) {
+      throw new Error('模型用量请求记录没有显示默认收起的明确入口');
+    }
+    const allCoverageNotice = await page.locator('#settings-model-usage .usage-coverage-note').textContent();
+    if (!allCoverageNotice?.includes('66.7%')) {
+      throw new Error(`全部调用 Token 上报率没有计入失败请求：${allCoverageNotice}`);
+    }
+    await averageDisclosure.locator('summary').click();
     const allAverageValues = (await page.locator('#settings-model-usage .usage-average-value strong').allTextContents())
       .map(value => value.trim());
     if (JSON.stringify(allAverageValues) !== JSON.stringify([
@@ -2204,7 +2219,7 @@ async function main() {
     }
     const breakdownTotals = (await page.locator('#settings-model-usage .usage-breakdown-total').allTextContents())
       .map(value => value.trim());
-    if (JSON.stringify(breakdownTotals) !== JSON.stringify(['600', '500', '150', '0'])) {
+    if (JSON.stringify(breakdownTotals) !== JSON.stringify(['600', '500', '150', '—'])) {
       throw new Error('模型用量分布排序异常：' + JSON.stringify(breakdownTotals));
     }
     const breakdownRequests = (await page.locator('#settings-model-usage .usage-breakdown-requests').allTextContents())
@@ -2213,16 +2228,18 @@ async function main() {
       throw new Error('模型用量请求次数列异常：' + JSON.stringify(breakdownRequests));
     }
     await page.getByRole('button', {name: '按输入排序', exact: true}).click();
-    const breakdownSortedByInput = (await page.locator('#settings-model-usage .usage-breakdown-value').evaluateAll(elements => elements
+    const inputValues = await page.locator('#settings-model-usage .usage-breakdown-value').evaluateAll(elements => elements
       .filter((_, index) => index % 5 === 0)
-      .map(element => element.textContent?.trim())))
-      .every((value, index, values) => index === 0 || Number(values[index - 1]) >= Number(value));
-    if (!breakdownSortedByInput) throw new Error('模型用量没有按输入 Token 降序排列');
+      .map(element => element.textContent?.trim()));
+    // DeepSeek 的这条失败调用没有上报 Token，必须明确显示“—”并排在末尾。
+    // 不把它强制转为 0；真实上报的零 Token 与缺少用量是不同状态。
+    const breakdownSortedByInput = JSON.stringify(inputValues) === JSON.stringify(['420', '300', '100', '—']);
+    if (!breakdownSortedByInput) throw new Error('模型用量没有按输入 Token 降序排列并将未知值置后：' + JSON.stringify(inputValues));
     await page.getByRole('button', {name: '按输出排序', exact: true}).click();
     const outputValues = (await page.locator('#settings-model-usage .usage-breakdown-list > button .usage-breakdown-value').evaluateAll(elements => elements
       .filter((_, index) => index % 5 === 2)
       .map(element => element.textContent?.trim())));
-    if (JSON.stringify(outputValues) !== JSON.stringify(['200', '180', '50', '0'])) {
+    if (JSON.stringify(outputValues) !== JSON.stringify(['200', '180', '50', '—'])) {
       throw new Error('模型用量没有按输出 Token 降序排列：' + JSON.stringify(outputValues));
     }
     await page.getByRole('button', {name: '按次数排序', exact: true}).click();
@@ -2306,7 +2323,7 @@ async function main() {
     await selectElementPlusOption(page, '模型用量模型', 'deepseek-chat');
     await page.waitForFunction(() => {
       const text = document.querySelector('#settings-model-usage .usage-token-card .usage-card-heading strong')?.textContent || '';
-      return Number(text.replace(/[^0-9]/g, '')) === 0
+      return text.trim() === '—'
         && document.querySelector('#settings-model-usage .usage-compact-card')?.textContent?.includes('1');
     }, undefined, {timeout});
     if (await page.locator('#settings-model-usage .usage-ratio').count() !== 0) {
@@ -2348,6 +2365,8 @@ async function main() {
       filterPlaceholderMetrics,
       filterDropdownMetrics,
       tokenCoverage: coverageNotice,
+      allCallTokenCoverage: allCoverageNotice?.trim(),
+      progressiveDisclosure: true,
       resetCancelPreserved: true,
       rangeKeyboard: true,
       resetFocusLoop: true,

@@ -70,6 +70,22 @@ node scripts/testing/run-popup-startup-ui-test.cjs \
 
 加载动画另由 `scripts/testing/run-loading-motion-ui-test.cjs` 验证，使用相同的扩展目录、Playwright 与 focus-safe helper 参数。它在测试页面保留 closed ShadowRoot 句柄，检查 15 种动画的真实运动、关闭与系统减少动态效果后的静态反馈，并验证同一文档只解析一份共享样式表。采样窗口覆盖包含停顿的完整动画周期，避免把沙漏停顿误判为失效；跨文档样式隔离与旧浏览器的安全回退也有独立断言。
 
+## 模型用量界面
+
+模型用量的独立生产扩展回归使用临时 Edge profile 和同一套防抢焦点 helper：
+
+```bash
+node scripts/testing/run-model-usage-ui-test.cjs \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root <path> \
+  --focus-safe-helper <path> \
+  --artifacts-dir /private/tmp/fluentread-model-usage-ui
+```
+
+脚本将确定性数据写入本次临时扩展的 IndexedDB，验证概览、缓存与推理不重复计数、上报覆盖率、实际零值与未上报的区别、双指标趋势与精确数字、键盘选取、筛选后晚到响应隔离、折叠与分页、英文界面，以及 1440/820/390 像素下的亮暗布局。截图中的用量是测试数据，不是用户真实使用记录。报告包含逐项结果、横轴日期完整性、窗口位置、前台应用检查和控制台错误。
+
+该专项不替代完整设置中心与其他翻译功能的浏览器回归。
+
 ## 一键回归
 
 本地确定性回归负责测试审计、WXT prepare、类型检查、严格覆盖率、四组 Vitest、Chrome/Firefox/userscript 构建及文档构建：
