@@ -451,6 +451,7 @@ describe("全文翻译可见性锚点", () => {
             document.documentElement,
             expect.objectContaining({
                 attributes: true,
+                attributeOldValue: true,
                 attributeFilter: expect.arrayContaining([
                     "class", "style", "lang", "dir", "translate", "data-fr-translation-owned",
                 ]),
@@ -5181,5 +5182,240 @@ describe("悬停重挂请求与 synthetic 提交回归", () => {
         expect(replacementLink.textContent).toBe(text);
         expect(runtime.requests).toHaveBeenCalledTimes(1);
     });
+
+    it('控件同一 Text 节点的分槽语义改变时，迟到结果不能按相同拼接原文写回', async () => {
+        document.body.innerHTML = '<button id="control"><span>Hello world</span><span> again</span></button>';
+        const owner = document.querySelector<HTMLElement>('#control')!;
+        const first = owner.children[0]!.firstChild as Text;
+        const second = owner.children[1]!.firstChild as Text;
+        runtime.candidates = [{element: owner, kind: 'control', reason: 'split-label'}];
+        const request = deferred<string[]>();
+        runtime.requests.mockReturnValueOnce(request.promise);
+        handleBilingualTranslation(owner, false);
+        await waitForRequestCount(1);
+        const state = getTranslationState(owner)!;
+        expect(state.sourceText).toBe('Hello world again');
+
+        first.data = 'Hello';
+        second.data = ' world again';
+        expect(owner.textContent).toBe('Hello world again');
+        request.resolve(['你好世界', '再次']);
+        await finishScheduledWork();
+
+        expect(getTranslationState(owner)).toBeUndefined();
+        expect(state.controller.signal.aborted).toBe(true);
+        expect(first.data).toBe('Hello');
+        expect(second.data).toBe(' world again');
+        expect(owner.querySelectorAll('[data-fr-translation-owned="true"]')).toHaveLength(0);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([false, true])(
+        '控件请求在途时同源 Text 重挂后，恢复使用实际提交节点且保留宿主后续写入=%s',
+        async (hostEditsAfterCommit) => {
+            document.body.innerHTML = '<button id="control"><span id="label">Save changes</span></button>';
+            const owner = document.querySelector<HTMLElement>('#control')!;
+            const label = document.querySelector<HTMLElement>('#label')!;
+            const original = label.firstChild as Text;
+            runtime.candidates = [{element: owner, kind: 'control', reason: 'control-label'}];
+            const request = deferred<string[]>();
+            runtime.requests.mockReturnValueOnce(request.promise);
+
+            handleBilingualTranslation(owner, false);
+            await waitForRequestCount(1);
+            const state = getTranslationState(owner)!;
+            const replacement = document.createTextNode('Save changes');
+            label.replaceChildren(replacement);
+            request.resolve(['保存更改']);
+            await finishScheduledWork();
+
+            expect(getTranslationState(owner)).toBe(state);
+            expect(replacement.data).toBe('保存更改');
+            expect(state.translatedTextValues?.get(replacement)).toBe('保存更改');
+            expect(state.originalTextValues).toEqual([{node: replacement, value: 'Save changes'}]);
+            if (hostEditsAfterCommit) replacement.data = 'Changes saved by host';
+            restoreOriginalContent();
+            expect(label.firstChild).toBe(replacement);
+            expect(replacement.data).toBe(hostEditsAfterCommit ? 'Changes saved by host' : 'Save changes');
+            expect(original.isConnected).toBe(false);
+            expect(owner.querySelectorAll('[data-fr-translation-owned="true"]')).toHaveLength(0);
+            expect(runtime.requests).toHaveBeenCalledTimes(1);
+        },
+    );
+
+    it.each(['content', 'control'] as const)(
+        '宿主悬停反复写入同值 title/lang 时 %s 译文不会被恢复或重挂',
+        async (kind) => {
+            runtime.config.display = 0;
+            document.body.innerHTML = '<p id="stable" title="Reading help" lang="en">Stable translated source.</p>';
+            const owner = document.querySelector<HTMLElement>('#stable')!;
+            setLayoutBox(owner, 600, 90);
+            runtime.candidates = [{element: owner, kind, reason: 'stable-attribute-owner'}];
+            autoTranslateEnglishPage();
+            await vi.advanceTimersByTimeAsync(50);
+            TestIntersectionObserver.instances[0]!.emit(owner, true);
+            await finishScheduledWork();
+
+            const state = getTranslationState(owner)!;
+            const originalTranslatedHTML = owner.innerHTML;
+            const slot = owner.querySelector('.fluent-read-single-slot');
+            expect(state.phase).toBe('translated');
+            for (let frame = 0; frame < 8; frame += 1) {
+                const records = ['title', 'lang'].map((attributeName) => {
+                    const oldValue = owner.getAttribute(attributeName);
+                    owner.setAttribute(attributeName, oldValue!);
+                    return {type: 'attributes', target: owner, attributeName, oldValue,
+                        addedNodes: [], removedNodes: []} as unknown as MutationRecord;
+                });
+                TestMutationObserver.instances[0]!.emit(records);
+                // 在 observer 回调后立即断言，不能让缓存命中后的下一帧重挂掩盖闪回。
+                expect(getTranslationState(owner)).toBe(state);
+                expect(owner.innerHTML).toBe(originalTranslatedHTML);
+                await vi.advanceTimersByTimeAsync(16);
+            }
+            await finishScheduledWork();
+            expect(state.controller.signal.aborted).toBe(false);
+            expect(owner.querySelector('.fluent-read-single-slot')).toBe(slot);
+            expect(runtime.requests).toHaveBeenCalledTimes(1);
+        },
+    );
+
+    it.each(['direct', 'nested'] as const)(
+        '仅译文 %s 来源在同一 owner 内克隆重建时保留当前原文和宿主随后编辑',
+        async (layout) => {
+            runtime.config.display = 0;
+            runtime.config.fullPageTranslationMode = 'all';
+            let source = 'Preserve this source across an equivalent innerHTML rewrite.';
+            document.body.innerHTML = layout === 'direct'
+                ? `<p id="owner">${source}</p>`
+                : `<p id="owner"><strong><em>${source}</em></strong></p>`;
+            const owner = document.querySelector<HTMLElement>('#owner')!;
+            setLayoutBox(owner, 600, 90);
+            runtime.candidates = [{element: owner, kind: 'content', reason: 'same-owner-single-rewrite'}];
+            autoTranslateEnglishPage();
+            await finishScheduledWork();
+
+            for (let rewrite = 0; rewrite < 2; rewrite += 1) {
+                const removed = Array.from(owner.childNodes);
+                owner.innerHTML = owner.innerHTML;
+                const added = Array.from(owner.childNodes);
+                const clonedSlot = owner.querySelector('.fluent-read-single-slot')!;
+                const clonedSource = clonedSlot.firstChild as Text;
+                expect(clonedSlot.shadowRoot).toBeNull();
+                if (rewrite === 1) {
+                    source = 'The host has replaced this source with a fresh value.';
+                    clonedSource.data = source;
+                }
+                TestMutationObserver.instances[0]!.emit([{
+                    type: 'childList', target: owner, addedNodes: added, removedNodes: removed,
+                } as unknown as MutationRecord]);
+                // 直接在回调后断言，不能用下一轮 discovery/cache 重渲染掩盖原文丢失。
+                expect(owner.textContent).toBe(source);
+                expect(owner.contains(clonedSource)).toBe(true);
+                await finishScheduledWork();
+                expect(owner.textContent).toBe(source);
+                expect(singleTranslationText(owner)).toBe(`译:${source}`);
+                expect(owner.querySelectorAll('.fluent-read-single-slot')).toHaveLength(1);
+            }
+            restoreOriginalContent();
+            expect(owner.textContent).toBe(source);
+            expect(owner.querySelector('.fluent-read-single-slot')).toBeNull();
+            expect(runtime.requests).toHaveBeenCalledTimes(2);
+        },
+    );
+
+    it('同一 owner 单译文槽克隆后立即恢复，先解包新槽而不等待 mutation discovery', async () => {
+        runtime.config.display = 0;
+        runtime.config.fullPageTranslationMode = 'all';
+        const source = 'Restore this original before any mutation callback.';
+        document.body.innerHTML = `<p id="owner">${source}</p>`;
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        setLayoutBox(owner, 600, 90);
+        runtime.candidates = [{element: owner, kind: 'content', reason: 'restore-cloned-single'}];
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        owner.innerHTML = owner.innerHTML;
+        const clonedSource = owner.querySelector('.fluent-read-single-slot')!.firstChild!;
+
+        restoreOriginalContent();
+        expect(owner.firstChild).toBe(clonedSource);
+        expect(owner.textContent).toBe(source);
+        expect(owner.querySelector('[data-fr-translation-owned="true"]')).toBeNull();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(['class', 'hidden'] as const)(
+        '仅译文已提交后，后代原文通过 %s 进入保护区会撤下对应译文槽',
+        async (attributeName) => {
+            runtime.config.display = 0;
+            runtime.config.fullPageTranslationMode = 'all';
+            document.body.innerHTML = '<p id="owner">Readable source <span id="protected">formerly readable suffix.</span></p>';
+            const owner = document.querySelector<HTMLElement>('#owner')!;
+            const descendant = document.querySelector<HTMLElement>('#protected')!;
+            setLayoutBox(owner, 600, 90);
+            runtime.candidates = [{element: owner, kind: 'content', reason: 'single-descendant-protection'}];
+            autoTranslateEnglishPage();
+            await finishScheduledWork();
+            const state = getTranslationState(owner)!;
+            const protectedSlot = descendant.querySelector('.fluent-read-single-slot')!;
+            expect(state.phase).toBe('translated');
+            expect(protectedSlot).not.toBeNull();
+
+            descendant.setAttribute(attributeName, attributeName === 'class' ? 'notranslate' : '');
+            TestMutationObserver.instances[0]!.emit([{
+                type: 'attributes', target: descendant, attributeName, oldValue: null,
+                addedNodes: [], removedNodes: [],
+            } as unknown as MutationRecord]);
+            await finishScheduledWork();
+
+            expect(state.controller.signal.aborted).toBe(true);
+            expect(protectedSlot.isConnected).toBe(false);
+            expect(descendant.querySelector('.fluent-read-single-slot')).toBeNull();
+            expect(descendant.textContent).toBe('formerly readable suffix.');
+            expect(singleTranslationText(owner)).toBe('译:Readable source ');
+            expect(runtime.requests).toHaveBeenCalledTimes(1);
+        },
+    );
+
+    it.each(['loading', 'translated', 'error'] as const)(
+        '%s owner 样式未变时，后代 notranslate class 变化仍会更新翻译来源',
+        async (phase) => {
+            runtime.config.display = 1;
+            document.body.innerHTML = '<p id="owner">Readable source <span id="protected">formerly readable suffix.</span></p>';
+            const owner = document.querySelector<HTMLElement>('#owner')!;
+            const descendant = document.querySelector<HTMLElement>('#protected')!;
+            setLayoutBox(owner, 600, 90);
+            runtime.candidates = [{element: owner, kind: 'content', reason: 'descendant-class-owner'}];
+            const request = deferred<string[]>();
+            if (phase === 'loading') runtime.requests.mockReturnValueOnce(request.promise);
+            if (phase === 'error') runtime.requests.mockRejectedValueOnce(new Error('Temporarily unavailable'));
+            autoTranslateEnglishPage();
+            await vi.advanceTimersByTimeAsync(50);
+            TestIntersectionObserver.instances[0]!.emit(owner, true);
+            if (phase === 'loading') await waitForRequestCount(1);
+            else await finishScheduledWork();
+            const state = getTranslationState(owner)!;
+            expect(state.phase).toBe(phase);
+
+            descendant.className = 'notranslate';
+            TestMutationObserver.instances[0]!.emit([{
+                type: 'attributes', target: descendant, attributeName: 'class', oldValue: null,
+                addedNodes: [], removedNodes: [],
+            } as unknown as MutationRecord]);
+            await vi.advanceTimersByTimeAsync(501);
+
+            expect(state.controller.signal.aborted).toBe(true);
+            expect(getTranslationState(owner)).not.toBe(state);
+            if (phase === 'loading') {
+                request.resolve(['译:Readable source ', '译:formerly readable suffix.']);
+            }
+            await finishScheduledWork();
+            TestIntersectionObserver.instances[0]!.emit(owner, true);
+            await finishScheduledWork();
+            expect(descendant.textContent).toBe('formerly readable suffix.');
+            expect(owner.querySelector('.fluent-read-bilingual-content')?.textContent)
+                .toBe('译:Readable source ');
+        },
+    );
 
 });

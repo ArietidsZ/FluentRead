@@ -977,7 +977,8 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         );
         const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}`;
         const existing = pendingTranslations.get(pendingKey);
-        if (existing) return existing;
+        // 共享的是 provider 工作；每个等待者仍需保留自己的取消和截止边界。
+        if (existing) return runWithinDeadline(() => existing, requestDeadline, execution.abortSignal);
 
         const request = useCache ? (async () => {
             // 步骤 1：先读持久缓存；未命中后只发起一次 provider 请求。
@@ -1073,7 +1074,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         );
         const pendingKey = `${buildPendingRequestKey(batchKey, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}`;
         const existing = pendingBatches.get(pendingKey);
-        if (existing) return existing;
+        if (existing) return runWithinDeadline(() => existing, requestDeadline, execution.abortSignal);
 
         const request = useCache ? (async () => {
             // 步骤 1：分项读取缓存，只把缺失且去重后的原文交给 provider。

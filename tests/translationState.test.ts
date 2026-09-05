@@ -22,6 +22,7 @@ import {
     setSpinner,
     setTextSlotsApplied,
     tryRepairBilingualTranslationArtifact,
+    unwrapUnownedSingleTextSlots,
     type TranslationState,
 } from "@/src/features/full-page-translation/content/state";
 
@@ -394,6 +395,55 @@ describe("指定节点翻译状态机", () => {
         expect(target.firstChild).toBe(source);
         expect(target.textContent).toBe('11 hours ago');
         expect(host.isConnected).toBe(false);
+    });
+
+    it('恢复外层 owner 时解包无主槽，但保留其中另一活跃 owner 的真实槽和来源身份', () => {
+        const {document} = parseHTML('<html><body><section id="outer">Outer source.</section><p id="foreign">Foreign source.</p></body></html>');
+        const outer = document.querySelector<HTMLElement>('#outer')!;
+        const foreign = document.querySelector<HTMLElement>('#foreign')!;
+        beginTranslation(outer, 'single');
+        const source = foreign.firstChild as Text;
+        const foreignAttempt = beginTranslation(foreign, 'single', 'content', false, source.data, [source])!;
+        const activeSlot = document.createElement('span');
+        activeSlot.className = 'fluent-read-single-slot';
+        activeSlot.setAttribute('data-fr-translation-owned', 'true');
+        foreign.insertBefore(activeSlot, source);
+        activeSlot.appendChild(source);
+        setSingleTextSlotHosts(foreign, [activeSlot]);
+        const clone = activeSlot.cloneNode(true) as HTMLElement;
+        clone.replaceChildren(activeSlot);
+        outer.appendChild(clone);
+
+        expect(restoreTranslation(outer)).toBe(true);
+        expect(clone.isConnected).toBe(false);
+        expect(activeSlot.parentElement).toBe(outer);
+        expect(activeSlot.firstChild).toBe(source);
+        expect(getTranslationState(foreign)).toBe(foreignAttempt.state);
+        expect(foreignAttempt.state.controller.signal.aborted).toBe(false);
+        expect(outer.textContent).toBe('Outer source.Foreign source.');
+
+        restoreTranslation(foreign);
+        unwrapUnownedSingleTextSlots(outer);
+        expect(activeSlot.isConnected).toBe(false);
+        expect(source.parentElement).toBe(outer);
+    });
+
+    it('无主槽清理只匹配 class 与 owned 组合，并保留嵌套来源 Text 的原始身份', () => {
+        const {document} = parseHTML('<html><body><section><span class="fluent-read-single-slot">Host lookalike.</span><span data-fr-translation-owned="true">Other owned node.</span><span id="orphan" class="fluent-read-single-slot" data-fr-translation-owned="true"><span class="fluent-read-single-slot" data-fr-translation-owned="true">Cloned source.</span></span></section></body></html>');
+        const outer = document.querySelector<HTMLElement>('section')!;
+        const lookalike = outer.children[0]!;
+        const unrelatedOwned = outer.children[1]!;
+        const orphan = document.querySelector<HTMLElement>('#orphan')!;
+        const source = orphan.firstElementChild!.firstChild as Text;
+
+        unwrapUnownedSingleTextSlots(orphan);
+        expect(orphan.isConnected).toBe(false);
+        expect(source.parentElement).toBe(outer);
+        expect(lookalike.parentElement).toBe(outer);
+        expect(unrelatedOwned.parentElement).toBe(outer);
+        expect(outer.textContent).toBe('Host lookalike.Other owned node.Cloned source.');
+        unwrapUnownedSingleTextSlots(outer);
+        expect(source.parentElement).toBe(outer);
     });
 
     it("仅译文 closed-shadow slot 命中可通过所有权索引找回状态 owner", () => {

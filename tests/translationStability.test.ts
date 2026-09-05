@@ -289,6 +289,50 @@ describe('动态翻译稳定性判定', () => {
         expect(statefulSourceAndTextSlotsAreCurrent(node, current)).toBe(false);
     });
 
+    it('仅译文合成段只忽略自身扩展标记，持续尊重父级和内部原文保护区', () => {
+        const {document} = parseHTML('<html><body><div id="app"><span data-fr-translation-segment="true"><span data-fr-translation-owned="true" translate="no">source</span></span></div></body></html>');
+        const parent = document.querySelector<HTMLElement>('#app')!;
+        const node = parent.firstElementChild as HTMLElement;
+        const host = node.firstElementChild as HTMLElement;
+        const source = host.firstChild as Text;
+        const current = state({mode: 'single', phase: 'translated', syntheticSegment: true,
+            sourceTextNodes: [source], singleTextSlotHosts: [{host, source, sourceValue: 'source'}]});
+
+        expect(statefulSourceAndTextSlotsAreCurrent(node, current)).toBe(true);
+        parent.className = 'notranslate';
+        expect(statefulSourceAndTextSlotsAreCurrent(node, current)).toBe(false);
+        current.allowTopLevelApplicationShell = true;
+        expect(statefulSourceAndTextSlotsAreCurrent(node, current)).toBe(true);
+        node.className = 'notranslate';
+        expect(statefulSourceAndTextSlotsAreCurrent(node, current)).toBe(false);
+        node.className = '';
+        node.hidden = true;
+        expect(statefulSourceAndTextSlotsAreCurrent(node, current)).toBe(false);
+        node.hidden = false;
+        parent.className = '';
+        node.remove();
+        // 此纯判定只比较来源；是否仍连接由调用处的 generation/artifact 检查负责。
+        expect(statefulSourceAndTextSlotsAreCurrent(node, current)).toBe(true);
+    });
+
+    it('仅译文既有槽完整但新正文变为可译时，拒绝沿用遗漏新增内容的来源快照', () => {
+        const {document} = parseHTML('<html><body><p><span data-fr-translation-owned="true" translate="no">source</span><em class="notranslate">new source</em></p></body></html>');
+        const node = document.querySelector<HTMLElement>('p')!;
+        const host = node.firstElementChild as HTMLElement;
+        const source = host.firstChild as Text;
+        const addition = node.querySelector<HTMLElement>('em')!;
+        const current = state({mode: 'single', phase: 'translated', sourceTextNodes: [source],
+            singleTextSlotHosts: [{host, source, sourceValue: 'source'}]});
+        const cloneSpy = vi.spyOn(node, 'cloneNode');
+
+        expect(statefulSourceAndTextSlotsAreCurrent(node, current)).toBe(true);
+        addition.className = '';
+        expect(statefulSourceAndTextSlotsAreCurrent(node, current)).toBe(false);
+        addition.hidden = true;
+        expect(statefulSourceAndTextSlotsAreCurrent(node, current)).toBe(true);
+        expect(cloneSpy).not.toHaveBeenCalled();
+    });
+
     it('校验仅译文与控件文本槽的节点身份和译文值', () => {
         const {document} = parseHTML('<html><body><p><span>source</span></p></body></html>');
         const node = document.querySelector('p') as HTMLElement;
@@ -527,9 +571,9 @@ describe('动态翻译稳定性判定', () => {
         };
         const currentPart = {node: replacement, prefix: '(', source: 'source', suffix: ')'};
 
-        expect(reboundLiveTextResult([original], result, [currentPart])).toEqual({
+        expect(reboundLiveTextResult([original], result, [{...currentPart, node: original}])).toEqual({
             nodes: [original],
-            slots: [{node: original, text: '译文'}],
+            slots: [{node: original, text: '(译文)'}],
         });
         expect(reboundLiveTextResult([replacement], result, [currentPart])).toEqual({
             nodes: [replacement],
@@ -541,5 +585,46 @@ describe('动态翻译稳定性判定', () => {
         });
         expect(reboundLiveTextResult([], result, [])).toBeNull();
         expect(reboundLiveTextResult([replacement], result, [{...currentPart, source: 'other'}])).toBeNull();
+    });
+
+    it('相同 Text 身份但分槽原文变化时拒绝迟到结果，即使整段拼接原文相同', () => {
+        const {document} = parseHTML('<html><body><p><b>Hello world</b> again</p></body></html>');
+        const first = document.querySelector('b')!.firstChild as Text;
+        const second = document.querySelector('p')!.lastChild as Text;
+        const result = {
+            sources: ['Hello world', 'again'],
+            translations: ['你好世界', '再次'],
+            nodes: [first, second],
+            slots: [{node: first, text: '你好世界'}, {node: second, text: ' 再次'}],
+        };
+        first.data = 'Hello';
+        second.data = ' world again';
+        const parts = [
+            {node: first, prefix: '', source: 'Hello', suffix: ''},
+            {node: second, prefix: ' ', source: 'world again', suffix: ''},
+        ];
+
+        expect(document.querySelector('p')!.textContent).toBe('Hello world again');
+        expect(reboundLiveTextResult([first, second], result, parts)).toBeNull();
+        expect(first.data).toBe('Hello');
+        expect(second.data).toBe(' world again');
+    });
+
+    it('相同 Text 身份的空白更新使用最新前后缀，不把旧展示快照写回宿主', () => {
+        const {document} = parseHTML('<html><body><p>source</p></body></html>');
+        const source = document.querySelector('p')!.firstChild as Text;
+        const result = {
+            sources: ['source'], translations: ['译文'], nodes: [source],
+            slots: [{node: source, text: '译文'}],
+        };
+        source.data = '\n source  ';
+        const parts = [{node: source, prefix: '\n ', source: 'source', suffix: '  '}];
+
+        expect(reboundLiveTextResult([source], result, parts)).toEqual({
+            nodes: [source], slots: [{node: source, text: '\n 译文  '}],
+        });
+        expect(reboundLiveTextResult([], result, parts)).toBeNull();
+        expect(reboundLiveTextResult([document.createTextNode('source')], result, parts)).toBeNull();
+        expect(reboundLiveTextResult([source], result, [])).toBeNull();
     });
 });

@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/runtime.ts
  * 文件职责：实现全文翻译的页面级会话引擎，负责候选发现、可见性调度、批量请求、动态 DOM 重扫、失败重试、缓存复用和恢复原文。
- * 主要内容：维护 FullPageSession、AbortController、Intersection/Mutation 观察器、候选所有权和生命周期重试，冻结翻译模式与语言配置，以保守同语言预检避免误跳过候选，并导出自动翻译、悬浮翻译、状态查询及恢复入口。
+ * 主要内容：维护 FullPageSession、AbortController、Intersection/Mutation 观察器、精确属性写入过滤、候选所有权和生命周期重试，冻结翻译配置并在提交时重绑可恢复文本槽，导出自动翻译、悬浮翻译、状态查询及恢复入口。
  * 模块边界：这是 content 侧编排层，不实现 provider 协议、纯候选算法或底层状态存储；翻译调用经 app client，发现规则来自 core/translation，渲染与状态分别交给 renderer 和 state。
  */
 import { checkConfig } from "@/src/app/translation/check";
@@ -71,6 +71,7 @@ import {
     setBilingualOwnerRemountHandler,
     setRenderedStyleAttribute,
     setRetryWrapper,
+    setLiveTranslationSourceSnapshot,
     setSingleTextSlotHosts,
     setSpinner,
     setTextSlotsApplied,
@@ -499,9 +500,7 @@ async function renderTranslation(
             if (!markTranslationComplete(node, state, generation, false)) {
                 return staleOutcome();
             }
-            const sourceHTML = node.innerHTML;
-            state.sourceTextNodes = [...rebound.nodes];
-            state.sourceHTML = sourceHTML;
+            setLiveTranslationSourceSnapshot(node, rebound.nodes);
             if (state.mode === "single" && state.kind === "content") {
                 const hosts = withFullPageViewportAnchor(() =>
                     appendSingleTranslationSlots(node, rebound.slots, {
@@ -1424,6 +1423,7 @@ function observeFullPageRoot(session: FullPageSession, root: Node): void {
         characterData: true,
         characterDataOldValue: true,
         attributes: true,
+        attributeOldValue: true,
         attributeFilter: [
             "style", "class", "role", "hidden", "inert", "contenteditable",
             "aria-hidden", "translate", "lang", "dir", "href", "title", "data-notranslate", "data-fr-translation-owned",
@@ -1482,6 +1482,12 @@ function isOwnMutation(
     loadingSyntheticChecks: WeakMap<TranslationState, boolean>,
 ): boolean {
     const exactMutationElement = mutationTargetElement(mutation.target);
+    // 框架在 hover/render 时会重复写入相同属性。相同值没有来源或展示变化，
+    // 不能让一次 setAttribute 事务把控件/仅译文恢复后再从缓存重新渲染。
+    // oldValue 为 null 时仍走完整复验，兼容不提供旧值的观察器实现。
+    if (mutation.type === "attributes" && exactMutationElement && mutation.attributeName &&
+        mutation.oldValue !== null &&
+        mutation.oldValue === exactMutationElement.getAttribute(mutation.attributeName)) return true;
     if (mutation.type === "attributes" && exactMutationElement && (
         (mutation.attributeName === "style" && isTranslationLayoutOverrideMutation(exactMutationElement as HTMLElement)) ||
         (mutation.attributeName === "class" && consumeOrphanedOwnerClassMutation(exactMutationElement as HTMLElement)))) return true;
@@ -1500,10 +1506,10 @@ function isOwnMutation(
     if (state.phase === "error") {
         // 失败 UI 是扩展拥有的状态，不是宿主编辑；若缺少此分支，其 class mutation
         // 会恢复并重扫目标，使永久 provider 错误变成自动无限重试。
-        if (mutation.type === "attributes" && mutation.attributeName === "class") {
+        if (mutation.type === "attributes" && mutationElement === target && mutation.attributeName === "class") {
             return target.getAttribute("class") === state.renderedClassAttribute;
         }
-        if (mutation.type === "attributes" && mutation.attributeName === "style") {
+        if (mutation.type === "attributes" && mutationElement === target && mutation.attributeName === "style") {
             return target.getAttribute("style") === state.renderedStyleAttribute;
         }
         if (mutation.type === "childList") {
@@ -1518,10 +1524,10 @@ function isOwnMutation(
     if (state.phase === "loading") {
         // 手动重试会在 beginTranslation 创建下一 generation 前立即移除旧失败 class。
         // mutation 异步送达，因此需依据新快照识别这次清理。
-        if (mutation.type === "attributes" && mutation.attributeName === "class") {
+        if (mutation.type === "attributes" && mutationElement === target && mutation.attributeName === "class") {
             return target.getAttribute("class") === state.originalClassAttribute;
         }
-        if (mutation.type === "attributes" && mutation.attributeName === "style") {
+        if (mutation.type === "attributes" && mutationElement === target && mutation.attributeName === "style") {
             return target.getAttribute("style") === state.originalStyleAttribute;
         }
         if (mutation.type === "childList" && mutationElement === target) {
@@ -1565,10 +1571,10 @@ function isOwnMutation(
         }
 
         // 双语渲染会临时修改宿主节点的 style；只有值仍是插件记录的值时才忽略。
-        if (mutation.type === "attributes" && mutation.attributeName === "style") {
+        if (mutation.type === "attributes" && mutationElement === target && mutation.attributeName === "style") {
             return target.getAttribute("style") === state.renderedStyleAttribute;
         }
-        if (mutation.type === "attributes" && mutation.attributeName === "class") {
+        if (mutation.type === "attributes" && mutationElement === target && mutation.attributeName === "class") {
             return target.getAttribute("class") === state.renderedClassAttribute;
         }
     }

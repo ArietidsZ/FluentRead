@@ -8,14 +8,15 @@ import {
     getTranslationOwnersForRemovedNode,
     getTranslationState,
 } from '@/src/features/full-page-translation/content/state';
+// 槽身份属于状态层；同一无损解包规则同时服务 discovery 和 restore/discard。
+export {unwrapUnownedSingleTextSlots as normalizeOrphanedSingleSlots}
+    from '@/src/features/full-page-translation/content/state';
 
 const REMOVABLE_ORPHAN_ARTIFACT_SELECTOR = [
     '.fluent-read-bilingual-content[data-fr-translation-owned="true"]',
     '.fluent-read-loading[data-fr-translation-owned="true"]',
     '.fluent-read-retry-wrapper[data-fr-translation-owned="true"]',
 ].join(',');
-const OWNED_SINGLE_SLOT_SELECTOR =
-    '.fluent-read-single-slot[data-fr-translation-owned="true"]';
 const normalizedOwnerClassMutations = new WeakSet<HTMLElement>();
 const OWNED_ARTIFACT_SELECTOR = '[data-fr-translation-owned="true"]';
 
@@ -99,17 +100,4 @@ export function normalizeOrphanedTranslationArtifacts(root: Node): void {
         if (owner) owners.add(owner);
     });
     owners.forEach(normalizeOrphanedTranslationOwner);
-}
-
-/**
- * single-slot 的 light DOM 保存宿主原 Text；cloneNode 不复制 closed ShadowRoot。
- * 无状态克隆必须先解包再发现/恢复，否则通用孤儿删除会连原文一起删除。
- */
-export function normalizeOrphanedSingleSlots(root: Node): void {
-    queryElements(root, OWNED_SINGLE_SLOT_SELECTOR).forEach((slot) => {
-        if (getTranslationOwnersForRemovedNode(slot).length > 0 || !slot.parentNode) return;
-        const parent = slot.parentNode;
-        while (slot.firstChild) parent.insertBefore(slot.firstChild, slot);
-        parent.removeChild(slot);
-    });
 }
