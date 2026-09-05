@@ -1,6 +1,6 @@
 /**
  * @file src/features/vocabulary/learningModel.ts
- * 文件职责：定义单词本学习领域的完整数据模型与纯状态算法，覆盖收藏条目、上下文、掌握度、复习队列、会话推进、导入导出和错误协议。
+ * 文件职责：定义单词与句子学习收藏的完整数据模型与纯状态算法，覆盖多语种原文、上下文、掌握度、复习队列、会话推进、导入导出和错误协议。
  * 主要内容：包含容量与版本常量、Anki TSV 和 cloze 构建、复习队列协调、会话进度、生命周期 token guard，以及 VocabularyEntry、ReviewLog、BookRequest/Response 等权威类型。
  * 模块边界：此文件不访问 IndexedDB、浏览器消息或 UI；repository 负责持久化和清洗，protocol 提供轻量运行时镜像，VocabularyBook.vue 只调用这些纯函数驱动学习流程。
  */
@@ -15,6 +15,14 @@ export const VOCABULARY_BOOK_MAX_ENTRIES = 5_000;
 export const VOCABULARY_ENTRY_MAX_CONTEXTS = 8;
 export const VOCABULARY_REVIEW_LOG_MAX_PER_ENTRY = 100;
 export const VOCABULARY_LARGE_IMPORT_WARNING_BYTES = 20 * 1024 * 1024;
+export const VOCABULARY_SOURCE_TEXT_MAX = 4_096;
+
+/** 保留词或句子的表面文字，拒绝超长及无可学习文字的输入；不截断成另一个收藏身份。 */
+export function normalizeLearningSourceText(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  const text = value.normalize('NFC').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/gu, '').replace(/\s+/gu, ' ').trim();
+  return text.length <= VOCABULARY_SOURCE_TEXT_MAX && /[\p{L}\p{N}]/u.test(text) ? text : '';
+}
 
 function sanitizeAnkiTsvCell(value: unknown): string {
   return String(value ?? '').replace(/[\t\r\n]+/g, ' ').trim();

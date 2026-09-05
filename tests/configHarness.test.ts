@@ -7,6 +7,7 @@ describe('Harness config contract', () => {
     const config = new Config()
     expect(config.harness).toMatchObject({
       enabled: false,
+      memoryEnabled: false,
       service: '',
       model: '',
       defaultAction: 'meaning',
@@ -47,6 +48,9 @@ describe('Harness config contract', () => {
     const config = normalizeConfig({ service: 'openai' })
     expect(config.harness.enabled).toBe(false)
     expect(config.harness.actions).toContain('meaning')
+    expect(config.harness.memoryEnabled).toBe(false)
+    expect(normalizeHarnessPreferences({memoryEnabled: true}).memoryEnabled).toBe(true)
+    expect(normalizeHarnessPreferences({memoryEnabled: 'true'}).memoryEnabled).toBe(false)
   })
 
   it('accepts only gateway-supported services and configured custom providers', () => {

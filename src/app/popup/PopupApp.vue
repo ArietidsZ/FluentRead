@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupApp.vue
  文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、可插拔皮肤、功能抽屉和高频操作，提供轻量但完整的控制中心。
- 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排翻译、AI 语境偏好与可用状态、站点规则及快捷功能；提供 AI 精翻说明抽屉，监听配置并持久化，按皮肤及栏目显隐自动计算高度。
+ 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排翻译、AI 语境偏好与可用状态、站点规则及快捷功能，图片、圈选和划词拥有独立状态、抽屉与设置入口；提供 AI 精翻说明抽屉，监听配置并持久化，按皮肤及栏目显隐自动计算高度。
  模块边界：组件编排用户交互与运行时消息，不实现翻译 provider、缓存存储或 content 挂载细节；公共配置由 services/store 管理，页面行为由 content feature 接收消息完成。
 -->
 <!-- Popup 页面归 app 层所有；WXT 入口只负责调用挂载函数。 -->
@@ -395,12 +395,7 @@
       </div>
 
       <div v-else-if="activeDrawer === 'selection'" class="drawer-content">
-        <div class="selection-mode-tabs" role="tablist" aria-label="翻译方式">
-          <button class="selection-mode-tab" :class="{ selected: selectionDrawerTab === 'text' }" type="button" role="tab" :aria-selected="selectionDrawerTab === 'text'" aria-controls="selection-text-panel" @click="selectionDrawerTab = 'text'">划词翻译</button>
-          <button class="selection-mode-tab" :class="{ selected: selectionDrawerTab === 'area' }" type="button" role="tab" :aria-selected="selectionDrawerTab === 'area'" aria-controls="selection-area-panel" @click="selectionDrawerTab = 'area'">圈选翻译</button>
-        </div>
-
-        <div v-if="selectionDrawerTab === 'text'" id="selection-text-panel" role="tabpanel">
+        <div>
           <div class="interaction-preview">
             <span class="selection-box">选择文字</span><span>＋</span>
             <i v-if="config.selectionTranslatorTrigger === 'dot'" class="pink-dot" />
@@ -474,7 +469,10 @@
           </div>
         </div>
 
-        <div v-else id="selection-area-panel" class="selection-area-panel" role="tabpanel">
+      </div>
+
+      <div v-else-if="activeDrawer === 'area'" class="drawer-content">
+        <div class="selection-area-panel">
           <div v-if="!browserCapabilities.areaTranslation" class="capability-unavailable" role="status">
             <strong>当前浏览器暂不支持圈选翻译</strong>
             <small>原有开关偏好已保留；回到 Chrome 后仍会按原设置生效。</small>
@@ -488,7 +486,8 @@
               <button class="switch compact" type="button" role="switch" :aria-checked="config.selectionAreaEnabled" aria-label="启用或关闭圈选翻译" @click="setAreaEnabled(!config.selectionAreaEnabled)"><i /></button>
             </div>
             <div class="area-translation-preview" aria-keyshortcuts="Shift+Z"><div class="area-hotkey"><kbd>Shift</kbd><kbd>Z</kbd></div><span>＋</span><i class="area-ring" /><span>＝</span><strong>翻译选中区域</strong></div>
-            <small class="drawer-hint">按住 Shift + Z 拖拽页面区域，释放鼠标后识别并翻译；结果会覆盖在当前区域上，按 Esc 可关闭。</small>
+            <small class="drawer-hint">按 Shift + Z 后拖拽页面区域，释放鼠标后识别并翻译；按 Esc 可取消或关闭结果。</small>
+            <small class="drawer-hint">{{ t(config.areaTranslationMode === 'ai' ? 'area.settings.aiDescription' : 'area.settings.standardDescription') }}</small>
           </div>
         </div>
       </div>
@@ -512,9 +511,9 @@
       </div>
 
       <div v-else-if="activeDrawer === 'video'" class="drawer-content">
-        <div class="video-info-banner"><span class="feature-icon teal">CC</span><span><strong>FluentRead · YouTube 字幕翻译</strong><small>只处理播放器已经提供的字幕文本</small></span></div>
+        <div class="video-info-banner"><span class="feature-icon teal">CC</span><span><strong>FluentRead · 视频字幕翻译</strong><small>支持 YouTube/X 原生字幕；X 无字幕时可用本地 AI 生成</small></span></div>
         <div class="setting-row video-enable-row" :class="{ 'needs-enable': !config.videoTranslationEnabled }">
-          <span><strong>{{ config.videoTranslationEnabled ? '视频字幕翻译已开启' : '开启字幕翻译' }}</strong><small>{{ config.videoTranslationEnabled ? '正在 YouTube 原生字幕下方显示中文译文' : '点击右侧开关，在 YouTube 播放器中显示中文译文' }}</small></span>
+          <span><strong>{{ config.videoTranslationEnabled ? '视频字幕翻译已开启' : '开启字幕翻译' }}</strong><small>{{ config.videoTranslationEnabled ? '正在播放器中显示 FluentRead 中文译文' : '点击右侧开关，在 YouTube/X 播放器中显示中文译文' }}</small></span>
           <button class="switch compact" type="button" role="switch" :aria-checked="config.videoTranslationEnabled" aria-label="启用或关闭视频字幕翻译" @click="setVideoTranslationEnabled(!config.videoTranslationEnabled)"><i /></button>
         </div>
         <label class="select-row">
@@ -524,14 +523,35 @@
             <option v-for="item in videoServiceOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
           </select>
         </label>
+        <div v-if="browserCapabilities.offscreenDocument" class="x-video-ai-group">
+          <div class="x-video-ai-group-heading">
+            <strong>X 视频 · 本地 AI</strong>
+            <small>无原生字幕时使用浏览器本地识别</small>
+          </div>
+          <label class="select-row">
+            <span><strong>本地 AI 字幕模型</strong><small>X 没有原生字幕时使用；首次请求前下载并缓存</small></span>
+            <select v-model="config.videoLocalModel" :disabled="!config.videoTranslationEnabled">
+              <option v-for="item in videoLocalModelOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
+          </label>
+          <label class="select-row">
+            <span><strong>视频原语言</strong><small>独立于网页翻译语言；自动检测适合大多数视频</small></span>
+            <select v-model="config.videoSourceLanguage" :disabled="!config.videoTranslationEnabled" aria-label="视频原语言">
+              <option v-for="item in videoSourceLanguageOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
+          </label>
+          <button class="video-model-settings-link" type="button" @click="openOptions('settings-video')">下载或管理 Tiny / Base 模型 →</button>
+          <button class="video-model-settings-link" type="button" @click="openOptions('settings-video')">调整字幕皮肤与位置 →</button>
+        </div>
+        <small v-else class="drawer-hint capability-warning">当前浏览器不支持 X 本地 AI 字幕，视频原生字幕翻译仍可使用。</small>
         <small v-if="selectedVideoServiceUnavailableMessage" class="drawer-hint capability-warning">{{ selectedVideoServiceUnavailableMessage }}</small>
         <label class="select-row">
           <span><strong>字幕字号</strong><small>只调整 FluentRead 显示的原文和译文</small></span>
-          <select v-model.number="config.videoSubtitleFontSize" aria-label="视频字幕字号" :disabled="!config.videoTranslationEnabled">
+          <select v-model.number="config.videoSubtitleAppearance.fontScale" aria-label="视频字幕字号" :disabled="!config.videoTranslationEnabled">
             <option v-for="size in videoSubtitleFontSizeOptions" :key="size" :value="size">{{ size === 100 ? '默认' : `${size}%` }}</option>
           </select>
         </label>
-        <small class="drawer-hint">目前支持 YouTube；播放器内会显示 FluentRead 图标，可切换字幕模式、显示状态，并分别下载原文或译文 SRT。视频默认使用微软翻译；AI 服务会提前预取字幕，如切换 DeepLX，可在完整设置中配置服务地址。</small>
+        <small class="drawer-hint">支持 YouTube/X；可切换字幕模式、显示状态，并分别下载原文或译文 SRT。YouTube 使用原生字幕，X 可读取原生字幕或请求本地 AI 生成。</small>
       </div>
 
       <div v-else class="drawer-content">
@@ -575,7 +595,6 @@ import {
   SELECTION_TRANSLATOR_DELAY_MAX,
   SELECTION_TRANSLATOR_DELAY_MIN,
   SELECTION_TRANSLATOR_DELAY_STEP,
-  VIDEO_SUBTITLE_FONT_SIZE_OPTIONS,
   normalizeConfig,
   normalizeSelectionTranslatorDelay,
 } from '@/src/core/config/model';
@@ -617,14 +636,17 @@ import UiLanguageOnboarding from '@/src/ui/components/UiLanguageOnboarding.vue';
 import {useUiI18n} from '@/src/ui/i18n';
 import PopupSiteRule from './PopupSiteRule.vue';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
+import {VIDEO_LOCAL_TRANSCRIPTION_MODELS} from '@/src/features/video-subtitle/transcription';
+import {VIDEO_SOURCE_LANGUAGE_OPTIONS} from '@/src/core/config/model';
+import {VIDEO_SUBTITLE_FONT_SCALE_OPTIONS} from '@/src/core/config/videoSubtitleAppearance';
 import {
   filterAvailableTranslationServices,
   getTranslationServiceUnavailableMessage,
   isTranslationServiceAvailable,
 } from '@/src/services/translation/capabilities';
 
-type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'video' | 'aiContext';
-type SettingsSection = 'settings-general' | 'settings-image-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
+type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'area' | 'video' | 'aiContext';
+type SettingsSection = 'settings-general' | 'settings-image-translation' | 'settings-area-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
 interface PopupQuickFeatureViewModel {
   id: PopupQuickFeatureId;
   label: string;
@@ -645,7 +667,6 @@ const config = ref(normalizeConfig(runtimeConfig));
 const onboardingLanguage = ref<UiLanguage>('zh-CN');
 const drawerVisible = ref(false);
 const activeDrawer = ref<DrawerName>('hover');
-const selectionDrawerTab = ref<'text' | 'area'>('text');
 const translating = ref(false);
 const pageTranslated = ref(false);
 const currentTabId = ref<number | null>(null);
@@ -678,6 +699,7 @@ const drawerSettingsSection: Record<DrawerName, SettingsSection> = {
   selection: 'settings-translation',
   appearance: 'settings-general',
   image: 'settings-image-translation',
+  area: 'settings-area-translation',
   video: 'settings-video',
 };
 const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
@@ -727,7 +749,9 @@ const serviceSearchResults = computed(() => searchServiceOptions(
   config.value.customModel,
 ));
 const videoServiceOptions = computed(() => filterAvailableTranslationServices(allServiceOptions.value));
-const videoSubtitleFontSizeOptions = VIDEO_SUBTITLE_FONT_SIZE_OPTIONS;
+const videoSubtitleFontSizeOptions = VIDEO_SUBTITLE_FONT_SCALE_OPTIONS;
+const videoLocalModelOptions = VIDEO_LOCAL_TRANSCRIPTION_MODELS;
+const videoSourceLanguageOptions = VIDEO_SOURCE_LANGUAGE_OPTIONS;
 const popularServiceValues = ['freeTranslation', 'microsoft', 'google', 'deepL', 'deeplx', 'deepseek', 'openai', 'gemini', 'claude'];
 const popularServiceOptions = computed(() => popularServiceValues
   .map(value => serviceSearchResults.value.find((item: any) => item.value === value))
@@ -802,7 +826,7 @@ const siteModuleNestedInTranslation = computed(() => {
   return translationIndex >= 0 && visiblePopupModuleOrder.value[translationIndex + 1] === 'siteRule';
 });
 const lastVisiblePopupModule = computed(() => visiblePopupModuleOrder.value.at(-1));
-const emojiFeatureIcons: Record<PopupQuickFeatureId, string> = {hover: '🖱️', selection: '✍️', appearance: '🎨', image: '🖼️', video: '🎬', document: '📖'};
+const emojiFeatureIcons: Record<PopupQuickFeatureId, string> = {hover: '🖱️', selection: '✍️', appearance: '🎨', image: '🖼️', area: '✂️', video: '🎬', document: '📖'};
 const popupUsesContentHeight = computed(() => interfaceSkinUsesContentHeight(config.value.interfaceSkin)
   || !config.value.interfaceVisibility.popupQuickFeatures
   || !config.value.interfaceVisibility.popupSiteRule
@@ -871,16 +895,13 @@ function quickProfileSummary(profile: QuickTranslationProfile): string {
 const selectionSummary = computed(() => {
   const textSummary = ({ disabled: '已关闭', bilingual: '双语显示', 'translation-only': '仅显示译文' }[config.value.selectionTranslatorMode] || '双语显示');
   const triggerSummary = selectionTriggers.find(item => item.value === config.value.selectionTranslatorTrigger)?.label || '显示图标';
-  const selectionTextSummary = `${textSummary} · ${triggerSummary}`;
-  if (!browserCapabilities.areaTranslation) return `${selectionTextSummary} · 圈选翻译不可用`;
-  if (!config.value.selectionAreaEnabled) return selectionTextSummary;
-  return textSummary === '已关闭' ? '圈选翻译已启用' : `${selectionTextSummary} · 圈选翻译`;
+  return `${textSummary} · ${triggerSummary}`;
 });
 const displaySummary = computed(() => config.value.display === 1 ? `双语 · ${styleLabel.value}` : '仅显示译文');
 const imageTranslationSummary = computed(() => !browserCapabilities.imageTranslation
   ? '当前浏览器不可用'
   : config.value.disableImageTranslator ? '已关闭' : '悬停图片');
-const videoSummary = computed(() => config.value.videoTranslationEnabled ? `${videoServiceLabel.value} · YouTube` : '点击开启 · YouTube');
+const videoSummary = computed(() => config.value.videoTranslationEnabled ? `${videoServiceLabel.value} · YouTube/X` : '点击开启 · YouTube/X');
 const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQuickFeatureViewModel>>(() => ({
   hover: {
     id: 'hover',
@@ -899,8 +920,7 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
     icon: 'I',
     iconTone: 'violet',
     showStatus: true,
-    active: config.value.selectionTranslatorMode !== 'disabled'
-      || (browserCapabilities.areaTranslation && config.value.selectionAreaEnabled),
+    active: config.value.selectionTranslatorMode !== 'disabled',
     open: () => openDrawer('selection'),
   },
   appearance: {
@@ -921,6 +941,16 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
     showStatus: true,
     active: browserCapabilities.imageTranslation && !config.value.disableImageTranslator,
     open: () => openDrawer('image'),
+  },
+  area: {
+    id: 'area',
+    label: t('popup.areaTranslation'),
+    summary: !browserCapabilities.areaTranslation ? '当前浏览器不可用' : config.value.selectionAreaEnabled ? 'Shift + Z' : '已关闭',
+    icon: '▣',
+    iconTone: 'violet',
+    showStatus: true,
+    active: browserCapabilities.areaTranslation && config.value.selectionAreaEnabled,
+    open: () => openDrawer('area'),
   },
   video: {
     id: 'video',
@@ -952,14 +982,15 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
 }));
 const visiblePopupQuickFeatures = computed(() => visiblePopupQuickFeatureIds.value
   .map((featureId) => popupQuickFeatureViewModels.value[featureId]));
-const drawerTitle = computed(() => ({ aiContext: t('popup.aiContext.title'), hover: '鼠标悬停翻译设置', selection: '划词翻译设置', appearance: '译文显示设置', image: '图片翻译设置', video: '视频字幕设置' }[activeDrawer.value]));
+const drawerTitle = computed(() => ({ aiContext: t('popup.aiContext.title'), hover: '鼠标悬停翻译设置', selection: '划词翻译设置', appearance: '译文显示设置', image: '图片翻译设置', area: t('area.settings.title'), video: '视频字幕设置' }[activeDrawer.value]));
 const drawerDescription = computed(() => ({
   aiContext: t('popup.aiContext.intro'),
   hover: '把鼠标停在文本上，用轻量快捷键获取即时译文。',
-  selection: '选中文字或圈选页面区域，按你的偏好获取译文。',
+  selection: '选中网页文字，按你的偏好获取译文。',
+  area: t('area.settings.intro'),
   appearance: '调整双语布局、译文样式与界面主题。',
   image: '把鼠标移到图片上，从图片左下角打开翻译入口。',
-  video: '在 YouTube 播放器中显示实时字幕译文。',
+  video: '翻译 YouTube/X 字幕，或在 X 本地生成字幕。',
 }[activeDrawer.value]));
 const hoverChoices = [
   { value: 'Control', label: 'Ctrl' },

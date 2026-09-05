@@ -23,6 +23,7 @@ import {
     attachTranslationProviderConfig,
     createTranslationProviderConfigSnapshot,
     getTranslationGlossaryContext,
+    getTranslationProviderConfig,
     getTranslationGlossarySourceText,
     getTranslationGlossaryTerms,
     getTranslationRequestControl,
@@ -1310,8 +1311,8 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         await runWithinDeadline(() => deps.ready, providerDeadline, requestControl?.signal);
         throwIfRequestAborted(requestControl?.signal);
 
-        // 步骤 1：在任何 cache/provider await 前复制一次配置；后续 UI 原地修改不能改变本请求身份。
-        let current = createTranslationProviderConfigSnapshot(config());
+        // 步骤 1：圈选等受信后台事务沿用开始时的 symbol 快照；公开请求在 cache/provider await 前复制配置。
+        let current = getTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(config()));
         const serviceOverride = message.serviceOverride;
         const selectedService = serviceOverride || current.service;
         const {sourceLanguage, targetLanguage} = deps.getTranslationLanguages({

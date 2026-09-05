@@ -39,6 +39,8 @@ describe('reading assistant background ownership', () => {
         expect(await handler.handle({...request('r'), selection: undefined}, sender())).toEqual({success: false, error: '无效的阅读请求'});
         expect(await handler.handle({...request('r'), sessionId: 'bad id'}, sender())).toEqual({success: false, error: '无效的阅读请求'});
         expect(await handler.handle({...request('r'), sessionId: 4}, sender())).toEqual({success: false, error: '无效的阅读请求'});
+        expect(await handler.handle({...request('r'), anchorTurnId: 'bad id'}, sender())).toEqual({success: false, error: '无效的阅读请求'});
+        expect(await handler.handle({...request('r'), anchorTurnId: 4}, sender())).toEqual({success: false, error: '无效的阅读请求'});
         expect(await handler.handle({type: 'fluentReadHarness', action: 'cancel', requestId: 'unknown'}, sender())).toMatchObject({cancelled: true});
     });
 
@@ -47,7 +49,7 @@ describe('reading assistant background ownership', () => {
         const {handler, ready, runs, deps} = setup({eligibility: () => blocked ? 'blocked' : undefined});
         ready.resolve();
         const progress = vi.fn();
-        const pending = handler.handle({...request('stream'), sessionId: 'valid'}, sender(), progress);
+        const pending = handler.handle({...request('stream'), sessionId: 'valid', anchorTurnId: 'turn-1'}, sender(), progress);
         await tick();
         const publish = vi.mocked(deps.run).mock.calls[0][2]!;
         publish({kind: 'text', text: 'first'});
@@ -57,6 +59,7 @@ describe('reading assistant background ownership', () => {
         await pending;
         expect(progress.mock.calls).toEqual([[{kind: 'text', text: 'first'}]]);
         expect(vi.mocked(deps.run).mock.calls[0][3]).toEqual(sender());
+        expect(vi.mocked(deps.run).mock.calls[0][0].anchorTurnId).toBe('turn-1');
     });
 
     it('supports cancel-before-ready and rejects duplicate request ids', async () => {

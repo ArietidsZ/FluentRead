@@ -50,6 +50,13 @@ function createDependencies(overrides: Partial<VocabularyBookBackgroundDependenc
 }
 
 describe('vocabulary background message handlers', () => {
+    it('允许保存没有AI释义的多语种原文', async () => {
+        const {dependencies, repository} = createDependencies();
+        const handler = createVocabularyBookHandler(dependencies);
+        const input = {sourceLanguage: 'ja', targetLanguage: 'zh-CN', term: 'この文章を覚えたい。', translation: ''};
+        expect(await handler.handle({type: VOCABULARY_BOOK_MESSAGE, action: 'upsert', input}, {})).toMatchObject({success: true});
+        expect(repository.upsert).toHaveBeenCalledWith(input);
+    });
     it('通过静态 registry 处理变更通知 ACK 和词书请求', async () => {
         const {dependencies, repository} = createDependencies();
         const router = createBackgroundMessageRouter(createVocabularyBackgroundHandlers(dependencies));

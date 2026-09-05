@@ -12,6 +12,7 @@ import {
 } from '@/src/services/translation/persistenceBarrier';
 import {
     attachTranslationRequestControl,
+    attachTranslationProviderConfig,
     createTranslationProviderConfigSnapshot,
     getTranslationProviderConfig,
     markTranslationRemainingBudget,
@@ -415,6 +416,22 @@ describe('translation broker', () => {
         pending.resolve('共享译文');
         await expect(Promise.all([first, second])).resolves.toEqual(['共享译文', '共享译文']);
         expect(mocks.service).toHaveBeenCalledTimes(1);
+    });
+
+    it('圈选事务携带可信配置快照时沿用OCR开始前的服务模型与提示，忽略同名字符串伪造', async () => {
+        mocks.config.service = 'ai';
+        const snapshot = createTranslationProviderConfigSnapshot({...mocks.config,
+            system_role: {...mocks.config.system_role, ai: 'frozen-area-prompt'},
+            model: {...mocks.config.model, ai: 'frozen-area-model'},
+        });
+        mocks.config.service = 'mock';
+        mocks.service.mockResolvedValue('translated');
+        await translateWithCache(attachTranslationProviderConfig({origin: 'ocr text', useCache: false}, snapshot));
+        const providerRequest = mocks.service.mock.calls[0][0];
+        expect(getTranslationProviderConfig(providerRequest, snapshot).system_role.ai).toBe('frozen-area-prompt');
+        expect(translationCacheIdentities().at(-1)).toMatchObject({service: 'ai', model: 'frozen-area-model'});
+        await translateWithCache({origin: 'second text', useCache: false, TRANSLATION_PROVIDER_CONFIG: snapshot} as any);
+        expect(translationCacheIdentities().at(-1)?.service).toBe('mock');
     });
 
     it('reuses persisted single cache entries, including successful unchanged results', async () => {

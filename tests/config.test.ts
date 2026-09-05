@@ -388,6 +388,38 @@ describe('统一配置存储', () => {
         expect((history.entries[1].config as unknown as Record<string, unknown>).__fluentConfigRevision).toBeUndefined();
     });
 
+    it('旧配置保持图片和圈选开关，并为圈选补齐标准翻译和跟随服务', async () => {
+        const configStore = await loadConfigModule({...storedConfig, selectionAreaEnabled: true, disableImageTranslator: true});
+        await configStore.configReady;
+        expect(configStore.config).toMatchObject({
+            selectionAreaEnabled: true, disableImageTranslator: true,
+            areaTranslationMode: 'standard', areaTranslationService: '',
+        });
+        expect(configStore.config.popupQuickFeatureOrder.filter(id => id === 'area')).toHaveLength(1);
+        expect(configStore.config.popupQuickFeatureVisibility.area).toBe(true);
+        await configStore.saveConfig({...configStore.config, areaTranslationMode: 'ai', areaTranslationService: 'openai'});
+        expect(storageState.get('local:config')).toMatchObject({areaTranslationMode: 'ai', areaTranslationService: 'openai'});
+    });
+
+    it('独立圈选服务接受机器翻译和已配置AI，拒绝畸形模式或孤立服务', () => {
+        for (const service of ['microsoft', 'openai', 'deeplx', '']) {
+            expect(normalizeConfig({areaTranslationService: service}).areaTranslationService).toBe(service);
+        }
+        for (const areaTranslationMode of [undefined, null, false, 'unknown', 'standard']) {
+            expect(normalizeConfig({areaTranslationMode}).areaTranslationMode).toBe('standard');
+        }
+        expect(normalizeConfig({areaTranslationMode: 'ai'}).areaTranslationMode).toBe('ai');
+        for (const areaTranslationService of [null, false, 12, 'unknown', 'custom:removed']) {
+            expect(normalizeConfig({areaTranslationService}).areaTranslationService).toBe('');
+        }
+        const customOpenAIProviders = [{id: 'custom:area', name: 'Area AI', endpoint: 'https://example.com/v1/chat/completions', models: ['vision-or-text-model']}];
+        expect(normalizeConfig({areaTranslationService: 'custom:area', customOpenAIProviders}).areaTranslationService).toBe('custom:area');
+        expect(normalizeConfig({areaTranslationService: 'custom'}).customOpenAIProviders.some(provider => provider.id === 'custom')).toBe(true);
+        const layout = normalizeConfig({popupQuickFeatureOrder: ['image', 'selection', 'area', 'area', 'unknown'], popupQuickFeatureVisibility: {image: false, area: false}});
+        expect(layout.popupQuickFeatureOrder.filter(id => id === 'area')).toHaveLength(1);
+        expect(layout.popupQuickFeatureVisibility).toMatchObject({image: false, area: false});
+    });
+
     it('为旧配置补齐默认关闭的视频字幕 Beta、独立微软翻译服务和默认字号', async () => {
         const configStore = await loadConfigModule(storedConfig);
 
@@ -395,6 +427,7 @@ describe('统一配置存储', () => {
 
         expect(configStore.config.videoTranslationEnabled).toBe(false);
         expect(configStore.config.videoService).toBe('microsoft');
+        expect(configStore.config.videoLocalModel).toBe('tiny');
         expect(configStore.config.videoSubtitleVisible).toBe(true);
         expect(configStore.config.videoSubtitleDisplayMode).toBe('bilingual');
         expect(configStore.config.videoSubtitleFontSize).toBe(100);
@@ -471,6 +504,14 @@ describe('统一配置存储', () => {
         expect(configStore.config.videoSubtitleVisible).toBe(true);
         expect(configStore.config.videoSubtitleDisplayMode).toBe('bilingual');
         expect(configStore.config.videoSubtitleFontSize).toBe(100);
+    });
+
+    it('非法的本地视频 Whisper 模型回退到 Tiny', async () => {
+        const configStore = await loadConfigModule({ ...storedConfig, videoLocalModel: 'large' });
+
+        await configStore.configReady;
+
+        expect(configStore.config.videoLocalModel).toBe('tiny');
     });
 
     it('存储内容损坏时回退到默认配置，并保持初始化 Promise 可用', async () => {

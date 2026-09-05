@@ -1,7 +1,7 @@
 /**
  * @file src/features/selection-translation/core.ts
  * 文件职责：集中划词翻译的纯交互与内容算法，包括请求代次、词典回退、触发展示状态、选区过滤、上下文摘要、弹窗锚点和语音语言规范化。
- * 主要内容：定义 SelectionRequestTokenGate、Presentation 状态机、选区/视口类型，处理同语种判断、文本清理、敏感或可编辑区域排除、多矩形选择及边界内弹窗定位。
+ * 主要内容：定义 SelectionRequestTokenGate、Presentation 状态机、选区/视口类型，处理同语种判断、文本清理、敏感区域排除、多矩形选择、弹窗定位及仅用于朗读的普通话语言别名。
  * 模块边界：本模块不监听 document selection、不发消息、不渲染 Vue 或播放音频；组件负责连接 DOM，词典和 TTS 由 services/background 提供，函数保持确定性以供单元测试。
  */
 import {isTopLevelApplicationShell} from '@/src/core/translation/public';
@@ -387,6 +387,10 @@ export function normalizeSpeechLanguage(language: string | undefined, fallback =
     if (script) return script === 'Hans' ? 'zh-CN' : 'zh-TW';
 
     const aliases: Record<string, string> = {
+        // 只选择普通话朗读音色，不据此推断原文的简繁或跳过翻译。
+        'cmn': 'zh-CN',
+        'zho': 'zh-CN',
+        'chi': 'zh-CN',
         'en': 'en-US',
         'ja': 'ja-JP',
         'ko': 'ko-KR',

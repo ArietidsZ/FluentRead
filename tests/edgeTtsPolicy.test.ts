@@ -49,6 +49,18 @@ describe('Edge TTS pure policy', () => {
         expect(edgeTtsVoiceForLanguage('xx-ZZ')).toBeNull();
     });
 
+    it('accepts Mandarin detection aliases without losing configured Chinese voices or traditional locales', () => {
+        for (const language of ['cmn', ' ZHO ', 'CHI']) {
+            expect(normalizeEdgeTtsLanguage(language)).toBe('zh-CN');
+            const candidates = edgeTtsVoiceCandidatesForLanguage(language, ['zh-CN-XiaoyiNeural', 'zh-TW-HsiaoYuNeural']);
+            expect(candidates[0]).toBe('zh-CN-XiaoyiNeural');
+            expect(candidates).toContain('zh-CN-XiaoxiaoMultilingualNeural');
+            expect(candidates).not.toContain('zh-TW-HsiaoYuNeural');
+        }
+        expect(normalizeEdgeTtsLanguage('zh-Hant')).toBe('zh-TW');
+        expect(edgeTtsVoiceForLanguage('zh-Hant')).toBe('zh-TW-YunJheMultilingualNeural');
+    });
+
     it('escapes all SSML-controlled values and applies defaults', () => {
         const ssml = buildEdgeTtsSsml(
             `  A < B & C > D "quoted" 'single'  `,

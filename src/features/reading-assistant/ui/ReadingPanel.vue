@@ -1,7 +1,7 @@
 <!--
  * @file src/features/reading-assistant/ui/ReadingPanel.vue
  * 文件职责：在原有划词卡内提供读懂、拆句、用法、练习和连续追问，保持阅读上下文与原生选区体验。
- * 主要内容：在固定卡片内分开阅读与记录列表，统一渲染 Markdown 问答；以代次和取消保护回答归属，保留追问、停止、复制与主动收藏。
+ * 主要内容：按原文与配置复用各学习动作的已完成回答，显式重新生成；统一呈现 Markdown、原文朗读、句子收藏和 30 天问答记录，并以代次隔离过期请求。
  * 模块边界：不持有模型密钥、不扫描页面、不直接请求供应商；记录由后台会话仓库保存，父划词组件负责选区、位置和 Shadow UI 生命周期。
  -->
 <template>
@@ -32,16 +32,23 @@
     <template v-else>
     <div class="fr-reading-source">
       <p>{{ activeText }}</p>
+      <div class="fr-reading-source-tools">
       <button v-if="!historicalText && selection.sentence !== selection.text && !wholeSentence" type="button" @click="expandSentence">理解整句</button>
       <span v-else-if="wholeSentence">已展开到整句</span>
+      <button type="button" class="fr-reading-speak" :aria-label="playingSourceText === activeText ? '停止朗读' : '朗读原文'" :title="playingSourceText === activeText ? '停止朗读' : '朗读原文'" :aria-pressed="playingSourceText === activeText" @click="emit('play-source', activeText)">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path v-if="playingSourceText !== activeText" d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/><path v-else d="M16 8v8m4-8v8"/></svg>
+      </button>
+      <button v-if="canSaveWord" type="button" :aria-label="saved ? '已收藏原文' : '收藏原文'" :disabled="saving || saved" @click="saveWord">{{ saved ? '已收藏' : '收藏' }}</button>
+      </div>
     </div>
     <div class="fr-reading-actions" role="group" aria-label="学习方式">
       <button v-for="action in actions" :key="action.id" type="button" :aria-pressed="intent === action.id" @click="startAction(action.id)">{{ action.label }}</button>
+      <button type="button" class="fr-reading-regenerate" :disabled="busy" title="重新生成当前学习方式的回答" @click="regenerate">重新生成</button>
     </div>
     <div ref="answerScroll" class="fr-reading-scroll fr-reading-result" aria-live="polite" aria-atomic="false">
-      <details v-if="previousAnswers.length" class="fr-reading-session-detail">
-        <summary>前面的问答（{{ previousAnswers.length }} 轮）</summary>
-        <article v-for="(turn, index) in previousAnswers" :key="index" class="fr-reading-turn">
+      <details v-if="priorAnswers.length" class="fr-reading-session-detail">
+        <summary>前面的问答（{{ priorAnswers.length }} 轮）</summary>
+        <article v-for="turn in priorAnswers" :key="turn.id" class="fr-reading-turn">
           <p class="fr-reading-question">{{ turn.question || actionLabelFor(turn.intent) }}<small>{{ statusLabel(turn.status) }}</small></p>
           <ReadingAnswer :text="turn.answer" />
         </article>
@@ -50,17 +57,17 @@
       <p v-if="busy" class="fr-reading-status" role="status"><span class="fr-reading-pulse" :class="{'fr-reading-static': !animations}" aria-hidden="true" />正在{{ actionLabel }}…<button type="button" @click="stop">停止</button></p>
       <div v-if="error" class="fr-reading-error" role="alert">
         <p>{{ error }}</p>
-        <div><button type="button" @click="retry">重试</button><button type="button" @click="openSettings">设置模型</button></div>
+        <div><button type="button" @click="retry">重试</button><button type="button" @click="openSettings('settings-services')">设置模型</button></div>
       </div>
-      <p v-if="stopped && !busy" class="fr-reading-status" role="status">已停止<button type="button" @click="retry">重新生成</button></p>
+      <p v-if="stopped && !busy" class="fr-reading-status" role="status">已停止<button type="button" @click="retry">继续生成</button></p>
       <div v-if="answer" class="fr-reading-answer" :aria-busy="busy">
         <ReadingAnswer :text="answer" />
       </div>
       <p v-if="!busy && !answer && !error && !stopped" class="fr-reading-hint">选一种方式，理解这段表达。</p>
     <footer v-if="answer && !busy" class="fr-reading-footer">
-      <span :title="model">{{ model }}</span>
+      <span :title="model">{{ model }}<small v-if="memoryCount"> · 参考 {{ memoryCount }} 条记忆</small></span>
       <button type="button" @click="copyAnswer">{{ copied ? '已复制' : '复制' }}</button>
-      <button v-if="canSaveWord" type="button" :disabled="saving || saved" @click="saveWord">{{ saved ? '已加入单词本' : '加入单词本' }}</button>
+      <button v-if="preferences.memoryEnabled && !privateContext && !stopped && !error" type="button" :disabled="remembering || remembered" title="将这段原文与回答保存为长期学习记忆" @click="rememberLearning">{{ remembered ? '已记住' : '记住要点' }}</button>
     </footer>
     </div>
     <form class="fr-reading-followup" @submit.prevent="ask">
@@ -70,7 +77,7 @@
     <p v-if="feedback" class="fr-reading-feedback" role="status">{{ feedback }}</p>
     <p v-if="sessionWarning" class="fr-reading-feedback" role="status">{{ sessionWarning }}</p>
     </template>
-    <div class="fr-reading-context"><span>{{ privateContext ? '隐私模式：不保存记录' : '阅读记录保存在本机 30 天' }}</span><button type="button" aria-label="打开 DeepSeek Harness 设置" @click="openSettings">设置</button></div>
+    <div class="fr-reading-context"><span>{{ privateContext ? '隐私模式：不保存记录' : '阅读记录保存在本机 30 天' }}</span><button type="button" aria-label="打开 DeepSeek Harness 设置" @click="openSettings()">设置</button></div>
   </div>
 </template>
 
@@ -80,10 +87,11 @@ import browser from 'webextension-polyfill';
 import {HARNESS_ACTIONS, type HarnessActionId, type HarnessPreferences} from '@/src/core/config/harness';
 import ReadingAnswer from './ReadingAnswer.vue';
 import type {ReadingSelection, ReadingTurn} from '../types';
-import {getHarnessSession, listHarnessSessions, streamReading} from '../client';
+import {getHarnessSession, listHarnessSessions, streamReading, saveLearningMemory} from '../client';
 import type {HarnessSession, HarnessSessionSummary, HarnessStoredTurnStatus} from '@/src/services/harness/sessionTypes';
-import {normalizeEnglishWord} from '@/src/features/selection-translation/core/public';
+import {normalizeLearningSourceText} from '@/src/features/vocabulary/public';
 import {VOCABULARY_BOOK_MESSAGE, type VocabularyBookResponse} from '@/src/features/vocabulary/protocol';
+import {detectlang} from '@/src/core/language/detect';
 
 const props = defineProps<{
   selection: ReadingSelection;
@@ -95,8 +103,11 @@ const props = defineProps<{
   vocabularyEnabled: boolean;
   privateContext: boolean;
   animations: boolean;
+  playingSourceText?: string;
+  sourceLanguage?: string;
+  modelRevision?: number;
 }>();
-const emit = defineEmits<{resize: []}>();
+const emit = defineEmits<{resize: []; 'play-source': [text: string]; 'source-change': [text: string]}>();
 const intent = ref<HarnessActionId>(props.initialAction || props.preferences.defaultAction);
 const wholeSentence = ref(false);
 const historicalText = ref('');
@@ -116,12 +127,17 @@ const copied = ref(false);
 const saved = ref(false);
 const saving = ref(false);
 const feedback = ref('');
+const remembered = ref(false);
+const remembering = ref(false);
+const memoryCount = ref(0);
 const sessions = ref<HarnessSessionSummary[]>([]);
 const showRecords = ref(false);
 const recordsLoading = ref(false);
 const recordsError = ref('');
 const answerScroll = ref<HTMLElement>();
-const previousAnswers = ref<Array<ReadingTurn & {intent: HarnessActionId; status: HarnessStoredTurnStatus}>>([]);
+const previousAnswers = ref<Array<ReadingTurn & {id: string; intent: HarnessActionId; status: HarnessStoredTurnStatus}>>([]);
+const currentTurnKey = ref('');
+const priorAnswers = computed(() => previousAnswers.value.filter(turn => turn.id !== currentTurnKey.value));
 const sessionOffset = ref(0);
 const hasMoreSessions = ref(false);
 const actionLabels: Record<string, string> = {meaning: '读懂', grammar: '拆句', usage: '用法', practice: '练习'};
@@ -130,11 +146,27 @@ const actionLabelFor = (value: string) => actionLabels[value] || '学习';
 const statusLabel = (value: string) => statusLabels[value] || '未知状态';
 const formatDate = (value: number) => new Intl.DateTimeFormat(undefined, {month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit'}).format(value);
 const history: ReadingTurn[] = [];
-const canSaveWord = computed(() => props.vocabularyEnabled && !props.privateContext && Boolean(normalizeEnglishWord(activeText.value)));
+const canSaveWord = computed(() => props.vocabularyEnabled && !props.privateContext && Boolean(normalizeLearningSourceText(activeText.value)));
+interface CachedAnswer {
+  id: string;
+  answer: string;
+  question: string;
+  model: string;
+  history: ReadingTurn[];
+  lastHistory: ReadingTurn[];
+  memoryCount: number;
+  anchorTurnId: string;
+  lastAnchorTurnId: string;
+}
+// 只在当前卡片内保留四个动作的成功结果；持久历史仍由后台的 30 天会话仓库负责。
+const actionCache = new Map<HarnessActionId, CachedAnswer>();
+const copyTurns = (turns: ReadingTurn[]) => turns.map(turn => ({...turn}));
 let pendingId = '';
 let generation = 0;
 let lastQuestion = '';
 let lastHistory: ReadingTurn[] = [];
+let anchorTurnId = '';
+let lastAnchorTurnId = '';
 let copyTimer: ReturnType<typeof setTimeout> | undefined;
 let streamHandle: {cancel: () => void} | undefined;
 let sessionId = '';
@@ -150,15 +182,47 @@ function cancelRequest(): void {
   busy.value = false;
 }
 function stop(): void { cancelRequest(); stopped.value = true; }
+function archiveAnswer(): void {
+  if (!answer.value || !currentTurnKey.value) return;
+  const turn = {id: currentTurnKey.value, question: currentQuestion.value, answer: answer.value, intent: intent.value, status: (busy.value || stopped.value ? 'stopped' : error.value ? 'error' : 'completed') as HarnessStoredTurnStatus};
+  const existing = previousAnswers.value.findIndex(item => item.id === turn.id);
+  if (existing >= 0) previousAnswers.value[existing] = turn;
+  else previousAnswers.value.push(turn);
+  if (previousAnswers.value.length > 60) previousAnswers.value.splice(0, previousAnswers.value.length - 60);
+}
+function rememberAnswer(): void {
+  actionCache.set(intent.value, {id: currentTurnKey.value, answer: answer.value, question: currentQuestion.value, model: model.value, history: copyTurns(history), lastHistory: copyTurns(lastHistory), memoryCount: memoryCount.value, anchorTurnId, lastAnchorTurnId});
+}
+function restoreAnswer(cached: CachedAnswer): void {
+  currentTurnKey.value = cached.id;
+  answer.value = cached.answer;
+  currentQuestion.value = cached.question;
+  model.value = cached.model;
+  memoryCount.value = cached.memoryCount;
+  remembered.value = false;
+  history.splice(0, history.length, ...copyTurns(cached.history));
+  lastQuestion = cached.question;
+  lastHistory = copyTurns(cached.lastHistory);
+  anchorTurnId = cached.anchorTurnId;
+  lastAnchorTurnId = cached.lastAnchorTurnId;
+  error.value = ''; stopped.value = false; copied.value = false; feedback.value = '';
+  void nextTick(() => { if (answerScroll.value) answerScroll.value.scrollTop = 0; });
+}
 async function run(prompt: string, turns: ReadingTurn[], retrying = false): Promise<void> {
-  if (!retrying && answer.value) previousAnswers.value.push({question: currentQuestion.value, answer: answer.value, intent: intent.value, status: busy.value || stopped.value ? 'stopped' : error.value ? 'error' : 'completed'});
+  const requestAnchor = prompt ? (retrying ? lastAnchorTurnId : anchorTurnId) : '';
+  if (!retrying) archiveAnswer();
   cancelRequest();
   const token = generation;
   const requestId = `reading-${crypto.randomUUID()}`;
+  currentTurnKey.value = requestId;
   pendingId = requestId;
   lastQuestion = prompt;
   lastHistory = turns.map(turn => ({...turn}));
+  lastAnchorTurnId = requestAnchor;
+  anchorTurnId = '';
   answer.value = '';
+  memoryCount.value = 0;
+  remembered.value = false;
   currentQuestion.value = prompt;
   showRecords.value = false;
   void nextTick(() => { if (answerScroll.value) answerScroll.value.scrollTop = 0; });
@@ -172,12 +236,14 @@ async function run(prompt: string, turns: ReadingTurn[], retrying = false): Prom
       type: 'fluentReadHarness', action: 'run', requestId,
       selection: {text: activeText.value, context: props.preferences.contextMode === 'paragraph' ? historicalContext.value || props.selection.context : '', sentence: ''},
       intent: intent.value, question: prompt, history: turns, ...(sessionId ? {sessionId} : {}),
+      ...(sessionId && requestAnchor ? {anchorTurnId: requestAnchor} : {}),
     }, {
       progress: progress => {
         if (token !== generation) return;
         if (progress.kind === 'model') model.value = progress.model;
         if (progress.kind === 'text') answer.value = progress.text;
-        if (progress.kind === 'session') { sessionId = progress.persistent ? (progress.sessionId || '') : ''; if (progress.warning) sessionWarning.value = progress.warning; }
+        if (progress.kind === 'session') { sessionId = progress.persistent ? (progress.sessionId || '') : ''; anchorTurnId = progress.persistent ? (progress.turnId || '') : ''; if (progress.warning) sessionWarning.value = progress.warning; }
+        if (progress.kind === 'memory') { memoryCount.value = progress.count; if (progress.warning) feedback.value = progress.warning; }
       },
       result: response => {
         if (token !== generation) return;
@@ -189,9 +255,12 @@ async function run(prompt: string, turns: ReadingTurn[], retrying = false): Prom
         answer.value = response.text;
         model.value = response.model;
         if (response.sessionId) sessionId = response.sessionId;
+        if (response.turnId) anchorTurnId = response.turnId;
         if (response.persistenceWarning) sessionWarning.value = response.persistenceWarning;
+        memoryCount.value = response.memoryCount || 0;
         history.splice(0, history.length, ...turns, {question: prompt || actionLabel.value, answer: response.text});
         if (history.length > 4) history.splice(0, history.length - 4);
+        rememberAnswer();
       },
       error: failure => {
         if (token !== generation) return;
@@ -207,15 +276,22 @@ async function run(prompt: string, turns: ReadingTurn[], retrying = false): Prom
 }
 function startAction(action: HarnessActionId, preserveHistory = true): void {
   if (!props.preferences.actions.includes(action)) return;
-  // 先记住当前动作的答案，再改变标签；重做分析的模型历史由后台独立控制。
-  if (preserveHistory && answer.value) previousAnswers.value.push({question: currentQuestion.value, answer: answer.value, intent: intent.value, status: busy.value || stopped.value ? 'stopped' : error.value ? 'error' : 'completed'});
+  if (preserveHistory && action === intent.value && busy.value) return;
+  if (preserveHistory) archiveAnswer();
+  cancelRequest();
   intent.value = action;
+  showRecords.value = false;
+  question.value = '';
+  const cached = preserveHistory ? actionCache.get(action) : undefined;
+  if (cached) { restoreAnswer(cached); return; }
   answer.value = '';
   currentQuestion.value = '';
-  if (!preserveHistory) { history.splice(0); previousAnswers.value = []; }
-  saved.value = false;
+  currentTurnKey.value = '';
+  history.splice(0);
+  if (!preserveHistory) { previousAnswers.value = []; actionCache.clear(); }
   void run('', []);
 }
+function regenerate(): void { if (!busy.value) void run('', []); }
 async function restoreSession(id: string): Promise<void> {
   const restoreToken = ++restoreEpoch;
   const restoreGeneration = generation + 1;
@@ -224,28 +300,40 @@ async function restoreSession(id: string): Promise<void> {
   try { session = await getHarnessSession(id); } catch { if (restoreToken === restoreEpoch && restoreGeneration === generation) recordsError.value = '读取记录失败，请重试。'; return; }
   if (restoreToken !== restoreEpoch || restoreGeneration !== generation || !showRecords.value || !props.active) return;
   if (!session) { recordsError.value = '这条记录已过期或已被删除。'; return; }
-  previousAnswers.value = session.turns.slice(0, -1).map(turn => ({question: turn.question, answer: turn.answer, intent: turn.intent, status: turn.status}));
+  actionCache.clear();
+  previousAnswers.value = session.turns.slice(0, -1).map(turn => ({id: turn.id, question: turn.question, answer: turn.answer, intent: turn.intent, status: turn.status}));
   historicalText.value = session.text;
   historicalContext.value = session.context;
   sessionId = session.id;
   wholeSentence.value = false;
   const latest = session.turns.at(-1);
+  currentTurnKey.value = latest?.id || '';
   // 仓库存的动作名称用于记录展示，不能在重试时变成用户的追问。
   currentQuestion.value = latest?.question === actionLabelFor(latest?.intent || session.intent) ? '' : latest?.question || '';
   answer.value = latest?.answer || '';
   const restoredIntent = latest?.intent || session.intent;
   intent.value = props.preferences.actions.includes(restoredIntent) ? restoredIntent : props.preferences.defaultAction;
   model.value = latest?.model || '';
+  memoryCount.value = 0;
+  remembered.value = false;
   history.splice(0, history.length, ...session.turns.filter(turn => turn.answer.trim()).slice(-4).map(turn => ({question: turn.question || actionLabelFor(turn.intent), answer: turn.answer})));
   lastQuestion = currentQuestion.value;
-  lastHistory = history.map(turn => ({...turn}));
+  lastHistory = session.turns.slice(0, -1).filter(turn => turn.answer.trim()).slice(-4).map(turn => ({question: turn.question, answer: turn.answer}));
+  anchorTurnId = latest?.id || '';
+  lastAnchorTurnId = session.turns.slice(0, -1).findLast(turn => turn.intent === intent.value && turn.answer.trim())?.id || '';
+  for (let index = 0; index < session.turns.length; index += 1) {
+    const turn = session.turns[index];
+    if (turn.status !== 'completed' || !turn.answer.trim()) continue;
+    const before = session.turns.slice(0, index).filter(item => item.answer.trim()).slice(-4).map(item => ({question: item.question, answer: item.answer}));
+    actionCache.set(turn.intent, {id: turn.id, answer: turn.answer, question: turn.question === actionLabelFor(turn.intent) ? '' : turn.question, model: turn.model, history: [...before, {question: turn.question, answer: turn.answer}].slice(-4), lastHistory: before, memoryCount: 0, anchorTurnId: turn.id, lastAnchorTurnId: session.turns.slice(0, index).findLast(item => item.intent === turn.intent && item.answer.trim())?.id || ''});
+  }
   error.value = latest?.status === 'error' ? '上次生成失败，已保留收到的内容，可以重试。' : '';
   stopped.value = latest?.status === 'stopped' || latest?.status === 'streaming'; saved.value = false;
   feedback.value = '已打开上次的问答，可以继续追问。';
   recordsError.value = ''; showRecords.value = false;
   void nextTick(() => { if (answerScroll.value) answerScroll.value.scrollTop = 0; });
 }
-function expandSentence(): void { wholeSentence.value = true; sessionId = ''; historicalText.value = ''; startAction(intent.value, false); }
+function expandSentence(): void { wholeSentence.value = true; sessionId = ''; historicalText.value = ''; saved.value = false; startAction(intent.value, false); }
 function ask(): void {
   const prompt = question.value.trim();
   if (!prompt || busy.value) return;
@@ -253,7 +341,12 @@ function ask(): void {
   void run(prompt, history.map(turn => ({...turn})));
 }
 function retry(): void { void run(lastQuestion, lastHistory, true); }
-function openSettings(): void { void browser.runtime.sendMessage({type: 'openOptionsPage', section: 'settings-harness'}).catch(() => { feedback.value = '请从扩展菜单打开 DeepSeek Harness 设置。'; }); }
+async function openSettings(section = 'settings-harness'): Promise<void> {
+  try {
+    const response = await browser.runtime.sendMessage({type: 'openOptionsPage', section}) as {success?: unknown} | undefined;
+    if (response?.success !== true) throw new Error('打开设置失败');
+  } catch { feedback.value = section === 'settings-services' ? '打开设置失败，请从扩展菜单进入“翻译服务”。' : '打开设置失败，请从基础配置进入 DeepSeek Harness。'; }
+}
 async function copyAnswer(): Promise<void> {
   try {
     await navigator.clipboard.writeText(`${activeText.value}\n\n${answer.value}`);
@@ -262,24 +355,36 @@ async function copyAnswer(): Promise<void> {
     copyTimer = setTimeout(() => { copied.value = false; }, 1800);
   } catch { feedback.value = '复制失败，可以选中回答后复制。'; }
 }
+async function rememberLearning(): Promise<void> {
+  if (!props.preferences.memoryEnabled || props.privateContext || busy.value || stopped.value || error.value || !answer.value || remembering.value) return;
+  const owner = currentTurnKey.value;
+  remembering.value = true;
+  try {
+    await saveLearningMemory({kind: 'lesson', content: `原文：${activeText.value.slice(0, 350)}\n${currentQuestion.value ? `问题：${currentQuestion.value.slice(0, 200)}\n` : ''}学习要点：${answer.value.slice(0, 1400)}`});
+    if (currentTurnKey.value === owner) { remembered.value = true; feedback.value = '已保存到学习中心的“学习记忆”，可在那里编辑或删除。'; }
+  } catch (failure) { if (currentTurnKey.value === owner) feedback.value = failure instanceof Error ? failure.message : '记忆未能保存，请重试。'; }
+  finally { remembering.value = false; }
+}
 async function saveWord(): Promise<void> {
-  if (!canSaveWord.value || saving.value || !answer.value) return;
+  if (!canSaveWord.value || saving.value) return;
   saving.value = true;
+  const savingText = activeText.value;
   try {
     const response = await browser.runtime.sendMessage({type: VOCABULARY_BOOK_MESSAGE, action: 'upsert', input: {
-      sourceLanguage: 'en', targetLanguage: props.targetLanguage, term: activeText.value,
+      sourceLanguage: props.sourceLanguage && props.sourceLanguage !== 'auto' ? props.sourceLanguage : detectlang(savingText), targetLanguage: props.targetLanguage, term: normalizeLearningSourceText(savingText),
       translation: answer.value, context: {text: historicalContext.value || props.selection.context || activeText.value},
     }}) as VocabularyBookResponse;
     if (!response.success) throw new Error(response.error.message);
-    saved.value = true;
-  } catch (failure) { feedback.value = failure instanceof Error ? failure.message : '收藏失败，请重试。'; }
+    if (activeText.value === savingText) saved.value = true;
+  } catch (failure) { if (activeText.value === savingText) feedback.value = failure instanceof Error ? failure.message : '收藏失败，请重试。'; }
   finally { saving.value = false; }
 }
-watch(() => JSON.stringify(props.preferences), () => { cancelRequest(); stopped.value = true; });
-watch(() => props.selection.text, () => { cancelRequest(); historicalText.value = ''; historicalContext.value = ''; previousAnswers.value = []; history.splice(0); sessionId = ''; question.value = ''; answer.value = ''; wholeSentence.value = false; });
+watch(() => JSON.stringify([props.preferences, props.targetLanguage, props.sourceLanguage, props.modelRevision]), () => { actionCache.clear(); cancelRequest(); stopped.value = true; feedback.value = '设置已更新，重新生成可使用新的设置。'; });
+watch(() => JSON.stringify(props.selection), () => { actionCache.clear(); cancelRequest(); historicalText.value = ''; historicalContext.value = ''; previousAnswers.value = []; history.splice(0); sessionId = ''; question.value = ''; answer.value = ''; wholeSentence.value = false; saved.value = false; });
+watch(activeText, text => { saved.value = false; emit('source-change', text); });
 watch(() => [props.initialAction, props.historyOnly, props.active] as const, ([action, only, active], [oldAction, oldOnly, oldActive]) => {
   restoreEpoch += 1;
-  if (!active) { if (busy.value) stop(); return; }
+  if (!active) { emit('source-change', ''); if (busy.value) stop(); return; }
   if (only) openRecords();
   else if (action !== oldAction || oldOnly || !oldActive) startAction(action || props.preferences.defaultAction);
 });
@@ -311,7 +416,7 @@ onMounted(() => {
   if (props.historyOnly) openRecords();
   else startAction(intent.value);
 });
-onBeforeUnmount(() => { recordsGeneration += 1; restoreEpoch += 1; cancelRequest(); clearTimeout(copyTimer); history.splice(0); });
+onBeforeUnmount(() => { recordsGeneration += 1; restoreEpoch += 1; cancelRequest(); emit('source-change', ''); clearTimeout(copyTimer); history.splice(0); actionCache.clear(); });
 </script>
 
 <style scoped>
@@ -337,10 +442,14 @@ onBeforeUnmount(() => { recordsGeneration += 1; restoreEpoch += 1; cancelRequest
 .fr-reading button:disabled { opacity: .5; cursor: default; }
 .fr-reading-source { flex-shrink: 0; border-left: 2px solid #e6c3d0; padding: 0 0 0 10px; margin: 2px 0 10px; }
 .fr-reading-source p { margin: 0; max-height: 58px; overflow: auto; font-size: 12px; color: #69616b; user-select: text; white-space: pre-wrap; overflow-wrap: anywhere; }
-.fr-reading-source button, .fr-reading-source > span { font-size: 11px; padding: 4px 0 0; color: #a64b6e; }
+.fr-reading-source-tools { display: flex; align-items: center; gap: 10px; min-height: 25px; }
+.fr-reading-source-tools button, .fr-reading-source-tools > span { font-size: 11px; color: #a64b6e; }
+.fr-reading-source-tools .fr-reading-speak { margin-left: auto; display: inline-flex; align-items: center; padding: 5px; }
+.fr-reading-speak[aria-pressed='true'] { background: var(--fr-reading-soft); }
 .fr-reading-actions { flex-shrink: 0; display: flex; gap: 4px; padding-bottom: 10px; }
 .fr-reading-actions button { flex: 1; color: #77707a; background: #f5f3f5; padding: 5px 2px; }
 .fr-reading-actions button[aria-pressed='true'] { background: #f9e7ee; color: #9d3e61; font-weight: 600; }
+.fr-reading-actions .fr-reading-regenerate { flex: 0 0 auto; background: none; padding: 5px; font-size: 10px; color: var(--fr-reading-muted); }
 .fr-reading-status { display: flex; align-items: center; gap: 8px; color: #8b7981; font-size: 12px; }
 .fr-reading-status button { margin-left: auto; }
 .fr-reading-pulse { width: 6px; height: 6px; border-radius: 50%; background: #c76688; animation: fr-reading-breathe 1.4s ease-in-out infinite; }

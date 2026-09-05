@@ -14,6 +14,22 @@ async function until(check: () => boolean) {for (let i = 0; i < 200 && !check();
 afterEach(async () => {for (const database of databases.splice(0)) {database.close(); await database.delete();}});
 
 describe('Harness streaming with real IndexedDB persistence', () => {
+    it('retains a cached practice question after other actions have added more than four later turns', async () => {
+        const store = repository();
+        const runtime: HarnessRuntime = {run: vi.fn(async (input) => ({...success, text: `${input.intent}: ${input.question || 'Original exercise'}`}))};
+        const current = conversation(store, runtime);
+        const initial = await current.run(request({intent: 'practice'}), new AbortController().signal);
+        if (!initial.success) throw new Error('Expected practice success');
+        const sessionId = initial.sessionId;
+        const anchorTurnId = initial.turnId;
+        expect(anchorTurnId).toBeTruthy();
+        for (let index = 0; index < 5; index += 1) await current.run(request({sessionId, question: `Meaning question ${index}`}), new AbortController().signal);
+        await current.run(request({sessionId, anchorTurnId, intent: 'practice', question: 'My exercise answer', history: [{question: 'fake exercise', answer: 'fake feedback'}]}), new AbortController().signal);
+        expect(vi.mocked(runtime.run).mock.calls.at(-1)![0].history).toEqual([{question: '练习', answer: 'practice: Original exercise'}]);
+        const saved = await store.get(sessionId!);
+        expect(saved?.turns).toHaveLength(7);
+        expect(saved?.turns.at(-1)?.question).toBe('My exercise answer');
+    });
     it('creates a session before model metadata arrives and restores exact saved answers for follow-up', async () => {
         const store = repository();
         const runtime: HarnessRuntime = {run: vi.fn(async (_request, _signal, publish) => {publish?.({kind: 'model', service: 'openai', model: 'm'}); publish?.({kind: 'text', text: 'First'}); return success;})};

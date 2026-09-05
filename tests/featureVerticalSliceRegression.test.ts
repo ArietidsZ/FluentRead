@@ -57,7 +57,9 @@ describe('划词、圈选和图片翻译纵向切片回归', () => {
         expect(offscreenImageRuntime).not.toContain("from '@/src/features/area-translation/public'");
         expect(offscreenImageRuntime).not.toContain('services/config/store');
         expect(source('src/features/area-translation/background/offscreenAdapter.ts'))
-            .toContain("@/src/features/image-translation/public");
+            .toContain("from '../protocol'");
+        expect(source('src/features/area-translation/background/offscreenAdapter.ts'))
+            .not.toContain("@/src/features/image-translation/public");
         expect(source('src/features/area-translation/background/offscreenAdapter.ts'))
             .not.toContain("@/src/features/image-translation/services/");
 

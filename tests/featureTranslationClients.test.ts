@@ -37,16 +37,16 @@ describe('圈选翻译内容脚本客户端', () => {
         await expect(captureVisibleAreaInExtension()).rejects.toThrow(message);
     });
 
-    it('发送完整选区上下文并验证返回的译图和行信息', async () => {
+    it('发送完整选区上下文并验证独立原文译文结果', async () => {
         const lines = [{text: '你好', bbox: {x0: 0, y0: 0, x1: 10, y1: 8}, backgroundColor: '#fff'}];
-        sendMessage.mockResolvedValue({success: true, image: 'translated', lines});
+        sendMessage.mockResolvedValue({success: true, image: 'translated', lines, sourceText: 'Hello', translatedText: '你好', mode: 'standard', warnings: ['standard-quality']});
         const selection = {left: 1, top: 2, width: 30, height: 20, viewportWidth: 800, viewportHeight: 600};
 
         await expect(translateCapturedAreaInExtension('capture', selection, 'en', 'Article', {
             requestId: 'area-1', timeoutMs: 5_000,
         })).resolves.toEqual({
             image: 'translated',
-            lines,
+            lines, sourceText: 'Hello', translatedText: '你好', mode: 'standard', warnings: ['standard-quality'],
         });
         expect(sendMessage).toHaveBeenCalledWith({
             type: 'fluentReadAreaTranslateCapture',
@@ -57,6 +57,20 @@ describe('圈选翻译内容脚本客户端', () => {
             requestId: 'area-1',
             timeoutMs: 5_000,
         });
+    });
+
+    it('AI校正文独立返回，原始OCR原文保持可核对', async () => {
+        const result = {image: 'crop', lines: [], sourceText: 'He11o', correctedText: 'Hello', translatedText: '你好', mode: 'ai', warnings: ['ai-text-only']};
+        sendMessage.mockResolvedValue({success: true, ...result});
+        await expect(translateCapturedAreaInExtension('capture', {left: 0, top: 0, width: 20, height: 20, viewportWidth: 100, viewportHeight: 100}, 'en', '')).resolves.toEqual(result);
+    });
+
+    it.each([
+        {image: 1}, {image: ''}, {sourceText: null}, {translatedText: null}, {translatedText: ' '},
+        {mode: 'vision'}, {warnings: null}, {warnings: ['unknown']}, {correctedText: 1},
+    ])('圈选结果各字段必须符合独立文本协议 %#', async invalid => {
+        sendMessage.mockResolvedValue({success: true, image: 'crop', lines: [], sourceText: 'Hello', translatedText: '你好', mode: 'standard', warnings: [], ...invalid});
+        await expect(translateCapturedAreaInExtension('capture', {left: 0, top: 0, width: 20, height: 20, viewportWidth: 100, viewportHeight: 100}, 'en', '')).rejects.toThrow('圈选翻译服务不可用');
     });
 
     it('取消圈选翻译时发送 area cancel，并忽略后台迟到结果', async () => {
