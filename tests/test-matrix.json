@@ -26,7 +26,8 @@
       "tests/settingsUiArchitecture.test.ts",
       "tests/userscriptMetadata.test.ts",
       "tests/userscriptPrivacy.test.ts",
-      "tests/userscriptViteConfig.test.ts"
+      "tests/userscriptViteConfig.test.ts",
+      "tests/freeTranslationSettings.test.ts"
     ],
     "unit": [
       "tests/aiContextPresentation.test.ts",
@@ -162,7 +163,9 @@
       "tests/siteAdaptationCore.test.ts",
       "tests/siteAdaptationSession.test.ts",
       "tests/siteAdaptationSettings.test.ts",
-      "tests/siteAdaptationCatalog.test.ts"
+      "tests/siteAdaptationCatalog.test.ts",
+      "tests/freeTranslationConfig.test.ts",
+      "tests/freeFallback.test.ts"
     ],
     "functional": [
       "tests/aiSdkOpenAICompatible.test.ts",
@@ -209,7 +212,10 @@
       "tests/imageTranslationRuntime.test.ts",
       "tests/imageTranslationPageRead.test.ts",
       "tests/imageTranslationOffscreenRuntime.test.ts",
-      "tests/siteAdaptationRuntime.test.ts"
+      "tests/siteAdaptationRuntime.test.ts",
+      "tests/myMemoryProvider.test.ts",
+      "tests/azureTranslatorProvider.test.ts",
+      "tests/freeTranslationOfficialIntegration.test.ts"
     ],
     "regression": [
       "tests/documentTranslationExamplesApi.test.ts",

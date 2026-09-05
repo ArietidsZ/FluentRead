@@ -66,6 +66,34 @@
       </details>
     </div>
 
+    <FreeTranslationSettings v-if="service === services.freeTranslation" :config="config" />
+
+    <template v-if="service === services.myMemory">
+      <div class="connection-field" data-mymemory-email>
+        <div class="connection-field-label"><strong>联系邮箱（可选）</strong><small>不填写也可以使用</small></div>
+        <div class="connection-field-control">
+          <el-input v-model="myMemoryEmailDraft" type="email" aria-label="MyMemory 联系邮箱" placeholder="不填写也可以使用" :aria-invalid="myMemoryEmailInvalid" @change="commitMyMemoryEmail" />
+          <small v-if="myMemoryEmailInvalid" class="field-warning" role="status">请输入有效邮箱，或留空。</small>
+        </div>
+      </div>
+      <div class="official-translation-help" data-mymemory-help>
+        <p>匿名每天 5,000 字符；提供有效邮箱后每天 50,000 字符。邮箱会随请求发送给 MyMemory。</p>
+        <p>自动识别来源语言时使用本地检测；无法可靠识别时，请手动选择来源语言。</p>
+        <a href="https://mymemory.translated.net/doc/usagelimits.php" target="_blank" rel="noreferrer">官方额度说明</a>
+      </div>
+    </template>
+
+    <template v-if="service === services.azureTranslator">
+      <div class="connection-field" data-azure-translator-region>
+        <div class="connection-field-label"><strong>资源地区</strong><small>与 Azure 资源的地区一致</small></div>
+        <div class="connection-field-control"><el-input v-model="config.azureTranslatorRegion" aria-label="Azure Translator 资源地区" placeholder="Global 资源留空，例如 eastasia" /></div>
+      </div>
+      <div class="official-translation-help" data-azure-translator-help>
+        <p>请在 Azure 控制台选择 F0 免费套餐，每月 200 万字符；付费套餐可能收费，插件无法判断 Key 所属套餐。</p>
+        <a href="https://learn.microsoft.com/en-us/azure/ai-services/translator/how-to/create-translator-resource" target="_blank" rel="noreferrer">官方申请指南</a>
+      </div>
+    </template>
+
     <div v-if="isChromeConnectionTest" class="chrome-preparation-help" data-chrome-preparation-help>
       <p class="chrome-preparation-pair" data-chrome-preparation-language-pair>
         <strong>{{ t('settings.services.chromePreparation.sourceLabel') }}</strong>
@@ -329,6 +357,7 @@ import {
   type CustomOpenAIProvider,
 } from '@/src/core/config/customOpenAI'
 import { isValidCustomBody } from '@/src/core/config/customBody'
+import { normalizeMyMemoryEmail } from '@/src/core/config/freeTranslation'
 import browser from 'webextension-polyfill'
 import { requestConfigSave, waitForConfigPersistenceQueue } from '@/src/services/config/store'
 import { CONNECTION_TEST_MESSAGE, getMimoEndpoint, MINIMAX_ENDPOINTS } from '@/src/core/config/constants'
@@ -345,6 +374,7 @@ import {
 } from '@/src/features/settings/model/chromeTranslationPreparation'
 import { useUiI18n } from '@/src/ui/i18n'
 import PromptTemplateEditor from './PromptTemplateEditor.vue'
+import FreeTranslationSettings from './FreeTranslationSettings.vue'
 
 const props = defineProps<{
   config: Config
@@ -369,6 +399,15 @@ const options = toRef(props, 'options')
 const isValidAzureEndpoint = toRef(props, 'isValidAzureEndpoint')
 const customProvider = toRef(props, 'customProvider')
 const { language, t } = useUiI18n()
+const myMemoryEmailDraft = ref(config.value.myMemoryEmail)
+const myMemoryEmailInvalid = computed(() => Boolean(myMemoryEmailDraft.value.trim() && !normalizeMyMemoryEmail(myMemoryEmailDraft.value)))
+watch(() => config.value.myMemoryEmail, value => { myMemoryEmailDraft.value = value })
+
+function commitMyMemoryEmail(): void {
+  if (myMemoryEmailInvalid.value) return
+  config.value.myMemoryEmail = normalizeMyMemoryEmail(myMemoryEmailDraft.value)
+}
+
 const pendingChromePreparation = ref<Awaited<ReturnType<typeof chromeTranslationPreparationStore.get>>>(null)
 let pendingChromePreparationRevision = 0
 let chromePreparationMounted = true
@@ -698,6 +737,10 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.official-translation-help { margin: 12px 0 16px; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.6; }
+.official-translation-help p { margin: 0 0 8px; }
+.official-translation-help a { color: var(--el-color-primary); }
+
 .chrome-preparation-help {
   margin: 8px 0 16px;
   color: var(--el-text-color-secondary);

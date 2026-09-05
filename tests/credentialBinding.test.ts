@@ -42,6 +42,11 @@ function rebound(
 }
 
 describe('凭据与真实请求目的地绑定', () => {
+    it('Azure Translator only sends its key to the fixed official endpoint regardless of stale proxy fields', () => {
+        const current = configured(services.azureTranslator);
+        const next = transition(current, {azureTranslatorRegion: 'eastasia', proxy: {azureTranslator: 'https://ignored.example'}});
+        expect(rebound(current, next).token.azureTranslator).toBe('azureTranslator-secret');
+    });
     it('Gemini 的官方 Key 不随无凭据 proxy 切换而误清', () => {
         const current = configured(services.gemini);
         const proxyA = transition(current, {proxy: {[services.gemini]: 'https://proxy-a.example/gemini'}});

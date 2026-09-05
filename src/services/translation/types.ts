@@ -139,6 +139,11 @@ export interface TranslationConfigSnapshot {
     proxy: Record<string, string>;
     custom: string;
     deeplx: string;
+    freeTranslationOrder?: readonly string[];
+    freeTranslationTimeoutMs?: number;
+    freeTranslationCooldownMs?: number;
+    myMemoryEmail?: string;
+    azureTranslatorRegion?: string;
     newApiUrl: string;
     minimaxBillingPlan: string;
     minimaxRegion: string;

@@ -22,6 +22,10 @@
       <path d="M5 7h10M5 12h7M5 17h5" />
       <path d="m15 9 4 3-4 3M19 12H9" />
     </svg>
+    <svg v-else-if="service === 'myMemory'" viewBox="0 0 24 24" role="img">
+      <path d="M4 5h6a3 3 0 0 1 3 3v12a4 4 0 0 0-3-2H4V5ZM13 8a3 3 0 0 1 3-3h4v13h-4a4 4 0 0 0-3 2" />
+      <path d="M7 9h3M7 12h3M16 9h1M16 12h1" />
+    </svg>
     <svg v-else-if="service === 'google'" viewBox="0 0 24 24" role="img">
       <path d="M23 12.245c0-.905-.075-1.565-.236-2.25h-10.54v4.083h6.186c-.124 1.014-.797 2.542-2.294 3.569l-.021.136 3.332 2.53.23.022C21.779 18.417 23 15.593 23 12.245z" fill="#4285F4" />
       <path d="M12.225 23c3.03 0 5.574-.978 7.433-2.665l-3.542-2.688c-.948.648-2.22 1.1-3.891 1.1a6.745 6.745 0 0 1-6.386-4.572l-.132.011-3.465 2.628-.045.124C4.043 20.531 7.835 23 12.225 23z" fill="#34A853" />
@@ -56,7 +60,7 @@
       <path d="M12 4.2a3.4 3.4 0 0 1 5.8 2.4 3.4 3.4 0 0 1 1.9 5.8 3.4 3.4 0 0 1-3.4 5.2 3.4 3.4 0 0 1-5.8 2.2 3.4 3.4 0 0 1-5.8-2.4 3.4 3.4 0 0 1-1.9-5.8A3.4 3.4 0 0 1 6.2 6.4 3.4 3.4 0 0 1 12 4.2Z" />
       <path d="m8.2 8.5 7.5 4.3M15.8 8.5l-7.5 4.3M12 6v8.7M12 18v-2.2" />
     </svg>
-    <svg v-else-if="service === 'azureOpenai'" viewBox="0 0 24 24" role="img">
+    <svg v-else-if="service === 'azureOpenai' || service === 'azureTranslator'" viewBox="0 0 24 24" role="img">
       <path d="m13.8 3.5 6.1 5.1-6.3 11.9-3.1-6.1 3.8-4.5-6.2 1.1 4.6-7.5 1.1 4.2Z" />
       <path d="m10.5 14.4 3.1-4.5" />
     </svg>
@@ -161,7 +165,7 @@ const isCustomOpenAIService = computed(() => isCustomOpenAIProviderId(props.serv
 const tone = computed(() => {
   if (isCustomOpenAIService.value) return 'violet'
   if (['openai', 'azureOpenai', 'newapi'].includes(props.service)) return 'violet'
-  if (['deepseek', 'deepL', 'deeplx', 'microsoft', 'freeTranslation'].includes(props.service)) return 'blue'
+  if (['deepseek', 'deepL', 'deeplx', 'microsoft', 'freeTranslation', 'myMemory', 'azureTranslator'].includes(props.service)) return 'blue'
   if (['gemini', 'google', 'chromeTranslator'].includes(props.service)) return 'green'
   return 'rose'
 })
@@ -170,6 +174,8 @@ const fallbackGlyph = computed(() => {
   const glyphs: Record<string, string> = {
     microsoft: 'M',
     freeTranslation: '译',
+    myMemory: 'MM',
+    azureTranslator: 'A',
     google: 'G',
     deepL: 'D',
     deeplx: 'DX',

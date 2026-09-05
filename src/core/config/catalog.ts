@@ -13,6 +13,8 @@ export const services = {
     // 机器翻译
     microsoft: "microsoft",
     freeTranslation: "freeTranslation",
+    myMemory: "myMemory",
+    azureTranslator: "azureTranslator",
     deepL: "deepL",
     deeplx: "deeplx",
     google: "google",
@@ -49,7 +51,7 @@ export const services = {
 
 export const servicesType = {
     // 阵营划分
-    machine: new Set([services.microsoft, services.freeTranslation, services.deepL, services.deeplx, services.google, services.xiaoniu, services.youdao, services.tencent, services.chromeTranslator,]),
+    machine: new Set([services.myMemory, services.azureTranslator, services.microsoft, services.freeTranslation, services.deepL, services.deeplx, services.google, services.xiaoniu, services.youdao, services.tencent, services.chromeTranslator,]),
     AI: new Set([
         services.openai,
         services.azureOpenai,
@@ -99,6 +101,7 @@ export const servicesType = {
     ]),
     // 需要 token
     useToken: new Set([
+        services.azureTranslator,
         services.openai,
         services.azureOpenai,
         services.gemini,
@@ -422,8 +425,10 @@ export const options = {
         {
             value: services.freeTranslation,
             label: "免费翻译服务",
-            description: "免费提供，按微软翻译、DeepLX、谷歌翻译依次尝试；翻译质量和可用性不作保证。",
+            description: "按设置顺序自动切换可用服务；支持每路超时和失败冷却。",
         },
+        {value: services.myMemory, label: "MyMemory", description: "官方免费 API，匿名每天 5,000 字符；可选邮箱提升额度。"},
+        {value: services.azureTranslator, label: "Azure Translator", description: "官方 API，F0 每月免费 200 万字符；需自行申请密钥并选择免费层。"},
         {value: services.microsoft, label: "微软翻译"},
         {value: services.google, label: "谷歌翻译"},
         {value: services.deepL, label: "DeepL"},

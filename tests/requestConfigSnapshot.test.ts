@@ -52,6 +52,18 @@ function configSource(overrides: Partial<TranslationConfigSource> = {}): Transla
 }
 
 describe('translation provider request config snapshot', () => {
+    it('freezes fallback order and official-provider options before asynchronous work', () => {
+        const order = ['myMemory', 'azureTranslator'];
+        const source = configSource({freeTranslationOrder: order, myMemoryEmail: 'contact@example.test', azureTranslatorRegion: 'eastasia'});
+        const snapshot = createTranslationProviderConfigSnapshot(source);
+        order.reverse();
+        source.myMemoryEmail = '';
+        source.azureTranslatorRegion = 'westus';
+        expect(snapshot.freeTranslationOrder).toEqual(['myMemory', 'azureTranslator']);
+        expect(Object.isFrozen(snapshot.freeTranslationOrder)).toBe(true);
+        expect(snapshot.myMemoryEmail).toBe('contact@example.test');
+        expect(snapshot.azureTranslatorRegion).toBe('eastasia');
+    });
     it('matches pure source slots without protocol boundaries and leaves malformed or literal markers intact', () => {
         const packet = serializeTranslationSlots(['agent', 'An agent works.'], 'Case_1-x');
         expect(getTranslationGlossarySourceText(packet.payload)).toEqual(['agent', 'An agent works.']);

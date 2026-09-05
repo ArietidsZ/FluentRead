@@ -2,14 +2,14 @@
  * @file src/providers/translation/deepl.ts
  *
  * 文件职责：适配 DeepL 文本翻译 API，处理 FluentRead 语言代码转换、代理选择、鉴权及响应解析。
- * 主要内容：将 zh-Hans 等目标语言映射为 DeepL 接受的代码，从配置快照构造 URL 与请求体，通过 runtimeFetch 调用并验证 translations 结果。 可核对的公开符号包括 default:deepl。
+ * 主要内容：将 zh-Hans 等目标语言映射为 DeepL 接受的代码，从配置快照和请求语言构造 URL 与请求体并保留明确源语言，通过 runtimeFetch 调用并验证 translations 结果。 可核对的公开符号包括 default:deepl。
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
 import {method, urls} from "@/src/core/config/constants";
 import {services} from "@/src/core/config/catalog";
 import {config} from "@/src/services/config/store";
-import {getTranslationLanguages} from '@/src/services/translation/languages';
+import {resolveTranslationLanguages} from '@/src/core/translation/languages';
 import {createHttpStatusError, readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
 import {
@@ -21,7 +21,9 @@ async function deepl(message: TranslationProviderRequest<string>) {
     const current = getTranslationProviderConfig(message, config);
     const service = message.serviceOverride || current.service;
     // deepl 不支持 zh-Hans，需要转换为 zh
-    const {targetLanguage} = getTranslationLanguages(message);
+    const {sourceLanguage, targetLanguage} = resolveTranslationLanguages(message, {
+        sourceLanguage: current.from, targetLanguage: current.to,
+    });
     let targetLang = targetLanguage === 'zh-Hans' ? 'zh' : targetLanguage;
 
     // 判断是否使用代理
@@ -36,6 +38,7 @@ async function deepl(message: TranslationProviderRequest<string>) {
         body: JSON.stringify({
             text: [message.origin],
             target_lang: targetLang,
+            ...(sourceLanguage === 'auto' ? {} : {source_lang: sourceLanguage.split('-')[0].toUpperCase()}),
             tag_handling: 'html',
             context: message.context,  // 添加上下文辅助信息
             preserve_formatting: true

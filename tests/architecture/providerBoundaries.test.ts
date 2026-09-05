@@ -13,6 +13,8 @@ const EXPECTED_PROVIDER_FILES = [
     'ai-sdk/openai-compatible.ts',
     'auth.ts',
     'azure-openai.ts',
+    'azure-translator.ts',
+    'mymemory.ts',
     'chrome-translator.ts',
     'chromeTranslatorRequest.ts',
     'claude.ts',

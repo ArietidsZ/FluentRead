@@ -38,6 +38,8 @@ describe('service catalog helpers', () => {
     })
     expect(getServiceWebsite(services.chromeTranslator)?.kind).toBe('documentation')
     expect(getServiceWebsite(services.freeTranslation)?.kind).toBe('documentation')
+    expect(getServiceWebsite(services.myMemory)).toEqual({url: 'https://mymemory.translated.net/doc/spec.php', kind: 'documentation'})
+    expect(getServiceWebsite(services.azureTranslator)).toEqual({url: 'https://learn.microsoft.com/en-us/azure/ai-services/translator/how-to/create-translator-resource', kind: 'documentation'})
   })
 
   it('keeps MiniMax websites aligned with the selected account region', () => {

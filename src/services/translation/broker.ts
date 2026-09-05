@@ -227,6 +227,15 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             model: getSelectedModel(current, service, modelOverride),
             endpoint: getProviderEndpoint(current, service),
             azureOpenaiEndpoint: service === 'azureOpenai' ? current.azureOpenaiEndpoint : undefined,
+            ...(service === 'freeTranslation' ? {freeTranslationPolicy: {
+                version: 1,
+                order: current.freeTranslationOrder,
+                deeplx: current.deeplx,
+                deeplxProxy: current.proxy.deeplx,
+                deepLProxy: current.proxy.deepL,
+                azureRegion: current.azureTranslatorRegion,
+            }} : {}),
+            ...(service === 'azureTranslator' ? {azureTranslatorRegion: current.azureTranslatorRegion} : {}),
             customBody: current.customBody[service] || '',
             systemRole: current.system_role[service] || '',
             userRole: current.user_role[service] || '',
@@ -237,7 +246,8 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 ? deps.endpointResolver.aiSdkTransportProfile
                 : undefined,
             // 步骤 1：DeepL 把标题上下文直接发送给 provider；AI adapter 通过 prompt 注入页面上下文。
-            context: service === 'deepL' ? context : undefined,
+            context: service === 'deepL' || (service === 'freeTranslation' && current.freeTranslationOrder?.includes('deepL'))
+                ? context : undefined,
             pageContext: isAIContextEnabled(execution, modelOverride) ? pageContext : undefined,
             ...(service === 'chromeTranslator'
                 && sourceLanguage === 'auto'

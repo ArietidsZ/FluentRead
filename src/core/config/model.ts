@@ -27,6 +27,11 @@ import {
     normalizeCustomOpenAIProviders,
     type CustomOpenAIProvider,
 } from './customOpenAI';
+import {
+    DEFAULT_FREE_TRANSLATION_ORDER, DEFAULT_FREE_TRANSLATION_TIMEOUT_MS, DEFAULT_FREE_TRANSLATION_COOLDOWN_MS,
+    normalizeFreeTranslationOrder, normalizeFreeTranslationTimeoutMs, normalizeFreeTranslationCooldownMs,
+    normalizeMyMemoryEmail, normalizeAzureTranslatorRegion,
+} from './freeTranslation';
 import { normalizeCustomBodyMapping } from "./customBody";
 import {
     normalizeModelThinkingMapping,
@@ -226,6 +231,11 @@ export class Config {
     disableSelectionTranslator: boolean; // 是否禁用划词翻译
     selectionAreaEnabled: boolean; // 是否启用圈选翻译
     disableImageTranslator: boolean; // 是否禁用图片翻译
+    freeTranslationOrder: string[]; // 免费服务的启用列表与回退顺序
+    freeTranslationTimeoutMs: number; // 每路服务最长等待
+    freeTranslationCooldownMs: number; // 失败服务的暂时跳过时间
+    myMemoryEmail: string; // MyMemory 可选额度联系邮箱
+    azureTranslatorRegion: string; // Azure Translator 资源地区，空表示 global
     deeplx: string; // DeepLX 服务地址
     selectionTranslatorMode: string; // 划词翻译显示模式: 'disabled' | 'bilingual' | 'translation-only'
     selectionTranslatorTrigger: string; // 划词翻译互斥触发方式: 'direct' | 'icon' | 'dot' | 'Control' | 'Alt' | 'Shift' | 'custom'
@@ -335,6 +345,11 @@ export class Config {
         this.disableSelectionTranslator = true; // 默认关闭划词翻译
         this.selectionAreaEnabled = false; // 圈选翻译需要用户主动开启，避免意外截图
         this.disableImageTranslator = true; // 默认关闭图片翻译，避免首次安装后扫描网页图片
+        this.freeTranslationOrder = [...DEFAULT_FREE_TRANSLATION_ORDER];
+        this.freeTranslationTimeoutMs = DEFAULT_FREE_TRANSLATION_TIMEOUT_MS;
+        this.freeTranslationCooldownMs = DEFAULT_FREE_TRANSLATION_COOLDOWN_MS;
+        this.myMemoryEmail = '';
+        this.azureTranslatorRegion = '';
         this.deeplx = defaultOption.deeplx; // DeepLX 默认服务地址
         this.selectionTranslatorMode = 'disabled'; // 默认关闭划词翻译
         this.selectionTranslatorTrigger = 'icon'; // 默认显示可发现的操作图标
@@ -690,6 +705,11 @@ export function normalizeConfig(value: unknown): Config {
     normalized.translationRequestsPerMinute = normalizeTranslationRequestsPerMinute(
         source.translationRequestsPerMinute,
     );
+    normalized.freeTranslationOrder = normalizeFreeTranslationOrder(source.freeTranslationOrder);
+    normalized.freeTranslationTimeoutMs = normalizeFreeTranslationTimeoutMs(source.freeTranslationTimeoutMs);
+    normalized.freeTranslationCooldownMs = normalizeFreeTranslationCooldownMs(source.freeTranslationCooldownMs);
+    normalized.myMemoryEmail = normalizeMyMemoryEmail(source.myMemoryEmail);
+    normalized.azureTranslatorRegion = normalizeAzureTranslatorRegion(source.azureTranslatorRegion);
     normalized.translationMaxRetries = normalizeTranslationMaxRetries(source.translationMaxRetries);
     normalized.translationBackoffBaseMs = normalizeTranslationBackoffBaseMs(
         source.translationBackoffBaseMs,

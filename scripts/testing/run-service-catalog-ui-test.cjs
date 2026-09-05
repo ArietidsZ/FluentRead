@@ -32,7 +32,7 @@ const expectedPlatformServices = [
   'siliconCloud', 'newapi', 'infini', 'openrouter', 'groq', 'azureOpenai',
 ];
 const expectedMachineServices = [
-  'freeTranslation', 'microsoft', 'google', 'deepL', 'deeplx', 'xiaoniu', 'youdao', 'tencent',
+  'freeTranslation', 'myMemory', 'azureTranslator', 'microsoft', 'google', 'deepL', 'deeplx', 'xiaoniu', 'youdao', 'tencent',
 ];
 
 if (!fs.existsSync(path.join(extensionDir, 'manifest.json'))) throw new Error(`扩展产物不存在：${extensionDir}`);

@@ -1,94 +1,126 @@
 /**
  * @file src/providers/translation/free-translation.ts
- *
- * 文件职责：编排无需用户密钥的微软、DeepLX 与谷歌翻译作为有序回退链，提高免费翻译路径的可用性。
- * 主要内容：声明 FREE_TRANSLATION_ORDER，按请求级语言依次调用 translateMicrosoftTexts、translateDeepLXText、translateGoogleText，记录失败并在全部不可用时汇总错误。 可核对的公开符号包括 FREE_TRANSLATION_ORDER、translateFreeText、default:freeTranslation。
- * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
+ * 文件职责：按冻结的用户设置编排免费翻译，并接入有界请求、取消和跨段冷却。
+ * 主要内容：装配按序服务、过滤未配置的免费凭据、冻结批量配置并生成匿名连接身份。
+ * 模块边界：只装配已有 provider；健康状态与并发调度由 freeFallback 服务持有。
  */
-
-import {translateMicrosoftTexts} from "./microsoft";
-import {translateDeepLXText} from "./deeplx";
-import {translateGoogleText} from "./google";
-import {services} from "@/src/core/config/catalog";
-import {getTranslationLanguages, type TranslationLanguageOverride} from '@/src/services/translation/languages';
+import sha256 from 'crypto-js/sha256';
+import {translateMicrosoftTexts} from './microsoft';
+import {translateDeepLXText} from './deeplx';
+import {translateGoogleText} from './google';
+import myMemory from './mymemory';
+import azureTranslator from './azure-translator';
+import deepL from './deepl';
+import {services} from '@/src/core/config/catalog';
+import {urls} from '@/src/core/config/constants';
+import {getDeepLXEndpoints} from '@/src/core/config/deeplx';
+import {
+    DEFAULT_FREE_TRANSLATION_ORDER,
+    FREE_TRANSLATION_PROVIDERS,
+    normalizeFreeTranslationOrder,
+    normalizeFreeTranslationTimeoutMs,
+    normalizeFreeTranslationCooldownMs,
+} from '@/src/core/config/freeTranslation';
+import {config} from '@/src/services/config/store';
 import {abortErrorFromSignal} from '@/src/platform/http/runtime';
-import type {
-    TranslationProviderRequest,
-    TranslationProviderRequestContext,
+import {createFreeFallbackRunner, type FreeFallbackCandidate} from '@/src/services/translation/freeFallback';
+import {
+    attachTranslationProviderConfig,
+    createTranslationProviderConfigSnapshot,
+    getTranslationProviderConfig,
+    type TranslationProviderRequest,
 } from '@/src/services/translation/requestSnapshot';
+import type {TranslationProviderConfigSnapshot} from '@/src/services/translation/types';
 
-type FreeTranslationRequest = TranslationLanguageOverride & TranslationProviderRequestContext;
+type FreeTranslationRequest = Omit<TranslationProviderRequest<string>, 'origin'>;
+const FREE_TRANSLATION_DEADLINE = Symbol('free-translation-deadline');
+type PreparedRequest = FreeTranslationRequest & {readonly [FREE_TRANSLATION_DEADLINE]?: number};
+type FreeProviderId = typeof FREE_TRANSLATION_PROVIDERS[number]['id'];
 
-type FreeTranslationProvider = {
-    label: string;
-    translate: (text: string, languages: FreeTranslationRequest) => Promise<string>;
+export const FREE_TRANSLATION_ORDER = DEFAULT_FREE_TRANSLATION_ORDER.map(id => (
+    FREE_TRANSLATION_PROVIDERS.find(provider => provider.id === id)!.label
+));
+export const FREE_TRANSLATION_BATCH_CONCURRENCY = 3;
+const runFallback = createFreeFallbackRunner(FREE_TRANSLATION_BATCH_CONCURRENCY);
+const providerTranslators: Record<FreeProviderId, (request: TranslationProviderRequest<string>) => Promise<unknown>> = {
+    microsoft: async request => {
+        const results = await translateMicrosoftTexts([request.origin], request.sourceLanguage!, request.targetLanguage!, request.abortSignal);
+        return results[0];
+    },
+    deeplx: request => translateDeepLXText(request.origin, services.deeplx, request),
+    google: request => translateGoogleText(request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
+    myMemory,
+    azureTranslator,
+    deepL,
 };
 
-export const FREE_TRANSLATION_ORDER = [
-    "微软翻译",
-    "DeepLX",
-    "谷歌翻译",
-] as const;
-export const FREE_TRANSLATION_BATCH_CONCURRENCY = 3;
-
-function requireTranslation(text: string, label: string): string {
-    if (typeof text !== "string" || text.trim().length === 0) {
-        throw new Error(`${label}未返回有效译文`);
-    }
-    return text;
+function prepareRequest(message: FreeTranslationRequest): PreparedRequest {
+    // provider 直调也在第一次 await 之前冻结；批量中的所有文本共享该副本与截止时间。
+    const current = createTranslationProviderConfigSnapshot(getTranslationProviderConfig(message, config));
+    const budget = message.requestTimeoutMs;
+    return attachTranslationProviderConfig({
+        ...message,
+        sourceLanguage: message.sourceLanguage || current.from,
+        targetLanguage: message.targetLanguage || current.to,
+        [FREE_TRANSLATION_DEADLINE]: typeof budget === 'number' && Number.isFinite(budget)
+            ? Date.now() + Math.max(0, budget) : undefined,
+    }, current);
 }
 
-const providers: FreeTranslationProvider[] = [
-    {
-        label: FREE_TRANSLATION_ORDER[0],
-        translate: async (text, languages) => {
-            const {sourceLanguage, targetLanguage} = getTranslationLanguages(languages);
-            const translations = await translateMicrosoftTexts(
-                [text],
-                sourceLanguage,
-                targetLanguage,
-                languages.abortSignal,
-            );
-            return requireTranslation(translations[0] || "", FREE_TRANSLATION_ORDER[0]);
-        },
-    },
-    {
-        label: FREE_TRANSLATION_ORDER[1],
-        translate: (text, languages) => translateDeepLXText(text, services.deeplx, languages),
-    },
-    {
-        label: FREE_TRANSLATION_ORDER[2],
-        translate: (text, languages) => {
-            const {sourceLanguage, targetLanguage} = getTranslationLanguages(languages);
-            return translateGoogleText(text, sourceLanguage, targetLanguage, languages.abortSignal);
-        },
-    },
-];
-
-function getErrorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
+function canUseProvider(id: string, current: TranslationProviderConfigSnapshot): boolean {
+    if (id === services.azureTranslator) return Boolean(current.token[id]?.trim());
+    if (id !== services.deepL) return true;
+    const endpoint = current.proxy[id]?.trim();
+    // 明确的 Free 密钥和官方免费端点才进入免费链，避免误用付费方案/自定义代理。
+    return Boolean(current.token[id]?.trim().endsWith(':fx'))
+        && (!endpoint || endpoint === 'https://api-free.deepl.com/v2/translate');
 }
 
-export async function translateFreeText(text: string, languages: FreeTranslationRequest = {}): Promise<string> {
-    if (typeof text !== "string") {
-        throw new Error("免费翻译服务仅支持文本输入");
-    }
-
-    const failures: string[] = [];
-    for (const provider of providers) {
-        if (languages.abortSignal?.aborted) throw abortErrorFromSignal(languages.abortSignal);
-        try {
-            return requireTranslation(await provider.translate(text, languages), provider.label);
-        } catch (error) {
-            if (languages.abortSignal?.aborted) throw abortErrorFromSignal(languages.abortSignal);
-            failures.push(`${provider.label}: ${getErrorMessage(error)}`);
-        }
-    }
-
-    throw new Error(`免费翻译服务均不可用（${FREE_TRANSLATION_ORDER.join(" → ")}）：${failures.join("；")}`);
+function providerIdentity(id: string, current: TranslationProviderConfigSnapshot): string {
+    // 只哈希该 provider 实际读取的连接配置；更换其他服务不应解除已知配额冷却。
+    const connection = id === services.deeplx
+        ? [getDeepLXEndpoints(current.deeplx, current.proxy[id], current.token[id]?.trim()), current.token[id]]
+        : id === services.azureTranslator
+            ? [urls[id], current.token[id], current.azureTranslatorRegion]
+            : id === services.myMemory
+                ? [urls[id], current.myMemoryEmail]
+                : id === services.deepL
+                    ? [current.proxy[id] || urls[id], current.token[id]]
+                    : [id];
+    return `${id}:${sha256(JSON.stringify(connection)).toString()}`;
 }
 
-async function translateFreeBatch(texts: string[], message: FreeTranslationRequest): Promise<string[]> {
+function candidatesFor(text: string, message: PreparedRequest): FreeFallbackCandidate[] {
+    const current = getTranslationProviderConfig(message, config);
+    return normalizeFreeTranslationOrder(current.freeTranslationOrder).flatMap(id => {
+        const provider = FREE_TRANSLATION_PROVIDERS.find(item => item.id === id);
+        if (!provider || !canUseProvider(id, current)) return [];
+        return [{
+            identity: providerIdentity(id, current),
+            label: provider.label,
+            translate: (signal: AbortSignal) => providerTranslators[provider.id]({
+                ...message, origin: text, serviceOverride: id, abortSignal: signal,
+            }),
+        }];
+    });
+}
+
+async function translatePreparedText(text: string, message: PreparedRequest): Promise<string> {
+    if (typeof text !== 'string') throw new Error('免费翻译服务仅支持文本输入');
+    const current = getTranslationProviderConfig(message, config);
+    return runFallback(candidatesFor(text, message), {
+        signal: message.abortSignal,
+        timeoutMs: normalizeFreeTranslationTimeoutMs(current.freeTranslationTimeoutMs),
+        cooldownMs: normalizeFreeTranslationCooldownMs(current.freeTranslationCooldownMs),
+        deadline: message[FREE_TRANSLATION_DEADLINE],
+    });
+}
+
+export async function translateFreeText(text: string, message: FreeTranslationRequest = {}): Promise<string> {
+    return translatePreparedText(text, prepareRequest(message));
+}
+
+async function translateFreeBatch(texts: string[], message: PreparedRequest): Promise<string[]> {
     const translations = new Array<string>(texts.length);
     const batchController = new AbortController();
     const onCallerAbort = () => batchController.abort(message.abortSignal?.reason);
@@ -98,15 +130,13 @@ async function translateFreeBatch(texts: string[], message: FreeTranslationReque
     let nextIndex = 0;
     let stopped = false;
 
-    // 每个 worker 串行领取下一段，避免 OCR 文本一次并发整条三层回退链。
     const worker = async () => {
         while (!stopped) {
             if (batchController.signal.aborted) throw abortErrorFromSignal(batchController.signal);
-            const index = nextIndex;
+            const index = nextIndex++;
             if (index >= texts.length) return;
-            nextIndex += 1;
             try {
-                translations[index] = await translateFreeText(texts[index], batchMessage);
+                translations[index] = await translatePreparedText(texts[index], batchMessage);
             } catch (error) {
                 stopped = true;
                 if (!batchController.signal.aborted) batchController.abort(error);
@@ -114,26 +144,17 @@ async function translateFreeBatch(texts: string[], message: FreeTranslationReque
             }
         }
     };
-
-    const workerCount = Math.min(FREE_TRANSLATION_BATCH_CONCURRENCY, texts.length);
     try {
-        await Promise.all(Array.from({length: workerCount}, () => worker()));
+        await Promise.all(Array.from({length: Math.min(FREE_TRANSLATION_BATCH_CONCURRENCY, texts.length)}, () => worker()));
         return translations;
     } finally {
         message.abortSignal?.removeEventListener('abort', onCallerAbort);
     }
 }
 
-async function freeTranslation(message: TranslationProviderRequest) {
-    if (typeof message.origin === "string") {
-        return translateFreeText(message.origin, message);
-    }
-
-    if (Array.isArray(message.origin)) {
-        return translateFreeBatch(message.origin, message);
-    }
-
-    throw new Error("免费翻译服务仅支持文本输入");
+export default async function freeTranslation(message: TranslationProviderRequest) {
+    const prepared = prepareRequest(message);
+    if (typeof message.origin === 'string') return translatePreparedText(message.origin, prepared);
+    if (Array.isArray(message.origin)) return translateFreeBatch(message.origin, prepared);
+    throw new Error('免费翻译服务仅支持文本输入');
 }
-
-export default freeTranslation;

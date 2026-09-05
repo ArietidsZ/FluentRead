@@ -52,6 +52,8 @@ const mocks = vi.hoisted(() => {
     } as Record<string, Record<string, string>>;
     const providers = {
         '': service,
+        freeTranslation: service,
+        azureTranslator: service,
         ai: service,
         aiSdk: service,
         azureOpenai: service,
@@ -228,7 +230,7 @@ describe('translation broker', () => {
         mocks.aiServices.add('aiSdk');
         mocks.aiServices.add('brokenAiSdk');
         mocks.machineServices.clear();
-        ['mock', 'custom', 'deeplx', 'newapi', 'minimax', 'mimo', 'azureOpenai', 'chromeTranslator']
+        ['mock', 'freeTranslation', 'azureTranslator', 'custom', 'deeplx', 'newapi', 'minimax', 'mimo', 'azureOpenai', 'chromeTranslator']
             .forEach(service => mocks.machineServices.add(service));
         Object.assign(mocks.config, {
             service: 'mock',
@@ -286,6 +288,48 @@ describe('translation broker', () => {
     afterEach(() => {
         vi.useRealTimers();
         vi.restoreAllMocks();
+    });
+
+    it('keeps DeepL fallback context in cache and pending identities for the same ambiguous source', async () => {
+        mocks.config.service = 'freeTranslation';
+        const policy = mocks.config as typeof mocks.config & {freeTranslationOrder?: string[]};
+        policy.freeTranslationOrder = ['deepL', 'myMemory'];
+        mocks.service.mockResolvedValueOnce('financial bank').mockResolvedValueOnce('river bank');
+        const financial = translateWithCache({origin: 'bank', context: 'Financial news'});
+        const river = translateWithCache({origin: 'bank', context: 'River geography'});
+        await expect(Promise.all([financial, river])).resolves.toEqual(['financial bank', 'river bank']);
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        await expect(translateWithCache({origin: 'bank', context: 'Financial news'})).resolves.toBe('financial bank');
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        expect(translationCacheIdentities().slice(-2).map(identity => identity.context)).toEqual(['River geography', 'Financial news']);
+        delete policy.freeTranslationOrder;
+    });
+
+    it('invalidates cached free-chain results after ordered providers or downstream endpoints change', async () => {
+        mocks.config.service = 'freeTranslation';
+        const policy = mocks.config as typeof mocks.config & {freeTranslationOrder: string[]; azureTranslatorRegion: string};
+        policy.freeTranslationOrder = ['myMemory', 'microsoft'];
+        mocks.service.mockResolvedValue('first provider translation');
+        await translateWithCache({origin: 'same source'});
+        await translateWithCache({origin: 'same source'});
+        expect(mocks.service).toHaveBeenCalledTimes(1);
+        policy.freeTranslationOrder = ['microsoft', 'myMemory'];
+        await translateWithCache({origin: 'same source'});
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        mocks.config.deeplx = 'https://new.example/translate';
+        await translateWithCache({origin: 'same source'});
+        expect(mocks.service).toHaveBeenCalledTimes(3);
+        policy.azureTranslatorRegion = 'eastasia';
+        await translateWithCache({origin: 'same source'});
+        expect(mocks.service).toHaveBeenCalledTimes(4);
+        expect(translationCacheIdentities().at(-1)).toMatchObject({freeTranslationPolicy: {
+            order: ['microsoft', 'myMemory'], azureRegion: 'eastasia', deeplx: 'https://new.example/translate',
+        }});
+        mocks.config.service = 'azureTranslator';
+        await translateWithCache({origin: 'region source'});
+        expect(translationCacheIdentities().at(-1)).toMatchObject({azureTranslatorRegion: 'eastasia'});
+        delete (policy as Partial<typeof policy>).freeTranslationOrder;
+        delete (policy as Partial<typeof policy>).azureTranslatorRegion;
     });
 
     it('reuses persisted single cache entries, including successful unchanged results', async () => {
