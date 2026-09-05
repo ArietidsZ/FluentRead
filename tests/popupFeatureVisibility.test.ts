@@ -163,7 +163,7 @@ describe('popup feature visibility', () => {
 
         expect(popup).toContain("className: `video-feature-card${config.value.videoTranslationEnabled ? '' : ' needs-enable'}`");
         expect(popup).toContain(':class="feature.className"');
-        expect(popup).toContain("'点击开启 · YouTube'");
+        expect(popup).toContain("'点击开启 · YouTube/X'");
         expect(styles).not.toMatch(/\.video-feature-card\.needs-enable\s*\{/u);
         expect(styles).toContain('.video-feature-card.needs-enable small { color: var(--brand-strong); font-weight: 700; }');
     });

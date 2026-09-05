@@ -404,6 +404,12 @@ pnpm test:regression:all -- --browser  # 追加屏幕外隔离浏览器 fixtures
 
 ## 变更规则
 
+## 阅读助手 Harness 核心
+
+阅读助手采用浏览器内的有界 ledger 和独立工具循环，参考 DeepSeek Harness `dsh-v0.1.3-alpha.1`（commit `d347e703908d0406b7a7ef80e3a0e594d86b2215`）的 `packages/core/session/src/surface.ts` 消息投影思想。FluentRead 只保留选区、已授权段落、追问历史和只读 `read_context` 工具，不引入上游桌面 host、bridge、Cordis、插件、文件系统、进程、沙箱或动态执行能力；模型仍由现有 AI SDK gateway 选择。兼容模型与原生 Anthropic/Google 模型均通过各自协议接入，不能假设任意模型都支持工具调用或流式输出。
+
+阅读卡通过 `fluentReadHarnessStream` port 接收模型、正文和会话进度，正文按模型返回的增量快照更新；停止、错误、关闭、换选区和 worker 中断会取消当前请求，已收到正文仍保留在卡片中。普通模式的会话按问答保存在本机 30 天，历史可从阅读卡或设置页折叠查看、恢复、删除和清空；恢复只加载已有 turns，不自动发起模型请求，后台重建上下文时最多使用最近四轮。隐私窗口不保存也不读取历史。
+
 每个迁移批次必须：
 
 1. 保持旧公开行为，或在同一批次更新产品文档。

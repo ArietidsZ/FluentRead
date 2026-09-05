@@ -1,13 +1,36 @@
 /**
  * @file src/app/background/handlers/translationCache.ts
- * 文件职责：把清空翻译缓存能力封装为类型化后台消息处理器，为 popup 和旧 content 消息提供一致响应。
- * 主要内容：声明 clearTranslationCache 请求与清理完成广播，并在底层清理成功后通知所有活动 content 会话失效内存结果。
+ * 文件职责：把翻译缓存用量统计与清空封装为类型化后台消息处理器，为设置、popup 和旧 content 消息提供一致响应。
+ * 主要内容：声明统计请求、clearTranslationCache 请求与清理完成广播，并在底层清理成功后通知所有活动 content 会话失效内存结果。
  * 模块边界：本文件不直接访问 IndexedDB、内存缓存或页面 localStorage，也不决定清理代次；缓存一致性和旧写入排空由 translation cache 服务负责。
  */
 import type {BackgroundMessageHandler} from '../messageRouter';
+import type {TranslationCacheStats} from '@/src/services/translation/cache';
 
 export const CLEAR_TRANSLATION_CACHE_MESSAGE = 'clearTranslationCache' as const;
 export const TRANSLATION_CACHE_CLEARED_MESSAGE = 'translationCacheCleared' as const;
+export const GET_TRANSLATION_CACHE_STATS_MESSAGE = 'getTranslationCacheStats' as const;
+
+/** 统计由后台缓存所有者读取，不暴露任何缓存键、译文或用户凭据。 */
+export function createTranslationCacheStatsHandler(
+    getStats: () => Promise<TranslationCacheStats>,
+): BackgroundMessageHandler<unknown, {type: typeof GET_TRANSLATION_CACHE_STATS_MESSAGE}> {
+    return {
+        type: GET_TRANSLATION_CACHE_STATS_MESSAGE,
+        async handle() {
+            return {success: true, stats: await getStats()};
+        },
+    };
+}
+
+/** 将设置用量查询与已有清空协议注册为同一组缓存能力。 */
+export function createTranslationCacheHandlers(
+    clear: () => Promise<void>,
+    getStats: () => Promise<TranslationCacheStats>,
+    broadcast: () => Promise<void>,
+): Array<BackgroundMessageHandler<unknown>> {
+    return [createTranslationCacheHandler(clear, broadcast), createTranslationCacheStatsHandler(getStats)];
+}
 
 export interface ClearTranslationCacheMessage {
     type: typeof CLEAR_TRANSLATION_CACHE_MESSAGE;

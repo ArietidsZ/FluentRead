@@ -6,6 +6,7 @@ import {describe, expect, it, vi} from 'vitest';
 const PROJECT_ROOT = resolve(__dirname, '..');
 const require = createRequire(import.meta.url);
 const FOCUS_SAFE_SCRIPTS = [
+    'scripts/run-cache-settings-test.cjs',
     'scripts/run-selection-trigger-test.cjs',
     'scripts/run-full-page-translation-test.cjs',
     'scripts/run-video-subtitle-fixture-test.cjs',

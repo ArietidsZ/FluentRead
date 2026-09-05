@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/SettingsSections.vue
  * 文件职责：承载 FluentRead Options 页面各业务设置分区，连接运行时配置、服务选择、快捷键、站点规则、翻译中心、OCR、词书以及导入导出和历史恢复。
- * 主要内容：模板按 activeSection 展示常规、服务、视频、隐私等控件，并在独立的界面布局页面组织界面风格与菜单栏布局；脚本派生当前服务的网站入口，协调配置快照保存、加密凭据保存、历史游标、能力过滤、连接测试、文件传输和页面离开 flush。
+ * 主要内容：模板按 activeSection 展示常规、服务、视频、隐私等控件，在独立的界面布局页面组织界面风格与菜单栏布局，并仅在高级选项激活时挂载缓存管理；脚本派生当前服务的网站入口，协调配置快照保存、加密凭据保存、历史游标、能力过滤、连接测试、文件传输和页面离开 flush。
  * 模块边界：该组件负责设置 UI 编排但不实现 provider 网络、配置仓库或 feature 运行时；校验与迁移来自 core/config，持久化经 services/config，复杂子界面保持在各自 feature/组件内。
  -->
 <template>
@@ -46,6 +46,9 @@
   </section>
   <section v-show="props.activeSection === 'settings-translation-center'" id="settings-translation-center" class="settings-section translation-center-section">
     <TranslationCenter />
+  </section>
+  <section v-show="props.activeSection === 'settings-harness'" id="settings-harness" class="settings-section">
+    <HarnessSettings :config="config" />
   </section>
   <div class="settings-main-sections">
     <!-- 翻译服务 -->
@@ -291,23 +294,7 @@
 
     <!-- 高级选项 -->
     <section v-show="props.activeSection === 'settings-advanced'" id="settings-advanced" class="settings-section">
-      <SettingsGroup title="缓存策略" description="减少重复请求；需要最新结果时可临时关闭。">
-        <!-- 缓存开关 -->
-        <el-row class="settings-control-row">
-          <el-col :span="20" class="settings-control-label lightblue rounded-corner">
-            <el-tooltip class="box-item" effect="dark" content="开启缓存可以提高翻译速度，减少重复请求，但可能导致翻译结果不是最新的" placement="top-start" :show-after="500">
-        <span class="popup-text popup-vertical-left">缓存翻译结果<el-icon class="icon-margin">
-            <InfoFilled />
-          </el-icon></span>
-            </el-tooltip>
-          </el-col>
-
-          <el-col :span="4" class="settings-control-field flex-end">
-            <el-switch v-model="config.useCache" class="settings-toggle" aria-label="缓存翻译结果" />
-          </el-col>
-        </el-row>
-
-      </SettingsGroup>
+      <TranslationCacheSettings v-if="props.activeSection === 'settings-advanced'" :config="config" />
     </section>
 
     <section v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation">
@@ -352,9 +339,9 @@
         <el-row class="settings-control-row">
           <el-col :span="20" class="settings-control-label ai-context-label lightblue rounded-corner">
             <el-tooltip class="box-item" effect="dark"
-                        content="开启后，AI 翻译会参考当前网页的标题、描述和相关正文片段；仅对大模型翻译服务生效。"
+                        :content="t('popup.aiContext.how')"
                         placement="top-start" :show-after="500">
-              <span class="popup-text popup-vertical-left">AI 智能上下文<el-icon class="icon-margin">
+              <span class="popup-text popup-vertical-left">{{ t('popup.aiContext.settingsTitle') }}<el-icon class="icon-margin">
                   <InfoFilled />
                 </el-icon></span>
             </el-tooltip>
@@ -362,7 +349,7 @@
           </el-col>
 
           <el-col :span="4" class="settings-control-field flex-end">
-            <el-switch v-model="config.enableAIContext" class="settings-toggle" aria-label="AI 智能上下文" />
+            <el-switch v-model="config.enableAIContext" class="settings-toggle" :aria-label="t('popup.aiContext.settingsTitle')" />
           </el-col>
         </el-row>
 
@@ -743,6 +730,7 @@ import {getServiceWebsite} from '@/src/ui/view-model/serviceCatalog';
 import ServiceConfiguration from './services/ServiceConfiguration.vue';
 import CustomOpenAIProviderDialog from './services/CustomOpenAIProviderDialog.vue';
 import {TranslationCenter} from '@/src/features/translation-center/public';
+import HarnessSettings from './HarnessSettings.vue';
 import AlwaysTranslateSites from './AlwaysTranslateSites.vue';
 import {
   createApiKeyRequirementKey,
@@ -755,6 +743,7 @@ import {ImageOcrSettings} from '@/src/features/image-translation/public';
 import VideoLocalModelSettings from './VideoLocalModelSettings.vue';
 import {ModelUsageDashboard} from '@/src/features/model-usage/public';
 import InterfaceSettings from './InterfaceSettings.vue';
+import TranslationCacheSettings from './TranslationCacheSettings.vue';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
 import SegmentedControl from './components/SegmentedControl.vue';
@@ -848,7 +837,8 @@ const unsubscribeConfig = subscribeConfig((nextConfig) => {
 });
 void configReady
   .then(() => {
-    Object.assign(config.value, runtimeConfig);
+    // 编辑副本不能共享嵌套对象，否则修改 Harness 等字段会先污染 patch 的比较基线。
+    Object.assign(config.value, normalizeConfig(runtimeConfig));
     lastSerialized = JSON.stringify(config.value);
     hydrated = true;
     updateTheme(config.value.theme || 'auto');

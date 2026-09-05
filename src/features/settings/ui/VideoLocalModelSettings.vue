@@ -110,6 +110,7 @@ onUnmounted(() => browser.storage.onChanged.removeListener(handleStorageChange))
 .video-model-download-button { flex: none; min-height: 34px; padding: 7px 11px; border: 1px solid #bfe5de; border-radius: 7px; color: var(--brand-strong); background: #effbf8; font-size: 12px; font-weight: 700; cursor: pointer; }
 .video-model-download-button:disabled { color: #97a2ad; border-color: #dfe5e8; background: #f4f6f7; cursor: default; }
 .video-model-error { margin: 0; color: var(--el-color-danger); font-size: 10px; line-height: 1.4; }
+.capability-warning { margin: 6px 0 0; color: var(--el-color-danger); font-size: 11px; line-height: 1.5; }
 
 :global(:root.dark) .video-model-download-panel { border-color: #363a44; background: rgba(37, 40, 48, .9); }
 :global(:root.dark) .video-model-download-heading strong,

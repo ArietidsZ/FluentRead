@@ -2,6 +2,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mocks = vi.hoisted(() => ({
     config: {
+        harness: undefined as {enabled: boolean} | undefined,
         on: true,
         disableFloatingBall: false,
         selectionTranslatorMode: 'bilingual',
@@ -57,6 +58,7 @@ beforeEach(() => {
     vi.resetModules();
     vi.unstubAllGlobals();
     Object.assign(mocks.config, {
+        harness: undefined,
         on: true,
         disableFloatingBall: false,
         selectionTranslatorMode: 'bilingual',
@@ -267,4 +269,21 @@ describe('内容脚本 runtime 消息协议', () => {
             translationProgressPanelEnabled: true,
         });
     });
+    it('关闭划词翻译仍保留 Harness，而总开关关闭会卸载共享界面', async () => {
+        const {createContentRuntimeMessageHandler} = await import('@/src/app/content/messageRuntime');
+        const handler = createContentRuntimeMessageHandler({} as never, {isSiteDisabled: () => false, updateSiteDisabled: vi.fn()});
+        const respond = vi.fn();
+        mocks.config.harness = {enabled: true};
+        handler({type: 'updateSelectionTranslatorMode', mode: 'disabled'}, {}, respond);
+        expect(mocks.mountSelectionTranslator).toHaveBeenCalledOnce();
+        expect(mocks.unmountSelectionTranslator).not.toHaveBeenCalled();
+        mocks.config.on = false;
+        handler({type: 'updateSelectionTranslatorMode', mode: 'disabled'}, {}, respond);
+        expect(mocks.unmountSelectionTranslator).toHaveBeenCalledOnce();
+        mocks.config.on = true;
+        mocks.config.harness.enabled = false;
+        handler({type: 'updateSelectionTranslatorMode', mode: 'disabled'}, {}, respond);
+        expect(mocks.unmountSelectionTranslator).toHaveBeenCalledTimes(2);
+    });
+
 });

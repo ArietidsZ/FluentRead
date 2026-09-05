@@ -31,7 +31,7 @@ export const navigationGroups: NavigationGroup[] = [
         id: 'settings-general', icon: '⌂', label: '通用设置', description: '服务、显示与网页辅助', group: '基础配置',
         heading: '通用设置', summary: '选择默认翻译服务，并管理译文显示、网页辅助和基础偏好。',
         kicker: '基础配置', title: '通用设置', detail: '选择默认翻译服务，并管理译文显示、网页辅助和基础偏好。',
-        searchDescription: '选择翻译服务、默认服务、译文显示、双语逐句高亮、网页辅助、AI 智能上下文、默认目标语言、主题',
+        searchDescription: '选择翻译服务、默认服务、译文显示、双语逐句高亮、网页辅助、AI 精翻、AI 智能上下文、默认目标语言、主题',
       },
       {
         id: 'settings-interface', icon: '▦', label: '界面布局', description: '界面与弹窗、动画与加载、菜单栏布局', group: '基础配置',
@@ -63,10 +63,10 @@ export const navigationGroups: NavigationGroup[] = [
         searchDescription: '图片翻译、圈选翻译、区域翻译、OCR、语言包、中文、英文、日文、下载',
       },
       {
-        id: 'settings-video', icon: 'CC', label: '视频字幕翻译', description: 'YouTube 边看边译', group: '专项翻译',
-        heading: '视频字幕翻译', summary: '在 YouTube 原生字幕下方显示译文，并独立选择视频翻译服务。',
-        kicker: '专项翻译', title: '视频字幕翻译', detail: '设置 YouTube 字幕翻译服务、显示方式和字号。',
-        searchDescription: 'YouTube、视频字幕、视频翻译服务、显示模式、字幕字号、DeepLX、微软翻译',
+        id: 'settings-video', icon: 'CC', label: '视频字幕翻译', description: 'YouTube/X 边看边译', group: '专项翻译',
+        heading: '视频字幕翻译', summary: '在 YouTube/X 原生字幕下方显示译文，X 无字幕时可用本地 AI 生成，并独立选择视频翻译服务。',
+        kicker: '专项翻译', title: '视频字幕翻译', detail: '设置 YouTube/X 字幕翻译服务、显示方式和字号。',
+        searchDescription: 'YouTube、X、Twitter、视频字幕、本地 AI、Whisper、视频翻译服务、显示模式、字幕字号、DeepLX、微软翻译',
       },
       {
         id: 'settings-sites', icon: '站', label: '网站规则', description: '自动翻译与禁用名单', group: '专项翻译',
@@ -97,6 +97,12 @@ export const navigationGroups: NavigationGroup[] = [
         kicker: '本地学习', title: '单词本', detail: '词条、上下文与复习记录只保存在当前浏览器；可在这里复习或导出到 Anki。',
         searchDescription: '单词本、收藏、复习、掌握程度、学习记录、Anki、导入导出',
       },
+      {
+        id: 'settings-harness', icon: '文', label: 'DeepSeek Harness', description: '选区学习辅助', group: '工具与学习',
+        heading: 'DeepSeek Harness', summary: '选中文本后按需调用 AI，帮助理解、拆句、掌握用法和练习。',
+        kicker: '学习辅助', title: 'DeepSeek Harness', detail: '配置选区学习辅助的服务、上下文范围和回答偏好。',
+        searchDescription: 'Harness、DeepSeek、读懂、拆句、用法、练习、选区、段落、学习辅助、解释深度、学习程度',
+      },
     ],
   },
   {
@@ -106,7 +112,7 @@ export const navigationGroups: NavigationGroup[] = [
         id: 'settings-advanced', icon: '◇', label: '高级选项', description: '性能与模板', group: '系统与数据',
         heading: '高级选项', summary: '管理缓存、并发、限流和重试等运行策略。',
         kicker: '系统与数据', title: '高级选项', detail: '调整缓存、并发、限流和重试；不确定时建议保留默认值。',
-        searchDescription: '缓存、并发、限流、重试、性能、资源占用',
+        searchDescription: '缓存、缓存容量、存储大小、缓存条数、缓存上限、缓存阈值、清空缓存、清除缓存、LRU、并发、限流、重试、性能、资源占用',
       },
       {
         id: 'settings-data', icon: '⇅', label: '备份与恢复', description: '导出备份、恢复数据', group: '系统与数据',

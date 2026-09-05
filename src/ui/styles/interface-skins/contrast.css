@@ -67,22 +67,16 @@
 :root[data-interface-skin="contrast"] .site-rule-row {
   background: var(--surface-soft);
 }
-
 :root[data-interface-skin="contrast"] .translate-button,
-:root[data-interface-skin="contrast"] .translate-button.translated,
-:root[data-interface-skin="contrast"] .ai-context-toggle,
-:root[data-interface-skin="contrast"] .ai-context-toggle[aria-pressed="true"] {
+:root[data-interface-skin="contrast"] .translate-button.translated {
   border: 2px solid var(--line);
   border-radius: 7px;
   color: #fff;
   background: #000;
   box-shadow: none;
 }
-
 :root.dark[data-interface-skin="contrast"] .translate-button,
-:root.dark[data-interface-skin="contrast"] .translate-button.translated,
-:root.dark[data-interface-skin="contrast"] .ai-context-toggle,
-:root.dark[data-interface-skin="contrast"] .ai-context-toggle[aria-pressed="true"] {
+:root.dark[data-interface-skin="contrast"] .translate-button.translated {
   border-color: #ffe347;
   color: #000;
   background: #ffe347;
@@ -93,13 +87,6 @@
 :root[data-interface-skin="contrast"] .feature-card:hover:not(:disabled) {
   box-shadow: 4px 4px 0 var(--line);
   transform: translate(-2px, -2px);
-}
-
-:root[data-interface-skin="contrast"] .ai-context-toggle[aria-pressed="false"] {
-  border: 2px solid var(--line);
-  color: var(--ink);
-  background: var(--surface-soft);
-  box-shadow: none;
 }
 
 :root[data-interface-skin="contrast"] .feature-card .feature-icon,

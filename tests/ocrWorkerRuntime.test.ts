@@ -25,7 +25,7 @@ function createWorker(name: string): OcrWorkerPort<RecognitionResult> {
 }
 
 describe('OCR worker runtime', () => {
-    it('复用同语言 Worker，并为每次识别设置稀疏文本参数', async () => {
+    it('复用同语言 Worker 和稀疏文本参数，连续识别不重复跨 Worker 初始化', async () => {
         const worker = createWorker('eng');
         const factory = vi.fn(async () => worker);
         const runtime = createOcrWorkerRuntime({createWorker: factory, sparseTextMode: 11});
@@ -34,7 +34,7 @@ describe('OCR worker runtime', () => {
         await expect(runtime.recognize('second', 'eng')).resolves.toEqual({worker: 'eng', image: 'second'});
 
         expect(factory).toHaveBeenCalledOnce();
-        expect(worker.setParameters).toHaveBeenCalledTimes(2);
+        expect(worker.setParameters).toHaveBeenCalledOnce();
         expect(worker.setParameters).toHaveBeenLastCalledWith({
             tessedit_pageseg_mode: 11,
             preserve_interword_spaces: '1',
@@ -83,7 +83,7 @@ describe('OCR worker runtime', () => {
         firstRecognition.resolve({worker: 'eng', image: 'first'});
         await expect(first).resolves.toEqual({worker: 'eng', image: 'first'});
         await expect(second).resolves.toEqual({worker: 'eng', image: 'second'});
-        expect(worker.setParameters).toHaveBeenCalledTimes(2);
+        expect(worker.setParameters).toHaveBeenCalledOnce();
     });
 
     it('下载语言包也等待识别结束，并忽略旧 Worker 的终止异常', async () => {
@@ -114,6 +114,78 @@ describe('OCR worker runtime', () => {
 
         await expect(runtime.ensureLanguages([])).resolves.toBeUndefined();
         expect(factory).not.toHaveBeenCalled();
+    });
+
+    it('排队请求立即取消，不终止仍在识别的 Worker，也不让后续请求插队', async () => {
+        const recognition = deferred<RecognitionResult>();
+        const worker = createWorker('active');
+        vi.mocked(worker.recognize).mockReturnValueOnce(recognition.promise);
+        const runtime = createOcrWorkerRuntime({createWorker: async () => worker, sparseTextMode: 11});
+        const active = runtime.recognize('first', 'eng');
+        await vi.waitFor(() => expect(worker.recognize).toHaveBeenCalledOnce());
+
+        const controller = new AbortController();
+        const cancelled = runtime.recognize('cancelled', 'jpn', controller.signal);
+        const last = runtime.recognize('last', 'eng');
+        controller.abort();
+        await expect(cancelled).rejects.toMatchObject({name: 'AbortError'});
+        expect(worker.terminate).not.toHaveBeenCalled();
+        expect(worker.recognize).toHaveBeenCalledOnce();
+
+        recognition.resolve({worker: 'active', image: 'first'});
+        await active;
+        await expect(last).resolves.toEqual({worker: 'active', image: 'last'});
+        expect(worker.recognize).toHaveBeenCalledTimes(2);
+        expect(worker.recognize).not.toHaveBeenCalledWith('cancelled', expect.anything(), expect.anything());
+    });
+
+    it('排队中的语言预下载取消不销毁活跃识别任务', async () => {
+        const recognition = deferred<RecognitionResult>();
+        const worker = createWorker('eng');
+        vi.mocked(worker.recognize).mockReturnValueOnce(recognition.promise);
+        const runtime = createOcrWorkerRuntime({createWorker: async () => worker, sparseTextMode: 11});
+        const active = runtime.recognize('first', 'eng');
+        await vi.waitFor(() => expect(worker.recognize).toHaveBeenCalledOnce());
+        const controller = new AbortController();
+        const download = runtime.ensureLanguages(['jpn'], controller.signal);
+        controller.abort();
+
+        await expect(download).rejects.toMatchObject({name: 'AbortError'});
+        expect(worker.terminate).not.toHaveBeenCalled();
+        recognition.resolve({worker: 'eng', image: 'first'});
+        await active;
+        await runtime.recognize('last', 'eng');
+        expect(worker.setParameters).toHaveBeenCalledOnce();
+    });
+
+    it('参数设置失败可重试，只有成功初始化才会复用参数', async () => {
+        const worker = createWorker('eng');
+        vi.mocked(worker.setParameters).mockRejectedValueOnce(new Error('setup failed'));
+        const runtime = createOcrWorkerRuntime({createWorker: async () => worker, sparseTextMode: 11});
+        await expect(runtime.recognize('failed', 'eng')).rejects.toThrow('setup failed');
+        await runtime.recognize('retry', 'eng');
+        await runtime.recognize('again', 'eng');
+        expect(worker.setParameters).toHaveBeenCalledTimes(2);
+        expect(worker.recognize).toHaveBeenCalledTimes(2);
+    });
+
+    it('取消挂起的参数初始化会释放旧 Worker，新请求重新初始化', async () => {
+        const parameters = deferred<unknown>();
+        const first = createWorker('first');
+        const next = createWorker('next');
+        vi.mocked(first.setParameters).mockReturnValueOnce(parameters.promise);
+        const factory = vi.fn().mockResolvedValueOnce(first).mockResolvedValueOnce(next);
+        const runtime = createOcrWorkerRuntime({createWorker: factory, sparseTextMode: 11});
+        const controller = new AbortController();
+        const pending = runtime.recognize('cancelled', 'eng', controller.signal);
+        await vi.waitFor(() => expect(first.setParameters).toHaveBeenCalledOnce());
+        controller.abort();
+        await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+        await runtime.recognize('retry', 'eng');
+        parameters.resolve(undefined);
+        expect(first.recognize).not.toHaveBeenCalled();
+        expect(next.setParameters).toHaveBeenCalledOnce();
+        await vi.waitFor(() => expect(first.terminate).toHaveBeenCalledOnce());
     });
 
     it('创建失败后清理状态，后续请求可以重试', async () => {

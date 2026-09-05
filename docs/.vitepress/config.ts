@@ -59,6 +59,7 @@ export default defineConfig({
             { text: '图片翻译', link: '/guide/image-translation' },
             { text: '油猴脚本', link: '/guide/userscript' },
             { text: '单词本 Beta', link: '/guide/vocabulary-book' },
+            { text: '阅读理解与 DeepSeek Harness', link: '/guide/deepseek-harness' },
             { text: '自定义快捷键', link: '/guide/custom-hotkey' },
             { text: 'Chrome 本地翻译', link: '/guide/chrome-translator' },
           ],

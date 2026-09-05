@@ -4,6 +4,8 @@
  * 主要内容：包含 OffscreenResponse 解析、data:image 与 lines 数组验证、译图 image/lines 结果收窄，以及 createImageTranslationOffscreenAdapter 和默认 chromeOffscreenClient 实例。
  * 模块边界：适配器不创建 Offscreen document、不执行 OCR/绘制，也不读取配置；文档生命周期属于 platform/offscreen，实际运算在 services/offscreenRuntime 与 ocrRuntime 中完成。
  */
+import type {ImageProgressContext} from './handlers';
+import {IMAGE_PROGRESS_MESSAGE_TYPE, type ImageTranslationStage} from '../progress';
 import type {OcrLine} from '@/src/features/image-translation/core';
 import type {ImageOcrLanguageCode} from '@/src/features/image-translation/ocrLanguages';
 import type {OffscreenImageTranslationResult} from '@/src/features/image-translation/services/offscreenRuntime';
@@ -126,3 +128,15 @@ export function createImageTranslationOffscreenAdapter(client: OffscreenClient =
 }
 
 export const imageTranslationOffscreenAdapter = createImageTranslationOffscreenAdapter();
+
+/** 只把可信 Offscreen 阶段发送给发起任务的 frame，导航后的无接收端是正常清理。 */
+export const imageTranslationProgressTransport = {
+    isOffscreenSender(context: ImageProgressContext): boolean {
+        return context.sender?.url === browser.runtime.getURL('/offscreen.html');
+    },
+    async sendProgress(context: ImageProgressContext, message: {type: typeof IMAGE_PROGRESS_MESSAGE_TYPE; requestId: string; stage: ImageTranslationStage}): Promise<void> {
+        const tabId = context.sender?.tab?.id;
+        if (typeof tabId !== 'number') return;
+        await browser.tabs.sendMessage(tabId, message, {frameId: context.sender?.frameId ?? 0}).catch(() => undefined);
+    },
+};

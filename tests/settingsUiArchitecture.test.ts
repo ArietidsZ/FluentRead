@@ -43,6 +43,33 @@ function settingsGroupTitles(content: string): string[] {
 }
 
 describe('options UI composition architecture', () => {
+  it('keeps cache management inside advanced settings without another navigation or popup surface', () => {
+    const sections = source('src/features/settings/ui/SettingsSections.vue')
+    const cache = source('src/features/settings/ui/TranslationCacheSettings.vue')
+    const navigation = source('src/features/settings/model/navigation.ts')
+    const popup = source('src/app/popup/PopupApp.vue')
+
+    expect(activeSectionSource(sections, 'settings-advanced')).toContain('<TranslationCacheSettings')
+    expect(sections).toContain('<TranslationCacheSettings v-if="props.activeSection === \'settings-advanced\'" :config="config" />')
+    expect(navigation).toContain('缓存容量、存储大小、缓存条数、缓存上限、缓存阈值、清空缓存、清除缓存、LRU')
+    expect(navigation).not.toContain("id: 'settings-cache'")
+    expect(popup).not.toContain('TranslationCacheSettings')
+    expect(cache).toContain('data-cache-bytes')
+    expect(cache).toContain('data-cache-entries')
+    expect(cache).toContain('<details class="translation-cache-limits" data-cache-limits>')
+    expect(cache).toContain('aria-live="polite"')
+    expect(cache).toContain('role="alert"')
+    expect(cache).toContain('@submit.prevent="saveLimits"')
+    expect(cache).toContain('requestConfigPatch(patch, browser.runtime.sendMessage.bind(browser.runtime))')
+    expect(cache).toContain('getTranslationCacheStats()')
+    expect(cache).toContain('clearManagedTranslationCache()')
+    expect(cache).not.toContain('indexedDB')
+    expect(cache).not.toContain('v-model="props.config.')
+    expect(cache).not.toContain(':disabled="!props.config.useCache"')
+    expect(cache).toContain("onUnmounted(() => { disposed = true; });")
+    expect(cache).toContain('@media (max-width: 480px)')
+  })
+
   it('keeps the WXT options entrypoint as a thin app composition shell', () => {
     const entrypoint = sourceBody('entrypoints/options/main.ts')
     expect(entrypoint).toBe("import { mountOptionsApp } from '@/src/app/options'\n\nmountOptionsApp('#app')\n")
@@ -351,6 +378,11 @@ describe('options UI composition architecture', () => {
     expect(videoRuntime).toContain("import {browserCapabilities} from '@/src/platform/browser/capabilities'")
     expect(videoRuntime).toContain('当前浏览器不可用')
     expect(videoRuntime).toContain('当前浏览器不支持本地 AI 字幕')
+    const navigation = source('src/features/settings/model/navigation.ts')
+    expect(navigation).toContain("description: 'YouTube/X 边看边译'")
+    expect(navigation).toContain('YouTube/X 原生字幕下方显示译文')
+    expect(navigation).toContain('YouTube、X、Twitter、视频字幕、本地 AI、Whisper')
+    expect(videoModelSettings).toContain('.capability-warning { margin: 6px 0 0; color: var(--el-color-danger);')
     expect(popup).toContain('@/src/ui/components/CustomHotkeyInput.vue')
     expect(popup).toContain('@/src/ui/components/ServiceIcon.vue')
     expect(popup).toContain('@/src/platform/browser/ids')
@@ -693,8 +725,8 @@ describe('options UI composition architecture', () => {
     expect(general).toContain('<ServiceIcon :service="config.service" :label="defaultTextServiceLabel" size="medium"')
     expect(general).toContain('aria-label="默认网页翻译服务"')
     expect(general).toContain('defaultTextServiceLabel')
-    expect(general).toContain('aria-label="AI 智能上下文"')
-    const aiContextSwitch = general.match(/<el-switch\b[^>]*aria-label="AI 智能上下文"[^>]*\/>/u)?.[0]
+    expect(general).toContain(":aria-label=\"t('popup.aiContext.settingsTitle')\"")
+    const aiContextSwitch = general.match(/<el-switch\b[^>]*v-model="config.enableAIContext"[^>]*\/>/u)?.[0]
     expect(aiContextSwitch).toBeDefined()
     expect(aiContextSwitch).not.toContain(':disabled')
     expect(general).toContain('label="翻译模式"')

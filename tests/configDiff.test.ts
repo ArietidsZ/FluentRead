@@ -191,6 +191,19 @@ describe('配置差异预览', () => {
         });
     });
 
+    it('缓存上限在配置历史中显示中文标签与单位', () => {
+        const result = buildConfigDiff(
+            {translationCacheMaxBytes: 5242880, translationCacheMaxEntries: 2000},
+            {translationCacheMaxBytes: 1048576, translationCacheMaxEntries: 100},
+        );
+        expect(result.groups).toEqual([{
+            id: 'advanced', label: '高级', changes: [
+                {key: 'translationCacheMaxBytes', label: '翻译缓存容量上限', before: '5242880 B', after: '1048576 B'},
+                {key: 'translationCacheMaxEntries', label: '翻译缓存条数上限', before: '2000 条', after: '100 条'},
+            ],
+        }]);
+    });
+
     it('按设置页稳定分组并把常用枚举、开关、数组和数字格式化为可读文本', () => {
         const result = buildConfigDiff({
             on: true,
