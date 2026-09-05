@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/InterfaceSettings.vue
- * 文件职责：在独立的“界面布局”页面组织 FluentRead 的界面风格和菜单栏布局两个偏好分组。
- * 主要内容：用真实 DOM 范例辅助选择注册皮肤，并通过预览直接拖动和显隐列表共同编排菜单栏区域与快捷入口，两个操作面共享持久化配置。
+ * 文件职责：在独立的“界面布局”页面组织 FluentRead 的界面风格、动画加载效果和菜单栏布局三个偏好分组。
+ * 主要内容：用真实 DOM 范例辅助选择注册皮肤，提供动画与加载效果预览，并通过预览直接拖动和显隐列表共同编排菜单栏区域与快捷入口，两个操作面共享持久化配置。
  * 模块边界：本组件只负责界面配置的展示与双向绑定，不直接读写浏览器存储、不负责主题模式，也不关闭翻译功能本身；界面皮肤由 Options composition root 统一应用。
 -->
 <template>
@@ -71,6 +71,8 @@
     </SettingsItem>
 
   </SettingsGroup>
+
+  <TranslationLoadingStyleSettings :config="props.config" />
 
   <SettingsGroup
     :title="t('settings.interface.popupLayout.label')"
@@ -193,6 +195,7 @@ import {useUiI18n} from '@/src/ui/i18n'
 import InterfaceSkinPreview from './components/InterfaceSkinPreview.vue'
 import PopupLayoutPreview from './components/PopupLayoutPreview.vue'
 import PopupLayoutEditor from './PopupLayoutEditor.vue'
+import TranslationLoadingStyleSettings from './TranslationLoadingStyleSettings.vue'
 import SettingsGroup from './components/SettingsGroup.vue'
 import SettingsItem from './components/SettingsItem.vue'
 

@@ -91,6 +91,7 @@ describe('popup feature visibility', () => {
     it('blocks early interaction until the stored configuration is hydrated', () => {
         const popup = source('src/app/popup/PopupApp.vue');
         const styles = source('src/app/popup/popup.css');
+        const startup = source('src/app/popup/index.ts');
 
         expect(popup).toContain(':data-config-ready="hydrated ? \'true\' : \'false\'"');
         expect(popup).toContain(':inert="!hydrated"');
@@ -99,6 +100,10 @@ describe('popup feature visibility', () => {
         expect(popup).toContain("}, { flush: 'post' });");
         expect(popup).toContain('!config.value.uiLanguageSetupCompleted');
         expect(styles).toContain('.popup-shell.config-loading { pointer-events: none; }');
+        expect(startup.indexOf('await configReady')).toBeLessThan(startup.indexOf('const app = createApp(App)'));
+        expect(popup).toContain('const config = ref(normalizeConfig(runtimeConfig))');
+        expect(popup).not.toContain('ref(new Config())');
+        expect(popup.indexOf('applyInterfaceSkin(config.value.interfaceSkin)')).toBeLessThan(popup.indexOf('hydrated.value = true'));
     });
 
     it('keeps full-page floating-ball settings out of the popup', () => {

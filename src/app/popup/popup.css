@@ -49,6 +49,10 @@ button:focus-visible, select:focus-visible { outline: 3px solid rgba(239, 71, 11
     linear-gradient(180deg, #fff 0, #f7f8fb 165px, #f6f7fb 100%);
 }
 .popup-shell.config-loading { pointer-events: none; }
+/* 配置慢读时保留轻量静态状态；Vue 挂载会整体替换它，不呈现默认控件或播放未知偏好的动画。 */
+.popup-startup { display: flex; align-items: center; gap: 8px; padding: 20px; color: #737c8f; font-size: 12px; }
+.popup-startup img { border-radius: 7px; }
+.popup-startup i { width: 12px; height: 12px; margin-left: auto; border: 1.5px solid #d4d8e1; border-top-color: #737c8f; border-radius: 50%; }
 .popup-content { position: relative; z-index: 1; }
 .popup-shell.language-onboarding-shell { overflow: hidden; }
 :root.dark .popup-shell {

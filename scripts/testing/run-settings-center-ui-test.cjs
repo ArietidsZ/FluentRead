@@ -86,8 +86,25 @@ const expectedNavigationGroups = [
   ['系统与数据', ['settings-advanced', 'settings-data', 'settings-about']],
 ];
 const expectedGeneralGroups = ['选择翻译服务', '译文显示', '网页辅助'];
-const expectedInterfaceGroups = ['界面与弹窗', '菜单栏布局'];
+const expectedInterfaceGroups = ['界面与弹窗', '动画与加载效果', '菜单栏布局'];
 const expectedTranslationGroups = ['鼠标悬浮翻译', '划词翻译', '输入框翻译', '全文翻译'];
+const expectedLoadingStyles = [
+  ['minimal', '简洁'],
+  ['ring', '柔和圆环'],
+  ['dots', '跳跃圆点'],
+  ['orbit', '行星轨道'],
+  ['sparkle', '星光'],
+  ['pulse', '涟漪扩散'],
+  ['wave', '起伏波形'],
+  ['sweep', '光线扫过'],
+  ['hourglass', '流沙沙漏'],
+  ['comet', '小彗星'],
+  ['flip', '翻转方块'],
+  ['bounce', '弹跳小球'],
+  ['typing', '打字光标'],
+  ['scan', '扫描线'],
+  ['signal', '信号柱'],
+];
 const configDatabaseName = 'FluentReadConfiguration';
 const expectedEncryptedRecordKeys = [
   'local:config',
@@ -306,7 +323,7 @@ async function verifyInterfaceDesignMatrix(page, skin, report) {
         };
       });
       metrics.textContrast = contrastRatio(metrics.ink, metrics.surface);
-      if (metrics.horizontalOverflow || metrics.selectedSkin !== skin.value || metrics.cardCount !== 11
+      if (metrics.horizontalOverflow || metrics.selectedSkin !== skin.value || metrics.cardCount !== 14
         || !metrics.cardsWithinViewport || !metrics.previewWithinViewport || !metrics.groupsWithinViewport
         || metrics.textContrast < 4.5 || (skin.kind === 'palette' && metrics.workspaceBackgroundImage === 'none')) {
         throw new Error(`${skin.label} ${theme} ${viewport.width}px 界面布局异常：${JSON.stringify(metrics)}`);
@@ -1163,18 +1180,11 @@ async function main() {
     report.informationArchitecture.legacyNavigationCases = legacyNavigationCases;
     report.assertions.interfaceSearchAndLegacyNavigation = true;
 
-    // 高级设置中的段落加载样式必须用真实运行时指示器预览，并经统一配置链路持久化。
-    await page.locator('button[data-section="settings-advanced"]').click();
-    const loadingStyleGroup = page.locator('.settings-section:visible .settings-group').filter({hasText: '界面性能'});
+    // 界面布局中的段落加载样式必须用真实运行时指示器预览，并经统一配置链路持久化。
+    await page.locator('button[data-section="settings-interface"]').click();
+    const loadingStyleGroup = page.locator('.settings-section:visible .settings-group').filter({hasText: '动画与加载效果'});
     await loadingStyleGroup.waitFor({state: 'visible', timeout});
     const loadingStyleCards = loadingStyleGroup.locator('.loading-style-option');
-    const expectedLoadingStyles = [
-      ['minimal', '简洁'],
-      ['ring', '柔和圆环'],
-      ['dots', '跳跃圆点'],
-      ['orbit', '行星轨道'],
-      ['sparkle', '星光'],
-    ];
     const loadingStyleContract = await loadingStyleCards.evaluateAll(cards => cards.map(card => ({
       value: card.querySelector('input[type="radio"]')?.value,
       label: card.querySelector('.loading-style-copy strong')?.textContent?.trim(),
@@ -1218,10 +1228,10 @@ async function main() {
       const response = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
       return response?.value?.translationLoadingStyle;
     });
-    if (storedLoadingStyle !== 'sparkle') {
+    if (storedLoadingStyle !== 'signal') {
       throw new Error(`段落加载样式没有持久化最终选择：${String(storedLoadingStyle)}`);
     }
-    report.screenshots.push(await screenshot(page, 'settings-advanced-loading-styles-animated.png'));
+    report.screenshots.push(await screenshot(page, 'settings-interface-loading-styles-animated.png'));
 
     const animationSwitch = loadingStyleGroup.locator('.settings-item').filter({hasText: '动画效果'}).locator('.el-switch');
     await animationSwitch.click();
@@ -1230,15 +1240,15 @@ async function main() {
       && [...document.querySelectorAll('.loading-style-picker .fluent-read-loading')]
         .every(indicator => indicator.getAttribute('data-fr-motion') === 'static')
     ), undefined, {timeout});
-    report.screenshots.push(await screenshot(page, 'settings-advanced-loading-styles-static.png'));
+    report.screenshots.push(await screenshot(page, 'settings-interface-loading-styles-static.png'));
     await animationSwitch.click();
-    await loadingStyleCards.filter({has: page.locator('input[value="minimal"]')}).click();
+    await loadingStyleCards.filter({has: page.locator('input[value="ring"]')}).click();
     await page.waitForTimeout(500);
     const restoredLoadingStyle = await page.evaluate(async () => {
       const response = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
       return response?.value?.translationLoadingStyle;
     });
-    if (restoredLoadingStyle !== 'minimal') {
+    if (restoredLoadingStyle !== 'ring') {
       throw new Error(`段落加载样式没有持久化恢复值：${String(restoredLoadingStyle)}`);
     }
     report.translationLoadingStyles = {
@@ -1277,6 +1287,9 @@ async function main() {
       {value: 'emoji', label: 'Emoji 乐园 ✨', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#7143ca', surface: '#fffefd', darkSurface: '#382744'},
       {value: 'midnight', label: '夜幕 🌙', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#9eb5d0', surface: '#1d2632', darkSurface: '#1d2632'},
       {value: 'paper', label: '纸张护眼 📖', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#806b51', surface: '#fbf9f3', darkSurface: '#292620'},
+      {value: 'aurora', label: '极光舷窗 🛰️', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#5147a8', surface: '#fcfbff', darkSurface: '#272544'},
+      {value: 'arcade', label: '像素街机 🎮', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#087f65', surface: '#fbfffd', darkSurface: '#172f35'},
+      {value: 'sunset', label: '落日公路 🛣️', kind: 'palette', contentHeight: true, popupWidth: 400, brand: '#b64f3b', surface: '#fffdfa', darkSurface: '#382b37'},
     ];
     const skinCards = interfaceSettingsGroup.locator('.interface-skin-option');
     if (await skinCards.count() !== expectedInterfaceSkins.length) {
@@ -2407,7 +2420,7 @@ async function main() {
     }
     await page.locator('button[data-section="settings-translation"]').click();
     report.screenshots.push(await screenshot(page, 'settings-dark-translation.png'));
-    await page.locator('button[data-section="settings-advanced"]').click();
+    await page.locator('button[data-section="settings-interface"]').click();
     const darkLoadingStyleSurfaces = await page.locator('.loading-style-option').evaluateAll(cards => (
       cards.map(card => ({
         selected: card.classList.contains('selected'),
@@ -2415,7 +2428,7 @@ async function main() {
       }))
     ));
     const selectedDarkLoadingStyle = darkLoadingStyleSurfaces.find(item => item.selected);
-    if (darkLoadingStyleSurfaces.length !== 5
+    if (darkLoadingStyleSurfaces.length !== expectedLoadingStyles.length
       || darkLoadingStyleSurfaces.filter(item => !item.selected).some(item => !isDarkColor(item.backgroundColor))
       || !selectedDarkLoadingStyle
       || !selectedDarkLoadingStyle.backgroundColor.startsWith('rgba(')) {
@@ -3113,7 +3126,7 @@ async function main() {
       report.screenshots.push(await screenshot(page, translationFile));
       report.responsive.push({page: 'settings-translation', ...viewport, ...translationMetrics});
 
-      await page.locator('button[data-section="settings-advanced"]').click();
+      await page.locator('button[data-section="settings-interface"]').click();
       await page.waitForTimeout(150);
       const loadingStyleMetrics = await page.evaluate(() => {
         const picker = document.querySelector('.loading-style-picker');
@@ -3145,13 +3158,13 @@ async function main() {
         || !loadingStyleMetrics.pickerWithinViewport
         || !loadingStyleMetrics.cardsWithinPicker
         || !loadingStyleMetrics.activeNavigationVisible
-        || loadingStyleMetrics.optionCount !== 5
+        || loadingStyleMetrics.optionCount !== 15
         || (viewport.width <= 480 && loadingStyleMetrics.columnCount > 2)) {
         throw new Error(`${viewport.width}px 段落加载样式响应式异常：${JSON.stringify(loadingStyleMetrics)}`);
       }
-      const loadingStyleFile = `settings-advanced-loading-styles-${viewport.width}.png`;
+      const loadingStyleFile = `settings-interface-loading-styles-${viewport.width}.png`;
       report.screenshots.push(await screenshot(page, loadingStyleFile));
-      report.responsive.push({page: 'settings-advanced-loading-styles', ...viewport, ...loadingStyleMetrics});
+      report.responsive.push({page: 'settings-interface-loading-styles', ...viewport, ...loadingStyleMetrics});
 
       await page.locator('button[data-section="settings-model-usage"]').click();
       await page.waitForTimeout(150);

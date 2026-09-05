@@ -1,0 +1,75 @@
+/**
+ * @file src/ui/styles/interface-skins/arcade.css
+ * 文件职责：定义像素街机风格的青绿霓虹、细像素网格与利落的操作表面。
+ * 主要内容：亮色使用浅薄荷画布和深色像素边界，暗色切换为街机屏幕般的蓝绿底色，保持长文阅读的清晰对比。
+ * 模块边界：只声明主题变量与风格化边界；组件尺寸、顺序和交互仍由现有界面结构控制。
+ */
+
+:root[data-interface-skin="arcade"] {
+  --brand: #087f65;
+  --brand-strong: #045943;
+  --brand-soft: #d8f5e8;
+  --ink: #172c32;
+  --muted: #577173;
+  --line: #c4ded8;
+  --surface: #fbfffd;
+  --surface-soft: #eff8f5;
+  --skin-page: #edf8f4;
+  --skin-sidebar: #f6fcfa;
+  --skin-action-text: #ffffff;
+  --skin-focus: color-mix(in srgb, var(--brand) 25%, transparent);
+  --skin-shadow: rgba(18, 76, 72, .12);
+  --skin-radius: 8px;
+  --skin-panel-radius: 8px;
+  --skin-feature-radius: 7px;
+  --skin-control-radius: 6px;
+  --skin-icon-background: #dff5eb;
+  --skin-canvas-background:
+    linear-gradient(rgba(8, 127, 101, .055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(8, 127, 101, .055) 1px, transparent 1px),
+    radial-gradient(circle at 87% 13%, rgba(255, 196, 77, .26) 0 3px, transparent 4px),
+    linear-gradient(145deg, #e8f8f1 0%, #fbfffd 58%, #edf7f4 100%);
+  --skin-canvas-background-size: 12px 12px, 12px 12px, auto, auto;
+  --skin-panel-background: linear-gradient(155deg, #fbfffd 65%, #eef8f5 100%);
+  --skin-panel-shadow: 3px 3px 0 rgba(8, 127, 101, .13), 0 1px 4px rgba(18, 76, 72, .04);
+  --skin-feature-shadow: 2px 2px 0 rgba(8, 127, 101, .1);
+}
+
+:root.dark[data-interface-skin="arcade"] {
+  --brand: #76f2c8;
+  --brand-strong: #a6ffdf;
+  --brand-soft: #1a4c45;
+  --ink: #e6fff7;
+  --muted: #9dc5bb;
+  --line: #2c5c56;
+  --surface: #172f35;
+  --surface-soft: #1e3d42;
+  --skin-page: #0d1e26;
+  --skin-sidebar: #122831;
+  --skin-action-text: #0d1e26;
+  --skin-focus: color-mix(in srgb, var(--brand) 32%, transparent);
+  --skin-shadow: rgba(0, 7, 12, .3);
+  --skin-icon-background: #20534e;
+  --skin-canvas-background:
+    linear-gradient(rgba(118, 242, 200, .06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(118, 242, 200, .06) 1px, transparent 1px),
+    radial-gradient(circle at 87% 13%, rgba(255, 193, 73, .38) 0 3px, transparent 4px),
+    linear-gradient(145deg, #142f36 0%, #0d1e26 58%, #102b31 100%);
+  --skin-canvas-background-size: 12px 12px, 12px 12px, auto, auto;
+  --skin-panel-background: linear-gradient(155deg, #1c383e 0%, #172f35 100%);
+  --skin-panel-shadow: 3px 3px 0 rgba(118, 242, 200, .12), 0 1px 5px rgba(0, 7, 12, .16);
+  --skin-feature-shadow: 2px 2px 0 rgba(118, 242, 200, .1);
+}
+
+:root[data-interface-skin="arcade"] .popup-shell :is(.hero-card, .feature-card, .service-field) {
+  border-style: solid;
+}
+
+:root[data-interface-skin="arcade"] :is(.popup-shell, .workspace) {
+  background-size: var(--skin-canvas-background-size);
+}
+
+:root[data-interface-skin="arcade"] .popup-shell .translate-button {
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}

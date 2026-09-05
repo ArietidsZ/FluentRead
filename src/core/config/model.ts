@@ -332,7 +332,7 @@ export class Config {
         this.tencentSecretKey = ''; // 腾讯云 Secret Key
         this.azureOpenaiEndpoint = ''; // Azure OpenAI 端点地址
         this.animations = true; // 默认启用动画
-        this.translationLoadingStyle = DEFAULT_TRANSLATION_LOADING_STYLE; // 默认使用低存在感的简洁加载样式
+        this.translationLoadingStyle = DEFAULT_TRANSLATION_LOADING_STYLE; // 默认使用柔和圆环，缺失配置也回到该样式
         this.translationProgressPanelEnabled = false; // 默认关闭全文翻译进度面板
         this.inputBoxTranslationTrigger = 'disabled'; // 默认关闭输入框翻译
         this.inputBoxTranslationTarget = 'en'; // 默认翻译成英文

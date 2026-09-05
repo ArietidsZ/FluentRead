@@ -17,7 +17,7 @@ const validConfig = {
 }
 
 describe('configuration transfer helpers', () => {
-  it('往返保留非默认段落加载样式，并把旧文件与非法值迁移到低干扰默认值', () => {
+  it('往返保留非默认段落加载样式，并把旧文件与非法值迁移到柔和圆环默认值', () => {
     const current = normalizeConfig({...new Config(), ...validConfig, translationLoadingStyle: 'sparkle'})
     const orbitExport = prepareConfigForExport({...current, translationLoadingStyle: 'orbit'})
 
@@ -25,11 +25,11 @@ describe('configuration transfer helpers', () => {
     expect(prepareConfigForImport(orbitExport, current).translationLoadingStyle).toBe('orbit')
 
     const {translationLoadingStyle: _missingLegacyField, ...legacyExport} = orbitExport
-    expect(prepareConfigForImport(legacyExport, current).translationLoadingStyle).toBe('minimal')
+    expect(prepareConfigForImport(legacyExport, current).translationLoadingStyle).toBe('ring')
     expect(prepareConfigForImport({
       ...orbitExport,
       translationLoadingStyle: 'page-controlled-animation',
-    }, current).translationLoadingStyle).toBe('minimal')
+    }, current).translationLoadingStyle).toBe('ring')
   })
 
   it('accepts the minimum import shape and rejects malformed values', () => {
