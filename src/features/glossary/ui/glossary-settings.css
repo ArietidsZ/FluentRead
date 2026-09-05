@@ -1,0 +1,71 @@
+/**
+ * @file src/features/glossary/ui/glossary-settings.css
+ * 文件职责：为术语库管理与导入预览提供设置中心一致的卡片、表单和响应式布局。
+ * 主要内容：限定表格及导入预览的滚动边界，复用主题 token，并确保长术语、窄窗口与键盘焦点可见。
+ * 模块边界：仅作用于本组件的 scoped 样式，不写全局标签规则、不改变网页宿主与其他设置分区。
+ */
+.fluentread-glossary { color: var(--ink, var(--el-text-color-primary)); font-size: 13px; line-height: 1.5; width: min(100%, 1080px); margin: auto; }
+.fluentread-glossary * { box-sizing: border-box; }
+.fluentread-glossary p { margin: 6px 0; }
+.fluentread-glossary h3 { margin: 0 0 10px; font-size: 15px; }
+.fluentread-glossary button, .fluentread-glossary input, .fluentread-glossary select, .fluentread-glossary textarea { font: inherit; color: inherit; }
+.fluentread-glossary button, .fluentread-glossary input:not([type=checkbox]), .fluentread-glossary select, .fluentread-glossary textarea { border: 1px solid var(--line, var(--el-border-color)); border-radius: 8px; background: var(--surface, var(--el-bg-color)); min-width: 0; padding: 7px 10px; }
+.fluentread-glossary button { cursor: pointer; white-space: nowrap; }
+.fluentread-glossary button:hover:not(:disabled) { background: var(--surface-soft, var(--el-fill-color-light)); }
+.fluentread-glossary button:disabled { cursor: not-allowed; opacity: .48; }
+.fluentread-glossary :focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 2px; }
+.fluentread-glossary .primary { background: var(--el-color-primary); color: white; border-color: var(--el-color-primary); }
+.fluentread-glossary .primary:hover:not(:disabled) { background: var(--el-color-primary-light-3); }
+.fluentread-glossary .danger { color: var(--el-color-danger); }
+.fluentread-glossary label { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.fluentread-glossary textarea { width: 100%; resize: vertical; }
+.fluentread-glossary input[type=checkbox] { accent-color: var(--el-color-primary); width: 17px; height: 17px; flex: 0 0 auto; }
+.fluentread-glossary fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.glossary-card { background: var(--surface, var(--el-bg-color)); border: 1px solid var(--line, var(--el-border-color)); border-radius: 16px; padding: 18px; }
+.glossary-enable, .glossary-toolbar, .glossary-actions, .glossary-entry-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.glossary-enable p, .glossary-help, .glossary-save-state, .fluentread-glossary small { color: var(--muted, var(--el-text-color-secondary)); font-size: 11px; }
+.glossary-save-state { min-height: 18px; }
+.glossary-toolbar { margin: 14px 0; flex-wrap: wrap; }
+.glossary-actions { justify-content: flex-end; flex-wrap: wrap; }
+.glossary-empty { text-align: center; padding: 34px; }
+.glossary-empty > span { color: var(--el-color-primary); font-size: 22px; }
+.glossary-empty h3 { margin-top: 12px; }
+.glossary-empty code { display: inline-block; margin-top: 12px; text-align: left; font-size: 12px; }
+.glossary-workbench { display: grid; grid-template-columns: minmax(160px, 230px) minmax(0, 1fr); gap: 14px; align-items: start; }
+.glossary-libraries { padding: 7px; }
+.glossary-library-row { display: flex; align-items: center; border-radius: 10px; }
+.glossary-library-row.selected { background: var(--surface-soft, var(--el-fill-color-light)); }
+.fluentread-glossary .glossary-library-name { border: 0; background: transparent; display: flex; flex: 1; flex-direction: column; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.glossary-library-name small { margin-top: 4px; }
+.glossary-library-order { display: flex; flex-direction: column; gap: 2px; }
+.glossary-library-order button { padding: 2px 7px; }
+.glossary-libraries > p { padding: 7px; }
+.glossary-metadata, .glossary-entry-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.glossary-wide { grid-column: 1/-1; }
+.fluentread-glossary .glossary-check { flex-direction: row; align-items: center; }
+.glossary-entry-toolbar { border-top: 1px solid var(--line, var(--el-border-color)); padding-top: 16px; }
+.glossary-entry-toolbar input { width: 100%; }
+.glossary-entry-form { background: var(--surface-soft, var(--el-fill-color-light)); border-radius: 10px; padding: 12px; margin: 12px 0; }
+.glossary-entry-form > small { grid-column: 1/-1; }
+.glossary-table-scroll { overflow-x: auto; }
+.glossary-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; }
+.glossary-table th { color: var(--muted, var(--el-text-color-secondary)); text-align: left; font-weight: 500; }
+.glossary-table th, .glossary-table td { padding: 9px 5px; border-bottom: 1px solid var(--line, var(--el-border-color)); }
+.glossary-table td { overflow-wrap: anywhere; white-space: pre-wrap; max-width: 210px; }
+.glossary-table td small { margin-left: 6px; color: var(--el-color-primary); }
+.glossary-table .glossary-actions { flex-wrap: nowrap; }
+.glossary-table button { padding: 4px 6px; font-size: 11px; }
+.glossary-no-results { text-align: center; color: var(--muted, var(--el-text-color-secondary)); }
+.glossary-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 12px; }
+.glossary-preview { margin-top: 22px; }
+.glossary-preview > label { margin-top: 14px; }
+.glossary-preview-context { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 12px; margin: 12px 0; }
+.glossary-matches { display: flex; gap: 8px; flex-wrap: wrap; }
+.glossary-matches span { padding: 5px 10px; background: var(--el-color-primary-light-9); border-radius: 8px; overflow-wrap: anywhere; }
+.glossary-error { color: var(--el-color-danger); }
+.glossary-warning { color: var(--el-color-warning-dark-2); }
+.glossary-import-preview { max-height: 260px; overflow: auto; background: var(--surface-soft, var(--el-fill-color-light)); padding: 10px; border-radius: 10px; margin: 12px 0; }
+.glossary-import-preview p { padding-left: 10px; overflow-wrap: anywhere; }
+.glossary-dialog-actions { margin-top: 18px; }
+@media (max-width: 800px) { .glossary-workbench { grid-template-columns: minmax(0, 1fr); } .glossary-libraries { max-height: 220px; overflow-y: auto; } .glossary-library-order { flex-direction: row; } }
+@media (max-width: 520px) { .glossary-card { padding: 13px; } .glossary-metadata, .glossary-entry-form, .glossary-preview-context { grid-template-columns: minmax(0, 1fr); } .glossary-entry-toolbar { flex-wrap: wrap; } }

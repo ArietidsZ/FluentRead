@@ -72,6 +72,7 @@ const expectedNavigation = [
   ['settings-image-translation', '图片与圈选翻译'],
   ['settings-video', '视频字幕翻译'],
   ['settings-sites', '网站规则'],
+  ['settings-glossary', '术语库'],
   ['settings-translation-center', '翻译中心'],
   ['settings-model-usage', '模型用量'],
   ['settings-vocabulary', '单词本'],
@@ -83,7 +84,7 @@ const expectedNavigation = [
 const expectedNavigationGroups = [
   ['基础配置', ['settings-general', 'settings-interface', 'settings-services', 'settings-translation']],
   ['专项翻译', ['settings-image-translation', 'settings-video', 'settings-sites']],
-  ['工具与学习', ['settings-translation-center', 'settings-model-usage', 'settings-vocabulary', 'settings-harness']],
+  ['工具与学习', ['settings-glossary', 'settings-translation-center', 'settings-model-usage', 'settings-vocabulary', 'settings-harness']],
   ['系统与数据', ['settings-advanced', 'settings-data', 'settings-about']],
 ];
 const expectedGeneralGroups = ['选择翻译服务', '译文显示', '网页辅助'];

@@ -14,6 +14,7 @@ import {
 import {config} from '@/src/services/config/store';
 import {normalizeMaxConcurrentTranslations} from '@/src/core/config/scheduling';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
+import {buildGlossaryRevision} from '@/src/core/glossary';
 import {translateText, translateTextBatch, type TranslateOptions} from '@/src/app/translation/client';
 import {
     cancelTranslationQueueSession,
@@ -28,6 +29,8 @@ const AI_MULTI_SEGMENT_MAX_TEXT_SLOTS = 4;
 const AI_MULTI_SEGMENT_MAX_CHARACTERS = 2_000;
 
 export interface FullPageTranslationConfigSnapshot {
+    glossaryRevision?: string;
+    glossaryIds?: readonly string[] | null;
     service: string;
     model: string;
     thinking: boolean;
@@ -44,6 +47,7 @@ export interface FullPageTranslationConfigSnapshot {
 
 /** 单次快捷翻译可覆盖的公开请求维度；未提供的字段继续跟随全局网页设置。 */
 export interface PageTranslationConfigOverrides {
+    glossaryIds?: readonly string[] | null;
     service?: string;
     model?: string;
     targetLanguage?: string;
@@ -56,6 +60,7 @@ export function getTranslationInvocationIdentity(snapshot: FullPageTranslationCo
         snapshot.profileId ?? '', snapshot.service, snapshot.model, snapshot.thinking,
         snapshot.sourceLanguage, snapshot.targetLanguage, snapshot.displayMode, snapshot.style,
         snapshot.enableAIContext, snapshot.enableAIMultiSegment,
+        snapshot.glossaryRevision, snapshot.glossaryIds,
     ]);
 }
 
@@ -126,6 +131,8 @@ export function captureFullPageTranslationConfig(
     const profileId = overrides.profileId?.trim();
     const requestOverridesApplied = Object.keys(overrides).length > 0;
     return {
+        glossaryRevision: buildGlossaryRevision(config.glossaryLibraries, config.glossaryEnabled),
+        glossaryIds: overrides.glossaryIds ? Object.freeze([...overrides.glossaryIds]) : null,
         service,
         model,
         thinking: isModelThinkingEnabled(config.modelThinking, service, model),
@@ -148,6 +155,8 @@ function createSnapshotTranslateOptions(
 ): TranslateOptions {
     return {
         ...options,
+        glossaryRevision: snapshot.glossaryRevision,
+        glossaryIds: snapshot.glossaryIds,
         serviceOverride: snapshot.service,
         modelOverride: snapshot.model || undefined,
         thinkingOverride: snapshot.thinking,
@@ -248,6 +257,8 @@ async function translateSlotsIndividually(
 
 function createCacheKey(origin: string, snapshot: FullPageTranslationConfigSnapshot): string {
     return JSON.stringify({
+        glossaryRevision: snapshot.glossaryRevision,
+        glossaryIds: snapshot.glossaryIds,
         service: snapshot.service,
         model: snapshot.model,
         thinking: snapshot.thinking,
@@ -264,6 +275,8 @@ function createRequestCacheKey(
     pageContextGeneration: number,
 ): string {
     return JSON.stringify({
+        glossaryRevision: snapshot.glossaryRevision,
+        glossaryIds: snapshot.glossaryIds,
         service: snapshot.service,
         model: snapshot.model,
         thinking: snapshot.thinking,
@@ -468,6 +481,8 @@ function shouldFallbackAIMultiSegmentBatch(error: unknown): boolean {
 
 function createAIMultiSegmentSnapshotKey(snapshot: FullPageTranslationConfigSnapshot): string {
     return JSON.stringify({
+        glossaryRevision: snapshot.glossaryRevision,
+        glossaryIds: snapshot.glossaryIds,
         service: snapshot.service,
         model: snapshot.model,
         thinking: snapshot.thinking,

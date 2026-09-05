@@ -16,6 +16,15 @@ const topUrl = 'https://mail.qq.com/cgi-bin/frame_html?mode=legacy';
 const readUrl = 'https://mail.qq.com/cgi-bin/readmail?mailid=redacted';
 
 describe('QQ legacy frame relay', () => {
+    it('保留术语空选择和有限ID数组，拒绝类型错误与稀疏数组', () => {
+        for (const glossaryIds of [null, [], ['technical']]) {
+            expect(parseQQMailFrameRequest({type: QQ_MAIL_FRAME_REQUEST_MESSAGE_TYPE, action: 'toggle', invocation: {glossaryIds}}))
+                .toMatchObject({invocation: {glossaryIds}});
+        }
+        for (const glossaryIds of ['all', Array(101).fill('a'), [1], ['a'.repeat(129)], new Array(1)]) {
+            expect(parseQQMailFrameRequest({type: QQ_MAIL_FRAME_REQUEST_MESSAGE_TYPE, action: 'toggle', invocation: {glossaryIds}})).toBeNull();
+        }
+    });
     it('guards exact HTTPS host and pathname while allowing query strings', () => {
         expect(isQqMailLegacyTopUrl(topUrl)).toBe(true);
         expect(isQqMailReadmailUrl(readUrl)).toBe(true);

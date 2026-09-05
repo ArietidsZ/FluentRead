@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/background/handlers.ts
  * 文件职责：定义跨域图片读取、图片 OCR、整图翻译、文本批译、阶段进度、取消和语言包下载后台消息，并对来自页面或扩展 UI 的未知输入执行严格校验。
- * 主要内容：包含消息常量与联合类型、data:image/URL 和字符串数组解析、OCR 语言白名单、对象结果断言，阶段通知所属页面路由，以及通过依赖注入创建各操作 handler 的 createImageTranslationBackgroundHandlers。
+ * 主要内容：包含消息解析、OCR 语言白名单、阶段通知与取消预算；图片文本去重批量和有界并发翻译同时保留后台恢复的可信页面范围、源语言与术语版本。
  * 模块边界：本文件只负责协议入口与用例编排，不直接运行 Tesseract、Canvas、网络 fetch 或 Offscreen；图像读取和运算能力均由 Offscreen adapter 与 services 实现并由 app 注入。
  */
 import {IMAGE_PROGRESS_MESSAGE_TYPE, isImageTranslationStage, type ImageTranslationStage} from '../progress';
@@ -12,6 +12,8 @@ import {
 } from '@/src/features/image-translation/ocrLanguages';
 import {
     attachTranslationRequestControl,
+    attachTranslationGlossaryContext,
+    getTranslationGlossaryContext,
     markTranslationRemainingBudget,
 } from '@/src/services/translation/requestSnapshot';
 
@@ -51,6 +53,9 @@ export interface ImageTranslateTextsMessage {
     title?: unknown;
     requestId?: unknown;
     timeoutMs?: unknown;
+    /** 仅在组合根附加的内部术语上下文存在时读取，普通 runtime 字段本身不构成信任。 */
+    glossaryRevision?: unknown;
+    sourceLanguage?: unknown;
 }
 
 export interface ImageOcrDownloadMessage {
@@ -83,6 +88,8 @@ type ImageTextTranslationRequestBase = {
     useCache: true;
     serviceOverride: string;
     requestTimeoutMs: number;
+    glossaryRevision?: string;
+    sourceLanguage?: string;
 };
 
 type ImageTextTranslationRequest = ImageTextTranslationRequestBase & (
@@ -284,6 +291,7 @@ async function translateImageTexts(
     title: string,
     dependencies: ImageTranslationBackgroundDependencies,
     options: ImageOperationOptions,
+    message: ImageTranslateTextsMessage,
 ): Promise<string[]> {
     const uniqueTexts = [...new Set(texts)];
     const service = dependencies.getTranslationService();
@@ -293,17 +301,29 @@ async function translateImageTexts(
     const abort = () => controller.abort();
     if (options.signal.aborted) abort();
     options.signal.addEventListener('abort', abort, {once: true});
-    const baseRequest = {context: title, pageContext: '' as const, useCache: true as const, serviceOverride: service};
+    const glossaryContext = getTranslationGlossaryContext(message);
+    const baseRequest = {
+        context: title,
+        pageContext: '' as const,
+        useCache: true as const,
+        serviceOverride: service,
+        ...(glossaryContext ? {
+            glossaryRevision: parseRequiredString(message.glossaryRevision, 'glossaryRevision'),
+            sourceLanguage: parseRequiredString(message.sourceLanguage, 'sourceLanguage'),
+        } : {}),
+    };
     const remainingBudget = () => {
         if (controller.signal.aborted) throw imageAbortError(false);
         const remaining = Math.floor(deadline - now());
         if (remaining <= 0) throw new Error('图片文字翻译总时间已耗尽');
         return remaining;
     };
-    const controlledRequest = <T extends ImageTextTranslationRequest>(request: T) =>
-        attachTranslationRequestControl(markTranslationRemainingBudget(request), {
+    const controlledRequest = <T extends ImageTextTranslationRequest>(request: T) => {
+        const controlled = attachTranslationRequestControl(markTranslationRemainingBudget(request), {
             signal: controller.signal, ownershipKey: `image:${options.requestId}`,
         });
+        return glossaryContext ? attachTranslationGlossaryContext(controlled, glossaryContext) : controlled;
+    };
     try {
         let translations: string[];
         if (dependencies.supportsBatchTranslation(service)) {
@@ -436,7 +456,7 @@ export function createImageTranslationBackgroundHandlers(
             async handle(message: ImageTranslateTextsMessage) {
                 const texts = parseTexts(message.texts);
                 const translations = await textOperationRegistry.run(message, options => translateImageTexts(
-                    texts, parseOptionalTitle(message.title), dependencies, options,
+                    texts, parseOptionalTitle(message.title), dependencies, options, message,
                 ));
                 return {success: true, translations};
             },

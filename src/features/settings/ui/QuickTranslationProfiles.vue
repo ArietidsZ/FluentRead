@@ -160,6 +160,15 @@
             </el-select>
           </label>
 
+          <GlossaryLibrarySelect
+            v-if="config.glossaryLibraries.length || config.glossaryEnabled"
+            :model-value="profile.glossaryIds"
+            :libraries="config.glossaryLibraries"
+            :enabled="config.glossaryEnabled"
+              :unsupported="!supportsTranslationGlossary(effectiveService(profile), profile.model || configuredDefaultModel(effectiveService(profile)))"
+            @update:model-value="updateProfile(profile.id, {glossaryIds: $event})"
+          />
+
           <label class="editor-field">
             <span>{{ translateLegacy('显示方式') }}</span>
             <el-select
@@ -239,8 +248,9 @@ import {
   type QuickTranslationProfile,
 } from '@/src/core/config/quickTranslation'
 import {canonicalizeHotkey, parseHotkey, resolveConfiguredHotkey, validateHotkeyConflicts} from '@/src/core/hotkey'
-import {filterAvailableTranslationServices, isTranslationServiceAvailable} from '@/src/services/translation/capabilities'
+import {filterAvailableTranslationServices, isTranslationServiceAvailable, supportsTranslationGlossary} from '@/src/services/translation/capabilities'
 import CustomHotkeyInput from '@/src/ui/components/CustomHotkeyInput.vue'
+import GlossaryLibrarySelect from '@/src/ui/components/GlossaryLibrarySelect.vue'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 import {useUiI18n} from '@/src/ui/i18n'
 
@@ -601,6 +611,7 @@ function fullPageModeLabel(profile: QuickTranslationProfile): string {
 
 function hasProfileOverrides(profile: QuickTranslationProfile): boolean {
   return Boolean(profile.service || profile.model || profile.targetLanguage
+    || profile.glossaryIds != null
     || profile.displayMode !== 'inherit'
     || (props.action === 'full-page' && profile.fullPageMode !== 'inherit'))
 }
@@ -616,6 +627,9 @@ function profileSummaryDetail(profile: QuickTranslationProfile): string {
     targetLanguageLabel(profile),
     displayModeLabel(profile),
     ...(props.action === 'full-page' ? [fullPageModeLabel(profile)] : []),
+    ...(profile.glossaryIds != null ? [profile.glossaryIds.length
+      ? `${t('glossary.title')}: ${profile.glossaryIds.map(id => props.config.glossaryLibraries.find(library => library.id === id)?.name || id).join(', ')}`
+      : t('glossary.none')] : []),
   ].join(' · ')
   if (!isProfileAvailable(profile)) return t('quickTranslation.profileUnavailable', {detail})
   if (!profile.enabled) return t('quickTranslation.profilePaused', {detail})

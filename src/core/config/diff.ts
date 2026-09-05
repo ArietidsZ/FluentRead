@@ -356,8 +356,23 @@ function formatQuickTranslationProfiles(value: unknown): string {
                 : item.fullPageMode === 'all' ? '立即翻译到网页底部' : '默认范围'}`
             : '';
         const disabled = item.enabled === false ? '（已停用）' : '';
-        return `${action} ${hotkey}${disabled}：${service}${model}，${language}，${display}${range}`;
+        const glossary = item.glossaryIds === undefined ? '' : `，术语库：${formatGlossarySelection(item.glossaryIds)}`;
+        return `${action} ${hotkey}${disabled}：${service}${model}，${language}，${display}${range}${glossary}`;
     }).join('；');
+}
+
+/** 历史预览只显示规模，避免把用户保存的专业词句展开到配置差异中。 */
+function formatGlossaryLibraries(value: unknown): string {
+    if (!Array.isArray(value)) return formatValue(value);
+    const libraries = value.filter(isRecord);
+    const entries = libraries.reduce((count, library) => count + (Array.isArray(library.entries) ? library.entries.length : 0), 0);
+    return `${libraries.length} 套词库，${entries} 条术语`;
+}
+
+function formatGlossarySelection(value: unknown): string {
+    if (value == null) return '跟随全局词库';
+    if (!Array.isArray(value)) return formatValue(value);
+    return value.length ? `指定 ${value.length} 套词库` : '不使用术语库';
 }
 
 function serviceMapping(label: string, format: ValueFormatter = formatValue): MappingDefinition {
@@ -437,6 +452,8 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     floatingBallHotkey: {group: 'translation', label: '全文翻译快捷键', format: (value) => formatEnum(value, FLOATING_HOTKEY_LABELS)},
     customFloatingBallHotkey: {group: 'translation', label: '自定义全文快捷键'},
     quickTranslationProfiles: {group: 'translation', label: '快捷翻译方案', format: formatQuickTranslationProfiles},
+    glossaryEnabled: {group: 'translation', label: '术语库', format: formatBoolean},
+    glossaryLibraries: {group: 'translation', label: '术语库内容', format: formatGlossaryLibraries},
 
     autoTranslate: {group: 'siteRules', label: '所有网站自动翻译', format: formatBoolean},
     alwaysTranslateDomains: {group: 'siteRules', label: '始终翻译网站'},
@@ -447,6 +464,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
 
     videoTranslationEnabled: {group: 'videoSubtitles', label: '视频字幕翻译', format: formatBoolean},
     videoService: {group: 'videoSubtitles', label: '视频翻译服务', format: formatService},
+    videoGlossaryIds: {group: 'videoSubtitles', label: '字幕术语库', format: formatGlossarySelection},
     videoSubtitleVisible: {group: 'videoSubtitles', label: '显示视频字幕', format: formatBoolean},
     videoSubtitleDisplayMode: {group: 'videoSubtitles', label: '视频字幕显示模式', format: (value) => formatEnum(value, VIDEO_DISPLAY_MODE_LABELS)},
     videoSubtitleFontSize: {group: 'videoSubtitles', label: '视频字幕字号', format: (value) => formatNumber(value, '%')},
@@ -466,6 +484,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     translationLoadingStyle: {group: 'advanced', label: '段落加载样式', format: (value) => formatEnum(value, TRANSLATION_LOADING_STYLE_LABELS)},
 
     documentService: {group: 'tools', label: '文档翻译服务', format: formatService},
+    documentGlossaryIds: {group: 'tools', label: '文档术语库', format: formatGlossarySelection},
     documentModel: {group: 'tools', label: '文档翻译模型', mapping: serviceMapping('文档模型')},
     documentCustomModel: {group: 'tools', label: '文档自定义模型', mapping: serviceMapping('文档自定义模型')},
     translationCenterServices: {group: 'tools', label: '翻译中心服务', format: (value) => Array.isArray(value) ? formatArray(value, formatService) : formatValue(value)},
@@ -526,13 +545,16 @@ function diffField(field: string, before: unknown, after: unknown): {group: Conf
     }
 
     const format = definition?.format ?? formatValue;
+    const formattedBefore = format(safeBefore);
+    const formattedAfter = format(safeAfter);
     return {
         group: definition?.group ?? 'other',
         changes: [{
             key: field,
             label: definition?.label ?? humanizeUnknownKey(field),
-            before: format(safeBefore),
-            after: format(safeAfter),
+            before: formattedBefore,
+            after: field === 'glossaryLibraries' && formattedBefore === formattedAfter
+                ? `${formattedAfter}（内容已更新）` : formattedAfter,
         }],
     };
 }
