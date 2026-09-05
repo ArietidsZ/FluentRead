@@ -15,6 +15,7 @@ describe('safe provider error formatting', () => {
         }, '翻译失败');
 
         expect(error.message).toBe('翻译失败: 403');
+        expect(error).toMatchObject({statusCode: 403});
         expect(error.message).not.toContain('SENSITIVE_STATUS_SENTINEL');
         expect(createHttpStatusError({status: 500, statusText: ''}).message).toBe('请求失败: 500');
     });

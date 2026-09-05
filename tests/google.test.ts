@@ -14,6 +14,7 @@ import google, {
     parseGoogleLegacyResponse,
     translateGoogleText,
 } from '@/src/providers/translation/google';
+import {createFreeFallbackRunner} from '@/src/services/translation/freeFallback';
 
 const fetchMock = vi.fn<typeof fetch>();
 
@@ -158,6 +159,62 @@ describe('谷歌翻译适配器', () => {
         expect((error as Error).message).not.toContain('captcha details');
         expect((error as Error).message).not.toContain('unexpected');
         expect((error as Error).message).not.toContain('not-json');
+    });
+
+    it.each([
+        [400, 400, 400],
+        [429, 429, 429],
+        [400, 413, 422],
+        [503, 503, 503],
+    ])('HTML/CAPTCHA 包装与最终汇总保留安全 HTTP 分类 %j/%j/%j', async (...statuses) => {
+        for (const status of statuses) {
+            fetchMock.mockResolvedValueOnce(mockResponse('<html>private original https://secret.example/key</html>', {ok: false, status}));
+        }
+        const request = translateGoogleText('private original', 'en', 'zh-Hans');
+        await expect(request).rejects.toMatchObject({statusCode: statuses[0]});
+        await expect(request).rejects.toThrow('可能触发了 CAPTCHA');
+        await expect(request).rejects.not.toThrow('private original');
+        await expect(request).rejects.not.toThrow('secret.example');
+    });
+
+    it.each([429, 503, undefined])('汇总参数错误与可用性故障时不让 400 掩盖 %s', async status => {
+        fetchMock.mockResolvedValueOnce(mockResponse('', {ok: false, status: 400}));
+        if (status === undefined) fetchMock.mockRejectedValueOnce(new Error('private transport URL'));
+        else fetchMock.mockResolvedValueOnce(mockResponse('', {ok: false, status}));
+        fetchMock.mockResolvedValueOnce(mockResponse('', {ok: false, status: 400}));
+        const request = translateGoogleText('hello', 'en', 'zh-Hans');
+        await expect(request).rejects.not.toHaveProperty('statusCode');
+        await expect(request).rejects.toThrow('主网页 RPC: 请求失败: 400；备用网页 RPC:');
+        await expect(request).rejects.not.toThrow('private transport URL');
+    });
+
+    it.each([400, 413, 422])('真实 Google 适配器的 HTTP %i 不会让免费链熔断后续文本', async status => {
+        const run = createFreeFallbackRunner();
+        for (let index = 0; index < 3; index += 1) {
+            fetchMock.mockResolvedValueOnce(mockResponse('<html>request rejected</html>', {ok: false, status}));
+        }
+        fetchMock.mockResolvedValue(mockResponse(createBatchResponse(['下一段正常'])));
+        const candidates = [
+            {identity: 'google', label: '谷歌翻译', translate: (signal: AbortSignal) => translateGoogleText('sample', 'en', 'zh-Hans', signal)},
+            {identity: 'backup', label: '备用服务', translate: async () => '备用译文'},
+        ];
+        const options = {timeoutMs: 1_000, cooldownMs: 60_000};
+        await expect(run(candidates, options)).resolves.toBe('备用译文');
+        await expect(run(candidates, options)).resolves.toBe('下一段正常');
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+    });
+
+    it('真实 Google 适配器的 CAPTCHA 429 会使免费链跳过下一段重复请求', async () => {
+        const run = createFreeFallbackRunner();
+        fetchMock.mockResolvedValue(mockResponse('<html>rate limit</html>', {ok: false, status: 429}));
+        const candidates = [
+            {identity: 'google', label: '谷歌翻译', translate: (signal: AbortSignal) => translateGoogleText('sample', 'en', 'zh-Hans', signal)},
+            {identity: 'backup', label: '备用服务', translate: async () => '备用译文'},
+        ];
+        const options = {timeoutMs: 1_000, cooldownMs: 60_000};
+        await expect(run(candidates, options)).resolves.toBe('备用译文');
+        await expect(run(candidates, options)).resolves.toBe('备用译文');
+        expect(fetchMock).toHaveBeenCalledTimes(3);
     });
 
     it('读取响应体失败时继续故障转移并汇总错误', async () => {

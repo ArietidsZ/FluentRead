@@ -52,6 +52,16 @@ function configSource(overrides: Partial<TranslationConfigSource> = {}): Transla
 }
 
 describe('translation provider request config snapshot', () => {
+    it('freezes fallback order and official-provider options before asynchronous work', () => {
+        const order = ['myMemory', 'google'];
+        const source = configSource({freeTranslationOrder: order, myMemoryEmail: 'contact@example.test'});
+        const snapshot = createTranslationProviderConfigSnapshot(source);
+        order.reverse();
+        source.myMemoryEmail = '';
+        expect(snapshot.freeTranslationOrder).toEqual(['myMemory', 'google']);
+        expect(Object.isFrozen(snapshot.freeTranslationOrder)).toBe(true);
+        expect(snapshot.myMemoryEmail).toBe('contact@example.test');
+    });
     it('freezes the selected DeepL API plan and normalizes missing legacy values', () => {
         const source = configSource({deeplApiPlan: 'free'});
         const snapshot = createTranslationProviderConfigSnapshot(source);

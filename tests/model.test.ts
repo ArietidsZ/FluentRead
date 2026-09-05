@@ -109,7 +109,7 @@ describe('AI 模型编号列表', () => {
         expect(options.services.find(option => option.value === services.freeTranslation)?.label).toBe('免费翻译服务');
         expect(options.services[1]?.value).toBe(services.freeTranslation);
         expect(options.services.find(option => option.value === services.freeTranslation)?.description)
-            .toContain('微软翻译、DeepLX、谷歌翻译依次尝试');
+            .toContain('按设置顺序自动切换可用服务');
         expect(options.services.find(option => option.value === services.mimo)?.label).toBe('小米 MiMo');
         expect(options.services.some(option => option.value === services.baichuan)).toBe(false);
         expect(options.services.some(option => option.value === services.lingyi)).toBe(false);
