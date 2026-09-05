@@ -9,6 +9,7 @@ import {
   reconcileVocabularyReviewSession,
   vocabularyImportNeedsConfirmation,
   vocabularyReviewSessionProgress,
+  normalizeLearningSourceText,
   type VocabularyEntry,
 } from '@/src/features/vocabulary/learningModel'
 
@@ -41,6 +42,13 @@ function entry(id: string, overrides: Partial<VocabularyEntry> = {}): Vocabulary
 }
 
 describe('vocabulary learning model edge cases', () => {
+  it('validates multilingual learning text without truncating long selections', () => {
+    expect(normalizeLearningSourceText(null)).toBe('');
+    expect(normalizeLearningSourceText('  Café\n 是一个词。\u0000 ')).toBe('Café 是一个词。');
+    expect(normalizeLearningSourceText('…?!')).toBe('');
+    expect(normalizeLearningSourceText('a'.repeat(4096))).toHaveLength(4096);
+    expect(normalizeLearningSourceText('a'.repeat(4097))).toBe('');
+  });
   it('normalizes empty export cells, invalid sizes and empty cloze inputs', () => {
     expect(buildAnkiTsv([null as unknown as string], [[undefined]])).toBe(
       '#separator:tab\n#html:false\n#columns:\n',

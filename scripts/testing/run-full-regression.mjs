@@ -56,6 +56,14 @@ const LOCAL_BROWSER_FIXTURES = [
         supportsHeaded: false,
     },
     {
+        id: 'glossary',
+        label: 'glossary browser regression',
+        script: 'scripts/run-glossary-test.cjs',
+        backgroundArgs: ['--background'],
+        supportsHeaded: false,
+        supportsTimeout: false,
+    },
+    {
         id: 'privacy-boundary',
         label: 'privacy boundary browser regression',
         script: 'scripts/run-privacy-boundary-test.cjs',
@@ -318,7 +326,7 @@ function browserFixtureArgs(fixture, options) {
     } else {
         args.push('--extension-dir', options.extensionDir);
     }
-    if (options.timeout) args.push('--timeout', options.timeout);
+    if (options.timeout && fixture.supportsTimeout !== false) args.push('--timeout', options.timeout);
     if (fixture.args) args.push(...fixture.args);
 
     if (options.headed && fixture.supportsHeaded) {

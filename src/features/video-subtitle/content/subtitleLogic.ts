@@ -4,6 +4,7 @@
  * 主要内容：去重并限制批译并发，生成服务配置键，按原文进度截取译文。
  * 模块边界：只处理输入数据和注入翻译函数，不读取 DOM、全局配置或浏览器接口。
  */
+import {buildGlossaryRevision} from '@/src/core/glossary';
 import type {Config} from '@/src/core/config/model';
 import {resolveConfiguredModel} from '@/src/core/config/catalog';
 import type {VideoSubtitleCue} from './youtubeSubtitleData';
@@ -102,6 +103,8 @@ export function getVideoTranslationConfigFingerprint(value: Config): string {
     service,
     from: value.from,
     videoSourceLanguage: value.videoSourceLanguage,
+    glossaryRevision: buildGlossaryRevision(value.glossaryLibraries, value.glossaryEnabled),
+    videoGlossaryIds: value.videoGlossaryIds,
     to: value.to,
     model: resolveConfiguredModel(value.model[service], value.customModel[service]),
     endpoint,

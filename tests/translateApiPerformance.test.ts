@@ -1,4 +1,5 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {buildGlossaryRevision, type GlossaryLibrary} from '@/src/core/glossary';
 
 const mocks = vi.hoisted(() => ({
   sendMessage: vi.fn(),
@@ -10,6 +11,9 @@ const mocks = vi.hoisted(() => ({
   ) => Promise<number>>(async () => 0),
   getMissingCredentialMessage: vi.fn(() => null as string | null),
   config: {
+    glossaryEnabled: false,
+    glossaryLibraries: [] as GlossaryLibrary[],
+    videoGlossaryIds: null as string[] | null,
     count: 0,
     maxConcurrentTranslations: 6,
     translationMaxRetries: 3,
@@ -91,6 +95,9 @@ describe('translation API request lifecycle performance', () => {
     mocks.persistCountIncrement.mockReset().mockResolvedValue(0);
     mocks.getMissingCredentialMessage.mockReset().mockReturnValue(null);
     mocks.config.count = 0;
+    mocks.config.glossaryEnabled = false;
+    mocks.config.glossaryLibraries = [];
+    mocks.config.videoGlossaryIds = null;
     mocks.config.maxConcurrentTranslations = 6;
     mocks.config.translationMaxRetries = 3;
     mocks.config.translationBackoffBaseMs = 1000;
@@ -120,6 +127,44 @@ describe('translation API request lifecycle performance', () => {
     vi.useRealTimers();
     Object.defineProperty(globalThis, 'document', {value: originalDocument, configurable: true});
     Object.defineProperty(globalThis, 'location', {value: originalLocation, configurable: true});
+  });
+
+  it.each(['single', 'batch', 'video'] as const)('术语版本和选择在 %s 的上下文提取前冻结', async kind => {
+    mocks.config.service = 'mock-ai';
+    mocks.config.videoService = 'mock-ai';
+    mocks.config.enableAIContext = true;
+    mocks.config.glossaryEnabled = true;
+    mocks.config.glossaryLibraries = [{id: 'technical', name: 'Technical', enabled: true,
+      sourceLanguage: '', targetLanguage: '', domains: [], entries: [{id: 'term', source: 'agent', target: '智能体', caseSensitive: false}]}];
+    const ids = ['technical'];
+    mocks.config.videoGlossaryIds = ids;
+    const revision = buildGlossaryRevision(mocks.config.glossaryLibraries, true);
+    const context = deferred<string>();
+    mocks.getPageTranslationContext.mockReturnValue(context.promise);
+    mocks.sendMessage.mockResolvedValue(kind === 'batch' ? ['译文'] : '译文');
+    const request = kind === 'single' ? translateText('agent', 'Page', {glossaryIds: ids})
+      : kind === 'batch' ? translateTextBatch(['agent'], 'Page', {glossaryIds: ids}) : translateVideoText('agent');
+    ids.push('changed');
+    mocks.config.glossaryLibraries[0].entries[0].target = '代理人';
+    context.resolve('page context');
+    await request;
+    expect(mocks.sendMessage).toHaveBeenCalledWith(expect.objectContaining({glossaryIds: ['technical'], glossaryRevision: revision,
+      ...(kind === 'video' ? {glossaryContext: 'video'} : {})}));
+  });
+
+  it('重试保持术语快照，版本更新错误不进行自动重试', async () => {
+    mocks.sendMessage.mockRejectedValueOnce(new Error('network error')).mockResolvedValueOnce('重试译文');
+    const ids = ['original'];
+    const request = translateText('agent', 'Page', {glossaryIds: ids, glossaryRevision: 'glossary-v1:disabled', retryDelay: 1});
+    await flushMicrotasks();
+    ids.push('changed');
+    await vi.advanceTimersByTimeAsync(2);
+    await expect(request).resolves.toBe('重试译文');
+    expect(mocks.sendMessage.mock.calls.every(([message]) => message.glossaryIds.length === 1 && message.glossaryIds[0] === 'original')).toBe(true);
+    mocks.sendMessage.mockReset().mockResolvedValue({marker: 'fluentread-translation-error-v1',
+      message: '术语库已更新，请重新翻译', kind: 'bad-request', retryable: false, code: 'GLOSSARY_REVISION_CHANGED'});
+    await expect(translateText('agent', 'Page')).rejects.toMatchObject({code: 'GLOSSARY_REVISION_CHANGED'});
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
   });
 
   it('网页上下文不因无法读取 API Key 而阻止 background 请求', async () => {
@@ -310,14 +355,14 @@ describe('translation API request lifecycle performance', () => {
         serviceOverride: 'mock',
         modelOverride: 'mock-model',
         sourceLanguage: 'en',
-        targetLanguage: 'zh-CN',
+        targetLanguage: 'zh-Hans',
       }),
       expect.objectContaining({
         origin: ['Queued batch source'],
         serviceOverride: 'mock',
         modelOverride: 'mock-model',
         sourceLanguage: 'en',
-        targetLanguage: 'zh-CN',
+        targetLanguage: 'zh-Hans',
       }),
     ]);
   });
@@ -682,7 +727,7 @@ describe('translation API request lifecycle performance', () => {
       modelOverride: 'mock-ai-model',
       thinkingOverride: false,
       sourceLanguage: 'en',
-      targetLanguage: 'zh-CN',
+      targetLanguage: 'zh-Hans',
       requestTimeoutMs: 19_000,
     }));
     expect(mocks.sendMessage.mock.calls[0]?.[0].clientRequestId).toEqual(expect.any(String));

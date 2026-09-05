@@ -9,8 +9,8 @@ import {
 } from '@/src/features/settings/model/navigation'
 
 describe('options navigation view-model', () => {
-    it('keeps the fourteen sections unique, grouped exactly once and in the product IA order', () => {
-    const groupedItems = navigationGroups.flatMap((group) => group.items)
+  it('keeps the sections unique, grouped exactly once and in the product IA order', () => {
+    const groupedItems = navigationGroups.flatMap<(typeof navigationItems)[number]>((group) => group.items)
     expect(groupedItems).toEqual(navigationItems)
     expect(new Set(navigationItems.map((item) => item.id)).size).toBe(navigationItems.length)
     expect(navigationGroups.map((group) => ({
@@ -19,19 +19,20 @@ describe('options navigation view-model', () => {
     }))).toEqual([
       {
         label: '基础配置',
-        items: ['settings-general', 'settings-interface', 'settings-services', 'settings-translation'],
+        items: ['settings-general', 'settings-interface', 'settings-services', 'settings-translation', 'settings-harness'],
       },
       {
         label: '专项翻译',
         items: [
           'settings-image-translation',
+          'settings-area-translation',
           'settings-video',
           'settings-sites',
         ],
       },
       {
         label: '工具与学习',
-        items: ['settings-translation-center', 'settings-model-usage', 'settings-vocabulary', 'settings-harness'],
+        items: ['settings-translation-center', 'settings-vocabulary', 'settings-glossary', 'settings-model-usage'],
       },
       {
         label: '系统与数据',
@@ -43,13 +44,15 @@ describe('options navigation view-model', () => {
       '界面布局',
       '翻译服务',
       '翻译设置',
-      '图片与圈选翻译',
+      'DeepSeek Harness',
+      '图片翻译',
+      '圈选翻译',
       '视频字幕翻译',
       '网站规则',
       '翻译中心',
+      '学习中心',
+      '术语库',
       '模型用量',
-      '单词本',
-      'DeepSeek Harness',
       '高级选项',
       '备份与恢复',
       '关于流畅阅读',
@@ -65,10 +68,18 @@ describe('options navigation view-model', () => {
     expect(resolveNavigationItem('settings-services').title).toBe('翻译服务')
     expect(resolveNavigationItem('settings-translation').title).toBe('翻译设置')
     expect(resolveNavigationItem('settings-interface').title).toBe('界面布局')
+    expect(resolveRequestedSection('#settings-glossary')).toBe('settings-glossary')
+    expect(resolveNavigationItem('settings-glossary').group).toBe('工具与学习')
     expect(resolveNavigationItem('settings-model-usage').detail)
       .toBe('查看发起的大模型调用、Token 消耗与使用趋势。')
     expect(resolveRequestedSection('#settings-harness')).toBe('settings-harness')
+    expect(resolveNavigationItem('settings-harness').group).toBe('基础配置')
+    expect(resolveNavigationItem('settings-vocabulary').title).toBe('学习中心')
+    expect(resolveRequestedSection('#settings-vocabulary')).toBe('settings-vocabulary')
+    expect(resolveRequestedSection('#settings-learning-center')).toBe('settings-vocabulary')
     expect(resolveNavigationItem('missing').id).toBe(DEFAULT_NAVIGATION_SECTION)
+    expect(resolveRequestedSection('#settings-area-translation')).toBe('settings-area-translation')
+    expect(filterNavigationItems('圈选')).toEqual([expect.objectContaining({id: 'settings-area-translation'})])
     expect(resolveRequestedSection('#settings-video')).toBe('settings-video')
     expect(resolveRequestedSection('settings-sites')).toBe('settings-sites')
     expect(resolveRequestedSection('#settings-webpage')).toBe('settings-translation')
@@ -78,6 +89,8 @@ describe('options navigation view-model', () => {
   })
 
   it('searches all user-facing metadata case-insensitively and trims input', () => {
+    expect(filterNavigationItems('阅读记录')).toEqual([expect.objectContaining({id: 'settings-vocabulary'})])
+    expect(filterNavigationItems(' glossary ')).toEqual([expect.objectContaining({id: 'settings-glossary'})])
     expect(filterNavigationItems(' OPENAI ')).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'settings-services' }),
       expect.objectContaining({ id: 'settings-model-usage' }),

@@ -2,7 +2,7 @@
 
 // 运行真实网站的悬浮翻译或全文翻译回归。
 //
-// 这个脚本只创建临时 Edge profile，并支持屏幕外窗口；它不会连接用户日常
+// 这个脚本只创建临时 Edge profile，并使用第二屏不抢焦点的正常窗口；它不会连接用户日常
 // 浏览器，也不会通过 page.evaluate 派发伪造的键盘事件。Control 和 Alt+T
 // 都由 Playwright keyboard API 发送真实的浏览器按键。
 
@@ -16,7 +16,7 @@ const {
   normalizeCaseConfig,
 } = require('./site-translation/case-config.cjs');
 
-const PRODUCTION_SOURCE_ROOTS = ['entrypoints', 'components', 'public', 'styles'];
+const PRODUCTION_SOURCE_ROOTS = ['src', 'entrypoints', 'components', 'public', 'styles'];
 const PRODUCTION_CONFIG_FILES = ['package.json', 'pnpm-lock.yaml', 'wxt.config.ts', 'tsconfig.json'];
 const INTERACTION_CLOSE_ATTEMPT_TIMEOUT = 1500;
 const SINGLE_TOKEN_TECHNICAL_WORDS = new Set([
@@ -509,7 +509,9 @@ async function installCoverageTracker(page, rules) {
           element.querySelectorAll?.(state.rule.selector).forEach((node) => candidates.add(node));
         }
       };
-      add(mutation.target, false);
+      // hidden/class/style 常落在入场动画的祖先容器，解除隐藏会同时揭示多条
+      // 正文；只检查 closest 会漏掉这些新可见后代，导致首轮覆盖报告偏少。
+      add(mutation.target, mutation.type === 'attributes');
       mutation.addedNodes.forEach((node) => add(node, true));
       return candidates;
     };
@@ -905,9 +907,57 @@ async function waitFor(page, predicate, timeout, argument) {
   await page.waitForFunction(predicate, argument, {timeout});
 }
 
+// MathJax v2 的宿主排版可能在 DOMContentLoaded 后继续改写段落。
+// 仅排队等待现有任务，不调用 Typeset，也不修改宿主内容或忽略恢复断言。
+// https://docs.mathjax.org/en/v2.7-latest/advanced/queues.html
+async function waitForHostMathRendering(page, timeout) {
+  const state = await page.evaluate(async (timeoutMs) => {
+    const mathJax = window.MathJax;
+    if (typeof mathJax?.Hub?.Queue !== 'function') return {detected: false, errors: []};
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('宿主 MathJax 初始排版等待超时')), timeoutMs);
+      try {
+        mathJax.Hub.Queue(() => {
+          clearTimeout(timer);
+          resolve();
+        });
+      } catch (error) {
+        clearTimeout(timer);
+        reject(error);
+      }
+    });
+    return {
+      detected: true,
+      version: mathJax.version || '',
+      errors: [...document.querySelectorAll('.MathJax_Error')].map((node) => ({
+        id: node.id,
+        text: node.textContent?.trim() || '',
+      })),
+    };
+  }, timeout);
+  if (state.errors.length > 0) {
+    reportProgress(`翻译前宿主公式已有错误：${JSON.stringify(state.errors)}`);
+  }
+  return state;
+}
+
 async function waitForStableTarget(page, selector, timeout) {
   try {
     await page.waitForSelector(selector, {state: 'attached', timeout});
+    // 部分站点通过 IntersectionObserver 在进入视口后移除 hidden 入场标记，
+    // 同时用 CSS 保留真实布局。先滚动到有布局的候选，再等待语义可见性；
+    // 不能先等 hidden 消失再滚动，否则 MkDocs 这类页面永远无法开始测试。
+    const revealIndex = await page.evaluate((targetSelector) => [...document.querySelectorAll(targetSelector)]
+      .findIndex((target) => {
+        if (target.closest('[aria-hidden="true"], [inert]')) return false;
+        const rect = target.getBoundingClientRect();
+        const style = getComputedStyle(target);
+        return rect.width > 0 && rect.height > 0 && style.display !== 'none' &&
+          Boolean(target.textContent?.trim());
+      }), selector);
+    if (revealIndex >= 0) {
+      await page.locator(selector).nth(revealIndex).scrollIntoViewIfNeeded({timeout});
+    }
     await waitFor(page, (targetSelector) => {
       return [...document.querySelectorAll(targetSelector)].some((target) => {
         if (target.closest('[hidden], [aria-hidden="true"], [inert]')) return false;
@@ -1327,25 +1377,63 @@ async function readTargetState(page, selector) {
   }, selector);
 }
 
+// 长页会在滚动结束后继续处理已排队任务。等待“没有完成进展”超时，
+// 同时保留阶段硬上限；动画、同一 owner 的 spinner 重建不能延长等待。
+function observeTranslationIdleInPage({selector, key, stableMs, stallTimeoutMs, maximumDurationMs}) {
+  const now = performance.now();
+  const loadingOwners = new Set();
+  for (const spinner of document.querySelectorAll(selector)) {
+    const owner = spinner.parentElement;
+    if (!owner) continue;
+    loadingOwners.add(owner);
+  }
+  const translatedCount = document.querySelectorAll('.fluent-read-bilingual-content[data-fr-translation-owned="true"]').length;
+  const state = window[key] || (window[key] = {
+    startedAt: now,
+    lastProgressAt: now,
+    idleSince: null,
+    translatedHighWater: translatedCount,
+    previousOwners: new Set(),
+    completedOwners: new WeakSet(),
+  });
+  let progressed = translatedCount > state.translatedHighWater;
+  state.translatedHighWater = Math.max(state.translatedHighWater, translatedCount);
+  for (const owner of state.previousOwners) {
+    if (owner.isConnected && !owner.querySelector(selector) && !loadingOwners.has(owner) &&
+        !state.completedOwners.has(owner)) {
+      state.completedOwners.add(owner);
+      progressed = true;
+    }
+  }
+  state.previousOwners = loadingOwners;
+  if (progressed) state.lastProgressAt = now;
+  if (now - state.startedAt >= maximumDurationMs) {
+    throw new Error(`翻译阶段超过 ${maximumDurationMs}ms 硬上限`);
+  }
+  if (loadingOwners.size === 0) {
+    if (state.idleSince === null) state.idleSince = now;
+    if (now - state.idleSince >= stableMs) return true;
+  } else {
+    state.idleSince = null;
+    if (now - state.lastProgressAt >= stallTimeoutMs) {
+      throw new Error(`翻译连续 ${stallTimeoutMs}ms 没有完成进展（仍有 ${loadingOwners.size} 个加载目标）`);
+    }
+  }
+  return false;
+}
+
 async function waitForTranslationIdle(page, timeout, phase, minimumRetryBudget = 210000) {
   const ownedLoading = '.fluent-read-loading[data-fr-translation-owned="true"]';
   const ownedRetry = '.fluent-read-retry-wrapper[data-fr-translation-owned="true"]';
   const idleKey = `__fluentReadIdleSince${Date.now()}${Math.random().toString(36).slice(2)}`;
-  // 一次 provider 请求可能消耗 4 次 45 秒尝试及额外重试退避时间。
+  // 单个任务允许 provider 重试；整批任务只要持续完成就不误判为卡死。
   const idleTimeout = Math.max(timeout, minimumRetryBudget);
+  const maximumDurationMs = idleTimeout * 3;
   try {
     await page.waitForFunction(
-      ({selector, key, stableMs}) => {
-        if (document.querySelectorAll(selector).length > 0) {
-          window[key] = 0;
-          return false;
-        }
-        const now = performance.now();
-        if (!window[key]) window[key] = now;
-        return now - window[key] >= stableMs;
-      },
-      {selector: ownedLoading, key: idleKey, stableMs: 1200},
-      {timeout: idleTimeout},
+      observeTranslationIdleInPage,
+      {selector: ownedLoading, key: idleKey, stableMs: 1200, stallTimeoutMs: idleTimeout, maximumDurationMs},
+      {timeout: maximumDurationMs + 1000, polling: 100},
     );
   } catch (error) {
     const diagnostics = await page.evaluate(({loadingSelector, retrySelector}) => {
@@ -1562,17 +1650,74 @@ async function readFullPageState(page, selector, requiredSelectors, fullCoverage
   });
 }
 
+function findHoverTextPointInPage({selector, index}) {
+  const target = document.querySelectorAll(selector)[index];
+  if (!target?.isConnected) return null;
+  const excluded = '[data-fr-translation-owned="true"], .fluent-read-bilingual-content, ' +
+    '.fluent-read-loading, .fluent-read-retry-wrapper, [hidden], [aria-hidden="true"], [inert]';
+  const walker = document.createTreeWalker(target, 4);
+  const candidates = [];
+  let textNode;
+  let textIndex = 0;
+  while ((textNode = walker.nextNode())) {
+    const currentIndex = textIndex++;
+    const parent = textNode.parentElement;
+    if (!parent || parent.closest(excluded) || !textNode.textContent?.trim()) continue;
+    const style = getComputedStyle(parent);
+    if (style.display === 'none' || style.visibility === 'hidden') continue;
+    const range = document.createRange();
+    range.selectNodeContents(textNode);
+    for (const rect of range.getClientRects()) {
+      const left = Math.max(0, rect.left);
+      const right = Math.min(window.innerWidth, rect.right);
+      const top = Math.max(0, rect.top);
+      const bottom = Math.min(window.innerHeight, rect.bottom);
+      if (right - left < 2 || bottom - top < 2) continue;
+      const x = left + (right - left) * 0.35;
+      const y = top + (bottom - top) / 2;
+      const hit = document.elementFromPoint(x, y);
+      if (!hit || !target.contains(hit) || hit.closest(excluded) || (hit !== parent && !hit.contains(parent))) continue;
+      // 优先原文普通文本，避免把标题末尾的永久链接或双语副本当作手势入口。
+      const link = parent.closest('a');
+      candidates.push({
+        x, y, textIndex: currentIndex,
+        text: textNode.textContent,
+        rect: {left: rect.left, top: rect.top, width: rect.width, height: rect.height},
+        priority: link && link !== target ? 1 : 0,
+      });
+    }
+  }
+  candidates.sort((left, right) => left.priority - right.priority);
+  return candidates[0] || null;
+}
+
+async function waitForHoverPointer(page, targetConfig, timeout) {
+  const started = Date.now();
+  let previous;
+  let stableSince = started;
+  while (Date.now() - started < timeout) {
+    const point = await page.evaluate(findHoverTextPointInPage, targetConfig);
+    const stable = point && previous && point.textIndex === previous.textIndex && point.text === previous.text &&
+      ['left', 'top', 'width', 'height'].every((key) => Math.abs(point.rect[key] - previous.rect[key]) < 0.5) &&
+      Math.abs(point.x - previous.x) < 0.5 && Math.abs(point.y - previous.y) < 0.5;
+    if (!stable) {
+      stableSince = Date.now();
+      if (point) await page.mouse.move(point.x, point.y);
+    } else if (Date.now() - stableSince >= 200) {
+      return point;
+    }
+    previous = point;
+    await page.waitForTimeout(50);
+  }
+  throw new Error(`悬浮原文没有稳定且可命中的位置：${JSON.stringify({targetConfig, lastPoint: previous})}`);
+}
+
 async function toggleHover(page, target, targetConfig, expectedCount, timeout) {
   const {selector, index} = targetConfig;
   await target.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(250);
-  const box = await target.boundingBox();
-  if (!box) throw new Error('悬浮翻译目标不可见');
-  const x = box.x + Math.min(Math.max(box.width * 0.35, 8), Math.max(box.width - 8, 8));
-  // 指针保持在原文首行。双语模式会追加第二行；若使用翻译后的垂直中心，
-  // 在 GitHub Pulls 等密集列表中可能漂移到相邻行。
-  const y = box.y + Math.min(Math.max(box.height * 0.2, 4), 12);
-  await page.mouse.move(x, y);
+  // 还原译文会改变布局，宿主也可能继续滚动或播放入场动画。固定等待后取外框
+  // 坐标会落到空白容器；按键前等待真实原文行稳定并保持命中，按键只发送一次。
+  const {x, y} = await waitForHoverPointer(page, targetConfig, timeout);
   await page.keyboard.down('Control');
   await page.keyboard.up('Control');
   try {
@@ -2116,6 +2261,7 @@ async function main() {
     // 当前 main 默认关闭悬浮球，但 Control/Alt+T 快捷键仍独立工作；
     // 这里等待 content script 初始化，而不是要求 UI 浮球必须存在。
     await page.waitForTimeout(1000);
+    const hostMathRendering = await waitForHostMathRendering(page, args.timeout);
     await waitForStableTarget(page, args.selector, args.timeout);
     await waitForPageContract(
       page,
@@ -2172,6 +2318,7 @@ async function main() {
       ok: true,
       case: args.case,
       mode: args.mode,
+      hostMathRendering,
       url: args.url,
       selector: args.selector,
       requiredSelectors: args.requiredSelectors,
@@ -2186,7 +2333,7 @@ async function main() {
       interactionSelectors: args.interactionSelectors,
       interactionScenarios: args.interactionScenarios,
       tier: args.tier,
-      windowMode: args.background ? 'background-screen-off' : 'headed-isolated',
+      windowMode: args.background ? 'background-visible-no-focus' : 'headed-isolated',
       launchMode: launched.launchMode,
       focusPolicy: launched.focusPolicy,
       windowPlacement: launched.windowPlacement,
@@ -2201,7 +2348,7 @@ async function main() {
     } else if (context) {
       await context.close().catch(() => {});
     }
-    fs.rmSync(profileDir, {recursive: true, force: true});
+    fs.rmSync(profileDir, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
   }
 }
 
@@ -2226,10 +2373,17 @@ module.exports = {
   isNaturalLanguageText,
   newestFile,
   reconcileForbiddenContractState,
+  findHoverTextPointInPage,
+  waitForHoverPointer,
+  toggleHover,
   resolveHoverTarget,
   settleCoverageByReveal,
   closeInteractionDialog,
   validateCoverageRevealStatuses,
   waitForCoverageReady,
+  waitForHostMathRendering,
+  observeTranslationIdleInPage,
+  waitForTranslationIdle,
+  waitForStableTarget,
   withMandatoryHeadingCoverage,
 };

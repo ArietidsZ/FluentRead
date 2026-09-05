@@ -13,6 +13,7 @@ import browser from 'webextension-polyfill';
 import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
 import {resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
+import {buildGlossaryRevision} from '@/src/core/glossary';
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
 import {isTrustedCredentialStorageContext} from '@/src/platform/storage/credentialContext';
 import {config, requestConfigCountIncrement} from '@/src/services/config/store';
@@ -39,6 +40,7 @@ import {
   TRANSLATION_CANCEL_MESSAGE_TYPE,
   type TranslationRequestMessage,
   type TranslationRuntimeRequestMessage,
+  type TranslationGlossaryContext,
 } from '@/src/services/translation/types';
 
 // 调试相关
@@ -287,6 +289,7 @@ function flushVideoCountSave(): void {
  * @returns 翻译结果的Promise
  */
 export async function translateText(origin: string, context: string = document.title, options: TranslateOptions = {}): Promise<string> {
+  const glossary = captureTranslationGlossaryOptions(options);
   const selectedService = options.serviceOverride || config.service;
   const selectedModel = resolveConfiguredModel(
     options.modelOverride || config.model[selectedService],
@@ -340,6 +343,7 @@ export async function translateText(origin: string, context: string = document.t
         // 发送翻译请求给background脚本处理
         const response = await waitForRequest(
           {
+            ...glossary,
             context,
             pageContext,
             ...(options.enableAIContext !== undefined ? {enableAIContext: options.enableAIContext} : {}),
@@ -405,6 +409,7 @@ export async function translateTextBatch(
   options: TranslateOptions = {},
 ): Promise<string[]> {
   if (origins.length === 0) return [];
+  const glossary = captureTranslationGlossaryOptions(options);
 
   const selectedService = options.serviceOverride || config.service;
   const selectedModel = resolveConfiguredModel(
@@ -438,6 +443,7 @@ export async function translateTextBatch(
       try {
         const response = await waitForRequest(
           {
+            ...glossary,
             context,
             pageContext,
             ...(options.enableAIContext !== undefined ? {enableAIContext: options.enableAIContext} : {}),
@@ -491,6 +497,10 @@ export async function translateVideoText(origin: string, signal?: AbortSignal, s
   if (signal?.aborted) throw createAbortError();
   const cleanedOrigin = origin?.replace(/[\s\u3000]/g, '') || '';
   if (!cleanedOrigin) return origin || '';
+  const glossary = captureTranslationGlossaryOptions({
+    glossaryContext: 'video',
+    glossaryIds: config.videoGlossaryIds,
+  });
 
   const service = config.videoService;
   const model = resolveConfiguredModel(config.model[service], config.customModel[service]);
@@ -505,6 +515,7 @@ export async function translateVideoText(origin: string, signal?: AbortSignal, s
     const translationTask = async (retryCount = 0): Promise<string> => {
       try {
         const response = await waitForRequest({
+          ...glossary,
           context: `视频字幕：${typeof document === 'undefined' ? '' : document.title}`,
           pageContext,
           origin,
@@ -550,6 +561,9 @@ export function cancelAllTranslations() {
  * 翻译参数接口
  */
 export interface TranslateOptions {
+  glossaryIds?: readonly string[] | null;
+  glossaryRevision?: string;
+  glossaryContext?: TranslationGlossaryContext;
   /** 最大重试次数 */
   maxRetries?: number;
   /** 重试退避初始间隔(毫秒) */
@@ -584,6 +598,15 @@ export interface TranslateOptions {
   modelOverride?: string;
   /** 为会话冻结当前模型的 Thinking 状态，不改写持久配置。 */
   thinkingOverride?: boolean;
+}
+
+/** 在任何上下文提取、队列等待和重试前固定术语版本与入口选择。 */
+function captureTranslationGlossaryOptions(options: TranslateOptions) {
+  return {
+    glossaryRevision: options.glossaryRevision ?? buildGlossaryRevision(config.glossaryLibraries, config.glossaryEnabled),
+    glossaryIds: options.glossaryIds ? Object.freeze([...options.glossaryIds]) : options.glossaryIds,
+    ...(options.glossaryContext ? {glossaryContext: options.glossaryContext} : {}),
+  };
 }
 
 function assertTranslationCredentials(service = config.service, modelOverride?: string): void {

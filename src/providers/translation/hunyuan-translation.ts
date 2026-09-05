@@ -6,6 +6,7 @@
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
+import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import { method } from "@/src/core/config/constants";
 import { config } from "@/src/services/config/store";
 import { detectlang } from "@/src/core/language/detect";
@@ -25,7 +26,7 @@ import {normalizeHunyuanUsage} from './usage';
 // 混元翻译大模型支持的语言代码映射
 const languageMap: Record<string, string> = {
     'zh-Hans': 'zh',    // 简体中文
-    'zh-Hant': 'yue',   // 繁体中文使用粤语代码
+    'zh-Hant': 'zh-TR', // 繁体中文；yue 是粤语，不能代替繁体书写系统
     'en': 'en',         // 英语
     'ja': 'ja',         // 日语
     'ko': 'ko',         // 韩语
@@ -140,13 +141,13 @@ async function hunyuanTranslation(message: TranslationProviderRequest<string>) {
     const {sourceLanguage, targetLanguage} = getTranslationLanguages(message);
     let sourceLang: string;
     if (sourceLanguage === 'auto') {
-        const detectedLang = detectlang(message.origin.replace(/[\s\u3000]/g, ''));
+        const detectedLang = normalizeChineseLanguageCode(detectlang(message.origin.replace(/[\s\u3000]/g, '')));
         sourceLang = languageMap[detectedLang] || detectedLang;
     } else {
-        sourceLang = languageMap[sourceLanguage] || sourceLanguage;
+        sourceLang = languageMap[normalizeChineseLanguageCode(sourceLanguage)] || sourceLanguage;
     }
 
-    const mappedTargetLang = languageMap[targetLanguage] || targetLanguage;
+    const mappedTargetLang = languageMap[normalizeChineseLanguageCode(targetLanguage)] || targetLanguage;
     if (sourceLang === mappedTargetLang) return message.origin;
     if (!mappedTargetLang) throw new Error('混元翻译不支持该目标语言');
 

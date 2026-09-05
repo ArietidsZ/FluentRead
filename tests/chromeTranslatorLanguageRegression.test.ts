@@ -208,3 +208,9 @@ describe('Chrome translator 请求级语言回归', () => {
         expect(randomUUID).toHaveBeenCalledOnce();
     });
 });
+
+it('Chrome provider 请求级简繁体互译不被全局目标覆盖', async () => {
+    mocks.send.mockImplementation(async (request: {requestId?: unknown}) => ({success: true, result: '繁體譯文', requestId: request.requestId}));
+    await expect(chromeTranslator({origin: '简体中文', sourceLanguage: 'zh-Hans', targetLanguage: 'zh-Hant'})).resolves.toBe('繁體譯文');
+    expect(mocks.send).toHaveBeenLastCalledWith(expect.objectContaining({data: {text: '简体中文', from: 'zh-Hans', to: 'zh-Hant'}}), expect.any(Object));
+});

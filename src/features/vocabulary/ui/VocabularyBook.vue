@@ -1,16 +1,16 @@
 <!--
  * @file src/features/vocabulary/ui/VocabularyBook.vue
- * 文件职责：实现设置页本地单词本与主动复习界面，覆盖 Beta 开关、学习统计、筛选分页、记忆卡、掌握/重学、删除撤销和单词本专属数据操作。
+ * 文件职责：实现学习中心本地单词与句子收藏及主动复习界面，覆盖收藏开关、原文朗读、筛选分页、记忆卡、删除撤销和数据操作。
  * 主要内容：组件通过 runtime 消息读取和修改词条，使用字段级配置补丁保存 Beta 开关，协调稳定复习队列、页面生命周期、键盘评分、主题、时间刷新与跨页面变更通知，并在轻量“更多”菜单中提供隐私安全的 Anki 导出和清空操作。
  * 模块边界：UI 不直接访问 Dexie 或上传学习数据；完整备份与旧文件导入统一进入备份与恢复页，数据库操作集中在后台 repository/handler，导出的上下文和来源只有用户明确选择时才包含。
  -->
 <template>
-  <div id="settings-vocabulary" class="vocabulary-book">
+  <div class="vocabulary-book">
     <section class="beta-panel" :class="{ enabled: betaEnabled }">
       <div class="beta-copy">
         <div>
-          <h3>{{ betaEnabled ? '单词本收藏入口已开启' : '先开启本地单词本' }}</h3>
-          <p>只在你主动点击星标时保存；关闭功能不会删除已经积累的词条和复习记录。</p>
+          <h3>{{ betaEnabled ? '学习收藏入口已开启' : '先开启学习收藏' }}</h3>
+          <p>主动收藏单词、表达或句子；关闭入口不会删除已有收藏和复习记录。</p>
         </div>
       </div>
       <button
@@ -25,7 +25,7 @@
     </section>
 
     <div v-if="betaEnabled && !selectionTranslatorEnabled" class="selection-reminder" role="note">
-      <span>单词收藏入口位于划词翻译卡中；当前划词翻译仍是关闭状态。</span>
+      <span>收藏入口位于网页学习卡中；当前划词翻译和阅读助手都未开启。</span>
       <button type="button" @click="emit('navigate', 'settings-translation')">前往开启</button>
     </div>
 
@@ -58,14 +58,14 @@
           <div class="review-prompt">
             <p v-if="currentClozeContext" class="cloze-context">{{ currentClozeContext }}</p>
             <h3 v-else>{{ currentReview.term }}</h3>
-            <small>{{ currentClozeContext ? '回忆空缺处的单词和含义' : '先在心里回忆它的含义' }}</small>
+            <small>{{ currentClozeContext ? '回忆空缺处的表达和含义' : '先在心里回忆它的含义' }}</small>
           </div>
 
           <button v-if="!reviewAnswerVisible" class="reveal-button" type="button" @click="reviewAnswerVisible = true">显示答案 <kbd>Space</kbd></button>
 
           <div v-else class="review-answer">
-            <div class="answer-heading"><h3>{{ currentReview.term }}</h3><span v-if="currentReview.phonetic">{{ currentReview.phonetic }}</span></div>
-            <p class="answer-translation">{{ entryTranslation(currentReview) || '暂无可用译义' }}</p>
+            <div class="answer-heading"><h3>{{ currentReview.term }}</h3><button class="vocabulary-speak" type="button" :aria-label="playingEntryId === currentReview.id ? '停止朗读' : '朗读原文'" :title="playingEntryId === currentReview.id ? '停止朗读' : '朗读原文'" @click="toggleEntrySpeech(currentReview)"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7h4l4-3v12l-4-3H3z" /><path :d="playingEntryId === currentReview.id ? 'M14 7v6m3-6v6' : 'M14 7a4 4 0 0 1 0 6m2-9a8 8 0 0 1 0 12'" /></svg></button><span v-if="currentReview.phonetic">{{ currentReview.phonetic }}</span></div>
+            <p class="answer-translation">{{ entryTranslation(currentReview) || '暂无释义' }}</p>
             <p v-if="latestContext(currentReview)?.text" class="answer-context">{{ latestContext(currentReview)?.text }}</p>
             <a v-if="latestContext(currentReview)?.sourceUrl" :href="latestContext(currentReview)?.sourceUrl" target="_blank" rel="noreferrer">查看收藏来源 ↗</a>
             <div class="review-actions">
@@ -102,7 +102,7 @@
         </section>
 
         <section class="toolbar" aria-label="筛选单词">
-          <label class="search-field"><span aria-hidden="true">⌕</span><input v-model.trim="query" type="search" placeholder="搜索单词、译义或上下文" /></label>
+          <label class="search-field"><span aria-hidden="true">⌕</span><input v-model.trim="query" type="search" placeholder="搜索单词、句子、释义或上下文" /></label>
           <select v-model="statusFilter" aria-label="掌握状态">
             <option value="all">全部状态</option>
             <option value="due">待复习</option>
@@ -120,17 +120,17 @@
 
         <section v-if="loading && entries.length === 0" class="empty-state"><span class="loading-ring" /><p>正在读取本地单词本…</p></section>
         <section v-else-if="entries.length === 0" class="empty-state">
-          <span aria-hidden="true">☆</span><h3>还没有收藏单词</h3><p>开启后，在网页中划选一个英文单词，再点击学习卡标题栏的星标。</p>
+          <span aria-hidden="true">☆</span><h3>还没有学习收藏</h3><p>开启后，在网页学习卡中收藏想记住的单词或句子。</p>
           <button type="button" @click="emit('navigate', 'settings-data')">从备份恢复</button>
         </section>
         <section v-else-if="filteredEntries.length === 0" class="empty-state"><span aria-hidden="true">⌕</span><h3>没有匹配的词条</h3><p>试试清空搜索内容或切换掌握状态。</p></section>
 
-        <section v-else class="word-list" aria-label="收藏的单词">
+        <section v-else class="word-list" aria-label="收藏的单词与句子">
           <article v-for="entry in pagedEntries" :key="entry.id" class="word-row">
             <div class="word-main">
-              <div class="word-heading"><h3>{{ entry.term }}</h3><span v-if="entry.phonetic">{{ entry.phonetic }}</span></div>
-              <p>{{ entryTranslation(entry) || '暂无可用译义' }}</p>
-              <small v-if="latestContext(entry)?.text" class="context-preview">{{ latestContext(entry)?.text }}</small>
+              <div class="word-heading"><h3>{{ entry.term }}</h3><button class="vocabulary-speak" type="button" :aria-label="playingEntryId === entry.id ? '停止朗读' : '朗读原文'" :title="playingEntryId === entry.id ? '停止朗读' : '朗读原文'" @click="toggleEntrySpeech(entry)"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7h4l4-3v12l-4-3H3z" /><path :d="playingEntryId === entry.id ? 'M14 7v6m3-6v6' : 'M14 7a4 4 0 0 1 0 6m2-9a8 8 0 0 1 0 12'" /></svg></button><span v-if="entry.phonetic">{{ entry.phonetic }}</span></div>
+              <p>{{ entryTranslation(entry) || '暂无释义' }}</p>
+              <small v-if="contextPreview(entry)" class="context-preview">{{ contextPreview(entry) }}</small>
               <div class="word-meta">
                 <span v-if="entry.partOfSpeech">{{ entry.partOfSpeech }}</span>
                 <span>{{ entry.encounterCount }} 次收藏记录</span>
@@ -169,6 +169,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch 
 import {ElMessageBox} from 'element-plus';
 import browser from 'webextension-polyfill';
 import {normalizeUiLanguage, translateLegacyText} from '@/src/core/i18n';
+import {createSelectionTtsClientRequestId, createSelectionTtsContentController, normalizeSpeechLanguage} from '@/src/features/selection-translation/speech/public';
 import {
   config as runtimeConfig,
   configReady,
@@ -178,6 +179,7 @@ import {
 import {
   buildVocabularyCloze,
   buildAnkiTsv,
+  normalizeLearningSourceText,
   advanceVocabularyReviewSession,
   createVocabularyLifecycleGuard,
   createVocabularyReviewSession,
@@ -227,6 +229,14 @@ const undoExport = shallowRef<VocabularyBookExport | null>(null);
 const moreMenu = ref<HTMLDetailsElement | null>(null);
 const currentTime = ref(Date.now());
 const lifecycle = createVocabularyLifecycleGuard();
+const playingEntryId = ref('');
+const speechController = createSelectionTtsContentController({
+  createClientRequestId: () => createSelectionTtsClientRequestId(),
+  stopRemote: clientRequestId => browser.runtime.sendMessage({type: 'selectionTtsStop', clientRequestId}),
+});
+let entryAudio: HTMLAudioElement | null = null;
+let entryAudioUrl = '';
+let entryUtterance: SpeechSynthesisUtterance | null = null;
 let toastTimer: number | null = null;
 let timeRefreshTimer: number | null = null;
 let darkMedia: MediaQueryList | null = null;
@@ -285,6 +295,77 @@ const currentClozeContext = computed(() => {
 
 watch([query, statusFilter, sortOrder], () => { page.value = 1; });
 watch(pageCount, count => { if (page.value > count) page.value = count; });
+watch([query, statusFilter, sortOrder, page, reviewStarted], () => stopEntrySpeech());
+watch(entries, items => { if (playingEntryId.value && !items.some(entry => entry.id === playingEntryId.value)) stopEntrySpeech(); });
+
+function releaseEntryAudio(): void {
+  if (entryAudio) { entryAudio.pause(); entryAudio.removeAttribute('src'); entryAudio = null; }
+  if (entryAudioUrl) URL.revokeObjectURL(entryAudioUrl);
+  entryAudioUrl = '';
+}
+
+function stopEntrySpeech(notifyRemote = true): void {
+  speechController.stop(notifyRemote);
+  releaseEntryAudio();
+  if (entryUtterance && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+  entryUtterance = null;
+  playingEntryId.value = '';
+}
+
+function speakEntryWithBrowser(entry: VocabularyEntry): void {
+  if (entryUtterance) return;
+  // 远端失败后的结束消息或 page.play 的迟到拒绝不能再停止或重复当前浏览器回退。
+  speechController.stop(false);
+  releaseEntryAudio();
+  if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+    stopEntrySpeech(); showToast('当前环境无法朗读，请稍后重试。'); return;
+  }
+  try {
+    const utterance = new SpeechSynthesisUtterance(entry.term);
+    utterance.lang = normalizeSpeechLanguage(entry.sourceLanguage);
+    const voices = window.speechSynthesis.getVoices();
+    utterance.voice = voices.find(voice => voice.lang.toLowerCase() === utterance.lang.toLowerCase()) ?? null;
+    utterance.onend = () => { if (entryUtterance === utterance) stopEntrySpeech(false); };
+    utterance.onerror = () => { if (entryUtterance === utterance) { stopEntrySpeech(false); showToast('朗读未完成，请重试。'); } };
+    entryUtterance = utterance;
+    playingEntryId.value = entry.id;
+    window.speechSynthesis.speak(utterance);
+  } catch { stopEntrySpeech(); showToast('当前环境无法朗读，请稍后重试。'); }
+}
+
+async function toggleEntrySpeech(entry: VocabularyEntry): Promise<void> {
+  const wasPlaying = playingEntryId.value === entry.id;
+  stopEntrySpeech();
+  if (wasPlaying) return;
+  playingEntryId.value = entry.id;
+  const remote = speechController.beginRemoteRequest();
+  try {
+    const response = await browser.runtime.sendMessage({type: 'selectionTts', text: entry.term, language: normalizeSpeechLanguage(entry.sourceLanguage), clientRequestId: remote.clientRequestId}) as {success?: boolean; transport?: 'offscreen' | 'page'; audioBase64?: string; contentType?: string};
+    const result = speechController.completeRemoteRequest(remote, response);
+    if (result === 'stale' || result === 'offscreen') return;
+    if (result === 'failed' || !response.audioBase64) { speakEntryWithBrowser(entry); return; }
+    const binary = atob(response.audioBase64);
+    const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+    entryAudioUrl = URL.createObjectURL(new Blob([bytes], {type: response.contentType || 'audio/mpeg'}));
+    const audio = new Audio(entryAudioUrl);
+    entryAudio = audio;
+    audio.onended = () => { if (entryAudio === audio) stopEntrySpeech(false); };
+    audio.onerror = () => { if (entryAudio === audio) speakEntryWithBrowser(entry); };
+    await audio.play();
+  } catch {
+    if (speechController.rejectRemoteRequest(remote)) speakEntryWithBrowser(entry);
+  }
+}
+
+function handleEntrySpeechState(message: unknown): undefined {
+  const state = speechController.matchRemoteState(message);
+  if (state === 'error') {
+    const entry = entries.value.find(item => item.id === playingEntryId.value);
+    if (entry) speakEntryWithBrowser(entry);
+    else stopEntrySpeech(false);
+  } else if (state) stopEntrySpeech(false);
+  return undefined;
+}
 
 async function requestVocabulary<T>(request: VocabularyBookRequest): Promise<T> {
   const response = await browser.runtime.sendMessage(request) as VocabularyBookResponse<T>;
@@ -318,6 +399,7 @@ function scheduleTimeRefresh(): void {
 
 function handleVisibilityChange(): void {
   if (!lifecycle.isActive()) return;
+  if (document.visibilityState === 'hidden') stopEntrySpeech();
   scheduleTimeRefresh();
   if (document.visibilityState === 'visible') void loadEntries();
 }
@@ -610,6 +692,10 @@ function entryTranslation(entry: Pick<VocabularyEntry, 'translations'>): string 
   return Object.values(entry.translations).sort((left, right) => right.updatedAt - left.updatedAt)[0]?.text || '';
 }
 function latestContext(entry: VocabularyEntry): VocabularyContext | undefined { return entry.contexts[entry.contexts.length - 1]; }
+function contextPreview(entry: VocabularyEntry): string {
+  const text = latestContext(entry)?.text || '';
+  return normalizeLearningSourceText(text) === normalizeLearningSourceText(entry.term) ? '' : text;
+}
 function sourceHost(value?: string): string {
   if (!value) return '';
   try { return new URL(value).hostname; } catch { return '收藏来源'; }
@@ -661,16 +747,17 @@ onMounted(async () => {
   darkMedia.addEventListener('change', applyTheme);
   await lifecycle.runAfterReady(configReady, async () => {
     betaEnabled.value = runtimeConfig.vocabularyBookEnabled;
-    selectionTranslatorEnabled.value = runtimeConfig.selectionTranslatorMode !== 'disabled';
+    selectionTranslatorEnabled.value = runtimeConfig.selectionTranslatorMode !== 'disabled' || runtimeConfig.harness?.enabled === true;
     targetLanguageKey.value = normalizeLanguageKey(runtimeConfig.to);
     applyTheme();
     unsubscribeConfig = subscribeConfig(next => {
       betaEnabled.value = next.vocabularyBookEnabled;
-      selectionTranslatorEnabled.value = next.selectionTranslatorMode !== 'disabled';
+      selectionTranslatorEnabled.value = next.selectionTranslatorMode !== 'disabled' || next.harness?.enabled === true;
       targetLanguageKey.value = normalizeLanguageKey(next.to);
       applyTheme();
     });
     browser.runtime.onMessage.addListener(handleBookChanged);
+    browser.runtime.onMessage.addListener(handleEntrySpeechState);
     window.addEventListener('keydown', handleReviewKeyboard);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     await loadEntries();
@@ -679,8 +766,10 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   lifecycle.dispose();
+  stopEntrySpeech();
   unsubscribeConfig?.();
   browser.runtime.onMessage.removeListener(handleBookChanged);
+  browser.runtime.onMessage.removeListener(handleEntrySpeechState);
   window.removeEventListener('keydown', handleReviewKeyboard);
   document.removeEventListener('visibilitychange', handleVisibilityChange);
   darkMedia?.removeEventListener('change', applyTheme);
@@ -741,6 +830,10 @@ onBeforeUnmount(() => {
 .word-main { min-width: 0; }
 .word-heading { display: flex; min-width: 0; align-items: baseline; gap: 9px; }
 .word-heading h3 { min-width: 0; margin: 0; overflow-wrap: anywhere; color: #172033; font-size: 19px; }
+.vocabulary-speak { flex: none; display: grid; place-items: center; width: 28px; height: 28px; padding: 5px; border: 0; border-radius: 7px; background: #f7eef2; color: #984367; cursor: pointer; }
+.vocabulary-speak svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.vocabulary-speak:hover, .vocabulary-speak:focus-visible { background: #f1dae5; outline: 2px solid #c97498; outline-offset: 1px; }
+:global(:root.dark .vocabulary-speak) { background: #4b3541; color: #f2b8d3; }
 .word-heading > span { color: #886373; font-family: Georgia, serif; font-size: 12px; }
 .word-main > p { margin: 7px 0 0; overflow-wrap: anywhere; color: #383f4c; font-size: 12px; font-weight: 650; white-space: pre-wrap; }
 .context-preview { display: -webkit-box; margin-top: 8px; overflow: hidden; overflow-wrap: anywhere; color: #737c8f; font-size: 10px; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }

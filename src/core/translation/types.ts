@@ -2,7 +2,7 @@
  * @file src/core/translation/types.ts
  *
  * 文件职责：定义翻译候选核心的基础类型契约，使引擎、布局、序列化和站点适配器能够以一致结构协作。
- * 主要内容：包含候选 kind、AdapterDecision、AdapterContext、TranslationSiteAdapter、TranslationCandidate 与 TranslationCoreOptions，明确适配器输入、候选来源和可注入依赖。 可核对的公开符号包括 TranslationCandidateKind、AdapterDecision、AdapterContext、TranslationSiteAdapter、TranslationCandidate、TranslationCoreOptions。
+ * 主要内容：包含候选 kind、AdapterDecision、AdapterContext、TranslationSiteAdapter、TranslationCandidate 与 TranslationCoreOptions，明确适配器输入、候选来源、原文保留和双语快照省略规则。 可核对的公开符号包括 TranslationCandidateKind、AdapterDecision、AdapterContext、TranslationSiteAdapter、TranslationCandidate、TranslationCoreOptions。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
@@ -32,9 +32,13 @@ export interface TranslationSiteAdapter {
     priority?: number;
     /** `targets-only` 仍允许 force-target，但禁止通用块和内联 run 回退。 */
     genericCandidatePolicy?: TranslationGenericCandidatePolicy;
+    /** 规则依赖的属性名；null 表示不能安全穷举，必须观察全部属性。 */
+    observedAttributes?: readonly string[] | null;
     matches(url: URL): boolean;
     decide(element: Element, context: AdapterContext): AdapterDecision;
     shouldStayOriginal?(element: Element, context: AdapterContext): boolean;
+    /** 命中的宿主元数据不进入双语译文骨架，但仍可留在原文 DOM 中。 */
+    shouldOmitFromTranslation?(element: Element, context: AdapterContext): boolean;
     shouldIgnoreMutation?(element: Element, context: AdapterContext): boolean;
 }
 

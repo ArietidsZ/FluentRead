@@ -6,6 +6,7 @@
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
+import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import {services} from "@/src/core/config/catalog";
 import {config} from "@/src/services/config/store";
 import {getDeepLXEndpoints} from "@/src/core/config/deeplx";
@@ -26,7 +27,7 @@ const DEEPLX_TOTAL_TIMEOUT_MS = 20_000;
 const DEEPLX_ATTEMPT_TIMEOUT_MS = 8_000;
 
 function normalizeLanguage(language: string): string {
-    const normalized = language.toLowerCase();
+    const normalized = normalizeChineseLanguageCode(language).toLowerCase();
     if (normalized === "auto") {
         return "AUTO";
     }
@@ -157,6 +158,7 @@ export async function translateDeepLXText(
     const {sourceLang, targetLang} = getDeepLXRequestLanguages(sourceLanguage, targetLanguage);
     const deadline = Date.now() + DEEPLX_TOTAL_TIMEOUT_MS;
     const failures: string[] = [];
+    const failureStatuses: Array<number | undefined> = [];
     const abortSignal = languageOverride?.abortSignal;
 
     for (const [index, endpoint] of endpoints.entries()) {
@@ -179,11 +181,21 @@ export async function translateDeepLXText(
         } catch (error) {
             if (abortSignal?.aborted) throw abortErrorFromSignal(abortSignal);
             failures.push(`备用站点 ${index + 1}: ${getErrorMessage(error)}`);
+            failureStatuses.push((error as {statusCode?: number}).statusCode);
         }
     }
 
     const failureSummary = failures.length > 0 ? failures.join("；") : "总请求时间已耗尽";
-    throw new Error(`DeepLX 所有备用站点均失败：${failureSummary}`);
+    const aggregate = new Error(`DeepLX 所有备用站点均失败：${failureSummary}`);
+    const firstStatus = failureStatuses[0];
+    const requestErrors = new Set([400, 404, 413, 415, 422]);
+    // 保留标准 HTTP 分类供外层免费链判断；语言/参数错误不应熔断其他文本。
+    // 混合网络故障不能被其中一次 400 掩盖，因此只传递一致状态或全部请求错误。
+    if (firstStatus !== undefined && failureStatuses.every(status => status === firstStatus
+        || (requestErrors.has(firstStatus) && status !== undefined && requestErrors.has(status)))) {
+        Object.assign(aggregate, {statusCode: firstStatus});
+    }
+    throw aggregate;
 }
 
 async function deeplx(message: TranslationProviderRequest<string>) {

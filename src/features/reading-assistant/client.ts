@@ -1,12 +1,13 @@
 /**
  * @file src/features/reading-assistant/client.ts
- * 文件职责：封装阅读助手的流式 runtime port 与本机会话查询协议，向 UI 提供稳定的异步边界。
- * 主要内容：发送 run 请求、消费 model/text/session 进度、取消当前请求，以及分页读取、删除和清空最近会话。
- * 模块边界：本文件不解析提示词、不保存 DOM 或密钥；后台负责模型调用与会话持久化，组件负责展示和生命周期。
+ * 文件职责：封装阅读助手的流式 runtime port、本机会话与长期学习记忆协议，向 UI 提供稳定的异步边界。
+ * 主要内容：发送 run 请求、消费流式进度和取消，查询最近会话，并按白名单快照发送用户主动管理的记忆。
+ * 模块边界：本文件不解析提示词、不保存 DOM 或密钥；后台负责模型调用、来源校验和数据持久化，组件负责展示和生命周期。
  */
 import browser from 'webextension-polyfill';
 import type {ReadingProgress, ReadingRequest, ReadingResponse, ReadingStreamMessage} from './types';
 import type {HarnessSession, HarnessSessionSummary} from '@/src/services/harness/sessionTypes';
+import type {LearningMemory, LearningMemoryInput} from '@/src/services/harness/learningMemory';
 
 export type HarnessStreamHandlers = {
     progress?: (progress: ReadingProgress) => void;
@@ -56,3 +57,16 @@ export async function getHarnessSession(sessionId: string): Promise<HarnessSessi
 }
 export async function deleteHarnessSession(sessionId: string): Promise<void> { await sessionMessage({action: 'sessions-delete', sessionId}); }
 export async function clearHarnessSessions(): Promise<void> { await sessionMessage({action: 'sessions-clear'}); }
+
+export async function listLearningMemories(): Promise<LearningMemory[]> {
+    const response = await sessionMessage<{memories: LearningMemory[]}>({action: 'memory-list'});
+    return response.memories;
+}
+export async function saveLearningMemory(input: LearningMemoryInput): Promise<LearningMemory> {
+    const response = await sessionMessage<{memory: LearningMemory}>({action: 'memory-save', input: {
+        content: input.content, kind: input.kind, ...(input.id === undefined ? {} : {id: input.id}),
+    }});
+    return response.memory;
+}
+export async function deleteLearningMemory(id: string): Promise<void> { await sessionMessage({action: 'memory-delete', id}); }
+export async function clearLearningMemories(): Promise<void> { await sessionMessage({action: 'memory-clear'}); }

@@ -1,10 +1,11 @@
 /**
  * @file src/features/selection-translation/core.ts
  * 文件职责：集中划词翻译的纯交互与内容算法，包括请求代次、词典回退、触发展示状态、选区过滤、上下文摘要、弹窗锚点和语音语言规范化。
- * 主要内容：定义 SelectionRequestTokenGate、Presentation 状态机、选区/视口类型，处理同语种判断、文本清理、敏感或可编辑区域排除、多矩形选择及边界内弹窗定位。
+ * 主要内容：定义 SelectionRequestTokenGate、Presentation 状态机、选区/视口类型，处理同语种判断、文本清理、敏感区域排除、多矩形选择、弹窗定位及仅用于朗读的普通话语言别名。
  * 模块边界：本模块不监听 document selection、不发消息、不渲染 Vue 或播放音频；组件负责连接 DOM，词典和 TTS 由 services/background 提供，函数保持确定性以供单元测试。
  */
 import {isTopLevelApplicationShell} from '@/src/core/translation/public';
+import {getChineseScript, normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 
 export interface SelectionRect {
     top: number;
@@ -60,12 +61,12 @@ export class SelectionRequestTokenGate {
 }
 
 function normalizeSelectionRequestLanguage(value: string): string {
-    return String(value || '').trim().replace(/_/g, '-').toLowerCase();
+    return normalizeChineseLanguageCode(String(value || '')).replace(/_/g, '-').toLowerCase();
 }
 
 /** ECDICT 随包附带的辅助释义是简体中文，仅在目标语言兼容时参与回退。 */
 export function canUseBundledDictionaryFallback(targetLanguage: string): boolean {
-    return ['zh', 'zh-cn', 'zh-hans', 'zh-sg'].includes(normalizeSelectionRequestLanguage(targetLanguage));
+    return normalizeSelectionRequestLanguage(targetLanguage) === 'zh-hans';
 }
 
 export function resolveSelectionDictionaryFallback(targetLanguage: string, translatedDefinitions: readonly unknown[]): string {
@@ -148,11 +149,17 @@ const languageAliases: Record<string, string> = {
     tur: 'tr',
 };
 
-/** 忽略地区与书写系统差异后比较检测语言和配置语言。 */
+/** 中文必须具有一致的明确书写系统，其他语言继续按基础语言比较。 */
 export function isSameLanguage(detectedLanguage: string | undefined, targetLanguage: string | undefined): boolean {
     const detected = String(detectedLanguage ?? '').trim().replace(/_/g, '-').toLowerCase();
     const target = String(targetLanguage ?? '').trim().replace(/_/g, '-').toLowerCase();
     if (!detected || !target || ['auto', 'detect', 'unknown', 'und'].includes(detected) || ['auto', 'detect', 'unknown', 'und'].includes(target)) return false;
+
+    // 统计检测的裸 zh/cmn 不能证明简繁；目标配置的裸 zh 则沿用历史简体默认值。
+    if (/^(zh|cmn|zho|chi)$/u.test(detected)) return false;
+    const detectedScript = getChineseScript(detected);
+    const targetScript = getChineseScript(target);
+    if (detectedScript || targetScript) return Boolean(detectedScript && detectedScript === targetScript);
 
     const detectedBase = languageAliases[detected] || detected.split('-')[0];
     const targetBase = languageAliases[target] || target.split('-')[0];
@@ -364,17 +371,26 @@ export function calculateSelectionPopupPosition(
     };
 }
 
+/** 阅读卡先预留固定视窗，再选择位置；正文增长不能改变定位尺寸或上下方位。 */
+export function calculateReadingPopupLayout(anchor: SelectionRect, viewport: ViewportSize): PopupPosition & PopupSize {
+    const width = Math.max(0, Math.min(388, viewport.width - 2 * DEFAULT_PADDING));
+    const height = Math.max(0, Math.min(520, viewport.height - 2 * DEFAULT_PADDING));
+    return {...calculateSelectionPopupPosition(anchor, {width, height}, viewport), width, height};
+}
+
 export function normalizeSpeechLanguage(language: string | undefined, fallback = 'en-US'): string {
     const normalized = String(language ?? '').trim().replace(/_/g, '-');
     const lower = normalized.toLowerCase();
     if (!normalized || ['auto', 'detect', 'unknown', 'und'].includes(lower)) return fallback;
 
+    const script = getChineseScript(normalized);
+    if (script) return script === 'Hans' ? 'zh-CN' : 'zh-TW';
+
     const aliases: Record<string, string> = {
-        'zh': 'zh-CN',
-        'zh-hans': 'zh-CN',
-        'zh-cn': 'zh-CN',
-        'zh-hant': 'zh-TW',
-        'zh-tw': 'zh-TW',
+        // 只选择普通话朗读音色，不据此推断原文的简繁或跳过翻译。
+        'cmn': 'zh-CN',
+        'zho': 'zh-CN',
+        'chi': 'zh-CN',
         'en': 'en-US',
         'ja': 'ja-JP',
         'ko': 'ko-KR',

@@ -27,6 +27,33 @@ function profile(overrides: Partial<QuickTranslationProfile> = {}): QuickTransla
 }
 
 describe('快捷翻译调用解析', () => {
+    it('快捷方案保留简繁目标差异，历史别名与非中文目标均可继续使用', () => {
+        const normalized = normalizeQuickTranslationProfiles([
+            profile({id: 'simplified', hotkey: 'Alt+S', targetLanguage: ' zh-CN '}),
+            profile({id: 'traditional', hotkey: 'Alt+T', targetLanguage: 'zh-HK'}),
+            profile({id: 'explicit-script', hotkey: 'Alt+X', targetLanguage: 'zh-Hans-TW'}),
+            profile({id: 'custom', hotkey: 'Alt+C', targetLanguage: ' en-US '}),
+            profile({id: 'inherit', hotkey: 'Alt+I', targetLanguage: ''}),
+        ], {isSupportedService: () => true, serviceUsesModel: () => false});
+        expect(normalized.map(item => item.targetLanguage)).toEqual([
+            'zh-Hans', 'zh-Hant', 'zh-Hans', 'en-US', '',
+        ]);
+        const config = {service: services.openai, model: {}, customModel: {}, to: 'zh-Hans', display: 1,
+            fullPageTranslationMode: 'viewport' as const};
+        expect(resolveQuickTranslationInvocation(normalized[1]!, config).targetLanguage).toBe('zh-Hant');
+        expect(resolveQuickTranslationInvocation(normalized[4]!, {...config, to: 'zh-Hant'}).targetLanguage).toBe('zh-Hant');
+    });
+
+    it('快捷方案冻结术语选择并区分跟随默认和显式关闭', () => {
+        const config = {service: services.openai, model: {}, customModel: {}, to: 'zh-Hans', display: 1,
+            fullPageTranslationMode: 'viewport' as const};
+        const ids = ['technical'];
+        const invocation = resolveQuickTranslationInvocation(profile({glossaryIds: ids}), config);
+        ids.push('later');
+        expect(invocation.glossaryIds).toEqual(['technical']);
+        expect(resolveQuickTranslationInvocation(profile({glossaryIds: []}), config).glossaryIds).toEqual([]);
+        expect(resolveQuickTranslationInvocation(profile({glossaryIds: null}), config).glossaryIds).toBeNull();
+    });
     it('创建方案时生成无碰撞 ID，运行时只暴露已启用且已设置热键的匹配动作', () => {
         const created = createQuickTranslationProfile('hover', [
             {id: 'quick-1'},

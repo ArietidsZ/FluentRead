@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupApp.vue
  文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、可插拔皮肤、功能抽屉和高频操作，提供轻量但完整的控制中心。
- 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排翻译、AI 语境偏好与可用状态、站点规则及快捷功能；提供 AI 精翻说明抽屉，监听配置并持久化，按皮肤及栏目显隐自动计算高度。
+ 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排翻译、AI 语境偏好与可用状态、站点规则及快捷功能，图片、圈选和划词拥有独立状态、抽屉与设置入口；提供 AI 精翻说明抽屉，监听配置并持久化，按皮肤及栏目显隐自动计算高度。
  模块边界：组件编排用户交互与运行时消息，不实现翻译 provider、缓存存储或 content 挂载细节；公共配置由 services/store 管理，页面行为由 content feature 接收消息完成。
 -->
 <!-- Popup 页面归 app 层所有；WXT 入口只负责调用挂载函数。 -->
@@ -85,7 +85,7 @@
         <label>
           <span>源语言</span>
           <select v-model="config.from" :disabled="!config.on">
-            <option v-for="item in options.form" :key="item.value" :value="item.value">{{ item.label }}</option>
+            <option v-for="item in options.from" :key="item.value" :value="item.value" data-i18n-ignore>{{ item.value === 'auto' ? translateLegacy(item.label) : getMultilingualTargetLanguageLabel(item.value, item.label, language) }}</option>
           </select>
         </label>
         <span class="arrow">→</span>
@@ -395,12 +395,7 @@
       </div>
 
       <div v-else-if="activeDrawer === 'selection'" class="drawer-content">
-        <div class="selection-mode-tabs" role="tablist" aria-label="翻译方式">
-          <button class="selection-mode-tab" :class="{ selected: selectionDrawerTab === 'text' }" type="button" role="tab" :aria-selected="selectionDrawerTab === 'text'" aria-controls="selection-text-panel" @click="selectionDrawerTab = 'text'">划词翻译</button>
-          <button class="selection-mode-tab" :class="{ selected: selectionDrawerTab === 'area' }" type="button" role="tab" :aria-selected="selectionDrawerTab === 'area'" aria-controls="selection-area-panel" @click="selectionDrawerTab = 'area'">圈选翻译</button>
-        </div>
-
-        <div v-if="selectionDrawerTab === 'text'" id="selection-text-panel" role="tabpanel">
+        <div>
           <div class="interaction-preview">
             <span class="selection-box">选择文字</span><span>＋</span>
             <i v-if="config.selectionTranslatorTrigger === 'dot'" class="pink-dot" />
@@ -474,7 +469,10 @@
           </div>
         </div>
 
-        <div v-else id="selection-area-panel" class="selection-area-panel" role="tabpanel">
+      </div>
+
+      <div v-else-if="activeDrawer === 'area'" class="drawer-content">
+        <div class="selection-area-panel">
           <div v-if="!browserCapabilities.areaTranslation" class="capability-unavailable" role="status">
             <strong>当前浏览器暂不支持圈选翻译</strong>
             <small>原有开关偏好已保留；回到 Chrome 后仍会按原设置生效。</small>
@@ -488,7 +486,8 @@
               <button class="switch compact" type="button" role="switch" :aria-checked="config.selectionAreaEnabled" aria-label="启用或关闭圈选翻译" @click="setAreaEnabled(!config.selectionAreaEnabled)"><i /></button>
             </div>
             <div class="area-translation-preview" aria-keyshortcuts="Shift+Z"><div class="area-hotkey"><kbd>Shift</kbd><kbd>Z</kbd></div><span>＋</span><i class="area-ring" /><span>＝</span><strong>翻译选中区域</strong></div>
-            <small class="drawer-hint">按住 Shift + Z 拖拽页面区域，释放鼠标后识别并翻译；结果会覆盖在当前区域上，按 Esc 可关闭。</small>
+            <small class="drawer-hint">按 Shift + Z 后拖拽页面区域，释放鼠标后识别并翻译；按 Esc 可取消或关闭结果。</small>
+            <small class="drawer-hint">{{ t(config.areaTranslationMode === 'ai' ? 'area.settings.aiDescription' : 'area.settings.standardDescription') }}</small>
           </div>
         </div>
       </div>
@@ -646,8 +645,8 @@ import {
   isTranslationServiceAvailable,
 } from '@/src/services/translation/capabilities';
 
-type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'video' | 'aiContext';
-type SettingsSection = 'settings-general' | 'settings-image-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
+type DrawerName = 'hover' | 'selection' | 'appearance' | 'image' | 'area' | 'video' | 'aiContext';
+type SettingsSection = 'settings-general' | 'settings-image-translation' | 'settings-area-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
 interface PopupQuickFeatureViewModel {
   id: PopupQuickFeatureId;
   label: string;
@@ -668,7 +667,6 @@ const config = ref(normalizeConfig(runtimeConfig));
 const onboardingLanguage = ref<UiLanguage>('zh-CN');
 const drawerVisible = ref(false);
 const activeDrawer = ref<DrawerName>('hover');
-const selectionDrawerTab = ref<'text' | 'area'>('text');
 const translating = ref(false);
 const pageTranslated = ref(false);
 const currentTabId = ref<number | null>(null);
@@ -701,6 +699,7 @@ const drawerSettingsSection: Record<DrawerName, SettingsSection> = {
   selection: 'settings-translation',
   appearance: 'settings-general',
   image: 'settings-image-translation',
+  area: 'settings-area-translation',
   video: 'settings-video',
 };
 const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
@@ -827,7 +826,7 @@ const siteModuleNestedInTranslation = computed(() => {
   return translationIndex >= 0 && visiblePopupModuleOrder.value[translationIndex + 1] === 'siteRule';
 });
 const lastVisiblePopupModule = computed(() => visiblePopupModuleOrder.value.at(-1));
-const emojiFeatureIcons: Record<PopupQuickFeatureId, string> = {hover: '🖱️', selection: '✍️', appearance: '🎨', image: '🖼️', video: '🎬', document: '📖'};
+const emojiFeatureIcons: Record<PopupQuickFeatureId, string> = {hover: '🖱️', selection: '✍️', appearance: '🎨', image: '🖼️', area: '✂️', video: '🎬', document: '📖'};
 const popupUsesContentHeight = computed(() => interfaceSkinUsesContentHeight(config.value.interfaceSkin)
   || !config.value.interfaceVisibility.popupQuickFeatures
   || !config.value.interfaceVisibility.popupSiteRule
@@ -896,10 +895,7 @@ function quickProfileSummary(profile: QuickTranslationProfile): string {
 const selectionSummary = computed(() => {
   const textSummary = ({ disabled: '已关闭', bilingual: '双语显示', 'translation-only': '仅显示译文' }[config.value.selectionTranslatorMode] || '双语显示');
   const triggerSummary = selectionTriggers.find(item => item.value === config.value.selectionTranslatorTrigger)?.label || '显示图标';
-  const selectionTextSummary = `${textSummary} · ${triggerSummary}`;
-  if (!browserCapabilities.areaTranslation) return `${selectionTextSummary} · 圈选翻译不可用`;
-  if (!config.value.selectionAreaEnabled) return selectionTextSummary;
-  return textSummary === '已关闭' ? '圈选翻译已启用' : `${selectionTextSummary} · 圈选翻译`;
+  return `${textSummary} · ${triggerSummary}`;
 });
 const displaySummary = computed(() => config.value.display === 1 ? `双语 · ${styleLabel.value}` : '仅显示译文');
 const imageTranslationSummary = computed(() => !browserCapabilities.imageTranslation
@@ -924,8 +920,7 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
     icon: 'I',
     iconTone: 'violet',
     showStatus: true,
-    active: config.value.selectionTranslatorMode !== 'disabled'
-      || (browserCapabilities.areaTranslation && config.value.selectionAreaEnabled),
+    active: config.value.selectionTranslatorMode !== 'disabled',
     open: () => openDrawer('selection'),
   },
   appearance: {
@@ -946,6 +941,16 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
     showStatus: true,
     active: browserCapabilities.imageTranslation && !config.value.disableImageTranslator,
     open: () => openDrawer('image'),
+  },
+  area: {
+    id: 'area',
+    label: t('popup.areaTranslation'),
+    summary: !browserCapabilities.areaTranslation ? '当前浏览器不可用' : config.value.selectionAreaEnabled ? 'Shift + Z' : '已关闭',
+    icon: '▣',
+    iconTone: 'violet',
+    showStatus: true,
+    active: browserCapabilities.areaTranslation && config.value.selectionAreaEnabled,
+    open: () => openDrawer('area'),
   },
   video: {
     id: 'video',
@@ -977,11 +982,12 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
 }));
 const visiblePopupQuickFeatures = computed(() => visiblePopupQuickFeatureIds.value
   .map((featureId) => popupQuickFeatureViewModels.value[featureId]));
-const drawerTitle = computed(() => ({ aiContext: t('popup.aiContext.title'), hover: '鼠标悬停翻译设置', selection: '划词翻译设置', appearance: '译文显示设置', image: '图片翻译设置', video: '视频字幕设置' }[activeDrawer.value]));
+const drawerTitle = computed(() => ({ aiContext: t('popup.aiContext.title'), hover: '鼠标悬停翻译设置', selection: '划词翻译设置', appearance: '译文显示设置', image: '图片翻译设置', area: t('area.settings.title'), video: '视频字幕设置' }[activeDrawer.value]));
 const drawerDescription = computed(() => ({
   aiContext: t('popup.aiContext.intro'),
   hover: '把鼠标停在文本上，用轻量快捷键获取即时译文。',
-  selection: '选中文字或圈选页面区域，按你的偏好获取译文。',
+  selection: '选中网页文字，按你的偏好获取译文。',
+  area: t('area.settings.intro'),
   appearance: '调整双语布局、译文样式与界面主题。',
   image: '把鼠标移到图片上，从图片左下角打开翻译入口。',
   video: '翻译 YouTube/X 字幕，或在 X 本地生成字幕。',

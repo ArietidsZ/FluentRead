@@ -21,7 +21,8 @@ export const CONFIG_DIFF_GROUPS = [
     {id: 'translationServices', label: '翻译服务'},
     {id: 'translation', label: '翻译设置'},
     {id: 'siteRules', label: '网站规则'},
-    {id: 'imageAndArea', label: '图片与圈选翻译'},
+    {id: 'imageTranslation', label: '图片翻译'},
+    {id: 'areaTranslation', label: '圈选翻译'},
     {id: 'videoSubtitles', label: '视频字幕翻译'},
     {id: 'advanced', label: '高级'},
     {id: 'tools', label: '工具'},
@@ -154,7 +155,7 @@ function labelsFor(...optionLists: ReadonlyArray<ReadonlyArray<Option>>): Map<un
     return new Map(optionLists.flatMap((items) => items.map((item) => [item.value, item.label] as const)));
 }
 
-const LANGUAGE_LABELS = labelsFor(options.to, options.inputBoxTranslationTarget, options.form);
+const LANGUAGE_LABELS = labelsFor(options.to, options.inputBoxTranslationTarget, options.from);
 const SERVICE_LABELS = labelsFor(options.services);
 const STYLE_LABELS = labelsFor(options.styles);
 const THEME_LABELS = labelsFor(options.theme);
@@ -178,6 +179,10 @@ const SELECTION_TRIGGER_LABELS = labelsFor(options.selectionTranslatorTriggers);
 const FLOATING_HOTKEY_LABELS = labelsFor(options.floatingBallHotkeys);
 const INPUT_TRIGGER_LABELS = labelsFor(options.inputBoxTranslationTrigger);
 const BILLING_PLAN_LABELS = labelsFor(options.minimaxBillingPlan, options.mimoBillingPlan);
+const DEEPL_API_PLAN_LABELS = new Map<unknown, string>([
+    ['free', 'API Free（免费）'],
+    ['pro', 'API Pro（付费）'],
+]);
 const REGION_LABELS = labelsFor(options.minimaxRegion, options.mimoRegion);
 const DEEPSEEK_API_LABELS = labelsFor(options.deepseekApiType);
 const DEEPSEEK_THINKING_LABELS = labelsFor(options.deepseekThinkingMode);
@@ -356,8 +361,23 @@ function formatQuickTranslationProfiles(value: unknown): string {
                 : item.fullPageMode === 'all' ? '立即翻译到网页底部' : '默认范围'}`
             : '';
         const disabled = item.enabled === false ? '（已停用）' : '';
-        return `${action} ${hotkey}${disabled}：${service}${model}，${language}，${display}${range}`;
+        const glossary = item.glossaryIds === undefined ? '' : `，术语库：${formatGlossarySelection(item.glossaryIds)}`;
+        return `${action} ${hotkey}${disabled}：${service}${model}，${language}，${display}${range}${glossary}`;
     }).join('；');
+}
+
+/** 历史预览只显示规模，避免把用户保存的专业词句展开到配置差异中。 */
+function formatGlossaryLibraries(value: unknown): string {
+    if (!Array.isArray(value)) return formatValue(value);
+    const libraries = value.filter(isRecord);
+    const entries = libraries.reduce((count, library) => count + (Array.isArray(library.entries) ? library.entries.length : 0), 0);
+    return `${libraries.length} 套词库，${entries} 条术语`;
+}
+
+function formatGlossarySelection(value: unknown): string {
+    if (value == null) return '跟随全局词库';
+    if (!Array.isArray(value)) return formatValue(value);
+    return value.length ? `指定 ${value.length} 套词库` : '不使用术语库';
 }
 
 function serviceMapping(label: string, format: ValueFormatter = formatValue): MappingDefinition {
@@ -411,9 +431,10 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     customBody: {group: 'translationServices', label: '自定义请求体', mapping: serviceMapping('自定义请求体', formatCustomBody)},
     proxy: {group: 'translationServices', label: '代理地址', mapping: serviceMapping('代理地址', formatEndpoint)},
     custom: {group: 'translationServices', label: '自定义服务地址', format: formatEndpoint},
+    deeplApiPlan: {group: 'translationServices', label: 'DeepL API 套餐', format: (value) => formatEnum(value, DEEPL_API_PLAN_LABELS)},
     deeplx: {group: 'translationServices', label: 'DeepLX 服务地址', format: formatEndpoint},
     newApiUrl: {group: 'translationServices', label: 'New API 地址', format: formatEndpoint},
-    azureOpenaiEndpoint: {group: 'translationServices', label: 'Azure OpenAI 端点', format: formatEndpoint},
+    azureOpenaiEndpoint: {group: 'translationServices', label: 'Azure 端点', format: formatEndpoint},
     system_role: {group: 'translationServices', label: 'System 提示词', mapping: serviceMapping(' System 提示词', formatPrompt)},
     user_role: {group: 'translationServices', label: 'User 提示词', mapping: serviceMapping(' User 提示词', formatPrompt)},
     deepseekApiType: {group: 'translationServices', label: 'DeepSeek API 格式', format: (value) => formatEnum(value, DEEPSEEK_API_LABELS)},
@@ -437,17 +458,22 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     floatingBallHotkey: {group: 'translation', label: '全文翻译快捷键', format: (value) => formatEnum(value, FLOATING_HOTKEY_LABELS)},
     customFloatingBallHotkey: {group: 'translation', label: '自定义全文快捷键'},
     quickTranslationProfiles: {group: 'translation', label: '快捷翻译方案', format: formatQuickTranslationProfiles},
+    glossaryEnabled: {group: 'translation', label: '术语库', format: formatBoolean},
+    glossaryLibraries: {group: 'translation', label: '术语库内容', format: formatGlossaryLibraries},
 
     autoTranslate: {group: 'siteRules', label: '所有网站自动翻译', format: formatBoolean},
     alwaysTranslateDomains: {group: 'siteRules', label: '始终翻译网站'},
     disabledExtensionDomains: {group: 'siteRules', label: '禁用扩展网站'},
 
-    disableImageTranslator: {group: 'imageAndArea', label: '图片翻译', format: (value) => formatBoolean(value, true)},
-    selectionAreaEnabled: {group: 'imageAndArea', label: '圈选翻译', format: formatBoolean},
+    disableImageTranslator: {group: 'imageTranslation', label: '图片翻译', format: (value) => formatBoolean(value, true)},
+    selectionAreaEnabled: {group: 'areaTranslation', label: '圈选翻译', format: formatBoolean},
+    areaTranslationMode: {group: 'areaTranslation', label: '圈选翻译方式', format: value => value === 'ai' ? 'AI 上下文增强' : '标准翻译'},
+    areaTranslationService: {group: 'areaTranslation', label: '圈选翻译服务', format: value => value ? formatService(value) : '跟随当前服务'},
 
     videoTranslationEnabled: {group: 'videoSubtitles', label: '视频字幕翻译', format: formatBoolean},
     videoService: {group: 'videoSubtitles', label: '视频翻译服务', format: formatService},
     videoSourceLanguage: {group: 'videoSubtitles', label: '视频原语言'},
+    videoGlossaryIds: {group: 'videoSubtitles', label: '字幕术语库', format: formatGlossarySelection},
     videoSubtitleVisible: {group: 'videoSubtitles', label: '显示视频字幕', format: formatBoolean},
     videoSubtitleDisplayMode: {group: 'videoSubtitles', label: '视频字幕显示模式', format: (value) => formatEnum(value, VIDEO_DISPLAY_MODE_LABELS)},
     videoSubtitleFontSize: {group: 'videoSubtitles', label: '视频字幕字号', format: (value) => formatNumber(value, '%')},
@@ -461,6 +487,10 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     maxConcurrentTranslations: {group: 'advanced', label: '翻译并发数'},
     translationRequestsPerSecond: {group: 'advanced', label: '每秒最多请求数', format: formatRequestRate},
     translationRequestsPerMinute: {group: 'advanced', label: '每分钟最多请求数', format: formatRequestRate},
+    freeTranslationOrder: {group: 'translationServices', label: '免费翻译顺序', format: (value) => Array.isArray(value) ? formatArray(value, formatService) : formatValue(value)},
+    freeTranslationTimeoutMs: {group: 'translationServices', label: '每路免费翻译超时', format: (value) => formatNumber(value, ' ms')},
+    freeTranslationCooldownMs: {group: 'translationServices', label: '免费翻译失败后休息', format: (value) => formatNumber(value, ' ms')},
+    myMemoryEmail: {group: 'translationServices', label: 'MyMemory 邮箱', format: formatValue},
     translationMaxRetries: {group: 'advanced', label: '失败后最多重试', format: (value) => formatNumber(value, ' 次')},
     translationBackoffBaseMs: {group: 'advanced', label: '退避初始间隔', format: (value) => formatNumber(value, ' ms')},
     translationBackoffMaxMs: {group: 'advanced', label: '退避最大间隔', format: (value) => formatNumber(value, ' ms')},
@@ -468,6 +498,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     translationLoadingStyle: {group: 'advanced', label: '段落加载样式', format: (value) => formatEnum(value, TRANSLATION_LOADING_STYLE_LABELS)},
 
     documentService: {group: 'tools', label: '文档翻译服务', format: formatService},
+    documentGlossaryIds: {group: 'tools', label: '文档术语库', format: formatGlossarySelection},
     documentModel: {group: 'tools', label: '文档翻译模型', mapping: serviceMapping('文档模型')},
     documentCustomModel: {group: 'tools', label: '文档自定义模型', mapping: serviceMapping('文档自定义模型')},
     translationCenterServices: {group: 'tools', label: '翻译中心服务', format: (value) => Array.isArray(value) ? formatArray(value, formatService) : formatValue(value)},
@@ -528,13 +559,16 @@ function diffField(field: string, before: unknown, after: unknown): {group: Conf
     }
 
     const format = definition?.format ?? formatValue;
+    const formattedBefore = format(safeBefore);
+    const formattedAfter = format(safeAfter);
     return {
         group: definition?.group ?? 'other',
         changes: [{
             key: field,
             label: definition?.label ?? humanizeUnknownKey(field),
-            before: format(safeBefore),
-            after: format(safeAfter),
+            before: formattedBefore,
+            after: field === 'glossaryLibraries' && formattedBefore === formattedAfter
+                ? `${formattedAfter}（内容已更新）` : formattedAfter,
         }],
     };
 }

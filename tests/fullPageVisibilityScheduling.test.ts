@@ -1,7 +1,15 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest";
 import {parseHTML} from "linkedom";
+import type {TranslationSiteAdapter} from '@/src/core/translation/types';
+import {TranslationCandidateCore} from '@/src/core/translation/engine';
+import {compileSiteRulePack} from '@/src/core/site-adaptation/compiler';
+import {collapseMutationRescanRoot, isOwnSyntheticSegmentMarkerMutation, mutationRootContains} from '@/src/features/full-page-translation/content/mutationObservation';
 
 const runtime = vi.hoisted(() => ({
+    realCore: null as TranslationCandidateCore | null,
+    adapters: [] as TranslationSiteAdapter[],
+    candidateEligible: vi.fn<(element: Element) => boolean>(() => true),
+    ignoreMutation: vi.fn<(element: Element) => boolean>(() => false),
     candidates: [] as Array<{
         element: HTMLElement;
         kind: "content" | "control";
@@ -147,7 +155,15 @@ vi.mock("@/src/core/translation/public", () => {
         "[inert]", "[aria-hidden='true']",
     ].join(",");
     const isProtected = (element: Element) => Boolean(element.closest(protectedSelector));
-    const textSlots = (element: HTMLElement) => {
+    const textSlots = (element: HTMLElement, keepOriginal?: (element: Element) => boolean) => {
+        const isProtectedByAdapter = (element: Element) => {
+            let current: Element | null = element;
+            while (current) {
+                if (keepOriginal?.(current)) return true;
+                current = current.parentElement;
+            }
+            return false;
+        };
         const slots: Array<{node: Text; prefix: string; source: string; suffix: string}> = [];
         const walker = element.ownerDocument.createTreeWalker(element, 4);
         let current = walker.nextNode();
@@ -155,7 +171,7 @@ vi.mock("@/src/core/translation/public", () => {
             const node = current as Text;
             const source = node.nodeValue ?? "";
             if (source.trim() && node.parentElement && !isProtected(node.parentElement) &&
-                !node.parentElement.closest('[data-fr-translation-owned="true"]')) {
+                !isProtectedByAdapter(node.parentElement) && !node.parentElement.closest('[data-fr-translation-owned="true"]')) {
                 slots.push({node, prefix: "", source, suffix: ""});
             }
             current = walker.nextNode();
@@ -164,7 +180,8 @@ vi.mock("@/src/core/translation/public", () => {
     };
 
     return {
-        extractTranslationText: (element: HTMLElement) => textSlots(element).map(({source}) => source).join(""),
+        extractTranslationText: (element: HTMLElement, keepOriginal?: (element: Element) => boolean) =>
+            textSlots(element, keepOriginal).map(({source}) => source).join(""),
         extractTranslationTextFromNodes: (nodes: readonly Node[]) =>
             nodes.map((node) => node.textContent ?? "").join(""),
         applyTranslationsToSnapshot: (_snapshot: unknown, translations: readonly string[]) => translations.join(""),
@@ -181,15 +198,17 @@ vi.mock("@/src/core/translation/public", () => {
             ((element.getRootNode?.() as {host?: Element})?.host ?? null),
         isProtectedDescendantElement: (element: Element) => element.matches(protectedSelector),
         isTranslationTextElementProtected: (element: Element) => isProtected(element),
-        getCurrentTranslationCore: () => ({
-            shouldStayOriginal: () => false,
-            shouldIgnoreMutation: () => false,
+        getCurrentTranslationCore: () => runtime.realCore ?? ({
+            adapters: runtime.adapters,
+            shouldStayOriginal: (element: Element) => runtime.adapters.some(adapter =>
+                adapter.shouldStayOriginal?.(element, {url: new URL('https://example.com')})),
+            shouldIgnoreMutation: runtime.ignoreMutation,
             inspect: (element: HTMLElement) => ({
                 candidate: [...runtime.candidates].reverse().find((candidate) =>
-                    candidate.element === element && !isProtected(candidate.element)),
+                    candidate.element === element && !isProtected(candidate.element) && runtime.candidateEligible(element)),
             }),
             resolve: (start: Node | null | undefined) => [...runtime.candidates].reverse().find((candidate) => {
-                if (!start || isProtected(candidate.element)) return false;
+                if (!start || isProtected(candidate.element) || !runtime.candidateEligible(candidate.element)) return false;
                 const key = candidate.nodes?.[0] ?? candidate.element;
                 return key === start || candidate.element === start || candidate.element.contains(start);
             }),
@@ -200,7 +219,7 @@ vi.mock("@/src/core/translation/public", () => {
                     yield {phase: "enter", element: segment};
                 }
                 for (const candidate of runtime.candidates) {
-                    if (isProtected(candidate.element)) continue;
+                    if (isProtected(candidate.element) || !runtime.candidateEligible(candidate.element)) continue;
                     if (candidate.element.matches('[data-fr-translation-segment="true"]') ||
                         candidate.element.querySelector('[data-fr-translation-segment="true"]')) continue;
                     yield {
@@ -404,6 +423,10 @@ describe("全文翻译可见性锚点", () => {
         runtime.clearlyTargetLanguage.mockReturnValue(false);
         TestIntersectionObserver.instances = [];
         TestMutationObserver.instances = [];
+        runtime.adapters = [];
+        runtime.realCore = null;
+        runtime.candidateEligible.mockReset().mockReturnValue(true);
+        runtime.ignoreMutation.mockReset().mockReturnValue(false);
 
         const {window, document} = parseHTML("<html><head><title>Fixture</title></head><body></body></html>");
         replaceGlobal("window", window);
@@ -431,6 +454,160 @@ describe("全文翻译可见性锚点", () => {
         replacedGlobals.clear();
     });
 
+    it.each([['outside','loading'], ['segment','loading'], ['outside','translated'], ['segment','translated'], ['outside','error'], ['segment','error']] as const)(
+        '全属性观察保持 %s 属性写入下的 %s mixed run 与邻居所有权', async (location, phase) => {
+            // 广域重扫使用 performance 的冷却时钟；与本例 fake timers 一同推进。
+            replaceGlobal('performance', {now: () => Date.now()});
+            runtime.config.display = 1;
+            runtime.config.fullPageTranslationMode = 'all';
+            document.body.innerHTML = '<aside id="outside"></aside><section id="main"><div id="mixed">Readable inline prefix <strong id="emphasis">with emphasized prose.</strong><p id="nested">Independent block child with explanatory text.</p></div></section>';
+            const host = document.querySelector<HTMLElement>('#mixed')!;
+            const emphasis = document.querySelector<HTMLElement>('#emphasis')!;
+            const nested = document.querySelector<HTMLElement>('#nested')!;
+            const outside = document.querySelector<HTMLElement>('#outside')!;
+            const sourceNodes = [host.firstChild as Text, emphasis];
+            setLayoutBox(host, 640, 120);
+            setLayoutBox(nested, 640, 50);
+            runtime.adapters = [{id: 'broad-attribute-observer', matches: () => true,
+                decide: () => ({kind:'pass'}), observedAttributes: null}];
+            runtime.candidates = [
+                {element:host, nodes:sourceNodes, kind:'content', reason:'inline-run'},
+                {element:nested, kind:'content', reason:'independent-block'},
+            ];
+            const pending = deferred<string[]>();
+            runtime.requests.mockImplementation(origins => pending.promise.then(() => origins.map(origin => `译:${origin}`)));
+            autoTranslateEnglishPage();
+            await vi.advanceTimersByTimeAsync(51);
+            await waitForRequestCount(2);
+            const segment = host.querySelector<HTMLElement>('[data-fr-translation-segment="true"]')!;
+            const segmentState = getTranslationState(segment)!;
+            const nestedState = getTranslationState(nested)!;
+            expect(segmentState.syntheticSegment).toBe(true);
+            if (phase === 'translated' || phase === 'error') {
+                if (phase === 'translated') pending.resolve(['译文用于验证来源保持']);
+                else pending.reject(new Error('fixture provider failure'));
+                await finishScheduledWork();
+            }
+            expect(segmentState.phase).toBe(phase);
+            const mutationTarget = location === 'outside' ? outside : segment;
+            const attributeName = location === 'outside' ? 'data-unrelated-marker' : 'data-fr-translation-segment';
+            mutationTarget.setAttribute(attributeName, 'true');
+            TestMutationObserver.instances.at(-1)!.emit([{type:'attributes', target:mutationTarget, attributeName,
+                oldValue:null, addedNodes:[], removedNodes:[]} as unknown as MutationRecord]);
+            expect(segment.isConnected, 'intact synthetic source removed synchronously').toBe(true);
+            expect(segmentState.controller.signal.aborted, 'unrelated attribute aborted exact mixed source').toBe(false);
+            expect(nestedState.controller.signal.aborted, 'unrelated attribute aborted neighbor').toBe(false);
+            expect(getTranslationState(segment)).toBe(segmentState);
+            if (phase === 'loading') pending.resolve(['译文用于验证来源保持']);
+            await finishScheduledWork();
+            if (phase === 'error') {
+                expect(getTranslationState(segment)?.phase).toBe('error');
+                expect(getTranslationState(nested)?.phase).toBe('error');
+            } else {
+                expect(segment.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+                expect(nested.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+            }
+            expect(runtime.requests).toHaveBeenCalledTimes(2);
+        },
+    );
+
+
+    it.each(['protect', 'exclude', 'source-edit', 'forged-owner', 'removed-marker', 'moved-host', 'focus-boundary'] as const)(
+        '全属性观察仍取消真实失效的 %s 来源，不放过同名标记伪装', async (change) => {
+            // 广域重扫使用 performance 的冷却时钟；与本例 fake timers 一同推进。
+            replaceGlobal('performance', {now: () => Date.now()});
+            runtime.config.display = 1;
+            runtime.config.fullPageTranslationMode = 'all';
+            document.body.innerHTML = '<aside id="guard"><span id="flag"></span></aside><div id="mixed">Readable inline prefix <strong id="emphasis">with emphasized prose.</strong><p id="nested">Independent block explanation.</p></div><div id="other"></div>';
+            const host = document.querySelector<HTMLElement>('#mixed')!;
+            const emphasis = document.querySelector<HTMLElement>('#emphasis')!;
+            const nested = document.querySelector<HTMLElement>('#nested')!;
+            const flag = document.querySelector<HTMLElement>('#flag')!;
+            const sourceNodes = [host.firstChild as Text, emphasis];
+            setLayoutBox(host, 640, 120);
+            setLayoutBox(nested, 640, 50);
+            if (change === 'protect' || change === 'exclude') {
+                runtime.adapters = compileSiteRulePack({version:1, rules:[{
+                    id:'related-protection', name:'Related protection', match:{hosts:['example.com']},
+                    mode:'augment', [change]:['#guard:has([data-block="yes"]) + #mixed'],
+                }]});
+                expect(runtime.adapters[0]!.observedAttributes).toBeNull();
+            } else {
+                runtime.adapters = [{id:'broad', matches:()=>true, decide:()=>({kind:'pass'}),
+                    observedAttributes:null, genericCandidatePolicy:change === 'focus-boundary' ? 'targets-only' : 'allow'}];
+            }
+            runtime.candidates = change === 'forged-owner'
+                ? [{element:nested, kind:'content', reason:'ordinary-paragraph'}]
+                : [{element:host, nodes:sourceNodes, kind:'content', reason:'inline-run'},
+                    {element:nested, kind:'content', reason:'nested-paragraph'}];
+            const pending = deferred<void>();
+            runtime.requests.mockImplementation(origins => pending.promise.then(() => origins.map(origin => `译:${origin}`)));
+            autoTranslateEnglishPage();
+            await vi.advanceTimersByTimeAsync(51);
+            await waitForRequestCount(change === 'forged-owner' ? 1 : 2);
+            const target = change === 'forged-owner' ? nested
+                : host.querySelector<HTMLElement>('[data-fr-translation-segment="true"]')!;
+            const previous = getTranslationState(target)!;
+            expect(previous.phase).toBe('loading');
+            let mutationTarget = target;
+            let attributeName = 'data-fr-translation-segment';
+            let oldValue: string | null = null;
+            if (change === 'protect' || change === 'exclude') {
+                flag.setAttribute('data-block','yes');
+                expect(runtime.adapters[0]!.shouldStayOriginal!(host,{url:new URL('https://example.com')})).toBe(true);
+                mutationTarget = flag; attributeName = 'data-block';
+            } else if (change === 'source-edit') {
+                sourceNodes[0]!.textContent = 'The host replaced this source text.';
+            } else if (change === 'forged-owner') {
+                target.setAttribute(attributeName,'true');
+                expect(previous.syntheticSegment).toBe(false);
+            } else if (change === 'removed-marker') {
+                target.removeAttribute(attributeName); oldValue = 'true';
+            } else if (change === 'moved-host') {
+                document.querySelector('#other')!.appendChild(target);
+            } else {
+                mutationTarget = flag; attributeName = 'data-ready';
+                flag.setAttribute(attributeName,'no');
+                runtime.candidateEligible.mockReturnValue(false);
+            }
+            TestMutationObserver.instances.at(-1)!.emit([{type:'attributes', target:mutationTarget,
+                attributeName, oldValue, addedNodes:[], removedNodes:[]} as unknown as MutationRecord]);
+            expect(previous.controller.signal.aborted).toBe(true);
+            expect(getTranslationState(target)).toBeUndefined();
+            if (change !== 'forged-owner') expect(target.isConnected).toBe(false);
+            pending.resolve();
+            await finishScheduledWork();
+            if (change !== 'forged-owner') expect(target.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(0);
+        },
+    );
+
+    it('合成段标记判定先校验精确所有权，再延迟读取来源槽', () => {
+        document.body.innerHTML = '<div id="host"><span id="segment" data-fr-translation-segment="true">Readable source.</span></div><div id="other"></div>';
+        const host = document.querySelector<HTMLElement>('#host')!;
+        const segment = document.querySelector<HTMLElement>('#segment')!;
+        const other = document.querySelector<HTMLElement>('#other')!;
+        const state = {syntheticSegment: true, syntheticHost: host};
+        const mutation = {type: 'attributes', target: segment, attributeName: 'data-fr-translation-segment',
+            oldValue: null} as unknown as MutationRecord;
+        const sourceIsCurrent = vi.fn(() => true);
+        for (const invalid of [
+            {...mutation, type: 'childList'},
+            {...mutation, attributeName: 'data-marker'},
+            {...mutation, target: other},
+            {...mutation, oldValue: 'false'},
+        ]) expect(isOwnSyntheticSegmentMarkerMutation(invalid as MutationRecord, segment, state, sourceIsCurrent)).toBe(false);
+        expect(isOwnSyntheticSegmentMarkerMutation(mutation, segment, {...state, syntheticSegment: false}, sourceIsCurrent)).toBe(false);
+        expect(isOwnSyntheticSegmentMarkerMutation(mutation, segment, {...state, syntheticHost: other}, sourceIsCurrent)).toBe(false);
+        segment.removeAttribute('data-fr-translation-segment');
+        expect(isOwnSyntheticSegmentMarkerMutation(mutation, segment, state, sourceIsCurrent)).toBe(false);
+        expect(sourceIsCurrent).not.toHaveBeenCalled();
+        segment.setAttribute('data-fr-translation-segment', 'true');
+        sourceIsCurrent.mockReturnValueOnce(false);
+        expect(isOwnSyntheticSegmentMarkerMutation(mutation, segment, state, sourceIsCurrent)).toBe(false);
+        expect(isOwnSyntheticSegmentMarkerMutation(mutation, segment, state, sourceIsCurrent)).toBe(true);
+        expect(sourceIsCurrent).toHaveBeenCalledTimes(2);
+    });
+
     it("全文会话集中发布启动和结束状态事件", () => {
         const states: string[] = [];
         document.addEventListener("fluentread-translation-started", () => states.push("started"));
@@ -445,6 +622,21 @@ describe("全文翻译可见性锚点", () => {
         expect(states).toEqual(["started", "ended"]);
     });
 
+    it('脏根合并保留 document 与 ShadowRoot 边界，并对异常 contains 保守处理', () => {
+        document.body.innerHTML = '<div id="root"><p>Paragraph.</p></div><div id="other"></div>';
+        const root = document.querySelector('#root')!;
+        const paragraph = root.querySelector('p')!;
+        expect(mutationRootContains(root, root)).toBe(true);
+        expect(mutationRootContains(root, paragraph)).toBe(true);
+        expect(mutationRootContains(root, document.querySelector('#other')!)).toBe(false);
+        expect(mutationRootContains({} as Node, paragraph)).toBe(false);
+        expect(mutationRootContains({contains() { throw new Error('host contains unavailable'); }} as unknown as Node, paragraph)).toBe(false);
+        expect(collapseMutationRescanRoot(paragraph)).toBe(document.documentElement);
+        const shadow = root.attachShadow({mode: 'open'});
+        shadow.innerHTML = '<p>Shadow paragraph.</p>';
+        expect(collapseMutationRescanRoot(shadow.firstChild!)).toBe(shadow);
+    });
+
     it("全文 observer 覆盖译文 wrapper 的完整外层属性快照", () => {
         autoTranslateEnglishPage();
         expect(TestMutationObserver.instances[0]!.observe).toHaveBeenCalledWith(
@@ -457,6 +649,191 @@ describe("全文翻译可见性锚点", () => {
                 ]),
             }),
         );
+    });
+
+    it('网站属性观察覆盖 id/data 属性，focus 目标失效后恢复已提交译文，即使进入 watchIgnore', async () => {
+        runtime.config.fullPageTranslationMode = 'all';
+        runtime.config.display = 1;
+        document.body.innerHTML = '<article data-state="ready"><p id="published">Readable published sentence.</p></article>';
+        const article = document.querySelector('article')!;
+        const paragraph = document.querySelector<HTMLElement>('p')!;
+        setLayoutBox(paragraph, 400, 50);
+        runtime.adapters = [{id: 'site', matches: () => true, decide: () => ({kind: 'pass'}), observedAttributes: ['id', 'class', 'data-state']}];
+        runtime.candidates = [{element: paragraph, kind: 'content', reason: 'site:content'}];
+        runtime.candidateEligible.mockImplementation(() => article.getAttribute('data-state') === 'ready');
+        runtime.ignoreMutation.mockImplementation((element) => element.getAttribute('data-state') === 'private');
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        const mutationObserver = TestMutationObserver.instances.at(-1)!;
+        expect(mutationObserver.observe).toHaveBeenCalledWith(document.documentElement, expect.objectContaining({
+            attributeFilter: expect.arrayContaining(['id', 'data-state']),
+        }));
+        const previous = getTranslationState(paragraph)!;
+        expect(paragraph.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+        article.setAttribute('data-state', 'private');
+        mutationObserver.emit([{
+            type: 'attributes', target: article, attributeName: 'data-state', oldValue: 'ready',
+            addedNodes: [] as unknown as NodeList, removedNodes: [] as unknown as NodeList,
+        } as unknown as MutationRecord]);
+        expect(previous.controller.signal.aborted).toBe(true);
+        expect(getTranslationState(paragraph)).toBeUndefined();
+        expect(paragraph.textContent).toBe('Readable published sentence.');
+        await finishScheduledWork();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        article.setAttribute('data-state', 'ready');
+        mutationObserver.emit([{
+            type: 'attributes', target: article, attributeName: 'data-state', oldValue: 'private',
+            addedNodes: [] as unknown as NodeList, removedNodes: [] as unknown as NodeList,
+        } as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(paragraph.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+    });
+
+    it.each([[1, 'translated'], [1, 'loading'], [0, 'translated'], [0, 'loading']] as const)(
+        'ShadowRoot 顶层兄弟属性变化会发现正文，并取消失去匹配的 display=%s %s 状态', async (display, phase) => {
+            runtime.config.fullPageTranslationMode = 'all';
+            runtime.config.display = display;
+            document.body.innerHTML = '<div id="shadow-host"></div>';
+            const host = document.querySelector('#shadow-host')!;
+            const shadow = host.attachShadow({mode: 'open'});
+            shadow.innerHTML = '<div id="flag" data-ready="no"></div><p id="shadow-prose">The shadow paragraph becomes readable when its sibling is ready.</p>';
+            const flag = shadow.querySelector('#flag')!;
+            const paragraph = shadow.querySelector<HTMLElement>('#shadow-prose')!;
+            setLayoutBox(paragraph, 420, 60);
+            runtime.realCore = new TranslationCandidateCore({url: new URL('https://example.com'), adapters: compileSiteRulePack({
+                version: 1, rules: [{id: 'shadow-sibling', name: 'Shadow sibling', match: {hosts: ['example.com']},
+                    mode: 'focus', content: [{css: ['[data-ready="yes"] + p']}]}],
+            })});
+            const request = deferred<string[]>();
+            if (phase === 'loading') runtime.requests.mockReturnValueOnce(request.promise);
+            autoTranslateEnglishPage();
+            await finishScheduledWork();
+            expect(runtime.requests).not.toHaveBeenCalled();
+            const observer = TestMutationObserver.instances.at(-1)!;
+            expect(observer.observe).toHaveBeenCalledWith(shadow, expect.objectContaining({
+                attributeFilter: expect.arrayContaining(['data-ready']),
+            }));
+            const updateFlag = (value: string) => {
+                const oldValue = flag.getAttribute('data-ready');
+                flag.setAttribute('data-ready', value);
+                observer.emit([{type: 'attributes', target: flag, attributeName: 'data-ready', oldValue,
+                    addedNodes: [] as unknown as NodeList, removedNodes: [] as unknown as NodeList,
+                } as unknown as MutationRecord]);
+            };
+            expect(flag.parentElement).toBeNull();
+            updateFlag('yes');
+            await vi.advanceTimersByTimeAsync(51);
+            await waitForRequestCount(1);
+            if (phase === 'translated') await finishScheduledWork();
+            const state = getTranslationState(paragraph)!;
+            expect(state.phase).toBe(phase);
+            updateFlag('no');
+            expect(state.controller.signal.aborted).toBe(true);
+            expect(getTranslationState(paragraph)).toBeUndefined();
+            if (phase === 'loading') request.resolve(['This stale result must never be rendered.']);
+            await finishScheduledWork();
+            expect(paragraph.textContent).toBe('The shadow paragraph becomes readable when its sibling is ready.');
+            expect(paragraph.querySelectorAll('[data-fr-translation-owned="true"]')).toHaveLength(0);
+            expect(runtime.requests).toHaveBeenCalledTimes(1);
+        },
+    );
+
+    it.each([
+        ['light', 'translated'], ['light', 'loading'], ['shadow', 'translated'], ['shadow', 'loading'],
+    ] as const)('%s 树中删除选择器所需兄弟节点会取消 %s 正文，恢复兄弟后重新发现', async (tree, phase) => {
+        runtime.config.fullPageTranslationMode = 'all';
+        runtime.config.display = 1;
+        document.body.innerHTML = '<div id="host"></div>';
+        const host = document.querySelector<HTMLElement>('#host')!;
+        const root = tree === 'shadow' ? host.attachShadow({mode: 'open'}) : host;
+        root.innerHTML = '<div id="flag" data-ready="yes"></div><p id="prose">A paragraph is readable only while its preceding marker exists.</p>';
+        const flag = root.querySelector('#flag')!;
+        const paragraph = root.querySelector<HTMLElement>('#prose')!;
+        setLayoutBox(paragraph, 420, 60);
+        runtime.realCore = new TranslationCandidateCore({url: new URL('https://example.com'), adapters: compileSiteRulePack({
+            version: 1, rules: [{id: 'structural-sibling', name: 'Structural sibling', match: {hosts: ['example.com']},
+                mode: 'focus', content: [{css: ['[data-ready="yes"] + p']}]}],
+        })});
+        const request = deferred<string[]>();
+        if (phase === 'loading') runtime.requests.mockReturnValueOnce(request.promise);
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(51);
+        await waitForRequestCount(1);
+        if (phase === 'translated') await finishScheduledWork();
+        const state = getTranslationState(paragraph)!;
+        expect(state.phase).toBe(phase);
+        const observer = TestMutationObserver.instances.at(-1)!;
+        flag.remove();
+        observer.emit([{type: 'childList', target: root, addedNodes: [] as unknown as NodeList,
+            removedNodes: [flag] as unknown as NodeList} as unknown as MutationRecord]);
+        expect(state.controller.signal.aborted).toBe(true);
+        expect(getTranslationState(paragraph)).toBeUndefined();
+        if (phase === 'loading') request.resolve(['A stale translation must not return.']);
+        await finishScheduledWork();
+        expect(paragraph.querySelectorAll('[data-fr-translation-owned="true"]')).toHaveLength(0);
+        expect(paragraph.textContent).toBe('A paragraph is readable only while its preceding marker exists.');
+        root.insertBefore(flag, paragraph);
+        observer.emit([{type: 'childList', target: root, addedNodes: [flag] as unknown as NodeList,
+            removedNodes: [] as unknown as NodeList} as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(getTranslationState(paragraph)?.phase).toBe('translated');
+        expect(paragraph.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+    });
+
+    it('自定义 id 属性改变会取消在途目标，迟到结果不能跨越新边界提交', async () => {
+        runtime.config.fullPageTranslationMode = 'all';
+        runtime.config.display = 1;
+        document.body.innerHTML = '<p id="published">Pending published sentence.</p>';
+        const paragraph = document.querySelector<HTMLElement>('p')!;
+        setLayoutBox(paragraph, 400, 50);
+        runtime.adapters = [{id: 'site', matches: () => true, decide: () => ({kind: 'pass'}), observedAttributes: ['id']}];
+        runtime.candidates = [{element: paragraph, kind: 'content', reason: 'site:content'}];
+        runtime.candidateEligible.mockImplementation((element) => element.id === 'published');
+        const request = deferred<string[]>();
+        runtime.requests.mockImplementationOnce(() => request.promise);
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(51);
+        await waitForRequestCount(1);
+        const previous = getTranslationState(paragraph)!;
+        expect(previous.phase).toBe('loading');
+        paragraph.id = 'draft';
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: 'attributes', target: paragraph, attributeName: 'id', oldValue: 'published',
+            addedNodes: [] as unknown as NodeList, removedNodes: [] as unknown as NodeList,
+        } as unknown as MutationRecord]);
+        expect(previous.controller.signal.aborted).toBe(true);
+        request.resolve(['迟到译文']);
+        await finishScheduledWork();
+        expect(getTranslationState(paragraph)).toBeUndefined();
+        expect(paragraph.textContent).toBe('Pending published sentence.');
+        expect(paragraph.querySelectorAll('[data-fr-translation-owned="true"]')).toHaveLength(0);
+    });
+
+    it('无法穷举选择器依赖时观察所有属性，并重新发现受兄弟状态影响的正文', async () => {
+        // 广域重扫冷却与测试时钟必须同步，不能让假计时器等待真实时间流逝。
+        replaceGlobal('performance', {now: () => Date.now()});
+        runtime.config.fullPageTranslationMode = 'all';
+        document.body.innerHTML = '<div id="trigger" data-switch="off"></div><section><p>Newly readable sentence.</p></section>';
+        const trigger = document.querySelector('#trigger')!;
+        const paragraph = document.querySelector<HTMLElement>('p')!;
+        setLayoutBox(paragraph, 400, 50);
+        runtime.adapters = [{id: 'complex', matches: () => true, decide: () => ({kind: 'pass'}), observedAttributes: null}];
+        runtime.candidates = [{element: paragraph, kind: 'content', reason: 'site:content'}];
+        runtime.candidateEligible.mockImplementation(() => trigger.getAttribute('data-switch') === 'on');
+        runtime.ignoreMutation.mockReturnValue(true);
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        const mutationObserver = TestMutationObserver.instances.at(-1)!;
+        expect(mutationObserver.observe.mock.calls[0]![1]).not.toHaveProperty('attributeFilter');
+        expect(runtime.requests).not.toHaveBeenCalled();
+        trigger.setAttribute('data-switch', 'on');
+        mutationObserver.emit([{
+            type: 'attributes', target: trigger, attributeName: 'data-switch', oldValue: 'off',
+            addedNodes: [] as unknown as NodeList, removedNodes: [] as unknown as NodeList,
+        } as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(singleTranslationText(paragraph)).toBe('译:Newly readable sentence.');
     });
 
     it("控件翻译提交后的 spinner 记录不会取消刚完成的 generation", async () => {
@@ -603,6 +980,27 @@ describe("全文翻译可见性锚点", () => {
             targetLanguage: 'ja',
             displayMode: 'bilingual',
         });
+    });
+
+    it('全文术语快照复制选库数组，版本或选择不同不能复用会话结果', async () => {
+        const ids = ['technical'];
+        const first = captureFullPageTranslationConfig({glossaryIds: ids});
+        ids.push('later');
+        expect(first.glossaryIds).toEqual(['technical']);
+        expect(Object.isFrozen(first.glossaryIds)).toBe(true);
+        const second = {...first, glossaryRevision: `glossary-v1:${'a'.repeat(64)}`};
+        const disabled = {...second, glossaryIds: []};
+        expect(getTranslationInvocationIdentity(first)).not.toBe(getTranslationInvocationIdentity(second));
+        expect(getTranslationInvocationIdentity(second)).not.toBe(getTranslationInvocationIdentity(disabled));
+        const session = {active: true, translationSlotCache: new Map(), translationRequestCache: new Map()};
+        await translateTextSlots(['agent'], first, undefined, undefined, session);
+        await translateTextSlots(['agent'], first, undefined, undefined, session);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        await translateTextSlots(['agent'], second, undefined, undefined, session);
+        await translateTextSlots(['agent'], disabled, undefined, undefined, session);
+        expect(runtime.requests).toHaveBeenCalledTimes(3);
+        expect(runtime.requestOptions.map(options => options.glossaryIds)).toEqual([['technical'], ['technical'], []]);
+        clearFullPageTranslationRequestCache(session);
     });
 
     it('悬停快捷方案把独立服务、模型、语言和显示方式冻结到请求', async () => {

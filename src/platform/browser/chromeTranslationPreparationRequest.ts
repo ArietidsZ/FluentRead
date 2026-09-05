@@ -4,6 +4,7 @@
  * 主要内容：为每个标准化语言对使用独立会话键，按更新时间选出最近请求，定向清除已准备语言对，并过滤订阅读回的迟到结果。
  * 模块边界：只存语言代码和更新时间到 browser.storage.session；不保存正文、不启动模型、不负责 UI 文案或翻译请求生命周期。
  */
+import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import browser from 'webextension-polyfill';
 
 /**
@@ -32,10 +33,8 @@ function isValidLanguageCode(value: unknown): value is string {
 }
 
 function canonicalLanguage(value: string): string {
-    const normalized = value.trim().toLowerCase();
-    if (['zh-cn', 'zh-hans', 'zh-sg'].includes(normalized)) return 'zh';
-    if (['zh-tw', 'zh-hant', 'zh-hk', 'zh-mo'].includes(normalized)) return 'zh-Hant';
-    return normalized;
+    const normalized = normalizeChineseLanguageCode(value.toLowerCase());
+    return normalized === 'zh-Hans' ? 'zh' : normalized;
 }
 
 function parseRequest(value: unknown): ChromeTranslationPreparationRequest | null {

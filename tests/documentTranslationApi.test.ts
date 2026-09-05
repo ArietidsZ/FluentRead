@@ -28,6 +28,24 @@ beforeEach(() => {
 });
 
 describe('document translation API', () => {
+    it('整份文档冻结术语版本与选择，分批期间修改入口设置不能改变后续请求', async () => {
+        const selected = ['technical'];
+        const glossary = {glossaryIds: selected, glossaryRevision: 'version-before'};
+        const gateway = {waitUntilReady: async () => {}, getDefaultService: () => 'microsoft',
+            supportsBatch: () => true, getGlossaryOptions: () => glossary,
+            translateText: vi.fn(), translateTextBatch: vi.fn(async (origins: string[]) => {
+                selected.push('changed'); glossary.glossaryRevision = 'version-after';
+                return origins;
+            })};
+        const translate = createDocumentSegmentTranslator(gateway);
+        await translate(Array.from({length: 17}, (_, id) => ({id, source: `source ${id}`})), {fileName: 'sample.txt'});
+        for (const call of gateway.translateTextBatch.mock.calls as unknown as Array<[string[], string, Record<string, unknown>]>) {
+            expect(call[2]).toMatchObject({glossaryIds: ['technical'], glossaryRevision: 'version-before', glossaryContext: 'document'});
+        }
+        gateway.translateTextBatch.mockClear();
+        await translate([{id: 0, source: 'source'}], {fileName: 'sample.txt', glossaryIds: [], glossaryRevision: 'explicit'});
+        expect(gateway.translateTextBatch).toHaveBeenLastCalledWith(['source'], 'sample.txt', expect.objectContaining({glossaryIds: [], glossaryRevision: 'explicit'}));
+    });
     it('较慢的旧文件解析完成后不能覆盖后选文件，重置也会作废在途解析', async () => {
         const guard = createDocumentFileLoadGuard();
         const commits: string[] = [];

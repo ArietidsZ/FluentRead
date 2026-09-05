@@ -37,6 +37,7 @@ vi.mock('@/src/services/config/store', () => ({config: mockConfig}));
 
 import {services} from '@/src/core/config/catalog';
 import {translateWithOpenAICompatibleAiSdk} from '@/src/providers/translation/ai-sdk/openai-compatible';
+import azureOpenai from '@/src/providers/translation/azure-openai';
 import {normalizeAiSdkError} from '@/src/providers/translation/ai-sdk/errors';
 import {
   attachTranslationModelUsageObserver,
@@ -81,6 +82,7 @@ describe('Vercel AI SDK OpenAI-compatible transport', () => {
     mockConfig.system_role = {[services.custom]: 'You are a translator.'};
     mockConfig.user_role = {[services.custom]: 'Translate {{origin}} into {{to}}.'};
     mockConfig.proxy = {};
+    mockConfig.requireApiKey = {};
     mockConfig.translationMaxRetries = 2;
     mockConfig.custom = 'http://127.0.0.1:11434/v1/chat/completions';
     mockConfig.newApiUrl = '';
@@ -132,6 +134,81 @@ describe('Vercel AI SDK OpenAI-compatible transport', () => {
 
     expect(runtimeTransport).toHaveBeenCalledOnce();
     expect(nativeFetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['https://reader.openai.azure.com', 'https://reader.openai.azure.com/openai/v1/chat/completions'],
+    ['https://reader.services.ai.azure.com/openai/v1/', 'https://reader.services.ai.azure.com/openai/v1/chat/completions'],
+    ['https://reader.openai.azure.com/openai/deployments/reader/chat/completions?api-version=2024-10-21', 'https://reader.openai.azure.com/openai/deployments/reader/chat/completions?api-version=2024-10-21'],
+  ])('Azure provider 使用部署名称与 api-key 请求 %s', async (endpoint, expected) => {
+    mockConfig.azureOpenaiEndpoint = endpoint;
+    mockConfig.token[services.azureOpenai] = ' azure-test-key ';
+    mockConfig.model[services.azureOpenai] = 'reader-deployment';
+    const fetchMock = vi.fn().mockResolvedValue(successResponse('Azure 译文'));
+    setRuntimeFetch(fetchMock);
+
+    await expect(azureOpenai({origin: 'hello', serviceOverride: services.azureOpenai})).resolves.toBe('Azure 译文');
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(expected);
+    expect(new Headers(init.headers).get('api-key')).toBe('azure-test-key');
+    expect(new Headers(init.headers).has('authorization')).toBe(false);
+    expect(JSON.parse(String(init.body))).toMatchObject({model: 'reader-deployment', stream: false});
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('Azure 前置校验和 transport 使用同一个请求快照', async () => {
+    mockConfig.azureOpenaiEndpoint = 'https://snapshot.services.ai.azure.com';
+    mockConfig.token[services.azureOpenai] = 'snapshot-key';
+    mockConfig.model[services.azureOpenai] = 'snapshot-deployment';
+    const snapshot = createTranslationProviderConfigSnapshot(mockConfig);
+    mockConfig.azureOpenaiEndpoint = '';
+    mockConfig.token[services.azureOpenai] = '';
+    mockConfig.model[services.azureOpenai] = '';
+    const fetchMock = vi.fn().mockResolvedValue(successResponse());
+    setRuntimeFetch(fetchMock);
+
+    await azureOpenai(attachTranslationProviderConfig({origin: 'hello', serviceOverride: services.azureOpenai}, snapshot));
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://snapshot.services.ai.azure.com/openai/v1/chat/completions');
+    expect(new Headers(init.headers).get('api-key')).toBe('snapshot-key');
+    expect(JSON.parse(String(init.body)).model).toBe('snapshot-deployment');
+  });
+
+  it('Azure 在发送请求前拒绝缺失凭据、无效端点和空部署名称', async () => {
+    mockConfig.service = services.azureOpenai;
+    mockConfig.azureOpenaiEndpoint = 'https://reader.services.ai.azure.com';
+    mockConfig.model[services.azureOpenai] = '   ';
+    const fetchMock = vi.fn();
+    setRuntimeFetch(fetchMock);
+
+    await expect(azureOpenai({origin: 'hello'})).rejects.toThrow('Azure API Key 未配置');
+    mockConfig.token[services.azureOpenai] = '   ';
+    await expect(azureOpenai({origin: 'hello'})).rejects.toThrow('Azure API Key 未配置');
+    mockConfig.token[services.azureOpenai] = 'azure-test-key';
+    mockConfig.azureOpenaiEndpoint = 'https://reader.services.ai.azure.com/unexpected';
+    await expect(azureOpenai({origin: 'hello'})).rejects.toThrow('Azure 端点地址格式不正确');
+    mockConfig.azureOpenaiEndpoint = 'https://reader.services.ai.azure.com';
+    await expect(azureOpenai({origin: 'hello'})).rejects.toThrow('模型尚未配置');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('Azure 允许通过模型覆盖和自定义请求体指定部署名称', async () => {
+    mockConfig.service = services.azureOpenai;
+    mockConfig.azureOpenaiEndpoint = 'http://localhost:3000/v1';
+    mockConfig.requireApiKey[`${services.azureOpenai}:`] = false;
+    const models: string[] = [];
+    setRuntimeFetch(vi.fn(async (_input, init) => {
+      models.push(JSON.parse(String(init?.body)).model);
+      expect(new Headers(init?.headers).has('api-key')).toBe(false);
+      return successResponse();
+    }));
+
+    await azureOpenai({origin: 'hello', modelOverride: 'custom-deployment'});
+    mockConfig.customBody[services.azureOpenai] = '{"model":"body-deployment"}';
+    await azureOpenai({origin: 'hello'});
+    expect(models).toEqual(['custom-deployment', 'body-deployment']);
   });
 
   it('逐次报告真实 transport 的服务商 Token，且不把 Kimi 缓存 Token 重复加入总量', async () => {

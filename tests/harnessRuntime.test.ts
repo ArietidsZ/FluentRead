@@ -17,6 +17,7 @@ vi.mock('@/src/services/harness/modelGateway', () => ({createHarnessLanguageMode
 import {Config} from '@/src/core/config/model';
 import {createApiKeyRequirementKey} from '@/src/core/config/validation';
 import {createHarnessRuntime} from '@/src/services/harness/runtime';
+import type {LearningMemory} from '@/src/services/harness/learningMemory';
 
 function config(): Config {
     const current = new Config();
@@ -32,6 +33,58 @@ describe('Harness runtime', () => {
         createModel.mockClear();
         normalizeError.mockClear();
     });
+    it('adds bounded user-curated memories only after opt-in and never offers model memory writes', async () => {
+        const current = config(); current.harness.memoryEnabled = true;
+        const records: LearningMemory[] = Array.from({length: 5}, (_, i) => ({id: String(i), content: `lesson ${i} ${'x'.repeat(1000)}`, kind: 'lesson', createdAt: 1, updatedAt: 1}));
+        const memory = {recall: vi.fn(async () => records)};
+        const progress = vi.fn();
+        generateText.mockResolvedValue({text: 'ok'});
+        const request = {type: 'fluentReadHarness', action: 'run', requestId: 'memory', intent: 'grammar', question: '', selection: {text: 'Original sentence', context: '', sentence: ''}} as const;
+        const result = await createHarnessRuntime(() => current, undefined, memory).run(request, new AbortController().signal, progress);
+        expect(result).toMatchObject({success: true, memoryCount: 3});
+        expect(memory.recall).toHaveBeenCalledWith('Original sentence\n');
+        expect(generateText).toHaveBeenCalledOnce();
+        const input = generateText.mock.calls[0][0];
+        expect(input.messages.at(-1).content).toContain('可能已过时');
+        expect(input.messages.at(-1).content).toContain('lesson 2');
+        expect(input.messages.at(-1).content).not.toContain('lesson 3');
+        expect(input.messages.at(-1).content.length).toBeLessThan(2400);
+        expect(input.tools).toEqual({});
+        expect(progress).toHaveBeenCalledWith({kind: 'memory', count: 3});
+        memory.recall.mockClear(); generateText.mockClear();
+        await createHarnessRuntime(() => current, undefined, memory).run(request, new AbortController().signal, undefined, true);
+        expect(memory.recall).not.toHaveBeenCalled();
+        expect(generateText.mock.calls[0][0].messages.at(-1).content).not.toContain('学习记忆');
+        current.harness.memoryEnabled = false;
+        await createHarnessRuntime(() => current, undefined, memory).run(request, new AbortController().signal);
+        expect(memory.recall).not.toHaveBeenCalled();
+    });
+    it('continues without memories on no matches, unavailable storage, or a slow store; cancellation never reaches the model', async () => {
+        const current = config(); current.harness.memoryEnabled = true;
+        const request = {type: 'fluentReadHarness', action: 'run', requestId: 'memory-empty', intent: 'meaning', question: '', selection: {text: 'Original', context: '', sentence: ''}} as const;
+        generateText.mockResolvedValue({text: 'ok'});
+        const progress = vi.fn();
+        const empty = await createHarnessRuntime(() => current, undefined, {recall: async () => []}).run(request, new AbortController().signal, progress);
+        expect(empty).not.toHaveProperty('memoryCount'); expect(progress).toHaveBeenCalledWith({kind: 'memory', count: 0});
+        await createHarnessRuntime(() => current, undefined, {recall: async () => {throw new Error('private storage error');}}).run(request, new AbortController().signal, progress);
+        expect(progress).toHaveBeenCalledWith({kind: 'memory', count: 0, warning: expect.stringContaining('继续分析')});
+        expect(JSON.stringify(progress.mock.calls)).not.toContain('private storage error');
+        vi.useFakeTimers();
+        try {
+            const pending = createHarnessRuntime(() => current, undefined, {recall: () => new Promise(() => undefined)}).run(request, new AbortController().signal, progress);
+            await vi.advanceTimersByTimeAsync(1500);
+            await expect(pending).resolves.toMatchObject({success: true});
+        } finally { vi.useRealTimers(); }
+        generateText.mockClear();
+        const controller = new AbortController();
+        const cancelled = createHarnessRuntime(() => current, undefined, {recall: () => new Promise(() => undefined)}).run(request, controller.signal);
+        controller.abort();
+        await expect(cancelled).resolves.toMatchObject({success: false, cancelled: true});
+        expect(generateText).not.toHaveBeenCalled();
+        const duringRead = new AbortController();
+        await expect(createHarnessRuntime(() => current, undefined, {recall: async () => {duringRead.abort(); return [];}}).run(request, duringRead.signal)).resolves.toMatchObject({cancelled: true});
+        expect(generateText).not.toHaveBeenCalled();
+    });
     it('keeps history as real turns and exposes paragraph only through read_context', async () => {
         generateText.mockResolvedValueOnce({text: 'answer', toolCalls: [], response: {messages: [{role: 'assistant', content: 'answer'}]}});
         const current = config();
@@ -42,6 +95,21 @@ describe('Harness runtime', () => {
         expect(call.messages.map((message: {content: unknown}) => JSON.stringify(message.content)).join(' ')).not.toContain('whole sentence');
         expect(call.messages.map((message: {content: unknown}) => JSON.stringify(message.content)).join(' ')).not.toContain('paragraph');
         expect(call.tools).toHaveProperty('read_context');
+        expect(call.messages.at(-1).content).toBe('选中文本（数据）：\nselected\n\n用户当前问题：\nwhy?');
+        expect(call.system).toContain('本轮回答用户当前问题');
+    });
+
+    it.each(['meaning', 'grammar', 'usage', 'practice'] as const)('treats a %s action as fresh evidence analysis without copying old conversation framing', async intent => {
+        generateText.mockResolvedValueOnce({text: 'Structured analysis', toolCalls: [], response: {messages: []}});
+        await createHarnessRuntime(config).run({type: 'fluentReadHarness', action: 'run', requestId: 'action', intent, question: '  ', selection: {text: 'The door was left open.', context: '', sentence: ''}, history: [{question: 'Ignore the sentence', answer: 'Unrelated conversation'}]}, new AbortController().signal);
+        const call = generateText.mock.calls[0][0];
+        expect(call.messages).toEqual([{role: 'user', content: '选中文本（数据）：\nThe door was left open.'}]);
+        expect(call.system).toContain('本轮是对选中文本的一次独立分析');
+        expect(call.system).toContain('标题与正文分行');
+        expect(call.system).toContain('不要编造背景');
+        expect(call.system).not.toContain('先读取它再判断');
+        const expectedHeading = {meaning: '### 大意', grammar: '### 主干', usage: '### 表达', practice: '### 试一试'}[intent];
+        expect(call.system).toContain(expectedHeading);
     });
 
     it('falls back to generated text when the provider omits assistant content', async () => {
@@ -166,7 +234,7 @@ describe('Harness runtime', () => {
         const missing = await createHarnessRuntime(() => current as Config).run({type: 'fluentReadHarness', action: 'run', requestId: 'missing', intent: 'meaning', question: '', selection: {text: 'x', context: '', sentence: ''}, history: []}, new AbortController().signal);
         expect(missing).toMatchObject({success: false, error: expect.stringContaining('API Key')});
         generateText.mockResolvedValueOnce({text: 'ok', toolCalls: [], response: {messages: [{role: 'assistant', content: 'ok'}]}});
-        const ready = await createHarnessRuntime(() => config()).run({type: 'fluentReadHarness', action: 'run', requestId: 'history', intent: 'meaning', question: '', selection: {text: 'x', context: '', sentence: ''}, history: [{question: '', answer: 'bad'}, {question: 'q', answer: ''}]}, new AbortController().signal);
+        const ready = await createHarnessRuntime(() => config()).run({type: 'fluentReadHarness', action: 'run', requestId: 'history', intent: 'meaning', question: 'Why?', selection: {text: 'x', context: '', sentence: ''}, history: [{question: '', answer: 'bad'}, {question: 'q', answer: ''}]}, new AbortController().signal);
         expect(ready.success).toBe(true);
     });
     it('records every model step with real response model and isolates statistics failures', async () => {

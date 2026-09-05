@@ -1,230 +1,243 @@
 <!--
  * @file src/features/area-translation/ui/AreaTranslator.vue
- * 文件职责：实现页面内圈选翻译的完整交互覆盖层：监听 Shift+Z 后拖拽区域，展示识别进度、译后位图或错误操作，并支持重试与关闭。
- * 主要内容：组件维护 idle、selecting、loading、translated、error 阶段，处理键盘、指针、窗口失焦和视口变化，调用截图/翻译客户端，并按共享主题计算封闭 Shadow UI 中的结果样式。
- * 模块边界：组件不拥有浏览器截图权限或 OCR 算法，只调用 services/client；是否挂载由 content/runtime 控制，选区规范化复用 core，跨域像素隔离由 closed Shadow Root 与后台链路保证。
+ * 文件职责：提供独立圈选阅读工具，按 Shift+Z 进入选区模式，松开鼠标后展示可核对、可复制的原文与译文卡片。
+ * 主要内容：管理选择、截图、识别、翻译、结果和失败状态；重试复用同一截图，取消或新选区使旧请求失效，卡片支持原图核对、AI 校对文和清晰的质量说明。
+ * 模块边界：组件只调用圈选客户端，不执行 OCR 或网络请求；截图权限归后台，像素只在封闭 Shadow UI 展示，所有页面监听、异步状态与临时截图在关闭或卸载时清理。
  -->
 <template>
-  <div v-ui-i18n v-show="isSelecting || phase !== 'idle'" class="fr-area-translator-root" @pointerdown.stop>
-    <div v-if="isSelecting && selectionRect" class="fr-area-selection" :style="areaStyle(selectionRect)" aria-hidden="true">
-      <span>松开鼠标翻译</span>
+  <div v-ui-i18n v-show="phase !== 'idle'" class="fr-area-translator-root" :class="{'fr-area-dark': isDarkTheme}" @pointerdown.stop>
+    <div v-if="isSelecting" class="fr-area-selecting" aria-label="拖拽选择翻译区域">
+      <div class="fr-area-hint" role="status">拖拽选择区域 · 松开鼠标翻译 · Esc 取消</div>
+      <div v-if="selectionRect" class="fr-area-selection" :style="areaStyle(selectionRect)" aria-hidden="true" />
     </div>
-
-    <div v-else-if="phase === 'loading' && activeRect && !capturePending" class="fr-area-loading" :style="areaStyle(activeRect)" role="status" aria-live="polite">
-      <span class="fr-area-spinner" aria-hidden="true" />
-      <span>正在识别并翻译…</span>
-    </div>
-
-    <section v-else-if="phase === 'translated' && activeRect" class="fr-area-result" :class="{ 'fr-dark-theme': isDarkTheme }" :style="areaStyle(activeRect)" role="dialog" aria-label="圈选翻译结果">
-      <img :src="translatedImage" alt="圈选翻译结果" draggable="false" />
-      <div class="fr-area-toolbar">
-        <span>圈选翻译</span>
+    <section v-else-if="activeRect && !capturePending" class="fr-area-panel" :style="panelStyle(activeRect)" :class="{'fr-area-error': phase === 'error'}" role="dialog" :aria-label="translateLegacy('圈选翻译结果')">
+      <header class="fr-area-toolbar">
+        <strong>圈选翻译</strong>
+        <span v-if="result" class="fr-area-mode">{{ result.mode === 'ai' ? 'AI 文本增强' : '本地识别翻译' }}</span>
         <button type="button" aria-label="关闭圈选翻译结果" title="关闭" @click="clearResult">×</button>
+      </header>
+      <div v-if="phase === 'loading'" class="fr-area-loading" role="status" aria-live="polite">
+        <span class="fr-area-spinner" :class="{'fr-area-static': !animationsEnabled}" aria-hidden="true" />
+        <span>{{ progressStage === 'translating' ? '正在翻译选区文字…' : '正在识别选区文字…' }}</span>
+        <button type="button" @click="clearResult">取消</button>
       </div>
-    </section>
-
-    <section v-else-if="phase === 'error' && activeRect" class="fr-area-error" :class="{ 'fr-dark-theme': isDarkTheme }" :style="errorStyle(activeRect)" role="alert">
-      <strong>圈选翻译失败</strong>
-      <span>{{ errorMessage }}</span>
-      <div>
-        <button type="button" @click="retryTranslation">重试</button>
-        <button type="button" @click="clearResult">关闭</button>
+      <div v-else-if="phase === 'error'" class="fr-area-error-body" role="alert">
+        <strong>圈选翻译失败</strong>
+        <p>{{ errorMessage }}</p>
+        <div class="fr-area-actions">
+          <button type="button" @click="retryTranslation">重试</button>
+          <button type="button" @click="beginSelection">重新圈选</button>
+          <button type="button" @click="openSettings">圈选设置</button>
+        </div>
       </div>
+      <template v-else-if="result">
+        <div class="fr-area-content">
+          <section class="fr-area-text-block">
+            <div class="fr-area-text-heading"><span>译文</span><button type="button" @click="copyText(result.translatedText)">复制译文</button></div>
+            <p data-i18n-ignore class="fr-area-translation" dir="auto">{{ result.translatedText }}</p>
+          </section>
+          <details class="fr-area-source">
+            <summary>识别原文</summary>
+            <button type="button" @click="copyText(result.sourceText)">复制原文</button>
+            <p data-i18n-ignore dir="auto">{{ result.sourceText }}</p>
+          </details>
+          <details v-if="result.correctedText && result.correctedText !== result.sourceText" class="fr-area-source">
+            <summary>AI 校对文</summary>
+            <p class="fr-area-note">AI 根据文字上下文校对，请与识别原文核对。</p>
+            <p data-i18n-ignore dir="auto">{{ result.correctedText }}</p>
+          </details>
+          <details class="fr-area-source"><summary>查看选区原图</summary><img :src="result.image" alt="选区原图" draggable="false" /></details>
+          <p class="fr-area-note" role="note">{{ result.mode === 'ai' ? 'AI 仅处理识别文字，无法找回图片中的漏字；请核对名称和数字。' : '本地识别可能遗漏模糊、手写或复杂排版的文字，翻译质量也会受影响。' }}</p>
+        </div>
+        <footer class="fr-area-actions">
+          <button type="button" @click="beginSelection">重新圈选</button>
+          <button type="button" @click="retryTranslation">重新翻译</button>
+          <button type="button" @click="openSettings">圈选设置</button>
+        </footer>
+      </template>
+      <p v-if="feedback" class="fr-area-feedback" role="status" aria-live="polite">{{ feedback }}</p>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { config } from '@/src/services/config/store';
-import { captureVisibleAreaInExtension, translateCapturedAreaInExtension } from '@/src/features/area-translation/services/client';
-import { isAreaHotkey, isAreaZKey, isUsableAreaRect, normalizeAreaRect, type AreaPoint, type AreaRect } from '@/src/features/area-translation/core';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import browser from 'webextension-polyfill';
+import { config, subscribeConfig } from '@/src/services/config/store';
+import { useUiI18n } from '@/src/ui/i18n';
+import { captureVisibleAreaInExtension, translateCapturedAreaInExtension, type AreaTranslationResult } from '@/src/features/area-translation/services/client';
+import { isAreaHotkey, isUsableAreaRect, normalizeAreaRect, type AreaPoint, type AreaRect, type AreaTranslationSelection } from '@/src/features/area-translation/core';
+import type { ImageTranslationStage } from '@/src/features/image-translation/protocol';
 
+const {translateLegacy} = useUiI18n();
 type AreaPhase = 'idle' | 'selecting' | 'loading' | 'translated' | 'error';
-
 const phase = ref<AreaPhase>('idle');
 const selectionRect = ref<AreaRect | null>(null);
 const activeRect = ref<AreaRect | null>(null);
-const translatedImage = ref('');
+const result = ref<AreaTranslationResult | null>(null);
 const errorMessage = ref('');
+const feedback = ref('');
 const isDarkTheme = ref(false);
+const animationsEnabled = ref(config.animations !== false);
 const capturePending = ref(false);
-
-let areaHotkeyPressed = false;
-let pointerDown = false;
+const progressStage = ref<ImageTranslationStage>('recognizing');
+const isSelecting = computed(() => phase.value === 'selecting');
 let startPoint: AreaPoint | null = null;
+let activePointerId: number | null = null;
 let translationRequestId = 0;
 let translationAbortController: AbortController | null = null;
 let systemThemeMedia: MediaQueryList | null = null;
+// 截图仅供本次选区重试使用，永不写入存储。成功后换成裁剪原图，释放整屏像素字符串。
+let capturedImage = '';
+let capturedSelection: AreaTranslationSelection | null = null;
+let feedbackTimer: ReturnType<typeof setTimeout> | undefined;
 
 function areaStyle(rect: AreaRect): Record<string, string> {
-  return {
-    left: `${rect.left}px`,
-    top: `${rect.top}px`,
-    width: `${rect.width}px`,
-    height: `${rect.height}px`,
-  };
+  return {left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`};
 }
-
-function errorStyle(rect: AreaRect): Record<string, string> {
-  const width = Math.min(340, Math.max(230, rect.width));
-  return {
-    ...areaStyle(rect),
-    width: `${width}px`,
-    height: 'auto',
-  };
+function panelStyle(rect: AreaRect): Record<string, string> {
+  const width = Math.min(460, Math.max(1, window.innerWidth - 24));
+  const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+  const below = rect.top + rect.height + 10;
+  const top = Math.max(12, Math.min(below + 220 < window.innerHeight ? below : rect.top, window.innerHeight - 240));
+  return {left: `${left}px`, top: `${top}px`, width: `${width}px`, maxHeight: `${Math.max(1, window.innerHeight - top - 12)}px`};
 }
-
 function updateTheme(): void {
   isDarkTheme.value = config.theme === 'dark' || (config.theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 }
-
 function isInsideExtensionUi(target: EventTarget | null): boolean {
   const host = document.getElementById('fluent-read-area-translator-container');
   return Boolean(host && target instanceof Node && host.contains(target));
 }
-
 function isEditableTarget(target: EventTarget | null): boolean {
-  const activeElement = document.activeElement;
-  const element = target instanceof HTMLElement
-    ? target
-    : activeElement instanceof HTMLElement
-      ? activeElement
-      : null;
-  if (!element) return false;
-  if (element.isContentEditable || element.closest('[contenteditable="true"], [contenteditable="plaintext-only"]')) return true;
-  return ['INPUT', 'TEXTAREA', 'SELECT', 'OPTION'].includes(element.tagName);
+  const element = target instanceof HTMLElement ? target : document.activeElement;
+  if (!(element instanceof HTMLElement)) return false;
+  return element.isContentEditable || Boolean(element.closest('[contenteditable="true"], [contenteditable="plaintext-only"]'))
+    || ['INPUT', 'TEXTAREA', 'SELECT', 'OPTION'].includes(element.tagName);
 }
-
-function isEnabled(): boolean {
-  return config.on !== false && config.selectionAreaEnabled === true;
+function isEditingInPage(event: KeyboardEvent): boolean {
+  if (event.composedPath().some(isEditableTarget)) return true;
+  // 封闭网页 ShadowRoot 隐藏真实输入节点；已聚焦的容器按交互控件保守处理。
+  const focused = document.activeElement;
+  return focused instanceof HTMLElement && focused === event.target
+    && !['BODY', 'HTML', 'A', 'BUTTON'].includes(focused.tagName);
 }
-
+function isEnabled(): boolean { return config.on !== false && config.selectionAreaEnabled === true; }
 function clearResult(): void {
   translationRequestId += 1;
   translationAbortController?.abort();
   translationAbortController = null;
   capturePending.value = false;
+  startPoint = null;
+  activePointerId = null;
   phase.value = 'idle';
   selectionRect.value = null;
   activeRect.value = null;
-  translatedImage.value = '';
+  result.value = null;
   errorMessage.value = '';
+  capturedImage = '';
+  capturedSelection = null;
+  clearTimeout(feedbackTimer);
+  feedback.value = '';
 }
-
-function cancelSelection(): void {
-  pointerDown = false;
-  startPoint = null;
-  selectionRect.value = null;
-  if (phase.value === 'selecting') phase.value = 'idle';
+function beginSelection(): void {
+  clearResult();
+  if (isEnabled()) phase.value = 'selecting';
 }
-
 function handleKeydown(event: KeyboardEvent): void {
   if (!event.isTrusted) return;
-  if (event.key === 'Escape' && (isSelecting.value || phase.value !== 'idle')) {
+  if (event.key === 'Escape' && phase.value !== 'idle') {
     event.preventDefault();
-    cancelSelection();
     clearResult();
     return;
   }
-  if (!isEnabled() || event.repeat || event.isComposing || !isAreaHotkey(event) || isInsideExtensionUi(event.target) || isEditableTarget(event.target)) return;
-  areaHotkeyPressed = true;
+  if (!isEnabled() || event.repeat || event.isComposing || event.ctrlKey || event.metaKey || event.altKey
+    || !isAreaHotkey(event) || isInsideExtensionUi(event.target) || isEditingInPage(event)) return;
   event.preventDefault();
+  beginSelection();
 }
-
-function handleKeyup(event: KeyboardEvent): void {
-  if (!event.isTrusted) return;
-  if (!isAreaZKey(event)) return;
-  areaHotkeyPressed = false;
-  if (isSelecting.value && !pointerDown) finishSelection();
-}
-
 function pointFromEvent(event: PointerEvent): AreaPoint {
-  return { x: Math.min(window.innerWidth, Math.max(0, event.clientX)), y: Math.min(window.innerHeight, Math.max(0, event.clientY)) };
+  return {x: Math.min(window.innerWidth, Math.max(0, event.clientX)), y: Math.min(window.innerHeight, Math.max(0, event.clientY))};
 }
-
 function handlePointerdown(event: PointerEvent): void {
   if (!event.isTrusted) return;
-  if (!areaHotkeyPressed || event.button !== 0 || !isEnabled() || isInsideExtensionUi(event.target) || isEditableTarget(event.target)) return;
+  if (!isSelecting.value || activePointerId !== null || event.button !== 0 || !isEnabled()) return;
   event.preventDefault();
   event.stopPropagation();
-  pointerDown = true;
+  activePointerId = event.pointerId;
   startPoint = pointFromEvent(event);
-  selectionRect.value = { left: startPoint.x, top: startPoint.y, width: 0, height: 0 };
-  activeRect.value = null;
-  translatedImage.value = '';
-  errorMessage.value = '';
-  phase.value = 'selecting';
-  window.getSelection()?.removeAllRanges();
+  selectionRect.value = {left: startPoint.x, top: startPoint.y, width: 0, height: 0};
 }
-
 function handlePointermove(event: PointerEvent): void {
   if (!event.isTrusted) return;
-  if (!isSelecting.value || !startPoint) return;
+  if (!isSelecting.value || !startPoint || activePointerId !== event.pointerId) return;
   event.preventDefault();
   event.stopPropagation();
-  selectionRect.value = normalizeAreaRect(startPoint, pointFromEvent(event), { width: window.innerWidth, height: window.innerHeight });
+  selectionRect.value = normalizeAreaRect(startPoint, pointFromEvent(event), {width: window.innerWidth, height: window.innerHeight});
 }
-
 function handlePointerup(event: PointerEvent): void {
   if (!event.isTrusted) return;
-  if (!isSelecting.value) return;
+  if (!isSelecting.value || !startPoint || activePointerId !== event.pointerId) return;
   event.preventDefault();
   event.stopPropagation();
-  pointerDown = false;
-  finishSelection();
-}
-
-function handlePointercancel(event: PointerEvent): void {
-  if (!event.isTrusted) return;
-  if (isSelecting.value) cancelSelection();
-}
-
-function handleWindowBlur(): void {
-  areaHotkeyPressed = false;
-  if (isSelecting.value) cancelSelection();
-}
-
-const isSelecting = computed(() => phase.value === 'selecting');
-
-function finishSelection(): void {
-  if (!isSelecting.value) return;
-  const rect = selectionRect.value;
-  cancelSelection();
-  if (!rect || !isUsableAreaRect(rect)) return;
-
+  const rect = normalizeAreaRect(startPoint, pointFromEvent(event), {width: window.innerWidth, height: window.innerHeight});
+  clearResult();
+  if (!isUsableAreaRect(rect)) return;
   activeRect.value = rect;
   phase.value = 'loading';
   capturePending.value = true;
   void requestTranslation(rect);
 }
-
+function handlePointercancel(event: PointerEvent): void {
+  if (!event.isTrusted) return;
+  if (isSelecting.value && event.pointerId === activePointerId) clearResult();
+}
+function handleWindowBlur(): void { if (isSelecting.value) clearResult(); }
 async function requestTranslation(rect: AreaRect): Promise<void> {
   translationAbortController?.abort();
   const controller = new AbortController();
   translationAbortController = controller;
   const requestId = ++translationRequestId;
   errorMessage.value = '';
+  progressStage.value = 'recognizing';
+  // ref 会代理选区对象，不能将原始对象与代理比较；代次和取消信号才是请求所有权。
+  const stale = () => controller.signal.aborted || requestId !== translationRequestId || document.visibilityState === 'hidden';
   try {
-    const selection = {
-      ...rect,
-      viewportWidth: window.innerWidth,
-      viewportHeight: window.innerHeight,
-    };
-    // 先让框选层完全消失，再截图；否则选区边框会被 OCR 当作页面内容。
-    await nextTick();
-    const screenshot = await captureVisibleAreaInExtension();
-    if (controller.signal.aborted || requestId !== translationRequestId || activeRect.value !== rect) return;
+    if (!capturedImage || !capturedSelection) {
+      const selection = {...rect, viewportWidth: window.innerWidth, viewportHeight: window.innerHeight};
+      // 等待 Vue 和浏览器完成选区层的隐藏，避免边框和提示文字被截图识别。
+      await nextTick();
+      await new Promise<void>(resolve => {
+        let frame: number;
+        const finish = () => {
+          cancelAnimationFrame(frame);
+          controller.signal.removeEventListener('abort', finish);
+          resolve();
+        };
+        controller.signal.addEventListener('abort', finish, {once: true});
+        frame = requestAnimationFrame(() => { frame = requestAnimationFrame(finish); });
+        if (controller.signal.aborted) finish();
+      });
+      if (stale()) return;
+      const screenshot = await captureVisibleAreaInExtension();
+      if (stale()) return;
+      capturedImage = screenshot;
+      capturedSelection = selection;
+    }
     capturePending.value = false;
-    const result = await translateCapturedAreaInExtension(screenshot, selection, config.from, document.title, {
+    const translated = await translateCapturedAreaInExtension(capturedImage, capturedSelection, config.from, document.title, {
       signal: controller.signal,
       timeoutMs: 180_000,
+      onProgress: stage => { if (!stale()) progressStage.value = stage; },
     });
-    if (controller.signal.aborted || requestId !== translationRequestId || activeRect.value !== rect) return;
-    translatedImage.value = result.image;
+    if (stale()) return;
+    result.value = translated;
+    // 将重试输入替换为同一选区原图；归一化选区维度避免再次截取/编码整屏。
+    capturedImage = translated.image;
+    capturedSelection = {left: 0, top: 0, width: rect.width, height: rect.height, viewportWidth: rect.width, viewportHeight: rect.height};
     phase.value = 'translated';
   } catch (error) {
-    if (requestId !== translationRequestId || activeRect.value !== rect) return;
+    if (stale()) return;
     capturePending.value = false;
     errorMessage.value = error instanceof Error ? error.message : String(error);
     phase.value = 'error';
@@ -232,81 +245,114 @@ async function requestTranslation(rect: AreaRect): Promise<void> {
     if (translationAbortController === controller) translationAbortController = null;
   }
 }
-
 function retryTranslation(): void {
-  if (activeRect.value) {
-    phase.value = 'loading';
-    capturePending.value = true;
-    void requestTranslation(activeRect.value);
+  if (!activeRect.value) return;
+  phase.value = 'loading';
+  capturePending.value = !capturedImage;
+  void requestTranslation(activeRect.value);
+}
+function showFeedback(message: string): void {
+  clearTimeout(feedbackTimer);
+  feedback.value = message;
+  feedbackTimer = setTimeout(() => {feedback.value = '';}, 2500);
+}
+async function copyText(text: string): Promise<void> {
+  const requestId = translationRequestId;
+  try {
+    await navigator.clipboard.writeText(text);
+    if (requestId === translationRequestId) showFeedback('已复制');
+  } catch {
+    if (requestId === translationRequestId) showFeedback('复制失败，请选中文字后手动复制');
   }
 }
-
-function handleViewportChange(): void {
-  if (!isSelecting.value) clearResult();
+async function openSettings(): Promise<void> {
+  try {
+    const response = await browser.runtime.sendMessage({type: 'openOptionsPage', section: 'settings-area-translation'}) as {success?: boolean} | undefined;
+    if (response?.success === false) throw new Error('打开设置失败');
+  } catch { showFeedback('无法打开设置，请从扩展菜单打开圈选设置'); }
 }
-
-const stopConfigWatch = watch(() => [config.on, config.selectionAreaEnabled, config.theme] as const, ([enabled]) => {
+function handleViewportChange(event: Event): void {
+  // 卡片自己的滚动不能销毁结果；页面滚动/缩放则使旧截图坐标失效。
+  if (!isInsideExtensionUi(event.target)) clearResult();
+}
+function handleVisibilityChange(): void {
+  // captureVisibleTab 截取窗口的活动标签页，切走后不得将新标签页的内容作为本次选区处理。
+  if (document.visibilityState === 'hidden') clearResult();
+}
+// config 是共享普通对象；使用配置仓库订阅接收跨页面变更，不能用 Vue watch 观察它。
+const stopConfigWatch = subscribeConfig(() => {
   updateTheme();
-  if (!enabled || config.selectionAreaEnabled !== true) {
-    areaHotkeyPressed = false;
-    cancelSelection();
-    clearResult();
-  }
+  animationsEnabled.value = config.animations !== false;
+  if (!isEnabled()) clearResult();
 });
-
 onMounted(() => {
   updateTheme();
   systemThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
   systemThemeMedia.addEventListener('change', updateTheme);
   document.addEventListener('keydown', handleKeydown, true);
-  document.addEventListener('keyup', handleKeyup, true);
   document.addEventListener('pointerdown', handlePointerdown, true);
   document.addEventListener('pointermove', handlePointermove, true);
   document.addEventListener('pointerup', handlePointerup, true);
   document.addEventListener('pointercancel', handlePointercancel, true);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
   window.addEventListener('scroll', handleViewportChange, true);
   window.addEventListener('resize', handleViewportChange);
   window.addEventListener('blur', handleWindowBlur);
 });
-
 onBeforeUnmount(() => {
   systemThemeMedia?.removeEventListener('change', updateTheme);
   document.removeEventListener('keydown', handleKeydown, true);
-  document.removeEventListener('keyup', handleKeyup, true);
   document.removeEventListener('pointerdown', handlePointerdown, true);
   document.removeEventListener('pointermove', handlePointermove, true);
   document.removeEventListener('pointerup', handlePointerup, true);
   document.removeEventListener('pointercancel', handlePointercancel, true);
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
   window.removeEventListener('scroll', handleViewportChange, true);
   window.removeEventListener('resize', handleViewportChange);
   window.removeEventListener('blur', handleWindowBlur);
   stopConfigWatch();
-  capturePending.value = false;
   clearResult();
 });
 </script>
 
 <style scoped>
-.fr-area-translator-root { position: fixed; inset: 0; z-index: 2147483647; width: 100vw; height: 100vh; pointer-events: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #25252a; }
-.fr-area-selection { position: fixed; box-sizing: border-box; border: 2px solid #ef4b86; border-radius: 9px; background: rgba(239, 75, 134, .12); box-shadow: 0 0 0 1px rgba(255, 255, 255, .8), 0 8px 26px rgba(163, 35, 91, .2); pointer-events: none; }
-.fr-area-selection span { position: absolute; left: 8px; top: 8px; padding: 4px 8px; border-radius: 999px; background: rgba(44, 35, 43, .88); color: #fff; font-size: 11px; white-space: nowrap; }
-.fr-area-loading, .fr-area-error { position: fixed; box-sizing: border-box; pointer-events: auto; }
-.fr-area-loading { display: flex; align-items: center; justify-content: center; gap: 9px; min-width: 190px; min-height: 58px; border: 1px solid rgba(239, 75, 134, .55); border-radius: 12px; background: rgba(38, 31, 39, .8); color: #fff; font-size: 13px; box-shadow: 0 12px 30px rgba(35, 25, 38, .24); backdrop-filter: blur(8px); }
-.fr-area-spinner { width: 18px; height: 18px; border: 2px solid rgba(255, 255, 255, .35); border-top-color: #ef4b86; border-radius: 50%; animation: fr-area-spin .7s linear infinite; }
+.fr-area-translator-root { position: fixed; inset: 0; z-index: 2147483647; width: 100vw; height: 100vh; pointer-events: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #272733; font-size: 13px; line-height: 1.5; }
+.fr-area-selecting { position: fixed; inset: 0; pointer-events: auto; cursor: crosshair; background: rgba(20, 20, 30, .08); touch-action: none; }
+.fr-area-hint { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px); box-sizing: border-box; border-radius: 12px; background: #292735; color: #fff; padding: 10px 16px; text-align: center; box-shadow: 0 4px 24px #0003; }
+.fr-area-selection { position: fixed; box-sizing: border-box; border: 2px solid #ef4b86; border-radius: 5px; background: rgba(239, 75, 134, .08); box-shadow: 0 0 0 1px #fff9; pointer-events: none; }
+.fr-area-panel { position: fixed; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; border: 1px solid #e4dfe7; border-radius: 14px; background: #fff; box-shadow: 0 12px 40px #241c3833; pointer-events: auto; }
+.fr-area-toolbar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; padding: 12px 14px; border-bottom: 1px solid #ece8ef; }
+.fr-area-toolbar strong { font-size: 14px; }
+.fr-area-mode { color: #777080; font-size: 11px; }
+.fr-area-translator-root button { font: inherit; padding: 5px 9px; border: 1px solid #e5dce8; border-radius: 7px; background: transparent; color: inherit; cursor: pointer; }
+.fr-area-translator-root button:hover { background: #f7f0f5; }
+.fr-area-translator-root button:focus-visible, .fr-area-translator-root summary:focus-visible { outline: 2px solid #db4781; outline-offset: 2px; }
+.fr-area-toolbar button { margin-left: auto; border: 0; font-size: 22px; line-height: 22px; padding: 2px 6px; }
+.fr-area-loading { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 22px 16px; }
+.fr-area-loading button { margin-left: auto; }
+.fr-area-spinner { width: 16px; height: 16px; flex-shrink: 0; border: 2px solid #e4dbe3; border-top-color: #ef4b86; border-radius: 50%; animation: fr-area-spin .7s linear infinite; }
 @keyframes fr-area-spin { to { transform: rotate(360deg); } }
-.fr-area-result { position: fixed; overflow: hidden; border: 1px solid rgba(28, 28, 36, .14); border-radius: 10px; background: #fff; box-shadow: 0 14px 35px rgba(30, 28, 40, .24); pointer-events: auto; }
-.fr-area-result img { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; }
-.fr-area-toolbar { position: absolute; top: 7px; right: 7px; display: flex; align-items: center; gap: 5px; padding: 3px 4px 3px 8px; border-radius: 999px; background: rgba(30, 27, 34, .82); color: #fff; font-size: 10px; line-height: 22px; pointer-events: none; backdrop-filter: blur(6px); }
-.fr-area-toolbar button { width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .14); color: #fff; font-size: 17px; line-height: 18px; cursor: pointer; pointer-events: auto; }
-.fr-area-toolbar button:hover, .fr-area-toolbar button:focus-visible { background: rgba(255, 255, 255, .28); outline: none; }
-.fr-area-error { display: flex; flex-direction: column; gap: 7px; min-width: 230px; max-width: 340px; padding: 13px; border: 1px solid #f0b4c8; border-radius: 12px; background: rgba(255, 248, 250, .98); color: #6c263d; font-size: 12px; box-shadow: 0 12px 30px rgba(75, 30, 47, .2); }
-.fr-area-error strong { font-size: 13px; }
-.fr-area-error span { line-height: 1.45; overflow-wrap: anywhere; }
-.fr-area-error div { display: flex; gap: 7px; }
-.fr-area-error button { padding: 5px 10px; border: 1px solid #e6a3ba; border-radius: 7px; background: #fff; color: #c43b63; cursor: pointer; }
-.fr-area-error button:hover, .fr-area-error button:focus-visible { background: #fff0f5; outline: none; }
-.fr-dark-theme.fr-area-result { border-color: #53535f; background: #2e2e38; }
-.fr-dark-theme.fr-area-error { border-color: #744356; background: rgba(47, 35, 43, .98); color: #ffd8e4; }
-.fr-dark-theme.fr-area-error button { border-color: #9d5871; background: #3d2c36; color: #ffd8e4; }
+.fr-area-static { animation: none; }
+.fr-area-content { overflow: auto; min-height: 0; overscroll-behavior: contain; padding: 14px 16px; }
+.fr-area-text-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: #73677a; font-size: 12px; }
+.fr-area-translator-root p { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fr-area-translation { font-size: 15px; line-height: 1.75; user-select: text; }
+.fr-area-source { border-top: 1px solid #ece8ef; margin-top: 14px; padding-top: 11px; }
+.fr-area-source summary { cursor: pointer; color: #73677a; }
+.fr-area-source button { margin-top: 8px; }
+.fr-area-source img { display: block; width: 100%; height: auto; margin-top: 10px; border-radius: 5px; }
+.fr-area-translator-root .fr-area-note { font-size: 11px; color: #817584; margin-top: 14px; }
+.fr-area-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 11px 14px; border-top: 1px solid #ece8ef; flex-shrink: 0; }
+.fr-area-error-body { padding: 16px; overflow: auto; }
+.fr-area-error-body > strong { color: #bc355e; }
+.fr-area-error-body .fr-area-actions { border: 0; padding: 14px 0 0; }
+.fr-area-translator-root .fr-area-feedback { margin: 0; padding: 7px 14px; color: #ab3565; font-size: 12px; flex-shrink: 0; }
+.fr-area-dark { color: #ece5ef; }
+.fr-area-dark .fr-area-panel { border-color: #514653; background: #2b2630; }
+.fr-area-dark .fr-area-toolbar, .fr-area-dark .fr-area-source, .fr-area-dark .fr-area-actions { border-color: #49404c; }
+.fr-area-dark button { border-color: #65556a; }
+.fr-area-dark button:hover { background: #413548; }
+.fr-area-dark .fr-area-mode, .fr-area-dark .fr-area-note, .fr-area-dark .fr-area-text-heading, .fr-area-dark summary { color: #c1b1c5; }
+.fr-area-dark .fr-area-feedback, .fr-area-dark .fr-area-error-body > strong { color: #ffa7ca; }
 @media (prefers-reduced-motion: reduce) { .fr-area-spinner { animation: none; } }
 </style>

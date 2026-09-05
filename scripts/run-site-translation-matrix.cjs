@@ -222,8 +222,11 @@ function childArgs(args, name, mode) {
 function computeJobTimeoutMs(pageTimeout, mode, override) {
   if (override !== undefined) return Number(override);
   const normalizedPageTimeout = Number(pageTimeout) || 60000;
+  // 全文包含翻译、完整恢复、再次翻译两轮。每轮允许有进展的队列使用
+  // 3 倍阶段预算，另留两次页面等待和长页滚动预算；不能用旧单轮预算
+  // 在第二轮仍持续完成时杀掉进程。单阶段无进展与绝对上限仍由 runner 执行。
   return mode === 'full'
-    ? Math.max(12 * 60 * 1000, normalizedPageTimeout * 3 + 5 * 60 * 1000)
+    ? Math.max(30 * 60 * 1000, normalizedPageTimeout * 8 + 5 * 60 * 1000)
     : Math.max(5 * 60 * 1000, normalizedPageTimeout * 2);
 }
 

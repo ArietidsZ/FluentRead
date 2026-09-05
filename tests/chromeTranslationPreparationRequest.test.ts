@@ -285,3 +285,13 @@ describe('Chrome translation preparation request store', () => {
         createChromeTranslationPreparationStore().subscribe(vi.fn())();
     });
 });
+
+it('简繁转换的两个方向保存在独立会话键，脚本优先于冲突地区', async () => {
+    const mocked = area();
+    const store = createChromeTranslationPreparationStore(mocked);
+    await store.set({sourceLanguage: 'zh-Hans-HK', targetLanguage: 'zh-Hant-CN'});
+    await store.set({sourceLanguage: 'zh-Hant', targetLanguage: 'zh-Hans'});
+    expect(Object.keys(mocked.values).sort()).toEqual([key('zh', 'zh-Hant'), key('zh-Hant', 'zh')].sort());
+    await store.clear({sourceLanguage: 'zh-Hans', targetLanguage: 'zh-Hant'});
+    expect(Object.keys(mocked.values)).toEqual([key('zh-Hant', 'zh')]);
+});

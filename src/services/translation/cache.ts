@@ -15,8 +15,8 @@ import {
   type TranslationCacheLimits,
 } from '@/src/core/config/translationCache';
 
-// v2 放弃旧版可能已持久化的 AI 上下文回显；新值在入库前均经过强/弱泄漏门禁。
-export const TRANSLATION_CACHE_VERSION = 2;
+// v3 放弃旧语言映射可能以繁体身份存入的简体或粤语译文；继续保留 v2 的上下文回显门禁。
+export const TRANSLATION_CACHE_VERSION = 3;
 export const TRANSLATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 export const TRANSLATION_CACHE_MAX_ENTRIES = DEFAULT_TRANSLATION_CACHE_MAX_ENTRIES;
 export const TRANSLATION_CACHE_MAX_BYTES = DEFAULT_TRANSLATION_CACHE_MAX_BYTES;

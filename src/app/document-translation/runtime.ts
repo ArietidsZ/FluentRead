@@ -6,6 +6,7 @@
  */
 import {translateText, translateTextBatch} from '@/src/app/translation/client';
 import {services} from '@/src/core/config/catalog';
+import {buildGlossaryRevision} from '@/src/core/glossary';
 import {
     createDocumentDownload as createDocumentDownloadWithAdapters,
     type CreateDocumentDownloadOptions,
@@ -25,6 +26,10 @@ const BATCH_DOCUMENT_SERVICES = new Set<string>([
 
 /** WXT 组合根：把运行时配置和翻译 API 注入纯文档业务服务。 */
 export const translateDocumentSegments = createDocumentSegmentTranslator({
+    getGlossaryOptions: () => ({
+        glossaryIds: config.documentGlossaryIds,
+        glossaryRevision: buildGlossaryRevision(config.glossaryLibraries, config.glossaryEnabled),
+    }),
     waitUntilReady: () => configReady,
     getDefaultService: () => config.service,
     supportsBatch: (service) => BATCH_DOCUMENT_SERVICES.has(service),

@@ -56,8 +56,13 @@ describe('src file header documentation', () => {
     const allSourceFiles = listSourceFiles();
     const sourceFiles = allSourceFiles.filter((path) => DOCUMENTED_EXTENSIONS.has(extensionOf(path)));
 
-    it('src 中每个文件都属于强制首部说明支持的文本源码类型', () => {
-        const unsupported = allSourceFiles.filter((path) => !DOCUMENTED_EXTENSIONS.has(extensionOf(path)));
+    it('源码提供文件头，声明式 JSON 数据使用标准 JSON 语法', () => {
+        // JSON 不支持注释；数据目录由对应 catalog 测试校验语义，不能强塞源码注释破坏导入格式。
+        const dataFiles = allSourceFiles.filter((path) => extensionOf(path) === '.json');
+        for (const path of dataFiles) {
+            expect(() => JSON.parse(readFileSync(resolve(PROJECT_ROOT, path), 'utf8')), path).not.toThrow();
+        }
+        const unsupported = allSourceFiles.filter((path) => !DOCUMENTED_EXTENSIONS.has(extensionOf(path)) && extensionOf(path) !== '.json');
         expect(unsupported).toEqual([]);
         expect(sourceFiles.length).toBeGreaterThan(0);
     });

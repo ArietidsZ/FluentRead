@@ -1,8 +1,28 @@
 import {describe, expect, it} from 'vitest';
 import {Config} from '@/src/core/config/model';
+import {createGlossaryLibrary} from '@/src/core/glossary';
 import {getVideoTranslationConfigFingerprint, isIncrementalVideoCaption, normalizeVideoCaptionText, revealVideoSubtitleTranslation, translateVideoSubtitleCues} from '@/src/features/video-subtitle/content/subtitleLogic';
 
 describe('video subtitle logic', () => {
+  it('原语言、字幕词库选择与术语修改均使旧字幕翻译失效', () => {
+    const config = new Config();
+    config.glossaryEnabled = true;
+    config.glossaryLibraries = [{...createGlossaryLibrary([]), id: 'technical', entries: [
+      {id: 'agent', source: 'agent', target: '智能体', caseSensitive: false},
+    ]}];
+    const initial = getVideoTranslationConfigFingerprint(config);
+    config.videoSourceLanguage = 'ko';
+    const languageChanged = getVideoTranslationConfigFingerprint(config);
+    expect(languageChanged).not.toBe(initial);
+    config.videoGlossaryIds = ['technical'];
+    const selectionChanged = getVideoTranslationConfigFingerprint(config);
+    expect(selectionChanged).not.toBe(languageChanged);
+    config.glossaryLibraries[0].entries[0].target = '代理';
+    const terminologyChanged = getVideoTranslationConfigFingerprint(config);
+    expect(terminologyChanged).not.toBe(selectionChanged);
+    config.glossaryEnabled = false;
+    expect(getVideoTranslationConfigFingerprint(config)).not.toBe(terminologyChanged);
+  });
   it('批译去重、保序、进度和并发配置', async () => {
     const progress: number[] = []; const cues = [{startMs: 0, durationMs: 1, text: ' a '}, {startMs: 1, durationMs: 1, text: 'a'}, {startMs: 2, durationMs: 1, text: 'b'}];
     await expect(translateVideoSubtitleCues(cues, async text => `译-${text.trim()}`, {concurrency: 2, onProgress: n => progress.push(n)})).resolves.toEqual([{...cues[0], text: '译-a'}, {...cues[1], text: '译-a'}, {...cues[2], text: '译-b'}]);

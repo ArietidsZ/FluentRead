@@ -78,7 +78,7 @@ describe('standalone userscript privacy boundaries', () => {
         const errorFunction = userscriptHttp.match(
             /function errorFromResponse\([\s\S]*?\n\}/,
         )?.[0] || '';
-        expect(httpError).toContain('return new Error(`${label}: ${response.status}`);');
+        expect(httpError).toContain('new Error(`${label}: ${response.status}`)');
         expect(httpError).toContain('throw new Error(label);');
         expect(httpError).not.toContain('response.text');
         expect(httpError).not.toContain('response.statusText');

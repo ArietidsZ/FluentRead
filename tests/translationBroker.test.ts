@@ -2,14 +2,17 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {
     createTranslationBroker,
     type TranslationBroker,
+    type TranslationRequestMessage,
 } from '@/src/services/translation/broker';
 import type {TranslationModelUsageRecord} from '@/src/services/translation/types';
+import {resolveTranslationLanguages} from '@/src/core/translation/languages';
 import {
     DEFAULT_TRANSLATION_PERSISTENCE_GRACE_MS,
     waitForBoundedPersistence,
 } from '@/src/services/translation/persistenceBarrier';
 import {
     attachTranslationRequestControl,
+    attachTranslationProviderConfig,
     createTranslationProviderConfigSnapshot,
     getTranslationProviderConfig,
     markTranslationRemainingBudget,
@@ -52,6 +55,8 @@ const mocks = vi.hoisted(() => {
     } as Record<string, Record<string, string>>;
     const providers = {
         '': service,
+        freeTranslation: service,
+        myMemory: service,
         ai: service,
         aiSdk: service,
         azureOpenai: service,
@@ -90,6 +95,7 @@ const mocks = vi.hoisted(() => {
         modelThinking: {} as Record<string, Record<string, boolean>>,
         proxy: {} as Record<string, string>,
         custom: '',
+        deeplApiPlan: 'free' as 'free' | 'pro',
         deeplx: '',
         newApiUrl: '',
         minimaxBillingPlan: 'payg',
@@ -170,10 +176,9 @@ function installBroker(
             buildPageSummarySystemPrompt: () => 'summary-system',
         },
         getMissingCredentialMessage: mocks.getMissingCredentialMessage,
-        getTranslationLanguages: (override?: {sourceLanguage?: string; targetLanguage?: string}) => ({
-            sourceLanguage: override?.sourceLanguage || mocks.config.from,
-            targetLanguage: override?.targetLanguage || mocks.config.to,
-        }),
+        getTranslationLanguages: (override?: {sourceLanguage?: string; targetLanguage?: string}) => resolveTranslationLanguages(
+            override, {sourceLanguage: mocks.config.from, targetLanguage: mocks.config.to},
+        ),
         resolveConfiguredModel: (selected?: string, custom?: string) => custom || selected || '',
         buildTranslationCacheKey: mocks.buildTranslationCacheKey,
         captureModelUsageGeneration: includeModelUsageGeneration ? () => 7 : undefined,
@@ -217,6 +222,25 @@ function deferred<T>() {
 }
 
 describe('translation broker', () => {
+    it('keeps simultaneous simplified and traditional requests separate and reuses only matching script aliases', async () => {
+        const simplified = deferred<string>();
+        const traditional = deferred<string>();
+        mocks.service.mockImplementation((message) => message.targetLanguage === 'zh-Hans' ? simplified.promise : traditional.promise);
+        const hans = translateWithCache({origin: 'The network settings', sourceLanguage: 'en', targetLanguage: 'zh-CN'});
+        const hant = translateWithCache({origin: 'The network settings', sourceLanguage: 'en', targetLanguage: 'zh-TW'});
+        await vi.waitFor(() => expect(mocks.service).toHaveBeenCalledTimes(2));
+        expect(mocks.service.mock.calls.map(([message]) => message.targetLanguage)).toEqual(['zh-Hans', 'zh-Hant']);
+        simplified.resolve('网络设置');
+        traditional.resolve('網路設定');
+        await expect(hans).resolves.toBe('网络设置');
+        await expect(hant).resolves.toBe('網路設定');
+        await expect(translateWithCache({origin: 'The network settings', sourceLanguage: 'en', targetLanguage: 'zh-HK'})).resolves.toBe('網路設定');
+        await expect(translateWithCache({origin: 'The network settings', sourceLanguage: 'en', targetLanguage: 'zh-SG'})).resolves.toBe('网络设置');
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        await expect(translateWithCache({origin: 'The network settings', sourceLanguage: 'zh-Hans', targetLanguage: 'zh-Hant'})).resolves.toBe('網路設定');
+        await expect(translateWithCache({origin: 'The network settings', sourceLanguage: 'zh-Hant', targetLanguage: 'zh-Hans'})).resolves.toBe('网络设置');
+        expect(mocks.service).toHaveBeenCalledTimes(4);
+    });
     beforeEach(async () => {
         vi.clearAllMocks();
         mocks.cacheStore.clear();
@@ -228,7 +252,7 @@ describe('translation broker', () => {
         mocks.aiServices.add('aiSdk');
         mocks.aiServices.add('brokenAiSdk');
         mocks.machineServices.clear();
-        ['mock', 'custom', 'deeplx', 'newapi', 'minimax', 'mimo', 'azureOpenai', 'chromeTranslator']
+        ['mock', 'freeTranslation', 'myMemory', 'custom', 'deeplx', 'newapi', 'minimax', 'mimo', 'azureOpenai', 'chromeTranslator']
             .forEach(service => mocks.machineServices.add(service));
         Object.assign(mocks.config, {
             service: 'mock',
@@ -241,6 +265,7 @@ describe('translation broker', () => {
             translationRequestsPerMinute: 0,
             proxy: {},
             custom: '',
+            deeplApiPlan: 'free',
             deeplx: '',
             newApiUrl: '',
             minimaxBillingPlan: 'payg',
@@ -254,6 +279,10 @@ describe('translation broker', () => {
             deepseekApiType: 'auto',
             deepseekThinkingMode: 'disabled',
             modelThinking: {},
+            freeTranslationOrder: undefined,
+            freeTranslationTimeoutMs: undefined,
+            freeTranslationCooldownMs: undefined,
+            myMemoryEmail: undefined,
         });
         mocks.config.model = {
             mock: 'mock-model',
@@ -286,6 +315,123 @@ describe('translation broker', () => {
     afterEach(() => {
         vi.useRealTimers();
         vi.restoreAllMocks();
+    });
+
+    it('isolates ordered anonymous routes while ignoring credentials and private endpoints', async () => {
+        mocks.config.service = 'freeTranslation';
+        const policy = mocks.config as typeof mocks.config & {freeTranslationOrder: string[]};
+        policy.freeTranslationOrder = ['myMemory', 'microsoft'];
+        mocks.service.mockResolvedValue('first provider translation');
+        await translateWithCache({origin: 'same source'});
+        await translateWithCache({origin: 'same source'});
+        expect(mocks.service).toHaveBeenCalledTimes(1);
+        policy.freeTranslationOrder = ['microsoft', 'myMemory'];
+        await translateWithCache({origin: 'same source'});
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        mocks.config.deeplx = 'https://private.example/translate';
+        mocks.config.proxy = {deeplx: 'https://private.example/proxy'};
+        await translateWithCache({origin: 'same source', context: 'not used by anonymous APIs'});
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        expect(translationCacheIdentities().at(-1)).toMatchObject({freeTranslationPolicy: {
+            version: 2, order: ['microsoft', 'myMemory'],
+        }});
+        delete (policy as Partial<typeof policy>).freeTranslationOrder;
+    });
+
+    it.each([
+        ['freeTranslation', false], ['freeTranslation', true],
+        ['myMemory', false], ['myMemory', true],
+    ] as const)('%s 的 MyMemory 邮箱变更隔离在途执行并复用成功缓存，批量=%s', async (service, batch) => {
+        const policy = mocks.config as typeof mocks.config & {myMemoryEmail?: string; freeTranslationOrder?: string[]};
+        Object.assign(policy, {service, myMemoryEmail: '', freeTranslationOrder: ['myMemory']});
+        const request: TranslationRequestMessage = batch ? {origin: ['same source']} : {origin: 'same source'};
+        const translated = batch ? ['新邮箱译文'] : '新邮箱译文';
+        const previous = deferred<string | string[]>();
+        mocks.service.mockImplementation(message => {
+            const current = getTranslationProviderConfig(message, mocks.config as never);
+            return current.myMemoryEmail === 'reader@example.com' ? Promise.resolve(translated) : previous.promise;
+        });
+        const oldRequest = translateWithCache(request).catch(error => error);
+        await flushMicrotasks();
+        policy.myMemoryEmail = 'reader@example.com';
+        const newRequest = translateWithCache(request).catch(error => error);
+        await flushMicrotasks();
+        previous.reject(new Error('旧匿名额度已用尽'));
+        expect(await oldRequest).toBeInstanceOf(Error);
+        expect(await newRequest).toEqual(translated);
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        policy.myMemoryEmail = 'another@example.com';
+        await expect(translateWithCache(request)).resolves.toEqual(translated);
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+    });
+
+    it.each(['freeTranslationTimeoutMs', 'freeTranslationCooldownMs'] as const)('免费链 %s 变更不共享旧等待策略的在途失败', async field => {
+        Object.assign(mocks.config, {service: 'freeTranslation', useCache: false, [field]: 1_000});
+        const previous = deferred<string>();
+        mocks.service.mockImplementation(message => {
+            const current = getTranslationProviderConfig(message, mocks.config as never);
+            return current[field] === 5_000 ? Promise.resolve('新策略译文') : previous.promise;
+        });
+        const oldRequest = translateWithCache({origin: 'same source'}).catch(error => error);
+        await flushMicrotasks();
+        Object.assign(mocks.config, {[field]: 5_000});
+        const newRequest = translateWithCache({origin: 'same source'}).catch(error => error);
+        await flushMicrotasks();
+        previous.reject(new Error('旧策略执行失败'));
+        expect(await oldRequest).toBeInstanceOf(Error);
+        expect(await newRequest).toBe('新策略译文');
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+    });
+
+    it.each(['freeTranslation', 'myMemory'])('%s 在途去重归一默认值且忽略实际不用的 Key 与代理', async service => {
+        Object.assign(mocks.config, {service, useCache: false});
+        const pending = deferred<string>();
+        mocks.service.mockReturnValue(pending.promise);
+        const first = translateWithCache({origin: 'same source'});
+        await flushMicrotasks();
+        Object.assign(mocks.config, {
+            freeTranslationTimeoutMs: 5_000,
+            freeTranslationCooldownMs: 60_000,
+            myMemoryEmail: '  ',
+            token: {[service]: 'saved-key'},
+            proxy: {[service]: 'https://private.example/proxy', deeplx: 'https://private.example/deeplx'},
+            deeplx: 'https://private.example/translate',
+        });
+        const second = translateWithCache({origin: 'same source'});
+        await flushMicrotasks();
+        pending.resolve('共享译文');
+        await expect(Promise.all([first, second])).resolves.toEqual(['共享译文', '共享译文']);
+        expect(mocks.service).toHaveBeenCalledTimes(1);
+    });
+
+    it('未启用 MyMemory 的免费链不因邮箱变化拆分在途请求', async () => {
+        Object.assign(mocks.config, {service: 'freeTranslation', freeTranslationOrder: ['microsoft']});
+        const pending = deferred<string>();
+        mocks.service.mockReturnValue(pending.promise);
+        const first = translateWithCache({origin: 'same source'});
+        await flushMicrotasks();
+        Object.assign(mocks.config, {myMemoryEmail: 'reader@example.com'});
+        const second = translateWithCache({origin: 'same source'});
+        await flushMicrotasks();
+        pending.resolve('共享译文');
+        await expect(Promise.all([first, second])).resolves.toEqual(['共享译文', '共享译文']);
+        expect(mocks.service).toHaveBeenCalledTimes(1);
+    });
+
+    it('圈选事务携带可信配置快照时沿用OCR开始前的服务模型与提示，忽略同名字符串伪造', async () => {
+        mocks.config.service = 'ai';
+        const snapshot = createTranslationProviderConfigSnapshot({...mocks.config,
+            system_role: {...mocks.config.system_role, ai: 'frozen-area-prompt'},
+            model: {...mocks.config.model, ai: 'frozen-area-model'},
+        });
+        mocks.config.service = 'mock';
+        mocks.service.mockResolvedValue('translated');
+        await translateWithCache(attachTranslationProviderConfig({origin: 'ocr text', useCache: false}, snapshot));
+        const providerRequest = mocks.service.mock.calls[0][0];
+        expect(getTranslationProviderConfig(providerRequest, snapshot).system_role.ai).toBe('frozen-area-prompt');
+        expect(translationCacheIdentities().at(-1)).toMatchObject({service: 'ai', model: 'frozen-area-model'});
+        await translateWithCache({origin: 'second text', useCache: false, TRANSLATION_PROVIDER_CONFIG: snapshot} as any);
+        expect(translationCacheIdentities().at(-1)?.service).toBe('mock');
     });
 
     it('reuses persisted single cache entries, including successful unchanged results', async () => {
@@ -970,6 +1116,57 @@ describe('translation broker', () => {
         resolveBatch(['P-译文', 'Q-译文']);
         await expect(first).resolves.toEqual(['P-译文', 'Q-译文']);
         await expect(second).resolves.toEqual(['P-译文', 'Q-译文']);
+    });
+
+    it('DeepL Free 与 Pro 缓存隔离，固定代理以实际地址为缓存身份', async () => {
+        mocks.machineServices.add('deepL');
+        mocks.config.service = 'deepL';
+        mocks.service.mockImplementation(async message => (
+            `${getTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(mocks.config)).deeplApiPlan} 译文`
+        ));
+
+        await expect(translateWithCache({origin: 'DeepL source'})).resolves.toBe('free 译文');
+        mocks.config.deeplApiPlan = 'pro';
+        await expect(translateWithCache({origin: 'DeepL source'})).resolves.toBe('pro 译文');
+        mocks.config.deeplApiPlan = 'free';
+        mocks.config.proxy.deepL = '  ';
+        await expect(translateWithCache({origin: 'DeepL source'})).resolves.toBe('free 译文');
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        expect(translationCacheIdentities().map(identity => identity.endpoint)).toEqual([
+            'https://api-free.deepl.com/v2/translate',
+            'https://api.deepl.com/v2/translate',
+            'https://api-free.deepl.com/v2/translate',
+        ]);
+
+        mocks.config.proxy.deepL = '  https://deepl-proxy.example/translate  ';
+        await translateWithCache({origin: 'DeepL proxied source'});
+        mocks.config.deeplApiPlan = 'pro';
+        await translateWithCache({origin: 'DeepL proxied source'});
+        expect(mocks.service).toHaveBeenCalledTimes(3);
+        expect(translationCacheIdentities().slice(-2).map(identity => identity.endpoint)).toEqual([
+            'https://deepl-proxy.example/translate', 'https://deepl-proxy.example/translate',
+        ]);
+    });
+
+    it('缓存读取期间切换 DeepL 套餐不会修改在途请求或合并新旧套餐请求', async () => {
+        mocks.machineServices.add('deepL');
+        mocks.config.service = 'deepL';
+        const cacheRead = deferred<string | null>();
+        mocks.cacheGet.mockImplementationOnce(() => cacheRead.promise);
+        mocks.service.mockImplementation(async message => (
+            `${getTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(mocks.config)).deeplApiPlan} 译文`
+        ));
+        const freeRequest = translateWithCache({origin: 'DeepL in flight'});
+        await vi.waitFor(() => expect(mocks.cacheGet).toHaveBeenCalledOnce());
+
+        mocks.config.deeplApiPlan = 'pro';
+        await expect(translateWithCache({origin: 'DeepL in flight'})).resolves.toBe('pro 译文');
+        cacheRead.resolve(null);
+        await expect(freeRequest).resolves.toBe('free 译文');
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+        expect(translationCacheIdentities().map(identity => identity.endpoint)).toEqual([
+            'https://api-free.deepl.com/v2/translate', 'https://api.deepl.com/v2/translate',
+        ]);
     });
 
     it('builds provider cache identities for proxy, custom endpoints, Minimax, Mimo, and AI SDK services', async () => {

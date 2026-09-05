@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/ocrWorkerRuntime.ts
  * 文件职责：实现与具体 OCR 引擎无关的 Worker 生命周期和串行任务队列，保证识别、参数设置、语言切换及销毁不会在并发请求间交叉污染。
- * 主要内容：定义 OcrWorkerPort、依赖与 runtime 契约，复用同语言 worker 与初始化参数，提供识别和语言预加载；排队取消立即结束调用方等待，执行中取消才释放当前 worker。
+ * 主要内容：定义 OcrWorkerPort、依赖与 runtime 契约，复用同语言 worker，按任务串行切换页面分割参数，提供识别和语言预加载；排队取消立即结束调用方等待，执行中取消才释放当前 worker。
  * 模块边界：此层不依赖 Tesseract.js 类型、浏览器 storage 或图片翻译 UI；具体 worker 工厂由 ocrRuntime 注入，语言状态记录和 Offscreen 消息编排位于其他模块。
  */
 /**
@@ -21,7 +21,7 @@ export type OcrWorkerRuntimeDependencies<TResult> = {
 };
 
 export type OcrWorkerRuntime<TResult> = {
-    recognize: (image: string, languages: string, signal?: AbortSignal) => Promise<TResult>;
+    recognize: (image: string, languages: string, signal?: AbortSignal, pageSegmentationMode?: string | number) => Promise<TResult>;
     ensureLanguages: (languages: string[], signal?: AbortSignal) => Promise<void>;
 };
 
@@ -41,6 +41,7 @@ export function createOcrWorkerRuntime<TResult>(
     let workerPromise: Promise<OcrWorkerPort<TResult>> | null = null;
     let workerLanguages = '';
     let configuredWorker: OcrWorkerPort<TResult> | null = null;
+    let configuredMode: string | number | undefined;
     let workerOwnershipGeneration = 0;
     let operationTail: Promise<void> = Promise.resolve();
 
@@ -132,16 +133,19 @@ export function createOcrWorkerRuntime<TResult>(
     }
 
     return {
-        recognize(image, languages, signal) {
+        recognize(image, languages, signal, pageSegmentationMode = dependencies.sparseTextMode) {
             return runExclusive(async () => {
                 if (signal?.aborted) throw createOcrAbortError();
                 const worker = await runAbortable(getWorker(languages), signal);
-                if (configuredWorker !== worker) {
+                if (configuredWorker !== worker || configuredMode !== pageSegmentationMode) {
+                    // 设置失败时不再认为旧参数可信；下一任务必须重新配置。
+                    configuredWorker = null;
                     await runAbortable(worker.setParameters({
-                        tessedit_pageseg_mode: dependencies.sparseTextMode,
+                        tessedit_pageseg_mode: pageSegmentationMode,
                         preserve_interword_spaces: '1',
                     }), signal);
                     configuredWorker = worker;
+                    configuredMode = pageSegmentationMode;
                 }
                 return runAbortable(worker.recognize(image, {}, {blocks: true}), signal);
             }, signal);

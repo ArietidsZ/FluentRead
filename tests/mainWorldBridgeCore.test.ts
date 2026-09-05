@@ -88,11 +88,15 @@ function shadowFixture(withNavigation = true) {
         return {host: this, init};
     }) as unknown as AttachShadowPort;
     const originalPush = vi.fn(function originalPush(this: unknown, _data: unknown, _unused: string, url?: string | URL | null) {
+        if (withNavigation) navigationEvents.emit('navigate');
         if (url) href = new URL(String(url), href).href;
+        if (withNavigation) navigationEvents.emit('currententrychange');
         return this;
     }) as unknown as HistoryMutationPort;
     const originalReplace = vi.fn(function originalReplace(this: unknown, _data: unknown, _unused: string, url?: string | URL | null) {
+        if (withNavigation) navigationEvents.emit('navigate');
         if (url) href = new URL(String(url), href).href;
+        if (withNavigation) navigationEvents.emit('currententrychange');
         return this;
     }) as unknown as HistoryMutationPort;
     const attach = slot(originalAttach);
@@ -109,7 +113,8 @@ function shadowFixture(withNavigation = true) {
         getHref: () => href,
         createEvent: (type: string, init?: Record<string, unknown>) => ({type, ...init}),
     };
-    return {attach, documentEvents, environment, navigationEvents, originalAttach, originalPush, originalReplace, push, replace, stateHost, windowEvents};
+    return {attach, documentEvents, environment, navigationEvents, originalAttach, originalPush, originalReplace,
+        push, replace, stateHost, windowEvents, setHref: (value: string) => { href = value; }};
 }
 
 class FakeXhr implements YoutubeXhrPort {
@@ -208,9 +213,13 @@ describe('ShadowRoot 与路由 MAIN world bridge core', () => {
         expect(fixture.documentEvents.dispatched).toHaveLength(0);
         expect(fixture.push.value.call(historyHost, {}, '', '/next')).toBe(historyHost);
         fixture.replace.value.call(historyHost, {}, '', '/final');
+        fixture.setHref('https://example.test/next');
         fixture.windowEvents.emit('popstate');
+        fixture.setHref('https://example.test/next#section');
         fixture.windowEvents.emit('hashchange');
+        fixture.setHref('https://example.test/navigation-api');
         fixture.navigationEvents.emit('navigate');
+        fixture.navigationEvents.emit('currententrychange');
         expect(fixture.documentEvents.dispatched.filter((event) => (event as {type: string}).type === ROUTE_CHANGE_EVENT))
             .toHaveLength(5);
 
@@ -220,6 +229,48 @@ describe('ShadowRoot 与路由 MAIN world bridge core', () => {
         expect(fixture.replace.value).toBe(fixture.originalReplace);
         expect(fixture.stateHost[SHADOW_BRIDGE_STATE_KEY]).toBeUndefined();
         expect(fixture.windowEvents.listeners.get('popstate')?.size).toBe(0);
+        expect(fixture.navigationEvents.listeners.get('currententrychange')?.size).toBe(0);
+    });
+
+    it('同页滚动状态和被取消的 navigate 不发布路由变化，真实提交只发布一次最新 URL', () => {
+        const fixture = shadowFixture();
+        installShadowRouteBridgeCore(fixture.environment);
+        const urls: string[] = [];
+        fixture.documentEvents.addEventListener(ROUTE_CHANGE_EVENT, () => urls.push(fixture.environment.getHref()));
+        const historyHost = {};
+        const scrollState = {scroll: 250};
+        expect(fixture.replace.value.call(historyHost, scrollState, '')).toBe(historyHost);
+        fixture.replace.value.call(historyHost, scrollState, '', 'https://example.test/start');
+        fixture.push.value.call(historyHost, scrollState, '', '/start');
+        fixture.navigationEvents.emit('navigate');
+        fixture.navigationEvents.emit('currententrychange');
+        fixture.windowEvents.emit('popstate');
+        fixture.windowEvents.emit('hashchange');
+        expect(urls).toEqual([]);
+        expect(fixture.originalReplace).toHaveBeenCalledWith(scrollState, '', undefined);
+
+        fixture.push.value.call(historyHost, {}, '', '/article?lang=en#intro');
+        fixture.navigationEvents.emit('currententrychange');
+        fixture.windowEvents.emit('popstate');
+        fixture.windowEvents.emit('hashchange');
+        expect(urls).toEqual(['https://example.test/article?lang=en#intro']);
+        fixture.replace.value.call(historyHost, {}, '', '#details');
+        expect(urls).toEqual(['https://example.test/article?lang=en#intro', 'https://example.test/article?lang=en#details']);
+    });
+
+    it('缺少 Navigation API 时 history 与遍历继续生效，卸载后不再发布', () => {
+        const fixture = shadowFixture(false);
+        const dispose = installShadowRouteBridgeCore(fixture.environment);
+        fixture.push.value.call({}, {}, '', '/next');
+        fixture.replace.value.call({}, {}, '', '/final');
+        fixture.setHref('https://example.test/start');
+        fixture.windowEvents.emit('popstate');
+        expect(fixture.documentEvents.dispatched).toHaveLength(3);
+        dispose();
+        fixture.push.value.call({}, {}, '', '/disposed');
+        fixture.windowEvents.emit('popstate');
+        fixture.navigationEvents.emit('currententrychange');
+        expect(fixture.documentEvents.dispatched).toHaveLength(3);
     });
 
     it('重复安装先卸载旧 owner，旧 disposer 不会破坏新桥', () => {

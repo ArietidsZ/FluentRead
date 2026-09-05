@@ -124,6 +124,14 @@
           </button>
         </div>
 
+        <GlossaryLibrarySelect
+          v-if="config.glossaryLibraries.length || config.glossaryEnabled"
+          v-model="config.documentGlossaryIds"
+          :libraries="config.glossaryLibraries"
+          :enabled="config.glossaryEnabled"
+          :unsupported="!supportsTranslationGlossary(config.documentService, selectedDocumentModel)"
+          :disabled="translating"
+        />
         <p v-if="credentialWarning" class="notice warning" role="alert">{{ credentialWarning }} <button type="button" @click="openSettings">去配置</button></p>
         <p v-if="errorMessage" class="notice error" role="alert">{{ errorMessage }}</p>
 
@@ -428,6 +436,8 @@ import {
   translateDocumentSegments,
   withCustomOpenAIServiceOptions,
   UiLanguageSelector,
+  GlossaryLibrarySelect,
+  supportsTranslationGlossary,
   useUiI18n,
   type DocumentRenderMode,
   type ParsedDocument,
@@ -445,7 +455,7 @@ interface PdfPreviewPageState {
 }
 
 type DocumentConfigPatch = Partial<Pick<Config,
-  'from' | 'to' | 'documentService' | 'documentModel' | 'documentCustomModel'
+  'from' | 'to' | 'documentService' | 'documentModel' | 'documentCustomModel' | 'documentGlossaryIds'
 >>;
 type DocumentModelMapping = Config['documentModel'];
 
@@ -501,7 +511,7 @@ let pdfPreviewRequest = 0;
 
 const accept = getDocumentAcceptAttribute();
 const maxFileSizeLabel = `${Math.round(DOCUMENT_MAX_BYTES / 1024 / 1024)} MB`;
-const sourceLanguageOptions = [{value: 'auto', label: '自动检测'}, ...options.to];
+const sourceLanguageOptions = options.from;
 const formatCards = [
   {code: 'PDF', label: 'pdf 文件', tone: 'coral'},
   {code: 'EPUB', label: 'ePub 电子书', tone: 'teal'},
@@ -789,6 +799,9 @@ watch(config, (value) => {
   if (value.from !== previous.from) patch.from = value.from;
   if (value.to !== previous.to) patch.to = value.to;
   if (value.documentService !== previous.documentService) patch.documentService = value.documentService;
+  if (JSON.stringify(value.documentGlossaryIds) !== JSON.stringify(previous.documentGlossaryIds)) {
+    patch.documentGlossaryIds = value.documentGlossaryIds === null ? null : [...value.documentGlossaryIds];
+  }
   if (!sameDocumentModelMapping(value.documentModel, previous.documentModel)) {
     patch.documentModel = mergeChangedDocumentModelMapping(
       runtimeConfig.documentModel,

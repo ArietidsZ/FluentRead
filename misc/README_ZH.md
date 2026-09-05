@@ -73,6 +73,8 @@
 
 ## 帮助
 
+想调整某个网站的正文范围，可以跟随[自定义网站适配教程](https://fluent.thinkstu.com/guide/custom-site-rules)操作。欢迎向内置目录新增或改进规则，[网站适配贡献指南](../docs/contributing/site-adaptation.md)提供示例、测试夹具和验证步骤。
+
 - [常见问题](https://fluent.thinkstu.com/guide/faq)
 - [GitHub Issues](https://github.com/FluentRead/FluentRead/issues)
 - [B站视频介绍](https://www.bilibili.com/video/BV1ux4y1e73x/)

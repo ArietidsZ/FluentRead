@@ -98,8 +98,11 @@ describe('harness model gateway', () => {
     const azure = new Config();
     azure.token[services.azureOpenai] = 'azure-secret';
     azure.azureOpenaiEndpoint = 'https://azure.test/openai/deployments/reader/chat/completions?api-version=2024-02-15-preview';
-    const azureFetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const azureFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe(azure.azureOpenaiEndpoint);
       expect(new Headers(init?.headers).get('api-key')).toBe('azure-secret');
+      expect(new Headers(init?.headers).has('authorization')).toBe(false);
+      expect(JSON.parse(String(init?.body)).model).toBe('reader');
       return response({choices: [{message: {role: 'assistant', content: 'ok'}, finish_reason: 'stop'}]});
     });
     setRuntimeFetch(azureFetch);
@@ -114,6 +117,21 @@ describe('harness model gateway', () => {
     });
     setRuntimeFetch(routerFetch);
     await generateText({model: createHarnessLanguageModel(router, services.openrouter, 'openrouter/test'), prompt: 'hello'});
+  });
+
+  it('normalizes the Azure Foundry resource endpoint for v1 without a dated API version', async () => {
+    const config = new Config();
+    config.token[services.azureOpenai] = 'azure-secret';
+    config.azureOpenaiEndpoint = 'https://reader.services.ai.azure.com';
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe('https://reader.services.ai.azure.com/openai/v1/chat/completions');
+      expect(new Headers(init?.headers).get('api-key')).toBe('azure-secret');
+      expect(JSON.parse(String(init?.body)).model).toBe('deepseek-deployment');
+      return response({choices: [{message: {role: 'assistant', content: 'ok'}, finish_reason: 'stop'}]});
+    });
+    setRuntimeFetch(fetchMock);
+    await generateText({model: createHarnessLanguageModel(config, services.azureOpenai, 'deepseek-deployment'), prompt: 'hello'});
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it('uses native Claude Messages API and honors configured proxy', async () => {

@@ -741,3 +741,39 @@ describe('Offscreen Chrome 翻译域', () => {
         }, controller.signal)).rejects.toMatchObject({name: 'AbortError'});
     });
 });
+
+describe('Chrome 中文字形与语言包保持独立', () => {
+    it.each([
+        ['這是一段繁體中文翻譯測試，閱讀設定與網頁內容。', 'zh-Hans', 'zh', 'zh'],
+        ['这是一段简体中文翻译测试，阅读设置与网页内容。', 'zh-Hant', 'zh', 'zh-Hant'],
+    ])('泛中文检测的正文 %s 仍请求翻译，未确认字形时保留通用语言代码', async (text, to, sourceLanguage, targetLanguage) => {
+        const environment: ChromeTranslationEnvironment = {
+            ...modernTranslator({translate: vi.fn(async () => 'converted'), destroy: vi.fn()}),
+            LanguageDetector: {create: vi.fn(async () => ({detect: vi.fn(async () => [{detectedLanguage: 'zh', confidence: 0.9}])}))},
+        };
+        await expect(translateWithChromeApi({text, from: 'auto', to}, environment)).resolves.toBe('converted');
+        expect(environment.Translator!.create).toHaveBeenCalledWith(expect.objectContaining({sourceLanguage, targetLanguage}));
+    });
+    it('legacy 泛中文检测也使用原文精化字形，并保留共用汉字为未区分中文', async () => {
+        const environment = {translation: {createDetector: vi.fn(async () => ({detect: vi.fn(async () => [{detectedLanguage: 'zh'}])}))}};
+        await expect(detectChromeLanguage('這是繁體翻譯測試。', environment)).resolves.toBe('zh-Hant');
+        await expect(detectChromeLanguage('中文', environment)).resolves.toBe('zh');
+    });
+    it('泛中文与目标简体相同代码时也调用翻译器，不能自行跳过', async () => {
+        const environment: ChromeTranslationEnvironment = {
+            ...modernTranslator({translate: vi.fn(async () => 'result')}),
+            LanguageDetector: {create: vi.fn(async () => ({detect: vi.fn(async () => [{detectedLanguage: 'zh', confidence: 0.9}])}))},
+        };
+        await expect(translateWithChromeApi({text: '中文', from: 'auto', to: 'zh-Hans'}, environment)).resolves.toBe('result');
+        expect(environment.Translator!.create).toHaveBeenCalled();
+    });
+    it('显式脚本优先于地区，双方保持正确的 Chrome 模型代码', () => {
+        expect(mapChromeLanguageCode('zh-Hans-HK')).toBe('zh');
+        expect(mapChromeLanguageCode('zh-Hant-CN')).toBe('zh-Hant');
+    });
+    it('繁简语言包不可用时保留失败，不返回原文伪装成功', async () => {
+        const environment = modernTranslator({}, 'unavailable');
+        await expect(translateWithChromeApi({text: '繁體中文', from: 'zh-Hant', to: 'zh-Hans'}, environment)).rejects.toThrow('不可用');
+        expect(environment.Translator!.create).not.toHaveBeenCalled();
+    });
+});

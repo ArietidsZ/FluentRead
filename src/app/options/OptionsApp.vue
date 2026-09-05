@@ -1,8 +1,8 @@
 <!--
  @file src/app/options/OptionsApp.vue
- 文件职责：实现扩展 Options 页的顶层布局，组织设置导航、全局搜索结果和生词本入口，并把选中分区交给对应 feature UI。
- 主要内容：渲染品牌侧栏、版本信息、搜索框与主内容区，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 VocabularyBook 之间切换，并从 URL hash 恢复目标分区。
- 模块边界：组件负责页面壳、导航状态和界面皮肤根属性同步，不定义具体配置字段、不直接写 browser.storage，也不实现词汇仓库；设置表单和生词本业务由各 feature 组件拥有。
+ 文件职责：实现扩展 Options 页的顶层布局，组织设置导航、全局搜索结果和学习中心入口，并把选中分区交给对应 feature UI。
+ 主要内容：渲染品牌侧栏、版本信息、搜索框与主内容区，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换，并持续同步 URL hash 的深链接与前进后退导航。
+ 模块边界：组件负责页面壳、导航状态和界面皮肤根属性同步，不定义具体配置字段、不直接写 browser.storage，也不实现词汇仓库；设置表单、收藏与阅读记录业务由各 feature 组件拥有。
 -->
 <template>
   <div class="settings-app">
@@ -89,7 +89,7 @@
 
           <p class="about-footer">{{ t('options.aboutThanks') }}</p>
         </section>
-        <VocabularyBook v-else-if="activeSection === 'settings-vocabulary'" @navigate="selectSection" />
+        <LearningCenter v-else-if="activeSection === 'settings-vocabulary'" @navigate="selectSection" />
         <SettingsSections v-else :active-section="activeSection" />
       </section>
 
@@ -102,7 +102,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue'
 import {getInterfaceSkinOption} from '@/src/core/config/interfaceAppearance'
 import SettingsSections from '@/src/features/settings/ui/SettingsSections.vue'
-import VocabularyBook from '@/src/features/vocabulary/ui/VocabularyBook.vue'
+import LearningCenter from '@/src/features/settings/ui/LearningCenter.vue'
 import {useUiI18n} from '@/src/ui/i18n'
 import {
   navigationGroups,
@@ -170,7 +170,9 @@ function selectSection(id: string) {
   if (!navigation.some((item) => item.id === id)) return
   activeSection.value = id
   query.value = ''
-  history.replaceState(null, '', `#${id}`)
+  if (window.location.hash !== `#${id}`) {
+    history.replaceState(null, '', `#${id}`)
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
@@ -196,14 +198,20 @@ function handleMobileNavigationChange() {
   void revealActiveNavigation()
 }
 
+function syncSectionFromHash() {
+  selectSection(resolveRequestedSection(window.location.hash))
+}
+
 onMounted(() => {
-  activeSection.value = resolveRequestedSection(window.location.hash)
+  syncSectionFromHash()
+  window.addEventListener('hashchange', syncSectionFromHash)
   mobileNavigationMedia.addEventListener('change', handleMobileNavigationChange)
   void revealActiveNavigation()
 })
 
 onBeforeUnmount(() => {
   unsubscribeInterfaceConfig()
+  window.removeEventListener('hashchange', syncSectionFromHash)
   mobileNavigationMedia.removeEventListener('change', handleMobileNavigationChange)
 })
 </script>

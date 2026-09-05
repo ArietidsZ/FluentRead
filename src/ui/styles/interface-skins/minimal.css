@@ -446,6 +446,12 @@
     padding-left: 12px;
   }
 
+  /* 贴边底栏的负边距跟随窄屏内边距，避免 600px 滚动容器左右各多出 4px。 */
+  :root[data-interface-skin="minimal"] .popup-content > footer[data-popup-module-last="true"] {
+    margin-right: -12px;
+    margin-left: -12px;
+  }
+
   :root[data-interface-skin="minimal"] .site-rule-row {
     align-items: stretch;
     flex-direction: column;

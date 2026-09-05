@@ -1,12 +1,12 @@
 /**
  * @file src/features/image-translation/services/offscreenRuntime.ts
- * 文件职责：在隔离 Offscreen 文档中编排图片与圈选翻译的像素流水线：加载位图、OCR、翻译文本、修补原文区域并绘制匹配背景的译文。
+ * 文件职责：在隔离 Offscreen 文档中编排图片重绘翻译，并为圈选文本翻译提供仅裁剪和本地 OCR 的独立入口。
  * 主要内容：图片解码时前置尺寸校验和取消/超时清理，复用解码位图完成真实阶段通知、OCR 与完整译文绘制；导出图片和圈选入口，在完成或失败后释放临时图像与画布。
  * 模块边界：该运行时只在具备 Canvas/DOM 的 Offscreen 环境执行，不直接接收 browser.runtime 事件；消息入口由 app/offscreen 组装，翻译函数由依赖注入，几何算法来自 area feature。
  */
 import {IMAGE_PROGRESS_MESSAGE_TYPE, type ImageTranslationStage} from '../progress';
 import { selectChangedTranslations, type OcrLine } from '@/src/features/image-translation/core';
-import { areaRectToImageCrop, type AreaTranslationSelection } from '@/src/features/area-translation/protocol';
+import { areaRectToImageCrop, type AreaTranslationSelection, type AreaRecognitionResult } from '@/src/features/area-translation/protocol';
 import { inpaintTextRegions } from './inpainting';
 import { recognizeImage } from './ocrRuntime';
 import { getImageTextBackgroundColor, drawTranslatedImageText } from './rendering';
@@ -267,12 +267,15 @@ export async function translateImageInOffscreen(
 export async function translateAreaInOffscreen(
     image: string,
     sourceLanguage: string,
-    title: string,
+    _title: string,
     selection: AreaTranslationSelection,
     signal?: AbortSignal,
-    requestId?: string,
-): Promise<OffscreenImageTranslationResult> {
+    _requestId?: string,
+): Promise<AreaRecognitionResult> {
     const croppedImage = await cropImage(image, selection, signal);
     throwIfImageOperationAborted(signal);
-    return translateImageInOffscreen(croppedImage, sourceLanguage, title, signal, requestId);
+    const lines = await recognizeImage(croppedImage, sourceLanguage, signal, {profile: 'area'});
+    throwIfImageOperationAborted(signal);
+    if (lines.length === 0) throw new Error('没有识别到圈选区域文字');
+    return {image: croppedImage, lines};
 }

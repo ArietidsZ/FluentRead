@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import {
     getOcrImageSize,
+    getAreaOcrImageSize,
     normalizeOcrLines,
     restoreOcrLineCoordinates,
     selectChangedTranslations,
@@ -20,6 +21,32 @@ describe('图片 OCR 有界尺寸和可信文本', () => {
             expect(() => getOcrImageSize(width, height)).toThrow('图片尺寸无效');
         },
     );
+
+    it('圈选只放大小图，为紧贴文字预留边框，超大和极窄选区仍有像素预算', () => {
+        expect(getAreaOcrImageSize(320, 180)).toEqual({width: 640, height: 360, padding: 10});
+        expect(getAreaOcrImageSize(1000, 500)).toEqual({width: 2000, height: 1000, padding: 10});
+        expect(getAreaOcrImageSize(1001, 500)).toEqual({width: 1001, height: 500, padding: 10});
+        expect(getAreaOcrImageSize(500, 501)).toEqual({width: 500, height: 501, padding: 10});
+        for (const [width, height] of [[8000, 1000], [4000, 3000], [1, 100_000], [100_000, 1]]) {
+            const size = getAreaOcrImageSize(width, height);
+            expect(size.width).toBeGreaterThanOrEqual(1);
+            expect(size.height).toBeGreaterThanOrEqual(1);
+            expect(Math.max(size.width, size.height) + size.padding * 2).toBeLessThanOrEqual(4096);
+            expect((size.width + size.padding * 2) * (size.height + size.padding * 2)).toBeLessThanOrEqual(6_000_000);
+        }
+        expect(() => getAreaOcrImageSize(0, 50)).toThrow('图片尺寸无效');
+    });
+
+    it('圈选坐标先去边框再逆缩放，忽略白边内的伪识别并保留触边原文', () => {
+        expect(restoreOcrLineCoordinates([
+            {text: 'center', bbox: {x0: 30, y0: 50, x1: 110, y1: 90}},
+            {text: 'edge', bbox: {x0: 5, y0: 5, x1: 215, y1: 115}},
+            {text: 'border', bbox: {x0: 0, y0: 0, x1: 9, y1: 9}},
+        ], 100, 50, 200, 100, 10)).toEqual([
+            {text: 'center', bbox: {x0: 10, y0: 20, x1: 50, y1: 40}},
+            {text: 'edge', bbox: {x0: 0, y0: 0, x1: 100, y1: 50}},
+        ]);
+    });
 
     it('将降采样框映回原图并夹紧越界框，舍弃完全落在图片外的识别', () => {
         expect(restoreOcrLineCoordinates([

@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/SettingsSections.vue
  * 文件职责：承载 FluentRead Options 页面各业务设置分区，连接运行时配置、服务选择、快捷键、站点规则、翻译中心、OCR、词书以及导入导出和历史恢复。
- * 主要内容：模板按 activeSection 展示常规、服务、视频、隐私等控件，在独立的界面布局页面组织界面风格与菜单栏布局，并仅在高级选项激活时挂载缓存管理；脚本派生当前服务的网站入口，协调配置快照保存、加密凭据保存、历史游标、能力过滤、连接测试、文件传输和页面离开 flush。
+ * 主要内容：模板按 activeSection 展示业务分区，图片与圈选分别复用仅在当前分区挂载的 OCR 管理组件，在界面布局页组织风格与菜单栏布局，仅在高级选项激活时挂载缓存管理；脚本以独立配置副本隔离编辑与全局差分基线，协调网站入口、配置及凭据保存、历史恢复、能力过滤和离页补丁交接。
  * 模块边界：该组件负责设置 UI 编排但不实现 provider 网络、配置仓库或 feature 运行时；校验与迁移来自 core/config，持久化经 services/config，复杂子界面保持在各自 feature/组件内。
  -->
 <template>
@@ -43,12 +43,16 @@
     </SettingsGroup>
     <AlwaysTranslateSites v-model="config.alwaysTranslateDomains" />
     <AlwaysTranslateSites v-model="config.disabledExtensionDomains" variant="disable-extension" />
+    <SiteAdaptationSettings :model-value="config.siteAdaptation" :save-settings="saveSiteAdaptationSettings" />
   </section>
   <section v-show="props.activeSection === 'settings-translation-center'" id="settings-translation-center" class="settings-section translation-center-section">
     <TranslationCenter />
   </section>
   <section v-show="props.activeSection === 'settings-harness'" id="settings-harness" class="settings-section">
     <HarnessSettings :config="config" />
+  </section>
+  <section v-if="props.activeSection === 'settings-glossary'" id="settings-glossary" class="settings-section">
+    <GlossarySettings />
   </section>
   <div class="settings-main-sections">
     <!-- 翻译服务 -->
@@ -92,15 +96,21 @@
       />
     </section>
     <section v-show="props.activeSection === 'settings-image-translation'" id="settings-image-translation" class="settings-section image-translation-settings">
-      <SettingsGroup title="功能状态" description="图片翻译与圈选翻译共用本地 OCR 语言包，但可以分别开启。">
+      <SettingsGroup title="功能状态" description="悬停网页图片，从图片上的翻译入口识别文字。">
         <SettingsItem label="网页图片翻译" description="悬停网页图片时显示翻译入口，默认关闭。">
-          <el-switch v-model="imageTranslationEnabled" class="settings-toggle" aria-label="网页图片翻译" />
-        </SettingsItem>
-        <SettingsItem label="圈选区域翻译" description="截取你主动圈选的屏幕区域进行 OCR 和翻译。">
-          <el-switch v-model="selectionAreaTranslationEnabled" class="settings-toggle" aria-label="圈选区域翻译" />
+          <el-switch v-model="imageTranslationEnabled" class="settings-toggle" aria-label="网页图片翻译" :disabled="!browserCapabilities.imageTranslation" />
         </SettingsItem>
       </SettingsGroup>
-      <ImageOcrSettings />
+      <ImageOcrSettings v-if="props.activeSection === 'settings-image-translation'" />
+    </section>
+    <section v-show="props.activeSection === 'settings-area-translation'" id="settings-area-translation" class="settings-section">
+      <AreaTranslationSettings
+        v-if="props.activeSection === 'settings-area-translation'"
+        :config="config"
+        :service-options="availableServiceOptions"
+        :enabled="selectionAreaTranslationEnabled"
+        @update:enabled="selectionAreaTranslationEnabled = $event"
+      />
     </section>
     <section v-show="props.activeSection === 'settings-video'" id="settings-video" class="settings-section">
       <SettingsGroup>
@@ -113,6 +123,33 @@
             <el-option v-for="item in videoServiceOptions" :key="item.value" class="select-left" :label="item.label" :value="item.value" />
           </el-select>
           <p v-if="selectedVideoServiceUnavailableMessage" class="capability-warning">{{ selectedVideoServiceUnavailableMessage }}</p>
+        </SettingsItem>
+        <SettingsItem
+          v-if="config.glossaryLibraries.length || config.glossaryEnabled"
+          :label="t('glossary.title')"
+          :description="videoGlossaryDescription"
+          :disabled="!config.videoTranslationEnabled"
+        >
+          <GlossaryLibrarySelect
+            v-model="config.videoGlossaryIds"
+            :libraries="config.glossaryLibraries"
+            :enabled="config.glossaryEnabled"
+            :disabled="!config.videoTranslationEnabled"
+            :show-copy="false"
+          >
+            <template #mode-control="{mode, changeMode}">
+              <el-select
+                :model-value="mode"
+                :aria-label="t('glossary.mode')"
+                :disabled="!config.videoTranslationEnabled"
+                @update:model-value="changeMode"
+              >
+                <el-option value="inherit" :label="t('glossary.inherit')" />
+                <el-option value="none" :label="t('glossary.none')" />
+                <el-option value="selected" :label="t('glossary.choose')" :disabled="!config.glossaryLibraries.length" />
+              </el-select>
+            </template>
+          </GlossaryLibrarySelect>
         </SettingsItem>
         <SettingsItem label="显示 FluentRead 字幕" description="临时隐藏扩展字幕时保留当前翻译设置。" :disabled="!config.videoTranslationEnabled">
           <el-switch v-model="config.videoSubtitleVisible" class="settings-toggle" aria-label="显示 FluentRead 视频字幕" :disabled="!config.videoTranslationEnabled" />
@@ -666,7 +703,9 @@
 
 // Main 处理配置信息
 import { computed, ref, watch, onUnmounted } from 'vue'
-import { customModelString, defaultOption, getMultilingualTargetLanguageLabel, models, options, services, servicesType } from '@/src/core/config/catalog';
+import {isValidAzureEndpoint} from '@/src/core/config/azure';
+import { customModelString, defaultOption, getMultilingualTargetLanguageLabel, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
+import GlossaryLibrarySelect from '@/src/ui/components/GlossaryLibrarySelect.vue';
 import {
   createNextCustomOpenAIProviderId,
   getCustomOpenAIProvider,
@@ -728,7 +767,10 @@ import ServiceConfiguration from './services/ServiceConfiguration.vue';
 import CustomOpenAIProviderDialog from './services/CustomOpenAIProviderDialog.vue';
 import {TranslationCenter} from '@/src/features/translation-center/public';
 import HarnessSettings from './HarnessSettings.vue';
+import {GlossarySettings} from '@/src/features/glossary/public';
 import AlwaysTranslateSites from './AlwaysTranslateSites.vue';
+import SiteAdaptationSettings from './SiteAdaptationSettings.vue';
+import type {SiteAdaptationSettings as SiteAdaptationConfig} from '@/src/core/site-adaptation/types';
 import {
   createApiKeyRequirementKey,
   getApiKeyRequirementKey,
@@ -741,6 +783,8 @@ import VideoLocalModelSettings from './VideoLocalModelSettings.vue';
 import VideoSubtitleAppearanceSettings from './VideoSubtitleAppearanceSettings.vue';
 import {ModelUsageDashboard} from '@/src/features/model-usage/public';
 import InterfaceSettings from './InterfaceSettings.vue';
+import AreaTranslationSettings from './AreaTranslationSettings.vue';
+import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import TranslationCacheSettings from './TranslationCacheSettings.vue';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
@@ -753,12 +797,13 @@ import {
   config as runtimeConfig,
   configReady,
   requestConfigPatch,
-  requestConfigSave,
+  handoffPendingConfigPatches,
   subscribeConfig,
 } from '@/src/services/config/store';
 import {
   filterAvailableTranslationServices,
   getTranslationServiceUnavailableMessage,
+  supportsTranslationGlossary,
 } from '@/src/services/translation/capabilities';
 
 const props = withDefaults(defineProps<{
@@ -816,8 +861,9 @@ const translationSchedulerEffect = computed(() => t('settings.advanced.scheduler
 const customProviderDialogOpen = ref(false);
 const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
 const persistConfigPatch = (value: unknown) => requestConfigPatch(value, sendConfigMessage);
-const persistConfigReplace = (value: unknown) => requestConfigSave(value, sendConfigMessage);
-
+// 适配器有显式 JSON 保存动作，等待后台提交后才确认；订阅会同步权威状态，避免触发另一份全量快照保存。
+const saveSiteAdaptationSettings = (value: SiteAdaptationConfig): Promise<void> =>
+  persistConfigPatch({siteAdaptation: value});
 let lastSerialized = '';
 let hydrated = false;
 let applyingExternalConfig = false;
@@ -828,7 +874,7 @@ const unsubscribeConfig = subscribeConfig((nextConfig) => {
   lastSerialized = serialized;
   applyingExternalConfig = true;
   try {
-    Object.assign(config.value, nextConfig);
+    Object.assign(config.value, normalizeConfig(nextConfig));
   } finally {
     applyingExternalConfig = false;
   }
@@ -846,6 +892,8 @@ void configReady
 watch(() => JSON.stringify(config.value), (serialized) => {
   if (!hydrated || applyingExternalConfig) return;
   if (serialized === lastSerialized) return;
+  // 若关闭被外部原因取消，后续真实编辑应能再次交接；外部水合不会重置退出去重。
+  pageExitSaveStarted = false;
   lastSerialized = serialized;
   const snapshot = normalizeConfig(config.value);
   void persistConfigPatch(snapshot).catch((error) => {
@@ -855,23 +903,28 @@ watch(() => JSON.stringify(config.value), (serialized) => {
   });
 }, { flush: 'sync' });
 
-// 设置页关闭前 best-effort 补交最终快照；页面仍可能在消息真正发送前销毁。
-// pagehide 和 unmounted 可能连续触发，只提交一次，避免重复写入和重复历史。
-// revision 边界会拒绝过期 replace，普通交互则始终使用字段 patch。
+// 设置页关闭前同步交接尚未确认的字段补丁链，后台继续按 sequence 去重和字段 CAS 保存。
+// beforeunload 在扩展消息通道仍可用时先交接，pagehide/unmounted 回退且只交接一次。
+// 不阻止关闭或弹出确认；空队列不发送消息或新增历史。
+// 先捕获最终草稿，再交接完整前驱链，不能把整份替换排入即将随页面销毁的本地队列。
 function persistOnPageExit() {
   if (!hydrated || pageExitSaveStarted) return;
   pageExitSaveStarted = true;
-  void persistConfigReplace(config.value).catch((error) => console.warn('[FluentRead] 设置页关闭前后台保存失败', error));
+  void persistConfigPatch(config.value).catch((error) => console.warn('[FluentRead] 设置页关闭前后台保存失败', error));
+  void handoffPendingConfigPatches(sendConfigMessage, sendConfigMessage)
+    .catch((error) => console.warn('[FluentRead] 设置页关闭前交接设置失败', error));
 }
 
 onUnmounted(() => {
   persistOnPageExit();
+  window.removeEventListener('beforeunload', persistOnPageExit);
   window.removeEventListener('pagehide', saveOnPageHide);
 });
 
 function saveOnPageHide() {
   persistOnPageExit();
 }
+window.addEventListener('beforeunload', persistOnPageExit);
 window.addEventListener('pagehide', saveOnPageHide);
 
 // 设置页左侧列表只切换正在编辑的服务，不改变网页翻译实际使用的默认服务。
@@ -916,6 +969,12 @@ const defaultTextServiceLabel = computed(() => (
   serviceOptionsWithCustomProviders.value.find((item: any) => item.value === config.value.service)?.label || config.value.service
 ));
 const videoServiceOptions = computed(() => availableServiceOptions.value.filter((item: any) => !item.disabled));
+const videoGlossaryDescription = computed(() => {
+  if (!config.value.glossaryEnabled) return t('glossary.disabledHint');
+  const service = config.value.videoService;
+  const model = resolveConfiguredModel(config.value.model[service], config.value.customModel[service]);
+  return t(supportsTranslationGlossary(service, model) ? 'glossary.scopeHint' : 'glossary.unsupportedHint');
+});
 const selectedTextServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.service));
 const selectedVideoServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.videoService));
 const fullPageTranslationModeOptions = [
@@ -1397,20 +1456,6 @@ const handleTranslationBackoffMaxChange = (currentValue: number | undefined) => 
     config.value.translationBackoffBaseMs,
     normalized,
   );
-};
-
-// Azure OpenAI 端点地址验证函数
-const isValidAzureEndpoint = (endpoint: string) => {
-  if (!endpoint || endpoint.trim() === '') {
-    return false;
-  }
-
-  // 检查是否包含必要的组件
-  const hasAzureDomain = endpoint.includes('openai.azure.com');
-  const hasChatCompletions = endpoint.includes('/chat/completions');
-  const hasHttps = endpoint.startsWith('https://');
-
-  return hasHttps && hasAzureDomain && hasChatCompletions;
 };
 
 </script>

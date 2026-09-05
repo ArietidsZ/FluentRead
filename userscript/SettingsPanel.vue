@@ -17,7 +17,7 @@
         <fieldset>
           <legend>基础设置</legend>
           <label class="toggle"><span>启用 FluentRead</span><input v-model="draft.on" type="checkbox" /></label>
-          <label><span>源语言</span><select v-model="draft.from"><option v-for="item in options.form" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
+          <label><span>源语言</span><select v-model="draft.from"><option v-for="item in options.from" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
           <label><span>目标语言</span><select v-model="draft.to"><option v-for="item in options.to" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
           <label><span>译文显示</span><select v-model.number="draft.display"><option v-for="item in options.display" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
           <label><span>双语样式</span><select v-model.number="draft.style"><option v-for="item in styleOptions" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
@@ -46,10 +46,31 @@
           </div>
           <label v-if="isAIService && usesToken" class="toggle"><span>当前模型需要 API Key</span><input v-model="requiresApiKey" type="checkbox" /></label>
           <label v-if="usesToken"><span>API Key / Token</span><input v-model.trim="draft.token[draft.service]" type="password" autocomplete="off" /></label>
+          <label v-if="draft.service === services.deepL"><span>DeepL API 套餐</span><select v-model="draft.deeplApiPlan"><option value="free">API Free（免费）</option><option value="pro">API Pro（付费）</option></select></label>
+          <p v-if="draft.service === services.deepL" class="hint">选择与 API Key 对应的套餐；代理地址优先于套餐默认接口。</p>
           <label v-if="isCustomOpenAIService"><span>自定义接口地址</span><input v-model.trim="customOpenAIEndpoint" inputmode="url" :maxlength="MAX_CUSTOM_OPENAI_PROVIDER_ENDPOINT_LENGTH" /></label>
           <label v-if="draft.service === services.deeplx"><span>DeepLX 地址</span><input v-model.trim="draft.deeplx" inputmode="url" /></label>
+          <template v-if="draft.service === services.myMemory">
+            <label><span>MyMemory 邮箱（可选）</span><input v-model.trim="draft.myMemoryEmail" type="email" /></label>
+            <p class="hint">官方 API：匿名每天 5,000 字符，有效邮箱每天 50,000 字符。</p>
+          </template>
+          <details v-if="draft.service === services.freeTranslation">
+            <summary>自动降级顺序与连接设置</summary>
+            <p class="hint">所有后备均无需密钥，按顺序切换并至少保留一路。MyMemory 邮箱可留空；微软、DeepLX 和谷歌网页接口不是官方公开 API。</p>
+            <div v-for="(id, index) in draft.freeTranslationOrder" :key="id" class="fallback-order-row">
+              <span>{{ fallbackLabel(id) }}</span>
+              <button type="button" :disabled="index === 0" :aria-label="`上移 ${fallbackLabel(id)}`" @click="moveFallback(index, -1)">↑</button>
+              <button type="button" :disabled="index === draft.freeTranslationOrder.length - 1" :aria-label="`下移 ${fallbackLabel(id)}`" @click="moveFallback(index, 1)">↓</button>
+              <button type="button" :disabled="draft.freeTranslationOrder.length === 1" @click="draft.freeTranslationOrder = draft.freeTranslationOrder.filter(value => value !== id)">停用</button>
+            </div>
+            <label v-for="item in availableFallbacks" :key="item.id"><span>{{ item.label }}</span><button type="button" @click="draft.freeTranslationOrder.push(item.id)">加入后备</button></label>
+            <label><span>MyMemory 邮箱（可选）</span><input v-model.trim="draft.myMemoryEmail" type="email" /></label>
+            <label><span>每路超时（ms）</span><input v-model.number="draft.freeTranslationTimeoutMs" type="number" min="1000" max="15000" step="1000" /></label>
+            <label><span>失败后休息（ms）</span><input v-model.number="draft.freeTranslationCooldownMs" type="number" min="1000" max="300000" step="1000" /></label>
+          </details>
           <label v-if="draft.service === services.newapi"><span>New API 地址</span><input v-model.trim="draft.newApiUrl" inputmode="url" /></label>
-          <label v-if="draft.service === services.azureOpenai"><span>Azure OpenAI 地址</span><input v-model.trim="draft.azureOpenaiEndpoint" inputmode="url" /></label>
+          <label v-if="draft.service === services.azureOpenai"><span>Azure 地址</span><input v-model.trim="draft.azureOpenaiEndpoint" inputmode="url" placeholder="https://your-resource.services.ai.azure.com/openai/v1/" /></label>
+          <p v-if="draft.service === services.azureOpenai" class="hint">支持资源地址、v1 基础地址与完整 Chat Completions 地址；模型请填写 Azure 中的实际部署名称。</p>
           <label v-if="usesProxy"><span>代理地址（可选）</span><input v-model.trim="draft.proxy[draft.service]" inputmode="url" placeholder="留空使用默认接口" /></label>
           <template v-if="draft.service === services.youdao">
             <label><span>有道 App Key</span><input v-model.trim="draft.youdaoAppKey" autocomplete="off" /></label>
@@ -124,6 +145,7 @@
 <script setup lang="ts">
 import {computed, onMounted, ref, watch} from 'vue';
 import browser from 'webextension-polyfill';
+import {FREE_TRANSLATION_PROVIDERS} from '@/src/core/config/freeTranslation';
 import {Config} from '@/src/core/config/model';
 import {translationLoadingStyleOptions} from '@/src/core/config/translationLoadingStyle';
 import TranslationLoadingPreview from '@/src/ui/components/TranslationLoadingPreview.vue';
@@ -157,6 +179,15 @@ const emit = defineEmits<{close: []}>();
 const versionLabel = `FluentRead V${process.env.VUE_APP_VERSION} · Userscript V${process.env.VUE_APP_USERSCRIPT_VERSION}`;
 const iconUrl = globalThis.__FLUENTREAD_ICON_DATA__ || '';
 const draft = ref(new Config());
+const fallbackLabel = (id: string) => FREE_TRANSLATION_PROVIDERS.find(item => item.id === id)?.label || id;
+const availableFallbacks = computed(() => FREE_TRANSLATION_PROVIDERS.filter(item => !draft.value.freeTranslationOrder.includes(item.id)));
+function moveFallback(index: number, delta: number) {
+  const order = [...draft.value.freeTranslationOrder];
+  [order[index], order[index + delta]] = [order[index + delta], order[index]];
+  draft.value.freeTranslationOrder = order;
+}
+
+
 const saving = ref(false);
 const status = ref('');
 const statusIsError = ref(false);
@@ -428,6 +459,11 @@ async function togglePageTranslation(): Promise<void> {
 </script>
 
 <style scoped>
+.fallback-order-row { display: flex; align-items: center; gap: 6px; padding: 8px 0; }
+.fallback-order-row > span { flex: 1; min-width: 0; }
+.fallback-order-row > button { padding: 5px 9px; border-radius: 6px; }
+.fallback-order-row > button:disabled { opacity: .4; cursor: default; }
+
 .fr-userscript-settings-backdrop { position: fixed; inset: 0; z-index: 2147483647; display: grid; width: 100vw; height: 100vh; padding: 22px; place-items: center; box-sizing: border-box; background: rgba(20, 24, 34, .48); color: #182033; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif; pointer-events: auto; backdrop-filter: blur(8px); }
 .fr-userscript-settings { display: flex; width: min(980px, calc(100vw - 32px)); max-height: min(900px, calc(100vh - 32px)); overflow: hidden; border: 1px solid rgba(25, 35, 54, .12); border-radius: 22px; background: #f7f8fb; box-shadow: 0 28px 90px rgba(15, 20, 32, .32); flex-direction: column; }
 header, footer { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 20px; background: #fff; }
