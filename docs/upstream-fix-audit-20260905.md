@@ -1,6 +1,6 @@
 # 阅读蛙与简约翻译修复对照（2026-09-05）
 
-> 本文保留首轮审查记录。随后对未通过用例的逐项归因、产品修复与最终验证见[浏览器失败跟进报告](./upstream-regression-followup-20260905.md)。
+> 本文保留首轮审查记录。最终整合与交付见[PR #447 验证报告](https://github.com/FluentRead/FluentRead/blob/main/docs/reports/upstream-integration-20260905.md)。随后对未通过用例的逐项归因、产品修复与最终验证见[浏览器失败跟进报告](./upstream-regression-followup-20260905.md)。
 
 本轮以 FluentRead `4d1d9e5`（含 PR #430）为基线，检查阅读蛙近期 60 条标题含 fix 的已合并 PR，以及简约翻译的修复记录。参考目录只读；所有实现均按 FluentRead 的 Vue/WXT/TypeScript 架构独立编写。上游已修复不等于 FluentRead 也有同样缺陷，只有当前代码或回归复现支持的问题才进入实施。
 
