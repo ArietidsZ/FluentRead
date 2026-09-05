@@ -6,8 +6,9 @@
  */
 import {safeClosest} from '../translation/dom';
 
-// 命令、参数、路径及逗号分隔的命令列表；通过字符形态保守判断，不内置命令词表。
-const literalTokenPattern = /^[\w.+/-]+(?:\s*,\s*[\w.+/-]+)*$/u;
+// 命令、参数、路径、逗号列表，以及命令后只接 -/-- 选项的组合（可跨行）。
+// 普通粗体句子的后续单词没有选项前缀，仍然进入翻译；不内置命令词表。
+const literalTokenPattern = /^[\w.+/-]+(?:(?:\s*,\s*[\w.+/-]+)+|(?:\s+--?\w[\w-]*)+)?$/u;
 
 function matchesLiteralLabel(label: Element): boolean {
     const clone = label.cloneNode(true) as Element;

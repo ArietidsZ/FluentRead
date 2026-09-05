@@ -155,7 +155,15 @@ vi.mock("@/src/core/translation/public", () => {
         "[inert]", "[aria-hidden='true']",
     ].join(",");
     const isProtected = (element: Element) => Boolean(element.closest(protectedSelector));
-    const textSlots = (element: HTMLElement) => {
+    const textSlots = (element: HTMLElement, keepOriginal?: (element: Element) => boolean) => {
+        const isProtectedByAdapter = (element: Element) => {
+            let current: Element | null = element;
+            while (current) {
+                if (keepOriginal?.(current)) return true;
+                current = current.parentElement;
+            }
+            return false;
+        };
         const slots: Array<{node: Text; prefix: string; source: string; suffix: string}> = [];
         const walker = element.ownerDocument.createTreeWalker(element, 4);
         let current = walker.nextNode();
@@ -163,7 +171,7 @@ vi.mock("@/src/core/translation/public", () => {
             const node = current as Text;
             const source = node.nodeValue ?? "";
             if (source.trim() && node.parentElement && !isProtected(node.parentElement) &&
-                !node.parentElement.closest('[data-fr-translation-owned="true"]')) {
+                !isProtectedByAdapter(node.parentElement) && !node.parentElement.closest('[data-fr-translation-owned="true"]')) {
                 slots.push({node, prefix: "", source, suffix: ""});
             }
             current = walker.nextNode();
@@ -172,7 +180,8 @@ vi.mock("@/src/core/translation/public", () => {
     };
 
     return {
-        extractTranslationText: (element: HTMLElement) => textSlots(element).map(({source}) => source).join(""),
+        extractTranslationText: (element: HTMLElement, keepOriginal?: (element: Element) => boolean) =>
+            textSlots(element, keepOriginal).map(({source}) => source).join(""),
         extractTranslationTextFromNodes: (nodes: readonly Node[]) =>
             nodes.map((node) => node.textContent ?? "").join(""),
         applyTranslationsToSnapshot: (_snapshot: unknown, translations: readonly string[]) => translations.join(""),
@@ -191,7 +200,8 @@ vi.mock("@/src/core/translation/public", () => {
         isTranslationTextElementProtected: (element: Element) => isProtected(element),
         getCurrentTranslationCore: () => runtime.realCore ?? ({
             adapters: runtime.adapters,
-            shouldStayOriginal: () => false,
+            shouldStayOriginal: (element: Element) => runtime.adapters.some(adapter =>
+                adapter.shouldStayOriginal?.(element, {url: new URL('https://example.com')})),
             shouldIgnoreMutation: runtime.ignoreMutation,
             inspect: (element: HTMLElement) => ({
                 candidate: [...runtime.candidates].reverse().find((candidate) =>
@@ -443,6 +453,133 @@ describe("全文翻译可见性锚点", () => {
         }
         replacedGlobals.clear();
     });
+
+    it.each([['outside','loading'], ['segment','loading'], ['outside','translated'], ['segment','translated'], ['outside','error'], ['segment','error']] as const)(
+        '全属性观察保持 %s 属性写入下的 %s mixed run 与邻居所有权', async (location, phase) => {
+            // 广域重扫使用 performance 的冷却时钟；与本例 fake timers 一同推进。
+            replaceGlobal('performance', {now: () => Date.now()});
+            runtime.config.display = 1;
+            runtime.config.fullPageTranslationMode = 'all';
+            document.body.innerHTML = '<aside id="outside"></aside><section id="main"><div id="mixed">Readable inline prefix <strong id="emphasis">with emphasized prose.</strong><p id="nested">Independent block child with explanatory text.</p></div></section>';
+            const host = document.querySelector<HTMLElement>('#mixed')!;
+            const emphasis = document.querySelector<HTMLElement>('#emphasis')!;
+            const nested = document.querySelector<HTMLElement>('#nested')!;
+            const outside = document.querySelector<HTMLElement>('#outside')!;
+            const sourceNodes = [host.firstChild as Text, emphasis];
+            setLayoutBox(host, 640, 120);
+            setLayoutBox(nested, 640, 50);
+            runtime.adapters = [{id: 'broad-attribute-observer', matches: () => true,
+                decide: () => ({kind:'pass'}), observedAttributes: null}];
+            runtime.candidates = [
+                {element:host, nodes:sourceNodes, kind:'content', reason:'inline-run'},
+                {element:nested, kind:'content', reason:'independent-block'},
+            ];
+            const pending = deferred<string[]>();
+            runtime.requests.mockImplementation(origins => pending.promise.then(() => origins.map(origin => `译:${origin}`)));
+            autoTranslateEnglishPage();
+            await vi.advanceTimersByTimeAsync(51);
+            await waitForRequestCount(2);
+            const segment = host.querySelector<HTMLElement>('[data-fr-translation-segment="true"]')!;
+            const segmentState = getTranslationState(segment)!;
+            const nestedState = getTranslationState(nested)!;
+            expect(segmentState.syntheticSegment).toBe(true);
+            if (phase === 'translated' || phase === 'error') {
+                if (phase === 'translated') pending.resolve(['译文用于验证来源保持']);
+                else pending.reject(new Error('fixture provider failure'));
+                await finishScheduledWork();
+            }
+            expect(segmentState.phase).toBe(phase);
+            const mutationTarget = location === 'outside' ? outside : segment;
+            const attributeName = location === 'outside' ? 'data-unrelated-marker' : 'data-fr-translation-segment';
+            mutationTarget.setAttribute(attributeName, 'true');
+            TestMutationObserver.instances.at(-1)!.emit([{type:'attributes', target:mutationTarget, attributeName,
+                oldValue:null, addedNodes:[], removedNodes:[]} as unknown as MutationRecord]);
+            expect(segment.isConnected, 'intact synthetic source removed synchronously').toBe(true);
+            expect(segmentState.controller.signal.aborted, 'unrelated attribute aborted exact mixed source').toBe(false);
+            expect(nestedState.controller.signal.aborted, 'unrelated attribute aborted neighbor').toBe(false);
+            expect(getTranslationState(segment)).toBe(segmentState);
+            if (phase === 'loading') pending.resolve(['译文用于验证来源保持']);
+            await finishScheduledWork();
+            if (phase === 'error') {
+                expect(getTranslationState(segment)?.phase).toBe('error');
+                expect(getTranslationState(nested)?.phase).toBe('error');
+            } else {
+                expect(segment.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+                expect(nested.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+            }
+            expect(runtime.requests).toHaveBeenCalledTimes(2);
+        },
+    );
+
+
+    it.each(['protect', 'exclude', 'source-edit', 'forged-owner', 'removed-marker', 'moved-host', 'focus-boundary'] as const)(
+        '全属性观察仍取消真实失效的 %s 来源，不放过同名标记伪装', async (change) => {
+            // 广域重扫使用 performance 的冷却时钟；与本例 fake timers 一同推进。
+            replaceGlobal('performance', {now: () => Date.now()});
+            runtime.config.display = 1;
+            runtime.config.fullPageTranslationMode = 'all';
+            document.body.innerHTML = '<aside id="guard"><span id="flag"></span></aside><div id="mixed">Readable inline prefix <strong id="emphasis">with emphasized prose.</strong><p id="nested">Independent block explanation.</p></div><div id="other"></div>';
+            const host = document.querySelector<HTMLElement>('#mixed')!;
+            const emphasis = document.querySelector<HTMLElement>('#emphasis')!;
+            const nested = document.querySelector<HTMLElement>('#nested')!;
+            const flag = document.querySelector<HTMLElement>('#flag')!;
+            const sourceNodes = [host.firstChild as Text, emphasis];
+            setLayoutBox(host, 640, 120);
+            setLayoutBox(nested, 640, 50);
+            if (change === 'protect' || change === 'exclude') {
+                runtime.adapters = compileSiteRulePack({version:1, rules:[{
+                    id:'related-protection', name:'Related protection', match:{hosts:['example.com']},
+                    mode:'augment', [change]:['#guard:has([data-block="yes"]) + #mixed'],
+                }]});
+                expect(runtime.adapters[0]!.observedAttributes).toBeNull();
+            } else {
+                runtime.adapters = [{id:'broad', matches:()=>true, decide:()=>({kind:'pass'}),
+                    observedAttributes:null, genericCandidatePolicy:change === 'focus-boundary' ? 'targets-only' : 'allow'}];
+            }
+            runtime.candidates = change === 'forged-owner'
+                ? [{element:nested, kind:'content', reason:'ordinary-paragraph'}]
+                : [{element:host, nodes:sourceNodes, kind:'content', reason:'inline-run'},
+                    {element:nested, kind:'content', reason:'nested-paragraph'}];
+            const pending = deferred<void>();
+            runtime.requests.mockImplementation(origins => pending.promise.then(() => origins.map(origin => `译:${origin}`)));
+            autoTranslateEnglishPage();
+            await vi.advanceTimersByTimeAsync(51);
+            await waitForRequestCount(change === 'forged-owner' ? 1 : 2);
+            const target = change === 'forged-owner' ? nested
+                : host.querySelector<HTMLElement>('[data-fr-translation-segment="true"]')!;
+            const previous = getTranslationState(target)!;
+            expect(previous.phase).toBe('loading');
+            let mutationTarget = target;
+            let attributeName = 'data-fr-translation-segment';
+            let oldValue: string | null = null;
+            if (change === 'protect' || change === 'exclude') {
+                flag.setAttribute('data-block','yes');
+                expect(runtime.adapters[0]!.shouldStayOriginal!(host,{url:new URL('https://example.com')})).toBe(true);
+                mutationTarget = flag; attributeName = 'data-block';
+            } else if (change === 'source-edit') {
+                sourceNodes[0]!.textContent = 'The host replaced this source text.';
+            } else if (change === 'forged-owner') {
+                target.setAttribute(attributeName,'true');
+                expect(previous.syntheticSegment).toBe(false);
+            } else if (change === 'removed-marker') {
+                target.removeAttribute(attributeName); oldValue = 'true';
+            } else if (change === 'moved-host') {
+                document.querySelector('#other')!.appendChild(target);
+            } else {
+                mutationTarget = flag; attributeName = 'data-ready';
+                flag.setAttribute(attributeName,'no');
+                runtime.candidateEligible.mockReturnValue(false);
+            }
+            TestMutationObserver.instances.at(-1)!.emit([{type:'attributes', target:mutationTarget,
+                attributeName, oldValue, addedNodes:[], removedNodes:[]} as unknown as MutationRecord]);
+            expect(previous.controller.signal.aborted).toBe(true);
+            expect(getTranslationState(target)).toBeUndefined();
+            if (change !== 'forged-owner') expect(target.isConnected).toBe(false);
+            pending.resolve();
+            await finishScheduledWork();
+            if (change !== 'forged-owner') expect(target.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(0);
+        },
+    );
 
     it("全文会话集中发布启动和结束状态事件", () => {
         const states: string[] = [];

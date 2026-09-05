@@ -457,10 +457,10 @@
     "requiredSelectors": ["main p"],
     "coverageRules": [
       {"name": "guide-title", "selector": "main h1", "kind": "heading", "minInitial": 1},
-      {"name": "guide-sections", "selector": "main h2", "kind": "heading", "minInitial": 2},
+      {"name": "guide-sections", "selector": "main .reference-layout__body h2", "kind": "heading", "minInitial": 2},
       {"name": "guide-paragraphs", "selector": "main p", "kind": "content", "minInitial": 5}
     ],
-    "forbiddenSelectors": ["main pre, main code"],
+    "forbiddenSelectors": ["main pre, main code", "main .reference-toc"],
     "interactionSelectors": ["main a[href]"],
     "modes": ["hover", "full"],
     "tier": "required",

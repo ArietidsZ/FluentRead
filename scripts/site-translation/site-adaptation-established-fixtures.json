@@ -103,5 +103,75 @@
       "#navigation",
       "#commentapp"
     ]
+  },
+  {
+    "id": "ubuntu-manpage",
+    "url": "https://manpages.ubuntu.com/manpages/noble/man8/apt.8.html",
+    "html": "<main id=\"main-content\"><h1>APT command reference</h1><div id=\"manpage-content\"><h2 id=\"synopsis\" class=\"Sh\">SYNOPSIS</h2><section class=\"Sh\" id=\"syntax\"><p><b>apt</b> [<b>--help</b>]</p></section><h2 id=\"description\" class=\"Sh\">DESCRIPTION</h2><section class=\"Sh\"><p id=\"body1\" class=\"Pp\">This package manager provides a stable interface for everyday system administration.</p><p class=\"Pp\" id=\"command-label\"><b>future-upgrade</b> (see package options)</p><div id=\"mixed-command\" class=\"Bd-indent\"><b>future-upgrade</b> performs the requested upgrade while preserving installed package information.<p id=\"body2\" class=\"Pp\">When a package is supplied as an argument, it is installed before the upgrade action.</p></div><p class=\"Pp\" id=\"second-label\"><b>future-remove</b></p><div id=\"second-command\" class=\"Bd-indent\"><b>dpkg-query\n  --list</b> lists packages that are available on the installed system.</div></section></div></main>",
+    "required": [
+      "#body1",
+      "#body2",
+      "#second-command"
+    ],
+    "forbidden": [
+      "#main-content h1",
+      "#syntax",
+      "#command-label",
+      "#second-label"
+    ],
+    "translationParts": [
+      {
+        "selector": "#mixed-command > [data-fr-translation-segment=\"true\"]",
+        "sourceIncludes": "performs the requested upgrade while preserving installed package information.",
+        "preservedText": [
+          "future-upgrade"
+        ]
+      },
+      {
+        "selector": "#body2",
+        "sourceIncludes": "When a package is supplied as an argument, it is installed before the upgrade action."
+      },
+      {
+        "selector": "#second-command",
+        "sourceIncludes": "lists packages that are available on the installed system.",
+        "preservedText": [
+          "dpkg-query\n  --list"
+        ],
+        "preservedMarkup": [
+          {
+            "selector": "b",
+            "text": "dpkg-query\n  --list"
+          }
+        ]
+      }
+    ],
+    "restoreSelectors": [
+      "#mixed-command",
+      "#second-command"
+    ]
+  },
+  {
+    "id": "x-chat",
+    "url": "https://chat.x.com/room/fixture",
+    "html": "<main><div id=\"body1\">This private message explains how the deployment should proceed.<div id=\"message-metadata\" class=\"flex items-center ml-auto shrink-0 gap-1\">Yesterday 10:30 Edited</div></div><p id=\"body2\">A second independent message provides enough context to verify neighboring content.</p></main>",
+    "required": [
+      "#body1",
+      "#body2"
+    ],
+    "forbidden": [
+      "#message-metadata"
+    ],
+    "translationParts": [
+      {
+        "selector": "#body1",
+        "sourceIncludes": "This private message explains how the deployment should proceed.",
+        "omittedText": [
+          "Yesterday 10:30 Edited"
+        ]
+      }
+    ],
+    "restoreSelectors": [
+      "#body1"
+    ]
   }
 ]

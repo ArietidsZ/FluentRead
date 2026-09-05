@@ -632,7 +632,7 @@ describe('options UI composition architecture', () => {
     expect(translationCenter).toContain('if (Object.keys(patch).length === 0) return')
   })
 
-  it('uses patches for ordinary autosaves and hands the pending popup chain to the config service on exit', () => {
+  it('uses patches for ordinary autosaves and hands pending popup and settings chains to the config service on exit', () => {
     const popup = source('src/app/popup/PopupApp.vue')
     const settings = source('src/features/settings/ui/SettingsSections.vue')
 
@@ -641,10 +641,13 @@ describe('options UI composition architecture', () => {
       expect(content).toContain('persistConfigPatch(snapshot)')
       expect(content).not.toContain('replace 作为队列 flush/barrier')
     }
-    expect(settings).toContain('requestConfigSave')
-    expect(settings).toContain('best-effort')
-    expect(settings).toContain('persistConfigReplace(config.value)')
-    expect(settings).toContain('revision 边界会拒绝过期 replace')
+    expect(settings).not.toContain('requestConfigSave')
+    expect(settings).not.toContain('persistConfigReplace(config.value)')
+    expect(settings).toContain('persistConfigPatch(config.value)')
+    expect(settings).toContain('handoffPendingConfigPatches(sendConfigMessage, sendConfigMessage)')
+    expect(settings).toContain("window.addEventListener('beforeunload', persistOnPageExit);")
+    expect(settings).toContain("window.removeEventListener('beforeunload', persistOnPageExit);")
+    expect(settings).toContain("window.addEventListener('pagehide', saveOnPageHide);")
     expect(popup).not.toContain('requestConfigSave')
     expect(popup).toContain('persistConfigPatch(config.value)')
     expect(popup).toContain('handoffPendingConfigPatches(sendConfigMessage, sendConfigMessage)')

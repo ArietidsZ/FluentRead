@@ -6,8 +6,10 @@ import {createRequire} from 'node:module';
 import {parseHTML} from 'linkedom';
 import {describe, expect, it, vi} from 'vitest';
 import cases from './browser-translation-cases.json';
+import establishedFixtures from '../scripts/site-translation/site-adaptation-established-fixtures.json';
 
 const require = createRequire(import.meta.url);
+const {inspectFixtureTranslationParts} = require('../scripts/site-translation/fixture-translation-parts.cjs');
 const {
   COVERAGE_EXCLUDED_ANCESTORS,
   COVERAGE_PROTECTED_DESCENDANTS,
@@ -1767,6 +1769,71 @@ describe('real-site translation matrix gates', () => {
     const protectedNodes = config.forbiddenMustExistSelectors.flatMap((selector) => [...document.querySelectorAll(selector)]);
     expect(protectedNodes.map((node) => node.textContent)).toEqual(['apt [--help]', 'update']);
     expect(config.forbiddenMustExistSelectors.every((selector) => config.forbiddenSelectors.includes(selector))).toBe(true);
+  });
+
+  it('covers MDN body headings while preserving the sidebar table of contents', () => {
+    const {document} = parseHTML('<main id="content" class="layout__content"><h1>Grammar and types</h1><aside class="layout__right-sidebar reference-layout__toc"><nav class="reference-toc"><h2>In this article</h2><a href="#basics">Basics</a></nav></aside><div class="layout__body reference-layout__body"><section class="content-section"><h2 id="basics">Basics</h2><p>The language distinguishes upper and lower case.</p><p>Statements have a defined structure.</p><p>Use <code>let</code> for a local binding.</p></section><section class="content-section"><h2>Comments</h2><p>Comments explain the surrounding source.</p><p>They are ignored during execution.</p><pre>let value = 1;</pre></section></div></main>');
+    const config = cases['mdn-javascript-guide'];
+    const rules = normalizeCoverageRules(config.coverageRules);
+    const headings = rules.find(({name}) => name === 'guide-sections')!;
+    expect([...document.querySelectorAll(headings.selector)].map((node) => node.textContent)).toEqual(['Basics', 'Comments']);
+    expect(headings.minInitial).toBe(2);
+    expect(rules.find(({name}) => name === 'guide-title')?.minInitial).toBe(1);
+    const paragraphs = rules.find(({name}) => name === 'guide-paragraphs')!;
+    expect(paragraphs.minInitial).toBe(5);
+    expect(document.querySelectorAll(paragraphs.selector)).toHaveLength(5);
+    const protectedNodes = resolveForbiddenMustExistSelectors('required', config.forbiddenSelectors, [])
+      .flatMap((selector) => [...document.querySelectorAll(selector)]);
+    expect(protectedNodes.some((node) => node.matches('nav.reference-toc'))).toBe(true);
+    expect(protectedNodes.some((node) => node.matches('pre'))).toBe(true);
+    expect(protectedNodes.some((node) => node.matches('code'))).toBe(true);
+  });
+
+  it('requires each mixed-manpage source part and does not accept only its nested paragraph translation', () => {
+    const fixture = establishedFixtures.find(({id}) => id === 'ubuntu-manpage')!;
+    const {document} = parseHTML(fixture.html);
+    const parts = fixture.translationParts!;
+    const child = document.querySelector('#body2')!;
+    child.insertAdjacentHTML('beforeend', `<span class="fluent-read-bilingual-content">测试译文：${child.textContent}</span>`);
+    const onlyChild = inspectFixtureTranslationParts({parts}, document);
+    expect(onlyChild.map(({translated}: {translated: boolean}) => translated)).toEqual([false, true, false]);
+    expect(inspectFixtureTranslationParts({parts, requireAll: true}, document)).toBe(false);
+    const mixed = document.querySelector('#mixed-command')!;
+    const segment = document.createElement('span');
+    segment.setAttribute('data-fr-translation-segment', 'true');
+    while (mixed.firstChild !== child) segment.append(mixed.firstChild!);
+    mixed.insertBefore(segment, child);
+    segment.insertAdjacentHTML('beforeend', `<span class="fluent-read-bilingual-content">测试译文：${segment.textContent}</span>`);
+    const second = document.querySelector('#second-command')!;
+    second.insertAdjacentHTML('beforeend', `<span class="fluent-read-bilingual-content">测试译文：${second.innerHTML}</span>`);
+    expect(inspectFixtureTranslationParts({parts, requireAll: true}, document)).toBe(true);
+    const translatedCommand = second.querySelector('.fluent-read-bilingual-content b')!;
+    const exactCommand = translatedCommand.textContent;
+    translatedCommand.textContent = exactCommand!.replace(/\s+/gu, ' ');
+    expect(inspectFixtureTranslationParts({parts, requireAll: true}, document)).toBe(false);
+    translatedCommand.textContent = exactCommand;
+    expect(inspectFixtureTranslationParts({parts, requireAll: true}, document)).toBe(true);
+    segment.querySelector('.fluent-read-bilingual-content')!.textContent = `测试译文：${parts[0].sourceIncludes}`;
+    expect(inspectFixtureTranslationParts({parts, requireAll: true}, document)).toBe(false);
+    expect(fixture.restoreSelectors).toEqual(['#mixed-command', '#second-command']);
+  });
+
+  it('rejects X Chat metadata copied into the translated message or duplicate translated parts', () => {
+    const fixture = establishedFixtures.find(({id}) => id === 'x-chat')!;
+    const {document} = parseHTML(fixture.html);
+    const parts = fixture.translationParts!;
+    const owner = document.querySelector('#body1')!;
+    const source = parts[0].sourceIncludes;
+    owner.insertAdjacentHTML('beforeend', `<span class="fluent-read-bilingual-content">测试译文：${source}</span>`);
+    expect(inspectFixtureTranslationParts({parts, requireAll: true}, document)).toBe(true);
+    const translation = owner.querySelector('.fluent-read-bilingual-content')!;
+    translation.textContent += ' Yesterday 10:30 Edited';
+    expect(inspectFixtureTranslationParts({parts, requireAll: true}, document)).toBe(false);
+    translation.textContent = source;
+    expect(inspectFixtureTranslationParts({parts, requireAll: true}, document)).toBe(false);
+    translation.textContent = `测试译文：${source}`;
+    owner.appendChild(translation.cloneNode(true));
+    expect(inspectFixtureTranslationParts({parts, requireAll: true}, document)).toBe(false);
   });
 
   it('targets visible package readme content while requiring both fenced and inline code protection', () => {

@@ -788,6 +788,23 @@ describe('translation candidate core', () => {
         expect(core.resolve(document.getElementById('late-command')!.firstChild)).toBeNull();
     });
 
+    it.each(['dpkg-query\n  --list', 'future-tool --unknown-option -q'])('按字面标记保留命令选项组合 %s 的 DOM 和译文，不发送给服务', (literal) => {
+        const {document, core} = page(`<div id="manpage-content"><section class="Sh"><p id="body">Inspect packages with <b id="literal">${literal}</b> before continuing.</p></section></div>`,
+            'https://manpages.ubuntu.com/manpages/noble/man8/apt.8.html');
+        const body = document.getElementById('body')!;
+        const command = document.getElementById('literal')!;
+        const original = command.outerHTML;
+        const snapshot = createTranslationSourceSnapshot(body, core.shouldStayOriginal);
+        expect(snapshot.slots.map(({source}) => source)).toEqual(['Inspect packages with', 'before continuing.']);
+        expect(core.shouldStayOriginal(command)).toBe(true);
+        expect(core.shouldOmitFromTranslation(command)).toBe(false);
+        const translated = applyTranslationsToSnapshot(snapshot, ['检查软件包，使用', '再继续。']);
+        expect(translated).toContain(original);
+        expect(command.outerHTML).toBe(original);
+        expect(command.textContent).toBe(literal);
+        expect(core.resolve(command.firstChild)?.element).toBe(body);
+    });
+
     it('不因紧邻缩进块而剪掉普通说明、前置原文或带命令名的完整句子', () => {
         const introductions = [
             'The following example shows how to configure this command.',
@@ -799,6 +816,8 @@ describe('translation candidate core', () => {
             '<i>这些内容是正常的中文说明。</i>',
             '<b>apt</b> <b>provides a package management interface.</b>',
             '<b>apt</b> <i>这是命令的说明文字。</i>',
+            '<b>Run the command with --help for additional details.</b>',
+            '<b>dpkg-query lists the installed packages.</b>',
         ];
         for (const introduction of introductions) {
             const {document, core} = page(`<div id="manpage-content"><h2 id="description">DESCRIPTION</h2><section class="Sh"><p id="intro" class="Pp">${introduction}</p><div class="Bd-indent"><b>future-command</b> --dry-run</div></section></div>`,

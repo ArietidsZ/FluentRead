@@ -1458,6 +1458,12 @@ function isOwnMutation(
     const target = mutationElement ? resolveStatefulMutationTarget(mutationElement) : false;
     const state = target ? getTranslationState(target as HTMLElement) : undefined;
     if (!target || !state) return false;
+    // 全属性站点也会观察到本代合成段的身份标记。只承认真实 owner 的首次写入，
+    // 并复验宿主与来源槽；普通页面节点伪造同名属性仍进入宿主 mutation 路径。
+    if (mutation.type === "attributes" && mutation.attributeName === "data-fr-translation-segment" &&
+        mutation.target === target && mutation.oldValue === null && state.syntheticSegment &&
+        state.syntheticHost === target.parentElement && target.getAttribute("data-fr-translation-segment") === "true" &&
+        statefulSourceAndTextSlotsAreCurrent(target, state)) return true;
     if (isOwnStateArtifactMutation(mutation, target, state)) return true;
     if (state.phase === "error") {
         // 失败 UI 是扩展拥有的状态，不是宿主编辑；若缺少此分支，其 class mutation
@@ -1898,6 +1904,9 @@ function createFullPageMutationObserver(
                     ? siteAttributes === null ? document.documentElement : getComposedParent(mutationElement) ?? mutationElement
                     : mutationElement;
                 const targets = resolveStatefulMutationTargets(session, affectedRoot);
+                const directTargets = siteAttributeMutation
+                    ? new Set(resolveStatefulMutationTargets(session, mutationElement))
+                    : null;
                 if (targets.length > 0) {
                     for (const target of targets) {
                         if (siteAttributeMutation && restoreStatefulTargetOutsideScope(session, target)) continue;
@@ -1905,6 +1914,12 @@ function createFullPageMutationObserver(
                             scheduleStatefulAttributeReevaluation(session, target);
                         } else {
                             const state = getTranslationState(target);
+                            // 关系选择器需要广域复验，但不相关节点的属性写入不应取消有效请求。
+                            // 普通 owner 已在上面通过候选边界复验；focus 的合成段保持保守重扫，
+                            // 因其来源已物化，不能只用原文相同推断仍命中显式正文 selector。
+                            if (state && directTargets && !directTargets.has(target) &&
+                                (!state.syntheticSegment || !core.adapters.some(adapter => adapter.genericCandidatePolicy === 'targets-only')) &&
+                                statefulSourceAndTextSlotsAreCurrent(target, state)) continue;
                             if (state && !isTranslationArtifact(mutation.target) &&
                                 !statefulSourceAndTextSlotsAreCurrent(target, state) &&
                                 withFullPageViewportAnchor(() =>
