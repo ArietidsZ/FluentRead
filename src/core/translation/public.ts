@@ -25,6 +25,7 @@ export {
 export type {TranslationDiscoveryStep} from './engine';
 export {
     evaluateHardGuard,
+    getElementTagName,
     getComposedParent,
     getOpenShadowRoots,
     isProtectedDescendantElement,

@@ -215,6 +215,29 @@ describe('site adaptation compilation', () => {
         expect(getSiteRuleObservedAttributes({literalTokens: ['[data-literal]']})).toContain('data-literal');
     });
 
+    it('Codeforces countdown stays live only in the source and does not enter paragraph identity or output', () => {
+        const document = parseHTML(`<html><body><div id="sidebar"><div id="card"><span class="contest-state-phase">Before contest</span><br><a href="/contests/2260">Educational round</a><br><span class="countdown">24:23:12</span><br><a href="/register">Register now</a></div></div><p>Ordinary problem statement.</p></body></html>`).document;
+        const core = new TranslationCandidateCore({url: new URL('https://codeforces.com/'), adapters: compileSiteRulePack(builtinSiteRulePack)});
+        const card = document.querySelector<HTMLElement>('#card')!;
+        const clock = card.querySelector<HTMLElement>('.countdown')!;
+        const snapshot = () => createTranslationSourceSnapshot(card, core.shouldStayOriginal, undefined, undefined, core.shouldOmitFromTranslation);
+        const before = snapshot();
+        expect(before.clone.querySelector('.countdown')).toBeNull();
+        expect(before.slots.map(slot => slot.source)).toEqual(['Before contest', 'Educational round', 'Register now']);
+        expect(core.shouldIgnoreMutation(clock)).toBe(true);
+        expect(core.shouldIgnoreMutation(card.querySelector('.contest-state-phase')!)).toBe(false);
+        expect(core.resolve(clock.firstChild)).toBeNull();
+        const cardTargets = core.discover(document).filter(candidate => card.contains(candidate.element));
+        expect(cardTargets.map(candidate => candidate.element.textContent)).toEqual(['Before contest', 'Educational round', 'Register now']);
+        expect(cardTargets.some(candidate => candidate.element === card)).toBe(false);
+        clock.textContent = '24:23:11';
+        expect(snapshot().clone.innerHTML).toBe(before.clone.innerHTML);
+        expect(card.querySelector('.countdown')).toBe(clock);
+        expect(core.discover(document).some(candidate => candidate.element.tagName === 'P')).toBe(true);
+        const other = new TranslationCandidateCore({url: new URL('https://codeforces.com.example.org/'), adapters: compileSiteRulePack(builtinSiteRulePack)});
+        expect(other.shouldOmitFromTranslation(clock)).toBe(false);
+    });
+
     it('keeps built-in GitHub, chat, Discord and manual boundaries fully replaceable through their JSON IDs', () => {
         expect(parseSiteRulePack(builtinSiteRulePack)).toMatchObject({ok: true});
         for (const [id, url, html, selector] of [

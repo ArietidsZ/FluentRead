@@ -1,10 +1,10 @@
 /**
  * @file src/features/selection-translation/core.ts
  * 文件职责：集中划词翻译的纯交互与内容算法，包括请求代次、词典回退、触发展示状态、选区过滤、上下文摘要、弹窗锚点和语音语言规范化。
- * 主要内容：定义 SelectionRequestTokenGate、Presentation 状态机、选区/视口类型，处理同语种判断、文本清理、敏感区域排除、多矩形选择、弹窗定位及仅用于朗读的普通话语言别名。
+ * 主要内容：定义 SelectionRequestTokenGate、Presentation 状态机、选区/视口类型，处理同语种判断、文本清理、公式单份文本提取、敏感区域排除、多矩形选择、弹窗定位及仅用于朗读的普通话语言别名。
  * 模块边界：本模块不监听 document selection、不发消息、不渲染 Vue 或播放音频；组件负责连接 DOM，词典和 TTS 由 services/background 提供，函数保持确定性以供单元测试。
  */
-import {isTopLevelApplicationShell} from '@/src/core/translation/public';
+import {getElementTagName, isTopLevelApplicationShell} from '@/src/core/translation/public';
 import {getChineseScript, normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 
 export interface SelectionRect {
@@ -210,6 +210,46 @@ export function summarizeSelectionContext(
     return `${prefix}${normalized.slice(start, end).trim()}${suffix}`.slice(0, maxLength);
 }
 
+// 只把有明确渲染器身份的数学子树视为原子，不能放开普通 aria-hidden/SVG 控件。
+const selectionFormulaSelector = 'math, mjx-container, .MathJax, .MathJax_Display, .MathJax_SVG, .MathJax_CHTML, .katex';
+
+/** 选区中的公式只取一份可读表示，避免浏览器把可视字形、辅助 MathML 与 TeX 串在一起。 */
+export function readSelectionText(range: Range, browserText: string): string {
+    const ancestor = elementFromSelectionNode(range.commonAncestorContainer);
+    if (ancestor?.closest(selectionFormulaSelector)) return '';
+    if (!ancestor?.querySelector(selectionFormulaSelector)) return normalizeSelectionText(browserText);
+    const fragment = ancestor.ownerDocument.createElement('div');
+    fragment.append(range.cloneContents());
+    const formulas = Array.from(fragment.querySelectorAll(selectionFormulaSelector))
+        .filter(element => !element.parentElement?.closest(selectionFormulaSelector));
+    if (formulas.length === 0) return normalizeSelectionText(browserText);
+    const prose = fragment.cloneNode(true) as HTMLElement;
+    prose.querySelectorAll(`${selectionFormulaSelector}, script, style, .MathJax_Preview`).forEach(element => element.remove());
+    if (!/\p{L}/u.test(prose.textContent!)) return '';
+    for (const formula of formulas) {
+        const tex = formula.nextElementSibling?.matches('script[type^="math/tex"]')
+            ? formula.nextElementSibling.textContent
+            : formula.querySelector('annotation[encoding="application/x-tex"]')?.textContent;
+        formula.querySelectorAll('.MJX_Assistive_MathML, mjx-assistive-mml, .katex-mathml, annotation, annotation-xml').forEach(element => element.remove());
+        const text = normalizeSelectionText(tex || formula.textContent!);
+        formula.replaceWith(fragment.ownerDocument!.createTextNode(text ? `$${text}$` : ''));
+    }
+    fragment.querySelectorAll('script, style, .MathJax_Preview').forEach(element => element.remove());
+    return normalizeSelectionText(fragment.textContent!);
+}
+
+/** 相交的公式可留在正文选区内，交互控件与外层显式排除区域仍受原规则保护。 */
+function isInlineSelectionFormulaPart(element: Element): boolean {
+    const root = element.closest(selectionFormulaSelector);
+    if (!root) return false;
+    if (isEditableSelectionElement(element)) return false;
+    const tag = getElementTagName(element);
+    if ((selectionExcludedTagNames.has(tag) && tag !== 'math' && tag !== 'svg') ||
+        selectionExcludedRoles.has(element.getAttribute('role')?.trim().toLowerCase() ?? '')) return false;
+    const outer = root.parentElement?.closest(selectionFormulaSelector) ?? root;
+    return !isSelectionExcludedElement(outer.parentElement);
+}
+
 const selectionExcludedTagNames = new Set([
     'audio', 'button', 'canvas', 'code', 'embed', 'iframe', 'img', 'input',
     'kbd', 'math', 'object', 'option', 'picture', 'pre', 'samp', 'select',
@@ -269,7 +309,7 @@ function isEditableSelectionElement(element: Element): boolean {
 }
 
 function isIntrinsicallyExcludedSelectionElement(element: Element): boolean {
-    if (isSelectionExcludedTagName(element.tagName)) return true;
+    if (isSelectionExcludedTagName(getElementTagName(element))) return true;
 
     const role = element.getAttribute('role')?.trim().toLowerCase();
     if (role && selectionExcludedRoles.has(role)) return true;
@@ -321,13 +361,15 @@ export function shouldIgnoreSelection(range: Range): boolean {
         elementFromSelectionNode(range.startContainer),
         elementFromSelectionNode(range.endContainer),
     ];
-    if (boundaries.some(isSelectionExcludedElement)) return true;
+    if (boundaries.some(element => isSelectionExcludedElement(element) &&
+        !(element && isInlineSelectionFormulaPart(element)))) return true;
 
     try {
         return selectionExcludedDescendants(range).some((element) => {
             try {
                 if (!isIntrinsicallyExcludedSelectionElement(element) &&
                     isTopLevelApplicationShell(element)) return false;
+                if (isInlineSelectionFormulaPart(element)) return false;
                 return range.intersectsNode(element) && hasNonZeroClientRect(element);
             } catch {
                 return false;

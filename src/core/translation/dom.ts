@@ -2,9 +2,22 @@
  * @file src/core/translation/dom.ts
  *
  * 文件职责：封装翻译候选发现使用的 composed tree 遍历与不可覆盖安全守卫，识别扩展 DOM、其他翻译器已接管的段落、脚本、表单、图标字体、代码及禁止翻译区域。
- * 主要内容：提供 Shadow DOM 父级与祖先遍历、硬裁剪标签、受保护文本元素、text/plain 顶层 pre、独立 tooltip 边界、隐藏/可编辑/no-translate 判断，并限制祖先深度以避免异常页面结构拖垮扫描。 可核对的公开符号包括 maxComposedAncestorDepth、getComposedParent、isDocumentSurface、isExtensionElement、isExtensionElementSelf、isHardPruneTag、isProtectedTextElement、isPlainTextDocumentPre、hasNoTranslateMarker、isTopLevelApplicationShell。
+ * 主要内容：提供抗表单命名属性遮蔽的标签读取、Shadow DOM 父级与祖先遍历、硬裁剪标签、受保护文本元素、text/plain 顶层 pre、独立 tooltip 边界、隐藏/可编辑/no-translate 判断，并限制祖先深度以避免异常页面结构拖垮扫描。 可核对的公开符号包括 maxComposedAncestorDepth、getComposedParent、isDocumentSurface、isExtensionElement、isExtensionElementSelf、isHardPruneTag、isProtectedTextElement、isPlainTextDocumentPre、hasNoTranslateMarker、isTopLevelApplicationShell。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
+
+/** 表单命名控件可遮蔽 tagName；沿原型读取原生 getter，不能把输入节点当作字符串。 */
+export function getElementTagName(element: Element): string {
+    const name = element.tagName;
+    if (typeof name === 'string') return name.toLowerCase();
+    let prototype = Object.getPrototypeOf(element);
+    while (prototype) {
+        const getter = Object.getOwnPropertyDescriptor(prototype, 'tagName')?.get;
+        if (getter) return getter.call(element).toLowerCase();
+        prototype = Object.getPrototypeOf(prototype);
+    }
+    return '';
+}
 
 const extensionSelector = [
     '#fluent-read-floating-ball-container',
@@ -74,12 +87,12 @@ export function isForeignTranslationBoundary(element: Element): boolean {
 }
 
 export function isHardPruneTag(element: Element): boolean {
-    return hardPruneTags.has(element.tagName.toLowerCase());
+    return hardPruneTags.has(getElementTagName(element));
 }
 
 /** 纯文本文档由浏览器包装为顶层 pre；其内容是正文，不是 HTML 页面中的代码块。 */
 export function isPlainTextDocumentPre(element: Element): boolean {
-    if (element.tagName.toLowerCase() !== 'pre') return false;
+    if (getElementTagName(element) !== 'pre') return false;
     const document = element.ownerDocument;
     const contentType = document?.contentType?.split(';', 1)[0]?.trim().toLowerCase();
     return contentType === 'text/plain' && element.parentElement === document?.body;
@@ -88,8 +101,8 @@ export function isPlainTextDocumentPre(element: Element): boolean {
 export function isProtectedTextElement(element: Element): boolean {
     // Scribble/Racket 文档使用 table.RktBlk 展示代码，而不是 pre/code。只保护
     // 明确的代码表格；普通表格或正文上同名的 class 不能扩大成不翻译区域。
-    return (element.tagName.toLowerCase() === 'table' && element.classList.contains('RktBlk')) ||
-        (protectedTextTags.has(element.tagName.toLowerCase()) && !isPlainTextDocumentPre(element));
+    return (getElementTagName(element) === 'table' && element.classList.contains('RktBlk')) ||
+        (protectedTextTags.has(getElementTagName(element)) && !isPlainTextDocumentPre(element));
 }
 
 export function hasNoTranslateMarker(element: Element): boolean {
@@ -165,7 +178,7 @@ function hasContentEditableMarker(element: Element): boolean {
  * 可能删除可见公式，只留下隐藏的 TeX 源脚本。
  */
 export function isMathRendererElement(element: Element): boolean {
-    const tagName = element.tagName.toLowerCase();
+    const tagName = getElementTagName(element);
     return tagName === 'mjx-container' ||
         element.classList.contains('MathJax_Display') ||
         element.classList.contains('MathJax') ||
@@ -206,7 +219,7 @@ export interface HardGuardResult {
 export function evaluateElementHardGuard(element: Element): HardGuardResult {
     if (isExtensionElementSelf(element)) return {prune: true, reason: 'fluentread-owned'};
     if (isForeignTranslationBoundary(element)) return {prune: true, reason: 'foreign-translation'};
-    if (isHardPruneTag(element)) return {prune: true, reason: `protected-tag:${element.tagName.toLowerCase()}`};
+    if (isHardPruneTag(element)) return {prune: true, reason: `protected-tag:${getElementTagName(element)}`};
     if (isMathRendererElement(element)) return {prune: true, reason: 'math-renderer'};
     if (hasNoTranslateMarker(element)) return {prune: true, reason: 'inherited-no-translate'};
     if (hasContentEditableMarker(element)) return {prune: true, reason: 'contenteditable'};

@@ -50,5 +50,6 @@ export {
 export {
     isSameLanguage,
     normalizeSelectionText,
+    readSelectionText,
     shouldIgnoreSelection,
 } from '@/src/features/selection-translation/public';

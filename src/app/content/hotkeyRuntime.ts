@@ -10,7 +10,7 @@ import {matchesConfiguredHotkey, shouldClaimConfiguredHotkey} from '@/src/core/h
 import {
     autoTranslateEnglishPage,
     isFullPageTranslationActive,
-    normalizeSelectionText,
+    readSelectionText,
     restoreOriginalContent,
     shouldIgnoreSelection,
 } from './features';
@@ -60,10 +60,10 @@ export function createContentHotkeyRuntime(isSiteDisabled: () => boolean,
         const selectionHost = document.getElementById('fluent-read-selection-translator-container');
         if (selectionHost && selection.containsNode(selectionHost, true)) return false;
 
-        const text = normalizeSelectionText(selection.toString());
+        const range = selection.getRangeAt(0);
+        const text = readSelectionText(range, selection.toString());
         if (!text || text.length > 4096 || shouldSkipTranslationForTarget(text, config.to)) return false;
 
-        const range = selection.getRangeAt(0);
         if (shouldIgnoreSelection(range)) return false;
         if (Array.from(range.getClientRects()).some((rect) => rect.width > 0 || rect.height > 0)) return true;
         const bounds = range.getBoundingClientRect();

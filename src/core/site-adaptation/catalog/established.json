@@ -477,5 +477,34 @@
     "literalLabels": [
       "#manpage-content > #description + section.Sh > p.Pp:has(+ .Bd-indent)"
     ]
+  },
+  {
+    "id": "codeforces",
+    "name": "Codeforces",
+    "match": {
+      "hosts": [
+        "codeforces.com",
+        "www.codeforces.com"
+      ]
+    },
+    "priority": 380,
+    "mode": "augment",
+    "content": [
+      {
+        "css": [
+          "#sidebar .contest-state-phase",
+          "#sidebar .contest-state-phase ~ a"
+        ],
+        "key": "codeforces-contest-card-text",
+        "resolve": "closest",
+        "atomic": true
+      }
+    ],
+    "omit": [
+      ".countdown"
+    ],
+    "watchIgnore": [
+      ".countdown"
+    ]
   }
 ]

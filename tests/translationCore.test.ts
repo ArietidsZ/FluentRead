@@ -25,6 +25,7 @@ import {
 } from '@/src/core/translation/public';
 import {
     evaluateHardGuard,
+    getElementTagName,
     isTextInNestedTranslationTooltip,
     findElementsAtPoint,
     findNodeAtPoint,
@@ -66,6 +67,21 @@ function candidateIds(document: Document, url?: string): string[] {
     const core = createTranslationCore({url: new URL(url ?? 'https://example.test/article')});
     return core.discover(document).map((candidate) => candidate.element.id).filter(Boolean);
 }
+
+describe('Codeforces named form controls', () => {
+    it('issue #492 continues discovery after a form input shadows tagName', () => {
+        const {document} = parseHTML('<html><body><form><input name="tagName"></form><p id="statement">Read this problem statement and calculate the answer.</p></body></html>');
+        const form = document.querySelector('form')!;
+        // linkedom 不实现 HTMLFormElement 的命名属性访问，显式模拟浏览器真实返回值。
+        Object.defineProperty(form, 'tagName', {value: form.querySelector('input')});
+        expect(getElementTagName(form)).toBe('form');
+        expect(getElementTagName(document.querySelector('input')!)).toBe('input');
+        const core = createTranslationCore({url: new URL('https://codeforces.com/contest/2259/problem/A')});
+        expect(core.discover(document).map(candidate => candidate.element)).toContain(document.querySelector('#statement'));
+        expect(core.resolve(form.querySelector('input'))).toBeNull();
+        expect(getElementTagName(Object.assign(Object.create(null), {tagName: {}}) as Element)).toBe('');
+    });
+});
 
 describe('translation candidate core', () => {
     it('只放行 text/plain 文档的顶层 pre，HTML 页面中的 pre 仍保持保护', () => {

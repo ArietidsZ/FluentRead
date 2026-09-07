@@ -11,5 +11,6 @@ export {
 export {
     isSameLanguage,
     normalizeSelectionText,
+    readSelectionText,
     shouldIgnoreSelection,
 } from './core';
