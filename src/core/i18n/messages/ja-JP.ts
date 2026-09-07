@@ -10,6 +10,21 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const jaJPMessages = {
+    "writing.replyLanguage": "返信の言語",
+    "writing.referenceLanguage": "対訳の言語",
+    "writing.interfaceLanguage": "表示言語に合わせる",
+    "writing.referenceOff": "オフ",
+    "writing.referenceDescription": "返信の下に対訳を表示します。コピーと挿入には返信本文だけが含まれます。",
+    "writing.referenceHeading": "対訳 · {language}",
+    "writing.referenceLoading": "対訳を生成中…",
+    "writing.referenceError": "対訳を生成できませんでした",
+    "writing.referenceRetry": "対訳を再試行",
+    "writing.referenceSameLanguage": "返信と対訳の言語は同じです",
+    "writing.referenceTooLong": "本文が長すぎるため、全文を翻訳できません。",
+    "writing.referenceFootnote": "対訳は確認用です。コピーと挿入には返信本文だけが含まれます。",
+    "writing.referenceDisabled": "対訳を表示しない",
+    "writing.referenceSearch": "対訳の言語を検索",
+
     "usage.pageSize": "{size} 件",
     "featureEnable.imageDescription": "ウェブページの画像にカーソルを合わせると翻訳ボタンを表示します。",
 

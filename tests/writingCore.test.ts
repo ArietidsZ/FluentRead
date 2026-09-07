@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from 'vitest';
 import {parseHTML} from 'linkedom';
-import {isWritingPage, normalizeWritingPreferences, normalizeWritingLanguage, resolveWritingLanguage, WRITING_ACTIONS, WRITING_LANGUAGES, WRITING_LENGTHS, WRITING_STYLES, WRITING_ROLES, WRITING_TONES, WRITING_ROLE_MAX_LENGTH, WRITING_TONE_MAX_LENGTH} from '@/src/core/config/writing';
+import {isWritingPage, normalizeWritingPreferences, normalizeWritingReferenceLanguage, resolveWritingReferenceLanguage, normalizeWritingLanguage, resolveWritingLanguage, WRITING_ACTIONS, WRITING_LANGUAGES, WRITING_LENGTHS, WRITING_STYLES, WRITING_ROLES, WRITING_TONES, WRITING_ROLE_MAX_LENGTH, WRITING_TONE_MAX_LENGTH} from '@/src/core/config/writing';
 import {options} from '@/src/core/config/catalog';
 import {Config, normalizeConfig} from '@/src/core/config/model';
 import {writingSite, isWritingEditor, findReplyEditors, editorText, captureEditor, collectReplyContext, applyWritingDraft} from '@/src/features/writing-assistant/editors';
@@ -13,12 +13,12 @@ describe('Writing config and bounded protocol', () => {
   });
   it('enables missing preferences, preserves explicit opt-out and removes retired page controls', () => {
     expect(normalizeWritingPreferences(null)).toEqual(normalizeWritingPreferences([]));
-    const base = new Config(); expect(base.writing).toEqual({enabled: true, service: '', model: '', language: 'target', tone: 'natural', length: 'short', style: 'auto', role: 'auto'});
+    const base = new Config(); expect(base.writing).toEqual({enabled: true, service: '', model: '', language: 'target', referenceLanguage: 'ui', tone: 'natural', length: 'short', style: 'auto', role: 'auto'});
     const legacy = {...base} as Partial<Config>; delete legacy.writing;
     expect(normalizeConfig(legacy).writing).toEqual(base.writing);
     const writing = {enabled: false, replyButtons: false, service: 'openai', model: ' draft ', language: 'en', tone: 'professional', length: 'detailed', style: 'formal', role: 'colleague', hotkey: 'alt+shift+w', disabledDomains: ['github.com']};
     const saved = normalizeConfig({...base, writing, disabledExtensionDomains: ['github.com']});
-    expect(saved.writing).toEqual({enabled: false, service: 'openai', model: 'draft', language: 'en', tone: 'professional', length: 'detailed', style: 'formal', role: 'colleague'});
+    expect(saved.writing).toEqual({enabled: false, service: 'openai', model: 'draft', language: 'en', referenceLanguage: 'ui', tone: 'professional', length: 'detailed', style: 'formal', role: 'colleague'});
     expect(saved.disabledExtensionDomains).toEqual(['github.com']);
     expect(normalizeConfig(JSON.parse(JSON.stringify(saved))).writing).toEqual(saved.writing);
     expect(normalizeWritingPreferences({service: 'microsoft', model: '自定义模型', language: 'invalid', tone: null, length: 'invalid', style: 'invalid'})).toEqual(base.writing);
@@ -41,6 +41,16 @@ describe('Writing config and bounded protocol', () => {
     expect(normalizeWritingLanguage('zh-CN')).toBe('zh-Hans'); expect(normalizeWritingLanguage('zh-TW')).toBe('zh-Hant');
     expect(resolveWritingLanguage('en', 'zh-Hans')).toBe('en'); expect(resolveWritingLanguage('auto', 'zh-HK')).toBe('zh-Hant');
     expect(resolveWritingLanguage('target', 'invalid')).toBe('zh-Hans');
+  });
+  it('resolves reading language independently and preserves explicit choices through configuration round trips', () => {
+    for (const [ui, target] of [['zh-CN', 'zh-Hans'], ['en-US', 'en'], ['ja-JP', 'ja'], ['ko-KR', 'ko'], ['fr-FR', 'fr'], ['ru-RU', 'ru'], ['es-ES', 'es']] as const) expect(resolveWritingReferenceLanguage('ui', ui)).toBe(target);
+    expect(resolveWritingReferenceLanguage('off', 'zh-CN')).toBe('');
+    expect(resolveWritingReferenceLanguage('zh-TW', 'es-ES')).toBe('zh-Hant');
+    for (const raw of [undefined, null, {}, 'target', 'invalid']) expect(normalizeWritingReferenceLanguage(raw)).toBe('ui');
+    for (const value of ['off', 'ui', ...WRITING_LANGUAGES.filter(item => item.value !== 'target').map(item => item.value)]) {
+      const config = normalizeConfig({...new Config(), writing: {...new Config().writing, language: 'en', referenceLanguage: value}});
+      expect(normalizeConfig(JSON.parse(JSON.stringify(config))).writing).toMatchObject({language: 'en', referenceLanguage: value});
+    }
   });
   it('rejects oversized, unknown and provider-overriding requests', () => {
     for (const action of WRITING_ACTIONS) expect(parseWritingRequest({...request, intent: action.id})?.intent).toBe(action.id);

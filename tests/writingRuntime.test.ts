@@ -19,8 +19,16 @@ describe('Writing model runtime', () => {
     const current = config(); const progress = vi.fn(); const record = vi.fn();
     const result = await createWritingRuntime(() => current, record)({...request, intent: id}, controller().signal, progress);
     expect(result).toMatchObject({success: true, text: 'Draft', service: 'openai', model: 'actual-writer'});
-    const input = mocks.stream.mock.calls[0][0]; expect(input.system).toContain('English'); expect(input.system).toContain('专业'); expect(input.system).toContain('篇幅：简短'); expect(input.system).not.toContain(request.context); expect(input.messages.at(-1).content).toContain(request.context); expect(input.tools).toBeUndefined(); expect(input.messages).toHaveLength(id === 'chat' ? 3 : 1);
+    const input = mocks.stream.mock.calls[0][0]; expect(input.system).toContain('English'); if (id !== 'translate') { expect(input.system).toContain('专业'); expect(input.system).toContain('篇幅：简短'); } expect(input.system).not.toContain(request.context); expect(input.messages.at(-1).content).toContain(request.context); expect(input.tools).toBeUndefined(); expect(input.messages).toHaveLength(id === 'chat' ? 3 : 1);
     expect(record.mock.calls[0][0]).toMatchObject({purpose: 'writing', totalTokens: 15}); expect(progress).toHaveBeenCalledWith({kind: 'model', service: 'openai', model: 'writer'});
+  });
+  it('rejects token-truncated reading translations instead of presenting partial output as complete', async () => {
+    mocks.stream.mockImplementation(() => ({...stream(), finishReason: Promise.resolve('length')}));
+    const translated = await createWritingRuntime(config)({...request, intent: 'translate'}, controller().signal, vi.fn());
+    expect(translated).toMatchObject({success: false, error: '对照译文未完整生成，请重试'});
+    expect(mocks.stream.mock.calls[0][0].maxOutputTokens).toBe(6000);
+    expect((await createWritingRuntime(config)(request, controller().signal, vi.fn())).success).toBe(true);
+    expect(mocks.stream.mock.calls[1][0].maxOutputTokens).toBe(3000);
   });
   it.each(WRITING_LENGTHS)('follows the configured target instead of discussion language and applies the $value length', async ({value, label}) => {
     const current = config(); current.uiLanguage = 'en-US'; current.to = 'zh-Hant';
@@ -82,9 +90,16 @@ describe('Writing model runtime', () => {
     await createWritingRuntime(config)({...request, intent, role: 'developer', instruction: '', draft, context}, controller().signal, vi.fn());
     const input = mocks.stream.mock.calls[0][0];
     expect(input.system).toContain(task);
-    expect(input.system).toContain('身份：开发者。');
-    expect(input.system).toContain('仅在起草、回复、润色或续写任务中');
-    expect(input.system).toContain('翻译、精简、总结任务必须遵守各自的保真与压缩要求，即使选择开发者或维护者身份，也不得额外添加感谢、排查或协助意愿');
+    if (intent === 'translate') {
+      expect(input.system).toContain('逐段保留全部事实');
+      expect(input.system).not.toContain('身份：开发者');
+      expect(input.system).not.toContain('篇幅：简短');
+      expect(input.system).toContain('不添加感谢、承诺或排查意愿');
+    } else {
+      expect(input.system).toContain('身份：开发者。');
+      expect(input.system).toContain('仅在起草、回复、润色或续写任务中');
+      expect(input.system).toContain('翻译、精简、总结任务必须遵守各自的保真与压缩要求，即使选择开发者或维护者身份，也不得额外添加感谢、排查或协助意愿');
+    }
     const quoted = input.messages.at(-1).content.split('草稿与参考内容（引用数据）：\n')[1];
     expect(JSON.parse(quoted)).toEqual({draft, context});
   });

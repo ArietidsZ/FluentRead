@@ -53,6 +53,17 @@ describe('界面 i18n 契约', () => {
     [...message.matchAll(/\{([a-zA-Z0-9_]+)\}/g)].map((match) => match[1]).sort()
   );
 
+  it('完整本地化写作连接、配置与生成失败状态', () => {
+    const errors = ["请先启用写作助手", "请在写作助手设置中选择一个 AI 服务", "请先选择写作模型", "请先在翻译服务中配置这个服务的 API Key", "请先输入草稿", "请先写下要求或提供参考内容", "已停止生成", "写作助手连接中断，请重试", "写作助手仅支持 Gmail 和 GitHub 的 Issue、Pull Request 回复页面", "写作助手已停用", "当前网站已禁用写作助手", "无效的写作请求", "正在处理其他写作请求，请稍后重试", "生成超时，请重试", "生成未完成，请重试", "模型没有返回正文，请重试", "对照译文未完整生成，请重试"];
+    for (const {value: language} of UI_LANGUAGE_OPTIONS.filter(item => item.value !== 'zh-CN')) {
+      for (const error of errors) expect(translateLegacyText(error, language)).not.toBe(error);
+    }
+  });
+
+  it('使用操作按钮文案表达西班牙语的停止生成', () => {
+    expect(translateLegacyText('停止', 'es-ES')).toBe('Detener');
+  });
+
   it('保留中文默认值，并只接受受支持的界面语言', () => {
     expect(DEFAULT_UI_LANGUAGE).toBe('zh-CN');
     expect(new Config().uiLanguage).toBe('zh-CN');

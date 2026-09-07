@@ -10,6 +10,21 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const esESMessages = {
+    "writing.replyLanguage": "Idioma de respuesta",
+    "writing.referenceLanguage": "Idioma de lectura",
+    "writing.interfaceLanguage": "Usar idioma de la interfaz",
+    "writing.referenceOff": "Desactivado",
+    "writing.referenceDescription": "Muestra una traducción debajo de la respuesta. Copiar e insertar incluyen solo la respuesta.",
+    "writing.referenceHeading": "Traducción · {language}",
+    "writing.referenceLoading": "Traduciendo…",
+    "writing.referenceError": "No se pudo traducir",
+    "writing.referenceRetry": "Reintentar traducción",
+    "writing.referenceSameLanguage": "La respuesta ya está en tu idioma de lectura",
+    "writing.referenceTooLong": "La respuesta es demasiado larga para traducirla completa.",
+    "writing.referenceFootnote": "La traducción es para lectura. Copiar e insertar incluyen solo la respuesta.",
+    "writing.referenceDisabled": "Sin traducción",
+    "writing.referenceSearch": "Buscar idioma de lectura",
+
     "usage.pageSize": "{size} entradas",
     "featureEnable.imageDescription": "Mostrar el control de traducción al pasar sobre una imagen.",
 
@@ -1432,7 +1447,7 @@ const esESLegacyTextBase: Readonly<Record<string, string>> = {
     '暂未找到详细释义，可查看译文。': 'No se encontró ninguna definición detallada. Consulta la traducción en su lugar.',
     '数据来自开放词典': 'Datos de un diccionario abierto',
     '正在播放': 'Interpretación',
-    '停止': '¡Para',
+    '停止': 'Detener',
     '停止播放': 'Detener la reproducción',
     '模型尚未配置，请前往设置页配置': 'El modelo no está configurado. Abre la configuración para configurarlo.',
     '「谷歌翻译」仅支持双语模式，请切换翻译服务': 'Google Translate solo soporta modo bilingüe. Cambia de servicio de traducción.',

@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/WritingSettings.vue
  * 文件职责：提供写作助手总开关、默认回复偏好和 AI 服务连接设置，让首次使用路径清晰可见。
- * 主要内容：独立选择输出语言，复用写作卡片的直接点选标签组保存长度、风格、语气和角色，稳定编辑有界自定义描述，并配置服务连接。
+ * 主要内容：独立选择回复与阅读对照语言，复用写作卡片的直接点选标签组保存长度、风格、语气和角色，稳定编辑有界自定义描述，并配置服务连接。
  * 模块边界：只编辑设置中心持久化的同一份写作配置；不提供快捷键、重复入口开关或网站列表，不生成或改写正文。
  -->
 <template>
@@ -15,6 +15,13 @@
       <SettingsItem label="输出语言" description="默认跟随网页翻译的目标语言。">
         <el-select v-model="config.writing.language" class="writing-default-language" aria-label="输出语言" filterable>
           <el-option v-for="item in WRITING_LANGUAGES" :key="item.value" :value="item.value" :label="item.value === 'target' ? `跟随目标语言 · ${targetLanguageLabel}` : item.label" />
+        </el-select>
+      </SettingsItem>
+      <SettingsItem :label="t('writing.referenceLanguage')" :description="t('writing.referenceDescription')">
+        <el-select v-model="config.writing.referenceLanguage" class="writing-default-language" :aria-label="t('writing.referenceLanguage')" filterable>
+          <el-option value="ui" :label="t('writing.interfaceLanguage')" />
+          <el-option value="off" :label="t('writing.referenceDisabled')" />
+          <el-option v-for="item in WRITING_LANGUAGES.filter(item => item.value !== 'target')" :key="item.value" :value="item.value" :label="item.label" />
         </el-select>
       </SettingsItem>
     </SettingsGroup>
@@ -48,6 +55,7 @@
 </template>
 <script setup lang="ts">
 import {computed, ref, toRef, watch} from 'vue';
+import {useUiI18n} from '@/src/ui/i18n';
 import type {Config} from '@/src/core/config/model';
 import {models, options, resolveConfiguredModel} from '@/src/core/config/catalog';
 import {isHarnessService} from '@/src/core/config/harness';
@@ -57,6 +65,7 @@ import {WritingChoices} from '@/src/features/writing-assistant/public';
 import FeatureEnableCard from '@/src/ui/components/FeatureEnableCard.vue';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
+const {t} = useUiI18n();
 const props = defineProps<{config: Config}>(); const config = toRef(props, 'config');
 const emit = defineEmits<{'configure-service': []}>();
 const targetLanguageLabel = computed(() => WRITING_LANGUAGES.find(item => item.value === resolveWritingLanguage('target', config.value.to))!.label);
