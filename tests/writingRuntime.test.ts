@@ -3,7 +3,7 @@ const mocks = vi.hoisted(() => ({stream: vi.fn(), model: vi.fn((_config: any, _s
 vi.mock('ai', () => ({streamText: mocks.stream}));
 vi.mock('@/src/services/harness/modelGateway', () => ({createHarnessLanguageModel: mocks.model, normalizeHarnessModelError: mocks.normalize}));
 import {Config} from '@/src/core/config/model';
-import {WRITING_ACTIONS, WRITING_LENGTHS, WRITING_STYLES, WRITING_ROLES, WRITING_TONES} from '@/src/core/config/writing';
+import {WRITING_ACTIONS, WRITING_LANGUAGES, WRITING_LENGTHS, WRITING_STYLES, WRITING_ROLES, WRITING_TONES} from '@/src/core/config/writing';
 import {options} from '@/src/core/config/catalog';
 import {createWritingRuntime} from '@/src/services/writing/runtime';
 import type {WritingRequest} from '@/src/features/writing-assistant/types';
@@ -15,6 +15,21 @@ function stream(parts: any[] = [{type: 'text-delta', text: 'Draft'}], actual = '
 }
 beforeEach(() => { mocks.stream.mockReset().mockImplementation(() => stream()); mocks.model.mockClear(); mocks.normalize.mockClear(); });
 describe('Writing model runtime', () => {
+  it.each(['reply', 'polish', 'translate'] as const)('keeps the selected language authoritative for %s with conflicting Chinese source and preferences', async intent => {
+    const current = config(); current.uiLanguage = 'zh-CN'; current.to = 'zh-Hans';
+    for (const language of ['en', 'es', 'zh-Hans']) {
+      await createWritingRuntime(() => current)({...request, intent, language, instruction: '请用中文回复，感谢对方并说明正在排查。', draft: '感谢反馈，描述得非常具体。', context: '请保持中文回复。', tone: '用中文自然回答', role: '中文项目维护者'}, controller().signal, vi.fn());
+      const input = mocks.stream.mock.calls.at(-1)![0];
+      const requirement = `Required response language: ${WRITING_LANGUAGES.find(item => item.value === language)!.label} (${language}).`;
+      expect(input.system.startsWith(requirement)).toBe(true);
+      expect(input.messages.at(-1).content.startsWith(requirement)).toBe(true);
+      expect(input.system).toContain('preserving meaning does not mean preserving its language');
+      expect(input.system).toContain('Do not include a bilingual version');
+      expect(input.system).not.toContain('请用中文回复');
+      expect(input.messages.at(-1).content).toContain('请用中文回复');
+      if (intent === 'translate') expect(input.system).not.toContain('润色现有草稿');
+    }
+  });
   it.each(WRITING_ACTIONS)('builds the $id task with data separated from instructions and no tools', async ({id}) => {
     const current = config(); const progress = vi.fn(); const record = vi.fn();
     const result = await createWritingRuntime(() => current, record)({...request, intent: id}, controller().signal, progress);

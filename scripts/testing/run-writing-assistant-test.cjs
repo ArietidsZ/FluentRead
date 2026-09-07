@@ -228,7 +228,7 @@ function fixture(site, variant = '') {
       const count = requests.length; responsePlans.push({text: english}, {text: chinese});
       await entry(p).click(); await settled(chinese);
       assert.equal(await original().innerText(), english); assert.equal(requests.length, count + 2);
-      assert.match(requests.at(-1).body.messages[0].content, /对照译文/);
+      assert.match(requests.at(-1).body.messages[0].content, /忠实翻译草稿/);
       assert.equal(quotedData(requests.at(-1).body).draft, english);
       assert.equal(quotedData(requests.at(-1).body).context, '', 'reading translation excludes unrelated page context');
       await shot(p, 'writing-bilingual-english-chinese');
@@ -275,6 +275,28 @@ function fixture(site, variant = '') {
       await panel.getByRole('button', {name: '插入回复', exact: true}).click();
       assert.equal(await p.locator('#editor').inputValue(), `${english} Thank you!`); assert.equal(await p.evaluate(() => window.sent || 0), 0);
       await closePage(p);
+      // Existing Chinese replies switch through faithful translation, even when revisiting history.
+      await patch({uiLanguage: 'zh-CN', writing: {...(await read()).writing, language: 'zh-Hans', referenceLanguage: 'off'}});
+      const switched = await page('https://github.com/fluentread-fixture/project/issues/493', 'reply-language-switch');
+      responsePlans.push({text: chinese}); await entry(switched).click();
+      await until(async () => await readDraft(switched) === chinese);
+      for (const [code, query, option, text] of [['en', 'English', 'English', english], ['es', 'Español', 'Español', spanish]]) {
+        const before = requests.length; responsePlans.push({text});
+        await chooseLanguage(switched, query, option);
+        await until(async () => await readDraft(switched) === text && await preview(switched).getAttribute('aria-busy') === 'false');
+        assert.equal(requests.length, before + 1);
+        assert.match(requests.at(-1).body.messages[0].content, /忠实翻译草稿/);
+        assert(requests.at(-1).body.messages[0].content.includes(`(${code}). Write the entire final body`));
+        assert(requests.at(-1).body.messages.at(-1).content.startsWith('Required response language:'));
+        assert.equal(quotedData(requests.at(-1).body).draft, code === 'en' ? chinese : english);
+      }
+      await switched.getByRole('button', {name: '上一版', exact: true}).click();
+      responsePlans.push({text: spanish}); const historyCount = requests.length;
+      await chooseLanguage(switched, 'Español', 'Español');
+      await until(async () => await readDraft(switched) === spanish && await preview(switched).getAttribute('aria-busy') === 'false');
+      assert.equal(requests.length, historyCount + 1, 'saved preference matching Spanish still translates a displayed English history version');
+      await shot(switched, 'writing-reply-language-switch'); await closePage(switched);
+      await patch({writing: {...(await read()).writing, language: 'en'}});
       // Changing only the reading preference in settings must not cancel an ongoing reply.
       const changing = await page('https://github.com/fluentread-fixture/project/issues/492', 'reading-preference-during-reply');
       await patch({writing: {...(await read()).writing, referenceLanguage: 'off'}});
