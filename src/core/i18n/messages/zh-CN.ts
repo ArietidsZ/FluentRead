@@ -10,6 +10,21 @@ import type {
 MessageCatalog} from '../types';
 
 export const zhCNMessages = {
+    "writing.replyLanguage": "回复语言",
+    "writing.referenceLanguage": "对照语言",
+    "writing.interfaceLanguage": "跟随界面语言",
+    "writing.referenceOff": "关闭",
+    "writing.referenceDescription": "生成后在回复下方显示对照，复制和插入只包含回复正文。",
+    "writing.referenceHeading": "对照 · {language}",
+    "writing.referenceLoading": "正在生成对照…",
+    "writing.referenceError": "对照生成失败",
+    "writing.referenceRetry": "重试对照",
+    "writing.referenceSameLanguage": "回复与对照语言相同",
+    "writing.referenceTooLong": "正文过长，暂时无法生成完整对照。",
+    "writing.referenceFootnote": "对照仅供阅读，复制和插入只包含回复正文。",
+    "writing.referenceDisabled": "不显示对照",
+    "writing.referenceSearch": "搜索对照语言",
+
     "usage.pageSize": "{size} 条",
     "featureEnable.imageDescription": "悬停网页图片时显示翻译入口。",
 

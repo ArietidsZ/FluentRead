@@ -10,6 +10,21 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const frFRMessages = {
+    "writing.replyLanguage": "Langue de réponse",
+    "writing.referenceLanguage": "Langue de lecture",
+    "writing.interfaceLanguage": "Utiliser la langue de l’interface",
+    "writing.referenceOff": "Désactivé",
+    "writing.referenceDescription": "Affiche une traduction sous la réponse. Seule la réponse est copiée ou insérée.",
+    "writing.referenceHeading": "Traduction · {language}",
+    "writing.referenceLoading": "Traduction en cours…",
+    "writing.referenceError": "Échec de la traduction",
+    "writing.referenceRetry": "Réessayer la traduction",
+    "writing.referenceSameLanguage": "La réponse est déjà dans votre langue de lecture",
+    "writing.referenceTooLong": "La réponse est trop longue pour être traduite intégralement.",
+    "writing.referenceFootnote": "La traduction sert à la lecture. Seule la réponse est copiée ou insérée.",
+    "writing.referenceDisabled": "Sans traduction",
+    "writing.referenceSearch": "Rechercher une langue de lecture",
+
     "usage.pageSize": "{size} entrées",
     "featureEnable.imageDescription": "Afficher la traduction au survol des images de la page.",
 

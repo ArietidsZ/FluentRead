@@ -11,6 +11,21 @@ MessageCatalog} from '../types';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const enUSMessages = {
+    "writing.replyLanguage": "Reply language",
+    "writing.referenceLanguage": "Reading language",
+    "writing.interfaceLanguage": "Use interface language",
+    "writing.referenceOff": "Off",
+    "writing.referenceDescription": "Show a translation below the reply. Copy and insert include only the reply.",
+    "writing.referenceHeading": "Translation · {language}",
+    "writing.referenceLoading": "Translating…",
+    "writing.referenceError": "Translation failed",
+    "writing.referenceRetry": "Retry translation",
+    "writing.referenceSameLanguage": "The reply is already in your reading language",
+    "writing.referenceTooLong": "The reply is too long to translate in full.",
+    "writing.referenceFootnote": "The translation is for reading. Copy and insert include only the reply.",
+    "writing.referenceDisabled": "No translation",
+    "writing.referenceSearch": "Search reading languages",
+
     "usage.pageSize": "{size} entries",
     "featureEnable.imageDescription": "Show the translation control when hovering over a webpage image.",
 

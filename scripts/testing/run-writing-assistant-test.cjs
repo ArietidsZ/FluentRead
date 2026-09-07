@@ -66,14 +66,15 @@ function fixture(site, variant = '') {
 (async () => {
   const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
   const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-writing-browser'));
-  const suites = {all: 'All writing regression cases', settings: 'Default writing preferences, custom input stability, persistence and open-card synchronization', github: 'GitHub writing lifecycle and staged preferences', gmail: 'Gmail writing lifecycle and staged preferences', recovery: 'Model ownership and partial-stream recovery', context: 'Issue #421 context, target-language ownership, staged style, Markdown editing and insertion', compose: 'Empty and subject-only new mail, Gmail conversation isolation and rich signatures', layout: 'Editor resize and preceding-DOM positioning', dynamic: 'Remount, disabled focus, scrolling and global website rule', presentation: 'Fresh-page global website rule, dark PR, mobile layouts and unsupported routes'};
-  const suite = arg('suite', 'all'); assert(Object.hasOwn(suites, suite), `--suite must be one of ${Object.keys(suites).join(', ')}`);
-  const runs = name => suite === 'all' || suite === name;
+  const suites = {bilingual: 'Reply and reading language combinations, source-only insertion and translation lifecycle', i18n: 'Issue #490 seven-language writing panel and content boundaries', all: 'All writing regression cases', settings: 'Default writing preferences, custom input stability, persistence and open-card synchronization', github: 'GitHub writing lifecycle and staged preferences', gmail: 'Gmail writing lifecycle and staged preferences', recovery: 'Model ownership and partial-stream recovery', context: 'Issue #421 context, target-language ownership, staged style, Markdown editing and insertion', compose: 'Empty and subject-only new mail, Gmail conversation isolation and rich signatures', layout: 'Editor resize and preceding-DOM positioning', dynamic: 'Remount, disabled focus, scrolling and global website rule', presentation: 'Fresh-page global website rule, dark PR, mobile layouts and unsupported routes'};
+  const suite = arg('suite', 'all'); const selectedSuites = suite.split(',');
+  assert(selectedSuites.every(name => Object.hasOwn(suites, name)), `--suite must select from ${Object.keys(suites).join(', ')}`);
+  const runs = name => selectedSuites.includes('all') || selectedSuites.includes(name);
   const packages = arg('playwright-root'); const helper = arg('focus-safe-helper');
   assert(packages && helper, '--playwright-root and --focus-safe-helper are required');
   fs.mkdirSync(artifactsDir, {recursive: true});
   const requests = []; const responsePlans = [];
-  const report = {ok: false, suite, extensionDir, artifactsDir, cases: [], screenshots: [], consoleErrors: [], consoleMessages: [], cardStability: [], persistenceCases: [], tabClosures: [], quickClose: false, crossPageSync: false, latestWriteWins: false, evidenceBoundary: `${suites[suite]} enabled, plus shared initialization, settings, independent connection navigation, persistence and popup absence. ${suite === 'all' ? '' : 'Only this named suite ran; other writing regression suites are not covered by this report. '}GitHub Issue/PR and Gmail DOM fixtures with a local synthetic streaming model. Issue #421 uses its reported title and body-link structure with a synthetic screenshot placeholder; payload checks prove context and prompt assembly, not real AI reply quality. Quick-close cases do not wait for persistence, but first activate the resident extension tab through the focus-safe helper before closing the test page. No authenticated websites, physical sending, or Firefox UI are tested.`};
+  const report = {ok: false, suite, extensionDir, artifactsDir, cases: [], screenshots: [], consoleErrors: [], consoleMessages: [], cardStability: [], persistenceCases: [], tabClosures: [], quickClose: false, crossPageSync: false, latestWriteWins: false, evidenceBoundary: `${selectedSuites.map(name => suites[name]).join('; ')} enabled, plus shared initialization, settings, independent connection navigation, persistence and popup absence. ${suite === 'all' ? '' : 'Only this named suite ran; other writing regression suites are not covered by this report. '}GitHub Issue/PR and Gmail DOM fixtures with a local synthetic streaming model. Issue #421 uses its reported title and body-link structure with a synthetic screenshot placeholder; payload checks prove context and prompt assembly, not real AI reply quality. Quick-close cases do not wait for persistence, but first activate the resident extension tab through the focus-safe helper before closing the test page. No authenticated websites, physical sending, or Firefox UI are tested.`};
   const server = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*'); res.setHeader('Access-Control-Allow-Headers', '*');
     if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
@@ -86,7 +87,8 @@ function fixture(site, variant = '') {
       const actualModel = `${body.model}-actual`;
       const send = text => res.write(`data: ${JSON.stringify({id: `writing-fixture-${ordinal}`, object: 'chat.completion.chunk', created: 1, model: actualModel, choices: [{index: 0, delta: {content: text}, finish_reason: null}]})}\n\n`);
       // 不同完整正文用于证明改写与版本切换，序号保证连续结果可区分。
-      const reply = plan.markdown ? markdownReply : null;
+      if (plan.initialDelay) await wait(plan.initialDelay);
+      const reply = plan.text ?? (plan.markdown ? markdownReply : null);
       send(reply ? reply.slice(0, 30) : ordinal % 2 ? `回复版本 ${ordinal}：感谢你的建议。` : `回复版本 ${ordinal}：谢谢你分享这些想法。`);
       await wait(plan.slow ? 1600 : 650);
       if (res.destroyed) return;
@@ -136,7 +138,8 @@ function fixture(site, variant = '') {
       assert.equal(response.success, true, response.error);
       await until(async () => { const saved = await read(); return keys.filter(key => key !== 'token').every(key => JSON.stringify(saved[key]) === JSON.stringify(patch[key])); }, 'persisted patch');
     };
-    await patch({uiLanguage: 'zh-CN', uiLanguageSetupCompleted: true, disableFloatingBall: true, disableSelectionTranslator: true, disableImageTranslator: true, service: 'microsoft'});
+    assert.equal(initial.writing.referenceLanguage, 'ui');
+    await patch({writing: {...initial.writing, referenceLanguage: 'off'}, uiLanguage: 'zh-CN', uiLanguageSetupCompleted: true, disableFloatingBall: true, disableSelectionTranslator: true, disableImageTranslator: true, service: 'microsoft'});
     await popup.reload(); await popup.getByRole('heading', {name: '网页翻译', exact: true}).waitFor(); assert.equal(await popup.getByText('写作助手', {exact: true}).count(), 0, 'popup has no writing entry'); await shot(popup, 'writing-popup-without-entry');
     let settings = await page(`${origin}/options.html#settings-writing`, 'settings');
     await settings.getByRole('heading', {name: '写作助手', exact: true}).waitFor();
@@ -207,11 +210,179 @@ function fixture(site, variant = '') {
     const oneGeneration = async (p, action, plan) => { const before = requests.length; if (plan) responsePlans.push(plan); await action(); await assertRequestCount(before + 1, 'one generation per user action'); const text = await complete(p, Boolean(plan?.markdown)); await wait(180); assert.equal(requests.length, before + 1, 'completed generation must not repeat'); return {text, body: requestBody(before)}; };
     const selectStyle = (p, group, name) => p.getByRole('radiogroup', {name: group, exact: true}).getByRole('radio', {name, exact: true}).click();
     const assertStyle = async (p, values = {长度: '简短', 风格: '自动', 语气: '自然', 您的角色: '自动'}) => { assert.equal(await p.getByRole('radiogroup').count(), 4); for (const [group, name] of Object.entries(values)) assert.equal(await p.getByRole('radiogroup', {name: group, exact: true}).getByRole('radio', {name, exact: true}).getAttribute('aria-checked'), 'true'); };
-    const chooseLanguage = async (p, query, name) => { await p.getByRole('button', {name: '输出语言', exact: true}).click(); await p.getByRole('searchbox', {name: '搜索输出语言', exact: true}).fill(query); await p.getByRole('listbox', {name: '输出语言', exact: true}).getByRole('option', {name, exact: true}).click(); };
+    const chooseLanguage = async (p, query, name) => { await p.getByRole('button', {name: '输出语言', exact: true}).click(); await p.getByRole('searchbox', {name: '搜索输出语言', exact: true}).fill(query); await p.getByRole('listbox', {name: '回复语言', exact: true}).getByRole('option', {name, exact: true}).click(); };
     const startSampling = async p => {
       await dialog(p).waitFor(); await p.locator('.writing-panel').evaluate(async element => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); window.writingSamples = []; window.sampleWriting = true; const sample = () => { if (!window.sampleWriting) return; const rect = element.getBoundingClientRect(); window.writingSamples.push({x: rect.x, y: rect.y, width: rect.width, height: rect.height}); requestAnimationFrame(sample); }; sample(); });
     };
     const endSampling = async (p, site) => { const samples = await p.evaluate(() => { window.sampleWriting = false; return window.writingSamples; }); assert(samples.length >= 5, 'streaming must include multiple visible frames'); const deltas = Object.fromEntries(['x', 'y', 'width', 'height'].map(key => [key, Math.max(...samples.map(rect => rect[key])) - Math.min(...samples.map(rect => rect[key]))])); assert(Object.values(deltas).every(delta => delta === 0), `zero streaming jitter: ${JSON.stringify(deltas)}`); report.cardStability.push({site, sampleCount: samples.length, deltas}); };
+    if (runs('bilingual')) {
+      const english = 'Thank you for the report. I will look into the repeated translation. Could you share the steps to reproduce it?';
+      const chinese = '感谢你的反馈。我会排查重复翻译的问题。可以分享一下复现步骤吗？';
+      await patch({uiLanguage: 'zh-CN', to: 'en', theme: 'light', writing: {...(await read()).writing, language: 'en', referenceLanguage: 'ui'}});
+      const p = await page('https://github.com/fluentread-fixture/project/issues/490', 'bilingual');
+      const panel = p.locator('.writing-panel');
+      const original = () => panel.locator('.writing-preview > [data-reading-answer]');
+      const translation = () => panel.locator('[data-writing-reference] [data-reading-answer]');
+      const settled = async expected => { await until(async () => await translation().count() === 1 && await translation().innerText() === expected && await panel.locator('[data-writing-reference]').getAttribute('aria-busy') === 'false', 'reading translation complete'); };
+      const chooseReference = async name => { await panel.locator('.writing-reference-trigger').click(); await panel.getByRole('option', {name, exact: true}).click(); };
+      const count = requests.length; responsePlans.push({text: english}, {text: chinese});
+      await entry(p).click(); await settled(chinese);
+      assert.equal(await original().innerText(), english); assert.equal(requests.length, count + 2);
+      assert.match(requests.at(-1).body.messages[0].content, /对照译文/);
+      assert.equal(quotedData(requests.at(-1).body).draft, english);
+      assert.equal(quotedData(requests.at(-1).body).context, '', 'reading translation excludes unrelated page context');
+      await shot(p, 'writing-bilingual-english-chinese');
+      // Both language selectors are visible before opening any preference panel.
+      assert(await panel.getByRole('button', {name: '输出语言', exact: true}).isVisible());
+      assert(await panel.getByRole('button', {name: '对照语言', exact: true}).isVisible());
+      await panel.getByRole('button', {name: '对照语言', exact: true}).click(); await shot(p, 'writing-bilingual-language-options');
+      await panel.getByRole('button', {name: '返回草稿', exact: true}).click();
+      await p.setViewportSize({width: 390, height: 844}); await shot(p, 'writing-bilingual-mobile');
+      assert(await panel.evaluate(el => el.scrollWidth <= el.clientWidth), 'both languages fit the narrow card');
+      await p.setViewportSize({width: 1440, height: 1000});
+      await patch({theme: 'dark'}); await shot(p, 'writing-bilingual-dark');
+      const stableRequests = requests.length;
+      await panel.getByRole('button', {name: '关闭写作助手', exact: true}).click(); await entry(p).click(); await settled(chinese);
+      assert.equal(requests.length, stableRequests, 'reopening reuses the matching complete translation');
+      await beginEdit(p); await output(p).fill(`${english} Thank you!`); await wait(350);
+      assert.equal(requests.length, stableRequests, 'typing never translates incomplete edits');
+      assert.equal(await panel.locator('[data-writing-reference]').count(), 0, 'editing hides stale translation');
+      responsePlans.push({text: `${chinese} 谢谢！`}); await finishEdit(p); await settled(`${chinese} 谢谢！`);
+      assert.equal(quotedData(requests.at(-1).body).draft, `${english} Thank you!`);
+      const spanish = 'Gracias por el informe. Revisaré la traducción repetida. ¿Podrías compartir los pasos para reproducirlo?';
+      responsePlans.push({text: spanish}); await chooseReference('Español'); await settled(spanish);
+      assert.equal((await read()).writing.referenceLanguage, 'es'); assert.equal(await original().innerText(), `${english} Thank you!`);
+      const sameCount = requests.length; await chooseReference('English'); await original().waitFor();
+      await panel.locator('[data-writing-reference]').waitFor({state: 'detached'});
+      assert.equal(await panel.locator('[data-reading-answer]').count(), 1, 'same-language mode displays the reply only');
+      assert.equal(await panel.locator('.writing-footnote').innerText(), '由 AI 辅助起草，检查后再发送。');
+      assert.equal(await panel.locator('.writing-reference-trigger').getAttribute('title'), '回复与对照语言相同');
+      assert(await panel.locator('.writing-reference-trigger').isVisible(), 'reading language remains adjustable');
+      await wait(200); assert.equal(requests.length, sameCount); await shot(p, 'writing-same-language-single-reply');
+      await chooseReference('不显示对照'); await panel.locator('[data-writing-reference]').waitFor({state: 'detached'}); assert.equal(requests.length, sameCount);
+      await chooseReference('跟随界面语言 简体中文'); await settled(`${chinese} 谢谢！`); assert.equal(requests.length, sameCount, 'switching back uses the correct cached version');
+      responsePlans.push({text: 'A newer English reply.'}, {text: '更新后的英文回复。'});
+      await panel.getByRole('button', {name: '重新生成', exact: true}).click(); await settled('更新后的英文回复。');
+      const versionCount = requests.length; await panel.getByRole('button', {name: '上一版', exact: true}).click(); await settled(`${chinese} 谢谢！`);
+      assert.equal(await original().innerText(), `${english} Thank you!`); assert.equal(requests.length, versionCount);
+      responsePlans.push({fail: true}); await chooseReference('Français');
+      await panel.getByText('对照生成失败', {exact: false}).waitFor(); assert.equal(await original().innerText(), `${english} Thank you!`);
+      assert(await panel.getByRole('button', {name: '插入回复', exact: true}).isEnabled());
+      responsePlans.push({text: 'Merci pour votre signalement.'}); await panel.getByRole('button', {name: '重试对照', exact: true}).click(); await settled('Merci pour votre signalement.');
+      await context.grantPermissions(['clipboard-read', 'clipboard-write'], {origin: 'https://github.com'});
+      await panel.getByRole('button', {name: '复制正文', exact: true}).click();
+      await until(async () => await p.evaluate(() => navigator.clipboard.readText()) === `${english} Thank you!`, 'copy contains only reply');
+      await panel.getByRole('button', {name: '插入回复', exact: true}).click();
+      assert.equal(await p.locator('#editor').inputValue(), `${english} Thank you!`); assert.equal(await p.evaluate(() => window.sent || 0), 0);
+      await closePage(p);
+      // Changing only the reading preference in settings must not cancel an ongoing reply.
+      const changing = await page('https://github.com/fluentread-fixture/project/issues/492', 'reading-preference-during-reply');
+      await patch({writing: {...(await read()).writing, referenceLanguage: 'off'}});
+      responsePlans.push({text: english, initialDelay: 1800}, {text: spanish});
+      const starting = requests.length; await entry(changing).click(); await assertRequestCount(starting + 1, 'reply has started');
+      await patch({writing: {...(await read()).writing, referenceLanguage: 'es'}});
+      await until(async () => await changing.locator('[data-writing-reference] [data-reading-answer]').count() === 1 && await changing.locator('[data-writing-reference] [data-reading-answer]').innerText() === spanish);
+      assert.equal(await changing.locator('.writing-preview > [data-reading-answer]').innerText(), english);
+      await closePage(changing);
+      // A Spanish reader can write Chinese while understanding the Spanish translation.
+      await patch({uiLanguage: 'es-ES', writing: {...(await read()).writing, language: 'zh-Hans', referenceLanguage: 'ui'}});
+      const es = await page('https://github.com/fluentread-fixture/project/issues/491', 'bilingual-spanish-reader');
+      responsePlans.push({text: chinese}, {text: spanish}); await es.locator('[data-fluent-read-ui="writing-entry"] button').click();
+      await until(async () => await es.locator('[data-writing-reference] [data-reading-answer]').count() === 1 && await es.locator('[data-writing-reference] [data-reading-answer]').innerText() === spanish);
+      assert.match(requests.at(-1).body.messages[0].content, /Español（es）/);
+      await shot(es, 'writing-bilingual-chinese-spanish');
+      await es.setViewportSize({width: 390, height: 844}); await shot(es, 'writing-bilingual-spanish-mobile');
+      assert(await es.locator('.writing-panel').evaluate(el => el.scrollWidth <= el.clientWidth));
+      await closePage(es);
+      await patch({uiLanguage: 'zh-CN', to: initial.to, theme: 'light', writing: {...(await read()).writing, language: 'target', referenceLanguage: 'off'}});
+      report.cases.push('bilingual: English reply with Chinese reading translation; Chinese reply with Spanish reading translation; live selection and persistence; same-language and off skip requests; edit/version ownership; close/reopen cache; independent failure retry; original-only copy/insert; desktop, dark and 390px layouts');
+    }
+    if (runs('i18n')) {
+      const locales = [
+        ['es-ES', 'Asistente de escritura'], ['en-US', 'Writing assistant'],
+        ['ja-JP', '文章作成アシスタント'], ['ko-KR', '글쓰기 도우미'],
+        ['fr-FR', 'Assistant de rédaction'], ['ru-RU', 'Помощник по письму'], ['zh-CN', '写作助手'],
+      ];
+      const p = await page('https://mail.google.com/mail/u/0/?fixture=subject#inbox', 'i18n');
+      await p.locator('[data-fluent-read-ui="writing-entry"]').waitFor();
+      const panel = p.locator('.writing-panel');
+      const click = selector => panel.locator(selector).click();
+      const content = '写作助手，设置，正在组织语言…';
+      await patch({writing: {...(await read()).writing, model: '写作助手'}, to: 'es', theme: 'dark'});
+      await p.locator('[data-fluent-read-ui="writing-entry"] button').click();
+      for (const [language, title] of locales) {
+        await patch({uiLanguage: language});
+        await until(async () => await panel.getAttribute('aria-label') === title, `${language} dialog localization`);
+        assert.equal(await panel.locator('h2').innerText(), title);
+        assert.equal(await p.locator('[data-fluent-read-ui="writing-entry"] button').getAttribute('aria-label'), title);
+        assert.equal(await panel.locator('.writing-provider').getAttribute('title'), '写作助手', 'model name is user data');
+        await panel.locator('.writing-composer textarea').fill(content);
+        await click('.writing-style-trigger');
+        await until(async () => language === 'zh-CN' || await panel.locator('.writing-style-editor h3').innerText() !== '回答风格');
+        assert.equal(await panel.getByRole('radiogroup').count(), 4);
+        await panel.getByRole('radiogroup').nth(2).getByRole('radio').last().click();
+        await panel.locator('.writing-style-fields input').fill(content);
+        assert.equal(await panel.locator('.writing-style-fields input').inputValue(), content);
+        await shot(p, `writing-i18n-${language}-style`);
+        await click('.writing-style-editor footer button:first-child');
+        assert.equal(await panel.locator('.writing-composer textarea').inputValue(), content);
+        await click('.writing-language-trigger');
+        await until(async () => language === 'zh-CN' || await panel.locator('input[type=search]').getAttribute('placeholder') !== '搜索语言');
+        if (language === 'es-ES') {
+          await panel.getByRole('searchbox', {name: 'Buscar idioma de salida', exact: true}).fill('destino');
+          await panel.getByRole('option', {name: 'Usar idioma de destino Español', exact: true}).waitFor();
+        }
+        await shot(p, `writing-i18n-${language}-language`);
+        await click('.writing-language-picker .writing-text-button');
+        await shot(p, `writing-i18n-${language}-empty`);
+        report.cases.push(`${language}: open panel switches language, style and language controls localize, model and input stay unchanged`);
+      }
+      await patch({uiLanguage: 'es-ES'});
+      await panel.locator('.writing-composer').getByRole('button', {name: 'Generar respuesta', exact: true}).waitFor();
+      responsePlans.push({text: content, initialDelay: 1800});
+      await click('.writing-composer button');
+      await panel.getByRole('heading', {name: 'Redactando…', exact: true}).waitFor();
+      await panel.getByText('Preparando el texto…', {exact: true}).waitFor();
+      await panel.getByRole('button', {name: 'Detener', exact: true}).waitFor();
+      await shot(p, 'writing-i18n-es-ES-drafting');
+      await panel.getByRole('button', {name: 'Copiar texto', exact: true}).waitFor();
+      assert.equal(await panel.locator('[data-reading-answer]').innerText(), content);
+      responsePlans.push({text: 'This late replacement must not overwrite the draft.', initialDelay: 1800});
+      await panel.getByRole('button', {name: 'Regenerar', exact: true}).click();
+      await panel.getByRole('button', {name: 'Detener', exact: true}).click();
+      await panel.getByRole('status').getByText('Detenido. Se conserva el borrador actual.', {exact: true}).waitFor();
+      await wait(2200);
+      assert.equal(await panel.locator('[data-reading-answer]').innerText(), content);
+      await shot(p, 'writing-i18n-es-ES-stopped');
+      await click('.writing-title .writing-text-button');
+      assert.match(await panel.locator('.writing-reference textarea').last().inputValue(), /Project check-in/);
+      await panel.locator('.writing-reference textarea').last().fill(content);
+      await shot(p, 'writing-i18n-es-ES-reference');
+      await click('.writing-title .writing-text-button');
+      await panel.getByRole('button', {name: 'Editar texto', exact: true}).click();
+      assert.equal(await panel.locator('.writing-output').inputValue(), content);
+      await patch({uiLanguage: 'en-US'});
+      await panel.getByRole('button', {name: 'Done editing', exact: true}).waitFor();
+      assert.equal(await panel.locator('.writing-output').inputValue(), content);
+      await panel.getByRole('button', {name: 'Done editing', exact: true}).click();
+      await patch({uiLanguage: 'es-ES'});
+      await panel.getByRole('button', {name: 'Copiar texto', exact: true}).waitFor();
+      assert.equal(await panel.locator('[data-reading-answer]').innerText(), content);
+      await p.setViewportSize({width: 390, height: 844});
+      await shot(p, 'writing-i18n-es-ES-mobile');
+      assert(await panel.evaluate(el => el.scrollWidth <= el.clientWidth), 'localized mobile panel has no horizontal overflow');
+      await p.setViewportSize({width: 1440, height: 1000});
+      await panel.getByRole('button', {name: 'Cerrar asistente', exact: true}).click();
+      await p.locator('[data-fluent-read-ui="writing-entry"] button').click();
+      await panel.getByRole('heading', {name: 'Asistente de escritura', exact: true}).waitFor();
+      assert.equal(await panel.locator('[data-reading-answer]').innerText(), content);
+      assert.equal(await p.locator('main h1').innerText(), 'A thoughtful follow-up');
+      assert.equal(await p.locator('#editor').innerText(), '');
+      assert.equal(await p.evaluate(() => window.sent || 0), 0);
+      await closePage(p);
+      await patch({uiLanguage: 'zh-CN', theme: 'light', to: initial.to, writing: {...(await read()).writing, model: 'writing-fixture'}});
+      report.cases.push('Spanish drafting, accessible labels, Markdown and editor boundaries, live language switch, reopen and 390px layout');
+    }
     if (runs('settings')) {
       const beforeSettingsConfig = await read(); const beforeSettingsRequests = requests.length;
       const settingControl = label => label === '输出语言' ? settings.locator('.el-select').filter({has: settings.getByRole('combobox', {name: label, exact: true})}) : settings.getByRole('radiogroup', {name: label, exact: true});
@@ -241,7 +412,7 @@ function fixture(site, variant = '') {
       const settingsCard = await page('https://github.com/fluentread-fixture/project/issues/31?fixture=draft', 'settings-open-card-sync'); const firstSettingsDraft = await oneGeneration(settingsCard, () => entry(settingsCard).click()); assert.match(firstSettingsDraft.body.messages[0].content, /输出语言：English（en）/); assert.match(firstSettingsDraft.body.messages[0].content, /篇幅：详细/); assert.deepEqual(expressionData(firstSettingsDraft.body), {style: '正式', tone: customPreferences.tone, role: customPreferences.role});
       const beforeExternalChange = requests.length;
       for (const [label, name] of [['输出语言', '繁體中文'], ['长度', '简短'], ['风格', '中性'], ['语气', '温暖'], ['您的角色', '同事']]) await chooseSetting(label, name);
-      await expectWriting({language: 'zh-Hant', length: 'short', style: 'neutral', tone: 'warm', role: 'colleague'}); await wait(250); assert.equal(requests.length, beforeExternalChange, 'external settings update does not rewrite the open card'); assert.equal(await readDraft(settingsCard), firstSettingsDraft.text); assert.equal((await settingsCard.getByRole('button', {name: '输出语言', exact: true}).innerText()).trim(), 'English', 'existing draft retains its actual output-language label');
+      await expectWriting({language: 'zh-Hant', length: 'short', style: 'neutral', tone: 'warm', role: 'colleague'}); await wait(250); assert.equal(requests.length, beforeExternalChange, 'external settings update does not rewrite the open card'); assert.equal(await readDraft(settingsCard), firstSettingsDraft.text); assert.equal((await settingsCard.getByRole('button', {name: '输出语言', exact: true}).locator('span').innerText()).trim(), 'English', 'existing draft retains its actual output-language label');
       await settingsCard.getByRole('button', {name: '回答风格', exact: true}).click(); await assertStyle(settingsCard, {长度: '简短', 风格: '中性', 语气: '温暖', 您的角色: '同事'}); await settingsCard.getByRole('button', {name: '取消', exact: true}).click();
       const synchronizedDraft = await oneGeneration(settingsCard, () => settingsCard.getByRole('button', {name: '重新生成', exact: true}).click()); assert.equal(quotedData(synchronizedDraft.body).draft, firstSettingsDraft.text); assert.match(synchronizedDraft.body.messages[0].content, /输出语言：繁體中文（zh-Hant）/); assert.match(synchronizedDraft.body.messages[0].content, /篇幅：简短/); assert.deepEqual(expressionData(synchronizedDraft.body), {style: '中性', tone: '温暖', role: '同事'});
       await settingsCard.getByRole('button', {name: '回答风格', exact: true}).click(); for (const [group, name] of [['长度', '标准'], ['风格', '随意'], ['语气', '友好'], ['您的角色', '用户']]) await selectStyle(settingsCard, group, name); await oneGeneration(settingsCard, () => settingsCard.getByRole('button', {name: '应用并改写', exact: true}).click()); await expectWriting({length: 'standard', style: 'casual', tone: 'friendly', role: 'user'});
@@ -374,14 +545,14 @@ function fixture(site, variant = '') {
     assert.match(issueData.context, /当前项目：FluentRead\/FluentRead/); assert.match(issueData.context, /帖子类型：Issue #421/); assert.match(issueData.context, /页面地址：https:\/\/github.com\/FluentRead\/FluentRead\/issues\/421/); assert.match(issueData.context, /帖子标题：同一段话出现了两次翻译/); assert.match(issueData.context, /原帖：[\s\S]*https:\/\/github.com\/planetscale\/vtprotobuf/); assert(!issueData.context.includes('当前讨论：'), 'screenshot-and-link issue has no invented comments');
     assert.match(issueReply.body.messages[0].content, /回应整个帖子/); assert.match(issueReply.body.messages[0].content, /不输出链接项目的百科介绍/); assert.match(issueReply.body.messages[0].content, /不能猜测未读取的截图内容/); assert.match(issueReply.body.messages[0].content, /不自称维护者/); assert.match(issueReply.body.messages[0].content, /不要用代码围栏包裹整篇回复/); assert.match(issueReply.body.messages[0].content, /输出语言：繁體中文（zh-Hant）/); assert.match(issueReply.body.messages[0].content, /篇幅：简短/); assert.deepEqual(expressionData(issueReply.body), {style: '自动', tone: '自然', role: '自动'});
     const languageButton = () => issue421.getByRole('button', {name: '输出语言', exact: true});
-    assert.equal((await read()).writing.language, 'target'); assert.equal((await languageButton().innerText()).trim(), '繁體中文'); assert.equal(await languageButton().getAttribute('title'), '跟随目标语言');
+    assert.equal((await read()).writing.language, 'target'); assert.equal((await languageButton().locator('span').innerText()).trim(), '繁體中文'); assert.equal(await languageButton().getAttribute('title'), '跟随目标语言');
     const assertMarkdown = async p => { assert.equal(await preview(p).locator('[data-reading-answer]').count(), 1); assert.equal(await preview(p).locator('strong').first().innerText(), '重复翻译'); assert.equal(await preview(p).locator('li').count(), 2); assert.equal(await preview(p).locator('pre code').innerText(), 'original -> translated'); assert.equal(await preview(p).locator('a, img, script, iframe').count(), 0); assert((await preview(p).textContent()).includes('重复翻译')); assert(!(await preview(p).textContent()).includes('**重复翻译**')); };
     await assertMarkdown(issue421); await shot(issue421, 'issue421-markdown-preview');
-    const beforeTargetChange = requests.length; await patch({to: 'en'}); await wait(250); assert.equal(requests.length, beforeTargetChange); assert.equal((await languageButton().innerText()).trim(), '繁體中文', 'external target change cannot relabel a completed draft');
-    const newLanguage = await oneGeneration(issue421, () => issue421.getByRole('button', {name: '重新生成', exact: true}).click(), {markdown: true}); assert.match(newLanguage.body.messages[0].content, /输出语言：English（en）/); assert.equal((await languageButton().innerText()).trim(), 'English'); assert.equal((await read()).writing.language, 'target');
-    await issue421.getByRole('button', {name: '上一版', exact: true}).click(); assert.equal((await languageButton().innerText()).trim(), '繁體中文'); await issue421.getByRole('button', {name: '下一版', exact: true}).click(); assert.equal((await languageButton().innerText()).trim(), 'English');
+    const beforeTargetChange = requests.length; await patch({to: 'en'}); await wait(250); assert.equal(requests.length, beforeTargetChange); assert.equal((await languageButton().locator('span').innerText()).trim(), '繁體中文', 'external target change cannot relabel a completed draft');
+    const newLanguage = await oneGeneration(issue421, () => issue421.getByRole('button', {name: '重新生成', exact: true}).click(), {markdown: true}); assert.match(newLanguage.body.messages[0].content, /输出语言：English（en）/); assert.equal((await languageButton().locator('span').innerText()).trim(), 'English'); assert.equal((await read()).writing.language, 'target');
+    await issue421.getByRole('button', {name: '上一版', exact: true}).click(); assert.equal((await languageButton().locator('span').innerText()).trim(), '繁體中文'); await issue421.getByRole('button', {name: '下一版', exact: true}).click(); assert.equal((await languageButton().locator('span').innerText()).trim(), 'English');
     const beforePicker = requests.length; await languageButton().click();
-    const languageOptions = issue421.getByRole('listbox', {name: '输出语言', exact: true});
+    const languageOptions = issue421.getByRole('listbox', {name: '回复语言', exact: true});
     for (const name of ['简体中文', '繁體中文', 'English', '日本語', '한국어', 'Français', 'Русский', 'Español']) assert.equal(await languageOptions.getByRole('option', {name, exact: true}).count(), 1, `translation target ${name} remains selectable`);
     assert.equal(await languageOptions.getByRole('option', {name: /跟随目标语言/}).getAttribute('aria-selected'), 'true'); await issue421.getByRole('searchbox', {name: '搜索输出语言', exact: true}).fill('zh-Hant'); assert.equal(await languageOptions.getByRole('option').count(), 1); assert.equal(await languageOptions.getByRole('option', {name: '繁體中文', exact: true}).count(), 1); await shot(issue421, 'writing-searchable-language-picker'); await issue421.getByRole('button', {name: '返回草稿', exact: true}).click(); assert.equal(requests.length, beforePicker); assert.equal((await read()).writing.language, 'target');
     const beforeStaged = requests.length; const savedExpression = (await read()).writing;
@@ -460,7 +631,7 @@ function fixture(site, variant = '') {
     const beforeMobileControls = requests.length; const beforeMobilePreferences = (await read()).writing;
     await dark.getByRole('button', {name: '回答风格', exact: true}).click(); await assertStyle(dark); assert.equal(await dark.locator('.writing-panel').evaluate(element => element.scrollWidth <= element.clientWidth), true); await shot(dark, 'writing-style-mobile-dark');
     for (const group of ['长度', '风格', '语气', '您的角色']) { await dark.getByRole('radiogroup', {name: group, exact: true}).scrollIntoViewIfNeeded(); assert(await dark.getByRole('radiogroup', {name: group, exact: true}).isVisible()); }
-    await dark.getByRole('button', {name: '取消', exact: true}).click(); await dark.getByRole('button', {name: '输出语言', exact: true}).click(); await dark.getByRole('searchbox', {name: '搜索输出语言', exact: true}).fill('中文'); assert.equal(await dark.getByRole('listbox', {name: '输出语言', exact: true}).getByRole('option', {name: '简体中文', exact: true}).count(), 1); assert.equal(await dark.getByRole('listbox', {name: '输出语言', exact: true}).getByRole('option', {name: '繁體中文', exact: true}).count(), 1); assert.equal(await dark.locator('.writing-panel').evaluate(element => element.scrollWidth <= element.clientWidth), true); await shot(dark, 'writing-language-mobile-dark'); await dark.getByRole('button', {name: '返回草稿', exact: true}).click(); assert.equal(requests.length, beforeMobileControls); assert.deepEqual((await read()).writing, beforeMobilePreferences); await closePage(dark);
+    await dark.getByRole('button', {name: '取消', exact: true}).click(); await dark.getByRole('button', {name: '输出语言', exact: true}).click(); await dark.getByRole('searchbox', {name: '搜索输出语言', exact: true}).fill('中文'); assert.equal(await dark.getByRole('listbox', {name: '回复语言', exact: true}).getByRole('option', {name: '简体中文', exact: true}).count(), 1); assert.equal(await dark.getByRole('listbox', {name: '回复语言', exact: true}).getByRole('option', {name: '繁體中文', exact: true}).count(), 1); assert.equal(await dark.locator('.writing-panel').evaluate(element => element.scrollWidth <= element.clientWidth), true); await shot(dark, 'writing-language-mobile-dark'); await dark.getByRole('button', {name: '返回草稿', exact: true}).click(); assert.equal(requests.length, beforeMobileControls); assert.deepEqual((await read()).writing, beforeMobilePreferences); await closePage(dark);
     await settings.setViewportSize({width: 390, height: 844}); await shot(settings, 'writing-settings-mobile'); assert.equal(await settings.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     for (const url of ['https://github.com/fluentread-fixture/project', 'https://github.com/fluentread-fixture/project/discussions/1', 'https://mail.google.com/settings']) { const unsupported = await page(url, 'unsupported-route'); await wait(450); assert.equal(await unsupported.locator('[data-fluent-read-ui="writing-entry"]').count(), 0); await closePage(unsupported); }
     report.cases.push('dark Issue/PR surface, 390px panel and settings without horizontal overflow and unsupported routes absent');
@@ -470,9 +641,11 @@ function fixture(site, variant = '') {
     assert(report.requests.every(body => body.stream === true && !JSON.stringify(body.messages).includes('PRIVATE_'))); assert.equal(responsePlans.length, 0, 'all planned fixture outcomes were consumed'); assert.equal(report.consoleErrors.length, 0, JSON.stringify(report.consoleErrors)); report.ok = true;
   } catch (error) {
     report.error = error.stack;
+    report.focusGuardAborted = /前台|foreground/.test(error.message);
     try { if (currentPage && !currentPage.isClosed()) await currentPage.screenshot({path: path.join(artifactsDir, 'failure.png')}); } catch {}
     throw error;
   } finally {
+    report.requests = requests.map(({body, ordinal, outcome}) => ({ordinal, outcome, model: body.model, messages: body.messages, stream: body.stream}));
     fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
     await launched?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); fs.rmSync(profileDir, {recursive: true, force: true});
     console.log(JSON.stringify({ok: report.ok, suite: report.suite, cases: report.cases, artifactsDir, evidenceBoundary: report.evidenceBoundary, error: report.error}));

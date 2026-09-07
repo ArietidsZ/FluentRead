@@ -1,9 +1,10 @@
 /**
  * @file src/app/background/writingRuntime.ts
  * 文件职责：将写作后台接入已有配置、模型用量与浏览器生命周期。
- * 主要内容：装配端口与服务；配置变更、网站停用、标签关闭或导航时取消生成。
+ * 主要内容：装配端口与服务；生成配置变更、网站停用、标签关闭或导航时取消生成；阅读对照偏好由面板管理，不中断回复生成。
  * 模块边界：只负责组合，不读取网页，不实现提示词和编辑器写回。
  */
+import type {Config} from '@/src/core/config/model';
 import {isWritingPage} from '@/src/core/config/writing';
 import browser from 'webextension-polyfill';
 import {config, configReady, subscribeConfig} from '@/src/services/config/store';
@@ -30,9 +31,10 @@ export function installWritingBackgroundRuntime(): void {
         },
     });
     browser.runtime.onConnect.addListener(port => handler.connect(port));
-    let previous = '';
+    const configurationKey = (next: Config) => JSON.stringify([next.on, {...next.writing, referenceLanguage: undefined}, next.disabledExtensionDomains, next.service, next.model, next.customModel, next.proxy, next.token, next.customOpenAIProviders]);
+    let previous = configurationKey(config);
     subscribeConfig(next => {
-        const key = JSON.stringify([next.on, next.writing, next.disabledExtensionDomains, next.service, next.model, next.customModel, next.proxy, next.token]);
+        const key = configurationKey(next);
         if (key !== previous) handler.cancelAll();
         previous = key;
     });

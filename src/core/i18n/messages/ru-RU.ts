@@ -10,6 +10,21 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const ruRUMessages = {
+    "writing.replyLanguage": "Язык ответа",
+    "writing.referenceLanguage": "Язык перевода",
+    "writing.interfaceLanguage": "Язык интерфейса",
+    "writing.referenceOff": "Выключено",
+    "writing.referenceDescription": "Перевод появится под ответом. Копирование и вставка включают только ответ.",
+    "writing.referenceHeading": "Перевод · {language}",
+    "writing.referenceLoading": "Переводим…",
+    "writing.referenceError": "Не удалось перевести",
+    "writing.referenceRetry": "Повторить перевод",
+    "writing.referenceSameLanguage": "Ответ уже написан на выбранном языке перевода",
+    "writing.referenceTooLong": "Ответ слишком длинный для полного перевода.",
+    "writing.referenceFootnote": "Перевод предназначен для чтения. Копирование и вставка включают только ответ.",
+    "writing.referenceDisabled": "Без перевода",
+    "writing.referenceSearch": "Поиск языка перевода",
+
     "usage.pageSize": "{size} записей",
     "featureEnable.imageDescription": "Показывать кнопку перевода при наведении на изображение.",
 

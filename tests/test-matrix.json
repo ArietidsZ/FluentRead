@@ -203,6 +203,7 @@
       "tests/freeFallback.test.ts",
       "tests/modelCacheRemoval.test.ts",
       "tests/writingCore.test.ts",
+      "tests/writingReference.test.ts",
       "tests/writingEditors.test.ts",
       "tests/writingMarkdown.test.ts"
     ],

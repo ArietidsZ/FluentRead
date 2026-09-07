@@ -1,13 +1,14 @@
 /**
  * @file src/core/config/writing.ts
  * 文件职责：定义写作助手的持久化偏好、动作目录与配置规范化。
- * 主要内容：默认跟随翻译目标语言并使用简短自然回复，限定风格、身份和自定义语气边界，迁移旧偏好，以 HTTPS 和路径白名单限定网页回复入口。
+ * 主要内容：默认跟随翻译目标语言并使用简短自然回复，独立选择阅读对照语言，限定风格、身份和自定义语气边界，迁移旧偏好，以 HTTPS 和路径白名单限定网页回复入口。
  * 模块边界：仅处理纯数据；不读取编辑框、不调用模型、不保存配置。
  */
 import {isHarnessService} from './harness';
 import type {CustomOpenAIProvider} from './customOpenAI';
 import {options} from './catalog';
 import {normalizeChineseLanguageCode} from '../language/chinese';
+import type {UiLanguage} from '../i18n/types';
 
 export const WRITING_ACTIONS = [
     {id: 'draft', label: '起草'}, {id: 'reply', label: '帮我回复'},
@@ -37,12 +38,26 @@ export type WritingLength = typeof WRITING_LENGTHS[number]['value'];
 export type WritingStyle = typeof WRITING_STYLES[number]['value'];
 export interface WritingPreferences {
     enabled: boolean; service: string; model: string;
-    language: string; tone: string; length: WritingLength; style: WritingStyle; role: string;
+    language: string; referenceLanguage: string; tone: string; length: WritingLength; style: WritingStyle; role: string;
 }
 /** 旧自动语言随新默认迁移，中文地区别名统一为书写体系。 */
 export function normalizeWritingLanguage(value: unknown): string {
     const language = typeof value === 'string' ? normalizeChineseLanguageCode(value) : '';
     return WRITING_LANGUAGES.some(item => item.value === language) ? language : 'target';
+}
+/** 对照语言独立于回复目标；缺省跟随界面，显式关闭与具体语言保持持久化。 */
+export function normalizeWritingReferenceLanguage(value: unknown): string {
+    if (value === 'off' || value === 'ui') return value;
+    const language = normalizeWritingLanguage(value);
+    return language === 'target' ? 'ui' : language;
+}
+/** 将界面语言转换为生成语言代码；关闭时不发送对照请求。 */
+export function resolveWritingReferenceLanguage(value: unknown, uiLanguage: UiLanguage): string {
+    const language = normalizeWritingReferenceLanguage(value);
+    if (language === 'off') return '';
+    if (language !== 'ui') return language;
+    const uiTargets: Record<UiLanguage, string> = {'zh-CN': 'zh-Hans', 'en-US': 'en', 'ja-JP': 'ja', 'ko-KR': 'ko', 'fr-FR': 'fr', 'ru-RU': 'ru', 'es-ES': 'es'};
+    return uiTargets[uiLanguage];
 }
 /** 只接受目录语言与旧自动值，协议不能靠规范化把任意语言静默变成合法值。 */
 export function isWritingLanguage(value: string): boolean {
@@ -67,6 +82,7 @@ export function normalizeWritingPreferences(value: unknown, providers: readonly 
         service: isHarnessService(source.service, providers) ? source.service : '',
         model: typeof source.model === 'string' && source.model.trim() !== '自定义模型' ? source.model.trim().slice(0, 128) : '',
         language: normalizeWritingLanguage(source.language),
+        referenceLanguage: normalizeWritingReferenceLanguage(source.referenceLanguage),
         tone: normalizeDescription(source.tone, WRITING_TONE_MAX_LENGTH, 'natural'),
         length: normalizeWritingLength(source.length),
         style: WRITING_STYLES.some(item => item.value === source.style) ? source.style! : 'auto',

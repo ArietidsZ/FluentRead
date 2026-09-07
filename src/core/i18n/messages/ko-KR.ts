@@ -10,6 +10,21 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const koKRMessages = {
+    "writing.replyLanguage": "답장 언어",
+    "writing.referenceLanguage": "대조 번역 언어",
+    "writing.interfaceLanguage": "인터페이스 언어 사용",
+    "writing.referenceOff": "끄기",
+    "writing.referenceDescription": "답장 아래에 번역을 표시합니다. 복사와 삽입에는 답장 본문만 포함됩니다.",
+    "writing.referenceHeading": "대조 번역 · {language}",
+    "writing.referenceLoading": "대조 번역 중…",
+    "writing.referenceError": "대조 번역 실패",
+    "writing.referenceRetry": "대조 번역 재시도",
+    "writing.referenceSameLanguage": "답장과 대조 번역의 언어가 같습니다",
+    "writing.referenceTooLong": "본문이 너무 길어 전체를 번역할 수 없습니다.",
+    "writing.referenceFootnote": "대조 번역은 읽기용입니다. 복사와 삽입에는 답장 본문만 포함됩니다.",
+    "writing.referenceDisabled": "대조 번역 표시 안 함",
+    "writing.referenceSearch": "대조 번역 언어 검색",
+
     "usage.pageSize": "{size}개",
     "featureEnable.imageDescription": "웹페이지 이미지 위에 마우스를 올리면 번역 버튼을 표시합니다.",
 

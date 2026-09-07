@@ -19,6 +19,7 @@ export default defineConfig({
         include: [
             'tests/writingIntegration.test.ts',
             'tests/writingCore.test.ts',
+            'tests/writingReference.test.ts',
             'tests/writingEditors.test.ts',
             'tests/writingMarkdown.test.ts',
             'tests/writingBackground.test.ts',
@@ -258,6 +259,7 @@ export default defineConfig({
                 'src/features/writing-assistant/background.ts',
                 'src/features/writing-assistant/editors.ts',
                 'src/features/writing-assistant/markdown.ts',
+                'src/features/writing-assistant/reference.ts',
                 'src/services/writing/runtime.ts',
                 'src/features/image-translation/content/presentation.ts',
                 'src/app/background/imageContextMenu.ts',
