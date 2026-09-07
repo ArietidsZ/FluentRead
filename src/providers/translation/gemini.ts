@@ -28,8 +28,12 @@ async function gemini(message: TranslationProviderRequest<string>) {
 
     const model = message.modelOverride
         || (current.model[service] === customModelString ? current.customModel[service] : current.model[service]);
-    const proxyUrl = current.proxy[service]?.trim();
-    const usesOfficialEndpoint = !proxyUrl;
+    const rawProxyUrl = current.proxy[service]?.trim() || "";
+    const proxyUrl = rawProxyUrl
+        .replace("{model}", encodeURIComponent(model))
+        .replace("{key}", encodeURIComponent(current.token[service] || ""));
+
+    const usesOfficialEndpoint = !rawProxyUrl;
     const url = proxyUrl
         || `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
