@@ -118,8 +118,8 @@ function tokenCredentialDestination(config: Config, service: string): string {
     // AI SDK 的 NewAPI/Azure 路由不读取通用 proxy，必须按真实直连字段绑定。
     if (service === services.newapi) return `urls:${canonicalNewApiEndpoint(config.newApiUrl)}`;
     if (service === services.azureOpenai) return `urls:${canonicalAzureEndpoint(config.azureOpenaiEndpoint)}`;
-    // Gemini 代理请求按协议不携带 x-goog-api-key；Key 始终只信任 Google 官方端点，
-    // 因此代理开关或代理地址变化不能误删仍安全保存的官方凭据。
+    // Gemini 保留同一服务的 Key，不因代理开关或地址变化清除；代理不自动携带
+    // x-goog-api-key，但配置了 {key} 的 URL 模板会使用这个保留的 Key。
     if (service === services.gemini) return urlDestination(service,
         'https://generativelanguage.googleapis.com/',
     );
