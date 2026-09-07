@@ -38,8 +38,8 @@ async function gemini(message: TranslationProviderRequest<string>) {
         || `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
     const headers = new Headers({'Content-Type': 'application/json'});
-    // Google 文档规定，直接 Gemini REST 请求使用 x-goog-api-key；绝不能把 Google
-    // 凭据转发给用户配置的代理。
+    // 官方 Gemini REST 请求使用 x-goog-api-key；代理不自动追加该头部，
+    // 需要 URL 凭据的代理由用户通过 {key} 占位符显式配置。
     if (usesOfficialEndpoint) {
         appendOptionalHeader(headers, 'x-goog-api-key', current.token[service]);
     }

@@ -67,7 +67,7 @@ describe('standalone userscript privacy boundaries', () => {
         expect(translationCache).not.toContain('lastAccessedAt + TRANSLATION_CACHE_TTL_MS');
     });
 
-    it('keeps Gemini credentials out of URLs and custom proxies', () => {
+    it('keeps the official Gemini key out of its URL and restricts automatic key headers to the official endpoint', () => {
         expect(gemini).not.toContain('generateContent?key=');
         expect(gemini).toContain("'x-goog-api-key'");
         expect(gemini).toContain('if (usesOfficialEndpoint)');

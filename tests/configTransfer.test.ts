@@ -570,7 +570,7 @@ describe('configuration transfer helpers', () => {
     })
   })
 
-  it('Gemini proxy 变化不清除只会发往官方端点的 Google Key', () => {
+  it('Gemini 无 key 占位符的 proxy 变化保留已有 Google Key', () => {
     const current = normalizeConfig({
       ...validConfig,
       proxy: {[services.gemini]: 'https://old-gemini-proxy.example/'},
