@@ -34,7 +34,7 @@ vi.mock('@/src/app/content/features', () => ({
     autoTranslateEnglishPage: mocks.autoTranslateEnglishPage,
     isFullPageTranslationActive: mocks.isFullPageTranslationActive,
     isSameLanguage: vi.fn(() => false),
-    normalizeSelectionText: vi.fn((value: string) => value),
+    readSelectionText: vi.fn((_range: Range, value: string) => value),
     restoreOriginalContent: mocks.restoreOriginalContent,
     shouldIgnoreSelection: vi.fn(() => false),
     toggleFloatingBallTranslation: mocks.toggleFloatingBallTranslation,

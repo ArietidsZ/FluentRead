@@ -460,6 +460,32 @@ describe('translation truncation layout', () => {
         });
     });
 
+    it('issue #492 keeps the MathJax v2 nobr visual tree without a second assistive formula', async () => {
+        const {document} = parseHTML(`<html><body><p id="owner">For each integer
+            <span class="MathJax"><nobr aria-hidden="true"><span class="mi" style="font-family: serif">i</span></nobr><span class="MJX_Assistive_MathML"><math><mi>i</mi></math></span></span><script type="math/tex">i</script>
+            satisfying <span class="MathJax"><nobr aria-hidden="true"><span>1≤i≤n</span></nobr><span class="MJX_Assistive_MathML"><math><mrow>1≤i≤n</mrow></math></span></span><script type="math/tex">1 \\le i \\le n</script>, find the answer.
+            <span class="katex"><span class="katex-mathml"><math><mi>x</mi></math></span><span class="katex-html">x</span></span>
+            <mjx-container><mjx-mi>y</mjx-mi><mjx-assistive-mml><math><mi>y</mi></math></mjx-assistive-mml></mjx-container>
+        </p></body></html>`);
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        const original = owner.innerHTML;
+        await withDocumentRealm(document, async () => {
+            for (let cycle = 0; cycle < 2; cycle++) {
+                const snapshot = createTranslationSourceSnapshot(owner);
+                expect(snapshot.slots.every(slot => !/1≤i≤n|^i$|^x$|^y$/.test(slot.source))).toBe(true);
+                const html = applyTranslationsToSnapshot(snapshot, snapshot.slots.map(() => '中文'));
+                const wrapper = appendBilingualTranslation(owner, html, {sourceSkeleton: snapshot.clone});
+                expect([...wrapper.querySelectorAll('.MathJax')].map(node => node.textContent)).toEqual(['i', '1≤i≤n']);
+                expect(wrapper.querySelectorAll('.MathJax > nobr')).toHaveLength(2);
+                expect(wrapper.querySelector('.katex')?.textContent).toBe('x');
+                expect(wrapper.querySelector('mjx-container')?.textContent).toBe('y');
+                expect(wrapper.querySelector('.MJX_Assistive_MathML, .katex-mathml, mjx-assistive-mml, script')).toBeNull();
+                wrapper.remove();
+                expect(owner.innerHTML).toBe(original);
+            }
+        });
+    });
+
     it('rejects active formula content and keeps formula privileges out of provider HTML', async () => {
         const {document} = parseHTML(`<html><head><base href="https://example.org/paper"></head><body><p id="owner">Prose</p></body></html>`);
         const owner = document.querySelector<HTMLElement>('#owner')!;

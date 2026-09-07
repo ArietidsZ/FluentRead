@@ -8,6 +8,7 @@
 
 import {
     getComposedParent,
+    getElementTagName,
     isTranslationTooltip,
     isDocumentSurface,
     isPlainTextDocumentPre,
@@ -62,7 +63,7 @@ const embeddedAsideClassTokens = new Set([
  * 因此结构祖先不能屏蔽标题本身；硬守卫与站点裁剪决策仍具有更高优先级。
  */
 export function isSemanticHeadingElement(element: Element): boolean {
-    return semanticHeadingTags.has(element.tagName.toLowerCase());
+    return semanticHeadingTags.has(getElementTagName(element));
 }
 
 export function getElementDisplay(element: Element): string {
@@ -75,7 +76,7 @@ export function getElementDisplay(element: Element): string {
 }
 
 export function isBlockBoundary(element: Element): boolean {
-    const tag = element.tagName.toLowerCase();
+    const tag = getElementTagName(element);
     if (isPlainTextDocumentPre(element)) return true;
     if (semanticReparentBoundaryTags.has(tag)) return true;
     const display = getElementDisplay(element);
@@ -109,13 +110,13 @@ function hasComposedAncestor(
 
 function hasArticleAncestor(element: Element): boolean {
     return hasComposedAncestor(element, (ancestor) =>
-        ancestor.tagName.toLowerCase() === 'article' ||
+        getElementTagName(ancestor) === 'article' ||
         ancestor.getAttribute('role')?.trim().toLowerCase() === 'article');
 }
 
 function hasMainAncestor(element: Element): boolean {
     return hasComposedAncestor(element, (ancestor) =>
-        ancestor.tagName.toLowerCase() === 'main' ||
+        getElementTagName(ancestor) === 'main' ||
         ancestor.getAttribute('role')?.trim().toLowerCase() === 'main');
 }
 
@@ -128,7 +129,7 @@ function isEmbeddedContentAside(element: Element): boolean {
 }
 
 export function isStructuralContainer(element: Element): boolean {
-    const tag = element.tagName.toLowerCase();
+    const tag = getElementTagName(element);
     if (!structuralTags.has(tag)) return false;
     // 导航即使挂在文章内容内，仍属于页面框架控件。
     if (tag === 'nav') return true;
@@ -154,7 +155,7 @@ export function hasStructuralAncestor(element: Element): boolean {
 }
 
 export function isTranslationControlElement(element: Element): boolean {
-    const tag = element.tagName.toLowerCase();
+    const tag = getElementTagName(element);
     if (tag === 'button') return true;
     const role = element.getAttribute('role')?.trim().toLowerCase();
     return role === 'button' || role === 'menuitem';
@@ -173,7 +174,7 @@ const allScopeUIRoles = new Set([
 ]);
 
 function isAllScopeControl(element: Element): boolean {
-    return allScopeControlTags.has(element.tagName.toLowerCase()) ||
+    return allScopeControlTags.has(getElementTagName(element)) ||
         allScopeControlRoles.has(element.getAttribute('role')?.trim().toLowerCase() ?? '');
 }
 
@@ -182,7 +183,7 @@ export function getAllScopeCandidateKind(element: Element): TranslationCandidate
     if (isSemanticHeadingElement(element)) return 'content';
     if (isStructuralContainer(element) ||
         allScopeUIRoles.has(element.getAttribute('role')?.trim().toLowerCase() ?? '')) return 'control';
-    if (!allScopeProseTags.has(element.tagName.toLowerCase()) &&
+    if (!allScopeProseTags.has(getElementTagName(element)) &&
         element.getAttribute('role')?.trim().toLowerCase() !== 'article' &&
         !hasArticleAncestor(element)) return 'control';
     return hasComposedAncestor(element, (ancestor) =>

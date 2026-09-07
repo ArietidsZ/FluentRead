@@ -9,6 +9,7 @@ import {
     isSameLanguage,
     isSelectionExcludedTagName,
     normalizeSelectionText,
+    readSelectionText,
     normalizeSpeechLanguage,
     reconcileSelectionPresentation,
     resolveSelectionDictionaryFallback,
@@ -95,7 +96,8 @@ class MockElement {
         return Object.hasOwn(this.attributes, name);
     }
 
-    closest(): MockElement | null {
+    closest(selector: string): MockElement | null {
+        if (selector.startsWith('math,')) return null;
         return this.closestMatch ? this : null;
     }
 
@@ -293,6 +295,65 @@ describe('selection translator text and speech language normalization', () => {
         expect(canUseBundledDictionaryFallback('ja')).toBe(false);
         expect(resolveSelectionDictionaryFallback('zh-Hans', [undefined, '', ' 常见 ', '共同'])).toBe('常见；共同');
         expect(resolveSelectionDictionaryFallback('ja', ['常见'])).toBe('');
+    });
+
+    it('issue #492 extracts one formula representation from MathJax and KaTeX selections', () => {
+        const {document} = parseHTML(`<html><body><p>For each integer <span class="MathJax"><nobr aria-hidden="true">i</nobr><span class="MJX_Assistive_MathML"><math><mi>i</mi></math></span></span><script type="math/tex">i</script> find the answer.</p></body></html>`);
+        const paragraph = document.querySelector('p')!;
+        const selected = () => {
+            const fragment = document.createDocumentFragment();
+            [...paragraph.childNodes].forEach(node => fragment.append(node.cloneNode(true)));
+            return fragment;
+        };
+        const range = {commonAncestorContainer: paragraph, cloneContents: selected} as unknown as Range;
+        expect(readSelectionText(range, 'For each integer iii find the answer.')).toBe('For each integer $i$ find the answer.');
+        expect(paragraph.querySelector('.MJX_Assistive_MathML')).not.toBeNull();
+        paragraph.innerHTML = 'Evaluate <span class="katex"><span class="katex-mathml"><math><semantics><mi>x</mi><annotation encoding="application/x-tex">x^2</annotation></semantics></math></span><span class="katex-html">x2</span></span> now.';
+        expect(readSelectionText(range, 'duplicate')).toBe('Evaluate $x^2$ now.');
+        paragraph.innerHTML = 'Evaluate <math><mi>x</mi><annotation>duplicate</annotation></math> now.';
+        expect(readSelectionText(range, 'duplicate')).toBe('Evaluate $x$ now.');
+        paragraph.innerHTML = '<span class="MathJax_Preview"></span><span class="MathJax"><nobr>x</nobr></span>';
+        expect(readSelectionText(range, 'xx')).toBe('');
+        paragraph.innerHTML = 'Plain text';
+        expect(readSelectionText(range, ' Plain text ')).toBe('Plain text');
+        paragraph.innerHTML = 'Before <math>x</math> after';
+        expect(readSelectionText({...range, cloneContents: () => document.createDocumentFragment()} as Range, ' Before ')).toBe('Before');
+        paragraph.innerHTML = 'Evaluate <math></math> now';
+        expect(readSelectionText(range, 'fallback')).toBe('Evaluate now');
+        const math = paragraph.querySelector('math')!;
+        expect(readSelectionText({commonAncestorContainer: math} as unknown as Range, 'x')).toBe('');
+        expect(readSelectionText({commonAncestorContainer: null} as unknown as Range, ' word ')).toBe('word');
+    });
+
+    it('issue #492 allows prose crossing visible math but retains controls and local opt-outs', () => {
+        const {document} = parseHTML(`<html><body><p>Read <span class="MathJax"><nobr aria-hidden="true">i</nobr><span class="MJX_Assistive_MathML"><math><mi>i</mi></math></span></span> now.</p></body></html>`);
+        const paragraph = document.querySelector('p')!;
+        const range = () => mockRange(paragraph.firstChild, paragraph.lastChild, {
+            commonAncestor: paragraph, intersectingNodes: [...paragraph.querySelectorAll('*')],
+        });
+        const geometry = () => paragraph.querySelectorAll('*').forEach(element => {
+            element.getClientRects = () => [{width: 10, height: 10}] as unknown as DOMRectList;
+        });
+        geometry();
+        expect(shouldIgnoreSelection(range())).toBe(false);
+        paragraph.innerHTML = 'Read <math><mi>x</mi></math> now';
+        geometry();
+        expect(shouldIgnoreSelection(range())).toBe(false);
+        paragraph.innerHTML = 'Read <span class="MathJax"><svg><path/></svg><button>Run</button></span> now';
+        geometry();
+        expect(shouldIgnoreSelection(range())).toBe(true);
+        paragraph.innerHTML = 'Read <span translate="no"><span class="MathJax"><nobr aria-hidden="true">x</nobr></span></span> now';
+        geometry();
+        expect(shouldIgnoreSelection(range())).toBe(true);
+        paragraph.innerHTML = 'Read <span class="MathJax"><span contenteditable="true">x</span></span> now';
+        geometry();
+        expect(shouldIgnoreSelection(range())).toBe(true);
+        paragraph.innerHTML = 'Read <span class="MathJax"><span role="button">Run</span></span> now';
+        geometry();
+        expect(shouldIgnoreSelection(range())).toBe(true);
+        paragraph.innerHTML = 'Read <span aria-hidden="true">private</span> now';
+        geometry();
+        expect(shouldIgnoreSelection(range())).toBe(true);
     });
 
     it('classifies atomic and interactive elements as non-text selections', () => {

@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/renderer.ts
  * 文件职责：把翻译返回的受限 HTML 或纯文本安全插入原页面，构造 FluentRead 双语与仅译文节点，同时保护链接属性并触发布局截断修复。
- * 主要内容：包含 URL 协议白名单、可复制属性集合、递归节点净化、本地公式骨架的受限克隆、DocumentFragment 创建、不改写宿主 class 的双语 wrapper，以及通过 Shadow DOM 保留宿主原文的仅译文文本槽。
+ * 主要内容：包含 URL 协议白名单、可复制属性集合、递归节点净化、本地公式可视骨架的受限克隆与辅助副本排除、DocumentFragment 创建、不改写宿主 class 的双语 wrapper，以及通过 Shadow DOM 保留宿主原文的仅译文文本槽。
  * 模块边界：本文件只负责安全渲染，不发起翻译或管理请求状态；服务调用归 runtime，节点所有权归 state，配置仅用于展示选项，任意脚本、事件属性和危险链接都不得穿过净化边界。
  */
 import { options } from "@/src/core/config/catalog";
@@ -44,7 +44,7 @@ function copySafeAttributes(source: Element, target: HTMLElement): void {
 // 公式只能来自本地快照，不能根据 provider 返回的 HTML 升级信任。
 const formulaSelector = 'math, mjx-container, .MathJax, .MathJax_Display, .MathJax_SVG, .MathJax_CHTML, .katex, .mwe-math-element, .ltx_Math';
 const formulaTags = new Set((
-    'span div img math semantics annotation mi mn mo mrow mfrac msqrt mroot mstyle merror ' +
+    'span div nobr img math semantics annotation mi mn mo mrow mfrac msqrt mroot mstyle merror ' +
     'mpadded mphantom mfenced menclose msub msup msubsup munder mover munderover mmultiscripts ' +
     'mprescripts none mtable mtr mtd mlabeledtr mtext mspace svg g defs path use rect line polyline ' +
     'polygon circle ellipse'
@@ -67,6 +67,8 @@ function cloneSourceFormula(source: Element): Element | null {
         if (id) ids.set(id, `${prefix}${ids.size}`);
     }
     const clone = (element: Element): Element | null => {
+        // 译文只保留可视排版，避免辅助 MathML/TeX 副本重复显示或再次排版。
+        if (element.matches('.MJX_Assistive_MathML, mjx-assistive-mml, .katex-mathml, annotation, annotation-xml')) return null;
         const tag = element.localName.toLowerCase();
         // MathJax CHTML 使用无脚本语义的 mjx-* 自定义排版元素。
         if (!formulaTags.has(tag) && !allowedTags.has(tag) && !/^mjx-[a-z0-9-]+$/u.test(tag)) return null;

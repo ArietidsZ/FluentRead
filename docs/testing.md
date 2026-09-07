@@ -290,3 +290,17 @@ node scripts/testing/run-writing-assistant-test.cjs \
 `tests/firefoxDocumentRuntime.test.ts` 验证 Firefox 后台 iframe 只承载同一个 DOM 页面，功能请求仍经过共享客户端与路由；覆盖按需创建、并发复用、接收端丢失重建、取消及页面资源清理。能力测试分别检查原生 Offscreen 权限与可执行 DOM 能力，Firefox MV2 开启图片/区域/本地字幕与扩展朗读，Chrome Translator 保持禁用。
 
 `pnpm verify:extension-manifests` 要求两个目标都包含共享 DOM 页面和 OCR core/worker，Firefox 不声明 `offscreen` 权限。`--require-firefox-archives` 还检查 Firefox 扩展 ZIP 和源码 ZIP 中的相关资源。单元测试与构建不能替代 Firefox 中的真实 OCR、截图、字幕推理和音频播放验证。
+
+### Codeforces 公式与倒计时
+
+`tests/translationCore.test.ts` 验证命名输入控件遮蔽 `form.tagName` 时整页扫描仍能到达题面；`tests/translationTruncation.test.ts` 覆盖 MathJax v2 的 `nobr` 可视排版、辅助 MathML 去重和原始公式恢复；`tests/selectionTranslatorCore.test.ts` 覆盖正文跨公式选区与控件保护；`tests/siteAdaptationCore.test.ts` 验证 `.countdown` 不进入请求和译文快照，比赛状态文本仍可翻译。
+
+```bash
+node scripts/testing/run-codeforces-translation-test.cjs \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root <工作区 Node.js 包目录> \
+  --focus-safe-helper <浏览器测试技能>/scripts/focus-safe-browser.cjs \
+  --artifacts-dir /private/tmp/fluentread-codeforces --live
+```
+
+该脚本使用隔离临时 Edge、第二屏后台窗口及本地确定性微软响应，检查默认全文和悬浮的翻译—恢复—再次翻译、公式重排、小点与 Control 划词入口。倒计时夹具连续更新 12 次，断言三个独立文字译文的节点身份不变、零额外请求、卡片高度不变；比赛状态变化仍触发正常更新。`--live` 追加 issue #492 的 Codeforces 实际题面，以及首页倒计时 12 秒的节点稳定性检查，省略时仅运行本地夹具。真实页面与确定性翻译响应的组合不代表真实供应商译文质量。
