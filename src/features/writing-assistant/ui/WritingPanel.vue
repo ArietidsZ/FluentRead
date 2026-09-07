@@ -179,23 +179,23 @@ async function applyStyle(value: StylePreferences) {
   view.value = 'answer'; if (canStart.value) generate(Boolean(result.value));
 }
 async function applyLanguage(value: string) {
-  const changed = language.value !== value;
+  const changed = language.value !== value || (result.value && resultLanguage.value !== resolveWritingLanguage(value, config.value.to));
   const owner = generation; const ownerSession = props.sessionKey;
   if (saving.value || !await persistPreferences({language: value}) || owner !== generation || ownerSession !== props.sessionKey || !props.active) return;
   language.value = value; view.value = 'answer';
-  if (changed && result.value) generate(true);
+  if (changed && result.value) generate(true, false, 'translate');
 }
 async function applyReferenceLanguage(value: string) {
   const ownerSession = props.sessionKey;
   if (!await persistPreferences({referenceLanguage: value}) || ownerSession !== props.sessionKey || !props.active) return;
   view.value = 'answer';
 }
-function generate(preferenceOnly = false, fresh = false) {
+function generate(preferenceOnly = false, fresh = false, overrideIntent?: WritingIntent) {
   if (busy.value || !props.active || !config.value.on || !config.value.writing.enabled || !supported.value) return;
   if (!result.value.trim() && !draft.value.trim() && !context.value.trim() && !instruction.value.trim()) return;
   stop(); attempted = true; error.value = ''; notice.value = ''; pending.value = ''; view.value = 'answer'; busy.value = true;
   const owner = ++generation; const question = preferenceOnly ? '' : instruction.value;
-  const source = fresh ? draft.value : result.value || draft.value; const action = result.value && !fresh ? 'polish' : intent.value;
+  const source = fresh ? draft.value : result.value || draft.value; const action = overrideIntent ?? (result.value && !fresh ? 'polish' : intent.value);
   requestedLanguage.value = resolveWritingLanguage(language.value, config.value.to); requestedService.value = service.value; actualModel.value = configuredModel.value;
   try {
     cancel = streamWriting({type: 'fluentReadWriting', action: 'run', requestId: `writing-${crypto.randomUUID()}`, intent: action,
