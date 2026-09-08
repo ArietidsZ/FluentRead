@@ -19,7 +19,7 @@ export const WRITING_ACTIONS = [
 export type WritingIntent = typeof WRITING_ACTIONS[number]['id'];
 export const WRITING_LANGUAGES = [
     {value: 'target', label: '跟随目标语言'},
-    ...Array.from(new Map([...options.to, {value: 'de', label: '德语'}].map(item => [item.value, item])).values()),
+    ...options.to,
 ] as const;
 export const WRITING_TONES = [
     {value: 'natural', label: '自然'}, {value: 'professional', label: '专业'}, {value: 'friendly', label: '友好'},
