@@ -134,7 +134,7 @@ function setup() {
         Object.assign(event, {isTrusted: trusted, pointerType: 'mouse', ...properties});
         target.dispatchEvent(event);
     }
-    const hover = () => dispatch(image, 'pointerover');
+    const hover = () => { dispatch(image, 'pointerover'); vi.advanceTimersByTime(600); };
     const button = () => roots.at(-1)!.querySelector('.fluent-read-image-translation-button') as HTMLButtonElement;
     const click = (trusted = true) => dispatch(button(), 'click', trusted);
     const bitmap = () => roots.at(-1)?.querySelector('.fluent-read-image-translation-bitmap');
@@ -455,7 +455,7 @@ describe('图片翻译前台交互与生命周期', () => {
                 currentSrc: {get: () => image.src}, offsetWidth: {value: 400}, offsetHeight: {value: 200},
             });
             image.getBoundingClientRect = env.image.getBoundingClientRect;
-            env.parent.append(image); env.dispatch(image, 'pointerover'); env.click(); await flush(); env.click();
+            env.parent.append(image); env.dispatch(image, 'pointerover'); vi.advanceTimersByTime(600); env.click(); await flush(); env.click();
             env.dispatch(image, 'pointerout'); vi.advanceTimersByTime(200);
         }
         expect(client.translate).toHaveBeenCalledTimes(7);
@@ -557,6 +557,7 @@ describe('图片入口独立开关与右键身份', () => {
         const env = setup();
         const cover = document.createElement('div'); env.parent.append(cover);
         env.dispatch(cover, 'pointermove', true, {clientX: 100, clientY: 100});
+        vi.advanceTimersByTime(600);
         expect(env.button()).toBeTruthy();
         env.dispatch(cover, 'pointerout'); vi.advanceTimersByTime(500);
         expect(env.roots.at(-1)?.querySelector('.fr-image-controls')).toBeNull();
@@ -604,6 +605,7 @@ describe('X 透明 img 与可见背景层的图片翻译', () => {
     it('实际背景层承载入口、译图与还原，透明原 img 保持不变', async () => {
         const env = setup(); const background = env.addBackground(); const original = background.getAttribute('style');
         env.dispatch(background, 'pointerover', true, {clientX: 100, clientY: 100});
+        vi.advanceTimersByTime(600);
         expect((env.button().closest('.fluent-read-image-translation-overlay') as HTMLElement).style.display).toBe('block');
         env.click(); await flush();
         const bitmap = env.bitmap() as HTMLImageElement;
@@ -647,4 +649,36 @@ describe('X 透明 img 与可见背景层的图片翻译', () => {
         const download = Array.from(env.roots[0].querySelectorAll('button')).find(b => b.textContent === '下载语言包并翻译')!;
         env.dispatch(download, 'click'); await flush(); expect(client.prepare).toHaveBeenCalledOnce(); expect(env.bitmap()).toBeTruthy();
     });
+});
+
+
+it('同图停留 600ms 才出现入口，移动不重置等待，离开和卸载取消等待', () => {
+    const env = setup();
+    env.dispatch(env.image, 'pointerover');
+    vi.advanceTimersByTime(300);
+    env.dispatch(env.image, 'pointermove');
+    vi.advanceTimersByTime(299);
+    expect(env.roots).toHaveLength(0);
+    vi.advanceTimersByTime(1);
+    expect(env.button()).toBeTruthy();
+    env.dispatch(env.image, 'pointerout'); vi.advanceTimersByTime(200);
+    env.dispatch(env.image, 'pointerover'); vi.advanceTimersByTime(300);
+    env.dispatch(env.image, 'pointerout'); vi.advanceTimersByTime(600);
+    expect(env.roots.at(-1)?.querySelector('.fr-image-controls')).toBeNull();
+    env.dispatch(env.image, 'pointerover'); unmountImageTranslator(); vi.advanceTimersByTime(600);
+    expect(document.getElementById('fluent-read-image-translation-root')).toBeNull();
+    expect(client.translate).not.toHaveBeenCalled();
+});
+
+
+it.each(['source', 'remove', 'disable', 'scroll'])('等待期间图片或设置变化不会冒出入口：%s', async change => {
+    const env = setup();
+    env.dispatch(env.image, 'pointerover'); vi.advanceTimersByTime(300);
+    if (change === 'source') env.image.src += '#changed';
+    if (change === 'remove') env.image.remove();
+    if (change === 'scroll') env.scroll();
+    if (change === 'disable') { settings.imageTranslationHoverEnabled = false; await flush(); }
+    vi.advanceTimersByTime(600);
+    expect(env.roots).toHaveLength(0);
+    expect(client.translate).not.toHaveBeenCalled();
 });

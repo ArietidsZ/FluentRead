@@ -484,6 +484,16 @@ describe('统一配置存储', () => {
         expect(reopened.config).toMatchObject(disabled);
     });
 
+    it('保留用户已开启的图片翻译，保存后重新加载仍开启', async () => {
+        const store = await loadConfigModule({...storedConfig, disableImageTranslator: false});
+        await store.configReady;
+        expect(store.config.disableImageTranslator).toBe(false);
+        await store.saveConfig({...store.config, to: 'en'});
+        const reopened = await loadConfigModule(storageState.get('local:config'));
+        await reopened.configReady;
+        expect(reopened.config.disableImageTranslator).toBe(false);
+    });
+
     it('独立圈选服务接受机器翻译和已配置AI，拒绝畸形模式或孤立服务', () => {
         for (const service of ['microsoft', 'openai', 'deeplx', '']) {
             expect(normalizeConfig({areaTranslationService: service}).areaTranslationService).toBe(service);
@@ -503,14 +513,14 @@ describe('统一配置存储', () => {
         expect(layout.popupQuickFeatureVisibility).toMatchObject({image: false, area: false});
     });
 
-    it('为旧配置默认开启视频、图片和圈选，并补齐视频服务和字号', async () => {
+    it('为旧配置默认关闭图片、开启视频和圈选，并补齐视频服务和字号', async () => {
         const configStore = await loadConfigModule(storedConfig);
 
         await configStore.configReady;
 
         expect(configStore.config.videoTranslationEnabled).toBe(true);
         expect(configStore.config.selectionAreaEnabled).toBe(true);
-        expect(configStore.config.disableImageTranslator).toBe(false);
+        expect(configStore.config.disableImageTranslator).toBe(true);
         expect(configStore.config.videoService).toBe('microsoft');
         expect(configStore.config.videoLocalModel).toBe('tiny');
         expect(configStore.config.videoSubtitleVisible).toBe(true);

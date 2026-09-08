@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/content/controls.ts
  * 文件职责：创建图片翻译的轻量操作条，持续展示读取、识别、翻译与失败状态，支持取消、重试和首次语言准备。
- * 主要内容：提供品牌半透明入口、隔离样式、可信手势按钮、识别百分比与可选全文详情；长译文可选择复制，减少只能看位图的阅读障碍。
+ * 主要内容：提供低透明度灰度入口、隔离样式、可信手势按钮、识别百分比与可选全文详情；长译文可选择复制，减少只能看位图的阅读障碍。
  * 模块边界：仅操作所属 Shadow DOM，不读取配置、不访问网络、不持有图片请求；业务动作及生命周期由 content/runtime 注入。
  */
 import {normalizeImageProgress} from '../progress';
@@ -24,7 +24,10 @@ export const IMAGE_CONTROLS_CSS = `
 .fr-image-controls button:focus-visible,.fr-image-feedback button:focus-visible {outline:2px solid var(--fr-image-brand);outline-offset:2px;}
 
 .fr-image-controls .fr-image-actions {opacity:.48;transition:opacity 120ms ease,background-color 120ms ease;}
-.fr-image-controls .fr-image-actions:hover,.fr-image-controls:focus-within .fr-image-actions {opacity:1;background:rgba(250,251,253,.92);}
+.fr-image-controls[data-phase=idle] .fr-image-actions {opacity:.28;background:rgba(250,251,253,.4);box-shadow:none;backdrop-filter:none;}
+.fr-image-controls[data-phase=idle] .fluent-read-image-translation-button::before {filter:grayscale(1);}
+.fr-image-controls[data-phase=idle]:hover .fluent-read-image-translation-button::before,.fr-image-controls[data-phase=idle]:focus-within .fluent-read-image-translation-button::before {filter:none;}
+.fr-image-controls[data-phase=idle] .fr-image-actions:hover,.fr-image-controls[data-phase=idle]:focus-within .fr-image-actions,.fr-image-controls .fr-image-actions:hover,.fr-image-controls:focus-within .fr-image-actions {opacity:1;background:rgba(250,251,253,.92);}
 .fr-image-controls[data-animations=false] .fr-image-actions {transition:none;}
 .fr-image-controls[data-phase=idle] .fluent-read-image-translation-button {width:24px;height:24px;padding:5px;font-size:0;}
 .fr-image-controls .fluent-read-image-translation-button::before {content:"";display:block;width:14px;height:14px;flex:0 0 auto;margin-right:5px;background:url("${brandIcon}") center/contain no-repeat;}

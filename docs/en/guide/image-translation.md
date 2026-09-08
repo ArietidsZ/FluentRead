@@ -1,6 +1,6 @@
 # Image translation
 
-Image translation recognizes text inside webpage images and overlays the translation on the image. Hover over an image and click the FluentRead icon to start.
+Image translation recognizes text inside webpage images and overlays the translation on the image. It is off by default and can be enabled in settings. Once enabled, hover over an image for about 0.6 seconds to reveal a faint icon in its lower-left corner. The icon becomes clear when you hover over it; click to translate.
 
 ## Translate one image
 
