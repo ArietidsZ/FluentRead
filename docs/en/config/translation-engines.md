@@ -36,6 +36,19 @@ Free services have changing availability and allowances. Public interfaces and i
 
 Choose API Free or API Pro and enter the matching key. A DeepL website subscription and a DeepL API plan are different products.
 
+## DeepLX
+
+Enter the full translation endpoint, such as `https://deeplx.example.com/translate`. Entering only a domain does not automatically add `/translate`. Leave it blank to use the default public endpoint.
+
+In API Key, enter only the site's Token value, without a `Bearer` prefix. The Token is sent in the request header by default. If the site requires it in the URL, follow the site's instructions:
+
+- Query parameter: `https://deeplx.example.com/translate?token={{apiKey}}`
+- URL path: `https://deeplx.example.com/{{apiKey}}/translate`
+
+Keep `{{apiKey}}` exactly as written. It is replaced with your saved API Key when sending, so you do not need to put the actual Token in the URL. A configured proxy URL takes priority; use the full path and the site's required Token format there too. Then click **Check connection**.
+
+These settings apply only to the standalone DeepLX service. DeepLX in the free fallback service uses the default public anonymous endpoint.
+
 ## AI services
 
 Select a configured service and model. Use the custom-model option if yours is not listed. For a compatible third-party endpoint, add the address and model under your custom services.

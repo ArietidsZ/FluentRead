@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/ServiceConfiguration.vue
  * 文件职责：渲染当前翻译服务的详细连接配置，按服务能力显示模型、端点、区域、计费方式、密钥、代理、提示词和自定义请求体等字段。
- * 主要内容：组件派生字段可见性与 DeepL/MiniMax/MiMo endpoint，选择 DeepL API 套餐，共用 Azure 地址校验，校验 custom body，管理连接测试状态、Chrome 当前语言对的点击准备/进度/超时、官方帮助、模板重置与加密凭据保存提示，并通过配置 store 提交修改。
+ * 主要内容：组件派生字段可见性与 DeepL/MiniMax/MiMo endpoint，选择 DeepL API 套餐，展示 DeepLX 完整地址与 Token 配置示例，共用 Azure 地址校验，校验 custom body，管理连接测试状态、Chrome 当前语言对的点击准备/进度/超时、官方帮助、模板重置与加密凭据保存提示，并通过配置 store 提交修改。
  * 模块边界：本组件不执行网页正文翻译或保存公开配置中的明文凭据；Chrome 内置翻译仅在当前点击页完成模型自检，其他连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
  -->
 <template>
@@ -246,12 +246,20 @@
       </div>
     </div>
 
-    <el-row v-if="compute.showDeepLX" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner">
-        <el-tooltip class="box-item" effect="dark" content="DeepLX API 服务地址，默认为本地地址。如果使用远程 DeepLX 服务，请修改为对应的服务地址" placement="top-start" :show-after="500"><span class="popup-text popup-vertical-left">服务地址</span></el-tooltip>
-      </el-col>
-      <el-col :span="12"><el-input v-model="config.deeplx" placeholder="http://localhost:1188/translate" /></el-col>
-    </el-row>
+    <div v-if="compute.showDeepLX" class="connection-field" data-deeplx-endpoint>
+      <div class="connection-field-label"><strong>{{ t('settings.services.deeplx.endpoint') }}</strong></div>
+      <div class="connection-field-control">
+        <el-input v-model="config.deeplx" :aria-label="t('settings.services.deeplx.endpoint')" :placeholder="DEFAULT_DEEPLX_ENDPOINT" aria-describedby="deeplx-endpoint-help" />
+        <div id="deeplx-endpoint-help">
+          <p class="provider-field-help">{{ t('settings.services.deeplx.endpointHelp') }}</p>
+          <p class="provider-field-help">{{ t('settings.services.deeplx.tokenHelp') }}</p>
+          <p class="provider-field-help">{{ t('settings.services.deeplx.queryToken') }} <code v-pre>https://deeplx.example.com/translate?token={{apiKey}}</code></p>
+          <p class="provider-field-help">{{ t('settings.services.deeplx.pathToken') }} <code v-pre>https://deeplx.example.com/{{apiKey}}/translate</code></p>
+          <p class="provider-field-help">{{ t('settings.services.deeplx.placeholderHelp') }}</p>
+          <p v-if="config.proxy[service]?.trim()" class="provider-field-help">{{ t('settings.services.deeplx.proxyHelp') }}</p>
+        </div>
+      </div>
+    </div>
 
     <el-row v-if="compute.showAkSk" class="margin-bottom margin-left-2em">
       <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="服务商提供的访问密钥。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">API Key<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
@@ -363,6 +371,7 @@ import {
 } from '@/src/core/config/customOpenAI'
 import { isValidCustomBody } from '@/src/core/config/customBody'
 import { normalizeMyMemoryEmail } from '@/src/core/config/freeTranslation'
+import { DEFAULT_DEEPLX_ENDPOINT } from '@/src/core/config/deeplx'
 import { getDeepLEndpoint } from '@/src/core/config/deepl'
 import browser from 'webextension-polyfill'
 import { requestConfigSave, waitForConfigPersistenceQueue } from '@/src/services/config/store'
