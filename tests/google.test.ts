@@ -370,3 +370,24 @@ describe('Google 中文脚本协议', () => {
         expect(url.searchParams.get('tl')).toBe(tl);
     });
 });
+
+describe('谷歌扩展语言协议', () => {
+    it.each(['de', 'pt', 'it', 'ar', 'hi', 'bn', 'ur', 'fa', 'he', 'tr', 'vi', 'th', 'id', 'ms', 'nl', 'pl', 'uk', 'cs', 'sk', 'da', 'sv', 'nb', 'fi', 'el', 'ro', 'hu', 'bg', 'hr', 'sr', 'sl', 'et', 'lv', 'lt', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'ne', 'si', 'sw', 'fil'])('网页 RPC 正确发送新增语言 %s', async language => {
+        fetchMock.mockResolvedValue(mockResponse(createBatchResponse(['result'])));
+        await translateGoogleText('Hello', language, language);
+        const body = new URLSearchParams(String(fetchMock.mock.calls[0]?.[1]?.body));
+        const rpc = JSON.parse(body.get('f.req')!);
+        const payload = JSON.parse(rpc[0][0][1]);
+        const expected = language === 'nb' ? 'no' : language === 'fil' ? 'tl' : language;
+        expect(payload[0].slice(0, 3)).toEqual(['Hello', expected, expected]);
+    });
+    it('RPC 失败后 gtx 仍使用相同的语言别名', async () => {
+        fetchMock.mockRejectedValueOnce(new Error('RPC unavailable'))
+            .mockRejectedValueOnce(new Error('RPC unavailable'))
+            .mockResolvedValue(mockResponse(JSON.stringify([[['result', 'Hello', null, null, 1]], null, 'no'])));
+        await expect(translateGoogleText('Hello', 'nb', 'fil')).resolves.toBe('result');
+        const url = new URL(String(fetchMock.mock.calls[2]?.[0]));
+        expect(url.searchParams.get('sl')).toBe('no');
+        expect(url.searchParams.get('tl')).toBe('tl');
+    });
+});

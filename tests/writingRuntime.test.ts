@@ -66,7 +66,7 @@ describe('Writing model runtime', () => {
     expect(mocks.stream.mock.calls[0][0].system).toContain('输出语言：繁體中文（zh-Hant）');
     expect(mocks.stream.mock.calls[0][0].system).toContain('篇幅：简短');
     await createWritingRuntime(() => current)({...request, language: 'de'}, controller().signal, vi.fn());
-    expect(mocks.stream.mock.calls[1][0].system).toContain('输出语言：德语（de）');
+    expect(mocks.stream.mock.calls[1][0].system).toContain('输出语言：Deutsch / German / 德语（de）');
   });
   it.each(WRITING_STYLES)('applies the $value answer style', async ({value, label}) => {
     await createWritingRuntime(config)({...request, style: value}, controller().signal, vi.fn());

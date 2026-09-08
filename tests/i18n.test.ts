@@ -117,7 +117,7 @@ describe('界面 i18n 契约', () => {
     expect(resolveUiLanguageFromLocale('zh-TW')).toBe('zh-CN');
     expect(resolveUiLanguageFromLocale('es-ES')).toBe('es-ES');
     expect(resolveUiLanguageFromLocale(null)).toBe('zh-CN');
-    expect(options.to.map(item => item.label)).toEqual([
+    expect(options.to.slice(0, 8).map(item => item.label)).toEqual([
       '简体中文', '繁體中文', 'English', '日本語', '한국어', 'Français', 'Русский', 'Español',
     ]);
     expect(translate('settings.general.defaultTargetLanguage', 'zh-CN')).toBe('语言');
@@ -125,7 +125,7 @@ describe('界面 i18n 契约', () => {
   });
 
   it('为目标语言选择器提供中文、英文和原生名称的组合标签', () => {
-    expect(options.to.map(item => getMultilingualTargetLanguageLabel(item.value, item.label))).toEqual([
+    expect(options.to.slice(0, 8).map(item => getMultilingualTargetLanguageLabel(item.value, item.label))).toEqual([
       '简体中文 / Simplified Chinese',
       '繁體中文 / Traditional Chinese',
       'English / 英语',

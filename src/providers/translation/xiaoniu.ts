@@ -11,7 +11,7 @@ import {method, urls} from "@/src/core/config/constants";
 import {services} from "@/src/core/config/catalog";
 import {config} from "@/src/services/config/store";
 import {getTranslationLanguages} from '@/src/services/translation/languages';
-import {createHttpStatusError, readJsonResponse} from '@/src/platform/http/errors';
+import {createHttpStatusError, createProviderCodeError, readJsonResponse} from '@/src/platform/http/errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
 import {
     getTranslationProviderConfig,
@@ -24,7 +24,7 @@ async function xiaoniu(message: TranslationProviderRequest<string>) {
     const {sourceLanguage, targetLanguage} = getTranslationLanguages(message);
     const niutransLanguage = (code: string): string => {
         const normalized = normalizeChineseLanguageCode(code);
-        return ({'zh-Hans': 'zh', 'zh-Hant': 'cht'} as Record<string, string>)[normalized] ?? normalized;
+        return ({'zh-Hans': 'zh', 'zh-Hant': 'cht', nb: 'no'} as Record<string, string>)[normalized] ?? normalized;
     };
     const sourceLang = niutransLanguage(sourceLanguage);
     const targetLang = niutransLanguage(targetLanguage);
@@ -43,6 +43,9 @@ async function xiaoniu(message: TranslationProviderRequest<string>) {
 
     if (resp.ok) {
         const result = await readJsonResponse<any>(resp, '小牛翻译返回的不是有效 JSON');
+        if (typeof result?.tgt_text !== 'string' || !result.tgt_text.trim()) {
+            throw createProviderCodeError('小牛翻译未返回译文，请检查语言对、额度或 API Key', result?.error_code);
+        }
         return result.tgt_text
     } else {
         throw createHttpStatusError(resp, '翻译失败');

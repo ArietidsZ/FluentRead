@@ -209,3 +209,9 @@ it('DeepLX 脚本及地区别名归一后保持繁体目标', () => {
     expect(getDeepLXRequestLanguages('zh-Hans-CN', 'zh-Hant-HK')).toEqual({sourceLang: 'ZH', targetLang: 'ZH-HANT'});
     expect(getDeepLXRequestLanguages('zh-Hant', 'zh-SG')).toEqual({sourceLang: 'ZH-HANT', targetLang: 'ZH'});
 });
+
+describe('DeepLX 菲律宾语兼容', () => {
+    it('统一目录 fil 转换为 DeepL 的 TL', () => {
+        expect(normalizeDeepLXLanguage('fil')).toBe('TL');
+    });
+});
