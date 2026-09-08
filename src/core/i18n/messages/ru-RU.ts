@@ -10,6 +10,17 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const ruRUMessages = {
+    "reading.triggerTitle": "Открытие карточки",
+    "reading.triggerHelp": "По умолчанию нажмите действие. Сочетание клавиш использует основное действие, наведение — указанное.",
+    "reading.triggerClick": "Нажатие действия",
+    "reading.triggerHover": "Наведение с задержкой",
+    "reading.triggerShortcut": "Сочетание клавиш",
+    "reading.hoverDelay": "Задержка наведения (мс)",
+    "reading.hoverHelp": "Наведите указатель на действие в панели выделения. Карточка откроется после задержки. Уведите указатель для отмены.",
+    "reading.shortcut": "Клавиши карточки",
+    "reading.shortcutHelp": "Выделите текст и нажмите сочетание клавиш. Нажмите на сочетание, чтобы изменить его.",
+    "reading.enableHelp": "Выделите текст и используйте действие или выбранный способ открытия.",
+
     "document.batch.clear": "Очистить очередь",
     "document.batch.clearTitle": "Очистить очередь файлов?",
     "document.batch.clearWarning": "В очереди есть несохранённые переводы или правки. Очистка удалит их без возможности восстановления. Сначала скачайте нужные результаты.",
