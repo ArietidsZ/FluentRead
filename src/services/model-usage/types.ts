@@ -75,6 +75,9 @@ export interface Totals {
     cacheRequestHitRate: number | null;
     cacheCoverageRate: number | null;
     reasoningTokens: number;
+    /** 成功且上报输出、耗时有效的调用，按总输出 / 总耗时计算。 */
+    outputTokensPerSecond: number | null;
+    speedReportedRequests: number;
     averageDurationMs: number | null;
     averageTokensPerReportedRequest: number | null;
     averageInputTokensPerReportedRequest: number | null;

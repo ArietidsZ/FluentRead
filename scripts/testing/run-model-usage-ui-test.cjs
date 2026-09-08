@@ -205,6 +205,8 @@ async function main() {
     const dashboard = page.locator(dashboardSelector);
     const compact = await dashboard.locator('.usage-summary-grid .usage-compact-card').allTextContents();
     assert.equal(compact.length, 3, '首屏必须有请求、耗时和缓存读取三张简洁统计卡');
+    assert.match(compact[1], /255\.95/, '输出速度使用四次可计算成功请求的总输出除以总耗时');
+    assert.match(compact[1], /token\/s/);
     assert.match(compact[1], /420\s*ms/, '平均耗时必须按全部请求计算');
     assert.match(compact[2], /16\.7%/, '缓存读取比率分母必须是已报告缓存的输入 Token');
     const composition = await dashboard.locator('.usage-composition-row').evaluateAll(rows => Object.fromEntries(rows.map(row => [
@@ -219,21 +221,25 @@ async function main() {
     assert.deepEqual((await averages.locator('.usage-average-value strong').allTextContents()).map(text => text.trim()), ['100', '20', '80']);
     await averages.locator('summary').click();
     const requests = dashboard.locator('details.usage-request-log-card');
-    assert.equal(await requests.getAttribute('open'), null, '请求记录应默认收起');
-    await requests.locator('summary').click();
+    assert.notEqual(await requests.getAttribute('open'), null, '请求记录应默认展开');
+    assert.equal(await dashboard.locator('.usage-breakdown-speed').count(), 4);
+    assert.match(await dashboard.locator('.usage-breakdown-speed').first().textContent(), /token\/s/);
     await requests.locator('.usage-request-table tbody tr').first().waitFor({state: 'visible', timeout});
     assert.equal(await requests.locator('.usage-request-table tbody tr').count(), 6);
-    await page.getByLabel('按调用状态筛选请求记录', {exact: true}).selectOption('error');
+    const speeds = await requests.locator('td[data-label="输出速度"]').allTextContents();
+    assert.equal(speeds.filter(value => value.trim() === '— token/s').length, 2);
+    assert.ok(speeds.some(value => /190\.48.*token\/s/.test(value)));
+    await selectFilter(page, '按调用状态筛选请求记录', '错误');
     await page.waitForFunction(() => document.querySelectorAll('.usage-request-table tbody tr').length === 1, undefined, {timeout});
     assert.match(await requests.locator('.usage-request-table tbody').textContent(), /DeepSeek/);
-    await page.getByLabel('按调用状态筛选请求记录', {exact: true}).selectOption('');
-    await page.getByLabel('按模型缓存状态筛选请求记录', {exact: true}).selectOption('hit');
+    await selectFilter(page, '按调用状态筛选请求记录', '全部状态');
+    await selectFilter(page, '按模型缓存状态筛选请求记录', '已命中');
     await page.waitForFunction(() => document.querySelectorAll('.usage-request-table tbody tr').length === 1, undefined, {timeout});
     assert.match(await requests.locator('.usage-request-table tbody').textContent(), /缓存创建（服务商上报）10 Token/);
     assert.match(await requests.locator('.usage-request-table tbody').textContent(), /推理 30/);
     await requests.locator('.usage-request-table tbody tr').first().scrollIntoViewIfNeeded();
     await capture(page, report, 'usage-request-cache-details');
-    await page.getByLabel('按模型缓存状态筛选请求记录', {exact: true}).selectOption('');
+    await selectFilter(page, '按模型缓存状态筛选请求记录', '全部缓存状态');
     await requests.locator('summary').click();
     report.assertions.overview = {tokens: 1250, requests: 6, averageDurationMs: 420, cacheInputRate: '16.7%', composition};
     report.assertions.cacheAndReasoningNotDoubleCounted = true;
@@ -340,11 +346,13 @@ async function main() {
           const channels = metrics.coverageBackground.match(/[\d.]+/g)?.slice(0, 3).map(Number);
           assert.ok(channels?.length === 3 && Math.max(...channels) < 120, `暗色上报率提示背景过亮：${metrics.coverageBackground}`);
         }
+        const modelSpeedLayout = await dashboard.locator('.usage-breakdown-speed').evaluateAll(rows => rows.map(row => ({text: row.textContent, scroll: row.scrollWidth, client: row.clientWidth, whitespace: getComputedStyle(row).whiteSpace})));
+        assert.ok(modelSpeedLayout.every(row => row.scroll <= row.client + 1 && row.whitespace === 'normal'), `逐模型速度在窄屏也必须完整显示: ${width} ${JSON.stringify(modelSpeedLayout)}`);
         report.responsive.push({theme, ...metrics});
         report.focusChecks.push(await assertBackground(context, `${theme} ${width}px`));
         await capture(page, report, `usage-overview-${theme}-${width}`);
         if (width === 390) {
-          for (const [selector, name] of [['.usage-trend-card', 'trend'], ['.usage-composition-card', 'composition']]) {
+          for (const [selector, name] of [['.usage-trend-card', 'trend'], ['.usage-composition-card', 'composition'], ['.usage-breakdown-card', 'models']]) {
             await dashboard.locator(selector).scrollIntoViewIfNeeded();
             await capture(page, report, `usage-${name}-${theme}-${width}`);
           }
@@ -397,7 +405,7 @@ async function main() {
     await seed(page, paging);
     await waitTotals(page, 46, 23);
     await requests.locator('summary').click();
-    await page.getByLabel('每页请求记录数量', {exact: true}).selectOption('20');
+    await selectFilter(page, '每页请求记录数量', '20 条');
     await page.waitForFunction(() => document.querySelectorAll('.usage-request-table tbody tr').length === 20, undefined, {timeout});
     await requests.getByRole('button', {name: '下一页', exact: true}).click();
     await page.waitForFunction(() => document.querySelectorAll('.usage-request-table tbody tr').length === 3, undefined, {timeout});
