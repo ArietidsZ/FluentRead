@@ -36,6 +36,19 @@ FluentRead 免费开源，第三方服务可能单独收费。服务商的订阅
 
 选择 **DeepL API Free** 或 **API Pro**，填写对应套餐的密钥，再检查连接。DeepL 网页翻译器的订阅与 API 套餐不同，不能直接互换。
 
+## 使用 DeepLX
+
+服务地址需要填写完整翻译接口路径，例如 `https://deeplx.example.com/translate`；只填域名不会自动补全 `/translate`。留空时使用默认公共接口。
+
+API Key 中只填站点提供的 Token 值，不加 `Bearer` 前缀。默认通过请求头发送 Token；如果站点要求在网址中携带 Token，请按站点说明选择：
+
+- 查询参数：`https://deeplx.example.com/translate?token={{apiKey}}`
+- 路径：`https://deeplx.example.com/{{apiKey}}/translate`
+
+保留 `{{apiKey}}` 原样，发送时会自动替换为已填写的 API Key，无需把真实 Token 写进地址。配置了代理地址时优先使用代理地址，因此也要在那里填写完整路径和站点要求的 Token 格式。完成后点击 **检查连接**。
+
+这些设置仅用于单独的 DeepLX 服务；免费翻译服务中的 DeepLX 使用默认公共匿名接口。
+
 ## 使用 AI 服务
 
 选择已配置的服务和模型。常用列表里没有你的模型时，可以使用 **自定义模型**；模型名称从服务商提供的信息中复制。第三方提供兼容接口时，可在 **我的服务** 添加地址和模型。

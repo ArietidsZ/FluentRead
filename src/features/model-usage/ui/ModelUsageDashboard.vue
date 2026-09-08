@@ -1,7 +1,7 @@
 <!--
  @file src/features/model-usage/ui/ModelUsageDashboard.vue
  文件职责：在 Options 设置页展示当前浏览器保存的模型调用可观测数据，并提供筛选、请求明细和清除统计入口。
- 主要内容：按界面语言格式化 Token、日期和耗时，呈现请求概览，支持双指标趋势及键盘选取、互斥 Token 构成、模型排行筛选和按需展开的稳定游标请求记录。
+ 主要内容：按界面语言格式化 Token、输出速度、日期和耗时，呈现请求概览，支持双指标趋势及键盘选取、互斥 Token 构成、模型排行筛选和按需展开的稳定游标请求记录。
  模块边界：组件只消费后台白名单数据，不读取 API Key、不记录原文、译文、提示词或网址，也不直接访问 IndexedDB；事件采集、Token 解释、持久化及备份恢复由 services、providers、background 与统一“备份与恢复”页面拥有。
 -->
 <template>
@@ -69,6 +69,7 @@
       <small v-if="snapshot">{{ generatedAtLabel }}</small>
       <details class="usage-data-help">
         <summary>统计说明</summary>
+        <p>输出速度 = 可计算成功请求的输出 Token 总和 ÷ 请求耗时总和（秒），包含等待与传输时间；缺失输出或有效耗时显示 —。平均耗时包含全部调用。</p>
         <p>统计保存在当前浏览器，最多保留最近 1,000 条调用记录，超出后删除更早记录；不等同于服务商账号的全部历史用量或剩余额度。完整备份与恢复统一在“备份与恢复”中管理。</p>
         <p><span>{{ recordingStartLabel }}</span>。<span>Token 来自服务商实际返回；未上报的用量不作估算。缓存读取已包含在输入内，推理明细不另加到总量。</span></p>
       </details>
@@ -137,9 +138,10 @@
         </article>
 
         <article class="usage-card usage-compact-card usage-duration-card">
-          <div class="usage-metric-heading"><span>平均耗时</span><small>全部调用</small></div>
-          <strong>{{ selectedTotals.averageDurationMs === null ? '—' : formatDuration(selectedTotals.averageDurationMs) }}</strong>
-          <small>包括成功、失败与取消</small>
+          <div class="usage-metric-heading"><span>平均输出速度</span><small>token/s</small></div>
+          <strong>{{ formatSpeed(selectedTotals.outputTokensPerSecond) }}</strong>
+          <small><span>可计算请求</span> · {{ formatNumber(selectedTotals.speedReportedRequests) }}</small>
+          <small><span>平均耗时</span> · {{ selectedTotals.averageDurationMs === null ? '—' : formatDuration(selectedTotals.averageDurationMs) }} · <span>全部调用</span></small>
         </article>
         <article class="usage-card usage-compact-card usage-cache-card">
           <div class="usage-metric-heading"><span>缓存读取比率</span><small>可计算输入</small></div>
@@ -287,13 +289,14 @@
               :key="`${row.serviceId}:${row.model}`"
               type="button"
               :class="{ active: appliedFilter.serviceId === row.serviceId && appliedFilter.model === row.model }"
-              :aria-label="`${serviceLabel(row.serviceId)} ${modelLabel(row.model)}，输入 ${exactTokenValue(row.totals, 'inputTokens')} Token，其中缓存读取 ${row.totals.cacheReportedRequests ? formatNumber(row.totals.cachedInputTokens) : '未上报'} Token，缓存 Token 命中率 ${formatUsageRate(row.totals.cacheTokenHitRate)}，输出 ${exactTokenValue(row.totals, 'outputTokens')} Token，共 ${exactTokenValue(row.totals, 'totalTokens')} Token，${formatNumber(row.totals.requestCount)} 次请求，点击筛选`"
+              :aria-label="`${serviceLabel(row.serviceId)} ${modelLabel(row.model)}，输入 ${exactTokenValue(row.totals, 'inputTokens')} Token，其中缓存读取 ${row.totals.cacheReportedRequests ? formatNumber(row.totals.cachedInputTokens) : '未上报'} Token，缓存 Token 命中率 ${formatUsageRate(row.totals.cacheTokenHitRate)}，输出 ${exactTokenValue(row.totals, 'outputTokens')} Token，共 ${exactTokenValue(row.totals, 'totalTokens')} Token，${formatNumber(row.totals.requestCount)} 次请求，${translateLegacy('输出速度')} ${formatSpeed(row.totals.outputTokensPerSecond)} token/s，点击筛选`"
               @click="selectBreakdown(row.serviceId, row.model)"
             >
               <ServiceIcon :service="row.serviceId" :label="serviceLabel(row.serviceId)" size="small" />
               <span class="usage-breakdown-copy">
                 <strong>{{ serviceLabel(row.serviceId) }}</strong>
                 <small>{{ modelLabel(row.model) }}</small>
+                <small class="usage-breakdown-speed"><span>输出速度</span> · {{ formatSpeed(row.totals.outputTokensPerSecond) }} token/s</small>
                 <i aria-hidden="true"><b :style="{ width: `${breakdownShare(row.totals.totalTokens)}%` }"></b></i>
               </span>
               <strong class="usage-breakdown-value" :title="row.totals.reportedTokenRequests ? tokenExactTitle(row.totals.inputTokens) : '服务商未返回 Token 明细'">{{ tokenValue(row.totals, 'inputTokens') }}</strong>
@@ -315,7 +318,7 @@
         </section>
       </div>
 
-      <details v-if="hasSelectedUsage" class="usage-card usage-request-log-card" :aria-busy="loading || requestLogLoading" @toggle="handleRequestLogToggle">
+      <details v-if="hasSelectedUsage" class="usage-card usage-request-log-card" :open="requestLogOpen" :aria-busy="loading || requestLogLoading" @toggle="handleRequestLogToggle">
         <summary class="usage-request-summary"><span><strong>请求记录</strong><small>查看每一次调用的用量与状态</small></span><span>{{ formatNumber(selectedTotals.requestCount) }} <span>次调用</span> <i aria-hidden="true">⌄</i></span></summary>
         <header class="usage-request-log-header">
           <div>
@@ -381,6 +384,7 @@
                 <th scope="col">场景</th>
                 <th scope="col">状态</th>
                 <th scope="col">耗时</th>
+                <th scope="col">输出速度</th>
                 <th scope="col">Token 明细</th>
               </tr>
             </thead>
@@ -407,6 +411,7 @@
                   </span>
                 </td>
                 <td data-label="耗时">{{ formatDuration(item.durationMs) }}</td>
+                <td data-label="输出速度">{{ formatSpeed(requestOutputTokensPerSecond(item)) }} <span>token/s</span></td>
                 <td data-label="Token 明细" class="usage-request-token-cell">
                   <template v-if="item.usageAvailability === 'reported'">
                     <div class="usage-request-tokens">
@@ -486,6 +491,7 @@ import {
   type CustomOpenAIProvider,
 } from '@/src/core/config/customOpenAI'
 import {config, subscribeConfig} from '@/src/services/config/store'
+import {requestOutputTokensPerSecond} from '@/src/services/model-usage/aggregation'
 import {buildUsageComposition, buildUsageHealth, buildUsageTimeline, type UsageTimelineMetric} from '@/src/features/model-usage/model/insights'
 import {formatTokenCount, formatUsageRate as formatRate} from '@/src/features/model-usage/model/tokenFormat'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
@@ -547,7 +553,7 @@ const errorMessage = ref('')
 const showAllBreakdown = ref(false)
 const trendMetric = ref<UsageTimelineMetric>('tokens')
 const selectedPointKey = ref('')
-const requestLogOpen = ref(false)
+const requestLogOpen = ref(true)
 const outcomeLegend = [{key: 'success', label: '成功'}, {key: 'error', label: '错误'}, {key: 'timeout', label: '超时'}, {key: 'cancelled', label: '取消'}]
 const breakdownSort = ref<BreakdownSortKey>('total')
 const requestPurpose = ref<RequestPurposeFilter>('')
@@ -731,6 +737,10 @@ function formatRequestTime(timestamp: number): string {
   return requestDateFormatter.value.format(timestamp)
 }
 
+function formatSpeed(value: number | null | undefined): string {
+  return value == null || !Number.isFinite(value) ? '—' : new Intl.NumberFormat(language.value, {maximumFractionDigits: 2}).format(value)
+}
+
 function formatDuration(durationMs: number): string {
   if (!Number.isFinite(durationMs) || durationMs < 0) return '—'
   if (durationMs < 1_000) return `${Math.round(durationMs)} ms`
@@ -862,7 +872,6 @@ async function loadSnapshot(): Promise<void> {
     selectedPointKey.value = ''
     if (response.data.selected.totals.requestCount > 0) void resetRequestPagination()
     else {
-      requestLogOpen.value = false
       requestLogRevision += 1
       requestLogLoading.value = false
       requestLogItems.value = []
