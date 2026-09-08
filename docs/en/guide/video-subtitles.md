@@ -2,6 +2,8 @@
 
 Read original subtitles and translations together on YouTube and X, or show just one language.
 
+The open subtitle menu stays available when X hides its playback controls, so you can continue adjusting switches. Click outside the menu or press Esc to close it.
+
 ## A video with subtitles
 
 1. Make sure video subtitle translation is enabled.
