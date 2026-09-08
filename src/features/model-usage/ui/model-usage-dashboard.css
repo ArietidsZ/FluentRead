@@ -946,6 +946,7 @@
 .usage-request-table th:nth-child(3) { width: 76px; }
 .usage-request-table th:nth-child(4) { width: 72px; }
 .usage-request-table th:nth-child(5) { width: 72px; }
+.usage-request-table th:nth-child(6) { width: 100px; }
 
 .usage-request-table td {
   padding: 11px 7px;

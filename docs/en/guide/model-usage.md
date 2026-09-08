@@ -21,3 +21,5 @@ AI requests covered by usage tracking appear here, including some connection che
 Records stay in this browser and can be exported or cleared using the page’s controls. This is request and usage history, not a full translation archive. Clearing it does not reverse provider charges.
 
 To reduce use, translate only the sentences you need or turn off extra AI context when unnecessary. See [Translation services](/en/config/translation-engines).
+
+Output speed (token/s) divides the total output tokens of eligible successful requests by their summed duration in seconds, including waiting and transfer time. It is not pure generation speed. Missing output or valid duration displays `—`; zero output displays `0`. The overview shows the aggregate speed and eligible request count, and request details show individual speed. Average duration still includes all calls.

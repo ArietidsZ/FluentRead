@@ -1,6 +1,7 @@
 import {describe, expect, it} from 'vitest';
 import {
     aggregateModelUsageTotals,
+    requestOutputTokensPerSecond,
     buildModelUsageDashboard,
     collectModelUsageDimensions,
     getModelUsageRangeStart,
@@ -87,6 +88,8 @@ describe('模型用量纯聚合', () => {
             cacheRequestHitRate: 1,
             cacheCoverageRate: 1,
             reasoningTokens: 4,
+            outputTokensPerSecond: 62.5,
+            speedReportedRequests: 1,
             averageDurationMs: 320,
             averageTokensPerReportedRequest: 120,
             averageInputTokensPerReportedRequest: 100,
@@ -366,5 +369,31 @@ describe('模型用量纯聚合', () => {
             'a/x',
             'a/y',
         ]);
+    });
+});
+
+describe('输出速度统计', () => {
+    it('按同一组成功请求的总输出除以总耗时，排除失败及缺失数据', () => {
+        const totals = aggregateModelUsageTotals([
+            event({outputTokens: 100, durationMs: 1000}),
+            event({outputTokens: 100, durationMs: 3000}),
+            event({outputTokens: 900, durationMs: 1000, outcome: 'error'}),
+            event({durationMs: 5000}),
+            event({outputTokens: 700, durationMs: 1000, usageAvailability: 'unreported'}),
+            event({outputTokens: 100, durationMs: 0}),
+        ]);
+        expect(totals.outputTokensPerSecond).toBe(50);
+        expect(totals.speedReportedRequests).toBe(2);
+        expect(aggregateModelUsageTotals([]).outputTokensPerSecond).toBeNull();
+        expect(requestOutputTokensPerSecond(event({outputTokens: 0}))).toBe(0);
+    });
+    it('缺失、负数和非有限数不会形成虚假速度', () => {
+        for (const overrides of [
+            {outputTokens: undefined}, {outputTokens: -1}, {outputTokens: Infinity},
+            {outputTokens: 0.5}, {outputTokens: NaN}, {durationMs: 0},
+            {durationMs: -1}, {durationMs: Infinity}, {durationMs: NaN},
+            {durationMs: Number.MIN_VALUE}, {outcome: 'cancelled' as const},
+            {outcome: 'timeout' as const}, {usageAvailability: 'malformed' as const},
+        ]) expect(requestOutputTokensPerSecond(event({outputTokens: 10, ...overrides}))).toBeNull();
     });
 });
