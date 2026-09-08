@@ -8,6 +8,7 @@ import sha256 from 'crypto-js/sha256';
 import {translateMicrosoftTexts} from './microsoft';
 import {translateDeepLXText} from './deeplx';
 import {translateGoogleText} from './google';
+import {translateFreeWebText} from './free-web';
 import myMemory from './mymemory';
 import {services} from '@/src/core/config/catalog';
 import {urls} from '@/src/core/config/constants';
@@ -48,6 +49,9 @@ const providerTranslators: Record<FreeProviderId, (request: TranslationProviderR
     deeplx: request => translateDeepLXText(request.origin, services.deeplx, request),
     google: request => translateGoogleText(request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
     myMemory,
+    transmart: request => translateFreeWebText('transmart', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
+    yandexFree: request => translateFreeWebText('yandexFree', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
+    volcengineFree: request => translateFreeWebText('volcengineFree', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
 };
 
 function prepareRequest(message: FreeTranslationRequest): PreparedRequest {

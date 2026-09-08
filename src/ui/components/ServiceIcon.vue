@@ -22,6 +22,8 @@
       <path d="M5 7h10M5 12h7M5 17h5" />
       <path d="m15 9 4 3-4 3M19 12H9" />
     </svg>
+    <svg v-else-if="service === 'yandexFree'" viewBox="0 0 24 24" role="img"><path d="M15 4h-3a5 5 0 0 0 0 10h3M15 4v16M12 14l-5 6" /></svg>
+    <svg v-else-if="service === 'volcengineFree'" viewBox="0 0 24 24" role="img"><path d="m4 19 7-14 2 7 3-4 4 11H4Z" /></svg>
     <svg v-else-if="service === 'myMemory'" viewBox="0 0 24 24" role="img">
       <path d="M4 5h6a3 3 0 0 1 3 3v12a4 4 0 0 0-3-2H4V5ZM13 8a3 3 0 0 1 3-3h4v13h-4a4 4 0 0 0-3 2" />
       <path d="M7 9h3M7 12h3M16 9h1M16 12h1" />
@@ -47,7 +49,7 @@
     <svg v-else-if="service === 'youdao'" viewBox="0 0 24 24" role="img">
       <text x="12" y="16.5" text-anchor="middle">有</text>
     </svg>
-    <svg v-else-if="service === 'tencent'" viewBox="0 0 24 24" role="img">
+    <svg v-else-if="service === 'tencent' || service === 'transmart'" viewBox="0 0 24 24" role="img">
       <path d="M5 11.5c0-3.7 3.1-6.5 7-6.5s7 2.8 7 6.5-3.1 6.5-7 6.5c-1.1 0-2.2-.2-3.1-.7L5 19l1.2-3.1A6.2 6.2 0 0 1 5 11.5Z" />
       <path d="m12 7.2 1.1 2.2 2.4.4-1.7 1.7.4 2.4-2.2-1.1-2.2 1.1.4-2.4-1.7-1.7 2.4-.4L12 7.2Z" />
     </svg>

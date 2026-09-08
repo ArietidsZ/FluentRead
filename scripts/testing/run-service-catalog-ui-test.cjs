@@ -4,7 +4,7 @@
  * @file scripts/testing/run-service-catalog-ui-test.cjs
  * 文件职责：在屏幕外隔离 Edge 中验证翻译服务目录的二级分类、顺序、折叠、搜索与响应式布局。
  * 主要内容：加载生产扩展，检查动态自定义服务入口、模型服务商和聚合平台清单，覆盖机器翻译手动折叠、搜索自动展开、编辑状态与窄屏无横向溢出。
- * 模块边界：脚本只操作本次创建的临时浏览器 profile，不访问用户日常浏览器，也不修改扩展持久配置或调用翻译服务。
+ * 模块边界：脚本只操作本次创建的临时浏览器 profile，不访问用户日常浏览器，仅修改临时 profile 中的免费候选配置，只有显式 --live true 时调用匿名测试翻译。
  */
 
 const fs = require('node:fs');
@@ -235,6 +235,54 @@ async function main() {
       }
       report.responsive.push({...viewport, ...metrics});
       await screenshot(page, `service-catalog-${viewport.width}.png`, report);
+    }
+
+    await page.setViewportSize({width: 1440, height: 1000});
+    await serviceSearch.fill('免费翻译');
+    await catalog.locator('[data-service-value="freeTranslation"]').click();
+    const candidates = page.locator('[data-fallback-provider]');
+    await candidates.first().waitFor({state: 'visible', timeout});
+    const candidateIds = await candidates.evaluateAll(rows => rows.map(row => row.dataset.fallbackProvider));
+    assertSameOrder(candidateIds, ['microsoft', 'deeplx', 'google', 'myMemory', 'transmart', 'yandexFree', 'volcengineFree'], '免费候选');
+    for (const id of ['transmart', 'yandexFree', 'volcengineFree']) {
+      if (await catalog.locator(`[data-service-value="${id}"]`).count()) throw new Error(`免费候选泄漏到独立目录：${id}`);
+      const row = page.locator(`[data-fallback-provider="${id}"]`);
+      if (!(await row.getAttribute('class') || '').includes('is-disabled')) throw new Error(`新增候选默认启用：${id}`);
+      await row.locator('.el-switch').click();
+    }
+    await page.locator('[data-fallback-provider="transmart"]').getByRole('button', {name: '上移 腾讯交互翻译', exact: true}).click();
+    await page.locator('[data-fallback-provider="transmart"]').scrollIntoViewIfNeeded();
+    await screenshot(page, 'free-candidates-enabled.png', report);
+    await page.waitForTimeout(1000);
+    await page.reload({waitUntil: 'domcontentloaded'});
+    await page.locator('.service-catalog').waitFor({state: 'visible', timeout});
+    await page.getByPlaceholder('搜索翻译服务').fill('免费翻译');
+    await page.locator('.service-catalog [data-service-value="freeTranslation"]').click();
+    await page.locator('[data-fallback-provider]').first().waitFor({state: 'visible', timeout});
+    const saved = await page.locator('[data-fallback-provider]:not(.is-disabled)').evaluateAll(rows => rows.map(row => row.dataset.fallbackProvider));
+    assertSameOrder(saved, ['microsoft', 'deeplx', 'google', 'transmart', 'myMemory', 'yandexFree', 'volcengineFree'], '免费候选持久化');
+    report.freeCandidates = {candidateIds, saved, standaloneEntries: 0};
+    await page.setViewportSize({width: 390, height: 844});
+    if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)) throw new Error('免费候选在窄屏横向溢出');
+    await page.locator('[data-fallback-provider="transmart"]').scrollIntoViewIfNeeded();
+    await screenshot(page, 'free-candidates-390.png', report);
+    if (argument('live', 'false') === 'true') {
+      report.liveConnections = [];
+      await page.setViewportSize({width: 1440, height: 1000});
+      for (const id of ['transmart', 'yandexFree', 'volcengineFree']) {
+        const selected = page.locator(`[data-fallback-provider="${id}"]`);
+        if ((await selected.getAttribute('class') || '').includes('is-disabled')) await selected.locator('.el-switch').click();
+        for (const other of candidateIds.filter(value => value !== id)) {
+          const row = page.locator(`[data-fallback-provider="${other}"]`);
+          if (!(await row.getAttribute('class') || '').includes('is-disabled')) await row.locator('.el-switch').click();
+        }
+        await page.locator('[data-connection-test-button]').click();
+        await page.locator('[data-connection-test-status]:not(.is-testing)').waitFor({state: 'visible', timeout});
+        const result = page.locator('[data-connection-test-status]');
+        const success = (await result.getAttribute('class') || '').includes('is-success');
+        report.liveConnections.push({id, success, message: await result.innerText()});
+        if (!success) throw new Error(`真实连接失败：${id}: ${await result.innerText()}`);
+      }
     }
 
     if (consoleErrors.length) throw new Error(`浏览器控制台存在错误：${consoleErrors.join(' | ')}`);

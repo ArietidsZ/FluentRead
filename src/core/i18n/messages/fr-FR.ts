@@ -2084,6 +2084,12 @@ const frFRLegacyTextBase: Readonly<Record<string, string>> = {
 };
 
 export const frFRLegacyText: Readonly<Record<string, string>> = {
+    "腾讯交互翻译": "Tencent TranSmart",
+    "火山翻译": "Traduction Volcengine",
+    "免密钥网页接口，与腾讯云翻译不同": "Interface web sans clé, distincte de Tencent Cloud Translation",
+    "免密钥网页接口，暂不支持繁体目标语言": "Interface web sans clé ; chinois traditionnel non pris en charge comme cible",
+    "免密钥网页接口，无需配置火山云账号": "Interface web sans clé ; aucun compte Volcengine Cloud requis",
+
     "非官方公共接口，无需密钥": "Interface publique non officielle, sans clé API",
     '请输入有效邮箱，或留空。': 'Saisissez une adresse e-mail valide ou laissez ce champ vide.',
     "按设置顺序自动切换可用服务；支持每路超时和失败冷却。": "Essaie automatiquement les services disponibles dans l’ordre choisi, avec un délai maximal et une pause après échec.",

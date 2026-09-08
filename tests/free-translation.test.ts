@@ -1,17 +1,19 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-const {mockConfig, microsoftMock, deeplxMock, googleMock, myMemoryMock} = vi.hoisted(() => ({
+const {mockConfig, microsoftMock, deeplxMock, googleMock, myMemoryMock, webMock} = vi.hoisted(() => ({
     mockConfig: {} as Record<string, any>,
     microsoftMock: vi.fn(),
     deeplxMock: vi.fn(),
     googleMock: vi.fn(),
     myMemoryMock: vi.fn(),
+    webMock: vi.fn(),
 }));
 vi.mock('@/src/services/config/store', () => ({config: mockConfig}));
 vi.mock('@/src/providers/translation/microsoft', () => ({translateMicrosoftTexts: microsoftMock}));
 vi.mock('@/src/providers/translation/deeplx', () => ({translateDeepLXText: deeplxMock}));
 vi.mock('@/src/providers/translation/google', () => ({translateGoogleText: googleMock}));
 vi.mock('@/src/providers/translation/mymemory', () => ({default: myMemoryMock}));
+vi.mock('@/src/providers/translation/free-web', () => ({translateFreeWebText: webMock}));
 
 import type {TranslationConfigSource} from '@/src/services/translation/types';
 import {DEFAULT_DEEPLX_ENDPOINT} from '@/src/core/config/deeplx';
@@ -340,4 +342,19 @@ describe('免费翻译服务', () => {
         await expect(freeTranslation({origin: 42 as unknown as string})).rejects.toThrow('仅支持文本输入');
         expect(microsoftMock).not.toHaveBeenCalled();
     });
+});
+
+it.each(['transmart', 'yandexFree', 'volcengineFree'])('routes %s only via free policy with request language and cancellation', async id => {
+    mockConfig.freeTranslationOrder = [id];
+    webMock.mockResolvedValue('新译文');
+    const abort = new AbortController();
+    await expect(translateFreeText('Hello', {sourceLanguage: 'en', targetLanguage: 'zh-Hant', abortSignal: abort.signal})).resolves.toBe('新译文');
+    expect(webMock).toHaveBeenCalledWith(id, 'Hello', 'en', 'zh-Hant', expect.any(AbortSignal));
+});
+it('falls back and cools down a failed new route while keeping language errors request-local', async () => {
+    mockConfig.freeTranslationOrder = ['transmart', 'yandexFree', 'volcengineFree'];
+    webMock.mockImplementation(async id => {if (id === 'transmart') throw httpFailure(429); if (id === 'yandexFree') throw httpFailure(400); return '译文';});
+    await expect(translateFreeText('One')).resolves.toBe('译文');
+    await expect(translateFreeText('Two')).resolves.toBe('译文');
+    expect(webMock.mock.calls.map(call => call[0])).toEqual(['transmart', 'yandexFree', 'volcengineFree', 'yandexFree', 'volcengineFree']);
 });

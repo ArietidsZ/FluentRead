@@ -98,8 +98,8 @@ describe('free translation settings compiled component', () => {
     expect(config.freeTranslationOrder).toEqual(['microsoft', 'myMemory']);
   });
 
-  it('shows only four keyless services and cannot add a credential-based service', () => {
-    expect(state.providers.map((provider: {id: string}) => provider.id)).toEqual(['microsoft', 'deeplx', 'google', 'myMemory']);
+  it('shows seven keyless services and cannot add a credential-based service', () => {
+    expect(state.providers.map((provider: {id: string}) => provider.id)).toEqual(['microsoft', 'deeplx', 'google', 'myMemory', 'transmart', 'yandexFree', 'volcengineFree']);
     expect(elements.filter(element => element.props.type === 'password')).toEqual([]);
     const originalTokens = {...config.token};
     config.token.deepL = 'existing-account-key:fx';
