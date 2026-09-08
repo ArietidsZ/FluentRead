@@ -5,6 +5,16 @@ import {type HarnessPromptKind} from '@/src/core/harness/prompts'
 import { Config, normalizeConfig } from '@/src/core/config/model'
 
 describe('Harness config contract', () => {
+  it('preserves opt-in triggers and falls back safely for legacy or malformed settings', () => {
+    expect(normalizeHarnessPreferences({})).toMatchObject({trigger: 'click', customHotkey: 'Alt+R', hoverDelay: 600});
+    expect(normalizeHarnessPreferences({trigger: 'shortcut', customHotkey: ' Ctrl+Shift+R ', hoverDelay: 875.4})).toMatchObject({trigger: 'shortcut', customHotkey: 'Ctrl+Shift+R', hoverDelay: 875});
+    expect(normalizeHarnessPreferences({trigger: 'hover', customHotkey: 'r', hoverDelay: 0})).toMatchObject({trigger: 'hover', customHotkey: 'Alt+R', hoverDelay: 200});
+    for (const hoverDelay of [undefined, null, '500', NaN, Infinity]) {
+      expect(normalizeHarnessPreferences({trigger: 'invalid', customHotkey: null, hoverDelay})).toMatchObject({trigger: 'click', customHotkey: 'Alt+R', hoverDelay: 600});
+    }
+    expect(normalizeHarnessPreferences({hoverDelay: 9999}).hoverDelay).toBe(3000);
+  });
+
   it('keeps the feature disabled and follows the active service by default', () => {
     const config = new Config()
     expect(config.harness).toMatchObject({

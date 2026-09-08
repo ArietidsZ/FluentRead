@@ -10,6 +10,17 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const koKRMessages = {
+    "reading.triggerTitle": "번역 카드 열기",
+    "reading.triggerHelp": "기본은 동작 클릭입니다. 단축키는 우선 동작을, 마우스 올리기는 가리킨 동작을 사용합니다.",
+    "reading.triggerClick": "동작 클릭",
+    "reading.triggerHover": "지연 후 열기",
+    "reading.triggerShortcut": "단축키",
+    "reading.hoverDelay": "마우스 대기 시간(ms)",
+    "reading.hoverHelp": "선택 도구 모음의 학습 동작 위에 마우스를 두면 대기 후 열립니다. 벗어나면 취소됩니다.",
+    "reading.shortcut": "번역 카드 단축키",
+    "reading.shortcutHelp": "텍스트를 선택한 후 단축키를 누르세요. 키 조합을 클릭하여 변경할 수 있습니다.",
+    "reading.enableHelp": "텍스트를 선택한 뒤 학습 동작이나 설정한 방식으로 엽니다.",
+
     "document.batch.clear": "목록 비우기",
     "document.batch.clearTitle": "파일 목록을 비울까요?",
     "document.batch.clearWarning": "다운로드하지 않은 번역이나 수정 사항이 있습니다. 목록을 비우면 복구할 수 없습니다. 먼저 필요한 결과를 다운로드하세요.",

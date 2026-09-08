@@ -10,6 +10,17 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const jaJPMessages = {
+    "reading.triggerTitle": "翻訳カードを開く",
+    "reading.triggerHelp": "既定ではアクションをクリック。ショートカットは優先アクション、ホバーは指したアクションを使います。",
+    "reading.triggerClick": "クリック",
+    "reading.triggerHover": "遅延ホバー",
+    "reading.triggerShortcut": "ショートカット",
+    "reading.hoverDelay": "ホバー待機（ミリ秒）",
+    "reading.hoverHelp": "選択ツールバーの学習アクションにマウスを置くと、待機後に開きます。離すとキャンセルします。",
+    "reading.shortcut": "翻訳カードのショートカット",
+    "reading.shortcutHelp": "文字を選択してからキーを押します。キー名をクリックすると変更できます。",
+    "reading.enableHelp": "文字を選択し、学習アクションまたは設定した方法で開きます。",
+
     "document.batch.clear": "一覧を空にする",
     "document.batch.clearTitle": "ファイル一覧を空にしますか？",
     "document.batch.clearWarning": "未ダウンロードの訳文や校訂があります。一覧を空にすると復元できません。先に必要な結果をダウンロードしてください。",

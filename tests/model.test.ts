@@ -536,7 +536,6 @@ describe('AI 模型编号列表', () => {
 
 describe('图片翻译配置', () => {
     it('默认关闭，并保留用户主动启用或关闭的状态', () => {
-        // 主分支 8f200eb 已将图片翻译改为按需开启；显式保存值仍不可被默认值覆盖。
         expect(new Config().disableImageTranslator).toBe(true);
         expect(normalizeConfig({}).disableImageTranslator).toBe(true);
         expect(normalizeConfig({disableImageTranslator: false}).disableImageTranslator).toBe(false);
