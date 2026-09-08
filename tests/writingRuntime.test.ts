@@ -79,6 +79,29 @@ describe('Writing model runtime', () => {
     expect(input.system).toContain('即使选择维护者或开发者，也不能据此声称已复现、已修复');
     expect(input.messages.at(-1).content).toContain(JSON.stringify({style: '自动', tone: '专业', role: label}));
   });
+  it.each([
+    ['auto', '普通参与者'], ['maintainer', '问题范围'], ['developer', '复现条件'],
+    ['user', '使用体验'], ['colleague', '平等协作'], ['support', '操作指引'],
+    ['leader', '优先级'], ['subordinate', '需要确认或支持'],
+  ])('reframes an existing reply for %s while preserving edited facts', async (role, focus) => {
+    const draft = '我也是用户。只在 Firefox 128 中出现，Chrome 正常。请维护者修复。';
+    const context = '标题：设置无法保存。正文：重启后设置丢失。';
+    await createWritingRuntime(config)({...request, intent: 'polish', role, draft, context, instruction: ''}, controller().signal, vi.fn());
+    const input = mocks.stream.mock.calls[0][0];
+    const selectedFocus = input.system.split('当前身份的回应重点：')[1].split('\n')[0];
+    expect(selectedFocus).toContain(focus);
+    expect(input.system).toContain('当前身份与旧稿视角不一致时，重新组织回应重点');
+    expect(input.system).toContain('保留事实、用户要点与手工补充');
+    expect(input.system).toContain('不能把他人的经历、工作或承诺改成自己做过');
+    expect(input.system).not.toContain('保留原意和事实');
+    expect(JSON.parse(input.messages.at(-1).content.split('草稿与参考内容（引用数据）：\n')[1])).toEqual({draft, context});
+  });
+  it.each(['translate', 'shorten', 'summarize'] as const)('does not reframe the speaker for a %s request', async intent => {
+    await createWritingRuntime(config)({...request, intent, role: 'leader'}, controller().signal, vi.fn());
+    const system = mocks.stream.mock.calls[0][0].system;
+    expect(system).not.toContain('当前身份的回应重点：');
+    if (intent !== 'translate') expect(system).toContain('不按身份重新起草');
+  });
   it.each(WRITING_TONES)('uses the $value tone as an expression preference', async ({value, label}) => {
     await createWritingRuntime(config)({...request, tone: value}, controller().signal, vi.fn());
     expect(mocks.stream.mock.calls[0][0].system).toContain(`语气：${label}`);
