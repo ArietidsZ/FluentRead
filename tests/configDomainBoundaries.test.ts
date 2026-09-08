@@ -166,9 +166,9 @@ describe('配置领域边界与防御分支', () => {
         expect(normalized.selectionTranslatorHotkey).toBe('none');
     });
 
-    it.each([undefined, null, 'false', 0])('缺失或无效的翻译功能开关使用开启默认值：%s', value => {
+    it.each([undefined, null, 'false', 0])('缺失或无效的翻译功能开关使用各自默认值：%s', value => {
         expect(normalizeConfig({videoTranslationEnabled: value, selectionAreaEnabled: value, disableImageTranslator: value})).toMatchObject({
-            videoTranslationEnabled: true, selectionAreaEnabled: true, disableImageTranslator: false,
+            videoTranslationEnabled: true, selectionAreaEnabled: true, disableImageTranslator: true,
         });
     });
 

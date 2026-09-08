@@ -385,7 +385,7 @@ export class Config {
         this.areaTranslationService = '';
         this.imageTranslationHoverEnabled = true;
         this.imageTranslationContextMenuEnabled = true;
-        this.disableImageTranslator = false; // 默认开启图片翻译入口，点击后才翻译
+        this.disableImageTranslator = true; // 默认关闭图片翻译，由用户按需开启
         this.freeTranslationOrder = [...DEFAULT_FREE_TRANSLATION_ORDER];
         this.freeTranslationTimeoutMs = DEFAULT_FREE_TRANSLATION_TIMEOUT_MS;
         this.freeTranslationCooldownMs = DEFAULT_FREE_TRANSLATION_COOLDOWN_MS;
@@ -945,7 +945,7 @@ export function normalizeConfig(value: unknown): Config {
         normalized.selectionAreaEnabled = true;
     }
     if (typeof normalized.disableImageTranslator !== 'boolean') {
-        normalized.disableImageTranslator = false;
+        normalized.disableImageTranslator = true;
     }
     normalized.imageTranslationHoverEnabled = typeof normalized.imageTranslationHoverEnabled === 'boolean' ? normalized.imageTranslationHoverEnabled : true;
     normalized.imageTranslationContextMenuEnabled = typeof normalized.imageTranslationContextMenuEnabled === 'boolean' ? normalized.imageTranslationContextMenuEnabled : true;

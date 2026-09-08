@@ -749,6 +749,12 @@ async function translateImage(state: ImageTranslationState, prepareLanguages = f
 // 仅保存可信右键产生的 DOM 身份；不按 URL 扫描全页，避免同源多图和菜单打开后换图误命中。
 let contextImage: {image: HTMLImageElement; source: string} | null = null;
 let pointerImage: HTMLImageElement | null = null;
+let pointerRevealTimer: number | null = null;
+
+function clearPointerRevealTimer(): void {
+    if (pointerRevealTimer !== null) window.clearTimeout(pointerRevealTimer);
+    pointerRevealTimer = null;
+}
 
 function imageAtPointer(event: MouseEvent): HTMLImageElement | null {
     const target = event.target as Element | null;
@@ -775,14 +781,29 @@ function imageAtPointer(event: MouseEvent): HTMLImageElement | null {
 function handlePointerOver(event: PointerEvent): void {
     if (!event.isTrusted || event.pointerType === 'touch' || config.imageTranslationHoverEnabled === false) return;
     const image = imageAtPointer(event);
-    if (pointerImage === image && event.type === 'pointermove' && image && states.has(image)) return;
+    if (pointerImage === image && image && (pointerRevealTimer !== null || states.has(image))) return;
+    clearPointerRevealTimer();
     if (pointerImage && pointerImage !== image) hideImageButton(pointerImage);
     pointerImage = image;
-    if (image) showImageButton(image);
+    if (!image) return;
+    if (states.has(image)) {
+        showImageButton(image);
+        return;
+    }
+    const source = sourceIdentity(image);
+    // 同一张图片停留后再显示；快速扫过不创建 DOM、观察器或请求。
+    pointerRevealTimer = window.setTimeout(() => {
+        pointerRevealTimer = null;
+        if (mounted && pointerImage === image && image.isConnected && sourceIdentity(image) === source
+            && config.on && !config.disableImageTranslator && config.imageTranslationHoverEnabled !== false) {
+            showImageButton(image);
+        }
+    }, 600);
 }
 
 function handlePointerOut(event: PointerEvent): void {
     if (!event.isTrusted) return;
+    clearPointerRevealTimer();
     if (pointerImage) hideImageButton(pointerImage);
     pointerImage = null;
 }
@@ -808,6 +829,10 @@ export function toggleContextMenuImage(srcUrl?: unknown): boolean {
 }
 
 function scheduleViewportChange(): void {
+    if (pointerRevealTimer !== null) {
+        clearPointerRevealTimer();
+        pointerImage = null;
+    }
     if (!mounted || activeStates.size === 0 || positionFrame !== null) return;
     positionFrame = window.requestAnimationFrame(() => {
         positionFrame = null;
@@ -854,7 +879,8 @@ export function mountImageTranslator(): void {
     mounted = true;
     stopConfigurationWatch = watchTranslationConfiguration();
     const stopHoverWatch = subscribeConfig(next => {
-        if (next.imageTranslationHoverEnabled !== false) return;
+        if (next.imageTranslationHoverEnabled !== false && !next.disableImageTranslator && next.on) return;
+        clearPointerRevealTimer();
         pointerImage = null;
         activeStates.forEach(state => { if (state.phase === 'idle') removeState(state); });
     });
@@ -893,6 +919,7 @@ export function mountImageTranslator(): void {
 export function unmountImageTranslator(): void {
     if (!mounted) return;
     mounted = false;
+    clearPointerRevealTimer();
     contextImage = null;
     pointerImage = null;
     removeListeners?.();
