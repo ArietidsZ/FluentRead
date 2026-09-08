@@ -23,9 +23,18 @@ async function deepl(message: TranslationProviderRequest<string>) {
     const service = message.serviceOverride || current.service;
     // DeepL 的目标语言区分书写系统，源语言参数仅接受基础 ZH。
     const {sourceLanguage, targetLanguage} = getTranslationLanguages(message);
-    const targetLang = normalizeChineseLanguageCode(targetLanguage).toUpperCase();
+    // 2026-09-08 官方语言表：Filipino 使用 TL；KN / SI 尚未提供文本翻译。
+    // 不替换成其他语言，也不修改用户保存的选择；允许切换到其他服务重试。
+    const normalizeDeepLLanguage = (code: string): string => {
+        const normalized = normalizeChineseLanguageCode(code);
+        if (normalized === 'kn' || normalized === 'si') {
+            throw new Error(`DeepL 暂不支持此语言（${normalized}），请选择其他翻译服务`);
+        }
+        return normalized === 'fil' ? 'TL' : normalized.toUpperCase();
+    };
+    const targetLang = normalizeDeepLLanguage(targetLanguage);
     const normalizedSource = normalizeChineseLanguageCode(sourceLanguage);
-    const sourceLang = normalizedSource.startsWith('zh-') ? 'ZH' : normalizedSource.toUpperCase();
+    const sourceLang = normalizedSource.startsWith('zh-') ? 'ZH' : normalizeDeepLLanguage(normalizedSource);
 
     // 判断是否使用代理
     const url = getDeepLEndpoint(current.deeplApiPlan, current.proxy[service]);

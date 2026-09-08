@@ -48,8 +48,9 @@ export async function translateMicrosoftTexts(
     fromLang = normalizeChineseLanguageCode(fromLang);
     toLang = normalizeChineseLanguageCode(toLang);
     const url = new URL(MICROSOFT_TRANSLATE_URL);
-    url.searchParams.set('from', fromLang === 'auto' ? '' : fromLang);
-    url.searchParams.set('to', toLang);
+    // 通用 sr 按原生名称的西里尔书写系统请求，避免服务端隐式选择拉丁字母。
+    url.searchParams.set('from', fromLang === 'auto' ? '' : fromLang === 'sr' ? 'sr-Cyrl' : fromLang);
+    url.searchParams.set('to', toLang === 'sr' ? 'sr-Cyrl' : toLang);
     url.searchParams.set('isEnterpriseClient', 'false');
 
     const resp = await runtimeFetch(url, {

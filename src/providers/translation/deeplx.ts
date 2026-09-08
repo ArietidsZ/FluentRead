@@ -37,7 +37,8 @@ function normalizeLanguage(language: string): string {
     if (normalized === "zh-tw" || normalized === "zh-hant") {
         return "ZH-HANT";
     }
-    return language.toUpperCase();
+    if (normalized === 'fil') return 'TL';
+    return normalized.toUpperCase();
 }
 
 function getErrorMessage(error: unknown): string {

@@ -236,7 +236,7 @@ export async function translateGoogleText(
     // Web RPC 与 gtx 使用区域码区分中文书写系统。
     const googleLanguage = (code: string): string => {
         const normalized = normalizeChineseLanguageCode(code);
-        return ({'zh-Hans': 'zh-CN', 'zh-Hant': 'zh-TW'} as Record<string, string>)[normalized] ?? normalized;
+        return ({'zh-Hans': 'zh-CN', 'zh-Hant': 'zh-TW', nb: 'no', fil: 'tl'} as Record<string, string>)[normalized] ?? normalized;
     };
     fromLang = googleLanguage(fromLang);
     toLang = googleLanguage(toLang);

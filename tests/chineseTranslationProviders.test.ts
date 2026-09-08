@@ -77,3 +77,24 @@ describe('中文书写系统到实际供应商协议的端到端映射', () => {
         expect(new URLSearchParams(String(fetchMock.mock.calls[0]?.[1]?.body)).get('to')).toBe('eo');
     });
 });
+
+describe('扩展语言到微软与小牛实际协议', () => {
+    it.each(['de', 'pt', 'it', 'ar', 'hi', 'bn', 'ur', 'fa', 'he', 'tr', 'vi', 'th', 'id', 'ms', 'nl', 'pl', 'uk', 'cs', 'sk', 'da', 'sv', 'nb', 'fi', 'el', 'ro', 'hu', 'bg', 'hr', 'sr', 'sl', 'et', 'lv', 'lt', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'ne', 'si', 'sw', 'fil'])('新增 %s 同时正确转换源语言和目标语言', async language => {
+        for (const provider of [providers[0]!, providers[4]!]) {
+            fetchMock.mockReset();
+            config.service = provider.service;
+            fetchMock.mockResolvedValue(new Response(JSON.stringify(provider.response)));
+            await provider.run({origin: 'Hello', sourceLanguage: language, targetLanguage: language});
+            const [url, init] = fetchMock.mock.calls[0]!;
+            const expected = provider.name === 'Microsoft' && language === 'sr' ? 'sr-Cyrl'
+                : provider.name === 'NiuTrans' && language === 'nb' ? 'no' : language;
+            expect(provider.read(url, String(init?.body))).toEqual({source: expected, target: expected});
+            expect(config.to).toBe('zh-Hans');
+        }
+    });
+    it.each([{error_code: '13001', error_msg: 'secret input'}, {}, {tgt_text: ''}, null])('小牛 HTTP 200 业务失败不再作为成功译文返回：%j', async response => {
+        config.service = services.xiaoniu;
+        fetchMock.mockResolvedValue(new Response(JSON.stringify(response)));
+        await expect(xiaoniu({origin: 'Hello', sourceLanguage: 'en', targetLanguage: 'no'})).rejects.toThrow('小牛翻译未返回译文');
+    });
+});

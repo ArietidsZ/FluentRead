@@ -143,3 +143,20 @@ describe('DeepL 中文源和目标的协议边界', () => {
         expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({source_lang: source, target_lang: target});
     });
 });
+
+describe('DeepL 扩展语言协议', () => {
+    it.each(['de', 'pt', 'it', 'ar', 'hi', 'bn', 'ur', 'fa', 'he', 'tr', 'vi', 'th', 'id', 'ms', 'nl', 'pl', 'uk', 'cs', 'sk', 'da', 'sv', 'nb', 'fi', 'el', 'ro', 'hu', 'bg', 'hr', 'sr', 'sl', 'et', 'lv', 'lt', 'ta', 'te', 'mr', 'gu', 'ml', 'pa', 'ne', 'sw', 'fil'])('按官方代码发送 %s，保留 HTML 标签处理且不依赖废弃 beta 参数', async language => {
+        await deepl({origin: '<b>Hello</b>', sourceLanguage: language, targetLanguage: language});
+        const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+        const code = language === 'fil' ? 'TL' : language.toUpperCase();
+        expect(body).toMatchObject({source_lang: code, target_lang: code, text: ['<b>Hello</b>'], tag_handling: 'html'});
+        expect(body).not.toHaveProperty('enable_beta_languages');
+        expect(mockConfig.to).toBe('zh-Hans');
+    });
+    it.each(['kn', 'si'])('不支持的 %s 在源语言或目标语言中均明确失败且不发送请求', async language => {
+        await expect(deepl({origin: 'Hello', sourceLanguage: 'en', targetLanguage: language})).rejects.toThrow('请选择其他翻译服务');
+        await expect(deepl({origin: 'Hello', sourceLanguage: language, targetLanguage: 'en'})).rejects.toThrow('请选择其他翻译服务');
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(mockConfig.to).toBe('zh-Hans');
+    });
+});
