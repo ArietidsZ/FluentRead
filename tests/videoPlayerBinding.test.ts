@@ -445,3 +445,41 @@ it('missing MutationObserver still supports explicit sync and clean teardown', (
  const binding=createVideoPlayerBinding({document:fixture.document,locator:fixture.locator,getState:()=>({enabled:true}),createButton:()=>fixture.document.createElement('button')});
  binding.sync();binding.destroy();
 });
+
+
+it('keeps an open X menu usable across controls removal and remount, then cleans up on disable', () => {
+  const fixture = createFixture('<div class="player" data-testid="videoPlayer"><video></video><div class="x-controls"><button aria-label="Settings"></button><button>fullscreen</button></div></div>');
+  let enabled = true;
+  const createMenu = vi.fn(() => {
+    const menu = fixture.document.createElement('div');
+    menu.hidden = true;
+    const toggle = fixture.document.createElement('button');
+    toggle.addEventListener('click', () => toggle.setAttribute('aria-checked', 'false'));
+    menu.appendChild(toggle);
+    return menu;
+  });
+  const binding = createVideoPlayerBinding({document: fixture.document, locator: fixture.locator, getState: () => ({enabled}), createButton: () => fixture.document.createElement('button'), createMenu});
+  const menu = createMenu.mock.results[0].value;
+  const toggle = menu.querySelector('button')!;
+  menu.hidden = false;
+  const controls = fixture.player.querySelector('.x-controls')!;
+  controls.remove();
+  binding.sync();
+  toggle.dispatchEvent(new fixture.window.Event('pointerover', {bubbles: true}));
+  toggle.dispatchEvent(new fixture.window.Event('click', {bubbles: true}));
+  expect(menu.isConnected).toBe(true);
+  expect(menu.hidden).toBe(false);
+  expect(toggle.getAttribute('aria-checked')).toBe('false');
+  expect(fixture.player.querySelector('.fluent-read-video-controls')).toBeNull();
+  fixture.player.appendChild(controls);
+  binding.sync();
+  expect(createMenu).toHaveBeenCalledTimes(1);
+  expect(menu.hidden).toBe(false);
+  expect(controls.children).toHaveLength(3);
+  controls.remove();
+  binding.sync();
+  enabled = false;
+  binding.sync();
+  expect(menu.isConnected).toBe(false);
+  binding.destroy();
+});

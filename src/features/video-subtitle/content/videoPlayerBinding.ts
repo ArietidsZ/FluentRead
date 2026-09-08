@@ -161,6 +161,12 @@ export function createVideoPlayerBinding(options: VideoPlayerBindingOptions): Vi
     const preferred = nativeControls(next.player);
     // X 的控制栏在悬浮后才挂载。等待真实控制栏，避免右下角 fallback 首帧闪现后跳到进度左侧。
     if (!preferred && next.player.getAttribute('data-testid') === 'videoPlayer') {
+      // 原生控制栏的生命周期不代表用户结束菜单操作；保留已打开的菜单及焦点。
+      if (menu && menu.parentElement === next.player && !menu.hidden) {
+        button?.remove();
+        host = null;
+        return;
+      }
       cleanNodes();
       removePlayerMark(next.player);
       return;
