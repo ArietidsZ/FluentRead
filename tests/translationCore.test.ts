@@ -26,6 +26,7 @@ import {
 import {
     evaluateHardGuard,
     getElementTagName,
+    isDocumentSurfaceNoTranslateShell,
     isTextInNestedTranslationTooltip,
     findElementsAtPoint,
     findNodeAtPoint,
@@ -663,6 +664,42 @@ describe('translation candidate core', () => {
         `).document);
 
         expect(ids).toEqual(['allowed']);
+    });
+
+    it('issue #498：Weglot 在 <html> 根节点设置 translate=no 时全文翻译仍可发现正文', () => {
+        // mapbox.com（Webflow + Weglot）会在文档根节点注入 <html translate="no">，
+        // 这是框架级防护而非局部保护；根表面的该标记不应把整页判成 inherited-no-translate。
+        const {document} = parseHTML(`
+            <html translate="no"><body><main>
+                <h2 id="title">About Tripadvisor</h2>
+                <p id="body-copy">As the world's largest travel guidance platform.</p>
+                <section translate="no"><p id="local-protected">Do not translate this local section.</p></section>
+            </main></body></html>
+        `);
+        const ids = candidateIds(document);
+
+        // 根节点标记被放行：正文可翻译；但真正的局部 translate=no 容器仍被保护。
+        expect(ids).toEqual(expect.arrayContaining(['title', 'body-copy']));
+        expect(ids).not.toContain('local-protected');
+    });
+
+    it('issue #498：仅文档根表面（<html>/<body>）的 no-translate 标记被识别为框架级外壳', () => {
+        const {document} = parseHTML(`
+            <html translate="no"><body class="notranslate">
+                <main><section translate="no"><p id="p">x</p></section></main>
+            </body></html>
+        `);
+        const root = document.documentElement;
+        const body = document.body;
+        const section = document.querySelector('section')!;
+
+        expect(isDocumentSurfaceNoTranslateShell(root)).toBe(true);
+        expect(isDocumentSurfaceNoTranslateShell(body)).toBe(true);
+        expect(isDocumentSurfaceNoTranslateShell(section)).toBe(false);
+
+        // 根表面不再触发整树裁剪，但嵌套的 translate=no 容器仍返回 inherited-no-translate。
+        expect(evaluateHardGuard(root).prune).toBe(false);
+        expect(evaluateHardGuard(section)).toMatchObject({prune: true, reason: 'inherited-no-translate'});
     });
 
     it('keeps full-page discovery strict while allowing explicit translation through a body-level app shell', () => {
