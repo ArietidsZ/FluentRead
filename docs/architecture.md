@@ -284,6 +284,9 @@ feature
 - 缓存 key 必须包含会改变结果的 service、model、endpoint、语言、prompt/context 与 transport profile。
 - background 与 userscript 共用同一 broker，不维护两份相似实现。
 - cache 失败只能降级为未命中，不能让翻译功能整体失效。
+- 翻译结果缓存默认及可调上限为 10,000 条、10 MiB（10 × 1024 × 1024 字节），任一达到上限就先清理过期项，再按 LRU 淘汰；有效期为 24 小时。保留已有较小配置，超出新上限的配置自动收敛。
+- 缓存通过 Dexie 存入扩展 IndexedDB，browser.storage 只承载容量配置，不承载整份翻译结果。容量统计为 UTF-8 键与译文之和，不包含数据库记录和索引开销，不能视作磁盘占用硬上限。正常统计增量更新、读取按键查询，内存热层最多 128 条；命中仍会写入访问时间。
+- Chrome storage.local 的 10 MB 配额不等同于 IndexedDB 配额；扩展已有 unlimitedStorage 权限，但磁盘不足仍可能使写入失败。容量扩大不需要增加权限，缓存写入失败时仍继续翻译。
 - MV3 重启后仍需复用的数据进入 IndexedDB；仅请求内去重可以保存在内存。
 
 ### 动态页面的翻译稳定性

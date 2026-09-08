@@ -18,6 +18,13 @@ describe('translation cache capacity normalization', () => {
     });
   });
 
+  it('preserves smaller saved limits and caps legacy oversized settings', () => {
+    expect(normalizeTranslationCacheLimits({ maxBytes: 5 * 1024 * 1024, maxEntries: 2000 }))
+      .toEqual({ maxBytes: 5 * 1024 * 1024, maxEntries: 2000 });
+    expect(normalizeTranslationCacheLimits({ maxBytes: 100 * 1024 * 1024, maxEntries: 50000 }))
+      .toEqual({ maxBytes: 10 * 1024 * 1024, maxEntries: 10000 });
+  });
+
   it('clamps finite values to the supported minimum and maximum', () => {
     expect(normalizeTranslationCacheLimits({ maxBytes: -1, maxEntries: 0 })).toEqual({
       maxBytes: MIN_TRANSLATION_CACHE_MAX_BYTES, maxEntries: MIN_TRANSLATION_CACHE_MAX_ENTRIES,
