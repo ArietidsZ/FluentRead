@@ -10,6 +10,30 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const esESMessages = {
+    "document.batch.clear": "Vaciar cola",
+    "document.batch.clearTitle": "¿Vaciar la cola de archivos?",
+    "document.batch.clearWarning": "Hay traducciones o cambios sin descargar. Al vaciar la cola se perderán. Descarga primero los resultados que necesites.",
+
+    "document.batch.queue": "Cola de archivos",
+    "document.batch.running": "Traduciendo archivos en orden",
+    "document.batch.importing": "Importando archivos…",
+    "document.batch.completed": "{count} completados",
+    "document.batch.add": "Añadir archivos",
+    "document.batch.pause": "Pausar todo",
+    "document.batch.start": "Traducir archivos restantes",
+    "document.batch.output": "Contenido del archivo",
+    "document.batch.zip": "Descargar archivos completados (ZIP)",
+    "document.batch.hint": "Los archivos se procesan en orden con los ajustes actuales. Un fallo no detiene los siguientes. Selecciona un archivo para leerlo o revisarlo. Los resultados solo se guardan en esta página.",
+    "document.batch.remove": "Quitar",
+    "document.batch.removeTitle": "¿Quitar este archivo?",
+    "document.batch.removeWarning": "Hay traducciones o cambios sin descargar. Al quitar el archivo se perderán. Descarga primero los resultados que necesites.",
+    "document.batch.importFailed": "Error de importación",
+    "document.batch.settingsChanged": "Algunos archivos parcialmente traducidos usan otros ajustes. Ábrelos y confirma su nueva traducción antes de continuar.",
+    "document.batch.externalSettings": "Los ajustes cambiaron en otra página. El lote está en pausa. Revisa los ajustes antes de continuar.",
+    "document.batch.downloaded": "Se creó un ZIP con {count} archivos completados. Revisa las descargas del navegador.",
+    "document.batch.downloadFailed": "No se pudo crear el ZIP. Las traducciones se conservan: {error}",
+    "document.batch.pickMany": "O selecciona varios archivos a la vez",
+
     "writing.replyLanguage": "Idioma de respuesta",
     "writing.referenceLanguage": "Idioma de lectura",
     "writing.interfaceLanguage": "Usar idioma de la interfaz",

@@ -1,7 +1,7 @@
 /**
  * @file src/app/document-translation/document-page.css
  * 文件职责：定义文档翻译独立页面的完整布局与主题表现，使导入区、阅读器、翻译进度、格式预览和导出操作在桌面与窄屏下保持可读。
- * 主要内容：声明页面级颜色变量与暗色覆盖，设置品牌头部、拖放卡片、工具栏、PDF 连续页、EPUB/DOCX 分区、字幕与 JSON 行、状态徽章、按钮、空态和响应式断点。
+ * 主要内容：声明页面级颜色变量与暗色覆盖，设置批量文件队列、品牌头部、拖放卡片、工具栏、PDF 连续页、EPUB/DOCX 分区、字幕与 JSON 行、状态徽章、按钮、空态和响应式断点。
  * 模块边界：样式仅服务 DocumentApp 的 class 结构，不解析文档、不控制翻译状态，也不覆盖 content 宿主页面；跨页面基础视觉 token 仍由 src/ui/styles/tokens.css 管理。
  */
 /* 文档翻译页面样式跟随 app 页面边界。 */
@@ -288,3 +288,22 @@ input { accent-color: var(--brand); }input:focus-visible { outline: 3px solid va
 .pdf-zoom-control .document-select { width: 120px; }
 .pdf-zoom-control .el-select__wrapper { min-height: 31px; }
 .editor-page-select .document-select { width: 95px; }
+
+/* 批量文件列表拥有独立滚动区域，避免大量文件挤走阅读区。 */
+.document-batch { margin-bottom: 20px; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+.batch-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.batch-toolbar > span, .batch-hint, .batch-file small { color: var(--muted); font-size: 12px; }
+.batch-toolbar button, .batch-files > li > button, .batch-toolbar select { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); color: var(--ink); }
+.batch-toolbar label { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.batch-files { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 8px; max-height: 190px; overflow: auto; padding: 0; margin: 12px 0 0; list-style: none; }
+.batch-files li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 10px; }
+.batch-files li.selected { border-color: var(--brand); background: var(--brand-soft); }
+.batch-file { min-width: 0; display: grid; gap: 4px; padding: 2px; border: 0; text-align: left; background: transparent; color: var(--ink); }
+.batch-file > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.batch-files .notice { grid-column: 1 / -1; margin: 0; overflow-wrap: anywhere; }
+.document-batch button:disabled { cursor: default; opacity: .55; }
+.document-batch button:focus-visible, .document-batch select:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+.is-workspace .document-main { flex-direction: column; }
+.is-workspace .document-batch { flex: none; }
+.batch-output { width: 110px; }

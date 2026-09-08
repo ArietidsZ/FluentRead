@@ -84,6 +84,10 @@ async function main() {
     assert.equal(seeded.success, true, seeded.error);
     const shot = async name => { const file = path.join(artifactsDir, `${name}.png`); await page.screenshot({path: file, animations: 'disabled'}); report.screenshots.push(file); };
     const noOverflow = async () => assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, '页面不得横向溢出');
+    const select = async (name, label) => {
+      await page.locator('.el-select__wrapper').filter({has: page.getByRole('combobox', {name, exact: true})}).click();
+      await page.getByRole('option', {name: label, exact: true}).click();
+    };
     const status = label => page.locator('.document-status').filter({hasText: label}).waitFor();
     const load = async (name, buffer) => {
       await page.locator('input[type=file]').setInputFiles({name, mimeType: 'application/octet-stream', buffer});
@@ -94,9 +98,9 @@ async function main() {
       }
     };
     const newFile = async () => {
-      await page.getByRole('button', {name: '打开新文件', exact: true}).first().click();
-      const dialog = page.locator('dialog[open]').filter({hasText: '打开另一份文档'});
-      if (await dialog.count()) await dialog.getByRole('button', {name: '打开新文件', exact: true}).click();
+      await page.locator('.sidebar-change-file').click();
+      const dialog = page.locator('dialog[open]').filter({has: page.locator('#confirm-document-heading')});
+      if (await dialog.count()) await dialog.locator('.translate-document-button').click();
       await page.locator('.file-drop-zone').waitFor();
     };
     const download = async (mode = 'bilingual', partial = false) => {
@@ -134,9 +138,9 @@ async function main() {
         assert.equal(await page.locator('.pdf-page-row').count(), 2);
         const previewImage = page.locator('.pdf-page-column.translated img').first();
         const beforeZoom = (await previewImage.boundingBox()).width;
-        await page.getByRole('combobox', {name: 'PDF 预览缩放'}).selectOption('1.5');
+        await select('PDF 预览缩放', '150%');
         assert((await previewImage.boundingBox()).width > beforeZoom * 1.4, 'PDF 放大必须实际改变页面尺寸');
-        await page.getByRole('combobox', {name: 'PDF 预览缩放'}).selectOption('1');
+        await select('PDF 预览缩放', '适合宽度');
       }
       const dest = await download();
       const bytes = fs.readFileSync(dest);
@@ -164,7 +168,7 @@ async function main() {
     await status('已暂停');
     const pausedProgress = await page.getByRole('progressbar').getAttribute('aria-valuenow');
     await page.getByRole('button', {name: '校订译文', exact: true}).click();
-    await page.getByRole('combobox', {name: '校订页码'}).selectOption('3');
+    await select('校订页码', '3 / 3');
     assert.equal(await page.locator('[data-segment-id="94"]').count(), 1);
     await page.getByRole('searchbox', {name: '搜索原文、译文或位置'}).fill('paragraph 91.');
     assert.equal(await page.locator('.segment-edit-row').count(), 1);
@@ -201,11 +205,11 @@ async function main() {
     await page.getByRole('button', {name: '打开新文件', exact: true}).click();
     await page.locator('dialog[open]').getByRole('button', {name: '返回文档'}).click();
     assert.match(await page.locator('.workspace-heading h1').innerText(), /long-document/);
-    await page.getByRole('combobox', {name: '文档目标语言'}).selectOption('ja');
+    await select('文档目标语言', '日本語 / Japanese / 日语');
     await page.locator('.notice.warning').filter({hasText: '设置已更改'}).waitFor();
     await page.getByRole('button', {name: '按新设置翻译'}).click();
     await page.locator('dialog[open]').getByRole('button', {name: '返回文档'}).click();
-    await page.getByRole('combobox', {name: '文档目标语言'}).selectOption('zh-Hans');
+    await select('文档目标语言', '简体中文 / Simplified Chinese');
     report.cases.push('reading and download modes independent; discard/restart dialogs cancel safely; setting change cannot mix translation sessions');
     await page.emulateMedia({colorScheme: 'dark'});
     const richRoot = page.locator('.rich-preview-frame').contentFrame().locator('html');
@@ -228,7 +232,7 @@ async function main() {
     fixture.state.fail = false;
     await page.locator('.translation-actions button').click();
     await status('翻译完成');
-    await page.getByRole('combobox', {name: '文档目标语言'}).selectOption('ja');
+    await select('文档目标语言', '日本語 / Japanese / 日语');
     await page.getByRole('button', {name: '按新设置翻译', exact: true}).click();
     const restartDialog = page.locator('dialog[open]');
     fixture.state.delay = 1000;
@@ -246,6 +250,78 @@ async function main() {
     const recovery = await download('translated');
     assert(fs.readFileSync(recovery, 'utf8').includes('测试译文：A replacement document'));
     report.cases.push('failure keeps completed work, error stays visible, retry succeeds, translated-only export works');
+    await newFile();
+    fixture.state.delay = 1000;
+    fixture.state.fail = true;
+    const batchFiles = [
+      {name: 'same.txt', text: ['Batch alpha first paragraph.', ...Array.from({length: 20}, (_, i) => `Batch alpha paragraph ${i + 2}.`)].join('\n\n')},
+      {name: 'broken.json', text: '{not valid json'},
+      {name: 'failure.txt', text: 'Failure target batch paragraph.'},
+      {name: 'same.txt', text: 'Batch omega successful after failure.'},
+    ];
+    await page.locator('input[type=file]').setInputFiles(batchFiles.map(file => ({name: file.name, mimeType: 'application/octet-stream', buffer: Buffer.from(file.text)})));
+    await page.waitForFunction(() => document.querySelectorAll('.batch-files li').length === 4 && document.querySelector('.document-batch')?.getAttribute('aria-busy') === 'false');
+    const entries = page.locator('.batch-files li');
+    assert.match(await entries.nth(1).innerText(), /导入失败/);
+    await page.getByRole('button', {name: '翻译剩余文件', exact: true}).click();
+    await status('正在翻译');
+    await page.waitForFunction(() => Number(document.querySelector('[role=progressbar]')?.getAttribute('aria-valuenow')) > 0);
+    await page.getByRole('button', {name: '暂停全部', exact: true}).click();
+    await status('已暂停');
+    assert.match(await entries.nth(3).innerText(), /等待翻译/);
+    fixture.state.delay = 5;
+    const firstRequests = fixture.state.requests.filter(text => text.includes('Batch alpha first paragraph')).length;
+    await page.getByRole('button', {name: '翻译剩余文件', exact: true}).click();
+    await page.waitForFunction(() => [...document.querySelectorAll('.batch-files li')].filter(li => li.textContent.includes('翻译完成')).length === 2);
+    await page.getByRole('button', {name: '翻译剩余文件', exact: true}).waitFor();
+    assert.equal(fixture.state.requests.filter(text => text.includes('Batch alpha first paragraph')).length, firstRequests, '续译不能重新请求已提交的片段');
+    assert.match(await entries.nth(2).innerText(), /翻译中断/);
+    assert.match(await entries.nth(3).innerText(), /翻译完成/);
+    report.cases.push('batch multi-select accepts mixed formats; invalid import and failed translation do not block later files; pause/resume retains completed segments');
+    await entries.nth(0).locator('.batch-file').click();
+    await page.getByRole('button', {name: '校订译文', exact: true}).click();
+    await page.locator('textarea.document-translation').first().fill('批量文件人工校订');
+    await entries.nth(3).locator('.batch-file').click();
+    await page.getByRole('button', {name: '校订译文', exact: true}).click();
+    assert.match(await page.locator('textarea.document-translation').first().inputValue(), /Batch omega/);
+    await entries.nth(0).locator('.batch-file').click();
+    await page.getByRole('button', {name: '校订译文', exact: true}).click();
+    assert.equal(await page.locator('textarea.document-translation').first().inputValue(), '批量文件人工校订');
+    await entries.nth(0).getByRole('button', {name: '移除 same.txt', exact: true}).click();
+    await page.locator('dialog[open]').getByRole('button', {name: '返回文档', exact: true}).click();
+    assert.equal(await entries.count(), 4);
+    const [archive] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', {name: '下载已完成文件（ZIP）', exact: true}).click()]);
+    const archivePath = path.join(artifactsDir, 'batch-completed.zip');
+    await archive.saveAs(archivePath);
+    report.downloads.push(archivePath);
+    const JSZip = require('jszip');
+    const zip = await JSZip.loadAsync(fs.readFileSync(archivePath));
+    const outputs = Object.values(zip.files).filter(file => !file.dir);
+    assert.equal(outputs.length, 2, '仅打包完整译文');
+    assert.notEqual(outputs[0].name, outputs[1].name, '同名源文件不覆盖');
+    const contents = await Promise.all(outputs.map(file => file.async('string')));
+    assert(contents.some(text => text.includes('批量文件人工校订')));
+    assert(contents.some(text => text.includes('Batch omega')));
+    await shot('09-batch-completed'); await noOverflow();
+    await page.setViewportSize({width: 390, height: 844}); await noOverflow(); await shot('10-batch-mobile');
+    await page.emulateMedia({colorScheme: 'dark'}); await shot('11-batch-mobile-dark');
+    await page.setViewportSize({width: 1440, height: 960});
+    await page.emulateMedia({colorScheme: 'light'});
+    fixture.state.fail = false;
+    await page.getByRole('button', {name: '翻译剩余文件', exact: true}).click();
+    await page.waitForFunction(() => [...document.querySelectorAll('.batch-files li')].filter(li => li.textContent.includes('翻译完成')).length === 3);
+    report.cases.push('batch task switching preserves independent edits; removal protects undownloaded work; ZIP contains only completed files and preserves duplicate names; failed file retries');
+    await newFile();
+    await page.locator('.file-drop-zone').evaluate(zone => {
+      const transfer = new DataTransfer();
+      transfer.items.add(new File(['Dropped first file.'], 'drop-first.txt', {type: 'text/plain'}));
+      transfer.items.add(new File(['Dropped second file.'], 'drop-second.txt', {type: 'text/plain'}));
+      zone.dispatchEvent(new DragEvent('drop', {bubbles: true, dataTransfer: transfer}));
+    });
+    await page.waitForFunction(() => document.querySelectorAll('.batch-files li').length === 2);
+    assert.match(await page.locator('.batch-files').innerText(), /drop-first.txt/);
+    assert.match(await page.locator('.batch-files').innerText(), /drop-second.txt/);
+    report.cases.push('drag-and-drop imports every file');
     assert.equal(report.consoleErrors.filter(message => !/Fixture intentional failure|400 \(Bad Request\)/u.test(message)).length, 0);
     report.expectedFixtureErrors = report.consoleErrors.filter(message => /Fixture intentional failure|400 \(Bad Request\)/u.test(message));
     report.consoleErrors = report.consoleErrors.filter(message => !/Fixture intentional failure|400 \(Bad Request\)/u.test(message));

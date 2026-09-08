@@ -10,6 +10,30 @@ import type {
 MessageCatalog} from '../types';
 
 export const zhCNMessages = {
+    "document.batch.clear": "清空队列",
+    "document.batch.clearTitle": "清空文件队列？",
+    "document.batch.clearWarning": "队列中尚有未下载的译文或校订。清空后无法恢复，请先下载需要的结果。",
+
+    "document.batch.queue": "文件队列",
+    "document.batch.running": "正在逐份翻译",
+    "document.batch.importing": "正在导入文件…",
+    "document.batch.completed": "已完成 {count} 份",
+    "document.batch.add": "添加文件",
+    "document.batch.pause": "暂停全部",
+    "document.batch.start": "翻译剩余文件",
+    "document.batch.output": "打包内容",
+    "document.batch.zip": "下载已完成文件（ZIP）",
+    "document.batch.hint": "所有文件使用当前翻译设置，逐份处理；失败不影响后续文件。切换文件可阅读和校订，结果仅保留在本页。",
+    "document.batch.remove": "移除",
+    "document.batch.removeTitle": "移除这份文件？",
+    "document.batch.removeWarning": "尚有未下载的译文或校订，移除后无法恢复。建议先下载需要的结果。",
+    "document.batch.importFailed": "导入失败",
+    "document.batch.settingsChanged": "部分文件的翻译设置已更改，请打开这些文件，确认按新设置翻译后再继续批量处理。",
+    "document.batch.externalSettings": "翻译设置已在其他页面更改，批量任务已暂停，请确认设置后继续。",
+    "document.batch.downloaded": "已生成 {count} 份已完成文件的 ZIP，请在浏览器下载列表中查看。",
+    "document.batch.downloadFailed": "打包失败，译文已保留：{error}",
+    "document.batch.pickMany": "或一次选择多个文件",
+
     "writing.replyLanguage": "回复语言",
     "writing.referenceLanguage": "对照语言",
     "writing.interfaceLanguage": "跟随界面语言",

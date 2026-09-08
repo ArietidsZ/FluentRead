@@ -227,6 +227,7 @@
       "tests/deeplx.test.ts",
       "tests/documentTranslationBinaryEdge.test.ts",
       "tests/documentTranslation.test.ts",
+      "tests/documentBatchComponent.test.ts",
       "tests/documentTranslationApi.test.ts",
       "tests/documentTranslationBinary.test.ts",
       "tests/free-translation.test.ts",
