@@ -16,7 +16,7 @@ function parseArgs(argv) {
         playwrightRoot: arg(argv, 'playwright-root', process.env.PLAYWRIGHT_ROOT),
         artifactsDir: path.resolve(arg(argv, 'artifacts-dir', path.join(os.tmpdir(), 'fluentread-harness-reading-test'))),
         browserPath: arg(argv, 'browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),
-        focusSafeHelper: arg(argv, 'focus-safe-helper', ''), persistenceOnly: argv.includes('--persistence-only'), headed: argv.includes('--headed'),
+        focusSafeHelper: arg(argv, 'focus-safe-helper', ''), triggerOnly: argv.includes('--triggers-only'), persistenceOnly: argv.includes('--persistence-only'), headed: argv.includes('--headed'),
     };
     if (!out.playwrightRoot)
         throw new Error('必须传入 --playwright-root');
@@ -166,6 +166,107 @@ async function selectFixtureSentence(page) {
     await page.waitForTimeout(450);
     return page.evaluate(() => getSelection()?.toString().trim() || '');
 }
+async function verifyCardTriggers({page, configPage, requests, record, args, result}) {
+    const state = async () => {
+        const {host} = await shadowSnapshot(page);
+        const root = find(host, n => attr(n, 'class').split(' ').includes('fr-selection-translator-root'));
+        const visible = root && !attr(root, 'style').includes('display: none');
+        return {toolbar: Boolean(visible && find(root, n => attr(n, 'class').split(' ').includes('fr-reading-indicator'))), card: Boolean(visible && find(root, n => attr(n, 'class').split(' ').includes('fr-translation-tooltip')))};
+    };
+    const setup = async (patch) => {
+        await persistConfig(configPage, {selectionTranslatorMode: 'disabled', disableSelectionTranslator: true, harness: {...(await readConfig(configPage)).harness, enabled: true, ...patch}});
+        await page.reload({waitUntil: 'domcontentloaded'});
+        await page.waitForTimeout(700);
+        await page.evaluate(() => {
+            const button = document.createElement('button'); button.id = 'retains-selection'; button.textContent = 'Other action';
+            button.style.cssText = 'position:fixed;right:24px;bottom:24px';
+            button.addEventListener('pointerdown', event => event.preventDefault());
+            button.addEventListener('click', () => {window.__otherActionClicks = (window.__otherActionClicks || 0) + 1;});
+            document.body.append(button);
+        });
+        await selectFixtureSentence(page);
+    };
+    const hoverAction = async (label) => {
+        const {host, session} = await shadowSnapshot(page);
+        const toolbar = find(host, n => attr(n, 'class').split(' ').includes('fr-reading-indicator'));
+        const button = find(toolbar, n => n.nodeName === 'BUTTON' && text(n).trim() === label);
+        assert(button, `没有悬停动作 ${label}`);
+        const {model} = await session.send('DOM.getBoxModel', {nodeId: button.nodeId});
+        const quad = model.border;
+        await page.mouse.move((quad[0] + quad[2]) / 2, (quad[1] + quad[5]) / 2);
+    };
+    await setup({trigger: 'click'});
+    const reselect = async () => {
+        // 先完成原生单击以结束已有选区，避免拖动已选文字进入浏览器的原生拖放流程。
+        await page.locator('#target').click({position: {x: 1, y: 12}});
+        const text = await selectFixtureSentence(page);
+        assert(text.includes('Although'), `重新划词没有产生目标选区: ${text}`);
+    };
+    const beforeClick = requests.length;
+    assert((await state()).toolbar, '默认点击模式没有浮条');
+    await hoverAction('读懂'); await page.waitForTimeout(800);
+    assert(!(await state()).card && requests.length === beforeClick, '默认模式悬停触发了模型');
+    record('trigger.click-default-no-hover-request', 'passed');
+    const selected = await page.evaluate(() => getSelection().toString());
+    await page.locator('#retains-selection').click(); await page.waitForTimeout(1900);
+    assert(await page.evaluate(() => getSelection().toString()) === selected, '测试按钮未保留选区');
+    assert(!(await state()).toolbar && !(await state()).card && requests.length === beforeClick, '外部按钮保留选区后重新显示或请求');
+    assert(await page.evaluate(() => window.__otherActionClicks) === 1, '拦截了宿主按钮的点击');
+    record('dismiss.retained-selection-external-button', 'passed');
+    await reselect();
+    assert((await state()).toolbar, '重新选择同一段无法恢复浮条');
+    await clickShadowButton(page, '读懂'); await waitForReadingComplete(page);
+    await page.locator('#retains-selection').click(); await page.waitForTimeout(800);
+    assert(!(await state()).card && !(await state()).toolbar, '已打开卡片被外部点击后再次显示');
+    record('dismiss.reselect-same-text-and-close-card', 'passed');
+
+    await setup({trigger: 'hover', hoverDelay: 900});
+    const beforeHover = requests.length;
+    await hoverAction('读懂'); await page.waitForTimeout(180);
+    assert(!(await state()).card && requests.length === beforeHover, '悬停延迟前发起请求');
+    await page.mouse.move(5, 5); await page.waitForTimeout(1050);
+    assert(!(await state()).card && requests.length === beforeHover, '移开后未取消悬停');
+    record('trigger.hover-delay-and-leave-cancel', 'passed');
+    await hoverAction('读懂'); await page.waitForTimeout(180);
+    await page.locator('#retains-selection').click(); await page.waitForTimeout(1050);
+    assert(!(await state()).toolbar && !(await state()).card && requests.length === beforeHover, '外部点击未取消悬停计时器');
+    record('trigger.hover-external-click-cancel', 'passed');
+    await reselect(); await hoverAction('拆句');
+    await waitForReadingComplete(page);
+    assert(requests.length > beforeHover, '完成悬停等待没有请求');
+    assert((await currentReadingAnswer(page)).includes('主干'), '悬停没有使用指向的拆句动作');
+    record('trigger.hover-opens-pointed-action', 'passed');
+
+    await setup({trigger: 'shortcut', customHotkey: 'Alt+R', defaultAction: 'grammar'});
+    const beforeShortcut = requests.length;
+    assert(!(await state()).toolbar && !(await state()).card && requests.length === beforeShortcut, '仅划词触发了快捷键模式');
+    await page.keyboard.press('Alt+r'); await waitForReadingComplete(page);
+    assert((await currentReadingAnswer(page)).includes('主干'), '快捷键没有打开优先动作');
+    record('trigger.shortcut-with-ordinary-selection-disabled', 'passed');
+    await page.keyboard.press('Escape'); await page.waitForTimeout(600);
+    assert(!(await state()).card && !(await state()).toolbar, 'Escape 关闭后重新出现');
+    await page.keyboard.press('Alt+r'); await waitForReadingComplete(page);
+    record('trigger.shortcut-reopens-dismissed-selection', 'passed');
+    const screenshot = path.join(args.artifactsDir, 'card-trigger-light.png');
+    await page.screenshot({path: screenshot}); result.screenshots.push(screenshot);
+    await persistConfig(configPage, {theme: 'dark'}); await page.waitForTimeout(250);
+    const darkScreenshot = path.join(args.artifactsDir, 'card-trigger-dark.png');
+    await page.screenshot({path: darkScreenshot}); result.screenshots.push(darkScreenshot);
+    await configPage.reload({waitUntil: 'domcontentloaded'});
+    const triggerGroup = configPage.getByRole('radiogroup', {name: '打开翻译卡', exact: true});
+    await triggerGroup.getByRole('radio', {name: '延迟悬停', exact: true}).click();
+    const delayInput = configPage.getByRole('spinbutton', {name: '悬停等待（毫秒）', exact: true});
+    await delayInput.fill('1100'); await delayInput.press('Tab');
+    await waitUntil(async () => {const reading = (await readConfig(configPage)).harness; return reading.trigger === 'hover' && reading.hoverDelay === 1100;}, '翻译卡触发设置未保存');
+    await configPage.reload({waitUntil: 'domcontentloaded'});
+    assert(await triggerGroup.getByRole('radio', {name: '延迟悬停', exact: true}).getAttribute('aria-checked') === 'true', '重开设置后丢失悬停方式');
+    assert(await delayInput.inputValue() === '1100', '重开设置后丢失悬停延迟');
+    record('trigger.settings-ui-persists-after-reload', 'passed');
+    const settingsScreenshot = path.join(args.artifactsDir, 'card-trigger-settings.png');
+    await triggerGroup.scrollIntoViewIfNeeded(); await configPage.screenshot({path: settingsScreenshot}); result.screenshots.push(settingsScreenshot);
+
+}
+
 async function waitForReadingComplete(page, timeout = 10000) {
     const started = Date.now();
     await page.waitForTimeout(100);
@@ -502,6 +603,14 @@ async function main() {
         assert(['读懂', '拆句', '用法', '练习'].every(label => toolbarLabels.includes(label)) && toolbarLabels.includes('记录'), `网页浮条未显示已启用的学习动作与阅读记录: ${toolbarLabels}`);
         record('selection-toolbar-enabled-actions', 'passed', {actions: toolbarLabels});
         record('selection-entry-visible-no-request', 'passed', { selectedText: actualSelection });
+        if (args.triggerOnly) {
+            await verifyCardTriggers({page, configPage, requests, record, args, result});
+            result.ok = result.consoleErrors.length === 0 && result.httpErrors.length === 0;
+            fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), `${JSON.stringify(result, null, 2)}\n`);
+            process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+            if (!result.ok) process.exitCode = 1;
+            return;
+        }
         const before = requests.length;
         const initialFrames = await startCardSampling(page, 1900);
         const clickInfo = await clickShadowButton(page, '读懂');

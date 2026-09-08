@@ -1,14 +1,14 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/快捷键/直接弹出、翻译与词卡展示、朗读、收藏词书、重试和关闭。
- * 主要内容：组件管理可信手势与选择丢失宽限、请求 token、弹窗定位和主题，以保守同语言预检避免误隐藏翻译入口，复用选区入口打开 Harness 阅读卡，协调翻译、词典与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
+ * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、请求 token、弹窗定位和主题，以保守同语言预检避免误隐藏翻译入口，以独立点击、延迟悬停和快捷键复用选区入口打开 Harness 阅读卡，协调翻译、词典与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
 <template>
   <div v-ui-i18n v-show="showIndicator || showTooltip || noticeMessage || copySuccess" class="fr-selection-translator-root" :data-display-delay="selectionSettings.delay" @pointerdown.stop @wheel.stop.passive="handleUiWheel">
-    <div v-if="showIndicator && !showTooltip && readingEnabled" ref="reading-indicator-ref" class="fr-reading-indicator" :class="{'fr-dark-theme': isDarkTheme}" :style="readingIndicatorStyle" role="group" aria-label="选区操作" @pointerdown.prevent.stop>
+    <div v-if="showIndicator && !showTooltip && readingIndicatorEnabled" ref="reading-indicator-ref" class="fr-reading-indicator" :class="{'fr-dark-theme': isDarkTheme}" :style="readingIndicatorStyle" role="group" aria-label="选区操作" @pointerdown.prevent.stop>
       <button v-if="selectionSettings.mode !== 'disabled'" type="button" aria-label="打开划词翻译" @click="openTooltip">翻译</button>
-      <button v-for="action in readingActions" :key="action.id" type="button" :class="{'is-default': action.id === readingPreferences.defaultAction}" :data-default-action="action.id === readingPreferences.defaultAction ? 'true' : undefined" :aria-label="`${action.label}选中文本`" @click="openReading(action.id)">{{ action.label }}</button>
+      <button v-for="action in readingActions" :key="action.id" type="button" :class="{'is-default': action.id === readingPreferences.defaultAction}" :data-default-action="action.id === readingPreferences.defaultAction ? 'true' : undefined" :aria-label="`${action.label}选中文本`" @pointerenter="scheduleReadingHover($event, action.id)" @pointerleave="cancelReadingHover" @click="openReading(action.id)">{{ action.label }}</button>
       <button v-if="!isPrivateContext" class="fr-reading-history-entry" type="button" aria-label="阅读记录" title="阅读记录" @click="openReadingHistory"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7" /><path d="M10 5.8V10l2.7 1.8" /></svg><span>记录</span></button>
     </div>
     <button v-else-if="showIndicator && !showTooltip" class="fr-selection-indicator" :class="`fr-selection-indicator--${triggerMode}`" :style="indicatorStyle" type="button" aria-label="打开划词翻译" title="打开划词翻译" @pointerdown.prevent.stop @click="openTooltip">
@@ -222,6 +222,7 @@ const noticeAction = ref<'open-vocabulary' | null>(null);
 const isVocabularySaved = ref(false);
 const vocabularyBusy = ref(false);
 
+let readingHoverTimer: number | null = null;
 let selectionFrame: number | null = null;
 let positionFrame: number | null = null;
 let selectionLossTimer: number | null = null;
@@ -250,6 +251,7 @@ const ttsContentController = createSelectionTtsContentController({
   }),
 });
 let isSelecting = false;
+let dismissedSelection: SelectionSnapshot | null = null;
 let pendingSelectionShortcutUntil = 0;
 let selectionShortcutHeld = false;
 let uiPointerInteraction = false;
@@ -263,6 +265,7 @@ const readingPreferences = computed(() => {
   return normalizeHarnessPreferences(config.harness, config.customOpenAIProviders);
 });
 const readingEnabled = computed(() => readingPreferences.value.enabled);
+const readingIndicatorEnabled = computed(() => readingEnabled.value && readingPreferences.value.trigger !== 'shortcut');
 const readingActions = computed(() => HARNESS_ACTIONS.filter(action => readingPreferences.value.actions.includes(action.id)));
 const readingDefaultActionLabel = computed(() => HARNESS_ACTIONS.find(action => action.id === readingPreferences.value.defaultAction)!.label);
 
@@ -395,6 +398,7 @@ function cancelSelectionLoss(): void {
 }
 
 function cancelSelectionPresentation(): void {
+  cancelReadingHover();
   if (selectionPresentationTimer !== null) {
     window.clearTimeout(selectionPresentationTimer);
     selectionPresentationTimer = null;
@@ -499,14 +503,17 @@ function scheduleSelectionLoss(): void {
   }, SELECTION_LOSS_GRACE_MS);
 }
 
-function applySelection(next: SelectionSnapshot | null, shortcutTriggered = false): void {
+function applySelection(next: SelectionSnapshot | null, shortcutTriggered = false, readingTriggered = false): void {
   if (!next) {
     if (!isSelecting) scheduleSelectionLoss();
     return;
   }
+  if (!shortcutTriggered && isSameSelection(dismissedSelection, next)) return;
+  dismissedSelection = null;
   cancelSelectionLoss();
   if (isSameSelection(snapshot.value, next)) {
-    if (shortcutTriggered) scheduleSelectionPresentation('tooltip');
+    if (readingTriggered) openReading();
+    else if (shortcutTriggered) scheduleSelectionPresentation('tooltip');
     return;
   }
   if (!readingEnabled.value && isSelectionInTargetLanguage(next.text)) { hideAll(); return; }
@@ -518,10 +525,12 @@ function applySelection(next: SelectionSnapshot | null, shortcutTriggered = fals
   readingIndicatorStyle.value = {visibility: 'hidden'};
   snapshot.value = next;
   selectedText.value = next.text;
-  const waitingForShortcut = triggerMode.value === 'shortcut' && Boolean(selectionShortcut.value) && !shortcutTriggered;
+  const waitingForShortcut = !shortcutTriggered && !readingIndicatorEnabled.value
+    && (triggerMode.value === 'shortcut' || selectionSettings.value.mode === 'disabled');
   showIndicator.value = false;
   showTooltip.value = false;
   updatePosition(false);
+  if (readingTriggered) { openReading(); return; }
   if (waitingForShortcut) return;
   scheduleSelectionPresentation(shortcutTriggered || triggerMode.value === 'direct' ? 'tooltip' : 'indicator');
 }
@@ -578,6 +587,24 @@ function openTooltip(): void {
   tooltipStyle.value = {left: tooltipStyle.value.left, top: tooltipStyle.value.top, visibility: wasVisible ? 'visible' : 'hidden'};
   if (!wasVisible || error.value || !activeContentRequest.value) void requestSelectionContent(snapshot.value.text);
   schedulePositionUpdate();
+}
+
+function cancelReadingHover(): void {
+  if (readingHoverTimer !== null) window.clearTimeout(readingHoverTimer);
+  readingHoverTimer = null;
+}
+
+function scheduleReadingHover(event: PointerEvent, action: HarnessActionId): void {
+  cancelReadingHover();
+  if (!event.isTrusted || event.pointerType !== 'mouse' || readingPreferences.value.trigger !== 'hover' || !snapshot.value) return;
+  const expected = snapshot.value;
+  readingHoverTimer = window.setTimeout(() => {
+    readingHoverTimer = null;
+    const current = readSelectionSnapshot();
+    if (!readingEnabled.value || readingPreferences.value.trigger !== 'hover' || !showIndicator.value || showTooltip.value
+      || !current || !isSameSelection(expected, current) || !isSameSelection(snapshot.value, current)) return;
+    openReading(action);
+  }, readingPreferences.value.hoverDelay);
 }
 
 function openReading(action: HarnessActionId = readingPreferences.value.defaultAction): void {
@@ -1110,6 +1137,11 @@ async function toggleWordAudio(pronunciation: WordPronunciation): Promise<void> 
 
 function closeTooltip(): void { hideAll(); }
 function hideAll(): void {
+  // 保留关闭时的选区身份，避免按钮保留原生选区时 pointerup / selectionchange 再次打开卡片。
+  dismissedSelection = snapshot.value ?? readSelectionSnapshot() ?? dismissedSelection;
+  lastTrustedSelectionInteractionAt = 0;
+  if (selectionFrame !== null) window.cancelAnimationFrame(selectionFrame);
+  selectionFrame = null;
   cancelSelectionLoss();
   cancelSelectionPresentation();
   selectionSettledAt = 0;
@@ -1153,9 +1185,9 @@ function handlePointerDown(event: PointerEvent): void {
   }
   uiPointerInteraction = false;
   suppressSelectionUntil = 0;
-  isSelecting = true;
+  isSelecting = event.button === 0;
   pendingSelectionShortcutUntil = 0;
-  if (snapshot.value) hideAll();
+  hideAll();
 }
 function handlePointerUp(event: PointerEvent): void {
   if (!event.isTrusted) return;
@@ -1167,7 +1199,9 @@ function handlePointerUp(event: PointerEvent): void {
     return;
   }
   uiPointerInteraction = false;
+  const completedSelectionGesture = isSelecting;
   isSelecting = false;
+  if (!completedSelectionGesture || event.button !== 0) return;
   scheduleSelectionRead(matchesSelectionModifierOnPointer(event) || selectionShortcutHeld);
 }
 function handlePointerCancel(event: PointerEvent): void {
@@ -1179,10 +1213,17 @@ function handlePointerCancel(event: PointerEvent): void {
     return;
   }
   isSelecting = false;
+  hideAll();
 }
 function handleSelectionChange(event: Event): void {
   if (readingMode.value && isInsideUi(document.activeElement)) return;
-  if (!event.isTrusted || Date.now() - lastTrustedSelectionInteractionAt > TRUSTED_SELECTION_INTERACTION_GRACE_MS) return;
+  if (!event.isTrusted) return;
+  // 新的拖选/双击可以再次选中同一段；单纯点击保留旧选区的按钮不能解除关闭状态。
+  if (isSelecting && dismissedSelection) {
+    const current = readSelectionSnapshot();
+    if (!current || !isSameSelection(dismissedSelection, current)) dismissedSelection = null;
+  }
+  if (Date.now() - lastTrustedSelectionInteractionAt > TRUSTED_SELECTION_INTERACTION_GRACE_MS) return;
   if (!isSelectionReadSuppressed()) scheduleSelectionRead(selectionShortcutHeld);
 }
 // 仅在扩展 UI 内拦住滚轮冒泡；document 级 wheel 会抑制 Chromium 对同节点派发 legacy mousewheel，导致旧播放器收不到音量手势。
@@ -1203,7 +1244,17 @@ function handleKeydown(event: KeyboardEvent): void {
     return;
   }
   if (event.key === 'Escape' && snapshot.value) { hideAll(); return; }
-  if (event.repeat) return;
+  if (event.repeat || event.isComposing) return;
+  if (event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
+  if (readingEnabled.value && readingPreferences.value.trigger === 'shortcut'
+    && matchesConfiguredHotkey(event, 'custom', readingPreferences.value.customHotkey)) {
+    const current = readSelectionSnapshot();
+    if (!current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    applySelection(current, true, true);
+    return;
+  }
   const matchesSelectionShortcut = matchesConfiguredHotkey(event, selectionShortcutConfig.value, selectionSettings.value.customHotkey);
   if (!matchesSelectionShortcut) return;
   selectionShortcutHeld = true;
@@ -1228,6 +1279,7 @@ function handleKeyup(): void {
 }
 
 function handleWindowBlur(): void {
+  cancelReadingHover();
   selectionShortcutHeld = false;
   pendingSelectionShortcutUntil = 0;
 }
@@ -1271,10 +1323,7 @@ onMounted(() => {
     tooltipResizeObserver = new ResizeObserver(schedulePositionUpdate);
     tooltipResizeObserver.observe(tooltip);
   }, { flush: 'post' });
-  watch(() => JSON.stringify(readingPreferences.value), () => {
-    if (!readingEnabled.value || readingSelection.value) hideAll();
-    else schedulePositionUpdate();
-  });
+  watch(() => JSON.stringify(readingPreferences.value), () => { hideAll(); });
   watch(() => [
     selectionSettings.value.theme,
     selectionSettings.value.trigger,
@@ -1377,7 +1426,7 @@ onBeforeUnmount(() => {
 .fr-selection-indicator:hover, .fr-selection-indicator:focus-visible { transform: translate(-50%, -50%) scale(1.1); box-shadow: 0 4px 14px rgba(204, 40, 104, .4), 0 0 0 3px rgba(255, 255, 255, .95); outline: none; }
 .fr-selection-indicator-glyph { font-size: 10px; font-weight: 700; line-height: 1; }
 .fr-translation-tooltip, .fr-translation-tooltip * { box-sizing: border-box; }
-.fr-translation-tooltip { position: fixed; width: min(388px, calc(100vw - 24px)); max-height: min(520px, calc(100vh - 20px)); overflow: hidden; border: 1px solid rgba(35, 35, 43, .1); border-radius: 20px; background: rgba(255, 255, 255, .98); box-shadow: 0 24px 62px rgba(35, 33, 43, .16), 0 4px 14px rgba(35, 33, 43, .07); backdrop-filter: blur(18px); -webkit-user-select: none; user-select: none; }
+.fr-translation-tooltip { position: fixed; width: min(388px, calc(100vw - 24px)); max-height: min(520px, calc(100vh - 20px)); overflow: hidden; border: 1px solid rgba(35, 35, 43, .1); border-radius: 14px; background: #fff; box-shadow: 0 8px 28px rgba(35, 33, 43, .14); -webkit-user-select: none; user-select: none; }
 .fr-reading-tooltip { display: flex; flex-direction: column; height: min(520px, calc(100vh - 24px)); }
 .fr-reading-tooltip > .fr-tooltip-header { flex: none; }
 .fr-reading-tooltip > .fr-reading-content { flex: 1; min-height: 0; max-height: none; overflow: hidden; padding: 0; }
@@ -1442,10 +1491,10 @@ onBeforeUnmount(() => {
 .fr-word-fallback-note, .fr-inline-error { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; color: #a56578; font-size: 11px; }
 .fr-word-fallback-note { padding: 6px 8px; border-radius: 7px; background: #fff8fa; }
 .fr-inline-error button, .fr-word-fallback-note button { border: 1px solid currentColor; border-radius: 6px; padding: 2px 7px; background: transparent; color: inherit; cursor: pointer; font-size: 11px; }
-.fr-text-block { padding: 12px 13px 13px; border: 1px solid transparent; border-radius: 15px; }
-.fr-text-block + .fr-text-block { margin-top: 0; }
-.fr-original-text { border-color: #ededf2; background: linear-gradient(145deg, #fbfbfd, #f7f7fa); color: #666570; }
-.fr-translation-result { border-color: #f0e7eb; background: linear-gradient(145deg, #fffdfd, #fffafb); color: #39373d; box-shadow: inset 2px 0 0 rgba(239, 75, 134, .14); }
+.fr-text-block { padding: 2px 1px 4px; }
+.fr-text-block + .fr-text-block { padding-top: 10px; border-top: 1px solid rgba(127, 127, 140, .16); }
+.fr-original-text { color: #666570; }
+.fr-translation-result { color: #39373d; }
 .fr-text-block-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 28px; }
 .fr-text-label { margin: 0; color: #9797a4; font-size: 11px; font-weight: 750; letter-spacing: .01em; }
 .fr-text-actions { display: flex; flex: none; align-items: center; gap: 4px; }
@@ -1473,8 +1522,8 @@ onBeforeUnmount(() => {
 .fr-dark-theme .fr-text-copy-btn.fr-copied { border-color: #98617a; background: rgba(93, 52, 71, .62); color: #f2bdcd; }
 .fr-dark-theme .fr-text-audio-btn { border-color: #554e56; background: rgba(61, 57, 64, .72); color: #c4b8bf; }
 .fr-dark-theme .fr-text-audio-btn:hover, .fr-dark-theme .fr-text-audio-btn:focus-visible { border-color: #c96a8b; background: #553846; color: #ffd9e7; }
-.fr-dark-theme .fr-original-text { border-color: #4d4d59; background: linear-gradient(145deg, #393943, #32323b); color: #d0d0d7; }
-.fr-dark-theme .fr-translation-result { border-color: #544e56; background: linear-gradient(145deg, #443f47, #3a363d); box-shadow: inset 2px 0 0 rgba(239, 145, 174, .18); color: #f1ecef; }
+.fr-dark-theme .fr-original-text { color: #d0d0d7; }
+.fr-dark-theme .fr-translation-result { color: #f1ecef; }
 .fr-dark-theme .fr-word-learning-card { background: transparent; }
 .fr-dark-theme .fr-word-heading, .fr-dark-theme .fr-word-pronunciations, .fr-dark-theme .fr-word-translation, .fr-dark-theme .fr-word-card-footer { border-color: #4b4148; }
 .fr-dark-theme .fr-word-heading h3, .fr-dark-theme .fr-word-meaning, .fr-dark-theme .fr-word-translation { color: #f2e8ed; }

@@ -11,6 +11,17 @@ MessageCatalog} from '../types';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const enUSMessages = {
+    "reading.triggerTitle": "Open the reading card",
+    "reading.triggerHelp": "Click an action by default. Shortcuts use your preferred action; hovering uses the pointed action.",
+    "reading.triggerClick": "Click an action",
+    "reading.triggerHover": "Hover with delay",
+    "reading.triggerShortcut": "Keyboard shortcut",
+    "reading.hoverDelay": "Hover delay (ms)",
+    "reading.hoverHelp": "Hover over a learning action in the selection toolbar to open it after a delay. Move away to cancel.",
+    "reading.shortcut": "Reading card shortcut",
+    "reading.shortcutHelp": "Select text, then press the shortcut. Click the key combination to change it.",
+    "reading.enableHelp": "Select text, then use a learning action or your chosen trigger.",
+
     "document.batch.clear": "Clear queue",
     "document.batch.clearTitle": "Clear the file queue?",
     "document.batch.clearWarning": "Some translations or edits in the queue have not been downloaded. Clearing the queue discards them. Download the results you need first.",

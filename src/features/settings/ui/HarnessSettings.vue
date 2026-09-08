@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/HarnessSettings.vue
  * 文件职责：让用户通过翻译卡示例理解功能，并配置网页动作、模型和阅读偏好。
- * 主要内容：提供无需联网的交互示例、开关下方并排强调的服务与模型选择，以及常驻独立分组的学习记忆、网页动作、回答和原文范围设置，开头注明内核来源和开源链接。
+ * 主要内容：提供无需联网的交互示例、开关下方并排强调的服务与模型选择，以及独立的点击/悬停/快捷键触发、学习记忆、网页动作、回答和原文范围设置，开头注明内核来源和开源链接。
  * 模块边界：只编辑传入 Config 的 harness 字段；阅读记录由学习中心统一呈现，不发起模型请求，不拥有网页选区或提示词。
  -->
 <template>
@@ -10,7 +10,7 @@
     <a href="https://github.com/deepseek-ai/deepseek-harness" target="_blank" rel="noopener noreferrer">DeepSeek Harness 开源项目 ↗</a>
   </div>
   <SettingsGroup description="选中网页文字，直接点“读懂”或“拆句”。回答留在原文旁边，读完就继续浏览。">
-    <FeatureEnableCard v-model="config.harness.enabled" title="启用翻译卡" description="选中文字后显示学习动作，点击才会调用模型。" />
+    <FeatureEnableCard v-model="config.harness.enabled" title="启用翻译卡" :description="t('reading.enableHelp')" />
     <div class="harness-provider-panel">
       <div class="harness-provider-row">
         <div class="harness-provider-field">
@@ -53,6 +53,19 @@
     </SettingsItem>
   </SettingsGroup>
 
+  <SettingsGroup :title="t('reading.triggerTitle')" :description="t('reading.triggerHelp')">
+    <SettingsItem :label="t('reading.triggerTitle')">
+      <SegmentedControl v-model="config.harness.trigger" :options="triggerOptions" :label="t('reading.triggerTitle')" />
+    </SettingsItem>
+    <SettingsItem v-if="config.harness.trigger === 'hover'" :label="t('reading.hoverDelay')" :description="t('reading.hoverHelp')">
+      <el-input-number v-model="config.harness.hoverDelay" :min="200" :max="3000" :step="100" controls-position="right" :aria-label="t('reading.hoverDelay')" />
+    </SettingsItem>
+    <SettingsItem v-if="config.harness.trigger === 'shortcut'" :label="t('reading.shortcut')" :description="t('reading.shortcutHelp')">
+      <button type="button" class="harness-hotkey-button" @click="showHotkeyDialog = true">{{ config.harness.customHotkey }}</button>
+    </SettingsItem>
+    <CustomHotkeyInput v-model="showHotkeyDialog" :current-value="config.harness.customHotkey" @confirm="config.harness.customHotkey = $event" />
+  </SettingsGroup>
+
   <section class="harness-more"><SettingsGroup title="更多设置" description="网页动作、回答方式与原文范围。">
     <SettingsItem label="选中后显示的动作" description="保留“读懂”，其他动作可按需隐藏；网页浮条和上方示例同步变化。" stacked>
       <div class="harness-actions">
@@ -87,6 +100,7 @@
 </template>
 
 <script setup lang="ts">
+import CustomHotkeyInput from '@/src/ui/components/CustomHotkeyInput.vue';
 import HarnessPromptSettings from './HarnessPromptSettings.vue';
 import FeatureEnableCard from '@/src/ui/components/FeatureEnableCard.vue';
 import {computed, ref, toRef, watch} from 'vue'
@@ -103,6 +117,12 @@ import {useUiI18n} from '@/src/ui/i18n'
 const props = defineProps<{config: Config}>()
 const config = toRef(props, 'config')
 const {t} = useUiI18n()
+const showHotkeyDialog = ref(false)
+const triggerOptions = computed(() => [
+  {value: 'click', label: t('reading.triggerClick')},
+  {value: 'hover', label: t('reading.triggerHover')},
+  {value: 'shortcut', label: t('reading.triggerShortcut')},
+])
 const serviceOptions = computed(() => [
   ...options.services.filter((item) => !item.disabled && isHarnessService(item.value)),
   ...config.value.customOpenAIProviders.filter((provider) => !options.services.some((item) => item.value === provider.id)).map((provider) => ({value: provider.id, label: getCustomOpenAIProviderLabel(config.value.customOpenAIProviders, provider.id)})),
@@ -136,6 +156,7 @@ function toggleAction(id: HarnessActionId) {
 </script>
 
 <style scoped>
+.harness-hotkey-button { border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); padding:8px 14px; cursor:pointer; font:inherit; }
 .harness-attribution { display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; width:min(100%,1080px); margin:0 auto 10px; padding:4px 4px 12px; color:var(--muted); font-size:12px; line-height:1.7; }
 .harness-attribution a { color:var(--brand); text-decoration:underline; text-underline-offset:3px; overflow-wrap:anywhere; }
 .harness-attribution a:focus-visible { outline:2px solid var(--brand); outline-offset:4px; border-radius:3px; }
@@ -149,7 +170,7 @@ function toggleAction(id: HarnessActionId) {
 .harness-preview-actions button { border:1px solid var(--line); border-radius:7px; padding:6px 12px; background:var(--surface); color:var(--ink); cursor:pointer; font:inherit; font-size:12px; }
 .harness-preview-actions button.is-default { border-color:color-mix(in srgb, var(--brand) 40%, var(--line)); color:var(--brand); }
 .harness-preview-actions button.active { border-color:var(--brand); background:color-mix(in srgb, var(--brand) 9%, var(--surface)); color:var(--brand); }
-.harness-preview-answer { min-height:150px; padding:14px; border:1px solid var(--line); border-radius:10px; background:var(--surface); }
+.harness-preview-answer { min-height:150px; padding:14px 0; border-top:1px solid var(--line); background:transparent; }
 .harness-preview-footer { margin:12px 0 0; color:var(--muted); font-size:10.5px; line-height:1.6; }
 .harness-more { width:min(100%,1080px); margin:0 auto 22px; }
 .harness-provider-panel { margin:0 12px 12px; padding:16px; border:1px solid color-mix(in srgb,var(--brand) 24%,var(--line)); border-radius:12px; background:linear-gradient(120deg,color-mix(in srgb,var(--brand) 5%,var(--surface)),var(--surface-soft)); }

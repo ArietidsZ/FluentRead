@@ -10,6 +10,17 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const frFRMessages = {
+    "reading.triggerTitle": "Ouvrir la carte de lecture",
+    "reading.triggerHelp": "Par défaut, cliquez sur une action. Le raccourci utilise votre action préférée et le survol utilise celle pointée.",
+    "reading.triggerClick": "Cliquer sur une action",
+    "reading.triggerHover": "Survol différé",
+    "reading.triggerShortcut": "Raccourci clavier",
+    "reading.hoverDelay": "Délai de survol (ms)",
+    "reading.hoverHelp": "Survolez une action de la barre de sélection pour l’ouvrir après un délai. Éloignez le pointeur pour annuler.",
+    "reading.shortcut": "Raccourci de la carte",
+    "reading.shortcutHelp": "Sélectionnez du texte, puis utilisez le raccourci. Cliquez sur les touches pour le modifier.",
+    "reading.enableHelp": "Sélectionnez du texte, puis utilisez une action ou le déclencheur choisi.",
+
     "document.batch.clear": "Vider la file",
     "document.batch.clearTitle": "Vider la file de documents ?",
     "document.batch.clearWarning": "Des traductions ou corrections ne sont pas téléchargées. Vider la file les efface. Téléchargez d’abord les résultats souhaités.",

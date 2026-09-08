@@ -2,6 +2,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mocks = vi.hoisted(() => ({
     config: {
+        harness: {enabled: false, trigger: 'click', customHotkey: 'Alt+R'},
         on: true,
         floatingBallHotkey: 'Alt+T',
         customFloatingBallHotkey: '',
@@ -26,7 +27,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/src/services/config/store', () => ({config: mocks.config}));
-vi.mock('@/src/core/hotkey', () => ({
+vi.mock('@/src/core/hotkey', async (importOriginal) => ({
+    ...await importOriginal<typeof import('@/src/core/hotkey')>(),
     matchesConfiguredHotkey: mocks.matchesConfiguredHotkey,
     shouldClaimConfiguredHotkey: mocks.shouldClaimConfiguredHotkey,
 }));
@@ -77,6 +79,7 @@ beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
     Object.assign(mocks.config, {
+        harness: {enabled: false, trigger: 'click', customHotkey: 'Alt+R'},
         on: true,
         floatingBallHotkey: 'Alt+T',
         customFloatingBallHotkey: '',
@@ -212,5 +215,23 @@ describe('划词翻译快捷键语言预检', () => {
 
         expect(runtime.hasActiveSelectionTranslationCandidate()).toBe(false);
         expect(runtime.shouldReserveSelectionShortcut(event as unknown as KeyboardEvent)).toBe(false);
+    });
+});
+
+ describe('翻译卡快捷键优先级', () => {
+    it('在普通划词关闭时为 AI 阅读保留同语言选区，禁用站点和不可用文档不占用', async () => {
+        mocks.config.selectionTranslatorMode = 'disabled';
+        mocks.config.harness = {enabled: true, trigger: 'shortcut', customHotkey: 'Alt+R'};
+        mocks.matchesConfiguredHotkey.mockReturnValue(true);
+        mocks.getSelection.mockReturnValue(visibleSelection('今天的学习安排已经完成。'));
+        const {createContentHotkeyRuntime} = await import('@/src/app/content/hotkeyRuntime');
+        const event = keyboardEvent({key: 'r', code: 'KeyR'}) as unknown as KeyboardEvent;
+        const runtime = createContentHotkeyRuntime(() => false);
+        expect(runtime.shouldReserveSelectionShortcut(event)).toBe(true);
+        expect(runtime.matchesSelectionTranslatorShortcut(event)).toBe(true);
+        expect(createContentHotkeyRuntime(() => true).shouldReserveSelectionShortcut(event)).toBe(false);
+        expect(createContentHotkeyRuntime(() => false, {selectionAvailable: false}).shouldReserveSelectionShortcut(event)).toBe(false);
+        mocks.getSelection.mockReturnValue(null);
+        expect(runtime.shouldReserveSelectionShortcut(event)).toBe(false);
     });
 });

@@ -25,7 +25,14 @@ Double-click a word or select a sentence, then choose an action:
 | Usage | You want natural expressions and common combinations |
 | Practice | You want to try using what you’ve just read |
 
-Selecting text alone does not call AI. Choosing an action does. Continue with a follow-up question, or use the speaker beside the original to listen; click again to stop.
+By default, selecting text only shows the actions; clicking an action starts AI. Under **Open the reading card**, you can also choose:
+
+- **Hover with delay**: hover over a learning action in the selection toolbar to open it and start generating. Moving away or clicking elsewhere cancels the wait. Adjust the delay from 200 to 3000 milliseconds.
+- **Keyboard shortcut**: select text, then press **Alt+R** (Option+R on Mac) to open your preferred action. Click the key combination in settings to record a different shortcut.
+
+Click another webpage control or press Escape to close the toolbar and card. A retained selection will not reopen them; select text again or deliberately press the shortcut to reopen.
+
+Continue with a follow-up question, or use the speaker beside the original to listen; click again to stop.
 
 If you selected one word and the card offers to understand the whole sentence, clicking that option expands the analysis to its sentence.
 

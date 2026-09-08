@@ -10,6 +10,17 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const esESMessages = {
+    "reading.triggerTitle": "Abrir la tarjeta de lectura",
+    "reading.triggerHelp": "Por defecto, pulsa una acción. El atajo usa tu acción preferida; al pasar el cursor se usa la acción señalada.",
+    "reading.triggerClick": "Pulsar una acción",
+    "reading.triggerHover": "Cursor con demora",
+    "reading.triggerShortcut": "Atajo de teclado",
+    "reading.hoverDelay": "Espera del cursor (ms)",
+    "reading.hoverHelp": "Mantén el cursor sobre una acción de la barra de selección para abrirla tras una espera. Retíralo para cancelar.",
+    "reading.shortcut": "Atajo de la tarjeta",
+    "reading.shortcutHelp": "Selecciona texto y pulsa el atajo. Haz clic en la combinación para cambiarla.",
+    "reading.enableHelp": "Selecciona texto y usa una acción o el método que hayas elegido.",
+
     "document.batch.clear": "Vaciar cola",
     "document.batch.clearTitle": "¿Vaciar la cola de archivos?",
     "document.batch.clearWarning": "Hay traducciones o cambios sin descargar. Al vaciar la cola se perderán. Descarga primero los resultados que necesites.",
