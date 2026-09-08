@@ -6,8 +6,8 @@ defineProps<{ en?: boolean }>()
 <template>
   <div class="support-options">
     <section id="wechat" class="support-option">
-      <span class="support-provider">WeChat Pay</span>
-      <h2>{{ en ? 'WeChat' : '微信支付' }}</h2>
+      <span class="support-provider">WeChat Support</span>
+      <h2>{{ en ? 'WeChat Support' : '微信赞赏' }}</h2>
       <p>
         {{
           en

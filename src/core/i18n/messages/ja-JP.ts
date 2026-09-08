@@ -288,7 +288,7 @@ export const jaJPMessages = {
     'options.aboutProject': 'オープンソースプロジェクト',
     'options.aboutDocs': 'ドキュメント',
     'options.aboutFeedback': '問題を報告',
-    'options.aboutThanks': 'FluentRead をお使いいただきありがとうございます。',
+    'options.aboutThanks': 'FluentRead は、コミュニティの皆さまからの温かいご支援により、継続的な開発が支えられているオープンソースプロジェクトです。',
     'popup.donationTitle': 'FluentRead を支援',
     'popup.donationDescription': 'オープンソースプロジェクトへのご支援に感謝します。',
     'popup.donationClose': '支援画面を閉じる',

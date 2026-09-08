@@ -1,6 +1,6 @@
 ---
 title: 支持 FluentRead
-description: 通过微信支付或 Ko-fi 支持 FluentRead 开源项目。
+description: 通过微信赞赏或 Ko-fi 支持 FluentRead 开源项目。
 ---
 
 <script setup>
@@ -9,7 +9,7 @@ import SupportOptions from '../.vitepress/theme/SupportOptions.vue'
 
 # 支持 FluentRead
 
-FluentRead 是一个 GPL-3.0 开源项目。感谢您通过反馈、贡献代码、完善文档或赞赏，支持项目的开发与维护。
+FluentRead 是一个开源项目，其持续开发离不开社区的慷慨支持。 项目采用 GPL-3.0 许可证。感谢您通过反馈、贡献代码、完善文档或赞赏，支持项目的开发与维护。
 
 <SupportOptions />
 

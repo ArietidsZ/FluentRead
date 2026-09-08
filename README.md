@@ -65,10 +65,10 @@ Product descriptions and Chinese and English store images are maintained in the 
 
 ## Support
 
-Thank you for supporting FluentRead’s development and maintenance. Voluntary contributions are welcome through either service.
+FluentRead is an open-source project whose continued development is made possible by the generous support of its community. Voluntary contributions are welcome through either service.
 
 <table>
-<tr><th>WeChat Pay</th><th>Ko-fi · International</th></tr>
+<tr><th>WeChat Support</th><th>Ko-fi · International</th></tr>
 <tr>
 <td align="center"><a href="./misc/approve.jpg"><img src="./misc/approve.jpg" width="220" alt="Thinkstu’s WeChat support code" /></a><br />Scan with WeChat. Click the image to enlarge.</td>
 <td align="center"><a href="https://ko-fi.com/thinkstu"><strong>Support thinkstu on Ko-fi ↗</strong></a><br /><br />ko-fi.com/thinkstu</td>
