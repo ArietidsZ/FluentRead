@@ -2,7 +2,7 @@
  * @file src/core/translation/dom.ts
  *
  * 文件职责：封装翻译候选发现使用的 composed tree 遍历与不可覆盖安全守卫，识别扩展 DOM、其他翻译器已接管的段落、脚本、表单、图标字体、代码及禁止翻译区域。
- * 主要内容：提供抗表单命名属性遮蔽的标签读取、Shadow DOM 父级与祖先遍历、硬裁剪标签、受保护文本元素、text/plain 顶层 pre、独立 tooltip 边界、隐藏/可编辑/no-translate 判断，并限制祖先深度以避免异常页面结构拖垮扫描。 可核对的公开符号包括 maxComposedAncestorDepth、getComposedParent、isDocumentSurface、isExtensionElement、isExtensionElementSelf、isHardPruneTag、isProtectedTextElement、isPlainTextDocumentPre、hasNoTranslateMarker、isTopLevelApplicationShell。
+ * 主要内容：提供抗表单命名属性遮蔽的标签读取、Shadow DOM 父级与祖先遍历、硬裁剪标签、受保护文本元素、text/plain 顶层 pre、独立 tooltip 边界、隐藏/可编辑/no-translate 判断，并限制祖先深度以避免异常页面结构拖垮扫描。 可核对的公开符号包括 maxComposedAncestorDepth、getComposedParent、isDocumentSurface、isExtensionElement、isExtensionElementSelf、isHardPruneTag、isProtectedTextElement、isPlainTextDocumentPre、hasNoTranslateMarker、isDocumentSurfaceNoTranslateShell、isTopLevelApplicationShell。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
@@ -112,6 +112,18 @@ export function hasNoTranslateMarker(element: Element): boolean {
 }
 
 /**
+ * 文档根表面（<html>/<body>）上的 no-translate 标记通常是 Weglot 等多语言框架
+ * 为阻止浏览器自带翻译而设置的全局防护（典型如 <html translate="no">），并非页面
+ * 作者针对具体正文的保护意图。用户显式发起翻译时，这类根级标记若参与祖先链裁剪，
+ * 会导致整页任何文本节点上溯到根节点即被判 inherited-no-translate，从而整页失效。
+ * 因此把"文档根表面自身携带 no-translate 标记"识别为可放行的框架级外壳；真正的
+ * 局部保护（嵌套的 .notranslate / translate="no" 容器）不在此列，仍照常裁剪。
+ */
+export function isDocumentSurfaceNoTranslateShell(element: Element): boolean {
+    return isDocumentSurface(element) && hasNoTranslateMarker(element);
+}
+
+/**
  * 显式翻译可有限穿过应用级 no-translate 外壳，但不能把这个例外扩大到局部区域。
  * 直接挂在 body 下是刻意保守的边界：嵌套 no-translate 容器仍代表页面作者明确保护的内容。
  */
@@ -204,6 +216,7 @@ export function isProtectedDescendantElement(
         isProtectedTextElement(element) ||
         isMathRendererElement(element) ||
         (hasNoTranslateMarker(element) && !ownNoTranslateMarker &&
+            !isDocumentSurfaceNoTranslateShell(element) &&
             !(options?.allowTopLevelApplicationShell === true &&
                 element !== options.protectedElement &&
                 isTopLevelApplicationShell(element))) ||
@@ -221,7 +234,9 @@ export function evaluateElementHardGuard(element: Element): HardGuardResult {
     if (isForeignTranslationBoundary(element)) return {prune: true, reason: 'foreign-translation'};
     if (isHardPruneTag(element)) return {prune: true, reason: `protected-tag:${getElementTagName(element)}`};
     if (isMathRendererElement(element)) return {prune: true, reason: 'math-renderer'};
-    if (hasNoTranslateMarker(element)) return {prune: true, reason: 'inherited-no-translate'};
+    if (hasNoTranslateMarker(element) && !isDocumentSurfaceNoTranslateShell(element)) {
+        return {prune: true, reason: 'inherited-no-translate'};
+    }
     if (hasContentEditableMarker(element)) return {prune: true, reason: 'contenteditable'};
     const presentationProtection = getPresentationProtection(element);
     if (presentationProtection) return {prune: true, reason: presentationProtection};
