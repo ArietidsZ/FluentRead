@@ -801,6 +801,8 @@
 .usage-breakdown-copy strong { font-size: 10.5px; }
 .usage-breakdown-copy small { margin-top: 2px; color: var(--muted); font-size: 8.5px; }
 
+.usage-breakdown-copy .usage-breakdown-speed { white-space: normal; overflow-wrap: anywhere; }
+
 .usage-breakdown-copy i {
   display: block;
   width: 100%;
@@ -1590,6 +1592,10 @@
 }
 @media (max-width: 960px) {
   .usage-detail-grid { grid-template-columns: minmax(0, 1fr); }
+  .usage-breakdown-heading { grid-template-columns: minmax(0, 1fr) 48px 60px; }
+  .usage-breakdown-heading button[data-sort-key="input"], .usage-breakdown-heading button[data-sort-key="cache"], .usage-breakdown-heading button[data-sort-key="output"] { display: none; }
+  .usage-breakdown-list > button { grid-template-columns: 24px minmax(0, 1fr) 48px 60px; }
+  .usage-breakdown-value:not(.usage-breakdown-requests):not(.usage-breakdown-total) { display: none; }
 }
 @media (max-width: 680px) {
   .usage-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

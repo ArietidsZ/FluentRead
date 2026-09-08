@@ -289,13 +289,14 @@
               :key="`${row.serviceId}:${row.model}`"
               type="button"
               :class="{ active: appliedFilter.serviceId === row.serviceId && appliedFilter.model === row.model }"
-              :aria-label="`${serviceLabel(row.serviceId)} ${modelLabel(row.model)}，输入 ${exactTokenValue(row.totals, 'inputTokens')} Token，其中缓存读取 ${row.totals.cacheReportedRequests ? formatNumber(row.totals.cachedInputTokens) : '未上报'} Token，缓存 Token 命中率 ${formatUsageRate(row.totals.cacheTokenHitRate)}，输出 ${exactTokenValue(row.totals, 'outputTokens')} Token，共 ${exactTokenValue(row.totals, 'totalTokens')} Token，${formatNumber(row.totals.requestCount)} 次请求，点击筛选`"
+              :aria-label="`${serviceLabel(row.serviceId)} ${modelLabel(row.model)}，输入 ${exactTokenValue(row.totals, 'inputTokens')} Token，其中缓存读取 ${row.totals.cacheReportedRequests ? formatNumber(row.totals.cachedInputTokens) : '未上报'} Token，缓存 Token 命中率 ${formatUsageRate(row.totals.cacheTokenHitRate)}，输出 ${exactTokenValue(row.totals, 'outputTokens')} Token，共 ${exactTokenValue(row.totals, 'totalTokens')} Token，${formatNumber(row.totals.requestCount)} 次请求，${translateLegacy('输出速度')} ${formatSpeed(row.totals.outputTokensPerSecond)} token/s，点击筛选`"
               @click="selectBreakdown(row.serviceId, row.model)"
             >
               <ServiceIcon :service="row.serviceId" :label="serviceLabel(row.serviceId)" size="small" />
               <span class="usage-breakdown-copy">
                 <strong>{{ serviceLabel(row.serviceId) }}</strong>
                 <small>{{ modelLabel(row.model) }}</small>
+                <small class="usage-breakdown-speed"><span>输出速度</span> · {{ formatSpeed(row.totals.outputTokensPerSecond) }} token/s</small>
                 <i aria-hidden="true"><b :style="{ width: `${breakdownShare(row.totals.totalTokens)}%` }"></b></i>
               </span>
               <strong class="usage-breakdown-value" :title="row.totals.reportedTokenRequests ? tokenExactTitle(row.totals.inputTokens) : '服务商未返回 Token 明细'">{{ tokenValue(row.totals, 'inputTokens') }}</strong>
@@ -317,7 +318,7 @@
         </section>
       </div>
 
-      <details v-if="hasSelectedUsage" class="usage-card usage-request-log-card" :aria-busy="loading || requestLogLoading" @toggle="handleRequestLogToggle">
+      <details v-if="hasSelectedUsage" class="usage-card usage-request-log-card" :open="requestLogOpen" :aria-busy="loading || requestLogLoading" @toggle="handleRequestLogToggle">
         <summary class="usage-request-summary"><span><strong>请求记录</strong><small>查看每一次调用的用量与状态</small></span><span>{{ formatNumber(selectedTotals.requestCount) }} <span>次调用</span> <i aria-hidden="true">⌄</i></span></summary>
         <header class="usage-request-log-header">
           <div>
@@ -410,7 +411,7 @@
                   </span>
                 </td>
                 <td data-label="耗时">{{ formatDuration(item.durationMs) }}</td>
-                <td data-label="输出速度">{{ formatSpeed(requestOutputTokensPerSecond(item)) }} <span v-if="requestOutputTokensPerSecond(item) !== null">token/s</span></td>
+                <td data-label="输出速度">{{ formatSpeed(requestOutputTokensPerSecond(item)) }} <span>token/s</span></td>
                 <td data-label="Token 明细" class="usage-request-token-cell">
                   <template v-if="item.usageAvailability === 'reported'">
                     <div class="usage-request-tokens">
@@ -552,7 +553,7 @@ const errorMessage = ref('')
 const showAllBreakdown = ref(false)
 const trendMetric = ref<UsageTimelineMetric>('tokens')
 const selectedPointKey = ref('')
-const requestLogOpen = ref(false)
+const requestLogOpen = ref(true)
 const outcomeLegend = [{key: 'success', label: '成功'}, {key: 'error', label: '错误'}, {key: 'timeout', label: '超时'}, {key: 'cancelled', label: '取消'}]
 const breakdownSort = ref<BreakdownSortKey>('total')
 const requestPurpose = ref<RequestPurposeFilter>('')
@@ -871,7 +872,6 @@ async function loadSnapshot(): Promise<void> {
     selectedPointKey.value = ''
     if (response.data.selected.totals.requestCount > 0) void resetRequestPagination()
     else {
-      requestLogOpen.value = false
       requestLogRevision += 1
       requestLogLoading.value = false
       requestLogItems.value = []

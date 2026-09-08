@@ -221,12 +221,13 @@ async function main() {
     assert.deepEqual((await averages.locator('.usage-average-value strong').allTextContents()).map(text => text.trim()), ['100', '20', '80']);
     await averages.locator('summary').click();
     const requests = dashboard.locator('details.usage-request-log-card');
-    assert.equal(await requests.getAttribute('open'), null, '请求记录应默认收起');
-    await requests.locator('summary').click();
+    assert.notEqual(await requests.getAttribute('open'), null, '请求记录应默认展开');
+    assert.equal(await dashboard.locator('.usage-breakdown-speed').count(), 4);
+    assert.match(await dashboard.locator('.usage-breakdown-speed').first().textContent(), /token\/s/);
     await requests.locator('.usage-request-table tbody tr').first().waitFor({state: 'visible', timeout});
     assert.equal(await requests.locator('.usage-request-table tbody tr').count(), 6);
     const speeds = await requests.locator('td[data-label="输出速度"]').allTextContents();
-    assert.equal(speeds.filter(value => value.trim() === '—').length, 2);
+    assert.equal(speeds.filter(value => value.trim() === '— token/s').length, 2);
     assert.ok(speeds.some(value => /190\.48.*token\/s/.test(value)));
     await selectFilter(page, '按调用状态筛选请求记录', '错误');
     await page.waitForFunction(() => document.querySelectorAll('.usage-request-table tbody tr').length === 1, undefined, {timeout});
@@ -345,11 +346,13 @@ async function main() {
           const channels = metrics.coverageBackground.match(/[\d.]+/g)?.slice(0, 3).map(Number);
           assert.ok(channels?.length === 3 && Math.max(...channels) < 120, `暗色上报率提示背景过亮：${metrics.coverageBackground}`);
         }
+        const modelSpeedLayout = await dashboard.locator('.usage-breakdown-speed').evaluateAll(rows => rows.map(row => ({text: row.textContent, scroll: row.scrollWidth, client: row.clientWidth, whitespace: getComputedStyle(row).whiteSpace})));
+        assert.ok(modelSpeedLayout.every(row => row.scroll <= row.client + 1 && row.whitespace === 'normal'), `逐模型速度在窄屏也必须完整显示: ${width} ${JSON.stringify(modelSpeedLayout)}`);
         report.responsive.push({theme, ...metrics});
         report.focusChecks.push(await assertBackground(context, `${theme} ${width}px`));
         await capture(page, report, `usage-overview-${theme}-${width}`);
         if (width === 390) {
-          for (const [selector, name] of [['.usage-trend-card', 'trend'], ['.usage-composition-card', 'composition']]) {
+          for (const [selector, name] of [['.usage-trend-card', 'trend'], ['.usage-composition-card', 'composition'], ['.usage-breakdown-card', 'models']]) {
             await dashboard.locator(selector).scrollIntoViewIfNeeded();
             await capture(page, report, `usage-${name}-${theme}-${width}`);
           }
