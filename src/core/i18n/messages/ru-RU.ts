@@ -10,6 +10,30 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const ruRUMessages = {
+    "document.batch.clear": "Очистить очередь",
+    "document.batch.clearTitle": "Очистить очередь файлов?",
+    "document.batch.clearWarning": "В очереди есть несохранённые переводы или правки. Очистка удалит их без возможности восстановления. Сначала скачайте нужные результаты.",
+
+    "document.batch.queue": "Очередь файлов",
+    "document.batch.running": "Последовательный перевод файлов",
+    "document.batch.importing": "Импорт файлов…",
+    "document.batch.completed": "Завершено: {count}",
+    "document.batch.add": "Добавить файлы",
+    "document.batch.pause": "Приостановить всё",
+    "document.batch.start": "Перевести оставшиеся файлы",
+    "document.batch.output": "Содержимое архива",
+    "document.batch.zip": "Скачать готовые файлы (ZIP)",
+    "document.batch.hint": "Файлы обрабатываются по очереди с текущими настройками. Ошибка не останавливает следующие файлы. Выберите файл для чтения или правки. Результаты хранятся только на этой странице.",
+    "document.batch.remove": "Удалить",
+    "document.batch.removeTitle": "Удалить этот файл?",
+    "document.batch.removeWarning": "Есть несохранённые переводы или правки. После удаления восстановить их нельзя. Сначала скачайте нужные результаты.",
+    "document.batch.importFailed": "Ошибка импорта",
+    "document.batch.settingsChanged": "Некоторые частично переведённые файлы используют другие настройки. Откройте их и подтвердите повторный перевод перед продолжением.",
+    "document.batch.externalSettings": "Настройки перевода изменились на другой странице. Очередь приостановлена. Проверьте настройки перед продолжением.",
+    "document.batch.downloaded": "Создан ZIP с готовыми файлами: {count}. Проверьте загрузки браузера.",
+    "document.batch.downloadFailed": "Не удалось создать ZIP. Переводы сохранены: {error}",
+    "document.batch.pickMany": "Или выберите несколько файлов сразу",
+
     "writing.replyLanguage": "Язык ответа",
     "writing.referenceLanguage": "Язык перевода",
     "writing.interfaceLanguage": "Язык интерфейса",
