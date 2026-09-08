@@ -1,6 +1,6 @@
 ---
 title: Support FluentRead
-description: Support the FluentRead open-source project through WeChat Pay or Ko-fi.
+description: Support the FluentRead open-source project through WeChat Support or Ko-fi.
 ---
 
 <script setup>
@@ -9,7 +9,7 @@ import SupportOptions from '../../.vitepress/theme/SupportOptions.vue'
 
 # Support FluentRead
 
-FluentRead is an open-source project under GPL-3.0. Thank you for supporting its development and maintenance through feedback, code, documentation, or financial contributions.
+FluentRead is an open-source project whose continued development is made possible by the generous support of its community. The project is licensed under GPL-3.0. Thank you for supporting its development and maintenance through feedback, code, documentation, or financial contributions.
 
 <SupportOptions en />
 

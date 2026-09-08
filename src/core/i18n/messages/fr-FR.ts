@@ -288,7 +288,7 @@ export const frFRMessages = {
     'options.aboutProject': 'Projet open source',
     'options.aboutDocs': 'Documentation',
     'options.aboutFeedback': 'Signaler un problème',
-    'options.aboutThanks': 'Merci d’utiliser FluentRead.',
+    'options.aboutThanks': 'FluentRead est un projet open source dont le développement continu est rendu possible grâce au généreux soutien de sa communauté.',
     'popup.donationTitle': 'Soutenir FluentRead',
     'popup.donationDescription': 'Merci de soutenir ce projet open source.',
     'popup.donationClose': 'Fermer la fenêtre de soutien',

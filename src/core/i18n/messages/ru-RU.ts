@@ -288,7 +288,7 @@ export const ruRUMessages = {
     'options.aboutProject': 'Проект с открытым исходным кодом',
     'options.aboutDocs': 'Документация',
     'options.aboutFeedback': 'Сообщить о проблеме',
-    'options.aboutThanks': 'Спасибо, что используете FluentRead.',
+    'options.aboutThanks': 'FluentRead — проект с открытым исходным кодом, дальнейшее развитие которого возможно благодаря щедрой поддержке сообщества.',
     'popup.donationTitle': 'Поддержать FluentRead',
     'popup.donationDescription': 'Спасибо за поддержку проекта с открытым исходным кодом.',
     'popup.donationClose': 'Закрыть окно поддержки',

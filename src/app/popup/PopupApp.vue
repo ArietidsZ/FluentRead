@@ -62,7 +62,7 @@
           <h2 id="donation-title">{{ t('popup.donationTitle') }}</h2>
           <p class="donation-description">{{ t('popup.donationDescription') }}</p>
           <section class="donation-method donation-wechat">
-            <div class="donation-method-heading"><h3>{{ t('popup.donationWechat') }}</h3><span>WeChat Pay</span></div>
+            <div class="donation-method-heading"><h3>{{ t('popup.donationWechat') }}</h3><span>WeChat Support</span></div>
             <a class="donation-qr-frame" href="/misc/approve.jpg" target="_blank" rel="noopener noreferrer" :aria-label="t('popup.donationOpenCode')">
               <img src="/misc/approve.jpg" :alt="t('popup.donationCodeAlt')" width="1152" height="1152" />
             </a>
