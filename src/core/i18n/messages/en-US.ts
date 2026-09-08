@@ -11,6 +11,30 @@ MessageCatalog} from '../types';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const enUSMessages = {
+    "document.batch.clear": "Clear queue",
+    "document.batch.clearTitle": "Clear the file queue?",
+    "document.batch.clearWarning": "Some translations or edits in the queue have not been downloaded. Clearing the queue discards them. Download the results you need first.",
+
+    "document.batch.queue": "File queue",
+    "document.batch.running": "Translating files in order",
+    "document.batch.importing": "Importing files…",
+    "document.batch.completed": "{count} completed",
+    "document.batch.add": "Add files",
+    "document.batch.pause": "Pause all",
+    "document.batch.start": "Translate remaining files",
+    "document.batch.output": "Archive contents",
+    "document.batch.zip": "Download completed files (ZIP)",
+    "document.batch.hint": "Files use the current settings and run in order. A failure does not stop later files. Select a file to read or review it. Results stay in this page only.",
+    "document.batch.remove": "Remove",
+    "document.batch.removeTitle": "Remove this file?",
+    "document.batch.removeWarning": "Some translations or edits have not been downloaded. Removing this file discards them. Download the results you need first.",
+    "document.batch.importFailed": "Import failed",
+    "document.batch.settingsChanged": "Some partially translated files use different settings. Open those files and confirm restarting them before continuing the batch.",
+    "document.batch.externalSettings": "Translation settings changed in another page. The batch has paused. Check the settings before continuing.",
+    "document.batch.downloaded": "Created a ZIP with {count} completed files. Check your browser downloads.",
+    "document.batch.downloadFailed": "Could not create the ZIP. Translations are preserved: {error}",
+    "document.batch.pickMany": "Or select multiple files at once",
+
     "writing.replyLanguage": "Reply language",
     "writing.referenceLanguage": "Reading language",
     "writing.interfaceLanguage": "Use interface language",

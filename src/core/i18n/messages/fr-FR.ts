@@ -10,6 +10,30 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const frFRMessages = {
+    "document.batch.clear": "Vider la file",
+    "document.batch.clearTitle": "Vider la file de documents ?",
+    "document.batch.clearWarning": "Des traductions ou corrections ne sont pas téléchargées. Vider la file les efface. Téléchargez d’abord les résultats souhaités.",
+
+    "document.batch.queue": "File de documents",
+    "document.batch.running": "Traduction des fichiers dans l’ordre",
+    "document.batch.importing": "Importation des fichiers…",
+    "document.batch.completed": "{count} terminés",
+    "document.batch.add": "Ajouter des fichiers",
+    "document.batch.pause": "Tout suspendre",
+    "document.batch.start": "Traduire les fichiers restants",
+    "document.batch.output": "Contenu de l’archive",
+    "document.batch.zip": "Télécharger les fichiers terminés (ZIP)",
+    "document.batch.hint": "Les fichiers sont traités dans l’ordre avec les réglages actuels. Un échec ne bloque pas les suivants. Sélectionnez un fichier pour le lire ou le corriger. Les résultats restent dans cette page.",
+    "document.batch.remove": "Retirer",
+    "document.batch.removeTitle": "Retirer ce fichier ?",
+    "document.batch.removeWarning": "Des traductions ou corrections ne sont pas téléchargées. Retirer ce fichier les efface. Téléchargez d’abord les résultats souhaités.",
+    "document.batch.importFailed": "Échec de l’importation",
+    "document.batch.settingsChanged": "Certains fichiers partiellement traduits utilisent des réglages différents. Ouvrez-les et confirmez leur retraduction avant de continuer.",
+    "document.batch.externalSettings": "Les réglages ont changé dans une autre page. Le lot est en pause. Vérifiez les réglages avant de continuer.",
+    "document.batch.downloaded": "ZIP créé avec {count} fichiers terminés. Consultez les téléchargements du navigateur.",
+    "document.batch.downloadFailed": "Création du ZIP impossible. Les traductions sont conservées : {error}",
+    "document.batch.pickMany": "Ou sélectionnez plusieurs fichiers à la fois",
+
     "writing.replyLanguage": "Langue de réponse",
     "writing.referenceLanguage": "Langue de lecture",
     "writing.interfaceLanguage": "Utiliser la langue de l’interface",

@@ -10,6 +10,30 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const koKRMessages = {
+    "document.batch.clear": "목록 비우기",
+    "document.batch.clearTitle": "파일 목록을 비울까요?",
+    "document.batch.clearWarning": "다운로드하지 않은 번역이나 수정 사항이 있습니다. 목록을 비우면 복구할 수 없습니다. 먼저 필요한 결과를 다운로드하세요.",
+
+    "document.batch.queue": "파일 목록",
+    "document.batch.running": "파일을 순서대로 번역 중",
+    "document.batch.importing": "파일 가져오는 중…",
+    "document.batch.completed": "{count}개 완료",
+    "document.batch.add": "파일 추가",
+    "document.batch.pause": "모두 일시 중지",
+    "document.batch.start": "남은 파일 번역",
+    "document.batch.output": "압축 내용",
+    "document.batch.zip": "완료된 파일 다운로드 (ZIP)",
+    "document.batch.hint": "현재 설정으로 파일을 순서대로 처리합니다. 실패해도 다음 파일은 계속 처리합니다. 파일을 선택해 읽거나 교정할 수 있습니다. 결과는 이 페이지에만 보관됩니다.",
+    "document.batch.remove": "제거",
+    "document.batch.removeTitle": "이 파일을 제거할까요?",
+    "document.batch.removeWarning": "다운로드하지 않은 번역이나 수정 사항이 있습니다. 제거하면 복구할 수 없습니다. 먼저 필요한 결과를 다운로드하세요.",
+    "document.batch.importFailed": "가져오기 실패",
+    "document.batch.settingsChanged": "일부 번역 중인 파일의 설정이 다릅니다. 해당 파일을 열어 다시 번역을 확인한 후 계속하세요.",
+    "document.batch.externalSettings": "다른 페이지에서 번역 설정이 변경되어 일시 중지했습니다. 설정을 확인한 후 계속하세요.",
+    "document.batch.downloaded": "완료된 파일 {count}개의 ZIP을 만들었습니다. 브라우저 다운로드를 확인하세요.",
+    "document.batch.downloadFailed": "ZIP을 만들지 못했습니다. 번역은 보존됩니다: {error}",
+    "document.batch.pickMany": "또는 여러 파일을 한 번에 선택",
+
     "writing.replyLanguage": "답장 언어",
     "writing.referenceLanguage": "대조 번역 언어",
     "writing.interfaceLanguage": "인터페이스 언어 사용",

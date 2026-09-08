@@ -10,6 +10,30 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const jaJPMessages = {
+    "document.batch.clear": "一覧を空にする",
+    "document.batch.clearTitle": "ファイル一覧を空にしますか？",
+    "document.batch.clearWarning": "未ダウンロードの訳文や校訂があります。一覧を空にすると復元できません。先に必要な結果をダウンロードしてください。",
+
+    "document.batch.queue": "ファイル一覧",
+    "document.batch.running": "順番に翻訳中",
+    "document.batch.importing": "ファイルを読み込み中…",
+    "document.batch.completed": "{count} 件完了",
+    "document.batch.add": "ファイルを追加",
+    "document.batch.pause": "すべて一時停止",
+    "document.batch.start": "残りのファイルを翻訳",
+    "document.batch.output": "ZIP の内容",
+    "document.batch.zip": "完了したファイルをダウンロード（ZIP）",
+    "document.batch.hint": "現在の設定で順番に処理します。失敗しても後続のファイルは続行します。ファイルを選ぶと閲覧・校訂できます。結果はこのページ内にのみ保持されます。",
+    "document.batch.remove": "削除",
+    "document.batch.removeTitle": "このファイルを削除しますか？",
+    "document.batch.removeWarning": "未ダウンロードの訳文や校訂があります。削除すると復元できません。先に必要な結果をダウンロードしてください。",
+    "document.batch.importFailed": "読み込み失敗",
+    "document.batch.settingsChanged": "一部の翻訳済みファイルの設定が異なります。各ファイルを開き、再翻訳を確認してから続行してください。",
+    "document.batch.externalSettings": "別のページで翻訳設定が変更されました。処理を一時停止しました。設定を確認して続行してください。",
+    "document.batch.downloaded": "完了した {count} 件の ZIP を作成しました。ブラウザーのダウンロードをご確認ください。",
+    "document.batch.downloadFailed": "ZIP を作成できませんでした。訳文は保持されています：{error}",
+    "document.batch.pickMany": "または複数のファイルをまとめて選択",
+
     "writing.replyLanguage": "返信の言語",
     "writing.referenceLanguage": "対訳の言語",
     "writing.interfaceLanguage": "表示言語に合わせる",

@@ -8,6 +8,16 @@ Choose **Document translation** in the extension menu and drop a file onto the p
 
 Supported formats include PDF, ePub, Word DOCX, HTML, TXT, Markdown, JSON, and SRT, VTT, ASS, SSA, and LRC subtitle files. Convert older `.doc` files to `.docx` first.
 
+## Batch translation
+
+Select or drop multiple files, or use **Add files** in the file queue. Confirm the languages, service and model, then choose **Translate remaining files** to process unfinished documents in order.
+
+Each file has its own progress. An import or translation failure does not stop other files. **Pause all** preserves completed segments; starting again resumes the remaining work. If settings change, confirm restarting each partially translated file before continuing the batch, so reviewed text is not silently replaced.
+
+When the queue stops, select a file to read, review or download it individually. Choose bilingual or translation-only output and click **Download completed files (ZIP)** to bundle completed documents. Incomplete files are excluded, and files with the same name use separate numbered folders. Switching files preserves your work; removing undownloaded translations asks for confirmation.
+
+Files and translations stay in this page only. Download your results before refreshing or closing it.
+
 ## Translate and read
 
 1. Choose the source language, target language, and service on the left. For AI services, confirm the model too.
