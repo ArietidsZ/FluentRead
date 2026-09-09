@@ -1,13 +1,13 @@
 /**
  * @file src/core/config/harness.ts
  * 文件职责：定义 Harness 学习辅助功能的动作注册表、配置类型、默认值与纯规范化规则。
- * 主要内容：提供 HarnessActionId/HarnessPreferences、动作注册表、支持服务判断和规范化函数，限制触发方式、快捷键、悬停延迟、服务/模型覆盖和动作白名单、上下文长度和学习难度，并定义可编辑提示词、默认模板及占位符替换规则。
+ * 主要内容：提供 HarnessActionId/HarnessPreferences、动作注册表、支持服务判断和规范化函数，限制触发方式、快捷键、悬停延迟、服务/模型覆盖和动作白名单、上下文长度和学习难度，并定义可编辑提示词、默认模板、占位符替换规则和阅读模型缓存的配置标识。
  * 模块边界：本文件只处理领域数据，不读取浏览器存储、不发起 AI 请求，也不决定选区或网页生命周期。
  */
 import {DEFAULT_HARNESS_ACTION_PROMPTS, DEFAULT_HARNESS_SYSTEM_PROMPT, HARNESS_PROMPT_MAX_LENGTH} from '../harness/prompts';
 export {DEFAULT_HARNESS_ACTION_PROMPTS, DEFAULT_HARNESS_SYSTEM_PROMPT, HARNESS_PROMPT_MAX_LENGTH, HARNESS_PROMPT_VARIABLES, getDefaultHarnessPrompt, resolveHarnessPrompt, renderHarnessPrompt, type HarnessPromptKind} from '../harness/prompts';
 import {parseHotkey} from '../hotkey';
-import {customModelString, services, servicesType} from './catalog';
+import {customModelString, resolveConfiguredModel, services, servicesType} from './catalog';
 import {isConfiguredCustomOpenAIProvider, isCustomOpenAIProviderId, type CustomOpenAIProvider} from './customOpenAI';
 
 export const HARNESS_ACTIONS = [
@@ -104,4 +104,35 @@ export function normalizeHarnessPreferences(value: unknown, customProviders: rea
             : 'intermediate',
         memoryEnabled: source.memoryEnabled === true,
     };
+}
+
+/** 仅用于内存比较，不持久化或展示；无关界面配置刷新不能清除阅读回答。 */
+export function getHarnessModelCacheKey(config: {
+    harness: Pick<HarnessPreferences, 'service' | 'model'>;
+    service: string;
+    model: Record<string, string>;
+    customModel: Record<string, string>;
+    token: Record<string, string>;
+    proxy: Record<string, string>;
+    on: boolean;
+    uiLanguage: string;
+    modelThinking: unknown;
+    customOpenAIProviders: unknown;
+    custom: string;
+    newApiUrl: string;
+    azureOpenaiEndpoint: string;
+    deepseekApiType: string;
+    minimaxBillingPlan: string;
+    minimaxRegion: string;
+    mimoBillingPlan: string;
+    mimoRegion: string;
+}): string {
+    const service = config.harness.service || config.service;
+    const model = config.harness.model || resolveConfiguredModel(config.model[service], config.customModel[service]);
+    return JSON.stringify([
+        config.on, config.uiLanguage, service, model, config.token[service], config.proxy[service],
+        config.modelThinking, config.customOpenAIProviders, config.custom, config.newApiUrl,
+        config.azureOpenaiEndpoint, config.deepseekApiType, config.minimaxBillingPlan,
+        config.minimaxRegion, config.mimoBillingPlan, config.mimoRegion,
+    ]);
 }

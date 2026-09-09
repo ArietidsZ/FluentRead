@@ -61,3 +61,9 @@ If enabled, learning memories can retain preferences or notes you choose to keep
 An action or follow-up sends the selection, permitted context, and necessary conversation to the selected AI service. Private windows neither read nor save local conversation history.
 
 AI can misread tone, grammar, or facts. Compare with the original or ask why. See [Data & privacy](/en/guide/privacy).
+
+### Switching learning actions
+
+Within the same card, switching from Understand to Analyze sentence and back restores the completed answer. Follow-up questions continue that action’s conversation. Choose **Regenerate** for a new explanation. Changing the source, model, answer language, or explanation settings invalidates earlier results. After closing the card, you can continue from Reading history.
+
+When paragraph context is allowed, the model receives that paragraph with the selected text to help resolve references. Selection-only mode sends only the selected text. With limited context, the assistant should explain what the text supports first, then briefly identify any ambiguity.
