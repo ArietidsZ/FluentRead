@@ -1486,6 +1486,21 @@ describe("全文翻译可见性锚点", () => {
         expect(getTranslationState(paragraph)).toMatchObject({phase: 'translated', mode: 'bilingual'});
     });
 
+    it('issue #518 在本地保留尚未排版的公式，缺失译文不提交不完整结果', async () => {
+        const snapshot = translationSnapshot({service: 'custom-provider', model: ''});
+        const formulaSource = 'Read $$$b_i = b_{i+k-1} = 1$$$ and $$$0$$$ now.';
+        expect(await translateTextSlots([formulaSource, '$$$x$$$'], snapshot)).toEqual([
+            '译:Read $$$b_i = b_{i+k-1} = 1$$$ 译:and $$$0$$$ 译:now.', '$$$x$$$',
+        ]);
+        expect(runtime.requests.mock.calls.flat(2).join(' ')).not.toContain('b_i');
+        runtime.requests.mockClear();
+        expect(await translateTextSlots(['$$$x$$$', undefined as never], snapshot)).toEqual(['$$$x$$$', '']);
+        runtime.requests.mockResolvedValueOnce([]);
+        expect(await translateTextSlots(['Read $$$x$$$'], translationSnapshot())).toEqual([]);
+        expect(await translateTextSlots(['Cost $5, unmatched $$$x and $$$$y$$$$'], snapshot))
+            .toEqual(['译:Cost $5, unmatched $$$x and $$$$y$$$$']);
+    });
+
     it('文本槽请求覆盖空输入、非批量单槽、结构化解析和逐槽回退', async () => {
         const snapshot = translationSnapshot({service: 'custom-provider', model: ''});
         expect(await translateTextSlots([], snapshot)).toEqual([]);

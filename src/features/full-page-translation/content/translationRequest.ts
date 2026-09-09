@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/translationRequest.ts
  * 文件职责：为单次全文翻译会话冻结请求配置，并执行文本槽的批量、AI 跨候选合并、分包、回退与会话级结果复用。
- * 主要内容：捕获服务/模型/语言/缓存/展示快照，构造显式 client 参数，按服务选择批译策略，为 Chrome auto 富文本包保留无哨兵检测样本，并严格隔离 AI 批次快照与维护有界的会话槽缓存。
+ * 主要内容：捕获服务/模型/语言/缓存/展示快照，在本地保留尚未排版的三美元公式源码，构造显式 client 参数，按服务选择批译策略，为 Chrome auto 富文本包保留无哨兵检测样本，并严格隔离 AI 批次快照与维护有界的会话槽缓存。
  * 模块边界：本文件不发现候选、不持有 DOM 翻译状态也不渲染译文；runtime 提供会话缓存和取消作用域，client 负责后台协议与队列执行。
  */
 import {resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
@@ -741,6 +741,36 @@ export async function translateTextSlots(
 ): Promise<string[]> {
     if (origins.length === 0) return [];
     throwIfAborted(signal);
+    // Codeforces 在 MathJax 排版前使用 $$$...$$$。公式源码留在本地，
+    // 只把两侧正文交给现有槽请求；回填不依赖模型保留占位符，也不改宿主 DOM。
+    // 仅处理完整的三美元定界符，不把普通价格或未闭合片段猜成公式。
+    const formulaPattern = /(?<!\$)\${3}(?!\$)[^$]+?\${3}(?!\$)/gu;
+    if (origins.some(origin => /(?<!\$)\${3}(?!\$)[^$]+?\${3}(?!\$)/u.test(origin ?? ''))) {
+        const prose: string[] = [];
+        const parts = origins.map(origin => {
+            const text = origin ?? '';
+            const pieces: Array<string | number> = [];
+            const addProse = (value: string) => {
+                if (!value.trim()) pieces.push(value);
+                else {
+                    const match = /^(\s*)([\s\S]*?\S)(\s*)$/u.exec(value)!;
+                    pieces.push(match[1], prose.length, match[3]);
+                    prose.push(match[2]);
+                }
+            };
+            let cursor = 0;
+            for (const match of text.matchAll(formulaPattern)) {
+                addProse(text.slice(cursor, match.index));
+                pieces.push(match[0]);
+                cursor = match.index + match[0].length;
+            }
+            addProse(text.slice(cursor));
+            return pieces;
+        });
+        const translations = await translateTextSlots(prose, snapshot, signal, queueSession, fullPageSession, forceFailedRequest);
+        if (translations.length !== prose.length) return [];
+        return parts.map(pieces => pieces.map(piece => typeof piece === 'number' ? translations[piece] : piece).join(''));
+    }
     const translatedIndexes = origins
         .map((origin, index) => shouldKeepOriginalSlot(origin ?? '', snapshot.targetLanguage) ? -1 : index)
         .filter((index) => index >= 0);

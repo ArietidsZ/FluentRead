@@ -1,6 +1,6 @@
 <!--
  * @file src/features/area-translation/ui/AreaTranslator.vue
- * 文件职责：提供独立圈选阅读工具，按 Shift+Z 进入选区模式，松开鼠标后展示可核对、可复制的原文与译文卡片。
+ * 文件职责：提供独立圈选阅读工具，按 Shift+Z 进入选区模式，松开鼠标后展示可拖动、可核对、可复制的原文与译文卡片。
  * 主要内容：管理选择、截图、识别、翻译、结果和失败状态；缺少语言包时一键下载后续接原截图，重试复用同一截图，取消或新选区使旧请求失效，卡片显示本次服务与模型，支持原图核对、AI 校对文和清晰的质量说明。
  * 模块边界：组件只调用圈选客户端，不执行 OCR 或网络请求；截图权限归后台，像素只在封闭 Shadow UI 展示，所有页面监听、异步状态与临时截图在关闭或卸载时清理。
  -->
@@ -10,8 +10,8 @@
       <div class="fr-area-hint" role="status">拖拽选择区域 · 松开鼠标翻译 · Esc 取消</div>
       <div v-if="selectionRect" class="fr-area-selection" :style="areaStyle(selectionRect)" aria-hidden="true" />
     </div>
-    <section v-else-if="activeRect && !capturePending" class="fr-area-panel" :style="panelStyle(activeRect)" :class="{'fr-area-error': phase === 'error'}" role="dialog" :aria-label="translateLegacy('圈选翻译结果')">
-      <header class="fr-area-toolbar">
+    <section v-else-if="activeRect && !capturePending" ref="panelElement" class="fr-area-panel" :style="panelStyle(activeRect)" :class="{'fr-area-error': phase === 'error'}" role="dialog" :aria-label="translateLegacy('圈选翻译结果')">
+      <header class="fr-area-toolbar" @pointerdown="beginPanelDrag" @lostpointercapture="stopPanelDrag">
         <div class="fr-area-heading">
           <div class="fr-area-title-row">
             <strong>圈选翻译</strong>
@@ -85,6 +85,26 @@ type AreaPhase = 'idle' | 'selecting' | 'loading' | 'translated' | 'error';
 const phase = ref<AreaPhase>('idle');
 const selectionRect = ref<AreaRect | null>(null);
 const activeRect = ref<AreaRect | null>(null);
+const panelElement = ref<HTMLElement | null>(null);
+const panelPosition = ref<AreaPoint | null>(null);
+let panelDrag: {pointerId: number; x: number; y: number; left: number; top: number; handle: HTMLElement} | null = null;
+
+function stopPanelDrag(): void {
+  const drag = panelDrag;
+  panelDrag = null;
+  if (drag?.handle.hasPointerCapture(drag.pointerId)) drag.handle.releasePointerCapture(drag.pointerId);
+}
+function beginPanelDrag(event: PointerEvent): void {
+  if (!event.isTrusted || event.button !== 0 || panelDrag || !panelElement.value
+    || (event.target as Element).closest('button, a, input, select, textarea')) return;
+  const handle = event.currentTarget as HTMLElement;
+  const rect = panelElement.value.getBoundingClientRect();
+  event.preventDefault();
+  event.stopPropagation();
+  handle.setPointerCapture(event.pointerId);
+  panelDrag = {pointerId: event.pointerId, x: event.clientX, y: event.clientY, left: rect.left, top: rect.top, handle};
+}
+
 const result = ref<AreaTranslationResult | null>(null);
 const errorMessage = ref('');
 const needsLanguages = ref(false);
@@ -111,9 +131,9 @@ function areaStyle(rect: AreaRect): Record<string, string> {
 }
 function panelStyle(rect: AreaRect): Record<string, string> {
   const width = Math.min(460, Math.max(1, window.innerWidth - 24));
-  const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+  const left = Math.max(12, Math.min(panelPosition.value?.x ?? rect.left, window.innerWidth - width - 12));
   const below = rect.top + rect.height + 10;
-  const top = Math.max(12, Math.min(below + 220 < window.innerHeight ? below : rect.top, window.innerHeight - 240));
+  const top = Math.max(12, Math.min(panelPosition.value?.y ?? (below + 220 < window.innerHeight ? below : rect.top), window.innerHeight - 240));
   return {left: `${left}px`, top: `${top}px`, width: `${width}px`, maxHeight: `${Math.max(1, window.innerHeight - top - 12)}px`};
 }
 function updateTheme(): void {
@@ -138,6 +158,8 @@ function isEditingInPage(event: KeyboardEvent): boolean {
 }
 function isEnabled(): boolean { return config.on !== false && config.selectionAreaEnabled === true; }
 function clearResult(): void {
+  stopPanelDrag();
+  panelPosition.value = null;
   translationRequestId += 1;
   translationAbortController?.abort();
   translationAbortController = null;
@@ -186,6 +208,16 @@ function handlePointerdown(event: PointerEvent): void {
 }
 function handlePointermove(event: PointerEvent): void {
   if (!event.isTrusted) return;
+  if (panelDrag?.pointerId === event.pointerId) {
+    event.preventDefault();
+    event.stopPropagation();
+    const width = panelElement.value?.getBoundingClientRect().width ?? 460;
+    panelPosition.value = {
+      x: Math.max(12, Math.min(panelDrag.left + event.clientX - panelDrag.x, window.innerWidth - width - 12)),
+      y: Math.max(12, Math.min(panelDrag.top + event.clientY - panelDrag.y, window.innerHeight - 240)),
+    };
+    return;
+  }
   if (!isSelecting.value || !startPoint || activePointerId !== event.pointerId) return;
   event.preventDefault();
   event.stopPropagation();
@@ -193,6 +225,12 @@ function handlePointermove(event: PointerEvent): void {
 }
 function handlePointerup(event: PointerEvent): void {
   if (!event.isTrusted) return;
+  if (panelDrag?.pointerId === event.pointerId) {
+    event.preventDefault();
+    event.stopPropagation();
+    stopPanelDrag();
+    return;
+  }
   if (!isSelecting.value || !startPoint || activePointerId !== event.pointerId) return;
   event.preventDefault();
   event.stopPropagation();
@@ -206,9 +244,10 @@ function handlePointerup(event: PointerEvent): void {
 }
 function handlePointercancel(event: PointerEvent): void {
   if (!event.isTrusted) return;
+  if (panelDrag?.pointerId === event.pointerId) stopPanelDrag();
   if (isSelecting.value && event.pointerId === activePointerId) clearResult();
 }
-function handleWindowBlur(): void { if (isSelecting.value) clearResult(); }
+function handleWindowBlur(): void { stopPanelDrag(); if (isSelecting.value) clearResult(); }
 async function requestTranslation(rect: AreaRect, prepareLanguages = false): Promise<void> {
   translationAbortController?.abort();
   const controller = new AbortController();
@@ -356,7 +395,7 @@ onBeforeUnmount(() => {
 .fr-area-hint { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px); box-sizing: border-box; border-radius: 12px; background: #292735; color: #fff; padding: 10px 16px; text-align: center; box-shadow: 0 4px 24px #0003; }
 .fr-area-selection { position: fixed; box-sizing: border-box; border: 2px solid #ef4b86; border-radius: 5px; background: rgba(239, 75, 134, .08); box-shadow: 0 0 0 1px #fff9; pointer-events: none; }
 .fr-area-panel { position: fixed; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; border: 1px solid #e4dfe7; border-radius: 14px; background: #fff; box-shadow: 0 12px 40px #241c3833; pointer-events: auto; }
-.fr-area-toolbar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; padding: 12px 14px; border-bottom: 1px solid #ece8ef; }
+.fr-area-toolbar { cursor: grab; touch-action: none; user-select: none; display: flex; align-items: center; gap: 10px; flex-shrink: 0; padding: 12px 14px; border-bottom: 1px solid #ece8ef; }
 .fr-area-heading { flex: 1; min-width: 0; }
 .fr-area-title-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
 .fr-area-provider { margin-top: 3px; color: #777080; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; user-select: text; }
