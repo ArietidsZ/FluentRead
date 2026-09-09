@@ -3,7 +3,8 @@ import {resolve} from 'node:path';
 import vue from '@vitejs/plugin-vue';
 import {createServer, type Plugin, type ViteDevServer} from 'vite';
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {DEFAULT_HARNESS_PREFERENCES} from '@/src/core/config/harness';
+import {Config} from '@/src/core/config/model';
+import {getHarnessModelCacheKey, DEFAULT_HARNESS_PREFERENCES} from '@/src/core/config/harness';
 import type {HarnessSession} from '@/src/services/harness/sessionTypes';
 import type {ReadingRequest, ReadingProgress, ReadingResponse} from '@/src/features/reading-assistant/types';
 
@@ -73,6 +74,25 @@ async function mountPanel(overrides: Record<string, unknown> = {}, sessions: Har
 }
 
 describe('reading action ownership and reuse', () => {
+  it('reuses meaning after grammar and unrelated config refreshes, including deactivate/reactivate', async () => {
+    const {panel, props, calls, finish, tick} = await mountPanel();
+    const config = new Config();
+    let key = getHarnessModelCacheKey(config);
+    const refresh = () => {
+      const next = getHarnessModelCacheKey(config);
+      if (next !== key) Object.assign(props, {modelRevision: 1});
+      key = next;
+    };
+    finish('Meaning'); panel.startAction('grammar'); finish('Grammar');
+    config.animations = !config.animations; refresh(); await tick();
+    panel.startAction('meaning');
+    expect(panel.answer).toBe('Meaning'); expect(calls).toHaveLength(2);
+    props.active = false; await tick(); props.active = true; await tick();
+    expect(panel.answer).toBe('Meaning'); expect(calls).toHaveLength(2);
+    config.harness.model = 'another-reader'; refresh(); await tick();
+    panel.startAction('meaning'); expect(calls).toHaveLength(3);
+  });
+
   it('restores each completed action and its follow-up context without requesting again; explicit regeneration requests once', async () => {
     const {panel, calls, finish} = await mountPanel();
     finish('Meaning answer');

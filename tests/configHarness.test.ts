@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { HARNESS_ACTIONS, DEFAULT_HARNESS_ACTION_PROMPTS, DEFAULT_HARNESS_SYSTEM_PROMPT, HARNESS_PROMPT_MAX_LENGTH, getDefaultHarnessPrompt, resolveHarnessPrompt, renderHarnessPrompt, isHarnessService, normalizeHarnessPreferences } from '@/src/core/config/harness'
+import { getHarnessModelCacheKey, HARNESS_ACTIONS, DEFAULT_HARNESS_ACTION_PROMPTS, DEFAULT_HARNESS_SYSTEM_PROMPT, HARNESS_PROMPT_MAX_LENGTH, getDefaultHarnessPrompt, resolveHarnessPrompt, renderHarnessPrompt, isHarnessService, normalizeHarnessPreferences } from '@/src/core/config/harness'
 import {UI_LANGUAGE_OPTIONS} from '@/src/core/i18n/language'
 import {type HarnessPromptKind} from '@/src/core/harness/prompts'
 import { Config, normalizeConfig } from '@/src/core/config/model'
@@ -149,3 +149,25 @@ describe('localized Harness defaults', () => {
     for (const kind of kinds) expect(new Set(UI_LANGUAGE_OPTIONS.map(({value}) => getDefaultHarnessPrompt(kind, value))).size).toBe(7)
   })
 })
+
+describe('reading model cache identity', () => {
+  it('ignores unrelated configuration notifications but tracks inherited and overridden model inputs', () => {
+    const config = new Config();
+    config.service = 'openai'; config.model.openai = 'reader';
+    const original = getHarnessModelCacheKey(config);
+    config.animations = !config.animations;
+    config.token.deepseek = 'unrelated-token';
+    expect(getHarnessModelCacheKey(config)).toBe(original);
+    config.model.openai = 'new-reader';
+    expect(getHarnessModelCacheKey(config)).not.toBe(original);
+    config.harness.service = 'deepseek'; config.harness.model = 'fixed-reader';
+    const fixed = getHarnessModelCacheKey(config);
+    config.service = 'gemini'; config.model.deepseek = 'unused-default';
+    expect(getHarnessModelCacheKey(config)).toBe(fixed);
+    config.proxy.deepseek = 'https://example.test/v1';
+    expect(getHarnessModelCacheKey(config)).not.toBe(fixed);
+    const endpoint = getHarnessModelCacheKey(config);
+    config.token.deepseek = 'changed-token';
+    expect(getHarnessModelCacheKey(config)).not.toBe(endpoint);
+  });
+});
