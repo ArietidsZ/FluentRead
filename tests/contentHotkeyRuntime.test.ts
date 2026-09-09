@@ -219,11 +219,11 @@ describe('划词翻译快捷键语言预检', () => {
 });
 
  describe('翻译卡快捷键优先级', () => {
-    it('在普通划词关闭时为 AI 阅读保留同语言选区，禁用站点和不可用文档不占用', async () => {
+    it('在普通划词关闭时为 AI 阅读保留外语选区，禁用站点和不可用文档不占用', async () => {
         mocks.config.selectionTranslatorMode = 'disabled';
         mocks.config.harness = {enabled: true, trigger: 'shortcut', customHotkey: 'Alt+R'};
         mocks.matchesConfiguredHotkey.mockReturnValue(true);
-        mocks.getSelection.mockReturnValue(visibleSelection('今天的学习安排已经完成。'));
+        mocks.getSelection.mockReturnValue(visibleSelection('Today’s learning plan is complete.'));
         const {createContentHotkeyRuntime} = await import('@/src/app/content/hotkeyRuntime');
         const event = keyboardEvent({key: 'r', code: 'KeyR'}) as unknown as KeyboardEvent;
         const runtime = createContentHotkeyRuntime(() => false);
@@ -233,5 +233,23 @@ describe('划词翻译快捷键语言预检', () => {
         expect(createContentHotkeyRuntime(() => false, {selectionAvailable: false}).shouldReserveSelectionShortcut(event)).toBe(false);
         mocks.getSelection.mockReturnValue(null);
         expect(runtime.shouldReserveSelectionShortcut(event)).toBe(false);
+    });
+});
+
+describe('纯中文选区不占用划词或翻译卡快捷键', () => {
+    it.each(['你好', '你好，世界！123 🎉', '繁體中文'])('跳过 %s，但切换外语目标后恢复', async text => {
+        mocks.config.selectionTranslatorTrigger = 'Control';
+        mocks.getSelection.mockReturnValue(visibleSelection(text));
+        const {createContentHotkeyRuntime} = await import('@/src/app/content/hotkeyRuntime');
+        const runtime = createContentHotkeyRuntime(() => false);
+        const event = keyboardEvent() as unknown as KeyboardEvent;
+        expect(runtime.hasActiveSelectionTranslationCandidate()).toBe(false);
+        expect(runtime.shouldReserveSelectionShortcut(event)).toBe(false);
+        mocks.config.harness = {enabled: true, trigger: 'shortcut', customHotkey: 'Alt+R'};
+        mocks.matchesConfiguredHotkey.mockReturnValue(true);
+        expect(runtime.shouldReserveSelectionShortcut(event)).toBe(false);
+        mocks.config.to = 'en';
+        expect(runtime.hasActiveSelectionTranslationCandidate()).toBe(true);
+        expect(runtime.shouldReserveSelectionShortcut(event)).toBe(true);
     });
 });

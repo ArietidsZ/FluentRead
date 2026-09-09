@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import posts from './fixtures/chinese-language-posts.json';
-import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
+import {shouldSkipChineseSelection, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
 import {
     detectChineseScript,
     getChineseScript,
@@ -135,5 +135,18 @@ describe('中文书写体系与语言代码', () => {
 
     it.each(['兩', '隻', '貓', '數', '軟', '𪚥'])('繁体或未知字 %s 不得被已有简体证据掩盖', (character) => {
         expect(detectChineseScript(`这是${character}`)).toBeUndefined();
+    });
+});
+
+describe('划词和翻译卡的纯中文选区', () => {
+    it.each(['你好', '人', '中文人口', '未来', '你好，世界！123 🎉', '繁體中文', '这是繁體混排', '𱀀', '你好 👨‍👩‍👧‍👦'])('中文目标下跳过 %s', text => {
+        for (const target of ['zh', 'zh-CN', 'zh-Hans', 'zh-TW', 'zh-Hant']) {
+            expect(shouldSkipChineseSelection(text, target)).toBe(true);
+        }
+        expect(shouldSkipChineseSelection(text, 'en')).toBe(false);
+        expect(shouldSkipChineseSelection(text, 'ja')).toBe(false);
+    });
+    it.each(['', '123！🎉', 'Hello', '中文 English', '中文 AI', '你好 café', '你好 русский', '你好 한국어', '今日は良い天気です。', '中文あ'])('保留非纯中文或无汉字选区 %s', text => {
+        expect(shouldSkipChineseSelection(text, 'zh-CN')).toBe(false);
     });
 });
