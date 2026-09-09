@@ -142,7 +142,7 @@ export function createHarnessRuntime(getConfig: () => Config, createUsageSink?: 
                 return {success: true, text: result.text, service, model: modelId, ...(memoryCount ? {memoryCount} : {})};
             } catch (error) {
                 if (signal.aborted) return {success: false, error: '阅读助手请求已取消', cancelled: true};
-                const normalized = normalizeHarnessModelError(error, service, current.token[service] ?? '');
+                const normalized = normalizeHarnessModelError(error, service, current.token[service] ?? '', current.customHeaders[service]);
                 return {success: false, error: normalized.message};
             }
         },

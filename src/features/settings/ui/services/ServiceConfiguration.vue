@@ -1,6 +1,6 @@
 <!--
  * @file src/features/settings/ui/services/ServiceConfiguration.vue
- * 文件职责：渲染当前翻译服务的详细连接配置，按服务能力显示模型、端点、区域、计费方式、密钥、代理、提示词和自定义请求体等字段。
+ * 文件职责：渲染当前翻译服务的详细连接配置，按服务能力显示模型、端点、区域、计费方式、密钥、代理、提示词、自定义请求体和请求头等字段。
  * 主要内容：组件派生字段可见性与 DeepL/MiniMax/MiMo endpoint，选择 DeepL API 套餐，展示 DeepLX 完整地址与 Token 配置示例，共用 Azure 地址校验，校验 custom body，管理连接测试状态、Chrome 当前语言对的点击准备/进度/超时、官方帮助、模板重置与加密凭据保存提示，并通过配置 store 提交修改。
  * 模块边界：本组件不执行网页正文翻译或保存公开配置中的明文凭据；Chrome 内置翻译仅在当前点击页完成模型自检，其他连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
  -->
@@ -334,6 +334,17 @@
           <PromptTemplateEditor v-model="config.user_role[service]" role="user" />
         </div>
 
+        <div v-if="customProvider" class="connection-field custom-headers-field" data-testid="custom-service-headers">
+          <div class="connection-field-label"><strong>自定义请求头</strong></div>
+          <div class="connection-field-control">
+            <el-input v-model="config.customHeaders[service]" type="textarea" :rows="3"
+              aria-label="自定义请求头" :spellcheck="false" :class="{ 'input-error': !isValidCustomHeaders(config.customHeaders[service]) }"
+              placeholder='{"x-opencode-session": "your-stable-session-id"}' />
+            <small class="custom-headers-help">填写字符串值组成的 JSON 对象，仅发送给当前自定义服务；同名请求头会覆盖默认值。留空不启用。</small>
+            <div v-if="!isValidCustomHeaders(config.customHeaders[service])" class="error-text">请输入有效的请求头 JSON 对象，名称和值必须符合 HTTP 格式</div>
+          </div>
+        </div>
+
         <el-row v-if="compute.showCustomBody" class="margin-bottom margin-left-2em">
           <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="填写要合并到翻译请求中的 JSON 参数对象。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">自定义请求体<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
           <el-col :span="12">
@@ -370,6 +381,7 @@ import {
   type CustomOpenAIProvider,
 } from '@/src/core/config/customOpenAI'
 import { isValidCustomBody } from '@/src/core/config/customBody'
+import { isValidCustomHeaders } from '@/src/core/config/customHeaders'
 import { normalizeMyMemoryEmail } from '@/src/core/config/freeTranslation'
 import { DEFAULT_DEEPLX_ENDPOINT } from '@/src/core/config/deeplx'
 import { getDeepLEndpoint } from '@/src/core/config/deepl'
@@ -860,6 +872,9 @@ onBeforeUnmount(() => {
   padding: 10px 0;
   border-bottom: 1px solid #edf0f5;
 }
+
+.custom-headers-field { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.custom-headers-help { display: block; margin-top: 6px; color: var(--muted, #6d7890); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
 
 .connection-field-label { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
 .connection-field-label strong { color: #263044; font-size: 12px; font-weight: 700; }

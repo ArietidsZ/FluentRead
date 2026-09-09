@@ -24,6 +24,8 @@ import {
 } from '@/src/providers/translation/ai-sdk/endpoints';
 import {isHarnessService} from '@/src/core/config/harness';
 import {runtimeFetch} from '@/src/platform/http/runtime';
+import {isCustomOpenAIProviderId} from '@/src/core/config/customOpenAI';
+import {parseCustomHeaders, mergeCustomHeaders} from '@/src/core/config/customHeaders';
 
 function zhipuBearer(apiKey: string): string {
   const [key, secret] = apiKey.split('.', 2);
@@ -84,8 +86,8 @@ export function sanitizeHarnessModelMessage(message: string): string {
   );
 }
 
-export function normalizeHarnessModelError(error: unknown, service: string, apiKey = ''): Error {
-  const normalized = normalizeAiSdkError(service, error, apiKey);
+export function normalizeHarnessModelError(error: unknown, service: string, apiKey = '', customHeaders?: string): Error {
+  const normalized = normalizeAiSdkError(service, error, [apiKey, ...Object.values(parseCustomHeaders(customHeaders) ?? {})]);
   const sanitized = sanitizeHarnessModelMessage(normalized.message);
   normalized.message = sanitized;
   return normalized;
@@ -118,6 +120,8 @@ export function createHarnessLanguageModel(config: Config, service: string, mode
     });
     return provider(requestedModel);
   }
+  const customHeaders = parseCustomHeaders(isCustomOpenAIProviderId(service) ? config.customHeaders[service] : undefined);
+  if (!customHeaders) throw new Error('自定义请求头必须是有效的 JSON 对象，头名称和值必须符合 HTTP 格式。');
   const endpoint = endpointFor(config, service, requestedModel);
   const apiKey = service === services.zhipu && configuredKey ? zhipuBearer(configuredKey) : configuredKey;
   const provider = createOpenAICompatible({
@@ -127,7 +131,9 @@ export function createHarnessLanguageModel(config: Config, service: string, mode
     headers: serviceHeaders(service, configuredKey),
     queryParams: endpoint.queryParams,
     transformRequestBody: body => transformBody(service, config, requestedModel, body),
-    fetch: async (input, init) => runtimeFetch(endpoint.exactEndpoint || input, {...init, redirect: 'error'}),
+    fetch: async (input, init) => runtimeFetch(endpoint.exactEndpoint || input, {
+      ...init, headers: mergeCustomHeaders(init?.headers, customHeaders), redirect: 'error',
+    }),
   });
   return provider(requestedModel);
 }

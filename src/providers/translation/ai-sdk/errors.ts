@@ -70,12 +70,14 @@ function parseResponseBody(body?: string): {message?: string; code?: string} {
   }
 }
 
-function sanitizeProviderDetail(value: string, apiKey?: string): string {
+function sanitizeProviderDetail(value: string, apiKey?: string | readonly string[]): string {
   let result = value
     .replace(/((?:authorization|api[-_ ]?key|access[-_ ]?token)\s*[:=]\s*)(?:bearer\s+)?[^\s,;"'}]+/giu, '$1[已隐藏]')
     .replace(/\b(?:sk|tp)-[a-z0-9_-]{8,}\b/giu, '[已隐藏的密钥]');
-  const key = apiKey?.trim();
-  if (key) result = result.split(key).join('[已隐藏的密钥]');
+  for (const value of typeof apiKey === 'string' ? [apiKey] : apiKey ?? []) {
+    const key = value.trim();
+    if (key) result = result.split(key).join('[已隐藏的密钥]');
+  }
   result = result.replace(/\s+/gu, ' ').trim();
   return result.slice(0, MAX_PROVIDER_DETAIL_LENGTH);
 }
@@ -102,7 +104,7 @@ function requestIdFrom(headers?: Record<string, string>): string | undefined {
     || headers?.['x-amzn-requestid'];
 }
 
-function sanitizeMetadata(value: string | undefined, apiKey?: string, maxLength = 160): string | undefined {
+function sanitizeMetadata(value: string | undefined, apiKey?: string | readonly string[], maxLength = 160): string | undefined {
   if (!value) return undefined;
   const sanitized = sanitizeProviderDetail(value, apiKey).slice(0, maxLength);
   return sanitized || undefined;
@@ -153,7 +155,7 @@ function unwrapRetryError(error: unknown): unknown {
 export function normalizeAiSdkError(
   service: string,
   error: unknown,
-  apiKey?: string,
+  apiKey?: string | readonly string[],
   callerAborted = false,
 ): LlmTransportError {
   const candidate = unwrapRetryError(error);

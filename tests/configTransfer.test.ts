@@ -713,3 +713,24 @@ describe('configuration transfer helpers', () => {
     expect(prepared.videoService).toBe('deeplx')
   })
 })
+
+
+it('自定义头仅在完整导出中保留，导入绑定新地址并兼容旧配置', async () => {
+    const {Config, normalizeConfig} = await import('@/src/core/config/model');
+    const {hasCredentialData, extractConfigCredentials} = await import('@/src/core/config/credentials');
+    const source = normalizeConfig({...new Config(), service: 'custom:headers',
+        customOpenAIProviders: [{id: 'custom:headers', name: 'Gateway', endpoint: 'https://one.example/chat/completions', models: ['model']}],
+        customHeaders: {'custom:headers': '{"x-auth":"private-header"}'},
+    });
+    expect(hasCredentialData(extractConfigCredentials({customHeaders: source.customHeaders}))).toBe(true);
+    expect(sanitizeConfigForExport(source)).not.toHaveProperty('customHeaders');
+    expect(prepareConfigForExport(source).customHeaders).toEqual(source.customHeaders);
+    expect(prepareConfigForImport(prepareConfigForExport(source), new Config()).customHeaders).toEqual(source.customHeaders);
+    const publicConfig = sanitizeConfigForExport(source);
+    expect(prepareConfigForImport(publicConfig, source).customHeaders).toEqual(source.customHeaders);
+    publicConfig.customOpenAIProviders[0].endpoint = 'https://two.example/chat/completions';
+    expect(prepareConfigForImport(publicConfig, source).customHeaders).toEqual({});
+    expect(prepareConfigForImport({...publicConfig, customHeaders: source.customHeaders}, source).customHeaders).toEqual(source.customHeaders);
+    expect(isConfigImportValid({...publicConfig, customHeaders: {'custom:headers': 1}})).toBe(false);
+    expect(normalizeConfig({...source, customOpenAIProviders: []}).customHeaders).toEqual({});
+});

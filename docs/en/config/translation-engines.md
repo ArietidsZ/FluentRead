@@ -78,3 +78,17 @@ Choosing a local model determines where that translation goes. Dictionary, read-
 Check the key, address, model, and provider balance. If short sentences work but long pages do not, reduce concurrency or try another service. Never include real credentials in feedback. See [Troubleshooting](/en/guide/faq).
 
 You can also enable Tencent TranSmart, Yandex, and Volcengine in **Free translation settings**. These keyless web endpoints appear only as free translation candidates, not standalone services. They are disabled by default and preserve your existing order. Web endpoints may be rate-limited or unavailable. Yandex skips Traditional Chinese targets so the next candidate can handle them.
+
+## Custom request headers
+
+Select a custom OpenAI-compatible service under **My services**, then open **Advanced settings → Custom request headers**. Enter a JSON object with string values, for example:
+
+```json
+{"x-opencode-session": "a71a2ad6-1d1f-4e92-a30e-e35c8fd623ab"}
+```
+
+Headers apply only to this service and override matching defaults regardless of letter case. Leave blank to use defaults. A saved session ID stays the same across requests. Click **Check connection** after configuring it. Extra authentication headers, `HTTP-Referer`, and `X-Title` are supported. If your service uses custom authentication without a Bearer token, turn off the model's API Key requirement. Browser restrictions on headers still apply.
+
+Headers are stored as credentials: public exports and history omit them, while full backups retain them. Re-enter them after changing the endpoint or proxy.
+
+[OpenCode Go's documentation](https://opencode.ai/docs/go/#where-can-i-use-it) requires a stable session header and also specifies client and traffic requirements. Configurable headers do not imply certified compatibility with that service.
