@@ -66,7 +66,7 @@ function fixture(site, variant = '') {
 (async () => {
   const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
   const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-writing-browser'));
-  const suites = {bilingual: 'Reply and reading language combinations, source-only insertion and translation lifecycle', i18n: 'Issue #490 seven-language writing panel and content boundaries', all: 'All writing regression cases', settings: 'Default writing preferences, custom input stability, persistence and open-card synchronization', github: 'GitHub writing lifecycle and staged preferences', gmail: 'Gmail writing lifecycle and staged preferences', recovery: 'Model ownership and partial-stream recovery', context: 'Issue #421 context, target-language ownership, staged style, Markdown editing and insertion', compose: 'Empty and subject-only new mail, Gmail conversation isolation and rich signatures', layout: 'Editor resize and preceding-DOM positioning', dynamic: 'Remount, disabled focus, scrolling and global website rule', presentation: 'Fresh-page global website rule, dark PR, mobile layouts and unsupported routes'};
+  const suites = {harness: 'Harness tool loop, persisted learning memory, language translation and memory mutation cancellation', bilingual: 'Reply and reading language combinations, source-only insertion and translation lifecycle', i18n: 'Issue #490 seven-language writing panel and content boundaries', all: 'All writing regression cases', settings: 'Default writing preferences, custom input stability, persistence and open-card synchronization', github: 'GitHub writing lifecycle and staged preferences', gmail: 'Gmail writing lifecycle and staged preferences', recovery: 'Model ownership and partial-stream recovery', context: 'Issue #421 context, target-language ownership, staged style, Markdown editing and insertion', compose: 'Empty and subject-only new mail, Gmail conversation isolation and rich signatures', layout: 'Editor resize and preceding-DOM positioning', dynamic: 'Remount, disabled focus, scrolling and global website rule', presentation: 'Fresh-page global website rule, dark PR, mobile layouts and unsupported routes'};
   const suite = arg('suite', 'all'); const selectedSuites = suite.split(',');
   assert(selectedSuites.every(name => Object.hasOwn(suites, name)), `--suite must select from ${Object.keys(suites).join(', ')}`);
   const runs = name => selectedSuites.includes('all') || selectedSuites.includes(name);
@@ -86,6 +86,11 @@ function fixture(site, variant = '') {
       res.writeHead(200, {'Content-Type': 'text/event-stream'});
       const actualModel = `${body.model}-actual`;
       const send = text => res.write(`data: ${JSON.stringify({id: `writing-fixture-${ordinal}`, object: 'chat.completion.chunk', created: 1, model: actualModel, choices: [{index: 0, delta: {content: text}, finish_reason: null}]})}\n\n`);
+      if (plan.toolCall) {
+        res.write(`data: ${JSON.stringify({id: `writing-fixture-${ordinal}`, object: 'chat.completion.chunk', created: 1, model: actualModel, choices: [{index: 0, delta: {role: 'assistant', tool_calls: [{index: 0, id: `fixture-tool-${ordinal}`, type: 'function', function: {name: plan.toolCall.name, arguments: JSON.stringify(plan.toolCall.input)}}]}, finish_reason: null}]})}\n\n`);
+        res.write(`data: ${JSON.stringify({id: `writing-fixture-${ordinal}`, object: 'chat.completion.chunk', created: 1, model: actualModel, choices: [{index: 0, delta: {}, finish_reason: 'tool_calls'}], usage: {prompt_tokens: 20, completion_tokens: 15, total_tokens: 35}})}\n\ndata: [DONE]\n\n`);
+        res.end(); return;
+      }
       // 不同完整正文用于证明改写与版本切换，序号保证连续结果可区分。
       if (plan.initialDelay) await wait(plan.initialDelay);
       const reply = plan.text ?? (plan.markdown ? markdownReply : null);
@@ -154,7 +159,7 @@ function fixture(site, variant = '') {
         const group = scope.getByRole('radiogroup', {name, exact: true}); assert.equal(await group.count(), 1); assert.equal(await group.getByRole('radio', {checked: true}).count(), 1);
         if (defaults) assert.equal(await group.getByRole('radio', {name: selected, exact: true}).getAttribute('aria-checked'), 'true', `${name} keeps the intended fresh default`);
       }
-      const icon = p.locator('button[data-section="settings-writing"] .nav-icon'); assert.equal(await icon.locator('svg path').count(), 1); assert.equal(await icon.locator('img').count(), 0);
+      const icon = p.locator('button[data-section="settings-writing"] .nav-icon'); assert.equal(await icon.locator('svg').count(), 1); assert.equal(await icon.locator('svg path').count(), 1); assert.equal(await icon.locator('svg').getAttribute('aria-hidden'), 'true'); assert.equal(await icon.locator('svg').getAttribute('stroke'), 'currentColor'); assert.equal(await icon.locator('img').count(), 0);
     };
     await assertSettings(settings, true); await shot(settings, 'writing-settings-light');
     // 写作连接跳转只改变服务页正在编辑的服务，不能改变网页翻译默认值。
@@ -215,6 +220,52 @@ function fixture(site, variant = '') {
       await dialog(p).waitFor(); await p.locator('.writing-panel').evaluate(async element => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); window.writingSamples = []; window.sampleWriting = true; const sample = () => { if (!window.sampleWriting) return; const rect = element.getBoundingClientRect(); window.writingSamples.push({x: rect.x, y: rect.y, width: rect.width, height: rect.height}); requestAnimationFrame(sample); }; sample(); });
     };
     const endSampling = async (p, site) => { const samples = await p.evaluate(() => { window.sampleWriting = false; return window.writingSamples; }); assert(samples.length >= 5, 'streaming must include multiple visible frames'); const deltas = Object.fromEntries(['x', 'y', 'width', 'height'].map(key => [key, Math.max(...samples.map(rect => rect[key])) - Math.min(...samples.map(rect => rect[key]))])); assert(Object.values(deltas).every(delta => delta === 0), `zero streaming jitter: ${JSON.stringify(deltas)}`); report.cardStability.push({site, sampleCount: samples.length, deltas}); };
+    if (runs('harness')) {
+      const memoryText = 'Prefer concise writing with concrete examples.';
+      const memoryCommand = (action, input) => settings.evaluate(({action, input}) => chrome.runtime.sendMessage({type: 'fluentReadHarness', action, ...(input ? {input} : {})}), {action, input});
+      await patch({harness: {...(await read()).harness, memoryEnabled: true}});
+      assert.equal((await memoryCommand('memory-save', {kind: 'preference', content: memoryText})).success, true);
+      const p = await page('https://github.com/fluentread-fixture/project/issues/600', 'harness');
+      const toolPlan = (name, input) => ({toolCall: {name, input}});
+      const start = requests.length;
+      responsePlans.push(toolPlan('read_context', {}), toolPlan('search_memory', {query: 'writing'}), {text: '结合参考内容和写作偏好生成的完整回复。'});
+      await entry(p).click(); assert.equal(await complete(p, true), '结合参考内容和写作偏好生成的完整回复。');
+      assert.equal(requests.length, start + 3);
+      assert.deepEqual(requests[start].body.tools.map(tool => tool.function.name), ['read_context', 'search_memory']);
+      const contextResult = requests[start + 1].body.messages.at(-1);
+      assert.equal(contextResult.role, 'tool'); assert.equal(contextResult.tool_call_id, `fixture-tool-${start + 1}`);
+      assert.match(contextResult.content, /Could you follow up next week/);
+      const memoryResult = requests[start + 2].body.messages.at(-1);
+      assert.equal(memoryResult.role, 'tool'); assert.equal(memoryResult.tool_call_id, `fixture-tool-${start + 2}`);
+      assert.deepEqual(JSON.parse(memoryResult.content), [{kind: 'preference', content: memoryText}]);
+      assert.equal(await p.locator('#editor').inputValue(), ''); assert.equal(await p.evaluate(() => window.sent || 0), 0);
+      await shot(p, 'writing-harness-complete');
+      const beforeTranslation = requests.length; const translated = 'A complete reply in English.';
+      responsePlans.push({text: translated}); await chooseLanguage(p, 'English', 'English');
+      assert.equal(await complete(p, true), translated); assert.equal(requests.length, beforeTranslation + 1);
+      assert.equal(requests.at(-1).body.tools, undefined); assert.match(requests.at(-1).body.messages[0].content, /忠实翻译草稿/);
+      const beforeClear = requests.length;
+      responsePlans.push(toolPlan('search_memory', {query: 'writing'}), {initialDelay: 1800, text: 'LATE_CANCELLED_REPLY'});
+      await p.getByRole('button', {name: '重新生成', exact: true}).click();
+      await assertRequestCount(beforeClear + 2, 'memory result reached the model before deletion');
+      assert(JSON.stringify(requests.at(-1).body.messages).includes(memoryText));
+      assert.equal((await memoryCommand('memory-clear')).success, true);
+      await until(async () => await preview(p).getAttribute('aria-busy') === 'false', 'memory change cancellation');
+      await wait(2200); assert.equal(await readDraft(p), translated); assert.equal(requests.length, beforeClear + 2);
+      const beforeRetry = requests.length;
+      responsePlans.push(toolPlan('search_memory', {query: 'writing'}), {text: 'Reply without the deleted memory.'});
+      await p.getByRole('button', {name: '重新生成', exact: true}).click();
+      assert.equal(await complete(p, true), 'Reply without the deleted memory.'); assert.equal(requests.length, beforeRetry + 2);
+      assert.deepEqual(JSON.parse(requests.at(-1).body.messages.at(-1).content), []);
+      await patch({harness: {...(await read()).harness, memoryEnabled: false}});
+      const withoutMemory = await oneGeneration(p, () => p.getByRole('button', {name: '重新生成', exact: true}).click());
+      assert.deepEqual(withoutMemory.body.tools.map(tool => tool.function.name), ['read_context']);
+      assert.equal((await memoryCommand('memory-list')).memories.length, 0);
+      assert.equal(await p.locator('#editor').inputValue(), ''); assert.equal(await p.evaluate(() => window.sent || 0), 0);
+      await shot(p, 'writing-harness-memory-cleared'); await closePage(p);
+      await patch({harness: initial.harness, writing: {...(await read()).writing, ...defaultExpression}});
+      report.cases.push('Harness: real background loop reads current reference and IndexedDB memory in three model calls, translation omits tools, clearing memory cancels in-flight output and preserves the prior draft, retry sees an empty store, disabled memory is unavailable, no editor mutation or send');
+    }
     if (runs('bilingual')) {
       const english = 'Thank you for the report. I will look into the repeated translation. Could you share the steps to reproduce it?';
       const chinese = '感谢你的反馈。我会排查重复翻译的问题。可以分享一下复现步骤吗？';
@@ -659,7 +710,7 @@ function fixture(site, variant = '') {
     report.cases.push('dark Issue/PR surface, 390px panel and settings without horizontal overflow and unsupported routes absent');
     }
     await popup.reload(); await popup.getByRole('heading', {name: '网页翻译', exact: true}).waitFor(); assert.equal(await popup.getByText('写作助手', {exact: true}).count(), 0); assertPreferences((await read()).writing); report.cases.push('popup writing entry and retired preferences remain absent');
-    report.requests = requests.map(({body, ordinal, outcome}) => ({ordinal, outcome, model: body.model, messages: body.messages, stream: body.stream}));
+    report.requests = requests.map(({body, ordinal, outcome}) => ({ordinal, outcome, model: body.model, messages: body.messages, tools: body.tools, stream: body.stream}));
     assert(report.requests.every(body => body.stream === true && !JSON.stringify(body.messages).includes('PRIVATE_'))); assert.equal(responsePlans.length, 0, 'all planned fixture outcomes were consumed'); assert.equal(report.consoleErrors.length, 0, JSON.stringify(report.consoleErrors)); report.ok = true;
   } catch (error) {
     report.error = error.stack;
@@ -667,7 +718,7 @@ function fixture(site, variant = '') {
     try { if (currentPage && !currentPage.isClosed()) await currentPage.screenshot({path: path.join(artifactsDir, 'failure.png')}); } catch {}
     throw error;
   } finally {
-    report.requests = requests.map(({body, ordinal, outcome}) => ({ordinal, outcome, model: body.model, messages: body.messages, stream: body.stream}));
+    report.requests = requests.map(({body, ordinal, outcome}) => ({ordinal, outcome, model: body.model, messages: body.messages, tools: body.tools, stream: body.stream}));
     fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
     await launched?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); fs.rmSync(profileDir, {recursive: true, force: true});
     console.log(JSON.stringify({ok: report.ok, suite: report.suite, cases: report.cases, artifactsDir, evidenceBoundary: report.evidenceBoundary, error: report.error}));

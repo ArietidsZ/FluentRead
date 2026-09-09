@@ -17,7 +17,8 @@ import type {HarnessMessage} from '@/src/core/harness/surface';
 import type {ModelUsageEvent} from '@/src/services/model-usage/types';
 import {createHarnessUsageEvent} from './usage';
 import {vocabularyStudyPrompt} from '@/src/features/vocabulary/public';
-import type {LearningMemory} from './learningMemory';
+import {readMemory, type HarnessMemoryReader} from './memoryRecall';
+export type {HarnessMemoryReader} from './memoryRecall';
 
 const MAX_TEXT = 4096;
 const MAX_HISTORY = 4;
@@ -25,20 +26,6 @@ const MAX_TURN = 2000;
 const READ_CONTEXT_INPUT = z.object({reason: z.string().max(200).optional()}).strict();
 
 export interface HarnessRuntime {run(request: ReadingRequest, signal: AbortSignal, onProgress?: (progress: ReadingProgress) => void, privateContext?: boolean): Promise<ReadingResponse>}
-export interface HarnessMemoryReader {recall(query: string): Promise<readonly LearningMemory[]>}
-
-async function readMemory(reader: HarnessMemoryReader, query: string, signal: AbortSignal): Promise<readonly LearningMemory[]> {
-    let abort!: () => void;
-    let timer!: ReturnType<typeof setTimeout>;
-    const interrupted = new Promise<never>((_, reject) => {
-        abort = () => reject(new Error('学习记忆读取已取消'));
-        signal.addEventListener('abort', abort, {once: true});
-        timer = setTimeout(() => reject(new Error('学习记忆读取超时')), 1500);
-    });
-    try { return await Promise.race([reader.recall(query), interrupted]); }
-    finally { signal.removeEventListener('abort', abort); clearTimeout(timer); }
-}
-
 function bounded(value: unknown, max: number): string { return typeof value === 'string' ? value.trim().slice(0, max) : ''; }
 
 function cloneConfig(config: Config): Config {

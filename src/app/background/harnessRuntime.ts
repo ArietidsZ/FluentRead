@@ -1,7 +1,7 @@
 /**
  * @file src/app/background/harnessRuntime.ts
  * 文件职责：把阅读卡后台处理器组装到扩展配置、Harness 服务和浏览器标签页生命周期。
- * 主要内容：绑定流式端口、本机三十天会话、长期记忆管理与清理闹钟；配置停用、记忆变更、网站禁用及标签导航时取消请求。
+ * 主要内容：绑定流式端口、本机三十天会话、长期记忆管理与清理闹钟；配置停用、记忆变更、网站禁用及标签导航时取消请求，记忆管理同时使在途写作失效。
  * 模块边界：这是应用组合根，不实现选区、消息校验、会话或模型协议；对应规则和异步所有权由 reading-assistant/background 及 services/harness 验证。
  */
 import browser from 'webextension-polyfill';
@@ -20,7 +20,7 @@ import {isExtensionDisabledOnSite} from '@/src/core/site-rules/domain';
 import type {BackgroundMessageHandler} from './messageRouter';
 import type {ReadingSender} from '@/src/features/reading-assistant/background';
 
-export function installHarnessBackgroundRuntime(): BackgroundMessageHandler<{sender?: ReadingSender}> {
+export function installHarnessBackgroundRuntime(cancelWriting?: () => void): BackgroundMessageHandler<{sender?: ReadingSender}> {
     const runtime = createHarnessRuntime(() => config, () => {
         const generation = modelUsageRepository.captureGeneration();
         return event => { void modelUsageRepository.recordMany([event], generation).catch(() => undefined); };
@@ -50,7 +50,7 @@ export function installHarnessBackgroundRuntime(): BackgroundMessageHandler<{sen
         privateContext: () => Boolean(browser.extension.inIncognitoContext),
         eligibility: sender => isExtensionDisabledOnSite(sender.url || '', config.disabledExtensionDomains)
             || isExtensionDisabledOnSite(sender.tab?.url || '', config.disabledExtensionDomains) ? '当前网站已禁用扩展' : undefined,
-        cancelActive: () => handler.cancelAll(),
+        cancelActive: () => { handler.cancelAll(); cancelWriting?.(); },
     });
     browser.runtime.onConnect.addListener(port => attachReadingStreamPort(port, handler));
     const prune = () => { if (!browser.extension.inIncognitoContext) void harnessSessionRepository.prune().catch(() => undefined); };
