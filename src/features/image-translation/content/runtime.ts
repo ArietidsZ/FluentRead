@@ -16,6 +16,7 @@ import type { OcrLine } from '@/src/features/image-translation/core';
 import {imageBufferToDataUrl, MAX_REMOTE_IMAGE_BYTES, normalizeRemoteImageMimeType} from '@/src/features/image-translation/services/remoteImage';
 import {resolveImagePresentation, surfaceStyleToBitmap, presentationMatchesSource, type ImagePresentation} from './presentation';
 import {createImageControls, IMAGE_CONTROLS_CSS, type ImageControlPhase} from './controls';
+import {isImageHoverEligible} from './hoverEligibility';
 
 const IMAGE_TRANSLATION_OVERLAY = 'fluent-read-image-translation-overlay';
 const IMAGE_TRANSLATION_ROOT = 'fluent-read-image-translation-root';
@@ -40,6 +41,7 @@ interface ImageTranslationState {
     phase: ImageControlPhase;
     abortController: AbortController | null;
     hovered: boolean;
+    hoverEntry: boolean;
     hoverTimer: number | null;
     resizeObserver: ResizeObserver | null;
     imageLoadHandler: (() => void) | null;
@@ -304,6 +306,10 @@ function updateOverlayPosition(state: ImageTranslationState): void {
     }
     ensureImageOverlayRoot();
     if (sourceIdentity(state.image) !== state.sourceIdentity || !presentationMatchesSource(state.image, state.presentation)) invalidateSource(state);
+    if (state.hoverEntry && state.phase === 'idle' && !isImageHoverEligible(state.image)) {
+        removeState(state);
+        return;
+    }
     if (state.sourceStyleLease && !ownsHiddenImage(state)) {
         // 宿主重新设置 opacity 后不继续覆盖它；恢复显示权，并保留宿主刚写入的样式。
         restoreImageTranslation(state);
@@ -391,7 +397,7 @@ function updateOverlayPosition(state: ImageTranslationState): void {
     if (bitmap.isConnected && state.overlay.isConnected) hideOriginalImage(state);
 }
 
-function createState(image: HTMLImageElement): ImageTranslationState {
+function createState(image: HTMLImageElement, hoverEntry = false): ImageTranslationState {
     const overlay = document.createElement('div');
     overlay.className = IMAGE_TRANSLATION_OVERLAY;
     overlay.dataset.fluentReadImageTranslation = 'true';
@@ -412,7 +418,7 @@ function createState(image: HTMLImageElement): ImageTranslationState {
     overlay.append(controls.feedback, controls.element);
     ensureImageOverlayRoot().appendChild(overlay);
     const state: ImageTranslationState = {
-        image, presentation: resolveImagePresentation(image), needsPreparation: false, overlay, controls, phase: 'idle', abortController: null, hovered: true,
+        image, presentation: resolveImagePresentation(image), needsPreparation: false, overlay, controls, phase: 'idle', abortController: null, hovered: true, hoverEntry,
         hoverTimer: null, resizeObserver: null, imageLoadHandler: null,
         sourceIdentity: sourceIdentity(image), waitingForImage: false,
         lines: [], translatedImage: null, sourceStyleLease: null,
@@ -446,9 +452,11 @@ function createState(image: HTMLImageElement): ImageTranslationState {
 
 function showImageButton(image: HTMLImageElement): void {
     if (!mounted || !config.on || config.disableImageTranslator || image.closest('[data-fluent-read-ui]') || image.closest('video')) return;
+    const existing = states.get(image);
+    if ((!existing || existing.phase === 'idle') && !isImageHoverEligible(image)) return;
     const rect = image.getBoundingClientRect();
     if (rect.width < MIN_IMAGE_WIDTH || rect.height < MIN_IMAGE_HEIGHT) return;
-    const state = states.get(image) || createState(image);
+    const state = states.get(image) || createState(image, true);
     setStateHovered(state, true);
     updateOverlayPosition(state);
 }
@@ -671,6 +679,7 @@ function requestIsCurrent(state: ImageTranslationState, controller: AbortControl
 
 async function translateImage(state: ImageTranslationState, prepareLanguages = false): Promise<void> {
     if (state.phase === 'loading' || !state.image.isConnected || !config.on || config.disableImageTranslator) return;
+    state.hoverEntry = false;
     if (sourceIdentity(state.image) !== state.sourceIdentity || !presentationMatchesSource(state.image, state.presentation)) invalidateSource(state);
     clearHoverTimer(state);
     const identity = configurationIdentity();
@@ -781,6 +790,14 @@ function imageAtPointer(event: MouseEvent): HTMLImageElement | null {
 function handlePointerOver(event: PointerEvent): void {
     if (!event.isTrusted || event.pointerType === 'touch' || config.imageTranslationHoverEnabled === false) return;
     const image = imageAtPointer(event);
+    // 在安排计时器之前过滤；明确发起的翻译仍保留进度、取消和恢复入口。
+    const existing = image && states.get(image);
+    if (image && (!existing || existing.phase === 'idle') && !isImageHoverEligible(image)) {
+        clearPointerRevealTimer();
+        if (pointerImage) hideImageButton(pointerImage);
+        pointerImage = null;
+        return;
+    }
     if (pointerImage === image && image && (pointerRevealTimer !== null || states.has(image))) return;
     clearPointerRevealTimer();
     if (pointerImage && pointerImage !== image) hideImageButton(pointerImage);
@@ -869,7 +886,7 @@ function syncLayoutObservation(): void {
     layoutObserver = new MutationObserver(handleLayoutMutations);
     layoutObserver.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ['class', 'style', 'src', 'srcset', 'sizes', 'media', 'type', 'width', 'height', 'hidden'],
+        attributeFilter: ['class', 'id', 'data-testid', 'itemprop', 'alt', 'aria-label', 'aria-hidden', 'role', 'href', 'style', 'src', 'srcset', 'sizes', 'media', 'type', 'width', 'height', 'hidden'],
         childList: true, subtree: true,
     });
 }

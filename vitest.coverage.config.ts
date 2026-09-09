@@ -264,6 +264,7 @@ export default defineConfig({
                 'src/features/writing-assistant/reference.ts',
                 'src/services/writing/runtime.ts',
                 'src/features/image-translation/content/presentation.ts',
+                'src/features/image-translation/content/hoverEligibility.ts',
                 'src/app/background/imageContextMenu.ts',
                 'src/features/full-page-translation/qqMailFrames.ts',
                 'src/features/full-page-translation/background/qqMailFrameHandlers.ts',
