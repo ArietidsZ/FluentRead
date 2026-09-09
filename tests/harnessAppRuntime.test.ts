@@ -33,7 +33,8 @@ describe('Harness background composition', () => {
         mocks.record.mockResolvedValue(1); mocks.repository.prune.mockResolvedValue(0); mocks.repository.recoverInterrupted.mockResolvedValue(undefined); mocks.createAlarm.mockResolvedValue(undefined);
     });
     it('binds configuration, owner eligibility, navigation, ports and generation-scoped usage', async () => {
-        const router = installHarnessBackgroundRuntime();
+        const cancelWriting = vi.fn();
+        const router = installHarnessBackgroundRuntime(cancelWriting);
         expect(router.type).toBe('fluentReadHarness');
         const [getConfig, createSink, memory] = mocks.createRuntime.mock.calls[0];
         expect(getConfig()).toBe(mocks.config);
@@ -63,7 +64,7 @@ describe('Harness background composition', () => {
         expect(memoryDeps.eligibility({})).toBeUndefined();
         expect(memoryDeps.eligibility({url: 'https://blocked.test'})).toContain('禁用');
         expect(memoryDeps.eligibility({tab: {url: 'https://blocked.test'}})).toContain('禁用');
-        memoryDeps.cancelActive(); expect(mocks.handler.cancelAll).toHaveBeenCalledOnce(); mocks.handler.cancelAll.mockClear();
+        memoryDeps.cancelActive(); expect(cancelWriting).toHaveBeenCalledOnce(); expect(mocks.handler.cancelAll).toHaveBeenCalledOnce(); mocks.handler.cancelAll.mockClear();
         const sessionDeps = mocks.createSessions.mock.calls[0][0];
         expect(sessionDeps.optionsUrl).toBe('chrome-extension://extension/options.html'); expect(sessionDeps.privateContext()).toBe(true);
         mocks.extension.inIncognitoContext = undefined; expect(sessionDeps.privateContext()).toBe(false);

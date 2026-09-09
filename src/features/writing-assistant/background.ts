@@ -1,14 +1,14 @@
 /**
  * @file src/features/writing-assistant/background.ts
  * 文件职责：为写作流建立来源校验、请求限额与取消所有权。
- * 主要内容：每个端口只接收一个有界请求，配置、导航、断连、超时后阻止迟到输出。
+ * 主要内容：每个端口只接收一个有界请求，向后台传递可信发送者以隔离隐私窗口，配置、导航、断连、超时后阻止迟到输出。
  * 模块边界：不读密钥或浏览器全局；由应用层注入配置就绪、资格和生成函数。
  */
 import {z} from 'zod';
 import {WRITING_ACTIONS, WRITING_LENGTHS, WRITING_STYLES, WRITING_ROLE_MAX_LENGTH, WRITING_TONE_MAX_LENGTH, isWritingLanguage, normalizeWritingLanguage, normalizeWritingLength} from '@/src/core/config/writing';
 import type {WritingRequest, WritingResponse, WritingProgress, WritingStreamMessage} from './types';
 
-export interface WritingSender {id?: string; url?: string; documentId?: string; tab?: {id?: number; url?: string}; frameId?: number}
+export interface WritingSender {id?: string; url?: string; documentId?: string; tab?: {id?: number; url?: string; incognito?: boolean}; frameId?: number}
 export interface WritingPort {
     name: string; sender?: WritingSender;
     onMessage: {addListener(fn: (message: unknown) => void): void; removeListener(fn: (message: unknown) => void): void};
@@ -33,7 +33,7 @@ export const parseWritingRequest = (value: unknown): WritingRequest | null => {
 export function createWritingHandler(deps: {
     extensionId: string; optionsUrl: string; ready: Promise<unknown>;
     eligibility(sender: WritingSender): string | undefined;
-    run(request: WritingRequest, signal: AbortSignal, progress: (value: WritingProgress) => void): Promise<WritingResponse>;
+    run(request: WritingRequest, signal: AbortSignal, progress: (value: WritingProgress) => void, sender: WritingSender): Promise<WritingResponse>;
 }) {
     const active = new Set<{sender: WritingSender; cancel(): void}>();
     return {
@@ -82,7 +82,7 @@ export function createWritingHandler(deps: {
                             if (finished) return;
                             if (deps.eligibility(sender)) { entry.cancel(); return; }
                             post({type: 'progress', requestId, progress});
-                        });
+                        }, sender);
                         if (deps.eligibility(sender)) entry.cancel(); else finish(response);
                     } catch { finish({success: false, error: '生成未完成，请重试'}); }
                 })();

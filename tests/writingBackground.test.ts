@@ -17,7 +17,7 @@ afterEach(() => vi.useRealTimers());
 describe('Writing request leases', () => {
   it('streams a single request and cleans both listeners after completion', async () => {
     const {handler, deps} = setup(); const p = port(); handler.connect(p); p.onMessage.fire(request); p.onMessage.fire(request); await flush();
-    expect(deps.run).toHaveBeenCalledOnce(); expect(p.postMessage).toHaveBeenCalledWith({type: 'result', requestId: 'write-1', response: success}); expect(p.onMessage.listeners.size).toBe(0); expect(p.onDisconnect.listeners.size).toBe(0);
+    expect(deps.run).toHaveBeenCalledOnce(); expect((deps.run.mock.calls[0] as unknown[])[3]).toBe(p.sender); expect(p.postMessage).toHaveBeenCalledWith({type: 'result', requestId: 'write-1', response: success}); expect(p.onMessage.listeners.size).toBe(0); expect(p.onDisconnect.listeners.size).toBe(0);
     expect(deps.run.mock.calls[0][0]).toEqual({...request, length: 'short', style: 'auto', role: 'auto'});
   });
   it('allows only own content documents and the exact options page', async () => {

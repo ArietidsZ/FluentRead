@@ -54,7 +54,7 @@ export interface BackgroundMessageRuntimeOptions {
 }
 /** 用静态 handler registry 组装唯一的 runtime.onMessage 入口。 */
 export function installBackgroundMessageRuntime(options: BackgroundMessageRuntimeOptions): void {
-    installWritingBackgroundRuntime();
+    const cancelWriting = installWritingBackgroundRuntime();
     const capabilities = options.capabilities ?? browserCapabilities;
     const translationRequestRegistry = createTranslationRequestRegistry();
     const imageOcrLanguageRepository = createImageOcrLanguageRepository(createConfigImageOcrLanguageStorage());
@@ -67,7 +67,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     });
     const handlers: Array<BackgroundMessageHandler<BackgroundRuntimeContext>> = [
         createTranslationCancelHandler(translationRequestRegistry),
-        installHarnessBackgroundRuntime(),
+        installHarnessBackgroundRuntime(cancelWriting),
         ...createQqMailFrameBackgroundHandlers({sendTabMessage: (tabId, message, options) => browser.tabs.sendMessage(tabId, message, options)}),
         ...createTranslationCacheHandlers(clearTranslationCache, getTranslationCacheStats, createTranslationCacheInvalidationBroadcaster({
             queryTabs: () => browser.tabs.query({}) as Promise<Array<{id?: number}>>,
