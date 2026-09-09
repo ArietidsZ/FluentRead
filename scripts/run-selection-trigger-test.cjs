@@ -31,6 +31,7 @@ function parseArgs(argv) {
     focusSafeHelper: readArg(argv, 'focus-safe-helper', ''),
     headed: argv.includes('--headed'),
     chineseOnly: argv.includes('--chinese-only'),
+    geometryOnly: argv.includes('--geometry-only'),
   };
   if (!args.playwrightRoot) throw new Error('必须传入 --playwright-root，或设置 PLAYWRIGHT_ROOT');
   args.extensionDir = path.resolve(args.extensionDir);
@@ -774,7 +775,7 @@ async function main() {
     ok: false,
     extensionDir: args.extensionDir,
     browser: 'Microsoft Edge',
-    windowMode: args.headed ? 'headed-dedicated-profile' : 'background-screen-off',
+    windowMode: args.headed ? 'headed-dedicated-profile' : 'background-visible-no-focus',
     cases: [],
     screenshots: [],
     consoleErrors: [],
@@ -907,6 +908,166 @@ async function main() {
     page.on('console', (message) => { if (message.type() === 'error') result.consoleErrors.push(`console: ${message.text()}`); });
     await page.goto('https://example.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
     await waitForContentScript(page);
+
+    if (args.geometryOnly) {
+      const saved = await readStoredConfig(popup);
+      await patchStoredConfig(popup, {
+        on: true, disableSelectionTranslator: false, selectionTranslatorMode: 'bilingual',
+        selectionTranslatorTrigger: 'direct', selectionTranslatorDelay: 0,
+        to: 'zh-Hans', from: 'auto', service: 'microsoft', hotkey: 'none',
+        harness: {...saved.harness, enabled: false},
+      });
+      await page.waitForTimeout(600);
+      const inspect = async (selector, functionDeclaration) => {
+        const {session, root} = await getSelectionUiTree(page);
+        const card = findCdpNode(root, node => hasCdpClass(node, 'fr-translation-tooltip'));
+        assert(card, '划词窗口没有打开');
+        const {object} = await session.send('DOM.resolveNode', {nodeId: card.nodeId});
+        try {
+          const response = await session.send('Runtime.callFunctionOn', {
+            objectId: object.objectId, functionDeclaration,
+            arguments: [{value: selector}], returnByValue: true,
+          });
+          assert(!response.exceptionDetails, JSON.stringify(response.exceptionDetails));
+          return response.result.value;
+        } finally { await session.send('Runtime.releaseObject', {objectId: object.objectId}); }
+      };
+      const box = (selector = '') => inspect(selector, `function(selector) {
+        const el = selector ? this.querySelector(selector) : this;
+        const r = el.getBoundingClientRect();
+        return {x:r.x,y:r.y,width:r.width,height:r.height,right:r.right,bottom:r.bottom};
+      }`);
+      const gesture = async (selector, dx, dy, release = true) => {
+        const r = await box(selector);
+        const x = r.x + r.width / 2, y = r.y + r.height / 2;
+        await page.mouse.move(x, y);
+        await page.mouse.down();
+        await page.mouse.move(x + dx, y + dy, {steps: 12});
+        if (release) await page.mouse.up();
+        await page.waitForTimeout(150);
+        return box();
+      };
+      const near = (a, b) => Math.abs(a - b) < 2;
+      const open = async (text = TARGET_TEXT.repeat(6)) => {
+        await activateInputPage(page);
+        await page.keyboard.press('Escape');
+        await resetFixture(page);
+        await page.locator('#target').evaluate((el, value) => { el.textContent = value; }, text);
+        await page.locator('#target').click();
+        await selectTextWithDomRange(page, '#target', 4096);
+        await waitForSelectionUi(page, {tooltip: true}, '打开几何测试卡片');
+      };
+      const ready = async () => {
+        await waitForSelectionUi(page, {resultPrefix: '测试译文：'}, '等待夹具译文');
+        await page.waitForTimeout(250);
+      };
+      const inside = async () => {
+        const r = await box();
+        const viewport = await page.evaluate(() => ({width:innerWidth,height:innerHeight}));
+        assert(r.x >= 10 && r.y >= 10 && r.right <= viewport.width - 10 && r.bottom <= viewport.height - 10, `窗口超出视口 ${JSON.stringify({r,viewport})}`);
+        return r;
+      };
+      await open();
+      await ready();
+      const initial = await box();
+      const source = (await readSelectionUi(page)).originalText;
+      const requests = translationRequestCount;
+      const moved = await gesture('.fr-tooltip-header', 160, -60);
+      assert(near(moved.x, initial.x + 160) && near(moved.y, initial.y - 60), `标题栏拖动失败 ${JSON.stringify({initial,moved})}`);
+      const widened = await gesture('[data-resize-edge="se"]', 200, 80);
+      assert(near(widened.width, moved.width + 200) && widened.height > moved.height, '右下角缩放失败');
+      const wrapped = await inspect('pre', `function() {
+        return [...this.querySelectorAll('pre')].map(el => ({client:el.clientWidth,scroll:el.scrollWidth,height:el.getBoundingClientRect().height}));
+      }`);
+      assert(wrapped.every(r => r.scroll <= r.client + 1), '文字横向溢出');
+      assert((await readSelectionUi(page)).originalText === source, '缩放改写了原文');
+      await page.screenshot({path:path.join(args.artifactsDir, 'selection-resized.png')});
+      result.cases.push({id:'geometry.drag-resize-wrap',status:'passed',initial,moved,widened,wrapped});
+      await page.evaluate(() => { document.body.style.minHeight = '2400px'; window.scrollTo(0, 80); });
+      await page.waitForTimeout(300);
+      let current = await box();
+      assert(near(current.x,widened.x) && near(current.y,widened.y) && near(current.width,widened.width), '滚动让卡片跳回选区');
+      await clickSelectionCopyButton(page, 'source');
+      await waitForCopyFeedback(page, '已复制原文');
+      current = await box();
+      assert(near(current.x,widened.x) && near(current.width,widened.width), '复制按钮错误触发拖动');
+      assert(translationRequestCount === requests, '窗口调整重新请求翻译');
+      result.cases.push({id:'geometry.scroll-copy-request-stability',status:'passed'});
+      for (const edge of ['nw','n','ne','e','se','s','sw','w']) {
+        const before = await box();
+        const after = await gesture(`[data-resize-edge="${edge}"]`, edge.includes('w') ? 20 : edge.includes('e') ? -20 : 0, edge.includes('n') ? 15 : edge.includes('s') ? -15 : 0);
+        if (edge.includes('w') || edge.includes('e')) assert(near(after.width,before.width-20), `${edge} 横向缩放错误`);
+        if (edge.includes('n') || edge.includes('s')) assert(near(after.height,before.height-15), `${edge} 纵向缩放错误`);
+        await inside();
+      }
+      result.cases.push({id:'geometry.eight-resize-directions',status:'passed'});
+      // 内容四周的 padding 可拖动，正文自身仍可选择。
+      const content = await box('.fr-tooltip-content');
+      const beforeBlank = await box();
+      await page.mouse.move(content.x + 8, content.y + 8);
+      await page.mouse.down();
+      await page.mouse.move(content.x + 48, content.y + 28, {steps:8});
+      await page.mouse.up();
+      await page.waitForTimeout(150);
+      const afterBlank = await box();
+      assert(near(afterBlank.x,beforeBlank.x+40) && near(afterBlank.y,beforeBlank.y+20), '内容空白处不能拖动');
+      const pre = await box('.fr-original-text pre');
+      await page.mouse.move(pre.x+4,pre.y+10);
+      await page.mouse.down();
+      await page.mouse.move(pre.x+160,pre.y+10,{steps:8});
+      await page.mouse.up();
+      current = await box();
+      assert(near(current.x,afterBlank.x) && near(current.y,afterBlank.y), '正文选择触发了拖动');
+      const selection = await inspect('', `function(){return this.getRootNode().getSelection()?.toString() || '';}`);
+      assert(selection.length > 0, '无法选择卡片正文');
+      result.cases.push({id:'geometry.blank-drag-and-text-selection',status:'passed'});
+      await gesture('.fr-tooltip-header', 2000, 2000);
+      await inside();
+      await gesture('[data-resize-edge="nw"]', 2000, 2000);
+      const minimum = await inside();
+      assert(minimum.width >= 279 && minimum.height >= 139, '缩放突破最小尺寸');
+      await page.setViewportSize({width:360,height:640});
+      await page.waitForTimeout(300);
+      await inside();
+      await page.screenshot({path:path.join(args.artifactsDir,'selection-narrow.png')});
+      result.cases.push({id:'geometry.viewport-and-minimum-bounds',status:'passed',minimum});
+      await page.setViewportSize({width:1280,height:900});
+      await page.evaluate(() => window.scrollTo(0,0));
+      await open(TARGET_TEXT);
+      await ready();
+      const reopened = await box();
+      assert(near(reopened.width,388), '新选区未恢复默认宽度');
+      await gesture('.fr-tooltip-header', 60, 15, false);
+      await page.keyboard.press('Escape');
+      await page.mouse.up();
+      await waitForSelectionUi(page, {tooltip:false}, '拖动中 Esc 关闭');
+      await open(TARGET_TEXT + ' The next selection stays usable.');
+      await ready();
+      await gesture('[data-resize-edge="se"]', 30, 20, false);
+      await patchStoredConfig(popup, {disableSelectionTranslator:true, selectionTranslatorMode:'disabled'});
+      await page.waitForTimeout(400);
+      await page.mouse.up();
+      await waitForSelectionUi(page, {tooltip:false}, '缩放中禁用功能');
+      await patchStoredConfig(popup, {disableSelectionTranslator:false, selectionTranslatorMode:'bilingual'});
+      await page.waitForTimeout(400);
+      translationResponseDelayMs = 1400;
+      await open(TARGET_TEXT + ' A delayed result should keep the chosen position.');
+      const loadingMoved = await gesture('.fr-tooltip-header', 60, 20);
+      await ready();
+      current = await box();
+      assert(near(current.x,loadingMoved.x) && near(current.y,loadingMoved.y), '迟到译文覆盖了拖动位置');
+      result.cases.push({id:'geometry.close-disable-reopen-and-late-result',status:'passed',reopened});
+      await patchStoredConfig(popup, {theme:'dark'});
+      await page.waitForTimeout(300);
+      await page.screenshot({path:path.join(args.artifactsDir,'selection-dark.png')});
+      result.screenshots = ['selection-resized.png','selection-narrow.png','selection-dark.png'].map(file => path.join(args.artifactsDir,file));
+      result.ok = result.consoleErrors.length === 0;
+      result.finishedAt = new Date().toISOString();
+      fs.writeFileSync(path.join(args.artifactsDir,'report.json'), `${JSON.stringify(result,null,2)}\n`);
+      console.log(JSON.stringify(result,null,2));
+      assert(result.ok, '浏览器控制台包含错误');
+      return;
+    }
 
     if (args.chineseOnly) {
       const saved = await readStoredConfig(popup);
