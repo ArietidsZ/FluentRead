@@ -664,7 +664,7 @@ export const frFRMessages = {
     "glossary.intro": "Définissez la traduction des termes spécialisés ou conservez les noms de produits. Les modifications sont enregistrées automatiquement.",
     "glossary.services": "Compatible avec les services d’IA ; Tongyi qwen-mt utilise ses paramètres terminologiques natifs. Les services comme Microsoft, Google et DeepL n’appliquent pas les glossaires.",
     "glossary.emptyTitle": "Harmonisez vos termes importants",
-    "glossary.emptyHelp": "Ajoutez un glossaire intégré ci-dessus ou créez le vôtre. Laissez la traduction vide pour conserver l’original.",
+    "glossary.emptyHelp": "Ajoutez un glossaire intégré ou créez le vôtre. Laissez la traduction vide pour conserver l’original.",
     "glossary.builtin.title": "Glossaires intégrés",
     "glossary.builtin.help": "Ajoutez vos sujets, puis activez l’interrupteur général ci-dessus. Les copies sont modifiables. Limitez-les à des sites ou sélectionnez-les dans un profil de traduction.",
     "glossary.builtin.ai": "IA et apprentissage automatique",

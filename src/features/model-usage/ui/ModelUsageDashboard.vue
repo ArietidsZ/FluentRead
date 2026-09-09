@@ -157,7 +157,7 @@
       </div>
 
       <div v-if="!hasSelectedUsage" class="usage-state-card usage-empty-state">
-        <span aria-hidden="true">∿</span>
+        <span aria-hidden="true"><UiIcon name="chart" :size="24" /></span>
         <strong>{{ hasActiveFilter ? '当前筛选还没有调用记录' : '还没有模型调用记录' }}</strong>
         <p>
           {{ hasActiveFilter ? '可以切回全部服务、全部模型或更长的时间范围。' : '从下一次使用 AI 翻译开始，这里会在本机记录请求和 Token。' }}
@@ -480,6 +480,7 @@
 </template>
 
 <script setup lang="ts">
+import UiIcon from '@/src/ui/components/UiIcon.vue'
 import UiSelect from '@/src/ui/components/UiSelect.vue';
 import {ElOption} from 'element-plus';
 

@@ -26,12 +26,11 @@
       >
         <header class="dialog-header">
           <div class="dialog-heading">
-            <span class="dialog-eyebrow">交互设置</span>
             <h2 id="custom-hotkey-title">自定义快捷键</h2>
             <p id="custom-hotkey-description">为当前功能设置一个顺手、易记且不容易冲突的按键组合。</p>
           </div>
           <button class="dialog-close" type="button" aria-label="关闭自定义快捷键" @click="handleCancel">
-            <span aria-hidden="true">×</span>
+            <UiIcon name="close" />
           </button>
         </header>
 
@@ -39,7 +38,6 @@
           <section class="recording-card" :class="{ 'is-recording': isRecording }">
             <div class="section-heading">
               <div>
-                <span class="section-eyebrow">录制组合</span>
                 <h3>按下你想使用的快捷键</h3>
               </div>
               <span class="state-badge" :class="{ active: isRecording, ready: !!currentHotkey && !isRecording }">
@@ -93,7 +91,6 @@
           <section class="preset-section">
             <div class="section-heading preset-heading">
               <div>
-                <span class="section-eyebrow">快速选择</span>
                 <h3>推荐快捷键</h3>
               </div>
               <span class="section-note">也可以直接录制</span>
@@ -109,14 +106,13 @@
                 :aria-pressed="currentHotkey === preset.value"
                 @click="selectPreset(preset.value)"
               >
-                <span class="preset-label">{{ currentHotkey === preset.value ? '当前选择' : '使用' }}</span>
                 <kbd>{{ preset.label }}</kbd>
               </button>
             </div>
           </section>
 
           <aside class="help-section">
-            <span class="help-icon" aria-hidden="true">i</span>
+            <span class="help-icon"><UiIcon name="info" :size="16" /></span>
             <p>建议使用修饰键组合，避免与浏览器、系统或网页已有快捷键冲突。设置完成后，快捷键会立即应用。</p>
           </aside>
         </div>
@@ -134,6 +130,7 @@
 </template>
 
 <script setup lang="ts" name="CustomHotkeyInput">
+import UiIcon from './UiIcon.vue'
 import { ref, computed, nextTick, watch, onBeforeUnmount } from 'vue';
 import { ElIcon } from 'element-plus';
 import { Loading, WarningFilled, Warning, CircleCheckFilled } from '@element-plus/icons-vue';
@@ -194,7 +191,7 @@ const displayHotkey = computed(() => {
 
 // 检查是否可以确认
 const canConfirm = computed(() => {
-  return currentHotkey.value === 'none' || 
+  return currentHotkey.value === 'none' ||
          Boolean(parsedHotkey.value?.isValid && !errorMessage.value);
 });
 
@@ -267,11 +264,11 @@ watch(currentHotkey, (newValue) => {
 function validateCurrentHotkey(hotkeyString: string) {
   errorMessage.value = '';
   conflictWarning.value = '';
-  
+
   if (!hotkeyString || hotkeyString === 'none') return;
-  
+
   const parsed = parseHotkey(hotkeyString);
-  
+
   if (!parsed.isValid) {
     errorMessage.value = parsed.errorMessage || '无效的快捷键';
     return;
@@ -282,7 +279,7 @@ function validateCurrentHotkey(hotkeyString: string) {
     errorMessage.value = contextualError;
     return;
   }
-  
+
   // 检查冲突
   const conflictCheck = validateHotkeyConflicts(parsed);
   if (conflictCheck.hasConflict) {
@@ -293,12 +290,12 @@ function validateCurrentHotkey(hotkeyString: string) {
 // 开始录制快捷键
 async function startRecording() {
   if (isRecording.value) return;
-  
+
   isRecording.value = true;
   pressedKeys.value.clear();
   errorMessage.value = '';
   conflictWarning.value = '';
-  
+
   // 聚焦输入框
   await nextTick();
   inputField.value?.focus();
@@ -313,19 +310,19 @@ function handleKeyDown(event: KeyboardEvent) {
     return;
   }
   if (!isRecording.value) return;
-  
+
   event.preventDefault();
   event.stopPropagation();
-  
+
   // 记录按下的键
   if (event.ctrlKey) pressedKeys.value.add('ctrl');
   if (event.altKey) pressedKeys.value.add('alt');
   if (event.shiftKey) pressedKeys.value.add('shift');
   if (event.metaKey) pressedKeys.value.add('meta');
-  
+
   // 处理普通按键
   const key = normalizeHotkeyEventKey(event);
-  
+
   // 忽略单独的修饰键
   if (['ctrl', 'alt', 'shift', 'meta'].includes(key)) {
     return;
@@ -338,10 +335,10 @@ function handleKeyDown(event: KeyboardEvent) {
 // 处理按键释放
 function handleKeyUp(event: KeyboardEvent) {
   if (!isRecording.value) return;
-  
+
   event.preventDefault();
   event.stopPropagation();
-  
+
   // 延迟一点再生成快捷键，确保所有键都被记录
   setTimeout(() => {
     if (pressedKeys.value.size > 0) {
@@ -354,24 +351,24 @@ function handleKeyUp(event: KeyboardEvent) {
 function generateHotkeyFromKeys() {
   const modifiers: string[] = [];
   let regularKey = '';
-  
+
   // 提取修饰键
   if (pressedKeys.value.has('ctrl')) modifiers.push('Ctrl');
   if (pressedKeys.value.has('alt')) modifiers.push('Alt');
   if (pressedKeys.value.has('shift')) modifiers.push('Shift');
   if (pressedKeys.value.has('meta')) modifiers.push('Meta');
-  
+
   // 提取普通按键（找到最后一个非修饰键）
   for (const key of pressedKeys.value) {
     if (!['ctrl', 'alt', 'shift', 'meta'].includes(key)) {
       regularKey = key.toUpperCase();
     }
   }
-  
+
   if (regularKey) {
     currentHotkey.value = [...modifiers, regularKey].join('+');
   }
-  
+
   isRecording.value = false;
   pressedKeys.value.clear();
 }
@@ -395,7 +392,7 @@ function clearHotkey() {
 // 确认
 function handleConfirm() {
   if (!canConfirm.value) return;
-  
+
   emit('confirm', currentHotkey.value);
 }
 
@@ -413,618 +410,84 @@ function handleCancel() {
 
 <style scoped>
 .custom-hotkey-overlay {
-  --hotkey-brand: var(--brand, #ef4776);
-  --hotkey-brand-strong: var(--brand-strong, #dc315f);
-  --hotkey-brand-soft: var(--brand-soft, #fff0f4);
-  --hotkey-ink: var(--ink, #172033);
-  --hotkey-muted: var(--muted, #737c8f);
-  --hotkey-line: var(--line, #e5e8ef);
-  --hotkey-surface: var(--surface, #fff);
-  --hotkey-surface-soft: var(--surface-soft, #f7f8fb);
-  position: fixed;
-  z-index: 3000;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow-y: auto;
-  padding: 24px;
-  background: rgba(23, 32, 51, .3);
-  backdrop-filter: blur(8px);
-  font-family: inherit;
+  position: fixed; z-index: 3000; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; overflow-y: auto; background: rgba(23, 32, 51, .38);
+  backdrop-filter: blur(4px); font-family: inherit;
 }
-
 .custom-hotkey-dialog {
-  display: flex;
-  width: min(560px, 100%);
-  max-height: min(760px, calc(100vh - 32px));
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, .8);
-  border-radius: 26px;
-  outline: none;
-  background: var(--hotkey-surface);
-  box-shadow: 0 28px 80px rgba(23, 32, 51, .2), 0 8px 24px rgba(23, 32, 51, .08);
+  display: flex; flex-direction: column; width: min(500px, 100%);
+  max-height: calc(100dvh - 40px); min-height: 0; overflow: hidden;
+  border: 1px solid var(--line); border-radius: 16px; outline: none;
+  color: var(--ink); background: var(--surface); box-shadow: 0 16px 48px rgba(23,32,51,.16);
 }
-
-.dialog-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 28px 30px 22px;
-  border-bottom: 1px solid var(--hotkey-line);
-  background: linear-gradient(135deg, #fff7f9 0%, var(--hotkey-surface) 68%);
-}
-
-.dialog-heading,
-.section-heading {
-  min-width: 0;
-}
-
-.dialog-eyebrow,
-.section-eyebrow {
-  display: block;
-  color: var(--hotkey-brand-strong);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .12em;
-  line-height: 1.4;
-  text-transform: uppercase;
-}
-
-.dialog-heading h2,
-.section-heading h3 {
-  margin: 5px 0 0;
-  color: var(--hotkey-ink);
-  letter-spacing: -.03em;
-}
-
-.dialog-heading h2 {
-  font-size: 25px;
-  line-height: 1.25;
-}
-
-.dialog-heading p {
-  max-width: 410px;
-  margin: 8px 0 0;
-  color: var(--hotkey-muted);
-  font-size: 12px;
-  line-height: 1.65;
-}
-
-.dialog-close {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
-  place-items: center;
-  margin: -4px -6px 0 0;
-  border: 1px solid transparent;
-  border-radius: 11px;
-  color: #8c94a3;
-  background: transparent;
-  cursor: pointer;
-  font-size: 26px;
-  font-weight: 300;
-  line-height: 1;
-  transition: color 160ms ease, background 160ms ease, border-color 160ms ease;
-}
-
-.dialog-close:hover,
-.dialog-close:focus-visible {
-  border-color: #f4ced9;
-  color: var(--hotkey-brand-strong);
-  background: var(--hotkey-brand-soft);
-}
-
-.dialog-body {
-  display: grid;
-  gap: 18px;
-  min-height: 0;
-  padding: 24px 30px 26px;
-  overflow-y: auto;
-}
-
-.recording-card {
-  display: grid;
-  gap: 16px;
-  padding: 20px;
-  border: 1px solid #f1d6de;
-  border-radius: 20px;
-  background: linear-gradient(135deg, #fff8fa 0%, var(--hotkey-surface-soft) 100%);
-}
-
-.recording-card.is-recording {
-  border-color: #f0b4c5;
-  box-shadow: 0 0 0 4px rgba(239, 71, 118, .08);
-}
-
-.section-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.section-heading h3 {
-  font-size: 15px;
-  line-height: 1.4;
-}
-
-.state-badge {
-  flex: 0 0 auto;
-  padding: 5px 9px;
-  border-radius: 999px;
-  color: #8b93a4;
-  background: #eef1f6;
-  font-size: 10px;
-  font-weight: 750;
-  white-space: nowrap;
-}
-
-.state-badge.active,
-.state-badge.ready {
-  color: var(--hotkey-brand-strong);
-  background: var(--hotkey-brand-soft);
-}
-
+.dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 22px 16px; border-bottom: 1px solid var(--line); }
+.dialog-heading, .section-heading { min-width: 0; }
+.dialog-heading h2, .section-heading h3 { margin: 0; color: var(--ink); font-weight: 600; line-height: 1.4; }
+.dialog-heading h2 { font-size: 18px; }
+.dialog-heading p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.dialog-close { display: grid; flex: none; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; color: var(--muted); background: transparent; cursor: pointer; }
+.dialog-close:hover { color: var(--ink); background: var(--surface-soft); }
+.dialog-body { display: grid; gap: 20px; min-height: 0; padding: 20px 22px; overflow-y: auto; overscroll-behavior: contain; }
+.recording-card { display: grid; gap: 12px; }
+.section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.section-heading h3 { font-size: 13px; }
+.state-badge { flex: none; padding: 3px 8px; border-radius: 6px; color: var(--muted); background: var(--surface-soft); font-size: 10px; white-space: nowrap; }
+.state-badge.active, .state-badge.ready { color: var(--brand-strong); background: var(--brand-soft); }
 .hotkey-input-field {
-  display: flex;
-  min-height: 78px;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 14px 18px;
-  border: 1px dashed #d4dae5;
-  border-radius: 16px;
-  color: var(--hotkey-muted);
-  background: rgba(255, 255, 255, .86);
-  cursor: pointer;
-  font: inherit;
-  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease, color 160ms ease;
+  display: flex; align-items: center; justify-content: center; width: 100%; min-height: 72px;
+  padding: 14px; border: 1px dashed var(--line); border-radius: 10px;
+  color: var(--muted); background: var(--surface-soft); cursor: pointer; font: inherit;
+  transition: border-color 160ms ease, background 160ms ease;
 }
-
-.hotkey-input-field:hover {
-  border-color: #ef9ab1;
-  color: var(--hotkey-brand-strong);
-  background: var(--hotkey-surface);
-}
-
-.hotkey-input-field:focus-visible {
-  border-color: var(--hotkey-brand);
-  outline: 3px solid rgba(239, 71, 118, .16);
-  outline-offset: 2px;
-}
-
-.hotkey-input-field.recording {
-  border-style: solid;
-  border-color: var(--hotkey-brand);
-  color: var(--hotkey-brand-strong);
-  background: var(--hotkey-brand-soft);
-  box-shadow: 0 0 0 4px rgba(239, 71, 118, .1);
-}
-
-.hotkey-input-field.error {
-  border-style: solid;
-  border-color: #e46b6b;
-  color: #bd4545;
-  background: #fff6f6;
-}
-
-.hotkey-input-field.warning {
-  border-style: solid;
-  border-color: #e7b24f;
-  color: #9c6b12;
-  background: #fffaf0;
-}
-
-.hotkey-input-field.success {
-  border-style: solid;
-  border-color: #8bcaa4;
-  color: #2c8050;
-  background: #f4fbf6;
-}
-
-.placeholder {
-  font-size: 13px;
-}
-
-.recording-text {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.recording-icon {
-  animation: hotkey-spin 1s linear infinite;
-}
-
-@keyframes hotkey-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.hotkey-display kbd,
-.preset-button kbd {
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
-  padding: 5px 10px;
-  border: 1px solid #dfe4ed;
-  border-bottom-width: 2px;
-  border-radius: 9px;
-  color: var(--hotkey-ink);
-  background: var(--hotkey-surface);
-  box-shadow: 0 2px 3px rgba(23, 32, 51, .06);
-  font-family: 'SFMono-Regular', 'SF Mono', 'Cascadia Code', 'Roboto Mono', monospace;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: .02em;
-}
-
-.hotkey-display kbd {
-  padding: 8px 15px;
-  border-color: #f0b4c5;
-  color: var(--hotkey-brand-strong);
-  background: var(--hotkey-brand-soft);
-  font-size: 17px;
-}
-
-.field-hint,
-.section-note {
-  color: var(--hotkey-muted);
-  font-size: 11px;
-  line-height: 1.55;
-}
-
-.field-hint {
-  margin: -4px 0 0;
-}
-
-.section-note {
-  padding-top: 2px;
-  white-space: nowrap;
-}
-
-.hotkey-status {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid;
-  border-radius: 13px;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.hotkey-status.error {
-  border-color: #f1c2c2;
-  color: #b84d4d;
-  background: #fff6f6;
-}
-
-.hotkey-status.warning {
-  border-color: #f0d49a;
-  color: #956713;
-  background: #fffaf0;
-}
-
-.hotkey-status.success {
-  border-color: #b9e0c5;
-  color: #2d7d4d;
-  background: #f4fbf6;
-}
-
-.preset-section {
-  display: grid;
-  gap: 13px;
-}
-
-.preset-buttons {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.preset-button {
-  display: flex;
-  min-height: 58px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 9px 10px 9px 12px;
-  border: 1px solid var(--hotkey-line);
-  border-radius: 14px;
-  color: var(--hotkey-muted);
-  background: var(--hotkey-surface);
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-  transition: border-color 160ms ease, color 160ms ease, background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
-}
-
-.preset-button:hover,
-.preset-button:focus-visible {
-  border-color: #ef9ab1;
-  color: var(--hotkey-brand-strong);
-  background: #fffafb;
-  box-shadow: 0 7px 18px rgba(239, 71, 118, .08);
-  transform: translateY(-1px);
-}
-
-.preset-button.selected {
-  border-color: #f0b4c5;
-  color: var(--hotkey-brand-strong);
-  background: var(--hotkey-brand-soft);
-  box-shadow: 0 6px 16px rgba(239, 71, 118, .08);
-}
-
-.preset-button kbd {
-  flex: 0 0 auto;
-  color: var(--hotkey-ink);
-  font-size: 12px;
-}
-
-.preset-button.selected kbd {
-  border-color: #f0b4c5;
-  color: var(--hotkey-brand-strong);
-}
-
-.preset-label {
-  overflow: hidden;
-  font-size: 11px;
-  font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.help-section {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 13px 14px;
-  border: 1px solid var(--hotkey-line);
-  border-radius: 14px;
-  background: var(--hotkey-surface-soft);
-}
-
-.help-icon {
-  display: grid;
-  width: 18px;
-  height: 18px;
-  flex: 0 0 18px;
-  place-items: center;
-  margin-top: 1px;
-  border-radius: 50%;
-  color: var(--hotkey-brand-strong);
-  background: var(--hotkey-brand-soft);
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.help-section p {
-  margin: 0;
-  color: var(--hotkey-muted);
-  font-size: 11px;
-  line-height: 1.65;
-}
-
-.dialog-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 18px 30px 24px;
-  border-top: 1px solid var(--hotkey-line);
-  background: var(--hotkey-surface);
-}
-
-.dialog-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-left: auto;
-}
-
-.clear-button,
-.secondary-button,
-.primary-button {
-  min-height: 40px;
-  padding: 0 16px;
-  border-radius: 12px;
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  transition: border-color 160ms ease, color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
-}
-
-.clear-button {
-  padding: 0;
-  border: 0;
-  color: #bd656d;
-  background: transparent;
-}
-
-.clear-button:hover,
-.clear-button:focus-visible {
-  color: #a64852;
-  text-decoration: underline;
-}
-
-.secondary-button {
-  border: 1px solid var(--hotkey-line);
-  color: var(--hotkey-ink);
-  background: var(--hotkey-surface);
-}
-
-.secondary-button:hover,
-.secondary-button:focus-visible {
-  border-color: #ccd3df;
-  background: var(--hotkey-surface-soft);
-}
-
-.primary-button {
-  border: 1px solid var(--hotkey-brand);
-  color: #fff;
-  background: var(--hotkey-brand);
-  box-shadow: 0 7px 16px rgba(239, 71, 118, .2);
-}
-
-.primary-button:hover:not(:disabled),
-.primary-button:focus-visible:not(:disabled) {
-  border-color: var(--hotkey-brand-strong);
-  background: var(--hotkey-brand-strong);
-  box-shadow: 0 9px 20px rgba(239, 71, 118, .25);
-  transform: translateY(-1px);
-}
-
-.primary-button:disabled {
-  border-color: #dfe4ed;
-  color: #aeb5c1;
-  background: #eef1f5;
-  box-shadow: none;
-  cursor: not-allowed;
-}
-
-:global(.dark) .custom-hotkey-overlay {
-  --hotkey-brand-soft: rgba(239, 71, 118, .16);
-  --hotkey-ink: #f4f6fb;
-  --hotkey-muted: #aeb6c5;
-  --hotkey-line: #353c49;
-  --hotkey-surface: #171b23;
-  --hotkey-surface-soft: #202630;
-  background: rgba(5, 7, 11, .62);
-}
-
-:global(.dark) .custom-hotkey-dialog {
-  border-color: #353c49;
-  box-shadow: 0 28px 80px rgba(0, 0, 0, .55);
-}
-
-:global(.dark) .dialog-header,
-:global(.dark) .recording-card {
-  border-color: #44313a;
-  background: linear-gradient(135deg, #261b22 0%, var(--hotkey-surface) 72%);
-}
-
-:global(.dark) .hotkey-input-field {
-  border-color: #4a5260;
-  background: #1d222b;
-}
-
-:global(.dark) .state-badge,
-:global(.dark) .primary-button:disabled {
-  color: #aeb6c5;
-  background: #2a303a;
-}
-
-:global(.dark) .hotkey-input-field.error,
-:global(.dark) .hotkey-status.error {
-  border-color: #8f4d55;
-  color: #ffb5bd;
-  background: #321d21;
-}
-
-:global(.dark) .hotkey-input-field.warning,
-:global(.dark) .hotkey-status.warning {
-  border-color: #87672f;
-  color: #f2cc83;
-  background: #302718;
-}
-
-:global(.dark) .hotkey-input-field.success,
-:global(.dark) .hotkey-status.success {
-  border-color: #46775b;
-  color: #9ee2b7;
-  background: #193025;
-}
-
-:global(.dark) .preset-button:hover,
-:global(.dark) .preset-button:focus-visible {
-  background: #291d23;
-}
-
+.hotkey-input-field:hover { border-color: var(--brand); }
+.hotkey-input-field.recording { border-style: solid; border-color: var(--brand); color: var(--brand-strong); background: var(--brand-soft); }
+.hotkey-input-field.error, .hotkey-status.error { border-color: color-mix(in srgb,var(--fr-danger) 35%,var(--line)); color: var(--fr-danger); background: var(--fr-danger-soft); }
+.hotkey-input-field.warning, .hotkey-status.warning { border-color: color-mix(in srgb,var(--fr-warning) 35%,var(--line)); color: var(--fr-warning); background: var(--fr-warning-soft); }
+.hotkey-input-field.success { border-style: solid; border-color: var(--line); color: var(--ink); background: var(--surface-soft); }
+.placeholder, .recording-text { font-size: 13px; }
+.recording-text { display: inline-flex; align-items: center; gap: 8px; }
+.recording-icon { animation: hotkey-spin 1s linear infinite; }
+@keyframes hotkey-spin { to { transform: rotate(360deg); } }
+.hotkey-display kbd, .preset-button kbd { font-family: 'SFMono-Regular', 'SF Mono', monospace; font-size: 12px; font-weight: 500; }
+.hotkey-display kbd { padding: 7px 12px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 7px; color: var(--ink); background: var(--surface); font-size: 16px; }
+.field-hint, .section-note { color: var(--muted); font-size: 11px; line-height: 1.6; }
+.field-hint { margin: 0; }
+.section-note { flex: none; }
+.hotkey-status { display: flex; align-items: flex-start; gap: 8px; padding: 9px 12px; border: 1px solid transparent; border-radius: 8px; font-size: 12px; line-height: 1.5; }
+.hotkey-status.success { color: var(--fr-success); background: var(--fr-success-soft); }
+.preset-section { display: grid; gap: 10px; }
+.preset-buttons { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.preset-button { display: flex; min-height: 36px; align-items: center; justify-content: center; padding: 7px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--surface); cursor: pointer; }
+.preset-button:hover { border-color: var(--brand); background: var(--surface-soft); }
+.preset-button.selected { border-color: var(--brand); color: var(--brand-strong); background: var(--brand-soft); }
+.help-section { display: flex; align-items: flex-start; gap: 8px; color: var(--muted); }
+.help-icon { display: flex; flex: none; margin-top: 2px; }
+.help-section p { margin: 0; font-size: 11px; line-height: 1.6; }
+.dialog-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 22px; border-top: 1px solid var(--line); }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-left: auto; }
+.clear-button, .secondary-button, .primary-button { min-height: 36px; padding: 0 14px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 12px; font-weight: 500; }
+.clear-button { padding: 0; border: 0; color: var(--fr-danger); background: transparent; }
+.clear-button:hover { text-decoration: underline; }
+.secondary-button { border: 1px solid var(--line); color: var(--ink); background: var(--surface); }
+.secondary-button:hover { background: var(--surface-soft); }
+.primary-button { border: 1px solid var(--brand); color: #fff; background: var(--brand); }
+.primary-button:hover:not(:disabled) { background: var(--brand-strong); border-color: var(--brand-strong); }
+.primary-button:disabled { border-color: var(--line); color: var(--muted); background: var(--surface-soft); cursor: not-allowed; }
+.custom-hotkey-dialog button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 @media (max-width: 560px) {
-  .custom-hotkey-overlay {
-    align-items: flex-start;
-    padding: 14px;
-  }
-
-  .custom-hotkey-dialog {
-    max-height: calc(100vh - 28px);
-    border-radius: 21px;
-  }
-
-  .dialog-header {
-    padding: 22px 20px 18px;
-  }
-
-  .dialog-heading h2 {
-    font-size: 22px;
-  }
-
-  .dialog-body {
-    padding: 18px 20px 20px;
-  }
-
-  .recording-card {
-    padding: 16px;
-  }
-
-  .preset-buttons {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .dialog-footer {
-    padding: 15px 20px 19px;
-  }
+  .custom-hotkey-overlay { padding: 12px; }
+  .custom-hotkey-dialog { max-height: calc(100dvh - 24px); }
+  .dialog-header, .dialog-body { padding: 16px; }
+  .dialog-footer { padding: 12px 16px; }
+  .preset-buttons { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .section-note { display: none; }
 }
-
-@media (max-width: 380px) {
-  .custom-hotkey-overlay {
-    padding: 8px;
-  }
-
-  .custom-hotkey-dialog {
-    max-height: calc(100vh - 16px);
-  }
-
-  .dialog-header,
-  .dialog-body,
-  .dialog-footer {
-    padding-right: 15px;
-    padding-left: 15px;
-  }
-
-  .recording-card {
-    padding: 13px;
-  }
-
-  .section-note {
-    display: none;
-  }
-
-  .dialog-footer {
-    align-items: stretch;
-    flex-direction: column-reverse;
-  }
-
-  .dialog-actions {
-    width: 100%;
-  }
-
-  .secondary-button,
-  .primary-button {
-    flex: 1 1 0;
-  }
-
-  .clear-button {
-    align-self: flex-start;
-  }
+@media (max-width: 360px) {
+  .dialog-footer { align-items: stretch; flex-direction: column-reverse; }
+  .dialog-actions { width: 100%; }
+  .dialog-actions button { flex: 1; }
+  .clear-button { align-self: flex-start; }
 }
+@media (prefers-reduced-motion: reduce) { .recording-icon { animation: none; } .hotkey-input-field { transition: none; } }
 </style>

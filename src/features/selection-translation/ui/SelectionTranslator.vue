@@ -1519,6 +1519,7 @@ onBeforeUnmount(() => {
 .fr-action-toast { position: fixed; right: 18px; bottom: 18px; display: flex; align-items: center; gap: 10px; padding: 9px 13px; border-radius: 9px; background: #2c2c35; color: #fff; font-size: 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); }
 .fr-action-toast button { padding: 0; border: 0; color: #ffc2d5; background: transparent; cursor: pointer; font: inherit; font-weight: 700; }
 .fr-dark-theme { border-color: #44444e; background: rgba(40, 40, 48, .98); color: #f1f1f4; }
+.fr-reading-tooltip.fr-dark-theme { background: #282830; }
 .fr-dark-theme .fr-tooltip-header { border-color: #4b4b56; }
 .fr-dark-theme .fr-tooltip-title span { color: #f1edf1; }
 .fr-dark-theme .fr-tooltip-brand-icon { opacity: .86; }

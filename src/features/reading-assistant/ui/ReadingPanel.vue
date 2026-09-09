@@ -470,13 +470,13 @@ onBeforeUnmount(() => { recordsGeneration += 1; restoreEpoch += 1; cancelRequest
 .fr-reading-followup button { background: #b85579; color: white; width: 27px; height: 27px; line-height: 20px; }
 .fr-reading-context { flex-shrink: 0; display: flex; align-items: center; gap: 8px; margin-top: 7px; font-size: 10px; color: var(--fr-reading-muted); }
 .fr-reading-context button { margin-left: auto; font-size: 10px; }
-:global(.fr-dark-theme) .fr-reading { --fr-reading-line: #514651; --fr-reading-muted: #b6a9b5; --fr-reading-soft: #352f38; color: #e6e0e8; }
-:global(.fr-dark-theme) .fr-reading-source p { color: #b5aab6; }
-:global(.fr-dark-theme) .fr-reading-actions button { background: #38313c; color: #bdb0c1; }
-:global(.fr-dark-theme) .fr-reading-actions button[aria-pressed='true'] { background: #50313f; color: #f1b6ce; }
-:global(.fr-dark-theme) .fr-reading-followup { border-color: #554651; }
-:global(.fr-dark-theme) .fr-reading-error { background: #482e35; color: #f5acb6; }
-:global(.fr-dark-theme) .fr-reading-navigation button, :global(.fr-dark-theme) .fr-reading-source button, :global(.fr-dark-theme) .fr-reading-session small span, :global(.fr-dark-theme) .fr-reading-question { color: #e4a0bc; }
+.fr-dark-theme .fr-reading { --fr-reading-line: #514651; --fr-reading-muted: #b6a9b5; --fr-reading-soft: #352f38; color: #e6e0e8; }
+.fr-dark-theme .fr-reading-source p { color: #b5aab6; }
+.fr-dark-theme .fr-reading-actions button { background: #38313c; color: #bdb0c1; }
+.fr-dark-theme .fr-reading-actions button[aria-pressed='true'] { background: #50313f; color: #f1b6ce; }
+.fr-dark-theme .fr-reading-followup { border-color: #554651; }
+.fr-dark-theme .fr-reading-error { background: #482e35; color: #f5acb6; }
+.fr-dark-theme .fr-reading-navigation button, .fr-dark-theme .fr-reading-source button, .fr-dark-theme .fr-reading-session small span, .fr-dark-theme .fr-reading-question { color: #e4a0bc; }
 @media (max-height: 420px) { .fr-reading-source p { max-height: 30px; } .fr-reading-navigation { margin-bottom: 3px; } .fr-reading-source { margin-bottom: 6px; } .fr-reading-context { margin-top: 2px; } }
 @keyframes fr-reading-breathe { 50% { opacity: .3; } }
 @media (prefers-reduced-motion: reduce) { .fr-reading-pulse { animation: none; } }

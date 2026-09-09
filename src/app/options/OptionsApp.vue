@@ -39,7 +39,7 @@
         </div>
         <div class="topbar-tools">
           <label class="search-box">
-            <span aria-hidden="true">⌕</span>
+            <UiIcon name="search" :size="16" />
             <input v-model.trim="query" type="search" :placeholder="t('options.searchPlaceholder')" />
           </label>
         </div>
@@ -69,9 +69,9 @@
               <h3>{{ t('options.aboutBornForReading') }}</h3>
               <p>{{ t('options.aboutCoreDescription') }}</p>
               <div class="about-feature-list">
-                <span><b>译</b>{{ t('options.aboutWebReading') }}</span>
-                <span><b>⌘</b>{{ t('options.aboutReadingTools') }}</span>
-                <span><b>AI</b>{{ t('options.aboutFlexibleServices') }}</span>
+                <span><b><UiIcon name="translate" :size="16" /></b>{{ t('options.aboutWebReading') }}</span>
+                <span><b><UiIcon name="book" :size="16" /></b>{{ t('options.aboutReadingTools') }}</span>
+                <span><b><UiIcon name="plug" :size="16" /></b>{{ t('options.aboutFlexibleServices') }}</span>
               </div>
             </article>
 
@@ -99,6 +99,7 @@
 </template>
 
 <script setup lang="ts">
+import UiIcon from '@/src/ui/components/UiIcon.vue'
 import {filterNavigationItems, isUiLanguageSearch} from '@/src/features/settings/model/navigation';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue'

@@ -53,7 +53,7 @@
         role="listitem"
         :data-site-rule="domain"
       >
-        <span class="site-rule-icon" aria-hidden="true">{{ labels.icon }}</span>
+        <span class="site-rule-icon" aria-hidden="true"><UiIcon :name="variant === 'disable-extension' ? 'shield' : 'globe'" /></span>
         <span class="site-rule-copy">
           <strong :title="domain">{{ domain }}</strong>
           <small>{{ labels.itemDescription }}</small>
@@ -65,7 +65,7 @@
     </div>
 
     <div v-else class="site-rules-empty" data-site-rules-empty>
-      <span aria-hidden="true">◇</span>
+      <span aria-hidden="true"><UiIcon name="globe" :size="24" /></span>
       <strong>{{ labels.emptyTitle }}</strong>
       <small>{{ labels.emptyDescription }}</small>
     </div>
@@ -73,6 +73,7 @@
 </template>
 
 <script lang="ts" setup>
+import UiIcon from '@/src/ui/components/UiIcon.vue'
 import { computed, nextTick, ref } from 'vue';
 import { getSiteBaseDomain } from '@/src/core/site-rules/domain';
 import {useUiI18n} from '@/src/ui/i18n';
