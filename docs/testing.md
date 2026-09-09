@@ -306,3 +306,16 @@ node scripts/testing/run-codeforces-translation-test.cjs \
 ```
 
 该脚本使用隔离临时 Edge、第二屏后台窗口及本地确定性微软响应，检查默认全文和悬浮的翻译—恢复—再次翻译、公式重排、小点与 Control 划词入口。倒计时夹具连续更新 12 次，断言三个独立文字译文的节点身份不变、零额外请求、卡片高度不变；比赛状态变化仍触发正常更新。`--live` 追加 issue #492 的 Codeforces 实际题面，以及首页倒计时 12 秒的节点稳定性检查，省略时仅运行本地夹具。真实页面与确定性翻译响应的组合不代表真实供应商译文质量。
+
+
+## 自定义请求头回归（issue #522）
+
+```bash
+node scripts/testing/run-custom-headers-ui-test.cjs \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root <playwright-node-modules> \
+  --focus-safe-helper <fluentread-extension-ui-test-skill>/scripts/focus-safe-browser.cjs \
+  --artifacts-dir /private/tmp/fluentread-custom-headers-ui
+```
+
+使用临时 Edge profile、不抢焦点的可见窗口和本地 HTTP 模拟模型，验证自定义服务的请求头保存、关闭重开、稳定会话 ID、服务隔离、非法输入阻断、清空恢复及窄屏布局。报告包含实际收到的测试请求和截图；测试只使用虚构凭据，不验证 OpenCode Go 或其他真实服务账号。配置加密、完整备份、公开导出脱敏、端点绑定和缓存快照由确定性测试覆盖。

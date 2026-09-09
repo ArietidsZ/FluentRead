@@ -206,7 +206,7 @@ describe('Harness runtime', () => {
         generateText.mockRejectedValueOnce(new Error('provider failed')); normalizeError.mockReturnValueOnce(new Error('clean error'));
         const failed = await createHarnessRuntime(config).run({type: 'fluentReadHarness', action: 'run', requestId: 'r', intent: 'meaning', question: '', selection: {text: 'x', context: '', sentence: ''}, history: []}, new AbortController().signal);
         expect(failed).toEqual({success: false, error: 'clean error'});
-        expect(normalizeError).toHaveBeenCalledWith(expect.any(Error), 'openai', 'secret');
+        expect(normalizeError).toHaveBeenCalledWith(expect.any(Error), 'openai', 'secret', undefined);
     });
 
     it('validates read_context calls and returns only the approved paragraph', async () => {
@@ -357,7 +357,7 @@ describe('Harness runtime', () => {
         current.requireApiKey[createApiKeyRequirementKey('custom:local', 'reader')] = false;
         generateText.mockRejectedValueOnce(new Error('local service unavailable'));
         await createHarnessRuntime(() => current).run({type: 'fluentReadHarness', action: 'run', requestId: 'local-failed', intent: 'meaning', question: '', selection: {text: 'x', context: '', sentence: ''}}, new AbortController().signal);
-        expect(normalizeError).toHaveBeenCalledWith(expect.any(Error), 'custom:local', '');
+        expect(normalizeError).toHaveBeenCalledWith(expect.any(Error), 'custom:local', '', undefined);
     });
 
     it('reports model metadata and cumulative text snapshots from the real stream', async () => {

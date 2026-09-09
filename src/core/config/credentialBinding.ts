@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/credentialBinding.ts
  * 文件职责：把服务凭据绑定到请求实际抵达的配置地址，防止配置替换后把旧密钥带到另一端点。
- * 主要内容：按 provider 的真实路由计算 token 与腾讯共享密钥的目标身份，并在目标变化且未显式重新绑定时丢弃旧凭据。
+ * 主要内容：按 provider 的真实路由计算 token、自定义请求头与腾讯共享密钥的目标身份，并在目标变化且未显式重新绑定时丢弃旧凭据。
  * 模块边界：本文件只做 Config、凭据映射与 URL 的纯比较，不读取存储、不执行请求；调用方仍负责配置合并与持久化。
  */
 import {
@@ -161,6 +161,7 @@ export function dropCredentialsForChangedDestinations(
     next: Config,
     explicitlyBoundTokens: ReadonlySet<string> = new Set(),
     explicitlyBoundCredentialFields: ReadonlySet<ConfigCredentialField> = new Set(),
+    explicitlyBoundHeaders: ReadonlySet<string> = new Set(),
 ): ConfigCredentials {
     const token = {...credentials.token};
     let tokenChanged = false;
@@ -172,6 +173,13 @@ export function dropCredentialsForChangedDestinations(
     }
 
     let nextCredentials = tokenChanged ? {...credentials, token} : credentials;
+    const customHeaders = {...credentials.customHeaders};
+    for (const service of Object.keys(customHeaders)) {
+        if (tokenCredentialDestination(current, service) === tokenCredentialDestination(next, service)) continue;
+        if (explicitlyBoundHeaders.has(service)) continue;
+        delete customHeaders[service];
+        nextCredentials = {...nextCredentials, customHeaders};
+    }
     const tencentDestinationChanged = tencentCredentialDestination(current)
         !== tencentCredentialDestination(next);
     const explicitlyBoundTencentPair = TENCENT_CREDENTIAL_FIELDS.every((field) => (

@@ -244,6 +244,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 order: current.freeTranslationOrder,
             }} : {}),
             customBody: current.customBody[service] || '',
+            ...(current.customHeaders?.[service] ? {customHeaders: current.customHeaders[service]} : {}),
             systemRole: current.system_role[service] || '',
             userRole: current.user_role[service] || '',
             ...(glossaryTerms.length ? {glossaryTerms} : {}),
@@ -869,6 +870,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             modelThinking: execution.thinking,
             endpoint: getProviderEndpoint(current, service),
             customBody: current.customBody[service] || '',
+            ...(current.customHeaders?.[service] ? {customHeaders: current.customHeaders[service]} : {}),
             transportProfile: deps.serviceTypes.isAiSdk(service)
                 ? deps.endpointResolver.aiSdkTransportProfile
                 : undefined,

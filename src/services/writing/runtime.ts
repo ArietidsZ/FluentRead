@@ -159,7 +159,7 @@ export function createWritingRuntime(getConfig: () => Config, record?: (event: M
         } catch (error) {
             if (!generationStarted) save(createHarnessUsageEvent({service, model: modelId, startedAt, durationMs: Date.now() - startedAt, outcome: signal.aborted ? 'cancelled' : 'error'}));
             return signal.aborted ? {success: false, error: '已停止生成', cancelled: true}
-                : {success: false, error: normalizeHarnessModelError(error, service, current.token[service] ?? '').message.replace(/阅读助手/gu, '写作助手')};
+                : {success: false, error: normalizeHarnessModelError(error, service, current.token[service] ?? '', current.customHeaders[service]).message.replace(/阅读助手/gu, '写作助手')};
         }
     };
 }

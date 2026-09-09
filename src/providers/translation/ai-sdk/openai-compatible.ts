@@ -12,6 +12,8 @@ import {config} from '@/src/services/config/store';
 import {stripTranslationReasoning as contentPostHandler} from '@/src/core/translation/prompts';
 import {commonMsgTemplate} from '@/src/services/translation/templates';
 import {services} from '@/src/core/config/catalog';
+import {isCustomOpenAIProviderId} from '@/src/core/config/customOpenAI';
+import {parseCustomHeaders, mergeCustomHeaders} from '@/src/core/config/customHeaders';
 import {
   resolveOpenAICompatibleEndpoint,
   type ResolvedOpenAICompatibleEndpoint,
@@ -259,6 +261,10 @@ async function translateSingle(
       {kind: 'bad-request', retryable: false},
     );
   }
+  const customHeaders = parseCustomHeaders(isCustomOpenAIProviderId(service) ? current.customHeaders?.[service] : undefined);
+  if (!customHeaders) throw new LlmTransportError('自定义请求头必须是有效的 JSON 对象，头名称和值必须符合 HTTP 格式。', {
+    kind: 'bad-request', retryable: false,
+  });
   const apiKey = current.token[service]?.trim() || '';
   const payload = parsePayload(commonMsgTemplate(
     origin,
@@ -281,7 +287,9 @@ async function translateSingle(
     apiKey: service === services.azureOpenai ? undefined : apiKey || undefined,
     headers: providerHeaders(service, apiKey),
     queryParams: endpoint.queryParams,
-    fetch: compatibilityFetch(endpoint, request, payload.model),
+    fetch: (input, init) => compatibilityFetch(endpoint, request, payload.model)(input, {
+      ...init, headers: mergeCustomHeaders(init?.headers, customHeaders),
+    }),
     transformRequestBody: () => requestBody,
   });
   const abortContext = createRequestAbortContext(
@@ -311,7 +319,7 @@ async function translateSingle(
     return text;
   } catch (error) {
     if (error instanceof LlmTransportError) throw error;
-    throw normalizeAiSdkError(service, error, apiKey, abortContext.abortedByCaller());
+    throw normalizeAiSdkError(service, error, [apiKey, ...Object.values(customHeaders)], abortContext.abortedByCaller());
   } finally {
     abortContext.cleanup();
   }

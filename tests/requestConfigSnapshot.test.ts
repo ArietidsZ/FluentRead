@@ -43,6 +43,7 @@ function configSource(overrides: Partial<TranslationConfigSource> = {}): Transla
         mimoRegion: 'cn',
         azureOpenaiEndpoint: 'https://azure-a.example/chat/completions',
         customBody: {aiSdk: '{"snapshot":"a"}'},
+        customHeaders: {aiSdk: '{"x-session":"a"}'},
         system_role: {aiSdk: 'system-a'},
         user_role: {aiSdk: 'user-a'},
         deepseekApiType: 'chat',
@@ -129,6 +130,7 @@ describe('translation provider request config snapshot', () => {
         source.customOpenAIProviders![0].models[0] = 'provider-model-b';
         source.proxy.aiSdk = 'https://b.example/v1';
         source.customBody.aiSdk = '{"snapshot":"b"}';
+        source.customHeaders!.aiSdk = '{"x-session":"b"}';
         source.system_role.aiSdk = 'system-b';
         source.user_role.aiSdk = 'user-b';
         source.token!.aiSdk = 'token-b';
@@ -147,6 +149,7 @@ describe('translation provider request config snapshot', () => {
             }],
             proxy: {aiSdk: 'https://a.example/v1'},
             customBody: {aiSdk: '{"snapshot":"a"}'},
+            customHeaders: {aiSdk: '{"x-session":"a"}'},
             system_role: {aiSdk: 'system-a'},
             user_role: {aiSdk: 'user-a'},
             token: {aiSdk: 'token-a'},
@@ -168,6 +171,7 @@ describe('translation provider request config snapshot', () => {
             snapshot.customOpenAIProviders?.[0].models,
             snapshot.proxy,
             snapshot.customBody,
+            snapshot.customHeaders,
             snapshot.system_role,
             snapshot.user_role,
             snapshot.token,

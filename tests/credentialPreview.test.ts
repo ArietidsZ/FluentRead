@@ -97,3 +97,14 @@ describe('配置凭据变化预览', () => {
         expect(JSON.stringify(changes)).not.toContain('secret');
     });
 });
+
+
+it('请求头变化只显示状态和所属服务，绝不显示认证内容', () => {
+    const before = {customHeaders: {'custom:a': '{"x-auth":"old-private"}', 'custom:same': '{}', 'custom:clear': '{"x":"clear-private"}'}};
+    const after = {customOpenAIProviders: [{id: 'custom:a', name: 'Gateway', endpoint: 'https://test.example', models: []}],
+        customHeaders: {'custom:a': '{"x-auth":"new-private"}', 'custom:same': '{}', 'custom:new': '{"x":"new-private"}'}};
+    const changes = buildCredentialPreviewChanges(before, after);
+    expect(changes.map(item => item.key)).toEqual(['customHeaders.custom:a', 'customHeaders.custom:clear', 'customHeaders.custom:new']);
+    expect(changes[0].label).toContain('Gateway');
+    expect(JSON.stringify(changes)).not.toContain('private');
+});

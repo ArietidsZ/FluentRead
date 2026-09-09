@@ -25,10 +25,12 @@ describe('harness model gateway', () => {
     const config = new Config();
     config.customOpenAIProviders = [{id: 'custom:test', name: 'Test', endpoint: 'https://local.test/v1/chat/completions?tenant=a&tenant=b', models: ['my-model']}];
     config.token['custom:test'] = 'secret-key';
+    config.customHeaders['custom:test'] = '{"x-opencode-session":"stable-harness-session"}';
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body));
       expect(String(input)).toContain('tenant=a');
       expect(body.model).toBe('my-model');
+      expect(new Headers(init?.headers).get('x-opencode-session')).toBe('stable-harness-session');
       expect(body.tools?.[0]?.function?.name).toBe('lookup');
       expect(body.messages).toEqual([{role: 'user', content: 'Explain this sentence'}]);
       expect((init?.headers as Record<string, string>).authorization).toContain('secret-key');
@@ -202,4 +204,22 @@ describe('harness model gateway', () => {
     const model = createHarnessLanguageModel(config, services.openai, 'gpt-test');
     await expect(generateText({model, prompt: 'hello', abortSignal: controller.signal})).rejects.toThrow();
   });
+});
+
+
+it('网关拒绝非法头并遮罩错误回显，头配置快照不随后续编辑改变', async () => {
+    const config = new Config();
+    config.customOpenAIProviders = [{id: 'custom:headers', name: 'Headers', endpoint: 'https://fixture.example/v1/chat/completions', models: ['model']}];
+    config.customHeaders['custom:headers'] = '{"x":1}';
+    expect(() => createHarnessLanguageModel(config, 'custom:headers', 'model')).toThrow('自定义请求头');
+    expect(normalizeHarnessModelError(new Error('failure'), 'custom:headers', '', '{oops').message).toContain('failure');
+    config.customHeaders['custom:headers'] = '{"x-auth":"private-header"}';
+    expect(normalizeHarnessModelError(new Error('private-header rejected'), 'custom:headers', '', config.customHeaders['custom:headers']).message).not.toContain('private-header');
+    const model = createHarnessLanguageModel(config, 'custom:headers', 'model');
+    config.customHeaders['custom:headers'] = '{"x-auth":"changed"}';
+    setRuntimeFetch(async (_input, init) => {
+        expect(new Headers(init?.headers).get('x-auth')).toBe('private-header');
+        return response({choices: [{message: {role: 'assistant', content: 'done'}, finish_reason: 'stop'}]});
+    });
+    try { await generateText({model, prompt: 'fixture'}); } finally { setRuntimeFetch(); }
 });
