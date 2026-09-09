@@ -9,14 +9,10 @@ import {CONTEXT_MENU_IDS} from '@/src/core/config/constants';
 import {getFullPageContextMenuPresentation} from '@/src/features/site-rules/domain';
 import {config, configReady, subscribeConfig} from '@/src/services/config/store';
 import {getContextMenuTitle, resolveContextMenuLanguage} from './contextMenuUi';
-import {isBrowserTabId, type TabTranslationState, TabTranslationStateStore} from './tabTranslationState';
+import {isBrowserTabId, TabTranslationStateStore} from './tabTranslationState';
+import {createTabTranslationStateReader, type FullPageStateResponse} from './tabTranslationQuery';
 interface BrowserTabSummary {
     id?: number;
-}
-interface FullPageStateResponse {
-    status?: string;
-    isTranslated?: boolean;
-    isSiteDisabled?: boolean;
 }
 export interface BackgroundContextMenuRuntime {
     readonly isSupported: boolean;
@@ -36,23 +32,7 @@ export function installBackgroundContextMenus(
     let contextMenuEnabled = true;
     let contextMenuLanguage = resolveContextMenuLanguage(config.uiLanguage);
     let contextMenuSyncQueue: Promise<void> = Promise.resolve();
-    const readTabTranslationState = async (tabId: number, force = false): Promise<TabTranslationState> => {
-        if (!force && tabTranslationStates.hasCompleteState(tabId)) return tabTranslationStates.get(tabId);
-        try {
-            const response = await browser.tabs.sendMessage(tabId, {
-                type: 'getFullPageTranslationState',
-            }) as FullPageStateResponse | undefined;
-            if (response?.status === 'success') {
-                return tabTranslationStates.set(tabId, {
-                    isTranslated: response.isTranslated === true,
-                    isSiteDisabled: response.isSiteDisabled === true,
-                });
-            }
-        } catch {
-            // 浏览器内部页或尚未注入内容脚本的页面无法查询，沿用当前 worker 的安全默认值。
-        }
-        return tabTranslationStates.set(tabId, tabTranslationStates.get(tabId));
-    };
+    const readTabTranslationState = createTabTranslationStateReader(tabTranslationStates);
 
     const update = async (tabId: number): Promise<void> => {
         if (!isSupported || !contextMenusReady || !contextMenuEnabled) return;
