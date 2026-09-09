@@ -121,6 +121,28 @@ describe('Vercel AI SDK OpenAI-compatible transport', () => {
     });
   });
 
+  it.each([
+    ['', 'https://api.hunyuan.cloud.tencent.com/v1/chat/completions'],
+    ['https://gateway.example.com/v1/chat/completions', 'https://gateway.example.com/v1/chat/completions'],
+  ])('issue #513：混元使用官方接口且保留显式代理 %s', async (proxy, expectedEndpoint) => {
+    mockConfig.service = services.huanYuan;
+    mockConfig.model[services.huanYuan] = 'hy3';
+    mockConfig.token[services.huanYuan] = 'hunyuan-test-key';
+    mockConfig.proxy[services.huanYuan] = proxy;
+    const fetchMock = vi.fn().mockResolvedValue(successResponse('你好'));
+    setRuntimeFetch(fetchMock);
+
+    await expect(translateWithOpenAICompatibleAiSdk({origin: 'hello'})).resolves.toBe('你好');
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(expectedEndpoint);
+    expect(new Headers(init.headers).get('Authorization')).toBe('Bearer hunyuan-test-key');
+    expect(JSON.parse(String(init.body))).toMatchObject({model: 'hy3', stream: false});
+    expect(mockConfig.token[services.huanYuan]).toBe('hunyuan-test-key');
+    expect(mockConfig.proxy[services.huanYuan]).toBe(proxy);
+  });
+
   it('通过 runtimeFetch 发起 AI SDK 请求，使 userscript 可复用 GM transport', async () => {
     const nativeFetch = vi.fn().mockRejectedValue(new Error('不应调用原生 fetch'));
     vi.stubGlobal('fetch', nativeFetch);
