@@ -1,7 +1,7 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/快捷键/直接弹出、翻译与词卡展示、朗读、收藏词书、重试和关闭。
- * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、请求 token、弹窗定位和主题，以纯中文选区过滤统一划词和翻译卡入口，其他文本保留保守同语言预检，以独立点击、延迟悬停和快捷键复用选区入口打开 Harness 阅读卡，按模型相关配置刷新阅读缓存，协调翻译、词典与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
+ * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、请求 token、弹窗定位、空白拖动、边角缩放和主题，以纯中文选区过滤统一划词和翻译卡入口，其他文本保留保守同语言预检，以独立点击、延迟悬停和快捷键复用选区入口打开 Harness 阅读卡，按模型相关配置刷新阅读缓存，协调翻译、词典与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
 <template>
@@ -15,7 +15,7 @@
       <span class="fr-selection-indicator-glyph" aria-hidden="true">↗</span>
     </button>
 
-    <section v-if="showTooltip" ref="tooltip-ref" class="fr-translation-tooltip" :class="{ 'fr-dark-theme': isDarkTheme, 'fr-reading-tooltip': readingMode }" :data-placement="popupPlacement" :style="tooltipStyle" role="dialog" :aria-label="readingMode ? '阅读理解' : '划词翻译结果'" @pointerdown.stop>
+    <section v-if="showTooltip" ref="tooltip-ref" class="fr-translation-tooltip" :class="{ 'fr-dark-theme': isDarkTheme, 'fr-reading-tooltip': readingMode, 'fr-popup-manipulating': popupManipulating }" :data-placement="popupPlacement" :style="tooltipStyle" role="dialog" :aria-label="readingMode ? '阅读理解' : '划词翻译结果'" @pointerdown.stop="beginPopupGesture" @pointermove="movePopupGesture" @pointerup="stopPopupGesture" @pointercancel="stopPopupGesture" @lostpointercapture="stopPopupGesture">
       <header class="fr-tooltip-header">
         <div class="fr-tooltip-title">
           <img class="fr-tooltip-brand-icon" :src="selectionTranslatorIconUrl" alt="" aria-hidden="true" />
@@ -152,6 +152,9 @@
           <div v-if="isPlaying" class="fr-playing-status"><span>正在播放{{ currentAudioKind === 'source' ? '原文' : currentAudioKind === 'word' ? '单词' : '译文' }}</span><button type="button" aria-label="停止播放" title="停止播放" @click="stopAudioFromUi">停止</button></div>
         </div>
       </div>
+      <template v-if="!readingMode">
+        <div v-for="edge in popupResizeEdges" :key="edge" class="fr-popup-resize-handle" :class="`fr-popup-resize-${edge}`" :data-resize-edge="edge" aria-hidden="true" />
+      </template>
     </section>
 
     <div v-if="noticeMessage" class="fr-action-toast" :class="{ 'fr-dark-theme': isDarkTheme }" role="status"><span>{{ noticeMessage }}</span><button v-if="noticeAction === 'open-vocabulary'" type="button" @click="openVocabularyBook">查看</button></div>
@@ -530,6 +533,7 @@ function applySelection(next: SelectionSnapshot | null, shortcutTriggered = fals
   readingMode.value = false;
   readingSelection.value = null;
   readingIndicatorStyle.value = {visibility: 'hidden'};
+  resetPopupGeometry();
   snapshot.value = next;
   selectedText.value = next.text;
   const waitingForShortcut = !shortcutTriggered && !readingIndicatorEnabled.value
@@ -541,6 +545,89 @@ function applySelection(next: SelectionSnapshot | null, shortcutTriggered = fals
   if (waitingForShortcut) return;
   scheduleSelectionPresentation(shortcutTriggered || triggerMode.value === 'direct' ? 'tooltip' : 'indicator');
 }
+
+// 指针只在本卡片内捕获；页面原有文本、按钮和滚动条不参与拖动。
+const popupResizeEdges = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'] as const;
+const popupManipulating = ref(false);
+let manualPopupPosition: {left: number; top: number} | null = null;
+let manualPopupSize: {width: number; height: number} | null = null;
+let popupGesture: {pointerId: number; x: number; y: number; rect: DOMRect; edge: string; element: HTMLElement} | null = null;
+
+function stopPopupGesture(event?: PointerEvent): void {
+  const gesture = popupGesture;
+  if (event && gesture && event.pointerId !== gesture.pointerId) return;
+  popupGesture = null;
+  popupManipulating.value = false;
+  if (gesture?.element.hasPointerCapture(gesture.pointerId)) gesture.element.releasePointerCapture(gesture.pointerId);
+}
+
+function resetPopupGeometry(): void {
+  stopPopupGesture();
+  manualPopupPosition = null;
+  manualPopupSize = null;
+}
+
+function applyManualPopupGeometry(): void {
+  const element = tooltipRef.value;
+  if (!element || !manualPopupPosition) return;
+  const widthLimit = Math.max(1, window.innerWidth - 24);
+  const heightLimit = Math.max(1, window.innerHeight - 24);
+  const width = Math.min(manualPopupSize?.width ?? element.getBoundingClientRect().width, widthLimit);
+  const height = Math.min(manualPopupSize?.height ?? element.getBoundingClientRect().height, heightLimit);
+  const left = Math.max(12, Math.min(manualPopupPosition.left, window.innerWidth - width - 12));
+  const top = Math.max(12, Math.min(manualPopupPosition.top, window.innerHeight - height - 12));
+  manualPopupPosition = {left, top};
+  if (manualPopupSize) manualPopupSize = {width, height};
+  tooltipStyle.value = {
+    left: `${left}px`, top: `${top}px`, visibility: 'visible',
+    maxWidth: `${widthLimit}px`, maxHeight: `${manualPopupSize ? heightLimit : Math.min(520, heightLimit)}px`,
+    ...(manualPopupSize ? {width: `${width}px`, height: `${height}px`} : {}),
+  };
+}
+
+function beginPopupGesture(event: PointerEvent): void {
+  const element = tooltipRef.value;
+  const target = event.target;
+  if (!event.isTrusted || !event.isPrimary || event.button !== 0 || readingMode.value || !element || !(target instanceof HTMLElement)) return;
+  if (target.closest('button, a, input, textarea, select, [contenteditable]')) return;
+  const edge = target.dataset.resizeEdge ?? '';
+  const blank = target.matches('.fr-translation-tooltip, .fr-tooltip-content, .fr-translation-container, .fr-text-block');
+  if (!edge && !target.closest('.fr-tooltip-header') && !blank) return;
+  // 不截获内容滚动条上的按下。
+  if (!edge && blank && event.clientX >= target.getBoundingClientRect().left + target.clientLeft + target.clientWidth) return;
+  event.preventDefault();
+  stopPopupGesture();
+  const rect = element.getBoundingClientRect();
+  popupGesture = {pointerId: event.pointerId, x: event.clientX, y: event.clientY, rect, edge, element};
+  element.setPointerCapture(event.pointerId);
+  popupManipulating.value = true;
+}
+
+function movePopupGesture(event: PointerEvent): void {
+  const gesture = popupGesture;
+  if (!event.isTrusted || !gesture || event.pointerId !== gesture.pointerId) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const dx = event.clientX - gesture.x;
+  const dy = event.clientY - gesture.y;
+  const {rect, edge} = gesture;
+  if (!edge) {
+    manualPopupPosition = {left: rect.left + dx, top: rect.top + dy};
+  } else {
+    const minWidth = Math.min(280, window.innerWidth - 24);
+    const minHeight = Math.min(140, window.innerHeight - 24);
+    let {left, top, right, bottom} = rect;
+    if (edge.includes('w')) left = Math.max(12, Math.min(rect.left + dx, right - minWidth));
+    if (edge.includes('e')) right = Math.min(window.innerWidth - 12, Math.max(rect.right + dx, left + minWidth));
+    if (edge.includes('n')) top = Math.max(12, Math.min(rect.top + dy, bottom - minHeight));
+    if (edge.includes('s')) bottom = Math.min(window.innerHeight - 12, Math.max(rect.bottom + dy, top + minHeight));
+    manualPopupPosition = {left, top};
+    manualPopupSize = {width: right - left, height: bottom - top};
+  }
+  applyManualPopupGeometry();
+}
+
+watch(readingMode, resetPopupGeometry);
 
 function updatePosition(refreshSelection = true): void {
   const current = snapshot.value;
@@ -564,6 +651,7 @@ function updatePosition(refreshSelection = true): void {
   if (showTooltip.value) void nextTick(() => {
     const tooltip = tooltipRef.value;
     if (!tooltip || !snapshot.value) return;
+    if (!readingMode.value && manualPopupPosition) { applyManualPopupGeometry(); return; }
     if (readingMode.value) {
       const layout = calculateReadingPopupLayout(snapshot.value.anchor, {width: window.innerWidth, height: window.innerHeight});
       tooltipStyle.value = {left: `${layout.left}px`, top: `${layout.top}px`, width: `${layout.width}px`, height: `${layout.height}px`, visibility: 'visible'};
@@ -1145,6 +1233,7 @@ async function toggleWordAudio(pronunciation: WordPronunciation): Promise<void> 
 
 function closeTooltip(): void { hideAll(); }
 function hideAll(): void {
+  resetPopupGeometry();
   // 保留关闭时的选区身份，避免按钮保留原生选区时 pointerup / selectionchange 再次打开卡片。
   dismissedSelection = snapshot.value ?? readSelectionSnapshot() ?? dismissedSelection;
   lastTrustedSelectionInteractionAt = 0;
@@ -1289,6 +1378,7 @@ function handleKeyup(): void {
 }
 
 function handleWindowBlur(): void {
+  stopPopupGesture();
   cancelReadingHover();
   selectionShortcutHeld = false;
   pendingSelectionShortcutUntil = 0;
@@ -1327,6 +1417,7 @@ onMounted(() => {
   window.addEventListener('scroll', handleScroll, true);
   window.addEventListener('resize', schedulePositionUpdate);
   watch(tooltipRef, (tooltip) => {
+    stopPopupGesture();
     tooltipResizeObserver?.disconnect();
     tooltipResizeObserver = null;
     if (!tooltip || typeof ResizeObserver === 'undefined') return;
@@ -1390,6 +1481,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  stopPopupGesture();
   if (selectionFrame !== null) window.cancelAnimationFrame(selectionFrame);
   if (positionFrame !== null) window.cancelAnimationFrame(positionFrame);
   cancelSelectionLoss();
@@ -1437,15 +1529,28 @@ onBeforeUnmount(() => {
 .fr-selection-indicator:hover, .fr-selection-indicator:focus-visible { transform: translate(-50%, -50%) scale(1.1); box-shadow: 0 4px 14px rgba(204, 40, 104, .4), 0 0 0 3px rgba(255, 255, 255, .95); outline: none; }
 .fr-selection-indicator-glyph { font-size: 10px; font-weight: 700; line-height: 1; }
 .fr-translation-tooltip, .fr-translation-tooltip * { box-sizing: border-box; }
-.fr-translation-tooltip { position: fixed; width: min(388px, calc(100vw - 24px)); max-height: min(520px, calc(100vh - 20px)); overflow: hidden; border: 1px solid rgba(35, 35, 43, .1); border-radius: 14px; background: #fff; box-shadow: 0 8px 28px rgba(35, 33, 43, .14); -webkit-user-select: none; user-select: none; }
+.fr-translation-tooltip { position: fixed; display: flex; flex-direction: column; width: min(388px, calc(100vw - 24px)); max-height: min(520px, calc(100vh - 20px)); overflow: hidden; border: 1px solid rgba(35, 35, 43, .1); border-radius: 14px; background: #fff; box-shadow: 0 8px 28px rgba(35, 33, 43, .14); -webkit-user-select: none; user-select: none; }
+.fr-translation-tooltip:not(.fr-reading-tooltip) > .fr-tooltip-header { cursor: move; touch-action: none; }
+.fr-popup-manipulating, .fr-popup-manipulating * { cursor: grabbing !important; user-select: none !important; }
+.fr-popup-resize-handle { position: absolute; z-index: 2; touch-action: none; }
+.fr-popup-resize-n, .fr-popup-resize-s { left: 12px; right: 12px; height: 6px; cursor: ns-resize; }
+.fr-popup-resize-n { top: 0; } .fr-popup-resize-s { bottom: 0; }
+.fr-popup-resize-e, .fr-popup-resize-w { top: 12px; bottom: 12px; width: 6px; cursor: ew-resize; }
+.fr-popup-resize-e { right: 0; } .fr-popup-resize-w { left: 0; }
+.fr-popup-resize-ne, .fr-popup-resize-nw, .fr-popup-resize-se, .fr-popup-resize-sw { width: 12px; height: 12px; }
+.fr-popup-resize-ne { top: 0; right: 0; cursor: nesw-resize; }
+.fr-popup-resize-nw { top: 0; left: 0; cursor: nwse-resize; }
+.fr-popup-resize-se { bottom: 0; right: 0; cursor: nwse-resize; }
+.fr-popup-resize-sw { bottom: 0; left: 0; cursor: nesw-resize; }
+.fr-popup-resize-se::after { content: ''; position: absolute; right: 3px; bottom: 3px; width: 5px; height: 5px; border-right: 2px solid #95858d; border-bottom: 2px solid #95858d; }
 .fr-reading-tooltip { display: flex; flex-direction: column; height: min(520px, calc(100vh - 24px)); }
 .fr-reading-tooltip > .fr-tooltip-header { flex: none; }
 .fr-reading-tooltip > .fr-reading-content { flex: 1; min-height: 0; max-height: none; overflow: hidden; padding: 0; }
-.fr-tooltip-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px 7px; border-bottom: 1px solid rgba(44, 43, 53, .08); font-size: 15px; font-weight: 750; }
+.fr-tooltip-header { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 8px 12px 7px; border-bottom: 1px solid rgba(44, 43, 53, .08); font-size: 15px; font-weight: 750; }
 .fr-tooltip-title { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .fr-tooltip-brand-icon { display: block; flex: none; width: 18px; height: 18px; border-radius: 5px; object-fit: contain; opacity: .78; }
 .fr-tooltip-title span { overflow: hidden; color: #292832; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
-.fr-tooltip-actions { display: flex; align-items: center; gap: 4px; }
+.fr-tooltip-actions { flex: none; display: flex; align-items: center; gap: 4px; }
 .fr-action-btn, .fr-close-btn, .fr-text-audio-btn, .fr-playing-status button { border: 0; background: transparent; color: #777780; cursor: pointer; }
 .fr-action-btn { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 10px; }
 .fr-action-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -1455,7 +1560,7 @@ onBeforeUnmount(() => {
 .fr-vocabulary-btn.fr-saved svg { fill: currentColor; stroke: currentColor; }
 .fr-close-btn { width: 30px; height: 30px; font-size: 21px; line-height: 1; border-radius: 10px; }
 .fr-close-btn:hover, .fr-close-btn:focus-visible { background: #f1f1f5; color: #303038; outline: none; }
-.fr-tooltip-content { max-height: min(460px, calc(100vh - 62px)); overflow: auto; padding: 10px 12px 12px; scrollbar-color: rgba(108, 105, 112, .4) transparent; scrollbar-width: thin; }
+.fr-tooltip-content { flex: 1; min-height: 0; overflow: auto; padding: 10px 12px 12px; scrollbar-color: rgba(108, 105, 112, .4) transparent; scrollbar-width: thin; }
 .fr-translation-container { display: grid; gap: 10px; }
 .fr-loading-state, .fr-error-state { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 80px; color: #777780; font-size: 13px; }
 .fr-error-state { flex-direction: column; color: #c43b63; }
@@ -1480,7 +1585,7 @@ onBeforeUnmount(() => {
 .fr-word-translation { margin-top: 12px; padding: 1px 1px 12px; border-bottom: 1px solid #eeecee; color: #3a363d; }
 .fr-word-translation-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .fr-word-translation .fr-text-label { margin: 0; }
-.fr-word-translation pre { margin: 8px 0 0; white-space: pre-wrap; word-break: break-word; font: inherit; font-size: 18px; font-weight: 700; line-height: 1.3; user-select: text; }
+.fr-word-translation pre { overflow-wrap: anywhere; margin: 8px 0 0; white-space: pre-wrap; word-break: break-word; font: inherit; font-size: 18px; font-weight: 700; line-height: 1.3; user-select: text; }
 .fr-word-translation-loading, .fr-word-empty { margin-top: 12px; color: #9a9298; font-size: 12px; }
 .fr-word-meaning-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; color: #9a9298; font-size: 11px; font-weight: 700; }
 .fr-word-meaning-toolbar button { border: 0; padding: 3px 0; background: transparent; color: #9e5d71; cursor: pointer; font: inherit; font-weight: 600; }
@@ -1517,7 +1622,7 @@ onBeforeUnmount(() => {
 .fr-text-audio-btn { position: static; display: grid; flex: none; width: 36px; height: 28px; place-items: center; border: 1px solid rgba(126, 113, 121, .12); border-radius: 9px; background: rgba(255, 255, 255, .45); color: #8c8188; transition: background .14s ease, border-color .14s ease, color .14s ease, transform .14s ease; }
 .fr-text-audio-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .fr-text-audio-btn:hover, .fr-text-audio-btn:focus-visible { border-color: rgba(214, 63, 118, .25); background: rgba(255, 255, 255, .72); color: #d63f76; outline: none; transform: translateY(-1px); }
-.fr-text-block pre { max-height: 170px; margin: 9px 0 0; overflow: auto; white-space: pre-wrap; word-break: break-word; font: inherit; font-size: 15.5px; line-height: 1.55; user-select: text; }
+.fr-text-block pre { overflow-wrap: anywhere; margin: 9px 0 0; overflow: auto; white-space: pre-wrap; word-break: break-word; font: inherit; font-size: 15.5px; line-height: 1.55; user-select: text; }
 .fr-playing-status { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; color: #777780; font-size: 12px; }
 .fr-playing-status button { border: 1px solid #e8a4bc; border-radius: 7px; padding: 3px 8px; color: #d83e70; }
 .fr-copy-success-toast { position: fixed; right: 18px; bottom: 18px; padding: 9px 13px; border-radius: 9px; background: #2c2c35; color: #fff; font-size: 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); }
