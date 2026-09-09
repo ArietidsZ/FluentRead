@@ -960,6 +960,14 @@ describe('options UI composition architecture', () => {
     expect(tokens).toContain('--surface-soft: var(--fr-color-surface-soft);')
   })
 
+  it('keeps the desktop navigation scroll boundary stable while hovering its final item', () => {
+    const pageStyles = sourceBody('src/features/settings/ui/settings-page.css')
+
+    expect(pageStyles).toMatch(/nav\s*\{[^}]*min-height:\s*0;/u)
+    expect(pageStyles).toMatch(/nav\s*\{[^}]*overflow-anchor:\s*none;/u)
+    expect(pageStyles).toMatch(/@media \(min-width:\s*701px\)[\s\S]*?\.settings-app \.sidebar nav\s*\{[^}]*scrollbar-gutter:\s*stable;/u)
+  })
+
   it('keeps bilingual sentence highlighting opt-in and scoped to bilingual wrappers', () => {
     const page = source('src/app/content/page.css')
 
