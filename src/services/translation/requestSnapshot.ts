@@ -241,6 +241,7 @@ export function createTranslationProviderConfigSnapshot(
         customOpenAIProviders: frozenCustomOpenAIProviders(source.customOpenAIProviders),
         proxy: frozenStringMap(source.proxy),
         customBody: frozenStringMap(source.customBody),
+        customHeaders: frozenStringMap(source.customHeaders),
         system_role: frozenStringMap(source.system_role),
         user_role: frozenStringMap(source.user_role),
         token: frozenStringMap(source.token),

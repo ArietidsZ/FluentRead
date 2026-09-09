@@ -969,6 +969,9 @@ function bindConfigPatchCredentialsToDestinations(
         nextConfig,
         explicitlyBoundTokens,
         explicitlyBoundCredentialFields,
+        new Set(Object.keys(nextConfig.customHeaders).filter((service) => !configPatchValuesEqual(
+            currentValue.customHeaders[service], nextConfig.customHeaders[service],
+        ))),
     );
     let boundPatch = patch;
     for (const field of CONFIG_CREDENTIAL_FIELDS) {

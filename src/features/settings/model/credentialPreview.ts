@@ -82,6 +82,14 @@ export function buildCredentialPreviewChanges(beforeValue: unknown, afterValue: 
         );
         if (change) changes.push(change);
     }
+    for (const service of new Set([...Object.keys(before.customHeaders), ...Object.keys(after.customHeaders)])) {
+        const change = credentialChange(
+            `customHeaders.${service}`,
+            `${getCustomOpenAIProviderLabel(customProviders, service)} 自定义请求头`,
+            before.customHeaders[service], after.customHeaders[service],
+        );
+        if (change) changes.push(change);
+    }
     for (const field of Object.keys(scalarCredentialLabels) as Array<keyof typeof scalarCredentialLabels>) {
         const change = credentialChange(field, scalarCredentialLabels[field], before[field], after[field]);
         if (change) changes.push(change);

@@ -223,6 +223,7 @@ export class Config {
     customModels: Record<string, string[]>; // 按内置服务保存的自定义模型列表
     modelThinking: ModelThinkingMapping; // 按服务和实际模型保存 Thinking 开关，缺省为关闭
     customOpenAIProviders: CustomOpenAIProvider[]; // 用户保存的 OpenAI-compatible 自定义服务（不含凭据）
+    customHeaders: IMapping; // 自定义服务 HTTP 请求头 JSON，按服务隔离并作为凭据保存
     customBody: IMapping;  // 自定义请求体（JSON 字符串，按服务存储），会合并进请求体
     proxy: IMapping;  // 代理地址
     custom: string; // 本地服务地址
@@ -347,6 +348,7 @@ export class Config {
         this.modelThinking = {};
         this.customOpenAIProviders = [];
         this.customBody = {};
+        this.customHeaders = {};
         this.proxy = {};
         this.custom = defaultOption.custom;
         this.extra = {};
@@ -538,7 +540,8 @@ function hasSubstantialLegacyCustomConfiguration(source: Partial<Config>): boole
 
     if (configuredString(source.token, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)
         || configuredString(source.proxy, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)
-        || configuredString(source.customBody, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)) return true;
+        || configuredString(source.customBody, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)
+        || configuredString(source.customHeaders, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)) return true;
     const systemRole = configuredString(source.system_role, LEGACY_CUSTOM_OPENAI_PROVIDER_ID);
     const userRole = configuredString(source.user_role, LEGACY_CUSTOM_OPENAI_PROVIDER_ID);
     if ((systemRole && systemRole !== defaultOption.system_role)
@@ -624,6 +627,8 @@ function normalizeCustomOpenAIProviderState(normalized: Config, source: Partial<
     normalized.system_role = withoutOrphanCustomProviderEntries(normalized.system_role, configuredIds);
     normalized.user_role = withoutOrphanCustomProviderEntries(normalized.user_role, configuredIds);
     normalized.customBody = withoutOrphanCustomProviderEntries(normalized.customBody, configuredIds);
+    normalized.customHeaders = Object.fromEntries(Object.entries(normalized.customHeaders)
+        .filter(([service]) => configuredIds.has(service)));
 
     for (const provider of providers) {
         const service = provider.id;
@@ -788,6 +793,7 @@ export function normalizeConfig(value: unknown): Config {
         ...withoutRetiredServiceEntries(normalizeStringMapping(source.user_role)),
     };
     normalized.customBody = withoutRetiredServiceEntries(normalizeCustomBodyMapping(source.customBody));
+    normalized.customHeaders = normalizeStringMapping(source.customHeaders);
 
     if (typeof normalized.custom !== 'string') normalized.custom = defaultOption.custom;
     normalized.deeplApiPlan = normalizeDeepLApiPlan(source.deeplApiPlan);

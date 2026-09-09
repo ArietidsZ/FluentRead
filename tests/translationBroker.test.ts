@@ -104,6 +104,7 @@ const mocks = vi.hoisted(() => {
         mimoRegion: 'cn',
         azureOpenaiEndpoint: '',
         customBody: {} as Record<string, string>,
+        customHeaders: {} as Record<string, string>,
         system_role: {} as Record<string, string>,
         user_role: {} as Record<string, string>,
         deepseekApiType: 'auto',
@@ -274,6 +275,7 @@ describe('translation broker', () => {
             mimoRegion: 'cn',
             azureOpenaiEndpoint: '',
             customBody: {},
+            customHeaders: {},
             system_role: {},
             user_role: {},
             deepseekApiType: 'auto',
@@ -3963,4 +3965,24 @@ describe('translation broker', () => {
             expect.objectContaining({outcome: 'timeout', statusCode: 408}),
         ], 7);
     });
+    it('请求头变化隔离正文与摘要缓存，并冻结已在途请求的头配置', async () => {
+        mocks.config.service = 'ai';
+        mocks.config.enableAIContext = true;
+        mocks.config.customHeaders.ai = '{"x-session":"session-a"}';
+        mocks.service.mockImplementation(async (message) => message.summaryPrompt ? 'context summary' : '译文');
+        await translateWithCache({origin: 'header cache source', pageContext: 'header cache context'});
+        const firstCalls = mocks.service.mock.calls.length;
+        await translateWithCache({origin: 'header cache source', pageContext: 'header cache context'});
+        expect(mocks.service.mock.calls.length).toBe(firstCalls);
+        const snapshot = getTranslationProviderConfig(mocks.service.mock.calls[0][0], createTranslationProviderConfigSnapshot(mocks.config));
+        mocks.config.customHeaders.ai = '{"x-session":"session-b"}';
+        expect(snapshot.customHeaders?.ai).toContain('session-a');
+        await translateWithCache({origin: 'header cache source', pageContext: 'header cache context'});
+        expect(mocks.service.mock.calls.length).toBeGreaterThan(firstCalls);
+        expect(mocks.buildTranslationCacheKey.mock.calls.map(([identity]) => identity)).toEqual(expect.arrayContaining([
+            expect.objectContaining({requestMode: 'page-summary', customHeaders: '{"x-session":"session-a"}'}),
+            expect.objectContaining({requestMode: 'page-summary', customHeaders: '{"x-session":"session-b"}'}),
+        ]));
+    });
+
 });

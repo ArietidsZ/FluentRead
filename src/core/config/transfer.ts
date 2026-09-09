@@ -52,7 +52,8 @@ export function isConfigImportValid(value: unknown): value is ConfigRecord {
       && !Array.isArray(value.customOpenAIProviders)
     if (!isLegacyImport && !isConfiguredCustomOpenAIProvider(providers, value.service)) return false
   } else if (!servicesType.machine.has(value.service) && !servicesType.AI.has(value.service)) return false
-  return !('customBody' in value) || isCustomBodyMapping(value.customBody)
+  return (!('customBody' in value) || isCustomBodyMapping(value.customBody))
+    && (!('customHeaders' in value) || isCustomBodyMapping(value.customHeaders))
 }
 
 function removeDefaultEntries(target: ConfigRecord, key: 'system_role' | 'user_role', defaultValue: string) {
@@ -99,6 +100,8 @@ function clearCredentialsForChangedDestinations(
     imported,
     explicitlyBoundTokens,
     explicitlyBoundCredentialFields,
+    new Set(Object.entries(isRecord(value.customHeaders) ? value.customHeaders : {})
+      .filter(([, headers]) => typeof headers === 'string').map(([service]) => service)),
   )
 }
 
@@ -122,6 +125,9 @@ function prepareImportedCredentials(
     const importedCredentials = extractConfigCredentials(value)
     merged = {
       ...currentCredentials,
+      customHeaders: isRecord(value.customHeaders)
+        ? {...currentCredentials.customHeaders, ...importedCredentials.customHeaders}
+        : currentCredentials.customHeaders,
       token: isRecord(value.token)
         ? {...currentCredentials.token, ...importedCredentials.token}
         : currentCredentials.token,

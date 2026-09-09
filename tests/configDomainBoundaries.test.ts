@@ -268,3 +268,28 @@ describe('配置领域边界与防御分支', () => {
     });
 
 });
+
+
+describe('自定义请求头格式与合并边界', () => {
+    it('接受空值、稳定会话头和字符串 JSON，名称大小写无关且不修改输入', async () => {
+        const {parseCustomHeaders, isValidCustomHeaders, mergeCustomHeaders} = await import('@/src/core/config/customHeaders');
+        expect(parseCustomHeaders()).toEqual({});
+        expect(parseCustomHeaders('')).toEqual({});
+        expect(parseCustomHeaders('  ')).toEqual({});
+        expect(parseCustomHeaders('{"X-Session":"  stable  ","X-Empty":""}')).toEqual({'x-session': 'stable', 'x-empty': ''});
+        expect(isValidCustomHeaders('{}')).toBe(true);
+        const defaults = {Authorization: 'Bearer default', 'Content-Type': 'application/json'};
+        expect(mergeCustomHeaders(defaults, {authorization: 'Bearer custom'})).toEqual({authorization: 'Bearer custom', 'content-type': 'application/json'});
+        expect(defaults.Authorization).toBe('Bearer default');
+        expect(mergeCustomHeaders(undefined, {})).toEqual({});
+    });
+
+    it('拒绝数组、非字符串值、非法头名、控制字符和不能编码的值', async () => {
+        const {parseCustomHeaders, isValidCustomHeaders} = await import('@/src/core/config/customHeaders');
+        for (const raw of ['{oops', 'null', '[]', '42', {}, '{"x":1}', '{"x":null}', '{"x":true}', '{"x":{}}', '{"": "x"}', '{"bad name":"x"}', JSON.stringify({'x': 'a\r\nb'}), JSON.stringify({'x': '\0'}), '{"x":"中文"}']) {
+            expect(parseCustomHeaders(raw)).toBeUndefined();
+            expect(isValidCustomHeaders(raw)).toBe(false);
+        }
+        expect(parseCustomHeaders('{"__proto__":"value","X":"last"}')).toEqual(JSON.parse('{"__proto__":"value","x":"last"}'));
+    });
+});

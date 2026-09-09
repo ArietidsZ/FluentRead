@@ -310,3 +310,15 @@ node scripts/testing/run-codeforces-translation-test.cjs \
 划词与翻译卡在中文目标下共同跳过纯汉字选区（包括短词、简繁汉字、数字、标点和表情），不显示入口或占用快捷键。外语目标和含外语的选区保持可用；该规则只用于选区交互，不改变全文语言检测。`chineseLanguage` 与 `contentHotkeyRuntime` 覆盖该边界。
 
 使用 `scripts/run-selection-trigger-test.cjs --chinese-only` 配合原有隔离浏览器参数可验证纯中文的图标、小点、直接弹出、划词快捷键和翻译卡点击/悬停/快捷键入口，并检查选区替换、目标切换及混排恢复。微软返回值使用本地响应夹具；翻译卡验证入口，不调用真实 AI 模型。
+
+## 自定义请求头回归（issue #522）
+
+```bash
+node scripts/testing/run-custom-headers-ui-test.cjs \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root <playwright-node-modules> \
+  --focus-safe-helper <fluentread-extension-ui-test-skill>/scripts/focus-safe-browser.cjs \
+  --artifacts-dir /private/tmp/fluentread-custom-headers-ui
+```
+
+使用临时 Edge profile、不抢焦点的可见窗口和本地 HTTP 模拟模型，验证自定义服务的请求头保存、关闭重开、稳定会话 ID、服务隔离、非法输入阻断、清空恢复及窄屏布局。报告包含实际收到的测试请求和截图；测试只使用虚构凭据，不验证 OpenCode Go 或其他真实服务账号。配置加密、完整备份、公开导出脱敏、端点绑定和缓存快照由确定性测试覆盖。

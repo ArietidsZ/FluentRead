@@ -1096,6 +1096,7 @@ function deleteSelectedCustomProvider(): void {
       next.system_role,
       next.user_role,
       next.customBody,
+      next.customHeaders,
     ]) delete mapping[service];
     // normalizeConfig 会根据删除后的 profile 列表精确保留仍可达的鉴权键。
     // 不能用 `${service}:` 做前缀删除：旧 ID `custom` 也是新 ID

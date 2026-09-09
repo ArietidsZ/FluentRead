@@ -337,6 +337,7 @@ export default defineConfig({
                 'src/core/config/credentials.ts',
                 'src/core/config/diff.ts',
                 'src/core/config/customBody.ts',
+                'src/core/config/customHeaders.ts',
                 'src/core/config/customOpenAI.ts',
                 'src/core/config/deeplx.ts',
                 'src/core/config/freeTranslation.ts',
