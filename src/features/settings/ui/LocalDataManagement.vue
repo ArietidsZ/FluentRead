@@ -12,7 +12,7 @@
     >
       <div class="transfer-row featured-transfer">
         <div class="transfer-identity">
-          <span class="transfer-icon" aria-hidden="true">⇅</span>
+          <span class="transfer-icon" aria-hidden="true"><UiIcon name="history" /></span>
           <div class="transfer-copy">
             <strong>设置与本机记录</strong>
             <small>更换浏览器或重装扩展前，导出一份文件即可恢复。</small>
@@ -147,6 +147,7 @@
 </template>
 
 <script setup lang="ts">
+import UiIcon from '@/src/ui/components/UiIcon.vue'
 import {computed, nextTick, ref, shallowRef, useTemplateRef} from 'vue';
 import {Download, Upload} from '@element-plus/icons-vue';
 import {ElMessage, ElMessageBox} from 'element-plus';
@@ -480,7 +481,7 @@ function formatFileSize(size: number): string {
 <style scoped>
 .local-data-management { width: 100%; }
 .transfer-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 15px 16px; }
-.featured-transfer { background: linear-gradient(135deg, var(--surface), var(--brand-soft)); }
+.featured-transfer { background: var(--surface); }
 .transfer-identity { display: flex; min-width: 0; align-items: center; gap: 12px; }
 .transfer-icon { display: grid; flex: none; width: 36px; height: 36px; place-items: center; border-radius: 11px; color: var(--brand-strong); background: var(--brand-soft); font-size: 16px; font-weight: 800; }
 .transfer-copy { display: flex; min-width: 0; flex-direction: column; gap: 4px; }

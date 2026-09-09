@@ -469,7 +469,7 @@
             </el-select>
             <small class="drawer-hint">留空时按当前语言自动尝试多个免费 Edge 音色；选中多个后按此顺序回退，不需要 API Key。</small>
           <button class="wordbook-shortcut" type="button" @click="openOptions('settings-vocabulary')">
-            <span class="wordbook-shortcut-icon" aria-hidden="true">★</span>
+            <span class="wordbook-shortcut-icon" aria-hidden="true"><UiIcon name="book" /></span>
             <span><strong>单词本</strong><small>{{ config.vocabularyBookEnabled ? '查看收藏、今日复习与掌握程度' : '开启后可从单词学习卡收藏并复习' }}</small></span>
             <b aria-hidden="true">›</b>
           </button>
@@ -589,6 +589,7 @@
 </template>
 
 <script lang="ts" setup>
+import UiIcon from '@/src/ui/components/UiIcon.vue'
 import UiSelect from '@/src/ui/components/UiSelect.vue';
 import {ElOption} from 'element-plus';
 import {useUiI18n as useControlI18n} from '@/src/ui/i18n';

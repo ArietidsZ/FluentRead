@@ -664,7 +664,7 @@ export const esESMessages = {
     "glossary.intro": "Fija traducciones de términos especializados o conserva los nombres de productos. Los cambios se guardan automáticamente.",
     "glossary.services": "Compatible con servicios de IA; Tongyi qwen-mt usa parámetros nativos de terminología. Servicios como Microsoft, Google y DeepL no aplican glosarios.",
     "glossary.emptyTitle": "Mantén coherentes los términos importantes",
-    "glossary.emptyHelp": "Añade un glosario integrado arriba o crea uno propio. Deja la traducción vacía para conservar el original.",
+    "glossary.emptyHelp": "Añade un glosario integrado o crea uno propio. Deja la traducción vacía para conservar el original.",
     "glossary.builtin.title": "Glosarios integrados",
     "glossary.builtin.help": "Añade tus temas y activa el interruptor general de arriba. Las copias se pueden editar, limitar a sitios o elegir en un perfil de traducción.",
     "glossary.builtin.ai": "IA y aprendizaje automático",

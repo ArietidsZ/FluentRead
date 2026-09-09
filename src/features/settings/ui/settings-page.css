@@ -5,6 +5,7 @@
  * 模块边界：该文件只作用于扩展设置页面的整体布局，不承载配置逻辑或 feature 内部组件细节；分区专属样式在 settings-sections.css，通用设计变量位于 src/ui/styles/tokens.css。
  */
 @import "../../../ui/styles/tokens.css";
+@import "../../../ui/styles/feedback.css";
 
 :root {
   --el-color-primary: #ef4776;

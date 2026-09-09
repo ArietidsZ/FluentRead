@@ -664,7 +664,7 @@ export const jaJPMessages = {
     "glossary.intro": "専門用語の訳語を指定したり、製品名を原文のまま保持できます。変更は自動保存されます。",
     "glossary.services": "AI 翻訳サービスに対応し、通義 qwen-mt では専用の用語パラメーターを使用します。Microsoft、Google、DeepL などの機械翻訳には適用されません。",
     "glossary.emptyTitle": "重要な用語の訳を統一",
-    "glossary.emptyHelp": "上から内蔵用語集を追加するか、自分で作成してください。訳語を空欄にすると原文を保持します。",
+    "glossary.emptyHelp": "内蔵用語集を追加するか、自分で作成してください。訳語を空欄にすると原文を保持します。",
     "glossary.builtin.title": "内蔵用語集",
     "glossary.builtin.help": "読む分野を追加し、上の全体スイッチをオンにしてください。コピーは編集でき、サイトの範囲指定や翻訳プロファイルでの選択も可能です。",
     "glossary.builtin.ai": "AI と機械学習",

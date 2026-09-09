@@ -159,7 +159,7 @@ function fixture(site, variant = '') {
         const group = scope.getByRole('radiogroup', {name, exact: true}); assert.equal(await group.count(), 1); assert.equal(await group.getByRole('radio', {checked: true}).count(), 1);
         if (defaults) assert.equal(await group.getByRole('radio', {name: selected, exact: true}).getAttribute('aria-checked'), 'true', `${name} keeps the intended fresh default`);
       }
-      const icon = p.locator('button[data-section="settings-writing"] .nav-icon'); assert.equal(await icon.locator('svg').count(), 1); assert.equal(await icon.locator('svg').getAttribute('aria-hidden'), 'true'); assert.equal(await icon.locator('svg').getAttribute('stroke'), 'currentColor'); assert.equal(await icon.locator('img').count(), 0);
+      const icon = p.locator('button[data-section="settings-writing"] .nav-icon'); assert.equal(await icon.locator('svg').count(), 1); assert.equal(await icon.locator('svg path').count(), 1); assert.equal(await icon.locator('svg').getAttribute('aria-hidden'), 'true'); assert.equal(await icon.locator('svg').getAttribute('stroke'), 'currentColor'); assert.equal(await icon.locator('img').count(), 0);
     };
     await assertSettings(settings, true); await shot(settings, 'writing-settings-light');
     // 写作连接跳转只改变服务页正在编辑的服务，不能改变网页翻译默认值。

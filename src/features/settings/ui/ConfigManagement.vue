@@ -321,6 +321,6 @@ async function applyPreviewTarget() {
   .version-entry { grid-template-columns: 40px minmax(0, 1fr) auto; }
 }
 
-:global(:root.dark) .version-badge.backup { color: #80d8c2; background: rgba(38, 114, 96, .22); }
-:global(:root.dark) .preview-summary b.empty { color: #80d8c2; background: rgba(38, 114, 96, .22); }
+:root.dark .version-badge.backup { color: #80d8c2; background: rgba(38, 114, 96, .22); }
+:root.dark .preview-summary b.empty { color: #80d8c2; background: rgba(38, 114, 96, .22); }
 </style>
