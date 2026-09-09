@@ -682,3 +682,186 @@ it.each(['source', 'remove', 'disable', 'scroll'])('等待期间图片或设置�
     expect(env.roots).toHaveLength(0);
     expect(client.translate).not.toHaveBeenCalled();
 });
+
+
+describe('图片悬浮入口过滤', () => {
+    it('使用文档基地址解析尚无 currentSrc 的相对图标路径', () => {
+        const env = setup();
+        Object.defineProperty(document, 'baseURI', {value: 'https://example.test/assets/'});
+        Object.defineProperty(env.image, 'currentSrc', {value: ''});
+        env.image.src = 'icons/check.png'; env.hover();
+        expect(env.roots).toHaveLength(0);
+    });
+    it.each([[96, 96], [119, 120], [179, 80], [600, 39], [79, 600], [0, 200]])('显示为 %s × %s 的小图不分配计时器或观察器', (width, height) => {
+        const env = setup();
+        env.setRect({left: 20, top: 40, width, height, right: 20 + width, bottom: 40 + height});
+        env.dispatch(env.image, 'pointerover');
+        expect(vi.getTimerCount()).toBe(0);
+        expect(env.roots).toHaveLength(0); expect(env.observers).toHaveLength(0);
+    });
+    it.each([[120, 120], [180, 80], [80, 180], [400, 200]])('显示为 %s × %s 的正文图片仍可进入', (width, height) => {
+        const env = setup();
+        env.setRect({left: 20, top: 40, width, height, right: 20 + width, bottom: 40 + height});
+        env.hover(); expect(env.button()).toBeTruthy();
+    });
+    it('CSS 放大的小图仍过滤，尚未加载的正文图不误当零尺寸图', () => {
+        const env = setup();
+        Object.assign(env.image, {naturalWidth: 64, naturalHeight: 64});
+        env.hover(); expect(env.roots).toHaveLength(0);
+        Object.assign(env.image, {naturalWidth: 0, naturalHeight: 0});
+        env.hover(); expect(env.button()).toBeTruthy();
+    });
+    it.each([
+        ['class', 'avatar avatar-user'], ['class', 'UserAvatar-root'], ['class', 'profileImage'],
+        ['id', 'site-logo'], ['data-testid', 'UserAvatar-123'], ['itemprop', 'logo'],
+        ['class', 'emoji'], ['class', 'icon-large'], ['class', 'badge'],
+        ['alt', '头像'], ['alt', 'Profile picture'], ['aria-label', 'Logo'],
+        ['aria-hidden', 'true'], ['role', 'presentation'], ['role', 'none'],
+    ])('过滤图片的 %s=%s 标记', (attribute, value) => {
+        const env = setup(); env.image.setAttribute(attribute, value);
+        env.hover(); expect(env.roots).toHaveLength(0); expect(client.translate).not.toHaveBeenCalled();
+    });
+    it.each(['https://avatars.githubusercontent.com/u/123', 'https://www.gravatar.com/avatar/hash',
+        'https://pbs.twimg.com/profile_images/123/photo.jpg', 'https://example.test/assets/icons/check.svg',
+        'https://example.test/emoji/smile.png', 'https://example.test/logo.png'])('过滤明确资源地址 %s', source => {
+        const env = setup(); env.image.src = source;
+        env.hover(); expect(env.roots).toHaveLength(0);
+    });
+    it.each(['https://example.test/iconography.png?avatar=true', 'https://example.test/avatar-guide.png', 'http://[invalid'])('不按一般描述或查询参数误过滤 %s', source => {
+        const env = setup(); env.image.src = source;
+        env.image.className = 'iconography'; env.image.alt = 'How to change an avatar';
+        env.imageStyle.borderRadius = '50%';
+        env.hover(); expect(env.button()).toBeTruthy();
+    });
+    it.each(['avatar', 'UserAvatar', 'profile-photo'])('近邻 %s 容器内的覆盖层不能绕过过滤', className => {
+        const env = setup(); env.parent.className = className;
+        const cover = document.createElement('span'); env.parent.append(cover);
+        env.dispatch(cover, 'pointermove', true, {clientX: 100, clientY: 100});
+        vi.advanceTimersByTime(600); expect(env.roots).toHaveLength(0);
+    });
+    it('不使用 body 的宽泛标记过滤正文；按钮内图片不自动提示', () => {
+        const env = setup(); document.body.className = 'avatar';
+        env.hover(); expect(env.button()).toBeTruthy();
+        env.dispatch(env.image, 'pointerout'); vi.advanceTimersByTime(500);
+        const button = document.createElement('button'); env.parent.append(button); button.append(env.image);
+        env.hover(); expect(env.roots.at(-1)?.querySelector('.fr-image-controls')).toBeNull();
+    });
+    it.each(['size', 'marker', 'intrinsic'])('600ms 等待中改变 %s 后不显示入口', mode => {
+        const env = setup(); env.dispatch(env.image, 'pointerover');
+        vi.advanceTimersByTime(300);
+        if (mode === 'size') env.setRect({left: 20, top: 40, width: 64, height: 64, right: 84, bottom: 104});
+        if (mode === 'marker') env.image.className = 'avatar';
+        if (mode === 'intrinsic') {Object.assign(env.image, {naturalWidth: 32, naturalHeight: 32});}
+        vi.advanceTimersByTime(300); expect(env.roots).toHaveLength(0);
+    });
+    it('已显示的空闲入口变为头像后撤下并释放观察器，去掉标记后可重入', () => {
+        const env = setup(); env.hover(); env.image.className = 'avatar'; env.notify('class'); env.runFrames();
+        expect(env.roots[0].querySelector('.fr-image-controls')).toBeNull();
+        expect(env.observers[0].disconnect).toHaveBeenCalled();
+        env.image.className = ''; env.hover(); expect(env.button()).toBeTruthy();
+    });
+    it('从正文图移动到图标取消旧等待', () => {
+        const env = setup(); env.dispatch(env.image, 'pointerover');
+        const icon = document.createElement('img'); icon.className = 'icon';
+        icon.getBoundingClientRect = env.image.getBoundingClientRect; env.parent.append(icon);
+        env.dispatch(icon, 'pointerover'); vi.advanceTimersByTime(600);
+        expect(env.roots).toHaveLength(0);
+    });
+    it('头像可通过可信右键主动翻译、恢复、再翻译', async () => {
+        const env = setup(); env.image.className = 'avatar'; env.hover(); expect(env.roots).toHaveLength(0);
+        env.dispatch(env.image, 'contextmenu'); expect(toggleContextMenuImage(env.image.src)).toBe(true); await flush();
+        expect(env.bitmap()).toBeTruthy();
+        env.dispatch(env.image, 'contextmenu'); expect(toggleContextMenuImage()).toBe(true);
+        expect(env.bitmap()).toBeNull();
+        env.dispatch(env.image, 'contextmenu'); expect(toggleContextMenuImage()).toBe(true); await flush();
+        expect(env.bitmap()).toBeTruthy(); expect(client.translate).toHaveBeenCalledTimes(1);
+    });
+    it('翻译期间新增头像标记不撤下进度或丢失恢复入口', async () => {
+        const env = setup(); const pending = deferred<typeof result>(); client.translate.mockReturnValue(pending.promise);
+        env.hover(); env.click(); await flush();
+        env.image.className = 'avatar'; env.notify('class'); env.runFrames();
+        expect(env.button().dataset.phase).toBe('loading');
+        env.dispatch(env.image, 'pointermove');
+        pending.resolve(result); await flush(); expect(env.bitmap()).toBeTruthy();
+        env.click(); expect(env.bitmap()).toBeNull(); expect(env.button()).toBeTruthy();
+    });
+});
+
+describe('视频预览不自动显示图片翻译', () => {
+    it.each(['videoPlayer', 'videoComponent', 'video-poster', 'video-thumbnail', 'video-preview', 'video-cover', 'movie_player', 'ytp-cued-thumbnail-overlay'])('没有 video 元素时识别 %s 容器', marker => {
+        const env = setup(); env.parent.setAttribute('data-testid', marker);
+        env.hover(); expect(env.roots).toHaveLength(0);
+    });
+    it.each(['ytd-thumbnail', 'yt-thumbnail-view-model'])('识别 %s 中的视频缩略图', tag => {
+        const env = setup(); const wrapper = document.createElement(tag); env.parent.append(wrapper); wrapper.append(env.image);
+        env.hover(); expect(env.roots).toHaveLength(0);
+    });
+    it.each([
+        'https://pbs.twimg.com/ext_tw_video_thumb/123/pu/img/cover.jpg',
+        'https://pbs.twimg.com/amplify_video_thumb/123/img/cover.jpg',
+        'https://pbs.twimg.com/tweet_video_thumb/123.jpg',
+        'https://i.ytimg.com/vi/123/hqdefault.jpg',
+        'https://i.ytimg.com/vi_webp/123/maxresdefault.webp',
+    ])('尚无播放器时按封面来源排除 %s', source => {
+        const env = setup(); env.image.src = source; env.hover(); expect(env.roots).toHaveLength(0);
+    });
+    it.each([
+        ['https://x.com/user/status/123/video/1', false],
+        ['https://twitter.com/user/status/123/video/2', false],
+        ['https://www.youtube.com/watch?v=123', false],
+        ['https://www.youtube.com/shorts/123', false],
+        ['https://youtu.be/123', false],
+        ['https://x.com/user/status/123/photo/1', true],
+        ['https://www.youtube.com/@user', true],
+        ['https://youtu.be/', true],
+        ['https://example.test/watch?v=123', true],
+        ['http://[invalid', true],
+        ['', true],
+    ])('视频链接 %s 的入口预期为 %s', (href, expected) => {
+        const env = setup(); const anchor = document.createElement('a'); anchor.setAttribute('href', href);
+        env.parent.append(anchor); anchor.append(env.image);
+        env.hover(); expect(env.roots.length > 0).toBe(expected);
+    });
+    it('未标记播放器内重叠的视频排除封面，但旁边的视频不影响配图', () => {
+        const env = setup(); const video = document.createElement('video'); env.parent.append(video);
+        video.getBoundingClientRect = env.image.getBoundingClientRect;
+        env.hover(); expect(env.roots).toHaveLength(0);
+        video.getBoundingClientRect = () => ({left: 500, top: 40, right: 900, bottom: 240, width: 400, height: 200}) as DOMRect;
+        env.hover(); expect(env.button()).toBeTruthy();
+    });
+    it('帖子中相邻视频不影响图片，并且普通配图不按 URL 的查询参数误判', () => {
+        const env = setup();
+        const article = document.createElement('article'); document.body.append(article); article.append(env.parent);
+        const player = document.createElement('div'); player.setAttribute('data-testid', 'videoPlayer'); article.append(player);
+        player.append(document.createElement('video'));
+        env.image.src = 'https://pbs.twimg.com/media/photo.jpg?label=ext_tw_video_thumb';
+        env.hover(); expect(env.button()).toBeTruthy();
+    });
+    it('深层视频组件在播放器初始化前排除封面', () => {
+        const env = setup(); env.parent.setAttribute('data-testid', 'videoPlayer');
+        let parent: Element = env.parent;
+        for (let index = 0; index < 3; index++) {const nested = document.createElement('div'); parent.append(nested); parent = nested;}
+        parent.append(env.image); env.hover(); expect(env.roots).toHaveLength(0);
+    });
+    it('远层普通容器不导致扫描整页，正常图片可以显示', () => {
+        const env = setup(); let parent: Element = env.parent;
+        for (let index = 0; index < 6; index++) {const nested = document.createElement('div'); parent.append(nested); parent = nested;}
+        parent.append(env.image); env.hover(); expect(env.button()).toBeTruthy();
+    });
+    it('播放器在等待中或提示显示后接管图片时撤下自动入口', () => {
+        const env = setup(); env.dispatch(env.image, 'pointerover');
+        env.parent.setAttribute('data-testid', 'videoPlayer'); vi.advanceTimersByTime(600);
+        expect(env.roots).toHaveLength(0);
+        env.parent.removeAttribute('data-testid'); env.hover(); expect(env.button()).toBeTruthy();
+        const video = document.createElement('video'); video.getBoundingClientRect = env.image.getBoundingClientRect; env.parent.append(video);
+        env.notify('', 'childList'); env.runFrames();
+        expect(env.roots[0].querySelector('.fr-image-controls')).toBeNull();
+        video.remove(); env.hover(); expect(env.button()).toBeTruthy();
+    });
+    it('视频预览覆盖层不能借局部图片发现重新显示入口', () => {
+        const env = setup(); env.parent.setAttribute('data-testid', 'videoPlayer');
+        const cover = document.createElement('span'); env.parent.append(cover);
+        env.dispatch(cover, 'pointermove', true, {clientX: 100, clientY: 100}); vi.advanceTimersByTime(600);
+        expect(env.roots).toHaveLength(0);
+    });
+});
