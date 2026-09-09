@@ -55,6 +55,14 @@ API Key 中只填站点提供的 Token 值，不加 `Bearer` 前缀。默认通�
 
 使用 Azure 时，模型一栏填写实际的 **部署名称**；地址填写自己的资源地址或服务商给出的完整接口地址。
 
+### 腾讯混元连接失败
+
+选择 **腾讯混元**，填写混元控制台创建的 API Key。默认使用官方混元接口；**腾讯混元翻译**是另一项服务，需要 SecretId 和 SecretKey。
+
+旧版遇到 `Failed to fetch` 时，可以在 **高级设置 → 代理地址** 填入 `https://api.hunyuan.cloud.tencent.com/v1/chat/completions`，再点击 **检查连接**。使用自建代理或 TokenHub 时，请填写对应平台提供的完整接口地址和配套密钥。
+
+接口与密钥申请方式见腾讯官方的[第三方软件集成混元指南](https://cloud.tencent.com/document/product/1729/116755)。
+
 ### Gemini 代理地址
 
 Gemini 代理需要完整请求地址，也支持下面的模板：

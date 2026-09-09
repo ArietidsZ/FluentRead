@@ -59,6 +59,14 @@ Extra AI context can reference the page title and parts of the article to help w
 
 Restore existing translations before translating with changed settings. Use [glossaries](/en/guide/glossary) for consistent terminology.
 
+### Tencent Hunyuan connection failures
+
+Select **Tencent Hunyuan** and enter an API key created in the Hunyuan console. The default uses the official Hunyuan endpoint. **Tencent Hunyuan Translate** is a separate service that requires a SecretId and SecretKey.
+
+If an older version reports `Failed to fetch`, enter `https://api.hunyuan.cloud.tencent.com/v1/chat/completions` under **Advanced settings → Proxy URL**, then check the connection again. For a custom proxy or TokenHub, use the full endpoint and matching key provided by that platform.
+
+See Tencent's [official integration guide](https://cloud.tencent.com/document/product/1729/116755) for endpoint and API key instructions.
+
 ## Local models
 
 Install and run Ollama and download a model before connecting it. Performance depends on the model and computer.

@@ -1289,7 +1289,7 @@ describe('OpenAI 兼容服务端点', () => {
         expect(MINIMAX_ENDPOINTS.payg.cn).toBe('https://api.minimaxi.com/v1/chat/completions');
         expect(MINIMAX_ENDPOINTS['token-plan'].global).toBe('https://api.minimax.io/v1/chat/completions');
         expect(urls[services.infini]).toBe('https://cloud.infini-ai.com/maas/v1/chat/completions');
-        expect(urls[services.huanYuan]).toBe('https://api.tokenhub.tencent.com/v1/chat/completions');
+        expect(urls[services.huanYuan]).toBe('https://api.hunyuan.cloud.tencent.com/v1/chat/completions');
         expect(tongyiTokenPlanUrl).toBe('https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/chat/completions');
     });
 

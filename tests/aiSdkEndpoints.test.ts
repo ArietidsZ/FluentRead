@@ -71,7 +71,7 @@ describe('AI SDK 首批服务路由', () => {
         [services.lingyi, 'https://api.lingyiwanwu.com/v1/chat/completions', 'https://api.lingyiwanwu.com/v1'],
         [services.jieyue, 'https://api.stepfun.com/v1/chat/completions', 'https://api.stepfun.com/v1'],
         [services.groq, 'https://api.groq.com/openai/v1/chat/completions', 'https://api.groq.com/openai/v1'],
-        [services.huanYuan, 'https://api.tokenhub.tencent.com/v1/chat/completions', 'https://api.tokenhub.tencent.com/v1'],
+        [services.huanYuan, 'https://api.hunyuan.cloud.tencent.com/v1/chat/completions', 'https://api.hunyuan.cloud.tencent.com/v1'],
         [services.doubao, 'https://ark.cn-beijing.volces.com/api/v3/chat/completions', 'https://ark.cn-beijing.volces.com/api/v3'],
         [services.siliconCloud, 'https://api.siliconflow.cn/v1/chat/completions', 'https://api.siliconflow.cn/v1'],
         [services.openrouter, 'https://openrouter.ai/api/v1/chat/completions', 'https://openrouter.ai/api/v1'],
