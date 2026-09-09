@@ -1,7 +1,7 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/快捷键/直接弹出、翻译与词卡展示、朗读、收藏词书、重试和关闭。
- * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、请求 token、弹窗定位和主题，以保守同语言预检避免误隐藏翻译入口，以独立点击、延迟悬停和快捷键复用选区入口打开 Harness 阅读卡，按模型相关配置刷新阅读缓存，协调翻译、词典与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
+ * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、请求 token、弹窗定位和主题，以纯中文选区过滤统一划词和翻译卡入口，其他文本保留保守同语言预检，以独立点击、延迟悬停和快捷键复用选区入口打开 Harness 阅读卡，按模型相关配置刷新阅读缓存，协调翻译、词典与 TTS，并把滚轮交互限制在自身 Shadow UI 内。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
 <template>
@@ -164,7 +164,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, wa
 import browser from 'webextension-polyfill';
 import { config, subscribeConfig } from '@/src/services/config/store';
 import { translateText } from '@/src/app/translation/client';
-import {detectlang, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
+import {detectlang, shouldSkipChineseSelection, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
 import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey } from '@/src/core/hotkey';
 import { isSingleEnglishWord, normalizeEnglishWord, type WordCardData, type WordPronunciation } from '@/src/features/selection-translation/services/wordDictionary';
 import { calculateReadingPopupLayout, calculateSelectionPopupPosition, chooseSelectionRect, getSelectionPresentationDelayRemaining, readSelectionText, normalizeSpeechLanguage, reconcileSelectionPresentation, resolveSelectionDictionaryFallback, resolveSelectionVocabularyAnswer, SelectionRequestTokenGate, shouldIgnoreSelection, summarizeSelectionContext, type SelectionAnswerCandidate, type SelectionContentRequest, type SelectionRect } from '@/src/features/selection-translation/core';
@@ -386,7 +386,7 @@ function isSelectionReadSuppressed(): boolean {
 }
 
 function isSelectionInTargetLanguage(text: string): boolean {
-  return shouldSkipTranslationForTarget(text, config.to);
+  return shouldSkipChineseSelection(text, config.to) || shouldSkipTranslationForTarget(text, config.to);
 }
 
 function isSameSelection(left: SelectionSnapshot | null, right: SelectionSnapshot): boolean {
@@ -517,6 +517,7 @@ function applySelection(next: SelectionSnapshot | null, shortcutTriggered = fals
   if (!shortcutTriggered && isSameSelection(dismissedSelection, next)) return;
   dismissedSelection = null;
   cancelSelectionLoss();
+  if (shouldSkipChineseSelection(next.text, config.to)) { hideAll(); return; }
   if (isSameSelection(snapshot.value, next)) {
     if (readingTriggered) openReading();
     else if (shortcutTriggered) scheduleSelectionPresentation('tooltip');
@@ -627,6 +628,7 @@ function openReadingHistory(): void {
 
 function openReadingCard(): void {
   if (!snapshot.value || !readingEnabled.value) return;
+  if (shouldSkipChineseSelection(snapshot.value.text, config.to)) { hideAll(); return; }
   cancelSelectionPresentation();
   cancelSelectionLoss();
   translationAbortController?.abort();
@@ -1256,6 +1258,7 @@ function handleKeydown(event: KeyboardEvent): void {
     && matchesConfiguredHotkey(event, 'custom', readingPreferences.value.customHotkey)) {
     const current = readSelectionSnapshot();
     if (!current) return;
+    if (shouldSkipChineseSelection(current.text, config.to)) { hideAll(); return; }
     event.preventDefault();
     event.stopPropagation();
     applySelection(current, true, true);
@@ -1266,6 +1269,7 @@ function handleKeydown(event: KeyboardEvent): void {
   selectionShortcutHeld = true;
   const currentSelection = readSelectionSnapshot();
   if (currentSelection) {
+    if (isSelectionInTargetLanguage(currentSelection.text)) { hideAll(); return; }
     event.preventDefault();
     event.stopPropagation();
     applySelection(currentSelection, true);
@@ -1356,7 +1360,8 @@ onMounted(() => {
     if (themeChanged) updateTheme();
     if (!snapshot.value) return;
     if (languageChanged && readingMode.value) { hideAll(); return; }
-    if (languageChanged && !readingEnabled.value && isSelectionInTargetLanguage(snapshot.value.text)) { hideAll(); return; }
+    if (languageChanged && (shouldSkipChineseSelection(snapshot.value.text, config.to)
+      || (!readingEnabled.value && isSelectionInTargetLanguage(snapshot.value.text)))) { hideAll(); return; }
     if (languageChanged || translationProviderChanged) resetSelectionContentState();
     if (triggerChanged) {
       const nextPresentation = reconcileSelectionPresentation({

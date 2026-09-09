@@ -30,6 +30,7 @@ function parseArgs(argv) {
     browserPath: readArg(argv, 'browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),
     focusSafeHelper: readArg(argv, 'focus-safe-helper', ''),
     headed: argv.includes('--headed'),
+    chineseOnly: argv.includes('--chinese-only'),
   };
   if (!args.playwrightRoot) throw new Error('必须传入 --playwright-root，或设置 PLAYWRIGHT_ROOT');
   args.extensionDir = path.resolve(args.extensionDir);
@@ -604,6 +605,7 @@ async function readSelectionUi(page) {
     host: Boolean(host),
     configuredDelay: Number(cdpAttribute(translatorRoot, 'data-display-delay') || -1),
     indicator: Boolean(indicator),
+    readingIndicator: Boolean(findCdpNode(host, node => hasCdpClass(node, 'fr-reading-indicator'))),
     indicatorClass: cdpAttribute(indicator, 'class'),
     tooltip: Boolean(tooltip),
     brandIcon: {
@@ -905,6 +907,92 @@ async function main() {
     page.on('console', (message) => { if (message.type() === 'error') result.consoleErrors.push(`console: ${message.text()}`); });
     await page.goto('https://example.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
     await waitForContentScript(page);
+
+    if (args.chineseOnly) {
+      const saved = await readStoredConfig(popup);
+      const configure = async (patch) => {
+        await patchStoredConfig(popup, {
+          on: true, disableSelectionTranslator: patch.selectionTranslatorMode === 'disabled', selectionTranslatorMode: 'bilingual',
+          selectionTranslatorDelay: 0, to: 'zh-Hans', from: 'auto', service: 'microsoft',
+          hotkey: 'none', floatingBallHotkey: 'none', ...patch,
+        });
+        await page.waitForTimeout(600);
+      };
+      const select = async (text) => {
+        await activateInputPage(page);
+        await page.keyboard.press('Escape');
+        await resetFixture(page);
+        await page.locator('#target').evaluate((element, value) => { element.textContent = value; }, text);
+        await page.locator('#target').click();
+        await selectTextWithDomRange(page, '#target', 4096);
+        await page.waitForTimeout(450);
+        assert(await page.evaluate(() => window.getSelection()?.toString()) === text, '选区内容不完整');
+      };
+      await page.evaluate(() => {
+        globalThis.__selectionKeyClaims = [];
+        document.addEventListener('keydown', event => {
+          globalThis.__selectionKeyClaims.push({key: event.key, prevented: event.defaultPrevented});
+        });
+      });
+      for (const mode of [
+        {id: 'icon', selectionTranslatorTrigger: 'icon', enabled: false, trigger: 'click'},
+        {id: 'dot', selectionTranslatorTrigger: 'dot', enabled: false, trigger: 'click'},
+        {id: 'direct', selectionTranslatorTrigger: 'direct', enabled: false, trigger: 'click'},
+        {id: 'selection-shortcut', selectionTranslatorTrigger: 'Control', enabled: false, trigger: 'click'},
+        {id: 'card-click', selectionTranslatorTrigger: 'icon', enabled: true, trigger: 'click'},
+        {id: 'card-hover', selectionTranslatorTrigger: 'icon', enabled: true, trigger: 'hover'},
+        {id: 'card-shortcut', selectionTranslatorTrigger: 'Control', enabled: true, trigger: 'shortcut'},
+        {id: 'card-only', selectionTranslatorTrigger: 'icon', enabled: true, trigger: 'shortcut', selectionTranslatorMode: 'disabled'},
+      ]) {
+        await configure({selectionTranslatorTrigger: mode.selectionTranslatorTrigger,
+          selectionTranslatorMode: mode.selectionTranslatorMode || 'bilingual',
+          harness: {...saved.harness, enabled: mode.enabled, trigger: mode.trigger, customHotkey: 'Alt+R', hoverDelay: 200},
+        });
+        for (const source of ['你好', '你好，世界！123 🎉', '繁體中文']) {
+          const before = translationRequestCount;
+          await select(source);
+          await page.evaluate(() => { globalThis.__selectionKeyClaims = []; });
+          await page.keyboard.press('Control');
+          await page.keyboard.press('Alt+r');
+          await page.waitForTimeout(350);
+          const ui = await readSelectionUi(page);
+          const claims = await page.evaluate(() => globalThis.__selectionKeyClaims);
+          assert(!ui.indicator && !ui.readingIndicator && !ui.tooltip, `${mode.id} 为中文显示了入口或卡片`);
+          assert(translationRequestCount === before, `${mode.id} 为中文发送了翻译请求`);
+          assert(claims.every(event => !event.prevented), `${mode.id} 占用了中文选区快捷键`);
+          result.cases.push({id: `chinese.${mode.id}.${source}`, status: 'passed', ui, requests: translationRequestCount - before, claims});
+        }
+      }
+      await configure({selectionTranslatorTrigger: 'direct', harness: {...saved.harness, enabled: false}});
+      for (const source of ['你好 hello world', 'Hello world']) {
+        await select(source);
+        await waitForSelectionUi(page, {tooltip: true, translation: true}, '外语或混排仍可翻译');
+        result.cases.push({id: `eligible.${source}`, status: 'passed', ui: await readSelectionUi(page)});
+      }
+      await select('你好');
+      assert(!(await readSelectionUi(page)).tooltip, '从外语改选中文后旧卡片未关闭');
+      await configure({to: 'en', selectionTranslatorTrigger: 'direct', harness: {...saved.harness, enabled: false}});
+      await select('你好世界');
+      await waitForSelectionUi(page, {tooltip: true, translation: true}, '中文译成外语仍可用');
+      await configure({to: 'zh-Hans'});
+      assert(!(await readSelectionUi(page)).tooltip, '改回中文目标后旧卡片未关闭');
+      result.cases.push({id: 'target-change-and-selection-replacement', status: 'passed'});
+      await configure({selectionTranslatorTrigger: 'icon', harness: {...saved.harness, enabled: true, trigger: 'click'}});
+      await select('Hello world');
+      assert((await readSelectionUi(page)).readingIndicator, '外语翻译卡入口未恢复');
+      await select('你好');
+      const finalUi = await readSelectionUi(page);
+      assert(!finalUi.readingIndicator && !finalUi.tooltip, '中文翻译卡入口未隐藏');
+      result.cases.push({id: 'reading-indicator-restores-for-foreign-selection', status: 'passed', ui: finalUi});
+      const screenshot = path.join(args.artifactsDir, 'chinese-selection-no-card.png');
+      await page.screenshot({path: screenshot}); result.screenshots.push(screenshot);
+      assert(result.consoleErrors.length === 0, `浏览器控制台异常：${JSON.stringify(result.consoleErrors)}`);
+      result.ok = true;
+      result.providerEvidence = 'Local Microsoft response fixture; reading card entry checks do not call an AI model.';
+      fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), `${JSON.stringify(result, null, 2)}\n`);
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      return;
+    }
 
     const drawer = await openSelectionDrawer(popup);
     await setSelectionEnabled(popup, drawer, true);
