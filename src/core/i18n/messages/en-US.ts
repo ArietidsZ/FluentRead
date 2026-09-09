@@ -2068,6 +2068,12 @@ const enUSLegacyTextBase: Readonly<Record<string, string>> = {
 };
 
 export const enUSLegacyText: Readonly<Record<string, string>> = {
+    "腾讯交互翻译": "Tencent TranSmart",
+    "火山翻译": "Volcengine Translate",
+    "免密钥网页接口，与腾讯云翻译不同": "Keyless web endpoint, separate from Tencent Cloud Translation",
+    "免密钥网页接口，暂不支持繁体目标语言": "Keyless web endpoint; Traditional Chinese targets are not supported",
+    "免密钥网页接口，无需配置火山云账号": "Keyless web endpoint; no Volcengine Cloud account required",
+
     "非官方公共接口，无需密钥": "Unofficial public endpoint; no API key required",
     '请输入有效邮箱，或留空。': 'Enter a valid email address, or leave this blank.',
     '按设置顺序自动切换可用服务；支持每路超时和失败冷却。': 'Automatically tries available services in your chosen order, with a timeout and cooldown for each service.',

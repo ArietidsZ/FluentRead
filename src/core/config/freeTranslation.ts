@@ -10,6 +10,9 @@ export const FREE_TRANSLATION_PROVIDERS = [
     {id: 'deeplx', label: 'DeepLX', description: '非官方公共接口，无需密钥', official: false},
     {id: 'google', label: '谷歌翻译', description: '网页接口，非官方公开 API', official: false},
     {id: 'myMemory', label: 'MyMemory', description: '官方 API，匿名每天 5,000 字符', official: true},
+    {id: 'transmart', label: '腾讯交互翻译', description: '免密钥网页接口，与腾讯云翻译不同', official: false},
+    {id: 'yandexFree', label: 'Yandex', description: '免密钥网页接口，暂不支持繁体目标语言', official: false},
+    {id: 'volcengineFree', label: '火山翻译', description: '免密钥网页接口，无需配置火山云账号', official: false},
 ] as const;
 
 export const DEFAULT_FREE_TRANSLATION_ORDER = ['microsoft', 'deeplx', 'google', 'myMemory'] as const;

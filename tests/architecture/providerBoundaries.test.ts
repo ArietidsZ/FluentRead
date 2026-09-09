@@ -22,6 +22,7 @@ const EXPECTED_PROVIDER_FILES = [
     'deeplx.ts',
     'deepseek.ts',
     'free-translation.ts',
+    'free-web.ts',
     'gemini.ts',
     'google.ts',
     'hunyuan-translation.ts',
