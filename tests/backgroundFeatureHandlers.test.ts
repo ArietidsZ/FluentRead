@@ -147,6 +147,8 @@ describe('后台 feature handlers', () => {
             {sender: {tab: {id: 0}}},
         )).toEqual({success: true});
         expect(stateStore.get(0)).toEqual({isTranslated: true, isSiteDisabled: false});
+        translationHandler.handle({type: FULL_PAGE_TRANSLATION_STATE_MESSAGE_TYPE, isTranslated: true, toolbarStatus: 'error'}, {sender: {tab: {id: 1}}});
+        expect(stateStore.get(1).toolbarStatus).toBe('error');
 
         expect(disabledHandler.type).toBe(SITE_EXTENSION_DISABLED_STATE_MESSAGE_TYPE);
         expect(disabledHandler.handle(
@@ -155,7 +157,7 @@ describe('后台 feature handlers', () => {
         )).toEqual({success: true});
         expect(stateStore.get(0)).toEqual({isTranslated: false, isSiteDisabled: true});
         expect(onStateChanged).toHaveBeenNthCalledWith(1, 0);
-        expect(onStateChanged).toHaveBeenNthCalledWith(2, 0);
+        expect(onStateChanged).toHaveBeenNthCalledWith(3, 0);
     });
 
     it('全文状态 handler 拒绝非布尔值，并对非标签页发送者保持兼容 no-op', () => {

@@ -1,10 +1,11 @@
 /**
  * @file src/features/full-page-translation/content/runtime.ts
  * 文件职责：实现全文翻译的页面级会话引擎，负责候选发现、可见性调度、批量请求、动态 DOM 重扫、失败重试、缓存复用和恢复原文。
- * 主要内容：维护 FullPageSession、AbortController、Intersection/Mutation 观察器、精确属性写入过滤、候选所有权和生命周期重试，冻结翻译配置与识别范围并在提交时重绑可恢复文本槽，按保存设置识别正文或全部界面文字，导出自动翻译、悬浮翻译、状态查询及恢复入口。
+ * 主要内容：维护 FullPageSession、AbortController、Intersection/Mutation 观察器、精确属性写入过滤、候选所有权和生命周期重试，冻结翻译配置与识别范围并在提交时重绑可恢复文本槽，按保存设置识别正文或全部界面文字，按实际节点阶段发布工具栏结果，导出自动翻译、悬浮翻译、状态查询及恢复入口。
  * 模块边界：这是 content 侧编排层，不实现 provider 协议、纯候选算法或底层状态存储；翻译调用经 app client，发现规则来自 core/translation，渲染与状态分别交给 renderer 和 state。
  */
-import {getFullPageTranslationStateRevision, notifyFullPageTranslationState} from './stateNotification';
+import {resolveTranslationToolbarStatus, countFullPageTranslationWork} from '../toolbarStatus';
+import {getFullPageTranslationStateRevision, notifyFullPageTranslationState, notifyTranslationToolbarStatus} from './stateNotification';
 import type {FrameTranslationState} from './frameSession';
 import { checkConfig } from "@/src/app/translation/check";
 import {insertFailedTip, insertLoadingSpinner} from '@/src/features/full-page-translation/ui/translationIndicators';
@@ -223,20 +224,12 @@ function scheduleFullPageProgressPublish(session: FullPageSession): void {
         session.progressPublishScheduled = false;
         if (!session.active || fullPageSession !== session) return;
 
-        const running = session.inFlightCandidates.size;
-        let runningScheduled = 0;
-        for (const [key, candidate] of session.inFlightCandidates) {
-            if (session.scheduled.get(key) === candidate) runningScheduled += 1;
-        }
-        // 同一个 key 的新候选可以在旧请求 settle 前替换 scheduled 所有权。
-        // 旧请求仍算进行中，但不能把新的待处理候选从 remaining 中扣掉。
-        const remaining = Math.max(0, session.scheduled.size - runningScheduled);
-        const queued = Math.min(session.pending.size, remaining);
-        updateFullPageTranslationProgress(session.progressSessionId, {
-            running,
-            queued,
-            offscreen: Math.max(0, remaining - queued),
-        });
+        const work = countFullPageTranslationWork(session.inFlightCandidates, session.scheduled, session.pending.size);
+        const busy = work.running > 0 || work.queued > 0;
+        const targets = session.statefulTargetsByAncestor.get(document.documentElement) ?? [];
+        notifyTranslationToolbarStatus(busy ? 'translating' : resolveTranslationToolbarStatus(false,
+            Array.from(targets, target => target.isConnected ? getTranslationState(target)?.phase ?? '' : '')));
+        updateFullPageTranslationProgress(session.progressSessionId, work);
     });
 }
 
@@ -583,6 +576,7 @@ function unregisterSessionStatefulTarget(session: FullPageSession | undefined, t
     if (!session) return;
     const ancestors = session.statefulAncestorsByTarget.get(target);
     if (!ancestors) return;
+    scheduleFullPageProgressPublish(session);
     session.statefulAncestorsByTarget.delete(target);
     for (const ancestor of ancestors) {
         const targets = session.statefulTargetsByAncestor.get(ancestor);
@@ -656,6 +650,7 @@ function registerSessionStatefulTarget(
         current = getComposedParent(current);
     }
     session.statefulAncestorsByTarget.set(target, ancestors);
+    scheduleFullPageProgressPublish(session);
 }
 
 function refreshCandidateVisibilityBinding(
@@ -907,7 +902,7 @@ async function translateTarget(candidate: TranslationCandidate, displayMode: "bi
         requestSession,
         requestCommitGeneration,
         requestOwner,
-    );
+    ).finally(() => { if (statefulSession) scheduleFullPageProgressPublish(statefulSession); });
     if ((outcome.status === "stale" || outcome.status === "not-current" || outcome.status === "empty" ||
         outcome.status === "unchanged") && (!getTranslationState(node) || getTranslationState(node) === attempt.state)) {
         unregisterSessionStatefulTarget(statefulSession, node);

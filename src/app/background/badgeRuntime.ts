@@ -1,93 +1,68 @@
 /**
  * @file src/app/background/badgeRuntime.ts
- * 文件职责：把标签页全文翻译状态映射为工具栏图标上的绿色对勾角标，让用户在图标上直观看到当前页面是否已翻译。
- * 主要内容：installBackgroundBadge 探测 action 命名空间能力，提供缓存路径 update 与再查询路径 refreshActive，并自注册 onActivated/onUpdated/onRemoved 生命周期监听渲染或清空按标签页隔离的角标。
- * 模块边界：本模块只读状态并调用浏览器 action 角标 API，不写 TabTranslationStateStore、不改右键菜单、不发起正文翻译；真值查询复用 tabTranslationQuery，状态变更仍由 full-page feature 上报。
+ * 文件职责：按标签页显示尺寸可控、半透明的工具栏翻译状态叠层。
+ * 主要内容：根据内容脚本提供的真实结果状态选择静态图标，序列化同一标签页的写入，并在导航和关闭时清理；MV3 与 MV2 共用静态 PNG。
+ * 模块边界：只读取状态并调用 action/browserAction，不改页面 DOM、用户配置或翻译任务；静态资源不需要额外权限或后台 Canvas。
  */
-import {type TabTranslationState, TabTranslationStateStore} from './tabTranslationState';
+import {TabTranslationStateStore} from './tabTranslationState';
 import {createTabTranslationStateReader} from './tabTranslationQuery';
+import {normalizeTranslationToolbarStatus, type TranslationToolbarStatus} from '@/src/features/full-page-translation/toolbarStatus';
 
 interface BadgeActionApi {
-    setBadgeText(details: {tabId?: number; text: string}): Promise<void> | void;
-    setBadgeBackgroundColor(details: {tabId?: number; color: string}): Promise<void> | void;
-    setBadgeTextColor?(details: {tabId?: number; color: string}): Promise<void> | void;
+    setBadgeText(details: {tabId: number; text: string}): Promise<void> | void;
+    setIcon(details: {tabId: number; path: Record<number, string>}): Promise<void> | void;
 }
-
 export interface BackgroundBadgeRuntime {
     readonly isSupported: boolean;
     update(tabId: number): Promise<void>;
 }
 
-/** 已翻译角标底色：深绿，浅色工具栏下与白勾对比更稳。 */
-const BADGE_BACKGROUND = '#15803d';
-/** 已翻译角标文字：白色前景，MV3+ 环境下显式设置以保证对比。 */
-const BADGE_TEXT_COLOR = '#ffffff';
-/** 已翻译角标符号：U+2713 对勾。刻意不用 U+2714，后者在 macOS/Chrome 会走 emoji 渲染而无视 setBadgeTextColor，导致对勾变深色。 */
-const BADGE_CHECK = '✓';
+const iconPaths = (status: TranslationToolbarStatus): Record<number, string> => Object.fromEntries(
+    [16, 32, 48, 64, 128].map(size => [size, status === 'idle' ? `icon/${size}.png` : `icon/toolbar/${status}-${size}.png`]),
+);
 
-/**
- * 安装工具栏翻译状态角标运行时。
- *
- * action 命名空间在 MV3 为 browser.action、Firefox MV2 为 browser.browserAction；polyfill 不会自动别名，必须经空值合并显式回退。userscript 产物无 action，isSupported 为 false 静默空转。
- */
-export function installBackgroundBadge(
-    tabTranslationStates: TabTranslationStateStore,
-): BackgroundBadgeRuntime {
+export function installBackgroundBadge(tabTranslationStates: TabTranslationStateStore): BackgroundBadgeRuntime {
     const action = (browser.action ?? browser.browserAction) as BadgeActionApi | undefined;
     const isSupported = !!action;
-    const readTabTranslationState = createTabTranslationStateReader(tabTranslationStates);
+    const read = createTabTranslationStateReader(tabTranslationStates);
+    const queues = new Map<number, Promise<void>>();
+    const versions = new Map<number, object>();
+    const rendered = new Map<number, TranslationToolbarStatus>();
 
-    // 纯渲染：仅依据已确定的 state 决定角标，无副作用查询。
-    const renderBadge = async (tabId: number, state: TabTranslationState): Promise<void> => {
-        if (!action) return;
-        const showCheck = state.isTranslated && !state.isSiteDisabled;
-        try {
-            await action.setBadgeText({tabId, text: showCheck ? BADGE_CHECK : ''});
-            if (showCheck) {
-                await action.setBadgeBackgroundColor({tabId, color: BADGE_BACKGROUND});
-                if (typeof action.setBadgeTextColor === 'function') {
-                    await action.setBadgeTextColor({tabId, color: BADGE_TEXT_COLOR});
-                }
-            }
-        } catch (error) {
-            console.error('Failed to update action badge:', error);
-        }
+    const render = (tabId: number, status: TranslationToolbarStatus): Promise<void> => {
+        if (!action) return Promise.resolve();
+        const version = {}; versions.set(tabId, version);
+        const job = (queues.get(tabId) ?? Promise.resolve()).then(async () => {
+            if (versions.get(tabId) !== version || rendered.get(tabId) === status) return;
+            try {
+                // 清理升级前的原生大角标；新叠层已经包含在静态图标中。
+                await action.setBadgeText({tabId, text: ''});
+                if (versions.get(tabId) !== version) return;
+                await action.setIcon({tabId, path: iconPaths(status)});
+                if (versions.get(tabId) === version) rendered.set(tabId, status);
+            } catch (error) { console.error('Failed to update toolbar translation status:', error); }
+        }).finally(() => { if (queues.get(tabId) === job) queues.delete(tabId); });
+        queues.set(tabId, job);
+        return job;
     };
-
-    // 直接清空某标签页角标，页面进入 loading 时使用，不依赖其他模块 reset 状态。
-    const clearBadge = async (tabId: number): Promise<void> => {
-        if (!action) return;
-        try {
-            await action.setBadgeText({tabId, text: ''});
-        } catch (error) {
-            console.error('Failed to clear action badge:', error);
-        }
-    };
-
-    // 缓存路径：onFullPageStateChanged → update，状态刚由 content 写入 store，直接读缓存渲染。
     const update = async (tabId: number): Promise<void> => {
         if (!isSupported) return;
-        await renderBadge(tabId, tabTranslationStates.get(tabId));
+        const state = tabTranslationStates.get(tabId);
+        await render(tabId, state.isTranslated && !state.isSiteDisabled
+            ? normalizeTranslationToolbarStatus(state.toolbarStatus) : 'idle');
     };
-
-    // 再查询路径：onActivated → 缓存缺失时回源查询真值（MV3 worker 可能刚重启），查询失败内部返回安全默认 {false,false}。
-    const refreshActive = async (tabId: number): Promise<void> => {
+    const refresh = async (tabId: number): Promise<void> => {
         if (!isSupported) return;
-        const state = tabTranslationStates.hasCompleteState(tabId)
-            ? tabTranslationStates.get(tabId)
-            : await readTabTranslationState(tabId);
-        await renderBadge(tabId, state);
+        const token = {}; versions.set(tabId, token);
+        await read(tabId, true);
+        if (versions.get(tabId) === token) await update(tabId);
     };
-
     if (isSupported) {
-        browser.tabs.onActivated.addListener((activeInfo: any) => { void refreshActive(activeInfo.tabId); });
-        browser.tabs.onUpdated.addListener((tabId: any, changeInfo: any) => {
-            // 整页文档进入加载即清空角标；SPA history.pushState 软导航不触发 loading，属已知边界不处理。
-            if (changeInfo.status === 'loading') void clearBadge(tabId);
+        browser.tabs.onActivated.addListener((info: {tabId: number}) => { void refresh(info.tabId); });
+        browser.tabs.onUpdated.addListener((tabId: number, change: {status?: string}) => {
+            if (change.status === 'loading') { rendered.delete(tabId); void render(tabId, 'idle'); }
         });
-        // 角标随标签页销毁自动消失，保留监听以对齐右键菜单语义；此处无需手动清理。
-        browser.tabs.onRemoved.addListener(() => undefined);
+        browser.tabs.onRemoved.addListener((tabId: number) => { versions.delete(tabId); rendered.delete(tabId); });
     }
-
     return {isSupported, update};
 }
