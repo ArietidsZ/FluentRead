@@ -24,7 +24,7 @@
             :aria-current="activeSection === item.id ? 'page' : undefined"
             @click="selectSection(item.id)"
           >
-            <span class="nav-icon">{{ item.icon }}</span>
+            <span class="nav-icon"><SettingsNavigationIcon :section="item.id" /></span>
             <strong>{{ item.label }}</strong>
           </button>
         </section>
@@ -103,6 +103,7 @@ import {filterNavigationItems, isUiLanguageSearch} from '@/src/features/settings
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue'
 import {getInterfaceSkinOption} from '@/src/core/config/interfaceAppearance'
+import SettingsNavigationIcon from '@/src/features/settings/ui/SettingsNavigationIcon.vue'
 import SettingsSections from '@/src/features/settings/ui/SettingsSections.vue'
 import LearningCenter from '@/src/features/settings/ui/LearningCenter.vue'
 import {useUiI18n} from '@/src/ui/i18n'
