@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
     autoTranslateEnglishPage: vi.fn(),
     invalidateFullPageTranslationSessionCache: vi.fn(),
     isFullPageTranslationActive: vi.fn(),
+    getTranslationToolbarStatus: vi.fn(),
     mountAreaTranslator: vi.fn(),
     mountFloatingBall: vi.fn(),
     toggleContextMenuImage: vi.fn(),
@@ -42,6 +43,7 @@ vi.mock('@/src/app/content/features', () => ({
     autoTranslateEnglishPage: mocks.autoTranslateEnglishPage,
     invalidateFullPageTranslationSessionCache: mocks.invalidateFullPageTranslationSessionCache,
     isFullPageTranslationActive: mocks.isFullPageTranslationActive,
+    getTranslationToolbarStatus: mocks.getTranslationToolbarStatus,
     mountAreaTranslator: mocks.mountAreaTranslator,
     mountFloatingBall: mocks.mountFloatingBall,
     toggleContextMenuImage: mocks.toggleContextMenuImage,
@@ -79,6 +81,7 @@ beforeEach(() => {
     mocks.normalizeDelay.mockImplementation((value) => Number(value));
     mocks.sendMessage.mockResolvedValue(undefined);
     mocks.isFullPageTranslationActive.mockReturnValue(false);
+    mocks.getTranslationToolbarStatus.mockReturnValue('idle');
     vi.stubGlobal('browser', {runtime: {sendMessage: mocks.sendMessage}});
     vi.stubGlobal('document', {getElementById: vi.fn(() => null)});
 });
@@ -101,7 +104,7 @@ describe('内容脚本 runtime 消息协议', () => {
         expect(mocks.autoTranslateEnglishPage).not.toHaveBeenCalled();
         expect(mocks.config.disableFloatingBall).toBe(true);
         handler({type: 'getFullPageTranslationState'}, {}, respond);
-        expect(respond).toHaveBeenLastCalledWith({status: 'success', isTranslated: false, isSiteDisabled: false});
+        expect(respond).toHaveBeenLastCalledWith({status: 'success', isTranslated: false, isSiteDisabled: false, toolbarStatus: 'idle'});
         handler({type: 'translationCacheCleared'}, {}, respond);
         expect(mocks.invalidateFullPageTranslationSessionCache).toHaveBeenCalledOnce();
         suspended = false;
@@ -208,7 +211,7 @@ describe('内容脚本 runtime 消息协议', () => {
         expect(respond).toHaveBeenLastCalledWith({
             status: 'success',
             isTranslated: false,
-            isSiteDisabled: true,
+            isSiteDisabled: true, toolbarStatus: 'idle',
         });
     });
 
@@ -286,7 +289,7 @@ describe('内容脚本 runtime 消息协议', () => {
         expect(respond).toHaveBeenLastCalledWith({
             status: 'success',
             isTranslated: false,
-            isSiteDisabled: false,
+            isSiteDisabled: false, toolbarStatus: 'idle',
         });
         expect(mocks.config).toMatchObject({
             disableFloatingBall: false,

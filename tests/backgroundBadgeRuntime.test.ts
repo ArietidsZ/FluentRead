@@ -1,200 +1,51 @@
-import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-
+import {afterEach, describe, expect, it, vi} from 'vitest';
 import {installBackgroundBadge} from '@/src/app/background/badgeRuntime';
 import {TabTranslationStateStore} from '@/src/app/background/tabTranslationState';
-
-type Listener = (...args: any[]) => void;
-
-interface FakeAction {
-    setBadgeText: ReturnType<typeof vi.fn>;
-    setBadgeBackgroundColor: ReturnType<typeof vi.fn>;
-    setBadgeTextColor?: ReturnType<typeof vi.fn>;
+const previous = (globalThis as any).browser;
+afterEach(() => { (globalThis as any).browser = previous; vi.restoreAllMocks(); });
+const event = () => { const listeners: Function[] = []; return {addListener: (fn: Function) => listeners.push(fn), emit: (...args: unknown[]) => listeners.forEach(fn => fn(...args))}; };
+function setup(namespace = 'action', sendMessage = vi.fn(async () => ({status:'success',isTranslated:true,isSiteDisabled:false,toolbarStatus:'translated'}))) {
+    const action = {setBadgeText: vi.fn(async (_details: {tabId:number;text:string}) => {}), setIcon: vi.fn(async (_details: {tabId:number;path:Record<number,string>}) => {})};
+    const tabs = {onActivated: event(), onUpdated: event(), onRemoved: event(), sendMessage};
+    (globalThis as any).browser = {...(namespace === 'none' ? {} : {[namespace]:action}), tabs};
+    const store = new TabTranslationStateStore();
+    return {action, tabs, store, badge: installBackgroundBadge(store)};
 }
-
-const previousBrowser = (globalThis as Record<string, unknown>).browser;
-
-function createEvent() {
-    const listeners: Listener[] = [];
-    return {
-        listeners,
-        addListener: (fn: Listener) => listeners.push(fn),
-        emit: (...args: any[]) => listeners.forEach((fn) => fn(...args)),
-    };
-}
-
-function installBrowser(options: {
-    action?: FakeAction;
-    namespace?: 'action' | 'browserAction';
-    sendMessage?: ReturnType<typeof vi.fn>;
-}) {
-    const onActivated = createEvent();
-    const onUpdated = createEvent();
-    const onRemoved = createEvent();
-    const browser: Record<string, unknown> = {
-        tabs: {
-            sendMessage: options.sendMessage ?? vi.fn(async () => undefined),
-            onActivated,
-            onUpdated,
-            onRemoved,
-        },
-    };
-    if (options.action) browser[options.namespace ?? 'action'] = options.action;
-    (globalThis as Record<string, unknown>).browser = browser;
-    return {onActivated, onUpdated, onRemoved};
-}
-
-function createAction(withTextColor = true): FakeAction {
-    const action: FakeAction = {
-        setBadgeText: vi.fn(async () => undefined),
-        setBadgeBackgroundColor: vi.fn(async () => undefined),
-    };
-    if (withTextColor) action.setBadgeTextColor = vi.fn(async () => undefined);
-    return action;
-}
-
-afterEach(() => {
-    if (previousBrowser === undefined) delete (globalThis as Record<string, unknown>).browser;
-    else (globalThis as Record<string, unknown>).browser = previousBrowser;
-    vi.restoreAllMocks();
-});
-
-describe('后台翻译状态角标', () => {
-    describe('状态到角标的映射（缓存路径 update）', () => {
-        let store: TabTranslationStateStore;
-        let action: FakeAction;
-
-        beforeEach(() => {
-            action = createAction();
-            installBrowser({action});
-            store = new TabTranslationStateStore();
-        });
-
-        it('已翻译且站点未禁用时显示深绿底白勾', async () => {
-            store.set(3, {isTranslated: true, isSiteDisabled: false});
-            const badge = installBackgroundBadge(store);
-            await badge.update(3);
-            expect(action.setBadgeText).toHaveBeenCalledWith({tabId: 3, text: '✓'});
-            expect(action.setBadgeBackgroundColor).toHaveBeenCalledWith({tabId: 3, color: '#15803d'});
-            expect(action.setBadgeTextColor).toHaveBeenCalledWith({tabId: 3, color: '#ffffff'});
-        });
-
-        it('恢复原文（未翻译）时清空角标且不再设色', async () => {
-            store.set(3, {isTranslated: false, isSiteDisabled: false});
-            const badge = installBackgroundBadge(store);
-            await badge.update(3);
-            expect(action.setBadgeText).toHaveBeenCalledWith({tabId: 3, text: ''});
-            expect(action.setBadgeBackgroundColor).not.toHaveBeenCalled();
-            expect(action.setBadgeTextColor).not.toHaveBeenCalled();
-        });
-
-        it('站点被禁用即使 isTranslated 为真也不显示角标', async () => {
-            store.set(9, {isTranslated: true, isSiteDisabled: true});
-            const badge = installBackgroundBadge(store);
-            await badge.update(9);
-            expect(action.setBadgeText).toHaveBeenCalledWith({tabId: 9, text: ''});
-            expect(action.setBadgeBackgroundColor).not.toHaveBeenCalled();
-        });
+const settle = async () => { for (let i=0;i<20;i++) await Promise.resolve(); };
+describe('工具栏小尺寸状态图标', () => {
+    it.each(['translated','translating','error'] as const)('按真实 %s 结果选图，清空旧原生角标', async status => {
+        const {store,badge,action}=setup(); store.set(1,{isTranslated:true,isSiteDisabled:false,toolbarStatus:status}); await badge.update(1);
+        expect(action.setBadgeText).toHaveBeenCalledWith({tabId:1,text:''});
+        expect(action.setIcon).toHaveBeenLastCalledWith({tabId:1,path:Object.fromEntries([16,32,48,64,128].map(size=>[size,`icon/toolbar/${status}-${size}.png`]))});
+        await badge.update(1); expect(action.setIcon).toHaveBeenCalledTimes(1);
     });
-
-    describe('再查询路径（onActivated）', () => {
-        it('缓存缺失时回源查询真值并渲染角标', async () => {
-            const action = createAction();
-            const sendMessage = vi.fn(async () => ({status: 'success', isTranslated: true, isSiteDisabled: false}));
-            const events = installBrowser({action, sendMessage});
-            const store = new TabTranslationStateStore();
-            installBackgroundBadge(store);
-
-            await events.onActivated.emit({tabId: 5});
-            // 等待再查询链路 resolve
-            await Promise.resolve();
-            await Promise.resolve();
-
-            expect(sendMessage).toHaveBeenCalledWith(5, {type: 'getFullPageTranslationState'});
-            expect(action.setBadgeText).toHaveBeenLastCalledWith({tabId: 5, text: '✓'});
-        });
-
-        it('回源查询失败时安全降级为无角标，不抛错', async () => {
-            const action = createAction();
-            const sendMessage = vi.fn(async () => {throw new Error('no content script');});
-            const events = installBrowser({action, sendMessage});
-            const store = new TabTranslationStateStore();
-            installBackgroundBadge(store);
-
-            await events.onActivated.emit({tabId: 7});
-            await Promise.resolve();
-            await Promise.resolve();
-
-            expect(action.setBadgeText).toHaveBeenLastCalledWith({tabId: 7, text: ''});
-            expect(action.setBadgeBackgroundColor).not.toHaveBeenCalled();
-        });
-
-        it('已有完整缓存时直接渲染，不再回源查询', async () => {
-            const action = createAction();
-            const sendMessage = vi.fn(async () => undefined);
-            const events = installBrowser({action, sendMessage});
-            const store = new TabTranslationStateStore();
-            store.set(2, {isTranslated: true, isSiteDisabled: false});
-            installBackgroundBadge(store);
-
-            await events.onActivated.emit({tabId: 2});
-            await Promise.resolve();
-
-            expect(sendMessage).not.toHaveBeenCalled();
-            expect(action.setBadgeText).toHaveBeenLastCalledWith({tabId: 2, text: '✓'});
-        });
+    it('恢复、禁用、旧消息与另一标签页都不会误用成功图标', async () => {
+        const {store,badge,action}=setup();
+        for(const state of [{isTranslated:false,isSiteDisabled:false},{isTranslated:true,isSiteDisabled:true},{isTranslated:true,isSiteDisabled:false}]) {
+            store.set(2,state);await badge.update(2);expect(action.setIcon.mock.lastCall?.[0].path[16]).toBe('icon/16.png');
+        }
+        store.set(3,{isTranslated:true,isSiteDisabled:false,toolbarStatus:'translated'});await badge.update(3);
+        await badge.update(4);expect(action.setIcon.mock.lastCall?.[0]).toMatchObject({tabId:4,path:{16:'icon/16.png'}});
     });
-
-    describe('生命周期自清空（onUpdated）', () => {
-        it('页面进入 loading 时直接清空角标，不读写状态仓库', async () => {
-            const action = createAction();
-            const events = installBrowser({action});
-            const store = new TabTranslationStateStore();
-            store.set(4, {isTranslated: true, isSiteDisabled: false});
-            const resetSpy = vi.spyOn(store, 'reset');
-            installBackgroundBadge(store);
-
-            await events.onUpdated.emit(4, {status: 'loading'});
-            await Promise.resolve();
-
-            expect(action.setBadgeText).toHaveBeenCalledWith({tabId: 4, text: ''});
-            expect(resetSpy).not.toHaveBeenCalled();
-        });
-
-        it('非 loading 的更新不触发清空', async () => {
-            const action = createAction();
-            const events = installBrowser({action});
-            const store = new TabTranslationStateStore();
-            installBackgroundBadge(store);
-
-            await events.onUpdated.emit(4, {status: 'complete'});
-            await Promise.resolve();
-
-            expect(action.setBadgeText).not.toHaveBeenCalled();
-        });
+    it('激活时回源，包括完整但陈旧的缓存；查询失败保留安全默认', async () => {
+        const {store,tabs,action}=setup();store.set(5,{isTranslated:false,isSiteDisabled:false});tabs.onActivated.emit({tabId:5});await settle();
+        expect(tabs.sendMessage).toHaveBeenCalledWith(5,{type:'getFullPageTranslationState'});expect(action.setIcon.mock.lastCall?.[0].path[16]).toContain('translated-16');
+        tabs.sendMessage.mockRejectedValueOnce(new Error('no receiver'));tabs.onActivated.emit({tabId:6});await settle();expect(action.setIcon.mock.lastCall?.[0].path[16]).toBe('icon/16.png');
     });
-
-    describe('跨浏览器与降级', () => {
-        it('Firefox MV2 经 browserAction 回退且缺 setBadgeTextColor 时仍设文案与底色', async () => {
-            const action = createAction(false);
-            installBrowser({action, namespace: 'browserAction'});
-            const store = new TabTranslationStateStore();
-            store.set(1, {isTranslated: true, isSiteDisabled: false});
-            const badge = installBackgroundBadge(store);
-
-            expect(badge.isSupported).toBe(true);
-            await expect(badge.update(1)).resolves.toBeUndefined();
-            expect(action.setBadgeText).toHaveBeenCalledWith({tabId: 1, text: '✓'});
-            expect(action.setBadgeBackgroundColor).toHaveBeenCalledWith({tabId: 1, color: '#15803d'});
-        });
-
-        it('无 action 命名空间时 isSupported 为 false 且 update 静默空转', async () => {
-            installBrowser({});
-            const store = new TabTranslationStateStore();
-            store.set(1, {isTranslated: true, isSiteDisabled: false});
-            const badge = installBackgroundBadge(store);
-
-            expect(badge.isSupported).toBe(false);
-            await expect(badge.update(1)).resolves.toBeUndefined();
-        });
+    it('导航恢复原图，普通更新不清空，关闭取消还未写出的任务', async () => {
+        const {store,badge,tabs,action}=setup();store.set(7,{isTranslated:true,isSiteDisabled:false,toolbarStatus:'translated'});await badge.update(7);
+        tabs.onUpdated.emit(7,{status:'complete'});await settle();expect(action.setIcon).toHaveBeenCalledTimes(1);
+        tabs.onUpdated.emit(7,{status:'loading'});await settle();expect(action.setIcon.mock.lastCall?.[0].path[16]).toBe('icon/16.png');
+        const pending=badge.update(8);tabs.onRemoved.emit(8);await pending;expect(action.setIcon).toHaveBeenCalledTimes(2);
+    });
+    it('慢旧写入不能覆盖较新的恢复状态', async () => {
+        const {store,badge,action}=setup();let release!:()=>void;action.setIcon.mockImplementationOnce(()=>new Promise<void>(resolve=>{release=resolve}));
+        store.set(1,{isTranslated:true,isSiteDisabled:false,toolbarStatus:'translated'});const first=badge.update(1);await settle();store.reset(1);const restore=badge.update(1);release();await Promise.all([first,restore]);expect(action.setIcon.mock.lastCall?.[0].path[16]).toBe('icon/16.png');
+    });
+    it('Firefox MV2 使用 browserAction；无 action 环境不查询或写入', async () => {
+        const ff=setup('browserAction');await ff.badge.update(1);expect(ff.action.setIcon).toHaveBeenCalled();const none=setup('none');await none.badge.update(1);none.tabs.onActivated.emit({tabId:1});expect(none.badge.isSupported).toBe(false);expect(none.tabs.sendMessage).not.toHaveBeenCalled();
+    });
+    it('图标 API 失败不会拒绝，后续刷新可以重试', async () => {
+        const {badge,action}=setup();const error=vi.spyOn(console,'error').mockImplementation(()=>{});action.setIcon.mockRejectedValueOnce(new Error('tab gone'));await badge.update(1);await badge.update(1);expect(error).toHaveBeenCalled();expect(action.setIcon).toHaveBeenCalledTimes(2);
     });
 });

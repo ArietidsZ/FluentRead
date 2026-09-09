@@ -1,5 +1,13 @@
 # 测试与回归
 
+## 工具栏翻译状态
+
+`node scripts/testing/run-toolbar-status-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-toolbar-status` 使用生产扩展、临时 Edge profile 和第二屏后台窗口，检查原文、等待、完成、恢复、服务失败、原地重试、标签页切换和刷新。页面与供应商响应均为本地夹具，不代表外部服务质量。
+
+报告中的 `toolbarStatus` 是内容脚本的真实结果状态；原生文字角标应始终为空，视觉状态改由静态工具栏图标显示。页面截图不包含浏览器工具栏；可选 `--window-query <可执行文件>` 接收一个输出匹配测试窗口的 CoreGraphics 窗口字典 JSON 数组的只读工具，追加原生窗口截图。该套件不强制重启 worker；不能把普通标签页切换或状态查询单测当作真实后台重启证据。
+
+状态资源由 `scripts/testing/build-toolbar-icons.cjs` 生成。脚本通过 `FLUENTREAD_SHARP_PATH` 指定已有 Sharp 安装；生成后的 PNG 随扩展打包，不增加运行时依赖。叠层在 16 像素图标上直径为 6.5 像素、不透明度为 78%，提供五档分辨率。`tests/translationToolbarStatus.test.ts` 验证实际结果判定，`tests/backgroundBadgeRuntime.test.ts` 验证图标选择、导航清理、异步写入顺序及 MV2 回退。
+
 FluentRead 把测试按意图分组，而不是把所有文件塞进一个难以诊断的命令。每个 `tests/**/*.test.ts` 必须且只能出现在 `tests/test-matrix.json` 的一个分组中；测试审计会拒绝漏归类、重复归类、重复用例名、`.only`、无原因 `.skip` 和覆盖率忽略指令。
 
 ## 按需运行

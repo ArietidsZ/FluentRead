@@ -10,7 +10,7 @@ import {config} from '@/src/services/config/store';
 import {
     autoTranslateEnglishPage,
     invalidateFullPageTranslationSessionCache,
-    isFullPageTranslationActive,
+    isFullPageTranslationActive, getTranslationToolbarStatus,
     mountAreaTranslator, mountFloatingBall,
     toggleContextMenuImage,
     mountImageTranslator,
@@ -140,7 +140,7 @@ export function createContentRuntimeMessageHandler(ctx: ContentScriptContext, st
             sendResponse({
                 status: 'success',
                 isTranslated: config.on !== false && !state.isSiteDisabled() && isFullPageTranslationActive(),
-                isSiteDisabled: state.isSiteDisabled(),
+                isSiteDisabled: state.isSiteDisabled(), toolbarStatus: getTranslationToolbarStatus(),
             });
             return true;
         }

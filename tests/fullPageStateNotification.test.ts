@@ -1,14 +1,23 @@
 import {describe, expect, it, vi} from 'vitest';
-import {getFullPageTranslationStateRevision, notifyFullPageTranslationState} from '@/src/features/full-page-translation/content/stateNotification';
+import {getFullPageTranslationStateRevision, notifyFullPageTranslationState, getTranslationToolbarStatus, notifyTranslationToolbarStatus} from '@/src/features/full-page-translation/content/stateNotification';
 
 const install = (value: Record<string, unknown> | undefined) => {if (value === undefined) delete (globalThis as Record<string, unknown>).browser; else (globalThis as Record<string, unknown>).browser = value;};
 describe('full-page state notification', () => {
+    it('deduplicates result updates without replaying lifecycle events or advancing session revision', () => {
+        const sendMessage = vi.fn(); install({runtime: {sendMessage}});
+        notifyFullPageTranslationState(true); const revision = getFullPageTranslationStateRevision();
+        notifyTranslationToolbarStatus('translating'); expect(sendMessage).toHaveBeenCalledTimes(1);
+        notifyTranslationToolbarStatus('error'); expect(getTranslationToolbarStatus()).toBe('error');
+        expect(sendMessage).toHaveBeenLastCalledWith({type: 'fullPageTranslationState', isTranslated: true, toolbarStatus: 'error'});
+        expect(getFullPageTranslationStateRevision()).toBe(revision);
+        notifyFullPageTranslationState(false); expect(getTranslationToolbarStatus()).toBe('idle'); install(undefined);
+    });
     it('increments private revision before dispatch and sends started/ended messages', async () => {
         const dispatch = vi.fn(); const Custom = vi.fn(function(this: unknown, type: string) {return {type};}); const previous = (globalThis as Record<string, unknown>).document;
         (globalThis as Record<string, unknown>).document = {dispatchEvent: dispatch, defaultView: {CustomEvent: Custom}};
         const sendMessage = vi.fn(async () => undefined); install({runtime: {sendMessage}});
-        const before = getFullPageTranslationStateRevision(); notifyFullPageTranslationState(true); expect(getFullPageTranslationStateRevision()).toBe(before + 1); expect(Custom).toHaveBeenCalledWith('fluentread-translation-started'); expect(dispatch).toHaveBeenCalled(); expect(sendMessage).toHaveBeenCalledWith({type: 'fullPageTranslationState', isTranslated: true});
-        notifyFullPageTranslationState(false); expect(Custom).toHaveBeenLastCalledWith('fluentread-translation-ended'); expect(sendMessage).toHaveBeenLastCalledWith({type: 'fullPageTranslationState', isTranslated: false}); (globalThis as Record<string, unknown>).document = previous;
+        const before = getFullPageTranslationStateRevision(); notifyFullPageTranslationState(true); expect(getFullPageTranslationStateRevision()).toBe(before + 1); expect(Custom).toHaveBeenCalledWith('fluentread-translation-started'); expect(dispatch).toHaveBeenCalled(); expect(sendMessage).toHaveBeenCalledWith({type: 'fullPageTranslationState', isTranslated: true, toolbarStatus: 'translating'});
+        notifyFullPageTranslationState(false); expect(Custom).toHaveBeenLastCalledWith('fluentread-translation-ended'); expect(sendMessage).toHaveBeenLastCalledWith({type: 'fullPageTranslationState', isTranslated: false, toolbarStatus: 'idle'}); (globalThis as Record<string, unknown>).document = previous;
     });
     it('uses global CustomEvent, skips when document cannot dispatch, and tolerates browser failures', async () => {
         const previousDocument = (globalThis as Record<string, unknown>).document; const previousCustom = (globalThis as Record<string, unknown>).CustomEvent;

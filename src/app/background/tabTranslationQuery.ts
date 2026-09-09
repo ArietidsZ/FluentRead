@@ -4,12 +4,14 @@
  * 主要内容：createTabTranslationStateReader 绑定 TabTranslationStateStore 返回读取器，命中完整缓存直接返回，否则发送 getFullPageTranslationState 消息并写回缓存，查询失败时回退安全默认值。
  * 模块边界：这里只封装状态查询与缓存写回，不渲染菜单文案、不设置图标角标、不发起正文翻译；展示决策与生命周期监听仍归各自 runtime 模块。
  */
+import {normalizeTranslationToolbarStatus} from '@/src/features/full-page-translation/toolbarStatus';
 import {type TabTranslationState, TabTranslationStateStore} from './tabTranslationState';
 
 export interface FullPageStateResponse {
     status?: string;
     isTranslated?: boolean;
     isSiteDisabled?: boolean;
+    toolbarStatus?: unknown;
 }
 
 /** 读取标签页翻译真值：force 为 true 时跳过缓存强制回源，用于菜单点击等需要最新态的场景。 */
@@ -31,6 +33,7 @@ export function createTabTranslationStateReader(
             }) as FullPageStateResponse | undefined;
             if (response?.status === 'success') {
                 return tabTranslationStates.set(tabId, {
+                    toolbarStatus: normalizeTranslationToolbarStatus(response.toolbarStatus),
                     isTranslated: response.isTranslated === true,
                     isSiteDisabled: response.isSiteDisabled === true,
                 });

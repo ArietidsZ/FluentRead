@@ -6,6 +6,12 @@ import {
 import {isBrowserTabId} from '@/src/platform/browser/ids';
 
 describe('后台标签页翻译状态', () => {
+    it('preserves explicit result status and clears it for restore or legacy updates', () => {
+        const store = new TabTranslationStateStore();
+        expect(store.setTranslated(1, true, 'error').toolbarStatus).toBe('error');
+        expect(store.setTranslated(1, false, 'translated').toolbarStatus).toBe('idle');
+        expect(store.setTranslated(1, true).toolbarStatus).toBeUndefined();
+    });
     it('tab id 接受 0 和非负安全整数，拒绝 truthy 但无效的值', () => {
         expect(isBrowserTabId(0)).toBe(true);
         expect(isBrowserTabId(12)).toBe(true);

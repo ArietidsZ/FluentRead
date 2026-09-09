@@ -29,3 +29,5 @@ export {
     updateFullPageTranslationProgress,
     type FullPageTranslationProgress,
 } from './progress';
+
+export {getTranslationToolbarStatus} from './content/stateNotification';

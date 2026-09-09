@@ -205,7 +205,8 @@
       "tests/writingCore.test.ts",
       "tests/writingReference.test.ts",
       "tests/writingEditors.test.ts",
-      "tests/writingMarkdown.test.ts"
+      "tests/writingMarkdown.test.ts",
+      "tests/translationToolbarStatus.test.ts"
     ],
     "functional": [
       "tests/settingsCompositionAutosave.test.ts",
@@ -266,7 +267,8 @@
       "tests/writingRuntime.test.ts",
       "tests/writingIntegration.test.ts",
       "tests/popupActions.test.ts",
-      "tests/areaTranslationRecovery.test.ts"
+      "tests/areaTranslationRecovery.test.ts",
+      "tests/backgroundBadgeRuntime.test.ts"
     ],
     "regression": [
       "tests/translationControlOwnership.test.ts",

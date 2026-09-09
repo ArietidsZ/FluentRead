@@ -422,7 +422,7 @@ describe('统一配置存储', () => {
     it('缓存双上限随配置保存、重新加载和外部通知同步', async () => {
         const store = await loadConfigModule(storedConfig);
         await store.configReady;
-        expect(store.config).toMatchObject({translationCacheMaxBytes: 5242880, translationCacheMaxEntries: 2000});
+        expect(store.config).toMatchObject({translationCacheMaxBytes: 10485760, translationCacheMaxEntries: 10000});
         await store.saveConfig({...store.config, translationCacheMaxBytes: 1048576, translationCacheMaxEntries: 100});
         const persisted = storageState.get('local:config');
         const reopened = await loadConfigModule(persisted);
