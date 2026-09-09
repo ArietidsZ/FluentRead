@@ -172,7 +172,7 @@ export const enUSMessages = {
     'glossary.import': "Import glossaries",
     'glossary.newLibrary': "New glossary",
     'glossary.emptyTitle': "Keep important terms consistent",
-    'glossary.emptyHelp': "Add a built-in glossary above or create your own. Leave the translation blank to keep the original.",
+    'glossary.emptyHelp': "Add a built-in glossary or create your own. Leave the translation blank to keep the original.",
     'glossary.builtin.title': 'Built-in glossaries',
     'glossary.builtin.help': 'Add topics you read about, then turn on the master switch above. Copies are editable. Set website scope or select them in a translation profile.',
     'glossary.builtin.ai': 'AI and machine learning',

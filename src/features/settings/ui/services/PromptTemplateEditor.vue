@@ -328,10 +328,10 @@ function insertToken(token: string): void {
   font-size: 10px;
 }
 
-:global(:root.dark) .prompt-template-field:hover { border-color: rgba(255, 138, 171, .42); }
-:global(:root.dark) .prompt-role-badge { border-color: rgba(255, 138, 171, .36); }
-:global(:root.dark) .prompt-template-textarea { border-color: var(--line); }
-:global(:root.dark) .prompt-token { border-color: var(--line); }
+:root.dark .prompt-template-field:hover { border-color: rgba(255, 138, 171, .42); }
+:root.dark .prompt-role-badge { border-color: rgba(255, 138, 171, .36); }
+:root.dark .prompt-template-textarea { border-color: var(--line); }
+:root.dark .prompt-token { border-color: var(--line); }
 
 @media (max-width: 700px) {
   .prompt-template-header,

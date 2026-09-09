@@ -11,8 +11,6 @@
     <p v-if="error" class="glossary-error" role="alert">{{ error }}</p>
     <p class="glossary-save-state" role="status" aria-live="polite">{{ busy ? t('glossary.saving') : saved && !hasMetadataDraft ? t('glossary.saved') : '' }}</p>
 
-    <BuiltinGlossaries :libraries="libraries" :enabled="enabled" :disabled="busy || !ready" @add="addBuiltin" />
-
     <div class="glossary-toolbar">
       <strong>{{ t('glossary.libraries') }} <small>{{ libraries.length }}/{{ GLOSSARY_LIMITS.libraries }}</small></strong>
       <div class="glossary-actions">
@@ -21,7 +19,7 @@
       </div>
     </div>
     <div v-if="!libraries.length" class="glossary-card glossary-empty">
-      <span aria-hidden="true">Aa → 译</span><h3>{{ t('glossary.emptyTitle') }}</h3>
+      <span aria-hidden="true"><UiIcon name="glossary" :size="28" /></span><h3>{{ t('glossary.emptyTitle') }}</h3>
       <p>{{ t('glossary.emptyHelp') }}</p><code>large language model → 大语言模型<br />FluentRead → FluentRead</code>
     </div>
     <div v-else class="glossary-workbench">
@@ -75,6 +73,8 @@
       </section>
     </div>
 
+    <BuiltinGlossaries :libraries="libraries" :enabled="enabled" :disabled="busy || !ready" @add="addBuiltin" />
+
     <section class="glossary-card glossary-preview">
       <h3>{{ t('glossary.preview') }}</h3><p class="glossary-help">{{ t('glossary.previewHelp') }}</p>
       <label>{{ t('glossary.previewText') }}<textarea v-model="previewText" rows="3" placeholder="FluentRead uses a large language model." /></label>
@@ -110,6 +110,7 @@
 </template>
 
 <script setup lang="ts">
+import UiIcon from '@/src/ui/components/UiIcon.vue'
 import ElSelect from '@/src/ui/components/UiSelect.vue';
 import {ElOption} from 'element-plus';
 import 'element-plus/es/components/select/style/css';

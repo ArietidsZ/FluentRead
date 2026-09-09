@@ -664,7 +664,7 @@ export const koKRMessages = {
     "glossary.intro": "전문 용어의 번역을 지정하거나 제품명을 원문으로 유지하세요. 변경 사항은 자동 저장됩니다.",
     "glossary.services": "AI 번역 서비스에서 지원하며 Tongyi qwen-mt는 기본 용어 매개변수를 사용합니다. Microsoft, Google, DeepL 등 기계 번역에는 적용되지 않습니다.",
     "glossary.emptyTitle": "중요한 용어를 일관되게 유지",
-    "glossary.emptyHelp": "위에서 내장 용어집을 추가하거나 직접 만드세요. 번역을 비우면 원문을 유지합니다.",
+    "glossary.emptyHelp": "내장 용어집을 추가하거나 직접 만드세요. 번역을 비우면 원문을 유지합니다.",
     "glossary.builtin.title": "내장 용어집",
     "glossary.builtin.help": "읽는 주제를 추가한 뒤 위의 전체 스위치를 켜세요. 복사본은 편집할 수 있고 사이트 범위를 설정하거나 번역 프로필에서 선택할 수 있습니다.",
     "glossary.builtin.ai": "AI 및 머신러닝",

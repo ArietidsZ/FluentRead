@@ -171,7 +171,7 @@ export const zhCNMessages = {
     'glossary.import': "导入术语库",
     'glossary.newLibrary': "新建术语库",
     'glossary.emptyTitle': "让重要的词始终译得一致",
-    'glossary.emptyHelp': "从上方添加内置词库，或新建自己的词库。译文留空时保留原词。",
+    'glossary.emptyHelp': "添加内置词库，或新建自己的词库。译文留空时保留原词。",
     'glossary.builtin.title': '内置词库',
     'glossary.builtin.help': '按阅读领域添加，开启上方总开关后生效。添加后可自由编辑；建议设置适用网站或在翻译方案中单独选择。',
     'glossary.builtin.ai': 'AI 与机器学习',

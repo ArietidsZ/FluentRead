@@ -250,6 +250,30 @@ async function verifyCardTriggers({page, configPage, requests, record, args, res
     const screenshot = path.join(args.artifactsDir, 'card-trigger-light.png');
     await page.screenshot({path: screenshot}); result.screenshots.push(screenshot);
     await persistConfig(configPage, {theme: 'dark'}); await page.waitForTimeout(250);
+    const darkSnapshot = await shadowSnapshot(page);
+    const darkAnswer = find(darkSnapshot.host, node => attr(node, 'class').split(' ').includes('fr-reading-markdown'));
+    assert(darkAnswer?.nodeId, '暗色阅读卡缺少回答');
+    const resolvedAnswer = await darkSnapshot.session.send('DOM.resolveNode', {nodeId: darkAnswer.nodeId});
+    const measuredAnswer = await darkSnapshot.session.send('Runtime.callFunctionOn', {
+      objectId: resolvedAnswer.object.objectId, returnByValue: true,
+      functionDeclaration: `function() { const answer = this;
+      const reading = answer.closest('[data-reading-panel]');
+      const surface = reading.closest('.fr-translation-tooltip');
+      const luminance = color => {
+        const channels = color.match(/[\\d.]+/g).slice(0, 3).map(value => Number(value) / 255).map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4);
+        return channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722;
+      };
+      const text = luminance(getComputedStyle(answer).color);
+      const background = luminance(getComputedStyle(surface).backgroundColor);
+      const tabs = [...reading.querySelectorAll('.fr-reading-actions button[aria-pressed]')].map(button => luminance(getComputedStyle(button).backgroundColor));
+      return {contrast: (Math.max(text, background) + .05) / (Math.min(text, background) + .05), tabs};
+    }`,
+    });
+    await darkSnapshot.session.send('Runtime.releaseObject', {objectId: resolvedAnswer.object.objectId});
+    const darkReadability = measuredAnswer.result.value;
+    assert(darkReadability.contrast >= 4.5, `暗色阅读正文对比度不足：${JSON.stringify(darkReadability)}`);
+    assert(darkReadability.tabs.every(value => value < .2), '暗色学习方式按钮仍使用浅色背景');
+    record('trigger.dark-reading-contrast', 'passed', darkReadability);
     const darkScreenshot = path.join(args.artifactsDir, 'card-trigger-dark.png');
     await page.screenshot({path: darkScreenshot}); result.screenshots.push(darkScreenshot);
     await configPage.reload({waitUntil: 'domcontentloaded'});

@@ -93,8 +93,8 @@ const expectedGeneralGroups = ['选择翻译服务', '译文显示', '网页辅�
 const expectedInterfaceGroups = ['界面与弹窗', '动画与加载效果', '菜单栏布局'];
 const expectedTranslationGroups = ['鼠标悬浮翻译', '划词翻译', '输入框翻译', '全文翻译'];
 const expectedLoadingStyles = [
-  ['minimal', '简洁'],
   ['ring', '柔和圆环'],
+  ['minimal', '简洁'],
   ['dots', '跳跃圆点'],
   ['orbit', '行星轨道'],
   ['sparkle', '星光'],
@@ -1427,8 +1427,8 @@ async function main() {
     for (const query of ['界面风格', '菜单栏布局', '海盐', '樱花', '抹茶', 'Emoji']) {
       await page.locator('button[data-section="settings-general"]').click();
       await page.locator('.search-box input').fill(query);
-      const interfaceResult = page.locator('.search-results button').filter({has: page.locator('strong', {hasText: /^界面布局$/u})});
-      if (await interfaceResult.count() !== 1) throw new Error(`搜索“${query}”没有唯一的界面布局入口`);
+      const interfaceResult = page.locator('.search-results button').filter({has: page.locator('strong', {hasText: /^界面风格$/u})});
+      if (await interfaceResult.count() !== 1) throw new Error(`搜索“${query}”没有唯一的界面风格入口`);
       await interfaceResult.click();
       await page.locator('#settings-interface').waitFor({state: 'visible', timeout});
       if (await page.locator('.search-box input').inputValue() !== ''
