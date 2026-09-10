@@ -244,7 +244,11 @@ export function isOwnSingleTextSlotMove(
         mutation.target.nodeType !== 1) return false;
     const changedNodes = [...Array.from(mutation.addedNodes), ...Array.from(mutation.removedNodes)];
     if (changedNodes.length === 0) return false;
-    const slot = state.singleTextSlotHosts.find(({host}) => host === mutation.target);
+    // 原文移入自有槽会同时产生原父节点的移除记录和槽内的加入记录。
+    // 两侧都必须匹配同一个原文节点，并继续校验完整来源，避免自身渲染触发重译。
+    const slot = state.singleTextSlotHosts.find(({host, source}) => host === mutation.target ||
+        (host.parentNode === mutation.target && mutation.addedNodes.length === 0 &&
+            mutation.removedNodes.length === 1 && mutation.removedNodes[0] === source));
     return Boolean(slot && changedNodes.every((node) => node === slot.source) &&
         statefulSourceAndTextSlotsAreCurrent(target, state));
 }
