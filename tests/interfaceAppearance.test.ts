@@ -31,7 +31,7 @@ describe('界面皮肤与栏目配置', () => {
     const config = new Config()
 
     expect(config.interfaceSkin).toBe('default')
-    expect(config.interfaceFont).toBe(DEFAULT_INTERFACE_FONT)
+    expect(config.interfaceFont).toBe('system')
     expect(config.interfaceVisibility).toEqual(DEFAULT_INTERFACE_VISIBILITY)
     expect(config.popupModuleOrder).toEqual(DEFAULT_POPUP_MODULE_ORDER)
     expect(config.popupQuickFeatureOrder).toEqual(DEFAULT_POPUP_QUICK_FEATURE_ORDER)
@@ -76,9 +76,9 @@ describe('界面皮肤与栏目配置', () => {
     expect(interfaceSkinOptions.filter(item => item.group === 'palette').every(item => item.motif === item.value)).toBe(true)
     expect(interfaceSkinOptions.filter(item => item.group === 'utility').every(item => item.motif === 'none')).toBe(true)
     expect(interfaceFontOptions.map((item) => item.value)).toEqual([
+      'system',
       'inter',
       'noto-sans-sc',
-      'system',
       'roboto',
       'source-sans-3',
       'ibm-plex-sans',

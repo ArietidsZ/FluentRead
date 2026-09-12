@@ -181,6 +181,12 @@ export const interfaceSkinOptions = [
  */
 export const interfaceFontOptions = [
   {
+    value: 'system',
+    labelKey: 'settings.interface.font.options.system.label',
+    descriptionKey: 'settings.interface.font.options.system.description',
+    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
+  },
+  {
     value: 'inter',
     labelKey: 'settings.interface.font.options.inter.label',
     descriptionKey: 'settings.interface.font.options.inter.description',
@@ -191,12 +197,6 @@ export const interfaceFontOptions = [
     labelKey: 'settings.interface.font.options.notoSansSc.label',
     descriptionKey: 'settings.interface.font.options.notoSansSc.description',
     fontFamily: '"FluentRead Noto Sans SC", system-ui, sans-serif',
-  },
-  {
-    value: 'system',
-    labelKey: 'settings.interface.font.options.system.label',
-    descriptionKey: 'settings.interface.font.options.system.description',
-    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
   },
   {
     value: 'roboto',
