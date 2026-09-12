@@ -107,3 +107,5 @@
 - 合并验收没有下载或运行任何模型；真实推理与资源数据仍来自前文首次实测，不与本轮 UI 检查混为一谈。旧 Playwright 1.47.2 的首次窗口初始化失败后已停止并清理，仅在改用当前捆绑 1.62.1 后执行成功。
 
 集成 UI 记录：[原始断言](./local-translation-20260912/integration-ui.json)、[桌面](./local-translation-20260912/integration-1440.png)、[820 px](./local-translation-20260912/integration-820.png)、[390 px](./local-translation-20260912/integration-390.png)、[深色](./local-translation-20260912/integration-dark.png)。本轮只执行专项 UI 冒烟，前述旧全量 UI 脚本的失败边界保持不变。
+
+提交前主线新增了 PR #578 的段落边界修复，随后已将 `40f7b060` 合入本分支。最新集成状态的完整确定性测试为 **332 个文件、6,531 项全部通过**；上述资源实测、UI 截图和覆盖率基线比较仍分别属于前述验收阶段，不改写其历史结果。
