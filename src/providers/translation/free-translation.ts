@@ -71,6 +71,8 @@ function prepareRequest(message: FreeTranslationRequest): PreparedRequest {
         // 免费链仅使用匿名公共服务，不能沿用独立 provider 已保存的 Key 或代理。
         // 局部脱敏快照继续传给 DeepLX；用户的独立 DeepLX 配置保持原样。
         token: {},
+        secret: {},
+        customHeaders: {},
         proxy: {},
         requireApiKey: {},
         youdaoAppKey: '',

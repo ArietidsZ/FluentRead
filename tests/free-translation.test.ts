@@ -220,6 +220,8 @@ describe('免费翻译服务', () => {
         mockConfig.proxy = {deeplx: 'https://proxy.example/translate?token=proxy-secret'};
         mockConfig.token = {deeplx: 'deeplx-secret', deepL: 'deepl-secret:fx', azureTranslator: 'azure-secret'};
         mockConfig.youdaoAppSecret = 'youdao-secret';
+        mockConfig.secret = {aliyunTranslation: 'cloud-secret'};
+        mockConfig.customHeaders = {deeplx: '{"Authorization":"private-header"}'};
         mockConfig.tencentSecretKey = 'tencent-secret';
         const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => ({
             ok: true,
@@ -241,7 +243,7 @@ describe('免费翻译服务', () => {
             expect(init?.signal).toBeInstanceOf(AbortSignal);
         }
         const local = readSnapshot(deeplxMock.mock.calls[0][2]);
-        expect(local).toMatchObject({token: {}, proxy: {}, deeplx: DEFAULT_DEEPLX_ENDPOINT, youdaoAppSecret: '', tencentSecretKey: ''});
+        expect(local).toMatchObject({token: {}, secret: {}, customHeaders: {}, proxy: {}, deeplx: DEFAULT_DEEPLX_ENDPOINT, youdaoAppSecret: '', tencentSecretKey: ''});
         expect(Object.isFrozen(local.token)).toBe(true);
         expect(mockConfig.token.deeplx).toBe('deeplx-secret');
         expect(mockConfig.proxy.deeplx).toBe('https://proxy.example/translate?token=proxy-secret');

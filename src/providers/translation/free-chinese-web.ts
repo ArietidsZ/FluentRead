@@ -95,9 +95,8 @@ async function fetchJson(provider: FreeChineseWebProvider, query: string, from: 
     if (provider === 'youdaoFree') {
         const timestamp = youdaoTimestamp(query);
         const params = new URLSearchParams({q: query, from, to, t: timestamp, client: YOUDAO_CLIENT, sign: youdaoSign(query, timestamp), keyfrom: YOUDAO_KEYFROM});
-        url = YOUDAO_URL;
-        init.headers = {'Content-Type': 'application/x-www-form-urlencoded'};
-        init.body = params.toString();
+        url = `${YOUDAO_URL}&${params}`;
+        init.method = 'GET';
     } else {
         const digest = MD5(ICIBA_SIGN_PREFIX + query).toString().slice(0, 16);
         const encryptedSign = AES.encrypt(digest, encUtf8.parse(ICIBA_SIGN_KEY), {mode: modeECB, padding: padPkcs7}).toString();

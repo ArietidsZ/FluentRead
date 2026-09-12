@@ -22,11 +22,15 @@ beforeEach(() => { fetchMock.mockReset(); setRuntimeFetch(fetchMock); });
 afterEach(() => setRuntimeFetch());
 
 describe('free Chinese web providers', () => {
-    it('posts anonymous Youdao form data and reads fanyi.tran', async () => {
+    it('uses anonymous Youdao GET query data and reads fanyi.tran', async () => {
         fetchMock.mockResolvedValue(Response.json({fanyi: {tran: '译文'}}));
         await expect(translateFreeChineseWebText('youdaoFree', ' Hello ', 'en', 'zh-Hans')).resolves.toBe(' 译文 ');
-        expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({credentials: 'omit', method: 'POST'});
-        expect(String(fetchMock.mock.calls[0]?.[1]?.body)).toContain('keyfrom=webfanyi.webmain');
+        expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({credentials: 'omit', method: 'GET'});
+        expect(fetchMock.mock.calls[0]?.[1]?.body).toBeUndefined();
+        const url = new URL(String(fetchMock.mock.calls[0]?.[0]));
+        expect(url.searchParams.get('keyfrom')).toBe('webfanyi.webmain');
+        expect(url.searchParams.get('from')).toBe('en');
+        expect(url.searchParams.get('to')).toBe('zh-CHS');
     });
 
     it('decrypts Iciba out and preserves multiple slots and line whitespace', async () => {
@@ -47,13 +51,13 @@ describe('free Chinese web providers', () => {
     it('resolves auto direction from local Chinese script evidence', async () => {
         fetchMock.mockResolvedValue(Response.json({fanyi: {tran: 'English'}}));
         await translateFreeChineseWebText('youdaoFree', '这是一个完整的中文测试句子。', 'auto', 'auto');
-        const body = new URLSearchParams(String(fetchMock.mock.calls[0]?.[1]?.body));
-        expect(body.get('from')).toBe('zh-CHS');
-        expect(body.get('to')).toBe('en');
+        const url = new URL(String(fetchMock.mock.calls[0]?.[0]));
+        expect(url.searchParams.get('from')).toBe('zh-CHS');
+        expect(url.searchParams.get('to')).toBe('en');
         fetchMock.mockResolvedValueOnce(Response.json({fanyi: {tran: '中文'}}));
         await translateFreeChineseWebText('youdaoFree', 'Hello from auto detection', 'auto', 'zh-Hans');
-        const fallbackBody = new URLSearchParams(String(fetchMock.mock.calls.at(-1)?.[1]?.body));
-        expect(fallbackBody.get('from')).toBe('en');
+        const fallbackUrl = new URL(String(fetchMock.mock.calls.at(-1)?.[0]));
+        expect(fallbackUrl.searchParams.get('from')).toBe('en');
         await expect(translateFreeChineseWebText('youdaoFree', 'Plain auto text', 'auto', 'en')).rejects.toMatchObject({statusCode: 400});
     });
 
