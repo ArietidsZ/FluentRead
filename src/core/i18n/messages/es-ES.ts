@@ -10,6 +10,23 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const esESMessages = {
+    "writing.demo.title": "Cómo funciona",
+    "writing.demo.play": "Reproducir demo",
+    "writing.demo.pause": "Pausar demo",
+    "writing.demo.steps": "Pasos de la demo",
+    "writing.demo.open": "Abrir asistente",
+    "writing.demo.review": "Revisar borrador",
+    "writing.demo.insert": "Insertar respuesta",
+    "writing.demo.assistant": "Asistente de escritura",
+    "writing.demo.replyBox": "Campo de respuesta",
+    "writing.demo.example": "Ejemplo",
+    "writing.demo.placeholder": "Escribe tu respuesta…",
+    "writing.demo.draft": "¡Gracias por tus comentarios! ¿Podrías indicar el nombre y la versión de tu navegador? Nos ayudará a investigar el problema.",
+    "writing.demo.inserted": "Insertado en la respuesta",
+    "writing.demo.openHint": "Haz clic en el asistente junto al campo de respuesta de GitHub o Gmail.",
+    "writing.demo.reviewHint": "El asistente redacta a partir de la conversación. Revisa y modifica la respuesta.",
+    "writing.demo.insertHint": "El borrador está en el campo de respuesta. Revísalo y envíalo tú mismo.",
+
     "settings.requestLimits.modelTitle": "Límites del modelo",
     "settings.requestLimits.globalTitle": "Límites de solicitudes",
     "settings.requestLimits.globalHelp": "Los servicios y modelos sin ajustes propios comparten estos límites.",

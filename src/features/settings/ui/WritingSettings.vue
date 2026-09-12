@@ -1,13 +1,13 @@
 <!--
  * @file src/features/settings/ui/WritingSettings.vue
  * 文件职责：先让用户看懂写作助手在网页里的实际效果，再提供总开关、默认回复偏好和 AI 服务连接设置。
- * 主要内容：以分步动画演示入口位置与起草流程，用三步就绪清单指出还差什么；独立选择回复与阅读对照语言，点选长度风格语气角色时同步给出示例草稿，并配置写作服务连接。
+ * 主要内容：以三个可操作的简洁画面演示入口位置与起草流程，用三步就绪清单指出还差什么；独立选择回复与阅读对照语言，点选长度风格语气角色时同步给出示例草稿，并配置写作服务连接。
  * 模块边界：只编辑设置中心持久化的同一份写作配置；不提供快捷键、重复入口开关或网站列表，不请求模型也不生成真实正文。
  -->
 <template>
   <div class="writing-settings">
     <p class="writing-description">在 GitHub 和 Gmail 的回复框旁点「写作助手」，起草回复或完善已有草稿。</p>
-    <SettingsGroup title="先看看它是怎么工作的" description="四步演示：入口出现在哪里、卡片读到什么、草稿怎么来、最后由谁按下发送。">
+    <SettingsGroup>
       <WritingFlowDemo :animated="config.animations" />
     </SettingsGroup>
     <SettingsGroup>

@@ -10,6 +10,23 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const ruRUMessages = {
+    "writing.demo.title": "Как это работает",
+    "writing.demo.play": "Запустить показ",
+    "writing.demo.pause": "Приостановить",
+    "writing.demo.steps": "Шаги примера",
+    "writing.demo.open": "Открыть помощника",
+    "writing.demo.review": "Проверить черновик",
+    "writing.demo.insert": "Вставить ответ",
+    "writing.demo.assistant": "Помощник по письму",
+    "writing.demo.replyBox": "Поле ответа",
+    "writing.demo.example": "Пример",
+    "writing.demo.placeholder": "Напишите ответ…",
+    "writing.demo.draft": "Спасибо за отзыв! Подскажите название и версию браузера. Это поможет нам разобраться в проблеме.",
+    "writing.demo.inserted": "Вставлено в поле ответа",
+    "writing.demo.openHint": "Нажмите «Помощник по письму» рядом с полем ответа в GitHub или Gmail.",
+    "writing.demo.reviewHint": "Помощник пишет черновик с учётом обсуждения. Проверьте и отредактируйте ответ.",
+    "writing.demo.insertHint": "Черновик вставлен в поле ответа. Проверьте его и отправьте самостоятельно.",
+
     "settings.requestLimits.modelTitle": "Ограничения модели",
     "settings.requestLimits.globalTitle": "Ограничения запросов",
     "settings.requestLimits.globalHelp": "Сервисы и модели без отдельных настроек используют эти общие ограничения.",

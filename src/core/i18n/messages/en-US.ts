@@ -11,6 +11,23 @@ MessageCatalog} from '../types';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const enUSMessages = {
+    "writing.demo.title": "How it works",
+    "writing.demo.play": "Play demo",
+    "writing.demo.pause": "Pause demo",
+    "writing.demo.steps": "Demo steps",
+    "writing.demo.open": "Open assistant",
+    "writing.demo.review": "Review draft",
+    "writing.demo.insert": "Insert reply",
+    "writing.demo.assistant": "Writing assistant",
+    "writing.demo.replyBox": "Reply box",
+    "writing.demo.example": "Example",
+    "writing.demo.placeholder": "Write your reply…",
+    "writing.demo.draft": "Thanks for your feedback! Could you share your browser name and version? This will help us investigate.",
+    "writing.demo.inserted": "Inserted into reply box",
+    "writing.demo.openHint": "Click “Writing assistant” beside a GitHub or Gmail reply box.",
+    "writing.demo.reviewHint": "The assistant drafts from the discussion. Review and edit the reply.",
+    "writing.demo.insertHint": "The draft is back in the reply box. Check it, then send it yourself.",
+
     "settings.requestLimits.modelTitle": "Model request limits",
     "settings.requestLimits.globalTitle": "Request limits",
     "settings.requestLimits.globalHelp": "Services and models without custom settings share these limits.",

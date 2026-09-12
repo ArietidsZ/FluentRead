@@ -10,6 +10,23 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const koKRMessages = {
+    "writing.demo.title": "사용 방법",
+    "writing.demo.play": "데모 재생",
+    "writing.demo.pause": "데모 일시 정지",
+    "writing.demo.steps": "데모 단계",
+    "writing.demo.open": "도우미 열기",
+    "writing.demo.review": "초안 검토",
+    "writing.demo.insert": "답장 삽입",
+    "writing.demo.assistant": "글쓰기 도우미",
+    "writing.demo.replyBox": "답장 입력란",
+    "writing.demo.example": "예시",
+    "writing.demo.placeholder": "답장을 입력하세요…",
+    "writing.demo.draft": "의견 감사합니다! 브라우저 이름과 버전을 알려 주시겠어요? 문제를 조사하는 데 도움이 됩니다.",
+    "writing.demo.inserted": "답장 입력란에 삽입됨",
+    "writing.demo.openHint": "GitHub 또는 Gmail 답장 입력란 옆의 글쓰기 도우미를 클릭하세요.",
+    "writing.demo.reviewHint": "대화를 참고하여 초안을 작성합니다. 내용을 검토하고 수정할 수 있습니다.",
+    "writing.demo.insertHint": "초안이 답장 입력란에 삽입되었습니다. 확인 후 직접 전송하세요.",
+
     "settings.requestLimits.modelTitle": "모델 요청 제한",
     "settings.requestLimits.globalTitle": "요청 제한",
     "settings.requestLimits.globalHelp": "개별 설정이 없는 서비스와 모델은 이 제한을 공유합니다.",
