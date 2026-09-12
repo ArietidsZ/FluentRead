@@ -38,6 +38,9 @@ describe('hotkey parsing', () => {
     });
 
     it('合并重复修饰键并按平台生成展示名', () => {
+        // 展示名取决于 navigator.platform。Node 21 起全局就存在 navigator，宿主平台会
+        // 泄漏进来，因此非 macOS 分支同样要显式 stub，不能依赖 navigator 缺失。
+        vi.stubGlobal('navigator', {platform: 'Win32'});
         expect(parseHotkey('Ctrl+Control+Alt+Space')).toEqual({
             modifiers: ['ctrl', 'alt'],
             key: 'space',
@@ -52,6 +55,11 @@ describe('hotkey parsing', () => {
             isValid: true,
             displayName: 'Option+Enter',
         });
+
+        // 没有 navigator 的宿主（Node 20 等）走空平台回退，展示名与非 macOS 一致。
+        // 显式覆盖这一分支，避免它的覆盖率取决于运行测试的 Node 版本。
+        vi.stubGlobal('navigator', undefined);
+        expect(parseHotkey('Option+Enter').displayName).toBe('Alt+Enter');
     });
 
     it('禁用 meta/cmd 组合并允许非字母裸键', () => {

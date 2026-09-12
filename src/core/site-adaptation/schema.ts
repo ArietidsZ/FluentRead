@@ -121,7 +121,7 @@ export function parseSiteRulePack(value: unknown): SiteRulePackParseResult {
         const ids = new Set<string>();
         pack.rules = source.rules.map((input, index): SiteRule => {
             const path = `$.rules[${index}]`;
-            const data = recipe(input, path, ['id', 'name', 'match', 'profile', 'priority']);
+            const data = recipe(input, path, ['id', 'name', 'match', 'profile', 'priority', 'allScopes']);
             const id = identifier(data.id, `${path}.id`);
             if (ids.has(id)) issue(`${path}.id`, '规则标识重复');
             ids.add(id);
@@ -150,6 +150,10 @@ export function parseSiteRulePack(value: unknown): SiteRulePackParseResult {
             if (data.priority !== undefined) {
                 if (!Number.isInteger(data.priority) || Number(data.priority) < -10000 || Number(data.priority) > 10000) issue(`${path}.priority`, '优先级应为 -10000 到 10000 的整数');
                 else rule.priority = Number(data.priority);
+            }
+            if (data.allScopes !== undefined) {
+                if (typeof data.allScopes === 'boolean') rule.allScopes = data.allScopes;
+                else issue(`${path}.allScopes`, '应为布尔值');
             }
             const profile = rule.profile ? pack.profiles?.[rule.profile] : undefined;
             if ((rule.mode ?? profile?.mode) === 'focus' && !rule.content?.length && !profile?.content?.length) {

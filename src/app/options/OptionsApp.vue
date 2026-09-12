@@ -119,7 +119,7 @@ import {
   configReady,
   subscribeConfig,
 } from '@/src/services/config/store'
-import {applyInterfaceSkin} from '@/src/ui/interfaceAppearance'
+import {applyInterfaceFont, applyInterfaceSkin} from '@/src/ui/interfaceAppearance'
 
 const version = process.env.VUE_APP_VERSION
 const {t, translateLegacy} = useUiI18n()
@@ -142,7 +142,9 @@ const localizedNavigationGroups = computed(() => navigationGroups.map((group) =>
     kicker: translateLegacy(item.kicker),
     title: translateLegacy(item.title),
     detail: translateLegacy(item.detail),
-    searchDescription: translateLegacy(item.searchDescription),
+    searchDescription: item.id === 'settings-interface'
+      ? `${translateLegacy(item.searchDescription)} ${t('settings.interface.font.label')} Inter Noto Sans SC Roboto Source Sans 3 IBM Plex Sans Manrope Nunito Sans LXGW WenKai Noto Serif SC`
+      : translateLegacy(item.searchDescription),
   })),
 })))
 const localizedNavigationItems = computed(() => localizedNavigationGroups.value.flatMap((group) => group.items))
@@ -151,14 +153,19 @@ const activeItem = computed(() => localizedNavigationItems.value.find((item) => 
 const unsubscribeInterfaceConfig = subscribeConfig((nextConfig) => {
   interfaceSkin.value = getInterfaceSkinOption(nextConfig.interfaceSkin)
   applyInterfaceSkin(nextConfig.interfaceSkin)
+  applyInterfaceFont(nextConfig.interfaceFont)
 })
 
 void configReady
   .then(() => {
     interfaceSkin.value = getInterfaceSkinOption(runtimeConfig.interfaceSkin)
     applyInterfaceSkin(runtimeConfig.interfaceSkin)
+    applyInterfaceFont(runtimeConfig.interfaceFont)
   })
-  .catch(() => applyInterfaceSkin('default'))
+  .catch(() => {
+    applyInterfaceSkin('default')
+    applyInterfaceFont('system')
+  })
 
 const filteredResults = computed(() => filterNavigationItems(query.value, localizedNavigationItems.value).map(item =>
   item.id === 'settings-general' && isUiLanguageSearch(query.value)

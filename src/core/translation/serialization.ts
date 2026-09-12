@@ -47,7 +47,76 @@ export const translationTruncationStyleOverrides: readonly TranslationStyleOverr
     {property: 'max-height', value: 'unset', priority: 'important'},
 ];
 
+/** 固定高度且内容向外溢出的自然流容器需要暂时恢复为内容高度。 */
+export const translationHeightStyleOverrides: readonly TranslationStyleOverride[] = [
+    {property: 'height', value: 'auto', priority: 'important'},
+];
+
 const maxTranslationTruncationAncestorDepth = 16;
+
+const naturalFlowDisplays = new Set([
+    'block', 'flow-root', 'flex', 'grid', 'inline-block', 'inline-flex', 'inline-grid',
+]);
+
+function getLayoutStyle(element: HTMLElement): CSSStyleDeclaration | undefined {
+    try {
+        return element.ownerDocument?.defaultView?.getComputedStyle(element);
+    } catch {
+        return undefined;
+    }
+}
+
+/** 不向文档表面、滚动容器或脱离自然流的定位边界扩展固定高度。 */
+export function isTranslationHeightBoundary(element: HTMLElement): boolean {
+    if (element === element.ownerDocument?.documentElement || element === element.ownerDocument?.body) return true;
+    const style = getLayoutStyle(element);
+    if (!style) return true;
+    const overflowY = String(style.overflowY || style.overflow || '').trim().toLowerCase();
+    const position = String(style.position || '').trim().toLowerCase();
+    const transform = String(style.transform || '').trim().toLowerCase();
+    return ['auto', 'scroll'].includes(overflowY) || ['absolute', 'fixed', 'sticky'].includes(position) ||
+        (transform !== '' && transform !== 'none');
+}
+
+function isPositionedTranslationBranch(branch: HTMLElement): boolean {
+    const style = getLayoutStyle(branch);
+    if (!style) return true;
+    const position = String(style.position || '').trim().toLowerCase();
+    const transform = String(style.transform || '').trim().toLowerCase();
+    return ['absolute', 'fixed', 'sticky'].includes(position) ||
+        (transform !== '' && transform !== 'none');
+}
+
+function hasGeometryOverflow(element: HTMLElement, branch: HTMLElement): boolean {
+    try {
+        const elementRect = element.getBoundingClientRect();
+        const branchRect = branch.getBoundingClientRect();
+        return branchRect.top < elementRect.top - 1 || branchRect.bottom > elementRect.bottom + 1;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * 判定固定高度自然流容器是否因翻译分支实际变高而需要扩高。
+ * branch 必须是通向翻译 owner 的直接 composed 子元素；定位/变换分支不作为依据。
+ */
+export function hasTranslationHeightOverflow(element: HTMLElement, branch: HTMLElement): boolean {
+    if (isTranslationHeightBoundary(element) || isPositionedTranslationBranch(branch)) return false;
+    const style = getLayoutStyle(element);
+    if (!style) return false;
+    const overflowY = String(style.overflowY || style.overflow || '').trim().toLowerCase();
+    if (['hidden', 'clip'].includes(overflowY)) return false;
+    const height = Number.parseFloat(String(style.height || ''));
+    const display = String(style.display || '').trim().toLowerCase();
+    if (!Number.isFinite(height) || height <= 0 || !naturalFlowDisplays.has(display)) return false;
+    try {
+        if (element === branch && element.scrollHeight > element.clientHeight + 1) return true;
+    } catch {
+        // 某些测试/宿主 DOM 没有完整 layout API，继续使用几何检查。
+    }
+    return hasGeometryOverflow(element, branch);
+}
 
 function hashSlotSources(sources: readonly string[]): string {
     let hash = 2166136261;

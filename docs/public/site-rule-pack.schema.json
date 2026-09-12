@@ -85,6 +85,7 @@
         "name": {"allOf": [{"$ref": "#/$defs/text"}, {"maxLength": 160}]},
         "profile": {"$ref": "#/$defs/identifier"},
         "priority": {"type": "integer", "minimum": -10000, "maximum": 10000, "default": 0},
+        "allScopes": {"type": "boolean", "default": false, "description": "显式让规则在正文与全部节点范围都生效。"},
         "mode": {"enum": ["augment", "focus"]},
         "content": {"$ref": "#/$defs/content"},
         "protect": {"$ref": "#/$defs/selectors"},

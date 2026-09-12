@@ -93,6 +93,7 @@
       "tests/remoteImage.test.ts",
       "tests/inputBox.test.ts",
       "tests/interfaceAppearance.test.ts",
+      "tests/interfaceFonts.test.ts",
       "tests/usePopupLayoutReorder.test.ts",
       "tests/legacyPageCache.test.ts",
       "tests/liveTextTranslation.test.ts",
@@ -178,6 +179,7 @@
       "tests/videoAiSubtitleCache.test.ts",
       "tests/videoPlayerLocator.test.ts",
       "tests/videoPlayerBinding.test.ts",
+      "tests/videoSubtitleViewport.test.ts",
       "tests/qqMailFrameHandlers.test.ts",
       "tests/qqMailFrameSession.test.ts",
       "tests/fullPageStateNotification.test.ts",
@@ -203,12 +205,15 @@
       "tests/freeFallback.test.ts",
       "tests/modelCacheRemoval.test.ts",
       "tests/writingCore.test.ts",
+      "tests/writingEntryPlacement.test.ts",
       "tests/writingReference.test.ts",
       "tests/writingEditors.test.ts",
       "tests/writingMarkdown.test.ts",
       "tests/translationToolbarStatus.test.ts",
       "tests/visionConfig.test.ts",
-      "tests/translationVisionPayload.test.ts"
+      "tests/translationVisionPayload.test.ts",
+      "tests/fullPageModalPriority.test.ts",
+      "tests/modalProgressHint.test.ts"
     ],
     "functional": [
       "tests/settingsCompositionAutosave.test.ts",
@@ -282,6 +287,7 @@
       "tests/documentTranslationRegression.test.ts",
       "tests/documentTranslationEdge.test.ts",
       "tests/fullPageTranslationProgress.test.ts",
+      "tests/fullPageTitleTranslation.test.ts",
       "tests/featureVerticalSliceRegression.test.ts",
       "tests/fullPageVisibilityScheduling.test.ts",
       "tests/mainWorldBridgeCore.test.ts",
@@ -290,7 +296,9 @@
       "tests/siteTranslationIdle.test.ts",
       "tests/translationDocumentCorpus.test.ts",
       "tests/translationTruncation.test.ts",
+      "tests/translationHeightLayout.test.ts",
       "tests/userscriptCredentialPersistence.test.ts",
+      "tests/userscriptDexieIsolation.test.ts",
       "tests/vocabularyBookComponentLifecycle.test.ts",
       "tests/allNodesTranslationCore.test.ts"
     ]

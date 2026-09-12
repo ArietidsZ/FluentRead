@@ -62,15 +62,18 @@ import {
     type QuickTranslationProfile,
 } from './quickTranslation';
 import {
+    DEFAULT_INTERFACE_FONT,
     DEFAULT_INTERFACE_VISIBILITY,
     DEFAULT_POPUP_MODULE_ORDER,
     DEFAULT_POPUP_QUICK_FEATURE_ORDER,
     DEFAULT_POPUP_QUICK_FEATURE_VISIBILITY,
+    normalizeInterfaceFont,
     normalizeInterfaceSkin,
     normalizeInterfaceVisibility,
     normalizePopupModuleOrder,
     normalizePopupQuickFeatureOrder,
     normalizePopupQuickFeatureVisibility,
+    type InterfaceFont,
     type InterfaceSkin,
     type InterfaceVisibility,
     type PopupModuleId,
@@ -240,6 +243,7 @@ export class Config {
     count: number;  // 翻译次数
     theme: string;  // 主题模式：'auto' | 'light' | 'dark'
     interfaceSkin: InterfaceSkin; // 扩展界面皮肤；默认保留当前界面
+    interfaceFont: InterfaceFont; // 设置页和扩展弹窗使用的字体方案
     interfaceVisibility: InterfaceVisibility; // Popup 栏目可见性
     popupModuleOrder: PopupModuleId[]; // Popup 可编排模块的显示顺序
     popupQuickFeatureOrder: PopupQuickFeatureId[]; // 快捷功能卡片的显示顺序
@@ -255,6 +259,7 @@ export class Config {
     enableAIMultiSegment: boolean; // 是否把相邻全文段落合并为一次 AI 翻译请求
     bilingualSentenceHighlightEnabled: boolean; // 是否在双语翻译中同步高亮原文与译文
     contextMenuEnabled: boolean; // 是否显示右键全文翻译菜单
+    pageTitleTranslationEnabled: boolean; // 全文翻译时是否一并翻译页面标题
     translationScope: TranslationScope; // 页面识别正文或全部可见界面文字
     fullPageTranslationMode: FullPageTranslationMode; // 全文翻译按视口加载或立即处理整页
     disableFloatingBall: boolean; // 是否禁用悬浮球
@@ -367,6 +372,7 @@ export class Config {
         this.count = 0;
         this.theme = 'auto';  // 默认跟随系统
         this.interfaceSkin = 'default'; // 默认保留当前界面
+        this.interfaceFont = DEFAULT_INTERFACE_FONT; // 默认使用现代无衬线字体栈
         this.interfaceVisibility = {...DEFAULT_INTERFACE_VISIBILITY};
         this.popupModuleOrder = [...DEFAULT_POPUP_MODULE_ORDER];
         this.popupQuickFeatureOrder = [...DEFAULT_POPUP_QUICK_FEATURE_ORDER];
@@ -382,6 +388,7 @@ export class Config {
         this.enableAIMultiSegment = false; // 默认逐段请求，由用户按需开启 AI 多段翻译
         this.bilingualSentenceHighlightEnabled = false; // 默认关闭双语逐句高亮，避免改变现有网页视觉
         this.contextMenuEnabled = true; // 默认显示右键全文翻译入口
+        this.pageTitleTranslationEnabled = true; // 默认随全文翻译一并翻译标题，可在高级设置关闭
         this.translationScope = 'content'; // 默认只识别正文，全部节点由高级设置显式开启
         this.fullPageTranslationMode = 'viewport'; // 默认按阅读进度翻译，避免一次发出过多请求
         this.disableFloatingBall = true; // 默认关闭悬浮球
@@ -491,6 +498,8 @@ const modelMigrations: Record<string, Record<string, string>> = {
         'step-1-8k': currentModelIds.jieyue,
     },
     [services.huanYuan]: {
+        // 官方已于 2026-08-31 下线预览版，迁移到正式版并复用模型级偏好迁移。
+        'hy3-preview': currentModelIds.huanYuan,
         'hunyuan-turbos-latest': currentModelIds.huanYuan,
         'hunyuan-t1-latest': currentModelIds.huanYuan,
         'hunyuan-a13b': currentModelIds.huanYuan,
@@ -880,7 +889,7 @@ export function normalizeConfig(value: unknown): Config {
         normalized.model[services.deepseek] = currentModelIds.deepseek;
         normalized.deepseekThinkingMode = 'disabled';
     } else if (selectedModel === 'deepseek-reasoner') {
-        // 官方迁移指南要求 reasoner 使用 v4-flash 并显式开启 thinking。
+        // 旧 reasoner 使用当前 Flash 模型，并显式保留 thinking 开启状态。
         normalized.model[services.deepseek] = currentModelIds.deepseek;
         normalized.deepseekThinkingMode = 'enabled';
     } else if (configuredThinkingMode !== 'enabled' && configuredThinkingMode !== 'disabled') {
@@ -917,6 +926,7 @@ export function normalizeConfig(value: unknown): Config {
     normalized.disabledExtensionDomains = normalizeDisabledExtensionDomains(source.disabledExtensionDomains);
     normalized.siteAdaptation = normalizeSiteAdaptationSettings(source.siteAdaptation);
     normalized.interfaceSkin = normalizeInterfaceSkin(source.interfaceSkin);
+    normalized.interfaceFont = normalizeInterfaceFont(source.interfaceFont);
     normalized.interfaceVisibility = normalizeInterfaceVisibility(source.interfaceVisibility);
     normalized.popupModuleOrder = normalizePopupModuleOrder(source.popupModuleOrder);
     normalized.popupQuickFeatureOrder = normalizePopupQuickFeatureOrder(source.popupQuickFeatureOrder);
@@ -973,6 +983,9 @@ export function normalizeConfig(value: unknown): Config {
     normalized.imageTranslationContextMenuEnabled = typeof normalized.imageTranslationContextMenuEnabled === 'boolean' ? normalized.imageTranslationContextMenuEnabled : true;
     if (typeof normalized.contextMenuEnabled !== 'boolean') {
         normalized.contextMenuEnabled = true;
+    }
+    if (typeof normalized.pageTitleTranslationEnabled !== 'boolean') {
+        normalized.pageTitleTranslationEnabled = true;
     }
     if (!['viewport', 'all'].includes(normalized.fullPageTranslationMode)) {
         normalized.fullPageTranslationMode = 'viewport';

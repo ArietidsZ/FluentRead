@@ -156,6 +156,17 @@ describe('配置差异预览', () => {
             },
         ]));
 
+        const fontResult = buildConfigDiff(
+            {interfaceFont: 'inter'},
+            {interfaceFont: 'noto-sans-sc'},
+        );
+        expect(group(fontResult, 'general')?.changes).toContainEqual({
+            key: 'interfaceFont',
+            label: '界面字体',
+            before: 'Inter · 推荐',
+            after: 'Noto Sans SC · 中文',
+        });
+
         const paletteResult = buildConfigDiff(
             {interfaceSkin: 'ocean'},
             {interfaceSkin: 'cheese'},
