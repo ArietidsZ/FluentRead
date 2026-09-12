@@ -112,6 +112,7 @@ describe('翻译段落所需的最少字符数', () => {
 
 describe('侧边栏翻译', () => {
     const html = `
+        <header id="site-header"><div><nav id="header-menu"><ul><li id="header-menu-item">Header navigation remains translatable.</li></ul></nav><p id="header-meta">Header metadata remains a page-shell detail.</p></div></header>
         <main><article><p id="prose">The main article body stays translatable.</p></article></main>
         <aside id="sidebar"><p id="aside-text">Related reading for this article.</p></aside>
         <nav id="menu"><p id="menu-text">Documentation home for the project.</p></nav>
@@ -124,6 +125,8 @@ describe('侧边栏翻译', () => {
         expect(closedSources).toContain('The main article body stays translatable.');
         expect(closedSources).not.toContain('Related reading for this article.');
         expect(closedSources).not.toContain('Documentation home for the project.');
+        expect(closedSources).not.toContain('Header navigation remains translatable.');
+        expect(closedSources).not.toContain('Header metadata remains a page-shell detail.');
 
         const opened = page(html);
         const openedSources = sources(createTranslationCore({
@@ -133,7 +136,9 @@ describe('侧边栏翻译', () => {
         }).discover(opened.document));
         expect(openedSources).toContain('Related reading for this article.');
         expect(openedSources).toContain('Documentation home for the project.');
+        expect(openedSources).toContain('Header navigation remains translatable.');
         expect(openedSources).not.toContain('Copyright notice for the whole site.');
+        expect(openedSources).not.toContain('Header metadata remains a page-shell detail.');
     });
 
     it('共享核心按注入的开关重建，重复注入同一取值不会浪费缓存', () => {
@@ -155,6 +160,18 @@ describe('侧边栏翻译', () => {
         expect(createTranslationCore({scope: 'content', url}).resolve(asideText)).toBeNull();
         const candidate = createTranslationCore({scope: 'content', includeSidebarRegions: true, url}).resolve(asideText);
         expect(candidate && extractTranslationText(candidate.element)).toBe('Related reading for this article.');
+
+        const headerMenuItem = document.querySelector('#header-menu-item')!;
+        expect(createTranslationCore({scope: 'content', url}).resolve(headerMenuItem)).toBeNull();
+        expect(createTranslationCore({scope: 'content', includeSidebarRegions: true, url}).resolve(headerMenuItem)?.element)
+            .toBe(headerMenuItem);
+    });
+
+    it('ignores attribute payload size when discovering ordinary paragraphs', () => {
+        const {document, url} = page(`<main><p id="wikipedia-paragraph" data-mw="${'x'.repeat(6000)}">A normal paragraph remains readable despite noisy reference attributes.</p></main>`);
+        const paragraph = document.querySelector('#wikipedia-paragraph')!;
+        expect(createTranslationCore({scope: 'content', url}).discover(document).map(({element}) => element))
+            .toContain(paragraph);
     });
 });
 

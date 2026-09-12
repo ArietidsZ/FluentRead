@@ -134,6 +134,15 @@ export interface StructuralRegionOptions {
     includeSidebarRegions?: boolean;
 }
 
+/** An enabled nav/aside owns its descendants even when nested in a header or footer shell. */
+export function isIncludedSidebarRegion(
+    element: Element,
+    regionOptions?: StructuralRegionOptions,
+): boolean {
+    return regionOptions?.includeSidebarRegions === true &&
+        ['aside', 'nav'].includes(getElementTagName(element));
+}
+
 export function isStructuralContainer(
     element: Element,
     regionOptions?: StructuralRegionOptions,
@@ -156,12 +165,14 @@ export function hasStructuralAncestor(
     element: Element,
     regionOptions?: StructuralRegionOptions,
 ): boolean {
+    if (isIncludedSidebarRegion(element, regionOptions)) return false;
     let current: Element | null = getComposedParent(element);
     let depth = 0;
     while (current && !isDocumentSurface(current)) {
         depth += 1;
         // 对恶意超深子树保守按结构区域处理；全文发现也会通过同一硬深度守卫裁剪它。
         if (depth > maxComposedAncestorDepth) return true;
+        if (isIncludedSidebarRegion(current, regionOptions)) return false;
         if (isStructuralContainer(current, regionOptions)) return true;
         current = getComposedParent(current);
     }

@@ -342,21 +342,35 @@ export function findElementsAtPoint(root: Document | ShadowRoot, x: number, y: n
     return element ? [element] : [];
 }
 
-export function findNodeAtPoint(root: Document | ShadowRoot, x: number, y: number): Node | null {
+export interface TextPoint {
+    node: Node;
+    offset: number;
+}
+
+/** Preserve the caret offset when the browser exposes it; hover chunking uses the same hit test as hover resolution. */
+export function findTextPointAtPoint(root: Document | ShadowRoot, x: number, y: number): TextPoint | null {
     const document = root.nodeType === 9 ? root as Document : root.ownerDocument;
     try {
         const caretPosition = document?.caretPositionFromPoint?.(x, y);
-        if (caretPosition?.offsetNode && root.contains(caretPosition.offsetNode)) return caretPosition.offsetNode;
+        if (caretPosition?.offsetNode && root.contains(caretPosition.offsetNode)) {
+            return {node: caretPosition.offsetNode, offset: caretPosition.offset};
+        }
     } catch {
         // Firefox 风格的光标命中 API 是可选能力，也可能拒绝 Shadow Root。
     }
     try {
         const range = document?.caretRangeFromPoint?.(x, y);
-        if (range?.startContainer && root.contains(range.startContainer)) return range.startContainer;
+        if (range?.startContainer && root.contains(range.startContainer)) {
+            return {node: range.startContainer, offset: range.startOffset};
+        }
     } catch {
         // Chromium 风格的光标命中 API 同样是可选能力。
     }
     return null;
+}
+
+export function findNodeAtPoint(root: Document | ShadowRoot, x: number, y: number): Node | null {
+    return findTextPointAtPoint(root, x, y)?.node ?? null;
 }
 
 

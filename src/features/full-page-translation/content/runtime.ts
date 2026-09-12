@@ -47,6 +47,7 @@ import {
 import {
     appendBilingualTranslation,
     materializeCandidate,
+    materializeVisualTranslationCandidate,
 } from "@/src/features/full-page-translation/content/renderer";
 import {renderLiveTextResult} from "@/src/features/full-page-translation/content/liveTextRender";
 import {ensureTranslationTruncationLayout} from "@/src/features/full-page-translation/content/layout";
@@ -246,6 +247,38 @@ function asHTMLElement(node: unknown): HTMLElement | null {
     if (!node || typeof node !== "object" || (node as Node).nodeType !== 1) return null;
     const element = node as HTMLElement;
     return typeof element.tagName === "string" && typeof element.style === "object" ? element : null;
+}
+
+function candidateSourceText(
+    candidate: TranslationCandidate,
+    core: ReturnType<typeof getCurrentTranslationCore>,
+    protectionOptions: ReturnType<typeof getCandidateTranslationTextProtectionOptions>,
+): string {
+    if (candidate.visualRange) {
+        if (candidate.visualSourceText) return candidate.visualSourceText;
+        try {
+            const range = candidate.element.ownerDocument.createRange();
+            range.setStart(candidate.visualRange.startContainer, candidate.visualRange.startOffset);
+            range.setEnd(candidate.visualRange.endContainer, candidate.visualRange.endOffset);
+            return range.toString();
+        } catch {
+            return '';
+        }
+    }
+    if (candidate.nodes?.length) {
+        return extractTranslationTextFromNodes(
+            candidate.nodes,
+            core.shouldStayOriginal,
+            undefined,
+            protectionOptions,
+        );
+    }
+    return extractTranslationText(
+        candidate.element,
+        core.shouldStayOriginal,
+        candidate.manualChunk ? candidate.element : undefined,
+        protectionOptions,
+    );
 }
 function translateNode(
     node: unknown,
@@ -759,19 +792,7 @@ async function translateTarget(candidate: TranslationCandidate, displayMode: "bi
 
     const core = getCurrentTranslationCore(candidate.scope);
     const candidateProtectionOptions = getCandidateTranslationTextProtectionOptions(candidate);
-    const sourceText = candidate.nodes?.length
-        ? extractTranslationTextFromNodes(
-            candidate.nodes,
-            core.shouldStayOriginal,
-            undefined,
-            candidateProtectionOptions,
-        )
-        : extractTranslationText(
-            candidate.element,
-            core.shouldStayOriginal,
-            undefined,
-            candidateProtectionOptions,
-        );
+    const sourceText = candidateSourceText(candidate, core, candidateProtectionOptions);
     if (!normalizeComparableText(sourceText)) {
         return {
             status: "empty",
@@ -792,6 +813,20 @@ async function translateTarget(candidate: TranslationCandidate, displayMode: "bi
     // 否则日中混合标题或法德短文会在 provider 之前静默漏译。
     if (shouldSkipTranslationForTarget(sourceText, translationConfig.targetLanguage)) {
         return {status: "unchanged", source: sourceText};
+    }
+
+    if (candidate.visualRange) {
+        const visualCandidate = withFullPageViewportAnchor(
+            () => materializeVisualTranslationCandidate(candidate),
+            [candidate.element],
+        );
+        if (!visualCandidate) {
+            return {
+                status: "not-current",
+                retryRoot: candidate.element.isConnected ? candidate.element : undefined,
+            };
+        }
+        candidate = visualCandidate;
     }
 
     const materialized = withFullPageViewportAnchor(() => materializeCandidate(candidate), [candidate.element]);
@@ -875,19 +910,7 @@ function candidateLifecycleSource(candidate: TranslationCandidate): string {
     try {
         const core = getCurrentTranslationCore(candidate.scope);
         const protectionOptions = getCandidateTranslationTextProtectionOptions(candidate);
-        return normalizeComparableText(candidate.nodes?.length
-            ? extractTranslationTextFromNodes(
-                candidate.nodes,
-                core.shouldStayOriginal,
-                undefined,
-                protectionOptions,
-            )
-            : extractTranslationText(
-                candidate.element,
-                core.shouldStayOriginal,
-                undefined,
-                protectionOptions,
-            ));
+        return normalizeComparableText(candidateSourceText(candidate, core, protectionOptions));
     } catch {
         return normalizeComparableText(candidate.element.textContent ?? "");
     }
