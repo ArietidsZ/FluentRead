@@ -66,25 +66,23 @@ function getLayoutStyle(element: HTMLElement): CSSStyleDeclaration | undefined {
     }
 }
 
-/** 不向文档表面、滚动容器或脱离自然流的定位边界扩展固定高度。 */
-export function isTranslationHeightBoundary(element: HTMLElement): boolean {
-    if (element === element.ownerDocument?.documentElement || element === element.ownerDocument?.body) return true;
-    const style = getLayoutStyle(element);
-    if (!style) return true;
-    const overflowY = String(style.overflowY || style.overflow || '').trim().toLowerCase();
-    const position = String(style.position || '').trim().toLowerCase();
-    const transform = String(style.transform || '').trim().toLowerCase();
-    return ['auto', 'scroll'].includes(overflowY) || ['absolute', 'fixed', 'sticky'].includes(position) ||
-        (transform !== '' && transform !== 'none');
-}
-
-function isPositionedTranslationBranch(branch: HTMLElement): boolean {
-    const style = getLayoutStyle(branch);
-    if (!style) return true;
+function isPositionedStyle(style: CSSStyleDeclaration): boolean {
     const position = String(style.position || '').trim().toLowerCase();
     const transform = String(style.transform || '').trim().toLowerCase();
     return ['absolute', 'fixed', 'sticky'].includes(position) ||
         (transform !== '' && transform !== 'none');
+}
+
+function isHeightBoundaryStyle(element: HTMLElement, style: CSSStyleDeclaration): boolean {
+    if (element === element.ownerDocument?.documentElement || element === element.ownerDocument?.body) return true;
+    const overflowY = String(style.overflowY || style.overflow || '').trim().toLowerCase();
+    return ['auto', 'scroll'].includes(overflowY) || isPositionedStyle(style);
+}
+
+/** 不向文档表面、滚动容器或脱离自然流的定位边界扩展固定高度。 */
+export function isTranslationHeightBoundary(element: HTMLElement): boolean {
+    const style = getLayoutStyle(element);
+    return !style || isHeightBoundaryStyle(element, style);
 }
 
 function hasGeometryOverflow(element: HTMLElement, branch: HTMLElement): boolean {
@@ -102,9 +100,12 @@ function hasGeometryOverflow(element: HTMLElement, branch: HTMLElement): boolean
  * branch 必须是通向翻译 owner 的直接 composed 子元素；定位/变换分支不作为依据。
  */
 export function hasTranslationHeightOverflow(element: HTMLElement, branch: HTMLElement): boolean {
-    if (isTranslationHeightBoundary(element) || isPositionedTranslationBranch(branch)) return false;
+    // 每个候选的布局复核都会走到这里；同一元素只取一次计算样式，
+    // 避免为 boundary、branch 和高度判定重复触发三次样式重算。
     const style = getLayoutStyle(element);
-    if (!style) return false;
+    if (!style || isHeightBoundaryStyle(element, style)) return false;
+    const branchStyle = element === branch ? style : getLayoutStyle(branch);
+    if (!branchStyle || isPositionedStyle(branchStyle)) return false;
     const overflowY = String(style.overflowY || style.overflow || '').trim().toLowerCase();
     if (['hidden', 'clip'].includes(overflowY)) return false;
     const height = Number.parseFloat(String(style.height || ''));

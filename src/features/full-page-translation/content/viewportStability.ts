@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/viewportStability.ts
  * 文件职责：隔离全文翻译对页面滚动稳定性的辅助逻辑，避免动态页面在插入译文时发生视觉跳动或重复重排。
- * 主要内容：提供视口锚点补偿和滚动空闲门控；不参与候选发现、翻译请求或节点状态机。
+ * 主要内容：提供可嵌套的视口锚点补偿和滚动空闲门控；不参与候选发现、翻译请求或节点状态机。
  * 模块边界：本文件只管理可逆的浏览器视口状态与延迟回调，具体重启目标仍由全文 runtime 决定。
  */
 
@@ -38,9 +38,12 @@ function findScrollableAncestor(element: HTMLElement): HTMLElement | null {
     let current = element.parentElement;
     while (current && current !== document.body) {
         try {
-            const style = document.defaultView?.getComputedStyle(current);
-            if (style && /(auto|scroll|overlay)/u.test(style.overflowY) &&
-                current.scrollHeight > current.clientHeight) return current;
+            // 先做便宜的溢出量比较：绝大多数祖先都不滚动，可以跳过
+            // getComputedStyle 带来的样式重算。两个条件仍是与关系，语义不变。
+            if (current.scrollHeight > current.clientHeight) {
+                const style = document.defaultView?.getComputedStyle(current);
+                if (style && /(auto|scroll|overlay)/u.test(style.overflowY)) return current;
+            }
         } catch {
             // Host custom elements can throw while their layout is being rebuilt.
         }
@@ -83,11 +86,21 @@ function restoreViewportAnchor(anchor: FullPageViewportAnchor | null): void {
     }
 }
 
+let anchorDepth = 0;
+
+/**
+ * 锚点捕获要做命中测试、边界矩形和滚动祖先查找，成本等同一次强制重排。
+ * 嵌套调用复用最外层锚点：内层写入仍被同一次补偿覆盖，而每个 DOM 写入
+ * 不再各自付一遍测量开销。
+ */
 export function withFullPageViewportAnchor<T>(callback: () => T, excludedNodes: readonly Node[] = []): T {
+    if (anchorDepth > 0) return callback();
     const anchor = captureViewportAnchor(excludedNodes);
+    anchorDepth += 1;
     try {
         return callback();
     } finally {
+        anchorDepth -= 1;
         restoreViewportAnchor(anchor);
     }
 }

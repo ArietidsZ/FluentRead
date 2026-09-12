@@ -113,6 +113,9 @@ describe('全文翻译视口稳定性', () => {
         const brokenStyleAnchor = document.createElement('p');
         brokenStyleWrapper.appendChild(brokenStyleAnchor);
         document.body.appendChild(brokenStyleWrapper);
+        // 只有溢出的祖先才会去取计算样式，异常必须被祖先查找吞掉。
+        Object.defineProperty(brokenStyleWrapper, 'scrollHeight', {configurable: true, value: 300});
+        Object.defineProperty(brokenStyleWrapper, 'clientHeight', {configurable: true, value: 100});
         Object.defineProperty(window, 'getComputedStyle', {
             configurable: true,
             value: () => { throw new Error('style'); },
@@ -199,6 +202,41 @@ describe('全文翻译视口稳定性', () => {
             },
         });
         expect(withFullPageViewportAnchor(() => undefined)).toBeUndefined();
+    });
+
+    it('嵌套锚点只测量一次，内层写入沿用最外层补偿', () => {
+        const {document, window} = globalThis as unknown as {document: Document; window: Window & typeof globalThis};
+        const anchor = document.createElement('p');
+        document.body.appendChild(anchor);
+        let hits = 0;
+        Object.defineProperty(document, 'elementFromPoint', {
+            configurable: true,
+            value: () => { hits += 1; return anchor; },
+        });
+        let reads = 0;
+        Object.defineProperty(anchor, 'getBoundingClientRect', {
+            configurable: true,
+            value: () => {
+                reads += 1;
+                const top = reads === 1 ? 80 : 130;
+                return {width: 400, height: 40, top, right: 400, bottom: top + 40, left: 0, x: 0, y: top};
+            },
+        });
+        const scrollBy = vi.fn();
+        Object.defineProperty(window, 'scrollBy', {configurable: true, value: scrollBy});
+
+        const result = withFullPageViewportAnchor(() =>
+            withFullPageViewportAnchor(() => withFullPageViewportAnchor(() => 'nested')));
+
+        expect(result).toBe('nested');
+        // 命中测试与补偿各只发生一次，内层调用不再重复捕获锚点。
+        expect(hits).toBe(1);
+        expect(scrollBy).toHaveBeenCalledTimes(1);
+        expect(scrollBy).toHaveBeenCalledWith(0, 50);
+
+        // 嵌套结束后深度归零，后续顶层调用仍正常捕获。
+        withFullPageViewportAnchor(() => undefined);
+        expect(hits).toBe(2);
     });
 
     it('滚动控制器只在活动会话中延迟目标，并在空闲时释放', async () => {

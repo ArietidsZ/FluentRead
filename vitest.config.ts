@@ -1,6 +1,9 @@
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'path';
 
+const configuredMaxWorkers = Number(process.env.FLUENTREAD_TEST_MAX_WORKERS);
+const maxWorkers = Number.isInteger(configuredMaxWorkers) && configuredMaxWorkers > 0 ? configuredMaxWorkers : 2;
+
 // 独立的 Vitest 配置（与 wxt 构建配置互不影响）
 export default defineConfig({
     resolve: {
@@ -12,5 +15,9 @@ export default defineConfig({
     test: {
         environment: 'node',
         include: ['tests/**/*.test.ts'],
+        globalSetup: ['./scripts/testing/vitest-resource-lock.mjs'],
+        maxWorkers,
+        minWorkers: 1,
+        fileParallelism: false,
     },
 });

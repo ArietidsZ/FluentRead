@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/fullPageQueue.ts
  * 文件职责：维护全文翻译 pending 候选的排队元数据，并选择当前最适合启动的候选。
- * 主要内容：保留同源候选的等待时间与稳定序号，读取当前候选锚点布局，执行视口优先、方向预取和后台公平配额。
+ * 主要内容：保留同源候选的等待时间与稳定序号，按 drain 批次一次性读取候选锚点布局并排序，执行视口优先、方向预取和后台公平配额。
  * 模块边界：本文件不发现候选、不修改 DOM、不调用 provider；runtime 负责生命周期与资格判断，fullPagePriority 负责纯排序规则。
  */
 
@@ -46,6 +46,11 @@ export interface FullPagePendingSelection {
     key: Node;
     candidate: TranslationCandidate;
     priority: FullPageCandidatePriority;
+}
+
+export interface FullPageDispatchPlan {
+    /** 取出下一个应启动的候选；同一计划内不再重新测量布局。 */
+    next(): FullPagePendingSelection | undefined;
 }
 
 function readScrollPosition(): number | undefined {
@@ -159,27 +164,64 @@ function getCandidatePriority(
     });
 }
 
-export function selectNextFullPageCandidate(
+function collectPrioritizedCandidates(
     state: FullPageQueueState,
     options: FullPageQueueSelectionOptions,
-): FullPagePendingSelection | undefined {
+): FullPagePendingSelection[] {
     const candidates: FullPagePendingSelection[] = [];
     for (const [key, candidate] of state.pending) {
         if (state.inFlightCandidates.has(key) || !options.isEligible(candidate)) continue;
         candidates.push({key, candidate, priority: getCandidatePriority(state, key, candidate, options)});
     }
-    if (candidates.length === 0) return undefined;
+    return candidates;
+}
 
-    const agedBackground = candidates.some(({priority}) =>
-        priority.band === 'background' && priority.ageMs >= FULL_PAGE_BACKGROUND_MAX_WAIT_MS,
-    );
-    const forceBackground = agedBackground &&
-        state.foregroundDispatchesSinceBackground >= FULL_PAGE_FOREGROUND_DISPATCH_QUOTA;
-    const eligible = forceBackground
-        ? candidates.filter(({priority}) => priority.band === 'background')
-        : candidates;
-    return eligible.reduce((best, current) => {
-        if (!best || compareFullPageCandidatePriority(current.priority, best.priority) < 0) return current;
-        return best;
-    }, undefined as FullPagePendingSelection | undefined);
+/**
+ * 创建一次派发计划。drain 循环每启动一个候选都会插入 spinner/wrapper 并使布局失效，
+ * 因此逐次重新挑选会让每个 pick 触发一次整篇文档的强制重排；这里把全部锚点测量
+ * 集中在一个只读批次里完成并排序，之后的 next() 只做 O(1) 的有效性推进。
+ */
+export function createFullPageDispatchPlan(
+    state: FullPageQueueState,
+    options: FullPageQueueSelectionOptions,
+): FullPageDispatchPlan {
+    const ordered = collectPrioritizedCandidates(state, options)
+        .sort((left, right) => compareFullPageCandidatePriority(left.priority, right.priority));
+    const background = ordered.filter(({priority}) => priority.band === 'background');
+    const agedBackground = background.filter(({priority}) =>
+        priority.ageMs >= FULL_PAGE_BACKGROUND_MAX_WAIT_MS);
+    let cursor = 0;
+    let backgroundCursor = 0;
+    let agedCursor = 0;
+
+    const stillQueued = (entry: FullPagePendingSelection): boolean =>
+        state.pending.get(entry.key) === entry.candidate && !state.inFlightCandidates.has(entry.key) &&
+        options.isEligible(entry.candidate);
+    const advance = (list: readonly FullPagePendingSelection[], from: number): number => {
+        let index = from;
+        while (index < list.length && !stillQueued(list[index]!)) index += 1;
+        return index;
+    };
+
+    return {
+        next(): FullPagePendingSelection | undefined {
+            cursor = advance(ordered, cursor);
+            if (cursor >= ordered.length) return undefined;
+            agedCursor = advance(agedBackground, agedCursor);
+            // 长时间等待的离屏任务不能被当前视口永久淹没；配额未用满时仍优先前景。
+            if (agedCursor < agedBackground.length &&
+                state.foregroundDispatchesSinceBackground >= FULL_PAGE_FOREGROUND_DISPATCH_QUOTA) {
+                backgroundCursor = advance(background, backgroundCursor);
+                if (backgroundCursor < background.length) return background[backgroundCursor];
+            }
+            return ordered[cursor];
+        },
+    };
+}
+
+export function selectNextFullPageCandidate(
+    state: FullPageQueueState,
+    options: FullPageQueueSelectionOptions,
+): FullPagePendingSelection | undefined {
+    return createFullPageDispatchPlan(state, options).next();
 }

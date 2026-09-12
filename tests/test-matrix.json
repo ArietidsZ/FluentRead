@@ -249,6 +249,7 @@
       "tests/modalProgressHint.test.ts"
     ],
     "functional": [
+      "tests/resourceSafeRunner.test.ts",
       "tests/settingsCompositionAutosave.test.ts",
       "tests/chineseTranslationProviders.test.ts",
       "tests/cloudVendorProviders.test.ts",

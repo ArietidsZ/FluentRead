@@ -1,6 +1,9 @@
 import {resolve} from 'node:path';
 import {defineConfig} from 'vitest/config';
 
+const configuredMaxWorkers = Number(process.env.FLUENTREAD_TEST_MAX_WORKERS);
+const maxWorkers = Number.isInteger(configuredMaxWorkers) && configuredMaxWorkers > 0 ? configuredMaxWorkers : 2;
+
 /**
  * 严格覆盖率边界只包含已经迁出 WXT/Vue glue 的可执行模块。
  *
@@ -16,6 +19,10 @@ export default defineConfig({
     },
     test: {
         environment: 'node',
+        globalSetup: ['./scripts/testing/vitest-resource-lock.mjs'],
+        maxWorkers,
+        minWorkers: 1,
+        fileParallelism: false,
         include: [
             'tests/apiKeyCheckIdentity.test.ts',
             'tests/apiKeyRotation.test.ts',

@@ -380,15 +380,15 @@ function clearOwnershipIndex(owner: HTMLElement): void {
 
 function refreshOwnershipIndex(owner: HTMLElement, state: TranslationState): void {
     clearOwnershipIndex(owner);
-    const indexedNodes = new Set<Node>([
-        owner,
-        ...(state.spinner ? [state.spinner] : []),
-        ...(state.bilingualContent ? [state.bilingualContent] : []),
-        ...(state.retryWrapper ? [state.retryWrapper] : []),
-        ...(state.singleTextSlotHosts?.map(({host}) => host) ?? []),
-        ...(state.layoutOverrideElements ?? []),
-        ...(state.layoutWatchElements ?? []),
-    ]);
+    // 每次状态跃迁都会重建索引；直接写入 Set，不为每类产物先摊出临时数组。
+    const indexedNodes = new Set<Node>();
+    indexedNodes.add(owner);
+    if (state.spinner) indexedNodes.add(state.spinner);
+    if (state.bilingualContent) indexedNodes.add(state.bilingualContent);
+    if (state.retryWrapper) indexedNodes.add(state.retryWrapper);
+    state.singleTextSlotHosts?.forEach(({host}) => indexedNodes.add(host));
+    state.layoutOverrideElements?.forEach((element) => indexedNodes.add(element));
+    state.layoutWatchElements?.forEach((element) => indexedNodes.add(element));
     indexedNodesByOwner.set(owner, indexedNodes);
     const ownerRef = trackActiveNode(owner);
 

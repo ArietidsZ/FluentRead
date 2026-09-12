@@ -97,7 +97,7 @@ import {
     withFullPageViewportAnchor,
     type FullPageScrollController,
 } from '@/src/features/full-page-translation/content/viewportStability';
-import {clearFullPageQueueState, createFullPageQueueState, noteFullPageScroll, queueFullPageCandidate, removeFullPagePending, selectNextFullPageCandidate, type FullPageQueueState} from '@/src/features/full-page-translation/content/fullPageQueue';
+import {clearFullPageQueueState, createFullPageQueueState, noteFullPageScroll, queueFullPageCandidate, removeFullPagePending, createFullPageDispatchPlan, type FullPageQueueState, type FullPageDispatchPlan} from '@/src/features/full-page-translation/content/fullPageQueue';
 import {FULL_PAGE_PREFETCH_MARGIN_PX} from '@/src/features/full-page-translation/content/fullPagePriority';
 import {
     canKeepTranslationAttempt,
@@ -124,7 +124,7 @@ import {consumeOrphanedOwnerClassMutation, isTextEquivalentHostReplacement, norm
     from '@/src/features/full-page-translation/content/orphanArtifacts';
 import {createFullPageRequestSessionState, disposeFullPageRequestSession, getHoverTranslationRequestSession, invalidateContextSensitiveRequestCache, invalidateFullPageRequestSessionCache, invalidateFullPageRequestSessionForRoute, invalidateHoverTranslationRequestSession, resetHoverTranslationRequestSession, type FullPageRequestSessionState} from '@/src/features/full-page-translation/content/requestSession';
 import {getSiteAdapterAttributeFilter} from '@/src/core/site-adaptation/compiler';
-import {createTranslationMutationObserverOptions, isOwnSyntheticSegmentMarkerMutation, mutationRootContains as nodeContains, collapseMutationRescanRoot as broadRescanRoot} from './mutationObservation';
+import {allMutationNodesMatch, createTranslationMutationObserverOptions, isOwnSyntheticSegmentMarkerMutation, mutationRootContains as nodeContains, collapseMutationRescanRoot as broadRescanRoot} from './mutationObservation';
 import {isWithinTranslationModal, mayChangeTranslationModal} from './modalPriority';
 import {refreshModalSession, type ModalPrioritySession} from './modalSession';
 const TRANSLATION_ARTIFACT_SELECTOR = [
@@ -224,15 +224,26 @@ function scheduleFullPageProgressPublish(session: FullPageSession): void {
         session.progressPublishScheduled = false;
         if (!session.active || fullPageSession !== session) return;
 
-        const eligible = (candidate: TranslationCandidate) => !session.modal || isWithinTranslationModal(session.modal, candidate.element);
-        const scheduled = session.modal ? new Map([...session.scheduled].filter(([, candidate]) => eligible(candidate))) : session.scheduled;
-        const pending = session.modal ? [...session.pending.values()].filter(eligible).length : session.pending.size;
+        const modal = session.modal;
+        const eligible = (node: Node) => !modal || isWithinTranslationModal(modal, node);
+        let scheduled = session.scheduled;
+        let pending = session.pending.size;
+        if (modal) {
+            scheduled = new Map();
+            for (const [key, candidate] of session.scheduled) if (eligible(candidate.element)) scheduled.set(key, candidate);
+            pending = 0;
+            for (const candidate of session.pending.values()) if (eligible(candidate.element)) pending += 1;
+        }
         const work = countFullPageTranslationWork(session.inFlightCandidates, scheduled, pending);
         const deferred = session.scheduled.size - scheduled.size;
         const busy = work.running > 0 || work.queued > 0;
-        const targets = session.statefulTargetsByAncestor.get(document.documentElement) ?? [];
-        const status = resolveTranslationToolbarStatus(busy, Array.from(targets, target => target.isConnected &&
-            (!session.modal || isWithinTranslationModal(session.modal, target)) ? getTranslationState(target)?.phase ?? '' : ''));
+        // 惰性产出阶段：整页译文可达数千个，而 busy 或首个 loading 都会让
+        // resolveTranslationToolbarStatus 立即短路，不应为此预先分配整张数组。
+        const status = resolveTranslationToolbarStatus(busy, (function* () {
+            for (const target of session.statefulTargetsByAncestor.get(document.documentElement) ?? []) {
+                yield target.isConnected && eligible(target) ? getTranslationState(target)?.phase ?? '' : '';
+            }
+        })());
         notifyTranslationToolbarStatus(session.modal && status === 'translated' ? 'idle' : status);
         const modalPhase = session.modal ? busy ? 'translating' : 'waiting' : 'none';
         syncModalTranslationHint(session.modal, modalPhase, config.translationProgressPanelEnabled === true);
@@ -1075,8 +1086,13 @@ function drainFullPage(session: FullPageSession): void {
     session.draining = true;
     const maxConcurrent = normalizeMaxConcurrentTranslations(config.maxConcurrentTranslations);
 
+    // 有空闲槽时才集中测量锚点；一轮派发内复用，避免 loading 写入后重复读取布局。
+    let plan: FullPageDispatchPlan | undefined;
     while (session.active && session.inFlightCandidates.size < maxConcurrent && session.pending.size > 0) {
-        const selection = selectNextFullPageCandidate(session, {now: Date.now(), viewportHeight: window.innerHeight, isEligible: candidate => !session.modal || isWithinTranslationModal(session.modal, candidate.element), resolveSource: candidateLifecycleSource});
+        plan ??= createFullPageDispatchPlan(session, {now: Date.now(), viewportHeight: window.innerHeight,
+            isEligible: candidate => !session.modal || isWithinTranslationModal(session.modal, candidate.element),
+            resolveSource: candidateLifecycleSource});
+        const selection = plan.next();
         if (!selection) break;
         const {key, candidate, priority} = selection;
         removeFullPagePending(session, key, candidate);
@@ -1383,16 +1399,16 @@ function isOwnMutation(
     mutation: MutationRecord,
     loadingSyntheticChecks: WeakMap<TranslationState, boolean>,
 ): boolean {
-    const exactMutationElement = mutationTargetElement(mutation.target);
+    const mutationElement = mutationTargetElement(mutation.target);
     // 框架在 hover/render 时会重复写入相同属性。相同值没有来源或展示变化，
     // 不能让一次 setAttribute 事务把控件/仅译文恢复后再从缓存重新渲染。
     // oldValue 为 null 时仍走完整复验，兼容不提供旧值的观察器实现。
-    if (mutation.type === "attributes" && exactMutationElement && mutation.attributeName &&
+    if (mutation.type === "attributes" && mutationElement && mutation.attributeName &&
         mutation.oldValue !== null &&
-        mutation.oldValue === exactMutationElement.getAttribute(mutation.attributeName)) return true;
-    if (mutation.type === "attributes" && exactMutationElement && (
-        (mutation.attributeName === "style" && isTranslationLayoutOverrideMutation(exactMutationElement as HTMLElement)) ||
-        (mutation.attributeName === "class" && consumeOrphanedOwnerClassMutation(exactMutationElement as HTMLElement)))) return true;
+        mutation.oldValue === mutationElement.getAttribute(mutation.attributeName)) return true;
+    if (mutation.type === "attributes" && mutationElement && (
+        (mutation.attributeName === "style" && isTranslationLayoutOverrideMutation(mutationElement as HTMLElement)) ||
+        (mutation.attributeName === "class" && consumeOrphanedOwnerClassMutation(mutationElement as HTMLElement)))) return true;
     // 不能用“位于任意插件节点内”作为判断：站点可能直接改写双语 wrapper
     // 的文本，必须让这类 mutation 进入 stale/retranslate 分支。加载/错误节点
     // 没有宿主正文，才可以直接视为插件自身变化。
@@ -1400,7 +1416,6 @@ function isOwnMutation(
         isElementNode(mutation.target) &&
         mutation.target.matches('[data-fr-translation-owned="true"]') &&
         !mutation.target.matches('.fluent-read-bilingual-content')) return true;
-    const mutationElement = mutationTargetElement(mutation.target);
     const target = mutationElement ? resolveStatefulMutationTarget(mutationElement) : false;
     const state = target ? getTranslationState(target as HTMLElement) : undefined;
     if (!target || !state) return false;
@@ -1417,9 +1432,7 @@ function isOwnMutation(
             return target.getAttribute("style") === state.renderedStyleAttribute;
         }
         if (mutation.type === "childList") {
-            const changedNodes = [...Array.from(mutation.addedNodes), ...Array.from(mutation.removedNodes)];
-            return changedNodes.length > 0 &&
-                changedNodes.every(isTranslationArtifact) &&
+            return allMutationNodesMatch(mutation, isTranslationArtifact) &&
                 mutationElement === target &&
                 state.retryWrapper?.parentNode === target;
         }
@@ -1466,12 +1479,9 @@ function isOwnMutation(
         // 这两类 childList mutation 都可能落在宿主节点上；只要所有增删节点
         // 都是扩展 artifact，且插件自己的最终快照仍然存在，就不能触发重译。
         // 若 wrapper 已被宿主移除，则保留 false，让后续逻辑恢复并重新排队。
-        if (mutation.type === "childList") {
-            const changedNodes = [...Array.from(mutation.addedNodes), ...Array.from(mutation.removedNodes)];
-            if (changedNodes.length > 0 && changedNodes.every(isTranslationArtifact)) {
-                return state.bilingualContent?.parentNode === target &&
-                    state.bilingualContent.outerHTML === state.bilingualOuterHTML;
-            }
+        if (mutation.type === "childList" && allMutationNodesMatch(mutation, isTranslationArtifact)) {
+            return state.bilingualContent?.parentNode === target &&
+                state.bilingualContent.outerHTML === state.bilingualOuterHTML;
         }
 
         // 双语渲染会临时修改宿主节点的 style；只有值仍是插件记录的值时才忽略。

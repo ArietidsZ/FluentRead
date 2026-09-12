@@ -64,6 +64,25 @@ FluentRead 把测试按意图分组，而不是把所有文件塞进一个难以
 
 ## 按需运行
 
+测试、类型检查和生产构建的 package scripts 统一经过
+`scripts/testing/run-resource-safe.mjs`。默认同一台机器上的 FluentRead worktree
+共用一把锁，Vitest 最多使用 2 个 worker，并关闭测试文件并行；直接运行
+`pnpm exec vitest` 也通过 globalSetup 等待同一把锁。嵌套的 package 命令复用父锁，
+子进程结束或收到终止信号后才释放；已退出进程遗留的锁可自动回收。
+
+默认显示的 60% 是协作式资源预算标记，不是 CPU 使用率硬上限，也不会根据
+这个百分比自动计算 worker 数量。需要进一步减少占用时使用
+`FLUENTREAD_TEST_MAX_WORKERS=1 pnpm test`。直接调用浏览器脚本或其他高负载命令时，
+可使用 `node scripts/testing/run-resource-safe.mjs -- <命令及参数>`。
+默认最多等待锁 30 分钟，可用 `FLUENTREAD_TEST_LOCK_WAIT_MS` 调整。
+`FLUENTREAD_RESOURCE_LOCK_DIR` 仅用于专项锁隔离验证；日常任务不要改写它，否则
+不同目录的任务无法互相协调。
+
+`tests/resourceSafeRunner.test.ts` 使用真实 Node 子进程验证并发互斥、死进程锁竞争回收、
+父子锁复用、worker 参数、Vitest setup、等待超时、退出码和 SIGTERM 释放。
+`pnpm test -- <文件>` 和 coverage 命令的首个 Vitest 转发分隔符会被兼容处理；
+其他命令中的 `--` 原样保留。
+
 ```bash
 pnpm test:audit          # 测试矩阵、重复和禁用项审计
 pnpm test:architecture   # 分层、依赖方向与验证归属
