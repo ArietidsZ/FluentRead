@@ -10,6 +10,23 @@ import type {
 MessageCatalog} from '../types';
 
 export const zhCNMessages = {
+    "writing.demo.title": "使用演示",
+    "writing.demo.play": "播放演示",
+    "writing.demo.pause": "暂停演示",
+    "writing.demo.steps": "演示步骤",
+    "writing.demo.open": "打开助手",
+    "writing.demo.review": "查看草稿",
+    "writing.demo.insert": "插入回复",
+    "writing.demo.assistant": "写作助手",
+    "writing.demo.replyBox": "回复框",
+    "writing.demo.example": "示例",
+    "writing.demo.placeholder": "写下你的回复…",
+    "writing.demo.draft": "感谢你的反馈！方便补充一下浏览器名称和版本吗？这能帮助我们进一步排查。",
+    "writing.demo.inserted": "已插入回复框",
+    "writing.demo.openHint": "在 GitHub 或 Gmail 的回复框旁，点击「写作助手」。",
+    "writing.demo.reviewHint": "助手参考当前讨论起草，你可以检查和修改。",
+    "writing.demo.insertHint": "草稿已放回回复框，检查后由你点击发送。",
+
     "settings.requestLimits.modelTitle": "模型请求限制",
     "settings.requestLimits.globalTitle": "请求限制",
     "settings.requestLimits.globalHelp": "未单独设置的服务和模型共用这些限制。",

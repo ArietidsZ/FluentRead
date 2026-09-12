@@ -10,6 +10,23 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const jaJPMessages = {
+    "writing.demo.title": "使い方",
+    "writing.demo.play": "デモを再生",
+    "writing.demo.pause": "デモを一時停止",
+    "writing.demo.steps": "デモの手順",
+    "writing.demo.open": "アシスタントを開く",
+    "writing.demo.review": "下書きを確認",
+    "writing.demo.insert": "返信に挿入",
+    "writing.demo.assistant": "文章作成アシスタント",
+    "writing.demo.replyBox": "返信欄",
+    "writing.demo.example": "使用例",
+    "writing.demo.placeholder": "返信を入力…",
+    "writing.demo.draft": "ご報告ありがとうございます。ブラウザー名とバージョンを教えていただけますか？調査の参考になります。",
+    "writing.demo.inserted": "返信欄に挿入済み",
+    "writing.demo.openHint": "GitHub や Gmail の返信欄の横にある文章作成アシスタントをクリックします。",
+    "writing.demo.reviewHint": "会話を参考に下書きを作成します。内容を確認し、修正できます。",
+    "writing.demo.insertHint": "下書きを返信欄に戻しました。確認してから自分で送信します。",
+
     "settings.requestLimits.modelTitle": "モデルのリクエスト制限",
     "settings.requestLimits.globalTitle": "リクエスト制限",
     "settings.requestLimits.globalHelp": "個別設定のないサービスとモデルは、この制限を共有します。",

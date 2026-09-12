@@ -10,6 +10,23 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const frFRMessages = {
+    "writing.demo.title": "Comment ça marche",
+    "writing.demo.play": "Lire la démo",
+    "writing.demo.pause": "Mettre en pause",
+    "writing.demo.steps": "Étapes de la démo",
+    "writing.demo.open": "Ouvrir l’assistant",
+    "writing.demo.review": "Relire le brouillon",
+    "writing.demo.insert": "Insérer la réponse",
+    "writing.demo.assistant": "Assistant de rédaction",
+    "writing.demo.replyBox": "Zone de réponse",
+    "writing.demo.example": "Exemple",
+    "writing.demo.placeholder": "Écrivez votre réponse…",
+    "writing.demo.draft": "Merci pour votre retour ! Pourriez-vous préciser le nom et la version de votre navigateur ? Cela nous aidera à examiner le problème.",
+    "writing.demo.inserted": "Inséré dans la réponse",
+    "writing.demo.openHint": "Cliquez sur l’assistant de rédaction à côté d’une réponse GitHub ou Gmail.",
+    "writing.demo.reviewHint": "L’assistant rédige à partir de la discussion. Relisez et modifiez la réponse.",
+    "writing.demo.insertHint": "Le brouillon est dans la zone de réponse. Vérifiez-le, puis envoyez-le vous-même.",
+
     "settings.requestLimits.modelTitle": "Limites du modèle",
     "settings.requestLimits.globalTitle": "Limites de requêtes",
     "settings.requestLimits.globalHelp": "Les services et modèles sans réglages spécifiques partagent ces limites.",
