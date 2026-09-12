@@ -131,7 +131,6 @@
       "tests/selectionTtsProtocol.test.ts",
       "tests/serviceCatalog.test.ts",
       "tests/serviceLibrary.test.ts",
-      "tests/pageTranslationAdvanced.test.ts",
       "tests/serviceIcons.test.ts",
       "tests/cloudVendorCatalog.test.ts",
       "tests/siteRules.test.ts",

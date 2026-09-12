@@ -274,7 +274,6 @@ describe('术语文件预览与导出', () => {
         } finally {
             vi.unstubAllGlobals();
         }
-
         const legacy = Uint8Array.from([
             ...new TextEncoder().encode('source,target\nAPI,'), 0xD7, 0xE9, 0xBC, 0xFE,
         ]);

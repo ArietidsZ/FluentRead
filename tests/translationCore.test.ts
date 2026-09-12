@@ -2016,6 +2016,7 @@ describe('translation candidate core', () => {
         expect(isClearlyTargetLanguage('설정 번역', 'ja')).toBe(false);
         expect(isClearlyTargetLanguage('あ안', 'ja')).toBe(false);
         expect(isClearlyTargetLanguage('あ안', 'ko')).toBe(false);
+        expect(isClearlyTargetLanguage('日本語です Café', 'ja')).toBe(false);
 
         expect(isClearlyTargetLanguage('翻译设置', 'zh-CN')).toBe(true);
         expect(isClearlyTargetLanguage('翻译设置', 'zh-Hans')).toBe(true);
