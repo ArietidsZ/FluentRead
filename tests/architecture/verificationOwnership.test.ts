@@ -244,6 +244,9 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/providers/translation/deepl.ts',
     'src/providers/translation/deeplx.ts',
     'src/providers/translation/deepseek.ts',
+    // 豆包按生效模型分流并直连方舟 Responses API；模型识别、语言映射与协议工具已拆出并纳入 strict coverage。
+    'src/providers/translation/doubao.ts',
+    'src/providers/translation/doubao-seed-translation.ts',
     'src/providers/translation/gemini.ts',
     'src/providers/translation/google.ts',
     'src/providers/translation/hunyuan-translation.ts',

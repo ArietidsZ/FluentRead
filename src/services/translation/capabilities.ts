@@ -29,7 +29,10 @@ export function supportsTranslationBatch(service: string): boolean {
     return NATIVE_BATCH_TRANSLATION_SERVICES.has(service) || servicesType.isAiSdk(service);
 }
 
-/** 通用提示词 AI 使用术语约束；通义 Qwen-MT 使用原生 terms，其余协议不替换译文。 */
+/**
+ * 通用提示词 AI 使用术语约束；通义 Qwen-MT 使用原生 terms，其余协议不替换译文。
+ * 豆包翻译专用模型的 translation_options 没有术语字段，因此不在此列。
+ */
 export function supportsTranslationGlossary(
     service: string,
     model = '',

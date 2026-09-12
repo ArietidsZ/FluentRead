@@ -240,6 +240,7 @@
       "tests/settingsCompositionAutosave.test.ts",
       "tests/chineseTranslationProviders.test.ts",
       "tests/cloudVendorProviders.test.ts",
+      "tests/doubaoSeedTranslation.test.ts",
       "tests/aiSdkOpenAICompatible.test.ts",
       "tests/config.test.ts",
       "tests/configAutoBackupStore.test.ts",
