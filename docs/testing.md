@@ -51,6 +51,8 @@ node scripts/verify-userscript-build.mjs  # userscript 元数据与产物边界
 
 OpenRouter 模型卡片曾在解除内部两行截断后仍保持外层 `height:176px`，使居中的双语内容覆盖相邻卡片。`translationHeightLayout.test.ts` 检查插入后由内向外测量、共享高度租约、宿主样式更新、窗口 resize、滚动/定位边界和移除清理；`translationTruncation.test.ts` 检查几何判断与安全边界。
 
+内置 OpenRouter 规则按模型标题节点跳过名称与详情页 API 标识，避免在双语结果中重复名称。`translationCore.test.ts` 覆盖供应商列表、模型列表、详情页、祖先快照与域名边界，同一模型链接下的介绍仍可翻译。
+
 生产扩展的确定性布局回归使用真实 Control / Alt+T、临时 Edge profile 和后台窗口：
 
 ```bash

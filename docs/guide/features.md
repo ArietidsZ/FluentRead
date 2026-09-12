@@ -12,6 +12,8 @@ FluentRead 支持网页全文双语对照、划词翻译和悬浮翻译，译文
 
 网页中的固定高度内容卡片会在译文溢出时自动增高，避免压住相邻内容；恢复原文后还原卡片高度。独立滚动区域仍保留原来的滚动方式。
 
+OpenRouter 的模型列表、供应商列表和模型详情页会保留模型名称原文，模型介绍继续翻译。
+
 将 FluentRead 固定到浏览器工具栏后，图标右下角会显示小而半透明的三角折角提示：蓝色时钟表示正在翻译，绿色对勾表示当前已进入翻译的内容完成，橙色感叹号表示有内容翻译失败，可以在页面中点击“重试”。默认随阅读位置翻译时，尚未滚动到的内容会稍后处理。恢复原文、关闭翻译或刷新页面后，图标恢复原样。
 
 <figure class="doc-figure"><a href="/screenshots/translation.webp" target="_blank" rel="noopener"><img class="doc-screenshot" src="/screenshots/translation.webp" width="2560" height="1600" alt="文章中的英文原文与中文译文逐段对照" loading="lazy" /></a><figcaption>原文留在眼前，方便核对专有名词和细节。点击图片查看原图。</figcaption></figure>

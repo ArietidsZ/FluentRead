@@ -85,6 +85,60 @@ describe('Codeforces named form controls', () => {
 });
 
 describe('translation candidate core', () => {
+    it.each([
+        ['provider', 'https://openrouter.ai/provider/minimax'],
+        ['models', 'https://openrouter.ai/models'],
+    ])('OpenRouter %s 页面保护模型名称但仍翻译描述', (_name, url) => {
+        const {document} = parseHTML(`<html><body><ul><li>
+            <a href="/minimax/hailuo-3"><span class="font-semibold" id="model-name"><span class="hidden md:block">MiniMax: H3 Max</span><span class="md:hidden">H3 Max</span></span></a>
+            <a href="/minimax/hailuo-3"><div class="line-clamp-2"><p id="model-description">A detailed model description remains translatable.</p></div></a>
+        </li></ul></body></html>`);
+        const modelName = document.querySelector<HTMLElement>('#model-name')!;
+        const description = document.querySelector<HTMLElement>('#model-description')!;
+        for (const scope of ['content', 'all'] as const) {
+            const core = createTranslationCore({url: new URL(url), scope});
+            const candidates = core.discover(document);
+            expect(core.resolve(modelName.querySelector('.hidden')?.firstChild), `${url} ${scope}`).toBeNull();
+            expect(core.resolve(modelName.querySelector('.md\\:hidden')?.firstChild), `${url} ${scope}`).toBeNull();
+            expect(core.resolve(description.firstChild)?.element, `${url} ${scope}`).toBe(description);
+            expect(candidates.some(candidate => candidate.element === description), `${url} ${scope}`).toBe(true);
+            const snapshot = createTranslationSourceSnapshot(document.querySelector('li')!, core.shouldStayOriginal,
+                undefined, undefined, core.shouldOmitFromTranslation);
+            expect(snapshot.slots.map(slot => slot.source), `${url} ${scope}`).toEqual(['A detailed model description remains translatable.']);
+            expect(snapshot.clone.textContent, `${url} ${scope}`).not.toContain('MiniMax: H3 Max');
+        }
+    });
+
+    it('OpenRouter 详情页只保护标题和 API 标识，普通 heading 仍可翻译', () => {
+        const {document} = parseHTML(`<html><body>
+            <div id="model-title-row"><h1 id="model-name">MiniMax H3 Max</h1>
+                <h3 id="api-name" title="Model identifier for use in the API">minimax/hailuo-3</h3></div>
+            <h2 id="performance">Models</h2><p id="detail-copy">Model details remain translatable.</p>
+        </body></html>`);
+        for (const scope of ['content', 'all'] as const) {
+            const core = createTranslationCore({url: new URL('https://openrouter.ai/minimax/hailuo-3'), scope});
+            const title = document.querySelector('#model-name')!;
+            const api = document.querySelector('#api-name')!;
+            expect(core.resolve(title.firstChild), scope).toBeNull();
+            expect(core.resolve(api.firstChild), scope).toBeNull();
+            expect(core.resolve(document.querySelector('#performance')!.firstChild)?.element, scope).toBe(document.querySelector('#performance'));
+            expect(core.resolve(document.querySelector('#detail-copy')!.firstChild)?.element, scope).toBe(document.querySelector('#detail-copy'));
+            const snapshot = createTranslationSourceSnapshot(document.querySelector('#model-title-row')!, core.shouldStayOriginal,
+                undefined, undefined, core.shouldOmitFromTranslation);
+            expect(snapshot.slots, scope).toHaveLength(0);
+            expect(snapshot.clone.textContent?.trim(), scope).toBe('');
+        }
+    });
+
+    it('非 OpenRouter 与伪域名仍按默认规则允许模型名称翻译', () => {
+        const html = '<ul><li><a href="/minimax/hailuo-3"><span class="font-semibold" id="model-name">MiniMax: H3 Max</span></a><a href="/minimax/hailuo-3"><div class="line-clamp-2"><p id="model-description">A detailed model description remains translatable.</p></div></a></li></ul>';
+        for (const url of ['https://example.test/models', 'https://openrouter.ai.attacker.invalid/models']) {
+            const {document} = parseHTML(`<html><body>${html}</body></html>`);
+            const core = createTranslationCore({url: new URL(url)});
+            expect(core.resolve(document.querySelector('#model-name')!.firstChild), url).not.toBeNull();
+        }
+    });
+
     it('只放行 text/plain 文档的顶层 pre，HTML 页面中的 pre 仍保持保护', () => {
         const htmlPage = page('<pre id="html-pre">const value = 1;</pre>');
         expect(htmlPage.core.discover(htmlPage.document).map((candidate) => candidate.element.id))
