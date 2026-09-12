@@ -14,6 +14,8 @@ import {
 
 export const CHROME_TRANSLATOR_UNAVAILABLE_MESSAGE =
     '当前浏览器暂不支持 Chrome 内置翻译；原配置会保留，请切换到其他翻译服务。';
+export const LOCAL_TRANSLATION_UNAVAILABLE_MESSAGE =
+    '当前浏览器不支持扩展本地模型翻译；原配置会保留，请切换到其他翻译服务。';
 
 const NATIVE_BATCH_TRANSLATION_SERVICES = new Set<string>([
     services.microsoft,
@@ -46,15 +48,18 @@ export function isTranslationServiceAvailable(
     service: string,
     capabilities: BrowserCapabilities = browserCapabilities,
 ): boolean {
-    return service !== services.chromeTranslator || capabilities.chromeTranslation;
+    if (service === services.chromeTranslator) return capabilities.chromeTranslation;
+    if (service === services.localTranslation) return capabilities.extensionDom;
+    return true;
 }
 
 export function getTranslationServiceUnavailableMessage(
     service: string,
     capabilities: BrowserCapabilities = browserCapabilities,
 ): string | null {
-    return isTranslationServiceAvailable(service, capabilities)
-        ? null
+    if (isTranslationServiceAvailable(service, capabilities)) return null;
+    return service === services.localTranslation
+        ? LOCAL_TRANSLATION_UNAVAILABLE_MESSAGE
         : CHROME_TRANSLATOR_UNAVAILABLE_MESSAGE;
 }
 

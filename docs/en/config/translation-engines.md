@@ -10,7 +10,7 @@ FluentRead displays translations produced by your selected service. Use the defa
 | Use an existing provider | The corresponding Microsoft, Google, DeepL, or other service |
 | Trade a cloud key for a stable free quota | A **Cloud vendors** service: Google Cloud, Azure, Alibaba Cloud, Tencent Cloud, Baidu, or Volcengine, each with a monthly free character quota |
 | Explain sentences, tone, or expressions | An AI service with a working model and credentials |
-| Translate text locally | **Ollama (local)** from the catalog, or available [Chrome local translation](/en/guide/chrome-translator) |
+| Translate text locally | **Local model translation**, **Ollama (local)**, or available [Chrome local translation](/en/guide/chrome-translator) |
 
 FluentRead is free and open source. Third-party services may charge separately. A web chat subscription does not necessarily include API access.
 
@@ -85,6 +85,24 @@ For Azure, Alibaba Cloud, and Volcengine the region is part of the request signa
 :::
 
 Paired secrets (AccessKey Secret, SecretKey, and similar) are stored only on this device, like API keys. Shared configurations and configuration history never include them; full backups keep them.
+
+## Local model translation
+
+Choose a model under **Settings → Translation services → Local model translation** and download it. Once it is available offline, try a short translation, then select this service in the extension menu. No API key or separate server is required; translation text stays on this device.
+
+| Model | Download | Intended use |
+| --- | --- | --- |
+| Chinese / English lightweight pack | About 239 MB | Simple everyday sentences in both directions; review technical terms and complex wording |
+| Hunyuan Hy-MT2 1.8B | About 1.13 GB | Chinese, English, Japanese and more languages; more demanding text, with higher memory requirements |
+| Japanese / English lightweight pack | About 214 MB | Mainly Japanese-to-English reading; English-to-Japanese quality is limited, so prefer Hunyuan |
+
+Downloads continue when you leave the settings page. You can pause them and resume saved progress after restarting the browser. Files must finish verification before translation is available, even if the progress is nearly 100%.
+
+Deleting a model requires confirmation and keeps other models and settings. Model files belong to the current browser and are not included in settings backups.
+
+Download size is not runtime memory. Even a lightweight pack can briefly add around 1–2 GB of memory use, with CPU spikes while loading. Models are released after 30 seconds of inactivity. Text length, browser and graphics hardware affect actual usage. Unsupported browsers show a warning for Hunyuan. The userscript edition does not download or run these models.
+
+Local Hunyuan is separate from the Hunyuan cloud service. Model sources and licenses are linked from each card's information button.
 
 ## AI services
 

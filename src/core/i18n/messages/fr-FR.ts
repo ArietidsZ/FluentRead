@@ -8,6 +8,7 @@
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
+import {localTranslationFrenchMessages} from './localTranslation';
 
 export const frFRMessages = {
     "settings.services.library.views": "Vues des services",
@@ -112,6 +113,7 @@ export const frFRMessages = {
     "writing.demo.reviewHint": "L’assistant rédige à partir de la discussion. Relisez et modifiez la réponse.",
     "writing.demo.insertHint": "Le brouillon est dans la zone de réponse. Vérifiez-le, puis envoyez-le vous-même.",
 
+    ...localTranslationFrenchMessages,
     "settings.requestLimits.modelTitle": "Limites du modèle",
     "settings.requestLimits.globalTitle": "Limites de requêtes",
     "settings.requestLimits.globalHelp": "Les services et modèles sans réglages spécifiques partagent ces limites.",
@@ -1454,6 +1456,8 @@ const frFRLegacyTextBase: Readonly<Record<string, string>> = {
     '有道翻译': 'Youdao Translate',
     '腾讯云翻译': 'Tencent Cloud Translate',
     'Chrome内置AI翻译': 'Traduction intégrée de l’IA dans Chrome',
+    '本地模型翻译': 'Traduction avec modèle local',
+    '下载后离线翻译，可选轻量语言包与混元翻译模型。': 'Traduisez hors ligne avec des packs linguistiques légers ou un modèle Hunyuan.',
     '字节豆包': 'ByteDance Doubao',
     '月之暗面/Kimi': 'Moonshot/Kimi',
     '智谱/GLM': 'Zhipu/GLM',

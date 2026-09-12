@@ -9,6 +9,7 @@
 import type {
 MessageCatalog} from '../types';
 import {legacyTextOverrides} from './legacy-overrides';
+import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
     "settings.services.library.views": "Service views",
@@ -113,6 +114,7 @@ export const enUSMessages = {
     "writing.demo.reviewHint": "The assistant drafts from the discussion. Review and edit the reply.",
     "writing.demo.insertHint": "The draft is back in the reply box. Check it, then send it yourself.",
 
+    ...localTranslationEnglishMessages,
     "settings.requestLimits.modelTitle": "Model request limits",
     "settings.requestLimits.globalTitle": "Request limits",
     "settings.requestLimits.globalHelp": "Services and models without custom settings share these limits.",
@@ -1322,6 +1324,8 @@ const enUSLegacyTextBase: Readonly<Record<string, string>> = {
     '有道翻译': 'Youdao Translate',
     '腾讯云翻译': 'Tencent Cloud Translate',
     'Chrome内置AI翻译': 'Chrome built-in AI translation',
+    '本地模型翻译': 'Local model translation',
+    '下载后离线翻译，可选轻量语言包与混元翻译模型。': 'Translate offline with lightweight language packs or a Hunyuan translation model.',
     '机器翻译': 'Machine translation',
     'AI翻译': 'AI translation',
     '字节豆包': 'ByteDance Doubao',

@@ -5,6 +5,7 @@
  * 模块边界：路由器不创建 Audio/Worker、不调用 browser.offscreen，也不实现翻译算法；资源实例由 offscreen runtime 构造，具体能力来自 translation、ttsPlayback 和 feature services。
  */
 import type {AreaTranslationSelection} from '@/src/features/area-translation/protocol';
+import {isLocalTranslationModel} from '@/src/core/config/localTranslation';
 import {
     IMAGE_OCR_LANGUAGE_PACKS,
     normalizeImageOcrLanguageCodes,
@@ -15,6 +16,7 @@ import {isChromePreparationRequiredError, parseLanguageCode} from './translation
 import {
     OFFSCREEN_CANCEL_CHROME_TRANSLATION_MESSAGE_TYPE,
     OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE,
+    OFFSCREEN_CANCEL_LOCAL_TRANSLATION_MESSAGE_TYPE,
     OFFSCREEN_READY_MESSAGE_TYPE,
 } from '@/src/platform/offscreen/client';
 
@@ -54,6 +56,14 @@ export interface OffscreenMessageDependencies {
         prepare(request: Record<string, unknown>): Promise<unknown>;
         cancel(streamId: string, reason?: 'cancel' | 'complete'): Promise<void>;
     };
+    readonly localTranslation?: {
+        translate(request: Record<string, unknown>, signal: AbortSignal): Promise<unknown>;
+        prepare(request: Record<string, unknown>): Promise<unknown>;
+        status(): Promise<unknown>;
+        pause?(request: Record<string, unknown>): Promise<unknown>;
+        removeModel(request: Record<string, unknown>): Promise<void>;
+        dispose?(): void;
+    };
 }
 
 type OffscreenMessageListener = (
@@ -72,6 +82,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function requiredString(value: unknown, field: string): string {
     if (typeof value !== 'string' || !value.trim()) throw new TypeError(`Offscreen ${field} 必须是非空字符串`);
     return value;
+}
+
+function requiredLocalTranslationModel(value: unknown): string {
+    const model = requiredString(value, 'model');
+    if (!isLocalTranslationModel(model)) throw new Error('本地翻译模型标识无效');
+    return model;
 }
 
 function requiredRequestId(value: unknown): string {
@@ -163,6 +179,7 @@ function respondWith(
 /** 静态路由 Offscreen 消息；未知或非对象消息不会占用其他 runtime listener。 */
 export function createOffscreenMessageListener(dependencies: OffscreenMessageDependencies): OffscreenMessageListener {
     const activeChromeTranslations = new Map<string, AbortController>();
+    const activeLocalTranslations = new Map<string, AbortController>();
     let removingOcrModels = false;
     const activeImageOperations = new Map<string, AbortController>();
     const cancelledImageOperations = new Set<string>();
@@ -306,6 +323,103 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
                 try {
                     const requestId = requiredRequestId(message.requestId);
                     const controller = activeChromeTranslations.get(requestId);
+                    controller?.abort();
+                    sendResponse({success: true, cancelled: Boolean(controller), requestId});
+                } catch (error) {
+                    sendResponse({success: false, error: errorMessage(error)});
+                }
+                return true;
+            }
+            case 'LOCAL_TRANSLATION_PREPARE':
+                if (!dependencies.localTranslation) { sendResponse({success: false, error: '本地翻译未启用'}); return true; }
+                respondWith(
+                    () => dependencies.localTranslation!.prepare({
+                        ...message,
+                        model: requiredLocalTranslationModel(message.model),
+                    }),
+                    sendResponse,
+                    (result) => ({success: true, ...resultRecord(result, '本地翻译模型')}),
+                );
+                return true;
+            case 'LOCAL_TRANSLATION_PAUSE':
+                if (!dependencies.localTranslation?.pause) { sendResponse({success: false, error: 'LOCAL_TRANSLATION_UNAVAILABLE'}); return true; }
+                respondWith(
+                    () => dependencies.localTranslation!.pause!({model: requiredLocalTranslationModel(message.model)}),
+                    sendResponse,
+                    (result) => ({success: true, ...resultRecord(result, 'local translation')}),
+                );
+                return true;
+            case 'LOCAL_TRANSLATION_STATUS':
+                if (!dependencies.localTranslation) { sendResponse({success: false, error: '本地翻译未启用'}); return true; }
+                respondWith(
+                    () => dependencies.localTranslation!.status(),
+                    sendResponse,
+                    (result) => ({success: true, ...resultRecord(result, '本地翻译模型状态')}),
+                );
+                return true;
+            case 'LOCAL_TRANSLATION_REMOVE_MODEL':
+                if (!dependencies.localTranslation) { sendResponse({success: false, error: '本地翻译未启用'}); return true; }
+                respondWith(
+                    () => dependencies.localTranslation!.removeModel({
+                        ...message,
+                        model: requiredLocalTranslationModel(message.model),
+                    }),
+                    sendResponse,
+                    () => ({success: true}),
+                );
+                return true;
+            case 'LOCAL_TRANSLATION_TRANSLATE': {
+                if (!dependencies.localTranslation) { sendResponse({success: false, error: '本地翻译未启用'}); return true; }
+                let requestId: string;
+                try {
+                    requestId = requiredRequestId(message.requestId);
+                    if (activeLocalTranslations.has(requestId)) throw new Error('Offscreen 本地翻译 requestId 正在执行');
+                    requiredLocalTranslationModel(message.model);
+                    requiredString(message.text, 'text');
+                    requiredString(message.sourceLanguage, 'sourceLanguage');
+                    requiredString(message.targetLanguage, 'targetLanguage');
+                    if (message.sourceLanguageDetectionText !== undefined
+                        && typeof message.sourceLanguageDetectionText !== 'string') {
+                        throw new Error('Offscreen sourceLanguageDetectionText 必须为字符串');
+                    }
+                } catch (error) {
+                    sendResponse({success: false, error: errorMessage(error)});
+                    return true;
+                }
+
+                const controller = new AbortController();
+                activeLocalTranslations.set(requestId, controller);
+                let settled = false;
+                const finish = (response: unknown) => {
+                    if (settled) return;
+                    settled = true;
+                    controller.signal.removeEventListener('abort', handleAbort);
+                    if (activeLocalTranslations.get(requestId) === controller) activeLocalTranslations.delete(requestId);
+                    sendResponse(response);
+                };
+                const handleAbort = () => finish({
+                    success: false,
+                    cancelled: true,
+                    requestId,
+                    error: '本地翻译请求已取消',
+                });
+                controller.signal.addEventListener('abort', handleAbort, {once: true});
+                void Promise.resolve()
+                    .then(() => dependencies.localTranslation!.translate(message, controller.signal))
+                    .then(
+                        (result) => {
+                            if (typeof result !== 'string') throw new Error('本地翻译结果无效');
+                            finish({success: true, result, requestId});
+                        },
+                        (error) => finish({success: false, error: errorMessage(error), requestId}),
+                    )
+                    .catch((error) => finish({success: false, error: errorMessage(error), requestId}));
+                return true;
+            }
+            case OFFSCREEN_CANCEL_LOCAL_TRANSLATION_MESSAGE_TYPE: {
+                try {
+                    const requestId = requiredRequestId(message.requestId);
+                    const controller = activeLocalTranslations.get(requestId);
                     controller?.abort();
                     sendResponse({success: true, cancelled: Boolean(controller), requestId});
                 } catch (error) {

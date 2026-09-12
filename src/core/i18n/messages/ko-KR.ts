@@ -8,6 +8,7 @@
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
+import {localTranslationKoreanMessages} from './localTranslation';
 
 export const koKRMessages = {
     "settings.services.library.views": "서비스 보기",
@@ -112,6 +113,7 @@ export const koKRMessages = {
     "writing.demo.reviewHint": "대화를 참고하여 초안을 작성합니다. 내용을 검토하고 수정할 수 있습니다.",
     "writing.demo.insertHint": "초안이 답장 입력란에 삽입되었습니다. 확인 후 직접 전송하세요.",
 
+    ...localTranslationKoreanMessages,
     "settings.requestLimits.modelTitle": "모델 요청 제한",
     "settings.requestLimits.globalTitle": "요청 제한",
     "settings.requestLimits.globalHelp": "개별 설정이 없는 서비스와 모델은 이 제한을 공유합니다.",
@@ -1461,6 +1463,8 @@ const koKRLegacyTextBase: Readonly<Record<string, string>> = {
     '有道翻译': '유다오 번역해',
     '腾讯云翻译': '텐센트 클라우드 번역',
     'Chrome内置AI翻译': '크롬 내장 AI 번역',
+    '本地模型翻译': '로컬 모델 번역',
+    '下载后离线翻译，可选轻量语言包与混元翻译模型。': '가벼운 언어 팩이나 혼위안 번역 모델을 다운로드해 오프라인으로 번역합니다.',
     '字节豆包': '바이트댄스 두바오',
     '月之暗面/Kimi': '문샷/키미',
     '智谱/GLM': '지푸/GLM',

@@ -40,6 +40,7 @@ import {createConfigImageOcrLanguageStorage, installBrowserConfigStorageBroadcas
 import {modelUsageRepository} from '@/src/platform/storage/modelUsageRepository';
 import {releaseVideoSubtitleOwnerForTab} from '@/src/features/video-subtitle/background/handlers';
 import {createVideoSubtitleBackgroundRuntime} from '@/src/features/video-subtitle/background/runtime';
+import {createLocalTranslationBackgroundRuntime} from '@/src/features/local-translation/background/runtime';
 import {installWritingBackgroundRuntime} from './writingRuntime';
 import {installHarnessBackgroundRuntime} from './harnessRuntime';
 import {createImageGlossaryContext} from './imageGlossaryContext';
@@ -136,6 +137,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             logOperationFailure: (error) => console.error('[FluentRead] vocabulary book operation failed:', error),
         }),
         ...createVideoSubtitleBackgroundRuntime(),
+        ...createLocalTranslationBackgroundRuntime(),
     ];
     const router = createBackgroundMessageRouter(
         handlers,

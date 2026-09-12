@@ -40,7 +40,7 @@ export interface TranslationRequestMessageBase {
     /** 翻译中心仅对当前请求使用的语言，不改变全局设置。 */
     sourceLanguage?: string;
     targetLanguage?: string;
-    /** 仅供 Chrome 内置翻译在 auto 模式检测语言；正文仍以 origin 为准。 */
+    /** 仅供本地模型或 Chrome 内置翻译在 auto 模式检测语言；正文仍以 origin 为准。 */
     sourceLanguageDetectionText?: string;
     /** provider deadline；用于避免可选摘要耗尽整次请求。 */
     requestTimeoutMs?: number;

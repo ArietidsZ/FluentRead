@@ -32,7 +32,7 @@ export function getTranslationErrorMessage(errMsg: string, serviceLabel: string)
     return errMsg;
   }
   if (normalizedError.includes('quota')
-    || normalizedError.includes('limit')
+    || /rate[\s_-]*limit/u.test(normalizedError)
     || normalizedError.includes('429')
     || errMsg.includes('配额')
     || errMsg.includes('频率')) {
@@ -44,13 +44,14 @@ export function getTranslationErrorMessage(errMsg: string, serviceLabel: string)
     || errMsg.includes('网络连接失败')) {
     return '网络连接好像不稳定，请检查网络后再试。';
   }
-  if (normalizedError.includes('model') || errMsg.includes('模型')) {
-    return '模型配置可能有误，请前往设置页面进行检查和调整。';
-  }
   if (normalizedError.includes('timeout')
     || normalizedError.includes('timed out')
     || errMsg.includes('超时')) {
     return '请求超时啦，请稍后再试一次。';
+  }
+  if (/\bmodel(?:_not_found|\s+(?:not found|does not exist|is not available))\b/u.test(normalizedError)
+    || /^(?:模型不可用|模型不存在|模型配置错误)$/u.test(errMsg.trim())) {
+    return '模型配置可能有误，请前往设置页面进行检查和调整。';
   }
   return errMsg || '出现了未知错误，请前往开源社区联系开发者吧~';
 }

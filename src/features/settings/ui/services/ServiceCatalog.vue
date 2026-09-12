@@ -118,7 +118,7 @@
           </div>
         </aside>
 
-        <div v-if="showModel" class="model-section">
+        <div v-if="showModel && service !== 'localTranslation'" class="model-section">
           <div class="model-heading">
             <strong>模型</strong>
             <small>选择已保存模型，或添加新的模型标识</small>
@@ -129,18 +129,19 @@
             :maximum-models="maximumModels"
             :maximum-model-length="maximumModelLength"
             :custom-model-count="customModelCount"
+            :allow-custom-models="allowCustomModels"
             @select="$emit('update:model', $event)"
             @add="$emit('add:model', $event)"
             @remove="$emit('remove:model', $event)"
           />
         </div>
 
-        <div v-else class="no-model-panel">
+        <div v-else-if="service !== 'localTranslation'" class="no-model-panel">
           <span aria-hidden="true">✓</span>
           <div><strong>此服务无需模型配置</strong><p>机器翻译直接使用自身引擎。</p></div>
         </div>
 
-        <div class="service-configuration-slot" aria-label="当前服务配置">
+        <div class="service-configuration-slot" :class="{'local-model-configuration': service === 'localTranslation'}" aria-label="当前服务配置">
           <slot name="configuration" />
         </div>
 
@@ -201,6 +202,7 @@ const props = defineProps<{
   maximumModels: number
   maximumModelLength: number
   customModelCount: number
+  allowCustomModels: boolean
 }>()
 
 const emit = defineEmits<{
@@ -336,6 +338,7 @@ watch(() => props.service, () => switchView('mine'))
 .no-model-panel strong { color: #185d46; font-size: 15px; }
 .no-model-panel p { margin: 4px 0 0; color: #628074; font-size: 12px; }
 .service-configuration-slot { min-height: 0; margin-top: 16px; padding-top: 16px; border-top: 1px solid #eceef3; overflow-y: auto; flex: 1; }
+.service-configuration-slot.local-model-configuration { margin-top: 10px; padding-top: 0; border-top: 0; }
 :global(:root.dark .service-catalog),
 :global(:root.dark .catalog-views),
 :global(:root.dark .catalog-search),

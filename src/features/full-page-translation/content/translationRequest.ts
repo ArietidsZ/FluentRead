@@ -231,7 +231,13 @@ async function translateSlotsIndividually(
             const index = nextIndex++;
             try {
                 translations[index] = await translateText(origins[index] ?? '', document.title,
-                    createSnapshotTranslateOptions(snapshot, {signal: siblingController.signal, queueSession}));
+                    createSnapshotTranslateOptions(snapshot, {
+                        signal: siblingController.signal,
+                        queueSession,
+                        ...(snapshot.service === services.localTranslation && snapshot.sourceLanguage === 'auto'
+                            ? {sourceLanguageDetectionText: origins.join('\n')}
+                            : {}),
+                    }));
             } catch (error) {
                 if (!hasFirstError) {
                     hasFirstError = true;
@@ -659,6 +665,10 @@ async function translateTextSlotsDirectly(
 ): Promise<string[]> {
     if (origins.length === 0) return [];
     throwIfAborted(signal);
+    // 小模型直接翻译各槽，不要求模型复述结构标记；短链接借用段落正文检测语言。
+    if (snapshot.service === services.localTranslation) {
+        return translateSlotsIndividually(origins, snapshot, signal, queueSession);
+    }
     const batchFriendly = snapshot.service === services.microsoft
         || snapshot.service === services.freeTranslation;
     if (batchFriendly) {
