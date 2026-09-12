@@ -62,15 +62,18 @@ import {
     type QuickTranslationProfile,
 } from './quickTranslation';
 import {
+    DEFAULT_INTERFACE_FONT,
     DEFAULT_INTERFACE_VISIBILITY,
     DEFAULT_POPUP_MODULE_ORDER,
     DEFAULT_POPUP_QUICK_FEATURE_ORDER,
     DEFAULT_POPUP_QUICK_FEATURE_VISIBILITY,
+    normalizeInterfaceFont,
     normalizeInterfaceSkin,
     normalizeInterfaceVisibility,
     normalizePopupModuleOrder,
     normalizePopupQuickFeatureOrder,
     normalizePopupQuickFeatureVisibility,
+    type InterfaceFont,
     type InterfaceSkin,
     type InterfaceVisibility,
     type PopupModuleId,
@@ -233,6 +236,7 @@ export class Config {
     count: number;  // 翻译次数
     theme: string;  // 主题模式：'auto' | 'light' | 'dark'
     interfaceSkin: InterfaceSkin; // 扩展界面皮肤；默认保留当前界面
+    interfaceFont: InterfaceFont; // 设置页和扩展弹窗使用的字体方案
     interfaceVisibility: InterfaceVisibility; // Popup 栏目可见性
     popupModuleOrder: PopupModuleId[]; // Popup 可编排模块的显示顺序
     popupQuickFeatureOrder: PopupQuickFeatureId[]; // 快捷功能卡片的显示顺序
@@ -357,6 +361,7 @@ export class Config {
         this.count = 0;
         this.theme = 'auto';  // 默认跟随系统
         this.interfaceSkin = 'default'; // 默认保留当前界面
+        this.interfaceFont = DEFAULT_INTERFACE_FONT; // 默认使用现代无衬线字体栈
         this.interfaceVisibility = {...DEFAULT_INTERFACE_VISIBILITY};
         this.popupModuleOrder = [...DEFAULT_POPUP_MODULE_ORDER];
         this.popupQuickFeatureOrder = [...DEFAULT_POPUP_QUICK_FEATURE_ORDER];
@@ -478,6 +483,8 @@ const modelMigrations: Record<string, Record<string, string>> = {
         'step-1-8k': currentModelIds.jieyue,
     },
     [services.huanYuan]: {
+        // 官方已于 2026-08-31 下线预览版，迁移到正式版并复用模型级偏好迁移。
+        'hy3-preview': currentModelIds.huanYuan,
         'hunyuan-turbos-latest': currentModelIds.huanYuan,
         'hunyuan-t1-latest': currentModelIds.huanYuan,
         'hunyuan-a13b': currentModelIds.huanYuan,
@@ -864,7 +871,7 @@ export function normalizeConfig(value: unknown): Config {
         normalized.model[services.deepseek] = currentModelIds.deepseek;
         normalized.deepseekThinkingMode = 'disabled';
     } else if (selectedModel === 'deepseek-reasoner') {
-        // 官方迁移指南要求 reasoner 使用 v4-flash 并显式开启 thinking。
+        // 旧 reasoner 使用当前 Flash 模型，并显式保留 thinking 开启状态。
         normalized.model[services.deepseek] = currentModelIds.deepseek;
         normalized.deepseekThinkingMode = 'enabled';
     } else if (configuredThinkingMode !== 'enabled' && configuredThinkingMode !== 'disabled') {
@@ -901,6 +908,7 @@ export function normalizeConfig(value: unknown): Config {
     normalized.disabledExtensionDomains = normalizeDisabledExtensionDomains(source.disabledExtensionDomains);
     normalized.siteAdaptation = normalizeSiteAdaptationSettings(source.siteAdaptation);
     normalized.interfaceSkin = normalizeInterfaceSkin(source.interfaceSkin);
+    normalized.interfaceFont = normalizeInterfaceFont(source.interfaceFont);
     normalized.interfaceVisibility = normalizeInterfaceVisibility(source.interfaceVisibility);
     normalized.popupModuleOrder = normalizePopupModuleOrder(source.popupModuleOrder);
     normalized.popupQuickFeatureOrder = normalizePopupQuickFeatureOrder(source.popupQuickFeatureOrder);

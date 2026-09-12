@@ -640,7 +640,7 @@ import { getSelectedModelLabel, searchServiceOptions } from '@/src/ui/view-model
 import { resolveAIContextPresentation } from '@/src/ui/view-model/aiContext';
 import { SELECTION_TTS_VOICE_OPTIONS } from '@/src/core/config/selectionTts';
 import { getSiteBaseDomain } from '@/src/core/site-rules/domain';
-import {applyInterfaceSkin} from '@/src/ui/interfaceAppearance';
+import {applyInterfaceFont, applyInterfaceSkin} from '@/src/ui/interfaceAppearance';
 import { requestTranslationCacheClear } from './cache';
 import {isBrowserTabId} from '@/src/platform/browser/ids';
 import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue';
@@ -1039,6 +1039,7 @@ async function hydrate() {
   lastSerialized = JSON.stringify(config.value);
   applyTheme(config.value.theme || 'auto');
   applyInterfaceSkin(config.value.interfaceSkin);
+  applyInterfaceFont(config.value.interfaceFont);
   applyPopupHeightMode(popupUsesContentHeight.value);
   hydrated.value = true;
   if (!showLanguageOnboarding.value) await hydrateCurrentSite();
@@ -1078,6 +1079,7 @@ watch(() => JSON.stringify(config.value), async serialized => {
 }, { flush: 'post' });
 watch(() => config.value.theme, theme => applyTheme(theme || 'auto'));
 watch(() => config.value.interfaceSkin, skin => applyInterfaceSkin(skin));
+watch(() => config.value.interfaceFont, font => applyInterfaceFont(font));
 watch(popupUsesContentHeight, applyPopupHeightMode, {immediate: true});
 darkMode.onchange = () => { if (config.value.theme === 'auto') applyTheme('auto'); };
 

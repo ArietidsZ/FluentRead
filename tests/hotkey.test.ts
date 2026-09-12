@@ -55,6 +55,11 @@ describe('hotkey parsing', () => {
             isValid: true,
             displayName: 'Option+Enter',
         });
+
+        // 没有 navigator 的宿主（Node 20 等）走空平台回退，展示名与非 macOS 一致。
+        // 显式覆盖这一分支，避免它的覆盖率取决于运行测试的 Node 版本。
+        vi.stubGlobal('navigator', undefined);
+        expect(parseHotkey('Option+Enter').displayName).toBe('Alt+Enter');
     });
 
     it('禁用 meta/cmd 组合并允许非字母裸键', () => {

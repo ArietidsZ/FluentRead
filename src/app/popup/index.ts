@@ -6,9 +6,9 @@
  */
 import {createApp} from 'vue';
 import './popup.css';
-import '@/src/ui/styles/interface-skins.css';
 import App from './PopupApp.vue';
 import 'element-plus/dist/index.css'
+import '@/src/ui/styles/interface-skins.css';
 import {Coffee} from '@element-plus/icons-vue'
 import {ElOption, ElInputNumber, ElDrawer} from 'element-plus'
 import UiSelect from '@/src/ui/components/UiSelect.vue'

@@ -8,6 +8,22 @@ userscript 的 16 个选择器通过 HTMLElement 引用将菜单挂到设置面�
 
 生产包构建后运行 `node scripts/testing/run-select-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-select-ui-production`，在临时 Edge profile 的后台可见窗口中检查选择、搜索、键盘操作、关闭菜单、保存重开、多选与禁用状态，以及桌面、窄屏和深色菜单截图。测试只使用临时配置，不调用翻译服务，也不证明真实服务质量。完整扩展 UI 回归仍使用 UI 测试技能的 `run-ui-test.cjs --suite full`，失败时区分控件回归与旧页面断言。
 
+## 公告优先与关闭后续译
+
+专项 case：`tests/fixtures/modal-first-translation.html` 和 `scripts/testing/run-modal-first-translation-test.cjs`。运行前生成生产扩展，再使用临时 Edge profile、第二屏正常尺寸后台窗口和 focus-safe helper：
+
+```bash
+node scripts/testing/run-modal-first-translation-test.cjs \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root <工作区 Node 包目录> \
+  --focus-safe-helper <浏览器翻译技能>/scripts/focus-safe-browser.cjs \
+  --background --artifacts-dir /private/tmp/fluentread-modal-first-translation
+```
+
+检查原生 `showModal()` 公告、ARIA 公告、正文请求途中出现公告、关闭后自动续译、恢复再翻译及普通非模态对话框。报告保存请求顺序、逐段译文唯一性、截图与焦点隔离信息。本地确定性 provider 用于验证调度与页面行为，不代表真实翻译服务质量。
+
+`tests/fullPageModalPriority.test.ts` 验证检测边界，`tests/fullPageVisibilityScheduling.test.ts` 中的“公告优先 case”验证视口与整页模式、失败、取消、重开和迟到响应。弹窗只控制调度，候选仍遵守原有识别范围和不可翻译区域；关闭后继续同一会话，恢复原文则终止等待。
+
 ## 工具栏翻译状态
 
 `node scripts/testing/run-toolbar-status-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-toolbar-status` 使用生产扩展、临时 Edge profile 和第二屏后台窗口，检查原文、等待、完成、恢复、服务失败、原地重试、标签页切换和刷新。页面与供应商响应均为本地夹具，不代表外部服务质量。
@@ -56,6 +72,28 @@ node scripts/verify-userscript-build.mjs  # userscript 元数据与产物边界
 复用同一标识、普通配置保存不能回滚 count，以及 userscript 多副本并发、提交后响应丢失和新页面聚合恢复。
 
 ## 翻译核心稳定性回归
+
+### GitHub 列表译文间距
+
+新版 PR 列表的标题旁保留带 padding 的空徽标占位符。行内标题插入块级译文后，
+占位符会另起一行，使标题译文到元信息的间距达到 36px。双语标题现在使用行内块
+容纳原文和译文，恢复原文时自动回到 GitHub 的布局；徽标、链接和检查按钮仍保留。
+新版 PR 列表的用户名、创建/更新时间与检查状态保持原文，标题继续支持悬浮和全文翻译。
+
+`run-github-spacing-test.cjs` 使用与实际 DOM/计算样式一致的最小本地夹具，检查空徽标、
+非空徽标、新旧标题结构、普通正文、1150/360px 内容宽度、悬浮 `[1,0,1]`、全文恢复、
+再次翻译、节点重挂和失败重试。报告保存像素间距、原始 DOM 恢复结果与截图。
+脚本使用生产扩展、确定性微软响应和临时后台 Edge，不代表在线供应商的翻译质量。
+
+```bash
+node scripts/testing/run-github-spacing-test.cjs \
+  --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> \
+  --focus-safe-helper <focus-safe-browser.cjs路径> --background \
+  --artifacts-dir /private/tmp/fluentread-github-spacing
+```
+
+一键浏览器回归已包含此脚本；仅在复核旧产物时追加 `--expect-regression`，它要求旧版
+确实产生至少 30px 的空白及元信息译文，输出属于缺陷复现证据。
 
 排查重复翻译、鼠标经过闪切或原文恢复异常时，先运行以下确定性测试：
 
