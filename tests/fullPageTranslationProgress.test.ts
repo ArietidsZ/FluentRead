@@ -28,6 +28,7 @@ describe('全文翻译进度', () => {
     expect(hasActiveFullPageTranslationWork(offscreenOnly)).toBe(false);
     expect(hasActiveFullPageTranslationWork({active: true, running: 1, queued: 0})).toBe(true);
     expect(hasActiveFullPageTranslationWork({active: true, running: 0, queued: 2})).toBe(true);
+    expect(hasActiveFullPageTranslationWork({active: true, running: 0, queued: 0, modalPhase: 'waiting', deferred: 3})).toBe(true);
     expect(hasActiveFullPageTranslationWork({active: false, running: 3, queued: 4})).toBe(false);
     expect(hasActiveFullPageTranslationWork({active: true, running: Number.NaN, queued: -1})).toBe(false);
 
@@ -51,6 +52,8 @@ describe('全文翻译进度', () => {
     expect(listener).toHaveBeenLastCalledWith({
       sessionId,
       active: true,
+      modalPhase: 'none',
+      deferred: 0,
       running: 3,
       remaining: 11,
       queued: 4,
@@ -70,6 +73,8 @@ describe('全文翻译进度', () => {
     expect(getFullPageTranslationProgress()).toEqual({
       sessionId: currentSessionId,
       active: true,
+      modalPhase: 'none',
+      deferred: 0,
       running: 0,
       remaining: 0,
       queued: 0,
@@ -88,6 +93,8 @@ describe('全文翻译进度', () => {
     expect(listener).toHaveBeenLastCalledWith({
       sessionId,
       active: false,
+      modalPhase: 'none',
+      deferred: 0,
       running: 0,
       remaining: 0,
       queued: 0,
@@ -113,6 +120,62 @@ describe('全文翻译进度', () => {
       offscreen: 0,
     }));
     unsubscribe();
+  });
+
+  it('把弹窗阶段和被阻塞候选纳入剩余数量，并允许阶段切换', () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribeFullPageTranslationProgress(listener);
+    const sessionId = startFullPageTranslationProgress();
+    listener.mockClear();
+
+    updateFullPageTranslationProgress(sessionId, {
+      modalPhase: 'translating',
+      deferred: 4,
+      running: 1,
+      queued: 2,
+      offscreen: 3,
+    });
+    expect(getFullPageTranslationProgress()).toMatchObject({
+      modalPhase: 'translating',
+      deferred: 4,
+      running: 1,
+      queued: 2,
+      offscreen: 3,
+      remaining: 9,
+    });
+    expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({modalPhase: 'translating', deferred: 4, remaining: 9}));
+
+    updateFullPageTranslationProgress(sessionId, {
+      modalPhase: 'waiting',
+      deferred: 5,
+      running: 0,
+      queued: 0,
+      offscreen: 3,
+    });
+    expect(getFullPageTranslationProgress()).toMatchObject({modalPhase: 'waiting', deferred: 5, remaining: 8});
+    expect(hasActiveFullPageTranslationWork(getFullPageTranslationProgress())).toBe(true);
+    unsubscribe();
+  });
+
+  it('新会话重置弹窗阶段与 deferred 状态，并拒绝旧会话字段', () => {
+    const oldSessionId = startFullPageTranslationProgress();
+    updateFullPageTranslationProgress(oldSessionId, {
+      modalPhase: 'waiting', deferred: 7, running: 0, queued: 0, offscreen: 1,
+    });
+    const newSessionId = startFullPageTranslationProgress();
+    updateFullPageTranslationProgress(oldSessionId, {
+      modalPhase: 'translating', deferred: 99, running: 9, queued: 9, offscreen: 9,
+    });
+    expect(getFullPageTranslationProgress()).toEqual({
+      sessionId: newSessionId,
+      active: true,
+      modalPhase: 'none',
+      deferred: 0,
+      running: 0,
+      remaining: 0,
+      queued: 0,
+      offscreen: 0,
+    });
   });
 
   it('隔离订阅者快照与异常，取消订阅后不再通知', () => {

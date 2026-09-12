@@ -209,7 +209,9 @@
       "tests/writingReference.test.ts",
       "tests/writingEditors.test.ts",
       "tests/writingMarkdown.test.ts",
-      "tests/translationToolbarStatus.test.ts"
+      "tests/translationToolbarStatus.test.ts",
+      "tests/fullPageModalPriority.test.ts",
+      "tests/modalProgressHint.test.ts"
     ],
     "functional": [
       "tests/settingsCompositionAutosave.test.ts",
@@ -280,6 +282,7 @@
       "tests/documentTranslationRegression.test.ts",
       "tests/documentTranslationEdge.test.ts",
       "tests/fullPageTranslationProgress.test.ts",
+      "tests/fullPageTitleTranslation.test.ts",
       "tests/featureVerticalSliceRegression.test.ts",
       "tests/fullPageVisibilityScheduling.test.ts",
       "tests/mainWorldBridgeCore.test.ts",

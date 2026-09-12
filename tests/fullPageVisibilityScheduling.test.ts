@@ -57,6 +57,7 @@ const runtime = vi.hoisted(() => ({
 }));
 
 vi.mock("@/src/app/translation/check", () => ({checkConfig: () => true}));
+vi.mock('@/src/features/full-page-translation/ui/modalProgressHint', () => ({syncModalTranslationHint: vi.fn()}));
 vi.mock("@/src/core/config/catalog", () => ({
     services: {
         microsoft: "microsoft",
@@ -473,6 +474,284 @@ describe("全文翻译可见性锚点", () => {
             else Reflect.deleteProperty(globalThis, name);
         }
         replacedGlobals.clear();
+    });
+
+    function announcementFixture() {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<main><p id="page">The original article should wait for the announcement.</p><p id="later">Another article paragraph remains queued.</p></main><section id="notice" role="dialog" aria-modal="true"><p id="announcement">Please read this important announcement before continuing.</p><button id="close">Close announcement</button></section>';
+        replaceGlobal('innerWidth', 1000);
+        replaceGlobal('innerHeight', 800);
+        replaceGlobal('getComputedStyle', (element: HTMLElement) => ({
+            display: element.hidden ? 'none' : element.style.display || 'block',
+            visibility: 'visible', opacity: '1', position: 'static', zIndex: '0',
+        }));
+        const notice = document.querySelector<HTMLElement>('#notice')!;
+        const announcement = document.querySelector<HTMLElement>('#announcement')!;
+        const page = document.querySelector<HTMLElement>('#page')!;
+        const later = document.querySelector<HTMLElement>('#later')!;
+        for (const element of [notice, announcement, page, later]) {
+            setLayoutBox(element, 600, 120);
+            Object.defineProperty(element, 'getBoundingClientRect', {configurable: true,
+                value: () => ({left: 200, top: 100, right: 800, bottom: 220, width: 600, height: 120})});
+        }
+        runtime.candidates = [page, later, announcement].map(element => ({element, kind: 'content', reason: 'announcement-case'}));
+        const changeVisibility = (hidden: boolean) => {
+            const oldValue = notice.getAttribute('hidden');
+            notice.hidden = hidden;
+            TestMutationObserver.instances[0]!.emit([{type: 'attributes', target: notice,
+                attributeName: 'hidden', oldValue, addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+        };
+        return {notice, announcement, page, later, changeVisibility};
+    }
+
+    it.each(['all', 'viewport'] as const)('公告优先 case：%s 模式仅请求公告，用户关闭后自动续译正文且可恢复再翻译', async (mode) => {
+        const {notice, announcement, page, later, changeVisibility} = announcementFixture();
+        runtime.config.fullPageTranslationMode = mode;
+        const closeButton = notice.querySelector('button');
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        expect(runtime.requests.mock.calls.flat(2)).toEqual(['Please read this important announcement before continuing.']);
+        expect(announcement.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+        expect(page.querySelector('[data-fr-translation-owned]')).toBeNull();
+        expect(getFullPageTranslationProgress()).toMatchObject({active: true, modalPhase: 'waiting', running: 0, queued: 0, deferred: 2});
+        expect(notice.querySelector('button')).toBe(closeButton);
+        changeVisibility(true);
+        if (mode === 'viewport') {
+            await finishScheduledWork();
+            TestIntersectionObserver.instances[0]!.emit(page, true);
+            TestIntersectionObserver.instances[0]!.emit(later, true);
+        }
+        await finishScheduledWork();
+        expect(page.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+        expect(later.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+        expect(getFullPageTranslationProgress()).toMatchObject({modalPhase: 'none', deferred: 0});
+        expect(runtime.requests).toHaveBeenCalledTimes(3);
+        restoreOriginalContent();
+        expect(document.querySelector('[data-fr-translation-owned]')).toBeNull();
+        notice.hidden = false;
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        expect(announcement.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+        expect(page.querySelector('.fluent-read-bilingual-content')).toBeNull();
+    });
+
+    it('公告请求在途关闭再打开时，旧结果不能写入重开后的公告或吞掉新的请求', async () => {
+        const {announcement, page, changeVisibility} = announcementFixture();
+        runtime.config.fullPageTranslationMode = 'all';
+        const oldRequest = deferred<string[]>();
+        runtime.requests.mockReturnValueOnce(oldRequest.promise);
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(60);
+        await waitForRequestCount(1);
+        const oldState = getTranslationState(announcement)!;
+        changeVisibility(true);
+        await finishScheduledWork();
+        expect(oldState.controller.signal.aborted).toBe(true);
+        expect(page.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+        changeVisibility(false);
+        await finishScheduledWork();
+        oldRequest.resolve(['迟到的旧公告结果']);
+        await finishScheduledWork();
+        expect(announcement.textContent).not.toContain('迟到的旧公告结果');
+        expect(announcement.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+        expect(runtime.requests).toHaveBeenCalledTimes(4);
+    });
+
+    it('正文请求在途时弹出公告，释放并发槽优先公告并拒绝原正文迟到提交，关闭后正常续译', async () => {
+        const {notice, page, later, announcement, changeVisibility} = announcementFixture();
+        notice.hidden = true;
+        runtime.config.fullPageTranslationMode = 'all';
+        runtime.config.maxConcurrentTranslations = 1;
+        const oldPage = deferred<string[]>();
+        runtime.requests.mockReturnValueOnce(oldPage.promise);
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(60);
+        await waitForRequestCount(1);
+        const pageState = getTranslationState(page)!;
+        changeVisibility(false);
+        await finishScheduledWork();
+        expect(pageState.controller.signal.aborted).toBe(true);
+        expect(announcement.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+        expect(page.querySelector('[data-fr-translation-owned]')).toBeNull();
+        expect(later.querySelector('[data-fr-translation-owned]')).toBeNull();
+        oldPage.resolve(['迟到的正文结果']);
+        await finishScheduledWork();
+        expect(page.querySelector('.fluent-read-bilingual-content')).toBeNull();
+        changeVisibility(true);
+        await finishScheduledWork();
+        expect(page.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+        expect(later.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+        // 原文与配置未变时，关闭后的新 generation 可以复用已完成缓存；
+        // 旧 generation 必须在公告打开期间始终无权写回正文。
+        expect(getTranslationState(page)).not.toBe(pageState);
+    });
+
+    it('等待公告期间恢复原文会取消自动续译意图，关闭公告不能重新开启全文翻译', async () => {
+        const {notice, page, changeVisibility} = announcementFixture();
+        runtime.config.fullPageTranslationMode = 'all';
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        const observer = TestMutationObserver.instances[0]!;
+        restoreOriginalContent();
+        changeVisibility(true);
+        notice.dispatchEvent(new window.Event('close', {bubbles: true}));
+        await finishScheduledWork();
+        expect(observer.disconnect).toHaveBeenCalled();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(page.querySelector('[data-fr-translation-owned]')).toBeNull();
+        expect(getFullPageTranslationProgress()).toMatchObject({active: false, modalPhase: 'none'});
+    });
+
+    it('公告翻译失败仍等待用户关闭，关闭后正文正常翻译，不因错误永久卡住', async () => {
+        const {page, changeVisibility} = announcementFixture();
+        runtime.config.fullPageTranslationMode = 'all';
+        runtime.requests.mockRejectedValueOnce(new Error('announcement provider failed'));
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        expect(getFullPageTranslationProgress()).toMatchObject({modalPhase: 'waiting'});
+        expect(page.querySelector('[data-fr-translation-owned]')).toBeNull();
+        changeVisibility(true);
+        await finishScheduledWork();
+        expect(page.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+        expect(runtime.requests).toHaveBeenCalledTimes(3);
+    });
+
+    it('非阻塞 dialog 不暂停正文，公告显示期间已提交正文保持原有译文节点', async () => {
+        const {notice, page, announcement} = announcementFixture();
+        notice.removeAttribute('aria-modal');
+        runtime.config.fullPageTranslationMode = 'all';
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        const wrapper = page.querySelector('.fluent-read-bilingual-content');
+        expect(wrapper).not.toBeNull();
+        notice.setAttribute('aria-modal', 'true');
+        TestMutationObserver.instances[0]!.emit([{type: 'attributes', target: notice,
+            attributeName: 'aria-modal', oldValue: null, addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(page.querySelector('.fluent-read-bilingual-content')).toBe(wrapper);
+        expect(announcement.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+        expect(runtime.requests).toHaveBeenCalledTimes(3);
+    });
+
+    it('顶层公告被移除后先续译下一层，所有公告关闭才继续正文', async () => {
+        const {notice, announcement, page} = announcementFixture();
+        runtime.config.fullPageTranslationMode = 'all';
+        const top = notice.cloneNode(true) as HTMLElement;
+        top.id = 'top-notice';
+        top.innerHTML = '<p>Read the top announcement first.</p>';
+        top.style.zIndex = '99';
+        Object.defineProperty(top, 'getBoundingClientRect', {value: () => ({left: 200, top: 100,
+            right: 800, bottom: 300, width: 600, height: 200})});
+        document.body.append(top);
+        const topCopy = top.querySelector<HTMLElement>('p')!;
+        runtime.candidates.push({element: topCopy, kind: 'content', reason: 'top-announcement'});
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        expect(runtime.requests.mock.calls.flat(2)).toEqual(['Read the top announcement first.']);
+        expect(announcement.querySelector('[data-fr-translation-owned]')).toBeNull();
+        top.remove();
+        TestMutationObserver.instances[0]!.emit([{type: 'childList', target: document.body,
+            addedNodes: [], removedNodes: [top]} as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(announcement.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+        expect(page.querySelector('[data-fr-translation-owned]')).toBeNull();
+        notice.remove();
+        TestMutationObserver.instances[0]!.emit([{type: 'childList', target: document.body,
+            addedNodes: [], removedNodes: [notice]} as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(page.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+        expect(runtime.requests).toHaveBeenCalledTimes(4);
+    });
+
+    it('公告尚在排队时关闭会移除旧公告任务，正文不会被失效候选占住', async () => {
+        const {announcement, page, changeVisibility} = announcementFixture();
+        runtime.config.fullPageTranslationMode = 'all';
+        autoTranslateEnglishPage();
+        vi.advanceTimersByTime(50);
+        expect(runtime.requests).not.toHaveBeenCalled();
+        changeVisibility(true);
+        await finishScheduledWork();
+        expect(announcement.querySelector('[data-fr-translation-owned]')).toBeNull();
+        expect(page.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+        expect(runtime.requests.mock.calls.flat(2)).not.toContain('Please read this important announcement before continuing.');
+    });
+
+    it('非模态内容在途升级为公告时保留公告本身的请求，只撤销后方正文', async () => {
+        const {notice, announcement, changeVisibility} = announcementFixture();
+        notice.removeAttribute('aria-modal');
+        runtime.config.fullPageTranslationMode = 'all';
+        const requests = [deferred<string[]>(), deferred<string[]>(), deferred<string[]>()];
+        requests.forEach(request => runtime.requests.mockReturnValueOnce(request.promise));
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(60);
+        await waitForRequestCount(3);
+        const announcementState = getTranslationState(announcement)!;
+        notice.setAttribute('aria-modal', 'true');
+        TestMutationObserver.instances[0]!.emit([{type: 'attributes', target: notice, attributeName: 'aria-modal',
+            oldValue: null, addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+        expect(getTranslationState(announcement)).toBe(announcementState);
+        expect(announcementState.controller.signal.aborted).toBe(false);
+        requests[2]!.resolve(['有效公告译文']);
+        await finishScheduledWork();
+        expect(announcement.querySelector('.fluent-read-bilingual-content')?.textContent).toBe('有效公告译文');
+        changeVisibility(true);
+        requests[0]!.resolve(['正文一']); requests[1]!.resolve(['正文二']);
+        await finishScheduledWork();
+    });
+
+    it.each([false, true])('请求在途时公告从DOM移除（分槽=%s），立即释放旧owner并续译，迟到结果不重建已关闭公告', async (synthetic) => {
+        const {notice, announcement, page} = announcementFixture();
+        if (synthetic) runtime.candidates = runtime.candidates.map(candidate => candidate.element === announcement
+            ? {...candidate, nodes: [announcement.firstChild!], reason: 'generic-inline-run'} : candidate);
+        runtime.config.fullPageTranslationMode = 'all';
+        const request = deferred<string[]>();
+        runtime.requests.mockReturnValueOnce(request.promise);
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(60);
+        const owner = announcement.querySelector<HTMLElement>('[data-fr-translation-segment]') ?? announcement;
+        const state = getTranslationState(owner)!;
+        notice.remove();
+        TestMutationObserver.instances[0]!.emit([{type: 'childList', target: document.body,
+            addedNodes: [], removedNodes: [notice]} as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(state.controller.signal.aborted).toBe(true);
+        expect(page.querySelector('.fluent-read-bilingual-content')).not.toBeNull();
+        request.resolve(['旧公告译文']);
+        await finishScheduledWork();
+        expect(notice.isConnected).toBe(false);
+        expect(announcement.querySelector('.fluent-read-bilingual-content')).toBeNull();
+    });
+
+    it('嵌套原生公告在请求途中关闭，释放槽位给下层公告并撤销旧generation', async () => {
+        const {notice, announcement, page} = announcementFixture();
+        runtime.config.fullPageTranslationMode = 'all';
+        runtime.config.maxConcurrentTranslations = 1;
+        const top = document.createElement('dialog');
+        top.open = true;
+        top.innerHTML = '<p>Read this nested announcement first.</p>';
+        const matches = top.matches.bind(top);
+        top.matches = selector => selector === ':modal' ? top.open : matches(selector);
+        Object.defineProperty(top, 'getBoundingClientRect', {value: () => ({left: 200, top: 100,
+            right: 800, bottom: 300, width: 600, height: 200})});
+        notice.append(top);
+        const copy = top.querySelector<HTMLElement>('p')!;
+        runtime.candidates.push({element: copy, kind: 'content', reason: 'nested-announcement'});
+        const request = deferred<string[]>();
+        runtime.requests.mockReturnValueOnce(request.promise);
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(60);
+        const state = getTranslationState(copy)!;
+        expect(state.phase).toBe('loading');
+        top.open = false; top.hidden = true;
+        TestMutationObserver.instances[0]!.emit([{type: 'attributes', target: top, attributeName: 'open',
+            oldValue: '', addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(state.controller.signal.aborted).toBe(true);
+        expect(announcement.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+        expect(page.querySelector('[data-fr-translation-owned]')).toBeNull();
+        request.resolve(['已经关闭的顶层公告']);
+        await finishScheduledWork();
+        expect(copy.querySelector('[data-fr-translation-owned]')).toBeNull();
     });
 
     it("Issue 422 保存识别范围后保留当前会话，恢复再翻译采用新范围且独立保留视口加载", async () => {
