@@ -63,6 +63,28 @@ node scripts/testing/run-fixed-height-translation-test.cjs \
 
 它检查卡片实际内容边界而非仅检查卡片壳，覆盖翻译、恢复、再次翻译、共用卡片、宿主高度改写及独立滚动区域。页面和翻译响应均为本地夹具，不能代替真实网站或翻译服务的验证。高度覆盖在仍有译文时共享保留，避免在“解除高度后无溢出”与“恢复高度后再次溢出”之间反复切换；最后一个译文移除时恢复宿主样式。
 
+### GitHub 列表译文间距
+
+新版 PR 列表的标题旁保留带 padding 的空徽标占位符。行内标题插入块级译文后，
+占位符会另起一行，使标题译文到元信息的间距达到 36px。双语标题现在使用行内块
+容纳原文和译文，恢复原文时自动回到 GitHub 的布局；徽标、链接和检查按钮仍保留。
+新版 PR 列表的用户名、创建/更新时间与检查状态保持原文，标题继续支持悬浮和全文翻译。
+
+`run-github-spacing-test.cjs` 使用与实际 DOM/计算样式一致的最小本地夹具，检查空徽标、
+非空徽标、新旧标题结构、普通正文、1150/360px 内容宽度、悬浮 `[1,0,1]`、全文恢复、
+再次翻译、节点重挂和失败重试。报告保存像素间距、原始 DOM 恢复结果与截图。
+脚本使用生产扩展、确定性微软响应和临时后台 Edge，不代表在线供应商的翻译质量。
+
+```bash
+node scripts/testing/run-github-spacing-test.cjs \
+  --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> \
+  --focus-safe-helper <focus-safe-browser.cjs路径> --background \
+  --artifacts-dir /private/tmp/fluentread-github-spacing
+```
+
+一键浏览器回归已包含此脚本；仅在复核旧产物时追加 `--expect-regression`，它要求旧版
+确实产生至少 30px 的空白及元信息译文，输出属于缺陷复现证据。
+
 排查重复翻译、鼠标经过闪切或原文恢复异常时，先运行以下确定性测试：
 
 ```bash

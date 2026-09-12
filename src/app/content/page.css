@@ -1,7 +1,7 @@
 /**
  * @file src/app/content/page.css
  * 文件职责：定义内容脚本直接注入宿主文档的 FluentRead 专属视觉状态，覆盖翻译占位、重试、图片覆盖层、输入框反馈、已翻译提示框的鼠标命中保护和多种双语译文样式。
- * 主要内容：包含错误原因与重试控件、图片翻译按钮和 canvas、输入框 translating/success/error tooltip，以及 dimmed、下划线、卡片、标记、纸张、技术风等显示类；段落 loading 已由自带 Shadow Root 的组件隔离。
+ * 主要内容：包含错误原因与重试控件、图片翻译按钮和 canvas、输入框 translating/success/error tooltip，以及 dimmed、下划线、卡片、标记、纸张、技术风等显示类和 GitHub ListView 双语标题的空行修复；段落 loading 已由自带 Shadow Root 的组件隔离。
  * 模块边界：选择器均以 fluent 前缀或受控状态类约束，不承担 Shadow UI 组件主题，也不决定何时添加类名；DOM 状态由各 content feature 管理，共享 token 由 src/ui/styles 提供。
  */
 /* 内容脚本注入到宿主页面的 FluentRead 专属样式。 */
@@ -310,6 +310,15 @@
     background: transparent; /* 确保背景透明，与周围背景融合 */
     box-sizing: border-box; /* 使用 border-box 模型，确保内外边距和边框计算正确 */
     overflow-wrap: break-word; /* 处理长单词或 URL 的断行，避免溢出 */
+}
+
+/* GitHub ListView 的行内标题后有带 padding 的空徽标占位符。块级译文会拆开
+ * 行内格式化上下文，把占位符推到独占的空行。仅在标题含自有译文时把原文与
+ * 译文收进同一个行内块，保留相邻徽标；移除译文后由 CSS 自动恢复宿主布局。 */
+[data-listview-item-title-container="true"] > h3:has(.fluent-read-bilingual-content[data-fr-translation-owned="true"]) {
+    display: inline-block;
+    max-width: 100%;
+    vertical-align: top;
 }
 
 /* 纯说明 tooltip 按原文高度定位后，译文增高可能盖住触发图标，导致

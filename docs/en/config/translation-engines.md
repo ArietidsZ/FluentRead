@@ -51,6 +51,22 @@ These settings apply only to the standalone DeepLX service. DeepLX in the free f
 
 ## AI services
 
+New configurations favor lightweight models for everyday translation:
+
+| Service | Default model |
+| --- | --- |
+| DeepSeek | `deepseek-flash` (V4.1 Flash) |
+| OpenAI | `gpt-5.4-mini` |
+| Gemini | `gemini-3.5-flash-lite` |
+| Qwen | `qwen3.8-flash` |
+| Claude | `claude-haiku-4-5` |
+| StepFun | `step-2-mini` |
+| OpenRouter | `google/gemini-3.5-flash-lite` |
+
+Catalog updates preserve your saved supported and custom models. Thinking is off by default for DeepSeek; models that cannot disable it use their lowest supported level. Larger models remain available for manual selection. Charges depend on the provider.
+
+See the [DeepSeek changelog](https://api-docs.deepseek.com/updates/) for the new ID. The previous `deepseek-v4-flash` ID remains available as a compatibility alias. The retired Hunyuan `hy3-preview` is migrated to `hy3`.
+
 Select a configured service and model. Use the custom-model option if yours is not listed. For a compatible third-party endpoint, add the address and model under your custom services.
 
 For Azure, enter the actual deployment name as the model and your resource or complete API address as the endpoint.
