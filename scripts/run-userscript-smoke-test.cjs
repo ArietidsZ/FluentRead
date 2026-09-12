@@ -12,6 +12,7 @@ function parseArgs(argv, env = process.env) {
     background: true,
     focusSafeHelper: env.FLUENTREAD_FOCUS_SAFE_HELPER || '',
     timeout: 60000,
+    suite: 'full',
   };
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -28,6 +29,7 @@ function parseArgs(argv, env = process.env) {
     index += 1;
   }
   args.timeout = Number(args.timeout);
+  if (!['full', 'selects'].includes(args.suite)) throw new Error(`无法识别测试套件：${args.suite}`);
   if (!args.artifact) throw new Error('必须传入 --artifact');
   if (!args.playwrightRoot) throw new Error('必须传入 --playwright-root');
   if (!args.artifactsDir) throw new Error('必须传入 --artifacts-dir');
@@ -271,6 +273,7 @@ async function main() {
     await context.exposeFunction('__fluentReadGmList', () => [...sharedGmStore.keys()]);
     await context.addInitScript(() => {
       Object.defineProperty(window, '__fluentReadOriginalAttachShadow', {value: Element.prototype.attachShadow});
+      Object.defineProperty(window, '__fluentReadUserscriptSettingsShadow', {value: null, writable: true});
       Object.defineProperty(window, '__fluentReadSmokeBridgeEvents', {value: {shadow: 0, route: 0}});
       document.addEventListener('fluentread-open-shadow-root', () => { window.__fluentReadSmokeBridgeEvents.shadow += 1; });
       document.addEventListener('fluentread-route-change', () => { window.__fluentReadSmokeBridgeEvents.route += 1; });
@@ -384,6 +387,139 @@ async function main() {
       || reinjectionState.settingsHosts !== 0
       || changedGmKeys.length > 0) {
       throw new Error(`userscript 重复注入不是幂等操作：${JSON.stringify({reinjectionState, changedGmKeys})}`);
+    }
+
+    // Keep UI draft/persistence checks isolated from the translation smoke fixture.
+    if (args.suite === 'selects') {
+      // Observe only the fixture's settings root; production still uses a closed ShadowRoot.
+      async function openSettings() {
+        await page.evaluate(() => {
+          const original = Element.prototype.attachShadow;
+          window.__fluentReadUserscriptSettingsShadow = null;
+          window.__fluentReadRestoreSettingsObserver = () => { Element.prototype.attachShadow = original; };
+          Element.prototype.attachShadow = function captureSettingsRoot(init) {
+            const root = original.call(this, init);
+            if (this.getAttribute('data-fluent-read-userscript-host') === 'fluent-read-userscript-settings-ui') {
+              window.__fluentReadUserscriptSettingsShadow = root;
+            }
+            return root;
+          };
+          window.dispatchEvent(new CustomEvent('fluentread-userscript-open-settings'));
+        });
+        try {
+          await page.waitForFunction(() => window.__fluentReadUserscriptSettingsShadow?.querySelector('input[aria-label="服务"]'), undefined, {timeout: args.timeout});
+        } finally {
+          await page.evaluate(() => window.__fluentReadRestoreSettingsObserver());
+        }
+      }
+      async function closeSettings() {
+        await page.evaluate(() => window.dispatchEvent(new CustomEvent('fluentread-userscript-close-settings')));
+        await page.locator('#fluent-read-userscript-settings-container').waitFor({state: 'detached', timeout: args.timeout});
+      }
+      async function openSelect(label) {
+        await page.evaluate((label) => {
+          const input = window.__fluentReadUserscriptSettingsShadow.querySelector(`input[aria-label="${label}"]`);
+          input.scrollIntoView({block: 'center'});
+          input.closest('.el-select__wrapper').click();
+          input.focus();
+        }, label);
+        await page.waitForFunction(() => [...window.__fluentReadUserscriptSettingsShadow.querySelectorAll('.el-popper.fluentread-select-popper')].some(menu => menu.getBoundingClientRect().height > 0));
+        await page.waitForTimeout(220);
+      }
+      async function chooseOption(label, text) {
+        await openSelect(label);
+        await page.evaluate((text) => {
+          const root = window.__fluentReadUserscriptSettingsShadow;
+          const option = [...root.querySelectorAll('.el-popper .el-select-dropdown__item')].find(item => item.getBoundingClientRect().height && item.textContent.trim() === text);
+          if (!option) throw new Error(`找不到选项：${text}`);
+          option.click();
+        }, text);
+      }
+      async function saveSettings() {
+        await page.evaluate(() => window.__fluentReadUserscriptSettingsShadow.querySelector('footer .primary').click());
+        await page.waitForFunction(() => window.__fluentReadUserscriptSettingsShadow.querySelector('.status')?.textContent.includes('设置已保存'));
+      }
+      await openSettings();
+      const settingsHost = page.locator('#fluent-read-userscript-settings-container');
+      const settingsSecurity = await settingsHost.evaluate((host) => ({closedShadow: host.shadowRoot === null, lightDomText: host.textContent || ''}));
+      if (!settingsSecurity.closedShadow || settingsSecurity.lightDomText.trim()) throw new Error('设置面板未使用 closed Shadow DOM');
+      await openSelect('服务');
+      const settingsSelectState = await page.evaluate(() => {
+        const root = window.__fluentReadUserscriptSettingsShadow;
+        const menu = [...root.querySelectorAll('.el-popper.fluentread-select-popper')].find(menu => menu.getBoundingClientRect().height);
+        const bounds = menu.getBoundingClientRect();
+        const service = root.querySelector('input[aria-label="服务"]').closest('.fluentread-select');
+        return {
+          visibleSelectCount: root.querySelectorAll('.fluentread-select').length,
+          nativeSelectCount: root.querySelectorAll('select').length,
+          menuInsideShadow: menu.getRootNode() === root,
+          menuInsideBackdrop: root.querySelector('.fr-userscript-settings-backdrop').contains(menu),
+          menuOutsideScrollArea: !menu.closest('.settings-grid, .fr-userscript-settings'),
+          menuInsideViewport: bounds.top >= 0 && bounds.bottom <= innerHeight && bounds.left >= 0 && bounds.right <= innerWidth,
+          inputCount: service.querySelectorAll('input').length,
+          triggerLabelWhileOpen: service.querySelector('.el-select__placeholder')?.textContent.trim(),
+        };
+      });
+      await page.screenshot({path: path.join(artifactsDir, 'userscript-service-menu.png')});
+      if (settingsSelectState.visibleSelectCount < 12 || settingsSelectState.nativeSelectCount !== 0
+        || !settingsSelectState.menuInsideShadow || !settingsSelectState.menuInsideBackdrop
+        || !settingsSelectState.menuOutsideScrollArea || !settingsSelectState.menuInsideViewport
+        || settingsSelectState.inputCount !== 1 || settingsSelectState.triggerLabelWhileOpen !== '搜索翻译服务') {
+        throw new Error(`userscript 菜单隔离断言失败：${JSON.stringify(settingsSelectState)}`);
+      }
+      await page.keyboard.type('DeepSeek');
+      await page.waitForFunction(() => {
+        const items = [...window.__fluentReadUserscriptSettingsShadow.querySelectorAll('.el-select-dropdown__item')].filter(item => item.getBoundingClientRect().height);
+        return items.length === 1 && items[0].textContent.includes('DeepSeek');
+      });
+      await page.screenshot({path: path.join(artifactsDir, 'userscript-service-search.png')});
+      await page.keyboard.press('ArrowDown');
+      await page.keyboard.press('Enter');
+      await page.waitForFunction(() => window.__fluentReadUserscriptSettingsShadow.querySelector('input[aria-label="服务"]').closest('.fluentread-select').textContent.includes('DeepSeek'));
+      await closeSettings();
+      if (decodeStoredValue(sharedGmStore.get('local:config')).service !== 'freeTranslation') throw new Error('关闭设置意外保存草稿');
+      await openSettings();
+      await chooseOption('译文显示', '仅译文模式');
+      await chooseOption('双语样式', '加粗显示');
+      await saveSettings();
+      const savedConfig = decodeStoredValue(sharedGmStore.get('local:config'));
+      const settingsDraftState = {canceledServicePreserved: true, savedDisplay: savedConfig.display, savedStyle: savedConfig.style};
+      if (savedConfig.display !== 0 || savedConfig.style !== 1) throw new Error(`数值选项保存错误：${JSON.stringify(settingsDraftState)}`);
+      await closeSettings();
+      await openSettings();
+      const reopenedDisplay = await page.evaluate(() => window.__fluentReadUserscriptSettingsShadow.querySelector('input[aria-label="译文显示"]').closest('.fluentread-select').textContent);
+      if (!reopenedDisplay.includes('仅译文模式')) throw new Error(`保存重开丢失选项：${reopenedDisplay}`);
+      settingsDraftState.reopenedDisplay = reopenedDisplay.trim();
+      // Restore the bilingual fixture mode before the original translation smoke checks.
+      await chooseOption('译文显示', '双语对照模式');
+      await saveSettings();
+      await chooseOption('主题', '暗色主题');
+      await openSelect('服务');
+      const darkMenuColor = await page.evaluate(() => {
+        const root = window.__fluentReadUserscriptSettingsShadow;
+        return getComputedStyle([...root.querySelectorAll('.el-popper.fluentread-select-popper')].find(menu => menu.getBoundingClientRect().height)).backgroundColor;
+      });
+      await page.screenshot({path: path.join(artifactsDir, 'userscript-service-dark.png')});
+      if (darkMenuColor === 'rgb(255, 255, 255)') throw new Error('深色设置菜单仍显示白色');
+      await closeSettings();
+      await page.setViewportSize({width: 390, height: 844});
+      await openSettings();
+      await chooseOption('主题', '暗色主题');
+      await openSelect('服务');
+      await page.screenshot({path: path.join(artifactsDir, 'userscript-service-narrow.png')});
+      const narrowBounds = await page.evaluate(() => {
+        const menu = [...window.__fluentReadUserscriptSettingsShadow.querySelectorAll('.el-popper.fluentread-select-popper')].find(menu => menu.getBoundingClientRect().height);
+        const r = menu.getBoundingClientRect();
+        return {left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: innerWidth, height: innerHeight};
+      });
+      if (narrowBounds.left < 0 || narrowBounds.right > narrowBounds.width || narrowBounds.top < 0 || narrowBounds.bottom > narrowBounds.height) throw new Error(`窄屏菜单越界：${JSON.stringify(narrowBounds)}`);
+      await closeSettings();
+      await page.setViewportSize({width: 1280, height: 900});
+      const selectEvidence = {settingsSecurity, settingsSelectState, settingsDraftState, search: 'DeepSeek', keyboardSelection: true, darkMenuColor, narrowBounds, consoleErrors, launchMode, focusPolicy, windowPlacement, transport: 'local fixture with deterministic GM shim; no live provider or userscript manager certification'};
+      fs.writeFileSync(path.join(artifactsDir, 'select-evidence.json'), `${JSON.stringify(selectEvidence, null, 2)}\n`);
+      if (consoleErrors.length) throw new Error(`浏览器控制台出现错误：${JSON.stringify(consoleErrors)}`);
+      console.log(JSON.stringify(selectEvidence, null, 2));
+      return;
     }
 
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('fluentread-userscript-open-settings')));
@@ -701,7 +837,15 @@ async function main() {
   } finally {
     await closeBrowser();
     await fixture.close().catch(() => undefined);
-    fs.rmSync(profileDir, {recursive: true, force: true});
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        fs.rmSync(profileDir, {recursive: true, force: true});
+        break;
+      } catch (error) {
+        if (attempt === 4) console.error(`userscript 临时 profile 清理警告：${error.message}`);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
   }
 }
 

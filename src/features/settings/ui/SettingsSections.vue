@@ -22,10 +22,14 @@
           data-testid="default-translation-service-card"
           :data-default-service="config.service"
         >
-          <ServiceIcon :service="config.service" :label="defaultTextServiceLabel" size="medium" />
-          <el-select v-model="config.service" aria-label="默认网页翻译服务" placeholder="请选择翻译服务">
+          <el-select v-model="config.service" aria-label="默认网页翻译服务" placeholder="请选择翻译服务" :search-placeholder="t('select.searchService')" filterable>
+            <template #prefix><ServiceIcon :service="config.service" :label="defaultTextServiceLabel" size="small" /></template>
             <el-option v-if="selectedTextServiceUnavailableMessage" label="Chrome内置AI翻译（当前浏览器不可用）" :value="config.service" disabled />
-            <el-option v-for="item in availableServiceOptions" :key="item.value" class="select-left" :label="item.label" :value="item.value" :disabled="item.disabled" />
+            <el-option-group v-for="group in textServiceGroups" :key="group.value" :label="group.label">
+              <el-option v-for="item in group.options" :key="item.value" :label="item.label" :value="item.value" :disabled="item.disabled">
+                <span class="fluentread-service-option"><ServiceIcon :service="item.value" :label="item.label" size="small" /><span>{{ item.label }}</span></span>
+              </el-option>
+            </el-option-group>
           </el-select>
         </div>
       </SettingsItem>
@@ -125,7 +129,7 @@
       <SettingsGroup>
         <FeatureEnableCard v-model="config.videoTranslationEnabled" title="视频字幕翻译" description="翻译 YouTube 或 X 播放器中的字幕，不上传音频或视频内容。"  />
         <SettingsItem label="视频翻译服务" description="与网页翻译服务相互独立；AI 服务会提前预取字幕。" :disabled="!config.videoTranslationEnabled">
-          <el-select v-model="config.videoService" aria-label="视频字幕翻译服务" :disabled="!config.videoTranslationEnabled" placeholder="请选择服务">
+          <el-select v-model="config.videoService" aria-label="视频字幕翻译服务" :disabled="!config.videoTranslationEnabled" placeholder="请选择服务" filterable>
             <el-option v-if="selectedVideoServiceUnavailableMessage" label="Chrome内置AI翻译（当前浏览器不可用）" :value="config.videoService" disabled />
             <el-option v-for="item in videoServiceOptions" :key="item.value" class="select-left" :label="item.label" :value="item.value" />
           </el-select>
@@ -347,7 +351,7 @@
     <section v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation">
       <SettingsGroup title="译文显示" description="设置网页翻译后的内容形式和双语译文样式。">
         <SettingsItem :label="t('settings.general.defaultTargetLanguage')" :description="t('settings.general.defaultTargetLanguageDescription')">
-          <el-select v-model="config.to" data-config-field="to" :aria-label="t('settings.general.defaultTargetLanguage')" :placeholder="t('settings.general.targetLanguagePlaceholder')">
+          <el-select v-model="config.to" data-config-field="to" :aria-label="t('settings.general.defaultTargetLanguage')" :placeholder="t('settings.general.targetLanguagePlaceholder')" filterable>
             <el-option v-for="item in options.to" :key="item.value" data-i18n-ignore class="select-left" :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" :value="item.value" />
           </el-select>
         </SettingsItem>
@@ -355,7 +359,7 @@
           <SegmentedControl v-model="config.display" :options="options.display" label="翻译模式" />
         </SettingsItem>
         <SettingsItem v-show="config.display === 1" label="译文样式" description="选择后可在下方立即查看效果。">
-          <el-select v-model="config.style" aria-label="译文样式" placeholder="请选择译文显示样式">
+          <el-select v-model="config.style" aria-label="译文样式" placeholder="请选择译文显示样式" filterable>
             <el-option-group v-for="group in styleGroups" :key="group.value" :label="group.label">
               <el-option v-for="item in group.options" :key="item.value" :label="item.label" :value="item.value" :class="item.class" />
             </el-option-group>
@@ -478,7 +482,7 @@
             <span class="popup-text popup-vertical-left">翻译目标语言</span>
           </el-col>
           <el-col :span="12" class="settings-control-field">
-            <el-select v-model="config.inputBoxTranslationTarget" aria-label="输入框翻译目标语言" placeholder="请选择目标语言">
+            <el-select v-model="config.inputBoxTranslationTarget" aria-label="输入框翻译目标语言" placeholder="请选择目标语言" filterable>
               <el-option class="select-left" data-i18n-ignore v-for="item in options.inputBoxTranslationTarget" :key="item.value"
                          :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" :value="item.value" />
             </el-select>
@@ -980,6 +984,18 @@ const serviceOptionsWithCustomProviders = computed(() => localizeServiceOptions(
   translateLegacy,
 ));
 const availableServiceOptions = computed(() => filterAvailableTranslationServices(serviceOptionsWithCustomProviders.value));
+// 目录中的机器 / AI 标记只用于分组，不再作为不可选择的菜单选项。
+const textServiceGroups = computed(() => {
+  const groups: {value: string; label: string; options: typeof availableServiceOptions.value}[] = [];
+  for (const item of availableServiceOptions.value) {
+    if (item.value === 'machine' || item.value === 'ai') {
+      groups.push({value: item.value, label: item.label, options: []});
+    } else {
+      groups.at(-1)?.options.push(item);
+    }
+  }
+  return groups.filter(group => group.options.length > 0);
+});
 const defaultTextServiceLabel = computed(() => (
   serviceOptionsWithCustomProviders.value.find((item: any) => item.value === config.value.service)?.label || config.value.service
 ));

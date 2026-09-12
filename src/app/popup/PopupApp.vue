@@ -90,14 +90,14 @@
       <div class="language-pair">
         <label>
           <span>源语言</span>
-          <UiSelect aria-label="源语言" v-model="config.from" :disabled="!config.on">
+          <UiSelect aria-label="源语言" filterable v-model="config.from" :disabled="!config.on">
             <ElOption v-for="item in options.from" :key="item.value" :value="item.value" data-i18n-ignore :label="item.value === 'auto' ? translateLegacy(item.label) : getMultilingualTargetLanguageLabel(item.value, item.label, language)" />
           </UiSelect>
         </label>
         <span class="arrow">→</span>
         <label>
           <span>目标语言</span>
-          <UiSelect aria-label="目标语言" v-model="config.to" :disabled="!config.on">
+          <UiSelect aria-label="目标语言" filterable v-model="config.to" :disabled="!config.on">
             <ElOption v-for="item in options.to" :key="item.value" :value="item.value" data-i18n-ignore :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" />
           </UiSelect>
         </label>
@@ -525,7 +525,7 @@
         </div>
         <label class="select-row">
           <span><strong>视频翻译服务</strong><small>与网页翻译服务独立保存</small></span>
-          <UiSelect aria-label="视频翻译服务" v-model="config.videoService" :disabled="!config.videoTranslationEnabled">
+          <UiSelect aria-label="视频翻译服务" v-model="config.videoService" :disabled="!config.videoTranslationEnabled" filterable>
             <ElOption v-if="selectedVideoServiceUnavailableMessage" :value="config.videoService" disabled :label="translateControlLabel('Chrome内置AI翻译（当前浏览器不可用）')" />
             <ElOption v-for="item in videoServiceOptions" :key="item.value" :value="item.value" :label="translateControlLabel(item.label)" />
           </UiSelect>
@@ -543,7 +543,7 @@
           </label>
           <label class="select-row">
             <span><strong>视频原语言</strong><small>独立于网页翻译语言；自动检测适合大多数视频</small></span>
-            <UiSelect v-model="config.videoSourceLanguage" :disabled="!config.videoTranslationEnabled" aria-label="视频原语言">
+            <UiSelect v-model="config.videoSourceLanguage" :disabled="!config.videoTranslationEnabled" aria-label="视频原语言" filterable>
               <ElOption v-for="item in videoSourceLanguageOptions" :key="item.value" :value="item.value" :label="translateControlLabel(item.label)" />
             </UiSelect>
           </label>

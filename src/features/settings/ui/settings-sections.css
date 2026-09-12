@@ -14,8 +14,7 @@
 }
 
 .service-default-control {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
@@ -32,6 +31,10 @@
   width: 100%;
   min-width: 0;
 }
+
+.fluentread-service-option { display: flex; align-items: center; gap: 10px; min-width: 0; width: 100%; }
+.fluentread-service-option > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.fluentread-service-option :deep(.service-brand-icon) { flex: none; box-shadow: none; }
 
 @media (max-width: 480px) {
   .service-default-control { max-width: none; }
