@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/InterfaceSettings.vue
  * 文件职责：在独立的“界面风格”页面组织 FluentRead 的界面风格、动画加载效果和菜单栏布局三个偏好分组。
- * 主要内容：用真实 DOM 范例辅助选择注册皮肤，提供动画与加载效果预览，并通过预览直接拖动和显隐列表共同编排菜单栏区域与快捷入口，两个操作面共享持久化配置。
+ * 主要内容：提供皮肤与动画预览，在菜单栏布局中选择字体，并通过预览和显隐列表编排区域与快捷入口；所有偏好共享持久化配置。
  * 模块边界：本组件只负责界面配置的展示与双向绑定，不直接读写浏览器存储、不负责主题模式，也不关闭翻译功能本身；界面皮肤由 Options composition root 统一应用。
 -->
 <template>
@@ -78,6 +78,38 @@
     :title="t('settings.interface.popupLayout.label')"
     :description="t('settings.interface.popupLayout.description')"
   >
+    <SettingsItem
+      class="interface-font-settings"
+      :label="t('settings.interface.font.label')"
+      :description="t('settings.interface.font.description')"
+      :stacked="true"
+    >
+      <div class="interface-font-picker" role="radiogroup" :aria-label="t('settings.interface.font.label')">
+        <label
+          v-for="font in interfaceFontOptions"
+          :key="font.value"
+          class="interface-font-option"
+          :class="{ selected: props.config.interfaceFont === font.value }"
+          :data-font="font.value"
+        >
+          <input
+            v-model="props.config.interfaceFont"
+            type="radio"
+            name="interface-font"
+            :value="font.value"
+            :aria-label="t(font.labelKey)"
+          />
+          <span class="interface-font-copy">
+            <strong :style="{ fontFamily: font.fontFamily }">{{ t(font.labelKey) }}</strong>
+            <small>{{ t(font.descriptionKey) }}</small>
+          </span>
+        </label>
+        <div class="interface-font-preview" :style="{ fontFamily: selectedFontOption.fontFamily }">
+          <span>{{ t('settings.interface.font.preview') }}</span>
+          <small aria-hidden="true">Aa Bb Cc · 0123456789</small>
+        </div>
+      </div>
+    </SettingsItem>
     <div class="interface-layout-settings">
       <div class="popup-layout-workbench" data-popup-layout-workbench>
         <div class="popup-layout-tabs" role="tablist" :aria-label="t('settings.interface.popupLayout.label')" @keydown="handleLayoutTabKeydown">
@@ -181,7 +213,9 @@ import type {Config} from '@/src/core/config/model'
 import {
   DEFAULT_POPUP_MODULE_ORDER,
   DEFAULT_POPUP_QUICK_FEATURE_ORDER,
+  getInterfaceFontOption,
   getInterfaceSkinOption,
+  interfaceFontOptions,
   interfaceSkinGroups,
   interfaceSkinOptions,
   normalizePopupModuleOrder,
@@ -214,6 +248,7 @@ function handleLayoutTabKeydown(event: KeyboardEvent) {
   tabs[activeLayoutPanel.value === 'popupModule' ? 0 : 1]?.focus()
 }
 const selectedSkinOption = computed(() => getInterfaceSkinOption(props.config.interfaceSkin))
+const selectedFontOption = computed(() => getInterfaceFontOption(props.config.interfaceFont))
 
 const groupedSkinOptions = interfaceSkinGroups.map((group) => ({
   ...group,
@@ -277,6 +312,60 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 
 .interface-appearance-settings:hover { background: transparent; }
 .interface-appearance-settings :deep(.settings-item-copy) { position: sticky; top: 0; }
+
+.interface-font-settings { border-bottom: 1px solid var(--line); }
+.interface-font-settings:hover { background: transparent; }
+.interface-font-settings :deep(.settings-item-control) { align-items: stretch; }
+
+.interface-font-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.interface-font-option {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.interface-font-option:hover { border-color: var(--brand); }
+.interface-font-option.selected { border-color: var(--brand); background: var(--brand-soft); }
+.interface-font-option:has(input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 2px; }
+.interface-font-option input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--brand); cursor: pointer; }
+
+.interface-font-copy { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
+.interface-font-copy strong { overflow-wrap: anywhere; font-size: 13px; line-height: 1.5; }
+.interface-font-copy small { color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+.interface-font-preview {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 20px;
+  padding: 18px;
+  border-radius: 12px;
+  color: var(--ink);
+  background: var(--surface-soft);
+  overflow-wrap: anywhere;
+  font-size: 20px;
+  line-height: 1.6;
+}
+
+.interface-font-preview small { color: var(--muted); font-size: 16px; }
 
 .interface-skin-picker {
   display: grid;
@@ -356,6 +445,10 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
   padding: 4px;
   border-radius: 10px;
   background: var(--surface-soft);
+}
+
+@media (max-width: 700px) {
+  .interface-font-picker { grid-template-columns: minmax(0, 1fr); }
 }
 
 .popup-layout-tabs button {

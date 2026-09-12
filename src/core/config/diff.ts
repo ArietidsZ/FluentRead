@@ -169,6 +169,11 @@ const UI_LANGUAGE_LABELS = new Map<unknown, string>([
     ['es-ES', 'Español'],
 ]);
 const INTERFACE_SKIN_LABELS = labelsFor(interfaceSkinOptions);
+const INTERFACE_FONT_LABELS = new Map<unknown, string>([
+    ['inter', 'Inter · 推荐'],
+    ['system', '系统字体'],
+    ['noto-sans-sc', 'Noto Sans SC · 中文'],
+]);
 const TRANSLATION_LOADING_STYLE_LABELS = labelsFor(translationLoadingStyleOptions);
 const TRANSLATION_SCOPE_LABELS = new Map<unknown, string>([['content', '关闭'], ['all', '开启']]);
 const POPUP_MODULE_LABELS = new Map<string, string>(popupModuleOptions.map((item) => [item.id, item.label]));
@@ -407,6 +412,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     to: {group: 'general', label: '默认目标语言', format: (value) => formatEnum(value, LANGUAGE_LABELS)},
     theme: {group: 'general', label: '主题', format: (value) => formatEnum(value, THEME_LABELS)},
     interfaceSkin: {group: 'general', label: '界面皮肤', format: (value) => formatEnum(value, INTERFACE_SKIN_LABELS)},
+    interfaceFont: {group: 'general', label: '界面字体', format: (value) => formatEnum(value, INTERFACE_FONT_LABELS)},
     interfaceVisibility: {group: 'general', label: '界面栏目', format: formatInterfaceVisibility},
     popupModuleOrder: {group: 'general', label: '菜单栏布局顺序', format: formatPopupModuleOrder},
     popupQuickFeatureVisibility: {group: 'general', label: '快捷功能卡片', format: formatPopupQuickFeatureVisibility},

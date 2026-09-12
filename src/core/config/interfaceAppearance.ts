@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/interfaceAppearance.ts
- * 文件职责：定义 FluentRead 扩展的可插拔皮肤、Popup 模块布局与栏目可见性配置契约，作为 Options、Popup 和配置持久化共同依赖的单一来源。
- * 主要内容：维护界面皮肤的分组、背景图案、预览与尺寸策略，以及 Popup 区域和快捷功能卡片的两级注册表、默认顺序、可见性和安全归一化函数。
+ * 文件职责：定义 FluentRead 扩展的可插拔皮肤、字体、Popup 模块布局与栏目可见性配置契约，作为 Options、Popup 和配置持久化共同依赖的单一来源。
+ * 主要内容：维护界面皮肤的分组、背景图案、预览与尺寸策略，提供本地字体栈预设，以及 Popup 区域和快捷功能卡片的两级注册表、默认顺序、可见性和安全归一化函数。
  * 模块边界：本文件只描述纯配置规则和用户可见元数据，不读取浏览器存储、不操作 DOM，也不决定具体页面布局；DOM 皮肤应用由 src/ui/interfaceAppearance.ts 负责。
  */
 
@@ -175,6 +175,40 @@ export const interfaceSkinOptions = [
   },
 ] as const
 
+/**
+ * 扩展自身页面的字体方案。Inter 与 Noto Sans SC 随扩展离线打包；
+ * 未覆盖的字符交给系统字体。字体文件只由 Popup / Options 的 CSS 加载。
+ */
+export const interfaceFontOptions = [
+  {
+    value: 'inter',
+    labelKey: 'settings.interface.font.options.inter.label',
+    descriptionKey: 'settings.interface.font.options.inter.description',
+    fontFamily: '"FluentRead Inter", "FluentRead Noto Sans SC", system-ui, sans-serif',
+  },
+  {
+    value: 'noto-sans-sc',
+    labelKey: 'settings.interface.font.options.notoSansSc.label',
+    descriptionKey: 'settings.interface.font.options.notoSansSc.description',
+    fontFamily: '"FluentRead Noto Sans SC", system-ui, sans-serif',
+  },
+  {
+    value: 'system',
+    labelKey: 'settings.interface.font.options.system.label',
+    descriptionKey: 'settings.interface.font.options.system.description',
+    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
+  },
+] as const
+
+export type InterfaceFont = typeof interfaceFontOptions[number]['value']
+export type InterfaceFontOption = typeof interfaceFontOptions[number]
+
+export const DEFAULT_INTERFACE_FONT: InterfaceFont = 'inter'
+
+const interfaceFontByValue = new Map<string, InterfaceFontOption>(
+  interfaceFontOptions.map((item) => [item.value, item]),
+)
+
 export type InterfaceSkin = typeof interfaceSkinOptions[number]['value']
 export type InterfaceSkinOption = typeof interfaceSkinOptions[number]
 export type InterfaceMotif = InterfaceSkinOption['motif']
@@ -344,6 +378,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /** 只接受注册表中的皮肤，未知值稳定回到当前默认界面。 */
 export function normalizeInterfaceSkin(value: unknown): InterfaceSkin {
   return getInterfaceSkinOption(value).value
+}
+
+/** 只接受内置字体栈，未知值稳定回到 Inter 方案。 */
+export function normalizeInterfaceFont(value: unknown): InterfaceFont {
+  return getInterfaceFontOption(value).value
+}
+
+/** 返回字体栈元数据，让页面应用层不需要识别具体字体方案。 */
+export function getInterfaceFontOption(value: unknown): InterfaceFontOption {
+  return typeof value === 'string'
+    ? interfaceFontByValue.get(value) ?? interfaceFontByValue.get(DEFAULT_INTERFACE_FONT)!
+    : interfaceFontByValue.get(DEFAULT_INTERFACE_FONT)!
 }
 
 /** 返回完整皮肤元数据，让应用层无需识别任何具体皮肤 ID。 */

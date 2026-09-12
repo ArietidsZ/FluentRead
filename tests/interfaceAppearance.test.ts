@@ -1,15 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_INTERFACE_FONT,
   DEFAULT_INTERFACE_VISIBILITY,
   DEFAULT_POPUP_MODULE_ORDER,
   DEFAULT_POPUP_QUICK_FEATURE_ORDER,
   DEFAULT_POPUP_QUICK_FEATURE_VISIBILITY,
+  getInterfaceFontOption,
   getInterfaceSkinOption,
+  interfaceFontOptions,
   interfaceSkinGroups,
   interfaceSkinOptions,
   interfaceSkinPopupWidth,
   interfaceSkinUsesContentHeight,
   interfaceVisibilityOptions,
+  normalizeInterfaceFont,
   normalizeInterfaceSkin,
   normalizeInterfaceVisibility,
   normalizePopupModuleOrder,
@@ -27,6 +31,7 @@ describe('界面皮肤与栏目配置', () => {
     const config = new Config()
 
     expect(config.interfaceSkin).toBe('default')
+    expect(config.interfaceFont).toBe(DEFAULT_INTERFACE_FONT)
     expect(config.interfaceVisibility).toEqual(DEFAULT_INTERFACE_VISIBILITY)
     expect(config.popupModuleOrder).toEqual(DEFAULT_POPUP_MODULE_ORDER)
     expect(config.popupQuickFeatureOrder).toEqual(DEFAULT_POPUP_QUICK_FEATURE_ORDER)
@@ -70,7 +75,15 @@ describe('界面皮肤与栏目配置', () => {
     expect(new Set(interfaceSkinOptions.map((item) => JSON.stringify(item.preview))).size).toBe(14)
     expect(interfaceSkinOptions.filter(item => item.group === 'palette').every(item => item.motif === item.value)).toBe(true)
     expect(interfaceSkinOptions.filter(item => item.group === 'utility').every(item => item.motif === 'none')).toBe(true)
+    expect(interfaceFontOptions.map((item) => item.value)).toEqual([
+      'inter',
+      'noto-sans-sc',
+      'system',
+    ])
+    expect(interfaceFontOptions.every((item) => item.fontFamily.includes('sans-serif'))).toBe(true)
+    expect(interfaceFontOptions.every((item) => item.labelKey.startsWith('settings.interface.font.'))).toBe(true)
     expect(normalizeConfig({interfaceSkin: 'emoji'}).interfaceSkin).toBe('emoji')
+    expect(normalizeConfig({interfaceFont: 'noto-sans-sc'}).interfaceFont).toBe('noto-sans-sc')
     expect(interfaceSkinOptions.every((item) => interfaceSkinUsesContentHeight(item.value))).toBe(true)
     expect(interfaceSkinOptions.filter((item) => !['minimal', 'compact'].includes(item.value)).every((item) => item.popupWidth === 360)).toBe(true)
     expect(getInterfaceSkinOption('minimal').popupWidth).toBe(350)
@@ -172,6 +185,13 @@ describe('界面皮肤与栏目配置', () => {
     expect(normalizeInterfaceSkin('soft')).toBe('default')
     expect(normalizeInterfaceSkin('unknown')).toBe('default')
     expect(normalizeInterfaceSkin(null)).toBe('default')
+    for (const font of interfaceFontOptions) {
+      expect(normalizeInterfaceFont(font.value)).toBe(font.value)
+    }
+    expect(normalizeInterfaceFont('unknown')).toBe(DEFAULT_INTERFACE_FONT)
+    expect(normalizeInterfaceFont(null)).toBe(DEFAULT_INTERFACE_FONT)
+    expect(getInterfaceFontOption('noto-sans-sc').fontFamily).toContain('Noto Sans SC')
+    expect(getInterfaceFontOption('unknown').value).toBe(DEFAULT_INTERFACE_FONT)
     expect(getInterfaceSkinOption('cheese').label).toBe('奶酪 🧀')
     expect(getInterfaceSkinOption('aurora').description).toContain('极光')
     expect(getInterfaceSkinOption('arcade').motif).toBe('arcade')
@@ -245,12 +265,14 @@ describe('界面皮肤与栏目配置', () => {
     })
     expect(normalizeConfig({
       interfaceSkin: 'invalid',
+      interfaceFont: 'invalid',
       interfaceVisibility: [],
       popupModuleOrder: null,
       popupQuickFeatureOrder: null,
       popupQuickFeatureVisibility: null,
     })).toMatchObject({
       interfaceSkin: 'default',
+      interfaceFont: DEFAULT_INTERFACE_FONT,
       interfaceVisibility: DEFAULT_INTERFACE_VISIBILITY,
       popupModuleOrder: DEFAULT_POPUP_MODULE_ORDER,
       popupQuickFeatureOrder: DEFAULT_POPUP_QUICK_FEATURE_ORDER,

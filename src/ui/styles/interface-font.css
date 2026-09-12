@@ -1,0 +1,37 @@
+/**
+ * @file src/ui/styles/interface-font.css
+ * 文件职责：为 Popup 和 Options 提供共享的字体变量与控件继承规则。
+ * 主要内容：声明默认的现代无衬线字体栈，并把 Element Plus 与原生表单控件绑定到同一套字体变量；具体字体方案由 src/ui/interfaceAppearance.ts 在运行时覆盖。
+ * 模块边界：只作用于扩展自有页面，不进入 content script 或宿主网页，也不通过网络加载字体文件。
+ */
+
+@font-face {
+  font-family: 'FluentRead Inter';
+  src: url('/fonts/Inter.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FluentRead Noto Sans SC';
+  src: url('/fonts/NotoSansSC.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --interface-font-family: 'FluentRead Inter', 'FluentRead Noto Sans SC', system-ui, sans-serif;
+  --el-font-family: var(--interface-font-family);
+  font-family: var(--interface-font-family);
+}
+
+:root body,
+:root #app,
+:root button,
+:root input,
+:root select,
+:root textarea {
+  font-family: var(--interface-font-family);
+}
