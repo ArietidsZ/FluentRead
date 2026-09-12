@@ -19,25 +19,28 @@ const defaultExpression = {language: 'target', length: 'short', style: 'auto', t
 const markdownReply = '**重复翻译**需要结合触发步骤排查。\n\n- 请提供 `FluentRead` 版本。\n- 请确认是否开启自动翻译。\n\n```text\noriginal -> translated\n```\n\n参考 [项目页面](https://example.test/reproduction)。';
 const plainReply = '重复翻译需要结合触发步骤排查。\n\n• 请提供 FluentRead 版本。\n• 请确认是否开启自动翻译。\n\noriginal -> translated\n\n参考 项目页面 (https://example.test/reproduction)。';
 // GitHub 仅复现用户提供的评论容器结构，不保留账号、正文、动态 ID、URL 或第三方脚本。
-const githubComposer = draft => `<div data-testid="comment-composer">
+const githubComposer = (draft, variant = '') => `<div data-testid="comment-composer">
   <h2 id="comment-composer-heading">Add a comment</h2>
   <div class="IssueCommentComposer-module__commentBoxWrapper__fixture"><div class="CommentBox-module__commentBoxContainer__fixture">
     <slash-command-expander><fieldset aria-disabled="false"><div class="MarkdownEditor-module__container__fixture">
       <div class="MarkdownEditor-module__writeWrapper__fixture"><div class="MarkdownInput-module__inputWrapper__fixture"><span>
         <textarea id="editor" aria-labelledby="comment-composer-heading" placeholder="Use Markdown to format your comment" oninput="document.querySelector('#native-send').disabled=!this.value.trim()">${draft}</textarea>
       </span></div></div>
-      <div data-testid="markdown-editor-footer"><div class="Footer-module__childrenStyling__fixture actions">
+      <div data-testid="markdown-editor-footer">${variant === 'layout-github' ? `<div class="submit-wrapper"><div class="actions action-groups">
+        <div class="action-group secondary-actions"><button type="button">Close issue</button><button type="button" aria-label="Other actions">⌄</button></div>
+        <div class="action-group primary-actions"><button id="native-send" data-fixture-native-action type="button" data-variant="primary" ${draft ? '' : 'disabled aria-disabled="true"'} onclick="window.sent=(window.sent||0)+1"><span>Comment</span></button></div>
+      </div></div>` : `<div class="Footer-module__childrenStyling__fixture actions">
         <div class="secondary-actions"><button type="button">Close issue</button><button type="button" aria-label="Other actions">⌄</button></div>
-        <button id="native-send" type="button" data-variant="primary" ${draft ? '' : 'disabled aria-disabled="true"'} onclick="window.sent=(window.sent||0)+1"><span>Comment</span></button>
+        <button id="native-send" data-fixture-native-action type="button" data-variant="primary" ${draft ? '' : 'disabled aria-disabled="true"'} onclick="window.sent=(window.sent||0)+1"><span>Comment</span></button>`}
         <span data-testid="save-button-tooltip" role="tooltip" aria-hidden="true">Draft required</span>
       </div></div>
     </div></fieldset></slash-command-expander>
   </div></div>
 </div>`;
-const gmailComposer = (id, draft, context = '') => `<div class="M9" id="${id}-conversation">
+const gmailComposer = (id, draft, context = '', variant = '') => `<div class="M9" id="${id}-conversation">
   ${context ? `<div class="a3s">${context}<span hidden>PRIVATE_HIDDEN_MAIL</span><button hidden>Delete account</button></div>` : ''}
   <div id="${id}" contenteditable="true" role="textbox" aria-label="Message Body">${draft}</div>
-  <div class="actions"><div id="${id}-send" role="button" tabindex="0" data-tooltip="Send (Ctrl+Enter)" aria-label="Send (Ctrl+Enter)" onclick="window.sent=(window.sent||0)+1">Send</div></div>
+  ${variant === 'table-actions' ? `<table class="gmail-action-table"><tbody><tr><td class="gmail-secondary-cell"><button type="button">More</button></td><td class="gmail-send-cell"><div id="${id}-send" data-fixture-native-action role="button" tabindex="0" data-tooltip="Send (Ctrl+Enter)" aria-label="Send (Ctrl+Enter)" onclick="window.sent=(window.sent||0)+1">Send</div></td></tr></tbody></table>` : variant === 'flex-actions' ? `<div class="actions gmail-flex-actions"><div class="gmail-action-group"><button type="button">More</button></div><div class="gmail-action-group"><div id="${id}-send" data-fixture-native-action role="button" tabindex="0" data-tooltip="Send (Ctrl+Enter)" aria-label="Send (Ctrl+Enter)" onclick="window.sent=(window.sent||0)+1">Send</div></div></div>` : `<div class="actions"><div id="${id}-send" data-fixture-native-action role="button" tabindex="0" data-tooltip="Send (Ctrl+Enter)" aria-label="Send (Ctrl+Enter)" onclick="window.sent=(window.sent||0)+1">Send</div></div>`}
 </div>`;
 function fixture(site, variant = '') {
   let body;
@@ -45,9 +48,11 @@ function fixture(site, variant = '') {
     // 公开问题 #421 的最小语义结构：重复翻译标题、截图和无关项目链接；不复制用户身份或截图内容。
     body = `<span data-testid="header-state">Open</span><article data-testid="issue-body"><div data-testid="markdown-body"><img alt="Synthetic screenshot placeholder" width="80" height="40" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='40'%3E%3Crect width='80' height='40' fill='%23ddd'/%3E%3C/svg%3E"><p><a href="https://github.com/planetscale/vtprotobuf">https://github.com/planetscale/vtprotobuf</a></p></div></article>${githubComposer('')}`;
   } else if (site === 'github') {
-    body = `<div class="js-comment-body">Thanks for your work. Could you follow up next week?<span hidden>PRIVATE_HIDDEN_GITHUB</span><button hidden>Delete account</button></div>${githubComposer(variant === 'draft' ? 'My original draft' : '')}`;
+    body = `<div class="js-comment-body">Thanks for your work. Could you follow up next week?<span hidden>PRIVATE_HIDDEN_GITHUB</span><button hidden>Delete account</button></div>${githubComposer(variant === 'draft' ? 'My original draft' : '', variant === 'layout-github' ? 'layout-github' : '')}`;
   } else if (variant === 'multiple') {
     body = gmailComposer('first-editor', 'DRAFT_THREAD_ONE', 'THREAD_ONE: Review the first proposal.') + gmailComposer('second-editor', 'DRAFT_THREAD_TWO', 'THREAD_TWO: Confirm the second meeting.');
+  } else if (variant === 'layout-gmail') {
+    body = gmailComposer('first-editor', 'DRAFT_LAYOUT_ONE', 'THREAD_ONE: Review the first proposal.', 'table-actions') + gmailComposer('second-editor', 'DRAFT_LAYOUT_TWO', 'THREAD_TWO: Confirm the second meeting.', 'flex-actions');
   } else if (variant === 'new') {
     body = '<div class="a3s">PRIVATE_UNRELATED_OPEN_MAIL</div>' + gmailComposer('editor', '');
   } else if (variant === 'subject') {
@@ -59,9 +64,12 @@ function fixture(site, variant = '') {
   }
   return `<!doctype html><html><head><meta charset="utf-8"><title>${site} writing fixture</title><style>
     body{font:16px/1.7 system-ui;background:#f5f6f8;color:#334155;margin:0;padding:50px}main{margin-top:140px;box-sizing:border-box;width:min(850px,100%);background:white;padding:30px;border:1px solid #e4e7ec;border-radius:14px}
-    textarea,[contenteditable]{width:100%;min-height:125px;border:1px solid #cbd5e1;border-radius:8px;padding:14px;font:inherit;box-sizing:border-box}button,[role=button]{padding:8px 18px}fieldset{border:0;margin:0;padding:0;min-width:0}.actions{display:flex;justify-content:flex-end;align-items:center;margin-top:16px;gap:0}.secondary-actions{display:flex;margin-right:auto}.M9+.M9{margin-top:30px}.js-comment-body,.a3s{padding:15px 0 25px}[role=tooltip]{display:none}[role=button]{background:#e7effd;border-radius:6px;cursor:pointer}
+    textarea,[contenteditable]{width:100%;min-height:125px;border:1px solid #cbd5e1;border-radius:8px;padding:14px;font:inherit;box-sizing:border-box}button,[role=button]{padding:8px 18px}fieldset{border:0;margin:0;padding:0;min-width:0}.actions{display:flex;justify-content:flex-end;align-items:center;margin-top:16px;gap:0}.secondary-actions{display:flex;margin-right:auto}.submit-wrapper{display:block;width:100%;padding:10px 0;border-top:1px solid #edf0f3}.action-groups,.gmail-flex-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%}.action-group{display:flex;align-items:center;gap:8px}.primary-actions{margin-left:auto}.gmail-action-table{width:100%;margin-top:16px;border-collapse:collapse;table-layout:fixed}.gmail-action-table td{padding:0;vertical-align:middle}.gmail-secondary-cell{text-align:left}.gmail-send-cell{text-align:right}.gmail-send-cell [role=button]{display:inline-block;width:auto}.M9+.M9{margin-top:30px}.js-comment-body,.a3s{padding:15px 0 25px}[role=tooltip]{display:none}[role=button]{background:#e7effd;border-radius:6px;cursor:pointer}
+    .primary-actions{display:block;width:min(280px,55%)}.primary-actions button{display:block;width:100%;background:#1f883d;color:white;border:1px solid #1a7f37;border-radius:6px}
     @media(max-width:600px){body{padding:12px}main{padding:16px}.secondary-actions{display:none}button,[role=button]{padding:7px 10px}}
-  </style></head><body><aside hidden>PRIVATE_UNRELATED_TEXT</aside><main role="main"><h1 ${site === 'github' ? 'data-testid="issue-title"' : ''}>${variant === 'issue421' ? '同一段话出现了两次翻译' : site === 'gmail' ? 'A thoughtful follow-up' : 'Discussing the next release'}</h1>${body}</main></body></html>`;
+  </style></head><body><aside hidden>PRIVATE_UNRELATED_TEXT</aside><main role="main"><h1 ${site === 'github' ? 'data-testid="issue-title"' : ''}>${variant === 'issue421' ? '同一段话出现了两次翻译' : site === 'gmail' ? 'A thoughtful follow-up' : 'Discussing the next release'}</h1>${body}</main><script>
+    window.fixtureLayoutBaseline = Object.fromEntries(Array.from(document.querySelectorAll('[data-fixture-native-action]')).map(element => { const rect = element.getBoundingClientRect(); return [element.id, {x: rect.x, y: rect.y, width: rect.width, height: rect.height}]; }));
+  </script></body></html>`;
 }
 (async () => {
   const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
@@ -213,6 +221,22 @@ function fixture(site, variant = '') {
     const quotedData = body => { const content = body.messages.at(-1).content; const marker = '草稿与参考内容（引用数据）：\n'; const parts = content.split(marker); assert.equal(parts.length, 2, 'quoted data has one explicit boundary after expression preferences'); return JSON.parse(parts[1]); };
     const expressionData = body => JSON.parse(body.messages.at(-1).content.split('表达偏好（仅调整表达方式）：\n')[1].split('\n\n草稿与参考内容（引用数据）：')[0]);
     const oneGeneration = async (p, action, plan) => { const before = requests.length; if (plan) responsePlans.push(plan); await action(); await assertRequestCount(before + 1, 'one generation per user action'); const text = await complete(p, Boolean(plan?.markdown)); await wait(180); assert.equal(requests.length, before + 1, 'completed generation must not repeat'); return {text, body: requestBody(before)}; };
+    const fixtureBaseline = p => p.evaluate(() => window.fixtureLayoutBaseline || {});
+    const fixtureNativeLayout = p => p.evaluate(() => Object.fromEntries(Array.from(document.querySelectorAll('[data-fixture-native-action]')).map(element => { const rect = element.getBoundingClientRect(); return [element.id, {x: rect.x, y: rect.y, width: rect.width, height: rect.height, parent: element.parentElement?.className || '', index: element.parentElement ? Array.from(element.parentElement.children).indexOf(element) : -1}]; })));
+    const assertFixtureNativeLayout = async (p, label) => {
+      const baseline = await fixtureBaseline(p); const current = await fixtureNativeLayout(p);
+      for (const [id, expected] of Object.entries(baseline)) {
+        const actual = current[id]; assert(actual, `${label}: native action ${id} remains present`);
+        for (const key of ['x', 'y', 'width', 'height']) assert(Math.abs(actual[key] - expected[key]) < 1, `${label}: native action ${id} ${key} changed (${expected[key]} -> ${actual[key]})`);
+      }
+      return current;
+    };
+    const assertEntryDoesNotCover = async (p, native, label, locator = p.locator('[data-fluent-read-ui="writing-entry"]').first()) => {
+      const entry = {locator, visible: await locator.isVisible().catch(() => false), box: await locator.boundingBox()}; if (!entry.visible || !entry.box) return entry;
+      assert(entry.box.x >= 0 && entry.box.y >= 0 && entry.box.x + entry.box.width <= (await p.evaluate(() => innerWidth)) + 1 && entry.box.y + entry.box.height <= (await p.evaluate(() => innerHeight)) + 1, `${label}: visible entry stays in viewport`);
+      const separated = entry.box.x + entry.box.width <= native.x + 1 || native.x + native.width <= entry.box.x + 1 || entry.box.y + entry.box.height <= native.y + 1 || native.y + native.height <= entry.box.y + 1;
+      assert(separated, `${label}: visible entry does not cover the native action`); return entry;
+    };
     const selectStyle = (p, group, name) => p.getByRole('radiogroup', {name: group, exact: true}).getByRole('radio', {name, exact: true}).click();
     const assertStyle = async (p, values = {长度: '简短', 风格: '自动', 语气: '自然', 您的角色: '自动'}) => { assert.equal(await p.getByRole('radiogroup').count(), 4); for (const [group, name] of Object.entries(values)) assert.equal(await p.getByRole('radiogroup', {name: group, exact: true}).getByRole('radio', {name, exact: true}).getAttribute('aria-checked'), 'true'); };
     const chooseLanguage = async (p, query, name) => { await p.getByRole('button', {name: '输出语言', exact: true}).click(); await p.getByRole('searchbox', {name: '搜索输出语言', exact: true}).fill(query); await p.getByRole('listbox', {name: '回复语言', exact: true}).getByRole('option', {name, exact: true}).click(); };
@@ -503,16 +527,15 @@ function fixture(site, variant = '') {
       const host = p.locator('[data-fluent-read-ui="writing-entry"]');
       const native = p.locator(site === 'github' ? '#native-send' : '#editor-send');
       if (site === 'github') { assert.equal(await p.locator('#editor').getAttribute('name'), null); assert.equal(await native.getAttribute('type'), 'button'); assert.equal(await native.isDisabled(), true); assert.equal(await native.getAttribute('data-variant'), 'primary'); }
-      assert.equal(await native.evaluate((element, side) => element[side]?.getAttribute('data-fluent-read-ui'), site === 'github' ? 'previousElementSibling' : 'nextElementSibling'), 'writing-entry');
-      const hostBox = await host.boundingBox(); const nativeBox = await native.boundingBox();
-      const gap = site === 'github' ? nativeBox.x - hostBox.x - hostBox.width : hostBox.x - nativeBox.x - nativeBox.width;
-      assert(gap >= 0 && gap <= 12, `${site} entry is adjacent to native action`); assert(Math.abs(hostBox.y + hostBox.height / 2 - nativeBox.y - nativeBox.height / 2) < 5);
+      assert.equal(await native.locator('[data-fluent-read-ui="writing-entry"]').count(), 0, `${site} native action contains no extension UI`);
+      const nativeBox = await native.boundingBox(); assert(nativeBox, `${site} native action is measurable`);
+      await assertFixtureNativeLayout(p, `${site} initial injection`); await assertEntryDoesNotCover(p, nativeBox, `${site} initial injection`);
       assert(await host.locator('img').evaluate(image => image.complete && image.naturalWidth === 128 && image.src.endsWith('/icon/128.png')));
       const firstIndex = requests.length; responsePlans.push({slow: true}); await entry(p).click(); await startSampling(p); await assertRequestCount(firstIndex + 1, `${site} automatic initial request`);
       const firstText = await complete(p); await endSampling(p, site); await wait(200); assert.equal(requests.length, firstIndex + 1);
       assert(await p.locator('.writing-mark').evaluate(image => image.complete && image.naturalWidth === 128));
       const initialData = quotedData(requestBody(firstIndex)); assert.equal(initialData.draft, site === 'github' ? '' : 'My original draft'); assert.match(initialData.context, /follow up/);
-      assert.match(requestBody(firstIndex).messages[0].content, site === 'github' ? /起草回复/ : /润色现有草稿/);
+      assert.match(requestBody(firstIndex).messages[0].content, site === 'github' ? /起草回复/ : /根据本轮表达偏好改写现有草稿/);
       await p.getByRole('button', {name: '参考内容', exact: true}).click();
       if (site === 'gmail') { assert.equal(await p.getByRole('textbox', {name: '写作草稿', exact: true}).inputValue(), 'My original draft'); assert.equal(await p.getByRole('textbox', {name: '写作草稿', exact: true}).isEditable(), false, 'original draft is a read-only reference'); }
       assert.match(await p.getByRole('textbox', {name: '写作参考内容', exact: true}).inputValue(), /follow up/); assert.equal(await p.getByRole('textbox', {name: '写作参考内容', exact: true}).isEditable(), true, 'discussion reference remains editable'); await p.getByRole('button', {name: '返回草稿', exact: true}).click();
@@ -587,12 +610,15 @@ function fixture(site, variant = '') {
     }
     if (runs('layout')) {
     // 初始下方展开；移动后上方也有空间，卡片仍须保持本次打开的展开方向。
-    const layoutPage = await page('https://github.com/fluentread-fixture/project/issues/22?fixture=draft', 'writing-layout-follow');
+    const layoutPage = await page('https://github.com/fluentread-fixture/project/issues/22?fixture=layout-github', 'writing-layout-follow');
     await layoutPage.setViewportSize({width: 1440, height: 1200});
     const measuredLayoutViewport = await layoutPage.evaluate(() => ({width: innerWidth, height: innerHeight, visualHeight: visualViewport?.height ?? innerHeight, visualTop: visualViewport?.offsetTop ?? 0}));
     assert.equal(measuredLayoutViewport.width, 1440); assert.equal(measuredLayoutViewport.height, 1200, 'layout fixture uses measured content height, not outer browser window height');
     report.layoutFollow = {requestedViewport: {width: 1440, height: 1200}, measuredViewport: measuredLayoutViewport}; await entry(layoutPage).waitFor();
-    await layoutPage.evaluate(() => { document.documentElement.style.overflowAnchor = 'none'; document.body.style.overflowAnchor = 'none'; document.body.style.minHeight = '1800px'; window.scrollTo(0, 0); const main = document.querySelector('main'); const host = document.querySelector('[data-fluent-read-ui="writing-entry"]'); main.style.marginTop = `${parseFloat(getComputedStyle(main).marginTop) + 450 - host.getBoundingClientRect().top}px`; });
+    await assertFixtureNativeLayout(layoutPage, 'GitHub full-width Comment before and after extension mounting');
+    await shot(layoutPage, 'writing-entry-github-wide-comment');
+    const layoutEntryBeforeShift = await layoutPage.locator('[data-fluent-read-ui="writing-entry"]').boundingBox(); assert(layoutEntryBeforeShift, 'layout entry is measurable before positioning');
+    await layoutPage.evaluate(entryTop => { document.documentElement.style.overflowAnchor = 'none'; document.body.style.overflowAnchor = 'none'; document.body.style.minHeight = '1800px'; window.scrollTo(0, 0); const main = document.querySelector('main'); main.style.marginTop = `${parseFloat(getComputedStyle(main).marginTop) + 450 - entryTop}px`; }, layoutEntryBeforeShift.y);
     await oneGeneration(layoutPage, () => entry(layoutPage).click());
     const layout = async () => ({anchor: await layoutPage.locator('[data-fluent-read-ui="writing-entry"]').boundingBox(), card: await layoutPage.locator('.writing-panel').boundingBox()});
     const initialLayout = await layout(); report.layoutFollow.initial = initialLayout; assert(Math.abs(initialLayout.anchor.y - 450) < 1);
@@ -606,8 +632,48 @@ function fixture(site, variant = '') {
       assert(Math.abs(current.card.y - previous.card.y - movement) < 1, label); assert.equal(current.card.width, initialLayout.card.width); assert.equal(current.card.height, initialLayout.card.height); return current;
     };
     await layoutPage.locator('#editor').evaluate(element => { element.style.height = `${element.getBoundingClientRect().height + 80}px`; }); const resizedLayout = await assertFollow(initialLayout, 80, 'editor resizing follows without flipping above'); report.layoutFollow.resized = resizedLayout;
+    await layoutPage.evaluate(() => { window.fixtureLayoutBaseline = Object.fromEntries(Array.from(document.querySelectorAll('[data-fixture-native-action]')).map(element => { const rect = element.getBoundingClientRect(); return [element.id, {x: rect.x, y: rect.y, width: rect.width, height: rect.height}]; })); });
+    await assertFixtureNativeLayout(layoutPage, 'GitHub block/full-width submit wrapper');
+    const nativeLayoutBox = await layoutPage.locator('#native-send').boundingBox(); assert(nativeLayoutBox); await assertEntryDoesNotCover(layoutPage, nativeLayoutBox, 'GitHub block/full-width submit wrapper');
     await layoutPage.locator('[data-testid="comment-composer"]').evaluate(element => { const spacer = document.createElement('div'); spacer.style.height = '24px'; spacer.setAttribute('aria-hidden', 'true'); element.before(spacer); }); const shiftedLayout = await assertFollow(resizedLayout, 24, 'preceding DOM insertion follows without changing direction');
-    report.layoutFollow.insertedBefore = shiftedLayout; await shot(layoutPage, 'writing-layout-follows-fixed-direction'); await closePage(layoutPage); report.cases.push('editor resize and preceding DOM insertion move the card with its anchor while preserving the opening direction');
+    report.layoutFollow.insertedBefore = shiftedLayout; await shot(layoutPage, 'writing-layout-follows-fixed-direction');
+    // 网站主动隐藏/重排控件可以改变其几何；只禁止随后入口重定位造成额外变化。
+    for (const selector of ['.secondary-actions', '.primary-actions']) {
+      await layoutPage.locator(selector).evaluate(element => {
+        if (element.matches('.secondary-actions')) element.style.display = 'none'; else element.parentElement.prepend(element);
+        window.fixtureLayoutBaseline = Object.fromEntries(Array.from(document.querySelectorAll('[data-fixture-native-action]')).map(action => { const rect = action.getBoundingClientRect(); return [action.id, {x: rect.x, y: rect.y, width: rect.width, height: rect.height}]; }));
+      });
+      await wait(160); await assertFixtureNativeLayout(layoutPage, `GitHub host change ${selector}`);
+      const native = await layoutPage.locator('#native-send').boundingBox(); assert(native); await assertEntryDoesNotCover(layoutPage, native, `GitHub host change ${selector}`);
+    }
+    await layoutPage.locator('#editor').evaluate(element => { element.hidden = true; });
+    await entry(layoutPage).waitFor({state: 'hidden'}); await dialog(layoutPage).waitFor({state: 'hidden'});
+    await layoutPage.locator('#editor').evaluate(element => { element.hidden = false; }); await entry(layoutPage).waitFor();
+    await layoutPage.locator('#native-send').evaluate(element => { const rect = element.getBoundingClientRect(); const cover = document.createElement('div'); cover.id = 'fixture-action-cover'; cover.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;background:white;z-index:9999`; document.body.append(cover); });
+    await entry(layoutPage).waitFor({state: 'hidden'}); await layoutPage.locator('#fixture-action-cover').evaluate(element => element.remove()); await entry(layoutPage).waitFor();
+    await closePage(layoutPage);
+
+    const gmailLayout = await page('https://mail.google.com/mail/u/0/?fixture=layout-gmail#inbox', 'writing-layout-gmail');
+    await until(async () => await gmailLayout.locator('[data-fluent-read-ui="writing-entry"]').count() === 2, 'Gmail layout entries');
+    assert.equal(await gmailLayout.locator('[contenteditable="true"][role="textbox"]').count(), 2, 'Gmail fixture has two independent editors');
+    assert.equal(await gmailLayout.locator('[data-fluent-read-ui="writing-entry"]').evaluateAll(elements => elements.map(element => element.getRootNode() instanceof ShadowRoot).every(Boolean)), true, 'Gmail entries stay in the extension Shadow root');
+    await assertFixtureNativeLayout(gmailLayout, 'Gmail table/flex action groups');
+    for (const [index, editorId] of ['first-editor', 'second-editor'].entries()) {
+      const native = gmailLayout.locator(`#${editorId}-send`); await native.scrollIntoViewIfNeeded(); const nativeBox = await native.boundingBox(); assert(nativeBox, `Gmail ${editorId} send is measurable`);
+      const entryForEditor = gmailLayout.locator('[data-fluent-read-ui="writing-entry"]').nth(index); await assertEntryDoesNotCover(gmailLayout, nativeBox, `Gmail ${editorId} action group`, entryForEditor);
+      const generated = await oneGeneration(gmailLayout, () => entryForEditor.click(), {text: `Layout Gmail reply ${index + 1}.`, markdown: true}); assert.equal(quotedData(generated.body).draft, `DRAFT_LAYOUT_${index === 0 ? 'ONE' : 'TWO'}`); await gmailLayout.getByRole('button', {name: '关闭写作助手', exact: true}).click();
+    }
+    await gmailLayout.setViewportSize({width: 390, height: 844}); await wait(220);
+    await gmailLayout.evaluate(() => { window.fixtureLayoutBaseline = Object.fromEntries(Array.from(document.querySelectorAll('[data-fixture-native-action]')).map(element => { const rect = element.getBoundingClientRect(); return [element.id, {x: rect.x, y: rect.y, width: rect.width, height: rect.height}]; })); });
+    await assertFixtureNativeLayout(gmailLayout, 'Gmail narrow action groups');
+    for (const [index, id] of ['first-editor-send', 'second-editor-send'].entries()) { const nativeLocator = gmailLayout.locator(`#${id}`); await nativeLocator.scrollIntoViewIfNeeded(); const native = await nativeLocator.boundingBox(); assert(native); await assertEntryDoesNotCover(gmailLayout, native, `Gmail narrow ${id}`, gmailLayout.locator('[data-fluent-read-ui="writing-entry"]').nth(index)); }
+    await gmailLayout.setViewportSize({width: 220, height: 844}); await wait(220);
+    await gmailLayout.evaluate(() => { window.fixtureLayoutBaseline = Object.fromEntries(Array.from(document.querySelectorAll('[data-fixture-native-action]')).map(element => { const rect = element.getBoundingClientRect(); return [element.id, {x: rect.x, y: rect.y, width: rect.width, height: rect.height}]; })); });
+    await assertFixtureNativeLayout(gmailLayout, 'Gmail insufficient-space action groups');
+    for (const [index, id] of ['first-editor-send', 'second-editor-send'].entries()) { const nativeLocator = gmailLayout.locator(`#${id}`); await nativeLocator.scrollIntoViewIfNeeded(); const native = await nativeLocator.boundingBox(); assert(native); await assertEntryDoesNotCover(gmailLayout, native, `Gmail insufficient-space ${id}`, gmailLayout.locator('[data-fluent-read-ui="writing-entry"]').nth(index)); }
+    await gmailLayout.setViewportSize({width: 1440, height: 1200}); await until(async () => await gmailLayout.locator('[data-fluent-read-ui="writing-entry"]').evaluateAll(elements => elements.every(element => { const style = getComputedStyle(element); return style.visibility !== 'hidden' && style.display !== 'none'; })), 'Gmail entries recover after space is restored');
+    await wait(220); assert.equal((await gmailLayout.locator('[data-fluent-read-ui="writing-entry"]').count()), 2); await shot(gmailLayout, 'writing-layout-gmail-table-flex'); await closePage(gmailLayout);
+    report.cases.push('GitHub block/full-width submit wrapper and flex action groups keep native Comment layout stable through hidden/reordered actions; Gmail table td/role button and multiple editors keep independent overlay entries inside Shadow DOM, follow resize/DOM insertion/scroll and avoid primary-action overlap at narrow width');
     }
     if (runs('context')) {
     const beforeContextConfig = await read();
@@ -653,8 +719,9 @@ function fixture(site, variant = '') {
     const subjectMail = await page('https://mail.google.com/mail/u/0/?fixture=subject#compose', 'subject-only-mail'); await entry(subjectMail).waitFor(); const beforeSubject = requests.length; await entry(subjectMail).click(); await instruction(subjectMail).waitFor(); await wait(850); assert.equal(requests.length, beforeSubject, 'subject-only compose requires an explicit drafting action'); assert.equal(await preview(subjectMail).count(), 0);
     await subjectMail.getByRole('button', {name: '回答风格', exact: true}).click(); await assertStyle(subjectMail); const subjectReply = await oneGeneration(subjectMail, () => subjectMail.getByRole('button', {name: '应用并起草', exact: true}).click()); assert.deepEqual(quotedData(subjectReply.body), {draft: '', context: '邮件主题：Project check-in'}); assert.match(subjectReply.body.messages[0].content, /根据用户要求起草完整文本/); await shot(subjectMail, 'subject-only-mail-explicit-drafting'); await closePage(subjectMail);
     const multiple = await page('https://mail.google.com/mail/u/0/?fixture=multiple#inbox', 'gmail-isolated-conversations'); await until(async () => (await entry(multiple).count()) === 2);
-    for (const [id, own, other] of [['first-editor', 'ONE', 'TWO'], ['second-editor', 'TWO', 'ONE']]) {
-      const generated = await oneGeneration(multiple, () => multiple.locator(`#${id}-conversation`).getByRole('button', {name: '写作助手', exact: true}).click()); const data = quotedData(generated.body);
+    for (const [index, [id, own, other]] of [['first-editor', 'ONE', 'TWO'], ['second-editor', 'TWO', 'ONE']].entries()) {
+      await multiple.locator(`#${id}-send`).scrollIntoViewIfNeeded();
+      const generated = await oneGeneration(multiple, () => multiple.locator('[data-fluent-read-ui="writing-entry"]').nth(index).getByRole('button', {name: '写作助手', exact: true}).click()); const data = quotedData(generated.body);
       assert.equal(data.draft, `DRAFT_THREAD_${own}`); assert(data.context.includes(`THREAD_${own}`)); assert(!data.context.includes(`THREAD_${other}`)); await multiple.getByRole('button', {name: '关闭写作助手', exact: true}).click();
     }
     await closePage(multiple); report.cases.push('new compose waits for points and excludes background mail; multiple Gmail drafts use only their own conversations');
@@ -677,7 +744,8 @@ function fixture(site, variant = '') {
     await patch({writing: {...enabled, enabled: true}}); await entry(dynamic).waitFor(); await oneGeneration(dynamic, () => entry(dynamic).click()); await dynamic.getByRole('button', {name: '关闭写作助手', exact: true}).click();
     await dynamic.evaluate(() => { document.documentElement.style.overflowAnchor = 'none'; document.body.style.overflowAnchor = 'none'; document.body.style.minHeight = '2300px'; });
     // 先把入口放进视口并留足上方空间，避免点击自动滚动或边界钳制干扰精确位移断言。
-    await dynamic.evaluate(() => { const main = document.querySelector('main'); const host = document.querySelector('[data-fluent-read-ui="writing-entry"]'); main.style.marginTop = `${parseFloat(getComputedStyle(main).marginTop) + 650 - host.getBoundingClientRect().top}px`; });
+    const dynamicEntryBeforeShift = await dynamic.locator('[data-fluent-read-ui="writing-entry"]').boundingBox(); assert(dynamicEntryBeforeShift, 'dynamic entry is measurable before scroll positioning');
+    await dynamic.evaluate(entryTop => { const main = document.querySelector('main'); main.style.marginTop = `${parseFloat(getComputedStyle(main).marginTop) + 650 - entryTop}px`; }, dynamicEntryBeforeShift.y);
     await entry(dynamic).click(); await dialog(dynamic).waitFor(); await wait(250);
     const beforeScroll = {card: await dynamic.locator('.writing-panel').boundingBox(), anchor: await dynamic.locator('[data-fluent-read-ui="writing-entry"]').boundingBox(), y: await dynamic.evaluate(() => scrollY)};
     assert(Math.abs(beforeScroll.anchor.y - 650) < 1); assert(beforeScroll.card.y > 72, 'scroll test starts clear of the viewport edge');
