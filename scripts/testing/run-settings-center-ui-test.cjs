@@ -1398,7 +1398,7 @@ async function main() {
         }
         if (id === 'settings-area-translation') {
           const areaCopy = await anchor.innerText();
-          for (const expected of ['圈选翻译服务', '翻译方式', '识别语言', 'Shift + Z', '不上传截图']) {
+          for (const expected of ['圈选翻译服务', '翻译方式', '识别语言', '圈选快捷键', 'Shift+Z', '不上传截图']) {
             if (!areaCopy.includes(expected)) throw new Error(`圈选独立设置缺少产品信息：${expected}`);
           }
           report.assertions.independentAreaSettings = true;

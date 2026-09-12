@@ -33,7 +33,7 @@ const html = `<!doctype html><html><head><title>Area translation</title><style>
 body{font:16px system-ui;margin:40px;background:#edf0f6;color:#202535}h1{font-size:24px}
 #sample{display:block;margin-top:24px;width:740px;height:220px;background:white}
 button{border:20px solid red;color:lime;background:black}p{line-height:3;color:red}
-</style></head><body><h1>圈选翻译 · 真实截图与 OCR 验证</h1><div>OUTSIDE REGION SHOULD NEVER APPEAR</div><canvas id="sample" width="740" height="220"></canvas><input aria-label="输入测试"><div style="height:1800px"></div>
+</style></head><body><h1>圈选翻译 · 真实截图与 OCR 验证</h1><div>OUTSIDE REGION SHOULD NEVER APPEAR</div><canvas id="sample" width="740" height="220"></canvas><input aria-label="输入测试"><div id="focus-container" tabindex="-1">FOCUSABLE CONTAINER</div><div style="height:1800px"></div>
 <script>window.paint=(size=26,dark=false)=>{const c=document.querySelector('#sample');const x=c.getContext('2d');x.fillStyle=dark?'#172133':'#fff';x.fillRect(0,0,c.width,c.height);x.fillStyle=dark?'#fff':'#172133';x.font=size+'px Arial';${JSON.stringify(expectedSource.split('\n'))}.forEach((t,i)=>x.fillText(t,24,50+i*60));};paint();</script></body></html>`;
 const server = http.createServer((request, response) => {
   if (request.method === 'POST') {
@@ -166,6 +166,21 @@ function cer(actual, expected) {
   currentCase = 'editable input keeps Shift+Z';
   await page.locator('input').focus(); await page.keyboard.press('Shift+Z');
   assert.equal(await ui("return !!this.querySelector('.fr-area-selecting')"), false); await page.locator('h1').click(); report.cases.push(currentCase);
+  currentCase = 'focused non-editable container still triggers';
+  await page.locator('#focus-container').focus();
+  await page.keyboard.press('Shift+Z');
+  await wait(() => ui("return !!this.querySelector('.fr-area-selecting')"));
+  await page.keyboard.press('Escape'); await page.locator('h1').click(); report.cases.push(currentCase);
+  currentCase = 'custom shortcut replaces the default one';
+  await patch({selectionAreaHotkey: 'custom', customSelectionAreaHotkey: 'Alt+K'});
+  await wait(async () => (await ui("return !!this.querySelector('.fr-area-selecting')")) === false);
+  await page.keyboard.press('Shift+Z');
+  assert.equal(await ui("return !!this.querySelector('.fr-area-selecting')"), false, 'default shortcut must stop working');
+  await page.keyboard.press('Alt+K');
+  await wait(() => ui("return !!this.querySelector('.fr-area-selecting')"));
+  await page.keyboard.press('Escape');
+  await patch({selectionAreaHotkey: 'Shift+Z', customSelectionAreaHotkey: ''});
+  await page.locator('h1').click(); report.cases.push(currentCase);
   for (const mode of ['open', 'closed']) {
     currentCase = `${mode} shadow input keeps Shift+Z`;
     await page.evaluate(mode => {const host=document.createElement('div');host.id='shadow-input-fixture';document.body.prepend(host);const input=document.createElement('input');const root=host.attachShadow({mode});root.append(input);input.focus();}, mode);

@@ -784,7 +784,35 @@ describe('快捷翻译方案配置', () => {
         expect(normalized).toMatchObject({hotkey, enabled: false});
     });
 
-    it('划词快捷键与快捷翻译可共存，圈选的固定快捷键仍保留既有所有权', () => {
+    it('圈选改用自定义快捷键后，快捷翻译方案按新的圈选快捷键避让', () => {
+        const config = normalizeConfig({
+            selectionAreaEnabled: true,
+            selectionAreaHotkey: 'custom',
+            customSelectionAreaHotkey: 'alt+k',
+            quickTranslationProfiles: [
+                {id: 'old-area', enabled: true, action: 'hover', hotkey: 'Shift+Z'},
+                {id: 'new-area', enabled: true, action: 'full-page', hotkey: 'Alt+K'},
+            ],
+        });
+
+        expect(config).toMatchObject({selectionAreaHotkey: 'custom', customSelectionAreaHotkey: 'Alt+K'});
+        expect(config.quickTranslationProfiles[0]).toMatchObject({hotkey: 'Shift+Z', enabled: true});
+        expect(config.quickTranslationProfiles[1]).toMatchObject({hotkey: 'Alt+K', enabled: false});
+    });
+
+    it('圈选快捷键只接受预设与可用的自定义值，其余配置回到默认 Shift+Z', () => {
+        expect(new Config()).toMatchObject({selectionAreaHotkey: 'Shift+Z', customSelectionAreaHotkey: ''});
+        expect(normalizeConfig({})).toMatchObject({selectionAreaHotkey: 'Shift+Z', customSelectionAreaHotkey: ''});
+        expect(normalizeConfig({selectionAreaHotkey: 'alt+x'})).toMatchObject({selectionAreaHotkey: 'Alt+X'});
+        // 选择自定义却没有可用组合键时不能让圈选失去唯一入口。
+        expect(normalizeConfig({selectionAreaHotkey: 'custom', customSelectionAreaHotkey: 'cmd+k'}))
+            .toMatchObject({selectionAreaHotkey: 'Shift+Z', customSelectionAreaHotkey: ''});
+        for (const invalid of [undefined, 'none', 'Ctrl+C', 42]) {
+            expect(normalizeConfig({selectionAreaHotkey: invalid}).selectionAreaHotkey).toBe('Shift+Z');
+        }
+    });
+
+    it('划词快捷键与快捷翻译可共存，圈选的默认快捷键仍保留既有所有权', () => {
         const normalized = normalizeConfig({
             selectionTranslatorMode: 'bilingual',
             selectionTranslatorTrigger: 'custom',

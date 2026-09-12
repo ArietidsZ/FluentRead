@@ -666,6 +666,7 @@ import {
   withoutModelThinkingPreference,
 } from '@/src/core/config/modelThinking';
 import {withoutModelRequestLimit} from '@/src/core/config/requestLimits';
+import {resolveAreaTranslationHotkey} from '@/src/core/config/areaTranslation';
 import {useServiceModelOptions} from './services/modelOptions';
 import {
   Config,
@@ -1267,7 +1268,9 @@ const imageTranslationEnabled = computed({
 const selectionAreaTranslationEnabled = computed({
   get: () => config.value.selectionAreaEnabled,
   set: (value) => {
-    const conflictMessage = value ? quickTranslationConflictMessage('Shift+Z') : '';
+    const conflictMessage = value
+      ? quickTranslationConflictMessage(resolveAreaTranslationHotkey(config.value.selectionAreaHotkey, config.value.customSelectionAreaHotkey))
+      : '';
     if (conflictMessage) {
       ElMessage.warning(conflictMessage);
       return;

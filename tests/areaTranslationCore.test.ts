@@ -1,16 +1,65 @@
 import { describe, expect, it } from 'vitest';
-import { areaRectToImageCrop, isAreaHotkey, isAreaZKey, isUsableAreaRect, normalizeAreaRect } from '@/src/features/area-translation/core';
+import { areaRectToImageCrop, isUsableAreaRect, normalizeAreaRect } from '@/src/features/area-translation/core';
+import {
+    areaTranslationHotkeyDisplayName,
+    AREA_TRANSLATION_HOTKEY_OPTIONS,
+    DEFAULT_AREA_TRANSLATION_HOTKEY,
+    matchesAreaTranslationHotkey,
+    normalizeAreaTranslationHotkey,
+    normalizeCustomAreaTranslationHotkey,
+    resolveAreaTranslationHotkey,
+} from '@/src/core/config/areaTranslation';
 
-describe('圈选翻译快捷键', () => {
-    it('只接受 Shift+Z，不拦截单独的 Z', () => {
-        expect(isAreaHotkey({ code: 'KeyZ', key: 'Z', shiftKey: true })).toBe(true);
-        expect(isAreaHotkey({ code: 'KeyZ', key: 'z', shiftKey: false })).toBe(false);
-        expect(isAreaHotkey({ code: 'KeyX', key: 'X', shiftKey: true })).toBe(false);
+function keyboardEvent(init: Partial<KeyboardEvent>): KeyboardEvent {
+    return {
+        key: '',
+        code: '',
+        ctrlKey: false,
+        altKey: false,
+        shiftKey: false,
+        metaKey: false,
+        ...init,
+    } as KeyboardEvent;
+}
+
+describe('圈选翻译快捷键配置', () => {
+    it('预设只接受列表内的组合键，其他取值回到默认 Shift+Z', () => {
+        expect(DEFAULT_AREA_TRANSLATION_HOTKEY).toBe('Shift+Z');
+        expect(AREA_TRANSLATION_HOTKEY_OPTIONS.map(option => option.value)).toContain('Alt+Z');
+        expect(normalizeAreaTranslationHotkey('custom')).toBe('custom');
+        expect(normalizeAreaTranslationHotkey('shift+x')).toBe('Shift+X');
+        expect(normalizeAreaTranslationHotkey('option+z')).toBe('Alt+Z');
+        for (const invalid of [undefined, null, 42, '', 'none', 'Shift', 'Ctrl+C', 'Alt+F4']) {
+            expect(normalizeAreaTranslationHotkey(invalid)).toBe('Shift+Z');
+        }
     });
 
-    it('释放 Z 时即使 Shift 已先释放也能清理状态', () => {
-        expect(isAreaZKey({ code: 'KeyZ', key: 'z' })).toBe(true);
-        expect(isAreaZKey({ code: 'KeyA', key: 'a' })).toBe(false);
+    it('自定义组合键保存为规范写法，无法解析时留空', () => {
+        expect(normalizeCustomAreaTranslationHotkey('option+shift+k')).toBe('Alt+Shift+K');
+        expect(normalizeCustomAreaTranslationHotkey('ctrl+f9')).toBe('Ctrl+F9');
+        for (const invalid of [undefined, null, 7, '', 'z', 'cmd+z']) {
+            expect(normalizeCustomAreaTranslationHotkey(invalid)).toBe('');
+        }
+    });
+
+    it('选择自定义但尚未录制成功时仍然保留默认入口', () => {
+        expect(resolveAreaTranslationHotkey('Shift+X', 'Alt+K')).toBe('Shift+X');
+        expect(resolveAreaTranslationHotkey('custom', 'alt+k')).toBe('Alt+K');
+        expect(resolveAreaTranslationHotkey('custom', '')).toBe('Shift+Z');
+        expect(resolveAreaTranslationHotkey('custom', 'cmd+k')).toBe('Shift+Z');
+        // 显示名称跟随平台习惯：macOS 写作 Control/Option，其他系统写作 Ctrl/Alt。
+        expect(['Ctrl+Shift+K', 'Control+Shift+K']).toContain(areaTranslationHotkeyDisplayName('custom', 'ctrl+shift+k'));
+        expect(areaTranslationHotkeyDisplayName('Shift+X', '')).toBe('Shift+X');
+    });
+
+    it('按已配置的组合键匹配事件，修饰键必须完全一致', () => {
+        const shiftZ = keyboardEvent({key: 'Z', code: 'KeyZ', shiftKey: true});
+        expect(matchesAreaTranslationHotkey(shiftZ, 'Shift+Z', '')).toBe(true);
+        expect(matchesAreaTranslationHotkey(keyboardEvent({key: 'z', code: 'KeyZ'}), 'Shift+Z', '')).toBe(false);
+        expect(matchesAreaTranslationHotkey(keyboardEvent({key: 'Z', code: 'KeyZ', shiftKey: true, altKey: true}), 'Shift+Z', '')).toBe(false);
+        expect(matchesAreaTranslationHotkey(shiftZ, 'custom', 'Alt+X')).toBe(false);
+        // macOS 上 Option+X 会把 key 变成不可配置字形，匹配必须回退到物理 code。
+        expect(matchesAreaTranslationHotkey(keyboardEvent({key: '≈', code: 'KeyX', altKey: true}), 'custom', 'Alt+X')).toBe(true);
     });
 });
 

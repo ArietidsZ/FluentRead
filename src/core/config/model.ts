@@ -53,6 +53,12 @@ import {
 } from './translationCache';
 import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import {resolveConfiguredHotkey} from '@/src/core/hotkey';
+import {
+    DEFAULT_AREA_TRANSLATION_HOTKEY,
+    normalizeAreaTranslationHotkey,
+    normalizeCustomAreaTranslationHotkey,
+    resolveAreaTranslationHotkey,
+} from '@/src/core/config/areaTranslation';
 import { normalizeSelectionTtsVoiceOrder } from "./selectionTts";
 import { normalizeUiLanguage, type UiLanguage } from '@/src/core/i18n/language';
 import {normalizeGlossaryIds, normalizeGlossaryLibraries, type GlossaryLibrary} from '@/src/core/glossary';
@@ -277,6 +283,8 @@ export class Config {
     mouseHoverTranslationDelay: number; // 鼠标悬浮翻译触发延迟（毫秒）
     disableSelectionTranslator: boolean; // 是否禁用划词翻译
     selectionAreaEnabled: boolean; // 是否启用圈选翻译
+    selectionAreaHotkey: string; // 圈选翻译触发快捷键；'custom' 表示使用自定义组合键
+    customSelectionAreaHotkey: string; // 自定义圈选翻译快捷键
     areaTranslationMode: 'standard' | 'ai'; // 圈选文字的标准翻译或 AI 上下文增强
     areaTranslationService: string; // 圈选独立翻译服务；空字符串跟随当前服务
     areaRecognitionMode: AreaRecognitionMode; // 圈选优先使用本地 OCR，或在能力确认时优先使用模型识图
@@ -408,6 +416,8 @@ export class Config {
         this.mouseHoverTranslationDelay = DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY;
         this.disableSelectionTranslator = true; // 默认关闭划词翻译
         this.selectionAreaEnabled = true; // 默认开启，按快捷键圈选后才截图翻译
+        this.selectionAreaHotkey = DEFAULT_AREA_TRANSLATION_HOTKEY; // 默认 Shift+Z，可改为其他预设或自定义组合键
+        this.customSelectionAreaHotkey = ''; // 自定义圈选快捷键为空
         this.areaTranslationMode = 'standard';
         this.areaTranslationService = '';
         this.areaRecognitionMode = 'ocr';
@@ -992,6 +1002,12 @@ export function normalizeConfig(value: unknown): Config {
     if (typeof normalized.selectionAreaEnabled !== 'boolean') {
         normalized.selectionAreaEnabled = true;
     }
+    normalized.customSelectionAreaHotkey = normalizeCustomAreaTranslationHotkey(source.customSelectionAreaHotkey);
+    normalized.selectionAreaHotkey = normalizeAreaTranslationHotkey(source.selectionAreaHotkey);
+    // 选择自定义却没有可用组合键时回到预设默认值，圈选翻译不会失去唯一入口。
+    if (normalized.selectionAreaHotkey === 'custom' && !normalized.customSelectionAreaHotkey) {
+        normalized.selectionAreaHotkey = DEFAULT_AREA_TRANSLATION_HOTKEY;
+    }
     if (typeof normalized.disableImageTranslator !== 'boolean') {
         normalized.disableImageTranslator = true;
     }
@@ -1027,7 +1043,9 @@ export function normalizeConfig(value: unknown): Config {
             reservedHotkeys: [
                 resolveConfiguredHotkey(normalized.hotkey, normalized.customHotkey),
                 resolveConfiguredHotkey(normalized.floatingBallHotkey, normalized.customFloatingBallHotkey),
-                ...(normalized.selectionAreaEnabled ? ['Shift+Z'] : []),
+                ...(normalized.selectionAreaEnabled
+                    ? [resolveAreaTranslationHotkey(normalized.selectionAreaHotkey, normalized.customSelectionAreaHotkey)]
+                    : []),
                 inputBoxTranslationTriggerHotkey(normalized.inputBoxTranslationTrigger),
             ],
         },
