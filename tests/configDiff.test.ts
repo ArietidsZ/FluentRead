@@ -180,6 +180,25 @@ describe('配置差异预览', () => {
         ]));
     });
 
+    it('显示段落复制的开关、快捷键与复制内容口径', () => {
+        const changed = buildConfigDiff(
+            {paragraphCopyEnabled: true, paragraphCopyHotkey: 'Alt+C', paragraphCopyContent: 'auto'},
+            {paragraphCopyEnabled: false, paragraphCopyHotkey: 'Shift+D', paragraphCopyContent: 'bilingual'},
+        );
+        expect(group(changed, 'translation')?.changes).toEqual(expect.arrayContaining([
+            {key: 'paragraphCopyEnabled', label: '段落复制', before: '开启', after: '关闭'},
+            {key: 'paragraphCopyHotkey', label: '段落复制快捷键', before: 'Alt+C', after: 'Shift+D'},
+            {key: 'paragraphCopyContent', label: '段落复制内容', before: '跟随页面显示', after: '原文和译文'},
+        ]));
+        const custom = buildConfigDiff({paragraphCopyHotkey: 'Alt+C', customParagraphCopyHotkey: ''}, {
+            paragraphCopyHotkey: 'custom', customParagraphCopyHotkey: 'Alt+J',
+        });
+        expect(group(custom, 'translation')?.changes).toEqual(expect.arrayContaining([
+            {key: 'paragraphCopyHotkey', label: '段落复制快捷键', before: 'Alt+C', after: '自定义快捷键'},
+            {key: 'customParagraphCopyHotkey', label: '自定义段落复制快捷键', before: '未设置', after: 'Alt+J'},
+        ]));
+    });
+
     it('显示界面皮肤和 Popup 栏目可见性，并安全处理异常栏目值', () => {
         const result = buildConfigDiff({
             interfaceSkin: 'default',
