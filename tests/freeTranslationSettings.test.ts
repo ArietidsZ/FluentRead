@@ -160,6 +160,9 @@ describe('free translation settings compiled component', () => {
     const connection = readFileSync(resolve(process.cwd(), 'src/features/settings/ui/services/ServiceConfiguration.vue'), 'utf8');
     expect(connection).toContain('v-if="service === services.freeTranslation"');
     expect(connection).toContain('v-if="service === services.myMemory"');
-    expect(connection).not.toContain('services.azureTranslator');
+    // 云服务厂商（如 Azure 翻译）需要密钥，只能作为独立服务配置，不得进入免费翻译设置。
+    expect(source).not.toContain('azureTranslator');
+    expect(source).not.toContain('cloudVendor');
+    expect(connection).toContain('v-if="compute.showServiceSecret"');
   });
 });

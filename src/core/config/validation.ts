@@ -6,7 +6,7 @@
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
-import { customModelString, options, services, servicesType } from './catalog';
+import { customModelString, getCloudCredentialLabels, options, services, servicesType } from './catalog';
 import {
     getCustomOpenAIProviderLabel,
     isCustomOpenAIProviderId,
@@ -18,6 +18,7 @@ export const API_KEY_REQUIREMENT_KEY_PREFIX = 'v2:' as const;
 
 export interface CredentialConfig {
     token?: Record<string, string | undefined>;
+    secret?: Record<string, string | undefined>;
     model?: Record<string, string | undefined>;
     customModel?: Record<string, string | undefined>;
     requireApiKey?: Record<string, boolean | undefined>;
@@ -89,9 +90,22 @@ export function getMissingCredentialMessage(
 ): string | null {
     const serviceLabel = getServiceLabel(service, config);
 
+    // 云服务厂商的两段密钥必须一起检查，否则用户只填一半时会先收到一条
+    // 泛化的 “需要 API Key” 提示，再在真实请求里撞上签名失败。
+    if (servicesType.isUseSecret(service)) {
+        const labels = getCloudCredentialLabels(service);
+        if (!config.token?.[service]?.trim() || !config.secret?.[service]?.trim()) {
+            return `${serviceLabel} 需要 ${labels.token} 和 ${labels.secret}，当前尚未完整配置；请先在设置中填写，再开始翻译。`;
+        }
+        return null;
+    }
+
     if (servicesType.isUseToken(service) && service !== services.deeplx && isApiKeyRequired(service, config)) {
         if (!config.token?.[service]?.trim()) {
-            return `${serviceLabel} 需要 API Key（访问令牌），当前尚未配置；请先在设置中填写，再开始翻译。`;
+            const labels = getCloudCredentialLabels(service);
+            return servicesType.isCloudVendor(service)
+                ? `${serviceLabel} 需要 ${labels.token}，当前尚未配置；请先在设置中填写，再开始翻译。`
+                : `${serviceLabel} 需要 API Key（访问令牌），当前尚未配置；请先在设置中填写，再开始翻译。`;
         }
     }
 

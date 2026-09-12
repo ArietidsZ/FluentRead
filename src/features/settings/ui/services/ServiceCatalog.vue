@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/ServiceCatalog.vue
  * 文件职责：实现翻译服务目录与筛选选择界面，把机器翻译、模型服务商、聚合平台和动态自定义服务按分层目录呈现为可切换的卡片列表。
- * 主要内容：组件接收当前服务、网站入口和配置，支持目录分组与折叠、关键词搜索、动态 OpenAI 兼容服务、分组计数、官网新标签页跳转和紧凑模型选择。
+ * 主要内容：组件接收当前服务、网站入口、云服务厂商开通指引和配置，支持目录分组与折叠、关键词搜索、动态 OpenAI 兼容服务、分组计数、官网新标签页跳转、免费额度与控制台链接展示和紧凑模型选择。
  * 模块边界：目录只决定“选择哪个服务”，不编辑凭据、不测试连接也不保存配置；详细表单归 ServiceConfiguration.vue，服务定义来自 core/config，外层 SettingsSections 处理持久化。
  -->
 <template>
@@ -159,6 +159,45 @@
           </div>
         </div>
 
+        <aside
+          v-if="credentialGuide"
+          class="credential-guide"
+          data-testid="service-credential-guide"
+          aria-label="免费额度与开通步骤"
+        >
+          <div class="credential-guide-head">
+            <span class="credential-guide-badge">免费额度</span>
+            <strong>{{ credentialGuide.freeQuota }}</strong>
+            <small>额度用尽后由厂商按量计费，请在控制台设置用量告警。</small>
+          </div>
+          <ol class="credential-guide-steps">
+            <li v-for="(step, index) in credentialGuide.steps" :key="index">{{ step }}</li>
+          </ol>
+          <div class="credential-guide-links">
+            <a
+              class="credential-guide-link is-primary"
+              data-testid="service-credential-console"
+              :href="credentialGuide.consoleUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              :title="credentialGuide.consoleUrl"
+            >
+              {{ credentialGuide.consoleLabel }}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M14 3h7v7M21 3 10 14M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5" />
+              </svg>
+            </a>
+            <a
+              class="credential-guide-link"
+              data-testid="service-credential-docs"
+              :href="credentialGuide.docsUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              :title="credentialGuide.docsUrl"
+            >{{ credentialGuide.docsLabel }}</a>
+          </div>
+        </aside>
+
         <div v-if="showModel" class="model-section">
           <div class="model-heading">
             <strong>模型</strong>
@@ -198,6 +237,7 @@ import { isCustomOpenAIProviderId } from '@/src/core/config/customOpenAI'
 import {
   buildServiceSections,
   filterServiceSections,
+  type ServiceCredentialGuide,
   type ServiceOption,
   type ServiceSection,
   type ServiceWebsite,
@@ -214,6 +254,7 @@ const props = defineProps<{
   service: string
   defaultService: string
   website?: ServiceWebsite
+  credentialGuide?: ServiceCredentialGuide
   selectedModel?: string
   services: ServiceOption[]
   modelOptions: ModelPickerOption[]
@@ -238,6 +279,7 @@ const customServices = computed(() => props.services.filter((item) => isCustomOp
 const builtInServices = computed(() => props.services.filter((item) => !isCustomOpenAIProviderId(item.value)))
 const sections = computed(() => buildServiceSections(builtInServices.value))
 const filteredSections = computed(() => filterServiceSections(sections.value, serviceQuery.value))
+// 机器翻译默认收起；云服务厂商是新增分组，默认展开便于发现，用户可自行收起。
 const collapsedSectionIds = ref(new Set(['machine']))
 const manuallyCollapsedSectionIds = ref(new Set<string>())
 const filteredCustomServices = computed(() => {
@@ -362,6 +404,7 @@ watch(() => props.service, () => {
 .current-dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4776; box-shadow: 0 0 0 4px rgba(239, 71, 118, .12); }
 .service-detail { display: flex; min-width: 0; min-height: 0; margin: 14px; padding: 22px; border: 1px solid #e4e7ef; border-radius: 16px; background: #fff; flex-direction: column; overflow: hidden; }
 .service-detail > .detail-hero,
+.service-detail > .credential-guide,
 .service-detail > .model-section,
 .service-detail > .no-model-panel,
 .service-detail > .service-configuration-slot { width: min(100%, 1080px); }
@@ -375,6 +418,19 @@ watch(() => props.service, () => {
 .service-website-link:focus-visible { outline: 2px solid var(--brand-strong, #bd2853); outline-offset: 2px; }
 .active-badge { flex-shrink: 0; white-space: nowrap; padding: 4px 8px; border-radius: 999px; color: #bd2853; background: #ffe9ef; font-size: 10px; font-weight: 800; }
 .detail-hero p { margin: 0; color: #737c8f; font-size: 13px; line-height: 1.6; }
+.credential-guide { display: grid; gap: 12px; margin-top: 16px; padding: 16px 18px; border: 1px solid #f3d4de; border-radius: 14px; background: linear-gradient(180deg, #fff6f9 0%, #fff 100%); }
+.credential-guide-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.credential-guide-badge { flex-shrink: 0; padding: 3px 8px; border-radius: 999px; color: #fff; background: var(--brand-strong, #ef4776); font-size: 10px; font-weight: 800; letter-spacing: .04em; }
+.credential-guide-head strong { color: #172033; font-size: 14px; }
+.credential-guide-head small { flex-basis: 100%; color: #8a93a5; font-size: 11px; }
+.credential-guide-steps { display: grid; gap: 6px; margin: 0; padding-left: 20px; color: #46526a; font-size: 12px; line-height: 1.6; }
+.credential-guide-steps li::marker { color: #c72a56; font-weight: 800; }
+.credential-guide-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.credential-guide-link { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 4px 12px; border: 1px solid #e2e5ec; border-radius: 9px; color: #46526a; background: #fff; font-size: 12px; font-weight: 650; text-decoration: none; transition: 150ms ease; }
+.credential-guide-link:hover { border-color: #f3c4d1; color: var(--brand-strong, #bd2853); background: var(--brand-soft, #fff0f4); }
+.credential-guide-link.is-primary { border-color: transparent; color: #fff; background: var(--brand-strong, #d63260); }
+.credential-guide-link.is-primary:hover { color: #fff; background: var(--brand-strong, #bd2853); filter: brightness(.92); box-shadow: 0 6px 16px rgba(214, 50, 96, .18); }
+.credential-guide-link:focus-visible { outline: 2px solid var(--brand-strong, #bd2853); outline-offset: 2px; }
 .model-section {
   display: grid;
   grid-template-columns: 190px minmax(0, 1fr);
@@ -420,6 +476,15 @@ watch(() => props.service, () => {
 :global(:root.dark .service-item:hover) { border-color: var(--line); background: var(--surface); }
 :global(:root.dark .group-heading-toggle:not(:disabled):hover) { background: var(--brand-soft); }
 :global(:root.dark .service-item.active) { border-color: rgba(255, 138, 171, .48); background: var(--brand-soft); }
+:global(:root.dark .credential-guide) { border-color: rgba(255, 138, 171, .3); background: var(--surface-soft); }
+:global(:root.dark .credential-guide-head strong),
+:global(:root.dark .credential-guide-steps) { color: var(--ink); }
+:global(:root.dark .credential-guide-head small) { color: var(--muted); }
+:global(:root.dark .credential-guide-link) { border-color: var(--line); color: var(--ink); background: var(--surface); }
+:global(:root.dark .credential-guide-link:hover) { border-color: rgba(255, 138, 171, .48); background: var(--brand-soft); }
+/* 暗色下品牌色是浅粉，实心按钮会失去对比；改用与“检查连接”一致的描边强调样式。 */
+:global(:root.dark .credential-guide-link.is-primary) { border-color: rgba(255, 138, 171, .48); color: var(--brand-strong); background: var(--brand-soft); }
+:global(:root.dark .credential-guide-link.is-primary:hover) { border-color: var(--brand-strong); color: var(--brand-strong); background: var(--brand-soft); box-shadow: none; }
 :global(:root.dark .no-model-panel) { border-color: #31594d; background: #1c342d; }
 :global(:root.dark .no-model-panel strong) { color: #a8e8d5; }
 :global(:root.dark .no-model-panel p) { color: #8fc5b5; }

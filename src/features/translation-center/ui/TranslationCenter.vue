@@ -323,7 +323,14 @@ const filteredServiceGroups = computed(() => {
     {
       key: 'machine',
       label: '机器翻译',
-      items: filterItems(availableServiceOptions.value.filter(item => servicesType.isMachine(item.value))),
+      items: filterItems(availableServiceOptions.value.filter(item => (
+        servicesType.isMachine(item.value) && !servicesType.isCloudVendor(item.value)
+      ))),
+    },
+    {
+      key: 'cloud',
+      label: '云服务厂商',
+      items: filterItems(availableServiceOptions.value.filter(item => servicesType.isCloudVendor(item.value))),
     },
     {
       key: 'ai',

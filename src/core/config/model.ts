@@ -12,6 +12,7 @@ import {
     defaultModels,
     defaultOption,
     models,
+    resolveCloudRegion,
     resolveConfiguredModel,
     services,
     servicesType,
@@ -225,6 +226,8 @@ export class Config {
     videoSubtitleFontSize: number; // 视频字幕字号百分比
     videoSubtitleAppearance: VideoSubtitleAppearance; // 视频字幕皮肤与布局参数
     token: IMapping;
+    secret: IMapping; // 与 token 配对的第二段密钥（阿里云/百度/火山等云服务厂商）
+    serviceRegion: IMapping; // 云服务厂商所选地域，决定签名 scope 与请求域名
     requireApiKey: Record<string, boolean>; // 按服务和模型保存 API Key 校验开关
     minimaxBillingPlan: MiniMaxBillingPlan; // MiniMax 计费方案
     minimaxRegion: MiniMaxRegion; // MiniMax API 区域
@@ -354,6 +357,8 @@ export class Config {
         this.videoSubtitleFontSize = DEFAULT_VIDEO_SUBTITLE_FONT_SIZE; // 默认字幕字号
         this.videoSubtitleAppearance = normalizeVideoSubtitleAppearance(DEFAULT_VIDEO_SUBTITLE_APPEARANCE);
         this.token = {};
+        this.secret = {};
+        this.serviceRegion = {};
         this.requireApiKey = {};
         this.minimaxBillingPlan = 'payg';
         this.minimaxRegion = 'cn';
@@ -810,6 +815,8 @@ export function normalizeConfig(value: unknown): Config {
     );
 
     normalized.token = withoutRetiredServiceEntries(normalizeStringMapping(source.token));
+    normalized.secret = withoutRetiredServiceEntries(normalizeStringMapping(source.secret));
+    normalized.serviceRegion = normalizeCloudRegionMapping(source.serviceRegion);
     normalized.model = withoutRetiredServiceEntries(normalizeStringMapping(source.model));
     normalized.documentModel = withoutRetiredServiceEntries(normalizeStringMapping(source.documentModel));
     normalized.requireApiKey = isBooleanMapping(source.requireApiKey)
@@ -1130,6 +1137,18 @@ function normalizeStringMapping(value: unknown): IMapping {
     if (!isRecord(value)) return {};
     return Object.fromEntries(
         Object.entries(value).filter(([, item]) => typeof item === 'string'),
+    );
+}
+
+/**
+ * 地域会同时决定签名 scope 与请求域名，因此只保留白名单内的取值：
+ * 导入配置里的未知地域回落到该服务的默认地域，不需要地域的服务直接丢弃。
+ */
+function normalizeCloudRegionMapping(value: unknown): IMapping {
+    return Object.fromEntries(
+        Object.entries(normalizeStringMapping(value))
+            .filter(([service]) => servicesType.isUseRegion(service))
+            .map(([service, region]) => [service, resolveCloudRegion(service, region)]),
     );
 }
 

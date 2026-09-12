@@ -324,6 +324,8 @@ export function createTranslationProviderConfigSnapshot(
         system_role: frozenStringMap(source.system_role),
         user_role: frozenStringMap(source.user_role),
         token: frozenStringMap(source.token),
+        secret: frozenStringMap(source.secret),
+        serviceRegion: frozenStringMap(source.serviceRegion),
         requireApiKey: frozenBooleanMap(source.requireApiKey),
         youdaoAppKey: source.youdaoAppKey ?? '',
         youdaoAppSecret: source.youdaoAppSecret ?? '',

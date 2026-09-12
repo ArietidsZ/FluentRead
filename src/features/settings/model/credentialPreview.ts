@@ -5,7 +5,7 @@
  * 模块边界：该模块只做纯比较，不返回凭据内容、不读写配置，也不决定导入是否执行。
  */
 
-import {options} from '@/src/core/config/catalog';
+import {getCloudCredentialLabels, options} from '@/src/core/config/catalog';
 import {
     getCustomOpenAIProviderLabel,
     normalizeCustomOpenAIProviders,
@@ -76,9 +76,21 @@ export function buildCredentialPreviewChanges(beforeValue: unknown, afterValue: 
             || getCustomOpenAIProviderLabel(customProviders, service);
         const change = credentialChange(
             `token.${service}`,
-            `${serviceLabel} API Key`,
+            `${serviceLabel} ${getCloudCredentialLabels(service).token}`,
             before.token[service],
             after.token[service],
+        );
+        if (change) changes.push(change);
+    }
+    // 云服务厂商的第二段密钥与主密钥同属一个服务，预览里必须分别列出，
+    // 否则用户无法判断导入会替换哪一半。
+    for (const service of new Set([...Object.keys(before.secret), ...Object.keys(after.secret)])) {
+        const serviceLabel = options.services.find((item: any) => item.value === service)?.label || service;
+        const change = credentialChange(
+            `secret.${service}`,
+            `${serviceLabel} ${getCloudCredentialLabels(service).secret || 'Secret'}`,
+            before.secret[service],
+            after.secret[service],
         );
         if (change) changes.push(change);
     }
