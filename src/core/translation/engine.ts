@@ -172,9 +172,10 @@ export class TranslationCandidateCore {
     constructor(options: TranslationCoreOptions = {}) {
         this.url = options.url ?? currentURL();
         this.scope = options.scope ?? 'content';
-        // 全部节点是用户显式选择的通用界面范围，不继承站点的正文白名单、控件裁剪与
-        // 元数据排除。脚本、表单输入、代码、隐藏区域等保护仍由统一 DOM 硬守卫负责。
-        this.adapters = (this.scope === 'all' ? [] : options.adapters ?? [])
+        // 全部节点默认绕过站点正文边界，仅保留显式适用于全部范围的规则（如模型名称）。
+        // 脚本、表单输入、代码、隐藏区域等保护仍由统一 DOM 硬守卫负责。
+        this.adapters = (options.adapters ?? [])
+            .filter(adapter => this.scope !== 'all' || adapter.allScopes === true)
             .map((adapter, index) => ({adapter, index}))
             .filter(({adapter}) => {
                 try {

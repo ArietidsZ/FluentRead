@@ -252,8 +252,9 @@ export function appendBilingualTranslation(
             '.fluent-read-bilingual-content[data-fr-translation-owned="true"]',
         ))
         .forEach((child) => child.remove());
-    ensureTranslationTruncationLayout(node);
     node.appendChild(content);
+    // 先插入再测量：译文与解除 line-clamp 都可能使固定高度祖先发生新的纵向溢出。
+    ensureTranslationTruncationLayout(node);
     return content;
 }
 

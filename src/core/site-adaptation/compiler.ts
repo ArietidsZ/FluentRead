@@ -128,6 +128,7 @@ function compileRule(pack: SiteRulePack, rule: SiteRule): TranslationSiteAdapter
     });
     return {
         ...adapter,
+        allScopes: rule.allScopes,
         observedAttributes: getSiteRuleObservedAttributes(recipe),
         decide(element, context) {
             return isLiteralLabel(element, recipe.literalLabels!)
