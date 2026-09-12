@@ -456,7 +456,7 @@ export const koKRMessages = {
     'options.aboutProject': '오픈 소스 프로젝트',
     'options.aboutDocs': '문서',
     'options.aboutFeedback': '문제 신고',
-    'options.aboutThanks': 'FluentRead는 커뮤니티의 아낌없는 지원 덕분에 지속적인 개발이 가능한 오픈 소스 프로젝트입니다.',
+    'options.aboutThanks': 'FluentRead는 오픈 소스 프로젝트이며, 지속적인 개발은 커뮤니티의 아낌없는 지원으로 이어집니다. WeChat 또는 Ko-fi로 원하는 방식으로 후원할 수 있습니다.',
     'popup.donationTitle': 'FluentRead 후원',
     'popup.donationDescription': '오픈 소스 프로젝트를 후원해 주셔서 감사합니다.',
     'popup.donationClose': '후원 창 닫기',

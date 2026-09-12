@@ -456,7 +456,7 @@ export const esESMessages = {
     'options.aboutProject': 'Proyecto de código abierto',
     'options.aboutDocs': 'Documentación',
     'options.aboutFeedback': 'Informar de un problema',
-    'options.aboutThanks': 'FluentRead es un proyecto de código abierto cuyo desarrollo continuo es posible gracias al generoso apoyo de su comunidad.',
+    'options.aboutThanks': 'FluentRead es un proyecto de código abierto cuyo desarrollo continuo depende del generoso apoyo de su comunidad. Puedes apoyarlo mediante WeChat o Ko-fi.',
     'popup.donationTitle': 'Apoyar a FluentRead',
     'popup.donationDescription': 'Gracias por apoyar este proyecto de código abierto.',
     'popup.donationClose': 'Cerrar la ventana de apoyo',
