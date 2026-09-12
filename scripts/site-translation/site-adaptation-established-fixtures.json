@@ -173,5 +173,17 @@
     "restoreSelectors": [
       "#body1"
     ]
+  },
+  {
+    "id": "github-mention",
+    "url": "https://github.com/example/project/issues/157",
+    "html": "<main><div class=\"markdown-body\" data-testid=\"markdown-body\"><p id=\"mention\" dir=\"auto\"><a class=\"user-mention notranslate\" data-hovercard-type=\"user\" href=\"https://github.com/example\">@example</a> like this comment, the line must still translate when the pointer rests on the mention.</p><p id=\"plain\" dir=\"auto\">A second comment paragraph stays independently selectable during hover translation.</p></div></main>",
+    "required": [
+      "#mention",
+      "#plain"
+    ],
+    "forbidden": [
+      "#mention > a.user-mention"
+    ]
   }
 ]
