@@ -483,6 +483,8 @@ const modelMigrations: Record<string, Record<string, string>> = {
         'step-1-8k': currentModelIds.jieyue,
     },
     [services.huanYuan]: {
+        // 官方已于 2026-08-31 下线预览版，迁移到正式版并复用模型级偏好迁移。
+        'hy3-preview': currentModelIds.huanYuan,
         'hunyuan-turbos-latest': currentModelIds.huanYuan,
         'hunyuan-t1-latest': currentModelIds.huanYuan,
         'hunyuan-a13b': currentModelIds.huanYuan,
@@ -869,7 +871,7 @@ export function normalizeConfig(value: unknown): Config {
         normalized.model[services.deepseek] = currentModelIds.deepseek;
         normalized.deepseekThinkingMode = 'disabled';
     } else if (selectedModel === 'deepseek-reasoner') {
-        // 官方迁移指南要求 reasoner 使用 v4-flash 并显式开启 thinking。
+        // 旧 reasoner 使用当前 Flash 模型，并显式保留 thinking 开启状态。
         normalized.model[services.deepseek] = currentModelIds.deepseek;
         normalized.deepseekThinkingMode = 'enabled';
     } else if (configuredThinkingMode !== 'enabled' && configuredThinkingMode !== 'disabled') {

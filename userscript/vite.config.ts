@@ -16,6 +16,14 @@ const unicodeNotice = `/*\n${fs.readFileSync(resolve(root, 'public/third-party-n
 const browserShimPath = resolve(root, 'userscript/browser.ts');
 const projectRoot = `${normalizePath(root)}/`;
 
+// dexie 的官方入口以 Symbol.for('Dexie') 作为跨 realm 的单例注册表；该注册一旦进入油猴产物，
+// 与宿主页面的 Dexie 副本撞上不同版本就会在入口处抛错。用产物文本兜底，防止别名将来被改坏。
+const DEXIE_GLOBAL_REGISTRATION = /Symbol\s*\.\s*for\s*\(\s*(['"])Dexie\1\s*\)/u;
+
+export function findDexieGlobalRegistration(code: string): boolean {
+    return DEXIE_GLOBAL_REGISTRATION.test(code);
+}
+
 export const compatibilityPreludeStart = '/* FluentRead userscript compatibility prelude:start */';
 export const compatibilityPreludeEnd = '/* FluentRead userscript compatibility prelude:end */';
 export const executionGuardStart = '/* FluentRead userscript execution guard:start */';
@@ -211,6 +219,13 @@ function bundleUserscriptCss(): Plugin {
             if (leakedGlobals.length > 0) {
                 throw new Error(`Userscript bundle contains unresolved extension globals: ${leakedGlobals.join(', ')}`);
             }
+
+            if (findDexieGlobalRegistration(entry.code)) {
+                throw new Error(
+                    'Userscript bundle registers globalThis[Symbol.for("Dexie")]; import dexie through userscript/dexie.ts '
+                    + 'so a host page carrying another Dexie version cannot abort the script (issue #524)',
+                );
+            }
           },
         },
         writeBundle(_options, bundle) {
@@ -238,6 +253,10 @@ function unwrapWxtEntrypoints(): Plugin {
 }
 
 export const userscriptAliases = [
+    // dexie 官方 ESM 入口把自身注册到跨 realm 共享的 globalThis[Symbol.for('Dexie')]，版本不一致时会在
+    // 模块求值阶段直接抛错。脚本管理器（如 Safari 的 Userscripts）把脚本注入页面主 world，与宿主页面共享
+    // 该注册表，必须换成不注册全局符号的入口，否则整个 bundle 会在入口处中断（issue #524）。
+    {find: /^dexie$/u, replacement: resolve(root, 'userscript/dexie.ts')},
     {find: '@/src/platform/storage/credentialContext', replacement: resolve(root, 'userscript/credentialContext.ts')},
     {find: '@/src/platform/storage/configStorageRuntime', replacement: resolve(root, 'userscript/storage.ts')},
     // app/content 只依赖 feature 公开契约；在此边界替换，才能保证扩展专属 runtime 不进入产物。

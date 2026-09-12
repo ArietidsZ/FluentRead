@@ -75,16 +75,19 @@ describe('模型 Thinking 协议映射', () => {
         payload: Record<string, unknown> = {model},
     ) => applyModelThinkingPreference(payload, {protocol, service, model, enabled});
 
-    it('映射 DeepSeek Chat 和 Responses 的开关字段', () => {
-        expect(apply('deepseek-chat', services.deepseek, 'deepseek-v4-flash', true)).toEqual({
+    it.each(['deepseek-v4-flash', 'deepseek-flash'])('映射 DeepSeek Chat 的 %s 开关字段', (model) => {
+        expect(apply('deepseek-chat', services.deepseek, model, true)).toEqual({
             effect: 'toggle',
-            payload: {model: 'deepseek-v4-flash', thinking: {type: 'enabled'}},
+            payload: {model, thinking: {type: 'enabled'}},
         });
-        expect(apply('deepseek-chat', services.deepseek, 'deepseek-v4-flash', false).payload)
+        expect(apply('deepseek-chat', services.deepseek, model, false).payload)
             .toMatchObject({thinking: {type: 'disabled'}});
-        expect(apply('deepseek-responses', services.deepseek, 'deepseek-v4-flash', true).payload)
+    });
+
+    it.each(['deepseek-v4-flash', 'deepseek-flash'])('映射 DeepSeek Responses 的 %s 开关字段', (model) => {
+        expect(apply('deepseek-responses', services.deepseek, model, true).payload)
             .toMatchObject({reasoning: {effort: 'high'}});
-        expect(apply('deepseek-responses', services.deepseek, 'deepseek-v4-flash', false).payload)
+        expect(apply('deepseek-responses', services.deepseek, model, false).payload)
             .toMatchObject({reasoning: {effort: 'none'}});
     });
 
@@ -108,6 +111,8 @@ describe('模型 Thinking 协议映射', () => {
         ['gemini-2.5-pro', false, 'minimum', {thinkingBudget: 128}],
         ['gemini-3.7-flash', true, 'toggle', {thinkingLevel: 'medium'}],
         ['gemini-3.7-flash', false, 'minimum', {thinkingLevel: 'low'}],
+        ['gemini-3.8-flash', true, 'toggle', {thinkingLevel: 'medium'}],
+        ['gemini-3.8-flash', false, 'minimum', {thinkingLevel: 'low'}],
         ['gemini-3-flash', false, 'minimum', {thinkingLevel: 'minimal'}],
         ['gemini-3.1-flash-lite', true, 'toggle', {thinkingLevel: 'medium'}],
         ['gemini-3.5-flash', false, 'minimum', {thinkingLevel: 'minimal'}],
@@ -218,6 +223,10 @@ describe('模型 Thinking 协议映射', () => {
     });
 
     it('只给已确认的 OpenAI、OpenRouter 与 Kimi 模型添加兼容字段', () => {
+        expect(apply('openai-chat', services.openai, 'gpt-6-astra', true).payload)
+            .toMatchObject({reasoning_effort: 'low'});
+        expect(apply('openai-chat', services.openai, 'gpt-6-astra', false))
+            .toMatchObject({effect: 'minimum', payload: {reasoning_effort: 'low'}});
         expect(apply('openai-chat', services.openai, 'gpt-5.6-luna', true).payload)
             .toMatchObject({reasoning_effort: 'low'});
         expect(apply('openai-chat', services.azureOpenai, 'gpt-5.1', false).payload)

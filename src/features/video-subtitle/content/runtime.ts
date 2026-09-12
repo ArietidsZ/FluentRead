@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/runtime.ts
  * 文件职责：实现 YouTube 与 X 页面视频字幕翻译运行时，协调原生字幕读取、timedtext 预取、逐条翻译、播放时间追赶、显示模式、设置菜单和字幕下载。
- * 主要内容：协调当前视频与全屏宿主、原生轨道、独立识别语言、完整字幕持久缓存恢复、预翻译、菜单进度和取消生命周期，并在切换视频或禁用后清理旧状态。
+ * 主要内容：协调当前视频与全屏宿主、画面尺寸观察、原生轨道、独立识别语言、完整字幕持久缓存恢复、预翻译、菜单进度和取消生命周期，并在切换视频或禁用后清理旧状态。
  * 模块边界：本文件只在 content 页面编排，不拦截 fetch/XHR 也不实现翻译 provider；MAIN-world bridge 在独立模块捕获 timedtext，解析算法在 youtubeSubtitleData，翻译经 app client。
  */
 import browser from 'webextension-polyfill';
@@ -148,6 +148,26 @@ export function mountVideoSubtitleTranslation(): () => void {
   const capturedSubtitleTracks = new Map<string, { url: string; cues: VideoSubtitleCue[] }>();
   const videoTranslator = new VideoTranslationCache((text, signal) => translateVideoText(text, signal, isXVideoPage() ? config.videoSourceLanguage : undefined));
   let observedVideo: HTMLVideoElement | null = null;
+  let layoutPlayer: HTMLElement | null = null;
+  let layoutVideo: HTMLVideoElement | null = null;
+  let layoutFrame: number | undefined;
+  const scheduleSubtitleLayout = () => {
+    if (destroyed || layoutFrame !== undefined) return;
+    layoutFrame = window.requestAnimationFrame(() => {
+      layoutFrame = undefined;
+      if (!destroyed) syncTranslationOverlayPosition(observedContainer);
+    });
+  };
+  const layoutObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(scheduleSubtitleLayout) : null;
+  const observeSubtitleLayout = (player: HTMLElement | null, video: HTMLVideoElement | null) => {
+    if (layoutPlayer === player && layoutVideo === video) return;
+    layoutObserver?.disconnect();
+    layoutPlayer = player;
+    layoutVideo = video;
+    if (player) layoutObserver?.observe(player);
+    if (video) layoutObserver?.observe(video);
+    scheduleSubtitleLayout();
+  };
   let pretranslationTimer: ReturnType<typeof setTimeout> | undefined;
   let pretranslationTrackRequest: Promise<void> | undefined;
   let pretranslationTrackRequestKey = '';
@@ -1621,7 +1641,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     });
   };
 
-  const videoTimelineEventNames = ['timeupdate', 'seeking', 'seeked', 'emptied', 'loadedmetadata', 'durationchange', 'play', 'pause', 'ended', 'ratechange'];
+  const videoTimelineEventNames = ['timeupdate', 'seeking', 'seeked', 'emptied', 'loadedmetadata', 'resize', 'durationchange', 'play', 'pause', 'ended', 'ratechange'];
   const handleVideoTimelineEvent = (event: Event) => {
     const target = event.target as HTMLVideoElement | null;
     if (!target || target.tagName !== 'VIDEO') return;
@@ -1726,6 +1746,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     }
     videoPageKey = nextVideoPageKey;
     if (!isSupportedVideoPage() || !config.on) {
+      observeSubtitleLayout(null, null);
       playerBinding?.sync();
       stopCaptionClock();
       xCaptionSource.restoreTracks();
@@ -1738,6 +1759,8 @@ export function mountVideoSubtitleTranslation(): () => void {
     syncPretranslationConfig();
     syncVideoElement();
     ensurePlayerUi();
+    const layoutTarget = config.videoTranslationEnabled && config.videoSubtitleVisible !== false ? playerLocator.getTarget() : null;
+    observeSubtitleLayout(layoutTarget?.player || null, layoutTarget?.video || null);
     syncXVideoCaptionSource();
     observeCaptionContainer();
     ensurePretranslationTrack();
@@ -1759,6 +1782,8 @@ export function mountVideoSubtitleTranslation(): () => void {
   document.addEventListener('click', handleDocumentClick, true);
   document.addEventListener('keydown', handleDocumentKeydown, true);
   document.addEventListener('visibilitychange', handleVideoVisibilityChange);
+  document.addEventListener('fullscreenchange', scheduleSubtitleLayout);
+  window.addEventListener('resize', scheduleSubtitleLayout);
   videoTimelineEventNames.forEach((eventName) => document.addEventListener(eventName, handleVideoTimelineEvent, true));
   window.addEventListener('message', handleTimedTextMessage);
   window.addEventListener('message', handleXSubtitleResourceMessage);
@@ -1835,10 +1860,16 @@ export function mountVideoSubtitleTranslation(): () => void {
     observedVideo = null;
     if (uiSyncTimer !== undefined) window.clearInterval(uiSyncTimer);
     captionObserver?.disconnect();
+    layoutObserver?.disconnect();
+    if (layoutFrame !== undefined) window.cancelAnimationFrame(layoutFrame);
+    layoutPlayer = null;
+    layoutVideo = null;
     unsubscribeConfig();
     document.removeEventListener('click', handleDocumentClick, true);
     document.removeEventListener('keydown', handleDocumentKeydown, true);
     document.removeEventListener('visibilitychange', handleVideoVisibilityChange);
+    document.removeEventListener('fullscreenchange', scheduleSubtitleLayout);
+    window.removeEventListener('resize', scheduleSubtitleLayout);
     videoTimelineEventNames.forEach((eventName) => document.removeEventListener(eventName, handleVideoTimelineEvent, true));
     window.removeEventListener('message', handleTimedTextMessage);
     window.removeEventListener('message', handleXSubtitleResourceMessage);
