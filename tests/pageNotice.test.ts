@@ -131,8 +131,8 @@ describe('page error notice', () => {
     });
 
     it.each([
-        ['ja-JP', 'あと一歩です：DeepSeek の API キー（アクセストークン） を入力すると翻訳を始められます。', '画像翻訳に失敗しました：オフスクリーンドキュメントの準備がタイムアウトしました'],
-        ['fr-FR', 'Plus qu’une étape : ajoutez App Key et App Secret pour le service de traduction actuel afin de commencer à traduire.', 'Échec de la traduction de l’image : La préparation du document hors écran a expiré'],
+        ['ja-JP' as const, 'あと一歩です：DeepSeek の API キー（アクセストークン） を入力すると翻訳を始められます。', '画像翻訳に失敗しました：オフスクリーンドキュメントの準備がタイムアウトしました'],
+        ['fr-FR' as const, 'Plus qu’une étape : ajoutez App Key et App Secret pour le service de traduction actuel afin de commencer à traduire.', 'Échec de la traduction de l’image : La préparation du document hors écran a expiré'],
     ])('localizes missing credential guidance and runtime feedback in %s', async (language, detail, imageFailure) => {
         registerAllUiLanguageBundles();
         const previousLanguage = config.uiLanguage;
