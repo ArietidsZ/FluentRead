@@ -14,6 +14,7 @@ import type {
     TranslationGlossaryContext,
 } from './types';
 import {normalizeFreeTranslationOrder, normalizeFreeTranslationMode} from '@/src/core/config/freeTranslation';
+import {normalizeApiKeyRecoveryMs} from '@/src/core/config/scheduling';
 import type {CustomOpenAIProvider} from '@/src/core/config/customOpenAI';
 import {normalizeDeepLApiPlan} from '@/src/core/config/deepl';
 import {resolveGlossary} from '@/src/core/glossary';
@@ -328,6 +329,7 @@ export function createTranslationProviderConfigSnapshot(
         customHeaders: frozenStringMap(source.customHeaders),
         serviceRequestLimits: frozenRequestLimitMap(source.serviceRequestLimits),
         modelRequestLimits: frozenModelRequestLimitMap(source.modelRequestLimits),
+        apiKeyRecoveryMs: normalizeApiKeyRecoveryMs(source.apiKeyRecoveryMs),
         system_role: frozenStringMap(source.system_role),
         user_role: frozenStringMap(source.user_role),
         token: frozenStringMap(source.token),

@@ -38,6 +38,7 @@
 
 @media (max-width: 480px) {
   .service-default-control { max-width: none; }
+  .api-key-recovery-control { justify-content: flex-start; width: min(100%, 240px); }
 }
 
 .capability-warning { margin: 6px 0 0; color: #d9345e; font-size: 11px; line-height: 1.5; }
@@ -194,6 +195,27 @@
 .request-default-number { display: flex; align-items: center; gap: 8px; width: 132px; max-width: 100%; }
 .request-default-number :deep(.el-input-number) { min-width: 0; width: 100%; }
 .request-default-number > span { color: var(--muted); font-size: 11px; }
+.api-key-recovery-control {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: min(100%, 178px);
+  min-width: 0;
+}
+.api-key-recovery-control :deep(.el-input-number) {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+.api-key-recovery-control :deep(.el-input-number .el-input__inner) { text-align: right; }
+.api-key-recovery-control > span {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+}
 .request-retry-settings { border-top: 1px solid var(--line); }
 .request-retry-settings > summary { padding: 14px 16px; color: var(--muted); font-size: 12px; cursor: pointer; }
 .request-retry-settings[open] > summary { border-bottom: 1px solid var(--line); }

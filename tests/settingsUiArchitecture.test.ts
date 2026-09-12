@@ -153,6 +153,10 @@ describe('options UI composition architecture', () => {
     expect(cache).not.toContain(':disabled="!props.config.useCache"')
     expect(cache).toContain("onUnmounted(() => { disposed = true; });")
     expect(cache).toContain('@media (max-width: 480px)')
+    const advanced = activeSectionSource(sections, 'settings-advanced')
+    expect(advanced).toContain('data-testid="api-key-recovery-setting"')
+    expect(advanced).toContain("t('settings.requestLimits.apiKeyRecovery')")
+    expect(advanced).toContain('@change="handleApiKeyRecoveryChange"')
   })
 
   it('keeps the WXT options entrypoint as a thin app composition shell', () => {

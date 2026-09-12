@@ -18,11 +18,14 @@ import {DEFAULT_DEEPLX_ENDPOINT, getDeepLXEndpoints} from '@/src/core/config/dee
 import {
     DEFAULT_TRANSLATION_BACKOFF_BASE_MS,
     DEFAULT_TRANSLATION_BACKOFF_MAX_MS,
+    DEFAULT_API_KEY_RECOVERY_MS,
+    MAX_API_KEY_RECOVERY_MS,
     DEFAULT_TRANSLATION_MAX_RETRIES,
     DEFAULT_TRANSLATION_REQUESTS_PER_MINUTE,
     DEFAULT_TRANSLATION_REQUESTS_PER_SECOND,
     DEFAULT_MAX_CONCURRENT_TRANSLATIONS,
     normalizeConfig,
+    normalizeApiKeyRecoveryMs,
     normalizeMaxConcurrentTranslations,
     normalizeTranslationBackoffBaseMs,
     normalizeTranslationBackoffMaxMs,
@@ -130,6 +133,7 @@ describe('配置领域边界与防御分支', () => {
         expect(isSensitiveConfigKey('token')).toBe(true);
         expect(isSensitiveConfigKey('authorization')).toBe(true);
         expect(isSensitiveConfigKey('apiToken')).toBe(true);
+        expect(isSensitiveConfigKey('apiKeyRecoveryMs')).toBe(false);
         expect(isSensitiveConfigKey('requireApiKey')).toBe(false);
         expect(isSensitiveConfigKey('displayName')).toBe(false);
     });
@@ -197,6 +201,12 @@ describe('配置领域边界与防御分支', () => {
             .toMatchObject({maxConcurrentTranslations: 3, translationRequestsPerSecond: 6});
         expect(DEFAULT_TRANSLATION_BACKOFF_BASE_MS).toBe(500);
         expect(DEFAULT_TRANSLATION_BACKOFF_MAX_MS).toBe(3_000);
+        expect(DEFAULT_API_KEY_RECOVERY_MS).toBe(60_000);
+        expect(normalizeApiKeyRecoveryMs(undefined)).toBe(DEFAULT_API_KEY_RECOVERY_MS);
+        expect(normalizeApiKeyRecoveryMs(Number.NaN)).toBe(DEFAULT_API_KEY_RECOVERY_MS);
+        expect(normalizeApiKeyRecoveryMs(0)).toBe(DEFAULT_API_KEY_RECOVERY_MS);
+        expect(normalizeApiKeyRecoveryMs(90_000)).toBe(2 * DEFAULT_API_KEY_RECOVERY_MS);
+        expect(normalizeApiKeyRecoveryMs(MAX_API_KEY_RECOVERY_MS + DEFAULT_API_KEY_RECOVERY_MS)).toBe(MAX_API_KEY_RECOVERY_MS);
         expect(normalizeTranslationRequestsPerSecond(undefined)).toBe(DEFAULT_TRANSLATION_REQUESTS_PER_SECOND);
         expect(normalizeTranslationRequestsPerSecond(-1)).toBe(0);
         expect(normalizeTranslationRequestsPerSecond(2_000)).toBe(1_000);
@@ -215,12 +225,14 @@ describe('配置领域边界与防御分支', () => {
             translationMaxRetries: 5,
             translationBackoffBaseMs: 400,
             translationBackoffMaxMs: 8_000,
+            apiKeyRecoveryMs: 5 * 60_000,
         })).toMatchObject({
             translationRequestsPerSecond: 4,
             translationRequestsPerMinute: 120,
             translationMaxRetries: 5,
             translationBackoffBaseMs: 400,
             translationBackoffMaxMs: 8_000,
+            apiKeyRecoveryMs: 5 * 60_000,
         });
         expect(normalizeConfig({translationBackoffBaseMs: 60_000, translationBackoffMaxMs: 1})
             .translationBackoffMaxMs).toBe(60_000);

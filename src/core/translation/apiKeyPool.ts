@@ -5,8 +5,11 @@
  * 模块边界：只处理调用方提供的摘要身份和时间，不执行 HTTP、配置持久化或界面操作。
  */
 
+import {DEFAULT_API_KEY_RECOVERY_MS} from '@/src/core/config/scheduling';
+
 export const API_KEY_POOL_DEFAULT_WEIGHT = 4;
-export const API_KEY_POOL_RECOVERY_MS = 10 * 60 * 1000;
+/** 未传入用户配置时使用的默认冷却恢复时间。 */
+export const API_KEY_POOL_RECOVERY_MS = DEFAULT_API_KEY_RECOVERY_MS;
 
 export type ApiKeyFailureKind =
   | 'transient'

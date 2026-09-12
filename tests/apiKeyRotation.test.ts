@@ -48,7 +48,7 @@ describe('multi-key request orchestration', () => {
         expect(source.token.demo).toBe(first);
     });
 
-    it('switches immediately on authentication failure and avoids that key until ten minutes', async () => {
+    it('switches immediately on authentication failure and avoids that key until one minute', async () => {
         let time = 0;
         const used: string[] = [];
         const operation = async (selected: ReturnType<typeof config>) => {
@@ -61,10 +61,19 @@ describe('multi-key request orchestration', () => {
         used.length = 0;
         for (let i = 0; i < 8; i++) await run(config(), 'demo', operation, {now: () => time});
         expect(used).not.toContain(first);
-        time = 600_000;
+        time = 60_000;
         used.length = 0;
         for (let i = 0; i < 6; i++) await run(config(), 'demo', operation, {now: () => time});
         expect(used.filter(key => key === first)).toHaveLength(2);
+    });
+
+    it('uses the configured recovery window while keeping the default at one minute', async () => {
+        const operation = vi.fn().mockRejectedValue(failure(401));
+        await expect(run({...config(), apiKeyRecoveryMs: 2 * 60_000}, 'demo', operation, {now: () => 0}))
+            .rejects.toMatchObject({statusCode: 401});
+        await expect(run({...config(), apiKeyRecoveryMs: 2 * 60_000}, 'demo', operation, {now: () => 1_000}))
+            .rejects.toMatchObject({retryAfterMs: 119_000});
+        expect(operation).toHaveBeenCalledTimes(3);
     });
 
     it.each([401, 403, 429, 408, 425, 500, 503])('changes key on HTTP %i', async status => {
@@ -109,7 +118,7 @@ describe('multi-key request orchestration', () => {
         const operation = vi.fn().mockRejectedValue(failure(401));
         await expect(run(config(), 'demo', operation, {now: () => 0})).rejects.toMatchObject({statusCode: 401});
         expect(operation).toHaveBeenCalledTimes(3);
-        await expect(run(config(), 'demo', operation, {now: () => 1000})).rejects.toMatchObject({retryable: false, retryAfterMs: 599_000});
+        await expect(run(config(), 'demo', operation, {now: () => 1000})).rejects.toMatchObject({retryable: false, retryAfterMs: 59_000});
         expect(operation).toHaveBeenCalledTimes(3);
     });
 
