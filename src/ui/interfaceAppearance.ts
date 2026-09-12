@@ -8,23 +8,38 @@
 import {
   getInterfaceFontOption,
   getInterfaceSkinOption,
+  interfaceFontOptions,
   type InterfaceFont,
   type InterfaceSkin,
 } from '@/src/core/config/interfaceAppearance'
 import {readonly, shallowRef} from 'vue'
-import {createInterfaceFontLoader, type InterfaceFontLoadState} from '@/src/services/interfaceFonts'
-import type {InterfaceFontSourceId} from '@/src/core/config/interfaceFontAssets'
+import {createInterfaceFontLoader, getCachedInterfaceFonts, type InterfaceFontLoadState} from '@/src/services/interfaceFonts'
+import {getInterfaceFontAssets, type InterfaceFontSourceId} from '@/src/core/config/interfaceFontAssets'
 
 const fontLoadState = shallowRef<InterfaceFontLoadState>({font: 'system', status: 'system', loaded: 0, total: 0, persistent: true})
 export const interfaceFontLoadState = readonly(fontLoadState)
+const availableFonts = shallowRef<InterfaceFont[]>(['system'])
+export const availableInterfaceFonts = readonly(availableFonts)
+const installedFiles = new Set<string>()
+const openFontCache = async () => caches.open('fluentread-interface-fonts-v1')
+
+export async function refreshInterfaceFontAvailability(): Promise<void> {
+  const cached = await getCachedInterfaceFonts(openFontCache)
+  availableFonts.value = [...new Set([...availableFonts.value, ...cached])]
+}
+
 const fontLoader = createInterfaceFontLoader({
   fetch: (...args) => fetch(...args),
-  openCache: async () => caches.open('fluentread-interface-fonts-v1'),
+  openCache: openFontCache,
   digest: data => crypto.subtle.digest('SHA-256', data),
   install: async (asset, data) => {
     const face = new FontFace(asset.family, data, {weight: asset.weight, style: 'normal', display: 'swap'})
     await face.load()
     document.fonts.add(face)
+    installedFiles.add(asset.file)
+    availableFonts.value = [...new Set([...availableFonts.value, ...interfaceFontOptions
+      .filter(font => getInterfaceFontAssets(font.value).every(item => installedFiles.has(item.file)))
+      .map(font => font.value)])]
   },
   onState: state => { fontLoadState.value = state },
 })

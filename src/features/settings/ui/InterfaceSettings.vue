@@ -180,7 +180,7 @@
   >
     <div class="interface-font-settings">
       <div class="interface-font-picker" role="radiogroup" :aria-label="t('settings.interface.font.label')">
-        <label
+        <div
           v-for="font in interfaceFontOptions"
           :key="font.value"
           class="interface-font-option"
@@ -188,17 +188,31 @@
           :data-font="font.value"
         >
           <input
+            :id="`interface-font-${font.value}`"
             v-model="props.config.interfaceFont"
             type="radio"
             name="interface-font"
             :value="font.value"
             :aria-label="t(font.labelKey)"
           />
-          <span class="interface-font-copy">
+          <label class="interface-font-copy" :for="`interface-font-${font.value}`">
             <strong>{{ t(font.labelKey) }}</strong>
             <small>{{ t(font.descriptionKey) }}</small>
-          </span>
-        </label>
+          </label>
+          <button class="interface-font-action" type="button"
+            :class="{ 'is-download': !availableInterfaceFonts.includes(font.value) }"
+            :disabled="font.value === props.config.interfaceFont && interfaceFontLoadState.status !== 'error'"
+            :aria-label="`${t(fontActionKey(font.value))} · ${t(font.labelKey)}`"
+            @click="selectInterfaceFont(font.value)">
+            <svg v-if="!availableInterfaceFonts.includes(font.value)" class="interface-font-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M7 17H6a4 4 0 0 1-.6-7.95 6.5 6.5 0 0 1 12.5-1.9A5 5 0 0 1 19 17h-2M12 11v10m-3-3 3 3 3-3" />
+            </svg>
+            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" />
+            </svg>
+            {{ t(fontActionKey(font.value)) }}
+          </button>
+        </div>
         <div class="interface-font-preview" :style="{ fontFamily: selectedFontOption.fontFamily }">
           <span>{{ t('settings.interface.font.preview') }}</span>
           <small aria-hidden="true">Aa Bb Cc · 0123456789</small>
@@ -249,7 +263,7 @@
 
 <script lang="ts" setup>
 import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue'
-import {computed, ref} from 'vue'
+import {computed, onMounted, ref} from 'vue'
 import type {Config} from '@/src/core/config/model'
 import {
   DEFAULT_POPUP_MODULE_ORDER,
@@ -265,10 +279,11 @@ import {
   popupQuickFeatureOptions,
   withInterfaceVisibility,
   withPopupQuickFeatureVisibility,
+  type InterfaceFont,
 } from '@/src/core/config/interfaceAppearance'
 import {useUiI18n} from '@/src/ui/i18n'
 import {getInterfaceFontAssets, getInterfaceFontUrl, interfaceFontSources} from '@/src/core/config/interfaceFontAssets'
-import {interfaceFontLoadState, retryInterfaceFont} from '@/src/ui/interfaceAppearance'
+import {availableInterfaceFonts, interfaceFontLoadState, refreshInterfaceFontAvailability, retryInterfaceFont} from '@/src/ui/interfaceAppearance'
 import InterfaceSkinPreview from './components/InterfaceSkinPreview.vue'
 import PopupLayoutPreview from './components/PopupLayoutPreview.vue'
 import PopupLayoutEditor from './PopupLayoutEditor.vue'
@@ -292,6 +307,19 @@ function handleLayoutTabKeydown(event: KeyboardEvent) {
 }
 const selectedSkinOption = computed(() => getInterfaceSkinOption(props.config.interfaceSkin))
 const selectedFontOption = computed(() => getInterfaceFontOption(props.config.interfaceFont))
+onMounted(() => { void refreshInterfaceFontAvailability() })
+function fontActionKey(font: InterfaceFont) {
+  if (font === props.config.interfaceFont) {
+    if (interfaceFontLoadState.value.status === 'loading') return 'settings.interface.font.downloading'
+    if (interfaceFontLoadState.value.status === 'error') return 'settings.interface.font.retry'
+    return 'settings.interface.font.active'
+  }
+  return availableInterfaceFonts.value.includes(font) ? 'settings.interface.font.useFont' : 'settings.interface.font.downloadAndUse'
+}
+function selectInterfaceFont(font: InterfaceFont) {
+  if (font === props.config.interfaceFont) retryInterfaceFont()
+  else props.config.interfaceFont = font
+}
 const fontAssets = computed(() => getInterfaceFontAssets(selectedFontOption.value.value))
 const fontSize = computed(() => `${(fontAssets.value.reduce((sum, asset) => sum + asset.bytes, 0) / 1024 / 1024).toFixed(1)} MB`)
 const fontSourceRegions = [
@@ -303,8 +331,7 @@ const fontStatusText = computed(() => {
   if (state.status === 'system') return t('settings.interface.font.noDownload')
   if (state.status === 'error') return t('settings.interface.font.failed')
   if (state.status === 'ready') return t(state.persistent ? 'settings.interface.font.saved' : 'settings.interface.font.sessionOnly')
-  const source = interfaceFontSources.find(item => item.id === state.source)
-  return `${t('settings.interface.font.downloading')} ${Math.floor(state.loaded / Math.max(1, state.total) * 100)}%${source ? ` · ${source.label}` : ''}`
+  return `${t('settings.interface.font.downloading')} ${Math.floor(state.loaded / Math.max(1, state.total) * 100)}%`
 })
 
 const groupedSkinOptions = interfaceSkinGroups.map((group) => ({
@@ -371,18 +398,18 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 .interface-appearance-settings :deep(.settings-item-copy) { position: sticky; top: 0; }
 
 .interface-font-settings { padding: 16px; }
-.interface-font-download { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 14px; font-size: 12px; line-height: 1.6; }
+.interface-font-download { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; font-size: 12px; line-height: 1.6; }
 .interface-font-status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .interface-font-size { color: var(--muted); margin-left: auto; }
 .interface-font-download progress { width: 100%; height: 6px; accent-color: var(--brand); margin-top: 10px; }
-.interface-font-download button { border: 1px solid var(--border); border-radius: 8px; padding: 4px 10px; background: var(--surface); color: var(--brand); cursor: pointer; font-size: 12px; }
+.interface-font-download button { border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; background: var(--surface); color: var(--brand); cursor: pointer; font-size: 12px; }
 .interface-font-download button:hover { border-color: var(--brand); }
 .interface-font-sources { margin-top: 12px; }
 .interface-font-sources summary { width: fit-content; cursor: pointer; color: var(--brand); }
 .interface-font-sources p { margin: 10px 0; color: var(--muted); }
 .interface-font-source-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 12px; }
 .interface-font-source-grid h4 { margin: 0 0 8px; font-size: 12px; }
-.interface-font-source { border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin-top: 8px; }
+.interface-font-source { border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-top: 8px; }
 .interface-font-source-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .interface-font-links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
 .interface-font-links a { color: var(--brand); overflow-wrap: anywhere; text-underline-offset: 3px; }
@@ -415,7 +442,12 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 .interface-font-option:has(input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 2px; }
 .interface-font-option input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--brand); cursor: pointer; }
 
-.interface-font-copy { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
+.interface-font-copy { display: flex; min-width: 0; flex-direction: column; gap: 5px; cursor: pointer; }
+.interface-font-action { grid-column: 2; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: fit-content; max-width: 100%; margin-top: 3px; border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; font-size: 11px; line-height: 1.5; background: var(--surface); color: var(--brand); cursor: pointer; }
+.interface-font-action.is-download { background: var(--brand-soft); border-color: transparent; }
+.interface-font-action:hover:not(:disabled) { border-color: var(--brand); }
+.interface-font-action:disabled { cursor: default; color: var(--muted); background: transparent; border-color: transparent; }
+.interface-font-action svg { width: 17px; height: 17px; flex-shrink: 0; }
 .interface-font-copy strong { overflow-wrap: anywhere; font-size: 13px; line-height: 1.5; }
 .interface-font-copy small { color: var(--muted); font-size: 11px; line-height: 1.5; }
 

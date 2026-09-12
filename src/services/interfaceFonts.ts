@@ -4,7 +4,7 @@
  * 主要内容：有界流式下载、固定 SHA-256 校验、备用源重试、离线缓存和切换取消。
  * 模块边界：不读取业务配置或凭据，不注入宿主网页；DOM 字体注册由调用方提供。
  */
-import type {InterfaceFont} from '@/src/core/config/interfaceAppearance'
+import {interfaceFontOptions, type InterfaceFont} from '@/src/core/config/interfaceAppearance'
 import {
   getInterfaceFontAssets, getInterfaceFontUrl, interfaceFontSources,
   type InterfaceFontAsset, type InterfaceFontSourceId,
@@ -28,6 +28,17 @@ interface Dependencies {
 }
 const cacheKey = (asset: InterfaceFontAsset) => `https://fluentread.app/__interface_fonts__/${asset.sha256}`
 const aborted = () => new DOMException('Font selection changed', 'AbortError')
+
+/** Only inspect cache keys; never download fonts to populate the picker. */
+export async function getCachedInterfaceFonts(openCache: () => Promise<Cache>): Promise<InterfaceFont[]> {
+  try {
+    const keys = new Set((await (await openCache()).keys()).map(request => request.url))
+    return interfaceFontOptions.filter(font => getInterfaceFontAssets(font.value)
+      .every(asset => keys.has(cacheKey(asset)))).map(font => font.value)
+  } catch {
+    return ['system']
+  }
+}
 
 export async function verifyInterfaceFont(asset: InterfaceFontAsset, data: ArrayBuffer, digest: Dependencies['digest']): Promise<void> {
   if (data.byteLength !== asset.bytes) throw new Error('Font size mismatch')

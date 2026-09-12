@@ -4,7 +4,7 @@ import {webcrypto} from 'node:crypto'
 import {afterEach, describe, expect, it, vi} from 'vitest'
 import {interfaceFontOptions} from '@/src/core/config/interfaceAppearance'
 import {getInterfaceFontAssets, getInterfaceFontUrl, interfaceFontSources, INTERFACE_FONT_REVISION} from '@/src/core/config/interfaceFontAssets'
-import {createInterfaceFontLoader, verifyInterfaceFont, type InterfaceFontLoadState} from '@/src/services/interfaceFonts'
+import {createInterfaceFontLoader, getCachedInterfaceFonts, verifyInterfaceFont, type InterfaceFontLoadState} from '@/src/services/interfaceFonts'
 
 const digest = (data: ArrayBuffer) => webcrypto.subtle.digest('SHA-256', data)
 const bytes = (file: string) => Uint8Array.from(readFileSync(resolve(__dirname, '../assets/interface-fonts', file))).buffer
@@ -29,6 +29,15 @@ function harness() {
 afterEach(() => vi.useRealTimers())
 
 describe('按需字体资源契约', () => {
+  it('只读取缓存键展示下载状态；共享中文未齐全时不把英文字体标成已下载', async () => {
+    const cache = {keys: vi.fn(async () => getInterfaceFontAssets('inter').map(asset => new Request(`https://fluentread.app/__interface_fonts__/${asset.sha256}`)))}
+    const open = vi.fn(async () => cache as unknown as Cache)
+    expect(await getCachedInterfaceFonts(open)).toEqual(['inter', 'noto-sans-sc', 'system'])
+    cache.keys.mockResolvedValueOnce([new Request(`https://fluentread.app/__interface_fonts__/${getInterfaceFontAssets('inter')[0].sha256}`)])
+    expect(await getCachedInterfaceFonts(open)).toEqual(['system'])
+    expect(await getCachedInterfaceFonts(async () => { throw new Error('unavailable') })).toEqual(['system'])
+  })
+
   it('十套方案只加载必需资源，四个入口固定到不可变提交且没有路径注入', async () => {
     expect(interfaceFontOptions).toHaveLength(10)
     expect(getInterfaceFontAssets('system')).toEqual([])
