@@ -77,6 +77,7 @@ export const frFRMessages = {
     "writing.referenceTooLong": "La réponse est trop longue pour être traduite intégralement.",
     "writing.referenceFootnote": "La traduction sert à la lecture. Seule la réponse est copiée ou insérée.",
     "writing.referenceDisabled": "Sans traduction",
+    "writing.previewReference": "Après la génération, une version de référence en {language} apparaît sous le brouillon. La copie et l’insertion ne reprennent que le brouillon.",
     "writing.referenceSearch": "Rechercher une langue de lecture",
 
     "usage.pageSize": "{size} entrées",

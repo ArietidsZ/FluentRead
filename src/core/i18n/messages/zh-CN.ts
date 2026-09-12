@@ -77,6 +77,7 @@ export const zhCNMessages = {
     "writing.referenceTooLong": "正文过长，暂时无法生成完整对照。",
     "writing.referenceFootnote": "对照仅供阅读，复制和插入只包含回复正文。",
     "writing.referenceDisabled": "不显示对照",
+    "writing.previewReference": "生成后会在草稿下方附上 {language} 对照，复制和插入只包含草稿本身。",
     "writing.referenceSearch": "搜索对照语言",
 
     "usage.pageSize": "{size} 条",

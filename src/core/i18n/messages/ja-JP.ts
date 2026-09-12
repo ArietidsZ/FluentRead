@@ -77,6 +77,7 @@ export const jaJPMessages = {
     "writing.referenceTooLong": "本文が長すぎるため、全文を翻訳できません。",
     "writing.referenceFootnote": "対訳は確認用です。コピーと挿入には返信本文だけが含まれます。",
     "writing.referenceDisabled": "対訳を表示しない",
+    "writing.previewReference": "生成後、下書きの下に {language} の対訳が表示されます。コピーと挿入に含まれるのは下書きだけです。",
     "writing.referenceSearch": "対訳の言語を検索",
 
     "usage.pageSize": "{size} 件",
