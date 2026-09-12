@@ -1,0 +1,92 @@
+tests
+   ✓ i18n 全量界面扫描 > Vue 文案和展示注册表在非中文界面有本地化结果 918ms
+ ✓ tests/apiKeyTypes.test.ts (4 tests) 3ms
+
+ Test Files  5 passed (5)
+      Tests  83 passed (83)
+   Start at  17:27:44
+   Duration  2.60s (transform 1.01s, setup 0ms, collect 1.73s, tests 1.20s, environment 1ms, prepare 233ms)
+
+
+compile
+
+> FluentRead-流畅阅读@0.0.32 compile /Users/thinkstu/Desktop/copy/FluentRead-multi-key-20260912
+> vue-tsc --noEmit
+
+
+
+audit
+
+> FluentRead-流畅阅读@0.0.32 test:audit /Users/thinkstu/Desktop/copy/FluentRead-multi-key-20260912
+> node scripts/testing/audit-test-suite.mjs
+
+{
+  "status": "ok",
+  "groups": {
+    "architecture": 28,
+    "unit": 192,
+    "functional": 65,
+    "regression": 20
+  },
+  "files": 305,
+  "cases": 4062
+}
+
+
+build
+  ├─ .output/chrome-mv3/pdfjs/standard_fonts/LICENSE_FOXIT                     1.55 kB  
+  ├─ .output/chrome-mv3/pdfjs/standard_fonts/LICENSE_LIBERATION                4.41 kB  
+  ├─ .output/chrome-mv3/third-party-notices/ai-sdk-adapters-Apache-2.0.txt     703 B    
+  ├─ .output/chrome-mv3/third-party-notices/deepseek-harness-MIT.txt           1.64 kB  
+  ├─ .output/chrome-mv3/third-party-notices/dsh-agent-memory-MIT.txt           1.55 kB  
+  └─ .output/chrome-mv3/third-party-notices/unicode-17.0.0.txt                 2 kB     
+Σ Total size: 55.44 MB                                                       
+✔ Finished in 23.3 s
+
+firefox
+  ├─ .output/firefox-mv2/pdfjs/standard_fonts/LICENSE_FOXIT                     1.55 kB  
+  ├─ .output/firefox-mv2/pdfjs/standard_fonts/LICENSE_LIBERATION                4.41 kB  
+  ├─ .output/firefox-mv2/third-party-notices/ai-sdk-adapters-Apache-2.0.txt     703 B    
+  ├─ .output/firefox-mv2/third-party-notices/deepseek-harness-MIT.txt           1.64 kB  
+  ├─ .output/firefox-mv2/third-party-notices/dsh-agent-memory-MIT.txt           1.55 kB  
+  └─ .output/firefox-mv2/third-party-notices/unicode-17.0.0.txt                 2 kB     
+Σ Total size: 55.44 MB                                                        
+✔ Finished in 35.0 s
+
+manifests
+
+> FluentRead-流畅阅读@0.0.32 verify:extension-manifests /Users/thinkstu/Desktop/copy/FluentRead-multi-key-20260912
+> node scripts/testing/verify-extension-manifests.mjs
+
+{
+  "status": "ok",
+  "chrome": {
+    "manifestVersion": 3,
+    "offscreenPermission": true,
+    "runtimeCapabilityMarker": "__FLUENTREAD_BROWSER_CAPABILITY_BUILD__:chrome:mv3__",
+    "artifacts": [
+      "chunks/offscreen-BaFMQZL9.js",
+      "offscreen.html"
+    ],
+    "ocrAssets": 4
+  },
+  "firefox": {
+    "manifestVersion": 2,
+    "offscreenPermission": false,
+    "runtimeCapabilityMarker": "__FLUENTREAD_BROWSER_CAPABILITY_BUILD__:firefox:mv2__",
+    "artifacts": [
+      "chunks/offscreen-BaFMQZL9.js",
+      "offscreen.html"
+    ],
+    "ocrAssets": 4,
+    "geckoId": "{3096bd53-3bda-4556-b076-ebf47442a5c1}",
+    "strictMinVersion": "140.0",
+    "dataCollectionPermissions": [
+      "websiteContent",
+      "authenticationInfo",
+      "personalCommunications"
+    ],
+    "archives": [],
+    "archiveOcrAssets": 0
+  }
+}

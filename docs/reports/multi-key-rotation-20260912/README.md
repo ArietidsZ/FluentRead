@@ -1,5 +1,7 @@
 # 多 API Key 自动轮换与逐项检查
 
+> 后续已重整密钥管理界面；最新交互与截图见 [多 Key 界面重整](../multi-key-ui-20260912/README.md)。本页保留初版机制及其回归证据。
+
 对应 [Issue #161](https://github.com/FluentRead/FluentRead/issues/161) 和 [Issue #171](https://github.com/FluentRead/FluentRead/issues/171)。同一翻译服务可以逐行添加多个 Key；翻译时自动分担请求并避开失败的 Key，检查连接时则明确检查每一行。
 
 本报告的运行时代码基于 `6499537e5138e640ecd263a778bff9574e595447`，已整合主分支 `64cc5e1c10b331bd0adc371e1aaae7308d148db9`。随后只补充浏览器测试场景与本报告，不修改运行时代码。

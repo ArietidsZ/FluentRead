@@ -28,15 +28,7 @@
     <Teleport defer to=".detail-hero">
       <div class="detail-actions">
         <button
-          v-if="compute.showCustomOpenAI"
-          type="button"
-          class="delete-service-button"
-          data-testid="custom-service-delete"
-          @click="confirmDeleteProvider"
-        >
-          删除服务
-        </button>
-        <button
+          v-if="!compute.showToken || compute.showServiceSecret"
           type="button"
           class="connection-test-button"
           data-connection-test-button
@@ -156,15 +148,9 @@
       :label="compute.showCloudVendor ? compute.cloudCredentialLabels.token : 'API Key'"
       :data-cloud-credential="compute.showCloudVendor ? 'token' : undefined"
       :keys="apiKeys" :states="apiKeyChecks" :summary="apiKeySummary" :busy="connectionTestBusy"
-      @add="addApiKey" @update="updateApiKey" @remove="removeApiKey" @test="testSingleApiKey" @stop="stopApiKeyChecks"
-    >
-      <template v-if="compute.showAI" #policy>
-        <div class="api-key-requirement">
-          <span>{{ compute.requireApiKey ? '此模型需要 API Key' : '允许无 Key 请求' }}</span>
-          <el-switch v-model="compute.requireApiKey" aria-label="当前模型是否需要 API Key" size="small" />
-        </div>
-      </template>
-    </ApiKeyList>
+      :allow-anonymous="compute.showAI && !compute.requireApiKey" :check-mode="apiKeyCheckMode"
+      @add="addApiKey" @update="updateApiKey" @remove="removeApiKey" @test="testSingleApiKey" @test-all="testConnection" @stop="stopApiKeyChecks"
+    />
     <div v-if="compute.showOllamaEndpoint" class="connection-field" data-ollama-endpoint>
       <div class="connection-field-label">
         <strong>服务地址</strong>
@@ -377,6 +363,15 @@
       </summary>
 
       <div class="custom-advanced-content">
+        <div v-if="compute.showAI && compute.showToken && !compute.showServiceSecret" class="connection-field" data-api-key-auth-policy>
+          <div class="connection-field-label">
+            <strong>{{ t('settings.services.keys.authRequired') }}</strong>
+            <small>{{ t('settings.services.keys.authHelp') }}</small>
+          </div>
+          <div class="connection-field-control">
+            <el-switch v-model="compute.requireApiKey" :aria-label="t('settings.services.keys.authRequired')" />
+          </div>
+        </div>
         <RequestLimitSettings :config="config" :service="service" :model="compute.showModel ? effectiveModelLabel : undefined" />
         <el-row v-if="compute.showDeepseekApiType" class="margin-bottom margin-left-2em">
           <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="选择 DeepSeek 接口使用的 API 格式。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">API 格式<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
@@ -460,6 +455,9 @@
             <div v-if="!isValidCustomBody(config.customBody[service])" class="error-text">请输入合法的 JSON 对象，否则该配置将被忽略</div>
           </el-col>
         </el-row>
+        <div v-if="compute.showCustomOpenAI" class="service-maintenance-actions">
+          <button type="button" class="delete-service-button" data-testid="custom-service-delete" @click="confirmDeleteProvider">删除服务</button>
+        </div>
       </div>
     </details>
   </section>
@@ -577,6 +575,7 @@ const apiKeys = computed(() => {
 const apiKeyIndexes = computed(() => eligibleApiKeyIndexes(apiKeys.value))
 const apiKeyChecks = ref<Record<number, ApiKeyCheckState>>({})
 const apiKeySummary = ref<ApiKeySummary | null>(null)
+const apiKeyCheckMode = ref<'single' | 'all'>('all')
 
 function syncApiKeys(next: string[]): void {
   const value = next.length > 0 ? next : ['']
@@ -825,6 +824,7 @@ function stopApiKeyChecks(): void {
 
 async function testSingleApiKey(index: number): Promise<void> {
   if (connectionTestBusy.value || !apiKeyIndexes.value.includes(index)) return
+  apiKeyCheckMode.value = 'single'
   const generation = ++connectionTestGeneration
   connectionTestBusy.value = true
   connectionTestState.value = 'testing'
@@ -853,6 +853,7 @@ async function testSingleApiKey(index: number): Promise<void> {
 
 async function testConnection(): Promise<void> {
   if (connectionTestBusy.value) return
+  apiKeyCheckMode.value = 'all'
 
   const testedService = service.value
   const generation = ++connectionTestGeneration
@@ -1217,18 +1218,19 @@ onBeforeUnmount(() => {
   margin-left: auto;
 }
 
+.service-maintenance-actions { display: flex; justify-content: flex-end; margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--line, #e3e7ee); }
 .delete-service-button {
   padding: 8px 12px;
-  border: 1px solid #e2a4b5;
-  border-radius: 9px;
-  color: #ad3657;
-  background: #fff;
+  border: 0;
+  border-radius: 7px;
+  color: var(--muted, #737d90);
+  background: transparent;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   cursor: pointer;
 }
 
-.delete-service-button:hover { border-color: #d9345e; background: #fff1f4; }
+.delete-service-button:hover { color: var(--brand-strong, #ad3657); background: var(--brand-soft, #fff1f4); }
 
 .custom-advanced-settings {
   margin-top: 14px;
