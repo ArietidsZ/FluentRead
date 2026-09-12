@@ -27,6 +27,10 @@ describe('extension manifest capability contract', () => {
         expect(sourceBody('entrypoints/content.ts')).not.toContain('allFrames');
     });
 
+    it('通用网页内容脚本在基础 DOM 出现前注入，让 loading 页面也能建立翻译入口', () => {
+        expect(sourceBody('entrypoints/content.ts')).toContain("runAt: 'document_start'");
+    });
+
     it('declares the literal all-URLs host permission required by captureVisibleTab', () => {
         for (const [browser, manifestVersion] of [
             ['chrome', 3],
@@ -112,23 +116,23 @@ describe('extension manifest capability contract', () => {
             ): string[];
         };
         const expected = [
-            'fluent-read-0.0.32-firefox.zip',
-            'fluent-read-0.0.32-sources.zip',
+            'fluent-read-0.0.33-firefox.zip',
+            'fluent-read-0.0.33-sources.zip',
         ];
 
         expect(verifier.findUnexpectedCurrentVersionArchives([
             ...expected,
             '-0.0.30-firefox.zip',
-            'legacy-10.0.32-sources.zip',
-        ], '0.0.32', expected)).toEqual([]);
+            'legacy-10.0.33-sources.zip',
+        ], '0.0.33', expected)).toEqual([]);
         expect(verifier.findUnexpectedCurrentVersionArchives([
             ...expected,
-            '-0.0.32-firefox.zip',
-            'legacy-v0.0.32-sources.zip',
+            '-0.0.33-firefox.zip',
+            'legacy-v0.0.33-sources.zip',
             'fluent-read-0.0.30-firefox.zip',
-        ], '0.0.32', expected)).toEqual([
-            '-0.0.32-firefox.zip',
-            'legacy-v0.0.32-sources.zip',
+        ], '0.0.33', expected)).toEqual([
+            '-0.0.33-firefox.zip',
+            'legacy-v0.0.33-sources.zip',
         ]);
     });
 

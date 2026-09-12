@@ -286,19 +286,19 @@ describe('translation API request lifecycle performance', () => {
     expect(mocks.config.model['mock-ai']).toBe('mock-ai-model');
   });
 
-  it('仅为 Chrome auto 转发纯检测样本，并给首次模型下载保留五分钟预算', async () => {
+  it.each(['chromeTranslator', 'localTranslation'])('仅为本地 %s auto 转发纯检测样本', async (service) => {
     mocks.sendMessage.mockResolvedValue('译文');
     const markedText = '___FLUENTREAD_test_0_BEGIN___\nBonjour\n___FLUENTREAD_test_0_END___';
 
     await expect(translateText(markedText, 'Context', {
-      serviceOverride: 'chromeTranslator',
+      serviceOverride: service,
       sourceLanguage: 'auto',
       targetLanguage: 'zh-Hans',
       sourceLanguageDetectionText: 'Bonjour',
       maxRetries: 0,
     })).resolves.toBe('译文');
     await expect(translateText(markedText, 'Context', {
-      serviceOverride: 'chromeTranslator',
+      serviceOverride: service,
       sourceLanguage: 'fr',
       targetLanguage: 'zh-Hans',
       sourceLanguageDetectionText: 'Bonjour',
@@ -315,14 +315,14 @@ describe('translation API request lifecycle performance', () => {
     const [chromeAuto, chromeExplicit, cloudAuto] = mocks.sendMessage.mock.calls.map(([message]) => message);
     expect(chromeAuto).toMatchObject({
       origin: markedText,
-      serviceOverride: 'chromeTranslator',
+      serviceOverride: service,
       sourceLanguage: 'auto',
       sourceLanguageDetectionText: 'Bonjour',
-      requestTimeoutMs: 299_000,
+      requestTimeoutMs: service === 'chromeTranslator' ? 299_000 : 44_000,
     });
     expect(chromeExplicit).not.toHaveProperty('sourceLanguageDetectionText');
     expect(cloudAuto).not.toHaveProperty('sourceLanguageDetectionText');
-    expect(chromeExplicit).toMatchObject({requestTimeoutMs: 299_000});
+    expect(chromeExplicit).toMatchObject({requestTimeoutMs: service === 'chromeTranslator' ? 299_000 : 44_000});
     expect(cloudAuto).toMatchObject({requestTimeoutMs: 44_000});
   });
 

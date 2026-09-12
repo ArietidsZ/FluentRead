@@ -512,6 +512,34 @@ describe('动态翻译稳定性判定', () => {
         )).toBe(true);
     });
 
+    it('按钮型 input 的属性译文按已记录值复验，宿主改回原标签即判为失效', () => {
+        const {document} = parseHTML(
+            '<html><body><input id="save" type="button" value="保存草稿"></body></html>');
+        const node = document.querySelector<HTMLElement>('#save')!;
+        const translated = state({
+            kind: 'control', phase: 'translated', mode: 'bilingual', sourceText: 'Save draft',
+            sourceHTML: node.innerHTML, sourceTextNodes: [], translatedTextNodes: [],
+            textSlotsApplied: true, translatedTextValues: new WeakMap(),
+            sourceStructureSignature: getTranslationSourceStructureSignature(node),
+            controlValue: {attribute: 'value', original: 'Save draft', translated: '保存草稿'},
+        });
+        const valueMutation = {
+            type: 'attributes', attributeName: 'value', target: node,
+            addedNodes: [] as unknown as NodeList,
+            removedNodes: [] as unknown as NodeList,
+        } as unknown as MutationRecord;
+
+        expect(statefulSourceAndTextSlotsAreCurrent(node, translated)).toBe(true);
+        expect(isTranslationArtifactCurrent(node, translated)).toBe(true);
+        expect(isOwnStateArtifactMutation(valueMutation, node, translated)).toBe(true);
+        expect(isOwnStateArtifactMutation(
+            {...valueMutation, attributeName: 'class'} as MutationRecord, node, translated)).toBe(false);
+
+        node.setAttribute('value', 'Save draft');
+        expect(statefulSourceAndTextSlotsAreCurrent(node, translated)).toBe(false);
+        expect(isOwnStateArtifactMutation(valueMutation, node, translated)).toBe(false);
+    });
+
     it('只把当前 single-slot host 和完整双语 wrapper 识别为自身新增工件', () => {
         const {document} = parseHTML('<html><body><p>source</p></body></html>');
         const owner = document.querySelector<HTMLElement>('p')!;

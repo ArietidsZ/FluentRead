@@ -40,7 +40,7 @@ export interface TranslationRequestMessageBase {
     /** 翻译中心仅对当前请求使用的语言，不改变全局设置。 */
     sourceLanguage?: string;
     targetLanguage?: string;
-    /** 仅供 Chrome 内置翻译在 auto 模式检测语言；正文仍以 origin 为准。 */
+    /** 仅供本地模型或 Chrome 内置翻译在 auto 模式检测语言；正文仍以 origin 为准。 */
     sourceLanguageDetectionText?: string;
     /** provider deadline；用于避免可选摘要耗尽整次请求。 */
     requestTimeoutMs?: number;
@@ -142,6 +142,7 @@ export interface TranslationConfigSnapshot {
     deeplApiPlan?: DeepLApiPlan;
     deeplx: string;
     freeTranslationOrder?: readonly string[];
+    freeTranslationMode?: 'balanced' | 'sequential';
     freeTranslationTimeoutMs?: number;
     freeTranslationCooldownMs?: number;
     myMemoryEmail?: string;
@@ -180,10 +181,13 @@ export interface TranslationConfigSnapshot {
             translationRequestsPerMinute: number;
         };
     }>>;
+    /** 多 API Key 失败后默认冷却恢复时间；服务端 Retry-After 优先。 */
+    apiKeyRecoveryMs?: number;
 }
 
 export interface TranslationProviderConfigFields {
     token: Record<string, string>;
+    apiKeys?: Record<string, readonly string[]>;
     /** 云服务厂商与主密钥配对的第二段密钥，按服务标识存放。 */
     secret: Record<string, string>;
     requireApiKey: Record<string, boolean>;

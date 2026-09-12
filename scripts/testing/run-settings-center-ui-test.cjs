@@ -1404,6 +1404,46 @@ async function main() {
           report.assertions.independentAreaSettings = true;
         }
       }
+      if (id === 'settings-about') {
+        const supportPanel = anchor.locator('.about-support-panel');
+        const supportMethods = supportPanel.locator('.about-support-method');
+        if (await supportPanel.count() !== 1 || await supportMethods.count() !== 2) {
+          throw new Error('关于页缺少微信与 Ko-fi 两个赞赏入口');
+        }
+        const supportLinks = await supportMethods.evaluateAll(methods => methods.map(method => ({
+          provider: method.dataset.supportMethod,
+          href: method.getAttribute('href'),
+          text: method.textContent?.trim(),
+        })));
+        if (supportLinks[0]?.provider !== 'wechat' || supportLinks[0]?.href !== '/misc/approve.jpg'
+          || supportLinks[1]?.provider !== 'kofi' || supportLinks[1]?.href !== 'https://ko-fi.com/thinkstu') {
+          throw new Error(`关于页赞赏链接异常：${JSON.stringify(supportLinks)}`);
+        }
+        const qrBounds = await supportPanel.locator('.about-support-qr').boundingBox();
+        if (!qrBounds || qrBounds.width < 200 || qrBounds.height < 200) {
+          throw new Error(`关于页没有直接展示足够大的二维码：${JSON.stringify(qrBounds)}`);
+        }
+        const [qrPage] = await Promise.all([
+          context.waitForEvent('page', {timeout}),
+          supportPanel.locator('.about-support-wechat').click(),
+        ]);
+        await qrPage.waitForLoadState('domcontentloaded', {timeout});
+        if (!qrPage.url().endsWith('/misc/approve.jpg')) {
+          throw new Error(`点击二维码没有打开原图：${qrPage.url()}`);
+        }
+        await qrPage.close();
+        if (await supportPanel.locator('.about-support-original-link').count() !== 0) {
+          throw new Error('关于页仍显示多余的原图文字链接');
+        }
+        const supportCopy = await supportPanel.innerText();
+        if (!supportCopy.includes('FluentRead的发展离不开社区的慷慨支持，你可以通过微信赞赏或Ko-fi支持我们。')) {
+          throw new Error('关于页赞赏说明没有使用当前中文 i18n 文案');
+        }
+        if (await anchor.locator('.about-feature-list').count() !== 0) {
+          throw new Error('关于页仍显示已替换的核心体验列表');
+        }
+        report.assertions.aboutSupportArea = true;
+      }
       const visiblePageHeadings = await page.locator('.topbar h1:visible').count();
       if (visiblePageHeadings !== 1) throw new Error(`${id} 页面级标题数量异常：${visiblePageHeadings}`);
       if (await page.locator('.card-intro:visible').count() !== 0) throw new Error(`${id} 仍有重复 card intro`);

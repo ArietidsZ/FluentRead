@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {installContentPageLifecycle} from '@/src/app/content/pageLifecycle';
+import {installContentPageLifecycle, waitForContentDocument} from '@/src/app/content/pageLifecycle';
 
 const mocks = vi.hoisted(() => ({
     config: {
@@ -33,6 +33,7 @@ vi.mock('@/src/app/content/features', () => ({
         'inputBoxTranslationConfigKey', 'isAreaTranslatorMounted', 'isFullPageTranslationActive',
         'mountAreaTranslator', 'mountFloatingBall', 'mountImageTranslator', 'mountSelectionTranslator',
         'mountTranslationProgressPanel', 'mountVideoSubtitleTranslation', 'isSupportedVideoPage',
+        'mountParagraphCopyContentFeature',
         'unmountAreaTranslator', 'unmountFloatingBall',
         'unmountImageTranslator', 'unmountSelectionTranslator', 'unmountTranslationProgressPanel',
     ].map(name => [name, vi.fn()])),
@@ -65,6 +66,82 @@ function transition(target: EventTarget, type: string, persisted = false, truste
     Object.defineProperty(event, 'isTrusted', {value: trusted});
     target.dispatchEvent(event);
 }
+
+class FakeMutationObserver {
+    static instance: FakeMutationObserver | null = null;
+    readonly observe = vi.fn();
+    readonly disconnect = vi.fn();
+
+    constructor(private readonly callback: () => void) {
+        FakeMutationObserver.instance = this;
+    }
+
+    trigger(): void {
+        this.callback();
+    }
+}
+
+function createLoadingDocument(): {document: Document; setBody: () => void} {
+    const target = new EventTarget() as Document;
+    const documentElement = {isConnected: true} as unknown as HTMLElement;
+    let body: Node | null = null;
+    Object.defineProperties(target, {
+        documentElement: {configurable: true, get: () => documentElement},
+        body: {configurable: true, get: () => body},
+    });
+    return {
+        document: target,
+        setBody: () => { body = {isConnected: true} as unknown as Node; },
+    };
+}
+
+describe('content document 基础 DOM 就绪边界', () => {
+    afterEach(() => {
+        FakeMutationObserver.instance = null;
+        vi.unstubAllGlobals();
+    });
+
+    it('body 出现后立即放行，不等待 DOMContentLoaded', async () => {
+        const {document, setBody} = createLoadingDocument();
+        vi.stubGlobal('MutationObserver', FakeMutationObserver);
+        const ready = waitForContentDocument(document, new AbortController().signal);
+
+        expect(FakeMutationObserver.instance).not.toBeNull();
+        setBody();
+        FakeMutationObserver.instance!.trigger();
+
+        await expect(ready).resolves.toBe(true);
+        expect(FakeMutationObserver.instance!.disconnect).toHaveBeenCalledOnce();
+        FakeMutationObserver.instance!.trigger();
+    });
+
+    it('已有基础 DOM 时同步放行', async () => {
+        const {document, setBody} = createLoadingDocument();
+        setBody();
+
+        await expect(waitForContentDocument(document, new AbortController().signal)).resolves.toBe(true);
+    });
+
+    it('信号已取消时不建立观察器', async () => {
+        const {document} = createLoadingDocument();
+        const controller = new AbortController();
+        controller.abort();
+
+        await expect(waitForContentDocument(document, controller.signal)).resolves.toBe(false);
+    });
+
+    it('页面离开时结束等待，不迟到激活内容功能', async () => {
+        const {document} = createLoadingDocument();
+        const controller = new AbortController();
+        vi.stubGlobal('MutationObserver', FakeMutationObserver);
+        const ready = waitForContentDocument(document, controller.signal);
+
+        controller.abort();
+
+        await expect(ready).resolves.toBe(false);
+        expect(FakeMutationObserver.instance!.disconnect).toHaveBeenCalledOnce();
+    });
+});
 
 describe('content runtime 页面生命周期', () => {
     it('取消离开不卸载，往返缓存暂停后可恢复，真正离开只销毁一次', () => {

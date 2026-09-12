@@ -17,7 +17,7 @@ import {createOffscreenMessageListener} from './messageRouter';
 import {createSelectionTtsPlayer} from './ttsPlayback';
 import {translateWithChromeApi, type ChromeTranslationEnvironment} from './translation';
 import {removeLocalVideoTranscriptionModel, cancelLocalVideoTranscription, prepareLocalVideoTranscriptionModel, transcribeLocalVideoAudio} from '@/src/features/video-subtitle/offscreen/transcription';
-
+import {
     disposeLocalTtsWorker,
     getLocalTtsModelStatus,
     prepareLocalTtsModel,
@@ -25,6 +25,15 @@ import {removeLocalVideoTranscriptionModel, cancelLocalVideoTranscription, prepa
     synthesizeLocalTts,
 } from '@/src/features/local-tts/offscreen/tts';
 import {
+    disposeLocalTranslationWorker,
+    configureLocalTranslationDownloadNotifications,
+    pauseLocalTranslationModelDownload,
+    getLocalTranslationModelStatus,
+    prepareLocalTranslationModel,
+    removeLocalTranslationModel,
+    translateLocalText,
+} from '@/src/features/local-translation/offscreen/translation';
+
 function decodeAudioBase64(audioBase64: string): Uint8Array {
     const binary = atob(audioBase64);
     const bytes = new Uint8Array(binary.length);
@@ -34,6 +43,12 @@ function decodeAudioBase64(audioBase64: string): Uint8Array {
 
 /** 组装 Offscreen 的实验 API、Audio/Blob 和图片 OCR 浏览器能力。 */
 export function startOffscreenApp(): void {
+    configureLocalTranslationDownloadNotifications((snapshot) => new Promise<void>((resolve) => {
+        chrome.runtime.sendMessage({type: 'fluentReadLocalTranslationDownloadProgress', snapshot}, () => {
+            void chrome.runtime.lastError;
+            resolve();
+        });
+    }));
     const ttsPlayer = createSelectionTtsPlayer({
         createAudio: () => new Audio(),
         decodeBase64: decodeAudioBase64,
@@ -68,11 +83,14 @@ export function startOffscreenApp(): void {
             cancel: cancelLocalVideoTranscription,
             removeModel: request => removeLocalVideoTranscriptionModel(request.model),
         },
-    });
-
-    chrome.runtime.onMessage.addListener(listener);
-    window.addEventListener('pagehide', () => ttsPlayer.dispose(), {once: true});
-}
+        localTranslation: {
+            translate: (request, signal) => translateLocalText(request as any, signal),
+            prepare: (request) => prepareLocalTranslationModel(request.model),
+            pause: (request) => pauseLocalTranslationModelDownload(request.model),
+            status: getLocalTranslationModelStatus,
+            removeModel: request => removeLocalTranslationModel(request.model),
+            dispose: disposeLocalTranslationWorker,
+        },
         localTts: {
             synthesize: (request, signal) => synthesizeLocalTts(
                 String(request.text || ''),
@@ -85,4 +103,12 @@ export function startOffscreenApp(): void {
             removeModel: async () => { await removeLocalTtsModel(); },
             dispose: disposeLocalTtsWorker,
         },
+    });
+
+    chrome.runtime.onMessage.addListener(listener);
+    window.addEventListener('pagehide', () => {
+        ttsPlayer.dispose();
+        disposeLocalTranslationWorker();
         disposeLocalTtsWorker();
+    }, {once: true});
+}

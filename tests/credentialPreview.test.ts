@@ -32,6 +32,17 @@ describe('配置凭据变化预览', () => {
         expect(buildCredentialPreviewChanges(null, undefined)).toEqual([]);
     });
 
+    it('预览备用 Key 的新增、替换和清除，不重复显示首个 Key 或泄露内容', () => {
+        const before = {token: {openai: 'first-private'}, apiKeys: {openai: ['first-private', 'backup-private']}};
+        const after = {token: {openai: 'first-private'}, apiKeys: {openai: ['first-private', 'new-private']}};
+        const changes = buildCredentialPreviewChanges(before, after);
+        expect(changes).toEqual([expect.objectContaining({key: 'apiKeys.openai', after: '将替换（内容已隐藏）'})]);
+        expect(JSON.stringify(changes)).not.toContain('private');
+        expect(buildCredentialPreviewChanges({}, after)).toEqual([expect.objectContaining({key: 'apiKeys.openai', after: '将新增（内容已隐藏）'})]);
+        expect(buildCredentialPreviewChanges(before, {apiKeys: {openai: []}})).toEqual([expect.objectContaining({key: 'apiKeys.openai', after: '将清除'})]);
+        expect(buildCredentialPreviewChanges(after, {...after, apiKeys: {openai: ['first-private', 'new-private', ' ']}})).toEqual([]);
+    });
+
     it('使用导入配置中的动态服务名称标注 API Key', () => {
         const changes = buildCredentialPreviewChanges({token: {}}, {
             token: {'custom:team': 'private-team-key'},

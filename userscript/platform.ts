@@ -1,4 +1,3 @@
-import {translateMicrosoftTexts} from '@/src/providers/translation/microsoft';
 import {runTranslationServiceConnectionTest} from '@/src/providers/translation/connectionTest';
 import {
     applyConfigHistoryAction,
@@ -21,8 +20,9 @@ import {
     translateWithCache,
 } from '@/src/app/translation/runtime';
 import {lookupWord} from '@/src/features/selection-translation/services/wordDictionary';
+import {createInputBoxTranslationHandler} from '@/src/features/input-translation/background';
 import {UNHANDLED_RUNTIME_MESSAGE} from './browser';
-import {attachTranslationGlossaryContext} from '@/src/services/translation/requestSnapshot';
+import {attachTranslationGlossaryContext, createTranslationProviderConfigSnapshot} from '@/src/services/translation/requestSnapshot';
 
 const UNSUPPORTED_CAPABILITY_MESSAGE = '该功能依赖浏览器扩展权限，userscript 版本暂不支持';
 
@@ -31,6 +31,12 @@ const UNSUPPORTED_CAPABILITY_MESSAGE = '该功能依赖浏览器扩展权限，u
  * 其余翻译、配置和缓存请求仍复用共享业务实现。
  */
 export function createPlatformMessageHandler(openSettings: () => void) {
+    const inputBoxTranslationHandler = createInputBoxTranslationHandler({
+        ready: configReady,
+        getConfig: () => config,
+        translate: translateWithCache,
+    });
+
     return async (message: any): Promise<any> => {
         if (!message || typeof message !== 'object') return UNHANDLED_RUNTIME_MESSAGE;
 
@@ -71,7 +77,11 @@ export function createPlatformMessageHandler(openSettings: () => void) {
         if (message.type === CONNECTION_TEST_MESSAGE) {
             await configReady;
             try {
-                const result = await runTranslationServiceConnectionTest(String(message.service || ''));
+                const result = await runTranslationServiceConnectionTest(String(message.service || ''), {
+                    configSnapshot: createTranslationProviderConfigSnapshot(config),
+                    keyIndex: message.keyIndex,
+                    keyRevision: message.keyRevision,
+                });
                 return {success: true, ...result};
             } catch (error) {
                 return {success: false, error: error instanceof Error ? error.message : String(error)};
@@ -80,8 +90,7 @@ export function createPlatformMessageHandler(openSettings: () => void) {
 
         if (message.type === 'inputBoxTranslation') {
             try {
-                const translations = await translateMicrosoftTexts([String(message.text || '')], '', String(message.targetLang || 'zh-Hans'));
-                return {success: true, translatedText: translations[0] || String(message.text || '')};
+                return await inputBoxTranslationHandler.handle(message);
             } catch (error) {
                 return {success: false, error: error instanceof Error ? error.message : String(error)};
             }

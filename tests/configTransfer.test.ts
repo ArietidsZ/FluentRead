@@ -479,7 +479,10 @@ describe('configuration transfer helpers', () => {
       imported('https://new.example/v1/chat/completions', {[service]: ''}),
       current,
     )
-    expect(explicitEmptyToken.token).toHaveProperty(service, '')
+    // token 仅是首个非空 apiKeys 的兼容镜像；显式清空后不应制造空 token，
+    // 但对应服务的 apiKeys 仍保留空列表以阻止当前凭据回填。
+    expect(explicitEmptyToken.token).not.toHaveProperty(service)
+    expect(explicitEmptyToken.apiKeys).toHaveProperty(service, [])
   })
 
   it('旧 custom 配置导入并更换地址时同样解绑本机旧 token', () => {
@@ -699,6 +702,16 @@ describe('configuration transfer helpers', () => {
 
     expect(exported.customModels).toEqual({grok: ['private-a', 'private-b']})
     expect(exported).not.toHaveProperty('token')
+  })
+
+  it('导出和导入保留 API Key 恢复策略，但不把它当作凭据', () => {
+    const source = normalizeConfig({...validConfig, apiKeyRecoveryMs: 5 * 60_000})
+    const publicExport = sanitizeConfigForExport(source)
+    const fullExport = prepareConfigForExport(source)
+
+    expect(publicExport.apiKeyRecoveryMs).toBe(5 * 60_000)
+    expect(fullExport.apiKeyRecoveryMs).toBe(5 * 60_000)
+    expect(prepareConfigForImport(publicExport, new Config()).apiKeyRecoveryMs).toBe(5 * 60_000)
   })
 
   it('DeepLX 视频服务可以经过新版导出与导入往返而不触发旧默认迁移', () => {

@@ -1,5 +1,27 @@
 # 测试与回归
 
+## 阅读卡深色主题（issue #574）
+
+生产扩展构建后运行 `node scripts/run-harness-reading-test.cjs --theme-only --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-reading-theme`。
+
+专项使用临时 Edge profile 和第二屏后台窗口，检查显式浅色/深色、跟随系统及反复切换，测量原文、回答、引用、代码、表格、可用按钮和输入提示的实际前景/背景对比度（至少 4.5:1，禁用控件除外）。同时覆盖流式生成、阅读记录、关闭重开、错误重试，以及主题切换保留回答且不额外调用模型、宿主段落文字和样式不变。页面和模型响应为本地夹具，不代表真实供应商质量或 macOS Chrome/Firefox 实机验证。
+
+`tests/readingThemeStyles.test.ts` 使用项目锁定的 Vue 编译器编译真实 SFC 样式，再匹配父子 DOM，防止 `:global()` 把深色规则错误编译到弹窗外壳。v0.0.32 包含这一缺陷；主分支已在 `4adc485c` 修正选择器，后续主题修复补齐引用、状态、按钮和辅助文字。
+
+2026-09-12 的生产扩展专项 15/15 通过，所测深色文字最低对比度为 5.78:1，浅色为 4.67:1；逐项计算样式和浏览器隔离信息保存在 `docs/reports/issue-574-reading-theme/report.json`。截图：[深色](./reports/issue-574-reading-theme/dark.png)、[浅色](./reports/issue-574-reading-theme/light.png)。
+
+## 输入框翻译
+
+`node scripts/run-input-translation-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-input-translation` 使用生产扩展和临时 Edge profile，在第二屏后台验证输入框配置保存、三击间隔与恢复默认、独立模型和提示词、窄屏与深色布局，以及真实按键的翻译、取消、恢复和失败重试。
+
+供应商响应与网页均为本地夹具，报告中的请求记录用于核对模型、提示词和原文；不代表外部服务连通性或模型翻译质量。`tests/inputTranslationConfig.test.ts`、`tests/inputTranslationBackground.test.ts` 和输入框内容脚本测试覆盖配置迁移、缓存隔离、输入快照、选区、输入法和迟到结果保护。Firefox 与用户脚本构建需另外执行，Edge 结果不能替代其运行时验证。
+
+## 设置页视口与滚动
+
+设置页保持侧栏品牌、页面标题和搜索框可见，菜单与表单分别在自身区域内滚动。切换分类后表单回到顶部；软件语言搜索仍定位到对应控件。内容区为绝对定位的辅助元素提供定位边界，避免长表单撑高外层文档，导致顶部消失和底部空白。
+
+生产包构建后运行 `node scripts/testing/run-settings-viewport-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-settings-viewport`。脚本通过临时 Edge profile 和后台可见窗口验证首次打开、全部菜单、搜索与下拉菜单、原生锚点滚动、通用/视频长表单底部、刷新深链接、窄屏、矮窗口及深色主题。报告保存页面高度、文档/容器滚动位置、截图、焦点隔离信息和控制台异常。Firefox 构建通过不等于 Firefox 实机验证；完整 UI 套件单独执行并报告。
+
 ## 圈选模型识图
 
 `node scripts/testing/run-area-vision-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-area-vision` 使用生产扩展与临时 Edge profile，在后台可见窗口中验证识别方式及提示词保存、选区裁剪、无需 OCR 语言包的视觉路径、不支持或未知模型的 OCR 路径、模型能力覆盖、失败重试与取消清理。
@@ -151,7 +173,7 @@ node scripts/testing/run-translation-mutation-test.cjs \
   --artifacts-dir /private/tmp/fluentread-translation-mutation
 ```
 
-该回归检查宿主为新增链接写入 `tabindex=-1/0` 时保持同一个译文节点，避免把键盘焦点管理误判为内容损坏；正文、链接目的地或隐藏状态变化仍由确定性测试验证失效行为。仅译文模式还检查相邻 DOM 更新不会因原文位于扩展槽内而撤销翻译。固定高度按钮覆盖嵌套 flex/grid 标签、文字边界、点击与“翻译—恢复—再次翻译”，使用确定性翻译服务排除网络响应波动；真实 GitHub 页面结果需单独记录，不能以本地夹具代替。
+该回归检查宿主为新增链接写入 `tabindex=-1/0` 时保持同一个译文节点，避免把键盘焦点管理误判为内容损坏；正文、链接目的地或隐藏状态变化仍由确定性测试验证失效行为。仅译文模式还检查相邻 DOM 更新不会因原文位于扩展槽内而撤销翻译。固定高度按钮覆盖嵌套 flex/grid 标签、文字边界、点击与“翻译—恢复—再次翻译”，使用确定性翻译服务排除网络响应波动；真实 GitHub 页面结果需单独记录，不能以本地夹具代替。表单内的具名 submit 与用户输入框属于非候选控件，按完整 `outerHTML` 比对翻译前后与恢复原文，确保布局租约不在同层控件上留下属性残留。此类断言要求证据截图保持非侵入：Playwright 默认的 `caret: 'hide'` 会给每个 `input`/`textarea`/`[contenteditable]` 写入 `caret-color` 再以空值清除，在宿主控件上留下空 `style` 属性，因此浏览器回归截图统一使用 `caret: 'initial'`。
 
 ### Reddit 多翻译器共存
 

@@ -82,7 +82,7 @@ export function parseSiteRulePack(value: unknown): SiteRulePackParseResult {
             } else {
                 result.content = source.content.map((input, index): SiteContentRule => {
                     const itemPath = `${path}.content[${index}]`;
-                    const item = record(input, itemPath, ['css', 'resolve', 'atomic', 'key']);
+                    const item = record(input, itemPath, ['css', 'resolve', 'atomic', 'splitOnBr', 'key']);
                     const content: SiteContentRule = {css: list(item.css, `${itemPath}.css`, SITE_RULE_LIMITS.selectors, SITE_RULE_LIMITS.selectorLength)};
                     if (item.resolve !== undefined) {
                         if (item.resolve === 'self' || item.resolve === 'closest') content.resolve = item.resolve;
@@ -91,6 +91,10 @@ export function parseSiteRulePack(value: unknown): SiteRulePackParseResult {
                     if (item.atomic !== undefined) {
                         if (typeof item.atomic === 'boolean') content.atomic = item.atomic;
                         else issue(`${itemPath}.atomic`, '应为布尔值');
+                    }
+                    if (item.splitOnBr !== undefined) {
+                        if (typeof item.splitOnBr === 'boolean') content.splitOnBr = item.splitOnBr;
+                        else issue(`${itemPath}.splitOnBr`, '应为布尔值');
                     }
                     if (item.key !== undefined) content.key = string(item.key, `${itemPath}.key`, 128);
                     return content;

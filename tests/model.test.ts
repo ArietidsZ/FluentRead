@@ -21,7 +21,7 @@ import {
     normalizeFloatingBallToolsDisplay,
 } from '@/src/core/config/model';
 import { getMimoEndpoint, MIMO_ENDPOINTS, MINIMAX_ENDPOINTS, tongyiTokenPlanUrl, urls } from '@/src/core/config/constants';
-import { currentModelIds, customModelString, defaultModelIds, defaultModels, defaultOption, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
+import { currentModelIds, customModelString, defaultModelIds, defaultModels, defaultOption, LEGACY_DEFAULT_USER_ROLES, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
 import {
     CUSTOM_OPENAI_RESERVED_MODEL_ID,
     MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER,
@@ -121,7 +121,7 @@ describe('AI 模型编号列表', () => {
         expect(options.services.find(option => option.value === services.freeTranslation)?.label).toBe('免费翻译服务');
         expect(options.services[1]?.value).toBe(services.freeTranslation);
         expect(options.services.find(option => option.value === services.freeTranslation)?.description)
-            .toContain('按设置顺序自动切换可用服务');
+            .toContain('后台自动均衡可用服务');
         expect(options.services.find(option => option.value === services.mimo)?.label).toBe('小米 MiMo');
         expect(options.services.some(option => option.value === services.baichuan)).toBe(false);
         expect(options.services.some(option => option.value === services.lingyi)).toBe(false);
@@ -227,6 +227,30 @@ describe('AI 模型编号列表', () => {
             expect(mapping).not.toHaveProperty('cozecn');
         }
         expect((normalized as unknown as Record<string, unknown>).robot_id).toBeUndefined();
+    });
+
+    it('默认翻译提示词要求完整翻译，不再允许整段返回原文（Issue #54）', () => {
+        expect(defaultOption.user_role).not.toContain('If translation is unnecessary');
+        expect(defaultOption.user_role).toContain('no part of the source text may stay in its original language');
+        expect(defaultOption.user_role).toContain('{{to}}');
+        expect(defaultOption.user_role).toContain('{{origin}}');
+        expect(LEGACY_DEFAULT_USER_ROLES).not.toContain(defaultOption.user_role);
+    });
+
+    it('仍停留在历史默认提示词的配置升级为当前默认值，自定义提示词原样保留', () => {
+        const custom = 'Translate {{origin}} into {{to}} with my own rules.';
+        const normalized = normalizeConfig({
+            user_role: {
+                [services.openai]: LEGACY_DEFAULT_USER_ROLES[0]!,
+                [services.deepseek]: custom,
+            },
+        });
+
+        expect(normalized.user_role[services.openai]).toBe(defaultOption.user_role);
+        expect(normalized.user_role[services.deepseek]).toBe(custom);
+        // 未显式保存过提示词的服务同样落在当前默认值上。
+        expect(normalized.user_role[services.microsoft]).toBe(defaultOption.user_role);
+        expect(normalizeConfig(normalized)).toEqual(normalized);
     });
 
     it('所有需要模型的 AI 服务默认使用推荐模型档位', () => {
@@ -405,6 +429,10 @@ describe('AI 模型编号列表', () => {
             expect(item.expected(normalized)).toBe(true);
         }
         expect(normalizeConfig({custom: defaultOption.custom}).customOpenAIProviders).toEqual([]);
+        // 仅停留在历史默认提示词不算用户改写，升级默认提示词不得凭空重建 legacy profile。
+        expect(normalizeConfig({
+            user_role: {[services.custom]: LEGACY_DEFAULT_USER_ROLES[0]!},
+        }).customOpenAIProviders).toEqual([]);
     });
 
     it('回填空 legacy profile 地址，并容忍没有任何模型的动态 profile', () => {
@@ -836,6 +864,39 @@ describe('快捷翻译方案配置', () => {
         for (const invalid of [undefined, 'none', 'Ctrl+C', 42]) {
             expect(normalizeConfig({selectionAreaHotkey: invalid}).selectionAreaHotkey).toBe('Shift+Z');
         }
+    });
+
+    it('段落复制快捷键只接受预设与可用的自定义值，其余配置回到默认 Alt+C', () => {
+        expect(new Config()).toMatchObject({
+            paragraphCopyEnabled: true, paragraphCopyHotkey: 'Alt+C', customParagraphCopyHotkey: '', paragraphCopyContent: 'auto',
+        });
+        expect(normalizeConfig({})).toMatchObject({paragraphCopyHotkey: 'Alt+C', customParagraphCopyHotkey: '', paragraphCopyContent: 'auto'});
+        expect(normalizeConfig({paragraphCopyHotkey: 'shift+d'})).toMatchObject({paragraphCopyHotkey: 'Shift+D'});
+        expect(normalizeConfig({paragraphCopyContent: 'bilingual'})).toMatchObject({paragraphCopyContent: 'bilingual'});
+        expect(normalizeConfig({paragraphCopyContent: 'both'})).toMatchObject({paragraphCopyContent: 'auto'});
+        // 选择自定义却没有可用组合键时不能让段落复制失去唯一入口。
+        expect(normalizeConfig({paragraphCopyHotkey: 'custom', customParagraphCopyHotkey: 'cmd+k'}))
+            .toMatchObject({paragraphCopyHotkey: 'Alt+C', customParagraphCopyHotkey: ''});
+        expect(normalizeConfig({paragraphCopyEnabled: 'yes'})).toMatchObject({paragraphCopyEnabled: true});
+        expect(normalizeConfig({paragraphCopyEnabled: false})).toMatchObject({paragraphCopyEnabled: false});
+    });
+
+    it('快捷翻译方案按段落复制的实际快捷键避让，关闭后释放占用', () => {
+        const occupied = normalizeConfig({
+            paragraphCopyEnabled: true,
+            paragraphCopyHotkey: 'custom',
+            customParagraphCopyHotkey: 'alt+j',
+            quickTranslationProfiles: [{id: 'copy-clash', enabled: true, action: 'hover', hotkey: 'Alt+J'}],
+        });
+        expect(occupied.quickTranslationProfiles[0]).toMatchObject({hotkey: 'Alt+J', enabled: false});
+
+        const released = normalizeConfig({
+            paragraphCopyEnabled: false,
+            paragraphCopyHotkey: 'custom',
+            customParagraphCopyHotkey: 'alt+j',
+            quickTranslationProfiles: [{id: 'copy-clash', enabled: true, action: 'hover', hotkey: 'Alt+J'}],
+        });
+        expect(released.quickTranslationProfiles[0]).toMatchObject({hotkey: 'Alt+J', enabled: true});
     });
 
     it('划词快捷键与快捷翻译可共存，圈选的默认快捷键仍保留既有所有权', () => {

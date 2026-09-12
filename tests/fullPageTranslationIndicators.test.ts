@@ -63,7 +63,8 @@ describe('全文翻译节点状态指示', () => {
 
     const wrapper = insertFailedTip(target, 'quota exceeded', retry);
 
-    expect(target.classList.contains('fluent-read-failure')).toBe(true);
+    expect(target.getAttribute('data-fr-translation-failed')).toBe('true');
+    expect(target.hasAttribute('class')).toBe(false);
     expect(wrapper.getAttribute('data-fr-translation-owned')).toBe('true');
     expect(wrapper.querySelectorAll('svg')).toHaveLength(2);
     wrapper.querySelector<HTMLElement>('.fluent-read-reason')!.click();
@@ -75,7 +76,8 @@ describe('全文翻译节点状态指示', () => {
     wrapper.querySelector<HTMLElement>('.fluent-read-retry')!.click();
     expect(retry).toHaveBeenCalledOnce();
     expect(wrapper.isConnected).toBe(false);
-    expect(target.classList.contains('fluent-read-failure')).toBe(false);
+    expect(target.hasAttribute('data-fr-translation-failed')).toBe(false);
+    expect(target.hasAttribute('class')).toBe(false);
   });
 
   it('链接翻译失败时，错误图标和控件空白处只显示提示而不触发原链接', () => {

@@ -136,6 +136,15 @@ describe('translation service capability contract', () => {
     const chrome = resolveBrowserCapabilities({browser: 'chrome', manifestVersion: 3});
     const firefox = resolveBrowserCapabilities({browser: 'firefox', manifestVersion: 2});
 
+    it('keeps local models available only with an extension DOM runtime', () => {
+        expect(isTranslationServiceAvailable(services.localTranslation, chrome)).toBe(true);
+        expect(isTranslationServiceAvailable(services.localTranslation, firefox)).toBe(true);
+        const unavailable = {...chrome, extensionDom: false};
+        expect(isTranslationServiceAvailable(services.localTranslation, unavailable)).toBe(false);
+        expect(getTranslationServiceUnavailableMessage(services.localTranslation, unavailable))
+            .toContain('不支持扩展本地模型翻译');
+    });
+
     it('keeps normal providers available and gates only Chrome built-in translation', () => {
         expect(isTranslationServiceAvailable(services.microsoft, firefox)).toBe(true);
         expect(isTranslationServiceAvailable(services.chromeTranslator, chrome)).toBe(true);

@@ -9,5 +9,5 @@ export {GLOSSARY_LIMITS, createGlossaryEntry, createGlossaryLibrary, normalizeGl
 export type {GlossaryLibrary, GlossaryEntry} from './model';
 export {resolveGlossary} from './match';
 export type {GlossaryTerm, GlossaryContext, GlossaryConflict} from './match';
-export {parseGlossaryImport, exportGlossary} from './transfer';
+export {decodeGlossaryText, parseGlossaryImport, exportGlossary} from './transfer';
 export type {GlossaryImportFormat, GlossaryImportPreview} from './transfer';

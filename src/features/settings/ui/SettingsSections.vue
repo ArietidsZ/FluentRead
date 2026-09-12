@@ -41,7 +41,7 @@
   </section>
   <section v-show="props.activeSection === 'settings-sites'" id="settings-sites" class="settings-section site-settings-section">
     <SettingsGroup>
-      <SettingsItem label="所有网站自动翻译" description="每个支持的网页加载完成后自动开始翻译；关闭后仍保留下面的名单。">
+      <SettingsItem label="所有网站自动翻译" description="页面基本结构可用后自动开始翻译；关闭后仍保留下面的名单。">
         <el-switch v-model="config.autoTranslate" class="settings-toggle" aria-label="所有网站自动翻译" />
       </SettingsItem>
     </SettingsGroup>
@@ -71,13 +71,18 @@
         :credential-guide="selectedConfigurationCredentialGuide"
         :selected-model="selectedConfigurationModel"
         :services="configurationCompute.filteredServices"
+        :favorite-services="config.favoriteServices"
+        :configured-services="configuredServiceIds"
         :model-options="configurationModelOptions"
         :show-model="configurationCompute.showModel"
         :maximum-custom-services="MAX_CUSTOM_OPENAI_PROVIDERS"
         :maximum-models="MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER"
         :maximum-model-length="MAX_CUSTOM_OPENAI_MODEL_LENGTH"
         :custom-model-count="selectedConfigurationCustomModelCount"
+        :allow-custom-models="configurationCompute.allowCustomModels"
         @update:service="setConfigurationService"
+        @update:favorites="config.favoriteServices = $event"
+        @set:default="config.service = $event"
         @update:model="selectConfigurationModel"
         @add:service="openCustomProviderDialog"
         @add:model="addConfigurationModel"
@@ -267,6 +272,10 @@
     </section>
 
     <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
+      <ParagraphCopySettings :config="config" />
+    </section>
+
+    <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
     <SettingsGroup title="划词翻译" description="选中文字后的展示内容、触发方式和等待时间。">
     <!-- 划词翻译模式选择 -->
     <el-row class="settings-control-row">
@@ -369,8 +378,8 @@
       </el-col>
     </el-row>
     </SettingsGroup>
-    </section>
     <LocalTtsSettings :config="config" />
+    </section>
 
     <!-- 高级选项 -->
     <section v-show="props.activeSection === 'settings-advanced'" id="settings-advanced" class="settings-section">
@@ -501,40 +510,12 @@
     </section>
 
     <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
-      <SettingsGroup title="输入框翻译" description="仅支持普通文本 input、textarea 与 plaintext-only 编辑区；密码框和富文本编辑器不参与。">
-        <!-- 输入框翻译功能 -->
-        <el-row class="settings-control-row">
-          <el-col :span="12" class="settings-control-label lightblue rounded-corner">
-            <el-tooltip class="box-item" effect="dark"
-                        content="输入框翻译仅作用于普通文本 input、textarea 与 plaintext-only 编辑区；密码框和富文本编辑器不参与。"
-                        placement="top-start" :show-after="500">
-              <span class="popup-text popup-vertical-left">输入框翻译<el-icon class="icon-margin">
-                  <InfoFilled />
-                </el-icon></span>
-            </el-tooltip>
-          </el-col>
-          <el-col :span="12" class="settings-control-field">
-            <el-select :model-value="config.inputBoxTranslationTrigger" aria-label="输入框翻译触发方式" placeholder="请选择触发方式" @change="handleInputBoxTranslationTriggerChange">
-              <el-option class="select-left" v-for="item in options.inputBoxTranslationTrigger" :key="item.value" 
-                         :label="item.label" :value="item.value" />
-            </el-select>
-          </el-col>
-        </el-row>
-
-        <!-- 输入框翻译目标语言 -->
-        <el-row v-if="config.inputBoxTranslationTrigger !== 'disabled'" class="settings-control-row">
-          <el-col :span="12" class="settings-control-label lightblue rounded-corner">
-            <span class="popup-text popup-vertical-left">翻译目标语言</span>
-          </el-col>
-          <el-col :span="12" class="settings-control-field">
-            <el-select v-model="config.inputBoxTranslationTarget" aria-label="输入框翻译目标语言" placeholder="请选择目标语言" filterable>
-              <el-option class="select-left" data-i18n-ignore v-for="item in options.inputBoxTranslationTarget" :key="item.value"
-                         :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" :value="item.value" />
-            </el-select>
-          </el-col>
-        </el-row>
-
-      </SettingsGroup>
+      <InputTranslationSettings
+        :config="config"
+        :service-options="availableServiceOptions"
+        @trigger-change="handleInputBoxTranslationTriggerChange"
+        @configure-service="openInputServiceSettings"
+      />
     </section>
 
     <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
@@ -594,6 +575,23 @@
           <RequestLimitFields :model-value="config" @update:model-value="Object.assign(config, $event)" />
           <SettingsItem label="失败后最多重试">
             <div class="request-default-number"><el-input-number :model-value="config.translationMaxRetries" aria-label="失败后最多重试" :min="0" :max="10" :controls="false" @change="handleTranslationMaxRetriesChange" /></div>
+          </SettingsItem>
+          <SettingsItem
+            :label="t('settings.requestLimits.apiKeyRecovery')"
+            :description="t('settings.requestLimits.apiKeyRecoveryHelp')"
+          >
+            <div class="api-key-recovery-control" data-testid="api-key-recovery-setting">
+              <el-input-number
+                :model-value="apiKeyRecoveryMinutes"
+                :aria-label="t('settings.requestLimits.apiKeyRecovery')"
+                :min="MIN_API_KEY_RECOVERY_MINUTES"
+                :max="MAX_API_KEY_RECOVERY_MINUTES"
+                :step="1"
+                :controls="false"
+                @change="handleApiKeyRecoveryChange"
+              />
+              <span class="api-key-recovery-unit" aria-hidden="true">{{ t('settings.requestLimits.minutes') }}</span>
+            </div>
           </SettingsItem>
           <details class="request-retry-settings" data-testid="translation-retry-settings">
             <summary>{{ t('settings.requestLimits.retryIntervals') }}</summary>
@@ -676,6 +674,9 @@ import {
   MOUSE_HOVER_TRANSLATION_DELAY_STEP,
   MAX_TRANSLATION_BACKOFF_BASE_MS,
   MAX_TRANSLATION_BACKOFF_MAX_MS,
+  API_KEY_RECOVERY_MINUTE_MS,
+  MAX_API_KEY_RECOVERY_MINUTES,
+  MIN_API_KEY_RECOVERY_MINUTES,
   MIN_TRANSLATION_BACKOFF_BASE_MS,
   MIN_TRANSLATION_BACKOFF_MAX_MS,
   SELECTION_TRANSLATOR_DELAY_MAX,
@@ -685,6 +686,7 @@ import {
   normalizeConfig,
   normalizeMouseHoverTranslationDelay,
   normalizeSelectionTranslatorDelay,
+  normalizeApiKeyRecoveryMs,
   normalizeTranslationBackoffBaseMs,
   normalizeTranslationBackoffMaxMs,
 } from '@/src/core/config/model';
@@ -698,10 +700,12 @@ const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
 import UiLanguageSelector from '@/src/ui/components/UiLanguageSelector.vue';
 import ServiceCatalog from './services/ServiceCatalog.vue';
+import { hasSavedServiceConfiguration } from '@/src/ui/view-model/serviceLibrary';
 import {getServiceCredentialGuide, getServiceWebsite} from '@/src/ui/view-model/serviceCatalog';
 import ServiceConfiguration from './services/ServiceConfiguration.vue';
 import CustomOpenAIProviderDialog from './services/CustomOpenAIProviderDialog.vue';
 import {TranslationCenter} from '@/src/features/translation-center/public';
+const openInputServiceSettings = (service: string) => { setConfigurationService(service); window.location.hash = 'settings-services'; };
 const openWritingServiceSettings = () => { setConfigurationService(config.value.writing.service || config.value.service); window.location.hash = 'settings-services'; };
 import WritingSettings from './WritingSettings.vue';
 import HarnessSettings from './HarnessSettings.vue';
@@ -719,12 +723,14 @@ import {
 } from '@/src/core/config/validation';
 import {ImageOcrSettings} from '@/src/features/image-translation/public';
 import VideoLocalModelSettings from './VideoLocalModelSettings.vue';
-import VideoSubtitleAppearanceSettings from './VideoSubtitleAppearanceSettings.vue';
 import LocalTtsSettings from './LocalTtsSettings.vue';
+import VideoSubtitleAppearanceSettings from './VideoSubtitleAppearanceSettings.vue';
 import {ModelUsageDashboard} from '@/src/features/model-usage/public';
 import InterfaceSettings from './InterfaceSettings.vue';
 import AreaTranslationSettings from './AreaTranslationSettings.vue';
+import InputTranslationSettings from './InputTranslationSettings.vue';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
+import ParagraphCopySettings from './ParagraphCopySettings.vue';
 import ParagraphHandlingSettings from './ParagraphHandlingSettings.vue';
 import TranslationCacheSettings from './TranslationCacheSettings.vue';
 import SettingsGroup from './components/SettingsGroup.vue';
@@ -919,6 +925,9 @@ const textServiceGroups = computed(() => {
 const defaultTextServiceLabel = computed(() => (
   serviceOptionsWithCustomProviders.value.find((item: any) => item.value === config.value.service)?.label || config.value.service
 ));
+const configuredServiceIds = computed(() => availableServiceOptions.value
+  .filter(item => !item.disabled && hasSavedServiceConfiguration(item.value, config.value))
+  .map(item => item.value));
 const videoServiceOptions = computed(() => availableServiceOptions.value.filter((item: any) => !item.disabled));
 const videoGlossaryDescription = computed(() => {
   if (!config.value.glossaryEnabled) return t('glossary.disabledHint');
@@ -1175,6 +1184,7 @@ const createServiceCompute = (serviceSource: ServiceSource) => ({
   showModel: computed(() => isCustomOpenAIProviderId(serviceSource.value) || servicesType.isUseModel(serviceSource.value)),
   showCustomBody: computed(() => isCustomOpenAIProviderId(serviceSource.value) || servicesType.isUseCustomBody(serviceSource.value)),
   showToken: computed(() => isCustomOpenAIProviderId(serviceSource.value) || servicesType.isUseToken(serviceSource.value)),
+  allowCustomModels: computed(() => serviceSource.value !== services.localTranslation),
   requireApiKey: computed({
     get: () => isApiKeyRequired(serviceSource.value, config.value),
     set: (value: boolean) => {
@@ -1377,6 +1387,15 @@ const handleSelectionTranslatorDelayChange = (value: number | undefined) => {
 const handleTranslationMaxRetriesChange = (currentValue: number | undefined) => {
   if (currentValue === undefined || !Number.isSafeInteger(currentValue) || currentValue < 0 || currentValue > 10) return;
   config.value.translationMaxRetries = currentValue;
+};
+
+const apiKeyRecoveryMinutes = computed(() => Math.round(
+  normalizeApiKeyRecoveryMs(config.value.apiKeyRecoveryMs) / API_KEY_RECOVERY_MINUTE_MS,
+));
+
+const handleApiKeyRecoveryChange = (currentValue: number | undefined) => {
+  if (currentValue === undefined || !Number.isFinite(currentValue)) return;
+  config.value.apiKeyRecoveryMs = normalizeApiKeyRecoveryMs(currentValue * API_KEY_RECOVERY_MINUTE_MS);
 };
 
 const handleTranslationBackoffBaseChange = (currentValue: number | undefined) => {

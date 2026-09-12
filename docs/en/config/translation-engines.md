@@ -10,7 +10,7 @@ FluentRead displays translations produced by your selected service. Use the defa
 | Use an existing provider | The corresponding Microsoft, Google, DeepL, or other service |
 | Trade a cloud key for a stable free quota | A **Cloud vendors** service: Google Cloud, Azure, Alibaba Cloud, Tencent Cloud, Baidu, or Volcengine, each with a monthly free character quota |
 | Explain sentences, tone, or expressions | An AI service with a working model and credentials |
-| Translate text locally | **Ollama (local)** from the catalog, or available [Chrome local translation](/en/guide/chrome-translator) |
+| Translate text locally | **Local model translation**, **Ollama (local)**, or available [Chrome local translation](/en/guide/chrome-translator) |
 
 FluentRead is free and open source. Third-party services may charge separately. A web chat subscription does not necessarily include API access.
 
@@ -27,9 +27,23 @@ Clicking a service in the directory opens its configuration. It does not change 
 
 <figure class="doc-figure"><a href="/screenshots/en/settings-services.webp" target="_blank" rel="noopener"><img class="doc-screenshot" src="/screenshots/en/settings-services.webp" width="2560" height="1600" alt="Translation service directory and connection settings" loading="lazy" /></a><figcaption>Configure a connection, then select the service you want to use.</figcaption></figure>
 
+## Use several API keys
+
+For a service with an API Key field, add one key per row using **Add key** below the list. Existing single keys are kept. All rows use the same service address, model, region, and custom headers; use a separate custom service when those settings differ.
+
+Requests are shared evenly at first. If a key fails, FluentRead tries another and temporarily reduces how often the failing key is used. Invalid keys and exhausted quotas can be paused. The default recovery wait is 1 minute; adjust it from **Settings → Advanced → Request limits** between 1 and 60 minutes. A rate limit with a server-provided waiting period follows that period instead. Changing keys does not bypass your configured request rate or total timeout. Health is temporary and resets when the extension's background process restarts.
+
+**Check all** above the list tests each distinct, filled row in order, with the summary and individual results shown together. Select a failed status to see its reason, or use the row's check button to test it again. You can stop the remaining checks. A failed row does not stop the rest. Empty rows and duplicates do not make extra requests. Checks send a short translation and may use a small amount of your provider allowance. Results describe that check, rather than guaranteeing future availability.
+
 ## The free service
 
-The default fallback order is Microsoft, DeepLX, Google, then MyMemory. If one fails, the next may be tried, so translation styles can vary. Change the order or disable entries in settings, keeping at least one.
+The default **Automatic balance** mode places Microsoft first and prefers it for the initial request. The background scheduler dynamically adapts distribution using success rate, response time, and recent errors. A failed request switches to another service. Disable entries or choose **Priority order** to try them in list order. Keep at least one enabled.
+
+The scheduler maintains these allocation signals automatically. Users configure only enabled services and the mode; health and performance records used for balancing stay local.
+
+Microsoft, Tencent TranSmart, Volcengine, Google, Youdao Web, ICIBA, Yandex, DeepLX, and MyMemory are enabled by default without API keys. Sogou, Reverso, Lingva, and Apertium are optional. The first three remain experimental; Apertium currently has no Chinese language pairs.
+
+Rate limits normally pause a provider for minutes, blocked access for hours, and exhausted daily quotas for about a day. Recovery records are stored locally and survive background restarts. Each attempt has a five-second timeout by default.
 
 Free services have changing availability and allowances. Public interfaces and intermediaries have their own data policies. Keep only one entry, or select a standalone service, if you want requests to go to only that provider.
 
@@ -42,6 +56,7 @@ Choose API Free or API Pro and enter the matching key. A DeepL website subscript
 Enter the full translation endpoint, such as `https://deeplx.example.com/translate`. Entering only a domain does not automatically add `/translate`. Leave it blank to use the default public endpoint.
 
 In API Key, enter only the site's Token value, without a `Bearer` prefix. The Token is sent in the request header by default. If the site requires it in the URL, follow the site's instructions:
+
 
 - Query parameter: `https://deeplx.example.com/translate?token={{apiKey}}`
 - URL path: `https://deeplx.example.com/{{apiKey}}/translate`
@@ -70,6 +85,24 @@ For Azure, Alibaba Cloud, and Volcengine the region is part of the request signa
 :::
 
 Paired secrets (AccessKey Secret, SecretKey, and similar) are stored only on this device, like API keys. Shared configurations and configuration history never include them; full backups keep them.
+
+## Local model translation
+
+Choose a model under **Settings → Translation services → Local model translation** and download it. Once it is available offline, try a short translation, then select this service in the extension menu. No API key or separate server is required; translation text stays on this device.
+
+| Model | Download | Intended use |
+| --- | --- | --- |
+| Chinese / English lightweight pack | About 239 MB | Simple everyday sentences in both directions; review technical terms and complex wording |
+| Hunyuan Hy-MT2 1.8B | About 1.13 GB | Chinese, English, Japanese and more languages; more demanding text, with higher memory requirements |
+| Japanese / English lightweight pack | About 214 MB | Mainly Japanese-to-English reading; English-to-Japanese quality is limited, so prefer Hunyuan |
+
+Downloads continue when you leave the settings page. You can pause them and resume saved progress after restarting the browser. Files must finish verification before translation is available, even if the progress is nearly 100%.
+
+Deleting a model requires confirmation and keeps other models and settings. Model files belong to the current browser and are not included in settings backups.
+
+Download size is not runtime memory. Even a lightweight pack can briefly add around 1–2 GB of memory use, with CPU spikes while loading. Models are released after 30 seconds of inactivity. Text length, browser and graphics hardware affect actual usage. Unsupported browsers show a warning for Hunyuan. The userscript edition does not download or run these models.
+
+Local Hunyuan is separate from the Hunyuan cloud service. Model sources and licenses are linked from each card's information button.
 
 ## AI services
 
@@ -119,7 +152,7 @@ Choosing a local model determines where that translation goes. Dictionary, read-
 
 Check the key, address, model, and provider balance. If short sentences work but long pages do not, reduce concurrency or try another service. Never include real credentials in feedback. See [Troubleshooting](/en/guide/faq).
 
-You can also enable Tencent TranSmart, Yandex, and Volcengine in **Free translation settings**. These keyless web endpoints appear only as free translation candidates, not standalone services. They are disabled by default and preserve your existing order. Web endpoints may be rate-limited or unavailable. Yandex skips Traditional Chinese targets so the next candidate can handle them.
+Youdao Web and ICIBA currently support English and Simplified Chinese directions. Yandex does not support Traditional Chinese targets. Unsupported directions fall back to another candidate. Free web endpoints may be rate-limited or unavailable.
 
 ## Custom request headers
 

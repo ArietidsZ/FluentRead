@@ -53,6 +53,7 @@ import {
 import sha256 from 'crypto-js/sha256';
 import {getDeepLEndpoint} from '@/src/core/config/deepl';
 import {waitForBoundedPersistence} from './persistenceBarrier';
+import {runWithApiKeyRotation} from './apiKeyRotation';
 import {
     createTranslationRequestScheduler,
     TranslationRequestSchedulerDeadlineError,
@@ -285,9 +286,10 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             endpoint: getProviderEndpoint(current, service),
             azureOpenaiEndpoint: service === 'azureOpenai' ? current.azureOpenaiEndpoint : undefined,
             ...(service === 'freeTranslation' ? {freeTranslationPolicy: {
-                // v2 仅使用免密钥端点，旧链的私有地址和凭据不再影响此缓存。
-                version: 2,
+                // v4 使用后台动态权重；缓存按用户模式隔离，不随每次性能观测抖动。
+                version: 4,
                 order: current.freeTranslationOrder,
+                mode: current.freeTranslationMode,
             }} : {}),
             customBody: current.customBody[service] || '',
             ...(current.customHeaders?.[service] ? {customHeaders: current.customHeaders[service]} : {}),
@@ -302,7 +304,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             // 步骤 1：DeepL 把标题上下文直接发送给 provider；AI adapter 通过 prompt 注入页面上下文。
             context: service === 'deepL' ? context : undefined,
             pageContext: isAIContextEnabled(execution, modelOverride) ? pageContext : undefined,
-            ...(service === 'chromeTranslator'
+            ...((service === 'chromeTranslator' || service === 'localTranslation')
                 && sourceLanguage === 'auto'
                 && sourceLanguageDetectionText?.trim()
                 ? {sourceLanguageDetectionText}
@@ -558,6 +560,20 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
     }
 
     async function callProviderWithinDeadline(
+        execution: TranslationRequestExecution,
+        message: TranslationRequestMessage,
+    ): Promise<unknown> {
+        const deadlineAt = now() + normalizeDeadlineTimeoutMs(message.requestTimeoutMs as number);
+        return runWithApiKeyRotation(execution.config, execution.service, (selected, attempt) => (
+            callProviderAttemptWithinDeadline({...execution, config: selected}, attachTranslationProviderConfig({
+                ...message,
+                requestTimeoutMs: attempt.attemptTimeoutMs ?? getRemainingDeadlineMs(deadlineAt),
+            }, selected))
+        ), {signal: execution.abortSignal, deadlineAt, now,
+            model: getSelectedModel(execution.config, execution.service, message.modelOverride)});
+    }
+
+    async function callProviderAttemptWithinDeadline(
         execution: TranslationRequestExecution,
         message: TranslationRequestMessage,
     ): Promise<unknown> {
@@ -1462,9 +1478,9 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         );
         const remainingProviderBudget = getRemainingDeadlineMs(providerDeadline);
 
-        // 步骤 3：检测样本只属于 Chrome auto；即使其他扩展页面手工构造该字段，
+        // 步骤 3：检测样本只属于本地翻译 auto；即使其他扩展页面手工构造该字段，
         // 也不能让重复正文扩散到任何云端 provider。
-        const shouldCarryDetectionText = selectedService === 'chromeTranslator'
+        const shouldCarryDetectionText = (selectedService === 'chromeTranslator' || selectedService === 'localTranslation')
             && sourceLanguage === 'auto'
             && Boolean(message.sourceLanguageDetectionText?.trim());
         const providerInput = shouldCarryDetectionText

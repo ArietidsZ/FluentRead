@@ -25,6 +25,8 @@ When multiple glossaries define the same source term, earlier glossaries take pr
 
 Import CSV, TSV, or JSON from a file or pasted text. Imports create new glossaries rather than replacing existing ones. Check the preview before confirming.
 
+File imports detect UTF-8, BOM-marked UTF-16, and common GB18030 encodings from their bytes, so CSV files saved by Excel on a Chinese system are not silently read as mojibake.
+
 JSON keeps complete glossary settings; CSV and TSV are useful for spreadsheet editing. Glossaries are also included in configuration backup and restore.
 
 ## Data

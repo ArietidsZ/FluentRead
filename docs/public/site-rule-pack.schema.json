@@ -46,6 +46,7 @@
           "css": {"$ref": "#/$defs/selectors"},
           "resolve": {"enum": ["self", "closest"], "default": "self"},
           "atomic": {"type": "boolean", "default": true},
+          "splitOnBr": {"type": "boolean", "default": false},
           "key": {"allOf": [{"$ref": "#/$defs/text"}, {"maxLength": 128}]}
         }
       }

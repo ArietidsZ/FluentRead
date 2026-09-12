@@ -108,7 +108,7 @@ export async function translateMyMemoryText(text: string, request: MyMemoryReque
             const result = await readJsonResponse<MyMemoryResponse | null>(response, 'MyMemory 返回的不是有效 JSON');
             if (request.abortSignal?.aborted) throw abortErrorFromSignal(request.abortSignal);
             if (result?.quotaFinished === true) {
-                throw Object.assign(createProviderCodeError('MyMemory 免费额度已用尽', 429), {statusCode: 429});
+                throw Object.assign(createProviderCodeError('MyMemory 免费额度已用尽', 429), {statusCode: 429, freeFailure: 'quota'});
             }
             if (!result || String(result.responseStatus) !== '200') {
                 const status = Number(result?.responseStatus);

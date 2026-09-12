@@ -9,6 +9,25 @@ function group(result: ReturnType<typeof buildConfigDiff>, id: string) {
 }
 
 describe('配置差异预览', () => {
+    it('常用服务的添加与删除记录为独立偏好，缺失旧值也能预览', () => {
+        const changes = group(buildConfigDiff({favoriteServices: []}, {favoriteServices: ['openai']}), 'translationServices')?.changes;
+        expect(changes).toEqual([{key: 'favoriteServices', label: '常用翻译服务', before: '无', after: 'OpenAI'}]);
+        expect(group(buildConfigDiff({}, {favoriteServices: ['openai']}), 'translationServices')?.changes[0].after).toBe('OpenAI');
+    });
+
+    it('术语库内容变化但规模相同时会标记内容已更新', () => {
+        const result = buildConfigDiff(
+            {glossaryLibraries: [{name: '产品词库', entries: [{source: 'API', target: '接口'}]}]},
+            {glossaryLibraries: [{name: '产品词库', entries: [{source: 'SDK', target: '开发包'}]}]},
+        );
+        expect(group(result, 'translation')?.changes).toEqual([{
+            key: 'glossaryLibraries',
+            label: '术语库内容',
+            before: '1 套词库，1 条术语',
+            after: '1 套词库，1 条术语（内容已更新）',
+        }]);
+    });
+
     it('高级设置识别范围以开启关闭预览，撤销时方向可读', () => {
         expect(group(buildConfigDiff({translationScope: 'content'}, {translationScope: 'all'}), 'advanced')?.changes).toEqual([
             {key: 'translationScope', label: '识别全部节点', before: '关闭', after: '开启'},
@@ -158,6 +177,25 @@ describe('配置差异预览', () => {
         expect(group(custom, 'areaTranslation')?.changes).toEqual(expect.arrayContaining([
             {key: 'selectionAreaHotkey', label: '圈选快捷键', before: 'Shift+Z', after: '自定义快捷键'},
             {key: 'customSelectionAreaHotkey', label: '自定义圈选快捷键', before: '未设置', after: 'Alt+K'},
+        ]));
+    });
+
+    it('显示段落复制的开关、快捷键与复制内容口径', () => {
+        const changed = buildConfigDiff(
+            {paragraphCopyEnabled: true, paragraphCopyHotkey: 'Alt+C', paragraphCopyContent: 'auto'},
+            {paragraphCopyEnabled: false, paragraphCopyHotkey: 'Shift+D', paragraphCopyContent: 'bilingual'},
+        );
+        expect(group(changed, 'translation')?.changes).toEqual(expect.arrayContaining([
+            {key: 'paragraphCopyEnabled', label: '段落复制', before: '开启', after: '关闭'},
+            {key: 'paragraphCopyHotkey', label: '段落复制快捷键', before: 'Alt+C', after: 'Shift+D'},
+            {key: 'paragraphCopyContent', label: '段落复制内容', before: '跟随页面显示', after: '原文和译文'},
+        ]));
+        const custom = buildConfigDiff({paragraphCopyHotkey: 'Alt+C', customParagraphCopyHotkey: ''}, {
+            paragraphCopyHotkey: 'custom', customParagraphCopyHotkey: 'Alt+J',
+        });
+        expect(group(custom, 'translation')?.changes).toEqual(expect.arrayContaining([
+            {key: 'paragraphCopyHotkey', label: '段落复制快捷键', before: 'Alt+C', after: '自定义快捷键'},
+            {key: 'customParagraphCopyHotkey', label: '自定义段落复制快捷键', before: '未设置', after: 'Alt+J'},
         ]));
     });
 
@@ -464,12 +502,14 @@ describe('配置差异预览', () => {
             translationMaxRetries: 0,
             translationBackoffBaseMs: 1000,
             translationBackoffMaxMs: 30000,
+            apiKeyRecoveryMs: 60_000,
         }, {
             translationRequestsPerSecond: 4,
             translationRequestsPerMinute: 0,
             translationMaxRetries: 3,
             translationBackoffBaseMs: 2000,
             translationBackoffMaxMs: 60000,
+            apiKeyRecoveryMs: 300_000,
         });
 
         expect(group(result, 'advanced')?.changes).toEqual(expect.arrayContaining([
@@ -478,6 +518,16 @@ describe('配置差异预览', () => {
             {key: 'translationMaxRetries', label: '失败后最多重试', before: '0 次', after: '3 次'},
             {key: 'translationBackoffBaseMs', label: '退避初始间隔', before: '1000 ms', after: '2000 ms'},
             {key: 'translationBackoffMaxMs', label: '退避最大间隔', before: '30000 ms', after: '60000 ms'},
+            {key: 'apiKeyRecoveryMs', label: '失败 Key 冷却时间', before: '1 分钟', after: '5 分钟'},
+        ]));
+
+        // 历史配置可能把冷却时间存成字符串；格式化不能把非数值当毫秒换算。
+        const legacy = buildConfigDiff(
+            {apiKeyRecoveryMs: '60000' as unknown as number},
+            {apiKeyRecoveryMs: '300000' as unknown as number},
+        );
+        expect(group(legacy, 'advanced')?.changes).toEqual(expect.arrayContaining([
+            {key: 'apiKeyRecoveryMs', label: '失败 Key 冷却时间', before: '60000', after: '300000'},
         ]));
     });
 
@@ -920,6 +970,34 @@ describe('配置差异预览', () => {
             expect.objectContaining({key: 'invalidNumber', after: '未设置'}),
             expect.objectContaining({key: '---', label: '---', after: expect.stringContaining('循环引用')}),
         ]));
+    });
+
+    it('输入框翻译独立配置在历史差异中显示间隔、服务、模型和提示词摘要', () => {
+        const result = buildConfigDiff({
+            inputBoxTranslationInterval: 1000,
+            inputBoxTranslationService: 'microsoft',
+            inputBoxTranslationModel: '',
+            inputBoxTranslationPrompt: '',
+            inputBoxTranslationSystemPrompt: '',
+        }, {
+            inputBoxTranslationInterval: 1500,
+            inputBoxTranslationService: 'deepseek',
+            inputBoxTranslationModel: 'deepseek-chat',
+            inputBoxTranslationPrompt: 'Translate {{origin}} into {{to}}.',
+            inputBoxTranslationSystemPrompt: 'Return only the translation.',
+        });
+
+        expect(group(result, 'translation')?.changes).toEqual([
+            {key: 'inputBoxTranslationInterval', label: '输入框翻译触发间隔', before: '1000 ms', after: '1500 ms'},
+            {key: 'inputBoxTranslationService', label: '输入框翻译服务', before: '微软翻译', after: 'DeepSeek'},
+            {key: 'inputBoxTranslationModel', label: '输入框翻译模型', before: '未设置', after: 'deepseek-chat'},
+            {key: 'inputBoxTranslationPrompt', label: '输入框翻译提示词', before: '未设置', after: '已配置（33 字符）'},
+            {key: 'inputBoxTranslationSystemPrompt', label: '输入框翻译系统提示词', before: '未设置', after: '已配置（28 字符）'},
+        ]);
+        // 旧版历史记录没有专用模型字段，升级后的第一次编辑也必须可预览。
+        expect(group(buildConfigDiff({}, {inputBoxTranslationModel: 'input-model'}), 'translation')?.changes).toEqual([
+            {key: 'inputBoxTranslationModel', label: '输入框翻译模型', before: '未设置', after: 'input-model'},
+        ]);
     });
 });
 

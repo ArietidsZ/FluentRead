@@ -200,6 +200,12 @@ const DEEPL_API_PLAN_LABELS = new Map<unknown, string>([
 const REGION_LABELS = labelsFor(options.minimaxRegion, options.mimoRegion);
 const DEEPSEEK_API_LABELS = labelsFor(options.deepseekApiType);
 const DEEPSEEK_THINKING_LABELS = labelsFor(options.deepseekThinkingMode);
+const PARAGRAPH_COPY_CONTENT_LABELS = new Map<unknown, string>([
+    ['auto', '跟随页面显示'],
+    ['original', '原文'],
+    ['translation', '译文'],
+    ['bilingual', '原文和译文'],
+]);
 const DISPLAY_LABELS = new Map<unknown, string>([
     [0, '仅译文模式'],
     [1, '双语对照模式'],
@@ -450,6 +456,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     bilingualSentenceHighlightEnabled: {group: 'general', label: '双语逐句高亮', format: formatBoolean},
 
     service: {group: 'general', label: '默认翻译服务', format: formatService},
+    favoriteServices: {group: 'translationServices', label: '常用翻译服务', format: (value) => Array.isArray(value) ? formatArray(value, formatService) : formatValue(value)},
     customOpenAIProviders: {group: 'translationServices', label: '自定义 OpenAI 服务', format: formatCustomOpenAIProviders},
     model: {group: 'translationServices', label: '服务模型', mapping: serviceMapping('模型')},
     customModel: {group: 'translationServices', label: '自定义模型', mapping: serviceMapping('自定义模型')},
@@ -475,6 +482,10 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     hotkey: {group: 'translation', label: '鼠标悬浮快捷键', format: (value) => formatEnum(value, HOVER_TRIGGER_LABELS)},
     customHotkey: {group: 'translation', label: '自定义悬浮快捷键'},
     mouseHoverTranslationDelay: {group: 'translation', label: '悬浮翻译延迟', format: (value) => formatNumber(value, ' ms')},
+    paragraphCopyEnabled: {group: 'translation', label: '段落复制', format: formatBoolean},
+    paragraphCopyHotkey: {group: 'translation', label: '段落复制快捷键', format: value => value === 'custom' ? '自定义快捷键' : formatValue(value)},
+    customParagraphCopyHotkey: {group: 'translation', label: '自定义段落复制快捷键'},
+    paragraphCopyContent: {group: 'translation', label: '段落复制内容', format: (value) => formatEnum(value, PARAGRAPH_COPY_CONTENT_LABELS)},
     disableSelectionTranslator: {group: 'translation', label: '划词翻译', format: (value) => formatBoolean(value, true)},
     selectionTranslatorMode: {group: 'translation', label: '划词显示模式', format: (value) => formatEnum(value, SELECTION_MODE_LABELS)},
     selectionTranslatorTrigger: {group: 'translation', label: '划词触发方式', format: (value) => formatEnum(value, SELECTION_TRIGGER_LABELS)},
@@ -486,6 +497,11 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     selectionTtsLocalVoice: {group: 'translation', label: '本地朗读音色'},
     inputBoxTranslationTrigger: {group: 'translation', label: '输入框翻译触发方式', format: (value) => formatEnum(value, INPUT_TRIGGER_LABELS)},
     inputBoxTranslationTarget: {group: 'translation', label: '输入框翻译目标语言', format: (value) => formatEnum(value, LANGUAGE_LABELS)},
+    inputBoxTranslationInterval: {group: 'translation', label: '输入框翻译触发间隔', format: (value) => formatNumber(value, ' ms')},
+    inputBoxTranslationService: {group: 'translation', label: '输入框翻译服务', format: formatService},
+    inputBoxTranslationModel: {group: 'translation', label: '输入框翻译模型', format: (value) => typeof value === 'string' ? formatString(value) : formatValue(value)},
+    inputBoxTranslationPrompt: {group: 'translation', label: '输入框翻译提示词', format: formatPrompt},
+    inputBoxTranslationSystemPrompt: {group: 'translation', label: '输入框翻译系统提示词', format: formatPrompt},
     contextMenuEnabled: {group: 'translation', label: '右键全文翻译', format: formatBoolean},
     fullPageTranslationMode: {group: 'translation', label: '全文翻译范围', format: (value) => formatEnum(value, FULL_PAGE_MODE_LABELS)},
     floatingBallPosition: {group: 'translation', label: '悬浮球位置', format: (value) => formatEnum(value, SIDE_LABELS)},
@@ -531,7 +547,9 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     translationRequestsPerMinute: {group: 'advanced', label: '每分钟最多请求数', format: formatRequestRate},
     serviceRequestLimits: {group: 'advanced', label: '服务请求限制', format: formatValue},
     modelRequestLimits: {group: 'advanced', label: '模型请求限制', format: formatValue},
+    apiKeyRecoveryMs: {group: 'advanced', label: '失败 Key 冷却时间', format: (value) => formatNumber(typeof value === 'number' ? Math.round(value / 60_000) : value, ' 分钟')},
     freeTranslationOrder: {group: 'translationServices', label: '免费翻译顺序', format: (value) => Array.isArray(value) ? formatArray(value, formatService) : formatValue(value)},
+    freeTranslationMode: {group: 'translationServices', label: '免费翻译分配方式', format: (value) => value === 'sequential' ? '优先顺序' : '自动均衡'},
     freeTranslationTimeoutMs: {group: 'translationServices', label: '每路免费翻译超时', format: (value) => formatNumber(value, ' ms')},
     freeTranslationCooldownMs: {group: 'translationServices', label: '免费翻译失败后休息', format: (value) => formatNumber(value, ' ms')},
     myMemoryEmail: {group: 'translationServices', label: 'MyMemory 邮箱', format: formatValue},

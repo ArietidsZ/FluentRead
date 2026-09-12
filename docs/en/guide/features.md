@@ -28,6 +28,14 @@ Enable **Full-page translation ball** under **Settings → General → Page help
 
 Turning the ball off leaves the full-page translation shortcut (Alt+T by default) and the context menu entry untouched.
 
+### Buttons show the translation only
+
+Buttons, tabs, form labels and toolbar actions are interface controls whose size is fixed by the site's own styling. In bilingual mode this text is **replaced by the translation instead of stacked with the original**, so a button is never pushed taller, its label never overflows, and a toolbar row never breaks apart. Native buttons, elements with a control `role`, button-styled links and buttons built from input elements all follow the same rule. Restoring the original text puts the original labels back.
+
+Full sentences in paragraphs, headings and disclosure sections still follow the display mode you picked, so bilingual reading is unaffected.
+
+Buttons that are submitted with a form (submit buttons that carry a `name`) and the contents of text fields are left untouched, so the site never receives an action it cannot recognise and your own input is never rewritten.
+
 ### Missing menus or interface text
 
 In **Advanced settings → Page recognition**, enable the option to recognize all nodes, restore the page, and translate again. It can include visible menus and navigation added while translation is active.
@@ -53,6 +61,8 @@ You can change the trigger to a direct popup, a key, or another gesture, and adj
 ## Hover translation
 
 Hover over a paragraph and press **Control** to translate it. You don’t need to select text or translate the whole page. See [Shortcuts & triggers](/en/guide/custom-hotkey) to change the behavior.
+
+The same paragraph can also be taken as text: press **Alt+C** to copy the paragraph under the mouse to the clipboard. A translated paragraph is copied the way it is displayed. Adjust the switch, the shortcut, and what gets copied in **Settings → Translation → Paragraph copy**.
 
 ## AI reading card and learning center
 

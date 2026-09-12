@@ -10,6 +10,10 @@ import {options} from '@/src/core/config/catalog';
 import {getCustomOpenAIProviderLabel} from '@/src/core/config/customOpenAI';
 import {config} from '@/src/services/config/store';
 import {getTranslationErrorMessage} from '@/src/features/full-page-translation/core/errorMessage';
+import {
+  clearTranslationFailedHost,
+  markTranslationFailedHost,
+} from '@/src/features/full-page-translation/core/hostMarkers';
 import {normalizeUiLanguage, translate} from '@/src/core/i18n';
 import {
   createTranslationLoadingIndicator,
@@ -75,8 +79,8 @@ export function insertFailedTip(
     keyboardAccessible,
   );
 
-  // 添加失败标记
-  node.classList.add("fluent-read-failure");
+  // 添加失败标记：只写 data 属性，宿主 class 保持原样，避免站点按 class 改变原文排版。
+  markTranslationFailedHost(node);
 
   // 创建错误信息提示按钮
   const errorTip = createActionElement(
@@ -141,7 +145,7 @@ function handleRetryClick(node: HTMLElement, wrapper: HTMLElement, onRetry: () =
     event.stopPropagation();
 
     wrapper.remove(); // 移除错误提示元素，重新翻译
-    node.classList.remove("fluent-read-failure"); // 移除失败标记
+    clearTranslationFailedHost(node); // 移除失败标记
 
     onRetry();
   };

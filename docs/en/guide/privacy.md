@@ -7,7 +7,7 @@ The feature and service you choose determine which content leaves the browser. F
 | Feature | Content and destination |
 | --- | --- |
 | Page, hover, selection, and input translation | Text and language details to the selected service |
-| Free translation | Text to the configured fallback providers when earlier choices fail |
+| Free translation | Text sent to enabled providers chosen by background balancing based on success rate, response time, and recent errors; failures may send the text to another candidate |
 | Extra AI context | Page title, description, and parts of the article to the AI service; off by default |
 | Reading card and learning explanations | Submitted expressions, permitted source context, necessary conversation, and enabled memories used for the response, to the selected AI service |
 | Glossaries | Only matched terms and preferred translations, attached to supported AI requests |
@@ -22,7 +22,7 @@ Sites configured for automatic translation can start requests automatically. Cho
 
 ## What stays in the browser?
 
-Settings, rules, glossaries, collections, and review records are stored in this browser’s extension storage. Credentials are stored locally for the corresponding services; someone with access to the browser profile or backups may still access them.
+Settings, rules, glossaries, collections, and review records are stored in this browser’s extension storage. Free-translation health, error, and performance statistics are also stored locally for background balancing and cooldown recovery. Credentials are stored locally for the corresponding services; someone with access to the browser profile or backups may still access them.
 
 Regular-window reading-card conversations are retained for 30 days and can be viewed or deleted. Private windows do not read or save this history and do not provide persistent learning collections.
 

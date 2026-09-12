@@ -115,6 +115,7 @@ describe('legacy userscript migration', () => {
         const existing = new Config();
         existing.service = service;
         existing.videoService = service;
+        existing.inputBoxTranslationService = service;
         existing.contextMenuEnabled = true;
         existing.selectionAreaEnabled = true;
         existing.disableImageTranslator = false;
@@ -131,6 +132,7 @@ describe('legacy userscript migration', () => {
         const stored = readStoredConfig(values);
         expect(stored.service).toBe(services.microsoft);
         expect(stored.videoService).toBe(services.microsoft);
+        expect(stored.inputBoxTranslationService).toBe(services.microsoft);
         expect(stored.contextMenuEnabled).toBe(false);
         expect(stored.selectionAreaEnabled).toBe(false);
         expect(stored.disableImageTranslator).toBe(true);

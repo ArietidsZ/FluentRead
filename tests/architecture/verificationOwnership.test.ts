@@ -236,6 +236,7 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/features/selection-translation/services/edgeTts.ts',
     // Provider 注册表与 AI SDK transport 是依赖注入/网络协议组装；由注册表契约、功能测试和双浏览器构建共同验证。
     'src/providers/translation/registry.ts',
+    'src/providers/translation/local-translation.ts',
     'src/providers/translation/ai-sdk/openai-compatible.ts',
     // 以下文件逐一绑定真实网络协议或浏览器 offscreen API；纯端点、错误和鉴权逻辑已拆出并纳入 strict coverage。
     'src/providers/translation/azure-openai.ts',
@@ -244,6 +245,9 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/providers/translation/deepl.ts',
     'src/providers/translation/deeplx.ts',
     'src/providers/translation/deepseek.ts',
+    // 豆包按生效模型分流并直连方舟 Responses API；模型识别、语言映射与协议工具已拆出并纳入 strict coverage。
+    'src/providers/translation/doubao.ts',
+    'src/providers/translation/doubao-seed-translation.ts',
     'src/providers/translation/gemini.ts',
     'src/providers/translation/google.ts',
     'src/providers/translation/hunyuan-translation.ts',
@@ -253,6 +257,16 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/providers/translation/xiaoniu.ts',
     'src/providers/translation/youdao.ts',
     'src/providers/translation/zhipu.ts',
+    // 本地翻译绑定浏览器 Cache Storage、Offscreen 和独立 Worker；模型目录、协议取消、缓存和构建由专项测试覆盖。
+    'src/core/config/localTranslation.ts',
+    'src/platform/offscreen/localTranslation.ts',
+    'src/features/local-translation/background/handlers.ts',
+    'src/features/local-translation/background/runtime.ts',
+    'src/features/local-translation/offscreen/modelCache.ts',
+    'src/features/local-translation/offscreen/translation.ts',
+    'src/features/local-translation/offscreen/translation.worker.ts',
+    'src/features/local-translation/offscreen/workerConfig.ts',
+    'src/features/settings/ui/LocalTranslationModelSettings.vue',
 ]);
 
 describe('repository verification ownership', () => {

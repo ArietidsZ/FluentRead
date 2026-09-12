@@ -11,7 +11,7 @@
     :data-custom-service-configuration="compute.showCustomOpenAI ? 'true' : 'false'"
     :data-ai-advanced-settings="compute.showAI ? 'true' : 'false'"
   >
-    <div class="subsection-heading">
+    <div v-if="service !== services.localTranslation" class="subsection-heading">
       <div>
         <strong>连接配置</strong>
         <small class="connection-test-hint">修改会自动保存；凭据只保存在当前设备。</small>
@@ -22,21 +22,13 @@
         role="status"
         :aria-label="compute.credentialWarning"
       >待完成</span>
-      <span v-else class="setup-status">{{ isChromeConnectionTest ? t('settings.services.chromePreparation.noKey') : '已就绪' }}</span>
+      <span v-else class="setup-status">{{ isChromeConnectionTest ? t('settings.services.chromePreparation.noKey') : t('settings.services.keys.configured') }}</span>
     </div>
 
-    <Teleport defer to=".detail-hero">
+    <Teleport v-if="service !== services.localTranslation" defer to=".detail-hero">
       <div class="detail-actions">
         <button
-          v-if="compute.showCustomOpenAI"
-          type="button"
-          class="delete-service-button"
-          data-testid="custom-service-delete"
-          @click="confirmDeleteProvider"
-        >
-          删除服务
-        </button>
-        <button
+          v-if="!compute.showToken || compute.showServiceSecret"
           type="button"
           class="connection-test-button"
           data-connection-test-button
@@ -45,13 +37,13 @@
         >
           {{ isChromeConnectionTest
             ? (connectionTestBusy ? t('settings.services.chromePreparation.actionBusy') : t('settings.services.chromePreparation.action'))
-            : (connectionTestBusy ? '检查中…' : '检查连接') }}
+            : (connectionTestBusy ? t('settings.services.keys.checking') : compute.showToken && !compute.showServiceSecret && apiKeyIndexes.length > 1 ? t('settings.services.keys.checkAll') : '检查连接') }}
         </button>
       </div>
     </Teleport>
 
     <div
-      v-if="connectionTestMessage"
+      v-if="connectionTestMessage && (!compute.showToken || compute.showServiceSecret || Object.keys(apiKeyChecks).length === 0)"
       class="connection-test-result"
       :class="`is-${connectionTestState}`"
       data-connection-test-status
@@ -67,6 +59,7 @@
     </div>
 
     <FreeTranslationSettings v-if="service === services.freeTranslation" :config="config" />
+    <LocalTranslationModelSettings v-if="service === services.localTranslation" :config="config" :service="service" />
 
     <template v-if="service === services.myMemory">
       <div class="connection-field" data-mymemory-email>
@@ -151,6 +144,14 @@
       </div>
     </div>
 
+    <ApiKeyList
+      v-if="compute.showToken && !compute.showServiceSecret"
+      :label="compute.showCloudVendor ? compute.cloudCredentialLabels.token : 'API Key'"
+      :data-cloud-credential="compute.showCloudVendor ? 'token' : undefined"
+      :keys="apiKeys" :states="apiKeyChecks" :summary="apiKeySummary" :busy="connectionTestBusy"
+      :allow-anonymous="compute.showAI && !compute.requireApiKey" :check-mode="apiKeyCheckMode"
+      @add="addApiKey" @update="updateApiKey" @remove="removeApiKey" @test="testSingleApiKey" @test-all="testConnection" @stop="stopApiKeyChecks"
+    />
     <div v-if="compute.showOllamaEndpoint" class="connection-field" data-ollama-endpoint>
       <div class="connection-field-label">
         <strong>服务地址</strong>
@@ -164,7 +165,7 @@
       </div>
     </div>
 
-    <div v-if="compute.showToken" class="connection-field credential-field" :data-cloud-credential="compute.showCloudVendor ? 'token' : undefined">
+    <div v-if="compute.showToken && compute.showServiceSecret" class="connection-field credential-field" :data-cloud-credential="compute.showCloudVendor ? 'token' : undefined">
       <div class="connection-field-label">
         <strong>{{ compute.showCloudVendor ? compute.cloudCredentialLabels.token : 'API Key' }}</strong>
         <small>{{ compute.showCloudVendor ? '来自厂商控制台' : (effectiveModelLabel || '当前模型') }}</small>
@@ -227,7 +228,6 @@
         </p>
       </div>
     </div>
-
     <p v-if="compute.showMiniMaxRegion && minimaxKeyMismatch" class="minimax-key-note is-warning">
       {{ minimaxKeyMismatch }}
     </p>
@@ -357,13 +357,22 @@
       <el-col :span="12"><el-input v-model="config.newApiUrl" placeholder="请输入您的New API接口地址" /></el-col>
     </el-row>
 
-    <details class="custom-advanced-settings" data-testid="custom-service-advanced">
+    <details class="custom-advanced-settings" v-if="service !== services.localTranslation" data-testid="custom-service-advanced">
       <summary>
         <strong>高级设置</strong>
         <svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
       </summary>
 
       <div class="custom-advanced-content">
+        <div v-if="compute.showAI && compute.showToken && !compute.showServiceSecret" class="connection-field" data-api-key-auth-policy>
+          <div class="connection-field-label">
+            <strong>{{ t('settings.services.keys.authRequired') }}</strong>
+            <small>{{ t('settings.services.keys.authHelp') }}</small>
+          </div>
+          <div class="connection-field-control">
+            <el-switch v-model="compute.requireApiKey" :aria-label="t('settings.services.keys.authRequired')" />
+          </div>
+        </div>
         <RequestLimitSettings :config="config" :service="service" :model="compute.showModel ? effectiveModelLabel : undefined" />
         <el-row v-if="compute.showDeepseekApiType" class="margin-bottom margin-left-2em">
           <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="选择 DeepSeek 接口使用的 API 格式。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">API 格式<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
@@ -447,6 +456,9 @@
             <div v-if="!isValidCustomBody(config.customBody[service])" class="error-text">请输入合法的 JSON 对象，否则该配置将被忽略</div>
           </el-col>
         </el-row>
+        <div v-if="compute.showCustomOpenAI" class="service-maintenance-actions">
+          <button type="button" class="delete-service-button" data-testid="custom-service-delete" @click="confirmDeleteProvider">删除服务</button>
+        </div>
       </div>
     </details>
   </section>
@@ -465,6 +477,7 @@ import {
 } from '@/src/core/config/customOpenAI'
 import { isValidCustomBody } from '@/src/core/config/customBody'
 import { isValidCustomHeaders } from '@/src/core/config/customHeaders'
+import { createApiKeyCheckRevision } from '@/src/core/config/apiKeyCheckIdentity'
 import { normalizeMyMemoryEmail } from '@/src/core/config/freeTranslation'
 import { DEFAULT_DEEPLX_ENDPOINT } from '@/src/core/config/deeplx'
 import { getDeepLEndpoint } from '@/src/core/config/deepl'
@@ -485,6 +498,9 @@ import {
 import { useUiI18n } from '@/src/ui/i18n'
 import PromptTemplateEditor from './PromptTemplateEditor.vue'
 import FreeTranslationSettings from './FreeTranslationSettings.vue'
+import ApiKeyList from './ApiKeyList.vue'
+import { normalizeApiKeyList, eligibleApiKeyIndexes, summarizeApiKeyChecks, type ApiKeyCheckState, type ApiKeySummary } from './apiKeyTypes'
+import LocalTranslationModelSettings from '../LocalTranslationModelSettings.vue'
 import {resolveModelVisionCapability, supportsVisionTransport} from '@/src/core/config/vision'
 import RequestLimitSettings from './RequestLimitSettings.vue'
 
@@ -553,6 +569,46 @@ const visionCapabilityMessage = computed(() => {
   const capability = resolveModelVisionCapability(service.value, effectiveModelLabel.value, config.value.modelVision)
   return capability === 'supported' ? 'settings.services.visionConfirmed' : capability === 'unsupported' ? 'settings.services.visionTextOnlyMessage' : 'settings.services.visionUnknown'
 })
+
+const apiKeys = computed(() => {
+  const configured = config.value.apiKeys?.[service.value]
+  return normalizeApiKeyList(configured, config.value.token[service.value] || '')
+})
+const apiKeyIndexes = computed(() => eligibleApiKeyIndexes(apiKeys.value))
+const apiKeyChecks = ref<Record<number, ApiKeyCheckState>>({})
+const apiKeySummary = ref<ApiKeySummary | null>(null)
+const apiKeyCheckMode = ref<'single' | 'all'>('all')
+
+function syncApiKeys(next: string[]): void {
+  const value = next.length > 0 ? next : ['']
+  if (!config.value.apiKeys) config.value.apiKeys = {}
+  config.value.apiKeys[service.value] = value
+  config.value.token[service.value] = value.find(key => key.trim()) || ''
+  invalidateConnectionTest()
+}
+
+function addApiKey(): void { if (!apiKeys.value.some(key => !key.trim())) syncApiKeys([...apiKeys.value, '']) }
+function updateApiKey(index: number, value: string): void {
+  const next = [...apiKeys.value]
+  next[index] = value
+  syncApiKeys(next)
+}
+function removeApiKey(index: number): void {
+  syncApiKeys(apiKeys.value.filter((_, itemIndex) => itemIndex !== index))
+}
+
+function resetApiKeyChecks(): void {
+  apiKeyChecks.value = {}
+  apiKeySummary.value = null
+}
+
+function setApiKeyState(index: number, state: ApiKeyCheckState): void {
+  apiKeyChecks.value = {...apiKeyChecks.value, [index]: state}
+}
+
+function updateApiKeySummary(): void {
+  apiKeySummary.value = summarizeApiKeyChecks(apiKeyChecks.value)
+}
 
 function updateCustomProvider(field: 'name' | 'endpoint', value: string): void {
   emit('update:custom-provider', {[field]: value})
@@ -681,6 +737,7 @@ function resetConnectionTest(): void {
   displayedChromePreparationPair.value = null
   connectionTestState.value = 'idle'
   connectionTestMessageState.value = null
+  resetApiKeyChecks()
 }
 
 function invalidateConnectionTest(): void {
@@ -731,8 +788,74 @@ function formatChromePreparationError(error: unknown): LocalizedConnectionTestMe
   return error instanceof Error ? error.message : String(error)
 }
 
+async function runApiKeyCheck(index: number, generation: number): Promise<boolean> {
+  const key = apiKeys.value[index]?.trim() || ''
+  if (!key) {
+    return false
+  }
+  setApiKeyState(index, {status: 'checking'})
+  try {
+    const response = await browser.runtime.sendMessage({
+      type: CONNECTION_TEST_MESSAGE,
+      service: service.value,
+      keyIndex: index,
+      keyRevision: createApiKeyCheckRevision(config.value, service.value),
+    }) as {success?: boolean; durationMs?: number; error?: string} | undefined
+    if (generation !== connectionTestGeneration) return false
+    if (!response?.success) throw new Error(response?.error || '连接测试失败')
+    setApiKeyState(index, {status: 'success', durationMs: response.durationMs})
+    updateApiKeySummary()
+    return true
+  } catch (error) {
+    if (generation !== connectionTestGeneration) return false
+    setApiKeyState(index, {status: 'error', error: error instanceof Error ? error.message : String(error)})
+    updateApiKeySummary()
+    return false
+  }
+}
+
+function stopApiKeyChecks(): void {
+  connectionTestGeneration += 1
+  connectionTestBusy.value = false
+  connectionTestState.value = 'idle'
+  connectionTestMessageState.value = null
+  apiKeyChecks.value = Object.fromEntries(Object.entries(apiKeyChecks.value).map(([index, state]) => [index,
+    state.status === 'checking' || state.status === 'queued' ? {status: 'idle' as const} : state]))
+  updateApiKeySummary()
+}
+
+async function testSingleApiKey(index: number): Promise<void> {
+  if (connectionTestBusy.value || !apiKeyIndexes.value.includes(index)) return
+  apiKeyCheckMode.value = 'single'
+  const generation = ++connectionTestGeneration
+  connectionTestBusy.value = true
+  connectionTestState.value = 'testing'
+  connectionTestMessageState.value = t('settings.services.keys.checking')
+  setApiKeyState(index, {status: 'checking'})
+  updateApiKeySummary()
+  try {
+    await waitForConfigPersistenceQueue()
+    await requestConfigSave(config.value, browser.runtime.sendMessage.bind(browser.runtime))
+    if (generation !== connectionTestGeneration) return
+    const success = await runApiKeyCheck(index, generation)
+    if (generation !== connectionTestGeneration) return
+    connectionTestState.value = success ? 'success' : 'error'
+    connectionTestMessageState.value = success ? t('settings.services.keys.passed') : t('settings.services.keys.failed')
+  } catch (error) {
+    if (generation === connectionTestGeneration) {
+      connectionTestState.value = 'error'
+      connectionTestMessageState.value = error instanceof Error ? error.message : String(error)
+      setApiKeyState(index, {status: 'error', error: connectionTestMessageState.value})
+      updateApiKeySummary()
+    }
+  } finally {
+    if (generation === connectionTestGeneration) connectionTestBusy.value = false
+  }
+}
+
 async function testConnection(): Promise<void> {
   if (connectionTestBusy.value) return
+  apiKeyCheckMode.value = 'all'
 
   const testedService = service.value
   const generation = ++connectionTestGeneration
@@ -747,6 +870,7 @@ async function testConnection(): Promise<void> {
   let acceptChromePreparationStatus = true
   connectionTestBusy.value = true
   connectionTestState.value = 'testing'
+  if (compute.value.showToken) resetApiKeyChecks()
   connectionTestMessageState.value = testedService === services.chromeTranslator
     ? localizedConnectionTestMessage('settings.services.chromePreparation.statusStarting')
     : '正在保存当前配置并请求服务…'
@@ -792,16 +916,25 @@ async function testConnection(): Promise<void> {
           targetLanguage: outcome.result.targetLanguage,
         },
       )
+    } else if (compute.value.showToken && !compute.value.showServiceSecret && apiKeyIndexes.value.length > 0) {
+      const checks = [...apiKeyIndexes.value]
+      apiKeyChecks.value = Object.fromEntries(checks.map(index => [index, {status: 'queued' as const}]))
+      let successes = 0
+      for (const index of checks) {
+        if (!isCurrent()) return
+        if (await runApiKeyCheck(index, generation)) successes += 1
+      }
+      if (!isCurrent()) return
+      const failures = checks.length - successes
+      connectionTestState.value = failures === 0 ? 'success' : 'error'
+      connectionTestMessageState.value = null
     } else {
       const response = await browser.runtime.sendMessage({
         type: CONNECTION_TEST_MESSAGE,
         service: testedService,
       }) as {success?: boolean; durationMs?: number; error?: string} | undefined
-
-      if (!response?.success) {
-        throw new Error(response?.error || '连接测试失败')
-      }
-
+      if (!isCurrent()) return
+      if (!response?.success) throw new Error(response?.error || '连接测试失败')
       connectionTestState.value = 'success'
       connectionTestMessageState.value = `已完成真实翻译请求${typeof response.durationMs === 'number' ? `（${response.durationMs} ms）` : ''}。`
     }
@@ -858,6 +991,14 @@ function confirmDeleteProvider(): void {
 
 watch(service, invalidateConnectionTest)
 watch(() => [config.value.from, config.value.to], invalidateConnectionTest)
+watch(() => createApiKeyCheckRevision(config.value, service.value), invalidateConnectionTest)
+watch(() => JSON.stringify({
+  ak: config.value.ak,
+  sk: config.value.sk,
+  appid: config.value.appid,
+  key: config.value.key,
+  secret: config.value.secret?.[service.value],
+}), invalidateConnectionTest)
 onBeforeUnmount(() => {
   chromePreparationMounted = false
   connectionTestGeneration += 1
@@ -1079,18 +1220,19 @@ onBeforeUnmount(() => {
   margin-left: auto;
 }
 
+.service-maintenance-actions { display: flex; justify-content: flex-end; margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--line, #e3e7ee); }
 .delete-service-button {
   padding: 8px 12px;
-  border: 1px solid #e2a4b5;
-  border-radius: 9px;
-  color: #ad3657;
-  background: #fff;
+  border: 0;
+  border-radius: 7px;
+  color: var(--muted, #737d90);
+  background: transparent;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   cursor: pointer;
 }
 
-.delete-service-button:hover { border-color: #d9345e; background: #fff1f4; }
+.delete-service-button:hover { color: var(--brand-strong, #ad3657); background: var(--brand-soft, #fff1f4); }
 
 .custom-advanced-settings {
   margin-top: 14px;

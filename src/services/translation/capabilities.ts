@@ -14,6 +14,8 @@ import {
 
 export const CHROME_TRANSLATOR_UNAVAILABLE_MESSAGE =
     '当前浏览器暂不支持 Chrome 内置翻译；原配置会保留，请切换到其他翻译服务。';
+export const LOCAL_TRANSLATION_UNAVAILABLE_MESSAGE =
+    '当前浏览器不支持扩展本地模型翻译；原配置会保留，请切换到其他翻译服务。';
 
 const NATIVE_BATCH_TRANSLATION_SERVICES = new Set<string>([
     services.microsoft,
@@ -29,7 +31,10 @@ export function supportsTranslationBatch(service: string): boolean {
     return NATIVE_BATCH_TRANSLATION_SERVICES.has(service) || servicesType.isAiSdk(service);
 }
 
-/** 通用提示词 AI 使用术语约束；通义 Qwen-MT 使用原生 terms，其余协议不替换译文。 */
+/**
+ * 通用提示词 AI 使用术语约束；通义 Qwen-MT 使用原生 terms，其余协议不替换译文。
+ * 豆包翻译专用模型的 translation_options 没有术语字段，因此不在此列。
+ */
 export function supportsTranslationGlossary(
     service: string,
     model = '',
@@ -43,15 +48,18 @@ export function isTranslationServiceAvailable(
     service: string,
     capabilities: BrowserCapabilities = browserCapabilities,
 ): boolean {
-    return service !== services.chromeTranslator || capabilities.chromeTranslation;
+    if (service === services.chromeTranslator) return capabilities.chromeTranslation;
+    if (service === services.localTranslation) return capabilities.extensionDom;
+    return true;
 }
 
 export function getTranslationServiceUnavailableMessage(
     service: string,
     capabilities: BrowserCapabilities = browserCapabilities,
 ): string | null {
-    return isTranslationServiceAvailable(service, capabilities)
-        ? null
+    if (isTranslationServiceAvailable(service, capabilities)) return null;
+    return service === services.localTranslation
+        ? LOCAL_TRANSLATION_UNAVAILABLE_MESSAGE
         : CHROME_TRANSLATOR_UNAVAILABLE_MESSAGE;
 }
 

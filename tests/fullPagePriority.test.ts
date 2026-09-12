@@ -1,0 +1,278 @@
+import {describe, expect, it} from 'vitest';
+import {parseHTML} from 'linkedom';
+import {
+    compareFullPageCandidatePriority,
+    scoreFullPageCandidatePriority,
+} from '@/src/features/full-page-translation/content/fullPagePriority';
+import {
+    clearFullPageQueueState,
+    createFullPageQueueState,
+    noteFullPageScroll,
+    queueFullPageCandidate,
+    removeFullPagePending,
+    selectNextFullPageCandidate,
+    type FullPageQueueState,
+} from '@/src/features/full-page-translation/content/fullPageQueue';
+import type {TranslationCandidate} from '@/src/core/translation/public';
+
+function priority(overrides: Partial<Parameters<typeof scoreFullPageCandidatePriority>[0]> = {}) {
+    return scoreFullPageCandidatePriority({
+        viewportTop: 0,
+        viewportBottom: 600,
+        prefetchMargin: 600,
+        direction: 'unknown',
+        queuedAt: 0,
+        now: 1_000,
+        sequence: 0,
+        ...overrides,
+    });
+}
+
+describe('全文翻译候选优先级', () => {
+    it('当前可见候选优先于视口附近和离屏候选', () => {
+        const visible = priority({rect: {top: 80, bottom: 160}, sequence: 3});
+        const near = priority({rect: {top: 720, bottom: 800}, sequence: 1});
+        const background = priority({rect: {top: 2_000, bottom: 2_080}, sequence: 0});
+
+        expect(compareFullPageCandidatePriority(visible, near)).toBeLessThan(0);
+        expect(compareFullPageCandidatePriority(near, background)).toBeLessThan(0);
+    });
+
+    it('同一视口内保持从上到下的阅读顺序，不因入队时间反转', () => {
+        const top = priority({rect: {top: 40, bottom: 100}, queuedAt: 0, sequence: 9});
+        const bottom = priority({rect: {top: 420, bottom: 480}, queuedAt: 900, sequence: 1});
+
+        expect(compareFullPageCandidatePriority(top, bottom)).toBeLessThan(0);
+    });
+
+    it('按滚动方向优先预取前方内容', () => {
+        const forward = priority({
+            direction: 'forward',
+            rect: {top: 760, bottom: 820},
+            sequence: 5,
+        });
+        const behind = priority({
+            direction: 'forward',
+            rect: {top: -220, bottom: -160},
+            sequence: 1,
+        });
+        const backward = priority({
+            direction: 'backward',
+            rect: {top: -220, bottom: -160},
+            sequence: 5,
+        });
+        const backwardBehind = priority({
+            direction: 'backward',
+            rect: {top: 760, bottom: 820},
+            sequence: 1,
+        });
+
+        expect(compareFullPageCandidatePriority(forward, behind)).toBeLessThan(0);
+        expect(compareFullPageCandidatePriority(backward, backwardBehind)).toBeLessThan(0);
+    });
+
+    it('没有可读布局时仍按稳定序号保持确定性', () => {
+        const first = priority({sequence: 2});
+        const second = priority({sequence: 4});
+
+        expect(first.band).toBe('background');
+        expect(compareFullPageCandidatePriority(first, second)).toBeLessThan(0);
+    });
+
+    it('离屏任务按等待时间排序，支持后台公平推进', () => {
+        const older = priority({rect: {top: 2_000, bottom: 2_080}, queuedAt: 0, sequence: 9});
+        const newer = priority({rect: {top: 2_000, bottom: 2_080}, queuedAt: 900, sequence: 1});
+
+        expect(compareFullPageCandidatePriority(older, newer)).toBeLessThan(0);
+    });
+
+    it('非有限输入回退到稳定的安全值，并覆盖方向优先比较的两侧', () => {
+        const invalid = priority({
+            viewportTop: Number.NaN,
+            viewportBottom: Number.POSITIVE_INFINITY,
+            prefetchMargin: Number.NaN,
+            now: Number.NaN,
+            queuedAt: Number.POSITIVE_INFINITY,
+            sequence: Number.POSITIVE_INFINITY,
+            rect: {top: Number.NaN, bottom: 20},
+        });
+        const forward = priority({direction: 'forward', rect: {top: 760, bottom: 820}, sequence: 3});
+        const unknown = priority({direction: 'unknown', rect: {top: 760, bottom: 820}, sequence: 3});
+
+        expect(invalid.band).toBe('background');
+        expect(invalid.ageMs).toBe(0);
+        expect(compareFullPageCandidatePriority(forward, unknown)).toBeLessThan(0);
+        expect(compareFullPageCandidatePriority(unknown, forward)).toBeGreaterThan(0);
+    });
+});
+
+function candidate(element: HTMLElement): TranslationCandidate {
+    return {element, kind: 'content', reason: 'priority-test'};
+}
+
+function state(): FullPageQueueState {
+    return {
+        pending: new Map(),
+        pendingMetadata: new Map(),
+        inFlightCandidates: new Map(),
+        candidateAnchors: new Map(),
+        nextPendingSequence: 0,
+        foregroundDispatchesSinceBackground: 0,
+        scrollDirection: 'unknown',
+        lastScrollPosition: undefined,
+    };
+}
+
+function setRect(element: HTMLElement, top: number, bottom = top + 80): void {
+    Object.defineProperty(element, 'getBoundingClientRect', {
+        configurable: true,
+        value: () => ({top, bottom, left: 0, right: 600, width: 600, height: bottom - top, x: 0, y: top}),
+    });
+}
+
+function withGlobalWindow<T>(value: unknown, callback: () => T): T {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    if (value === undefined) Reflect.deleteProperty(globalThis, 'window');
+    else Object.defineProperty(globalThis, 'window', {configurable: true, value});
+    try {
+        return callback();
+    } finally {
+        if (previous) Object.defineProperty(globalThis, 'window', previous);
+        else Reflect.deleteProperty(globalThis, 'window');
+    }
+}
+
+describe('全文翻译候选队列', () => {
+    it('创建、更新、移除和清理 pending 元数据时保留来源代次边界', () => {
+        const {document} = parseHTML('<html><body></body></html>');
+        const element = document.createElement('p');
+        const other = document.createElement('p');
+        const first = candidate(element);
+        const replacement = candidate(other);
+        const queue = state();
+
+        queueFullPageCandidate(queue, element, first, 'source-a', 10);
+        queueFullPageCandidate(queue, element, first, 'source-a', 20);
+        expect(queue.pendingMetadata.get(element)).toMatchObject({source: 'source-a', queuedAt: 10, sequence: 1});
+        queueFullPageCandidate(queue, element, replacement, 'source-b', 30);
+        expect(queue.pendingMetadata.get(element)).toMatchObject({source: 'source-b', queuedAt: 30, sequence: 2});
+
+        expect(removeFullPagePending(queue, element, first)).toBe(false);
+        expect(removeFullPagePending(queue, element, replacement)).toBe(true);
+        expect(removeFullPagePending(queue, element)).toBe(false);
+
+        queue.pending.set(element, replacement);
+        queue.pendingMetadata.set(element, {source: 'source-b', queuedAt: 30, sequence: 2});
+        queue.candidateAnchors.set(element, element);
+        clearFullPageQueueState(queue);
+        expect(queue.pending.size).toBe(0);
+        expect(queue.pendingMetadata.size).toBe(0);
+        expect(queue.candidateAnchors.size).toBe(0);
+    });
+
+    it('记录前后滚动方向、无窗口和非活动会话时保持安全回退', () => {
+        const queue = state();
+        const onScroll = () => undefined;
+
+        withGlobalWindow(undefined, () => {
+            const created = createFullPageQueueState();
+            expect(created.lastScrollPosition).toBeUndefined();
+            noteFullPageScroll(queue, () => true, onScroll);
+        });
+
+        withGlobalWindow({scrollY: undefined, pageYOffset: 100}, () => {
+            queue.lastScrollPosition = 50;
+            noteFullPageScroll(queue, () => true, onScroll);
+            expect(queue.lastScrollPosition).toBe(100);
+            expect(queue.scrollDirection).toBe('forward');
+            noteFullPageScroll(queue, () => true, onScroll);
+            expect(queue.scrollDirection).toBe('forward');
+        });
+
+        withGlobalWindow({scrollY: 20, pageYOffset: 20}, () => {
+            noteFullPageScroll(queue, () => true, onScroll);
+            expect(queue.scrollDirection).toBe('backward');
+            noteFullPageScroll(queue, () => false, () => { throw new Error('inactive scroll callback'); });
+        });
+    });
+
+    it('跳过不合格或已在途候选，并能处理缺失、无效和异常布局 rect', () => {
+        const {document} = parseHTML('<html><body><p id="valid"></p><p id="broken"></p><p id="invalid"></p><p id="throwing"></p></body></html>');
+        const valid = document.querySelector<HTMLElement>('#valid')!;
+        const broken = document.querySelector<HTMLElement>('#broken')!;
+        const invalid = document.querySelector<HTMLElement>('#invalid')!;
+        const throwing = document.querySelector<HTMLElement>('#throwing')!;
+        setRect(valid, 100);
+        Object.defineProperty(broken, 'getBoundingClientRect', {configurable: true, value: undefined});
+        Object.defineProperty(invalid, 'getBoundingClientRect', {configurable: true, value: () => ({top: Number.NaN, bottom: 10})});
+        Object.defineProperty(throwing, 'getBoundingClientRect', {configurable: true, value: () => { throw new Error('layout'); }});
+        const queue = state();
+        const validCandidate = candidate(valid);
+        const brokenCandidate = candidate(broken);
+        const invalidCandidate = candidate(invalid);
+        const throwingCandidate = candidate(throwing);
+        queue.pending.set(valid, validCandidate);
+        queue.pending.set(broken, brokenCandidate);
+        queue.pending.set(invalid, invalidCandidate);
+        queue.pending.set(throwing, throwingCandidate);
+        queue.inFlightCandidates.set(valid, validCandidate);
+
+        expect(selectNextFullPageCandidate(queue, {
+            now: 1_000,
+            viewportHeight: 600,
+            isEligible: () => true,
+            resolveSource: () => 'resolved-source',
+        })).toMatchObject({candidate: brokenCandidate});
+
+        const disconnected = document.createElement('p');
+        const disconnectedCandidate = candidate(disconnected);
+        queue.pending.clear();
+        queue.pending.set(disconnected, disconnectedCandidate);
+        expect(selectNextFullPageCandidate(queue, {
+            now: 1_000,
+            viewportHeight: 600,
+            isEligible: () => true,
+            resolveSource: () => 'disconnected-source',
+        })).toMatchObject({candidate: disconnectedCandidate});
+    });
+
+    it('缺失元数据时补建序号，并在后台任务达到等待阈值后执行公平配额', () => {
+        const {document} = parseHTML('<html><body><p id="visible"></p><p id="background"></p></body></html>');
+        const visible = document.querySelector<HTMLElement>('#visible')!;
+        const background = document.querySelector<HTMLElement>('#background')!;
+        setRect(visible, 100);
+        setRect(background, 2_000, 2_080);
+        const visibleCandidate = candidate(visible);
+        const backgroundCandidate = candidate(background);
+        const queue = state();
+        queue.pending.set(visible, visibleCandidate);
+        expect(selectNextFullPageCandidate(queue, {
+            now: 1_000,
+            viewportHeight: 600,
+            isEligible: () => true,
+            resolveSource: () => 'visible-source',
+        })).toMatchObject({candidate: visibleCandidate});
+
+        queue.pending.clear();
+        queue.pendingMetadata.clear();
+        queue.pending.set(visible, visibleCandidate);
+        queue.pending.set(background, backgroundCandidate);
+        queue.pendingMetadata.set(background, {source: 'background-source', queuedAt: 0, sequence: 1});
+        queue.pendingMetadata.set(visible, {source: 'visible-source', queuedAt: 900, sequence: 2});
+        queue.foregroundDispatchesSinceBackground = 8;
+        expect(selectNextFullPageCandidate(queue, {
+            now: 9_000,
+            viewportHeight: 600,
+            isEligible: () => true,
+            resolveSource: () => 'fallback-source',
+        })).toMatchObject({candidate: backgroundCandidate});
+
+        queue.pending.clear();
+        expect(selectNextFullPageCandidate(queue, {
+            now: 9_000,
+            viewportHeight: 600,
+            isEligible: () => true,
+            resolveSource: () => 'empty-source',
+        })).toBeUndefined();
+    });
+});

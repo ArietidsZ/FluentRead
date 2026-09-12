@@ -8,6 +8,7 @@
 
 import {
     composedAncestors,
+    getTranslatableControlValueAttribute,
     isTextInNestedTranslationTooltip,
     getComposedParent,
     isProtectedDescendantElement,
@@ -107,6 +108,15 @@ function collectReadableText(
         }
         if (root.nodeType !== 1) continue;
         const element = root as Element;
+        // 按钮型 input 的可见标签只存在于 value 属性里。仅当它本身就是候选根时才读取：
+        // 外层容器的译文经由文本槽或双语骨架渲染，无法写回子元素属性，把属性文本混进去
+        // 只会让服务端翻译一段永远显示不出来的内容。
+        const controlValueAttribute = getTranslatableControlValueAttribute(element);
+        if (controlValueAttribute) {
+            // 属性判定已确认该标签存在且非空白，这里只做与文本节点一致的空白归一。
+            parts.push(normalizeTranslationText(element.getAttribute(controlValueAttribute)!));
+            continue;
+        }
         const document = element.ownerDocument;
         if (!document?.createTreeWalker) continue;
         const walker = document.createTreeWalker(element, 4);
@@ -297,10 +307,25 @@ export function extractTranslationText(
 const hanPattern = /\p{Script=Han}/u;
 const kanaPattern = /[\p{Script=Hiragana}\p{Script=Katakana}]/u;
 const hangulPattern = /\p{Script=Hangul}/u;
+const cjkLetterPattern = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+const latinTokenPattern = /[A-Za-z]+(?:[._/+:#@-][A-Za-z0-9]+)*/gu;
+const preservedLatinTokenPattern = /^(?:[A-Z]{2,}|(?:[A-Z][a-z]*[A-Z][A-Za-z]*|[a-z]+[A-Z][A-Za-z]*)|(?:api|cpu|css|dom|gpu|git|html|http|https|json|js|npm|pdf|pnpm|sql|ssh|svg|ts|url|xml|yaml|yarn))$/u;
+
+/** 目标语种中的假名/谚文不能掩盖真正的外语正文；短品牌名、代码和 URL 仍视为可保留内容。 */
+function hasForeignLanguageProse(value: string): boolean {
+    for (const match of value.matchAll(/\p{L}+/gu)) {
+        if ([...match[0]].some((character) => (
+            !cjkLetterPattern.test(character) && !/^[A-Za-z]$/u.test(character)
+        ))) return true;
+    }
+    const proseTokens = (value.match(latinTokenPattern) ?? [])
+        .filter((token) => !/[._/+:#@\-0-9]/u.test(token) && !preservedLatinTokenPattern.test(token));
+    return proseTokens.some((token) => token.length >= 3) || proseTokens.length >= 2;
+}
 
 /**
  * 统计式语言检测对短 UI 文本最不可靠。只接受假名、谚文或中文特有字形作为明确证据；
- * 普通共享 Han 无法可靠区分中日文，拉丁字母也无法区分英法德等语言，均交给后续检测或翻译服务。
+ * 普通共享 Han 无法可靠区分中日文，夹带的外语正文也不能被目标脚本或品牌名掩盖，均交给后续检测或翻译服务。
  */
 export function isClearlyTargetLanguage(value: string, targetLanguage: string): boolean {
     const text = normalizeTranslationText(value);
@@ -312,8 +337,8 @@ export function isClearlyTargetLanguage(value: string, targetLanguage: string): 
     const hasKana = kanaPattern.test(text);
     const hasHangul = hangulPattern.test(text);
     if (hasKana && hasHangul) return false;
-    if (hasKana) return target.startsWith('ja');
-    if (hasHangul) return target.startsWith('ko');
+    if (hasKana) return target.startsWith('ja') && !hasForeignLanguageProse(text);
+    if (hasHangul) return target.startsWith('ko') && !hasForeignLanguageProse(text);
     if (hanPattern.test(text)) {
         const script = detectChineseScript(text);
         return script !== undefined && script === getChineseScript(targetLanguage);

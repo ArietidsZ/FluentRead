@@ -17,7 +17,7 @@ afterEach(() => { vi.useRealTimers(); });
 
 describe('free provider fallback coordinator', () => {
     it('超时会中止不响应的服务并在预算内进入下一服务', async () => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         let signal!: AbortSignal;
         const first = candidate('first', vi.fn((received: AbortSignal) => {
             signal = received;
@@ -33,20 +33,20 @@ describe('free provider fallback coordinator', () => {
     });
 
     it('429 后跨段跳过冷却服务，到期仅探测一次，成功恢复正常优先级', async () => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const first = candidate('first', vi.fn().mockRejectedValueOnce(failure(429)).mockResolvedValue('恢复'));
         const second = candidate('second');
         await expect(run([first, second], options)).resolves.toBe('译:second');
         await expect(run([first, second], options)).resolves.toBe('译:second');
         expect(first.translate).toHaveBeenCalledOnce();
-        await vi.advanceTimersByTimeAsync(1_000);
+        await vi.advanceTimersByTimeAsync(300_000);
         await expect(run([first, second], options)).resolves.toBe('恢复');
         await expect(run([first, second], options)).resolves.toBe('恢复');
         expect(first.translate).toHaveBeenCalledTimes(3);
     });
 
-    it.each([400, 404, 413, 415, 422])('HTTP %i 的文本或语言失败不熔断后续文本', async status => {
-        const run = createFreeFallbackRunner();
+    it.each([400, 413, 415, 422])('HTTP %i 的文本或语言失败不熔断后续文本', async status => {
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const first = candidate('first', vi.fn().mockRejectedValueOnce(failure(status)).mockResolvedValue('正常'));
         const second = candidate('second');
         await expect(run([first, second], options)).resolves.toBe('译:second');
@@ -55,7 +55,7 @@ describe('free provider fallback coordinator', () => {
     });
 
     it.each([401, 403, 408, 429, 456, 500, 503])('HTTP %i 对相同连接启用冷却', async status => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const first = candidate('first', vi.fn().mockRejectedValue(failure(status)));
         await expect(run([first], options)).rejects.toThrow(`HTTP ${status}`);
         await expect(run([first], options)).rejects.toThrow('正在冷却');
@@ -63,7 +63,7 @@ describe('free provider fallback coordinator', () => {
     });
 
     it.each(['', '   ', undefined, ['unexpected'], {text: 'unexpected'}])('无效响应进入冷却且继续备用服务 %#', async value => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const first = candidate('first', vi.fn().mockResolvedValue(value));
         const second = candidate('second');
         await expect(run([first, second], options)).resolves.toBe('译:second');
@@ -72,7 +72,7 @@ describe('free provider fallback coordinator', () => {
     });
 
     it('同服务更换身份后独立探测，旧身份仍保持冷却', async () => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const old = candidate('hash-old', vi.fn().mockRejectedValue(failure(429)));
         await expect(run([old], options)).rejects.toThrow('HTTP 429');
         await expect(run([candidate('hash-new')], options)).resolves.toBe('译:hash-new');
@@ -81,7 +81,7 @@ describe('free provider fallback coordinator', () => {
     });
 
     it('全冷却时立即给出清晰错误且不重新发请求', async () => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const candidates = [candidate('a', vi.fn().mockRejectedValue(failure(429))), candidate('b', vi.fn().mockRejectedValue(failure(503)))];
         await expect(run(candidates, options)).rejects.toThrow('免费翻译服务均不可用');
         await expect(run(candidates, options)).rejects.toThrow('所选服务正在冷却，请稍后重试');
@@ -89,12 +89,12 @@ describe('free provider fallback coordinator', () => {
     });
 
     it('冷却到期的并发请求只放行一个探测', async () => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const pending = deferred();
         const first = candidate('first', vi.fn().mockRejectedValueOnce(failure(429)).mockImplementation(() => pending.promise));
         const second = candidate('second');
         await run([first, second], options);
-        await vi.advanceTimersByTimeAsync(1_000);
+        await vi.advanceTimersByTimeAsync(300_000);
         const probe = run([first, second], options);
         await flush();
         await expect(run([first, second], options)).resolves.toBe('译:second');
@@ -104,7 +104,7 @@ describe('free provider fallback coordinator', () => {
     });
 
     it('成功后的旧并发失败不能重新打开冷却', async () => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const pending = deferred();
         const first = candidate('first', vi.fn().mockImplementationOnce(() => pending.promise).mockResolvedValue('正常'));
         const second = candidate('second');
@@ -118,7 +118,7 @@ describe('free provider fallback coordinator', () => {
     });
 
     it('超时的迟到成功不能提前清除冷却', async () => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const pending = deferred();
         const first = candidate('first', vi.fn(() => pending.promise));
         const second = candidate('second');
@@ -132,7 +132,7 @@ describe('free provider fallback coordinator', () => {
     });
 
     it('调用方取消立即结束忽略 signal 的请求，不降级也不计失败', async () => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const controller = new AbortController();
         const first = candidate('first', vi.fn().mockImplementationOnce(() => new Promise(() => {})).mockResolvedValue('正常'));
         const second = candidate('second');
@@ -146,7 +146,7 @@ describe('free provider fallback coordinator', () => {
     });
 
     it('provider 主动取消不降级也不冷却', async () => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const first = candidate('first', vi.fn().mockRejectedValueOnce(new DOMException('cancelled', 'AbortError')).mockResolvedValue('正常'));
         const second = candidate('second');
         await expect(run([first, second], options)).rejects.toMatchObject({name: 'AbortError'});
@@ -155,7 +155,7 @@ describe('free provider fallback coordinator', () => {
     });
 
     it('已取消、已过期或无已配置服务时不调用 provider', async () => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const first = candidate('first');
         const controller = new AbortController();
         controller.abort();
@@ -166,7 +166,7 @@ describe('free provider fallback coordinator', () => {
     });
 
     it('获得并发许可后、执行服务前的取消立即生效', async () => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const first = candidate('first');
         const controller = new AbortController();
         const request = run([first], {...options, signal: controller.signal});
@@ -177,7 +177,7 @@ describe('free provider fallback coordinator', () => {
     });
 
     it('服务回调排入微任务后、实际执行前的取消不产生网络请求', async () => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const first = candidate('first');
         const controller = new AbortController();
         const request = run([first], {...options, signal: controller.signal});
@@ -188,7 +188,7 @@ describe('free provider fallback coordinator', () => {
     });
 
     it('获得并发许可时已经耗尽总预算，不执行服务', async () => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const first = candidate('first');
         const request = run([first], {...options, deadline: Date.now() + 10});
         vi.setSystemTime(Date.now() + 10);
@@ -197,7 +197,7 @@ describe('free provider fallback coordinator', () => {
     });
 
     it('服务刚成功但结果尚未交付时，取消仍优先且不改变健康状态', async () => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const pending = deferred();
         const first = candidate('first', vi.fn(() => pending.promise));
         const controller = new AbortController();
@@ -212,7 +212,7 @@ describe('free provider fallback coordinator', () => {
     });
 
     it('配置身份缓存有界，只淘汰最久未使用的健康记录', async () => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const oldest = candidate('oldest', vi.fn().mockRejectedValueOnce(failure(429)).mockResolvedValue('重新探测'));
         const recent = candidate('recent', vi.fn().mockRejectedValue(failure(429)));
         await expect(run([oldest], options)).rejects.toThrow('HTTP 429');
@@ -224,7 +224,7 @@ describe('free provider fallback coordinator', () => {
     });
 
     it('整个请求的剩余预算限制备用服务时间', async () => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const first = candidate('first', vi.fn(() => new Promise(() => {})));
         const second = candidate('second', vi.fn(() => new Promise(() => {})));
         const third = candidate('third');
@@ -239,7 +239,7 @@ describe('free provider fallback coordinator', () => {
     });
 
     it('上层总预算提前用完不应把仍在正常时限内的服务标为故障', async () => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const first = candidate('first', vi.fn().mockImplementationOnce(() => new Promise(() => {})).mockResolvedValue('正常'));
         const request = run([first], {...options, deadline: Date.now() + 20});
         const assertion = expect(request).rejects.toThrow('请求超时');
@@ -293,7 +293,7 @@ describe('free provider fallback coordinator', () => {
     });
 
     it('只汇总安全错误分类，不泄漏原文、密钥或完整 endpoint', async () => {
-        const run = createFreeFallbackRunner();
+        const run = createFreeFallbackRunner(3, {random: () => 0});
         const unknown = candidate('网络服务', vi.fn().mockRejectedValue('ORIGINAL key=secret https://sensitive.example/'));
         const known = candidate('限流服务', vi.fn().mockRejectedValue(failure(429)));
         await expect(run([unknown, known], options)).rejects.toThrow('网络服务: 请求失败；限流服务: HTTP 429');

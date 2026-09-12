@@ -312,6 +312,15 @@
     overflow-wrap: break-word; /* 处理长单词或 URL 的断行，避免溢出 */
 }
 
+/* 显式换行的源文与译文占用同一行内盒子，避免块级译文与宿主 br 叠加出空白行。
+ * 仅约束 FluentRead 自建且可恢复的行容器，不修改宿主段落和换行节点。 */
+.fluent-read-source-line[data-fr-translation-segment="true"] {
+    display: inline-block;
+    width: 100%;
+    max-width: 100%;
+    vertical-align: top;
+}
+
 /* GitHub ListView 的行内标题后有带 padding 的空徽标占位符。块级译文会拆开
  * 行内格式化上下文，把占位符推到独占的空行。仅在标题含自有译文时把原文与
  * 译文收进同一个行内块，保留相邻徽标；移除译文后由 CSS 自动恢复宿主布局。 */

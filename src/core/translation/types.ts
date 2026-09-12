@@ -24,10 +24,20 @@ export type AdapterDecision =
         target?: Element;
         candidateKind?: TranslationCandidateKind;
         atomic?: boolean;
+        /** 按直接子级 br 拆分正文，保留每行的链接、强调与代码。 */
+        splitOnBr?: boolean;
     };
 
 export interface AdapterContext {
     url: URL;
+}
+
+/** A bounded text range selected from a large unstructured hover target. */
+export interface TranslationTextRange {
+    startContainer: Text;
+    startOffset: number;
+    endContainer: Text;
+    endOffset: number;
 }
 
 export interface TranslationSiteAdapter {
@@ -52,6 +62,8 @@ export interface TranslationCandidate {
     element: HTMLElement;
     /** 块内同时包含内联文本与块级子节点时使用的连续直接子节点。 */
     nodes?: readonly ChildNode[];
+    /** 显式换行拆出的原文行；物化时把原文与译文放入同一个行内块。 */
+    sourceLine?: boolean;
     kind: TranslationCandidateKind;
     reason: string;
     adapterId?: string;
@@ -59,6 +71,12 @@ export interface TranslationCandidate {
     scope?: TranslationScope;
     /** 显式选中/悬浮解析允许穿过 body 直接子级的应用级 no-translate 外壳。 */
     allowTopLevelApplicationShell?: boolean;
+    /** 悬浮命中大型无语义容器时，按视觉段落/句群选择的范围。 */
+    visualRange?: TranslationTextRange;
+    /** Range 经过文本保护过滤后的请求来源快照。 */
+    visualSourceText?: string;
+    /** 已经物化为可恢复临时片段的悬浮候选。 */
+    manualChunk?: boolean;
 }
 
 export interface TranslationCoreOptions {

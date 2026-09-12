@@ -65,6 +65,7 @@ vi.mock("@/src/core/config/catalog", () => ({
         microsoft: "microsoft",
         freeTranslation: "freeTranslation",
         chromeTranslator: "chromeTranslator",
+        localTranslation: "localTranslation",
     },
     servicesType: {
         isUseAIContext: (service: string) => service === 'ai',
@@ -117,7 +118,8 @@ vi.mock("@/src/features/full-page-translation/content/titleTranslation", () => (
     stopFullPageTitleTranslation: () => undefined,
     isFullPageTitleTranslationActive: () => false,
 }));
-vi.mock("@/src/features/full-page-translation/content/renderer", () => ({
+vi.mock("@/src/features/full-page-translation/content/renderer", async (importOriginal) => ({
+    ...await importOriginal<typeof import("@/src/features/full-page-translation/content/renderer")>(),
     appendSingleTranslationSlots: (
         node: HTMLElement,
         slots: readonly {node: Text; text: string}[],
@@ -162,7 +164,8 @@ vi.mock("@/src/features/full-page-translation/content/renderer", () => ({
 vi.mock("@/src/features/full-page-translation/content/layout", () => ({
     ensureTranslationTruncationLayout: runtime.ensureTranslationTruncationLayout,
 }));
-vi.mock("@/src/core/translation/public", () => {
+vi.mock("@/src/core/translation/public", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/src/core/translation/public")>();
     const protectedSelector = [
         "head", "script", "style", "noscript", "iframe", "input", "textarea", "select", "option",
         "math", "svg", "canvas", "audio", "video", "object", "template", "xmp", "pre", "code",
@@ -196,6 +199,9 @@ vi.mock("@/src/core/translation/public", () => {
     };
 
     return {
+        // 属性型按钮标签的安全边界由 core 唯一定义，测试替身不复制其判定规则。
+        getTranslatableControlValueAttribute: actual.getTranslatableControlValueAttribute,
+        normalizeTranslationText: actual.normalizeTranslationText,
         extractTranslationText: (element: HTMLElement, keepOriginal?: (element: Element) => boolean) =>
             textSlots(element, keepOriginal).map(({source}) => source).join(""),
         extractTranslationTextFromNodes: (nodes: readonly Node[]) =>
@@ -361,6 +367,24 @@ function setLayoutBox(element: Element, width: number, height: number): void {
             ? Object.assign([rect], {item: (index: number) => index === 0 ? rect : null})
             : Object.assign([], {item: () => null}),
     });
+}
+
+function setViewportRect(element: Element, initialTop: number, height = 80): (top: number) => void {
+    let top = initialTop;
+    Object.defineProperty(element, 'getBoundingClientRect', {
+        configurable: true,
+        value: () => ({
+            width: 600,
+            height,
+            top,
+            bottom: top + height,
+            left: 0,
+            right: 600,
+            x: 0,
+            y: top,
+        }),
+    });
+    return (nextTop: number) => { top = nextTop; };
 }
 
 function deferred<T>() {
@@ -1821,6 +1845,21 @@ describe("全文翻译可见性锚点", () => {
             .toBe(getTranslationInvocationIdentity(baseline));
     });
 
+    it.each(['auto', 'en'])('本地模型逐槽翻译短链接，以段落检测语言且尊重显式 %s', async (sourceLanguage) => {
+        const origins = ['When switching between different filaments for printing, the printer flushes the remaining material. ', 'Reduce Waste during Filament Change'];
+        await expect(translateTextSlots(origins, translationSnapshot({
+            service: 'localTranslation', sourceLanguage,
+        }))).resolves.toEqual(origins.map((text) => `译:${text}`));
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        for (const options of runtime.requestOptions) {
+            if (sourceLanguage === 'auto') {
+                expect(options).toMatchObject({sourceLanguageDetectionText: origins.join('\n')});
+            } else {
+                expect(options).not.toHaveProperty('sourceLanguageDetectionText');
+            }
+        }
+    });
+
     it('Chrome auto 用纯文本槽检测源语言，但仍把带标记正文交给翻译器', async () => {
         const origins = ['Bonjour ', 'le monde.'];
         runtime.parsedSlots = ['你好，', '世界。'];
@@ -3127,7 +3166,7 @@ describe("全文翻译可见性锚点", () => {
         expect(runtime.requests).toHaveBeenCalledTimes(2);
         expect(getTranslationState(paragraph)?.phase).toBe('translated');
         expect(paragraph.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
-        expect(runtime.renderOptions.at(-1)).toEqual({targetLanguage: 'ja', style: 2});
+        expect(runtime.renderOptions.at(-1)).toEqual({targetLanguage: 'ja', style: 2, sourceText: 'Same configuration slot source.'});
     });
 
     it("取消已排队的延迟悬浮后，计时器到期也不会晚到翻译", async () => {
@@ -3194,6 +3233,76 @@ describe("全文翻译可见性锚点", () => {
         expect(runtime.requests).toHaveBeenCalledWith(["Paragraph near the page bottom"]);
         expect(singleTranslationText(visible)).toBe("译:Visible paragraph");
         expect(singleTranslationText(belowFold)).toBe("译:Paragraph near the page bottom");
+    });
+
+    it('滚动停止后优先翻译新可见候选，而不是先前已排队的离屏候选', async () => {
+        runtime.config.maxConcurrentTranslations = 1;
+        document.body.innerHTML = [
+            '<p id="first">The first paragraph is already being translated.</p>',
+            '<p id="old">An older queued paragraph remains far above the new viewport.</p>',
+            '<p id="jumped">The paragraph revealed by the user scroll should go next.</p>',
+        ].join('');
+        const first = document.querySelector<HTMLElement>('#first')!;
+        const old = document.querySelector<HTMLElement>('#old')!;
+        const jumped = document.querySelector<HTMLElement>('#jumped')!;
+        const moveFirst = setViewportRect(first, 100);
+        setViewportRect(old, 1_400);
+        const moveJumped = setViewportRect(jumped, 1_600);
+        [first, old, jumped].forEach((candidate) => setLayoutBox(candidate, 600, 80));
+        runtime.candidates = [first, old, jumped].map((element) => ({
+            element,
+            kind: 'content' as const,
+            reason: 'paragraph',
+        }));
+
+        const firstRequest = deferred<string[]>();
+        const jumpedRequest = deferred<string[]>();
+        const oldRequest = deferred<string[]>();
+        runtime.requests
+            .mockImplementationOnce(() => firstRequest.promise)
+            .mockImplementationOnce(() => jumpedRequest.promise)
+            .mockImplementationOnce(() => oldRequest.promise);
+
+        Object.defineProperty(window, 'innerHeight', {configurable: true, value: 600});
+        Object.defineProperty(window, 'scrollY', {configurable: true, writable: true, value: 0});
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(50);
+        const observer = TestIntersectionObserver.instances[0]!;
+        await waitForObservedCandidateCount(observer, 3);
+        observer.emit(first, true);
+        observer.emit(old, true);
+        await vi.advanceTimersByTimeAsync(1);
+        await Promise.resolve();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+
+        moveFirst(-700);
+        moveJumped(100);
+        window.scrollY = 1_000;
+        document.dispatchEvent(new window.Event('scroll'));
+        observer.emit(jumped, true);
+        firstRequest.resolve(['译:The first paragraph is already being translated.']);
+        await vi.advanceTimersByTimeAsync(1);
+        await Promise.resolve();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(runtime.cancelQueue).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(220);
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(runtime.requests).toHaveBeenNthCalledWith(2, [
+            'The paragraph revealed by the user scroll should go next.',
+        ]);
+
+        jumpedRequest.resolve(['译:The paragraph revealed by the user scroll should go next.']);
+        await vi.advanceTimersByTimeAsync(1);
+        await Promise.resolve();
+        expect(runtime.requests).toHaveBeenCalledTimes(3);
+        expect(runtime.requests).toHaveBeenNthCalledWith(3, [
+            'An older queued paragraph remains far above the new viewport.',
+        ]);
+        oldRequest.resolve(['译:An older queued paragraph remains far above the new viewport.']);
+        await finishScheduledWork();
     });
 
     it("立即翻译整页按任务调度配置限制候选并发，释放槽位后才启动下一项", async () => {
@@ -3340,8 +3449,8 @@ describe("全文翻译可见性锚点", () => {
             enableAIContext: true,
         }));
         expect(runtime.renderOptions).toEqual([
-            {targetLanguage: 'zh', style: 2},
-            {targetLanguage: 'zh', style: 2},
+            {targetLanguage: 'zh', style: 2, sourceText: 'First paragraph uses the session snapshot.'},
+            {targetLanguage: 'zh', style: 2, sourceText: 'Later paragraph must use the same snapshot.'},
         ]);
         expect(first.querySelector('.fluent-read-bilingual-content')?.getAttribute('lang')).toBe('zh');
         expect(second.querySelector('.fluent-read-bilingual-content')?.getAttribute('lang')).toBe('zh');

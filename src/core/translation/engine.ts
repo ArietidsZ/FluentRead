@@ -2,7 +2,7 @@
  * @file src/core/translation/engine.ts
  *
  * 文件职责：实现 DOM 节点到 TranslationCandidate 的核心解析引擎，协调安全守卫、站点适配器、布局边界和文本有效性。
- * 主要内容：按正文/全部节点范围协调候选；定义 TranslationCandidateCore、候选优选与键值函数，记录发现步骤和原因，处理 hover 屏障、适配优先级、快照省略、缓存及坐标命中，让独立 tooltip 不抢占外层控件候选，保证全文与悬浮共享决策。 可核对的公开符号包括 TranslationCoreInspection、TranslationDiscoveryStep、getTranslationCandidateKey、selectPreferredTranslationCandidate、TranslationCandidateCore。
+ * 主要内容：按正文/全部节点范围协调候选；定义 TranslationCandidateCore、候选优选与键值函数，记录发现步骤和原因，按站点规则把显式换行拆为两种入口一致的内联候选，处理 hover 屏障、适配优先级、快照省略、缓存及坐标命中，让独立 tooltip 不抢占外层控件候选，保证全文与悬浮共享决策。 可核对的公开符号包括 TranslationCoreInspection、TranslationDiscoveryStep、getTranslationCandidateKey、selectPreferredTranslationCandidate、TranslationCandidateCore。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
@@ -27,6 +27,7 @@ import {
     getDirectInlineRuns,
     getAllScopeCandidateKind,
     hasStructuralAncestor,
+    isIncludedSidebarRegion,
     isBlockBoundary,
     isSemanticHeadingElement,
     isStructuralContainer,
@@ -53,6 +54,7 @@ import {
     partitionInlineRunAtBarriers,
     readCachedFlagOr,
 } from './internal';
+import {resolveVisualTranslationRange} from './visual';
 
 const maxHoverBarrierDiscoverySteps = 256;
 /**
@@ -338,8 +340,10 @@ export class TranslationCandidateCore {
 
             const parent = getComposedParent(item);
             const hasStructuralAncestor = Boolean(parent && !isDocumentSurface(parent) && (
-                this.isStructuralContainerForResolution(parent, evaluationContext) ||
-                evaluationContext.structuralAncestors.get(parent) === true
+                !isIncludedSidebarRegion(item, this.structuralRegionOptions()) &&
+                !isIncludedSidebarRegion(parent, this.structuralRegionOptions()) &&
+                (this.isStructuralContainerForResolution(parent, evaluationContext) ||
+                    evaluationContext.structuralAncestors.get(parent) === true)
             ));
             evaluationContext.structuralAncestors.set(item, hasStructuralAncestor);
         }
@@ -478,6 +482,25 @@ export class TranslationCandidateCore {
             ...this.candidateResolutionMetadata(evaluationContext),
         };
         return {candidate};
+    }
+
+    /** 显式站点换行规则与普通内联 run 共用边界和预算，宿主 br 始终留在原位。 */
+    private splitForcedCandidate(
+        candidate: TranslationCandidate,
+        decision: AdapterDecision,
+        textProtectionCache: TranslationTextProtectionCache,
+        evaluationContext?: ResolutionEvaluationContext,
+    ): TranslationCandidate[] {
+        if (decision.kind !== 'force-target' || !decision.splitOnBr) return [candidate];
+        // 未出现显式换行时仍使用完整段落；超宽节点由下层预算拒绝物化。
+        if (candidate.element.childNodes.length <= 2048 &&
+            !Array.from(candidate.element.children).some((child) => child.localName === 'br')) return [candidate];
+        const runs = getDirectInlineRuns(
+            candidate.element, this.shouldStayOriginal, true,
+            (child) => child.localName === 'br' || isTranslationControlElement(child),
+            textProtectionCache, evaluationContext?.textProtectionOptions, this.scope,
+        );
+        return runs.map((nodes) => ({...candidate, nodes, sourceLine: true}));
     }
 
     private inlineRunCandidates(
@@ -633,7 +656,11 @@ export class TranslationCandidateCore {
             let exhausted = false;
             for (const step of this.discoverSteps(child)) {
                 remainingSteps -= 1;
-                if (step.candidate) {
+                // discoverSteps 会把脏子树提升到所属控件边界重扫，因此步骤里也会出现兄弟节点
+                // 甚至父级自身的候选。只有落在该子节点内部的候选才代表它自己拥有翻译目标；
+                // 否则父级内联 run 会被自己的成员当成屏障切掉，导致发现与悬浮解析结果不一致。
+                if (step.candidate && (step.candidate.element === child ||
+                    child.contains(step.candidate.element))) {
                     ownsCandidate = true;
                     break;
                 }
@@ -701,7 +728,13 @@ export class TranslationCandidateCore {
                     textProtectionCache,
                     evaluationContext,
                 ).candidate;
-                if (exact) return exact;
+                if (exact) {
+                    const candidates = this.splitForcedCandidate(exact, ownDecision, textProtectionCache, evaluationContext);
+                    if (!ownDecision.splitOnBr) return exact;
+                    if (hit === exact.element) return candidates[0] ?? null;
+                    return candidates.find((candidate) => !candidate.nodes || candidate.nodes.some((node) =>
+                        node === hit || node.contains(hit))) ?? null;
+                }
             }
             // 混合直接内容必须解析为全文遍历产出的同一个 run；这样原子适配目标旁的普通文本
             // 也不会回退成整个父容器。
@@ -809,6 +842,7 @@ export class TranslationCandidateCore {
                             exitIndex: 0,
                             checkAncestors: false,
                             insideStructural: this.scope === 'content' &&
+                                !isIncludedSidebarRegion(child, this.structuralRegionOptions()) &&
                                 (frame.insideStructural ||
                                     isStructuralContainer(frame.element, this.structuralRegionOptions())),
                             pruned: false,
@@ -831,6 +865,7 @@ export class TranslationCandidateCore {
                             exitIndex: 0,
                             checkAncestors: false,
                             insideStructural: this.scope === 'content' &&
+                                !isIncludedSidebarRegion(shadowChild, this.structuralRegionOptions()) &&
                                 (frame.insideStructural ||
                                     isStructuralContainer(frame.element, this.structuralRegionOptions())),
                             pruned: false,
@@ -849,7 +884,7 @@ export class TranslationCandidateCore {
                                 textProtectionCache,
                                 frame.candidateChildBarriers,
                             )
-                            : [frame.forcedCandidate];
+                            : this.splitForcedCandidate(frame.forcedCandidate, frame.ownAdapter!.decision, textProtectionCache);
                     } else if (frame.ownAdapter?.decision.kind === 'skip-self' ||
                         frame.ownAdapter?.decision.kind === 'prune-subtree' ||
                         frame.pruned) {
@@ -924,7 +959,7 @@ export class TranslationCandidateCore {
             const pointedNode = findNodeAtPoint(currentRoot, x, y);
             if (pointedNode) {
                 const pointedCandidate = this.resolve(pointedNode);
-                if (pointedCandidate) return pointedCandidate;
+                if (pointedCandidate) return this.refineHoverCandidate(pointedCandidate, currentRoot, x, y);
             }
 
             for (const element of findElementsAtPoint(currentRoot, x, y)) {
@@ -933,11 +968,26 @@ export class TranslationCandidateCore {
                     if (shadowCandidate) return shadowCandidate;
                 }
                 const candidate = this.resolve(element);
-                if (candidate) return candidate;
+                if (candidate) return this.refineHoverCandidate(candidate, currentRoot, x, y);
             }
             return null;
         };
 
         return resolveInRoot(root, 0);
+    }
+
+    private refineHoverCandidate(
+        candidate: TranslationCandidate,
+        root: Document | ShadowRoot,
+        x: number,
+        y: number,
+    ): TranslationCandidate {
+        const visual = resolveVisualTranslationRange(candidate, root, x, y, this.shouldStayOriginal);
+        return visual ? {
+            ...candidate,
+            visualRange: visual.range,
+            visualSourceText: visual.sourceText,
+            reason: 'visual-text-chunk',
+        } : candidate;
     }
 }

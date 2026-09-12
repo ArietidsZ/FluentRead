@@ -3,6 +3,7 @@ import vue from '@vitejs/plugin-vue';
 import {resolve} from 'path';
 import fs from 'fs';
 import {resolveBrowserCapabilities} from './src/platform/browser/capabilities';
+import {wllamaExtensionWorker} from './scripts/testing/wllama-extension-build';
 
 
 const packageJson = JSON.parse(fs.readFileSync(resolve(__dirname, 'package.json'), 'utf-8'));
@@ -138,7 +139,7 @@ export default defineConfig({
     vite: (env) => {
         const isProductionBuild = env.command === 'build' && env.mode === 'production';
         return {
-            plugins: [vue(), escapeExtensionNoncharacters()],
+            plugins: [vue(), wllamaExtensionWorker(), escapeExtensionNoncharacters()],
             define: {
                 'process.env.VUE_APP_VERSION': JSON.stringify(packageJson.version),
             },
@@ -154,6 +155,9 @@ export default defineConfig({
     },
     hooks: {
         'build:publicAssets': (_wxt, files) => {
+            files.push({absoluteSrc: resolve(__dirname, 'node_modules/@wllama/wllama/LICENCE'), relativeDest: 'third-party-notices/wllama-MIT.txt'});
+            files.push({absoluteSrc: resolve(__dirname, 'node_modules/@noble/hashes/LICENSE'), relativeDest: 'third-party-notices/noble-hashes-MIT.txt'});
+            files.push({absoluteSrc: resolve(__dirname, 'node_modules/@wllama/wllama/esm/wasm/wllama.wasm'), relativeDest: 'fluent-read-ai/wllama.wasm'});
             for (const name of ['ort-wasm-simd-threaded.jsep.mjs', 'ort-wasm-simd-threaded.jsep.wasm']) {
                 files.push({absoluteSrc: resolve(__dirname, `node_modules/@huggingface/transformers/dist/${name}`), relativeDest: `fluent-read-ai/${name}`});
             }

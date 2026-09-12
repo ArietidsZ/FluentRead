@@ -2,13 +2,19 @@
  * @file src/core/config/catalog.ts
  *
  * 文件职责：维护 FluentRead 翻译语言、服务与模型的领域目录，让设置、校验和运行时能够引用同一组稳定的服务标识与模型元数据。
- * 主要内容：明确区分简体中文和繁体中文，统一源语言、目标语言和输入框语言选项，并定义 services、servicesType、服务目录展示分类与排序（含“云服务厂商”分组）、模型候选、云厂商地域白名单、MiniMax 与 MiMo 的计费和地域选项，并提供 resolveConfiguredModel、resolveCloudRegion 等解析函数，把“自定义模型”选择归一为可请求的模型编号。 可核对的公开符号包括 services、cloudVendorServices、referenceAiPlatformServices、servicesType、customModelString、cloudRegionOptions、getDefaultCloudRegion、resolveCloudRegion、minimaxBillingPlans、MiniMaxBillingPlan、minimaxRegions、MiniMaxRegion、mimoBillingPlans。
+ * 主要内容：明确区分简体中文和繁体中文，统一源语言、目标语言和输入框语言选项，并定义 services、servicesType、服务目录展示分类与排序（含“云服务厂商”分组）、模型候选、云厂商地域白名单、MiniMax 与 MiMo 的计费和地域选项，并提供 resolveConfiguredModel、resolveCloudRegion 等解析函数，把“自定义模型”选择归一为可请求的模型编号。 同时维护默认翻译提示词与历史默认提示词清单，供配置归一化升级未被用户改写的旧默认值。 可核对的公开符号包括 services、cloudVendorServices、referenceAiPlatformServices、servicesType、customModelString、cloudRegionOptions、getDefaultCloudRegion、resolveCloudRegion、minimaxBillingPlans、MiniMaxBillingPlan、minimaxRegions、MiniMaxRegion、mimoBillingPlans、defaultOption、LEGACY_DEFAULT_USER_ROLES。
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
 import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import {DEFAULT_DEEPLX_ENDPOINT} from "./deeplx";
 import {CUSTOM_OPENAI_RESERVED_MODEL_ID, isCustomOpenAIProviderId} from './customOpenAI';
+import {DOUBAO_SEED_TRANSLATION_MODEL_ID, isDoubaoSeedTranslationModel} from './doubaoSeedTranslation';
+import {
+    LOCAL_TRANSLATION_MODELS,
+    DEFAULT_LOCAL_TRANSLATION_MODEL,
+    LOCAL_TRANSLATION_SERVICE_ID,
+} from './localTranslation';
 
 export const services = {
     // 机器翻译
@@ -21,6 +27,7 @@ export const services = {
     xiaoniu: "xiaoniu",
     youdao: "youdao",
     chromeTranslator: "chromeTranslator", // Chrome 内置翻译 API
+    localTranslation: LOCAL_TRANSLATION_SERVICE_ID, // 浏览器内本地模型翻译
     // 云服务厂商机器翻译：使用云控制台签发的密钥调用官方接口，各家都提供免费额度
     tencent: "tencent", // 腾讯云机器翻译 TMT
     googleCloudTranslation: "googleCloudTranslation", // Google Cloud Translation API
@@ -112,6 +119,7 @@ export const servicesType = {
     machine: new Set([
         services.myMemory, services.microsoft, services.freeTranslation, services.deepL, services.deeplx,
         services.google, services.xiaoniu, services.youdao, services.chromeTranslator,
+        services.localTranslation,
         ...cloudVendorServices,
     ]),
     // 云服务厂商：使用云控制台密钥的官方机器翻译接口
@@ -219,6 +227,7 @@ export const servicesType = {
         services.groq,
         services.huanYuan,
         services.huanYuanTranslation,
+        services.localTranslation,
         services.doubao,
         services.siliconCloud,
         services.openrouter,
@@ -281,10 +290,12 @@ export const servicesType = {
     isUseRegion: (service: string) => servicesType.useRegion.has(service),
     isAI: (service: string) => servicesType.AI.has(service) || isCustomOpenAIProviderId(service),
     isAiSdk: (service: string) => servicesType.aiSdk.has(service) || isCustomOpenAIProviderId(service),
+    // 翻译专用模型不接受提示词与页面上下文，译文风格由各自的原生翻译参数决定。
     isUseAIContext: (service: string, model = '') =>
         servicesType.isAI(service)
         && service !== services.huanYuanTranslation
-        && !(service === services.tongyi && model.startsWith('qwen-mt')),
+        && !(service === services.tongyi && model.startsWith('qwen-mt'))
+        && !(service === services.doubao && isDoubaoSeedTranslationModel(model)),
     isUseToken: (service: string) => servicesType.useToken.has(service) || isCustomOpenAIProviderId(service),
     isUseProxy: (service: string) => servicesType.useProxy.has(service) || isCustomOpenAIProviderId(service),
     isUseModel: (service: string) => servicesType.useModel.has(service) || isCustomOpenAIProviderId(service),
@@ -422,6 +433,7 @@ export const defaultModelIds = {
     [services.jieyue]: "step-2-mini",
     [services.huanYuan]: currentModelIds.huanYuan,
     [services.huanYuanTranslation]: "hunyuan-translation-lite",
+    [services.localTranslation]: DEFAULT_LOCAL_TRANSLATION_MODEL,
     [services.newapi]: "gpt-5.4-mini",
     [services.grok]: "grok-4.3",
     [services.doubao]: "doubao-seed-1-6-250615",
@@ -459,9 +471,10 @@ export const models = new Map<string, Array<string>>([
     [services.jieyue, [defaultModelIds[services.jieyue], "step-3.5-flash-2603", currentModelIds.jieyue, "step-3", "step-2", customModelString]],
     [services.huanYuan, [currentModelIds.huanYuan, customModelString]],
     [services.huanYuanTranslation, [defaultModelIds[services.huanYuanTranslation], "hunyuan-translation", customModelString]],
+    [services.localTranslation, [...LOCAL_TRANSLATION_MODELS.map((model) => model.value), customModelString]],
     [services.newapi, [defaultModelIds[services.newapi], currentModelIds.openai, "gpt-5.6-sol", "gemini-3.6-flash", "gemini-3.5-flash-lite", currentModelIds.claude, currentModelIds.deepseek, "kimi-k2.7-code", customModelString]],
     [services.grok, [defaultModelIds[services.grok], "grok-4.6", currentModelIds.grok, customModelString]],
-    [services.doubao, ["doubao-seed-1-6-250615", customModelString]],
+    [services.doubao, ["doubao-seed-1-6-250615", DOUBAO_SEED_TRANSLATION_MODEL_ID, customModelString]],
 
     // 混合模型。
     [services.siliconCloud, [defaultModelIds[services.siliconCloud], "deepseek-ai/DeepSeek-V4-Pro", "zai-org/GLM-5.2", "Qwen/Qwen3.6-27B", "Qwen/Qwen3.6-35B-A3B", "deepseek-ai/DeepSeek-V3.2", "deepseek-ai/DeepSeek-R1", customModelString]],
@@ -620,7 +633,7 @@ export const options = {
         {
             value: services.freeTranslation,
             label: "免费翻译服务",
-            description: "按设置顺序自动切换可用服务；支持每路超时和失败冷却。",
+            description: "后台自动均衡可用服务；根据响应表现调整分配，失败后自动切换。",
         },
         {value: services.myMemory, label: "MyMemory", description: "官方免费 API，匿名每天 5,000 字符；可选邮箱提升额度。"},
         {value: services.microsoft, label: "微软翻译"},
@@ -630,6 +643,7 @@ export const options = {
         {value: services.xiaoniu, label: "小牛翻译"},
         {value: services.youdao, label: "有道翻译"},
         {value: services.chromeTranslator, label: "Chrome内置AI翻译"},
+        {value: services.localTranslation, label: "本地模型翻译", description: "下载后离线翻译，可选轻量语言包与混元翻译模型。"},
         // 云服务厂商：各家云控制台签发密钥，免费额度用完后按量计费
         {value: "cloud", label: "云服务厂商", disabled: true},
         {value: services.tencent, label: "腾讯云翻译", description: "机器翻译 TMT，每月 500 万字符免费额度。"},
@@ -1158,6 +1172,18 @@ export function getMultilingualTargetLanguageLabel(value: string, fallback = val
     return labels[normalizeChineseLanguageCode(value)] || fallback;
 }
 
+/**
+ * 历史默认用户提示词。“If translation is unnecessary … return the original text”
+ * 会被较弱的模型理解为可以整句保留原文，导致译文中夹杂明显应当翻译的源语言
+ * （Issue #54）。这里保留原文本，供配置归一化把未被用户改写的默认值升级到当前
+ * 提示词；用户自定义的提示词不受影响。
+ */
+export const LEGACY_DEFAULT_USER_ROLES: readonly string[] = Object.freeze([
+    `Translate the following text into {{to}}, If translation is unnecessary (e.g. proper nouns, codes, etc.), return the original text. NO explanations. NO notes:
+
+{{origin}}`,
+]);
+
 export const defaultOption = {
     on: true,
     uiLanguage: "zh-CN" as const,
@@ -1171,7 +1197,7 @@ export const defaultOption = {
     deeplx: DEFAULT_DEEPLX_ENDPOINT,
     system_role:
         "You are a professional, authentic machine translation engine.",
-    user_role: `Translate the following text into {{to}}, If translation is unnecessary (e.g. proper nouns, codes, etc.), return the original text. NO explanations. NO notes:
+    user_role: `Translate the following text into {{to}}. Translate every sentence, clause and phrase in full; no part of the source text may stay in its original language. Keep only code, URLs, and proper nouns that have no established {{to}} form, and keep them inline inside the translated sentence. Return the translation only. NO explanations. NO notes:
 
 {{origin}}`,
     count: 0,

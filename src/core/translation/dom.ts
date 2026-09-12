@@ -2,7 +2,7 @@
  * @file src/core/translation/dom.ts
  *
  * 文件职责：封装翻译候选发现使用的 composed tree 遍历与不可覆盖安全守卫，识别扩展 DOM、其他翻译器已接管的段落、脚本、表单、图标字体、代码及禁止翻译区域。
- * 主要内容：提供抗表单命名属性遮蔽的标签读取、Shadow DOM 父级与祖先遍历、硬裁剪标签、受保护文本元素、text/plain 顶层 pre、独立 tooltip 边界、隐藏/可编辑/no-translate 判断，并限制祖先深度以避免异常页面结构拖垮扫描。 可核对的公开符号包括 maxComposedAncestorDepth、getComposedParent、isDocumentSurface、isExtensionElement、isExtensionElementSelf、isHardPruneTag、isProtectedTextElement、isPlainTextDocumentPre、hasNoTranslateMarker、isDocumentSurfaceNoTranslateShell、isTopLevelApplicationShell。
+ * 主要内容：提供抗表单命名属性遮蔽的标签读取、Shadow DOM 父级与祖先遍历、硬裁剪标签、按钮型 input 的可译标签属性判定、受保护文本元素、text/plain 顶层 pre、独立 tooltip 边界、隐藏/可编辑/no-translate 判断，并限制祖先深度以避免异常页面结构拖垮扫描。 可核对的公开符号包括 maxComposedAncestorDepth、getComposedParent、isDocumentSurface、isExtensionElement、isExtensionElementSelf、getTranslatableControlValueAttribute、isHardPruneTag、isProtectedTextElement、isPlainTextDocumentPre、hasNoTranslateMarker、isDocumentSurfaceNoTranslateShell、isTopLevelApplicationShell。
  * 模块边界：本文件属于可独立测试的 core 候选领域；可以读取传入 DOM 以计算结果，但不访问配置存储、不调用 provider、不注册页面监听器，也不负责译文渲染或 feature 生命周期。
  */
 
@@ -86,7 +86,29 @@ export function isForeignTranslationBoundary(element: Element): boolean {
         (!isDocumentSurface(element) && element.querySelector(':scope > .immersive-translate-target-wrapper') !== null);
 }
 
+const valueControlInputTypes = new Set(['button', 'reset', 'submit']);
+
+/**
+ * 按钮型 input 的可见文字来自 value 属性：浏览器按固定尺寸绘制标签，元素内没有任何可写入的
+ * Text 节点，因此它既不能走双语行，也不能走文本槽替换，只能改写属性本身。
+ *
+ * 产品安全边界：
+ * - text/search/password/email 等输入框的 value 是用户数据，任何情况下都不触碰。
+ * - 具名 submit 的 value 会随表单一起提交（Rails 的 `name="commit"` 是典型用法），
+ *   改写会把"评论"变成服务端无法识别的动作，因此只翻译不参与表单数据的按钮标签。
+ * - 空 value 由浏览器渲染本地化默认标签（提交/重置），写入译文反而制造不一致。
+ */
+export function getTranslatableControlValueAttribute(element: Element): 'value' | null {
+    if (getElementTagName(element) !== 'input') return null;
+    const type = (element.getAttribute('type') ?? '').trim().toLowerCase();
+    if (!valueControlInputTypes.has(type)) return null;
+    if (type === 'submit' && (element.getAttribute('name') ?? '').trim() !== '') return null;
+    return (element.getAttribute('value') ?? '').trim() === '' ? null : 'value';
+}
+
 export function isHardPruneTag(element: Element): boolean {
+    // 按钮型 input 是页面上的操作入口，与 button 同属交互控件；其余表单元素继续整体裁剪。
+    if (getTranslatableControlValueAttribute(element)) return false;
     return hardPruneTags.has(getElementTagName(element));
 }
 
@@ -320,21 +342,35 @@ export function findElementsAtPoint(root: Document | ShadowRoot, x: number, y: n
     return element ? [element] : [];
 }
 
-export function findNodeAtPoint(root: Document | ShadowRoot, x: number, y: number): Node | null {
+export interface TextPoint {
+    node: Node;
+    offset: number;
+}
+
+/** Preserve the caret offset when the browser exposes it; hover chunking uses the same hit test as hover resolution. */
+export function findTextPointAtPoint(root: Document | ShadowRoot, x: number, y: number): TextPoint | null {
     const document = root.nodeType === 9 ? root as Document : root.ownerDocument;
     try {
         const caretPosition = document?.caretPositionFromPoint?.(x, y);
-        if (caretPosition?.offsetNode && root.contains(caretPosition.offsetNode)) return caretPosition.offsetNode;
+        if (caretPosition?.offsetNode && root.contains(caretPosition.offsetNode)) {
+            return {node: caretPosition.offsetNode, offset: caretPosition.offset};
+        }
     } catch {
         // Firefox 风格的光标命中 API 是可选能力，也可能拒绝 Shadow Root。
     }
     try {
         const range = document?.caretRangeFromPoint?.(x, y);
-        if (range?.startContainer && root.contains(range.startContainer)) return range.startContainer;
+        if (range?.startContainer && root.contains(range.startContainer)) {
+            return {node: range.startContainer, offset: range.startOffset};
+        }
     } catch {
         // Chromium 风格的光标命中 API 同样是可选能力。
     }
     return null;
+}
+
+export function findNodeAtPoint(root: Document | ShadowRoot, x: number, y: number): Node | null {
+    return findTextPointAtPoint(root, x, y)?.node ?? null;
 }
 
 

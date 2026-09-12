@@ -4,6 +4,8 @@
  * 在临时、无前台激活的 Edge 中验证翻译 DOM 所有权：宿主 tabindex 修饰不得重建译文，
  * 单语槽须承受邻接 DOM/样式变化，固定高度交互控件必须原位单行翻译并保留事件。
  * 页面使用精确域名夹具，微软请求在测试 worker 中返回确定性响应；禁止外部网络及日常 profile。
+ * 断言基于宿主 DOM 的完整 outerHTML，因此证据截图必须保持非侵入（caret: 'initial'），
+ * 不得让 Playwright 自身的 caret 隐藏在宿主 input/textarea 上留下残留属性。
  */
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
@@ -16,6 +18,12 @@ const {assertFreshProductionExtension} = require('../run-site-translation-test.c
 const root = path.resolve(__dirname, '../..');
 const ownedSelector = '.fluent-read-bilingual-content, .fluent-read-single-slot';
 const controlsSelector = '#merge-button, #merge-menu, #save-button, #menu-action, #split-button';
+// 统一替换式按钮语义的回归对象：按钮型 input 的标签在 value 属性上，按钮化链接、
+// 表单标签、ARIA 控件和自定义可聚焦控件的标签在文本节点上，三类都必须只出译文。
+const buttonFormsSelector = '#submit-anonymous, #button-input, #reset-input, #button-link,' +
+  ' #hint-link, #upload-label, #custom-action, #preview-tab';
+// 参与表单提交的具名 submit 和用户输入内容必须原样保留。
+const untouchedFormsSelector = '#submit-named, #text-input';
 
 function parseArgs(argv) {
   const result = {timeout: 30000, display: 'secondary', browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'};
@@ -35,7 +43,7 @@ function parseArgs(argv) {
 }
 
 async function installTracker(page) {
-  await page.evaluate(({ownedSelector, controlsSelector}) => {
+  await page.evaluate(({ownedSelector, controlsSelector, buttonFormsSelector, untouchedFormsSelector}) => {
     const ids = new WeakMap();
     let nextId = 0;
     const id = node => { if (!ids.has(node)) ids.set(node, ++nextId); return ids.get(node); };
@@ -71,7 +79,16 @@ async function installTracker(page) {
             height: bounds.height, ranges, wrappers: node.querySelectorAll('.fluent-read-bilingual-content').length,
             segments: node.querySelectorAll('[data-fr-translation-segment="true"]').length, clickCount: node.dataset.clickCount};
         });
-        return {url: location.href, at: Date.now(), controls, hostFocusDecorations: window.hostFocusDecorations || 0,
+        const formSnapshot = selector => [...document.querySelectorAll(selector)].map(node => ({
+          id: node.id, tag: node.tagName.toLowerCase(), value: node.getAttribute('value'),
+          text: node.textContent.replace(/\s+/g, ' ').trim(), html: node.outerHTML,
+          height: Math.round(node.getBoundingClientRect().height),
+          wrappers: node.querySelectorAll('.fluent-read-bilingual-content').length,
+          segments: node.querySelectorAll('[data-fr-translation-segment="true"]').length,
+        }));
+        return {url: location.href, at: Date.now(), controls,
+          buttonForms: formSnapshot(buttonFormsSelector), untouchedForms: formSnapshot(untouchedFormsSelector),
+          hostFocusDecorations: window.hostFocusDecorations || 0,
           owned: [...document.querySelectorAll(ownedSelector)].map(node => ({identity: id(node), tag: node.className,
             parentId: node.parentElement?.id, text: node.textContent, translate: node.getAttribute('translate'),
             translationLabel: node.getAttribute('aria-label'),
@@ -81,7 +98,7 @@ async function installTracker(page) {
           singleHtml: document.querySelector('#single-prose')?.innerHTML};
       },
     };
-  }, {ownedSelector, controlsSelector});
+  }, {ownedSelector, controlsSelector, buttonFormsSelector, untouchedFormsSelector});
 }
 
 async function main() {
@@ -140,6 +157,10 @@ async function main() {
   };
   const snapshot = async page => ({...await page.evaluate(() => window.translationMutationTest.snapshot()),
     requests: await worker.evaluate(() => globalThis.translationMutationRequests.length)});
+  // Playwright 默认 caret:'hide' 会给每个 input/textarea/[contenteditable] 写入
+  // caret-color 再以空值清除，在宿主控件上留下空 style 属性。DOM 所有权断言必须
+  // 比对完整 outerHTML，因此证据截图一律使用 caret:'initial'，不改写被断言的页面。
+  const capture = (page, name) => page.screenshot({path: path.join(args.artifactsDir, name), caret: 'initial'});
   try {
     session = await helper.launchFocusSafePersistentContext({chromium, profileDir, browserPath: args.browserPath,
       background: true, headless: false, viewport: {width: 1280, height: 900}, displayTarget: args.display,
@@ -190,7 +211,7 @@ async function main() {
         await page.waitForTimeout(600);
         await installTracker(page);
         result.before = await snapshot(page);
-        await page.screenshot({path: path.join(args.artifactsDir, `${item.id}-before.png`)});
+        await capture(page, `${item.id}-before.png`);
         await toggle(page);
         await page.waitForFunction(selector => document.querySelectorAll(selector).length > 0, ownedSelector, {timeout: args.timeout});
         await page.waitForFunction(selector => {
@@ -204,7 +225,7 @@ async function main() {
           return signature.endsWith(':0') && Date.now() - state.settledAt >= 1800;
         }, ownedSelector, {timeout: args.timeout});
         result.first = await snapshot(page);
-        await page.screenshot({path: path.join(args.artifactsDir, `${item.id}-translated.png`)});
+        await capture(page, `${item.id}-translated.png`);
         if (item.id === 'single-slots') {
           await page.evaluate(() => {
             const owner = document.querySelector('#single-prose');
@@ -254,6 +275,25 @@ async function main() {
             assert.equal(await page.locator(`#${control.id}`).getAttribute('data-click-count'), '1');
           }
           assert.equal(result.stable.controls.find(control => control.id === 'merge-button').text, '合并拉取请求');
+
+          // 所有按钮形态统一采用替换式译文：不插入双语块，不合成正文段，不撑出第二行。
+          const hasChinese = value => /[\u3400-\u9fff]/u.test(value || '');
+          assert.equal(result.stable.buttonForms.length, 8);
+          for (const form of result.stable.buttonForms) {
+            assert.equal(form.wrappers, 0, `${form.id}: 按钮中不应增加双语块`);
+            assert.equal(form.segments, 0, `${form.id}: 按钮中不应合成正文段`);
+            assert.equal(form.height, 32, `${form.id}: 按钮译文撑破了固定高度`);
+            const label = form.tag === 'input' ? form.value : form.text;
+            assert.ok(hasChinese(label), `${form.id}: 按钮标签未替换为译文（${label}）`);
+          }
+          // 具名 submit 的 value 会随表单提交，输入框 value 是用户数据；二者既不能改写，
+          // 也不能被属性或译文工件触碰，因此整段 outerHTML 必须与翻译前完全一致。
+          assert.equal(result.stable.untouchedForms.length, 2);
+          for (const form of result.stable.untouchedForms) {
+            const original = result.before.untouchedForms.find(item => item.id === form.id);
+            assert.equal(form.html, original.html, `${form.id}: 非候选表单控件被翻译改写`);
+            assert.equal(form.wrappers + form.segments, 0, `${form.id}: 表单控件中出现了译文工件`);
+          }
         }
         await toggle(page);
         await page.waitForFunction(selector => document.querySelectorAll(selector).length === 0, ownedSelector, {timeout: args.timeout});
@@ -265,6 +305,14 @@ async function main() {
         for (const control of result.restored.controls) {
           assert.equal(control.html, result.before.controls.find(original => original.id === control.id).html);
         }
+        for (const form of [...result.restored.buttonForms, ...result.restored.untouchedForms]) {
+          const original = [...result.before.buttonForms, ...result.before.untouchedForms]
+            .find(item => item.id === form.id);
+          assert.equal(form.value, original.value, `${form.id}: 恢复原文后未回到原始按钮标签`);
+          assert.equal(form.text, original.text, `${form.id}: 恢复原文后仍残留译文`);
+          assert.equal(form.wrappers + form.segments, 0, `${form.id}: 恢复原文后仍残留译文工件`);
+          assert.equal(form.html, original.html, `${form.id}: 恢复原文后仍残留属性或样式`);
+        }
         await toggle(page);
         await page.waitForFunction(({selector, count}) => document.querySelectorAll(selector).length === count,
           {selector: ownedSelector, count: result.first.owned.length}, {timeout: args.timeout});
@@ -272,6 +320,12 @@ async function main() {
         result.retranslated = await snapshot(page);
         assert.equal(result.retranslated.url, item.url);
         assert.equal(result.retranslated.nested, 0);
+        for (const form of result.retranslated.buttonForms) {
+          const first = result.first.buttonForms.find(original => original.id === form.id);
+          assert.equal(form.tag === 'input' ? form.value : form.text,
+            first.tag === 'input' ? first.value : first.text, `${form.id}: 再次翻译的标签不一致`);
+          assert.equal(form.height, 32, `${form.id}: 再次翻译后撑破了固定高度`);
+        }
         for (const control of result.retranslated.controls) {
           const first = result.first.controls.find(original => original.id === control.id);
           assert.equal(control.identity, first.identity);
@@ -280,7 +334,7 @@ async function main() {
           await page.locator(`#${control.id}`).click();
           assert.equal(await page.locator(`#${control.id}`).getAttribute('data-click-count'), '2');
         }
-        await page.screenshot({path: path.join(args.artifactsDir, `${item.id}-retranslated.png`)});
+        await capture(page, `${item.id}-retranslated.png`);
         result.passed = true;
         process.stdout.write(`${item.id}: passed; translated/restored/retranslated ${result.first.owned.length}/0/${result.retranslated.owned.length}\n`);
       } catch (error) {
@@ -288,7 +342,7 @@ async function main() {
         result.failure = await snapshot(page).catch(() => null);
         result.events = await page.evaluate(() => window.translationMutationTest?.events || []).catch(() => []);
         result.requests = await worker.evaluate(() => globalThis.translationMutationRequests).catch(() => []);
-        await page.screenshot({path: path.join(args.artifactsDir, `${item.id}-failure.png`)}).catch(() => {});
+        await capture(page, `${item.id}-failure.png`).catch(() => {});
         throw error;
       } finally {
         save();

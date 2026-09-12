@@ -122,7 +122,7 @@ import {config, configReady, requestConfigPatch, subscribeConfig} from '@/src/se
 import {getMultilingualTargetLanguageLabel, options} from '@/src/core/config/catalog';
 import {GLOSSARY_LIMITS, createGlossaryEntry, createGlossaryLibrary, normalizeGlossaryDomain,
   normalizeGlossaryLibraries, resolveGlossary, parseGlossaryImport, exportGlossary,
-  type GlossaryEntry, type GlossaryLibrary, type GlossaryImportFormat} from '@/src/core/glossary';
+  decodeGlossaryText, type GlossaryEntry, type GlossaryLibrary, type GlossaryImportFormat} from '@/src/core/glossary';
 import {useUiI18n} from '@/src/ui/i18n';
 import {addBuiltinGlossary, BUILTIN_GLOSSARIES} from '@/src/core/glossary/builtins';
 import BuiltinGlossaries from './BuiltinGlossaries.vue';
@@ -308,7 +308,11 @@ async function readImportFile(event: Event): Promise<void> {
   importText.value = ''; fileError.value = '';
   if (file.size > GLOSSARY_LIMITS.importBytes) {fileError.value = t('glossary.fileTooLarge'); input.value = ''; return;}
   importFormat.value = file.name.toLowerCase().endsWith('.json') ? 'json' : file.name.toLowerCase().endsWith('.tsv') ? 'tsv' : 'csv';
-  try {const text = await file.text(); if (!disposed && importOpen.value && generation === fileReadGeneration) importText.value = text;}
+  try {
+    // 字节读取才能识别 Excel 的 UTF-16/GB18030 文件；旧运行时没有 arrayBuffer 时保留 UTF-8 兜底。
+    const text = typeof file.arrayBuffer === 'function' ? decodeGlossaryText(await file.arrayBuffer()) : await file.text();
+    if (!disposed && importOpen.value && generation === fileReadGeneration) importText.value = text;
+  }
   catch {if (!disposed && importOpen.value && generation === fileReadGeneration) fileError.value = t('glossary.fileFailed');}
   if (!disposed && generation === fileReadGeneration) input.value = '';
 }

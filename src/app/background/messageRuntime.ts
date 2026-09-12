@@ -4,7 +4,7 @@
  * 主要内容：创建图片 OCR 语言仓库和能力门控传输，绑定图片与圈选事务的真实页面及术语版本；注入配置、翻译、模型用量和词典依赖，注册类型化 router 并管理响应与错误。
  * 模块边界：本文件是 composition root，只决定依赖装配和监听生命周期，不实现各 feature 的业务算法、provider 协议或存储事务；具体实现均来自 features、services、providers 与 platform。
  */
-import {formatConnectionTestError, runTranslationServiceConnectionTestWithUsage, translateInputBoxWithLimits} from './providerRuntime';
+import {formatConnectionTestError, runTranslationServiceConnectionTestWithUsage} from './providerRuntime';
 import {config, configReady} from '@/src/services/config/store';
 import {lookupWord} from '@/src/features/selection-translation/services/wordDictionary';
 import {synthesizeEdgeTts} from '@/src/features/selection-translation/services/edgeTts';
@@ -40,10 +40,11 @@ import {createConfigImageOcrLanguageStorage, installBrowserConfigStorageBroadcas
 import {modelUsageRepository} from '@/src/platform/storage/modelUsageRepository';
 import {releaseVideoSubtitleOwnerForTab} from '@/src/features/video-subtitle/background/handlers';
 import {createVideoSubtitleBackgroundRuntime} from '@/src/features/video-subtitle/background/runtime';
-import {installWritingBackgroundRuntime} from './writingRuntime';
+import {createLocalTranslationBackgroundRuntime} from '@/src/features/local-translation/background/runtime';
 import {createLocalTtsBackgroundRuntime} from '@/src/features/local-tts/background/runtime';
 import {localTtsOffscreenAdapter} from '@/src/features/local-tts/background/offscreenAdapter';
 import {createSelectionTtsSynthesizer} from '@/src/features/selection-translation/background/selectionTtsSynthesis';
+import {installWritingBackgroundRuntime} from './writingRuntime';
 import {installHarnessBackgroundRuntime} from './harnessRuntime';
 import {createImageGlossaryContext} from './imageGlossaryContext';
 import {buildGlossaryRevision} from '@/src/core/glossary';
@@ -61,7 +62,6 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     const translationRequestRegistry = createTranslationRequestRegistry();
     const imageOcrLanguageRepository = createImageOcrLanguageRepository(createConfigImageOcrLanguageStorage());
     const selectionTtsTransport = createCapabilityGatedSelectionTtsTransport(capabilities, selectionTtsOffscreenAdapter);
-    const imageGlossaryContext = createImageGlossaryContext<BackgroundRuntimeContext>({
     const selectionTtsSynthesizer = createSelectionTtsSynthesizer({
         getMode: () => config.selectionTtsMode,
         getLocalVoice: () => config.selectionTtsLocalVoice,
@@ -69,6 +69,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         synthesizeOnline: synthesizeEdgeTts,
         synthesizeLocal: (text, language, voice, signal) => localTtsOffscreenAdapter.synthesize(text, language, voice, signal),
     });
+    const imageGlossaryContext = createImageGlossaryContext<BackgroundRuntimeContext>({
         ready: configReady,
         offscreenUrl: browser.runtime.getURL('/offscreen.html'),
         getSourceLanguage: () => config.from,
@@ -91,7 +92,9 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             formatError: formatConnectionTestError,
         }),
         createInputBoxTranslationHandler({
-            translateText: translateInputBoxWithLimits,
+            ready: configReady,
+            getConfig: () => config,
+            translate: translateWithCache,
         }),
         createOpenOptionsPageHandler({
             openDefaultPage: () => browser.runtime.openOptionsPage(),
@@ -144,9 +147,10 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             logOperationFailure: (error) => console.error('[FluentRead] vocabulary book operation failed:', error),
         }),
         ...createVideoSubtitleBackgroundRuntime(),
+        ...createLocalTranslationBackgroundRuntime(),
+        ...createLocalTtsBackgroundRuntime(),
     ];
     const router = createBackgroundMessageRouter(
-        ...createLocalTtsBackgroundRuntime(),
         handlers,
         createTranslationRequestFallback({
             translate: translateWithCache,

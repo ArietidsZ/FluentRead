@@ -32,12 +32,14 @@ export async function translateInputBoxWithLimits(text: string, targetLanguage: 
     });
 }
 
-export function runTranslationServiceConnectionTestWithUsage(service: string) {
+export function runTranslationServiceConnectionTestWithUsage(service: string, keyIndex?: number, keyRevision?: string) {
     const usageGeneration = modelUsageRepository.captureGeneration();
     const snapshot = createTranslationProviderConfigSnapshot(config);
     return runTranslationServiceConnectionTest(service, {
         configuredModel: resolveConfiguredModel(snapshot.model[service], snapshot.customModel[service]),
         effectiveModel: resolveTranslationRequestModel(snapshot, service, undefined, servicesType.isAiSdk, servicesType.isAI),
+        keyIndex,
+        keyRevision,
         recordModelUsage: async (events) => {
             await modelUsageRepository.recordMany(events, usageGeneration);
         },

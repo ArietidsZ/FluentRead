@@ -44,6 +44,7 @@
             <small>{{ options.length }} 个可用模型</small>
           </div>
           <button
+            v-if="allowCustomModels"
             type="button"
             class="model-add-button"
             data-testid="add-custom-model"
@@ -55,7 +56,7 @@
           </button>
         </header>
 
-        <p v-if="addDisabled" :id="limitDescriptionId" class="model-limit" data-testid="custom-model-limit" role="status">
+        <p v-if="allowCustomModels && addDisabled" :id="limitDescriptionId" class="model-limit" data-testid="custom-model-limit" role="status">
           已达到 {{ maximumModels }} 个模型上限
         </p>
 
@@ -142,11 +143,13 @@ const props = withDefaults(defineProps<{
   maximumModels?: number
   maximumModelLength?: number
   customModelCount?: number
+  allowCustomModels?: boolean
 }>(), {
   selectedModel: '',
   maximumModels: 50,
   maximumModelLength: 256,
   customModelCount: 0,
+  allowCustomModels: true,
 })
 
 const emit = defineEmits<{
@@ -176,7 +179,8 @@ const filteredOptions = computed(() => {
 const pickerContentKey = computed(() => props.options
   .map((option) => `${option.value}\u0000${option.label || ''}\u0000${option.removable ? '1' : '0'}`)
   .join('\u0001'))
-const addDisabled = computed(() => props.customModelCount >= props.maximumModels)
+const allowCustomModels = computed(() => props.allowCustomModels)
+const addDisabled = computed(() => !allowCustomModels.value || props.customModelCount >= props.maximumModels)
 
 async function beginAddModel(): Promise<void> {
   if (addDisabled.value) return

@@ -9,6 +9,8 @@ export interface SiteContentRule {
     css: string[];
     resolve?: 'self' | 'closest';
     atomic?: boolean;
+    /** 按直接子级 br 拆分正文，保留每行的链接、强调与代码。 */
+    splitOnBr?: boolean;
     key?: string;
 }
 

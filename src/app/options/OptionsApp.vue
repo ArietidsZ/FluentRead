@@ -1,7 +1,7 @@
 <!--
  @file src/app/options/OptionsApp.vue
  文件职责：实现扩展 Options 页的顶层布局，组织设置导航、全局搜索结果和学习中心入口，并把选中分区交给对应 feature UI。
- 主要内容：渲染品牌侧栏、版本信息、搜索框与主内容区，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换，并持续同步 URL hash 的深链接与前进后退导航。
+ 主要内容：渲染品牌侧栏、版本信息、搜索框与主内容区，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，同步 URL hash 的深链接与前进后退导航。
  模块边界：组件负责页面壳、导航状态和界面皮肤根属性同步，不定义具体配置字段、不直接写 browser.storage，也不实现词汇仓库；设置表单、收藏与阅读记录业务由各 feature 组件拥有。
 -->
 <template>
@@ -52,7 +52,7 @@
       </div>
       <div v-else-if="query" class="search-empty">{{ t('options.searchEmpty', {query}) }}</div>
 
-      <section class="settings-card" :class="{ 'services-view': activeSection === 'settings-services', 'translation-center-view': activeSection === 'settings-translation-center', 'vocabulary-view': activeSection === 'settings-vocabulary' }" :aria-label="activeItem.heading">
+      <section ref="settingsContentElement" class="settings-card" :class="{ 'services-view': activeSection === 'settings-services', 'translation-center-view': activeSection === 'settings-translation-center', 'vocabulary-view': activeSection === 'settings-vocabulary' }" :aria-label="activeItem.heading">
         <section v-if="activeSection === 'settings-about'" id="settings-about" class="about-page" aria-labelledby="about-title">
           <div class="about-hero">
             <img class="about-logo" src="/icon/128.png" alt="流畅阅读图标" />
@@ -64,14 +64,38 @@
           </div>
 
           <div class="about-grid">
-            <article class="about-panel">
-              <span class="about-panel-kicker">{{ t('options.aboutCoreExperience') }}</span>
-              <h3>{{ t('options.aboutBornForReading') }}</h3>
-              <p>{{ t('options.aboutCoreDescription') }}</p>
-              <div class="about-feature-list">
-                <span><b><UiIcon name="translate" :size="16" /></b>{{ t('options.aboutWebReading') }}</span>
-                <span><b><UiIcon name="book" :size="16" /></b>{{ t('options.aboutReadingTools') }}</span>
-                <span><b><UiIcon name="plug" :size="16" /></b>{{ t('options.aboutFlexibleServices') }}</span>
+            <article class="about-panel about-support-panel">
+              <span class="about-panel-kicker">{{ t('popup.donationEyebrow') }}</span>
+              <h3>{{ t('popup.donationTitle') }}</h3>
+              <p>{{ t('options.aboutThanks') }}</p>
+              <div class="about-support-options">
+                <section class="about-support-option about-support-wechat-option">
+                  <h4>{{ t('popup.donationWechat') }}</h4>
+                  <a
+                    class="about-support-method about-support-wechat"
+                    data-support-method="wechat"
+                    href="/misc/approve.jpg"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    :aria-label="t('popup.donationOpenCode')"
+                  >
+                    <img class="about-support-qr" src="/misc/approve.jpg" :alt="t('popup.donationCodeAlt')" width="1152" height="1152" />
+                  </a>
+                </section>
+                <section class="about-support-option about-support-kofi-option">
+                  <h4>Ko-fi</h4>
+                  <a
+                    class="about-support-method about-support-kofi-link"
+                    data-support-method="kofi"
+                    href="https://ko-fi.com/thinkstu"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <strong>{{ t('popup.donationKofi') }}</strong>
+                    <UiIcon name="external" :size="16" />
+                  </a>
+                  <span class="about-support-account">ko-fi.com/thinkstu</span>
+                </section>
               </div>
             </article>
 
@@ -83,12 +107,10 @@
                 <a href="https://github.com/Bistutu/FluentRead" target="_blank" rel="noreferrer">{{ t('options.aboutProject') }} <span>↗</span></a>
                 <a href="https://fluent.thinkstu.com/" target="_blank" rel="noreferrer">{{ t('options.aboutDocs') }} <span>↗</span></a>
                 <a href="https://github.com/Bistutu/FluentRead/issues" target="_blank" rel="noreferrer">{{ t('options.aboutFeedback') }} <span>↗</span></a>
-                <a href="https://github.com/FluentRead/FluentRead#support" target="_blank" rel="noopener noreferrer">{{ t('popup.donationTitle') }} <span>↗</span></a>
               </div>
             </article>
           </div>
 
-          <p class="about-footer">{{ t('options.aboutThanks') }}</p>
         </section>
         <LearningCenter v-else-if="activeSection === 'settings-vocabulary'" @navigate="selectSection" />
         <SettingsSections v-else :active-section="activeSection" />
@@ -127,6 +149,7 @@ const query = ref('')
 const interfaceSkin = ref(getInterfaceSkinOption(runtimeConfig.interfaceSkin))
 const activeSection = ref('settings-general')
 const navigationElement = ref<HTMLElement | null>(null)
+const settingsContentElement = ref<HTMLElement | null>(null)
 const mobileNavigationMedia = window.matchMedia('(max-width: 700px)')
 
 const navigation = navigationItems
@@ -179,7 +202,8 @@ function selectSection(id: string) {
   if (window.location.hash !== `#${id}`) {
     history.replaceState(null, '', `#${id}`)
   }
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  // 分区 DOM 更新后归零真正的内容滚动区，避免切换菜单仍停留在上个长表单的底部。
+  void nextTick(() => settingsContentElement.value?.scrollTo({ top: 0, left: 0, behavior: 'instant' }))
 }
 
 async function selectResult(id: string) {

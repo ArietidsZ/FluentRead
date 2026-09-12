@@ -2,7 +2,7 @@
  * @file src/core/config/model.ts
  *
  * 文件职责：定义 FluentRead 完整配置模型、默认值及各项设置的合法范围，是配置读取、保存、迁移和 UI 绑定共同依赖的领域契约。
- * 主要内容：包含正文/全部节点识别范围；统一中文简繁标识及历史配置别名，并包含 Config 接口、defaultConfig、字幕和翻译模式类型、延迟与字号范围、默认 API 地址及多项功能开关，使新增配置项在一个位置获得类型和初始语义。 可核对的公开符号包括 DeepSeekApiType、DeepSeekThinkingMode、VideoSubtitleDisplayMode、FullPageTranslationMode、DEFAULT_VIDEO_SUBTITLE_FONT_SIZE、DEFAULT_NEW_API_URL、VIDEO_SUBTITLE_FONT_SIZE_OPTIONS、DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY。
+ * 主要内容：包含正文/全部节点识别范围；统一中文简繁标识及历史配置别名，并保存常用服务顺序，包含 Config 接口、defaultConfig、字幕和翻译模式类型、延迟与字号范围、默认 API 地址及多项功能开关，使新增配置项在一个位置获得类型和初始语义；归一化时把仍停留在历史默认值的翻译提示词升级为当前默认提示词。 可核对的公开符号包括 DeepSeekApiType、DeepSeekThinkingMode、VideoSubtitleDisplayMode、FullPageTranslationMode、DEFAULT_VIDEO_SUBTITLE_FONT_SIZE、DEFAULT_NEW_API_URL、VIDEO_SUBTITLE_FONT_SIZE_OPTIONS、DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY。
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
@@ -11,6 +11,7 @@ import {
     currentModelIds,
     defaultModels,
     defaultOption,
+    LEGACY_DEFAULT_USER_ROLES,
     models,
     resolveCloudRegion,
     resolveConfiguredModel,
@@ -32,7 +33,8 @@ import {
 import {
     DEFAULT_FREE_TRANSLATION_ORDER, DEFAULT_FREE_TRANSLATION_TIMEOUT_MS, DEFAULT_FREE_TRANSLATION_COOLDOWN_MS,
     normalizeFreeTranslationOrder, normalizeFreeTranslationTimeoutMs, normalizeFreeTranslationCooldownMs,
-    normalizeMyMemoryEmail,
+    normalizeMyMemoryEmail, DEFAULT_FREE_TRANSLATION_MODE,
+    normalizeFreeTranslationMode, type FreeTranslationMode,
 } from './freeTranslation';
 import { normalizeCustomBodyMapping } from "./customBody";
 import {DEFAULT_DEEPL_API_PLAN, normalizeDeepLApiPlan, type DeepLApiPlan} from './deepl';
@@ -61,6 +63,15 @@ import {
     normalizeCustomAreaTranslationHotkey,
     resolveAreaTranslationHotkey,
 } from '@/src/core/config/areaTranslation';
+import {
+    DEFAULT_PARAGRAPH_COPY_CONTENT_MODE,
+    DEFAULT_PARAGRAPH_COPY_HOTKEY,
+    normalizeCustomParagraphCopyHotkey,
+    normalizeParagraphCopyContentMode,
+    normalizeParagraphCopyHotkey,
+    resolveParagraphCopyHotkey,
+    type ParagraphCopyContentMode,
+} from '@/src/core/config/paragraphCopy';
 import { normalizeSelectionTtsVoiceOrder } from "./selectionTts";
 import {
     DEFAULT_LOCAL_TTS_MODE,
@@ -77,6 +88,13 @@ import {
     normalizeQuickTranslationProfiles,
     type QuickTranslationProfile,
 } from './quickTranslation';
+import {
+    DEFAULT_INPUT_BOX_TRANSLATION_INTERVAL,
+    normalizeInputBoxTranslationInterval,
+    normalizeInputBoxTranslationModel,
+    normalizeInputBoxTranslationPrompt,
+    normalizeInputBoxTranslationService,
+} from './inputTranslation';
 import {
     DEFAULT_INTERFACE_FONT,
     DEFAULT_INTERFACE_VISIBILITY,
@@ -115,7 +133,9 @@ import {
     DEFAULT_TRANSLATION_MAX_RETRIES,
     DEFAULT_TRANSLATION_REQUESTS_PER_MINUTE,
     DEFAULT_TRANSLATION_REQUESTS_PER_SECOND,
+    DEFAULT_API_KEY_RECOVERY_MS,
     normalizeMaxConcurrentTranslations,
+    normalizeApiKeyRecoveryMs,
     normalizeTranslationBackoffBaseMs,
     normalizeTranslationBackoffMaxMs,
     normalizeTranslationMaxRetries,
@@ -148,6 +168,7 @@ import {
     type AreaRecognitionMode,
     type ModelVisionOverrides,
 } from './vision';
+import {apiKeysToToken, normalizeApiKeys} from './apiKeys';
 
 export * from './scheduling';
 export * from './pageTranslation';
@@ -307,6 +328,7 @@ export class Config {
     videoSubtitleFontSize: number; // 视频字幕字号百分比
     videoSubtitleAppearance: VideoSubtitleAppearance; // 视频字幕皮肤与布局参数
     token: IMapping;
+    apiKeys: Record<string, string[]>; // 按服务保存完整有序 API Key 列表；token 镜像首个 key
     secret: IMapping; // 与 token 配对的第二段密钥（阿里云/百度/火山等云服务厂商）
     serviceRegion: IMapping; // 云服务厂商所选地域，决定签名 scope 与请求域名
     requireApiKey: Record<string, boolean>; // 按服务和模型保存 API Key 校验开关
@@ -323,6 +345,7 @@ export class Config {
     customModels: Record<string, string[]>; // 按内置服务保存的自定义模型列表
     modelThinking: ModelThinkingMapping; // 按服务和实际模型保存 Thinking 开关，缺省为关闭
     customOpenAIProviders: CustomOpenAIProvider[]; // 用户保存的 OpenAI-compatible 自定义服务（不含凭据）
+    favoriteServices: string[]; // 用户标记的常用翻译服务，按标记顺序保存
     customHeaders: IMapping; // 自定义服务 HTTP 请求头 JSON，按服务隔离并作为凭据保存
     customBody: IMapping;  // 自定义请求体（JSON 字符串，按服务存储），会合并进请求体
     proxy: IMapping;  // 代理地址
@@ -374,6 +397,10 @@ export class Config {
     customHotkey: string; // 自定义鼠标悬浮快捷键
     quickTranslationProfiles: QuickTranslationProfile[]; // 额外快捷翻译方案；悬浮与全文各最多 8 项
     mouseHoverTranslationDelay: number; // 鼠标悬浮翻译触发延迟（毫秒）
+    paragraphCopyEnabled: boolean; // 是否启用"复制鼠标所指段落"快捷键
+    paragraphCopyHotkey: string; // 段落复制触发快捷键；'custom' 表示使用自定义组合键
+    customParagraphCopyHotkey: string; // 自定义段落复制快捷键
+    paragraphCopyContent: ParagraphCopyContentMode; // 段落复制写入剪贴板的内容口径
     disableSelectionTranslator: boolean; // 是否禁用划词翻译
     selectionAreaEnabled: boolean; // 是否启用圈选翻译
     selectionAreaHotkey: string; // 圈选翻译触发快捷键；'custom' 表示使用自定义组合键
@@ -387,6 +414,7 @@ export class Config {
     imageTranslationContextMenuEnabled: boolean; // 是否显示图片右键入口
     disableImageTranslator: boolean; // 是否禁用图片翻译
     freeTranslationOrder: string[]; // 免费服务的启用列表与回退顺序
+    freeTranslationMode: FreeTranslationMode; // 默认按权重随机分配健康服务
     freeTranslationTimeoutMs: number; // 每路服务最长等待
     freeTranslationCooldownMs: number; // 失败服务的暂时跳过时间
     myMemoryEmail: string; // MyMemory 可选额度联系邮箱
@@ -396,10 +424,10 @@ export class Config {
     selectionTranslatorTrigger: string; // 划词翻译互斥触发方式: 'direct' | 'icon' | 'dot' | 'Control' | 'Alt' | 'Shift' | 'custom'
     selectionTranslatorHotkey: string; // 旧版快捷键字段；与 selectionTranslatorTrigger 中的快捷键选项保持镜像
     customSelectionTranslatorHotkey: string; // 自定义划词翻译快捷键
-    selectionTtsMode: LocalTtsMode; // 朗读在线/本地合成策略
-    selectionTtsLocalVoice: LocalTtsVoiceId; // 本地 Kokoro 音色，auto 表示按语言选择
     selectionTranslatorDelay: number; // 选区稳定后显示划词翻译入口的延迟（毫秒）
     selectionTtsVoices: string[]; // 划词朗读的 Edge TTS 音色回退顺序
+    selectionTtsMode: LocalTtsMode; // 朗读在线/本地合成策略
+    selectionTtsLocalVoice: LocalTtsVoiceId; // 本地 Kokoro 音色，auto 表示按语言选择
     vocabularyBookEnabled: boolean; // 是否启用本地单词本 Beta
     newApiUrl: string; // NewAPI地址
     maxConcurrentTranslations: number; // 最大并发翻译数量
@@ -407,6 +435,7 @@ export class Config {
     translationRequestsPerMinute: number; // 每分钟最多启动的翻译请求数，0 表示不限速
     serviceRequestLimits: ServiceRequestLimits; // 按服务保存的独立请求限流配置
     modelRequestLimits: ModelRequestLimits; // 按服务和模型保存的独立请求限流配置
+    apiKeyRecoveryMs: number; // API Key 失败后的默认冷却恢复时间
     translationMaxRetries: number; // 单次翻译失败后的最大重试次数
     translationBackoffBaseMs: number; // 指数退避初始间隔
     translationBackoffMaxMs: number; // 指数退避最大间隔
@@ -420,6 +449,11 @@ export class Config {
     translationProgressPanelEnabled: boolean; // 是否显示全文翻译进度面板
     inputBoxTranslationTrigger: string; // 输入框翻译触发方式
     inputBoxTranslationTarget: string; // 输入框翻译目标语言
+    inputBoxTranslationInterval: number; // 输入框翻译相邻触发的最大间隔（毫秒）
+    inputBoxTranslationService: string; // 输入框翻译独立服务
+    inputBoxTranslationModel: string; // 输入框翻译独立模型，空值跟随服务模型
+    inputBoxTranslationPrompt: string; // 输入框翻译独立用户提示词，空值使用内置默认
+    inputBoxTranslationSystemPrompt: string; // 输入框翻译独立系统提示词，空值使用内置默认
     deepseekApiType: DeepSeekApiType; // DeepSeek API 格式
     deepseekThinkingMode: DeepSeekThinkingMode; // DeepSeek Chat Completion 思考模式
     translationCenterServices: string[]; // 翻译中心已选服务及其展示顺序
@@ -457,6 +491,7 @@ export class Config {
         this.videoSubtitleFontSize = DEFAULT_VIDEO_SUBTITLE_FONT_SIZE; // 默认字幕字号
         this.videoSubtitleAppearance = normalizeVideoSubtitleAppearance(DEFAULT_VIDEO_SUBTITLE_APPEARANCE);
         this.token = {};
+        this.apiKeys = {};
         this.secret = {};
         this.serviceRegion = {};
         this.requireApiKey = {};
@@ -475,6 +510,7 @@ export class Config {
         this.customModels = {};
         this.modelThinking = {};
         this.customOpenAIProviders = [];
+        this.favoriteServices = [];
         this.customBody = {};
         this.customHeaders = {};
         this.proxy = {};
@@ -526,6 +562,10 @@ export class Config {
         this.customHotkey = ''; // 自定义鼠标悬浮快捷键为空
         this.quickTranslationProfiles = []; // 默认仅保留旧快捷键，新方案由用户按需添加
         this.mouseHoverTranslationDelay = DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY;
+        this.paragraphCopyEnabled = true; // 默认开启，按快捷键才复制，不影响浏览
+        this.paragraphCopyHotkey = DEFAULT_PARAGRAPH_COPY_HOTKEY; // 默认 Alt+C，避开浏览器的 Ctrl+C
+        this.customParagraphCopyHotkey = ''; // 自定义段落复制快捷键为空
+        this.paragraphCopyContent = DEFAULT_PARAGRAPH_COPY_CONTENT_MODE; // 默认跟随段落当前显示形态
         this.disableSelectionTranslator = true; // 默认关闭划词翻译
         this.selectionAreaEnabled = true; // 默认开启，按快捷键圈选后才截图翻译
         this.selectionAreaHotkey = DEFAULT_AREA_TRANSLATION_HOTKEY; // 默认 Shift+Z，可改为其他预设或自定义组合键
@@ -539,6 +579,7 @@ export class Config {
         this.imageTranslationContextMenuEnabled = true;
         this.disableImageTranslator = true; // 默认关闭图片翻译，由用户按需开启
         this.freeTranslationOrder = [...DEFAULT_FREE_TRANSLATION_ORDER];
+        this.freeTranslationMode = DEFAULT_FREE_TRANSLATION_MODE;
         this.freeTranslationTimeoutMs = DEFAULT_FREE_TRANSLATION_TIMEOUT_MS;
         this.freeTranslationCooldownMs = DEFAULT_FREE_TRANSLATION_COOLDOWN_MS;
         this.myMemoryEmail = '';
@@ -548,10 +589,10 @@ export class Config {
         this.selectionTranslatorTrigger = 'icon'; // 默认显示可发现的操作图标
         this.selectionTranslatorHotkey = 'none'; // 默认不增加额外快捷键，保持原有划词行为
         this.customSelectionTranslatorHotkey = ''; // 自定义划词翻译快捷键为空
-        this.selectionTtsMode = DEFAULT_LOCAL_TTS_MODE;
-        this.selectionTtsLocalVoice = DEFAULT_LOCAL_TTS_VOICE;
         this.selectionTranslatorDelay = DEFAULT_SELECTION_TRANSLATOR_DELAY;
         this.selectionTtsVoices = []; // 默认按当前语言使用内置音色回退顺序
+        this.selectionTtsMode = DEFAULT_LOCAL_TTS_MODE;
+        this.selectionTtsLocalVoice = DEFAULT_LOCAL_TTS_VOICE;
         this.vocabularyBookEnabled = false; // Beta 默认关闭，由用户在单词本页面主动开启
         this.newApiUrl = DEFAULT_NEW_API_URL; // NewAPI 默认地址
         this.maxConcurrentTranslations = DEFAULT_MAX_CONCURRENT_TRANSLATIONS; // 默认最大并发数为6
@@ -559,6 +600,7 @@ export class Config {
         this.translationRequestsPerMinute = DEFAULT_TRANSLATION_REQUESTS_PER_MINUTE;
         this.serviceRequestLimits = {};
         this.modelRequestLimits = {};
+        this.apiKeyRecoveryMs = DEFAULT_API_KEY_RECOVERY_MS;
         this.translationMaxRetries = DEFAULT_TRANSLATION_MAX_RETRIES;
         this.translationBackoffBaseMs = DEFAULT_TRANSLATION_BACKOFF_BASE_MS;
         this.translationBackoffMaxMs = DEFAULT_TRANSLATION_BACKOFF_MAX_MS;
@@ -572,6 +614,11 @@ export class Config {
         this.translationProgressPanelEnabled = false; // 默认关闭全文翻译进度面板
         this.inputBoxTranslationTrigger = 'disabled'; // 默认关闭输入框翻译
         this.inputBoxTranslationTarget = 'en'; // 默认翻译成英文
+        this.inputBoxTranslationInterval = DEFAULT_INPUT_BOX_TRANSLATION_INTERVAL;
+        this.inputBoxTranslationService = services.microsoft;
+        this.inputBoxTranslationModel = '';
+        this.inputBoxTranslationPrompt = '';
+        this.inputBoxTranslationSystemPrompt = '';
         this.deepseekApiType = 'auto'; // DeepSeek 默认自动选择 API 格式
         this.deepseekThinkingMode = 'disabled'; // 翻译默认关闭思考模式，降低延迟和输出噪音
         this.translationCenterServices = [];
@@ -695,13 +742,17 @@ function hasSubstantialLegacyCustomConfiguration(source: Partial<Config>): boole
         || configuredString(source.documentCustomModel, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)) return true;
 
     if (configuredString(source.token, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)
+        || getConfiguredApiKey(source.apiKeys, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)
         || configuredString(source.proxy, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)
         || configuredString(source.customBody, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)
         || configuredString(source.customHeaders, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)) return true;
     const systemRole = configuredString(source.system_role, LEGACY_CUSTOM_OPENAI_PROVIDER_ID);
     const userRole = configuredString(source.user_role, LEGACY_CUSTOM_OPENAI_PROVIDER_ID);
+    // 仍停留在历史默认提示词的旧配置不算用户改写；否则升级默认提示词会凭空
+    // 判定旧自定义 OpenAI 档案存在真实配置。
     if ((systemRole && systemRole !== defaultOption.system_role)
-        || (userRole && userRole !== defaultOption.user_role)) return true;
+        || (userRole && userRole !== defaultOption.user_role
+            && !LEGACY_DEFAULT_USER_ROLES.includes(userRole))) return true;
 
     const requirementModel = legacyCustomModel(source.model, source.customModel);
     const requirementKey = createApiKeyRequirementKey(LEGACY_CUSTOM_OPENAI_PROVIDER_ID, requirementModel);
@@ -713,6 +764,14 @@ function hasSubstantialLegacyCustomConfiguration(source: Partial<Config>): boole
         && requirementModel !== ''
         && (hasOwn(sourceRecord.requireApiKey as object, requirementKey)
             || hasOwn(sourceRecord.requireApiKey as object, legacyRequirementKey));
+}
+
+function getConfiguredApiKey(mapping: unknown, service: string): string {
+    if (!mapping || typeof mapping !== 'object' || Array.isArray(mapping)) return '';
+    const values = (mapping as Record<string, unknown>)[service];
+    return Array.isArray(values)
+        ? values.find((value): value is string => typeof value === 'string' && Boolean(value.trim())) || ''
+        : '';
 }
 
 function protectProviderModels(
@@ -785,6 +844,7 @@ function normalizeCustomOpenAIProviderState(normalized: Config, source: Partial<
     normalized.customBody = withoutOrphanCustomProviderEntries(normalized.customBody, configuredIds);
     normalized.customHeaders = Object.fromEntries(Object.entries(normalized.customHeaders)
         .filter(([service]) => configuredIds.has(service)));
+    normalized.apiKeys = withoutOrphanCustomProviderEntries(normalized.apiKeys, configuredIds);
     normalized.serviceRequestLimits = Object.fromEntries(Object.entries(normalized.serviceRequestLimits)
         .filter(([service]) => !isCustomOpenAIProviderId(service) || configuredIds.has(service)));
     normalized.modelRequestLimits = Object.fromEntries(Object.entries(normalized.modelRequestLimits)
@@ -848,6 +908,7 @@ function normalizeCustomOpenAIProviderState(normalized: Config, source: Partial<
         return !key.startsWith(`${LEGACY_CUSTOM_OPENAI_PROVIDER_ID}:`) || validRequirementKeys.has(key);
     }));
     normalized.customOpenAIProviders = normalizeCustomOpenAIProviders(providers);
+    normalized.token = apiKeysToToken(normalized.apiKeys);
 }
 
 /**
@@ -898,6 +959,14 @@ export function normalizeConfig(value: unknown): Config {
     normalized.to = normalizeConfigLanguage(source.to) || defaultOption.to;
     normalized.inputBoxTranslationTarget = normalizeConfigLanguage(source.inputBoxTranslationTarget)
         || defaultOption.inputBoxTranslationTarget;
+    normalized.inputBoxTranslationInterval = normalizeInputBoxTranslationInterval(
+        source.inputBoxTranslationInterval,
+    );
+    normalized.inputBoxTranslationModel = normalizeInputBoxTranslationModel(source.inputBoxTranslationModel);
+    normalized.inputBoxTranslationPrompt = normalizeInputBoxTranslationPrompt(source.inputBoxTranslationPrompt);
+    normalized.inputBoxTranslationSystemPrompt = normalizeInputBoxTranslationPrompt(
+        source.inputBoxTranslationSystemPrompt,
+    );
     normalized.uiLanguage = normalizeUiLanguage(source.uiLanguage);
     const cacheLimits = normalizeTranslationCacheLimits({
         maxBytes: source.translationCacheMaxBytes,
@@ -920,7 +989,11 @@ export function normalizeConfig(value: unknown): Config {
     );
     normalized.serviceRequestLimits = withoutRetiredServiceEntries(normalizeServiceRequestLimits(source.serviceRequestLimits));
     normalized.modelRequestLimits = withoutRetiredServiceEntries(normalizeModelRequestLimits(source.modelRequestLimits));
+    normalized.apiKeyRecoveryMs = normalizeApiKeyRecoveryMs(source.apiKeyRecoveryMs);
     normalized.freeTranslationOrder = normalizeFreeTranslationOrder(source.freeTranslationOrder);
+    normalized.freeTranslationMode = normalizeFreeTranslationMode(source.freeTranslationMode);
+    // 权重归后台管理，不接受导入文件或旧配置中的人工权重。
+    delete (normalized as Config & {freeTranslationWeights?: unknown}).freeTranslationWeights;
     normalized.freeTranslationTimeoutMs = normalizeFreeTranslationTimeoutMs(source.freeTranslationTimeoutMs);
     normalized.freeTranslationCooldownMs = normalizeFreeTranslationCooldownMs(source.freeTranslationCooldownMs);
     normalized.myMemoryEmail = normalizeMyMemoryEmail(source.myMemoryEmail);
@@ -933,7 +1006,16 @@ export function normalizeConfig(value: unknown): Config {
         normalizeTranslationBackoffMaxMs(source.translationBackoffMaxMs),
     );
 
-    normalized.token = withoutRetiredServiceEntries(normalizeStringMapping(source.token));
+    normalized.apiKeys = withoutRetiredServiceEntries(normalizeApiKeys(source.apiKeys));
+    const legacyToken = withoutRetiredServiceEntries(normalizeStringMapping(source.token));
+    if (hasOwn(source as object, 'token') && isRecord(source.token)
+        && Object.keys(legacyToken).length === 0) normalized.apiKeys = {};
+    for (const [service, token] of Object.entries(legacyToken)) {
+        if (!Object.prototype.hasOwnProperty.call(normalized.apiKeys, service)) {
+            normalized.apiKeys[service] = token ? [token] : [];
+        }
+    }
+    normalized.token = apiKeysToToken(normalized.apiKeys);
     normalized.secret = withoutRetiredServiceEntries(normalizeStringMapping(source.secret));
     normalized.serviceRegion = normalizeCloudRegionMapping(source.serviceRegion);
     normalized.model = withoutRetiredServiceEntries(normalizeStringMapping(source.model));
@@ -952,10 +1034,10 @@ export function normalizeConfig(value: unknown): Config {
         ...systemRoleFactory(),
         ...withoutRetiredServiceEntries(normalizeStringMapping(source.system_role)),
     };
-    normalized.user_role = {
+    normalized.user_role = upgradeLegacyDefaultUserRoles({
         ...userRoleFactory(),
         ...withoutRetiredServiceEntries(normalizeStringMapping(source.user_role)),
-    };
+    });
     normalized.customBody = withoutRetiredServiceEntries(normalizeCustomBodyMapping(source.customBody));
     normalized.customHeaders = normalizeStringMapping(source.customHeaders);
 
@@ -963,6 +1045,14 @@ export function normalizeConfig(value: unknown): Config {
     normalized.deeplApiPlan = normalizeDeepLApiPlan(source.deeplApiPlan);
     if (typeof normalized.newApiUrl !== 'string') normalized.newApiUrl = DEFAULT_NEW_API_URL;
     normalizeCustomOpenAIProviderState(normalized, source);
+    normalized.favoriteServices = Array.isArray(source.favoriteServices)
+        ? [...new Set(source.favoriteServices.filter(service =>
+            typeof service === 'string' && isSupportedTranslationService(service, normalized.customOpenAIProviders)))].slice(0, 100)
+        : [];
+    normalized.inputBoxTranslationService = normalizeInputBoxTranslationService(
+        source.inputBoxTranslationService,
+        normalized.customOpenAIProviders,
+    );
     normalized.writing = normalizeWritingPreferences(source.writing, normalized.customOpenAIProviders);
     normalized.harness = normalizeHarnessPreferences(source.harness, normalized.customOpenAIProviders);
 
@@ -1125,10 +1215,10 @@ export function normalizeConfig(value: unknown): Config {
         }
     } else {
         normalized.selectionTranslatorHotkey = 'none';
-    normalized.selectionTtsMode = normalizeLocalTtsMode(source.selectionTtsMode);
-    normalized.selectionTtsLocalVoice = normalizeLocalTtsVoice(source.selectionTtsLocalVoice);
     }
     normalized.selectionTtsVoices = normalizeSelectionTtsVoiceOrder(normalized.selectionTtsVoices);
+    normalized.selectionTtsMode = normalizeLocalTtsMode(source.selectionTtsMode);
+    normalized.selectionTtsLocalVoice = normalizeLocalTtsVoice(source.selectionTtsLocalVoice);
     normalized.disableSelectionTranslator = normalized.selectionTranslatorMode === 'disabled';
     if (typeof normalized.vocabularyBookEnabled !== 'boolean') {
         normalized.vocabularyBookEnabled = false;
@@ -1142,6 +1232,16 @@ export function normalizeConfig(value: unknown): Config {
     if (normalized.selectionAreaHotkey === 'custom' && !normalized.customSelectionAreaHotkey) {
         normalized.selectionAreaHotkey = DEFAULT_AREA_TRANSLATION_HOTKEY;
     }
+    if (typeof normalized.paragraphCopyEnabled !== 'boolean') {
+        normalized.paragraphCopyEnabled = true;
+    }
+    normalized.customParagraphCopyHotkey = normalizeCustomParagraphCopyHotkey(source.customParagraphCopyHotkey);
+    normalized.paragraphCopyHotkey = normalizeParagraphCopyHotkey(source.paragraphCopyHotkey);
+    // 选择自定义却没有可用组合键时回到预设默认值，段落复制不会失去唯一入口。
+    if (normalized.paragraphCopyHotkey === 'custom' && !normalized.customParagraphCopyHotkey) {
+        normalized.paragraphCopyHotkey = DEFAULT_PARAGRAPH_COPY_HOTKEY;
+    }
+    normalized.paragraphCopyContent = normalizeParagraphCopyContentMode(source.paragraphCopyContent);
     if (typeof normalized.disableImageTranslator !== 'boolean') {
         normalized.disableImageTranslator = true;
     }
@@ -1182,6 +1282,9 @@ export function normalizeConfig(value: unknown): Config {
                 resolveConfiguredHotkey(normalized.floatingBallHotkey, normalized.customFloatingBallHotkey),
                 ...(normalized.selectionAreaEnabled
                     ? [resolveAreaTranslationHotkey(normalized.selectionAreaHotkey, normalized.customSelectionAreaHotkey)]
+                    : []),
+                ...(normalized.paragraphCopyEnabled
+                    ? [resolveParagraphCopyHotkey(normalized.paragraphCopyHotkey, normalized.customParagraphCopyHotkey)]
                     : []),
                 inputBoxTranslationTriggerHotkey(normalized.inputBoxTranslationTrigger),
             ],
@@ -1279,6 +1382,21 @@ export function migrateModelIdentifier(service: string, selectedModel: string): 
 
 function isRecord(value: unknown): value is Record<string, string> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * 旧默认提示词允许模型“在不必要时返回原文”，较弱的模型据此整句保留源语言，
+ * 造成译文中夹杂明显应当翻译的英文（Issue #54）。仅把仍停留在历史默认值的条目
+ * 升级为当前默认提示词，用户自定义的提示词按原样保留。
+ */
+function upgradeLegacyDefaultUserRoles(mapping: IMapping): IMapping {
+    const upgraded: IMapping = {};
+    for (const [service, prompt] of Object.entries(mapping)) {
+        upgraded[service] = LEGACY_DEFAULT_USER_ROLES.includes(prompt)
+            ? defaultOption.user_role
+            : prompt;
+    }
+    return upgraded;
 }
 
 function normalizeStringMapping(value: unknown): IMapping {
