@@ -777,13 +777,13 @@ describe('完整 AI 字幕失败与取消边界', () => {
 });
 
 describe('完整 AI 字幕扫描窗口的暂停边界', () => {
-  function makeScanController(scanVideo: FakeVideo, chunks: VideoAiAudioChunk[]): VideoAiFullCaptureController {
+  function makeScanController(scanVideo: FakeVideo, chunks: VideoAiAudioChunk[], model = 'tiny'): VideoAiFullCaptureController {
     const sourceVideo = new FakeVideo();
     sourceVideo.duration = scanVideo.duration;
     return new VideoAiFullCaptureController({
       getVideo: () => sourceVideo as unknown as HTMLVideoElement,
       getIsolatedVideo: async () => scanVideo as unknown as HTMLVideoElement,
-      getModel: () => 'tiny',
+      getModel: () => model,
       isSupported: () => true,
       transcribe: async (chunk) => {
         chunks.push(chunk);
@@ -850,13 +850,16 @@ describe('完整 AI 字幕扫描窗口的暂停边界', () => {
     expect(chunks.every((chunk) => chunk.durationMs > 0 && chunk.durationMs <= 10_000)).toBe(true);
   });
 
-  it('连续语音窗口保持重叠步长，并覆盖最终尾部', async () => {
+  it.each([
+    ['tiny', [0, 8_800, 17_600], 10_000],
+    ['base', [0, 12_800], 14_000],
+  ] as const)('%s 连续语音窗口保持 1.2 秒重叠步长，并覆盖最终尾部', async (model, starts, windowMs) => {
     vi.useFakeTimers();
     const scanVideo = new FakeVideo();
     scanVideo.duration = 20;
     installScanDom(scanVideo);
     const chunks: VideoAiAudioChunk[] = [];
-    const controller = makeScanController(scanVideo, chunks);
+    const controller = makeScanController(scanVideo, chunks, model);
     expect(controller.start()).toBe(true);
     await tick(20);
 
@@ -868,7 +871,9 @@ describe('完整 AI 字幕扫描窗口的暂停边界', () => {
     await tick(80);
 
     expect(controller.getPhase()).toBe('ready');
-    expect(chunks.map((chunk) => Math.round(chunk.startMs))).toEqual(expect.arrayContaining([0, 8_800, 17_600]));
+    expect(chunks.map((chunk) => Math.round(chunk.startMs))).toEqual(expect.arrayContaining([...starts]));
+    expect(Math.max(...chunks.map((chunk) => Math.round(chunk.durationMs)))).toBeLessThanOrEqual(windowMs);
+    expect(Math.round(Math.max(...chunks.map((chunk) => chunk.startMs + chunk.durationMs)))).toBe(20_000);
     controller.destroy();
   });
 

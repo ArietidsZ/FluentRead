@@ -8,7 +8,7 @@ vi.mock('webextension-polyfill', () => ({default: {storage: {
 // 注册表测试只需核对适配器身份，避免在 Node 环境启动 WXT 存储监听。
 vi.mock('@/src/services/config/store', () => ({config: {}}));
 import {services} from '@/src/core/config/catalog';
-import {getTranslationProvider, translationProviderRegistry} from '@/src/providers/translation/registry';
+import {translationProviderRegistry} from '@/src/providers/translation/registry';
 import {
     AI_SDK_SERVICE_IDS,
 } from '@/src/providers/translation/ai-sdk/endpoints';
@@ -29,10 +29,5 @@ describe('translation provider registry', () => {
         for (const service of preRouted) {
             expect(translationProviderRegistry[service]).not.toBe(translateWithOpenAICompatibleAiSdk);
         }
-    });
-
-    it('动态 custom:* ID 解析为旧 custom 共用的 OpenAI-compatible adapter', () => {
-        expect(getTranslationProvider('custom:1')).toBe(translationProviderRegistry[services.custom]);
-        expect(getTranslationProvider('missing')).toBeUndefined();
     });
 });

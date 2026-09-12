@@ -4,12 +4,10 @@ import {
   LOCAL_TRANSLATION_MODEL_IDS,
   LOCAL_TRANSLATION_MODELS,
   normalizeLocalTranslationModel,
-  normalizeLocalTranslationModels,
   resolveLocalTranslationLanguageCode,
 } from '@/src/core/config/localTranslation';
 import {
   LOCAL_TRANSLATION_MODEL_FILES,
-  cacheLocalTranslationModelFiles,
   getLocalTranslationModelFileUrl,
   isLocalTranslationModelCached,
   removeLocalTranslationModelFiles,
@@ -21,14 +19,9 @@ afterEach(() => {
 });
 
 describe('local translation model catalog', () => {
-  it('normalizes the built-in models and preserves only known downloaded entries', () => {
+  it('normalizes the built-in model catalog', () => {
     expect(DEFAULT_LOCAL_TRANSLATION_MODEL).toBe(LOCAL_TRANSLATION_MODEL_IDS.opusZhEn);
     expect(normalizeLocalTranslationModel('missing')).toBe(DEFAULT_LOCAL_TRANSLATION_MODEL);
-    expect(normalizeLocalTranslationModels([
-      LOCAL_TRANSLATION_MODEL_IDS.nllb,
-      'missing',
-      LOCAL_TRANSLATION_MODEL_IDS.nllb,
-    ])).toEqual([LOCAL_TRANSLATION_MODEL_IDS.nllb]);
     expect(LOCAL_TRANSLATION_MODELS.filter((item) => !item.legacy)).toHaveLength(3);
   });
 
@@ -58,26 +51,26 @@ describe('local translation model cache', () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('model')));
   });
 
-  it('uses the exact q8 manifests, caches only missing files, and reports complete state', async () => {
+  const seed = (model: string) => {
+    for (const file of LOCAL_TRANSLATION_MODEL_FILES) entries.set(getLocalTranslationModelFileUrl(model, file), new Response('model'));
+  };
+
+  it('uses the exact q8 manifests and reports complete state only when every file is cached', async () => {
     expect(getLocalTranslationModelFileUrl(LOCAL_TRANSLATION_MODEL_IDS.m2m100, LOCAL_TRANSLATION_MODEL_FILES[0]))
       .toContain('Xenova/m2m100_418M/resolve/main/config.json');
-    await cacheLocalTranslationModelFiles(LOCAL_TRANSLATION_MODEL_IDS.m2m100);
-    expect(cache.put).toHaveBeenCalledTimes(LOCAL_TRANSLATION_MODEL_FILES.length);
-    await cacheLocalTranslationModelFiles(LOCAL_TRANSLATION_MODEL_IDS.m2m100);
-    expect(cache.put).toHaveBeenCalledTimes(LOCAL_TRANSLATION_MODEL_FILES.length);
+    await expect(isLocalTranslationModelCached(LOCAL_TRANSLATION_MODEL_IDS.m2m100)).resolves.toBe(false);
+    seed(LOCAL_TRANSLATION_MODEL_IDS.m2m100);
+    entries.delete(getLocalTranslationModelFileUrl(LOCAL_TRANSLATION_MODEL_IDS.m2m100, LOCAL_TRANSLATION_MODEL_FILES.at(-1)!));
+    await expect(isLocalTranslationModelCached(LOCAL_TRANSLATION_MODEL_IDS.m2m100)).resolves.toBe(false);
+    seed(LOCAL_TRANSLATION_MODEL_IDS.m2m100);
     await expect(isLocalTranslationModelCached(LOCAL_TRANSLATION_MODEL_IDS.m2m100)).resolves.toBe(true);
   });
 
   it('removes only the selected model files', async () => {
-    await cacheLocalTranslationModelFiles(LOCAL_TRANSLATION_MODEL_IDS.m2m100);
-    await cacheLocalTranslationModelFiles(LOCAL_TRANSLATION_MODEL_IDS.nllb);
+    seed(LOCAL_TRANSLATION_MODEL_IDS.m2m100);
+    seed(LOCAL_TRANSLATION_MODEL_IDS.nllb);
     await removeLocalTranslationModelFiles(LOCAL_TRANSLATION_MODEL_IDS.m2m100);
     await expect(isLocalTranslationModelCached(LOCAL_TRANSLATION_MODEL_IDS.m2m100)).resolves.toBe(false);
     await expect(isLocalTranslationModelCached(LOCAL_TRANSLATION_MODEL_IDS.nllb)).resolves.toBe(true);
-  });
-
-  it('turns a failed file response into a readable error', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('', {status: 503})));
-    await expect(cacheLocalTranslationModelFiles(LOCAL_TRANSLATION_MODEL_IDS.m2m100)).rejects.toThrow('503');
   });
 });

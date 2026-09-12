@@ -10,7 +10,6 @@ import {
     isInputElement,
     matchesInputBoxTrigger,
     removeInsertedTriggerSymbols,
-    removeTriggerSymbols,
 } from '@/src/features/input-translation/content/inputBox';
 
 function keyEvent(key: string, code: string, shiftKey = false): KeyboardEvent {
@@ -70,10 +69,6 @@ describe('输入框快捷键', () => {
     });
 
     it('只移除本次插入的触发符号并保留真实输入内容', () => {
-        expect(removeTriggerSymbols('Hello   ', 'triple_space')).toBe('Hello');
-        expect(removeTriggerSymbols('Hello===', 'triple_equal')).toBe('Hello');
-        expect(removeTriggerSymbols('Hello---', 'triple_dash')).toBe('Hello');
-        expect(removeTriggerSymbols('Hello', 'ctrl_enter')).toBe('Hello');
         expect(removeInsertedTriggerSymbols('Hello===', 'triple_equal', 5)).toBe('Hello=');
         expect(removeInsertedTriggerSymbols('a==b==', 'triple_equal', 1)).toBe('ab==');
         expect(removeInsertedTriggerSymbols('a  b', 'triple_space', 1)).toBe('ab');

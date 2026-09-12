@@ -111,44 +111,6 @@ function getWindowLengthMs(model: unknown): number {
     : FULL_TINY_WINDOW_MS;
 }
 
-/**
- * 完整模式的音频窗口按固定大小建立并保留少量重叠；采集过程中窗口就会
- * 排入同一个 Worker 链，让 Whisper 与隐藏扫描并行，同时避免把整段长视频
- * 一次性送进 Worker，降低峰值内存和单次推理超时风险。
- */
-export function createVideoAiFullAudioWindows(
-  audio: Float32Array,
-  model: unknown,
-  sampleRate = VIDEO_AI_SAMPLE_RATE,
-): FullAudioWindow[] {
-  if (audio.length === 0 || !Number.isFinite(sampleRate) || sampleRate <= 0) return [];
-  const totalMs = audio.length * 1_000 / sampleRate;
-  const windowMs = Math.min(getWindowLengthMs(model), totalMs);
-  const overlapMs = Math.min(FULL_WINDOW_OVERLAP_MS, Math.max(0, windowMs - FULL_MIN_WINDOW_MS));
-  const stepMs = Math.max(FULL_MIN_WINDOW_MS, windowMs - overlapMs);
-  const windows: FullAudioWindow[] = [];
-
-  let startMs = 0;
-  while (startMs < totalMs) {
-    const endMs = Math.min(totalMs, startMs + windowMs);
-    const startSample = Math.max(0, Math.floor(startMs * sampleRate / 1_000));
-    const endSample = Math.min(audio.length, Math.ceil(endMs * sampleRate / 1_000));
-    if (endSample > startSample) {
-      windows.push({
-        startMs: startSample * 1_000 / sampleRate,
-        endMs: endSample * 1_000 / sampleRate,
-        pcm: audio.slice(startSample, endSample),
-      });
-    }
-
-    if (endMs >= totalMs) break;
-    const nextStartMs = startMs + stepMs;
-    startMs = nextStartMs;
-  }
-
-  return windows;
-}
-
 function getFullCueEndMs(cue: VideoAiStabilizedCue): number {
   const spokenEndMs = typeof cue.spokenEndMs === 'number' && Number.isFinite(cue.spokenEndMs)
     ? cue.spokenEndMs

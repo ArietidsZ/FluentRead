@@ -164,6 +164,7 @@ WXT 会把 `entrypoints/` 下零层或一层的入口作为构建输入，并在
 - background/content 的浏览器运行时代码必须放在 `main()` 内，或放在被 `main()` 调用、且模块顶层无浏览器副作用的模块中。
 - 不使用运行时扫描目录或未知动态 import 自动发现 feature。
 - background、content、popup/options、offscreen 分别拥有静态注册表；不能创建一个会把所有上下文代码打进同一 bundle 的万能 barrel。
+- 体积较大且只在少数路径使用的依赖按需加载：Defuddle 构建为独立的 `pageContextExtractor` 脚本，仅在需要 AI 页面上下文时动态导入；content 构建组的配置存储解析为只读远端运行时，Dexie、加密仓库和旧配置迁移留在 background 与扩展页面。非中文界面语言包（含 legacy 精确文案与动态模板）作为 `i18n/<lang>.json` 按需读取，不进入 content 主包。
 - MV3 background 是 service worker，内存状态必须允许重启；需要持久化的数据进入 storage/IndexedDB。
 - 扩展自有 DOM 运行时由 background 管理，content 和 UI 只通过类型化消息协议请求能力。Chrome/Edge MV3 使用原生 Offscreen，Firefox MV2 使用后台页面中的隐藏扩展 iframe；两者加载同一个 `offscreen.html`，复用同一份消息路由、OCR、图片/区域绘制、字幕推理和 TTS 播放逻辑。
 - `extensionDomClient` 只选择文档容器，并共用 `createOffscreenClient` 的准备、握手、截止时间、取消和重建。Firefox 特有代码仅负责 iframe 创建、查询和移除，不另写 feature handler、算法或配置。
@@ -285,7 +286,7 @@ feature
 - background 与 userscript 共用同一 broker，不维护两份相似实现。
 - cache 失败只能降级为未命中，不能让翻译功能整体失效。
 - 翻译结果缓存默认及可调上限为 10,000 条、10 MiB（10 × 1024 × 1024 字节），任一达到上限就先清理过期项，再按 LRU 淘汰；有效期为 24 小时。保留已有较小配置，超出新上限的配置自动收敛。
-- 缓存通过 Dexie 存入扩展 IndexedDB，browser.storage 只承载容量配置，不承载整份翻译结果。容量统计为 UTF-8 键与译文之和，不包含数据库记录和索引开销，不能视作磁盘占用硬上限。正常统计增量更新、读取按键查询，内存热层最多 128 条；命中仍会写入访问时间。
+- 缓存通过 Dexie 存入扩展 IndexedDB，browser.storage 只承载容量配置，不承载整份翻译结果。容量统计为 UTF-8 键与译文之和，不包含数据库记录和索引开销，不能视作磁盘占用硬上限。正常统计增量更新、读取按键查询，内存热层最多 128 条；命中的访问时间只作为 LRU 排序提示，短窗口内合并为一次 bulkGet/bulkPut 事务，在依赖 LRU 顺序的写入和维护前先落盘，已清空、替换或删除的记录不会被写回。
 - Chrome storage.local 的 10 MB 配额不等同于 IndexedDB 配额；扩展已有 unlimitedStorage 权限，但磁盘不足仍可能使写入失败。容量扩大不需要增加权限，缓存写入失败时仍继续翻译。
 - MV3 重启后仍需复用的数据进入 IndexedDB；仅请求内去重可以保存在内存。
 

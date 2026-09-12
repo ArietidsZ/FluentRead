@@ -121,11 +121,6 @@ export function normalizeLocalTranslationModel(value: unknown): LocalTranslation
     return isLocalTranslationModel(value) ? value : DEFAULT_LOCAL_TRANSLATION_MODEL;
 }
 
-export function normalizeLocalTranslationModels(value: unknown): LocalTranslationModelId[] {
-    if (!Array.isArray(value)) return [];
-    return [...new Set(value.filter(isLocalTranslationModel))];
-}
-
 export function normalizeLocalTranslationDownloadSnapshot(value: unknown): LocalTranslationDownloadSnapshot | undefined {
     if (!value || typeof value !== 'object') return undefined;
     const snapshot = value as Partial<LocalTranslationDownloadSnapshot>;

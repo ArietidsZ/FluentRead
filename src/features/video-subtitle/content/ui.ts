@@ -270,12 +270,6 @@ export function findVideoPlayer(): HTMLElement | null {
   return video?.parentElement || null;
 }
 
-export function findXSettingsControl(player: HTMLElement): HTMLElement | null {
-  if (!isXVideoPage()) return null;
-  if (hasCurrentXVideoOverlayLink(player)) return null;
-  return player.querySelector<HTMLElement>(VIDEO_X_SETTINGS_CONTROL_SELECTOR);
-}
-
 /** X 的控制栏没有固定 class；从设置齿轮向上找最近的按钮组。 */
 export function findXNativeControls(player: HTMLElement, settingsControl: HTMLElement): HTMLElement | null {
   let candidate = settingsControl.parentElement;

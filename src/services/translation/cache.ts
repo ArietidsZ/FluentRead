@@ -2,15 +2,13 @@
  * @file src/services/translation/cache.ts
  *
  * 文件职责：实现扩展自有的翻译结果缓存，统一键规范化、TTL、可配置双容量限制、内存热层和 Dexie 持久层。
- * 主要内容：定义缓存 identity/record、canonicalize 与 buildTranslationCacheKey，维护 FluentReadCacheDatabase 与事务内增量用量汇总，并通过 translationCache 提供读取、写入、按短窗口合批写回的持久化 LRU、过期清理、阈值设置和用量统计；缓存读写故障降级，管理故障向 UI 如实报告。 可核对的公开符号包括 TRANSLATION_CACHE_VERSION、TRANSLATION_CACHE_TTL_MS、TRANSLATION_CACHE_MAX_ENTRIES、TRANSLATION_CACHE_MAX_BYTES、TRANSLATION_CACHE_MAX_ENTRY_BYTES、TRANSLATION_CACHE_MEMORY_ENTRIES、TranslationCacheIdentity、TranslationCacheRecord。
+ * 主要内容：定义缓存 identity/record、canonicalize 与 buildTranslationCacheKey，维护 FluentReadCacheDatabase 与事务内增量用量汇总，并通过 translationCache 提供读取、写入、按短窗口合批写回的持久化 LRU、过期清理、阈值设置和用量统计；缓存读写故障降级，管理故障向 UI 如实报告。 可核对的公开符号包括 TRANSLATION_CACHE_VERSION、TRANSLATION_CACHE_TTL_MS、TRANSLATION_CACHE_MAX_ENTRY_BYTES、TRANSLATION_CACHE_MEMORY_ENTRIES、TranslationCacheIdentity、TranslationCacheRecord。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
 import sha256 from 'crypto-js/sha256';
 import Dexie, { type Table } from 'dexie';
 import {
-  DEFAULT_TRANSLATION_CACHE_MAX_BYTES,
-  DEFAULT_TRANSLATION_CACHE_MAX_ENTRIES,
   normalizeTranslationCacheLimits,
   type TranslationCacheLimits,
 } from '@/src/core/config/translationCache';
@@ -18,8 +16,6 @@ import {
 // v3 放弃旧语言映射可能以繁体身份存入的简体或粤语译文；继续保留 v2 的上下文回显门禁。
 export const TRANSLATION_CACHE_VERSION = 3;
 export const TRANSLATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-export const TRANSLATION_CACHE_MAX_ENTRIES = DEFAULT_TRANSLATION_CACHE_MAX_ENTRIES;
-export const TRANSLATION_CACHE_MAX_BYTES = DEFAULT_TRANSLATION_CACHE_MAX_BYTES;
 export const TRANSLATION_CACHE_MAX_ENTRY_BYTES = 256 * 1024;
 export const TRANSLATION_CACHE_MEMORY_ENTRIES = 128;
 /** 命中后访问时间只是 LRU 排序提示；短窗口内合并为一次读写事务，避免整页命中逐条排队写库。 */

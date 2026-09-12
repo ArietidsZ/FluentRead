@@ -3,8 +3,10 @@ import Dexie from 'dexie';
 import CryptoJS from 'crypto-js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  TRANSLATION_CACHE_MAX_BYTES,
-  TRANSLATION_CACHE_MAX_ENTRIES,
+  DEFAULT_TRANSLATION_CACHE_MAX_BYTES as TRANSLATION_CACHE_MAX_BYTES,
+  DEFAULT_TRANSLATION_CACHE_MAX_ENTRIES as TRANSLATION_CACHE_MAX_ENTRIES,
+} from '@/src/core/config/translationCache';
+import {
   TRANSLATION_CACHE_MAX_ENTRY_BYTES,
   TRANSLATION_CACHE_MEMORY_ENTRIES,
   TRANSLATION_CACHE_TTL_MS,

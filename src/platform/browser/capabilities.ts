@@ -2,7 +2,7 @@
  * @file src/platform/browser/capabilities.ts
  *
  * 文件职责：集中计算编译目标与运行时浏览器能力，为 Chrome、Edge、Firefox 和 userscript 的功能装配提供确定契约。
- * 主要内容：定义 BrowserBuildTarget、BrowserCapabilities 与 feature 类型，从 import.meta.env 生成构建标记，并结合 userAgent 约束 Chrome Translator、Offscreen、OCR、区域翻译和 TTS。 可核对的公开符号包括 BrowserBuildTarget、BrowserCapabilities、BrowserFeatureCapability、resolveBrowserCapabilities、applyRuntimeBrowserConstraints、readRuntimeUserAgent、browserBuildTargetFromEnv、browserBuildTargetFromImportMeta。
+ * 主要内容：定义 BrowserBuildTarget、BrowserCapabilities 与 feature 类型，从 import.meta.env 生成构建标记，并结合 userAgent 约束 Chrome Translator、Offscreen、OCR、区域翻译和 TTS。 可核对的公开符号包括 BrowserBuildTarget、BrowserCapabilities、BrowserFeatureCapability、resolveBrowserCapabilities、applyRuntimeBrowserConstraints、readRuntimeUserAgent、browserBuildTargetFromEnv。
  * 模块边界：本文件属于 platform 基础设施边界，只封装浏览器、网络、存储上下文或 Shadow DOM 机制；不决定翻译业务策略，不直接实现 feature，业务层通过类型化端口消费这里的能力。
  */
 
@@ -88,13 +88,6 @@ export function browserBuildTargetFromEnv(env?: Partial<ImportMetaEnv>): Browser
         ? env.MANIFEST_VERSION
         : defaultManifestVersion(browser);
     return {browser, manifestVersion};
-}
-
-/** import.meta.env 缺失时采用保守结果，并保持可独立测试。 */
-export function browserBuildTargetFromImportMeta(
-    meta?: {readonly env?: Partial<ImportMetaEnv>},
-): BrowserBuildTarget {
-    return browserBuildTargetFromEnv(meta?.env);
 }
 
 /**

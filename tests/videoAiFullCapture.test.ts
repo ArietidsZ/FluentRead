@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   consolidateVideoAiFullCues,
-  createVideoAiFullAudioWindows,
   VideoAiFullCaptureController,
 } from '@/src/features/video-subtitle/content/video-ai/fullCapture';
 import {normalizeCompletedVideoAiSubtitleCues} from '@/src/features/video-subtitle/transcriptionCache';
@@ -12,35 +11,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('本地 AI 完整视频音频窗口', () => {
-  it('Tiny 使用 10 秒窗口和 1.2 秒重叠，并覆盖到完整尾部', () => {
-    const audio = new Float32Array(25 * 16_000);
-    const windows = createVideoAiFullAudioWindows(audio, 'tiny');
-
-    expect(windows.map(({ startMs, endMs }) => [Math.round(startMs), Math.round(endMs)])).toEqual([
-      [0, 10_000],
-      [8_800, 18_800],
-      [17_600, 25_000],
-    ]);
-    expect(windows.every(({ pcm }) => pcm.length > 0)).toBe(true);
-    expect(windows.at(-1)?.endMs).toBe(25_000);
-  });
-
-  it('Base 在较长窗口下仍不超过 Whisper 单次 30 秒上限', () => {
-    const audio = new Float32Array(45 * 16_000);
-    const windows = createVideoAiFullAudioWindows(audio, 'base');
-
-    expect(windows.length).toBe(4);
-    expect(windows[0].endMs - windows[0].startMs).toBe(14_000);
-    expect(windows[1].startMs).toBe(12_800);
-    expect(windows.at(-1)?.endMs).toBe(45_000);
-    expect(Math.max(...windows.map(({ pcm }) => pcm.length / 16_000))).toBeLessThanOrEqual(30);
-  });
-
-  it('空 PCM 不会伪造一个可识别窗口', () => {
-    expect(createVideoAiFullAudioWindows(new Float32Array(), 'tiny')).toEqual([]);
-  });
-
+describe('本地 AI 完整视频字幕合并', () => {
   it('完整模式只合并有校正证据的重叠句子', () => {
     const cues = consolidateVideoAiFullCues([
       {
@@ -142,14 +113,7 @@ describe('本地 AI 完整视频音频窗口', () => {
     }
   });
 
-  it('完整窗口处理无效采样率、短尾和缺少 spokenEnd 的 cue', () => {
-    const audio = new Float32Array(18_490 * 16);
-    expect(createVideoAiFullAudioWindows(audio, 'tiny', Number.NaN)).toEqual([]);
-    expect(createVideoAiFullAudioWindows(audio, 'tiny', 0)).toEqual([]);
-    const windows = createVideoAiFullAudioWindows(audio, 'tiny');
-    expect(windows.at(-1)?.endMs).toBeCloseTo(18_490, 5);
-    expect(createVideoAiFullAudioWindows(new Float32Array(13_600 * 16), 'base')).toHaveLength(1);
-
+  it('完整模式合并时处理无效起点、空文本和缺少 spokenEnd 的 cue', () => {
     const cues = consolidateVideoAiFullCues([
       { startMs: Number.NaN, durationMs: 1_000, text: '', availableAtMs: 0, spokenEndMs: 0 },
       { startMs: 0, durationMs: 1_000, spokenEndMs: 1_000, text: 'A distinct sentence.', availableAtMs: 0 },

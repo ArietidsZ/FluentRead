@@ -4,13 +4,9 @@ const {cacheVideoAiQ4ModelFiles} = vi.hoisted(() => ({cacheVideoAiQ4ModelFiles: 
 vi.mock('@/src/features/video-subtitle/offscreen/modelCache', () => ({cacheVideoAiQ4ModelFiles}));
 
 import {
-  buildVideoTranscriptionEndpoint,
-  getVideoTranscriptionModel,
   normalizeVideoLocalTranscriptionModels,
-  normalizeVideoTranscriptionLanguage,
   resampleToWhisperAudio,
 } from '@/src/features/video-subtitle/transcription';
-import {urls} from '@/src/core/config/constants';
 import {
   cancelLocalVideoTranscription,
   prepareLocalVideoTranscriptionModel,
@@ -118,29 +114,6 @@ describe('video transcription public normalization branches', () => {
   it('normalizes empty and malformed configuration values', () => {
     expect(normalizeVideoLocalTranscriptionModels(null)).toEqual([]);
     expect(normalizeVideoLocalTranscriptionModels(['tiny', 1, 'base', 'tiny', null])).toEqual(['tiny', 'base']);
-    expect(normalizeVideoTranscriptionLanguage('  ')).toBeUndefined();
-    expect(normalizeVideoTranscriptionLanguage('_')).toBeUndefined();
-    expect(getVideoTranscriptionModel('unknown')).toBe('whisper-1');
-  });
-
-  it('covers all endpoint source and suffix forms', () => {
-    expect(buildVideoTranscriptionEndpoint('microsoft')).toBeNull();
-    const originalCustomUrl = urls.custom;
-    urls.custom = '';
-    expect(buildVideoTranscriptionEndpoint('custom', {proxy: '  '})).toBeNull();
-    urls.custom = originalCustomUrl;
-    expect(buildVideoTranscriptionEndpoint('custom', {proxy: ' https://example.test/v1/audio/transcriptions?x=1 '}))
-      .toBe('https://example.test/v1/audio/transcriptions?x=1');
-    expect(buildVideoTranscriptionEndpoint('custom', {custom: 'https://example.test/v1/chat/completions#x'}))
-      .toBe('https://example.test/v1/audio/transcriptions#x');
-    expect(buildVideoTranscriptionEndpoint('newapi', {newApiUrl: 'https://example.test/v1/'}))
-      .toBe('https://example.test/v1/audio/transcriptions');
-    expect(buildVideoTranscriptionEndpoint('newapi', {newApiUrl: 'https://example.test/root/'}))
-      .toBe('https://example.test/root/v1/audio/transcriptions');
-    expect(buildVideoTranscriptionEndpoint('openai', {proxy: 'https://example.test/root'}))
-      .toBe('https://example.test/root/audio/transcriptions');
-    expect(buildVideoTranscriptionEndpoint('openai', {proxy: ''}))
-      .toBe('https://api.openai.com/v1/audio/transcriptions');
   });
 
   it('mixes, copies, and interpolates channels across rate and length edge cases', () => {

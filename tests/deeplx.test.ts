@@ -15,7 +15,6 @@ vi.mock("@/src/services/config/store", () => ({config: mockConfig}));
 
 import deeplx, {
     getDeepLXRequestLanguages,
-    normalizeDeepLXLanguage,
 } from "@/src/providers/translation/deeplx";
 import {DEFAULT_DEEPLX_ENDPOINT, getDeepLXEndpoints} from '@/src/core/config/deeplx';
 
@@ -199,8 +198,7 @@ describe("DeepLX adapter", () => {
     });
 
     it("normalizes Chinese language variants", () => {
-        expect(normalizeDeepLXLanguage("zh-Hans")).toBe("ZH");
-        expect(normalizeDeepLXLanguage("zh-TW")).toBe("ZH-HANT");
+        expect(getDeepLXRequestLanguages("zh-Hans", "zh-TW")).toEqual({sourceLang: "ZH", targetLang: "ZH-HANT"});
         expect(getDeepLXRequestLanguages("auto", "zh-Hans")).toEqual({
             sourceLang: "AUTO",
             targetLang: "ZH",
@@ -215,6 +213,6 @@ it('DeepLX 脚本及地区别名归一后保持繁体目标', () => {
 
 describe('DeepLX 菲律宾语兼容', () => {
     it('统一目录 fil 转换为 DeepL 的 TL', () => {
-        expect(normalizeDeepLXLanguage('fil')).toBe('TL');
+        expect(getDeepLXRequestLanguages('fil', 'fil').targetLang).toBe('TL');
     });
 });

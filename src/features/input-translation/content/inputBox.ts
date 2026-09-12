@@ -172,23 +172,3 @@ export function matchesInputBoxTrigger(event: KeyboardEvent, trigger: InputBoxTr
             return false;
     }
 }
-
-/** 根据触发方式去除末尾的触发符号。 */
-export function removeTriggerSymbols(text: string, trigger: string): string {
-    const triggerSymbol = trigger === 'triple_space'
-        ? ' '
-        : trigger === 'triple_equal'
-            ? '='
-            : trigger === 'triple_dash'
-                ? '-'
-                : '';
-
-    if (!triggerSymbol) return text;
-
-    let cleanedText = text;
-    while (cleanedText.endsWith(triggerSymbol)) {
-        cleanedText = cleanedText.slice(0, -1);
-    }
-
-    return cleanedText.trim();
-}

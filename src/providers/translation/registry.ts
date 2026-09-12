@@ -7,7 +7,6 @@
  */
 
 import {services} from "@/src/core/config/catalog";
-import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
 import {AI_SDK_SERVICE_IDS} from './ai-sdk/endpoints';
 import myMemory from "./mymemory";
 import microsoft from "./microsoft";
@@ -80,11 +79,3 @@ export const translationProviderRegistry: TranslationProviderRegistry = {
     // 豆包按模型分流：翻译专用模型只在 Responses API 上提供，其余模型仍走共享 transport。
     [services.doubao]: doubao,
 };
-
-/** 动态 custom:* profile 与旧 custom 共用同一个 OpenAI-compatible transport。 */
-export function getTranslationProvider(service: string): TranslationProvider | undefined {
-    return translationProviderRegistry[service]
-        || (isCustomOpenAIProviderId(service)
-            ? translationProviderRegistry[LEGACY_CUSTOM_OPENAI_PROVIDER_ID]
-            : undefined);
-}

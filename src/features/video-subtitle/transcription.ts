@@ -1,11 +1,9 @@
 /**
  * @file src/features/video-subtitle/transcription.ts
  * 文件职责：定义本地 Whisper 模型选项与音频转换的公共契约，统一界面和识别端使用的默认值。
- * 主要内容：规范化模型配置与下载状态列表，解析云端转写地址，并把多声道 PCM 按目标采样率混音和重采样。
+ * 主要内容：规范化模型配置与下载状态列表，并把多声道 PCM 按目标采样率混音和重采样。
  * 模块边界：只处理传入数据，不读取配置仓库、不调用浏览器音频设备，也不下载或初始化模型。
  */
-import { urls } from '@/src/core/config/constants';
-import { services } from '@/src/core/config/catalog';
 
 export const VIDEO_LOCAL_TRANSCRIPTION_MODELS = [
   {
@@ -43,11 +41,6 @@ export function normalizeVideoLocalTranscriptionModels(value: unknown): VideoLoc
     typeof model === 'string' && supported.has(model as VideoLocalTranscriptionModel)))];
 }
 
-export function getVideoLocalTranscriptionModelDescription(value: unknown): string {
-  const model = normalizeVideoLocalTranscriptionModel(value);
-  return VIDEO_LOCAL_TRANSCRIPTION_MODELS.find((item) => item.value === model)!.description;
-}
-
 export function normalizeVideoLocalTranscriptionModel(value: unknown): VideoLocalTranscriptionModel {
   return VIDEO_LOCAL_TRANSCRIPTION_MODELS.some((item) => item.value === value)
     ? value as VideoLocalTranscriptionModel
@@ -57,11 +50,6 @@ export function normalizeVideoLocalTranscriptionModel(value: unknown): VideoLoca
 export function getVideoLocalTranscriptionModelId(value: unknown): string {
   const model = normalizeVideoLocalTranscriptionModel(value);
   return VIDEO_LOCAL_TRANSCRIPTION_MODELS.find((item) => item.value === model)!.modelId;
-}
-
-export function getVideoLocalTranscriptionModelLabel(value: unknown): string {
-  const model = normalizeVideoLocalTranscriptionModel(value);
-  return VIDEO_LOCAL_TRANSCRIPTION_MODELS.find((item) => item.value === model)!.label;
 }
 
 /** 将解码后的多声道音频重采样为 Whisper 使用的单声道 PCM。 */
@@ -104,65 +92,4 @@ export function resampleToWhisperAudio(
     output[index] = leftSample + (rightSample - leftSample) * fraction;
   }
   return output;
-}
-
-/** 云端转写兼容层仍保留给旧调用方；X 的新 AI 字幕默认走扩展内 Whisper。 */
-export const VIDEO_TRANSCRIPTION_SERVICES = new Set([
-  services.openai,
-  services.groq,
-  services.custom,
-  services.newapi,
-]);
-
-export interface VideoTranscriptionEndpointConfig {
-  proxy?: string;
-  custom?: string;
-  newApiUrl?: string;
-}
-
-export function supportsVideoTranscription(service: string): boolean {
-  return VIDEO_TRANSCRIPTION_SERVICES.has(service);
-}
-
-function appendPath(value: string, path: string): string {
-  return `${value.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`;
-}
-
-/** 将聊天补全地址映射为同一 OpenAI-compatible 服务的音频转写地址。 */
-export function buildVideoTranscriptionEndpoint(
-  service: string,
-  endpointConfig: VideoTranscriptionEndpointConfig = {},
-): string | null {
-  if (!supportsVideoTranscription(service)) return null;
-
-  const raw = endpointConfig.proxy?.trim()
-    || (service === services.custom ? endpointConfig.custom?.trim() : '')
-    || (service === services.newapi ? endpointConfig.newApiUrl?.trim() : '')
-    || String((urls as Record<string, unknown>)[service] || '').trim();
-  if (!raw) return null;
-
-  if (/\/audio\/transcriptions(?:[?#]|$)/i.test(raw)) return raw;
-  if (/\/chat\/completions(?:[?#]|$)/i.test(raw)) {
-    return raw.replace(/\/chat\/completions(?=([?#]|$))/i, '/audio/transcriptions');
-  }
-
-  // New API 的配置通常只填写根地址或 /v1；与现有 chat/completions
-  // 适配器保持一致，自动补齐 /v1。
-  if (service === services.newapi) {
-    return /\/v1\/?(?=[?#]|$)/i.test(raw)
-      ? raw.replace(/\/v1\/?(?=([?#]|$))/i, '/v1/audio/transcriptions')
-      : appendPath(raw, 'v1/audio/transcriptions');
-  }
-
-  return appendPath(raw, 'audio/transcriptions');
-}
-
-export function getVideoTranscriptionModel(service: string): string {
-  return service === services.groq ? 'whisper-large-v3-turbo' : 'whisper-1';
-}
-
-export function normalizeVideoTranscriptionLanguage(value: string): string | undefined {
-  const normalized = value.trim().toLowerCase();
-  if (!normalized || normalized === 'auto' || normalized === 'automatic') return undefined;
-  return normalized.split(/[-_]/, 1)[0] || undefined;
 }

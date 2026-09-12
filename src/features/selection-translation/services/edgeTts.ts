@@ -25,7 +25,6 @@ import {
 export {
   buildEdgeTtsSsml,
   edgeTtsVoiceCandidatesForLanguage,
-  edgeTtsVoiceForLanguage,
 } from './edgeTtsPolicy';
 
 export interface EdgeTtsAudio {

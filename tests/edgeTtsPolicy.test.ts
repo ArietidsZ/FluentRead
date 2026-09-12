@@ -5,7 +5,6 @@ import {
     edgeTtsLimits,
     edgeTtsTokenExpiry,
     edgeTtsVoiceCandidatesForLanguage,
-    edgeTtsVoiceForLanguage,
     normalizeEdgeTtsLanguage,
     splitEdgeTtsText,
 } from '@/src/features/selection-translation/services/edgeTtsPolicy';
@@ -44,9 +43,9 @@ describe('Edge TTS pure policy', () => {
         ]);
         expect(edgeTtsVoiceCandidatesForLanguage('fr-CA')).toEqual(['fr-FR-RemyMultilingualNeural']);
         expect(edgeTtsVoiceCandidatesForLanguage('xx-ZZ', 'not-an-array')).toEqual([]);
-        expect(edgeTtsVoiceForLanguage('zh-Hans')).toBe('zh-CN-XiaoxiaoMultilingualNeural');
-        expect(edgeTtsVoiceForLanguage('zh-Hant')).toBe('zh-TW-YunJheMultilingualNeural');
-        expect(edgeTtsVoiceForLanguage('xx-ZZ')).toBeNull();
+        expect(edgeTtsVoiceCandidatesForLanguage('zh-Hans')[0]).toBe('zh-CN-XiaoxiaoMultilingualNeural');
+        expect(edgeTtsVoiceCandidatesForLanguage('zh-Hant')[0]).toBe('zh-TW-YunJheMultilingualNeural');
+        expect(edgeTtsVoiceCandidatesForLanguage('xx-ZZ')).toEqual([]);
     });
 
     it('accepts Mandarin detection aliases without losing configured Chinese voices or traditional locales', () => {
@@ -58,7 +57,7 @@ describe('Edge TTS pure policy', () => {
             expect(candidates).not.toContain('zh-TW-HsiaoYuNeural');
         }
         expect(normalizeEdgeTtsLanguage('zh-Hant')).toBe('zh-TW');
-        expect(edgeTtsVoiceForLanguage('zh-Hant')).toBe('zh-TW-YunJheMultilingualNeural');
+        expect(edgeTtsVoiceCandidatesForLanguage('zh-Hant')[0]).toBe('zh-TW-YunJheMultilingualNeural');
     });
 
     it('escapes all SSML-controlled values and applies defaults', () => {

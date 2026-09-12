@@ -45,7 +45,6 @@ export {
     extractTranslationText,
     extractTranslationTextFromNodes,
     isClearlyTargetLanguage,
-    getMinimumTranslationTextLength,
     isMeaningfulTranslationText,
     isTranslationTextElementProtected,
     normalizeTranslationText,

@@ -3,7 +3,6 @@ import {
   buildServiceGroups,
   buildServiceSections,
   cleanServiceLabel,
-  filterServiceSections,
   getSelectedModelLabel,
   getServiceWebsite,
   searchServiceOptions,
@@ -161,24 +160,6 @@ describe('service catalog helpers', () => {
           label: '',
           itemKind: '其他服务',
           items: [{ value: 'standalone', label: '独立服务' }],
-        }],
-      },
-    ])
-  })
-
-  it('filters nested service sections without losing their parent or subgroup', () => {
-    const sections = buildServiceSections(options)
-    expect(filterServiceSections(sections, '   ')).toBe(sections)
-    expect(filterServiceSections(sections, 'new api')).toEqual([
-      {
-        id: 'ai',
-        label: 'AI翻译',
-        collapsible: false,
-        groups: [{
-          id: 'ai-platforms',
-          label: '聚合平台与接口',
-          itemKind: '聚合平台',
-          items: [{ value: 'newapi', label: 'New API', catalogKind: 'platform' }],
         }],
       },
     ])
