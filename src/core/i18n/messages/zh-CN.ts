@@ -607,7 +607,7 @@ export const zhCNMessages = {
     'options.aboutProject': '开源项目',
     'options.aboutDocs': '使用文档',
     'options.aboutFeedback': '问题反馈',
-    'options.aboutThanks': 'FluentRead 是一个开源项目，其持续开发离不开社区的慷慨支持。',
+    'options.aboutThanks': 'FluentRead的发展离不开社区的慷慨支持，你可以通过微信赞赏或Ko-fi支持我们。',
     'popup.donationTitle': '支持 FluentRead',
     'popup.donationDescription': '感谢您对开源项目的支持。',
     'popup.donationClose': '关闭赞赏窗口',

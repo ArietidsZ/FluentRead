@@ -64,14 +64,38 @@
           </div>
 
           <div class="about-grid">
-            <article class="about-panel">
-              <span class="about-panel-kicker">{{ t('options.aboutCoreExperience') }}</span>
-              <h3>{{ t('options.aboutBornForReading') }}</h3>
-              <p>{{ t('options.aboutCoreDescription') }}</p>
-              <div class="about-feature-list">
-                <span><b><UiIcon name="translate" :size="16" /></b>{{ t('options.aboutWebReading') }}</span>
-                <span><b><UiIcon name="book" :size="16" /></b>{{ t('options.aboutReadingTools') }}</span>
-                <span><b><UiIcon name="plug" :size="16" /></b>{{ t('options.aboutFlexibleServices') }}</span>
+            <article class="about-panel about-support-panel">
+              <span class="about-panel-kicker">{{ t('popup.donationEyebrow') }}</span>
+              <h3>{{ t('popup.donationTitle') }}</h3>
+              <p>{{ t('options.aboutThanks') }}</p>
+              <div class="about-support-options">
+                <section class="about-support-option about-support-wechat-option">
+                  <h4>{{ t('popup.donationWechat') }}</h4>
+                  <a
+                    class="about-support-method about-support-wechat"
+                    data-support-method="wechat"
+                    href="/misc/approve.jpg"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    :aria-label="t('popup.donationOpenCode')"
+                  >
+                    <img class="about-support-qr" src="/misc/approve.jpg" :alt="t('popup.donationCodeAlt')" width="1152" height="1152" />
+                  </a>
+                </section>
+                <section class="about-support-option about-support-kofi-option">
+                  <h4>Ko-fi</h4>
+                  <a
+                    class="about-support-method about-support-kofi-link"
+                    data-support-method="kofi"
+                    href="https://ko-fi.com/thinkstu"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <strong>{{ t('popup.donationKofi') }}</strong>
+                    <UiIcon name="external" :size="16" />
+                  </a>
+                  <span class="about-support-account">ko-fi.com/thinkstu</span>
+                </section>
               </div>
             </article>
 
@@ -83,12 +107,10 @@
                 <a href="https://github.com/Bistutu/FluentRead" target="_blank" rel="noreferrer">{{ t('options.aboutProject') }} <span>↗</span></a>
                 <a href="https://fluent.thinkstu.com/" target="_blank" rel="noreferrer">{{ t('options.aboutDocs') }} <span>↗</span></a>
                 <a href="https://github.com/Bistutu/FluentRead/issues" target="_blank" rel="noreferrer">{{ t('options.aboutFeedback') }} <span>↗</span></a>
-                <a href="https://github.com/FluentRead/FluentRead#support" target="_blank" rel="noopener noreferrer">{{ t('popup.donationTitle') }} <span>↗</span></a>
               </div>
             </article>
           </div>
 
-          <p class="about-footer">{{ t('options.aboutThanks') }}</p>
         </section>
         <LearningCenter v-else-if="activeSection === 'settings-vocabulary'" @navigate="selectSection" />
         <SettingsSections v-else :active-section="activeSection" />

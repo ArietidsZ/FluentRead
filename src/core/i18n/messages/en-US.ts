@@ -608,7 +608,7 @@ export const enUSMessages = {
     'options.aboutProject': 'Open-source project',
     'options.aboutDocs': 'Documentation',
     'options.aboutFeedback': 'Report an issue',
-    'options.aboutThanks': 'FluentRead is an open-source project whose continued development is made possible by the generous support of its community.',
+    'options.aboutThanks': 'FluentRead is an open-source project whose continued development depends on the generous support of its community. You can support it through WeChat or Ko-fi.',
     'popup.donationTitle': 'Support FluentRead',
     'popup.donationDescription': 'Thank you for supporting this open-source project.',
     'popup.donationClose': 'Close support dialog',
