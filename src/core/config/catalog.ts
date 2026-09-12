@@ -2,7 +2,7 @@
  * @file src/core/config/catalog.ts
  *
  * 文件职责：维护 FluentRead 翻译语言、服务与模型的领域目录，让设置、校验和运行时能够引用同一组稳定的服务标识与模型元数据。
- * 主要内容：明确区分简体中文和繁体中文，统一源语言、目标语言和输入框语言选项，并定义 services、servicesType、服务目录展示分类与排序、模型候选、MiniMax 与 MiMo 的计费和地域选项，并提供 resolveConfiguredModel 等解析函数，把“自定义模型”选择归一为可请求的模型编号。 可核对的公开符号包括 services、servicesType、customModelString、minimaxBillingPlans、MiniMaxBillingPlan、minimaxRegions、MiniMaxRegion、mimoBillingPlans。
+ * 主要内容：明确区分简体中文和繁体中文，统一源语言、目标语言和输入框语言选项，并定义 services、servicesType、服务目录展示分类与排序（含“云服务厂商”分组）、模型候选、云厂商地域白名单、MiniMax 与 MiMo 的计费和地域选项，并提供 resolveConfiguredModel、resolveCloudRegion 等解析函数，把“自定义模型”选择归一为可请求的模型编号。 可核对的公开符号包括 services、cloudVendorServices、referenceAiPlatformServices、servicesType、customModelString、cloudRegionOptions、getDefaultCloudRegion、resolveCloudRegion、minimaxBillingPlans、MiniMaxBillingPlan、minimaxRegions、MiniMaxRegion、mimoBillingPlans。
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
@@ -20,8 +20,14 @@ export const services = {
     google: "google",
     xiaoniu: "xiaoniu",
     youdao: "youdao",
-    tencent: "tencent", // 腾讯云机器翻译
     chromeTranslator: "chromeTranslator", // Chrome 内置翻译 API
+    // 云服务厂商机器翻译：使用云控制台签发的密钥调用官方接口，各家都提供免费额度
+    tencent: "tencent", // 腾讯云机器翻译 TMT
+    googleCloudTranslation: "googleCloudTranslation", // Google Cloud Translation API
+    azureTranslator: "azureTranslator", // Azure AI Translator
+    aliyunTranslation: "aliyunTranslation", // 阿里云机器翻译
+    baiduTranslation: "baiduTranslation", // 百度翻译开放平台
+    volcTranslation: "volcTranslation", // 火山引擎机器翻译
     // 大模型翻译
     openai: "openai",
     azureOpenai: "azureOpenai", // Azure 服务；保留旧 ID 以兼容已保存的配置和凭据
@@ -47,11 +53,69 @@ export const services = {
     openrouter: "openrouter", // OpenRouter 聚合服务
     grok: "grok", // X.AI 的 Grok
     newapi: "newapi", // New API 接口
+    ollama: "ollama", // 本地 Ollama 运行时
+    mistral: "mistral", // Mistral AI
+    cohere: "cohere", // Cohere
+    togetherai: "togetherai", // Together AI
+    fireworks: "fireworks", // Fireworks AI
+    cerebras: "cerebras", // Cerebras
+    deepinfra: "deepinfra", // DeepInfra
+    perplexity: "perplexity", // Perplexity
 };
+
+/**
+ * 云服务厂商的凭据字段名称。各家控制台对同一对密钥的叫法都不同，
+ * 设置页表单、缺失凭据提示与连接测试文案统一从这里取名，避免三处各写一版。
+ * 只填一段密钥的服务省略 secret。
+ */
+export const cloudCredentialLabels = {
+    googleCloudTranslation: {token: 'API Key'},
+    azureTranslator: {token: '密钥（Key）'},
+    aliyunTranslation: {token: 'AccessKey ID', secret: 'AccessKey Secret'},
+    baiduTranslation: {token: 'APP ID', secret: '密钥'},
+    volcTranslation: {token: 'Access Key ID', secret: 'Secret Access Key'},
+} as const satisfies Record<string, {token: string; secret?: string}>;
+
+export type CloudCredentialLabels = {token: string; secret?: string};
+
+/** 未登记的服务返回通用名称，让调用方不必为每个服务单独判空。 */
+export function getCloudCredentialLabels(service: string): CloudCredentialLabels {
+    return Object.hasOwn(cloudCredentialLabels, service)
+        ? cloudCredentialLabels[service as keyof typeof cloudCredentialLabels]
+        : {token: 'API Key'};
+}
+
+/** 云服务厂商机器翻译：凭云控制台密钥调用官方接口，与免费网页端点相互独立。 */
+export const cloudVendorServices = Object.freeze([
+    services.tencent,
+    services.googleCloudTranslation,
+    services.azureTranslator,
+    services.aliyunTranslation,
+    services.baiduTranslation,
+    services.volcTranslation,
+]);
+
+/** 借鉴陪读蛙目录补齐的 OpenAI 兼容平台；除本地 Ollama 外都需要平台密钥。 */
+export const referenceAiPlatformServices = Object.freeze([
+    services.ollama,
+    services.mistral,
+    services.cohere,
+    services.togetherai,
+    services.fireworks,
+    services.cerebras,
+    services.deepinfra,
+    services.perplexity,
+]);
 
 export const servicesType = {
     // 阵营划分
-    machine: new Set([services.myMemory, services.microsoft, services.freeTranslation, services.deepL, services.deeplx, services.google, services.xiaoniu, services.youdao, services.tencent, services.chromeTranslator,]),
+    machine: new Set([
+        services.myMemory, services.microsoft, services.freeTranslation, services.deepL, services.deeplx,
+        services.google, services.xiaoniu, services.youdao, services.chromeTranslator,
+        ...cloudVendorServices,
+    ]),
+    // 云服务厂商：使用云控制台密钥的官方机器翻译接口
+    cloudVendor: new Set<string>(cloudVendorServices),
     AI: new Set([
         services.openai,
         services.azureOpenai,
@@ -76,6 +140,7 @@ export const servicesType = {
         services.openrouter,
         services.grok,
         services.newapi,
+        ...referenceAiPlatformServices,
     ]),
     // 首批由 Vercel AI SDK 的 OpenAI-compatible provider 承接。其他 AI
     // 服务保留专用协议适配器，避免把 Claude/Gemini 等误当成兼容端点。
@@ -98,6 +163,7 @@ export const servicesType = {
         services.openrouter,
         services.grok,
         services.newapi,
+        ...referenceAiPlatformServices,
     ]),
     // 需要 token
     useToken: new Set([
@@ -127,6 +193,10 @@ export const servicesType = {
         services.openrouter,
         services.grok,
         services.newapi,
+        // 本地 Ollama 默认无鉴权，不纳入密钥要求。
+        ...referenceAiPlatformServices.filter((service) => service !== services.ollama),
+        // 云服务厂商统一把主密钥存放在 token[service]。
+        ...cloudVendorServices.filter((service) => service !== services.tencent),
     ]),
     // 需要 model
     useModel: new Set([
@@ -154,6 +224,20 @@ export const servicesType = {
         services.openrouter,
         services.grok,
         services.newapi,
+        ...referenceAiPlatformServices,
+    ]),
+    // 需要与主密钥配对的第二段密钥，统一存放在 secret[service]。
+    // 直接由凭据名称表派生，新增服务时不会漏配其中一处。
+    useSecret: new Set(
+        Object.entries(cloudCredentialLabels)
+            .filter(([, labels]) => 'secret' in labels)
+            .map(([service]) => service),
+    ),
+    // 需要显式选择服务区域（地域）的服务
+    useRegion: new Set([
+        services.azureTranslator,
+        services.aliyunTranslation,
+        services.volcTranslation,
     ]),
     // 支持代理
     useProxy: new Set([
@@ -181,6 +265,7 @@ export const servicesType = {
         services.siliconCloud,
         services.openrouter,
         services.grok,
+        ...referenceAiPlatformServices,
     ]),
     // 支持自定义 URL 的服务
     useCustomUrl: new Set([
@@ -191,6 +276,9 @@ export const servicesType = {
     ]),
 
     isMachine: (service: string) => servicesType.machine.has(service),
+    isCloudVendor: (service: string) => servicesType.cloudVendor.has(service),
+    isUseSecret: (service: string) => servicesType.useSecret.has(service),
+    isUseRegion: (service: string) => servicesType.useRegion.has(service),
     isAI: (service: string) => servicesType.AI.has(service) || isCustomOpenAIProviderId(service),
     isAiSdk: (service: string) => servicesType.aiSdk.has(service) || isCustomOpenAIProviderId(service),
     isUseAIContext: (service: string, model = '') =>
@@ -213,6 +301,43 @@ export const servicesType = {
 };
 
 export const customModelString = CUSTOM_OPENAI_RESERVED_MODEL_ID;
+
+/**
+ * 云服务厂商的可选地域。地域同时决定签名 scope 与请求域名，因此必须来自固定白名单，
+ * 避免用户手填出一个既签不出正确签名、又把密钥发往未知主机的地址。
+ */
+export const cloudRegionOptions: Record<string, ReadonlyArray<{value: string; label: string}>> = {
+    [services.azureTranslator]: [
+        {value: "global", label: "全球（global）"},
+        {value: "eastasia", label: "东亚（eastasia）"},
+        {value: "southeastasia", label: "东南亚（southeastasia）"},
+        {value: "japaneast", label: "日本东部（japaneast）"},
+        {value: "eastus", label: "美国东部（eastus）"},
+        {value: "westus2", label: "美国西部 2（westus2）"},
+        {value: "westeurope", label: "西欧（westeurope）"},
+    ],
+    [services.aliyunTranslation]: [
+        {value: "cn-hangzhou", label: "华东 1 / 杭州（cn-hangzhou）"},
+        {value: "ap-southeast-1", label: "新加坡（ap-southeast-1）"},
+    ],
+    [services.volcTranslation]: [
+        {value: "cn-north-1", label: "华北 2 / 北京（cn-north-1）"},
+        {value: "ap-southeast-1", label: "新加坡（ap-southeast-1）"},
+    ],
+};
+
+/** 未选择地域时使用的默认值，保证首次配置即可直接发起请求。 */
+export function getDefaultCloudRegion(service: string): string {
+    return cloudRegionOptions[service]?.[0]?.value || '';
+}
+
+/** 只接受白名单内的地域；未知值回落到默认地域。 */
+export function resolveCloudRegion(service: string, region?: string): string {
+    const candidate = region?.trim() || '';
+    const allowed = cloudRegionOptions[service];
+    if (!allowed) return '';
+    return allowed.some((option) => option.value === candidate) ? candidate : getDefaultCloudRegion(service);
+}
 
 export const minimaxBillingPlans = [
     {value: "payg", label: "按量付费（API）"},
@@ -248,6 +373,7 @@ export function resolveConfiguredModel(selectedModel?: string, customModel?: str
     return selectedModel === customModelString ? customModel || '' : selectedModel || '';
 }
 
+// 2026-09-12 核对官方目录；来源与选型依据见 docs/reports/model-catalog-20260912.md。
 // 当前官方模型编号的单一来源，同时供列表和旧配置迁移使用。
 export const currentModelIds = {
     openai: "gpt-5.6-luna",
@@ -260,7 +386,8 @@ export const currentModelIds = {
     claudeSonnet: "claude-sonnet-5",
     claudeOpus: "claude-opus-5",
     claudeHaiku: "claude-haiku-4-5",
-    deepseek: "deepseek-v4-flash",
+    deepseek: "deepseek-flash",
+    infiniDeepseek: "deepseek-v4-flash",
     minimax: "MiniMax-M2.7",
     mimo: "mimo-v2.5-pro",
     jieyue: "step-3.5-flash",
@@ -277,60 +404,81 @@ export const currentModelIds = {
 // 各 AI 服务的开箱默认模型优先选择近期、低延迟或低成本档位。
 // currentModelIds 仍作为官方编号与旧配置迁移的单一来源；用户仍可在模型列表中主动选择更大的模型。
 export const defaultModelIds = {
-    [services.openai]: currentModelIds.openai,
-    [services.azureOpenai]: currentModelIds.openai,
-    [services.gemini]: "gemini-3.6-flash",
+    [services.openai]: "gpt-5.4-mini",
+    [services.azureOpenai]: "gpt-5.4-mini",
+    [services.gemini]: "gemini-3.5-flash-lite",
     [services.yiyan]: currentModelIds.yiyanFast,
-    [services.tongyi]: "qwen3.6-flash",
+    [services.tongyi]: "qwen3.8-flash",
     [services.zhipu]: currentModelIds.zhipuFlash,
     [services.moonshot]: currentModelIds.moonshotCompatible,
     [services.claude]: currentModelIds.claudeHaiku,
-    [services.custom]: currentModelIds.openai,
-    [services.infini]: currentModelIds.deepseek,
+    [services.custom]: "gpt-5.4-mini",
+    [services.infini]: currentModelIds.infiniDeepseek,
     [services.baichuan]: "Baichuan-M3",
     [services.lingyi]: "yi-lightning",
     [services.deepseek]: currentModelIds.deepseek,
     [services.minimax]: "MiniMax-M2.7-highspeed",
     [services.mimo]: "mimo-v2.5",
-    [services.jieyue]: currentModelIds.jieyue,
+    [services.jieyue]: "step-2-mini",
     [services.huanYuan]: currentModelIds.huanYuan,
     [services.huanYuanTranslation]: "hunyuan-translation-lite",
-    [services.newapi]: currentModelIds.openai,
+    [services.newapi]: "gpt-5.4-mini",
     [services.grok]: "grok-4.3",
     [services.doubao]: "doubao-seed-1-6-250615",
     [services.siliconCloud]: "deepseek-ai/DeepSeek-V4-Flash",
     [services.groq]: currentModelIds.groqSmall,
-    [services.openrouter]: "google/gemini-3.6-flash",
+    [services.openrouter]: "google/gemini-3.5-flash-lite",
+    // 陪读蛙目录借鉴的平台：默认选择各家的低延迟档，翻译场景优先响应速度。
+    [services.mistral]: "mistral-small-latest",
+    [services.cohere]: "command-a-translate-08-2025",
+    [services.cerebras]: currentModelIds.groqSmall,
+    [services.togetherai]: "Qwen/Qwen3.5-9B",
+    [services.fireworks]: "accounts/fireworks/models/gpt-oss-20b",
+    [services.deepinfra]: "Qwen/Qwen3.5-9B",
+    [services.perplexity]: "sonar",
+    [services.ollama]: "gemma3:4b",
 } as const;
 
 export const models = new Map<string, Array<string>>([
-    [services.openai, [currentModelIds.openai, "gpt-5.4-mini", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.5", "gpt-5.4-nano", "gpt-5-mini", "gpt-5-nano", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", customModelString]],
-    [services.azureOpenai, [currentModelIds.openai, "gpt-5.4-mini", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.5", "gpt-5.4-nano", "gpt-5-mini", "gpt-5-nano", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", customModelString]],
-    [services.gemini, [defaultModelIds[services.gemini], "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro", customModelString]],
+    [services.openai, [defaultModelIds[services.openai], "gpt-5.4-nano", "gpt-6-astra", currentModelIds.openai, "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.5", "gpt-5-mini", "gpt-5-nano", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", customModelString]],
+    [services.azureOpenai, [defaultModelIds[services.azureOpenai], currentModelIds.openai, "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.5", "gpt-5.4-nano", "gpt-5-mini", "gpt-5-nano", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", customModelString]],
+    [services.gemini, [defaultModelIds[services.gemini], "gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro", customModelString]],
     [services.yiyan, [defaultModelIds[services.yiyan], currentModelIds.yiyan, "ernie-5.0-thinking-preview", "ernie-x1.1-preview", "ernie-4.5-turbo-128k", "ernie-4.5-21b-a3b", customModelString]],
-    [services.tongyi, [defaultModelIds[services.tongyi], currentModelIds.tongyiTokenPlan, "qwen3.7-max", "qwen3.7-plus", "qwen-mt-plus", "qwen-mt-turbo", "qwen-mt-flash", "qwen-mt-lite", "qwen-long-latest", customModelString]],
-    [services.zhipu, [defaultModelIds[services.zhipu], currentModelIds.zhipu, "glm-5.3-flash","glm-5.3","glm-5.2", "glm-5.1", "glm-5-turbo", "glm-5", "glm-4.7", customModelString]],
+    [services.tongyi, [defaultModelIds[services.tongyi], "qwen3.7-flash", "qwen3.6-flash", "qwen3.8-max", currentModelIds.tongyiTokenPlan, "qwen3.7-max", "qwen3.7-plus", "qwen-mt-plus", "qwen-mt-turbo", "qwen-mt-flash", "qwen-mt-lite", "qwen-long-latest", customModelString]],
+    [services.zhipu, [defaultModelIds[services.zhipu], currentModelIds.zhipu, "glm-5.3-flash", "glm-5.2", "glm-5.1", "glm-5-turbo", "glm-5", "glm-4.7", customModelString]],
     [services.moonshot, [defaultModelIds[services.moonshot], currentModelIds.moonshot, "kimi-k2.7-code-highspeed", "kimi-k2.7-code", "kimi-k2.5", customModelString]],
-    [services.claude, [defaultModelIds[services.claude], currentModelIds.claude, currentModelIds.claudeOpus, currentModelIds.claudeSonnet, "claude-opus-4-8", "claude-sonnet-4-6", customModelString]],
-    [services.custom, [currentModelIds.openai, "gpt-5.4-mini", "gpt-5.6-sol", "gemini-3.6-flash", currentModelIds.claude, currentModelIds.deepseek, "gemma:7b", "llama2:7b", "mistral:7b", customModelString]],
+    [services.claude, [defaultModelIds[services.claude], "claude-fable-5-1", currentModelIds.claude, currentModelIds.claudeOpus, currentModelIds.claudeSonnet, "claude-opus-4-8", "claude-sonnet-4-6", customModelString]],
+    [services.custom, [defaultModelIds[services.custom], currentModelIds.openai, "gpt-5.6-sol", "gemini-3.6-flash", currentModelIds.claude, currentModelIds.deepseek, "gemma:7b", "llama2:7b", "mistral:7b", customModelString]],
     [services.infini, [defaultModelIds[services.infini], "deepseek-v4-pro", currentModelIds.infiniZhipu, "kimi-k2.7-code", currentModelIds.infiniGeneral, "qwen3.6-35b-a3b", customModelString]],
     [services.baichuan, [defaultModelIds[services.baichuan], "Baichuan-M3-Plus", "Baichuan4-Air", "Baichuan4-Turbo", "Baichuan4", customModelString]],
     [services.lingyi, [defaultModelIds[services.lingyi], customModelString]],
-    [services.deepseek, [currentModelIds.deepseek, "deepseek-v4-pro", customModelString]],
+    // 旧 Flash 编号仍由官方兼容路由，保留它以维持已保存的模型与 Thinking 偏好。
+    [services.deepseek, [currentModelIds.deepseek, "deepseek-v4-pro", "deepseek-v4-flash", customModelString]],
     [services.minimax, [defaultModelIds[services.minimax], "MiniMax-M3.1", "MiniMax-M3", currentModelIds.minimax, "MiniMax-M2.5", "MiniMax-M2.5-highspeed", customModelString]],
     [services.mimo, [defaultModelIds[services.mimo], currentModelIds.mimo, customModelString]],
-    [services.jieyue, [currentModelIds.jieyue, "step-3", "step-2", customModelString]],
-    [services.huanYuan, [currentModelIds.huanYuan, "hy3-preview", customModelString]],
+    [services.jieyue, [defaultModelIds[services.jieyue], "step-3.5-flash-2603", currentModelIds.jieyue, "step-3", "step-2", customModelString]],
+    [services.huanYuan, [currentModelIds.huanYuan, customModelString]],
     [services.huanYuanTranslation, [defaultModelIds[services.huanYuanTranslation], "hunyuan-translation", customModelString]],
-    [services.newapi, [currentModelIds.openai, "gpt-5.4-mini", "gpt-5.6-sol", "gemini-3.6-flash", "gemini-3.5-flash-lite", currentModelIds.claude, currentModelIds.deepseek, "kimi-k2.7-code", customModelString]],
-    [services.grok, [defaultModelIds[services.grok], currentModelIds.grok, customModelString]],
+    [services.newapi, [defaultModelIds[services.newapi], currentModelIds.openai, "gpt-5.6-sol", "gemini-3.6-flash", "gemini-3.5-flash-lite", currentModelIds.claude, currentModelIds.deepseek, "kimi-k2.7-code", customModelString]],
+    [services.grok, [defaultModelIds[services.grok], "grok-4.6", currentModelIds.grok, customModelString]],
     [services.doubao, ["doubao-seed-1-6-250615", customModelString]],
 
     // 混合模型。
     [services.siliconCloud, [defaultModelIds[services.siliconCloud], "deepseek-ai/DeepSeek-V4-Pro", "zai-org/GLM-5.2", "Qwen/Qwen3.6-27B", "Qwen/Qwen3.6-35B-A3B", "deepseek-ai/DeepSeek-V3.2", "deepseek-ai/DeepSeek-R1", customModelString]],
 
     [services.groq, [defaultModelIds[services.groq], currentModelIds.groqLarge, "qwen/qwen3.6-27b", customModelString]],
-    [services.openrouter, [defaultModelIds[services.openrouter], "openrouter/auto", "openai/gpt-5.6-luna", "openai/gpt-5.6-sol", "anthropic/claude-fable-5", "anthropic/claude-opus-5", "x-ai/grok-4.5", "deepseek/deepseek-v4-pro", "moonshotai/kimi-k3", "z-ai/glm-5.2", customModelString]]
+    [services.openrouter, [defaultModelIds[services.openrouter], "google/gemini-3.6-flash", "deepseek/deepseek-v4.1-flash", "openai/gpt-5.4-mini", "openai/gpt-6-astra", "x-ai/grok-4.6", "openrouter/auto", "openai/gpt-5.6-luna", "openai/gpt-5.6-sol", "anthropic/claude-fable-5", "anthropic/claude-opus-5", "x-ai/grok-4.5", "deepseek/deepseek-v4-pro", "moonshotai/kimi-k3", "z-ai/glm-5.2", customModelString]],
+
+    // 借鉴陪读蛙目录补齐的 OpenAI 兼容平台。列表只放各家稳定的公开编号，
+    // 平台上新更快，用户可以随时用“自定义模型”补充。
+    [services.mistral, [defaultModelIds[services.mistral], "mistral-medium-latest", "mistral-large-latest", "magistral-small-latest", "open-mistral-nemo", customModelString]],
+    [services.cohere, [defaultModelIds[services.cohere], "command-a-03-2025", "command-r7b-12-2024", "command-r-plus", customModelString]],
+    [services.cerebras, [defaultModelIds[services.cerebras], currentModelIds.groqLarge, "qwen-3-32b", "llama-3.3-70b", customModelString]],
+    [services.togetherai, [defaultModelIds[services.togetherai], "Qwen/Qwen3.5-35B-A3B", "deepseek-ai/DeepSeek-V3.2", "meta-llama/Llama-3.3-70B-Instruct-Turbo", customModelString]],
+    [services.fireworks, [defaultModelIds[services.fireworks], "accounts/fireworks/models/gpt-oss-120b", "accounts/fireworks/models/qwen3-30b-a3b", "accounts/fireworks/models/deepseek-v3p2", customModelString]],
+    [services.deepinfra, [defaultModelIds[services.deepinfra], "Qwen/Qwen3.5-35B-A3B", "deepseek-ai/DeepSeek-V3.2", "meta-llama/Llama-3.3-70B-Instruct", customModelString]],
+    [services.perplexity, [defaultModelIds[services.perplexity], "sonar-pro", "sonar-reasoning", customModelString]],
+    [services.ollama, [defaultModelIds[services.ollama], "qwen3:8b", "gemma3:12b", "llama3.2:3b", "mistral:7b", customModelString]],
 ]);
 
 // 每个需要模型选择的 AI 服务都把列表第一项作为开箱即用的默认模型。
@@ -481,8 +629,15 @@ export const options = {
         {value: services.deeplx, label: "DeepLX（免费非官方）"},
         {value: services.xiaoniu, label: "小牛翻译"},
         {value: services.youdao, label: "有道翻译"},
-        {value: services.tencent, label: "腾讯云翻译"},
         {value: services.chromeTranslator, label: "Chrome内置AI翻译"},
+        // 云服务厂商：各家云控制台签发密钥，免费额度用完后按量计费
+        {value: "cloud", label: "云服务厂商", disabled: true},
+        {value: services.tencent, label: "腾讯云翻译", description: "机器翻译 TMT，每月 500 万字符免费额度。"},
+        {value: services.googleCloudTranslation, label: "谷歌云翻译", description: "Cloud Translation v2，每月 50 万字符免费额度。", searchTerms: ["google cloud translation", "gcp"]},
+        {value: services.azureTranslator, label: "Azure 翻译", description: "Azure AI Translator F0，每月 200 万字符免费额度。", searchTerms: ["microsoft azure translator"]},
+        {value: services.aliyunTranslation, label: "阿里云机器翻译", description: "通用版翻译，每月 100 万字符免费额度。", searchTerms: ["aliyun alibaba cloud mt"]},
+        {value: services.baiduTranslation, label: "百度翻译", description: "翻译开放平台，标准版每月 5 万字符免费额度。", searchTerms: ["baidu fanyi"]},
+        {value: services.volcTranslation, label: "火山引擎翻译", description: "机器翻译 TranslateText，每月 200 万字符免费额度。", searchTerms: ["volcengine volc bytedance"]},
         // 大模型翻译
         {value: "ai", label: "AI翻译", disabled: true},
         // 大模型服务商：中国常用厂商优先，其次为常用海外厂商。
@@ -508,6 +663,14 @@ export const options = {
         {value: services.openrouter, label: "OpenRouter", catalogKind: "platform"},
         {value: services.groq, label: "Groq", catalogKind: "platform"},
         {value: services.azureOpenai, label: "Azure", catalogKind: "platform"},
+        {value: services.mistral, label: "Mistral AI", catalogKind: "platform"},
+        {value: services.cohere, label: "Cohere", catalogKind: "platform"},
+        {value: services.cerebras, label: "Cerebras", catalogKind: "platform"},
+        {value: services.togetherai, label: "Together AI", catalogKind: "platform"},
+        {value: services.fireworks, label: "Fireworks AI", catalogKind: "platform"},
+        {value: services.deepinfra, label: "DeepInfra", catalogKind: "platform"},
+        {value: services.perplexity, label: "Perplexity", catalogKind: "platform"},
+        {value: services.ollama, label: "Ollama（本地）", description: "连接本机 Ollama，无需密钥，模型与数据都留在本地。", catalogKind: "platform", searchTerms: ["local localhost 本地"]},
         {value: services.custom, label: "自定义接口", catalogKind: "platform"},
     ],
     display: [

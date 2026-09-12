@@ -169,6 +169,18 @@ const UI_LANGUAGE_LABELS = new Map<unknown, string>([
     ['es-ES', 'Español'],
 ]);
 const INTERFACE_SKIN_LABELS = labelsFor(interfaceSkinOptions);
+const INTERFACE_FONT_LABELS = new Map<unknown, string>([
+    ['inter', 'Inter · 推荐'],
+    ['system', '系统字体'],
+    ['noto-sans-sc', 'Noto Sans SC · 中文'],
+    ['roboto', 'Roboto · 简洁'],
+    ['source-sans-3', 'Source Sans 3 · 易读'],
+    ['ibm-plex-sans', 'IBM Plex Sans · 理性'],
+    ['manrope', 'Manrope · 几何'],
+    ['nunito-sans', 'Nunito Sans · 柔和'],
+    ['lxgw-wenkai', '霞鹜文楷 · 手写'],
+    ['noto-serif-sc', 'Noto Serif SC · 书卷'],
+]);
 const TRANSLATION_LOADING_STYLE_LABELS = labelsFor(translationLoadingStyleOptions);
 const TRANSLATION_SCOPE_LABELS = new Map<unknown, string>([['content', '关闭'], ['all', '开启']]);
 const POPUP_MODULE_LABELS = new Map<string, string>(popupModuleOptions.map((item) => [item.id, item.label]));
@@ -208,6 +220,16 @@ const VIDEO_DISPLAY_MODE_LABELS = new Map<unknown, string>([
 const SIDE_LABELS = new Map<unknown, string>([
     ['left', '左侧'],
     ['right', '右侧'],
+]);
+const FLOATING_BALL_TOOLS_DISPLAY_LABELS = new Map<unknown, string>([
+    ['hover', '悬停时显示'],
+    ['always', '始终显示'],
+    ['hidden', '不显示'],
+]);
+const FLOATING_BALL_CLICK_ACTION_LABELS = new Map<unknown, string>([
+    ['translate', '翻译/显示原文'],
+    ['settings', '打开设置页'],
+    ['none', '仅拖动'],
 ]);
 
 function formatEnum(value: unknown, labels: Map<unknown, string>): string {
@@ -407,6 +429,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     to: {group: 'general', label: '默认目标语言', format: (value) => formatEnum(value, LANGUAGE_LABELS)},
     theme: {group: 'general', label: '主题', format: (value) => formatEnum(value, THEME_LABELS)},
     interfaceSkin: {group: 'general', label: '界面皮肤', format: (value) => formatEnum(value, INTERFACE_SKIN_LABELS)},
+    interfaceFont: {group: 'general', label: '界面字体', format: (value) => formatEnum(value, INTERFACE_FONT_LABELS)},
     interfaceVisibility: {group: 'general', label: '界面栏目', format: formatInterfaceVisibility},
     popupModuleOrder: {group: 'general', label: '菜单栏布局顺序', format: formatPopupModuleOrder},
     popupQuickFeatureVisibility: {group: 'general', label: '快捷功能卡片', format: formatPopupQuickFeatureVisibility},
@@ -415,6 +438,12 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     display: {group: 'general', label: '翻译模式', format: (value) => formatEnum(value, DISPLAY_LABELS)},
     style: {group: 'general', label: '译文样式', format: (value) => formatEnum(value, STYLE_LABELS)},
     disableFloatingBall: {group: 'general', label: '全文翻译悬浮球', format: (value) => formatBoolean(value, true)},
+    floatingBallToolsDisplay: {group: 'general', label: '悬浮球按钮显示方式', format: (value) => formatEnum(value, FLOATING_BALL_TOOLS_DISPLAY_LABELS)},
+    floatingBallHoverDelay: {group: 'general', label: '悬浮球展开延迟', format: (value) => formatNumber(value, ' ms')},
+    floatingBallClickAction: {group: 'general', label: '悬浮球点击行为', format: (value) => formatEnum(value, FLOATING_BALL_CLICK_ACTION_LABELS)},
+    floatingBallCompact: {group: 'general', label: '缩小悬浮球', format: formatBoolean},
+    floatingBallSettingsEntryVisible: {group: 'general', label: '悬浮球设置入口', format: formatBoolean},
+    floatingBallCollapsedOpacity: {group: 'general', label: '悬浮球收起不透明度', format: (value) => formatNumber(value, '%')},
     translationProgressPanelEnabled: {group: 'general', label: '翻译进度面板', format: formatBoolean},
     bilingualSentenceHighlightEnabled: {group: 'general', label: '双语逐句高亮', format: formatBoolean},
 
@@ -470,13 +499,19 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     autoTranslate: {group: 'siteRules', label: '所有网站自动翻译', format: formatBoolean},
     alwaysTranslateDomains: {group: 'siteRules', label: '始终翻译网站'},
     disabledExtensionDomains: {group: 'siteRules', label: '禁用扩展网站'},
+    floatingBallDisabledDomains: {group: 'siteRules', label: '禁用悬浮球网站'},
 
     imageTranslationHoverEnabled: {group: 'imageTranslation', label: '图片悬浮按钮', format: formatBoolean},
     imageTranslationContextMenuEnabled: {group: 'imageTranslation', label: '图片右键菜单', format: formatBoolean},
     disableImageTranslator: {group: 'imageTranslation', label: '图片翻译', format: (value) => formatBoolean(value, true)},
     selectionAreaEnabled: {group: 'areaTranslation', label: '圈选翻译', format: formatBoolean},
+    selectionAreaHotkey: {group: 'areaTranslation', label: '圈选快捷键', format: value => value === 'custom' ? '自定义快捷键' : formatValue(value)},
+    customSelectionAreaHotkey: {group: 'areaTranslation', label: '自定义圈选快捷键'},
     areaTranslationMode: {group: 'areaTranslation', label: '圈选翻译方式', format: value => value === 'ai' ? 'AI 上下文增强' : '标准翻译'},
     areaTranslationService: {group: 'areaTranslation', label: '圈选翻译服务', format: value => value ? formatService(value) : '跟随当前服务'},
+    areaRecognitionMode: {group: 'areaTranslation', label: '圈选识别方式', format: value => value === 'prefer-vision' ? '优先模型识图' : '本地 OCR'},
+    areaVisionPrompt: {group: 'areaTranslation', label: '模型识图提示词', format: formatPrompt},
+    modelVision: {group: 'translationServices', label: '模型识图能力覆盖', format: value => formatRecord(configRecord(value))},
 
     videoTranslationEnabled: {group: 'videoSubtitles', label: '视频字幕翻译', format: formatBoolean},
     videoService: {group: 'videoSubtitles', label: '视频翻译服务', format: formatService},
@@ -495,6 +530,8 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     maxConcurrentTranslations: {group: 'advanced', label: '翻译并发数'},
     translationRequestsPerSecond: {group: 'advanced', label: '每秒最多请求数', format: formatRequestRate},
     translationRequestsPerMinute: {group: 'advanced', label: '每分钟最多请求数', format: formatRequestRate},
+    serviceRequestLimits: {group: 'advanced', label: '服务请求限制', format: formatValue},
+    modelRequestLimits: {group: 'advanced', label: '模型请求限制', format: formatValue},
     freeTranslationOrder: {group: 'translationServices', label: '免费翻译顺序', format: (value) => Array.isArray(value) ? formatArray(value, formatService) : formatValue(value)},
     freeTranslationTimeoutMs: {group: 'translationServices', label: '每路免费翻译超时', format: (value) => formatNumber(value, ' ms')},
     freeTranslationCooldownMs: {group: 'translationServices', label: '免费翻译失败后休息', format: (value) => formatNumber(value, ' ms')},
@@ -504,6 +541,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     translationBackoffMaxMs: {group: 'advanced', label: '退避最大间隔', format: (value) => formatNumber(value, ' ms')},
     animations: {group: 'advanced', label: '动画效果', format: formatBoolean},
     translationScope: {group: 'advanced', label: '识别全部节点', format: (value) => formatEnum(value, TRANSLATION_SCOPE_LABELS)},
+    pageTitleTranslationEnabled: {group: 'advanced', label: '翻译页面标题', format: formatBoolean},
     translationLoadingStyle: {group: 'advanced', label: '段落加载样式', format: (value) => formatEnum(value, TRANSLATION_LOADING_STYLE_LABELS)},
 
     documentService: {group: 'tools', label: '文档翻译服务', format: formatService},

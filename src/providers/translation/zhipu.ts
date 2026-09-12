@@ -19,6 +19,7 @@ import {
     getTranslationProviderConfig,
     reportTranslationModelUsage,
     reportTranslationModelUsageFailure,
+    getTranslationImageInput,
     type TranslationProviderRequest,
 } from '@/src/services/translation/requestSnapshot';
 import {normalizeOpenAICompatibleUsage} from './usage';
@@ -56,7 +57,7 @@ async function zhipu(message: TranslationProviderRequest<string>) {
     headers.append('Content-Type', 'application/json');
     if (secret) headers.append('Authorization', `Bearer ${secret}`);
 
-    const body = commonMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current, message.thinkingOverride);
+    const body = commonMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current, message.thinkingOverride, getTranslationImageInput(message));
     const startedAt = Date.now();
     let attemptReported = false;
     try {

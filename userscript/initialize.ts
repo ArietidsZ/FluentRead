@@ -52,6 +52,7 @@ export function isUserscriptServiceSupported(service: unknown): service is strin
 export function normalizeUserscriptConfig(value: unknown): Config {
     const rawService = isRecord(value) ? value.service : undefined;
     const rawVideoService = isRecord(value) ? value.videoService : undefined;
+    const rawInputBoxTranslationService = isRecord(value) ? value.inputBoxTranslationService : undefined;
     const next = normalizeConfig(value);
     if (typeof rawService === 'string' && !isUserscriptServiceSupported(rawService)) {
         next.service = services.microsoft;
@@ -62,6 +63,11 @@ export function normalizeUserscriptConfig(value: unknown): Config {
         next.videoService = services.microsoft;
     } else if (!isUserscriptServiceSupported(next.videoService)) {
         next.videoService = services.microsoft;
+    }
+    if (typeof rawInputBoxTranslationService === 'string' && !isUserscriptServiceSupported(rawInputBoxTranslationService)) {
+        next.inputBoxTranslationService = services.microsoft;
+    } else if (!isUserscriptServiceSupported(next.inputBoxTranslationService)) {
+        next.inputBoxTranslationService = services.microsoft;
     }
     next.contextMenuEnabled = false;
     next.selectionAreaEnabled = false;

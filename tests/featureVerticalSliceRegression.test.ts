@@ -45,7 +45,9 @@ describe('划词、圈选和图片翻译纵向切片回归', () => {
         expect(background).toContain("@/src/app/background/runtime");
         expect(messageRuntime).toContain("from './handlers/imageTranslation'");
         expect(messageRuntime).toContain("@/src/features/image-translation/background/offscreenAdapter");
-        expect(messageRuntime).toContain("@/src/features/area-translation/background/offscreenAdapter");
+        expect(messageRuntime).toContain("from './areaRuntime'");
+        expect(source('src/app/background/areaRuntime.ts')).toContain("@/src/features/area-translation/background/offscreenAdapter");
+        expect(source('src/app/background/areaRuntime.ts')).toContain('prepareAreaVisionRecognition(config, language, title,');
         expect(background).not.toContain("@/src/features/image-translation/background");
         expect(source('entrypoints/offscreen/main.ts')).toContain("@/src/app/offscreen/runtime");
         expect(source('src/app/offscreen/runtime.ts')).toContain("from './imageTranslation'");

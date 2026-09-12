@@ -104,6 +104,7 @@
               :aria-label="t('quickTranslation.translationServiceAria', {hotkey: hotkeyLabel(profile.hotkey)})"
               :data-testid="`quick-profile-service-${profile.id}`"
               @update:model-value="setService(profile.id, $event)"
+              filterable
             >
               <el-option :label="t('quickTranslation.followDefault', {value: serviceLabel(config.service)})" value="" />
               <el-option
@@ -129,6 +130,7 @@
               :aria-label="t('quickTranslation.translationModelAria', {hotkey: hotkeyLabel(profile.hotkey)})"
               :data-testid="`quick-profile-model-${profile.id}`"
               @update:model-value="setModel(profile.id, $event)"
+              filterable
             >
               <el-option :label="modelDefaultOptionLabel(profile)" value="" />
               <el-option
@@ -149,6 +151,7 @@
               :aria-label="t('quickTranslation.targetLanguageAria', {hotkey: hotkeyLabel(profile.hotkey)})"
               :data-testid="`quick-profile-target-${profile.id}`"
               @update:model-value="setTargetLanguage(profile.id, $event)"
+              filterable
             >
               <el-option :label="t('quickTranslation.followDefault', {value: languageLabel(config.to)})" value="" />
               <el-option
@@ -239,6 +242,7 @@ import {
   withCustomOpenAIServiceOptions,
 } from '@/src/core/config/customOpenAI'
 import type {Config} from '@/src/core/config/model'
+import {resolveAreaTranslationHotkey} from '@/src/core/config/areaTranslation'
 import {
   createQuickTranslationProfile,
   inputBoxTranslationTriggerHotkey,
@@ -391,7 +395,12 @@ function legacyHotkeyEntries(): Array<{hotkey: string, label: string}> {
     {hotkey: resolveConfiguredHotkey(props.config.hotkey, props.config.customHotkey), label: t('quickTranslation.defaultHover')},
     {hotkey: resolveConfiguredHotkey(props.config.floatingBallHotkey, props.config.customFloatingBallHotkey), label: t('quickTranslation.defaultFullPage')},
   ]
-  if (props.config.selectionAreaEnabled) entries.push({hotkey: 'Shift+Z', label: translateLegacy('圈选翻译')})
+  if (props.config.selectionAreaEnabled) {
+    entries.push({
+      hotkey: resolveAreaTranslationHotkey(props.config.selectionAreaHotkey, props.config.customSelectionAreaHotkey),
+      label: translateLegacy('圈选翻译'),
+    })
+  }
   const inputBoxHotkey = inputBoxTranslationTriggerHotkey(props.config.inputBoxTranslationTrigger)
   if (inputBoxHotkey) entries.push({hotkey: inputBoxHotkey, label: translateLegacy('输入框翻译')})
   return entries.filter((entry) => Boolean(canonicalizeHotkey(entry.hotkey)))

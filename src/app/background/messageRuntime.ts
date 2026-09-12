@@ -12,7 +12,8 @@ import {vocabularyBook} from '@/src/features/vocabulary/repository';
 import {clearTranslationCache, getTranslationCacheStats, translateWithCache} from '@/src/app/translation/runtime';
 import {serializeTranslationError} from '@/src/services/translation/errors';
 import {createBackgroundMessageRouter, type BackgroundMessageHandler} from './messageRouter';
-import {createAreaTranslationBackgroundHandlers, createAreaCaptureOwnershipVerifier, type AreaTranslationBackgroundContext} from './handlers/areaTranslation';
+import {type AreaTranslationBackgroundContext} from './handlers/areaTranslation';
+import {createAreaTranslationRuntime} from './areaRuntime';
 import {createTranslationCacheHandlers, createTranslationCacheInvalidationBroadcaster} from './handlers/translationCache';
 import {type ConfigPersistenceContext} from './handlers/configPersistence';
 import {createConnectionTestHandler} from './handlers/connectionTest';
@@ -31,8 +32,6 @@ import {isBrowserTabId, type TabTranslationStateStore} from './tabTranslationSta
 import {createBrowserVocabularyBookChangedBroadcaster, createVocabularyBackgroundHandlers, type VocabularyBackgroundContext} from './handlers/vocabulary';
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
 import {supportsTranslationBatch} from '@/src/services/translation/capabilities';
-import {prepareAreaTextTranslation} from '@/src/features/area-translation/services/textTranslation';
-import {areaTranslationOffscreenAdapter} from '@/src/features/area-translation/background/offscreenAdapter';
 import {imageTranslationOffscreenAdapter, imageTranslationProgressTransport} from '@/src/features/image-translation/background/offscreenAdapter';
 import {selectionTtsOffscreenAdapter} from '@/src/features/selection-translation/background/offscreenAdapter';
 import {createCapabilityGatedBackgroundHandlers, createCapabilityGatedSelectionTtsTransport} from './capabilityRegistry';
@@ -104,16 +103,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             warn: (message, error) => console.warn(message, error),
         }),
         ...imageGlossaryContext.wrap(createCapabilityGatedBackgroundHandlers<BackgroundRuntimeContext>(capabilities, {
-            areaTranslation: () => createAreaTranslationBackgroundHandlers({
-                captureVisibleTab: (windowId) => browser.tabs.captureVisibleTab(windowId, {format: 'png'}),
-                assertCaptureOwner: createAreaCaptureOwnershipVerifier(tabId => browser.tabs.get(tabId)),
-                getDefaultSourceLanguage: () => config.from,
-                assertLanguagesDownloaded: imageOcrLanguageRepository.assertDownloaded,
-                translateArea: areaTranslationOffscreenAdapter.translateArea,
-                prepareTextTranslation: (language, title, context) => prepareAreaTextTranslation(config, language, title,
-                    {pageUrl: context.sender?.url, context: 'page'}, translateWithCache),
-                sendProgress: imageTranslationProgressTransport.sendProgress,
-            }),
+            areaTranslation: () => createAreaTranslationRuntime(imageOcrLanguageRepository.assertDownloaded),
             imageTranslation: () => createImageTranslationBackgroundHandlers({
                 assertLanguagesDownloaded: imageOcrLanguageRepository.assertDownloaded,
                 ...imageTranslationOffscreenAdapter,

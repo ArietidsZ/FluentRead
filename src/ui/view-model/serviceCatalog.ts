@@ -1,7 +1,7 @@
 /**
  * @file src/ui/view-model/serviceCatalog.ts
  * 文件职责：为服务与模型选择界面提供无框架的视图模型转换，把扁平配置选项整理成可搜索、可分层和可稳定展示的数据。
- * 主要内容：定义服务目录分组与官方网站入口，安全派生自定义服务站点，按服务与模型关键词搜索、筛选分层目录，并解析当前模型标签。
+ * 主要内容：定义服务目录分组与官方网站入口，提供云服务厂商的免费额度与开通指引，安全派生自定义服务站点，按服务与模型关键词搜索、筛选分层目录，并解析当前模型标签。
  * 模块边界：这些函数不读取 Vue 状态、不修改 Config，也不判断平台能力或发起连接测试；原始目录由 core/config 提供，Popup/Options 等调用方负责交互与渲染。
  */
 import { customModelString, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog'
@@ -25,6 +25,11 @@ const serviceWebsites = {
   xiaoniu: 'https://niutrans.com/',
   youdao: 'https://ai.youdao.com/',
   tencent: 'https://console.cloud.tencent.com/tmt',
+  googleCloudTranslation: 'https://console.cloud.google.com/apis/library/translate.googleapis.com',
+  azureTranslator: 'https://portal.azure.com/',
+  aliyunTranslation: 'https://mt.console.aliyun.com/',
+  baiduTranslation: 'https://fanyi-api.baidu.com/',
+  volcTranslation: 'https://console.volcengine.com/translate',
   chromeTranslator: 'https://developer.chrome.com/docs/ai/translator-api',
   openai: 'https://platform.openai.com/',
   azureOpenai: 'https://ai.azure.com/',
@@ -50,7 +55,115 @@ const serviceWebsites = {
   openrouter: 'https://openrouter.ai/',
   grok: 'https://console.x.ai/',
   newapi: 'https://docs.newapi.pro/',
+  ollama: 'https://ollama.com/',
+  mistral: 'https://console.mistral.ai/',
+  cohere: 'https://dashboard.cohere.com/',
+  togetherai: 'https://api.together.ai/',
+  fireworks: 'https://app.fireworks.ai/',
+  cerebras: 'https://cloud.cerebras.ai/',
+  deepinfra: 'https://deepinfra.com/dash',
+  perplexity: 'https://www.perplexity.ai/account/api',
 } satisfies Record<keyof typeof services, string>
+
+/**
+ * 云服务厂商的开通指引。这些服务都要先在控制台开通产品、再签发密钥，
+ * 目录里只给一个官网链接不足以让人走完整个流程，所以把额度、步骤和
+ * 控制台入口一起交给设置页展示。
+ */
+export interface ServiceCredentialGuide {
+  /** 官方公布的免费额度，用于帮助用户判断是否够用。 */
+  freeQuota: string
+  /** 申请密钥的控制台地址。 */
+  consoleUrl: string
+  /** 控制台按钮文案。 */
+  consoleLabel: string
+  /** 官方文档或计费说明地址。 */
+  docsUrl: string
+  /** 文档按钮文案。 */
+  docsLabel: string
+  /** 从零到可用的最小步骤，按顺序展示。 */
+  steps: readonly string[]
+}
+
+const serviceCredentialGuides: Record<string, ServiceCredentialGuide> = {
+  [services.tencent]: {
+    freeQuota: '每月 500 万字符免费额度',
+    consoleUrl: 'https://console.cloud.tencent.com/tmt',
+    consoleLabel: '前往腾讯云控制台',
+    docsUrl: 'https://cloud.tencent.com/document/product/551/35017',
+    docsLabel: '接口文档',
+    steps: [
+      '在腾讯云控制台开通「机器翻译 TMT」',
+      '在访问管理中新建 API 密钥，复制 SecretId 与 SecretKey',
+      '把两段密钥填入下方，再点连接测试',
+    ],
+  },
+  [services.googleCloudTranslation]: {
+    freeQuota: '每月 50 万字符免费额度（结算账号内）',
+    consoleUrl: 'https://console.cloud.google.com/apis/library/translate.googleapis.com',
+    consoleLabel: '前往 Google Cloud 控制台',
+    docsUrl: 'https://cloud.google.com/translate/pricing',
+    docsLabel: '额度与计费',
+    steps: [
+      '在 Google Cloud 项目中启用 Cloud Translation API',
+      '在「凭据」页创建 API 密钥，并限制为 Cloud Translation API',
+      '把密钥填入下方 API Key，再点连接测试',
+    ],
+  },
+  [services.azureTranslator]: {
+    freeQuota: 'F0 免费层每月 200 万字符',
+    consoleUrl: 'https://portal.azure.com/#create/Microsoft.CognitiveServicesTextTranslation',
+    consoleLabel: '创建 Translator 资源',
+    docsUrl: 'https://learn.microsoft.com/azure/ai-services/translator/reference/v3-0-translate',
+    docsLabel: '接口文档',
+    steps: [
+      '在 Azure 门户创建「Translator」资源并选择 Free F0 定价层',
+      '在「密钥和终结点」页复制密钥与位置/区域',
+      '把密钥填入下方并选择同一区域，再点连接测试',
+    ],
+  },
+  [services.aliyunTranslation]: {
+    freeQuota: '通用版每月 100 万字符免费额度',
+    consoleUrl: 'https://mt.console.aliyun.com/',
+    consoleLabel: '前往阿里云控制台',
+    docsUrl: 'https://help.aliyun.com/zh/machine-translation/developer-reference/api-doc-alimt-2018-10-12-api-doc-translategeneral',
+    docsLabel: '接口文档',
+    steps: [
+      '在阿里云控制台开通「机器翻译」并领取免费额度',
+      '在 RAM 访问控制中创建 AccessKey',
+      '把 AccessKey ID 与 Secret 填入下方，选择地域后点连接测试',
+    ],
+  },
+  [services.baiduTranslation]: {
+    freeQuota: '标准版每月 5 万字符免费额度',
+    consoleUrl: 'https://fanyi-api.baidu.com/manage/developer',
+    consoleLabel: '前往百度翻译开放平台',
+    docsUrl: 'https://fanyi-api.baidu.com/doc/21',
+    docsLabel: '接口文档',
+    steps: [
+      '在百度翻译开放平台注册开发者并开通「通用文本翻译」',
+      '在开发者信息页复制 APP ID 与密钥',
+      '把两项填入下方，再点连接测试',
+    ],
+  },
+  [services.volcTranslation]: {
+    freeQuota: '每月 200 万字符免费额度',
+    consoleUrl: 'https://console.volcengine.com/translate',
+    consoleLabel: '前往火山引擎控制台',
+    docsUrl: 'https://www.volcengine.com/docs/4640/65067',
+    docsLabel: '接口文档',
+    steps: [
+      '在火山引擎控制台开通「机器翻译」',
+      '在访问控制中创建 Access Key',
+      '把 Access Key ID 与 Secret Access Key 填入下方，再点连接测试',
+    ],
+  },
+}
+
+/** 只有云服务厂商需要这段开通指引；其余服务返回 undefined，由调用方隐藏整块区域。 */
+export function getServiceCredentialGuide(service: string): ServiceCredentialGuide | undefined {
+  return Object.hasOwn(serviceCredentialGuides, service) ? serviceCredentialGuides[service] : undefined
+}
 
 /** 自建服务只打开 HTTP(S) origin，避免把 API 路径、账号、密钥或查询参数带入跳转。 */
 export function getServiceWebsite(
@@ -157,7 +270,8 @@ export function buildServiceSections(options: ServiceOption[]): ServiceSection[]
     return {
       id: group.id,
       label: group.label,
-      collapsible: group.id === 'machine',
+      // 机器翻译与云服务厂商都是长列表，允许收起；AI 分组保持常驻展开。
+      collapsible: group.id === 'machine' || group.id === 'cloud',
       groups: [{
         id: `${group.id}-services`,
         label: '',

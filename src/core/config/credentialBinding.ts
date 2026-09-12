@@ -173,6 +173,17 @@ export function dropCredentialsForChangedDestinations(
     }
 
     let nextCredentials = tokenChanged ? {...credentials, token} : credentials;
+    // secret 与 token 是同一个服务的一对凭据，必须跟随同一个目标地址一起解绑，
+    // 否则改过端点后会只剩半副密钥被发往新地址。
+    const secret = {...credentials.secret};
+    let secretChanged = false;
+    for (const service of Object.keys(secret)) {
+        if (tokenCredentialDestination(current, service) === tokenCredentialDestination(next, service)) continue;
+        if (explicitlyBoundTokens.has(service)) continue;
+        secretChanged = true;
+        delete secret[service];
+    }
+    if (secretChanged) nextCredentials = {...nextCredentials, secret};
     const customHeaders = {...credentials.customHeaders};
     for (const service of Object.keys(customHeaders)) {
         if (tokenCredentialDestination(current, service) === tokenCredentialDestination(next, service)) continue;

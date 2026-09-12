@@ -2,16 +2,26 @@ import { describe, expect, it } from 'vitest';
 
 import {
     Config,
+    DEFAULT_FLOATING_BALL_COLLAPSED_OPACITY,
+    DEFAULT_FLOATING_BALL_HOVER_DELAY,
     DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY,
     DEFAULT_SELECTION_TRANSLATOR_DELAY,
+    FLOATING_BALL_COLLAPSED_OPACITY_MAX,
+    FLOATING_BALL_COLLAPSED_OPACITY_MIN,
+    FLOATING_BALL_HOVER_DELAY_MAX,
+    FLOATING_BALL_HOVER_DELAY_MIN,
     MOUSE_HOVER_TRANSLATION_DELAY_MAX,
     MOUSE_HOVER_TRANSLATION_DELAY_MIN,
     SELECTION_TRANSLATOR_DELAY_MAX,
     SELECTION_TRANSLATOR_DELAY_MIN,
     normalizeConfig,
+    normalizeFloatingBallClickAction,
+    normalizeFloatingBallCollapsedOpacity,
+    normalizeFloatingBallHoverDelay,
+    normalizeFloatingBallToolsDisplay,
 } from '@/src/core/config/model';
 import { getMimoEndpoint, MIMO_ENDPOINTS, MINIMAX_ENDPOINTS, tongyiTokenPlanUrl, urls } from '@/src/core/config/constants';
-import { customModelString, defaultModelIds, defaultModels, defaultOption, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
+import { currentModelIds, customModelString, defaultModelIds, defaultModels, defaultOption, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
 import {
     CUSTOM_OPENAI_RESERVED_MODEL_ID,
     MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER,
@@ -80,16 +90,16 @@ describe('AI 模型编号列表', () => {
     });
 
     it('展示当前主流模型，并移除已退役或错误的预设编号', () => {
-        expect(models.get(services.openai)?.at(0)).toBe('gpt-5.6-luna');
+        expect(models.get(services.openai)?.at(0)).toBe('gpt-5.4-mini');
         expect(models.get(services.openai)).toContain('gpt-5.6-sol');
         expect(models.get(services.openai)).not.toContain('gpt5');
         expect(models.get(services.gemini)).toContain('gemini-3.6-flash');
         expect(models.get(services.claude)).toContain('claude-fable-5');
         expect(models.get(services.claude)).toContain('claude-sonnet-5');
         expect(models.get(services.claude)?.at(-1)).toBe(customModelString);
-        expect(models.get(services.tongyi)?.at(0)).toBe('qwen3.6-flash');
+        expect(models.get(services.tongyi)?.at(0)).toBe('qwen3.8-flash');
         expect(models.get(services.tongyi)).toContain('qwen3.7-max');
-        expect(models.get(services.tongyi)).not.toContain('qwen3.7-flash');
+        expect(models.get(services.tongyi)).toContain('qwen3.7-flash');
         expect(models.get(services.zhipu)?.at(0)).toBe('glm-4.5-flash');
         expect(models.get(services.zhipu)).toContain('glm-5.2');
         expect(models.get(services.infini)).toContain('glm-5.2');
@@ -142,6 +152,14 @@ describe('AI 模型编号列表', () => {
             services.openrouter,
             services.groq,
             services.azureOpenai,
+            services.mistral,
+            services.cohere,
+            services.cerebras,
+            services.togetherai,
+            services.fireworks,
+            services.deepinfra,
+            services.perplexity,
+            services.ollama,
             services.custom,
         ]);
         expect(aiServices.filter(option => option.catalogKind === 'platform').map(option => option.value)).toEqual([
@@ -151,6 +169,14 @@ describe('AI 模型编号列表', () => {
             services.openrouter,
             services.groq,
             services.azureOpenai,
+            services.mistral,
+            services.cohere,
+            services.cerebras,
+            services.togetherai,
+            services.fireworks,
+            services.deepinfra,
+            services.perplexity,
+            services.ollama,
             services.custom,
         ]);
         expect(aiServices.filter(option => option.catalogKind === 'provider')).toHaveLength(15);
@@ -208,6 +234,71 @@ describe('AI 模型编号列表', () => {
             expect(defaultModels.get(service), `${service} 默认模型`).toBe(defaultModel);
             expect(models.get(service)?.at(0), `${service} 模型列表首项`).toBe(defaultModel);
         }
+    });
+
+    it('刷新后的网页和文档默认使用轻量模型，目录没有重复编号', () => {
+        const expected = {
+            [services.openai]: 'gpt-5.4-mini',
+            [services.azureOpenai]: 'gpt-5.4-mini',
+            [services.gemini]: 'gemini-3.5-flash-lite',
+            [services.deepseek]: 'deepseek-flash',
+            [services.infini]: 'deepseek-v4-flash',
+            [services.tongyi]: 'qwen3.8-flash',
+            [services.claude]: 'claude-haiku-4-5',
+            [services.jieyue]: 'step-2-mini',
+            [services.openrouter]: 'google/gemini-3.5-flash-lite',
+        };
+        for (const config of [new Config(), normalizeConfig({}), normalizeConfig({model: {}, documentModel: {}})]) {
+            expect(config.model).toMatchObject(expected);
+            expect(config.documentModel).toMatchObject(expected);
+            expect(config.deepseekThinkingMode).toBe('disabled');
+        }
+        for (const [service, choices] of models) {
+            expect(new Set(choices).size, service).toBe(choices.length);
+        }
+        expect(models.get(services.infini)).not.toContain('deepseek-flash');
+        expect(models.get(services.openrouter)).toContain('deepseek/deepseek-v4.1-flash');
+        expect(models.get(services.openrouter)).not.toContain('deepseek-flash');
+    });
+
+    it('已下线的混元预览版迁移到正式版，保留网页和文档的思考偏好', () => {
+        const normalized = normalizeConfig({
+            model: {[services.huanYuan]: 'hy3-preview'},
+            documentModel: {[services.huanYuan]: 'hy3-preview'},
+            modelThinking: {[services.huanYuan]: {'hy3-preview': false}},
+        });
+        expect(normalized.model[services.huanYuan]).toBe('hy3');
+        expect(normalized.documentModel[services.huanYuan]).toBe('hy3');
+        expect(normalized.modelThinking[services.huanYuan]).toEqual({hy3: false});
+        expect(models.get(services.huanYuan)).not.toContain('hy3-preview');
+    });
+
+    it('刷新默认不覆盖已选模型、DeepSeek 兼容别名、密钥要求及自定义模型', () => {
+        const saved = {
+            ...new Config(),
+            model: {
+                [services.openai]: 'gpt-5.6-luna',
+                [services.gemini]: 'gemini-3.6-flash',
+                [services.tongyi]: 'qwen3.6-flash',
+                [services.deepseek]: 'deepseek-v4-flash',
+            },
+            documentModel: {
+                [services.deepseek]: 'deepseek-v4-pro',
+                [services.openai]: customModelString,
+            },
+            documentCustomModel: {[services.openai]: 'private-document-model'},
+            customModels: {[services.openai]: ['private-document-model']},
+            modelThinking: {[services.deepseek]: {'deepseek-v4-flash': true, 'deepseek-v4-pro': false}},
+            requireApiKey: {'deepseek:deepseek-v4-flash': false},
+        };
+        const normalized = normalizeConfig(saved);
+        expect(normalized.model).toMatchObject(saved.model);
+        expect(normalized.documentModel).toMatchObject(saved.documentModel);
+        expect(normalized.documentCustomModel).toEqual(saved.documentCustomModel);
+        expect(normalized.customModels).toEqual(saved.customModels);
+        expect(normalized.modelThinking).toEqual(saved.modelThinking);
+        expect(normalized.requireApiKey).toEqual(saved.requireApiKey);
+        expect(normalizeConfig(normalized)).toEqual(normalized);
     });
 
     it('把旧自定义接口迁移为 profile，并保留地址、实际模型和其他按服务配置', () => {
@@ -719,7 +810,35 @@ describe('快捷翻译方案配置', () => {
         expect(normalized).toMatchObject({hotkey, enabled: false});
     });
 
-    it('划词快捷键与快捷翻译可共存，圈选的固定快捷键仍保留既有所有权', () => {
+    it('圈选改用自定义快捷键后，快捷翻译方案按新的圈选快捷键避让', () => {
+        const config = normalizeConfig({
+            selectionAreaEnabled: true,
+            selectionAreaHotkey: 'custom',
+            customSelectionAreaHotkey: 'alt+k',
+            quickTranslationProfiles: [
+                {id: 'old-area', enabled: true, action: 'hover', hotkey: 'Shift+Z'},
+                {id: 'new-area', enabled: true, action: 'full-page', hotkey: 'Alt+K'},
+            ],
+        });
+
+        expect(config).toMatchObject({selectionAreaHotkey: 'custom', customSelectionAreaHotkey: 'Alt+K'});
+        expect(config.quickTranslationProfiles[0]).toMatchObject({hotkey: 'Shift+Z', enabled: true});
+        expect(config.quickTranslationProfiles[1]).toMatchObject({hotkey: 'Alt+K', enabled: false});
+    });
+
+    it('圈选快捷键只接受预设与可用的自定义值，其余配置回到默认 Shift+Z', () => {
+        expect(new Config()).toMatchObject({selectionAreaHotkey: 'Shift+Z', customSelectionAreaHotkey: ''});
+        expect(normalizeConfig({})).toMatchObject({selectionAreaHotkey: 'Shift+Z', customSelectionAreaHotkey: ''});
+        expect(normalizeConfig({selectionAreaHotkey: 'alt+x'})).toMatchObject({selectionAreaHotkey: 'Alt+X'});
+        // 选择自定义却没有可用组合键时不能让圈选失去唯一入口。
+        expect(normalizeConfig({selectionAreaHotkey: 'custom', customSelectionAreaHotkey: 'cmd+k'}))
+            .toMatchObject({selectionAreaHotkey: 'Shift+Z', customSelectionAreaHotkey: ''});
+        for (const invalid of [undefined, 'none', 'Ctrl+C', 42]) {
+            expect(normalizeConfig({selectionAreaHotkey: invalid}).selectionAreaHotkey).toBe('Shift+Z');
+        }
+    });
+
+    it('划词快捷键与快捷翻译可共存，圈选的默认快捷键仍保留既有所有权', () => {
         const normalized = normalizeConfig({
             selectionTranslatorMode: 'bilingual',
             selectionTranslatorTrigger: 'custom',
@@ -788,6 +907,16 @@ describe('右键全文翻译配置', () => {
         expect(normalizeConfig({}).contextMenuEnabled).toBe(true);
         expect(normalizeConfig({contextMenuEnabled: false}).contextMenuEnabled).toBe(false);
         expect(normalizeConfig({contextMenuEnabled: 'false'}).contextMenuEnabled).toBe(true);
+    });
+});
+
+describe('页面标题翻译配置', () => {
+    it('默认开启，并保留用户主动关闭的状态', () => {
+        expect(new Config().pageTitleTranslationEnabled).toBe(true);
+        expect(normalizeConfig({}).pageTitleTranslationEnabled).toBe(true);
+        expect(normalizeConfig({pageTitleTranslationEnabled: false}).pageTitleTranslationEnabled).toBe(false);
+        // 非布尔值（旧配置或被改坏的导入）回到默认开启，而不是被当成关闭。
+        expect(normalizeConfig({pageTitleTranslationEnabled: 'false'}).pageTitleTranslationEnabled).toBe(true);
     });
 });
 
@@ -861,6 +990,80 @@ describe('鼠标悬浮翻译延迟配置', () => {
             .toBe(MOUSE_HOVER_TRANSLATION_DELAY_MAX);
         expect(normalizeConfig({mouseHoverTranslationDelay: 'invalid'}).mouseHoverTranslationDelay)
             .toBe(DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY);
+    });
+});
+
+describe('悬浮球进阶外观配置', () => {
+    it('默认保持既有观感：悬停展开、立即响应、点击翻译、标准尺寸并显示设置入口', () => {
+        const defaults = new Config();
+        expect(defaults.floatingBallToolsDisplay).toBe('hover');
+        expect(defaults.floatingBallHoverDelay).toBe(DEFAULT_FLOATING_BALL_HOVER_DELAY);
+        expect(defaults.floatingBallClickAction).toBe('translate');
+        expect(defaults.floatingBallCompact).toBe(false);
+        expect(defaults.floatingBallSettingsEntryVisible).toBe(true);
+        expect(defaults.floatingBallCollapsedOpacity).toBe(DEFAULT_FLOATING_BALL_COLLAPSED_OPACITY);
+        expect(defaults.floatingBallDisabledDomains).toEqual([]);
+
+        const normalized = normalizeConfig({});
+        expect(normalized.floatingBallToolsDisplay).toBe('hover');
+        expect(normalized.floatingBallHoverDelay).toBe(DEFAULT_FLOATING_BALL_HOVER_DELAY);
+        expect(normalized.floatingBallClickAction).toBe('translate');
+        expect(normalized.floatingBallCompact).toBe(false);
+        expect(normalized.floatingBallSettingsEntryVisible).toBe(true);
+        expect(normalized.floatingBallCollapsedOpacity).toBe(DEFAULT_FLOATING_BALL_COLLAPSED_OPACITY);
+        expect(normalized.floatingBallDisabledDomains).toEqual([]);
+    });
+
+    it('接受合法的显示方式与点击行为，并把其他值收敛为默认值', () => {
+        expect(normalizeFloatingBallToolsDisplay('always')).toBe('always');
+        expect(normalizeFloatingBallToolsDisplay('hidden')).toBe('hidden');
+        expect(normalizeFloatingBallToolsDisplay('sidebar')).toBe('hover');
+        expect(normalizeFloatingBallToolsDisplay(undefined)).toBe('hover');
+        expect(normalizeFloatingBallClickAction('settings')).toBe('settings');
+        expect(normalizeFloatingBallClickAction('none')).toBe('none');
+        expect(normalizeFloatingBallClickAction(12)).toBe('translate');
+        expect(normalizeConfig({floatingBallToolsDisplay: 'always', floatingBallClickAction: 'none'}))
+            .toMatchObject({floatingBallToolsDisplay: 'always', floatingBallClickAction: 'none'});
+        expect(normalizeConfig({floatingBallToolsDisplay: 'panel', floatingBallClickAction: 'panel'}))
+            .toMatchObject({floatingBallToolsDisplay: 'hover', floatingBallClickAction: 'translate'});
+    });
+
+    it('按步长归一化展开延迟与收起不透明度，并限制越界值', () => {
+        expect(normalizeFloatingBallHoverDelay(480)).toBe(500);
+        expect(normalizeFloatingBallHoverDelay('250')).toBe(250);
+        expect(normalizeFloatingBallHoverDelay(-100)).toBe(FLOATING_BALL_HOVER_DELAY_MIN);
+        expect(normalizeFloatingBallHoverDelay(99999)).toBe(FLOATING_BALL_HOVER_DELAY_MAX);
+        for (const value of [null, false, '', '   ', 'invalid', Number.NaN]) {
+            expect(normalizeFloatingBallHoverDelay(value)).toBe(DEFAULT_FLOATING_BALL_HOVER_DELAY);
+        }
+
+        expect(normalizeFloatingBallCollapsedOpacity(50)).toBe(52);
+        expect(normalizeFloatingBallCollapsedOpacity('100')).toBe(FLOATING_BALL_COLLAPSED_OPACITY_MAX);
+        expect(normalizeFloatingBallCollapsedOpacity(0)).toBe(FLOATING_BALL_COLLAPSED_OPACITY_MIN);
+        expect(normalizeFloatingBallCollapsedOpacity(400)).toBe(FLOATING_BALL_COLLAPSED_OPACITY_MAX);
+        expect(normalizeFloatingBallCollapsedOpacity('very light')).toBe(DEFAULT_FLOATING_BALL_COLLAPSED_OPACITY);
+        expect(normalizeConfig({floatingBallHoverDelay: 510, floatingBallCollapsedOpacity: 31}))
+            .toMatchObject({floatingBallHoverDelay: 500, floatingBallCollapsedOpacity: 32});
+    });
+
+    it('布尔开关只接受真实布尔值，设置入口默认保持开启', () => {
+        expect(normalizeConfig({floatingBallCompact: true}).floatingBallCompact).toBe(true);
+        expect(normalizeConfig({floatingBallCompact: 'true'}).floatingBallCompact).toBe(false);
+        expect(normalizeConfig({floatingBallSettingsEntryVisible: false}).floatingBallSettingsEntryVisible).toBe(false);
+        expect(normalizeConfig({floatingBallSettingsEntryVisible: 'no'}).floatingBallSettingsEntryVisible).toBe(true);
+    });
+
+    it('禁用悬浮球网站统一归并为可注册域名并去重', () => {
+        expect(normalizeConfig({
+            floatingBallDisabledDomains: [
+                'https://mail.example.com/inbox',
+                'MAIL.EXAMPLE.COM',
+                'not a domain',
+                42,
+                'news.bbc.co.uk',
+            ],
+        }).floatingBallDisabledDomains).toEqual(['example.com', 'bbc.co.uk']);
+        expect(normalizeConfig({floatingBallDisabledDomains: 'example.com'}).floatingBallDisabledDomains).toEqual([]);
     });
 });
 
@@ -1107,12 +1310,12 @@ describe('旧模型编号兼容迁移', () => {
         const chat = normalizeConfig({model: {[services.deepseek]: 'deepseek-chat'}});
         const reasoner = normalizeConfig({model: {[services.deepseek]: 'deepseek-reasoner'}});
 
-        expect(chat.model[services.deepseek]).toBe('deepseek-v4-flash');
+        expect(chat.model[services.deepseek]).toBe('deepseek-flash');
         expect(chat.deepseekThinkingMode).toBe('disabled');
-        expect(chat.modelThinking[services.deepseek]).toEqual({'deepseek-v4-flash': false});
-        expect(reasoner.model[services.deepseek]).toBe('deepseek-v4-flash');
+        expect(chat.modelThinking[services.deepseek]).toEqual({'deepseek-flash': false});
+        expect(reasoner.model[services.deepseek]).toBe('deepseek-flash');
         expect(reasoner.deepseekThinkingMode).toBe('enabled');
-        expect(reasoner.modelThinking[services.deepseek]).toEqual({'deepseek-v4-flash': true});
+        expect(reasoner.modelThinking[services.deepseek]).toEqual({'deepseek-flash': true});
     });
 
     it('模型 Thinking 默认关闭，并规范化迁移可达模型状态', () => {
@@ -1124,7 +1327,7 @@ describe('旧模型编号兼容迁移', () => {
             modelThinking: {
                 [services.openai]: {
                     gpt5: true,
-                    [defaultModelIds[services.openai]]: false,
+                    [currentModelIds.openai]: false,
                     'private-model': true,
                     orphan: true,
                     invalid: 'yes',
@@ -1136,7 +1339,7 @@ describe('旧模型编号兼容迁移', () => {
 
         expect(normalized.modelThinking).toEqual({
             [services.openai]: {
-                [defaultModelIds[services.openai]]: false,
+                [currentModelIds.openai]: false,
                 'private-model': true,
             },
         });
@@ -1157,11 +1360,11 @@ describe('旧模型编号兼容迁移', () => {
             ...new Config(),
             modelThinking: {[services.openai]: {
                 gpt5: true,
-                [defaultModelIds[services.openai]]: false,
+                [currentModelIds.openai]: false,
             }},
         });
         expect(officialLegacyName.modelThinking[services.openai])
-            .toEqual({[defaultModelIds[services.openai]]: false});
+            .toEqual({[currentModelIds.openai]: false});
     });
 
     it('显式模型级 DeepSeek 值覆盖旧服务级开关并迁移旧模型键', () => {
@@ -1175,12 +1378,12 @@ describe('旧模型编号兼容迁移', () => {
         const legacyKey = normalizeConfig({
             modelThinking: {[services.deepseek]: {'deepseek-reasoner': true}},
         });
-        expect(legacyKey.modelThinking[services.deepseek]).toEqual({'deepseek-v4-flash': true});
+        expect(legacyKey.modelThinking[services.deepseek]).toEqual({'deepseek-flash': true});
 
         const legacyChatKey = normalizeConfig({
             modelThinking: {[services.deepseek]: {'deepseek-chat': false}},
         });
-        expect(legacyChatKey.modelThinking[services.deepseek]).toEqual({'deepseek-v4-flash': false});
+        expect(legacyChatKey.modelThinking[services.deepseek]).toEqual({'deepseek-flash': false});
     });
 
     it('动态自定义服务只保留 profile 中仍可达模型的 Thinking 状态', () => {

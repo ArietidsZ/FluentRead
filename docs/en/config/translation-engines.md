@@ -8,8 +8,9 @@ FluentRead displays translations produced by your selected service. Use the defa
 | --- | --- |
 | Start immediately | Free translation service, without an API key |
 | Use an existing provider | The corresponding Microsoft, Google, DeepL, or other service |
+| Trade a cloud key for a stable free quota | A **Cloud vendors** service: Google Cloud, Azure, Alibaba Cloud, Tencent Cloud, Baidu, or Volcengine, each with a monthly free character quota |
 | Explain sentences, tone, or expressions | An AI service with a working model and credentials |
-| Translate text locally | A running Ollama model or available [Chrome local translation](/en/guide/chrome-translator) |
+| Translate text locally | **Ollama (local)** from the catalog, or available [Chrome local translation](/en/guide/chrome-translator) |
 
 FluentRead is free and open source. Third-party services may charge separately. A web chat subscription does not necessarily include API access.
 
@@ -49,7 +50,44 @@ Keep `{{apiKey}}` exactly as written. It is replaced with your saved API Key whe
 
 These settings apply only to the standalone DeepLX service. DeepLX in the free fallback service uses the default public anonymous endpoint.
 
+## Cloud vendors
+
+The **Cloud vendors** group lists the official machine translation APIs of the major cloud platforms: Google Cloud Translation, Azure Translator, Alibaba Cloud Machine Translation, Tencent Cloud Translate, Baidu Translate, and Volcengine Translation. They are separate from the free web endpoints in the machine translation group (Google Translate, Microsoft Translator): the free endpoints need no key but may be throttled, while the cloud APIs need a key issued in the vendor console and give you a stable service with a published free quota.
+
+| Service | Official free quota | You fill in |
+| --- | --- | --- |
+| Google Cloud Translation | 500,000 characters per month | API key |
+| Azure Translator | F0 tier: 2 million characters per month | Key + region |
+| Alibaba Cloud Machine Translation | General edition: 1 million characters per month | AccessKey ID + AccessKey Secret + region |
+| Tencent Cloud Translate | 5 million characters per month | SecretId + SecretKey |
+| Baidu Translate | Standard tier: 50,000 characters per month | APP ID + secret key |
+| Volcengine Translation | 2 million characters per month | Access Key ID + Secret Access Key + region |
+
+Select any cloud vendor in settings and the service details show its **free quota**, a three-step setup guide, and links to the **console** and **API docs**. Follow the guide to obtain the key, enter it in the form below, and click **Check connection**. Quotas are as published by each vendor; once used up the vendor bills by usage, so set a usage alert in the console.
+
+::: tip Match the region to your resource
+For Azure, Alibaba Cloud, and Volcengine the region is part of the request signature or decides the request host. A wrong region usually shows up as 401/403 or a signature mismatch; keep it identical to the region of the resource in the console.
+:::
+
+Paired secrets (AccessKey Secret, SecretKey, and similar) are stored only on this device, like API keys. Shared configurations and configuration history never include them; full backups keep them.
+
 ## AI services
+
+New configurations favor lightweight models for everyday translation:
+
+| Service | Default model |
+| --- | --- |
+| DeepSeek | `deepseek-flash` (V4.1 Flash) |
+| OpenAI | `gpt-5.4-mini` |
+| Gemini | `gemini-3.5-flash-lite` |
+| Qwen | `qwen3.8-flash` |
+| Claude | `claude-haiku-4-5` |
+| StepFun | `step-2-mini` |
+| OpenRouter | `google/gemini-3.5-flash-lite` |
+
+Catalog updates preserve your saved supported and custom models. Thinking is off by default for DeepSeek; models that cannot disable it use their lowest supported level. Larger models remain available for manual selection. Charges depend on the provider.
+
+See the [DeepSeek changelog](https://api-docs.deepseek.com/updates/) for the new ID. The previous `deepseek-v4-flash` ID remains available as a compatibility alias. The retired Hunyuan `hy3-preview` is migrated to `hy3`.
 
 Select a configured service and model. Use the custom-model option if yours is not listed. For a compatible third-party endpoint, add the address and model under your custom services.
 
@@ -70,6 +108,10 @@ See Tencent's [official integration guide](https://cloud.tencent.com/document/pr
 ## Local models
 
 Install and run Ollama and download a model before connecting it. Performance depends on the model and computer.
+
+Pick **Ollama (local)** under aggregation platforms: it connects to `http://127.0.0.1:11434` by default and needs no API key; enter the name of a model you have pulled (for example `qwen3:8b`). If Ollama runs on another machine or port, enter the full `/v1/chat/completions` URL in **Server URL**. Browser extensions must be allowed as an origin: start Ollama with `OLLAMA_ORIGINS=*`, otherwise requests are rejected by CORS.
+
+The aggregation platforms group also includes Mistral AI, Cohere, Cerebras, Together AI, Fireworks AI, DeepInfra, and Perplexity (OpenAI-compatible platforms added with reference to the Read Frog catalog). Configure them like any other AI service: enter the platform key and choose a model.
 
 Choosing a local model determines where that translation goes. Dictionary, read-aloud, downloads, and other independent tools can still use network services. See [Data & privacy](/en/guide/privacy).
 

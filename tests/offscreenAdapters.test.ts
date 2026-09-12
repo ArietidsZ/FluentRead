@@ -24,6 +24,15 @@ describe('area translation Offscreen adapter', () => {
     const adapter = createAreaTranslationOffscreenAdapter(client);
     const selection = {left: 1, top: 2, width: 3, height: 4, viewportWidth: 100, viewportHeight: 80};
 
+    it('sends crop-only request and preserves metadata fields', async () => {
+        send.mockResolvedValueOnce({success: true, image: 'crop', lines: [], recognitionMethod: 'vision'});
+        await expect(adapter.cropArea('data:image/png,area', selection, {requestId: 'crop-1', signal: new AbortController().signal, timeoutMs: 5000}))
+            .resolves.toEqual({image: 'crop', lines: []});
+        expect(send).toHaveBeenCalledWith(expect.objectContaining({type: 'FLUENT_READ_AREA_CROP_OFFSCREEN', requestId: 'crop-1'}), expect.any(Object));
+        send.mockResolvedValueOnce({success: true, image: 1, lines: []});
+        await expect(adapter.cropArea('image', selection)).rejects.toThrow('圈选裁剪失败');
+    });
+
     it('sends the complete feature payload and returns a validated result', async () => {
         send.mockResolvedValueOnce({success: true, image: 'translated-area', lines: [{text: 'line'}]});
         await expect(adapter.translateArea('data:image/png,area', 'en', 'Page', selection)).resolves.toEqual({

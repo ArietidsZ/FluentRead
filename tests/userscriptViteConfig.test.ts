@@ -3,6 +3,7 @@ import {describe, expect, it} from 'vitest';
 import {
     executionGuardEnd,
     executionGuardStart,
+    findDexieGlobalRegistration,
     injectUserscriptBrowserImports,
     userscriptAliases,
     wrapUserscriptEntry,
@@ -39,6 +40,23 @@ describe('userscript browser shim injection', () => {
         expect(stringAliases.get('@/src/platform/storage/credentialContext')).toMatch(/userscript\/credentialContext\.ts$/u);
         expect(stringAliases.get('@/src/platform/storage/configStorageRuntime')).toMatch(/userscript\/storage\.ts$/u);
         expect(userscriptAliases.at(-1)?.find).toBe('@');
+    });
+
+    it('把 dexie 换成不注册全局单例的入口，且不改写 dexie 自身的实现产物路径', () => {
+        const dexieAlias = userscriptAliases.find((entry) => entry.find instanceof RegExp
+            && (entry.find as RegExp).test('dexie'));
+
+        expect(dexieAlias?.replacement).toMatch(/userscript\/dexie\.ts$/u);
+        // 别名必须严格匹配裸模块名；否则 userscript/dexie.ts 内部对实现产物的引用会被改写回自身。
+        expect((dexieAlias!.find as RegExp).test('dexie/dist/dexie.min.js')).toBe(false);
+    });
+
+    it('产物中残留 Dexie 全局注册时能被构建守卫识别', () => {
+        expect(findDexieGlobalRegistration('const s=Symbol.for("Dexie");globalThis[s]=D;')).toBe(true);
+        expect(findDexieGlobalRegistration("globalThis[Symbol.for('Dexie')]=D;")).toBe(true);
+        expect(findDexieGlobalRegistration('Symbol . for ( "Dexie" )')).toBe(true);
+        expect(findDexieGlobalRegistration('Symbol.for("vercel.ai.schema")')).toBe(false);
+        expect(findDexieGlobalRegistration('const label="Dexie";')).toBe(false);
     });
 
     it('imports only unresolved browser globals', () => {

@@ -41,9 +41,9 @@ export const navigationGroups = [
       },
       {
         id: 'settings-services', icon: '译', label: '翻译服务', description: '服务与模型', group: '基础配置',
-        heading: '配置翻译服务与模型', summary: '按机器翻译、模型服务商和聚合平台分类，配置各服务的模型、连接参数与凭据。',
+        heading: '配置翻译服务与模型', summary: '按机器翻译、云服务厂商、模型服务商和聚合平台分类，配置各服务的模型、连接参数与凭据。',
         kicker: '基础配置', title: '翻译服务', detail: '配置可用的翻译服务、模型、连接和凭据。',
-        searchDescription: '机器翻译、模型服务商、聚合平台、OpenAI、DeepSeek、硅基流动、OpenRouter、模型与令牌',
+        searchDescription: '机器翻译、云服务厂商、谷歌云、Azure、阿里云、腾讯云、百度、火山引擎、Ollama、模型服务商、聚合平台、OpenAI、DeepSeek、硅基流动、OpenRouter、模型与令牌',
       },
       {
         id: 'settings-translation', icon: '译', label: '翻译设置', description: '悬浮、划词、输入框与全文', group: '基础配置',
@@ -72,7 +72,7 @@ export const navigationGroups = [
         id: 'settings-area-translation', icon: '▣', label: '圈选翻译', description: '截取区域与文字识别', group: '专项翻译',
         heading: '圈选翻译', summary: '圈选屏幕中的文字，选择标准翻译或 AI 上下文增强。',
         kicker: '专项翻译', title: '圈选翻译', detail: '独立配置圈选翻译的开关、识别语言和翻译服务。',
-        searchDescription: '圈选翻译、区域翻译、截图、Shift+Z、OCR、微软、免费翻译、AI、纠错、语言包',
+        searchDescription: '圈选翻译、区域翻译、截图、图片输入、识图、视觉、提示词、Shift+Z、OCR、微软、免费翻译、AI、纠错、语言包',
       },
       {
         id: 'settings-video', icon: 'CC', label: '视频字幕翻译', description: 'YouTube/X 边看边译', group: '专项翻译',

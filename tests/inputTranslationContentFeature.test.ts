@@ -233,6 +233,7 @@ describe('input translation content feature', () => {
             inputBoxTranslationService: 'deeplx',
             model: {deeplx: 'model-a'},
             customModel: {deeplx: 'custom-a'},
+            serviceRegion: {deeplx: 'cn', openai: 'global'},
             modelThinking: {deeplx: {'model-a': true}},
             requireApiKey: {
                 'deeplx:model-a': true,
@@ -245,6 +246,8 @@ describe('input translation content feature', () => {
             deeplx: 'https://deeplx-a',
         };
         const first = inputBoxTranslationConfigKey(base);
+        expect(first).not.toBe(inputBoxTranslationConfigKey({...base, serviceRegion: {deeplx: 'sgp', openai: 'global'}}));
+        expect(first).toBe(inputBoxTranslationConfigKey({...base, serviceRegion: {deeplx: 'cn', openai: 'cn'}}));
         expect(first).not.toBe(inputBoxTranslationConfigKey({...base, token: {deeplx: 'token-b'}}));
         expect(first).not.toBe(inputBoxTranslationConfigKey({...base, inputBoxTranslationService: 'newapi', newApiUrl: 'https://new-api'}));
         expect(first).not.toBe(inputBoxTranslationConfigKey({...base, inputBoxTranslationService: 'azureOpenai', azureOpenaiEndpoint: 'https://azure'}));

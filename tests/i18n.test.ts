@@ -20,7 +20,7 @@ import {ruRULegacyText, ruRUMessages} from '@/src/core/i18n/messages/ru-RU';
 import {zhCNMessages} from '@/src/core/i18n/messages/zh-CN';
 import {Config, normalizeConfig} from '@/src/core/config/model';
 import {translationLoadingStyleOptions} from '@/src/core/config/translationLoadingStyle';
-import {interfaceSkinGroups, interfaceSkinOptions, popupModuleOptions, popupQuickFeatureOptions} from '@/src/core/config/interfaceAppearance';
+import {interfaceFontOptions, interfaceSkinGroups, interfaceSkinOptions, popupModuleOptions, popupQuickFeatureOptions} from '@/src/core/config/interfaceAppearance';
 import {buildConfigDiff} from '@/src/core/config/diff';
 import {getMultilingualTargetLanguageLabel, options, services} from '@/src/core/config/catalog';
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
@@ -554,8 +554,9 @@ describe('界面 i18n 契约', () => {
     for (const language of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
       for (const key of areaKeys) expect(translate(key, language)).not.toBe(key);
     }
-    expect(translate('area.settings.standardDescription', 'en-US')).toContain('OCR text only');
-    expect(translate('area.settings.aiDescription', 'en-US')).toContain('does not see the screenshot');
+    expect(translate('area.settings.standardDescription', 'en-US')).toContain('recognized text');
+    expect(translate('area.settings.aiDescription', 'en-US')).toContain('translation');
+    expect(translate('area.settings.visionPrivacy', 'en-US')).toContain('uploads the selected image');
     expect(translate('area.settings.privacy', 'en-US')).toContain('screenshots are not uploaded');
     for (const copy of [
       'AI 仅处理识别文字，无法找回图片中的漏字；请核对名称和数字。',
@@ -570,12 +571,19 @@ describe('界面 i18n 契约', () => {
       .flatMap(({id, icon, ...copy}) => Object.values(copy));
     const skinCopy = [...interfaceSkinGroups, ...interfaceSkinOptions]
       .flatMap(({label, description}) => [label, description]);
+    const fontKeys = [
+      'settings.interface.font.label',
+      'settings.interface.font.description',
+      'settings.interface.font.preview',
+      ...interfaceFontOptions.flatMap(({labelKey, descriptionKey}) => [labelKey, descriptionKey]),
+    ];
     for (const language of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
       for (const source of [...navigationCopy, ...skinCopy]) {
         const localized = translateLegacyText(source, language);
         expect(localized, `${language}: ${source}`).not.toBe(source);
         if (language !== 'ja-JP') expect(localized).not.toMatch(/[\u3400-\u9fff]/u);
       }
+      for (const key of fontKeys) expect(translate(key, language), `${language}: ${key}`).not.toBe(key);
     }
   });
 

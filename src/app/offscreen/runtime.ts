@@ -10,6 +10,7 @@ import {
     fetchImageInOffscreen,
     recognizeImage,
     translateAreaInOffscreen,
+    cropAreaInOffscreen,
     translateImageInOffscreen,
 } from './imageTranslation';
 import {createOffscreenMessageListener} from './messageRouter';
@@ -50,6 +51,7 @@ export function startOffscreenApp(): void {
         recognizeImage,
         translateImage: translateImageInOffscreen,
         translateArea: translateAreaInOffscreen,
+        cropArea: cropAreaInOffscreen,
         fetchImage: fetchImageInOffscreen,
         downloadOcrLanguages: downloadImageOcrLanguages,
         removeOcrLanguages: removeImageOcrLanguages,

@@ -1,5 +1,22 @@
 [
   {
+    "id": "openrouter",
+    "name": "OpenRouter",
+    "allScopes": true,
+    "match": {
+      "hosts": [
+        "openrouter.ai"
+      ]
+    },
+    "priority": 380,
+    "mode": "augment",
+    "omit": [
+      "li a[href^=\"/\"][href*=\"/\"] > span.font-semibold",
+      "#model-title-row h1",
+      "#model-title-row h3[title=\"Model identifier for use in the API\"]"
+    ]
+  },
+  {
     "id": "bilibili",
     "name": "哔哩哔哩",
     "match": {
@@ -41,7 +58,8 @@
           "h1.gh-header-title .js-issue-title",
           "[data-testid=\"issue-title\"]",
           "[data-testid=\"pull-request-title\"]",
-          "[data-testid=\"issue-pr-title-link\"]"
+          "[data-testid=\"issue-pr-title-link\"]",
+          "[data-testid=\"listitem-title-link\"]"
         ],
         "key": "github-issue-or-pr-title",
         "resolve": "closest",
@@ -83,6 +101,7 @@
       }
     ],
     "protect": [
+      "[class*=\"PullsListItem-module__description__\"]",
       "[data-testid=\"issue-labels\"]",
       "span[class*=\"IssueLabel\"]",
       "[data-testid=\"list-row-repo-name-and-number\"]",
@@ -104,6 +123,7 @@
       "[data-listview-item-visibility-label=\"true\"]"
     ],
     "exclude": [
+      "[class*=\"PullsListItem-module__description__\"]",
       "dialog",
       "[role=\"dialog\"]",
       "[data-testid=\"search-modal\"]",
@@ -127,6 +147,7 @@
       "[data-listview-item-visibility-label=\"true\"]"
     ],
     "watchIgnore": [
+      "[class*=\"PullsListItem-module__description__\"]",
       "[data-testid=\"issue-labels\"]",
       "span[class*=\"IssueLabel\"]",
       "[data-testid=\"list-row-repo-name-and-number\"]",

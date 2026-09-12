@@ -39,14 +39,14 @@ describe('圈选翻译内容脚本客户端', () => {
 
     it('发送完整选区上下文并验证独立原文译文结果', async () => {
         const lines = [{text: '你好', bbox: {x0: 0, y0: 0, x1: 10, y1: 8}, backgroundColor: '#fff'}];
-        sendMessage.mockResolvedValue({success: true, image: 'translated', lines, sourceText: 'Hello', translatedText: '你好', service: 'google', serviceName: '谷歌翻译', model: '', mode: 'standard', warnings: ['standard-quality']});
+        sendMessage.mockResolvedValue({success: true, image: 'translated', lines, sourceText: 'Hello', translatedText: '你好', service: 'google', serviceName: '谷歌翻译', model: '', mode: 'standard', warnings: ['standard-quality'], recognitionMethod: 'ocr', recognitionFallback: 'unknown'});
         const selection = {left: 1, top: 2, width: 30, height: 20, viewportWidth: 800, viewportHeight: 600};
 
         await expect(translateCapturedAreaInExtension('capture', selection, 'en', 'Article', {
             requestId: 'area-1', timeoutMs: 5_000,
         })).resolves.toEqual({
             image: 'translated',
-            lines, sourceText: 'Hello', translatedText: '你好', service: 'google', serviceName: '谷歌翻译', model: '', mode: 'standard', warnings: ['standard-quality'],
+            lines, sourceText: 'Hello', translatedText: '你好', service: 'google', serviceName: '谷歌翻译', model: '', mode: 'standard', warnings: ['standard-quality'], recognitionMethod: 'ocr', recognitionFallback: 'unknown',
         });
         expect(sendMessage).toHaveBeenCalledWith({
             type: 'fluentReadAreaTranslateCapture',

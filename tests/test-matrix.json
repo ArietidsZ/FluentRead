@@ -28,7 +28,8 @@
       "tests/userscriptPrivacy.test.ts",
       "tests/userscriptViteConfig.test.ts",
       "tests/freeTranslationSettings.test.ts",
-      "tests/writingBackground.test.ts"
+      "tests/writingBackground.test.ts",
+      "tests/requestLimitSettings.test.ts"
     ],
     "unit": [
       "tests/modalDialogHost.test.ts",
@@ -95,6 +96,7 @@
       "tests/inputTranslationConfig.test.ts",
       "tests/inputTranslationBackground.test.ts",
       "tests/interfaceAppearance.test.ts",
+      "tests/interfaceFonts.test.ts",
       "tests/usePopupLayoutReorder.test.ts",
       "tests/legacyPageCache.test.ts",
       "tests/liveTextTranslation.test.ts",
@@ -126,6 +128,7 @@
       "tests/selectionTtsContentController.test.ts",
       "tests/selectionTtsProtocol.test.ts",
       "tests/serviceCatalog.test.ts",
+      "tests/cloudVendorCatalog.test.ts",
       "tests/siteRules.test.ts",
       "tests/shadowUi.test.ts",
       "tests/tabTranslationState.test.ts",
@@ -180,6 +183,7 @@
       "tests/videoAiSubtitleCache.test.ts",
       "tests/videoPlayerLocator.test.ts",
       "tests/videoPlayerBinding.test.ts",
+      "tests/videoSubtitleViewport.test.ts",
       "tests/qqMailFrameHandlers.test.ts",
       "tests/qqMailFrameSession.test.ts",
       "tests/fullPageStateNotification.test.ts",
@@ -205,14 +209,22 @@
       "tests/freeFallback.test.ts",
       "tests/modelCacheRemoval.test.ts",
       "tests/writingCore.test.ts",
+      "tests/writingPreview.test.ts",
+      "tests/writingEntryPlacement.test.ts",
       "tests/writingReference.test.ts",
       "tests/writingEditors.test.ts",
       "tests/writingMarkdown.test.ts",
-      "tests/translationToolbarStatus.test.ts"
+      "tests/translationToolbarStatus.test.ts",
+      "tests/visionConfig.test.ts",
+      "tests/translationVisionPayload.test.ts",
+      "tests/requestLimits.test.ts",
+      "tests/fullPageModalPriority.test.ts",
+      "tests/modalProgressHint.test.ts"
     ],
     "functional": [
       "tests/settingsCompositionAutosave.test.ts",
       "tests/chineseTranslationProviders.test.ts",
+      "tests/cloudVendorProviders.test.ts",
       "tests/aiSdkOpenAICompatible.test.ts",
       "tests/config.test.ts",
       "tests/configAutoBackupStore.test.ts",
@@ -270,7 +282,11 @@
       "tests/writingIntegration.test.ts",
       "tests/popupActions.test.ts",
       "tests/areaTranslationRecovery.test.ts",
-      "tests/backgroundBadgeRuntime.test.ts"
+      "tests/areaTranslationTrigger.test.ts",
+      "tests/backgroundBadgeRuntime.test.ts",
+      "tests/translationVisionProviders.test.ts",
+      "tests/translationVisionBroker.test.ts",
+      "tests/areaVisionRecognition.test.ts"
     ],
     "regression": [
       "tests/translationControlOwnership.test.ts",
@@ -279,6 +295,7 @@
       "tests/documentTranslationRegression.test.ts",
       "tests/documentTranslationEdge.test.ts",
       "tests/fullPageTranslationProgress.test.ts",
+      "tests/fullPageTitleTranslation.test.ts",
       "tests/featureVerticalSliceRegression.test.ts",
       "tests/fullPageVisibilityScheduling.test.ts",
       "tests/mainWorldBridgeCore.test.ts",
@@ -287,7 +304,9 @@
       "tests/siteTranslationIdle.test.ts",
       "tests/translationDocumentCorpus.test.ts",
       "tests/translationTruncation.test.ts",
+      "tests/translationHeightLayout.test.ts",
       "tests/userscriptCredentialPersistence.test.ts",
+      "tests/userscriptDexieIsolation.test.ts",
       "tests/vocabularyBookComponentLifecycle.test.ts",
       "tests/allNodesTranslationCore.test.ts"
     ]

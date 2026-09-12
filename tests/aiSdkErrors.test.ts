@@ -73,6 +73,17 @@ describe('AI SDK provider error normalization', () => {
         expect(error.message).not.toContain(apiKey);
     });
 
+    it('清洗 provider 详情中的图片 data URL', () => {
+        const image = 'data:image/png;base64,iVBORw0KGgoAAAAAAAA=';
+        const error = normalizeAiSdkError(services.custom, apiError({
+            statusCode: 400,
+            data: {error: {message: `image payload ${image}`}},
+        }));
+
+        expect(error.message).toContain('[已隐藏的图片]');
+        expect(error.message).not.toContain(image);
+    });
+
     it('保留 MiniMax 专用凭据诊断', () => {
         const error = normalizeAiSdkError(services.minimax, apiError({
             statusCode: 401,

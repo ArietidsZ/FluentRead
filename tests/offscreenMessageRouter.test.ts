@@ -15,6 +15,7 @@ const mocks = {
     stop: vi.fn(() => true),
     translate: vi.fn(async () => '译文'),
     translateArea: vi.fn(async () => ({image: 'area', lines: []})),
+    cropArea: vi.fn(async () => ({image: 'crop', lines: []})),
     translateImage: vi.fn(async () => ({image: 'translated', lines: []})),
 };
 
@@ -25,6 +26,7 @@ const listener = createOffscreenMessageListener({
     fetchImage: mocks.fetchImage,
     translateImage: mocks.translateImage,
     translateArea: mocks.translateArea,
+    cropArea: mocks.cropArea,
     downloadOcrLanguages: mocks.downloadOcrLanguages,
 });
 
@@ -49,6 +51,7 @@ describe('Offscreen 消息静态路由', () => {
         mocks.fetchImage.mockResolvedValue('data:image/png;base64,remote');
         mocks.translateImage.mockResolvedValue({image: 'translated', lines: []});
         mocks.translateArea.mockResolvedValue({image: 'area', lines: []});
+        mocks.cropArea.mockResolvedValue({image: 'crop', lines: []});
         mocks.downloadOcrLanguages.mockResolvedValue(undefined);
     });
 
@@ -63,6 +66,15 @@ describe('Offscreen 消息静态路由', () => {
         await expect(dispatch({type: OFFSCREEN_READY_MESSAGE_TYPE}))
             .resolves.toEqual({handled: true, response: {success: true, ready: true}});
         expect(Object.values(mocks).every(mock => mock.mock.calls.length === 0)).toBe(true);
+    });
+
+    it('区域裁剪依赖缺失时返回明确不可用响应', async () => {
+        const withoutCrop = createOffscreenMessageListener({
+            ...mocks, cropArea: undefined, ttsPlayer: {play: mocks.play, stop: mocks.stop},
+        });
+        await expect(dispatch({type: 'FLUENT_READ_AREA_CROP_OFFSCREEN', image: 'data:image/png,x', selection: {
+            left: 0, top: 0, width: 10, height: 10, viewportWidth: 20, viewportHeight: 20,
+        }}, withoutCrop)).resolves.toEqual({handled: true, response: {success: false, error: '区域裁剪不可用'}});
     });
 
     it('TTS 只接收 offscreen target，并统一返回成功或错误', async () => {
@@ -336,6 +348,15 @@ describe('Offscreen 消息静态路由', () => {
         expect((await dispatch({
             type: 'FLUENT_READ_AREA_TRANSLATE_OFFSCREEN', image: 'data:image/png,image', sourceLanguage: 'en', selection,
         })).response).toEqual({success: false, error: '区域翻译结果无效'});
+    });
+
+    it('区域 crop-only 路由校验并传递 requestId', async () => {
+        const selection = {left: 0, top: 1, width: 2, height: 3, viewportWidth: 100, viewportHeight: 80};
+        await expect(dispatch({type: 'FLUENT_READ_AREA_CROP_OFFSCREEN', image: 'data:image/png,image', selection, requestId: 'crop-1'}))
+            .resolves.toEqual({handled: true, response: {success: true, image: 'crop', lines: []}});
+        expect(mocks.cropArea).toHaveBeenCalledWith('data:image/png,image', selection, expect.any(AbortSignal), 'crop-1');
+        await expect(dispatch({type: 'FLUENT_READ_AREA_CROP_OFFSCREEN', image: 'data:image/png,image', selection: null})).resolves
+            .toMatchObject({response: {success: false}});
     });
 
     it('OCR 下载拒绝非数组和未知语言，并去重有效语言', async () => {

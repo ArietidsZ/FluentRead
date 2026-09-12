@@ -102,6 +102,7 @@ function inputBoxTranslationConnectionKey(value: InputTranslationContentConfig):
         service,
         model: serviceValue('model'),
         customModel: serviceValue('customModel'),
+        serviceRegion: serviceValue('serviceRegion'),
         modelThinking: serviceValue('modelThinking'),
         requireApiKey: Object.keys(selectedRequireApiKey).length ? selectedRequireApiKey : undefined,
         proxy: serviceValue('proxy'),

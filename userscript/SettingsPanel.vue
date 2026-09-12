@@ -1,5 +1,5 @@
 <template>
-  <div class="fr-userscript-settings-backdrop" :class="{ dark: isDark }" role="presentation" @click.self="close">
+  <div ref="menuContainer" class="fr-userscript-settings-backdrop" :class="{ dark: isDark }" role="presentation" @click.self="close">
     <section class="fr-userscript-settings" role="dialog" aria-modal="true" aria-labelledby="fr-userscript-settings-title">
       <header>
         <div class="brand">
@@ -17,19 +17,19 @@
         <fieldset>
           <legend>基础设置</legend>
           <label class="toggle"><span>启用 FluentRead</span><input v-model="draft.on" type="checkbox" /></label>
-          <label><span>源语言</span><select v-model="draft.from"><option v-for="item in options.from" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
-          <label><span>目标语言</span><select v-model="draft.to"><option v-for="item in options.to" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
-          <label><span>译文显示</span><select v-model.number="draft.display"><option v-for="item in options.display" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
-          <label><span>双语样式</span><select v-model.number="draft.style"><option v-for="item in styleOptions" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
+          <label><span>源语言</span><UiSelect v-model="draft.from" :append-to="menuContainer" filterable aria-label="源语言"><ElOption v-for="item in options.from" :key="item.value" :value="item.value" :label="item.label" /></UiSelect></label>
+          <label><span>目标语言</span><UiSelect v-model="draft.to" :append-to="menuContainer" filterable aria-label="目标语言"><ElOption v-for="item in options.to" :key="item.value" :value="item.value" :label="item.label" /></UiSelect></label>
+          <label><span>译文显示</span><UiSelect v-model="draft.display" :append-to="menuContainer" aria-label="译文显示"><ElOption v-for="item in options.display" :key="item.value" :value="item.value" :label="item.label" /></UiSelect></label>
+          <label><span>双语样式</span><UiSelect v-model="draft.style" :append-to="menuContainer" aria-label="双语样式"><ElOption v-for="item in styleOptions" :key="item.value" :value="item.value" :label="item.label" /></UiSelect></label>
           <label class="toggle"><span>打开网页后自动翻译</span><input v-model="draft.autoTranslate" type="checkbox" /></label>
           <label class="toggle"><span>使用翻译缓存</span><input v-model="draft.useCache" type="checkbox" /></label>
         </fieldset>
 
         <fieldset>
           <legend>翻译服务</legend>
-          <label><span>服务</span><select v-model="draft.service"><option v-for="item in serviceOptions" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
+          <label><span>服务</span><UiSelect v-model="draft.service" :append-to="menuContainer" filterable search-placeholder="搜索翻译服务" aria-label="服务"><ElOption v-for="item in serviceOptions" :key="item.value" :value="item.value" :label="item.label" /></UiSelect></label>
           <p v-if="serviceDescription" class="hint">{{ serviceDescription }}</p>
-          <label v-if="usesModel"><span>模型</span><select v-model="selectedServiceModel"><option v-for="model in modelOptions" :key="model" :value="model">{{ model }}</option></select></label>
+          <label v-if="usesModel"><span>模型</span><UiSelect v-model="selectedServiceModel" :append-to="menuContainer" filterable aria-label="模型"><ElOption v-for="model in modelOptions" :key="model" :value="model" :label="model" /></UiSelect></label>
           <div v-if="usesModel" class="model-add-control">
             <button v-if="selectedModelIsRemovable" type="button" class="inline-action is-danger" @click="removeSelectedCustomModel">
               {{ isCustomOpenAIService ? '删除当前模型' : '删除当前自定义模型' }}
@@ -46,7 +46,7 @@
           </div>
           <label v-if="isAIService && usesToken" class="toggle"><span>当前模型需要 API Key</span><input v-model="requiresApiKey" type="checkbox" /></label>
           <label v-if="usesToken"><span>API Key / Token</span><input v-model.trim="draft.token[draft.service]" type="password" autocomplete="off" /></label>
-          <label v-if="draft.service === services.deepL"><span>DeepL API 套餐</span><select v-model="draft.deeplApiPlan"><option value="free">API Free（免费）</option><option value="pro">API Pro（付费）</option></select></label>
+          <label v-if="draft.service === services.deepL"><span>DeepL API 套餐</span><UiSelect v-model="draft.deeplApiPlan" :append-to="menuContainer" aria-label="DeepL API 套餐"><ElOption value="free" label="API Free（免费）" /><ElOption value="pro" label="API Pro（付费）" /></UiSelect></label>
           <p v-if="draft.service === services.deepL" class="hint">选择与 API Key 对应的套餐；代理地址优先于套餐默认接口。</p>
           <label v-if="isCustomOpenAIService"><span>自定义接口地址</span><input v-model.trim="customOpenAIEndpoint" inputmode="url" :maxlength="MAX_CUSTOM_OPENAI_PROVIDER_ENDPOINT_LENGTH" /></label>
           <label v-if="draft.service === services.deeplx"><span>DeepLX 地址</span><input v-model.trim="draft.deeplx" inputmode="url" /></label>
@@ -88,39 +88,39 @@
           <legend>页面交互</legend>
           <label class="toggle"><span>显示全文翻译悬浮球</span><input v-model="floatingBallEnabled" type="checkbox" /></label>
           <label class="toggle"><span>显示翻译进度面板</span><input v-model="draft.translationProgressPanelEnabled" type="checkbox" /></label>
-          <label><span>全文快捷键</span><select v-model="draft.floatingBallHotkey"><option v-for="item in options.floatingBallHotkeys" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
-          <label><span>全文翻译范围</span><select v-model="draft.fullPageTranslationMode"><option value="viewport">按阅读进度（推荐）</option><option value="all">立即翻译到网页底部</option></select></label>
+          <label><span>全文快捷键</span><UiSelect v-model="draft.floatingBallHotkey" :append-to="menuContainer" aria-label="全文快捷键"><ElOption v-for="item in options.floatingBallHotkeys" :key="item.value" :value="item.value" :label="item.label" /></UiSelect></label>
+          <label><span>全文翻译范围</span><UiSelect v-model="draft.fullPageTranslationMode" :append-to="menuContainer" aria-label="全文翻译范围"><ElOption value="viewport" label="按阅读进度（推荐）" /><ElOption value="all" label="立即翻译到网页底部" /></UiSelect></label>
           <p class="hint">“立即翻译到网页底部”会处理当前已加载的整页内容，并持续翻译之后新增的内容；它不会自动滚动页面，但可能产生更多请求。</p>
-          <label><span>悬浮翻译触发</span><select v-model="draft.hotkey"><option v-for="item in hoverOptions" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
-          <label><span>划词翻译</span><select v-model="draft.selectionTranslatorMode"><option value="disabled">关闭</option><option value="bilingual">原文 + 译文</option><option value="translation-only">仅译文</option></select></label>
-          <label v-if="draft.selectionTranslatorMode !== 'disabled'"><span>划词触发</span><select v-model="draft.selectionTranslatorTrigger"><option value="direct">直接显示</option><option value="icon">翻译图标</option><option value="dot">小圆点</option></select></label>
+          <label><span>悬浮翻译触发</span><UiSelect v-model="draft.hotkey" :append-to="menuContainer" aria-label="悬浮翻译触发"><ElOption v-for="item in hoverOptions" :key="item.value" :value="item.value" :label="item.label" /></UiSelect></label>
+          <label><span>划词翻译</span><UiSelect v-model="draft.selectionTranslatorMode" :append-to="menuContainer" aria-label="划词翻译"><ElOption value="disabled" label="关闭" /><ElOption value="bilingual" label="原文 + 译文" /><ElOption value="translation-only" label="仅译文" /></UiSelect></label>
+          <label v-if="draft.selectionTranslatorMode !== 'disabled'"><span>划词触发</span><UiSelect v-model="draft.selectionTranslatorTrigger" :append-to="menuContainer" aria-label="划词触发"><ElOption value="direct" label="直接显示" /><ElOption value="icon" label="翻译图标" /><ElOption value="dot" label="小圆点" /></UiSelect></label>
           <label><span>并发翻译数</span><input v-model.number="draft.maxConcurrentTranslations" type="number" min="1" max="20" /></label>
           <label class="toggle"><span>界面动画</span><input v-model="draft.animations" type="checkbox" /></label>
           <label>
             <span>段落加载样式</span>
             <div class="translation-loading-style-control">
-              <select v-model="draft.translationLoadingStyle" :disabled="!draft.animations"><option v-for="item in translationLoadingStyleOptions" :key="item.value" :value="item.value">{{ item.label }}</option></select>
+              <UiSelect v-model="draft.translationLoadingStyle" :append-to="menuContainer" :disabled="!draft.animations" aria-label="段落加载样式"><ElOption v-for="item in translationLoadingStyleOptions" :key="item.value" :value="item.value" :label="item.label" /></UiSelect>
               <span class="translation-loading-style-reference" aria-label="当前动画参考" :title="selectedTranslationLoadingStyle?.description">
                 <i aria-hidden="true" />
                 <TranslationLoadingPreview :loading-style="draft.translationLoadingStyle" :animated="draft.animations" />
               </span>
             </div>
           </label>
-          <label><span>主题</span><select v-model="draft.theme"><option v-for="item in options.theme" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
+          <label><span>主题</span><UiSelect v-model="draft.theme" :append-to="menuContainer" aria-label="主题"><ElOption v-for="item in options.theme" :key="item.value" :value="item.value" :label="item.label" /></UiSelect></label>
         </fieldset>
 
         <fieldset>
           <legend>输入框翻译</legend>
           <p class="hint">独立设置输入框的触发方式和翻译偏好。普通文本输入框可用，密码框和富文本编辑器不参与。</p>
-          <label><span>触发方式</span><select v-model="draft.inputBoxTranslationTrigger"><option v-for="item in options.inputBoxTranslationTrigger" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
+          <label><span>触发方式</span><UiSelect v-model="draft.inputBoxTranslationTrigger" :append-to="menuContainer" aria-label="输入框翻译触发方式"><ElOption v-for="item in options.inputBoxTranslationTrigger" :key="item.value" :value="item.value" :label="item.label" /></UiSelect></label>
           <template v-if="draft.inputBoxTranslationTrigger !== 'disabled'">
             <template v-if="draft.inputBoxTranslationTrigger.startsWith('triple_')">
-              <label><span>三击间隔（毫秒）</span><input v-model.number="draft.inputBoxTranslationInterval" type="number" min="200" max="2000" step="50" /></label>
+              <label><span>三击间隔（毫秒）</span><input v-model.number="draft.inputBoxTranslationInterval" type="number" min="200" max="2000" step="1" /></label>
               <p class="hint">相邻两次按键最多等待此时长；默认 1000 毫秒。</p>
               <button type="button" @click="draft.inputBoxTranslationInterval = 1000">恢复默认间隔</button>
             </template>
-            <label><span>目标语言</span><select v-model="draft.inputBoxTranslationTarget"><option v-for="item in options.inputBoxTranslationTarget" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
-            <label><span>输入框翻译服务</span><select v-model="draft.inputBoxTranslationService" @change="draft.inputBoxTranslationModel = ''"><option v-for="item in serviceOptions" :key="item.value" :value="item.value">{{ item.label }}</option></select></label>
+            <label><span>目标语言</span><UiSelect v-model="draft.inputBoxTranslationTarget" :append-to="menuContainer" filterable aria-label="输入框目标语言"><ElOption v-for="item in options.inputBoxTranslationTarget" :key="item.value" :value="item.value" :label="item.label" /></UiSelect></label>
+            <label><span>输入框翻译服务</span><UiSelect v-model="draft.inputBoxTranslationService" :append-to="menuContainer" filterable aria-label="输入框翻译服务" @change="draft.inputBoxTranslationModel = ''"><ElOption v-for="item in serviceOptions" :key="item.value" :value="item.value" :label="item.label" /></UiSelect></label>
             <p class="hint">使用该服务已保存的连接设置。</p>
             <label v-if="servicesType.isUseModel(draft.inputBoxTranslationService)"><span>输入框翻译模型</span><input v-model="draft.inputBoxTranslationModel" :list="inputModelListId" placeholder="留空使用该服务的默认模型" /></label>
             <datalist :id="inputModelListId"><option v-for="model in inputModelOptions" :key="model" :value="model" /></datalist>
@@ -173,6 +173,8 @@ import {FREE_TRANSLATION_PROVIDERS} from '@/src/core/config/freeTranslation';
 import {Config} from '@/src/core/config/model';
 import {translationLoadingStyleOptions} from '@/src/core/config/translationLoadingStyle';
 import TranslationLoadingPreview from '@/src/ui/components/TranslationLoadingPreview.vue';
+import UiSelect from '@/src/ui/components/UiSelect.vue';
+import {ElOption} from 'element-plus';
 import {config as runtimeConfig, configReady, saveConfig} from '@/src/services/config/store';
 import {customModelString, models, options, resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
 import {supportsInputBoxTranslationPrompt} from '@/src/core/config/inputTranslation';
@@ -203,6 +205,7 @@ import {
 const emit = defineEmits<{close: []}>();
 const versionLabel = `FluentRead V${process.env.VUE_APP_VERSION} · Userscript V${process.env.VUE_APP_USERSCRIPT_VERSION}`;
 const iconUrl = globalThis.__FLUENTREAD_ICON_DATA__ || '';
+const menuContainer = ref<HTMLElement>();
 const draft = ref(new Config());
 const hydrated = ref(false);
 const fallbackLabel = (id: string) => FREE_TRANSLATION_PROVIDERS.find(item => item.id === id)?.label || id;
@@ -503,7 +506,7 @@ async function togglePageTranslation(): Promise<void> {
 .fallback-order-row > button { padding: 5px 9px; border-radius: 6px; }
 .fallback-order-row > button:disabled { opacity: .4; cursor: default; }
 
-.fr-userscript-settings-backdrop { position: fixed; inset: 0; z-index: 2147483647; display: grid; width: 100vw; height: 100vh; padding: 22px; place-items: center; box-sizing: border-box; background: rgba(20, 24, 34, .48); color: #182033; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif; pointer-events: auto; backdrop-filter: blur(8px); }
+.fr-userscript-settings-backdrop { --brand: #ef4776; --brand-strong: #d93d6b; --brand-soft: #fff0f4; --line: #e5e8ef; --ink: #182033; --surface: #fff; --surface-soft: #f7f8fb; --muted: #737c8f; position: fixed; inset: 0; z-index: 2147483647; display: grid; width: 100vw; height: 100vh; padding: 22px; place-items: center; box-sizing: border-box; background: rgba(20, 24, 34, .48); color: var(--ink); font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif; pointer-events: auto; backdrop-filter: blur(8px); }
 .fr-userscript-settings { display: flex; width: min(980px, calc(100vw - 32px)); max-height: min(900px, calc(100vh - 32px)); overflow: hidden; border: 1px solid rgba(25, 35, 54, .12); border-radius: 22px; background: #f7f8fb; box-shadow: 0 28px 90px rgba(15, 20, 32, .32); flex-direction: column; }
 header, footer { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 20px; background: #fff; }
 header { border-bottom: 1px solid #e5e8ef; }
@@ -547,7 +550,7 @@ footer button { padding: 9px 13px; border-radius: 9px; font-size: 11px; font-wei
 .primary:disabled { opacity: .55; cursor: wait; }
 .status { min-height: 16px; color: #2c7a55; font-size: 10px; }
 .status.error { color: #b72f4e; }
-.dark { color: #f2f3f7; }
+.dark { --brand: #ff7097; --brand-strong: #ff9ab5; --brand-soft: #4d2d3a; --line: #50535f; --ink: #f2f3f7; --surface: #30323c; --surface-soft: #3a3d47; --muted: #bdc1cb; color: var(--ink); }
 .dark .fr-userscript-settings { border-color: #444754; background: #272932; }
 .dark header, .dark footer, .dark fieldset, .dark details { border-color: #444754; background: #30323c; }
 .dark .notice { border-color: #6f4654; background: #3b2e35; color: #f0c0d0; }

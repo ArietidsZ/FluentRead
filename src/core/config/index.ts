@@ -16,6 +16,7 @@ export * from './interfaceAppearance';
 export * from './inputTranslation';
 export * from './model';
 export * from './quickTranslation';
+export * from './requestLimits';
 export * from './selectionTts';
 export * from './translationLoadingStyle';
 export * from './transfer';
