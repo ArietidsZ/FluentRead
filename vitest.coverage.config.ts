@@ -554,6 +554,7 @@ export default defineConfig({
                 'src/core/translation/registry.ts',
                 'src/core/translation/serialization.ts',
                 'src/core/translation/text.ts',
+                'src/core/translation/visual.ts',
                 'src/core/config/pageTranslation.ts',
                 'src/core/translation/languages.ts',
                 'src/core/translation/prompts.ts',
