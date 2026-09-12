@@ -178,6 +178,7 @@
       "tests/videoAiSubtitleCache.test.ts",
       "tests/videoPlayerLocator.test.ts",
       "tests/videoPlayerBinding.test.ts",
+      "tests/videoSubtitleViewport.test.ts",
       "tests/qqMailFrameHandlers.test.ts",
       "tests/qqMailFrameSession.test.ts",
       "tests/fullPageStateNotification.test.ts",
