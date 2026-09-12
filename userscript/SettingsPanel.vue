@@ -56,17 +56,18 @@
           </template>
           <details v-if="draft.service === services.freeTranslation">
             <summary>自动降级顺序与连接设置</summary>
-            <p class="hint">所有后备均无需密钥，按顺序切换并至少保留一路。MyMemory 邮箱可留空；微软、DeepLX 和谷歌网页接口不是官方公开 API。</p>
+            <p class="hint">所有后备均无需密钥。自动均衡由后台根据成功率、响应耗时和近期错误动态分配；默认优先微软。至少保留一路。MyMemory 邮箱可留空。</p>
+            <label><span>选择模式</span><select v-model="draft.freeTranslationMode" aria-label="免费翻译选择模式"><option value="balanced">自动均衡</option><option value="sequential">优先顺序</option></select></label>
             <div v-for="(id, index) in draft.freeTranslationOrder" :key="id" class="fallback-order-row">
               <span>{{ fallbackLabel(id) }}</span>
-              <button type="button" :disabled="index === 0" :aria-label="`上移 ${fallbackLabel(id)}`" @click="moveFallback(index, -1)">↑</button>
-              <button type="button" :disabled="index === draft.freeTranslationOrder.length - 1" :aria-label="`下移 ${fallbackLabel(id)}`" @click="moveFallback(index, 1)">↓</button>
+              <button v-if="draft.freeTranslationMode === 'sequential'" type="button" :disabled="index === 0" :aria-label="`上移 ${fallbackLabel(id)}`" @click="moveFallback(index, -1)">↑</button>
+              <button v-if="draft.freeTranslationMode === 'sequential'" type="button" :disabled="index === draft.freeTranslationOrder.length - 1" :aria-label="`下移 ${fallbackLabel(id)}`" @click="moveFallback(index, 1)">↓</button>
               <button type="button" :disabled="draft.freeTranslationOrder.length === 1" @click="draft.freeTranslationOrder = draft.freeTranslationOrder.filter(value => value !== id)">停用</button>
             </div>
             <label v-for="item in availableFallbacks" :key="item.id"><span>{{ item.label }}</span><button type="button" @click="draft.freeTranslationOrder.push(item.id)">加入后备</button></label>
             <label><span>MyMemory 邮箱（可选）</span><input v-model.trim="draft.myMemoryEmail" type="email" /></label>
             <label><span>每路超时（ms）</span><input v-model.number="draft.freeTranslationTimeoutMs" type="number" min="1000" max="15000" step="1000" /></label>
-            <label><span>失败后休息（ms）</span><input v-model.number="draft.freeTranslationCooldownMs" type="number" min="1000" max="300000" step="1000" /></label>
+            <p class="hint">失败后自动暂停服务：网络问题通常几分钟后重试，限流遵循服务提示，访问受阻等待数小时，日额度耗尽约一天后重试。暂停记录保存在本地。</p>
           </details>
           <label v-if="draft.service === services.newapi"><span>New API 地址</span><input v-model.trim="draft.newApiUrl" inputmode="url" /></label>
           <label v-if="draft.service === services.azureOpenai"><span>Azure 地址</span><input v-model.trim="draft.azureOpenaiEndpoint" inputmode="url" placeholder="https://your-resource.services.ai.azure.com/openai/v1/" /></label>
@@ -464,6 +465,8 @@ async function togglePageTranslation(): Promise<void> {
 <style scoped>
 .fallback-order-row { display: flex; align-items: center; gap: 6px; padding: 8px 0; }
 .fallback-order-row > span { flex: 1; min-width: 0; }
+.fallback-order-row input[type='number'] { flex: 0 1 72px; width: 72px; min-width: 0; }
+.fallback-order-row button { flex: none; white-space: nowrap; }
 .fallback-order-row > button { padding: 5px 9px; border-radius: 6px; }
 .fallback-order-row > button:disabled { opacity: .4; cursor: default; }
 
@@ -528,5 +531,8 @@ footer button { padding: 9px 13px; border-radius: 9px; font-size: 11px; font-wei
   footer { align-items: stretch; flex-direction: column; }
   footer > div { justify-content: stretch; }
   footer button { flex: 1; }
+  .fallback-order-row { flex-wrap: wrap; }
+  .fallback-order-row > span { flex: 1 1 100%; }
+  .fallback-order-row input[type='number'] { flex: 1 1 96px; width: auto; }
 }
 </style>

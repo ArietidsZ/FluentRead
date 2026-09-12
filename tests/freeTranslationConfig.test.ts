@@ -3,7 +3,7 @@ import {Config, normalizeConfig} from '@/src/core/config/model';
 import {
     DEFAULT_FREE_TRANSLATION_ORDER, FREE_TRANSLATION_PROVIDERS,
     normalizeFreeTranslationOrder, normalizeFreeTranslationTimeoutMs, normalizeFreeTranslationCooldownMs,
-    normalizeMyMemoryEmail,
+    normalizeMyMemoryEmail, normalizeFreeTranslationMode,
 } from '@/src/core/config/freeTranslation';
 import {sanitizeConfigForExport, prepareConfigForImport} from '@/src/core/config/transfer';
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
@@ -19,7 +19,7 @@ describe('keyless free translation configuration', () => {
             .toEqual(['myMemory', 'google']);
         expect(normalizeConfig({freeTranslationOrder: ['myMemory']}).freeTranslationOrder).toEqual(['myMemory']);
         expect(FREE_TRANSLATION_PROVIDERS.find(item => item.id === 'myMemory')?.official).toBe(true);
-        expect(FREE_TRANSLATION_PROVIDERS.map(item => item.id)).toEqual(['microsoft', 'deeplx', 'google', 'myMemory', 'transmart', 'yandexFree', 'volcengineFree']);
+        expect(FREE_TRANSLATION_PROVIDERS.map(item => item.id)).toEqual(['microsoft', 'transmart', 'volcengineFree', 'google', 'youdaoFree', 'icibaFree', 'yandexFree', 'deeplx', 'myMemory', 'sogouFree', 'reversoFree', 'lingvaFree', 'apertiumFree']);
         expect(normalizeFreeTranslationOrder(['azureTranslator', 'myMemory', 'deepL', 'openai'])).toEqual(['myMemory']);
         expect(normalizeFreeTranslationOrder(['azureTranslator', 'deepL'])).toEqual(DEFAULT_FREE_TRANSLATION_ORDER);
     });
@@ -68,4 +68,19 @@ describe('keyless free translation configuration', () => {
         expect(changes.find(item => item.key === 'freeTranslationTimeoutMs')?.after).toContain('3000');
         expect(buildConfigDiff({freeTranslationOrder: null}, {freeTranslationOrder: 'invalid'}).changeCount).toBe(1);
     });
+});
+
+ it('defaults to Microsoft-first balanced policy and rejects user supplied weights', () => {
+    expect(new Config().freeTranslationMode).toBe('balanced');
+    expect(new Config()).not.toHaveProperty('freeTranslationWeights');
+    expect(DEFAULT_FREE_TRANSLATION_ORDER[0]).toBe('microsoft');
+    expect(normalizeFreeTranslationMode('sequential')).toBe('sequential');
+    expect(normalizeFreeTranslationMode('invalid')).toBe('balanced');
+    const supplied = {freeTranslationMode: 'sequential', freeTranslationWeights: {microsoft: 0, google: 999999}};
+    const normalized = normalizeConfig(supplied);
+    expect(normalized.freeTranslationMode).toBe('sequential');
+    expect(normalized).not.toHaveProperty('freeTranslationWeights');
+    expect(sanitizeConfigForExport(normalized)).not.toHaveProperty('freeTranslationWeights');
+    const changes = buildConfigDiff({freeTranslationMode: 'balanced'}, {freeTranslationMode: 'sequential'});
+    expect(changes.changeCount).toBe(1);
 });

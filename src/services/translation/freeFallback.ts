@@ -1,88 +1,76 @@
 /**
  * @file src/services/translation/freeFallback.ts
- * 文件职责：有界免费翻译回退，共享短期冷却、并发预算和取消所有权。
- * 主要内容：协调单次超时、总截止时间、跨段恢复探测及迟到失败的代际保护。
- * 模块边界：只接收 provider 回调与不含凭据的身份摘要，不读取配置或发起网络请求。
+ * 文件职责：在健康免费服务间加权均衡并自动回退，持久遵守各类错误的恢复窗口。
+ * 主要内容：协调总预算、单次超时、服务并发与间隔、错误退避、恢复单探测、持久化及取消代际保护。
+ * 模块边界：只接收匿名身份、provider 回调和注入的存储端口；不读取用户配置或供应商凭据。
  */
 import {abortErrorFromSignal} from '@/src/platform/http/runtime';
+import {FREE_TRANSLATION_TOTAL_TIMEOUT_MS} from '@/src/core/config/freeTranslation';
+import {
+    getFreeFailureStatus, getFreeFailureCooldown, selectWeightedFreeCandidate,
+    MAX_FREE_COOLDOWN_MS, type FreeFailureCategory,
+    getDynamicFreeProviderWeight, observeFreeProviderPerformance, type FreeProviderPerformance,
+} from './freeRoutingPolicy';
 
 export interface FreeFallbackCandidate {
     readonly identity: string;
     readonly label: string;
+    readonly weight?: number;
+    readonly maxConcurrency?: number;
+    readonly minIntervalMs?: number;
     readonly translate: (signal: AbortSignal) => Promise<unknown>;
 }
-
 export interface FreeFallbackOptions {
     readonly signal?: AbortSignal;
     readonly timeoutMs: number;
     readonly cooldownMs: number;
-    /** 同一批次共享绝对截止时间，排队与所有备用服务共同消费预算。 */
+    readonly mode?: 'balanced' | 'sequential';
+    /** 同一批次共享截止时间，排队与各备用服务共同消费预算。 */
     readonly deadline?: number;
 }
-
+export interface PersistedFreeHealth {
+    identity: string;
+    retryAt: number;
+    failures: number;
+    category: FreeFailureCategory;
+    performance?: FreeProviderPerformance;
+}
+export interface FreeHealthPersistence {
+    load(): Promise<unknown>;
+    save(entries: readonly PersistedFreeHealth[]): Promise<void>;
+}
+export interface FreeFallbackDependencies {
+    readonly random?: () => number;
+    readonly persistence?: FreeHealthPersistence;
+}
 interface Health {
     retryAt: number;
-    /** 成功递增，令成功前已启动请求的迟到失败失去熔断权限。 */
     generation: number;
     probing: boolean;
+    failures: number;
+    category: FreeFailureCategory;
+    active: number;
+    nextAttemptAt: number;
+    performance?: FreeProviderPerformance;
 }
-
-class AttemptTimeoutError extends Error {
-    constructor() { super('请求超时'); }
-}
-
-class InvalidTranslationError extends Error {
-    constructor() { super('未返回有效译文'); }
-}
-
-function statusCode(error: unknown): number | undefined {
-    if (!error || typeof error !== 'object') return undefined;
-    const candidate = error as {statusCode?: unknown; status?: unknown};
-    const status = candidate.statusCode ?? candidate.status;
-    return typeof status === 'number' && Number.isInteger(status) && status >= 100 && status <= 599
-        ? status : undefined;
-}
-
-function isCancellation(error: unknown): boolean {
-    return error instanceof Error && error.name === 'AbortError';
-}
-
-function shouldCoolDown(error: unknown): boolean {
-    const status = statusCode(error);
-    // 参数、文本长度和不支持的语言属于该请求，不能熔断其他段落。
-    return status === undefined || status >= 500 || [401, 403, 408, 429, 456].includes(status);
-}
+class AttemptTimeoutError extends Error { constructor() { super('请求超时'); } }
+class InvalidTranslationError extends Error { constructor() { super('未返回有效译文'); } }
 
 function safeFailure(error: unknown): string {
-    const status = statusCode(error);
+    const status = getFreeFailureStatus(error);
     if (status !== undefined) return `HTTP ${status}`;
     if (error instanceof AttemptTimeoutError || error instanceof InvalidTranslationError) return error.message;
-    // 不传播 transport/代理错误正文，它可能包含原文、完整 URL 或密钥。
     return '请求失败';
 }
 
-/** 即使不合规 transport 忽略 signal，也让调用方按预算结束；迟到结果不再改变健康状态。 */
-async function runAttempt(
-    candidate: FreeFallbackCandidate,
-    timeoutMs: number,
-    signal?: AbortSignal,
-): Promise<string> {
+async function runAttempt(candidate: FreeFallbackCandidate, timeoutMs: number, signal?: AbortSignal): Promise<string> {
     const controller = new AbortController();
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let onAbort: (() => void) | undefined;
+    let timer: ReturnType<typeof setTimeout>;
+    let onAbort: () => void;
     const result = new Promise<string>((resolve, reject) => {
-        onAbort = () => {
-            const error = abortErrorFromSignal(signal);
-            reject(error);
-            controller.abort(error);
-        };
+        onAbort = () => { reject(abortErrorFromSignal(signal!)); controller.abort(signal?.reason); };
         signal?.addEventListener('abort', onAbort, {once: true});
-        timer = setTimeout(() => {
-            const error = new AttemptTimeoutError();
-            reject(error);
-            controller.abort(error);
-        }, timeoutMs);
-        // Promise.resolve 包住同步 throw；超时后的 resolve/reject 都会被该 Promise 忽略。
+        timer = setTimeout(() => { reject(new AttemptTimeoutError()); controller.abort(); }, timeoutMs);
         Promise.resolve().then(() => {
             if (controller.signal.aborted) throw abortErrorFromSignal(controller.signal);
             return candidate.translate(controller.signal);
@@ -92,25 +80,47 @@ async function runAttempt(
         }, reject);
     });
     try { return await result; }
-    finally {
-        clearTimeout(timer);
-        if (onAbort) signal?.removeEventListener('abort', onAbort);
-    }
+    finally { clearTimeout(timer!); signal?.removeEventListener('abort', onAbort!); }
 }
 
-/** 每个后台实例最多保留 128 个匿名服务身份；调用方仅传入连接摘要。 */
-export function createFreeFallbackRunner(maxConcurrency = 3) {
+/** 存储故障或挂起不阻断翻译；迟到的加载值不会覆盖已开始服务的健康状态。 */
+async function boundedStorage<T>(request: Promise<T>, limitMs = 1000, signal?: AbortSignal): Promise<T | undefined> {
+    // 调用方已在同一同步段检查取消；此处只监听等待期间发生的取消。
+    let timer: ReturnType<typeof setTimeout>;
+    let onAbort: (() => void) | undefined;
+    try {
+        return await Promise.race([
+            request.catch(() => undefined),
+            new Promise<undefined>((resolve, reject) => {
+                timer = setTimeout(() => resolve(undefined), Math.max(0, limitMs));
+                onAbort = () => reject(abortErrorFromSignal(signal!));
+                signal?.addEventListener('abort', onAbort, {once: true});
+            }),
+        ]);
+    } finally { clearTimeout(timer!); if (onAbort) signal?.removeEventListener('abort', onAbort); }
+}
+
+export function createFreeFallbackRunner(maxConcurrency = 3, dependencies: FreeFallbackDependencies = {}) {
     const health = new Map<string, Health>();
     const queue: Array<() => void> = [];
-    let active = 0;
+    const availabilityWaiters = new Set<() => void>();
     const concurrency = Math.max(1, Math.floor(maxConcurrency));
+    const random = dependencies.random ?? Math.random;
+    let active = 0;
+    let previous: string | undefined;
+    let loaded: Promise<void> | undefined;
+    let saving: Promise<void> | undefined;
+    let pendingSave: readonly PersistedFreeHealth[] | undefined;
 
     function getHealth(identity: string): Health {
         let state = health.get(identity);
         if (!state) {
-            state = {retryAt: 0, generation: 0, probing: false};
+            state = {retryAt: 0, generation: 0, probing: false, failures: 0, category: 'unavailable', active: 0, nextAttemptAt: 0};
             health.set(identity, state);
-            if (health.size > 128) health.delete(health.keys().next().value!);
+            if (health.size > 128) {
+                const evict = [...health].find(([key, item]) => key !== identity && !item.active && !item.probing);
+                if (evict) health.delete(evict[0]);
+            }
         } else {
             health.delete(identity);
             health.set(identity, state);
@@ -118,8 +128,57 @@ export function createFreeFallbackRunner(maxConcurrency = 3) {
         return state;
     }
 
+    async function loadHealth(): Promise<void> {
+        loaded ??= (async () => {
+            const entries = await boundedStorage(Promise.resolve().then(() => dependencies.persistence!.load()));
+            if (!Array.isArray(entries)) return;
+            for (const entry of entries.slice(0, 128)) {
+                if (!entry || typeof entry !== 'object') continue;
+                const {identity, retryAt, failures, category, performance} = entry as Partial<PersistedFreeHealth>;
+                const validPerformance = performance && typeof performance === 'object'
+                    && Number.isFinite(performance.reliability) && performance.reliability >= 0 && performance.reliability <= 1
+                    && Number.isFinite(performance.latencyMs) && performance.latencyMs >= 1 && performance.latencyMs <= 60_000
+                    && Number.isFinite(performance.observedAt) && performance.observedAt >= 0;
+                if (typeof identity !== 'string' || !/^[a-zA-Z0-9:._-]{1,160}$/u.test(identity)
+                    || typeof retryAt !== 'number' || !Number.isFinite(retryAt) || retryAt < 0
+                    || typeof failures !== 'number' || !Number.isInteger(failures) || failures < 0 || failures > 100
+                    || (failures === 0 && !validPerformance)
+                    || !['rate-limit', 'quota', 'blocked', 'unavailable'].includes(category as string)) continue;
+                const state = getHealth(identity);
+                state.retryAt = Math.min(retryAt, Date.now() + MAX_FREE_COOLDOWN_MS);
+                state.failures = failures;
+                state.category = category!;
+                if (validPerformance) state.performance = {
+                    reliability: performance.reliability, latencyMs: performance.latencyMs,
+                    observedAt: Math.min(Date.now(), performance.observedAt),
+                };
+            }
+        })();
+        await loaded;
+    }
+
+    async function persistHealth(deadline: number, signal?: AbortSignal): Promise<void> {
+        const persistence = dependencies.persistence;
+        if (!persistence) return;
+        pendingSave = [...health].filter(([, item]) => item.failures > 0 || item.performance).slice(-128)
+            .map(([identity, item]) => ({identity, retryAt: item.retryAt, failures: item.failures, category: item.category,
+                ...(item.performance ? {performance: {...item.performance}} : {}),
+            }));
+        // 写入按变更顺序串行，旧失败不能在恢复成功之后把冷却写回磁盘。
+        // 挂起期间只保留最新快照，不为每个失败段落积累 Promise/旧状态队列。
+        saving ??= Promise.resolve().then(async () => {
+            while (pendingSave) {
+                const entries = pendingSave;
+                pendingSave = undefined;
+                try { await persistence.save(entries); } catch { /* 存储失败不阻断翻译。 */ }
+            }
+        }).finally(() => { saving = undefined; });
+        await boundedStorage(saving, Math.min(1000, deadline - Date.now()), signal);
+    }
+
     async function acquire(deadline: number, signal?: AbortSignal): Promise<() => void> {
         if (Date.now() >= deadline) throw new AttemptTimeoutError();
+        if (signal?.aborted) throw abortErrorFromSignal(signal);
         if (active >= concurrency) {
             await new Promise<void>((resolve, reject) => {
                 const cleanup = () => {
@@ -129,63 +188,103 @@ export function createFreeFallbackRunner(maxConcurrency = 3) {
                     if (index >= 0) queue.splice(index, 1);
                 };
                 const onReady = () => { cleanup(); resolve(); };
-                const onAbort = () => { cleanup(); reject(abortErrorFromSignal(signal)); };
+                const onAbort = () => { cleanup(); reject(abortErrorFromSignal(signal!)); };
                 const timer = setTimeout(() => { cleanup(); reject(new AttemptTimeoutError()); }, Math.max(1, deadline - Date.now()));
                 signal?.addEventListener('abort', onAbort, {once: true});
                 queue.push(onReady);
             });
         } else active += 1;
-        // release 将许可直接交给队首，避免微任务间隙新请求插队突破并发上限。
-        return () => {
-            const next = queue.shift();
-            if (next) next();
-            else active -= 1;
-        };
+        return () => { const next = queue.shift(); if (next) next(); else active -= 1; };
+    }
+
+    async function waitForAvailability(durationMs: number, signal?: AbortSignal): Promise<void> {
+        await new Promise<void>((resolve, reject) => {
+            const cleanup = () => { clearTimeout(timer); availabilityWaiters.delete(wake); signal?.removeEventListener('abort', onAbort); };
+            const wake = () => { cleanup(); resolve(); };
+            const onAbort = () => { cleanup(); reject(abortErrorFromSignal(signal!)); };
+            const timer = setTimeout(wake, Math.max(1, durationMs));
+            availabilityWaiters.add(wake);
+            signal?.addEventListener('abort', onAbort, {once: true});
+        });
     }
 
     return async (candidates: readonly FreeFallbackCandidate[], options: FreeFallbackOptions): Promise<string> => {
         if (options.signal?.aborted) throw abortErrorFromSignal(options.signal);
         if (!candidates.length) throw new Error('免费翻译服务均不可用：未选择可用的免密钥服务');
-        const deadline = options.deadline ?? Date.now() + options.timeoutMs * candidates.length;
+        const deadline = options.deadline ?? Date.now() + FREE_TRANSLATION_TOTAL_TIMEOUT_MS;
+        if (dependencies.persistence) await boundedStorage(loadHealth(), Math.min(1000, deadline - Date.now()), options.signal);
         const release = await acquire(deadline, options.signal);
+        const attempted = new Set<string>();
         const failures: string[] = [];
-        let attempted = false;
         try {
-            for (const candidate of candidates) {
+            while (attempted.size < new Set(candidates.map(item => item.identity)).size) {
                 if (options.signal?.aborted) throw abortErrorFromSignal(options.signal);
                 const remaining = deadline - Date.now();
                 if (remaining <= 0) throw new AttemptTimeoutError();
-                const state = getHealth(candidate.identity);
-                if (state.retryAt > Date.now() || state.probing) {
-                    failures.push(`${candidate.label}: 冷却中`);
+                const pending = candidates.filter(candidate => !attempted.has(candidate.identity));
+                const ready = pending.filter(candidate => {
+                    const state = getHealth(candidate.identity);
+                    return state.retryAt <= Date.now() && !state.probing
+                        && state.active < (candidate.maxConcurrency ?? Infinity) && state.nextAttemptAt <= Date.now();
+                });
+                if (!ready.length) {
+                    const waiting = pending.filter(candidate => getHealth(candidate.identity).retryAt <= Date.now());
+                    if (!waiting.length) break;
+                    const nextInterval = Math.min(...waiting.map(candidate => {
+                        const time = getHealth(candidate.identity).nextAttemptAt - Date.now();
+                        return time > 0 ? time : remaining;
+                    }));
+                    await waitForAvailability(Math.min(remaining, nextInterval), options.signal);
                     continue;
                 }
+                const weighted = ready.map(candidate => ({...candidate,
+                    weight: getDynamicFreeProviderWeight(candidate.weight ?? 1, getHealth(candidate.identity).performance, Date.now()),
+                }));
+                const candidate = options.mode === 'balanced' && previous
+                    ? selectWeightedFreeCandidate(weighted, random(), previous)! : weighted[0]!;
+                previous = candidate.identity;
+                attempted.add(candidate.identity);
+                const state = getHealth(candidate.identity);
                 const generation = state.generation;
-                // 过期后仅放行一个探测请求，其他请求继续备用服务。
                 const probing = state.retryAt !== 0;
                 if (probing) state.probing = true;
-                attempted = true;
+                state.active += 1;
+                state.nextAttemptAt = Date.now() + Math.max(0, candidate.minIntervalMs ?? 0);
+                const startedAt = Date.now();
                 try {
                     const result = await runAttempt(candidate, Math.min(options.timeoutMs, remaining), options.signal);
                     if (options.signal?.aborted) throw abortErrorFromSignal(options.signal);
                     state.generation += 1;
                     state.retryAt = 0;
+                    state.failures = 0;
+                    state.performance = observeFreeProviderPerformance(state.performance, true, Date.now() - startedAt, Date.now());
+                    await persistHealth(deadline, options.signal);
+                    if (options.signal?.aborted) throw abortErrorFromSignal(options.signal);
                     return result;
                 } catch (error) {
                     if (options.signal?.aborted) throw abortErrorFromSignal(options.signal);
-                    if (isCancellation(error)) throw new DOMException('The request was aborted.', 'AbortError');
-                    // 上层剩余预算不足以完成一次正常尝试，不能据此认定该服务发生故障。
+                    if (error instanceof Error && error.name === 'AbortError') throw error;
                     if (error instanceof AttemptTimeoutError && remaining < options.timeoutMs && Date.now() >= deadline) throw error;
-                    if (shouldCoolDown(error) && state.generation === generation) {
-                        state.retryAt = Date.now() + options.cooldownMs;
+                    if (state.generation === generation) {
+                        const cooldown = getFreeFailureCooldown(error, state.failures + 1, options.cooldownMs, random());
+                        if (cooldown.durationMs) {
+                            state.performance = observeFreeProviderPerformance(state.performance, false, Date.now() - startedAt, Date.now());
+                            state.generation += 1;
+                            state.retryAt = Date.now() + cooldown.durationMs;
+                            state.failures = Math.min(100, state.failures + 1);
+                            state.category = cooldown.category;
+                            await persistHealth(deadline, options.signal);
+                        }
                     }
                     failures.push(`${candidate.label}: ${safeFailure(error)}`);
                 } finally {
+                    state.active -= 1;
                     if (probing) state.probing = false;
+                    [...availabilityWaiters].forEach(wake => wake());
                 }
             }
-            const reason = attempted ? failures.join('；') : '所选服务正在冷却，请稍后重试';
-            throw new Error(`免费翻译服务均不可用（${candidates.map(item => item.label).join(' → ')}）：${reason}`);
+            const reason = failures.length ? failures.join('；') : '所选服务正在冷却，请稍后重试';
+            throw new Error(`免费翻译服务均不可用：${reason}`);
         } finally { release(); }
     };
 }

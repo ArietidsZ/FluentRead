@@ -620,7 +620,7 @@ export const options = {
         {
             value: services.freeTranslation,
             label: "免费翻译服务",
-            description: "按设置顺序自动切换可用服务；支持每路超时和失败冷却。",
+            description: "后台自动均衡可用服务；根据响应表现调整分配，失败后自动切换。",
         },
         {value: services.myMemory, label: "MyMemory", description: "官方免费 API，匿名每天 5,000 字符；可选邮箱提升额度。"},
         {value: services.microsoft, label: "微软翻译"},
