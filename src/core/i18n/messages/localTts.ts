@@ -1,4 +1,9 @@
-/** 本地 TTS 设置、运行提示和配置差异标签的完整多语言资源。 */
+/**
+ * @file src/core/i18n/messages/localTts.ts
+ * 文件职责：集中维护本地朗读设置在七种界面语言中的稳定 message key 资源。
+ * 主要内容：本地 TTS 设置、运行提示和配置差异标签的中文、英文、日文、韩文、法文、俄文与西班牙文译文，由各语言目录展开合并。
+ * 模块边界：只提供纯数据，不读取配置、不访问浏览器；非中文资源随语言资源包按需加载，中文资源进入内置默认目录。
+ */
 export const localTtsEnglishMessages = {
     "settings.localTts.title": "Local speech",
     "settings.localTts.description": "Choose where FluentRead synthesizes reading audio. Online is tried first by default; local speech is used only after its model is downloaded.",

@@ -4,18 +4,18 @@ import {
     DEFAULT_TRANSLATION_REQUEST_LIMITS,
     getModelRequestLimitPreference,
     getServiceRequestLimitPreference,
-    normalizeConfig,
     normalizeModelRequestLimits,
     normalizeRequestLimitPreference,
     normalizeServiceRequestLimits,
     normalizeTranslationRequestLimits,
     resolveRequestLimits,
-    services,
     withoutModelRequestLimit,
     withoutServiceRequestLimit,
     withModelRequestLimit,
     withServiceRequestLimit,
-} from '@/src/core/config';
+} from '@/src/core/config/requestLimits';
+import {normalizeConfig} from '@/src/core/config/model';
+import {services} from '@/src/core/config/catalog';
 
 describe('请求限流配置领域模型', () => {
     it('保留合法已有值，并将 0 作为不限速', () => {

@@ -73,7 +73,6 @@ export const LOCAL_TTS_MODEL = {
     voices: ['zf_001', 'zm_009', 'af_maple', 'bf_vale'],
 } as const;
 
-export type LocalTtsModelId = typeof LOCAL_TTS_MODEL_ID;
 export type LocalTtsVoiceId = typeof LOCAL_TTS_VOICE_OPTIONS[number]['value'];
 
 export const DEFAULT_LOCAL_TTS_MODE: LocalTtsMode = 'online-first';
@@ -106,11 +105,6 @@ export function supportsLocalTtsLanguage(value: unknown): boolean {
     return localTtsLanguageFamily(value) !== null;
 }
 
-export function localTtsVoiceLocale(value: string): 'zh-CN' | 'en-US' | 'en-GB' | null {
-    const option = LOCAL_TTS_VOICE_OPTIONS.find((item) => item.value === value);
-    return option?.value === 'auto' ? null : option?.locale || null;
-}
-
 export function localTtsVoiceForLanguage(language: unknown, preferredVoice: unknown): string {
     const family = localTtsLanguageFamily(language);
     const preferred = normalizeLocalTtsVoice(preferredVoice);
@@ -122,14 +116,4 @@ export function localTtsVoiceForLanguage(language: unknown, preferredVoice: unkn
         }
     }
     return family === 'zh' ? 'zf_001' : 'af_maple';
-}
-
-export function localTtsModeUsesLocal(mode: unknown): boolean {
-    const normalized = normalizeLocalTtsMode(mode);
-    return normalized === 'online-first' || normalized === 'local-first' || normalized === 'local-only';
-}
-
-export function localTtsModeUsesOnline(mode: unknown): boolean {
-    const normalized = normalizeLocalTtsMode(mode);
-    return normalized === 'online-first' || normalized === 'local-first' || normalized === 'online-only';
 }

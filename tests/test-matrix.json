@@ -247,7 +247,9 @@
       "tests/requestLimits.test.ts",
       "tests/fullPageModalPriority.test.ts",
       "tests/fullPagePriority.test.ts",
-      "tests/modalProgressHint.test.ts"
+      "tests/modalProgressHint.test.ts",
+      "tests/uiLanguageBundles.test.ts",
+      "tests/localTtsBackground.test.ts"
     ],
     "functional": [
       "tests/resourceSafeRunner.test.ts",
@@ -316,7 +318,8 @@
       "tests/backgroundBadgeRuntime.test.ts",
       "tests/translationVisionProviders.test.ts",
       "tests/translationVisionBroker.test.ts",
-      "tests/areaVisionRecognition.test.ts"
+      "tests/areaVisionRecognition.test.ts",
+      "tests/uiI18nBundleLoading.test.ts"
     ],
     "regression": [
       "tests/readingThemeStyles.test.ts",

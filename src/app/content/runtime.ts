@@ -11,6 +11,7 @@ import {createShadowRootUi} from 'wxt/utils/content-script-ui/shadow-root';
 import {constants} from '@/src/core/config/constants';
 import {isExtensionDisabledOnSite} from '@/src/features/site-rules/domain';
 import {config, configReady, subscribeConfig} from '@/src/services/config/store';
+import {ensureUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles';
 import {cancelAllTranslations} from '@/src/app/translation/client';
 import {resetPageTranslationContextCache} from '@/src/services/translation/context';
 import {clearLegacyPageTranslationCache} from '@/src/services/translation/legacyPageCache';
@@ -62,7 +63,8 @@ export async function startContentApp(ctx: ContentScriptContext,
         resume: () => { void pageAvailability?.reconcile(); },
         dispose: () => cleanup(),
     });
-    await configReady;
+    // 非中文界面资源是扩展内本地文件，挂载前取得可避免非响应式浮层先以中文回退渲染；中文同步命中。
+    await configReady; await ensureUiLanguageBundle(config.uiLanguage);
     if (ctx.isInvalid || cleanedUp || (document.readyState === 'loading' && !await waitForContentDocument(document, pageEventController.signal))) { cleanup(); return; }
     const siteAdaptation = createContentSiteAdaptationRuntime(config.siteAdaptation, new URL(window.location.href));
     applyCoreTranslationPreferences(config); clearLegacyPageTranslationCache();
@@ -128,11 +130,7 @@ export async function startContentApp(ctx: ContentScriptContext,
             getCenterPoint,
             handleTranslation, noteBilingualHostGesture,
             cancelPendingHoverTranslation,
-            hasActiveSelectionTranslationCandidate: hotkeys.hasActiveSelectionTranslationCandidate,
-            getConfiguredSelectionHotkey: hotkeys.getConfiguredSelectionHotkey,
-            getCustomSelectionHotkey: () => config.customSelectionTranslatorHotkey,
-            matchesSelectionTranslatorShortcut: hotkeys.matchesSelectionTranslatorShortcut,
-            shouldReserveSelectionShortcut: hotkeys.shouldReserveSelectionShortcut,
+            ...hotkeys.selectionShortcutPorts,
         }, activationController.signal);
         const resetFullPageKeyboardGesture = hotkeys.installFloatingBallHotkey(activationController.signal);
         mountConfiguredQuickTranslation(config, hotkeys, () => currentPageSiteDisabled, activationController.signal,
@@ -230,8 +228,7 @@ export async function startContentApp(ctx: ContentScriptContext,
         setMainWorldBridgesEnabled(document, false);
         if (runtimeMessageListener) browser.runtime.onMessage.removeListener(runtimeMessageListener);
         disposePageFeatures();
-        unsubscribeContentConfig?.();
-        unsubscribeContentConfig = null;
+        unsubscribeContentConfig?.(); unsubscribeContentConfig = null;
     };
     runtimeMessageListener = createContentRuntimeMessageHandler(ctx, {
         isSiteDisabled: () => currentPageSiteDisabled, updateSiteDisabled: applySiteDisabledState,
@@ -240,7 +237,8 @@ export async function startContentApp(ctx: ContentScriptContext,
     browser.runtime.onMessage.addListener(runtimeMessageListener);
     reportSiteDisabledState();
     unsubscribeContentConfig = subscribeConfig((nextConfig) => {
-        applyCoreTranslationPreferences(nextConfig); siteAdaptation.update(nextConfig.siteAdaptation, new URL(window.location.href));
+        void ensureUiLanguageBundle(nextConfig.uiLanguage); applyCoreTranslationPreferences(nextConfig);
+        siteAdaptation.update(nextConfig.siteAdaptation, new URL(window.location.href));
         syncBilingualSentenceHighlight(document, isPageRuntimeEnabled() && nextConfig.bilingualSentenceHighlightEnabled === true);
         const nextInputBoxConfigKey = inputBoxTranslationConfigKey(nextConfig);
         if (nextInputBoxConfigKey !== previousInputBoxConfigKey) {

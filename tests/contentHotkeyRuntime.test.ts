@@ -127,23 +127,23 @@ describe('全文翻译快捷键状态联动', () => {
 
         mocks.config.selectionTranslatorMode = 'disabled';
         let runtime = createContentHotkeyRuntime(() => false);
-        expect(runtime.getConfiguredSelectionHotkey()).toBe('none');
-        expect(runtime.hasActiveSelectionTranslationCandidate()).toBe(false);
+        expect(runtime.selectionShortcutPorts.getConfiguredSelectionHotkey()).toBe('none');
+        expect(runtime.selectionShortcutPorts.hasActiveSelectionTranslationCandidate()).toBe(false);
 
         mocks.config.selectionTranslatorMode = 'bilingual';
         mocks.config.disableSelectionTranslator = true;
-        expect(runtime.getConfiguredSelectionHotkey()).toBe('none');
-        expect(runtime.hasActiveSelectionTranslationCandidate()).toBe(false);
+        expect(runtime.selectionShortcutPorts.getConfiguredSelectionHotkey()).toBe('none');
+        expect(runtime.selectionShortcutPorts.hasActiveSelectionTranslationCandidate()).toBe(false);
 
         mocks.config.disableSelectionTranslator = false;
         mocks.config.on = false;
-        expect(runtime.getConfiguredSelectionHotkey()).toBe('none');
-        expect(runtime.hasActiveSelectionTranslationCandidate()).toBe(false);
+        expect(runtime.selectionShortcutPorts.getConfiguredSelectionHotkey()).toBe('none');
+        expect(runtime.selectionShortcutPorts.hasActiveSelectionTranslationCandidate()).toBe(false);
 
         mocks.config.on = true;
         runtime = createContentHotkeyRuntime(() => true);
-        expect(runtime.getConfiguredSelectionHotkey()).toBe('none');
-        expect(runtime.hasActiveSelectionTranslationCandidate()).toBe(false);
+        expect(runtime.selectionShortcutPorts.getConfiguredSelectionHotkey()).toBe('none');
+        expect(runtime.selectionShortcutPorts.hasActiveSelectionTranslationCandidate()).toBe(false);
         expect(getSelection).not.toHaveBeenCalled();
     });
 
@@ -151,8 +151,8 @@ describe('全文翻译快捷键状态联动', () => {
         const {createContentHotkeyRuntime} = await import('@/src/app/content/hotkeyRuntime');
         const toggleFullPage = vi.fn();
         const runtime = createContentHotkeyRuntime(() => false, {toggleFullPage, selectionAvailable: false});
-        expect(runtime.getConfiguredSelectionHotkey()).toBe('none');
-        expect(runtime.hasActiveSelectionTranslationCandidate()).toBe(false);
+        expect(runtime.selectionShortcutPorts.getConfiguredSelectionHotkey()).toBe('none');
+        expect(runtime.selectionShortcutPorts.hasActiveSelectionTranslationCandidate()).toBe(false);
         runtime.installFloatingBallHotkey(new AbortController().signal);
         const listeners = (document as typeof document & {__listeners: Map<string, Listener[]>}).__listeners;
         listeners.get('keydown')![0](keyboardEvent({key: 'Alt', code: 'AltLeft'}));
@@ -201,8 +201,8 @@ describe('划词翻译快捷键语言预检', () => {
         const runtime = createContentHotkeyRuntime(() => false);
         const event = keyboardEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true, altKey: false});
 
-        expect(runtime.hasActiveSelectionTranslationCandidate()).toBe(true);
-        expect(runtime.shouldReserveSelectionShortcut(event as unknown as KeyboardEvent)).toBe(true);
+        expect(runtime.selectionShortcutPorts.hasActiveSelectionTranslationCandidate()).toBe(true);
+        expect(runtime.selectionShortcutPorts.shouldReserveSelectionShortcut(event as unknown as KeyboardEvent)).toBe(true);
     });
 
     it('明确日文与日语目标相同时不占用划词快捷键', async () => {
@@ -213,8 +213,8 @@ describe('划词翻译快捷键语言预检', () => {
         const runtime = createContentHotkeyRuntime(() => false);
         const event = keyboardEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true, altKey: false});
 
-        expect(runtime.hasActiveSelectionTranslationCandidate()).toBe(false);
-        expect(runtime.shouldReserveSelectionShortcut(event as unknown as KeyboardEvent)).toBe(false);
+        expect(runtime.selectionShortcutPorts.hasActiveSelectionTranslationCandidate()).toBe(false);
+        expect(runtime.selectionShortcutPorts.shouldReserveSelectionShortcut(event as unknown as KeyboardEvent)).toBe(false);
     });
 });
 
@@ -227,12 +227,12 @@ describe('划词翻译快捷键语言预检', () => {
         const {createContentHotkeyRuntime} = await import('@/src/app/content/hotkeyRuntime');
         const event = keyboardEvent({key: 'r', code: 'KeyR'}) as unknown as KeyboardEvent;
         const runtime = createContentHotkeyRuntime(() => false);
-        expect(runtime.shouldReserveSelectionShortcut(event)).toBe(true);
-        expect(runtime.matchesSelectionTranslatorShortcut(event)).toBe(true);
-        expect(createContentHotkeyRuntime(() => true).shouldReserveSelectionShortcut(event)).toBe(false);
-        expect(createContentHotkeyRuntime(() => false, {selectionAvailable: false}).shouldReserveSelectionShortcut(event)).toBe(false);
+        expect(runtime.selectionShortcutPorts.shouldReserveSelectionShortcut(event)).toBe(true);
+        expect(runtime.selectionShortcutPorts.matchesSelectionTranslatorShortcut(event)).toBe(true);
+        expect(createContentHotkeyRuntime(() => true).selectionShortcutPorts.shouldReserveSelectionShortcut(event)).toBe(false);
+        expect(createContentHotkeyRuntime(() => false, {selectionAvailable: false}).selectionShortcutPorts.shouldReserveSelectionShortcut(event)).toBe(false);
         mocks.getSelection.mockReturnValue(null);
-        expect(runtime.shouldReserveSelectionShortcut(event)).toBe(false);
+        expect(runtime.selectionShortcutPorts.shouldReserveSelectionShortcut(event)).toBe(false);
     });
 });
 
@@ -243,13 +243,13 @@ describe('纯中文选区不占用划词或翻译卡片快捷键', () => {
         const {createContentHotkeyRuntime} = await import('@/src/app/content/hotkeyRuntime');
         const runtime = createContentHotkeyRuntime(() => false);
         const event = keyboardEvent() as unknown as KeyboardEvent;
-        expect(runtime.hasActiveSelectionTranslationCandidate()).toBe(false);
-        expect(runtime.shouldReserveSelectionShortcut(event)).toBe(false);
+        expect(runtime.selectionShortcutPorts.hasActiveSelectionTranslationCandidate()).toBe(false);
+        expect(runtime.selectionShortcutPorts.shouldReserveSelectionShortcut(event)).toBe(false);
         mocks.config.harness = {enabled: true, trigger: 'shortcut', customHotkey: 'Alt+R'};
         mocks.matchesConfiguredHotkey.mockReturnValue(true);
-        expect(runtime.shouldReserveSelectionShortcut(event)).toBe(false);
+        expect(runtime.selectionShortcutPorts.shouldReserveSelectionShortcut(event)).toBe(false);
         mocks.config.to = 'en';
-        expect(runtime.hasActiveSelectionTranslationCandidate()).toBe(true);
-        expect(runtime.shouldReserveSelectionShortcut(event)).toBe(true);
+        expect(runtime.selectionShortcutPorts.hasActiveSelectionTranslationCandidate()).toBe(true);
+        expect(runtime.selectionShortcutPorts.shouldReserveSelectionShortcut(event)).toBe(true);
     });
 });

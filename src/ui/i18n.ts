@@ -3,7 +3,8 @@
  *
  * 文件职责：把 core i18n 的纯翻译能力接入 Vue，并在每个扩展 UI runtime 中
  * 订阅共享配置、即时切换语言和安全迁移尚未 key 化的旧文案。
- * 主要内容：提供 createUiI18nPlugin、useUiI18n 和 v-ui-i18n 指令。指令只扫描
+ * 主要内容：提供 createUiI18nPlugin、useUiI18n 和 v-ui-i18n 指令；语言切换时按需加载资源包，
+ * 资源到达后通过 bundleRevision 刷新渲染与旧文案扫描。指令只扫描
  * 显式标记的扩展 UI 根节点，跳过代码、文本编辑器和用户内容，避免把网页正文
  * 或翻译结果误当成扩展文案。
  * 模块边界：这里负责 Vue 响应式和配置 patch，不定义语言文案；文案资源与纯
@@ -30,15 +31,19 @@ import {
 } from '@/src/services/config/store';
 import {
     DEFAULT_UI_LANGUAGE,
+    hasUiLanguageBundle,
     normalizeUiLanguage,
     translate,
     translateLegacyText,
     type TranslationParams,
     type UiLanguage,
 } from '@/src/core/i18n';
+import {ensureUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles';
 
 export interface UiI18nContext {
     language: Readonly<Ref<UiLanguage>>;
+    /** 当前语言资源包注册后递增；依赖它的渲染与旧文案扫描会在资源到达后自动刷新。 */
+    bundleRevision: Readonly<Ref<number>>;
     t: (key: string, params?: TranslationParams) => string;
     translateLegacy: (value: string) => string;
     setLanguage: (value: unknown) => Promise<void>;
@@ -79,23 +84,45 @@ export const UI_I18N_KEY: InjectionKey<UiI18nContext> = Symbol('fluentread-ui-i1
 
 export function createUiI18nContext(): UiI18nContext {
     const languageState = ref<UiLanguage>(normalizeUiLanguage(config.uiLanguage || DEFAULT_UI_LANGUAGE));
+    const bundleRevisionState = ref(0);
     let disposed = false;
 
+    const applyLanguage = (value: unknown): void => {
+        const nextLanguage = normalizeUiLanguage(value);
+        languageState.value = nextLanguage;
+        // 普通配置变化频繁触发订阅；资源已注册时不做任何额外刷新。未注册时先按中文回退渲染，
+        // 资源到达后只刷新仍在使用该语言的界面。
+        if (hasUiLanguageBundle(nextLanguage)) return;
+        void ensureUiLanguageBundle(nextLanguage).then((loaded) => {
+            if (loaded && !disposed && languageState.value === nextLanguage) bundleRevisionState.value += 1;
+        });
+    };
+
+    applyLanguage(languageState.value);
     const unsubscribe = subscribeConfig((nextConfig) => {
-        if (!disposed) languageState.value = normalizeUiLanguage(nextConfig.uiLanguage);
+        if (!disposed) applyLanguage(nextConfig.uiLanguage);
     });
     void configReady.then(() => {
-        if (!disposed) languageState.value = normalizeUiLanguage(config.uiLanguage);
+        if (!disposed) applyLanguage(config.uiLanguage);
     }).catch(() => undefined);
 
     const language = readonly(languageState);
-    const t = (key: string, params?: TranslationParams): string => translate(key, language.value, params);
-    const translateLegacy = (value: string): string => translateLegacyText(value, language.value);
+    const bundleRevision = readonly(bundleRevisionState);
+    const t = (key: string, params?: TranslationParams): string => {
+        void bundleRevision.value;
+        return translate(key, language.value, params);
+    };
+    const translateLegacy = (value: string): string => {
+        void bundleRevision.value;
+        return translateLegacyText(value, language.value);
+    };
 
     async function setLanguage(value: unknown): Promise<void> {
         const nextLanguage = normalizeUiLanguage(value);
         const previousLanguage = languageState.value;
-        languageState.value = nextLanguage;
+        // 先取得目标语言资源，避免切换瞬间整页闪回中文。
+        await ensureUiLanguageBundle(nextLanguage);
+        applyLanguage(nextLanguage);
         try {
             await requestConfigPatch(
                 {uiLanguage: nextLanguage, uiLanguageSetupCompleted: true},
@@ -109,6 +136,7 @@ export function createUiI18nContext(): UiI18nContext {
 
     return {
         language,
+        bundleRevision,
         t,
         translateLegacy,
         setLanguage,
@@ -268,7 +296,7 @@ function createUiI18nDirective(context: UiI18nContext): Directive<HTMLElement> {
             state.refreshAgain = false;
             state.text = new WeakMap();
             state.attributes = new WeakMap();
-            state.stopLanguageWatch = watch(context.language, () => {
+            state.stopLanguageWatch = watch([context.language, context.bundleRevision], () => {
                 state.refresh();
             }, {flush: 'post'});
             states.set(root, state);
@@ -304,7 +332,7 @@ function observeUiDocument(root: HTMLElement, context: UiI18nContext): () => voi
     state.text = new WeakMap();
     state.attributes = new WeakMap();
     state.refresh = refresh;
-    state.stopLanguageWatch = watch(context.language, refresh, {flush: 'post'});
+    state.stopLanguageWatch = watch([context.language, context.bundleRevision], refresh, {flush: 'post'});
     observeUiRoot(root, state.observer);
     refresh();
     return () => {
@@ -345,7 +373,7 @@ export function createUiI18nPlugin(options: UiI18nPluginOptions = {}): Plugin {
                 }
             };
             updateDocumentMetadata();
-            const stopMetadataWatch = watch(context.language, updateDocumentMetadata, {flush: 'post'});
+            const stopMetadataWatch = watch([context.language, context.bundleRevision], updateDocumentMetadata, {flush: 'post'});
             app.provide(UI_I18N_KEY, context);
             app.config.globalProperties.$fluentT = context.t;
             app.directive('ui-i18n', createUiI18nDirective(context));

@@ -21,6 +21,10 @@ vi.mock('@/src/services/config/store', async () => {
 });
 import {config as settings} from '@/src/services/config/store';
 import {mountImageTranslator, unmountImageTranslator, toggleContextMenuImage} from '@/src/features/image-translation/content/runtime';
+import {registerAllUiLanguageBundles} from '@/src/core/i18n/bundles';
+
+// 本文件断言非中文界面文案；扩展运行时按需加载，测试中一次注册全部语言资源包。
+registerAllUiLanguageBundles();
 
 const result = {image: 'data:image/png;base64,translated', lines: [{text: '完整译文', bbox: {x0: 0, y0: 0, x1: 100, y1: 20}, backgroundColor: '#fff'}]};
 const deferred = <T>() => {

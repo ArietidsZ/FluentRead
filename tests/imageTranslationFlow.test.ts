@@ -7,6 +7,10 @@ import {createImageControls} from '@/src/features/image-translation/content/cont
 import {sendCancellableImageOperation, prepareImageOcrLanguages} from '@/src/features/image-translation/services/client';
 import {imageTranslationProgressTransport} from '@/src/features/image-translation/background/offscreenAdapter';
 import {getTranslationRequestControl} from '@/src/services/translation/requestSnapshot';
+import {registerAllUiLanguageBundles} from '@/src/core/i18n/bundles';
+
+// 扩展运行时按需加载界面语言；本文件验证全部语言的文案契约，因此一次注册全部资源包。
+registerAllUiLanguageBundles();
 
 const deferred = <T>() => {let resolve!: (value: T) => void; let reject!: (error: unknown) => void; const promise = new Promise<T>((r,j) => {resolve=r;reject=j;}); return {promise,resolve,reject};};
 function setup(extra = {}) {

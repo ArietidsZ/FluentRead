@@ -11,7 +11,7 @@ import {synthesizeEdgeTts} from '@/src/features/selection-translation/services/e
 import {vocabularyBook} from '@/src/features/vocabulary/repository';
 import {clearTranslationCache, getTranslationCacheStats, translateWithCache} from '@/src/app/translation/runtime';
 import {serializeTranslationError} from '@/src/services/translation/errors';
-import {createBackgroundMessageRouter, type BackgroundMessageHandler} from './messageRouter';
+import {createBackgroundMessageRouter, createBackgroundRuntimeMessageListener, type BackgroundMessageHandler} from './messageRouter';
 import {type AreaTranslationBackgroundContext} from './handlers/areaTranslation';
 import {createAreaTranslationRuntime} from './areaRuntime';
 import {createTranslationCacheHandlers, createTranslationCacheInvalidationBroadcaster} from './handlers/translationCache';
@@ -158,21 +158,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             requestRegistry: translationRequestRegistry,
         }),
     );
-    browser.runtime.onMessage.addListener(async (message: unknown, sender: any) => {
-        try {
-            const dispatch = await router.dispatch(message, {sender});
-            return dispatch.handled ? dispatch.response
-                : {success: false, error: '不支持的后台消息'};
-        } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : String(error),
-                errorCode: error && typeof error === 'object' && typeof (error as {code?: unknown}).code === 'string'
-                    ? (error as {code: string}).code
-                    : undefined,
-            };
-        }
-    });
+    browser.runtime.onMessage.addListener(createBackgroundRuntimeMessageListener(router, (sender) => ({sender}) as BackgroundRuntimeContext));
     browser.tabs.onRemoved.addListener((tabId: number) => releaseVideoSubtitleOwnerForTab(Number(tabId)));
     installBrowserConfigStorageBroadcast();
 }

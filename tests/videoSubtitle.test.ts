@@ -37,6 +37,10 @@ import {applyVideoDisplayState, findVideoPlayer, findXSettingsControl} from '@/s
 import {validateYoutubeTimedTextMessage} from '@/src/features/video-subtitle/content/youtubeTimedTextMessage';
 import {config} from '@/src/services/config/store';
 import { normalizeVideoSubtitleFontSize } from '@/src/core/config/model';
+import {registerAllUiLanguageBundles} from '@/src/core/i18n/bundles';
+
+// 本文件断言非中文界面文案；扩展运行时按需加载，测试中一次注册全部语言资源包。
+registerAllUiLanguageBundles();
 
 afterEach(() => {
     vi.unstubAllGlobals();

@@ -30,6 +30,10 @@ import {renderContextMenuTitle} from '@/src/core/context-menu/presentation';
 import {navigationItems} from '@/src/features/settings/model/navigation';
 import {parseHotkey} from '@/src/core/hotkey';
 import {IMAGE_OCR_LANGUAGE_PACKS} from '@/src/features/image-translation/ocrLanguages';
+import {registerAllUiLanguageBundles} from '@/src/core/i18n/bundles';
+
+// 扩展运行时按需加载界面语言；本文件验证全部语言的文案契约，因此一次注册全部资源包。
+registerAllUiLanguageBundles();
 
 describe('界面 i18n 契约', () => {
   const translatedCatalogs: ReadonlyArray<Readonly<Record<string, string>>> = [

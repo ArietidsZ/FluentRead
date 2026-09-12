@@ -1,55 +1,47 @@
 /**
  * @file src/core/i18n/index.ts
  *
- * 文件职责：提供与 UI 框架无关的界面语言目录、归一化和翻译函数。
- * 主要内容：支持中文、English、日本語、한국어、Français、Русский 与 Español，提供稳定的语言配置值、参数插值、中文旧文案迁移
- * 适配和可扩展资源目录。旧文案适配仅用于扩展自己的 UI，不会翻译网页内容或用户输入。
- * 模块边界：本文件不读写 browser.storage，也不依赖 Vue；配置模型只调用这里的纯归一化
- * 规则，Vue 响应式与持久化由 src/ui/i18n.ts 负责。
+ * 文件职责：提供与 UI 框架无关的界面语言注册表、归一化和翻译函数。
+ * 主要内容：内置简体中文默认目录；English、日本語、한국어、Français、Русский 与 Español 以资源包形式注册，
+ * 支持稳定 key 参数插值、中文旧文案迁移适配和按语言惰性建立的旧文案反查表。旧文案适配仅用于扩展自己的 UI，
+ * 不会翻译网页内容或用户输入。
+ * 模块边界：本文件不读写 browser.storage、不发起资源请求，也不依赖 Vue；非中文资源包由 bundles.ts 静态汇总
+ * （构建期生成、userscript 与测试使用）或由 platform/i18n 在扩展运行时按需加载后注册。
  */
 
-import {enUSLegacyText, enUSMessages} from './messages/en-US';
-import {esESLegacyText, esESMessages} from './messages/es-ES';
-import {frFRLegacyText, frFRMessages} from './messages/fr-FR';
-import {jaJPLegacyText, jaJPMessages} from './messages/ja-JP';
-import {koKRLegacyText, koKRMessages} from './messages/ko-KR';
-import {ruRULegacyText, ruRUMessages} from './messages/ru-RU';
 import {zhCNMessages} from './messages/zh-CN';
 import {translateLegacyPattern} from './messages/legacy-patterns';
-import {
-    DEFAULT_UI_LANGUAGE,
-} from './language';
-import type {MessageCatalog, TranslationParams, UiLanguage} from './types';
+import type {MessageCatalog, RegisteredUiLanguage, TranslationParams, UiLanguage, UiLanguageBundle} from './types';
 
 export * from './types';
 export * from './language';
 
-const catalogs: Record<UiLanguage, MessageCatalog> = {
-    'zh-CN': zhCNMessages,
-    'en-US': enUSMessages,
-    'ja-JP': jaJPMessages,
-    'ko-KR': koKRMessages,
-    'fr-FR': frFRMessages,
-    'ru-RU': ruRUMessages,
-    'es-ES': esESMessages,
-};
+const defaultMessages: MessageCatalog = zhCNMessages;
+const registeredBundles = new Map<UiLanguage, UiLanguageBundle>();
+/** 中文稳定资源也可供旧模板精确复用；反查表只在该语言首次使用旧文案时建立一次。 */
+const messageLegacyCatalogs = new Map<UiLanguage, MessageCatalog>();
 
-const legacyCatalogs: Record<UiLanguage, Readonly<Record<string, string>>> = {
-    'zh-CN': {},
-    'en-US': enUSLegacyText,
-    'ja-JP': jaJPLegacyText,
-    'ko-KR': koKRLegacyText,
-    'fr-FR': frFRLegacyText,
-    'ru-RU': ruRULegacyText,
-    'es-ES': esESLegacyText,
-};
+/** 注册一种非中文界面语言的资源包；重复注册会替换旧包并丢弃基于旧包建立的反查表。 */
+export function registerUiLanguageBundle(language: RegisteredUiLanguage, bundle: UiLanguageBundle): void {
+    registeredBundles.set(language, bundle);
+    messageLegacyCatalogs.delete(language);
+}
 
-/** 稳定资源中的中文文案也可供旧模板精确复用，避免同时维护两份相同译文。 */
-const messageLegacyCatalogs = Object.fromEntries(
-    Object.entries(catalogs).map(([language, catalog]) => [language, Object.fromEntries(
-        Object.entries(zhCNMessages).map(([key, source]) => [source, catalog[key] ?? source]),
-    )]),
-) as Record<UiLanguage, Readonly<Record<string, string>>>;
+/** 中文目录始终内置；其他语言只有注册后才会返回本地化结果，未注册时回退中文。 */
+export function hasUiLanguageBundle(language: UiLanguage): boolean {
+    return language === 'zh-CN' || registeredBundles.has(language);
+}
+
+function getMessageLegacyCatalog(language: UiLanguage, bundle: UiLanguageBundle): MessageCatalog {
+    let catalog = messageLegacyCatalogs.get(language);
+    if (!catalog) {
+        catalog = Object.fromEntries(
+            Object.entries(defaultMessages).map(([key, source]) => [source, bundle.messages[key] ?? source]),
+        );
+        messageLegacyCatalogs.set(language, catalog);
+    }
+    return catalog;
+}
 
 function formatMessage(template: string, params?: TranslationParams): string {
     if (!params) return template;
@@ -59,9 +51,9 @@ function formatMessage(template: string, params?: TranslationParams): string {
     });
 }
 
-/** 翻译稳定资源 key；English 缺失时回退到中文，再缺失时返回 key 便于发现漏翻。 */
+/** 翻译稳定资源 key；当前语言缺失或资源包尚未加载时回退到中文，再缺失时返回 key 便于发现漏翻。 */
 export function translate(key: string, language: UiLanguage, params?: TranslationParams): string {
-    const template = catalogs[language][key] ?? catalogs[DEFAULT_UI_LANGUAGE][key] ?? key;
+    const template = registeredBundles.get(language)?.messages[key] ?? defaultMessages[key] ?? key;
     return formatMessage(template, params);
 }
 
@@ -329,7 +321,7 @@ const ruLegacyPatterns: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray)
     [/^(.+)（当前浏览器不可用）$/u, (match) => `${match[1]} (недоступно в этом браузере)`],
 ];
 
-const legacyPatternCatalog: Partial<Record<UiLanguage, ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => string]>>> = {
+const legacyPatternCatalog: Readonly<Record<RegisteredUiLanguage, ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => string]>>> = {
     'en-US': legacyPatterns,
     'ja-JP': jaLegacyPatterns,
     'ko-KR': koLegacyPatterns,
@@ -346,8 +338,10 @@ const legacyPatternCatalog: Partial<Record<UiLanguage, ReadonlyArray<readonly [R
  */
 export function translateLegacyText(value: string, language: UiLanguage): string {
     if (language === 'zh-CN' || !value.trim()) return value;
+    const bundle = registeredBundles.get(language);
+    if (!bundle) return value;
     const trimmed = value.trim();
-    const exact = legacyCatalogs[language]?.[trimmed] ?? messageLegacyCatalogs[language]?.[trimmed];
+    const exact = bundle.legacyText[trimmed] ?? getMessageLegacyCatalog(language, bundle)[trimmed];
     if (exact) return preserveWhitespace(value, exact);
 
     const dynamic = translateLegacyPattern(trimmed, language, (fragment) => fragment.split('；').map((part) => translateLegacyText(part, language)).join('；'));
@@ -360,17 +354,15 @@ export function translateLegacyText(value: string, language: UiLanguage): string
         if (translatedCompound !== trimmed) return preserveWhitespace(value, translatedCompound);
     }
 
-    const patterns = legacyPatternCatalog[language] || legacyPatterns;
-    for (const [pattern, resolver] of patterns) {
+    for (const [pattern, resolver] of legacyPatternCatalog[language as RegisteredUiLanguage]) {
         const match = pattern.exec(trimmed);
         if (match) return preserveWhitespace(value, resolver(match));
     }
 
-    // 复合状态和当前语言的动态模板必须先于 English 回退处理，否则只漏掉一个
-    // 词时会把整行降级为 English，形成例如「オフ · Show icon」的混合界面。
+    // 复合状态和当前语言的动态模板必须先于 English 模板回退处理，否则只漏掉一个
+    // 词时会把整行降级为 English，形成例如「オフ · Show icon」的混合界面。各语言的精确词典
+    // 由契约测试保证覆盖 English 基线，因此这里只保留参数化模板回退。
     if (language !== 'en-US') {
-        const englishFallback = enUSLegacyText[trimmed];
-        if (englishFallback) return preserveWhitespace(value, englishFallback);
         for (const [pattern, resolver] of legacyPatterns) {
             const match = pattern.exec(trimmed);
             if (match) return preserveWhitespace(value, resolver(match));
@@ -378,15 +370,3 @@ export function translateLegacyText(value: string, language: UiLanguage): string
     }
     return value;
 }
-
-export {
-    enUSMessages,
-    enUSLegacyText,
-    esESMessages,
-    esESLegacyText,
-    frFRMessages,
-    jaJPMessages,
-    koKRMessages,
-    ruRUMessages,
-    zhCNMessages,
-};

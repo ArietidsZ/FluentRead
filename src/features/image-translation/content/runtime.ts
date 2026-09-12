@@ -7,6 +7,7 @@
 import { config, subscribeConfig } from '@/src/services/config/store';
 import {watchEffect} from 'vue';
 import {normalizeUiLanguage, translateLegacyText} from '@/src/core/i18n';
+import {renderWithUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles';
 import {
     fetchImageInExtension,
     prepareImageOcrLanguages,
@@ -904,8 +905,10 @@ export function mountImageTranslator(): void {
     let currentUiLanguage = config.uiLanguage;
     const stopLanguageWatch = subscribeConfig(next => {
         if (next.uiLanguage === currentUiLanguage) return;
-        currentUiLanguage = next.uiLanguage;
-        activeStates.forEach(state => state.controls.refreshLanguage());
+        const language = currentUiLanguage = next.uiLanguage;
+        renderWithUiLanguageBundle(language, () => {
+            if (mounted && currentUiLanguage === language) activeStates.forEach(state => state.controls.refreshLanguage());
+        });
     });
     document.addEventListener('contextmenu', handleImageContextMenu, true);
     document.addEventListener('pointermove', handlePointerOver, true);

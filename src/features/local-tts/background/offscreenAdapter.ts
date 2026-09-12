@@ -1,13 +1,14 @@
 /**
  * @file src/features/local-tts/background/offscreenAdapter.ts
  * 文件职责：把本地 TTS 的模型管理和合成请求转换为 Offscreen 消息。
- * 模块边界：不读取配置、不操作网页；模型与 Worker 生命周期归 Offscreen TTS 运行时。
+ * 主要内容：为合成请求生成可取消的 requestId 与超时，解码 base64 WAV 音频，并把失败响应重建为携带稳定 code 的 Error。
+ * 模块边界：不读取配置、不操作网页；模型与 Worker 生命周期归 Offscreen TTS 运行时，错误语义以 protocol 中的错误码为准。
  */
 
 import type {OffscreenClient} from '@/src/platform/offscreen/client';
 import {extensionDomClient} from '@/src/platform/offscreen/extensionClient';
 import {OFFSCREEN_CANCEL_LOCAL_TTS_MESSAGE_TYPE} from '@/src/platform/offscreen/client';
-import type {LocalTtsAudio} from '../offscreen/tts';
+import type {LocalTtsAudio} from '../protocol';
 
 function requestId(): string {
     return crypto.randomUUID();
@@ -59,7 +60,7 @@ export function createLocalTtsOffscreenAdapter(client: OffscreenClient = extensi
             }
             return {
                 audio: base64ToArrayBuffer(response.audioBase64),
-                contentType: response.contentType === 'audio/wav' ? 'audio/wav' : 'audio/wav',
+                contentType: 'audio/wav',
                 voice: typeof response.voice === 'string' && response.voice ? response.voice : voice,
                 backend: response.backend,
             };

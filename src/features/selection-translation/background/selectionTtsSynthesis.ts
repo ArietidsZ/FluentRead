@@ -6,15 +6,14 @@
  */
 
 import type {SelectionTtsAudio} from './ttsHandler';
+import {normalizeLocalTtsMode} from '@/src/core/config/localTts';
 import {
-    normalizeLocalTtsMode,
-    type LocalTtsMode,
-} from '@/src/core/config/localTts';
-import {
-    LocalTtsLanguageUnsupportedError,
+    LOCAL_TTS_LANGUAGE_UNSUPPORTED_CODE,
+    LOCAL_TTS_MODEL_NOT_DOWNLOADED_CODE,
     LocalTtsModelNotDownloadedError,
+    localTtsErrorCode,
     type LocalTtsAudio,
-} from '@/src/features/local-tts/offscreen/tts';
+} from '@/src/features/local-tts/protocol';
 
 export interface SelectionTtsSynthesisDependencies {
     readonly getMode: () => unknown;
@@ -38,10 +37,10 @@ export interface SelectionTtsSynthesisError extends Error {
     readonly code?: string;
 }
 
-function errorCode(error: unknown): string | undefined {
-    return error && typeof error === 'object' && typeof (error as {code?: unknown}).code === 'string'
-        ? (error as {code: string}).code
-        : undefined;
+/** 模型未下载或语言不支持表示本地来源不可用，而不是一次真正的合成失败。 */
+function isLocalTtsUnavailable(error: unknown): boolean {
+    const code = localTtsErrorCode(error);
+    return code === LOCAL_TTS_MODEL_NOT_DOWNLOADED_CODE || code === LOCAL_TTS_LANGUAGE_UNSUPPORTED_CODE;
 }
 
 function localAudio(audio: LocalTtsAudio): SelectionTtsAudio {
@@ -52,12 +51,8 @@ function localAudio(audio: LocalTtsAudio): SelectionTtsAudio {
     };
 }
 
-function modeAllowsLocal(mode: LocalTtsMode): boolean {
-    return mode === 'online-first' || mode === 'local-first' || mode === 'local-only';
-}
-
 function localUnavailableMessage(error: unknown): string {
-    if (errorCode(error) === 'local-tts-model-not-downloaded') {
+    if (localTtsErrorCode(error) === LOCAL_TTS_MODEL_NOT_DOWNLOADED_CODE) {
         return '本地 TTS 模型尚未下载，请先在设置中的朗读与语音里下载模型';
     }
     return error instanceof Error ? error.message : String(error);
@@ -89,10 +84,8 @@ export function createSelectionTtsSynthesizer(
             try {
                 return await local();
             } catch (localError) {
-                if (localError instanceof LocalTtsLanguageUnsupportedError
-                    || localError instanceof LocalTtsModelNotDownloadedError) {
-                    return online();
-                }
+                // 本地错误经 Offscreen 消息重建为普通 Error，只能按错误码识别“不可用”。
+                if (isLocalTtsUnavailable(localError)) return online();
                 try {
                     return await online();
                 } catch (onlineError) {
@@ -105,16 +98,15 @@ export function createSelectionTtsSynthesizer(
         try {
             return await online();
         } catch (onlineError) {
-            if (!modeAllowsLocal(mode)) throw onlineError;
             try {
                 return await local();
             } catch (localError) {
-                if (errorCode(localError) === 'local-tts-model-not-downloaded') {
+                if (localTtsErrorCode(localError) === LOCAL_TTS_MODEL_NOT_DOWNLOADED_CODE) {
                     const error = new LocalTtsModelNotDownloadedError();
                     error.message = `在线 TTS 失败；${error.message}`;
                     throw error;
                 }
-                if (errorCode(localError) === 'local-tts-language-unsupported') throw onlineError;
+                if (localTtsErrorCode(localError) === LOCAL_TTS_LANGUAGE_UNSUPPORTED_CODE) throw onlineError;
                 throw new Error(`在线 TTS 和本地 TTS 均失败：${onlineError instanceof Error ? onlineError.message : String(onlineError)}；${localUnavailableMessage(localError)}`);
             }
         }

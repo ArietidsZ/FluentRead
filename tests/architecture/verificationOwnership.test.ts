@@ -265,8 +265,12 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/features/local-translation/offscreen/modelCache.ts',
     'src/features/local-translation/offscreen/translation.ts',
     'src/features/local-translation/offscreen/translation.worker.ts',
-    'src/features/local-translation/offscreen/workerConfig.ts',
     'src/features/settings/ui/LocalTranslationModelSettings.vue',
+    // 本地 TTS 绑定 Offscreen Worker、Cache Storage 与 Kokoro/ONNX 运行时；策略、协议、后台消息与适配器已严格覆盖。
+    'src/features/local-tts/background/runtime.ts',
+    'src/features/local-tts/offscreen/modelCache.ts',
+    'src/features/local-tts/offscreen/tts.ts',
+    'src/features/local-tts/offscreen/tts.worker.ts',
 ]);
 
 describe('repository verification ownership', () => {

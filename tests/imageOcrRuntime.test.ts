@@ -96,7 +96,7 @@ describe('图片 OCR 处理与结果缓存', () => {
         await createRuntime.mock.calls[0][0].createWorker('jpn+eng', onProgress);
         expect(tesseractCreateWorker).toHaveBeenCalledWith(['jpn', 'eng'], 1, {
             workerPath: 'chrome-extension://test/fluent-read-ocr/worker/worker.min.js',
-            corePath: 'chrome-extension://test/fluent-read-ocr/core',
+            corePath: 'chrome-extension://test/fluent-read-ocr/core/tesseract-core-simd-lstm.wasm.js',
             cachePath: 'fluent-read-image-ocr', workerBlobURL: false, logger: expect.any(Function),
         }, {tessedit_load_sublangs: ''});
         const logger = tesseractCreateWorker.mock.calls[0][2].logger;

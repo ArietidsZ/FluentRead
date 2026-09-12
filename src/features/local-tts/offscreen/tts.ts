@@ -19,34 +19,11 @@ import {
     isLocalTtsModelCached,
     removeLocalTtsModelFiles,
 } from './modelCache';
-
-export const LOCAL_TTS_MODEL_NOT_DOWNLOADED_CODE = 'local-tts-model-not-downloaded' as const;
-export const LOCAL_TTS_LANGUAGE_UNSUPPORTED_CODE = 'local-tts-language-unsupported' as const;
-
-export class LocalTtsModelNotDownloadedError extends Error {
-    readonly code = LOCAL_TTS_MODEL_NOT_DOWNLOADED_CODE;
-
-    constructor() {
-        super('本地 TTS 模型尚未下载，请先在设置中的朗读与语音里下载模型');
-        this.name = 'LocalTtsModelNotDownloadedError';
-    }
-}
-
-export class LocalTtsLanguageUnsupportedError extends Error {
-    readonly code = LOCAL_TTS_LANGUAGE_UNSUPPORTED_CODE;
-
-    constructor(language: string) {
-        super(`本地 TTS 暂不支持语言：${language || '未知语言'}`);
-        this.name = 'LocalTtsLanguageUnsupportedError';
-    }
-}
-
-export interface LocalTtsAudio {
-    readonly audio: ArrayBuffer;
-    readonly contentType: 'audio/wav';
-    readonly voice: string;
-    readonly backend?: 'webgpu' | 'wasm';
-}
+import {
+    LocalTtsLanguageUnsupportedError,
+    LocalTtsModelNotDownloadedError,
+    type LocalTtsAudio,
+} from '../protocol';
 
 type LocalTtsWorkerBackend = 'webgpu' | 'wasm';
 

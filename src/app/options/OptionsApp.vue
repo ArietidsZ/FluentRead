@@ -79,7 +79,8 @@
                     rel="noopener noreferrer"
                     :aria-label="t('popup.donationOpenCode')"
                   >
-                    <img class="about-support-qr" src="/misc/approve.jpg" :alt="t('popup.donationCodeAlt')" width="1152" height="1152" />
+                    <!-- 绑定表达式让模板编译器保留 public 路径，避免再打包一份带 hash 的同图。 -->
+                    <img class="about-support-qr" :src="'/misc/approve.jpg'" :alt="t('popup.donationCodeAlt')" width="1152" height="1152" />
                   </a>
                 </section>
                 <section class="about-support-option about-support-kofi-option">

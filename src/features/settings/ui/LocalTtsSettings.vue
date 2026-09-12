@@ -1,7 +1,8 @@
 <!--
  * @file src/features/settings/ui/LocalTtsSettings.vue
- * 文件职责：提供朗读来源策略、本地音色和 Kokoro 模型下载管理。
- * 模块边界：只修改传入的配置副本并调用后台模型管理消息，不执行 TTS 推理。
+ * 文件职责：提供朗读来源策略、本地音色和 Kokoro 模型下载管理的设置分组。
+ * 主要内容：在线优先、本地优先、仅在线与仅本地四种模式切换，本地音色选择，以及模型状态查询、下载进度和清除操作。
+ * 模块边界：只修改传入的配置副本并调用后台模型管理消息，不执行 TTS 推理，也不直接访问 Offscreen 或缓存存储。
  -->
 <template>
   <SettingsGroup :title="t('settings.localTts.title')" :description="t('settings.localTts.description')">

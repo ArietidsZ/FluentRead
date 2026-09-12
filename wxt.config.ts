@@ -4,6 +4,8 @@ import {resolve} from 'path';
 import fs from 'fs';
 import {resolveBrowserCapabilities} from './src/platform/browser/capabilities';
 import {wllamaExtensionWorker} from './scripts/testing/wllama-extension-build';
+import {createUiLanguageBundleFiles} from './src/core/i18n/bundles';
+import {UI_LANGUAGE_BUNDLE_DIRECTORY} from './src/core/i18n/language';
 
 
 const packageJson = JSON.parse(fs.readFileSync(resolve(__dirname, 'package.json'), 'utf-8'));
@@ -95,7 +97,8 @@ export function createExtensionManifest(
         ],
         web_accessible_resources: [
             {
-                resources: ['icon/32.png', 'icon/48.png', 'icon/128.png'],
+                // 界面语言资源包由内容脚本按需读取；use_dynamic_url 避免网页用固定地址探测扩展。
+                resources: ['icon/32.png', 'icon/48.png', 'icon/128.png', `${UI_LANGUAGE_BUNDLE_DIRECTORY}/*.json`],
                 matches: ['<all_urls>'],
                 use_dynamic_url: true,
             },
@@ -155,6 +158,8 @@ export default defineConfig({
     },
     hooks: {
         'build:publicAssets': (_wxt, files) => {
+            // 非中文界面文案只生成一份 JSON，由各运行上下文按当前语言加载，不再内联进每个 bundle。
+            files.push(...createUiLanguageBundleFiles());
             files.push({absoluteSrc: resolve(__dirname, 'node_modules/@wllama/wllama/LICENCE'), relativeDest: 'third-party-notices/wllama-MIT.txt'});
             files.push({absoluteSrc: resolve(__dirname, 'node_modules/@noble/hashes/LICENSE'), relativeDest: 'third-party-notices/noble-hashes-MIT.txt'});
             files.push({absoluteSrc: resolve(__dirname, 'node_modules/@wllama/wllama/esm/wasm/wllama.wasm'), relativeDest: 'fluent-read-ai/wllama.wasm'});

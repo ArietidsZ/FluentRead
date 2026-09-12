@@ -33,13 +33,15 @@ const SPECIAL_KEYS: Readonly<Record<string, string>> = {
     insert: 'insert',
 };
 
-export interface ContentHotkeyRuntime {
+/** 悬浮、快捷翻译与邮件 frame 共享的划词快捷键仲裁端口，组合根整体注入，避免逐项重复接线。 */
+export interface SelectionShortcutPorts {
     getConfiguredSelectionHotkey(): string;
+    getCustomSelectionHotkey(): string | undefined;
     hasActiveSelectionTranslationCandidate(): boolean;
     matchesSelectionTranslatorShortcut(event: KeyboardEvent): boolean;
     shouldReserveSelectionShortcut(event: KeyboardEvent): boolean;
-    installFloatingBallHotkey(signal: AbortSignal): () => void;
 }
+export interface ContentHotkeyRuntime {readonly selectionShortcutPorts: SelectionShortcutPorts; installFloatingBallHotkey(signal: AbortSignal): () => void}
 
 /** 为单个 document 创建隔离的键盘状态，避免页面失效后残留按键组合。 */
 export function createContentHotkeyRuntime(isSiteDisabled: () => boolean,
@@ -204,11 +206,7 @@ export function createContentHotkeyRuntime(isSiteDisabled: () => boolean,
         return resetKeyboardGesture;
     };
 
-    return {
-        getConfiguredSelectionHotkey,
-        hasActiveSelectionTranslationCandidate,
-        matchesSelectionTranslatorShortcut,
-        shouldReserveSelectionShortcut,
-        installFloatingBallHotkey,
-    };
+    const selectionShortcutPorts: SelectionShortcutPorts = {getConfiguredSelectionHotkey, hasActiveSelectionTranslationCandidate,
+        getCustomSelectionHotkey: () => config.customSelectionTranslatorHotkey, matchesSelectionTranslatorShortcut, shouldReserveSelectionShortcut};
+    return {selectionShortcutPorts, installFloatingBallHotkey};
 }

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="../public/icon/512.png" alt="FluentRead-流畅阅读" width="96" />
+<img src="../assets/brand/icon-512.png" alt="FluentRead-流畅阅读" width="96" />
 
 # FluentRead-流畅阅读
 

@@ -16,6 +16,7 @@ import {readContextMenuSettings, type ContextMenuSettingsSnapshot} from './conte
 import {renderContextMenuTitle} from '@/src/core/context-menu/presentation';
 import {isBrowserTabId, type TabTranslationState, TabTranslationStateStore} from './tabTranslationState';
 import {createTabTranslationStateReader} from './tabTranslationQuery';
+import {ensureUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles';
 
 const NEUTRAL_STATE: TabTranslationState = {isTranslated: false, isSiteDisabled: false};
 
@@ -74,6 +75,9 @@ export function installBackgroundContextMenus(
         syncQueue = syncQueue
             .catch(() => undefined)
             .then(async () => {
+                if (requested !== settings) return;
+                // 菜单标题是一次性写入的原生文案；先取得界面语言资源，避免非中文用户看到中文回退。
+                await ensureUiLanguageBundle(requested.titleContext.language);
                 if (requested !== settings) return;
                 plan = [];
                 await browser.contextMenus.removeAll();
