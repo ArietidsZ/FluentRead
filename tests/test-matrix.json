@@ -311,6 +311,7 @@
       "tests/areaVisionRecognition.test.ts"
     ],
     "regression": [
+      "tests/readingThemeStyles.test.ts",
       "tests/translationControlOwnership.test.ts",
       "tests/upstreamTranslationBoundaries.test.ts",
       "tests/documentTranslationExamplesApi.test.ts",

@@ -16,7 +16,7 @@ function parseArgs(argv) {
         playwrightRoot: arg(argv, 'playwright-root', process.env.PLAYWRIGHT_ROOT),
         artifactsDir: path.resolve(arg(argv, 'artifacts-dir', path.join(os.tmpdir(), 'fluentread-harness-reading-test'))),
         browserPath: arg(argv, 'browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),
-        focusSafeHelper: arg(argv, 'focus-safe-helper', ''), triggerOnly: argv.includes('--triggers-only'), persistenceOnly: argv.includes('--persistence-only'), headed: argv.includes('--headed'),
+        focusSafeHelper: arg(argv, 'focus-safe-helper', ''), triggerOnly: argv.includes('--triggers-only'), themeOnly: argv.includes('--theme-only'), persistenceOnly: argv.includes('--persistence-only'), headed: argv.includes('--headed'),
     };
     if (!out.playwrightRoot)
         throw new Error('必须传入 --playwright-root');
@@ -145,6 +145,87 @@ async function currentReadingAnswer(page) {
     const snapshot = await shadowSnapshot(page);
     const answer = find(snapshot.host, node => attr(node, 'class').split(' ').includes('fr-reading-answer'));
     return text(answer).trim();
+}
+async function verifyReadingTheme({page, configPage, requests, record, args, result}) {
+    const inspect = async (id, expectedDark) => {
+        const {host, session} = await shadowSnapshot(page);
+        const panel = find(host, node => attr(node, 'data-reading-panel') !== '' || attr(node, 'class').split(' ').includes('fr-reading'));
+        assert(panel?.nodeId, '主题检查缺少阅读面板');
+        const {object} = await session.send('DOM.resolveNode', {nodeId: panel.nodeId});
+        const measured = await session.send('Runtime.callFunctionOn', {
+            objectId: object.objectId, returnByValue: true,
+            functionDeclaration: `function() {
+                const surface = this.closest('.fr-translation-tooltip');
+                const rgb = value => value.match(/[\\d.]+/g).map(Number);
+                const blend = (front, back) => front.slice(0, 3).map((v, i) => v * (front[3] ?? 1) + back[i] * (1 - (front[3] ?? 1)));
+                const background = node => {
+                    if (!node) return [255, 255, 255];
+                    const color = rgb(getComputedStyle(node).backgroundColor);
+                    return blend(color, (color[3] ?? 1) === 1 ? color : background(node.parentElement));
+                };
+                const luminance = color => color.map(v => v / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4).reduce((sum, v, i) => sum + v * [.2126, .7152, .0722][i], 0);
+                const contrast = (foreground, bg) => {
+                    const a = luminance(blend(rgb(foreground), bg)), b = luminance(bg);
+                    return (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+                };
+                const samples = [...this.querySelectorAll('p,h3,h4,li,span,strong,em,code,blockquote,th,td,button,input,summary,small')]
+                    .filter(node => node.getClientRects().length && !node.closest(':disabled') && (node.matches('input') || [...node.childNodes].some(child => child.nodeType === 3 && child.textContent.trim())))
+                    .map(node => ({tag: node.tagName, className: node.className, text: (node.textContent || node.placeholder || '').slice(0, 60), color: getComputedStyle(node).color, background: background(node), ratio: contrast(getComputedStyle(node).color, background(node))}));
+                const input = this.querySelector('input:not(:disabled)');
+                if (input) samples.push({tag: 'placeholder', ratio: contrast(getComputedStyle(input, '::placeholder').color, background(input))});
+                return {dark: surface.classList.contains('fr-dark-theme'), samples, richElements: [...this.querySelectorAll('.fr-reading-markdown blockquote,.fr-reading-markdown code,.fr-reading-markdown th,.fr-reading-markdown td')].map(node => node.tagName)};
+            }`,
+        });
+        await session.send('Runtime.releaseObject', {objectId: object.objectId});
+        await session.detach();
+        const details = measured.result.value;
+        assert(details?.samples?.length, `没有获取到文字对比度: ${JSON.stringify(measured)}`);
+        const failures = details.samples.filter(sample => sample.ratio < 4.5);
+        const screenshot = path.join(args.artifactsDir, `${id}.png`);
+        await page.screenshot({path: screenshot}); result.screenshots.push(screenshot);
+        record(id, details.dark === expectedDark && !failures.length ? 'passed' : 'failed', {...details, failures});
+        assert(details.dark === expectedDark, `${id} 未应用预期主题`);
+        assert(!failures.length, `${id} 文字对比度低于 4.5:1: ${JSON.stringify(failures)}`);
+        return details;
+    };
+    await page.emulateMedia({colorScheme: 'light'});
+    await persistConfig(configPage, {theme: 'dark'});
+    await clickShadowButton(page, '读懂');
+    await waitUntil(async () => (await shadowSnapshot(page)).text.includes('正在'), '未显示生成状态');
+    await inspect('theme-streaming-dark', true);
+    await waitForReadingComplete(page);
+    const firstAnswer = await currentReadingAnswer(page);
+    const beforeThemes = requests.length;
+    for (const [theme, system, dark] of [['dark', 'light', true], ['light', 'dark', false], ['auto', 'light', false], ['auto', 'dark', true], ['auto', 'light', false]]) {
+        await page.emulateMedia({colorScheme: system});
+        await persistConfig(configPage, {theme});
+        const details = await inspect(`theme-${result.cases.length}-${theme}-${system}`, dark);
+        assert(['BLOCKQUOTE', 'CODE', 'TH', 'TD'].every(tag => details.richElements.includes(tag)), '没有测试到引用、代码和表格的实际回答');
+        assert(await currentReadingAnswer(page) === firstAnswer && requests.length === beforeThemes, '切换主题重置了回答或调用了模型');
+    }
+    await persistConfig(configPage, {theme: 'dark'});
+    const hostBefore = await page.locator('#neighbor').evaluate(node => ({text: node.textContent, color: getComputedStyle(node).color, background: getComputedStyle(node).backgroundColor}));
+    await clickShadowButton(page, '阅读记录');
+    await waitForShadowButton(page, '返回当前阅读');
+    await inspect('theme-history-dark', true);
+    await clickShadowButton(page, '返回当前阅读');
+    await clickShadowButton(page, '关闭翻译结果');
+    await page.locator('#target').click({position: {x: 1, y: 12}});
+    await selectFixtureSentence(page);
+    await clickShadowButton(page, '读懂');
+    await waitForReadingComplete(page);
+    await inspect('theme-reopened-dark', true);
+    const hostAfter = await page.locator('#neighbor').evaluate(node => ({text: node.textContent, color: getComputedStyle(node).color, background: getComputedStyle(node).backgroundColor}));
+    assert(JSON.stringify(hostBefore) === JSON.stringify(hostAfter), '阅读主题或开关卡片改变了宿主段落');
+    record('theme-host-unchanged', 'passed', hostAfter);
+    await persistConfig(configPage, {token: {'custom:fixture': ''}});
+    await clickShadowButton(page, '重新生成');
+    await waitForShadowButton(page, '重试');
+    await inspect('theme-error-dark', true);
+    await persistConfig(configPage, {token: {'custom:fixture': 'fixture-token'}});
+    await clickShadowButton(page, '重试');
+    await waitForReadingComplete(page);
+    await inspect('theme-retry-dark', true);
 }
 async function waitForShadowButton(page, label, timeout = 10000) {
     const started = Date.now();
@@ -529,7 +610,8 @@ async function main() {
                 practice: '### 试一试\n虽然今天下雨了，我们还是准时到达。\n\n**Although it was raining, we arrived __ __.**\n\n### 提示\n想想“按约定时间到达”的表达。',
             };
             const intent = system.includes('### 主干') ? 'grammar' : system.includes('### 怎么用') ? 'usage' : system.includes('### 试一试') ? 'practice' : 'meaning';
-            const answer = requestDelayMs ? '迟到的旧回答不应覆盖当前卡片内容。' : answers[intent];
+            const themeAnswer = '### 大意\n这句话表示：虽然任务很难，她仍然按时完成了。\n\n### 关键点\n- **Although** 表示让步，`on time` 表示按时。\n\n> The task was difficult.\n\n```text\nShe finished on time.\n```\n\n| 表达 | 含义 |\n| --- | --- |\n| on time | 按时 |';
+            const answer = requestDelayMs ? '迟到的旧回答不应覆盖当前卡片内容。' : args.themeOnly ? themeAnswer : answers[intent];
             const chunks = answer.match(requestDelayMs ? /[\s\S]{1,8}/gu : /[\s\S]{1,12}/gu) || [answer];
             for (const [index, chunk] of chunks.entries()) {
                 if (index > 0) await wait(requestDelayMs ? Math.max(180, Math.floor(requestDelayMs / 3)) : 70);
@@ -627,8 +709,8 @@ async function main() {
         assert(['读懂', '拆句', '用法', '练习'].every(label => toolbarLabels.includes(label)) && toolbarLabels.includes('记录'), `网页浮条未显示已启用的学习动作与阅读记录: ${toolbarLabels}`);
         record('selection-toolbar-enabled-actions', 'passed', {actions: toolbarLabels});
         record('selection-entry-visible-no-request', 'passed', { selectedText: actualSelection });
-        if (args.triggerOnly) {
-            await verifyCardTriggers({page, configPage, requests, record, args, result});
+        if (args.triggerOnly || args.themeOnly) {
+            await (args.themeOnly ? verifyReadingTheme : verifyCardTriggers)({page, configPage, requests, record, args, result});
             result.ok = result.consoleErrors.length === 0 && result.httpErrors.length === 0;
             fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), `${JSON.stringify(result, null, 2)}\n`);
             process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
