@@ -52,8 +52,9 @@
 }
 
 * { box-sizing: border-box; }
-html { height: 100%; scroll-behavior: smooth; }
+html { height: 100%; overflow: hidden; }
 body { height: 100%; margin: 0; min-width: 0; overflow: hidden; background: #f5f6fa; }
+#app { height: 100%; min-height: 0; overflow: hidden; }
 button, input { font: inherit; }
 button:focus-visible, input:focus-visible { outline: 3px solid rgba(239, 71, 118, .2); outline-offset: 2px; }
 
@@ -109,7 +110,8 @@ h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.0
 .search-results b { color: var(--brand-strong); font-size: 10px; }
 .search-empty { padding: 18px; text-align: center; }
 
-.settings-card { width: 100%; min-height: 0; padding: 2px 6px 18px; border: 0; border-radius: 0; background: transparent; box-shadow: none; flex: 1 1 auto; overflow: auto; }
+/* 将表单中的绝对定位辅助文本约束在内容滚动区，避免越过裁剪边界撑高文档并触发整页锚点滚动。 */
+.settings-card { position: relative; width: 100%; min-height: 0; padding: 2px 6px 18px; border: 0; border-radius: 0; background: transparent; box-shadow: none; flex: 1 1 auto; overflow: auto; }
 .settings-card.services-view {
   display: flex; width: calc(100% + 80px); margin-right: -40px; margin-left: -40px; padding: 0; border-right: 0; border-left: 0; border-radius: 0;
   flex-direction: column; overflow: hidden;
