@@ -47,6 +47,7 @@ import {
     parseApiKeyRequirementKey,
 } from './validation';
 import {isSensitiveConfigKey} from './sensitiveKeys';
+import {normalizeContextMenuEntryPreferences, type ContextMenuEntryPreferences} from '@/src/core/context-menu/domain';
 import {
     DEFAULT_TRANSLATION_CACHE_MAX_BYTES,
     DEFAULT_TRANSLATION_CACHE_MAX_ENTRIES,
@@ -332,7 +333,10 @@ export class Config {
     videoGlossaryIds: string[] | null; // 字幕术语选择；null 跟随全局，空数组停用
     enableAIMultiSegment: boolean; // 是否把相邻全文段落合并为一次 AI 翻译请求
     bilingualSentenceHighlightEnabled: boolean; // 是否在双语翻译中同步高亮原文与译文
-    contextMenuEnabled: boolean; // 是否显示右键全文翻译菜单
+    contextMenuEnabled: boolean; // 右键菜单总开关
+    contextMenuEntries: ContextMenuEntryPreferences; // 右键菜单各入口的显示偏好；未设置的入口按产品默认值
+    contextMenuShowTargetLanguage: boolean; // 右键菜单标题是否标出译入语言
+    contextMenuShowShortcut: boolean; // 右键菜单标题是否标出全文翻译快捷键
     pageTitleTranslationEnabled: boolean; // 全文翻译时是否一并翻译页面标题
     translationScope: TranslationScope; // 页面识别正文或全部可见界面文字
     fullPageTranslationMode: FullPageTranslationMode; // 全文翻译按视口加载或立即处理整页
@@ -474,7 +478,10 @@ export class Config {
         this.videoGlossaryIds = null;
         this.enableAIMultiSegment = false; // 默认逐段请求，由用户按需开启 AI 多段翻译
         this.bilingualSentenceHighlightEnabled = false; // 默认关闭双语逐句高亮，避免改变现有网页视觉
-        this.contextMenuEnabled = true; // 默认显示右键全文翻译入口
+        this.contextMenuEnabled = true; // 默认显示右键菜单入口
+        this.contextMenuEntries = {}; // 默认全部跟随产品默认值，用户改动才写入偏好
+        this.contextMenuShowTargetLanguage = true; // 默认标出译入语言，让菜单说清会翻成什么
+        this.contextMenuShowShortcut = true; // 默认标出快捷键，帮助用户从右键过渡到快捷键
         this.pageTitleTranslationEnabled = true; // 默认随全文翻译一并翻译标题，可在高级设置关闭
         this.translationScope = 'content'; // 默认只识别正文，全部节点由高级设置显式开启
         this.fullPageTranslationMode = 'viewport'; // 默认按阅读进度翻译，避免一次发出过多请求
@@ -1107,6 +1114,9 @@ export function normalizeConfig(value: unknown): Config {
     if (typeof normalized.contextMenuEnabled !== 'boolean') {
         normalized.contextMenuEnabled = true;
     }
+    normalized.contextMenuEntries = normalizeContextMenuEntryPreferences(source.contextMenuEntries);
+    normalized.contextMenuShowTargetLanguage = normalized.contextMenuShowTargetLanguage !== false;
+    normalized.contextMenuShowShortcut = normalized.contextMenuShowShortcut !== false;
     if (typeof normalized.pageTitleTranslationEnabled !== 'boolean') {
         normalized.pageTitleTranslationEnabled = true;
     }
