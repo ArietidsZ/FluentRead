@@ -3146,7 +3146,7 @@ describe("全文翻译可见性锚点", () => {
         expect(runtime.requests).toHaveBeenCalledTimes(2);
         expect(getTranslationState(paragraph)?.phase).toBe('translated');
         expect(paragraph.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
-        expect(runtime.renderOptions.at(-1)).toEqual({targetLanguage: 'ja', style: 2});
+        expect(runtime.renderOptions.at(-1)).toEqual({targetLanguage: 'ja', style: 2, sourceText: 'Same configuration slot source.'});
     });
 
     it("取消已排队的延迟悬浮后，计时器到期也不会晚到翻译", async () => {
@@ -3429,8 +3429,8 @@ describe("全文翻译可见性锚点", () => {
             enableAIContext: true,
         }));
         expect(runtime.renderOptions).toEqual([
-            {targetLanguage: 'zh', style: 2},
-            {targetLanguage: 'zh', style: 2},
+            {targetLanguage: 'zh', style: 2, sourceText: 'First paragraph uses the session snapshot.'},
+            {targetLanguage: 'zh', style: 2, sourceText: 'Later paragraph must use the same snapshot.'},
         ]);
         expect(first.querySelector('.fluent-read-bilingual-content')?.getAttribute('lang')).toBe('zh');
         expect(second.querySelector('.fluent-read-bilingual-content')?.getAttribute('lang')).toBe('zh');

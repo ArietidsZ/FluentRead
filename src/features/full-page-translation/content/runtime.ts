@@ -484,7 +484,7 @@ async function renderTranslation(
         const content = withFullPageViewportAnchor(() =>
             appendBilingualTranslation(node, translatedText, {
                 sourceSkeleton: freshSnapshot.clone, targetLanguage: snapshot.targetLanguage,
-                style: snapshot.style,
+                style: snapshot.style, sourceText: result.sources.join('\n'),
             }), [node]);
         setBilingualContent(node, content, {sources: result.sources, translations: result.translations,
             targetLanguage: snapshot.targetLanguage, style: snapshot.style});
