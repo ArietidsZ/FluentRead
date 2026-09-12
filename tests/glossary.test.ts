@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import {
     buildGlossaryRevision, createGlossaryEntry, createGlossaryLibrary, exportGlossary,
     GLOSSARY_LIMITS, normalizeGlossaryDomain, normalizeGlossaryIds, normalizeGlossaryLibraries,
@@ -258,6 +258,22 @@ describe('术语文件预览与导出', () => {
 
         const utf16 = Uint8Array.from([0xFF, 0xFE, 0x73, 0x00, 0x6F, 0x00, 0x75, 0x00, 0x72, 0x00, 0x63, 0x00, 0x65, 0x00]);
         expect(decodeGlossaryText(utf16.buffer)).toBe('source');
+
+        const utf16be = Uint8Array.from([0xFE, 0xFF, 0x00, 0x73, 0x00, 0x6F, 0x00, 0x75, 0x00, 0x72, 0x00, 0x63, 0x00, 0x65]);
+        expect(decodeGlossaryText(utf16be.buffer)).toBe('source');
+
+        const NativeTextDecoder = globalThis.TextDecoder;
+        vi.stubGlobal('TextDecoder', class extends NativeTextDecoder {
+            constructor(label?: string, options?: TextDecoderOptions) {
+                if (label === 'gb18030') throw new Error('gb18030 unavailable');
+                super(label, options);
+            }
+        });
+        try {
+            expect(decodeGlossaryText(Uint8Array.from([0xC3, 0x28]).buffer)).toContain('�');
+        } finally {
+            vi.unstubAllGlobals();
+        }
 
         const legacy = Uint8Array.from([
             ...new TextEncoder().encode('source,target\nAPI,'), 0xD7, 0xE9, 0xBC, 0xFE,

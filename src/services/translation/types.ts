@@ -185,6 +185,7 @@ export interface TranslationConfigSnapshot {
 
 export interface TranslationProviderConfigFields {
     token: Record<string, string>;
+    apiKeys?: Record<string, readonly string[]>;
     /** 云服务厂商与主密钥配对的第二段密钥，按服务标识存放。 */
     secret: Record<string, string>;
     requireApiKey: Record<string, boolean>;

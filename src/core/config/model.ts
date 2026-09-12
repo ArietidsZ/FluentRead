@@ -148,6 +148,7 @@ import {
     type AreaRecognitionMode,
     type ModelVisionOverrides,
 } from './vision';
+import {apiKeysToToken, normalizeApiKeys} from './apiKeys';
 
 export * from './scheduling';
 export * from './pageTranslation';
@@ -307,6 +308,7 @@ export class Config {
     videoSubtitleFontSize: number; // 视频字幕字号百分比
     videoSubtitleAppearance: VideoSubtitleAppearance; // 视频字幕皮肤与布局参数
     token: IMapping;
+    apiKeys: Record<string, string[]>; // 按服务保存完整有序 API Key 列表；token 镜像首个 key
     secret: IMapping; // 与 token 配对的第二段密钥（阿里云/百度/火山等云服务厂商）
     serviceRegion: IMapping; // 云服务厂商所选地域，决定签名 scope 与请求域名
     requireApiKey: Record<string, boolean>; // 按服务和模型保存 API Key 校验开关
@@ -461,6 +463,7 @@ export class Config {
         this.videoSubtitleFontSize = DEFAULT_VIDEO_SUBTITLE_FONT_SIZE; // 默认字幕字号
         this.videoSubtitleAppearance = normalizeVideoSubtitleAppearance(DEFAULT_VIDEO_SUBTITLE_APPEARANCE);
         this.token = {};
+        this.apiKeys = {};
         this.secret = {};
         this.serviceRegion = {};
         this.requireApiKey = {};
@@ -703,6 +706,7 @@ function hasSubstantialLegacyCustomConfiguration(source: Partial<Config>): boole
         || configuredString(source.documentCustomModel, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)) return true;
 
     if (configuredString(source.token, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)
+        || getConfiguredApiKey(source.apiKeys, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)
         || configuredString(source.proxy, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)
         || configuredString(source.customBody, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)
         || configuredString(source.customHeaders, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)) return true;
@@ -721,6 +725,14 @@ function hasSubstantialLegacyCustomConfiguration(source: Partial<Config>): boole
         && requirementModel !== ''
         && (hasOwn(sourceRecord.requireApiKey as object, requirementKey)
             || hasOwn(sourceRecord.requireApiKey as object, legacyRequirementKey));
+}
+
+function getConfiguredApiKey(mapping: unknown, service: string): string {
+    if (!mapping || typeof mapping !== 'object' || Array.isArray(mapping)) return '';
+    const values = (mapping as Record<string, unknown>)[service];
+    return Array.isArray(values)
+        ? values.find((value): value is string => typeof value === 'string' && Boolean(value.trim())) || ''
+        : '';
 }
 
 function protectProviderModels(
@@ -793,6 +805,7 @@ function normalizeCustomOpenAIProviderState(normalized: Config, source: Partial<
     normalized.customBody = withoutOrphanCustomProviderEntries(normalized.customBody, configuredIds);
     normalized.customHeaders = Object.fromEntries(Object.entries(normalized.customHeaders)
         .filter(([service]) => configuredIds.has(service)));
+    normalized.apiKeys = withoutOrphanCustomProviderEntries(normalized.apiKeys, configuredIds);
     normalized.serviceRequestLimits = Object.fromEntries(Object.entries(normalized.serviceRequestLimits)
         .filter(([service]) => !isCustomOpenAIProviderId(service) || configuredIds.has(service)));
     normalized.modelRequestLimits = Object.fromEntries(Object.entries(normalized.modelRequestLimits)
@@ -856,6 +869,7 @@ function normalizeCustomOpenAIProviderState(normalized: Config, source: Partial<
         return !key.startsWith(`${LEGACY_CUSTOM_OPENAI_PROVIDER_ID}:`) || validRequirementKeys.has(key);
     }));
     normalized.customOpenAIProviders = normalizeCustomOpenAIProviders(providers);
+    normalized.token = apiKeysToToken(normalized.apiKeys);
 }
 
 /**
@@ -952,7 +966,16 @@ export function normalizeConfig(value: unknown): Config {
         normalizeTranslationBackoffMaxMs(source.translationBackoffMaxMs),
     );
 
-    normalized.token = withoutRetiredServiceEntries(normalizeStringMapping(source.token));
+    normalized.apiKeys = withoutRetiredServiceEntries(normalizeApiKeys(source.apiKeys));
+    const legacyToken = withoutRetiredServiceEntries(normalizeStringMapping(source.token));
+    if (hasOwn(source as object, 'token') && isRecord(source.token)
+        && Object.keys(legacyToken).length === 0) normalized.apiKeys = {};
+    for (const [service, token] of Object.entries(legacyToken)) {
+        if (!Object.prototype.hasOwnProperty.call(normalized.apiKeys, service)) {
+            normalized.apiKeys[service] = token ? [token] : [];
+        }
+    }
+    normalized.token = apiKeysToToken(normalized.apiKeys);
     normalized.secret = withoutRetiredServiceEntries(normalizeStringMapping(source.secret));
     normalized.serviceRegion = normalizeCloudRegionMapping(source.serviceRegion);
     normalized.model = withoutRetiredServiceEntries(normalizeStringMapping(source.model));

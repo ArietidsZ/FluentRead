@@ -11,6 +11,8 @@ export const CONNECTION_TEST_MESSAGE_TYPE = 'testTranslationService' as const;
 export interface ConnectionTestMessage {
     type: typeof CONNECTION_TEST_MESSAGE_TYPE;
     service?: unknown;
+    keyIndex?: unknown;
+    keyRevision?: unknown;
 }
 
 export type ConnectionTestResponse =
@@ -19,7 +21,7 @@ export type ConnectionTestResponse =
 
 export interface ConnectionTestDependencies {
     readonly ready: Promise<void>;
-    readonly runConnectionTest: (service: string) => Promise<{durationMs: number}>;
+    readonly runConnectionTest: (service: string, keyIndex?: number, keyRevision?: string) => Promise<{durationMs: number}>;
     readonly formatError: (service: string, error: unknown) => string;
 }
 
@@ -39,10 +41,24 @@ export function createConnectionTestHandler(
             try {
                 // 步骤 1：后台边界先收窄服务 ID，避免非法 payload 进入 provider registry。
                 service = parseService(message.service);
+                if (message.keyIndex !== undefined && (
+                    typeof message.keyIndex !== 'number' || !Number.isSafeInteger(message.keyIndex) || message.keyIndex < 0
+                )) throw new TypeError('连接测试 Key 序号无效');
+                if (message.keyRevision !== undefined && (
+                    typeof message.keyRevision !== 'string' || !/^[a-f0-9]{64}$/u.test(message.keyRevision)
+                )) throw new TypeError('连接测试配置版本无效');
                 await dependencies.ready;
 
                 // 步骤 2：provider 测试失败时使用现有格式化器返回用户可读错误。
-                const result = await dependencies.runConnectionTest(service);
+                const result = message.keyRevision === undefined
+                    ? message.keyIndex === undefined
+                        ? await dependencies.runConnectionTest(service)
+                        : await dependencies.runConnectionTest(service, message.keyIndex as number)
+                    : await dependencies.runConnectionTest(
+                        service,
+                        message.keyIndex as number | undefined,
+                        message.keyRevision as string,
+                    );
                 return {success: true, ...result};
             } catch (error) {
                 return {success: false, error: dependencies.formatError(service, error)};

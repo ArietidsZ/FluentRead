@@ -479,7 +479,10 @@ describe('configuration transfer helpers', () => {
       imported('https://new.example/v1/chat/completions', {[service]: ''}),
       current,
     )
-    expect(explicitEmptyToken.token).toHaveProperty(service, '')
+    // token 仅是首个非空 apiKeys 的兼容镜像；显式清空后不应制造空 token，
+    // 但对应服务的 apiKeys 仍保留空列表以阻止当前凭据回填。
+    expect(explicitEmptyToken.token).not.toHaveProperty(service)
+    expect(explicitEmptyToken.apiKeys).toHaveProperty(service, [])
   })
 
   it('旧 custom 配置导入并更换地址时同样解绑本机旧 token', () => {

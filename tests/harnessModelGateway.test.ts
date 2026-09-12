@@ -5,8 +5,9 @@
  * 模块边界：测试不访问真实网络，不覆盖 UI、会话、Config 持久化或背景路由。
  */
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {generateText, tool} from 'ai';
+import {generateText, streamText, tool} from 'ai';
 import {z} from 'zod';
+import {reactive} from 'vue';
 import {Config} from '@/src/core/config/model';
 import {currentModelIds, services} from '@/src/core/config/catalog';
 import {createHarnessLanguageModel, normalizeHarnessModelError, sanitizeHarnessModelMessage} from '@/src/services/harness/modelGateway';
@@ -203,6 +204,97 @@ describe('harness model gateway', () => {
     setRuntimeFetch(fetchMock);
     const model = createHarnessLanguageModel(config, services.openai, 'gpt-test');
     await expect(generateText({model, prompt: 'hello', abortSignal: controller.signal})).rejects.toThrow();
+  });
+});
+
+describe('harness model gateway multi-key rotation', () => {
+  afterEach(() => setRuntimeFetch());
+
+  function multiKeyConfig(id: string): Config {
+    const config = new Config();
+    config.customOpenAIProviders = [{id, name: 'Rotation fixture', endpoint: 'https://rotation.fixture/v1/chat/completions', models: ['fixture']}];
+    config.apiKeys[id] = ['fixture-A', 'fixture-B', 'fixture-C'];
+    config.token[id] = 'fixture-A';
+    return config;
+  }
+
+  it('keeps native model metadata and freezes reactive settings during failover', async () => {
+    const config = reactive(new Config());
+    config.apiKeys[services.gemini] = ['native-A', 'native-B'];
+    config.token[services.gemini] = 'native-A';
+    config.proxy[services.gemini] = 'https://native.fixture/generate';
+    const model = createHarnessLanguageModel(config, services.gemini, 'gemini-fixture');
+    expect(typeof model).toBe('object');
+    if (typeof model === 'string') throw new Error('Expected native model');
+    expect(model.modelId).toBe('gemini-fixture');
+    expect(model.provider).toContain('gemini');
+    expect(model.supportedUrls).toHaveProperty('*');
+    config.proxy[services.gemini] = 'https://changed.fixture/generate';
+    config.apiKeys[services.gemini] = ['changed-key'];
+    const seen: string[] = [];
+    setRuntimeFetch(async (input, init) => {
+      expect(String(input)).toBe('https://native.fixture/generate');
+      const key = new Headers(init?.headers).get('x-goog-api-key')!;
+      seen.push(key);
+      if (key === 'native-A') return new Response(JSON.stringify({error: {message: 'API key not valid'}}), {status: 401});
+      return response({candidates: [{content: {role: 'model', parts: [{text: 'native answer'}]}, finishReason: 'STOP'}]});
+    });
+    expect((await generateText({model, prompt: 'hello'})).text).toBe('native answer');
+    expect(seen).toEqual(['native-A', 'native-B']);
+  });
+
+  it('tries A then B on auth failure and uses B/C on later requests', async () => {
+    const config = multiKeyConfig('custom:rotation-generate');
+    const seen: string[] = [];
+    setRuntimeFetch(vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const key = new Headers(init?.headers).get('authorization')?.replace(/^Bearer\s+/u, '') || '';
+      seen.push(key);
+      if (key === 'fixture-A') return new Response(JSON.stringify({error: {message: 'invalid key'}}), {status: 401});
+      return response({choices: [{message: {role: 'assistant', content: key}, finish_reason: 'stop'}]});
+    }));
+    const model = createHarnessLanguageModel(config, 'custom:rotation-generate', 'fixture');
+    expect((await generateText({model, prompt: 'one'})).text).toBe('fixture-B');
+    expect((await generateText({model, prompt: 'two'})).text).toMatch(/^fixture-[BC]$/u);
+    expect(seen.slice(0, 3)).toEqual(['fixture-A', 'fixture-B', expect.any(String)]);
+    expect(seen[2]).not.toBe('fixture-A');
+  });
+
+  it('retries a stream handshake on the next key but never replays a partial stream', async () => {
+    const config = multiKeyConfig('custom:rotation-stream');
+    const seen: string[] = [];
+    setRuntimeFetch(vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const key = new Headers(init?.headers).get('authorization')?.replace(/^Bearer\s+/u, '') || '';
+      seen.push(key);
+      if (key === 'fixture-A') return new Response(JSON.stringify({error: {message: 'rate limited'}}), {status: 429});
+      const body = [
+        `data: ${JSON.stringify({id: 'stream', object: 'chat.completion.chunk', created: 1, model: 'fixture', choices: [{index: 0, delta: {role: 'assistant', content: key}, finish_reason: null}]})}`,
+        '',
+        `data: ${JSON.stringify({id: 'stream', object: 'chat.completion.chunk', created: 1, model: 'fixture', choices: [{index: 0, delta: {}, finish_reason: 'stop'}]})}`,
+        '', 'data: [DONE]', '', '',
+      ].join('\n');
+      return new Response(body, {status: 200, headers: {'content-type': 'text/event-stream'}});
+    }));
+    const result = streamText({model: createHarnessLanguageModel(config, 'custom:rotation-stream', 'fixture'), prompt: 'stream'});
+    expect(await result.text).toBe('fixture-B');
+    expect(seen).toEqual(['fixture-A', 'fixture-B']);
+
+    const partialConfig = multiKeyConfig('custom:rotation-partial');
+    let calls = 0;
+    let transport: ReadableStreamDefaultController<Uint8Array>;
+    setRuntimeFetch(vi.fn(async () => {
+      calls += 1;
+      const stream = new ReadableStream<Uint8Array>({start(controller) {
+        transport = controller;
+        controller.enqueue(new TextEncoder().encode('data: {"id":"partial","choices":[{"index":0,"delta":{"role":"assistant","content":"once"},"finish_reason":null}]}\n\n'));
+      }});
+      return new Response(stream, {status: 200, headers: {'content-type': 'text/event-stream'}});
+    }));
+    const partial = streamText({model: createHarnessLanguageModel(partialConfig, 'custom:rotation-partial', 'fixture'), prompt: 'partial'});
+    const chunks = partial.textStream[Symbol.asyncIterator]();
+    expect(await chunks.next()).toEqual({value: 'once', done: false});
+    transport!.error(new Error('partial stream failure'));
+    await expect(chunks.next()).rejects.toThrow('partial stream failure');
+    expect(calls).toBe(1);
   });
 });
 

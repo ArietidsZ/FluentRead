@@ -32,6 +32,8 @@
       "tests/requestLimitSettings.test.ts"
     ],
     "unit": [
+      "tests/configApiKeys.test.ts",
+      "tests/apiKeyCheckIdentity.test.ts",
       "tests/modalDialogHost.test.ts",
       "tests/chineseLanguage.test.ts",
       "tests/aiContextPresentation.test.ts",
@@ -215,6 +217,9 @@
       "tests/writingEditors.test.ts",
       "tests/writingMarkdown.test.ts",
       "tests/translationToolbarStatus.test.ts",
+      "tests/apiKeyRotation.test.ts",
+      "tests/apiKeyPool.test.ts",
+      "tests/apiKeyTypes.test.ts",
       "tests/freeRoutingPolicy.test.ts",
       "tests/freeBalancedRouting.test.ts",
       "tests/freeTranslationHealthStorage.test.ts",

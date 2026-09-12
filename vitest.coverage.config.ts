@@ -17,6 +17,11 @@ export default defineConfig({
     test: {
         environment: 'node',
         include: [
+            'tests/apiKeyCheckIdentity.test.ts',
+            'tests/apiKeyRotation.test.ts',
+            'tests/apiKeyPool.test.ts',
+            'tests/apiKeyTypes.test.ts',
+            'tests/configApiKeys.test.ts',
             'tests/visionConfig.test.ts',
             'tests/translationVisionPayload.test.ts',
             'tests/translationVisionProviders.test.ts',
@@ -278,6 +283,11 @@ export default defineConfig({
             reportsDirectory: 'coverage/core',
             reporter: ['text', 'json-summary', 'html'],
             include: [
+                'src/core/config/apiKeyCheckIdentity.ts',
+                'src/services/translation/apiKeyRotation.ts',
+                'src/core/translation/apiKeyPool.ts',
+                'src/core/config/apiKeys.ts',
+                'src/features/settings/ui/services/apiKeyTypes.ts',
                 'src/app/background/writingRuntime.ts',
                 'src/features/writing-assistant/client.ts',
                 'src/features/writing-assistant/content.ts',

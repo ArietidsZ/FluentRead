@@ -19,14 +19,11 @@ import {
 } from '@/src/providers/translation/connectionTest';
 import {formatServiceError, getServiceErrorMessage} from '@/src/services/translation/serviceErrors';
 import {services} from '@/src/core/config/catalog';
-import {
-    createTranslationProviderConfigSnapshot,
-    getTranslationRequestScheduler,
-    reportTranslationModelUsage,
-    TRANSLATION_PROVIDER_CONFIG,
-} from '@/src/services/translation/requestSnapshot';
+import {getTranslationRequestScheduler, reportTranslationModelUsage, TRANSLATION_PROVIDER_CONFIG} from '@/src/services/translation/requestSnapshot';
 import {createTranslationRequestScheduler} from '@/src/services/translation/requestScheduler';
-import {normalizeConfig} from '@/src/core/config/model';
+import {createTranslationProviderConfigSnapshot, getTranslationProviderConfig} from '@/src/services/translation/requestSnapshot';
+import {Config, normalizeConfig} from '@/src/core/config/model';
+import {createApiKeyCheckRevision} from '@/src/core/config/apiKeyCheckIdentity';
 
 function deferred<T>() {
     let resolve!: (value: T | PromiseLike<T>) => void;
@@ -39,6 +36,82 @@ function deferred<T>() {
 }
 
 describe('翻译服务连接测试', () => {
+    it('指定 Key 的逐项检查仍共享请求调度，不会绕过频率限制', async () => {
+        vi.useFakeTimers();
+        const scheduler = createTranslationRequestScheduler(() => ({
+            maxConcurrentTranslations: 6, translationRequestsPerSecond: 1, translationRequestsPerMinute: 0,
+        }));
+        const source = new Config();
+        source.apiKeys.demo = ['scheduled-first', 'scheduled-second'];
+        source.token.demo = 'scheduled-first';
+        const snapshot = createTranslationProviderConfigSnapshot(source);
+        const used: string[] = [];
+        adapter.mockImplementation(async message => {
+            used.push(getTranslationProviderConfig(message, snapshot).token.demo);
+            expect(getTranslationRequestScheduler(message)?.identity?.service).toBe('demo');
+            return '你好';
+        });
+        await runTranslationServiceConnectionTest('demo', {config: snapshot, keyIndex: 0, requestScheduler: scheduler});
+        const second = runTranslationServiceConnectionTest('demo', {config: snapshot, keyIndex: 1, requestScheduler: scheduler});
+        await vi.advanceTimersByTimeAsync(999);
+        expect(used).toEqual(['scheduled-first']);
+        await vi.advanceTimersByTimeAsync(1);
+        await second;
+        expect(used).toEqual(['scheduled-first', 'scheduled-second']);
+    });
+    it('逐项检查使用冻结凭据、不用其他 Key 掩盖失败，支持空行后的原始索引', async () => {
+        const source = new Config();
+        source.apiKeys.demo = ['fixture-connection-bad', '', 'fixture-connection-good'];
+        source.token.demo = 'fixture-connection-bad';
+        const snapshot = createTranslationProviderConfigSnapshot(source);
+        const used: string[] = [];
+        adapter.mockImplementation(async message => {
+            const key = getTranslationProviderConfig(message, snapshot).token.demo;
+            used.push(key);
+            if (key === 'fixture-connection-bad') throw Object.assign(new Error(`HTTP 401 ${key}`), {statusCode: 401});
+            return '你好';
+        });
+        await expect(runTranslationServiceConnectionTest('demo', {configSnapshot: snapshot, keyIndex: 0}))
+            .rejects.toThrow('已隐藏的密钥');
+        expect(used).toEqual(['fixture-connection-bad']);
+        source.apiKeys.demo[2] = 'changed-after-snapshot';
+        await expect(runTranslationServiceConnectionTest('demo', {configSnapshot: snapshot, keyIndex: 2})).resolves.toBeTruthy();
+        expect(used).toEqual(['fixture-connection-bad', 'fixture-connection-good']);
+        await expect(runTranslationServiceConnectionTest('demo', {configSnapshot: snapshot, keyIndex: 1})).rejects.toThrow('为空');
+        await expect(runTranslationServiceConnectionTest('demo', {configSnapshot: snapshot, keyIndex: -1})).rejects.toThrow('序号无效');
+        await expect(runTranslationServiceConnectionTest('demo', {keyIndex: 0})).rejects.toThrow('缺少配置快照');
+    });
+
+    it('配置指纹过期时在 provider 调用前拒绝检测', async () => {
+        const source = new Config();
+        source.apiKeys.demo = ['fixture-check-key'];
+        const snapshot = createTranslationProviderConfigSnapshot(source);
+        adapter.mockResolvedValue('不应发出');
+        const revision = createApiKeyCheckRevision(snapshot, 'demo');
+        await expect(runTranslationServiceConnectionTest('demo', {
+            configSnapshot: snapshot,
+            keyIndex: 0,
+            keyRevision: revision.replace(/^./u, revision[0] === 'a' ? 'b' : 'a'),
+        })).rejects.toThrow('服务配置已更改，请重新检查');
+        expect(adapter).not.toHaveBeenCalled();
+    });
+
+    it('无 Key 配置也冻结端点，旧未指定索引检查只验证第一个非空 Key', async () => {
+        const source = new Config();
+        source.apiKeys.demo = ['', 'fixture-single-check'];
+        const snapshot = createTranslationProviderConfigSnapshot(source);
+        adapter.mockImplementation(async message => {
+            expect(getTranslationProviderConfig(message, source).token.demo).toBe('fixture-single-check');
+            return '你好';
+        });
+        await expect(runTranslationServiceConnectionTest('demo', {configSnapshot: snapshot})).resolves.toBeTruthy();
+        adapter.mockImplementation(async message => {
+            expect(Object.isFrozen(getTranslationProviderConfig(message, source))).toBe(true);
+            expect(getTranslationProviderConfig(message, source).token.demo).toBe('');
+            return '你好';
+        });
+        await expect(runTranslationServiceConnectionTest('demo', {configSnapshot: createTranslationProviderConfigSnapshot(new Config())})).resolves.toBeTruthy();
+    });
     afterEach(() => {
         vi.useRealTimers();
         vi.restoreAllMocks();

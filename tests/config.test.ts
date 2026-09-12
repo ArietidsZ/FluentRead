@@ -1862,10 +1862,12 @@ describe('统一配置存储', () => {
             config: {
                 proxy: {[service]: 'https://new-proxy.example/v1/chat/completions'},
                 token: {},
+                apiKeys: {},
             },
             expected: {
                 proxy: {[service]: 'https://old-proxy.example/v1/chat/completions'},
                 token: {[service]: 'wire-secret'},
+                apiKeys: {[service]: ['wire-secret']},
             },
         }));
         expect(configStore.config.token).toEqual({});

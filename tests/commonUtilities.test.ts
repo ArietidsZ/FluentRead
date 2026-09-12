@@ -125,6 +125,11 @@ describe('语义化公共工具', () => {
         expect(shouldSkipTranslationForTarget('This foreign prose describes GitHub API 한국어 이름.', 'ko-KR')).toBe(false);
     });
 
+    it('假名或谚文不能把希腊文和西里尔文正文误判为目标语言', () => {
+        expect(shouldSkipTranslationForTarget('これは Ελληνικά の説明です。', 'ja-JP')).toBe(false);
+        expect(shouldSkipTranslationForTarget('한국어 설명 Русский текст.', 'ko-KR')).toBe(false);
+    });
+
     it('只为精确数量的非空触摸点计算中心', () => {
         const touches = {
             0: {clientX: 10, clientY: 20},
