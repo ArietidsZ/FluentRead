@@ -38,6 +38,9 @@ describe('hotkey parsing', () => {
     });
 
     it('合并重复修饰键并按平台生成展示名', () => {
+        // 展示名取决于 navigator.platform。Node 21 起全局就存在 navigator，宿主平台会
+        // 泄漏进来，因此非 macOS 分支同样要显式 stub，不能依赖 navigator 缺失。
+        vi.stubGlobal('navigator', {platform: 'Win32'});
         expect(parseHotkey('Ctrl+Control+Alt+Space')).toEqual({
             modifiers: ['ctrl', 'alt'],
             key: 'space',
