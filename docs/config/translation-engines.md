@@ -51,6 +51,22 @@ API Key 中只填站点提供的 Token 值，不加 `Bearer` 前缀。默认通�
 
 ## 使用 AI 服务
 
+新配置优先使用适合日常翻译的轻量模型：
+
+| 服务 | 默认模型 |
+| --- | --- |
+| DeepSeek | `deepseek-flash`（V4.1 Flash） |
+| OpenAI | `gpt-5.4-mini` |
+| Gemini | `gemini-3.5-flash-lite` |
+| 通义千问 | `qwen3.8-flash` |
+| Claude | `claude-haiku-4-5` |
+| 阶跃星辰 | `step-2-mini` |
+| OpenRouter | `google/gemini-3.5-flash-lite` |
+
+更新模型列表不会覆盖你已保存的有效模型或自定义模型。DeepSeek 默认关闭思考；部分模型无法完全关闭思考时，使用其支持的最低档。更大的模型仍可手动选择，实际费用以服务商为准。
+
+DeepSeek 的新编号见[官方更新记录](https://api-docs.deepseek.com/updates/)；原来的 `deepseek-v4-flash` 仍可作为兼容别名使用。已下线的混元 `hy3-preview` 会更新为 `hy3`。
+
 选择已配置的服务和模型。常用列表里没有你的模型时，可以使用 **自定义模型**；模型名称从服务商提供的信息中复制。第三方提供兼容接口时，可在 **我的服务** 添加地址和模型。
 
 使用 Azure 时，模型一栏填写实际的 **部署名称**；地址填写自己的资源地址或服务商给出的完整接口地址。

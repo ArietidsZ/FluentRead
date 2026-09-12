@@ -11,7 +11,7 @@ import {
     normalizeConfig,
 } from '@/src/core/config/model';
 import { getMimoEndpoint, MIMO_ENDPOINTS, MINIMAX_ENDPOINTS, tongyiTokenPlanUrl, urls } from '@/src/core/config/constants';
-import { customModelString, defaultModelIds, defaultModels, defaultOption, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
+import { currentModelIds, customModelString, defaultModelIds, defaultModels, defaultOption, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
 import {
     CUSTOM_OPENAI_RESERVED_MODEL_ID,
     MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER,
@@ -80,16 +80,16 @@ describe('AI 模型编号列表', () => {
     });
 
     it('展示当前主流模型，并移除已退役或错误的预设编号', () => {
-        expect(models.get(services.openai)?.at(0)).toBe('gpt-5.6-luna');
+        expect(models.get(services.openai)?.at(0)).toBe('gpt-5.4-mini');
         expect(models.get(services.openai)).toContain('gpt-5.6-sol');
         expect(models.get(services.openai)).not.toContain('gpt5');
         expect(models.get(services.gemini)).toContain('gemini-3.6-flash');
         expect(models.get(services.claude)).toContain('claude-fable-5');
         expect(models.get(services.claude)).toContain('claude-sonnet-5');
         expect(models.get(services.claude)?.at(-1)).toBe(customModelString);
-        expect(models.get(services.tongyi)?.at(0)).toBe('qwen3.6-flash');
+        expect(models.get(services.tongyi)?.at(0)).toBe('qwen3.8-flash');
         expect(models.get(services.tongyi)).toContain('qwen3.7-max');
-        expect(models.get(services.tongyi)).not.toContain('qwen3.7-flash');
+        expect(models.get(services.tongyi)).toContain('qwen3.7-flash');
         expect(models.get(services.zhipu)?.at(0)).toBe('glm-4.5-flash');
         expect(models.get(services.zhipu)).toContain('glm-5.2');
         expect(models.get(services.infini)).toContain('glm-5.2');
@@ -208,6 +208,71 @@ describe('AI 模型编号列表', () => {
             expect(defaultModels.get(service), `${service} 默认模型`).toBe(defaultModel);
             expect(models.get(service)?.at(0), `${service} 模型列表首项`).toBe(defaultModel);
         }
+    });
+
+    it('刷新后的网页和文档默认使用轻量模型，目录没有重复编号', () => {
+        const expected = {
+            [services.openai]: 'gpt-5.4-mini',
+            [services.azureOpenai]: 'gpt-5.4-mini',
+            [services.gemini]: 'gemini-3.5-flash-lite',
+            [services.deepseek]: 'deepseek-flash',
+            [services.infini]: 'deepseek-v4-flash',
+            [services.tongyi]: 'qwen3.8-flash',
+            [services.claude]: 'claude-haiku-4-5',
+            [services.jieyue]: 'step-2-mini',
+            [services.openrouter]: 'google/gemini-3.5-flash-lite',
+        };
+        for (const config of [new Config(), normalizeConfig({}), normalizeConfig({model: {}, documentModel: {}})]) {
+            expect(config.model).toMatchObject(expected);
+            expect(config.documentModel).toMatchObject(expected);
+            expect(config.deepseekThinkingMode).toBe('disabled');
+        }
+        for (const [service, choices] of models) {
+            expect(new Set(choices).size, service).toBe(choices.length);
+        }
+        expect(models.get(services.infini)).not.toContain('deepseek-flash');
+        expect(models.get(services.openrouter)).toContain('deepseek/deepseek-v4.1-flash');
+        expect(models.get(services.openrouter)).not.toContain('deepseek-flash');
+    });
+
+    it('已下线的混元预览版迁移到正式版，保留网页和文档的思考偏好', () => {
+        const normalized = normalizeConfig({
+            model: {[services.huanYuan]: 'hy3-preview'},
+            documentModel: {[services.huanYuan]: 'hy3-preview'},
+            modelThinking: {[services.huanYuan]: {'hy3-preview': false}},
+        });
+        expect(normalized.model[services.huanYuan]).toBe('hy3');
+        expect(normalized.documentModel[services.huanYuan]).toBe('hy3');
+        expect(normalized.modelThinking[services.huanYuan]).toEqual({hy3: false});
+        expect(models.get(services.huanYuan)).not.toContain('hy3-preview');
+    });
+
+    it('刷新默认不覆盖已选模型、DeepSeek 兼容别名、密钥要求及自定义模型', () => {
+        const saved = {
+            ...new Config(),
+            model: {
+                [services.openai]: 'gpt-5.6-luna',
+                [services.gemini]: 'gemini-3.6-flash',
+                [services.tongyi]: 'qwen3.6-flash',
+                [services.deepseek]: 'deepseek-v4-flash',
+            },
+            documentModel: {
+                [services.deepseek]: 'deepseek-v4-pro',
+                [services.openai]: customModelString,
+            },
+            documentCustomModel: {[services.openai]: 'private-document-model'},
+            customModels: {[services.openai]: ['private-document-model']},
+            modelThinking: {[services.deepseek]: {'deepseek-v4-flash': true, 'deepseek-v4-pro': false}},
+            requireApiKey: {'deepseek:deepseek-v4-flash': false},
+        };
+        const normalized = normalizeConfig(saved);
+        expect(normalized.model).toMatchObject(saved.model);
+        expect(normalized.documentModel).toMatchObject(saved.documentModel);
+        expect(normalized.documentCustomModel).toEqual(saved.documentCustomModel);
+        expect(normalized.customModels).toEqual(saved.customModels);
+        expect(normalized.modelThinking).toEqual(saved.modelThinking);
+        expect(normalized.requireApiKey).toEqual(saved.requireApiKey);
+        expect(normalizeConfig(normalized)).toEqual(normalized);
     });
 
     it('把旧自定义接口迁移为 profile，并保留地址、实际模型和其他按服务配置', () => {
@@ -1107,12 +1172,12 @@ describe('旧模型编号兼容迁移', () => {
         const chat = normalizeConfig({model: {[services.deepseek]: 'deepseek-chat'}});
         const reasoner = normalizeConfig({model: {[services.deepseek]: 'deepseek-reasoner'}});
 
-        expect(chat.model[services.deepseek]).toBe('deepseek-v4-flash');
+        expect(chat.model[services.deepseek]).toBe('deepseek-flash');
         expect(chat.deepseekThinkingMode).toBe('disabled');
-        expect(chat.modelThinking[services.deepseek]).toEqual({'deepseek-v4-flash': false});
-        expect(reasoner.model[services.deepseek]).toBe('deepseek-v4-flash');
+        expect(chat.modelThinking[services.deepseek]).toEqual({'deepseek-flash': false});
+        expect(reasoner.model[services.deepseek]).toBe('deepseek-flash');
         expect(reasoner.deepseekThinkingMode).toBe('enabled');
-        expect(reasoner.modelThinking[services.deepseek]).toEqual({'deepseek-v4-flash': true});
+        expect(reasoner.modelThinking[services.deepseek]).toEqual({'deepseek-flash': true});
     });
 
     it('模型 Thinking 默认关闭，并规范化迁移可达模型状态', () => {
@@ -1124,7 +1189,7 @@ describe('旧模型编号兼容迁移', () => {
             modelThinking: {
                 [services.openai]: {
                     gpt5: true,
-                    [defaultModelIds[services.openai]]: false,
+                    [currentModelIds.openai]: false,
                     'private-model': true,
                     orphan: true,
                     invalid: 'yes',
@@ -1136,7 +1201,7 @@ describe('旧模型编号兼容迁移', () => {
 
         expect(normalized.modelThinking).toEqual({
             [services.openai]: {
-                [defaultModelIds[services.openai]]: false,
+                [currentModelIds.openai]: false,
                 'private-model': true,
             },
         });
@@ -1157,11 +1222,11 @@ describe('旧模型编号兼容迁移', () => {
             ...new Config(),
             modelThinking: {[services.openai]: {
                 gpt5: true,
-                [defaultModelIds[services.openai]]: false,
+                [currentModelIds.openai]: false,
             }},
         });
         expect(officialLegacyName.modelThinking[services.openai])
-            .toEqual({[defaultModelIds[services.openai]]: false});
+            .toEqual({[currentModelIds.openai]: false});
     });
 
     it('显式模型级 DeepSeek 值覆盖旧服务级开关并迁移旧模型键', () => {
@@ -1175,12 +1240,12 @@ describe('旧模型编号兼容迁移', () => {
         const legacyKey = normalizeConfig({
             modelThinking: {[services.deepseek]: {'deepseek-reasoner': true}},
         });
-        expect(legacyKey.modelThinking[services.deepseek]).toEqual({'deepseek-v4-flash': true});
+        expect(legacyKey.modelThinking[services.deepseek]).toEqual({'deepseek-flash': true});
 
         const legacyChatKey = normalizeConfig({
             modelThinking: {[services.deepseek]: {'deepseek-chat': false}},
         });
-        expect(legacyChatKey.modelThinking[services.deepseek]).toEqual({'deepseek-v4-flash': false});
+        expect(legacyChatKey.modelThinking[services.deepseek]).toEqual({'deepseek-flash': false});
     });
 
     it('动态自定义服务只保留 profile 中仍可达模型的 Thinking 状态', () => {
