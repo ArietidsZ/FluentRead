@@ -1,9 +1,9 @@
 {
   "generatedAt": "2026-09-06T13:55:05.327Z",
   "losslessWebPixelsVerified": true,
-  "rawBytes": 5381125,
-  "webBytes": 2334628,
-  "savingsPercent": 57,
+  "rawBytes": 3930079,
+  "webBytes": 1927706,
+  "savingsPercent": 51,
   "entries": [
     {
       "file": "docs/public/screenshots/translation.webp",
@@ -13,7 +13,7 @@
       "height": 1600,
       "format": "webp",
       "alpha": false,
-      "bytes": 97924
+      "bytes": 97724
     },
     {
       "file": "docs/public/screenshots/translation-small.webp",
@@ -23,7 +23,7 @@
       "height": 800,
       "format": "webp",
       "alpha": false,
-      "bytes": 139844
+      "bytes": 139724
     },
     {
       "file": "docs/public/screenshots/selection.webp",
@@ -33,7 +33,7 @@
       "height": 1600,
       "format": "webp",
       "alpha": false,
-      "bytes": 243266
+      "bytes": 151326
     },
     {
       "file": "docs/public/screenshots/selection-detail.webp",
@@ -43,7 +43,7 @@
       "height": 960,
       "format": "webp",
       "alpha": false,
-      "bytes": 178848
+      "bytes": 107214
     },
     {
       "file": "docs/public/screenshots/reading-card.webp",
@@ -53,7 +53,7 @@
       "height": 1600,
       "format": "webp",
       "alpha": false,
-      "bytes": 123192
+      "bytes": 121070
     },
     {
       "file": "docs/public/screenshots/reading-card-detail.webp",
@@ -63,7 +63,7 @@
       "height": 1140,
       "format": "webp",
       "alpha": false,
-      "bytes": 58428
+      "bytes": 55668
     },
     {
       "file": "docs/public/screenshots/popup.webp",
@@ -73,7 +73,7 @@
       "height": 1120,
       "format": "webp",
       "alpha": false,
-      "bytes": 127846
+      "bytes": 94064
     },
     {
       "file": "docs/public/screenshots/settings-general.webp",
@@ -83,7 +83,7 @@
       "height": 1600,
       "format": "webp",
       "alpha": false,
-      "bytes": 109024
+      "bytes": 107242
     },
     {
       "file": "docs/public/screenshots/settings-services.webp",
@@ -93,7 +93,7 @@
       "height": 1600,
       "format": "webp",
       "alpha": false,
-      "bytes": 129182
+      "bytes": 127730
     },
     {
       "file": "docs/public/screenshots/document.webp",
@@ -103,7 +103,7 @@
       "height": 1600,
       "format": "webp",
       "alpha": false,
-      "bytes": 109848
+      "bytes": 108230
     },
     {
       "file": "marketing/chrome-web-store/zh-CN/screenshots/01-translation.png",
@@ -113,7 +113,7 @@
       "height": 800,
       "format": "png",
       "alpha": false,
-      "bytes": 229489
+      "bytes": 229165
     },
     {
       "file": "marketing/chrome-web-store/zh-CN/screenshots/02-reading-card.png",
@@ -123,7 +123,7 @@
       "height": 800,
       "format": "png",
       "alpha": false,
-      "bytes": 202867
+      "bytes": 202579
     },
     {
       "file": "marketing/chrome-web-store/zh-CN/screenshots/03-selection.png",
@@ -133,7 +133,7 @@
       "height": 800,
       "format": "png",
       "alpha": false,
-      "bytes": 245610
+      "bytes": 245262
     },
     {
       "file": "marketing/chrome-web-store/zh-CN/screenshots/04-document.png",
@@ -143,7 +143,7 @@
       "height": 800,
       "format": "png",
       "alpha": false,
-      "bytes": 182972
+      "bytes": 182708
     },
     {
       "file": "marketing/chrome-web-store/zh-CN/screenshots/05-settings-services.png",
@@ -153,7 +153,7 @@
       "height": 800,
       "format": "png",
       "alpha": false,
-      "bytes": 195914
+      "bytes": 195638
     },
     {
       "file": "docs/public/screenshots/en/translation.webp",
@@ -173,7 +173,7 @@
       "height": 800,
       "format": "webp",
       "alpha": false,
-      "bytes": 139284
+      "bytes": 139176
     },
     {
       "file": "docs/public/screenshots/en/selection.webp",
@@ -183,7 +183,7 @@
       "height": 1600,
       "format": "webp",
       "alpha": false,
-      "bytes": 216220
+      "bytes": 135870
     },
     {
       "file": "docs/public/screenshots/en/selection-detail.webp",
@@ -193,7 +193,7 @@
       "height": 960,
       "format": "webp",
       "alpha": false,
-      "bytes": 159210
+      "bytes": 96818
     },
     {
       "file": "docs/public/screenshots/en/reading-card.webp",
@@ -203,7 +203,7 @@
       "height": 1600,
       "format": "webp",
       "alpha": false,
-      "bytes": 119664
+      "bytes": 117532
     },
     {
       "file": "docs/public/screenshots/en/reading-card-detail.webp",
@@ -213,7 +213,7 @@
       "height": 1140,
       "format": "webp",
       "alpha": false,
-      "bytes": 65682
+      "bytes": 62452
     },
     {
       "file": "docs/public/screenshots/en/popup.webp",
@@ -223,7 +223,7 @@
       "height": 1120,
       "format": "webp",
       "alpha": false,
-      "bytes": 123756
+      "bytes": 85972
     },
     {
       "file": "docs/public/screenshots/en/settings-general.webp",
@@ -233,7 +233,7 @@
       "height": 1600,
       "format": "webp",
       "alpha": false,
-      "bytes": 108806
+      "bytes": 103934
     },
     {
       "file": "docs/public/screenshots/en/settings-services.webp",
@@ -243,7 +243,7 @@
       "height": 1600,
       "format": "webp",
       "alpha": false,
-      "bytes": 137186
+      "bytes": 132540
     },
     {
       "file": "docs/public/screenshots/en/document.webp",
@@ -253,7 +253,7 @@
       "height": 1600,
       "format": "webp",
       "alpha": false,
-      "bytes": 129264
+      "bytes": 125038
     },
     {
       "file": "marketing/chrome-web-store/en/screenshots/01-translation.png",
@@ -263,7 +263,7 @@
       "height": 800,
       "format": "png",
       "alpha": false,
-      "bytes": 228272
+      "bytes": 227948
     },
     {
       "file": "marketing/chrome-web-store/en/screenshots/02-reading-card.png",
@@ -273,7 +273,7 @@
       "height": 800,
       "format": "png",
       "alpha": false,
-      "bytes": 191350
+      "bytes": 191074
     },
     {
       "file": "marketing/chrome-web-store/en/screenshots/03-selection.png",
@@ -283,7 +283,7 @@
       "height": 800,
       "format": "png",
       "alpha": false,
-      "bytes": 218908
+      "bytes": 218596
     },
     {
       "file": "marketing/chrome-web-store/en/screenshots/04-document.png",
@@ -293,7 +293,7 @@
       "height": 800,
       "format": "png",
       "alpha": false,
-      "bytes": 215516
+      "bytes": 215204
     },
     {
       "file": "marketing/chrome-web-store/en/screenshots/05-settings-services.png",
@@ -303,7 +303,7 @@
       "height": 800,
       "format": "png",
       "alpha": false,
-      "bytes": 224106
+      "bytes": 223782
     },
     {
       "file": "marketing/chrome-web-store/icon-128.png",
@@ -313,7 +313,7 @@
       "height": 128,
       "format": "png",
       "alpha": true,
-      "bytes": 14838
+      "bytes": 14826
     },
     {
       "file": "marketing/chrome-web-store/promo/zh-CN-small-440x280.png",
@@ -323,7 +323,7 @@
       "height": 280,
       "format": "png",
       "alpha": false,
-      "bytes": 14319
+      "bytes": 14307
     },
     {
       "file": "marketing/chrome-web-store/promo/zh-CN-marquee-1400x560.png",
@@ -333,7 +333,7 @@
       "height": 560,
       "format": "png",
       "alpha": false,
-      "bytes": 75015
+      "bytes": 74907
     },
     {
       "file": "marketing/chrome-web-store/promo/en-small-440x280.png",
@@ -343,7 +343,7 @@
       "height": 280,
       "format": "png",
       "alpha": false,
-      "bytes": 11667
+      "bytes": 11655
     },
     {
       "file": "marketing/chrome-web-store/promo/en-marquee-1400x560.png",
@@ -353,7 +353,7 @@
       "height": 560,
       "format": "png",
       "alpha": false,
-      "bytes": 74710
+      "bytes": 74602
     }
   ]
 }
