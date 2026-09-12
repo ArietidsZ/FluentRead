@@ -493,7 +493,7 @@ export const ruRUMessages = {
     'settings.interface.font.options.lxgwWenkai.description': 'Естественный рукописный китайский стиль.',
     'settings.interface.font.options.notoSerifSc.label': 'Noto Serif SC · Книжный',
     'settings.interface.font.options.notoSerifSc.description': 'Шрифт с засечками, как на книжной странице.',
-    'settings.interface.font.note': 'Нажмите на облако, чтобы скачать и применить шрифт. Затем он доступен без сети и без установки в систему.',
+    'settings.interface.font.note': 'Нажмите на карточку, чтобы выбрать шрифт. При необходимости он скачается автоматически и будет доступен без сети и установки в систему.',
     'settings.interface.font.downloading': 'Загрузка шрифтов',
     'settings.interface.font.noDownload': 'Системный шрифт · Загрузка не нужна',
     'settings.interface.font.saved': 'Загружено · Сохранено для работы без сети',

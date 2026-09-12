@@ -644,7 +644,7 @@ export const zhCNMessages = {
     'settings.interface.font.options.lxgwWenkai.description': '舒展的楷书，带自然手写感。',
     'settings.interface.font.options.notoSerifSc.label': 'Noto Serif SC · 书卷',
     'settings.interface.font.options.notoSerifSc.description': '书页般的宋体，适合偏爱衬线风格。',
-    'settings.interface.font.note': '点击云下载即可下载并使用，完成后可离线使用，无需安装到系统。',
+    'settings.interface.font.note': '点击字体卡片即可选用，未下载的字体会自动下载；下载完成后可离线使用，无需安装到系统。',
     'settings.interface.font.downloading': '正在下载字体',
     'settings.interface.font.noDownload': '系统字体 · 无需下载',
     'settings.interface.font.saved': '下载完成 · 已缓存，可离线使用',

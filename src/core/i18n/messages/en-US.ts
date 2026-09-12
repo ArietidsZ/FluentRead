@@ -645,7 +645,7 @@ export const enUSMessages = {
     'settings.interface.font.options.lxgwWenkai.description': 'A natural, handwritten Chinese style.',
     'settings.interface.font.options.notoSerifSc.label': 'Noto Serif SC · Bookish',
     'settings.interface.font.options.notoSerifSc.description': 'A page-like serif style for reading.',
-    'settings.interface.font.note': 'Click the cloud button to download and use a font. It then works offline without system installation.',
+    'settings.interface.font.note': 'Click a font card to use it. Fonts download when needed and work offline once saved, without a system installation.',
     'settings.interface.font.downloading': 'Downloading fonts',
     'settings.interface.font.noDownload': 'System font · No download needed',
     'settings.interface.font.saved': 'Downloaded · Cached for offline use',

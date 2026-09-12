@@ -493,7 +493,7 @@ export const koKRMessages = {
     'settings.interface.font.options.lxgwWenkai.description': '자연스러운 손글씨 느낌의 중국어 글꼴.',
     'settings.interface.font.options.notoSerifSc.label': 'Noto Serif SC · 책 느낌',
     'settings.interface.font.options.notoSerifSc.description': '책장을 떠올리는 세리프 글꼴.',
-    'settings.interface.font.note': '클라우드 버튼을 누르면 다운로드 후 바로 적용됩니다. 시스템 설치 없이 이후 오프라인으로 사용할 수 있습니다.',
+    'settings.interface.font.note': '글꼴 카드를 클릭하면 선택됩니다. 필요한 글꼴은 자동으로 다운로드되며, 완료 후 시스템 설치 없이 오프라인으로 사용할 수 있습니다.',
     'settings.interface.font.downloading': '글꼴 다운로드 중',
     'settings.interface.font.noDownload': '시스템 글꼴 · 다운로드 불필요',
     'settings.interface.font.saved': '다운로드 완료 · 오프라인 캐시 저장됨',

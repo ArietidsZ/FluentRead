@@ -493,7 +493,7 @@ export const esESMessages = {
     'settings.interface.font.options.lxgwWenkai.description': 'Un estilo chino con escritura natural a mano.',
     'settings.interface.font.options.notoSerifSc.label': 'Noto Serif SC · Libro',
     'settings.interface.font.options.notoSerifSc.description': 'Una fuente con serifas que recuerda a un libro.',
-    'settings.interface.font.note': 'Pulsa la nube para descargar y usar una fuente. Después funciona sin conexión y sin instalarla en el sistema.',
+    'settings.interface.font.note': 'Pulsa una tarjeta para elegir una fuente. Se descargará si es necesario y podrás usarla sin conexión, sin instalarla en el sistema.',
     'settings.interface.font.downloading': 'Descargando fuentes',
     'settings.interface.font.noDownload': 'Fuente del sistema · Sin descarga',
     'settings.interface.font.saved': 'Descargada · Guardada para usar sin conexión',

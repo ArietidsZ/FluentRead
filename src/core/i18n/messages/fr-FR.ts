@@ -493,7 +493,7 @@ export const frFRMessages = {
     'settings.interface.font.options.lxgwWenkai.description': 'Un style chinois naturellement manuscrit.',
     'settings.interface.font.options.notoSerifSc.label': 'Noto Serif SC · Livre',
     'settings.interface.font.options.notoSerifSc.description': 'Une police à empattements rappelant un livre.',
-    'settings.interface.font.note': 'Cliquez sur le nuage pour télécharger et utiliser une police, ensuite disponible hors ligne sans installation système.',
+    'settings.interface.font.note': 'Cliquez sur une carte pour choisir une police. Elle sera téléchargée si nécessaire, puis disponible hors ligne sans installation système.',
     'settings.interface.font.downloading': 'Téléchargement des polices',
     'settings.interface.font.noDownload': 'Police système · Aucun téléchargement',
     'settings.interface.font.saved': 'Téléchargé · En cache pour une utilisation hors ligne',

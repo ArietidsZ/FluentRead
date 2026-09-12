@@ -180,7 +180,7 @@
   >
     <div class="interface-font-settings">
       <div class="interface-font-picker" role="radiogroup" :aria-label="t('settings.interface.font.label')">
-        <div
+        <label
           v-for="font in interfaceFontOptions"
           :key="font.value"
           class="interface-font-option"
@@ -189,21 +189,23 @@
         >
           <input
             :id="`interface-font-${font.value}`"
-            v-model="props.config.interfaceFont"
+            :checked="props.config.interfaceFont === font.value"
+            @click="selectInterfaceFont(font.value)"
             type="radio"
             name="interface-font"
             :value="font.value"
             :aria-label="t(font.labelKey)"
           />
-          <label class="interface-font-copy" :for="`interface-font-${font.value}`">
+          <span class="interface-font-copy">
             <strong>{{ t(font.labelKey) }}</strong>
             <small>{{ t(font.descriptionKey) }}</small>
-          </label>
-          <button class="interface-font-action" type="button"
-            :class="{ 'is-download': !availableInterfaceFonts.includes(font.value) }"
-            :disabled="font.value === props.config.interfaceFont && interfaceFontLoadState.status !== 'error'"
-            :aria-label="`${t(fontActionKey(font.value))} · ${t(font.labelKey)}`"
-            @click="selectInterfaceFont(font.value)">
+          </span>
+          <span class="interface-font-action"
+            :class="{
+              'is-download': !availableInterfaceFonts.includes(font.value),
+              'is-active': font.value === props.config.interfaceFont && interfaceFontLoadState.status !== 'error',
+            }"
+            aria-hidden="true">
             <svg v-if="!availableInterfaceFonts.includes(font.value)" class="interface-font-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M7 17H6a4 4 0 0 1-.6-7.95 6.5 6.5 0 0 1 12.5-1.9A5 5 0 0 1 19 17h-2M12 11v10m-3-3 3 3 3-3" />
             </svg>
@@ -211,8 +213,8 @@
               <circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" />
             </svg>
             {{ t(fontActionKey(font.value)) }}
-          </button>
-        </div>
+          </span>
+        </label>
         <div class="interface-font-preview" :style="{ fontFamily: selectedFontOption.fontFamily }">
           <span>{{ t('settings.interface.font.preview') }}</span>
           <small aria-hidden="true">Aa Bb Cc · 0123456789</small>
@@ -233,29 +235,6 @@
           :max="interfaceFontLoadState.total"
           :aria-label="t('settings.interface.font.downloading')"
         />
-        <details v-if="fontAssets.length" class="interface-font-sources">
-          <summary>{{ t('settings.interface.font.sources') }}</summary>
-          <p>{{ t('settings.interface.font.sourceNote') }}</p>
-          <div class="interface-font-source-grid">
-            <section v-for="region in fontSourceRegions" :key="region.id">
-              <h4>{{ t(region.labelKey) }}</h4>
-              <div v-for="source in region.sources" :key="source.id" class="interface-font-source">
-                <div class="interface-font-source-heading">
-                  <strong>{{ source.label }}</strong>
-                  <button v-if="interfaceFontLoadState.status !== 'ready'" type="button" @click="retryInterfaceFont(source.id)">
-                    {{ t('settings.interface.font.useSource') }}
-                  </button>
-                </div>
-                <div class="interface-font-links">
-                  <a v-for="asset in fontAssets" :key="asset.file" :href="getInterfaceFontUrl(source.id, asset.file)"
-                    target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">{{ asset.file }}</a>
-                  <a href="/interface-font-licenses.txt"
-                    target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">{{ t('settings.interface.font.license') }}</a>
-                </div>
-              </div>
-            </section>
-          </div>
-        </details>
       </div>
     </div>
   </SettingsGroup>
@@ -282,7 +261,7 @@ import {
   type InterfaceFont,
 } from '@/src/core/config/interfaceAppearance'
 import {useUiI18n} from '@/src/ui/i18n'
-import {getInterfaceFontAssets, getInterfaceFontUrl, interfaceFontSources} from '@/src/core/config/interfaceFontAssets'
+import {getInterfaceFontAssets} from '@/src/core/config/interfaceFontAssets'
 import {availableInterfaceFonts, interfaceFontLoadState, refreshInterfaceFontAvailability, retryInterfaceFont} from '@/src/ui/interfaceAppearance'
 import InterfaceSkinPreview from './components/InterfaceSkinPreview.vue'
 import PopupLayoutPreview from './components/PopupLayoutPreview.vue'
@@ -317,15 +296,14 @@ function fontActionKey(font: InterfaceFont) {
   return availableInterfaceFonts.value.includes(font) ? 'settings.interface.font.useFont' : 'settings.interface.font.downloadAndUse'
 }
 function selectInterfaceFont(font: InterfaceFont) {
-  if (font === props.config.interfaceFont) retryInterfaceFont()
-  else props.config.interfaceFont = font
+  if (font === props.config.interfaceFont) {
+    if (interfaceFontLoadState.value.status === 'error') retryInterfaceFont()
+    return
+  }
+  props.config.interfaceFont = font
 }
 const fontAssets = computed(() => getInterfaceFontAssets(selectedFontOption.value.value))
 const fontSize = computed(() => `${(fontAssets.value.reduce((sum, asset) => sum + asset.bytes, 0) / 1024 / 1024).toFixed(1)} MB`)
-const fontSourceRegions = [
-  {id: 'china', labelKey: 'settings.interface.font.china', sources: interfaceFontSources.filter(source => source.region === 'china')},
-  {id: 'global', labelKey: 'settings.interface.font.global', sources: interfaceFontSources.filter(source => source.region === 'global')},
-]
 const fontStatusText = computed(() => {
   const state = interfaceFontLoadState.value
   if (state.status === 'system') return t('settings.interface.font.noDownload')
@@ -404,15 +382,6 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 .interface-font-download progress { width: 100%; height: 6px; accent-color: var(--brand); margin-top: 10px; }
 .interface-font-download button { border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; background: var(--surface); color: var(--brand); cursor: pointer; font-size: 12px; }
 .interface-font-download button:hover { border-color: var(--brand); }
-.interface-font-sources { margin-top: 12px; }
-.interface-font-sources summary { width: fit-content; cursor: pointer; color: var(--brand); }
-.interface-font-sources p { margin: 10px 0; color: var(--muted); }
-.interface-font-source-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 12px; }
-.interface-font-source-grid h4 { margin: 0 0 8px; font-size: 12px; }
-.interface-font-source { border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-top: 8px; }
-.interface-font-source-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.interface-font-links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
-.interface-font-links a { color: var(--brand); overflow-wrap: anywhere; text-underline-offset: 3px; }
 
 .interface-font-picker {
   display: grid;
@@ -445,8 +414,8 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 .interface-font-copy { display: flex; min-width: 0; flex-direction: column; gap: 5px; cursor: pointer; }
 .interface-font-action { grid-column: 2; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: fit-content; max-width: 100%; margin-top: 3px; border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; font-size: 11px; line-height: 1.5; background: var(--surface); color: var(--brand); cursor: pointer; }
 .interface-font-action.is-download { background: var(--brand-soft); border-color: transparent; }
-.interface-font-action:hover:not(:disabled) { border-color: var(--brand); }
-.interface-font-action:disabled { cursor: default; color: var(--muted); background: transparent; border-color: transparent; }
+.interface-font-option:hover .interface-font-action:not(.is-active) { border-color: var(--brand); }
+.interface-font-action.is-active { cursor: default; color: var(--muted); background: transparent; border-color: transparent; }
 .interface-font-action svg { width: 17px; height: 17px; flex-shrink: 0; }
 .interface-font-copy strong { overflow-wrap: anywhere; font-size: 13px; line-height: 1.5; }
 .interface-font-copy small { color: var(--muted); font-size: 11px; line-height: 1.5; }

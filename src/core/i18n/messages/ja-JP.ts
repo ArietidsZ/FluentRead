@@ -493,7 +493,7 @@ export const jaJPMessages = {
     'settings.interface.font.options.lxgwWenkai.description': '自然な手書き感のある中国語書体。',
     'settings.interface.font.options.notoSerifSc.label': 'Noto Serif SC · 書籍風',
     'settings.interface.font.options.notoSerifSc.description': '本のページを思わせるセリフ体。',
-    'settings.interface.font.note': 'クラウドボタンを押すだけでダウンロードして使えます。システムへのインストールは不要で、以後はオフラインで利用できます。',
+    'settings.interface.font.note': 'フォントカードをクリックすると選択できます。未ダウンロードのフォントは自動でダウンロードされ、完了後はシステムにインストールせずオフラインで利用できます。',
     'settings.interface.font.downloading': 'フォントをダウンロード中',
     'settings.interface.font.noDownload': 'システムフォント · ダウンロード不要',
     'settings.interface.font.saved': '保存済み · オフラインで利用可能',
