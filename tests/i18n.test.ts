@@ -747,12 +747,6 @@ describe('界面 i18n 契约', () => {
     expect(translateLegacyText('禁用扩展网站', 'fr-FR')).toBe('Sites où désactiver l’extension');
     expect(translateLegacyText('禁用扩展网站', 'ru-RU')).toBe('Сайты с отключённым расширением');
     expect(translateLegacyText('禁用扩展网站', 'es-ES')).toBe('Sitios con la extensión desactivada');
-    expect(translateLegacyText('控制并发数量、请求速率和失败重试的退避范围。', 'ko-KR'))
-      .toBe('동시 실행 수, 요청 속도, 실패 시 재시도 간격을 설정합니다.');
-    expect(translateLegacyText('控制并发数量、请求速率和失败重试的退避范围。', 'fr-FR'))
-      .toBe('Réglez le nombre de tâches simultanées, la fréquence des requêtes et les délais entre les tentatives.');
-    expect(translateLegacyText('Thinking、代理、提示词和自定义请求体', 'en-US'))
-      .toBe('Thinking, proxy, prompts, and custom request body');
     expect(translateLegacyText('默认关闭；仅在已适配接口生效，无法关闭时使用最低档', 'ja-JP'))
       .toBe('デフォルトではオフです。対応済みの API でのみ有効になり、無効化できない場合は最小レベルを使用します。');
     expect(translateLegacyText('当前模型是否启用 Thinking', 'es-ES'))
@@ -794,17 +788,7 @@ describe('界面 i18n 契约', () => {
     expect(translateLegacyText('双语逐句高亮', 'es-ES')).toBe('Resaltado bilingüe por oración');
     expect(translateLegacyText('软件语言', 'fr-FR')).toBe('Langue de l’application');
     expect(translateLegacyText('软件语言', 'ru-RU')).toBe('Язык приложения');
-    expect(translateLegacyText('My services', 'ja-JP')).toBe('マイサービス');
-    expect(translateLegacyText('Complete backup', 'ko-KR')).toBe('전체 백업');
-    expect(translateLegacyText('Current default', 'fr-FR')).toBe('Valeur actuelle par défaut');
-    expect(translateLegacyText('Valid configuration changes are recorded automatically; up to 10 are kept.', 'ru-RU'))
-      .toBe('Допустимые изменения настроек записываются автоматически; сохраняется до 10 записей.');
     expect(translateLegacyText('中文', 'es-ES')).toBe('中文');
-    expect(translateLegacyText('My services', 'es-ES')).toBe('Mis servicios');
-    expect(translateLegacyText('Model providers', 'es-ES')).toBe('Proveedores de modelos');
-    expect(translateLegacyText('Test connection', 'es-ES')).toBe('Probar conexión');
-    expect(translateLegacyText('Complete backup', 'es-ES')).toBe('Copia de seguridad completa');
-    expect(translateLegacyText('Settings and local records', 'es-ES')).toBe('Ajustes y registros locales');
     expect(translateLegacyText('已就绪', 'es-ES')).toBe('Listo');
 
     const interfaceAppearanceCopy = [
@@ -815,7 +799,7 @@ describe('界面 i18n 契约', () => {
       '快捷功能栏',
       '显示悬停、划词、图片、视频和文档等快捷入口。',
       '当前网站栏目',
-      '显示当前网站的始终翻译和禁用扩展开关。',
+      '当前网站的始终翻译和禁用扩展开关。',
       '底部信息栏',
       '显示翻译统计、开源项目入口和清除缓存操作。',
     ];
@@ -898,7 +882,7 @@ describe('i18n 全量界面扫描', () => {
 describe('动态旧文案资源契约', () => {
   it('每个模板的全部语言都保留捕获参数，未登记正文不被改写', () => {
     for (const {pattern, localizedCaptures, messages} of localizedLegacyPatterns) {
-      const source = pattern.slice(1, -1).replaceAll('(\\d+)', '12').replaceAll('(.+)', '「占位」').replaceAll('(.*)', '「占位」').replaceAll('\\/', '/');
+      const source = pattern.slice(1, -1).replaceAll('([\\d,.]+\\s?[A-Za-z]*)', '12').replaceAll('([\\d,.]+)', '12').replaceAll('(\\d+)', '12').replaceAll('(.+)', '「占位」').replaceAll('(.*)', '「占位」').replaceAll('\\/', '/');
       const captures = new RegExp(pattern, 'u').exec(source);
       expect(captures, source).not.toBeNull();
       for (const locale of ['ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {

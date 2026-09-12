@@ -113,16 +113,22 @@ function getCompiledLegacyPatterns(language: UiLanguage, bundle: UiLanguageBundl
     return compiled;
 }
 
+function getExactLegacyText(value: string, language: UiLanguage): string | undefined {
+    const bundle = registeredBundles.get(language);
+    return bundle && (bundle.legacyText[value] ?? getMessageLegacyCatalog(language, bundle)[value]);
+}
+
 function applyLegacyPatterns(patterns: readonly CompiledLegacyPattern[], value: string, language: UiLanguage): string | undefined {
     for (const {pattern, template, localizedCaptures} of patterns) {
         const match = pattern.exec(value);
         if (!match) continue;
         return template.replace(/\{(\d+)\}/gu, (_, index: string) => {
             const capture = match[Number(index)] ?? '';
-            // 嵌套错误可能用中文分号串联多段原因，逐段翻译以免整句因一个未登记片段保持中文，并换成目标语言的分号写法。
-            return localizedCaptures.includes(Number(index))
-                ? capture.split('；').map((part) => translateLegacyText(part, language)).join(LEGACY_CLAUSE_SEPARATORS[language])
-                : capture;
+            if (!localizedCaptures.includes(Number(index))) return capture;
+            // 嵌套错误可能用中文分号串联多段原因；整句已登记时直接使用，否则逐段翻译并换成目标语言的分号写法。
+            return !capture.includes('；') || getExactLegacyText(capture, language) !== undefined
+                ? translateLegacyText(capture, language)
+                : capture.split('；').map((part) => translateLegacyText(part, language)).join(LEGACY_CLAUSE_SEPARATORS[language]);
         });
     }
     return undefined;
@@ -139,7 +145,7 @@ export function translateLegacyText(value: string, language: UiLanguage): string
     const bundle = registeredBundles.get(language);
     if (!bundle) return value;
     const trimmed = value.trim();
-    const exact = bundle.legacyText[trimmed] ?? getMessageLegacyCatalog(language, bundle)[trimmed];
+    const exact = getExactLegacyText(trimmed, language);
     if (exact) return preserveWhitespace(value, exact);
 
     const patterns = getCompiledLegacyPatterns(language, bundle);
