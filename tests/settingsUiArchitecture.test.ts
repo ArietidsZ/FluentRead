@@ -810,13 +810,17 @@ describe('options UI composition architecture', () => {
     expect(catalog).not.toContain('data-testid="model-thinking-control"')
     expect(catalog).not.toContain('Thinking')
     const advancedSettingsStart = serviceConfiguration.indexOf(
-      '<details v-if="compute.showAI" class="custom-advanced-settings"',
+      '<details class="custom-advanced-settings"',
     )
     const advancedSettingsEnd = serviceConfiguration.indexOf('</details>', advancedSettingsStart)
     const advancedSettingsSource = serviceConfiguration.slice(advancedSettingsStart, advancedSettingsEnd)
     expect(advancedSettingsStart).toBeGreaterThanOrEqual(0)
     expect(advancedSettingsEnd).toBeGreaterThan(advancedSettingsStart)
     expect(advancedSettingsSource).toContain('data-testid="model-thinking-control"')
+    expect(advancedSettingsSource).toContain('<RequestLimitSettings')
+    expect(advancedSettingsSource).toContain('v-if="compute.showDeepseekApiType"')
+    expect(advancedSettingsSource).toContain('v-if="compute.showCustomBody && !compute.showAI"')
+    expect(serviceConfiguration.slice(advancedSettingsEnd + '</details>'.length).trimStart()).toMatch(/^<\/section>/u)
     expect(advancedSettingsSource).toContain(':model-value="selectedModelThinking"')
     expect(advancedSettingsSource).toContain("$emit('update:model-thinking', Boolean($event))")
     expect(modelPicker).toContain('model === CUSTOM_OPENAI_RESERVED_MODEL_ID')
@@ -840,7 +844,7 @@ describe('options UI composition architecture', () => {
     expect(serviceConfiguration).toContain('v-if="compute.showMiniMaxRegion"')
     expect(serviceConfiguration).toContain('width: 100% !important; max-width: none !important;')
     expect(serviceConfiguration).toContain('data-testid="custom-service-advanced"')
-    expect(serviceConfiguration).toContain('v-if="compute.showAI" class="custom-advanced-settings"')
+    expect(serviceConfiguration).toContain('<template v-if="compute.showAI">')
     expect(serviceConfiguration).toContain('<PromptTemplateEditor v-model="config.system_role[service]" role="system" />')
     expect(serviceConfiguration).toContain('<PromptTemplateEditor v-model="config.user_role[service]" role="user" />')
     expect(promptEditor).toContain('data-prompt-token')

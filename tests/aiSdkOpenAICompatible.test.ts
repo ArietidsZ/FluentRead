@@ -40,10 +40,12 @@ import {translateWithOpenAICompatibleAiSdk} from '@/src/providers/translation/ai
 import azureOpenai from '@/src/providers/translation/azure-openai';
 import {normalizeAiSdkError} from '@/src/providers/translation/ai-sdk/errors';
 import {
-  attachTranslationModelUsageObserver,
-  attachTranslationProviderConfig,
-  createTranslationProviderConfigSnapshot,
+    attachTranslationModelUsageObserver,
+    attachTranslationProviderConfig,
+    attachTranslationRequestScheduler,
+    createTranslationProviderConfigSnapshot,
 } from '@/src/services/translation/requestSnapshot';
+import {createTranslationRequestScheduler} from '@/src/services/translation/requestScheduler';
 import {setRuntimeFetch} from '@/src/platform/http/runtime';
 import type {TranslationModelUsageObservation} from '@/src/services/translation/types';
 
@@ -289,6 +291,23 @@ describe('Vercel AI SDK OpenAI-compatible transport', () => {
       usageAvailability: 'unreported',
     })));
   });
+
+  it('AI SDK 的首次请求和内部重试都经过共享 attempt scheduler', async () => {
+    const scheduler = createTranslationRequestScheduler(() => ({
+      maxConcurrentTranslations: 1,
+      translationRequestsPerSecond: 0,
+      translationRequestsPerMinute: 0,
+    }));
+    const fetchMock = vi.fn().mockResolvedValue(errorResponse(408, 'request timeout'));
+    setRuntimeFetch(fetchMock);
+
+    const request = attachTranslationRequestScheduler({
+      origin: 'hello',
+      serviceOverride: services.custom,
+    }, scheduler, {service: services.custom, model: 'base-model'});
+    await expect(translateWithOpenAICompatibleAiSdk(request)).rejects.toMatchObject({statusCode: 408});
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  }, 15_000);
 
   it('uses the broker-attached endpoint, credential, prompt, and custom body snapshot', async () => {
     mockConfig.custom = 'https://snapshot-a.example/v1/chat/completions';

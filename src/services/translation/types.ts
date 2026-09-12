@@ -161,6 +161,23 @@ export interface TranslationConfigSnapshot {
     translationMaxRetries?: number;
     translationBackoffBaseMs?: number;
     translationBackoffMaxMs?: number;
+    /** 稀疏的服务/模型独立限流配置；未启用时保持旧 global budget。 */
+    serviceRequestLimits?: Record<string, {
+        enabled: boolean;
+        limits: {
+            maxConcurrentTranslations: number;
+            translationRequestsPerSecond: number;
+            translationRequestsPerMinute: number;
+        };
+    }>;
+    modelRequestLimits?: Record<string, Record<string, {
+        enabled: boolean;
+        limits: {
+            maxConcurrentTranslations: number;
+            translationRequestsPerSecond: number;
+            translationRequestsPerMinute: number;
+        };
+    }>>;
 }
 
 export interface TranslationProviderConfigFields {
@@ -229,6 +246,8 @@ export interface TranslationBrokerDependencies {
     persistenceGraceMs?: number;
     now?: () => number;
     logger?: Pick<Console, 'warn'>;
+    /** 可由 app composition root 注入，使 broker、连接测试和输入框共用 bucket。 */
+    requestScheduler?: import('./requestScheduler').TranslationRequestScheduler;
 }
 
 export interface TranslationBroker {

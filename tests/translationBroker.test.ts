@@ -1,6 +1,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {
     createTranslationBroker,
+    resolveTranslationRequestModel,
     type TranslationBroker,
     type TranslationRequestMessage,
 } from '@/src/services/translation/broker';
@@ -18,6 +19,7 @@ import {
     markTranslationRemainingBudget,
     reportTranslationModelUsage,
 } from '@/src/services/translation/requestSnapshot';
+import {services, customModelString} from '@/src/core/config/catalog';
 
 type CacheIdentity = {
     [key: string]: unknown;
@@ -223,6 +225,41 @@ function deferred<T>() {
 }
 
 describe('translation broker', () => {
+    it('调度身份与各 provider 的最终模型规则一致', () => {
+        const base = createTranslationProviderConfigSnapshot({
+            service: services.custom,
+            from: 'auto', to: 'zh-Hans', useCache: false, enableAIContext: false,
+            model: {[services.custom]: 'gpt-5.6-luna（推荐）', [services.gemini]: 'gemini-2.5-pro', [services.deepseek]: 'deepseek-chat'},
+            customModel: {}, proxy: {}, custom: '', deeplx: '', newApiUrl: '',
+            minimaxBillingPlan: 'payg', minimaxRegion: 'cn', mimoBillingPlan: 'payg', mimoRegion: 'cn',
+            azureOpenaiEndpoint: '', customBody: {}, system_role: {}, user_role: {},
+            deepseekApiType: 'chat', deepseekThinkingMode: 'disabled',
+        });
+        expect(resolveTranslationRequestModel(base, services.custom, undefined, () => true, () => true)).toBe('gpt-5.6-luna');
+        const withBody = createTranslationProviderConfigSnapshot({...base, customBody: {[services.custom]: '{"model":" private-deployment "}'}});
+        expect(resolveTranslationRequestModel(withBody, services.custom, 'override-model', () => true, () => true)).toBe('private-deployment');
+        const geminiBody = createTranslationProviderConfigSnapshot({...base, customBody: {[services.gemini]: '{"model":"ignored-body-model"}'}});
+        expect(resolveTranslationRequestModel(geminiBody, services.gemini, undefined, () => false, () => true)).toBe('gemini-2.5-pro');
+        expect(resolveTranslationRequestModel(base, services.deepseek, undefined, () => false, () => true)).toBe('deepseek-v4-flash');
+        expect(resolveTranslationRequestModel(geminiBody, services.gemini, 'url-override', () => false, () => true)).toBe('url-override');
+        const customGemini = createTranslationProviderConfigSnapshot({...base,
+            model: {[services.gemini]: customModelString}, customModel: {[services.gemini]: 'private-gemini'}});
+        expect(resolveTranslationRequestModel(customGemini, services.gemini, undefined, () => false, () => true)).toBe('private-gemini');
+        expect(resolveTranslationRequestModel({...base, model: {}}, services.gemini, undefined, () => false, () => true)).toBe('');
+        for (const body of ['{invalid', '{}', '{"model":0}', '{"model":" "}', 'null']) {
+            const malformed = createTranslationProviderConfigSnapshot({...base, customBody: {[services.custom]: body}});
+            expect(resolveTranslationRequestModel(malformed, services.custom, undefined, () => true, () => true)).toBe('gpt-5.6-luna');
+        }
+        for (const service of [services.claude, services.tongyi]) {
+            const customBody = createTranslationProviderConfigSnapshot({...base,
+                model: {[service]: 'configured'}, customBody: {[service]: '{"model":"body-wins"}'}});
+            expect(resolveTranslationRequestModel(customBody, service, 'override', () => false, () => true)).toBe('body-wins');
+        }
+        const privateAlias = createTranslationProviderConfigSnapshot({...base,
+            model: {[services.custom]: customModelString}, customModel: {[services.custom]: 'gpt-4o'}});
+        expect(resolveTranslationRequestModel(privateAlias, services.custom, undefined, () => true, () => true)).toBe('gpt-4o');
+
+    });
     it('keeps simultaneous simplified and traditional requests separate and reuses only matching script aliases', async () => {
         const simplified = deferred<string>();
         const traditional = deferred<string>();

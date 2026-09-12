@@ -1,9 +1,9 @@
 /**
  * @file src/services/translation/requestScheduler.ts
  *
- * 文件职责：在共享翻译 provider 入口统一执行并发和请求启动速率限制，并支持可取消、带截止时间的排队任务。
- * 主要内容：按 FIFO 调度翻译请求，分别约束每秒/每分钟请求数，保留 transport lease 直到真实请求结束，避免调用方超时后立即释放后台并发槽。
- * 模块边界：该模块只管理翻译请求的调度时序，不选择服务、不实现重试、不读取或写入配置；配置由调用方通过 getConfig 提供。
+ * 文件职责：统一执行翻译任务的并发和请求启动速率限制，支持取消、截止时间、服务/模型 bucket 与真实 HTTP attempt。
+ * 主要内容：旧配置继续使用 global bucket；启用服务或模型限制后按稳定请求身份切换 bucket，provider 的 attempt 只复用速率历史而不重复占用外层并发槽。
+ * 模块边界：本模块只管理调度时序，不选择服务、不实现重试、不读取或写入配置；配置由调用方通过 getConfig 提供。
  */
 
 import {
@@ -11,11 +11,27 @@ import {
     normalizeTranslationRequestsPerMinute,
     normalizeTranslationRequestsPerSecond,
 } from '@/src/core/config/scheduling';
+import {normalizeTranslationRequestLimits} from '@/src/core/config/requestLimits';
 
-export interface TranslationRequestSchedulerConfig {
+export interface TranslationRequestLimits {
     maxConcurrentTranslations?: unknown;
     translationRequestsPerSecond?: unknown;
     translationRequestsPerMinute?: unknown;
+}
+
+export interface TranslationRequestLimitSetting {
+    enabled?: unknown;
+    limits?: TranslationRequestLimits;
+}
+
+export interface TranslationRequestSchedulerConfig extends TranslationRequestLimits {
+    serviceRequestLimits?: Record<string, TranslationRequestLimitSetting>;
+    modelRequestLimits?: Record<string, Record<string, TranslationRequestLimitSetting>>;
+}
+
+export interface TranslationRequestIdentity {
+    readonly service?: string;
+    readonly model?: string;
 }
 
 export interface TranslationRequestLease {
@@ -24,30 +40,48 @@ export interface TranslationRequestLease {
 
 export interface TranslationRequestSchedulerTaskOptions {
     signal?: AbortSignal;
-    /** 排队等待也计入本次 provider 预算；到达该时间点后不会再启动 provider。 */
     deadlineAt?: number;
+    identity?: TranslationRequestIdentity;
+    /** 外层 AI SDK 调用只占并发，真实 HTTP attempt 由 scheduleAttempt 计速率。 */
+    countRate?: boolean;
+}
+
+export interface TranslationRequestAttemptOptions {
+    signal?: AbortSignal;
+    deadlineAt?: number;
+    identity?: TranslationRequestIdentity;
 }
 
 export interface TranslationRequestScheduler {
-    schedule<T>(
-        task: (lease: TranslationRequestLease) => Promise<T>,
-        options?: TranslationRequestSchedulerTaskOptions,
-    ): Promise<T>;
+    schedule<T>(task: (lease: TranslationRequestLease) => Promise<T>, options?: TranslationRequestSchedulerTaskOptions): Promise<T>;
+    /** 真实 HTTP attempt 只取得速率许可；外层 provider 已持有并发 lease。 */
+    scheduleAttempt<T>(task: () => Promise<T>, options?: TranslationRequestAttemptOptions): Promise<T>;
 }
 
 export class TranslationRequestSchedulerDeadlineError extends Error {
     readonly code = 'TRANSLATION_SCHEDULER_DEADLINE_EXCEEDED';
-
     constructor(message = '翻译请求超时') {
         super(message);
         this.name = 'TranslationRequestSchedulerDeadlineError';
     }
 }
 
+interface BucketLimit {
+    concurrency: number;
+    perSecond: number;
+    perMinute: number;
+}
+interface BucketState {
+    active: number;
+    starts: number[];
+}
 interface PendingRequest<T> {
     readonly task: (lease: TranslationRequestLease) => Promise<T>;
     readonly signal?: AbortSignal;
     readonly deadlineAt?: number;
+    readonly identity?: TranslationRequestIdentity;
+    readonly attemptOnly: boolean;
+    readonly countRate: boolean;
     readonly resolve: (value: T | PromiseLike<T>) => void;
     readonly reject: (reason?: unknown) => void;
     settled: boolean;
@@ -63,74 +97,117 @@ function createAbortError(): Error {
     error.name = 'AbortError';
     return error;
 }
-
 function finiteNow(now: () => number): number {
     const value = now();
     return Number.isFinite(value) ? value : Date.now();
 }
+function clean(value: unknown): string {
+    return typeof value === 'string' ? value.trim() : '';
+}
 
-/**
- * 创建一个共享 provider 调度器。请求启动时间使用滑动窗口记录，因此同一时刻
- * 可以合法启动一小批请求，但不会突破任一窗口的上限；0 表示对应窗口不限速。
- */
 export function createTranslationRequestScheduler(
     getConfig: () => TranslationRequestSchedulerConfig,
     dependencies: TranslationRequestSchedulerDependencies = {},
 ): TranslationRequestScheduler {
     const now = dependencies.now ?? (() => Date.now());
-    let activeRequests = 0;
-    let pendingRequests: Array<PendingRequest<unknown> | undefined> = [];
-    let pendingHead = 0;
-    let drainTimer: ReturnType<typeof setTimeout> | undefined;
-    let isDraining = false;
+    const buckets = new Map<string, BucketState>();
+    let pending: Array<PendingRequest<unknown> | undefined> = [];
+    let head = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let draining = false;
     let lastNow: number | undefined;
-    const requestStarts: number[] = [];
 
     function readNow(): number {
         const current = finiteNow(now);
-        // 测试时钟重置和系统时钟回拨都不能让旧窗口永久阻塞新请求。
-        if (lastNow !== undefined && current < lastNow) requestStarts.length = 0;
+        if (lastNow !== undefined && current < lastNow) {
+            for (const state of buckets.values()) state.starts.length = 0;
+        }
         lastNow = current;
         return current;
     }
 
-    function schedulingConfig(): TranslationRequestSchedulerConfig {
+    function currentConfig(): TranslationRequestSchedulerConfig {
         try {
             return getConfig() || {};
         } catch {
-            // 配置旁路读取失败时保持原有请求能力，不把调度器变成新的故障源。
             return {};
         }
     }
 
-    function compactPending(force = false): void {
-        if (pendingHead === 0) return;
-        if (pendingHead >= pendingRequests.length) {
-            pendingRequests = [];
-            pendingHead = 0;
-            return;
+    function keysFor(identity: TranslationRequestIdentity | undefined, config: TranslationRequestSchedulerConfig): string[] {
+        const service = clean(identity?.service);
+        const model = clean(identity?.model);
+        if (!service) return ['global'];
+        const serviceSetting = config.serviceRequestLimits?.[service];
+        const modelSetting = model ? config.modelRequestLimits?.[service]?.[model] : undefined;
+        if (modelSetting?.enabled === true) {
+            const result = [JSON.stringify(['model', service, model])];
+            if (serviceSetting?.enabled === true) result.push(JSON.stringify(['service', service]));
+            return result;
         }
-        if (force || (pendingHead >= 1024 && pendingHead * 2 >= pendingRequests.length)) {
-            pendingRequests = pendingRequests.slice(pendingHead);
-            pendingHead = 0;
-        }
+        return serviceSetting?.enabled === true ? [JSON.stringify(['service', service])] : ['global'];
     }
 
-    function peekPending(): PendingRequest<unknown> | undefined {
-        while (pendingHead < pendingRequests.length && !pendingRequests[pendingHead]) {
-            pendingHead += 1;
-            compactPending();
+    function stateFor(key: string): BucketState {
+        let state = buckets.get(key);
+        if (!state) {
+            state = {active: 0, starts: []};
+            buckets.set(key, state);
         }
-        return pendingRequests[pendingHead];
+        return state;
     }
 
-    function dequeuePending(): PendingRequest<unknown> | undefined {
-        while (pendingHead < pendingRequests.length) {
-            const entry = pendingRequests[pendingHead];
-            pendingRequests[pendingHead] = undefined;
-            pendingHead += 1;
-            compactPending();
-            if (entry) return entry;
+    function limitFor(key: string, config: TranslationRequestSchedulerConfig): BucketLimit {
+        if (key === 'global') return {
+            concurrency: normalizeMaxConcurrentTranslations(config.maxConcurrentTranslations),
+            perSecond: normalizeTranslationRequestsPerSecond(config.translationRequestsPerSecond),
+            perMinute: normalizeTranslationRequestsPerMinute(config.translationRequestsPerMinute),
+        };
+        const parts = JSON.parse(key) as string[];
+        const [kind, service, model] = parts;
+        const setting = kind === 'service' ? config.serviceRequestLimits?.[service!] : config.modelRequestLimits?.[service!]?.[model!];
+        const limits = normalizeTranslationRequestLimits(setting?.limits);
+        return {
+            concurrency: limits.maxConcurrentTranslations,
+            perSecond: limits.translationRequestsPerSecond,
+            perMinute: limits.translationRequestsPerMinute,
+        };
+    }
+
+    function prune(state: BucketState, current: number): void {
+        const cutoff = current - 60_000;
+        let index = 0;
+        while (index < state.starts.length && state.starts[index]! <= cutoff) index += 1;
+        if (index) state.starts.splice(0, index);
+    }
+
+    function waitFor(key: string, current: number, config: TranslationRequestSchedulerConfig, concurrency: boolean, countRate: boolean): number {
+        const state = stateFor(key);
+        const limits = limitFor(key, config);
+        prune(state, current);
+        if (concurrency && state.active >= limits.concurrency) return Number.POSITIVE_INFINITY;
+        if (!countRate) return 0;
+        let wait = 0;
+        if (limits.perSecond > 0) {
+            const recentSecond = state.starts.filter(value => value > current - 1_000);
+            if (recentSecond.length >= limits.perSecond) {
+                wait = Math.max(wait, recentSecond[recentSecond.length - limits.perSecond]! + 1_000 - current);
+            }
+        }
+        if (limits.perMinute > 0 && state.starts.length >= limits.perMinute) {
+            wait = Math.max(wait, state.starts[state.starts.length - limits.perMinute]! + 60_000 - current);
+        }
+        return wait;
+    }
+
+    function compact(): void {
+        while (head < pending.length && !pending[head]) head += 1;
+        if (head >= pending.length) {
+            pending = [];
+            head = 0;
+        } else if (head >= 1024 && head * 2 >= pending.length) {
+            pending = pending.slice(head);
+            head = 0;
         }
     }
 
@@ -140,116 +217,53 @@ export function createTranslationRequestScheduler(
         entry.reject(error);
     }
 
-    function rejectInactivePending(current: number): void {
-        let removed = false;
-        for (let index = pendingHead; index < pendingRequests.length; index += 1) {
-            const entry = pendingRequests[index];
+    function rejectInactive(current: number): void {
+        for (let index = head; index < pending.length; index += 1) {
+            const entry = pending[index];
             if (!entry) continue;
-            if (entry.settled) {
-                pendingRequests[index] = undefined;
-                removed = true;
-                continue;
-            }
-            if (entry.deadlineAt !== undefined && entry.deadlineAt <= current) {
-                pendingRequests[index] = undefined;
+            if (entry.settled) pending[index] = undefined;
+            else if (entry.deadlineAt !== undefined && entry.deadlineAt <= current) {
+                pending[index] = undefined;
                 rejectPending(entry, new TranslationRequestSchedulerDeadlineError());
-                removed = true;
             }
         }
-        if (removed) compactPending(true);
+        compact();
     }
 
-    function earliestPendingDeadline(): number | undefined {
-        let earliest: number | undefined;
-        for (let index = pendingHead; index < pendingRequests.length; index += 1) {
-            const entry = pendingRequests[index];
-            if (!entry || entry.settled || entry.deadlineAt === undefined) continue;
-            if (earliest === undefined || entry.deadlineAt < earliest) earliest = entry.deadlineAt;
+    function hasEarlierSameBucket(index: number, keys: readonly string[], attemptOnly: boolean, config: TranslationRequestSchedulerConfig): boolean {
+        for (let prior = head; prior < index; prior += 1) {
+            const entry = pending[prior];
+            if (!entry || entry.settled) continue;
+            // HTTP 重试复用已占用的并发槽，不能被等待该槽的外层任务反向阻塞。
+            if (attemptOnly && !entry.attemptOnly) continue;
+            if (keysFor(entry.identity, config).some(key => keys.includes(key))) return true;
         }
-        return earliest;
+        return false;
     }
 
-    function pruneRequestStarts(current: number): void {
-        const oldestRetained = current - 60_000;
-        let firstRetained = 0;
-        while (firstRetained < requestStarts.length && requestStarts[firstRetained] <= oldestRetained) {
-            firstRetained += 1;
-        }
-        if (firstRetained > 0) requestStarts.splice(0, firstRetained);
-    }
-
-    function getRateLimitSettings(): {perSecond: number; perMinute: number} {
-        const currentConfig = schedulingConfig();
-        return {
-            perSecond: normalizeTranslationRequestsPerSecond(
-                currentConfig.translationRequestsPerSecond,
-            ),
-            perMinute: normalizeTranslationRequestsPerMinute(
-                currentConfig.translationRequestsPerMinute,
-            ),
-        };
-    }
-
-    function rateLimitWaitMs(
-        current: number,
-        limits: {perSecond: number; perMinute: number},
-    ): number {
-        if (limits.perSecond === 0 && limits.perMinute === 0) {
-            requestStarts.length = 0;
-            return 0;
-        }
-
-        pruneRequestStarts(current);
-        let waitMs = 0;
-        if (limits.perSecond > 0) {
-            const recentSecond = requestStarts.filter((startedAt) => startedAt > current - 1_000);
-            if (recentSecond.length >= limits.perSecond) {
-                waitMs = Math.max(waitMs, recentSecond[0]! + 1_000 - current);
-            }
-        }
-        if (limits.perMinute > 0) {
-            const recentMinute = requestStarts.filter((startedAt) => startedAt > current - 60_000);
-            if (recentMinute.length >= limits.perMinute) {
-                waitMs = Math.max(waitMs, recentMinute[0]! + 60_000 - current);
-            }
-        }
-        return Math.max(0, waitMs);
-    }
-
-    function armDrainTimer(delayMs: number): void {
-        drainTimer = setTimeout(() => {
-            drainTimer = undefined;
+    function arm(delay: number): void {
+        timer = setTimeout(() => {
+            timer = undefined;
             drain();
-        }, Math.max(1, Math.ceil(delayMs)));
+        }, Math.max(1, Math.ceil(delay)));
     }
 
-    function createLease(): {
-        lease: TranslationRequestLease;
-        waits: Promise<void>[];
-        close: () => void;
-    } {
+    function createLease() {
         const waits: Promise<void>[] = [];
-        let acceptsHolds = true;
+        let open = true;
         return {
             lease: {
-                holdUntil: (settlement) => {
-                    if (!acceptsHolds) {
-                        throw new Error('翻译请求已结束，无法继续占用调度槽');
-                    }
-                    waits.push(Promise.resolve(settlement).then(
-                        () => undefined,
-                        () => undefined,
-                    ));
+                holdUntil: (settlement: PromiseLike<unknown>) => {
+                    if (!open) throw new Error('翻译请求已结束，无法继续占用调度槽');
+                    waits.push(Promise.resolve(settlement).then(() => undefined, () => undefined));
                 },
             },
             waits,
-            close: () => {
-                acceptsHolds = false;
-            },
+            close: () => { open = false; },
         };
     }
 
-    async function execute(entry: PendingRequest<unknown>): Promise<void> {
+    async function execute(entry: PendingRequest<unknown>, keys: readonly string[]): Promise<void> {
         const leaseState = createLease();
         try {
             const result = await entry.task(leaseState.lease);
@@ -265,90 +279,103 @@ export function createTranslationRequestScheduler(
                 entry.reject(error);
             }
         } finally {
+            // 调用方可以先收到取消/超时；真实传输结束后才归还并发槽。
             leaseState.close();
             await Promise.all(leaseState.waits);
-            activeRequests -= 1;
+            if (!entry.attemptOnly) {
+                for (const key of keys) stateFor(key).active -= 1;
+            }
             drain();
         }
     }
 
     function drain(): void {
-        if (isDraining) return;
-        isDraining = true;
+        if (draining) return;
+        draining = true;
         try {
-            if (drainTimer !== undefined) {
-                clearTimeout(drainTimer);
-                drainTimer = undefined;
+            if (timer !== undefined) {
+                clearTimeout(timer);
+                timer = undefined;
             }
-
-            const currentConfig = schedulingConfig();
-            const maxConcurrent = normalizeMaxConcurrentTranslations(
-                currentConfig.maxConcurrentTranslations,
-            );
-            const rateLimits = getRateLimitSettings();
+            const config = currentConfig();
             const current = readNow();
-            rejectInactivePending(current);
-
-            while (activeRequests < maxConcurrent) {
-                const entry = peekPending();
-                if (!entry) return;
-
-                const rateWait = rateLimitWaitMs(current, rateLimits);
-                if (rateWait > 0) {
-                    const earliestDeadline = earliestPendingDeadline();
-                    const deadlineWait = earliestDeadline === undefined
-                        ? Number.POSITIVE_INFINITY
-                        : Math.max(0, earliestDeadline - current);
-                    armDrainTimer(Math.min(rateWait, deadlineWait));
-                    return;
+            rejectInactive(current);
+            let earliest = Number.POSITIVE_INFINITY;
+            let started = true;
+            while (started) {
+                started = false;
+                for (let index = head; index < pending.length; index += 1) {
+                    const entry = pending[index];
+                    if (!entry || entry.settled) continue;
+                    const keys = keysFor(entry.identity, config);
+                    if (hasEarlierSameBucket(index, keys, entry.attemptOnly, config)) continue;
+                    const wait = Math.max(...keys.map(key => waitFor(key, current, config, !entry.attemptOnly, entry.countRate)));
+                    if (wait > 0 || wait === Number.POSITIVE_INFINITY) {
+                        if (wait < earliest) earliest = wait;
+                        continue;
+                    }
+                    pending[index] = undefined;
+                    for (const key of keys) {
+                        const state = stateFor(key);
+                        if (!entry.attemptOnly) state.active += 1;
+                        if (entry.countRate) state.starts.push(current);
+                    }
+                    void execute(entry, keys);
+                    started = true;
+                    break;
                 }
-
-                const next = dequeuePending()!;
-                if (rateLimits.perSecond > 0 || rateLimits.perMinute > 0) {
-                    requestStarts.push(current);
-                }
-                activeRequests += 1;
-                void execute(next);
             }
-
-            const earliestDeadline = earliestPendingDeadline();
-            if (earliestDeadline !== undefined) {
-                armDrainTimer(Math.max(0, earliestDeadline - current));
-            }
+            compact();
+            const deadlines = pending.slice(head).filter(Boolean).map(entry => entry!.deadlineAt).filter((value): value is number => value !== undefined);
+            const deadlineWait = deadlines.length ? Math.max(0, Math.min(...deadlines) - current) : Number.POSITIVE_INFINITY;
+            const nextWait = Math.min(earliest, deadlineWait);
+            if (nextWait < Number.POSITIVE_INFINITY) arm(nextWait);
         } finally {
-            isDraining = false;
+            draining = false;
         }
     }
 
-    return {
-        schedule<T>(
-            task: (lease: TranslationRequestLease) => Promise<T>,
-            options: TranslationRequestSchedulerTaskOptions = {},
-        ): Promise<T> {
-            if (options.signal?.aborted) return Promise.reject(createAbortError());
-
-            return new Promise<T>((resolve, reject) => {
-                const entry: PendingRequest<T> = {
-                    task,
-                    signal: options.signal,
-                    deadlineAt: options.deadlineAt,
-                    resolve,
-                    reject,
-                    settled: false,
-                    removeAbortListener: undefined,
+    function enqueue<T>(entry: PendingRequest<T>): Promise<T> {
+        if (entry.signal?.aborted) return Promise.reject(createAbortError());
+        return new Promise<T>((resolve, reject) => {
+            (entry as {resolve: typeof resolve; reject: typeof reject}).resolve = resolve;
+            (entry as {resolve: typeof resolve; reject: typeof reject}).reject = reject;
+            if (entry.signal) {
+                const onAbort = () => {
+                    entry.settled = true;
+                    entry.reject(createAbortError());
+                    drain();
                 };
-                if (options.signal) {
-                    const onAbort = () => {
-                        entry.settled = true;
-                        entry.reject(createAbortError());
-                        drain();
-                    };
-                    options.signal.addEventListener('abort', onAbort, {once: true});
-                    entry.removeAbortListener = () => options.signal?.removeEventListener('abort', onAbort);
-                }
-                pendingRequests.push(entry as PendingRequest<unknown>);
-                drain();
-            });
-        },
+                entry.signal.addEventListener('abort', onAbort, {once: true});
+                entry.removeAbortListener = () => entry.signal?.removeEventListener('abort', onAbort);
+            }
+            pending.push(entry as PendingRequest<unknown>);
+            drain();
+        });
+    }
+
+    return {
+        schedule: <T>(task: (lease: TranslationRequestLease) => Promise<T>, options: TranslationRequestSchedulerTaskOptions = {}) => enqueue({
+            task,
+            signal: options.signal,
+            deadlineAt: options.deadlineAt,
+            identity: options.identity,
+            attemptOnly: false,
+            countRate: options.countRate !== false,
+            resolve: undefined as never,
+            reject: undefined as never,
+            settled: false,
+        }),
+        scheduleAttempt: <T>(task: () => Promise<T>, options: TranslationRequestAttemptOptions = {}) => enqueue({
+            task: async () => task(),
+            signal: options.signal,
+            deadlineAt: options.deadlineAt,
+            identity: options.identity,
+            attemptOnly: true,
+            countRate: true,
+            resolve: undefined as never,
+            reject: undefined as never,
+            settled: false,
+        }),
     };
 }

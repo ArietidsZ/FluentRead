@@ -373,10 +373,11 @@ h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.0
   .settings-card.services-view { display: flex; width: 100%; margin-right: 0; margin-left: 0; border-right: 1px solid var(--line); border-left: 1px solid var(--line); border-radius: 20px; overflow: hidden; }
   .settings-card.translation-center-view { display: flex; width: 100%; margin-right: 0; margin-left: 0; border-right: 1px solid var(--line); border-left: 1px solid var(--line); border-radius: 20px; overflow: hidden; }
   .settings-card.services-view .service-catalog { height: 100% !important; min-height: 0 !important; flex: 1 1 auto; }
-  .settings-card.services-view .service-catalog .catalog-layout { display: flex; min-height: 0; flex: 1 1 auto; flex-direction: column; overflow: hidden; }
+  /* 窄屏统一滚动服务详情，避免服务标题和模型选择挤占高级表单的可视高度。 */
+  .settings-card.services-view .service-catalog .catalog-layout { display: block; min-height: 0; flex: 1 1 auto; overflow-x: hidden; overflow-y: auto; }
   .settings-card.services-view .service-catalog .service-rail { min-height: 0; max-height: 190px; flex: 0 0 190px; overflow-y: auto; }
-  .settings-card.services-view .service-catalog .service-detail { min-height: 0; flex: 1 1 auto; overflow: hidden; }
-  .settings-card.services-view .service-catalog .service-configuration-slot { max-height: none; overflow-y: auto; }
+  .settings-card.services-view .service-catalog .service-detail { min-height: 0; flex: 0 0 auto; overflow: visible; }
+  .settings-card.services-view .service-catalog .service-configuration-slot { max-height: none; flex: 0 0 auto; overflow: visible; }
   .settings-card .el-row {
     display: flex; min-height: 0; gap: 8px; padding: 10px 8px;
     flex-wrap: wrap;

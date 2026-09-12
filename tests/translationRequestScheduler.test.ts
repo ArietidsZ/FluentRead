@@ -219,6 +219,92 @@ describe('translation request scheduler', () => {
         await expect(scheduler.schedule(async () => 'null-config')).resolves.toBe('null-config');
     });
 
+    it('独立服务 bucket 互不占用全局并发，并跳过被阻塞的服务队首', async () => {
+        const config = {
+            maxConcurrentTranslations: 1, translationRequestsPerSecond: 0, translationRequestsPerMinute: 0,
+            serviceRequestLimits: {
+                alpha: {enabled: true, limits: {maxConcurrentTranslations: 1, translationRequestsPerSecond: 0, translationRequestsPerMinute: 0}},
+                beta: {enabled: true, limits: {maxConcurrentTranslations: 1, translationRequestsPerSecond: 0, translationRequestsPerMinute: 0}},
+            },
+        };
+        const scheduler = createTranslationRequestScheduler(() => config);
+        const alphaBlocker = deferred<void>(); const started: string[] = [];
+        const first = scheduler.schedule(async () => { started.push('alpha-1'); await alphaBlocker.promise; }, {identity: {service: 'alpha', model: 'a'}});
+        const second = scheduler.schedule(async () => { started.push('alpha-2'); }, {identity: {service: 'alpha', model: 'a'}});
+        const beta = scheduler.schedule(async () => { started.push('beta'); }, {identity: {service: 'beta', model: 'b'}});
+        await flushMicrotasks();
+        expect(started).toEqual(['alpha-1', 'beta']);
+        alphaBlocker.resolve();
+        await expect(Promise.all([first, second, beta])).resolves.toEqual([undefined, undefined, undefined]);
+        expect(started).toEqual(['alpha-1', 'beta', 'alpha-2']);
+    });
+
+    it('模型 bucket 与服务 aggregate 同时生效，模型任务不绕过服务 cap', async () => {
+        const config = {
+            maxConcurrentTranslations: 6, translationRequestsPerSecond: 0, translationRequestsPerMinute: 0,
+            serviceRequestLimits: {svc: {enabled: true, limits: {maxConcurrentTranslations: 1, translationRequestsPerSecond: 0, translationRequestsPerMinute: 0}}},
+            modelRequestLimits: {svc: {
+                a: {enabled: true, limits: {maxConcurrentTranslations: 1, translationRequestsPerSecond: 0, translationRequestsPerMinute: 0}},
+                b: {enabled: true, limits: {maxConcurrentTranslations: 1, translationRequestsPerSecond: 0, translationRequestsPerMinute: 0}},
+            }},
+        };
+        const scheduler = createTranslationRequestScheduler(() => config);
+        const blocker = deferred<void>(); const started: string[] = [];
+        const first = scheduler.schedule(async () => { started.push('a'); await blocker.promise; }, {identity: {service: 'svc', model: 'a'}});
+        const second = scheduler.schedule(async () => { started.push('b'); }, {identity: {service: 'svc', model: 'b'}});
+        await flushMicrotasks(); expect(started).toEqual(['a']);
+        blocker.resolve(); await expect(Promise.all([first, second])).resolves.toEqual([undefined, undefined]);
+        expect(started).toEqual(['a', 'b']);
+    });
+
+    it('真实 HTTP attempt 可越过同 bucket 的等待 provider，且仍在 attempt 间保持 FIFO', async () => {
+        const scheduler = createTranslationRequestScheduler(() => ({
+            maxConcurrentTranslations: 1, translationRequestsPerSecond: 1, translationRequestsPerMinute: 0,
+        }));
+        const attempts: string[] = []; let attempt!: Promise<string>;
+        const outer = scheduler.schedule(async () => {
+            attempt = scheduler.scheduleAttempt(async () => { attempts.push('attempt'); return 'ok'; });
+            return 'outer';
+        }, {countRate: false});
+        const waiting = scheduler.schedule(async () => { attempts.push('waiting'); return 'waiting'; });
+        await expect(outer).resolves.toBe('outer');
+        await expect(attempt).resolves.toBe('ok');
+        expect(attempts).toEqual(['attempt']);
+        await vi.advanceTimersByTimeAsync(1_000);
+        await expect(waiting).resolves.toBe('waiting');
+    });
+
+    it('服务限制未启用或模型身份为空时回退 global bucket', async () => {
+        const config = {
+            maxConcurrentTranslations: 1,
+            translationRequestsPerSecond: 0,
+            translationRequestsPerMinute: 0,
+            serviceRequestLimits: {svc: {enabled: false, limits: {maxConcurrentTranslations: 1, translationRequestsPerSecond: 0, translationRequestsPerMinute: 0}}},
+        };
+        const scheduler = createTranslationRequestScheduler(() => config);
+        const blocker = deferred<void>();
+        const first = scheduler.schedule(async () => blocker.promise, {identity: {service: 'svc'}});
+        const second = scheduler.schedule(async () => 'second', {identity: {service: 'svc'}});
+        await flushMicrotasks();
+        blocker.resolve();
+        await expect(Promise.all([first, second])).resolves.toEqual([undefined, 'second']);
+    });
+
+    it('attempt 在已有并发任务和普通等待任务前仍可取得速率许可', async () => {
+        const scheduler = createTranslationRequestScheduler(() => ({
+            maxConcurrentTranslations: 1,
+            translationRequestsPerSecond: 0,
+            translationRequestsPerMinute: 0,
+        }));
+        const blocker = deferred<void>();
+        const active = scheduler.schedule(async () => blocker.promise);
+        const waiting = scheduler.schedule(async () => 'waiting');
+        const attempt = scheduler.scheduleAttempt(async () => 'attempt');
+        await expect(attempt).resolves.toBe('attempt');
+        blocker.resolve();
+        await expect(Promise.all([active, waiting])).resolves.toEqual([undefined, 'waiting']);
+    });
+
     it('大量等待请求经过内部压缩后仍保持结果顺序', async () => {
         const scheduler = createTranslationRequestScheduler(() => ({
             maxConcurrentTranslations: 1,

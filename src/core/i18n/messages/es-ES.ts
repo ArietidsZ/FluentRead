@@ -10,6 +10,22 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const esESMessages = {
+    "settings.requestLimits.modelTitle": "Límites del modelo",
+    "settings.requestLimits.globalTitle": "Límites de solicitudes",
+    "settings.requestLimits.globalHelp": "Los servicios y modelos sin ajustes propios comparten estos límites.",
+    "settings.requestLimits.retryIntervals": "Intervalos de reintento",
+    "settings.requestLimits.title": "Límites de solicitudes",
+    "settings.requestLimits.serviceTitle": "Límites del servicio",
+    "settings.requestLimits.followGlobal": "Usar ajustes globales",
+    "settings.requestLimits.followService": "Usar ajustes del servicio",
+    "settings.requestLimits.serviceLink": "Límites del servicio",
+    "settings.requestLimits.modelLink": "Ajustes del modelo actual",
+    "settings.requestLimits.inheritSummary": "Simultáneas: {concurrency} · {second}/segundo · {minute}/minuto",
+    "settings.requestLimits.serviceCap": "También se aplican los límites compartidos del servicio",
+    "settings.requestLimits.rateHelp": "0 significa sin límite de frecuencia.",
+    "settings.requestLimits.modelScope": "Modelo actual",
+    "settings.requestLimits.serviceScope": "Todos los modelos en conjunto",
+
     "reading.triggerTitle": "Abrir la tarjeta de lectura",
     "reading.triggerHelp": "Por defecto, pulsa una acción. El atajo usa tu acción preferida; al pasar el cursor se usa la acción señalada.",
     "reading.triggerClick": "Pulsar una acción",

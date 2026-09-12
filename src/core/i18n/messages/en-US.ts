@@ -11,6 +11,22 @@ MessageCatalog} from '../types';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const enUSMessages = {
+    "settings.requestLimits.modelTitle": "Model request limits",
+    "settings.requestLimits.globalTitle": "Request limits",
+    "settings.requestLimits.globalHelp": "Services and models without custom settings share these limits.",
+    "settings.requestLimits.retryIntervals": "Retry intervals",
+    "settings.requestLimits.title": "Request limits",
+    "settings.requestLimits.serviceTitle": "Service request limits",
+    "settings.requestLimits.followGlobal": "Use global settings",
+    "settings.requestLimits.followService": "Use service settings",
+    "settings.requestLimits.serviceLink": "Service request limits",
+    "settings.requestLimits.modelLink": "Current model settings",
+    "settings.requestLimits.inheritSummary": "Concurrency {concurrency} · {second}/second · {minute}/minute",
+    "settings.requestLimits.serviceCap": "Also subject to the shared service limits",
+    "settings.requestLimits.rateHelp": "Set to 0 for no rate limit.",
+    "settings.requestLimits.modelScope": "Current model",
+    "settings.requestLimits.serviceScope": "All models combined",
+
     "reading.triggerTitle": "Open the reading card",
     "reading.triggerHelp": "Click an action by default. Shortcuts use your preferred action; hovering uses the pointed action.",
     "reading.triggerClick": "Click an action",

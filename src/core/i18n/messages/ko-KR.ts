@@ -10,6 +10,22 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const koKRMessages = {
+    "settings.requestLimits.modelTitle": "모델 요청 제한",
+    "settings.requestLimits.globalTitle": "요청 제한",
+    "settings.requestLimits.globalHelp": "개별 설정이 없는 서비스와 모델은 이 제한을 공유합니다.",
+    "settings.requestLimits.retryIntervals": "재시도 간격",
+    "settings.requestLimits.title": "요청 제한",
+    "settings.requestLimits.serviceTitle": "서비스 요청 제한",
+    "settings.requestLimits.followGlobal": "전역 설정 사용",
+    "settings.requestLimits.followService": "서비스 설정 사용",
+    "settings.requestLimits.serviceLink": "서비스 요청 제한",
+    "settings.requestLimits.modelLink": "현재 모델 설정",
+    "settings.requestLimits.inheritSummary": "동시 요청 {concurrency} · 초당 {second}회 · 분당 {minute}회",
+    "settings.requestLimits.serviceCap": "서비스 공유 제한도 적용됩니다",
+    "settings.requestLimits.rateHelp": "0은 요청 속도 제한 없음입니다.",
+    "settings.requestLimits.modelScope": "현재 모델",
+    "settings.requestLimits.serviceScope": "모든 모델 합계",
+
     "reading.triggerTitle": "번역 카드 열기",
     "reading.triggerHelp": "기본은 동작 클릭입니다. 단축키는 우선 동작을, 마우스 올리기는 가리킨 동작을 사용합니다.",
     "reading.triggerClick": "동작 클릭",

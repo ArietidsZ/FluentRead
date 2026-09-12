@@ -10,6 +10,22 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const ruRUMessages = {
+    "settings.requestLimits.modelTitle": "Ограничения модели",
+    "settings.requestLimits.globalTitle": "Ограничения запросов",
+    "settings.requestLimits.globalHelp": "Сервисы и модели без отдельных настроек используют эти общие ограничения.",
+    "settings.requestLimits.retryIntervals": "Интервалы повторов",
+    "settings.requestLimits.title": "Ограничения запросов",
+    "settings.requestLimits.serviceTitle": "Ограничения сервиса",
+    "settings.requestLimits.followGlobal": "Использовать общие настройки",
+    "settings.requestLimits.followService": "Использовать настройки сервиса",
+    "settings.requestLimits.serviceLink": "Ограничения сервиса",
+    "settings.requestLimits.modelLink": "Настройки текущей модели",
+    "settings.requestLimits.inheritSummary": "Одновременно: {concurrency} · {second}/сек · {minute}/мин",
+    "settings.requestLimits.serviceCap": "Также действуют общие ограничения сервиса",
+    "settings.requestLimits.rateHelp": "0 означает отсутствие ограничения частоты.",
+    "settings.requestLimits.modelScope": "Текущая модель",
+    "settings.requestLimits.serviceScope": "Все модели суммарно",
+
     "reading.triggerTitle": "Открытие карточки",
     "reading.triggerHelp": "По умолчанию нажмите действие. Сочетание клавиш использует основное действие, наведение — указанное.",
     "reading.triggerClick": "Нажатие действия",

@@ -10,6 +10,22 @@ import type {
 MessageCatalog} from '../types';
 
 export const zhCNMessages = {
+    "settings.requestLimits.modelTitle": "模型请求限制",
+    "settings.requestLimits.globalTitle": "请求限制",
+    "settings.requestLimits.globalHelp": "未单独设置的服务和模型共用这些限制。",
+    "settings.requestLimits.retryIntervals": "重试间隔",
+    "settings.requestLimits.title": "请求限制",
+    "settings.requestLimits.serviceTitle": "服务请求限制",
+    "settings.requestLimits.followGlobal": "跟随全局设置",
+    "settings.requestLimits.followService": "跟随服务设置",
+    "settings.requestLimits.serviceLink": "服务请求限制",
+    "settings.requestLimits.modelLink": "当前模型设置",
+    "settings.requestLimits.inheritSummary": "并发 {concurrency} · 每秒 {second} 次 · 每分钟 {minute} 次",
+    "settings.requestLimits.serviceCap": "同时受服务共享限制约束",
+    "settings.requestLimits.rateHelp": "设为 0 表示不限速。",
+    "settings.requestLimits.modelScope": "当前模型",
+    "settings.requestLimits.serviceScope": "所有模型合计",
+
     "reading.triggerTitle": "打开翻译卡",
     "reading.triggerHelp": "默认点击动作打开；快捷键使用优先动作，悬停使用指向的动作。",
     "reading.triggerClick": "点击动作",

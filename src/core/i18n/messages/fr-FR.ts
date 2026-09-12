@@ -10,6 +10,22 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const frFRMessages = {
+    "settings.requestLimits.modelTitle": "Limites du modèle",
+    "settings.requestLimits.globalTitle": "Limites de requêtes",
+    "settings.requestLimits.globalHelp": "Les services et modèles sans réglages spécifiques partagent ces limites.",
+    "settings.requestLimits.retryIntervals": "Délais de nouvelle tentative",
+    "settings.requestLimits.title": "Limites de requêtes",
+    "settings.requestLimits.serviceTitle": "Limites du service",
+    "settings.requestLimits.followGlobal": "Utiliser les réglages globaux",
+    "settings.requestLimits.followService": "Utiliser les réglages du service",
+    "settings.requestLimits.serviceLink": "Limites du service",
+    "settings.requestLimits.modelLink": "Réglages du modèle actuel",
+    "settings.requestLimits.inheritSummary": "Simultanées : {concurrency} · {second}/seconde · {minute}/minute",
+    "settings.requestLimits.serviceCap": "Les limites partagées du service s’appliquent aussi",
+    "settings.requestLimits.rateHelp": "0 signifie aucune limite de débit.",
+    "settings.requestLimits.modelScope": "Modèle actuel",
+    "settings.requestLimits.serviceScope": "Tous les modèles cumulés",
+
     "reading.triggerTitle": "Ouvrir la carte de lecture",
     "reading.triggerHelp": "Par défaut, cliquez sur une action. Le raccourci utilise votre action préférée et le survol utilise celle pointée.",
     "reading.triggerClick": "Cliquer sur une action",
