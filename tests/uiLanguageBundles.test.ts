@@ -77,7 +77,7 @@ describe('界面语言资源按需加载', () => {
         const gate = new Promise<void>((resolve) => { release = resolve; });
         const fetch = vi.fn(async () => {
             await gate;
-            return jsonResponse({messages: {'common.brand': 'Brand EN'}, legacyText: {'确认清除统计': 'Clear stats'}, legacyPatterns: {early: [], late: []}});
+            return jsonResponse({messages: {'common.brand': 'Brand EN'}, legacyText: {'确认清除统计': 'Clear stats'}, legacyPatterns: {early: [['^共 (\\d+) 项$', '{1} items']], late: [['^尾(.+)$', 'Tail {1}', [1]]]}});
         });
         const resolveUrl = vi.fn((path: string) => `chrome-extension://id/${path}`);
         const ensure = loader.createUiLanguageBundleLoader({resolveUrl, fetch, warn: vi.fn()});
@@ -93,6 +93,8 @@ describe('界面语言资源按需加载', () => {
         expect(resolveUrl).toHaveBeenCalledWith('i18n/en-US.json');
         expect(i18n.translate('common.brand', 'en-US')).toBe('Brand EN');
         expect(i18n.translateLegacyText('确认清除统计', 'en-US')).toBe('Clear stats');
+        expect(i18n.translateLegacyText('共 3 项', 'en-US')).toBe('3 items');
+        expect(i18n.translateLegacyText('尾确认清除统计', 'en-US')).toBe('Tail Clear stats');
 
         await expect(ensure('en-US')).resolves.toBe(true);
         expect(fetch).toHaveBeenCalledOnce();
@@ -101,6 +103,10 @@ describe('界面语言资源按需加载', () => {
     it.each([
         ['HTTP 失败', () => jsonResponse({}, false, 404)],
         ['资源形状无效', () => jsonResponse({messages: [], legacyText: {}, legacyPatterns: {early: [], late: []}})],
+        ['模板集合缺失', () => jsonResponse({messages: {}, legacyText: {}})],
+        ['模板条目不是数组', () => jsonResponse({messages: {}, legacyText: {}, legacyPatterns: {early: ['^a$'], late: []}})],
+        ['模板译文不是字符串', () => jsonResponse({messages: {}, legacyText: {}, legacyPatterns: {early: [], late: [['^a$', 1]]}})],
+        ['捕获序号不是整数', () => jsonResponse({messages: {}, legacyText: {}, legacyPatterns: {early: [['^a(.+)$', '{1}', ['1']]], late: []}})],
         ['缺少旧文案表', () => jsonResponse({messages: {}})],
         ['非对象响应', () => jsonResponse(null)],
     ])('%s时回退中文、报告警告，并允许下一次重新读取', async (_label, response) => {
