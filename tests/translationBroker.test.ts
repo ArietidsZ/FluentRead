@@ -64,6 +64,7 @@ const mocks = vi.hoisted(() => {
         aiSdk: service,
         azureOpenai: service,
         chromeTranslator: service,
+        localTranslation: service,
         brokenAiSdk: service,
         custom: service,
         deeplx: service,
@@ -3394,8 +3395,8 @@ describe('translation broker', () => {
         ]));
     });
 
-    it('Chrome auto 检测样本进入缓存与 pending 身份，显式源语言则不分裂缓存', async () => {
-        mocks.config.service = 'chromeTranslator';
+    it.each(['chromeTranslator', 'localTranslation'])('%s auto 检测样本进入缓存与 pending 身份，显式源语言则不分裂缓存', async (service) => {
+        mocks.config.service = service;
         mocks.service.mockImplementation(async (message: {sourceLanguageDetectionText?: string}) =>
             `译:${message.sourceLanguageDetectionText || 'explicit'}`);
 
@@ -3444,8 +3445,8 @@ describe('translation broker', () => {
         ]));
     });
 
-    it('Chrome auto 无缓存并发请求以检测样本区分 pending，并合并相同样本', async () => {
-        mocks.config.service = 'chromeTranslator';
+    it.each(['chromeTranslator', 'localTranslation'])('%s auto 无缓存并发请求以检测样本区分 pending，并合并相同样本', async (service) => {
+        mocks.config.service = service;
         const frenchProvider = deferred<string>();
         const japaneseProvider = deferred<string>();
         mocks.service.mockImplementation((message: {sourceLanguageDetectionText?: string}) => {

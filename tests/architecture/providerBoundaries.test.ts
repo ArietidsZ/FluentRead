@@ -37,6 +37,7 @@ const EXPECTED_PROVIDER_FILES = [
     'gemini.ts',
     'google.ts',
     'hunyuan-translation.ts',
+    'local-translation.ts',
     'microsoft.ts',
     'responses-api.ts',
     'tencent.ts',

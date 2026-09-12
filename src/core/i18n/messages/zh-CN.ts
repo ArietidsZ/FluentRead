@@ -8,6 +8,7 @@
  */
 import type {
 MessageCatalog} from '../types';
+import {localTranslationChineseMessages} from './localTranslation';
 
 export const zhCNMessages = {
     "settings.services.library.views": "服务视图",
@@ -112,6 +113,7 @@ export const zhCNMessages = {
     "writing.demo.reviewHint": "助手参考当前讨论起草，你可以检查和修改。",
     "writing.demo.insertHint": "草稿已放回回复框，检查后由你点击发送。",
 
+    ...localTranslationChineseMessages,
     "settings.requestLimits.modelTitle": "模型请求限制",
     "settings.requestLimits.globalTitle": "请求限制",
     "settings.requestLimits.globalHelp": "未单独设置的服务和模型共用这些限制。",

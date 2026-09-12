@@ -8,6 +8,7 @@
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
+import {localTranslationRussianMessages} from './localTranslation';
 
 export const ruRUMessages = {
     "settings.services.library.views": "Виды сервисов",
@@ -112,6 +113,7 @@ export const ruRUMessages = {
     "writing.demo.reviewHint": "Помощник пишет черновик с учётом обсуждения. Проверьте и отредактируйте ответ.",
     "writing.demo.insertHint": "Черновик вставлен в поле ответа. Проверьте его и отправьте самостоятельно.",
 
+    ...localTranslationRussianMessages,
     "settings.requestLimits.modelTitle": "Ограничения модели",
     "settings.requestLimits.globalTitle": "Ограничения запросов",
     "settings.requestLimits.globalHelp": "Сервисы и модели без отдельных настроек используют эти общие ограничения.",
@@ -1461,6 +1463,8 @@ const ruRULegacyTextBase: Readonly<Record<string, string>> = {
     '有道翻译': 'Youdao Translate',
     '腾讯云翻译': 'Tencent Cloud Translate',
     'Chrome内置AI翻译': 'Встроенный перевод ИИ в Chrome',
+    '本地模型翻译': 'Перевод локальной моделью',
+    '下载后离线翻译，可选轻量语言包与混元翻译模型。': 'Переводите офлайн с лёгкими языковыми пакетами или моделью Hunyuan.',
     '字节豆包': 'ByteDance Doubao',
     '月之暗面/Kimi': 'Moonshot/Kimi',
     '智谱/GLM': 'Zhipu/GLM',

@@ -8,6 +8,7 @@
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
+import {localTranslationJapaneseMessages} from './localTranslation';
 
 export const jaJPMessages = {
     "settings.services.library.views": "サービス表示",
@@ -112,6 +113,7 @@ export const jaJPMessages = {
     "writing.demo.reviewHint": "会話を参考に下書きを作成します。内容を確認し、修正できます。",
     "writing.demo.insertHint": "下書きを返信欄に戻しました。確認してから自分で送信します。",
 
+    ...localTranslationJapaneseMessages,
     "settings.requestLimits.modelTitle": "モデルのリクエスト制限",
     "settings.requestLimits.globalTitle": "リクエスト制限",
     "settings.requestLimits.globalHelp": "個別設定のないサービスとモデルは、この制限を共有します。",
@@ -1461,6 +1463,8 @@ const jaJPLegacyTextBase: Readonly<Record<string, string>> = {
     '有道翻译': '友道 翻訳',
     '腾讯云翻译': 'テンセントクラウド翻訳',
     'Chrome内置AI翻译': 'Chrome内蔵AI翻訳',
+    '本地模型翻译': 'ローカルモデル翻訳',
+    '下载后离线翻译，可选轻量语言包与混元翻译模型。': '軽量言語パックや混元の翻訳モデルをダウンロードして、オフラインで翻訳できます。',
     '字节豆包': 'バイトダンス・ドゥーバオ',
     '月之暗面/Kimi': 'ムーンショット/キミ',
     '智谱/GLM': '直浦/GLM',

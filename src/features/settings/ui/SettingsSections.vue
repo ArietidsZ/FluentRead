@@ -79,6 +79,7 @@
         :maximum-models="MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER"
         :maximum-model-length="MAX_CUSTOM_OPENAI_MODEL_LENGTH"
         :custom-model-count="selectedConfigurationCustomModelCount"
+        :allow-custom-models="configurationCompute.allowCustomModels"
         @update:service="setConfigurationService"
         @update:favorites="config.favoriteServices = $event"
         @set:default="config.service = $event"
@@ -1181,6 +1182,7 @@ const createServiceCompute = (serviceSource: ServiceSource) => ({
   showModel: computed(() => isCustomOpenAIProviderId(serviceSource.value) || servicesType.isUseModel(serviceSource.value)),
   showCustomBody: computed(() => isCustomOpenAIProviderId(serviceSource.value) || servicesType.isUseCustomBody(serviceSource.value)),
   showToken: computed(() => isCustomOpenAIProviderId(serviceSource.value) || servicesType.isUseToken(serviceSource.value)),
+  allowCustomModels: computed(() => serviceSource.value !== services.localTranslation),
   requireApiKey: computed({
     get: () => isApiKeyRequired(serviceSource.value, config.value),
     set: (value: boolean) => {

@@ -352,7 +352,7 @@ export async function translateText(origin: string, context: string = document.t
             serviceOverride: selectedService,
             sourceLanguage: selectedLanguages.sourceLanguage,
             targetLanguage: selectedLanguages.targetLanguage,
-            ...(selectedService === services.chromeTranslator
+            ...((selectedService === services.chromeTranslator || selectedService === services.localTranslation)
               && selectedLanguages.sourceLanguage === 'auto'
               && options.sourceLanguageDetectionText?.trim()
               ? {sourceLanguageDetectionText: options.sourceLanguageDetectionText}
@@ -586,7 +586,7 @@ export interface TranslateOptions {
   enableAIContext?: boolean;
   /** 内部结构化数据包含有 ASCII 哨兵标记，不应影响源语言检测。 */
   skipLanguageDetection?: boolean;
-  /** 仅 Chrome auto 模式使用：不含结构哨兵、但与 origin 语义相同的检测样本。 */
+  /** 仅本地翻译 auto 模式使用：不含结构哨兵的段落语言检测样本。 */
   sourceLanguageDetectionText?: string;
   /** 仅全文翻译内部使用：要求 broker 将多个 AI 段落合并为一次上游请求。 */
   aiMultiSegment?: boolean;

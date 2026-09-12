@@ -8,6 +8,7 @@
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
+import {localTranslationSpanishMessages} from './localTranslation';
 
 export const esESMessages = {
     "settings.services.library.views": "Vistas de servicios",
@@ -112,6 +113,7 @@ export const esESMessages = {
     "writing.demo.reviewHint": "El asistente redacta a partir de la conversación. Revisa y modifica la respuesta.",
     "writing.demo.insertHint": "El borrador está en el campo de respuesta. Revísalo y envíalo tú mismo.",
 
+    ...localTranslationSpanishMessages,
     "settings.requestLimits.modelTitle": "Límites del modelo",
     "settings.requestLimits.globalTitle": "Límites de solicitudes",
     "settings.requestLimits.globalHelp": "Los servicios y modelos sin ajustes propios comparten estos límites.",
@@ -1463,6 +1465,8 @@ const esESLegacyTextBase: Readonly<Record<string, string>> = {
     '有道翻译': 'Youdao Translate',
     '腾讯云翻译': 'Tencent Cloud Translate',
     'Chrome内置AI翻译': 'Traducción de IA integrada en Chrome',
+    '本地模型翻译': 'Traducción con modelo local',
+    '下载后离线翻译，可选轻量语言包与混元翻译模型。': 'Traduce sin conexión con paquetes de idiomas ligeros o un modelo de Hunyuan.',
     '字节豆包': 'ByteDance Doubao',
     '月之暗面/Kimi': 'Moonshot/Kimi',
     '智谱/GLM': 'Zhipu/GLM',

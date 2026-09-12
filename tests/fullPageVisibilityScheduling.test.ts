@@ -65,6 +65,7 @@ vi.mock("@/src/core/config/catalog", () => ({
         microsoft: "microsoft",
         freeTranslation: "freeTranslation",
         chromeTranslator: "chromeTranslator",
+        localTranslation: "localTranslation",
     },
     servicesType: {
         isUseAIContext: (service: string) => service === 'ai',
@@ -1842,6 +1843,21 @@ describe("全文翻译可见性锚点", () => {
             .not.toBe(getTranslationInvocationIdentity(baseline));
         expect(getTranslationInvocationIdentity({...baseline, useCache: false}))
             .toBe(getTranslationInvocationIdentity(baseline));
+    });
+
+    it.each(['auto', 'en'])('本地模型逐槽翻译短链接，以段落检测语言且尊重显式 %s', async (sourceLanguage) => {
+        const origins = ['When switching between different filaments for printing, the printer flushes the remaining material. ', 'Reduce Waste during Filament Change'];
+        await expect(translateTextSlots(origins, translationSnapshot({
+            service: 'localTranslation', sourceLanguage,
+        }))).resolves.toEqual(origins.map((text) => `译:${text}`));
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        for (const options of runtime.requestOptions) {
+            if (sourceLanguage === 'auto') {
+                expect(options).toMatchObject({sourceLanguageDetectionText: origins.join('\n')});
+            } else {
+                expect(options).not.toHaveProperty('sourceLanguageDetectionText');
+            }
+        }
     });
 
     it('Chrome auto 用纯文本槽检测源语言，但仍把带标记正文交给翻译器', async () => {

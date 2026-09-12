@@ -11,7 +11,7 @@
     :data-custom-service-configuration="compute.showCustomOpenAI ? 'true' : 'false'"
     :data-ai-advanced-settings="compute.showAI ? 'true' : 'false'"
   >
-    <div class="subsection-heading">
+    <div v-if="service !== services.localTranslation" class="subsection-heading">
       <div>
         <strong>连接配置</strong>
         <small class="connection-test-hint">修改会自动保存；凭据只保存在当前设备。</small>
@@ -25,7 +25,7 @@
       <span v-else class="setup-status">{{ isChromeConnectionTest ? t('settings.services.chromePreparation.noKey') : t('settings.services.keys.configured') }}</span>
     </div>
 
-    <Teleport defer to=".detail-hero">
+    <Teleport v-if="service !== services.localTranslation" defer to=".detail-hero">
       <div class="detail-actions">
         <button
           v-if="!compute.showToken || compute.showServiceSecret"
@@ -59,6 +59,7 @@
     </div>
 
     <FreeTranslationSettings v-if="service === services.freeTranslation" :config="config" />
+    <LocalTranslationModelSettings v-if="service === services.localTranslation" :config="config" :service="service" />
 
     <template v-if="service === services.myMemory">
       <div class="connection-field" data-mymemory-email>
@@ -356,7 +357,7 @@
       <el-col :span="12"><el-input v-model="config.newApiUrl" placeholder="请输入您的New API接口地址" /></el-col>
     </el-row>
 
-    <details class="custom-advanced-settings" data-testid="custom-service-advanced">
+    <details class="custom-advanced-settings" v-if="service !== services.localTranslation" data-testid="custom-service-advanced">
       <summary>
         <strong>高级设置</strong>
         <svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
@@ -499,6 +500,7 @@ import PromptTemplateEditor from './PromptTemplateEditor.vue'
 import FreeTranslationSettings from './FreeTranslationSettings.vue'
 import ApiKeyList from './ApiKeyList.vue'
 import { normalizeApiKeyList, eligibleApiKeyIndexes, summarizeApiKeyChecks, type ApiKeyCheckState, type ApiKeySummary } from './apiKeyTypes'
+import LocalTranslationModelSettings from '../LocalTranslationModelSettings.vue'
 import {resolveModelVisionCapability, supportsVisionTransport} from '@/src/core/config/vision'
 import RequestLimitSettings from './RequestLimitSettings.vue'
 
