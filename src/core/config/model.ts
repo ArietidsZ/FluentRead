@@ -32,7 +32,8 @@ import {
 import {
     DEFAULT_FREE_TRANSLATION_ORDER, DEFAULT_FREE_TRANSLATION_TIMEOUT_MS, DEFAULT_FREE_TRANSLATION_COOLDOWN_MS,
     normalizeFreeTranslationOrder, normalizeFreeTranslationTimeoutMs, normalizeFreeTranslationCooldownMs,
-    normalizeMyMemoryEmail,
+    normalizeMyMemoryEmail, DEFAULT_FREE_TRANSLATION_MODE,
+    normalizeFreeTranslationMode, type FreeTranslationMode,
 } from './freeTranslation';
 import { normalizeCustomBodyMapping } from "./customBody";
 import {DEFAULT_DEEPL_API_PLAN, normalizeDeepLApiPlan, type DeepLApiPlan} from './deepl';
@@ -69,6 +70,13 @@ import {
     normalizeQuickTranslationProfiles,
     type QuickTranslationProfile,
 } from './quickTranslation';
+import {
+    DEFAULT_INPUT_BOX_TRANSLATION_INTERVAL,
+    normalizeInputBoxTranslationInterval,
+    normalizeInputBoxTranslationModel,
+    normalizeInputBoxTranslationPrompt,
+    normalizeInputBoxTranslationService,
+} from './inputTranslation';
 import {
     DEFAULT_INTERFACE_FONT,
     DEFAULT_INTERFACE_VISIBILITY,
@@ -379,6 +387,7 @@ export class Config {
     imageTranslationContextMenuEnabled: boolean; // 是否显示图片右键入口
     disableImageTranslator: boolean; // 是否禁用图片翻译
     freeTranslationOrder: string[]; // 免费服务的启用列表与回退顺序
+    freeTranslationMode: FreeTranslationMode; // 默认按权重随机分配健康服务
     freeTranslationTimeoutMs: number; // 每路服务最长等待
     freeTranslationCooldownMs: number; // 失败服务的暂时跳过时间
     myMemoryEmail: string; // MyMemory 可选额度联系邮箱
@@ -410,6 +419,11 @@ export class Config {
     translationProgressPanelEnabled: boolean; // 是否显示全文翻译进度面板
     inputBoxTranslationTrigger: string; // 输入框翻译触发方式
     inputBoxTranslationTarget: string; // 输入框翻译目标语言
+    inputBoxTranslationInterval: number; // 输入框翻译相邻触发的最大间隔（毫秒）
+    inputBoxTranslationService: string; // 输入框翻译独立服务
+    inputBoxTranslationModel: string; // 输入框翻译独立模型，空值跟随服务模型
+    inputBoxTranslationPrompt: string; // 输入框翻译独立用户提示词，空值使用内置默认
+    inputBoxTranslationSystemPrompt: string; // 输入框翻译独立系统提示词，空值使用内置默认
     deepseekApiType: DeepSeekApiType; // DeepSeek API 格式
     deepseekThinkingMode: DeepSeekThinkingMode; // DeepSeek Chat Completion 思考模式
     translationCenterServices: string[]; // 翻译中心已选服务及其展示顺序
@@ -529,6 +543,7 @@ export class Config {
         this.imageTranslationContextMenuEnabled = true;
         this.disableImageTranslator = true; // 默认关闭图片翻译，由用户按需开启
         this.freeTranslationOrder = [...DEFAULT_FREE_TRANSLATION_ORDER];
+        this.freeTranslationMode = DEFAULT_FREE_TRANSLATION_MODE;
         this.freeTranslationTimeoutMs = DEFAULT_FREE_TRANSLATION_TIMEOUT_MS;
         this.freeTranslationCooldownMs = DEFAULT_FREE_TRANSLATION_COOLDOWN_MS;
         this.myMemoryEmail = '';
@@ -560,6 +575,11 @@ export class Config {
         this.translationProgressPanelEnabled = false; // 默认关闭全文翻译进度面板
         this.inputBoxTranslationTrigger = 'disabled'; // 默认关闭输入框翻译
         this.inputBoxTranslationTarget = 'en'; // 默认翻译成英文
+        this.inputBoxTranslationInterval = DEFAULT_INPUT_BOX_TRANSLATION_INTERVAL;
+        this.inputBoxTranslationService = services.microsoft;
+        this.inputBoxTranslationModel = '';
+        this.inputBoxTranslationPrompt = '';
+        this.inputBoxTranslationSystemPrompt = '';
         this.deepseekApiType = 'auto'; // DeepSeek 默认自动选择 API 格式
         this.deepseekThinkingMode = 'disabled'; // 翻译默认关闭思考模式，降低延迟和输出噪音
         this.translationCenterServices = [];
@@ -886,6 +906,14 @@ export function normalizeConfig(value: unknown): Config {
     normalized.to = normalizeConfigLanguage(source.to) || defaultOption.to;
     normalized.inputBoxTranslationTarget = normalizeConfigLanguage(source.inputBoxTranslationTarget)
         || defaultOption.inputBoxTranslationTarget;
+    normalized.inputBoxTranslationInterval = normalizeInputBoxTranslationInterval(
+        source.inputBoxTranslationInterval,
+    );
+    normalized.inputBoxTranslationModel = normalizeInputBoxTranslationModel(source.inputBoxTranslationModel);
+    normalized.inputBoxTranslationPrompt = normalizeInputBoxTranslationPrompt(source.inputBoxTranslationPrompt);
+    normalized.inputBoxTranslationSystemPrompt = normalizeInputBoxTranslationPrompt(
+        source.inputBoxTranslationSystemPrompt,
+    );
     normalized.uiLanguage = normalizeUiLanguage(source.uiLanguage);
     const cacheLimits = normalizeTranslationCacheLimits({
         maxBytes: source.translationCacheMaxBytes,
@@ -909,6 +937,9 @@ export function normalizeConfig(value: unknown): Config {
     normalized.serviceRequestLimits = withoutRetiredServiceEntries(normalizeServiceRequestLimits(source.serviceRequestLimits));
     normalized.modelRequestLimits = withoutRetiredServiceEntries(normalizeModelRequestLimits(source.modelRequestLimits));
     normalized.freeTranslationOrder = normalizeFreeTranslationOrder(source.freeTranslationOrder);
+    normalized.freeTranslationMode = normalizeFreeTranslationMode(source.freeTranslationMode);
+    // 权重归后台管理，不接受导入文件或旧配置中的人工权重。
+    delete (normalized as Config & {freeTranslationWeights?: unknown}).freeTranslationWeights;
     normalized.freeTranslationTimeoutMs = normalizeFreeTranslationTimeoutMs(source.freeTranslationTimeoutMs);
     normalized.freeTranslationCooldownMs = normalizeFreeTranslationCooldownMs(source.freeTranslationCooldownMs);
     normalized.myMemoryEmail = normalizeMyMemoryEmail(source.myMemoryEmail);
@@ -951,6 +982,10 @@ export function normalizeConfig(value: unknown): Config {
     normalized.deeplApiPlan = normalizeDeepLApiPlan(source.deeplApiPlan);
     if (typeof normalized.newApiUrl !== 'string') normalized.newApiUrl = DEFAULT_NEW_API_URL;
     normalizeCustomOpenAIProviderState(normalized, source);
+    normalized.inputBoxTranslationService = normalizeInputBoxTranslationService(
+        source.inputBoxTranslationService,
+        normalized.customOpenAIProviders,
+    );
     normalized.writing = normalizeWritingPreferences(source.writing, normalized.customOpenAIProviders);
     normalized.harness = normalizeHarnessPreferences(source.harness, normalized.customOpenAIProviders);
 
