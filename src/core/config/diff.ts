@@ -514,6 +514,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     translationBackoffMaxMs: {group: 'advanced', label: '退避最大间隔', format: (value) => formatNumber(value, ' ms')},
     animations: {group: 'advanced', label: '动画效果', format: formatBoolean},
     translationScope: {group: 'advanced', label: '识别全部节点', format: (value) => formatEnum(value, TRANSLATION_SCOPE_LABELS)},
+    pageTitleTranslationEnabled: {group: 'advanced', label: '翻译页面标题', format: formatBoolean},
     translationLoadingStyle: {group: 'advanced', label: '段落加载样式', format: (value) => formatEnum(value, TRANSLATION_LOADING_STYLE_LABELS)},
 
     documentService: {group: 'tools', label: '文档翻译服务', format: formatService},

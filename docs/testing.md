@@ -65,6 +65,22 @@ node scripts/verify-userscript-build.mjs  # userscript 元数据与产物边界
 
 ## 翻译核心稳定性回归
 
+OpenRouter 模型卡片曾在解除内部两行截断后仍保持外层 `height:176px`，使居中的双语内容覆盖相邻卡片。`translationHeightLayout.test.ts` 检查插入后由内向外测量、共享高度租约、宿主样式更新、窗口 resize、滚动/定位边界和移除清理；`translationTruncation.test.ts` 检查几何判断与安全边界。
+
+内置 OpenRouter 规则按模型标题节点跳过名称与详情页 API 标识，避免在双语结果中重复名称。`translationCore.test.ts` 覆盖供应商列表、模型列表、详情页、祖先快照与域名边界，同一模型链接下的介绍仍可翻译。
+
+生产扩展的确定性布局回归使用真实 Control / Alt+T、临时 Edge profile 和后台窗口：
+
+```bash
+node scripts/testing/run-fixed-height-translation-test.cjs \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root <工作区 Node.js 包目录> \
+  --focus-safe-helper <浏览器测试技能>/scripts/focus-safe-browser.cjs \
+  --artifacts-dir /private/tmp/fluentread-fixed-height --background
+```
+
+它检查卡片实际内容边界而非仅检查卡片壳，覆盖翻译、恢复、再次翻译、共用卡片、宿主高度改写及独立滚动区域。页面和翻译响应均为本地夹具，不能代替真实网站或翻译服务的验证。高度覆盖在仍有译文时共享保留，避免在“解除高度后无溢出”与“恢复高度后再次溢出”之间反复切换；最后一个译文移除时恢复宿主样式。
+
 ### GitHub 列表译文间距
 
 新版 PR 列表的标题旁保留带 padding 的空徽标占位符。行内标题插入块级译文后，
@@ -169,6 +185,20 @@ node scripts/run-glossary-test.cjs \
 术语脚本固定使用 focus-safe 后台启动，即使一键入口显式传入 `--headed` 也不转为前台；目前使用脚本内的超时设置，不接收一键入口的 `--timeout`。本机服务回显约束只能证明 FluentRead 请求与交互链路，不代表外部 AI 模型遵守术语的准确率；Qwen-MT 原生 `terms`、摘要跳过及不支持服务不改译文另由确定性协议测试覆盖。
 
 视频字幕设置中的术语库与相邻设置统一为左侧标题和状态说明、右侧下拉控件；窄屏自动上下排列。视觉复核应覆盖跟随全局、不使用、指定多个词库、视频关闭后的禁用状态，以及服务不支持时的提示。文档翻译和快捷方案仍保留原生选择器，三态选库与配置保存行为共用。
+
+## 快捷面板与完整设置
+
+```bash
+node scripts/testing/run-popup-quick-settings-ui-test.cjs \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root <Node包目录> \
+  --focus-safe-helper <focus-safe-browser.cjs路径> \
+  --artifacts-dir /private/tmp/fluentread-popup-quick-settings
+```
+
+该专项使用生产扩展、临时 Edge profile 和第二屏后台窗口，检查六个快捷抽屉的完整可见性、对应设置入口、亮暗主题、划词与视频模式、隐藏字幕恢复、已有偏好保留、修改后立即关闭与重开、跨页面同步及连续写入。完整设置另验证 17 个导航入口、390px 布局、本地模型卡片在视频关闭后的禁用状态、字幕外观跟随配置草稿更新，以及迁入的朗读声音可以编辑并保存。配置通过真实后台消息写入本次临时扩展，不读取日常浏览器配置。
+
+该脚本不下载模型、不调用外部翻译服务，也不验证播放器字幕质量或 Firefox 真实界面；不能把专项通过等同于其他 UI 套件或真实翻译链路通过。报告分别记录窗口位置、焦点策略、配置行为、布局尺寸、控制台错误和截图。
 
 ## 菜单栏首帧与快速关闭
 
