@@ -506,6 +506,8 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     maxConcurrentTranslations: {group: 'advanced', label: '翻译并发数'},
     translationRequestsPerSecond: {group: 'advanced', label: '每秒最多请求数', format: formatRequestRate},
     translationRequestsPerMinute: {group: 'advanced', label: '每分钟最多请求数', format: formatRequestRate},
+    serviceRequestLimits: {group: 'advanced', label: '服务请求限制', format: formatValue},
+    modelRequestLimits: {group: 'advanced', label: '模型请求限制', format: formatValue},
     freeTranslationOrder: {group: 'translationServices', label: '免费翻译顺序', format: (value) => Array.isArray(value) ? formatArray(value, formatService) : formatValue(value)},
     freeTranslationTimeoutMs: {group: 'translationServices', label: '每路免费翻译超时', format: (value) => formatNumber(value, ' ms')},
     freeTranslationCooldownMs: {group: 'translationServices', label: '免费翻译失败后休息', format: (value) => formatNumber(value, ' ms')},

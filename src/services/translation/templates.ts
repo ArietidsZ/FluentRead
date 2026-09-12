@@ -107,7 +107,7 @@ function buildUserPrompt(
     return parts.join('\n\n');
 }
 
-function currentConfiguredModel(
+export function currentConfiguredModel(
     current: TranslationProviderConfigSnapshot,
     service: string,
     modelOverride?: string,
