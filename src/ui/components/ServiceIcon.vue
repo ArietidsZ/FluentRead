@@ -1,7 +1,7 @@
 <!--
  @file src/ui/components/ServiceIcon.vue
  文件职责：为翻译服务和模型选项提供统一品牌图标组件，在没有专用图形时仍输出稳定、可辨识的回退字形。
- 主要内容：根据 service、label、size 与 model props 选择尺寸和色调，为 Microsoft、Google、DeepL、内置及动态 OpenAI-compatible 服务渲染内联 SVG，并计算 fallbackGlyph。
+ 主要内容：根据 service、label、size 与 model props 选择尺寸和色调，为 Microsoft、Google、DeepL、云服务厂商、Ollama、内置及动态 OpenAI-compatible 服务渲染内联 SVG，并计算 fallbackGlyph。
  模块边界：组件只负责装饰性视觉且 aria-hidden，不加载远程商标、不判断服务可用性，也不选择模型；服务目录和能力过滤由 core/catalog 与 services/capabilities 管理。
 -->
 <template>
@@ -24,7 +24,7 @@
     </svg>
     <svg v-else-if="service === 'yandexFree'" viewBox="0 0 24 24" role="img"><path d="M15 4h-3a5 5 0 0 0 0 10h3M15 4v16M12 14l-5 6" /></svg>
     <svg v-else-if="service === 'volcengineFree'" viewBox="0 0 24 24" role="img"><path d="m4 19 7-14 2 7 3-4 4 11H4Z" /></svg>
-    <svg v-else-if="['youdaoFree', 'sogouFree', 'papagoFree', 'caiyunFree', 'reversoFree', 'lingvaFree', 'apertiumFree', 'libreTranslateFree'].includes(service)" viewBox="0 0 24 24" role="img"><path d="M5 6h14M7 6v3a5 5 0 0 0 10 0V6M12 4v16M8 20h8" /></svg>
+    <svg v-else-if="['youdaoFree', 'sogouFree', 'reversoFree', 'lingvaFree', 'apertiumFree'].includes(service)" viewBox="0 0 24 24" role="img"><path d="M5 6h14M7 6v3a5 5 0 0 0 10 0V6M12 4v16M8 20h8" /></svg>
     <svg v-else-if="service === 'myMemory'" viewBox="0 0 24 24" role="img">
       <path d="M4 5h6a3 3 0 0 1 3 3v12a4 4 0 0 0-3-2H4V5ZM13 8a3 3 0 0 1 3-3h4v13h-4a4 4 0 0 0-3 2" />
       <path d="M7 9h3M7 12h3M16 9h1M16 12h1" />
@@ -53,6 +53,28 @@
     <svg v-else-if="service === 'tencent' || service === 'transmart'" viewBox="0 0 24 24" role="img">
       <path d="M5 11.5c0-3.7 3.1-6.5 7-6.5s7 2.8 7 6.5-3.1 6.5-7 6.5c-1.1 0-2.2-.2-3.1-.7L5 19l1.2-3.1A6.2 6.2 0 0 1 5 11.5Z" />
       <path d="m12 7.2 1.1 2.2 2.4.4-1.7 1.7.4 2.4-2.2-1.1-2.2 1.1.4-2.4-1.7-1.7 2.4-.4L12 7.2Z" />
+    </svg>
+    <svg v-else-if="service === 'googleCloudTranslation'" viewBox="0 0 24 24" role="img">
+      <path d="M7.5 17.5h9a3.5 3.5 0 0 0 .6-6.95A5 5 0 0 0 7.6 9.4 4.1 4.1 0 0 0 7.5 17.5Z" />
+      <path d="M9.5 14h5M12 11.5v5" />
+    </svg>
+    <svg v-else-if="service === 'azureTranslator'" viewBox="0 0 24 24" role="img">
+      <path d="m13.2 4 6.3 15.5H15L10.6 9.2 8.4 14.7h3.3l1 2.5H4.5L10.4 4h2.8Z" />
+    </svg>
+    <svg v-else-if="service === 'aliyunTranslation'" viewBox="0 0 24 24" role="img">
+      <path d="M8.5 7H5.8A2.8 2.8 0 0 0 3 9.8v4.4A2.8 2.8 0 0 0 5.8 17h2.7M15.5 7h2.7a2.8 2.8 0 0 1 2.8 2.8v4.4a2.8 2.8 0 0 1-2.8 2.8h-2.7" />
+      <path d="M8.8 12h6.4" />
+    </svg>
+    <svg v-else-if="service === 'baiduTranslation'" viewBox="0 0 24 24" role="img">
+      <path d="M8 6.5c.9 0 1.5 1 1.5 2.2S8.9 11 8 11s-1.5-1-1.5-2.3S7.1 6.5 8 6.5ZM12 4.5c.9 0 1.5 1 1.5 2.2S12.9 9 12 9s-1.5-1-1.5-2.3.6-2.2 1.5-2.2ZM16 6.5c.9 0 1.5 1 1.5 2.2S16.9 11 16 11s-1.5-1-1.5-2.3.6-2.2 1.5-2.2Z" />
+      <path d="M12 11.5c2.6 0 4.7 2 5 4.3.2 1.7-1 3.2-2.7 3.2H9.7c-1.7 0-2.9-1.5-2.7-3.2.3-2.3 2.4-4.3 5-4.3Z" />
+    </svg>
+    <svg v-else-if="service === 'volcTranslation'" viewBox="0 0 24 24" role="img">
+      <path d="m4 19 5.2-11 2.4 5.2 2.1-3.6L20 19H4Z" />
+    </svg>
+    <svg v-else-if="service === 'ollama'" viewBox="0 0 24 24" role="img">
+      <path d="M8 5v3.2M16 5v3.2M7 13.5a5 5 0 0 1 10 0v2A3.5 3.5 0 0 1 13.5 19h-3A3.5 3.5 0 0 1 7 15.5v-2Z" />
+      <path d="M10 13.5h.1M14 13.5h.1M11 16.5h2" />
     </svg>
     <svg v-else-if="service === 'chromeTranslator'" viewBox="0 0 24 24" role="img">
       <path d="M12 4a8 8 0 0 1 6.9 4H12a4 4 0 0 0 0 8h.2A8 8 0 1 1 12 4Z" />
@@ -168,8 +190,10 @@ const isCustomOpenAIService = computed(() => isCustomOpenAIProviderId(props.serv
 const tone = computed(() => {
   if (isCustomOpenAIService.value) return 'violet'
   if (['openai', 'azureOpenai', 'newapi'].includes(props.service)) return 'violet'
-  if (['deepseek', 'deepL', 'deeplx', 'microsoft', 'freeTranslation', 'myMemory', 'youdaoFree', 'sogouFree', 'papagoFree', 'caiyunFree', 'reversoFree', 'lingvaFree', 'apertiumFree', 'libreTranslateFree'].includes(props.service)) return 'blue'
-  if (['gemini', 'google', 'chromeTranslator'].includes(props.service)) return 'green'
+  if (['deepseek', 'deepL', 'deeplx', 'microsoft', 'freeTranslation', 'myMemory', 'youdaoFree', 'sogouFree', 'reversoFree', 'lingvaFree', 'apertiumFree'].includes(props.service)) return 'blue'
+  if (['gemini', 'google', 'chromeTranslator', 'ollama', 'googleCloudTranslation'].includes(props.service)) return 'green'
+  if (['azureTranslator', 'tencent', 'baiduTranslation'].includes(props.service)) return 'blue'
+  if (['mistral', 'cohere', 'cerebras', 'togetherai', 'fireworks', 'deepinfra', 'perplexity'].includes(props.service)) return 'violet'
   return 'rose'
 })
 
@@ -180,12 +204,9 @@ const fallbackGlyph = computed(() => {
     myMemory: 'MM',
     youdaoFree: '有',
     sogouFree: '搜',
-    papagoFree: 'P',
-    caiyunFree: '彩',
     reversoFree: 'R',
     lingvaFree: 'L',
     apertiumFree: 'A',
-    libreTranslateFree: 'LT',
     google: 'G',
     deepL: 'D',
     deeplx: 'DX',
@@ -217,6 +238,19 @@ const fallbackGlyph = computed(() => {
     openrouter: 'O',
     grok: 'X',
     newapi: 'N',
+    googleCloudTranslation: 'GC',
+    azureTranslator: 'Az',
+    aliyunTranslation: 'Al',
+    baiduTranslation: 'Bd',
+    volcTranslation: 'Vo',
+    ollama: 'OL',
+    mistral: 'Mi',
+    cohere: 'Co',
+    cerebras: 'Ce',
+    togetherai: 'To',
+    fireworks: 'Fw',
+    deepinfra: 'DI',
+    perplexity: 'Px',
   }
   return glyphs[props.service] || props.service.slice(0, 2).toUpperCase()
 })
@@ -293,9 +327,35 @@ const fallbackGlyph = computed(() => {
 }
 
 .service-brand-icon[data-service='tencent'],
+.service-brand-icon[data-service='azureTranslator'],
 .service-brand-icon[data-service='azureOpenai'] {
   color: #2f6fc3;
   background: #eaf2ff;
+}
+
+.service-brand-icon[data-service='googleCloudTranslation'] {
+  color: #1a73e8;
+  background: #edf3ff;
+}
+
+.service-brand-icon[data-service='aliyunTranslation'] {
+  color: #e8681c;
+  background: #fff1e8;
+}
+
+.service-brand-icon[data-service='baiduTranslation'] {
+  color: #2932e1;
+  background: #ecedff;
+}
+
+.service-brand-icon[data-service='volcTranslation'] {
+  color: #d94a2a;
+  background: #fff0ec;
+}
+
+.service-brand-icon[data-service='ollama'] {
+  color: #2f3a48;
+  background: #eef1f5;
 }
 
 .service-brand-icon[data-service='chromeTranslator'] {

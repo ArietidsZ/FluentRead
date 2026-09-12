@@ -1,0 +1,325 @@
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {createHash, createHmac} from 'node:crypto';
+
+const {config} = vi.hoisted(() => ({config: {} as Record<string, any>}));
+vi.mock('@/src/services/config/store', () => ({config}));
+vi.mock('webextension-polyfill', () => ({default: {runtime: {id: 'test', getURL: (path: string) => path}}}));
+
+import {Config} from '@/src/core/config/model';
+import {services} from '@/src/core/config/catalog';
+import {
+    canonicalQueryString,
+    hmacSha1,
+    hmacSha256,
+    md5Hex,
+    percentEncode,
+    sha256Hex,
+    toBase64,
+    toHex,
+} from '@/src/providers/translation/cloud/signature';
+import {CLOUD_LANGUAGE_MAPS, resolveCloudLanguages} from '@/src/providers/translation/cloud/languages';
+import googleCloudTranslation, {GOOGLE_CLOUD_TRANSLATION_URL} from '@/src/providers/translation/google-cloud-translation';
+import azureTranslator from '@/src/providers/translation/azure-translator';
+import aliyunTranslation, {buildAliyunSignedForm} from '@/src/providers/translation/aliyun-translation';
+import baiduTranslation, {buildBaiduSignedForm} from '@/src/providers/translation/baidu-translation';
+import volcTranslation, {buildVolcAuthorization} from '@/src/providers/translation/volc-translation';
+import {translationProviderRegistry} from '@/src/providers/translation/registry';
+
+const fetchMock = vi.fn<typeof fetch>();
+const json = (value: unknown, init?: ResponseInit) => new Response(JSON.stringify(value), init);
+// 每次调用都要新建 Response，同一个 body 只能读取一次。
+const respond = (value: unknown, init?: ResponseInit) => fetchMock.mockImplementation(async () => json(value, init));
+const lastCall = () => {
+    const [url, init] = fetchMock.mock.calls.at(-1)!;
+    return {url: String(url), init: init!, headers: new Headers(init?.headers), body: String(init?.body ?? '')};
+};
+
+beforeEach(() => {
+    Object.assign(config, new Config(), {
+        from: 'auto', to: 'zh-Hans',
+        token: {
+            [services.googleCloudTranslation]: 'gcp-key',
+            [services.azureTranslator]: 'azure-key',
+            [services.aliyunTranslation]: 'ali-ak',
+            [services.baiduTranslation]: 'baidu-app',
+            [services.volcTranslation]: 'volc-ak',
+        },
+        secret: {
+            [services.aliyunTranslation]: 'ali-sk',
+            [services.baiduTranslation]: 'baidu-key',
+            [services.volcTranslation]: 'volc-sk',
+        },
+        serviceRegion: {},
+    });
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+});
+afterEach(() => vi.unstubAllGlobals());
+
+describe('云服务厂商签名原语', () => {
+    it('MD5 与 Node 实现一致，覆盖填充边界与多字节文本', () => {
+        for (const input of ['', 'a', 'abc', '你好，世界', 'x'.repeat(55), 'x'.repeat(56), 'x'.repeat(64), 'x'.repeat(1000), '2024appid翻译测试salt密钥']) {
+            expect(md5Hex(input), JSON.stringify(input.slice(0, 12))).toBe(createHash('md5').update(input, 'utf8').digest('hex'));
+        }
+    });
+
+    it('HMAC/SHA-256/Base64 与 Node 实现一致，并支持派生密钥链', async () => {
+        expect(toHex(await hmacSha256('secret', 'message'))).toBe(createHmac('sha256', 'secret').update('message').digest('hex'));
+        expect(toBase64(await hmacSha1('secret&', 'POST&%2F&x'))).toBe(createHmac('sha1', 'secret&').update('POST&%2F&x').digest('base64'));
+        expect(await sha256Hex('{"a":1}')).toBe(createHash('sha256').update('{"a":1}').digest('hex'));
+        const kDate = await hmacSha256('sk', '20260912');
+        const chained = toHex(await hmacSha256(kDate, 'cn-north-1'));
+        const expectedKDate = createHmac('sha256', 'sk').update('20260912').digest();
+        expect(chained).toBe(createHmac('sha256', expectedKDate).update('cn-north-1').digest('hex'));
+    });
+
+    it('百分号编码遵循 RFC 3986，规范查询串按键排序', () => {
+        expect(percentEncode("a b!'()*~/")).toBe('a%20b%21%27%28%29%2A~%2F');
+        expect(canonicalQueryString({b: '2', a: '1 1', Empty: ''})).toBe('Empty=&a=1%201&b=2');
+    });
+});
+
+describe('云服务厂商语言映射', () => {
+    it('把统一语言映射为厂商代码，自动检测按厂商约定处理', () => {
+        expect(resolveCloudLanguages('googleCloudTranslation', 'auto', 'zh-CN')).toEqual({source: undefined, target: 'zh-CN'});
+        expect(resolveCloudLanguages('googleCloudTranslation', 'en', 'zh-TW')).toEqual({source: 'en', target: 'zh-TW'});
+        expect(resolveCloudLanguages('azureTranslator', '', 'zh-Hant')).toEqual({source: undefined, target: 'zh-Hant'});
+        expect(resolveCloudLanguages('aliyunTranslation', 'auto', 'zh-hant')).toEqual({source: 'auto', target: 'zh-tw'});
+        expect(resolveCloudLanguages('baiduTranslation', 'ja', 'zh')).toEqual({source: 'jp', target: 'zh'});
+        expect(resolveCloudLanguages('baiduTranslation', 'fr', 'ko')).toEqual({source: 'fra', target: 'kor'});
+        expect(resolveCloudLanguages('volcTranslation', 'zh-HK', 'en')).toEqual({source: 'zh-Hant', target: 'en'});
+        expect(resolveCloudLanguages('volcTranslation', 'sw', 'xx')).toEqual({source: 'sw', target: 'xx'});
+        for (const vendor of Object.keys(CLOUD_LANGUAGE_MAPS) as Array<keyof typeof CLOUD_LANGUAGE_MAPS>) {
+            expect(() => resolveCloudLanguages(vendor, 'en', 'auto')).toThrow(/不支持目标语言自动检测/u);
+            expect(() => resolveCloudLanguages(vendor, 'en', ' ')).toThrow(CLOUD_LANGUAGE_MAPS[vendor].label);
+        }
+    });
+});
+
+describe('注册表', () => {
+    it('五个新云厂商与腾讯云都通过 registry 暴露', () => {
+        for (const service of [services.tencent, services.googleCloudTranslation, services.azureTranslator, services.aliyunTranslation, services.baiduTranslation, services.volcTranslation]) {
+            expect(translationProviderRegistry[service], service).toBeTypeOf('function');
+        }
+        expect(translationProviderRegistry[services.googleCloudTranslation]).toBe(googleCloudTranslation);
+        expect(translationProviderRegistry[services.volcTranslation]).toBe(volcTranslation);
+    });
+});
+
+describe('谷歌云翻译', () => {
+    it('密钥走请求头而非 URL，自动检测时省略 source', async () => {
+        respond({data: {translations: [{translatedText: '你好'}]}});
+        await expect(googleCloudTranslation({origin: 'Hello'})).resolves.toBe('你好');
+        const {url, headers, body} = lastCall();
+        expect(url).toBe(GOOGLE_CLOUD_TRANSLATION_URL);
+        expect(url).not.toContain('gcp-key');
+        expect(headers.get('x-goog-api-key')).toBe('gcp-key');
+        expect(JSON.parse(body)).toEqual({q: 'Hello', target: 'zh-CN', format: 'text'});
+    });
+
+    it('显式源语言与错误路径', async () => {
+        respond({data: {translations: [{translatedText: 'ok'}]}});
+        await googleCloudTranslation({origin: 'x', sourceLanguage: 'ja', targetLanguage: 'en'});
+        expect(JSON.parse(lastCall().body)).toMatchObject({source: 'ja', target: 'en'});
+
+        config.token[services.googleCloudTranslation] = ' ';
+        await expect(googleCloudTranslation({origin: 'x'})).rejects.toThrow(/API Key/u);
+        config.token[services.googleCloudTranslation] = 'gcp-key';
+
+        fetchMock.mockResolvedValue(new Response('denied', {status: 403}));
+        await expect(googleCloudTranslation({origin: 'x'})).rejects.toMatchObject({message: '谷歌云翻译请求失败: 403', statusCode: 403});
+        respond({error: {code: 400, message: 'secret payload'}}, {status: 200});
+        await expect(googleCloudTranslation({origin: 'x'})).rejects.toThrow('谷歌云翻译错误（错误码 400）');
+        respond({data: {translations: []}});
+        await expect(googleCloudTranslation({origin: 'x'})).rejects.toThrow('谷歌云翻译返回格式异常');
+        fetchMock.mockResolvedValue(new Response('not json'));
+        await expect(googleCloudTranslation({origin: 'x'})).rejects.toThrow('谷歌云翻译返回的不是有效 JSON');
+    });
+});
+
+describe('Azure 翻译', () => {
+    it('全球资源不发区域头，区域资源附带 Ocp-Apim-Subscription-Region', async () => {
+        respond([{translations: [{text: '你好', to: 'zh-Hans'}]}]);
+        await expect(azureTranslator({origin: 'Hello'})).resolves.toBe('你好');
+        let call = lastCall();
+        let url = new URL(call.url);
+        expect(url.origin + url.pathname).toBe('https://api.cognitive.microsofttranslator.com/translate');
+        expect(url.searchParams.get('api-version')).toBe('3.0');
+        expect(url.searchParams.get('to')).toBe('zh-Hans');
+        expect(url.searchParams.get('from')).toBeNull();
+        expect(call.headers.get('Ocp-Apim-Subscription-Key')).toBe('azure-key');
+        expect(call.headers.has('Ocp-Apim-Subscription-Region')).toBe(false);
+        expect(JSON.parse(call.body)).toEqual([{Text: 'Hello'}]);
+
+        config.serviceRegion[services.azureTranslator] = 'eastasia';
+        await azureTranslator({origin: 'Hello', sourceLanguage: 'en', targetLanguage: 'zh-TW'});
+        call = lastCall();
+        url = new URL(call.url);
+        expect(call.headers.get('Ocp-Apim-Subscription-Region')).toBe('eastasia');
+        expect(url.searchParams.get('from')).toBe('en');
+        expect(url.searchParams.get('to')).toBe('zh-Hant');
+
+        config.serviceRegion[services.azureTranslator] = 'not-a-region';
+        await azureTranslator({origin: 'Hello'});
+        expect(lastCall().headers.has('Ocp-Apim-Subscription-Region')).toBe(false);
+    });
+
+    it('错误路径', async () => {
+        config.token[services.azureTranslator] = '';
+        await expect(azureTranslator({origin: 'x'})).rejects.toThrow(/密钥/u);
+        config.token[services.azureTranslator] = 'azure-key';
+        fetchMock.mockResolvedValue(new Response('', {status: 401}));
+        await expect(azureTranslator({origin: 'x'})).rejects.toMatchObject({statusCode: 401});
+        respond({error: {code: 401000, message: 'leak'}});
+        await expect(azureTranslator({origin: 'x'})).rejects.toThrow('Azure 翻译错误（错误码 401000）');
+        respond({});
+        await expect(azureTranslator({origin: 'x'})).rejects.toThrow('Azure 翻译错误');
+        respond([{translations: []}]);
+        await expect(azureTranslator({origin: 'x'})).rejects.toThrow('Azure 翻译返回格式异常');
+        respond([]);
+        await expect(azureTranslator({origin: 'x'})).rejects.toThrow('Azure 翻译返回格式异常');
+    });
+});
+
+describe('阿里云机器翻译', () => {
+    it('RPC 1.0 签名与官方算法一致', async () => {
+        const form = await buildAliyunSignedForm({
+            accessKeyId: 'ak', accessKeySecret: 'sk',
+            parameters: {Action: 'TranslateGeneral', SourceText: 'Hello world!', SourceLanguage: 'auto', TargetLanguage: 'zh', FormatType: 'text', Scene: 'general'},
+            now: new Date('2026-09-12T08:09:10.123Z'), nonce: 'fixed-nonce',
+        });
+        expect(form).toMatchObject({Format: 'JSON', Version: '2018-10-12', AccessKeyId: 'ak', SignatureMethod: 'HMAC-SHA1', SignatureVersion: '1.0', SignatureNonce: 'fixed-nonce', Timestamp: '2026-09-12T08:09:10Z'});
+        const {Signature, ...rest} = form;
+        const query = Object.keys(rest).sort().map((key) => `${percentEncode(key)}=${percentEncode(rest[key]!)}`).join('&');
+        const stringToSign = `POST&%2F&${percentEncode(query)}`;
+        expect(Signature).toBe(createHmac('sha1', 'sk&').update(stringToSign).digest('base64'));
+        const generated = await buildAliyunSignedForm({accessKeyId: 'ak', accessKeySecret: 'sk', parameters: {}});
+        expect(generated.SignatureNonce).toMatch(/^[0-9a-f-]{36}$/u);
+        expect(generated.Timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u);
+    });
+
+    it('按地域选择域名，表单包含签名后的公共参数', async () => {
+        respond({Code: '200', Data: {Translated: '你好，世界'}});
+        await expect(aliyunTranslation({origin: 'Hello world'})).resolves.toBe('你好，世界');
+        let call = lastCall();
+        expect(call.url).toBe('https://mt.cn-hangzhou.aliyuncs.com/');
+        expect(call.headers.get('Content-Type')).toContain('application/x-www-form-urlencoded');
+        let params = new URLSearchParams(call.body);
+        expect(params.get('Action')).toBe('TranslateGeneral');
+        expect(params.get('SourceLanguage')).toBe('auto');
+        expect(params.get('TargetLanguage')).toBe('zh');
+        expect(params.get('SourceText')).toBe('Hello world');
+        expect(params.get('AccessKeyId')).toBe('ali-ak');
+        expect(params.get('Signature')).toBeTruthy();
+        expect(call.body).not.toContain('ali-sk');
+
+        config.serviceRegion[services.aliyunTranslation] = 'ap-southeast-1';
+        respond({Code: 200, Data: {Translated: 'ok'}});
+        await aliyunTranslation({origin: 'x', sourceLanguage: 'zh-Hant', targetLanguage: 'en'});
+        call = lastCall();
+        expect(call.url).toBe('https://mt.ap-southeast-1.aliyuncs.com/');
+        params = new URLSearchParams(call.body);
+        expect(params.get('SourceLanguage')).toBe('zh-tw');
+    });
+
+    it('错误路径', async () => {
+        config.secret[services.aliyunTranslation] = '';
+        await expect(aliyunTranslation({origin: 'x'})).rejects.toThrow(/AccessKey ID 与 AccessKey Secret/u);
+        config.secret[services.aliyunTranslation] = 'ali-sk';
+        fetchMock.mockResolvedValue(new Response('', {status: 500}));
+        await expect(aliyunTranslation({origin: 'x'})).rejects.toMatchObject({statusCode: 500});
+        respond({Code: '10001', Message: 'signature mismatch'});
+        await expect(aliyunTranslation({origin: 'x'})).rejects.toThrow('阿里云机器翻译错误（错误码 10001）');
+        respond({Message: 'no code'});
+        await expect(aliyunTranslation({origin: 'x'})).rejects.toThrow('阿里云机器翻译错误');
+        respond({Code: '200', Data: {}});
+        await expect(aliyunTranslation({origin: 'x'})).rejects.toThrow('阿里云机器翻译返回格式异常');
+    });
+});
+
+describe('百度翻译', () => {
+    it('sign = md5(appid + q + salt + key)，多段结果按换行拼回', async () => {
+        const form = buildBaiduSignedForm({appId: 'app', secretKey: 'key', query: '第一行\n第二行', from: 'auto', to: 'en', salt: '12345'});
+        expect(form).toEqual({q: '第一行\n第二行', from: 'auto', to: 'en', appid: 'app', salt: '12345', sign: createHash('md5').update('app第一行\n第二行12345key', 'utf8').digest('hex')});
+        expect(buildBaiduSignedForm({appId: 'a', secretKey: 'k', query: 'q', from: 'auto', to: 'en'}).salt).toMatch(/^\d+$/u);
+
+        respond({from: 'zh', to: 'en', trans_result: [{src: '第一行', dst: 'Line one'}, {src: '第二行', dst: 'Line two'}]});
+        await expect(baiduTranslation({origin: '第一行\n第二行', sourceLanguage: 'zh-Hans', targetLanguage: 'en'})).resolves.toBe('Line one\nLine two');
+        const call = lastCall();
+        expect(call.url).toBe('https://fanyi-api.baidu.com/api/trans/vip/translate');
+        const params = new URLSearchParams(call.body);
+        expect(params.get('from')).toBe('zh');
+        expect(params.get('to')).toBe('en');
+        expect(params.get('appid')).toBe('baidu-app');
+        expect(params.get('sign')).toBe(createHash('md5').update(`baidu-app第一行\n第二行${params.get('salt')}baidu-key`, 'utf8').digest('hex'));
+        expect(call.body).not.toContain('baidu-key');
+    });
+
+    it('错误路径与成功码 52000', async () => {
+        config.token[services.baiduTranslation] = '';
+        await expect(baiduTranslation({origin: 'x'})).rejects.toThrow(/APP ID 与密钥/u);
+        config.token[services.baiduTranslation] = 'baidu-app';
+        fetchMock.mockResolvedValue(new Response('', {status: 429}));
+        await expect(baiduTranslation({origin: 'x'})).rejects.toMatchObject({statusCode: 429});
+        respond({error_code: '54003', error_msg: 'rate limit'});
+        await expect(baiduTranslation({origin: 'x'})).rejects.toThrow('百度翻译错误（错误码 54003）');
+        respond({error_code: 52000, trans_result: [{src: 'x', dst: 'y'}]});
+        await expect(baiduTranslation({origin: 'x'})).resolves.toBe('y');
+        respond({trans_result: []});
+        await expect(baiduTranslation({origin: 'x'})).rejects.toThrow('百度翻译返回格式异常');
+        respond({trans_result: [{src: 'x'}]});
+        await expect(baiduTranslation({origin: 'x'})).rejects.toThrow('百度翻译返回格式异常');
+    });
+});
+
+describe('火山引擎翻译', () => {
+    it('V4 签名与派生密钥链一致', async () => {
+        const body = JSON.stringify({TargetLanguage: 'zh', TextList: ['Hello']});
+        const headers = await buildVolcAuthorization({
+            accessKeyId: 'ak', secretAccessKey: 'sk', region: 'cn-north-1', host: 'translate.volcengineapi.com',
+            query: {Action: 'TranslateText', Version: '2020-06-01'}, body, now: new Date('2026-09-12T08:09:10.500Z'),
+        });
+        expect(headers['X-Date']).toBe('20260912T080910Z');
+        const payloadHash = createHash('sha256').update(body).digest('hex');
+        expect(headers['X-Content-Sha256']).toBe(payloadHash);
+        const canonicalRequest = ['POST', '/', 'Action=TranslateText&Version=2020-06-01',
+            `content-type:application/json; charset=utf-8\nhost:translate.volcengineapi.com\nx-content-sha256:${payloadHash}\nx-date:20260912T080910Z\n`,
+            'content-type;host;x-content-sha256;x-date', payloadHash].join('\n');
+        const scope = '20260912/cn-north-1/translate/request';
+        const stringToSign = ['HMAC-SHA256', '20260912T080910Z', scope, createHash('sha256').update(canonicalRequest).digest('hex')].join('\n');
+        let key: Buffer | string = 'sk';
+        for (const part of ['20260912', 'cn-north-1', 'translate', 'request']) key = createHmac('sha256', key).update(part).digest();
+        const signature = createHmac('sha256', key).update(stringToSign).digest('hex');
+        expect(headers.Authorization).toBe(`HMAC-SHA256 Credential=ak/${scope}, SignedHeaders=content-type;host;x-content-sha256;x-date, Signature=${signature}`);
+        expect((await buildVolcAuthorization({accessKeyId: 'ak', secretAccessKey: 'sk', region: 'cn-north-1', host: 'h', query: {}, body: ''}))['X-Date']).toMatch(/^\d{8}T\d{6}Z$/u);
+    });
+
+    it('请求携带签名头，地域进入凭证范围，自动检测时省略 SourceLanguage', async () => {
+        respond({ResponseMetadata: {}, TranslationList: [{Translation: '你好', DetectedSourceLanguage: 'en'}]});
+        await expect(volcTranslation({origin: 'Hello'})).resolves.toBe('你好');
+        let call = lastCall();
+        expect(call.url).toBe('https://translate.volcengineapi.com/?Action=TranslateText&Version=2020-06-01');
+        expect(JSON.parse(call.body)).toEqual({TargetLanguage: 'zh', TextList: ['Hello']});
+        expect(call.headers.get('Authorization')).toMatch(/^HMAC-SHA256 Credential=volc-ak\/\d{8}\/cn-north-1\/translate\/request, SignedHeaders=/u);
+        expect(call.headers.get('X-Content-Sha256')).toBe(createHash('sha256').update(call.body).digest('hex'));
+        expect(call.body).not.toContain('volc-sk');
+
+        config.serviceRegion[services.volcTranslation] = 'ap-southeast-1';
+        await volcTranslation({origin: 'Hello', sourceLanguage: 'en', targetLanguage: 'zh-Hant'});
+        call = lastCall();
+        expect(JSON.parse(call.body)).toEqual({TargetLanguage: 'zh-Hant', TextList: ['Hello'], SourceLanguage: 'en'});
+        expect(call.headers.get('Authorization')).toContain('/ap-southeast-1/translate/request');
+    });
+
+    it('错误路径', async () => {
+        config.token[services.volcTranslation] = '';
+        await expect(volcTranslation({origin: 'x'})).rejects.toThrow(/Access Key ID 与 Secret Access Key/u);
+        config.token[services.volcTranslation] = 'volc-ak';
+        fetchMock.mockResolvedValue(new Response('', {status: 403}));
+        await expect(volcTranslation({origin: 'x'})).rejects.toMatchObject({statusCode: 403});
+        respond({ResponseMetadata: {Error: {Code: 'SignatureDoesNotMatch', CodeN: 100009, Message: 'leak'}}});
+        await expect(volcTranslation({origin: 'x'})).rejects.toThrow('火山引擎翻译错误（错误码 100009）');
+        respond({TranslationList: []});
+        await expect(volcTranslation({origin: 'x'})).rejects.toThrow('火山引擎翻译返回格式异常');
+    });
+});

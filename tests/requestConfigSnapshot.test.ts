@@ -6,6 +6,8 @@ import {
     attachTranslationModelUsageObserver,
     attachTranslationProviderConfig,
     attachTranslationRequestControl,
+    attachTranslationRequestScheduler,
+    getTranslationRequestScheduler,
     createTranslationProviderConfigSnapshot,
     getTranslationProviderConfig,
     getTranslationRequestControl,
@@ -14,6 +16,7 @@ import {
     getTranslationGlossaryTerms,
     getTranslationGlossarySourceText,
 } from '@/src/services/translation/requestSnapshot';
+import {createTranslationRequestScheduler} from '@/src/services/translation/requestScheduler';
 import {serializeTranslationSlots} from '@/src/core/translation/public';
 import type {TranslationConfigSource} from '@/src/services/translation/types';
 
@@ -53,6 +56,46 @@ function configSource(overrides: Partial<TranslationConfigSource> = {}): Transla
 }
 
 describe('translation provider request config snapshot', () => {
+    it('keeps service and model limit snapshots stable after settings are edited', () => {
+        const source = configSource({
+            serviceRequestLimits: {aiSdk: {enabled: true, limits: {maxConcurrentTranslations: 4, translationRequestsPerSecond: 2, translationRequestsPerMinute: 60}}},
+            modelRequestLimits: {aiSdk: {'model-a': {enabled: false, limits: {maxConcurrentTranslations: 1, translationRequestsPerSecond: 0, translationRequestsPerMinute: 20}}}},
+        });
+        const snapshot = createTranslationProviderConfigSnapshot(source);
+        source.serviceRequestLimits!.aiSdk.enabled = false;
+        source.serviceRequestLimits!.aiSdk.limits.maxConcurrentTranslations = 99;
+        source.modelRequestLimits!.aiSdk['model-a'].enabled = true;
+        source.modelRequestLimits!.aiSdk['model-a'].limits.translationRequestsPerSecond = 100;
+        expect(snapshot.serviceRequestLimits!.aiSdk).toEqual({enabled: true, limits: {
+            maxConcurrentTranslations: 4, translationRequestsPerSecond: 2, translationRequestsPerMinute: 60,
+        }});
+        expect(snapshot.modelRequestLimits!.aiSdk['model-a']).toEqual({enabled: false, limits: {
+            maxConcurrentTranslations: 1, translationRequestsPerSecond: 0, translationRequestsPerMinute: 20,
+        }});
+        expect([snapshot.serviceRequestLimits, snapshot.serviceRequestLimits!.aiSdk, snapshot.serviceRequestLimits!.aiSdk.limits,
+            snapshot.modelRequestLimits, snapshot.modelRequestLimits!.aiSdk, snapshot.modelRequestLimits!.aiSdk['model-a'],
+            snapshot.modelRequestLimits!.aiSdk['model-a'].limits].every(Object.isFrozen)).toBe(true);
+        expect(createTranslationProviderConfigSnapshot(configSource()).serviceRequestLimits).toEqual({});
+        expect(createTranslationProviderConfigSnapshot(configSource({modelRequestLimits: {aiSdk: null as never}})).modelRequestLimits).toEqual({aiSdk: {}});
+    });
+
+    it('keeps the scheduler and immutable request identity inside trusted process-local context', () => {
+        const scheduler = createTranslationRequestScheduler(() => ({}));
+        const identity = {service: 'aiSdk', model: 'model-a'};
+        const request = attachTranslationRequestScheduler({origin: 'hello'}, scheduler, identity);
+        identity.model = 'model-b';
+        const context = getTranslationRequestScheduler(request)!;
+        expect(context.scheduler).toBe(scheduler);
+        expect(context.identity).toEqual({service: 'aiSdk', model: 'model-a'});
+        expect(Object.isFrozen(context)).toBe(true);
+        expect(Object.isFrozen(context.identity)).toBe(true);
+        expect(JSON.stringify(request)).toBe('{"origin":"hello"}');
+        expect(getTranslationRequestScheduler(attachTranslationRequestScheduler({}, scheduler))!.identity).toBeUndefined();
+        for (const untrusted of [null, 'invalid', {}, {scheduler, identity}, JSON.parse(JSON.stringify(request))]) {
+            expect(getTranslationRequestScheduler(untrusted)).toBeUndefined();
+        }
+    });
+
     it('freezes fallback order and official-provider options before asynchronous work', () => {
         const order = ['myMemory', 'google'];
         const source = configSource({freeTranslationOrder: order, myMemoryEmail: 'contact@example.test'});

@@ -66,7 +66,7 @@ describe('free Chinese web providers', () => {
     });
 
     it('classifies every HTTP status family without exposing response text', async () => {
-        for (const [status, freeFailure] of [[401, 'blocked'], [403, 'blocked'], [408, 'rate-limit'], [429, 'rate-limit'], [402, 'quota'], [500, 'unavailable'], [400, 'request']] as const) {
+        for (const [status, freeFailure] of [[401, 'blocked'], [403, 'blocked'], [404, 'blocked'], [410, 'blocked'], [408, 'unavailable'], [429, 'rate-limit'], [402, 'quota'], [456, 'quota'], [500, 'unavailable'], [400, 'request']] as const) {
             fetchMock.mockResolvedValueOnce(new Response('private response body', {status}));
             await expect(translateFreeChineseWebText('youdaoFree', 'Hello', 'en', 'zh-Hans')).rejects.toMatchObject({statusCode: status, freeFailure});
         }

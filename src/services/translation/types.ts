@@ -158,14 +158,35 @@ export interface TranslationConfigSnapshot {
     user_role: Record<string, string>;
     deepseekApiType: string;
     deepseekThinkingMode: string;
+    /** 云服务厂商所选地域；决定签名 scope 与请求域名。 */
+    serviceRegion?: Record<string, string>;
     /** 请求调度策略；provider 适配器只读取重试次数，其余字段由调度边界消费。 */
     translationMaxRetries?: number;
     translationBackoffBaseMs?: number;
     translationBackoffMaxMs?: number;
+    /** 稀疏的服务/模型独立限流配置；未启用时保持旧 global budget。 */
+    serviceRequestLimits?: Record<string, {
+        enabled: boolean;
+        limits: {
+            maxConcurrentTranslations: number;
+            translationRequestsPerSecond: number;
+            translationRequestsPerMinute: number;
+        };
+    }>;
+    modelRequestLimits?: Record<string, Record<string, {
+        enabled: boolean;
+        limits: {
+            maxConcurrentTranslations: number;
+            translationRequestsPerSecond: number;
+            translationRequestsPerMinute: number;
+        };
+    }>>;
 }
 
 export interface TranslationProviderConfigFields {
     token: Record<string, string>;
+    /** 云服务厂商与主密钥配对的第二段密钥，按服务标识存放。 */
+    secret: Record<string, string>;
     requireApiKey: Record<string, boolean>;
     youdaoAppKey: string;
     youdaoAppSecret: string;
@@ -230,6 +251,8 @@ export interface TranslationBrokerDependencies {
     persistenceGraceMs?: number;
     now?: () => number;
     logger?: Pick<Console, 'warn'>;
+    /** 可由 app composition root 注入，使 broker、连接测试和输入框共用 bucket。 */
+    requestScheduler?: import('./requestScheduler').TranslationRequestScheduler;
 }
 
 export interface TranslationBroker {

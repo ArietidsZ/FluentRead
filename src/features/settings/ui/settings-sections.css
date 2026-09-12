@@ -14,8 +14,7 @@
 }
 
 .service-default-control {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
@@ -32,6 +31,10 @@
   width: 100%;
   min-width: 0;
 }
+
+.fluentread-service-option { display: flex; align-items: center; gap: 10px; min-width: 0; width: 100%; }
+.fluentread-service-option > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.fluentread-service-option :deep(.service-brand-icon) { flex: none; box-shadow: none; }
 
 @media (max-width: 480px) {
   .service-default-control { max-width: none; }
@@ -186,6 +189,30 @@
 
 .translation-delay-field :deep(.el-input-number) {
   width: 100%;
+}
+
+.request-default-number { display: flex; align-items: center; gap: 8px; width: 132px; max-width: 100%; }
+.request-default-number :deep(.el-input-number) { min-width: 0; width: 100%; }
+.request-default-number > span { color: var(--muted); font-size: 11px; }
+.request-retry-settings { border-top: 1px solid var(--line); }
+.request-retry-settings > summary { padding: 14px 16px; color: var(--muted); font-size: 12px; cursor: pointer; }
+.request-retry-settings[open] > summary { border-bottom: 1px solid var(--line); }
+.selection-tts-voice-control {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.selection-tts-voice-control :deep(.el-select) {
+  width: 100%;
+}
+
+.selection-tts-voice-control small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+  text-align: left;
 }
 
 .task-scheduler-group :deep(.settings-group-body) {

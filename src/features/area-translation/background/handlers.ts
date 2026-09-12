@@ -60,6 +60,12 @@ export interface AreaTranslationBackgroundDependencies<TResult extends object> {
     readonly getDefaultSourceLanguage: () => string;
     readonly assertCaptureOwner?: (windowId: number, tabId: unknown) => Promise<void>;
     readonly assertLanguagesDownloaded: (sourceLanguage: string) => Promise<void>;
+    readonly getVisionRoute?: () => {mode: 'ocr' | 'vision'; fallback?: 'unsupported' | 'unknown'};
+    readonly translateAreaVision?: (
+        image: string, sourceLanguage: string, title: string, selection: AreaTranslationSelection, options: ImageOperationOptions,
+    ) => Promise<TResult>;
+    readonly prepareVisionTranslation?: (sourceLanguage: string, title: string, context: AreaTranslationBackgroundContext) =>
+        (image: string, selection: AreaTranslationSelection, options: ImageOperationOptions) => Promise<TResult>;
     readonly prepareTextTranslation?: (sourceLanguage: string, title: string, context: AreaTranslationBackgroundContext) =>
         (recognized: TResult, options: ImageOperationOptions) => Promise<object>;
     readonly sendProgress?: (context: AreaTranslationBackgroundContext, message: {type: typeof IMAGE_PROGRESS_MESSAGE_TYPE; requestId: string; stage: ImageTranslationStage}) => Promise<void>;
@@ -190,22 +196,27 @@ export function createAreaTranslationBackgroundHandlers<TResult extends object>(
 
                 // 在任何 OCR await 前冻结完整文本翻译事务，后续设置变更不改变当前任务。
                 const translateText = dependencies.prepareTextTranslation?.(sourceLanguage, title, context);
+                const translateVision = dependencies.prepareVisionTranslation?.(sourceLanguage, title, context);
+                const visionRoute = dependencies.getVisionRoute?.() ?? {mode: 'ocr' as const};
                 // 步骤 2：先确认语言包，再复用同一个 offscreen 区域识别事务。
                 const result = await operationRegistry.run(message, async (options) => {
-                    await dependencies.assertLanguagesDownloaded(sourceLanguage);
+                    const route = visionRoute;
+                    if (route.mode === 'vision' && !translateVision && !dependencies.translateAreaVision) throw new Error('视觉圈选翻译不可用');
+                    if (route.mode === 'ocr') await dependencies.assertLanguagesDownloaded(sourceLanguage);
                     if (options.signal.aborted) throw areaAbortError();
                     await dependencies.sendProgress?.(context, {type: IMAGE_PROGRESS_MESSAGE_TYPE, requestId: options.requestId, stage: 'recognizing'});
-                    const recognized = await dependencies.translateArea(
-                        image,
-                        sourceLanguage,
-                        title,
-                        message.selection as AreaTranslationSelection,
-                        options,
-                    );
+                    const recognized = route.mode === 'vision'
+                        ? translateVision
+                            ? await translateVision(image, message.selection as AreaTranslationSelection, options)
+                            : await dependencies.translateAreaVision!(image, sourceLanguage, title, message.selection as AreaTranslationSelection, options)
+                        : await dependencies.translateArea(image, sourceLanguage, title, message.selection as AreaTranslationSelection, options);
                     if (options.signal.aborted) throw areaAbortError();
-                    if (!translateText) return recognized;
+                    const withRecognition = dependencies.getVisionRoute && route.mode === 'ocr'
+                        ? {...recognized, recognitionMethod: 'ocr' as const, ...(route.fallback ? {recognitionFallback: route.fallback} : {})}
+                        : recognized;
+                    if (!translateText) return withRecognition;
                     await dependencies.sendProgress?.(context, {type: IMAGE_PROGRESS_MESSAGE_TYPE, requestId: options.requestId, stage: 'translating'});
-                    return translateText(recognized, options);
+                    return translateText(withRecognition, options);
                 });
                 return {success: true, ...result};
             },

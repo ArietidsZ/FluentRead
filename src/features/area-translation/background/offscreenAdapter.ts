@@ -25,6 +25,22 @@ interface AreaOffscreenResponse {
 /** 圈选 feature 只声明自身消息，文档创建和 runtime callback 由平台 client 负责。 */
 export function createAreaTranslationOffscreenAdapter(client: OffscreenClient = extensionDomClient) {
     return {
+        async cropArea(
+            image: string,
+            selection: AreaTranslationSelection,
+            options?: ImageOffscreenOperationOptions,
+        ): Promise<AreaRecognitionResult> {
+            const message = {type: 'FLUENT_READ_AREA_CROP_OFFSCREEN', image, selection,
+                ...(options ? {requestId: options.requestId} : {})} as const;
+            const response = options
+                ? await client.send<AreaOffscreenResponse>(message, {signal: options.signal, timeoutMs: options.timeoutMs,
+                    cancelMessage: {type: OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE, requestId: options.requestId}})
+                : await client.send<AreaOffscreenResponse>(message);
+            if (!response?.success || typeof response.image !== 'string' || !Array.isArray(response.lines)) {
+                throw new Error(response?.error || '圈选裁剪失败');
+            }
+            return {image: response.image, lines: response.lines as AreaRecognitionResult['lines']};
+        },
         async translateArea(
             image: string,
             sourceLanguage: string,

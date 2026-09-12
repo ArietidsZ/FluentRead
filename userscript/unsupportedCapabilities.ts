@@ -27,3 +27,6 @@ export function isSupportedVideoPage(): boolean {
 }
 
 export function toggleContextMenuImage(): boolean { return false; }
+
+/** Userscript 没有原生右键菜单，圈选翻译入口始终不可用。 */
+export function startAreaTranslationFromContextMenu(): boolean { return false; }

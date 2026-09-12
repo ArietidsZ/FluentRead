@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/VideoSubtitleAppearanceSettings.vue
- * 文件职责：提供视频原语言与字幕外观设置，并用同一套 CSS 变量展示隔离的实时预览。
- * 主要内容：选择可扩展皮肤、调整字号/颜色/位置/背景/行距/宽度和底部偏移，支持恢复默认。
+ * 文件职责：提供视频字幕外观设置，并用同一套 CSS 变量展示隔离的实时预览。
+ * 主要内容：先选择可扩展皮肤，再按字号与位置、颜色与布局分组调整字幕，支持恢复默认并保留所有外观配置。
  * 模块边界：只编辑传入 Config 草稿；保存由 SettingsSections 统一处理，播放器实际应用由 content 层负责。
  -->
 <template>
@@ -37,17 +37,24 @@
       </div>
 
       <details class="subtitle-appearance-advanced">
-        <summary>高级调整</summary>
+        <summary>微调字幕外观</summary>
+        <p class="subtitle-appearance-hint">大多数视频使用默认值即可；只有位置或可读性不合适时再调整。</p>
         <div class="subtitle-appearance-controls">
-          <label><span>字号 <b>{{ config.videoSubtitleAppearance.fontScale }}%</b></span><input v-model.number="config.videoSubtitleAppearance.fontScale" type="range" min="80" max="160" step="10" aria-label="字幕字号" /></label>
-          <label><span>底部偏移 <b>{{ config.videoSubtitleAppearance.position === 'bottom' && config.videoSubtitleAppearance.autoBottom ? 'X 自动' : `${config.videoSubtitleAppearance.bottomOffset}%` }}</b></span><input v-model.number="config.videoSubtitleAppearance.bottomOffset" type="range" min="0" max="25" step="1" aria-label="字幕底部偏移" @input="config.videoSubtitleAppearance.autoBottom = false" /></label>
-          <label v-if="config.videoSubtitleAppearance.position === 'bottom'"><span>X 字幕自动贴底</span><input v-model="config.videoSubtitleAppearance.autoBottom" type="checkbox" aria-label="X 字幕自动贴底" /></label>
-          <label><span>背景透明度 <b>{{ config.videoSubtitleAppearance.backgroundOpacity }}%</b></span><input v-model.number="config.videoSubtitleAppearance.backgroundOpacity" type="range" min="0" max="95" step="1" aria-label="字幕背景透明度" /></label>
-          <label><span>行距 <b>{{ config.videoSubtitleAppearance.lineSpacing.toFixed(2) }}</b></span><input v-model.number="config.videoSubtitleAppearance.lineSpacing" type="range" min="1" max="2" step="0.01" aria-label="字幕行距" /></label>
-          <label><span>最大宽度 <b>{{ config.videoSubtitleAppearance.maxWidth }}%</b></span><input v-model.number="config.videoSubtitleAppearance.maxWidth" type="range" min="40" max="100" step="1" aria-label="字幕最大宽度" /></label>
-          <label><span>位置</span><UiSelect v-model="config.videoSubtitleAppearance.position" aria-label="字幕位置"><ElOption value="bottom" :label="translateControlLabel('底部')" /><ElOption value="center" :label="translateControlLabel('中部')" /><ElOption value="top" :label="translateControlLabel('顶部')" /></UiSelect></label>
-          <label><span>原文颜色</span><ElColorPicker :model-value="config.videoSubtitleAppearance.textColor" aria-label="原文颜色" @update:model-value="value => { if (value) config.videoSubtitleAppearance.textColor = value }" /></label>
-          <label><span>译文颜色</span><ElColorPicker :model-value="config.videoSubtitleAppearance.translationColor" aria-label="译文颜色" @update:model-value="value => { if (value) config.videoSubtitleAppearance.translationColor = value }" /></label>
+          <div class="subtitle-appearance-control-group">
+            <strong>字号与位置</strong>
+            <label><span>字号 <b>{{ config.videoSubtitleAppearance.fontScale }}%</b></span><input v-model.number="config.videoSubtitleAppearance.fontScale" type="range" min="80" max="160" step="10" aria-label="字幕字号" /></label>
+            <label><span>位置</span><UiSelect v-model="config.videoSubtitleAppearance.position" aria-label="字幕位置"><ElOption value="bottom" :label="translateControlLabel('底部')" /><ElOption value="center" :label="translateControlLabel('中部')" /><ElOption value="top" :label="translateControlLabel('顶部')" /></UiSelect></label>
+            <label><span>底部偏移 <b>{{ config.videoSubtitleAppearance.position === 'bottom' && config.videoSubtitleAppearance.autoBottom ? 'X 自动' : `${config.videoSubtitleAppearance.bottomOffset}%` }}</b></span><input v-model.number="config.videoSubtitleAppearance.bottomOffset" type="range" min="0" max="25" step="1" aria-label="字幕底部偏移" @input="config.videoSubtitleAppearance.autoBottom = false" /></label>
+            <label v-if="config.videoSubtitleAppearance.position === 'bottom'"><span>X 字幕自动贴底</span><input v-model="config.videoSubtitleAppearance.autoBottom" type="checkbox" aria-label="X 字幕自动贴底" /></label>
+          </div>
+          <div class="subtitle-appearance-control-group">
+            <strong>颜色与布局</strong>
+            <label><span>原文颜色</span><ElColorPicker :model-value="config.videoSubtitleAppearance.textColor" aria-label="原文颜色" @update:model-value="value => { if (value) config.videoSubtitleAppearance.textColor = value }" /></label>
+            <label><span>译文颜色</span><ElColorPicker :model-value="config.videoSubtitleAppearance.translationColor" aria-label="译文颜色" @update:model-value="value => { if (value) config.videoSubtitleAppearance.translationColor = value }" /></label>
+            <label><span>背景透明度 <b>{{ config.videoSubtitleAppearance.backgroundOpacity }}%</b></span><input v-model.number="config.videoSubtitleAppearance.backgroundOpacity" type="range" min="0" max="95" step="1" aria-label="字幕背景透明度" /></label>
+            <label><span>行距 <b>{{ config.videoSubtitleAppearance.lineSpacing.toFixed(2) }}</b></span><input v-model.number="config.videoSubtitleAppearance.lineSpacing" type="range" min="1" max="2" step="0.01" aria-label="字幕行距" /></label>
+            <label><span>最大宽度 <b>{{ config.videoSubtitleAppearance.maxWidth }}%</b></span><input v-model.number="config.videoSubtitleAppearance.maxWidth" type="range" min="40" max="100" step="1" aria-label="字幕最大宽度" /></label>
+          </div>
         </div>
       </details>
     </div>
@@ -72,16 +79,17 @@ import {
 import SettingsGroup from './components/SettingsGroup.vue';
 
 const props = defineProps<{config: Config}>();
-const config = props.config;
-const previewStyle = computed(() => getVideoSubtitleAppearanceCssVars(config.videoSubtitleAppearance) as CSSProperties);
+// 设置页会整体替换草稿；始终读取最新 prop，避免卡片继续编辑旧配置。
+const config = computed(() => props.config);
+const previewStyle = computed(() => getVideoSubtitleAppearanceCssVars(config.value.videoSubtitleAppearance) as CSSProperties);
 
 function resetAppearance(): void {
-  Object.assign(config.videoSubtitleAppearance, {...DEFAULT_VIDEO_SUBTITLE_APPEARANCE});
+  Object.assign(config.value.videoSubtitleAppearance, {...DEFAULT_VIDEO_SUBTITLE_APPEARANCE});
 }
 
 function selectSkin(skinId: typeof VIDEO_SUBTITLE_SKINS[number]['id']): void {
   const skin = VIDEO_SUBTITLE_SKINS.find((item) => item.id === skinId)!;
-  Object.assign(config.videoSubtitleAppearance, {
+  Object.assign(config.value.videoSubtitleAppearance, {
     skin: skin.id,
     textColor: skin.textColor,
     translationColor: skin.translationColor,
@@ -131,11 +139,17 @@ function skinSwatchStyle(skin: typeof VIDEO_SUBTITLE_SKINS[number]): Record<stri
 .subtitle-live-preview b { color: var(--fluent-read-video-subtitle-translation-color); font-weight: 650; }
 .subtitle-appearance-advanced { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
 .subtitle-appearance-advanced summary { color: var(--ink); font-size: 12px; cursor: pointer; }
-.subtitle-appearance-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; padding-top: 12px; }
+.subtitle-appearance-hint { margin: 6px 0 0; color: var(--muted); font-size: 10.5px; line-height: 1.5; }
+.subtitle-appearance-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding-top: 12px; }
+.subtitle-appearance-control-group { display: grid; align-content: start; gap: 10px; min-width: 0; }
+.subtitle-appearance-control-group > strong { color: var(--ink); font-size: 11px; }
 .subtitle-appearance-controls label { display: grid; gap: 5px; color: var(--muted); font-size: 11px; }
 .subtitle-appearance-controls label span { display: flex; justify-content: space-between; gap: 8px; }
 .subtitle-appearance-controls b { color: var(--ink); font-weight: 650; }
 .subtitle-appearance-controls input[type="range"] { width: 100%; accent-color: var(--brand); }
 .subtitle-appearance-controls select { min-height: 30px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: var(--surface); }
-@media (max-width: 640px) { .subtitle-skin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .subtitle-skin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .subtitle-appearance-controls { grid-template-columns: minmax(0, 1fr); }
+}
 </style>

@@ -1,14 +1,24 @@
 <!--
  * @file src/features/settings/ui/WritingSettings.vue
- * 文件职责：提供写作助手总开关、默认回复偏好和 AI 服务连接设置，让首次使用路径清晰可见。
- * 主要内容：独立选择回复与阅读对照语言，复用写作卡片的直接点选标签组保存长度、风格、语气和角色，稳定编辑有界自定义描述，并配置服务连接。
- * 模块边界：只编辑设置中心持久化的同一份写作配置；不提供快捷键、重复入口开关或网站列表，不生成或改写正文。
+ * 文件职责：先让用户看懂写作助手在网页里的实际效果，再提供总开关、默认回复偏好和 AI 服务连接设置。
+ * 主要内容：以分步动画演示入口位置与起草流程，用三步就绪清单指出还差什么；独立选择回复与阅读对照语言，点选长度风格语气角色时同步给出示例草稿，并配置写作服务连接。
+ * 模块边界：只编辑设置中心持久化的同一份写作配置；不提供快捷键、重复入口开关或网站列表，不请求模型也不生成真实正文。
  -->
 <template>
   <div class="writing-settings">
-    <p class="writing-description">在回复框旁点「写作助手」，起草回复或完善已有草稿。</p>
+    <p class="writing-description">在 GitHub 和 Gmail 的回复框旁点「写作助手」，起草回复或完善已有草稿。</p>
+    <SettingsGroup title="先看看它是怎么工作的" description="四步演示：入口出现在哪里、卡片读到什么、草稿怎么来、最后由谁按下发送。">
+      <WritingFlowDemo :animated="config.animations" />
+    </SettingsGroup>
     <SettingsGroup>
       <FeatureEnableCard v-model="config.writing.enabled" title="启用写作助手" description="自动出现在 GitHub 和 Gmail 的回复区。点击入口开始写作，发送前由你确认。" />
+      <ol class="writing-readiness">
+        <li v-for="item in readiness" :key="item.label" :class="{done: item.done}">
+          <b aria-hidden="true">{{ item.done ? '✓' : '·' }}</b>
+          <span>{{ item.label }}</span>
+          <small>{{ item.value }}</small>
+        </li>
+      </ol>
       <div class="writing-sites"><span>GitHub · Issue / Pull Request</span><span>Gmail · 邮件</span></div>
     </SettingsGroup>
     <SettingsGroup>
@@ -35,11 +45,16 @@
         <section><h3>您的角色</h3><WritingChoices v-model="roleChoice" :options="roleOptions" label="您的角色" />
           <div v-if="roleChoice === 'custom'" class="writing-custom-preference"><el-input :model-value="customRole" :maxlength="WRITING_ROLE_MAX_LENGTH" aria-label="自定义角色" placeholder="例如：正在排查问题的项目维护者" @update:model-value="updateCustomRole" /><small>留空时不指定回复身份。</small></div>
         </section>
+        <WritingStylePreview
+          :length="config.writing.length" :style="config.writing.style"
+          :tone="config.writing.tone" :role="config.writing.role"
+          :reference-label="referencePreviewLabel" :animated="config.animations"
+        />
       </div>
     </SettingsGroup>
     <SettingsGroup title="写作服务">
       <SettingsItem label="AI 服务">
-        <el-select v-model="config.writing.service" aria-label="写作服务" placeholder="选择 AI 服务" @change="config.writing.model = ''">
+        <el-select v-model="config.writing.service" aria-label="写作服务" placeholder="选择 AI 服务" @change="config.writing.model = ''" filterable>
           <el-option v-if="defaultSupported" value="" :label="`跟随默认服务 · ${defaultServiceLabel}`" />
           <el-option v-for="item in serviceOptions" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
@@ -60,12 +75,14 @@ import type {Config} from '@/src/core/config/model';
 import {models, options, resolveConfiguredModel} from '@/src/core/config/catalog';
 import {isHarnessService} from '@/src/core/config/harness';
 import {getCustomOpenAIProviderModels, isCustomOpenAIProviderId} from '@/src/core/config/customOpenAI';
-import {WRITING_LANGUAGES, WRITING_LENGTHS, WRITING_STYLES, WRITING_TONES, WRITING_ROLES, WRITING_TONE_MAX_LENGTH, WRITING_ROLE_MAX_LENGTH, resolveWritingLanguage} from '@/src/core/config/writing';
+import {WRITING_LANGUAGES, WRITING_LENGTHS, WRITING_STYLES, WRITING_TONES, WRITING_ROLES, WRITING_TONE_MAX_LENGTH, WRITING_ROLE_MAX_LENGTH, resolveWritingLanguage, resolveWritingReferenceLanguage} from '@/src/core/config/writing';
 import {WritingChoices} from '@/src/features/writing-assistant/public';
 import FeatureEnableCard from '@/src/ui/components/FeatureEnableCard.vue';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
-const {t} = useUiI18n();
+import WritingFlowDemo from './components/WritingFlowDemo.vue';
+import WritingStylePreview from './components/WritingStylePreview.vue';
+const {t, language: uiLanguage} = useUiI18n();
 const props = defineProps<{config: Config}>(); const config = toRef(props, 'config');
 const emit = defineEmits<{'configure-service': []}>();
 const targetLanguageLabel = computed(() => WRITING_LANGUAGES.find(item => item.value === resolveWritingLanguage('target', config.value.to))!.label);
@@ -101,7 +118,24 @@ const defaultSupported = computed(() => isHarnessService(config.value.service, c
 const defaultServiceLabel = computed(() => serviceOptions.value.find(item => item.value === config.value.service)?.label || config.value.service);
 const resolvedModel = computed(() => resolveConfiguredModel(config.value.model[service.value], config.value.customModel[service.value]));
 const modelOptions = computed(() => (isCustomOpenAIProviderId(service.value) ? getCustomOpenAIProviderModels(config.value.customOpenAIProviders, service.value) : models.get(service.value) ?? []).filter(item => item !== '自定义模型'));
+// 对照语言在示例里只提示一行，真实译文仍由写作卡片在生成后请求。
+const referencePreviewLabel = computed(() => {
+  const language = resolveWritingReferenceLanguage(config.value.writing.referenceLanguage, uiLanguage.value);
+  if (!language) return '';
+  return (WRITING_LANGUAGES.find(item => item.value === language)?.label || language).split(' / ')[0];
+});
+const serviceLabel = computed(() => serviceOptions.value.find(item => item.value === service.value)?.label || service.value);
+const writingModel = computed(() => config.value.writing.model || resolvedModel.value);
+// 就绪清单把“还差什么”摆到开关下面，而不是让用户读到最后一组才发现没有配置服务。
+const readiness = computed(() => {
+  const enabled = config.value.on && config.value.writing.enabled;
+  return [
+    {label: '开启写作助手', value: enabled ? '已开启' : '未开启', done: enabled},
+    {label: '选好写作服务', value: supported.value ? [serviceLabel.value, writingModel.value].filter(Boolean).join(' · ') : '未选择', done: supported.value},
+    {label: '在回复框旁打开入口', value: '无需额外设置', done: true},
+  ];
+});
 </script>
 <style scoped>
-.writing-settings{max-width:880px;margin:0 auto}.writing-description{margin:0 0 22px;color:var(--muted);font-size:13px;line-height:1.8}.writing-sites{display:flex;gap:8px;flex-wrap:wrap;padding:0 18px 16px}.writing-sites span{padding:4px 9px;border:1px solid var(--line);border-radius:6px;font-size:11px;color:var(--muted);background:var(--surface)}.writing-default-language{max-width:280px!important}.writing-default-style{--w-brand:var(--brand);--w-brand-soft:var(--brand-soft);--w-ink:var(--ink);--w-soft:var(--surface-soft);--w-line:var(--line);display:flex;flex-direction:column;gap:16px;padding:16px 18px}.writing-default-style h3{margin:0 0 8px;font-size:12px;line-height:1.5;font-weight:600;color:var(--ink)}.writing-default-style :deep(.writing-choices){gap:7px}.writing-default-style :deep(.writing-choices button){box-sizing:border-box;min-height:32px;height:32px;padding:6px 12px;font-size:12px;line-height:18px;border-radius:8px}.writing-custom-preference{display:flex;flex-direction:column;gap:6px;width:100%;max-width:420px;min-width:0;margin-top:9px}.writing-custom-preference small{font-size:10.5px;line-height:1.55;color:var(--muted)}.writing-connection{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:0 18px 16px}.writing-connection p{margin:0;font-size:12px;line-height:1.8;color:var(--muted)}.writing-connection button{flex-shrink:0;border:0;padding:0;background:none;color:var(--brand);font:inherit;font-size:12px;cursor:pointer}.writing-connection button:focus-visible{outline:2px solid var(--brand);outline-offset:4px}@media(max-width:600px){.writing-connection{align-items:flex-start;flex-direction:column;gap:10px}.writing-default-style{padding:14px 12px;gap:15px}}@media(max-width:480px){.writing-default-language{max-width:none!important}.writing-custom-preference{max-width:none}}
+.writing-settings{max-width:880px;margin:0 auto}.writing-description{margin:0 0 22px;color:var(--muted);font-size:13px;line-height:1.8}.writing-readiness{display:flex;flex-direction:column;gap:7px;margin:0;padding:2px 18px 12px;list-style:none}.writing-readiness li{display:flex;align-items:center;gap:9px;min-width:0;font-size:11.5px;line-height:1.5;color:var(--muted)}.writing-readiness b{display:flex;flex:none;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;color:var(--muted);background:var(--surface-soft);font-size:9px}.writing-readiness li.done b{color:#fff;background:#2c974b}.writing-readiness li.done span{color:var(--ink)}.writing-readiness small{overflow:hidden;margin-left:auto;padding-left:12px;color:var(--muted);font-size:10.5px;text-overflow:ellipsis;white-space:nowrap}.writing-sites{display:flex;gap:8px;flex-wrap:wrap;padding:0 18px 16px}.writing-sites span{padding:4px 9px;border:1px solid var(--line);border-radius:6px;font-size:11px;color:var(--muted);background:var(--surface)}.writing-default-language{max-width:280px!important}.writing-default-style{--w-brand:var(--brand);--w-brand-soft:var(--brand-soft);--w-ink:var(--ink);--w-soft:var(--surface-soft);--w-line:var(--line);display:flex;flex-direction:column;gap:16px;padding:16px 18px}.writing-default-style h3{margin:0 0 8px;font-size:12px;line-height:1.5;font-weight:600;color:var(--ink)}.writing-default-style :deep(.writing-choices){gap:7px}.writing-default-style :deep(.writing-choices button){box-sizing:border-box;min-height:32px;height:32px;padding:6px 12px;font-size:12px;line-height:18px;border-radius:8px}.writing-custom-preference{display:flex;flex-direction:column;gap:6px;width:100%;max-width:420px;min-width:0;margin-top:9px}.writing-custom-preference small{font-size:10.5px;line-height:1.55;color:var(--muted)}.writing-connection{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:0 18px 16px}.writing-connection p{margin:0;font-size:12px;line-height:1.8;color:var(--muted)}.writing-connection button{flex-shrink:0;border:0;padding:0;background:none;color:var(--brand);font:inherit;font-size:12px;cursor:pointer}.writing-connection button:focus-visible{outline:2px solid var(--brand);outline-offset:4px}@media(max-width:600px){.writing-connection{align-items:flex-start;flex-direction:column;gap:10px}.writing-default-style{padding:14px 12px;gap:15px}}@media(max-width:480px){.writing-default-language{max-width:none!important}.writing-custom-preference{max-width:none}}
 </style>

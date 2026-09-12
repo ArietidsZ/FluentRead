@@ -10,7 +10,7 @@ import type {TranslationState} from './state';
 
 export function createTranslationMutationObserverOptions(adapters: readonly TranslationSiteAdapter[]): MutationObserverInit {
     const attributeFilter = getSiteAdapterAttributeFilter(adapters, [
-        'style', 'class', 'role', 'hidden', 'inert', 'contenteditable', 'aria-hidden', 'translate',
+        'style', 'class', 'role', 'open', 'aria-modal', 'hidden', 'inert', 'contenteditable', 'aria-hidden', 'translate',
         'lang', 'dir', 'href', 'title', 'data-notranslate', 'data-fr-translation-owned',
     ]);
     return {

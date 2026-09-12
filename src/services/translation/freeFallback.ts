@@ -85,7 +85,7 @@ async function runAttempt(candidate: FreeFallbackCandidate, timeoutMs: number, s
 
 /** 存储故障或挂起不阻断翻译；迟到的加载值不会覆盖已开始服务的健康状态。 */
 async function boundedStorage<T>(request: Promise<T>, limitMs = 1000, signal?: AbortSignal): Promise<T | undefined> {
-    if (signal?.aborted) throw abortErrorFromSignal(signal);
+    // 调用方已在同一同步段检查取消；此处只监听等待期间发生的取消。
     let timer: ReturnType<typeof setTimeout>;
     let onAbort: (() => void) | undefined;
     try {

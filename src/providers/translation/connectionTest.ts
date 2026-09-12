@@ -11,8 +11,12 @@ import {formatServiceError} from '@/src/services/translation/serviceErrors';
 import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
 import {
     attachTranslationModelUsageObserver,
+    attachTranslationProviderConfig,
+    attachTranslationRequestScheduler,
 } from '@/src/services/translation/requestSnapshot';
+import type {TranslationRequestScheduler} from '@/src/services/translation/requestScheduler';
 import type {
+    TranslationProviderConfigSnapshot,
     TranslationModelUsageObservation,
     TranslationModelUsageOutcome,
     TranslationModelUsageRecord,
@@ -28,6 +32,10 @@ export interface ConnectionTestUsageOptions {
     now?: () => number;
     warn?: (message: string, error: unknown) => void;
     persistenceGraceMs?: number;
+    requestScheduler?: TranslationRequestScheduler;
+    config?: TranslationProviderConfigSnapshot;
+    effectiveModel?: string;
+    countRate?: boolean;
 }
 
 function isNonEmptyText(value: unknown): value is string {
@@ -52,6 +60,7 @@ export async function runTranslationServiceConnectionTest(
     let finishedAt = startedAt;
     const observations: TranslationModelUsageObservation[] = [];
     const configuredModel = usageOptions.configuredModel?.trim() || 'unknown';
+    const effectiveModel = usageOptions.effectiveModel?.trim() || configuredModel;
     const controller = new AbortController();
     let timedOut = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -65,18 +74,41 @@ export async function runTranslationServiceConnectionTest(
 
     let result: unknown;
     try {
+        const observedRequest = attachTranslationModelUsageObserver({
+            origin: CONNECTION_TEST_ORIGIN,
+            context: '',
+            pageContext: '',
+            summaryPrompt: '',
+            summarySystemPrompt: '',
+            serviceOverride: service,
+            useCache: false,
+            requestTimeoutMs: CONNECTION_TEST_TIMEOUT_MS,
+            abortSignal: controller.signal,
+        }, (observation) => observations.push({...observation}));
+        const providerRequest = usageOptions.config
+            ? attachTranslationProviderConfig(observedRequest, usageOptions.config)
+            : observedRequest;
+        const scheduledProviderRequest = usageOptions.requestScheduler
+            ? attachTranslationRequestScheduler(providerRequest, usageOptions.requestScheduler, {
+                service,
+                model: effectiveModel,
+            })
+            : providerRequest;
+        const scheduled = usageOptions.requestScheduler
+            ? usageOptions.requestScheduler.schedule(async (lease) => {
+                // 只有取得 scheduler 许可后才启动真实 adapter；排队期间的 deadline/取消不会晚发请求。
+                const operation = Promise.resolve().then(() => adapter(scheduledProviderRequest));
+                lease.holdUntil(operation);
+                return operation;
+            }, {
+                signal: controller.signal,
+                deadlineAt: startedAt + CONNECTION_TEST_TIMEOUT_MS,
+                identity: {service, model: effectiveModel},
+                countRate: usageOptions.countRate !== false,
+            })
+            : Promise.resolve().then(() => adapter(scheduledProviderRequest));
         result = await Promise.race([
-            Promise.resolve().then(() => adapter(attachTranslationModelUsageObserver({
-                origin: CONNECTION_TEST_ORIGIN,
-                context: '',
-                pageContext: '',
-                summaryPrompt: '',
-                summarySystemPrompt: '',
-                serviceOverride: service,
-                useCache: false,
-                requestTimeoutMs: CONNECTION_TEST_TIMEOUT_MS,
-                abortSignal: controller.signal,
-            }, (observation) => observations.push({...observation})))),
+            scheduled,
             timeout,
         ]);
         if (!isNonEmptyText(result)) {

@@ -1,36 +1,30 @@
 <!--
  * @file src/features/settings/ui/VideoLocalModelSettings.vue
- * 文件职责：提供本地视频字幕模型选择与下载管理，向用户呈现模型是否可用。
- * 主要内容：常驻展示 Tiny/Base 下载卡片与视频缓存操作栏，呈现缓存读取、下载状态与错误反馈，并在组件卸载时移除存储监听。
+ * 文件职责：提供 X 本地视频字幕模型选择与下载管理，向用户呈现模型推荐、可用状态和缓存操作。
+ * 主要内容：使用模型卡片作为唯一选择入口，展示 Tiny/Base 下载状态与视频缓存操作栏，呈现缓存读取、下载状态与错误反馈，并在组件卸载时移除存储监听。
  * 模块边界：通过视频 feature 公共配置和后台消息获取模型，不直接执行识别、下载模型权重或操作网页播放器。
  -->
 <template>
-  <SettingsItem label="视频原语言" description="X 视频字幕使用的原语言；自动检测适合大多数视频。">
-    <el-select v-model="config.videoSourceLanguage" aria-label="视频原语言" :disabled="!config.videoTranslationEnabled" placeholder="请选择视频原语言">
-      <el-option v-for="item in VIDEO_SOURCE_LANGUAGE_OPTIONS" :key="item.value" :label="item.label" :value="item.value" />
-    </el-select>
-  </SettingsItem>
-  <SettingsItem label="本地 AI 字幕模型" description="X 没有原生字幕时使用；模型和音频都保留在浏览器本地。" :disabled="!config.videoTranslationEnabled || !browserCapabilities.extensionDom">
-    <el-select v-model="config.videoLocalModel" aria-label="本地 AI 字幕模型" :disabled="!config.videoTranslationEnabled || !browserCapabilities.extensionDom" placeholder="请选择本地模型">
-      <el-option v-for="item in modelOptions" :key="item.value" class="select-left" :label="item.label" :value="item.value" />
-    </el-select>
-  </SettingsItem>
   <section class="video-model-management" aria-labelledby="video-model-management-title">
     <div class="video-model-download-heading">
       <div>
-        <h3 id="video-model-management-title">下载本地模型</h3>
-        <p class="video-model-status" role="status">{{ !modelStateLoaded ? '正在读取模型状态…' : downloaded.includes(config.videoLocalModel) ? '当前模型已下载，可直接生成。' : '选择下方模型下载，即可生成 AI 字幕。' }}</p>
+        <h3 id="video-model-management-title">本地 AI 字幕模型</h3>
+        <p class="video-model-status" role="status">{{ !modelStateLoaded ? '正在读取模型状态…' : downloaded.includes(config.videoLocalModel) ? '当前模型已下载，可直接生成。' : '一般选择 Tiny；语音不清楚时可换 Base。' }}</p>
       </div>
       <span class="video-model-local-badge"><Cpu aria-hidden="true" />本地运行</span>
     </div>
     <p v-if="!browserCapabilities.extensionDom" class="capability-warning" role="status">当前浏览器不支持本地 AI 字幕，无法下载或运行本地模型。</p>
-    <div class="video-model-list" aria-label="本地 Whisper 模型下载">
-      <article v-for="item in modelOptions" :key="item.value" class="video-model-card" :class="{ selected: item.value === config.videoLocalModel }">
-        <div class="video-model-card-heading">
-          <span class="video-model-icon" aria-hidden="true"><Cpu /></span>
-          <strong>{{ item.label }}</strong>
-          <span v-if="item.value === config.videoLocalModel" class="video-model-selected">当前选择</span>
-        </div>
+    <div class="video-model-list" role="radiogroup" aria-label="本地 AI 字幕模型">
+      <article v-for="item in modelOptions" :key="item.value" class="video-model-card" :class="{ selected: item.value === config.videoLocalModel, disabled: !config.videoTranslationEnabled || !browserCapabilities.extensionDom }" @click="selectModel(item.value)">
+        <label class="video-model-choice">
+          <input v-model="config.videoLocalModel" type="radio" name="video-local-model" :value="item.value" :disabled="!config.videoTranslationEnabled || !browserCapabilities.extensionDom" />
+          <span class="video-model-card-heading">
+            <span class="video-model-icon" aria-hidden="true"><Cpu /></span>
+            <strong>{{ item.label }}</strong>
+            <span v-if="item.value === 'tiny'" class="video-model-recommended">推荐</span>
+            <span v-if="item.value === config.videoLocalModel" class="video-model-selected">当前选择</span>
+          </span>
+        </label>
         <p class="video-model-description">{{ item.description }}</p>
         <p class="video-model-size">{{ t('modelCache.downloadSize', {size: item.downloadSizeMb}) }}</p>
         <div class="video-model-card-footer">
@@ -38,8 +32,8 @@
             <Check v-if="downloaded.includes(item.value)" aria-hidden="true" />
             {{ !modelStateLoaded ? '读取中…' : downloaded.includes(item.value) ? '可离线使用' : downloading.includes(item.value) ? '正在下载模型' : '尚未下载' }}
           </span>
-          <button v-if="downloaded.includes(item.value)" type="button" class="video-model-download-button" :disabled="removing.includes(item.value) || downloading.includes(item.value)" :aria-label="t('modelCache.removeNamed', {name: translateLegacy(item.label)})" @click="removeModel(item.value)"><Delete aria-hidden="true" />{{ t(removing.includes(item.value) ? 'modelCache.removing' : 'modelCache.remove') }}</button>
-          <button v-else type="button" class="video-model-download-button" :aria-label="t(downloaded.includes(item.value) ? 'video.modelDownloadedAria' : 'video.modelDownloadAria', {model: translateLegacy(item.label)})" :disabled="!modelStateLoaded || downloaded.includes(item.value) || downloading.includes(item.value) || !config.videoTranslationEnabled || !browserCapabilities.extensionDom" @click="config.videoLocalModel = item.value; download(item.value)">
+          <button v-if="downloaded.includes(item.value)" type="button" class="video-model-download-button" :disabled="removing.includes(item.value) || downloading.includes(item.value)" :aria-label="t('modelCache.removeNamed', {name: translateLegacy(item.label)})" @click.stop="removeModel(item.value)"><Delete aria-hidden="true" />{{ t(removing.includes(item.value) ? 'modelCache.removing' : 'modelCache.remove') }}</button>
+          <button v-else type="button" class="video-model-download-button" :aria-label="t(downloaded.includes(item.value) ? 'video.modelDownloadedAria' : 'video.modelDownloadAria', {model: translateLegacy(item.label)})" :disabled="!modelStateLoaded || downloaded.includes(item.value) || downloading.includes(item.value) || !config.videoTranslationEnabled || !browserCapabilities.extensionDom" @click.stop="config.videoLocalModel = item.value; download(item.value)">
             <component :is="downloaded.includes(item.value) ? Check : downloading.includes(item.value) ? Loading : Download" :class="{ 'is-loading': downloading.includes(item.value) }" aria-hidden="true" />
             {{ downloaded.includes(item.value) ? '已下载' : downloading.includes(item.value) ? '下载中…' : '下载模型' }}
           </button>
@@ -67,10 +61,9 @@
 
 <script lang="ts" setup>
 import {useUiI18n} from '@/src/ui/i18n';
-import {onMounted, onUnmounted, ref} from 'vue';
+import {computed, onMounted, onUnmounted, ref} from 'vue';
 import browser from 'webextension-polyfill';
 import {Check, Cpu, Delete, Download, Files, Loading} from '@element-plus/icons-vue';
-import SettingsItem from './components/SettingsItem.vue';
 import {
   VIDEO_LOCAL_TRANSCRIPTION_MODELS,
   VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY,
@@ -79,13 +72,13 @@ import {
   normalizeVideoLocalTranscriptionModels,
   type VideoLocalTranscriptionModel,
 } from '@/src/features/video-subtitle/public';
-import {VIDEO_SOURCE_LANGUAGE_OPTIONS} from '@/src/core/config/model';
 import type {Config} from '@/src/core/config/model';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
 
 const {t, translateLegacy} = useUiI18n();
 const props = defineProps<{config: Config}>();
-const config = props.config;
+// 设置页会整体替换草稿；始终读取最新 prop，避免卡片继续编辑旧配置。
+const config = computed(() => props.config);
 const modelOptions = VIDEO_LOCAL_TRANSCRIPTION_MODELS;
 const downloaded = ref<VideoLocalTranscriptionModel[]>([]);
 const modelStateLoaded = ref(false);
@@ -95,6 +88,11 @@ const removing = ref<VideoLocalTranscriptionModel[]>([]);
 const cacheStats = ref<{entries: number; bytes: number; maxEntries: number; ttlMs: number} | null>(null);
 const cacheError = ref('');
 const clearingCache = ref(false);
+
+function selectModel(model: VideoLocalTranscriptionModel): void {
+  if (!config.value.videoTranslationEnabled || !browserCapabilities.extensionDom) return;
+  config.value.videoLocalModel = model;
+}
 
 async function refresh(): Promise<void> {
   const stored = await browser.storage.local.get(VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY);
@@ -203,6 +201,9 @@ onUnmounted(() => {
 .video-model-download-heading { align-items: flex-start; }
 h3 { margin: 0; color: var(--ink); font-size: 12.5px; font-weight: 700; line-height: 1.5; }
 .video-model-status { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.video-model-choice { display: block; min-width: 0; cursor: pointer; }
+.video-model-choice input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.video-model-choice:focus-within .video-model-card-heading { outline: 2px solid var(--brand); outline-offset: 3px; border-radius: 5px; }
 .video-model-local-badge,
 .video-model-availability,
 .video-model-download-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
@@ -219,12 +220,18 @@ svg { width: 15px; height: 15px; flex: none; }
   border-radius: 12px;
   background: var(--surface);
 }
+.video-model-card:not(.disabled) { cursor: pointer; }
 .video-model-card.selected { border-color: var(--brand); background: color-mix(in srgb, var(--brand-soft) 25%, var(--surface)); }
 .video-model-card-heading { flex-wrap: wrap; gap: 8px; }
 .video-model-card-heading strong { color: var(--ink); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.video-model-card-heading::before { width: 15px; height: 15px; flex: none; border: 2px solid var(--line); border-radius: 50%; background: var(--surface); box-shadow: inset 0 0 0 3px var(--surface); content: ''; }
+.video-model-choice input:checked + .video-model-card-heading::before { border-color: var(--brand); background: var(--brand); }
+.video-model-choice input:disabled + .video-model-card-heading { cursor: default; }
+.video-model-choice input:disabled + .video-model-card-heading::before { opacity: .6; }
 .video-model-icon { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 8px; color: var(--muted); background: var(--surface-soft); }
 .selected .video-model-icon { color: var(--brand-strong); background: var(--brand-soft); }
 .video-model-icon svg { width: 18px; height: 18px; }
+.video-model-recommended { padding: 3px 6px; border-radius: 5px; color: var(--brand-strong); background: var(--brand-soft); font-size: 10px; line-height: 1.4; white-space: nowrap; }
 .video-model-selected { padding: 3px 6px; border-radius: 5px; color: var(--brand-strong); background: var(--brand-soft); font-size: 10px; line-height: 1.4; white-space: nowrap; }
 .video-model-description { flex: 1; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.65; }
 .video-model-availability { justify-content: flex-start; color: var(--muted); font-size: 10.5px; line-height: 1.5; }

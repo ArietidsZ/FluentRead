@@ -15,7 +15,7 @@
       <div class="harness-provider-row">
         <div class="harness-provider-field">
           <label id="harness-service-label">翻译服务</label>
-          <el-select v-model="config.harness.service" class="harness-select" @change="config.harness.model = ''" clearable aria-labelledby="harness-service-label" aria-label="翻译卡服务" placeholder="跟随当前默认服务">
+          <el-select v-model="config.harness.service" class="harness-select" @change="config.harness.model = ''" clearable aria-labelledby="harness-service-label" aria-label="翻译卡服务" placeholder="跟随当前默认服务" filterable>
             <el-option v-for="item in serviceOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
           <small>仅支持大模型，使用已配置的服务和密钥。</small>

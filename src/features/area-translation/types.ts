@@ -10,6 +10,9 @@ export type AreaTranslationWarning = 'standard-quality' | 'ai-text-only';
 export interface AreaRecognitionResult {
     image: string;
     lines: OcrLine[];
+    sourceText?: string;
+    recognitionMethod?: 'ocr' | 'vision';
+    recognitionFallback?: 'unsupported' | 'unknown';
 }
 export interface AreaTranslationResult extends AreaRecognitionResult {
     /** 本次请求冻结的公开服务信息；不包含端点或凭据。 */

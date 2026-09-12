@@ -8,6 +8,7 @@ vi.mock('@/src/features/image-translation/services/rendering', () => ({
 }));
 
 import {
+    cropAreaInOffscreen,
     translateAreaInOffscreen,
     translateImageInOffscreen,
     translateImageTextsInExtension,
@@ -284,6 +285,14 @@ describe('Offscreen 图片完整操作生命周期', () => {
 });
 
 describe('Offscreen 圈选裁剪生命周期', () => {
+    it('crop-only 不调用 OCR，并在取消时释放图像与画布', async () => {
+        imageOptions.push({width: 40, height: 20, naturalWidth: 40, naturalHeight: 20});
+        const result = await cropAreaInOffscreen('image', selection);
+        expect(result).toEqual({image: 'data:image/png;base64,translated', lines: []});
+        expect(mocks.recognize).not.toHaveBeenCalled();
+        const controller = new AbortController(); controller.abort();
+        await expect(cropAreaInOffscreen('image', selection, controller.signal)).rejects.toMatchObject({name: 'AbortError'});
+    });
     it('圈选只裁剪和本地OCR，保留原图原文且从不重绘或调用图片翻译RPC', async () => {
         imageOptions.push({width: 40, height: 20, naturalWidth: 0, naturalHeight: 0}, {width: 20, height: 10});
         await expect(translateAreaInOffscreen('screenshot', 'en', '', selection)).resolves.toHaveProperty('image');

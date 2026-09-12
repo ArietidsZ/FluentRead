@@ -18,13 +18,50 @@ import type {CustomOpenAIProvider} from '@/src/core/config/customOpenAI';
 import {normalizeDeepLApiPlan} from '@/src/core/config/deepl';
 import {resolveGlossary} from '@/src/core/glossary';
 import {parseTranslationSlots} from '@/src/core/translation/public';
+import type {TranslationRequestScheduler, TranslationRequestIdentity} from './requestScheduler';
 
 /** 内部 symbol 无法由 content runtime 消息伪造，也不会进入网络 JSON。 */
 export const TRANSLATION_PROVIDER_CONFIG = Symbol('fluentread.translation-provider-config');
 export const TRANSLATION_REMAINING_BUDGET = Symbol('fluentread.translation-remaining-budget');
 export const TRANSLATION_MODEL_USAGE_OBSERVER = Symbol('fluentread.translation-model-usage-observer');
 export const TRANSLATION_REQUEST_CONTROL = Symbol('fluentread.translation-request-control');
+export const TRANSLATION_REQUEST_SCHEDULER = Symbol('fluentread.translation-scheduler');
 export const TRANSLATION_GLOSSARY_CONTEXT = Symbol('fluentread.translation-glossary-context');
+export const TRANSLATION_IMAGE_INPUT = Symbol('fluentread.translation-image-input');
+
+const MAX_TRANSLATION_IMAGE_INPUT_LENGTH = 20 * 1024 * 1024;
+const IMAGE_DATA_URL_RE = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]+={0,2})$/u;
+
+export function validateTranslationImageInput(image: string): string {
+    if (typeof image !== 'string' || image.length > MAX_TRANSLATION_IMAGE_INPUT_LENGTH) {
+        throw new TypeError('图片输入必须是不超过 20 MiB 的 PNG、JPEG 或 WebP data image');
+    }
+    const match = image.match(IMAGE_DATA_URL_RE);
+    if (!match || match[2].length % 4 === 1) {
+        throw new TypeError('图片输入必须是 PNG、JPEG 或 WebP 的有效 base64 data image');
+    }
+    return image;
+}
+
+export function attachTranslationImageInput<T extends object>(message: T, image: string): T {
+    Object.defineProperty(message, TRANSLATION_IMAGE_INPUT, {
+        value: validateTranslationImageInput(image),
+        // Symbol 属性不会进入 JSON/runtime 字段；保持可枚举只为后台对象展开时继续携带。
+        enumerable: true,
+        configurable: false,
+        writable: false,
+    });
+    return message;
+}
+
+export function getTranslationImageInput(message: unknown): string | undefined {
+    if (!message || typeof message !== 'object') return undefined;
+    const image = (message as {[TRANSLATION_IMAGE_INPUT]?: unknown})[TRANSLATION_IMAGE_INPUT];
+    const match = typeof image === 'string' ? image.match(IMAGE_DATA_URL_RE) : null;
+    return typeof image === 'string' && match !== null && match[2].length % 4 !== 1 && image.length <= MAX_TRANSLATION_IMAGE_INPUT_LENGTH
+        ? image
+        : undefined;
+}
 
 export interface TrustedTranslationGlossaryContext {
     readonly pageUrl?: string;
@@ -88,7 +125,27 @@ export type TranslationProviderRequestContext = {
     readonly [TRANSLATION_MODEL_USAGE_OBSERVER]?: TranslationModelUsageObserver;
     /** 仅由 broker 在后台注入；provider 必须向底层 transport 继续传递。 */
     readonly abortSignal?: AbortSignal;
+    /** 后台注入的共享调度器；provider 仅用于真实 HTTP attempt，不取得嵌套并发槽。 */
+    readonly [TRANSLATION_REQUEST_SCHEDULER]?: {
+        readonly scheduler: TranslationRequestScheduler;
+        readonly identity?: TranslationRequestIdentity;
+    };
 };
+
+export function attachTranslationRequestScheduler<T extends object>(
+    message: T,
+    scheduler: TranslationRequestScheduler,
+    identity?: TranslationRequestIdentity,
+): T & TranslationProviderRequestContext {
+    return Object.assign(message, {
+        [TRANSLATION_REQUEST_SCHEDULER]: Object.freeze({scheduler, identity: identity ? Object.freeze({...identity}) : undefined}),
+    });
+}
+
+export function getTranslationRequestScheduler(message: unknown): TranslationProviderRequestContext[typeof TRANSLATION_REQUEST_SCHEDULER] {
+    if (!message || typeof message !== 'object') return undefined;
+    return (message as TranslationProviderRequestContext)[TRANSLATION_REQUEST_SCHEDULER];
+}
 
 /** 为后台内部调用附加不可序列化的取消所有权；runtime payload 无法构造 symbol key。 */
 export function attachTranslationRequestControl<T extends object>(
@@ -197,6 +254,26 @@ function frozenNestedBooleanMap(
     ));
 }
 
+function frozenRequestLimitMap(
+    value: TranslationConfigSource['serviceRequestLimits'],
+): TranslationProviderConfigSnapshot['serviceRequestLimits'] {
+    return Object.freeze(Object.fromEntries(Object.entries(value || {}).map(([service, setting]) => [service, Object.freeze({
+        enabled: setting.enabled === true,
+        limits: Object.freeze({...setting.limits}),
+    })])));
+}
+
+function frozenModelRequestLimitMap(
+    value: TranslationConfigSource['modelRequestLimits'],
+): TranslationProviderConfigSnapshot['modelRequestLimits'] {
+    return Object.freeze(Object.fromEntries(Object.entries(value || {}).map(([service, models]) => [service,
+        Object.freeze(Object.fromEntries(Object.entries(models || {}).map(([model, setting]) => [model, Object.freeze({
+            enabled: setting.enabled === true,
+            limits: Object.freeze({...setting.limits}),
+        })]))),
+    ])));
+}
+
 function frozenCustomOpenAIProviders(
     value: readonly CustomOpenAIProvider[] | undefined,
 ): readonly Readonly<CustomOpenAIProvider>[] {
@@ -245,9 +322,13 @@ export function createTranslationProviderConfigSnapshot(
         proxy: frozenStringMap(source.proxy),
         customBody: frozenStringMap(source.customBody),
         customHeaders: frozenStringMap(source.customHeaders),
+        serviceRequestLimits: frozenRequestLimitMap(source.serviceRequestLimits),
+        modelRequestLimits: frozenModelRequestLimitMap(source.modelRequestLimits),
         system_role: frozenStringMap(source.system_role),
         user_role: frozenStringMap(source.user_role),
         token: frozenStringMap(source.token),
+        secret: frozenStringMap(source.secret),
+        serviceRegion: frozenStringMap(source.serviceRegion),
         requireApiKey: frozenBooleanMap(source.requireApiKey),
         youdaoAppKey: source.youdaoAppKey ?? '',
         youdaoAppSecret: source.youdaoAppSecret ?? '',

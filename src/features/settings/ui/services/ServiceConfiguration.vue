@@ -1,6 +1,6 @@
 <!--
  * @file src/features/settings/ui/services/ServiceConfiguration.vue
- * 文件职责：渲染当前翻译服务的详细连接配置，按服务能力显示模型、端点、区域、计费方式、密钥、代理、提示词、自定义请求体和请求头等字段。
+ * 文件职责：渲染当前翻译服务的详细连接配置，按服务能力显示模型、端点、区域、计费方式、密钥（含云服务厂商的成对密钥与服务区域）、Ollama 本地地址、代理、提示词、自定义请求体和请求头等字段，以及服务和模型的独立请求限制。
  * 主要内容：组件派生字段可见性与 DeepL/MiniMax/MiMo endpoint，选择 DeepL API 套餐，展示 DeepLX 完整地址与 Token 配置示例，共用 Azure 地址校验，校验 custom body，管理连接测试状态、Chrome 当前语言对的点击准备/进度/超时、官方帮助、模板重置与加密凭据保存提示，并通过配置 store 提交修改。
  * 模块边界：本组件不执行网页正文翻译或保存公开配置中的明文凭据；Chrome 内置翻译仅在当前点击页完成模型自检，其他连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
  -->
@@ -151,19 +151,83 @@
       </div>
     </div>
 
-    <div v-if="compute.showToken" class="connection-field credential-field">
+    <div v-if="compute.showOllamaEndpoint" class="connection-field" data-ollama-endpoint>
       <div class="connection-field-label">
-        <strong>API Key</strong>
-        <small>{{ effectiveModelLabel || '当前模型' }}</small>
+        <strong>服务地址</strong>
+        <small>本机默认无需修改</small>
+      </div>
+      <div class="connection-field-control">
+        <el-input v-model="config.proxy[service]" aria-label="Ollama 服务地址" :placeholder="DEFAULT_OLLAMA_ENDPOINT" />
+        <p class="provider-field-help">留空时使用本机默认地址；局域网主机请填写完整的 Chat Completions 地址。</p>
+        <p class="provider-field-help"><code>{{ DEFAULT_OLLAMA_ENDPOINT }}</code></p>
+        <p class="provider-field-help">浏览器扩展访问 Ollama 前，需要在启动 Ollama 时设置环境变量 OLLAMA_ORIGINS=*，否则会被跨域拒绝。</p>
+      </div>
+    </div>
+
+    <div v-if="compute.showToken" class="connection-field credential-field" :data-cloud-credential="compute.showCloudVendor ? 'token' : undefined">
+      <div class="connection-field-label">
+        <strong>{{ compute.showCloudVendor ? compute.cloudCredentialLabels.token : 'API Key' }}</strong>
+        <small>{{ compute.showCloudVendor ? '来自厂商控制台' : (effectiveModelLabel || '当前模型') }}</small>
       </div>
       <div class="connection-field-control credential-control">
-        <el-input v-model="config.token[service]" type="password" show-password placeholder="输入 API Key；留空表示尚未配置" />
+        <el-input
+          v-model="config.token[service]"
+          type="password"
+          show-password
+          :aria-label="compute.showCloudVendor ? compute.cloudCredentialLabels.token : 'API Key'"
+          :placeholder="compute.showCloudVendor ? `输入 ${compute.cloudCredentialLabels.token}；留空表示尚未配置` : '输入 API Key；留空表示尚未配置'"
+        />
         <div v-if="compute.showAI" class="api-key-requirement">
           <span>{{ compute.requireApiKey ? '此模型需要 API Key' : '允许无 Key 请求' }}</span>
           <el-switch v-model="compute.requireApiKey" aria-label="当前模型是否需要 API Key" size="small" />
         </div>
       </div>
     </div>
+    <div v-if="compute.showServiceSecret" class="connection-field credential-field" data-cloud-credential="secret">
+      <div class="connection-field-label">
+        <strong>{{ compute.cloudCredentialLabels.secret }}</strong>
+        <small>与上方密钥成对使用</small>
+      </div>
+      <div class="connection-field-control credential-control">
+        <el-input
+          v-model="config.secret[service]"
+          type="password"
+          show-password
+          :aria-label="compute.cloudCredentialLabels.secret"
+          :placeholder="`输入 ${compute.cloudCredentialLabels.secret}；留空表示尚未配置`"
+        />
+      </div>
+    </div>
+
+    <div v-if="compute.showServiceRegion" class="connection-field" data-cloud-region>
+      <div class="connection-field-label">
+        <strong>服务区域</strong>
+        <small>需与控制台资源所在区域一致</small>
+      </div>
+      <div class="connection-field-control">
+        <el-select
+          :model-value="config.serviceRegion[service] || compute.defaultCloudRegion"
+          aria-label="云服务区域"
+          placeholder="请选择服务区域"
+          @update:model-value="config.serviceRegion[service] = String($event)"
+        >
+          <el-option
+            v-for="item in compute.cloudRegionOptions"
+            :key="item.value"
+            class="select-left"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+        <p v-if="service === services.aliyunTranslation" class="provider-field-help" data-cloud-region-endpoint>
+          <span>当前接口地址</span><br /><code>{{ getAliyunTranslationEndpoint(config.serviceRegion[service]) }}</code>
+        </p>
+        <p v-else-if="service === services.azureTranslator" class="provider-field-help">
+          选择全球区域时不发送区域请求头；其余区域会通过 Ocp-Apim-Subscription-Region 请求头一并发送。
+        </p>
+      </div>
+    </div>
+
     <p v-if="compute.showMiniMaxRegion && minimaxKeyMismatch" class="minimax-key-note is-warning">
       {{ minimaxKeyMismatch }}
     </p>
@@ -293,59 +357,90 @@
       <el-col :span="12"><el-input v-model="config.newApiUrl" placeholder="请输入您的New API接口地址" /></el-col>
     </el-row>
 
-    <details v-if="compute.showAI" class="custom-advanced-settings" data-testid="custom-service-advanced">
+    <details class="custom-advanced-settings" data-testid="custom-service-advanced">
       <summary>
         <strong>高级设置</strong>
         <svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
       </summary>
 
       <div class="custom-advanced-content">
-        <div v-if="compute.showModel" class="connection-field" data-testid="model-thinking-control">
-          <div class="connection-field-label">
-            <strong>Thinking</strong>
-            <small>{{ effectiveModelLabel || '当前模型' }}</small>
-          </div>
-          <div class="connection-field-control model-thinking-setting">
-            <small>默认关闭；仅在已适配接口生效，无法关闭时使用最低档</small>
-            <el-switch
-              :model-value="selectedModelThinking"
-              :disabled="!effectiveModelLabel"
-              aria-label="当前模型是否启用 Thinking"
-              @update:model-value="$emit('update:model-thinking', Boolean($event))"
-            />
-          </div>
-        </div>
-
-        <el-row v-if="compute.showProxy" class="margin-bottom margin-left-2em">
-          <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="可选的代理地址；填写后，当前 AI 服务请求会优先发送到这里。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">代理地址<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
-          <el-col :span="12"><el-input v-model="config.proxy[service]" placeholder="默认直连自定义接口" /></el-col>
+        <RequestLimitSettings :config="config" :service="service" :model="compute.showModel ? effectiveModelLabel : undefined" />
+        <el-row v-if="compute.showDeepseekApiType" class="margin-bottom margin-left-2em">
+          <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="选择 DeepSeek 接口使用的 API 格式。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">API 格式<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
+          <el-col :span="12"><el-select v-model="config.deepseekApiType" placeholder="请选择 API 格式"><el-option class="select-left" v-for="item in options.deepseekApiType" :key="item.value" :label="item.label" :value="item.value" /></el-select></el-col>
         </el-row>
 
-        <div class="custom-template-heading">
-          <div>
-            <strong>请求模板</strong>
-            <small>修改会自动保存到当前 AI 服务；可用变量可以一键插入。</small>
+        <template v-if="compute.showAI">
+          <div v-if="compute.showModel" class="connection-field" data-testid="model-thinking-control">
+            <div class="connection-field-label">
+              <strong>Thinking</strong>
+              <small>{{ effectiveModelLabel || '当前模型' }}</small>
+            </div>
+            <div class="connection-field-control model-thinking-setting">
+              <small>默认关闭；仅在已适配接口生效，无法关闭时使用最低档</small>
+              <el-switch
+                :model-value="selectedModelThinking"
+                :disabled="!effectiveModelLabel"
+                aria-label="当前模型是否启用 Thinking"
+                @update:model-value="$emit('update:model-thinking', Boolean($event))"
+              />
+            </div>
           </div>
-          <el-button type="primary" link size="small" @click="resetCustomTemplate">恢复默认模板</el-button>
-        </div>
 
-        <div class="prompt-template-list" data-testid="prompt-template-list">
-          <PromptTemplateEditor v-model="config.system_role[service]" role="system" />
-          <PromptTemplateEditor v-model="config.user_role[service]" role="user" />
-        </div>
-
-        <div v-if="customProvider" class="connection-field custom-headers-field" data-testid="custom-service-headers">
-          <div class="connection-field-label"><strong>自定义请求头</strong></div>
-          <div class="connection-field-control">
-            <el-input v-model="config.customHeaders[service]" type="textarea" :rows="3"
-              aria-label="自定义请求头" :spellcheck="false" :class="{ 'input-error': !isValidCustomHeaders(config.customHeaders[service]) }"
-              placeholder='{"x-opencode-session": "your-stable-session-id"}' />
-            <small class="custom-headers-help">填写字符串值组成的 JSON 对象，仅发送给当前自定义服务；同名请求头会覆盖默认值。留空不启用。</small>
-            <div v-if="!isValidCustomHeaders(config.customHeaders[service])" class="error-text">请输入有效的请求头 JSON 对象，名称和值必须符合 HTTP 格式</div>
+          <div v-if="compute.showModel" class="connection-field" data-testid="model-vision-control">
+            <div class="connection-field-label">
+              <strong>{{ t('settings.services.visionCapability') }}</strong>
+              <small>{{ effectiveModelLabel || t('settings.services.currentModel') }}</small>
+            </div>
+            <div class="connection-field-control model-vision-setting">
+              <el-select v-model="visionOverride" data-testid="model-vision-capability" :aria-label="t('settings.services.visionCapability')" :disabled="!supportsVisionTransport(service, effectiveModelLabel)">
+                <el-option value="auto" :label="t('settings.services.visionAuto')" />
+                <el-option value="supported" :label="t('settings.services.visionSupported')" />
+                <el-option value="unsupported" :label="t('settings.services.visionTextOnly')" />
+              </el-select>
+              <small>{{ t(visionCapabilityMessage) }}</small>
+            </div>
           </div>
-        </div>
 
-        <el-row v-if="compute.showCustomBody" class="margin-bottom margin-left-2em">
+          <el-row v-if="compute.showProxy" class="margin-bottom margin-left-2em">
+            <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="可选的代理地址；填写后，当前 AI 服务请求会优先发送到这里。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">代理地址<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
+            <el-col :span="12"><el-input v-model="config.proxy[service]" placeholder="默认直连自定义接口" /></el-col>
+          </el-row>
+
+          <div class="custom-template-heading">
+            <div>
+              <strong>请求模板</strong>
+              <small>修改会自动保存到当前 AI 服务；可用变量可以一键插入。</small>
+            </div>
+            <el-button type="primary" link size="small" @click="resetCustomTemplate">恢复默认模板</el-button>
+          </div>
+
+          <div class="prompt-template-list" data-testid="prompt-template-list">
+            <PromptTemplateEditor v-model="config.system_role[service]" role="system" />
+            <PromptTemplateEditor v-model="config.user_role[service]" role="user" />
+          </div>
+
+          <div v-if="customProvider" class="connection-field custom-headers-field" data-testid="custom-service-headers">
+            <div class="connection-field-label"><strong>自定义请求头</strong></div>
+            <div class="connection-field-control">
+              <el-input v-model="config.customHeaders[service]" type="textarea" :rows="3"
+                aria-label="自定义请求头" :spellcheck="false" :class="{ 'input-error': !isValidCustomHeaders(config.customHeaders[service]) }"
+                placeholder='{"x-opencode-session": "your-stable-session-id"}' />
+              <small class="custom-headers-help">填写字符串值组成的 JSON 对象，仅发送给当前自定义服务；同名请求头会覆盖默认值。留空不启用。</small>
+              <div v-if="!isValidCustomHeaders(config.customHeaders[service])" class="error-text">请输入有效的请求头 JSON 对象，名称和值必须符合 HTTP 格式</div>
+            </div>
+          </div>
+
+          <el-row v-if="compute.showCustomBody" class="margin-bottom margin-left-2em">
+            <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="填写要合并到翻译请求中的 JSON 参数对象。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">自定义请求体<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
+            <el-col :span="12">
+              <el-input v-model="config.customBody[service]" :class="{ 'input-error': !isValidCustomBody(config.customBody[service]) }" placeholder='例如：{"thinking": {"type": "disabled"}}' />
+              <div v-if="!isValidCustomBody(config.customBody[service])" class="error-text">请输入合法的 JSON 对象，否则该配置将被忽略</div>
+            </el-col>
+          </el-row>
+        </template>
+
+        <el-row v-if="compute.showCustomBody && !compute.showAI" class="margin-bottom margin-left-2em">
           <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="填写要合并到翻译请求中的 JSON 参数对象。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">自定义请求体<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
           <el-col :span="12">
             <el-input v-model="config.customBody[service]" :class="{ 'input-error': !isValidCustomBody(config.customBody[service]) }" placeholder='例如：{"thinking": {"type": "disabled"}}' />
@@ -354,18 +449,6 @@
         </el-row>
       </div>
     </details>
-
-    <el-row v-if="compute.showDeepseekApiType" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="选择 DeepSeek 接口使用的 API 格式。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">API 格式<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
-      <el-col :span="12"><el-select v-model="config.deepseekApiType" placeholder="请选择 API 格式"><el-option class="select-left" v-for="item in options.deepseekApiType" :key="item.value" :label="item.label" :value="item.value" /></el-select></el-col>
-    </el-row>
-    <el-row v-if="compute.showCustomBody && !compute.showAI" class="margin-bottom margin-left-2em">
-      <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="填写要合并到翻译请求中的 JSON 参数对象。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">自定义请求体<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
-      <el-col :span="12">
-        <el-input v-model="config.customBody[service]" :class="{ 'input-error': !isValidCustomBody(config.customBody[service]) }" placeholder='例如：{"thinking": {"type": "disabled"}}' />
-        <div v-if="!isValidCustomBody(config.customBody[service])" class="error-text">请输入合法的 JSON 对象，否则该配置将被忽略</div>
-      </el-col>
-    </el-row>
   </section>
 </template>
 
@@ -387,7 +470,7 @@ import { DEFAULT_DEEPLX_ENDPOINT } from '@/src/core/config/deeplx'
 import { getDeepLEndpoint } from '@/src/core/config/deepl'
 import browser from 'webextension-polyfill'
 import { requestConfigSave, waitForConfigPersistenceQueue } from '@/src/services/config/store'
-import { CONNECTION_TEST_MESSAGE, getMimoEndpoint, MINIMAX_ENDPOINTS } from '@/src/core/config/constants'
+import { CONNECTION_TEST_MESSAGE, DEFAULT_OLLAMA_ENDPOINT, getAliyunTranslationEndpoint, getMimoEndpoint, MINIMAX_ENDPOINTS } from '@/src/core/config/constants'
 import { chromeTranslationPreparationStore } from '@/src/platform/browser/chromeTranslationPreparationRequest'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -402,6 +485,8 @@ import {
 import { useUiI18n } from '@/src/ui/i18n'
 import PromptTemplateEditor from './PromptTemplateEditor.vue'
 import FreeTranslationSettings from './FreeTranslationSettings.vue'
+import {resolveModelVisionCapability, supportsVisionTransport} from '@/src/core/config/vision'
+import RequestLimitSettings from './RequestLimitSettings.vue'
 
 const props = defineProps<{
   config: Config
@@ -450,6 +535,24 @@ const effectiveModelLabel = computed(() => resolveConfiguredModel(
   config.value.model[service.value],
   config.value.customModel[service.value],
 ))
+const visionOverride = computed<string>({
+  get: () => typeof config.value.modelVision[service.value]?.[effectiveModelLabel.value] === 'boolean'
+    ? (config.value.modelVision[service.value][effectiveModelLabel.value] ? 'supported' : 'unsupported') : 'auto',
+  set: (value) => {
+    const model = effectiveModelLabel.value
+    if (!model) return
+    const current = {...(config.value.modelVision[service.value] || {})}
+    if (value === 'auto') delete current[model]
+    else current[model] = value === 'supported'
+    if (Object.keys(current).length) config.value.modelVision[service.value] = current
+    else delete config.value.modelVision[service.value]
+  },
+})
+const visionCapabilityMessage = computed(() => {
+  if (!supportsVisionTransport(service.value, effectiveModelLabel.value)) return 'settings.services.visionTransportUnsupported'
+  const capability = resolveModelVisionCapability(service.value, effectiveModelLabel.value, config.value.modelVision)
+  return capability === 'supported' ? 'settings.services.visionConfirmed' : capability === 'unsupported' ? 'settings.services.visionTextOnlyMessage' : 'settings.services.visionUnknown'
+})
 
 function updateCustomProvider(field: 'name' | 'endpoint', value: string): void {
   emit('update:custom-provider', {[field]: value})
@@ -888,6 +991,8 @@ onBeforeUnmount(() => {
   overflow-wrap: anywhere;
 }
 .provider-field-help code { font-size: inherit; }
+.model-vision-setting { display: grid; gap: 6px; }
+.model-vision-setting > small { color: var(--muted); font-size: 10px; line-height: 1.5; }
 .model-thinking-setting { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .model-thinking-setting > small { color: #9098a8; font-size: 10px; line-height: 1.5; }
 .model-thinking-setting :deep(.el-switch) { flex: 0 0 auto; --el-switch-on-color: #ef4776; --el-switch-off-color: #cfd5df; }

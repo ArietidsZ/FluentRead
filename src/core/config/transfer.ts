@@ -131,6 +131,9 @@ function prepareImportedCredentials(
       token: isRecord(value.token)
         ? {...currentCredentials.token, ...importedCredentials.token}
         : currentCredentials.token,
+      secret: isRecord(value.secret)
+        ? {...currentCredentials.secret, ...importedCredentials.secret}
+        : currentCredentials.secret,
       extra: isRecord(value.extra)
         ? {...currentCredentials.extra, ...importedCredentials.extra}
         : currentCredentials.extra,

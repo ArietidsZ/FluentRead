@@ -37,10 +37,11 @@ function failure(message: string, freeFailure: FreeFailure, statusCode?: number)
 }
 
 function classifyStatus(statusCode: number): FreeFailure {
-    if (statusCode === 401 || statusCode === 403) return 'blocked';
-    if (statusCode === 408 || statusCode === 429) return 'rate-limit';
-    if (statusCode === 402) return 'quota';
+    if (statusCode === 401 || statusCode === 403 || statusCode === 404 || statusCode === 410) return 'blocked';
+    if (statusCode === 402 || statusCode === 456) return 'quota';
+    if (statusCode === 429) return 'rate-limit';
     if (statusCode >= 500) return 'unavailable';
+    if (statusCode === 408) return 'unavailable';
     return 'request';
 }
 

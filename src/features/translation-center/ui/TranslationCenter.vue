@@ -323,7 +323,14 @@ const filteredServiceGroups = computed(() => {
     {
       key: 'machine',
       label: '机器翻译',
-      items: filterItems(availableServiceOptions.value.filter(item => servicesType.isMachine(item.value))),
+      items: filterItems(availableServiceOptions.value.filter(item => (
+        servicesType.isMachine(item.value) && !servicesType.isCloudVendor(item.value)
+      ))),
+    },
+    {
+      key: 'cloud',
+      label: '云服务厂商',
+      items: filterItems(availableServiceOptions.value.filter(item => servicesType.isCloudVendor(item.value))),
     },
     {
       key: 'ai',
@@ -760,9 +767,9 @@ onUnmounted(() => {
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: var(--fr-menu-radius);
   background: var(--surface);
-  box-shadow: 0 18px 44px rgba(31, 40, 61, .18);
+  box-shadow: var(--fr-menu-shadow);
 }
 .service-picker-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 16px 12px; border-bottom: 1px solid var(--line); }
 .service-picker-header > div { display: grid; gap: 3px; min-width: 0; }
@@ -776,7 +783,7 @@ onUnmounted(() => {
 .service-picker-search span { font-size: 18px; }
 .service-picker-search input { width: 100%; min-width: 0; border: 0; outline: 0; color: var(--ink); background: transparent; font: inherit; font-size: 14px; }
 .service-picker-search input::placeholder { color: var(--muted); }
-.service-picker-groups { min-height: 0; flex: 1 1 auto; overflow-y: auto; padding: 0 9px 8px; }
+.service-picker-groups { min-height: 0; flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; padding: 0 9px 8px; }
 .service-picker-group + .service-picker-group { margin-top: 8px; }
 .service-picker-group-heading { display: flex; align-items: center; justify-content: space-between; padding: 7px 7px 5px; color: var(--muted); font-size: 10px; }
 .service-picker-group-heading strong { color: var(--ink); font-size: 10px; }
