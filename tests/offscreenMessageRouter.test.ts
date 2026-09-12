@@ -55,6 +55,42 @@ describe('Offscreen 消息静态路由', () => {
         mocks.downloadOcrLanguages.mockResolvedValue(undefined);
     });
 
+    it('将本地 TTS 的 ArrayBuffer 编码为 runtime 可传输的 Base64', async () => {
+        const localTts = createOffscreenMessageListener({
+            ...mocks,
+            ttsPlayer: {play: mocks.play, stop: mocks.stop},
+            localTts: {
+                synthesize: vi.fn(async () => ({
+                    audio: new Uint8Array([82, 73, 70, 70]).buffer,
+                    contentType: 'audio/wav',
+                    voice: 'zf_001',
+                    backend: 'wasm',
+                })),
+                prepare: vi.fn(async () => ({warm: false})),
+                status: vi.fn(async () => ({models: []})),
+                removeModel: vi.fn(async () => undefined),
+            },
+        });
+
+        await expect(dispatch({
+            type: 'LOCAL_TTS_SYNTHESIZE',
+            requestId: 'tts-binary-1',
+            text: '你好',
+            language: 'zh-CN',
+            voice: 'zf_001',
+        }, localTts)).resolves.toEqual({
+            handled: true,
+            response: {
+                success: true,
+                audioBase64: 'UklGRg==',
+                contentType: 'audio/wav',
+                voice: 'zf_001',
+                backend: 'wasm',
+                requestId: 'tts-binary-1',
+            },
+        });
+    });
+
     it('null、数组、无 type 与未知消息保持未处理', async () => {
         await expect(dispatch(null)).resolves.toEqual({handled: false});
         await expect(dispatch([])).resolves.toEqual({handled: false});

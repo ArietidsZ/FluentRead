@@ -8,9 +8,11 @@
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
+import {localTtsSpanishMessages} from './localTts';
 import {localTranslationSpanishMessages} from './localTranslation';
 
 export const esESMessages = {
+    ...localTtsSpanishMessages,
     "settings.services.library.views": "Vistas de servicios",
     "settings.services.library.mine": "Mis servicios",
     "settings.services.library.all": "Todos los servicios",

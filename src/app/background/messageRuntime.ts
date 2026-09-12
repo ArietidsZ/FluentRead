@@ -6,8 +6,8 @@
  */
 import {formatConnectionTestError, runTranslationServiceConnectionTestWithUsage} from './providerRuntime';
 import {config, configReady} from '@/src/services/config/store';
-import {synthesizeEdgeTts} from '@/src/features/selection-translation/services/edgeTts';
 import {lookupWord} from '@/src/features/selection-translation/services/wordDictionary';
+import {synthesizeEdgeTts} from '@/src/features/selection-translation/services/edgeTts';
 import {vocabularyBook} from '@/src/features/vocabulary/repository';
 import {clearTranslationCache, getTranslationCacheStats, translateWithCache} from '@/src/app/translation/runtime';
 import {serializeTranslationError} from '@/src/services/translation/errors';
@@ -41,6 +41,9 @@ import {modelUsageRepository} from '@/src/platform/storage/modelUsageRepository'
 import {releaseVideoSubtitleOwnerForTab} from '@/src/features/video-subtitle/background/handlers';
 import {createVideoSubtitleBackgroundRuntime} from '@/src/features/video-subtitle/background/runtime';
 import {createLocalTranslationBackgroundRuntime} from '@/src/features/local-translation/background/runtime';
+import {createLocalTtsBackgroundRuntime} from '@/src/features/local-tts/background/runtime';
+import {localTtsOffscreenAdapter} from '@/src/features/local-tts/background/offscreenAdapter';
+import {createSelectionTtsSynthesizer} from '@/src/features/selection-translation/background/selectionTtsSynthesis';
 import {installWritingBackgroundRuntime} from './writingRuntime';
 import {installHarnessBackgroundRuntime} from './harnessRuntime';
 import {createImageGlossaryContext} from './imageGlossaryContext';
@@ -59,6 +62,13 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     const translationRequestRegistry = createTranslationRequestRegistry();
     const imageOcrLanguageRepository = createImageOcrLanguageRepository(createConfigImageOcrLanguageStorage());
     const selectionTtsTransport = createCapabilityGatedSelectionTtsTransport(capabilities, selectionTtsOffscreenAdapter);
+    const selectionTtsSynthesizer = createSelectionTtsSynthesizer({
+        getMode: () => config.selectionTtsMode,
+        getLocalVoice: () => config.selectionTtsLocalVoice,
+        getOnlineVoices: () => config.selectionTtsVoices,
+        synthesizeOnline: synthesizeEdgeTts,
+        synthesizeLocal: (text, language, voice, signal) => localTtsOffscreenAdapter.synthesize(text, language, voice, signal),
+    });
     const imageGlossaryContext = createImageGlossaryContext<BackgroundRuntimeContext>({
         ready: configReady,
         offscreenUrl: browser.runtime.getURL('/offscreen.html'),
@@ -118,7 +128,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         })),
         ...createSelectionTtsBackgroundHandlers({
             getPreferredVoices: () => config.selectionTtsVoices,
-            synthesize: synthesizeEdgeTts,
+            synthesize: selectionTtsSynthesizer,
             playWithOffscreen: selectionTtsTransport.play,
             stopWithOffscreen: selectionTtsTransport.stop,
             offscreenPlaybackEnabled: capabilities.selectionTtsExtensionPlayback,
@@ -138,6 +148,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         }),
         ...createVideoSubtitleBackgroundRuntime(),
         ...createLocalTranslationBackgroundRuntime(),
+        ...createLocalTtsBackgroundRuntime(),
     ];
     const router = createBackgroundMessageRouter(
         handlers,
@@ -153,7 +164,13 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             return dispatch.handled ? dispatch.response
                 : {success: false, error: '不支持的后台消息'};
         } catch (error) {
-            return {success: false, error: error instanceof Error ? error.message : String(error)};
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+                errorCode: error && typeof error === 'object' && typeof (error as {code?: unknown}).code === 'string'
+                    ? (error as {code: string}).code
+                    : undefined,
+            };
         }
     });
     browser.tabs.onRemoved.addListener((tabId: number) => releaseVideoSubtitleOwnerForTab(Number(tabId)));

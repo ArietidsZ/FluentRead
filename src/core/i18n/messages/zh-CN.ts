@@ -8,9 +8,11 @@
  */
 import type {
 MessageCatalog} from '../types';
+import {localTtsChineseMessages} from './localTts';
 import {localTranslationChineseMessages} from './localTranslation';
 
 export const zhCNMessages = {
+    ...localTtsChineseMessages,
     "settings.services.library.views": "服务视图",
     "settings.services.library.mine": "我的服务",
     "settings.services.library.all": "全部服务",

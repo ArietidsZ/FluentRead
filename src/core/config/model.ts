@@ -73,6 +73,14 @@ import {
     type ParagraphCopyContentMode,
 } from '@/src/core/config/paragraphCopy';
 import { normalizeSelectionTtsVoiceOrder } from "./selectionTts";
+import {
+    DEFAULT_LOCAL_TTS_MODE,
+    DEFAULT_LOCAL_TTS_VOICE,
+    normalizeLocalTtsMode,
+    normalizeLocalTtsVoice,
+    type LocalTtsMode,
+    type LocalTtsVoiceId,
+} from './localTts';
 import { normalizeUiLanguage, type UiLanguage } from '@/src/core/i18n/language';
 import {normalizeGlossaryIds, normalizeGlossaryLibraries, type GlossaryLibrary} from '@/src/core/glossary';
 import {
@@ -418,6 +426,8 @@ export class Config {
     customSelectionTranslatorHotkey: string; // 自定义划词翻译快捷键
     selectionTranslatorDelay: number; // 选区稳定后显示划词翻译入口的延迟（毫秒）
     selectionTtsVoices: string[]; // 划词朗读的 Edge TTS 音色回退顺序
+    selectionTtsMode: LocalTtsMode; // 朗读在线/本地合成策略
+    selectionTtsLocalVoice: LocalTtsVoiceId; // 本地 Kokoro 音色，auto 表示按语言选择
     vocabularyBookEnabled: boolean; // 是否启用本地单词本 Beta
     newApiUrl: string; // NewAPI地址
     maxConcurrentTranslations: number; // 最大并发翻译数量
@@ -581,6 +591,8 @@ export class Config {
         this.customSelectionTranslatorHotkey = ''; // 自定义划词翻译快捷键为空
         this.selectionTranslatorDelay = DEFAULT_SELECTION_TRANSLATOR_DELAY;
         this.selectionTtsVoices = []; // 默认按当前语言使用内置音色回退顺序
+        this.selectionTtsMode = DEFAULT_LOCAL_TTS_MODE;
+        this.selectionTtsLocalVoice = DEFAULT_LOCAL_TTS_VOICE;
         this.vocabularyBookEnabled = false; // Beta 默认关闭，由用户在单词本页面主动开启
         this.newApiUrl = DEFAULT_NEW_API_URL; // NewAPI 默认地址
         this.maxConcurrentTranslations = DEFAULT_MAX_CONCURRENT_TRANSLATIONS; // 默认最大并发数为6
@@ -1205,6 +1217,8 @@ export function normalizeConfig(value: unknown): Config {
         normalized.selectionTranslatorHotkey = 'none';
     }
     normalized.selectionTtsVoices = normalizeSelectionTtsVoiceOrder(normalized.selectionTtsVoices);
+    normalized.selectionTtsMode = normalizeLocalTtsMode(source.selectionTtsMode);
+    normalized.selectionTtsLocalVoice = normalizeLocalTtsVoice(source.selectionTtsLocalVoice);
     normalized.disableSelectionTranslator = normalized.selectionTranslatorMode === 'disabled';
     if (typeof normalized.vocabularyBookEnabled !== 'boolean') {
         normalized.vocabularyBookEnabled = false;

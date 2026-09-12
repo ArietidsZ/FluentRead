@@ -9,9 +9,11 @@
 import type {
 MessageCatalog} from '../types';
 import {legacyTextOverrides} from './legacy-overrides';
+import {localTtsEnglishMessages} from './localTts';
 import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
+    ...localTtsEnglishMessages,
     "settings.services.library.views": "Service views",
     "settings.services.library.mine": "My services",
     "settings.services.library.all": "All services",

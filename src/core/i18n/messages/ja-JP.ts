@@ -8,9 +8,11 @@
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
+import {localTtsJapaneseMessages} from './localTts';
 import {localTranslationJapaneseMessages} from './localTranslation';
 
 export const jaJPMessages = {
+    ...localTtsJapaneseMessages,
     "settings.services.library.views": "サービス表示",
     "settings.services.library.mine": "マイサービス",
     "settings.services.library.all": "すべてのサービス",

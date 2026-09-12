@@ -15,6 +15,7 @@ export * from './customOpenAI';
 export * from './deeplx';
 export * from './interfaceAppearance';
 export * from './inputTranslation';
+export * from './localTts';
 export * from './model';
 export * from './quickTranslation';
 export * from './requestLimits';

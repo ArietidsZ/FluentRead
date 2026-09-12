@@ -8,9 +8,11 @@
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
+import {localTtsKoreanMessages} from './localTts';
 import {localTranslationKoreanMessages} from './localTranslation';
 
 export const koKRMessages = {
+    ...localTtsKoreanMessages,
     "settings.services.library.views": "서비스 보기",
     "settings.services.library.mine": "내 서비스",
     "settings.services.library.all": "모든 서비스",

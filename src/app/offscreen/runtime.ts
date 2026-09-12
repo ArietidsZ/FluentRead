@@ -18,6 +18,13 @@ import {createSelectionTtsPlayer} from './ttsPlayback';
 import {translateWithChromeApi, type ChromeTranslationEnvironment} from './translation';
 import {removeLocalVideoTranscriptionModel, cancelLocalVideoTranscription, prepareLocalVideoTranscriptionModel, transcribeLocalVideoAudio} from '@/src/features/video-subtitle/offscreen/transcription';
 import {
+    disposeLocalTtsWorker,
+    getLocalTtsModelStatus,
+    prepareLocalTtsModel,
+    removeLocalTtsModel,
+    synthesizeLocalTts,
+} from '@/src/features/local-tts/offscreen/tts';
+import {
     disposeLocalTranslationWorker,
     configureLocalTranslationDownloadNotifications,
     pauseLocalTranslationModelDownload,
@@ -84,11 +91,24 @@ export function startOffscreenApp(): void {
             removeModel: request => removeLocalTranslationModel(request.model),
             dispose: disposeLocalTranslationWorker,
         },
+        localTts: {
+            synthesize: (request, signal) => synthesizeLocalTts(
+                String(request.text || ''),
+                String(request.language || ''),
+                request.voice,
+                signal,
+            ),
+            prepare: (request) => prepareLocalTtsModel(request.keepWarm === true),
+            status: getLocalTtsModelStatus,
+            removeModel: async () => { await removeLocalTtsModel(); },
+            dispose: disposeLocalTtsWorker,
+        },
     });
 
     chrome.runtime.onMessage.addListener(listener);
     window.addEventListener('pagehide', () => {
         ttsPlayer.dispose();
         disposeLocalTranslationWorker();
+        disposeLocalTtsWorker();
     }, {once: true});
 }

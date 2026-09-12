@@ -123,6 +123,7 @@
       "tests/localTranslationInference.test.ts",
       "tests/localTranslationProvider.test.ts",
       "tests/localTranslationRuntime.test.ts",
+      "tests/localTts.test.ts",
       "tests/offscreenAdapters.test.ts",
       "tests/offscreenClient.test.ts",
       "tests/firefoxDocumentRuntime.test.ts",

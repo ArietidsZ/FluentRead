@@ -8,9 +8,11 @@
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
+import {localTtsRussianMessages} from './localTts';
 import {localTranslationRussianMessages} from './localTranslation';
 
 export const ruRUMessages = {
+    ...localTtsRussianMessages,
     "settings.services.library.views": "Виды сервисов",
     "settings.services.library.mine": "Мои сервисы",
     "settings.services.library.all": "Все сервисы",

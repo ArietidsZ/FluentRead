@@ -17,6 +17,7 @@ export interface SelectionTtsContentRemoteRequest {
 export interface SelectionTtsContentRemoteResponse {
     readonly success?: unknown;
     readonly transport?: unknown;
+    readonly errorCode?: unknown;
 }
 
 export type SelectionTtsContentRemoteResult = 'failed' | 'offscreen' | 'page' | 'stale';

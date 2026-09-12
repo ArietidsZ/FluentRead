@@ -378,6 +378,7 @@
       </el-col>
     </el-row>
     </SettingsGroup>
+    <LocalTtsSettings :config="config" />
     </section>
 
     <!-- 高级选项 -->
@@ -722,6 +723,7 @@ import {
 } from '@/src/core/config/validation';
 import {ImageOcrSettings} from '@/src/features/image-translation/public';
 import VideoLocalModelSettings from './VideoLocalModelSettings.vue';
+import LocalTtsSettings from './LocalTtsSettings.vue';
 import VideoSubtitleAppearanceSettings from './VideoSubtitleAppearanceSettings.vue';
 import {ModelUsageDashboard} from '@/src/features/model-usage/public';
 import InterfaceSettings from './InterfaceSettings.vue';
