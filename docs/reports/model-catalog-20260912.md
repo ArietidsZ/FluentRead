@@ -38,7 +38,9 @@ DeepSeek Chat 显式发送 `thinking.type=disabled`，Responses 发送 `reasonin
 ## 验证结果
 
 - 最终完整覆盖率回归：227 个文件、4669 个测试通过，statements / branches / functions / lines 均为 100%。
-- 架构检查：27 个文件、897 个测试通过；测试审计和 TypeScript/Vue 类型检查通过。
+- 架构检查：27 个文件、899 个测试通过；测试审计和 TypeScript/Vue 类型检查通过。
 - Chrome、Firefox、userscript 构建与 userscript verifier 通过；中英文文档构建通过。
 - 首次完整回归曾出现 `configStorage.test.ts` 中一项存储恢复断言失败；独立干净基线的该文件 28/28 通过，最终完整回归也通过。未修改存储实现或放宽该断言，不能将首次结果定性为稳定基线缺陷。
 - 本次是官方目录核对、确定性测试和构建验证，没有使用账户密钥认证外部模型，也没有进行真实供应商译文质量测评或浏览器运行时测试。
+
+合并前同步了主分支的油猴 Dexie 修复，补齐上游新增测试的 regression 分组登记；该修复相关的 19 项检查通过，并重新完成上述完整回归与构建。
