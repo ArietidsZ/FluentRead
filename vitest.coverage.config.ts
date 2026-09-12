@@ -189,6 +189,7 @@ export default defineConfig({
             'tests/translationPrompts.test.ts',
             'tests/pageContextPolicy.test.ts',
             'tests/translationTruncation.test.ts',
+            'tests/translationHeightLayout.test.ts',
             'tests/translateQueue.test.ts',
             'tests/translationRequestScheduler.test.ts',
             'tests/tongyi.test.ts',

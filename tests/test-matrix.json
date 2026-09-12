@@ -285,6 +285,7 @@
       "tests/siteTranslationIdle.test.ts",
       "tests/translationDocumentCorpus.test.ts",
       "tests/translationTruncation.test.ts",
+      "tests/translationHeightLayout.test.ts",
       "tests/userscriptCredentialPersistence.test.ts",
       "tests/vocabularyBookComponentLifecycle.test.ts",
       "tests/allNodesTranslationCore.test.ts"
