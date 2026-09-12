@@ -14,20 +14,20 @@
   >
     <header class="prompt-template-header">
       <div class="prompt-template-role">
-        <span class="prompt-role-badge" aria-hidden="true">{{ role }}</span>
+        <span class="prompt-role-badge" aria-hidden="true">{{ props.roleLabel || role }}</span>
         <div class="prompt-role-copy">
           <strong :id="headingId">{{ definition.title }}</strong>
           <small>{{ definition.description }}</small>
         </div>
       </div>
-      <span class="prompt-template-limit">最多 {{ maxLength }} 字符</span>
+      <span class="prompt-template-limit">{{ props.limitLabel || `最多 ${maxLength} 字符` }}</span>
     </header>
 
     <textarea
       ref="textarea"
       class="prompt-template-textarea"
       :value="modelValue"
-      :aria-label="`${role} 提示词`"
+      :aria-label="props.ariaLabel || `${role} 提示词`"
       :maxlength="maxLength"
       :placeholder="definition.placeholder"
       autocomplete="off"
@@ -45,15 +45,15 @@
     />
 
     <footer v-if="promptTokens.length" class="prompt-template-footer">
-      <span class="prompt-template-hint">快速插入变量</span>
-      <div class="prompt-token-list" aria-label="可插入的提示词变量">
+      <span class="prompt-template-hint">{{ props.tokenHint || '快速插入变量' }}</span>
+      <div class="prompt-token-list" :aria-label="props.tokenListAriaLabel || '可插入的提示词变量'">
         <button
           v-for="token in promptTokens"
           :key="token.value"
           type="button"
           class="prompt-token"
           :data-prompt-token="token.value"
-          :aria-label="`插入 ${token.value}（${token.label}）`"
+          :aria-label="props.tokenAriaLabel?.(token) || `插入 ${token.value}（${token.label}）`"
           @mousedown.prevent
           @click="insertToken(token.value)"
         >
@@ -70,12 +70,37 @@ import { computed, nextTick, ref, useId, watch } from 'vue'
 
 type PromptRole = 'system' | 'user'
 
+interface PromptToken {
+  value: string
+  label: string
+}
+
 const props = withDefaults(defineProps<{
   role: PromptRole
   modelValue: string
   maxLength?: number
+  roleLabel?: string
+  title?: string
+  description?: string
+  placeholder?: string
+  ariaLabel?: string
+  limitLabel?: string
+  tokenHint?: string
+  tokenListAriaLabel?: string
+  tokenAriaLabel?: (token: PromptToken) => string
+  tokens?: PromptToken[]
 }>(), {
   maxLength: 8192,
+  roleLabel: undefined,
+  title: undefined,
+  description: undefined,
+  placeholder: undefined,
+  ariaLabel: undefined,
+  limitLabel: undefined,
+  tokenHint: undefined,
+  tokenListAriaLabel: undefined,
+  tokenAriaLabel: undefined,
+  tokens: undefined,
 })
 
 const emit = defineEmits<{
@@ -92,23 +117,23 @@ watch(() => props.modelValue, (value) => {
   if (!isComposing.value) lastEmittedValue.value = value
 }, {flush: 'sync'})
 
-const promptTokens = computed(() => props.role === 'user'
+const promptTokens = computed<PromptToken[]>(() => props.tokens || (props.role === 'user'
   ? [
       {value: '{{to}}', label: '目标语言'},
       {value: '{{origin}}', label: '待翻译原文'},
-    ] as const
-  : [])
+    ]
+  : []))
 
 const definition = computed(() => props.role === 'system'
   ? {
-      title: '系统提示词',
-      description: '定义翻译角色、语气与输出规则。',
-      placeholder: '例如：You are a professional translator.',
+      title: props.title || '系统提示词',
+      description: props.description || '定义翻译角色、语气与输出规则。',
+      placeholder: props.placeholder || '例如：You are a professional translator.',
     }
   : {
-      title: '用户提示词',
-      description: '描述翻译任务，可引用原文和目标语言。',
-      placeholder: '例如：Translate {{origin}} into {{to}}.',
+      title: props.title || '用户提示词',
+      description: props.description || '描述翻译任务，可引用原文和目标语言。',
+      placeholder: props.placeholder || '例如：Translate {{origin}} into {{to}}.',
     })
 
 function rememberSelection(): void {

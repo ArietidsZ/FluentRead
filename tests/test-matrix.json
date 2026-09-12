@@ -92,6 +92,8 @@
       "tests/imageContextMenu.test.ts",
       "tests/remoteImage.test.ts",
       "tests/inputBox.test.ts",
+      "tests/inputTranslationConfig.test.ts",
+      "tests/inputTranslationBackground.test.ts",
       "tests/interfaceAppearance.test.ts",
       "tests/usePopupLayoutReorder.test.ts",
       "tests/legacyPageCache.test.ts",

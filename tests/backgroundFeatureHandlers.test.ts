@@ -42,6 +42,7 @@ import {
 import {navigationItems, NAVIGATION_SECTION_ALIASES} from '@/src/features/settings/model/navigation';
 import {isBrowserTabId, TabTranslationStateStore} from '@/src/app/background/tabTranslationState';
 import {getTranslationRequestControl} from '@/src/services/translation/requestSnapshot';
+import {Config} from '@/src/core/config/model';
 
 function wordCard(definitions: Array<{definition: string; example?: string; translatedDefinition?: string; translatedExample?: string}> = [
     {definition: 'to move quickly', example: 'Run home.'},
@@ -58,15 +59,24 @@ function wordCard(definitions: Array<{definition: string; example?: string; tran
 
 describe('后台 feature handlers', () => {
     it('输入框翻译严格验证 payload，并保留原文本与 provider 结果', async () => {
-        const translateText = vi.fn(async () => ' 译文 ');
-        const handler = createInputBoxTranslationHandler({translateText});
+        const config = new Config();
+        const translate = vi.fn(async (_request: unknown) => ' 译文 ');
+        const handler = createInputBoxTranslationHandler({
+            ready: Promise.resolve(),
+            getConfig: () => config,
+            translate,
+        });
 
         await expect(handler.handle({
             type: INPUT_BOX_TRANSLATION_MESSAGE_TYPE,
             text: ' hello ',
             targetLang: 'zh',
         })).resolves.toEqual({success: true, translatedText: ' 译文 '});
-        expect(translateText).toHaveBeenCalledWith(' hello ', 'zh');
+        expect(translate.mock.calls[0][0]).toMatchObject({
+            origin: ' hello ',
+            targetLanguage: 'zh',
+            serviceOverride: 'microsoft',
+        });
 
         await expect(handler.handle({type: INPUT_BOX_TRANSLATION_MESSAGE_TYPE, text: 1, targetLang: 'zh'}))
             .rejects.toThrow('text 必须是字符串');
@@ -77,12 +87,12 @@ describe('后台 feature handlers', () => {
         await expect(handler.handle({type: INPUT_BOX_TRANSLATION_MESSAGE_TYPE, text: 'hello', targetLang: ''}))
             .rejects.toThrow('targetLang 不能为空');
 
-        translateText.mockResolvedValueOnce('');
+        translate.mockResolvedValueOnce('');
         await expect(handler.handle({type: INPUT_BOX_TRANSLATION_MESSAGE_TYPE, text: 'hello', targetLang: 'zh'}))
-            .rejects.toThrow('微软翻译未返回译文');
-        translateText.mockResolvedValueOnce(undefined as unknown as string);
+            .rejects.toThrow('输入框翻译未返回有效译文');
+        translate.mockResolvedValueOnce(undefined as unknown as string);
         await expect(handler.handle({type: INPUT_BOX_TRANSLATION_MESSAGE_TYPE, text: 'hello', targetLang: 'zh'}))
-            .rejects.toThrow('微软翻译未返回译文');
+            .rejects.toThrow('输入框翻译未返回有效译文');
     });
 
     it('设置页 handler 区分默认入口与白名单 section', async () => {

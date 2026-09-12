@@ -814,7 +814,8 @@ describe('i18n 全量界面扫描', () => {
   });
 
   it('新增稳定资源必须提供实际译文，不能继承 English 掩盖遗漏', () => {
-    const common = new Set(['common.brand', 'metadata.popupTitle', 'settings.advanced.translationLoadingStyleOptionAria', 'reading.generatingAction']);
+    // ms 是国际通用的毫秒符号，无需在法语或西班牙语中改写。
+    const common = new Set(['inputTranslation.intervalUnit', 'common.brand', 'metadata.popupTitle', 'settings.advanced.translationLoadingStyleOptionAria', 'reading.generatingAction']);
     const frenchCognates = new Set(['learning.memoryNote', 'document.progressSegments', 'document.pageCount', 'document.pageNumber', 'options.aboutDocs', 'settings.advanced.animations', 'settings.advanced.translationLoadingStyle.minimal.label']);
     for (const [locale, catalog] of Object.entries({'ja-JP': jaJPMessages, 'ko-KR': koKRMessages, 'fr-FR': frFRMessages, 'ru-RU': ruRUMessages, 'es-ES': esESMessages})) {
       const untranslated = Object.entries(enUSMessages).filter(([key, source]) => (
