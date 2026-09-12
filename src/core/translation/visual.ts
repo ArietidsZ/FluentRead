@@ -1,9 +1,9 @@
 /**
  * @file src/core/translation/visual.ts
  *
- * Selects a bounded range for hover translation when a large unstructured container
- * has no semantic paragraph boundary. The helper only reads the DOM; rendering owns
- * the temporary wrapper and its restoration.
+ * 文件职责：为缺少语义段落边界的大型网页容器选择有界的悬浮翻译文本范围。
+ * 主要内容：保留光标命中的文本偏移，按句子和视觉间距组合有限文本块，过滤受保护文本，并输出可由渲染层物化的 range。
+ * 模块边界：本文件只读取页面 DOM 和布局信息，不改写宿主节点、不读取配置、不调用 provider；临时 wrapper 的创建与恢复由渲染和状态模块负责。
  */
 
 import {
@@ -62,7 +62,7 @@ function collectTextEntries(
         const node = current as Text;
         if (!isTextInNestedTranslationTooltip(node, owner) &&
             !isTranslationTextNodeProtected(node, shouldStayOriginal)) {
-            const value = node.nodeValue ?? '';
+            const value = node.data;
             if (value) {
                 entries.push({node, start: offset, end: offset + value.length});
                 offset += value.length;
@@ -152,11 +152,13 @@ function offsetToBoundary(
 ): {node: Text; offset: number} | null {
     if (entries.length === 0) return null;
     const clamped = Math.max(0, Math.min(offset, entries.at(-1)!.end));
+    let selected = entries.at(-1)!;
     for (const entry of entries) {
-        if (clamped <= entry.end) return {node: entry.node, offset: clamped - entry.start};
+        if (clamped > entry.end) continue;
+        selected = entry;
+        break;
     }
-    const last = entries.at(-1)!;
-    return {node: last.node, offset: last.node.nodeValue?.length ?? 0};
+    return {node: selected.node, offset: Math.max(0, Math.min(clamped - selected.start, selected.node.data.length))};
 }
 
 function createRange(
@@ -184,7 +186,7 @@ function sourceTextForRange(entries: readonly TextEntry[], start: number, end: n
         const overlapStart = Math.max(start, entry.start);
         const overlapEnd = Math.min(end, entry.end);
         return overlapStart < overlapEnd
-            ? (entry.node.nodeValue ?? '').slice(overlapStart - entry.start, overlapEnd - entry.start)
+            ? entry.node.data.slice(overlapStart - entry.start, overlapEnd - entry.start)
             : '';
     }).join(''));
 }
@@ -238,7 +240,7 @@ export function resolveVisualTranslationRange(
     if (!isRefinableCandidate(candidate)) return null;
     const owner = candidate.element;
     const entries = collectTextEntries(owner, shouldStayOriginal);
-    const text = entries.map((entry) => entry.node.nodeValue ?? '').join('');
+    const text = entries.map((entry) => entry.node.data).join('');
     if (text.length <= HOVER_REFINEMENT_THRESHOLD || text.length > HOVER_DISCOVERY_CHARACTER_LIMIT) return null;
 
     const point = findTextPointAtPoint(root, x, y);
@@ -253,7 +255,6 @@ export function resolveVisualTranslationRange(
         Math.max(0, allSentences.length - HOVER_SENTENCE_LIMIT),
     ));
     const sentences = allSentences.slice(windowStart, windowStart + HOVER_SENTENCE_LIMIT);
-    if (sentences.length === 0) return null;
 
     const selectedIndex = allSelectedIndex - windowStart;
     let selected = splitLongSentence(text, sentences[selectedIndex]!, caret);

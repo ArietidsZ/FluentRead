@@ -66,6 +66,37 @@ function page(html: string, url = 'https://example.test/article') {
     return {document, core};
 }
 
+function installRangeStub(
+    document: Document,
+    text: Text,
+    getClientRects: (startOffset: number, endOffset: number) => readonly object[] = () => [],
+): () => void {
+    const previous = Object.getOwnPropertyDescriptor(document, 'createRange');
+    Object.defineProperty(document, 'createRange', {
+        configurable: true,
+        value: () => {
+            let startContainer: Text | null = null;
+            let endContainer: Text | null = null;
+            let startOffset = 0;
+            let endOffset = 0;
+            return {
+                get startContainer() { return startContainer; },
+                get endContainer() { return endContainer; },
+                get startOffset() { return startOffset; },
+                get endOffset() { return endOffset; },
+                setStart(node: Text, offset: number) { startContainer = node; startOffset = offset; },
+                setEnd(node: Text, offset: number) { endContainer = node; endOffset = offset; },
+                getClientRects: () => getClientRects(startOffset, endOffset),
+                toString: () => text.nodeValue!.slice(startOffset, endOffset),
+            } as unknown as Range;
+        },
+    });
+    return () => {
+        if (previous) Object.defineProperty(document, 'createRange', previous);
+        else Reflect.deleteProperty(document, 'createRange');
+    };
+}
+
 function candidateIds(document: Document, url?: string): string[] {
     const core = createTranslationCore({url: new URL(url ?? 'https://example.test/article')});
     return core.discover(document).map((candidate) => candidate.element.id).filter(Boolean);
@@ -853,6 +884,240 @@ describe('translation candidate core', () => {
             if (previous) Object.defineProperty(document, 'caretPositionFromPoint', previous);
             else Reflect.deleteProperty(document, 'caretPositionFromPoint');
             if (previousCreateRange) Object.defineProperty(document, 'createRange', previousCreateRange);
+            else Reflect.deleteProperty(document, 'createRange');
+        }
+    });
+
+    it('falls back when sentence segmentation is unavailable and splits a long sentence safely', () => {
+        const source = `Intro sentence. ${Array.from({length: 900}, (_, index) => `word${index}`).join(' ')}`;
+        const {document, core} = page(`<main><div id="long-sentence">${source}</div></main>`);
+        const owner = document.querySelector('#long-sentence')!;
+        const text = owner.firstChild! as Text;
+        const previousCaret = Object.getOwnPropertyDescriptor(document, 'caretPositionFromPoint');
+        const previousSegmenter = Object.getOwnPropertyDescriptor(Intl, 'Segmenter');
+        Object.defineProperty(document, 'caretPositionFromPoint', {
+            configurable: true,
+            value: () => ({offsetNode: text, offset: Math.floor(text.length / 2)}),
+        });
+        Object.defineProperty(Intl, 'Segmenter', {
+            configurable: true,
+            value: class { constructor() { throw new Error('segmenter unavailable'); } },
+        });
+        const restoreRange = installRangeStub(document, text);
+        try {
+            const candidate = core.resolveAtPoint(document, 10, 20);
+            expect(candidate).toMatchObject({element: owner, reason: 'visual-text-chunk'});
+            expect(candidate?.visualSourceText?.length).toBeLessThan(source.length);
+        } finally {
+            restoreRange();
+            if (previousCaret) Object.defineProperty(document, 'caretPositionFromPoint', previousCaret);
+            else Reflect.deleteProperty(document, 'caretPositionFromPoint');
+            if (previousSegmenter) Object.defineProperty(Intl, 'Segmenter', previousSegmenter);
+            else Reflect.deleteProperty(Intl, 'Segmenter');
+        }
+    });
+
+    it('keeps a visual blank-line boundary and grows the first sentence group forward', () => {
+        const beforeBreak = Array.from({length: 3}, (_, index) =>
+            `Visual sentence ${index} describes the first visual paragraph clearly.`).join(' ');
+        const afterBreak = Array.from({length: 70}, (_, index) =>
+            `Visual sentence ${index + 3} describes the second visual paragraph clearly.`).join(' ');
+        const source = `${beforeBreak}\n\n${afterBreak}`;
+        const {document, core} = page(`<main><div id="visual-paragraphs">${source}</div></main>`);
+        const owner = document.querySelector('#visual-paragraphs')!;
+        const text = owner.firstChild! as Text;
+        const breakOffset = beforeBreak.length;
+        const previousCaret = Object.getOwnPropertyDescriptor(document, 'caretPositionFromPoint');
+        Object.defineProperty(document, 'caretPositionFromPoint', {
+            configurable: true,
+            value: () => ({offsetNode: text, offset: 1}),
+        });
+        const restoreRange = installRangeStub(document, text, (startOffset) =>
+            startOffset > breakOffset ? [{top: 100, bottom: 110, height: 10}] : [{top: 0, bottom: 10, height: 10}],
+        );
+        try {
+            const candidate = core.resolveAtPoint(document, 10, 20);
+            expect(candidate).toMatchObject({element: owner, reason: 'visual-text-chunk'});
+            expect(candidate?.visualSourceText).toContain('Visual sentence 0');
+            expect(candidate?.visualSourceText).not.toContain('Visual sentence 3');
+        } finally {
+            restoreRange();
+            if (previousCaret) Object.defineProperty(document, 'caretPositionFromPoint', previousCaret);
+            else Reflect.deleteProperty(document, 'caretPositionFromPoint');
+        }
+    });
+
+    it('chooses a following sentence when the caret falls in an unsegmented prefix', () => {
+        const prefix = 'Leading prefix.';
+        const source = `${prefix} ${Array.from({length: 800}, (_, index) =>
+            `Following word ${index}`).join(' ')}.`;
+        const {document, core} = page(`<main><div id="prefix-gap">${source}</div></main>`);
+        const owner = document.querySelector('#prefix-gap')!;
+        const text = owner.firstChild! as Text;
+        const previousCaret = Object.getOwnPropertyDescriptor(document, 'caretPositionFromPoint');
+        const previousSegmenter = Object.getOwnPropertyDescriptor(Intl, 'Segmenter');
+        Object.defineProperty(document, 'caretPositionFromPoint', {
+            configurable: true,
+            value: () => ({offsetNode: text, offset: 0}),
+        });
+        Object.defineProperty(Intl, 'Segmenter', {
+            configurable: true,
+            value: class {
+                segment(value: string) { return [{index: prefix.length + 1, segment: value.slice(prefix.length + 1)}]; }
+            },
+        });
+        const restoreRange = installRangeStub(document, text);
+        try {
+            const candidate = core.resolveAtPoint(document, 10, 20);
+            expect(candidate).toMatchObject({element: owner, reason: 'visual-text-chunk'});
+            expect(candidate?.visualSourceText).not.toContain(prefix);
+        } finally {
+            restoreRange();
+            if (previousCaret) Object.defineProperty(document, 'caretPositionFromPoint', previousCaret);
+            else Reflect.deleteProperty(document, 'caretPositionFromPoint');
+            if (previousSegmenter) Object.defineProperty(Intl, 'Segmenter', previousSegmenter);
+            else Reflect.deleteProperty(Intl, 'Segmenter');
+        }
+    });
+
+    it('fails open to the ordinary candidate when DOM Range boundaries are unavailable', () => {
+        const source = Array.from({length: 120}, (_, index) =>
+            `Sentence ${index} explains how the document keeps its readable context intact.`).join(' ');
+        const {document, core} = page(`<main><div id="unsupported-range">${source}</div></main>`);
+        const owner = document.querySelector('#unsupported-range')!;
+        const text = owner.firstChild! as Text;
+        const previousCaret = Object.getOwnPropertyDescriptor(document, 'caretPositionFromPoint');
+        Object.defineProperty(document, 'caretPositionFromPoint', {
+            configurable: true,
+            value: () => ({offsetNode: text, offset: Math.floor(text.length / 2)}),
+        });
+        try {
+            expect(core.resolveAtPoint(document, 10, 20)).toMatchObject({element: owner, reason: 'generic-readable-block'});
+        } finally {
+            if (previousCaret) Object.defineProperty(document, 'caretPositionFromPoint', previousCaret);
+            else Reflect.deleteProperty(document, 'caretPositionFromPoint');
+        }
+    });
+
+    it('keeps protected and earlier text entries outside a visual range across inline markup', () => {
+        const first = Array.from({length: 500}, (_, index) => `first${index}`).join(' ');
+        const second = Array.from({length: 500}, (_, index) => `second${index}`).join(' ');
+        const {document, core} = page(`<main><div id="multi-entry"><span>${first}</span><span>${second}</span></div></main>`);
+        const owner = document.querySelector('#multi-entry')!;
+        const text = owner.lastElementChild!.firstChild! as Text;
+        const previousCaret = Object.getOwnPropertyDescriptor(document, 'caretPositionFromPoint');
+        Object.defineProperty(document, 'caretPositionFromPoint', {
+            configurable: true,
+            value: () => ({offsetNode: text, offset: 10}),
+        });
+        const restoreRange = installRangeStub(document, text);
+        try {
+            const candidate = core.resolveAtPoint(document, 10, 20);
+            expect(candidate).toMatchObject({element: owner, reason: 'visual-text-chunk'});
+            expect(candidate?.visualRange?.startContainer).toBe(text);
+            expect(candidate?.visualSourceText).toMatch(/^second/u);
+        } finally {
+            restoreRange();
+            if (previousCaret) Object.defineProperty(document, 'caretPositionFromPoint', previousCaret);
+            else Reflect.deleteProperty(document, 'caretPositionFromPoint');
+        }
+    });
+
+    it('handles layout metric failures without losing the bounded text range', () => {
+        const source = Array.from({length: 120}, (_, index) =>
+            `Metric sentence ${index} remains readable when geometry is unavailable.`).join(' ');
+        const {document, core} = page(`<main><div id="metric-failure">${source}</div></main>`);
+        const owner = document.querySelector('#metric-failure')!;
+        const text = owner.firstChild! as Text;
+        const previousCaret = Object.getOwnPropertyDescriptor(document, 'caretPositionFromPoint');
+        Object.defineProperty(document, 'caretPositionFromPoint', {
+            configurable: true,
+            value: () => ({offsetNode: text, offset: 1}),
+        });
+        const restoreRange = installRangeStub(document, text, () => { throw new Error('layout unavailable'); });
+        try {
+            expect(core.resolveAtPoint(document, 10, 20)).toMatchObject({element: owner, reason: 'visual-text-chunk'});
+        } finally {
+            restoreRange();
+            if (previousCaret) Object.defineProperty(document, 'caretPositionFromPoint', previousCaret);
+            else Reflect.deleteProperty(document, 'caretPositionFromPoint');
+        }
+    });
+
+    it('falls back when caret or text-entry support cannot provide a visual range', () => {
+        const source = Array.from({length: 120}, (_, index) =>
+            `Fallback sentence ${index} remains readable in the large container.`).join(' ');
+        const {document, core} = page(`<main><div id="no-caret">${source}</div><p id="outside">Outside text.</p></main>`);
+        const owner = document.querySelector('#no-caret')!;
+        const outside = document.querySelector('#outside')!.firstChild!;
+        const previousCaret = Object.getOwnPropertyDescriptor(document, 'caretPositionFromPoint');
+        Object.defineProperty(document, 'caretPositionFromPoint', {
+            configurable: true,
+            value: () => ({offsetNode: outside, offset: 0}),
+        });
+        const restoreRange = installRangeStub(document, owner.firstChild! as Text);
+        try {
+            const inspected = core.inspect(owner).candidate!;
+            expect(resolveVisualTranslationRange(inspected, document, 10, 20, core.shouldStayOriginal)).toBeNull();
+        } finally {
+            restoreRange();
+            if (previousCaret) Object.defineProperty(document, 'caretPositionFromPoint', previousCaret);
+            else Reflect.deleteProperty(document, 'caretPositionFromPoint');
+        }
+    });
+
+    it('returns no visual range for unsupported DOM traversal, whitespace-only source, or an oversized scan', () => {
+        const fakeElement = Object.assign(Object.create(null), {tagName: 'DIV', ownerDocument: {}}) as HTMLElement;
+        expect(resolveVisualTranslationRange({element: fakeElement, kind: 'content', reason: 'generic-readable-block'}, {} as Document, 0, 0)).toBeNull();
+
+        const {document} = page(`<main><div id="spaces">${' '.repeat(5000)}</div></main>`);
+        const spaces = document.querySelector<HTMLElement>('#spaces')!;
+        const text = spaces.firstChild! as Text;
+        const previousCaret = Object.getOwnPropertyDescriptor(document, 'caretPositionFromPoint');
+        Object.defineProperty(document, 'caretPositionFromPoint', {
+            configurable: true,
+            value: () => ({offsetNode: text, offset: 0}),
+        });
+        const restoreRange = installRangeStub(document, text);
+        try {
+            expect(resolveVisualTranslationRange({element: spaces, kind: 'content', reason: 'generic-readable-block'}, document, 10, 20)).toBeNull();
+        } finally {
+            restoreRange();
+            if (previousCaret) Object.defineProperty(document, 'caretPositionFromPoint', previousCaret);
+            else Reflect.deleteProperty(document, 'caretPositionFromPoint');
+        }
+
+        const oversized = document.createElement('div');
+        oversized.textContent = 'x'.repeat(16_385);
+        document.body.append(oversized);
+        expect(resolveVisualTranslationRange({element: oversized, kind: 'content', reason: 'generic-readable-block'}, document, 10, 20)).toBeNull();
+    });
+
+    it('fails closed when a live range throws while setting its boundaries', () => {
+        const source = Array.from({length: 120}, (_, index) =>
+            `Range sentence ${index} remains readable in the large container.`).join(' ');
+        const {document, core} = page(`<main><div id="throwing-range">${source}</div></main>`);
+        const owner = document.querySelector('#throwing-range')!;
+        const text = owner.firstChild! as Text;
+        const previousCaret = Object.getOwnPropertyDescriptor(document, 'caretPositionFromPoint');
+        const previousRange = Object.getOwnPropertyDescriptor(document, 'createRange');
+        Object.defineProperty(document, 'caretPositionFromPoint', {
+            configurable: true,
+            value: () => ({offsetNode: text, offset: 1}),
+        });
+        Object.defineProperty(document, 'createRange', {
+            configurable: true,
+            value: () => ({
+                setStart() { throw new Error('range boundary unavailable'); },
+                setEnd() { return undefined; },
+            } as unknown as Range),
+        });
+        try {
+            expect(resolveVisualTranslationRange(core.inspect(owner).candidate!, document, 10, 20, core.shouldStayOriginal)).toBeNull();
+        } finally {
+            if (previousCaret) Object.defineProperty(document, 'caretPositionFromPoint', previousCaret);
+            else Reflect.deleteProperty(document, 'caretPositionFromPoint');
+            if (previousRange) Object.defineProperty(document, 'createRange', previousRange);
             else Reflect.deleteProperty(document, 'createRange');
         }
     });
