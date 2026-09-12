@@ -68,6 +68,7 @@ async function main() {
   };
   let launched;
   let currentPage;
+  const requestLimitModel = 'deepseek-flash';
   const screenshot = async (page, name, fullPage = true) => {
     const file = path.join(args.artifactsDir, `${name}.png`);
     await page.screenshot({path: file, fullPage, animations: 'disabled'});
@@ -170,7 +171,7 @@ async function main() {
     await screenshot(options, 'global-advanced-defaults', false);
     report.cases.push({id: 'global-advanced-defaults', ok: true});
 
-    await patchConfig({service: 'deepseek', model: {deepseek: 'deepseek-v4-flash'}, theme: 'light'});
+    await patchConfig({service: 'deepseek', model: {deepseek: requestLimitModel}, theme: 'light'});
     await options.goto(`${extensionOrigin}/options.html#settings-services`, {waitUntil: 'domcontentloaded'});
     await options.locator('section.service-catalog[data-default-service]').waitFor({state: 'visible'});
     const deepseek = options.locator('[data-service-value="deepseek"]').first();
@@ -190,7 +191,7 @@ async function main() {
     const modelLimits = advanced.getByTestId('request-limit-settings');
     await modelLimits.waitFor({state: 'visible'});
     assert.equal(await modelLimits.getAttribute('data-scope'), 'model');
-    assert.equal(await modelLimits.getAttribute('data-model'), 'deepseek-v4-flash');
+    assert.equal(await modelLimits.getAttribute('data-model'), requestLimitModel);
 
     const serviceLimitsButton = modelLimits.getByRole('button', {name: '服务请求限制', exact: true});
     await serviceLimitsButton.click();
@@ -223,11 +224,11 @@ async function main() {
     await modelRpm.fill('40');
     await modelConcurrency.fill('3');
     await modelRps.press('Tab');
-    await waitConfig(config => config.modelRequestLimits?.deepseek?.['deepseek-v4-flash']?.enabled === true);
+    await waitConfig(config => config.modelRequestLimits?.deepseek?.[requestLimitModel]?.enabled === true);
     const customized = await readConfig();
-    assert.equal(customized.modelRequestLimits.deepseek['deepseek-v4-flash'].limits.translationRequestsPerSecond, 2);
-    assert.equal(customized.modelRequestLimits.deepseek['deepseek-v4-flash'].limits.translationRequestsPerMinute, 40);
-    assert.equal(customized.modelRequestLimits.deepseek['deepseek-v4-flash'].limits.maxConcurrentTranslations, 3);
+    assert.equal(customized.modelRequestLimits.deepseek[requestLimitModel].limits.translationRequestsPerSecond, 2);
+    assert.equal(customized.modelRequestLimits.deepseek[requestLimitModel].limits.translationRequestsPerMinute, 40);
+    assert.equal(customized.modelRequestLimits.deepseek[requestLimitModel].limits.maxConcurrentTranslations, 3);
     await modelRpm.press('Tab');
     await modelLimits.scrollIntoViewIfNeeded();
     const compactFields = await modelLimits.locator('input[role="spinbutton"]').evaluateAll(inputs => inputs.map(input => {
@@ -246,12 +247,12 @@ async function main() {
     await options.locator('[data-service-value="deepseek"]').first().click();
     await options.getByTestId('custom-service-advanced').locator('summary').click().catch(() => {});
     const inheritedState = await readConfig();
-    assert.equal(inheritedState.modelRequestLimits.deepseek['deepseek-v4-flash'].limits.translationRequestsPerSecond, 2, '修改全局默认不应覆盖模型独立限制');
+    assert.equal(inheritedState.modelRequestLimits.deepseek[requestLimitModel].limits.translationRequestsPerSecond, 2, '修改全局默认不应覆盖模型独立限制');
     report.persistenceCases.push({id: 'global-does-not-overwrite-model', ok: true});
 
     const modelFollowSwitch = modelLimits.getByRole('switch', {name: /跟随(服务|全局)设置/, exact: false}).first();
     await switchTo(modelLimits, (await modelFollowSwitch.getAttribute('aria-label')) || '跟随服务设置', true);
-    await waitConfig(config => config.modelRequestLimits?.deepseek?.['deepseek-v4-flash']?.enabled === false);
+    await waitConfig(config => config.modelRequestLimits?.deepseek?.[requestLimitModel]?.enabled === false);
     report.persistenceCases.push({id: 'inheritance-restores-and-clears-override', ok: true});
 
     await serviceLimitsButton.click();
