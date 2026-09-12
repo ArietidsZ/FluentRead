@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/InterfaceSettings.vue
  * 文件职责：组织界面风格、动画加载效果、菜单栏布局与界面字体四个偏好分组。
- * 主要内容：提供皮肤、动画及字体预览，通过预览和显隐列表编排区域与快捷入口；所有偏好共享持久化配置。
+ * 主要内容：提供皮肤、动画及字体预览，通过预览和显隐列表编排区域与快捷入口；所有偏好共享持久化配置，字体高级区域提供缓存查看与清理。
  * 模块边界：本组件只负责界面配置的展示与双向绑定，不直接读写浏览器存储、不负责主题模式，也不关闭翻译功能本身；界面皮肤由 Options composition root 统一应用。
 -->
 <template>
@@ -222,10 +222,9 @@
         </div>
         <p class="interface-font-note">{{ t('settings.interface.font.note') }}</p>
       </div>
-      <div class="interface-font-download">
+      <div v-if="interfaceFontLoadState.status === 'loading' || interfaceFontLoadState.status === 'error'" class="interface-font-download">
         <div class="interface-font-status" role="status" aria-live="polite" :data-status="interfaceFontLoadState.status">
           <span>{{ fontStatusText }}</span>
-          <span v-if="fontAssets.length" class="interface-font-size">{{ fontSize }}</span>
           <button v-if="interfaceFontLoadState.status === 'error'" type="button" @click="retryInterfaceFont()">
             {{ t('settings.interface.font.retry') }}
           </button>
@@ -237,6 +236,21 @@
           :aria-label="t('settings.interface.font.downloading')"
         />
       </div>
+      <details class="interface-font-advanced" @toggle="refreshFontCache">
+        <summary>{{ t('settings.interface.font.advanced') }}</summary>
+        <div class="interface-font-cache-row">
+          <span>{{ t('settings.interface.font.cache') }}</span>
+          <span class="interface-font-size">{{ fontCacheSizeText }}</span>
+          <button type="button" :disabled="clearingFontCache || interfaceFontLoadState.status === 'loading' || interfaceFontCacheSize === 0"
+            @click="clearFontCache">
+            {{ t(clearingFontCache ? 'settings.interface.font.clearingCache' : 'settings.interface.font.clearCache') }}
+          </button>
+        </div>
+        <p>{{ t('settings.interface.font.clearCacheNote') }}</p>
+        <p v-if="!fontCacheMessage && (interfaceFontLoadState.status === 'ready' || interfaceFontLoadState.status === 'system')"
+          class="interface-font-status" role="status" :data-status="interfaceFontLoadState.status">{{ fontStatusText }}</p>
+        <p v-if="fontCacheMessage" role="status" aria-live="polite">{{ t(fontCacheMessage) }}</p>
+      </details>
     </div>
   </SettingsGroup>
 </template>
@@ -262,8 +276,7 @@ import {
   type InterfaceFont,
 } from '@/src/core/config/interfaceAppearance'
 import {useUiI18n} from '@/src/ui/i18n'
-import {getInterfaceFontAssets} from '@/src/core/config/interfaceFontAssets'
-import {availableInterfaceFonts, interfaceFontLoadState, refreshInterfaceFontAvailability, retryInterfaceFont} from '@/src/ui/interfaceAppearance'
+import {availableInterfaceFonts, clearInterfaceFontCache, interfaceFontCacheSize, interfaceFontLoadState, refreshInterfaceFontAvailability, retryInterfaceFont} from '@/src/ui/interfaceAppearance'
 import InterfaceSkinPreview from './components/InterfaceSkinPreview.vue'
 import PopupLayoutPreview from './components/PopupLayoutPreview.vue'
 import PopupLayoutEditor from './PopupLayoutEditor.vue'
@@ -303,8 +316,27 @@ function selectInterfaceFont(font: InterfaceFont) {
   }
   props.config.interfaceFont = font
 }
-const fontAssets = computed(() => getInterfaceFontAssets(selectedFontOption.value.value))
-const fontSize = computed(() => `${(fontAssets.value.reduce((sum, asset) => sum + asset.bytes, 0) / 1024 / 1024).toFixed(1)} MB`)
+const clearingFontCache = ref(false)
+const fontCacheMessage = ref('')
+const fontCacheSizeText = computed(() => interfaceFontCacheSize.value === null
+  ? t('settings.interface.font.cacheUnavailable')
+  : `${(interfaceFontCacheSize.value / 1024 / 1024).toFixed(1)} MB`)
+function refreshFontCache(event: Event) {
+  if ((event.target as HTMLDetailsElement).open) void refreshInterfaceFontAvailability()
+}
+async function clearFontCache() {
+  if (clearingFontCache.value || interfaceFontLoadState.value.status === 'loading') return
+  clearingFontCache.value = true
+  fontCacheMessage.value = ''
+  try {
+    await clearInterfaceFontCache()
+    fontCacheMessage.value = 'settings.interface.font.cacheCleared'
+  } catch {
+    fontCacheMessage.value = 'settings.interface.font.cacheClearFailed'
+  } finally {
+    clearingFontCache.value = false
+  }
+}
 const fontStatusText = computed(() => {
   const state = interfaceFontLoadState.value
   if (state.status === 'system') return t('settings.interface.font.noDownload')
@@ -381,8 +413,14 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
 .interface-font-status { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .interface-font-size { color: var(--muted); margin-left: auto; }
 .interface-font-download progress { width: 100%; height: 6px; accent-color: var(--brand); margin-top: 10px; }
-.interface-font-download button { border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; background: var(--surface); color: var(--brand); cursor: pointer; font-size: 12px; }
-.interface-font-download button:hover { border-color: var(--brand); }
+.interface-font-download button, .interface-font-advanced button { border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; background: var(--surface); color: var(--brand); cursor: pointer; font-size: 12px; }
+.interface-font-download button:hover, .interface-font-advanced button:hover:not(:disabled) { border-color: var(--brand); }
+.interface-font-advanced { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; font-size: 12px; line-height: 1.6; }
+.interface-font-advanced summary { width: fit-content; cursor: pointer; color: var(--muted); }
+.interface-font-advanced summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; border-radius: 3px; }
+.interface-font-advanced p { margin: 10px 0 0; color: var(--muted); }
+.interface-font-cache-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; }
+.interface-font-advanced button:disabled { opacity: .55; cursor: default; }
 
 .interface-font-picker {
   display: grid;
