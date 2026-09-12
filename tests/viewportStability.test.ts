@@ -157,6 +157,20 @@ describe('全文翻译视口稳定性', () => {
         expect(withFullPageViewportAnchor(() => undefined)).toBeUndefined();
     });
 
+    it('innerHeight 为零时仍安全计算 elementFromPoint 的回退坐标', () => {
+        const {document, window} = globalThis as unknown as {document: Document; window: Window & typeof globalThis};
+        const anchor = document.createElement('p');
+        document.body.appendChild(anchor);
+        Object.defineProperty(window, 'innerHeight', {configurable: true, value: 0});
+        Object.defineProperty(document, 'elementFromPoint', {configurable: true, value: () => anchor});
+        Object.defineProperty(anchor, 'getBoundingClientRect', {
+            configurable: true,
+            value: () => ({width: 300, height: 30, top: 90, right: 300, bottom: 120, left: 0, x: 0, y: 90}),
+        });
+
+        expect(withFullPageViewportAnchor(() => 'safe')).toBe('safe');
+    });
+
     it('异常/无位移/无 scrollBy 时不阻断翻译 callback', () => {
         const {document, window} = globalThis as unknown as {document: Document; window: Window & typeof globalThis};
         const anchor = document.createElement('p');

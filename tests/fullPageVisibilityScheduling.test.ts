@@ -364,6 +364,24 @@ function setLayoutBox(element: Element, width: number, height: number): void {
     });
 }
 
+function setViewportRect(element: Element, initialTop: number, height = 80): (top: number) => void {
+    let top = initialTop;
+    Object.defineProperty(element, 'getBoundingClientRect', {
+        configurable: true,
+        value: () => ({
+            width: 600,
+            height,
+            top,
+            bottom: top + height,
+            left: 0,
+            right: 600,
+            x: 0,
+            y: top,
+        }),
+    });
+    return (nextTop: number) => { top = nextTop; };
+}
+
 function deferred<T>() {
     let resolve!: (value: T) => void;
     let reject!: (error: unknown) => void;
@@ -3195,6 +3213,76 @@ describe("全文翻译可见性锚点", () => {
         expect(runtime.requests).toHaveBeenCalledWith(["Paragraph near the page bottom"]);
         expect(singleTranslationText(visible)).toBe("译:Visible paragraph");
         expect(singleTranslationText(belowFold)).toBe("译:Paragraph near the page bottom");
+    });
+
+    it('滚动停止后优先翻译新可见候选，而不是先前已排队的离屏候选', async () => {
+        runtime.config.maxConcurrentTranslations = 1;
+        document.body.innerHTML = [
+            '<p id="first">The first paragraph is already being translated.</p>',
+            '<p id="old">An older queued paragraph remains far above the new viewport.</p>',
+            '<p id="jumped">The paragraph revealed by the user scroll should go next.</p>',
+        ].join('');
+        const first = document.querySelector<HTMLElement>('#first')!;
+        const old = document.querySelector<HTMLElement>('#old')!;
+        const jumped = document.querySelector<HTMLElement>('#jumped')!;
+        const moveFirst = setViewportRect(first, 100);
+        setViewportRect(old, 1_400);
+        const moveJumped = setViewportRect(jumped, 1_600);
+        [first, old, jumped].forEach((candidate) => setLayoutBox(candidate, 600, 80));
+        runtime.candidates = [first, old, jumped].map((element) => ({
+            element,
+            kind: 'content' as const,
+            reason: 'paragraph',
+        }));
+
+        const firstRequest = deferred<string[]>();
+        const jumpedRequest = deferred<string[]>();
+        const oldRequest = deferred<string[]>();
+        runtime.requests
+            .mockImplementationOnce(() => firstRequest.promise)
+            .mockImplementationOnce(() => jumpedRequest.promise)
+            .mockImplementationOnce(() => oldRequest.promise);
+
+        Object.defineProperty(window, 'innerHeight', {configurable: true, value: 600});
+        Object.defineProperty(window, 'scrollY', {configurable: true, writable: true, value: 0});
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(50);
+        const observer = TestIntersectionObserver.instances[0]!;
+        await waitForObservedCandidateCount(observer, 3);
+        observer.emit(first, true);
+        observer.emit(old, true);
+        await vi.advanceTimersByTimeAsync(1);
+        await Promise.resolve();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+
+        moveFirst(-700);
+        moveJumped(100);
+        window.scrollY = 1_000;
+        document.dispatchEvent(new window.Event('scroll'));
+        observer.emit(jumped, true);
+        firstRequest.resolve(['译:The first paragraph is already being translated.']);
+        await vi.advanceTimersByTimeAsync(1);
+        await Promise.resolve();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(runtime.cancelQueue).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(220);
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(runtime.requests).toHaveBeenNthCalledWith(2, [
+            'The paragraph revealed by the user scroll should go next.',
+        ]);
+
+        jumpedRequest.resolve(['译:The paragraph revealed by the user scroll should go next.']);
+        await vi.advanceTimersByTimeAsync(1);
+        await Promise.resolve();
+        expect(runtime.requests).toHaveBeenCalledTimes(3);
+        expect(runtime.requests).toHaveBeenNthCalledWith(3, [
+            'An older queued paragraph remains far above the new viewport.',
+        ]);
+        oldRequest.resolve(['译:An older queued paragraph remains far above the new viewport.']);
+        await finishScheduledWork();
     });
 
     it("立即翻译整页按任务调度配置限制候选并发，释放槽位后才启动下一项", async () => {

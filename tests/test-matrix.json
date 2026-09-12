@@ -233,6 +233,7 @@
       "tests/translationVisionPayload.test.ts",
       "tests/requestLimits.test.ts",
       "tests/fullPageModalPriority.test.ts",
+      "tests/fullPagePriority.test.ts",
       "tests/modalProgressHint.test.ts"
     ],
     "functional": [

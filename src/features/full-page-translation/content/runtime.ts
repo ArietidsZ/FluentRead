@@ -98,6 +98,8 @@ import {
     withFullPageViewportAnchor,
     type FullPageScrollController,
 } from '@/src/features/full-page-translation/content/viewportStability';
+import {clearFullPageQueueState, createFullPageQueueState, noteFullPageScroll, queueFullPageCandidate, removeFullPagePending, selectNextFullPageCandidate, type FullPageQueueState} from '@/src/features/full-page-translation/content/fullPageQueue';
+import {FULL_PAGE_PREFETCH_MARGIN_PX} from '@/src/features/full-page-translation/content/fullPagePriority';
 import {
     canKeepTranslationAttempt,
     getCandidateTranslationTextProtectionOptions,
@@ -147,7 +149,7 @@ interface FullPageLifecycleRetry {
     reason: string;
     attempts: number;
 }
-interface FullPageSession extends FullPageRequestSessionState, ModalPrioritySession {
+interface FullPageSession extends FullPageRequestSessionState, ModalPrioritySession, FullPageQueueState {
     translationMode: FullPageTranslationMode;
     scope: TranslationScope;
     /** 会话启动时冻结所有会改变译文或 DOM 表达的配置，防止设置热更新混入当前页面。 */
@@ -157,11 +159,8 @@ interface FullPageSession extends FullPageRequestSessionState, ModalPrioritySess
     observer: IntersectionObserver;
     mutationObserver: MutationObserver;
     shadowEventController: AbortController;
-    pending: Map<Node, TranslationCandidate>;
     /** 可见性锚点 -> 等待该锚点进入视口的候选。 */
     observedCandidates: Map<HTMLElement, Map<Node, TranslationCandidate>>;
-    /** 候选 key -> 实际的 IntersectionObserver 目标，该目标可以是后代元素。 */
-    candidateAnchors: Map<Node, HTMLElement>;
     /** 候选元素 -> 候选 key；与可见性锚点分开保存，便于精确清理。 */
     candidateOwnerKeys: Map<HTMLElement, Set<Node>>;
     /** 宿主 owner/祖先 -> 其下活跃翻译目标，避免 mutation 时全局扫描状态。 */
@@ -660,7 +659,7 @@ function refreshCandidateVisibilityBinding(
     if (session.translationMode === "all" || (session.modal && isWithinTranslationModal(session.modal, candidate.element)) || consumeEagerTranslationBudget(session, key, candidate)) {
         // “翻译到网页底部”和免滚动预翻译都只绕过视口门禁，不操纵页面滚动位置；初次扫描和后续 mutation 发现的内容都进入同一受限队列。
         removeCandidateObservation(session, key);
-        session.pending.set(key, candidate);
+        queueFullPageCandidate(session, key, candidate, candidateLifecycleSource(candidate));
         scheduleFullPageDrain(session);
         return;
     }
@@ -675,7 +674,9 @@ function refreshCandidateVisibilityBinding(
     if (!nextAnchor) {
         // 已可见候选的 display:contents 子树重建时仍应保持 pending；若它仍在等待
         // 旧锚点，直接调度是唯一不会丢失可见性的回退方式。
-        if (!session.pending.has(key)) session.pending.set(key, candidate);
+        if (!session.pending.has(key)) {
+            queueFullPageCandidate(session, key, candidate, candidateLifecycleSource(candidate));
+        }
         scheduleFullPageProgressPublish(session);
         scheduleFullPageDrain(session);
         return;
@@ -695,7 +696,7 @@ function refreshCandidateVisibilityBinding(
 function forgetCandidate(session: FullPageSession | undefined, candidate: TranslationCandidate): void {
     if (!session) return;
     const key = getTranslationCandidateKey(candidate);
-    const removedPending = session.pending.get(key) === candidate && session.pending.delete(key);
+    const removedPending = removeFullPagePending(session, key, candidate);
     if (session.scheduled.get(key) !== candidate) {
         if (removedPending) scheduleFullPageProgressPublish(session);
         return;
@@ -1054,7 +1055,7 @@ function finalizeFullPageCandidate(
         if (session.scheduled.get(retryKey) === fresh) {
             // 原候选已经通过可见性门禁，应直接重试新解析出的 owner；
             // 若 IntersectionObserver 不再派发，重新观察可能永远等待。
-            session.pending.set(retryKey, fresh);
+            queueFullPageCandidate(session, retryKey, fresh, candidateLifecycleSource(fresh));
             scheduleFullPageDrain(session);
         }
         return;
@@ -1090,18 +1091,13 @@ function drainFullPage(session: FullPageSession): void {
     const maxConcurrent = normalizeMaxConcurrentTranslations(config.maxConcurrentTranslations);
 
     while (session.active && session.inFlightCandidates.size < maxConcurrent && session.pending.size > 0) {
-        let entry: [Node, TranslationCandidate] | undefined;
-        for (const pendingEntry of session.pending.entries()) {
-            if (!session.inFlightCandidates.has(pendingEntry[0]) &&
-                (!session.modal || isWithinTranslationModal(session.modal, pendingEntry[1].element))) {
-                entry = pendingEntry;
-                break;
-            }
-        }
-        if (!entry) break;
-        const [key, candidate] = entry;
-        session.pending.delete(key);
+        const selection = selectNextFullPageCandidate(session, {now: Date.now(), viewportHeight: window.innerHeight, isEligible: candidate => !session.modal || isWithinTranslationModal(session.modal, candidate.element), resolveSource: candidateLifecycleSource});
+        if (!selection) break;
+        const {key, candidate, priority} = selection;
+        removeFullPagePending(session, key, candidate);
         session.inFlightCandidates.set(key, candidate);
+        if (priority.band === 'background') session.foregroundDispatchesSinceBackground = 0;
+        else session.foregroundDispatchesSinceBackground += 1;
         void translateTarget(candidate, session.translationConfig.displayMode, true, session)
             .then(
                 (outcome) => finalizeFullPageCandidate(session, candidate, outcome),
@@ -1145,7 +1141,7 @@ function scheduleDiscoveredCandidate(session: FullPageSession, candidate: Transl
         if (queuedCandidate) {
             forgetCandidate(session, queuedCandidate);
         } else if (session.pending.get(key) === candidate) {
-            session.pending.delete(key);
+            removeFullPagePending(session, key, candidate);
             removeCandidateObservation(session, key);
             scheduleFullPageProgressPublish(session);
         }
@@ -1206,7 +1202,9 @@ function scheduleDiscoveredCandidate(session: FullPageSession, candidate: Transl
         }
         removeCandidateObservation(session, key);
         removeCandidateOwnerKey(session, existing.element, key);
-        if (session.pending.has(key)) session.pending.set(key, candidate);
+        if (session.pending.has(key)) {
+            queueFullPageCandidate(session, key, candidate, candidateLifecycleSource(candidate));
+        }
     }
     session.scheduled.set(key, candidate);
     addCandidateOwnerKey(session, target, key);
@@ -1914,13 +1912,13 @@ function createFullPageSession(
             const node = entry.target as HTMLElement;
             if (!entry.isIntersecting) continue;
             const candidates = session.observedCandidates.get(node);
-            candidates?.forEach((candidate, key) => session.pending.set(key, candidate));
+            candidates?.forEach((candidate, key) => queueFullPageCandidate(session, key, candidate, candidateLifecycleSource(candidate)));
         }
         scheduleFullPageProgressPublish(session);
         scheduleFullPageDrain(session);
     }, {
         root: null,
-        rootMargin: "600px 0px",
+        rootMargin: `${FULL_PAGE_PREFETCH_MARGIN_PX}px 0px`,
         threshold: 0.01,
     });
     const mutationObserver = createFullPageMutationObserver(() => session);
@@ -1953,10 +1951,9 @@ function createFullPageSession(
         mutationObserver,
         shadowEventController: new AbortController(),
         roots: new Set(),
-        pending: new Map(),
+        ...createFullPageQueueState(),
         scheduled: new Map(),
         observedCandidates: new Map(),
-        candidateAnchors: new Map(),
         candidateOwnerKeys: new Map(),
         statefulTargetsByAncestor: new Map(),
         statefulAncestorsByTarget: new WeakMap(),
@@ -2000,10 +1997,9 @@ function disposeFullPageSession(session: FullPageSession): void {
     session.mutationObserver.disconnect();
     session.shadowEventController.abort();
     session.roots.clear();
-    session.pending.clear();
+    clearFullPageQueueState(session);
     session.scheduled.clear();
     session.observedCandidates.clear();
-    session.candidateAnchors.clear();
     session.candidateOwnerKeys.clear();
     session.statefulTargetsByAncestor.clear();
     session.statefulAncestorsByTarget = new WeakMap();
@@ -2093,7 +2089,7 @@ export function autoTranslateEnglishPage(invocation: PageTranslationInvocation =
         enqueueFullPageRescan(session, shadowRoot);
         refreshFullPageModal(session);
     }, {capture: true, signal: session.shadowEventController.signal});
-    document.addEventListener('scroll', () => session.scrollController.note(), {
+    document.addEventListener('scroll', () => noteFullPageScroll(session, () => session.active && fullPageSession === session, session.scrollController.note), {
         capture: true,
         passive: true,
         signal: session.shadowEventController.signal,
