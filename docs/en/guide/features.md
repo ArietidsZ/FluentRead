@@ -34,6 +34,16 @@ In **Advanced settings → Page recognition**, enable the option to recognize al
 
 A wider scope also changes more interface text. Turn it off to return to the usual scope on the next translation. For text drawn inside pictures or charts, use [images](/en/guide/image-translation) or [area translation](/en/guide/area-translation).
 
+### Tune how paragraphs are handled
+
+**Advanced settings** offers a few more controls over webpage translation. Each one applies from the next translation:
+
+- **Sidebar translation**: also translate sidebars and navigation while reading main content; headers and footers stay untouched.
+- **Minimum characters per paragraph**: skip paragraphs shorter than this length to cut requests for tiny fragments. Length counts characters, so `hello` counts as 5.
+- **Characters translated without scrolling**: translate this many characters from the top of the page right away; the rest follows your reading progress. Set it to 0 to rely on the viewport alone.
+- **Line breaks in long paragraphs**: insert a line break at the end of each sentence in long translated paragraphs.
+- **Translation before original**: in bilingual mode, place the translation above each original paragraph instead of below it.
+
 ## Selection translation
 
 Enable bilingual selection translation in the extension menu, select a word or passage, and click the nearby icon. Copy the result or read the original aloud. Drag the header or the blank space around the content to move the window, or drag any edge or corner to resize it. Text wraps to fit the width, and long content scrolls inside the card. Your adjustments last until the card closes; a new selection opens at the default size near the selected text.

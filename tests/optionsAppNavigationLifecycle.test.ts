@@ -24,6 +24,7 @@ async function mountOptions(hash = '#settings-harness') {
   const mediaAdd = vi.fn();
   const mediaRemove = vi.fn();
   const scrollTo = vi.fn();
+  const windowScrollTo = vi.fn();
   const unsubscribeConfig = vi.fn();
   const replaceState = vi.fn((_state: unknown, _unused: string, nextHash: string) => {
     location.hash = nextHash;
@@ -32,7 +33,7 @@ async function mountOptions(hash = '#settings-harness') {
   const removeEventListener = vi.spyOn(windowEvents, 'removeEventListener');
   vi.stubGlobal('window', Object.assign(windowEvents, {
     location,
-    scrollTo,
+    scrollTo: windowScrollTo,
     matchMedia: () => ({matches: false, addEventListener: mediaAdd, removeEventListener: mediaRemove}),
   }));
   vi.stubGlobal('history', {replaceState});
@@ -74,7 +75,7 @@ async function mountOptions(hash = '#settings-harness') {
     nextSibling: () => null, querySelector: () => null, setScopeId: () => undefined,
     cloneNode: () => ({}), insertStaticContent: () => [{}, {}],
   });
-  let state!: {activeSection: string; query: string; activeItem: {id: string}; selectSection: (id: string) => void};
+  let state!: {activeSection: string; query: string; activeItem: {id: string}; selectSection: (id: string) => void; settingsContentElement: {scrollTo: typeof scrollTo} | null};
   const app = renderer.createApp({
     setup: () => () => runtime.h(component, {
       ref: (instance: any) => { if (instance) state = instance.$.setupState; },
@@ -83,6 +84,7 @@ async function mountOptions(hash = '#settings-harness') {
   app.provide(runtime.ssrContextKey, {modules: new Set<string>()});
   app.config.warnHandler = () => undefined;
   app.mount({});
+  state.settingsContentElement = {scrollTo};
   unmount = () => app.unmount();
   await runtime.nextTick();
   const navigateHash = async (nextHash: string) => {
@@ -90,12 +92,12 @@ async function mountOptions(hash = '#settings-harness') {
     windowEvents.dispatchEvent(new Event('hashchange'));
     await runtime.nextTick();
   };
-  return {state, location, navigateHash, replaceState, scrollTo, addEventListener, removeEventListener, mediaAdd, mediaRemove, unsubscribeConfig};
+  return {state, location, navigateHash, replaceState, scrollTo, windowScrollTo, addEventListener, removeEventListener, mediaAdd, mediaRemove, unsubscribeConfig};
 }
 
 describe('OptionsApp mounted hash navigation', () => {
   it('follows same-document deep links and history hash changes after the initial mount', async () => {
-    const {state, navigateHash, replaceState, scrollTo} = await mountOptions();
+    const {state, navigateHash, replaceState, scrollTo, windowScrollTo} = await mountOptions();
     expect(state.activeSection).toBe('settings-harness');
     state.query = 'pending search';
     await navigateHash('#settings-vocabulary');
@@ -107,7 +109,8 @@ describe('OptionsApp mounted hash navigation', () => {
     await navigateHash('#settings-vocabulary');
     expect(state.activeSection).toBe('settings-vocabulary');
     expect(replaceState).not.toHaveBeenCalled();
-    expect(scrollTo).toHaveBeenLastCalledWith({top: 0, behavior: 'smooth'});
+    expect(scrollTo).toHaveBeenLastCalledWith({top: 0, left: 0, behavior: 'instant'});
+    expect(windowScrollTo).not.toHaveBeenCalled();
   });
 
   it('canonicalizes aliases and unknown fragments through the shared navigation resolver', async () => {

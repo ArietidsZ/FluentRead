@@ -380,7 +380,11 @@
         <SettingsItem :label="t('settings.pageRecognition.pageTitle')" :description="t('settings.pageRecognition.pageTitleDescription')">
           <el-switch v-model="config.pageTitleTranslationEnabled" class="settings-toggle" :aria-label="t('settings.pageRecognition.pageTitle')" />
         </SettingsItem>
+        <SettingsItem :label="t('settings.pageRecognition.sidebar')" :description="t('settings.pageRecognition.sidebarDescription')">
+          <el-switch v-model="config.sidebarTranslationEnabled" class="settings-toggle" :aria-label="t('settings.pageRecognition.sidebar')" />
+        </SettingsItem>
       </SettingsGroup>
+      <ParagraphHandlingSettings v-if="props.activeSection === 'settings-advanced'" :config="config" />
       <TranslationCacheSettings v-if="props.activeSection === 'settings-advanced'" :config="config" />
     </section>
 
@@ -693,6 +697,7 @@ import InterfaceSettings from './InterfaceSettings.vue';
 import AreaTranslationSettings from './AreaTranslationSettings.vue';
 import InputTranslationSettings from './InputTranslationSettings.vue';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
+import ParagraphHandlingSettings from './ParagraphHandlingSettings.vue';
 import TranslationCacheSettings from './TranslationCacheSettings.vue';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';

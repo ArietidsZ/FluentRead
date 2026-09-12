@@ -542,6 +542,11 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     animations: {group: 'advanced', label: '动画效果', format: formatBoolean},
     translationScope: {group: 'advanced', label: '识别全部节点', format: (value) => formatEnum(value, TRANSLATION_SCOPE_LABELS)},
     pageTitleTranslationEnabled: {group: 'advanced', label: '翻译页面标题', format: formatBoolean},
+    sidebarTranslationEnabled: {group: 'advanced', label: '侧边栏翻译', format: formatBoolean},
+    minTranslationTextLength: {group: 'advanced', label: '翻译段落最少字符数', format: (value) => formatNumber(value, ' 字符')},
+    eagerTranslationCharacters: {group: 'advanced', label: '免滚动预翻译字符数', format: (value) => formatNumber(value, ' 字符')},
+    longParagraphLineBreakEnabled: {group: 'advanced', label: '长段落自动换行', format: formatBoolean},
+    translationBeforeOriginal: {group: 'advanced', label: '译文在原文之前', format: formatBoolean},
     translationLoadingStyle: {group: 'advanced', label: '段落加载样式', format: (value) => formatEnum(value, TRANSLATION_LOADING_STYLE_LABELS)},
 
     documentService: {group: 'tools', label: '文档翻译服务', format: formatService},
