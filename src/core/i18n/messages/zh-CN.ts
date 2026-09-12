@@ -10,6 +10,26 @@ import type {
 MessageCatalog} from '../types';
 
 export const zhCNMessages = {
+    "settings.services.library.views": "服务视图",
+    "settings.services.library.mine": "我的服务",
+    "settings.services.library.all": "全部服务",
+    "settings.services.library.search": "搜索所有翻译服务",
+    "settings.services.library.add": "＋ 自定义服务",
+    "settings.services.library.default": "当前默认",
+    "settings.services.library.favorites": "常用",
+    "settings.services.library.configured": "已保存配置",
+    "settings.services.library.viewing": "正在查看",
+    "settings.services.library.browse": "浏览更多服务",
+    "settings.services.library.setDefault": "设为默认",
+    "settings.services.library.categories": "服务分类",
+    "settings.services.library.allCategories": "全部分类",
+    "settings.services.library.custom": "自定义服务",
+    "settings.services.library.saved": "已保存配置",
+    "settings.services.library.empty": "没有匹配的翻译服务",
+    "settings.services.library.defaultBadge": "默认",
+    "settings.services.library.favorite": "将 {service} 设为常用",
+    "settings.services.library.unfavorite": "取消常用：{service}",
+
     "inputTranslation.systemRoleLabel": "角色",
     "inputTranslation.userRoleLabel": "任务",
     "inputTranslation.editDefaultPrompt": "从默认提示词开始编辑",

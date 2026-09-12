@@ -41,7 +41,7 @@
   </section>
   <section v-show="props.activeSection === 'settings-sites'" id="settings-sites" class="settings-section site-settings-section">
     <SettingsGroup>
-      <SettingsItem label="所有网站自动翻译" description="每个支持的网页加载完成后自动开始翻译；关闭后仍保留下面的名单。">
+      <SettingsItem label="所有网站自动翻译" description="页面基本结构可用后自动开始翻译；关闭后仍保留下面的名单。">
         <el-switch v-model="config.autoTranslate" class="settings-toggle" aria-label="所有网站自动翻译" />
       </SettingsItem>
     </SettingsGroup>
@@ -71,6 +71,8 @@
         :credential-guide="selectedConfigurationCredentialGuide"
         :selected-model="selectedConfigurationModel"
         :services="configurationCompute.filteredServices"
+        :favorite-services="config.favoriteServices"
+        :configured-services="configuredServiceIds"
         :model-options="configurationModelOptions"
         :show-model="configurationCompute.showModel"
         :maximum-custom-services="MAX_CUSTOM_OPENAI_PROVIDERS"
@@ -78,6 +80,8 @@
         :maximum-model-length="MAX_CUSTOM_OPENAI_MODEL_LENGTH"
         :custom-model-count="selectedConfigurationCustomModelCount"
         @update:service="setConfigurationService"
+        @update:favorites="config.favoriteServices = $event"
+        @set:default="config.service = $event"
         @update:model="selectConfigurationModel"
         @add:service="openCustomProviderDialog"
         @add:model="addConfigurationModel"
@@ -690,6 +694,7 @@ const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
 import UiLanguageSelector from '@/src/ui/components/UiLanguageSelector.vue';
 import ServiceCatalog from './services/ServiceCatalog.vue';
+import { hasSavedServiceConfiguration } from '@/src/ui/view-model/serviceLibrary';
 import {getServiceCredentialGuide, getServiceWebsite} from '@/src/ui/view-model/serviceCatalog';
 import ServiceConfiguration from './services/ServiceConfiguration.vue';
 import CustomOpenAIProviderDialog from './services/CustomOpenAIProviderDialog.vue';
@@ -912,6 +917,9 @@ const textServiceGroups = computed(() => {
 const defaultTextServiceLabel = computed(() => (
   serviceOptionsWithCustomProviders.value.find((item: any) => item.value === config.value.service)?.label || config.value.service
 ));
+const configuredServiceIds = computed(() => availableServiceOptions.value
+  .filter(item => !item.disabled && hasSavedServiceConfiguration(item.value, config.value))
+  .map(item => item.value));
 const videoServiceOptions = computed(() => availableServiceOptions.value.filter((item: any) => !item.disabled));
 const videoGlossaryDescription = computed(() => {
   if (!config.value.glossaryEnabled) return t('glossary.disabledHint');
