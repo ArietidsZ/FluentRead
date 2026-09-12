@@ -67,6 +67,22 @@
       },
       {
         "css": [
+          ".markdown-body li:has(> p)",
+          ".markdown-body li:has(> ul)",
+          ".markdown-body li:has(> ol)"
+        ],
+        "key": "github-markdown-list-container",
+        "resolve": "self",
+        "atomic": false
+      },
+      {
+        "css": [".markdown-body p:has(> br)"],
+        "key": "github-markdown-lines",
+        "resolve": "closest",
+        "splitOnBr": true
+      },
+      {
+        "css": [
           ".markdown-body p",
           ".markdown-body h1",
           ".markdown-body h2",

@@ -72,7 +72,7 @@ function unique<T>(items: readonly T[], key: (item: T) => string): T[] {
 function resolveRecipe(pack: SiteRulePack, rule: SiteRule): SiteRecipe {
     const profile = rule.profile ? pack.profiles?.[rule.profile] : undefined;
     const content = unique([...(profile?.content ?? []), ...(rule.content ?? [])],
-        (item: SiteContentRule) => JSON.stringify([item.css, item.resolve ?? 'self', item.atomic ?? true, item.key ?? '']));
+        (item: SiteContentRule) => JSON.stringify([item.css, item.resolve ?? 'self', item.atomic ?? true, item.splitOnBr ?? false, item.key ?? '']));
     const result: SiteRecipe = {mode: rule.mode ?? profile?.mode ?? 'augment', content};
     for (const key of ['protect', 'exclude', 'watchIgnore', 'omit', 'literalLabels', 'literalTokens'] as const) {
         result[key] = [...new Set([...(profile?.[key] ?? []), ...(rule[key] ?? [])])];
@@ -117,7 +117,7 @@ function compileRule(pack: SiteRulePack, rule: SiteRule): TranslationSiteAdapter
             ? {hostname: host.slice(2), includeSubdomains: true} : host),
         genericCandidatePolicy: recipe.mode === 'focus' ? 'targets-only' : 'allow',
         targets: recipe.content!.map((content) => ({
-            selector: content.css, match: content.resolve, atomic: content.atomic,
+            selector: content.css, match: content.resolve, atomic: content.atomic, splitOnBr: content.splitOnBr,
             reason: content.key ?? `${rule.id}:content`,
         })),
         prune: [{selector: [...recipe.exclude!, ...recipe.omit!], reason: `${rule.id}:exclude`}],

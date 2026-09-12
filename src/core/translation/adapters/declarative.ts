@@ -27,6 +27,8 @@ export interface DeclarativeTargetRule extends DeclarativeSelectorRule {
     match?: 'self' | 'closest';
     candidateKind?: TranslationCandidateKind;
     atomic?: boolean;
+    /** 按直接子级 br 拆分正文，保留每行的链接、强调与代码。 */
+    splitOnBr?: boolean;
 }
 
 export interface DeclarativeHostRule {
@@ -151,6 +153,7 @@ export function createDeclarativeAdapter(
                     target,
                     candidateKind: rule.candidateKind ?? 'content',
                     atomic: rule.atomic,
+                    splitOnBr: rule.splitOnBr,
                 };
             }
 

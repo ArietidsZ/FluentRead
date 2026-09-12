@@ -113,6 +113,10 @@ describe('site adaptation JSON boundary', () => {
         reject(pack([rule({content: [null as never]})]), '$.rules[0].content[0]');
         reject(pack([rule({content: [{css: ['p'], resolve: 'xpath' as never}]})]), '$.rules[0].content[0].resolve');
         reject(pack([rule({content: [{css: ['p'], atomic: 1 as never}]})]), '$.rules[0].content[0].atomic');
+        reject(pack([rule({content: [{css: ['p'], splitOnBr: 1 as never}]})]), '$.rules[0].content[0].splitOnBr');
+        for (const splitOnBr of [true, false]) {
+            expect(parseSiteRulePack(pack([rule({content: [{css: ['p'], splitOnBr}]})])).ok).toBe(true);
+        }
         reject(pack([rule({content: [{css: ['p'], key: ''}]})]), '$.rules[0].content[0].key');
         reject(pack([rule({content: [{css: []}]})]), '$.rules[0].content[0].css');
         reject(pack([rule({protect: ['x'.repeat(1025)]})]), '$.rules[0].protect[0]');
