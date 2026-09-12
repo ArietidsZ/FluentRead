@@ -33,6 +33,41 @@
           </el-select>
         </div>
       </SettingsItem>
+      <div class="settings-subgroup-heading" aria-labelledby="translated-display-heading">
+        <h3 id="translated-display-heading">译文显示</h3>
+        <p>设置网页翻译后的内容形式和双语译文样式。</p>
+      </div>
+      <SettingsItem :label="t('settings.general.defaultTargetLanguage')" :description="t('settings.general.defaultTargetLanguageDescription')">
+        <el-select v-model="config.to" data-config-field="to" :aria-label="t('settings.general.defaultTargetLanguage')" :placeholder="t('settings.general.targetLanguagePlaceholder')" filterable>
+          <el-option v-for="item in options.to" :key="item.value" data-i18n-ignore class="select-left" :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" :value="item.value" />
+        </el-select>
+      </SettingsItem>
+      <SettingsItem label="翻译模式" description="双语对照保留原文，仅译文模式会替换原文显示。">
+        <SegmentedControl v-model="config.display" :options="options.display" label="翻译模式" />
+      </SettingsItem>
+      <SettingsItem v-show="config.display === 1" label="译文样式" description="选择后可在下方立即查看效果。">
+        <el-select v-model="config.style" aria-label="译文样式" placeholder="请选择译文显示样式" filterable>
+          <el-option-group v-for="group in styleGroups" :key="group.value" :label="group.label">
+            <el-option v-for="item in group.options" :key="item.value" :label="item.label" :value="item.value" :class="item.class" />
+          </el-option-group>
+        </el-select>
+      </SettingsItem>
+      <SettingsItem v-show="config.display === 1" :label="t('settings.general.bilingualSentenceHighlight')" :description="t('settings.general.bilingualSentenceHighlightDescription')">
+        <el-switch v-model="config.bilingualSentenceHighlightEnabled" class="settings-toggle" :aria-label="t('settings.general.bilingualSentenceHighlight')" />
+      </SettingsItem>
+      <div v-show="config.display === 1" class="style-preview-card" aria-live="polite">
+        <div
+          class="style-preview-example bilingual-highlight-preview"
+          :class="{ 'is-bilingual-highlight-enabled': config.bilingualSentenceHighlightEnabled }"
+          :data-bilingual-highlight-enabled="String(config.bilingualSentenceHighlightEnabled)"
+          data-testid="bilingual-highlight-preview"
+          :tabindex="config.bilingualSentenceHighlightEnabled ? 0 : -1"
+          :aria-label="t('settings.general.bilingualSentenceHighlightDescription')"
+        >
+          <p class="style-preview-source" data-testid="bilingual-highlight-preview-source">Reading should feel calm and effortless.</p>
+          <p :key="config.style" class="style-preview-text" :class="currentStyleClass" data-testid="bilingual-highlight-preview-translation">阅读应该轻松、自然，不打断你的节奏。</p>
+        </div>
+      </div>
     </SettingsGroup>
     <div v-if="selectedTextServiceUnavailableMessage" class="disabled-section" role="status">
       <strong>当前默认服务在此浏览器不可用</strong>
@@ -75,7 +110,6 @@
         :configured-services="configuredServiceIds"
         :model-options="configurationModelOptions"
         :show-model="configurationCompute.showModel"
-        :maximum-custom-services="MAX_CUSTOM_OPENAI_PROVIDERS"
         :maximum-models="MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER"
         :maximum-model-length="MAX_CUSTOM_OPENAI_MODEL_LENGTH"
         :custom-model-count="selectedConfigurationCustomModelCount"
@@ -272,10 +306,6 @@
     </section>
 
     <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
-      <ParagraphCopySettings :config="config" />
-    </section>
-
-    <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
     <SettingsGroup title="划词翻译" description="选中文字后的展示内容、触发方式和等待时间。">
     <!-- 划词翻译模式选择 -->
     <el-row class="settings-control-row">
@@ -399,43 +429,21 @@
     </section>
 
     <section v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation">
-      <SettingsGroup title="译文显示" description="设置网页翻译后的内容形式和双语译文样式。">
-        <SettingsItem :label="t('settings.general.defaultTargetLanguage')" :description="t('settings.general.defaultTargetLanguageDescription')">
-          <el-select v-model="config.to" data-config-field="to" :aria-label="t('settings.general.defaultTargetLanguage')" :placeholder="t('settings.general.targetLanguagePlaceholder')" filterable>
-            <el-option v-for="item in options.to" :key="item.value" data-i18n-ignore class="select-left" :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" :value="item.value" />
-          </el-select>
-        </SettingsItem>
-        <SettingsItem label="翻译模式" description="双语对照保留原文，仅译文模式会替换原文显示。">
-          <SegmentedControl v-model="config.display" :options="options.display" label="翻译模式" />
-        </SettingsItem>
-        <SettingsItem v-show="config.display === 1" label="译文样式" description="选择后可在下方立即查看效果。">
-          <el-select v-model="config.style" aria-label="译文样式" placeholder="请选择译文显示样式" filterable>
-            <el-option-group v-for="group in styleGroups" :key="group.value" :label="group.label">
-              <el-option v-for="item in group.options" :key="item.value" :label="item.label" :value="item.value" :class="item.class" />
-            </el-option-group>
-          </el-select>
-        </SettingsItem>
-        <SettingsItem v-show="config.display === 1" :label="t('settings.general.bilingualSentenceHighlight')" :description="t('settings.general.bilingualSentenceHighlightDescription')">
-          <el-switch v-model="config.bilingualSentenceHighlightEnabled" class="settings-toggle" :aria-label="t('settings.general.bilingualSentenceHighlight')" />
-        </SettingsItem>
-        <div v-show="config.display === 1" class="style-preview-card" aria-live="polite">
-          <div
-            class="style-preview-example bilingual-highlight-preview"
-            :class="{ 'is-bilingual-highlight-enabled': config.bilingualSentenceHighlightEnabled }"
-            :data-bilingual-highlight-enabled="String(config.bilingualSentenceHighlightEnabled)"
-            data-testid="bilingual-highlight-preview"
-            :tabindex="config.bilingualSentenceHighlightEnabled ? 0 : -1"
-            :aria-label="t('settings.general.bilingualSentenceHighlightDescription')"
-          >
-            <p class="style-preview-source" data-testid="bilingual-highlight-preview-source">Reading should feel calm and effortless.</p>
-            <p :key="config.style" class="style-preview-text" :class="currentStyleClass" data-testid="bilingual-highlight-preview-translation">阅读应该轻松、自然，不打断你的节奏。</p>
-          </div>
-        </div>
-      </SettingsGroup>
-    </section>
-
-    <section v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation">
       <SettingsGroup title="网页辅助" description="控制全文翻译时显示的工具和 AI 语境增强。">
+        <SettingsItem
+          :label="t('settings.general.translationSettingsShortcut')"
+          :description="t('settings.general.translationSettingsShortcutDescription')"
+        >
+          <button
+            type="button"
+            class="settings-navigation-link"
+            data-testid="open-translation-settings"
+            @click="openSettingsSection('settings-translation')"
+          >
+            <span>{{ t('settings.general.translationSettingsShortcutAction') }}</span>
+            <el-icon aria-hidden="true"><ArrowRight /></el-icon>
+          </button>
+        </SettingsItem>
         <!-- AI 智能上下文 -->
         <el-row class="settings-control-row">
           <el-col :span="20" class="settings-control-label ai-context-label lightblue rounded-corner">
@@ -456,7 +464,7 @@
 
         <!-- 悬浮球开关 -->
       <el-row class="settings-control-row">
-        <el-col :span="20" class="settings-control-label lightblue rounded-corner">
+        <el-col :span="20" class="settings-control-label floating-ball-control-label lightblue rounded-corner">
           <el-tooltip class="box-item" effect="dark" content="控制是否显示屏幕边缘的即时翻译悬浮球，用于对整个网页进行翻译" placement="top-start" :show-after="500">
           <span class="popup-text popup-vertical-left">
             全文翻译悬浮球
@@ -465,6 +473,12 @@
             </el-icon>
           </span>
           </el-tooltip>
+          <small class="floating-ball-settings-hint">
+            {{ t('settings.general.floatingBallSettingsHint') }}
+            <button type="button" class="settings-inline-link" data-testid="open-floating-ball-settings" @click="openSettingsSection('settings-translation', 'floating-ball-settings')">
+              {{ t('settings.general.floatingBallSettingsAction') }}
+            </button>
+          </small>
         </el-col>
 
         <el-col :span="4" class="settings-control-field flex-end">
@@ -499,10 +513,6 @@
         </el-row>
 
       </SettingsGroup>
-    </section>
-
-    <section v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation">
-      <FloatingBallSettings :config="config" />
     </section>
 
     <section v-show="props.activeSection === 'settings-interface'" id="settings-interface" class="settings-section">
@@ -567,6 +577,14 @@
           @update:profiles="config.quickTranslationProfiles = $event" />
       </SettingsGroup>
       <ContextMenuSettings />
+    </section>
+
+    <section v-show="props.activeSection === 'settings-translation'" id="floating-ball-settings" class="settings-section settings-section-continuation">
+      <FloatingBallSettings :config="config" />
+    </section>
+
+    <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
+      <ParagraphCopySettings :config="config" />
     </section>
 
     <section v-show="props.activeSection === 'settings-advanced'" class="settings-section settings-section-continuation">
@@ -653,7 +671,6 @@ import {
   LEGACY_CUSTOM_OPENAI_PROVIDER_ID,
   MAX_CUSTOM_OPENAI_MODEL_LENGTH,
   MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER,
-  MAX_CUSTOM_OPENAI_PROVIDERS,
   normalizeCustomOpenAIModels,
   normalizeCustomOpenAIProviders,
   removeCustomOpenAIProvider,
@@ -691,7 +708,7 @@ import {
   normalizeTranslationBackoffMaxMs,
 } from '@/src/core/config/model';
 import {SELECTION_TTS_VOICE_OPTIONS} from '@/src/core/config/selectionTts';
-import { InfoFilled, Edit } from '@element-plus/icons-vue'
+import { ArrowRight, InfoFilled, Edit } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import browser from 'webextension-polyfill';
 import {isBrowserTabId} from '@/src/platform/browser/ids';
@@ -761,6 +778,14 @@ const props = withDefaults(defineProps<{
   activeSection: 'settings-general',
 })
 const {language, t, translateLegacy} = useUiI18n();
+
+function openSettingsSection(section: string, targetId?: string): void {
+  if (window.location.hash !== `#${section}`) window.location.hash = section;
+  if (!targetId) return;
+  window.setTimeout(() => {
+    window.requestAnimationFrame(() => document.getElementById(targetId)?.scrollIntoView({block: 'start'}));
+  }, 0);
+}
 
 // 初始化深色模式媒体查询
 const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -986,15 +1011,10 @@ const {
 } = useServiceModelOptions(config, selectedConfigurationService);
 
 function openCustomProviderDialog(): void {
-  if (config.value.customOpenAIProviders.length >= MAX_CUSTOM_OPENAI_PROVIDERS) {
-    ElMessage.warning(`最多只能保存 ${MAX_CUSTOM_OPENAI_PROVIDERS} 个自定义服务`);
-    return;
-  }
   customProviderDialogOpen.value = true;
 }
 
 function createCustomProvider(draft: CustomProviderDraft): void {
-  if (config.value.customOpenAIProviders.length >= MAX_CUSTOM_OPENAI_PROVIDERS) return;
   const id = createNextCustomOpenAIProviderId(config.value.customOpenAIProviders);
   const provider: CustomOpenAIProvider = {
     id,

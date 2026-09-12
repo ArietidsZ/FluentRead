@@ -287,4 +287,17 @@ describe('字体缓存维护', () => {
     await select
     expect(h.states.at(-1)?.status).toBe('ready')
   })
+
+  it('可以只清除指定字体，并保留其他字体共享的中文资源', async () => {
+    const h = harness()
+    await h.loader.load('inter')
+    await h.loader.clearFont('inter')
+    expect(h.entries.has('https://fluentread.app/__interface_fonts__/' + getInterfaceFontAssets('inter')[0].sha256)).toBe(false)
+    expect(h.entries.has('https://fluentread.app/__interface_fonts__/' + getInterfaceFontAssets('noto-sans-sc')[0].sha256)).toBe(true)
+
+    await h.loader.load('system')
+    await h.loader.load('inter')
+    expect(h.deps.fetch).toHaveBeenCalledTimes(3)
+    expect(h.states.at(-1)).toMatchObject({font: 'inter', status: 'ready', persistent: true})
+  })
 })

@@ -14,7 +14,6 @@ import {
     MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER,
     MAX_CUSTOM_OPENAI_PROVIDER_ENDPOINT_LENGTH,
     MAX_CUSTOM_OPENAI_PROVIDER_NAME_LENGTH,
-    MAX_CUSTOM_OPENAI_PROVIDERS,
     normalizeCustomOpenAIProviders,
     removeCustomOpenAIProvider,
     withCustomOpenAIServiceOptions,
@@ -67,22 +66,23 @@ describe('自定义 OpenAI-compatible 服务配置', () => {
         expect(normalizeCustomOpenAIProviders({})).toEqual([]);
     });
 
-    it('限制服务和每服务模型数量并保持首见顺序', () => {
+    it('保留任意数量的服务，并限制每服务模型数量且保持首见顺序', () => {
         const models = Array.from(
             {length: MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER + 5},
             (_, index) => `model-${index}`,
         );
+        const providerCount = 64;
         const providers = Array.from(
-            {length: MAX_CUSTOM_OPENAI_PROVIDERS + 5},
+            {length: providerCount},
             (_, index) => provider({id: `custom:${index + 1}`, name: `服务 ${index + 1}`, models}),
         );
         const normalized = normalizeCustomOpenAIProviders(providers);
 
-        expect(normalized).toHaveLength(MAX_CUSTOM_OPENAI_PROVIDERS);
+        expect(normalized).toHaveLength(providerCount);
         expect(normalized[0].models).toHaveLength(MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER);
         expect(normalized[0].models.at(0)).toBe('model-0');
         expect(normalized[0].models.at(-1)).toBe(`model-${MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER - 1}`);
-        expect(normalized.at(-1)?.id).toBe(`custom:${MAX_CUSTOM_OPENAI_PROVIDERS}`);
+        expect(normalized.at(-1)?.id).toBe(`custom:${providerCount}`);
     });
 
     it('提供查询、动态目录、标签和防御性模型副本', () => {

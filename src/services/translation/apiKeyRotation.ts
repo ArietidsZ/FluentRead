@@ -12,6 +12,7 @@ import {serializeTranslationError, TranslationRequestError} from './errors';
 
 type KeyConfig = ApiKeyConfigSource & {
     readonly token?: Readonly<Record<string, string>>;
+    readonly apiKeyRotationEnabled?: Readonly<Record<string, boolean>>;
     readonly apiKeyRecoveryMs?: number;
 };
 export interface ApiKeyAttempt {
@@ -55,6 +56,7 @@ function scopeFor(source: KeyConfig, service: string, model?: string): string {
     for (const name of ['proxy', 'customBody', 'customHeaders', 'model', 'customModel', 'serviceRegion']) {
         selected[name] = (fields[name] as Record<string, unknown> | undefined)?.[service];
     }
+    selected.apiKeyRotationEnabled = (fields.apiKeyRotationEnabled as Record<string, unknown> | undefined)?.[service] === true;
     const routeFields: Record<string, readonly string[]> = {
         custom: ['custom'], deeplx: ['deeplx'], deepL: ['deeplApiPlan'], newapi: ['newApiUrl'],
         azureOpenai: ['azureOpenaiEndpoint'], minimax: ['minimaxRegion', 'minimaxBillingPlan'],
@@ -125,8 +127,9 @@ export async function runWithApiKeyRotation<T extends KeyConfig, R>(
         }
     }
 
-    // 单 Key 和免 Key 服务保留原有重试行为；兼容新配置尚未生成 token 镜像的调用方。
-    if (keys.length < 2) {
+    // 默认只使用首个 Key；显式关闭时保留其他 Key 但不参与请求，方便用户稍后重新启用轮询。
+    const rotationEnabled = source.apiKeyRotationEnabled?.[service] !== false && keys.length > 1;
+    if (!rotationEnabled) {
         return operation(withServiceApiKey(source, service, keys[0] ?? ''), {attempt: 0});
     }
 

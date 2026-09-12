@@ -25,7 +25,6 @@ import { currentModelIds, customModelString, defaultModelIds, defaultModels, def
 import {
     CUSTOM_OPENAI_RESERVED_MODEL_ID,
     MAX_CUSTOM_OPENAI_MODELS_PER_PROVIDER,
-    MAX_CUSTOM_OPENAI_PROVIDERS,
 } from '@/src/core/config/customOpenAI';
 import {
     MAX_QUICK_TRANSLATION_MODEL_LENGTH,
@@ -607,8 +606,9 @@ describe('AI 模型编号列表', () => {
         expect(normalizeConfig(normalized)).toEqual(normalized);
     });
 
-    it('动态 profile 可用于全部服务引用，并在二十项截断后清理不可达项', () => {
-        const providers = Array.from({length: MAX_CUSTOM_OPENAI_PROVIDERS + 1}, (_, index) => ({
+    it('动态 profile 可用于全部服务引用，且任意数量的服务都会保留并清理不可达项', () => {
+        const providerCount = 24;
+        const providers = Array.from({length: providerCount}, (_, index) => ({
             id: `custom:${index + 1}`,
             name: `服务 ${index + 1}`,
             endpoint: `https://provider-${index + 1}.example/v1/chat/completions`,
@@ -619,32 +619,34 @@ describe('AI 模型编号列表', () => {
             service: 'custom:1',
             documentService: 'custom:2',
             videoService: 'custom:3',
-            translationCenterServices: ['custom:1', 'custom:20', 'custom:21'],
+            translationCenterServices: ['custom:1', 'custom:20', 'custom:21', 'custom:999'],
             model: {'custom:1': 'model-1', 'custom:21': 'model-21'},
-            token: {'custom:1': 'keep', 'custom:21': 'drop'},
-            proxy: {'custom:21': 'https://drop.example'},
+            token: {'custom:1': 'keep', 'custom:999': 'drop'},
+            apiKeyRotationEnabled: {'custom:1': false, 'custom:999': true},
+            proxy: {'custom:999': 'https://drop.example'},
             requireApiKey: {
                 'custom:legacy-model': false,
                 'custom:1:model-1': false,
-                'custom:21:model-21': false,
+                'custom:999:model-999': false,
                 [createApiKeyRequirementKey('custom:1', 'model-1')]: true,
-                [createApiKeyRequirementKey('custom:21', 'model-21')]: false,
+                [createApiKeyRequirementKey('custom:999', 'model-999')]: false,
                 [createApiKeyRequirementKey('openai', 'static-model')]: false,
                 'v2:{bad-json': false,
             },
         });
 
-        expect(normalized.customOpenAIProviders).toHaveLength(MAX_CUSTOM_OPENAI_PROVIDERS);
+        expect(normalized.customOpenAIProviders).toHaveLength(providerCount);
         expect(normalized).toMatchObject({
             service: 'custom:1',
             documentService: 'custom:2',
             videoService: 'custom:3',
-            translationCenterServices: ['custom:1', 'custom:20'],
+            translationCenterServices: ['custom:1', 'custom:20', 'custom:21'],
         });
         expect(normalized.token).toMatchObject({'custom:1': 'keep'});
-        expect(normalized.token).not.toHaveProperty('custom:21');
-        expect(normalized.model).not.toHaveProperty('custom:21');
-        expect(normalized.proxy).not.toHaveProperty('custom:21');
+        expect(normalized.token).not.toHaveProperty('custom:999');
+        expect(normalized.apiKeyRotationEnabled).toEqual({'custom:1': false});
+        expect(normalized.model).not.toHaveProperty('custom:999');
+        expect(normalized.proxy).not.toHaveProperty('custom:999');
         expect(normalized.requireApiKey).toEqual({
             'custom:1:model-1': false,
             [createApiKeyRequirementKey('custom:1', 'model-1')]: true,
@@ -868,7 +870,7 @@ describe('快捷翻译方案配置', () => {
 
     it('段落复制快捷键只接受预设与可用的自定义值，其余配置回到默认 Alt+C', () => {
         expect(new Config()).toMatchObject({
-            paragraphCopyEnabled: true, paragraphCopyHotkey: 'Alt+C', customParagraphCopyHotkey: '', paragraphCopyContent: 'auto',
+            paragraphCopyEnabled: false, paragraphCopyHotkey: 'Alt+C', customParagraphCopyHotkey: '', paragraphCopyContent: 'auto',
         });
         expect(normalizeConfig({})).toMatchObject({paragraphCopyHotkey: 'Alt+C', customParagraphCopyHotkey: '', paragraphCopyContent: 'auto'});
         expect(normalizeConfig({paragraphCopyHotkey: 'shift+d'})).toMatchObject({paragraphCopyHotkey: 'Shift+D'});
@@ -877,7 +879,7 @@ describe('快捷翻译方案配置', () => {
         // 选择自定义却没有可用组合键时不能让段落复制失去唯一入口。
         expect(normalizeConfig({paragraphCopyHotkey: 'custom', customParagraphCopyHotkey: 'cmd+k'}))
             .toMatchObject({paragraphCopyHotkey: 'Alt+C', customParagraphCopyHotkey: ''});
-        expect(normalizeConfig({paragraphCopyEnabled: 'yes'})).toMatchObject({paragraphCopyEnabled: true});
+        expect(normalizeConfig({paragraphCopyEnabled: 'yes'})).toMatchObject({paragraphCopyEnabled: false});
         expect(normalizeConfig({paragraphCopyEnabled: false})).toMatchObject({paragraphCopyEnabled: false});
     });
 

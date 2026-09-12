@@ -329,6 +329,7 @@ export class Config {
     videoSubtitleAppearance: VideoSubtitleAppearance; // 视频字幕皮肤与布局参数
     token: IMapping;
     apiKeys: Record<string, string[]>; // 按服务保存完整有序 API Key 列表；token 镜像首个 key
+    apiKeyRotationEnabled: Record<string, boolean>; // 按服务启用多 Key 轮询；关闭时只使用首个 Key
     secret: IMapping; // 与 token 配对的第二段密钥（阿里云/百度/火山等云服务厂商）
     serviceRegion: IMapping; // 云服务厂商所选地域，决定签名 scope 与请求域名
     requireApiKey: Record<string, boolean>; // 按服务和模型保存 API Key 校验开关
@@ -407,7 +408,7 @@ export class Config {
     customSelectionAreaHotkey: string; // 自定义圈选翻译快捷键
     areaTranslationMode: 'standard' | 'ai'; // 圈选文字的标准翻译或 AI 上下文增强
     areaTranslationService: string; // 圈选独立翻译服务；空字符串跟随当前服务
-    areaRecognitionMode: AreaRecognitionMode; // 圈选优先使用本地 OCR，或在能力确认时优先使用模型识图
+    areaRecognitionMode: AreaRecognitionMode; // 圈选优先使用模型识图，模型不支持时回退本地 OCR
     areaVisionPrompt: string; // 模型识图时发送的图片文字提取指令
     modelVision: ModelVisionOverrides; // 按服务和精确模型保存的视觉能力显式覆盖
     imageTranslationHoverEnabled: boolean; // 是否显示图片悬浮入口
@@ -492,6 +493,7 @@ export class Config {
         this.videoSubtitleAppearance = normalizeVideoSubtitleAppearance(DEFAULT_VIDEO_SUBTITLE_APPEARANCE);
         this.token = {};
         this.apiKeys = {};
+        this.apiKeyRotationEnabled = {};
         this.secret = {};
         this.serviceRegion = {};
         this.requireApiKey = {};
@@ -562,7 +564,7 @@ export class Config {
         this.customHotkey = ''; // 自定义鼠标悬浮快捷键为空
         this.quickTranslationProfiles = []; // 默认仅保留旧快捷键，新方案由用户按需添加
         this.mouseHoverTranslationDelay = DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY;
-        this.paragraphCopyEnabled = true; // 默认开启，按快捷键才复制，不影响浏览
+        this.paragraphCopyEnabled = false; // 默认关闭，避免用户未主动选择时接管快捷键
         this.paragraphCopyHotkey = DEFAULT_PARAGRAPH_COPY_HOTKEY; // 默认 Alt+C，避开浏览器的 Ctrl+C
         this.customParagraphCopyHotkey = ''; // 自定义段落复制快捷键为空
         this.paragraphCopyContent = DEFAULT_PARAGRAPH_COPY_CONTENT_MODE; // 默认跟随段落当前显示形态
@@ -572,7 +574,7 @@ export class Config {
         this.customSelectionAreaHotkey = ''; // 自定义圈选快捷键为空
         this.areaTranslationMode = 'standard';
         this.areaTranslationService = '';
-        this.areaRecognitionMode = 'ocr';
+        this.areaRecognitionMode = 'prefer-vision';
         this.areaVisionPrompt = DEFAULT_AREA_VISION_PROMPT;
         this.modelVision = {};
         this.imageTranslationHoverEnabled = true;
@@ -908,6 +910,10 @@ function normalizeCustomOpenAIProviderState(normalized: Config, source: Partial<
         return !key.startsWith(`${LEGACY_CUSTOM_OPENAI_PROVIDER_ID}:`) || validRequirementKeys.has(key);
     }));
     normalized.customOpenAIProviders = normalizeCustomOpenAIProviders(providers);
+    normalized.apiKeyRotationEnabled = withoutOrphanCustomProviderEntries(
+        normalized.apiKeyRotationEnabled,
+        new Set(providers.map((provider) => provider.id)),
+    );
     normalized.token = apiKeysToToken(normalized.apiKeys);
 }
 
@@ -1015,6 +1021,16 @@ export function normalizeConfig(value: unknown): Config {
             normalized.apiKeys[service] = token ? [token] : [];
         }
     }
+    normalized.apiKeyRotationEnabled = isBooleanMapping(source.apiKeyRotationEnabled)
+        ? withoutRetiredServiceEntries({...source.apiKeyRotationEnabled})
+        : {};
+    // 兼容已有多 Key 配置；新建配置仍默认关闭多 Key 轮询。
+    for (const [service, keys] of Object.entries(normalized.apiKeys)) {
+        if (keys.filter(Boolean).length > 1
+            && !Object.prototype.hasOwnProperty.call(normalized.apiKeyRotationEnabled, service)) {
+            normalized.apiKeyRotationEnabled[service] = true;
+        }
+    }
     normalized.token = apiKeysToToken(normalized.apiKeys);
     normalized.secret = withoutRetiredServiceEntries(normalizeStringMapping(source.secret));
     normalized.serviceRegion = normalizeCloudRegionMapping(source.serviceRegion);
@@ -1067,7 +1083,7 @@ export function normalizeConfig(value: unknown): Config {
     normalized.areaTranslationMode = source.areaTranslationMode === 'ai' ? 'ai' : 'standard';
     normalized.areaTranslationService = isSupportedTranslationService(source.areaTranslationService, normalized.customOpenAIProviders)
         ? source.areaTranslationService : '';
-    normalized.areaRecognitionMode = source.areaRecognitionMode === 'prefer-vision' ? 'prefer-vision' : 'ocr';
+    normalized.areaRecognitionMode = source.areaRecognitionMode === 'ocr' ? 'ocr' : 'prefer-vision';
     normalized.areaVisionPrompt = normalizeAreaVisionPrompt(source.areaVisionPrompt);
     normalized.modelVision = normalizeModelVisionOverrides(source.modelVision);
 
@@ -1233,7 +1249,7 @@ export function normalizeConfig(value: unknown): Config {
         normalized.selectionAreaHotkey = DEFAULT_AREA_TRANSLATION_HOTKEY;
     }
     if (typeof normalized.paragraphCopyEnabled !== 'boolean') {
-        normalized.paragraphCopyEnabled = true;
+        normalized.paragraphCopyEnabled = false;
     }
     normalized.customParagraphCopyHotkey = normalizeCustomParagraphCopyHotkey(source.customParagraphCopyHotkey);
     normalized.paragraphCopyHotkey = normalizeParagraphCopyHotkey(source.paragraphCopyHotkey);

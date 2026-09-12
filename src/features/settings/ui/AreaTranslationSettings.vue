@@ -33,8 +33,8 @@
     <p v-if="unavailableMessage" class="area-settings-note area-settings-warning" role="status">{{ unavailableMessage }}</p>
     <SettingsItem :label="t('area.settings.recognitionMode')" :description="t(prefersVision ? capabilityMessageKey : 'area.settings.recognitionModeDescription')">
       <el-select v-model="props.config.areaRecognitionMode" data-testid="area-recognition-mode" :aria-label="t('area.settings.recognitionMode')">
-        <el-option value="ocr" :label="t('area.settings.recognitionOcr')" />
         <el-option value="prefer-vision" :label="t('area.settings.recognitionVision')" />
+        <el-option value="ocr" :label="t('area.settings.recognitionOcr')" />
       </el-select>
     </SettingsItem>
     <SettingsItem :label="t('area.settings.mode')" :description="t(props.config.areaTranslationMode === 'ai' ? 'area.settings.aiDescription' : 'area.settings.standardDescription')">

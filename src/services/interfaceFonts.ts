@@ -201,5 +201,32 @@ export function createInterfaceFontLoader(deps: Dependencies) {
       })().finally(() => { clearing = undefined })
       return clearing
     },
+    clearFont(font: InterfaceFont): Promise<void> {
+      if (font === 'system') return Promise.resolve()
+      if (clearing) return clearing
+      // 先等待当前下载完成，避免清除后迟到的写入又把同一字体放回缓存。
+      const pending = active?.promise
+      clearing = (async () => {
+        await pending
+        const cache = await deps.openCache()
+        const keys = new Set((await cache.keys()).map(request => request.url))
+        const protectedFiles = new Set(
+          interfaceFontOptions
+            .filter(option => option.value !== 'system' && option.value !== font)
+            .filter(option => getInterfaceFontAssets(option.value).every(asset => keys.has(cacheKey(asset))))
+            .flatMap(option => getInterfaceFontAssets(option.value).map(asset => asset.file)),
+        )
+        for (const asset of getInterfaceFontAssets(font)) {
+          if (protectedFiles.has(asset.file)) continue
+          await cache.delete(cacheKey(asset))
+          installed.delete(asset.file)
+        }
+        if (lastState?.font === font && lastState.status === 'ready') {
+          lastState = {...lastState, persistent: false}
+          deps.onState(lastState)
+        }
+      })().finally(() => { clearing = undefined })
+      return clearing
+    },
   }
 }

@@ -148,7 +148,8 @@
       v-if="compute.showToken && !compute.showServiceSecret"
       :label="compute.showCloudVendor ? compute.cloudCredentialLabels.token : 'API Key'"
       :data-cloud-credential="compute.showCloudVendor ? 'token' : undefined"
-      :keys="apiKeys" :states="apiKeyChecks" :summary="apiKeySummary" :busy="connectionTestBusy"
+      :keys="displayedApiKeys" :states="apiKeyChecks" :summary="apiKeySummary" :busy="connectionTestBusy"
+      :allow-multiple="apiKeyRotationEnabled"
       :allow-anonymous="compute.showAI && !compute.requireApiKey" :check-mode="apiKeyCheckMode"
       @add="addApiKey" @update="updateApiKey" @remove="removeApiKey" @test="testSingleApiKey" @test-all="testConnection" @stop="stopApiKeyChecks"
     />
@@ -364,6 +365,19 @@
       </summary>
 
       <div class="custom-advanced-content">
+        <div v-if="compute.showToken && !compute.showServiceSecret" class="connection-field api-key-rotation-setting" data-api-key-rotation-setting>
+          <div class="connection-field-label">
+            <strong>{{ t('settings.services.keys.multiKeyTitle') }}</strong>
+            <small>{{ t('settings.services.keys.multiKeyHelp') }}</small>
+          </div>
+          <div class="connection-field-control">
+            <el-switch
+              :model-value="apiKeyRotationEnabled"
+              :aria-label="t('settings.services.keys.multiKeyTitle')"
+              @update:model-value="setApiKeyRotationEnabled"
+            />
+          </div>
+        </div>
         <div v-if="compute.showAI && compute.showToken && !compute.showServiceSecret" class="connection-field" data-api-key-auth-policy>
           <div class="connection-field-label">
             <strong>{{ t('settings.services.keys.authRequired') }}</strong>
@@ -574,20 +588,41 @@ const apiKeys = computed(() => {
   const configured = config.value.apiKeys?.[service.value]
   return normalizeApiKeyList(configured, config.value.token[service.value] || '')
 })
-const apiKeyIndexes = computed(() => eligibleApiKeyIndexes(apiKeys.value))
+const apiKeyRotationEnabled = computed<boolean>({
+  get: () => {
+    const explicit = config.value.apiKeyRotationEnabled?.[service.value]
+    return explicit === true || (explicit === undefined && apiKeys.value.filter(Boolean).length > 1)
+  },
+  set: (value) => {
+    config.value.apiKeyRotationEnabled = {
+      ...(config.value.apiKeyRotationEnabled || {}),
+      [service.value]: value,
+    }
+    invalidateConnectionTest()
+  },
+})
+function setApiKeyRotationEnabled(value: boolean): void {
+  apiKeyRotationEnabled.value = value
+}
+const displayedApiKeys = computed(() => apiKeyRotationEnabled.value ? apiKeys.value : apiKeys.value.slice(0, 1))
+const apiKeyIndexes = computed(() => eligibleApiKeyIndexes(displayedApiKeys.value))
 const apiKeyChecks = ref<Record<number, ApiKeyCheckState>>({})
 const apiKeySummary = ref<ApiKeySummary | null>(null)
 const apiKeyCheckMode = ref<'single' | 'all'>('all')
 
 function syncApiKeys(next: string[]): void {
   const value = next.length > 0 ? next : ['']
+  const storedValue = apiKeyRotationEnabled.value ? value : [value[0] || '']
   if (!config.value.apiKeys) config.value.apiKeys = {}
-  config.value.apiKeys[service.value] = value
-  config.value.token[service.value] = value.find(key => key.trim()) || ''
+  config.value.apiKeys[service.value] = storedValue
+  config.value.token[service.value] = storedValue.find(key => key.trim()) || ''
   invalidateConnectionTest()
 }
 
-function addApiKey(): void { if (!apiKeys.value.some(key => !key.trim())) syncApiKeys([...apiKeys.value, '']) }
+function addApiKey(): void {
+  if (!apiKeyRotationEnabled.value || apiKeys.value.some(key => !key.trim())) return
+  syncApiKeys([...apiKeys.value, ''])
+}
 function updateApiKey(index: number, value: string): void {
   const next = [...apiKeys.value]
   next[index] = value

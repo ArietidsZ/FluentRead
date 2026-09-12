@@ -36,6 +36,49 @@
 .fluentread-service-option > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .fluentread-service-option :deep(.service-brand-icon) { flex: none; box-shadow: none; }
 
+.settings-subgroup-heading {
+  padding: 16px 16px 10px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.settings-subgroup-heading h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.settings-subgroup-heading p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.55;
+}
+
+.settings-navigation-link,
+.settings-inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  color: var(--brand-strong);
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.settings-navigation-link { padding: 6px 0; }
+.settings-navigation-link:hover,
+.settings-inline-link:hover { color: var(--brand); text-decoration: underline; text-underline-offset: 3px; }
+.settings-navigation-link:focus-visible,
+.settings-inline-link:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; border-radius: 4px; }
+.settings-navigation-link .el-icon { font-size: 14px; }
+.floating-ball-control-label { align-items: flex-start !important; flex-direction: column; gap: 4px; }
+.floating-ball-settings-hint { color: var(--muted); font-size: 10px; line-height: 1.45; }
+.settings-inline-link { padding: 0; font-size: inherit; font-weight: 700; }
+
 @media (max-width: 480px) {
   .service-default-control { max-width: none; }
   .api-key-recovery-control { justify-content: flex-start; width: min(100%, 240px); }

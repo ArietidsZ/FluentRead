@@ -20,7 +20,7 @@ describe('options navigation view-model', () => {
     }))).toEqual([
       {
         label: '基础配置',
-        items: ['settings-general', 'settings-interface', 'settings-services', 'settings-translation'],
+        items: ['settings-general', 'settings-services', 'settings-translation', 'settings-interface'],
       },
       {
         label: '专项翻译',
@@ -43,9 +43,9 @@ describe('options navigation view-model', () => {
     ])
     expect(navigationItems.map((item) => item.label)).toEqual([
       '通用设置',
-      '界面风格',
       '翻译服务',
       '翻译设置',
+      '界面风格',
       '翻译卡片',
       '图片翻译',
       '圈选翻译',

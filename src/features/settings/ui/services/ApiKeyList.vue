@@ -12,7 +12,7 @@
           <strong>{{ props.label || 'API Key' }}</strong>
           <span v-if="eligible.length" class="api-key-count">{{ t('settings.services.keys.count', {count: eligible.length}) }}</span>
         </div>
-        <p class="api-key-help">{{ t('settings.services.keys.help') }}</p>
+        <p class="api-key-help">{{ t(props.allowMultiple ? 'settings.services.keys.help' : 'settings.services.keys.singleHelp') }}</p>
       </div>
       <button
         type="button" class="api-key-check-all" :class="{'api-key-stop': busy}" data-connection-test-button
@@ -91,10 +91,10 @@
       </div>
     </div>
     <footer class="api-key-list-footer">
-      <button type="button" class="api-key-add" data-api-key-add @click="addKey">
+      <button v-if="props.allowMultiple" type="button" class="api-key-add" data-api-key-add @click="addKey">
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12" /></svg>{{ t('settings.services.keys.add') }}
       </button>
-      <details v-if="eligible.length > 1" class="api-key-explanation">
+      <details v-if="props.allowMultiple && eligible.length > 1" class="api-key-explanation">
         <summary :title="t('settings.services.keys.rotationNote')"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h11l-3-3M16 14H5l3 3M4 6v3m12 5v-3" /></svg>{{ t('settings.services.keys.rotation') }}</summary>
         <p>{{ t('settings.services.keys.behavior') }}</p>
       </details>
@@ -106,7 +106,7 @@
 import {computed, nextTick, ref, useId, watch} from 'vue'
 import {useUiI18n} from '@/src/ui/i18n'
 import {duplicateApiKeyIndex, eligibleApiKeyIndexes, type ApiKeyCheckState, type ApiKeySummary} from './apiKeyTypes'
-const props = defineProps<{keys: string[]; states: Record<number, ApiKeyCheckState>; summary: ApiKeySummary | null; busy: boolean; label?: string; allowAnonymous?: boolean; checkMode?: 'single' | 'all'}>()
+const props = defineProps<{keys: string[]; states: Record<number, ApiKeyCheckState>; summary: ApiKeySummary | null; busy: boolean; label?: string; allowAnonymous?: boolean; allowMultiple?: boolean; checkMode?: 'single' | 'all'}>()
 const emit = defineEmits<{add: []; update: [index: number, value: string]; remove: [index: number]; test: [index: number]; testAll: []; stop: []}>()
 const {t} = useUiI18n()
 const id = useId()

@@ -1,15 +1,12 @@
 <!--
  * @file src/features/settings/ui/WritingSettings.vue
- * 文件职责：先让用户看懂写作助手在网页里的实际效果，再提供总开关、默认回复偏好和 AI 服务连接设置。
- * 主要内容：以三个可操作的简洁画面演示入口位置与起草流程，用三步就绪清单指出还差什么；独立选择回复与阅读对照语言，点选长度风格语气角色时同步给出示例草稿，并配置写作服务连接。
+ * 文件职责：提供写作助手总开关、默认回复偏好和 AI 服务连接设置。
+ * 主要内容：用就绪清单说明当前配置状态；独立选择回复与阅读对照语言，点选长度风格语气角色，并配置写作服务连接。
  * 模块边界：只编辑设置中心持久化的同一份写作配置；不提供快捷键、重复入口开关或网站列表，不请求模型也不生成真实正文。
  -->
 <template>
   <div class="writing-settings">
     <p class="writing-description">在 GitHub 和 Gmail 的回复框旁点「写作助手」，起草回复或完善已有草稿。</p>
-    <SettingsGroup>
-      <WritingFlowDemo :animated="config.animations" />
-    </SettingsGroup>
     <SettingsGroup>
       <FeatureEnableCard v-model="config.writing.enabled" title="启用写作助手" description="自动出现在 GitHub 和 Gmail 的回复区。点击入口开始写作，发送前由你确认。" />
       <ol class="writing-readiness">
@@ -80,7 +77,6 @@ import {WritingChoices} from '@/src/features/writing-assistant/public';
 import FeatureEnableCard from '@/src/ui/components/FeatureEnableCard.vue';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
-import WritingFlowDemo from './components/WritingFlowDemo.vue';
 import WritingStylePreview from './components/WritingStylePreview.vue';
 const {t, language: uiLanguage} = useUiI18n();
 const props = defineProps<{config: Config}>(); const config = toRef(props, 'config');
