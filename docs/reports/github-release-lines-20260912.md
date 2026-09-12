@@ -32,7 +32,15 @@ GitHub 正文适配原先把含有多个 `<p>` 的 `<li>` 当成原子候选，�
 
 验证使用独立 worktree 的构建产物，依赖通过符号链接复用主检出已有的 `node_modules`；没有修改依赖清单或参考仓库。
 
-验证对应基线 `8ac04042` 和修复提交 `cfb95879`；验证期间共享的 `origin/main` 已向前推进。此报告不代表与后续主分支变更集成后的验证结果，上传前需检查最新主分支并完成必要的集成验证。
+以上初始验证对应基线 `8ac04042` 和修复提交 `cfb95879`；后续主分支集成结果单独记录如下。
+
+## 合并前集成验证
+
+已将最新主分支 `0008a791` 合入，集成提交为 `c682f8a3`。完整测试 309 文件、6,195 项通过，类型检查、Chrome/Firefox/Userscript 构建与 Userscript verifier 通过。主分支的 `pageTranslationAdvanced.test.ts` 同时登记在 unit 和 regression，本分支移除 unit 重复项、保留 regression，测试审计恢复通过。
+
+合入后的生产扩展再次通过真实 GitHub 发布页的逐段翻译、恢复和再次翻译检查，报告无页面错误。首次隔离浏览器未报告 service worker 启动，新的临时 profile 重试通过；不将启动超时计为功能通过。[集成后真实页面报告](./github-release-lines-20260912/integration-live-report.json)。
+
+集成后的覆盖率测试 250 文件、5,061 项通过，但全局覆盖率门槛未通过：statements/lines 99.99%、branches 99.97%、functions 100%。在未修改的主分支 `0008a791` 的独立源码快照上复跑，得到相同百分比与完全相同的缺口（`src/core/glossary/transfer.ts:29-30,37-38`、`src/core/translation/text.ts:306,309`）；本次修改的候选引擎、规则编译/校验、适配器和渲染模块均为 100%。没有调整覆盖率门槛或忽略这些缺口，也不将本次全局覆盖率命令标为通过。
 
 ## 额外站点证据的限制
 
@@ -41,3 +49,5 @@ MDN 的悬浮检查在主分支 `8ac04042` 上同样失败：页面初始化后 
 既有 `github-project-pr` case 指向 PR #428，但它期待的英文正文与该 PR 当前中文正文不一致，页面就绪契约超时；属于过期测试样本，不算本次通过或产品回归。用户指定的 GitHub Release 页面已通过独立的真实页面完整检查。
 
 维基百科美国长页在首次全文滚动后停止进展，触发 10 分钟 watchdog；该全文 case 不计入成功样本。
+
+合入后公开正文夹具在 1120px/360px 下通过，动态新增、服务失败重试、完整恢复均通过。[集成后夹具报告](./github-release-lines-20260912/integration-fixture-report.json) · [覆盖率基线对照](./github-release-lines-20260912/integration-coverage-report.json)。
