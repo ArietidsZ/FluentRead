@@ -866,6 +866,39 @@ describe('快捷翻译方案配置', () => {
         }
     });
 
+    it('段落复制快捷键只接受预设与可用的自定义值，其余配置回到默认 Alt+C', () => {
+        expect(new Config()).toMatchObject({
+            paragraphCopyEnabled: true, paragraphCopyHotkey: 'Alt+C', customParagraphCopyHotkey: '', paragraphCopyContent: 'auto',
+        });
+        expect(normalizeConfig({})).toMatchObject({paragraphCopyHotkey: 'Alt+C', customParagraphCopyHotkey: '', paragraphCopyContent: 'auto'});
+        expect(normalizeConfig({paragraphCopyHotkey: 'shift+d'})).toMatchObject({paragraphCopyHotkey: 'Shift+D'});
+        expect(normalizeConfig({paragraphCopyContent: 'bilingual'})).toMatchObject({paragraphCopyContent: 'bilingual'});
+        expect(normalizeConfig({paragraphCopyContent: 'both'})).toMatchObject({paragraphCopyContent: 'auto'});
+        // 选择自定义却没有可用组合键时不能让段落复制失去唯一入口。
+        expect(normalizeConfig({paragraphCopyHotkey: 'custom', customParagraphCopyHotkey: 'cmd+k'}))
+            .toMatchObject({paragraphCopyHotkey: 'Alt+C', customParagraphCopyHotkey: ''});
+        expect(normalizeConfig({paragraphCopyEnabled: 'yes'})).toMatchObject({paragraphCopyEnabled: true});
+        expect(normalizeConfig({paragraphCopyEnabled: false})).toMatchObject({paragraphCopyEnabled: false});
+    });
+
+    it('快捷翻译方案按段落复制的实际快捷键避让，关闭后释放占用', () => {
+        const occupied = normalizeConfig({
+            paragraphCopyEnabled: true,
+            paragraphCopyHotkey: 'custom',
+            customParagraphCopyHotkey: 'alt+j',
+            quickTranslationProfiles: [{id: 'copy-clash', enabled: true, action: 'hover', hotkey: 'Alt+J'}],
+        });
+        expect(occupied.quickTranslationProfiles[0]).toMatchObject({hotkey: 'Alt+J', enabled: false});
+
+        const released = normalizeConfig({
+            paragraphCopyEnabled: false,
+            paragraphCopyHotkey: 'custom',
+            customParagraphCopyHotkey: 'alt+j',
+            quickTranslationProfiles: [{id: 'copy-clash', enabled: true, action: 'hover', hotkey: 'Alt+J'}],
+        });
+        expect(released.quickTranslationProfiles[0]).toMatchObject({hotkey: 'Alt+J', enabled: true});
+    });
+
     it('划词快捷键与快捷翻译可共存，圈选的默认快捷键仍保留既有所有权', () => {
         const normalized = normalizeConfig({
             selectionTranslatorMode: 'bilingual',

@@ -27,8 +27,7 @@ import {
     isAreaTranslatorMounted,
     isFullPageTranslationActive, noteBilingualHostGesture,
     mountAreaTranslator, mountFloatingBall, isFloatingBallAllowedOnPage,
-    mountHoverTranslationContentFeature,
-    mountImageTranslator,
+    mountHoverTranslationContentFeature, mountImageTranslator, mountParagraphCopyContentFeature,
     mountSelectionTranslator, mountTranslationProgressPanel,
     mountVideoSubtitleTranslation,
     isSupportedVideoPage,
@@ -118,6 +117,7 @@ export async function startContentApp(ctx: ContentScriptContext,
             && !activationController.signal.aborted;
 
         inputTranslationFeature.mount(activationController.signal);
+        mountParagraphCopyContentFeature({isSiteDisabled: () => currentPageSiteDisabled}, activationController.signal);
         const resetHoverKeyboardGesture = mountHoverTranslationContentFeature({
             config,
             constants,

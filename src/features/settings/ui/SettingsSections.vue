@@ -271,6 +271,10 @@
     </section>
 
     <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
+      <ParagraphCopySettings :config="config" />
+    </section>
+
+    <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
     <SettingsGroup title="划词翻译" description="选中文字后的展示内容、触发方式和等待时间。">
     <!-- 划词翻译模式选择 -->
     <el-row class="settings-control-row">
@@ -723,6 +727,7 @@ import InterfaceSettings from './InterfaceSettings.vue';
 import AreaTranslationSettings from './AreaTranslationSettings.vue';
 import InputTranslationSettings from './InputTranslationSettings.vue';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
+import ParagraphCopySettings from './ParagraphCopySettings.vue';
 import ParagraphHandlingSettings from './ParagraphHandlingSettings.vue';
 import TranslationCacheSettings from './TranslationCacheSettings.vue';
 import SettingsGroup from './components/SettingsGroup.vue';

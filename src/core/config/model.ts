@@ -63,6 +63,15 @@ import {
     normalizeCustomAreaTranslationHotkey,
     resolveAreaTranslationHotkey,
 } from '@/src/core/config/areaTranslation';
+import {
+    DEFAULT_PARAGRAPH_COPY_CONTENT_MODE,
+    DEFAULT_PARAGRAPH_COPY_HOTKEY,
+    normalizeCustomParagraphCopyHotkey,
+    normalizeParagraphCopyContentMode,
+    normalizeParagraphCopyHotkey,
+    resolveParagraphCopyHotkey,
+    type ParagraphCopyContentMode,
+} from '@/src/core/config/paragraphCopy';
 import { normalizeSelectionTtsVoiceOrder } from "./selectionTts";
 import { normalizeUiLanguage, type UiLanguage } from '@/src/core/i18n/language';
 import {normalizeGlossaryIds, normalizeGlossaryLibraries, type GlossaryLibrary} from '@/src/core/glossary';
@@ -380,6 +389,10 @@ export class Config {
     customHotkey: string; // 自定义鼠标悬浮快捷键
     quickTranslationProfiles: QuickTranslationProfile[]; // 额外快捷翻译方案；悬浮与全文各最多 8 项
     mouseHoverTranslationDelay: number; // 鼠标悬浮翻译触发延迟（毫秒）
+    paragraphCopyEnabled: boolean; // 是否启用"复制鼠标所指段落"快捷键
+    paragraphCopyHotkey: string; // 段落复制触发快捷键；'custom' 表示使用自定义组合键
+    customParagraphCopyHotkey: string; // 自定义段落复制快捷键
+    paragraphCopyContent: ParagraphCopyContentMode; // 段落复制写入剪贴板的内容口径
     disableSelectionTranslator: boolean; // 是否禁用划词翻译
     selectionAreaEnabled: boolean; // 是否启用圈选翻译
     selectionAreaHotkey: string; // 圈选翻译触发快捷键；'custom' 表示使用自定义组合键
@@ -539,6 +552,10 @@ export class Config {
         this.customHotkey = ''; // 自定义鼠标悬浮快捷键为空
         this.quickTranslationProfiles = []; // 默认仅保留旧快捷键，新方案由用户按需添加
         this.mouseHoverTranslationDelay = DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY;
+        this.paragraphCopyEnabled = true; // 默认开启，按快捷键才复制，不影响浏览
+        this.paragraphCopyHotkey = DEFAULT_PARAGRAPH_COPY_HOTKEY; // 默认 Alt+C，避开浏览器的 Ctrl+C
+        this.customParagraphCopyHotkey = ''; // 自定义段落复制快捷键为空
+        this.paragraphCopyContent = DEFAULT_PARAGRAPH_COPY_CONTENT_MODE; // 默认跟随段落当前显示形态
         this.disableSelectionTranslator = true; // 默认关闭划词翻译
         this.selectionAreaEnabled = true; // 默认开启，按快捷键圈选后才截图翻译
         this.selectionAreaHotkey = DEFAULT_AREA_TRANSLATION_HOTKEY; // 默认 Shift+Z，可改为其他预设或自定义组合键
@@ -1201,6 +1218,16 @@ export function normalizeConfig(value: unknown): Config {
     if (normalized.selectionAreaHotkey === 'custom' && !normalized.customSelectionAreaHotkey) {
         normalized.selectionAreaHotkey = DEFAULT_AREA_TRANSLATION_HOTKEY;
     }
+    if (typeof normalized.paragraphCopyEnabled !== 'boolean') {
+        normalized.paragraphCopyEnabled = true;
+    }
+    normalized.customParagraphCopyHotkey = normalizeCustomParagraphCopyHotkey(source.customParagraphCopyHotkey);
+    normalized.paragraphCopyHotkey = normalizeParagraphCopyHotkey(source.paragraphCopyHotkey);
+    // 选择自定义却没有可用组合键时回到预设默认值，段落复制不会失去唯一入口。
+    if (normalized.paragraphCopyHotkey === 'custom' && !normalized.customParagraphCopyHotkey) {
+        normalized.paragraphCopyHotkey = DEFAULT_PARAGRAPH_COPY_HOTKEY;
+    }
+    normalized.paragraphCopyContent = normalizeParagraphCopyContentMode(source.paragraphCopyContent);
     if (typeof normalized.disableImageTranslator !== 'boolean') {
         normalized.disableImageTranslator = true;
     }
@@ -1241,6 +1268,9 @@ export function normalizeConfig(value: unknown): Config {
                 resolveConfiguredHotkey(normalized.floatingBallHotkey, normalized.customFloatingBallHotkey),
                 ...(normalized.selectionAreaEnabled
                     ? [resolveAreaTranslationHotkey(normalized.selectionAreaHotkey, normalized.customSelectionAreaHotkey)]
+                    : []),
+                ...(normalized.paragraphCopyEnabled
+                    ? [resolveParagraphCopyHotkey(normalized.paragraphCopyHotkey, normalized.customParagraphCopyHotkey)]
                     : []),
                 inputBoxTranslationTriggerHotkey(normalized.inputBoxTranslationTrigger),
             ],

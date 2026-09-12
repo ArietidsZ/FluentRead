@@ -574,6 +574,29 @@ describe('界面 i18n 契约', () => {
     ]) expect(translateLegacyText(copy, 'en-US')).not.toMatch(/[\u3400-\u9fff]/u);
   });
 
+  it('段落复制的设置与页内提示覆盖每种界面语言，并保留相同的插值参数', () => {
+    const keys = Object.keys(zhCNMessages).filter(key => key.startsWith('paragraphCopy.'))
+    expect(keys.length).toBeGreaterThan(0)
+    for (const language of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
+      for (const key of keys) {
+        const localized = translate(key, language)
+        expect(localized, `${language}: ${key}`).not.toBe(key)
+        // 日语与中文共用"原文"等汉字词，其余语言不得回显中文原串。
+        if (language !== 'ja-JP') {
+          expect(localized, `${language}: ${key}`).not.toBe(zhCNMessages[key as keyof typeof zhCNMessages])
+        }
+      }
+    }
+    expect(translate('paragraphCopy.notice.copiedBilingual', 'zh-CN', {count: 12})).toBe('已复制原文和译文（12 字）')
+    expect(translate('paragraphCopy.notice.copiedBilingual', 'en-US', {count: 12})).toBe('Original and translation copied (12 characters)')
+    expect(translate('paragraphCopy.settings.enabledDescription', 'en-US', {shortcut: 'Alt+C'})).toContain('Alt+C')
+    for (const label of ['段落复制', '段落复制快捷键', '自定义段落复制快捷键', '段落复制内容', '跟随页面显示', '原文和译文']) {
+      for (const language of ['en-US', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
+        expect(translateLegacyText(label, language), `${language}: ${label}`).not.toMatch(/[\u3400-\u9fff]/u)
+      }
+    }
+  })
+
   it('独立界面布局导航、皮肤风格和通用设置文案覆盖每种界面语言', () => {
     const navigationCopy = navigationItems
       .filter((item) => ['settings-general', 'settings-interface'].includes(item.id))

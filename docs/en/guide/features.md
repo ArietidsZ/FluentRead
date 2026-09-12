@@ -62,6 +62,8 @@ You can change the trigger to a direct popup, a key, or another gesture, and adj
 
 Hover over a paragraph and press **Control** to translate it. You don’t need to select text or translate the whole page. See [Shortcuts & triggers](/en/guide/custom-hotkey) to change the behavior.
 
+The same paragraph can also be taken as text: press **Alt+C** to copy the paragraph under the mouse to the clipboard. A translated paragraph is copied the way it is displayed. Adjust the switch, the shortcut, and what gets copied in **Settings → Translation → Paragraph copy**.
+
 ## AI reading card and learning center
 
 The [reading card](/en/guide/deepseek-harness) can explain tone, unpack a long sentence, show usage, or suggest a practice question. It uses a configured AI service and starts when you choose an action.
