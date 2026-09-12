@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/ServiceCatalog.vue
  * 文件职责：呈现个人翻译服务与完整目录，按默认、常用和已保存配置组织紧凑列表，并保留独立的服务配置工作区。
- * 主要内容：组件接收当前服务、网站入口、云服务厂商开通指引和配置，支持个人服务去重、持久化常用标记、全目录分类筛选与关键词搜索、动态 OpenAI 兼容服务、分组计数、官网新标签页跳转、免费额度与控制台链接展示和紧凑模型选择。
+ * 主要内容：组件接收当前服务、网站入口、云服务厂商开通指引和配置，支持个人服务去重、持久化常用标记、我的服务/自定义服务/全部服务三级入口、全目录分类筛选与关键词搜索、动态 OpenAI 兼容服务、分组计数、官网新标签页跳转、免费额度与控制台链接展示和紧凑模型选择。
  * 模块边界：目录区分“查看服务”“标记常用”和显式“设为默认”，不编辑凭据、不测试连接也不保存配置；详细表单归 ServiceConfiguration.vue，服务定义来自 core/config，外层 SettingsSections 处理持久化。
  -->
 <template>
@@ -12,18 +12,31 @@
     :data-editing-service="service"
   >
     <header class="catalog-toolbar">
-      <div role="group" class="catalog-views" :aria-label="t('settings.services.library.views')">
-        <button type="button" :aria-pressed="catalogView === 'mine'" data-service-view="mine" @click="switchView('mine')">{{ t('settings.services.library.mine') }}</button>
-        <button type="button" :aria-pressed="catalogView === 'all'" data-service-view="all" @click="switchView('all')">{{ t('settings.services.library.all') }} <small>{{ allServices.length }}</small></button>
+      <div class="catalog-toolbar-inner">
+        <div role="group" class="catalog-views" :aria-label="t('settings.services.library.views')">
+          <button type="button" :aria-pressed="catalogView === 'mine'" data-service-view="mine" @click="switchView('mine')">
+            <span>{{ t('settings.services.library.mine') }}</span>
+          </button>
+          <button type="button" :aria-pressed="catalogView === 'custom'" data-service-view="custom" @click="switchView('custom')">
+            <span>{{ t('settings.services.library.custom') }}</span>
+            <small>{{ customServices.length }}</small>
+          </button>
+          <button type="button" :aria-pressed="catalogView === 'all'" data-service-view="all" @click="switchView('all')">
+            <span>{{ t('settings.services.library.all') }}</span>
+            <small>{{ allServices.length }}</small>
+          </button>
+        </div>
+        <div class="catalog-actions">
+          <label class="catalog-search">
+            <span aria-hidden="true">⌕</span>
+            <input v-model="serviceQuery" type="search" :aria-label="t('settings.services.library.search')" :placeholder="t('settings.services.library.search')" @input="catalogView = 'all'; category = 'all'" />
+          </label>
+          <button type="button" class="custom-service-add" data-testid="custom-service-add"
+            :disabled="customServiceLimitReached" :title="`${customServices.length} / ${maximumCustomServices}`" @click="$emit('add:service')">
+            {{ t('settings.services.library.add') }}
+          </button>
+        </div>
       </div>
-      <label class="catalog-search">
-        <span aria-hidden="true">⌕</span>
-        <input v-model="serviceQuery" type="search" :aria-label="t('settings.services.library.search')" :placeholder="t('settings.services.library.search')" @input="catalogView = 'all'; category = 'all'" />
-      </label>
-      <button type="button" class="custom-service-add" data-testid="custom-service-add"
-        :disabled="customServiceLimitReached" :title="`${customServices.length} / ${maximumCustomServices}`" @click="$emit('add:service')">
-        {{ t('settings.services.library.add') }}
-      </button>
     </header>
     <div v-show="catalogView === 'mine'" class="catalog-layout">
       <aside class="service-rail" :aria-label="t('settings.services.library.mine')">
@@ -133,7 +146,7 @@
 
       </section>
     </div>
-    <section v-show="catalogView === 'all'" class="service-directory" :aria-label="t('settings.services.library.all')">
+    <section v-show="catalogView !== 'mine'" class="service-directory" :aria-label="t(`settings.services.library.${catalogView === 'custom' ? 'custom' : 'all'}`)" :data-directory-view="catalogView">
       <div role="group" class="directory-filters" :aria-label="t('settings.services.library.categories')">
         <button type="button" :aria-pressed="category === 'all'" @click="category = 'all'">{{ t('settings.services.library.allCategories') }}</button>
         <button v-for="group in directoryGroups" :key="group.id" type="button" :aria-pressed="category === group.id" @click="category = group.id">{{ group.label }}</button>
@@ -202,7 +215,7 @@ const emit = defineEmits<{
 
 const { t } = useUiI18n()
 const serviceQuery = ref('')
-const catalogView = ref<'mine' | 'all'>('mine')
+const catalogView = ref<'mine' | 'custom' | 'all'>('mine')
 const category = ref('all')
 const customServices = computed(() => props.services.filter((item) => isCustomOpenAIProviderId(item.value)))
 const builtInServices = computed(() => props.services.filter((item) => !isCustomOpenAIProviderId(item.value)))
@@ -223,10 +236,10 @@ const visibleDirectoryGroups = computed(() => {
 const customServiceLimitReached = computed(() => customServices.value.length >= props.maximumCustomServices)
 const selectedService = computed(() => allServices.value.find(item => item.value === props.service))
 
-function switchView(view: 'mine' | 'all') {
+function switchView(view: 'mine' | 'custom' | 'all') {
   catalogView.value = view
   serviceQuery.value = ''
-  category.value = 'all'
+  category.value = view === 'custom' ? 'custom' : 'all'
 }
 function selectService(service: string) {
   emit('update:service', service)
@@ -244,12 +257,16 @@ watch(() => props.service, () => switchView('mine'))
 
 <style scoped>
 .service-catalog { display: flex; height: clamp(520px, calc(100vh - 270px), 760px); min-height: 520px; margin: 2px 0 20px; border: 1px solid var(--line, #e4e7ef); border-radius: 16px; overflow: hidden; background: var(--surface, #fff); flex-direction: column; }
-.catalog-toolbar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid var(--line, #e4e7ef); flex-shrink: 0; }
-.catalog-views { display: flex; gap: 5px; margin-right: auto; }
-.catalog-views button, .directory-filters button { border: 1px solid transparent; border-radius: 8px; padding: 8px 12px; background: transparent; color: var(--muted, #737c8f); cursor: pointer; font: inherit; font-size: 13px; }
-.catalog-views button[aria-pressed="true"], .directory-filters button[aria-pressed="true"] { color: var(--brand-strong, #bd2853); background: var(--brand-soft, #fff0f4); }
-.catalog-views small { margin-left: 5px; }
-.catalog-search { display: flex; align-items: center; gap: 8px; width: 240px; max-width: 100%; min-height: 36px; padding: 0 10px; border: 1px solid var(--line, #dfe3eb); border-radius: 8px; background: var(--surface, #fff); }
+.catalog-toolbar { padding: 12px 16px; border-bottom: 1px solid var(--line, #e4e7ef); flex-shrink: 0; }
+.catalog-toolbar-inner { display: flex; align-items: center; gap: 16px; width: 100%; flex-wrap: wrap; }
+.catalog-views { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; width: min(100%, 540px); min-width: min(100%, 420px); padding: 4px; border: 1px solid var(--line, #dfe3eb); border-radius: 13px; background: var(--surface-soft, #f7f8fb); }
+.catalog-views button, .directory-filters button { border: 1px solid transparent; border-radius: 9px; padding: 9px 14px; background: transparent; color: var(--muted, #737c8f); cursor: pointer; font: inherit; font-size: 14px; font-weight: 650; }
+.catalog-views button { display: flex; align-items: center; justify-content: center; gap: 7px; min-width: 0; min-height: 44px; white-space: nowrap; }
+.catalog-views button[aria-pressed="true"] { border-color: color-mix(in srgb, var(--brand-strong, #bd2853) 48%, transparent); color: var(--brand-strong, #bd2853); background: var(--brand-soft, #fff0f4); box-shadow: 0 3px 10px color-mix(in srgb, var(--brand, #ef4776) 15%, transparent); }
+.catalog-views button:not([aria-pressed="true"]):hover { color: var(--ink, #172033); background: var(--surface, #fff); }
+.catalog-views small { display: inline-grid; place-items: center; min-width: 22px; height: 20px; padding: 0 5px; border-radius: 999px; color: currentColor; background: color-mix(in srgb, currentColor 10%, transparent); font-size: 11px; font-weight: 750; }
+.catalog-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0; margin-left: auto; flex: 1 1 350px; }
+.catalog-search { display: flex; align-items: center; gap: 8px; width: 240px; max-width: 100%; min-height: 38px; padding: 0 10px; border: 1px solid var(--line, #dfe3eb); border-radius: 9px; background: var(--surface, #fff); }
 .catalog-search span { color: var(--muted, #8991a2); }
 .catalog-search input { width: 100%; min-width: 0; border: 0; color: var(--ink, #172033); background: transparent; font-size: 13px; padding: 8px 0; }
 .custom-service-add, .catalog-set-default { padding: 7px 10px; border: 1px solid var(--brand-strong, #bd2853); border-radius: 8px; color: var(--brand-strong, #bd2853); background: var(--brand-soft, #fff0f4); font-size: 12px; cursor: pointer; }
@@ -320,8 +337,10 @@ watch(() => props.service, () => switchView('mine'))
 .no-model-panel p { margin: 4px 0 0; color: #628074; font-size: 12px; }
 .service-configuration-slot { min-height: 0; margin-top: 16px; padding-top: 16px; border-top: 1px solid #eceef3; overflow-y: auto; flex: 1; }
 :global(:root.dark .service-catalog),
+:global(:root.dark .catalog-views),
 :global(:root.dark .catalog-search),
 :global(:root.dark .service-detail) { border-color: var(--line); background: var(--surface); }
+:global(:root.dark .catalog-views) { background: var(--surface-soft); }
 :global(:root.dark .service-rail),
 :global(:root.dark .group-heading),
 :global(:root.dark .custom-service-add) { border-color: var(--line); background: var(--surface-soft); }
@@ -362,9 +381,12 @@ watch(() => props.service, () => switchView('mine'))
 }
 @media (max-width: 700px) {
   .service-catalog { height: auto; min-height: 0; }
+  .catalog-toolbar-inner { align-items: stretch; }
+  .catalog-views { width: 100%; min-width: 0; }
+  .catalog-actions { width: 100%; flex-basis: 100%; margin-left: 0; }
+  .catalog-search { width: auto; flex: 1 1 auto; }
   .catalog-layout { display: block; flex: 0 0 auto; }
   .directory-grid { grid-template-columns: 1fr; }
-  .catalog-search { width: 100%; order: 3; }
   .service-groups { max-height: 220px; }
 
   .service-rail { border-right: 0; border-bottom: 1px solid #eceef3; }

@@ -14,14 +14,15 @@ for(const field of ['extension-dir','playwright-root','focus-safe-helper','artif
 const {chromium} = createRequire(path.join(args['playwright-root'], 'service-library.cjs'))('playwright');
 const helper = require(args['focus-safe-helper']);
 const extensionDir=path.resolve(args['extension-dir']), artifacts=path.resolve(args['artifacts-dir']);
+const browserPath=args['browser-path'] || '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge';
 fs.mkdirSync(artifacts,{recursive:true});
 const profileDir=fs.mkdtempSync(path.join(os.tmpdir(),'fluentread-service-library-'));
-const report={ok:false, evidence:'production-extension-ui-with-fixture-config',cases:[],screenshots:[],consoleErrors:[],persistenceCases:[],quickClose:false,latestWriteWins:false,crossPageSync:false};
+const report={ok:false, evidence:'production-extension-ui-with-fixture-config',browserPath,cases:[],screenshots:[],consoleErrors:[],persistenceCases:[],quickClose:false,latestWriteWins:false,crossPageSync:false};
 let session, page;
 const save=()=>fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringify(report,null,2));
 (async()=>{
  try {
-  session=await helper.launchFocusSafePersistentContext({chromium,profileDir,browserPath:'/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',headless:false,background:true,displayTarget:'secondary',viewport:{width:1440,height:1000},timeout:30000,browserArgs:[`--disable-extensions-except=${extensionDir}`,`--load-extension=${extensionDir}`,'--no-first-run','--no-default-browser-check']});
+  session=await helper.launchFocusSafePersistentContext({chromium,profileDir,browserPath,headless:false,background:true,displayTarget:'secondary',viewport:{width:1440,height:1000},timeout:30000,browserArgs:[`--disable-extensions-except=${extensionDir}`,`--load-extension=${extensionDir}`,'--no-first-run','--no-default-browser-check']});
   Object.assign(report,{launchMode:session.launchMode,focusPolicy:session.focusPolicy,windowPlacement:session.windowPlacement});
   assert.equal(report.windowPlacement.browserFrontmost,false);
   const context=session.context;
@@ -48,9 +49,21 @@ const save=()=>fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringif
   const browse=async()=>page.locator('[data-service-view="all"]').click();
   const shot=async name=>{const file=path.join(artifacts,`${name}.png`);await page.screenshot({path:file,fullPage:true});report.screenshots.push(file);};
   const invariant=async expected=>assert.equal(await page.locator('.service-catalog').getAttribute('data-default-service'),expected);
+  const viewButton=view=>page.locator(`[data-service-view="${view}"]:visible`);
+  assert.equal(await page.locator('[data-service-view]').count(),3);
+  for(const view of ['mine','custom','all']) {
+   const box=await viewButton(view).boundingBox();
+   assert(box&&box.width>0&&box.height>=40,`服务视图入口不可见：${view}`);
+  }
   assert.equal(await mine().locator('[data-service-value]').count(),1);
   await shot('01-first-use');report.cases.push('new-user-default-only');
+  await viewButton('custom').click();
+  assert.equal(await all().getAttribute('data-directory-view'),'custom');
+  assert.equal(await all().locator('[data-service-section="custom"]').count(),0);
+  assert.equal(await page.locator('[data-service-view="custom"]').getAttribute('aria-pressed'),'true');
+  report.cases.push('custom-view-visible-before-first-custom-service');
   await browse();assert((await all().locator('[data-service-value]').count())>40);
+  assert.equal(await all().locator('[data-service-section="custom"]').count(),0);
   await select('openai').click();await invariant('freeTranslation');
   assert.equal(await page.locator('.service-catalog').getAttribute('data-editing-service'),'openai');
   assert.equal(await mine().locator('[data-personal-group="viewing"] [data-service-value="openai"]').count(),1);
@@ -68,6 +81,13 @@ const save=()=>fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringif
   await page.close();page=await newOptions();await page.locator('[data-personal-group="configured"] [data-service-value="openai"]').waitFor();
   assert.equal(await star('openai').getAttribute('aria-pressed'),'false');
   report.persistenceCases.push('unfavorite-retains-saved-service-after-reopen');
+  await viewButton('custom').click();
+  assert.equal(await all().getAttribute('data-directory-view'),'custom');
+  assert.equal(await all().locator('[data-service-section="custom"] [data-service-value]').count(),1);
+  assert.equal(await all().locator('[data-service-section="custom"] [data-service-value]').getAttribute('data-service-value'),'custom:work');
+  await browse();
+  assert.equal(await all().locator('[data-service-section="custom"] [data-service-value]').count(),1);
+  report.cases.push('custom-service-is-in-full-catalog');
   await select('deepseek').click();await shot('02-my-services');
   await browse();await shot('03-all-services');
   const icons=await all().locator('[data-service-value]').evaluateAll(nodes=>nodes.map(n=>({service:n.dataset.serviceValue,svg:!!n.querySelector('svg'),text:!!n.querySelector('svg text'),image:!!n.querySelector('img, image'),fallback:!!n.querySelector('[data-service-icon-fallback]')})));
@@ -88,9 +108,16 @@ const save=()=>fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringif
   await all().getByRole('status').waitFor();report.cases.push('global-search-and-empty-state');
   await seed({service:'freeTranslation',favoriteServices:['deepseek','custom:work','openai'],customOpenAIProviders:Array.from({length:20},(_,i)=>({id:i===0?'custom:work':`custom:test${i}`,name:i===0?'工作翻译接口':`长名称自定义翻译服务 ${i} · 内部模型接口`,endpoint:'http://localhost:11434/v1',models:['local-model']}))});
   await page.reload();await page.locator('[data-service-view="mine"]').waitFor();
+  await viewButton('custom').click();
+  assert.equal(await all().locator('[data-service-section="custom"] [data-service-value]').count(),20);
+  assert((await all().locator('[data-service-section="custom"] h4').textContent()).includes('自定义服务'));
+  assert((await all().locator('[data-service-section="custom"] [data-service-value]').first().textContent()).includes('工作翻译接口'));
+  await browse();
+  assert.equal(await all().locator('[data-service-section="custom"] [data-service-value]').count(),20);
+  report.cases.push('custom-view-and-full-catalog-include-all-custom-services');
   for(const width of [1440,1024,820,390]){
    await page.setViewportSize({width,height:1000});
-   for(const view of ['all','mine']){
+   for(const view of ['all','custom','mine']){
     await page.locator(`[data-service-view="${view}"]`).click();
     const metrics=await page.evaluate(()=>({filtersHeight:document.querySelector('.directory-filters').getBoundingClientRect().height,toolbarHeight:document.querySelector('.catalog-toolbar').getBoundingClientRect().height,width:innerWidth,scrollWidth:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight,height:innerHeight,overflow:[...document.querySelectorAll('.catalog-toolbar button,.library-favorite,.catalog-search,.directory-grid')].filter(n=>n.getClientRects().length).filter(n=>n.getBoundingClientRect().right>innerWidth+1||n.getBoundingClientRect().left<0).length}));
     if(width===1440){assert(metrics.toolbarHeight<90,JSON.stringify(metrics));if(view==='all')assert(metrics.filtersHeight<100,JSON.stringify(metrics));}
