@@ -1,7 +1,7 @@
 <!--
  * @file src/features/reading-assistant/ui/ReadingPanel.vue
  * 文件职责：在原有划词卡内提供读懂、拆句、用法、练习和连续追问，保持阅读上下文与原生选区体验。
- * 主要内容：按原文与配置复用各学习动作的已完成回答，显式重新生成；统一呈现 Markdown、原文朗读、句子收藏和 30 天问答记录，并以代次隔离过期请求。
+ * 主要内容：按原文与配置复用各学习动作的已完成回答，显式重新生成；统一呈现 Markdown、原文朗读、句子收藏和 30 天问答记录，以局部主题变量保持正文、状态和操作文字的对比度，并以代次隔离过期请求。
  * 模块边界：不持有模型密钥、不扫描页面、不直接请求供应商；记录由后台会话仓库保存，父划词组件负责选区、位置和 Shadow UI 生命周期。
  -->
 <template>
@@ -422,7 +422,7 @@ onBeforeUnmount(() => { recordsGeneration += 1; restoreEpoch += 1; cancelRequest
 </script>
 
 <style scoped>
-.fr-reading { --fr-reading-line: #eee8ec; --fr-reading-muted: #857a84; --fr-reading-soft: #faf7f9; display: flex; flex-direction: column; height: 100%; min-height: 0; box-sizing: border-box; padding: 10px 14px; overflow: hidden; color: #35333c; font: 13px/1.7 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.fr-reading { --fr-reading-line: #eee8ec; --fr-reading-muted: #756a74; --fr-reading-button: #826573; --fr-reading-soft: #faf7f9; display: flex; flex-direction: column; height: 100%; min-height: 0; box-sizing: border-box; padding: 10px 14px; overflow: hidden; color: #35333c; font: 13px/1.7 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
 .fr-reading-navigation { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 8px; color: var(--fr-reading-muted); font-size: 11px; }
 .fr-reading-navigation button { color: #a64b6e; }
 .fr-reading-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 2px 5px 4px 0; }
@@ -439,7 +439,7 @@ onBeforeUnmount(() => { recordsGeneration += 1; restoreEpoch += 1; cancelRequest
 .fr-reading-turn small { margin-left: 8px; color: var(--fr-reading-muted); font-size: 10px; }
 .fr-reading-turn p { margin: 3px 0; }
 .fr-reading button, .fr-reading input { font: inherit; }
-.fr-reading button { cursor: pointer; border: 0; background: none; color: #826573; padding: 3px 6px; border-radius: 6px; }
+.fr-reading button { cursor: pointer; border: 0; background: none; color: var(--fr-reading-button); padding: 3px 6px; border-radius: 6px; }
 .fr-reading button:focus-visible, .fr-reading input:focus-visible { outline: 2px solid #cd527f; outline-offset: 2px; }
 .fr-reading button:disabled { opacity: .5; cursor: default; }
 .fr-reading-source { flex-shrink: 0; border-left: 2px solid #e6c3d0; padding: 0 0 0 10px; margin: 2px 0 10px; }
@@ -449,10 +449,10 @@ onBeforeUnmount(() => { recordsGeneration += 1; restoreEpoch += 1; cancelRequest
 .fr-reading-source-tools .fr-reading-speak { margin-left: auto; display: inline-flex; align-items: center; padding: 5px; }
 .fr-reading-speak[aria-pressed='true'] { background: var(--fr-reading-soft); }
 .fr-reading-actions { flex-shrink: 0; display: flex; gap: 4px; padding-bottom: 10px; }
-.fr-reading-actions button { flex: 1; color: #77707a; background: #f5f3f5; padding: 5px 2px; }
+.fr-reading-actions button { flex: 1; color: var(--fr-reading-muted); background: #f5f3f5; padding: 5px 2px; }
 .fr-reading-actions button[aria-pressed='true'] { background: #f9e7ee; color: #9d3e61; font-weight: 600; }
 .fr-reading-actions .fr-reading-regenerate { flex: 0 0 auto; background: none; padding: 5px; font-size: 10px; color: var(--fr-reading-muted); }
-.fr-reading-status { display: flex; align-items: center; gap: 8px; color: #8b7981; font-size: 12px; }
+.fr-reading-status { display: flex; align-items: center; gap: 8px; color: var(--fr-reading-muted); font-size: 12px; }
 .fr-reading-status button { margin-left: auto; }
 .fr-reading-pulse { width: 6px; height: 6px; border-radius: 50%; background: #c76688; animation: fr-reading-breathe 1.4s ease-in-out infinite; }
 .fr-reading-static { animation: none; }
@@ -463,14 +463,14 @@ onBeforeUnmount(() => { recordsGeneration += 1; restoreEpoch += 1; cancelRequest
 .fr-reading-question { margin: 0 0 10px; border-bottom: 1px solid var(--fr-reading-line); padding-bottom: 8px; color: #986077; user-select: text; overflow-wrap: anywhere; }
 .fr-reading-answer { user-select: text; overflow-wrap: anywhere; }
 .fr-reading-footer { display: flex; gap: 5px; align-items: center; margin: 8px 0; font-size: 11px; }
-.fr-reading-footer > span { color: #9b9199; margin-right: auto; max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fr-reading-footer > span { color: var(--fr-reading-muted); margin-right: auto; max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fr-reading-followup { flex-shrink: 0; display: flex; gap: 6px; margin-top: 8px; padding: 5px 5px 5px 10px; border: 1px solid #eae2e7; border-radius: 11px; }
 .fr-reading-followup input { min-width: 0; flex: 1; width: 100%; border: 0; outline: none; color: inherit; background: transparent; font-size: 12px; user-select: text; }
-.fr-reading-followup input::placeholder { color: #a79ba4; font-size: 11px; }
+.fr-reading-followup input::placeholder { color: var(--fr-reading-muted); font-size: 11px; }
 .fr-reading-followup button { background: #b85579; color: white; width: 27px; height: 27px; line-height: 20px; }
 .fr-reading-context { flex-shrink: 0; display: flex; align-items: center; gap: 8px; margin-top: 7px; font-size: 10px; color: var(--fr-reading-muted); }
 .fr-reading-context button { margin-left: auto; font-size: 10px; }
-.fr-dark-theme .fr-reading { --fr-reading-line: #514651; --fr-reading-muted: #b6a9b5; --fr-reading-soft: #352f38; color: #e6e0e8; }
+.fr-dark-theme .fr-reading { --fr-reading-line: #514651; --fr-reading-muted: #b6a9b5; --fr-reading-button: #e4a0bc; --fr-reading-soft: #352f38; color: #e6e0e8; }
 .fr-dark-theme .fr-reading-source p { color: #b5aab6; }
 .fr-dark-theme .fr-reading-actions button { background: #38313c; color: #bdb0c1; }
 .fr-dark-theme .fr-reading-actions button[aria-pressed='true'] { background: #50313f; color: #f1b6ce; }
