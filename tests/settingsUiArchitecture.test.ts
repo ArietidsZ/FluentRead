@@ -795,7 +795,7 @@ describe('options UI composition architecture', () => {
     const promptEditor = source('src/features/settings/ui/services/PromptTemplateEditor.vue')
 
     expect(catalog).toContain('data-testid="custom-service-add"')
-    expect(catalog).toContain('我的服务')
+    expect(catalog).toContain("t('settings.services.library.mine')")
     expect(catalog).toContain('<ModelPicker')
     expect(catalog).not.toContain('model-grid expanded')
     expect(catalog).not.toContain('.model-grid.expanded')
@@ -914,29 +914,17 @@ describe('options UI composition architecture', () => {
     expect(styles).not.toContain('box-shadow: inset 4px 0 0 var(--brand);')
   })
 
-  it('keeps the service catalog hierarchy searchable and accessible', () => {
+  it('keeps personal services and the full catalog separately accessible', () => {
     const catalog = source('src/features/settings/ui/services/ServiceCatalog.vue')
-    const viewModel = source('src/ui/view-model/serviceCatalog.ts')
-    const serviceDescriptionStyles = catalog.match(/\.service-copy small \{([^}]*)\}/u)?.[1] || ''
-
-    expect(catalog).toContain(':data-service-section-toggle="section.id"')
-    expect(catalog).toContain(':aria-expanded="!isSectionCollapsed(section)"')
-    expect(catalog).toContain(':aria-controls="`service-section-${section.id}`"')
-    expect(catalog).toContain(':disabled="Boolean(serviceQuery)"')
-    expect(catalog).toContain("serviceQuery ? '搜索中'")
-    expect(catalog).toContain(':global(:root.dark .group-toggle-copy) { color: var(--brand-strong); }')
-    expect(catalog).toContain("const collapsedSectionIds = ref(new Set(['machine']))")
-    expect(catalog).toContain('&& !serviceQuery.value')
-    expect(catalog).toContain('sectionContainsService(section, editingService)')
-    expect(catalog).toContain('sectionContainsService(section, defaultService)')
-    expect(viewModel).toContain("label: '模型服务商'")
-    expect(viewModel).toContain("label: '聚合平台与接口'")
-    expect(viewModel).toContain("item.catalogKind === 'platform'")
-    expect(serviceDescriptionStyles).toContain('display: block')
-    expect(serviceDescriptionStyles).toContain('min-width: 0')
-    expect(serviceDescriptionStyles).toContain('overflow: hidden')
-    expect(serviceDescriptionStyles).toContain('text-overflow: ellipsis')
-    expect(serviceDescriptionStyles).toContain('white-space: nowrap')
+    const item = source('src/features/settings/ui/services/ServiceCatalogItem.vue')
+    expect(catalog).toContain('data-service-view="mine"')
+    expect(catalog).toContain('data-service-view="all"')
+    expect(catalog).toContain(':data-personal-group="group.id"')
+    expect(catalog).toContain(':aria-pressed="category === group.id"')
+    expect(item).toContain(':data-service-value="item.value"')
+    expect(item).toContain(':data-service-favorite="item.value"')
+    expect(item).toContain(':aria-pressed="favorite"')
+    expect(item).toContain('<ServiceIcon')
   })
 
   it('keeps translation interactions together in the requested order', () => {

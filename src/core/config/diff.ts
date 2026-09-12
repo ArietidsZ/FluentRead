@@ -448,6 +448,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     bilingualSentenceHighlightEnabled: {group: 'general', label: '双语逐句高亮', format: formatBoolean},
 
     service: {group: 'general', label: '默认翻译服务', format: formatService},
+    favoriteServices: {group: 'translationServices', label: '常用翻译服务', format: (value) => Array.isArray(value) ? formatArray(value, formatService) : formatValue(value)},
     customOpenAIProviders: {group: 'translationServices', label: '自定义 OpenAI 服务', format: formatCustomOpenAIProviders},
     model: {group: 'translationServices', label: '服务模型', mapping: serviceMapping('模型')},
     customModel: {group: 'translationServices', label: '自定义模型', mapping: serviceMapping('自定义模型')},

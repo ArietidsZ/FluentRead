@@ -9,6 +9,12 @@ function group(result: ReturnType<typeof buildConfigDiff>, id: string) {
 }
 
 describe('配置差异预览', () => {
+    it('常用服务的添加与删除记录为独立偏好，缺失旧值也能预览', () => {
+        const changes = group(buildConfigDiff({favoriteServices: []}, {favoriteServices: ['openai']}), 'translationServices')?.changes;
+        expect(changes).toEqual([{key: 'favoriteServices', label: '常用翻译服务', before: '无', after: 'OpenAI'}]);
+        expect(group(buildConfigDiff({}, {favoriteServices: ['openai']}), 'translationServices')?.changes[0].after).toBe('OpenAI');
+    });
+
     it('高级设置识别范围以开启关闭预览，撤销时方向可读', () => {
         expect(group(buildConfigDiff({translationScope: 'content'}, {translationScope: 'all'}), 'advanced')?.changes).toEqual([
             {key: 'translationScope', label: '识别全部节点', before: '关闭', after: '开启'},

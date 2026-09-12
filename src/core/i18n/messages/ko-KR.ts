@@ -10,6 +10,26 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const koKRMessages = {
+    "settings.services.library.views": "서비스 보기",
+    "settings.services.library.mine": "내 서비스",
+    "settings.services.library.all": "모든 서비스",
+    "settings.services.library.search": "모든 번역 서비스 검색",
+    "settings.services.library.add": "＋ 사용자 지정 서비스",
+    "settings.services.library.default": "현재 기본값",
+    "settings.services.library.favorites": "즐겨찾기",
+    "settings.services.library.configured": "저장된 설정",
+    "settings.services.library.viewing": "보는 중",
+    "settings.services.library.browse": "더 많은 서비스 보기",
+    "settings.services.library.setDefault": "기본값으로 설정",
+    "settings.services.library.categories": "서비스 분류",
+    "settings.services.library.allCategories": "모든 분류",
+    "settings.services.library.custom": "사용자 지정 서비스",
+    "settings.services.library.saved": "설정 저장됨",
+    "settings.services.library.empty": "일치하는 번역 서비스가 없습니다",
+    "settings.services.library.defaultBadge": "기본값",
+    "settings.services.library.favorite": "{service} 즐겨찾기 추가",
+    "settings.services.library.unfavorite": "{service} 즐겨찾기 해제",
+
     "inputTranslation.systemRoleLabel": "역할",
     "inputTranslation.userRoleLabel": "작업",
     "inputTranslation.editDefaultPrompt": "기본 프롬프트로 편집 시작",

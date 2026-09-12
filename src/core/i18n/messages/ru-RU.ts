@@ -10,6 +10,26 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const ruRUMessages = {
+    "settings.services.library.views": "Виды сервисов",
+    "settings.services.library.mine": "Мои сервисы",
+    "settings.services.library.all": "Все сервисы",
+    "settings.services.library.search": "Поиск сервисов перевода",
+    "settings.services.library.add": "＋ Свой сервис",
+    "settings.services.library.default": "Сервис по умолчанию",
+    "settings.services.library.favorites": "Избранное",
+    "settings.services.library.configured": "Сохранённые настройки",
+    "settings.services.library.viewing": "Сейчас открыт",
+    "settings.services.library.browse": "Другие сервисы",
+    "settings.services.library.setDefault": "Использовать по умолчанию",
+    "settings.services.library.categories": "Категории сервисов",
+    "settings.services.library.allCategories": "Все категории",
+    "settings.services.library.custom": "Свои сервисы",
+    "settings.services.library.saved": "Настройки сохранены",
+    "settings.services.library.empty": "Подходящие сервисы перевода не найдены",
+    "settings.services.library.defaultBadge": "По умолчанию",
+    "settings.services.library.favorite": "Добавить {service} в избранное",
+    "settings.services.library.unfavorite": "Убрать {service} из избранного",
+
     "inputTranslation.systemRoleLabel": "Роль",
     "inputTranslation.userRoleLabel": "Задача",
     "inputTranslation.editDefaultPrompt": "Начать редактирование стандартного промпта",
