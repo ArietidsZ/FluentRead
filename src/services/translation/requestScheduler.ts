@@ -2,7 +2,7 @@
  * @file src/services/translation/requestScheduler.ts
  *
  * 文件职责：统一执行翻译任务的并发和请求启动速率限制，支持取消、截止时间、服务/模型 bucket 与真实 HTTP attempt。
- * 主要内容：旧配置继续使用 global bucket；启用服务或模型限制后按稳定请求身份切换 bucket，provider 的 attempt 只复用速率历史而不重复占用外层并发槽；单次 drain 内缓存 bucket key 与限额，并以一次前向扫描启动全部可启动任务。
+ * 主要内容：旧配置继续使用 global bucket；启用服务或模型限制后按稳定请求身份切换 bucket，provider 的 attempt 只复用速率历史而不重复占用外层并发槽；单次 drain 内缓存 bucket key 与限额，并以累积等待 bucket 的一次线性前向扫描启动全部可启动任务。
  * 模块边界：本模块只管理调度时序，不选择服务、不实现重试、不读取或写入配置；配置由调用方通过 getConfig 提供。
  */
 
@@ -265,18 +265,6 @@ export function createTranslationRequestScheduler(
         compact();
     }
 
-    function hasEarlierSameBucket(index: number, keys: readonly string[], attemptOnly: boolean, config: TranslationRequestSchedulerConfig): boolean {
-        for (let prior = head; prior < index; prior += 1) {
-            const entry = pending[prior];
-            if (!entry || entry.settled) continue;
-            // HTTP 重试复用已占用的并发槽，不能被等待该槽的外层任务反向阻塞。
-            if (attemptOnly && !entry.attemptOnly) continue;
-            const priorKeys = keysFor(entry.identity, config);
-            for (const key of priorKeys) if (keys.includes(key)) return true;
-        }
-        return false;
-    }
-
     function arm(delay: number): void {
         timer = setTimeout(() => {
             timer = undefined;
@@ -346,19 +334,34 @@ export function createTranslationRequestScheduler(
                 rejectInactive(current);
                 let earliest = Number.POSITIVE_INFINITY;
                 // 启动一个任务只会让 bucket 更满，不可能解锁更早被阻塞的任务，因此
-                // 单次前向扫描即可启动本轮全部可启动任务；原先每启动一个就从队首重扫，
-                // 使公平性检查退化为 O(待处理数²)。
+                // 单次前向扫描即可启动本轮全部可启动任务。公平性要求同 bucket 中更早
+                // 仍在等待的任务先行：扫描时累积这些 bucket key，每项判定只看自身 1~2 个 key，
+                // 避免对每个等待项回扫全部更早项造成 O(待处理数²)。
+                const waitingKeys = new Set<string>();
+                // HTTP 重试复用已占用的并发槽，只能被更早等待的重试阻塞，不能被外层任务反向阻塞。
+                const waitingAttemptKeys = new Set<string>();
+                const keepWaiting = (entry: PendingRequest<unknown>, keys: readonly string[]) => {
+                    for (const key of keys) {
+                        waitingKeys.add(key);
+                        if (entry.attemptOnly) waitingAttemptKeys.add(key);
+                    }
+                };
                 for (let index = head; index < pending.length; index += 1) {
                     const entry = pending[index];
                     if (!entry || entry.settled) continue;
                     const keys = keysFor(entry.identity, config);
-                    if (hasEarlierSameBucket(index, keys, entry.attemptOnly, config)) continue;
+                    const blocking = entry.attemptOnly ? waitingAttemptKeys : waitingKeys;
+                    if (keys.some((key) => blocking.has(key))) {
+                        keepWaiting(entry, keys);
+                        continue;
+                    }
                     let wait = 0;
                     for (const key of keys) {
                         wait = Math.max(wait, waitFor(key, current, config, !entry.attemptOnly, entry.countRate));
                     }
                     if (wait > 0) {
                         if (wait < earliest) earliest = wait;
+                        keepWaiting(entry, keys);
                         continue;
                     }
                     pending[index] = undefined;

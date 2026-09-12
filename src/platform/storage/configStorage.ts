@@ -6,7 +6,7 @@
  * 模块边界：本文件不理解 Config 字段、不决定凭据授权、不选择真实浏览器运行上下文；configStorageRuntime 负责装配 WXT legacy storage、后台 repository 或远程 runtime，userscript 构建在该边界替换为 GM storage。
  */
 
-import {EncryptedConfigRepository} from './configRepository';
+import type {EncryptedConfigRepository} from './configRepository';
 
 export const CONFIG_STORAGE_READ_MESSAGE = 'configStorageRead' as const;
 export const CONFIG_STORAGE_CHANGED_MESSAGE = 'configStorageChanged' as const;

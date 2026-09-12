@@ -398,6 +398,31 @@ describe('architecture module boundaries', () => {
         expect(misplaced.map(relativePath)).toEqual([]);
     });
 
+    it('按需加载的大体积资源不得被扩展运行时代码静态引入', () => {
+        // 六种非中文界面文案只能经构建期 JSON 按需加载；正文提取器只能由独立脚本打包。
+        const allowed = new Map<string, RegExp>([
+            ['src/core/i18n/bundles.ts', /^\.\/messages\/(?:en-US|es-ES|fr-FR|ja-JP|ko-KR|ru-RU)$/u],
+            ['src/app/content/pageContextExtractor.ts', /^defuddle\/full$/u],
+        ]);
+        const onDemand = /^(?:defuddle(?:\/.*)?|@\/src\/core\/i18n\/bundles|\.\/bundles|(?:@\/src\/core\/i18n\/|\.\/|\.\.\/)messages\/(?:en-US|es-ES|fr-FR|ja-JP|ko-KR|ru-RU))$/u;
+        const violations: string[] = [];
+        for (const file of listSourceFiles('src')) {
+            const path = relativePath(file);
+            const source = readSource(file);
+            const script = source.includes('<script')
+                ? [...source.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/giu)].map((match) => match[1]).join('\n')
+                : source;
+            const sourceFile = ts.createSourceFile(path, script, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+            for (const statement of sourceFile.statements) {
+                if (!ts.isImportDeclaration(statement) || statement.importClause?.isTypeOnly) continue;
+                const specifier = (statement.moduleSpecifier as ts.StringLiteral).text;
+                if (!onDemand.test(specifier)) continue;
+                if (!allowed.get(path)?.test(specifier)) violations.push(`${path} -> ${specifier}`);
+            }
+        }
+        expect(violations).toEqual([]);
+    });
+
     it('历史巨型文件不得继续增长，后续迁移只降低债务上限', () => {
         const growth = Object.entries(COMPLEXITY_DEBT_CEILINGS)
             .map(([path, ceiling]) => ({path, lines: lineCount(path), ceiling}))

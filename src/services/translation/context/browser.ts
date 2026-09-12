@@ -2,10 +2,11 @@
  * @file src/services/translation/context/browser.ts
  *
  * 文件职责：从当前浏览器页面捕获隐私受限、大小受控的翻译上下文，为页面摘要和大模型翻译提供可读背景。
- * 主要内容：克隆并清洗 DOM，排除表单、隐藏、脚本和敏感属性，优先使用 Defuddle 后回退正文提取，缓存 snapshot，并导出 getPageTranslationContext 与 resetPageTranslationContextCache。 可核对的公开符号包括 getPageTranslationContext、resetPageTranslationContextCache、聚合导出。
+ * 主要内容：克隆并清洗 DOM，排除表单、隐藏、脚本和敏感属性，按需加载 Defuddle 提取器后回退正文提取，缓存 snapshot，并导出 getPageTranslationContext 与 resetPageTranslationContextCache。 可核对的公开符号包括 getPageTranslationContext、resetPageTranslationContextCache、聚合导出。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
+import {loadReadablePageExtractor} from '@/src/platform/page-context/readableExtractor';
 import {
     buildPageTranslationContext,
     normalizePageMarkdown,
@@ -37,7 +38,6 @@ interface PendingPageTranslationSnapshot {
 let cachedSnapshot: PageTranslationSnapshot | null = null;
 let pendingSnapshot: PendingPageTranslationSnapshot | null = null;
 let snapshotGeneration = 0;
-let defuddleModulePromise: Promise<typeof import('defuddle/full')> | null = null;
 
 const PAGE_CONTEXT_EXCLUDED_SELECTOR = [
     'script', 'style', 'noscript', 'template', 'svg', 'math', 'pre', 'code',
@@ -197,21 +197,11 @@ function captureReadablePage(): CapturedReadablePage {
     return {url, documentSnapshot, bodySnapshot, boundedText: null};
 }
 
-function loadDefuddleModule(): Promise<typeof import('defuddle/full')> {
-    if (defuddleModulePromise) return defuddleModulePromise;
-    const pending = import('defuddle/full');
-    const wrapped = pending.catch((error) => {
-        if (defuddleModulePromise === wrapped) defuddleModulePromise = null;
-        throw error;
-    });
-    defuddleModulePromise = wrapped;
-    return defuddleModulePromise;
-}
-
 async function extractReadablePageText(source: CapturedReadablePage): Promise<string> {
     if (source.boundedText !== null) return source.boundedText;
     try {
-        const {default: Defuddle, createMarkdownContent} = await loadDefuddleModule();
+        // 提取器是独立产物，只有真正需要 AI 网页上下文时才加载，普通网页的内容脚本不再解析它。
+        const {Defuddle, createMarkdownContent} = await loadReadablePageExtractor();
         const snapshot = source.documentSnapshot;
 
         if (snapshot) {

@@ -2,7 +2,7 @@ import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {describe, expect, it} from 'vitest';
-import {createExtensionManifest} from '@/wxt.config';
+import {contentScriptConfigStorageRuntime, createExtensionManifest, extendContentScriptBuildConfig} from '@/wxt.config';
 
 const PROJECT_ROOT = resolve(__dirname, '..');
 
@@ -149,5 +149,28 @@ describe('extension manifest capability contract', () => {
         expect(matches).not.toContain('*://*/*');
         expect(matches.some((match) => match.includes('youtube-nocookie'))).toBe(false);
         expect(matches.every((match) => match.includes('youtube'))).toBe(true);
+    });
+
+    it('内容脚本构建组只解析纯远程配置存储，后台与扩展页面保留完整运行时', () => {
+        const plugin = contentScriptConfigStorageRuntime();
+        expect(plugin.enforce).toBe('pre');
+        expect(plugin.resolveId(resolve(PROJECT_ROOT, 'src/platform/storage/configStorageRuntime')))
+            .toBe(resolve(PROJECT_ROOT, 'src/platform/storage/remoteConfigStorageRuntime.ts'));
+        expect(plugin.resolveId(resolve(PROJECT_ROOT, 'src/platform/storage/configStorageRuntime.ts')))
+            .toBe(resolve(PROJECT_ROOT, 'src/platform/storage/remoteConfigStorageRuntime.ts'));
+        expect(plugin.resolveId(resolve(PROJECT_ROOT, 'src/platform/storage/configStorage.ts'))).toBeNull();
+
+        const contentGroup: {plugins?: unknown[]} = {plugins: ['existing']};
+        extendContentScriptBuildConfig([{type: 'content-script'}, {type: 'content-script'}], contentGroup);
+        expect(contentGroup.plugins).toEqual(['existing', expect.objectContaining({name: 'fluentread-content-script-config-storage'})]);
+        const emptyPlugins: {plugins?: unknown[]} = {};
+        extendContentScriptBuildConfig([{type: 'content-script'}], emptyPlugins);
+        expect(emptyPlugins.plugins).toHaveLength(1);
+
+        for (const group of [[], [{type: 'background'}], [{type: 'content-script'}, {type: 'unlisted-script'}], [{type: 'popup'}]]) {
+            const config: {plugins?: unknown[]} = {plugins: []};
+            extendContentScriptBuildConfig(group, config);
+            expect(config.plugins).toEqual([]);
+        }
     });
 });

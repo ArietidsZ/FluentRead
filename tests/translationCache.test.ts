@@ -111,31 +111,22 @@ describe('translation cache persistence policy', () => {
     });
   });
 
-  it('loads cold IndexedDB hits promptly, touches last access time, and promotes them to memory', async () => {
-    await translationCacheDb.entries.put(record('cold', { lastAccessedAt: 1_000 }));
-    const actualUpdate = translationCacheDb.entries.update.bind(translationCacheDb.entries);
-    let releaseTouch!: () => void;
-    const touchGate = new Promise<void>((resolve) => {
-      releaseTouch = resolve;
-    });
-    const updateSpy = vi.spyOn(translationCacheDb.entries, 'update').mockImplementationOnce((
-      async (
-        key: string | TranslationCacheRecord,
-        changes: Parameters<typeof actualUpdate>[1],
-      ) => {
-        await touchGate;
-        return actualUpdate(key, changes);
-      }
-    ) as never);
+  it('loads cold IndexedDB hits promptly, merges their access-time writes, and promotes them to memory', async () => {
+    await translationCacheDb.entries.bulkPut([record('cold', { lastAccessedAt: 1_000 }), record('cold-2', { lastAccessedAt: 1_000 })]);
+    const bulkPut = vi.spyOn(translationCacheDb.entries, 'bulkPut');
+    const update = vi.spyOn(translationCacheDb.entries, 'update');
 
-    await expect(translationCache.get('cold', 5_000)).resolves.toBe('译文-cold');
-    expect(updateSpy).toHaveBeenCalledWith('cold', expect.any(Function));
-    await expect(translationCacheDb.entries.get('cold')).resolves.toMatchObject({ lastAccessedAt: 1_000 });
-
-    releaseTouch();
+    await expect(Promise.all([
+      translationCache.get('cold', 5_000),
+      translationCache.get('cold-2', 5_500),
+    ])).resolves.toEqual(['译文-cold', '译文-cold-2']);
     await vi.waitFor(async () => {
       await expect(translationCacheDb.entries.get('cold')).resolves.toMatchObject({ lastAccessedAt: 5_000 });
+      await expect(translationCacheDb.entries.get('cold-2')).resolves.toMatchObject({ lastAccessedAt: 5_500 });
     });
+    // 同一时间窗内的命中只写一次库，不再逐条排队读写事务。
+    expect(bulkPut).toHaveBeenCalledOnce();
+    expect(update).not.toHaveBeenCalled();
 
     const getSpy = vi.spyOn(translationCacheDb.entries, 'get');
     await expect(translationCache.get('cold', 6_000)).resolves.toBe('译文-cold');
@@ -146,12 +137,15 @@ describe('translation cache persistence policy', () => {
     const failure = new Error('touch blocked');
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     await translationCacheDb.entries.put(record('cold-touch-failure'));
-    vi.spyOn(translationCacheDb.entries, 'update').mockRejectedValueOnce(failure);
+    vi.spyOn(translationCacheDb.entries, 'bulkPut').mockRejectedValueOnce(failure);
 
     await expect(translationCache.get('cold-touch-failure', 5_000)).resolves.toBe('译文-cold-touch-failure');
     await vi.waitFor(() => {
       expect(warn).toHaveBeenCalledWith('[FluentRead] translation cache read failed:', failure);
     });
+    const getSpy = vi.spyOn(translationCacheDb.entries, 'get');
+    await expect(translationCache.get('cold-touch-failure', 6_000)).resolves.toBe('译文-cold-touch-failure');
+    expect(getSpy).not.toHaveBeenCalled();
   });
 
   it('expires hot records by TTL and removes their persistent copy asynchronously', async () => {
@@ -387,7 +381,9 @@ describe('translation cache configurable storage limits', () => {
     await translationCache.get('limit-0', 2_000);
     await translationCache.get('limit-0', 3_000);
     // 真实重开同一个数据库，确认热读顺序已写入磁盘，后续淘汰不依赖进程内 Map。
-    await translationCacheDb.entries.get('limit-0').then((item) => expect(item?.lastAccessedAt).toBe(3_000));
+    await vi.waitFor(async () => {
+      await translationCacheDb.entries.get('limit-0').then((item) => expect(item?.lastAccessedAt).toBe(3_000));
+    });
     translationCacheDb.close();
     await translationCacheDb.open();
     await translationCache.setLimits({ maxBytes: TRANSLATION_CACHE_MAX_BYTES, maxEntries: 100 }, 4_000);
@@ -568,21 +564,22 @@ describe('translation cache delayed operation races', () => {
     await expect(translationCache.get('delayed-write', 3_001)).resolves.toBe(state === 'replaced' ? 'replacement' : null);
   });
 
-  it('keeps persistent LRU time monotonic when touches finish out of order', async () => {
+  it('keeps persistent LRU time monotonic when touches arrive out of order', async () => {
     await translationCache.set('touch-order', 'value', 1_000);
-    const actualUpdate = translationCacheDb.entries.update.bind(translationCacheDb.entries);
-    let release!: () => void;
-    const gate = new Promise<void>((resolve) => { release = resolve; });
-    const update = vi.spyOn(translationCacheDb.entries, 'update').mockImplementationOnce((async (...args: unknown[]) => {
-      await gate;
-      return (actualUpdate as (...params: unknown[]) => Promise<unknown>)(...args);
-    }) as never);
-    await expect(translationCache.get('touch-order', 5_000)).resolves.toBe('value');
     await expect(translationCache.get('touch-order', 6_000)).resolves.toBe('value');
-    await expect(translationCacheDb.entries.get('touch-order')).resolves.toMatchObject({ lastAccessedAt: 6_000 });
-    release();
-    await update.mock.results[0].value;
-    await expect(translationCacheDb.entries.get('touch-order')).resolves.toMatchObject({ lastAccessedAt: 6_000 });
+    await expect(translationCache.get('touch-order', 5_000)).resolves.toBe('value');
+    await vi.waitFor(async () => {
+      await expect(translationCacheDb.entries.get('touch-order')).resolves.toMatchObject({ lastAccessedAt: 6_000 });
+    });
+
+    // 库内已有更晚的访问时间（例如其他写入路径）时，迟到的旧访问不能回拨。
+    const stored = await translationCacheDb.entries.get('touch-order');
+    await translationCacheDb.entries.put({ ...stored!, lastAccessedAt: 9_000 });
+    await expect(translationCache.get('touch-order', 7_000)).resolves.toBe('value');
+    const bulkPut = vi.spyOn(translationCacheDb.entries, 'bulkPut');
+    await translationCache.getStats(7_000);
+    expect(bulkPut).not.toHaveBeenCalled();
+    await expect(translationCacheDb.entries.get('touch-order')).resolves.toMatchObject({ lastAccessedAt: 9_000 });
   });
 
   it('drops an old hot value when a replacement returns after an unrelated write changed the revision', async () => {
@@ -608,20 +605,47 @@ describe('translation cache delayed operation races', () => {
 
   it.each(['clear', 'replacement'])('ignores an old touch after %s creates a new record at the same key', async (state) => {
     await translationCache.set('touch-generation', 'old', 1_000);
-    const actualUpdate = translationCacheDb.entries.update.bind(translationCacheDb.entries);
-    let release!: () => void;
-    const gate = new Promise<void>((resolve) => { release = resolve; });
-    const update = vi.spyOn(translationCacheDb.entries, 'update').mockImplementationOnce((async (...args: unknown[]) => {
-      await gate;
-      return (actualUpdate as (...params: unknown[]) => Promise<unknown>)(...args);
-    }) as never);
     await translationCache.get('touch-generation', 9_000);
     if (state === 'clear') await translationCache.clear();
     await translationCache.set('touch-generation', 'replacement', 2_000);
-    release();
-    await update.mock.results[0].value;
+    await new Promise((resolve) => setTimeout(resolve, 80));
     await expect(translationCacheDb.entries.get('touch-generation')).resolves.toMatchObject({
       translation: 'replacement', lastAccessedAt: 2_000,
     });
+  });
+
+  it('does not rewrite a record replaced before the batched touch commits', async () => {
+    await translationCache.set('touch-replaced-directly', 'old', 1_000);
+    await translationCache.get('touch-replaced-directly', 9_000);
+    // 其他数据库写入绕过本实例的写入路径替换同 key 记录，待写回的访问时间属于旧记录。
+    await translationCacheDb.entries.put(record('touch-replaced-directly', { createdAt: 3_000, lastAccessedAt: 3_000 }));
+    await translationCache.getStats(3_000);
+    await expect(translationCacheDb.entries.get('touch-replaced-directly')).resolves.toMatchObject({
+      createdAt: 3_000, lastAccessedAt: 3_000,
+    });
+  });
+
+  it('does not resurrect a record deleted before the batched touch commits', async () => {
+    await translationCache.set('touch-deleted', 'old', 1_000);
+    await translationCache.get('touch-deleted', 9_000);
+    await translationCacheDb.entries.delete('touch-deleted');
+    await translationCache.getStats(9_000);
+    await expect(translationCacheDb.entries.get('touch-deleted')).resolves.toBeUndefined();
+  });
+
+  it('drops a batched touch whose flush races with clear', async () => {
+    await translationCache.set('touch-clear-race', 'old', 1_000);
+    const actualBulkGet = translationCacheDb.entries.bulkGet.bind(translationCacheDb.entries);
+    let clearing: Promise<void> | undefined;
+    vi.spyOn(translationCacheDb.entries, 'bulkGet').mockImplementationOnce((async (keys: string[]) => {
+      const records = await actualBulkGet(keys);
+      // 在事务区域外发起清理，模拟设置页的独立清理请求在批量写回途中到达。
+      clearing = Dexie.ignoreTransaction(() => translationCache.clear());
+      return records;
+    }) as never);
+    await translationCache.get('touch-clear-race', 9_000);
+    await vi.waitFor(() => expect(clearing).toBeDefined());
+    await clearing;
+    await expect(translationCacheDb.entries.count()).resolves.toBe(0);
   });
 });
