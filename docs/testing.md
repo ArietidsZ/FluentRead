@@ -173,7 +173,7 @@ node scripts/testing/run-translation-mutation-test.cjs \
   --artifacts-dir /private/tmp/fluentread-translation-mutation
 ```
 
-该回归检查宿主为新增链接写入 `tabindex=-1/0` 时保持同一个译文节点，避免把键盘焦点管理误判为内容损坏；正文、链接目的地或隐藏状态变化仍由确定性测试验证失效行为。仅译文模式还检查相邻 DOM 更新不会因原文位于扩展槽内而撤销翻译。固定高度按钮覆盖嵌套 flex/grid 标签、文字边界、点击与“翻译—恢复—再次翻译”，使用确定性翻译服务排除网络响应波动；真实 GitHub 页面结果需单独记录，不能以本地夹具代替。
+该回归检查宿主为新增链接写入 `tabindex=-1/0` 时保持同一个译文节点，避免把键盘焦点管理误判为内容损坏；正文、链接目的地或隐藏状态变化仍由确定性测试验证失效行为。仅译文模式还检查相邻 DOM 更新不会因原文位于扩展槽内而撤销翻译。固定高度按钮覆盖嵌套 flex/grid 标签、文字边界、点击与“翻译—恢复—再次翻译”，使用确定性翻译服务排除网络响应波动；真实 GitHub 页面结果需单独记录，不能以本地夹具代替。表单内的具名 submit 与用户输入框属于非候选控件，按完整 `outerHTML` 比对翻译前后与恢复原文，确保布局租约不在同层控件上留下属性残留。此类断言要求证据截图保持非侵入：Playwright 默认的 `caret: 'hide'` 会给每个 `input`/`textarea`/`[contenteditable]` 写入 `caret-color` 再以空值清除，在宿主控件上留下空 `style` 属性，因此浏览器回归截图统一使用 `caret: 'initial'`。
 
 ### Reddit 多翻译器共存
 
