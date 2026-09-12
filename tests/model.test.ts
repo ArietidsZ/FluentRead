@@ -142,6 +142,14 @@ describe('AI 模型编号列表', () => {
             services.openrouter,
             services.groq,
             services.azureOpenai,
+            services.mistral,
+            services.cohere,
+            services.cerebras,
+            services.togetherai,
+            services.fireworks,
+            services.deepinfra,
+            services.perplexity,
+            services.ollama,
             services.custom,
         ]);
         expect(aiServices.filter(option => option.catalogKind === 'platform').map(option => option.value)).toEqual([
@@ -151,6 +159,14 @@ describe('AI 模型编号列表', () => {
             services.openrouter,
             services.groq,
             services.azureOpenai,
+            services.mistral,
+            services.cohere,
+            services.cerebras,
+            services.togetherai,
+            services.fireworks,
+            services.deepinfra,
+            services.perplexity,
+            services.ollama,
             services.custom,
         ]);
         expect(aiServices.filter(option => option.catalogKind === 'provider')).toHaveLength(15);

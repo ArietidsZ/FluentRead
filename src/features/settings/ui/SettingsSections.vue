@@ -68,6 +68,7 @@
         :service="selectedConfigurationService"
         :default-service="config.service"
         :website="selectedConfigurationWebsite"
+        :credential-guide="selectedConfigurationCredentialGuide"
         :selected-model="selectedConfigurationModel"
         :services="configurationCompute.filteredServices"
         :model-options="configurationModelOptions"
@@ -645,7 +646,7 @@ import FeatureEnableCard from '@/src/ui/components/FeatureEnableCard.vue';
 // Main 处理配置信息
 import { computed, ref, watch, onUnmounted } from 'vue'
 import {isValidAzureEndpoint} from '@/src/core/config/azure';
-import { customModelString, defaultOption, getMultilingualTargetLanguageLabel, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
+import { cloudRegionOptions, customModelString, defaultOption, getCloudCredentialLabels, getDefaultCloudRegion, getMultilingualTargetLanguageLabel, models, options, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog';
 import GlossaryLibrarySelect from '@/src/ui/components/GlossaryLibrarySelect.vue';
 import {
   createNextCustomOpenAIProviderId,
@@ -696,7 +697,7 @@ const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
 import UiLanguageSelector from '@/src/ui/components/UiLanguageSelector.vue';
 import ServiceCatalog from './services/ServiceCatalog.vue';
-import {getServiceWebsite} from '@/src/ui/view-model/serviceCatalog';
+import {getServiceCredentialGuide, getServiceWebsite} from '@/src/ui/view-model/serviceCatalog';
 import ServiceConfiguration from './services/ServiceConfiguration.vue';
 import CustomOpenAIProviderDialog from './services/CustomOpenAIProviderDialog.vue';
 import {TranslationCenter} from '@/src/features/translation-center/public';
@@ -869,6 +870,9 @@ const selectedConfigurationWebsite = computed(() => {
     : service === services.newapi ? config.value.newApiUrl : config.value.custom;
   return getServiceWebsite(service, {endpoint, minimaxRegion: config.value.minimaxRegion});
 });
+const selectedConfigurationCredentialGuide = computed(
+  () => getServiceCredentialGuide(selectedConfigurationService.value),
+);
 
 // 导入、撤销或恢复可能在当前页面仍打开时删除正在编辑的 profile。
 // 失效的 custom:* 选择应立即回退到新的默认服务，避免渲染孤儿配置字段。
@@ -1176,6 +1180,14 @@ const createServiceCompute = (serviceSource: ServiceSource) => ({
   showAkSk: computed(() => servicesType.isUseAkSk(serviceSource.value)),
   showYoudao: computed(() => servicesType.isYoudao(serviceSource.value)),
   showTencent: computed(() => servicesType.isTencent(serviceSource.value)),
+  // 云服务厂商：主密钥沿用 token[service]，第二段密钥与地域分别来自 secret/serviceRegion。
+  showCloudVendor: computed(() => servicesType.isCloudVendor(serviceSource.value)),
+  showServiceSecret: computed(() => servicesType.isUseSecret(serviceSource.value)),
+  showServiceRegion: computed(() => servicesType.isUseRegion(serviceSource.value)),
+  cloudCredentialLabels: computed(() => getCloudCredentialLabels(serviceSource.value)),
+  cloudRegionOptions: computed(() => cloudRegionOptions[serviceSource.value] || []),
+  defaultCloudRegion: computed(() => getDefaultCloudRegion(serviceSource.value)),
+  showOllamaEndpoint: computed(() => serviceSource.value === services.ollama),
   model: computed(() => models.get(serviceSource.value) || []),
   showCustom: computed(() => isCustomOpenAIProviderId(serviceSource.value)),
   showCustomOpenAI: computed(() => Boolean(getCustomOpenAIProvider(config.value.customOpenAIProviders, serviceSource.value))),

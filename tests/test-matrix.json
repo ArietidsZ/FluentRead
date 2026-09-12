@@ -126,6 +126,7 @@
       "tests/selectionTtsContentController.test.ts",
       "tests/selectionTtsProtocol.test.ts",
       "tests/serviceCatalog.test.ts",
+      "tests/cloudVendorCatalog.test.ts",
       "tests/siteRules.test.ts",
       "tests/shadowUi.test.ts",
       "tests/tabTranslationState.test.ts",
@@ -221,6 +222,7 @@
     "functional": [
       "tests/settingsCompositionAutosave.test.ts",
       "tests/chineseTranslationProviders.test.ts",
+      "tests/cloudVendorProviders.test.ts",
       "tests/aiSdkOpenAICompatible.test.ts",
       "tests/config.test.ts",
       "tests/configAutoBackupStore.test.ts",

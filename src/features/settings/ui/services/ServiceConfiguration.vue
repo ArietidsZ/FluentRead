@@ -1,6 +1,6 @@
 <!--
  * @file src/features/settings/ui/services/ServiceConfiguration.vue
- * 文件职责：渲染当前翻译服务的详细连接配置，按服务能力显示模型、端点、区域、计费方式、密钥、代理、提示词、自定义请求体和请求头等字段，以及服务和模型的独立请求限制。
+ * 文件职责：渲染当前翻译服务的详细连接配置，按服务能力显示模型、端点、区域、计费方式、密钥（含云服务厂商的成对密钥与服务区域）、Ollama 本地地址、代理、提示词、自定义请求体和请求头等字段，以及服务和模型的独立请求限制。
  * 主要内容：组件派生字段可见性与 DeepL/MiniMax/MiMo endpoint，选择 DeepL API 套餐，展示 DeepLX 完整地址与 Token 配置示例，共用 Azure 地址校验，校验 custom body，管理连接测试状态、Chrome 当前语言对的点击准备/进度/超时、官方帮助、模板重置与加密凭据保存提示，并通过配置 store 提交修改。
  * 模块边界：本组件不执行网页正文翻译或保存公开配置中的明文凭据；Chrome 内置翻译仅在当前点击页完成模型自检，其他连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
  -->
@@ -151,19 +151,83 @@
       </div>
     </div>
 
-    <div v-if="compute.showToken" class="connection-field credential-field">
+    <div v-if="compute.showOllamaEndpoint" class="connection-field" data-ollama-endpoint>
       <div class="connection-field-label">
-        <strong>API Key</strong>
-        <small>{{ effectiveModelLabel || '当前模型' }}</small>
+        <strong>服务地址</strong>
+        <small>本机默认无需修改</small>
+      </div>
+      <div class="connection-field-control">
+        <el-input v-model="config.proxy[service]" aria-label="Ollama 服务地址" :placeholder="DEFAULT_OLLAMA_ENDPOINT" />
+        <p class="provider-field-help">留空时使用本机默认地址；局域网主机请填写完整的 Chat Completions 地址。</p>
+        <p class="provider-field-help"><code>{{ DEFAULT_OLLAMA_ENDPOINT }}</code></p>
+        <p class="provider-field-help">浏览器扩展访问 Ollama 前，需要在启动 Ollama 时设置环境变量 OLLAMA_ORIGINS=*，否则会被跨域拒绝。</p>
+      </div>
+    </div>
+
+    <div v-if="compute.showToken" class="connection-field credential-field" :data-cloud-credential="compute.showCloudVendor ? 'token' : undefined">
+      <div class="connection-field-label">
+        <strong>{{ compute.showCloudVendor ? compute.cloudCredentialLabels.token : 'API Key' }}</strong>
+        <small>{{ compute.showCloudVendor ? '来自厂商控制台' : (effectiveModelLabel || '当前模型') }}</small>
       </div>
       <div class="connection-field-control credential-control">
-        <el-input v-model="config.token[service]" type="password" show-password placeholder="输入 API Key；留空表示尚未配置" />
+        <el-input
+          v-model="config.token[service]"
+          type="password"
+          show-password
+          :aria-label="compute.showCloudVendor ? compute.cloudCredentialLabels.token : 'API Key'"
+          :placeholder="compute.showCloudVendor ? `输入 ${compute.cloudCredentialLabels.token}；留空表示尚未配置` : '输入 API Key；留空表示尚未配置'"
+        />
         <div v-if="compute.showAI" class="api-key-requirement">
           <span>{{ compute.requireApiKey ? '此模型需要 API Key' : '允许无 Key 请求' }}</span>
           <el-switch v-model="compute.requireApiKey" aria-label="当前模型是否需要 API Key" size="small" />
         </div>
       </div>
     </div>
+    <div v-if="compute.showServiceSecret" class="connection-field credential-field" data-cloud-credential="secret">
+      <div class="connection-field-label">
+        <strong>{{ compute.cloudCredentialLabels.secret }}</strong>
+        <small>与上方密钥成对使用</small>
+      </div>
+      <div class="connection-field-control credential-control">
+        <el-input
+          v-model="config.secret[service]"
+          type="password"
+          show-password
+          :aria-label="compute.cloudCredentialLabels.secret"
+          :placeholder="`输入 ${compute.cloudCredentialLabels.secret}；留空表示尚未配置`"
+        />
+      </div>
+    </div>
+
+    <div v-if="compute.showServiceRegion" class="connection-field" data-cloud-region>
+      <div class="connection-field-label">
+        <strong>服务区域</strong>
+        <small>需与控制台资源所在区域一致</small>
+      </div>
+      <div class="connection-field-control">
+        <el-select
+          :model-value="config.serviceRegion[service] || compute.defaultCloudRegion"
+          aria-label="云服务区域"
+          placeholder="请选择服务区域"
+          @update:model-value="config.serviceRegion[service] = String($event)"
+        >
+          <el-option
+            v-for="item in compute.cloudRegionOptions"
+            :key="item.value"
+            class="select-left"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+        <p v-if="service === services.aliyunTranslation" class="provider-field-help" data-cloud-region-endpoint>
+          <span>当前接口地址</span><br /><code>{{ getAliyunTranslationEndpoint(config.serviceRegion[service]) }}</code>
+        </p>
+        <p v-else-if="service === services.azureTranslator" class="provider-field-help">
+          选择全球区域时不发送区域请求头；其余区域会通过 Ocp-Apim-Subscription-Region 请求头一并发送。
+        </p>
+      </div>
+    </div>
+
     <p v-if="compute.showMiniMaxRegion && minimaxKeyMismatch" class="minimax-key-note is-warning">
       {{ minimaxKeyMismatch }}
     </p>
@@ -406,7 +470,7 @@ import { DEFAULT_DEEPLX_ENDPOINT } from '@/src/core/config/deeplx'
 import { getDeepLEndpoint } from '@/src/core/config/deepl'
 import browser from 'webextension-polyfill'
 import { requestConfigSave, waitForConfigPersistenceQueue } from '@/src/services/config/store'
-import { CONNECTION_TEST_MESSAGE, getMimoEndpoint, MINIMAX_ENDPOINTS } from '@/src/core/config/constants'
+import { CONNECTION_TEST_MESSAGE, DEFAULT_OLLAMA_ENDPOINT, getAliyunTranslationEndpoint, getMimoEndpoint, MINIMAX_ENDPOINTS } from '@/src/core/config/constants'
 import { chromeTranslationPreparationStore } from '@/src/platform/browser/chromeTranslationPreparationRequest'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {

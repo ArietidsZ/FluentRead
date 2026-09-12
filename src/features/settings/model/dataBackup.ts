@@ -65,6 +65,7 @@ function isStringMapping(value: unknown): boolean {
 
 const exactCredentialFieldValidators: Record<ConfigCredentialField, (value: unknown) => boolean> = {
     token: isStringMapping,
+    secret: isStringMapping,
     customHeaders: isStringMapping,
     ak: value => typeof value === 'string',
     sk: value => typeof value === 'string',
