@@ -202,6 +202,8 @@ export const koKRMessages = {
     "settings.pageRecognition.title": "페이지 인식",
     "settings.pageRecognition.allNodes": "모든 노드 인식",
     "settings.pageRecognition.description": "메뉴, 버튼, 노드 라벨을 번역합니다. 다음 번역부터 적용됩니다.",
+    "settings.pageRecognition.pageTitle": "페이지 제목 번역",
+    "settings.pageRecognition.pageTitleDescription": "전체 번역 시 탭 제목도 함께 번역하고, 번역을 취소하면 원래대로 복원합니다.",
     'image.entries': "실행 방법",
     'image.hover': "이미지 호버 버튼",
     'image.hoverDescription': "이미지 위에 마우스를 올리면 왼쪽 아래에 번역 버튼을 표시합니다.",

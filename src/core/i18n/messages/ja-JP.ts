@@ -202,6 +202,8 @@ export const jaJPMessages = {
     "settings.pageRecognition.title": "ページ認識",
     "settings.pageRecognition.allNodes": "すべてのノードを検出",
     "settings.pageRecognition.description": "メニュー、ボタン、ノードのラベルを翻訳します。次回の翻訳から適用されます。",
+    "settings.pageRecognition.pageTitle": "ページタイトルを翻訳",
+    "settings.pageRecognition.pageTitleDescription": "全文翻訳時にタブのタイトルも翻訳し、翻訳を元に戻すと復元します。",
     'image.entries': "操作方法",
     'image.hover': "画像のホバーボタン",
     'image.hoverDescription': "画像にマウスを重ねると左下に翻訳ボタンを表示します。",

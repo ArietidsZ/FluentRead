@@ -202,6 +202,8 @@ export const frFRMessages = {
     "settings.pageRecognition.title": "Reconnaissance de la page",
     "settings.pageRecognition.allNodes": "Détecter tous les nœuds",
     "settings.pageRecognition.description": "Traduire les menus, boutons et libellés des nœuds. Prend effet à la prochaine traduction.",
+    "settings.pageRecognition.pageTitle": "Traduire le titre de la page",
+    "settings.pageRecognition.pageTitleDescription": "Traduire le titre de l'onglet avec la page et le restaurer lorsque la traduction est annulée.",
     'image.entries': "Modes d’accès",
     'image.hover': "Bouton au survol",
     'image.hoverDescription': "Afficher un bouton de traduction en bas à gauche au survol de l’image.",

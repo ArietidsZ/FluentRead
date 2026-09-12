@@ -856,6 +856,16 @@ describe('右键全文翻译配置', () => {
     });
 });
 
+describe('页面标题翻译配置', () => {
+    it('默认开启，并保留用户主动关闭的状态', () => {
+        expect(new Config().pageTitleTranslationEnabled).toBe(true);
+        expect(normalizeConfig({}).pageTitleTranslationEnabled).toBe(true);
+        expect(normalizeConfig({pageTitleTranslationEnabled: false}).pageTitleTranslationEnabled).toBe(false);
+        // 非布尔值（旧配置或被改坏的导入）回到默认开启，而不是被当成关闭。
+        expect(normalizeConfig({pageTitleTranslationEnabled: 'false'}).pageTitleTranslationEnabled).toBe(true);
+    });
+});
+
 describe('全文翻译范围配置', () => {
     it('默认按阅读进度翻译，并保留立即翻译整页的选择', () => {
         expect(new Config().fullPageTranslationMode).toBe('viewport');

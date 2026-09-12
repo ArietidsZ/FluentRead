@@ -317,6 +317,8 @@ export const zhCNMessages = {
     "settings.pageRecognition.title": "页面识别",
     "settings.pageRecognition.allNodes": "识别全部节点",
     "settings.pageRecognition.description": "翻译菜单、按钮和节点标签，下次翻译生效。",
+    "settings.pageRecognition.pageTitle": "翻译页面标题",
+    "settings.pageRecognition.pageTitleDescription": "全文翻译时一并翻译标签页标题，撤销翻译后自动还原。",
     'image.entries': "操作入口",
     'image.hover': "图片悬浮按钮",
     'image.hoverDescription': "鼠标移到图片上时，在左下角显示翻译按钮。",
