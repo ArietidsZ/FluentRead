@@ -2,7 +2,7 @@
  * @file src/core/config/catalog.ts
  *
  * 文件职责：维护 FluentRead 翻译语言、服务与模型的领域目录，让设置、校验和运行时能够引用同一组稳定的服务标识与模型元数据。
- * 主要内容：明确区分简体中文和繁体中文，统一源语言、目标语言和输入框语言选项，并定义 services、servicesType、服务目录展示分类与排序（含“云服务厂商”分组）、模型候选、云厂商地域白名单、MiniMax 与 MiMo 的计费和地域选项，并提供 resolveConfiguredModel、resolveCloudRegion 等解析函数，把“自定义模型”选择归一为可请求的模型编号。 可核对的公开符号包括 services、cloudVendorServices、referenceAiPlatformServices、servicesType、customModelString、cloudRegionOptions、getDefaultCloudRegion、resolveCloudRegion、minimaxBillingPlans、MiniMaxBillingPlan、minimaxRegions、MiniMaxRegion、mimoBillingPlans。
+ * 主要内容：明确区分简体中文和繁体中文，统一源语言、目标语言和输入框语言选项，并定义 services、servicesType、服务目录展示分类与排序（含“云服务厂商”分组）、模型候选、云厂商地域白名单、MiniMax 与 MiMo 的计费和地域选项，并提供 resolveConfiguredModel、resolveCloudRegion 等解析函数，把“自定义模型”选择归一为可请求的模型编号。 同时维护默认翻译提示词与历史默认提示词清单，供配置归一化升级未被用户改写的旧默认值。 可核对的公开符号包括 services、cloudVendorServices、referenceAiPlatformServices、servicesType、customModelString、cloudRegionOptions、getDefaultCloudRegion、resolveCloudRegion、minimaxBillingPlans、MiniMaxBillingPlan、minimaxRegions、MiniMaxRegion、mimoBillingPlans、defaultOption、LEGACY_DEFAULT_USER_ROLES。
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
@@ -1161,6 +1161,18 @@ export function getMultilingualTargetLanguageLabel(value: string, fallback = val
     return labels[normalizeChineseLanguageCode(value)] || fallback;
 }
 
+/**
+ * 历史默认用户提示词。“If translation is unnecessary … return the original text”
+ * 会被较弱的模型理解为可以整句保留原文，导致译文中夹杂明显应当翻译的源语言
+ * （Issue #54）。这里保留原文本，供配置归一化把未被用户改写的默认值升级到当前
+ * 提示词；用户自定义的提示词不受影响。
+ */
+export const LEGACY_DEFAULT_USER_ROLES: readonly string[] = Object.freeze([
+    `Translate the following text into {{to}}, If translation is unnecessary (e.g. proper nouns, codes, etc.), return the original text. NO explanations. NO notes:
+
+{{origin}}`,
+]);
+
 export const defaultOption = {
     on: true,
     uiLanguage: "zh-CN" as const,
@@ -1174,7 +1186,7 @@ export const defaultOption = {
     deeplx: DEFAULT_DEEPLX_ENDPOINT,
     system_role:
         "You are a professional, authentic machine translation engine.",
-    user_role: `Translate the following text into {{to}}, If translation is unnecessary (e.g. proper nouns, codes, etc.), return the original text. NO explanations. NO notes:
+    user_role: `Translate the following text into {{to}}. Translate every sentence, clause and phrase in full; no part of the source text may stay in its original language. Keep only code, URLs, and proper nouns that have no established {{to}} form, and keep them inline inside the translated sentence. Return the translation only. NO explanations. NO notes:
 
 {{origin}}`,
     count: 0,

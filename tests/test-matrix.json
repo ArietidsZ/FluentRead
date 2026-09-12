@@ -144,6 +144,7 @@
       "tests/translationCache.test.ts",
       "tests/translationBroker.test.ts",
       "tests/translationConfigCheck.test.ts",
+      "tests/translationFont.test.ts",
       "tests/translationCore.test.ts",
       "tests/translationError.test.ts",
       "tests/translationLanguage.test.ts",
