@@ -1437,6 +1437,38 @@ describe('translation candidate core', () => {
         expect(createTranslationSourceSnapshot(document.getElementById('topics')!, core.shouldStayOriginal).slots).toEqual([]);
     });
 
+    it('recognizes the new GitHub PR list title and protects author, dates and checks from both entry points', () => {
+        const {document, core} = page(`
+            <main><li>
+                <div data-listview-item-title-container="true"><h3>
+                    <a id="title" data-testid="listitem-title-link" href="/FluentRead/FluentRead/pull/243">
+                        <span>fix: translate hovered visual text blocks</span>
+                    </a>
+                </h3><span class="Title-module__trailingBadgesSpacer__fixture"></span></div>
+                <div id="metadata" class="Description-module__container__fixture PullsListItem-module__description__fixture">
+                    <span>#243</span><span data-testid="timestamp-container">·
+                        <a id="author" data-testid="author-filter-link">jeanchristophe13v</a> opened
+                        <relative-time>last month</relative-time> · Updated last month
+                    </span><button id="checks" data-testid="checks-status-badge-button">1/1</button>
+                </div>
+            </li><article class="markdown-body"><p id="prose">The author updated the status checks.</p></article></main>
+        `, 'https://github.com/FluentRead/FluentRead/pulls');
+        const title = document.getElementById('title')!;
+        const metadata = document.getElementById('metadata')!;
+        const before = metadata.outerHTML;
+        expect(core.discover(document).map(({element}) => element.id)).toEqual(['title', 'prose']);
+        expect(core.resolve(title.querySelector('span')!.firstChild))
+            .toMatchObject({element: title, adapterId: 'github', reason: 'github-issue-or-pr-title'});
+        for (const element of [metadata, ...metadata.querySelectorAll('*')]) {
+            expect(core.resolve(element.firstChild)).toBeNull();
+            expect(core.shouldStayOriginal(element)).toBe(true);
+            expect(core.shouldIgnoreMutation(element)).toBe(true);
+        }
+        metadata.querySelector('relative-time')!.textContent = '2 months ago';
+        expect(core.discover(metadata)).toEqual([]);
+        expect(metadata.outerHTML).toBe(before.replace('last month</relative-time>', '2 months ago</relative-time>'));
+    });
+
     it('keeps GitHub issue-list labels and metadata original while translating titles', () => {
         const {document, core} = page(`
             <main>

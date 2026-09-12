@@ -215,6 +215,7 @@ describe('options UI composition architecture', () => {
     expect(settingsGroupTitles(interfaceSettings)).toEqual([
       "translateLegacy('界面与弹窗')",
       "t('settings.interface.popupLayout.label')",
+      "t('settings.interface.font.label')",
     ])
     expect(interfaceSettings).toContain('<TranslationLoadingStyleSettings :config="props.config" />')
     expect(interfaceSettings.indexOf('<TranslationLoadingStyleSettings')).toBeLessThan(interfaceSettings.indexOf('t(\'settings.interface.popupLayout.label\')'))

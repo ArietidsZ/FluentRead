@@ -107,6 +107,13 @@ vi.mock('@/src/features/full-page-translation/ui/translationIndicators', () => (
         return node.ownerDocument.createElement("span");
     },
 }));
+// 标题走 <head> 的独立通路，与正文候选调度无关；本文件按请求顺序核对正文译文，
+// 放行标题翻译会多出一次 translateText 调用并打乱这里的请求计账。
+vi.mock("@/src/features/full-page-translation/content/titleTranslation", () => ({
+    startFullPageTitleTranslation: () => undefined,
+    stopFullPageTitleTranslation: () => undefined,
+    isFullPageTitleTranslationActive: () => false,
+}));
 vi.mock("@/src/features/full-page-translation/content/renderer", () => ({
     appendSingleTranslationSlots: (
         node: HTMLElement,

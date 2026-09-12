@@ -1,7 +1,7 @@
 <!--
  * @file src/features/writing-assistant/ui/WritingPopover.vue
  * 文件职责：将写作卡片与入口菜单定位在当前回复操作旁，保持与宿主编辑器的空间关系。
- * 主要内容：每次打开只选择一次展开方向，空间不足时限制在视口内；打开期间观察入口祖先尺寸与宿主布局变化，过滤自有 UI 反馈并合并重定位。
+ * 主要内容：每次打开只选择一次展开方向，空间不足时限制在视口内；观察隔离入口的位置与宿主布局变化，过滤卡片自身反馈并合并重定位。
  * 模块边界：只管理布局和观察器生命周期，不读取正文、不保存偏好，也不触发模型请求。
  -->
 <template>
@@ -15,6 +15,7 @@ const left = ref(12); const top = ref(12); const positioned = ref(false);
 let direction: 'above' | 'below' | undefined;
 let frame = 0; let observer: ResizeObserver | undefined;
 let anchorObserver: ResizeObserver | undefined; let layoutObserver: MutationObserver | undefined;
+let positionObserver: MutationObserver | undefined;
 let disposed = false;
 const anchorAncestors = new Set<Element>();
 const abort = new AbortController();
@@ -54,9 +55,12 @@ function changesHostLayout(record: MutationRecord): boolean {
   return !isOwnUi(record.target);
 }
 function trackHostLayout() {
-  layoutObserver?.disconnect(); anchorObserver?.disconnect(); anchorAncestors.clear();
+  layoutObserver?.disconnect(); anchorObserver?.disconnect(); positionObserver?.disconnect(); anchorAncestors.clear();
   if (!props.active || !props.anchor) return;
   anchorObserver ??= new ResizeObserver(schedule);
+  // 入口位于独立 Shadow DOM，网页的 subtree 观察看不到入口的定位更新。
+  positionObserver ??= new MutationObserver(schedule);
+  positionObserver.observe(props.anchor, {attributes: true, attributeFilter: ['style']});
   layoutObserver ??= new MutationObserver(records => {
     if (!records.some(changesHostLayout)) return;
     refreshAnchorAncestors(); schedule();
@@ -72,7 +76,7 @@ onMounted(() => {
   window.visualViewport?.addEventListener('resize', schedule, {passive: true, signal: abort.signal});
   window.visualViewport?.addEventListener('scroll', schedule, {passive: true, signal: abort.signal});
 });
-onBeforeUnmount(() => { disposed = true; abort.abort(); observer?.disconnect(); anchorObserver?.disconnect(); layoutObserver?.disconnect(); anchorAncestors.clear(); cancelAnimationFrame(frame); });
+onBeforeUnmount(() => { disposed = true; abort.abort(); observer?.disconnect(); anchorObserver?.disconnect(); positionObserver?.disconnect(); layoutObserver?.disconnect(); anchorAncestors.clear(); cancelAnimationFrame(frame); });
 </script>
 <style scoped>
 .writing-popover{position:fixed;z-index:2147483646;max-height:calc(100dvh - 24px);box-sizing:border-box;}

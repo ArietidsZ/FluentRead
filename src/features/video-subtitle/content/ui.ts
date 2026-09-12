@@ -2,7 +2,7 @@
  * @file src/features/video-subtitle/content/ui.ts
  *
  * 文件职责：封装视频字幕 content UI 的界面语言转换与可访问名称刷新，避免 YouTube 播放器运行时承载重复的文案拼装。
- * 主要内容：提供视频菜单本地化、节点创建、播放器定位、字幕几何及样式安装，并封装字幕文件的浏览器下载。
+ * 主要内容：提供视频菜单本地化、节点创建、播放器定位，按 X 实际画面约束字幕几何与换行，并封装样式及字幕下载。
  * 模块边界：只读取界面配置并操作视频 feature 拥有的节点、样式和下载链接，不发起翻译或识别请求；任务生命周期由 runtime 管理。
  */
 
@@ -391,8 +391,8 @@ export function removeTranslationOverlay(): void {
 }
 
 /** X 的原生字幕已隐藏，贴底时只避开实际可见的播放控件，不预留原文区域。 */
-export function getXSubtitleBottomInset(player: HTMLElement): number {
-  const playerRect = player.getBoundingClientRect();
+export function getXSubtitleBottomInset(player: HTMLElement, viewport?: Pick<DOMRect, 'left' | 'right' | 'top' | 'bottom' | 'height'>): number {
+  const playerRect = viewport || player.getBoundingClientRect();
   const settings = Array.from(player.querySelectorAll<HTMLElement>(VIDEO_X_SETTINGS_CONTROL_SELECTOR))
     .find(control => !control.closest('.fluent-read-video-ui'));
   const controls = settings ? findXNativeControls(player, settings) : player.querySelector<HTMLElement>(`.${VIDEO_FALLBACK_CONTROLS_CLASS}`);
@@ -404,7 +404,8 @@ export function getXSubtitleBottomInset(player: HTMLElement): number {
       visible = style.display !== 'none' && style.visibility !== 'hidden' && style.visibility !== 'collapse' && style.opacity !== '0';
       if (node === player) break;
     }
-    if (visible && rect.top >= playerRect.top + playerRect.height * .65 && rect.top < playerRect.bottom) {
+    if (visible && (!viewport || (rect.right > viewport.left && rect.left < viewport.right))
+      && rect.top >= playerRect.top + playerRect.height * .65 && rect.top < playerRect.bottom) {
       return Math.max(12, playerRect.bottom - rect.top + 8);
     }
   }
@@ -414,22 +415,77 @@ export function getXSubtitleBottomInset(player: HTMLElement): number {
   return 12;
 }
 
+/** 将 X 的实际视频画面（扣除 contain 留白）换算到字幕层坐标；不改写宿主视频的布局。 */
+export function getXVideoSubtitleViewport(player: HTMLElement, layer: HTMLElement) {
+  const video = player.querySelector('video');
+  const layerRect = layer.getBoundingClientRect();
+  const playerRect = player.getBoundingClientRect();
+  const videoRect = video?.getBoundingClientRect();
+  if (!video || !videoRect || videoRect.width <= 0 || videoRect.height <= 0 || layerRect.width <= 0 || layerRect.height <= 0) return null;
+  const style = getComputedStyle(video);
+  let width = videoRect.width;
+  let height = videoRect.height;
+  // X 的竖屏 video 经常占满宽播放器，但可见画面只占中间一列。
+  if (video.videoWidth > 0 && video.videoHeight > 0 && ['contain', 'cover', 'none', 'scale-down'].includes(style.objectFit)) {
+    const scaleX = video.offsetWidth > 0 ? videoRect.width / video.offsetWidth : 1;
+    const scaleY = video.offsetHeight > 0 ? videoRect.height / video.offsetHeight : 1;
+    const ratios = [width / scaleX / video.videoWidth, height / scaleY / video.videoHeight];
+    const fit = style.objectFit === 'none' ? 1 : style.objectFit === 'cover' ? Math.max(...ratios)
+      : Math.min(...ratios, style.objectFit === 'scale-down' ? 1 : Infinity);
+    width = video.videoWidth * fit * scaleX;
+    height = video.videoHeight * fit * scaleY;
+  }
+  const positions = (style.objectPosition || '50% 50%').split(/\s+/);
+  const positionOffset = (value: string, space: number, scale: number) => {
+    if (value === 'left' || value === 'top') return 0;
+    if (value === 'right' || value === 'bottom') return space;
+    if (/^-?[\d.]+%$/.test(value)) return space * Number.parseFloat(value) / 100;
+    if (/^-?[\d.]+px$/.test(value)) return Number.parseFloat(value) * scale;
+    return space / 2;
+  };
+  const x = videoRect.left + positionOffset(positions[0], videoRect.width - width, video.offsetWidth > 0 ? videoRect.width / video.offsetWidth : 1);
+  const y = videoRect.top + positionOffset(positions[1] || '50%', videoRect.height - height, video.offsetHeight > 0 ? videoRect.height / video.offsetHeight : 1);
+  const left = Math.max(x, videoRect.left, playerRect.left, layerRect.left);
+  const top = Math.max(y, videoRect.top, playerRect.top, layerRect.top);
+  const right = Math.min(x + width, videoRect.right, playerRect.right, layerRect.right);
+  const bottom = Math.min(y + height, videoRect.bottom, playerRect.bottom, layerRect.bottom);
+  const scaleX = layer.clientWidth > 0 ? layerRect.width / layer.clientWidth : 1;
+  const scaleY = layer.clientHeight > 0 ? layerRect.height / layer.clientHeight : 1;
+  return {
+    left: (left - layerRect.left) / scaleX,
+    top: (top - layerRect.top) / scaleY,
+    width: Math.max(0, right - left) / scaleX,
+    height: Math.max(0, bottom - top) / scaleY,
+    right: (layerRect.right - right) / scaleX,
+    bottom: (layerRect.bottom - bottom) / scaleY,
+    controlsInset: getXSubtitleBottomInset(player, {left, right, top, bottom, height: Math.max(0, bottom - top)}) / scaleY,
+  };
+}
+
 export function syncTranslationOverlayPosition(container: HTMLElement | null): void {
   if (!container) return;
   const overlay = document.getElementById(VIDEO_TRANSLATION_OVERLAY_ID);
   const normalizedOverlay = document.getElementById(VIDEO_NORMALIZED_CAPTION_OVERLAY_ID);
   const panel = document.getElementById(VIDEO_SUBTITLE_PANEL_ID);
-  const player = findVideoPlayer();
-  if (!overlay || !panel || !player) return;
+  const layer = document.getElementById(VIDEO_TRANSLATION_LAYER_ID);
+  const player = layer?.parentElement;
+  if (!overlay || !panel || !player || !layer) return;
 
   const playerRect = player.getBoundingClientRect();
+  const viewport = isXVideoPage() ? getXVideoSubtitleViewport(player, layer) : null;
+  if (viewport) {
+    layer.style.setProperty('clip-path', `inset(${viewport.top}px ${viewport.right}px ${viewport.bottom}px ${viewport.left}px)`, 'important');
+  } else {
+    if (isXVideoPage()) layer.style.setProperty('clip-path', 'inset(50%)', 'important');
+    else layer.style.removeProperty('clip-path');
+  }
   const visibleCaptionSegments = getVisibleCaptionSegments(container)
     .map((element) => element.getBoundingClientRect())
     .filter((rect) => rect.width > 0 && rect.height > 0);
   // YouTube 在字幕切换期间会短暂保留一个空的、甚至回到播放器顶部的容器。
   // 没有真实字幕片段时保留上一次位置，避免译文被重新定位到顶部后闪过。
 
-  const playerWidth = playerRect.width || 960;
+  const playerWidth = viewport ? viewport.width : playerRect.width || 960;
   const menu = document.getElementById(VIDEO_TRANSLATION_MENU_ID);
   const menuReserve = menu instanceof HTMLElement && !menu.hidden && playerWidth >= 640
     ? Math.min(menu.getBoundingClientRect().width + 20, playerWidth * .34)
@@ -437,7 +493,7 @@ export function syncTranslationOverlayPosition(container: HTMLElement | null): v
   const appearance = normalizeVideoSubtitleAppearance(config.videoSubtitleAppearance);
   Object.entries(getVideoSubtitleAppearanceCssVars(appearance)).forEach(([name, value]) => panel.style.setProperty(name, value));
   panel.dataset.fluentReadSubtitleSkin = appearance.skin;
-  const availableWidth = Math.max(Math.min(playerWidth - 24 - menuReserve, playerWidth * appearance.maxWidth / 100), 160);
+  const availableWidth = Math.max(0, Math.min(playerWidth - 24 - menuReserve, playerWidth * appearance.maxWidth / 100));
   const baseFontSize = Math.min(Math.max(playerWidth * .022, 16), 30);
   const fontScale = appearance.fontScale / 100;
   panel.style.setProperty('--fluent-read-video-subtitle-font-size', `${baseFontSize * fontScale}px`);
@@ -448,28 +504,30 @@ export function syncTranslationOverlayPosition(container: HTMLElement | null): v
   panel.classList.toggle(VIDEO_SUBTITLE_PANEL_ACTIVE_CLASS, active);
   panel.style.width = 'max-content';
   panel.style.setProperty('max-width', `${availableWidth}px`, 'important');
-  const playerHeight = playerRect.height || 540;
+  const playerHeight = viewport ? viewport.height : playerRect.height || 540;
   const autoBottom = isXVideoPage() && appearance.position === 'bottom' && appearance.autoBottom;
-  const offset = autoBottom ? getXSubtitleBottomInset(player) : appearance.bottomOffset === 10 ? Math.min(Math.max(playerHeight * .1, 52), 96) : Math.max(12, playerHeight * appearance.bottomOffset / 100);
-  panel.style.setProperty('--fluent-read-video-subtitle-bottom', `${offset}px`);
-  panel.style.setProperty('top', appearance.position === 'top' ? `${offset}px` : appearance.position === 'center' ? '50%' : 'auto', 'important');
+  const requestedOffset = autoBottom ? viewport?.controlsInset ?? getXSubtitleBottomInset(player) : appearance.bottomOffset === 10 ? Math.min(Math.max(playerHeight * .1, 52), 96) : Math.max(12, playerHeight * appearance.bottomOffset / 100);
+  const offset = Math.min(requestedOffset, Math.max(0, playerHeight - 24));
+  panel.style.setProperty('--fluent-read-video-subtitle-bottom', `${(viewport?.bottom || 0) + offset}px`);
+  panel.style.setProperty('top', appearance.position === 'top' ? `${(viewport?.top || 0) + offset}px` : appearance.position === 'center' ? viewport ? `${viewport.top + playerHeight / 2}px` : '50%' : 'auto', 'important');
   panel.style.setProperty('bottom', appearance.position === 'bottom' ? 'var(--fluent-read-video-subtitle-bottom)' : 'auto', 'important');
+  panel.style.setProperty('max-height', `${Math.max(0, playerHeight - (appearance.position === 'center' ? 24 : offset + 12))}px`, 'important');
   panel.style.transform = appearance.position === 'center' ? 'translateY(-50%)' : 'none';
   if (!active) return;
 
   // 背景只包住双语文本，并以播放器中心为锚点。长字幕仍受播放器宽度限制，
   // 超出时在面板内部换行，而不是把半透明背景铺满整行。
-  panel.style.left = '12px';
-  const measuredWidth = panel.getBoundingClientRect().width;
+  panel.style.left = `${(viewport?.left || 0) + 12}px`;
+  const layerRect = layer.getBoundingClientRect();
+  const measuredWidth = panel.getBoundingClientRect().width / (layer.clientWidth > 0 && layerRect.width > 0 ? layerRect.width / layer.clientWidth : 1);
   const width = Math.min(Math.max(measuredWidth, 0), availableWidth);
   const usableRight = playerWidth - menuReserve - 12;
   const left = Math.max(12, Math.min((usableRight - width + 12) / 2, usableRight - width));
-  panel.style.left = `${left}px`;
+  panel.style.left = `${(viewport?.left || 0) + left}px`;
 
   // 双语模式下原生字幕仍然可见时，译文面板要放在原生字幕上方，不能用固定底部
   // 位置压住 YouTube 的分段字幕。逐词合并已经显示整段原文时，原文在同一个面板内，
   // 则继续使用固定底部锚点，避免随着原生 DOM 的词宽变化上下跳动。
-  const layer = document.getElementById(VIDEO_TRANSLATION_LAYER_ID);
   const displayMode = normalizeVideoSubtitleDisplayMode(config.videoSubtitleDisplayMode);
   const normalizedCaptionActive = layer?.classList.contains(VIDEO_NORMALIZED_CAPTION_ACTIVE_CLASS) === true;
   if (!isXVideoPage() && appearance.position === 'bottom' && displayMode === 'bilingual' && !normalizedCaptionActive && visibleCaptionSegments.length > 0) {
@@ -527,7 +585,7 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       position: absolute !important;
       inset: 0 !important;
       z-index: 2147483645 !important;
-      overflow: visible !important;
+      overflow: hidden !important;
       pointer-events: none !important;
       visibility: visible !important;
     }
@@ -537,6 +595,7 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       z-index: 2 !important;
       box-sizing: border-box !important;
       max-width: calc(100% - 24px) !important;
+      min-width: 0 !important;
       bottom: var(--fluent-read-video-subtitle-bottom, clamp(52px, 10%, 96px)) !important;
       margin: 0 !important;
       padding: 5px 8px 6px !important;
@@ -548,7 +607,7 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       flex-direction: column !important;
       align-items: center !important;
       gap: 6px !important;
-      overflow: visible !important;
+      overflow: hidden !important;
       pointer-events: none !important;
       user-select: none !important;
       text-align: center !important;
@@ -575,6 +634,8 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       paint-order: stroke fill !important;
       text-shadow: var(--fluent-read-video-subtitle-text-shadow, 0 1px 2px rgba(0, 0, 0, .72)) !important;
       white-space: pre-wrap !important;
+      overflow-wrap: anywhere !important;
+      min-width: 0 !important;
       pointer-events: none !important;
       user-select: none !important;
       visibility: visible !important;
@@ -599,6 +660,8 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       paint-order: stroke fill !important;
       text-shadow: var(--fluent-read-video-subtitle-text-shadow, 0 1px 2px rgba(0, 0, 0, .9)) !important;
       white-space: pre-wrap !important;
+      overflow-wrap: anywhere !important;
+      min-width: 0 !important;
       pointer-events: none !important;
       user-select: none !important;
       visibility: visible !important;
