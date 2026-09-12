@@ -10,6 +10,25 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const jaJPMessages = {
+    "popup.quickSettings.disableHoverShortcut": "既定のホバーショートカットを無効にする",
+    "popup.quickSettings.chooseHoverShortcut": "ショートカットを選択",
+    "popup.quickSettings.disabledHoverHint": "無効です。有効にするには、詳細設定でショートカットを選んでください。",
+    "popup.quickSettings.videoEnableHint": "YouTube / X の動画字幕を翻訳",
+    "popup.quickSettings.videoPlayerHint": "プレーヤーの字幕メニューで表示・非表示を切り替え、原文や訳文をダウンロードできます。対応する X 動画ではローカル AI 字幕も生成できます。",
+    "popup.quickSettings.appearanceDescription": "原文と訳文を並べるか、訳文のみを表示します。",
+    "popup.quickSettings.hoverSettings": "ホバー翻訳の設定",
+    "popup.quickSettings.hoverSettingsHint": "ショートカットと個別の翻訳設定",
+    "popup.quickSettings.selectionSettings": "選択範囲翻訳の設定",
+    "popup.quickSettings.selectionSettingsHint": "起動方法、表示の遅延、読み上げ音声",
+    "popup.quickSettings.appearanceSettings": "訳文表示の設定",
+    "popup.quickSettings.appearanceSettingsHint": "その他のスタイルと閲覧設定",
+    "popup.quickSettings.imageSettings": "画像翻訳の設定",
+    "popup.quickSettings.imageSettingsHint": "文字認識と翻訳の設定",
+    "popup.quickSettings.areaSettings": "範囲翻訳の設定",
+    "popup.quickSettings.areaSettingsHint": "認識方法と翻訳サービス",
+    "popup.quickSettings.videoSettings": "動画翻訳の設定",
+    "popup.quickSettings.videoSettingsHint": "翻訳サービス、字幕の外観、ローカル AI",
+
     "reading.triggerTitle": "翻訳カードを開く",
     "reading.triggerHelp": "既定ではアクションをクリック。ショートカットは優先アクション、ホバーは指したアクションを使います。",
     "reading.triggerClick": "クリック",
@@ -801,6 +820,14 @@ export const jaJPMessages = {
 } satisfies Record<keyof typeof enUSMessages, string>;
 
 const jaJPLegacyTextBase: Readonly<Record<string, string>> = {
+    "朗读失败时按这里的顺序依次尝试；留空则根据当前语言自动选择。": "読み上げに失敗した場合、この順序で音声を試します。空欄の場合は言語に応じて自動選択します。",
+    "仅用于 X 没有原生字幕时的本地识别；自动检测适合大多数视频。": "X に元の字幕がない場合のローカル認識にのみ使用します。通常は自動検出で十分です。",
+    "微调字幕外观": "字幕の外観を微調整",
+    "大多数视频使用默认值即可；只有位置或可读性不合适时再调整。": "通常は初期設定のまま使えます。位置や読みやすさが合わない場合に調整してください。",
+    "字号与位置": "文字サイズと位置",
+    "颜色与布局": "色とレイアウト",
+    "一般选择 Tiny；语音不清楚时可换 Base。": "通常は Tiny を選び、音声をうまく認識できない場合は Base を試してください。",
+
     "AI 圈选翻译未返回有效 JSON，请重试或使用标准翻译": "AI did not return a valid result. Retry or use standard translation.",
     "AI 圈选翻译结果结构无效": "The AI area translation result has an invalid structure.",
     "AI 圈选翻译结果字段无效，请重试或使用标准翻译": "The AI result contains invalid fields. Retry or use standard translation.",

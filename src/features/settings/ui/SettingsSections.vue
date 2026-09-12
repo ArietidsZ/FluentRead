@@ -170,10 +170,15 @@
           />
         </SettingsItem>
       </SettingsGroup>
+      <VideoSubtitleAppearanceSettings :config="config" />
       <SettingsGroup title="X 本地 AI 字幕" description="仅 X 无原生字幕时使用；模型和音频留在当前浏览器，下载后可离线识别。">
+        <SettingsItem label="视频原语言" description="仅用于 X 没有原生字幕时的本地识别；自动检测适合大多数视频。" :disabled="!config.videoTranslationEnabled || !browserCapabilities.extensionDom">
+          <el-select v-model="config.videoSourceLanguage" aria-label="视频原语言" :disabled="!config.videoTranslationEnabled || !browserCapabilities.extensionDom" placeholder="请选择视频原语言">
+            <el-option v-for="item in VIDEO_SOURCE_LANGUAGE_OPTIONS" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </SettingsItem>
         <VideoLocalModelSettings :config="config" />
       </SettingsGroup>
-      <VideoSubtitleAppearanceSettings :config="config" />
       <details class="feature-help">
         <summary>使用说明</summary>
         <p>打开 YouTube 原生字幕后，FluentRead 会在播放器中显示译文。机器翻译约提前 10 秒、AI 服务约提前 30 秒准备字幕；播放器菜单可分别下载原文或译文 SRT。</p>
@@ -329,6 +334,33 @@
           @change="handleSelectionTranslatorDelayChange"
         />
         <span class="input-suffix">ms</span>
+      </el-col>
+    </el-row>
+    <el-row v-if="config.selectionTranslatorMode !== 'disabled'" class="settings-control-row">
+      <el-col :span="14" class="settings-control-label lightblue rounded-corner">
+        <el-tooltip class="box-item" effect="dark" content="朗读失败时按这里的顺序依次尝试；留空则根据当前语言自动选择。" placement="top-start" :show-after="500">
+          <span class="popup-text popup-vertical-left">
+            语音回退顺序
+            <el-icon class="icon-margin"><InfoFilled /></el-icon>
+          </span>
+        </el-tooltip>
+      </el-col>
+      <el-col :span="10" class="settings-control-field flex-end">
+        <div class="selection-tts-voice-control">
+          <el-select
+            v-model="config.selectionTtsVoices"
+            multiple
+            filterable
+            collapse-tags
+            collapse-tags-tooltip
+            aria-label="划词翻译语音回退顺序"
+            placeholder="自动按语言选择"
+            no-data-text="没有可用音色"
+          >
+            <el-option v-for="item in selectionTtsVoiceOptions" :key="item.value" :label="`${item.label} · ${item.locale}`" :value="item.value" />
+          </el-select>
+          <small>留空时按当前语言自动尝试多个免费 Edge 音色；选中多个后按此顺序回退，不需要 API Key。</small>
+        </div>
       </el-col>
     </el-row>
     </SettingsGroup>
@@ -757,6 +789,7 @@ import {
   SELECTION_TRANSLATOR_DELAY_MAX,
   SELECTION_TRANSLATOR_DELAY_MIN,
   SELECTION_TRANSLATOR_DELAY_STEP,
+  VIDEO_SOURCE_LANGUAGE_OPTIONS,
   normalizeConfig,
   normalizeMouseHoverTranslationDelay,
   normalizeSelectionTranslatorDelay,
@@ -766,6 +799,7 @@ import {
   normalizeTranslationRequestsPerMinute,
   normalizeTranslationRequestsPerSecond,
 } from '@/src/core/config/model';
+import {SELECTION_TTS_VOICE_OPTIONS} from '@/src/core/config/selectionTts';
 import { InfoFilled, Edit } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import browser from 'webextension-polyfill';
@@ -1001,6 +1035,7 @@ const selectionTranslatorModeOptions = [
   {value: 'bilingual', label: '双语'},
   {value: 'translation-only', label: '仅译文'},
 ];
+const selectionTtsVoiceOptions = SELECTION_TTS_VOICE_OPTIONS;
 const videoSubtitleDisplayModeOptions = [
   {value: 'bilingual', label: '双语'},
   {value: 'translation-only', label: '仅译文'},

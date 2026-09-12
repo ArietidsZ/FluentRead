@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupApp.vue
- 文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、可插拔皮肤、功能抽屉和高频操作，提供轻量但完整的控制中心。
- 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排翻译、AI 语境偏好与可用状态、站点规则及两列快捷功能，图片、圈选和划词拥有独立状态、抽屉与设置入口；提供 AI 精翻说明抽屉，监听配置并持久化，按皮肤及栏目显隐自动计算高度。
+ 文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、可插拔皮肤、功能抽屉和高频操作，让现场开关与显示操作保持简短，将长期偏好引导到对应设置页。
+ 主要内容：在配置 hydration 后合并内置与动态自定义服务及其模型，编排翻译、AI 语境偏好与可用状态、站点规则及两列快捷功能，图片、圈选和划词拥有独立状态、抽屉与设置入口；提供 AI 精翻说明抽屉与只保留高频控制的快捷抽屉，监听配置并持久化，按皮肤及栏目显隐自动计算高度。
  模块边界：组件编排用户交互与运行时消息，不实现翻译 provider、缓存存储或 content 挂载细节；公共配置由 services/store 管理，页面行为由 content feature 接收消息完成。
 -->
 <!-- Popup 页面归 app 层所有；WXT 入口只负责调用挂载函数。 -->
@@ -373,23 +373,16 @@
       </div>
 
       <div v-else-if="activeDrawer === 'hover'" class="drawer-content">
-        <div class="interaction-preview"><span class="cursor">↖</span><span>＋</span><kbd>{{ hoverPreviewKey }}</kbd><span>＝</span><strong>即时翻译</strong></div>
+        <div v-if="hoverProfileCount" class="interaction-preview"><span class="cursor">↖</span><span>＋</span><kbd>{{ hoverPreviewKey }}</kbd><span>＝</span><strong>即时翻译</strong></div>
         <div class="setting-row">
           <span>
             <strong>{{ t('popup.quickTranslation.defaultHoverShortcut') }}</strong>
+            <small v-if="!defaultHoverEnabled" data-i18n-ignore>{{ t('popup.quickSettings.disabledHoverHint') }}</small>
             <small v-if="quickHoverProfiles.length" class="independent-profile-note">{{ t('popup.quickTranslation.defaultOnly', {count: quickHoverProfiles.length}) }}</small>
-            <small v-else>{{ t('popup.quickTranslation.defaultOff') }}</small>
+            <small v-else-if="defaultHoverEnabled">{{ t('popup.quickTranslation.defaultOff') }}</small>
           </span>
-          <button class="switch compact" type="button" role="switch" :aria-checked="defaultHoverEnabled" :aria-label="t('popup.quickTranslation.toggleDefaultHover')" @click="toggleHover"><i /></button>
-        </div>
-        <div class="choice-block">
-          <label>触发快捷键</label>
-          <div class="chips two">
-            <button v-for="item in hoverChoices" :key="item.value" type="button" :class="{ selected: config.hotkey === item.value }" @click="setHoverHotkey(item.value)">{{ item.label }}</button>
-          </div>
-          <button v-if="config.hotkey === 'custom'" class="secondary-action" type="button" @click="showCustomMouseHotkeyDialog = true">
-            {{ defaultHoverEnabled ? `当前：${config.customHotkey}` : '录制自定义快捷键' }}
-          </button>
+          <button v-if="defaultHoverEnabled" class="secondary-action hover-shortcut-action" type="button" :aria-label="t('popup.quickSettings.disableHoverShortcut')" data-i18n-ignore @click="config.hotkey = 'none'">{{ t('common.close') }}</button>
+          <button v-else class="secondary-action hover-shortcut-action" type="button" data-i18n-ignore @click="openOptions('settings-translation')">{{ t('popup.quickSettings.chooseHoverShortcut') }}</button>
         </div>
         <div v-if="quickHoverProfiles.length" class="quick-profile-preview" data-testid="popup-quick-hover-profiles">
           <label>{{ t('popup.quickTranslation.extraProfiles') }}</label>
@@ -403,7 +396,7 @@
 
       <div v-else-if="activeDrawer === 'selection'" class="drawer-content">
         <div>
-          <div class="interaction-preview">
+          <div v-if="config.selectionTranslatorMode !== 'disabled'" class="interaction-preview">
             <span class="selection-box">选择文字</span><span>＋</span>
             <i v-if="config.selectionTranslatorTrigger === 'dot'" class="pink-dot" />
             <span v-else-if="config.selectionTranslatorTrigger === 'icon'" class="selection-preview-icon">↗</span>
@@ -411,69 +404,17 @@
             <kbd v-else>{{ selectionTriggerPreview }}</kbd>
             <span>＝</span><strong>翻译所选内容</strong>
           </div>
-          <div class="setting-row">
-            <span><strong>启用划词翻译</strong><small>选中文字后显示可操作的翻译入口</small></span>
-            <button class="switch compact" type="button" role="switch" :aria-checked="config.selectionTranslatorMode !== 'disabled'" aria-label="启用或关闭划词翻译" @click="setSelectionMode(config.selectionTranslatorMode === 'disabled' ? 'bilingual' : 'disabled')"><i /></button>
-          </div>
           <div class="choice-block">
-            <label>显示方式</label>
-            <div class="chips two">
-              <button v-for="item in selectionModes" :key="item.value" type="button" :class="{ selected: config.selectionTranslatorMode === item.value }" @click="setSelectionMode(item.value)">{{ item.label }}</button>
+            <label>划词翻译</label>
+            <div class="chips three" role="group" aria-label="划词翻译模式">
+              <button v-for="item in selectionModes" :key="item.value" type="button" :class="{ selected: config.selectionTranslatorMode === item.value }" :aria-pressed="config.selectionTranslatorMode === item.value" @click="setSelectionMode(item.value)">{{ item.label }}</button>
             </div>
           </div>
-          <div class="choice-block">
-            <label>触发方式</label>
-            <div class="chips selection-trigger-chips">
-              <button v-for="item in selectionTriggers" :key="item.value" type="button" :class="{ selected: config.selectionTranslatorTrigger === item.value }" @click="setSelectionTrigger(item.value)">{{ item.label }}</button>
-            </div>
-            <button v-if="config.selectionTranslatorTrigger === 'custom'" class="secondary-action" type="button" @click="showCustomSelectionHotkeyDialog = true">
-              {{ config.customSelectionTranslatorHotkey ? `当前：${config.customSelectionTranslatorHotkey}` : '录制自定义快捷键' }}
-            </button>
-            <small class="drawer-hint">快捷键与图标、小点是并列的触发方式；选择快捷键后，选区旁不会再显示图标或小点。选中单个英文单词时会自动显示音标、发音、词性、释义和例句。</small>
-          </div>
-          <div class="choice-block">
-            <label>显示延迟</label>
-            <div class="selection-delay-control">
-              <el-input-number
-                v-model="config.selectionTranslatorDelay"
-                aria-label="划词翻译显示延迟"
-                :min="SELECTION_TRANSLATOR_DELAY_MIN"
-                :max="SELECTION_TRANSLATOR_DELAY_MAX"
-                :step="SELECTION_TRANSLATOR_DELAY_STEP"
-                controls-position="right"
-                @change="handleSelectionTranslatorDelayChange"
-              />
-              <span>ms</span>
-            </div>
-            <small class="drawer-hint">从选区稳定后开始计时；若按快捷键时等待已经结束，则会立即显示。设为 0 可关闭延迟。</small>
-          </div>
-          <div class="choice-block">
-            <label>语音回退顺序</label>
-            <el-select
-              v-model="config.selectionTtsVoices"
-              class="selection-tts-voice-select"
-              multiple
-              filterable
-              collapse-tags
-              collapse-tags-tooltip
-              aria-label="划词翻译语音回退顺序"
-              placeholder="自动按语言选择"
-              no-data-text="没有可用音色"
-            >
-              <el-option
-                v-for="item in selectionTtsVoiceOptions"
-                :key="item.value"
-                :label="`${item.label} · ${item.locale}`"
-                :value="item.value"
-              />
-            </el-select>
-            <small class="drawer-hint">留空时按当前语言自动尝试多个免费 Edge 音色；选中多个后按此顺序回退，不需要 API Key。</small>
           <button class="wordbook-shortcut" type="button" @click="openOptions('settings-vocabulary')">
             <span class="wordbook-shortcut-icon" aria-hidden="true"><UiIcon name="book" /></span>
             <span><strong>单词本</strong><small>{{ config.vocabularyBookEnabled ? '查看收藏、今日复习与掌握程度' : '开启后可从单词学习卡收藏并复习' }}</small></span>
             <b aria-hidden="true">›</b>
           </button>
-          </div>
         </div>
 
       </div>
@@ -517,73 +458,40 @@
         </div>
       </div>
 
-      <div v-else-if="activeDrawer === 'video'" class="drawer-content">
-        <div class="video-info-banner"><span class="feature-icon teal">CC</span><span><strong>FluentRead · 视频字幕翻译</strong><small>支持 YouTube/X 原生字幕；X 无字幕时可用本地 AI 生成</small></span></div>
-        <div class="setting-row video-enable-row" :class="{ 'needs-enable': !config.videoTranslationEnabled }">
-          <span><strong>{{ config.videoTranslationEnabled ? '视频字幕翻译已开启' : '开启字幕翻译' }}</strong><small>{{ config.videoTranslationEnabled ? '正在播放器中显示 FluentRead 中文译文' : '点击右侧开关，在 YouTube/X 播放器中显示中文译文' }}</small></span>
+      <div v-else-if="activeDrawer === 'video'" class="drawer-content video-quick-settings">
+        <div class="setting-row video-enable-row">
+          <span><strong>字幕翻译</strong><small data-i18n-ignore>{{ t('popup.quickSettings.videoEnableHint') }}</small></span>
           <button class="switch compact" type="button" role="switch" :aria-checked="config.videoTranslationEnabled" aria-label="启用或关闭视频字幕翻译" @click="setVideoTranslationEnabled(!config.videoTranslationEnabled)"><i /></button>
         </div>
-        <label class="select-row">
-          <span><strong>视频翻译服务</strong><small>与网页翻译服务独立保存</small></span>
-          <UiSelect aria-label="视频翻译服务" v-model="config.videoService" :disabled="!config.videoTranslationEnabled">
-            <ElOption v-if="selectedVideoServiceUnavailableMessage" :value="config.videoService" disabled :label="translateControlLabel('Chrome内置AI翻译（当前浏览器不可用）')" />
-            <ElOption v-for="item in videoServiceOptions" :key="item.value" :value="item.value" :label="translateControlLabel(item.label)" />
-          </UiSelect>
-        </label>
-        <div v-if="browserCapabilities.extensionDom" class="x-video-ai-group">
-          <div class="x-video-ai-group-heading">
-            <strong>X 视频 · 本地 AI</strong>
-            <small>无原生字幕时使用浏览器本地识别</small>
+        <button v-if="config.videoTranslationEnabled && !config.videoSubtitleVisible" class="secondary-action" type="button" data-i18n-ignore @click="config.videoSubtitleVisible = true">{{ t('video.showSubtitles') }}</button>
+        <div v-if="config.videoTranslationEnabled && config.videoSubtitleVisible" class="choice-block">
+          <label data-i18n-ignore>{{ t('video.displayMode') }}</label>
+          <div class="chips three" role="group" :aria-label="t('video.displayMode')">
+            <button v-for="item in videoDisplayModes" :key="item.value" type="button" :class="{ selected: config.videoSubtitleDisplayMode === item.value }" :aria-pressed="config.videoSubtitleDisplayMode === item.value" @click="config.videoSubtitleDisplayMode = item.value">{{ item.label }}</button>
           </div>
-          <label class="select-row">
-            <span><strong>本地 AI 字幕模型</strong><small>X 没有原生字幕时使用；首次请求前下载并缓存</small></span>
-            <UiSelect aria-label="本地 AI 字幕模型" v-model="config.videoLocalModel" :disabled="!config.videoTranslationEnabled">
-              <ElOption v-for="item in videoLocalModelOptions" :key="item.value" :value="item.value" :label="translateControlLabel(item.label)" />
-            </UiSelect>
-          </label>
-          <label class="select-row">
-            <span><strong>视频原语言</strong><small>独立于网页翻译语言；自动检测适合大多数视频</small></span>
-            <UiSelect v-model="config.videoSourceLanguage" :disabled="!config.videoTranslationEnabled" aria-label="视频原语言">
-              <ElOption v-for="item in videoSourceLanguageOptions" :key="item.value" :value="item.value" :label="translateControlLabel(item.label)" />
-            </UiSelect>
-          </label>
-          <button class="video-model-settings-link" type="button" @click="openOptions('settings-video')">下载或管理 Tiny / Base 模型 →</button>
-          <button class="video-model-settings-link" type="button" @click="openOptions('settings-video')">调整字幕皮肤与位置 →</button>
         </div>
-        <small v-else class="drawer-hint capability-warning">当前浏览器不支持 X 本地 AI 字幕，视频原生字幕翻译仍可使用。</small>
+        <p class="drawer-hint video-player-hint" data-i18n-ignore>{{ t('popup.quickSettings.videoPlayerHint') }}</p>
+        <small v-if="!browserCapabilities.extensionDom" class="drawer-hint capability-warning">当前浏览器不支持 X 本地 AI 字幕，视频原生字幕翻译仍可使用。</small>
         <small v-if="selectedVideoServiceUnavailableMessage" class="drawer-hint capability-warning">{{ selectedVideoServiceUnavailableMessage }}</small>
-        <label class="select-row">
-          <span><strong>字幕字号</strong><small>只调整 FluentRead 显示的原文和译文</small></span>
-          <UiSelect v-model="config.videoSubtitleAppearance.fontScale" aria-label="视频字幕字号" :disabled="!config.videoTranslationEnabled">
-            <ElOption v-for="size in videoSubtitleFontSizeOptions" :key="size" :value="size" :label="translateControlLabel(size === 100 ? '默认' : `${size}%`)" />
-          </UiSelect>
-        </label>
-        <small class="drawer-hint">支持 YouTube/X；可切换字幕模式、显示状态，并分别下载原文或译文 SRT。YouTube 使用原生字幕，X 可读取原生字幕或请求本地 AI 生成。</small>
       </div>
 
       <div v-else class="drawer-content">
         <div class="choice-block">
           <label>翻译模式</label>
-          <div class="chips two">
-            <button v-for="item in options.display" :key="item.value" type="button" :class="{ selected: config.display === item.value }" @click="config.display = item.value">{{ item.label }}</button>
+          <div class="chips two" role="group" aria-label="翻译模式">
+            <button v-for="item in options.display" :key="item.value" type="button" :class="{ selected: config.display === item.value }" :aria-pressed="config.display === item.value" @click="config.display = item.value">{{ item.label }}</button>
           </div>
         </div>
-        <label v-if="config.display === 1" class="select-row">
-          <span><strong>译文样式</strong><small>双语对照时译文的视觉效果</small></span>
-          <UiSelect aria-label="译文样式" v-model="config.style"><ElOption v-for="item in styleOptions" :key="item.value" :value="item.value" :label="translateControlLabel(item.label)" /></UiSelect>
-        </label>
-        <label class="select-row">
-          <span><strong>界面主题</strong><small>同时应用到完整设置页面</small></span>
-          <UiSelect aria-label="界面主题" v-model="config.theme"><ElOption v-for="item in options.theme" :key="item.value" :value="item.value" :label="translateControlLabel(item.label)" /></UiSelect>
-        </label>
       </div>
 
-        <button v-if="activeDrawer !== 'aiContext'" class="drawer-settings-link" type="button" @click="openOptions(drawerSettingsSection[activeDrawer])">在完整设置中查看全部选项 ↗</button>
+        <p v-if="notice && noticeType === 'error'" class="notice error" role="alert">{{ notice }}</p>
+        <button v-if="activeDrawer !== 'aiContext'" class="drawer-settings-link" type="button" data-i18n-ignore @click="openOptions(drawerSettingsSection[activeDrawer])">
+          <span><strong>{{ t(`popup.quickSettings.${activeDrawer}Settings`) }}</strong><small>{{ t(`popup.quickSettings.${activeDrawer}SettingsHint`) }}</small></span>
+          <span aria-hidden="true">↗</span>
+        </button>
       </div>
     </el-drawer>
 
-    <CustomHotkeyInput v-if="showCustomMouseHotkeyDialog" v-model="showCustomMouseHotkeyDialog" :current-value="config.customHotkey" :validate="validateCustomMouseHotkey" @confirm="confirmMouseHotkey" @cancel="cancelMouseHotkey" />
-    <CustomHotkeyInput v-if="showCustomSelectionHotkeyDialog" v-model="showCustomSelectionHotkeyDialog" :current-value="config.customSelectionTranslatorHotkey" @confirm="confirmSelectionHotkey" @cancel="cancelSelectionHotkey" />
     </div>
   </main>
 </template>
@@ -592,10 +500,8 @@
 import UiIcon from '@/src/ui/components/UiIcon.vue'
 import UiSelect from '@/src/ui/components/UiSelect.vue';
 import {ElOption} from 'element-plus';
-import {useUiI18n as useControlI18n} from '@/src/ui/i18n';
-const {translateLegacy: translateControlLabel} = useControlI18n();
 
-import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import browser from 'webextension-polyfill';
 import {
   config as runtimeConfig,
@@ -604,13 +510,7 @@ import {
   subscribeConfig,
 } from '@/src/services/config/store';
 import { Search, Setting } from '@element-plus/icons-vue';
-import {
-  SELECTION_TRANSLATOR_DELAY_MAX,
-  SELECTION_TRANSLATOR_DELAY_MIN,
-  SELECTION_TRANSLATOR_DELAY_STEP,
-  normalizeConfig,
-  normalizeSelectionTranslatorDelay,
-} from '@/src/core/config/model';
+import {normalizeConfig} from '@/src/core/config/model';
 import {resolveUiLanguageFromLocale, type UiLanguage} from '@/src/core/i18n';
 import {
   customModelString,
@@ -638,7 +538,6 @@ import {
 } from '@/src/core/config/interfaceAppearance';
 import { getSelectedModelLabel, searchServiceOptions } from '@/src/ui/view-model/serviceCatalog';
 import { resolveAIContextPresentation } from '@/src/ui/view-model/aiContext';
-import { SELECTION_TTS_VOICE_OPTIONS } from '@/src/core/config/selectionTts';
 import { getSiteBaseDomain } from '@/src/core/site-rules/domain';
 import {applyInterfaceFont, applyInterfaceSkin} from '@/src/ui/interfaceAppearance';
 import { requestTranslationCacheClear } from './cache';
@@ -649,9 +548,6 @@ import UiLanguageOnboarding from '@/src/ui/components/UiLanguageOnboarding.vue';
 import {useUiI18n} from '@/src/ui/i18n';
 import PopupSiteRule from './PopupSiteRule.vue';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
-import {VIDEO_LOCAL_TRANSCRIPTION_MODELS} from '@/src/features/video-subtitle/transcription';
-import {VIDEO_SOURCE_LANGUAGE_OPTIONS} from '@/src/core/config/model';
-import {VIDEO_SUBTITLE_FONT_SCALE_OPTIONS} from '@/src/core/config/videoSubtitleAppearance';
 import {
   filterAvailableTranslationServices,
   getTranslationServiceUnavailableMessage,
@@ -673,7 +569,6 @@ interface PopupQuickFeatureViewModel {
   ariaLabel?: string;
   open: () => void | Promise<void>;
 }
-const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'));
 const {language, t, translateLegacy} = useUiI18n();
 const version = process.env.VUE_APP_VERSION;
 // composition root 已等待配置服务；首次渲染直接使用完整快照，不能先暴露默认布局。
@@ -691,10 +586,6 @@ const donationCard = ref<HTMLElement | null>(null);
 const donationTrigger = ref<HTMLButtonElement | null>(null);
 const notice = ref('');
 const noticeType = ref<'success' | 'error'>('success');
-const showCustomMouseHotkeyDialog = ref(false);
-const showCustomSelectionHotkeyDialog = ref(false);
-const previousMouseHotkey = ref('');
-const previousSelectionTrigger = ref('');
 // This template ref lives inside the configurable module v-for, so Vue exposes
 // it as an array even though the translation module itself is unique.
 const servicePicker = ref<HTMLElement | HTMLElement[] | null>(null);
@@ -764,16 +655,11 @@ const serviceSearchResults = computed(() => searchServiceOptions(
   config.value.model,
   config.value.customModel,
 ));
-const videoServiceOptions = computed(() => filterAvailableTranslationServices(allServiceOptions.value));
-const videoSubtitleFontSizeOptions = VIDEO_SUBTITLE_FONT_SCALE_OPTIONS;
-const videoLocalModelOptions = VIDEO_LOCAL_TRANSCRIPTION_MODELS;
-const videoSourceLanguageOptions = VIDEO_SOURCE_LANGUAGE_OPTIONS;
 const popularServiceValues = ['freeTranslation', 'microsoft', 'google', 'deepL', 'deeplx', 'deepseek', 'openai', 'gemini', 'claude'];
 const popularServiceOptions = computed(() => popularServiceValues
   .map(value => serviceSearchResults.value.find((item: any) => item.value === value))
   .filter((item): item is any => Boolean(item)));
 const moreServiceOptions = computed(() => serviceSearchResults.value.filter((item: any) => !popularServiceValues.includes(item.value)));
-const styleOptions = computed(() => options.styles.filter((item: any) => !item.disabled));
 const selectedServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.service));
 const selectedVideoServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.videoService));
 const selectedCustomOpenAIProvider = computed(() => getCustomOpenAIProvider(
@@ -873,7 +759,7 @@ const siteRuleModuleProps = computed(() => ({
   switchLabel: currentSiteSwitchLabel.value,
   extensionSwitchLabel: currentSiteExtensionSwitchLabel.value,
 }));
-const styleLabel = computed(() => styleOptions.value.find((item: any) => item.value === config.value.style)?.label || '默认样式');
+const styleLabel = computed(() => options.styles.find((item: any) => item.value === config.value.style)?.label || '默认样式');
 const defaultHoverHotkey = computed(() => resolveConfiguredHotkey(config.value.hotkey, config.value.customHotkey));
 const defaultHoverEnabled = computed(() => Boolean(defaultHoverHotkey.value && defaultHoverHotkey.value !== 'none'));
 const hoverKey = computed(() => defaultHoverEnabled.value ? defaultHoverHotkey.value : '未设置');
@@ -1004,24 +890,24 @@ const drawerDescription = computed(() => ({
   hover: '把鼠标停在文本上，用轻量快捷键获取即时译文。',
   selection: '选中网页文字，按你的偏好获取译文。',
   area: t('area.settings.intro'),
-  appearance: '调整双语布局、译文样式与界面主题。',
+  appearance: t('popup.quickSettings.appearanceDescription'),
   image: '把鼠标移到图片上，从图片左下角打开翻译入口。',
   video: '翻译 YouTube/X 字幕，或在 X 本地生成字幕。',
 }[activeDrawer.value]));
-const hoverChoices = [
-  { value: 'Control', label: 'Ctrl' },
-  { value: 'Alt', label: 'Alt / Option' },
-  { value: 'Shift', label: 'Shift' },
-  { value: 'custom', label: '自定义' },
-];
+const videoDisplayModes = [
+  { value: 'bilingual', label: '双语' },
+  { value: 'translation-only', label: '仅译文' },
+  { value: 'original-only', label: '仅原文' },
+] as const;
 const selectionModes = [
+  { value: 'disabled', label: '关闭' },
   { value: 'bilingual', label: '双语显示' },
   { value: 'translation-only', label: '仅译文' },
 ];
 const selectionTriggers = options.selectionTranslatorTriggers;
-const selectionTriggerPreview = computed(() => selectionTriggers
-  .find(item => item.value === config.value.selectionTranslatorTrigger)?.label || '快捷键');
-const selectionTtsVoiceOptions = SELECTION_TTS_VOICE_OPTIONS;
+const selectionTriggerPreview = computed(() => config.value.selectionTranslatorTrigger === 'custom'
+  ? config.value.customSelectionTranslatorHotkey || t('common.notSet')
+  : selectionTriggers.find(item => item.value === config.value.selectionTranslatorTrigger)?.label || '快捷键');
 
 function applyTheme(theme: string) {
   document.documentElement.classList.toggle('dark', theme === 'dark' || (theme === 'auto' && darkMode.matches));
@@ -1351,37 +1237,10 @@ function quickTranslationConflictMessage(hotkey: string): string {
   return t('quickTranslation.conflictProfilePopup', {group});
 }
 
-const validateCustomMouseHotkey = (hotkey: string) => quickTranslationConflictMessage(hotkey);
 
-function toggleHover() {
-  if (defaultHoverEnabled.value) config.value.hotkey = 'none';
-  else setHoverHotkey('Control');
-}
-function setHoverHotkey(value: string) {
-  const conflictMessage = quickTranslationConflictMessage(resolveConfiguredHotkey(value, config.value.customHotkey));
-  if (conflictMessage) {
-    showNotice(conflictMessage, 'error');
-    return;
-  }
-  if (value === 'custom' && !config.value.customHotkey) previousMouseHotkey.value = config.value.hotkey;
-  config.value.hotkey = value;
-  if (value === 'custom' && !config.value.customHotkey) showCustomMouseHotkeyDialog.value = true;
-}
 function setSelectionMode(mode: string) {
   config.value.selectionTranslatorMode = mode;
   config.value.disableSelectionTranslator = mode === 'disabled';
-}
-const selectionShortcutTriggers = new Set(['Control', 'Alt', 'Shift', 'custom']);
-function setSelectionTrigger(trigger: string) {
-  if (trigger === 'custom' && !config.value.customSelectionTranslatorHotkey) {
-    previousSelectionTrigger.value = config.value.selectionTranslatorTrigger;
-  }
-  config.value.selectionTranslatorTrigger = trigger;
-  config.value.selectionTranslatorHotkey = selectionShortcutTriggers.has(trigger) ? trigger : 'none';
-  if (trigger === 'custom' && !config.value.customSelectionTranslatorHotkey) showCustomSelectionHotkeyDialog.value = true;
-}
-function handleSelectionTranslatorDelayChange(value: number | undefined) {
-  config.value.selectionTranslatorDelay = normalizeSelectionTranslatorDelay(value);
 }
 function setAreaEnabled(enabled: boolean) {
   if (!browserCapabilities.areaTranslation) {
@@ -1404,42 +1263,5 @@ function setImageTranslatorEnabled(enabled: boolean) {
 }
 function setVideoTranslationEnabled(enabled: boolean) {
   config.value.videoTranslationEnabled = enabled;
-}
-function confirmMouseHotkey(hotkey: string) {
-  if (quickTranslationConflictMessage(hotkey)) return;
-  if (hotkey === 'none') {
-    config.value.customHotkey = '';
-    config.value.hotkey = 'none';
-  } else {
-    config.value.customHotkey = hotkey;
-    config.value.hotkey = 'custom';
-  }
-  showCustomMouseHotkeyDialog.value = false;
-  previousMouseHotkey.value = '';
-}
-function cancelMouseHotkey() {
-  if (!config.value.customHotkey) config.value.hotkey = previousMouseHotkey.value || 'Control';
-  previousMouseHotkey.value = '';
-}
-function confirmSelectionHotkey(hotkey: string) {
-  if (hotkey === 'none') {
-    config.value.customSelectionTranslatorHotkey = '';
-    config.value.selectionTranslatorTrigger = 'icon';
-    config.value.selectionTranslatorHotkey = 'none';
-  } else {
-    config.value.customSelectionTranslatorHotkey = hotkey;
-    config.value.selectionTranslatorTrigger = 'custom';
-    config.value.selectionTranslatorHotkey = 'custom';
-  }
-  showCustomSelectionHotkeyDialog.value = false;
-  previousSelectionTrigger.value = '';
-}
-function cancelSelectionHotkey() {
-  if (!config.value.customSelectionTranslatorHotkey) {
-    const trigger = previousSelectionTrigger.value || 'icon';
-    config.value.selectionTranslatorTrigger = trigger;
-    config.value.selectionTranslatorHotkey = selectionShortcutTriggers.has(trigger) ? trigger : 'none';
-  }
-  previousSelectionTrigger.value = '';
 }
 </script>
