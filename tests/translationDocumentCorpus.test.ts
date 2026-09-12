@@ -475,3 +475,29 @@ describe('minimal candidate-boundary constructions', () => {
         ).toBe(false);
     });
 });
+
+
+describe('GitHub release source-line ownership', () => {
+    it('places every release line under its own paragraph instead of its outer list item', () => {
+        const {document, core} = loadFixture('github-release-v1.47.0.html',
+            'https://github.com/mengxi-ream/read-frog/releases/tag/v1.47.0');
+        const before = document.body.innerHTML;
+        const candidates = core.discover(document);
+        for (const paragraph of document.querySelectorAll('.markdown-body p')) {
+            const breaks = Array.from(paragraph.children).filter(child => child.localName === 'br');
+            const owned = candidates.filter(candidate => candidate.element === paragraph);
+            expect(owned, paragraph.id).toHaveLength(breaks.length + 1);
+            for (const candidate of owned) {
+                expect(candidate.nodes?.some(node => breaks.includes(node as Element))).not.toBe(true);
+                const hit = candidate.nodes?.find(node => node.nodeType === 3 && node.textContent?.trim())
+                    ?? paragraph.firstChild;
+                const hovered = core.resolve(hit);
+                expect(hovered?.element, paragraph.id).toBe(paragraph);
+                expect(hovered?.nodes, paragraph.id).toEqual(candidate.nodes);
+                expect(candidateSource(candidate, core).length).toBeGreaterThan(0);
+            }
+        }
+        expect(candidates.some(candidate => candidate.element.matches('li:has(> p)'))).toBe(false);
+        expect(document.body.innerHTML).toBe(before);
+    });
+});

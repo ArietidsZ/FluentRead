@@ -2,6 +2,8 @@
 
 If content is missing or too much is translated, start with the simple checks.
 
+GitHub release notes show translations after each explicit source line break for easy comparison. List items containing several paragraphs are translated paragraph by paragraph.
+
 ## Missing content
 
 1. Refresh pages after installing or updating.

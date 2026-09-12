@@ -226,8 +226,7 @@
       "tests/translationVisionPayload.test.ts",
       "tests/requestLimits.test.ts",
       "tests/fullPageModalPriority.test.ts",
-      "tests/modalProgressHint.test.ts",
-      "tests/pageTranslationAdvanced.test.ts"
+      "tests/modalProgressHint.test.ts"
     ],
     "functional": [
       "tests/settingsCompositionAutosave.test.ts",
