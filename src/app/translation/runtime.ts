@@ -16,6 +16,7 @@ import {createTranslationBroker} from '@/src/services/translation/broker';
 import {buildTranslationCacheKey, translationCache} from '@/src/services/translation/cache';
 import {createTranslationCachePolicyBinding} from '@/src/services/translation/cachePolicyBinding';
 import {modelUsageRepository} from '@/src/platform/storage/modelUsageRepository';
+import {createTranslationRequestScheduler} from '@/src/services/translation/requestScheduler';
 
 function isExtensionModelUsageRuntime(): boolean {
     const protocol = globalThis.location?.protocol;
@@ -42,6 +43,11 @@ const cachePolicy = createTranslationCachePolicyBinding({
     setLimits: (limits) => translationCache.setLimits(limits),
     warn: (error) => console.warn('[FluentRead] translation cache policy failed:', error),
 });
+
+/** 后台所有翻译入口共用的 scheduler；provider attempt 与 broker 请求使用同一 bucket 历史。 */
+export const translationRequestScheduler = createTranslationRequestScheduler(
+    () => config,
+);
 
 const broker = createTranslationBroker({
     ready: cachePolicy.ready,
@@ -74,6 +80,7 @@ const broker = createTranslationBroker({
         if (!isExtensionModelUsageRuntime()) return;
         await modelUsageRepository.recordMany(events, generation);
     },
+    requestScheduler: translationRequestScheduler,
 });
 
 /** 扩展与 userscript 共用的翻译 broker singleton。 */

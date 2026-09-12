@@ -22,6 +22,7 @@ import {LlmTransportError, normalizeAiSdkError} from './errors';
 import {runtimeFetch} from '@/src/platform/http/runtime';
 import {
   getTranslationProviderConfig,
+  getTranslationRequestScheduler,
   reportTranslationModelUsage,
   type TranslationProviderRequestContext,
 } from '@/src/services/translation/requestSnapshot';
@@ -193,7 +194,14 @@ function compatibilityFetch(
     const startedAt = Date.now();
     let response: Response;
     try {
-      response = await runtimeFetch(endpoint.exactEndpoint || input, init);
+      const schedulerContext = getTranslationRequestScheduler(request);
+      const fetchAttempt = () => runtimeFetch(endpoint.exactEndpoint || input, init);
+      response = schedulerContext
+        ? await schedulerContext.scheduler.scheduleAttempt(fetchAttempt, {
+            signal: init?.signal ?? undefined,
+            identity: {service: request.serviceOverride || schedulerContext.identity?.service, model: requestedModel},
+          })
+        : await fetchAttempt();
     } catch (error) {
       reportTranslationModelUsage(request, {
         startedAt,

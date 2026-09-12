@@ -10,6 +10,21 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const jaJPMessages = {
+    "settings.requestLimits.modelTitle": "モデルのリクエスト制限",
+    "settings.requestLimits.globalTitle": "リクエスト制限",
+    "settings.requestLimits.globalHelp": "個別設定のないサービスとモデルは、この制限を共有します。",
+    "settings.requestLimits.retryIntervals": "再試行の間隔",
+    "settings.requestLimits.title": "リクエスト制限",
+    "settings.requestLimits.serviceTitle": "サービスのリクエスト制限",
+    "settings.requestLimits.followGlobal": "全体設定を使用",
+    "settings.requestLimits.followService": "サービス設定を使用",
+    "settings.requestLimits.serviceLink": "サービスのリクエスト制限",
+    "settings.requestLimits.modelLink": "現在のモデル設定",
+    "settings.requestLimits.inheritSummary": "同時実行 {concurrency} · 毎秒 {second} 回 · 毎分 {minute} 回",
+    "settings.requestLimits.serviceCap": "サービス全体の共有制限も適用されます",
+    "settings.requestLimits.rateHelp": "0 は速度制限なしです。",
+    "settings.requestLimits.modelScope": "現在のモデル",
+    "settings.requestLimits.serviceScope": "全モデルの合計",
     "popup.quickSettings.disableHoverShortcut": "既定のホバーショートカットを無効にする",
     "popup.quickSettings.chooseHoverShortcut": "ショートカットを選択",
     "popup.quickSettings.disabledHoverHint": "無効です。有効にするには、詳細設定でショートカットを選んでください。",

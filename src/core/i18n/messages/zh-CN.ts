@@ -10,6 +10,21 @@ import type {
 MessageCatalog} from '../types';
 
 export const zhCNMessages = {
+    "settings.requestLimits.modelTitle": "模型请求限制",
+    "settings.requestLimits.globalTitle": "请求限制",
+    "settings.requestLimits.globalHelp": "未单独设置的服务和模型共用这些限制。",
+    "settings.requestLimits.retryIntervals": "重试间隔",
+    "settings.requestLimits.title": "请求限制",
+    "settings.requestLimits.serviceTitle": "服务请求限制",
+    "settings.requestLimits.followGlobal": "跟随全局设置",
+    "settings.requestLimits.followService": "跟随服务设置",
+    "settings.requestLimits.serviceLink": "服务请求限制",
+    "settings.requestLimits.modelLink": "当前模型设置",
+    "settings.requestLimits.inheritSummary": "并发 {concurrency} · 每秒 {second} 次 · 每分钟 {minute} 次",
+    "settings.requestLimits.serviceCap": "同时受服务共享限制约束",
+    "settings.requestLimits.rateHelp": "设为 0 表示不限速。",
+    "settings.requestLimits.modelScope": "当前模型",
+    "settings.requestLimits.serviceScope": "所有模型合计",
     "popup.quickSettings.disableHoverShortcut": "关闭默认悬浮快捷键",
     "popup.quickSettings.chooseHoverShortcut": "选择快捷键",
     "popup.quickSettings.disabledHoverHint": "已关闭；重新启用时到完整设置选择快捷键。",

@@ -105,6 +105,12 @@ import {
     normalizeTranslationRequestsPerMinute,
     normalizeTranslationRequestsPerSecond,
 } from './scheduling';
+import {
+    normalizeModelRequestLimits,
+    normalizeServiceRequestLimits,
+    type ModelRequestLimits,
+    type ServiceRequestLimits,
+} from './requestLimits';
 import {normalizeWritingPreferences, type WritingPreferences} from './writing';
 import {DEFAULT_HARNESS_PREFERENCES, normalizeHarnessPreferences, type HarnessPreferences} from './harness';
 import {
@@ -286,6 +292,8 @@ export class Config {
     maxConcurrentTranslations: number; // 最大并发翻译数量
     translationRequestsPerSecond: number; // 每秒最多启动的翻译请求数，0 表示不限速
     translationRequestsPerMinute: number; // 每分钟最多启动的翻译请求数，0 表示不限速
+    serviceRequestLimits: ServiceRequestLimits; // 按服务保存的独立请求限流配置
+    modelRequestLimits: ModelRequestLimits; // 按服务和模型保存的独立请求限流配置
     translationMaxRetries: number; // 单次翻译失败后的最大重试次数
     translationBackoffBaseMs: number; // 指数退避初始间隔
     translationBackoffMaxMs: number; // 指数退避最大间隔
@@ -412,6 +420,8 @@ export class Config {
         this.maxConcurrentTranslations = DEFAULT_MAX_CONCURRENT_TRANSLATIONS; // 默认最大并发数为6
         this.translationRequestsPerSecond = DEFAULT_TRANSLATION_REQUESTS_PER_SECOND;
         this.translationRequestsPerMinute = DEFAULT_TRANSLATION_REQUESTS_PER_MINUTE;
+        this.serviceRequestLimits = {};
+        this.modelRequestLimits = {};
         this.translationMaxRetries = DEFAULT_TRANSLATION_MAX_RETRIES;
         this.translationBackoffBaseMs = DEFAULT_TRANSLATION_BACKOFF_BASE_MS;
         this.translationBackoffMaxMs = DEFAULT_TRANSLATION_BACKOFF_MAX_MS;
@@ -638,6 +648,10 @@ function normalizeCustomOpenAIProviderState(normalized: Config, source: Partial<
     normalized.customBody = withoutOrphanCustomProviderEntries(normalized.customBody, configuredIds);
     normalized.customHeaders = Object.fromEntries(Object.entries(normalized.customHeaders)
         .filter(([service]) => configuredIds.has(service)));
+    normalized.serviceRequestLimits = Object.fromEntries(Object.entries(normalized.serviceRequestLimits)
+        .filter(([service]) => !isCustomOpenAIProviderId(service) || configuredIds.has(service)));
+    normalized.modelRequestLimits = Object.fromEntries(Object.entries(normalized.modelRequestLimits)
+        .filter(([service]) => !isCustomOpenAIProviderId(service) || configuredIds.has(service)));
 
     for (const provider of providers) {
         const service = provider.id;
@@ -767,6 +781,8 @@ export function normalizeConfig(value: unknown): Config {
     normalized.translationRequestsPerMinute = normalizeTranslationRequestsPerMinute(
         source.translationRequestsPerMinute,
     );
+    normalized.serviceRequestLimits = withoutRetiredServiceEntries(normalizeServiceRequestLimits(source.serviceRequestLimits));
+    normalized.modelRequestLimits = withoutRetiredServiceEntries(normalizeModelRequestLimits(source.modelRequestLimits));
     normalized.freeTranslationOrder = normalizeFreeTranslationOrder(source.freeTranslationOrder);
     normalized.freeTranslationTimeoutMs = normalizeFreeTranslationTimeoutMs(source.freeTranslationTimeoutMs);
     normalized.freeTranslationCooldownMs = normalizeFreeTranslationCooldownMs(source.freeTranslationCooldownMs);

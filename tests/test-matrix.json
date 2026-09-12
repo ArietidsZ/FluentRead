@@ -28,7 +28,8 @@
       "tests/userscriptPrivacy.test.ts",
       "tests/userscriptViteConfig.test.ts",
       "tests/freeTranslationSettings.test.ts",
-      "tests/writingBackground.test.ts"
+      "tests/writingBackground.test.ts",
+      "tests/requestLimitSettings.test.ts"
     ],
     "unit": [
       "tests/modalDialogHost.test.ts",
@@ -210,6 +211,7 @@
       "tests/writingEditors.test.ts",
       "tests/writingMarkdown.test.ts",
       "tests/translationToolbarStatus.test.ts",
+      "tests/requestLimits.test.ts",
       "tests/fullPageModalPriority.test.ts",
       "tests/modalProgressHint.test.ts"
     ],
