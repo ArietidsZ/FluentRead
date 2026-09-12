@@ -200,7 +200,8 @@
             <strong>{{ t(font.labelKey) }}</strong>
             <small>{{ t(font.descriptionKey) }}</small>
           </span>
-          <span class="interface-font-action"
+          <span v-if="font.value === props.config.interfaceFont || !availableInterfaceFonts.includes(font.value)"
+            class="interface-font-action"
             :class="{
               'is-download': !availableInterfaceFonts.includes(font.value),
               'is-active': font.value === props.config.interfaceFont && interfaceFontLoadState.status !== 'error',
@@ -293,7 +294,7 @@ function fontActionKey(font: InterfaceFont) {
     if (interfaceFontLoadState.value.status === 'error') return 'settings.interface.font.retry'
     return 'settings.interface.font.active'
   }
-  return availableInterfaceFonts.value.includes(font) ? 'settings.interface.font.useFont' : 'settings.interface.font.downloadAndUse'
+  return 'settings.interface.font.downloadAndUse'
 }
 function selectInterfaceFont(font: InterfaceFont) {
   if (font === props.config.interfaceFont) {
