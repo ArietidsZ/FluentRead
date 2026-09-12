@@ -1,5 +1,22 @@
 [
   {
+    "id": "openrouter",
+    "name": "OpenRouter",
+    "allScopes": true,
+    "match": {
+      "hosts": [
+        "openrouter.ai"
+      ]
+    },
+    "priority": 380,
+    "mode": "augment",
+    "omit": [
+      "li a[href^=\"/\"][href*=\"/\"] > span.font-semibold",
+      "#model-title-row h1",
+      "#model-title-row h3[title=\"Model identifier for use in the API\"]"
+    ]
+  },
+  {
     "id": "bilibili",
     "name": "哔哩哔哩",
     "match": {

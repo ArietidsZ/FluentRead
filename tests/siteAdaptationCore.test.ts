@@ -71,6 +71,16 @@ describe('site adaptation JSON boundary', () => {
         reject(pack([null as never]), '$.rules[0]');
     });
 
+    it('validates the explicit all-scope opt-in without coercing saved values', () => {
+        for (const allScopes of [true, false]) {
+            const input = pack([rule({allScopes})]);
+            expect(parseSiteRulePack(input)).toEqual({ok: true, pack: input});
+        }
+        for (const allScopes of ['true', 1, null, {}]) {
+            reject(pack([rule({allScopes: allScopes as never})]), '$.rules[0].allScopes');
+        }
+    });
+
     it('requires bounded, readable identifiers, names and valid priorities', () => {
         for (const id of ['bad id', 'constructor', 'prototype', '__proto__', '$x', 'x'.repeat(97)]) {
             reject(pack([rule({id})]), '$.rules[0].id');
@@ -155,6 +165,26 @@ describe('site adaptation JSON boundary', () => {
 });
 
 describe('site adaptation compilation', () => {
+    it('applies only explicitly opted-in rules to all scope and honors disabling and overrides', () => {
+        const {document} = parseHTML('<html><body><h1 class="model-name">Model Name</h1><p>Readable description</p></body></html>');
+        const title = document.querySelector('h1')!;
+        const description = document.querySelector('p')!;
+        for (const allScopes of [undefined, false, true]) {
+            const builtin = pack([rule({omit: ['.model-name'], ...(allScopes === undefined ? {} : {allScopes})})]);
+            const settings = normalizeSiteAdaptationSettings(undefined);
+            const create = () => new TranslationCandidateCore({url: new URL('https://example.test'), scope: 'all', adapters: composeSiteAdapters(builtin, settings)});
+            const core = create();
+            expect(core.resolve(title.firstChild) === null).toBe(allScopes === true);
+            expect(core.shouldStayOriginal(title)).toBe(allScopes === true);
+            expect(core.shouldOmitFromTranslation(title)).toBe(allScopes === true);
+            expect(core.resolve(description.firstChild)?.element).toBe(description);
+            settings.disabledRuleIds = ['example'];
+            expect(create().resolve(title.firstChild)?.element).toBe(title);
+            settings.disabledRuleIds = [];
+            settings.custom = pack([rule({protect: ['.model-name'], allScopes: false})]);
+            expect(create().resolve(title.firstChild)?.element).toBe(title);
+        }
+    });
     it('compiles metadata omission into candidate, request and bilingual boundaries and observes dynamic selectors', () => {
         const {document} = parseHTML('<html><body><p id="body">Readable sentence <code id="literal">CODE_TOKEN</code><span id="metadata" data-receipt="no">Delivery metadata</span></p></body></html>');
         const adapters = compileSiteRulePack(pack([rule({protect: ['code'], omit: ['[data-receipt="yes"]']})]));

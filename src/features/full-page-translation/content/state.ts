@@ -1,10 +1,15 @@
 /**
  * @file src/features/full-page-translation/content/state.ts
  * 文件职责：维护每个被翻译 DOM 节点的可恢复状态、请求代次、译文工件和共享布局覆盖所有权，确保重复翻译、宿主变更和移除节点都能安全收敛。
- * 主要内容：包含 WeakMap 状态索引、begin/complete/error/discard 状态机、spinner/译文/retry/仅译文槽节点登记、无主槽原文解包、允许宿主管理链接焦点的可信译文复验、同源译文工件有界重挂、截断祖先样式快照与观察器引用计数、文本槽回写、tooltip 命中保护标记以及全量恢复。
+ * 主要内容：包含 WeakMap 状态索引、begin/complete/error/discard 状态机、spinner/译文/retry/仅译文槽节点登记、无主槽原文解包、可信译文复验与有界重挂、截断及高度约束的共享样式租约、祖先观察器引用计数、文本槽回写以及全量恢复。
  * 模块边界：该模块不发现候选、不请求翻译也不生成译文 HTML；runtime 负责会话编排，renderer 负责内容创建，本文件仅拥有 DOM 状态与可逆样式资源，避免跨 session 误删新结果。
  */
 import {isTranslationTooltip} from "@/src/core/translation/dom";
+import {
+    hasTranslationHeightOverflow,
+    isTranslationHeightBoundary,
+    translationHeightStyleOverrides,
+} from "@/src/core/translation/serialization";
 import {
     collectLiveTranslationTextSlots,
     createTranslationTextProtectionCache,
@@ -65,6 +70,7 @@ type TranslationLayoutObserverRoot = Document | ShadowRoot;
 interface TranslationLayoutRootObserver {
     observer: MutationObserver;
     owners: Set<WeakRef<HTMLElement>>;
+    releaseResizeListener: () => void;
 }
 
 export interface TranslationState {
@@ -1183,7 +1189,14 @@ function createTranslationLayoutRootObserver(root: TranslationLayoutObserverRoot
         attributeFilter: ["style", "class", ...SOURCE_STRUCTURE_ATTRIBUTES],
         characterData: true,
     });
-    return {observer, owners};
+    // 只在有活动译文时响应真实窗口尺寸变化；不轮询、不观察尺寸写入，避免布局反馈循环。
+    const view = document.defaultView;
+    const handleResize = () => owners.forEach((ref) => {
+        const owner = ref.deref();
+        if (owner) scheduleTranslationLayoutRefresh(owner);
+    });
+    view?.addEventListener("resize", handleResize);
+    return {observer, owners, releaseResizeListener: () => view?.removeEventListener("resize", handleResize)};
 }
 
 function retainTranslationLayoutRoot(owner: HTMLElement, root: TranslationLayoutObserverRoot): void {
@@ -1205,6 +1218,7 @@ function releaseTranslationLayoutRoot(owner: HTMLElement, root: TranslationLayou
     });
     if (observerState.owners.size > 0) return;
     observerState.observer.disconnect();
+    observerState.releaseResizeListener();
     layoutObserversByRoot.delete(root);
 }
 
@@ -1339,6 +1353,23 @@ export function acquireTranslationLayoutOverride(
 
     const existing = liveSharedTranslationLayoutOverride(element);
     if (existing) {
+        // 同一容器可能先解除 line-clamp，插入译文后才暴露固定高度；追加缺失属性，
+        // 保留首个所有者的快照，不能把扩展已写入的样式重新当成宿主原样式。
+        if (element.getAttribute("style") !== existing.renderedStyleAttribute) {
+            existing.canRestoreExactStyleAttribute = false;
+        }
+        overrides.filter(({property}) => !existing.properties.some((item) => item.property === property))
+            .forEach(({property, value, priority}) => {
+                const originalValue = getStylePropertyValue(element.style, property);
+                const originalPriority = getStylePropertyPriority(element.style, property);
+                element.style.setProperty(property, value, priority);
+                existing.properties.push({
+                    property, overrideValue: value, overridePriority: priority, originalValue, originalPriority,
+                    appliedValue: getStylePropertyValue(element.style, property),
+                    appliedPriority: getStylePropertyPriority(element.style, property),
+                });
+            });
+        existing.renderedStyleAttribute = element.getAttribute("style");
         existing.owners.add(ownerRef);
         (state.layoutOverrideElements ??= new Set()).add(element);
         refreshOwnershipIndex(owner, state);
@@ -1411,7 +1442,34 @@ export function reconcileTranslationLayoutOverrides(owner: HTMLElement): boolean
     return true;
 }
 
-/** 发现新的裁剪祖先，释放因重挂而过期的租约，并重新应用被宿主页覆盖的值。 */
+/** 宿主把容器改为滚动/定位边界时，只撤销高度属性，保留同一容器的截断租约。 */
+function releaseTranslationHeightOverride(element: HTMLElement): void {
+    const override = sharedLayoutOverrides.get(element);
+    const property = override?.properties.find((item) => item.property === "height");
+    if (!override || !property) return;
+    if (element.getAttribute("style") !== override.renderedStyleAttribute) {
+        override.canRestoreExactStyleAttribute = false;
+    }
+    if (getStylePropertyValue(element.style, "height") === property.appliedValue &&
+        getStylePropertyPriority(element.style, "height") === property.appliedPriority) {
+        if (property.originalValue) element.style.setProperty("height", property.originalValue, property.originalPriority);
+        else element.style.removeProperty("height");
+    }
+    override.properties = override.properties.filter((item) => item !== property);
+    override.renderedStyleAttribute = element.getAttribute("style");
+    if (override.properties.length > 0) return;
+    override.owners.forEach((ref) => {
+        const owner = ref.deref();
+        const state = owner ? states.get(owner) : undefined;
+        if (owner && state) {
+            state.layoutOverrideElements?.delete(element);
+            refreshOwnershipIndex(owner, state);
+        }
+    });
+    restoreSharedTranslationLayoutOverride(element, override);
+}
+
+/** 从内向外解除实际截断及高度溢出，保留滚动/定位边界，并释放重挂后过期的租约。 */
 export function ensureTranslationTruncationLayout(owner: HTMLElement): boolean {
     const state = states.get(owner);
     if (!state || !owner.isConnected) return false;
@@ -1422,22 +1480,30 @@ export function ensureTranslationTruncationLayout(owner: HTMLElement): boolean {
     refreshOwnershipIndex(owner, state);
     updateTranslationLayoutObservers(owner, state, watchElements);
 
-    const desiredElements = new Set<HTMLElement>();
-    if (sharedLayoutOverrides.has(owner) || hasActiveTranslationTruncation(owner)) {
-        desiredElements.add(owner);
-    }
-    ancestors.forEach((ancestor) => {
-        if (sharedLayoutOverrides.has(ancestor) || hasActiveTranslationTruncation(ancestor)) {
-            desiredElements.add(ancestor);
-        }
-    });
-
+    const chain = [owner, ...ancestors];
     for (const element of Array.from(state.layoutOverrideElements ?? [])) {
-        if (!desiredElements.has(element)) releaseTranslationLayoutOverride(owner, state, element);
+        if (!chain.includes(element)) releaseTranslationLayoutOverride(owner, state, element);
     }
-    desiredElements.forEach((element) => {
-        acquireTranslationLayoutOverride(owner, element, translationTruncationStyleOverrides);
-    });
+    // 先吸收宿主对已租用属性的改写；新增属性不能掩盖这些新的恢复基线。
+    if (!reconcileTranslationLayoutOverrides(owner)) return false;
+    const hasBilingualContent = state.mode === "bilingual" && state.kind === "content" &&
+        Boolean(owner.querySelector(BILINGUAL_ARTIFACT_SELECTOR));
+    let heightBoundary = !hasBilingualContent;
+    let branch = owner;
+    for (const element of chain) {
+        const elementIsBoundary = isTranslationHeightBoundary(element);
+        if (elementIsBoundary) releaseTranslationHeightOverride(element);
+        const truncation = hasActiveTranslationTruncation(element);
+        if (sharedLayoutOverrides.has(element) || truncation) {
+            acquireTranslationLayoutOverride(owner, element, truncation ? translationTruncationStyleOverrides : []);
+        }
+        heightBoundary ||= elementIsBoundary;
+        // 必须在解除当前内层 clamp 后读外层几何；先收集全部祖先会读到尚未展开的旧高度。
+        if (!heightBoundary && hasTranslationHeightOverflow(element, branch)) {
+            acquireTranslationLayoutOverride(owner, element, translationHeightStyleOverrides);
+        }
+        branch = element;
+    }
     refreshOwnershipIndex(owner, state);
     return reconcileTranslationLayoutOverrides(owner);
 }

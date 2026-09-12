@@ -44,6 +44,11 @@ import {
     normalizeOrphanedTranslationArtifacts,
 } from
     '@/src/features/full-page-translation/content/orphanArtifacts';
+import {
+    hasTranslationHeightOverflow,
+    isTranslationHeightBoundary,
+    translationHeightStyleOverrides,
+} from '@/src/core/translation/serialization';
 
 function openRouterFixture() {
     const {document} = parseHTML(`
@@ -210,6 +215,145 @@ function dynamicClampFixture() {
 }
 
 describe('translation truncation layout', () => {
+    it('只识别自然流固定高度容器的真实几何溢出，并提供 height auto 覆盖契约', () => {
+        const {document} = parseHTML('<html><body><div id="box"><div id="branch">content</div></div></body></html>');
+        const box = document.querySelector<HTMLElement>('#box')!;
+        const branch = document.querySelector<HTMLElement>('#branch')!;
+        Object.defineProperties(box, {
+            clientHeight: {configurable: true, value: 176},
+            scrollHeight: {configurable: true, value: 176},
+        });
+        Object.defineProperty(box, 'getBoundingClientRect', {
+            configurable: true, value: () => ({top: 100, bottom: 276}),
+        });
+        Object.defineProperty(branch, 'getBoundingClientRect', {
+            configurable: true, value: () => ({top: 90, bottom: 290}),
+        });
+        Object.defineProperty(document.defaultView, 'getComputedStyle', {
+            configurable: true,
+            value: (element: Element) => ({
+                height: element === box ? '176px' : '200px', display: element === box ? 'flex' : 'block',
+                overflowY: 'visible', overflow: 'visible', position: 'static', transform: 'none',
+            } as unknown as CSSStyleDeclaration),
+        });
+
+        expect(isTranslationHeightBoundary(box)).toBe(false);
+        expect(hasTranslationHeightOverflow(box, branch)).toBe(true);
+        expect(translationHeightStyleOverrides).toEqual([
+            {property: 'height', value: 'auto', priority: 'important'},
+        ]);
+    });
+
+    it('拒绝滚动容器、文档表面和脱离自然流的译文分支', () => {
+        const {document} = parseHTML('<html><body><div id="box"><div id="branch">content</div></div></body></html>');
+        const box = document.querySelector<HTMLElement>('#box')!;
+        const branch = document.querySelector<HTMLElement>('#branch')!;
+        Object.defineProperties(box, {
+            clientHeight: {configurable: true, value: 20}, scrollHeight: {configurable: true, value: 200},
+        });
+        Object.defineProperty(document.defaultView, 'getComputedStyle', {
+            configurable: true,
+            value: (element: Element) => ({
+                height: '20px', display: 'flex', overflowY: element === box ? 'auto' : 'visible',
+                overflow: 'visible', position: element === branch ? 'absolute' : 'static', transform: 'none',
+            } as unknown as CSSStyleDeclaration),
+        });
+        expect(isTranslationHeightBoundary(box)).toBe(true);
+        expect(isTranslationHeightBoundary(document.body)).toBe(true);
+        expect(hasTranslationHeightOverflow(box, branch)).toBe(false);
+    });
+
+    it('允许向上检查 hidden/clip 内层解除后的外层几何，但不直接扩高该内层', () => {
+        const {document} = parseHTML('<html><body><div id="box"><div id="branch">content</div></div></body></html>');
+        const box = document.querySelector<HTMLElement>('#box')!;
+        const branch = document.querySelector<HTMLElement>('#branch')!;
+        Object.defineProperties(box, {
+            clientHeight: {configurable: true, value: 40}, scrollHeight: {configurable: true, value: 200},
+        });
+        Object.defineProperty(document.defaultView, 'getComputedStyle', {
+            configurable: true,
+            value: (element: Element) => ({
+                height: '40px', display: 'block', overflowY: element === box ? 'hidden' : 'visible',
+                overflow: 'visible', position: 'static', transform: 'none',
+            } as unknown as CSSStyleDeclaration),
+        });
+        expect(isTranslationHeightBoundary(box)).toBe(false);
+        expect(hasTranslationHeightOverflow(box, branch)).toBe(false);
+    });
+
+    it('无 computed style 时保持保守阴性', () => {
+        const {document} = parseHTML('<html><body><div id="box"><div id="branch">content</div></div></body></html>');
+        const box = document.querySelector<HTMLElement>('#box')!;
+        const branch = document.querySelector<HTMLElement>('#branch')!;
+        Object.defineProperty(document.defaultView, 'getComputedStyle', {
+            configurable: true, value: () => undefined,
+        });
+        expect(isTranslationHeightBoundary(box)).toBe(true);
+        expect(hasTranslationHeightOverflow(box, branch)).toBe(false);
+    });
+
+    it('可使用 scrollHeight 作为几何 API 不完整时的溢出依据，并拒绝变换分支', () => {
+        const {document} = parseHTML('<html><body><div id="box"><div id="branch">content</div></div></body></html>');
+        const box = document.querySelector<HTMLElement>('#box')!;
+        const branch = document.querySelector<HTMLElement>('#branch')!;
+        Object.defineProperties(box, {
+            clientHeight: {configurable: true, value: 40}, scrollHeight: {configurable: true, value: 80},
+            getBoundingClientRect: {configurable: true, value: () => { throw new Error('layout'); }},
+        });
+        Object.defineProperty(document.defaultView, 'getComputedStyle', {
+            configurable: true,
+            value: (element: Element) => ({
+                height: '40px', display: 'grid', overflowY: 'visible', overflow: 'visible',
+                position: 'static', transform: element === branch ? 'translateY(1px)' : 'none',
+            } as unknown as CSSStyleDeclaration),
+        });
+        expect(hasTranslationHeightOverflow(box, box)).toBe(true);
+        expect(hasTranslationHeightOverflow(box, branch)).toBe(false);
+    });
+
+    it('布局矩形或 scrollHeight 读取异常时保守回退，不抛出异常', () => {
+        const {document} = parseHTML('<html><body><div id="box"><div id="branch">content</div></div></body></html>');
+        const box = document.querySelector<HTMLElement>('#box')!;
+        const branch = document.querySelector<HTMLElement>('#branch')!;
+        Object.defineProperty(box, 'getBoundingClientRect', {
+            configurable: true, value: () => { throw new Error('layout'); },
+        });
+        Object.defineProperty(box, 'scrollHeight', {
+            configurable: true, get: () => { throw new Error('layout'); },
+        });
+        Object.defineProperty(box, 'clientHeight', {configurable: true, value: 40});
+        Object.defineProperty(branch, 'getBoundingClientRect', {
+            configurable: true, value: () => ({top: 0, bottom: 80}),
+        });
+        Object.defineProperty(document.defaultView, 'getComputedStyle', {
+            configurable: true,
+            value: () => ({
+                height: '40px', display: 'block', overflowY: 'visible', overflow: 'visible',
+                position: 'static', transform: 'none',
+            } as unknown as CSSStyleDeclaration),
+        });
+        expect(hasTranslationHeightOverflow(box, branch)).toBe(false);
+        expect(hasTranslationHeightOverflow(box, box)).toBe(false);
+    });
+
+    it('分支或二次元素样式读取不可用时保守返回阴性', () => {
+        const {document} = parseHTML('<html><body><div id="box"><div id="branch">content</div></div></body></html>');
+        const box = document.querySelector<HTMLElement>('#box')!;
+        const branch = document.querySelector<HTMLElement>('#branch')!;
+        const style = {
+            height: '40px', display: 'block', overflowY: 'visible', overflow: 'visible',
+            position: 'static', transform: 'none',
+        } as unknown as CSSStyleDeclaration;
+        vi.spyOn(document.defaultView!, 'getComputedStyle')
+            .mockReturnValueOnce(style)
+            .mockReturnValueOnce(undefined as unknown as CSSStyleDeclaration);
+        expect(hasTranslationHeightOverflow(box, branch)).toBe(false);
+
+        const second = vi.spyOn(document.defaultView!, 'getComputedStyle');
+        second.mockReset().mockReturnValueOnce(style).mockReturnValueOnce(style).mockReturnValueOnce(undefined as unknown as CSSStyleDeclaration);
+        expect(hasTranslationHeightOverflow(box, branch)).toBe(false);
+    });
+
     it('清理以产物自身为 root 的直属孤儿，并忽略无 HTML owner 的 SVG 产物', async () => {
         const {document} = parseHTML('<html><body></body></html>');
 
