@@ -1934,7 +1934,7 @@ const frFRLegacyTextBase: Readonly<Record<string, string>> = {
     '当前默认服务在此浏览器不可用': 'Le service par défaut actuel n’est pas disponible dans ce navigateur',
     '请在上方选择可用服务。': 'Choisissez un service disponible ci-dessus.',
     '所有网站自动翻译': 'Traduisez automatiquement tous les sites web',
-    '每个支持的网页加载完成后自动开始翻译；关闭后仍保留下面的名单。': 'Commencez à traduire les pages prises en charge après leur chargement. La liste ci-dessous est conservée lorsque ce système est désactivé.',
+    '页面基本结构可用后自动开始翻译；关闭后仍保留下面的名单。': 'Commence à traduire les pages compatibles dès que leur structure de base est disponible. La liste ci-dessous est conservée si cette option est désactivée.',
     '图片翻译与圈选翻译共用本地 OCR 语言包，但可以分别开启。': 'La traduction d’images et de zones partage des packs de langues OCR locales, mais peut être activée séparément.',
     '网页图片翻译': 'Traduction d’images web',
     '悬停网页图片时显示翻译入口，默认关闭。': 'Affichez une action de traduction lorsque vous survolez des images web. Désactivé par défaut.',

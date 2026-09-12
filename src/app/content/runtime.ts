@@ -47,7 +47,7 @@ import {
     shouldAutomaticallyTranslatePage,
     type ContentPageAvailabilityRuntime,
 } from './pageAvailability';
-import {installContentPageLifecycle} from './pageLifecycle';
+import {installContentPageLifecycle, waitForContentDocument} from './pageLifecycle';
 import {syncBilingualSentenceHighlight} from './bilingualSentenceHighlight';
 import {applyCoreTranslationPreferences, createContentSiteAdaptationRuntime} from './siteAdaptationRuntime';
 
@@ -64,7 +64,7 @@ export async function startContentApp(ctx: ContentScriptContext,
         dispose: () => cleanup(),
     });
     await configReady;
-    if (ctx.isInvalid || cleanedUp) { cleanup(); return; }
+    if (ctx.isInvalid || cleanedUp || (document.readyState === 'loading' && !await waitForContentDocument(document, pageEventController.signal))) { cleanup(); return; }
     const siteAdaptation = createContentSiteAdaptationRuntime(config.siteAdaptation, new URL(window.location.href));
     applyCoreTranslationPreferences(config); clearLegacyPageTranslationCache();
     let currentRouteHref = window.location.href;

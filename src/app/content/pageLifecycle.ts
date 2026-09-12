@@ -1,8 +1,8 @@
 /**
  * @file src/app/content/pageLifecycle.ts
- * 文件职责：绑定文档真正离开与往返缓存生命周期，避免取消导航后永久卸载扩展。
- * 主要内容：仅接受浏览器可信的 pagehide/pageshow，在配置等待前记录暂停状态，实际销毁时清理；所有监听受运行时信号约束。
- * 模块边界：仅管理页面生命周期事件，不访问配置或 DOM，具体暂停、恢复和销毁由组合根注入。
+ * 文件职责：绑定文档真正离开与往返缓存生命周期，并等待可挂载的页面基础 DOM，避免过晚建立翻译入口或过早挂载 UI。
+ * 主要内容：仅接受浏览器可信的 pagehide/pageshow，在配置等待前记录暂停状态，实际销毁时清理；基础 DOM 等待不依赖 DOMContentLoaded、window.load 或子资源完成。
+ * 模块边界：只管理页面生命周期和基础 DOM 就绪，不访问配置、不启动翻译，具体暂停、恢复、销毁和功能挂载由组合根注入。
  */
 export function installContentPageLifecycle(
     target: EventTarget,
@@ -28,4 +28,48 @@ export function installContentPageLifecycle(
         actions.resume();
     }, {signal});
     return {isSuspended: () => suspended};
+}
+
+function isConnectedNode(node: Node | null | undefined): boolean {
+    return Boolean(node && (node as Node & {isConnected?: boolean}).isConnected !== false);
+}
+
+function hasPageMountRoot(pageDocument: Document): boolean {
+    return isConnectedNode(pageDocument.documentElement) && isConnectedNode(pageDocument.body);
+}
+
+/** 等待页面具备可挂载的基础 DOM，但不把整页资源加载完成当作翻译前提。 */
+export function waitForContentDocument(pageDocument: Document, signal: AbortSignal): Promise<boolean> {
+    if (hasPageMountRoot(pageDocument)) return Promise.resolve(true);
+    if (signal.aborted) return Promise.resolve(false);
+
+    return new Promise<boolean>((resolve) => {
+        let settled = false;
+        let observer: MutationObserver | null = null;
+        const check = (): void => {
+            if (hasPageMountRoot(pageDocument)) finish(true);
+        };
+        const abort = (): void => finish(false);
+        const cleanup = (): void => {
+            observer?.disconnect();
+            pageDocument.removeEventListener('readystatechange', check);
+            pageDocument.removeEventListener('DOMContentLoaded', check);
+            signal.removeEventListener('abort', abort);
+        };
+        const finish = (available: boolean): void => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            resolve(available);
+        };
+
+        pageDocument.addEventListener('readystatechange', check);
+        pageDocument.addEventListener('DOMContentLoaded', check, {once: true});
+        if (typeof MutationObserver === 'function') {
+            observer = new MutationObserver(check);
+            observer.observe(pageDocument, {childList: true, subtree: true});
+        }
+        signal.addEventListener('abort', abort, {once: true});
+        check();
+    });
 }

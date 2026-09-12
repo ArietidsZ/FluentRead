@@ -1958,7 +1958,7 @@ const esESLegacyTextBase: Readonly<Record<string, string>> = {
     '轻透明感': 'Transparencia de la luz',
     '网页、划词和悬停翻译默认翻译成的语言。': 'El idioma predeterminado para web, selección y traducción de cursor.',
     '所有网站自动翻译': 'Traduce todos los sitios web automáticamente',
-    '每个支持的网页加载完成后自动开始翻译；关闭后仍保留下面的名单。': 'Empieza a traducir las páginas soportadas después de que carguen. La lista que aparece a continuación se mantiene cuando esto está desactivado.',
+    '页面基本结构可用后自动开始翻译；关闭后仍保留下面的名单。': 'Empieza a traducir las páginas compatibles cuando su estructura básica esté disponible. La lista inferior se conserva al desactivar esta opción.',
     '图片翻译与圈选翻译共用本地 OCR 语言包，但可以分别开启。': 'La traducción de imágenes y áreas comparten paquetes de idiomas OCR locales, pero pueden activarse por separado.',
     '网页图片翻译': 'Traducción de imágenes web',
     '悬停网页图片时显示翻译入口，默认关闭。': 'Mostrar una acción de traducción al pasar el cursor sobre imágenes web. Desactivado por defecto.',

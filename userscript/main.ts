@@ -5,6 +5,7 @@ import {createUserscriptContentContext} from './context';
 import {userscriptFetch} from './http';
 import {ensureUserscriptConfig} from './initialize';
 import {getUserscriptConfigCount} from './count';
+import {waitForContentDocument} from '@/src/app/content/pageLifecycle';
 import {
     completeUserscriptConfigPreparation,
     failUserscriptConfigPreparation,
@@ -18,9 +19,9 @@ declare global {
 let disposeShadowAndRouteBridge: (() => void) | undefined;
 let disposeUserscriptRuntime: (() => void) | undefined;
 
-async function waitForDocumentEnd(): Promise<void> {
+async function waitForDocumentBody(): Promise<void> {
     if (document.readyState !== 'loading') return;
-    await new Promise<void>((resolve) => document.addEventListener('DOMContentLoaded', () => resolve(), {once: true}));
+    await waitForContentDocument(document, new AbortController().signal);
 }
 
 function registerMenu(label: string, listener: () => void): void {
@@ -135,7 +136,7 @@ async function bootstrap(): Promise<void> {
         void browser.runtime.sendMessage({type: 'clearTranslationCache'});
     });
 
-    await waitForDocumentEnd();
+    await waitForDocumentBody();
     await contentModule.default.main(ctx as never);
     void browser.runtime.sendMessage({type: 'userscriptCacheMaintenance'}).catch(() => undefined);
 
