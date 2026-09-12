@@ -104,6 +104,7 @@
               :aria-label="t('quickTranslation.translationServiceAria', {hotkey: hotkeyLabel(profile.hotkey)})"
               :data-testid="`quick-profile-service-${profile.id}`"
               @update:model-value="setService(profile.id, $event)"
+              filterable
             >
               <el-option :label="t('quickTranslation.followDefault', {value: serviceLabel(config.service)})" value="" />
               <el-option
@@ -129,6 +130,7 @@
               :aria-label="t('quickTranslation.translationModelAria', {hotkey: hotkeyLabel(profile.hotkey)})"
               :data-testid="`quick-profile-model-${profile.id}`"
               @update:model-value="setModel(profile.id, $event)"
+              filterable
             >
               <el-option :label="modelDefaultOptionLabel(profile)" value="" />
               <el-option
@@ -149,6 +151,7 @@
               :aria-label="t('quickTranslation.targetLanguageAria', {hotkey: hotkeyLabel(profile.hotkey)})"
               :data-testid="`quick-profile-target-${profile.id}`"
               @update:model-value="setTargetLanguage(profile.id, $event)"
+              filterable
             >
               <el-option :label="t('quickTranslation.followDefault', {value: languageLabel(config.to)})" value="" />
               <el-option

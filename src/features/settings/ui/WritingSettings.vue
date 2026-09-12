@@ -39,7 +39,7 @@
     </SettingsGroup>
     <SettingsGroup title="写作服务">
       <SettingsItem label="AI 服务">
-        <el-select v-model="config.writing.service" aria-label="写作服务" placeholder="选择 AI 服务" @change="config.writing.model = ''">
+        <el-select v-model="config.writing.service" aria-label="写作服务" placeholder="选择 AI 服务" @change="config.writing.model = ''" filterable>
           <el-option v-if="defaultSupported" value="" :label="`跟随默认服务 · ${defaultServiceLabel}`" />
           <el-option v-for="item in serviceOptions" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>

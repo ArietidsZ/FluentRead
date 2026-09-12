@@ -144,20 +144,20 @@ h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.0
 .settings-card .el-select,
 .settings-card .el-input,
 .settings-card .el-input-number { --el-border-color: #e2e6ef; --el-border-color-hover: #ef4776; width: 100%; }
-.settings-card .el-select__wrapper,
+.settings-card .el-select:not(.fluentread-select) .el-select__wrapper,
 .settings-card .el-input__wrapper,
 .settings-card .el-input-number .el-input__wrapper {
   min-height: 48px; padding: 0 15px; border: 1px solid #e2e6ef; border-radius: 14px; background: #f8f9fc;
   box-shadow: none; transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
-.settings-card .settings-item-control .ui-language-selector .el-select__wrapper {
+.settings-card .settings-item-control .ui-language-selector .el-select:not(.fluentread-select) .el-select__wrapper {
   min-height: 48px;
   border-radius: 14px;
 }
-.settings-card .el-select__wrapper:hover,
+.settings-card .el-select:not(.fluentread-select) .el-select__wrapper:hover,
 .settings-card .el-input__wrapper:hover,
 .settings-card .el-input-number .el-input__wrapper:hover { border-color: #ef9ab1; background: #fff; }
-.settings-card .el-select__wrapper.is-focused,
+.settings-card .el-select:not(.fluentread-select) .el-select__wrapper.is-focused,
 .settings-card .el-input__wrapper.is-focus,
 .settings-card .el-input-number .el-input__wrapper.is-focus {
   border-color: var(--brand); background: #fff; box-shadow: 0 0 0 4px rgba(239, 71, 118, .1);
@@ -165,9 +165,10 @@ h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.0
 .settings-card .el-select__selected-item,
 .settings-card .el-input__inner,
 .settings-card .el-input-number .el-input__inner { color: var(--ink); font-size: 14px; }
-.settings-card .el-select__placeholder,
+.settings-card .el-select__placeholder.is-transparent,
 .settings-card .el-input__inner::placeholder { color: #8992a5; }
 .settings-card .el-select__caret { color: #7d8799; font-size: 16px; }
+.settings-card .fluentread-select .el-select__wrapper { min-height: 44px; }
 .settings-card .el-input-group__prepend,
 .settings-card .el-input-group__append { border-color: #e2e6ef; background: #f8f9fc; }
 
@@ -439,15 +440,15 @@ h1 { margin-bottom: 6px; font-size: 28px; line-height: 1.25; letter-spacing: -.0
 :root.dark .search-empty { border-color: var(--line); background: var(--surface); box-shadow: 0 8px 24px rgba(0, 0, 0, .18); }
 :root.dark .settings-card .el-row { border-color: var(--line); background: var(--surface-soft); }
 :root.dark .settings-card .el-row:hover { border-color: rgba(255, 138, 171, .42); background: var(--surface); box-shadow: 0 8px 22px rgba(0, 0, 0, .16); }
-:root.dark .settings-card .el-select__wrapper,
+:root.dark .settings-card .el-select:not(.fluentread-select) .el-select__wrapper,
 :root.dark .settings-card .el-input__wrapper,
 :root.dark .settings-card .el-input-number .el-input__wrapper,
 :root.dark .settings-card .el-input-group__prepend,
 :root.dark .settings-card .el-input-group__append { border-color: var(--line); background: var(--surface-soft); }
-:root.dark .settings-card .el-select__wrapper:hover,
+:root.dark .settings-card .el-select:not(.fluentread-select) .el-select__wrapper:hover,
 :root.dark .settings-card .el-input__wrapper:hover,
 :root.dark .settings-card .el-input-number .el-input__wrapper:hover,
-:root.dark .settings-card .el-select__wrapper.is-focused,
+:root.dark .settings-card .el-select:not(.fluentread-select) .el-select__wrapper.is-focused,
 :root.dark .settings-card .el-input__wrapper.is-focus,
 :root.dark .settings-card .el-input-number .el-input__wrapper.is-focus { background: var(--surface); }
 :root.dark .about-hero { border-color: rgba(255, 138, 171, .28); background: linear-gradient(135deg, rgba(239, 71, 118, .12), var(--surface) 58%, #222631); }

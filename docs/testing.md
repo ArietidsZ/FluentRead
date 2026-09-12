@@ -1,5 +1,13 @@
 # 测试与回归
 
+## 统一下拉选择器
+
+设置页、Popup、文档页、词库和 userscript 设置面板使用 `src/ui/components/UiSelect.vue` 共享菜单外观。设置页默认翻译服务按机器翻译与 AI 翻译分组，显示本地服务图标；服务、目标语言与译文样式支持直接输入筛选。展开时原选择框显示搜索图标和输入提示，只保留一个搜索输入。当前选择使用浅色背景和勾选标记，焦点、禁用状态、多选标签与亮暗主题保持一致。共享组件透传 Element Plus 的属性、事件和具名插槽，保留调用方的菜单类名和挂载容器；不改变选项值或配置保存方式。服务和模型自定义菜单使用相同的菜单圆角、阴影和主题变量，模型使用可换行的整行选项。
+
+userscript 的 16 个选择器通过 HTMLElement 引用将菜单挂到设置面板自己的 Shadow Root 内，避免宿主样式污染或面板内部滚动裁剪。`scripts/run-userscript-smoke-test.cjs --suite selects` 使用内存 GM 接口夹具验证单框搜索、键盘选择、取消不保存、数值设置保存重开和亮暗/窄屏菜单；默认 `--suite full` 保留既有翻译冒烟夹具，两组单独运行以避免修改配置的测试相互干扰。它不等同于真实 Userscripts/Tampermonkey 扩展或 Safari 验证。
+
+生产包构建后运行 `node scripts/testing/run-select-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-select-ui-production`，在临时 Edge profile 的后台可见窗口中检查选择、搜索、键盘操作、关闭菜单、保存重开、多选与禁用状态，以及桌面、窄屏和深色菜单截图。测试只使用临时配置，不调用翻译服务，也不证明真实服务质量。完整扩展 UI 回归仍使用 UI 测试技能的 `run-ui-test.cjs --suite full`，失败时区分控件回归与旧页面断言。
+
 ## 公告优先与关闭后续译
 
 专项 case：`tests/fixtures/modal-first-translation.html` 和 `scripts/testing/run-modal-first-translation-test.cjs`。运行前生成生产扩展，再使用临时 Edge profile、第二屏正常尺寸后台窗口和 focus-safe helper：

@@ -303,6 +303,6 @@ describe('popup feature visibility', () => {
         expect(popup).toContain('inputs[0]?.focus()');
         expect(popup).toContain('const moreServicesOpen = ref(true)');
         expect(popup).toContain('moreServicesOpen.value = true');
-        expect(styles).toContain('.service-picker-results { min-height: 0; overflow-y: auto; scrollbar-width: thin; }');
+        expect(styles).toContain('.service-picker-results { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }');
     });
 });

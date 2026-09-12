@@ -90,14 +90,14 @@
       <div class="language-pair">
         <label>
           <span>源语言</span>
-          <UiSelect aria-label="源语言" v-model="config.from" :disabled="!config.on">
+          <UiSelect aria-label="源语言" filterable v-model="config.from" :disabled="!config.on">
             <ElOption v-for="item in options.from" :key="item.value" :value="item.value" data-i18n-ignore :label="item.value === 'auto' ? translateLegacy(item.label) : getMultilingualTargetLanguageLabel(item.value, item.label, language)" />
           </UiSelect>
         </label>
         <span class="arrow">→</span>
         <label>
           <span>目标语言</span>
-          <UiSelect aria-label="目标语言" v-model="config.to" :disabled="!config.on">
+          <UiSelect aria-label="目标语言" filterable v-model="config.to" :disabled="!config.on">
             <ElOption v-for="item in options.to" :key="item.value" :value="item.value" data-i18n-ignore :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" />
           </UiSelect>
         </label>

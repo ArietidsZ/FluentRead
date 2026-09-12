@@ -20,7 +20,6 @@ import {
   ElOption,
   ElOptionGroup,
   ElRow,
-  ElSelect,
   ElSwitch,
   ElText,
   ElTooltip,
@@ -40,6 +39,7 @@ import {
   WarningFilled,
 } from '@element-plus/icons-vue'
 import OptionsApp from './OptionsApp.vue'
+import UiSelect from '@/src/ui/components/UiSelect.vue'
 import 'element-plus/dist/index.css'
 import '@/src/features/settings/ui/settings-page.css'
 import {createUiI18nPlugin} from '@/src/ui/i18n'
@@ -60,7 +60,6 @@ const ELEMENT_COMPONENTS: Component[] = [
   ElOption,
   ElOptionGroup,
   ElRow,
-  ElSelect,
   ElSwitch,
   ElText,
   ElTooltip,
@@ -85,6 +84,7 @@ const ELEMENT_ICONS: Record<string, Component> = {
 export function mountOptionsApp(selector: string): void {
   const app = createApp(OptionsApp)
   app.use(createUiI18nPlugin({documentRoot: document.body, documentTitleKey: 'metadata.optionsTitle'}))
+  app.component('ElSelect', UiSelect)
 
   for (const component of ELEMENT_COMPONENTS) {
     if (component.name) app.component(component.name, component)
