@@ -26,7 +26,9 @@
 
 ## 验证
 
-相关的配置、检查身份、Key 列表状态、界面架构与多语言测试共 83 项通过；类型检查、测试审计、Chrome / Firefox 构建、manifest 校验和文档构建通过。
+相关的配置、检查身份、Key 列表状态、界面架构与多语言测试共 83 项通过。随后合入主分支 `0008a791`，解决测试清单冲突并清理重复归类；合并后的 `b6813e5b` 完成全量回归，314 个文件、6,273 个用例通过。类型检查、测试审计、Chrome / Firefox 构建、manifest 校验、Userscript 构建及 verifier 均通过，文档构建通过。
+
+整合后另补充了 UTF-16BE、解码回退及混合文字判断的边界测试，两个相关测试文件共 84 项通过。严格覆盖率套件的用例全部通过，语句、行与函数覆盖率均为 100%，分支为 99.99%，**未达到全局 100% 门禁**。唯一剩余项是主分支 `src/core/translation/text.ts:306` 的 `match(...) ?? []` 防御回退；调用方已经确认字符串包含假名或谚文，该回退不会经正常入口触发。该生产文件与主分支一致，本次没有通过改写它或降低阈值消除数字差距，具体结果见 [coverage-baseline.txt](./coverage-baseline.txt)。
 
 浏览器验证使用生产 Chrome MV3 扩展与隔离 Edge 临时 profile，17 项专项检查通过，未捕获页面错误，HTTP 请求仅发送到本地模拟服务。运行模式为 `macos-background-cdp`、焦点策略为 `launchservices-no-foreground`，窗口在第二块屏幕以 `background-visible-no-focus` 模式运行，`browserFrontmost=false`；详细交互结果及焦点状态见 [browser-report.json](./browser-report.json)，命令输出摘要见 [validation.txt](./validation.txt)。
 

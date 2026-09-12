@@ -1,11 +1,11 @@
 tests
-   ✓ i18n 全量界面扫描 > Vue 文案和展示注册表在非中文界面有本地化结果 918ms
- ✓ tests/apiKeyTypes.test.ts (4 tests) 3ms
+ ✓ tests/auth.test.ts (3 tests) 12ms
+ ✓ tests/credentialStorageContext.test.ts (8 tests) 2ms
 
- Test Files  5 passed (5)
-      Tests  83 passed (83)
-   Start at  17:27:44
-   Duration  2.60s (transform 1.01s, setup 0ms, collect 1.73s, tests 1.20s, environment 1ms, prepare 233ms)
+ Test Files  314 passed (314)
+      Tests  6273 passed (6273)
+   Start at  17:46:57
+   Duration  70.89s (transform 5.30s, setup 0ms, collect 28.30s, tests 68.47s, environment 39ms, prepare 12.73s)
 
 
 compile
@@ -24,34 +24,34 @@ audit
   "status": "ok",
   "groups": {
     "architecture": 28,
-    "unit": 192,
+    "unit": 200,
     "functional": 65,
-    "regression": 20
+    "regression": 21
   },
-  "files": 305,
-  "cases": 4062
+  "files": 314,
+  "cases": 4151
 }
 
 
 build
-  ├─ .output/chrome-mv3/pdfjs/standard_fonts/LICENSE_FOXIT                     1.55 kB  
-  ├─ .output/chrome-mv3/pdfjs/standard_fonts/LICENSE_LIBERATION                4.41 kB  
-  ├─ .output/chrome-mv3/third-party-notices/ai-sdk-adapters-Apache-2.0.txt     703 B    
-  ├─ .output/chrome-mv3/third-party-notices/deepseek-harness-MIT.txt           1.64 kB  
-  ├─ .output/chrome-mv3/third-party-notices/dsh-agent-memory-MIT.txt           1.55 kB  
-  └─ .output/chrome-mv3/third-party-notices/unicode-17.0.0.txt                 2 kB     
-Σ Total size: 55.44 MB                                                       
-✔ Finished in 23.3 s
+  ├─ .output/chrome-mv3/pdfjs/standard_fonts/LICENSE_FOXIT                     1.55 kB
+  ├─ .output/chrome-mv3/pdfjs/standard_fonts/LICENSE_LIBERATION                4.41 kB
+  ├─ .output/chrome-mv3/third-party-notices/ai-sdk-adapters-Apache-2.0.txt     703 B
+  ├─ .output/chrome-mv3/third-party-notices/deepseek-harness-MIT.txt           1.64 kB
+  ├─ .output/chrome-mv3/third-party-notices/dsh-agent-memory-MIT.txt           1.55 kB
+  └─ .output/chrome-mv3/third-party-notices/unicode-17.0.0.txt                 2 kB
+Σ Total size: 55.7 MB
+✔ Finished in 21.6 s
 
 firefox
-  ├─ .output/firefox-mv2/pdfjs/standard_fonts/LICENSE_FOXIT                     1.55 kB  
-  ├─ .output/firefox-mv2/pdfjs/standard_fonts/LICENSE_LIBERATION                4.41 kB  
-  ├─ .output/firefox-mv2/third-party-notices/ai-sdk-adapters-Apache-2.0.txt     703 B    
-  ├─ .output/firefox-mv2/third-party-notices/deepseek-harness-MIT.txt           1.64 kB  
-  ├─ .output/firefox-mv2/third-party-notices/dsh-agent-memory-MIT.txt           1.55 kB  
-  └─ .output/firefox-mv2/third-party-notices/unicode-17.0.0.txt                 2 kB     
-Σ Total size: 55.44 MB                                                        
-✔ Finished in 35.0 s
+  ├─ .output/firefox-mv2/pdfjs/standard_fonts/LICENSE_FOXIT                     1.55 kB
+  ├─ .output/firefox-mv2/pdfjs/standard_fonts/LICENSE_LIBERATION                4.41 kB
+  ├─ .output/firefox-mv2/third-party-notices/ai-sdk-adapters-Apache-2.0.txt     703 B
+  ├─ .output/firefox-mv2/third-party-notices/deepseek-harness-MIT.txt           1.64 kB
+  ├─ .output/firefox-mv2/third-party-notices/dsh-agent-memory-MIT.txt           1.55 kB
+  └─ .output/firefox-mv2/third-party-notices/unicode-17.0.0.txt                 2 kB
+Σ Total size: 55.7 MB
+✔ Finished in 23.6 s
 
 manifests
 
@@ -65,7 +65,7 @@ manifests
     "offscreenPermission": true,
     "runtimeCapabilityMarker": "__FLUENTREAD_BROWSER_CAPABILITY_BUILD__:chrome:mv3__",
     "artifacts": [
-      "chunks/offscreen-BaFMQZL9.js",
+      "chunks/offscreen-DiX0VfZw.js",
       "offscreen.html"
     ],
     "ocrAssets": 4
@@ -75,7 +75,7 @@ manifests
     "offscreenPermission": false,
     "runtimeCapabilityMarker": "__FLUENTREAD_BROWSER_CAPABILITY_BUILD__:firefox:mv2__",
     "artifacts": [
-      "chunks/offscreen-BaFMQZL9.js",
+      "chunks/offscreen-DiX0VfZw.js",
       "offscreen.html"
     ],
     "ocrAssets": 4,
@@ -90,3 +90,14 @@ manifests
     "archiveOcrAssets": 0
   }
 }
+
+
+userscript
+vite v5.4.19 building for production...
+transforming...
+✓ 1892 modules transformed.
+rendering chunks...
+computing gzip size...
+.output/userscript/fluent-read.user.js  3,932.40 kB │ gzip: 1,452.77 kB
+✓ built in 7.15s
+Verified .output/userscript/fluent-read.user.js (4,713,969 bytes)

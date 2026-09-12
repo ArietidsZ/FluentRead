@@ -124,5 +124,6 @@
     "browserFrontmost": false
   },
   "status": "passed",
+  "runtimeCommit": "b6813e5be2a89d55acdac4761d8768082b12585a",
   "requestEvidenceNote": "Synthetic local HTTP fixtures only. Request bodies and host application identity omitted."
 }
