@@ -921,6 +921,34 @@ describe('配置差异预览', () => {
             expect.objectContaining({key: '---', label: '---', after: expect.stringContaining('循环引用')}),
         ]));
     });
+
+    it('输入框翻译独立配置在历史差异中显示间隔、服务、模型和提示词摘要', () => {
+        const result = buildConfigDiff({
+            inputBoxTranslationInterval: 1000,
+            inputBoxTranslationService: 'microsoft',
+            inputBoxTranslationModel: '',
+            inputBoxTranslationPrompt: '',
+            inputBoxTranslationSystemPrompt: '',
+        }, {
+            inputBoxTranslationInterval: 1500,
+            inputBoxTranslationService: 'deepseek',
+            inputBoxTranslationModel: 'deepseek-chat',
+            inputBoxTranslationPrompt: 'Translate {{origin}} into {{to}}.',
+            inputBoxTranslationSystemPrompt: 'Return only the translation.',
+        });
+
+        expect(group(result, 'translation')?.changes).toEqual([
+            {key: 'inputBoxTranslationInterval', label: '输入框翻译触发间隔', before: '1000 ms', after: '1500 ms'},
+            {key: 'inputBoxTranslationService', label: '输入框翻译服务', before: '微软翻译', after: 'DeepSeek'},
+            {key: 'inputBoxTranslationModel', label: '输入框翻译模型', before: '未设置', after: 'deepseek-chat'},
+            {key: 'inputBoxTranslationPrompt', label: '输入框翻译提示词', before: '未设置', after: '已配置（33 字符）'},
+            {key: 'inputBoxTranslationSystemPrompt', label: '输入框翻译系统提示词', before: '未设置', after: '已配置（28 字符）'},
+        ]);
+        // 旧版历史记录没有专用模型字段，升级后的第一次编辑也必须可预览。
+        expect(group(buildConfigDiff({}, {inputBoxTranslationModel: 'input-model'}), 'translation')?.changes).toEqual([
+            {key: 'inputBoxTranslationModel', label: '输入框翻译模型', before: '未设置', after: 'input-model'},
+        ]);
+    });
 });
 
 

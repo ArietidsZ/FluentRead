@@ -195,6 +195,8 @@ describe('options UI composition architecture', () => {
     const quickTranslationProfiles = source('src/features/settings/ui/QuickTranslationProfiles.vue')
     const translationShortcutSettings = source('src/features/settings/ui/useTranslationShortcutSettings.ts')
     const customHotkeyInput = source('src/ui/components/CustomHotkeyInput.vue')
+    const inputTranslationSettings = source('src/features/settings/ui/InputTranslationSettings.vue')
+    const inputTranslationMessages = source('src/core/i18n/messages/zh-CN.ts')
 
     expect(optionsApp).toContain("@/src/features/settings/ui/SettingsSections.vue")
     expect(optionsApp).toContain("@/src/features/settings/ui/LearningCenter.vue")
@@ -478,8 +480,11 @@ describe('options UI composition architecture', () => {
     expect(serviceConfiguration).not.toContain('class="credential-warning"')
     expect(serviceConfiguration).not.toContain('默认仅保留在当前浏览器会话')
     expect(settingsSections).not.toContain('fluentReadImageOcrDownload')
-    expect(settingsSections).toContain('普通文本 input、textarea 与 plaintext-only 编辑区')
-    expect(settingsSections).toContain('密码框和富文本编辑器不参与')
+    expect(settingsSections).toContain('<InputTranslationSettings')
+    expect(inputTranslationSettings).toContain("t('inputTranslation.triggerDescription')")
+    expect(inputTranslationSettings).toContain('data-testid="input-translation-settings"')
+    expect(inputTranslationMessages).toContain('"inputTranslation.triggerDescription"')
+    expect(inputTranslationMessages).toContain('密码框和富文本编辑器不会参与')
     expect(settingsSections).not.toContain('任何文本输入框')
     expect(imagePublic).toContain("from './ui/ImageOcrSettings.vue'")
     expect(imageSettings).toContain('当前浏览器暂不支持图片翻译与 OCR')
@@ -937,16 +942,18 @@ describe('options UI composition architecture', () => {
   it('keeps translation interactions together in the requested order', () => {
     const settings = source('src/features/settings/ui/SettingsSections.vue')
     const translation = activeSectionSource(settings, 'settings-translation')
+    const inputTranslation = source('src/features/settings/ui/InputTranslationSettings.vue')
 
     expect(settingsGroupTitles(translation)).toEqual([
       '鼠标悬浮翻译',
       '划词翻译',
-      '输入框翻译',
       '全文翻译',
     ])
     expect(translation).toContain('aria-label="鼠标悬浮快捷键"')
     expect(translation).toContain('label="划词翻译模式"')
-    expect(translation).toContain('aria-label="输入框翻译触发方式"')
+    expect(translation).toContain('<InputTranslationSettings')
+    expect(inputTranslation.indexOf('data-testid="input-translation-trigger"')).toBeLessThan(inputTranslation.indexOf('data-testid="input-translation-target"'))
+    expect(inputTranslation.indexOf('data-testid="input-translation-target"')).toBeLessThan(inputTranslation.indexOf('data-testid="input-translation-service"'))
     expect(translation).toContain('label="全文翻译范围"')
     expect(translation).toContain('aria-label="AI 多段翻译"')
     expect(translation).toContain('v-model="config.enableAIMultiSegment"')
@@ -958,8 +965,11 @@ describe('options UI composition architecture', () => {
 
     const hoverProfiles = translation.indexOf('action="hover"')
     const fullPageProfiles = translation.indexOf('action="full-page"')
+    const inputTranslationSection = translation.indexOf('<InputTranslationSettings')
     expect(hoverProfiles).toBeGreaterThan(translation.indexOf('aria-label="悬浮翻译延迟"'))
     expect(hoverProfiles).toBeLessThan(translation.indexOf('title="划词翻译"'))
+    expect(inputTranslationSection).toBeGreaterThan(translation.indexOf('title="划词翻译"'))
+    expect(inputTranslationSection).toBeLessThan(translation.indexOf('title="全文翻译"'))
     expect(fullPageProfiles).toBeGreaterThan(translation.indexOf('label="全文翻译范围"'))
     expect(fullPageProfiles).toBeGreaterThan(translation.indexOf('aria-label="右键全文翻译"'))
   })

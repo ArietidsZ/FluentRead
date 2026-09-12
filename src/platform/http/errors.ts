@@ -6,7 +6,7 @@
  * 模块边界：本文件属于 platform 基础设施边界，只封装浏览器、网络、存储上下文或 Shadow DOM 机制；不决定翻译业务策略，不直接实现 feature，业务层通过类型化端口消费这里的能力。
  */
 
-type HttpStatus = Pick<Response, 'status' | 'statusText'>;
+type HttpStatus = Pick<Response, 'status' | 'statusText'> & {headers?: Pick<Headers, 'get'>};
 type JsonResponse = Pick<Response, 'json'>;
 
 const MAX_PROVIDER_CODE_LENGTH = 16;
@@ -16,7 +16,18 @@ const MAX_PROVIDER_CODE_LENGTH = 16;
  * 正文可能包含原文、译文、provider 诊断或代理回显的凭据，因此只暴露协议状态码。
  */
 export function createHttpStatusError(response: HttpStatus, label = '请求失败'): Error {
-    return Object.assign(new Error(`${label}: ${response.status}`), {statusCode: response.status});
+    const retryAfter = response.headers?.get('Retry-After');
+    let retryAfterMs: number | undefined;
+    if (retryAfter?.trim()) {
+        const value = retryAfter.trim();
+        const duration = /^\d+(?:\.\d+)?$/u.test(value)
+            ? Number(value) * 1000 : Date.parse(value) - Date.now();
+        if (Number.isFinite(duration) && duration > 0) retryAfterMs = Math.min(duration, 7 * 86_400_000);
+    }
+    return Object.assign(new Error(`${label}: ${response.status}`), {
+        statusCode: response.status,
+        ...(retryAfterMs === undefined ? {} : {retryAfterMs}),
+    });
 }
 
 /** 只有短小且确实形似数字错误码的 provider 字段可以回显。 */

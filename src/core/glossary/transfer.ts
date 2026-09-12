@@ -16,6 +16,29 @@ export interface GlossaryImportPreview {
     acceptedEntries: number;
 }
 
+/**
+ * 按表格软件实际写出的字节顺序解码术语文件；严格 UTF-8 失败时再尝试
+ * UTF-16 BOM 和 GB18030，避免 File.text() 把系统代码页静默替换成 U+FFFD。
+ */
+export function decodeGlossaryText(buffer: ArrayBufferLike): string {
+    const bytes = new Uint8Array(buffer);
+    if (bytes[0] === 0xFF && bytes[1] === 0xFE) {
+        return new TextDecoder('utf-16le').decode(bytes.subarray(2));
+    }
+    if (bytes[0] === 0xFE && bytes[1] === 0xFF) {
+        return new TextDecoder('utf-16be').decode(bytes.subarray(2));
+    }
+    try {
+        return new TextDecoder('utf-8', {fatal: true}).decode(bytes);
+    } catch {
+        try {
+            return new TextDecoder('gb18030').decode(bytes);
+        } catch {
+            return new TextDecoder().decode(bytes);
+        }
+    }
+}
+
 /** RFC 4180 的引号状态机同样用于 TSV，确保引号内的换行与分隔符不会产生伪条目。 */
 function parseRows(text: string, separator: string, errors: string[]): string[][] {
     const rows: string[][] = [];

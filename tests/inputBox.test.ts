@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
     canCommitInputBoxTranslation,
     getDeepActiveElement,
+    getInputBoxSelection,
     getInputBoxText,
+    getInputBoxValueAfterInsertion,
     getInputBoxValueSnapshot,
+    normalizeInputBoxTranslationInterval,
     isInputElement,
     matchesInputBoxTrigger,
+    removeInsertedTriggerSymbols,
     removeTriggerSymbols,
 } from '@/src/features/input-translation/content/inputBox';
 
@@ -65,14 +69,73 @@ describe('输入框快捷键', () => {
         expect(matchesInputBoxTrigger(keyEvent('x', 'KeyX'), 'unknown' as never)).toBe(false);
     });
 
-    it('清理触发符号后保留真实输入内容', () => {
+    it('只移除本次插入的触发符号并保留真实输入内容', () => {
         expect(removeTriggerSymbols('Hello   ', 'triple_space')).toBe('Hello');
         expect(removeTriggerSymbols('Hello===', 'triple_equal')).toBe('Hello');
         expect(removeTriggerSymbols('Hello---', 'triple_dash')).toBe('Hello');
         expect(removeTriggerSymbols('Hello', 'ctrl_enter')).toBe('Hello');
-        expect(getInputBoxText({ ...fakeElement('DIV'), innerText: ' Hello world ' } as unknown as HTMLElement)).toBe('Hello world');
-        expect(getInputBoxText({ ...fakeElement('DIV'), textContent: ' Text fallback ' } as unknown as HTMLElement)).toBe('Text fallback');
+        expect(removeInsertedTriggerSymbols('Hello===', 'triple_equal', 5)).toBe('Hello=');
+        expect(removeInsertedTriggerSymbols('a==b==', 'triple_equal', 1)).toBe('ab==');
+        expect(removeInsertedTriggerSymbols('a  b', 'triple_space', 1)).toBe('ab');
+        expect(removeInsertedTriggerSymbols('a--b', 'triple_dash', 1)).toBe('ab');
+        expect(getInputBoxText({ ...fakeElement('DIV'), innerText: ' Hello world ' } as unknown as HTMLElement)).toBe(' Hello world ');
+        expect(getInputBoxText({ ...fakeElement('DIV'), textContent: ' Text fallback ' } as unknown as HTMLElement)).toBe(' Text fallback ');
         expect(getInputBoxText(fakeElement('DIV'))).toBe('');
+    });
+
+    it('根据选区计算触发键插入位置并规范化相邻间隔', () => {
+        expect(getInputBoxValueAfterInsertion('a=b', {start: 1, end: 1}, '=')).toEqual({
+            value: 'a==b',
+            selection: {start: 2, end: 2},
+        });
+        expect(normalizeInputBoxTranslationInterval(undefined)).toBe(1000);
+        expect(normalizeInputBoxTranslationInterval(199.9)).toBe(200);
+        expect(normalizeInputBoxTranslationInterval(2500)).toBe(2000);
+        expect(getInputBoxValueAfterInsertion('abc', {start: -3, end: 99}, '=')).toEqual({
+            value: '=',
+            selection: {start: 1, end: 1},
+        });
+    });
+
+    it('plaintext-only 仅在唯一直接文本节点时报告选区，多节点一律保守返回 null', () => {
+        const textNode = {nodeType: 3};
+        const singleText = {
+            ...fakeElement('DIV', {contenteditable: 'plaintext-only'}),
+            childNodes: [textNode],
+            firstChild: textNode,
+            contains: () => true,
+            ownerDocument: {
+                getSelection: () => ({
+                    rangeCount: 1,
+                    anchorNode: textNode,
+                    getRangeAt: () => ({
+                        startContainer: textNode,
+                        endContainer: textNode,
+                        startOffset: 2,
+                        endOffset: 3,
+                    }),
+                }),
+            },
+        } as unknown as HTMLElement;
+        expect(getInputBoxSelection(singleText)).toEqual({start: 2, end: 3});
+
+        const multiText = {
+            ...singleText,
+            childNodes: [textNode, {nodeType: 3}],
+        } as unknown as HTMLElement;
+        expect(getInputBoxSelection(multiText)).toBeNull();
+        expect(getInputBoxSelection(fakeElement('DIV', {contenteditable: 'plaintext-only'}))).toBeNull();
+    });
+
+    it('覆盖无效触发区间与输入框选区缺省分支', () => {
+        expect(removeInsertedTriggerSymbols('abc', 'unknown', 0)).toBe('abc');
+        expect(removeInsertedTriggerSymbols('abc', 'triple_equal', 0, 0)).toBe('abc');
+        expect(removeInsertedTriggerSymbols('abc', 'triple_equal', 1)).toBe('abc');
+        expect(getInputBoxSelection(fakeElement('INPUT'))).toEqual({start: 0, end: 0});
+        const unavailable = fakeElement('INPUT') as any;
+        unavailable.selectionStart = null;
+        unavailable.selectionEnd = null;
+        expect(getInputBoxSelection(unavailable)).toBeNull();
     });
 
     it('用原始值快照检测翻译期间的用户编辑', () => {
@@ -124,6 +187,17 @@ describe('输入框快捷键', () => {
             isEnabled: true,
             isSiteDisabled: false,
         })).toBe(true);
+        expect(canCommitInputBoxTranslation({
+            signal: controller.signal,
+            expectedValue: 'Hello',
+            currentValue: 'Hello',
+            expectedConfigGeneration: 0,
+            currentConfigGeneration: 0,
+            expectedEditGeneration: 1,
+            currentEditGeneration: 2,
+            isEnabled: true,
+            isSiteDisabled: false,
+        })).toBe(false);
     });
 
     it('输入翻译关闭后快速恢复也会永久作废旧配置 generation', () => {

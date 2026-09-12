@@ -1,7 +1,7 @@
 /**
  * @file src/services/interfaceFonts.ts
  * 文件职责：在扩展自有页面按需下载、验证并缓存已选择的界面字体。
- * 主要内容：有界流式下载、固定 SHA-256 校验、备用源重试、离线缓存和切换取消。
+ * 主要内容：有界流式下载、固定 SHA-256 校验、备用源重试、离线缓存、缓存清理和切换取消。
  * 模块边界：不读取业务配置或凭据，不注入宿主网页；DOM 字体注册由调用方提供。
  */
 import {interfaceFontOptions, type InterfaceFont} from '@/src/core/config/interfaceAppearance'
@@ -40,6 +40,18 @@ export async function getCachedInterfaceFonts(openCache: () => Promise<Cache>): 
   }
 }
 
+/** 按缓存键统计固定版本资源，共享字体只计一次；不可读取时返回 null。 */
+export async function getInterfaceFontCacheSize(openCache: () => Promise<Cache>): Promise<number | null> {
+  try {
+    const keys = new Set((await (await openCache()).keys()).map(request => request.url))
+    const assets = new Map(interfaceFontOptions.flatMap(font => getInterfaceFontAssets(font.value))
+      .map(asset => [cacheKey(asset), asset.bytes]))
+    return [...assets].reduce((total, [key, bytes]) => total + (keys.has(key) ? bytes : 0), 0)
+  } catch {
+    return null
+  }
+}
+
 export async function verifyInterfaceFont(asset: InterfaceFontAsset, data: ArrayBuffer, digest: Dependencies['digest']): Promise<void> {
   if (data.byteLength !== asset.bytes) throw new Error('Font size mismatch')
   const hash = Array.from(new Uint8Array(await digest(data)), byte => byte.toString(16).padStart(2, '0')).join('')
@@ -49,6 +61,8 @@ export async function verifyInterfaceFont(asset: InterfaceFontAsset, data: Array
 export function createInterfaceFontLoader(deps: Dependencies) {
   let active: {font: InterfaceFont; controller: AbortController; promise: Promise<void>} | undefined
   const installed = new Map<string, boolean>()
+  let clearing: Promise<void> | undefined
+  let lastState: InterfaceFontLoadState | undefined
 
   async function download(asset: InterfaceFontAsset, signal: AbortSignal, preferred: InterfaceFontSourceId | undefined,
     progress: (loaded: number, source: InterfaceFontSourceId) => void): Promise<ArrayBuffer> {
@@ -101,7 +115,7 @@ export function createInterfaceFontLoader(deps: Dependencies) {
       font, status: assets.length ? 'loading' : 'system', loaded: 0,
       total: assets.reduce((sum, asset) => sum + asset.bytes, 0), persistent: true,
     }
-    const publish = () => { if (!signal.aborted) deps.onState({...state}) }
+    const publish = () => { if (!signal.aborted) { lastState = {...state}; deps.onState(lastState) } }
     publish()
     if (!assets.length) return
     try {
@@ -162,9 +176,30 @@ export function createInterfaceFontLoader(deps: Dependencies) {
       if (active?.font === font && !retry) return active.promise
       active?.controller.abort()
       const controller = new AbortController()
-      const promise = Promise.resolve().then(() => run(font, controller.signal, preferred))
+      const promise = Promise.resolve(clearing).catch(() => {}).then(() => run(font, controller.signal, preferred))
       active = {font, controller, promise}
       return promise
+    },
+    clearCache(): Promise<void> {
+      if (clearing) return clearing
+      // 等待本页正在进行的缓存写入，新选择等待清理结束，避免迟到写入恢复已清缓存。
+      const pending = active?.promise
+      clearing = (async () => {
+        await pending
+        const cache = await deps.openCache()
+        const keys = await cache.keys()
+        try {
+          for (const key of keys) await cache.delete(key)
+        } finally {
+          // 保留当前页已加载的字体，但不能再宣称它们可跨页面离线使用。
+          for (const file of installed.keys()) installed.set(file, false)
+          if (lastState?.status === 'ready') {
+            lastState = {...lastState, persistent: false}
+            deps.onState(lastState)
+          }
+        }
+      })().finally(() => { clearing = undefined })
+      return clearing
     },
   }
 }
