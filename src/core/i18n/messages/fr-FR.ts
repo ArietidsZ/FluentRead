@@ -10,6 +10,26 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const frFRMessages = {
+    "settings.services.library.views": "Vues des services",
+    "settings.services.library.mine": "Mes services",
+    "settings.services.library.all": "Tous les services",
+    "settings.services.library.search": "Rechercher un service de traduction",
+    "settings.services.library.add": "＋ Service personnalisé",
+    "settings.services.library.default": "Service par défaut",
+    "settings.services.library.favorites": "Favoris",
+    "settings.services.library.configured": "Configurations enregistrées",
+    "settings.services.library.viewing": "En cours de consultation",
+    "settings.services.library.browse": "Voir plus de services",
+    "settings.services.library.setDefault": "Définir par défaut",
+    "settings.services.library.categories": "Catégories de services",
+    "settings.services.library.allCategories": "Toutes les catégories",
+    "settings.services.library.custom": "Services personnalisés",
+    "settings.services.library.saved": "Configuration enregistrée",
+    "settings.services.library.empty": "Aucun service de traduction correspondant",
+    "settings.services.library.defaultBadge": "Par défaut",
+    "settings.services.library.favorite": "Ajouter {service} aux favoris",
+    "settings.services.library.unfavorite": "Retirer {service} des favoris",
+
     "inputTranslation.systemRoleLabel": "Rôle",
     "inputTranslation.userRoleLabel": "Tâche",
     "inputTranslation.editDefaultPrompt": "Modifier à partir du prompt par défaut",

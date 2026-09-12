@@ -10,6 +10,26 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const esESMessages = {
+    "settings.services.library.views": "Vistas de servicios",
+    "settings.services.library.mine": "Mis servicios",
+    "settings.services.library.all": "Todos los servicios",
+    "settings.services.library.search": "Buscar servicios de traducción",
+    "settings.services.library.add": "＋ Servicio personalizado",
+    "settings.services.library.default": "Servicio predeterminado",
+    "settings.services.library.favorites": "Favoritos",
+    "settings.services.library.configured": "Configuraciones guardadas",
+    "settings.services.library.viewing": "Viendo ahora",
+    "settings.services.library.browse": "Ver más servicios",
+    "settings.services.library.setDefault": "Establecer como predeterminado",
+    "settings.services.library.categories": "Categorías de servicios",
+    "settings.services.library.allCategories": "Todas las categorías",
+    "settings.services.library.custom": "Servicios personalizados",
+    "settings.services.library.saved": "Configuración guardada",
+    "settings.services.library.empty": "No hay servicios de traducción coincidentes",
+    "settings.services.library.defaultBadge": "Predeterminado",
+    "settings.services.library.favorite": "Añadir {service} a favoritos",
+    "settings.services.library.unfavorite": "Quitar {service} de favoritos",
+
     "inputTranslation.systemRoleLabel": "Rol",
     "inputTranslation.userRoleLabel": "Tarea",
     "inputTranslation.editDefaultPrompt": "Editar a partir del prompt predeterminado",

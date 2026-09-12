@@ -303,10 +303,11 @@ const preservedLatinTokenPattern = /^(?:[A-Z]{2,}|(?:[A-Z][a-z]*[A-Z][A-Za-z]*|[
 
 /** 目标语种中的假名/谚文不能掩盖真正的外语正文；短品牌名、代码和 URL 仍视为可保留内容。 */
 function hasForeignLanguageProse(value: string): boolean {
-    const letterRuns = value.match(/\p{L}+/gu) ?? [];
-    if (letterRuns.some((run) => [...run].some((character) => (
-        !cjkLetterPattern.test(character) && !/^[A-Za-z]$/u.test(character)
-    )))) return true;
+    for (const match of value.matchAll(/\p{L}+/gu)) {
+        if ([...match[0]].some((character) => (
+            !cjkLetterPattern.test(character) && !/^[A-Za-z]$/u.test(character)
+        ))) return true;
+    }
     const proseTokens = (value.match(latinTokenPattern) ?? [])
         .filter((token) => !/[._/+:#@\-0-9]/u.test(token) && !preservedLatinTokenPattern.test(token));
     return proseTokens.some((token) => token.length >= 3) || proseTokens.length >= 2;

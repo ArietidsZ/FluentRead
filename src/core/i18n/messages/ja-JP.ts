@@ -10,6 +10,26 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const jaJPMessages = {
+    "settings.services.library.views": "サービス表示",
+    "settings.services.library.mine": "マイサービス",
+    "settings.services.library.all": "すべてのサービス",
+    "settings.services.library.search": "すべての翻訳サービスを検索",
+    "settings.services.library.add": "＋ カスタムサービス",
+    "settings.services.library.default": "現在の既定",
+    "settings.services.library.favorites": "お気に入り",
+    "settings.services.library.configured": "保存済みの設定",
+    "settings.services.library.viewing": "表示中",
+    "settings.services.library.browse": "ほかのサービスを見る",
+    "settings.services.library.setDefault": "既定に設定",
+    "settings.services.library.categories": "サービスの分類",
+    "settings.services.library.allCategories": "すべての分類",
+    "settings.services.library.custom": "カスタムサービス",
+    "settings.services.library.saved": "設定保存済み",
+    "settings.services.library.empty": "一致する翻訳サービスがありません",
+    "settings.services.library.defaultBadge": "既定",
+    "settings.services.library.favorite": "{service} をお気に入りに追加",
+    "settings.services.library.unfavorite": "{service} をお気に入りから削除",
+
     "inputTranslation.systemRoleLabel": "役割",
     "inputTranslation.userRoleLabel": "タスク",
     "inputTranslation.editDefaultPrompt": "既定のプロンプトを編集する",

@@ -11,6 +11,26 @@ MessageCatalog} from '../types';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const enUSMessages = {
+    "settings.services.library.views": "Service views",
+    "settings.services.library.mine": "My services",
+    "settings.services.library.all": "All services",
+    "settings.services.library.search": "Search all translation services",
+    "settings.services.library.add": "＋ Custom service",
+    "settings.services.library.default": "Current default",
+    "settings.services.library.favorites": "Favorites",
+    "settings.services.library.configured": "Saved configurations",
+    "settings.services.library.viewing": "Currently viewing",
+    "settings.services.library.browse": "Browse more services",
+    "settings.services.library.setDefault": "Set as default",
+    "settings.services.library.categories": "Service categories",
+    "settings.services.library.allCategories": "All categories",
+    "settings.services.library.custom": "Custom services",
+    "settings.services.library.saved": "Configuration saved",
+    "settings.services.library.empty": "No matching translation services",
+    "settings.services.library.defaultBadge": "Default",
+    "settings.services.library.favorite": "Favorite {service}",
+    "settings.services.library.unfavorite": "Unfavorite {service}",
+
     "inputTranslation.systemRoleLabel": "Role",
     "inputTranslation.userRoleLabel": "Task",
     "inputTranslation.editDefaultPrompt": "Start editing the default prompt",
