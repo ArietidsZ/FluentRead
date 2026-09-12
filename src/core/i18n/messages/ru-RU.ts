@@ -8,7 +8,6 @@
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
-
 export const ruRUMessages = {
     "reading.triggerTitle": "Открытие карточки",
     "reading.triggerHelp": "По умолчанию нажмите действие. Сочетание клавиш использует основное действие, наведение — указанное.",
@@ -2739,4 +2738,5 @@ export const ruRULegacyText: Readonly<Record<string, string>> = {
     "正在播放译文": "Озвучивание перевода",
     "下载双语文件": "Скачать двуязычный файл",
     "下载译文文件": "Скачать переведённый файл",
+    "实验候选": "Экспериментальный кандидат",
 };

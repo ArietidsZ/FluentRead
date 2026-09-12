@@ -8,7 +8,6 @@
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
-
 export const koKRMessages = {
     "reading.triggerTitle": "번역 카드 열기",
     "reading.triggerHelp": "기본은 동작 클릭입니다. 단축키는 우선 동작을, 마우스 올리기는 가리킨 동작을 사용합니다.",
@@ -2739,4 +2738,5 @@ export const koKRLegacyText: Readonly<Record<string, string>> = {
     "正在播放译文": "번역문 읽는 중",
     "下载双语文件": "이중 언어 파일 다운로드",
     "下载译文文件": "번역 파일 다운로드",
+    "实验候选": "실험 후보",
 };

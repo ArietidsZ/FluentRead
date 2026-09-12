@@ -207,7 +207,14 @@
       "tests/writingReference.test.ts",
       "tests/writingEditors.test.ts",
       "tests/writingMarkdown.test.ts",
-      "tests/translationToolbarStatus.test.ts"
+      "tests/translationToolbarStatus.test.ts",
+      "tests/freeRoutingPolicy.test.ts",
+      "tests/freeBalancedRouting.test.ts",
+      "tests/freeTranslationHealthStorage.test.ts",
+      "tests/freeChineseWebProviders.test.ts",
+      "tests/freeExtraWebProviders.test.ts",
+      "tests/userscriptFreeTranslationSettings.test.ts",
+      "tests/freeTranslationI18n.test.ts"
     ],
     "functional": [
       "tests/settingsCompositionAutosave.test.ts",

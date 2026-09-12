@@ -796,6 +796,51 @@ const learningCenterTextOverrides: Record<Exclude<UiLanguage, 'zh-CN'>, Readonly
     },
 };
 
+const freeTranslationOverrides: Record<Exclude<UiLanguage, 'zh-CN'>, Readonly<Record<string, string>>> = {
+    'en-US': {
+        '免费翻译选择模式': 'Free translation selection mode', '自动均衡': 'Automatic balancing', '优先顺序': 'Priority order', '权重': 'Weight', '权重只表示使用机会，不代表精确成功率。': 'Weights describe usage opportunity, not exact success rates.', '列表越靠前越先尝试；可使用上下按钮调整顺序。': 'Services higher in the list are tried first. Use the arrow buttons to change the order.', '公开网页服务': 'Public web service', '实验候选': 'Experimental candidate', '免费翻译服务': 'Free translation services', '免费翻译会自动选择可用服务；自动均衡按权重分配尝试机会，优先顺序按列表依次尝试。': 'Free translation automatically chooses available services. Balanced mode distributes attempts by weight; priority mode tries them in list order.', '至少保留一个服务。微软默认权重较高，其他服务可按需要调整。': 'Keep at least one service enabled. Microsoft starts with a higher default weight; adjust the others as needed.', '自动恢复说明': 'Automatic recovery', '网络问题通常几分钟后重试；限流按服务提示恢复；拦截可能需要几小时；日额度通常隔天恢复。': 'Retry network issues after a few minutes; follow each service guidance for rate limits; blocks may take a few hours; daily limits usually reset the next day.', '微软翻译': 'Microsoft Translator', '腾讯交互翻译': 'Tencent Interactive Translation', '火山翻译': 'Volcengine Translate', '有道网页翻译': 'Youdao Web Translation', '金山词霸': 'Kingsoft PowerWord', '搜狗翻译': 'Sogou Translate', '实验性网页接口，自动处理临时签名': 'Experimental web endpoint; handles temporary signatures automatically', '实验性网页接口，可能触发访问验证': 'Experimental web endpoint; access verification may appear', '实验性公共实例，使用谷歌翻译上游': 'Experimental public instance using Google Translate upstream', '开放翻译服务，仅支持已提供的语言对，暂无中译': 'Open translation service; only listed language pairs are supported, with no Chinese translation yet',
+    },
+    'ja-JP': {
+        '免费翻译选择模式': '無料翻訳の選択モード', '自动均衡': '自動均衡', '优先顺序': '優先順', '权重': '重み', '权重只表示使用机会，不代表精确成功率。': '重みは利用機会を示すもので、正確な成功率ではありません。', '列表越靠前越先尝试；可使用上下按钮调整顺序。': 'リスト上位から試します。矢印ボタンで順序を変更できます。', '公开网页服务': '公開 Web サービス', '实验候选': '実験候補', '免费翻译服务': '無料翻訳サービス', '自动恢复说明': '自動復旧', '网络问题通常几分钟后重试；限流按服务提示恢复；拦截可能需要几小时；日额度通常隔天恢复。': 'ネットワーク問題は通常数分後に再試行します。', '搜狗翻译': 'Sogou 翻訳', '有道网页翻译': '有道 Web 翻訳', '金山词霸': 'Kingsoft PowerWord',
+    },
+    'ko-KR': {
+        '免费翻译选择模式': '무료 번역 선택 모드', '自动均衡': '자동 균형', '优先顺序': '우선순위', '权重': '가중치', '权重只表示使用机会，不代表精确成功率。': '가중치는 사용 기회를 나타내며 정확한 성공률을 뜻하지 않습니다.', '列表越靠前越先尝试；可使用上下按钮调整顺序。': '목록 위쪽 서비스부터 시도합니다. 화살표 버튼으로 순서를 바꿀 수 있습니다.', '公开网页服务': '공개 웹 서비스', '实验候选': '실험 후보', '免费翻译服务': '무료 번역 서비스', '自动恢复说明': '자동 복구 안내', '网络问题通常几分钟后重试；限流按服务提示恢复；拦截可能需要几小时；日额度通常隔天恢复。': '네트워크 문제는 보통 몇 분 후 다시 시도합니다.', '搜狗翻译': 'Sogou 번역', '有道网页翻译': 'Youdao 웹 번역', '金山词霸': 'Kingsoft PowerWord',
+    },
+    'fr-FR': {
+        '免费翻译选择模式': 'Mode de sélection de la traduction gratuite', '自动均衡': 'Équilibrage automatique', '优先顺序': 'Ordre de priorité', '权重': 'Poids', '权重只表示使用机会，不代表精确成功率。': 'Le poids indique une occasion d’utilisation, pas un taux de réussite exact.', '列表越靠前越先尝试；可使用上下按钮调整顺序。': 'Les services en haut sont essayés en premier. Utilisez les flèches pour modifier l’ordre.', '公开网页服务': 'Service Web public', '实验候选': 'Candidat expérimental', '免费翻译服务': 'Services de traduction gratuits', '自动恢复说明': 'Récupération automatique', '网络问题通常几分钟后重试；限流按服务提示恢复；拦截可能需要几小时；日额度通常隔天恢复。': 'Réessayez les problèmes réseau après quelques minutes.', '搜狗翻译': 'Traduction Sogou', '有道网页翻译': 'Traduction Web Youdao', '金山词霸': 'Kingsoft PowerWord',
+    },
+    'ru-RU': {
+        '免费翻译选择模式': 'Режим выбора бесплатного перевода', '自动均衡': 'Автоматический баланс', '优先顺序': 'Приоритетный порядок', '权重': 'Вес', '权重只表示使用机会，不代表精确成功率。': 'Вес показывает долю попыток, а не точную вероятность успеха.', '列表越靠前越先尝试；可使用上下按钮调整顺序。': 'Сервисы выше в списке пробуются раньше. Порядок можно изменить стрелками.', '公开网页服务': 'Открытый веб-сервис', '实验候选': 'Экспериментальный кандидат', '免费翻译服务': 'Бесплатные сервисы перевода', '自动恢复说明': 'Автоматическое восстановление', '网络问题通常几分钟后重试；限流按服务提示恢复；拦截可能需要几小时；日额度通常隔天恢复。': 'Повторите сетевой запрос через несколько минут.', '搜狗翻译': 'Перевод Sogou', '有道网页翻译': 'Веб-перевод Youdao', '金山词霸': 'Kingsoft PowerWord',
+    },
+    'es-ES': {
+        '免费翻译选择模式': 'Modo de selección de traducción gratuita', '自动均衡': 'Equilibrio automático', '优先顺序': 'Orden de prioridad', '权重': 'Peso', '权重只表示使用机会，不代表精确成功率。': 'El peso indica la oportunidad de uso, no una tasa de éxito exacta.', '列表越靠前越先尝试；可使用上下按钮调整顺序。': 'Los servicios superiores se prueban primero. Usa las flechas para cambiar el orden.', '公开网页服务': 'Servicio web público', '实验候选': 'Candidato experimental', '免费翻译服务': 'Servicios de traducción gratuitos', '自动恢复说明': 'Recuperación automática', '网络问题通常几分钟后重试；限流按服务提示恢复；拦截可能需要几小时；日额度通常隔天恢复。': 'Vuelve a intentar los problemas de red después de unos minutos.', '搜狗翻译': 'Traducción de Sogou', '有道网页翻译': 'Traducción web de Youdao', '金山词霸': 'Kingsoft PowerWord',
+    },
+};
+const freeTranslationScanOverrides: Record<Exclude<UiLanguage, 'zh-CN'>, Readonly<Record<string, string>>> = {
+    'en-US': {'免费翻译优先顺序': 'Free translation priority order', '实验性': 'Experimental', '搜': 'Sogou', '彩': 'Caiyun', '免费翻译分配方式': 'Free translation allocation mode', '免费翻译服务权重': 'Free translation service weights', '实验性网页接口，自动处理临时签名': 'Experimental web endpoint; handles temporary signatures automatically', '实验性网页接口，可能触发访问验证': 'Experimental web endpoint; access verification may appear', '实验性公共实例，使用谷歌翻译上游': 'Experimental public instance using Google Translate upstream', '开放翻译服务，仅支持已提供的语言对，暂无中译': 'Open translation service; only listed language pairs are supported, with no Chinese translation yet'},
+    'ja-JP': {'免费翻译优先顺序': '無料翻訳の優先順', '实验性': '実験的', '搜': 'Sogou', '彩': 'Caiyun', '免费翻译分配方式': '無料翻訳の配分方式', '免费翻译服务权重': '無料翻訳サービスの重み'},
+    'ko-KR': {'免费翻译优先顺序': '무료 번역 우선순위', '实验性': '실험적', '搜': 'Sogou', '彩': 'Caiyun', '免费翻译分配方式': '무료 번역 배분 방식', '免费翻译服务权重': '무료 번역 서비스 가중치'},
+    'fr-FR': {'免费翻译优先顺序': 'Ordre de priorité de la traduction gratuite', '实验性': 'Expérimental', '搜': 'Sogou', '彩': 'Caiyun', '免费翻译分配方式': 'Mode de répartition de la traduction gratuite', '免费翻译服务权重': 'Poids des services de traduction gratuits'},
+    'ru-RU': {'免费翻译优先顺序': 'Приоритет бесплатного перевода', '实验性': 'Экспериментальный', '搜': 'Sogou', '彩': 'Caiyun', '免费翻译分配方式': 'Режим распределения бесплатного перевода', '免费翻译服务权重': 'Вес бесплатных сервисов перевода'},
+    'es-ES': {'免费翻译优先顺序': 'Orden de prioridad de traducción gratuita', '实验性': 'Experimental', '搜': 'Sogou', '彩': 'Caiyun', '免费翻译分配方式': 'Modo de distribución de traducción gratuita', '免费翻译服务权重': 'Pesos de servicios de traducción gratuita'},
+};
+const freeTranslationBaselineOverrides: Record<Exclude<UiLanguage, 'zh-CN'>, Readonly<Record<string, string>>> = {
+    'en-US': {'免费翻译会自动选择可用服务；自动均衡按权重分配尝试机会，优先顺序按列表依次尝试。': 'Free translation automatically chooses available services.', '至少保留一个服务。微软默认权重较高，其他服务可按需要调整。': 'Keep at least one service enabled.', '实验性网页接口，自动处理临时签名': 'Experimental web endpoint with temporary signatures.', '实验性网页接口，可能触发访问验证': 'Experimental web endpoint; access verification may appear.', '实验性公共实例，使用谷歌翻译上游': 'Experimental public instance using Google Translate upstream.', '开放翻译服务，仅支持已提供的语言对，暂无中译': 'Open translation service with limited language pairs.'},
+    'ja-JP': {'免费翻译会自动选择可用服务；自动均衡按权重分配尝试机会，优先顺序按列表依次尝试。': '無料翻訳は利用可能なサービスを自動選択します。', '至少保留一个服务。微软默认权重较高，其他服务可按需要调整。': '少なくとも1つのサービスを有効にしてください。', '实验性网页接口，自动处理临时签名': '一時署名を処理する実験的 Web インターフェース。', '实验性网页接口，可能触发访问验证': 'アクセス確認が表示される場合がある実験的 Web インターフェース。', '实验性公共实例，使用谷歌翻译上游': 'Google 翻訳を上流に使う実験的公開インスタンス。', '开放翻译服务，仅支持已提供的语言对，暂无中译': '対応する言語ペアが限られる公開翻訳サービス。'},
+    'ko-KR': {'免费翻译会自动选择可用服务；自动均衡按权重分配尝试机会，优先顺序按列表依次尝试。': '무료 번역은 사용 가능한 서비스를 자동으로 선택합니다.', '至少保留一个服务。微软默认权重较高，其他服务可按需要调整。': '하나 이상의 서비스를 켜 두세요.', '实验性网页接口，自动处理临时签名': '임시 서명을 처리하는 실험적 웹 인터페이스입니다.', '实验性网页接口，可能触发访问验证': '접근 확인이 표시될 수 있는 실험적 웹 인터페이스입니다.', '实验性公共实例，使用谷歌翻译上游': 'Google 번역을 상위 서비스로 사용하는 실험적 공개 인스턴스입니다.', '开放翻译服务，仅支持已提供的语言对，暂无中译': '지원되는 언어 쌍만 제공하는 공개 번역 서비스입니다.'},
+    'fr-FR': {'免费翻译会自动选择可用服务；自动均衡按权重分配尝试机会，优先顺序按列表依次尝试。': 'La traduction gratuite choisit automatiquement les services disponibles.', '至少保留一个服务。微软默认权重较高，其他服务可按需要调整。': 'Gardez au moins un service activé.', '实验性网页接口，自动处理临时签名': 'Interface Web expérimentale avec signatures temporaires.', '实验性网页接口，可能触发访问验证': 'Interface Web expérimentale pouvant demander une vérification.', '实验性公共实例，使用谷歌翻译上游': 'Instance publique expérimentale utilisant Google Traduction.', '开放翻译服务，仅支持已提供的语言对，暂无中译': 'Service de traduction ouvert avec des paires de langues limitées.'},
+    'ru-RU': {'免费翻译会自动选择可用服务；自动均衡按权重分配尝试机会，优先顺序按列表依次尝试。': 'Бесплатный перевод автоматически выбирает доступные сервисы.', '至少保留一个服务。微软默认权重较高，其他服务可按需要调整。': 'Оставьте включённым хотя бы один сервис.', '实验性网页接口，自动处理临时签名': 'Экспериментальный веб-интерфейс с временными подписями.', '实验性网页接口，可能触发访问 проверки': 'Экспериментальный веб-интерфейс с возможной проверкой доступа.', '实验性网页接口，可能触发访问验证': 'Экспериментальный веб-интерфейс с возможной проверкой доступа.', '实验性公共实例，使用谷歌翻译上游': 'Экспериментальный публичный экземпляр с переводом Google.', '开放翻译服务，仅支持已提供的语言对，暂无中译': 'Открытый сервис перевода с ограниченными языковыми парами.'},
+    'es-ES': {'免费翻译会自动选择可用服务；自动均衡按权重分配尝试机会，优先顺序按列表依次尝试。': 'La traducción gratuita elige automáticamente los servicios disponibles.', '至少保留一个服务。微软默认权重较高，其他服务可按需要调整。': 'Mantén al menos un servicio activado.', '实验性网页接口，自动处理临时签名': 'Interfaz web experimental con firmas temporales.', '实验性网页接口，可能触发访问验证': 'Interfaz web experimental que puede pedir verificación.', '实验性公共实例，使用谷歌翻译上游': 'Instancia pública experimental que usa Google Translate.', '开放翻译服务，仅支持已提供的语言对，暂无中译': 'Servicio de traducción abierto con pares de idiomas limitados.'},
+};
+const freeTranslationDynamicOverrides: Record<Exclude<UiLanguage, 'zh-CN'>, Readonly<Record<string, string>>> = {
+    'en-US': {'后台会根据响应速度、成功表现和近期错误自动分配服务机会。': 'The system automatically allocates service opportunities based on response speed, success performance, and recent errors.', '自动分配': 'Automatic allocation', '至少保留一个服务。后台会根据服务表现自动调整分配。': 'Keep at least one service enabled. The system adjusts allocation based on service performance.'},
+    'ja-JP': {'后台会根据响应速度、成功表现和近期错误自动分配服务机会。': 'システムが応答速度、成功状況、最近のエラーに基づいて試行機会を自動配分します。', '自动分配': '自動配分', '至少保留一个服务。后台会根据服务表现自动调整分配。': '少なくとも1つのサービスを有効にしてください。サービスの状況に応じて配分が自動調整されます。'},
+    'ko-KR': {'后台会根据响应速度、成功表现和近期错误自动分配服务机会。': '시스템이 응답 속도, 성공 성능 및 최근 오류를 기준으로 서비스 시도 기회를 자동 배분합니다.', '自动分配': '자동 배분', '至少保留一个服务。后台会根据服务表现自动调整分配。': '하나 이상의 서비스를 켜 두세요. 시스템이 서비스 성능에 따라 배분을 조정합니다.'},
+    'fr-FR': {'后台会根据响应速度、成功表现和近期错误自动分配服务机会。': 'Le système répartit automatiquement les essais selon la vitesse de réponse, les réussites et les erreurs récentes.', '自动分配': 'Répartition automatique', '至少保留一个服务。后台会根据服务表现自动调整分配。': 'Gardez au moins un service activé. Le système ajuste la répartition selon les performances.'},
+    'ru-RU': {'后台会根据响应速度、成功表现和近期错误自动分配服务机会。': 'Система автоматически распределяет попытки с учётом скорости ответа, успешности и недавних ошибок.', '自动分配': 'Автоматическое распределение', '至少保留一个服务。后台会根据服务表现自动调整分配。': 'Оставьте включённым хотя бы один сервис. Система корректирует распределение по результатам работы.'},
+    'es-ES': {'后台会根据响应速度、成功表现和近期错误自动分配服务机会。': 'El sistema distribuye automáticamente las oportunidades según la velocidad de respuesta, los aciertos y los errores recientes.', '自动分配': 'Asignación automática', '至少保留一个服务。后台会根据服务表现自动调整分配。': 'Mantén al menos un servicio activado. El sistema ajusta la asignación según su rendimiento.'},
+};
+
 export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<string, string>>>> = {
     'en-US': {
         "设置会自动保存，并与写作卡片中的偏好同步。调整这里不会生成正文。": "Preferences save automatically and sync with the writing card. Changes here do not generate text.",
@@ -956,6 +1001,10 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
         "图片读取超时": "Image reading timed out",
         "图片加载超时": "Image loading timed out",
         ...providerNames,
+        ...freeTranslationOverrides['en-US'],
+        ...freeTranslationScanOverrides['en-US'],
+        ...freeTranslationBaselineOverrides['en-US'],
+        ...freeTranslationDynamicOverrides['en-US'],
         ...systemShortcutTextOverrides['en-US'],
         ...siteAdaptationTextOverrides['en-US'],
         ...languageBadges,
@@ -1219,6 +1268,10 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
         "图片读取超时": "画像の読み取りがタイムアウトしました",
         "图片加载超时": "画像の読み込みがタイムアウトしました",
         ...providerNames,
+        ...freeTranslationOverrides['ja-JP'],
+        ...freeTranslationScanOverrides['ja-JP'],
+        ...freeTranslationBaselineOverrides['ja-JP'],
+        ...freeTranslationDynamicOverrides['ja-JP'],
         ...systemShortcutTextOverrides['ja-JP'],
         ...siteAdaptationTextOverrides['en-US'],
         ...siteAdaptationTextOverrides['ja-JP'],
@@ -1559,6 +1612,10 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
         "图片读取超时": "이미지 읽기 시간 초과",
         "图片加载超时": "이미지 로딩 시간 초과",
         ...providerNames,
+        ...freeTranslationOverrides['ko-KR'],
+        ...freeTranslationScanOverrides['ko-KR'],
+        ...freeTranslationBaselineOverrides['ko-KR'],
+        ...freeTranslationDynamicOverrides['ko-KR'],
         ...systemShortcutTextOverrides['ko-KR'],
         ...siteAdaptationTextOverrides['en-US'],
         ...siteAdaptationTextOverrides['ko-KR'],
@@ -1901,6 +1958,10 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
         "图片读取超时": "Délai de lecture de l’image dépassé",
         "图片加载超时": "Délai de chargement de l’image dépassé",
         ...providerNames,
+        ...freeTranslationOverrides['fr-FR'],
+        ...freeTranslationScanOverrides['fr-FR'],
+        ...freeTranslationBaselineOverrides['fr-FR'],
+        ...freeTranslationDynamicOverrides['fr-FR'],
         ...systemShortcutTextOverrides['fr-FR'],
         ...siteAdaptationTextOverrides['en-US'],
         ...siteAdaptationTextOverrides['fr-FR'],
@@ -2248,6 +2309,10 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
         "图片读取超时": "Истекло время чтения изображения",
         "图片加载超时": "Истекло время загрузки изображения",
         ...providerNames,
+        ...freeTranslationOverrides['ru-RU'],
+        ...freeTranslationScanOverrides['ru-RU'],
+        ...freeTranslationBaselineOverrides['ru-RU'],
+        ...freeTranslationDynamicOverrides['ru-RU'],
         ...systemShortcutTextOverrides['ru-RU'],
         ...siteAdaptationTextOverrides['en-US'],
         ...siteAdaptationTextOverrides['ru-RU'],
@@ -2591,6 +2656,10 @@ export const legacyTextOverrides: Partial<Record<UiLanguage, Readonly<Record<str
         "图片读取超时": "Se agotó el tiempo de lectura de la imagen",
         "图片加载超时": "Se agotó el tiempo de carga de la imagen",
         ...providerNames,
+        ...freeTranslationOverrides['es-ES'],
+        ...freeTranslationScanOverrides['es-ES'],
+        ...freeTranslationBaselineOverrides['es-ES'],
+        ...freeTranslationDynamicOverrides['es-ES'],
         ...systemShortcutTextOverrides['es-ES'],
         ...siteAdaptationTextOverrides['en-US'],
         ...siteAdaptationTextOverrides['es-ES'],

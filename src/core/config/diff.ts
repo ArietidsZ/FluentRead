@@ -491,6 +491,7 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     translationRequestsPerSecond: {group: 'advanced', label: '每秒最多请求数', format: formatRequestRate},
     translationRequestsPerMinute: {group: 'advanced', label: '每分钟最多请求数', format: formatRequestRate},
     freeTranslationOrder: {group: 'translationServices', label: '免费翻译顺序', format: (value) => Array.isArray(value) ? formatArray(value, formatService) : formatValue(value)},
+    freeTranslationMode: {group: 'translationServices', label: '免费翻译分配方式', format: (value) => value === 'sequential' ? '优先顺序' : '自动均衡'},
     freeTranslationTimeoutMs: {group: 'translationServices', label: '每路免费翻译超时', format: (value) => formatNumber(value, ' ms')},
     freeTranslationCooldownMs: {group: 'translationServices', label: '免费翻译失败后休息', format: (value) => formatNumber(value, ' ms')},
     myMemoryEmail: {group: 'translationServices', label: 'MyMemory 邮箱', format: formatValue},

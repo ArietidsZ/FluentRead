@@ -24,6 +24,7 @@
     </svg>
     <svg v-else-if="service === 'yandexFree'" viewBox="0 0 24 24" role="img"><path d="M15 4h-3a5 5 0 0 0 0 10h3M15 4v16M12 14l-5 6" /></svg>
     <svg v-else-if="service === 'volcengineFree'" viewBox="0 0 24 24" role="img"><path d="m4 19 7-14 2 7 3-4 4 11H4Z" /></svg>
+    <svg v-else-if="['youdaoFree', 'sogouFree', 'papagoFree', 'caiyunFree', 'reversoFree', 'lingvaFree', 'apertiumFree', 'libreTranslateFree'].includes(service)" viewBox="0 0 24 24" role="img"><path d="M5 6h14M7 6v3a5 5 0 0 0 10 0V6M12 4v16M8 20h8" /></svg>
     <svg v-else-if="service === 'myMemory'" viewBox="0 0 24 24" role="img">
       <path d="M4 5h6a3 3 0 0 1 3 3v12a4 4 0 0 0-3-2H4V5ZM13 8a3 3 0 0 1 3-3h4v13h-4a4 4 0 0 0-3 2" />
       <path d="M7 9h3M7 12h3M16 9h1M16 12h1" />
@@ -167,7 +168,7 @@ const isCustomOpenAIService = computed(() => isCustomOpenAIProviderId(props.serv
 const tone = computed(() => {
   if (isCustomOpenAIService.value) return 'violet'
   if (['openai', 'azureOpenai', 'newapi'].includes(props.service)) return 'violet'
-  if (['deepseek', 'deepL', 'deeplx', 'microsoft', 'freeTranslation', 'myMemory'].includes(props.service)) return 'blue'
+  if (['deepseek', 'deepL', 'deeplx', 'microsoft', 'freeTranslation', 'myMemory', 'youdaoFree', 'sogouFree', 'papagoFree', 'caiyunFree', 'reversoFree', 'lingvaFree', 'apertiumFree', 'libreTranslateFree'].includes(props.service)) return 'blue'
   if (['gemini', 'google', 'chromeTranslator'].includes(props.service)) return 'green'
   return 'rose'
 })
@@ -177,6 +178,14 @@ const fallbackGlyph = computed(() => {
     microsoft: 'M',
     freeTranslation: '译',
     myMemory: 'MM',
+    youdaoFree: '有',
+    sogouFree: '搜',
+    papagoFree: 'P',
+    caiyunFree: '彩',
+    reversoFree: 'R',
+    lingvaFree: 'L',
+    apertiumFree: 'A',
+    libreTranslateFree: 'LT',
     google: 'G',
     deepL: 'D',
     deeplx: 'DX',

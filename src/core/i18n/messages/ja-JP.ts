@@ -8,7 +8,6 @@
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
-
 export const jaJPMessages = {
     "reading.triggerTitle": "翻訳カードを開く",
     "reading.triggerHelp": "既定ではアクションをクリック。ショートカットは優先アクション、ホバーは指したアクションを使います。",
@@ -2739,4 +2738,5 @@ export const jaJPLegacyText: Readonly<Record<string, string>> = {
     "正在播放译文": "訳文を読み上げ中",
     "下载双语文件": "二言語ファイルをダウンロード",
     "下载译文文件": "訳文ファイルをダウンロード",
+    "实验候选": "実験候補",
 };

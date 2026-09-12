@@ -13,7 +13,7 @@ import type {
     TranslationRequestMessageBase,
     TranslationGlossaryContext,
 } from './types';
-import {normalizeFreeTranslationOrder} from '@/src/core/config/freeTranslation';
+import {normalizeFreeTranslationOrder, normalizeFreeTranslationMode} from '@/src/core/config/freeTranslation';
 import type {CustomOpenAIProvider} from '@/src/core/config/customOpenAI';
 import {normalizeDeepLApiPlan} from '@/src/core/config/deepl';
 import {resolveGlossary} from '@/src/core/glossary';
@@ -215,12 +215,15 @@ export function createTranslationProviderConfigSnapshot(
 ): TranslationProviderConfigSnapshot {
     // 已保存模型列表只服务于设置 UI，不参与一次请求的模型身份；显式排除，避免
     // Config 结构化兼容传入时把可变数组引用带进冻结快照。
-    const {customModels: _savedCustomModels, ...providerSource} = source as TranslationConfigSource & {
+    // 免费服务权重只由后台性能统计决定，不接受导入配置或旧设置中的手动权重。
+    const {customModels: _savedCustomModels, freeTranslationWeights: _manualWeights, ...providerSource} = source as TranslationConfigSource & {
         customModels?: unknown;
+        freeTranslationWeights?: unknown;
     };
     return Object.freeze({
         ...providerSource,
         freeTranslationOrder: Object.freeze(normalizeFreeTranslationOrder(source.freeTranslationOrder)),
+        freeTranslationMode: normalizeFreeTranslationMode(source.freeTranslationMode),
         deeplApiPlan: normalizeDeepLApiPlan(source.deeplApiPlan),
         glossaryLibraries: Object.freeze((source.glossaryLibraries ?? []).map((library) => Object.freeze({
             ...library,

@@ -9,6 +9,8 @@ import {translateMicrosoftTexts} from './microsoft';
 import {translateDeepLXText} from './deeplx';
 import {translateGoogleText} from './google';
 import {translateFreeWebText} from './free-web';
+import {translateFreeChineseWebText} from './free-chinese-web';
+import {translateExtraFreeWebText} from './free-extra-web';
 import myMemory from './mymemory';
 import {services} from '@/src/core/config/catalog';
 import {urls} from '@/src/core/config/constants';
@@ -19,9 +21,11 @@ import {
     normalizeFreeTranslationOrder,
     normalizeFreeTranslationTimeoutMs,
     normalizeFreeTranslationCooldownMs,
+    normalizeFreeTranslationMode,
 } from '@/src/core/config/freeTranslation';
 import {config} from '@/src/services/config/store';
 import {abortErrorFromSignal} from '@/src/platform/http/runtime';
+import {freeTranslationHealthStorage} from '@/src/platform/storage/freeTranslationHealthStorage';
 import {createFreeFallbackRunner, type FreeFallbackCandidate} from '@/src/services/translation/freeFallback';
 import {
     attachTranslationProviderConfig,
@@ -40,7 +44,7 @@ export const FREE_TRANSLATION_ORDER = DEFAULT_FREE_TRANSLATION_ORDER.map(id => (
     FREE_TRANSLATION_PROVIDERS.find(provider => provider.id === id)!.label
 ));
 export const FREE_TRANSLATION_BATCH_CONCURRENCY = 3;
-const runFallback = createFreeFallbackRunner(FREE_TRANSLATION_BATCH_CONCURRENCY);
+const runFallback = createFreeFallbackRunner(FREE_TRANSLATION_BATCH_CONCURRENCY, {persistence: freeTranslationHealthStorage});
 const providerTranslators: Record<FreeProviderId, (request: TranslationProviderRequest<string>) => Promise<unknown>> = {
     microsoft: async request => {
         const results = await translateMicrosoftTexts([request.origin], request.sourceLanguage!, request.targetLanguage!, request.abortSignal);
@@ -52,6 +56,12 @@ const providerTranslators: Record<FreeProviderId, (request: TranslationProviderR
     transmart: request => translateFreeWebText('transmart', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
     yandexFree: request => translateFreeWebText('yandexFree', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
     volcengineFree: request => translateFreeWebText('volcengineFree', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
+    youdaoFree: request => translateFreeChineseWebText('youdaoFree', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
+    icibaFree: request => translateFreeChineseWebText('icibaFree', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
+    sogouFree: request => translateExtraFreeWebText('sogouFree', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
+    reversoFree: request => translateExtraFreeWebText('reversoFree', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
+    lingvaFree: request => translateExtraFreeWebText('lingvaFree', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
+    apertiumFree: request => translateExtraFreeWebText('apertiumFree', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
 };
 
 function prepareRequest(message: FreeTranslationRequest): PreparedRequest {
@@ -95,6 +105,9 @@ function candidatesFor(text: string, message: PreparedRequest): FreeFallbackCand
         return {
             identity: providerIdentity(id, current),
             label: provider.label,
+            weight: provider.defaultWeight,
+            maxConcurrency: id === 'microsoft' ? 2 : 1,
+            minIntervalMs: id === 'microsoft' ? 100 : id === 'myMemory' || id === 'deeplx' ? 1000 : 300,
             translate: (signal: AbortSignal) => providerTranslators[provider.id]({
                 ...message, origin: text, serviceOverride: id, abortSignal: signal,
             }),
@@ -109,6 +122,7 @@ async function translatePreparedText(text: string, message: PreparedRequest): Pr
         signal: message.abortSignal,
         timeoutMs: normalizeFreeTranslationTimeoutMs(current.freeTranslationTimeoutMs),
         cooldownMs: normalizeFreeTranslationCooldownMs(current.freeTranslationCooldownMs),
+        mode: normalizeFreeTranslationMode(current.freeTranslationMode),
         deadline: message[FREE_TRANSLATION_DEADLINE],
     });
 }

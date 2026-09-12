@@ -2739,4 +2739,5 @@ export const frFRLegacyText: Readonly<Record<string, string>> = {
     "正在播放译文": "Lecture de la traduction",
     "下载双语文件": "Télécharger le fichier bilingue",
     "下载译文文件": "Télécharger le fichier traduit",
+    "实验候选": "Candidat expérimental",
 };

@@ -335,7 +335,7 @@ describe('translation broker', () => {
         await translateWithCache({origin: 'same source', context: 'not used by anonymous APIs'});
         expect(mocks.service).toHaveBeenCalledTimes(2);
         expect(translationCacheIdentities().at(-1)).toMatchObject({freeTranslationPolicy: {
-            version: 2, order: ['microsoft', 'myMemory'],
+            version: 4, mode: 'balanced', order: ['microsoft', 'myMemory'],
         }});
         delete (policy as Partial<typeof policy>).freeTranslationOrder;
     });

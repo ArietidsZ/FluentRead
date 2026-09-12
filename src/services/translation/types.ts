@@ -142,6 +142,7 @@ export interface TranslationConfigSnapshot {
     deeplApiPlan?: DeepLApiPlan;
     deeplx: string;
     freeTranslationOrder?: readonly string[];
+    freeTranslationMode?: 'balanced' | 'sequential';
     freeTranslationTimeoutMs?: number;
     freeTranslationCooldownMs?: number;
     myMemoryEmail?: string;
