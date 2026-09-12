@@ -407,6 +407,8 @@ export default defineConfig({
                 'src/core/language/chineseVariants.ts',
                 'src/core/i18n/messages/legacy-overrides.ts',
                 'src/core/i18n/messages/legacy-patterns.ts',
+                'src/core/i18n/messages/legacy-corrections.ts',
+                'src/core/i18n/messages/runtime-feedback.ts',
                 'src/core/i18n/messages/runtime-feedback-patterns.ts',
                 'src/core/config/areaTranslation.ts',
                 'src/core/config/paragraphCopy.ts',

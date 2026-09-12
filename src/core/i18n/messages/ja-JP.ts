@@ -8,6 +8,8 @@
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
+import {createLegacyCorrectionText} from './legacy-corrections';
+import {createRuntimeFeedbackLegacyText} from './runtime-feedback';
 import {localTtsJapaneseMessages} from './localTts';
 import {localTranslationJapaneseMessages} from './localTranslation';
 
@@ -384,6 +386,7 @@ export const jaJPMessages = {
     'notice.translationNotice': '翻訳のお知らせ',
     'notice.openSettings': '設定を開く',
     'notice.close': '通知を閉じる',
+    'notice.missingCredential': 'あと一歩です：{service} の {credential} を入力すると翻訳を始められます。',
     "settings.pageRecognition.title": "ページ認識",
     "settings.pageRecognition.allNodes": "すべてのノードを検出",
     "settings.pageRecognition.description": "メニュー、ボタン、ノードのラベルを翻訳します。次回の翻訳から適用されます。",
@@ -3173,4 +3176,8 @@ export const jaJPLegacyText: Readonly<Record<string, string>> = {
     '翻译整个网页，按住可拖动': 'ウェブページ全体を翻訳（長押しでドラッグ）',
     '恢复网页原文，按住可拖动': '元のウェブページを復元（長押しでドラッグ）',
     '打开设置，按住可拖动': '設定を開く（長押しでドラッグ）',
+    // 后台、Offscreen、翻译服务和各功能运行期反馈的精确文案。
+    ...createRuntimeFeedbackLegacyText('ja-JP'),
+    // 人工校正机器补齐的旧界面误译，必须作为最后一层覆盖。
+    ...createLegacyCorrectionText('ja-JP'),
 };

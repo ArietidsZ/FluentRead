@@ -8,6 +8,8 @@
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
+import {createLegacyCorrectionText} from './legacy-corrections';
+import {createRuntimeFeedbackLegacyText} from './runtime-feedback';
 import {localTtsKoreanMessages} from './localTts';
 import {localTranslationKoreanMessages} from './localTranslation';
 
@@ -384,6 +386,7 @@ export const koKRMessages = {
     'notice.translationNotice': '번역 알림',
     'notice.openSettings': '설정 열기',
     'notice.close': '알림 닫기',
+    'notice.missingCredential': '한 단계만 남았습니다. {service}의 {credential}을(를) 입력하면 번역을 시작할 수 있습니다.',
     "settings.pageRecognition.title": "페이지 인식",
     "settings.pageRecognition.allNodes": "모든 노드 인식",
     "settings.pageRecognition.description": "메뉴, 버튼, 노드 라벨을 번역합니다. 다음 번역부터 적용됩니다.",
@@ -3173,4 +3176,8 @@ export const koKRLegacyText: Readonly<Record<string, string>> = {
     '翻译整个网页，按住可拖动': '전체 웹페이지 번역, 길게 누르면 드래그',
     '恢复网页原文，按住可拖动': '원본 웹페이지 복원, 길게 누르면 드래그',
     '打开设置，按住可拖动': '설정 열기, 길게 누르면 드래그',
+    // 后台、Offscreen、翻译服务和各功能运行期反馈的精确文案。
+    ...createRuntimeFeedbackLegacyText('ko-KR'),
+    // 人工校正机器补齐的旧界面误译，必须作为最后一层覆盖。
+    ...createLegacyCorrectionText('ko-KR'),
 };

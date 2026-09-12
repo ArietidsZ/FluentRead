@@ -76,6 +76,16 @@ interface CompiledLegacyPatternSet {
     readonly late: readonly CompiledLegacyPattern[];
 }
 
+const LEGACY_CLAUSE_SEPARATORS: Readonly<Record<UiLanguage, string>> = {
+    'zh-CN': '；',
+    'ja-JP': '；',
+    'en-US': '; ',
+    'ko-KR': '; ',
+    'ru-RU': '; ',
+    'es-ES': '; ',
+    'fr-FR': ' ; ',
+};
+
 /** 资源包只携带正则源码；每种语言首次命中旧文案时编译一次，重复注册资源包时丢弃。 */
 const compiledLegacyPatterns = new Map<UiLanguage, CompiledLegacyPatternSet>();
 
@@ -109,9 +119,9 @@ function applyLegacyPatterns(patterns: readonly CompiledLegacyPattern[], value: 
         if (!match) continue;
         return template.replace(/\{(\d+)\}/gu, (_, index: string) => {
             const capture = match[Number(index)] ?? '';
-            // 嵌套错误可能用中文分号串联多段原因，逐段翻译以免整句因一个未登记片段保持中文。
+            // 嵌套错误可能用中文分号串联多段原因，逐段翻译以免整句因一个未登记片段保持中文，并换成目标语言的分号写法。
             return localizedCaptures.includes(Number(index))
-                ? capture.split('；').map((part) => translateLegacyText(part, language)).join('；')
+                ? capture.split('；').map((part) => translateLegacyText(part, language)).join(LEGACY_CLAUSE_SEPARATORS[language])
                 : capture;
         });
     }

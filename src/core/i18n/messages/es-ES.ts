@@ -8,6 +8,8 @@
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
+import {createLegacyCorrectionText} from './legacy-corrections';
+import {createRuntimeFeedbackLegacyText} from './runtime-feedback';
 import {localTtsSpanishMessages} from './localTts';
 import {localTranslationSpanishMessages} from './localTranslation';
 
@@ -384,6 +386,7 @@ export const esESMessages = {
     'notice.translationNotice': 'Aviso de traducción',
     'notice.openSettings': 'Abrir ajustes',
     'notice.close': 'Cerrar aviso',
+    'notice.missingCredential': 'Solo falta un paso: añade {credential} para {service} y empieza a traducir.',
     "settings.pageRecognition.title": "Reconocimiento de la página",
     "settings.pageRecognition.allNodes": "Detectar todos los nodos",
     "settings.pageRecognition.description": "Traducir menús, botones y etiquetas de nodos. Se aplica a partir de la próxima traducción.",
@@ -3193,4 +3196,8 @@ export const esESLegacyText: Readonly<Record<string, string>> = {
     '翻译整个网页，按住可拖动': 'Traducir toda la página; mantén pulsado para arrastrar',
     '恢复网页原文，按住可拖动': 'Restaurar la página original; mantén pulsado para arrastrar',
     '打开设置，按住可拖动': 'Abrir ajustes; mantén pulsado para arrastrar',
+    // 后台、Offscreen、翻译服务和各功能运行期反馈的精确文案。
+    ...createRuntimeFeedbackLegacyText('es-ES'),
+    // 人工校正机器补齐的旧界面误译，必须作为最后一层覆盖。
+    ...createLegacyCorrectionText('es-ES'),
 };

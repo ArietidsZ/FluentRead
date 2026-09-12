@@ -47,10 +47,10 @@ function getNoticeTitle(type: NoticeType, credential: boolean, language: Paramet
 
 function getNoticeDetail(message: string, missingCredential: MissingCredentialNotice | null, language: Parameters<typeof translate>[1]): string {
     if (!missingCredential) return translateLegacyText(message, language);
-    const service = translateLegacyText(missingCredential.service, language);
-    return language === 'en-US'
-        ? `One more step: add ${missingCredential.credentialLabel} for ${service} to start translating.`
-        : `还差一步：为 ${missingCredential.service} 填写 ${missingCredential.credentialLabel}，就可以开始翻译了。`;
+    return translate('notice.missingCredential', language, {
+        service: translateLegacyText(missingCredential.service, language),
+        credential: translateLegacyText(missingCredential.credentialLabel, language),
+    });
 }
 
 function resolveNoticeIconUrl(): string | null {
@@ -66,13 +66,13 @@ function resolveNoticeIconUrl(): string | null {
     }
 }
 
-function createNoticeMark(): HTMLElement {
+function createNoticeMark(language: Parameters<typeof translate>[1]): HTMLElement {
     const iconUrl = resolveNoticeIconUrl();
     if (iconUrl) {
         const mark = document.createElement('img');
         mark.className = 'notice-mark';
         mark.src = iconUrl;
-        mark.alt = '流畅阅读';
+        mark.alt = translate('common.brand', language);
         return mark;
     }
 
@@ -178,7 +178,7 @@ export function showPageNotice(message: string, type: NoticeType): HTMLElement {
     notice.setAttribute('role', 'alert');
     notice.setAttribute('aria-atomic', 'true');
 
-    const mark = createNoticeMark();
+    const mark = createNoticeMark(language);
 
     const copy = document.createElement('span');
     copy.className = 'notice-copy';

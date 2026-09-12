@@ -8,6 +8,8 @@
 import type {
 enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
+import {createLegacyCorrectionText} from './legacy-corrections';
+import {createRuntimeFeedbackLegacyText} from './runtime-feedback';
 import {localTtsRussianMessages} from './localTts';
 import {localTranslationRussianMessages} from './localTranslation';
 
@@ -384,6 +386,7 @@ export const ruRUMessages = {
     'notice.translationNotice': 'Уведомление о переводе',
     'notice.openSettings': 'Открыть настройки',
     'notice.close': 'Закрыть уведомление',
+    'notice.missingCredential': 'Остался один шаг: укажите {credential} для {service}, чтобы начать перевод.',
     "settings.pageRecognition.title": "Распознавание страницы",
     "settings.pageRecognition.allNodes": "Найти все узлы",
     "settings.pageRecognition.description": "Переводить меню, кнопки и подписи узлов. Применяется со следующего перевода.",
@@ -3173,4 +3176,8 @@ export const ruRULegacyText: Readonly<Record<string, string>> = {
     '翻译整个网页，按住可拖动': 'Перевести всю страницу; удерживайте, чтобы перетащить',
     '恢复网页原文，按住可拖动': 'Восстановить оригинал страницы; удерживайте, чтобы перетащить',
     '打开设置，按住可拖动': 'Открыть настройки; удерживайте, чтобы перетащить',
+    // 后台、Offscreen、翻译服务和各功能运行期反馈的精确文案。
+    ...createRuntimeFeedbackLegacyText('ru-RU'),
+    // 人工校正机器补齐的旧界面误译，必须作为最后一层覆盖。
+    ...createLegacyCorrectionText('ru-RU'),
 };
