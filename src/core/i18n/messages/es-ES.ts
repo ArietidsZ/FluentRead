@@ -92,6 +92,7 @@ export const esESMessages = {
     "writing.referenceTooLong": "La respuesta es demasiado larga para traducirla completa.",
     "writing.referenceFootnote": "La traducción es para lectura. Copiar e insertar incluyen solo la respuesta.",
     "writing.referenceDisabled": "Sin traducción",
+    "writing.previewReference": "Tras generar, aparece una versión de referencia en {language} bajo el borrador. Copiar e insertar solo incluyen el borrador.",
     "writing.referenceSearch": "Buscar idioma de lectura",
 
     "usage.pageSize": "{size} entradas",

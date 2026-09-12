@@ -19,6 +19,7 @@ export default defineConfig({
         include: [
             'tests/writingIntegration.test.ts',
             'tests/writingCore.test.ts',
+            'tests/writingPreview.test.ts',
             'tests/writingEntryPlacement.test.ts',
             'tests/writingReference.test.ts',
             'tests/writingEditors.test.ts',
@@ -265,6 +266,7 @@ export default defineConfig({
                 'src/features/writing-assistant/client.ts',
                 'src/features/writing-assistant/content.ts',
                 'src/core/config/writing.ts',
+                'src/core/config/writingPreview.ts',
                 'src/features/writing-assistant/entryPlacement.ts',
                 'src/features/writing-assistant/background.ts',
                 'src/features/writing-assistant/editors.ts',

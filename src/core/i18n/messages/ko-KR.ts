@@ -92,6 +92,7 @@ export const koKRMessages = {
     "writing.referenceTooLong": "본문이 너무 길어 전체를 번역할 수 없습니다.",
     "writing.referenceFootnote": "대조 번역은 읽기용입니다. 복사와 삽입에는 답장 본문만 포함됩니다.",
     "writing.referenceDisabled": "대조 번역 표시 안 함",
+    "writing.previewReference": "생성 후 초안 아래에 {language} 대조본이 표시됩니다. 복사와 삽입에는 초안만 포함됩니다.",
     "writing.referenceSearch": "대조 번역 언어 검색",
 
     "usage.pageSize": "{size}개",

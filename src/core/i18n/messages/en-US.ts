@@ -93,6 +93,7 @@ export const enUSMessages = {
     "writing.referenceTooLong": "The reply is too long to translate in full.",
     "writing.referenceFootnote": "The translation is for reading. Copy and insert include only the reply.",
     "writing.referenceDisabled": "No translation",
+    "writing.previewReference": "After generating, a {language} reference version appears under the draft. Copying and inserting use the draft only.",
     "writing.referenceSearch": "Search reading languages",
 
     "usage.pageSize": "{size} entries",

@@ -92,6 +92,7 @@ export const ruRUMessages = {
     "writing.referenceTooLong": "Ответ слишком длинный для полного перевода.",
     "writing.referenceFootnote": "Перевод предназначен для чтения. Копирование и вставка включают только ответ.",
     "writing.referenceDisabled": "Без перевода",
+    "writing.previewReference": "После генерации под черновиком появится версия на языке {language}. Копирование и вставка используют только черновик.",
     "writing.referenceSearch": "Поиск языка перевода",
 
     "usage.pageSize": "{size} записей",
