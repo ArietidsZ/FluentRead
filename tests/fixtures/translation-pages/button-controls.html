@@ -16,6 +16,12 @@
     #merge-button { border-radius: 6px 0 0 6px; }
     #merge-menu { border-radius: 0 6px 6px 0; }
     .other-controls { display: flex; gap: 20px; align-items: center; padding-top: 28px; }
+    /* 与 GitHub 评论框底栏一致：一整排高度固定的操作项，任何第二行都会撑破版面。 */
+    .comment-form, .toolbar { display: flex; gap: 12px; align-items: center; padding-top: 24px; }
+    .comment-form > input, .toolbar > * { box-sizing: border-box; height: 32px; padding: 0 12px; white-space: nowrap;
+      display: inline-flex; align-items: center; border: 1px solid #d0d7de; border-radius: 6px; background: #f6f8fa;
+      color: #1f2328; font: 14px/20px system-ui; text-decoration: none; }
+    .toolbar > .btn { border-color: #176f31; background: #1f883d; color: #fff; }
     .badge { padding-left: 6px; }
   </style>
 </head>
@@ -40,6 +46,27 @@
     <button id="split-button" type="button">Review <span class="button-label" data-display="grid">changes</span><span class="badge notranslate" translate="no">23</span></button>
   </div>
   <p id="prose">Read the <a href="#guide">merge guide</a> before continuing.</p>
+  <form id="control-form" class="comment-form" action="/search">
+    <input id="submit-named" type="submit" name="commit" value="Search issues">
+    <input id="submit-anonymous" type="submit" value="Create issue">
+    <input id="button-input" type="button" value="Preview changes">
+    <input id="reset-input" type="reset" value="Reset form">
+    <input id="text-input" type="text" name="q" value="Private draft text">
+    <input id="empty-submit" type="submit">
+  </form>
+  <div id="toolbar" class="toolbar" data-display="flex">
+    <a id="button-link" class="btn btn-primary" href="#publish" data-display="inline-block">Publish release</a>
+    <a id="hint-link" class="Link--secondary" href="#markdown" data-display="inline">Markdown is supported</a>
+    <label id="upload-label" data-display="flex">Paste, drop, or click to add files</label>
+    <div id="custom-action" tabindex="0" data-display="inline-flex">Custom action</div>
+    <span id="preview-tab" role="tab" data-display="inline-block">Preview tab</span>
+    <span id="decorative" role="presentation" class="btn" data-display="inline">Decorative badge</span>
+    <div id="broken-focus" tabindex="not-a-number" data-display="inline-flex">Broken focus target</div>
+  </div>
+  <div id="focus-shell" tabindex="-1">
+    <p id="shell-prose">The workflow editor keeps its application controls separate from documentation.</p>
+  </div>
+  <details id="faq"><summary id="faq-question">How do I cancel my subscription?</summary><p id="faq-answer">Contact support from the billing page.</p></details>
 </main>
 <script>
   for (const control of document.querySelectorAll('button, [role="button"], [role="menuitem"]')) {

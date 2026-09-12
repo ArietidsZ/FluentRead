@@ -7,17 +7,23 @@ const runtime = vi.hoisted(() => ({
     getCurrentTranslationCore: vi.fn(() => ({shouldStayOriginal: () => false})),
 }));
 
-vi.mock('@/src/core/translation/public', () => ({
-    collectLiveTranslationTextSlots: () => runtime.slots,
-    getCurrentTranslationCore: runtime.getCurrentTranslationCore,
-}));
+vi.mock('@/src/core/translation/public', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@/src/core/translation/public')>();
+    return {
+        collectLiveTranslationTextSlots: () => runtime.slots,
+        getCurrentTranslationCore: runtime.getCurrentTranslationCore,
+        // 属性型按钮标签的安全边界由 core 唯一定义，测试不复制其判定规则。
+        getTranslatableControlValueAttribute: actual.getTranslatableControlValueAttribute,
+        normalizeTranslationText: actual.normalizeTranslationText,
+    };
+});
 
 vi.mock('@/src/features/full-page-translation/content/translationRequest', () => ({
     translateTextSlots: runtime.translateTextSlots,
 }));
 
 import {parseHTML} from 'linkedom';
-import {createTranslationRequest, translateLiveText} from '@/src/features/full-page-translation/content/liveTextTranslation';
+import {createTranslationRequest, translateControlValue, translateLiveText} from '@/src/features/full-page-translation/content/liveTextTranslation';
 
 const snapshot = {service: 'microsoft', model: 'default', thinking: false, sourceLanguage: 'en', targetLanguage: 'zh',
     useCache: true, enableAIContext: false, enableAIMultiSegment: false, displayMode: 'single' as const, style: 0};
@@ -56,6 +62,37 @@ describe('实时文本翻译快照', () => {
             expect(owner.textContent).toBe('Execute');
         },
     );
+
+    it('按钮型 input 走属性替换请求，不再尝试寻找不存在的文本槽', async () => {
+        const {document} = parseHTML('<html><body><input type="button" value="Preview changes"></body></html>');
+        const owner = document.querySelector<HTMLElement>('input')!;
+        runtime.translations = ['预览更改'];
+
+        const result = await createTranslationRequest(owner, 'control', 'bilingual', snapshot);
+        expect(result).toEqual({
+            kind: 'control-value', attribute: 'value', complete: true, changed: true,
+            sources: ['Preview changes'], translations: ['预览更改'], text: '预览更改',
+        });
+        expect(runtime.translateTextSlots).toHaveBeenLastCalledWith(
+            ['Preview changes'], snapshot, undefined, undefined, undefined, false);
+        // 请求阶段绝不改写宿主属性，写入由渲染层在提交时完成。
+        expect(owner.getAttribute('value')).toBe('Preview changes');
+    });
+
+    it('按钮标签缺失或译文与原文相同时结果标记为未完成或无变化', async () => {
+        const {document} = parseHTML('<html><body><input id="a" type="button" value="Preview changes">' +
+            '<input id="b" type="button"></body></html>');
+        const labelled = document.querySelector<HTMLElement>('#a')!;
+        const missing = document.querySelector<HTMLElement>('#b')!;
+
+        runtime.translations = ['Preview changes'];
+        expect(await translateControlValue(labelled, 'value', snapshot))
+            .toMatchObject({complete: true, changed: false, text: 'Preview changes'});
+
+        runtime.translations = [];
+        expect(await translateControlValue(missing, 'value', snapshot))
+            .toMatchObject({complete: false, changed: false, sources: [''], text: ''});
+    });
 
     it('空槽位返回未完成的空结果', async () => {
         const {document} = parseHTML('<html><body></body></html>');

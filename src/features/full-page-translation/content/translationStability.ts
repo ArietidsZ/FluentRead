@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/translationStability.ts
  * 文件职责：提供动态页面翻译的语义稳定性判断和实时文本槽重绑定，隔离 React/虚拟列表重建造成的生命周期噪声。
- * 主要内容：判断原文与译文工件是否仍完整，在保留宿主链接焦点管理的前提下决定是否保留当前翻译 generation，并在逐槽核对当前来源后把异步结果映射到实时 Text 节点与空白边界。
+ * 主要内容：判断原文与译文工件是否仍完整，在保留宿主链接焦点管理的前提下决定是否保留当前翻译 generation，并在逐槽核对当前来源后把异步结果映射到实时 Text 节点与空白边界；按钮型 input 的译文写在标签属性上，另按已记录属性值复验其时效与自身写入。
  * 模块边界：本文件不读取配置、不监听 DOM、不执行 provider 请求；runtime 通过回调提供当前来源与槽位快照。
  */
 import {
@@ -213,6 +213,11 @@ export function statefulSourceAndTextSlotsAreCurrent(
     if (currentNodes.length !== previousNodes.length ||
         currentNodes.some((textNode, index) => textNode !== previousNodes[index])) return false;
     if ((state.kind === 'control' || state.mode === 'single') && state.textSlotsApplied) {
+        // 按钮型 input 的译文写在属性上；宿主页把标签改回原值或换成别的动作时，
+        // 当前译文即已失效，必须交回发现流程重新判定，而不是当作仍然生效。
+        const controlValue = state.controlValue;
+        if (controlValue?.translated !== undefined &&
+            node.getAttribute(controlValue.attribute) !== controlValue.translated) return false;
         return currentNodes.every((textNode) =>
             state.translatedTextValues?.get(textNode) === textNode.data);
     }
@@ -282,6 +287,12 @@ export function isOwnStateArtifactMutation(
     if (state.phase !== 'translated' || state.textSlotsApplied !== true) return false;
     if (mutation.type === 'characterData') {
         return state.translatedTextValues?.get(mutation.target as Text) === mutation.target.nodeValue;
+    }
+    // 属性型按钮标签的提交写入同样来自插件自身；只承认仍与已记录译文一致的那一次写入。
+    const controlValue = state.controlValue;
+    if (mutation.type === 'attributes' && controlValue?.translated !== undefined &&
+        mutation.attributeName === controlValue.attribute && mutation.target === target) {
+        return target.getAttribute(controlValue.attribute) === controlValue.translated;
     }
     return false;
 }

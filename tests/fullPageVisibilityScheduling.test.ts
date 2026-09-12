@@ -163,7 +163,8 @@ vi.mock("@/src/features/full-page-translation/content/renderer", async (importOr
 vi.mock("@/src/features/full-page-translation/content/layout", () => ({
     ensureTranslationTruncationLayout: runtime.ensureTranslationTruncationLayout,
 }));
-vi.mock("@/src/core/translation/public", () => {
+vi.mock("@/src/core/translation/public", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/src/core/translation/public")>();
     const protectedSelector = [
         "head", "script", "style", "noscript", "iframe", "input", "textarea", "select", "option",
         "math", "svg", "canvas", "audio", "video", "object", "template", "xmp", "pre", "code",
@@ -197,6 +198,9 @@ vi.mock("@/src/core/translation/public", () => {
     };
 
     return {
+        // 属性型按钮标签的安全边界由 core 唯一定义，测试替身不复制其判定规则。
+        getTranslatableControlValueAttribute: actual.getTranslatableControlValueAttribute,
+        normalizeTranslationText: actual.normalizeTranslationText,
         extractTranslationText: (element: HTMLElement, keepOriginal?: (element: Element) => boolean) =>
             textSlots(element, keepOriginal).map(({source}) => source).join(""),
         extractTranslationTextFromNodes: (nodes: readonly Node[]) =>
