@@ -62,15 +62,18 @@ import {
     type QuickTranslationProfile,
 } from './quickTranslation';
 import {
+    DEFAULT_INTERFACE_FONT,
     DEFAULT_INTERFACE_VISIBILITY,
     DEFAULT_POPUP_MODULE_ORDER,
     DEFAULT_POPUP_QUICK_FEATURE_ORDER,
     DEFAULT_POPUP_QUICK_FEATURE_VISIBILITY,
+    normalizeInterfaceFont,
     normalizeInterfaceSkin,
     normalizeInterfaceVisibility,
     normalizePopupModuleOrder,
     normalizePopupQuickFeatureOrder,
     normalizePopupQuickFeatureVisibility,
+    type InterfaceFont,
     type InterfaceSkin,
     type InterfaceVisibility,
     type PopupModuleId,
@@ -233,6 +236,7 @@ export class Config {
     count: number;  // 翻译次数
     theme: string;  // 主题模式：'auto' | 'light' | 'dark'
     interfaceSkin: InterfaceSkin; // 扩展界面皮肤；默认保留当前界面
+    interfaceFont: InterfaceFont; // 设置页和扩展弹窗使用的字体方案
     interfaceVisibility: InterfaceVisibility; // Popup 栏目可见性
     popupModuleOrder: PopupModuleId[]; // Popup 可编排模块的显示顺序
     popupQuickFeatureOrder: PopupQuickFeatureId[]; // 快捷功能卡片的显示顺序
@@ -357,6 +361,7 @@ export class Config {
         this.count = 0;
         this.theme = 'auto';  // 默认跟随系统
         this.interfaceSkin = 'default'; // 默认保留当前界面
+        this.interfaceFont = DEFAULT_INTERFACE_FONT; // 默认使用现代无衬线字体栈
         this.interfaceVisibility = {...DEFAULT_INTERFACE_VISIBILITY};
         this.popupModuleOrder = [...DEFAULT_POPUP_MODULE_ORDER];
         this.popupQuickFeatureOrder = [...DEFAULT_POPUP_QUICK_FEATURE_ORDER];
@@ -903,6 +908,7 @@ export function normalizeConfig(value: unknown): Config {
     normalized.disabledExtensionDomains = normalizeDisabledExtensionDomains(source.disabledExtensionDomains);
     normalized.siteAdaptation = normalizeSiteAdaptationSettings(source.siteAdaptation);
     normalized.interfaceSkin = normalizeInterfaceSkin(source.interfaceSkin);
+    normalized.interfaceFont = normalizeInterfaceFont(source.interfaceFont);
     normalized.interfaceVisibility = normalizeInterfaceVisibility(source.interfaceVisibility);
     normalized.popupModuleOrder = normalizePopupModuleOrder(source.popupModuleOrder);
     normalized.popupQuickFeatureOrder = normalizePopupQuickFeatureOrder(source.popupQuickFeatureOrder);
