@@ -487,6 +487,10 @@
       </SettingsGroup>
     </section>
 
+    <section v-show="props.activeSection === 'settings-general'" class="settings-section settings-section-continuation">
+      <FloatingBallSettings :config="config" />
+    </section>
+
     <section v-show="props.activeSection === 'settings-interface'" id="settings-interface" class="settings-section">
       <InterfaceSettings :config="config" />
     </section>
@@ -706,6 +710,7 @@ import WritingSettings from './WritingSettings.vue';
 import HarnessSettings from './HarnessSettings.vue';
 import {GlossarySettings} from '@/src/features/glossary/public';
 import AlwaysTranslateSites from './AlwaysTranslateSites.vue';
+import FloatingBallSettings from './FloatingBallSettings.vue';
 import SiteAdaptationSettings from './SiteAdaptationSettings.vue';
 import type {SiteAdaptationSettings as SiteAdaptationConfig} from '@/src/core/site-adaptation/types';
 import {

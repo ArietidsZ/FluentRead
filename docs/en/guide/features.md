@@ -12,6 +12,22 @@ When an announcement or modal dialog blocks the page, full-page translation hand
 
 <figure class="doc-figure"><a href="/screenshots/en/translation.webp" target="_blank" rel="noopener"><img class="doc-screenshot" src="/screenshots/en/translation.webp" width="2560" height="1600" alt="Chinese paragraphs followed by English translations on the same webpage" loading="lazy" /></a><figcaption>Keep the original nearby when a name or detail needs a second look.</figcaption></figure>
 
+### Page floating ball
+
+Enable **Full-page translation ball** under **Settings → General → Page helpers** to show a shortcut at the edge of the page: click it to translate the whole page, click again to restore the original, and hold it to drag the ball up or down — it docks to the nearer side when you release it.
+
+**Floating ball advanced settings** tunes the rest:
+
+- **Button display**: show the translate and settings buttons on hover, always, or hide them and keep the ball alone.
+- **Expand delay**: how long the pointer has to rest before the buttons expand. It is immediate by default; a longer delay avoids accidental expansion when the pointer crosses the edge of the page. Keyboard focus always expands immediately.
+- **Click action**: clicking the ball itself can toggle translation, open the settings page, or do nothing. Holding it always drags.
+- **Smaller ball**: use a reduced size so the ball covers less of the page.
+- **Settings entry**: hide the button that opens the settings page from the ball.
+- **Collapsed opacity**: lower values are more transparent. Hovering, expanding, and dragging always render the ball fully.
+- **Sites without the ball**: add a registrable domain to hide the ball on that site and its subdomains. Shortcuts, the context menu, and every other feature keep working.
+
+Turning the ball off leaves the full-page translation shortcut (Alt+T by default) and the context menu entry untouched.
+
 ### Missing menus or interface text
 
 In **Advanced settings → Page recognition**, enable the option to recognize all nodes, restore the page, and translate again. It can include visible menus and navigation added while translation is active.
