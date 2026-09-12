@@ -87,6 +87,10 @@ import {
     type PageTranslationConfigOverrides,
 } from '@/src/features/full-page-translation/content/translationRequest';
 import {
+    startFullPageTitleTranslation,
+    stopFullPageTitleTranslation,
+} from '@/src/features/full-page-translation/content/titleTranslation';
+import {
     createFullPageScrollController,
     withFullPageViewportAnchor,
     type FullPageScrollController,
@@ -2011,6 +2015,7 @@ export function resetFullPageTranslationRouteState(): void { hoverBilingualRemou
  */
 export function restoreOriginalContent(): void {
     cancelPendingHoverTranslation();
+    stopFullPageTitleTranslation();
     stopFullPageSession(); resetHoverTranslationRequestSession(createAbortError());
     hoverBilingualRemountCapitulations = createBilingualRemountCapitulationRegistry();
     resetAllBilingualArtifactHostWriteBudgets();
@@ -2056,6 +2061,8 @@ export function autoTranslateEnglishPage(invocation: PageTranslationInvocation =
 
     const session = createFullPageSession(root, invocation, inheritedConfig);
     fullPageSession = session;
+    // 标题不在正文候选范围内（<head> 属硬裁剪标签），单独随会话翻译并跟随 SPA 改写。
+    startFullPageTitleTranslation(session.translationConfig);
     document.addEventListener('fluentread-open-shadow-root', (event) => {
         if (!session.active || fullPageSession !== session) return;
         const host = isElementNode(event.target as Node) ? event.target as Element : null;
