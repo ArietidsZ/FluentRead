@@ -803,6 +803,17 @@ export const koKRMessages = {
     "video.modelDownloadAria": "{model} 다운로드",
     "video.modelDownloadedAria": "{model} 다운로드됨",
     "video.modelDownloadError": "{error}. 네트워크를 확인하고 다시 시도하세요.",
+    "fullPage.progress.title": "번역 진행 상황",
+    "fullPage.progress.modalTranslating": "모달 번역 중",
+    "fullPage.progress.modalWaiting": "모달을 닫으면 번역을 계속합니다",
+    "fullPage.progress.running": "진행 중",
+    "fullPage.progress.remaining": "남음",
+    "fullPage.progress.offscreenHint": "{count}개 항목은 근처로 스크롤하면 번역됩니다",
+    "fullPage.progress.hide": "이번 전체 페이지 번역에서는 진행 패널을 표시하지 않음",
+    "fullPage.progress.hideTitle": "이번 번역에서 숨기기",
+    "fullPage.progress.compactOffscreen": "전체 페이지 번역 중; {count}개 항목은 근처에서 번역됩니다",
+    "fullPage.progress.compactActive": "전체 페이지 번역이 시작됨",
+    "fullPage.progress.aria": "번역 진행 상황: 진행 중 {running}개, 남은 작업 {remaining}개, 화면 밖 작업 {offscreen}개",
 } satisfies Record<keyof typeof enUSMessages, string>;
 
 const koKRLegacyTextBase: Readonly<Record<string, string>> = {

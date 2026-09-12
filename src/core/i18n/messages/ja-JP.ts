@@ -803,6 +803,17 @@ export const jaJPMessages = {
     "video.modelDownloadAria": "{model} をダウンロード",
     "video.modelDownloadedAria": "{model} ダウンロード済み",
     "video.modelDownloadError": "{error}。ネット接続を確認して再試行してください。",
+    "fullPage.progress.title": "翻訳の進捗",
+    "fullPage.progress.modalTranslating": "モーダルを翻訳中",
+    "fullPage.progress.modalWaiting": "モーダルを閉じると翻訳を続行します",
+    "fullPage.progress.running": "実行中",
+    "fullPage.progress.remaining": "残り",
+    "fullPage.progress.offscreenHint": "{count} 件はビューポート付近までスクロールすると翻訳されます",
+    "fullPage.progress.hide": "今回の全ページ翻訳では進捗パネルを表示しない",
+    "fullPage.progress.hideTitle": "今回だけ隠す",
+    "fullPage.progress.compactOffscreen": "全ページ翻訳中。{count} 件は付近までスクロールすると翻訳されます",
+    "fullPage.progress.compactActive": "全ページ翻訳を開始しました",
+    "fullPage.progress.aria": "翻訳の進捗：実行中 {running} 件、残り {remaining} 件、うち画面外 {offscreen} 件",
 } satisfies Record<keyof typeof enUSMessages, string>;
 
 const jaJPLegacyTextBase: Readonly<Record<string, string>> = {

@@ -805,6 +805,17 @@ export const enUSMessages = {
     "video.modelDownloadAria": "Download {model}",
     "video.modelDownloadedAria": "{model} downloaded",
     "video.modelDownloadError": "{error}. Check your connection and retry.",
+    "fullPage.progress.title": "Translation progress",
+    "fullPage.progress.modalTranslating": "Translating the modal",
+    "fullPage.progress.modalWaiting": "Translation will continue after the modal is closed",
+    "fullPage.progress.running": "Active",
+    "fullPage.progress.remaining": "Remaining",
+    "fullPage.progress.offscreenHint": "{count} items will be translated as they come near the viewport",
+    "fullPage.progress.hide": "Do not show the progress panel for this full-page translation",
+    "fullPage.progress.hideTitle": "Hide for this translation",
+    "fullPage.progress.compactOffscreen": "Full-page translation is on; {count} items will be translated nearby",
+    "fullPage.progress.compactActive": "Full-page translation is on",
+    "fullPage.progress.aria": "Translation progress: {running} active tasks, {remaining} remaining tasks, including {offscreen} offscreen tasks",
 } satisfies MessageCatalog;
 
 /**
