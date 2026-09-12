@@ -7,11 +7,11 @@
 <template>
   <div v-ui-i18n v-show="showIndicator || showTooltip || noticeMessage || copySuccess" class="fr-selection-translator-root" :data-display-delay="selectionSettings.delay" @pointerdown.stop @wheel.stop.passive="handleUiWheel">
     <div v-if="showIndicator && !showTooltip && readingIndicatorEnabled" ref="reading-indicator-ref" class="fr-reading-indicator" :class="{'fr-dark-theme': isDarkTheme}" :style="readingIndicatorStyle" role="group" aria-label="选区操作" @pointerdown.prevent.stop>
-      <button v-if="selectionSettings.mode !== 'disabled'" type="button" aria-label="打开划词翻译" @click="openTooltip">翻译</button>
+      <button v-if="selectionSettings.mode !== 'disabled'" type="button" aria-label="打开划词翻译" @click="openTooltip()">翻译</button>
       <button v-for="action in readingActions" :key="action.id" type="button" :class="{'is-default': action.id === readingPreferences.defaultAction}" :data-default-action="action.id === readingPreferences.defaultAction ? 'true' : undefined" :aria-label="`${action.label}选中文本`" @pointerenter="scheduleReadingHover($event, action.id)" @pointerleave="cancelReadingHover" @click="openReading(action.id)">{{ action.label }}</button>
       <button v-if="!isPrivateContext" class="fr-reading-history-entry" type="button" aria-label="阅读记录" title="阅读记录" @click="openReadingHistory"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7" /><path d="M10 5.8V10l2.7 1.8" /></svg><span>记录</span></button>
     </div>
-    <button v-else-if="showIndicator && !showTooltip" class="fr-selection-indicator" :class="`fr-selection-indicator--${triggerMode}`" :style="indicatorStyle" type="button" aria-label="打开划词翻译" title="打开划词翻译" @pointerdown.prevent.stop @click="openTooltip">
+    <button v-else-if="showIndicator && !showTooltip" class="fr-selection-indicator" :class="`fr-selection-indicator--${triggerMode}`" :style="indicatorStyle" type="button" aria-label="打开划词翻译" title="打开划词翻译" @pointerdown.prevent.stop @click="openTooltip()">
       <span class="fr-selection-indicator-glyph" aria-hidden="true">↗</span>
     </button>
 
@@ -23,7 +23,7 @@
         </div>
         <div class="fr-tooltip-actions">
           <button v-if="readingEnabled && !readingMode" class="fr-mode-btn" type="button" @click="openReading()">{{ readingDefaultActionLabel }}</button>
-          <button v-if="readingMode && selectionSettings.mode !== 'disabled'" class="fr-mode-btn" type="button" @click="openTooltip">翻译</button>
+          <button v-if="readingMode && selectionSettings.mode !== 'disabled'" class="fr-mode-btn" type="button" @click="openTooltip()">翻译</button>
           <button
             v-if="!readingMode && config.vocabularyBookEnabled && isWordSelection && !isPrivateContext"
             class="fr-action-btn fr-vocabulary-btn"
@@ -175,6 +175,7 @@ import {
   createSelectionTtsClientRequestId,
 } from '@/src/features/selection-translation/protocol';
 import { createSelectionTtsContentController } from '@/src/features/selection-translation/content/selectionTtsContentController';
+import { setSelectionContextMenuHandler } from '@/src/features/selection-translation/content/contextMenuBridge';
 import { VOCABULARY_BOOK_CHANGED_MESSAGE, VOCABULARY_BOOK_MESSAGE, type VocabularyBookResponse } from '@/src/features/vocabulary/protocol';
 import {ReadingPanel, captureReadingSelection, type ReadingSelection} from '@/src/features/reading-assistant/public';
 import {HARNESS_ACTIONS, getHarnessModelCacheKey, normalizeHarnessPreferences, type HarnessActionId} from '@/src/core/config/harness';
@@ -261,6 +262,7 @@ let uiPointerInteraction = false;
 let suppressSelectionUntil = 0;
 let systemThemeMedia: MediaQueryList | null = null;
 let unsubscribeConfig: (() => void) | null = null;
+let releaseContextMenuHandler: (() => void) | null = null;
 let tooltipResizeObserver: ResizeObserver | null = null;
 const selectionConfigVersion = ref(0);
 const readingPreferences = computed(() => {
@@ -512,7 +514,7 @@ function scheduleSelectionLoss(): void {
   }, SELECTION_LOSS_GRACE_MS);
 }
 
-function applySelection(next: SelectionSnapshot | null, shortcutTriggered = false, readingTriggered = false): void {
+function applySelection(next: SelectionSnapshot | null, shortcutTriggered = false, readingTriggered = false, forced = false): void {
   if (!next) {
     if (!isSelecting) scheduleSelectionLoss();
     return;
@@ -520,13 +522,15 @@ function applySelection(next: SelectionSnapshot | null, shortcutTriggered = fals
   if (!shortcutTriggered && isSameSelection(dismissedSelection, next)) return;
   dismissedSelection = null;
   cancelSelectionLoss();
-  if (shouldSkipChineseSelection(next.text, config.to)) { hideAll(); return; }
+  // 右键菜单是用户明确下达的指令：即使选区已是目标语言也照常出卡片，不静默丢弃。
+  if (!forced && shouldSkipChineseSelection(next.text, config.to)) { hideAll(); return; }
   if (isSameSelection(snapshot.value, next)) {
     if (readingTriggered) openReading();
+    else if (forced) openTooltip(true);
     else if (shortcutTriggered) scheduleSelectionPresentation('tooltip');
     return;
   }
-  if (!readingEnabled.value && isSelectionInTargetLanguage(next.text)) { hideAll(); return; }
+  if (!forced && !readingEnabled.value && isSelectionInTargetLanguage(next.text)) { hideAll(); return; }
   cancelSelectionPresentation();
   selectionSettledAt = performance.now();
   resetSelectionContentState();
@@ -542,6 +546,7 @@ function applySelection(next: SelectionSnapshot | null, shortcutTriggered = fals
   showTooltip.value = false;
   updatePosition(false);
   if (readingTriggered) { openReading(); return; }
+  if (forced) { openTooltip(true); return; }
   if (waitingForShortcut) return;
   scheduleSelectionPresentation(shortcutTriggered || triggerMode.value === 'direct' ? 'tooltip' : 'indicator');
 }
@@ -671,9 +676,9 @@ function schedulePositionUpdate(): void {
   positionFrame = window.requestAnimationFrame(() => { positionFrame = null; updatePosition(); });
 }
 
-function openTooltip(): void {
+function openTooltip(forced = false): void {
   if (selectionSettings.value.mode === 'disabled' && readingEnabled.value) { openReading(); return; }
-  if (!snapshot.value || isSelectionInTargetLanguage(snapshot.value.text)) { hideAll(); return; }
+  if (!snapshot.value || (!forced && isSelectionInTargetLanguage(snapshot.value.text))) { hideAll(); return; }
   cancelSelectionPresentation();
   const wasVisible = showTooltip.value;
   showIndicator.value = true;
@@ -1231,6 +1236,16 @@ async function toggleWordAudio(pronunciation: WordPronunciation): Promise<void> 
   if (!playBrowserSpeech(cleanText, 'en-US', 'word')) playGoogleFallback(cleanText, 'en-US', 'word');
 }
 
+/** 右键“翻译选中文本”：直接按当前选区出卡片，跳过触发方式与延迟设置。 */
+function translateSelectionFromContextMenu(): boolean {
+  const next = readSelectionSnapshot();
+  if (!next) return false;
+  suppressSelectionUntil = 0;
+  isSelecting = false;
+  applySelection(next, true, false, true);
+  return showTooltip.value;
+}
+
 function closeTooltip(): void { hideAll(); }
 function hideAll(): void {
   resetPopupGeometry();
@@ -1405,6 +1420,7 @@ onMounted(() => {
   systemThemeMedia.addEventListener('change', updateTheme);
   browser.runtime.onMessage.addListener(handleSelectionSettingsMessage);
   browser.runtime.onMessage.addListener(handleVocabularyBookChanged);
+  releaseContextMenuHandler = setSelectionContextMenuHandler(translateSelectionFromContextMenu);
   unsubscribeConfig = subscribeConfig(() => { selectionConfigVersion.value += 1; });
   document.addEventListener('pointerdown', handlePointerDown, true);
   document.addEventListener('pointerup', handlePointerUp, true);
@@ -1481,6 +1497,8 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  releaseContextMenuHandler?.();
+  releaseContextMenuHandler = null;
   stopPopupGesture();
   if (selectionFrame !== null) window.cancelAnimationFrame(selectionFrame);
   if (positionFrame !== null) window.cancelAnimationFrame(positionFrame);

@@ -40,6 +40,7 @@ function mountTranslator() {
     '@/src/features/area-translation/core': areaCore,
     '@/src/core/config/areaTranslation': areaHotkey,
     '@/src/features/image-translation/public': {prepareImageOcrLanguages: vi.fn()},
+    '@/src/features/area-translation/content/contextMenuBridge': {setAreaContextMenuHandler: () => () => undefined},
   };
   const filename = resolve('src/features/area-translation/ui/AreaTranslator.vue');
   const {descriptor} = parse(readFileSync(filename, 'utf8'), {filename});

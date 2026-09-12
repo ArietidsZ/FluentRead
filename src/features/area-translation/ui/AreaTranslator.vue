@@ -80,6 +80,7 @@ import { useUiI18n } from '@/src/ui/i18n';
 import { captureVisibleAreaInExtension, translateCapturedAreaInExtension, type AreaTranslationResult } from '@/src/features/area-translation/services/client';
 import { isUsableAreaRect, normalizeAreaRect, type AreaPoint, type AreaRect, type AreaTranslationSelection } from '@/src/features/area-translation/core';
 import { matchesAreaTranslationHotkey } from '@/src/core/config/areaTranslation';
+import { setAreaContextMenuHandler } from '@/src/features/area-translation/content/contextMenuBridge';
 import {prepareImageOcrLanguages} from '@/src/features/image-translation/public';
 import type { ImageTranslationStage } from '@/src/features/image-translation/protocol';
 
@@ -178,6 +179,7 @@ function isEditingInPage(event: KeyboardEvent): boolean {
   const focused = deepActiveElement();
   return Boolean(focused) && (isTypingTarget(focused) || isOpaqueFocusHost(focused!));
 }
+let releaseContextMenuHandler: (() => void) | null = null;
 function isEnabled(): boolean { return config.on !== false && config.selectionAreaEnabled === true; }
 function clearResult(): void {
   stopPanelDrag();
@@ -200,9 +202,11 @@ function clearResult(): void {
   clearTimeout(feedbackTimer);
   feedback.value = '';
 }
-function beginSelection(): void {
+function beginSelection(): boolean {
   clearResult();
-  if (isEnabled()) phase.value = 'selecting';
+  if (!isEnabled()) return false;
+  phase.value = 'selecting';
+  return true;
 }
 function handleKeydown(event: KeyboardEvent): void {
   if (!event.isTrusted) return;
@@ -397,6 +401,7 @@ onMounted(() => {
   updateTheme();
   systemThemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
   systemThemeMedia.addEventListener('change', updateTheme);
+  releaseContextMenuHandler = setAreaContextMenuHandler(beginSelection);
   document.addEventListener('keydown', handleKeydown, true);
   document.addEventListener('pointerdown', handlePointerdown, true);
   document.addEventListener('pointermove', handlePointermove, true);
@@ -408,6 +413,8 @@ onMounted(() => {
   window.addEventListener('blur', handleWindowBlur);
 });
 onBeforeUnmount(() => {
+  releaseContextMenuHandler?.();
+  releaseContextMenuHandler = null;
   systemThemeMedia?.removeEventListener('change', updateTheme);
   document.removeEventListener('keydown', handleKeydown, true);
   document.removeEventListener('pointerdown', handlePointerdown, true);
