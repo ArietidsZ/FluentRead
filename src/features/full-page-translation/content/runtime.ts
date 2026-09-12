@@ -9,6 +9,7 @@ import {getFullPageTranslationStateRevision, notifyFullPageTranslationState, not
 import type {FrameTranslationState} from './frameSession';
 import { checkConfig } from "@/src/app/translation/check";
 import {insertFailedTip, insertLoadingSpinner} from '@/src/features/full-page-translation/ui/translationIndicators';
+import {clearTranslationFailedHost} from '@/src/features/full-page-translation/core/hostMarkers';
 import {syncModalTranslationHint} from '../ui/modalProgressHint';
 import { styles } from "@/src/core/config/constants";
 import {
@@ -2055,7 +2056,8 @@ export function restoreOriginalContent(): void {
             element.remove();
         });
         orphanOwners.forEach((owner) => {
-            owner.classList.remove("fluent-read-bilingual", "fluent-read-failure");
+            const htmlOrphanOwner = asHTMLElement(owner);
+            if (htmlOrphanOwner) clearTranslationFailedHost(htmlOrphanOwner);
         });
         queryRoot.querySelectorAll('[data-fr-translation-segment="true"]').forEach((segment) => {
             if (!segment.parentNode || getTranslationState(asHTMLElement(segment) as HTMLElement)) return;
