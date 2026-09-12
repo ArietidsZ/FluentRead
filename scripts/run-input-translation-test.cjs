@@ -75,10 +75,12 @@ async function main() {
       await pause(350); // Let dialog and theme transitions settle before capturing evidence.
       const file = `${name}.png`;
       await page.screenshot({path: path.join(artifactsDir, file), animations: 'disabled'});
-      for (const dialog of await page.getByRole('dialog').all()) {
+      for (const dialog of await page.locator('.input-translation-dialog.el-dialog').all()) {
         if (!await dialog.isVisible()) continue;
         const bounds = await dialog.boundingBox();
         const viewport = await page.evaluate(() => ({width: innerWidth, height: innerHeight}));
+        report.dialogComputed ||= {};
+        report.dialogComputed[name] = await dialog.evaluate(el => ({panel: {height: getComputedStyle(el).height, maxHeight: getComputedStyle(el).maxHeight, display: getComputedStyle(el).display}, body: {height: getComputedStyle(el.querySelector('.el-dialog__body')).height, overflow: getComputedStyle(el.querySelector('.el-dialog__body')).overflowY}}));
         assert.ok(bounds.y >= 0 && bounds.y + bounds.height <= viewport.height + 1, `dialog stays inside viewport: ${name} ${JSON.stringify(bounds)}`);
         report.dialogGeometry ||= {};
         report.dialogGeometry[name] = bounds;
@@ -213,7 +215,7 @@ async function main() {
         await snap('03-profile-390');
         await openPrompts();
         await promptEditor.waitFor({state: 'visible'});
-        const dialog = options.getByRole('dialog');
+        const dialog = options.locator('.input-translation-dialog.el-dialog');
         const bounds = await dialog.boundingBox();
         assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width, 'prompt dialog fits narrow viewport');
         await promptEditor.locator('[data-prompt-role="user"]').scrollIntoViewIfNeeded();
@@ -222,6 +224,12 @@ async function main() {
         await profileEditor.waitFor({state: 'hidden'});
       }
     }
+    await options.setViewportSize({width: 1280, height: 600});
+    await openPrompts();
+    await promptEditor.locator('[data-prompt-role="user"]').scrollIntoViewIfNeeded();
+    await snap('03-prompts-short');
+    await options.getByTestId('input-translation-profile-done').click();
+    await profileEditor.waitFor({state: 'hidden'});
     await options.setViewportSize({width: 1280, height: 900});
     await patch({theme: 'dark'});
     await group.scrollIntoViewIfNeeded();
@@ -364,6 +372,7 @@ async function main() {
       await expectValue('Let us meet tomorrow afternoon.');
     }
     await patch({inputBoxTranslationTrigger: 'ctrl_enter'});
+    assert.ok((await options.getByTestId('input-translation-trigger').textContent()).includes('Ctrl+Enter'), 'saved legacy shortcut retains its readable label');
     await textarea.fill('普通快捷键翻译'); await page.keyboard.press('Control+Enter');
     await expectValue('Let us meet tomorrow afternoon.');
     report.cases.push({name: 'Space, dash and Control+Enter triggers', passed: true});

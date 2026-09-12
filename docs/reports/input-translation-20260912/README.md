@@ -6,7 +6,7 @@
 
 | 配置 | 默认值与行为 |
 | --- | --- |
-| 触发方式 | 保留原有设置；新安装仍关闭；支持三击空格、等号、短横线及 Ctrl+Enter |
+| 触发方式 | 保留原有设置；新安装仍关闭；支持三击空格、等号和短横线；兼容原有 Ctrl+Enter 设置 |
 | 三击间隔 | 点击“连按速度”打开调整弹层；相邻两次按键最大间隔默认为 1000 毫秒，可设置 200～2000 毫秒整数，并恢复默认 |
 | 目标语言 | 保留原有设置；新安装为英语 |
 | 翻译服务 | 微软，延续原先固定微软的行为；现在可独立选择其他服务 |
@@ -33,19 +33,19 @@
 
 使用本地确定性供应商响应验证实际请求中的服务、模型和提示词；这不是外部服务认证或真实模型翻译质量测评。真实浏览器使用生产 Chrome MV3 产物、临时 Edge profile、第二屏后台窗口，未操作用户日常浏览器页面。Firefox 与用户脚本执行构建验证，未将 Edge 的浏览器结果表述为其运行时验证。
 
-浏览器专项 **13/13 通过**，页面运行时错误为零。覆盖间隔保存与恢复默认、从默认提示词开始编辑/保存/重置、独立模型/提示词请求、保留全局设置、翻译后恢复并再次翻译、慢速三击不触发、继续编辑保护、仅失焦仍可完成、Esc 取消、失败重试、密码与富文本排除、三种连按和 Ctrl+Enter、修改间隔后无需刷新网页。成功提示另有可见性断言（opacity 1、display block、visibility visible）。[结构化浏览器证据](./browser-evidence.json)保留确定性请求内容与执行方式。
+浏览器专项 **13/13 通过**，页面运行时错误为零。覆盖间隔弹层保存与恢复默认、自定义模型输入后直接完成、关闭状态预先配置而不自动启用、从默认提示词开始编辑/保存/重置、全空白提示词的默认语义、独立模型/提示词请求、保留全局设置、翻译后恢复并再次翻译、慢速三击不触发、继续编辑保护、仅失焦仍可完成、Esc 取消、失败重试、密码与富文本排除、三种连按和 Ctrl+Enter、修改间隔后无需刷新网页。配置窗口在 390 像素窄屏和 600 像素高窗口中均保持边界完整，标题和完成按钮固定可见；成功提示另有可见性断言（opacity 1、display block、visibility visible）。[结构化浏览器证据](./browser-evidence.json)保留确定性请求内容与执行方式。
 
 | 检查 | 结果 |
 | --- | --- |
-| 完整 Vitest，单 worker | 282 文件、5735 测试通过 |
-| 严格覆盖率，单 worker | 229 文件、4686 测试通过；statements/branches/functions/lines 均为 100% |
-| 最后提示词 UI 调整后的本地化与 UI 架构检查 | 72 测试通过，随后浏览器 13 项通过 |
+| 完整 Vitest，单 worker | 302 文件、6088 测试通过 |
+| 严格覆盖率，单 worker | 245 文件、4966 测试通过；statements/branches/functions/lines 均为 100% |
+| 最终界面本地化与 UI 架构检查 | 72 测试通过，随后浏览器 13 项通过 |
 | TypeScript / Vue 类型检查 | `pnpm compile` 通过 |
 | 测试归类与覆盖率规则审计 | `pnpm test:audit` 通过 |
 | Chrome MV3、Firefox MV2、Userscript | 三种生产构建通过；扩展清单与 userscript verifier 通过 |
 | 文档 | `pnpm docs:build` 通过 |
 
-并行运行全量测试与构建时曾出现既有缓存压力测试超时和全文可见性调度时间断言失败；分开、单 worker 运行后完整测试与严格覆盖率通过，未放宽断言、超时或覆盖率门槛。原始验证日志保存在本机 `/private/tmp/fluentread-input-*-final.log`。
+并行运行全量测试与构建时曾出现既有缓存压力测试超时和全文可见性调度时间断言失败；分开、单 worker 运行后完整测试与严格覆盖率通过，未放宽断言、超时或覆盖率门槛。本轮集成后的验证日志保存在本机 `/private/tmp/fluentread-input-delivery-*.log`。
 
 运行方式为 `macos-background-cdp`，焦点策略 `launchservices-no-foreground`，第二屏正常尺寸后台窗口 `background-visible-no-focus`；测试浏览器没有成为前台应用。
 
@@ -57,7 +57,7 @@
 
 ![触发方式、间隔和服务设置](./settings.png)
 
-[AI 模型设置](./ai-settings.png) · [提示词编辑](./prompts.png) · [390 像素窄屏](./narrow.png) · [深色模式](./dark.png)
+[统一翻译配置窗口](./ai-settings.png) · [提示词编辑](./prompts.png) · [390 像素窄屏](./narrow.png) · [深色模式](./dark.png) · [连按速度](./timing.png) · [窄屏配置窗口](./narrow-profile.png) · [矮窗口提示词编辑](./short-window.png)
 
 真实输入框翻译成功与恢复原文：
 
@@ -65,4 +65,4 @@
 
 ## 来源与交付范围
 
-实现基于 FluentRead 自身配置、翻译服务和 Shadow UI 架构，未复制或修改参考项目。工作位于独立 worktree `FluentRead-input-translation-profile-20260912`、分支 `codex/input-translation-profile-20260912`，主检出目录的已有工作不属于本次改动。本报告验证针对该任务分支；后续集成更新后的主分支时，应复核冲突和相关测试。
+实现基于 FluentRead 自身配置、翻译服务和 Shadow UI 架构，未复制或修改参考项目。工作位于独立 worktree `FluentRead-input-translation-profile-20260912`、分支 `codex/input-translation-profile-20260912`，主检出目录的已有工作不属于本次改动。最终验证已整合主分支 `64cc5e1c`，保留新加入的段落翻译、字体与设置页视口改动，并补齐新增段落测试的归类。

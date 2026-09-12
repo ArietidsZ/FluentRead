@@ -298,6 +298,7 @@
       "tests/fullPageTitleTranslation.test.ts",
       "tests/featureVerticalSliceRegression.test.ts",
       "tests/fullPageVisibilityScheduling.test.ts",
+      "tests/pageTranslationAdvanced.test.ts",
       "tests/mainWorldBridgeCore.test.ts",
       "tests/serializationPerformance.test.ts",
       "tests/siteTranslationHarness.test.ts",

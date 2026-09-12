@@ -202,7 +202,9 @@ const inputConfig = computed(() => props.config as InputTranslationConfig)
 const profileEditorOpen = ref(false)
 const promptsExpanded = ref(false)
 
-const triggerOptions = computed(() => options.inputBoxTranslationTrigger)
+const triggerOptions = computed(() => inputConfig.value.inputBoxTranslationTrigger === 'ctrl_enter'
+  ? [...options.inputBoxTranslationTrigger, {value: 'ctrl_enter', label: 'Ctrl+Enter'}]
+  : options.inputBoxTranslationTrigger)
 const targetOptions = computed(() => options.inputBoxTranslationTarget)
 const serviceOptions = computed(() => {
   const visible = props.serviceOptions.filter((item) => !item.disabled)

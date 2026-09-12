@@ -8,7 +8,7 @@
       "passed": true
     },
     {
-      "name": "default prompts can be loaded, edited, persisted and reset",
+      "name": "default prompts can be loaded, edited, persisted and reset; whitespace uses default semantics",
       "passed": true
     },
     {
@@ -89,6 +89,133 @@
   "quickClose": {
     "interval": 750,
     "persistedAfterReload": true
+  },
+  "settingsLayout": {
+    "desktopCardHeight": 314.34375,
+    "promptEditorInitiallyClosed": true
+  },
+  "dialogComputed": {
+    "02a-profile": {
+      "panel": {
+        "height": "406.695px",
+        "maxHeight": "718.08px",
+        "display": "flex"
+      },
+      "body": {
+        "height": "276.695px",
+        "overflow": "auto"
+      }
+    },
+    "02b-prompts": {
+      "panel": {
+        "height": "718.078px",
+        "maxHeight": "718.08px",
+        "display": "flex"
+      },
+      "body": {
+        "height": "588.078px",
+        "overflow": "auto"
+      }
+    },
+    "03-profile-390": {
+      "panel": {
+        "height": "406.695px",
+        "maxHeight": "792px",
+        "display": "flex"
+      },
+      "body": {
+        "height": "276.695px",
+        "overflow": "auto"
+      }
+    },
+    "03-prompts-390": {
+      "panel": {
+        "height": "792px",
+        "maxHeight": "792px",
+        "display": "flex"
+      },
+      "body": {
+        "height": "662px",
+        "overflow": "auto"
+      }
+    },
+    "03-prompts-short": {
+      "panel": {
+        "height": "528px",
+        "maxHeight": "528px",
+        "display": "flex"
+      },
+      "body": {
+        "height": "398px",
+        "overflow": "auto"
+      }
+    },
+    "04-profile-dark": {
+      "panel": {
+        "height": "406.695px",
+        "maxHeight": "792px",
+        "display": "flex"
+      },
+      "body": {
+        "height": "276.695px",
+        "overflow": "auto"
+      }
+    },
+    "04-prompts-dark": {
+      "panel": {
+        "height": "792px",
+        "maxHeight": "792px",
+        "display": "flex"
+      },
+      "body": {
+        "height": "662px",
+        "overflow": "auto"
+      }
+    }
+  },
+  "dialogGeometry": {
+    "02a-profile": {
+      "x": 336,
+      "y": 48.953125,
+      "width": 600,
+      "height": 406.6953125
+    },
+    "02b-prompts": {
+      "x": 336,
+      "y": 48.953125,
+      "width": 600,
+      "height": 718.078125
+    },
+    "03-profile-390": {
+      "x": 16,
+      "y": 54,
+      "width": 358,
+      "height": 406.6953125
+    },
+    "03-prompts-390": {
+      "x": 16,
+      "y": 54,
+      "width": 358,
+      "height": 792
+    },
+    "03-prompts-short": {
+      "x": 340,
+      "y": 36,
+      "width": 600,
+      "height": 528
+    },
+    "04-profile-dark": {
+      "x": 340,
+      "y": 54,
+      "width": 600,
+      "height": 406.6953125
+    },
+    "04-prompts-dark": {
+      "x": 340,
+      "y": 54,
+      "width": 600,
+      "height": 792
+    }
   },
   "successTooltipVisibility": {
     "opacity": "1",
