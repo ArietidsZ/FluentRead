@@ -42,11 +42,11 @@ describe('界面语言注册表', () => {
 
     it('注册资源包后立即生效，重新注册会丢弃旧的中文反查表', () => {
         const zhSource = i18n.translate('popup.donationTitle', 'zh-CN');
-        i18n.registerUiLanguageBundle('fr-FR', {messages: {'popup.donationTitle': 'Version A'}, legacyText: {}});
+        i18n.registerUiLanguageBundle('fr-FR', {messages: {'popup.donationTitle': 'Version A'}, legacyText: {}, legacyPatterns: {early: [], late: []}});
         expect(i18n.translate('popup.donationTitle', 'fr-FR')).toBe('Version A');
         expect(i18n.translateLegacyText(zhSource, 'fr-FR')).toBe('Version A');
 
-        i18n.registerUiLanguageBundle('fr-FR', {messages: {'popup.donationTitle': 'Version B'}, legacyText: {}});
+        i18n.registerUiLanguageBundle('fr-FR', {messages: {'popup.donationTitle': 'Version B'}, legacyText: {}, legacyPatterns: {early: [], late: []}});
         expect(i18n.translateLegacyText(zhSource, 'fr-FR')).toBe('Version B');
     });
 
@@ -77,7 +77,7 @@ describe('界面语言资源按需加载', () => {
         const gate = new Promise<void>((resolve) => { release = resolve; });
         const fetch = vi.fn(async () => {
             await gate;
-            return jsonResponse({messages: {'common.brand': 'Brand EN'}, legacyText: {'确认清除统计': 'Clear stats'}});
+            return jsonResponse({messages: {'common.brand': 'Brand EN'}, legacyText: {'确认清除统计': 'Clear stats'}, legacyPatterns: {early: [], late: []}});
         });
         const resolveUrl = vi.fn((path: string) => `chrome-extension://id/${path}`);
         const ensure = loader.createUiLanguageBundleLoader({resolveUrl, fetch, warn: vi.fn()});
@@ -100,7 +100,7 @@ describe('界面语言资源按需加载', () => {
 
     it.each([
         ['HTTP 失败', () => jsonResponse({}, false, 404)],
-        ['资源形状无效', () => jsonResponse({messages: [], legacyText: {}})],
+        ['资源形状无效', () => jsonResponse({messages: [], legacyText: {}, legacyPatterns: {early: [], late: []}})],
         ['缺少旧文案表', () => jsonResponse({messages: {}})],
         ['非对象响应', () => jsonResponse(null)],
     ])('%s时回退中文、报告警告，并允许下一次重新读取', async (_label, response) => {
@@ -129,7 +129,7 @@ describe('界面语言资源按需加载', () => {
     });
 
     it('默认实现通过 browser 或 chrome runtime 读取扩展自身资源，运行时缺失时回退中文', async () => {
-        const bundle = {messages: {'common.brand': 'Marca'}, legacyText: {}};
+        const bundle = {messages: {'common.brand': 'Marca'}, legacyText: {}, legacyPatterns: {early: [], late: []}};
         const fetch = vi.fn(async (url: string) => jsonResponse(url.endsWith('es-ES.json') || url.endsWith('ja-JP.json') ? bundle : {}));
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
         vi.stubGlobal('fetch', fetch);
@@ -172,7 +172,7 @@ describe('界面语言资源按需加载', () => {
         await Promise.resolve(); await Promise.resolve();
         expect(render).toHaveBeenCalledTimes(4);
 
-        i18n.registerUiLanguageBundle('ko-KR', {messages: {}, legacyText: {}});
+        i18n.registerUiLanguageBundle('ko-KR', {messages: {}, legacyText: {}, legacyPatterns: {early: [], late: []}});
         loader.renderWithUiLanguageBundle('ko-KR', render);
         expect(render).toHaveBeenCalledTimes(5);
         expect(ensure).toHaveBeenCalledTimes(2);

@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {localizedLegacyPatterns, translateLegacyPattern} from '@/src/core/i18n/messages/legacy-patterns';
+import {createLegacyPatternSet, localizedLegacyPatterns} from '@/src/core/i18n/messages/legacy-patterns';
 
 import {
   DEFAULT_UI_LANGUAGE,
@@ -10,6 +10,7 @@ import {
   resolveUiLanguageFromLocale,
   translate,
   translateLegacyText,
+  registerUiLanguageBundle,
 } from '@/src/core/i18n';
 import {enUSLegacyText, enUSMessages} from '@/src/core/i18n/messages/en-US';
 import {esESLegacyText, esESMessages} from '@/src/core/i18n/messages/es-ES';
@@ -891,23 +892,41 @@ describe('i18n 全量界面扫描', () => {
 
 describe('动态旧文案资源契约', () => {
   it('每个模板的全部语言都保留捕获参数，未登记正文不被改写', () => {
-    for (const {pattern, messages} of localizedLegacyPatterns) {
-      const source = pattern.source.slice(1, -1).replaceAll('(\\d+)', '12').replaceAll('(.+)', '原文').replaceAll('(.*)', '原文').replaceAll('(.*)', '原文').replaceAll('\\/', '/');
-      const captures = pattern.exec(source);
+    for (const {pattern, localizedCaptures, messages} of localizedLegacyPatterns) {
+      const source = pattern.slice(1, -1).replaceAll('(\\d+)', '12').replaceAll('(.+)', '「占位」').replaceAll('(.*)', '「占位」').replaceAll('\\/', '/');
+      const captures = new RegExp(pattern, 'u').exec(source);
       expect(captures, source).not.toBeNull();
       for (const locale of ['ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
-        const result = translateLegacyPattern(source, locale, (value) => value);
-        expect(result, source).not.toBeUndefined();
-        expect(result).not.toMatch(/\{\d+\}/u);
-        for (const placeholder of messages[locale].matchAll(/\{(\d+)\}/gu)) {
-          expect(captures![Number(placeholder[1])]).toBeDefined();
-          expect(result).toContain(captures![Number(placeholder[1])]);
-        }
+        const expected = messages[locale].replace(/\{(\d+)\}/gu, (_, index: string) => {
+          expect(captures![Number(index)], `${locale} ${source}`).toBeDefined();
+          return localizedCaptures.includes(Number(index)) ? translateLegacyText(captures![Number(index)], locale) : captures![Number(index)];
+        });
+        expect(translateLegacyText(source, locale), `${locale} ${source}`).toBe(expected);
       }
     }
-    expect(translateLegacyPattern('已删除 原文', 'en-US', (value) => value)).toBeUndefined();
-    expect(translateLegacyPattern('已删除 原文', 'zh-CN', (value) => value)).toBeUndefined();
-    expect(translateLegacyPattern('不属于界面文案的原文', 'ja-JP', (value) => value)).toBeUndefined();
+    expect(translateLegacyText('不属于界面文案的原文', 'ja-JP')).toBe('不属于界面文案的原文');
+  });
+
+  it('按语言展开模板：早期模板只收录该语言译文，非 English 的兜底模板追加 English', () => {
+    const english = createLegacyPatternSet('en-US');
+    const japanese = createLegacyPatternSet('ja-JP');
+    expect(english.early.every(([, template]) => !/[\u3040-\u30ff]/u.test(template))).toBe(true);
+    expect(english.late.length).toBeLessThan(japanese.late.length);
+    expect(japanese.late.slice(-english.late.length)).toEqual(english.late);
+    for (const [pattern] of [...japanese.early, ...japanese.late]) expect(() => new RegExp(pattern, 'u')).not.toThrow();
+  });
+
+  it('资源包中的损坏模板被跳过，重新注册资源包后重新编译', () => {
+    registerUiLanguageBundle('ko-KR', {
+      messages: {},
+      legacyText: {},
+      legacyPatterns: {early: [['^(坏', '损坏'], ['^第 (\\d+) 行$', '행 {1} {2}', [1]]], late: [['^尾(.+)$', 'tail {1}']]},
+    });
+    expect(translateLegacyText('第 3 行', 'ko-KR')).toBe('행 3 ');
+    expect(translateLegacyText('尾巴', 'ko-KR')).toBe('tail 巴');
+    expect(translateLegacyText('(坏', 'ko-KR')).toBe('(坏');
+    registerAllUiLanguageBundles();
+    expect(translateLegacyText('尾巴', 'ko-KR')).toBe('尾巴');
   });
 });
 

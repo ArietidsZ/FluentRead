@@ -35,8 +35,18 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
+function isLegacyPatternList(value: unknown): boolean {
+    return Array.isArray(value) && value.every((entry) => Array.isArray(entry)
+        && typeof entry[0] === 'string'
+        && typeof entry[1] === 'string'
+        && (entry[2] === undefined || (Array.isArray(entry[2]) && entry[2].every(Number.isSafeInteger))));
+}
+
 export function isUiLanguageBundle(value: unknown): value is UiLanguageBundle {
-    return isPlainRecord(value) && isPlainRecord(value.messages) && isPlainRecord(value.legacyText);
+    return isPlainRecord(value) && isPlainRecord(value.messages) && isPlainRecord(value.legacyText)
+        && isPlainRecord(value.legacyPatterns)
+        && isLegacyPatternList(value.legacyPatterns.early)
+        && isLegacyPatternList(value.legacyPatterns.late);
 }
 
 /** 返回的函数只在资源包可用时解析为 true；任何失败都降级为中文界面，而不是阻断页面功能。 */

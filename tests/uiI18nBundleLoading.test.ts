@@ -58,7 +58,7 @@ describe('Vue 界面语言资源按需刷新', () => {
         store.emit({uiLanguage: 'ko-KR'});
         expect(context.language.value).toBe('ko-KR');
         expect(context.t('popup.donationTitle')).toBe(context.t('popup.donationTitle'));
-        registerUiLanguageBundle('ko-KR', {messages: {'popup.donationTitle': '후원'}, legacyText: {}});
+        registerUiLanguageBundle('ko-KR', {messages: {'popup.donationTitle': '후원'}, legacyText: {}, legacyPatterns: {early: [], late: []}});
         pending.resolve(true);
         await pending.promise;
         await nextTick();
