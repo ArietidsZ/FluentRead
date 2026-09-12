@@ -7,6 +7,8 @@
 export interface FullPageTranslationProgress {
   sessionId: number;
   active: boolean;
+  modalPhase: 'none' | 'translating' | 'waiting';
+  deferred: number;
   running: number;
   remaining: number;
   queued: number;
@@ -20,6 +22,8 @@ let nextSessionId = 0;
 let progress: FullPageTranslationProgress = {
   sessionId: 0,
   active: false,
+  modalPhase: 'none',
+  deferred: 0,
   running: 0,
   remaining: 0,
   queued: 0,
@@ -49,14 +53,21 @@ function normalizeCount(value: number): number {
 
 /** 只有正在请求或已经进入队列的工作才需要展开进度面板；离屏候选不应让大面板常驻。 */
 export function hasActiveFullPageTranslationWork(
-  value: Pick<FullPageTranslationProgress, 'active' | 'running' | 'queued'>,
+  value: Pick<FullPageTranslationProgress, 'active' | 'running' | 'queued'>
+    & Partial<Pick<FullPageTranslationProgress, 'modalPhase' | 'deferred'>>,
 ): boolean {
-  return value.active && (normalizeCount(value.running) > 0 || normalizeCount(value.queued) > 0);
+  return value.active && (
+    normalizeCount(value.running) > 0
+    || normalizeCount(value.queued) > 0
+    || value.modalPhase === 'waiting'
+    || normalizeCount(value.deferred ?? 0) > 0
+  );
 }
 
 /** 悬浮球不可用且会话暂时没有活动工作时，以淡勾选替代常驻的大进度面板。 */
 export function shouldShowCompactFullPageTranslationStatus(
-  value: Pick<FullPageTranslationProgress, 'active' | 'running' | 'queued'>,
+  value: Pick<FullPageTranslationProgress, 'active' | 'running' | 'queued'>
+    & Partial<Pick<FullPageTranslationProgress, 'modalPhase' | 'deferred'>>,
   floatingBallEnabled: boolean,
 ): boolean {
   return !floatingBallEnabled && value.active && !hasActiveFullPageTranslationWork(value);
@@ -67,6 +78,8 @@ export function startFullPageTranslationProgress(): number {
   progress = {
     sessionId,
     active: true,
+    modalPhase: 'none',
+    deferred: 0,
     running: 0,
     remaining: 0,
     queued: 0,
@@ -78,22 +91,27 @@ export function startFullPageTranslationProgress(): number {
 
 export function updateFullPageTranslationProgress(
   sessionId: number,
-  value: Pick<FullPageTranslationProgress, 'running' | 'queued' | 'offscreen'>,
+  value: Partial<Pick<FullPageTranslationProgress, 'modalPhase' | 'deferred'>>
+    & Pick<FullPageTranslationProgress, 'running' | 'queued' | 'offscreen'>,
 ): void {
   if (!progress.active || progress.sessionId !== sessionId) return;
 
   const running = normalizeCount(value.running);
   const queued = normalizeCount(value.queued);
   const offscreen = normalizeCount(value.offscreen);
-  const remaining = queued + offscreen;
+  const modalPhase = value.modalPhase ?? 'none';
+  const deferred = normalizeCount(value.deferred ?? 0);
+  const remaining = queued + offscreen + deferred;
   if (
+    progress.modalPhase === modalPhase &&
+    progress.deferred === deferred &&
     progress.running === running &&
     progress.remaining === remaining &&
     progress.queued === queued &&
     progress.offscreen === offscreen
   ) return;
 
-  progress = {...progress, running, remaining, queued, offscreen};
+  progress = {...progress, modalPhase, deferred, running, remaining, queued, offscreen};
   notifyProgressListeners();
 }
 
@@ -102,6 +120,8 @@ export function finishFullPageTranslationProgress(sessionId: number): void {
   progress = {
     sessionId,
     active: false,
+    modalPhase: 'none',
+    deferred: 0,
     running: 0,
     remaining: 0,
     queued: 0,

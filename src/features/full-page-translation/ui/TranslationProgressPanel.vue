@@ -1,7 +1,7 @@
 <!--
  * @file src/features/full-page-translation/ui/TranslationProgressPanel.vue
  * 文件职责：以半透明工作面板和低存在感状态勾选展示全文翻译进度，并允许用户临时收起，同时跟随扩展主题与系统深浅色偏好。
- * 主要内容：组件订阅 progress 内存状态和配置更新，有请求或排队任务时展示详情；仅剩离屏候选且悬浮球关闭时退化为淡勾选，避免大面板常驻又不丢失会话提示。
+ * 主要内容：组件订阅 progress 内存状态和配置更新；弹窗翻译阶段显示正在翻译弹窗，弹窗阻塞阶段保留等待提示但停止动画和完成勾；仅剩离屏候选且悬浮球关闭时退化为淡勾选。
  * 模块边界：组件不启动、取消或重试翻译，也不保存业务进度；数据只来自 progress.ts，是否创建 Shadow UI 由 content/progressPanel.ts 决定，样式局限于组件作用域。
  -->
 <template>
@@ -10,12 +10,14 @@
       v-ui-i18n
       v-if="isVisible"
       class="fr-translation-progress"
-      :class="{ 'fr-dark': isDark, 'fr-static': !animationsEnabled, 'fr-compact': isCompact }"
+      :class="{ 'fr-dark': isDark, 'fr-static': !animationsEnabled, 'fr-modal-waiting': isModalWaiting, 'fr-compact': isCompact }"
       :data-session-id="progress.sessionId"
       :data-running="progress.running"
       :data-remaining="progress.remaining"
       :data-queued="progress.queued"
       :data-offscreen="progress.offscreen"
+      :data-deferred="progress.deferred"
+      :data-modal-phase="progress.modalPhase"
     >
       <span
         v-if="isCompact"
@@ -44,18 +46,21 @@
           aria-atomic="true"
           :aria-label="statusLabel"
         >
-          <strong>翻译进度</strong>
+          <strong>{{ panelTitle }}</strong>
           <span class="fr-progress-counts">
-            <span>进行中 <b>{{ progress.running }}</b></span>
+            <span>{{ t('fullPage.progress.running') }} <b>{{ progress.running }}</b></span>
             <span class="fr-progress-divider" aria-hidden="true" />
-            <span>剩余 <b>{{ progress.remaining }}</b></span>
+            <span>{{ t('fullPage.progress.remaining') }} <b>{{ progress.remaining }}</b></span>
           </span>
-          <small v-if="progress.offscreen > 0">
-            {{ progress.offscreen }} 项将在滚动到附近时翻译
+          <small v-if="isModalWaiting">
+            {{ t('fullPage.progress.modalWaiting') }}
+          </small>
+          <small v-else-if="progress.offscreen > 0">
+            {{ t('fullPage.progress.offscreenHint', {count: progress.offscreen}) }}
           </small>
         </span>
 
-        <button type="button" aria-label="本次全文翻译不再显示进度面板" title="本次隐藏" @click="dismiss">
+        <button type="button" :aria-label="t('fullPage.progress.hide')" :title="t('fullPage.progress.hideTitle')" @click="dismiss">
           <svg viewBox="0 0 16 16" aria-hidden="true">
             <path d="m4 4 8 8m0-8-8 8" />
           </svg>
@@ -74,6 +79,7 @@ import {
   subscribeFullPageTranslationProgress,
 } from '@/src/features/full-page-translation/progress';
 import {config, subscribeConfig} from '@/src/services/config/store';
+import {useUiI18n} from '@/src/ui/i18n';
 
 const progress = ref(getFullPageTranslationProgress());
 const dismissedSessionId = ref<number | null>(null);
@@ -82,6 +88,7 @@ const configuredTheme = ref(config.theme || 'auto');
 const floatingBallEnabled = ref(config.disableFloatingBall !== true);
 const prefersDark = ref(false);
 const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+const {t} = useUiI18n();
 
 let unsubscribeProgress: (() => void) | null = null;
 let unsubscribeConfig: (() => void) | null = null;
@@ -91,6 +98,10 @@ const isDark = computed(() => configuredTheme.value === 'dark' || (
 ));
 
 const hasActiveWork = computed(() => hasActiveFullPageTranslationWork(progress.value));
+const isModalWaiting = computed(() => progress.value.modalPhase === 'waiting');
+const panelTitle = computed(() => progress.value.modalPhase === 'translating'
+  ? t('fullPage.progress.modalTranslating')
+  : t('fullPage.progress.title'));
 const isCompact = computed(() => shouldShowCompactFullPageTranslationStatus(
   progress.value,
   floatingBallEnabled.value,
@@ -99,14 +110,15 @@ const isVisible = computed(() => progress.value.sessionId !== dismissedSessionId
   (hasActiveWork.value || isCompact.value));
 
 const compactStatusLabel = computed(() => progress.value.offscreen > 0
-  ? `全文翻译已开启，${progress.value.offscreen} 项将在滚动到附近时翻译`
-  : '全文翻译已开启');
+  ? t('fullPage.progress.compactOffscreen', {count: progress.value.offscreen})
+  : t('fullPage.progress.compactActive'));
 
 const statusLabel = computed(() => {
-  const offscreen = progress.value.offscreen > 0
-    ? `，其中 ${progress.value.offscreen} 个任务将在滚动到附近时翻译`
-    : '';
-  return `翻译进度：正在进行 ${progress.value.running} 个任务，剩余 ${progress.value.remaining} 个任务${offscreen}`;
+  return t('fullPage.progress.aria', {
+    running: progress.value.running,
+    remaining: progress.value.remaining,
+    offscreen: progress.value.offscreen,
+  });
 });
 
 function updatePreferredTheme(event?: MediaQueryListEvent): void {
@@ -364,6 +376,15 @@ button svg {
 
 .fr-static .fr-progress-indicator i {
   animation: none;
+}
+
+.fr-modal-waiting .fr-progress-indicator i {
+  animation: none;
+  opacity: 0.58;
+}
+
+.fr-modal-waiting .fr-progress-indicator {
+  color: #a87389;
 }
 
 .fr-static.fr-progress-panel-enter-active,
