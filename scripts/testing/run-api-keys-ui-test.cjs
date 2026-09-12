@@ -212,6 +212,21 @@ async function main() {
   await page.locator('.custom-service-group .service-item').filter({hasText: 'API Key Fixture'}).click();
   assert.equal(await (await keys()).count(), 11);
   report.cases.push('reopen-persistence');
+  await page.setViewportSize({width: 1440, height: 1000});
+  await page.locator('[data-service-value="aliyunTranslation"]').click();
+  assert.equal(await page.locator('[data-cloud-credential="token"] input').count(), 1);
+  assert.equal(await page.locator('[data-cloud-credential="secret"] input').count(), 1);
+  assert.equal(await page.locator('[data-api-key-list]').count(), 0);
+  assert.match(await page.locator('[data-connection-test-button]').innerText(), /检查连接/u);
+  report.cases.push('paired-cloud-credentials-remain-a-single-pair');
+  await page.locator('[data-service-value="azureTranslator"]').click();
+  assert.equal(await page.locator('[data-cloud-credential="token"][data-api-key-list]').count(), 1);
+  assert.equal(await page.locator('[data-cloud-credential="secret"]').count(), 0);
+  assert.match(await page.locator('.api-key-heading-title strong').innerText(), /密钥/u);
+  await page.locator('[data-api-key-list] input').first().fill('fixture-azure-first');
+  await page.locator('[data-api-key-add]').click();
+  assert.equal(await (await keys()).count(), 2);
+  report.cases.push('single-key-cloud-services-support-key-lists');
   assert.equal(report.consoleErrors.length, 0, JSON.stringify(report.consoleErrors));
   report.status = 'passed';
 }
