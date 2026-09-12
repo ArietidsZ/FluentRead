@@ -50,6 +50,30 @@ describe('配置差异预览', () => {
         ]);
     });
 
+    it('段落处理与侧边栏设置在高级分组预览为可读文案', () => {
+        const result = buildConfigDiff({
+            sidebarTranslationEnabled: false,
+            minTranslationTextLength: 2,
+            eagerTranslationCharacters: 4999,
+            longParagraphLineBreakEnabled: false,
+            translationBeforeOriginal: false,
+        }, {
+            sidebarTranslationEnabled: true,
+            minTranslationTextLength: 6,
+            eagerTranslationCharacters: 0,
+            longParagraphLineBreakEnabled: true,
+            translationBeforeOriginal: true,
+        });
+
+        expect(group(result, 'advanced')?.changes).toEqual([
+            {key: 'sidebarTranslationEnabled', label: '侧边栏翻译', before: '关闭', after: '开启'},
+            {key: 'minTranslationTextLength', label: '翻译段落最少字符数', before: '2 字符', after: '6 字符'},
+            {key: 'eagerTranslationCharacters', label: '免滚动预翻译字符数', before: '4999 字符', after: '0 字符'},
+            {key: 'longParagraphLineBreakEnabled', label: '长段落自动换行', before: '关闭', after: '开启'},
+            {key: 'translationBeforeOriginal', label: '译文在原文之前', before: '关闭', after: '开启'},
+        ]);
+    });
+
     it('语言配置差异明确标出简体与繁体名称', () => {
         const result = buildConfigDiff({from: 'zh-Hans', to: 'zh-Hans', inputBoxTranslationTarget: 'zh-Hans',
             translationCenterSourceLanguage: 'zh-Hans', translationCenterTargetLanguage: 'zh-Hans'},

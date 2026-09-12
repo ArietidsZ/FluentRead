@@ -120,6 +120,12 @@ import {
     type ModelRequestLimits,
     type ServiceRequestLimits,
 } from './requestLimits';
+import {
+    DEFAULT_EAGER_TRANSLATION_CHARACTERS,
+    DEFAULT_MIN_TRANSLATION_TEXT_LENGTH,
+    normalizeEagerTranslationCharacters,
+    normalizeMinTranslationTextLength,
+} from './pageTranslation';
 import {normalizeWritingPreferences, type WritingPreferences} from './writing';
 import {DEFAULT_HARNESS_PREFERENCES, normalizeHarnessPreferences, type HarnessPreferences} from './harness';
 import {
@@ -136,6 +142,7 @@ import {
 } from './vision';
 
 export * from './scheduling';
+export * from './pageTranslation';
 
 export type DeepSeekApiType = 'auto' | 'responses' | 'chat';
 export type DeepSeekThinkingMode = 'enabled' | 'disabled';
@@ -339,6 +346,11 @@ export class Config {
     contextMenuShowShortcut: boolean; // 右键菜单标题是否标出全文翻译快捷键
     pageTitleTranslationEnabled: boolean; // 全文翻译时是否一并翻译页面标题
     translationScope: TranslationScope; // 页面识别正文或全部可见界面文字
+    sidebarTranslationEnabled: boolean; // 正文范围下是否一并翻译侧边栏与导航区域
+    minTranslationTextLength: number; // 段落参与翻译所需的最少字符数
+    eagerTranslationCharacters: number; // 进入网页后无需滚动即可直接翻译的字符数
+    longParagraphLineBreakEnabled: boolean; // 长段落译文是否按句插入换行
+    translationBeforeOriginal: boolean; // 双语模式下译文是否排在原文之前
     fullPageTranslationMode: FullPageTranslationMode; // 全文翻译按视口加载或立即处理整页
     disableFloatingBall: boolean; // 是否禁用悬浮球
     floatingBallPosition: 'left' | 'right'; // 悬浮球位置
@@ -484,6 +496,11 @@ export class Config {
         this.contextMenuShowShortcut = true; // 默认标出快捷键，帮助用户从右键过渡到快捷键
         this.pageTitleTranslationEnabled = true; // 默认随全文翻译一并翻译标题，可在高级设置关闭
         this.translationScope = 'content'; // 默认只识别正文，全部节点由高级设置显式开启
+        this.sidebarTranslationEnabled = false; // 默认跳过侧边栏和导航，保持正文阅读边界
+        this.minTranslationTextLength = DEFAULT_MIN_TRANSLATION_TEXT_LENGTH; // 默认过滤单字符碎片
+        this.eagerTranslationCharacters = DEFAULT_EAGER_TRANSLATION_CHARACTERS; // 默认先翻译页面开头的一段内容
+        this.longParagraphLineBreakEnabled = false; // 默认保持原段落排版
+        this.translationBeforeOriginal = false; // 默认译文排在每段原文之后
         this.fullPageTranslationMode = 'viewport'; // 默认按阅读进度翻译，避免一次发出过多请求
         this.disableFloatingBall = true; // 默认关闭悬浮球
         this.floatingBallPosition = 'right'; // 默认在右侧
@@ -1046,6 +1063,11 @@ export function normalizeConfig(value: unknown): Config {
     normalized.floatingBallDisabledDomains = normalizeFloatingBallDisabledDomains(
         source.floatingBallDisabledDomains,
     );
+    normalized.sidebarTranslationEnabled = source.sidebarTranslationEnabled === true;
+    normalized.minTranslationTextLength = normalizeMinTranslationTextLength(source.minTranslationTextLength);
+    normalized.eagerTranslationCharacters = normalizeEagerTranslationCharacters(source.eagerTranslationCharacters);
+    normalized.longParagraphLineBreakEnabled = source.longParagraphLineBreakEnabled === true;
+    normalized.translationBeforeOriginal = source.translationBeforeOriginal === true;
     normalized.alwaysTranslateDomains = normalizeAlwaysTranslateDomains(source.alwaysTranslateDomains);
     normalized.disabledExtensionDomains = normalizeDisabledExtensionDomains(source.disabledExtensionDomains);
     normalized.siteAdaptation = normalizeSiteAdaptationSettings(source.siteAdaptation);
