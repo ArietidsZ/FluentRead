@@ -584,7 +584,7 @@
                 :controls="false"
                 @change="handleApiKeyRecoveryChange"
               />
-              <span>{{ t('settings.requestLimits.minutes') }}</span>
+              <span class="api-key-recovery-unit" aria-hidden="true">{{ t('settings.requestLimits.minutes') }}</span>
             </div>
           </SettingsItem>
           <details class="request-retry-settings" data-testid="translation-retry-settings">
