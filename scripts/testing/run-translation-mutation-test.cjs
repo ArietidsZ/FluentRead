@@ -4,6 +4,8 @@
  * 在临时、无前台激活的 Edge 中验证翻译 DOM 所有权：宿主 tabindex 修饰不得重建译文，
  * 单语槽须承受邻接 DOM/样式变化，固定高度交互控件必须原位单行翻译并保留事件。
  * 页面使用精确域名夹具，微软请求在测试 worker 中返回确定性响应；禁止外部网络及日常 profile。
+ * 断言基于宿主 DOM 的完整 outerHTML，因此证据截图必须保持非侵入（caret: 'initial'），
+ * 不得让 Playwright 自身的 caret 隐藏在宿主 input/textarea 上留下残留属性。
  */
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
@@ -155,6 +157,10 @@ async function main() {
   };
   const snapshot = async page => ({...await page.evaluate(() => window.translationMutationTest.snapshot()),
     requests: await worker.evaluate(() => globalThis.translationMutationRequests.length)});
+  // Playwright 默认 caret:'hide' 会给每个 input/textarea/[contenteditable] 写入
+  // caret-color 再以空值清除，在宿主控件上留下空 style 属性。DOM 所有权断言必须
+  // 比对完整 outerHTML，因此证据截图一律使用 caret:'initial'，不改写被断言的页面。
+  const capture = (page, name) => page.screenshot({path: path.join(args.artifactsDir, name), caret: 'initial'});
   try {
     session = await helper.launchFocusSafePersistentContext({chromium, profileDir, browserPath: args.browserPath,
       background: true, headless: false, viewport: {width: 1280, height: 900}, displayTarget: args.display,
@@ -205,7 +211,7 @@ async function main() {
         await page.waitForTimeout(600);
         await installTracker(page);
         result.before = await snapshot(page);
-        await page.screenshot({path: path.join(args.artifactsDir, `${item.id}-before.png`)});
+        await capture(page, `${item.id}-before.png`);
         await toggle(page);
         await page.waitForFunction(selector => document.querySelectorAll(selector).length > 0, ownedSelector, {timeout: args.timeout});
         await page.waitForFunction(selector => {
@@ -219,7 +225,7 @@ async function main() {
           return signature.endsWith(':0') && Date.now() - state.settledAt >= 1800;
         }, ownedSelector, {timeout: args.timeout});
         result.first = await snapshot(page);
-        await page.screenshot({path: path.join(args.artifactsDir, `${item.id}-translated.png`)});
+        await capture(page, `${item.id}-translated.png`);
         if (item.id === 'single-slots') {
           await page.evaluate(() => {
             const owner = document.querySelector('#single-prose');
@@ -280,11 +286,12 @@ async function main() {
             const label = form.tag === 'input' ? form.value : form.text;
             assert.ok(hasChinese(label), `${form.id}: 按钮标签未替换为译文（${label}）`);
           }
-          // 具名 submit 的 value 会随表单提交，输入框 value 是用户数据，二者都必须原样保留。
-          // 只核对标签与译文工件：布局租约会在同层表单控件上留下空 style 属性，属于既有行为。
+          // 具名 submit 的 value 会随表单提交，输入框 value 是用户数据；二者既不能改写，
+          // 也不能被属性或译文工件触碰，因此整段 outerHTML 必须与翻译前完全一致。
+          assert.equal(result.stable.untouchedForms.length, 2);
           for (const form of result.stable.untouchedForms) {
             const original = result.before.untouchedForms.find(item => item.id === form.id);
-            assert.equal(form.value, original.value, `${form.id}: 参与提交或承载用户输入的 value 被改写`);
+            assert.equal(form.html, original.html, `${form.id}: 非候选表单控件被翻译改写`);
             assert.equal(form.wrappers + form.segments, 0, `${form.id}: 表单控件中出现了译文工件`);
           }
         }
@@ -304,6 +311,7 @@ async function main() {
           assert.equal(form.value, original.value, `${form.id}: 恢复原文后未回到原始按钮标签`);
           assert.equal(form.text, original.text, `${form.id}: 恢复原文后仍残留译文`);
           assert.equal(form.wrappers + form.segments, 0, `${form.id}: 恢复原文后仍残留译文工件`);
+          assert.equal(form.html, original.html, `${form.id}: 恢复原文后仍残留属性或样式`);
         }
         await toggle(page);
         await page.waitForFunction(({selector, count}) => document.querySelectorAll(selector).length === count,
@@ -326,7 +334,7 @@ async function main() {
           await page.locator(`#${control.id}`).click();
           assert.equal(await page.locator(`#${control.id}`).getAttribute('data-click-count'), '2');
         }
-        await page.screenshot({path: path.join(args.artifactsDir, `${item.id}-retranslated.png`)});
+        await capture(page, `${item.id}-retranslated.png`);
         result.passed = true;
         process.stdout.write(`${item.id}: passed; translated/restored/retranslated ${result.first.owned.length}/0/${result.retranslated.owned.length}\n`);
       } catch (error) {
@@ -334,7 +342,7 @@ async function main() {
         result.failure = await snapshot(page).catch(() => null);
         result.events = await page.evaluate(() => window.translationMutationTest?.events || []).catch(() => []);
         result.requests = await worker.evaluate(() => globalThis.translationMutationRequests).catch(() => []);
-        await page.screenshot({path: path.join(args.artifactsDir, `${item.id}-failure.png`)}).catch(() => {});
+        await capture(page, `${item.id}-failure.png`).catch(() => {});
         throw error;
       } finally {
         save();
