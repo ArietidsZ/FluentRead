@@ -233,7 +233,7 @@ async function main() {
   await page.screenshot({path: path.join(artifactsDir, 'api-keys-narrow.png')}); report.screenshots.push('api-keys-narrow.png');
   report.cases.push('dark-narrow-no-horizontal-overflow');
   await page.close(); await open();
-  await page.locator('.custom-service-group .service-item').filter({hasText: 'API Key Fixture'}).click();
+  await page.locator('.service-group[data-personal-group="configured"] .library-select').filter({hasText: 'API Key Fixture'}).click();
   assert.equal(await (await keys()).count(), 11);
   report.cases.push('reopen-persistence');
   const advanced = page.getByTestId('custom-service-advanced');
@@ -276,12 +276,14 @@ async function main() {
   await page.goto(url);
   await page.locator('.service-catalog').waitFor();
   await page.setViewportSize({width: 1440, height: 1000});
+  await page.locator('[data-service-view="all"]').click();
   await page.locator('[data-service-value="aliyunTranslation"]').click();
   assert.equal(await page.locator('[data-cloud-credential="token"] input').count(), 1);
   assert.equal(await page.locator('[data-cloud-credential="secret"] input').count(), 1);
   assert.equal(await page.locator('[data-api-key-list]').count(), 0);
   assert.match(await page.locator('[data-connection-test-button]').innerText(), /检查连接/u);
   report.cases.push('paired-cloud-credentials-remain-a-single-pair');
+  await page.locator('[data-service-view="all"]').click();
   await page.locator('[data-service-value="azureTranslator"]').click();
   assert.equal(await page.locator('[data-cloud-credential="token"][data-api-key-list]').count(), 1);
   assert.equal(await page.locator('[data-cloud-credential="secret"]').count(), 0);
