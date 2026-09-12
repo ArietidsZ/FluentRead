@@ -94,6 +94,8 @@ describe('低干扰悬浮 UI', () => {
     expect(panel).not.toContain('progress.value.remaining > 0');
     expect(panel).toContain("class=\"fr-progress-compact-check\"");
     expect(panel).toContain('shouldShowCompactFullPageTranslationStatus(');
-    expect(panel).toContain("'全文翻译已开启'");
+    expect(panel).toContain("t('fullPage.progress.compactActive')");
+    expect(panel).toContain("t('fullPage.progress.modalWaiting')");
+    expect(panel).toContain("fr-modal-waiting");
   });
 });

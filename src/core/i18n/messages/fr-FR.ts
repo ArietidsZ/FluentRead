@@ -748,6 +748,17 @@ export const frFRMessages = {
     "video.modelDownloadAria": "Télécharger {model}",
     "video.modelDownloadedAria": "{model} téléchargé",
     "video.modelDownloadError": "{error}. Vérifiez le réseau puis réessayez.",
+    "fullPage.progress.title": "Progression de la traduction",
+    "fullPage.progress.modalTranslating": "Traduction de la fenêtre",
+    "fullPage.progress.modalWaiting": "La traduction reprendra après la fermeture de la fenêtre",
+    "fullPage.progress.running": "En cours",
+    "fullPage.progress.remaining": "Restant",
+    "fullPage.progress.offscreenHint": "{count} éléments seront traduits lorsqu’ils approcheront de la fenêtre",
+    "fullPage.progress.hide": "Ne pas afficher le panneau pour cette traduction complète",
+    "fullPage.progress.hideTitle": "Masquer pour cette traduction",
+    "fullPage.progress.compactOffscreen": "Traduction complète active ; {count} éléments seront traduits à proximité",
+    "fullPage.progress.compactActive": "Traduction complète activée",
+    "fullPage.progress.aria": "Progression : {running} tâches en cours, {remaining} restantes, dont {offscreen} hors écran",
 } satisfies Record<keyof typeof enUSMessages, string>;
 
 const frFRLegacyTextBase: Readonly<Record<string, string>> = {

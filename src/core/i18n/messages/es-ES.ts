@@ -748,6 +748,17 @@ export const esESMessages = {
     "video.modelDownloadAria": "Descargar {model}",
     "video.modelDownloadedAria": "{model} descargado",
     "video.modelDownloadError": "{error}. Revisa la conexión y reintenta.",
+    "fullPage.progress.title": "Progreso de la traducción",
+    "fullPage.progress.modalTranslating": "Traduciendo el cuadro de diálogo",
+    "fullPage.progress.modalWaiting": "La traducción continuará al cerrar el cuadro de diálogo",
+    "fullPage.progress.running": "En curso",
+    "fullPage.progress.remaining": "Restantes",
+    "fullPage.progress.offscreenHint": "{count} elementos se traducirán al acercarse a la ventana gráfica",
+    "fullPage.progress.hide": "No mostrar el panel en esta traducción completa",
+    "fullPage.progress.hideTitle": "Ocultar para esta traducción",
+    "fullPage.progress.compactOffscreen": "Traducción completa activa; se traducirán cerca {count} elementos",
+    "fullPage.progress.compactActive": "La traducción completa está activa",
+    "fullPage.progress.aria": "Progreso: {running} tareas activas, {remaining} restantes, incluidas {offscreen} fuera de pantalla",
 } satisfies Record<keyof typeof enUSMessages, string>;
 
 const esESLegacyTextBase: Readonly<Record<string, string>> = {

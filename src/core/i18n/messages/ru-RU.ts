@@ -748,6 +748,17 @@ export const ruRUMessages = {
     "video.modelDownloadAria": "Загрузить {model}",
     "video.modelDownloadedAria": "{model} загружена",
     "video.modelDownloadError": "{error}. Проверьте сеть и повторите.",
+    "fullPage.progress.title": "Ход перевода",
+    "fullPage.progress.modalTranslating": "Перевод модального окна",
+    "fullPage.progress.modalWaiting": "Перевод продолжится после закрытия модального окна",
+    "fullPage.progress.running": "Выполняется",
+    "fullPage.progress.remaining": "Осталось",
+    "fullPage.progress.offscreenHint": "Элементы ({count}) будут переведены при приближении к области просмотра",
+    "fullPage.progress.hide": "Не показывать панель для этого полного перевода",
+    "fullPage.progress.hideTitle": "Скрыть для этого перевода",
+    "fullPage.progress.compactOffscreen": "Полный перевод включён; элементов рядом: {count}",
+    "fullPage.progress.compactActive": "Полный перевод включён",
+    "fullPage.progress.aria": "Ход перевода: выполняется {running}, осталось {remaining}, вне экрана {offscreen}",
 } satisfies Record<keyof typeof enUSMessages, string>;
 
 const ruRULegacyTextBase: Readonly<Record<string, string>> = {
