@@ -72,8 +72,17 @@ async function main() {
       await pause(400);
     }
     async function snap(name, page = options) {
+      await pause(350); // Let dialog and theme transitions settle before capturing evidence.
       const file = `${name}.png`;
-      await page.screenshot({path: path.join(artifactsDir, file)});
+      await page.screenshot({path: path.join(artifactsDir, file), animations: 'disabled'});
+      for (const dialog of await page.getByRole('dialog').all()) {
+        if (!await dialog.isVisible()) continue;
+        const bounds = await dialog.boundingBox();
+        const viewport = await page.evaluate(() => ({width: innerWidth, height: innerHeight}));
+        assert.ok(bounds.y >= 0 && bounds.y + bounds.height <= viewport.height + 1, `dialog stays inside viewport: ${name} ${JSON.stringify(bounds)}`);
+        report.dialogGeometry ||= {};
+        report.dialogGeometry[name] = bounds;
+      }
       return file;
     }
     async function selectTestId(testId, label) {
@@ -90,10 +99,23 @@ async function main() {
       translationMaxRetries: 0});
     await options.reload();
     const group = options.getByTestId('input-translation-settings');
+    const profileEditor = options.getByTestId('input-translation-profile-editor');
+    const promptEditor = options.getByTestId('input-translation-prompts');
+    async function openProfile() {
+      if (!await profileEditor.isVisible()) await options.getByTestId('input-translation-profile').click();
+      await profileEditor.waitFor({state: 'visible'});
+    }
+    async function openPrompts() {
+      await openProfile();
+      const toggle = options.getByTestId('input-translation-prompt-toggle');
+      if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
+      await promptEditor.waitFor({state: 'visible'});
+    }
     await group.waitFor({state: 'visible'});
     await group.scrollIntoViewIfNeeded();
     report.initialConfig = Object.fromEntries(Object.entries(await readConfig()).filter(([key]) => key.startsWith('inputBoxTranslation') || key === 'on'));
     await snap('00-initial-settings');
+    await options.getByTestId('input-translation-timing-toggle').click();
     const interval = options.getByTestId('input-translation-interval').locator('input');
     await interval.fill('750');
     await interval.press('Tab');
@@ -105,10 +127,14 @@ async function main() {
     await group.scrollIntoViewIfNeeded();
     assert.equal((await readConfig()).inputBoxTranslationInterval, 750);
     report.quickClose = {interval: 750, persistedAfterReload: true};
+    await options.getByTestId('input-translation-timing-toggle').click();
     await options.getByTestId('input-translation-interval-reset').click();
     await pause(350);
     assert.equal((await readConfig()).inputBoxTranslationInterval, 1000);
     report.cases.push({name: 'interval edit and restore default', passed: true});
+    await snap('01-timing-panel');
+    await group.getByRole('heading', {name: '输入框翻译', exact: true}).click();
+    await options.getByTestId('input-translation-timing-panel').waitFor({state: 'hidden'});
     await snap('01-settings-machine');
 
     const saved = await readConfig();
@@ -121,46 +147,92 @@ async function main() {
     const globalBefore = await readConfig();
     await options.reload();
     await group.scrollIntoViewIfNeeded();
+    await selectTestId('input-translation-trigger', '已关闭');
+    assert.ok((await group.textContent()).includes('选择一个快捷键'));
+    await openProfile();
     await selectTestId('input-translation-service', 'OpenAI');
-    const modelInput = options.getByTestId('input-translation-model').locator('input');
+    const modelInput = options.locator('input[data-testid="input-translation-model"], [data-testid="input-translation-model"] input');
     await modelInput.fill('input-test-model');
-    await modelInput.press('Enter');
-    await options.getByTestId('input-translation-prompt-toggle').click();
+    await options.getByTestId('input-translation-profile-done').click();
+    await profileEditor.waitFor({state: 'hidden'});
+    await openProfile();
+    assert.equal(await modelInput.inputValue(), 'input-test-model', 'typing a custom model then Done preserves it without Enter');
+    await openPrompts();
     await options.getByTestId('input-translation-system-default').click();
     await options.getByTestId('input-translation-user-default').click();
-    assert.ok((await group.locator('[data-prompt-role="system"] textarea').inputValue()).includes('professional translation assistant'));
-    assert.ok((await group.locator('[data-prompt-role="user"] textarea').inputValue()).includes('{{origin}}'));
+    assert.ok((await promptEditor.locator('[data-prompt-role="system"] textarea').inputValue()).includes('professional translation assistant'));
+    assert.ok((await promptEditor.locator('[data-prompt-role="user"] textarea').inputValue()).includes('{{origin}}'));
     await pause(400);
     await options.reload();
-    await options.getByTestId('input-translation-prompt-toggle').click();
-    assert.ok((await group.locator('[data-prompt-role="system"] textarea').inputValue()).includes('professional translation assistant'));
-    await group.getByRole('button', {name: '重置此提示词，不影响其他提示词', exact: true}).first().click();
-    await group.getByRole('button', {name: '重置此提示词，不影响其他提示词', exact: true}).first().click();
-    assert.equal(await group.locator('[data-prompt-role="system"] textarea').inputValue(), '');
-    assert.equal(await group.locator('[data-prompt-role="user"] textarea').inputValue(), '');
-    report.cases.push({name: 'default prompts can be loaded, edited, persisted and reset', passed: true});
-    await group.locator('[data-prompt-role="system"] textarea').fill('Keep the message polite. Return only translated text.');
-    await group.locator('[data-prompt-role="user"] textarea').fill('Translate this input into {{to}}: {{origin}}');
+    await openPrompts();
+    assert.ok((await promptEditor.locator('[data-prompt-role="system"] textarea').inputValue()).includes('professional translation assistant'));
+    await promptEditor.getByRole('button', {name: '重置此提示词，不影响其他提示词', exact: true}).first().click();
+    await promptEditor.getByRole('button', {name: '重置此提示词，不影响其他提示词', exact: true}).first().click();
+    assert.equal(await promptEditor.locator('[data-prompt-role="system"] textarea').inputValue(), '');
+    assert.equal(await promptEditor.locator('[data-prompt-role="user"] textarea').inputValue(), '');
+    await promptEditor.locator('[data-prompt-role="system"] textarea').fill('   ');
+    await promptEditor.locator('[data-prompt-role="user"] textarea').fill('\n  ');
+    assert.ok((await options.getByTestId('input-translation-prompt-toggle').textContent()).includes('当前使用独立默认提示词'));
+    assert.equal(await promptEditor.getByRole('alert').count(), 0);
+    report.cases.push({name: 'default prompts can be loaded, edited, persisted and reset; whitespace uses default semantics', passed: true});
+    await promptEditor.locator('[data-prompt-role="system"] textarea').fill('Keep the message polite. Return only translated text.');
+    await promptEditor.locator('[data-prompt-role="user"] textarea').fill('Translate this input into {{to}}: {{origin}}');
     await pause(500);
     await options.reload();
     assert.equal((await readConfig()).inputBoxTranslationService, 'openai');
     assert.equal((await readConfig()).inputBoxTranslationModel, 'input-test-model');
     assert.equal((await readConfig()).inputBoxTranslationSystemPrompt, 'Keep the message polite. Return only translated text.');
     await group.scrollIntoViewIfNeeded();
-    await options.getByTestId('input-translation-prompt-toggle').click();
+    assert.equal((await readConfig()).inputBoxTranslationTrigger, 'disabled', 'editing a profile must not enable translation');
+    await selectTestId('input-translation-trigger', '连按三下等号(=)');
+    assert.ok((await group.textContent()).includes('输入文字后，连按三下等号(=)，即可替换为英语'));
+    assert.equal(await promptEditor.count(), 0, 'prompt editor is opened on demand');
+    const desktopBounds = await group.boundingBox();
+    assert.ok(desktopBounds.height < 420, `common AI settings fit one compact card: ${desktopBounds.height}`);
+    report.settingsLayout = {desktopCardHeight: desktopBounds.height, promptEditorInitiallyClosed: true};
+    await group.getByRole('heading', {name: '输入框翻译', exact: true}).click();
+    await options.mouse.move(20, 20);
     await snap('02-settings-ai');
-    await group.locator('[data-prompt-role="user"]').scrollIntoViewIfNeeded();
+    await group.screenshot({path: path.join(artifactsDir, '02-settings-card.png'), animations: 'disabled'});
+    await openProfile();
+    await snap('02a-profile');
+    await openPrompts();
+    await promptEditor.waitFor({state: 'visible'});
+    await promptEditor.locator('[data-prompt-role="user"]').scrollIntoViewIfNeeded();
     await snap('02b-prompts');
+    await options.getByTestId('input-translation-profile-done').click();
+    await profileEditor.waitFor({state: 'hidden'});
     for (const width of [820, 390]) {
       await options.setViewportSize({width, height: 900});
       await group.scrollIntoViewIfNeeded();
       const overflow = await options.evaluate(() => document.documentElement.scrollWidth > innerWidth);
       assert.equal(overflow, false);
       await snap(`03-settings-${width}`);
+      if (width === 390) {
+        await openProfile();
+        await snap('03-profile-390');
+        await openPrompts();
+        await promptEditor.waitFor({state: 'visible'});
+        const dialog = options.getByRole('dialog');
+        const bounds = await dialog.boundingBox();
+        assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width, 'prompt dialog fits narrow viewport');
+        await promptEditor.locator('[data-prompt-role="user"]').scrollIntoViewIfNeeded();
+        await snap('03-prompts-390');
+        await options.keyboard.press('Escape');
+        await profileEditor.waitFor({state: 'hidden'});
+      }
     }
     await options.setViewportSize({width: 1280, height: 900});
     await patch({theme: 'dark'});
+    await group.scrollIntoViewIfNeeded();
+    await group.getByRole('heading', {name: '输入框翻译', exact: true}).click();
     await snap('04-settings-dark');
+    await openProfile();
+    await snap('04-profile-dark');
+    await openPrompts();
+    await snap('04-prompts-dark');
+    await options.getByTestId('input-translation-profile-done').click();
+    await profileEditor.waitFor({state: 'hidden'});
     await patch({theme: 'light', inputBoxTranslationInterval: 400});
     assert.equal((await readConfig()).service, 'microsoft');
     assert.deepEqual((await readConfig()).model, globalBefore.model);
