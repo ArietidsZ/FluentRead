@@ -500,40 +500,12 @@
     </section>
 
     <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
-      <SettingsGroup title="输入框翻译" description="仅支持普通文本 input、textarea 与 plaintext-only 编辑区；密码框和富文本编辑器不参与。">
-        <!-- 输入框翻译功能 -->
-        <el-row class="settings-control-row">
-          <el-col :span="12" class="settings-control-label lightblue rounded-corner">
-            <el-tooltip class="box-item" effect="dark"
-                        content="输入框翻译仅作用于普通文本 input、textarea 与 plaintext-only 编辑区；密码框和富文本编辑器不参与。"
-                        placement="top-start" :show-after="500">
-              <span class="popup-text popup-vertical-left">输入框翻译<el-icon class="icon-margin">
-                  <InfoFilled />
-                </el-icon></span>
-            </el-tooltip>
-          </el-col>
-          <el-col :span="12" class="settings-control-field">
-            <el-select :model-value="config.inputBoxTranslationTrigger" aria-label="输入框翻译触发方式" placeholder="请选择触发方式" @change="handleInputBoxTranslationTriggerChange">
-              <el-option class="select-left" v-for="item in options.inputBoxTranslationTrigger" :key="item.value" 
-                         :label="item.label" :value="item.value" />
-            </el-select>
-          </el-col>
-        </el-row>
-
-        <!-- 输入框翻译目标语言 -->
-        <el-row v-if="config.inputBoxTranslationTrigger !== 'disabled'" class="settings-control-row">
-          <el-col :span="12" class="settings-control-label lightblue rounded-corner">
-            <span class="popup-text popup-vertical-left">翻译目标语言</span>
-          </el-col>
-          <el-col :span="12" class="settings-control-field">
-            <el-select v-model="config.inputBoxTranslationTarget" aria-label="输入框翻译目标语言" placeholder="请选择目标语言" filterable>
-              <el-option class="select-left" data-i18n-ignore v-for="item in options.inputBoxTranslationTarget" :key="item.value"
-                         :label="getMultilingualTargetLanguageLabel(item.value, item.label, language)" :value="item.value" />
-            </el-select>
-          </el-col>
-        </el-row>
-
-      </SettingsGroup>
+      <InputTranslationSettings
+        :config="config"
+        :service-options="availableServiceOptions"
+        @trigger-change="handleInputBoxTranslationTriggerChange"
+        @configure-service="openInputServiceSettings"
+      />
     </section>
 
     <section v-show="props.activeSection === 'settings-translation'" class="settings-section settings-section-continuation">
@@ -701,6 +673,7 @@ import {getServiceCredentialGuide, getServiceWebsite} from '@/src/ui/view-model/
 import ServiceConfiguration from './services/ServiceConfiguration.vue';
 import CustomOpenAIProviderDialog from './services/CustomOpenAIProviderDialog.vue';
 import {TranslationCenter} from '@/src/features/translation-center/public';
+const openInputServiceSettings = (service: string) => { setConfigurationService(service); window.location.hash = 'settings-services'; };
 const openWritingServiceSettings = () => { setConfigurationService(config.value.writing.service || config.value.service); window.location.hash = 'settings-services'; };
 import WritingSettings from './WritingSettings.vue';
 import HarnessSettings from './HarnessSettings.vue';
@@ -722,6 +695,7 @@ import VideoSubtitleAppearanceSettings from './VideoSubtitleAppearanceSettings.v
 import {ModelUsageDashboard} from '@/src/features/model-usage/public';
 import InterfaceSettings from './InterfaceSettings.vue';
 import AreaTranslationSettings from './AreaTranslationSettings.vue';
+import InputTranslationSettings from './InputTranslationSettings.vue';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import ParagraphHandlingSettings from './ParagraphHandlingSettings.vue';
 import TranslationCacheSettings from './TranslationCacheSettings.vue';
