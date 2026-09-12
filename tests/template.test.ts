@@ -297,6 +297,26 @@ describe('模型级 Thinking 请求集成', () => {
         expect(body.reasoning_effort).toBe('low');
     });
 
+    it.each(['deepseek-flash', 'deepseek-v4-flash'])(
+        'DeepSeek %s 在 Chat 和 Responses 中发送正确编号并默认关闭思考', (model) => {
+            mockConfig.service = services.deepseek;
+            mockConfig.model.deepseek = model;
+            expect(JSON.parse(deepseekMsgTemplate('hello'))).toMatchObject({
+                model, thinking: {type: 'disabled'},
+            });
+            expect(JSON.parse(deepseekResponsesMsgTemplate('hello'))).toMatchObject({
+                model, reasoning: {effort: 'none'},
+            });
+            mockConfig.modelThinking = {deepseek: {[model]: true}};
+            expect(JSON.parse(deepseekMsgTemplate('hello'))).toMatchObject({
+                model, thinking: {type: 'enabled'},
+            });
+            expect(JSON.parse(deepseekResponsesMsgTemplate('hello'))).toMatchObject({
+                model, reasoning: {effort: 'high'},
+            });
+        },
+    );
+
     it('DeepSeek 模型级显式 false 覆盖旧服务级 enabled', () => {
         mockConfig.service = services.deepseek;
         mockConfig.model.deepseek = 'deepseek-v4-flash';
