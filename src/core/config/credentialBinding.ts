@@ -162,6 +162,7 @@ export function dropCredentialsForChangedDestinations(
     explicitlyBoundTokens: ReadonlySet<string> = new Set(),
     explicitlyBoundCredentialFields: ReadonlySet<ConfigCredentialField> = new Set(),
     explicitlyBoundHeaders: ReadonlySet<string> = new Set(),
+    explicitlyBoundApiKeys: ReadonlySet<string> = new Set(),
 ): ConfigCredentials {
     const token = {...credentials.token};
     let tokenChanged = false;
@@ -172,7 +173,16 @@ export function dropCredentialsForChangedDestinations(
         delete token[service];
     }
 
-    let nextCredentials = tokenChanged ? {...credentials, token} : credentials;
+    const apiKeys: Record<string, string[]> = Object.fromEntries(Object.entries(credentials.apiKeys)
+        .map(([service, keys]) => [service, [...keys]]));
+    let apiKeysChanged = false;
+    for (const service of Object.keys(apiKeys)) {
+        if (tokenCredentialDestination(current, service) === tokenCredentialDestination(next, service)) continue;
+        if (explicitlyBoundApiKeys.has(service)) continue;
+        delete apiKeys[service];
+        apiKeysChanged = true;
+    }
+    let nextCredentials = tokenChanged || apiKeysChanged ? {...credentials, token, apiKeys} : credentials;
     // secret 与 token 是同一个服务的一对凭据，必须跟随同一个目标地址一起解绑，
     // 否则改过端点后会只剩半副密钥被发往新地址。
     const secret = {...credentials.secret};

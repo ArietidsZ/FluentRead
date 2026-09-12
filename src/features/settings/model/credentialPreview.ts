@@ -1,7 +1,7 @@
 /**
  * @file src/features/settings/model/credentialPreview.ts
  * 文件职责：为配置和备份导入预览生成不泄露明文的凭据变化清单。
- * 主要内容：比较服务 Token、旧版标量凭据和扩展凭据，只返回新增、替换或清除状态，并用内置目录或导入配置中的动态 profile 名称生成用户可读标签。
+ * 主要内容：比较服务 Token、多 Key 列表、旧版标量凭据和扩展凭据，只返回新增、替换或清除状态，并用内置目录或导入配置中的动态 profile 名称生成用户可读标签。
  * 模块边界：该模块只做纯比较，不返回凭据内容、不读写配置，也不决定导入是否执行。
  */
 
@@ -11,6 +11,7 @@ import {
     normalizeCustomOpenAIProviders,
 } from '@/src/core/config/customOpenAI';
 import {extractConfigCredentials} from '@/src/core/config/credentials';
+import {getServiceApiKeys} from '@/src/core/config/apiKeys';
 
 export interface CredentialPreviewChange {
     key: string;
@@ -71,14 +72,17 @@ export function buildCredentialPreviewChanges(beforeValue: unknown, afterValue: 
     ]);
     const changes: CredentialPreviewChange[] = [];
 
-    for (const service of new Set([...Object.keys(before.token), ...Object.keys(after.token)])) {
+    for (const service of new Set([...Object.keys(before.token), ...Object.keys(after.token), ...Object.keys(before.apiKeys), ...Object.keys(after.apiKeys)])) {
         const serviceLabel = options.services.find((item: any) => item.value === service)?.label
             || getCustomOpenAIProviderLabel(customProviders, service);
+        const previousKeys = getServiceApiKeys(before, service);
+        const nextKeys = getServiceApiKeys(after, service);
+        const multipleKeys = previousKeys.length > 1 || nextKeys.length > 1;
         const change = credentialChange(
-            `token.${service}`,
-            `${serviceLabel} ${getCloudCredentialLabels(service).token}`,
-            before.token[service],
-            after.token[service],
+            `${multipleKeys ? 'apiKeys' : 'token'}.${service}`,
+            `${serviceLabel} ${getCloudCredentialLabels(service).token}${multipleKeys ? ' 列表' : ''}`,
+            previousKeys,
+            nextKeys,
         );
         if (change) changes.push(change);
     }

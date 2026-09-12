@@ -937,6 +937,29 @@ function createConfigPatchExpectedValues(
     );
 }
 
+/** 兼容旧调用方仅更新 token 的保存请求，同时避免压扁真正的多 key 列表。 */
+function synchronizeLegacyTokenPatch(value: unknown): unknown {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+    const source = value as Record<string, unknown>;
+    if (!source.token || typeof source.token !== 'object' || Array.isArray(source.token)) return value;
+    const apiKeys = source.apiKeys && typeof source.apiKeys === 'object' && !Array.isArray(source.apiKeys)
+        ? {...source.apiKeys as Record<string, unknown>}
+        : {};
+    let changed = false;
+    if (Object.keys(source.token as Record<string, unknown>).length === 0
+        && Object.keys(apiKeys).length > 0) {
+        return {...source, apiKeys: {}};
+    }
+    for (const [service, token] of Object.entries(source.token as Record<string, unknown>)) {
+        if (typeof token !== 'string') continue;
+        const existing = apiKeys[service];
+        if (Array.isArray(existing) && existing.length > 1) continue;
+        apiKeys[service] = token ? [token] : [];
+        changed = true;
+    }
+    return changed ? {...source, apiKeys} : value;
+}
+
 /**
  * endpoint/proxy/计费路由变化但没有同时提供新凭据时，旧密钥不能被静默带到
  * 新接收方。该清除是公开配置 patch 的领域副作用；content 等不可信上下文仍
@@ -956,9 +979,16 @@ function bindConfigPatchCredentialsToDestinations(
         currentValue.token[service],
         nextConfig.token[service],
     )));
+    const explicitlyBoundApiKeys = new Set([
+        ...Object.keys(currentValue.apiKeys),
+        ...Object.keys(nextConfig.apiKeys),
+    ].filter((service) => !configPatchValuesEqual(
+        currentValue.apiKeys[service], nextConfig.apiKeys[service],
+    )));
     const explicitlyBoundCredentialFields = new Set<ConfigCredentialField>(
         CONFIG_CREDENTIAL_FIELDS.filter((field) => (
             field !== 'token'
+            && field !== 'apiKeys'
             && Object.prototype.hasOwnProperty.call(patch, field)
             && !configPatchValuesEqual(currentValue[field], nextConfig[field])
         )),
@@ -972,6 +1002,7 @@ function bindConfigPatchCredentialsToDestinations(
         new Set(Object.keys(nextConfig.customHeaders).filter((service) => !configPatchValuesEqual(
             currentValue.customHeaders[service], nextConfig.customHeaders[service],
         ))),
+        explicitlyBoundApiKeys,
     );
     let boundPatch = patch;
     for (const field of CONFIG_CREDENTIAL_FIELDS) {
@@ -987,6 +1018,7 @@ function mergeCredentialFields(
     requestedCredentials: ConfigCredentials,
     fields: ReadonlySet<ConfigCredentialField>,
     tokenServices: ReadonlySet<string> = new Set(),
+    apiKeyServices: ReadonlySet<string> = new Set(),
 ): ConfigCredentials {
     const candidate = mergeConfigCredentials({}, baseCredentials);
     for (const field of fields) candidate[field] = requestedCredentials[field];
@@ -1001,6 +1033,18 @@ function mergeCredentialFields(
         }
         candidate.token = token;
     }
+    if (apiKeyServices.size > 0) {
+        const apiKeys: Record<string, string[]> = Object.fromEntries(Object.entries(baseCredentials.apiKeys)
+            .map(([service, keys]) => [service, [...keys]]));
+        for (const service of apiKeyServices) {
+            if (Object.prototype.hasOwnProperty.call(requestedCredentials.apiKeys, service)) {
+                apiKeys[service] = [...requestedCredentials.apiKeys[service]!];
+            } else {
+                delete apiKeys[service];
+            }
+        }
+        candidate.apiKeys = apiKeys;
+    }
     return extractConfigCredentials(candidate);
 }
 
@@ -1014,7 +1058,7 @@ export function prepareConfigSaveRequest(
     allowCredentialUpdates = false,
 ): Config {
     const currentConfig = normalizeConfig(currentValue);
-    const incomingConfig = normalizeConfig(value);
+    const incomingConfig = normalizeConfig(synchronizeLegacyTokenPatch(value));
     if (allowCredentialUpdates) {
         return normalizeConfig({
             ...incomingConfig,
@@ -1051,6 +1095,13 @@ export function prepareConfigPatchRequest(
     ));
     if (conflicts.length > 0) {
         throw new Error(`配置字段已更新，请同步后重试：${conflicts.join(', ')}`);
+    }
+    const synchronizedPatch = createConfigPatch(synchronizeLegacyTokenPatch(value), currentConfig, allowCredentialUpdates, false);
+    for (const field of ['apiKeys'] as const) {
+        if (Object.prototype.hasOwnProperty.call(synchronizedPatch, field)
+            && !Object.prototype.hasOwnProperty.call(explicitPatch, field)) {
+            explicitPatch[field] = synchronizedPatch[field];
+        }
     }
     // 凭据清除是路由 patch 在后台权威基线上派生的副作用，不要求旧客户端
     // 额外伪造 expected 字段；显式凭据 patch 仍按上面的常规 CAS 校验。
@@ -1095,7 +1146,7 @@ export async function saveConfig(value: unknown = config, options: SaveConfigOpt
     if (options.recordHistory) await configHistoryReady;
 
     // 普通设置、导入与恢复都无权回滚统计；计数只能经专用增量协议修改。
-    const normalized = normalizeConfig({...normalizeConfig(value), count: config.count});
+    const normalized = normalizeConfig({...normalizeConfig(synchronizeLegacyTokenPatch(value)), count: config.count});
     const serialized = serializeConfig(normalized);
     if (serializeConfig(config) !== serialized) applyConfig(normalized);
     await persistNormalizedConfig(normalized, serialized);
@@ -1263,7 +1314,20 @@ async function requestConfigMutation(
         mode === 'patch' && trustedCredentialStorageContext
             ? CONFIG_CREDENTIAL_FIELDS.filter(field => (
                 field !== 'token'
+                && field !== 'apiKeys'
                 && Object.prototype.hasOwnProperty.call(messageConfig, field)
+            ))
+            : [],
+    );
+    const patchCredentialApiKeyServices = new Set<string>(
+        mode === 'patch'
+            && trustedCredentialStorageContext
+            && Object.prototype.hasOwnProperty.call(messageConfig, 'apiKeys')
+            ? [...new Set([
+                ...Object.keys(baselineCredentials.apiKeys),
+                ...Object.keys(requestedCredentials.apiKeys),
+            ])].filter((service) => !configPatchValuesEqual(
+                baselineCredentials.apiKeys[service], requestedCredentials.apiKeys[service],
             ))
             : [],
     );
@@ -1293,9 +1357,24 @@ async function requestConfigMutation(
             ))
             : [],
     );
+    const replaceCredentialApiKeyServices = new Set<string>(
+        mode === 'replace'
+            && trustedCredentialStorageContext
+            && credentialIntent !== 'exact'
+            ? [...new Set([
+                ...Object.keys(baselineCredentials.apiKeys),
+                ...Object.keys(requestedCredentials.apiKeys),
+            ])].filter((service) => !configPatchValuesEqual(
+                baselineCredentials.apiKeys[service], requestedCredentials.apiKeys[service],
+            ))
+            : [],
+    );
     const ownedCredentialTokenServices = mode === 'patch'
         ? patchCredentialTokenServices
         : replaceCredentialTokenServices;
+    const ownedCredentialApiKeyServices = mode === 'patch'
+        ? patchCredentialApiKeyServices
+        : replaceCredentialApiKeyServices;
     const predecessorRemoteSequence = sendMessage ? lastEnqueuedRemoteRequestSequence : 0;
     const sequence = ++requestSequence;
     // 必须在第一个 await 前登记最新请求；否则即使 configReady 已 resolved，微任务
@@ -1376,6 +1455,7 @@ async function requestConfigMutation(
                     requestedCredentials,
                     mode === 'replace' ? replaceCredentialFields : patchCredentialFields,
                     ownedCredentialTokenServices,
+                    ownedCredentialApiKeyServices,
                 );
                 normalized = normalizeConfig(mergeConfigCredentials(
                     normalized,
@@ -1415,6 +1495,7 @@ async function requestConfigMutation(
                     committedRequestCredentials,
                     mode === 'replace' ? replaceCredentialFields : patchCredentialFields,
                     ownedCredentialTokenServices,
+                    ownedCredentialApiKeyServices,
                 );
                 normalized = normalizeConfig(mergeConfigCredentials(
                     normalized,
@@ -1661,7 +1742,7 @@ export async function requestConfigSave(
     sendMessage?: ConfigMessageSender,
     options: RequestConfigSaveOptions = {},
 ): Promise<void> {
-    const normalized = normalizeConfig(value);
+    const normalized = normalizeConfig(synchronizeLegacyTokenPatch(value));
     return requestConfigMutation({
         mode: 'replace',
         normalized,
@@ -1678,7 +1759,7 @@ export async function requestConfigPatch(value: unknown, sendMessage?: ConfigMes
     if (!initialized) await configReady;
     const previousConfig = normalizeConfig(config);
     const patch = bindConfigPatchCredentialsToDestinations(
-        createConfigPatch(value, previousConfig, trustedCredentialStorageContext),
+        createConfigPatch(synchronizeLegacyTokenPatch(value), previousConfig, trustedCredentialStorageContext),
         previousConfig,
         trustedCredentialStorageContext,
     );

@@ -2016,6 +2016,7 @@ describe('translation candidate core', () => {
         expect(isClearlyTargetLanguage('설정 번역', 'ja')).toBe(false);
         expect(isClearlyTargetLanguage('あ안', 'ja')).toBe(false);
         expect(isClearlyTargetLanguage('あ안', 'ko')).toBe(false);
+        expect(isClearlyTargetLanguage('日本語です Café', 'ja')).toBe(false);
 
         expect(isClearlyTargetLanguage('翻译设置', 'zh-CN')).toBe(true);
         expect(isClearlyTargetLanguage('翻译设置', 'zh-Hans')).toBe(true);
@@ -2829,4 +2830,49 @@ it('tooltip 文本边界探测在异常深度下保守退出', () => {
     const text = document.createTextNode('Deep source');
     parent.appendChild(text);
     expect(isTextInNestedTranslationTooltip(text, root)).toBe(true);
+});
+
+
+describe('explicit source line breaks', () => {
+    function lines(html: string, splitOnBr = true) {
+        const {document} = parseHTML(`<html><body><main>${html}</main></body></html>`);
+        const core = new TranslationCandidateCore({url: new URL('https://lines.test'), adapters: [
+            createDeclarativeAdapter({id: 'lines', hosts: ['lines.test'], targets: [
+                {selector: 'p', match: 'closest', reason: 'source-lines', splitOnBr},
+            ]}),
+        ]});
+        return {document, core, paragraph: document.querySelector('p')!};
+    }
+
+    it('keeps inline formatting with its source line and skips empty or protected lines', () => {
+        const {document, core, paragraph} = lines('<p><br>First <a href="/guide">linked phrase</a>.<br><br><code>skip()</code><br><em>Second sentence.</em><br><span translate="no">Protected sentence.</span><br></p>');
+        const candidates = core.discover(document);
+        expect(candidates).toHaveLength(2);
+        expect(candidates.map(candidate => extractTranslationTextFromNodes(candidate.nodes!)))
+            .toEqual(['First linked phrase .', 'Second sentence.']);
+        expect(core.resolve(document.querySelector('a')!.firstChild)?.nodes).toEqual(candidates[0].nodes);
+        expect(core.resolve(document.querySelector('em')!)?.nodes).toEqual(candidates[1].nodes);
+        expect(core.resolve(paragraph)?.nodes).toEqual(candidates[0].nodes);
+        expect(core.resolve(paragraph.querySelector('br'))).toBeNull();
+        expect(core.resolve(document.querySelector('code')!.firstChild)).toBeNull();
+    });
+
+    it('retains paragraph behavior when there are no direct breaks or the rule is off', () => {
+        for (const [html, enabled] of [
+            ['<p>First sentence.<br>Second sentence.</p>', false],
+            ['<p>First <em>sentence.</em></p>', true],
+            ['<p><span>First sentence.<br>Second sentence.</span></p>', true],
+        ] as const) {
+            const {core, document, paragraph} = lines(html, enabled);
+            expect(core.discover(document)).toMatchObject([{element: paragraph}]);
+            expect(core.discover(document)[0].nodes).toBeUndefined();
+            expect(core.resolve(paragraph.firstChild)?.element).toBe(paragraph);
+        }
+    });
+
+    it('does not materialize an unbounded set of child nodes', () => {
+        const {core, document, paragraph} = lines('<p>' + 'Readable sentence.<br>'.repeat(1030) + '</p>');
+        expect(core.discover(document)).toEqual([]);
+        expect(core.resolve(paragraph)).toBeNull();
+    });
 });

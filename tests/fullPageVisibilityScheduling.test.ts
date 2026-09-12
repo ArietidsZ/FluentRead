@@ -117,7 +117,8 @@ vi.mock("@/src/features/full-page-translation/content/titleTranslation", () => (
     stopFullPageTitleTranslation: () => undefined,
     isFullPageTitleTranslationActive: () => false,
 }));
-vi.mock("@/src/features/full-page-translation/content/renderer", () => ({
+vi.mock("@/src/features/full-page-translation/content/renderer", async (importOriginal) => ({
+    ...await importOriginal<typeof import("@/src/features/full-page-translation/content/renderer")>(),
     appendSingleTranslationSlots: (
         node: HTMLElement,
         slots: readonly {node: Text; text: string}[],

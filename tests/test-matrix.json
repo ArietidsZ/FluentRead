@@ -32,6 +32,8 @@
       "tests/requestLimitSettings.test.ts"
     ],
     "unit": [
+      "tests/configApiKeys.test.ts",
+      "tests/apiKeyCheckIdentity.test.ts",
       "tests/modalDialogHost.test.ts",
       "tests/chineseLanguage.test.ts",
       "tests/aiContextPresentation.test.ts",
@@ -128,6 +130,8 @@
       "tests/selectionTtsContentController.test.ts",
       "tests/selectionTtsProtocol.test.ts",
       "tests/serviceCatalog.test.ts",
+      "tests/serviceLibrary.test.ts",
+      "tests/serviceIcons.test.ts",
       "tests/cloudVendorCatalog.test.ts",
       "tests/siteRules.test.ts",
       "tests/shadowUi.test.ts",
@@ -215,6 +219,9 @@
       "tests/writingEditors.test.ts",
       "tests/writingMarkdown.test.ts",
       "tests/translationToolbarStatus.test.ts",
+      "tests/apiKeyRotation.test.ts",
+      "tests/apiKeyPool.test.ts",
+      "tests/apiKeyTypes.test.ts",
       "tests/freeRoutingPolicy.test.ts",
       "tests/freeBalancedRouting.test.ts",
       "tests/freeTranslationHealthStorage.test.ts",
@@ -226,8 +233,7 @@
       "tests/translationVisionPayload.test.ts",
       "tests/requestLimits.test.ts",
       "tests/fullPageModalPriority.test.ts",
-      "tests/modalProgressHint.test.ts",
-      "tests/pageTranslationAdvanced.test.ts"
+      "tests/modalProgressHint.test.ts"
     ],
     "functional": [
       "tests/settingsCompositionAutosave.test.ts",

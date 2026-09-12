@@ -24,6 +24,8 @@ export type AdapterDecision =
         target?: Element;
         candidateKind?: TranslationCandidateKind;
         atomic?: boolean;
+        /** 按直接子级 br 拆分正文，保留每行的链接、强调与代码。 */
+        splitOnBr?: boolean;
     };
 
 export interface AdapterContext {
@@ -52,6 +54,8 @@ export interface TranslationCandidate {
     element: HTMLElement;
     /** 块内同时包含内联文本与块级子节点时使用的连续直接子节点。 */
     nodes?: readonly ChildNode[];
+    /** 显式换行拆出的原文行；物化时把原文与译文放入同一个行内块。 */
+    sourceLine?: boolean;
     kind: TranslationCandidateKind;
     reason: string;
     adapterId?: string;

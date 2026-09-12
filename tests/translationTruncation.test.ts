@@ -36,6 +36,7 @@ import {transferEquivalentBilingualOwners} from
 import {ensureTranslationTruncationLayout} from '@/src/features/full-page-translation/content/layout';
 import {
     appendBilingualTranslation,
+    materializeCandidate,
     appendSingleTranslationSlots,
 } from '@/src/features/full-page-translation/content/renderer';
 import {
@@ -1550,5 +1551,40 @@ describe('translation truncation layout', () => {
         attempt.state.phase = 'translated';
         expect(restoreTranslation(first)).toBe(true);
         expect(clamp.getAttribute('style')).toBeNull();
+    });
+});
+
+
+describe('source line materialization', () => {
+    it('owns only the selected line, preserving the original break and links', () => {
+        for (const sourceLine of [true, false]) {
+            const {document} = parseHTML('<html><body><p>First <a href="/guide">linked line</a>.<br>Second line.</p></body></html>');
+            const paragraph = document.querySelector('p')!;
+            const original = paragraph.innerHTML;
+            const nodes = Array.from(paragraph.childNodes).slice(0, 3);
+            const link = paragraph.querySelector('a')!;
+            const lineBreak = paragraph.querySelector('br')!;
+            const candidate = {element: paragraph, nodes, kind: 'content' as const, reason: 'test', sourceLine};
+            const rendered = materializeCandidate(candidate)!;
+            expect(rendered.synthetic).toBe(true);
+            expect(rendered.node.classList.contains('fluent-read-source-line')).toBe(sourceLine);
+            expect(Array.from(rendered.node.childNodes)).toEqual(nodes);
+            expect(link.parentElement).toBe(rendered.node);
+            expect(lineBreak.parentElement).toBe(paragraph);
+            rendered.node.replaceWith(...Array.from(rendered.node.childNodes));
+            expect(paragraph.innerHTML).toBe(original);
+        }
+    });
+
+    it('leaves complete paragraphs alone and rejects stale source nodes', () => {
+        const {document} = parseHTML('<html><body><p>Original line.</p></body></html>');
+        const paragraph = document.querySelector('p')!;
+        const candidate = {element: paragraph, kind: 'content' as const, reason: 'test'};
+        expect(materializeCandidate(candidate)).toEqual({node: paragraph, synthetic: false});
+        const stale = paragraph.firstChild!;
+        paragraph.textContent = 'Replacement line.';
+        expect(materializeCandidate({...candidate, nodes: [stale], sourceLine: true})).toBeNull();
+        expect(materializeCandidate({...candidate, nodes: new Array<ChildNode>(1)})).toBeNull();
+        expect(paragraph.innerHTML).toBe('Replacement line.');
     });
 });

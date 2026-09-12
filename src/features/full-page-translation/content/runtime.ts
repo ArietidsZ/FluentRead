@@ -45,6 +45,7 @@ import {
 } from '@/src/features/full-page-translation/progress';
 import {
     appendBilingualTranslation,
+    materializeCandidate,
     appendSingleTranslationSlots,
 } from "@/src/features/full-page-translation/content/renderer";
 import {ensureTranslationTruncationLayout} from "@/src/features/full-page-translation/content/layout";
@@ -497,16 +498,6 @@ async function renderTranslation(
 }
 
 
-function materializeCandidate(candidate: TranslationCandidate): {node: HTMLElement; synthetic: boolean} | null {
-    if (!candidate.nodes?.length) return {node: candidate.element, synthetic: false};
-    if (candidate.nodes.some((node) => node.parentNode !== candidate.element)) return null;
-    const first = candidate.nodes[0];
-    if (!first) return null;
-    const wrapper = candidate.element.ownerDocument.createElement('span');
-    candidate.element.insertBefore(wrapper, first);
-    candidate.nodes.forEach((node) => wrapper.appendChild(node));
-    return {node: wrapper, synthetic: true};
-}
 
 function hasIntersectionLayoutBox(element: HTMLElement): boolean {
     if (typeof element.getClientRects !== "function") return false;

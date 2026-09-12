@@ -22,11 +22,17 @@ import type {
     TranslationModelUsageRecord,
 } from '@/src/services/translation/types';
 import {waitForBoundedPersistence} from '@/src/services/translation/persistenceBarrier';
+import {runWithApiKeyRotation, withServiceApiKey} from '@/src/services/translation/apiKeyRotation';
+import {getServiceApiKeyRows} from '@/src/core/config/apiKeys';
+import {matchesApiKeyCheckRevision} from '@/src/core/config/apiKeyCheckIdentity';
 
 export const CONNECTION_TEST_ORIGIN = 'Hello from FluentRead.';
 export const CONNECTION_TEST_TIMEOUT_MS = 30_000;
 
 export interface ConnectionTestUsageOptions {
+    configSnapshot?: TranslationProviderConfigSnapshot;
+    keyIndex?: number;
+    keyRevision?: string;
     configuredModel?: string;
     recordModelUsage?: (events: readonly TranslationModelUsageRecord[]) => Promise<void>;
     now?: () => number;
@@ -72,7 +78,6 @@ export async function runTranslationServiceConnectionTest(
         }, CONNECTION_TEST_TIMEOUT_MS);
     });
 
-    let result: unknown;
     try {
         const observedRequest = attachTranslationModelUsageObserver({
             origin: CONNECTION_TEST_ORIGIN,
@@ -85,35 +90,57 @@ export async function runTranslationServiceConnectionTest(
             requestTimeoutMs: CONNECTION_TEST_TIMEOUT_MS,
             abortSignal: controller.signal,
         }, (observation) => observations.push({...observation}));
-        const providerRequest = usageOptions.config
-            ? attachTranslationProviderConfig(observedRequest, usageOptions.config)
-            : observedRequest;
-        const scheduledProviderRequest = usageOptions.requestScheduler
-            ? attachTranslationRequestScheduler(providerRequest, usageOptions.requestScheduler, {
-                service,
-                model: effectiveModel,
-            })
-            : providerRequest;
-        const scheduled = usageOptions.requestScheduler
-            ? usageOptions.requestScheduler.schedule(async (lease) => {
-                // 只有取得 scheduler 许可后才启动真实 adapter；排队期间的 deadline/取消不会晚发请求。
-                const operation = Promise.resolve().then(() => adapter(scheduledProviderRequest));
-                lease.holdUntil(operation);
-                return operation;
-            }, {
+        const snapshot = usageOptions.config ?? usageOptions.configSnapshot;
+        if (usageOptions.keyIndex !== undefined && (!Number.isSafeInteger(usageOptions.keyIndex) || usageOptions.keyIndex < 0)) {
+            throw new Error('连接测试 Key 序号无效');
+        }
+        if (usageOptions.keyIndex !== undefined && !snapshot) throw new Error('连接测试缺少配置快照');
+        if (usageOptions.keyIndex !== undefined && usageOptions.keyRevision !== undefined
+            && !matchesApiKeyCheckRevision(snapshot!, service, usageOptions.keyRevision)) {
+            throw new Error('服务配置已更改，请重新检查');
+        }
+        const runAdapter = async (selectedSnapshot?: TranslationProviderConfigSnapshot) => {
+            const requestWithConfig = selectedSnapshot
+                ? attachTranslationProviderConfig(observedRequest, selectedSnapshot)
+                : observedRequest;
+            const scheduledRequest = usageOptions.requestScheduler
+                ? attachTranslationRequestScheduler(requestWithConfig, usageOptions.requestScheduler, {
+                    service,
+                    model: effectiveModel,
+                })
+                : requestWithConfig;
+            const transport = usageOptions.requestScheduler
+                ? usageOptions.requestScheduler.schedule(async (lease) => {
+                    const operation = Promise.resolve().then(() => adapter(scheduledRequest));
+                    lease.holdUntil(operation);
+                    return operation;
+                }, {
+                    signal: controller.signal,
+                    deadlineAt: startedAt + CONNECTION_TEST_TIMEOUT_MS,
+                    identity: {service, model: effectiveModel},
+                    countRate: usageOptions.countRate !== false,
+                })
+                : Promise.resolve().then(() => adapter(scheduledRequest));
+            const response = await Promise.race([transport, timeout]);
+            if (!isNonEmptyText(response)) throw new Error('服务已响应，但没有返回有效译文');
+            return response;
+        };
+        const keyIndex = usageOptions.keyIndex ?? (snapshot
+            ? getServiceApiKeyRows(snapshot, service).findIndex(key => Boolean(key.trim())) : -1);
+        const selectedKeyIndex = keyIndex >= 0 ? keyIndex : undefined;
+        const selectedKeyRequest = selectedKeyIndex !== undefined && snapshot
+            ? runWithApiKeyRotation(snapshot, service, runAdapter, {
+                keyIndex: selectedKeyIndex,
                 signal: controller.signal,
                 deadlineAt: startedAt + CONNECTION_TEST_TIMEOUT_MS,
-                identity: {service, model: effectiveModel},
-                countRate: usageOptions.countRate !== false,
+                now,
+                model: usageOptions.configuredModel,
             })
-            : Promise.resolve().then(() => adapter(scheduledProviderRequest));
-        result = await Promise.race([
-            scheduled,
+            : runAdapter(snapshot ? withServiceApiKey(snapshot, service, '') : undefined);
+        await Promise.race([
+            selectedKeyRequest,
             timeout,
         ]);
-        if (!isNonEmptyText(result)) {
-            throw new Error('服务已响应，但没有返回有效译文');
-        }
         clearTimeout(timer!);
         finishedAt = now();
         await persistConnectionTestUsage('success');

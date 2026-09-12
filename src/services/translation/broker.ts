@@ -53,6 +53,7 @@ import {
 import sha256 from 'crypto-js/sha256';
 import {getDeepLEndpoint} from '@/src/core/config/deepl';
 import {waitForBoundedPersistence} from './persistenceBarrier';
+import {runWithApiKeyRotation} from './apiKeyRotation';
 import {
     createTranslationRequestScheduler,
     TranslationRequestSchedulerDeadlineError,
@@ -559,6 +560,20 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
     }
 
     async function callProviderWithinDeadline(
+        execution: TranslationRequestExecution,
+        message: TranslationRequestMessage,
+    ): Promise<unknown> {
+        const deadlineAt = now() + normalizeDeadlineTimeoutMs(message.requestTimeoutMs as number);
+        return runWithApiKeyRotation(execution.config, execution.service, (selected, attempt) => (
+            callProviderAttemptWithinDeadline({...execution, config: selected}, attachTranslationProviderConfig({
+                ...message,
+                requestTimeoutMs: attempt.attemptTimeoutMs ?? getRemainingDeadlineMs(deadlineAt),
+            }, selected))
+        ), {signal: execution.abortSignal, deadlineAt, now,
+            model: getSelectedModel(execution.config, execution.service, message.modelOverride)});
+    }
+
+    async function callProviderAttemptWithinDeadline(
         execution: TranslationRequestExecution,
         message: TranslationRequestMessage,
     ): Promise<unknown> {
