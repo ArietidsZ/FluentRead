@@ -291,6 +291,7 @@ export function refreshBilingualTranslation(
 
 /** 在宿主仍拥有同一批原文节点时物化候选；恢复由 state 解包自建容器。 */
 export function materializeCandidate(candidate: TranslationCandidate): {node: HTMLElement; synthetic: boolean} | null {
+    if (candidate.manualChunk) return {node: candidate.element, synthetic: true};
     if (!candidate.nodes?.length) return {node: candidate.element, synthetic: false};
     if (candidate.nodes.some((node) => node.parentNode !== candidate.element)) return null;
     const first = candidate.nodes[0];
@@ -300,4 +301,35 @@ export function materializeCandidate(candidate: TranslationCandidate): {node: HT
     candidate.element.insertBefore(wrapper, first);
     candidate.nodes.forEach((node) => wrapper.appendChild(node));
     return {node: wrapper, synthetic: true};
+}
+
+/** Materialize a bounded visual hover range without exposing an intermediate source mutation to the provider. */
+export function materializeVisualTranslationCandidate(candidate: TranslationCandidate): TranslationCandidate | null {
+    const visualRange = candidate.visualRange;
+    if (!visualRange) return candidate;
+    const owner = candidate.element;
+    const document = owner.ownerDocument;
+    const {startContainer, startOffset, endContainer, endOffset} = visualRange;
+    if (!owner.isConnected || !owner.contains(startContainer) || !owner.contains(endContainer)) return null;
+    try {
+        const range = document.createRange();
+        range.setStart(startContainer, startOffset);
+        range.setEnd(endContainer, endOffset);
+        const sourceText = range.toString().trim();
+        if (!sourceText) return null;
+        const fragment = range.extractContents();
+        const wrapper = document.createElement('span');
+        wrapper.setAttribute('data-fr-translation-manual', 'true');
+        wrapper.append(...Array.from(fragment.childNodes));
+        range.insertNode(wrapper);
+        return {
+            ...candidate,
+            element: wrapper,
+            visualRange: undefined,
+            visualSourceText: undefined,
+            manualChunk: true,
+        };
+    } catch {
+        return null;
+    }
 }

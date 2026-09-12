@@ -29,6 +29,7 @@ import {
     isDocumentSurfaceNoTranslateShell,
     isTextInNestedTranslationTooltip,
     findElementsAtPoint,
+    findTextPointAtPoint,
     findNodeAtPoint,
     hasHiddenMarker,
     isExtensionElement,
@@ -54,6 +55,7 @@ import {
     partitionInlineRunAtBarriers,
     readCachedFlagOr,
 } from '@/src/core/translation/internal';
+import {resolveVisualTranslationRange} from '@/src/core/translation/visual';
 import {defaultTranslationAdapters} from '@/src/core/translation/registry';
 const bilibiliAdapter = defaultTranslationAdapters.find(adapter => adapter.id === 'bilibili')!;
 const redditAdapter = defaultTranslationAdapters.find(adapter => adapter.id === 'reddit')!;
@@ -801,6 +803,58 @@ describe('translation candidate core', () => {
             </div>
         `);
         expect(nestedCore.resolve(nestedDocument.querySelector('#nested')?.firstChild)).toBeNull();
+    });
+
+    it('refines an oversized unstructured hover target into a bounded visual text chunk', () => {
+        const sentences = Array.from({length: 120}, (_, index) =>
+            `Sentence ${index} explains how the document keeps its readable context intact.`).join(' ');
+        const {document, core} = page(`<main><div id="long-text">${sentences}</div></main>`);
+        const owner = document.querySelector('#long-text')!;
+        const text = owner.firstChild! as Text;
+        const previous = Object.getOwnPropertyDescriptor(document, 'caretPositionFromPoint');
+        const previousCreateRange = Object.getOwnPropertyDescriptor(document, 'createRange');
+        Object.defineProperty(document, 'caretPositionFromPoint', {
+            configurable: true,
+            value: () => ({offsetNode: text, offset: Math.floor(text.length / 2)}),
+        });
+        Object.defineProperty(document, 'createRange', {
+            configurable: true,
+            value: () => {
+                let startContainer: Text | null = null;
+                let endContainer: Text | null = null;
+                let startOffset = 0;
+                let endOffset = 0;
+                return {
+                    get startContainer() { return startContainer; },
+                    get endContainer() { return endContainer; },
+                    get startOffset() { return startOffset; },
+                    get endOffset() { return endOffset; },
+                    setStart(node: Text, offset: number) { startContainer = node; startOffset = offset; },
+                    setEnd(node: Text, offset: number) { endContainer = node; endOffset = offset; },
+                    getClientRects: () => [],
+                    toString: () => text.nodeValue!.slice(startOffset, endOffset),
+                } as unknown as Range;
+            },
+        });
+        try {
+            expect(findTextPointAtPoint(document, 10, 20)).toMatchObject({node: text, offset: Math.floor(text.length / 2)});
+            const inspected = core.inspect(owner).candidate!;
+            expect(resolveVisualTranslationRange(inspected, document, 10, 20, core.shouldStayOriginal)).not.toBeNull();
+            const candidate = core.resolveAtPoint(document, 10, 20);
+            expect(candidate).toMatchObject({element: owner, reason: 'visual-text-chunk'});
+            expect(candidate?.visualRange?.startContainer).toBe(text);
+            expect(candidate?.visualRange?.endContainer).toBe(text);
+            const range = document.createRange();
+            range.setStart(candidate!.visualRange!.startContainer, candidate!.visualRange!.startOffset);
+            range.setEnd(candidate!.visualRange!.endContainer, candidate!.visualRange!.endOffset);
+            expect(range.toString().length).toBeLessThan(text.length);
+            expect(range.toString()).toContain('Sentence');
+        } finally {
+            if (previous) Object.defineProperty(document, 'caretPositionFromPoint', previous);
+            else Reflect.deleteProperty(document, 'caretPositionFromPoint');
+            if (previousCreateRange) Object.defineProperty(document, 'createRange', previousCreateRange);
+            else Reflect.deleteProperty(document, 'createRange');
+        }
     });
 
     it('preserves inline code/no-translate text without rejecting the outer prose', () => {

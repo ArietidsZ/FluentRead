@@ -27,6 +27,7 @@ import {
     getDirectInlineRuns,
     getAllScopeCandidateKind,
     hasStructuralAncestor,
+    isIncludedSidebarRegion,
     isBlockBoundary,
     isSemanticHeadingElement,
     isStructuralContainer,
@@ -53,6 +54,7 @@ import {
     partitionInlineRunAtBarriers,
     readCachedFlagOr,
 } from './internal';
+import {resolveVisualTranslationRange} from './visual';
 
 const maxHoverBarrierDiscoverySteps = 256;
 /**
@@ -338,8 +340,10 @@ export class TranslationCandidateCore {
 
             const parent = getComposedParent(item);
             const hasStructuralAncestor = Boolean(parent && !isDocumentSurface(parent) && (
-                this.isStructuralContainerForResolution(parent, evaluationContext) ||
-                evaluationContext.structuralAncestors.get(parent) === true
+                !isIncludedSidebarRegion(item, this.structuralRegionOptions()) &&
+                !isIncludedSidebarRegion(parent, this.structuralRegionOptions()) &&
+                (this.isStructuralContainerForResolution(parent, evaluationContext) ||
+                    evaluationContext.structuralAncestors.get(parent) === true)
             ));
             evaluationContext.structuralAncestors.set(item, hasStructuralAncestor);
         }
@@ -834,6 +838,7 @@ export class TranslationCandidateCore {
                             exitIndex: 0,
                             checkAncestors: false,
                             insideStructural: this.scope === 'content' &&
+                                !isIncludedSidebarRegion(child, this.structuralRegionOptions()) &&
                                 (frame.insideStructural ||
                                     isStructuralContainer(frame.element, this.structuralRegionOptions())),
                             pruned: false,
@@ -856,6 +861,7 @@ export class TranslationCandidateCore {
                             exitIndex: 0,
                             checkAncestors: false,
                             insideStructural: this.scope === 'content' &&
+                                !isIncludedSidebarRegion(shadowChild, this.structuralRegionOptions()) &&
                                 (frame.insideStructural ||
                                     isStructuralContainer(frame.element, this.structuralRegionOptions())),
                             pruned: false,
@@ -949,7 +955,7 @@ export class TranslationCandidateCore {
             const pointedNode = findNodeAtPoint(currentRoot, x, y);
             if (pointedNode) {
                 const pointedCandidate = this.resolve(pointedNode);
-                if (pointedCandidate) return pointedCandidate;
+                if (pointedCandidate) return this.refineHoverCandidate(pointedCandidate, currentRoot, x, y);
             }
 
             for (const element of findElementsAtPoint(currentRoot, x, y)) {
@@ -958,11 +964,26 @@ export class TranslationCandidateCore {
                     if (shadowCandidate) return shadowCandidate;
                 }
                 const candidate = this.resolve(element);
-                if (candidate) return candidate;
+                if (candidate) return this.refineHoverCandidate(candidate, currentRoot, x, y);
             }
             return null;
         };
 
         return resolveInRoot(root, 0);
+    }
+
+    private refineHoverCandidate(
+        candidate: TranslationCandidate,
+        root: Document | ShadowRoot,
+        x: number,
+        y: number,
+    ): TranslationCandidate {
+        const visual = resolveVisualTranslationRange(candidate, root, x, y, this.shouldStayOriginal);
+        return visual ? {
+            ...candidate,
+            visualRange: visual.range,
+            visualSourceText: visual.sourceText,
+            reason: 'visual-text-chunk',
+        } : candidate;
     }
 }

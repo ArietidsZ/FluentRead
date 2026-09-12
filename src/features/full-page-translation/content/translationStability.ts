@@ -93,6 +93,10 @@ function getStatefulCandidateTextProtectionOptions(
 export function isTranslationCandidateCurrent(candidate: TranslationCandidate): boolean {
     const core = getCurrentTranslationCore(candidate.scope);
     if (!candidate.element.isConnected) return false;
+    if (candidate.manualChunk) {
+        return candidate.element.matches('[data-fr-translation-segment="true"][data-fr-translation-manual="true"]') &&
+            Boolean(candidate.element.parentElement?.isConnected);
+    }
     if (candidate.nodes?.length) {
         if (candidate.nodes.some((node) => node.parentNode !== candidate.element)) return false;
         const fresh = core.resolve(getTranslationCandidateKey(candidate));
