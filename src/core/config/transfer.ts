@@ -94,6 +94,9 @@ function clearCredentialsForChangedDestinations(
   const explicitlyBoundTokens = new Set(Object.entries(explicitTokens)
     .filter(([, token]) => typeof token === 'string')
     .map(([service]) => service))
+  const explicitlyBoundApiKeys = new Set(Object.entries(isRecord(value.apiKeys) ? value.apiKeys : {})
+    .filter(([, keys]) => Array.isArray(keys))
+    .map(([service]) => service))
   return dropCredentialsForChangedDestinations(
     credentials,
     current,
@@ -102,6 +105,7 @@ function clearCredentialsForChangedDestinations(
     explicitlyBoundCredentialFields,
     new Set(Object.entries(isRecord(value.customHeaders) ? value.customHeaders : {})
       .filter(([, headers]) => typeof headers === 'string').map(([service]) => service)),
+    explicitlyBoundApiKeys,
   )
 }
 
@@ -123,6 +127,16 @@ function prepareImportedCredentials(
   const explicitlyBoundCredentialFields = new Set<ConfigCredentialField>()
   if (hasCredentialFields(value)) {
     const importedCredentials = extractConfigCredentials(value)
+    const importedApiKeys = isRecord(value.apiKeys)
+      ? {...currentCredentials.apiKeys, ...importedCredentials.apiKeys}
+      : {...currentCredentials.apiKeys};
+    // 旧导入文件只有 token 时，把明确提供的服务迁移到新列表，避免当前
+    // apiKeys 镜像遮住用户正在导入的旧凭据；key 内容仍作为一个整体保留。
+    if (!isRecord(value.apiKeys) && isRecord(value.token)) {
+      for (const [service, token] of Object.entries(importedCredentials.token)) {
+        importedApiKeys[service] = token ? [token] : [];
+      }
+    }
     merged = {
       ...currentCredentials,
       customHeaders: isRecord(value.customHeaders)
@@ -131,6 +145,7 @@ function prepareImportedCredentials(
       token: isRecord(value.token)
         ? {...currentCredentials.token, ...importedCredentials.token}
         : currentCredentials.token,
+      apiKeys: importedApiKeys,
       extra: isRecord(value.extra)
         ? {...currentCredentials.extra, ...importedCredentials.extra}
         : currentCredentials.extra,

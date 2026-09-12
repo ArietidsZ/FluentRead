@@ -8,6 +8,7 @@
 
 import type { Config } from './model';
 import {isSensitiveConfigKey} from './sensitiveKeys';
+import {normalizeApiKeys} from './apiKeys';
 
 export {isSensitiveConfigKey} from './sensitiveKeys';
 
@@ -17,6 +18,7 @@ export const CREDENTIALS_SCHEMA_VERSION = 1 as const;
 
 export const CONFIG_CREDENTIAL_FIELDS = [
     'token',
+    'apiKeys',
     'customHeaders',
     'ak',
     'sk',
@@ -35,6 +37,7 @@ export type PublicConfig = Omit<Config, ConfigCredentialField>;
 export interface ConfigCredentials {
     schemaVersion: typeof CREDENTIALS_SCHEMA_VERSION;
     token: Record<string, string>;
+    apiKeys: Record<string, string[]>;
     customHeaders: Record<string, string>;
     ak: string;
     sk: string;
@@ -94,6 +97,7 @@ export function extractConfigCredentials(value: unknown): ConfigCredentials {
     return {
         schemaVersion: CREDENTIALS_SCHEMA_VERSION,
         token: stringMapping(source.token),
+        apiKeys: normalizeApiKeys(source.apiKeys),
         customHeaders: stringMapping(source.customHeaders),
         ak: stringValue(source.ak),
         sk: stringValue(source.sk),
@@ -119,6 +123,7 @@ export function hasCredentialFields(value: unknown): boolean {
 
 export function hasCredentialData(value: ConfigCredentials): boolean {
     return Object.keys(value.token).length > 0
+        || Object.keys(value.apiKeys).length > 0
         || Object.keys(value.customHeaders).length > 0
         || Boolean(value.ak || value.sk || value.appid || value.key)
         || Boolean(value.youdaoAppKey || value.youdaoAppSecret)

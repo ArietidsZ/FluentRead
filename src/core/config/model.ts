@@ -109,6 +109,7 @@ import {
     normalizeVideoSubtitleAppearance,
     type VideoSubtitleAppearance,
 } from './videoSubtitleAppearance';
+import {apiKeysToToken, normalizeApiKeys} from './apiKeys';
 
 export * from './scheduling';
 
@@ -209,6 +210,7 @@ export class Config {
     videoSubtitleFontSize: number; // 视频字幕字号百分比
     videoSubtitleAppearance: VideoSubtitleAppearance; // 视频字幕皮肤与布局参数
     token: IMapping;
+    apiKeys: Record<string, string[]>; // 按服务保存完整有序 API Key 列表；token 镜像首个 key
     requireApiKey: Record<string, boolean>; // 按服务和模型保存 API Key 校验开关
     minimaxBillingPlan: MiniMaxBillingPlan; // MiniMax 计费方案
     minimaxRegion: MiniMaxRegion; // MiniMax API 区域
@@ -331,6 +333,7 @@ export class Config {
         this.videoSubtitleFontSize = DEFAULT_VIDEO_SUBTITLE_FONT_SIZE; // 默认字幕字号
         this.videoSubtitleAppearance = normalizeVideoSubtitleAppearance(DEFAULT_VIDEO_SUBTITLE_APPEARANCE);
         this.token = {};
+        this.apiKeys = {};
         this.requireApiKey = {};
         this.minimaxBillingPlan = 'payg';
         this.minimaxRegion = 'cn';
@@ -541,6 +544,7 @@ function hasSubstantialLegacyCustomConfiguration(source: Partial<Config>): boole
         || configuredString(source.documentCustomModel, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)) return true;
 
     if (configuredString(source.token, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)
+        || getConfiguredApiKey(source.apiKeys, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)
         || configuredString(source.proxy, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)
         || configuredString(source.customBody, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)
         || configuredString(source.customHeaders, LEGACY_CUSTOM_OPENAI_PROVIDER_ID)) return true;
@@ -559,6 +563,12 @@ function hasSubstantialLegacyCustomConfiguration(source: Partial<Config>): boole
         && requirementModel !== ''
         && (hasOwn(sourceRecord.requireApiKey as object, requirementKey)
             || hasOwn(sourceRecord.requireApiKey as object, legacyRequirementKey));
+}
+
+function getConfiguredApiKey(mapping: unknown, service: string): string {
+    if (!mapping || typeof mapping !== 'object' || Array.isArray(mapping)) return '';
+    const values = (mapping as Record<string, unknown>)[service];
+    return Array.isArray(values) ? values.find((value): value is string => typeof value === 'string' && Boolean(value.trim())) || '' : '';
 }
 
 function protectProviderModels(
@@ -631,6 +641,7 @@ function normalizeCustomOpenAIProviderState(normalized: Config, source: Partial<
     normalized.customBody = withoutOrphanCustomProviderEntries(normalized.customBody, configuredIds);
     normalized.customHeaders = Object.fromEntries(Object.entries(normalized.customHeaders)
         .filter(([service]) => configuredIds.has(service)));
+    normalized.apiKeys = withoutOrphanCustomProviderEntries(normalized.apiKeys, configuredIds);
 
     for (const provider of providers) {
         const service = provider.id;
@@ -690,6 +701,8 @@ function normalizeCustomOpenAIProviderState(normalized: Config, source: Partial<
         return !key.startsWith(`${LEGACY_CUSTOM_OPENAI_PROVIDER_ID}:`) || validRequirementKeys.has(key);
     }));
     normalized.customOpenAIProviders = normalizeCustomOpenAIProviders(providers);
+    // 自定义服务删除后，apiKeys 与旧 token 镜像必须同时移除孤立项。
+    normalized.token = apiKeysToToken(normalized.apiKeys);
 }
 
 /**
@@ -773,7 +786,20 @@ export function normalizeConfig(value: unknown): Config {
         normalizeTranslationBackoffMaxMs(source.translationBackoffMaxMs),
     );
 
-    normalized.token = withoutRetiredServiceEntries(normalizeStringMapping(source.token));
+    normalized.apiKeys = withoutRetiredServiceEntries(normalizeApiKeys(source.apiKeys));
+    const legacyToken = withoutRetiredServiceEntries(normalizeStringMapping(source.token));
+    // 旧调用方用空 token 显式清除凭据时，不能让已存在的 apiKeys 重新水合回来。
+    if (hasOwn(source as object, 'token') && isRecord(source.token)
+        && Object.keys(legacyToken).length === 0) {
+        normalized.apiKeys = {};
+    }
+    // 新字段缺失时从旧 token 无损迁移；新字段显式存在时允许空列表清空服务凭据。
+    for (const [service, token] of Object.entries(legacyToken)) {
+        if (!Object.prototype.hasOwnProperty.call(normalized.apiKeys, service)) {
+            normalized.apiKeys[service] = token ? [token] : [];
+        }
+    }
+    normalized.token = apiKeysToToken(normalized.apiKeys);
     normalized.model = withoutRetiredServiceEntries(normalizeStringMapping(source.model));
     normalized.documentModel = withoutRetiredServiceEntries(normalizeStringMapping(source.documentModel));
     normalized.requireApiKey = isBooleanMapping(source.requireApiKey)

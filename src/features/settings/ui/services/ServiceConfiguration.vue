@@ -22,7 +22,7 @@
         role="status"
         :aria-label="compute.credentialWarning"
       >待完成</span>
-      <span v-else class="setup-status">{{ isChromeConnectionTest ? t('settings.services.chromePreparation.noKey') : '已就绪' }}</span>
+      <span v-else class="setup-status">{{ isChromeConnectionTest ? t('settings.services.chromePreparation.noKey') : t('settings.services.keys.configured') }}</span>
     </div>
 
     <Teleport defer to=".detail-hero">
@@ -45,13 +45,13 @@
         >
           {{ isChromeConnectionTest
             ? (connectionTestBusy ? t('settings.services.chromePreparation.actionBusy') : t('settings.services.chromePreparation.action'))
-            : (connectionTestBusy ? '检查中…' : '检查连接') }}
+            : (connectionTestBusy ? t('settings.services.keys.checking') : apiKeyIndexes.length > 1 ? t('settings.services.keys.checkAll') : '检查连接') }}
         </button>
       </div>
     </Teleport>
 
     <div
-      v-if="connectionTestMessage"
+      v-if="connectionTestMessage && (!compute.showToken || Object.keys(apiKeyChecks).length === 0)"
       class="connection-test-result"
       :class="`is-${connectionTestState}`"
       data-connection-test-status
@@ -151,19 +151,18 @@
       </div>
     </div>
 
-    <div v-if="compute.showToken" class="connection-field credential-field">
-      <div class="connection-field-label">
-        <strong>API Key</strong>
-        <small>{{ effectiveModelLabel || '当前模型' }}</small>
-      </div>
-      <div class="connection-field-control credential-control">
-        <el-input v-model="config.token[service]" type="password" show-password placeholder="输入 API Key；留空表示尚未配置" />
-        <div v-if="compute.showAI" class="api-key-requirement">
+    <ApiKeyList
+      v-if="compute.showToken"
+      :keys="apiKeys" :states="apiKeyChecks" :summary="apiKeySummary" :busy="connectionTestBusy"
+      @add="addApiKey" @update="updateApiKey" @remove="removeApiKey" @test="testSingleApiKey" @stop="stopApiKeyChecks"
+    >
+      <template v-if="compute.showAI" #policy>
+        <div class="api-key-requirement">
           <span>{{ compute.requireApiKey ? '此模型需要 API Key' : '允许无 Key 请求' }}</span>
           <el-switch v-model="compute.requireApiKey" aria-label="当前模型是否需要 API Key" size="small" />
         </div>
-      </div>
-    </div>
+      </template>
+    </ApiKeyList>
     <p v-if="compute.showMiniMaxRegion && minimaxKeyMismatch" class="minimax-key-note is-warning">
       {{ minimaxKeyMismatch }}
     </p>
@@ -382,6 +381,7 @@ import {
 } from '@/src/core/config/customOpenAI'
 import { isValidCustomBody } from '@/src/core/config/customBody'
 import { isValidCustomHeaders } from '@/src/core/config/customHeaders'
+import { createApiKeyCheckRevision } from '@/src/core/config/apiKeyCheckIdentity'
 import { normalizeMyMemoryEmail } from '@/src/core/config/freeTranslation'
 import { DEFAULT_DEEPLX_ENDPOINT } from '@/src/core/config/deeplx'
 import { getDeepLEndpoint } from '@/src/core/config/deepl'
@@ -402,6 +402,8 @@ import {
 import { useUiI18n } from '@/src/ui/i18n'
 import PromptTemplateEditor from './PromptTemplateEditor.vue'
 import FreeTranslationSettings from './FreeTranslationSettings.vue'
+import ApiKeyList from './ApiKeyList.vue'
+import { normalizeApiKeyList, eligibleApiKeyIndexes, summarizeApiKeyChecks, type ApiKeyCheckState, type ApiKeySummary } from './apiKeyTypes'
 
 const props = defineProps<{
   config: Config
@@ -450,6 +452,45 @@ const effectiveModelLabel = computed(() => resolveConfiguredModel(
   config.value.model[service.value],
   config.value.customModel[service.value],
 ))
+
+const apiKeys = computed(() => {
+  const configured = config.value.apiKeys?.[service.value]
+  return normalizeApiKeyList(configured, config.value.token[service.value] || '')
+})
+const apiKeyIndexes = computed(() => eligibleApiKeyIndexes(apiKeys.value))
+const apiKeyChecks = ref<Record<number, ApiKeyCheckState>>({})
+const apiKeySummary = ref<ApiKeySummary | null>(null)
+
+function syncApiKeys(next: string[]): void {
+  const value = next.length > 0 ? next : ['']
+  if (!config.value.apiKeys) config.value.apiKeys = {}
+  config.value.apiKeys[service.value] = value
+  config.value.token[service.value] = value.find(key => key.trim()) || ''
+  invalidateConnectionTest()
+}
+
+function addApiKey(): void { if (!apiKeys.value.some(key => !key.trim())) syncApiKeys([...apiKeys.value, '']) }
+function updateApiKey(index: number, value: string): void {
+  const next = [...apiKeys.value]
+  next[index] = value
+  syncApiKeys(next)
+}
+function removeApiKey(index: number): void {
+  syncApiKeys(apiKeys.value.filter((_, itemIndex) => itemIndex !== index))
+}
+
+function resetApiKeyChecks(): void {
+  apiKeyChecks.value = {}
+  apiKeySummary.value = null
+}
+
+function setApiKeyState(index: number, state: ApiKeyCheckState): void {
+  apiKeyChecks.value = {...apiKeyChecks.value, [index]: state}
+}
+
+function updateApiKeySummary(): void {
+  apiKeySummary.value = summarizeApiKeyChecks(apiKeyChecks.value)
+}
 
 function updateCustomProvider(field: 'name' | 'endpoint', value: string): void {
   emit('update:custom-provider', {[field]: value})
@@ -578,6 +619,7 @@ function resetConnectionTest(): void {
   displayedChromePreparationPair.value = null
   connectionTestState.value = 'idle'
   connectionTestMessageState.value = null
+  resetApiKeyChecks()
 }
 
 function invalidateConnectionTest(): void {
@@ -628,6 +670,70 @@ function formatChromePreparationError(error: unknown): LocalizedConnectionTestMe
   return error instanceof Error ? error.message : String(error)
 }
 
+async function runApiKeyCheck(index: number, generation: number): Promise<boolean> {
+  const key = apiKeys.value[index]?.trim() || ''
+  if (!key) {
+    return false
+  }
+  setApiKeyState(index, {status: 'checking'})
+  try {
+    const response = await browser.runtime.sendMessage({
+      type: CONNECTION_TEST_MESSAGE,
+      service: service.value,
+      keyIndex: index,
+      keyRevision: createApiKeyCheckRevision(config.value, service.value),
+    }) as {success?: boolean; durationMs?: number; error?: string} | undefined
+    if (generation !== connectionTestGeneration) return false
+    if (!response?.success) throw new Error(response?.error || '连接测试失败')
+    setApiKeyState(index, {status: 'success', durationMs: response.durationMs})
+    updateApiKeySummary()
+    return true
+  } catch (error) {
+    if (generation !== connectionTestGeneration) return false
+    setApiKeyState(index, {status: 'error', error: error instanceof Error ? error.message : String(error)})
+    updateApiKeySummary()
+    return false
+  }
+}
+
+function stopApiKeyChecks(): void {
+  connectionTestGeneration += 1
+  connectionTestBusy.value = false
+  connectionTestState.value = 'idle'
+  connectionTestMessageState.value = null
+  apiKeyChecks.value = Object.fromEntries(Object.entries(apiKeyChecks.value).map(([index, state]) => [index,
+    state.status === 'checking' || state.status === 'queued' ? {status: 'idle' as const} : state]))
+  updateApiKeySummary()
+}
+
+async function testSingleApiKey(index: number): Promise<void> {
+  if (connectionTestBusy.value || !apiKeyIndexes.value.includes(index)) return
+  const generation = ++connectionTestGeneration
+  connectionTestBusy.value = true
+  connectionTestState.value = 'testing'
+  connectionTestMessageState.value = t('settings.services.keys.checking')
+  setApiKeyState(index, {status: 'checking'})
+  updateApiKeySummary()
+  try {
+    await waitForConfigPersistenceQueue()
+    await requestConfigSave(config.value, browser.runtime.sendMessage.bind(browser.runtime))
+    if (generation !== connectionTestGeneration) return
+    const success = await runApiKeyCheck(index, generation)
+    if (generation !== connectionTestGeneration) return
+    connectionTestState.value = success ? 'success' : 'error'
+    connectionTestMessageState.value = success ? t('settings.services.keys.passed') : t('settings.services.keys.failed')
+  } catch (error) {
+    if (generation === connectionTestGeneration) {
+      connectionTestState.value = 'error'
+      connectionTestMessageState.value = error instanceof Error ? error.message : String(error)
+      setApiKeyState(index, {status: 'error', error: connectionTestMessageState.value})
+      updateApiKeySummary()
+    }
+  } finally {
+    if (generation === connectionTestGeneration) connectionTestBusy.value = false
+  }
+}
+
 async function testConnection(): Promise<void> {
   if (connectionTestBusy.value) return
 
@@ -644,6 +750,7 @@ async function testConnection(): Promise<void> {
   let acceptChromePreparationStatus = true
   connectionTestBusy.value = true
   connectionTestState.value = 'testing'
+  if (compute.value.showToken) resetApiKeyChecks()
   connectionTestMessageState.value = testedService === services.chromeTranslator
     ? localizedConnectionTestMessage('settings.services.chromePreparation.statusStarting')
     : '正在保存当前配置并请求服务…'
@@ -689,16 +796,25 @@ async function testConnection(): Promise<void> {
           targetLanguage: outcome.result.targetLanguage,
         },
       )
+    } else if (compute.value.showToken && apiKeyIndexes.value.length > 0) {
+      const checks = [...apiKeyIndexes.value]
+      apiKeyChecks.value = Object.fromEntries(checks.map(index => [index, {status: 'queued' as const}]))
+      let successes = 0
+      for (const index of checks) {
+        if (!isCurrent()) return
+        if (await runApiKeyCheck(index, generation)) successes += 1
+      }
+      if (!isCurrent()) return
+      const failures = checks.length - successes
+      connectionTestState.value = failures === 0 ? 'success' : 'error'
+      connectionTestMessageState.value = null
     } else {
       const response = await browser.runtime.sendMessage({
         type: CONNECTION_TEST_MESSAGE,
         service: testedService,
       }) as {success?: boolean; durationMs?: number; error?: string} | undefined
-
-      if (!response?.success) {
-        throw new Error(response?.error || '连接测试失败')
-      }
-
+      if (!isCurrent()) return
+      if (!response?.success) throw new Error(response?.error || '连接测试失败')
       connectionTestState.value = 'success'
       connectionTestMessageState.value = `已完成真实翻译请求${typeof response.durationMs === 'number' ? `（${response.durationMs} ms）` : ''}。`
     }
@@ -755,6 +871,13 @@ function confirmDeleteProvider(): void {
 
 watch(service, invalidateConnectionTest)
 watch(() => [config.value.from, config.value.to], invalidateConnectionTest)
+watch(() => createApiKeyCheckRevision(config.value, service.value), invalidateConnectionTest)
+watch(() => JSON.stringify({
+  ak: config.value.ak,
+  sk: config.value.sk,
+  appid: config.value.appid,
+  key: config.value.key,
+}), invalidateConnectionTest)
 onBeforeUnmount(() => {
   chromePreparationMounted = false
   connectionTestGeneration += 1

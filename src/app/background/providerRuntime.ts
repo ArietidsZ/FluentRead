@@ -12,13 +12,17 @@ import {
 import {config} from '@/src/services/config/store';
 import {resolveConfiguredModel} from '@/src/core/config/catalog';
 import {modelUsageRepository} from '@/src/platform/storage/modelUsageRepository';
+import {createTranslationProviderConfigSnapshot} from '@/src/services/translation/requestSnapshot';
 
 export {formatConnectionTestError};
 export {translateMicrosoftTexts} from '@/src/providers/translation/microsoft';
 
-export function runTranslationServiceConnectionTestWithUsage(service: string) {
+export function runTranslationServiceConnectionTestWithUsage(service: string, keyIndex?: number, keyRevision?: string) {
     const usageGeneration = modelUsageRepository.captureGeneration();
     return runTranslationServiceConnectionTest(service, {
+        configSnapshot: createTranslationProviderConfigSnapshot(config),
+        keyIndex,
+        keyRevision,
         configuredModel: resolveConfiguredModel(config.model[service], config.customModel[service]),
         recordModelUsage: async (events) => {
             await modelUsageRepository.recordMany(events, usageGeneration);

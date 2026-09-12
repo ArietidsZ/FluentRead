@@ -26,6 +26,9 @@ import {isHarnessService} from '@/src/core/config/harness';
 import {runtimeFetch} from '@/src/platform/http/runtime';
 import {isCustomOpenAIProviderId} from '@/src/core/config/customOpenAI';
 import {parseCustomHeaders, mergeCustomHeaders} from '@/src/core/config/customHeaders';
+import {getServiceApiKeys} from '@/src/core/config/apiKeys';
+import {runWithApiKeyRotation, withServiceApiKey} from '@/src/services/translation/apiKeyRotation';
+import {createTranslationProviderConfigSnapshot} from '@/src/services/translation/requestSnapshot';
 
 function zhipuBearer(apiKey: string): string {
   const [key, secret] = apiKey.split('.', 2);
@@ -97,7 +100,9 @@ export function normalizeHarnessModelError(error: unknown, service: string, apiK
  * 创建可执行文本生成及工具调用的 LanguageModel。调用方传入的 messages、system、tools
  * 会原样交给 AI SDK；这里不注入翻译 prompt，也不改写会话语义。
  */
-export function createHarnessLanguageModel(config: Config, service: string, model: string): LanguageModel {
+type ConcreteLanguageModel = Extract<LanguageModel, {specificationVersion: 'v3'}>;
+
+function createSingleHarnessLanguageModel(config: Config, service: string, model: string): ConcreteLanguageModel {
   const requestedModel = model.trim();
   if (!requestedModel) throw new Error('请先为阅读助手选择一个模型');
   if (!isHarnessService(service, config.customOpenAIProviders)) throw new Error(`阅读助手尚未适配这个服务: ${service}`);
@@ -110,7 +115,7 @@ export function createHarnessLanguageModel(config: Config, service: string, mode
       headers: {'anthropic-dangerous-direct-browser-access': 'true'},
       fetch: nativeFetch(config, service),
     });
-    return provider(requestedModel);
+    return provider(requestedModel) as ConcreteLanguageModel;
   }
   if (service === services.gemini) {
     const provider = createGoogleGenerativeAI({
@@ -136,4 +141,48 @@ export function createHarnessLanguageModel(config: Config, service: string, mode
     }),
   });
   return provider(requestedModel);
+}
+
+type LanguageModelGenerateOptions = Parameters<ConcreteLanguageModel['doGenerate']>[0];
+type LanguageModelStreamOptions = Parameters<ConcreteLanguageModel['doStream']>[0];
+
+function snapshotHarnessConfig(config: Config): Config {
+  return createTranslationProviderConfigSnapshot(config) as unknown as Config;
+}
+
+/**
+ * 创建可执行文本生成及工具调用的 LanguageModel。多 Key 服务按每次调用冻结的配置
+ * 重新创建底层 provider，避免某次调用中途读取到 UI 正在编辑的凭据。
+ */
+export function createHarnessLanguageModel(config: Config, service: string, model: string): LanguageModel {
+  const keys = getServiceApiKeys(config, service);
+  if (keys.length < 2) return createSingleHarnessLanguageModel(withServiceApiKey(config, service, keys[0] ?? ''), service, model);
+
+  const frozenConfig = snapshotHarnessConfig(config);
+  const baseModel = createSingleHarnessLanguageModel(frozenConfig, service, model);
+  const operationConfig = () => {
+    const headers = isCustomOpenAIProviderId(service) ? parseCustomHeaders(frozenConfig.customHeaders[service]) : undefined;
+    return [...keys, ...Object.values(headers ?? {})];
+  };
+  const invoke = async <R>(operation: (selected: Config) => Promise<R>, signal?: AbortSignal): Promise<R> => runWithApiKeyRotation(
+    frozenConfig,
+    service,
+    async selected => {
+      try { return await operation(selected); }
+      catch (error) {
+        const normalized = normalizeAiSdkError(service, error, operationConfig());
+        normalized.message = sanitizeHarnessModelMessage(normalized.message);
+        throw normalized;
+      }
+    },
+    {signal, model},
+  );
+  const wrapped = new Proxy(baseModel, {
+    get(target, property) {
+      if (property === 'doGenerate') return (options: LanguageModelGenerateOptions) => invoke(selected => Promise.resolve(createSingleHarnessLanguageModel(selected, service, model).doGenerate(options)), options.abortSignal);
+      if (property === 'doStream') return (options: LanguageModelStreamOptions) => invoke(selected => Promise.resolve(createSingleHarnessLanguageModel(selected, service, model).doStream(options)), options.abortSignal);
+      return Reflect.get(target, property, target);
+    },
+  }) as unknown as LanguageModel;
+  return wrapped;
 }

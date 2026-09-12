@@ -92,6 +92,8 @@ const mocks = vi.hoisted(() => {
             mimo: 'mimo-model',
         } as Record<string, string>,
         customModel: {} as Record<string, string>,
+        token: {} as Record<string, string>,
+        apiKeys: {} as Record<string, string[]>,
         modelThinking: {} as Record<string, Record<string, boolean>>,
         proxy: {} as Record<string, string>,
         custom: '',
@@ -223,6 +225,64 @@ function deferred<T>() {
 }
 
 describe('translation broker', () => {
+    it('multiple keys rotate within the same request snapshot and cached results do not spend another key', async () => {
+        mocks.config.model.mock = 'multi-key-snapshot';
+        mocks.config.token.mock = 'fixture-broker-first';
+        mocks.config.apiKeys.mock = ['fixture-broker-first', 'fixture-broker-second'];
+        const used: string[] = [];
+        mocks.service.mockImplementation(async message => {
+            const snapshot = getTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(mocks.config));
+            used.push(snapshot.token.mock);
+            if (used.length === 1) {
+                mocks.config.apiKeys.mock[1] = 'edited-after-start';
+                throw Object.assign(new Error('HTTP 401'), {statusCode: 401});
+            }
+            return '多密钥译文';
+        });
+        await expect(translateWithCache({origin: 'multi-key source'})).resolves.toBe('多密钥译文');
+        expect(used).toEqual(['fixture-broker-first', 'fixture-broker-second']);
+        await expect(translateWithCache({origin: 'multi-key source'})).resolves.toBe('多密钥译文');
+        expect(used).toHaveLength(2);
+    });
+
+    it('releases an aborted attempt before failover and shares the caller deadline', async () => {
+        vi.useFakeTimers();
+        mocks.config.model.mock = 'multi-key-timeout';
+        mocks.config.apiKeys.mock = ['fixture-timeout-key', 'fixture-fallback-key'];
+        mocks.config.maxConcurrentTranslations = 1;
+        const used: string[] = [];
+        let firstSignal: AbortSignal | undefined;
+        mocks.service.mockImplementation(message => {
+            const selected = getTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(mocks.config));
+            used.push(selected.token.mock);
+            if (used.length > 1) return Promise.resolve('恢复译文');
+            firstSignal = message.abortSignal;
+            return new Promise((_resolve, reject) => message.abortSignal.addEventListener('abort', () => reject(new DOMException('cancelled', 'AbortError'))));
+        });
+        const result = translateWithCache({origin: 'timeout failover', requestTimeoutMs: 1000, useCache: false});
+        await flushMicrotasks();
+        expect(used).toHaveLength(1);
+        await vi.advanceTimersByTimeAsync(501);
+        await expect(result).resolves.toBe('恢复译文');
+        expect(firstSignal?.aborted).toBe(true);
+        expect(used).toEqual(['fixture-timeout-key', 'fixture-fallback-key']);
+    });
+
+    it('each failover respects the global request rate scheduler', async () => {
+        vi.useFakeTimers();
+        mocks.config.model.mock = 'multi-key-scheduler';
+        mocks.config.apiKeys.mock = ['fixture-rate-first', 'fixture-rate-second'];
+        mocks.config.translationRequestsPerSecond = 1;
+        mocks.service.mockRejectedValueOnce(Object.assign(new Error('HTTP 429'), {statusCode: 429})).mockResolvedValue('按速率切换');
+        const result = translateWithCache({origin: 'rate guarded', requestTimeoutMs: 10000, useCache: false});
+        await flushMicrotasks(60);
+        expect(mocks.service).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(999);
+        expect(mocks.service).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(1);
+        await expect(result).resolves.toBe('按速率切换');
+        expect(mocks.service).toHaveBeenCalledTimes(2);
+    });
     it('keeps simultaneous simplified and traditional requests separate and reuses only matching script aliases', async () => {
         const simplified = deferred<string>();
         const traditional = deferred<string>();
@@ -300,6 +360,8 @@ describe('translation broker', () => {
             mimo: 'mimo-model',
         };
         mocks.config.customModel = {};
+        mocks.config.token = {};
+        mocks.config.apiKeys = {};
         mocks.service.mockReset();
         mocks.service.mockResolvedValue('默认译文');
         mocks.getMissingCredentialMessage.mockReturnValue(null);

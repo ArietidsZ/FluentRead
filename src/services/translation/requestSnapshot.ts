@@ -185,6 +185,12 @@ function frozenStringMap(value: Record<string, string> | undefined): Readonly<Re
     return Object.freeze({...value});
 }
 
+function frozenApiKeys(value: Record<string, readonly string[]> | undefined): Readonly<Record<string, readonly string[]>> {
+    return Object.freeze(Object.fromEntries(
+        Object.entries(value || {}).map(([service, keys]) => [service, Object.freeze([...keys])]),
+    ));
+}
+
 function frozenBooleanMap(value: Record<string, boolean> | undefined): Readonly<Record<string, boolean>> {
     return Object.freeze({...value});
 }
@@ -245,6 +251,7 @@ export function createTranslationProviderConfigSnapshot(
         system_role: frozenStringMap(source.system_role),
         user_role: frozenStringMap(source.user_role),
         token: frozenStringMap(source.token),
+        apiKeys: frozenApiKeys(source.apiKeys),
         requireApiKey: frozenBooleanMap(source.requireApiKey),
         youdaoAppKey: source.youdaoAppKey ?? '',
         youdaoAppSecret: source.youdaoAppSecret ?? '',

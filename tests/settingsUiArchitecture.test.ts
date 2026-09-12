@@ -465,7 +465,7 @@ describe('options UI composition architecture', () => {
     expect(localDataManagement).not.toContain('按事件 ID')
     expect(localDataManagement).not.toContain('三个独立数据库')
     expect(serviceConfiguration).toContain('修改会自动保存；凭据只保存在当前设备')
-    expect(serviceConfiguration).toContain('class="connection-field credential-field"')
+    expect(serviceConfiguration).toContain('<ApiKeyList')
     expect(serviceConfiguration).not.toContain('class="credential-warning"')
     expect(serviceConfiguration).not.toContain('默认仅保留在当前浏览器会话')
     expect(settingsSections).not.toContain('fluentReadImageOcrDownload')

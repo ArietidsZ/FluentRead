@@ -165,6 +165,7 @@ export interface TranslationConfigSnapshot {
 
 export interface TranslationProviderConfigFields {
     token: Record<string, string>;
+    apiKeys?: Record<string, readonly string[]>;
     requireApiKey: Record<string, boolean>;
     youdaoAppKey: string;
     youdaoAppSecret: string;

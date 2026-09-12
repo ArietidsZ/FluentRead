@@ -20,6 +20,9 @@ import {
 import {formatServiceError, getServiceErrorMessage} from '@/src/services/translation/serviceErrors';
 import {services} from '@/src/core/config/catalog';
 import {reportTranslationModelUsage} from '@/src/services/translation/requestSnapshot';
+import {createTranslationProviderConfigSnapshot, getTranslationProviderConfig} from '@/src/services/translation/requestSnapshot';
+import {Config} from '@/src/core/config/model';
+import {createApiKeyCheckRevision} from '@/src/core/config/apiKeyCheckIdentity';
 
 function deferred<T>() {
     let resolve!: (value: T | PromiseLike<T>) => void;
@@ -32,6 +35,58 @@ function deferred<T>() {
 }
 
 describe('翻译服务连接测试', () => {
+    it('逐项检查使用冻结凭据、不用其他 Key 掩盖失败，支持空行后的原始索引', async () => {
+        const source = new Config();
+        source.apiKeys.demo = ['fixture-connection-bad', '', 'fixture-connection-good'];
+        source.token.demo = 'fixture-connection-bad';
+        const snapshot = createTranslationProviderConfigSnapshot(source);
+        const used: string[] = [];
+        adapter.mockImplementation(async message => {
+            const key = getTranslationProviderConfig(message, snapshot).token.demo;
+            used.push(key);
+            if (key === 'fixture-connection-bad') throw Object.assign(new Error(`HTTP 401 ${key}`), {statusCode: 401});
+            return '你好';
+        });
+        await expect(runTranslationServiceConnectionTest('demo', {configSnapshot: snapshot, keyIndex: 0}))
+            .rejects.toThrow('已隐藏的密钥');
+        expect(used).toEqual(['fixture-connection-bad']);
+        source.apiKeys.demo[2] = 'changed-after-snapshot';
+        await expect(runTranslationServiceConnectionTest('demo', {configSnapshot: snapshot, keyIndex: 2})).resolves.toBeTruthy();
+        expect(used).toEqual(['fixture-connection-bad', 'fixture-connection-good']);
+        await expect(runTranslationServiceConnectionTest('demo', {configSnapshot: snapshot, keyIndex: 1})).rejects.toThrow('为空');
+        await expect(runTranslationServiceConnectionTest('demo', {configSnapshot: snapshot, keyIndex: -1})).rejects.toThrow('序号无效');
+        await expect(runTranslationServiceConnectionTest('demo', {keyIndex: 0})).rejects.toThrow('缺少配置快照');
+    });
+
+    it('配置指纹过期时在 provider 调用前拒绝检测', async () => {
+        const source = new Config();
+        source.apiKeys.demo = ['fixture-check-key'];
+        const snapshot = createTranslationProviderConfigSnapshot(source);
+        adapter.mockResolvedValue('不应发出');
+        const revision = createApiKeyCheckRevision(snapshot, 'demo');
+        await expect(runTranslationServiceConnectionTest('demo', {
+            configSnapshot: snapshot,
+            keyIndex: 0,
+            keyRevision: revision.replace(/^./u, revision[0] === 'a' ? 'b' : 'a'),
+        })).rejects.toThrow('服务配置已更改，请重新检查');
+        expect(adapter).not.toHaveBeenCalled();
+    });
+
+    it('无 Key 配置也冻结端点，旧未指定索引检查只验证第一个非空 Key', async () => {
+        const source = new Config();
+        source.apiKeys.demo = ['', 'fixture-single-check'];
+        const snapshot = createTranslationProviderConfigSnapshot(source);
+        adapter.mockImplementation(async message => {
+            expect(getTranslationProviderConfig(message, source).token.demo).toBe('fixture-single-check');
+            return '你好';
+        });
+        await expect(runTranslationServiceConnectionTest('demo', {configSnapshot: snapshot})).resolves.toBeTruthy();
+        adapter.mockImplementation(async message => {
+            expect(Object.isFrozen(getTranslationProviderConfig(message, source))).toBe(true);
+            return '你好';
+        });
+        await expect(runTranslationServiceConnectionTest('demo', {configSnapshot: createTranslationProviderConfigSnapshot(new Config())})).resolves.toBeTruthy();
+    });
     afterEach(() => {
         vi.useRealTimers();
         vi.restoreAllMocks();

@@ -65,6 +65,8 @@ function isStringMapping(value: unknown): boolean {
 
 const exactCredentialFieldValidators: Record<ConfigCredentialField, (value: unknown) => boolean> = {
     token: isStringMapping,
+    apiKeys: value => isPlainRecord(value)
+        && Object.values(value).every(item => Array.isArray(item) && item.every(key => typeof key === 'string')),
     customHeaders: isStringMapping,
     ak: value => typeof value === 'string',
     sk: value => typeof value === 'string',
@@ -83,7 +85,7 @@ function hasExactCredentialSnapshot(value: unknown): boolean {
     const record = value as Record<string, unknown>;
     return CONFIG_CREDENTIAL_FIELDS.every(field => (
         // 旧版 v2 备份尚无此字段，缺省恢复为空；显式提供时仍须严格校验。
-        (field === 'customHeaders' && !Object.prototype.hasOwnProperty.call(record, field))
+        ((field === 'customHeaders' || field === 'apiKeys') && !Object.prototype.hasOwnProperty.call(record, field))
         || (Object.prototype.hasOwnProperty.call(record, field)
         && exactCredentialFieldValidators[field](record[field]))
     ));

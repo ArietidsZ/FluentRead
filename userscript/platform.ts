@@ -22,7 +22,7 @@ import {
 } from '@/src/app/translation/runtime';
 import {lookupWord} from '@/src/features/selection-translation/services/wordDictionary';
 import {UNHANDLED_RUNTIME_MESSAGE} from './browser';
-import {attachTranslationGlossaryContext} from '@/src/services/translation/requestSnapshot';
+import {attachTranslationGlossaryContext, createTranslationProviderConfigSnapshot} from '@/src/services/translation/requestSnapshot';
 
 const UNSUPPORTED_CAPABILITY_MESSAGE = '该功能依赖浏览器扩展权限，userscript 版本暂不支持';
 
@@ -71,7 +71,11 @@ export function createPlatformMessageHandler(openSettings: () => void) {
         if (message.type === CONNECTION_TEST_MESSAGE) {
             await configReady;
             try {
-                const result = await runTranslationServiceConnectionTest(String(message.service || ''));
+                const result = await runTranslationServiceConnectionTest(String(message.service || ''), {
+                    configSnapshot: createTranslationProviderConfigSnapshot(config),
+                    keyIndex: message.keyIndex,
+                    keyRevision: message.keyRevision,
+                });
                 return {success: true, ...result};
             } catch (error) {
                 return {success: false, error: error instanceof Error ? error.message : String(error)};

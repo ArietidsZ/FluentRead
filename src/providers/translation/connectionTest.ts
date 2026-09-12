@@ -11,18 +11,26 @@ import {formatServiceError} from '@/src/services/translation/serviceErrors';
 import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
 import {
     attachTranslationModelUsageObserver,
+    attachTranslationProviderConfig,
 } from '@/src/services/translation/requestSnapshot';
 import type {
     TranslationModelUsageObservation,
     TranslationModelUsageOutcome,
     TranslationModelUsageRecord,
+    TranslationProviderConfigSnapshot,
 } from '@/src/services/translation/types';
 import {waitForBoundedPersistence} from '@/src/services/translation/persistenceBarrier';
+import {runWithApiKeyRotation} from '@/src/services/translation/apiKeyRotation';
+import {getServiceApiKeyRows} from '@/src/core/config/apiKeys';
+import {matchesApiKeyCheckRevision} from '@/src/core/config/apiKeyCheckIdentity';
 
 export const CONNECTION_TEST_ORIGIN = 'Hello from FluentRead.';
 export const CONNECTION_TEST_TIMEOUT_MS = 30_000;
 
 export interface ConnectionTestUsageOptions {
+    configSnapshot?: TranslationProviderConfigSnapshot;
+    keyIndex?: number;
+    keyRevision?: string;
     configuredModel?: string;
     recordModelUsage?: (events: readonly TranslationModelUsageRecord[]) => Promise<void>;
     now?: () => number;
@@ -63,25 +71,38 @@ export async function runTranslationServiceConnectionTest(
         }, CONNECTION_TEST_TIMEOUT_MS);
     });
 
-    let result: unknown;
     try {
-        result = await Promise.race([
-            Promise.resolve().then(() => adapter(attachTranslationModelUsageObserver({
-                origin: CONNECTION_TEST_ORIGIN,
-                context: '',
-                pageContext: '',
-                summaryPrompt: '',
-                summarySystemPrompt: '',
-                serviceOverride: service,
-                useCache: false,
-                requestTimeoutMs: CONNECTION_TEST_TIMEOUT_MS,
-                abortSignal: controller.signal,
-            }, (observation) => observations.push({...observation})))),
+        const request = attachTranslationModelUsageObserver({
+            origin: CONNECTION_TEST_ORIGIN,
+            context: '', pageContext: '', summaryPrompt: '', summarySystemPrompt: '',
+            serviceOverride: service, useCache: false,
+            requestTimeoutMs: CONNECTION_TEST_TIMEOUT_MS, abortSignal: controller.signal,
+        }, (observation) => observations.push({...observation}));
+        const runAdapter = async (snapshot?: TranslationProviderConfigSnapshot) => {
+            const response = await Promise.race([
+                adapter(snapshot ? attachTranslationProviderConfig({...request}, snapshot) : request),
+                timeout,
+            ]);
+            if (!isNonEmptyText(response)) throw new Error('服务已响应，但没有返回有效译文');
+            return response;
+        };
+        const snapshot = usageOptions.configSnapshot;
+        if (usageOptions.keyIndex !== undefined && (!Number.isSafeInteger(usageOptions.keyIndex) || usageOptions.keyIndex < 0)) {
+            throw new Error('连接测试 Key 序号无效');
+        }
+        if (usageOptions.keyIndex !== undefined && !snapshot) throw new Error('连接测试缺少配置快照');
+        if (usageOptions.keyIndex !== undefined && usageOptions.keyRevision !== undefined
+            && !matchesApiKeyCheckRevision(snapshot!, service, usageOptions.keyRevision)) {
+            throw new Error('服务配置已更改，请重新检查');
+        }
+        const keyIndex = usageOptions.keyIndex ?? (snapshot
+            ? getServiceApiKeyRows(snapshot, service).findIndex(key => Boolean(key.trim())) : -1);
+        await Promise.race([
+            Promise.resolve().then(() => snapshot && keyIndex >= 0
+                ? runWithApiKeyRotation(snapshot, service, runAdapter, {keyIndex, now, model: usageOptions.configuredModel})
+                : runAdapter(snapshot)),
             timeout,
         ]);
-        if (!isNonEmptyText(result)) {
-            throw new Error('服务已响应，但没有返回有效译文');
-        }
         clearTimeout(timer!);
         finishedAt = now();
         await persistConnectionTestUsage('success');

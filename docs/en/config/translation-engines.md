@@ -26,6 +26,14 @@ Clicking a service in the directory opens its configuration. It does not change 
 
 <figure class="doc-figure"><a href="/screenshots/en/settings-services.webp" target="_blank" rel="noopener"><img class="doc-screenshot" src="/screenshots/en/settings-services.webp" width="2560" height="1600" alt="Translation service directory and connection settings" loading="lazy" /></a><figcaption>Configure a connection, then select the service you want to use.</figcaption></figure>
 
+## Use several API keys
+
+For a service with an API Key field, add one key per row using **Add a key** below the list. Existing single keys are kept. All rows use the same service address, model, region, and custom headers; use a separate custom service when those settings differ.
+
+Requests are shared evenly at first. If a key fails, FluentRead tries another and temporarily reduces how often the failing key is used. Invalid keys and exhausted quotas can be paused. Priorities normally recover after 10 minutes; a rate limit with a server-provided waiting period follows that period instead. Changing keys does not bypass your configured request rate or total timeout. Health is temporary and resets when the extension's background process restarts.
+
+**Check all keys** tests each distinct, filled row in order. Each row shows its own result and can be checked again. A failed row does not stop the rest. Empty rows and duplicates do not make extra requests. Checks send a short translation and may use a small amount of your provider allowance. Results describe that check, rather than guaranteeing future availability.
+
 ## The free service
 
 The default fallback order is Microsoft, DeepLX, Google, then MyMemory. If one fails, the next may be tried, so translation styles can vary. Change the order or disable entries in settings, keeping at least one.
@@ -41,6 +49,7 @@ Choose API Free or API Pro and enter the matching key. A DeepL website subscript
 Enter the full translation endpoint, such as `https://deeplx.example.com/translate`. Entering only a domain does not automatically add `/translate`. Leave it blank to use the default public endpoint.
 
 In API Key, enter only the site's Token value, without a `Bearer` prefix. The Token is sent in the request header by default. If the site requires it in the URL, follow the site's instructions:
+
 
 - Query parameter: `https://deeplx.example.com/translate?token={{apiKey}}`
 - URL path: `https://deeplx.example.com/{{apiKey}}/translate`

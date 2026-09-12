@@ -7,6 +7,7 @@
  */
 
 export * from './catalog';
+export * from './apiKeys';
 export * from './constants';
 export * from './credentials';
 export * from './customBody';
