@@ -596,7 +596,7 @@ describe("指定节点翻译状态机", () => {
         const retryWrapper = document.createElement('span');
         retryWrapper.setAttribute('data-fr-translation-owned', 'true');
         target.appendChild(retryWrapper);
-        target.classList.add('fluent-read-failure');
+        target.setAttribute('data-fr-translation-failed', 'true');
         setRetryWrapper(target, retryWrapper);
         setRenderedStyleAttribute(target);
         retryWrapper.remove();
@@ -606,6 +606,7 @@ describe("指定节点翻译状态机", () => {
         expect(attempt.state.phase).toBe('error');
         expect(attempt.state.retryWrapper).toBeUndefined();
         expect(target.className).toBe('host');
+        expect(target.hasAttribute('data-fr-translation-failed')).toBe(false);
         expect(getTranslationOwnersForRemovedNode(retryWrapper)).toEqual([]);
         expect(restoreTranslation(target)).toBe(true);
     });

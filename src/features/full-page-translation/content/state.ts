@@ -5,6 +5,7 @@
  * 模块边界：该模块不发现候选、不请求翻译也不生成译文 HTML；runtime 负责会话编排，renderer 负责内容创建，本文件仅拥有 DOM 状态与可逆样式资源，避免跨 session 误删新结果。
  */
 import {isTranslationTooltip} from "@/src/core/translation/dom";
+import {clearTranslationFailedHost} from "@/src/features/full-page-translation/core/hostMarkers";
 import {
     hasTranslationHeightOverflow,
     isTranslationHeightBoundary,
@@ -642,8 +643,7 @@ export function restoreClonedTranslationOwnerPresentation(
     layoutElementPairs: readonly (readonly [HTMLElement, HTMLElement])[] = [[previousOwner, replacementOwner]],
 ): void {
     if (states.get(previousOwner) !== state) return;
-    replacementOwner.classList.remove('fluent-read-bilingual', 'fluent-read-failure');
-    if (replacementOwner.getAttribute('class') === '') replacementOwner.removeAttribute('class');
+    clearTranslationFailedHost(replacementOwner);
     layoutElementPairs.forEach(([previousElement, replacementElement]) => {
         if (state.layoutOverrideElements?.has(previousElement)) {
             const override = sharedLayoutOverrides.get(previousElement);
@@ -1549,8 +1549,7 @@ function restoreOriginalStyle(node: HTMLElement, state: TranslationState): void 
 
 function restoreOriginalClass(node: HTMLElement, state: TranslationState): void {
     if (state.renderedClassAttribute === undefined) return;
-    node.classList.remove("fluent-read-bilingual", "fluent-read-failure");
-    if (node.getAttribute("class") === "") node.removeAttribute("class");
+    clearTranslationFailedHost(node);
 }
 
 /**
