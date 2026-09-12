@@ -2,7 +2,7 @@
  * @file src/services/translation/modelThinking.ts
  *
  * 文件职责：把统一的模型级 Thinking 布尔偏好转换为已确认支持的供应商请求字段，避免向未知 OpenAI-compatible 网关猜测参数。
- * 主要内容：覆盖 DeepSeek Chat/Responses、通义混合思考模型、Gemini 各代最低档与动态档、Claude 自适应思考、Kimi K2.5/K2.6 以及明确支持 reasoning_effort 的 GPT 5.1+ 模型。
+ * 主要内容：覆盖 DeepSeek Chat/Responses、通义混合思考模型、Gemini 各代最低档与动态档、Claude 自适应思考、Kimi K2.5/K2.6 以及明确支持 reasoning_effort 的 GPT 5.1+ 与 GPT-6 Astra 模型。
  * 模块边界：本文件只修改调用方提供的公开请求 payload，不读取全局配置、不发起网络请求；未知服务或模型保持原样，自定义请求体仍由模板层最后合并并拥有覆盖权。
  */
 
@@ -56,7 +56,7 @@ function applyGeminiThinking(
     if (/^gemini-2\.5-pro(?:-|$)/u.test(normalized)) {
         return {effect: enabled ? 'toggle' : 'minimum', payload: withGenerationThinking(payload, {thinkingBudget: enabled ? -1 : 128})};
     }
-    if (/^gemini-3\.7[^/]*flash(?:-lite)?(?:-|$)/u.test(normalized)) {
+    if (/^gemini-3\.(?:7|8)[^/]*flash(?:-lite)?(?:-|$)/u.test(normalized)) {
         return {effect: enabled ? 'toggle' : 'minimum', payload: withGenerationThinking(payload, {thinkingLevel: enabled ? 'medium' : 'low'})};
     }
     if (/^gemini-3(?:\.(?:1|5|6))?-flash(?:-lite)?(?:-|$)/u.test(normalized)) {
@@ -130,6 +130,13 @@ function applyOpenAICompatibleThinking(
         return {
             effect: enabled ? 'toggle' : 'minimum',
             payload: {...payload, reasoning: {effort: enabled ? 'medium' : 'minimal'}},
+        };
+    }
+    if ((service === services.openai || service === services.azureOpenai)
+        && /^gpt-6-astra(?:-|$)/iu.test(model)) {
+        return {
+            effect: enabled ? 'toggle' : 'minimum',
+            payload: {...payload, reasoning_effort: 'low'},
         };
     }
     if ((service === services.openai || service === services.azureOpenai)

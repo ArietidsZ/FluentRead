@@ -42,6 +42,13 @@ const LOCAL_BROWSER_FIXTURES = [
         supportsHeaded: false,
     },
     {
+        id: 'github-spacing',
+        label: 'GitHub bilingual title spacing and metadata browser regression',
+        script: 'scripts/testing/run-github-spacing-test.cjs',
+        backgroundArgs: ['--background'],
+        supportsHeaded: false,
+    },
+    {
         id: 'video-subtitle-fixture',
         label: 'video subtitle fixture browser regression',
         script: 'scripts/run-video-subtitle-fixture-test.cjs',
