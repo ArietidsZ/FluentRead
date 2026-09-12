@@ -704,6 +704,16 @@ describe('configuration transfer helpers', () => {
     expect(exported).not.toHaveProperty('token')
   })
 
+  it('导出和导入保留 API Key 恢复策略，但不把它当作凭据', () => {
+    const source = normalizeConfig({...validConfig, apiKeyRecoveryMs: 5 * 60_000})
+    const publicExport = sanitizeConfigForExport(source)
+    const fullExport = prepareConfigForExport(source)
+
+    expect(publicExport.apiKeyRecoveryMs).toBe(5 * 60_000)
+    expect(fullExport.apiKeyRecoveryMs).toBe(5 * 60_000)
+    expect(prepareConfigForImport(publicExport, new Config()).apiKeyRecoveryMs).toBe(5 * 60_000)
+  })
+
   it('DeepLX 视频服务可以经过新版导出与导入往返而不触发旧默认迁移', () => {
     const exported = sanitizeConfigForExport(normalizeConfig({
       ...validConfig,

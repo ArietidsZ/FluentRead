@@ -376,7 +376,7 @@ watch(() => props.service, () => switchView('mine'))
 :global(:root.dark .no-model-panel strong) { color: #a8e8d5; }
 :global(:root.dark .no-model-panel p) { color: #8fc5b5; }
 @media (max-width: 900px) {
-  .catalog-layout { grid-template-columns: 240px minmax(0, 1fr); }
+  .catalog-layout { grid-template-columns: 220px minmax(0, 1fr); }
   .directory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 700px) {

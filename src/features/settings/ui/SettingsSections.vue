@@ -570,6 +570,23 @@
           <SettingsItem label="失败后最多重试">
             <div class="request-default-number"><el-input-number :model-value="config.translationMaxRetries" aria-label="失败后最多重试" :min="0" :max="10" :controls="false" @change="handleTranslationMaxRetriesChange" /></div>
           </SettingsItem>
+          <SettingsItem
+            :label="t('settings.requestLimits.apiKeyRecovery')"
+            :description="t('settings.requestLimits.apiKeyRecoveryHelp')"
+          >
+            <div class="api-key-recovery-control" data-testid="api-key-recovery-setting">
+              <el-input-number
+                :model-value="apiKeyRecoveryMinutes"
+                :aria-label="t('settings.requestLimits.apiKeyRecovery')"
+                :min="MIN_API_KEY_RECOVERY_MINUTES"
+                :max="MAX_API_KEY_RECOVERY_MINUTES"
+                :step="1"
+                :controls="false"
+                @change="handleApiKeyRecoveryChange"
+              />
+              <span class="api-key-recovery-unit" aria-hidden="true">{{ t('settings.requestLimits.minutes') }}</span>
+            </div>
+          </SettingsItem>
           <details class="request-retry-settings" data-testid="translation-retry-settings">
             <summary>{{ t('settings.requestLimits.retryIntervals') }}</summary>
             <SettingsItem label="退避初始间隔">
@@ -651,6 +668,9 @@ import {
   MOUSE_HOVER_TRANSLATION_DELAY_STEP,
   MAX_TRANSLATION_BACKOFF_BASE_MS,
   MAX_TRANSLATION_BACKOFF_MAX_MS,
+  API_KEY_RECOVERY_MINUTE_MS,
+  MAX_API_KEY_RECOVERY_MINUTES,
+  MIN_API_KEY_RECOVERY_MINUTES,
   MIN_TRANSLATION_BACKOFF_BASE_MS,
   MIN_TRANSLATION_BACKOFF_MAX_MS,
   SELECTION_TRANSLATOR_DELAY_MAX,
@@ -660,6 +680,7 @@ import {
   normalizeConfig,
   normalizeMouseHoverTranslationDelay,
   normalizeSelectionTranslatorDelay,
+  normalizeApiKeyRecoveryMs,
   normalizeTranslationBackoffBaseMs,
   normalizeTranslationBackoffMaxMs,
 } from '@/src/core/config/model';
@@ -1357,6 +1378,15 @@ const handleSelectionTranslatorDelayChange = (value: number | undefined) => {
 const handleTranslationMaxRetriesChange = (currentValue: number | undefined) => {
   if (currentValue === undefined || !Number.isSafeInteger(currentValue) || currentValue < 0 || currentValue > 10) return;
   config.value.translationMaxRetries = currentValue;
+};
+
+const apiKeyRecoveryMinutes = computed(() => Math.round(
+  normalizeApiKeyRecoveryMs(config.value.apiKeyRecoveryMs) / API_KEY_RECOVERY_MINUTE_MS,
+));
+
+const handleApiKeyRecoveryChange = (currentValue: number | undefined) => {
+  if (currentValue === undefined || !Number.isFinite(currentValue)) return;
+  config.value.apiKeyRecoveryMs = normalizeApiKeyRecoveryMs(currentValue * API_KEY_RECOVERY_MINUTE_MS);
 };
 
 const handleTranslationBackoffBaseChange = (currentValue: number | undefined) => {

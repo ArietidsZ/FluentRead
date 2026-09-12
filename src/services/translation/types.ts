@@ -181,6 +181,8 @@ export interface TranslationConfigSnapshot {
             translationRequestsPerMinute: number;
         };
     }>>;
+    /** 多 API Key 失败后默认冷却恢复时间；服务端 Retry-After 优先。 */
+    apiKeyRecoveryMs?: number;
 }
 
 export interface TranslationProviderConfigFields {

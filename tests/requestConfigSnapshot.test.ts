@@ -72,6 +72,9 @@ describe('translation provider request config snapshot', () => {
         expect(snapshot.modelRequestLimits!.aiSdk['model-a']).toEqual({enabled: false, limits: {
             maxConcurrentTranslations: 1, translationRequestsPerSecond: 0, translationRequestsPerMinute: 20,
         }});
+        expect(createTranslationProviderConfigSnapshot(configSource({apiKeyRecoveryMs: 3 * 60_000})).apiKeyRecoveryMs)
+            .toBe(3 * 60_000);
+        expect(createTranslationProviderConfigSnapshot(configSource()).apiKeyRecoveryMs).toBe(60_000);
         expect([snapshot.serviceRequestLimits, snapshot.serviceRequestLimits!.aiSdk, snapshot.serviceRequestLimits!.aiSdk.limits,
             snapshot.modelRequestLimits, snapshot.modelRequestLimits!.aiSdk, snapshot.modelRequestLimits!.aiSdk['model-a'],
             snapshot.modelRequestLimits!.aiSdk['model-a'].limits].every(Object.isFrozen)).toBe(true);

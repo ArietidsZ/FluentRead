@@ -7,9 +7,13 @@
 import sha256 from 'crypto-js/sha256';
 import {getServiceApiKeys, getServiceApiKeyRows, type ApiKeyConfigSource} from '@/src/core/config/apiKeys';
 import {createApiKeyRotation, classifyApiKeyFailure} from '@/src/core/translation/apiKeyPool';
+import {normalizeApiKeyRecoveryMs} from '@/src/core/config/scheduling';
 import {serializeTranslationError, TranslationRequestError} from './errors';
 
-type KeyConfig = ApiKeyConfigSource & {readonly token?: Readonly<Record<string, string>>};
+type KeyConfig = ApiKeyConfigSource & {
+    readonly token?: Readonly<Record<string, string>>;
+    readonly apiKeyRecoveryMs?: number;
+};
 export interface ApiKeyAttempt {
     readonly attemptTimeoutMs?: number;
     readonly attempt: number;
@@ -24,7 +28,18 @@ export interface ApiKeyRequestOptions {
 }
 
 /** 同一后台的翻译、阅读/写作和主动检测共用；只存摘要，不持久化健康状态。 */
-const rotation = createApiKeyRotation();
+const rotations = new Map<number, ReturnType<typeof createApiKeyRotation>>();
+
+function getRotation(source: KeyConfig): ReturnType<typeof createApiKeyRotation> {
+    const recoveryMs = normalizeApiKeyRecoveryMs(source.apiKeyRecoveryMs);
+    let rotation = rotations.get(recoveryMs);
+    if (!rotation) {
+        // 配置范围按分钟限制为 1–60，因此该缓存最多保留 60 个策略实例。
+        rotation = createApiKeyRotation({recoveryMs});
+        rotations.set(recoveryMs, rotation);
+    }
+    return rotation;
+}
 
 export function withServiceApiKey<T extends KeyConfig>(source: T, service: string, key: string): T {
     return Object.freeze({...source,
@@ -80,6 +95,7 @@ export async function runWithApiKeyRotation<T extends KeyConfig, R>(
 ): Promise<R> {
     const keys = [...new Set(getServiceApiKeys(source, service))];
     const now = options.now ?? Date.now;
+    const rotation = getRotation(source);
     const scope = scopeFor(source, service, options.model);
     const ids = keys.map(key => sha256(key).toString());
     const excluded: string[] = [];

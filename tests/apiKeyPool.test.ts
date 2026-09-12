@@ -60,7 +60,7 @@ describe('createApiKeyPool', () => {
     expect(other.getState(1)[0].weight).toBe(API_KEY_POOL_DEFAULT_WEIGHT);
   });
 
-  it('recovers all failed keys after ten minutes and exposes a retry hint', () => {
+  it('recovers all failed keys after one minute and exposes a retry hint', () => {
     const pool = createApiKeyPool(['a']);
     const lease = pool.lease([], 100);
     pool.reportFailure(lease, 'auth', 100);

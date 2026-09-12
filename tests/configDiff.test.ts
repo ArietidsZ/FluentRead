@@ -483,12 +483,14 @@ describe('配置差异预览', () => {
             translationMaxRetries: 0,
             translationBackoffBaseMs: 1000,
             translationBackoffMaxMs: 30000,
+            apiKeyRecoveryMs: 60_000,
         }, {
             translationRequestsPerSecond: 4,
             translationRequestsPerMinute: 0,
             translationMaxRetries: 3,
             translationBackoffBaseMs: 2000,
             translationBackoffMaxMs: 60000,
+            apiKeyRecoveryMs: 300_000,
         });
 
         expect(group(result, 'advanced')?.changes).toEqual(expect.arrayContaining([
@@ -497,6 +499,7 @@ describe('配置差异预览', () => {
             {key: 'translationMaxRetries', label: '失败后最多重试', before: '0 次', after: '3 次'},
             {key: 'translationBackoffBaseMs', label: '退避初始间隔', before: '1000 ms', after: '2000 ms'},
             {key: 'translationBackoffMaxMs', label: '退避最大间隔', before: '30000 ms', after: '60000 ms'},
+            {key: 'apiKeyRecoveryMs', label: '失败 Key 冷却时间', before: '1 分钟', after: '5 分钟'},
         ]));
     });
 

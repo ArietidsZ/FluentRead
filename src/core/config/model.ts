@@ -115,7 +115,9 @@ import {
     DEFAULT_TRANSLATION_MAX_RETRIES,
     DEFAULT_TRANSLATION_REQUESTS_PER_MINUTE,
     DEFAULT_TRANSLATION_REQUESTS_PER_SECOND,
+    DEFAULT_API_KEY_RECOVERY_MS,
     normalizeMaxConcurrentTranslations,
+    normalizeApiKeyRecoveryMs,
     normalizeTranslationBackoffBaseMs,
     normalizeTranslationBackoffMaxMs,
     normalizeTranslationMaxRetries,
@@ -409,6 +411,7 @@ export class Config {
     translationRequestsPerMinute: number; // 每分钟最多启动的翻译请求数，0 表示不限速
     serviceRequestLimits: ServiceRequestLimits; // 按服务保存的独立请求限流配置
     modelRequestLimits: ModelRequestLimits; // 按服务和模型保存的独立请求限流配置
+    apiKeyRecoveryMs: number; // API Key 失败后的默认冷却恢复时间
     translationMaxRetries: number; // 单次翻译失败后的最大重试次数
     translationBackoffBaseMs: number; // 指数退避初始间隔
     translationBackoffMaxMs: number; // 指数退避最大间隔
@@ -567,6 +570,7 @@ export class Config {
         this.translationRequestsPerMinute = DEFAULT_TRANSLATION_REQUESTS_PER_MINUTE;
         this.serviceRequestLimits = {};
         this.modelRequestLimits = {};
+        this.apiKeyRecoveryMs = DEFAULT_API_KEY_RECOVERY_MS;
         this.translationMaxRetries = DEFAULT_TRANSLATION_MAX_RETRIES;
         this.translationBackoffBaseMs = DEFAULT_TRANSLATION_BACKOFF_BASE_MS;
         this.translationBackoffMaxMs = DEFAULT_TRANSLATION_BACKOFF_MAX_MS;
@@ -952,6 +956,7 @@ export function normalizeConfig(value: unknown): Config {
     );
     normalized.serviceRequestLimits = withoutRetiredServiceEntries(normalizeServiceRequestLimits(source.serviceRequestLimits));
     normalized.modelRequestLimits = withoutRetiredServiceEntries(normalizeModelRequestLimits(source.modelRequestLimits));
+    normalized.apiKeyRecoveryMs = normalizeApiKeyRecoveryMs(source.apiKeyRecoveryMs);
     normalized.freeTranslationOrder = normalizeFreeTranslationOrder(source.freeTranslationOrder);
     normalized.freeTranslationMode = normalizeFreeTranslationMode(source.freeTranslationMode);
     // 权重归后台管理，不接受导入文件或旧配置中的人工权重。
