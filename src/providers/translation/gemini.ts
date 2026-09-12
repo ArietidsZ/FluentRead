@@ -17,6 +17,7 @@ import {
     getTranslationProviderConfig,
     reportTranslationModelUsage,
     reportTranslationModelUsageFailure,
+    getTranslationImageInput,
     type TranslationProviderRequest,
 } from '@/src/services/translation/requestSnapshot';
 import {normalizeGeminiUsage} from './usage';
@@ -44,7 +45,7 @@ async function gemini(message: TranslationProviderRequest<string>) {
         appendOptionalHeader(headers, 'x-goog-api-key', current.token[service]);
     }
 
-    const body = geminiMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, current, message.modelOverride, message.thinkingOverride);
+    const body = geminiMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, current, message.modelOverride, message.thinkingOverride, getTranslationImageInput(message));
     const startedAt = Date.now();
     let attemptReported = false;
     try {

@@ -323,6 +323,21 @@
             </div>
           </div>
 
+          <div v-if="compute.showModel" class="connection-field" data-testid="model-vision-control">
+            <div class="connection-field-label">
+              <strong>{{ t('settings.services.visionCapability') }}</strong>
+              <small>{{ effectiveModelLabel || t('settings.services.currentModel') }}</small>
+            </div>
+            <div class="connection-field-control model-vision-setting">
+              <el-select v-model="visionOverride" data-testid="model-vision-capability" :aria-label="t('settings.services.visionCapability')" :disabled="!supportsVisionTransport(service, effectiveModelLabel)">
+                <el-option value="auto" :label="t('settings.services.visionAuto')" />
+                <el-option value="supported" :label="t('settings.services.visionSupported')" />
+                <el-option value="unsupported" :label="t('settings.services.visionTextOnly')" />
+              </el-select>
+              <small>{{ t(visionCapabilityMessage) }}</small>
+            </div>
+          </div>
+
           <el-row v-if="compute.showProxy" class="margin-bottom margin-left-2em">
             <el-col :span="12" class="lightblue rounded-corner"><el-tooltip effect="dark" content="可选的代理地址；填写后，当前 AI 服务请求会优先发送到这里。" placement="top-start" :show-after="300"><span class="popup-text popup-vertical-left">代理地址<el-icon class="icon-margin"><InfoFilled /></el-icon></span></el-tooltip></el-col>
             <el-col :span="12"><el-input v-model="config.proxy[service]" placeholder="默认直连自定义接口" /></el-col>
@@ -406,6 +421,7 @@ import {
 import { useUiI18n } from '@/src/ui/i18n'
 import PromptTemplateEditor from './PromptTemplateEditor.vue'
 import FreeTranslationSettings from './FreeTranslationSettings.vue'
+import {resolveModelVisionCapability, supportsVisionTransport} from '@/src/core/config/vision'
 import RequestLimitSettings from './RequestLimitSettings.vue'
 
 const props = defineProps<{
@@ -455,6 +471,24 @@ const effectiveModelLabel = computed(() => resolveConfiguredModel(
   config.value.model[service.value],
   config.value.customModel[service.value],
 ))
+const visionOverride = computed<string>({
+  get: () => typeof config.value.modelVision[service.value]?.[effectiveModelLabel.value] === 'boolean'
+    ? (config.value.modelVision[service.value][effectiveModelLabel.value] ? 'supported' : 'unsupported') : 'auto',
+  set: (value) => {
+    const model = effectiveModelLabel.value
+    if (!model) return
+    const current = {...(config.value.modelVision[service.value] || {})}
+    if (value === 'auto') delete current[model]
+    else current[model] = value === 'supported'
+    if (Object.keys(current).length) config.value.modelVision[service.value] = current
+    else delete config.value.modelVision[service.value]
+  },
+})
+const visionCapabilityMessage = computed(() => {
+  if (!supportsVisionTransport(service.value, effectiveModelLabel.value)) return 'settings.services.visionTransportUnsupported'
+  const capability = resolveModelVisionCapability(service.value, effectiveModelLabel.value, config.value.modelVision)
+  return capability === 'supported' ? 'settings.services.visionConfirmed' : capability === 'unsupported' ? 'settings.services.visionTextOnlyMessage' : 'settings.services.visionUnknown'
+})
 
 function updateCustomProvider(field: 'name' | 'endpoint', value: string): void {
   emit('update:custom-provider', {[field]: value})
@@ -893,6 +927,8 @@ onBeforeUnmount(() => {
   overflow-wrap: anywhere;
 }
 .provider-field-help code { font-size: inherit; }
+.model-vision-setting { display: grid; gap: 6px; }
+.model-vision-setting > small { color: var(--muted); font-size: 10px; line-height: 1.5; }
 .model-thinking-setting { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .model-thinking-setting > small { color: #9098a8; font-size: 10px; line-height: 1.5; }
 .model-thinking-setting :deep(.el-switch) { flex: 0 0 auto; --el-switch-on-color: #ef4776; --el-switch-off-color: #cfd5df; }

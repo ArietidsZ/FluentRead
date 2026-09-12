@@ -199,7 +199,7 @@ function cer(actual, expected) {
   await patch({areaTranslationMode:'ai',areaTranslationService:'openai',model:{openai:'gpt-4.1-mini'},token:{openai:'fixture-not-a-real-key'},proxy:{openai:`http://127.0.0.1:${server.address().port}/v1/chat/completions`}});
   await page.keyboard.press('Escape'); await page.evaluate(()=>paint()); await select(); await waitResult();
   assert.equal(report.aiRequests.length,1); assert.ok(JSON.stringify(report.aiRequests[0]).includes('Welcome to FluentRead'));
-  assert.ok(JSON.stringify(report.aiRequests[0]).includes('correctedText')); assert.equal(await ui("return this.querySelector('.fr-area-mode').textContent"),'AI 文本增强'); report.cases.push(currentCase); await shot('03-ai-result');
+  assert.ok(JSON.stringify(report.aiRequests[0]).includes('correctedText')); assert.equal(await ui("return this.querySelector('.fr-area-mode').textContent"),'本地 OCR · AI 文本增强'); report.cases.push(currentCase); await shot('03-ai-result');
   assert.match(await ui("return this.querySelector('.fr-area-provider').textContent"), /OpenAI.*gpt-4\.1-mini/s);
   currentCase = 'result metadata stays frozen until retry';
   await patch({model:{openai:'gpt-4.1-nano'}});

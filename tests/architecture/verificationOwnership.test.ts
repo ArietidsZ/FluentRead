@@ -176,6 +176,8 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/features/video-subtitle/content/ui.ts',
     // 后台消息 composition 只把 provider、feature handler 与 browser API 静态注入；各 handler/路由均已严格覆盖。
     'src/app/background/messageRuntime.ts',
+    // 圈选 composition 仅从消息总入口拆出截图、裁剪和翻译依赖接线；纯路由/事务严格覆盖，并有真实浏览器专项。
+    'src/app/background/areaRuntime.ts',
     // 配置存储 runtime 只把真实 browser/configStorage API 注入严格覆盖的广播策略和 OCR 仓库。
     'src/app/background/configStorageRuntime.ts',
     // 配置消息 composition 只将保存、计数、历史和备份 handler 接入同一 mutation 队列；各 handler 与队列均有功能测试。

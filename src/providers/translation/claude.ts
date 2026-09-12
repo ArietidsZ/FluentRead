@@ -17,6 +17,7 @@ import {
     getTranslationProviderConfig,
     reportTranslationModelUsage,
     reportTranslationModelUsageFailure,
+    getTranslationImageInput,
     type TranslationProviderRequest,
 } from '@/src/services/translation/requestSnapshot';
 import {normalizeClaudeUsage} from './usage';
@@ -37,7 +38,7 @@ async function claude(message: TranslationProviderRequest<string>) {
 
     const url = current.proxy[service] || urls[services.claude];
 
-    const body = claudeMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current, message.thinkingOverride);
+    const body = claudeMsgTemplate(message.origin, message.pageContext, message.summaryPrompt, message.summarySystemPrompt, service, message.targetLanguage, message.modelOverride, current, message.thinkingOverride, getTranslationImageInput(message));
     const startedAt = Date.now();
     let attemptReported = false;
     try {

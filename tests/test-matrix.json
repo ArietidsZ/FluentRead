@@ -212,6 +212,8 @@
       "tests/writingEditors.test.ts",
       "tests/writingMarkdown.test.ts",
       "tests/translationToolbarStatus.test.ts",
+      "tests/visionConfig.test.ts",
+      "tests/translationVisionPayload.test.ts",
       "tests/requestLimits.test.ts",
       "tests/fullPageModalPriority.test.ts",
       "tests/modalProgressHint.test.ts"
@@ -276,7 +278,10 @@
       "tests/writingIntegration.test.ts",
       "tests/popupActions.test.ts",
       "tests/areaTranslationRecovery.test.ts",
-      "tests/backgroundBadgeRuntime.test.ts"
+      "tests/backgroundBadgeRuntime.test.ts",
+      "tests/translationVisionProviders.test.ts",
+      "tests/translationVisionBroker.test.ts",
+      "tests/areaVisionRecognition.test.ts"
     ],
     "regression": [
       "tests/translationControlOwnership.test.ts",

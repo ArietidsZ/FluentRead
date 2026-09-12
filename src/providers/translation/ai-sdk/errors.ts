@@ -72,6 +72,7 @@ function parseResponseBody(body?: string): {message?: string; code?: string} {
 
 function sanitizeProviderDetail(value: string, apiKey?: string | readonly string[]): string {
   let result = value
+    .replace(/data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+/giu, '[已隐藏的图片]')
     .replace(/((?:authorization|api[-_ ]?key|access[-_ ]?token)\s*[:=]\s*)(?:bearer\s+)?[^\s,;"'}]+/giu, '$1[已隐藏]')
     .replace(/\b(?:sk|tp)-[a-z0-9_-]{8,}\b/giu, '[已隐藏的密钥]');
   for (const value of typeof apiKey === 'string' ? [apiKey] : apiKey ?? []) {

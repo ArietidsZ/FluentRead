@@ -40,6 +40,12 @@ export interface OffscreenMessageDependencies {
         signal: AbortSignal,
         requestId: string,
     ) => Promise<unknown>;
+    readonly cropArea?: (
+        image: string,
+        selection: AreaTranslationSelection,
+        signal: AbortSignal,
+        requestId: string,
+    ) => Promise<unknown>;
     readonly removeOcrLanguages?: (languages: ImageOcrLanguageCode[]) => Promise<void>;
     readonly downloadOcrLanguages: (languages: ImageOcrLanguageCode[]) => Promise<void>;
     readonly videoAi?: {
@@ -362,6 +368,17 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
                         requestId,
                     ),
                     (result) => ({...resultRecord(result, '区域翻译'), success: true}),
+                );
+                return true;
+            case 'FLUENT_READ_AREA_CROP_OFFSCREEN':
+                if (!dependencies.cropArea) { sendResponse({success: false, error: '区域裁剪不可用'}); return true; }
+                startImageOperation(
+                    message,
+                    sendResponse,
+                    (signal, requestId) => dependencies.cropArea!(
+                        requiredImage(message.image), parseSelection(message.selection), signal, requestId,
+                    ),
+                    (result) => ({...resultRecord(result, '区域裁剪'), success: true}),
                 );
                 return true;
             case OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE: {

@@ -1,7 +1,7 @@
 <!--
  * @file src/features/area-translation/ui/AreaTranslator.vue
  * 文件职责：提供独立圈选阅读工具，按 Shift+Z 进入选区模式，松开鼠标后展示可拖动、可核对、可复制的原文与译文卡片。
- * 主要内容：管理选择、截图、识别、翻译、结果和失败状态；缺少语言包时一键下载后续接原截图，重试复用同一截图，取消或新选区使旧请求失效，卡片显示本次服务与模型，支持原图核对、AI 校对文和清晰的质量说明。
+ * 主要内容：管理选择、截图、识别、翻译、结果和失败状态；缺少语言包时一键下载后续接原截图，重试复用同一截图，取消或新选区使旧请求失效，卡片显示本次真实识别方式、回退原因及服务模型，支持原图核对与 AI 校对文。
  * 模块边界：组件只调用圈选客户端，不执行 OCR 或网络请求；截图权限归后台，像素只在封闭 Shadow UI 展示，所有页面监听、异步状态与临时截图在关闭或卸载时清理。
  -->
 <template>
@@ -15,7 +15,7 @@
         <div class="fr-area-heading">
           <div class="fr-area-title-row">
             <strong>圈选翻译</strong>
-            <span v-if="result" class="fr-area-mode">{{ result.mode === 'ai' ? 'AI 文本增强' : '本地识别翻译' }}</span>
+            <span v-if="result" class="fr-area-mode" data-i18n-ignore>{{ t(result.recognitionMethod === 'vision' ? 'area.result.vision' : 'area.result.ocr') }}<template v-if="result.mode === 'ai'"> · {{ t('area.result.enhanced') }}</template></span>
           </div>
           <div v-if="result" class="fr-area-provider" data-i18n-ignore>
             <span>{{ isCustomOpenAIProviderId(result.service) ? result.serviceName : translateLegacy(result.serviceName) }}</span>
@@ -34,7 +34,7 @@
         <p>{{ errorMessage }}</p>
         <div class="fr-area-actions">
           <button v-if="needsLanguages" type="button" @click="downloadLanguagesAndRetry">下载语言包并重试</button>
-          <button v-else type="button" @click="retryTranslation">重试</button>
+          <button type="button" @click="retryTranslation">重试</button>
           <button type="button" @click="beginSelection">重新圈选</button>
           <button type="button" @click="openSettings">圈选设置</button>
         </div>
@@ -56,7 +56,9 @@
             <p data-i18n-ignore dir="auto">{{ result.correctedText }}</p>
           </details>
           <details class="fr-area-source"><summary>查看选区原图</summary><img :src="result.image" alt="选区原图" draggable="false" /></details>
-          <p class="fr-area-note" role="note">{{ result.mode === 'ai' ? 'AI 仅处理识别文字，无法找回图片中的漏字；请核对名称和数字。' : '本地识别可能遗漏模糊、手写或复杂排版的文字，翻译质量也会受影响。' }}</p>
+          <p v-if="result.recognitionFallback" class="fr-area-note" role="note" data-i18n-ignore>{{ t(result.recognitionFallback === 'unknown' ? 'area.result.fallbackUnknown' : 'area.result.fallbackUnsupported') }}</p>
+          <p v-if="result.recognitionMethod === 'vision'" class="fr-area-note" role="note" data-i18n-ignore>{{ t('area.result.visionNote') }}</p>
+          <p v-else class="fr-area-note" role="note">{{ result.mode === 'ai' ? 'AI 仅处理识别文字，无法找回图片中的漏字；请核对名称和数字。' : '本地识别可能遗漏模糊、手写或复杂排版的文字，翻译质量也会受影响。' }}</p>
         </div>
         <footer class="fr-area-actions">
           <button type="button" @click="beginSelection">重新圈选</button>
@@ -80,7 +82,7 @@ import { isAreaHotkey, isUsableAreaRect, normalizeAreaRect, type AreaPoint, type
 import {prepareImageOcrLanguages} from '@/src/features/image-translation/public';
 import type { ImageTranslationStage } from '@/src/features/image-translation/protocol';
 
-const {translateLegacy} = useUiI18n();
+const {t, translateLegacy} = useUiI18n();
 type AreaPhase = 'idle' | 'selecting' | 'loading' | 'translated' | 'error';
 const phase = ref<AreaPhase>('idle');
 const selectionRect = ref<AreaRect | null>(null);

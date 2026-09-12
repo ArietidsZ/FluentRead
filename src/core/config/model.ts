@@ -118,6 +118,13 @@ import {
     normalizeVideoSubtitleAppearance,
     type VideoSubtitleAppearance,
 } from './videoSubtitleAppearance';
+import {
+    DEFAULT_AREA_VISION_PROMPT,
+    normalizeAreaVisionPrompt,
+    normalizeModelVisionOverrides,
+    type AreaRecognitionMode,
+    type ModelVisionOverrides,
+} from './vision';
 
 export * from './scheduling';
 
@@ -272,6 +279,9 @@ export class Config {
     selectionAreaEnabled: boolean; // 是否启用圈选翻译
     areaTranslationMode: 'standard' | 'ai'; // 圈选文字的标准翻译或 AI 上下文增强
     areaTranslationService: string; // 圈选独立翻译服务；空字符串跟随当前服务
+    areaRecognitionMode: AreaRecognitionMode; // 圈选优先使用本地 OCR，或在能力确认时优先使用模型识图
+    areaVisionPrompt: string; // 模型识图时发送的图片文字提取指令
+    modelVision: ModelVisionOverrides; // 按服务和精确模型保存的视觉能力显式覆盖
     imageTranslationHoverEnabled: boolean; // 是否显示图片悬浮入口
     imageTranslationContextMenuEnabled: boolean; // 是否显示图片右键入口
     disableImageTranslator: boolean; // 是否禁用图片翻译
@@ -400,6 +410,9 @@ export class Config {
         this.selectionAreaEnabled = true; // 默认开启，按快捷键圈选后才截图翻译
         this.areaTranslationMode = 'standard';
         this.areaTranslationService = '';
+        this.areaRecognitionMode = 'ocr';
+        this.areaVisionPrompt = DEFAULT_AREA_VISION_PROMPT;
+        this.modelVision = {};
         this.imageTranslationHoverEnabled = true;
         this.imageTranslationContextMenuEnabled = true;
         this.disableImageTranslator = true; // 默认关闭图片翻译，由用户按需开启
@@ -838,6 +851,9 @@ export function normalizeConfig(value: unknown): Config {
     normalized.areaTranslationMode = source.areaTranslationMode === 'ai' ? 'ai' : 'standard';
     normalized.areaTranslationService = isSupportedTranslationService(source.areaTranslationService, normalized.customOpenAIProviders)
         ? source.areaTranslationService : '';
+    normalized.areaRecognitionMode = source.areaRecognitionMode === 'prefer-vision' ? 'prefer-vision' : 'ocr';
+    normalized.areaVisionPrompt = normalizeAreaVisionPrompt(source.areaVisionPrompt);
+    normalized.modelVision = normalizeModelVisionOverrides(source.modelVision);
 
     if (typeof normalized.videoTranslationEnabled !== 'boolean') {
         normalized.videoTranslationEnabled = true;
