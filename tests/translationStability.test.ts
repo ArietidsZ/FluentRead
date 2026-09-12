@@ -689,3 +689,41 @@ describe('动态翻译稳定性判定', () => {
         expect(reboundLiveTextResult([source], result, [])).toBeNull();
     });
 });
+
+
+describe('仅译文合成段原文搬移回归', () => {
+    it('Latest 原父移除与槽内加入均属于自身操作，真实内容变动仍需重译', () => {
+        const {document} = parseHTML('<html><body><div><span data-fr-translation-segment="true"><a href="/releases/latest"><span class="Label">Latest</span></a></span></div></body></html>');
+        const owner = document.querySelector<HTMLElement>('[data-fr-translation-segment]')!;
+        const label = document.querySelector<HTMLElement>('.Label')!;
+        const source = label.firstChild as Text;
+        const host = document.createElement('span');
+        host.className = 'fluent-read-single-slot';
+        host.setAttribute('data-fr-translation-owned', 'true');
+        host.setAttribute('translate', 'no');
+        label.insertBefore(host, source);
+        host.appendChild(source);
+        const current = state({
+            mode: 'single', phase: 'translated', sourceText: 'Latest', syntheticSegment: true,
+            syntheticHost: owner.parentElement!, sourceTextNodes: [source],
+            singleTextSlotHosts: [{host, source, sourceValue: 'Latest'}],
+        });
+        const removal = childListRecord(label, [], [source]);
+        expect(statefulSourceAndTextSlotsAreCurrent(owner, current)).toBe(true);
+        expect(isTranslationArtifact(label)).toBe(true);
+        expect(canKeepTranslationAttempt(owner, current, () => true, () => true)).toBe(false);
+        expect(isOwnSingleTextSlotMove(removal, owner, current)).toBe(true);
+        expect(isOwnSingleTextSlotMove(childListRecord(host, [source]), owner, current)).toBe(true);
+        const replacement = document.createTextNode('Latest');
+        expect(isOwnSingleTextSlotMove(childListRecord(label, [], [replacement]), owner, current)).toBe(false);
+        expect(isOwnSingleTextSlotMove(childListRecord(label, [replacement], [source]), owner, current)).toBe(false);
+        expect(isOwnSingleTextSlotMove(childListRecord(label), owner, current)).toBe(false);
+        expect(isOwnSingleTextSlotMove(childListRecord(label, [], [source, replacement]), owner, current)).toBe(false);
+        source.data = 'Changed';
+        expect(isOwnSingleTextSlotMove(removal, owner, current)).toBe(false);
+        source.data = 'Latest';
+        expect(isOwnSingleTextSlotMove(removal, owner, current)).toBe(true);
+        host.remove();
+        expect(isOwnSingleTextSlotMove(removal, owner, current)).toBe(false);
+    });
+});
