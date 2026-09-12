@@ -111,6 +111,7 @@ import {
 } from './videoSubtitleAppearance';
 import {
     DEFAULT_AREA_VISION_PROMPT,
+    normalizeAreaVisionPrompt,
     normalizeModelVisionOverrides,
     type AreaRecognitionMode,
     type ModelVisionOverrides,
@@ -826,9 +827,7 @@ export function normalizeConfig(value: unknown): Config {
     normalized.areaTranslationService = isSupportedTranslationService(source.areaTranslationService, normalized.customOpenAIProviders)
         ? source.areaTranslationService : '';
     normalized.areaRecognitionMode = source.areaRecognitionMode === 'prefer-vision' ? 'prefer-vision' : 'ocr';
-    normalized.areaVisionPrompt = typeof source.areaVisionPrompt === 'string'
-        ? source.areaVisionPrompt
-        : DEFAULT_AREA_VISION_PROMPT;
+    normalized.areaVisionPrompt = normalizeAreaVisionPrompt(source.areaVisionPrompt);
     normalized.modelVision = normalizeModelVisionOverrides(source.modelVision);
 
     if (typeof normalized.videoTranslationEnabled !== 'boolean') {

@@ -8,6 +8,7 @@ import {describe, expect, it} from 'vitest';
 import {Config, normalizeConfig} from '@/src/core/config/model';
 import {
   DEFAULT_AREA_VISION_PROMPT,
+  normalizeAreaVisionPrompt,
   normalizeModelVisionOverrides,
   resolveAreaRecognitionRoute,
   resolveModelVisionCapability,
@@ -21,6 +22,9 @@ describe('vision configuration', () => {
     expect(config.areaVisionPrompt).toBe(DEFAULT_AREA_VISION_PROMPT);
     expect(config.modelVision).toEqual({});
     expect(new Config().areaRecognitionMode).toBe('ocr');
+    expect(DEFAULT_AREA_VISION_PROMPT).toContain('表格按行输出');
+    expect(DEFAULT_AREA_VISION_PROMPT).toContain('[无法辨认]');
+    expect(DEFAULT_AREA_VISION_PROMPT).toContain('不翻译');
   });
 
   it('keeps a user prompt unchanged and normalizes invalid values', () => {
@@ -28,6 +32,9 @@ describe('vision configuration', () => {
     expect(normalizeConfig({areaRecognitionMode: 'prefer-vision', areaVisionPrompt: prompt}).areaVisionPrompt).toBe(prompt);
     expect(normalizeConfig({areaRecognitionMode: 'bad', areaVisionPrompt: '   '}).areaRecognitionMode).toBe('ocr');
     expect(normalizeConfig({areaVisionPrompt: null}).areaVisionPrompt).toBe(DEFAULT_AREA_VISION_PROMPT);
+    expect(normalizeAreaVisionPrompt('请读取选区图片中的文字，按原有阅读顺序输出。保留名称、数字、标点和换行，不要解释图片内容，不要补写看不清的文字。')).toBe(DEFAULT_AREA_VISION_PROMPT);
+    expect(normalizeConfig({areaVisionPrompt: '请读取选区图片中的文字，按原有阅读顺序输出。保留名称、数字、标点和换行，不要解释图片内容，不要补写看不清的文字。'}).areaVisionPrompt).toBe(DEFAULT_AREA_VISION_PROMPT);
+    expect(normalizeAreaVisionPrompt('用户自己的提示词')).toBe('用户自己的提示词');
     expect(normalizeModelVisionOverrides({openai: {' gpt-4.1 ': true, empty: 'yes'}, bad: null})).toEqual({openai: {'gpt-4.1': true}});
   });
 

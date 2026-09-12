@@ -153,7 +153,7 @@ export const enUSMessages = {
     "area.settings.capabilityUnsupported": "This model does not support image recognition. Local OCR will be used.",
     "area.settings.capabilityUnknown": "Local OCR will be used for now. You can set this model's image recognition capability in translation services.",
     "area.settings.visionPrompt": "Model vision prompt",
-    "area.settings.visionPromptDescription": "Adjust what the model should extract; this does not affect later translation.",
+    "area.settings.visionPromptDescription": "Ask it to preserve paragraphs, tables, formulas, or symbols; this only affects image transcription.",
     "area.settings.restorePrompt": "Restore default prompt",
     "area.settings.ocrDetails": "OCR language packs",
     "area.settings.visionPrivacy": "Model vision uploads the selected image; local OCR sends only recognized text.",

@@ -143,7 +143,7 @@ export const zhCNMessages = {
     "area.settings.capabilityUnsupported": "当前模型不支持识图，将使用本地 OCR。",
     "area.settings.capabilityUnknown": "暂用本地 OCR。可在翻译服务中设置此模型的识图能力。",
     "area.settings.visionPrompt": "模型识图提示词",
-    "area.settings.visionPromptDescription": "调整模型提取文字的要求，不影响后续翻译。",
+    "area.settings.visionPromptDescription": "可要求保留段落、表格、公式和符号；只影响图片文字识别，不影响后续翻译。",
     "area.settings.restorePrompt": "恢复默认提示词",
     "area.settings.ocrDetails": "OCR 语言包",
     "area.settings.visionPrivacy": "模型识图会上传选区图片；使用本地 OCR 时仅发送识别文字。",

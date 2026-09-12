@@ -37,6 +37,13 @@ describe('圈选视觉识别事务', () => {
         expect(translate).toHaveBeenCalledOnce();
     });
 
+    it('不把“没有可识别文字”占位符当成可翻译原文', async () => {
+        const translate = vi.fn(async () => '[无可识别文字]');
+        const crop = vi.fn(async () => ({image: 'data:image/png;base64,AA==', lines: []}));
+        await expect(prepareAreaVisionRecognition(base(), 'en', '', crop, translate)('image', selection, options()))
+            .rejects.toThrow('未返回有效文字');
+    });
+
     it('拒绝数组结果、超长结果和视觉网络错误，不调用 OCR', async () => {
         const crop = vi.fn(async () => ({image: 'data:image/png;base64,AA==', lines: []}));
         const translate = vi.fn<() => Promise<string | string[]>>(async () => ['bad']);
