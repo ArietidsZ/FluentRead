@@ -9,6 +9,7 @@
 import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import {DEFAULT_DEEPLX_ENDPOINT} from "./deeplx";
 import {CUSTOM_OPENAI_RESERVED_MODEL_ID, isCustomOpenAIProviderId} from './customOpenAI';
+import {DOUBAO_SEED_TRANSLATION_MODEL_ID, isDoubaoSeedTranslationModel} from './doubaoSeedTranslation';
 
 export const services = {
     // 机器翻译
@@ -281,10 +282,12 @@ export const servicesType = {
     isUseRegion: (service: string) => servicesType.useRegion.has(service),
     isAI: (service: string) => servicesType.AI.has(service) || isCustomOpenAIProviderId(service),
     isAiSdk: (service: string) => servicesType.aiSdk.has(service) || isCustomOpenAIProviderId(service),
+    // 翻译专用模型不接受提示词与页面上下文，译文风格由各自的原生翻译参数决定。
     isUseAIContext: (service: string, model = '') =>
         servicesType.isAI(service)
         && service !== services.huanYuanTranslation
-        && !(service === services.tongyi && model.startsWith('qwen-mt')),
+        && !(service === services.tongyi && model.startsWith('qwen-mt'))
+        && !(service === services.doubao && isDoubaoSeedTranslationModel(model)),
     isUseToken: (service: string) => servicesType.useToken.has(service) || isCustomOpenAIProviderId(service),
     isUseProxy: (service: string) => servicesType.useProxy.has(service) || isCustomOpenAIProviderId(service),
     isUseModel: (service: string) => servicesType.useModel.has(service) || isCustomOpenAIProviderId(service),
@@ -461,7 +464,7 @@ export const models = new Map<string, Array<string>>([
     [services.huanYuanTranslation, [defaultModelIds[services.huanYuanTranslation], "hunyuan-translation", customModelString]],
     [services.newapi, [defaultModelIds[services.newapi], currentModelIds.openai, "gpt-5.6-sol", "gemini-3.6-flash", "gemini-3.5-flash-lite", currentModelIds.claude, currentModelIds.deepseek, "kimi-k2.7-code", customModelString]],
     [services.grok, [defaultModelIds[services.grok], "grok-4.6", currentModelIds.grok, customModelString]],
-    [services.doubao, ["doubao-seed-1-6-250615", customModelString]],
+    [services.doubao, ["doubao-seed-1-6-250615", DOUBAO_SEED_TRANSLATION_MODEL_ID, customModelString]],
 
     // 混合模型。
     [services.siliconCloud, [defaultModelIds[services.siliconCloud], "deepseek-ai/DeepSeek-V4-Pro", "zai-org/GLM-5.2", "Qwen/Qwen3.6-27B", "Qwen/Qwen3.6-35B-A3B", "deepseek-ai/DeepSeek-V3.2", "deepseek-ai/DeepSeek-R1", customModelString]],
