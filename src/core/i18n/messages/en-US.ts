@@ -1839,7 +1839,7 @@ const enUSLegacyTextBase: Readonly<Record<string, string>> = {
     '当前默认服务在此浏览器不可用': 'The current default service is unavailable in this browser',
     '请在上方选择可用服务。': 'Choose an available service above.',
     '所有网站自动翻译': 'Translate all websites automatically',
-    '每个支持的网页加载完成后自动开始翻译；关闭后仍保留下面的名单。': 'Start translating supported pages after they load. The list below is kept when this is off.',
+    '页面基本结构可用后自动开始翻译；关闭后仍保留下面的名单。': 'Start translating supported pages as soon as their basic structure is available. The list below is kept when this is off.',
     '图片翻译与圈选翻译共用本地 OCR 语言包，但可以分别开启。': 'Image and area translation share local OCR language packs, but can be enabled separately.',
     '网页图片翻译': 'Web image translation',
     '悬停网页图片时显示翻译入口，默认关闭。': 'Show a translation action when hovering over web images. Off by default.',
