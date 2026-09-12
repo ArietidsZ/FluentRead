@@ -42,6 +42,8 @@ function fakeElement(tagName: string, attributes: Record<string, string> = {}): 
     const element: any = {
         tagName: tagName.toUpperCase(),
         value: '',
+        selectionStart: 0,
+        selectionEnd: 0,
         innerText: '',
         textContent: '',
         type: 'text',
@@ -50,6 +52,12 @@ function fakeElement(tagName: string, attributes: Record<string, string> = {}): 
         children: [] as any[],
         classList: fakeClassList(),
         dispatchEvent: vi.fn(),
+        addEventListener: vi.fn((type: string, listener: Listener) => {
+            element.listeners ||= new Map<string, Listener[]>();
+            const listeners = element.listeners.get(type) || [];
+            listeners.push(listener);
+            element.listeners.set(type, listeners);
+        }),
         appendChild: vi.fn((child: any) => element.children.push(child)),
         getAttribute: vi.fn((name: string) => attributes[name] ?? null),
         setAttribute: vi.fn(),
@@ -210,11 +218,74 @@ describe('input translation content feature', () => {
             on: true,
             inputBoxTranslationTrigger: 'ctrl_enter',
             inputBoxTranslationTarget: 'en',
-        })).toBe(JSON.stringify([true, 'ctrl_enter', 'en']));
+        })).toBe(JSON.stringify([true, 'ctrl_enter', 'en', 1000, 'microsoft', '', '', '']));
         expect(isInputBoxTranslationEnabled({on: true, inputBoxTranslationTrigger: 'ctrl_enter'}, false)).toBe(true);
         expect(isInputBoxTranslationEnabled({on: false, inputBoxTranslationTrigger: 'ctrl_enter'}, false)).toBe(false);
         expect(isInputBoxTranslationEnabled({on: true, inputBoxTranslationTrigger: 'disabled'}, false)).toBe(false);
         expect(isInputBoxTranslationEnabled({on: true, inputBoxTranslationTrigger: 'ctrl_enter'}, true)).toBe(false);
+    });
+
+    it('配置 key 只跟踪选中服务的模型、连接和凭据指纹', () => {
+        const base: any = {
+            on: true,
+            inputBoxTranslationTrigger: 'ctrl_enter',
+            inputBoxTranslationTarget: 'en',
+            inputBoxTranslationService: 'deeplx',
+            model: {deeplx: 'model-a'},
+            customModel: {deeplx: 'custom-a'},
+            serviceRegion: {deeplx: 'cn', openai: 'global'},
+            modelThinking: {deeplx: {'model-a': true}},
+            requireApiKey: {
+                'deeplx:model-a': true,
+                'v2:["deeplx","model-a"]': true,
+            },
+            proxy: {deeplx: 'https://proxy-a'},
+            token: {deeplx: 'token-a'},
+            customHeaders: {deeplx: '{"x":"a"}'},
+            customBody: {deeplx: '{"temperature":0}'},
+            deeplx: 'https://deeplx-a',
+        };
+        const first = inputBoxTranslationConfigKey(base);
+        expect(first).not.toBe(inputBoxTranslationConfigKey({...base, serviceRegion: {deeplx: 'sgp', openai: 'global'}}));
+        expect(first).toBe(inputBoxTranslationConfigKey({...base, serviceRegion: {deeplx: 'cn', openai: 'cn'}}));
+        expect(first).not.toBe(inputBoxTranslationConfigKey({...base, token: {deeplx: 'token-b'}}));
+        expect(first).not.toBe(inputBoxTranslationConfigKey({...base, inputBoxTranslationService: 'newapi', newApiUrl: 'https://new-api'}));
+        expect(first).not.toBe(inputBoxTranslationConfigKey({...base, inputBoxTranslationService: 'azureOpenai', azureOpenaiEndpoint: 'https://azure'}));
+        expect(first).not.toBe(inputBoxTranslationConfigKey({...base, inputBoxTranslationService: 'youdao', youdaoAppKey: 'app', youdaoAppSecret: 'secret'}));
+        expect(first).not.toBe(inputBoxTranslationConfigKey({...base, inputBoxTranslationService: 'tencent', tencentSecretId: 'id', tencentSecretKey: 'secret'}));
+        expect(first).not.toBe(inputBoxTranslationConfigKey({...base, inputBoxTranslationService: 'deepL', deeplApiPlan: 'pro'}));
+        expect(first).not.toBe(inputBoxTranslationConfigKey({...base, inputBoxTranslationService: 'freeTranslation', freeTranslationOrder: ['youdao']}));
+        expect(first).not.toBe(inputBoxTranslationConfigKey({...base, customOpenAIProviders: [{id: 'deeplx', endpoint: 'https://custom'}]}));
+        expect(inputBoxTranslationConfigKey({...base, customOpenAIProviders: 'invalid'})).toContain('deeplx');
+    });
+
+    it('覆盖选中 provider 的直接连接分支', () => {
+        const base: any = {
+            on: true,
+            inputBoxTranslationTrigger: 'ctrl_enter',
+            inputBoxTranslationTarget: 'en',
+            inputBoxTranslationService: 'microsoft',
+        };
+        for (const [service, extra] of [
+            ['custom', {custom: 'https://custom'}],
+            ['newapi', {newApiUrl: 'https://newapi'}],
+            ['azureOpenai', {azureOpenaiEndpoint: 'https://azure'}],
+            ['deeplx', {deeplx: 'https://deeplx'}],
+            ['myMemory', {myMemoryEmail: 'user@example.com'}],
+            ['youdao', {youdaoAppKey: 'app', youdaoAppSecret: 'secret'}],
+            ['tencent', {tencentSecretId: 'id', tencentSecretKey: 'secret'}],
+            ['huanYuan', {tencentSecretId: 'id', tencentSecretKey: 'secret'}],
+            ['huanYuanTranslation', {tencentSecretId: 'id', tencentSecretKey: 'secret'}],
+            ['deepL', {deeplApiPlan: 'pro'}],
+            ['freeTranslation', {freeTranslationOrder: ['youdao']}],
+            ['minimax', {minimaxBillingPlan: 'token-plan', minimaxRegion: 'global'}],
+            ['mimo', {mimoBillingPlan: 'token-plan', mimoRegion: 'sgp'}],
+            ['deepseek', {deepseekApiType: 'responses'}],
+        ] as const) {
+            expect(inputBoxTranslationConfigKey({...base, inputBoxTranslationService: service, ...extra})).not.toBe(
+                inputBoxTranslationConfigKey(base),
+            );
+        }
     });
 
     it('只写回 input、textarea 和 plaintext-only，不破坏富文本子结构', () => {
@@ -222,6 +293,18 @@ describe('input translation content feature', () => {
         setInputBoxText(input, 'translated');
         expect(input.value).toBe('translated');
         expect(input.dispatchEvent).toHaveBeenCalledTimes(2);
+
+        let nativeSetterCalls = 0;
+        const controlled = fakeElement('input');
+        delete controlled.value;
+        controlled._value = 'old';
+        Object.setPrototypeOf(controlled, {
+            get value() { return controlled._value; },
+            set value(value: string) { nativeSetterCalls += 1; controlled._value = value; },
+        });
+        setInputBoxText(controlled, 'native-set');
+        expect(nativeSetterCalls).toBe(1);
+        expect(controlled.value).toBe('native-set');
 
         const password = fakeElement('input');
         password.type = 'password';
@@ -250,6 +333,33 @@ describe('input translation content feature', () => {
         setInputBoxText(plain, 'skip');
         expect(plain.innerText).toBe('');
         expect(plain.dispatchEvent).not.toHaveBeenCalled();
+    });
+
+    it('成功提示的恢复按钮只接受可信点击，并可恢复未编辑的原文', async () => {
+        const harness = mountHarness();
+        const input = fakeElement('input');
+        input.value = 'Hello';
+        harness.fakeDocument.activeElement = input;
+        await harness.fakeDocument.emit('keydown', trustedKey({key: 'Enter', ctrlKey: true}));
+
+        const tooltip = harness.tooltipRecords.at(-1).ui.mounted;
+        const restoreButton = tooltip.children.at(-1);
+        const restore = restoreButton.listeners.get('click')[0];
+        restore({isTrusted: false, preventDefault: vi.fn(), stopPropagation: vi.fn()});
+        expect(input.value).toBe('你好');
+        restore({isTrusted: true, preventDefault: vi.fn(), stopPropagation: vi.fn()});
+        expect(input.value).toBe('Hello');
+
+        let siteDisabled = false;
+        const blocked = mountHarness({isSiteDisabled: () => siteDisabled});
+        const blockedInput = fakeElement('input');
+        blockedInput.value = 'Hello';
+        blocked.fakeDocument.activeElement = blockedInput;
+        await blocked.fakeDocument.emit('keydown', trustedKey({key: 'Enter', ctrlKey: true}));
+        const blockedButton = blocked.tooltipRecords.at(-1).ui.mounted.children.at(-1);
+        siteDisabled = true;
+        blockedButton.listeners.get('click')[0]({isTrusted: true, preventDefault: vi.fn(), stopPropagation: vi.fn()});
+        expect(blockedInput.value).toBe('你好');
     });
 
     it('Ctrl+Enter 触发 background 翻译，使用 closed Shadow DOM tooltip 并写回当前快照', async () => {
@@ -345,27 +455,148 @@ describe('input translation content feature', () => {
         expect(events.every((event) => event.preventDefault.mock.calls.length === 0)).toBe(true);
     });
 
-    it('三连击只在同一输入目标连续命中时触发，并清理触发符号', async () => {
+    it('三连击只在同一输入目标连续命中时触发，并只清理本次插入的触发符号', async () => {
         const {config, fakeDocument, sendMessage} = mountHarness({
             config: {inputBoxTranslationTrigger: 'triple_equal'},
         });
         const first = fakeElement('input');
-        first.value = 'Hello===';
+        first.value = 'Hello';
+        first.selectionStart = first.selectionEnd = first.value.length;
         const second = fakeElement('input');
         second.value = 'Other===';
+        second.selectionStart = second.selectionEnd = second.value.length;
 
         fakeDocument.activeElement = first;
         await fakeDocument.emit('keydown', trustedKey({key: '=', code: 'Equal'}));
         fakeDocument.activeElement = second;
         await fakeDocument.emit('keydown', trustedKey({key: '=', code: 'Equal'}));
+        second.value = 'Other====';
+        second.selectionStart = second.selectionEnd = second.value.length;
+        await fakeDocument.emit('input', {target: second});
         await fakeDocument.emit('keydown', trustedKey({key: '=', code: 'Equal'}));
+        second.value = 'Other=====';
+        second.selectionStart = second.selectionEnd = second.value.length;
+        await fakeDocument.emit('input', {target: second});
         const third = trustedKey({key: '=', code: 'Equal'});
         await fakeDocument.emit('keydown', third);
 
         expect(config.inputBoxTranslationTrigger).toBe('triple_equal');
         expect(third.preventDefault).toHaveBeenCalledOnce();
         expect(sendMessage).toHaveBeenCalledOnce();
-        expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({text: 'Other'}));
+        expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({text: 'Other==='}));
+    });
+
+    it('不可靠的 plaintext-only 多节点选区保留宿主输入，并处理 Shadow retarget 事件', async () => {
+        const harness = mountHarness({config: {inputBoxTranslationTrigger: 'triple_equal'}});
+        const plain = fakeElement('div', {contenteditable: 'plaintext-only'});
+        plain.isContentEditable = true;
+        harness.fakeDocument.activeElement = plain;
+        const key = () => trustedKey({key: '=', code: 'Equal'});
+        await harness.fakeDocument.emit('keydown', key());
+        await harness.fakeDocument.emit('keydown', key());
+        const third = key();
+        await harness.fakeDocument.emit('keydown', third);
+        expect(third.preventDefault).not.toHaveBeenCalled();
+        expect(harness.sendMessage).not.toHaveBeenCalled();
+
+        const input = fakeElement('input');
+        input.value = 'Hello';
+        input.selectionStart = input.selectionEnd = input.value.length;
+        harness.fakeDocument.activeElement = input;
+        const host = fakeElement('div');
+        await harness.fakeDocument.emit('input', {
+            target: host,
+            composedPath: () => [input, host],
+        });
+        await harness.fakeDocument.emit('compositionstart', {});
+        expect(harness.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('三连击期间选区改变会重置序列', async () => {
+        const harness = mountHarness({config: {inputBoxTranslationTrigger: 'triple_equal'}});
+        const input = fakeElement('input');
+        input.value = 'Hello';
+        input.selectionStart = input.selectionEnd = input.value.length;
+        harness.fakeDocument.activeElement = input;
+        await harness.fakeDocument.emit('keydown', trustedKey({key: '=', code: 'Equal'}));
+        input.selectionStart = input.selectionEnd = 0;
+        await harness.fakeDocument.emit('selectionchange', {});
+        input.value = 'Hello=';
+        input.selectionStart = input.selectionEnd = input.value.length;
+        await harness.fakeDocument.emit('input', {target: input});
+        const next = trustedKey({key: '=', code: 'Equal'});
+        await harness.fakeDocument.emit('keydown', next);
+        expect(next.preventDefault).not.toHaveBeenCalled();
+        expect(harness.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('无活动输入目标的编辑事件和空触发序列会安全忽略', async () => {
+        const harness = mountHarness({config: {inputBoxTranslationTrigger: 'triple_equal'}});
+        harness.fakeDocument.activeElement = fakeElement('div');
+        await harness.fakeDocument.emit('selectionchange', {});
+        await harness.fakeDocument.emit('input', {target: fakeElement('div')});
+        expect(harness.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('选区值与光标都稳定时 selectionchange 保留当前三连序列', async () => {
+        const harness = mountHarness({config: {inputBoxTranslationTrigger: 'triple_equal'}});
+        const input = fakeElement('input');
+        input.value = 'Hello';
+        input.selectionStart = input.selectionEnd = input.value.length;
+        harness.fakeDocument.activeElement = input;
+        await harness.fakeDocument.emit('keydown', trustedKey({key: '=', code: 'Equal'}));
+        input.value = 'Hello=';
+        input.selectionStart = input.selectionEnd = input.value.length;
+        await harness.fakeDocument.emit('selectionchange', {});
+        const next = trustedKey({key: '=', code: 'Equal'});
+        await harness.fakeDocument.emit('keydown', next);
+        expect(next.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it('选区值稳定但光标移动时也会重置三连序列', async () => {
+        const harness = mountHarness({config: {inputBoxTranslationTrigger: 'triple_equal'}});
+        const input = fakeElement('input');
+        input.value = 'Hello';
+        input.selectionStart = input.selectionEnd = input.value.length;
+        harness.fakeDocument.activeElement = input;
+        await harness.fakeDocument.emit('keydown', trustedKey({key: '=', code: 'Equal'}));
+        input.value = 'Hello=';
+        input.selectionStart = input.selectionEnd = 0;
+        await harness.fakeDocument.emit('input', {target: input});
+        expect(harness.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('原生输入控件无法提供选区时不接管触发键', async () => {
+        const harness = mountHarness({config: {inputBoxTranslationTrigger: 'triple_equal'}});
+        const input = fakeElement('input');
+        input.value = 'Hello';
+        input.selectionStart = null;
+        input.selectionEnd = null;
+        harness.fakeDocument.activeElement = input;
+        const event = trustedKey({key: '=', code: 'Equal'});
+        await harness.fakeDocument.emit('keydown', event);
+        expect(event.preventDefault).not.toHaveBeenCalled();
+        expect(harness.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('tooltip 创建时把位置限制在视口内，并在底部空间不足时移到上方', async () => {
+        const harness = mountHarness();
+        (harness.fakeDocument as any).defaultView = {innerWidth: 100, innerHeight: 100};
+        const input = fakeElement('input');
+        input.value = 'Hello';
+        input.getBoundingClientRect = vi.fn(() => ({left: -100, width: 20, top: 90, bottom: 100}));
+        harness.fakeDocument.activeElement = input;
+        await harness.fakeDocument.emit('keydown', trustedKey({key: 'Enter', ctrlKey: true}));
+        const tooltip = harness.tooltipRecords[0].ui.mounted;
+        expect(tooltip.style.left).toBe('12px');
+        expect(tooltip.style.top).toBe('34px');
+
+        const noTop = fakeElement('input');
+        noTop.value = 'World';
+        noTop.getBoundingClientRect = vi.fn(() => ({left: 50, width: 20, bottom: 100}));
+        harness.fakeDocument.activeElement = noTop;
+        await harness.fakeDocument.emit('keydown', trustedKey({key: 'Enter', ctrlKey: true}));
+        expect(harness.tooltipRecords.at(-1).ui.mounted.style.top).toBe('12px');
     });
 
     it('未知但未禁用的输入触发配置不会执行任何翻译动作', async () => {
@@ -389,6 +620,13 @@ describe('input translation content feature', () => {
         empty.fakeDocument.activeElement = emptyInput;
         await empty.fakeDocument.emit('keydown', trustedKey({key: 'Enter', ctrlKey: true}));
         expect(empty.sendMessage).not.toHaveBeenCalled();
+
+        const trulyEmpty = mountHarness();
+        const trulyEmptyInput = fakeElement('input');
+        trulyEmptyInput.value = '';
+        trulyEmpty.fakeDocument.activeElement = trulyEmptyInput;
+        await trulyEmpty.fakeDocument.emit('keydown', trustedKey({key: 'Enter', ctrlKey: true}));
+        expect(trulyEmpty.sendMessage).not.toHaveBeenCalled();
 
         const symbolsOnly = mountHarness({config: {inputBoxTranslationTrigger: 'triple_dash'}});
         const symbolInput = fakeElement('input');
@@ -445,6 +683,79 @@ describe('input translation content feature', () => {
 
         expect(input.value).toBe('Hello edited');
         expect(input.classList.remove).toHaveBeenCalledWith('fluent-input-translating');
+    });
+
+    it('用户编辑后改回原文，旧请求仍不能覆盖当前输入', async () => {
+        let resolveMessage: (value: unknown) => void = () => undefined;
+        const pending = new Promise(resolve => { resolveMessage = resolve; });
+        const harness = mountHarness({sendMessage: () => pending});
+        const input = fakeElement('input');
+        input.value = 'Hello';
+        input.selectionStart = input.selectionEnd = input.value.length;
+        harness.fakeDocument.activeElement = input;
+
+        const running = harness.fakeDocument.emit('keydown', trustedKey({key: 'Enter', ctrlKey: true}));
+        await vi.waitFor(() => expect(harness.sendMessage).toHaveBeenCalledOnce());
+        input.value = 'Changed';
+        await harness.fakeDocument.emit('input', {target: input});
+        input.value = 'Hello';
+        await harness.fakeDocument.emit('input', {target: input});
+        resolveMessage({success: true, translatedText: '你好'});
+        await running;
+
+        expect(input.value).toBe('Hello');
+    });
+
+    it('Escape 会取消进行中的请求并保留用户输入', async () => {
+        let resolveMessage: (value: unknown) => void = () => undefined;
+        const pending = new Promise(resolve => { resolveMessage = resolve; });
+        const harness = mountHarness({sendMessage: () => pending});
+        const input = fakeElement('input');
+        input.value = 'Hello';
+        input.selectionStart = input.selectionEnd = input.value.length;
+        harness.fakeDocument.activeElement = input;
+
+        const running = harness.fakeDocument.emit('keydown', trustedKey({key: 'Enter', ctrlKey: true}));
+        await vi.waitFor(() => expect(harness.sendMessage).toHaveBeenCalledOnce());
+        const escape = trustedKey({key: 'Escape'});
+        await harness.fakeDocument.emit('keydown', escape);
+        resolveMessage({success: true, translatedText: '你好'});
+        await running;
+
+        expect(escape.preventDefault).toHaveBeenCalledOnce();
+        expect(input.value).toBe('Hello');
+    });
+
+    it('翻译期间仅因失焦产生的同值 change 不会取消请求', async () => {
+        let resolveMessage: (value: unknown) => void = () => undefined;
+        const pending = new Promise(resolve => { resolveMessage = resolve; });
+        const harness = mountHarness({sendMessage: () => pending});
+        const input = fakeElement('input');
+        input.value = 'Hello';
+        harness.fakeDocument.activeElement = input;
+
+        const running = harness.fakeDocument.emit('keydown', trustedKey({key: 'Enter', ctrlKey: true}));
+        await vi.waitFor(() => expect(harness.sendMessage).toHaveBeenCalledOnce());
+        await harness.fakeDocument.emit('change', {target: input});
+        resolveMessage({success: true, translatedText: '你好'});
+        await running;
+
+        expect(input.value).toBe('你好');
+    });
+
+    it('compositionstart 会取消进行中的请求，即使组合事件尚未改写文本', async () => {
+        let resolveMessage: (value: unknown) => void = () => undefined;
+        const pending = new Promise(resolve => { resolveMessage = resolve; });
+        const harness = mountHarness({sendMessage: () => pending});
+        const input = fakeElement('input');
+        input.value = 'Hello';
+        harness.fakeDocument.activeElement = input;
+        const running = harness.fakeDocument.emit('keydown', trustedKey({key: 'Enter', ctrlKey: true}));
+        await vi.waitFor(() => expect(harness.sendMessage).toHaveBeenCalledOnce());
+        await harness.fakeDocument.emit('compositionstart', {target: input});
+        resolveMessage({success: true, translatedText: '你好'});
+        await running;
+        expect(input.value).toBe('Hello');
     });
 
     it('翻译成功返回前输入已变化时，成功结果不会写回', async () => {
@@ -550,7 +861,7 @@ describe('input translation content feature', () => {
         failed.fakeDocument.activeElement = failedInput;
         await failed.fakeDocument.emit('keydown', trustedKey({key: 'Enter', ctrlKey: true}));
         expect(failedInput.value).toBe('Hello');
-        expect(failed.logger.error).toHaveBeenCalledWith('微软翻译失败:', expect.any(Error));
+        expect(failed.logger.error).toHaveBeenCalledWith('输入框翻译失败:', expect.any(Error));
 
         const defaultFailure = mountHarness({
             sendMessage: async () => undefined,
@@ -559,7 +870,7 @@ describe('input translation content feature', () => {
         defaultFailedInput.value = 'Hello';
         defaultFailure.fakeDocument.activeElement = defaultFailedInput;
         await defaultFailure.fakeDocument.emit('keydown', trustedKey({key: 'Enter', ctrlKey: true}));
-        expect(defaultFailure.logger.error).toHaveBeenCalledWith('微软翻译失败:', expect.any(Error));
+        expect(defaultFailure.logger.error).toHaveBeenCalledWith('输入框翻译失败:', expect.any(Error));
 
         const emptySuccess = mountHarness({
             sendMessage: async () => ({success: true}),

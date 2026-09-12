@@ -831,7 +831,8 @@ describe('i18n 全量界面扫描', () => {
   });
 
   it('新增稳定资源必须提供实际译文，不能继承 English 掩盖遗漏', () => {
-    const common = new Set(['common.brand', 'metadata.popupTitle', 'settings.advanced.translationLoadingStyleOptionAria', 'reading.generatingAction',
+    // ms 是国际通用的毫秒符号，无需在法语或西班牙语中改写。
+    const common = new Set(['inputTranslation.intervalUnit', 'common.brand', 'metadata.popupTitle', 'settings.advanced.translationLoadingStyleOptionAria', 'reading.generatingAction',
       // 品牌名与纯排版模板在多数语言下与英文一致，强行改写反而破坏菜单文案。
       'settings.interface.font.options.inter.label',
       'contextMenu.groupPlain', 'contextMenu.standalone', 'contextMenu.withShortcut', 'contextMenu.withLanguage', 'contextMenuSettings.withReason']);

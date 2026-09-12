@@ -117,6 +117,14 @@ describe('语义化公共工具', () => {
         expect(shouldSkipTranslationForTarget('¿Cómo estás?', 'es')).toBe(false);
     });
 
+    it('日语和韩语目标中的品牌名或代码不会掩盖夹带的外语正文', () => {
+        expect(shouldSkipTranslationForTarget('これは OpenAI API を使います。', 'ja-JP')).toBe(true);
+        expect(shouldSkipTranslationForTarget('これは https://example.com の説明です。', 'ja-JP')).toBe(true);
+        expect(shouldSkipTranslationForTarget('This English paragraph explains the API の仕様。', 'ja-JP')).toBe(false);
+        expect(shouldSkipTranslationForTarget('이 문서는 GitHub API를 설명합니다.', 'ko-KR')).toBe(true);
+        expect(shouldSkipTranslationForTarget('This foreign prose describes GitHub API 한국어 이름.', 'ko-KR')).toBe(false);
+    });
+
     it('只为精确数量的非空触摸点计算中心', () => {
         const touches = {
             0: {clientX: 10, clientY: 20},

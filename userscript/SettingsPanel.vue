@@ -13,7 +13,7 @@
         该版本复用 FluentRead 当前翻译核心。截图 OCR、圈选翻译、Chrome 内置翻译和扩展右键菜单依赖浏览器扩展权限，userscript 中暂不提供。
       </div>
 
-      <div class="settings-grid">
+      <div v-if="hydrated" class="settings-grid">
         <fieldset>
           <legend>基础设置</legend>
           <label class="toggle"><span>启用 FluentRead</span><input v-model="draft.on" type="checkbox" /></label>
@@ -56,17 +56,18 @@
           </template>
           <details v-if="draft.service === services.freeTranslation">
             <summary>自动降级顺序与连接设置</summary>
-            <p class="hint">所有后备均无需密钥，按顺序切换并至少保留一路。MyMemory 邮箱可留空；微软、DeepLX 和谷歌网页接口不是官方公开 API。</p>
+            <p class="hint">所有后备均无需密钥。自动均衡由后台根据成功率、响应耗时和近期错误动态分配；默认优先微软。至少保留一路。MyMemory 邮箱可留空。</p>
+            <label><span>选择模式</span><select v-model="draft.freeTranslationMode" aria-label="免费翻译选择模式"><option value="balanced">自动均衡</option><option value="sequential">优先顺序</option></select></label>
             <div v-for="(id, index) in draft.freeTranslationOrder" :key="id" class="fallback-order-row">
               <span>{{ fallbackLabel(id) }}</span>
-              <button type="button" :disabled="index === 0" :aria-label="`上移 ${fallbackLabel(id)}`" @click="moveFallback(index, -1)">↑</button>
-              <button type="button" :disabled="index === draft.freeTranslationOrder.length - 1" :aria-label="`下移 ${fallbackLabel(id)}`" @click="moveFallback(index, 1)">↓</button>
+              <button v-if="draft.freeTranslationMode === 'sequential'" type="button" :disabled="index === 0" :aria-label="`上移 ${fallbackLabel(id)}`" @click="moveFallback(index, -1)">↑</button>
+              <button v-if="draft.freeTranslationMode === 'sequential'" type="button" :disabled="index === draft.freeTranslationOrder.length - 1" :aria-label="`下移 ${fallbackLabel(id)}`" @click="moveFallback(index, 1)">↓</button>
               <button type="button" :disabled="draft.freeTranslationOrder.length === 1" @click="draft.freeTranslationOrder = draft.freeTranslationOrder.filter(value => value !== id)">停用</button>
             </div>
             <label v-for="item in availableFallbacks" :key="item.id"><span>{{ item.label }}</span><button type="button" @click="draft.freeTranslationOrder.push(item.id)">加入后备</button></label>
             <label><span>MyMemory 邮箱（可选）</span><input v-model.trim="draft.myMemoryEmail" type="email" /></label>
             <label><span>每路超时（ms）</span><input v-model.number="draft.freeTranslationTimeoutMs" type="number" min="1000" max="15000" step="1000" /></label>
-            <label><span>失败后休息（ms）</span><input v-model.number="draft.freeTranslationCooldownMs" type="number" min="1000" max="300000" step="1000" /></label>
+            <p class="hint">失败后自动暂停服务：网络问题通常几分钟后重试，限流遵循服务提示，访问受阻等待数小时，日额度耗尽约一天后重试。暂停记录保存在本地。</p>
           </details>
           <label v-if="draft.service === services.newapi"><span>New API 地址</span><input v-model.trim="draft.newApiUrl" inputmode="url" /></label>
           <label v-if="draft.service === services.azureOpenai"><span>Azure 地址</span><input v-model.trim="draft.azureOpenaiEndpoint" inputmode="url" placeholder="https://your-resource.services.ai.azure.com/openai/v1/" /></label>
@@ -94,8 +95,6 @@
           <label><span>悬浮翻译触发</span><UiSelect v-model="draft.hotkey" :append-to="menuContainer" aria-label="悬浮翻译触发"><ElOption v-for="item in hoverOptions" :key="item.value" :value="item.value" :label="item.label" /></UiSelect></label>
           <label><span>划词翻译</span><UiSelect v-model="draft.selectionTranslatorMode" :append-to="menuContainer" aria-label="划词翻译"><ElOption value="disabled" label="关闭" /><ElOption value="bilingual" label="原文 + 译文" /><ElOption value="translation-only" label="仅译文" /></UiSelect></label>
           <label v-if="draft.selectionTranslatorMode !== 'disabled'"><span>划词触发</span><UiSelect v-model="draft.selectionTranslatorTrigger" :append-to="menuContainer" aria-label="划词触发"><ElOption value="direct" label="直接显示" /><ElOption value="icon" label="翻译图标" /><ElOption value="dot" label="小圆点" /></UiSelect></label>
-          <label><span>输入框翻译</span><UiSelect v-model="draft.inputBoxTranslationTrigger" :append-to="menuContainer" aria-label="输入框翻译"><ElOption v-for="item in options.inputBoxTranslationTrigger" :key="item.value" :value="item.value" :label="item.label" /></UiSelect></label>
-          <label v-if="draft.inputBoxTranslationTrigger !== 'disabled'"><span>输入框目标语言</span><UiSelect v-model="draft.inputBoxTranslationTarget" :append-to="menuContainer" filterable aria-label="输入框目标语言"><ElOption v-for="item in options.inputBoxTranslationTarget" :key="item.value" :value="item.value" :label="item.label" /></UiSelect></label>
           <label><span>并发翻译数</span><input v-model.number="draft.maxConcurrentTranslations" type="number" min="1" max="20" /></label>
           <label class="toggle"><span>界面动画</span><input v-model="draft.animations" type="checkbox" /></label>
           <label>
@@ -109,6 +108,32 @@
             </div>
           </label>
           <label><span>主题</span><UiSelect v-model="draft.theme" :append-to="menuContainer" aria-label="主题"><ElOption v-for="item in options.theme" :key="item.value" :value="item.value" :label="item.label" /></UiSelect></label>
+        </fieldset>
+
+        <fieldset>
+          <legend>输入框翻译</legend>
+          <p class="hint">独立设置输入框的触发方式和翻译偏好。普通文本输入框可用，密码框和富文本编辑器不参与。</p>
+          <label><span>触发方式</span><UiSelect v-model="draft.inputBoxTranslationTrigger" :append-to="menuContainer" aria-label="输入框翻译触发方式"><ElOption v-for="item in options.inputBoxTranslationTrigger" :key="item.value" :value="item.value" :label="item.label" /></UiSelect></label>
+          <template v-if="draft.inputBoxTranslationTrigger !== 'disabled'">
+            <template v-if="draft.inputBoxTranslationTrigger.startsWith('triple_')">
+              <label><span>三击间隔（毫秒）</span><input v-model.number="draft.inputBoxTranslationInterval" type="number" min="200" max="2000" step="1" /></label>
+              <p class="hint">相邻两次按键最多等待此时长；默认 1000 毫秒。</p>
+              <button type="button" @click="draft.inputBoxTranslationInterval = 1000">恢复默认间隔</button>
+            </template>
+            <label><span>目标语言</span><UiSelect v-model="draft.inputBoxTranslationTarget" :append-to="menuContainer" filterable aria-label="输入框目标语言"><ElOption v-for="item in options.inputBoxTranslationTarget" :key="item.value" :value="item.value" :label="item.label" /></UiSelect></label>
+            <label><span>输入框翻译服务</span><UiSelect v-model="draft.inputBoxTranslationService" :append-to="menuContainer" filterable aria-label="输入框翻译服务" @change="draft.inputBoxTranslationModel = ''"><ElOption v-for="item in serviceOptions" :key="item.value" :value="item.value" :label="item.label" /></UiSelect></label>
+            <p class="hint">使用该服务已保存的连接设置。</p>
+            <label v-if="servicesType.isUseModel(draft.inputBoxTranslationService)"><span>输入框翻译模型</span><input v-model="draft.inputBoxTranslationModel" :list="inputModelListId" placeholder="留空使用该服务的默认模型" /></label>
+            <datalist :id="inputModelListId"><option v-for="model in inputModelOptions" :key="model" :value="model" /></datalist>
+            <details v-if="inputSupportsPrompts">
+              <summary>输入框翻译提示词</summary>
+              <p class="hint">留空使用内置的输入框翻译提示词。可用变量：<code v-pre>{{origin}}</code>（原文）、<code v-pre>{{to}}</code>（目标语言）。</p>
+              <label><span>系统提示词</span><textarea v-model="draft.inputBoxTranslationSystemPrompt" rows="4" /></label>
+              <button type="button" @click="draft.inputBoxTranslationSystemPrompt = ''">恢复默认系统提示词</button>
+              <label><span>翻译提示词</span><textarea v-model="draft.inputBoxTranslationPrompt" rows="5" /></label>
+              <button type="button" @click="draft.inputBoxTranslationPrompt = ''">恢复默认翻译提示词</button>
+            </details>
+          </template>
         </fieldset>
 
         <fieldset>
@@ -133,9 +158,9 @@
       <footer>
         <span class="status" :class="{ error: statusIsError }">{{ status }}</span>
         <div>
-          <button type="button" class="secondary" @click="restoreDefaults">恢复默认</button>
+          <button type="button" class="secondary" :disabled="!hydrated" @click="restoreDefaults">恢复默认</button>
           <button type="button" class="secondary" @click="togglePageTranslation">翻译 / 恢复当前页</button>
-          <button type="button" class="primary" :disabled="saving" @click="save">{{ saving ? '保存中…' : '保存设置' }}</button>
+          <button type="button" class="primary" :disabled="saving || !hydrated" @click="save">{{ !hydrated ? '加载设置中…' : saving ? '保存中…' : '保存设置' }}</button>
         </div>
       </footer>
     </section>
@@ -153,6 +178,7 @@ import UiSelect from '@/src/ui/components/UiSelect.vue';
 import {ElOption} from 'element-plus';
 import {config as runtimeConfig, configReady, saveConfig} from '@/src/services/config/store';
 import {customModelString, models, options, resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
+import {supportsInputBoxTranslationPrompt} from '@/src/core/config/inputTranslation';
 import {
   getCustomOpenAIProvider,
   isCustomOpenAIProviderId,
@@ -182,6 +208,7 @@ const versionLabel = `FluentRead V${process.env.VUE_APP_VERSION} · Userscript V
 const iconUrl = globalThis.__FLUENTREAD_ICON_DATA__ || '';
 const menuContainer = ref<HTMLElement>();
 const draft = ref(new Config());
+const hydrated = ref(false);
 const fallbackLabel = (id: string) => FREE_TRANSLATION_PROVIDERS.find(item => item.id === id)?.label || id;
 const availableFallbacks = computed(() => FREE_TRANSLATION_PROVIDERS.filter(item => !draft.value.freeTranslationOrder.includes(item.id)));
 function moveFallback(index: number, delta: number) {
@@ -223,6 +250,18 @@ const modelOptions = computed(() => selectedCustomOpenAIProvider.value?.models |
     ? draft.value.customModel[draft.value.service] || ''
     : '',
 ].filter(Boolean))));
+const inputModelListId = 'fr-userscript-input-translation-models';
+const inputSupportsPrompts = computed(() => supportsInputBoxTranslationPrompt(
+  draft.value.inputBoxTranslationService,
+  draft.value.inputBoxTranslationModel || resolveConfiguredModel(
+    draft.value.model[draft.value.inputBoxTranslationService], draft.value.customModel[draft.value.inputBoxTranslationService],
+  ),
+));
+const inputModelOptions = computed(() => Array.from(new Set([
+  ...(getCustomOpenAIProvider(draft.value.customOpenAIProviders, draft.value.inputBoxTranslationService)?.models || []),
+  ...(models.get(draft.value.inputBoxTranslationService) || []),
+  ...(draft.value.customModels[draft.value.inputBoxTranslationService] || []),
+].filter(model => model && model !== customModelString))));
 const selectedServiceModel = computed({
   get: () => selectedCustomOpenAIProvider.value
     ? draft.value.model[draft.value.service] || modelOptions.value[0] || ''
@@ -407,6 +446,7 @@ watch(() => draft.value.service, cancelAddCustomModel);
 onMounted(async () => {
   await configReady;
   draft.value = normalizeUserscriptConfig(runtimeConfig);
+  hydrated.value = true;
 });
 
 function close(): void {
@@ -429,7 +469,7 @@ async function syncCurrentPage(next: Config): Promise<void> {
 }
 
 async function save(): Promise<void> {
-  if (saving.value) return;
+  if (saving.value || !hydrated.value) return;
   saving.value = true;
   status.value = '';
   statusIsError.value = false;
@@ -464,6 +504,8 @@ async function togglePageTranslation(): Promise<void> {
 <style scoped>
 .fallback-order-row { display: flex; align-items: center; gap: 6px; padding: 8px 0; }
 .fallback-order-row > span { flex: 1; min-width: 0; }
+.fallback-order-row input[type='number'] { flex: 0 1 72px; width: 72px; min-width: 0; }
+.fallback-order-row button { flex: none; white-space: nowrap; }
 .fallback-order-row > button { padding: 5px 9px; border-radius: 6px; }
 .fallback-order-row > button:disabled { opacity: .4; cursor: default; }
 
@@ -528,5 +570,8 @@ footer button { padding: 9px 13px; border-radius: 9px; font-size: 11px; font-wei
   footer { align-items: stretch; flex-direction: column; }
   footer > div { justify-content: stretch; }
   footer button { flex: 1; }
+  .fallback-order-row { flex-wrap: wrap; }
+  .fallback-order-row > span { flex: 1 1 100%; }
+  .fallback-order-row input[type='number'] { flex: 1 1 96px; width: auto; }
 }
 </style>

@@ -37,7 +37,13 @@ Requests are shared evenly at first. If a key fails, FluentRead tries another an
 
 ## The free service
 
-The default fallback order is Microsoft, DeepLX, Google, then MyMemory. If one fails, the next may be tried, so translation styles can vary. Change the order or disable entries in settings, keeping at least one.
+The default **Automatic balance** mode places Microsoft first and prefers it for the initial request. The background scheduler dynamically adapts distribution using success rate, response time, and recent errors. A failed request switches to another service. Disable entries or choose **Priority order** to try them in list order. Keep at least one enabled.
+
+The scheduler maintains these allocation signals automatically. Users configure only enabled services and the mode; health and performance records used for balancing stay local.
+
+Microsoft, Tencent TranSmart, Volcengine, Google, Youdao Web, ICIBA, Yandex, DeepLX, and MyMemory are enabled by default without API keys. Sogou, Reverso, Lingva, and Apertium are optional. The first three remain experimental; Apertium currently has no Chinese language pairs.
+
+Rate limits normally pause a provider for minutes, blocked access for hours, and exhausted daily quotas for about a day. Recovery records are stored locally and survive background restarts. Each attempt has a five-second timeout by default.
 
 Free services have changing availability and allowances. Public interfaces and intermediaries have their own data policies. Keep only one entry, or select a standalone service, if you want requests to go to only that provider.
 
@@ -128,7 +134,7 @@ Choosing a local model determines where that translation goes. Dictionary, read-
 
 Check the key, address, model, and provider balance. If short sentences work but long pages do not, reduce concurrency or try another service. Never include real credentials in feedback. See [Troubleshooting](/en/guide/faq).
 
-You can also enable Tencent TranSmart, Yandex, and Volcengine in **Free translation settings**. These keyless web endpoints appear only as free translation candidates, not standalone services. They are disabled by default and preserve your existing order. Web endpoints may be rate-limited or unavailable. Yandex skips Traditional Chinese targets so the next candidate can handle them.
+Youdao Web and ICIBA currently support English and Simplified Chinese directions. Yandex does not support Traditional Chinese targets. Unsupported directions fall back to another candidate. Free web endpoints may be rate-limited or unavailable.
 
 ## Custom request headers
 

@@ -1,23 +1,38 @@
 /**
  * @file src/core/config/freeTranslation.ts
- * 文件职责：定义免费翻译后备服务目录、默认顺序及等待策略的合法范围。
- * 主要内容：区分官方公开 API 与既有网页接口，清理未知和重复服务，保留用户停用与排序选择，并规范超时、冷却和可选邮箱。
+ * 文件职责：定义免费翻译服务池、默认加权均衡策略及请求预算的合法范围。
+ * 主要内容：维护免密钥目录、微软优先的默认权重、均衡与顺序模式，规范启用列表、超时及可选邮箱；权重由后台根据请求表现动态计算。
  * 模块边界：本文件只包含纯配置规则，不读取存储、调用供应商或持有请求健康状态；运行时降级由翻译服务编排。
  */
 
 export const FREE_TRANSLATION_PROVIDERS = [
-    {id: 'microsoft', label: '微软翻译', description: 'Edge 网页接口，非官方公开 API', official: false},
-    {id: 'deeplx', label: 'DeepLX', description: '非官方公共接口，无需密钥', official: false},
-    {id: 'google', label: '谷歌翻译', description: '网页接口，非官方公开 API', official: false},
-    {id: 'myMemory', label: 'MyMemory', description: '官方 API，匿名每天 5,000 字符', official: true},
-    {id: 'transmart', label: '腾讯交互翻译', description: '免密钥网页接口，与腾讯云翻译不同', official: false},
-    {id: 'yandexFree', label: 'Yandex', description: '免密钥网页接口，暂不支持繁体目标语言', official: false},
-    {id: 'volcengineFree', label: '火山翻译', description: '免密钥网页接口，无需配置火山云账号', official: false},
+    {id: 'microsoft', label: '微软翻译', description: 'Edge 网页接口，非官方公开 API', official: false, defaultWeight: 5},
+    {id: 'transmart', label: '腾讯交互翻译', description: '免密钥网页接口，与腾讯云翻译不同', official: false, defaultWeight: 3},
+    {id: 'volcengineFree', label: '火山翻译', description: '免密钥网页接口，无需配置火山云账号', official: false, defaultWeight: 3},
+    {id: 'google', label: '谷歌翻译', description: '网页接口，非官方公开 API', official: false, defaultWeight: 3},
+    {id: 'youdaoFree', label: '有道网页翻译', description: '免密钥普通文本翻译，与有道智云不同', official: false, defaultWeight: 3},
+    {id: 'icibaFree', label: '金山词霸', description: '免密钥网页翻译，自动处理网页签名', official: false, defaultWeight: 3},
+    {id: 'yandexFree', label: 'Yandex', description: '免密钥网页接口，暂不支持繁体目标语言', official: false, defaultWeight: 2},
+    {id: 'deeplx', label: 'DeepLX', description: '非官方公共接口，无需密钥', official: false, defaultWeight: 1},
+    {id: 'myMemory', label: 'MyMemory', description: '官方 API，匿名每天 5,000 字符', official: true, defaultWeight: 1},
+    {id: 'sogouFree', label: '搜狗翻译', description: '实验性网页接口，自动处理临时签名', official: false, defaultWeight: 2},
+    {id: 'reversoFree', label: 'Reverso', description: '实验性网页接口，可能触发访问验证', official: false, defaultWeight: 1},
+    {id: 'lingvaFree', label: 'Lingva', description: '实验性公共实例，使用谷歌翻译上游', official: false, defaultWeight: 1},
+    {id: 'apertiumFree', label: 'Apertium', description: '开放翻译服务，仅支持已提供的语言对，暂无中译', official: true, defaultWeight: 1},
 ] as const;
 
-export const DEFAULT_FREE_TRANSLATION_ORDER = ['microsoft', 'deeplx', 'google', 'myMemory'] as const;
+export type FreeTranslationMode = 'balanced' | 'sequential';
+export const DEFAULT_FREE_TRANSLATION_MODE: FreeTranslationMode = 'balanced';
+export const DEFAULT_FREE_TRANSLATION_ORDER = [
+    'microsoft', 'transmart', 'volcengineFree', 'google', 'youdaoFree', 'icibaFree', 'yandexFree', 'deeplx', 'myMemory',
+];
 export const DEFAULT_FREE_TRANSLATION_TIMEOUT_MS = 5_000;
 export const DEFAULT_FREE_TRANSLATION_COOLDOWN_MS = 60_000;
+export const FREE_TRANSLATION_TOTAL_TIMEOUT_MS = 20_000;
+
+export function normalizeFreeTranslationMode(value: unknown): FreeTranslationMode {
+    return value === 'sequential' ? 'sequential' : DEFAULT_FREE_TRANSLATION_MODE;
+}
 
 /** 显式列表只保留用户选中的服务，不能在读取设置时重新启用已停用接口。 */
 export function normalizeFreeTranslationOrder(value: unknown): string[] {

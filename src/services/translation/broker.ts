@@ -286,9 +286,10 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             endpoint: getProviderEndpoint(current, service),
             azureOpenaiEndpoint: service === 'azureOpenai' ? current.azureOpenaiEndpoint : undefined,
             ...(service === 'freeTranslation' ? {freeTranslationPolicy: {
-                // v2 仅使用免密钥端点，旧链的私有地址和凭据不再影响此缓存。
-                version: 2,
+                // v4 使用后台动态权重；缓存按用户模式隔离，不随每次性能观测抖动。
+                version: 4,
                 order: current.freeTranslationOrder,
+                mode: current.freeTranslationMode,
             }} : {}),
             customBody: current.customBody[service] || '',
             ...(current.customHeaders?.[service] ? {customHeaders: current.customHeaders[service]} : {}),
