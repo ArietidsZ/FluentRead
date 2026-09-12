@@ -941,6 +941,7 @@ describe('options UI composition architecture', () => {
     const settings = source('src/features/settings/ui/SettingsSections.vue')
     const translation = activeSectionSource(settings, 'settings-translation')
     const inputTranslation = source('src/features/settings/ui/InputTranslationSettings.vue')
+    const paragraphCopySettings = source('src/features/settings/ui/ParagraphCopySettings.vue')
 
     expect(settingsGroupTitles(translation)).toEqual([
       '鼠标悬浮翻译',
@@ -960,6 +961,16 @@ describe('options UI composition architecture', () => {
     expect(translation).toContain('action="full-page"')
     expect(translation.match(/:profiles="config\.quickTranslationProfiles"/gu)).toHaveLength(2)
     expect(translation.match(/@update:profiles="config\.quickTranslationProfiles = \$event"/gu)).toHaveLength(2)
+
+    // 段落复制与悬浮翻译共用"鼠标所指段落"的心智模型，紧随其后、排在划词之前。
+    expect(translation).toContain('<ParagraphCopySettings :config="config" />')
+    expect(settingsGroupTitles(paragraphCopySettings)).toEqual(["t('paragraphCopy.settings.title')"])
+    expect(paragraphCopySettings).toContain('data-testid="paragraph-copy-hotkey"')
+    expect(paragraphCopySettings).toContain('data-testid="paragraph-copy-content"')
+    expect(translation.indexOf('<ParagraphCopySettings'))
+      .toBeGreaterThan(translation.indexOf('aria-label="悬浮翻译延迟"'))
+    expect(translation.indexOf('<ParagraphCopySettings'))
+      .toBeLessThan(translation.indexOf('title="划词翻译"'))
 
     const hoverProfiles = translation.indexOf('action="hover"')
     const fullPageProfiles = translation.indexOf('action="full-page"')

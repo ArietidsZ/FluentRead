@@ -199,6 +199,12 @@ const DEEPL_API_PLAN_LABELS = new Map<unknown, string>([
 const REGION_LABELS = labelsFor(options.minimaxRegion, options.mimoRegion);
 const DEEPSEEK_API_LABELS = labelsFor(options.deepseekApiType);
 const DEEPSEEK_THINKING_LABELS = labelsFor(options.deepseekThinkingMode);
+const PARAGRAPH_COPY_CONTENT_LABELS = new Map<unknown, string>([
+    ['auto', '跟随页面显示'],
+    ['original', '原文'],
+    ['translation', '译文'],
+    ['bilingual', '原文和译文'],
+]);
 const DISPLAY_LABELS = new Map<unknown, string>([
     [0, '仅译文模式'],
     [1, '双语对照模式'],
@@ -474,6 +480,10 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     hotkey: {group: 'translation', label: '鼠标悬浮快捷键', format: (value) => formatEnum(value, HOVER_TRIGGER_LABELS)},
     customHotkey: {group: 'translation', label: '自定义悬浮快捷键'},
     mouseHoverTranslationDelay: {group: 'translation', label: '悬浮翻译延迟', format: (value) => formatNumber(value, ' ms')},
+    paragraphCopyEnabled: {group: 'translation', label: '段落复制', format: formatBoolean},
+    paragraphCopyHotkey: {group: 'translation', label: '段落复制快捷键', format: value => value === 'custom' ? '自定义快捷键' : formatValue(value)},
+    customParagraphCopyHotkey: {group: 'translation', label: '自定义段落复制快捷键'},
+    paragraphCopyContent: {group: 'translation', label: '段落复制内容', format: (value) => formatEnum(value, PARAGRAPH_COPY_CONTENT_LABELS)},
     disableSelectionTranslator: {group: 'translation', label: '划词翻译', format: (value) => formatBoolean(value, true)},
     selectionTranslatorMode: {group: 'translation', label: '划词显示模式', format: (value) => formatEnum(value, SELECTION_MODE_LABELS)},
     selectionTranslatorTrigger: {group: 'translation', label: '划词触发方式', format: (value) => formatEnum(value, SELECTION_TRIGGER_LABELS)},
