@@ -10,6 +10,25 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const koKRMessages = {
+    "popup.quickSettings.disableHoverShortcut": "기본 마우스 오버 단축키 끄기",
+    "popup.quickSettings.chooseHoverShortcut": "단축키 선택",
+    "popup.quickSettings.disabledHoverHint": "꺼져 있습니다. 다시 켜려면 전체 설정에서 단축키를 선택하세요.",
+    "popup.quickSettings.videoEnableHint": "YouTube / X의 동영상 자막 번역",
+    "popup.quickSettings.videoPlayerHint": "플레이어의 자막 메뉴에서 자막을 표시하거나 숨기고 원문 또는 번역문을 다운로드할 수 있습니다. 지원되는 X 동영상에서는 로컬 AI 자막도 생성할 수 있습니다.",
+    "popup.quickSettings.appearanceDescription": "원문과 번역문을 함께 보거나 번역문만 읽으세요.",
+    "popup.quickSettings.hoverSettings": "마우스 오버 번역 설정",
+    "popup.quickSettings.hoverSettingsHint": "단축키 및 개별 번역 프로필",
+    "popup.quickSettings.selectionSettings": "선택 번역 설정",
+    "popup.quickSettings.selectionSettingsHint": "실행 방식, 표시 지연 및 읽기 음성",
+    "popup.quickSettings.appearanceSettings": "번역 표시 설정",
+    "popup.quickSettings.appearanceSettingsHint": "추가 스타일 및 읽기 환경설정",
+    "popup.quickSettings.imageSettings": "이미지 번역 설정",
+    "popup.quickSettings.imageSettingsHint": "문자 인식 및 번역 환경설정",
+    "popup.quickSettings.areaSettings": "영역 번역 설정",
+    "popup.quickSettings.areaSettingsHint": "인식 방식 및 번역 서비스",
+    "popup.quickSettings.videoSettings": "동영상 번역 설정",
+    "popup.quickSettings.videoSettingsHint": "번역 서비스, 자막 모양 및 로컬 AI",
+
     "reading.triggerTitle": "번역 카드 열기",
     "reading.triggerHelp": "기본은 동작 클릭입니다. 단축키는 우선 동작을, 마우스 올리기는 가리킨 동작을 사용합니다.",
     "reading.triggerClick": "동작 클릭",
@@ -206,6 +225,8 @@ export const koKRMessages = {
     "settings.pageRecognition.title": "페이지 인식",
     "settings.pageRecognition.allNodes": "모든 노드 인식",
     "settings.pageRecognition.description": "메뉴, 버튼, 노드 라벨을 번역합니다. 다음 번역부터 적용됩니다.",
+    "settings.pageRecognition.pageTitle": "페이지 제목 번역",
+    "settings.pageRecognition.pageTitleDescription": "전체 번역 시 탭 제목도 함께 번역하고, 번역을 취소하면 원래대로 복원합니다.",
     'image.entries': "실행 방법",
     'image.hover': "이미지 호버 버튼",
     'image.hoverDescription': "이미지 위에 마우스를 올리면 왼쪽 아래에 번역 버튼을 표시합니다.",
@@ -805,6 +826,14 @@ export const koKRMessages = {
 } satisfies Record<keyof typeof enUSMessages, string>;
 
 const koKRLegacyTextBase: Readonly<Record<string, string>> = {
+    "朗读失败时按这里的顺序依次尝试；留空则根据当前语言自动选择。": "읽기에 실패하면 이 순서대로 음성을 시도합니다. 비워 두면 언어에 따라 자동 선택합니다.",
+    "仅用于 X 没有原生字幕时的本地识别；自动检测适合大多数视频。": "X에 원본 자막이 없을 때 로컬 인식에만 사용합니다. 대부분의 동영상에는 자동 감지가 적합합니다.",
+    "微调字幕外观": "자막 모양 세부 조정",
+    "大多数视频使用默认值即可；只有位置或可读性不合适时再调整。": "대부분의 동영상은 기본값으로 충분합니다. 위치나 가독성이 맞지 않을 때만 조정하세요.",
+    "字号与位置": "글자 크기 및 위치",
+    "颜色与布局": "색상 및 배치",
+    "一般选择 Tiny；语音不清楚时可换 Base。": "보통 Tiny를 선택하고, 음성을 잘 인식하지 못하면 Base를 시도하세요.",
+
     "AI 圈选翻译未返回有效 JSON，请重试或使用标准翻译": "AI did not return a valid result. Retry or use standard translation.",
     "AI 圈选翻译结果结构无效": "The AI area translation result has an invalid structure.",
     "AI 圈选翻译结果字段无效，请重试或使用标准翻译": "The AI result contains invalid fields. Retry or use standard translation.",

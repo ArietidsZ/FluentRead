@@ -10,6 +10,25 @@ enUSMessages} from './en-US';
 import {legacyTextOverrides} from './legacy-overrides';
 
 export const ruRUMessages = {
+    "popup.quickSettings.disableHoverShortcut": "Отключить стандартную клавишу перевода при наведении",
+    "popup.quickSettings.chooseHoverShortcut": "Выбрать сочетание",
+    "popup.quickSettings.disabledHoverHint": "Отключено. Для включения выберите сочетание клавиш в полных настройках.",
+    "popup.quickSettings.videoEnableHint": "Перевод субтитров видео на YouTube / X",
+    "popup.quickSettings.videoPlayerHint": "В меню плеера можно показать или скрыть субтитры и скачать оригинал или перевод. Для поддерживаемых видео X также доступно создание субтитров с локальным ИИ.",
+    "popup.quickSettings.appearanceDescription": "Читайте оригинал вместе с переводом или только перевод.",
+    "popup.quickSettings.hoverSettings": "Настройки перевода при наведении",
+    "popup.quickSettings.hoverSettingsHint": "Горячие клавиши и отдельные профили перевода",
+    "popup.quickSettings.selectionSettings": "Настройки перевода выделенного текста",
+    "popup.quickSettings.selectionSettingsHint": "Способ вызова, задержка показа и голос чтения",
+    "popup.quickSettings.appearanceSettings": "Настройки отображения перевода",
+    "popup.quickSettings.appearanceSettingsHint": "Другие стили и параметры чтения",
+    "popup.quickSettings.imageSettings": "Настройки перевода изображений",
+    "popup.quickSettings.imageSettingsHint": "Распознавание текста и параметры перевода",
+    "popup.quickSettings.areaSettings": "Настройки перевода области",
+    "popup.quickSettings.areaSettingsHint": "Режим распознавания и сервис перевода",
+    "popup.quickSettings.videoSettings": "Настройки перевода видео",
+    "popup.quickSettings.videoSettingsHint": "Сервис перевода, оформление субтитров и локальный ИИ",
+
     "reading.triggerTitle": "Открытие карточки",
     "reading.triggerHelp": "По умолчанию нажмите действие. Сочетание клавиш использует основное действие, наведение — указанное.",
     "reading.triggerClick": "Нажатие действия",
@@ -206,6 +225,8 @@ export const ruRUMessages = {
     "settings.pageRecognition.title": "Распознавание страницы",
     "settings.pageRecognition.allNodes": "Найти все узлы",
     "settings.pageRecognition.description": "Переводить меню, кнопки и подписи узлов. Применяется со следующего перевода.",
+    "settings.pageRecognition.pageTitle": "Переводить заголовок страницы",
+    "settings.pageRecognition.pageTitleDescription": "Переводить заголовок вкладки вместе со страницей и восстанавливать его при отмене перевода.",
     'image.entries': "Способы запуска",
     'image.hover': "Кнопка при наведении",
     'image.hoverDescription': "Показывать кнопку перевода слева внизу при наведении на изображение.",
@@ -805,6 +826,14 @@ export const ruRUMessages = {
 } satisfies Record<keyof typeof enUSMessages, string>;
 
 const ruRULegacyTextBase: Readonly<Record<string, string>> = {
+    "朗读失败时按这里的顺序依次尝试；留空则根据当前语言自动选择。": "Если чтение не удалось, голоса пробуются в этом порядке. Оставьте поле пустым для автоматического выбора по языку.",
+    "仅用于 X 没有原生字幕时的本地识别；自动检测适合大多数视频。": "Используется только для локального распознавания видео X без исходных субтитров. Автоопределение подходит для большинства видео.",
+    "微调字幕外观": "Точная настройка субтитров",
+    "大多数视频使用默认值即可；只有位置或可读性不合适时再调整。": "Для большинства видео подходят настройки по умолчанию. Меняйте их, если положение или читаемость субтитров вам не подходят.",
+    "字号与位置": "Размер шрифта и положение",
+    "颜色与布局": "Цвета и расположение",
+    "一般选择 Tiny；语音不清楚时可换 Base。": "Обычно достаточно Tiny. Если речь распознаётся плохо, попробуйте Base.",
+
     "AI 圈选翻译未返回有效 JSON，请重试或使用标准翻译": "AI did not return a valid result. Retry or use standard translation.",
     "AI 圈选翻译结果结构无效": "The AI area translation result has an invalid structure.",
     "AI 圈选翻译结果字段无效，请重试或使用标准翻译": "The AI result contains invalid fields. Retry or use standard translation.",

@@ -252,6 +252,7 @@ export class Config {
     enableAIMultiSegment: boolean; // 是否把相邻全文段落合并为一次 AI 翻译请求
     bilingualSentenceHighlightEnabled: boolean; // 是否在双语翻译中同步高亮原文与译文
     contextMenuEnabled: boolean; // 是否显示右键全文翻译菜单
+    pageTitleTranslationEnabled: boolean; // 全文翻译时是否一并翻译页面标题
     translationScope: TranslationScope; // 页面识别正文或全部可见界面文字
     fullPageTranslationMode: FullPageTranslationMode; // 全文翻译按视口加载或立即处理整页
     disableFloatingBall: boolean; // 是否禁用悬浮球
@@ -377,6 +378,7 @@ export class Config {
         this.enableAIMultiSegment = false; // 默认逐段请求，由用户按需开启 AI 多段翻译
         this.bilingualSentenceHighlightEnabled = false; // 默认关闭双语逐句高亮，避免改变现有网页视觉
         this.contextMenuEnabled = true; // 默认显示右键全文翻译入口
+        this.pageTitleTranslationEnabled = true; // 默认随全文翻译一并翻译标题，可在高级设置关闭
         this.translationScope = 'content'; // 默认只识别正文，全部节点由高级设置显式开启
         this.fullPageTranslationMode = 'viewport'; // 默认按阅读进度翻译，避免一次发出过多请求
         this.disableFloatingBall = true; // 默认关闭悬浮球
@@ -965,6 +967,9 @@ export function normalizeConfig(value: unknown): Config {
     normalized.imageTranslationContextMenuEnabled = typeof normalized.imageTranslationContextMenuEnabled === 'boolean' ? normalized.imageTranslationContextMenuEnabled : true;
     if (typeof normalized.contextMenuEnabled !== 'boolean') {
         normalized.contextMenuEnabled = true;
+    }
+    if (typeof normalized.pageTitleTranslationEnabled !== 'boolean') {
+        normalized.pageTitleTranslationEnabled = true;
     }
     if (!['viewport', 'all'].includes(normalized.fullPageTranslationMode)) {
         normalized.fullPageTranslationMode = 'viewport';

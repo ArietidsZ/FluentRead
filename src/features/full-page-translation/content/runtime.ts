@@ -2090,8 +2090,9 @@ export function autoTranslateEnglishPage(invocation: PageTranslationInvocation =
 
     const session = createFullPageSession(root, invocation, inheritedConfig);
     fullPageSession = session;
-    // 标题不在正文候选范围内（<head> 属硬裁剪标签），单独随会话翻译并跟随 SPA 改写。
-    startFullPageTitleTranslation(session.translationConfig);
+    // 标题不在正文候选范围内（<head> 属硬裁剪标签），单独随会话翻译并跟随 SPA 改写；
+    // 高级设置可关闭，关闭后标签页保持原标题。
+    if (config.pageTitleTranslationEnabled !== false) startFullPageTitleTranslation(session.translationConfig);
     document.addEventListener('fluentread-open-shadow-root', (event) => {
         if (!session.active || fullPageSession !== session) return;
         const host = isElementNode(event.target as Node) ? event.target as Element : null;

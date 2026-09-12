@@ -191,6 +191,24 @@
   width: 100%;
 }
 
+.selection-tts-voice-control {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.selection-tts-voice-control :deep(.el-select) {
+  width: 100%;
+}
+
+.selection-tts-voice-control small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+  text-align: left;
+}
+
 .task-scheduler-group :deep(.settings-group-body) {
   padding: 12px;
   background: transparent;
