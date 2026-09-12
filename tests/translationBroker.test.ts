@@ -19,7 +19,7 @@ import {
     markTranslationRemainingBudget,
     reportTranslationModelUsage,
 } from '@/src/services/translation/requestSnapshot';
-import {services, customModelString} from '@/src/core/config/catalog';
+import {currentModelIds, services, customModelString} from '@/src/core/config/catalog';
 
 type CacheIdentity = {
     [key: string]: unknown;
@@ -240,7 +240,7 @@ describe('translation broker', () => {
         expect(resolveTranslationRequestModel(withBody, services.custom, 'override-model', () => true, () => true)).toBe('private-deployment');
         const geminiBody = createTranslationProviderConfigSnapshot({...base, customBody: {[services.gemini]: '{"model":"ignored-body-model"}'}});
         expect(resolveTranslationRequestModel(geminiBody, services.gemini, undefined, () => false, () => true)).toBe('gemini-2.5-pro');
-        expect(resolveTranslationRequestModel(base, services.deepseek, undefined, () => false, () => true)).toBe('deepseek-v4-flash');
+        expect(resolveTranslationRequestModel(base, services.deepseek, undefined, () => false, () => true)).toBe(currentModelIds.deepseek);
         expect(resolveTranslationRequestModel(geminiBody, services.gemini, 'url-override', () => false, () => true)).toBe('url-override');
         const customGemini = createTranslationProviderConfigSnapshot({...base,
             model: {[services.gemini]: customModelString}, customModel: {[services.gemini]: 'private-gemini'}});
