@@ -24,7 +24,7 @@ Audio recognition runs locally; recognized subtitle text still goes to your tran
 
 ## Display and download
 
-Adjust subtitle size, background, position, and width in video appearance settings. X subtitles follow the player and try to avoid visible playback controls.
+Adjust subtitle size, background, position, and width in video appearance settings. X subtitles stay within the video picture, with long lines wrapping inside portrait videos. Their position updates when the player resizes or enters fullscreen, and they try to avoid visible playback controls.
 
 Use the menu to show or hide subtitles and download them. Completed X transcripts are cached locally for a limited time, so reopening the same video usually avoids another transcription. Cached subtitles appear immediately while translations become available, and the cache count refreshes when you return to video settings. Use re-recognition or clear the video cache to start fresh.
 
