@@ -3,7 +3,7 @@ import {describe, expect, it} from 'vitest';
 import {
     buildGlossaryRevision, createGlossaryEntry, createGlossaryLibrary, exportGlossary,
     GLOSSARY_LIMITS, normalizeGlossaryDomain, normalizeGlossaryIds, normalizeGlossaryLibraries,
-    parseGlossaryImport, resolveGlossary, type GlossaryContext, type GlossaryLibrary,
+    decodeGlossaryText, parseGlossaryImport, resolveGlossary, type GlossaryContext, type GlossaryLibrary,
 } from '@/src/core/glossary';
 
 const entry = (source = 'API', target = '接口', caseSensitive = false) => ({id: `term-${source.replace(/[^a-z]/giu, '') || '1'}`, source, target, caseSensitive});
@@ -151,6 +151,13 @@ describe('术语库数据边界与配置版本', () => {
 });
 
 describe('术语按当前内容与作用域解析', () => {
+    it('较长术语在边界失败时不会遮蔽同起点的较短术语', () => {
+        const result = resolveGlossary([
+            library({entries: [entry('Chort Bay', '长词'), entry('Chort', '短词')]}),
+        ], context({text: 'landed at Chort bayonet'}));
+        expect(result.terms).toEqual([{source: 'Chort', target: '短词'}]);
+    });
+
     it('仅选择本次命中词，英文全词边界与中日韩子串各自成立', () => {
         expect(terms('Rapid API documentation', [entry(), entry('unused')])).toEqual([{source: 'API', target: '接口'}]);
         expect(terms('rapid APIS _API API_ 2API API2 APIx xAPI')).toEqual([]);
@@ -245,6 +252,19 @@ describe('术语按当前内容与作用域解析', () => {
 });
 
 describe('术语文件预览与导出', () => {
+    it('严格优先 UTF-8，并兼容 Excel 常见的 UTF-16 与 GB18030 文件', () => {
+        const utf8 = new TextEncoder().encode('source,target\nAPI,接口').buffer;
+        expect(decodeGlossaryText(utf8)).toBe('source,target\nAPI,接口');
+
+        const utf16 = Uint8Array.from([0xFF, 0xFE, 0x73, 0x00, 0x6F, 0x00, 0x75, 0x00, 0x72, 0x00, 0x63, 0x00, 0x65, 0x00]);
+        expect(decodeGlossaryText(utf16.buffer)).toBe('source');
+
+        const legacy = Uint8Array.from([
+            ...new TextEncoder().encode('source,target\nAPI,'), 0xD7, 0xE9, 0xBC, 0xFE,
+        ]);
+        expect(decodeGlossaryText(legacy.buffer)).toBe('source,target\nAPI,组件');
+    });
+
     it('解析BOM、英文中文列名、双引号、逗号及引号内换行', () => {
         const preview = parseGlossaryImport('\uFEFF原文,译文,区分大小写\r\n"API, v2","接口\n第二版",true\r\n"say ""Hi""","说你好",false\r\n', 'csv');
         expect(preview.errors).toEqual([]);
