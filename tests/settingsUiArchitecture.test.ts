@@ -312,6 +312,12 @@ describe('options UI composition architecture', () => {
     const areaSettings = source('src/features/settings/ui/AreaTranslationSettings.vue')
     const sharedOcrSettings = source('src/features/image-translation/ui/ImageOcrSettings.vue')
     expect(areaSettings).toContain('<ImageOcrSettings id-prefix="area" />')
+    // 圈选快捷键在圈选设置内选择或录制，冲突提示读取共享的解析与占用规则。
+    expect(areaSettings).toContain(':model-value="props.config.selectionAreaHotkey"')
+    expect(areaSettings).toContain('v-for="item in AREA_TRANSLATION_HOTKEY_OPTIONS"')
+    expect(areaSettings).toContain(':validate="findHotkeyConflict"')
+    expect(areaSettings).toContain('findEnabledQuickTranslationHotkeyConflict(props.config.quickTranslationProfiles, hotkey)')
+    expect(areaSettings).toContain("props.config.selectionAreaHotkey = canonical ? 'custom' : DEFAULT_AREA_TRANSLATION_HOTKEY;")
     expect(sharedOcrSettings).toContain(':id="`${props.idPrefix}-ocr-pack-title`"')
     expect(sharedOcrSettings).toContain(':aria-labelledby="`${props.idPrefix}-ocr-pack-title`"')
     expect(sharedOcrSettings).not.toContain('id="image-ocr-pack-title"')
@@ -414,7 +420,9 @@ describe('options UI composition architecture', () => {
     expect(settingsSections).toContain(':validate="validateCustomFullPageHotkey"')
     expect(settingsSections).toContain(':validate="validateCustomMouseHotkey"')
     expect(settingsSections).toContain('quickTranslationConflictMessage')
-    expect(settingsSections).toContain("quickTranslationConflictMessage('Shift+Z')")
+    // 圈选快捷键可自定义；启用开关的冲突检查必须读取已解析的快捷键，不能写死 Shift+Z。
+    expect(settingsSections).toContain('quickTranslationConflictMessage(resolveAreaTranslationHotkey(config.value.selectionAreaHotkey, config.value.customSelectionAreaHotkey))')
+    expect(settingsSections).not.toContain("'Shift+Z'")
     expect(settingsSections).toContain("useTranslationShortcutSettings(config)")
     expect(translationShortcutSettings).toContain('inputBoxTranslationTriggerHotkey(value)')
     expect(quickTranslationProfiles).toContain('inputBoxTranslationTriggerHotkey(props.config.inputBoxTranslationTrigger)')

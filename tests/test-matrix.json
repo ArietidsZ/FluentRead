@@ -280,6 +280,7 @@
       "tests/writingIntegration.test.ts",
       "tests/popupActions.test.ts",
       "tests/areaTranslationRecovery.test.ts",
+      "tests/areaTranslationTrigger.test.ts",
       "tests/backgroundBadgeRuntime.test.ts",
       "tests/translationVisionProviders.test.ts",
       "tests/translationVisionBroker.test.ts",

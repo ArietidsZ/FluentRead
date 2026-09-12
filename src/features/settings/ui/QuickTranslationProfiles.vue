@@ -242,6 +242,7 @@ import {
   withCustomOpenAIServiceOptions,
 } from '@/src/core/config/customOpenAI'
 import type {Config} from '@/src/core/config/model'
+import {resolveAreaTranslationHotkey} from '@/src/core/config/areaTranslation'
 import {
   createQuickTranslationProfile,
   inputBoxTranslationTriggerHotkey,
@@ -394,7 +395,12 @@ function legacyHotkeyEntries(): Array<{hotkey: string, label: string}> {
     {hotkey: resolveConfiguredHotkey(props.config.hotkey, props.config.customHotkey), label: t('quickTranslation.defaultHover')},
     {hotkey: resolveConfiguredHotkey(props.config.floatingBallHotkey, props.config.customFloatingBallHotkey), label: t('quickTranslation.defaultFullPage')},
   ]
-  if (props.config.selectionAreaEnabled) entries.push({hotkey: 'Shift+Z', label: translateLegacy('圈选翻译')})
+  if (props.config.selectionAreaEnabled) {
+    entries.push({
+      hotkey: resolveAreaTranslationHotkey(props.config.selectionAreaHotkey, props.config.customSelectionAreaHotkey),
+      label: translateLegacy('圈选翻译'),
+    })
+  }
   const inputBoxHotkey = inputBoxTranslationTriggerHotkey(props.config.inputBoxTranslationTrigger)
   if (inputBoxHotkey) entries.push({hotkey: inputBoxHotkey, label: translateLegacy('输入框翻译')})
   return entries.filter((entry) => Boolean(canonicalizeHotkey(entry.hotkey)))

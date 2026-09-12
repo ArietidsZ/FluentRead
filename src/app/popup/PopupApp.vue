@@ -433,8 +433,8 @@
               </div>
               <button class="switch compact" type="button" role="switch" :aria-checked="config.selectionAreaEnabled" aria-label="启用或关闭圈选翻译" @click="setAreaEnabled(!config.selectionAreaEnabled)"><i /></button>
             </div>
-            <div class="area-translation-preview" aria-keyshortcuts="Shift+Z"><div class="area-hotkey"><kbd>Shift</kbd><kbd>Z</kbd></div><span>＋</span><i class="area-ring" /><span>＝</span><strong>翻译选中区域</strong></div>
-            <small class="drawer-hint">按 Shift + Z 后拖拽页面区域，释放鼠标后识别并翻译；按 Esc 可取消或关闭结果。</small>
+            <div class="area-translation-preview" :aria-keyshortcuts="areaHotkey"><div class="area-hotkey" data-i18n-ignore><kbd v-for="part in areaHotkeyParts" :key="part">{{ part }}</kbd></div><span>＋</span><i class="area-ring" /><span>＝</span><strong>翻译选中区域</strong></div>
+            <small class="drawer-hint">{{ t('area.settings.shortcut', {shortcut: areaHotkeyDisplayName}) }}</small>
             <small class="drawer-hint">{{ t(config.areaTranslationMode === 'ai' ? 'area.settings.aiDescription' : 'area.settings.standardDescription') }}</small>
           </div>
         </div>
@@ -526,6 +526,7 @@ import {
   type QuickTranslationProfile,
 } from '@/src/core/config/quickTranslation';
 import {resolveConfiguredHotkey} from '@/src/core/hotkey';
+import {areaTranslationHotkeyDisplayName, resolveAreaTranslationHotkey} from '@/src/core/config/areaTranslation';
 import {
   getCustomOpenAIProvider,
   withCustomOpenAIServiceOptions,
@@ -626,6 +627,16 @@ function readBrowserUiLocale(): unknown {
     || '';
 }
 
+// 圈选快捷键可自定义；抽屉提示、按键贴片和冲突检查都读取同一份解析结果。
+const areaHotkey = computed(() => resolveAreaTranslationHotkey(
+  config.value.selectionAreaHotkey,
+  config.value.customSelectionAreaHotkey,
+));
+const areaHotkeyDisplayName = computed(() => areaTranslationHotkeyDisplayName(
+  config.value.selectionAreaHotkey,
+  config.value.customSelectionAreaHotkey,
+));
+const areaHotkeyParts = computed(() => areaHotkeyDisplayName.value.split('+'));
 const allServiceOptions = computed(() => withCustomOpenAIServiceOptions(
   options.services,
   config.value.customOpenAIProviders,
@@ -847,7 +858,7 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
   area: {
     id: 'area',
     label: t('popup.areaTranslation'),
-    summary: !browserCapabilities.areaTranslation ? '当前浏览器不可用' : config.value.selectionAreaEnabled ? 'Shift + Z' : '已关闭',
+    summary: !browserCapabilities.areaTranslation ? '当前浏览器不可用' : config.value.selectionAreaEnabled ? areaHotkeyDisplayName.value : '已关闭',
     icon: '▣',
     iconTone: 'violet',
     showStatus: true,
@@ -1247,7 +1258,7 @@ function setAreaEnabled(enabled: boolean) {
     showNotice('当前浏览器暂不支持圈选翻译', 'error');
     return;
   }
-  const conflictMessage = enabled ? quickTranslationConflictMessage('Shift+Z') : '';
+  const conflictMessage = enabled ? quickTranslationConflictMessage(areaHotkey.value) : '';
   if (conflictMessage) {
     showNotice(conflictMessage, 'error');
     return;

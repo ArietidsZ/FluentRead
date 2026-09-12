@@ -1,6 +1,6 @@
 <!--
  * @file src/features/area-translation/ui/AreaTranslator.vue
- * 文件职责：提供独立圈选阅读工具，按 Shift+Z 进入选区模式，松开鼠标后展示可拖动、可核对、可复制的原文与译文卡片。
+ * 文件职责：提供独立圈选阅读工具，按配置的快捷键（默认 Shift+Z）进入选区模式，松开鼠标后展示可拖动、可核对、可复制的原文与译文卡片。
  * 主要内容：管理选择、截图、识别、翻译、结果和失败状态；缺少语言包时一键下载后续接原截图，重试复用同一截图，取消或新选区使旧请求失效，卡片显示本次真实识别方式、回退原因及服务模型，支持原图核对与 AI 校对文。
  * 模块边界：组件只调用圈选客户端，不执行 OCR 或网络请求；截图权限归后台，像素只在封闭 Shadow UI 展示，所有页面监听、异步状态与临时截图在关闭或卸载时清理。
  -->
@@ -78,7 +78,8 @@ import { config, subscribeConfig } from '@/src/services/config/store';
 import { isCustomOpenAIProviderId } from '@/src/core/config/customOpenAI';
 import { useUiI18n } from '@/src/ui/i18n';
 import { captureVisibleAreaInExtension, translateCapturedAreaInExtension, type AreaTranslationResult } from '@/src/features/area-translation/services/client';
-import { isAreaHotkey, isUsableAreaRect, normalizeAreaRect, type AreaPoint, type AreaRect, type AreaTranslationSelection } from '@/src/features/area-translation/core';
+import { isUsableAreaRect, normalizeAreaRect, type AreaPoint, type AreaRect, type AreaTranslationSelection } from '@/src/features/area-translation/core';
+import { matchesAreaTranslationHotkey } from '@/src/core/config/areaTranslation';
 import {prepareImageOcrLanguages} from '@/src/features/image-translation/public';
 import type { ImageTranslationStage } from '@/src/features/image-translation/protocol';
 
@@ -145,18 +146,37 @@ function isInsideExtensionUi(target: EventTarget | null): boolean {
   const host = document.getElementById('fluent-read-area-translator-container');
   return Boolean(host && target instanceof Node && host.contains(target));
 }
-function isEditableTarget(target: EventTarget | null): boolean {
-  const element = target instanceof HTMLElement ? target : document.activeElement;
-  if (!(element instanceof HTMLElement)) return false;
-  return element.isContentEditable || Boolean(element.closest('[contenteditable="true"], [contenteditable="plaintext-only"]'))
-    || ['INPUT', 'TEXTAREA', 'SELECT', 'OPTION'].includes(element.tagName);
+// 这些标签天生可聚焦；焦点停在它们上面（例如播放器、按钮、折叠块）不代表用户正在输入文字。
+const NATIVE_FOCUSABLE_TAGS = ['A', 'AREA', 'AUDIO', 'BUTTON', 'DETAILS', 'EMBED', 'IFRAME', 'LABEL', 'OBJECT', 'SUMMARY', 'VIDEO'];
+const TYPING_ROLES = ['textbox', 'searchbox', 'combobox', 'spinbutton'];
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (['INPUT', 'TEXTAREA', 'SELECT', 'OPTION'].includes(target.tagName)) return true;
+  if (target.isContentEditable) return true;
+  if (target.closest('[contenteditable="true"], [contenteditable="plaintext-only"], [contenteditable=""]')) return true;
+  const role = target.getAttribute('role');
+  return typeof role === 'string' && TYPING_ROLES.includes(role.toLowerCase());
+}
+/** 逐层穿过可读取的 ShadowRoot，找到真正持有焦点的元素。 */
+function deepActiveElement(): Element | null {
+  let focused = document.activeElement;
+  while (focused?.shadowRoot?.activeElement) focused = focused.shadowRoot.activeElement;
+  return focused;
+}
+/**
+ * 焦点元素自身不可聚焦时，真实输入框只能在无法读取的封闭 ShadowRoot 内，按输入保守处理；
+ * 自定义元素同样保守。带 tabindex 的容器和原生可聚焦元素只是普通焦点，不再吞掉快捷键。
+ */
+function isOpaqueFocusHost(element: Element): boolean {
+  if (['BODY', 'HTML'].includes(element.tagName)) return false;
+  if (element.tagName.includes('-')) return true;
+  if (element.hasAttribute('tabindex')) return false;
+  return !NATIVE_FOCUSABLE_TAGS.includes(element.tagName);
 }
 function isEditingInPage(event: KeyboardEvent): boolean {
-  if (event.composedPath().some(isEditableTarget)) return true;
-  // 封闭网页 ShadowRoot 隐藏真实输入节点；已聚焦的容器按交互控件保守处理。
-  const focused = document.activeElement;
-  return focused instanceof HTMLElement && focused === event.target
-    && !['BODY', 'HTML', 'A', 'BUTTON'].includes(focused.tagName);
+  if (event.composedPath().some(isTypingTarget)) return true;
+  const focused = deepActiveElement();
+  return Boolean(focused) && (isTypingTarget(focused) || isOpaqueFocusHost(focused!));
 }
 function isEnabled(): boolean { return config.on !== false && config.selectionAreaEnabled === true; }
 function clearResult(): void {
@@ -191,8 +211,9 @@ function handleKeydown(event: KeyboardEvent): void {
     clearResult();
     return;
   }
-  if (!isEnabled() || event.repeat || event.isComposing || event.ctrlKey || event.metaKey || event.altKey
-    || !isAreaHotkey(event) || isInsideExtensionUi(event.target) || isEditingInPage(event)) return;
+  if (!isEnabled() || event.repeat || event.isComposing
+    || !matchesAreaTranslationHotkey(event, config.selectionAreaHotkey, config.customSelectionAreaHotkey)
+    || isInsideExtensionUi(event.target) || isEditingInPage(event)) return;
   event.preventDefault();
   beginSelection();
 }
@@ -349,7 +370,18 @@ async function openSettings(): Promise<void> {
 }
 function handleViewportChange(event: Event): void {
   // 卡片自己的滚动不能销毁结果；页面滚动/缩放则使旧截图坐标失效。
-  if (!isInsideExtensionUi(event.target)) clearResult();
+  if (isInsideExtensionUi(event.target)) return;
+  // 选区模式还没有截图，页面自身的动画或懒加载滚动不能把用户刚打开的选区关掉；
+  // 只重置进行中的拖拽，避免起点停留在已经滚走的位置。
+  if (isSelecting.value) {
+    if (startPoint) {
+      startPoint = null;
+      activePointerId = null;
+      selectionRect.value = null;
+    }
+    return;
+  }
+  clearResult();
 }
 function handleVisibilityChange(): void {
   // captureVisibleTab 截取窗口的活动标签页，切走后不得将新标签页的内容作为本次选区处理。

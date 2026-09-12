@@ -6,12 +6,14 @@ Keyboard shortcuts and mouse actions can trigger webpage, selection, and hover t
 | --- | --- |
 | Translate a paragraph | Hover over it and press **Control** |
 | Translate page / restore original | **Alt + T**; Alt is usually labeled Option on a Mac |
-| Capture an area | Press **Shift + Z**, then drag |
+| Capture an area | Press **Shift+Z** (configurable), then drag |
 | Translate a selection | Enable selection translation, select text, and click the nearby icon |
 
 ## Change a trigger
 
 Open hover, selection, or the relevant feature settings in FluentRead. Choose a trigger or use its custom-shortcut field.
+
+The area shortcut lives in area translation settings, where you can pick a preset or record your own combination. See [area translation](/en/guide/area-translation).
 
 Selection can show an icon, a small dot, open directly, or wait for a key. Keep an icon or add a delay if it appears too often.
 

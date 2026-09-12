@@ -6,6 +6,7 @@ import ts from 'typescript';
 import {parseHTML} from 'linkedom';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import * as areaCore from '@/src/features/area-translation/core';
+import * as areaHotkey from '@/src/core/config/areaTranslation';
 
 const Vue = createRequire(import.meta.url)('vue') as typeof import('vue');
 let app: import('vue').App | undefined;
@@ -32,6 +33,7 @@ function mountRecovery() {
     '@/src/ui/i18n': {useUiI18n: () => ({translateLegacy: (text: string) => text})},
     '@/src/features/area-translation/services/client': {captureVisibleAreaInExtension: capture, translateCapturedAreaInExtension: translate},
     '@/src/features/area-translation/core': areaCore,
+    '@/src/core/config/areaTranslation': areaHotkey,
     '@/src/features/image-translation/public': {prepareImageOcrLanguages: prepare},
   };
   const filename = resolve('src/features/area-translation/ui/AreaTranslator.vue');

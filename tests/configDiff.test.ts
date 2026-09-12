@@ -123,6 +123,20 @@ describe('配置差异预览', () => {
         ]));
     });
 
+    it('显示圈选快捷键的预设切换与自定义录制', () => {
+        const preset = buildConfigDiff({selectionAreaHotkey: 'Shift+Z'}, {selectionAreaHotkey: 'Alt+X'});
+        expect(group(preset, 'areaTranslation')?.changes).toEqual(expect.arrayContaining([
+            {key: 'selectionAreaHotkey', label: '圈选快捷键', before: 'Shift+Z', after: 'Alt+X'},
+        ]));
+        const custom = buildConfigDiff({selectionAreaHotkey: 'Shift+Z', customSelectionAreaHotkey: ''}, {
+            selectionAreaHotkey: 'custom', customSelectionAreaHotkey: 'Alt+K',
+        });
+        expect(group(custom, 'areaTranslation')?.changes).toEqual(expect.arrayContaining([
+            {key: 'selectionAreaHotkey', label: '圈选快捷键', before: 'Shift+Z', after: '自定义快捷键'},
+            {key: 'customSelectionAreaHotkey', label: '自定义圈选快捷键', before: '未设置', after: 'Alt+K'},
+        ]));
+    });
+
     it('显示界面皮肤和 Popup 栏目可见性，并安全处理异常栏目值', () => {
         const result = buildConfigDiff({
             interfaceSkin: 'default',

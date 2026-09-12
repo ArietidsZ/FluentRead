@@ -500,6 +500,8 @@ const FIELD_DEFINITIONS: Record<string, FieldDefinition> = {
     imageTranslationContextMenuEnabled: {group: 'imageTranslation', label: '图片右键菜单', format: formatBoolean},
     disableImageTranslator: {group: 'imageTranslation', label: '图片翻译', format: (value) => formatBoolean(value, true)},
     selectionAreaEnabled: {group: 'areaTranslation', label: '圈选翻译', format: formatBoolean},
+    selectionAreaHotkey: {group: 'areaTranslation', label: '圈选快捷键', format: value => value === 'custom' ? '自定义快捷键' : formatValue(value)},
+    customSelectionAreaHotkey: {group: 'areaTranslation', label: '自定义圈选快捷键'},
     areaTranslationMode: {group: 'areaTranslation', label: '圈选翻译方式', format: value => value === 'ai' ? 'AI 上下文增强' : '标准翻译'},
     areaTranslationService: {group: 'areaTranslation', label: '圈选翻译服务', format: value => value ? formatService(value) : '跟随当前服务'},
     areaRecognitionMode: {group: 'areaTranslation', label: '圈选识别方式', format: value => value === 'prefer-vision' ? '优先模型识图' : '本地 OCR'},
