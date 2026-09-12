@@ -2,7 +2,7 @@
  * @file src/services/translation/requestScheduler.ts
  *
  * 文件职责：统一执行翻译任务的并发和请求启动速率限制，支持取消、截止时间、服务/模型 bucket 与真实 HTTP attempt。
- * 主要内容：旧配置继续使用 global bucket；启用服务或模型限制后按稳定请求身份切换 bucket，provider 的 attempt 只复用速率历史而不重复占用外层并发槽。
+ * 主要内容：旧配置继续使用 global bucket；启用服务或模型限制后按稳定请求身份切换 bucket，provider 的 attempt 只复用速率历史而不重复占用外层并发槽；单次 drain 内缓存 bucket key 与限额，并以一次前向扫描启动全部可启动任务。
  * 模块边界：本模块只管理调度时序，不选择服务、不实现重试、不读取或写入配置；配置由调用方通过 getConfig 提供。
  */
 
@@ -115,6 +115,7 @@ export function createTranslationRequestScheduler(
     let head = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let draining = false;
+    let drainRequested = false;
     let lastNow: number | undefined;
 
     function readNow(): number {
@@ -134,18 +135,39 @@ export function createTranslationRequestScheduler(
         }
     }
 
-    function keysFor(identity: TranslationRequestIdentity | undefined, config: TranslationRequestSchedulerConfig): string[] {
+    const GLOBAL_KEYS: readonly string[] = ['global'];
+    /**
+     * 一次 drain 内配置是固定的，而 bucket key 与限额原本要为每个待处理任务
+     * （并在公平性检查里为每个更早的任务）重新做 JSON.stringify / JSON.parse。
+     * 这两张表把同一次 drain 内的重复计算折叠成一次。
+     */
+    let keyMemo = new Map<string, readonly string[]>();
+    let limitMemo = new Map<string, BucketLimit>();
+
+    function resetDrainMemo(): void {
+        keyMemo = new Map();
+        limitMemo = new Map();
+    }
+
+    function keysFor(identity: TranslationRequestIdentity | undefined, config: TranslationRequestSchedulerConfig): readonly string[] {
         const service = clean(identity?.service);
+        if (!service) return GLOBAL_KEYS;
         const model = clean(identity?.model);
-        if (!service) return ['global'];
+        const memoKey = `${service}\u0000${model}`;
+        const cached = keyMemo.get(memoKey);
+        if (cached) return cached;
         const serviceSetting = config.serviceRequestLimits?.[service];
         const modelSetting = model ? config.modelRequestLimits?.[service]?.[model] : undefined;
+        let result: readonly string[];
         if (modelSetting?.enabled === true) {
-            const result = [JSON.stringify(['model', service, model])];
-            if (serviceSetting?.enabled === true) result.push(JSON.stringify(['service', service]));
-            return result;
+            const keys = [JSON.stringify(['model', service, model])];
+            if (serviceSetting?.enabled === true) keys.push(JSON.stringify(['service', service]));
+            result = keys;
+        } else {
+            result = serviceSetting?.enabled === true ? [JSON.stringify(['service', service])] : GLOBAL_KEYS;
         }
-        return serviceSetting?.enabled === true ? [JSON.stringify(['service', service])] : ['global'];
+        keyMemo.set(memoKey, result);
+        return result;
     }
 
     function stateFor(key: string): BucketState {
@@ -158,20 +180,27 @@ export function createTranslationRequestScheduler(
     }
 
     function limitFor(key: string, config: TranslationRequestSchedulerConfig): BucketLimit {
-        if (key === 'global') return {
-            concurrency: normalizeMaxConcurrentTranslations(config.maxConcurrentTranslations),
-            perSecond: normalizeTranslationRequestsPerSecond(config.translationRequestsPerSecond),
-            perMinute: normalizeTranslationRequestsPerMinute(config.translationRequestsPerMinute),
-        };
-        const parts = JSON.parse(key) as string[];
-        const [kind, service, model] = parts;
-        const setting = kind === 'service' ? config.serviceRequestLimits?.[service!] : config.modelRequestLimits?.[service!]?.[model!];
-        const limits = normalizeTranslationRequestLimits(setting?.limits);
-        return {
-            concurrency: limits.maxConcurrentTranslations,
-            perSecond: limits.translationRequestsPerSecond,
-            perMinute: limits.translationRequestsPerMinute,
-        };
+        const cached = limitMemo.get(key);
+        if (cached) return cached;
+        let limit: BucketLimit;
+        if (key === 'global') {
+            limit = {
+                concurrency: normalizeMaxConcurrentTranslations(config.maxConcurrentTranslations),
+                perSecond: normalizeTranslationRequestsPerSecond(config.translationRequestsPerSecond),
+                perMinute: normalizeTranslationRequestsPerMinute(config.translationRequestsPerMinute),
+            };
+        } else {
+            const [kind, service, model] = JSON.parse(key) as string[];
+            const setting = kind === 'service' ? config.serviceRequestLimits?.[service!] : config.modelRequestLimits?.[service!]?.[model!];
+            const limits = normalizeTranslationRequestLimits(setting?.limits);
+            limit = {
+                concurrency: limits.maxConcurrentTranslations,
+                perSecond: limits.translationRequestsPerSecond,
+                perMinute: limits.translationRequestsPerMinute,
+            };
+        }
+        limitMemo.set(key, limit);
+        return limit;
     }
 
     function prune(state: BucketState, current: number): void {
@@ -189,9 +218,15 @@ export function createTranslationRequestScheduler(
         if (!countRate) return 0;
         let wait = 0;
         if (limits.perSecond > 0) {
-            const recentSecond = state.starts.filter(value => value > current - 1_000);
-            if (recentSecond.length >= limits.perSecond) {
-                wait = Math.max(wait, recentSecond[recentSecond.length - limits.perSecond]! + 1_000 - current);
+            // starts 按时间非降序（时钟回拨会清空），因此近一秒的记录是它的后缀：
+            // 数出后缀长度即可，不必为每次判定复制一份数组。
+            const threshold = current - 1_000;
+            let recentSecond = 0;
+            for (let index = state.starts.length - 1; index >= 0 && state.starts[index]! > threshold; index -= 1) {
+                recentSecond += 1;
+            }
+            if (recentSecond >= limits.perSecond) {
+                wait = Math.max(wait, state.starts[state.starts.length - limits.perSecond]! + 1_000 - current);
             }
         }
         if (limits.perMinute > 0 && state.starts.length >= limits.perMinute) {
@@ -236,7 +271,8 @@ export function createTranslationRequestScheduler(
             if (!entry || entry.settled) continue;
             // HTTP 重试复用已占用的并发槽，不能被等待该槽的外层任务反向阻塞。
             if (attemptOnly && !entry.attemptOnly) continue;
-            if (keysFor(entry.identity, config).some(key => keys.includes(key))) return true;
+            const priorKeys = keysFor(entry.identity, config);
+            for (const key of priorKeys) if (keys.includes(key)) return true;
         }
         return false;
     }
@@ -290,27 +326,38 @@ export function createTranslationRequestScheduler(
     }
 
     function drain(): void {
-        if (draining) return;
+        if (draining) {
+            drainRequested = true;
+            return;
+        }
         draining = true;
         try {
-            if (timer !== undefined) {
-                clearTimeout(timer);
-                timer = undefined;
-            }
-            const config = currentConfig();
-            const current = readNow();
-            rejectInactive(current);
-            let earliest = Number.POSITIVE_INFINITY;
-            let started = true;
-            while (started) {
-                started = false;
+            // task 可以同步取消较早的等待请求；重入只标记重扫，外层迭代接续，
+            // 不递归增长调用栈，也不等无关的活动请求结束后才释放公平性阻塞。
+            do {
+                drainRequested = false;
+                if (timer !== undefined) {
+                    clearTimeout(timer);
+                    timer = undefined;
+                }
+                const config = currentConfig();
+                resetDrainMemo();
+                const current = readNow();
+                rejectInactive(current);
+                let earliest = Number.POSITIVE_INFINITY;
+                // 启动一个任务只会让 bucket 更满，不可能解锁更早被阻塞的任务，因此
+                // 单次前向扫描即可启动本轮全部可启动任务；原先每启动一个就从队首重扫，
+                // 使公平性检查退化为 O(待处理数²)。
                 for (let index = head; index < pending.length; index += 1) {
                     const entry = pending[index];
                     if (!entry || entry.settled) continue;
                     const keys = keysFor(entry.identity, config);
                     if (hasEarlierSameBucket(index, keys, entry.attemptOnly, config)) continue;
-                    const wait = Math.max(...keys.map(key => waitFor(key, current, config, !entry.attemptOnly, entry.countRate)));
-                    if (wait > 0 || wait === Number.POSITIVE_INFINITY) {
+                    let wait = 0;
+                    for (const key of keys) {
+                        wait = Math.max(wait, waitFor(key, current, config, !entry.attemptOnly, entry.countRate));
+                    }
+                    if (wait > 0) {
                         if (wait < earliest) earliest = wait;
                         continue;
                     }
@@ -321,15 +368,19 @@ export function createTranslationRequestScheduler(
                         if (entry.countRate) state.starts.push(current);
                     }
                     void execute(entry, keys);
-                    started = true;
-                    break;
                 }
-            }
-            compact();
-            const deadlines = pending.slice(head).filter(Boolean).map(entry => entry!.deadlineAt).filter((value): value is number => value !== undefined);
-            const deadlineWait = deadlines.length ? Math.max(0, Math.min(...deadlines) - current) : Number.POSITIVE_INFINITY;
-            const nextWait = Math.min(earliest, deadlineWait);
-            if (nextWait < Number.POSITIVE_INFINITY) arm(nextWait);
+                compact();
+                let nextDeadline = Number.POSITIVE_INFINITY;
+                for (let index = head; index < pending.length; index += 1) {
+                    const deadlineAt = pending[index]?.deadlineAt;
+                    if (deadlineAt !== undefined && deadlineAt < nextDeadline) nextDeadline = deadlineAt;
+                }
+                const deadlineWait = nextDeadline === Number.POSITIVE_INFINITY
+                    ? Number.POSITIVE_INFINITY
+                    : Math.max(0, nextDeadline - current);
+                const nextWait = Math.min(earliest, deadlineWait);
+                if (nextWait < Number.POSITIVE_INFINITY) arm(nextWait);
+            } while (drainRequested);
         } finally {
             draining = false;
         }

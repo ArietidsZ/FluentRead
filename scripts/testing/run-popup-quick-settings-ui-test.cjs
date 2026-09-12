@@ -487,6 +487,22 @@ async function optionsResponsive(context, origin, errors, report, timeoutMs) {
   await fontSize.focus();
   await page.keyboard.press('ArrowLeft');
   await page.waitForFunction(() => document.querySelector('[data-video-subtitle-preview]')?.style.getPropertyValue('--fluent-read-video-subtitle-preview-font-size') === '16.9px');
+  // 预览只证明 Vue 草稿已更新，不能代表异步后台持久化已经完成。
+  // 皮肤选择会产生多个字段保存；短暂读到目标值后仍可能收到前序提交。
+  // 连续确认目标值稳定，再由下方的关闭重开断言验证最终结果。
+  const appearanceDeadline = Date.now() + timeoutMs;
+  let appearanceStableSince = 0;
+  while (Date.now() < appearanceDeadline) {
+    const saved = (await readConfig(page)).videoSubtitleAppearance;
+    if (saved.skin === 'clean' && saved.fontScale === 130) {
+      appearanceStableSince ||= Date.now();
+      if (Date.now() - appearanceStableSince >= 500) break;
+    } else {
+      appearanceStableSince = 0;
+    }
+    await sleep(100);
+  }
+  assert(appearanceStableSince > 0 && Date.now() - appearanceStableSince >= 500, '字幕外观保存未稳定');
   const appearance = (await readConfig(page)).videoSubtitleAppearance;
   assert(appearance.skin === 'clean' && appearance.fontScale === 130, '设置页替换草稿后字幕外观无法保存', appearance);
   report.caseCoverage.subtitleAppearance = {collapsedInitially: true, updatedAfterDraftReplacement: true, skin: appearance.skin, fontScale: appearance.fontScale};

@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/mutationObservation.ts
  * 文件职责：为全文翻译组合 DOM 观察选项，并计算突发变化的扫描边界。
- * 主要内容：保留通用保护和产物完整性属性，合并网站依赖；复杂选择器取消属性过滤，校验合成段身份标记，并按树包含关系合并扫描根。
+ * 主要内容：保留通用保护和产物完整性属性，合并网站依赖；复杂选择器取消属性过滤，校验合成段身份标记，按断言批量判定增删节点，并按树包含关系合并扫描根。
  * 模块边界：仅生成选项和读取传入节点的树关系，不创建 MutationObserver、不读取全局 DOM 或配置。
  */
 import {getSiteAdapterAttributeFilter} from '@/src/core/site-adaptation/compiler';
@@ -35,6 +35,24 @@ export function isOwnSyntheticSegmentMarkerMutation(
         mutation.target === target && mutation.oldValue === null && state.syntheticSegment &&
         state.syntheticHost === target.parentElement && target.getAttribute('data-fr-translation-segment') === 'true' &&
         sourceIsCurrent();
+}
+
+/**
+ * 判断一次 childList 变更的增删节点是否全部满足断言，且至少有一个节点。
+ * mutation 风暴下每条记录都会走到这里，因此不为两份 NodeList 构造中间数组。
+ */
+export function allMutationNodesMatch(
+    mutation: MutationRecord,
+    predicate: (node: Node) => boolean,
+): boolean {
+    let seen = 0;
+    for (const list of [mutation.addedNodes, mutation.removedNodes]) {
+        for (const node of list) {
+            seen += 1;
+            if (!predicate(node)) return false;
+        }
+    }
+    return seen > 0;
 }
 
 /** 脏根合并以真实树包含关系为准，异常或缺失 contains 时不吞掉待扫描根。 */

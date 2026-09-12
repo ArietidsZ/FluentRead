@@ -9,6 +9,7 @@ import {
     createFullPageQueueState,
     noteFullPageScroll,
     queueFullPageCandidate,
+    createFullPageDispatchPlan,
     removeFullPagePending,
     selectNextFullPageCandidate,
     type FullPageQueueState,
@@ -274,5 +275,103 @@ describe('全文翻译候选队列', () => {
             isEligible: () => true,
             resolveSource: () => 'empty-source',
         })).toBeUndefined();
+    });
+    it('派发计划只测量一次布局，按序取出候选并跳过已离队的条目', () => {
+        const {document} = parseHTML('<html><body><p id="a"></p><p id="b"></p><p id="c"></p></body></html>');
+        const first = document.querySelector<HTMLElement>('#a')!;
+        const second = document.querySelector<HTMLElement>('#b')!;
+        const third = document.querySelector<HTMLElement>('#c')!;
+        const measured: HTMLElement[] = [];
+        const measure = (element: HTMLElement, top: number) => {
+            Object.defineProperty(element, 'getBoundingClientRect', {
+                configurable: true,
+                value: () => {
+                    measured.push(element);
+                    return {top, bottom: top + 40};
+                },
+            });
+        };
+        measure(first, 40);
+        measure(second, 200);
+        measure(third, 360);
+
+        const queue = state();
+        const candidates = [first, second, third].map((element) => candidate(element));
+        [first, second, third].forEach((element, index) => {
+            queueFullPageCandidate(queue, element, candidates[index]!, `source-${index}`, 0);
+        });
+
+        const plan = createFullPageDispatchPlan(queue, {
+            now: 1_000,
+            viewportHeight: 600,
+            isEligible: () => true,
+            resolveSource: () => 'unused',
+        });
+        // 三个候选各测量一次；drain 循环中的后续取出不再触发布局读取。
+        expect(measured).toHaveLength(3);
+
+        const firstPick = plan.next();
+        expect(firstPick).toMatchObject({candidate: candidates[0]});
+        removeFullPagePending(queue, firstPick!.key, firstPick!.candidate);
+        queue.inFlightCandidates.set(firstPick!.key, firstPick!.candidate);
+
+        // 计划外的退队（宿主移除、用户取消）不会让后续取出返回失效条目。
+        removeFullPagePending(queue, second, candidates[1]!);
+
+        expect(plan.next()).toMatchObject({candidate: candidates[2]});
+        expect(measured).toHaveLength(3);
+
+        removeFullPagePending(queue, third, candidates[2]!);
+        expect(plan.next()).toBeUndefined();
+    });
+
+    it('派发前复验资格和候选身份，取消过期后台项后不让新后台项抢占前景', () => {
+        const {document} = parseHTML('<html><body><p id="visible"></p><p id="old"></p><p id="new"></p></body></html>');
+        const elements = [...document.querySelectorAll<HTMLElement>('p')];
+        elements.forEach((element, index) => setRect(element, index ? 2_000 + index * 100 : 100));
+        const candidates = elements.map(element => candidate(element));
+        const queue = state();
+        elements.forEach((element, index) => queueFullPageCandidate(queue, element, candidates[index]!, `s-${index}`, index === 1 ? 0 : 8_999));
+        queue.foregroundDispatchesSinceBackground = 8;
+        let eligible = true;
+        const plan = createFullPageDispatchPlan(queue, {
+            now: 9_000, viewportHeight: 600, isEligible: () => eligible, resolveSource: () => 'source',
+        });
+        removeFullPagePending(queue, elements[1]!, candidates[1]!);
+        expect(plan.next()?.candidate).toBe(candidates[0]);
+        // 同 key 换成新的候选后，旧计划不得派发旧对象。
+        queue.pending.set(elements[0]!, candidate(elements[0]!));
+        expect(plan.next()?.candidate).toBe(candidates[2]);
+        eligible = false;
+        expect(plan.next()).toBeUndefined();
+    });
+
+    it('后台候选耗尽时退回最佳前景候选，不让 drain 空转', () => {
+        const {document} = parseHTML('<html><body><p id="visible"></p><p id="stale"></p></body></html>');
+        const visible = document.querySelector<HTMLElement>('#visible')!;
+        const stale = document.querySelector<HTMLElement>('#stale')!;
+        setRect(visible, 100);
+        setRect(stale, 2_000, 2_080);
+        const visibleCandidate = candidate(visible);
+        const staleCandidate = candidate(stale);
+        const queue = state();
+        queue.pending.set(visible, visibleCandidate);
+        queue.pending.set(stale, staleCandidate);
+        queue.pendingMetadata.set(stale, {source: 'stale', queuedAt: 0, sequence: 1});
+        queue.pendingMetadata.set(visible, {source: 'visible', queuedAt: 0, sequence: 2});
+        queue.foregroundDispatchesSinceBackground = 8;
+
+        const plan = createFullPageDispatchPlan(queue, {
+            now: 9_000,
+            viewportHeight: 600,
+            isEligible: () => true,
+            resolveSource: () => 'unused',
+        });
+        // 配额用满时先补上等待过久的后台候选。
+        expect(plan.next()).toMatchObject({candidate: staleCandidate});
+        removeFullPagePending(queue, stale, staleCandidate);
+        queue.inFlightCandidates.set(stale, staleCandidate);
+        // 后台候选已用尽，仍应继续派发可见候选而不是提前结束本轮 drain。
+        expect(plan.next()).toMatchObject({candidate: visibleCandidate});
     });
 });

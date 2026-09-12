@@ -257,6 +257,30 @@ describe('translation request scheduler', () => {
         expect(started).toEqual(['a', 'b']);
     });
 
+    it('后续服务同步取消阻塞队首时，立即重新派发已越过的可运行模型', async () => {
+        const limits = {maxConcurrentTranslations: 1, translationRequestsPerSecond: 0, translationRequestsPerMinute: 0};
+        const scheduler = createTranslationRequestScheduler(() => ({
+            ...limits,
+            serviceRequestLimits: {svc: {enabled: true, limits: {...limits, maxConcurrentTranslations: 2}}},
+            modelRequestLimits: {svc: {a: {enabled: true, limits}, b: {enabled: true, limits}}},
+        }));
+        const activeGate = deferred<void>();
+        const laterGate = deferred<void>();
+        const active = scheduler.schedule(async () => activeGate.promise, {identity: {service: 'svc', model: 'a'}});
+        const cancel = new AbortController();
+        const blocked = scheduler.schedule(async () => 'never', {identity: {service: 'svc', model: 'a'}, signal: cancel.signal});
+        const blockedOutcome = blocked.catch(error => error);
+        const started: string[] = [];
+        const ready = scheduler.schedule(async () => {started.push('ready');}, {identity: {service: 'svc', model: 'b'}});
+        const later = scheduler.schedule(async () => {cancel.abort(); return laterGate.promise;}, {identity: {service: 'other'}});
+        await flushMicrotasks();
+        // 两个活动请求都没结束，没有新的 timer 或 promise settlement 替它再次唤醒。
+        expect(started).toEqual(['ready']);
+        expect(await blockedOutcome).toMatchObject({name: 'AbortError'});
+        activeGate.resolve(); laterGate.resolve();
+        await Promise.all([active, ready, later]);
+    });
+
     it('真实 HTTP attempt 可越过同 bucket 的等待 provider，且仍在 attempt 间保持 FIFO', async () => {
         const scheduler = createTranslationRequestScheduler(() => ({
             maxConcurrentTranslations: 1, translationRequestsPerSecond: 1, translationRequestsPerMinute: 0,

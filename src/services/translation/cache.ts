@@ -77,11 +77,14 @@ export function buildTranslationCacheKey(identity: TranslationCacheIdentity): st
   return `v${TRANSLATION_CACHE_VERSION}:${digest}`;
 }
 
+// 每次写缓存都要量两个字符串。可用性仍按调用时检查（无痕/精简环境可能没有
+// TextEncoder），但实例本身可复用，不必为此反复构造。
+let byteSizeEncoder: TextEncoder | undefined;
+
 function getByteSize(value: string): number {
-  if (typeof TextEncoder !== 'undefined') {
-    return new TextEncoder().encode(value).byteLength;
-  }
-  return value.length * 2;
+  if (typeof TextEncoder === 'undefined') return value.length * 2;
+  byteSizeEncoder ??= new TextEncoder();
+  return byteSizeEncoder.encode(value).byteLength;
 }
 
 interface TranslationCacheTotals {
