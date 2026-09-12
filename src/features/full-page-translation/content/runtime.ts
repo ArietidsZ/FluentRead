@@ -2,7 +2,7 @@
  * @file src/features/full-page-translation/content/runtime.ts
  * 文件职责：实现全文翻译的页面级会话引擎，负责候选发现、可见性调度、批量请求、动态 DOM 重扫、失败重试、缓存复用和恢复原文。
  * 主要内容：维护 FullPageSession、AbortController、Intersection/Mutation 观察器、弹窗优先调度、精确属性写入过滤、候选所有权和生命周期重试；冻结配置与识别范围，在弹窗关闭后继续正文，按实际节点阶段发布进度及工具栏结果。
- * 模块边界：这是 content 侧编排层，不实现 provider 协议、纯候选算法或底层状态存储；翻译调用经 app client，发现规则来自 core/translation，渲染与状态分别交给 renderer 和 state。
+ * 模块边界：这是 content 侧编排层，不实现 provider 协议、纯候选算法或底层状态存储；翻译调用经 app client，发现规则来自 core/translation，渲染与状态分别交给 renderer、liveTextRender 和 state。
  */
 import {resolveTranslationToolbarStatus, countFullPageTranslationWork} from '../toolbarStatus';
 import {getFullPageTranslationStateRevision, notifyFullPageTranslationState, notifyTranslationToolbarStatus} from './stateNotification';
@@ -47,8 +47,8 @@ import {
 import {
     appendBilingualTranslation,
     materializeCandidate,
-    appendSingleTranslationSlots,
 } from "@/src/features/full-page-translation/content/renderer";
+import {renderLiveTextResult} from "@/src/features/full-page-translation/content/liveTextRender";
 import {ensureTranslationTruncationLayout} from "@/src/features/full-page-translation/content/layout";
 import {blocksBilingualRemountCandidate, createBilingualRemountCapitulationRegistry,
     createRemovedTranslationOwnerResolver, forgetBilingualRemountCandidate, stabilizeBilingualArtifact,
@@ -76,10 +76,7 @@ import {
     setBilingualOwnerRemountHandler,
     setRenderedStyleAttribute,
     setRetryWrapper,
-    setLiveTranslationSourceSnapshot,
-    setSingleTextSlotHosts,
     setSpinner,
-    setTextSlotsApplied,
     isTranslationLayoutOverrideMutation,
     type TranslationState,
 } from "@/src/features/full-page-translation/content/state";
@@ -116,7 +113,6 @@ import {
     isTranslationArtifact,
     mutationTouchesCurrentTranslationArtifact,
     normalizeComparableText,
-    reboundLiveTextResult,
     statefulSourceAndTextSlotsAreCurrent,
 } from '@/src/features/full-page-translation/content/translationStability';
 import {
@@ -401,49 +397,14 @@ async function renderTranslation(
         if (!node.isConnected || !attemptSourceIsCurrent(node, state) ||
             (!candidate.nodes?.length && !candidateIsCurrent(candidate))) return staleOutcome();
 
-        if (result.kind === "live-text") {
-            const liveResult = result;
-            if (!liveResult.complete) {
-                withFullPageViewportAnchor(() => discardTranslation(node, state), [node]);
-                return {status: "empty", retryRoot: node.isConnected ? node : undefined, attemptNode: node};
-            }
-            if (!liveResult.changed) {
-                withFullPageViewportAnchor(() => discardTranslation(node, state), [node]);
-                return liveResult.nodes.length === 0
-                    ? {status: "empty", retryRoot: node.isConnected ? node : undefined, attemptNode: node}
-                    : {status: "unchanged", source: state.sourceText, attemptNode: node};
-            }
-            const currentNodes = getCurrentTranslationStateTextNodes(node, state);
-            const currentParts = collectLiveTranslationTextSlots(
-                node,
-                getCurrentTranslationCore(candidate.scope).shouldStayOriginal,
-                getTranslationStateProtectionBoundary(node, state),
-                getTranslationTextProtectionOptions(state.allowTopLevelApplicationShell, node),
-            );
-            const rebound = reboundLiveTextResult(currentNodes, liveResult, currentParts);
-            if (!rebound) return staleOutcome();
-            if (!markTranslationComplete(node, state, generation, false)) {
-                return staleOutcome();
-            }
-            setLiveTranslationSourceSnapshot(node, rebound.nodes);
-            if (state.mode === "single" && state.kind === "content") {
-                const hosts = withFullPageViewportAnchor(() =>
-                    appendSingleTranslationSlots(node, rebound.slots, {
-                        targetLanguage: snapshot.targetLanguage,
-                    }), [node]);
-                if (hosts.length !== rebound.slots.length) return staleOutcome();
-                setSingleTextSlotHosts(node, hosts);
-            } else {
-                withFullPageViewportAnchor(() => {
-                    currentParts.forEach((part, index) => {
-                        if (part.node.isConnected) {
-                            part.node.nodeValue = `${part.prefix}${liveResult.translations[index] ?? part.source}${part.suffix}`;
-                        }
-                    });
-                }, [node]);
-                setTextSlotsApplied(node, rebound.nodes);
-            }
-            return {status: "committed"};
+        // 交互控件、仅译文正文和按钮属性共用替换式渲染；提交细节由渲染模块负责。
+        if (result.kind === "control-value" || result.kind === "live-text") {
+            const commit = renderLiveTextResult(node, state, generation, result,
+                candidate.scope, snapshot.targetLanguage);
+            if (commit === "committed") return {status: "committed"};
+            if (commit === "stale") return staleOutcome();
+            if (commit === "unchanged") return {status: "unchanged", source: state.sourceText, attemptNode: node};
+            return {status: "empty", retryRoot: node.isConnected ? node : undefined, attemptNode: node};
         }
 
         if (result.sources.length === 0 || result.translations.length !== result.sources.length) {

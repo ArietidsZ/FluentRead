@@ -102,6 +102,7 @@
       "tests/interfaceFonts.test.ts",
       "tests/usePopupLayoutReorder.test.ts",
       "tests/legacyPageCache.test.ts",
+      "tests/liveTextRender.test.ts",
       "tests/liveTextTranslation.test.ts",
       "tests/model.test.ts",
       "tests/modelOptions.test.ts",

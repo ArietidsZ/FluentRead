@@ -28,6 +28,7 @@ export {
     getElementTagName,
     getComposedParent,
     getOpenShadowRoots,
+    getTranslatableControlValueAttribute,
     isProtectedDescendantElement,
     isTopLevelApplicationShell,
 } from './dom';
@@ -40,6 +41,7 @@ export {
     getMinimumTranslationTextLength,
     isMeaningfulTranslationText,
     isTranslationTextElementProtected,
+    normalizeTranslationText,
     setMinimumTranslationTextLength,
 } from './text';
 export type {TranslationTextProtectionCache} from './text';

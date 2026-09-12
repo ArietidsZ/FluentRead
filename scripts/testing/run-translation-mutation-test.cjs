@@ -16,6 +16,12 @@ const {assertFreshProductionExtension} = require('../run-site-translation-test.c
 const root = path.resolve(__dirname, '../..');
 const ownedSelector = '.fluent-read-bilingual-content, .fluent-read-single-slot';
 const controlsSelector = '#merge-button, #merge-menu, #save-button, #menu-action, #split-button';
+// 统一替换式按钮语义的回归对象：按钮型 input 的标签在 value 属性上，按钮化链接、
+// 表单标签、ARIA 控件和自定义可聚焦控件的标签在文本节点上，三类都必须只出译文。
+const buttonFormsSelector = '#submit-anonymous, #button-input, #reset-input, #button-link,' +
+  ' #hint-link, #upload-label, #custom-action, #preview-tab';
+// 参与表单提交的具名 submit 和用户输入内容必须原样保留。
+const untouchedFormsSelector = '#submit-named, #text-input';
 
 function parseArgs(argv) {
   const result = {timeout: 30000, display: 'secondary', browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'};
@@ -35,7 +41,7 @@ function parseArgs(argv) {
 }
 
 async function installTracker(page) {
-  await page.evaluate(({ownedSelector, controlsSelector}) => {
+  await page.evaluate(({ownedSelector, controlsSelector, buttonFormsSelector, untouchedFormsSelector}) => {
     const ids = new WeakMap();
     let nextId = 0;
     const id = node => { if (!ids.has(node)) ids.set(node, ++nextId); return ids.get(node); };
@@ -71,7 +77,16 @@ async function installTracker(page) {
             height: bounds.height, ranges, wrappers: node.querySelectorAll('.fluent-read-bilingual-content').length,
             segments: node.querySelectorAll('[data-fr-translation-segment="true"]').length, clickCount: node.dataset.clickCount};
         });
-        return {url: location.href, at: Date.now(), controls, hostFocusDecorations: window.hostFocusDecorations || 0,
+        const formSnapshot = selector => [...document.querySelectorAll(selector)].map(node => ({
+          id: node.id, tag: node.tagName.toLowerCase(), value: node.getAttribute('value'),
+          text: node.textContent.replace(/\s+/g, ' ').trim(), html: node.outerHTML,
+          height: Math.round(node.getBoundingClientRect().height),
+          wrappers: node.querySelectorAll('.fluent-read-bilingual-content').length,
+          segments: node.querySelectorAll('[data-fr-translation-segment="true"]').length,
+        }));
+        return {url: location.href, at: Date.now(), controls,
+          buttonForms: formSnapshot(buttonFormsSelector), untouchedForms: formSnapshot(untouchedFormsSelector),
+          hostFocusDecorations: window.hostFocusDecorations || 0,
           owned: [...document.querySelectorAll(ownedSelector)].map(node => ({identity: id(node), tag: node.className,
             parentId: node.parentElement?.id, text: node.textContent, translate: node.getAttribute('translate'),
             translationLabel: node.getAttribute('aria-label'),
@@ -81,7 +96,7 @@ async function installTracker(page) {
           singleHtml: document.querySelector('#single-prose')?.innerHTML};
       },
     };
-  }, {ownedSelector, controlsSelector});
+  }, {ownedSelector, controlsSelector, buttonFormsSelector, untouchedFormsSelector});
 }
 
 async function main() {
@@ -254,6 +269,24 @@ async function main() {
             assert.equal(await page.locator(`#${control.id}`).getAttribute('data-click-count'), '1');
           }
           assert.equal(result.stable.controls.find(control => control.id === 'merge-button').text, '合并拉取请求');
+
+          // 所有按钮形态统一采用替换式译文：不插入双语块，不合成正文段，不撑出第二行。
+          const hasChinese = value => /[\u3400-\u9fff]/u.test(value || '');
+          assert.equal(result.stable.buttonForms.length, 8);
+          for (const form of result.stable.buttonForms) {
+            assert.equal(form.wrappers, 0, `${form.id}: 按钮中不应增加双语块`);
+            assert.equal(form.segments, 0, `${form.id}: 按钮中不应合成正文段`);
+            assert.equal(form.height, 32, `${form.id}: 按钮译文撑破了固定高度`);
+            const label = form.tag === 'input' ? form.value : form.text;
+            assert.ok(hasChinese(label), `${form.id}: 按钮标签未替换为译文（${label}）`);
+          }
+          // 具名 submit 的 value 会随表单提交，输入框 value 是用户数据，二者都必须原样保留。
+          // 只核对标签与译文工件：布局租约会在同层表单控件上留下空 style 属性，属于既有行为。
+          for (const form of result.stable.untouchedForms) {
+            const original = result.before.untouchedForms.find(item => item.id === form.id);
+            assert.equal(form.value, original.value, `${form.id}: 参与提交或承载用户输入的 value 被改写`);
+            assert.equal(form.wrappers + form.segments, 0, `${form.id}: 表单控件中出现了译文工件`);
+          }
         }
         await toggle(page);
         await page.waitForFunction(selector => document.querySelectorAll(selector).length === 0, ownedSelector, {timeout: args.timeout});
@@ -265,6 +298,13 @@ async function main() {
         for (const control of result.restored.controls) {
           assert.equal(control.html, result.before.controls.find(original => original.id === control.id).html);
         }
+        for (const form of [...result.restored.buttonForms, ...result.restored.untouchedForms]) {
+          const original = [...result.before.buttonForms, ...result.before.untouchedForms]
+            .find(item => item.id === form.id);
+          assert.equal(form.value, original.value, `${form.id}: 恢复原文后未回到原始按钮标签`);
+          assert.equal(form.text, original.text, `${form.id}: 恢复原文后仍残留译文`);
+          assert.equal(form.wrappers + form.segments, 0, `${form.id}: 恢复原文后仍残留译文工件`);
+        }
         await toggle(page);
         await page.waitForFunction(({selector, count}) => document.querySelectorAll(selector).length === count,
           {selector: ownedSelector, count: result.first.owned.length}, {timeout: args.timeout});
@@ -272,6 +312,12 @@ async function main() {
         result.retranslated = await snapshot(page);
         assert.equal(result.retranslated.url, item.url);
         assert.equal(result.retranslated.nested, 0);
+        for (const form of result.retranslated.buttonForms) {
+          const first = result.first.buttonForms.find(original => original.id === form.id);
+          assert.equal(form.tag === 'input' ? form.value : form.text,
+            first.tag === 'input' ? first.value : first.text, `${form.id}: 再次翻译的标签不一致`);
+          assert.equal(form.height, 32, `${form.id}: 再次翻译后撑破了固定高度`);
+        }
         for (const control of result.retranslated.controls) {
           const first = result.first.controls.find(original => original.id === control.id);
           assert.equal(control.identity, first.identity);
